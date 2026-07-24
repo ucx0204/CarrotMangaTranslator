@@ -3,9 +3,6 @@ import type {
   LibraryIndex,
   MangaPage,
 } from "../../shared/libraryTypes";
-import type { SavePageBlocksRequest } from "../../shared/shareTypes";
-import { hashTranslationBlocks } from "../../shared/blockFingerprint";
-import { normalizeBlockType } from "../../shared/geometry";
 import { hydrateChapter } from "./chapterSnapshots";
 import {
   reorderIds,
@@ -31,15 +28,7 @@ import {
 } from "./libraryFiles";
 import { unlinkIfExists } from "./storage";
 import { sanitizeTitle } from "./titles";
-import { logLibraryWarning } from "./libraryLogger";
 import { syncChapterStoryMemoryPages } from "./workContextFiles";
-
-export { appendAnalyzedPageBlocksUnlocked } from "./libraryAnalysisMutations";
-export {
-  setPageInpaintingResultUnlocked,
-  updatePagesAfterInpaintingUnlocked,
-  type InpaintingArtifactCleanupOptions,
-} from "./libraryInpaintingMutations";
 
 export type PageAnalysisUpdate = {
   expectedUpdatedAt?: string;
@@ -50,78 +39,6 @@ export type PageAnalysisUpdate = {
 
 const ANALYSIS_UPDATE_CONFLICT_MESSAGE =
   "사용자 편집으로 자동 번역 결과를 적용하지 않았습니다.";
-
-export async function savePageBlocksUnlocked(
-  request: SavePageBlocksRequest,
-): Promise<ChapterSnapshot> {
-  const locator = await findChapterLocation(request.chapterId);
-  if (!locator) {
-    throw new Error("저장할 화를 찾지 못했습니다.");
-  }
-  const chapter = await readChapterFile(locator.workId, locator.chapterId);
-  if (!chapter) {
-    throw new Error("저장할 화를 찾지 못했습니다.");
-  }
-  const page = chapter.pages.find(
-    (candidate) => candidate.id === request.pageId,
-  );
-  if (!page) {
-    throw new Error("저장할 페이지를 찾지 못했습니다.");
-  }
-  const currentBlocksHash = hashTranslationBlocks(page.blocks);
-  if (
-    request.baseUpdatedAt &&
-    page.updatedAt !== request.baseUpdatedAt &&
-    !canRebasePageBlockSave(currentBlocksHash, request)
-  ) {
-    logLibraryWarning("Page block save conflict", {
-      chapterId: request.chapterId,
-      pageId: request.pageId,
-      baseUpdatedAt: request.baseUpdatedAt,
-      currentUpdatedAt: page.updatedAt,
-      baseBlocksHash: request.baseBlocksHash,
-      currentBlocksHash,
-      dirtyVersion: request.dirtyVersion,
-      saveReason: request.saveReason,
-    });
-    throw new Error(
-      "페이지가 다른 작업으로 갱신되었습니다. 최신 내용을 다시 불러온 뒤 저장해 주세요.",
-    );
-  }
-
-  const now = new Date().toISOString();
-  const pages = chapter.pages.map((candidate) =>
-    candidate.id === request.pageId
-      ? {
-          ...candidate,
-          blocks: request.blocks.map((block) => ({
-            ...block,
-            type: normalizeBlockType(block.type),
-          })),
-          updatedAt: now,
-        }
-      : candidate,
-  );
-  const nextChapter: ChapterFile = {
-    ...chapter,
-    pages,
-    status: resolveChapterStatus(pages),
-    updatedAt: now,
-  };
-  await writeChapterFile(nextChapter);
-  await touchWork(locator.workId, now);
-  return hydrateChapter(nextChapter);
-}
-
-function canRebasePageBlockSave(
-  currentBlocksHash: string,
-  request: SavePageBlocksRequest,
-): boolean {
-  return (
-    Boolean(request.baseBlocksHash) &&
-    currentBlocksHash === request.baseBlocksHash
-  );
-}
 
 export async function renameWorkUnlocked(
   workId: string,

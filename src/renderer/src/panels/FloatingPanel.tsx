@@ -1,6 +1,6 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { IconButton } from "../components/ui";
+import { IconButton } from "../components/ui/IconButton";
 import { DockIcon } from "../components/ui/icons";
 import { useFloatingPanelDrag } from "./useFloatingPanelDrag";
 

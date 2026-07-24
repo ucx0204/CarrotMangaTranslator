@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { BUILT_IN_BLOCK_FONTS } from "../src/shared/blockFontCatalog";
 
@@ -16,6 +16,31 @@ type BundledFontManifest = {
 
 const ROOT = process.cwd();
 const MANIFEST_PATH = join(ROOT, "third_party", "fonts", "manifest.json");
+const RENDERER_STYLES_PATH = join(ROOT, "src", "renderer", "src", "styles.css");
+
+function readImportedStylesheets(rootPath: string) {
+  const rootSource = readFileSync(rootPath, "utf8");
+  return [...rootSource.matchAll(/^@import "([^"]+)";$/gm)].map((match) => {
+    const path = resolve(dirname(rootPath), match[1]);
+    return { path, source: readFileSync(path, "utf8") };
+  });
+}
+
+function readBundledFontFaces() {
+  const faces = new Map<string, string>();
+  for (const stylesheet of readImportedStylesheets(RENDERER_STYLES_PATH)) {
+    for (const match of stylesheet.source.matchAll(
+      /@font-face\s*\{([^}]+)\}/g,
+    )) {
+      const family = /font-family:\s*"([^"]+)"/.exec(match[1])?.[1];
+      const url = /src:\s*url\("([^"]+)"\)/.exec(match[1])?.[1];
+      if (family && url) {
+        faces.set(family, resolve(dirname(stylesheet.path), url));
+      }
+    }
+  }
+  return faces;
+}
 
 describe("bundled multilingual font assets", () => {
   it("keeps every catalog entry, font face, checksum, and license in sync", () => {
@@ -25,10 +50,7 @@ describe("bundled multilingual font assets", () => {
     const multilingualCatalog = BUILT_IN_BLOCK_FONTS.filter(
       (font) => font.locale !== "ko",
     );
-    const styles = readFileSync(
-      join(ROOT, "src", "renderer", "src", "styles.css"),
-      "utf8",
-    );
+    const fontFaces = readBundledFontFaces();
 
     expect(manifest.fonts).toHaveLength(24);
     expect(manifest.fonts.map((font) => font.id)).toEqual(
@@ -53,8 +75,7 @@ describe("bundled multilingual font assets", () => {
 
       const cssAlias = catalogEntry?.cssFamily.match(/^"([^"]+)"/)?.[1];
       expect(cssAlias).toBeTruthy();
-      expect(styles).toContain(`font-family: "${cssAlias}"`);
-      expect(styles).toContain(entry.file.replace("src/renderer/src/", "./"));
+      expect(fontFaces.get(cssAlias ?? "")).toBe(resolve(fontPath));
 
       const licenseDir = join(ROOT, "third_party", "fonts", entry.id);
       expect(existsSync(licenseDir), licenseDir).toBe(true);

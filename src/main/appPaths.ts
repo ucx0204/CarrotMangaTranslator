@@ -45,11 +45,24 @@ type ModelCachePaths = Pick<
   "hfHomeDir" | "hfHubCacheDir" | "llamaCacheDir"
 >;
 
+let cachedAppPaths: AppPaths | null = null;
+
 function isRunningPackaged(): boolean {
   return app.isPackaged || __dirname.includes("app.asar");
 }
 
+/**
+ * App paths are process-scoped startup configuration. Bootstrap configures
+ * Electron storage before loading the main entry, so resolving this snapshot
+ * once avoids repeating synchronous runtime discovery in library and log hot
+ * paths while preserving an explicit getter at call sites.
+ */
 export function getAppPaths(): AppPaths {
+  cachedAppPaths ??= resolveAppPaths();
+  return cachedAppPaths;
+}
+
+function resolveAppPaths(): AppPaths {
   const roots = resolveAppPathRoots();
   const libraryDir = resolveWritableDataDir(roots, "library");
   const logsDir = resolveWritableDataDir(roots, "logs");
@@ -245,7 +258,10 @@ export function ensureWritableAppDirectories(): AppPaths {
   return paths;
 }
 
-function migrateLegacyPackagedData(paths: AppPaths): void {
+export function migrateLegacyPackagedData(
+  paths: AppPaths,
+  legacyUserDataRoots: readonly string[] = legacyAppDataRoots(),
+): void {
   if (!paths.isPackaged) {
     return;
   }
@@ -260,7 +276,7 @@ function migrateLegacyPackagedData(paths: AppPaths): void {
     copyDirectoryContentsIfMissing(legacyDataRoot, paths.dataRoot);
   }
 
-  for (const legacyDataRoot of legacyAppDataRoots()) {
+  for (const legacyDataRoot of legacyUserDataRoots) {
     if (
       resolve(legacyDataRoot) === resolve(paths.dataRoot) ||
       !existsSync(legacyDataRoot)

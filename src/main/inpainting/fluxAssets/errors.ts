@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { sanitizeFluxRuntimeStderr } from "../fluxWorker";
+import { sanitizeFluxRuntimeStderr } from "../fluxWorkerErrors";
 
 export async function runCommand(
   command: string,

@@ -7,6 +7,7 @@ import type { BlockFormatDefaults } from "./blockFormat";
 import type { CodexReasoningEffort } from "./codexSettings";
 import type { TranslationLanguageSettings } from "./translationLanguages";
 import type { UiLocale } from "./uiLocales";
+import type { KeybindingOverrides } from "./shortcutSettings";
 
 export type {
   FluxBackend,
@@ -134,15 +135,6 @@ type InpaintingSettings = {
   /** Explicit Alpha opt-in for Flux Metal below the recommended 16 GiB. */
   allowUnsafeLowMemoryFlux?: boolean;
 };
-
-/**
- * User overrides for keyboard shortcuts, keyed by shortcut action id.
- * Value is a normalized combo string (e.g. "ctrl+shift+b", "delete", "1");
- * an empty string means the action is intentionally unbound. Actions absent
- * from this map fall back to their built-in default combo (defined in the
- * renderer's shortcutActions registry).
- */
-export type KeybindingOverrides = Record<string, string>;
 
 export type AppSettings = {
   modelProvider: ModelProvider;

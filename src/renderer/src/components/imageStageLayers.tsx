@@ -2,20 +2,24 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import type { BBox } from "../../../shared/textTypes";
 import type { MangaPage } from "../../../shared/libraryTypes";
-import type { DragHud } from "../hooks/useWorkspacePointerHandlers";
 import type { ViewportSize } from "../lib/overlayLayout";
-import { OverlayBlock } from "./OverlayBlock";
+import {
+  useBlockCreateRectPreview,
+  useRegionSelectionRectPreview,
+} from "../lib/workspaceInteractionPreview";
 import type { ImageStageProps, RetouchStageModel } from "./imageStageTypes";
 
-export function StageImage({
-  imageDataUrl,
-  imageRef,
-  page,
-}: {
+type StageImageProps = {
   imageDataUrl: string;
   imageRef: React.RefObject<HTMLImageElement | null>;
   page: MangaPage;
-}): React.JSX.Element {
+};
+
+export const StageImage = React.memo(function StageImage({
+  imageDataUrl,
+  imageRef,
+  page,
+}: StageImageProps): React.JSX.Element {
   const { t } = useTranslation("components");
   return imageDataUrl ? (
     <img
@@ -33,88 +37,33 @@ export function StageImage({
       {t("imageStage.loadingImage")}
     </div>
   );
-}
+}, areStageImagePropsEqual);
 
-export function OverlayBlockLayer({
-  blockPointerDisabled,
-  imageDataUrl,
-  onBlockPointerDown,
-  page,
-  selectedBlockId,
-  selectedBlockIds,
-  showBlockChrome,
-  showTextBlocks,
-  stageTool,
-  stageSize,
-  textLayoutStageSize,
-}: Pick<
-  ImageStageProps,
-  | "blockPointerDisabled"
-  | "imageDataUrl"
-  | "onBlockPointerDown"
-  | "page"
-  | "selectedBlockId"
-  | "selectedBlockIds"
-  | "showBlockChrome"
-  | "showTextBlocks"
-  | "stageTool"
-  | "stageSize"
-  | "textLayoutStageSize"
->): React.JSX.Element | null {
-  if (!imageDataUrl || !stageSize) {
-    return null;
-  }
-  const visibleBlocks = showTextBlocks
-    ? page.blocks
-    : page.blocks.filter((block) => block.inpaintExcluded);
-  const multiSelection = selectedBlockIds && selectedBlockIds.length > 1;
-  const multiSelectedIds = multiSelection ? new Set(selectedBlockIds) : null;
+function areStageImagePropsEqual(
+  previous: StageImageProps,
+  next: StageImageProps,
+): boolean {
   return (
-    <>
-      {visibleBlocks.map((block) => (
-        <OverlayBlock
-          key={block.id}
-          block={block}
-          pageSize={{ width: page.width, height: page.height }}
-          stageSize={stageSize}
-          selected={block.id === selectedBlockId}
-          multiSelected={multiSelectedIds?.has(block.id) ?? false}
-          showChrome={showBlockChrome}
-          textLayoutStageSize={textLayoutStageSize}
-          pointerDisabled={!showTextBlocks || (blockPointerDisabled ?? false)}
-          textVisible={showTextBlocks}
-          transformMode={
-            block.id === selectedBlockId &&
-            (stageTool === "select" ||
-              stageTool === "perspective" ||
-              stageTool === "curve")
-              ? stageTool
-              : undefined
-          }
-          onPointerDown={(event) => onBlockPointerDown(event, block, "move")}
-          onResizePointerDown={(event) =>
-            onBlockPointerDown(event, block, "resize")
-          }
-          onTransformPointerDown={(event, mode) =>
-            onBlockPointerDown(event, block, mode)
-          }
-        />
-      ))}
-    </>
+    previous.imageDataUrl === next.imageDataUrl &&
+    previous.imageRef === next.imageRef &&
+    previous.page.id === next.page.id &&
+    previous.page.name === next.page.name
   );
 }
 
-export function CommittedMaskLayer({
-  imageDataUrl,
-  page,
-  retouchModel,
-  stageSize,
-}: {
+type CommittedMaskLayerProps = {
   imageDataUrl: string;
   page: MangaPage;
   retouchModel: RetouchStageModel;
   stageSize: ViewportSize | null;
-}): React.JSX.Element | null {
+};
+
+export const CommittedMaskLayer = React.memo(function CommittedMaskLayer({
+  imageDataUrl,
+  page,
+  retouchModel,
+  stageSize,
+}: CommittedMaskLayerProps): React.JSX.Element | null {
   if (
     !imageDataUrl ||
     !stageSize ||
@@ -142,9 +91,24 @@ export function CommittedMaskLayer({
       ))}
     </svg>
   );
+}, areCommittedMaskLayerPropsEqual);
+
+function areCommittedMaskLayerPropsEqual(
+  previous: CommittedMaskLayerProps,
+  next: CommittedMaskLayerProps,
+): boolean {
+  return (
+    previous.imageDataUrl === next.imageDataUrl &&
+    previous.page.height === next.page.height &&
+    previous.page.id === next.page.id &&
+    previous.page.width === next.page.width &&
+    previous.retouchModel === next.retouchModel &&
+    previous.stageSize?.height === next.stageSize?.height &&
+    previous.stageSize?.width === next.stageSize?.width
+  );
 }
 
-export function RetouchLiveLayer({
+export const RetouchLiveLayer = React.memo(function RetouchLiveLayer({
   retouchCursor,
   retouchOriginalImageDataUrl,
 }: {
@@ -185,29 +149,35 @@ export function RetouchLiveLayer({
       </div>
     </>
   );
-}
+});
 
 /** Region-translate marquee plus the block tool's create marquee. */
-export function StageMarqueeLayers({
-  blockCreateRect = null,
+export const StageMarqueeLayers = React.memo(function StageMarqueeLayers({
   imageDataUrl,
+  interactionPreviewStore,
   regionSelectionActive,
   regionSelectionRect,
   stageSize,
 }: Pick<
   ImageStageProps,
-  | "blockCreateRect"
   | "imageDataUrl"
+  | "interactionPreviewStore"
   | "regionSelectionActive"
   | "regionSelectionRect"
   | "stageSize"
 >): React.JSX.Element {
+  const blockCreateRect = useBlockCreateRectPreview(interactionPreviewStore);
+  const liveRegionSelectionRect = useRegionSelectionRectPreview(
+    interactionPreviewStore,
+  );
+  const resolvedRegionSelectionRect =
+    liveRegionSelectionRect ?? regionSelectionRect;
   return (
     <>
       <RegionSelectionLayer
         imageDataUrl={imageDataUrl}
         regionSelectionActive={regionSelectionActive}
-        regionSelectionRect={regionSelectionRect}
+        regionSelectionRect={resolvedRegionSelectionRect}
         stageSize={stageSize}
       />
       <RegionSelectionLayer
@@ -218,7 +188,7 @@ export function StageMarqueeLayers({
       />
     </>
   );
-}
+});
 
 function RegionSelectionLayer({
   imageDataUrl,
@@ -243,20 +213,6 @@ function RegionSelectionLayer({
       style={resolveRegionSelectionStyle(regionSelectionRect, stageSize)}
     />
   );
-}
-
-export function StageDragHud({
-  dragHud,
-}: {
-  dragHud: DragHud | null;
-}): React.JSX.Element | null {
-  return dragHud ? (
-    <div
-      className={`stage-drag-hud ${dragHud.mode}${dragHud.invalid ? " invalid" : ""}`}
-    >
-      {dragHud.label}
-    </div>
-  ) : null;
 }
 
 function resolveRegionSelectionStyle(

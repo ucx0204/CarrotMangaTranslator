@@ -20,9 +20,14 @@ type RequestBody = JsonRecord & {
 
 const electronModulePath = require.resolve("electron");
 const originalElectronModule = require.cache[electronModulePath];
-const { clearGroupOnlyPageReviewCache } =
+const { clearGroupOnlyPageReviewCache, requestGroupOnlyPageReview } =
   require("../src/main/runtime/transport/group-only-review-request.cjs") as {
     clearGroupOnlyPageReviewCache: () => void;
+    requestGroupOnlyPageReview: (
+      server: JsonRecord & { baseUrl: string },
+      options: JsonRecord & { ocrBboxHints: JsonRecord[] },
+      ocr: { hints: unknown[]; diagnostics: unknown[] },
+    ) => Promise<unknown>;
   };
 
 beforeEach(() => {
@@ -161,6 +166,18 @@ describe("axis-v4 group-only review transport", () => {
         crops: [{ status: "fallback", usedFallback: true }],
       },
     });
+  });
+
+  it("propagates malformed internal review state instead of reporting fallback", async () => {
+    const request = makeRequest();
+    delete request.options.ocrBboxHints[0].reviewFragmentId;
+
+    await expect(
+      requestGroupOnlyPageReview(request.server, request.options, {
+        hints: request.options.ocrBboxHints,
+        diagnostics: [],
+      }),
+    ).rejects.toThrow(/missing reviewFragmentId/);
   });
 
   it("repairs only malformed block ids while preserving valid initial translations", async () => {

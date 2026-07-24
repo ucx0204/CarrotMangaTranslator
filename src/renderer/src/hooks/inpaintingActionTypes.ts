@@ -1,8 +1,8 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { InpaintingMaskStroke } from "../../../shared/inpaintingTypes";
 import type { JobState } from "../../../shared/jobTypes";
-import { formatErrorMessage } from "../lib/appHelpers";
-import type { ChapterSnapshot, MangaPage } from "./hookLibraryTypes";
+import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
+import { formatErrorMessage } from "../lib/errorPresentation";
 import type { WorkspaceHistoryController } from "./useWorkspaceHistory";
 
 export type InpaintingScope = "page" | "chapter";

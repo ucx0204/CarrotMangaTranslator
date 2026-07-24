@@ -12,6 +12,7 @@ const { dirname, join, resolve } = require("node:path");
 
 const root = join(__dirname, "..");
 const preloadOutDir = join(root, "out", "preload");
+const generatedOutDirNames = ["main", "shared", "preload"];
 
 /**
  * @typedef {{
@@ -55,12 +56,18 @@ function nodeBin(packageName, ...parts) {
   return join(root, "node_modules", packageName, ...parts);
 }
 
-function cleanPreloadOutDir() {
-  const resolvedOutDir = resolve(preloadOutDir);
-  const expectedOutDir = resolve(root, "out", "preload");
-  if (resolvedOutDir !== expectedOutDir) {
+/**
+ * @param {string} projectRoot
+ * @param {string} outputDir
+ */
+function cleanGeneratedOutDir(projectRoot, outputDir) {
+  const resolvedOutDir = resolve(outputDir);
+  const expectedOutDirs = generatedOutDirNames.map((name) =>
+    resolve(projectRoot, "out", name),
+  );
+  if (!expectedOutDirs.includes(resolvedOutDir)) {
     throw new Error(
-      `Refusing to clean unexpected preload output: ${preloadOutDir}`,
+      `Refusing to clean unexpected generated output: ${outputDir}`,
     );
   }
   if (!existsSync(resolvedOutDir)) {
@@ -69,6 +76,16 @@ function cleanPreloadOutDir() {
   for (const entry of readdirSync(resolvedOutDir)) {
     removePath(resolve(resolvedOutDir, entry));
   }
+}
+
+/** @param {string} [projectRoot] */
+function cleanElectronTypeScriptOutDirs(projectRoot = root) {
+  cleanGeneratedOutDir(projectRoot, join(projectRoot, "out", "main"));
+  cleanGeneratedOutDir(projectRoot, join(projectRoot, "out", "shared"));
+}
+
+function cleanPreloadOutDir() {
+  cleanGeneratedOutDir(root, preloadOutDir);
 }
 
 /** @param {string} targetPath */
@@ -128,15 +145,28 @@ function isBuildOutput(value) {
 }
 
 async function main() {
+  cleanElectronTypeScriptOutDirs();
   run(process.execPath, [
     nodeBin("typescript", "bin", "tsc"),
     "-p",
     "tsconfig.electron.json",
   ]);
   await bundlePreload();
+  run(process.execPath, [
+    nodeBin("vite", "bin", "vite.js"),
+    "build",
+    "--config",
+    "vite.page-export.config.ts",
+  ]);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+module.exports = {
+  cleanElectronTypeScriptOutDirs,
+};
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}

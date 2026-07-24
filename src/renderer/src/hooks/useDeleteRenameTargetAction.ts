@@ -1,9 +1,9 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { formatErrorMessage } from "../lib/appHelpers";
+import { formatErrorMessage } from "../lib/errorPresentation";
 import type { RenameTarget } from "../lib/libraryRenameTypes";
-import { libraryGateway } from "./libraryGateway";
+import { libraryGateway } from "../api/libraryGateway";
 import type { UseLibraryActionsOptions } from "./libraryActionTypes";
 
 type DeleteRenameTargetActionOptions = Pick<

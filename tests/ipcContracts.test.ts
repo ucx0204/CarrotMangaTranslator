@@ -1,184 +1,356 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import type { IpcMainInvokeEvent } from "electron";
+import { z } from "zod";
+import { beforeEach, expect, it, vi } from "vitest";
+import type { AppPaths } from "../src/main/appPaths";
+import type { IpcContext } from "../src/main/ipc/context";
 import {
-  errorReportIpcContracts,
-  externalIpcContracts,
-  fontIpcContracts,
-  importShareIpcContracts,
-  inpaintingIpcContracts,
+  createContractInvoker,
+  type ContractInvoker,
+  type IpcInvokePort,
+} from "../src/preload/ipcContracts";
+import { createMangaApi, type IpcEventPort } from "../src/preload/mangaApi";
+import {
   ipcEventContracts,
+  inpaintingIpcContracts,
   ipcInvokeContracts,
-  jobControlIpcContracts,
   libraryIpcContracts,
-  logsIpcContracts,
-  pageImageExportIpcContracts,
-  settingsIpcContracts,
-  textReviewIpcContracts,
-  translationJobIpcContracts,
-  workContextIpcContracts,
   type IpcContract,
 } from "../src/shared/ipcContracts";
+import { defineIpcContract } from "../src/shared/ipcContractCore";
 
-const invokeContractGroups = [
-  {
-    sourceName: "errorReportIpcContracts",
-    contracts: errorReportIpcContracts,
-    mainFiles: ["src/main/ipc/errorReportIpc.ts"],
+type InvokeHandler = (
+  event: IpcMainInvokeEvent,
+  ...args: unknown[]
+) => Promise<unknown> | unknown;
+
+const electronBoundary = vi.hoisted(() => {
+  const handlers = new Map<string, InvokeHandler>();
+  const handle = vi.fn((channel: string, handler: InvokeHandler) => {
+    if (handlers.has(channel)) {
+      throw new Error(`Duplicate IPC handler: ${channel}`);
+    }
+    handlers.set(channel, handler);
+  });
+  return { handle, handlers };
+});
+
+vi.mock("electron", () => ({
+  app: {
+    exit: vi.fn(),
+    getLocale: () => "ko",
+    getPath: () => "C:\\test",
+    getVersion: () => "1.0.0",
+    isPackaged: false,
+    relaunch: vi.fn(),
   },
-  {
-    sourceName: "importShareIpcContracts",
-    contracts: importShareIpcContracts,
-    mainFiles: ["src/main/ipc/importShareIpc.ts"],
+  BrowserWindow: class {
+    static getAllWindows(): unknown[] {
+      return [];
+    }
   },
-  {
-    sourceName: "libraryIpcContracts",
-    contracts: libraryIpcContracts,
-    mainFiles: ["src/main/ipc/libraryIpc.ts"],
+  clipboard: { writeText: vi.fn() },
+  dialog: {
+    showOpenDialog: vi.fn(),
+    showSaveDialog: vi.fn(),
   },
-  {
-    sourceName: "workContextIpcContracts",
-    contracts: workContextIpcContracts,
-    mainFiles: ["src/main/ipc/workContextIpc.ts"],
+  ipcMain: { handle: electronBoundary.handle },
+  nativeImage: {},
+  protocol: {},
+  screen: { getAllDisplays: () => [] },
+  shell: {
+    openExternal: vi.fn(),
+    openPath: vi.fn(),
+    showItemInFolder: vi.fn(),
   },
-  {
-    sourceName: "textReviewIpcContracts",
-    contracts: textReviewIpcContracts,
-    mainFiles: [
-      "src/main/ipc/textExportIpc.ts",
-      "src/main/ipc/reviewTextIpc.ts",
-    ],
-  },
-  {
-    sourceName: "fontIpcContracts",
-    contracts: fontIpcContracts,
-    mainFiles: ["src/main/ipc/fontsIpc.ts"],
-  },
-  {
-    sourceName: "settingsIpcContracts",
-    contracts: settingsIpcContracts,
-    mainFiles: ["src/main/ipc/settingsIpc.ts"],
-  },
-  {
-    sourceName: "externalIpcContracts",
-    contracts: externalIpcContracts,
-    mainFiles: ["src/main/ipc/externalLinksIpc.ts"],
-  },
-  {
-    sourceName: "logsIpcContracts",
-    contracts: logsIpcContracts,
-    mainFiles: ["src/main/ipc/logsIpc.ts"],
-  },
-  {
-    sourceName: "translationJobIpcContracts",
-    contracts: translationJobIpcContracts,
-    mainFiles: ["src/main/ipc/translationJobIpc.ts"],
-  },
-  {
-    sourceName: "inpaintingIpcContracts",
-    contracts: inpaintingIpcContracts,
-    mainFiles: ["src/main/ipc/inpaintingIpc.ts"],
-  },
-  {
-    sourceName: "pageImageExportIpcContracts",
-    contracts: pageImageExportIpcContracts,
-    mainFiles: ["src/main/ipc/pageImageExportIpc.ts"],
-  },
-  {
-    sourceName: "jobControlIpcContracts",
-    contracts: jobControlIpcContracts,
-    mainFiles: ["src/main/ipc/jobControlIpc.ts"],
-  },
-] as const;
+}));
 
 const invokeContractEntries = Object.entries(ipcInvokeContracts);
 
-describe("IPC contracts", () => {
-  it("requires an explicit invalidation state for history transaction results", () => {
-    const result = {
-      transactionId: "11111111-1111-4111-8111-111111111111",
-      direction: "undo",
-      chapters: [],
-      pagesChanged: 2,
-      invalidated: true,
-    };
-
-    expect(
-      inpaintingIpcContracts.applyInpaintingHistoryTransaction.result.parse(
-        result,
-      ),
-    ).toEqual(result);
-    expect(
-      inpaintingIpcContracts.applyInpaintingHistoryTransaction.result.safeParse(
-        { ...result, invalidated: undefined },
-      ).success,
-    ).toBe(false);
-  });
-
-  it("keeps invoke API keys and channels unique and explicit", () => {
-    const keys = invokeContractEntries.map(([, contract]) => contract.apiKey);
-    const channels = invokeContractEntries.map(
-      ([, contract]) => contract.channel,
-    );
-
-    expect(new Set(keys).size).toBe(keys.length);
-    expect(new Set(channels).size).toBe(channels.length);
-    for (const [name, contract] of invokeContractEntries) {
-      expect(contract.apiKey).toBe(name);
-    }
-  });
-
-  it("routes preload invoke calls through invokeContract", () => {
-    const preloadSource = readProjectFile("src/preload/index.ts");
-
-    expect(preloadSource).not.toContain("ipcRenderer.invoke(");
-    for (const group of invokeContractGroups) {
-      for (const name of Object.keys(group.contracts)) {
-        expect(preloadSource).toMatch(
-          new RegExp(`invokeContract\\(\\s*${group.sourceName}\\.${name}`),
-        );
-      }
-    }
-  });
-
-  it("routes main invoke handlers through trustedHandleContract", () => {
-    for (const group of invokeContractGroups) {
-      const mainSource = group.mainFiles.map(readProjectFile).join("\n");
-      expect(mainSource).not.toContain('trustedHandle(context, "');
-
-      for (const [name, contract] of Object.entries(group.contracts) as Array<
-        [string, IpcContract]
-      >) {
-        expect(mainSource).toContain(`${group.sourceName}.${name}`);
-        expect(mainSource).not.toContain(`"${contract.channel}"`);
-      }
-    }
-  });
-
-  it("routes renderer and main events through event contracts", () => {
-    const preloadSource = readProjectFile("src/preload/index.ts");
-    const mainSource = [
-      "src/main/jobs/jobEvents.ts",
-      "src/main/ipc/jobControlIpc.ts",
-      "src/main/ipc/settingsIpc.ts",
-    ]
-      .map(readProjectFile)
-      .join("\n");
-
-    expect(preloadSource).toContain("ipcEventContracts.jobEvent.channel");
-    expect(preloadSource).toContain(
-      "ipcEventContracts.modelTestProgress.channel",
-    );
-    expect(mainSource).toContain("ipcEventContracts.jobEvent.channel");
-    expect(mainSource).toContain("ipcEventContracts.modelTestProgress.channel");
-
-    for (const contract of Object.values(ipcEventContracts)) {
-      expect(preloadSource).not.toContain(`"${contract.channel}"`);
-      expect(mainSource).not.toContain(`"${contract.channel}"`);
-    }
-  });
+beforeEach(() => {
+  electronBoundary.handle.mockClear();
+  electronBoundary.handlers.clear();
 });
 
-function readProjectFile(path: string): string {
-  return readFileSync(join(process.cwd(), path), "utf8");
+it("requires an explicit invalidation state for history transaction results", () => {
+  const result = {
+    transactionId: "11111111-1111-4111-8111-111111111111",
+    direction: "undo",
+    chapters: [],
+    pagesChanged: 2,
+    invalidated: true,
+  };
+
+  expect(
+    inpaintingIpcContracts.applyInpaintingHistoryTransaction.result.parse(
+      result,
+    ),
+  ).toEqual(result);
+  expect(
+    inpaintingIpcContracts.applyInpaintingHistoryTransaction.result.safeParse({
+      ...result,
+      invalidated: undefined,
+    }).success,
+  ).toBe(false);
+});
+
+it("keeps invoke API keys and channels unique and explicit", () => {
+  const keys = invokeContractEntries.map(([, contract]) => contract.apiKey);
+  const channels = invokeContractEntries.map(
+    ([, contract]) => contract.channel,
+  );
+
+  expect(new Set(keys).size).toBe(keys.length);
+  expect(new Set(channels).size).toBe(channels.length);
+  for (const [name, contract] of invokeContractEntries) {
+    expect(contract.apiKey).toBe(name);
+  }
+});
+
+it("binds every preload invoke API to its contract and forwards arguments", () => {
+  const calls: Array<{
+    contract: IpcContract;
+    args: unknown[];
+  }> = [];
+  const invoke: ContractInvoker = (contract, ...args) => {
+    calls.push({ contract, args });
+    return new Promise<never>(() => undefined);
+  };
+  const api = createMangaApi({
+    invoke,
+    events: createEventBoundary().port,
+    warn: vi.fn(),
+  });
+
+  for (const contract of Object.values(ipcInvokeContracts)) {
+    const marker = { apiKey: contract.apiKey };
+    const method = api[contract.apiKey];
+    expect(typeof method).toBe("function");
+    Reflect.apply(method, api, [marker]);
+    expect(calls.at(-1)).toEqual({ contract, args: [marker] });
+  }
+});
+
+it("validates preload arguments before invoking the renderer boundary", async () => {
+  const invoke = vi.fn(
+    async (_channel: string, ..._args: unknown[]): Promise<unknown> => ({
+      ok: true,
+    }),
+  );
+  const invokeContract = createContractInvoker({
+    invoke,
+  } satisfies IpcInvokePort);
+
+  expect(() =>
+    invokeContract(libraryIpcContracts.renameWork, "", "제목"),
+  ).toThrow();
+  expect(invoke).not.toHaveBeenCalled();
+
+  await invokeContract(libraryIpcContracts.renameWork, "work-1", "제목");
+  expect(invoke).toHaveBeenCalledWith(
+    libraryIpcContracts.renameWork.channel,
+    "work-1",
+    "제목",
+  );
+});
+
+it("registers and removes every preload event listener on its contract channel", () => {
+  const boundary = createEventBoundary();
+  const api = createMangaApi({
+    invoke: pendingInvoker,
+    events: boundary.port,
+    warn: vi.fn(),
+  });
+  const subscriptions = [
+    ["onErrorIncident", ipcEventContracts.errorIncident],
+    ["onFontLibraryChanged", ipcEventContracts.fontLibraryChanged],
+    ["onUiLocaleChanged", ipcEventContracts.uiLocaleChanged],
+    ["onJobEvent", ipcEventContracts.jobEvent],
+    ["onModelTestEvent", ipcEventContracts.modelTestProgress],
+    ["onPanelState", ipcEventContracts.panelState],
+    ["onPanelCommand", ipcEventContracts.panelCommand],
+    ["onPanelWindowsChanged", ipcEventContracts.panelWindowsChanged],
+  ] as const;
+
+  for (const [apiKey, contract] of subscriptions) {
+    const unsubscribe = Reflect.apply(api[apiKey], api, [vi.fn()]);
+    const listener = boundary.listeners.get(contract.channel);
+    expect(listener).toBeTypeOf("function");
+    expect(boundary.on).toHaveBeenLastCalledWith(contract.channel, listener);
+    unsubscribe();
+    expect(boundary.removeListener).toHaveBeenLastCalledWith(
+      contract.channel,
+      listener,
+    );
+  }
+});
+
+it("delivers only payloads accepted by the event contract", () => {
+  const boundary = createEventBoundary();
+  const warn = vi.fn();
+  const callback = vi.fn();
+  const api = createMangaApi({
+    invoke: pendingInvoker,
+    events: boundary.port,
+    warn,
+  });
+  api.onUiLocaleChanged(callback);
+  const listener = boundary.listeners.get(
+    ipcEventContracts.uiLocaleChanged.channel,
+  );
+  if (!listener) {
+    throw new Error("UI locale listener was not registered.");
+  }
+
+  listener({}, "ko");
+  listener({}, "not-a-locale");
+
+  expect(callback).toHaveBeenCalledOnce();
+  expect(callback).toHaveBeenCalledWith("ko");
+  expect(warn).toHaveBeenCalledWith("Invalid uiLocaleChanged payload ignored");
+});
+
+it("registers exactly one main handler for every invoke contract", async () => {
+  const [{ registerIpc }, { ActiveJobStore }, { InpaintingRevisionStore }] =
+    await Promise.all([
+      import("../src/main/ipc/registerIpc"),
+      import("../src/main/jobs/activeJob"),
+      import("../src/main/inpainting/inpaintingRevisionStore"),
+    ]);
+  const context = createIpcContext(
+    new ActiveJobStore(),
+    new InpaintingRevisionStore(),
+  );
+
+  registerIpc(context);
+
+  const registeredChannels = [...electronBoundary.handlers.keys()].sort();
+  const expectedChannels = Object.values(ipcInvokeContracts)
+    .map((contract) => contract.channel)
+    .sort();
+  expect(registeredChannels).toEqual(expectedChannels);
+  expect(electronBoundary.handle).toHaveBeenCalledTimes(
+    expectedChannels.length,
+  );
+});
+
+it("validates main handler arguments and results at the registered boundary", async () => {
+  const { trustedHandleContract } = await import("../src/main/ipc/trustedIpc");
+  const contract = defineIpcContract<[string], unknown>({
+    apiKey: "openChapter",
+    channel: "test:contract-boundary",
+    args: z.tuple([z.string().min(1)]),
+    result: z.object({ accepted: z.boolean() }).strict(),
+  });
+  let nextResult: unknown = { accepted: true };
+  const listener = vi.fn(
+    (_event: IpcMainInvokeEvent, _value: string) => nextResult,
+  );
+  const rendererUrl = "http://127.0.0.1:5173/";
+  trustedHandleContract(
+    {
+      getMainWindow: () => ({
+        isDestroyed: () => false,
+        webContents: { getURL: () => rendererUrl, id: 17 },
+      }),
+    },
+    contract,
+    listener,
+    {
+      isAllowedNavigation: (targetUrl, allowedUrl) => targetUrl === allowedUrl,
+      translate: (key) => key,
+    },
+  );
+  const handler = electronBoundary.handlers.get(contract.channel);
+  if (!handler) {
+    throw new Error("Contract handler was not registered.");
+  }
+  const event = {
+    sender: { id: 17 },
+    senderFrame: { url: rendererUrl },
+  } as IpcMainInvokeEvent;
+
+  await expect(handler(event, "")).rejects.toThrow();
+  expect(listener).not.toHaveBeenCalled();
+  await expect(handler(event, "valid")).resolves.toEqual({ accepted: true });
+  expect(listener).toHaveBeenCalledWith(event, "valid");
+  nextResult = { accepted: true, unexpected: true };
+  await expect(handler(event, "invalid-result")).rejects.toThrow();
+});
+
+const pendingInvoker: ContractInvoker = () =>
+  new Promise<never>(() => undefined);
+
+function createEventBoundary(): {
+  listeners: Map<string, (event: unknown, payload: unknown) => void>;
+  on: ReturnType<typeof vi.fn>;
+  removeListener: ReturnType<typeof vi.fn>;
+  port: IpcEventPort;
+} {
+  const listeners = new Map<
+    string,
+    (event: unknown, payload: unknown) => void
+  >();
+  const on = vi.fn(
+    (channel: string, listener: (event: unknown, payload: unknown) => void) => {
+      listeners.set(channel, listener);
+    },
+  );
+  const removeListener = vi.fn(
+    (channel: string, listener: (event: unknown, payload: unknown) => void) => {
+      if (listeners.get(channel) === listener) {
+        listeners.delete(channel);
+      }
+    },
+  );
+  return {
+    listeners,
+    on,
+    removeListener,
+    port: { on, removeListener },
+  };
+}
+
+function createIpcContext(
+  jobs: IpcContext["jobs"],
+  inpaintingRevisionStore: IpcContext["inpaintingRevisionStore"],
+): IpcContext {
+  return {
+    appPaths: createAppPaths(),
+    jobs,
+    getMainWindow: () => null,
+    panelWindows: {
+      close: () => false,
+      closeAll: () => undefined,
+      getLastState: () => null,
+      getOpenPanelIds: () => [],
+      isPanelSender: () => false,
+      open: () => true,
+      publishState: () => undefined,
+    },
+    loadSimplePageRuntime: () => {
+      throw new Error("Runtime loading is not used during IPC registration.");
+    },
+    decodeImage: async () => null,
+    inpaintingRevisionStore,
+  };
+}
+
+function createAppPaths(): AppPaths {
+  return {
+    isPackaged: false,
+    repoRoot: "C:\\test",
+    executableDir: "C:\\test",
+    resourcesDir: "C:\\test\\resources",
+    dataRoot: "C:\\test\\data",
+    settingsPath: "C:\\test\\data\\settings.json",
+    libraryDir: "C:\\test\\data\\library",
+    fontsDir: "C:\\test\\data\\fonts",
+    logsDir: "C:\\test\\data\\logs",
+    logFile: "C:\\test\\data\\logs\\app.log",
+    runtimeDir: "C:\\test\\runtime",
+    toolsDir: "C:\\test\\tools",
+    ocrRuntimeDir: "C:\\test\\ocr",
+    llamaRuntimeDir: "C:\\test\\llama",
+    llamaServerPath: "C:\\test\\llama\\server.exe",
+  };
 }

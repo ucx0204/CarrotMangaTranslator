@@ -62,4 +62,25 @@ describe("error report incident store", () => {
     closeErrorReport();
     expect(openErrorReport(context, { force: true })).toBe(true);
   });
+
+  it("bounds recent automatic incident fingerprints during an error storm", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+    for (let index = 0; index < 129; index += 1) {
+      expect(
+        openErrorReport({
+          source: "renderer-global",
+          message: `failure ${index}`,
+        }),
+      ).toBe(true);
+      closeErrorReport();
+    }
+
+    expect(
+      openErrorReport({
+        source: "renderer-global",
+        message: "failure 0",
+      }),
+    ).toBe(true);
+  });
 });

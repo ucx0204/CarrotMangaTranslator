@@ -1,6 +1,5 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { resolveBlockFontFamily } from "../lib/fonts";
 import { FontManagerModal } from "./FontManagerModal";
 import styles from "./FontSelect.module.css";
 import {
@@ -71,7 +70,7 @@ function FontSelectTrigger({
       <span className="font-select-name">{model.selected.label}</span>
       <span
         className="font-select-sample"
-        style={{ fontFamily: resolveBlockFontFamily(model.selected.id) }}
+        style={{ fontFamily: model.selected.cssFamily }}
       >
         {model.selected.sample}
       </span>
@@ -171,7 +170,7 @@ function FontSelectOption({
       <span className="font-select-option-label">{option.label}</span>
       <span
         className="font-select-option-sample"
-        style={{ fontFamily: resolveBlockFontFamily(option.id) }}
+        style={{ fontFamily: option.cssFamily }}
       >
         {option.sample}
       </span>

@@ -6,34 +6,57 @@ import { classifyFailure, summarizePage } from "./failure";
 import { summarizeTranslationOptions } from "./options";
 import type { ProgressContext } from "./progressEvents";
 
-export function logPipelineInfo(message: string, detail?: unknown): void {
-  logInfo(message, detail);
+export type PipelineDiagnostics = {
+  info: (message: string, detail?: unknown) => void;
+  warn: (message: string, detail?: unknown) => void;
+  error: (message: string, detail?: unknown) => void;
+};
+
+const defaultDiagnostics: PipelineDiagnostics = {
+  info: logInfo,
+  warn: logWarn,
+  error: logError,
+};
+
+export function logPipelineInfo(
+  message: string,
+  detail?: unknown,
+  diagnostics: PipelineDiagnostics = defaultDiagnostics,
+): void {
+  diagnostics.info(message, detail);
 }
 
-export function logPipelineWarning(message: string, detail?: unknown): void {
-  logWarn(message, detail);
+export function logPipelineWarning(
+  message: string,
+  detail?: unknown,
+  diagnostics: PipelineDiagnostics = defaultDiagnostics,
+): void {
+  diagnostics.warn(message, detail);
 }
 
-export function logAttemptFailure({
-  attempt,
-  context,
-  error,
-  lastPageOptions,
-  maxAttempts,
-  page,
-  pageIndex,
-  runPaths,
-}: {
-  attempt: number;
-  context: ProgressContext;
-  error: unknown;
-  lastPageOptions: TranslationOptions;
-  maxAttempts: number;
-  page: MangaPage;
-  pageIndex: number;
-  runPaths: ChapterRunPaths;
-}): void {
-  logWarn("Analysis attempt failed", {
+export function logAttemptFailure(
+  {
+    attempt,
+    context,
+    error,
+    lastPageOptions,
+    maxAttempts,
+    page,
+    pageIndex,
+    runPaths,
+  }: {
+    attempt: number;
+    context: ProgressContext;
+    error: unknown;
+    lastPageOptions: TranslationOptions;
+    maxAttempts: number;
+    page: MangaPage;
+    pageIndex: number;
+    runPaths: ChapterRunPaths;
+  },
+  diagnostics: PipelineDiagnostics = defaultDiagnostics,
+): void {
+  diagnostics.warn("Analysis attempt failed", {
     failureCategory: classifyFailure(error),
     jobId: context.jobId,
     page: summarizePage(page),
@@ -48,26 +71,29 @@ export function logAttemptFailure({
   });
 }
 
-export function logSkippedPage({
-  context,
-  lastError,
-  lastErrorMessage,
-  lastPageOptions,
-  maxAttempts,
-  page,
-  pageIndex,
-  runPaths,
-}: {
-  context: ProgressContext;
-  lastError: unknown;
-  lastErrorMessage: string;
-  lastPageOptions: TranslationOptions | null;
-  maxAttempts: number;
-  page: MangaPage;
-  pageIndex: number;
-  runPaths: ChapterRunPaths;
-}): void {
-  logError("Analysis page skipped after retries", {
+export function logSkippedPage(
+  {
+    context,
+    lastError,
+    lastErrorMessage,
+    lastPageOptions,
+    maxAttempts,
+    page,
+    pageIndex,
+    runPaths,
+  }: {
+    context: ProgressContext;
+    lastError: unknown;
+    lastErrorMessage: string;
+    lastPageOptions: TranslationOptions | null;
+    maxAttempts: number;
+    page: MangaPage;
+    pageIndex: number;
+    runPaths: ChapterRunPaths;
+  },
+  diagnostics: PipelineDiagnostics = defaultDiagnostics,
+): void {
+  diagnostics.error("Analysis page skipped after retries", {
     failureCategory: classifyFailure(lastError),
     jobId: context.jobId,
     page: summarizePage(page),

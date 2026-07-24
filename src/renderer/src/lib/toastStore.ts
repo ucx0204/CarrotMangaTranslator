@@ -44,7 +44,7 @@ function emit(): void {
 
 function clearTimer(id: string): void {
   const timer = timers.get(id);
-  if (timer) {
+  if (timer !== undefined) {
     clearTimeout(timer);
     timers.delete(id);
   }
@@ -87,7 +87,14 @@ function push(
     action: options?.action,
     duration,
   };
-  toasts = [next, ...toasts].slice(0, MAX_TOASTS);
+  const nextToasts = [next, ...toasts].slice(0, MAX_TOASTS);
+  const retainedIds = new Set(nextToasts.map((item) => item.id));
+  for (const item of toasts) {
+    if (!retainedIds.has(item.id)) {
+      clearTimer(item.id);
+    }
+  }
+  toasts = nextToasts;
   emit();
   scheduleRemoval(id, duration);
   return id;

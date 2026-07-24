@@ -1,7 +1,8 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { mangaGateway } from "../../api/mangaGateway";
-import { formatErrorMessage } from "../../lib/appHelpers";
+import { analysisGateway } from "../../api/analysisGateway";
+import { appGateway } from "../../api/appGateway";
+import { formatErrorMessage } from "../../lib/errorPresentation";
 
 export function useAppSessionBridgeActions(
   pushStatus: (line: string) => void,
@@ -12,21 +13,21 @@ export function useAppSessionBridgeActions(
 } {
   const { t } = useTranslation("renderer");
   const cancelJob = useCallback(() => {
-    void mangaGateway.cancelJob().catch((error) => {
+    void analysisGateway.cancelJob().catch((error) => {
       console.error(error);
       pushStatus(formatErrorMessage(error, t("bridge.cancelJobFailed")));
     });
   }, [pushStatus, t]);
 
   const openLibraryFolder = useCallback(() => {
-    void mangaGateway.openLibraryFolder().catch((error) => {
+    void appGateway.openLibraryFolder().catch((error) => {
       console.error(error);
       pushStatus(formatErrorMessage(error, t("bridge.openLibraryFailed")));
     });
   }, [pushStatus, t]);
 
   const openLogFolder = useCallback(() => {
-    void mangaGateway.openLogFolder().catch((error) => {
+    void appGateway.openLogFolder().catch((error) => {
       console.error(error);
       pushStatus(formatErrorMessage(error, t("bridge.openLogsFailed")));
     });

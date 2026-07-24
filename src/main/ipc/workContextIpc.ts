@@ -20,9 +20,33 @@ import type { IpcContext } from "./context";
 import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
 
-let workContextOperationActive = false;
+export interface WorkContextOperationGateDependencies {
+  createBusyError: () => Error;
+  isJobActive: () => boolean;
+}
+
+export class WorkContextOperationGate {
+  private active = false;
+
+  constructor(
+    private readonly dependencies: WorkContextOperationGateDependencies,
+  ) {}
+
+  async run<T>(operation: () => Promise<T>): Promise<T> {
+    if (this.dependencies.isJobActive() || this.active) {
+      throw this.dependencies.createBusyError();
+    }
+    this.active = true;
+    try {
+      return await operation();
+    } finally {
+      this.active = false;
+    }
+  }
+}
 
 export function registerWorkContextIpc(context: IpcContext): void {
+  const operationGate = createWorkContextOperationGate(context);
   trustedHandleContract(
     context,
     workContextIpcContracts.getWorkStyleGuide,
@@ -47,7 +71,7 @@ export function registerWorkContextIpc(context: IpcContext): void {
         ),
       ),
   );
-  registerResetWorkContextIpc(context);
+  registerResetWorkContextIpc(context, operationGate);
   trustedHandleContract(
     context,
     workContextIpcContracts.getChapterStoryMemory,
@@ -88,7 +112,7 @@ export function registerWorkContextIpc(context: IpcContext): void {
     context,
     workContextIpcContracts.analyzeWorkContext,
     async (_event, raw: unknown) =>
-      runExclusiveWorkContextOperation(context, () =>
+      operationGate.run(() =>
         analyzeWorkContextWithAi(
           parseIpcPayload(
             AnalyzeWorkContextRequestSchema,
@@ -100,12 +124,24 @@ export function registerWorkContextIpc(context: IpcContext): void {
   );
 }
 
-function registerResetWorkContextIpc(context: IpcContext): void {
+function createWorkContextOperationGate(
+  context: IpcContext,
+): WorkContextOperationGate {
+  return new WorkContextOperationGate({
+    createBusyError: () => new Error(tMain("jobs.active")),
+    isJobActive: () => context.jobs.hasActive,
+  });
+}
+
+function registerResetWorkContextIpc(
+  context: IpcContext,
+  operationGate: WorkContextOperationGate,
+): void {
   trustedHandleContract(
     context,
     workContextIpcContracts.resetWorkContext,
     async (_event, raw: unknown) =>
-      runExclusiveWorkContextOperation(context, async () => {
+      operationGate.run(async () => {
         const request = parseIpcPayload(
           ChapterStoryMemoryRequestSchema,
           raw,
@@ -114,19 +150,4 @@ function registerResetWorkContextIpc(context: IpcContext): void {
         return resetWorkContext(request.chapterId);
       }),
   );
-}
-
-async function runExclusiveWorkContextOperation<T>(
-  context: IpcContext,
-  operation: () => Promise<T>,
-): Promise<T> {
-  if (context.jobs.hasActive || workContextOperationActive) {
-    throw new Error(tMain("jobs.active"));
-  }
-  workContextOperationActive = true;
-  try {
-    return await operation();
-  } finally {
-    workContextOperationActive = false;
-  }
 }

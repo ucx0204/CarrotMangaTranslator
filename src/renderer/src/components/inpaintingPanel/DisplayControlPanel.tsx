@@ -19,7 +19,7 @@ type DisplayControlPanelProps = {
   onOpenStyleGuide: () => void;
 };
 
-export function DisplayControlPanel({
+export const DisplayControlPanel = React.memo(function DisplayControlPanel({
   showBlockChrome,
   showTextBlocks,
   canOpenTextView,
@@ -64,7 +64,7 @@ export function DisplayControlPanel({
       </div>
     </section>
   );
-}
+});
 
 function DisplayIconControl({
   active,

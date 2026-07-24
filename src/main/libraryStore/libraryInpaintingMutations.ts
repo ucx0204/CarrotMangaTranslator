@@ -7,23 +7,78 @@ import {
   removeUnreferencedInpaintedArtifacts,
 } from "./inpaintedArtifacts";
 import {
-  WORKS_ROOT,
   assertChapterImagePath,
   findChapterLocation,
   readChapterFile,
   touchWork,
   writeChapterFile,
 } from "./libraryFiles";
+import { getWorksRoot } from "./libraryPaths";
 import { logLibraryWarning } from "./libraryLogger";
 
 export type InpaintingArtifactCleanupOptions = {
   retainedInpaintedArtifactPaths?: string[];
 };
 
-export async function updatePagesAfterInpaintingUnlocked(
+export type InpaintingMutationMaintenance = {
+  collectManagedArtifacts: typeof collectManagedInpaintedArtifacts;
+  removeUnreferencedArtifacts: typeof removeUnreferencedInpaintedArtifacts;
+  touchWork: typeof touchWork;
+  warn: typeof logLibraryWarning;
+};
+
+const productionMaintenance: InpaintingMutationMaintenance = {
+  collectManagedArtifacts: collectManagedInpaintedArtifacts,
+  removeUnreferencedArtifacts: removeUnreferencedInpaintedArtifacts,
+  touchWork,
+  warn: logLibraryWarning,
+};
+
+export function createInpaintingMutationOperations(
+  maintenance: InpaintingMutationMaintenance,
+) {
+  return {
+    updatePagesAfterInpaintingUnlocked: (
+      chapterId: string,
+      pages: MangaPage[],
+      cleanupOptions: InpaintingArtifactCleanupOptions = {},
+    ) =>
+      updatePagesAfterInpaintingWithMaintenance(
+        chapterId,
+        pages,
+        cleanupOptions,
+        maintenance,
+      ),
+    setPageInpaintingResultUnlocked: (
+      chapterId: string,
+      pageId: string,
+      inpaintedImagePath?: string | null,
+      cleanupOptions: InpaintingArtifactCleanupOptions = {},
+    ) =>
+      setPageInpaintingResultWithMaintenance(
+        chapterId,
+        pageId,
+        inpaintedImagePath,
+        cleanupOptions,
+        maintenance,
+      ),
+  };
+}
+
+const productionOperations = createInpaintingMutationOperations(
+  productionMaintenance,
+);
+
+export const updatePagesAfterInpaintingUnlocked =
+  productionOperations.updatePagesAfterInpaintingUnlocked;
+export const setPageInpaintingResultUnlocked =
+  productionOperations.setPageInpaintingResultUnlocked;
+
+async function updatePagesAfterInpaintingWithMaintenance(
   chapterId: string,
   pages: MangaPage[],
-  cleanupOptions: InpaintingArtifactCleanupOptions = {},
+  cleanupOptions: InpaintingArtifactCleanupOptions,
+  maintenance: InpaintingMutationMaintenance,
 ): Promise<ChapterSnapshot> {
   const locator = await findChapterLocation(chapterId);
   if (!locator) {
@@ -35,7 +90,7 @@ export async function updatePagesAfterInpaintingUnlocked(
   }
 
   const chapterDir = resolve(
-    join(WORKS_ROOT, locator.workId, "chapters", locator.chapterId),
+    join(getWorksRoot(), locator.workId, "chapters", locator.chapterId),
   );
   const replacedInpaintedPaths: string[] = [];
   const pageMap = new Map(pages.map((page) => [page.id, page]));
@@ -73,16 +128,18 @@ export async function updatePagesAfterInpaintingUnlocked(
     cleanupOptions,
     pages: chapter.pages,
     replacedInpaintedPaths,
-    touch: () => touchWork(locator.workId, now),
+    touch: () => maintenance.touchWork(locator.workId, now),
+    maintenance,
   });
   return savedChapter;
 }
 
-export async function setPageInpaintingResultUnlocked(
+async function setPageInpaintingResultWithMaintenance(
   chapterId: string,
   pageId: string,
-  inpaintedImagePath?: string | null,
-  cleanupOptions: InpaintingArtifactCleanupOptions = {},
+  inpaintedImagePath: string | null | undefined,
+  cleanupOptions: InpaintingArtifactCleanupOptions,
+  maintenance: InpaintingMutationMaintenance,
 ): Promise<ChapterSnapshot> {
   const locator = await findChapterLocation(chapterId);
   if (!locator) {
@@ -124,13 +181,14 @@ export async function setPageInpaintingResultUnlocked(
   await writeChapterFile(chapter);
   await finishCommittedInpaintingMutation({
     chapterDir: resolve(
-      join(WORKS_ROOT, locator.workId, "chapters", locator.chapterId),
+      join(getWorksRoot(), locator.workId, "chapters", locator.chapterId),
     ),
     chapterId,
     cleanupOptions,
     pages: chapter.pages,
     replacedInpaintedPaths,
-    touch: () => touchWork(locator.workId, now),
+    touch: () => maintenance.touchWork(locator.workId, now),
+    maintenance,
   });
   return savedChapter;
 }
@@ -148,6 +206,7 @@ async function finishCommittedInpaintingMutation({
   pages,
   replacedInpaintedPaths,
   touch,
+  maintenance,
 }: {
   chapterDir: string;
   chapterId: string;
@@ -155,17 +214,15 @@ async function finishCommittedInpaintingMutation({
   pages: Array<{ inpaintedImagePath?: string }>;
   replacedInpaintedPaths: string[];
   touch: () => Promise<void>;
+  maintenance: InpaintingMutationMaintenance;
 }): Promise<void> {
   try {
     await touch();
   } catch (error) {
-    logLibraryWarning(
-      "Failed to touch work after committing inpainting paths",
-      {
-        chapterId,
-        error,
-      },
-    );
+    maintenance.warn("Failed to touch work after committing inpainting paths", {
+      chapterId,
+      error,
+    });
   }
 
   try {
@@ -174,9 +231,10 @@ async function finishCommittedInpaintingMutation({
       replacedInpaintedPaths,
       pages,
       cleanupOptions,
+      maintenance,
     );
   } catch (error) {
-    logLibraryWarning(
+    maintenance.warn(
       "Failed to clean artifacts after committing inpainting paths",
       {
         chapterId,
@@ -191,14 +249,15 @@ async function cleanupInpaintedArtifacts(
   replacedInpaintedPaths: string[],
   pages: Array<{ inpaintedImagePath?: string }>,
   cleanupOptions: InpaintingArtifactCleanupOptions,
+  maintenance: InpaintingMutationMaintenance,
 ): Promise<void> {
   const retainedInpaintedArtifactPaths =
     cleanupOptions.retainedInpaintedArtifactPaths ?? [];
   const candidatePaths =
     retainedInpaintedArtifactPaths.length > 0
-      ? await collectManagedInpaintedArtifacts(chapterDir)
+      ? await maintenance.collectManagedArtifacts(chapterDir)
       : replacedInpaintedPaths;
-  await removeUnreferencedInpaintedArtifacts(
+  await maintenance.removeUnreferencedArtifacts(
     chapterDir,
     candidatePaths,
     pages,

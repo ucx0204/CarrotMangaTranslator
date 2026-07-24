@@ -1,5 +1,5 @@
 import type { MangaApi } from "../../../shared/mangaApi";
-import { mangaGateway } from "../api/mangaGateway";
+import { appGateway as mangaGateway } from "../api/appGateway";
 
 type ErrorReportGateway = Pick<
   MangaApi,

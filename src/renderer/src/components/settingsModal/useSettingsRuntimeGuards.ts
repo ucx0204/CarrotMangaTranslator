@@ -14,7 +14,7 @@ import type {
   SettingsFormRefs,
   SettingsFormSetters,
 } from "./useSettingsFormState";
-import type { SettingsFormValues } from "./settingsModalFormUtils";
+import type { SettingsFormValues } from "./settingsModalFormValues";
 
 export type SettingsRuntimeGuards = {
   usesAmdHardware: boolean;

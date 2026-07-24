@@ -195,21 +195,9 @@ async function verifyOcrImageSmoke(
   if (typeof runtime.collectOcrBboxHints !== "function") {
     throw new Error(`Packaged OCR runtime export is missing: ${runtimePath}`);
   }
-  const result = await runtime.collectOcrBboxHints({
-    imagePath: images.ocr,
-    toolsDir,
-    workingDir: workRoot,
-    ocrRuntimeDir: join(workRoot, "ocr-runtime"),
-    ocrDevice: "cpu",
-    ocrBboxProvider: "paddleocr-vl",
-    ocrBboxMode: "ocr",
-    ocrEngine: "paddle",
-    ocrVersion: "PP-OCRv6",
-    ocrTextDetectionModelName: "PP-OCRv6_tiny_det",
-    ocrTextRecognitionModelName: "PP-OCRv6_tiny_rec",
-    ocrMergeMode: "conservative",
-    sourceLanguage: "en",
-  });
+  const result = await runtime.collectOcrBboxHints(
+    createOcrSmokeRequest(images.ocr, toolsDir, workRoot),
+  );
   const hints = Array.isArray(result?.hints) ? result.hints : [];
   if (hints.length === 0) {
     throw new Error(
@@ -229,6 +217,29 @@ async function verifyOcrImageSmoke(
     },
   );
   console.log(`[mac-smoke] Paddle OCR CPU detected ${hints.length} region(s)`);
+}
+
+/**
+ * @param {string} imagePath
+ * @param {string} toolsDir
+ * @param {string} workRoot
+ */
+function createOcrSmokeRequest(imagePath, toolsDir, workRoot) {
+  return {
+    imagePath,
+    toolsDir,
+    workingDir: workRoot,
+    ocrRuntimeDir: join(workRoot, "ocr-runtime"),
+    ocrDevice: "cpu",
+    ocrBboxProvider: "paddleocr-vl",
+    ocrBboxMode: "ocr",
+    ocrEngine: "paddle_static",
+    ocrVersion: "PP-OCRv6",
+    ocrTextDetectionModelName: "PP-OCRv6_small_det",
+    ocrTextRecognitionModelName: "PP-OCRv6_small_rec",
+    ocrMergeMode: "semantic",
+    sourceLanguage: "ja",
+  };
 }
 
 /** @param {string} runner @param {string} python @param {string} workRoot @param {ReturnType<typeof createSmokeImages>} images */
@@ -266,16 +277,7 @@ async function verifyKoharuImageSmokes(runner, python, workRoot, images) {
       "metal-native",
     ];
     if (config) args.push("--config", config);
-    const request = {
-      type: "inpaint",
-      id: asset.model,
-      input: images.input,
-      mask: images.mask,
-      bubble_mask: images.bubble,
-      output,
-      windows: [[32, 32, 96, 96]],
-      max_pixels: 128 * 128,
-    };
+    const request = createKoharuSmokeRequest(asset.model, images, output);
     const result = run(runner, args, {
       input: `${JSON.stringify(request)}\n${JSON.stringify({ type: "shutdown" })}\n`,
       timeout: 30 * 60 * 1000,
@@ -306,6 +308,24 @@ async function verifyKoharuImageSmokes(runner, python, workRoot, images) {
     );
     console.log(`[mac-smoke] ${asset.model} Metal 128x128 inpainting passed`);
   }
+}
+
+/**
+ * @param {string} model
+ * @param {{ input: string; mask: string; bubble: string }} images
+ * @param {string} output
+ */
+function createKoharuSmokeRequest(model, images, output) {
+  return {
+    type: "inpaint",
+    id: model,
+    input: images.input,
+    mask: images.mask,
+    bubble_mask: images.bubble,
+    output,
+    windows: [[32, 32, 96, 96]],
+    max_pixels: 128 * 128,
+  };
 }
 
 /** @param {string} text @returns {Record<string, unknown> | null} */
@@ -357,4 +377,10 @@ async function verifyMacRuntimeSmokes(options) {
   }
 }
 
-module.exports = { KOHARU_SMOKE_ASSETS, verifyMacRuntimeSmokes };
+module.exports = {
+  KOHARU_SMOKE_ASSETS,
+  buildSmokePythonEnv,
+  createKoharuSmokeRequest,
+  createOcrSmokeRequest,
+  verifyMacRuntimeSmokes,
+};

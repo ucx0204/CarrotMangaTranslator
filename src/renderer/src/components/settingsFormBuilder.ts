@@ -6,7 +6,6 @@ import type {
   FluxBackend,
   GemmaVramMode,
   InpaintingModel,
-  KeybindingOverrides,
   LlamaRuntimeProfile,
   ModelProvider,
   ModelSource,
@@ -15,6 +14,7 @@ import type {
   OcrQualityMode,
   UiLocale,
 } from "../../../shared/settingsTypes";
+import type { KeybindingOverrides } from "../../../shared/shortcutSettings";
 import {
   DEFAULT_GEMMA_MODEL_FILE,
   DEFAULT_GEMMA_MODEL_REPO,

@@ -13,9 +13,9 @@ vi.mock("electron", () => ({
 
 import {
   buildErrorReportDraft,
-  redactDiagnosticText,
   type ErrorReportBuildEnvironment,
 } from "../src/main/errorReport";
+import { redactDiagnosticText } from "../src/main/errorReportRedaction";
 import type { AppPaths } from "../src/main/appPaths";
 import type { AppSettings } from "../src/shared/settingsTypes";
 

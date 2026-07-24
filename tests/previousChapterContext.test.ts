@@ -1,41 +1,22 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ChapterSnapshot, LibraryIndex } from "../src/shared/libraryTypes";
 import type { ChapterStoryMemory } from "../src/shared/workContextTypes";
-
-const listLibrary = vi.fn<() => Promise<LibraryIndex>>();
-const openChapter = vi.fn<(chapterId: string) => Promise<ChapterSnapshot>>();
-const getChapterStoryMemory =
-  vi.fn<(chapterId: string) => Promise<ChapterStoryMemory>>();
-
-vi.mock("../src/main/library", () => ({
-  listLibrary,
-  openChapter,
-  getChapterStoryMemory,
-}));
-vi.mock("../src/main/logger", () => ({ logWarn: vi.fn() }));
+import {
+  resolvePreviousChapterStoryPages,
+  type PreviousChapterContextLogger,
+  type PreviousChapterContextRepository,
+} from "../src/main/previousChapterContext";
 
 describe("previous chapter cumulative context", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it("returns the latest live pages in chronological prompt-only order", async () => {
     const current = makeChapter("chapter-3", "3화", []);
-    listLibrary.mockResolvedValue(makeLibrary());
-    openChapter.mockImplementation(async (chapterId) =>
-      chapterId === "chapter-1"
-        ? makeChapter("chapter-1", "1화", ["p1", "p2", "p3", "p4"])
-        : makeChapter("chapter-2", "2화", ["p5", "p6", "p7"]),
-    );
-    getChapterStoryMemory.mockImplementation(async (chapterId) =>
-      chapterId === "chapter-1"
-        ? makeMemory("chapter-1", ["p4", "p3", "deleted", "p2", "p1"])
-        : makeMemory("chapter-2", ["p7", "p5", "p6"]),
-    );
-    const { resolvePreviousChapterStoryPages } =
-      await import("../src/main/previousChapterContext");
+    const dependencies = makeDependencies();
 
-    const pages = await resolvePreviousChapterStoryPages(current, 6);
+    const pages = await resolvePreviousChapterStoryPages(
+      current,
+      6,
+      dependencies,
+    );
 
     expect(pages.map((page) => page.pageId)).toEqual([
       "p2",
@@ -51,7 +32,11 @@ describe("previous chapter cumulative context", () => {
     expect(pages[0]?.pageName).toBe("1화 · p2.png");
     expect(pages[5]?.pageName).toBe("2화 · p7.png");
 
-    const allPages = await resolvePreviousChapterStoryPages(current);
+    const allPages = await resolvePreviousChapterStoryPages(
+      current,
+      Number.POSITIVE_INFINITY,
+      dependencies,
+    );
     expect(allPages.map((page) => page.pageId)).toEqual([
       "p1",
       "p2",
@@ -61,8 +46,64 @@ describe("previous chapter cumulative context", () => {
       "p6",
       "p7",
     ]);
+    expect(dependencies.repository.openChapter).toHaveBeenCalledWith(
+      "chapter-1",
+    );
+    expect(dependencies.repository.getChapterStoryMemory).toHaveBeenCalledWith(
+      "chapter-2",
+    );
+    expect(dependencies.logger.warn).not.toHaveBeenCalled();
+  });
+
+  it("excludes an unreadable optional chapter and reports the failure", async () => {
+    const current = makeChapter("chapter-3", "3화", []);
+    const dependencies = makeDependencies();
+    dependencies.repository.openChapter = vi.fn(async (chapterId) => {
+      if (chapterId === "chapter-2") {
+        throw new Error("chapter disk failure");
+      }
+      return makeChapter("chapter-1", "1화", ["p1"]);
+    });
+
+    const pages = await resolvePreviousChapterStoryPages(
+      current,
+      Number.POSITIVE_INFINITY,
+      dependencies,
+    );
+
+    expect(pages.map((page) => page.pageId)).toEqual(["p1"]);
+    expect(dependencies.logger.warn).toHaveBeenCalledOnce();
+    expect(dependencies.logger.warn).toHaveBeenCalledWith(
+      "Previous chapter story context could not be loaded",
+      expect.objectContaining({
+        chapterId: "chapter-2",
+        error: expect.objectContaining({ message: "chapter disk failure" }),
+      }),
+    );
   });
 });
+
+function makeDependencies(): {
+  repository: PreviousChapterContextRepository;
+  logger: PreviousChapterContextLogger;
+} {
+  return {
+    repository: {
+      listLibrary: vi.fn(async () => makeLibrary()),
+      openChapter: vi.fn(async (chapterId) =>
+        chapterId === "chapter-1"
+          ? makeChapter("chapter-1", "1화", ["p1", "p2", "p3", "p4"])
+          : makeChapter("chapter-2", "2화", ["p5", "p6", "p7"]),
+      ),
+      getChapterStoryMemory: vi.fn(async (chapterId) =>
+        chapterId === "chapter-1"
+          ? makeMemory("chapter-1", ["p4", "p3", "deleted", "p2", "p1"])
+          : makeMemory("chapter-2", ["p7", "p5", "p6"]),
+      ),
+    },
+    logger: { warn: vi.fn() },
+  };
+}
 
 function makeLibrary(): LibraryIndex {
   const chapter = (id: string, title: string) => ({

@@ -7,6 +7,7 @@ import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../src/shared/blockFormat";
 import type { BlockFormatDefaults } from "../src/shared/settingsTypes";
 import { FormatDefaultsPanel } from "../src/renderer/src/components/settingsModal/FormatDefaultsPanel";
 import { FontsContext } from "../src/renderer/src/fonts/fontsContextValue";
+import { createBlockFontCatalog } from "../src/renderer/src/lib/fonts";
 
 afterEach(cleanup);
 
@@ -155,12 +156,11 @@ function FormatDefaultsHarness({
 
 const FONT_CONTEXT_VALUE = {
   busy: false,
-  customFonts: [],
-  preferences: {
+  catalog: createBlockFontCatalog([], {
     favoriteIds: [],
     orderedIds: [],
     defaultFontId: "nanum-gothic",
-  },
+  }),
   baseOptions: [],
   options: [
     {

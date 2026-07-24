@@ -1,23 +1,24 @@
 import type { TranslationOptions } from "../appSettings";
-import { disposeCachedInpaintingEngines } from "../inpainting/inpaintingEnginePool";
 import { tMain } from "./localization";
 import type {
   ModelEndpointHandle,
   OcrBboxResult,
   OverlayItem,
+  RuntimeModules,
   TranslationResult,
 } from "./types";
-import {
-  loadRuntimeModules,
-  startModelEndpointSession,
-  type ModelEndpointSession,
-} from "./runtimeModules";
+import { startModelEndpointSession } from "./runtimeModules";
+
+type TranslationEndpointSession = {
+  readonly handle: ModelEndpointHandle;
+  dispose: () => Promise<void>;
+};
 
 export type TranslationRuntimePort = {
   isModelCached: (options: TranslationOptions) => boolean;
   startEndpointSession: (
     options: TranslationOptions,
-  ) => Promise<ModelEndpointSession>;
+  ) => Promise<TranslationEndpointSession>;
   collectOcrHints: (options: TranslationOptions) => Promise<OcrBboxResult>;
   collectOcrHintsBatch: (
     options: TranslationOptions[],
@@ -36,9 +37,12 @@ export type TranslationRuntimePort = {
   normalizeRegionSingleItem: (parsed: unknown) => OverlayItem[];
 };
 
-let cachedPort: TranslationRuntimePort | null = null;
+export type GpuMemoryCoordinator = {
+  releaseIdleResources: (reason: string) => Promise<boolean>;
+};
 
 async function releaseGpuBeforeOcr(
+  gpuMemory: GpuMemoryCoordinator,
   optionsList: TranslationOptions[],
 ): Promise<void> {
   const gpuOptions = optionsList.find(
@@ -47,7 +51,7 @@ async function releaseGpuBeforeOcr(
   if (!gpuOptions) {
     return;
   }
-  const disposed = await disposeCachedInpaintingEngines("ocr-gpu-start");
+  const disposed = await gpuMemory.releaseIdleResources("ocr-gpu-start");
   if (disposed) {
     gpuOptions.onProgress?.({
       phase: "ocr_running",
@@ -59,12 +63,13 @@ async function releaseGpuBeforeOcr(
 }
 
 async function releaseInpaintingBeforeGemma(
+  gpuMemory: GpuMemoryCoordinator,
   options: TranslationOptions,
 ): Promise<void> {
   if (options.modelProvider !== "gemma") {
     return;
   }
-  const disposed = await disposeCachedInpaintingEngines("gemma-start");
+  const disposed = await gpuMemory.releaseIdleResources("gemma-start");
   if (disposed) {
     options.onProgress?.({
       phase: "booting",
@@ -76,24 +81,25 @@ async function releaseInpaintingBeforeGemma(
   }
 }
 
-export function loadTranslationRuntimePort(): TranslationRuntimePort {
-  if (cachedPort) {
-    return cachedPort;
-  }
-
-  const runtime = loadRuntimeModules();
-  const port: TranslationRuntimePort = {
+export function createTranslationRuntimePort({
+  gpuMemory,
+  runtime,
+}: {
+  gpuMemory: GpuMemoryCoordinator;
+  runtime: RuntimeModules;
+}): TranslationRuntimePort {
+  return {
     isModelCached: (options) => runtime.simplePage.isModelCached(options),
     startEndpointSession: async (options) => {
-      await releaseInpaintingBeforeGemma(options);
+      await releaseInpaintingBeforeGemma(gpuMemory, options);
       return startModelEndpointSession(runtime, options);
     },
     collectOcrHints: async (options) => {
-      await releaseGpuBeforeOcr([options]);
+      await releaseGpuBeforeOcr(gpuMemory, [options]);
       return runtime.simplePage.collectOcrBboxHints(options);
     },
     collectOcrHintsBatch: async (optionsList) => {
-      await releaseGpuBeforeOcr(optionsList);
+      await releaseGpuBeforeOcr(gpuMemory, optionsList);
       if (runtime.simplePage.collectOcrBboxHintsBatch) {
         return runtime.simplePage.collectOcrBboxHintsBatch(optionsList);
       }
@@ -115,7 +121,4 @@ export function loadTranslationRuntimePort(): TranslationRuntimePort {
     normalizeRegionSingleItem: (parsed) =>
       runtime.overlayTools.normalizeRegionSingleItem(parsed),
   };
-
-  cachedPort = port;
-  return cachedPort;
 }

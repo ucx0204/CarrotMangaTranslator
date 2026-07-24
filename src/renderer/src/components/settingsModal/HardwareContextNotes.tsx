@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { settingsGateway } from "./settingsGateway";
+import { settingsGateway } from "../../api/settingsGateway";
 
 export function OcrHardwareContextNote({
   usesAmdOcrContext,

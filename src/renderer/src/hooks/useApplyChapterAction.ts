@@ -1,7 +1,7 @@
 import { useCallback } from "react";
+import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type {
   ApplyChapterAction,
-  ChapterSnapshot,
   UseLibraryActionsOptions,
 } from "./libraryActionTypes";
 

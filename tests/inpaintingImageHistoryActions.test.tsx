@@ -2,18 +2,22 @@
 
 import React from "react";
 import { act, cleanup, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import type { InpaintingMaskStroke } from "../src/shared/inpaintingTypes";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import type { UseInpaintingActionsOptions } from "../src/renderer/src/hooks/inpaintingActionTypes";
 import type { UseInpaintingRetouchOptions } from "../src/renderer/src/hooks/inpaintingRetouchTypes";
 
-const applyInpaintingRetouch = vi.hoisted(() => vi.fn());
-const startInpainting = vi.hoisted(() => vi.fn());
+const applyInpaintingRetouch = vi.fn();
+const startInpainting = vi.fn();
 
-vi.mock("../src/renderer/src/api/mangaGateway", () => ({
-  mangaGateway: { applyInpaintingRetouch, startInpainting },
-}));
+beforeEach(() => {
+  window.mangaApi = createTestMangaGatewayStub({
+    applyInpaintingRetouch,
+    startInpainting,
+  });
+});
 
 import { useDrawnPatternInpaintingAction } from "../src/renderer/src/hooks/useDrawnPatternInpaintingAction";
 import { useInpaintingRetouch } from "../src/renderer/src/hooks/useInpaintingRetouch";
@@ -31,6 +35,7 @@ const MASK_STROKES: InpaintingMaskStroke[] = [
 
 afterEach(() => {
   cleanup();
+  window.mangaApi = createTestMangaGatewayStub();
   vi.clearAllMocks();
 });
 

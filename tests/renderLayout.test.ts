@@ -3,11 +3,33 @@ import { MIN_READABLE_FONT_SIZE_PX } from "../src/shared/geometry";
 import {
   resolveBlockPaddingPx,
   resolveBlockRectPx,
-  resolveBlockTextLayout,
+  resolveBlockTextLayout as resolveBlockTextLayoutWithCatalog,
+  type ViewportSize,
 } from "../src/renderer/src/lib/overlayLayout";
 import type { TranslationBlock } from "../src/shared/textTypes";
+import { DEFAULT_BLOCK_FONT_CATALOG } from "../src/renderer/src/lib/fonts";
 
 const originalDocument = globalThis.document;
+
+function resolveBlockTextLayout(
+  block: TranslationBlock,
+  text: string,
+  pageSize: ViewportSize,
+  stageSize: ViewportSize,
+  options?: {
+    textLayoutScale?: number;
+    textLayoutStageSize?: ViewportSize;
+  },
+) {
+  return resolveBlockTextLayoutWithCatalog(
+    block,
+    text,
+    pageSize,
+    stageSize,
+    DEFAULT_BLOCK_FONT_CATALOG,
+    options,
+  );
+}
 
 describe("render layout padding", () => {
   afterEach(() => {

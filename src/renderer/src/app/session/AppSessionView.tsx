@@ -17,6 +17,12 @@ import {
   PanelSessionContext,
   type PanelSessionValue,
 } from "../../panels/panelSession";
+import { useStablePanelSessionValue } from "../../panels/useStablePanelSessionValue";
+import {
+  isAppModalSubtreeActive,
+  isFloatingOverlaySubtreeActive,
+  memoWhileInactive,
+} from "./sessionRenderBoundaries";
 
 export type AppSessionViewProps = {
   autoInpaintingOptionsProps: React.ComponentProps<
@@ -55,16 +61,17 @@ export function AppSessionView({
   translationOptionsProps,
   workspaceProps,
 }: AppSessionViewProps): React.JSX.Element {
+  const stablePanelSessionValue = useStablePanelSessionValue(panelSessionValue);
   return (
-    <PanelSessionContext.Provider value={panelSessionValue}>
+    <PanelSessionContext.Provider value={stablePanelSessionValue}>
       <main className="app-shell">
         <AppSidebar {...sidebarProps} />
         <AppWorkspace {...workspaceProps} />
         <AppRightRail {...rightRailProps} />
-        <AppModals {...modalsProps} />
+        <MemoizedAppModals {...modalsProps} />
       </main>
-      <EditorFloatingLayer />
-      <SessionFloatingOverlays
+      <MemoizedEditorFloatingLayer />
+      <MemoizedSessionFloatingOverlays
         autoInpaintingOptionsProps={autoInpaintingOptionsProps}
         commandPaletteProps={commandPaletteProps}
         exportOptionsProps={exportOptionsProps}
@@ -103,8 +110,10 @@ function SessionFloatingOverlays({
       {autoInpaintingOptionsProps ? (
         <AutoInpaintingOptionsModal {...autoInpaintingOptionsProps} />
       ) : null}
-      <CommandPalette {...commandPaletteProps} />
-      <ShortcutHelp {...shortcutHelpProps} />
+      {commandPaletteProps.open ? (
+        <CommandPalette {...commandPaletteProps} />
+      ) : null}
+      {shortcutHelpProps.open ? <ShortcutHelp {...shortcutHelpProps} /> : null}
       {exportOptionsProps ? (
         <ExportOptionsModal {...exportOptionsProps} />
       ) : null}
@@ -120,3 +129,12 @@ function SessionFloatingOverlays({
     </>
   );
 }
+
+const MemoizedAppModals = memoWhileInactive(AppModals, isAppModalSubtreeActive);
+
+const MemoizedEditorFloatingLayer = React.memo(EditorFloatingLayer);
+
+const MemoizedSessionFloatingOverlays = memoWhileInactive(
+  SessionFloatingOverlays,
+  isFloatingOverlaySubtreeActive,
+);

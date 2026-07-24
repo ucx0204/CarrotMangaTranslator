@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import type { BlockBackgroundApplyScope } from "../hooks/useBlockEditingActions";
+import type { BlockBackgroundApplyScope } from "../hooks/useApplyBlockBackgroundOpacityAction";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
 import { SelectionSurface } from "./ui/SelectionCard";

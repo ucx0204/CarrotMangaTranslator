@@ -10,15 +10,16 @@ import {
 } from "@testing-library/react";
 import { useTranslation } from "react-i18next";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { MangaApi } from "../src/shared/mangaApi";
 import type { UiLocale } from "../src/shared/uiLocales";
 import { appI18n, initializeAppI18n } from "../src/renderer/src/appI18n";
+import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import { useAppSessionCoreState } from "../src/renderer/src/app/session/useAppSessionCoreState";
 import { FontsProvider } from "../src/renderer/src/fonts/FontsProvider";
 import { useFonts } from "../src/renderer/src/fonts/useFonts";
 import { AppI18nProvider } from "../src/renderer/src/i18n";
 import { useStatusLog } from "../src/renderer/src/hooks/useStatusLog";
 import {
+  DEFAULT_BLOCK_FONT_CATALOG,
   getBlockFontOptions,
   resolveBlockFontOption,
 } from "../src/renderer/src/lib/fonts";
@@ -35,14 +36,14 @@ afterEach(async () => {
 
 describe("renderer UI locale runtime", () => {
   it("updates every subscribed window immediately after a locale event", async () => {
-    window.mangaApi = {
+    window.mangaApi = createTestMangaGatewayStub({
       onUiLocaleChanged: (callback: (locale: UiLocale) => void) => {
         localeListener = callback;
         return () => {
           localeListener = null;
         };
       },
-    } as MangaApi;
+    });
     await initializeAppI18n("en");
     render(
       <AppI18nProvider>
@@ -61,21 +62,21 @@ describe("renderer UI locale runtime", () => {
 
   it("uses the localized editor title in a detached panel window", async () => {
     window.location.hash = "#panel=editor";
-    window.mangaApi = {
+    window.mangaApi = createTestMangaGatewayStub({
       onUiLocaleChanged: (callback: (locale: UiLocale) => void) => {
         localeListener = callback;
         return () => {
           localeListener = null;
         };
       },
-    } as MangaApi;
+    });
     await initializeAppI18n("ja");
     render(<AppI18nProvider>panel</AppI18nProvider>);
     await waitFor(() => expect(document.title).toBe("ブロック編集"));
   });
 
   it("drops translated transient state when the locale changes", async () => {
-    window.mangaApi = {
+    window.mangaApi = createTestMangaGatewayStub({
       onUiLocaleChanged: (callback: (locale: UiLocale) => void) => {
         localeListener = callback;
         return () => {
@@ -83,7 +84,7 @@ describe("renderer UI locale runtime", () => {
         };
       },
       writeLog: vi.fn().mockResolvedValue(undefined),
-    } as unknown as MangaApi;
+    });
     await initializeAppI18n("en");
     render(
       <AppI18nProvider>
@@ -108,7 +109,7 @@ describe("renderer UI locale runtime", () => {
   });
 
   it("preserves translated transient state for a repeated locale event", async () => {
-    window.mangaApi = {
+    window.mangaApi = createTestMangaGatewayStub({
       onUiLocaleChanged: (callback: (locale: UiLocale) => void) => {
         localeListener = callback;
         return () => {
@@ -116,7 +117,7 @@ describe("renderer UI locale runtime", () => {
         };
       },
       writeLog: vi.fn().mockResolvedValue(undefined),
-    } as unknown as MangaApi;
+    });
     await initializeAppI18n("en");
     render(
       <AppI18nProvider>
@@ -142,7 +143,10 @@ describe("renderer UI locale runtime", () => {
 
   it("uses localized metadata for the selected default font", async () => {
     await initializeAppI18n("en");
-    const options = getBlockFontOptions(appI18n.getFixedT("en", "renderer"));
+    const options = getBlockFontOptions(
+      DEFAULT_BLOCK_FONT_CATALOG,
+      appI18n.getFixedT("en", "renderer"),
+    );
     expect(resolveBlockFontOption(undefined, options)).toMatchObject({
       label: "Default",
       sample: "Abc 가나다",
@@ -150,15 +154,23 @@ describe("renderer UI locale runtime", () => {
   });
 
   it("reprioritizes bundled fonts immediately after a locale event", async () => {
-    window.mangaApi = {
-      listCustomFonts: vi.fn().mockResolvedValue([]),
+    window.mangaApi = createTestMangaGatewayStub({
+      getFontLibrary: vi.fn().mockResolvedValue({
+        customFonts: [],
+        preferences: {
+          favoriteIds: [],
+          orderedIds: [],
+          defaultFontId: "default",
+        },
+      }),
+      onFontLibraryChanged: () => () => undefined,
       onUiLocaleChanged: (callback: (locale: UiLocale) => void) => {
         localeListener = callback;
         return () => {
           localeListener = null;
         };
       },
-    } as unknown as MangaApi;
+    });
     await initializeAppI18n("en");
     render(
       <AppI18nProvider>

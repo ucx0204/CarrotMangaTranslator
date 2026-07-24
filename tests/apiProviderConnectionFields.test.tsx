@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import React from "react";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -8,8 +9,8 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { MangaApi } from "../src/shared/mangaApi";
 import { OPENROUTER_BASE_URL } from "../src/shared/apiProviderPresets";
+import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import { appI18n, initializeAppI18n } from "../src/renderer/src/appI18n";
 import { ApiProviderConnectionFields } from "../src/renderer/src/components/settingsModal/ApiProviderConnectionFields";
 import { AppI18nProvider } from "../src/renderer/src/i18n";
@@ -39,11 +40,11 @@ describe("API provider connection fields", () => {
       unverifiedCount: 1,
     });
     const openApiProviderPage = vi.fn().mockResolvedValue(undefined);
-    window.mangaApi = {
+    window.mangaApi = createTestMangaGatewayStub({
       discoverApiModels,
       openApiProviderPage,
       onUiLocaleChanged: () => () => undefined,
-    } as unknown as MangaApi;
+    });
 
     render(
       <AppI18nProvider>
@@ -94,6 +95,38 @@ describe("API provider connection fields", () => {
       ),
     );
     expect(screen.queryByLabelText("Verified image-input model")).toBeNull();
+  });
+
+  it("invalidates an in-flight model discovery when the fields unmount", async () => {
+    let rejectRequest: ((reason?: unknown) => void) | undefined;
+    const request = new Promise<never>((_resolve, reject) => {
+      rejectRequest = reject;
+    });
+    const discoverApiModels = vi.fn(() => request);
+    window.mangaApi = createTestMangaGatewayStub({
+      discoverApiModels,
+      onUiLocaleChanged: () => () => undefined,
+    });
+    const view = render(
+      <AppI18nProvider>
+        <Harness />
+      </AppI18nProvider>,
+    );
+    fireEvent.change(screen.getByLabelText("Quick API provider setup"), {
+      target: { value: "openrouter" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Load models" }));
+    await waitFor(() => expect(discoverApiModels).toHaveBeenCalledOnce());
+    view.unmount();
+
+    const stringify = vi.fn(() => "late discovery failure");
+    const lateFailure = { toString: stringify };
+    const observedRejection = expect(request).rejects.toBe(lateFailure);
+    await act(async () => {
+      rejectRequest?.(lateFailure);
+      await observedRejection;
+    });
+    expect(stringify).not.toHaveBeenCalled();
   });
 });
 

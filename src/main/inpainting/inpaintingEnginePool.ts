@@ -23,27 +23,52 @@ export type InpaintingEngineLease = {
   release: () => void;
 };
 
+export type InpaintingEnginePoolDependencies = {
+  acquireFlux: (
+    options: Parameters<typeof acquireFluxInpaintingEngine>[0],
+  ) => Promise<InpaintingEngineLease>;
+  acquireKoharu: (
+    options: Parameters<typeof acquireKoharuInpaintingEngine>[0],
+  ) => Promise<InpaintingEngineLease>;
+  disposeFlux: (reason: string) => Promise<boolean>;
+  disposeKoharu: (reason: string) => Promise<boolean>;
+  totalMemoryBytes: () => number;
+};
+
+const defaultDependencies: InpaintingEnginePoolDependencies = {
+  acquireFlux: acquireFluxInpaintingEngine,
+  acquireKoharu: acquireKoharuInpaintingEngine,
+  disposeFlux: disposeCachedFluxInpaintingEngine,
+  disposeKoharu: disposeCachedKoharuInpaintingEngine,
+  totalMemoryBytes: totalmem,
+};
+
 export const FLUX_RECOMMENDED_UNIFIED_MEMORY_MB = 16 * 1024;
 
-export async function acquireInpaintingEngine(options: {
-  appPaths: AppPaths;
-  model: InpaintingModel;
-  fluxBackend?: FluxBackend;
-  koharuBackend?: KoharuInpaintingBackend;
-  allowUnsafeLowMemoryFlux?: boolean;
-  signal?: AbortSignal;
-  onProgress?: (progress: InpaintingRuntimeProgress) => void;
-}): Promise<InpaintingEngineLease> {
+export async function acquireInpaintingEngine(
+  options: {
+    appPaths: AppPaths;
+    model: InpaintingModel;
+    fluxBackend?: FluxBackend;
+    koharuBackend?: KoharuInpaintingBackend;
+    allowUnsafeLowMemoryFlux?: boolean;
+    signal?: AbortSignal;
+    onProgress?: (progress: InpaintingRuntimeProgress) => void;
+  },
+  dependencies: InpaintingEnginePoolDependencies = defaultDependencies,
+): Promise<InpaintingEngineLease> {
   if (options.model === "flux-klein") {
     assertFluxMemoryPolicy({
       backend:
         options.fluxBackend ??
         (process.platform === "darwin" ? "metal-native" : "cuda-native"),
-      unifiedMemoryMb: Math.floor(totalmem() / 1024 / 1024),
+      unifiedMemoryMb: Math.floor(
+        dependencies.totalMemoryBytes() / 1024 / 1024,
+      ),
       allowUnsafeLowMemoryFlux: options.allowUnsafeLowMemoryFlux ?? false,
     });
-    await disposeCachedKoharuInpaintingEngine("switch-to-flux");
-    return acquireFluxInpaintingEngine({
+    await dependencies.disposeKoharu("switch-to-flux");
+    return dependencies.acquireFlux({
       appPaths: options.appPaths,
       fluxBackend: options.fluxBackend,
       signal: options.signal,
@@ -51,8 +76,8 @@ export async function acquireInpaintingEngine(options: {
     });
   }
 
-  await disposeCachedFluxInpaintingEngine("switch-to-koharu");
-  return acquireKoharuInpaintingEngine({
+  await dependencies.disposeFlux("switch-to-koharu");
+  return dependencies.acquireKoharu({
     appPaths: options.appPaths,
     model: options.model,
     backend: options.koharuBackend ?? "auto",
@@ -80,10 +105,11 @@ export function assertFluxMemoryPolicy(options: {
 
 export async function disposeCachedInpaintingEngines(
   reason: string,
+  dependencies: InpaintingEnginePoolDependencies = defaultDependencies,
 ): Promise<boolean> {
   const [fluxDisposed, koharuDisposed] = await Promise.all([
-    disposeCachedFluxInpaintingEngine(reason),
-    disposeCachedKoharuInpaintingEngine(reason),
+    dependencies.disposeFlux(reason),
+    dependencies.disposeKoharu(reason),
   ]);
   return fluxDisposed || koharuDisposed;
 }

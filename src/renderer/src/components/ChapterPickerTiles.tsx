@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { MangaPage } from "../../../shared/libraryTypes";
-import { mangaGateway } from "../api/mangaGateway";
+import { libraryGateway as mangaGateway } from "../api/libraryGateway";
 import type { TriState } from "../lib/translationSelection";
 import { SelectionCard } from "./ui/SelectionCard";
 

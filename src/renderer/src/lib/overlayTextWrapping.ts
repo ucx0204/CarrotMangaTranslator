@@ -28,12 +28,17 @@ type StyledGrapheme = {
   width: number;
 };
 
+export type TextMeasurementContext = Pick<
+  CanvasRenderingContext2D,
+  "font" | "measureText"
+>;
+
 /**
  * Measure and deterministically wrap rich text. The returned lines are also
  * rendered verbatim, which keeps editor layout independent from browser zoom.
  */
 export function measureStyledWrappedText(
-  context: CanvasRenderingContext2D,
+  context: TextMeasurementContext,
   runs: TextStyleRun[],
   maxWidth: number,
   lineHeightPx: number,
@@ -79,7 +84,7 @@ export function measureUniformWrappedText(
 }
 
 function measureStyledGraphemes(
-  context: CanvasRenderingContext2D,
+  context: TextMeasurementContext,
   runs: TextStyleRun[],
   fontSize: number,
   fontFamily: string,

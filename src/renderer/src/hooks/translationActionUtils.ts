@@ -6,11 +6,14 @@ import type {
   StartAnalysisResult,
 } from "../../../shared/analysisTypes";
 import type { JobState } from "../../../shared/jobTypes";
-import { mangaGateway } from "../api/mangaGateway";
-import { formatErrorMessage } from "../lib/appHelpers";
+import { analysisGateway as mangaGateway } from "../api/analysisGateway";
+import { formatErrorMessage } from "../lib/errorPresentation";
 import type { LiveChapterMergeOptions } from "../lib/chapterSync";
 import { summarizeWarnings } from "../lib/jobProgress";
-import { toast } from "../lib/toastStore";
+import {
+  toastNotificationPort,
+  type NotificationPort,
+} from "../lib/notificationPort";
 import {
   toSecondPassSelection,
   type ChapterRunSelection,
@@ -128,6 +131,7 @@ export function reportRefreshLibraryFailure(
   error: unknown,
   pushStatus: (line: string) => void,
   t?: TFunction<"renderer">,
+  notificationPort: NotificationPort = toastNotificationPort,
 ): void {
   console.error(error);
   const fallback = t
@@ -140,7 +144,7 @@ export function reportRefreshLibraryFailure(
         ? error.message
         : fallback,
   );
-  toast.warn(
+  notificationPort.warn(
     t
       ? t("translation.refreshWarning")
       : "번역은 완료됐지만 보관함 목록 새로고침에 실패했습니다.",
@@ -150,12 +154,13 @@ export function reportRefreshLibraryFailure(
 export async function refreshLibraryWithWarning(
   refreshLibrary: () => Promise<void>,
   pushStatus: (line: string) => void,
-  t?: TFunction<"renderer">,
+  t: TFunction<"renderer"> | undefined,
+  notificationPort: NotificationPort,
 ): Promise<void> {
   try {
     await refreshLibrary();
   } catch (error) {
-    reportRefreshLibraryFailure(error, pushStatus, t);
+    reportRefreshLibraryFailure(error, pushStatus, t, notificationPort);
   }
 }
 
@@ -166,6 +171,7 @@ export async function runWorkContextAnalysis({
   refreshLibrary,
   setJobState,
   t,
+  notificationPort,
 }: {
   analysisScope: TranslationFlowOptions["analysisScope"];
   chapterId: string;
@@ -173,6 +179,7 @@ export async function runWorkContextAnalysis({
   refreshLibrary: UseTranslationActionsOptions["refreshLibrary"];
   setJobState: SetJobState;
   t?: TFunction<"renderer">;
+  notificationPort: NotificationPort;
 }): Promise<boolean> {
   setJobState({
     id: "flow-analysis",
@@ -186,7 +193,12 @@ export async function runWorkContextAnalysis({
   });
   try {
     await mangaGateway.analyzeWorkContext({ chapterId, scope: analysisScope });
-    await refreshLibraryWithWarning(refreshLibrary, pushStatus, t);
+    await refreshLibraryWithWarning(
+      refreshLibrary,
+      pushStatus,
+      t,
+      notificationPort,
+    );
     return true;
   } catch (error) {
     console.error(error);
@@ -199,7 +211,7 @@ export async function runWorkContextAnalysis({
         : "1차 번역 완료 (AI 분석 건너뜀)",
       phase: "done",
     });
-    toast.error(
+    notificationPort.error(
       t
         ? t("translation.flow.contextFailed")
         : "AI 용어/기억 분석에 실패해 1차 번역 결과만 유지합니다.",
@@ -214,6 +226,7 @@ export async function runSecondTranslationPass(
   pushStatus: UseTranslationActionsOptions["pushStatus"],
   blockMode?: AnalysisBlockMode,
   t?: TFunction<"renderer">,
+  notificationPort: NotificationPort = toastNotificationPort,
 ): Promise<RunAnalysisOutcome> {
   const pass2 = await runSelectionsSequentially(
     executeAnalysisJob,
@@ -225,7 +238,7 @@ export async function runSecondTranslationPass(
     t,
   );
   if (pass2 === "completed") {
-    toast.success(
+    notificationPort.success(
       t
         ? t("translation.flow.secondPassCompleted")
         : "2차 번역까지 완료했습니다.",

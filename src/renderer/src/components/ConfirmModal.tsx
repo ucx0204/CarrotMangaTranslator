@@ -1,6 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Button, Modal } from "./ui";
+import { Button } from "./ui/Button";
+import { Modal } from "./ui/Modal";
 import { WarnIcon } from "./ui/icons";
 
 export function ConfirmModal({

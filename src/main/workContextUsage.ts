@@ -1,5 +1,13 @@
-import type { MangaPage } from "../shared/libraryTypes";
-import type { PageStoryMemory } from "../shared/workContextTypes";
+import type {
+  ChapterSnapshot,
+  LibraryIndex,
+  MangaPage,
+} from "../shared/libraryTypes";
+import type {
+  ChapterStoryMemory,
+  PageStoryMemory,
+  WorkStyleGuide,
+} from "../shared/workContextTypes";
 import type {
   WorkContextUsage,
   WorkContextUsageLastSeen,
@@ -15,12 +23,27 @@ import {
 type MutableMetric = WorkContextUsageMetric;
 type UsageMatcher = { id: string; keys: string[] };
 
+export type WorkContextUsageRepository = {
+  listLibrary: () => Promise<LibraryIndex>;
+  getWorkStyleGuide: (workId: string) => Promise<WorkStyleGuide>;
+  openChapter: (chapterId: string) => Promise<ChapterSnapshot>;
+  getChapterStoryMemory: (chapterId: string) => Promise<ChapterStoryMemory>;
+};
+
+const defaultRepository: WorkContextUsageRepository = {
+  getChapterStoryMemory,
+  getWorkStyleGuide,
+  listLibrary,
+  openChapter,
+};
+
 export async function buildWorkContextUsage(
   workId: string,
+  repository: WorkContextUsageRepository = defaultRepository,
 ): Promise<WorkContextUsage> {
   const [library, guide] = await Promise.all([
-    listLibrary(),
-    getWorkStyleGuide(workId),
+    repository.listLibrary(),
+    repository.getWorkStyleGuide(workId),
   ]);
   const work = library.works.find((candidate) => candidate.id === workId);
   const glossary = new Map<string, MutableMetric>(
@@ -49,8 +72,8 @@ export async function buildWorkContextUsage(
   const chapters = await Promise.all(
     work.chapters.map(async (chapterSummary) => {
       const [chapter, memory] = await Promise.all([
-        openChapter(chapterSummary.id),
-        getChapterStoryMemory(chapterSummary.id),
+        repository.openChapter(chapterSummary.id),
+        repository.getChapterStoryMemory(chapterSummary.id),
       ]);
       return { chapter, memory };
     }),

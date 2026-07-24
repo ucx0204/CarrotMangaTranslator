@@ -1,4 +1,4 @@
-import type { CustomFont, FontPreferences } from "../../../shared/libraryTypes";
+import type { CustomFont } from "../../../shared/libraryTypes";
 import {
   DEFAULT_BLOCK_FONT_ID,
   DEFAULT_BLOCK_FONT_STACK,
@@ -8,60 +8,85 @@ import {
 import { DEFAULT_UI_LOCALE, type UiLocale } from "../../../shared/uiLocales";
 import type { TFunction } from "i18next";
 
-export type BlockFontOption = {
+export type BlockFontOption = Readonly<{
   id: string;
   label: string;
   cssFamily: string;
   sample: string;
   locale?: UiLocale;
-};
+}>;
 
-const DEFAULT_BLOCK_FONT_OPTION: BlockFontOption = {
+type ReadonlyFontPreferences = Readonly<{
+  favoriteIds: readonly string[];
+  orderedIds: readonly string[];
+  defaultFontId: string;
+}>;
+
+/**
+ * An immutable, self-contained view of the fonts available to one renderer
+ * tree. Keeping the custom fonts and preferences together prevents consumers
+ * from observing a half-applied library update.
+ */
+export type BlockFontCatalog = Readonly<{
+  customFonts: readonly Readonly<CustomFont>[];
+  customOptions: readonly BlockFontOption[];
+  preferences: ReadonlyFontPreferences;
+}>;
+
+const DEFAULT_BLOCK_FONT_OPTION: BlockFontOption = Object.freeze({
   id: DEFAULT_BLOCK_FONT_ID,
   label: "기본",
   cssFamily: DEFAULT_BLOCK_FONT_STACK,
   sample: "가나다 Aa",
-};
+});
 
-export const DEFAULT_FONT_PREFERENCES: FontPreferences = {
-  favoriteIds: [],
-  orderedIds: [],
+const DEFAULT_FONT_PREFERENCES: ReadonlyFontPreferences = Object.freeze({
+  favoriteIds: Object.freeze([]),
+  orderedIds: Object.freeze([]),
   defaultFontId: DEFAULT_BLOCK_FONT_ID,
-};
+});
 
-let customFontOptions: BlockFontOption[] = [];
-const customFontIds = new Set<string>();
-let currentPreferences: FontPreferences = { ...DEFAULT_FONT_PREFERENCES };
+export const DEFAULT_BLOCK_FONT_CATALOG: BlockFontCatalog =
+  createBlockFontCatalog([], DEFAULT_FONT_PREFERENCES);
 
-function customFontToOption(font: CustomFont): BlockFontOption {
-  return {
+export function createBlockFontCatalog(
+  fonts: readonly CustomFont[],
+  preferences: ReadonlyFontPreferences,
+): BlockFontCatalog {
+  const customFonts = Object.freeze(
+    fonts.map((font) => Object.freeze({ ...font })),
+  );
+  const customOptions = Object.freeze(
+    customFonts.map((font) => customFontToOption(font)),
+  );
+  const allOptions = [
+    DEFAULT_BLOCK_FONT_OPTION,
+    ...getPrioritizedBuiltInBlockFonts(DEFAULT_UI_LOCALE),
+    ...customOptions,
+  ];
+  return Object.freeze({
+    customFonts,
+    customOptions,
+    preferences: freezeFontPreferences(
+      normalizeFontPreferencesForOptions(preferences, allOptions),
+    ),
+  });
+}
+
+function customFontToOption(font: Readonly<CustomFont>): BlockFontOption {
+  return Object.freeze({
     id: font.id,
     label: font.label,
     cssFamily: `"${font.family}", "Malgun Gothic", sans-serif`,
     sample: font.label,
-  };
-}
-
-/** Registers user-installed fonts so they resolve like built-ins (call when the list changes). */
-export function setCustomFontOptions(fonts: CustomFont[]): void {
-  customFontOptions = fonts.map(customFontToOption);
-  customFontIds.clear();
-  for (const font of fonts) {
-    customFontIds.add(font.id);
-  }
-}
-
-export function setFontPreferences(preferences: FontPreferences): void {
-  currentPreferences = normalizeFontPreferencesForOptions(
-    preferences,
-    buildUnorderedBlockFontOptions(),
-  );
+  });
 }
 
 function buildUnorderedBlockFontOptions(
+  catalog: BlockFontCatalog,
   t?: TFunction<"renderer">,
   locale: UiLocale = DEFAULT_UI_LOCALE,
-): BlockFontOption[] {
+): readonly BlockFontOption[] {
   const defaultOption = t
     ? {
         ...DEFAULT_BLOCK_FONT_OPTION,
@@ -69,49 +94,52 @@ function buildUnorderedBlockFontOptions(
         sample: t("fonts.defaultSample"),
       }
     : DEFAULT_BLOCK_FONT_OPTION;
-  return [
+  return freezeBlockFontOptions([
     defaultOption,
     ...getPrioritizedBuiltInBlockFonts(locale),
-    ...customFontOptions,
-  ];
+    ...catalog.customOptions,
+  ]);
 }
 
 export function getBaseBlockFontOptions(
+  catalog: BlockFontCatalog,
   t?: TFunction<"renderer">,
   locale: UiLocale = DEFAULT_UI_LOCALE,
-  preferences: FontPreferences = currentPreferences,
-): BlockFontOption[] {
-  const options = buildUnorderedBlockFontOptions(t, locale);
-  const normalized = normalizeFontPreferencesForOptions(preferences, options);
+): readonly BlockFontOption[] {
+  const options = buildUnorderedBlockFontOptions(catalog, t, locale);
   const designated =
-    normalized.defaultFontId === DEFAULT_BLOCK_FONT_ID
+    catalog.preferences.defaultFontId === DEFAULT_BLOCK_FONT_ID
       ? undefined
-      : options.find((option) => option.id === normalized.defaultFontId);
-  return options.map((option) =>
-    option.id === DEFAULT_BLOCK_FONT_ID
-      ? {
-          ...option,
-          cssFamily: designated?.cssFamily ?? DEFAULT_BLOCK_FONT_STACK,
-        }
-      : option,
+      : options.find(
+          (option) => option.id === catalog.preferences.defaultFontId,
+        );
+  return freezeBlockFontOptions(
+    options.map((option) =>
+      option.id === DEFAULT_BLOCK_FONT_ID
+        ? {
+            ...option,
+            cssFamily: designated?.cssFamily ?? DEFAULT_BLOCK_FONT_STACK,
+          }
+        : option,
+    ),
   );
 }
 
 export function getBlockFontOptions(
+  catalog: BlockFontCatalog,
   t?: TFunction<"renderer">,
   locale: UiLocale = DEFAULT_UI_LOCALE,
-  preferences: FontPreferences = currentPreferences,
-): BlockFontOption[] {
+): readonly BlockFontOption[] {
   return orderBlockFontOptions(
-    getBaseBlockFontOptions(t, locale, preferences),
-    preferences,
+    getBaseBlockFontOptions(catalog, t, locale),
+    catalog.preferences,
   );
 }
 
 function normalizeFontPreferencesForOptions(
-  preferences: FontPreferences,
+  preferences: ReadonlyFontPreferences,
   options: readonly BlockFontOption[],
-): FontPreferences {
+): ReadonlyFontPreferences {
   const knownIds = new Set(options.map((option) => option.id));
   return {
     favoriteIds: normalizeKnownIds(preferences.favoriteIds, knownIds),
@@ -138,8 +166,8 @@ function normalizeKnownIds(
 
 export function orderBlockFontOptions(
   options: readonly BlockFontOption[],
-  preferences: FontPreferences,
-): BlockFontOption[] {
+  preferences: ReadonlyFontPreferences,
+): readonly BlockFontOption[] {
   const normalized = normalizeFontPreferencesForOptions(preferences, options);
   const favoriteIds = new Set(normalized.favoriteIds);
   const order = new Map(
@@ -158,20 +186,22 @@ export function orderBlockFontOptions(
     }
     return (baseOrder.get(left.id) ?? 0) - (baseOrder.get(right.id) ?? 0);
   };
-  return [
+  return freezeBlockFontOptions([
     ...options.filter((option) => favoriteIds.has(option.id)).sort(compare),
     ...options.filter((option) => !favoriteIds.has(option.id)).sort(compare),
-  ];
+  ]);
 }
 
 export function normalizeBlockFontFamily(
   value: string | undefined,
+  catalog: BlockFontCatalog,
 ): string | undefined {
   const id = String(value ?? "").trim();
   if (
     !id ||
     id === DEFAULT_BLOCK_FONT_ID ||
-    (!isBuiltInBlockFontId(id) && !customFontIds.has(id))
+    (!isBuiltInBlockFontId(id) &&
+      !catalog.customOptions.some((font) => font.id === id))
   ) {
     return undefined;
   }
@@ -180,9 +210,9 @@ export function normalizeBlockFontFamily(
 
 export function resolveBlockFontOption(
   value: string | undefined,
-  options: readonly BlockFontOption[] = getBlockFontOptions(),
+  options: readonly BlockFontOption[],
 ): BlockFontOption {
-  const id = normalizeBlockFontFamily(value) ?? DEFAULT_BLOCK_FONT_ID;
+  const id = String(value ?? "").trim();
   return (
     options.find((option) => option.id === id) ??
     options.find((option) => option.id === DEFAULT_BLOCK_FONT_ID) ??
@@ -190,26 +220,52 @@ export function resolveBlockFontOption(
   );
 }
 
-export function resolveBlockFontFamily(value: string | undefined): string {
+export function resolveBlockFontFamily(
+  value: string | undefined,
+  catalog: BlockFontCatalog,
+): string {
   const id = String(value ?? "").trim();
   const explicitFamily =
     id && id !== DEFAULT_BLOCK_FONT_ID
-      ? resolveConcreteFontFamily(id)
+      ? resolveConcreteFontFamily(id, catalog)
       : undefined;
   if (explicitFamily) {
     return explicitFamily;
   }
-  return currentPreferences.defaultFontId === DEFAULT_BLOCK_FONT_ID
+  return catalog.preferences.defaultFontId === DEFAULT_BLOCK_FONT_ID
     ? DEFAULT_BLOCK_FONT_STACK
-    : (resolveConcreteFontFamily(currentPreferences.defaultFontId) ??
+    : (resolveConcreteFontFamily(catalog.preferences.defaultFontId, catalog) ??
         DEFAULT_BLOCK_FONT_STACK);
 }
 
-function resolveConcreteFontFamily(id: string): string | undefined {
+function resolveConcreteFontFamily(
+  id: string,
+  catalog: BlockFontCatalog,
+): string | undefined {
   if (isBuiltInBlockFontId(id)) {
     return getPrioritizedBuiltInBlockFonts(DEFAULT_UI_LOCALE).find(
       (font) => font.id === id,
     )?.cssFamily;
   }
-  return customFontOptions.find((font) => font.id === id)?.cssFamily;
+  return catalog.customOptions.find((font) => font.id === id)?.cssFamily;
+}
+
+function freezeFontPreferences(
+  preferences: ReadonlyFontPreferences,
+): ReadonlyFontPreferences {
+  return Object.freeze({
+    favoriteIds: Object.freeze([...preferences.favoriteIds]),
+    orderedIds: Object.freeze([...preferences.orderedIds]),
+    defaultFontId: preferences.defaultFontId,
+  });
+}
+
+function freezeBlockFontOptions(
+  options: readonly BlockFontOption[],
+): readonly BlockFontOption[] {
+  return Object.freeze(
+    options.map((option) =>
+      Object.isFrozen(option) ? option : Object.freeze({ ...option }),
+    ),
+  );
 }

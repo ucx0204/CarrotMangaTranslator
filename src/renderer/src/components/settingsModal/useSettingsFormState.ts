@@ -3,7 +3,7 @@ import type { AppSettings } from "../../../../shared/settingsTypes";
 import {
   createSettingsFormValues,
   type SettingsFormValues,
-} from "./settingsModalFormUtils";
+} from "./settingsModalFormValues";
 
 type FieldSetter<K extends keyof SettingsFormValues> = React.Dispatch<
   React.SetStateAction<SettingsFormValues[K]>
@@ -32,11 +32,13 @@ export function useSettingsFormState(
   const [values, setValues] = React.useState(() =>
     createSettingsFormValues(initialSettings),
   );
-  const refs = {
-    modelRepoInputRef: React.useRef<HTMLInputElement | null>(null),
-    localModelInputRef: React.useRef<HTMLInputElement | null>(null),
-    testLogRef: React.useRef<HTMLDivElement | null>(null),
-  };
+  const modelRepoInputRef = React.useRef<HTMLInputElement | null>(null);
+  const localModelInputRef = React.useRef<HTMLInputElement | null>(null);
+  const testLogRef = React.useRef<HTMLDivElement | null>(null);
+  const refs = React.useMemo(
+    () => ({ modelRepoInputRef, localModelInputRef, testLogRef }),
+    [],
+  );
 
   React.useEffect(() => {
     setValues(createSettingsFormValues(initialSettings));
@@ -53,82 +55,88 @@ export function useSettingsFormState(
 function useSettingsFormSetters(
   setValues: React.Dispatch<React.SetStateAction<SettingsFormValues>>,
 ): SettingsFormSetters {
-  return {
-    setUiLocale: useFormFieldDispatch(setValues, "uiLocale"),
-    setModelProvider: useFormFieldDispatch(setValues, "modelProvider"),
-    setSourceLanguage: useFormFieldDispatch(setValues, "sourceLanguage"),
-    setTargetLanguage: useFormFieldDispatch(setValues, "targetLanguage"),
-    setModelSource: useFormFieldDispatch(setValues, "modelSource"),
-    setSelectedPreset: useFormFieldDispatch(setValues, "selectedPreset"),
-    setCustomModelRepo: useFormFieldDispatch(setValues, "customModelRepo"),
-    setCustomModelFile: useFormFieldDispatch(setValues, "customModelFile"),
-    setLocalModelPath: useFormFieldDispatch(setValues, "localModelPath"),
-    setLocalMmprojPath: useFormFieldDispatch(setValues, "localMmprojPath"),
-    setCustomVramMode: useFormFieldDispatch(setValues, "customVramMode"),
-    setLlamaRuntimeProfile: useFormFieldDispatch(
-      setValues,
-      "llamaRuntimeProfile",
-    ),
-    setAllowUnsafeUnifiedMemory: useFormFieldDispatch(
-      setValues,
-      "allowUnsafeUnifiedMemory",
-    ),
-    setCodexModel: useFormFieldDispatch(setValues, "codexModel"),
-    setCodexReasoningEffort: useFormFieldDispatch(
-      setValues,
-      "codexReasoningEffort",
-    ),
-    setCodexOauthPort: useFormFieldDispatch(setValues, "codexOauthPort"),
-    setApiBaseUrl: useFormFieldDispatch(setValues, "apiBaseUrl"),
-    setApiModel: useFormFieldDispatch(setValues, "apiModel"),
-    setApiKey: useFormFieldDispatch(setValues, "apiKey"),
-    setApiKeyMaxAttempts: useFormFieldDispatch(setValues, "apiKeyMaxAttempts"),
-    setApiRetryDelaySeconds: useFormFieldDispatch(
-      setValues,
-      "apiRetryDelaySeconds",
-    ),
-    setApiTemperature: useFormFieldDispatch(setValues, "apiTemperature"),
-    setApiTopP: useFormFieldDispatch(setValues, "apiTopP"),
-    setApiTopK: useFormFieldDispatch(setValues, "apiTopK"),
-    setApiReasoningEffort: useFormFieldDispatch(
-      setValues,
-      "apiReasoningEffort",
-    ),
-    setApiExtraBodyJson: useFormFieldDispatch(setValues, "apiExtraBodyJson"),
-    setApiCustomHeadersJson: useFormFieldDispatch(
-      setValues,
-      "apiCustomHeadersJson",
-    ),
-    setOcrDevice: useFormFieldDispatch(setValues, "ocrDevice"),
-    setOcrGpuBackend: useFormFieldDispatch(setValues, "ocrGpuBackend"),
-    setOcrQualityMode: useFormFieldDispatch(setValues, "ocrQualityMode"),
-    setInpaintingModel: useFormFieldDispatch(setValues, "inpaintingModel"),
-    setFluxBackend: useFormFieldDispatch(setValues, "fluxBackend"),
-    setAllowUnsafeLowMemoryFlux: useFormFieldDispatch(
-      setValues,
-      "allowUnsafeLowMemoryFlux",
-    ),
-    setMaxTokens: useFormFieldDispatch(setValues, "maxTokens"),
-    setContextTokens: useFormFieldDispatch(setValues, "contextTokens"),
-  };
+  return React.useMemo(
+    () => ({
+      setUiLocale: createFormFieldDispatch(setValues, "uiLocale"),
+      setModelProvider: createFormFieldDispatch(setValues, "modelProvider"),
+      setSourceLanguage: createFormFieldDispatch(setValues, "sourceLanguage"),
+      setTargetLanguage: createFormFieldDispatch(setValues, "targetLanguage"),
+      setModelSource: createFormFieldDispatch(setValues, "modelSource"),
+      setSelectedPreset: createFormFieldDispatch(setValues, "selectedPreset"),
+      setCustomModelRepo: createFormFieldDispatch(setValues, "customModelRepo"),
+      setCustomModelFile: createFormFieldDispatch(setValues, "customModelFile"),
+      setLocalModelPath: createFormFieldDispatch(setValues, "localModelPath"),
+      setLocalMmprojPath: createFormFieldDispatch(setValues, "localMmprojPath"),
+      setCustomVramMode: createFormFieldDispatch(setValues, "customVramMode"),
+      setLlamaRuntimeProfile: createFormFieldDispatch(
+        setValues,
+        "llamaRuntimeProfile",
+      ),
+      setAllowUnsafeUnifiedMemory: createFormFieldDispatch(
+        setValues,
+        "allowUnsafeUnifiedMemory",
+      ),
+      setCodexModel: createFormFieldDispatch(setValues, "codexModel"),
+      setCodexReasoningEffort: createFormFieldDispatch(
+        setValues,
+        "codexReasoningEffort",
+      ),
+      setCodexOauthPort: createFormFieldDispatch(setValues, "codexOauthPort"),
+      setApiBaseUrl: createFormFieldDispatch(setValues, "apiBaseUrl"),
+      setApiModel: createFormFieldDispatch(setValues, "apiModel"),
+      setApiKey: createFormFieldDispatch(setValues, "apiKey"),
+      setApiKeyMaxAttempts: createFormFieldDispatch(
+        setValues,
+        "apiKeyMaxAttempts",
+      ),
+      setApiRetryDelaySeconds: createFormFieldDispatch(
+        setValues,
+        "apiRetryDelaySeconds",
+      ),
+      setApiTemperature: createFormFieldDispatch(setValues, "apiTemperature"),
+      setApiTopP: createFormFieldDispatch(setValues, "apiTopP"),
+      setApiTopK: createFormFieldDispatch(setValues, "apiTopK"),
+      setApiReasoningEffort: createFormFieldDispatch(
+        setValues,
+        "apiReasoningEffort",
+      ),
+      setApiExtraBodyJson: createFormFieldDispatch(
+        setValues,
+        "apiExtraBodyJson",
+      ),
+      setApiCustomHeadersJson: createFormFieldDispatch(
+        setValues,
+        "apiCustomHeadersJson",
+      ),
+      setOcrDevice: createFormFieldDispatch(setValues, "ocrDevice"),
+      setOcrGpuBackend: createFormFieldDispatch(setValues, "ocrGpuBackend"),
+      setOcrQualityMode: createFormFieldDispatch(setValues, "ocrQualityMode"),
+      setInpaintingModel: createFormFieldDispatch(setValues, "inpaintingModel"),
+      setFluxBackend: createFormFieldDispatch(setValues, "fluxBackend"),
+      setAllowUnsafeLowMemoryFlux: createFormFieldDispatch(
+        setValues,
+        "allowUnsafeLowMemoryFlux",
+      ),
+      setMaxTokens: createFormFieldDispatch(setValues, "maxTokens"),
+      setContextTokens: createFormFieldDispatch(setValues, "contextTokens"),
+    }),
+    [setValues],
+  );
 }
 
-function useFormFieldDispatch<K extends keyof SettingsFormValues>(
+function createFormFieldDispatch<K extends keyof SettingsFormValues>(
   setValues: React.Dispatch<React.SetStateAction<SettingsFormValues>>,
   key: K,
 ): FieldSetter<K> {
-  return React.useCallback(
-    (next) => {
-      setValues((current) => ({
-        ...current,
-        [key]:
-          typeof next === "function"
-            ? (next as (value: SettingsFormValues[K]) => SettingsFormValues[K])(
-                current[key],
-              )
-            : next,
-      }));
-    },
-    [key, setValues],
-  );
+  return (next) => {
+    setValues((current) => ({
+      ...current,
+      [key]:
+        typeof next === "function"
+          ? (next as (value: SettingsFormValues[K]) => SettingsFormValues[K])(
+              current[key],
+            )
+          : next,
+    }));
+  };
 }

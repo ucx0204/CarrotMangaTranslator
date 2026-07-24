@@ -13,10 +13,8 @@ import { runCommand } from "./errors";
 import { emitPythonInstallLog } from "./progress";
 import { shouldAllowFluxRocmSourceBuildFallback } from "./manifests";
 import { ensurePrebuiltFluxRocmPythonRuntime } from "./rocmPrebuiltRuntime";
-import {
-  findPythonCommand,
-  ensureEmbeddedPythonPackagePath,
-} from "./pythonBootstrap";
+import { findPythonCommand } from "./pythonBootstrap";
+import { ensureEmbeddedPythonPackagePath } from "./pythonPathFile";
 import { initializeWindowsRocmSdk, buildTargetPythonEnv } from "./rocmRuntime";
 import { verifyFluxPythonRuntime } from "./pythonRuntimePackages";
 import { ensureFluxPythonWorker } from "./pythonRuntimeLayout";

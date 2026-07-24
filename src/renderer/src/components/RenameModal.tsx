@@ -1,6 +1,8 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Button, Modal, TextField } from "./ui";
+import { Button } from "./ui/Button";
+import { TextField } from "./ui/Field";
+import { Modal } from "./ui/Modal";
 
 type RenameModalProps = {
   kind: "work" | "chapter";

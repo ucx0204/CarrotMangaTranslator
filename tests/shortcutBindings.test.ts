@@ -8,7 +8,12 @@ import {
   effectiveCombo,
   resetBinding,
   resolveBindings,
+  SHORTCUT_ACTIONS,
 } from "../src/renderer/src/lib/shortcuts/shortcutActions";
+import {
+  isCanonicalKeybindingCombo,
+  SHORTCUT_ACTION_IDS,
+} from "../src/shared/shortcutSettings";
 
 function event(
   overrides: Partial<{
@@ -96,6 +101,24 @@ describe("formatCombo", () => {
 });
 
 describe("shortcut binding resolution", () => {
+  it("keeps the renderer registry exhaustive with the shared action-id source", () => {
+    expect(SHORTCUT_ACTIONS.map((action) => action.id)).toEqual([
+      ...SHORTCUT_ACTION_IDS,
+    ]);
+  });
+
+  it("accepts only canonical persisted shortcut combos", () => {
+    expect(isCanonicalKeybindingCombo("ctrl+alt+shift+b")).toBe(true);
+    expect(isCanonicalKeybindingCombo("ctrl++")).toBe(true);
+    expect(isCanonicalKeybindingCombo(" ")).toBe(true);
+    expect(isCanonicalKeybindingCombo("")).toBe(true);
+    expect(isCanonicalKeybindingCombo("CTRL+B")).toBe(false);
+    expect(isCanonicalKeybindingCombo("shift+ctrl+b")).toBe(false);
+    expect(isCanonicalKeybindingCombo("ctrl+ctrl+b")).toBe(false);
+    expect(isCanonicalKeybindingCombo("  ")).toBe(false);
+    expect(isCanonicalKeybindingCombo("ctrl+\n")).toBe(false);
+  });
+
   it("falls back to the built-in default combo", () => {
     expect(effectiveCombo("toggle-block-chrome", {})).toBe("b");
   });

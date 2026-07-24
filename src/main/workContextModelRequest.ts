@@ -1,75 +1,11 @@
-import { join } from "node:path";
 import type { TranslationOptions } from "./appSettings";
-import { getAppPaths } from "./appPaths";
 import type { ModelEndpointHandle } from "./pipeline/types";
 import { tMain } from "./i18n";
-
-type ChatMessage = {
-  role: "system" | "user";
-  content: Array<{ type: "text"; text: string }>;
-};
-
-type RequestBuildersModule = {
-  buildChatRequestBodyWithModelResolver: (
-    options: TranslationOptions,
-    messages: ChatMessage[],
-    maxTokens: number,
-    resolveRequestModelName: (options: TranslationOptions) => string,
-  ) => unknown;
-  buildChatRequestHeaders: (
-    options: TranslationOptions,
-    apiKeyOverride?: string,
-  ) => HeadersInit;
-};
-
-type ApiKeyRetryModule = {
-  runWithApiKeyRetry: <TResult>(
-    options: TranslationOptions,
-    requestAttempt: (apiKey: string | undefined) => Promise<TResult>,
-  ) => Promise<TResult>;
-};
-
-type ModelHttpErrorsModule = {
-  createHttpFailureError: (
-    options: TranslationOptions,
-    requestSummary: Record<string, unknown>,
-    response: Response,
-    rawText: string,
-  ) => Error;
-  createModelTransportError: (
-    message: string,
-    detail: Record<string, unknown>,
-    cause: unknown,
-  ) => Error;
-};
-
-type RequestSummaryModule = {
-  resolveRequestModelName: (options: TranslationOptions) => string;
-};
-
-type ResponseTextModule = {
-  extractModelOutputText: (parsed: unknown) => string;
-  parseResponsesSseText: (rawText: string) => {
-    outputText: string;
-    rawResponse: unknown;
-    eventCount: number;
-  };
-};
-
-type LogitBiasModule = {
-  applyLocalForbiddenTokenBias: (
-    server: { baseUrl: string },
-    options: TranslationOptions,
-    requestBody: unknown,
-  ) => Promise<unknown>;
-};
-
-let cachedRequestBuilders: RequestBuildersModule | null = null;
-let cachedApiKeyRetry: ApiKeyRetryModule | null = null;
-let cachedModelHttpErrors: ModelHttpErrorsModule | null = null;
-let cachedRequestSummary: RequestSummaryModule | null = null;
-let cachedResponseText: ResponseTextModule | null = null;
-let cachedLogitBias: LogitBiasModule | null = null;
+import {
+  createWorkContextRequestRuntime,
+  type WorkContextChatMessage,
+  type WorkContextRequestRuntime,
+} from "./workContextRequestRuntime";
 
 export async function requestWorkContextAnalysisText({
   endpoint,
@@ -77,12 +13,14 @@ export async function requestWorkContextAnalysisText({
   systemPrompt,
   userPrompt,
   maxOutputTokens,
+  runtime = createWorkContextRequestRuntime(),
 }: {
   endpoint: ModelEndpointHandle;
   options: TranslationOptions;
   systemPrompt: string;
   userPrompt: string;
   maxOutputTokens: number;
+  runtime?: WorkContextRequestRuntime;
 }): Promise<string> {
   return options.modelProvider === "openai-codex"
     ? requestCodexText(
@@ -91,6 +29,7 @@ export async function requestWorkContextAnalysisText({
         systemPrompt,
         userPrompt,
         maxOutputTokens,
+        runtime,
       )
     : requestChatText(
         endpoint,
@@ -98,13 +37,14 @@ export async function requestWorkContextAnalysisText({
         systemPrompt,
         userPrompt,
         maxOutputTokens,
+        runtime,
       );
 }
 
 function buildMessages(
   systemPrompt: string,
   userPrompt: string,
-): ChatMessage[] {
+): WorkContextChatMessage[] {
   return [
     {
       role: "system",
@@ -123,9 +63,10 @@ async function requestChatText(
   systemPrompt: string,
   userPrompt: string,
   maxOutputTokens: number,
+  runtime: WorkContextRequestRuntime,
 ): Promise<string> {
-  const builders = getRequestBuildersModule();
-  const summary = getRequestSummaryModule();
+  const builders = runtime.requestBuilders;
+  const summary = runtime.requestSummary;
   const body = builders.buildChatRequestBodyWithModelResolver(
     options,
     buildMessages(systemPrompt, userPrompt),
@@ -133,29 +74,33 @@ async function requestChatText(
     summary.resolveRequestModelName,
   );
   if (options.modelProvider !== "openai-api") {
-    await getLogitBiasModule().applyLocalForbiddenTokenBias(
+    await runtime.logitBias.applyLocalForbiddenTokenBias(
       endpoint,
       options,
       body,
     );
   }
-  return getApiKeyRetryModule().runWithApiKeyRetry(options, async (apiKey) => {
+  return runtime.apiKeyRetry.runWithApiKeyRetry(options, async (apiKey) => {
     const response = await sendWorkContextRequest(
       `${endpoint.baseUrl}/chat/completions`,
       options,
       builders.buildChatRequestHeaders(options, apiKey),
       body,
+      runtime.modelHttpErrors,
     );
-    const rawText = await readWorkContextResponseText(response);
+    const rawText = await readWorkContextResponseText(
+      response,
+      runtime.modelHttpErrors,
+    );
     if (!response.ok) {
-      throw getModelHttpErrorsModule().createHttpFailureError(
+      throw runtime.modelHttpErrors.createHttpFailureError(
         options,
         {},
         response,
         rawText,
       );
     }
-    return extractChatOutput(rawText);
+    return extractChatOutput(rawText, runtime.responseText);
   });
 }
 
@@ -165,9 +110,10 @@ async function requestCodexText(
   systemPrompt: string,
   userPrompt: string,
   maxOutputTokens: number,
+  runtime: WorkContextRequestRuntime,
 ): Promise<string> {
-  const builders = getRequestBuildersModule();
-  const summary = getRequestSummaryModule();
+  const builders = runtime.requestBuilders;
+  const summary = runtime.requestSummary;
   const body = {
     model: summary.resolveRequestModelName(options),
     instructions: systemPrompt,
@@ -187,88 +133,37 @@ async function requestCodexText(
     options,
     builders.buildChatRequestHeaders(options),
     body,
+    runtime.modelHttpErrors,
   );
-  const rawText = await readWorkContextResponseText(response);
+  const rawText = await readWorkContextResponseText(
+    response,
+    runtime.modelHttpErrors,
+  );
   if (!response.ok) {
-    throw getModelHttpErrorsModule().createHttpFailureError(
+    throw runtime.modelHttpErrors.createHttpFailureError(
       options,
       {},
       response,
       rawText,
     );
   }
-  const parsed = getResponseTextModule().parseResponsesSseText(rawText);
+  const parsed = runtime.responseText.parseResponsesSseText(rawText);
   if (!parsed.outputText.trim()) {
     throw new Error(tMain("workContext.errors.emptyResponse"));
   }
   return parsed.outputText;
 }
 
-function extractChatOutput(rawText: string): string {
+function extractChatOutput(
+  rawText: string,
+  responseText: WorkContextRequestRuntime["responseText"],
+): string {
   const parsed = JSON.parse(rawText) as unknown;
-  const outputText = getResponseTextModule().extractModelOutputText(parsed);
+  const outputText = responseText.extractModelOutputText(parsed);
   if (!outputText.trim()) {
     throw new Error(tMain("workContext.errors.emptyResponse"));
   }
   return outputText;
-}
-
-function getRequestBuildersModule(): RequestBuildersModule {
-  if (!cachedRequestBuilders) {
-    cachedRequestBuilders = requireRuntimeModule<RequestBuildersModule>(
-      "simple-page-request-builders.cjs",
-    );
-  }
-  return cachedRequestBuilders;
-}
-
-function getApiKeyRetryModule(): ApiKeyRetryModule {
-  if (!cachedApiKeyRetry) {
-    cachedApiKeyRetry = requireRuntimeModule<ApiKeyRetryModule>(
-      "transport/api-key-retry.cjs",
-    );
-  }
-  return cachedApiKeyRetry;
-}
-
-function getModelHttpErrorsModule(): ModelHttpErrorsModule {
-  if (!cachedModelHttpErrors) {
-    cachedModelHttpErrors = requireRuntimeModule<ModelHttpErrorsModule>(
-      "transport/model-http-errors.cjs",
-    );
-  }
-  return cachedModelHttpErrors;
-}
-
-function getRequestSummaryModule(): RequestSummaryModule {
-  if (!cachedRequestSummary) {
-    cachedRequestSummary = requireRuntimeModule<RequestSummaryModule>(
-      "simple-page-request-summary.cjs",
-    );
-  }
-  return cachedRequestSummary;
-}
-
-function getResponseTextModule(): ResponseTextModule {
-  if (!cachedResponseText) {
-    cachedResponseText = requireRuntimeModule<ResponseTextModule>(
-      "simple-page-response-text.cjs",
-    );
-  }
-  return cachedResponseText;
-}
-
-function getLogitBiasModule(): LogitBiasModule {
-  if (!cachedLogitBias) {
-    cachedLogitBias = requireRuntimeModule<LogitBiasModule>(
-      "simple-page-logit-bias.cjs",
-    );
-  }
-  return cachedLogitBias;
-}
-
-function requireRuntimeModule<TModule>(fileName: string): TModule {
-  return require(join(getAppPaths().runtimeDir, fileName)) as TModule;
 }
 
 async function sendWorkContextRequest(
@@ -276,6 +171,7 @@ async function sendWorkContextRequest(
   options: TranslationOptions,
   headers: HeadersInit,
   body: unknown,
+  errors: WorkContextRequestRuntime["modelHttpErrors"],
 ): Promise<Response> {
   try {
     return await fetch(url, {
@@ -285,7 +181,7 @@ async function sendWorkContextRequest(
       signal: options.abortSignal,
     });
   } catch (error) {
-    throw getModelHttpErrorsModule().createModelTransportError(
+    throw errors.createModelTransportError(
       tMain("workContext.errors.requestFailed"),
       {},
       error,
@@ -295,11 +191,12 @@ async function sendWorkContextRequest(
 
 async function readWorkContextResponseText(
   response: Response,
+  errors: WorkContextRequestRuntime["modelHttpErrors"],
 ): Promise<string> {
   try {
     return await response.text();
   } catch (error) {
-    throw getModelHttpErrorsModule().createModelTransportError(
+    throw errors.createModelTransportError(
       tMain("workContext.errors.requestFailed"),
       { status: response.status, statusText: response.statusText },
       error,

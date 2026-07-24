@@ -28,11 +28,10 @@ const electronMock = vi.hoisted(() => {
   };
 });
 
-const loggerMock = vi.hoisted(() => ({
+const loggerMock = {
   logError: vi.fn(),
   logInfo: vi.fn(),
-  writeLog: vi.fn(),
-}));
+};
 
 vi.mock("electron", () => ({
   app: { isPackaged: false },
@@ -40,14 +39,11 @@ vi.mock("electron", () => ({
   ipcMain: { handle: electronMock.handle },
 }));
 
-vi.mock("../src/main/logger", () => loggerMock);
-
 beforeEach(() => {
   electronMock.handlers.clear();
   electronMock.handle.mockClear();
   loggerMock.logError.mockClear();
   loggerMock.logInfo.mockClear();
-  loggerMock.writeLog.mockClear();
 });
 
 describe("ActiveJobStore cleanup", () => {
@@ -55,7 +51,10 @@ describe("ActiveJobStore cleanup", () => {
     const cleanupGate = createDeferred<void>();
     const cleanup = vi.fn(() => cleanupGate.promise);
     const job = makeActiveJob(cleanup);
-    const jobs = new ActiveJobStore();
+    const jobs = new ActiveJobStore({
+      error: loggerMock.logError,
+      info: loggerMock.logInfo,
+    });
     jobs.start(job);
 
     const first = jobs.runCleanup(job, "first");
@@ -79,7 +78,10 @@ describe("ActiveJobStore cleanup", () => {
       throw failure;
     });
     const job = makeActiveJob(cleanup);
-    const jobs = new ActiveJobStore();
+    const jobs = new ActiveJobStore({
+      error: loggerMock.logError,
+      info: loggerMock.logInfo,
+    });
     jobs.start(job);
 
     await expect(jobs.runCleanup(job, "cancel")).resolves.toBeUndefined();

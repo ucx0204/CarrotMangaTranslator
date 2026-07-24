@@ -17,6 +17,8 @@ use koharu_runtime::{Catalog, ComputePolicy, RuntimeManager};
 use serde::{Deserialize, Serialize};
 use tracing_subscriber::{EnvFilter, fmt};
 
+use runner_runtime_policy::{CudaRuntimeProbe, decide_cuda_runtime_probe};
+
 const CUDA_REQUIRED_DLLS: &[&str] = &[
     "cudart64_12.dll",
     "cublas64_12.dll",
@@ -111,19 +113,20 @@ async fn main() -> Result<()> {
     if cli.require_zluda && cli.require_metal {
         bail!("--require-zluda and --require-metal cannot be used together");
     }
+    let runtime_probe = decide_cuda_runtime_probe(cli.require_zluda, !cli.require_metal);
     if cli.require_metal {
         ensure_metal_available()?;
     } else if cli.require_zluda {
         prepare_zluda_runtime(&cli).await?;
-        // ZLUDA's nvcudart_hybrid64.dll is not a complete CUDA Runtime API
-        // implementation and does not export entry points such as
-        // cudaGetDeviceCount. Candle initializes ZLUDA through the CUDA Driver
-        // API instead, so a runtime-only diagnostic would abort before model
-        // loading even though the supported driver path is ready.
-        eprintln!("mgt-flux-klein: CUDA runtime probe skipped for ZLUDA");
     } else {
         prepare_cuda_runtime(cli.cuda_runtime_dir.as_deref())?;
-        log_cuda_runtime_probe();
+    }
+    match runtime_probe {
+        CudaRuntimeProbe::Run => log_cuda_runtime_probe(),
+        CudaRuntimeProbe::SkipForZluda => {
+            eprintln!("mgt-flux-klein: CUDA runtime probe skipped for ZLUDA");
+        }
+        CudaRuntimeProbe::Disabled => {}
     }
 
     let load_started = Instant::now();

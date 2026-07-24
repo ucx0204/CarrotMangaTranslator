@@ -1,5 +1,9 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import type {
+  KeybindingOverrides,
+  ShortcutActionId,
+} from "../../../../shared/shortcutSettings";
 import {
   comboFromEvent,
   formatCombo,
@@ -10,9 +14,7 @@ import {
   resetBinding,
   SHORTCUT_ACTIONS,
   SHORTCUT_CATEGORY_ORDER,
-  type KeybindingOverrides,
   type ShortcutActionDef,
-  type ShortcutActionId,
 } from "../../lib/shortcuts/shortcutActions";
 
 export type ShortcutsSettingsPanelProps = {

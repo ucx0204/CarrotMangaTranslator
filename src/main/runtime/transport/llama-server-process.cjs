@@ -3,7 +3,7 @@
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions & { label?: string | null; onProgress?: ((progress: Record<string, unknown>) => void) | null; port?: unknown; reuseServer?: boolean | null; serverPath?: string | null; serverLogPath?: string | null }} ServerRuntimeOptions */
 /** @typedef {{ baseUrl: string; child: import("node:child_process").ChildProcess | null; startedByScript: boolean; serverLogPath?: string | null }} StartedServer */
-/** @typedef {{ child: import("node:child_process").ChildProcess; recent: { stdout: string; stderr: string }; logStream: import("node:fs").WriteStream | null; forwardOutputToProgress: boolean; onAbort: () => void }} RunningServer */
+/** @typedef {{ child: import("node:child_process").ChildProcess; recent: { stdout: string; stderr: string }; outputTransport: ReturnType<typeof createServerOutputTransport>; onAbort: () => void }} RunningServer */
 const { spawn } = require("node:child_process");
 const { existsSync } = require("node:fs");
 const { setTimeout: delay } = require("node:timers/promises");
@@ -20,7 +20,6 @@ const {
 } = require("../simple-page-runtime-paths.cjs");
 const {
   createAbortError,
-  shrinkBuffer,
   terminateChildProcessTree,
 } = require("../simple-page-shell-utils.cjs");
 const {
@@ -46,10 +45,8 @@ const {
   isIncompleteManagedLlamaRuntime,
   verifyLlamaRuntimePreflight,
 } = require("../model/server-preflight.cjs");
-const {
-  createServerLogStream,
-  emitServerInstallLog,
-} = require("./llama-server-logging.cjs");
+const { createServerLogTarget } = require("./llama-server-logging.cjs");
+const { createServerOutputTransport } = require("./llama-server-output.cjs");
 const {
   isReachable,
   waitForReadyOrExit,
@@ -82,7 +79,7 @@ async function startServer(options) {
   const running = spawnServer(serverPath, launchArgs, options);
   try {
     await awaitServerReady(baseUrl, serverPath, launchArgs, options, running);
-    running.forwardOutputToProgress = false;
+    running.outputTransport.stopStartupForwarding();
     emitServerReady(options);
   } catch (error) {
     terminateChildProcessTree(running.child);
@@ -194,43 +191,49 @@ function spawnServer(serverPath, launchArgs, options) {
     shell: false,
     env: buildLlamaServerEnv(serverPath, options),
   });
+  const serverLogTarget = createServerLogTarget(
+    options,
+    serverPath,
+    launchArgs,
+  );
+  const outputTransport = createServerOutputTransport(options, serverLogTarget);
   const running = {
     child,
-    recent: { stdout: "", stderr: "" },
-    logStream: createServerLogStream(options, serverPath, launchArgs),
-    forwardOutputToProgress: true,
+    recent: outputTransport.recent,
+    outputTransport,
     onAbort: () => terminateChildProcessTree(child),
   };
   options.abortSignal?.addEventListener?.("abort", running.onAbort, {
     once: true,
   });
-  bindServerOutput(running, options);
+  bindServerOutput(running);
   return running;
 }
 
-/** @param {RunningServer} running @param {ServerRuntimeOptions} options */
-function bindServerOutput(running, options) {
-  const { child, logStream } = running;
+/** @param {RunningServer} running */
+function bindServerOutput(running) {
+  const { child, outputTransport } = running;
+  let disposed = false;
+  const disposeOutput = () => {
+    if (disposed) return;
+    disposed = true;
+    outputTransport.dispose();
+  };
   child.stdout?.setEncoding("utf8");
   child.stderr?.setEncoding("utf8");
   child.stdout?.on("data", (chunk) =>
-    recordServerOutput("stdout", chunk, running, options),
+    recordServerOutput("stdout", chunk, running),
   );
   child.stderr?.on("data", (chunk) =>
-    recordServerOutput("stderr", chunk, running, options),
+    recordServerOutput("stderr", chunk, running),
   );
-  child.once("exit", () => logStream?.end());
-  child.once("error", () => logStream?.end());
+  child.once("exit", disposeOutput);
+  child.once("error", disposeOutput);
 }
 
-/** @param {"stdout" | "stderr"} stream @param {unknown} chunk @param {RunningServer} running @param {ServerRuntimeOptions} options */
-function recordServerOutput(stream, chunk, running, options) {
-  running.recent[stream] = shrinkBuffer(running.recent[stream], chunk);
-  running.logStream?.write(`[${stream}] ${chunk}`);
-  emitServerInstallLog(options, chunk, running.forwardOutputToProgress);
-  const line = `[llama:${options.label}:${stream}] ${chunk}`;
-  if (stream === "stdout") process.stdout.write(line);
-  else process.stderr.write(line);
+/** @param {"stdout" | "stderr"} stream @param {unknown} chunk @param {RunningServer} running */
+function recordServerOutput(stream, chunk, running) {
+  running.outputTransport.record(stream, chunk);
 }
 
 /** @param {string} baseUrl @param {string} serverPath @param {string[]} launchArgs @param {ServerRuntimeOptions} options @param {RunningServer} running */

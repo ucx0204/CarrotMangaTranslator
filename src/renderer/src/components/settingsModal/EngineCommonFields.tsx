@@ -1,13 +1,15 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import {
-  MAX_MAX_TOKENS,
-  MIN_CONTEXT_TOKENS,
-  MIN_MAX_TOKENS,
   MODEL_PROVIDER_OPTIONS,
   findCodexModelOption,
 } from "../settingsOptions";
-import { resolveRecommendedGenerationLimits } from "../../../../shared/modelPresets";
+import {
+  MAX_MAX_TOKENS,
+  MIN_CONTEXT_TOKENS,
+  MIN_MAX_TOKENS,
+  resolveRecommendedGenerationLimits,
+} from "../../../../shared/modelPresets";
 import type { ModelProvider } from "../../../../shared/settingsTypes";
 import type { EngineSettingsPanelProps } from "./EngineSettingsPanelTypes";
 import { SelectionSurface } from "../ui/SelectionCard";

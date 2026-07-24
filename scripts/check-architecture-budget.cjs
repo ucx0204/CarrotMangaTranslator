@@ -80,6 +80,19 @@ for (const moduleInfo of report.modules ?? []) {
       `${source}: runtimeImportedBy ${runtimeImportedBy} exceeds budget ${maxImportedBy}`,
     );
   }
+  if (allow.maxImports !== undefined && imports < allow.maxImports) {
+    console.log(
+      `${source}: imports ${imports} is below explicit budget ${allow.maxImports}; lower the baseline.`,
+    );
+  }
+  if (
+    allow.maxImportedBy !== undefined &&
+    runtimeImportedBy < allow.maxImportedBy
+  ) {
+    console.log(
+      `${source}: runtimeImportedBy ${runtimeImportedBy} is below explicit budget ${allow.maxImportedBy}; lower the baseline.`,
+    );
+  }
 }
 
 if (violations.length > 0) {

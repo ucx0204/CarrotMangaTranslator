@@ -71,6 +71,7 @@ export function resolveOcrTranslationOptions(
       ocrDevice,
       ocrGpuBackend,
       ocrQualityMode,
+      resolveOcrSourceLanguage(runtimeEnv, settings),
     ),
     ocrBboxProvider: resolveOptionalString(
       runtimeEnv.MANGA_TRANSLATOR_OCR_BBOX_PROVIDER,
@@ -124,11 +125,13 @@ function resolvePaddleOcrModeOptions(
   ocrDevice: OcrDevice,
   ocrGpuBackend: OcrGpuBackend,
   ocrQualityMode: OcrQualityMode,
+  sourceLanguage: string,
 ): PaddleOcrModeOptions {
   const context = resolvePaddleOcrModeContext(
     ocrDevice,
     ocrGpuBackend,
     ocrQualityMode,
+    sourceLanguage,
   );
   const defaults = resolvePaddleOcrModeDefaults(context);
   const options: PaddleOcrModeOptions = {};
@@ -153,10 +156,14 @@ function resolvePaddleOcrModeContext(
   ocrDevice: OcrDevice,
   ocrGpuBackend: OcrGpuBackend,
   ocrQualityMode: OcrQualityMode,
+  sourceLanguage: string,
 ): PaddleOcrModeContext {
   const rocmTransformers =
     ocrDevice === "gpu" && ocrGpuBackend === "rocm-transformers";
-  const lowVramModelNames = resolveLowVramOcrModelNames(ocrQualityMode);
+  const lowVramModelNames = resolveLowVramOcrModelNames(
+    ocrQualityMode,
+    sourceLanguage,
+  );
   const semanticFullDefaults = ocrQualityMode === "full";
   return {
     rocmTransformers,
@@ -196,6 +203,7 @@ function isPresetLockedPipelineMode(key: keyof PaddleOcrModeOptions): boolean {
 
 function resolveLowVramOcrModelNames(
   ocrQualityMode: OcrQualityMode,
+  sourceLanguage: string,
 ): { det: string; rec: string } | undefined {
   if (ocrQualityMode === "economy") {
     return {
@@ -206,10 +214,31 @@ function resolveLowVramOcrModelNames(
   if (ocrQualityMode === "minimum") {
     return {
       det: "PP-OCRv6_small_det",
-      rec: "PP-OCRv6_tiny_rec",
+      // PP-OCRv6 tiny recognition excludes Japanese. Keep the low-memory
+      // model for its supported languages, but never select it for the
+      // application's default Japanese manga route.
+      rec: isJapaneseSourceLanguage(sourceLanguage)
+        ? "PP-OCRv6_small_rec"
+        : "PP-OCRv6_tiny_rec",
     };
   }
   return undefined;
+}
+
+function resolveOcrSourceLanguage(
+  runtimeEnv: NodeJS.ProcessEnv,
+  settings: AppSettings,
+): string {
+  return (
+    resolveOptionalString(runtimeEnv.MANGA_TRANSLATOR_OCR_SOURCE_LANGUAGE) ??
+    settings.translation?.sourceLanguage ??
+    "ja"
+  );
+}
+
+function isJapaneseSourceLanguage(sourceLanguage: string): boolean {
+  const normalized = sourceLanguage.trim().toLowerCase();
+  return normalized === "ja" || normalized.startsWith("ja-");
 }
 
 function resolveOcrQualityModeFromGemmaVramMode(

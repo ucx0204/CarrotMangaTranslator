@@ -3,34 +3,64 @@
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
+import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 
-const applyHistoryTransaction = vi.hoisted(() => vi.fn());
-const releaseHistoryTransactions = vi.hoisted(() => vi.fn());
-
-vi.mock("../src/renderer/src/api/mangaGateway", () => ({
-  mangaGateway: {
-    applyInpaintingHistoryTransaction: applyHistoryTransaction,
-    releaseInpaintingHistoryTransactions: releaseHistoryTransactions,
-  },
-}));
+const applyHistoryTransaction = vi.fn();
+const releaseHistoryTransactions = vi.fn();
 
 import { useAppSessionWorkspaceHistory } from "../src/renderer/src/app/session/useAppSessionWorkspaceHistory";
-import type { ChapterSessionController } from "../src/renderer/src/app/session/useChapterSessionController";
+import type { WorkspaceHistoryChapterController } from "../src/renderer/src/app/session/useAppSessionWorkspaceHistory";
 
 const CHAPTER_ID = "11111111-1111-4111-8111-111111111111";
 const PAGE_ID = "22222222-2222-4222-8222-222222222222";
 const TRANSACTION_ID = "33333333-3333-4333-8333-333333333333";
 const TS = "2026-01-01T00:00:00.000Z";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  Reflect.deleteProperty(window, "mangaApi");
+});
 
 beforeEach(() => {
   applyHistoryTransaction.mockReset();
   releaseHistoryTransactions.mockReset();
   releaseHistoryTransactions.mockResolvedValue({ released: 0 });
+  window.mangaApi = createTestMangaGatewayStub({
+    applyInpaintingHistoryTransaction: applyHistoryTransaction,
+    releaseInpaintingHistoryTransactions: releaseHistoryTransactions,
+  });
 });
 
 describe("app-session workspace history", () => {
+  it("keeps history actions stable when only session aggregate objects change", () => {
+    const chapter = makeChapter("C:/chapter/page-after.png");
+    const pageOrderJoin = vi.spyOn(chapter.pageOrder, "join");
+    const controller = makeChapterController({
+      chapter,
+      clearPageImageCache: vi.fn(),
+      mergeLiveChapter: vi.fn(),
+      refreshLibrary: vi.fn().mockResolvedValue(undefined),
+    });
+    const { result, rerender } = renderHook(
+      ({ session }: { session: WorkspaceHistoryChapterController }) =>
+        useAppSessionWorkspaceHistory(session),
+      { initialProps: { session: controller } },
+    );
+    const initialHistory = result.current;
+    pageOrderJoin.mockClear();
+
+    rerender({
+      session: {
+        ...controller,
+        core: { ...controller.core },
+        persistence: { ...controller.persistence },
+      },
+    });
+
+    expect(result.current).toBe(initialHistory);
+    expect(pageOrderJoin).not.toHaveBeenCalled();
+  });
+
   it("merges authoritative chapters and discards an invalidated image entry", async () => {
     const before = makeChapter("C:/chapter/page-after.png");
     const authoritative = makeChapter("C:/chapter/page-uncertain.png");
@@ -84,7 +114,7 @@ describe("app-session workspace history", () => {
       refreshLibrary: vi.fn().mockResolvedValue(undefined),
     });
     const { result, rerender } = renderHook(
-      ({ session }: { session: ChapterSessionController }) =>
+      ({ session }: { session: WorkspaceHistoryChapterController }) =>
         useAppSessionWorkspaceHistory(session),
       { initialProps: { session: controller } },
     );
@@ -125,7 +155,7 @@ function makeChapterController({
   clearPageImageCache: () => void;
   mergeLiveChapter: (chapter: ChapterSnapshot) => void;
   refreshLibrary: () => Promise<void>;
-}): ChapterSessionController {
+}): WorkspaceHistoryChapterController {
   return {
     core: {
       currentChapter: chapter,
@@ -143,7 +173,7 @@ function makeChapterController({
     persistence: { markDirty: vi.fn() },
     statusLog: { pushStatus: vi.fn() },
     uiState: { setPatternMaskStrokesByPage: vi.fn() },
-  } as unknown as ChapterSessionController;
+  } satisfies WorkspaceHistoryChapterController;
 }
 
 function makeChapter(inpaintedImagePath: string): ChapterSnapshot {

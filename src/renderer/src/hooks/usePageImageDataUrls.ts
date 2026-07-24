@@ -1,8 +1,14 @@
 import React from "react";
 import type { MangaPage } from "../../../shared/libraryTypes";
-import { mangaGateway } from "../api/mangaGateway";
+import {
+  clearPageImageRequestCache,
+  createPageImageRequestCoordinator,
+  getCachedPageImageDataUrl,
+  preloadPageImage,
+  type PageImageRequestCoordinator,
+} from "./pageImageDataUrlCache";
 
-const PAGE_IMAGE_CACHE_LIMIT = 6;
+const EMPTY_NEIGHBOR_TARGETS: Array<{ pageId: string; imagePath: string }> = [];
 
 type UsePageImageDataUrlsOptions = {
   chapterId: string | null;
@@ -24,12 +30,24 @@ type ImageDataUrlSetter = React.Dispatch<React.SetStateAction<string>>;
 type PageImagePageIdSetter = React.Dispatch<
   React.SetStateAction<string | null>
 >;
+type OriginalPageImageEffectOptions = {
+  cacheRevision: number;
+  pageImageCacheRef: React.MutableRefObject<Map<string, string>>;
+  requestCoordinatorRef: React.MutableRefObject<PageImageRequestCoordinator>;
+  selectedPageId: string | null;
+  selectedPageImageDataUrl: string;
+  selectedPageImageDataUrlPageId: string | null;
+  selectedPageImagePath: string | null;
+  selectedPageOriginalImagePath: string | null;
+  setSelectedPageOriginalImageDataUrl: ImageDataUrlSetter;
+  setSelectedPageOriginalImageDataUrlPageId: PageImagePageIdSetter;
+};
 
 export function usePageImageDataUrls({
   chapterId,
   selectedPage,
   selectedPageImagePath,
-  neighborTargets = [],
+  neighborTargets = EMPTY_NEIGHBOR_TARGETS,
 }: UsePageImageDataUrlsOptions): UsePageImageDataUrlsResult {
   const [selectedPageImageDataUrl, setSelectedPageImageDataUrl] =
     React.useState("");
@@ -44,13 +62,20 @@ export function usePageImageDataUrls({
     setSelectedPageOriginalImageDataUrlPageId,
   ] = React.useState<string | null>(null);
   const [cacheRevision, setCacheRevision] = React.useState(0);
-  const pageImageCacheRef = React.useRef<Map<string, string>>(new Map());
+  const [pageImageCache] = React.useState(() => new Map<string, string>());
+  const pageImageCacheRef = React.useRef<Map<string, string>>(pageImageCache);
+  const [requestCoordinator] = React.useState(
+    createPageImageRequestCoordinator,
+  );
+  const requestCoordinatorRef =
+    React.useRef<PageImageRequestCoordinator>(requestCoordinator);
   const selectedPageId = selectedPage?.id ?? null;
   const selectedPageOriginalImagePath = selectedPage?.imagePath ?? null;
 
   const clearPageImageCache = useClearPageImageCache({
     chapterId,
     pageImageCacheRef,
+    requestCoordinatorRef,
     setCacheRevision,
     setSelectedPageImageDataUrl,
     setSelectedPageImageDataUrlPageId,
@@ -60,6 +85,7 @@ export function usePageImageDataUrls({
   useSelectedPageImageEffect({
     cacheRevision,
     pageImageCacheRef,
+    requestCoordinatorRef,
     selectedPageId,
     selectedPageImagePath,
     selectedPageOriginalImagePath,
@@ -71,6 +97,7 @@ export function usePageImageDataUrls({
   useOriginalPageImageEffect({
     cacheRevision,
     pageImageCacheRef,
+    requestCoordinatorRef,
     selectedPageId,
     selectedPageImageDataUrl,
     selectedPageImageDataUrlPageId,
@@ -79,7 +106,11 @@ export function usePageImageDataUrls({
     setSelectedPageOriginalImageDataUrl,
     setSelectedPageOriginalImageDataUrlPageId,
   });
-  useNeighborPagePrefetch(neighborTargets, pageImageCacheRef);
+  useNeighborPagePrefetch(
+    neighborTargets,
+    pageImageCacheRef,
+    requestCoordinatorRef,
+  );
 
   return {
     selectedPageImageDataUrl,
@@ -93,6 +124,7 @@ export function usePageImageDataUrls({
 function useClearPageImageCache({
   chapterId,
   pageImageCacheRef,
+  requestCoordinatorRef,
   setCacheRevision,
   setSelectedPageImageDataUrl,
   setSelectedPageImageDataUrlPageId,
@@ -101,6 +133,7 @@ function useClearPageImageCache({
 }: {
   chapterId: string | null;
   pageImageCacheRef: React.MutableRefObject<Map<string, string>>;
+  requestCoordinatorRef: React.MutableRefObject<PageImageRequestCoordinator>;
   setCacheRevision: React.Dispatch<React.SetStateAction<number>>;
   setSelectedPageImageDataUrl: ImageDataUrlSetter;
   setSelectedPageImageDataUrlPageId: PageImagePageIdSetter;
@@ -108,7 +141,10 @@ function useClearPageImageCache({
   setSelectedPageOriginalImageDataUrlPageId: PageImagePageIdSetter;
 }): () => void {
   const clearPageImageCache = React.useCallback(() => {
-    pageImageCacheRef.current.clear();
+    clearPageImageRequestCache(
+      pageImageCacheRef.current,
+      requestCoordinatorRef.current,
+    );
     setSelectedPageImageDataUrl("");
     setSelectedPageImageDataUrlPageId(null);
     setSelectedPageOriginalImageDataUrl("");
@@ -116,6 +152,7 @@ function useClearPageImageCache({
     setCacheRevision((revision) => revision + 1);
   }, [
     pageImageCacheRef,
+    requestCoordinatorRef,
     setCacheRevision,
     setSelectedPageImageDataUrl,
     setSelectedPageImageDataUrlPageId,
@@ -126,6 +163,15 @@ function useClearPageImageCache({
   React.useEffect(() => {
     clearPageImageCache();
   }, [chapterId, clearPageImageCache]);
+  React.useEffect(
+    () => () => {
+      clearPageImageRequestCache(
+        pageImageCacheRef.current,
+        requestCoordinatorRef.current,
+      );
+    },
+    [pageImageCacheRef, requestCoordinatorRef],
+  );
 
   return clearPageImageCache;
 }
@@ -133,6 +179,7 @@ function useClearPageImageCache({
 function useSelectedPageImageEffect({
   cacheRevision,
   pageImageCacheRef,
+  requestCoordinatorRef,
   selectedPageId,
   selectedPageImagePath,
   selectedPageOriginalImagePath,
@@ -143,6 +190,7 @@ function useSelectedPageImageEffect({
 }: {
   cacheRevision: number;
   pageImageCacheRef: React.MutableRefObject<Map<string, string>>;
+  requestCoordinatorRef: React.MutableRefObject<PageImageRequestCoordinator>;
   selectedPageId: string | null;
   selectedPageImagePath: string | null;
   selectedPageOriginalImagePath: string | null;
@@ -171,13 +219,16 @@ function useSelectedPageImageEffect({
     }
 
     let cancelled = false;
-    void mangaGateway
-      .getPageImageDataUrl(imagePath)
+    void getCachedPageImageDataUrl(
+      pageImageCacheRef.current,
+      requestCoordinatorRef.current,
+      cacheKey,
+      imagePath,
+    )
       .then((dataUrl) => {
         if (cancelled) {
           return;
         }
-        setCachedImageDataUrl(pageImageCacheRef.current, cacheKey, dataUrl);
         setSelectedPageImageDataUrl(dataUrl);
         setSelectedPageImageDataUrlPageId(selectedPageId);
       })
@@ -195,6 +246,7 @@ function useSelectedPageImageEffect({
   }, [
     cacheRevision,
     pageImageCacheRef,
+    requestCoordinatorRef,
     selectedPageId,
     selectedPageImagePath,
     selectedPageOriginalImagePath,
@@ -208,6 +260,7 @@ function useSelectedPageImageEffect({
 function useOriginalPageImageEffect({
   cacheRevision,
   pageImageCacheRef,
+  requestCoordinatorRef,
   selectedPageId,
   selectedPageImageDataUrl,
   selectedPageImageDataUrlPageId,
@@ -215,17 +268,7 @@ function useOriginalPageImageEffect({
   selectedPageOriginalImagePath,
   setSelectedPageOriginalImageDataUrl,
   setSelectedPageOriginalImageDataUrlPageId,
-}: {
-  cacheRevision: number;
-  pageImageCacheRef: React.MutableRefObject<Map<string, string>>;
-  selectedPageId: string | null;
-  selectedPageImageDataUrl: string;
-  selectedPageImageDataUrlPageId: string | null;
-  selectedPageImagePath: string | null;
-  selectedPageOriginalImagePath: string | null;
-  setSelectedPageOriginalImageDataUrl: ImageDataUrlSetter;
-  setSelectedPageOriginalImageDataUrlPageId: PageImagePageIdSetter;
-}): void {
+}: OriginalPageImageEffectOptions): void {
   React.useEffect(() => {
     if (!selectedPageId || !selectedPageOriginalImagePath) {
       setSelectedPageOriginalImageDataUrl("");
@@ -253,13 +296,16 @@ function useOriginalPageImageEffect({
 
     let cancelled = false;
     setSelectedPageOriginalImageDataUrl("");
-    void mangaGateway
-      .getPageImageDataUrl(selectedPageOriginalImagePath)
+    void getCachedPageImageDataUrl(
+      pageImageCacheRef.current,
+      requestCoordinatorRef.current,
+      cacheKey,
+      selectedPageOriginalImagePath,
+    )
       .then((dataUrl) => {
         if (cancelled) {
           return;
         }
-        setCachedImageDataUrl(pageImageCacheRef.current, cacheKey, dataUrl);
         setSelectedPageOriginalImageDataUrl(dataUrl);
         setSelectedPageOriginalImageDataUrlPageId(selectedPageId);
       })
@@ -277,6 +323,7 @@ function useOriginalPageImageEffect({
   }, [
     cacheRevision,
     pageImageCacheRef,
+    requestCoordinatorRef,
     selectedPageId,
     selectedPageImageDataUrl,
     selectedPageImageDataUrlPageId,
@@ -290,46 +337,33 @@ function useOriginalPageImageEffect({
 function useNeighborPagePrefetch(
   neighborTargets: Array<{ pageId: string; imagePath: string }>,
   pageImageCacheRef: React.MutableRefObject<Map<string, string>>,
+  requestCoordinatorRef: React.MutableRefObject<PageImageRequestCoordinator>,
 ): void {
   React.useEffect(() => {
     if (neighborTargets.length === 0) {
       return;
     }
-    let cancelled = false;
     for (const target of neighborTargets) {
       const cacheKey = `${target.pageId}:${target.imagePath}`;
-      if (pageImageCacheRef.current.has(cacheKey)) {
-        continue;
-      }
-      void mangaGateway
-        .getPageImageDataUrl(target.imagePath)
+      const coordinator = requestCoordinatorRef.current;
+      const epoch = coordinator.epoch;
+      void getCachedPageImageDataUrl(
+        pageImageCacheRef.current,
+        coordinator,
+        cacheKey,
+        target.imagePath,
+      )
         .then((dataUrl) => {
-          if (!cancelled) {
-            setCachedImageDataUrl(pageImageCacheRef.current, cacheKey, dataUrl);
+          if (coordinator.epoch !== epoch) {
+            return;
           }
+          return preloadPageImage(coordinator, dataUrl);
         })
         .catch((error) => {
-          console.warn("이웃 페이지 미리 불러오기 실패", error);
+          if (coordinator.epoch === epoch) {
+            console.warn("이웃 페이지 미리 불러오기 실패", error);
+          }
         });
     }
-    return () => {
-      cancelled = true;
-    };
-  }, [neighborTargets, pageImageCacheRef]);
-}
-
-function setCachedImageDataUrl(
-  cache: Map<string, string>,
-  key: string,
-  dataUrl: string,
-): void {
-  cache.delete(key);
-  cache.set(key, dataUrl);
-  while (cache.size > PAGE_IMAGE_CACHE_LIMIT) {
-    const oldestPageId = cache.keys().next().value;
-    if (!oldestPageId) {
-      break;
-    }
-    cache.delete(oldestPageId);
-  }
+  }, [neighborTargets, pageImageCacheRef, requestCoordinatorRef]);
 }

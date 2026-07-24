@@ -1,4 +1,3 @@
-import { join } from "node:path";
 import type { TranslationOptions } from "../appSettings";
 import { getAppPaths } from "../appPaths";
 import {
@@ -10,77 +9,41 @@ import {
   createOpenAICompatibleApiEndpoint,
   isOpenAICompatibleApiEndpoint,
 } from "../openaiApiEndpoint";
+import {
+  assertRuntimeFunctions,
+  loadRuntimeModuleFromDirectory,
+} from "../runtimeModuleLoader";
 import type { ModelEndpointHandle, RuntimeModules } from "./types";
 
-let cachedRuntimeDir: string | null = null;
-let cachedRuntime: RuntimeModules | null = null;
-
-export function loadRuntimeModules(): RuntimeModules {
-  const runtimeDir = getAppPaths().runtimeDir;
-  if (cachedRuntime && cachedRuntimeDir === runtimeDir) {
-    return cachedRuntime;
-  }
-
-  cachedRuntimeDir = runtimeDir;
-  cachedRuntime = {
-    simplePage: require(
-      join(runtimeDir, "simple-page-translate.cjs"),
-    ) as RuntimeModules["simplePage"],
-    overlayTools: require(
-      join(runtimeDir, "overlay-parser.cjs"),
-    ) as RuntimeModules["overlayTools"],
+export function loadRuntimeModules(
+  runtimeDir: string = getAppPaths().runtimeDir,
+): RuntimeModules {
+  const runtime = {
+    simplePage: loadRuntimeModuleFromDirectory(runtimeDir, "simplePage"),
+    overlayTools: loadRuntimeModuleFromDirectory(runtimeDir, "overlayTools"),
   };
-  assertRuntimeModules(cachedRuntime);
-  return cachedRuntime;
+  assertRuntimeModules(runtime);
+  return runtime;
 }
 
-function assertRuntimeModules(runtime: RuntimeModules): void {
-  assertFunction(
-    runtime.simplePage?.collectOcrBboxHints,
-    "simple-page-translate.cjs collectOcrBboxHints",
-  );
-  assertFunction(
-    runtime.simplePage?.requestTranslation,
-    "simple-page-translate.cjs requestTranslation",
-  );
-  assertFunction(
-    runtime.simplePage?.saveArtifacts,
-    "simple-page-translate.cjs saveArtifacts",
-  );
-  assertFunction(
-    runtime.simplePage?.startServer,
-    "simple-page-translate.cjs startServer",
-  );
-  assertFunction(
-    runtime.simplePage?.stopServer,
-    "simple-page-translate.cjs stopServer",
-  );
-  assertFunction(
-    runtime.simplePage?.isModelCached,
-    "simple-page-translate.cjs isModelCached",
-  );
-  assertFunction(
-    runtime.overlayTools?.normalizeItems,
-    "overlay-parser.cjs normalizeItems",
-  );
-  assertFunction(
-    runtime.overlayTools?.normalizeRegionSingleItem,
-    "overlay-parser.cjs normalizeRegionSingleItem",
-  );
-  assertFunction(
-    runtime.overlayTools?.parseJsonLenient,
-    "overlay-parser.cjs parseJsonLenient",
-  );
-  assertFunction(
-    runtime.overlayTools?.parseRegionSingleItem,
-    "overlay-parser.cjs parseRegionSingleItem",
-  );
-}
-
-function assertFunction(value: unknown, label: string): void {
-  if (typeof value !== "function") {
-    throw new Error(`런타임 모듈이 올바르지 않습니다: ${label}`);
-  }
+function assertRuntimeModules(runtime: {
+  simplePage: unknown;
+  overlayTools: unknown;
+}): asserts runtime is RuntimeModules {
+  assertRuntimeFunctions(runtime.simplePage, "simple-page-translate.cjs", [
+    "collectOcrBboxHints",
+    "requestTranslation",
+    "saveArtifacts",
+    "startServer",
+    "stopServer",
+    "isModelCached",
+  ]);
+  assertRuntimeFunctions(runtime.overlayTools, "overlay-parser.cjs", [
+    "normalizeItems",
+    "normalizeRegionSingleItem",
+    "parseJsonLenient",
+    "parseRegionSingleItem",
+  ]);
 }
 
 async function startModelEndpoint(

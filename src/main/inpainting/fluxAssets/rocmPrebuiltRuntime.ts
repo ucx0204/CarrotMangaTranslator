@@ -19,10 +19,8 @@ import {
   resolveFluxRocmPrebuiltRuntimeUrl,
   shouldUsePrebuiltFluxRocmRuntime,
 } from "./manifests";
-import {
-  ensureEmbeddedPythonPackagePath,
-  managedFluxBootstrapPythonPath,
-} from "./pythonBootstrap";
+import { managedFluxBootstrapPythonPath } from "./pythonBootstrap";
+import { ensureEmbeddedPythonPackagePath } from "./pythonPathFile";
 import { buildTargetPythonEnv } from "./rocmRuntime";
 import { ensureFluxPythonWorker } from "./pythonRuntimeLayout";
 import {

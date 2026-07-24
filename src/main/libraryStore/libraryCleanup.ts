@@ -2,9 +2,7 @@ import { existsSync } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import {
-  WORKS_ROOT,
   ensureLibraryStructure,
-  readChapterFile,
   readIndexFile,
   readWorkFile,
   removeChapterDirectory,
@@ -12,6 +10,11 @@ import {
   writeIndexFile,
   writeWorkFile,
 } from "./libraryFiles";
+import {
+  getChapterFilePath,
+  getWorkFilePath,
+  getWorksRoot,
+} from "./libraryPaths";
 
 export type LibraryCleanupResult = {
   missingWorkReferencesRemoved: number;
@@ -48,8 +51,7 @@ async function removeMissingWorkReferences(
   const index = await readIndexFile();
   const retainedWorkIds: string[] = [];
   for (const workId of index.workOrder) {
-    const work = await readWorkFile(workId);
-    if (!work) {
+    if (!existsSync(getWorkFilePath(workId))) {
       result.missingWorkReferencesRemoved += 1;
       continue;
     }
@@ -66,7 +68,7 @@ async function removeDanglingWorkDirectories(
   result: LibraryCleanupResult,
 ): Promise<void> {
   const retainedWorkIdSet = new Set(retainedWorkIds);
-  const workEntries = await readdir(WORKS_ROOT, { withFileTypes: true });
+  const workEntries = await readdir(getWorksRoot(), { withFileTypes: true });
   for (const entry of workEntries) {
     if (!entry.isDirectory() || retainedWorkIdSet.has(entry.name)) {
       continue;
@@ -107,8 +109,7 @@ async function removeMissingChapterReferences(
 ): Promise<string[]> {
   const retainedChapterIds: string[] = [];
   for (const chapterId of chapterOrder) {
-    const chapter = await readChapterFile(workId, chapterId);
-    if (!chapter) {
+    if (!existsSync(getChapterFilePath(workId, chapterId))) {
       result.missingChapterReferencesRemoved += 1;
       continue;
     }
@@ -122,7 +123,7 @@ async function removeDanglingChapterDirectories(
   retainedChapterIds: string[],
   result: LibraryCleanupResult,
 ): Promise<void> {
-  const chaptersRoot = join(WORKS_ROOT, workId, "chapters");
+  const chaptersRoot = join(getWorksRoot(), workId, "chapters");
   if (!existsSync(chaptersRoot)) {
     return;
   }

@@ -1,5 +1,5 @@
 import type { InpaintingMaskStroke } from "../../../shared/inpaintingTypes";
-import type { MangaPage } from "./hookLibraryTypes";
+import type { MangaPage } from "../../../shared/libraryTypes";
 import type { InpaintingTool } from "../inpainting/inpaintingTypes";
 import type { PointerRect } from "./workspacePointerGeometry";
 

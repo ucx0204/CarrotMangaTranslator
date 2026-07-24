@@ -1,5 +1,5 @@
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
-import { mangaGateway } from "../api/mangaGateway";
+import { inpaintingGateway as mangaGateway } from "../api/inpaintingGateway";
 import type {
   RetouchApplyTool,
   RetouchHistoryEntry,

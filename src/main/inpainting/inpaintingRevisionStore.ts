@@ -1,31 +1,33 @@
 import { randomUUID } from "node:crypto";
-import { join, resolve } from "node:path";
 import type {
   ApplyInpaintingHistoryTransactionRequest,
   ApplyInpaintingHistoryTransactionResult,
   InpaintingHistoryTransactionRef,
 } from "../../shared/inpaintingTypes";
 import type { ChapterSnapshot, MangaPage } from "../../shared/libraryTypes";
-import { openChapter as openChapterUnlocked } from "../libraryStore/libraryAccess";
-import {
-  updatePagesAfterInpaintingUnlocked,
-  type InpaintingArtifactCleanupOptions,
-} from "../libraryStore/libraryInpaintingMutations";
-import { findChapterLocation, WORKS_ROOT } from "../libraryStore/libraryFiles";
-import { removeUnreferencedInpaintedArtifacts } from "../libraryStore/inpaintedArtifacts";
-import { withLibraryMutation } from "../library/lock";
+import type { InpaintingArtifactCleanupOptions } from "../libraryStore/libraryInpaintingMutations";
 import { logInpaintingRuntimeWarn } from "./inpaintingRuntimeLogger";
 import {
   groupChangesByChapter,
   InpaintingRevisionRollbackError,
-  readCurrentChapterAfterRollbackFailure,
   sameOptionalPath,
   uniqueRevisionChanges,
-  validateChangePaths,
   type InpaintingRevisionChange,
 } from "./inpaintingRevisionHelpers";
+import {
+  libraryInpaintingRevisionRepository,
+  type InpaintingRevisionRepository,
+} from "./inpaintingRevisionRepository";
 
 export type { InpaintingRevisionChange };
+
+export type InpaintingRevisionDiagnostics = {
+  warn: (message: string, detail?: unknown) => void;
+};
+
+const productionDiagnostics: InpaintingRevisionDiagnostics = {
+  warn: logInpaintingRuntimeWarn,
+};
 
 type InpaintingRevisionTransaction = {
   id: string;
@@ -45,6 +47,11 @@ export class InpaintingRevisionStore {
   private cleanupTail: Promise<void> = Promise.resolve();
   private pendingCleanupChanges: InpaintingRevisionChange[] = [];
   private transactionOperationTail: Promise<void> = Promise.resolve();
+
+  constructor(
+    private readonly repository: InpaintingRevisionRepository = libraryInpaintingRevisionRepository,
+    private readonly diagnostics: InpaintingRevisionDiagnostics = productionDiagnostics,
+  ) {}
 
   beginTransaction(): string {
     const id = randomUUID();
@@ -147,7 +154,7 @@ export class InpaintingRevisionStore {
     }
 
     try {
-      const chapters = await withLibraryMutation(() =>
+      const chapters = await this.repository.runMutation(() =>
         this.applyTransactionUnlocked(transaction, request.direction),
       );
       return {
@@ -235,7 +242,7 @@ export class InpaintingRevisionStore {
       const saved: ChapterSnapshot[] = [];
       for (const [chapterId, revision] of prepared) {
         saved.push(
-          await updatePagesAfterInpaintingUnlocked(
+          await this.repository.savePages(
             chapterId,
             revision.nextPages,
             this.cleanupOptionsForChapter(chapterId),
@@ -250,7 +257,7 @@ export class InpaintingRevisionStore {
     const rollbackErrors: unknown[] = [];
     for (const [chapterId, revision] of prepared) {
       try {
-        await updatePagesAfterInpaintingUnlocked(
+        await this.repository.savePages(
           chapterId,
           revision.originalPages,
           this.cleanupOptionsForChapter(chapterId),
@@ -262,7 +269,7 @@ export class InpaintingRevisionStore {
     if (rollbackErrors.length > 0) {
       const currentChapters = await Promise.all(
         [...prepared.keys()].map((chapterId) =>
-          readCurrentChapterAfterRollbackFailure(chapterId),
+          this.repository.readChapterAfterRollbackFailure(chapterId),
         ),
       );
       throw new InpaintingRevisionRollbackError(
@@ -283,11 +290,11 @@ export class InpaintingRevisionStore {
     const grouped = groupChangesByChapter(transaction.changes);
     const prepared = new Map<string, PreparedChapterRevision>();
     for (const [chapterId, changes] of grouped) {
-      const chapter = await openChapterUnlocked(chapterId);
+      const chapter = await this.repository.readChapter(chapterId);
       const nextPages: MangaPage[] = [];
       const originalPages: MangaPage[] = [];
       for (const change of changes) {
-        validateChangePaths(chapter, change);
+        this.repository.validateChangePaths(chapter, change);
         const page = chapter.pages.find(
           (candidate) => candidate.id === change.pageId,
         );
@@ -330,7 +337,7 @@ export class InpaintingRevisionStore {
       this.runReleasedChangesCleanup(releasedChanges),
     );
     this.cleanupTail = scheduled.catch((error) => {
-      logInpaintingRuntimeWarn(
+      this.diagnostics.warn(
         "Unexpected failure in inpainting history cleanup queue",
         { error },
       );
@@ -350,31 +357,18 @@ export class InpaintingRevisionStore {
 
     const retryChanges: InpaintingRevisionChange[] = [];
     try {
-      await withLibraryMutation(async () => {
+      await this.repository.runMutation(async () => {
         for (const [chapterId, changes] of groupChangesByChapter(
           cleanupChanges,
         )) {
           try {
-            const locator = await findChapterLocation(chapterId);
-            if (!locator) {
-              continue;
-            }
-            const chapter = await openChapterUnlocked(chapterId);
-            const candidates = changes.flatMap((change) =>
-              [change.beforePath, change.afterPath].filter(
-                (path): path is string => Boolean(path),
-              ),
-            );
-            await removeUnreferencedInpaintedArtifacts(
-              resolve(
-                join(WORKS_ROOT, locator.workId, "chapters", locator.chapterId),
-              ),
-              candidates,
-              chapter.pages,
-              this.getRetainedArtifactPaths(chapterId),
-            );
+            await this.repository.cleanupReleasedArtifacts({
+              chapterId,
+              changes,
+              retainedPaths: this.getRetainedArtifactPaths(chapterId),
+            });
           } catch (error) {
-            logInpaintingRuntimeWarn(
+            this.diagnostics.warn(
               "Failed to clean released inpainting history artifacts",
               { chapterId, error },
             );
@@ -383,7 +377,7 @@ export class InpaintingRevisionStore {
         }
       });
     } catch (error) {
-      logInpaintingRuntimeWarn(
+      this.diagnostics.warn(
         "Failed to acquire library lock for inpainting history cleanup",
         { error },
       );

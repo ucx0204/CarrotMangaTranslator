@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import React from "react";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -8,9 +9,10 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { MangaApi } from "../src/shared/mangaApi";
+import type { ModelTestResult } from "../src/shared/jobTypes";
 import type { AppSettings } from "../src/shared/settingsTypes";
 import { appI18n, initializeAppI18n } from "../src/renderer/src/appI18n";
+import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import { useSettingsModelTest } from "../src/renderer/src/components/settingsModal/useSettingsModelTest";
 import { AppI18nProvider } from "../src/renderer/src/i18n";
 
@@ -25,11 +27,11 @@ describe("settings model test localization", () => {
     const setTestState = vi.fn();
     const appendTestLogLine = vi.fn();
     const rawError = "raw bridge failure";
-    window.mangaApi = {
+    window.mangaApi = createTestMangaGatewayStub({
       onUiLocaleChanged: () => () => undefined,
       onModelTestEvent: () => () => undefined,
       testModelSettings: vi.fn().mockRejectedValue(new Error(rawError)),
-    } as unknown as MangaApi;
+    });
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     await initializeAppI18n("en");
 
@@ -52,6 +54,47 @@ describe("settings model test localization", () => {
       });
     });
     expect(JSON.stringify(setTestState.mock.calls)).not.toContain(rawError);
+  });
+
+  it("unsubscribes and ignores a late result after unmount", async () => {
+    let resolveRequest: ((value: ModelTestResult) => void) | undefined;
+    const request = new Promise<ModelTestResult>((resolve) => {
+      resolveRequest = resolve;
+    });
+    const unsubscribe = vi.fn();
+    const setTestState = vi.fn();
+    const appendTestLogLine = vi.fn();
+    window.mangaApi = createTestMangaGatewayStub({
+      onUiLocaleChanged: () => () => undefined,
+      onModelTestEvent: () => unsubscribe,
+      testModelSettings: vi.fn(() => request),
+    });
+    await initializeAppI18n("en");
+
+    const view = render(
+      <AppI18nProvider>
+        <ModelTestHarness
+          appendTestLogLine={appendTestLogLine}
+          setTestState={setTestState}
+        />
+      </AppI18nProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "run" }));
+    const callsBeforeUnmount = setTestState.mock.calls.length;
+    view.unmount();
+
+    expect(unsubscribe).toHaveBeenCalledOnce();
+    await act(async () => {
+      resolveRequest?.({
+        ok: true,
+        message: "late success",
+        launchMode: "local",
+      });
+      await request;
+    });
+    expect(unsubscribe).toHaveBeenCalledOnce();
+    expect(setTestState).toHaveBeenCalledTimes(callsBeforeUnmount);
+    expect(appendTestLogLine).not.toHaveBeenCalledWith("late success");
   });
 });
 

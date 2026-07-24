@@ -1,4 +1,5 @@
 import { open } from "node:fs/promises";
+import type { ReadableStream as NodeReadableStream } from "node:stream/web";
 
 const IMMUTABLE_CACHE_CONTROL = "private, max-age=31536000, immutable";
 const EXPECTED_FILE_ERROR_CODES = new Set([
@@ -40,9 +41,11 @@ export async function createProtocolFileResponse(
         "The requested file is no longer available.",
       );
     }
-    const body = fileHandle.readableWebStream({
-      autoClose: true,
-    }) as unknown as BodyInit;
+    const body = createResponseBody(
+      fileHandle.readableWebStream({
+        autoClose: true,
+      }),
+    );
     return new Response(body, {
       headers: {
         "Cache-Control": IMMUTABLE_CACHE_CONTROL,
@@ -59,6 +62,54 @@ export async function createProtocolFileResponse(
     }
     throw error;
   }
+}
+
+/**
+ * Adapts Node's web-stream type to the DOM stream accepted by Response while
+ * validating the runtime chunk contract at the boundary.
+ */
+function createResponseBody(
+  source: NodeReadableStream,
+): ReadableStream<Uint8Array<ArrayBuffer>> {
+  const reader = source.getReader();
+  return new ReadableStream<Uint8Array<ArrayBuffer>>({
+    async pull(controller) {
+      try {
+        const result = await reader.read();
+        if (result.done) {
+          controller.close();
+          return;
+        }
+        const chunk = toResponseChunk(result.value);
+        if (!chunk) {
+          const error = new TypeError(
+            "Protocol file stream emitted a non-binary chunk.",
+          );
+          await reader.cancel(error);
+          controller.error(error);
+          return;
+        }
+        controller.enqueue(chunk);
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+    async cancel(reason) {
+      await reader.cancel(reason);
+    },
+  });
+}
+
+function toResponseChunk(value: unknown): Uint8Array<ArrayBuffer> | null {
+  if (value instanceof ArrayBuffer) {
+    return new Uint8Array(value);
+  }
+  if (value instanceof Uint8Array) {
+    return value.buffer instanceof ArrayBuffer
+      ? new Uint8Array(value.buffer, value.byteOffset, value.byteLength)
+      : Uint8Array.from(value);
+  }
+  return null;
 }
 
 export function isProtocolFileUnavailableError(error: unknown): boolean {

@@ -1,6 +1,5 @@
 import type {
   LibraryChapter,
-  LibraryChapterSummary,
   LibraryPageRecord,
 } from "../../shared/libraryTypes";
 
@@ -47,18 +46,4 @@ export function resolveChapterStatus(
     return "failed";
   }
   return statuses.some((status) => status === "completed") ? "partial" : "idle";
-}
-
-export function toChapterSummary(
-  chapter: LibraryChapter,
-): LibraryChapterSummary {
-  return {
-    id: chapter.id,
-    workId: chapter.workId,
-    title: chapter.title,
-    status: chapter.status,
-    createdAt: chapter.createdAt,
-    updatedAt: chapter.updatedAt,
-    pageCount: chapter.pages.length,
-  };
 }

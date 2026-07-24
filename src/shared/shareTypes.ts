@@ -11,6 +11,20 @@ export type SavePageBlocksRequest = {
   blocks: TranslationBlock[];
 };
 
+export type SavePageBlocksUpdate = {
+  pageId: string;
+  baseUpdatedAt?: string;
+  baseBlocksHash?: string;
+  blocks: TranslationBlock[];
+};
+
+export type SavePagesBlocksRequest = {
+  chapterId: string;
+  pages: SavePageBlocksUpdate[];
+  dirtyVersion?: number;
+  saveReason?: "autosave" | "manual";
+};
+
 export type WorkShareExportRequest = {
   workId: string;
   chapterIds: string[];

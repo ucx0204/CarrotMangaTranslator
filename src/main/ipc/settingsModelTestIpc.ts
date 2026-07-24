@@ -41,7 +41,18 @@ type ModelTestServer =
   | OpenAIOAuthEndpoint
   | OpenAICompatibleApiEndpoint;
 
+export type ModelTestEndpointRuntime = {
+  startOpenAIOAuthEndpoint: typeof startOpenAIOAuthEndpoint;
+  stopOpenAIOAuthEndpoint: typeof stopOpenAIOAuthEndpoint;
+};
+
+const productionEndpointRuntime: ModelTestEndpointRuntime = {
+  startOpenAIOAuthEndpoint,
+  stopOpenAIOAuthEndpoint,
+};
+
 type ModelTestRunInput = {
+  endpointRuntime: ModelTestEndpointRuntime;
   options: TranslationOptions;
   runtime: SimplePageRuntime;
   sendProgress: SendModelTestProgress;
@@ -54,6 +65,7 @@ export async function handleModelSettingsTest(
   event: Electron.IpcMainInvokeEvent,
   rawSettings: unknown,
   providedTestId: unknown,
+  endpointRuntime: ModelTestEndpointRuntime = productionEndpointRuntime,
 ): Promise<ModelTestResult> {
   const settings = parseIpcPayload(
     AppSettingsSchema,
@@ -66,6 +78,7 @@ export async function handleModelSettingsTest(
 
   const testId = resolveModelTestId(providedTestId);
   return runModelTestWithServer({
+    endpointRuntime,
     options: await buildInitialModelTestOptions(context, settings, testId),
     runtime: context.loadSimplePageRuntime(),
     sendProgress: createModelTestProgressSender(event, testId),
@@ -108,6 +121,7 @@ function createNoopProgressBridge(): TranslationOptions["onProgress"] {
 }
 
 async function runModelTestWithServer({
+  endpointRuntime,
   options: initialOptions,
   runtime,
   sendProgress,
@@ -124,6 +138,7 @@ async function runModelTestWithServer({
       runtime,
       options,
       sendProgress,
+      endpointRuntime,
     );
     server = started.server;
     return await finishModelRuntimeTest(
@@ -135,7 +150,7 @@ async function runModelTestWithServer({
   } catch (error) {
     return handleModelTestFailure(error, settings, sendProgress, testId);
   } finally {
-    await stopModelTestServer(runtime, server);
+    await stopModelTestServer(runtime, server, endpointRuntime);
   }
 }
 
@@ -244,9 +259,10 @@ function handleModelTestFailure(
 async function stopModelTestServer(
   runtime: SimplePageRuntime,
   server: ModelTestServer | null,
+  endpointRuntime: ModelTestEndpointRuntime,
 ): Promise<void> {
   if (isOpenAIOAuthEndpoint(server)) {
-    await stopOpenAIOAuthEndpoint(server);
+    await endpointRuntime.stopOpenAIOAuthEndpoint(server);
   } else if (!isOpenAICompatibleApiEndpoint(server)) {
     await runtime.stopServer(server);
   }
@@ -303,6 +319,7 @@ async function startModelTestServerWithRetry(
   runtime: SimplePageRuntime,
   initialOptions: TranslationOptions,
   sendProgress: SendModelTestProgress,
+  endpointRuntime: ModelTestEndpointRuntime,
 ): Promise<{
   server: ModelTestServer;
   options: TranslationOptions;
@@ -319,7 +336,7 @@ async function startModelTestServerWithRetry(
     try {
       const server =
         options.modelProvider === "openai-codex"
-          ? await startOpenAIOAuthEndpoint(options)
+          ? await endpointRuntime.startOpenAIOAuthEndpoint(options)
           : await runtime.startServer(options);
       return { server, options };
     } catch (error) {

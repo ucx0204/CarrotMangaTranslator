@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { formatErrorMessage } from "../lib/appHelpers";
-import { libraryGateway } from "./libraryGateway";
+import { formatErrorMessage } from "../lib/errorPresentation";
+import { libraryGateway } from "../api/libraryGateway";
 import type { UseLibraryActionsOptions } from "./libraryActionTypes";
 
 type RefreshLibraryOptions = Pick<

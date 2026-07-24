@@ -53,7 +53,7 @@ describe("main window navigation guards", () => {
     const { createMainWindow } = await loadMainWindowModule();
     const onRendererIncident = vi.fn();
 
-    createMainWindow({ onRendererIncident });
+    createMainWindow({ onRendererIncident }, createDiagnostics());
     latestWindow?.listeners.get("render-process-gone")?.(
       {},
       { reason: "crashed", exitCode: 9 },
@@ -85,7 +85,7 @@ describe("main window navigation guards", () => {
     const { createMainWindow } = await loadMainWindowModule();
     const onRendererLoadFailure = vi.fn();
 
-    createMainWindow({ onRendererLoadFailure });
+    createMainWindow({ onRendererLoadFailure }, createDiagnostics());
     const listener = latestWindow?.listeners.get("did-fail-load");
     listener?.({}, -7, "Timed out", "http://localhost:5173/", false);
     listener?.({}, -3, "Aborted", "http://localhost:5173/", true);
@@ -102,7 +102,7 @@ describe("main window navigation guards", () => {
     process.env.ELECTRON_RENDERER_URL = "http://localhost:5173/";
     const { createMainWindow } = await loadMainWindowModule();
 
-    createMainWindow();
+    createMainWindow({}, createDiagnostics());
     expect(latestWindow?.loadURL).toHaveBeenCalledWith(
       "http://localhost:5173/",
     );
@@ -160,9 +160,12 @@ async function loadMainWindowModule(): Promise<
     },
     BrowserWindow: FakeBrowserWindow,
   }));
-  vi.doMock("../src/main/logger", () => ({
-    logError: vi.fn(),
-    writeLog: vi.fn(),
-  }));
   return import("../src/main/mainWindow");
+}
+
+function createDiagnostics() {
+  return {
+    error: vi.fn(),
+    write: vi.fn(),
+  };
 }

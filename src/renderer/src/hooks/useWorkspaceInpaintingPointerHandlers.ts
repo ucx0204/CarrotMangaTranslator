@@ -11,6 +11,7 @@ import {
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import type { InpaintingMaskStroke } from "../../../shared/inpaintingTypes";
+import type { MangaPage } from "../../../shared/libraryTypes";
 import type { InpaintingTool } from "../inpainting/inpaintingTypes";
 import {
   appendRetouchStrokePoint,
@@ -21,8 +22,7 @@ import {
   queueRetouchCursor,
   type RetouchLiveGeometry,
 } from "../lib/retouchLiveOverlay";
-import type { MangaPage } from "./hookLibraryTypes";
-import { libraryGateway } from "./libraryGateway";
+import { inpaintingGateway } from "../api/inpaintingGateway";
 import {
   appendMaskStroke,
   isRetouchDrawTool,
@@ -317,7 +317,7 @@ function sampleInpaintingColor(
   if (!imagePath) {
     return;
   }
-  void libraryGateway
+  void inpaintingGateway
     .sampleInpaintingColor({ imagePath, x: point.x, y: point.y })
     .then((result) => {
       setInpaintingPaintColor(result.color);

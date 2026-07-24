@@ -1,9 +1,10 @@
-import { nativeImage } from "electron";
 import { open, stat, writeFile } from "node:fs/promises";
 import { basename } from "node:path";
-import { getAppPaths } from "../appPaths";
 import { tMain } from "./localization";
-import { decodeImageThroughRuntime } from "../simplePageRuntime";
+import {
+  productionImportImageRuntime,
+  type ImportImageRuntime,
+} from "./importImageRuntime";
 import { isSupportedImagePath, sortNaturally } from "./storage";
 import { MAX_IMPORT_IMAGE_BYTES, MAX_IMPORT_IMAGE_PIXELS } from "./zipSafety";
 
@@ -99,11 +100,9 @@ export async function writeNormalizedWebpImportImage(
   sourcePath: string,
   outputPath: string,
   label: string,
+  runtime: ImportImageRuntime = productionImportImageRuntime,
 ): Promise<void> {
-  const converted = await decodeImageThroughRuntime(
-    getAppPaths().runtimeDir,
-    sourcePath,
-  );
+  const converted = await runtime.decodeToPng(sourcePath);
   if (!converted?.length) {
     throw new Error(tMain("import.errors.webpConvert", { file: label }));
   }
@@ -114,23 +113,22 @@ export async function writeNormalizedWebpImportImage(
 export async function readDecodedImportImageSize(
   imagePath: string,
   label: string,
+  runtime: ImportImageRuntime = productionImportImageRuntime,
 ): Promise<{ width: number; height: number }> {
-  const image = nativeImage.createFromPath(imagePath);
-  const size = image.getSize();
-  const isEmpty = typeof image.isEmpty === "function" ? image.isEmpty() : false;
+  const { width, height, isEmpty } = runtime.inspectImage(imagePath);
   if (
     isEmpty ||
-    !Number.isFinite(size.width) ||
-    !Number.isFinite(size.height) ||
-    size.width < 1 ||
-    size.height < 1
+    !Number.isFinite(width) ||
+    !Number.isFinite(height) ||
+    width < 1 ||
+    height < 1
   ) {
     throw new Error(tMain("import.errors.imageRead", { file: label }));
   }
-  if (size.width * size.height > MAX_IMPORT_IMAGE_PIXELS) {
+  if (width * height > MAX_IMPORT_IMAGE_PIXELS) {
     throw new Error(tMain("import.errors.resolutionTooLarge", { file: label }));
   }
-  return size;
+  return { width, height };
 }
 
 export function normalizeImportPageName(entryName: string): string {

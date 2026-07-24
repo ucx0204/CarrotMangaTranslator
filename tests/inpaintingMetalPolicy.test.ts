@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
 import {
   FLUX_MODEL_REVISION,
@@ -18,6 +18,8 @@ import {
   assertFluxMemoryPolicy,
 } from "../src/main/inpainting/inpaintingEnginePool";
 import { resolveKoharuBackendCandidates } from "../src/main/inpainting/koharuEnginePool";
+
+const require = createRequire(import.meta.url);
 
 describe("Apple Silicon inpainting policy", () => {
   it("routes both native inpainting protocols to Metal", async () => {
@@ -78,29 +80,83 @@ describe("Apple Silicon inpainting policy", () => {
     ).toContain(`/resolve/${FLUX_MODEL_REVISION}/weights.gguf`);
   });
 
-  it("builds both runners with a Metal feature and exposes device preflight", () => {
-    for (const runner of [
+  it("builds both runners with Metal and verifies their runtime contracts", () => {
+    const {
+      assertFluxProtocolSmoke,
+      assertMetalCapabilities,
+      createMetalRunnerBuildPlan,
+    } = require("../scripts/metal-runner-build-plan.cjs");
+    const plan = createMetalRunnerBuildPlan(process.cwd());
+
+    expect(plan.map((entry: { id: string }) => entry.id)).toEqual([
       "mgt-koharu-inpaint-runner",
-      "mgt-flux-klein-runner",
-    ]) {
-      const cargo = readFileSync(
-        join(process.cwd(), "tools", runner, "Cargo.toml"),
-        "utf8",
-      );
-      const source = readFileSync(
-        join(process.cwd(), "tools", runner, "src", "main.rs"),
-        "utf8",
-      );
+      "mgt-flux-klein",
+    ]);
+    for (const entry of plan) {
+      const cargo = readFileSync(entry.manifestPath, "utf8");
       expect(cargo).toMatch(/^metal\s*=\s*\["koharu-ml\/metal"\]/m);
-      expect(source).toContain("--capabilities");
-      expect(source).toContain("Device::new_metal(0)");
-      expect(source).toContain('"protocol_version": 1');
-      if (runner === "mgt-flux-klein-runner") {
-        expect(source).toContain("--protocol-smoke");
-        expect(source).toContain("if cli.require_metal");
-        expect(source).toContain(".image_to_image(&image, &options)");
-        expect(source).toContain(".inpaint(&image, &mask_image, &options)");
-      }
+      expect(entry.build).toEqual({
+        command: "cargo",
+        args: [
+          "build",
+          "--manifest-path",
+          entry.manifestPath,
+          "--locked",
+          "--release",
+          "--target",
+          "aarch64-apple-darwin",
+          "--no-default-features",
+          "--features",
+          "metal",
+        ],
+      });
+      expect(entry.capabilities).toEqual({
+        command: entry.binaryPath,
+        args: ["--capabilities"],
+      });
+      expect(() =>
+        assertMetalCapabilities(
+          {
+            protocol_version: 1,
+            runner: entry.id,
+            backend: "metal-native",
+            metal_device: true,
+            models: entry.expectedModels,
+          },
+          entry,
+        ),
+      ).not.toThrow();
     }
+
+    const flux = plan[1];
+    expect(flux.protocolSmoke).toMatchObject({
+      command: flux.binaryPath,
+      args: ["--protocol-smoke"],
+      input: '{"type":"shutdown"}\n',
+    });
+    expect(() =>
+      assertFluxProtocolSmoke(
+        {
+          protocol_version: 1,
+          runner: "mgt-flux-klein",
+          backend: "metal-native",
+          request: "shutdown",
+          ok: true,
+        },
+        flux,
+      ),
+    ).not.toThrow();
+    expect(() =>
+      assertMetalCapabilities(
+        {
+          protocol_version: 1,
+          runner: "mgt-flux-klein",
+          backend: "cpu",
+          metal_device: false,
+          models: ["flux-klein"],
+        },
+        flux,
+      ),
+    ).toThrow("Invalid Metal capability contract");
   });
 });

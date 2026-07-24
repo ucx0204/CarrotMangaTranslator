@@ -9,7 +9,7 @@ import {
   type ResolvedLanguagePair,
 } from "../shared/translationLanguages";
 import { buildPageStoryMemory } from "./pipeline/storyMemoryBuilder";
-import type { BasePageMemory } from "./workContextAiMerge";
+import type { BasePageMemory } from "./workContextAiTypes";
 
 export type WorkTextSelection = {
   text: string;

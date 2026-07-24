@@ -21,7 +21,8 @@ const ruleMessages = {
     "A catch that converts failure to a sentinel must explicitly mark the caught value as intentionally ignored (for example, catch (_error)) or handle it.",
 };
 
-function listCandidateFiles() {
+/** @param {string} [repoRoot] */
+function listCandidateFiles(repoRoot = process.cwd()) {
   const output = execFileSync(
     "git",
     [
@@ -36,13 +37,16 @@ function listCandidateFiles() {
       "tests",
     ],
     {
-      cwd: process.cwd(),
+      cwd: repoRoot,
       encoding: "utf8",
     },
   );
-  return output
-    .split("\0")
-    .filter((file) => file && CANDIDATE_EXTENSIONS.has(extname(file)));
+  return output.split("\0").filter(isCandidateFile);
+}
+
+/** @param {string} file */
+function isCandidateFile(file) {
+  return Boolean(file) && CANDIDATE_EXTENSIONS.has(extname(file));
 }
 
 /** @param {string} file */
@@ -135,14 +139,12 @@ function inspectPromiseCatch(node) {
     : null;
 }
 
-/** @type {Violation[]} */
-const violations = [];
-for (const file of listCandidateFiles()) {
-  const absolutePath = join(process.cwd(), file);
-  if (!existsSync(absolutePath)) {
-    continue;
-  }
-  const sourceText = readFileSync(absolutePath, "utf8");
+/**
+ * @param {string} file
+ * @param {string} sourceText
+ * @returns {Violation[]}
+ */
+function inspectSource(file, sourceText) {
   const sourceFile = ts.createSourceFile(
     file,
     sourceText,
@@ -150,6 +152,8 @@ for (const file of listCandidateFiles()) {
     true,
     resolveScriptKind(file),
   );
+  /** @type {Violation[]} */
+  const violations = [];
 
   /** @param {import("typescript").Node} node */
   function visit(node) {
@@ -161,7 +165,7 @@ for (const file of listCandidateFiles()) {
         node.getStart(sourceFile),
       );
       violations.push({
-        file: relative(process.cwd(), absolutePath),
+        file,
         line: position.line + 1,
         rule,
       });
@@ -169,16 +173,52 @@ for (const file of listCandidateFiles()) {
     ts.forEachChild(node, visit);
   }
   visit(sourceFile);
+  return violations;
 }
 
-if (violations.length > 0) {
-  console.error("Error handling policy failed:");
-  for (const violation of violations) {
-    console.error(
-      `- ${violation.file}:${violation.line} ${violation.rule}: ${ruleMessages[violation.rule]}`,
+/** @param {string} [repoRoot] @returns {Violation[]} */
+function collectViolations(repoRoot = process.cwd()) {
+  /** @type {Violation[]} */
+  const violations = [];
+  for (const file of listCandidateFiles(repoRoot)) {
+    const absolutePath = join(repoRoot, file);
+    if (!existsSync(absolutePath)) {
+      continue;
+    }
+    violations.push(
+      ...inspectSource(
+        relative(repoRoot, absolutePath),
+        readFileSync(absolutePath, "utf8"),
+      ),
     );
   }
-  process.exit(1);
+  return violations;
 }
 
-console.log("error handling policy passed");
+/** @param {string} [repoRoot] */
+function runErrorHandlingCheck(repoRoot = process.cwd()) {
+  const violations = collectViolations(repoRoot);
+  if (violations.length > 0) {
+    console.error("Error handling policy failed:");
+    for (const violation of violations) {
+      console.error(
+        `- ${violation.file}:${violation.line} ${violation.rule}: ${ruleMessages[violation.rule]}`,
+      );
+    }
+    return false;
+  }
+  console.log("error handling policy passed");
+  return true;
+}
+
+module.exports = {
+  collectViolations,
+  inspectSource,
+  isCandidateFile,
+  listCandidateFiles,
+  runErrorHandlingCheck,
+};
+
+if (require.main === module && !runErrorHandlingCheck()) {
+  process.exitCode = 1;
+}

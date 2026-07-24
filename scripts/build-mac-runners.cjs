@@ -2,80 +2,136 @@
 // @ts-check
 
 const { spawnSync } = require("node:child_process");
-const { existsSync, readFileSync } = require("node:fs");
 const { join } = require("node:path");
 const { patchCandleMetalQMatMul } = require("./patch-candle-metal-qmatmul.cjs");
+const {
+  assertFluxProtocolSmoke,
+  assertMetalCapabilities,
+  createMetalRunnerBuildPlan,
+} = require("./metal-runner-build-plan.cjs");
 
 const root = join(__dirname, "..");
-const target = "aarch64-apple-darwin";
 
-/** @param {string} command @param {string[]} args */
-function run(command, args) {
-  const result = spawnSync(command, args, {
-    cwd: root,
-    env: {
-      ...process.env,
-      CARGO_INCREMENTAL: "0",
-      CANDLE_METAL_XCODE: "1",
-      LLAMA_CPP_TAG: process.env.LLAMA_CPP_TAG || "b-mgt-unused",
-    },
-    stdio: "inherit",
-    shell: false,
-  });
-  if (result.error) {
-    throw result.error;
-  }
-  if (result.status !== 0) {
-    throw new Error(
-      `${command} failed with exit code ${result.status ?? "null"}`,
+/**
+ * @typedef {{
+ *   captureOutput?: boolean;
+ *   input?: string;
+ * }} RunOptions
+ */
+
+/**
+ * @typedef {(
+ *   command: string,
+ *   args: string[],
+ *   options?: RunOptions,
+ * ) => string} RunCommand
+ */
+
+/**
+ * @param {{
+ *   cwd?: string;
+ *   environment?: NodeJS.ProcessEnv;
+ * }} [options]
+ * @returns {RunCommand}
+ */
+function createCommandRunner(options = {}) {
+  const cwd = options.cwd ?? root;
+  const environment = options.environment ?? process.env;
+  return (command, args, runOptions = {}) => {
+    const result = spawnSync(command, args, {
+      cwd,
+      env: {
+        ...environment,
+        CARGO_INCREMENTAL: "0",
+        CANDLE_METAL_XCODE: "1",
+        LLAMA_CPP_TAG: environment.LLAMA_CPP_TAG || "b-mgt-unused",
+      },
+      ...(runOptions.captureOutput
+        ? {
+            encoding: "utf8",
+            ...(runOptions.input === undefined
+              ? {}
+              : { input: runOptions.input }),
+          }
+        : { stdio: "inherit" }),
+      shell: false,
+    });
+    if (result.error) {
+      throw result.error;
+    }
+    if (result.status !== 0) {
+      const detail =
+        typeof result.stderr === "string" ? result.stderr.trim() : "";
+      throw new Error(
+        `${command} failed with exit code ${result.status ?? "null"}${
+          detail ? `: ${detail}` : ""
+        }`,
+      );
+    }
+    return typeof result.stdout === "string" ? result.stdout.trim() : "";
+  };
+}
+
+/**
+ * @param {ReturnType<typeof createMetalRunnerBuildPlan>} plan
+ * @param {RunCommand} run
+ */
+function executeMetalRunnerBuildPlan(plan, run) {
+  for (const entry of plan) {
+    run(entry.build.command, entry.build.args);
+    const capabilities = parseRunnerJson(
+      run(entry.capabilities.command, entry.capabilities.args, {
+        captureOutput: true,
+      }),
+      `${entry.id} capabilities`,
     );
+    assertMetalCapabilities(capabilities, entry);
+    if (entry.protocolSmoke) {
+      const smoke = parseRunnerJson(
+        run(entry.protocolSmoke.command, entry.protocolSmoke.args, {
+          captureOutput: true,
+          input: entry.protocolSmoke.input,
+        }),
+        `${entry.id} protocol smoke`,
+      );
+      assertFluxProtocolSmoke(smoke, entry);
+    }
   }
 }
 
-/** @param {string} manifestPath */
-function buildMetalRunner(manifestPath) {
-  run("cargo", [
-    "build",
-    "--manifest-path",
-    manifestPath,
-    "--locked",
-    "--release",
-    "--target",
-    target,
-    "--no-default-features",
-    "--features",
-    "metal",
-  ]);
+/** @param {string} output @param {string} label @returns {unknown} */
+function parseRunnerJson(output, label) {
+  if (!output.trim()) {
+    throw new Error(`${label} did not produce JSON output`);
+  }
+  try {
+    return JSON.parse(output);
+  } catch (cause) {
+    throw new Error(`${label} produced invalid JSON`, { cause });
+  }
 }
 
 function main() {
   if (process.platform !== "darwin" || process.arch !== "arm64") {
     throw new Error("Metal runner builds require an Apple Silicon Mac.");
   }
-  const fluxManifest = join(
-    root,
-    "tools",
-    "mgt-flux-klein-runner",
-    "Cargo.toml",
-  );
+  const plan = createMetalRunnerBuildPlan(root);
+  const fluxManifest = plan.find(
+    (entry) => entry.id === "mgt-flux-klein",
+  )?.manifestPath;
+  if (!fluxManifest) {
+    throw new Error("Flux Metal build plan is missing");
+  }
   patchCandleMetalQMatMul({ cwd: root, manifestPath: fluxManifest });
-  const koharuManifest = join(
-    root,
-    "tools",
-    "mgt-koharu-inpaint-runner",
-    "Cargo.toml",
-  );
-  buildMetalRunner(koharuManifest);
-
-  if (!existsSync(fluxManifest)) {
-    throw new Error(`Missing Flux Metal runner manifest: ${fluxManifest}`);
-  }
-  if (!/^metal\s*=/m.test(readFileSync(fluxManifest, "utf8"))) {
-    throw new Error(
-      `Flux runner does not declare its Metal feature: ${fluxManifest}`,
-    );
-  }
-  buildMetalRunner(fluxManifest);
+  executeMetalRunnerBuildPlan(plan, createCommandRunner());
 }
 
-main();
+if (require.main === module) {
+  main();
+}
+
+module.exports = {
+  createCommandRunner,
+  executeMetalRunnerBuildPlan,
+  parseRunnerJson,
+};

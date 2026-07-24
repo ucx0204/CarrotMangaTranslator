@@ -18,6 +18,7 @@
     "electron-builder.config.cjs",
     "eslint.config.mjs",
     "scripts/**/*.cjs",
+    "scripts/**/*.mjs",
     "scripts/**/*.d.ts",
     "src/main/runtime/runtime-jsdoc-types.d.ts",
     "src/main/runtime/**/*.cjs"

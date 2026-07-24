@@ -9,11 +9,29 @@ import {
   assertNoActivePageImageExportJob,
   exportPageImages,
 } from "../jobs/pageImageExportJobs";
+import type { InpaintingJobContext } from "../jobs/inpaintingJobTypes";
 import type { IpcContext } from "./context";
 import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
 
-export function registerPageImageExportIpc(context: IpcContext): void {
+export type PageImageExportService = {
+  assertIdle: (context: Pick<InpaintingJobContext, "jobs">) => void;
+  exportImages: (
+    context: InpaintingJobContext,
+    request: Parameters<typeof exportPageImages>[1],
+    outputParentDir: string,
+  ) => Promise<PageImageExportResult>;
+};
+
+const productionPageImageExportService: PageImageExportService = {
+  assertIdle: assertNoActivePageImageExportJob,
+  exportImages: exportPageImages,
+};
+
+export function registerPageImageExportIpc(
+  context: IpcContext,
+  service: PageImageExportService = productionPageImageExportService,
+): void {
   trustedHandleContract(
     context,
     pageImageExportIpcContracts.exportPageImages,
@@ -26,7 +44,7 @@ export function registerPageImageExportIpc(context: IpcContext): void {
         rawRequest,
         tMain("ipc.labels.resultExport"),
       );
-      assertNoActivePageImageExportJob(context);
+      service.assertIdle(context);
 
       const options = {
         title: tMain("dialogs.exportPngFolder"),
@@ -41,7 +59,7 @@ export function registerPageImageExportIpc(context: IpcContext): void {
         return null;
       }
 
-      return exportPageImages(context, request, outputParentDir);
+      return service.exportImages(context, request, outputParentDir);
     },
   );
 }

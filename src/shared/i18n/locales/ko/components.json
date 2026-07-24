@@ -45,6 +45,8 @@
       "zoomOut": "축소",
       "zoomIn": "확대",
       "resetZoom": "배율 초기화",
+      "hideControls": "보기 조절 접기",
+      "showControls": "보기 조절 펼치기",
       "fitMode": "이미지 맞춤 방식",
       "contain": "화면 맞춤",
       "width": "가로 맞춤",

@@ -25,6 +25,7 @@ import {
   reorderChapters,
   reorderPages,
   savePageBlocks,
+  savePagesBlocks,
 } from "../library";
 import { createLibraryImageUrl } from "../imageProtocol";
 import type { IpcContext } from "./context";
@@ -89,6 +90,11 @@ function registerLibraryReadIpc(context: IpcContext): void {
           tMain("ipc.labels.pageBlocksSave"),
         ),
       ),
+  );
+  trustedHandleContract(
+    context,
+    libraryIpcContracts.savePagesBlocks,
+    async (_event, request) => savePagesBlocks(request),
   );
 }
 

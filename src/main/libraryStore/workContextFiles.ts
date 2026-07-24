@@ -10,11 +10,11 @@ import type {
   WorkStyleGuide,
 } from "../../shared/workContextTypes";
 import {
-  WORKS_ROOT,
   findChapterLocation,
   readChapterFile,
   readWorkFile,
 } from "./libraryFiles";
+import { getWorksRoot } from "./libraryPaths";
 import { readJsonFile, writeJsonFile } from "./storage";
 import { reconcilePageStoryMemories } from "./storyMemoryReconcile";
 import { reorderRecords } from "./chapterRecords";
@@ -222,11 +222,17 @@ export async function resolveWorkContextForChapter(chapterId: string): Promise<{
 }
 
 function styleGuidePath(workId: string): string {
-  return join(WORKS_ROOT, workId, "style-guide.json");
+  return join(getWorksRoot(), workId, "style-guide.json");
 }
 
 function storyMemoryPath(workId: string, chapterId: string): string {
-  return join(WORKS_ROOT, workId, "chapters", chapterId, "story-memory.json");
+  return join(
+    getWorksRoot(),
+    workId,
+    "chapters",
+    chapterId,
+    "story-memory.json",
+  );
 }
 
 async function ensureWorkExists(workId: string): Promise<void> {

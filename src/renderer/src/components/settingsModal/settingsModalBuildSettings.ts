@@ -1,13 +1,11 @@
 import type {
   AppSettings,
   BlockFormatDefaults,
-  KeybindingOverrides,
 } from "../../../../shared/settingsTypes";
+import type { KeybindingOverrides } from "../../../../shared/shortcutSettings";
 import { buildSettingsFromForm } from "../settingsFormBuilder";
-import type {
-  SettingsDraft,
-  SettingsFormValues,
-} from "./settingsModalFormUtils";
+import type { SettingsDraft } from "./settingsModalFormUtils";
+import type { SettingsFormValues } from "./settingsModalFormValues";
 
 export function buildSettingsFromDraft({
   draft,

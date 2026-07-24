@@ -1,6 +1,16 @@
 import type { JobEvent } from "../../shared/jobTypes";
 import { logError, logInfo } from "../logger";
 
+export type JobCleanupDiagnostics = {
+  error: (message: string, detail?: unknown) => void;
+  info: (message: string, detail?: unknown) => void;
+};
+
+const productionDiagnostics: JobCleanupDiagnostics = {
+  error: logError,
+  info: logInfo,
+};
+
 export type ActiveJob = {
   id: string;
   kind: JobEvent["kind"];
@@ -11,6 +21,10 @@ export type ActiveJob = {
 
 export class ActiveJobStore {
   private activeJob: ActiveJob | null = null;
+
+  constructor(
+    private readonly diagnostics: JobCleanupDiagnostics = productionDiagnostics,
+  ) {}
 
   get current(): ActiveJob | null {
     return this.activeJob;
@@ -53,9 +67,12 @@ export class ActiveJobStore {
     job.cleanup = undefined;
     try {
       await cleanup();
-      logInfo("Analysis runtime cleanup completed", { jobId: job.id, reason });
+      this.diagnostics.info("Analysis runtime cleanup completed", {
+        jobId: job.id,
+        reason,
+      });
     } catch (error) {
-      logError("Analysis runtime cleanup failed", {
+      this.diagnostics.error("Analysis runtime cleanup failed", {
         jobId: job.id,
         reason,
         error,

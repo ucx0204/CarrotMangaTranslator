@@ -15,6 +15,8 @@ use koharu_runtime::{ComputePolicy, RuntimeManager};
 use serde::{Deserialize, Serialize};
 use tracing_subscriber::{EnvFilter, fmt};
 
+use runner_runtime_policy::{CudaRuntimeProbe, decide_cuda_runtime_probe};
+
 const ZLUDA_RELEASE_BASE_URL: &str = "https://github.com/vosen/ZLUDA/releases/download";
 const ZLUDA_RELEASE_TAG: &str = "v6-preview.65";
 const ZLUDA_ASSET_NAME: &str = "zluda-windows-5c75a54.zip";
@@ -148,17 +150,22 @@ async fn main() -> Result<()> {
     if uses_zluda && cli.backend == BackendKind::MetalNative {
         bail!("--require-zluda and --backend metal-native cannot be used together");
     }
+    let uses_native_cuda =
+        cli.backend != BackendKind::MetalNative && cli.backend != BackendKind::Cpu;
+    let runtime_probe = decide_cuda_runtime_probe(uses_zluda, uses_native_cuda);
     if cli.backend == BackendKind::MetalNative {
         ensure_metal_available()?;
     } else if uses_zluda {
         prepare_zluda_runtime(&cli).await?;
-        // ZLUDA is initialized through the CUDA Driver API. Its hybrid cudart
-        // library does not provide the full CUDA Runtime API surface required
-        // by the diagnostic below, including cudaGetDeviceCount.
-        eprintln!("mgt-koharu-inpaint-runner: CUDA runtime probe skipped for ZLUDA");
     } else if cli.backend != BackendKind::Cpu {
         prepare_cuda_runtime(cli.cuda_runtime_dir.as_deref())?;
-        log_cuda_runtime_probe();
+    }
+    match runtime_probe {
+        CudaRuntimeProbe::Run => log_cuda_runtime_probe(),
+        CudaRuntimeProbe::SkipForZluda => {
+            eprintln!("mgt-koharu-inpaint-runner: CUDA runtime probe skipped for ZLUDA");
+        }
+        CudaRuntimeProbe::Disabled => {}
     }
 
     let load_started = Instant::now();

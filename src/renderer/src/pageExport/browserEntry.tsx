@@ -1,0 +1,99 @@
+import React from "react";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
+import { PageArtwork } from "../components/PageArtwork";
+import {
+  loadBlockFonts,
+  type BlockFontLoadReport,
+} from "../lib/blockFontLoading";
+import { createBlockFontCatalog } from "../lib/fonts";
+import { parsePageExportData } from "./documentData";
+import "./styles.css";
+
+function bootPageExport(): void {
+  void startPageExport().catch((error: unknown) => {
+    const message =
+      error instanceof Error ? error.message : "Unknown page export error";
+    console.error("Page export render failed.", error);
+    document.body.dataset.error = message;
+  });
+}
+
+if (document.readyState === "loading") {
+  window.addEventListener("load", bootPageExport, { once: true });
+} else {
+  bootPageExport();
+}
+
+async function startPageExport(): Promise<void> {
+  const stage = document.getElementById("stage");
+  if (!stage) throw new Error("Page export stage is missing.");
+  const data = parsePageExportData(document.getElementById("page-export-data"));
+  const catalog = createBlockFontCatalog(
+    data.fontLibrary.customFonts,
+    data.fontLibrary.preferences,
+  );
+  const [imageSize, fontReport] = await Promise.all([
+    decodeExportImage(data.imageSrc),
+    loadBlockFonts(document, data.page.blocks, catalog),
+  ]);
+  assertFontsLoaded(fontReport);
+  const root = createRoot(stage);
+  flushSync(() => {
+    root.render(
+      <PageArtwork
+        fontCatalog={catalog}
+        imageSrc={data.imageSrc}
+        page={data.page}
+        visualSize={imageSize}
+      />,
+    );
+  });
+  await waitForRenderedImage(stage);
+  await waitForTwoAnimationFrames();
+  document.body.dataset.outputWidth = String(imageSize.width);
+  document.body.dataset.outputHeight = String(imageSize.height);
+  document.body.dataset.ready = "1";
+}
+
+async function decodeExportImage(src: string): Promise<{
+  width: number;
+  height: number;
+}> {
+  const image = new Image();
+  image.decoding = "sync";
+  image.src = src;
+  await image.decode();
+  if (image.naturalWidth < 1 || image.naturalHeight < 1) {
+    throw new Error("Page export image has invalid dimensions.");
+  }
+  return { width: image.naturalWidth, height: image.naturalHeight };
+}
+
+async function waitForRenderedImage(stage: HTMLElement): Promise<void> {
+  const image = stage.querySelector<HTMLImageElement>(".page-image");
+  if (!image) throw new Error("Page export image was not rendered.");
+  await image.decode();
+}
+
+function assertFontsLoaded(report: BlockFontLoadReport): void {
+  if (report.failures.length > 0) {
+    throw new AggregateError(
+      report.failures.map((failure) => failure.error),
+      "Page export font loading failed.",
+    );
+  }
+  if (report.missingFamilies.length > 0) {
+    throw new Error(
+      `Page export fonts are missing: ${report.missingFamilies.join(", ")}`,
+    );
+  }
+}
+
+function waitForTwoAnimationFrames(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve());
+    });
+  });
+}

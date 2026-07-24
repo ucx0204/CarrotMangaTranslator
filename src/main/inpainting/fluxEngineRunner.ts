@@ -59,6 +59,14 @@ type FluxInpaintRunnerArgs = {
   windows: PixelRect[];
 };
 
+export type FluxInpaintDiagnostics = {
+  warn: (message: string, detail?: unknown) => void;
+};
+
+const productionDiagnostics: FluxInpaintDiagnostics = {
+  warn: logWarn,
+};
+
 type FluxWindowProcessArgs = {
   bitmap: Buffer;
   getWorker: () => FluxWorker;
@@ -98,18 +106,21 @@ type FluxUnchangedCropStats = {
   meanDelta: number;
 };
 
-export async function runFluxInpaint({
-  bitmap,
-  getWorker,
-  height,
-  isolateWindowMasks,
-  tileLargeCrops,
-  mask,
-  runOptions,
-  runRootDir,
-  width,
-  windows,
-}: FluxInpaintRunnerArgs): Promise<void> {
+export async function runFluxInpaint(
+  {
+    bitmap,
+    getWorker,
+    height,
+    isolateWindowMasks,
+    tileLargeCrops,
+    mask,
+    runOptions,
+    runRootDir,
+    width,
+    windows,
+  }: FluxInpaintRunnerArgs,
+  diagnostics: FluxInpaintDiagnostics = productionDiagnostics,
+): Promise<void> {
   if (
     isolateWindowMasks &&
     runOptions.windowMasks &&
@@ -147,7 +158,7 @@ export async function runFluxInpaint({
       width,
       windows,
     });
-    logFluxInpaintSummary(summary);
+    logFluxInpaintSummary(summary, diagnostics);
   } finally {
     await cleanupFluxRunDir(runDir);
   }
@@ -334,24 +345,30 @@ function summarizeFluxCropChange(
   };
 }
 
-function logFluxInpaintSummary({
-  eligibleWindows,
-  processedWindows,
-  unchangedStats,
-  unchangedWindows,
-}: FluxInpaintSummary): void {
+function logFluxInpaintSummary(
+  {
+    eligibleWindows,
+    processedWindows,
+    unchangedStats,
+    unchangedWindows,
+  }: FluxInpaintSummary,
+  diagnostics: FluxInpaintDiagnostics,
+): void {
   if (eligibleWindows > 0 && processedWindows === 0) {
-    logWarn("Flux inpainting skipped every eligible crop", {
+    diagnostics.warn("Flux inpainting skipped every eligible crop", {
       eligibleWindows,
     });
     return;
   }
   if (processedWindows > 0 && unchangedWindows === processedWindows) {
-    logWarn("Flux inpainting left every masked crop effectively unchanged", {
-      eligibleWindows,
-      processedWindows,
-      unchangedStats,
-    });
+    diagnostics.warn(
+      "Flux inpainting left every masked crop effectively unchanged",
+      {
+        eligibleWindows,
+        processedWindows,
+        unchangedStats,
+      },
+    );
   }
 }
 

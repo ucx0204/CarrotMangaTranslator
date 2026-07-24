@@ -26,7 +26,7 @@ import {
 } from "../lib/librarySort";
 import { ChapterDragPreview, SortableChapterItem } from "./libraryTreeItems";
 import { LibrarySortMenu } from "./LibrarySortMenu";
-import { IconButton } from "./ui";
+import { IconButton } from "./ui/IconButton";
 import { EditIcon } from "./ui/icons";
 
 type LibraryTreeProps = {
@@ -57,7 +57,7 @@ type ChapterDragController = {
   sensors: ReturnType<typeof useStandardDndSensors>;
 };
 
-export function LibraryTree({
+function LibraryTreeView({
   library,
   currentChapterId,
   jobActive,
@@ -129,6 +129,8 @@ export function LibraryTree({
     </section>
   );
 }
+
+export const LibraryTree = React.memo(LibraryTreeView);
 
 function useChapterDragController({
   jobActive,

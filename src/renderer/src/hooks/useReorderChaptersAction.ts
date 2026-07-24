@@ -1,7 +1,8 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { formatErrorMessage, reorderByTarget } from "../lib/appHelpers";
-import { libraryGateway } from "./libraryGateway";
+import { reorderByTarget } from "../lib/appHelpers";
+import { formatErrorMessage } from "../lib/errorPresentation";
+import { libraryGateway } from "../api/libraryGateway";
 import type { UseLibraryActionsOptions } from "./libraryActionTypes";
 import {
   reorderChapterSummaries,

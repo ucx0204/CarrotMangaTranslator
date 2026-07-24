@@ -6,9 +6,10 @@ import {
 } from "../../../shared/blockTransforms";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import { resolveBlockVisualStyle } from "../../../shared/blockVisuals";
+import type { BlockFontCatalog } from "../lib/fonts";
 import { normalizeRenderDirection } from "../lib/blockFormatGeometry";
+import { hexToRgba } from "../lib/cssColor";
 import {
-  hexToRgba,
   resolveBlockTextLayout,
   type BlockTextLayout,
   type ViewportSize,
@@ -26,11 +27,15 @@ export type OverlayBlockRenderModel = {
   renderDirection: ReturnType<typeof normalizeRenderDirection>;
   showChromeLayer: boolean;
   chromeStyle: React.CSSProperties | undefined;
+  textVisible: boolean;
 };
 
 export function resolveOverlayBlockRenderModel({
   block,
+  displayText: preparedDisplayText,
   excluded,
+  fontCatalog,
+  layout: preparedLayout,
   multiSelected,
   pageSize,
   pointerDisabled,
@@ -42,7 +47,10 @@ export function resolveOverlayBlockRenderModel({
   transformMode,
 }: {
   block: TranslationBlock;
+  displayText?: string;
   excluded: boolean;
+  fontCatalog: BlockFontCatalog;
+  layout?: BlockTextLayout;
   multiSelected: boolean;
   pageSize: ViewportSize;
   pointerDisabled: boolean;
@@ -53,14 +61,20 @@ export function resolveOverlayBlockRenderModel({
   textVisible: boolean;
   transformMode?: BlockTransformMode;
 }): OverlayBlockRenderModel {
-  const displayText = block.translatedText || block.sourceText || "...";
-  const layout = resolveBlockTextLayout(
-    block,
-    displayText,
-    pageSize,
-    stageSize,
-    { textLayoutStageSize: textLayoutStageSize ?? undefined },
-  );
+  const displayText =
+    preparedDisplayText !== undefined
+      ? preparedDisplayText
+      : block.translatedText || block.sourceText || (showChrome ? "..." : "");
+  const layout =
+    preparedLayout ??
+    resolveBlockTextLayout(
+      block,
+      displayText,
+      pageSize,
+      stageSize,
+      fontCatalog,
+      { textLayoutStageSize: textLayoutStageSize ?? undefined },
+    );
   const renderDirection = normalizeRenderDirection(
     block.renderDirection,
     "horizontal",
@@ -83,6 +97,7 @@ export function resolveOverlayBlockRenderModel({
     renderDirection,
     showChromeLayer: textVisible && (showChrome || excluded),
     chromeStyle: resolveOverlayChromeStyle(block, showChrome, excluded),
+    textVisible,
   };
 }
 
@@ -106,15 +121,14 @@ function resolveOverlayBlockStyle(
   layout: BlockTextLayout,
   pointerDisabled: boolean,
 ): React.CSSProperties {
+  const rotation = block.rotationDeg ? ` rotate(${block.rotationDeg}deg)` : "";
   return {
-    left: layout.rect.left,
-    top: layout.rect.top,
+    left: 0,
+    top: 0,
     width: layout.rect.width,
     height: layout.rect.height,
     overflow: "visible",
-    transform: block.rotationDeg
-      ? `rotate(${block.rotationDeg}deg)`
-      : undefined,
+    transform: `translate3d(${layout.rect.left}px, ${layout.rect.top}px, 0)${rotation}`,
     transformOrigin: "center center",
     pointerEvents: pointerDisabled ? "none" : undefined,
   };

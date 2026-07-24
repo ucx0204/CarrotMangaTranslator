@@ -4,6 +4,7 @@ import type {
   TranslationBlock,
 } from "../../../shared/textTypes";
 import { parseRichText } from "../../../shared/richTextMarkup";
+import type { BlockFontCatalog } from "../lib/fonts";
 import type { BlockTextLayout } from "../lib/overlayLayout";
 import type { BlockTextLine } from "../lib/overlayTextWrapping";
 import {
@@ -14,23 +15,20 @@ import {
 export function OverlayText({
   block,
   displayText,
+  fontCatalog,
   layout,
   renderDirection,
 }: {
   block: TranslationBlock;
   displayText: string;
+  fontCatalog: BlockFontCatalog;
   layout: BlockTextLayout;
   renderDirection: RenderTextDirection;
 }): React.JSX.Element {
-  const { runs } = parseRichText(
-    displayText,
-    Boolean(block.bold),
-    Boolean(block.italic),
-  );
   return (
     <div
       className="overlay-text"
-      style={resolveOverlayTextWrapStyle(block, layout)}
+      style={resolveOverlayTextWrapStyle(block, layout, fontCatalog)}
     >
       <span
         className="overlay-text-content"
@@ -38,10 +36,22 @@ export function OverlayText({
       >
         {layout.lines
           ? renderFixedHorizontalLines(layout.lines)
-          : runs.map((run, index) => renderTextRun(run, index))}
+          : renderParsedTextRuns(block, displayText)}
       </span>
     </div>
   );
+}
+
+function renderParsedTextRuns(
+  block: TranslationBlock,
+  displayText: string,
+): React.ReactNode {
+  const { runs } = parseRichText(
+    displayText,
+    Boolean(block.bold),
+    Boolean(block.italic),
+  );
+  return runs.map((run, index) => renderTextRun(run, index));
 }
 
 function renderFixedHorizontalLines(lines: BlockTextLine[]): React.ReactNode {

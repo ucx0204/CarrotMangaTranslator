@@ -2,7 +2,6 @@ import {
   useCallback,
   useEffect,
   useRef,
-  useState,
   type Dispatch,
   type MutableRefObject,
   type PointerEvent,
@@ -10,25 +9,26 @@ import {
   type SetStateAction,
 } from "react";
 import { useTranslation } from "react-i18next";
+import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
-import type { ChapterSnapshot, MangaPage } from "./hookLibraryTypes";
-import type { UpdateCurrentChapter } from "./useCurrentChapterUpdater";
 import { resolveEditableBlockBbox } from "../lib/blockFormatGeometry";
+import type { DragHud, DragMode } from "../lib/workspaceInteractionTypes";
+import type { WorkspaceInteractionPreviewStore } from "../lib/workspaceInteractionPreview";
+import type { UpdateCurrentChapter } from "./useCurrentChapterUpdater";
 import {
   capturePointerSafely,
   releasePointerCaptureSafely,
 } from "./workspacePointerCapture";
 import {
   describeDragBbox,
-  type DragHud,
-  type DragMode,
   type DragState,
+  type PointerRect,
 } from "./workspacePointerGeometry";
 import {
+  applyBlockDragResolution,
   applyResolvedBlockDrag,
   resolveBlockDrag,
   resolveDragCursor,
-  restoreDraggedBlock,
   type BlockDragResolution,
 } from "./workspaceBlockDragModel";
 
@@ -36,6 +36,7 @@ type UseWorkspaceBlockDragHandlersOptions = {
   currentChapter: ChapterSnapshot | null;
   imageRef: RefObject<HTMLImageElement | null>;
   inpaintingToolActive: boolean;
+  interactionPreviewStore: WorkspaceInteractionPreviewStore;
   jobActive: boolean;
   regionSelectionActive: boolean;
   selectedPage: MangaPage | null;
@@ -46,14 +47,20 @@ type UseWorkspaceBlockDragHandlersOptions = {
   updateCurrentChapter: UpdateCurrentChapter;
 };
 
-type BlockDragRef = MutableRefObject<DragState | null>;
-type SetDragHud = Dispatch<SetStateAction<DragHud | null>>;
+type ActiveBlockDrag = {
+  drag: DragState;
+  latestValidResolution: BlockDragResolution | null;
+  page: MangaPage;
+  pointerRect: PointerRect;
+  pointerChanged: boolean;
+};
+
+type BlockDragRef = MutableRefObject<ActiveBlockDrag | null>;
 
 export function useWorkspaceBlockDragHandlers(
   options: UseWorkspaceBlockDragHandlersOptions,
 ): {
   cancelActiveDrag: () => boolean;
-  dragHud: DragHud | null;
   finishDrag: (event: PointerEvent) => void;
   onBlockPointerDown: (
     event: PointerEvent,
@@ -62,22 +69,28 @@ export function useWorkspaceBlockDragHandlers(
   ) => void;
   onBlockPointerMove: (event: PointerEvent) => void;
 } {
-  const dragRef = useRef<DragState | null>(null);
-  const [dragHud, setDragHud] = useState<DragHud | null>(null);
-  const clearDrag = useClearBlockDrag(dragRef, setDragHud, options.stageRef);
+  const dragRef = useRef<ActiveBlockDrag | null>(null);
+  const clearDrag = useClearBlockDrag(
+    dragRef,
+    options.interactionPreviewStore,
+    options.stageRef,
+  );
   useClearDragOnPageChange(
     options.selectedPage?.id ?? null,
     dragRef,
     clearDrag,
   );
-  const cancelActiveDrag = useCancelBlockDrag(options, dragRef, clearDrag);
-  const onBlockPointerDown = useBlockPointerDown(options, dragRef, setDragHud);
-  const onBlockPointerMove = useBlockPointerMove(options, dragRef, setDragHud);
-  const finishDrag = useFinishBlockDrag(options.stageRef, dragRef, clearDrag);
+  const cancelActiveDrag = useCallback(() => {
+    if (!dragRef.current) return false;
+    clearDrag();
+    return true;
+  }, [clearDrag]);
+  const onBlockPointerDown = useBlockPointerDown(options, dragRef);
+  const onBlockPointerMove = useBlockPointerMove(options, dragRef);
+  const finishDrag = useFinishBlockDrag(options, dragRef, clearDrag);
 
   return {
     cancelActiveDrag,
-    dragHud,
     finishDrag,
     onBlockPointerDown,
     onBlockPointerMove,
@@ -86,20 +99,20 @@ export function useWorkspaceBlockDragHandlers(
 
 function useClearBlockDrag(
   dragRef: BlockDragRef,
-  setDragHud: SetDragHud,
+  previewStore: WorkspaceInteractionPreviewStore,
   stageRef: RefObject<HTMLDivElement | null>,
 ): () => void {
   return useCallback(() => {
-    const pointerId = dragRef.current?.pointerId;
+    const pointerId = dragRef.current?.drag.pointerId;
     if (pointerId !== undefined) {
       releasePointerCaptureSafely(stageRef.current, pointerId);
     }
     dragRef.current = null;
-    setDragHud(null);
+    previewStore.set({ blockPreview: null, dragHud: null });
     if (stageRef.current) {
       stageRef.current.style.cursor = "";
     }
-  }, [dragRef, setDragHud, stageRef]);
+  }, [dragRef, previewStore, stageRef]);
 }
 
 function useClearDragOnPageChange(
@@ -112,46 +125,11 @@ function useClearDragOnPageChange(
   }, [clearDrag, dragRef, pageId]);
 }
 
-function useCancelBlockDrag(
-  {
-    currentChapter,
-    selectedPage,
-    updateCurrentChapter,
-  }: UseWorkspaceBlockDragHandlersOptions,
-  dragRef: BlockDragRef,
-  clearDrag: () => void,
-): () => boolean {
-  const { t } = useTranslation("renderer");
-  return useCallback(() => {
-    const drag = dragRef.current;
-    if (!drag) {
-      return false;
-    }
-    if (selectedPage && currentChapter) {
-      updateCurrentChapter(
-        selectedPage.id,
-        (chapter) => restoreDraggedBlock(chapter, selectedPage, drag),
-        {
-          label: t("workspaceHistory.dragBlock"),
-          mergeKey: `drag:${drag.blockId}`,
-        },
-      );
-    }
-    clearDrag();
-    return true;
-  }, [
-    clearDrag,
-    currentChapter,
-    dragRef,
-    selectedPage,
-    t,
-    updateCurrentChapter,
-  ]);
-}
-
 function useBlockPointerDown(
   {
+    imageRef,
     inpaintingToolActive,
+    interactionPreviewStore,
     jobActive,
     regionSelectionActive,
     selectedPage,
@@ -161,12 +139,13 @@ function useBlockPointerDown(
     stageRef,
   }: UseWorkspaceBlockDragHandlersOptions,
   dragRef: BlockDragRef,
-  setDragHud: SetDragHud,
 ): (event: PointerEvent, block: TranslationBlock, mode: DragMode) => void {
   return useCallback(
     (event, block, mode) => {
+      const stage = stageRef.current;
       if (
-        !stageRef.current ||
+        !stage ||
+        !selectedPage ||
         jobActive ||
         selectedPageEditLocked ||
         regionSelectionActive ||
@@ -176,7 +155,6 @@ function useBlockPointerDown(
       }
       event.preventDefault();
       event.stopPropagation();
-      // Ctrl/⌘+click toggles multi-selection without starting a drag.
       if (event.ctrlKey || event.metaKey) {
         setSelectedBlockId(block.id);
         setSelectedBlockIds((current) =>
@@ -187,19 +165,36 @@ function useBlockPointerDown(
         return;
       }
       setSelectedBlockId(block.id);
-      setSelectedBlockIds([block.id]);
-      startBlockDrag({ block, dragRef, event, mode, selectedPage, setDragHud });
-      stageRef.current.style.cursor = resolveDragCursor(mode);
-      capturePointerSafely(stageRef.current, event.pointerId);
+      setSelectedBlockIds((current) =>
+        current.length === 1 && current[0] === block.id ? current : [block.id],
+      );
+      const pointerRect =
+        imageRef.current?.getBoundingClientRect() ??
+        stage.getBoundingClientRect();
+      const activeDrag = startBlockDrag({
+        block,
+        event,
+        mode,
+        page: selectedPage,
+        pointerRect,
+      });
+      dragRef.current = activeDrag;
+      interactionPreviewStore.set({
+        blockPreview: { block: activeDrag.drag.startBlock, blockId: block.id },
+        dragHud: resolveInitialDragHud(activeDrag.drag, selectedPage),
+      });
+      stage.style.cursor = resolveDragCursor(mode);
+      capturePointerSafely(stage, event.pointerId);
     },
     [
       dragRef,
+      imageRef,
       inpaintingToolActive,
+      interactionPreviewStore,
       jobActive,
       regionSelectionActive,
       selectedPage,
       selectedPageEditLocked,
-      setDragHud,
       setSelectedBlockId,
       setSelectedBlockIds,
       stageRef,
@@ -209,75 +204,169 @@ function useBlockPointerDown(
 
 function useBlockPointerMove(
   {
-    currentChapter,
-    imageRef,
+    interactionPreviewStore,
     jobActive,
-    selectedPage,
     selectedPageEditLocked,
-    stageRef,
-    updateCurrentChapter,
   }: UseWorkspaceBlockDragHandlersOptions,
   dragRef: BlockDragRef,
-  setDragHud: SetDragHud,
 ): (event: PointerEvent) => void {
-  const { t } = useTranslation("renderer");
   const { t: tComponents } = useTranslation("components");
   return useCallback(
     (event) => {
-      const context = resolveActiveBlockDrag(
-        dragRef.current,
-        selectedPage,
-        stageRef.current,
-        Boolean(currentChapter) && !jobActive && !selectedPageEditLocked,
+      const active = dragRef.current;
+      if (!active || jobActive || selectedPageEditLocked) return;
+      const resolution = resolveBlockDrag(
+        active.drag,
+        event,
+        active.pointerRect,
+        active.page,
       );
-      if (!context) return;
-      const { drag, page, stage } = context;
-      const rect =
-        imageRef.current?.getBoundingClientRect() ??
-        stage.getBoundingClientRect();
-      const resolution = resolveBlockDrag(drag, event, rect, page);
       if (!resolution) return;
-      setDragHud(
-        resolveBlockDragHud(resolution, drag.mode, {
-          invalidCurve: tComponents("transform.hud.invalidCurve"),
-          invalidPerspective: tComponents("transform.hud.invalidPerspective"),
-          outsidePage: tComponents("transform.hud.outsidePage"),
-          snapped: tComponents("transform.hud.snapped"),
-        }),
-      );
-      if (resolution.invalid) return;
-      updateCurrentChapter(
-        page.id,
-        (chapter) => applyResolvedBlockDrag(chapter, page, drag, resolution),
-        {
-          label: t("workspaceHistory.dragBlock"),
-          mergeKey: `drag:${drag.blockId}`,
+      active.pointerChanged ||= hasPointerChanged(active.drag, event);
+      const dragHud = resolveBlockDragHud(resolution, active.drag.mode, {
+        invalidCurve: tComponents("transform.hud.invalidCurve"),
+        invalidPerspective: tComponents("transform.hud.invalidPerspective"),
+        outsidePage: tComponents("transform.hud.outsidePage"),
+        snapped: tComponents("transform.hud.snapped"),
+      });
+      if (resolution.invalid) {
+        interactionPreviewStore.queue({ dragHud });
+        return;
+      }
+      active.latestValidResolution = resolution;
+      interactionPreviewStore.queue({
+        blockPreview: {
+          block: applyBlockDragResolution(
+            active.drag.startBlock,
+            active.page,
+            resolution,
+          ),
+          blockId: active.drag.blockId,
         },
-      );
+        dragHud,
+      });
     },
     [
+      dragRef,
+      interactionPreviewStore,
+      jobActive,
+      selectedPageEditLocked,
+      tComponents,
+    ],
+  );
+}
+
+function useFinishBlockDrag(
+  {
+    currentChapter,
+    jobActive,
+    selectedPageEditLocked,
+    updateCurrentChapter,
+  }: UseWorkspaceBlockDragHandlersOptions,
+  dragRef: BlockDragRef,
+  clearDrag: () => void,
+): (event: PointerEvent) => void {
+  const { t } = useTranslation("renderer");
+  return useCallback(
+    (event) => {
+      const active = dragRef.current;
+      if (!active) return;
+      if (
+        event.type !== "pointercancel" &&
+        currentChapter &&
+        !jobActive &&
+        !selectedPageEditLocked
+      ) {
+        const finalResolution = resolveBlockDrag(
+          active.drag,
+          event,
+          active.pointerRect,
+          active.page,
+        );
+        active.pointerChanged ||= hasPointerChanged(active.drag, event);
+        if (finalResolution && !finalResolution.invalid) {
+          active.latestValidResolution = finalResolution;
+        }
+        const resolution = active.latestValidResolution;
+        if (resolution && active.pointerChanged) {
+          updateCurrentChapter(
+            active.page.id,
+            (chapter) =>
+              applyResolvedBlockDrag(
+                chapter,
+                active.page,
+                active.drag,
+                resolution,
+              ),
+            {
+              label: t("workspaceHistory.dragBlock"),
+              mergeKey: `drag:${active.drag.blockId}`,
+            },
+          );
+        }
+      }
+      clearDrag();
+    },
+    [
+      clearDrag,
       currentChapter,
       dragRef,
-      imageRef,
       jobActive,
-      selectedPage,
       selectedPageEditLocked,
-      setDragHud,
-      stageRef,
       t,
-      tComponents,
       updateCurrentChapter,
     ],
   );
 }
 
-function resolveActiveBlockDrag(
-  drag: DragState | null,
-  page: MangaPage | null,
-  stage: HTMLDivElement | null,
-  enabled: boolean,
-): { drag: DragState; page: MangaPage; stage: HTMLDivElement } | null {
-  return drag && page && stage && enabled ? { drag, page, stage } : null;
+function startBlockDrag({
+  block,
+  event,
+  mode,
+  page,
+  pointerRect,
+}: {
+  block: TranslationBlock;
+  event: PointerEvent;
+  mode: DragMode;
+  page: MangaPage;
+  pointerRect: PointerRect;
+}): ActiveBlockDrag {
+  const pageSize = { width: page.width, height: page.height };
+  const displayText = block.translatedText || block.sourceText || "...";
+  const target = resolveEditableBlockBbox(block, pageSize, displayText);
+  return {
+    drag: {
+      mode,
+      blockId: block.id,
+      startX: event.clientX,
+      startY: event.clientY,
+      startBbox: target.bbox,
+      startBlock: block,
+      pointerId: event.pointerId,
+    },
+    latestValidResolution: null,
+    page,
+    pointerChanged: false,
+    pointerRect,
+  };
+}
+
+function resolveInitialDragHud(drag: DragState, page: MangaPage): DragHud {
+  return {
+    mode: drag.mode,
+    label:
+      drag.mode === "rotate"
+        ? `${drag.startBlock.rotationDeg ?? 0}°`
+        : describeDragBbox(drag.mode, drag.startBbox, page),
+  };
+}
+
+function hasPointerChanged(
+  drag: DragState,
+  event: Pick<PointerEvent, "clientX" | "clientY">,
+): boolean {
+  return event.clientX !== drag.startX || event.clientY !== drag.startY;
 }
 
 function resolveBlockDragHud(
@@ -308,60 +397,4 @@ function resolveBlockDragHud(
       ? `${resolution.label} · ${labels.snapped}`
       : resolution.label,
   };
-}
-
-function useFinishBlockDrag(
-  stageRef: RefObject<HTMLDivElement | null>,
-  dragRef: BlockDragRef,
-  clearDrag: () => void,
-): (event: PointerEvent) => void {
-  return useCallback(
-    (event) => {
-      if (dragRef.current) {
-        releasePointerCaptureSafely(stageRef.current, event.pointerId);
-      }
-      clearDrag();
-    },
-    [clearDrag, dragRef, stageRef],
-  );
-}
-
-function startBlockDrag({
-  block,
-  dragRef,
-  event,
-  mode,
-  selectedPage,
-  setDragHud,
-}: {
-  block: TranslationBlock;
-  dragRef: BlockDragRef;
-  event: PointerEvent;
-  mode: DragMode;
-  selectedPage: MangaPage | null;
-  setDragHud: SetDragHud;
-}): void {
-  const pageSize = selectedPage
-    ? { width: selectedPage.width, height: selectedPage.height }
-    : null;
-  const displayText = block.translatedText || block.sourceText || "...";
-  const target = resolveEditableBlockBbox(block, pageSize, displayText);
-  dragRef.current = {
-    mode,
-    blockId: block.id,
-    startX: event.clientX,
-    startY: event.clientY,
-    startBbox: target.bbox,
-    startBlock: block,
-    pointerId: event.pointerId,
-  };
-  if (pageSize) {
-    setDragHud({
-      mode,
-      label:
-        mode === "rotate"
-          ? `${block.rotationDeg ?? 0}°`
-          : describeDragBbox(mode, target.bbox, pageSize),
-    });
-  }
 }

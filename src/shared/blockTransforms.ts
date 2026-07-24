@@ -29,4 +29,3 @@ export {
   rectToQuadMatrix3d,
   validatePerspectiveCorners,
 } from "./perspectiveTransformMath";
-export type { CssMatrix3d } from "./perspectiveTransformMath";

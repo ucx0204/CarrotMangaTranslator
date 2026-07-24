@@ -2,7 +2,9 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import type { ErrorReportContext } from "../../../shared/errorReportTypes";
 import styles from "./ErrorReportDialog.module.css";
-import { Button, Modal, TextField } from "./ui";
+import { Button } from "./ui/Button";
+import { TextField } from "./ui/Field";
+import { Modal } from "./ui/Modal";
 import {
   useErrorReportDialogModel,
   type ReportAction,

@@ -172,6 +172,10 @@ class ResizeObserverMock {
     return undefined;
   }
 
+  unobserve(): void {
+    return undefined;
+  }
+
   disconnect(): void {
     return undefined;
   }
@@ -222,7 +226,7 @@ function notifyContentResize(): void {
   if (!observer) {
     throw new Error("Expected the install log content to be observed.");
   }
-  act(() => observer.callback([], observer as unknown as ResizeObserver));
+  act(() => observer.callback([], observer));
 }
 
 function renderOverlay(job: JobState): RenderResult {

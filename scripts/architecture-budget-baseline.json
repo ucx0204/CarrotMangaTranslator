@@ -3,19 +3,10 @@
   "defaultMaxImportedBy": 25,
   "allow": {
     "src/main/logger.ts": {
-      "maxImportedBy": 29
-    },
-    "src/shared/geometry.ts": {
       "maxImportedBy": 27
     },
-    "src/renderer/src/components/ui/index.ts": {
-      "maxImportedBy": 41
-    },
-    "src/renderer/src/lib/appHelpers.ts": {
-      "maxImportedBy": 27
-    },
-    "src/renderer/src/api/mangaGateway.ts": {
-      "maxImportedBy": 30
+    "src/renderer/src/components/ui/Button.tsx": {
+      "maxImportedBy": 42
     }
   }
 }

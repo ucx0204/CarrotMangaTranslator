@@ -22,7 +22,7 @@ import {
   saveWorkStyleGuide,
 } from "./library";
 import { buildBaseOptions } from "./pipeline/options";
-import { loadTranslationRuntimePort } from "./pipeline/translationRuntimePort";
+import { loadTranslationRuntimePort } from "./translationRuntime";
 import type { ModelEndpointHandle } from "./pipeline/types";
 import { runSequentialWorkAnalysis } from "./workContextSequentialAnalysis";
 import {

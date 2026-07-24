@@ -50,6 +50,7 @@ const {
   configureElectronBuilderSigningEnvironment,
   configureMacBuildChannel,
   resolveMacBuildChannel,
+  runMacBuildCli,
 } = require("../scripts/dist-mac-alpha.cjs") as {
   configureElectronBuilderSigningEnvironment: (
     environment: NodeJS.ProcessEnv,
@@ -59,6 +60,13 @@ const {
     environment: NodeJS.ProcessEnv,
   ) => void;
   resolveMacBuildChannel: (args: string[]) => "stable" | "mac-alpha";
+  runMacBuildCli: (
+    build: () => Promise<void>,
+    runtime: {
+      reportError: (error: unknown) => void;
+      exit: (code: number) => void;
+    },
+  ) => Promise<void>;
 };
 const {
   assertElectronFrameworkExecutable,
@@ -96,6 +104,106 @@ const {
     },
     environment: NodeJS.ProcessEnv,
   ) => boolean;
+};
+const {
+  KOHARU_SMOKE_ASSETS,
+  buildSmokePythonEnv,
+  createKoharuSmokeRequest,
+  createOcrSmokeRequest,
+} = require("../scripts/verify-mac-runtime-smokes.cjs") as {
+  KOHARU_SMOKE_ASSETS: ReadonlyArray<{ model: string }>;
+  buildSmokePythonEnv: (workRoot: string) => NodeJS.ProcessEnv;
+  createKoharuSmokeRequest: (
+    model: string,
+    images: { input: string; mask: string; bubble: string },
+    output: string,
+  ) => Record<string, unknown>;
+  createOcrSmokeRequest: (
+    imagePath: string,
+    toolsDir: string,
+    workRoot: string,
+  ) => Record<string, unknown>;
+};
+const {
+  assertPreparedSmoke,
+  assertVerifiedSmoke,
+  createApplicationSmokeLaunch,
+  createDiagnosticExcerpt,
+} = require("../scripts/mac-package-verification/app-smoke.cjs") as {
+  assertPreparedSmoke: (result: Record<string, unknown>) => void;
+  assertVerifiedSmoke: (result: Record<string, unknown>) => void;
+  createApplicationSmokeLaunch: (
+    appPath: string,
+    stage: "prepare" | "verify",
+  ) => {
+    command: string;
+    args: string[];
+    options: { timeout: number };
+  };
+  createDiagnosticExcerpt: (contents: string) => string;
+};
+const { createDiskImageAttachCommand, createZipExtractCommand } =
+  require("../scripts/mac-package-verification/artifacts.cjs") as {
+    createDiskImageAttachCommand: (
+      diskImagePath: string,
+      mountRoot: string,
+    ) => {
+      command: string;
+      args: string[];
+      options: { timeout: number };
+    };
+    createZipExtractCommand: (
+      zipPath: string,
+      extractRoot: string,
+    ) => {
+      command: string;
+      args: string[];
+      options: { timeout: number };
+    };
+  };
+const { resolveMacArtifactSet, verifyUnpackedApplication } =
+  require("../scripts/mac-package-verification/runner.cjs") as {
+    resolveMacArtifactSet: (files: string[]) => {
+      diskImage: string;
+      zipArchive: string;
+    };
+    verifyUnpackedApplication: (
+      appPath: string,
+      verification: {
+        assertFramework: (appPath: string) => void;
+        assertHelpers: (appPath: string) => void;
+        verifyNative: (appPath: string) => unknown;
+        verifyChannel: (appPath: string) => void;
+        verifySignature: (appPath: string) => void;
+        verifyTar: (appPath: string) => void;
+        verifyApplicationSmoke: (appPath: string) => void;
+        verifyRuntimes: (appPath: string) => void;
+        verifyRuntimeSmokes: (options: { appPath: string }) => Promise<void>;
+      },
+    ) => Promise<void>;
+  };
+
+type ElectronBuilderMacConfig = {
+  productName: string;
+  extraMetadata: { buildChannel: string };
+  extraResources: Array<{ from: string; to: string }>;
+  mac: {
+    target: Array<{ target: string; arch: string[] }>;
+    minimumSystemVersion: string;
+    executableName: string;
+    extendInfo: { CFBundleDisplayName: string };
+    artifactName: string;
+    identity?: string;
+    notarize: boolean;
+    extraResources: Array<{ from: string; to: string }>;
+  };
+  dmg: { size: string; sign: boolean };
+  win: { extraResources: Array<{ from: string; to: string }> };
+  afterPack: (context: {
+    electronPlatformName: string;
+    appOutDir: string;
+    packager: { appInfo: { productFilename: string } };
+  }) => Promise<void>;
 };
 
 describe("Apple Silicon Alpha packaging", () => {
@@ -148,17 +256,6 @@ describe("Apple Silicon Alpha packaging", () => {
         'rev = "0d640615d435a399bc195c892de8f5d17efb68f8"',
       );
     }
-    const runtimePreparer = readFileSync(
-      join(repoRoot, "scripts", "prepare-mac-runtime.cjs"),
-      "utf8",
-    );
-    expect(runtimePreparer).toContain(
-      "await copyMacRuntimePayload(installRoot, pythonTarget)",
-    );
-    expect(runtimePreparer).toContain("await assertNoSymlinks(stagingTools)");
-    expect(runtimePreparer).toContain(
-      "await thinUniversalMachOFiles(pythonTarget)",
-    );
   });
 
   it("rejects archive traversal and escaping symlinks", () => {
@@ -307,16 +404,20 @@ describe("Apple Silicon Alpha packaging", () => {
         "/Applications/App.app/Contents/MacOS/CarrotMangaTranslator",
       ),
     ).toBe(false);
+  });
 
-    const verifier = readFileSync(
-      join(repoRoot, "scripts", "verify-mac-package.cjs"),
-      "utf8",
-    );
-    expect(verifier).toContain('mkdtempSync(join(tmpdir(), "mgt-otool-"))');
-    expect(verifier).toContain("runOtool(filePath)");
-    expect(
-      readFileSync(join(repoRoot, "scripts", "dist-mac-alpha.cjs"), "utf8"),
-    ).toContain("process.exit(1)");
+  it("reports a macOS build failure and exits unsuccessfully", async () => {
+    const failure = new Error("packaging failed");
+    const reported: unknown[] = [];
+    const exitCodes: number[] = [];
+
+    await runMacBuildCli(() => Promise.reject(failure), {
+      reportError: (error) => reported.push(error),
+      exit: (code) => exitCodes.push(code),
+    });
+
+    expect(reported).toEqual([failure]);
+    expect(exitCodes).toEqual([1]);
   });
 
   it("rejects a final app whose Electron Framework executable is missing", () => {
@@ -452,103 +553,244 @@ describe("Apple Silicon Alpha packaging", () => {
     ).toBe(false);
   });
 
-  it("keeps Windows resources out of the arm64 app configuration", () => {
-    const config = readFileSync(
-      join(repoRoot, "electron-builder.config.cjs"),
-      "utf8",
-    );
+  it("keeps Windows resources out of the arm64 app configuration", async () => {
+    const temporaryRoot = mkdtempSync(join(tmpdir(), "mgt-mac-config-"));
+    try {
+      const alphaConfig = loadMacBuilderConfig(
+        temporaryRoot,
+        "mac-alpha",
+        "adhoc",
+      );
+      const stableConfig = loadMacBuilderConfig(
+        temporaryRoot,
+        "stable",
+        "developer-id",
+      );
 
-    expect(config).toContain('minimumSystemVersion: "14.0"');
-    expect(config).toContain('target: "dmg"');
-    expect(config).toContain('target: "zip"');
-    expect(config).toContain('arch: ["arm64"]');
-    expect(config).toContain('executableName: "CarrotMangaTranslator"');
-    expect(config).toContain(
-      'const productName = isMacBuild ? "CarrotMangaTranslator" : "당근망가번역기"',
+      expect(alphaConfig).toMatchObject({
+        productName: "CarrotMangaTranslator",
+        extraMetadata: { buildChannel: "mac-alpha" },
+        mac: {
+          target: [
+            { target: "dmg", arch: ["arm64"] },
+            { target: "zip", arch: ["arm64"] },
+          ],
+          minimumSystemVersion: "14.0",
+          executableName: "CarrotMangaTranslator",
+          extendInfo: { CFBundleDisplayName: "당근망가번역기" },
+          artifactName:
+            "CarrotMangaTranslator-${version}-macOS-arm64-alpha.${ext}",
+          identity: "-",
+          notarize: false,
+        },
+        dmg: { size: "3g", sign: false },
+      });
+      expect(alphaConfig.mac.extraResources).toEqual([
+        {
+          from: join(temporaryRoot, "tools"),
+          to: "tools",
+        },
+      ]);
+      expect(alphaConfig.mac.extraResources).not.toEqual(
+        alphaConfig.win.extraResources,
+      );
+      expect(stableConfig).toMatchObject({
+        extraMetadata: { buildChannel: "stable" },
+        mac: {
+          artifactName: "CarrotMangaTranslator-${version}-macOS-arm64.${ext}",
+          notarize: true,
+        },
+        dmg: { sign: true },
+      });
+      expect(stableConfig.mac.identity).toBeUndefined();
+
+      const appOutDir = join(temporaryRoot, "packaged");
+      const resourcesDir = join(
+        appOutDir,
+        "CarrotMangaTranslator.app",
+        "Contents",
+        "Resources",
+      );
+      mkdirSync(resourcesDir, { recursive: true });
+      writeFileSync(join(resourcesDir, "windows.dll"), "not allowed");
+      await expect(
+        alphaConfig.afterPack({
+          electronPlatformName: "darwin",
+          appOutDir,
+          packager: {
+            appInfo: { productFilename: "CarrotMangaTranslator" },
+          },
+        }),
+      ).rejects.toThrow("Windows binaries leaked into the macOS app");
+    } finally {
+      rmSync(temporaryRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("builds concrete OCR, Metal, and packaged-app smoke requests", () => {
+    const workRoot = join("work", "smoke");
+    expect(buildSmokePythonEnv(workRoot)).toMatchObject({
+      PYTHONNOUSERSITE: "1",
+      PYTHONDONTWRITEBYTECODE: "1",
+      PYTHONPYCACHEPREFIX: join(workRoot, "pycache"),
+      PADDLE_PDX_CACHE_HOME: join(workRoot, "paddlex-cache"),
+    });
+    expect(createOcrSmokeRequest("input.png", "tools", workRoot)).toMatchObject(
+      {
+        imagePath: "input.png",
+        toolsDir: "tools",
+        ocrRuntimeDir: join(workRoot, "ocr-runtime"),
+        ocrDevice: "cpu",
+        ocrBboxMode: "ocr",
+        ocrEngine: "paddle_static",
+        ocrVersion: "PP-OCRv6",
+        ocrTextDetectionModelName: "PP-OCRv6_small_det",
+        ocrTextRecognitionModelName: "PP-OCRv6_small_rec",
+        ocrMergeMode: "semantic",
+        sourceLanguage: "ja",
+      },
     );
-    expect(config).toContain('CFBundleDisplayName: "당근망가번역기"');
-    expect(config).toContain('size: "3g"');
-    expect(config).toContain("macExtraResources");
-    expect(config).toContain("windowsExtraResources");
-    expect(config).toContain("Windows binaries leaked into the macOS app");
-    expect(config).toContain('identity: macDeveloperSigning ? undefined : "-"');
-    expect(config).toContain("notarize: macDeveloperSigning");
-    expect(config).toContain("extraMetadata");
-    expect(config).toContain("buildChannel: isMacBuild ? macBuildChannel");
-    expect(config).toContain(
-      '"CarrotMangaTranslator-${version}-macOS-arm64.${ext}"',
-    );
-    expect(config).toContain(
-      '"CarrotMangaTranslator-${version}-macOS-arm64-alpha.${ext}"',
+    expect(KOHARU_SMOKE_ASSETS.map((asset) => asset.model)).toEqual([
+      "aot-inpainting",
+      "lama-manga",
+    ]);
+    expect(
+      createKoharuSmokeRequest(
+        "lama-manga",
+        {
+          input: "input.png",
+          mask: "mask.png",
+          bubble: "bubble.png",
+        },
+        "output.png",
+      ),
+    ).toEqual({
+      type: "inpaint",
+      id: "lama-manga",
+      input: "input.png",
+      mask: "mask.png",
+      bubble_mask: "bubble.png",
+      output: "output.png",
+      windows: [[32, 32, 96, 96]],
+      max_pixels: 128 * 128,
+    });
+
+    expect(
+      createApplicationSmokeLaunch("/Applications/Smoke.app", "verify"),
+    ).toEqual({
+      command: "open",
+      args: [
+        "-W",
+        "-n",
+        "-F",
+        "-g",
+        "/Applications/Smoke.app",
+        "--args",
+        "--mgt-mac-package-smoke=alpha-ci-v1",
+        "--mgt-mac-package-smoke-stage=verify",
+        "--disable-gpu",
+        "--enable-logging=stderr",
+        "--v=1",
+      ],
+      options: { timeout: 120_000 },
+    });
+    const diagnostic = createDiagnosticExcerpt("x".repeat(40 * 1024));
+    expect(diagnostic).toContain("middle omitted");
+    expect(diagnostic.length).toBeLessThan(40 * 1024);
+  });
+
+  it("executes the unpacked app verification contract in order", async () => {
+    const calls: string[] = [];
+    const record = (name: string) => (_appPath: string) => calls.push(name);
+
+    await verifyUnpackedApplication("/dist/App.app", {
+      assertFramework: record("framework"),
+      assertHelpers: record("helpers"),
+      verifyNative: record("native"),
+      verifyChannel: record("channel"),
+      verifySignature: record("signature"),
+      verifyTar: record("tar"),
+      verifyApplicationSmoke: record("application-smoke"),
+      verifyRuntimes: record("runtimes"),
+      verifyRuntimeSmokes: async ({ appPath }) => {
+        expect(appPath).toBe("/dist/App.app");
+        calls.push("runtime-smokes");
+      },
+    });
+
+    expect(calls).toEqual([
+      "framework",
+      "helpers",
+      "native",
+      "channel",
+      "signature",
+      "tar",
+      "application-smoke",
+      "runtimes",
+      "runtime-smokes",
+      "signature",
+    ]);
+    expect(
+      resolveMacArtifactSet(["notes.txt", "release.dmg", "release.zip"]),
+    ).toEqual({
+      diskImage: "release.dmg",
+      zipArchive: "release.zip",
+    });
+    expect(() => resolveMacArtifactSet(["one.dmg", "two.dmg"])).toThrow(
+      "Expected one arm64 DMG and ZIP",
     );
   });
 
-  it("runs real OCR and Metal inpainting package smokes in release CI", () => {
-    const verifier = readFileSync(
-      join(repoRoot, "scripts", "verify-mac-package.cjs"),
-      "utf8",
+  it("validates marker results and final archive command plans", () => {
+    expect(() =>
+      assertPreparedSmoke({
+        ok: true,
+        stage: "prepared",
+        imported: true,
+        saved: true,
+        exported: true,
+      }),
+    ).not.toThrow();
+    expect(() =>
+      assertVerifiedSmoke({
+        ok: true,
+        stage: "verified",
+        platform: "darwin",
+        arch: "arm64",
+        imported: true,
+        saved: true,
+        restarted: true,
+        exported: true,
+        dataRoot: join(
+          "Users",
+          "runner",
+          "Library",
+          "Application Support",
+          "manga-gemma-translator",
+        ),
+      }),
+    ).not.toThrow();
+    expect(() => assertPreparedSmoke({ stage: "prepared" })).toThrow(
+      "Invalid packaged prepare smoke result",
     );
-    const smokes = readFileSync(
-      join(repoRoot, "scripts", "verify-mac-runtime-smokes.cjs"),
-      "utf8",
-    );
-
-    expect(verifier).toContain("await verifyMacRuntimeSmokes({ appPath })");
-    expect(verifier).toContain("verifyPackagedBuildChannel(appPath)");
-    expect(verifier).toContain("metadata.buildChannel");
-    expect(verifier.match(/^\s+verifySigning\(appPath\);$/gm)).toHaveLength(4);
-    expect(verifier).toContain('PYTHONDONTWRITEBYTECODE: "1"');
-    expect(smokes).toContain('PYTHONDONTWRITEBYTECODE: "1"');
-    expect(smokes).toContain('PYTHONPYCACHEPREFIX: join(workRoot, "pycache")');
-    expect(smokes).toContain('ocrDevice: "cpu"');
-    expect(smokes).toContain('ocrBboxMode: "ocr"');
-    expect(smokes).toContain('"PP-OCRv6_tiny_det"');
-    expect(smokes).toContain('"PP-OCRv6_tiny_rec"');
-    expect(smokes).toContain('"aot-inpainting"');
-    expect(smokes).toContain('"lama-manga"');
-    expect(smokes).toContain('"metal-native"');
-    expect(smokes).toContain("128 * 128");
-    expect(verifier).toContain("--mgt-mac-package-smoke-stage=${stage}");
-    expect(verifier).toContain('runApplicationSmoke(smokeApp, "prepare")');
-    expect(verifier).toContain('runApplicationSmoke(smokeApp, "verify")');
-    expect(verifier).toContain('"open",');
-    expect(verifier).toContain('"-W",');
-    expect(verifier).toContain('"--args",');
-    expect(verifier).toContain('"--mgt-mac-package-smoke=alpha-ci-v1"');
-    expect(verifier).toContain('"--disable-gpu"');
-    expect(verifier).toContain("waitForSmokeMarker");
-    expect(verifier).toContain("collectApplicationSmokeDiagnostics");
-    expect(verifier).toContain("shouldAllowHostedGuiSmokeFailure");
-    expect(verifier).toContain("findFreshApplicationCrashReport");
-    expect(verifier).toContain("mac-alpha-hosted-app-smoke-waiver.json");
-    expect(verifier).toContain("EXC_BREAKPOINT");
-    expect(verifier).toContain("CrBrowserMain");
-    expect(verifier).toContain('"bootstrap log"');
-    expect(verifier).toContain("contents.slice(0, 20 * 1024)");
-    expect(verifier).toContain("result.signal");
-    expect(verifier).toContain('"--entitlements",');
-    expect(verifier).toContain('"attach",');
-    expect(verifier).toContain('"-readonly",');
-    expect(verifier).toContain('findSingleAppBundle(mountRoot, "final DMG")');
-    expect(verifier).toContain("verifyApplicationDirectorySmoke(appPath)");
-    expect(verifier).toContain('"-x", "-k", zipPath, extractRoot');
-    expect(verifier).toContain("verifyFinalDiskImage(dmgFiles[0])");
-    expect(verifier).toContain("verifyFinalZipArchive(zipFiles[0])");
-    const appSmoke = readFileSync(
-      join(repoRoot, "src", "main", "macPackageSmoke.ts"),
-      "utf8",
-    );
-    expect(appSmoke).toContain("MAC_PACKAGE_SMOKE_CLI_TOKEN");
-    expect(appSmoke).toContain("readPackageSmokeStageArgument");
-    expect(appSmoke).toContain("await previewImages([sourcePath])");
-    expect(appSmoke).toContain("await createImport({");
-    expect(appSmoke).toContain("await savePageBlocks({");
-    expect(appSmoke).toContain("await openChapter(prepared.chapterId)");
-    expect(appSmoke).toContain("renderPageWithTranslationBlocksForExport");
-    expect(appSmoke).toContain("SMOKE_SOURCE_PNG");
-    expect(appSmoke).not.toContain("createFromBitmap");
-    expect(appSmoke).toContain('"export-page"');
-    expect(appSmoke).toContain("writeSmokeMarker");
+    expect(createDiskImageAttachCommand("release.dmg", "/tmp/mount")).toEqual({
+      command: "hdiutil",
+      args: [
+        "attach",
+        "-readonly",
+        "-nobrowse",
+        "-mountpoint",
+        "/tmp/mount",
+        "-plist",
+        "release.dmg",
+      ],
+      options: { timeout: 120_000 },
+    });
+    expect(createZipExtractCommand("release.zip", "/tmp/extract")).toEqual({
+      command: "ditto",
+      args: ["-x", "-k", "release.zip", "/tmp/extract"],
+      options: { timeout: 300_000 },
+    });
   });
 
   it("pins the release workflow to the standard M1 runner and both signing modes", () => {
@@ -614,16 +856,43 @@ describe("Apple Silicon Alpha packaging", () => {
     );
     expect(workflow).not.toContain("MGT_MAC_ALPHA_ALLOW_HOSTED_APP_SMOKE_TRAP");
   });
-
-  it("keeps the stable macOS Help menu out of the Alpha issue flow", () => {
-    const integration = readFileSync(
-      join(repoRoot, "src", "main", "macIntegration.ts"),
-      "utf8",
-    );
-
-    expect(integration).toContain("const alpha = isAppleSiliconAlpha()");
-    expect(integration).toContain("resolveMacIssueMenuTarget(alpha)");
-    expect(integration).toContain("issueMenuTarget.labelKey");
-    expect(integration).toContain("issueMenuTarget.url");
-  });
 });
+
+function loadMacBuilderConfig(
+  runtimeRoot: string,
+  channel: "mac-alpha" | "stable",
+  signingMode: "adhoc" | "developer-id",
+): ElectronBuilderMacConfig {
+  mkdirSync(join(runtimeRoot, "tools"), { recursive: true });
+  const modulePath = require.resolve("../electron-builder.config.cjs");
+  const keys = [
+    "MGT_TARGET_PLATFORM",
+    "MGT_MAC_RUNTIME_ROOT",
+    "MGT_MAC_SIGNING_MODE",
+    "MGT_RELEASE_CHANNEL",
+    "MANGA_TRANSLATOR_BUILD_CHANNEL",
+  ] as const;
+  const previous = Object.fromEntries(
+    keys.map((key) => [key, process.env[key]]),
+  ) as Record<(typeof keys)[number], string | undefined>;
+
+  process.env.MGT_TARGET_PLATFORM = "darwin";
+  process.env.MGT_MAC_RUNTIME_ROOT = runtimeRoot;
+  process.env.MGT_MAC_SIGNING_MODE = signingMode;
+  process.env.MGT_RELEASE_CHANNEL = channel;
+  process.env.MANGA_TRANSLATOR_BUILD_CHANNEL = channel;
+  delete require.cache[modulePath];
+  try {
+    return require(modulePath) as ElectronBuilderMacConfig;
+  } finally {
+    delete require.cache[modulePath];
+    for (const key of keys) {
+      const value = previous[key];
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  }
+}

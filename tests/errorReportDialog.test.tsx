@@ -9,23 +9,18 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import type {
   ErrorReportContext,
   ErrorReportDraft,
 } from "../src/shared/errorReportTypes";
 
-const gatewayMocks = vi.hoisted(() => ({
+const gatewayMocks = {
   prepareErrorReport: vi.fn(),
   copyErrorReport: vi.fn(),
   openErrorReportIssue: vi.fn(),
   openLogFolder: vi.fn(),
-}));
-
-vi.mock("../src/renderer/src/api/mangaGateway", () => ({
-  mangaGateway: {
-    ...gatewayMocks,
-  },
-}));
+};
 
 import { ErrorReportDialog } from "../src/renderer/src/components/ErrorReportDialog";
 
@@ -47,6 +42,7 @@ const DRAFT: ErrorReportDraft = {
 };
 
 beforeEach(() => {
+  window.mangaApi = createTestMangaGatewayStub(gatewayMocks);
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   gatewayMocks.prepareErrorReport.mockResolvedValue(DRAFT);
   gatewayMocks.copyErrorReport.mockResolvedValue({ copied: true });
@@ -59,6 +55,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  window.mangaApi = createTestMangaGatewayStub();
   vi.clearAllMocks();
   vi.restoreAllMocks();
 });

@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { TextStyleRun } from "../src/shared/richTextMarkup";
 import type { TextWordBreak } from "../src/shared/textWrapping";
-import { measureStyledWrappedText } from "../src/renderer/src/lib/overlayTextWrapping";
+import {
+  measureStyledWrappedText,
+  type TextMeasurementContext,
+} from "../src/renderer/src/lib/overlayTextWrapping";
 
 describe("overlay text word breaking", () => {
   it("distinguishes natural, anywhere, keep-together, and emergency wrapping", () => {
@@ -94,7 +97,7 @@ describe("overlay text word breaking", () => {
 const fixedMeasureContext = {
   font: "",
   measureText: () => ({ width: 10 }) as TextMetrics,
-} as unknown as CanvasRenderingContext2D;
+} satisfies TextMeasurementContext;
 
 function plainRuns(text: string): TextStyleRun[] {
   return [{ text, bold: false, italic: false }];

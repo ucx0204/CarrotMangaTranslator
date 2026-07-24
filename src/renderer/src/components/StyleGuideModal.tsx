@@ -2,9 +2,14 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import type { AppSettings } from "../../../shared/settingsTypes";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
-import { Button, Modal } from "./ui";
+import { Button } from "./ui/Button";
+import { Modal } from "./ui/Modal";
 import { ConfirmModal } from "./ConfirmModal";
 import { useConfirmDialog } from "../hooks/useConfirmDialog";
+import {
+  toastNotificationPort,
+  type NotificationPort,
+} from "../lib/notificationPort";
 import {
   StyleGuideAnalysisActions,
   StyleGuideBudgetSummary,
@@ -16,6 +21,7 @@ import { useStyleGuideModalModel } from "./styleGuide/useStyleGuideModalModel";
 type StyleGuideModalProps = {
   chapter: ChapterSnapshot;
   jobActive?: boolean;
+  notificationPort?: NotificationPort;
   settings: AppSettings | null;
   onClose: () => void;
 };
@@ -23,11 +29,12 @@ type StyleGuideModalProps = {
 export function StyleGuideModal({
   chapter,
   jobActive = false,
+  notificationPort = toastNotificationPort,
   settings,
   onClose,
 }: StyleGuideModalProps): React.JSX.Element {
   const { t } = useTranslation("components");
-  const model = useStyleGuideModalModel(chapter, settings);
+  const model = useStyleGuideModalModel(chapter, settings, notificationPort);
   const confirm = useConfirmDialog();
   const confirmAndReset = async (): Promise<void> => {
     const approved = await confirm.askConfirm(

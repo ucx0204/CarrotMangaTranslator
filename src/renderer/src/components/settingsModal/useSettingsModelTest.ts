@@ -5,12 +5,18 @@ import type {
   AppSettings,
   ModelProvider,
 } from "../../../../shared/settingsTypes";
-import { settingsGateway } from "./settingsGateway";
+import { settingsGateway } from "../../api/settingsGateway";
 import {
   buildTestDetail,
   formatModelTestProgressLine,
 } from "../settingsModalHelpers";
 import type { SettingsTestStateController } from "./useSettingsTestState";
+
+type ModelTestLifecycle = {
+  generation: number;
+  mounted: boolean;
+  unsubscribe: (() => void) | null;
+};
 
 export function useSettingsModelTest({
   appendTestLogLine,
@@ -28,12 +34,23 @@ export function useSettingsModelTest({
   setTestState: SettingsTestStateController["setTestState"];
 }): () => Promise<void> {
   const { t } = useTranslation("components");
+  const lifecycleRef = useModelTestLifecycle();
+
   return React.useCallback(async () => {
+    const lifecycle = lifecycleRef.current;
+    if (!lifecycle.mounted) {
+      return;
+    }
     const nextSettings = buildSettings();
     if (!nextSettings || !canSubmit || jobActive) {
       return;
     }
 
+    lifecycle.unsubscribe?.();
+    lifecycle.unsubscribe = null;
+    const generation = ++lifecycle.generation;
+    const isActive = (): boolean =>
+      lifecycle.mounted && lifecycle.generation === generation;
     const testId = `settings-test-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     appendTestLogLine(t("settings.test.log.start"));
     setTestState({
@@ -43,38 +60,75 @@ export function useSettingsModelTest({
     });
     const unsubscribe = subscribeModelTestProgress({
       appendTestLogLine,
+      isActive,
       setTestState,
       testId,
     });
+    lifecycle.unsubscribe = unsubscribe;
     try {
       await runModelTestRequest({
         appendTestLogLine,
+        isActive,
         nextSettings,
         setTestState,
         testId,
         t,
       });
     } catch (error) {
-      console.error(error);
-      const requestError = t("settings.test.log.requestError");
-      appendTestLogLine(requestError);
-      setTestState({
-        status: "error",
-        message: requestError,
-        detail: null,
+      reportModelTestRequestError({
+        appendTestLogLine,
+        error,
+        isActive,
+        setTestState,
+        t,
       });
     } finally {
-      unsubscribe();
+      releaseModelTestSubscription(lifecycle, generation, unsubscribe);
     }
   }, [
     appendTestLogLine,
     buildSettings,
     canSubmit,
     jobActive,
+    lifecycleRef,
     modelProvider,
     setTestState,
     t,
   ]);
+}
+
+function useModelTestLifecycle(): React.RefObject<ModelTestLifecycle> {
+  const lifecycleRef = React.useRef<ModelTestLifecycle>({
+    generation: 0,
+    mounted: true,
+    unsubscribe: null,
+  });
+  React.useEffect(() => {
+    const lifecycle = lifecycleRef.current;
+    lifecycle.mounted = true;
+    return () => {
+      lifecycle.mounted = false;
+      lifecycle.generation += 1;
+      lifecycle.unsubscribe?.();
+      lifecycle.unsubscribe = null;
+    };
+  }, []);
+  return lifecycleRef;
+}
+
+function releaseModelTestSubscription(
+  lifecycle: ModelTestLifecycle,
+  generation: number,
+  unsubscribe: () => void,
+): void {
+  if (
+    lifecycle.generation !== generation ||
+    lifecycle.unsubscribe !== unsubscribe
+  ) {
+    return;
+  }
+  lifecycle.unsubscribe = null;
+  unsubscribe();
 }
 
 function resolveModelTestRunningDetail(
@@ -92,15 +146,17 @@ function resolveModelTestRunningDetail(
 
 function subscribeModelTestProgress({
   appendTestLogLine,
+  isActive,
   setTestState,
   testId,
 }: {
   appendTestLogLine: SettingsTestStateController["appendTestLogLine"];
+  isActive: () => boolean;
   setTestState: SettingsTestStateController["setTestState"];
   testId: string;
 }): () => void {
   return settingsGateway.onModelTestEvent((event) => {
-    if (event.id !== testId) {
+    if (!isActive() || event.id !== testId) {
       return;
     }
     appendTestLogLine(formatModelTestProgressLine(event));
@@ -116,20 +172,51 @@ function subscribeModelTestProgress({
   });
 }
 
+function reportModelTestRequestError({
+  appendTestLogLine,
+  error,
+  isActive,
+  setTestState,
+  t,
+}: {
+  appendTestLogLine: SettingsTestStateController["appendTestLogLine"];
+  error: unknown;
+  isActive: () => boolean;
+  setTestState: SettingsTestStateController["setTestState"];
+  t: TFunction<"components">;
+}): void {
+  if (!isActive()) {
+    return;
+  }
+  console.error(error);
+  const requestError = t("settings.test.log.requestError");
+  appendTestLogLine(requestError);
+  setTestState({
+    status: "error",
+    message: requestError,
+    detail: null,
+  });
+}
+
 async function runModelTestRequest({
   appendTestLogLine,
+  isActive,
   nextSettings,
   setTestState,
   testId,
   t,
 }: {
   appendTestLogLine: SettingsTestStateController["appendTestLogLine"];
+  isActive: () => boolean;
   nextSettings: AppSettings;
   setTestState: SettingsTestStateController["setTestState"];
   testId: string;
   t: TFunction<"components">;
 }): Promise<void> {
   const result = await settingsGateway.testModelSettings(nextSettings, testId);
+  if (!isActive()) {
+    return;
+  }
   appendTestLogLine(
     result.ok ? t("settings.test.log.success") : t("settings.test.log.failure"),
   );

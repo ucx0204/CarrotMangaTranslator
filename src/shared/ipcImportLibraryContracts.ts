@@ -7,6 +7,7 @@ import type {
 import type { ChapterSnapshot, LibraryIndex } from "./libraryTypes";
 import type {
   SavePageBlocksRequest,
+  SavePagesBlocksRequest,
   WorkShareExportRequest,
   WorkShareExportResult,
   WorkShareImportPreview,
@@ -18,6 +19,7 @@ import {
   CreateImportRequestSchema,
   LibraryIndexSchema,
   SavePageBlocksRequestSchema,
+  SavePagesBlocksRequestSchema,
   WorkShareExportRequestSchema,
   WorkShareImportRequestSchema,
 } from "./ipcSchemas";
@@ -204,6 +206,14 @@ export const libraryIpcContracts = {
     args: z.tuple([SavePageBlocksRequestSchema]),
     result: ChapterSnapshotSchema,
   }),
+  savePagesBlocks: defineIpcContract<[SavePagesBlocksRequest], ChapterSnapshot>(
+    {
+      apiKey: "savePagesBlocks",
+      channel: "library:save-pages-blocks",
+      args: z.tuple([SavePagesBlocksRequestSchema]),
+      result: ChapterSnapshotSchema,
+    },
+  ),
   renameWork: defineIpcContract<[string, string], LibraryIndex>({
     apiKey: "renameWork",
     channel: "library:rename-work",

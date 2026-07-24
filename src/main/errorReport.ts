@@ -18,8 +18,6 @@ import {
 import { resolveBuildChannel } from "./buildChannel";
 import type { BuildChannel } from "../shared/runtimeCapabilities";
 
-export { redactDiagnosticText } from "./errorReportRedaction";
-
 const ERROR_SECTION_MAX_BYTES = 10 * 1024;
 const SYSTEM_SECTION_MAX_BYTES = 4 * 1024;
 const ERROR_REPORT_DRAFT_MAX_BYTES = 54 * 1024;

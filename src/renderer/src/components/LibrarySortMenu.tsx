@@ -7,7 +7,7 @@ import {
   type LibrarySortDirection,
   type LibrarySortKey,
 } from "../lib/librarySort";
-import { IconButton } from "./ui";
+import { IconButton } from "./ui/IconButton";
 import { SortIcon } from "./ui/icons";
 
 type LibrarySortMenuProps = {

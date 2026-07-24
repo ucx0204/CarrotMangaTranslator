@@ -20,14 +20,6 @@ import { applyFormatDefaultsToBlock } from "../../shared/blockFormat";
 import { tMain } from "./localization";
 import type { OverlayItem } from "./types";
 
-export {
-  getBboxNormalizationOptions,
-  getOcrBboxHints,
-  normalizeOverlayItemBboxes,
-  validateOverlayItemsAgainstReferences,
-} from "./overlayItemReferences";
-export { applyOcrCandidateGeometryLocks } from "./overlayOcrGeometryLocks";
-
 const DEFAULT_TEXT_COLOR = "#111111";
 const DEFAULT_OUTLINE_COLOR = "#ffffff";
 const REQUIRED_SOUND_CONFIDENCE = 1;

@@ -14,7 +14,10 @@ import {
   saveAppSettings,
 } from "../settingsStore";
 import type { IpcContext } from "./context";
-import { handleModelSettingsTest } from "./settingsModelTestIpc";
+import {
+  handleModelSettingsTest,
+  type ModelTestEndpointRuntime,
+} from "./settingsModelTestIpc";
 import {
   registeredRendererHandleContract,
   trustedHandleContract,
@@ -22,7 +25,14 @@ import {
 import { getMainLocale, setMainLocale, tMain } from "./localization";
 import { discoverApiModels } from "../apiModelDiscovery";
 
-export function registerSettingsIpc(context: IpcContext): void {
+export type SettingsIpcDependencies = {
+  modelTestEndpointRuntime?: ModelTestEndpointRuntime;
+};
+
+export function registerSettingsIpc(
+  context: IpcContext,
+  dependencies: SettingsIpcDependencies = {},
+): void {
   registeredRendererHandleContract(
     context,
     settingsIpcContracts.getUiLocale,
@@ -71,6 +81,7 @@ export function registerSettingsIpc(context: IpcContext): void {
         event,
         rawSettings,
         providedTestId,
+        dependencies.modelTestEndpointRuntime,
       );
     },
   );

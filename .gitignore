@@ -3,6 +3,7 @@ node_modules/
 .mac-alpha-onboarding-v1
 out/
 dist/
+coverage/
 .tmp/
 *.log
 .venv-glmocr/
@@ -26,6 +27,7 @@ tools/mgt-flux-klein-runner/target/
 tools/mgt-flux-klein-runner/vendor/candle-nn-metal-attention/Cargo.lock
 tools/mgt-flux-klein-runner/vendor/candle-nn-metal-attention/target/
 tools/mgt-koharu-inpaint-runner/target/
+tools/runner-runtime-policy/target/
 tools/mgt-flux-klein-sm*/
 tools/mgt-flux-klein/*.exe
 !tools/mgt-flux-klein/mgt-flux-klein.exe

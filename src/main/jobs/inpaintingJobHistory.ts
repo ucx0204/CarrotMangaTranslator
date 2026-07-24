@@ -1,6 +1,6 @@
 import type { MangaPage } from "../../shared/libraryTypes";
-import { updatePagesAfterInpainting } from "../library";
 import type { InpaintingJobContext } from "./inpaintingJobTypes";
+import type { InpaintingJobRuntime } from "./inpaintingJobRuntime";
 
 export async function saveInpaintingPageResult({
   context,
@@ -8,12 +8,14 @@ export async function saveInpaintingPageResult({
   transactionId,
   chapterId,
   previousPage,
+  runtime,
 }: {
   context: InpaintingJobContext;
   resultPage: MangaPage;
   transactionId: string | null;
   chapterId: string;
   previousPage: MangaPage;
+  runtime: InpaintingJobRuntime;
 }) {
   const revisionStore = context.inpaintingRevisionStore;
   const changeAdded = Boolean(
@@ -27,7 +29,7 @@ export async function saveInpaintingPageResult({
     }),
   );
   try {
-    return await updatePagesAfterInpainting(
+    return await runtime.savePages(
       chapterId,
       [resultPage],
       revisionStore

@@ -31,8 +31,6 @@ import {
   upsertMemoryPage,
 } from "./workContextPageMemory";
 
-export type { BasePageMemory } from "./workContextAiTypes";
-
 export function mergeAiWorkContextSuggestions({
   styleGuide,
   memories,

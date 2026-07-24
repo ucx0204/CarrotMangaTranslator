@@ -86,6 +86,7 @@ export type RecordWorkspaceHistoryOptions = {
 export type RecordWorkspaceHistoryResult = {
   state: WorkspaceHistoryState;
   releasedTransactionIds: string[];
+  coalesced: boolean;
 };
 
 export type WorkspaceHistoryReplayResult = {
@@ -132,6 +133,7 @@ export function recordWorkspaceHistory(
       ...released,
       ...collectImageTransactionIds(trimmed),
     ]),
+    coalesced: coalesced !== null,
   };
 }
 
@@ -141,6 +143,22 @@ export function peekWorkspaceHistory(
 ): WorkspaceHistoryEntry | null {
   const stack = direction === "undo" ? state.past : state.future;
   return stack.at(-1) ?? null;
+}
+
+export function hasSameVisibleWorkspaceHistoryState(
+  previous: WorkspaceHistoryState,
+  next: WorkspaceHistoryState,
+): boolean {
+  const previousUndo = peekWorkspaceHistory(previous, "undo");
+  const nextUndo = peekWorkspaceHistory(next, "undo");
+  const previousRedo = peekWorkspaceHistory(previous, "redo");
+  const nextRedo = peekWorkspaceHistory(next, "redo");
+  return (
+    Boolean(previousUndo) === Boolean(nextUndo) &&
+    Boolean(previousRedo) === Boolean(nextRedo) &&
+    previousUndo?.label === nextUndo?.label &&
+    previousRedo?.label === nextRedo?.label
+  );
 }
 
 /**
@@ -223,19 +241,24 @@ export function clearWorkspaceHistory(
       ...collectImageTransactionIds(state.past),
       ...collectImageTransactionIds(state.future),
     ]),
+    coalesced: false,
   };
 }
 
 export function captureWorkspaceChapterEditSnapshot(
   chapter: Pick<ChapterSnapshot, "id" | "pages">,
   selection: WorkspaceSelectionSnapshot,
+  pageIds?: Iterable<string>,
 ): WorkspaceChapterEditSnapshot {
+  const includedPageIds = pageIds ? new Set(pageIds) : null;
   return {
     chapterId: chapter.id,
-    pages: chapter.pages.map((page) => ({
-      pageId: page.id,
-      blocks: page.blocks,
-    })),
+    pages: chapter.pages
+      .filter((page) => !includedPageIds || includedPageIds.has(page.id))
+      .map((page) => ({
+        pageId: page.id,
+        blocks: page.blocks,
+      })),
     selectedPageId: selection.selectedPageId,
     selectedBlockId: selection.selectedBlockId,
     selectedBlockIds: [...selection.selectedBlockIds],

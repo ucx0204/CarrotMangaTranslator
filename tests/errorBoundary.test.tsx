@@ -3,19 +3,16 @@
 import React from "react";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 
-const gatewayMocks = vi.hoisted(() => ({
+const gatewayMocks = {
   writeLog: vi.fn(),
   prepareErrorReport: vi.fn(),
   copyErrorReport: vi.fn(),
   openErrorReportIssue: vi.fn(),
   openLogFolder: vi.fn(),
   restartApp: vi.fn(),
-}));
-
-vi.mock("../src/renderer/src/api/mangaGateway", () => ({
-  mangaGateway: gatewayMocks,
-}));
+};
 
 import { ErrorBoundary } from "../src/renderer/src/components/ErrorBoundary";
 
@@ -25,6 +22,7 @@ function BrokenView(): React.JSX.Element {
 
 describe("ErrorBoundary reporting", () => {
   beforeEach(() => {
+    window.mangaApi = createTestMangaGatewayStub(gatewayMocks);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     gatewayMocks.writeLog.mockResolvedValue({ logged: true });
     gatewayMocks.prepareErrorReport.mockResolvedValue({
@@ -46,6 +44,7 @@ describe("ErrorBoundary reporting", () => {
 
   afterEach(() => {
     cleanup();
+    window.mangaApi = createTestMangaGatewayStub();
     vi.clearAllMocks();
     vi.restoreAllMocks();
   });

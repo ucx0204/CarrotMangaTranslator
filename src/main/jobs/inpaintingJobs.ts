@@ -6,7 +6,6 @@ import type {
 } from "../../shared/inpaintingTypes";
 import type { JobEvent } from "../../shared/jobTypes";
 import type { ChapterSnapshot } from "../../shared/libraryTypes";
-import { openChapter } from "../library";
 import { tMain } from "./localization";
 import {
   type InpaintingJobState,
@@ -15,13 +14,17 @@ import {
   runInpaintingPagesJob,
 } from "./inpaintingJobRunner";
 import type { InpaintingJobContext } from "./inpaintingJobTypes";
-import { emitJobEvent } from "./jobEvents";
+import {
+  productionInpaintingJobRuntime,
+  type InpaintingJobRuntime,
+} from "./inpaintingJobRuntime";
 
 export type { InpaintingJobContext } from "./inpaintingJobTypes";
 
 export async function startInpaintingJob(
   context: InpaintingJobContext,
   request: StartInpaintingRequest,
+  runtime: InpaintingJobRuntime = productionInpaintingJobRuntime,
 ): Promise<StartInpaintingResult> {
   if (context.jobs.hasActive) {
     return { status: "failed", error: tMain("jobs.active") };
@@ -44,10 +47,10 @@ export async function startInpaintingJob(
     cleanup: () => completion.promise,
   });
   const emit = (event: JobEvent) =>
-    emitJobEvent(context.jobs, context.getMainWindow(), event);
+    runtime.emitEvent(context.jobs, context.getMainWindow(), event);
 
   try {
-    const targets = await resolveInpaintingJobPages(request, state);
+    const targets = await resolveInpaintingJobPages(request, state, runtime);
     if (targets.length === 0) {
       emit({
         id,
@@ -76,6 +79,7 @@ export async function startInpaintingJob(
       emit,
       targets,
       state,
+      runtime,
     });
   } catch (error) {
     return handleInpaintingJobError({
@@ -86,6 +90,7 @@ export async function startInpaintingJob(
       request,
       state,
       context,
+      runtime,
     });
   } finally {
     finishInpaintingJob(context, state, id, completion.resolve);
@@ -128,9 +133,10 @@ function finishInpaintingJob(
 async function resolveInpaintingJobPages(
   request: StartInpaintingRequest,
   state: InpaintingJobState,
+  runtime: InpaintingJobRuntime,
 ): Promise<InpaintingJobPage[]> {
   if (request.mode !== "selection-pattern") {
-    const chapter = await openChapter(request.chapterId);
+    const chapter = await runtime.openChapter(request.chapterId);
     state.chapter = chapter;
     state.chapters.set(chapter.id, chapter);
     const pages =
@@ -152,7 +158,7 @@ async function resolveInpaintingJobPages(
     }
     selectedChapterIds.add(selection.chapterId);
 
-    const chapter = await openChapter(selection.chapterId);
+    const chapter = await runtime.openChapter(selection.chapterId);
     if (chapter.workId !== request.workId) {
       throw new Error("Selected chapters must belong to the same work.");
     }

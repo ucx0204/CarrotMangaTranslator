@@ -13,7 +13,7 @@ import {
   resolveBlockTextWordBreak,
   type TextWordBreak,
 } from "../../../shared/textWrapping";
-import { resolveBlockFontFamily } from "./fonts";
+import { resolveBlockFontFamily, type BlockFontCatalog } from "./fonts";
 import {
   measureStyledWrappedText,
   measureUniformWrappedText,
@@ -71,6 +71,7 @@ export function resolveBlockTextLayout(
   text: string,
   pageSize: ViewportSize,
   stageSize: ViewportSize,
+  fontCatalog: BlockFontCatalog,
   options: BlockTextLayoutOptions = {},
 ): BlockTextLayout {
   const { plainText } = parseRichText(
@@ -97,6 +98,51 @@ export function resolveBlockTextLayout(
   const innerHeight = Math.max(MIN_INNER_SIZE_PX, layoutHeight - paddingPx * 2);
   const fitInnerWidth = innerWidth;
   const fitInnerHeight = innerHeight;
+  const textMetrics = resolveBlockTextMetrics({
+    block,
+    text,
+    fitInnerWidth,
+    fitInnerHeight,
+    fontCatalog,
+    layoutStageSize,
+    pageSize,
+  });
+
+  return {
+    rect,
+    paddingPx,
+    layoutWidth,
+    layoutHeight,
+    innerWidth,
+    innerHeight,
+    fitInnerWidth,
+    fitInnerHeight,
+    ...textMetrics,
+    textScaleX: rect.width / layoutWidth,
+    textScaleY: rect.height / layoutHeight,
+  };
+}
+
+function resolveBlockTextMetrics({
+  block,
+  text,
+  fitInnerWidth,
+  fitInnerHeight,
+  fontCatalog,
+  layoutStageSize,
+  pageSize,
+}: {
+  block: TranslationBlock;
+  text: string;
+  fitInnerWidth: number;
+  fitInnerHeight: number;
+  fontCatalog: BlockFontCatalog;
+  layoutStageSize: ViewportSize;
+  pageSize: ViewportSize;
+}): Pick<
+  BlockTextLayout,
+  "fontSizePx" | "textContentWidth" | "lines" | "overflow"
+> {
   const scale = Math.min(
     layoutStageSize.width / Math.max(1, pageSize.width),
     layoutStageSize.height / Math.max(1, pageSize.height),
@@ -117,34 +163,31 @@ export function resolveBlockTextLayout(
     maxFontSize,
     fitInnerWidth,
     fitInnerHeight,
+    fontCatalog,
   );
   const textContentWidth = resolveHorizontalTextContentWidth(
     block,
     fitInnerWidth,
   );
-  const lines = resolveFixedHorizontalTextLines(
-    block,
-    text,
-    fontSizePx,
-    textContentWidth,
-  );
-
   return {
-    rect,
-    paddingPx,
-    layoutWidth,
-    layoutHeight,
-    innerWidth,
-    innerHeight,
-    fitInnerWidth,
-    fitInnerHeight,
     fontSizePx,
     textContentWidth,
-    lines,
-    textScaleX: rect.width / layoutWidth,
-    textScaleY: rect.height / layoutHeight,
+    lines: resolveFixedHorizontalTextLines(
+      block,
+      text,
+      fontSizePx,
+      textContentWidth,
+      fontCatalog,
+    ),
     overflow: text.trim()
-      ? !doesTextFit(block, text, fontSizePx, fitInnerWidth, fitInnerHeight)
+      ? !doesTextFit(
+          block,
+          text,
+          fontSizePx,
+          fitInnerWidth,
+          fitInnerHeight,
+          fontCatalog,
+        )
       : false,
   };
 }
@@ -166,6 +209,7 @@ function resolveFixedHorizontalTextLines(
   text: string,
   fontSize: number,
   contentWidth: number,
+  fontCatalog: BlockFontCatalog,
 ): BlockTextLine[] | null {
   if (
     !text.trim() ||
@@ -185,7 +229,7 @@ function resolveFixedHorizontalTextLines(
     contentWidth,
     fontSize * block.lineHeight,
     fontSize,
-    resolveBlockFontFamily(block.fontFamily),
+    resolveBlockFontFamily(block.fontFamily, fontCatalog),
     letterSpacingPx,
     resolveBlockTextWordBreak(block.wordBreak, "horizontal"),
   ).lines;
@@ -226,20 +270,13 @@ export function resolveBlockRectPx(
   };
 }
 
-export function hexToRgba(hex: string, alpha: number): string {
-  const value = hex.replace("#", "");
-  const r = Number.parseInt(value.slice(0, 2), 16);
-  const g = Number.parseInt(value.slice(2, 4), 16);
-  const b = Number.parseInt(value.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${clamp(alpha, 0, 1)})`;
-}
-
 function resolveTextFontSizePx(
   block: TranslationBlock,
   text: string,
   maxFontSize: number,
   innerWidth: number,
   innerHeight: number,
+  fontCatalog: BlockFontCatalog,
 ): number {
   const capped = Math.max(MIN_FONT_SIZE_PX, Math.floor(maxFontSize));
   if (!(block.autoFitText ?? true) || !text.trim()) {
@@ -251,7 +288,7 @@ function resolveTextFontSizePx(
   let best = MIN_FONT_SIZE_PX;
   while (low <= high) {
     const mid = Math.floor((low + high) / 2);
-    if (doesTextFit(block, text, mid, innerWidth, innerHeight)) {
+    if (doesTextFit(block, text, mid, innerWidth, innerHeight, fontCatalog)) {
       best = mid;
       low = mid + 1;
     } else {
@@ -267,6 +304,7 @@ function doesTextFit(
   fontSize: number,
   innerWidth: number,
   innerHeight: number,
+  fontCatalog: BlockFontCatalog,
 ): boolean {
   const letterSpacingPx = resolveLetterSpacingPx(block, fontSize);
   const scaleX = resolveFontWidthScale(block.fontWidthScale);
@@ -301,7 +339,7 @@ function doesTextFit(
     effectiveWidth,
     fontSize * block.lineHeight,
     fontSize,
-    resolveBlockFontFamily(block.fontFamily),
+    resolveBlockFontFamily(block.fontFamily, fontCatalog),
     letterSpacingPx,
     resolveBlockTextWordBreak(block.wordBreak, "horizontal"),
   );

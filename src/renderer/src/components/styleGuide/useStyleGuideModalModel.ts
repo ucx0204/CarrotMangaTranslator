@@ -17,8 +17,9 @@ import {
   buildWorkContextBudgetPreview,
   WORK_CONTEXT_RECENT_PAGE_COUNT,
 } from "../../../../shared/workContextBudget";
-import { mangaGateway } from "../../api/mangaGateway";
-import { toast } from "../../lib/toastStore";
+import { analysisGateway } from "../../api/analysisGateway";
+import { libraryGateway as mangaGateway } from "../../api/libraryGateway";
+import type { NotificationPort } from "../../lib/notificationPort";
 import type { StyleGuideTab } from "./styleGuideTypes";
 import { countAnalysisChanges, normalizeGuideForSave } from "./styleGuideUtils";
 
@@ -28,10 +29,11 @@ export type WorkContextUsageStatus = "loading" | "ready" | "error";
 export function useStyleGuideModalModel(
   chapter: ChapterSnapshot,
   settings: AppSettings | null,
+  notificationPort: NotificationPort,
 ) {
   const { i18n, t } = useTranslation("components");
   const [tab, setTab] = React.useState<StyleGuideTab>("glossary");
-  const resources = useStyleGuideResources(chapter, t);
+  const resources = useStyleGuideResources(chapter, t, notificationPort);
   const analysis = useStyleGuideAnalysis({
     chapter,
     t,
@@ -39,6 +41,7 @@ export function useStyleGuideModalModel(
     setMemory: resources.setMemory,
     refreshUsage: resources.refreshUsage,
     setTab,
+    notificationPort,
   });
   return {
     ...resources,
@@ -55,7 +58,11 @@ export function useStyleGuideModalModel(
   };
 }
 
-function useStyleGuideResources(chapter: ChapterSnapshot, t: ComponentsT) {
+function useStyleGuideResources(
+  chapter: ChapterSnapshot,
+  t: ComponentsT,
+  notificationPort: NotificationPort,
+) {
   const [guide, setGuide] = React.useState<WorkStyleGuide | null>(null);
   const [memory, setMemory] = React.useState<ChapterStoryMemory | null>(null);
   const [busy, setBusy] = React.useState(true);
@@ -70,6 +77,7 @@ function useStyleGuideResources(chapter: ChapterSnapshot, t: ComponentsT) {
     setGuide,
     setMemory,
     setBusy,
+    notificationPort,
   });
   const saveGuide = React.useCallback(async () => {
     if (!guide) return;
@@ -84,14 +92,14 @@ function useStyleGuideResources(chapter: ChapterSnapshot, t: ComponentsT) {
       setGuide(savedGuide);
       if (savedMemory) setMemory(savedMemory);
       await refreshUsage();
-      toast.success(t("styleGuide.saveSuccess"));
+      notificationPort.success(t("styleGuide.saveSuccess"));
     } catch (error) {
       console.error(error);
-      toast.error(t("styleGuide.saveFailed"));
+      notificationPort.error(t("styleGuide.saveFailed"));
     } finally {
       setSaving(false);
     }
-  }, [guide, memory, refreshUsage, t]);
+  }, [guide, memory, notificationPort, refreshUsage, t]);
   const resetAllWorkContext = React.useCallback(async () => {
     setResetting(true);
     try {
@@ -101,16 +109,16 @@ function useStyleGuideResources(chapter: ChapterSnapshot, t: ComponentsT) {
       setGuide(result.styleGuide);
       setMemory(result.storyMemory);
       await refreshUsage();
-      toast.success(
+      notificationPort.success(
         t("styleGuide.reset.success", { count: result.resetChapterCount }),
       );
     } catch (error) {
       console.error(error);
-      toast.error(t("styleGuide.reset.failed"));
+      notificationPort.error(t("styleGuide.reset.failed"));
     } finally {
       setResetting(false);
     }
-  }, [chapter.id, refreshUsage, t]);
+  }, [chapter.id, notificationPort, refreshUsage, t]);
   return {
     guide,
     setGuide,
@@ -133,12 +141,14 @@ function useGuideMemoryLoader({
   setGuide,
   setMemory,
   setBusy,
+  notificationPort,
 }: {
   chapter: ChapterSnapshot;
   t: ComponentsT;
   setGuide: React.Dispatch<React.SetStateAction<WorkStyleGuide | null>>;
   setMemory: React.Dispatch<React.SetStateAction<ChapterStoryMemory | null>>;
   setBusy: React.Dispatch<React.SetStateAction<boolean>>;
+  notificationPort: NotificationPort;
 }): void {
   React.useEffect(() => {
     let alive = true;
@@ -155,7 +165,7 @@ function useGuideMemoryLoader({
       })
       .catch((error) => {
         console.error(error);
-        toast.error(t("styleGuide.loadFailed"));
+        notificationPort.error(t("styleGuide.loadFailed"));
       })
       .finally(() => {
         if (alive) setBusy(false);
@@ -163,7 +173,15 @@ function useGuideMemoryLoader({
     return () => {
       alive = false;
     };
-  }, [chapter.id, chapter.workId, setBusy, setGuide, setMemory, t]);
+  }, [
+    chapter.id,
+    chapter.workId,
+    notificationPort,
+    setBusy,
+    setGuide,
+    setMemory,
+    t,
+  ]);
 }
 
 function useStyleGuideUsage(workId: string): {
@@ -227,6 +245,7 @@ function useStyleGuideAnalysis({
   setMemory,
   refreshUsage,
   setTab,
+  notificationPort,
 }: {
   chapter: ChapterSnapshot;
   t: TFunction<"components">;
@@ -234,6 +253,7 @@ function useStyleGuideAnalysis({
   setMemory: (memory: ChapterStoryMemory) => void;
   refreshUsage: () => Promise<void>;
   setTab: (tab: StyleGuideTab) => void;
+  notificationPort: NotificationPort;
 }) {
   const [analyzingScope, setAnalyzingScope] =
     React.useState<WorkContextAnalysisScope | null>(null);
@@ -241,7 +261,7 @@ function useStyleGuideAnalysis({
     async (scope: WorkContextAnalysisScope) => {
       setAnalyzingScope(scope);
       try {
-        const result = await mangaGateway.analyzeWorkContext({
+        const result = await analysisGateway.analyzeWorkContext({
           chapterId: chapter.id,
           scope,
         });
@@ -249,7 +269,7 @@ function useStyleGuideAnalysis({
         setMemory(result.storyMemory);
         await refreshUsage();
         setTab("glossary");
-        toast.success(
+        notificationPort.success(
           t("styleGuide.analysis.success", {
             scope: t(
               scope === "work"
@@ -261,15 +281,25 @@ function useStyleGuideAnalysis({
             changed: countAnalysisChanges(result.counts),
           }),
         );
-        result.warnings.slice(0, 2).forEach((warning) => toast.info(warning));
+        result.warnings
+          .slice(0, 2)
+          .forEach((warning) => notificationPort.info(warning));
       } catch (error) {
         console.error(error);
-        toast.error(t("styleGuide.analysis.failed"));
+        notificationPort.error(t("styleGuide.analysis.failed"));
       } finally {
         setAnalyzingScope(null);
       }
     },
-    [chapter.id, refreshUsage, setGuide, setMemory, setTab, t],
+    [
+      chapter.id,
+      notificationPort,
+      refreshUsage,
+      setGuide,
+      setMemory,
+      setTab,
+      t,
+    ],
   );
   return { analyzingScope, analyzeWithAi };
 }

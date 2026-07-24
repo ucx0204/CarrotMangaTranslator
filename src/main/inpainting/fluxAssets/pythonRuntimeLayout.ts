@@ -16,10 +16,8 @@ import type {
   FluxPythonRuntime,
   FluxPythonRuntimeLayout,
 } from "./types";
-import {
-  ensureEmbeddedPythonPackagePath,
-  managedFluxBootstrapPythonPath,
-} from "./pythonBootstrap";
+import { managedFluxBootstrapPythonPath } from "./pythonBootstrap";
+import { ensureEmbeddedPythonPackagePath } from "./pythonPathFile";
 import { buildTargetPythonEnv } from "./rocmRuntime";
 import { hasUsablePackageDir } from "./pythonRuntimePackages";
 import { isExecutableFile, sha256FileSync } from "./fileProbe";

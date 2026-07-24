@@ -6,7 +6,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { CanvasActionBar } from "../src/renderer/src/components/CanvasActionBar";
 import { InpaintingBlockOption } from "../src/renderer/src/components/EditorPanelSections";
 import { OverlayBlock } from "../src/renderer/src/components/OverlayBlock";
-import { OverlayBlockLayer } from "../src/renderer/src/components/imageStageLayers";
+import { OverlayBlockLayer } from "../src/renderer/src/components/OverlayBlockLayer";
+import { FontsContext } from "../src/renderer/src/fonts/fontsContextValue";
+import { DEFAULT_BLOCK_FONT_CATALOG } from "../src/renderer/src/lib/fonts";
+import { createWorkspaceInteractionPreviewStore } from "../src/renderer/src/lib/workspaceInteractionPreview";
 import type { MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
 
@@ -120,9 +123,10 @@ describe("automatic erase exclusion", () => {
   });
 
   it("always marks an excluded block on the canvas", () => {
-    const { container } = render(
+    const { container } = renderWithFonts(
       <OverlayBlock
         block={makeBlock(true)}
+        interactionPreviewStore={createWorkspaceInteractionPreviewStore()}
         pageSize={{ width: 1000, height: 1600 }}
         stageSize={{ width: 500, height: 800 }}
         selected={false}
@@ -142,9 +146,10 @@ describe("automatic erase exclusion", () => {
   });
 
   it("renders text opacity independently from the editor block background", () => {
-    const { container } = render(
+    const { container } = renderWithFonts(
       <OverlayBlock
         block={{ ...makeBlock(false), textOpacity: 0.35, opacity: 0.7 }}
+        interactionPreviewStore={createWorkspaceInteractionPreviewStore()}
         pageSize={{ width: 1000, height: 1600 }}
         stageSize={{ width: 500, height: 800 }}
         selected
@@ -176,10 +181,11 @@ describe("automatic erase exclusion", () => {
         translatedText: "ordinary text",
       },
     ]);
-    const { container } = render(
+    const { container } = renderWithFonts(
       <OverlayBlockLayer
         blockPointerDisabled={false}
         imageDataUrl="data:image/png;base64,abc"
+        interactionPreviewStore={createWorkspaceInteractionPreviewStore()}
         onBlockPointerDown={vi.fn()}
         page={page}
         selectedBlockId={null}
@@ -200,6 +206,24 @@ describe("automatic erase exclusion", () => {
     expect(container.querySelector(".overlay-block.excluded")).not.toBeNull();
   });
 });
+
+function renderWithFonts(ui: React.ReactElement): ReturnType<typeof render> {
+  return render(
+    <FontsContext.Provider
+      value={{
+        busy: false,
+        catalog: DEFAULT_BLOCK_FONT_CATALOG,
+        baseOptions: [],
+        options: [],
+        registerFont: async () => undefined,
+        removeFont: async () => undefined,
+        savePreferences: async () => undefined,
+      }}
+    >
+      {ui}
+    </FontsContext.Provider>,
+  );
+}
 
 function makePage(blocks: TranslationBlock[]): MangaPage {
   return {

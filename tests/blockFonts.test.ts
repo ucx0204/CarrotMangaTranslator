@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   BUILT_IN_BLOCK_FONTS,
   DEFAULT_BLOCK_FONT_ID,
@@ -6,11 +6,11 @@ import {
 } from "../src/shared/blockFontCatalog";
 import type { UiLocale } from "../src/shared/uiLocales";
 import {
+  createBlockFontCatalog,
+  DEFAULT_BLOCK_FONT_CATALOG,
   getBlockFontOptions,
   normalizeBlockFontFamily,
   resolveBlockFontFamily,
-  setCustomFontOptions,
-  setFontPreferences,
 } from "../src/renderer/src/lib/fonts";
 
 const EXPECTED_IDS_BY_LOCALE = {
@@ -67,15 +67,6 @@ const BASE_LOCALE_ORDER: readonly UiLocale[] = [
   "zh-Hant",
 ];
 
-afterEach(() => {
-  setCustomFontOptions([]);
-  setFontPreferences({
-    favoriteIds: [],
-    orderedIds: [],
-    defaultFontId: DEFAULT_BLOCK_FONT_ID,
-  });
-});
-
 describe("built-in block font catalog", () => {
   it("contains the expected stable kebab-case IDs for every locale", () => {
     expect(BUILT_IN_BLOCK_FONTS).toHaveLength(33);
@@ -95,7 +86,11 @@ describe("built-in block font catalog", () => {
   it.each(BASE_LOCALE_ORDER)(
     "keeps Default first and prioritizes the %s group",
     (locale) => {
-      const options = getBlockFontOptions(undefined, locale);
+      const options = getBlockFontOptions(
+        DEFAULT_BLOCK_FONT_CATALOG,
+        undefined,
+        locale,
+      );
       expect(options[0]?.id).toBe(DEFAULT_BLOCK_FONT_ID);
 
       const expectedLocaleOrder = [
@@ -118,37 +113,47 @@ describe("built-in block font catalog", () => {
 
   it("keeps user-installed fonts after every built-in group", () => {
     const customId = "7432f752-8615-4708-a3d6-57bbcb05bdda";
-    setCustomFontOptions([
-      {
-        id: customId,
-        label: "My Font",
-        family: `MGTUser-${customId}`,
-        fileName: `${customId}.ttf`,
-      },
-    ]);
+    const catalog = createBlockFontCatalog(
+      [
+        {
+          id: customId,
+          label: "My Font",
+          family: `MGTUser-${customId}`,
+          fileName: `${customId}.ttf`,
+        },
+      ],
+      DEFAULT_BLOCK_FONT_CATALOG.preferences,
+    );
 
-    const options = getBlockFontOptions(undefined, "ja");
+    const options = getBlockFontOptions(catalog, undefined, "ja");
     expect(options.at(-1)?.id).toBe(customId);
     expect(options).toHaveLength(BUILT_IN_BLOCK_FONTS.length + 2);
   });
 
   it("normalizes every built-in and registered custom font ID", () => {
     for (const font of BUILT_IN_BLOCK_FONTS) {
-      expect(normalizeBlockFontFamily(font.id)).toBe(font.id);
+      expect(
+        normalizeBlockFontFamily(font.id, DEFAULT_BLOCK_FONT_CATALOG),
+      ).toBe(font.id);
     }
 
     const customId = "7432f752-8615-4708-a3d6-57bbcb05bdda";
-    setCustomFontOptions([
-      {
-        id: customId,
-        label: "My Font",
-        family: `MGTUser-${customId}`,
-        fileName: `${customId}.otf`,
-      },
-    ]);
-    expect(normalizeBlockFontFamily(customId)).toBe(customId);
-    expect(normalizeBlockFontFamily(DEFAULT_BLOCK_FONT_ID)).toBeUndefined();
-    expect(normalizeBlockFontFamily("unknown-font")).toBeUndefined();
+    const catalog = createBlockFontCatalog(
+      [
+        {
+          id: customId,
+          label: "My Font",
+          family: `MGTUser-${customId}`,
+          fileName: `${customId}.otf`,
+        },
+      ],
+      DEFAULT_BLOCK_FONT_CATALOG.preferences,
+    );
+    expect(normalizeBlockFontFamily(customId, catalog)).toBe(customId);
+    expect(
+      normalizeBlockFontFamily(DEFAULT_BLOCK_FONT_ID, catalog),
+    ).toBeUndefined();
+    expect(normalizeBlockFontFamily("unknown-font", catalog)).toBeUndefined();
   });
 
   it("uses script-appropriate fallback stacks", () => {
@@ -162,21 +167,29 @@ describe("built-in block font catalog", () => {
   });
 
   it("lets the system default option move and favorite like every other font", () => {
-    const favoritesFirst = getBlockFontOptions(undefined, "ko", {
-      favoriteIds: ["kalam", DEFAULT_BLOCK_FONT_ID],
-      orderedIds: ["kalam", DEFAULT_BLOCK_FONT_ID],
-      defaultFontId: DEFAULT_BLOCK_FONT_ID,
-    });
+    const favoritesFirst = getBlockFontOptions(
+      createBlockFontCatalog([], {
+        favoriteIds: ["kalam", DEFAULT_BLOCK_FONT_ID],
+        orderedIds: ["kalam", DEFAULT_BLOCK_FONT_ID],
+        defaultFontId: DEFAULT_BLOCK_FONT_ID,
+      }),
+      undefined,
+      "ko",
+    );
     expect(favoritesFirst.slice(0, 2).map((option) => option.id)).toEqual([
       "kalam",
       DEFAULT_BLOCK_FONT_ID,
     ]);
 
-    const freelyOrdered = getBlockFontOptions(undefined, "ko", {
-      favoriteIds: [],
-      orderedIds: ["kalam", DEFAULT_BLOCK_FONT_ID],
-      defaultFontId: DEFAULT_BLOCK_FONT_ID,
-    });
+    const freelyOrdered = getBlockFontOptions(
+      createBlockFontCatalog([], {
+        favoriteIds: [],
+        orderedIds: ["kalam", DEFAULT_BLOCK_FONT_ID],
+        defaultFontId: DEFAULT_BLOCK_FONT_ID,
+      }),
+      undefined,
+      "ko",
+    );
     expect(freelyOrdered.slice(0, 2).map((option) => option.id)).toEqual([
       "kalam",
       DEFAULT_BLOCK_FONT_ID,
@@ -186,23 +199,53 @@ describe("built-in block font catalog", () => {
   it("resolves inherited blocks and the default option through the designated font without recursion", () => {
     const kalam = BUILT_IN_BLOCK_FONTS.find((font) => font.id === "kalam");
     expect(kalam).toBeDefined();
-    setFontPreferences({
+    const catalog = createBlockFontCatalog([], {
       favoriteIds: [],
       orderedIds: [],
       defaultFontId: "kalam",
     });
 
-    expect(resolveBlockFontFamily(undefined)).toBe(kalam?.cssFamily);
-    expect(resolveBlockFontFamily(DEFAULT_BLOCK_FONT_ID)).toBe(
+    expect(resolveBlockFontFamily(undefined, catalog)).toBe(kalam?.cssFamily);
+    expect(resolveBlockFontFamily(DEFAULT_BLOCK_FONT_ID, catalog)).toBe(
       kalam?.cssFamily,
     );
-    expect(getBlockFontOptions()[0]?.cssFamily).toBe(kalam?.cssFamily);
+    expect(getBlockFontOptions(catalog)[0]?.cssFamily).toBe(kalam?.cssFamily);
 
-    setFontPreferences({
+    expect(resolveBlockFontFamily(undefined, DEFAULT_BLOCK_FONT_CATALOG)).toBe(
+      DEFAULT_BLOCK_FONT_STACK,
+    );
+  });
+
+  it("keeps independent immutable catalogs from leaking custom fonts or defaults", () => {
+    const customId = "7432f752-8615-4708-a3d6-57bbcb05bdda";
+    const customCatalog = createBlockFontCatalog(
+      [
+        {
+          id: customId,
+          label: "Isolated Font",
+          family: "MGTUser-Isolated",
+          fileName: `${customId}.otf`,
+        },
+      ],
+      {
+        favoriteIds: [customId],
+        orderedIds: [customId],
+        defaultFontId: customId,
+      },
+    );
+    const otherCatalog = createBlockFontCatalog([], {
       favoriteIds: [],
       orderedIds: [],
-      defaultFontId: DEFAULT_BLOCK_FONT_ID,
+      defaultFontId: "kalam",
     });
-    expect(resolveBlockFontFamily(undefined)).toBe(DEFAULT_BLOCK_FONT_STACK);
+
+    expect(resolveBlockFontFamily(undefined, customCatalog)).toContain(
+      "MGTUser-Isolated",
+    );
+    expect(normalizeBlockFontFamily(customId, otherCatalog)).toBeUndefined();
+    expect(resolveBlockFontFamily(undefined, otherCatalog)).toContain("Kalam");
+    expect(Object.isFrozen(customCatalog)).toBe(true);
+    expect(Object.isFrozen(customCatalog.customFonts)).toBe(true);
+    expect(Object.isFrozen(customCatalog.preferences.favoriteIds)).toBe(true);
   });
 });

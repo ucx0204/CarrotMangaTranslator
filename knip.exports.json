@@ -4,6 +4,9 @@
     "src/main/index.ts",
     "src/preload/index.ts",
     "src/renderer/src/main.tsx",
+    "src/renderer/src/pageExport/browserEntry.tsx",
+    "tests/pageArtworkPixelParityPanelEntry.tsx",
+    "scripts/page-artwork-pixel-parity/electron-runner.cjs",
     "tests/**/*.test.{ts,tsx}",
     "scripts/**/*.{cjs,mjs,js}"
   ],

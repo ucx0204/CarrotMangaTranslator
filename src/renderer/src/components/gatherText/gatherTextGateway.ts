@@ -1,5 +1,5 @@
 import type { MangaApi } from "../../../../shared/mangaApi";
-import { mangaGateway } from "../../api/mangaGateway";
+import { libraryGateway as mangaGateway } from "../../api/libraryGateway";
 
 type RequestOf<TMethod extends keyof MangaApi> = Parameters<
   MangaApi[TMethod]

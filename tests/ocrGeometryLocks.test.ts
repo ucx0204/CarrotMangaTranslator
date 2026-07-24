@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isOcrResultNoTextDetected } from "../src/main/pipeline/noText";
-import { applyOcrCandidateGeometryLocks } from "../src/main/pipeline/overlayItems";
+import { applyOcrCandidateGeometryLocks } from "../src/main/pipeline/overlayOcrGeometryLocks";
 import type { MangaPage } from "../src/shared/libraryTypes";
 
 const page: MangaPage = {

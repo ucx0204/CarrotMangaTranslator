@@ -9,10 +9,26 @@ import { AppRightRail } from "../src/renderer/src/components/AppRightRail";
 import { AppSidebar } from "../src/renderer/src/components/AppSidebar";
 import { DisplayControlPanel } from "../src/renderer/src/components/inpaintingPanel/DisplayControlPanel";
 import { StageToolbar } from "../src/renderer/src/components/StageToolbar";
+import { FontsContext } from "../src/renderer/src/fonts/fontsContextValue";
+import {
+  DEFAULT_BLOCK_FONT_CATALOG,
+  getBaseBlockFontOptions,
+  getBlockFontOptions,
+} from "../src/renderer/src/lib/fonts";
+import {
+  PanelSessionContext,
+  type PanelSessionValue,
+} from "../src/renderer/src/panels/panelSession";
 
-vi.mock("../src/renderer/src/panels/EditorPanelSlot", () => ({
-  EditorPanelSlot: () => <section data-testid="editor-slot">editor</section>,
-}));
+class ResizeObserverStub {
+  disconnect(): void {}
+
+  observe(): void {}
+
+  unobserve(): void {}
+}
+
+vi.stubGlobal("ResizeObserver", ResizeObserverStub);
 
 afterEach(() => cleanup());
 
@@ -172,7 +188,7 @@ describe("unified right rail", () => {
 
   it("runs the current page directly and keeps page selection secondary", () => {
     const props = makeRightRailProps();
-    render(<AppRightRail {...props} />);
+    renderRightRail(props);
 
     expect(
       (screen.getByRole("button", { name: "번역" }) as HTMLButtonElement)
@@ -213,7 +229,7 @@ describe("unified right rail", () => {
 
   it("closes and disables the automatic erase menu when work becomes busy", () => {
     const props = makeRightRailProps();
-    const view = render(<AppRightRail {...props} />);
+    const view = renderRightRail(props);
 
     fireEvent.click(
       screen.getByRole("button", { name: "자동 지우기 추가 작업" }),
@@ -257,7 +273,7 @@ describe("unified right rail", () => {
 
   it("disables current-page automatic erase without a selected page", () => {
     const props = makeRightRailProps({ selectedPage: null });
-    render(<AppRightRail {...props} />);
+    renderRightRail(props);
 
     const currentPage = screen.getByRole("button", {
       name: "현재 페이지 자동 지우기",
@@ -268,16 +284,14 @@ describe("unified right rail", () => {
   });
 
   it("uses manual tool, editor, then status priority without an auto mode", () => {
-    const view = render(
-      <AppRightRail
-        {...makeRightRailProps({
-          selectedBlock: makeBlock(),
-          stageTool: "brush",
-        })}
-      />,
+    const view = renderRightRail(
+      makeRightRailProps({
+        selectedBlock: makeBlock(),
+        stageTool: "brush",
+      }),
     );
     expect(screen.getByRole("heading", { name: "보정 설정" })).not.toBeNull();
-    expect(screen.queryByTestId("editor-slot")).toBeNull();
+    expect(document.querySelector(".editor-panel")).toBeNull();
     expect(
       screen.queryByRole("button", { name: "되돌리기 (Ctrl+Z)" }),
     ).toBeNull();
@@ -290,7 +304,7 @@ describe("unified right rail", () => {
         })}
       />,
     );
-    expect(screen.getByTestId("editor-slot")).not.toBeNull();
+    expect(document.querySelector(".editor-panel.has-block")).not.toBeNull();
 
     view.rerender(<AppRightRail {...makeRightRailProps()} />);
     expect(screen.getByRole("heading", { name: "상태" })).not.toBeNull();
@@ -315,7 +329,7 @@ describe("unified right rail", () => {
       selectedBlock: makeBlock(),
       showProgressBar: true,
     });
-    const view = render(<AppRightRail {...props} />);
+    const view = renderRightRail(props);
 
     expect(document.querySelector(".progress-card")).not.toBeNull();
     view.rerender(
@@ -331,7 +345,7 @@ describe("unified right rail", () => {
       />,
     );
 
-    expect(screen.getByTestId("editor-slot")).not.toBeNull();
+    expect(document.querySelector(".editor-panel.has-block")).not.toBeNull();
     expect(screen.queryByRole("heading", { name: "상태" })).toBeNull();
     expect(screen.getByRole("alert").textContent).toContain(
       "OCR GPU 실행 실패",
@@ -342,24 +356,22 @@ describe("unified right rail", () => {
 
   it("keeps the raw job failure visible without a progress snapshot", () => {
     const rawFailure = "Paddle OCR process exited with code 3221225781";
-    render(
-      <AppRightRail
-        {...makeRightRailProps({
-          jobState: {
-            id: "job-ocr-failed-no-progress",
-            kind: "gemma-analysis",
-            status: "failed",
-            progressText: "OCR 실패",
-            detail: rawFailure,
-          },
-          progressSnapshot: null,
-          selectedBlock: makeBlock(),
-          showProgressBar: false,
-        })}
-      />,
+    renderRightRail(
+      makeRightRailProps({
+        jobState: {
+          id: "job-ocr-failed-no-progress",
+          kind: "gemma-analysis",
+          status: "failed",
+          progressText: "OCR 실패",
+          detail: rawFailure,
+        },
+        progressSnapshot: null,
+        selectedBlock: makeBlock(),
+        showProgressBar: false,
+      }),
     );
 
-    expect(screen.getByTestId("editor-slot")).not.toBeNull();
+    expect(document.querySelector(".editor-panel.has-block")).not.toBeNull();
     expect(screen.getByRole("alert").textContent).toContain(rawFailure);
   });
 });
@@ -398,6 +410,62 @@ describe("persistent library sidebar", () => {
 });
 
 type RightRailProps = React.ComponentProps<typeof AppRightRail>;
+
+function renderRightRail(props: RightRailProps) {
+  return render(<AppRightRail {...props} />, {
+    wrapper: RightRailTestProviders,
+  });
+}
+
+function RightRailTestProviders({
+  children,
+}: {
+  children: React.ReactNode;
+}): React.JSX.Element {
+  const baseOptions = getBaseBlockFontOptions(DEFAULT_BLOCK_FONT_CATALOG);
+  const options = getBlockFontOptions(DEFAULT_BLOCK_FONT_CATALOG);
+  const panelSession: PanelSessionValue = {
+    areaTranslateAvailable: false,
+    areaTranslateSelecting: false,
+    disableChapterApply: false,
+    editorDisabled: false,
+    editorFloating: false,
+    editorPoppedOut: false,
+    onAdjustFontSize: () => undefined,
+    onApplyBlockBackgroundOpacity: () => undefined,
+    onApplyFormat: () => undefined,
+    onDeleteBlock: () => undefined,
+    onDockEditorWindow: () => undefined,
+    onDuplicateBlock: () => undefined,
+    onPopOutEditor: () => undefined,
+    onSelectTransformMode: () => undefined,
+    onStartAreaTranslate: () => undefined,
+    onToggleEditorFloat: () => undefined,
+    onUpdateBlock: () => undefined,
+    selectedBlock: makeBlock(),
+    selectedBlockCount: 1,
+    selectedPageSize: { width: 1000, height: 1600 },
+    showDetachControls: false,
+    transformMode: "select",
+  };
+  return (
+    <FontsContext.Provider
+      value={{
+        baseOptions,
+        busy: false,
+        catalog: DEFAULT_BLOCK_FONT_CATALOG,
+        options,
+        registerFont: async () => undefined,
+        removeFont: async () => undefined,
+        savePreferences: async () => undefined,
+      }}
+    >
+      <PanelSessionContext.Provider value={panelSession}>
+        {children}
+      </PanelSessionContext.Provider>
+    </FontsContext.Provider>
+  );
+}
 
 function makeRightRailProps(
   overrides: Partial<RightRailProps> = {},

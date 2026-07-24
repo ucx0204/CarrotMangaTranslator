@@ -510,7 +510,15 @@ describe("group-only crop review contract", () => {
   });
 
   it.each([
-    ["HTTP error", async () => Promise.reject(new Error("HTTP 500"))],
+    [
+      "HTTP error",
+      async () =>
+        Promise.reject(
+          Object.assign(new Error("HTTP 500"), {
+            failureCategory: "model-request",
+          }),
+        ),
+    ],
     ["parse error", async () => "not json"],
     [
       "schema error",
@@ -574,6 +582,15 @@ describe("group-only crop review contract", () => {
         throw abort;
       }),
     ).rejects.toBe(abort);
+  });
+
+  it("rethrows unclassified callback bugs instead of hiding them in fallback", async () => {
+    const bug = new TypeError("request adapter accessed an invalid field");
+    await expect(
+      reviewGroupOnlyCrop(makeCase(), makeRegion(), async () => {
+        throw bug;
+      }),
+    ).rejects.toBe(bug);
   });
 
   it("skips the model for one candidate and projects a body singleton", async () => {

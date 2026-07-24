@@ -2,7 +2,8 @@ import React from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { RetouchTool } from "../../lib/stageTool";
-import { Button, RangeInput } from "../ui";
+import { Button } from "../ui/Button";
+import { RangeInput } from "../ui/Field";
 
 type RetouchInpaintingStepProps = {
   activeToolLabel: string;

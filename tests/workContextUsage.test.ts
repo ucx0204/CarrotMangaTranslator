@@ -1,24 +1,24 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const mocks = vi.hoisted(() => ({
-  getChapterStoryMemory: vi.fn(),
-  getWorkStyleGuide: vi.fn(),
-  listLibrary: vi.fn(),
-  openChapter: vi.fn(),
-}));
-
-vi.mock("../src/main/library", () => mocks);
+import { describe, expect, it, vi } from "vitest";
+import type {
+  ChapterSnapshot,
+  LibraryIndex,
+  MangaPage,
+} from "../src/shared/libraryTypes";
+import type {
+  ChapterStoryMemory,
+  WorkStyleGuide,
+} from "../src/shared/workContextTypes";
 
 import {
   buildWorkContextUsage,
   countTextMentions,
+  type WorkContextUsageRepository,
 } from "../src/main/workContextUsage";
 
 const TS = "2026-01-01T00:00:00.000Z";
 
-beforeEach(() => {
-  vi.clearAllMocks();
-  mocks.listLibrary.mockResolvedValue({
+function makeRepository(): WorkContextUsageRepository {
+  const library: LibraryIndex = {
     workOrder: ["work-1"],
     works: [
       {
@@ -40,8 +40,8 @@ beforeEach(() => {
         updatedAt: TS,
       },
     ],
-  });
-  mocks.getWorkStyleGuide.mockResolvedValue({
+  };
+  const guide: WorkStyleGuide = {
     schemaVersion: 1,
     workId: "work-1",
     glossary: [
@@ -75,8 +75,8 @@ beforeEach(() => {
     },
     createdAt: TS,
     updatedAt: TS,
-  });
-  mocks.openChapter.mockResolvedValue({
+  };
+  const chapter: ChapterSnapshot = {
     id: "chapter-1",
     workId: "work-1",
     title: "1화",
@@ -89,8 +89,8 @@ beforeEach(() => {
     ],
     createdAt: TS,
     updatedAt: TS,
-  });
-  mocks.getChapterStoryMemory.mockResolvedValue({
+  };
+  const memory: ChapterStoryMemory = {
     schemaVersion: 1,
     workId: "work-1",
     chapterId: "chapter-1",
@@ -118,13 +118,20 @@ beforeEach(() => {
       },
     ],
     updatedAt: TS,
-  });
-});
+  };
+  return {
+    listLibrary: vi.fn(async () => library),
+    getWorkStyleGuide: vi.fn(async () => guide),
+    openChapter: vi.fn(async () => chapter),
+    getChapterStoryMemory: vi.fn(async () => memory),
+  };
+}
 
 describe("work context usage", () => {
   it("derives unique-page counts from live pages without duplicate accumulation", async () => {
-    const first = await buildWorkContextUsage("work-1");
-    const second = await buildWorkContextUsage("work-1");
+    const repository = makeRepository();
+    const first = await buildWorkContextUsage("work-1", repository);
+    const second = await buildWorkContextUsage("work-1", repository);
 
     expect(first).toEqual(second);
     expect(first.glossary).toEqual([
@@ -143,6 +150,19 @@ describe("work context usage", () => {
         lastSeen: expect.objectContaining({ pageId: "page-2", pageIndex: 1 }),
       }),
     ]);
+    expect(repository.openChapter).toHaveBeenCalledTimes(2);
+    expect(repository.getChapterStoryMemory).toHaveBeenCalledTimes(2);
+  });
+
+  it("propagates repository failures instead of fabricating empty usage", async () => {
+    const repository = makeRepository();
+    repository.openChapter = vi.fn(async () => {
+      throw new Error("chapter read failed");
+    });
+
+    await expect(buildWorkContextUsage("work-1", repository)).rejects.toThrow(
+      "chapter read failed",
+    );
   });
 
   it("normalizes text and avoids double-counting overlapping aliases", () => {
@@ -156,7 +176,7 @@ function makePage(
   name: string,
   sourceText: string,
   speakerId?: string,
-) {
+): MangaPage {
   return {
     id,
     name,

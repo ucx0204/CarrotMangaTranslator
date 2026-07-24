@@ -8,6 +8,7 @@ import type {
   LibraryWork,
   MangaPage,
 } from "../src/shared/libraryTypes";
+import type { InpaintingMutationMaintenance } from "../src/main/libraryStore/libraryInpaintingMutations";
 
 const tempDirs: string[] = [];
 
@@ -149,26 +150,23 @@ describe("InpaintingRevisionStore", () => {
     async (releaseMethod) => {
       const rootDir = await createTempLibrary();
       const paths = await seedLibrary(rootDir);
-      await mockAppPaths(rootDir);
       const applyGate = createVoidDeferred();
       let mutationCount = 0;
-      vi.doMock("../src/main/library/lock", async (importOriginal) => ({
-        ...(await importOriginal<typeof import("../src/main/library/lock")>()),
-        withLibraryMutation: async <T>(operation: () => Promise<T>) => {
+      const { InpaintingRevisionStore, library, revisionRepository } =
+        await loadModules(rootDir);
+      const repository = {
+        ...revisionRepository,
+        runMutation: async <T>(operation: () => Promise<T>) => {
           mutationCount += 1;
           if (mutationCount === 1) {
             await applyGate.promise;
           }
           return operation();
         },
-      }));
+      };
 
       try {
-        const [{ InpaintingRevisionStore }, library] = await Promise.all([
-          import("../src/main/inpainting/inpaintingRevisionStore"),
-          import("../src/main/library"),
-        ]);
-        const store = new InpaintingRevisionStore();
+        const store = new InpaintingRevisionStore(repository);
         const transactionId = store.beginTransaction();
         store.addChange(transactionId, {
           chapterId: CHAPTER_A_ID,
@@ -204,7 +202,6 @@ describe("InpaintingRevisionStore", () => {
         expect(existsSync(paths.afterA)).toBe(false);
       } finally {
         applyGate.resolve();
-        vi.doUnmock("../src/main/library/lock");
       }
     },
   );
@@ -292,16 +289,14 @@ describe("InpaintingRevisionStore", () => {
     const rootDir = await createTempLibrary();
     const paths = await seedLibrary(rootDir);
     const removeArtifacts = vi.fn().mockRejectedValue(new Error("locked"));
-    vi.doMock(
-      "../src/main/libraryStore/inpaintedArtifacts",
-      async (importOriginal) => ({
-        ...(await importOriginal<
-          typeof import("../src/main/libraryStore/inpaintedArtifacts")
-        >()),
-        removeUnreferencedInpaintedArtifacts: removeArtifacts,
-      }),
-    );
-    const { InpaintingRevisionStore, library } = await loadModules(rootDir);
+    const warn = vi.fn();
+    const { InpaintingRevisionStore, library, mutationOperations } =
+      await loadModules(rootDir, {
+        collectManagedArtifacts: vi.fn(async () => [paths.beforeA]),
+        removeUnreferencedArtifacts: removeArtifacts,
+        touchWork: vi.fn(async () => {}),
+        warn,
+      });
     const store = new InpaintingRevisionStore();
     const chapter = await library.openChapter(CHAPTER_A_ID);
     const page = firstPage(chapter);
@@ -313,7 +308,7 @@ describe("InpaintingRevisionStore", () => {
       afterPath: paths.otherA,
     });
 
-    const saved = await library.updatePagesAfterInpainting(
+    const saved = await mutationOperations.updatePagesAfterInpaintingUnlocked(
       CHAPTER_A_ID,
       [{ ...page, inpaintedImagePath: paths.otherA }],
       {
@@ -328,6 +323,10 @@ describe("InpaintingRevisionStore", () => {
       firstPage(await library.openChapter(CHAPTER_A_ID)).inpaintedImagePath,
     ).toBe(paths.otherA);
     expect(removeArtifacts).toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(
+      "Failed to clean artifacts after committing inpainting paths",
+      expect.objectContaining({ chapterId: CHAPTER_A_ID }),
+    );
   });
 });
 
@@ -343,13 +342,37 @@ async function createTempLibrary(): Promise<string> {
   return rootDir;
 }
 
-async function loadModules(rootDir: string) {
+async function loadModules(
+  rootDir: string,
+  maintenance?: InpaintingMutationMaintenance,
+) {
   await mockAppPaths(rootDir);
-  const [{ InpaintingRevisionStore }, library] = await Promise.all([
+  const [
+    { InpaintingRevisionStore },
+    library,
+    { libraryInpaintingRevisionRepository: revisionRepository },
+    {
+      createInpaintingMutationOperations,
+      setPageInpaintingResultUnlocked,
+      updatePagesAfterInpaintingUnlocked,
+    },
+  ] = await Promise.all([
     import("../src/main/inpainting/inpaintingRevisionStore"),
     import("../src/main/library"),
+    import("../src/main/inpainting/inpaintingRevisionRepository"),
+    import("../src/main/libraryStore/libraryInpaintingMutations"),
   ]);
-  return { InpaintingRevisionStore, library };
+  return {
+    InpaintingRevisionStore,
+    library,
+    revisionRepository,
+    mutationOperations: maintenance
+      ? createInpaintingMutationOperations(maintenance)
+      : {
+          updatePagesAfterInpaintingUnlocked,
+          setPageInpaintingResultUnlocked,
+        },
+  };
 }
 
 async function mockAppPaths(rootDir: string): Promise<void> {

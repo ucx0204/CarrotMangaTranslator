@@ -8,71 +8,111 @@ import {
   statusLineReplacementGroup,
 } from "../lib/appHelpers";
 import { formatJobEventLine, formatJobLabel } from "../lib/jobProgress";
-import { mangaGateway } from "../api/mangaGateway";
+import {
+  createLiveChapterRefreshCoordinator,
+  type LiveChapterRefreshCoordinator,
+} from "../lib/liveChapterRefreshCoordinator";
+import { analysisGateway as mangaGateway } from "../api/analysisGateway";
+import { libraryGateway } from "../api/libraryGateway";
 
 type UseJobEventsOptions = {
   appendStatusLine: (line: string, replace?: (line: string) => boolean) => void;
   currentChapterRef: React.MutableRefObject<ChapterSnapshot | null>;
   mergeLiveChapter: (chapter: ChapterSnapshot) => void;
-  refreshLibrary: () => Promise<void>;
+  openChapter?: (chapterId: string) => Promise<ChapterSnapshot>;
   setJobState: React.Dispatch<React.SetStateAction<JobState>>;
+  subscribeJobEvents?: (callback: (event: JobEvent) => void) => () => void;
 };
+
+const openChapterFromLibrary = (chapterId: string): Promise<ChapterSnapshot> =>
+  libraryGateway.openChapter(chapterId);
+const subscribeToJobEvents = (
+  callback: (event: JobEvent) => void,
+): (() => void) => mangaGateway.onJobEvent(callback);
 
 export function useJobEvents({
   appendStatusLine,
   currentChapterRef,
   mergeLiveChapter,
-  refreshLibrary,
+  openChapter = openChapterFromLibrary,
   setJobState,
+  subscribeJobEvents = subscribeToJobEvents,
 }: UseJobEventsOptions): void {
   const { t } = useTranslation("renderer");
   React.useEffect(() => {
-    const refreshScheduler = createLibraryRefreshScheduler(refreshLibrary);
     const previousLineByGroup = new Map<string, string>();
-    const unsubscribe = mangaGateway.onJobEvent((event) => {
-      setJobState((current) => reduceJobState(current, event, t));
-      appendJobStatusLine(event, appendStatusLine, previousLineByGroup, t);
+    const pendingEvents: JobEvent[] = [];
+    let frameId: number | null = null;
+    let disposed = false;
+    const requestFrame =
+      typeof window.requestAnimationFrame === "function"
+        ? window.requestAnimationFrame.bind(window)
+        : (callback: FrameRequestCallback) =>
+            window.setTimeout(() => callback(performance.now()), 0);
+    const cancelFrame =
+      typeof window.cancelAnimationFrame === "function"
+        ? window.cancelAnimationFrame.bind(window)
+        : window.clearTimeout.bind(window);
+    const liveChapterRefresh = createLiveChapterRefreshCoordinator({
+      getCurrentChapterId: () => currentChapterRef.current?.id,
+      mergeLiveChapter,
+      openChapter,
+      reportError: (error) => {
+        console.error(error);
+      },
+    });
+    const flushPendingEvents = (): void => {
+      frameId = null;
+      if (disposed || pendingEvents.length === 0) return;
+      const events = pendingEvents.splice(0);
+      React.startTransition(() => {
+        setJobState((current) => reduceJobEventBatch(current, events, t));
+        for (const event of events) {
+          appendJobStatusLine(event, appendStatusLine, previousLineByGroup, t);
+        }
+      });
+    };
+    const schedulePendingEvents = (): void => {
+      if (frameId !== null) return;
+      frameId = requestFrame(flushPendingEvents);
+    };
+    const unsubscribe = subscribeJobEvents((event) => {
+      pendingEvents.push(event);
+      schedulePendingEvents();
       refreshLiveChapterAfterJobEvent({
         event,
-        currentChapterRef,
-        mergeLiveChapter,
-        scheduleRefreshLibrary: refreshScheduler.schedule,
+        liveChapterRefresh,
       });
     });
     return () => {
-      refreshScheduler.dispose();
+      disposed = true;
+      if (frameId !== null) {
+        cancelFrame(frameId);
+      }
+      pendingEvents.length = 0;
       unsubscribe();
+      liveChapterRefresh.dispose();
     };
   }, [
     appendStatusLine,
     currentChapterRef,
     mergeLiveChapter,
-    refreshLibrary,
+    openChapter,
     setJobState,
+    subscribeJobEvents,
     t,
   ]);
 }
 
-function createLibraryRefreshScheduler(refreshLibrary: () => Promise<void>): {
-  schedule: () => void;
-  dispose: () => void;
-} {
-  let refreshTimer: number | null = null;
-  const dispose = () => {
-    if (refreshTimer) {
-      window.clearTimeout(refreshTimer);
-    }
-  };
-  const schedule = () => {
-    dispose();
-    refreshTimer = window.setTimeout(() => {
-      refreshTimer = null;
-      void refreshLibrary().catch((error) => {
-        console.error(error);
-      });
-    }, 250);
-  };
-  return { schedule, dispose };
+function reduceJobEventBatch(
+  current: JobState,
+  events: readonly JobEvent[],
+  t: TFunction<"renderer">,
+): JobState {
+  return events.reduce(
+    (next, event) => reduceJobState(next, event, t),
+    current,
+  );
 }
 
 function reduceJobState(
@@ -202,34 +242,15 @@ function appendJobStatusLine(
 
 function refreshLiveChapterAfterJobEvent({
   event,
-  currentChapterRef,
-  mergeLiveChapter,
-  scheduleRefreshLibrary,
+  liveChapterRefresh,
 }: {
   event: JobEvent;
-  currentChapterRef: React.MutableRefObject<ChapterSnapshot | null>;
-  mergeLiveChapter: (chapter: ChapterSnapshot) => void;
-  scheduleRefreshLibrary: () => void;
+  liveChapterRefresh: LiveChapterRefreshCoordinator;
 }): void {
   if (!shouldRefreshLiveChapter(event)) {
     return;
   }
-  const chapterId = currentChapterRef.current?.id;
-  if (!chapterId) {
-    return;
-  }
-
-  void mangaGateway
-    .openChapter(chapterId)
-    .then((chapter) => {
-      if (currentChapterRef.current?.id === chapter.id) {
-        mergeLiveChapter(chapter);
-      }
-    })
-    .then(scheduleRefreshLibrary)
-    .catch((error) => {
-      console.error(error);
-    });
+  liveChapterRefresh.request();
 }
 
 function shouldRefreshLiveChapter(event: JobEvent): boolean {

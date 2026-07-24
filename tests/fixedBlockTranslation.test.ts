@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-/* eslint-disable @typescript-eslint/no-explicit-any -- assertions inspect dynamic CJS JSON-schema objects */
 
 const fixed =
   require("../src/main/runtime/semantic-ocr/fixed-block-translation.cjs") as {
@@ -51,8 +50,25 @@ const formats =
     buildFixedBlockTranslationResponseFormat: (
       ids: string[],
       options?: Record<string, unknown>,
-    ) => Record<string, any>;
+    ) => FixedBlockResponseFormat;
   };
+
+type FixedBlockResponseFormat = {
+  schema: {
+    properties: {
+      items: {
+        items: {
+          additionalProperties: boolean;
+          properties: {
+            blockId: { enum: string[] };
+            ko: { pattern: string };
+          };
+        };
+      };
+      pageContext?: unknown;
+    };
+  };
+};
 
 type FixedBlock = {
   blockId: string;
@@ -345,10 +361,7 @@ describe("fixed-block translation contract", () => {
       "B001",
       "B002",
     ]);
-    const itemSchema = responseFormat.schema.properties.items.items as Record<
-      string,
-      any
-    >;
+    const itemSchema = responseFormat.schema.properties.items.items;
     expect(itemSchema.additionalProperties).toBe(false);
     expect(Object.keys(itemSchema.properties)).toEqual(["blockId", "ko"]);
     expect(itemSchema.properties.blockId.enum).toEqual(["B001", "B002"]);

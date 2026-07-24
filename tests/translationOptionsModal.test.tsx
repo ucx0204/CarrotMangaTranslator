@@ -8,7 +8,8 @@ import {
   render,
   screen,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import type {
   ChapterSnapshot,
   LibraryIndex,
@@ -17,12 +18,12 @@ import type {
 } from "../src/shared/libraryTypes";
 import type { UiSettings } from "../src/shared/settingsTypes";
 
-vi.mock("../src/renderer/src/api/mangaGateway", () => ({
-  mangaGateway: {
+beforeEach(() => {
+  window.mangaApi = createTestMangaGatewayStub({
     getPageImageDataUrl: vi.fn(() => Promise.resolve("mgt-image://token")),
     openChapter: vi.fn(() => Promise.resolve(makeCurrentChapter())),
-  },
-}));
+  });
+});
 
 import { TranslationOptionsModal } from "../src/renderer/src/components/TranslationOptionsModal";
 
@@ -117,6 +118,7 @@ async function renderModal(uiSettings?: UiSettings) {
 
 afterEach(() => {
   cleanup();
+  window.mangaApi = createTestMangaGatewayStub();
   vi.clearAllMocks();
 });
 

@@ -6,11 +6,11 @@ import {
   resolveContextTiles,
   resolveFluxProcessSize,
 } from "../src/main/inpainting/maskGeometry";
+import { FLUX_INPAINT_CONTEXT_PX } from "../src/main/inpainting/fluxEngineConstants";
 
 const tempDirs: string[] = [];
 
 afterEach(() => {
-  vi.doUnmock("../src/main/inpainting/fluxEngineRunner");
   vi.resetModules();
   vi.clearAllMocks();
   while (tempDirs.length > 0) {
@@ -24,25 +24,26 @@ afterEach(() => {
 describe("Flux inpainting engine change detection", () => {
   it("caps context at 96px only for Metal and keeps CUDA context intact", async () => {
     const runFluxInpaint = vi.fn().mockResolvedValue(undefined);
-    vi.doMock("../src/main/inpainting/fluxEngineRunner", () => ({
-      runFluxInpaint,
-    }));
+    vi.doMock("electron", () => ({ nativeImage: createFakeNativeImage() }));
 
-    const { createFluxEngine, FLUX_INPAINT_CONTEXT_PX } =
+    const { createFluxEngine } =
       await import("../src/main/inpainting/fluxEngine");
     expect(FLUX_INPAINT_CONTEXT_PX).toBe(160);
 
     const createEngine = (backend: "metal-native" | "cuda-native") =>
-      createFluxEngine({
-        launch: {
-          backend,
-          executable: process.execPath,
-          args: [],
-          runtimePath: "/tmp/runtime",
-          label: `test Flux ${backend} worker`,
+      createFluxEngine(
+        {
+          launch: {
+            backend,
+            executable: process.execPath,
+            args: [],
+            runtimePath: "/tmp/runtime",
+            label: `test Flux ${backend} worker`,
+          },
+          runRootDir: "/tmp/run",
         },
-        runRootDir: "/tmp/run",
-      });
+        { runInpaint: runFluxInpaint },
+      );
     const bitmap = Buffer.alloc(4);
     const mask = new Uint8Array(1).fill(1);
     const windows = [{ x: 0, y: 0, w: 1, h: 1 }];
@@ -129,10 +130,6 @@ describe("Flux inpainting engine change detection", () => {
 
   it("sends large Metal crops as native-resolution 512px tiles", async () => {
     vi.doMock("electron", () => ({ nativeImage: createFakeNativeImage() }));
-    vi.doMock("../src/main/logger", () => ({
-      logInfo: vi.fn(),
-      logWarn: vi.fn(),
-    }));
 
     const { createFluxEngine } =
       await import("../src/main/inpainting/fluxEngine");
@@ -145,6 +142,7 @@ describe("Flux inpainting engine change detection", () => {
       "utf8",
     );
     const engine = createFluxEngine({
+      diagnostics: createTestDiagnostics(),
       launch: {
         backend: "metal-native",
         executable: process.execPath,
@@ -194,10 +192,6 @@ describe("Flux inpainting engine change detection", () => {
 
   it("keeps overlapping Metal windows scoped to their block-owned masks", async () => {
     vi.doMock("electron", () => ({ nativeImage: createFakeNativeImage() }));
-    vi.doMock("../src/main/logger", () => ({
-      logInfo: vi.fn(),
-      logWarn: vi.fn(),
-    }));
 
     const { createFluxEngine } =
       await import("../src/main/inpainting/fluxEngine");
@@ -210,6 +204,7 @@ describe("Flux inpainting engine change detection", () => {
       "utf8",
     );
     const engine = createFluxEngine({
+      diagnostics: createTestDiagnostics(),
       launch: {
         backend: "metal-native",
         executable: process.execPath,
@@ -271,10 +266,6 @@ describe("Flux inpainting engine change detection", () => {
 
   it("sends zero runner padding after expanding the mask in the app", async () => {
     vi.doMock("electron", () => ({ nativeImage: createFakeNativeImage() }));
-    vi.doMock("../src/main/logger", () => ({
-      logInfo: vi.fn(),
-      logWarn: vi.fn(),
-    }));
 
     const { createFluxEngine } =
       await import("../src/main/inpainting/fluxEngine");
@@ -283,6 +274,7 @@ describe("Flux inpainting engine change detection", () => {
     const workerPath = join(root, "copy-worker.cjs");
     writeFileSync(workerPath, createCopyWorkerScript(capturePath), "utf8");
     const engine = createFluxEngine({
+      diagnostics: createTestDiagnostics(),
       launch: {
         backend: "cuda-native",
         executable: process.execPath,
@@ -311,10 +303,8 @@ describe("Flux inpainting engine change detection", () => {
   });
 
   it("warns instead of failing when every crop comes back unchanged", async () => {
-    const logInfo = vi.fn();
     const logWarn = vi.fn();
     vi.doMock("electron", () => ({ nativeImage: createFakeNativeImage() }));
-    vi.doMock("../src/main/logger", () => ({ logInfo, logWarn }));
 
     const { createFluxEngine } =
       await import("../src/main/inpainting/fluxEngine");
@@ -322,6 +312,7 @@ describe("Flux inpainting engine change detection", () => {
     const workerPath = join(root, "copy-worker.cjs");
     writeFileSync(workerPath, createCopyWorkerScript(), "utf8");
     const engine = createFluxEngine({
+      diagnostics: { info: vi.fn(), warn: logWarn },
       launch: {
         backend: "cuda-native",
         executable: process.execPath,
@@ -353,13 +344,9 @@ describe("Flux inpainting engine change detection", () => {
 
   it("does not treat small real pixel changes as a true no-op", async () => {
     vi.doMock("electron", () => ({ nativeImage: createFakeNativeImage() }));
-    vi.doMock("../src/main/logger", () => ({
-      logInfo: vi.fn(),
-      logWarn: vi.fn(),
-    }));
 
     const { isMaskedRegionEffectivelyUnchanged } =
-      await import("../src/main/inpainting/fluxEngine");
+      await import("../src/main/inpainting/fluxChangeStats");
 
     expect(
       isMaskedRegionEffectivelyUnchanged({
@@ -379,6 +366,13 @@ function createTempDir(prefix: string): string {
   tempDirs.push(dir);
   mkdirSync(dir, { recursive: true });
   return dir;
+}
+
+function createTestDiagnostics() {
+  return {
+    info: vi.fn(),
+    warn: vi.fn(),
+  };
 }
 
 function createCopyWorkerScript(capturePath?: string): string {

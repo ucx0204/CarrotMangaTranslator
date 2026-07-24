@@ -1,20 +1,22 @@
-import { createRequire } from "node:module";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
+
+type RuntimeRequire = (specifier: string) => unknown;
+type PackagedRequireFactory = (filename: string) => RuntimeRequire;
 
 const { loadTarRuntime } =
   require("../src/main/runtime/simple-page-tar-utils.cjs") as {
     loadTarRuntime: (options?: {
-      moduleRequire?: NodeRequire;
+      moduleRequire?: RuntimeRequire;
       resourcesPath?: string;
-      createPackagedRequire?: typeof createRequire;
+      createPackagedRequire?: PackagedRequireFactory;
     }) => unknown;
   };
 
 describe("packaged tar runtime resolution", () => {
   it("uses the ordinary dependency lookup in development", () => {
     const directRuntime = { x: vi.fn(), t: vi.fn() };
-    const moduleRequire = vi.fn(() => directRuntime) as unknown as NodeRequire;
+    const moduleRequire = vi.fn(() => directRuntime);
     const createPackagedRequire = vi.fn();
 
     expect(loadTarRuntime({ moduleRequire, createPackagedRequire })).toBe(
@@ -30,14 +32,10 @@ describe("packaged tar runtime resolution", () => {
     });
     const moduleRequire = vi.fn(() => {
       throw missing;
-    }) as unknown as NodeRequire;
+    });
     const packagedRuntime = { x: vi.fn(), t: vi.fn() };
-    const packagedRequire = vi.fn(
-      () => packagedRuntime,
-    ) as unknown as NodeRequire;
-    const createPackagedRequire = vi.fn(
-      () => packagedRequire,
-    ) as unknown as typeof createRequire;
+    const packagedRequire = vi.fn(() => packagedRuntime);
+    const createPackagedRequire = vi.fn(() => packagedRequire);
     const resourcesPath = join("Applications", "Example.app", "Resources");
 
     expect(
@@ -57,7 +55,7 @@ describe("packaged tar runtime resolution", () => {
     const failure = new Error("tar initialization failed");
     const moduleRequire = vi.fn(() => {
       throw failure;
-    }) as unknown as NodeRequire;
+    });
 
     expect(() =>
       loadTarRuntime({ moduleRequire, resourcesPath: "/Applications/App" }),

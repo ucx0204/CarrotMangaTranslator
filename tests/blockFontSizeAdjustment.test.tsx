@@ -23,10 +23,8 @@ import type { UpdateCurrentChapter } from "../src/renderer/src/hooks/useCurrentC
 import { adjustBlockFontSizeInChapter } from "../src/renderer/src/lib/blockFontSizeAdjustment";
 import { resolveBlockTextLayout } from "../src/renderer/src/lib/overlayLayout";
 import { useRemotePanelSession } from "../src/renderer/src/panels/useRemotePanelSession";
-
-vi.mock("../src/renderer/src/components/FontSelect", () => ({
-  FontSelect: () => <div data-testid="font-select" />,
-}));
+import { FontsContext } from "../src/renderer/src/fonts/fontsContextValue";
+import { DEFAULT_BLOCK_FONT_CATALOG } from "../src/renderer/src/lib/fonts";
 
 vi.stubGlobal(
   "ResizeObserver",
@@ -46,7 +44,13 @@ describe("selected block font-size adjustment", () => {
       makeBlock({ id: "also-selected", fontSizePx: 40, autoFitText: false }),
     ]);
 
-    const next = adjustBlockFontSizeInChapter(chapter, "page-1", "active", 1);
+    const next = adjustBlockFontSizeInChapter(
+      chapter,
+      "page-1",
+      "active",
+      1,
+      DEFAULT_BLOCK_FONT_CATALOG,
+    );
 
     expect(next.pages[0]?.blocks[0]?.fontSizePx).toBe(25);
     expect(next.pages[0]?.blocks[1]?.fontSizePx).toBe(40);
@@ -68,9 +72,16 @@ describe("selected block font-size adjustment", () => {
       block.translatedText,
       naturalSize,
       naturalSize,
+      DEFAULT_BLOCK_FONT_CATALOG,
     ).fontSizePx;
 
-    const next = adjustBlockFontSizeInChapter(chapter, page.id, block.id, -1);
+    const next = adjustBlockFontSizeInChapter(
+      chapter,
+      page.id,
+      block.id,
+      -1,
+      DEFAULT_BLOCK_FONT_CATALOG,
+    );
     const adjusted = next.pages[0]?.blocks[0];
 
     expect(adjusted?.autoFitText).toBe(false);
@@ -88,12 +99,24 @@ describe("selected block font-size adjustment", () => {
       makeBlock({ autoFitText: false, fontSizePx: 160 }),
     ]);
 
-    expect(adjustBlockFontSizeInChapter(minimum, "page-1", "block-1", -1)).toBe(
-      minimum,
-    );
-    expect(adjustBlockFontSizeInChapter(maximum, "page-1", "block-1", 1)).toBe(
-      maximum,
-    );
+    expect(
+      adjustBlockFontSizeInChapter(
+        minimum,
+        "page-1",
+        "block-1",
+        -1,
+        DEFAULT_BLOCK_FONT_CATALOG,
+      ),
+    ).toBe(minimum);
+    expect(
+      adjustBlockFontSizeInChapter(
+        maximum,
+        "page-1",
+        "block-1",
+        1,
+        DEFAULT_BLOCK_FONT_CATALOG,
+      ),
+    ).toBe(maximum);
   });
 
   it("applies rapid actions to the latest chapter instead of stale props", () => {
@@ -110,19 +133,21 @@ describe("selected block font-size adjustment", () => {
     );
     const page = chapter.pages[0] as MangaPage;
     const block = page.blocks[0] as TranslationBlock;
-    const { result } = renderHook(() =>
-      useBlockEditingActions({
-        currentChapter: chapter,
-        jobActive: false,
-        pushStatus: vi.fn(),
-        selectedBlock: block,
-        selectedBlockIds: [block.id],
-        selectedPage: page,
-        selectedPageEditLocked: false,
-        setSelectedBlockId: vi.fn(),
-        setSelectedBlockIds: vi.fn(),
-        updateCurrentChapter,
-      }),
+    const { result } = renderHook(
+      () =>
+        useBlockEditingActions({
+          currentChapter: chapter,
+          jobActive: false,
+          pushStatus: vi.fn(),
+          selectedBlock: block,
+          selectedBlockIds: [block.id],
+          selectedPage: page,
+          selectedPageEditLocked: false,
+          setSelectedBlockId: vi.fn(),
+          setSelectedBlockIds: vi.fn(),
+          updateCurrentChapter,
+        }),
+      { wrapper: FontsTestProvider },
     );
 
     act(() => {
@@ -137,14 +162,16 @@ describe("selected block font-size adjustment", () => {
   it("renders accessible minus/plus controls and delegates relative actions", () => {
     const onAdjustFontSize = vi.fn();
     render(
-      <EditorPanel
-        block={makeBlock({ autoFitText: false, fontSizePx: 24 })}
-        disabled={false}
-        onAdjustFontSize={onAdjustFontSize}
-        onDelete={vi.fn()}
-        onDuplicate={vi.fn()}
-        onUpdate={vi.fn()}
-      />,
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock({ autoFitText: false, fontSizePx: 24 })}
+          disabled={false}
+          onAdjustFontSize={onAdjustFontSize}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onUpdate={vi.fn()}
+        />
+      </FontsTestProvider>,
     );
 
     act(() => screen.getByRole("button", { name: "글자 크기 줄이기" }).click());
@@ -156,14 +183,16 @@ describe("selected block font-size adjustment", () => {
   it("edits line wrapping with user-facing labels", () => {
     const onUpdate = vi.fn();
     render(
-      <EditorPanel
-        block={makeBlock()}
-        disabled={false}
-        onAdjustFontSize={vi.fn()}
-        onDelete={vi.fn()}
-        onDuplicate={vi.fn()}
-        onUpdate={onUpdate}
-      />,
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock()}
+          disabled={false}
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onUpdate={onUpdate}
+        />
+      </FontsTestProvider>,
     );
 
     const select = screen.getByRole("combobox", { name: "줄바꿈 방식" });
@@ -180,14 +209,16 @@ describe("selected block font-size adjustment", () => {
 
   it("shows the legacy vertical wrapping behavior", () => {
     render(
-      <EditorPanel
-        block={makeBlock({ renderDirection: "vertical" })}
-        disabled={false}
-        onAdjustFontSize={vi.fn()}
-        onDelete={vi.fn()}
-        onDuplicate={vi.fn()}
-        onUpdate={vi.fn()}
-      />,
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock({ renderDirection: "vertical" })}
+          disabled={false}
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onUpdate={vi.fn()}
+        />
+      </FontsTestProvider>,
     );
 
     expect(
@@ -203,15 +234,17 @@ describe("selected block font-size adjustment", () => {
     const onUpdate = vi.fn();
     const onApplyBlockBackgroundOpacity = vi.fn();
     render(
-      <EditorPanel
-        block={makeBlock({ textOpacity: 0.8, opacity: 0.6 })}
-        disabled={false}
-        onApplyBlockBackgroundOpacity={onApplyBlockBackgroundOpacity}
-        onAdjustFontSize={vi.fn()}
-        onDelete={vi.fn()}
-        onDuplicate={vi.fn()}
-        onUpdate={onUpdate}
-      />,
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock({ textOpacity: 0.8, opacity: 0.6 })}
+          disabled={false}
+          onApplyBlockBackgroundOpacity={onApplyBlockBackgroundOpacity}
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onUpdate={onUpdate}
+        />
+      </FontsTestProvider>,
     );
 
     const textOpacity = screen.getByRole("slider", { name: "글자 투명도" });
@@ -315,19 +348,21 @@ describe("selected block font-size adjustment", () => {
     );
     const selectedPage = originalChapter.pages[0] as MangaPage;
     const selectedBlock = selectedPage.blocks[0] as TranslationBlock;
-    const { result } = renderHook(() =>
-      useBlockEditingActions({
-        currentChapter: originalChapter,
-        jobActive: false,
-        pushStatus,
-        selectedBlock,
-        selectedBlockIds: [selectedBlock.id],
-        selectedPage,
-        selectedPageEditLocked: false,
-        setSelectedBlockId: vi.fn(),
-        setSelectedBlockIds: vi.fn(),
-        updateCurrentChapter,
-      }),
+    const { result } = renderHook(
+      () =>
+        useBlockEditingActions({
+          currentChapter: originalChapter,
+          jobActive: false,
+          pushStatus,
+          selectedBlock,
+          selectedBlockIds: [selectedBlock.id],
+          selectedPage,
+          selectedPageEditLocked: false,
+          setSelectedBlockId: vi.fn(),
+          setSelectedBlockIds: vi.fn(),
+          updateCurrentChapter,
+        }),
+      { wrapper: FontsTestProvider },
     );
 
     act(() => result.current.applyBlockBackgroundOpacityToScope("page"));
@@ -361,19 +396,21 @@ describe("selected block font-size adjustment", () => {
     );
     const selectedPage = originalChapter.pages[0] as MangaPage;
     const selectedBlock = selectedPage.blocks[0] as TranslationBlock;
-    const { result } = renderHook(() =>
-      useBlockEditingActions({
-        currentChapter: originalChapter,
-        jobActive: false,
-        pushStatus,
-        selectedBlock,
-        selectedBlockIds: [selectedBlock.id],
-        selectedPage,
-        selectedPageEditLocked: false,
-        setSelectedBlockId: vi.fn(),
-        setSelectedBlockIds: vi.fn(),
-        updateCurrentChapter,
-      }),
+    const { result } = renderHook(
+      () =>
+        useBlockEditingActions({
+          currentChapter: originalChapter,
+          jobActive: false,
+          pushStatus,
+          selectedBlock,
+          selectedBlockIds: [selectedBlock.id],
+          selectedPage,
+          selectedPageEditLocked: false,
+          setSelectedBlockId: vi.fn(),
+          setSelectedBlockIds: vi.fn(),
+          updateCurrentChapter,
+        }),
+      { wrapper: FontsTestProvider },
     );
 
     act(() => result.current.applyBlockBackgroundOpacityToScope("chapter"));
@@ -507,6 +544,28 @@ function makeBlock(patch: Partial<TranslationBlock> = {}): TranslationBlock {
     autoFitText: false,
     ...patch,
   };
+}
+
+function FontsTestProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <FontsContext.Provider
+      value={{
+        busy: false,
+        catalog: DEFAULT_BLOCK_FONT_CATALOG,
+        baseOptions: [],
+        options: [],
+        registerFont: async () => undefined,
+        removeFont: async () => undefined,
+        savePreferences: async () => undefined,
+      }}
+    >
+      {children}
+    </FontsContext.Provider>
+  );
 }
 
 function makeChapter(blocks: TranslationBlock[]): ChapterSnapshot {

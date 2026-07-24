@@ -45,6 +45,8 @@
       "zoomOut": "縮小",
       "zoomIn": "拡大",
       "resetZoom": "倍率をリセット",
+      "hideControls": "表示コントロールを折りたたむ",
+      "showControls": "表示コントロールを展開",
       "fitMode": "画像の表示方法",
       "contain": "画面に合わせる",
       "width": "横幅に合わせる",

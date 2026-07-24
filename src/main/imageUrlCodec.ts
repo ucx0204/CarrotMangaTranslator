@@ -80,6 +80,9 @@ export function createLibraryImageUrlCodec(options: {
     throw new Error("Image URL signing secret must be at least 32 bytes.");
   }
   const secret = Buffer.from(options.secret);
+  const libraryRoot = options.files.realpath(
+    resolve(options.files.libraryRoot),
+  );
 
   const resolveRequest = (requestUrl: string): ResolvedLibraryImage | null => {
     const parsed = parseImageUrl(requestUrl, secret);
@@ -89,6 +92,7 @@ export function createLibraryImageUrlCodec(options: {
     try {
       const metadata = readRelativeImageMetadata(
         options.files,
+        libraryRoot,
         parsed.relativePath,
       );
       if (
@@ -116,7 +120,7 @@ export function createLibraryImageUrlCodec(options: {
 
   return {
     createUrl(imagePath) {
-      const metadata = readImageMetadata(options.files, imagePath);
+      const metadata = readImageMetadata(options.files, libraryRoot, imagePath);
       const payload = encodeBase64Url(metadata.relativePath);
       const signature = signMetadata(
         secret,
@@ -197,21 +201,21 @@ function hasOnlyQueryKeys(url: URL): boolean {
 
 function readImageMetadata(
   files: LibraryImageUrlFiles,
+  libraryRoot: string,
   imagePath: string,
 ): ImageMetadata {
   if (typeof imagePath !== "string" || imagePath.length === 0) {
     throw new InvalidLibraryImageError("Image path is required.");
   }
-  const libraryRoot = files.realpath(resolve(files.libraryRoot));
   const canonicalImagePath = files.realpath(resolve(imagePath));
   return readCanonicalImageMetadata(files, libraryRoot, canonicalImagePath);
 }
 
 function readRelativeImageMetadata(
   files: LibraryImageUrlFiles,
+  libraryRoot: string,
   relativePath: string,
 ): ImageMetadata {
-  const libraryRoot = files.realpath(resolve(files.libraryRoot));
   const candidatePath = resolve(libraryRoot, ...relativePath.split("/"));
   if (!isPathStrictlyInside(libraryRoot, candidatePath)) {
     throw new InvalidLibraryImageError("Image path escapes the library.");

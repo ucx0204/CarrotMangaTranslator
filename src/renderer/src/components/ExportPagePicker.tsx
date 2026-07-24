@@ -11,7 +11,7 @@ import {
   toggleExportPage,
   type ExportSelectionMap,
 } from "../lib/exportSelection";
-import { Button } from "./ui";
+import { Button } from "./ui/Button";
 import { WorkPagePicker } from "./WorkPagePicker";
 
 export type ExportPagePickerProps = {

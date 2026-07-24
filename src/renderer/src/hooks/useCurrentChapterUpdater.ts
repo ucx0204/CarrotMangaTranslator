@@ -45,6 +45,8 @@ export function useCurrentChapterUpdater({
   selection,
   workspaceHistory,
 }: UseCurrentChapterUpdaterOptions): UpdateCurrentChapter {
+  const { selectedBlockId, selectedBlockIds, selectedPageId } = selection;
+  const { recordChapterEdit } = workspaceHistory;
   return useCallback(
     (pageId, updater, options = {}) => {
       const current = currentChapterRef.current;
@@ -56,58 +58,79 @@ export function useCurrentChapterUpdater({
       if (next === current) {
         return;
       }
-      markEditedPagesDirty(pageId, options, markDirty);
+      const editedPageIds = resolveEditedPageIds(pageId, options);
+      markEditedPagesDirty(editedPageIds, markDirty);
       currentChapterRef.current = next;
       setCurrentChapter(next);
       recordCompletedEdit({
         current,
+        editedPageIds,
         next,
         options,
-        selection,
-        workspaceHistory,
+        recordChapterEdit,
+        selection: {
+          selectedBlockId,
+          selectedBlockIds,
+          selectedPageId,
+        },
       });
     },
     [
       currentChapterRef,
       markDirty,
-      selection,
+      recordChapterEdit,
+      selectedBlockId,
+      selectedBlockIds,
+      selectedPageId,
       setCurrentChapter,
-      workspaceHistory,
     ],
   );
 }
 
 function markEditedPagesDirty(
-  pageId: string,
-  options: UpdateCurrentChapterOptions,
+  pageIds: readonly string[],
   markDirty: (pageId?: string) => void,
 ): void {
-  for (const dirtyPageId of options.dirtyPageIds ?? [pageId]) {
+  for (const dirtyPageId of pageIds) {
     markDirty(dirtyPageId);
   }
 }
 
+function resolveEditedPageIds(
+  pageId: string,
+  options: UpdateCurrentChapterOptions,
+): string[] {
+  return [...new Set(options.dirtyPageIds ?? [pageId])];
+}
+
 function recordCompletedEdit({
   current,
+  editedPageIds,
   next,
   options,
+  recordChapterEdit,
   selection,
-  workspaceHistory,
 }: {
   current: ChapterSnapshot;
+  editedPageIds: readonly string[];
   next: ChapterSnapshot;
   options: UpdateCurrentChapterOptions;
+  recordChapterEdit: WorkspaceHistoryController["recordChapterEdit"];
   selection: WorkspaceSelectionSnapshot;
-  workspaceHistory: Pick<WorkspaceHistoryController, "recordChapterEdit">;
 }): void {
   if (options.skipHistory) return;
-  workspaceHistory.recordChapterEdit({
+  recordChapterEdit({
     label: options.label ?? "텍스트 블록 편집",
     mergeKey: options.mergeKey,
-    before: captureWorkspaceChapterEditSnapshot(current, selection),
+    before: captureWorkspaceChapterEditSnapshot(
+      current,
+      selection,
+      editedPageIds,
+    ),
     after: captureWorkspaceChapterEditSnapshot(
       next,
       options.selectionAfter ?? selection,
+      editedPageIds,
     ),
   });
 }

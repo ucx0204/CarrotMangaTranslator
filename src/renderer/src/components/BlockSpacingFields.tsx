@@ -6,7 +6,7 @@ import {
   MIN_FONT_WIDTH_SCALE,
   resolveFontWidthScale,
 } from "../../../shared/geometry";
-import { FieldSlider } from "./ui";
+import { FieldSlider } from "./ui/FieldSlider";
 
 type BlockSpacingFieldsProps = {
   block: TranslationBlock;

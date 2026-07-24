@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { normalizeUiLocale } from "../../../shared/uiLocales";
 import { appI18n } from "../appI18n";
 import type { AppSettings } from "../../../shared/settingsTypes";
-import { mangaGateway } from "../api/mangaGateway";
+import { settingsGateway as mangaGateway } from "../api/settingsGateway";
 
 type UseSettingsDialogResult = {
   settings: AppSettings | null;

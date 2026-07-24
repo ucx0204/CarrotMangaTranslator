@@ -3,6 +3,7 @@ import { copyFile, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import type { ImportPageDraft } from "../../shared/importTypes";
 import type { LibraryPageRecord } from "../../shared/libraryTypes";
+import type { ImportImageRuntime } from "./importImageRuntime";
 import { tMain } from "./localization";
 import {
   assertImportImageFileBudget,
@@ -38,6 +39,7 @@ export async function materializePageRecord(
   pagesDir: string,
   index: number,
   zipReaderCache: Map<string, ZipArchiveReader>,
+  imageRuntime: ImportImageRuntime,
 ): Promise<LibraryPageRecord> {
   const pageId = randomUUID();
   const preparedImage = await prepareImportedPageImage(
@@ -60,9 +62,14 @@ export async function materializePageRecord(
     pageId,
     preparedImage,
     outputPath,
+    imageRuntime,
   );
 
-  const size = await readDecodedImportImageSize(outputPath, pageDraft.name);
+  const size = await readDecodedImportImageSize(
+    outputPath,
+    pageDraft.name,
+    imageRuntime,
+  );
   const now = new Date().toISOString();
 
   return {
@@ -84,6 +91,7 @@ async function writeImportedPageImage(
   pageId: string,
   preparedImage: PreparedImportPageImage,
   outputPath: string,
+  imageRuntime: ImportImageRuntime,
 ): Promise<void> {
   if (preparedImage.kind === "zip-entry") {
     await writeZipImportedPageImage(
@@ -92,10 +100,16 @@ async function writeImportedPageImage(
       pageId,
       preparedImage,
       outputPath,
+      imageRuntime,
     );
     return;
   }
-  await writeFileImportedPageImage(pageDraft, preparedImage, outputPath);
+  await writeFileImportedPageImage(
+    pageDraft,
+    preparedImage,
+    outputPath,
+    imageRuntime,
+  );
 }
 
 async function writeZipImportedPageImage(
@@ -104,6 +118,7 @@ async function writeZipImportedPageImage(
   pageId: string,
   preparedImage: Extract<PreparedImportPageImage, { kind: "zip-entry" }>,
   outputPath: string,
+  imageRuntime: ImportImageRuntime,
 ): Promise<void> {
   if (!shouldNormalizePreparedImage(preparedImage)) {
     await writeFile(outputPath, preparedImage.sourceBytes);
@@ -115,6 +130,7 @@ async function writeZipImportedPageImage(
     pageId,
     outputPath,
     preparedImage.sourceBytes,
+    imageRuntime,
   );
 }
 
@@ -124,6 +140,7 @@ async function writeNormalizedZipImportImage(
   pageId: string,
   outputPath: string,
   sourceBytes: Buffer,
+  imageRuntime: ImportImageRuntime,
 ): Promise<void> {
   const tempSourcePath = join(pagesDir, `.${pageId}.import-source.webp`);
   try {
@@ -132,6 +149,7 @@ async function writeNormalizedZipImportImage(
       tempSourcePath,
       outputPath,
       pageDraft.name,
+      imageRuntime,
     );
   } finally {
     await unlinkIfExists(tempSourcePath);
@@ -142,12 +160,14 @@ async function writeFileImportedPageImage(
   pageDraft: ImportPageDraft,
   preparedImage: Extract<PreparedImportPageImage, { kind: "file" }>,
   outputPath: string,
+  imageRuntime: ImportImageRuntime,
 ): Promise<void> {
   if (shouldNormalizePreparedImage(preparedImage)) {
     await writeNormalizedWebpImportImage(
       pageDraft.sourcePath,
       outputPath,
       pageDraft.name,
+      imageRuntime,
     );
     return;
   }

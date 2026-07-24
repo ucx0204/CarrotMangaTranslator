@@ -1,12 +1,11 @@
 import React from "react";
-import type { CustomFont, FontPreferences } from "../../../shared/libraryTypes";
-import type { BlockFontOption } from "../lib/fonts";
+import type { FontPreferences } from "../../../shared/libraryTypes";
+import type { BlockFontCatalog, BlockFontOption } from "../lib/fonts";
 
 export type FontsContextValue = {
-  customFonts: CustomFont[];
-  preferences: FontPreferences;
-  baseOptions: BlockFontOption[];
-  options: BlockFontOption[];
+  catalog: BlockFontCatalog;
+  baseOptions: readonly BlockFontOption[];
+  options: readonly BlockFontOption[];
   busy: boolean;
   registerFont: () => Promise<void>;
   removeFont: (id: string) => Promise<void>;

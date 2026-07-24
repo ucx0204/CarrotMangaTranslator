@@ -5,7 +5,7 @@ import {
   MAX_MAX_TOKENS,
   MIN_CONTEXT_TOKENS,
   MIN_MAX_TOKENS,
-} from "../settingsOptions";
+} from "../../../../shared/modelPresets";
 
 type SettingsValidationMessagesProps = {
   apiAdvancedSettingsMessage?: string;

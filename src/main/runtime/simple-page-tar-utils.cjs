@@ -15,7 +15,10 @@ const path = require("node:path");
  * use the repository node_modules directly; packaged apps retry from the ASAR
  * package root.
  *
- * @param {{ moduleRequire?: NodeRequire; resourcesPath?: string; createPackagedRequire?: typeof createRequire }} [options]
+ * @typedef {(specifier: string) => unknown} RuntimeRequire
+ * @typedef {(filename: string) => RuntimeRequire} PackagedRequireFactory
+ *
+ * @param {{ moduleRequire?: RuntimeRequire; resourcesPath?: string; createPackagedRequire?: PackagedRequireFactory }} [options]
  */
 function loadTarRuntime(options = {}) {
   const moduleRequire = options.moduleRequire ?? require;

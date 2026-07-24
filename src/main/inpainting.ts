@@ -10,9 +10,6 @@ import type {
 import type { MangaPage } from "../shared/libraryTypes";
 import { tMain } from "./i18n";
 import {
-  createCombinedDownloadProgress,
-  ensureFluxWorkerLaunch,
-  ensureRemoteFile,
   FLUX_MODEL_FILE,
   FLUX_MODEL_REPO,
   FLUX_MODEL_REVISION,
@@ -21,19 +18,28 @@ import {
   FLUX_VAE_REPO,
   FLUX_VAE_REVISION,
   FLUX_VAE_SHA256,
+} from "./inpainting/fluxAssets/constants";
+import {
+  ensureRemoteFile,
   hfResolveUrl,
-} from "./inpainting/fluxAssets";
+} from "./inpainting/fluxAssets/downloads";
+import { createCombinedDownloadProgress } from "./inpainting/fluxAssets/progress";
+import { ensureFluxWorkerLaunch } from "./inpainting/fluxAssets/workerLaunch";
+import {
+  createFluxEngine,
+  resolveDefaultFluxRunRootDir,
+  type FluxInpaintingEngine,
+} from "./inpainting/fluxEngine";
 import {
   FLUX_INPAINT_CONTEXT_PX,
   FLUX_INPAINT_FEATHER_PX,
   FLUX_INPAINT_MASK_PADDING_PX,
   FLUX_INPAINT_MAX_PIXELS,
-  createFluxEngine,
-  resolveDefaultFluxRunRootDir,
-  type FluxInpaintingEngine,
-  type InpaintingRuntimeProgress,
-} from "./inpainting/fluxEngine";
-import type { InpaintingEngine } from "./inpainting/inpaintingEngine";
+} from "./inpainting/fluxEngineConstants";
+import type {
+  InpaintingEngine,
+  InpaintingRuntimeProgress,
+} from "./inpainting/inpaintingEngine";
 export { prepareKoharuInpaintingEngine } from "./inpainting/koharuEngine";
 import { expandRect, rectHasMask } from "./inpainting/maskGeometry";
 import { resolvePatternInpaintWindows } from "./inpainting/patternWindowPolicy";

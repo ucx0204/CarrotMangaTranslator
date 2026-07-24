@@ -76,11 +76,6 @@ export function isEditableTarget(target: EventTarget | null): boolean {
   );
 }
 
-export function formatErrorMessage(error: unknown, fallback: string): string {
-  void error;
-  return fallback;
-}
-
 export function resolveStatusLineReplacement(
   event: JobEvent,
   previousLine?: string,

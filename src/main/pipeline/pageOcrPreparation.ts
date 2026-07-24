@@ -8,6 +8,7 @@ import { prepareOcrHintsForPages } from "./ocrHints";
 import { prepareAnalysisRun } from "./prepareAnalysisRun";
 import { prepareRegionContextOcrHints } from "./regionOcrContext";
 import { logPipelineInfo } from "./translationAttemptLogging";
+import type { PipelineDiagnostics } from "./translationAttemptLogging";
 import type { OcrBboxResult, PipelineOptions } from "./types";
 
 export async function preparePageOcrHints({
@@ -20,6 +21,7 @@ export async function preparePageOcrHints({
   blockMode,
   decodeImage,
   regionContext,
+  diagnostics,
 }: {
   jobId: string;
   pages: MangaPage[];
@@ -30,6 +32,7 @@ export async function preparePageOcrHints({
   blockMode?: PipelineOptions["blockMode"];
   decodeImage?: PipelineOptions["decodeImage"];
   regionContext?: PipelineOptions["regionContext"];
+  diagnostics: PipelineDiagnostics;
 }): Promise<Map<string, OcrBboxResult>> {
   if (regionContext) {
     return prepareRegionContextOcrHints({
@@ -44,10 +47,14 @@ export async function preparePageOcrHints({
     });
   }
   if (skipOcrPrepass) {
-    logPipelineInfo("OCR prepass skipped for analysis pipeline", {
-      jobId,
-      pageCount: pages.length,
-    });
+    logPipelineInfo(
+      "OCR prepass skipped for analysis pipeline",
+      {
+        jobId,
+        pageCount: pages.length,
+      },
+      diagnostics,
+    );
     return new Map<string, OcrBboxResult>(
       pages
         .filter((page) => shouldKeepExistingBlocks(blockMode, page))
@@ -66,6 +73,7 @@ export async function preparePageOcrHints({
     jobId,
     signal,
     decodeImage,
+    diagnostics,
   });
   const prepassPages = pages.filter((page) => !keepBlockHints.has(page.id));
   if (prepassPages.length === 0) {

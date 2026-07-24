@@ -30,10 +30,8 @@ export {
   normalizeAppSettings,
   parseStoredAppSettings,
 } from "./settings/appSettingsNormalize";
-export {
-  resolveDefaultAppSettings,
-  resolveHardwareDefaults,
-} from "./settings/appSettingsDefaults";
+export { resolveDefaultAppSettings } from "./settings/appSettingsDefaults";
+export { resolveHardwareDefaults } from "./settings/hardwareDefaults";
 export { buildBaseTranslationOptions } from "./settings/translationOptions";
 export type {
   PreviousOverlayBlockForPrompt,

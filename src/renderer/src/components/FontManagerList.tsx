@@ -23,7 +23,7 @@ export function FontManagerGroup({
   emptyLabel?: string;
   favorite: boolean;
   onToggleFavorite: (id: string) => void;
-  options: BlockFontOption[];
+  options: readonly BlockFontOption[];
   title: string;
 }): React.JSX.Element {
   return (

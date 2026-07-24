@@ -10,18 +10,64 @@ import { assertLibraryImagePath, getLibraryRoot } from "./library";
 import {
   createLibraryImageUrlCodec,
   createNodeLibraryImageUrlFiles,
+  type LibraryImageUrlCodec,
 } from "./imageUrlCodec";
 import { logError } from "./logger";
 
 const IMAGE_PROTOCOL = "mgt-image";
 const FONT_PROTOCOL = "mgt-font";
-const imageUrlCodec = createLibraryImageUrlCodec({
-  secret: randomBytes(32),
-  files: createNodeLibraryImageUrlFiles(getLibraryRoot()),
-});
+
+type ProtocolRequest = {
+  url: string;
+};
+
+type ProtocolBoundary = {
+  registerSchemesAsPrivileged: (schemes: Electron.CustomScheme[]) => void;
+  handle: (
+    scheme: string,
+    handler: (request: ProtocolRequest) => Promise<Response>,
+  ) => void;
+};
+
+type ProtocolFileOptions = Parameters<typeof createProtocolFileResponse>[1];
+
+export type ImageProtocolDependencies = {
+  protocol: ProtocolBoundary;
+  imageUrls: LibraryImageUrlCodec;
+  resolveLibraryImagePath: (path: string) => string;
+  resolveFontFilePath: (id: string) => string | null;
+  serveFile: (path: string, options: ProtocolFileOptions) => Promise<Response>;
+  isUnavailableError: (error: unknown) => boolean;
+  reportError: (message: string, context: unknown) => void;
+};
+
+export type ImageProtocolController = {
+  registerScheme: () => void;
+  registerHandler: () => void;
+  createLibraryImageUrl: (imagePath: string) => string;
+};
+
+let productionController: ImageProtocolController | undefined;
+
+export function createImageProtocolController(
+  dependencies: ImageProtocolDependencies,
+): ImageProtocolController {
+  return {
+    registerScheme: () => registerScheme(dependencies.protocol),
+    registerHandler: () => registerHandler(dependencies),
+    createLibraryImageUrl: (imagePath) =>
+      dependencies.imageUrls.createUrl(
+        dependencies.resolveLibraryImagePath(imagePath),
+      ),
+  };
+}
 
 export function registerImageProtocolScheme(): void {
-  protocol.registerSchemesAsPrivileged([
+  registerScheme(createElectronProtocolBoundary());
+}
+
+function registerScheme(protocolBoundary: ProtocolBoundary): void {
+  protocolBoundary.registerSchemesAsPrivileged([
     {
       scheme: IMAGE_PROTOCOL,
       privileges: {
@@ -44,13 +90,17 @@ export function registerImageProtocolScheme(): void {
 }
 
 export function registerImageProtocolHandler(): void {
-  protocol.handle(IMAGE_PROTOCOL, async (request) => {
+  getProductionController().registerHandler();
+}
+
+function registerHandler(dependencies: ImageProtocolDependencies): void {
+  dependencies.protocol.handle(IMAGE_PROTOCOL, async (request) => {
     try {
-      const image = imageUrlCodec.resolveRequest(request.url);
+      const image = dependencies.imageUrls.resolveRequest(request.url);
       if (!image) {
         return protocolErrorResponse("Image not found", 404);
       }
-      return await createProtocolFileResponse(image.imagePath, {
+      return await dependencies.serveFile(image.imagePath, {
         contentType: image.contentType,
         expectedVersion: {
           size: image.size,
@@ -58,10 +108,10 @@ export function registerImageProtocolHandler(): void {
         },
       });
     } catch (error) {
-      if (isProtocolFileUnavailableError(error)) {
+      if (dependencies.isUnavailableError(error)) {
         return protocolErrorResponse("Image not found", 404);
       }
-      logError("Failed to serve image protocol request", {
+      dependencies.reportError("Failed to serve image protocol request", {
         url: request.url,
         error,
       });
@@ -69,11 +119,11 @@ export function registerImageProtocolHandler(): void {
     }
   });
 
-  protocol.handle(FONT_PROTOCOL, async (request) => {
+  dependencies.protocol.handle(FONT_PROTOCOL, async (request) => {
     try {
       const url = new URL(request.url);
       const id = url.hostname || url.pathname.replace(/^\/+/, "");
-      const fontPath = resolveCustomFontFilePath(id);
+      const fontPath = dependencies.resolveFontFilePath(id);
       if (!fontPath) {
         return protocolErrorResponse("Font not found", 404);
       }
@@ -81,12 +131,12 @@ export function registerImageProtocolHandler(): void {
       if (!contentType) {
         return protocolErrorResponse("Font not found", 404);
       }
-      return await createProtocolFileResponse(fontPath, { contentType });
+      return await dependencies.serveFile(fontPath, { contentType });
     } catch (error) {
-      if (isProtocolFileUnavailableError(error)) {
+      if (dependencies.isUnavailableError(error)) {
         return protocolErrorResponse("Font not found", 404);
       }
-      logError("Failed to serve font protocol request", {
+      dependencies.reportError("Failed to serve font protocol request", {
         url: request.url,
         error,
       });
@@ -96,8 +146,32 @@ export function registerImageProtocolHandler(): void {
 }
 
 export function createLibraryImageUrl(imagePath: string): string {
-  const resolvedImagePath = assertLibraryImagePath(imagePath);
-  return imageUrlCodec.createUrl(resolvedImagePath);
+  return getProductionController().createLibraryImageUrl(imagePath);
+}
+
+function getProductionController(): ImageProtocolController {
+  productionController ??= createImageProtocolController({
+    protocol: createElectronProtocolBoundary(),
+    imageUrls: createLibraryImageUrlCodec({
+      secret: randomBytes(32),
+      files: createNodeLibraryImageUrlFiles(getLibraryRoot()),
+    }),
+    resolveLibraryImagePath: assertLibraryImagePath,
+    resolveFontFilePath: resolveCustomFontFilePath,
+    serveFile: createProtocolFileResponse,
+    isUnavailableError: isProtocolFileUnavailableError,
+    reportError: logError,
+  });
+  return productionController;
+}
+
+function createElectronProtocolBoundary(): ProtocolBoundary {
+  return {
+    registerSchemesAsPrivileged: (schemes) =>
+      protocol.registerSchemesAsPrivileged(schemes),
+    handle: (scheme, handler) =>
+      protocol.handle(scheme, (request) => handler(request)),
+  };
 }
 
 function resolveFontContentType(fontPath: string): string | null {

@@ -45,6 +45,8 @@
       "zoomOut": "Zoom out",
       "zoomIn": "Zoom in",
       "resetZoom": "Reset zoom",
+      "hideControls": "Collapse view controls",
+      "showControls": "Expand view controls",
       "fitMode": "Image fit mode",
       "contain": "Fit screen",
       "width": "Fit width",

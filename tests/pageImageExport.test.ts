@@ -1,7 +1,28 @@
+import { BrowserWindow } from "electron";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { ActiveJobStore } from "../src/main/jobs/activeJob";
+import {
+  handlePageImageExportError,
+  runPageImageExportJob,
+} from "../src/main/jobs/pageImageExportJobRunner";
+import type {
+  PageImageExportDependencies,
+  PageImageExportRuntimePort,
+} from "../src/main/jobs/pageImageExportPorts";
+import {
+  registerPageImageExportIpc,
+  type PageImageExportService,
+} from "../src/main/ipc/pageImageExportIpc";
 import type { IpcContext } from "../src/main/ipc/context";
 import type {
   ChapterSnapshot,
@@ -18,73 +39,37 @@ type IpcHandler = (
   ...args: unknown[]
 ) => Promise<unknown> | unknown;
 
-const mocks = vi.hoisted(() => ({
-  assertNoActiveJob: vi.fn(),
-  exportPageImages: vi.fn(),
-  handle: vi.fn(),
+const electronBoundary = vi.hoisted(() => ({
   handlers: new Map<string, IpcHandler>(),
-  listLibrary: vi.fn(),
-  openChapter: vi.fn(),
-  openPath: vi.fn(),
-  renderPage: vi.fn(),
   showOpenDialog: vi.fn(),
 }));
 
 vi.mock("electron", () => ({
-  BrowserWindow: class {},
-  dialog: { showOpenDialog: mocks.showOpenDialog },
+  BrowserWindow: class {
+    readonly webContents = {
+      id: 1,
+      getURL: () => "http://127.0.0.1:5173/",
+    };
+
+    isDestroyed(): boolean {
+      return false;
+    }
+  },
+  dialog: { showOpenDialog: electronBoundary.showOpenDialog },
   ipcMain: {
-    handle: mocks.handle.mockImplementation(
-      (channel: string, handler: IpcHandler) => {
-        mocks.handlers.set(channel, handler);
-      },
-    ),
+    handle: (channel: string, handler: IpcHandler) => {
+      electronBoundary.handlers.set(channel, handler);
+    },
   },
   nativeImage: {},
-  shell: { openPath: mocks.openPath },
+  shell: { openPath: vi.fn() },
 }));
-
-vi.mock("../src/main/library", () => ({
-  listLibrary: mocks.listLibrary,
-  openChapter: mocks.openChapter,
-}));
-
-vi.mock("../src/main/pageExport", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("../src/main/pageExport")>();
-  return {
-    ...actual,
-    renderPageWithTranslationBlocksForExport: mocks.renderPage,
-  };
-});
-
-vi.mock("../src/main/jobs/pageImageExportJobs", () => ({
-  assertNoActivePageImageExportJob: mocks.assertNoActiveJob,
-  exportPageImages: mocks.exportPageImages,
-}));
-
-vi.mock("../src/main/logger", () => ({
-  logError: vi.fn(),
-}));
-
-import { registerPageImageExportIpc } from "../src/main/ipc/pageImageExportIpc";
-import {
-  handlePageImageExportError,
-  runPageImageExportJob,
-} from "../src/main/jobs/pageImageExportJobRunner";
 
 const tempDirs: string[] = [];
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.handlers.clear();
-  mocks.handle.mockImplementation((channel: string, handler: IpcHandler) => {
-    mocks.handlers.set(channel, handler);
-  });
-  mocks.openPath.mockResolvedValue("");
-  mocks.renderPage.mockImplementation(async (page: MangaPage) =>
-    Buffer.from(page.id),
-  );
+  electronBoundary.handlers.clear();
 });
 
 afterEach(async () => {
@@ -93,7 +78,7 @@ afterEach(async () => {
   }
 });
 
-describe("page image export", () => {
+describe("page image export behavior", () => {
   it("uses library order and preserves original chapter/page indexes", async () => {
     const outputParentDir = await makeTempDir();
     const chapter1 = makeChapter("chapter-1", "Chapter: One", [
@@ -104,11 +89,9 @@ describe("page image export", () => {
     const chapter2 = makeChapter("chapter-2", "Second", [
       makePage("page-4", "a.jpeg"),
     ]);
-    mocks.listLibrary.mockResolvedValue(
+    const harness = makeDependencies(
       makeLibrary([chapter1, chapter2], "My: Work"),
-    );
-    mocks.openChapter.mockImplementation(async (chapterId: string) =>
-      chapterId === chapter1.id ? chapter1 : chapter2,
+      [chapter1, chapter2],
     );
     const events: JobEvent[] = [];
 
@@ -129,10 +112,13 @@ describe("page image export", () => {
       id: "export-job",
       abortController: new AbortController(),
       emit: (event) => events.push(event),
+      dependencies: harness.dependencies,
     });
 
-    expect(result.pageCount).toBe(3);
-    expect(result.outputDir).toMatch(/My_ Work-/);
+    expect(result).toEqual({
+      outputDir: join(outputParentDir, "My_ Work-2026-01-02T03-04-05-000Z"),
+      pageCount: 3,
+    });
     expect(await readdir(result.outputDir)).toEqual([
       "001-Chapter_ One",
       "002-Second",
@@ -150,12 +136,14 @@ describe("page image export", () => {
         "utf8",
       ),
     ).toBe("page-3");
-    expect(mocks.renderPage.mock.calls.map(([page]) => page.id)).toEqual([
+    expect(harness.renderPage.mock.calls.map(([page]) => page.id)).toEqual([
       "page-1",
       "page-3",
       "page-4",
     ]);
-    expect(mocks.openPath).toHaveBeenCalledWith(result.outputDir);
+    expect(harness.createSession).toHaveBeenCalledOnce();
+    expect(harness.closeSession).toHaveBeenCalledOnce();
+    expect(harness.openDirectory).toHaveBeenCalledWith(result.outputDir);
     expect(events.at(0)).toMatchObject({
       status: "starting",
       progressCurrent: 0,
@@ -173,8 +161,7 @@ describe("page image export", () => {
     const chapter = makeChapter("chapter-1", "One", [
       makePage("page-1", "001.png"),
     ]);
-    mocks.listLibrary.mockResolvedValue(makeLibrary([chapter]));
-    mocks.openChapter.mockResolvedValue(chapter);
+    const harness = makeDependencies(makeLibrary([chapter]), [chapter]);
 
     await expect(
       runPageImageExportJob({
@@ -193,13 +180,14 @@ describe("page image export", () => {
         id: "export-job",
         abortController: new AbortController(),
         emit: vi.fn(),
+        dependencies: harness.dependencies,
       }),
     ).rejects.toThrow("같은 페이지");
     expect(await readdir(outputParentDir)).toEqual([]);
-    expect(mocks.renderPage).not.toHaveBeenCalled();
+    expect(harness.renderPage).not.toHaveBeenCalled();
   });
 
-  it("cancels after the final page render and removes partial output", async () => {
+  it("cancels after rendering and removes the partial output", async () => {
     const outputParentDir = await makeTempDir();
     const chapter = makeChapter("chapter-1", "One", [
       makePage("page-1", "001.png"),
@@ -210,11 +198,11 @@ describe("page image export", () => {
       workId: "work-1",
       selections: [{ chapterId: chapter.id, mode: "all" as const }],
     };
-    mocks.listLibrary.mockResolvedValue(makeLibrary([chapter]));
-    mocks.openChapter.mockResolvedValue(chapter);
-    mocks.renderPage.mockImplementationOnce(async () => {
-      abortController.abort();
-      return Buffer.from("rendered");
+    const harness = makeDependencies(makeLibrary([chapter]), [chapter], {
+      renderPage: async () => {
+        abortController.abort();
+        return Buffer.from("rendered");
+      },
     });
 
     await expect(
@@ -225,6 +213,7 @@ describe("page image export", () => {
         id: "cancelled-export",
         abortController,
         emit: (event) => events.push(event),
+        dependencies: harness.dependencies,
       }).catch((error: unknown) =>
         handlePageImageExportError({
           abortController,
@@ -232,12 +221,13 @@ describe("page image export", () => {
           error,
           id: "cancelled-export",
           request,
+          dependencies: harness.dependencies,
         }),
       ),
     ).rejects.toThrow("취소");
 
     expect(await readdir(outputParentDir)).toEqual([]);
-    expect(mocks.openPath).not.toHaveBeenCalled();
+    expect(harness.openDirectory).not.toHaveBeenCalled();
     expect(events.at(-1)).toMatchObject({
       status: "cancelled",
       progressCurrent: 0,
@@ -247,14 +237,16 @@ describe("page image export", () => {
     expect(events.some((event) => event.status === "completed")).toBe(false);
   });
 
-  it("keeps a successful output when opening the folder throws", async () => {
+  it("keeps successful output and reports a folder-open failure", async () => {
     const outputParentDir = await makeTempDir();
     const chapter = makeChapter("chapter-1", "One", [
       makePage("page-1", "001.png"),
     ]);
-    mocks.listLibrary.mockResolvedValue(makeLibrary([chapter]));
-    mocks.openChapter.mockResolvedValue(chapter);
-    mocks.openPath.mockRejectedValueOnce(new Error("shell unavailable"));
+    const harness = makeDependencies(makeLibrary([chapter]), [chapter], {
+      openDirectory: async () => {
+        throw new Error("shell unavailable");
+      },
+    });
 
     const result = await runPageImageExportJob({
       context: makeContext(outputParentDir),
@@ -266,10 +258,96 @@ describe("page image export", () => {
       id: "export-job",
       abortController: new AbortController(),
       emit: vi.fn(),
+      dependencies: harness.dependencies,
     });
 
     expect(result.openError).toBe("shell unavailable");
     expect(await readdir(result.outputDir)).toEqual(["001-One"]);
+  });
+
+  it("removes partial output and emits failure when rendering fails", async () => {
+    const outputParentDir = await makeTempDir();
+    const chapter = makeChapter("chapter-1", "One", [
+      makePage("page-1", "001.png"),
+    ]);
+    const request = {
+      workId: "work-1",
+      selections: [{ chapterId: chapter.id, mode: "all" as const }],
+    };
+    const harness = makeDependencies(makeLibrary([chapter]), [chapter], {
+      renderPage: async () => {
+        throw new Error("renderer crashed");
+      },
+    });
+    const events: JobEvent[] = [];
+    const abortController = new AbortController();
+
+    await expect(
+      runPageImageExportJob({
+        context: makeContext(outputParentDir),
+        request,
+        outputParentDir,
+        id: "failed-export",
+        abortController,
+        emit: (event) => events.push(event),
+        dependencies: harness.dependencies,
+      }).catch((error: unknown) =>
+        handlePageImageExportError({
+          abortController,
+          emit: (event) => events.push(event),
+          error,
+          id: "failed-export",
+          request,
+          dependencies: harness.dependencies,
+        }),
+      ),
+    ).rejects.toThrow("renderer crashed");
+
+    expect(await readdir(outputParentDir)).toEqual([]);
+    expect(harness.logError).toHaveBeenCalledWith(
+      "Page image export failed",
+      expect.objectContaining({ jobId: "failed-export" }),
+    );
+    expect(events.at(-1)).toMatchObject({
+      status: "failed",
+      detail: "renderer crashed",
+    });
+  });
+
+  it("surfaces cleanup failure and records both error paths", async () => {
+    const outputParentDir = await makeTempDir();
+    const chapter = makeChapter("chapter-1", "One", [
+      makePage("page-1", "001.png"),
+    ]);
+    const harness = makeDependencies(makeLibrary([chapter]), [chapter], {
+      renderPage: async () => {
+        throw new Error("render failed");
+      },
+      removeDirectory: async () => {
+        throw new Error("cleanup failed");
+      },
+    });
+
+    await expect(
+      runPageImageExportJob({
+        context: makeContext(outputParentDir),
+        request: {
+          workId: "work-1",
+          selections: [{ chapterId: chapter.id, mode: "all" }],
+        },
+        outputParentDir,
+        id: "export-job",
+        abortController: new AbortController(),
+        emit: vi.fn(),
+        dependencies: harness.dependencies,
+      }),
+    ).rejects.toThrow("정리에 실패");
+    expect(harness.logError).toHaveBeenCalledWith(
+      "Page image export cleanup failed",
+      expect.objectContaining({
+        outputDir: join(outputParentDir, "Work-2026-01-02T03-04-05-000Z"),
+      }),
+    );
   });
 
   it.each([
@@ -302,8 +380,7 @@ describe("page image export", () => {
     const chapter = makeChapter("chapter-1", "One", [
       makePage("page-1", "001.png"),
     ]);
-    mocks.listLibrary.mockResolvedValue(makeLibrary([chapter]));
-    mocks.openChapter.mockResolvedValue(chapter);
+    const harness = makeDependencies(makeLibrary([chapter]), [chapter]);
 
     await expect(
       runPageImageExportJob({
@@ -313,61 +390,116 @@ describe("page image export", () => {
         id: "export-job",
         abortController: new AbortController(),
         emit: vi.fn(),
+        dependencies: harness.dependencies,
       }),
     ).rejects.toThrow(errorText);
     expect(await readdir(outputParentDir)).toEqual([]);
   });
+});
 
-  it("keeps the export modal flow idle when folder selection is cancelled", async () => {
-    mocks.showOpenDialog.mockResolvedValue({ canceled: true, filePaths: [] });
-    registerPageImageExportIpc(makeContext("C:\\data"));
-    const handler = mocks.handlers.get("page-images:export");
-    expect(handler).toBeDefined();
-
-    const result = await handler?.(trustedEvent(), {
-      workId: "11111111-1111-4111-8111-111111111111",
-      selections: [
-        {
-          chapterId: "22222222-2222-4222-8222-222222222222",
-          mode: "all",
-        },
-      ],
+describe("page image export IPC boundary", () => {
+  it("stays idle when folder selection is cancelled", async () => {
+    electronBoundary.showOpenDialog.mockResolvedValue({
+      canceled: true,
+      filePaths: [],
     });
+    const service = makeService();
+    registerPageImageExportIpc(makeContext("C:\\data"), service);
+    const handler = electronBoundary.handlers.get("page-images:export");
 
-    expect(result).toBeNull();
-    expect(mocks.assertNoActiveJob).toHaveBeenCalledTimes(1);
-    expect(mocks.exportPageImages).not.toHaveBeenCalled();
+    await expect(handler?.(trustedEvent(), validRequest())).resolves.toBeNull();
+    expect(service.assertIdle).toHaveBeenCalledTimes(1);
+    expect(service.exportImages).not.toHaveBeenCalled();
   });
 
-  it("starts every accepted export with the directory selected by the user", async () => {
-    const request = {
-      workId: "11111111-1111-4111-8111-111111111111",
-      selections: [
-        {
-          chapterId: "22222222-2222-4222-8222-222222222222",
-          mode: "all" as const,
-        },
-      ],
-    };
-    const expected = { outputDir: "D:\\exports\\result", pageCount: 1 };
-    mocks.showOpenDialog.mockResolvedValue({
+  it("passes the user-selected directory to the export service", async () => {
+    electronBoundary.showOpenDialog.mockResolvedValue({
       canceled: false,
       filePaths: ["D:\\exports"],
     });
-    mocks.exportPageImages.mockResolvedValue(expected);
+    const service = makeService();
+    service.exportImages.mockResolvedValue({
+      outputDir: "D:\\exports\\result",
+      pageCount: 1,
+    });
     const context = makeContext("C:\\data");
-    registerPageImageExportIpc(context);
-    const handler = mocks.handlers.get("page-images:export");
+    registerPageImageExportIpc(context, service);
+    const handler = electronBoundary.handlers.get("page-images:export");
+    const request = validRequest();
 
-    await expect(handler?.(trustedEvent(), request)).resolves.toEqual(expected);
-    expect(mocks.showOpenDialog).toHaveBeenCalledTimes(1);
-    expect(mocks.exportPageImages).toHaveBeenCalledWith(
+    await expect(handler?.(trustedEvent(), request)).resolves.toEqual({
+      outputDir: "D:\\exports\\result",
+      pageCount: 1,
+    });
+    expect(service.exportImages).toHaveBeenCalledWith(
       context,
       request,
       "D:\\exports",
     );
   });
 });
+
+type DependencyOverrides = {
+  renderPage?: (page: MangaPage) => Promise<Buffer>;
+  openDirectory?: PageImageExportRuntimePort["openDirectory"];
+  removeDirectory?: PageImageExportRuntimePort["removeDirectory"];
+};
+
+function makeDependencies(
+  library: LibraryIndex,
+  chapters: ChapterSnapshot[],
+  overrides: DependencyOverrides = {},
+) {
+  const chapterById = new Map(chapters.map((chapter) => [chapter.id, chapter]));
+  const renderPage = vi.fn(
+    overrides.renderPage ?? (async (page: MangaPage) => Buffer.from(page.id)),
+  );
+  const closeSession = vi.fn();
+  const createSession = vi.fn(async () => ({
+    renderPage,
+    close: closeSession,
+  }));
+  const openDirectory = vi.fn(overrides.openDirectory ?? (async () => ""));
+  const logError = vi.fn<PageImageExportDependencies["logger"]["error"]>();
+  const runtime: PageImageExportRuntimePort = {
+    async createDirectory(path, recursive = false) {
+      await mkdir(path, recursive ? { recursive: true } : undefined);
+    },
+    removeDirectory:
+      overrides.removeDirectory ??
+      (async (path) => {
+        await rm(path, { recursive: true, force: true });
+      }),
+    async writePng(path, content) {
+      await writeFile(path, content);
+    },
+    openDirectory,
+    createTimestamp: () => "2026-01-02T03-04-05-000Z",
+  };
+  const dependencies: PageImageExportDependencies = {
+    repository: {
+      listLibrary: async () => library,
+      openChapter: async (chapterId) => {
+        const chapter = chapterById.get(chapterId);
+        if (!chapter) {
+          throw new Error(`missing chapter: ${chapterId}`);
+        }
+        return chapter;
+      },
+    },
+    renderer: { createSession },
+    runtime,
+    logger: { error: logError },
+  };
+  return {
+    closeSession,
+    createSession,
+    dependencies,
+    logError,
+    openDirectory,
+    renderPage,
+  };
+}
 
 async function makeTempDir(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "page-image-export-"));
@@ -441,6 +573,7 @@ function makePage(
 }
 
 function makeContext(dataRoot: string): IpcContext {
+  const mainWindow = new BrowserWindow();
   return {
     appPaths: {
       isPackaged: false,
@@ -459,15 +592,40 @@ function makeContext(dataRoot: string): IpcContext {
       llamaRuntimeDir: join(dataRoot, "tools"),
       llamaServerPath: join(dataRoot, "tools", "llama-server"),
     },
-    jobs: { hasActive: false } as IpcContext["jobs"],
-    getMainWindow: () =>
-      ({
-        isDestroyed: () => false,
-        webContents: { id: 1, getURL: () => "http://127.0.0.1:5173/" },
-      }) as ReturnType<IpcContext["getMainWindow"]>,
-    panelWindows: {} as IpcContext["panelWindows"],
-    loadSimplePageRuntime: vi.fn(),
-    decodeImage: vi.fn(),
+    jobs: new ActiveJobStore(),
+    getMainWindow: () => mainWindow,
+    panelWindows: {
+      close: () => false,
+      closeAll: () => undefined,
+      getLastState: () => null,
+      getOpenPanelIds: () => [],
+      isPanelSender: () => false,
+      open: () => false,
+      publishState: () => undefined,
+    },
+    loadSimplePageRuntime: () => {
+      throw new Error("not used by page image export");
+    },
+    decodeImage: async () => null,
+  };
+}
+
+function makeService() {
+  return {
+    assertIdle: vi.fn<PageImageExportService["assertIdle"]>(),
+    exportImages: vi.fn<PageImageExportService["exportImages"]>(),
+  };
+}
+
+function validRequest() {
+  return {
+    workId: "11111111-1111-4111-8111-111111111111",
+    selections: [
+      {
+        chapterId: "22222222-2222-4222-8222-222222222222",
+        mode: "all" as const,
+      },
+    ],
   };
 }
 

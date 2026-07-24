@@ -1,12 +1,12 @@
 import React from "react";
 import {
   CommittedMaskLayer,
-  OverlayBlockLayer,
   RetouchLiveLayer,
-  StageDragHud,
   StageImage,
   StageMarqueeLayers,
 } from "./imageStageLayers";
+import { OverlayBlockLayer } from "./OverlayBlockLayer";
+import { StageDragHud } from "./StageDragHud";
 import {
   resolveRetouchStageModel,
   resolveStageClassName,
@@ -17,11 +17,10 @@ import { clearRetouchLiveOverlay } from "../lib/retouchLiveOverlay";
 export type { ImageStageProps } from "./imageStageTypes";
 
 export function ImageStage({
-  blockCreateRect = null,
   blockPointerDisabled = false,
-  dragHud = null,
   imageDataUrl,
   imageRef,
+  interactionPreviewStore,
   maskStrokes = [],
   onBlockPointerDown,
   onStagePointerDown,
@@ -53,11 +52,10 @@ export function ImageStage({
 
   return (
     <ImageStageFrame
-      blockCreateRect={blockCreateRect}
       blockPointerDisabled={blockPointerDisabled}
-      dragHud={dragHud}
       imageDataUrl={imageDataUrl}
       imageRef={imageRef}
+      interactionPreviewStore={interactionPreviewStore}
       onBlockPointerDown={onBlockPointerDown}
       onStagePointerDown={onStagePointerDown}
       onStagePointerLeave={onStagePointerLeave}
@@ -82,11 +80,10 @@ export function ImageStage({
 }
 
 function ImageStageFrame({
-  blockCreateRect = null,
   blockPointerDisabled = false,
-  dragHud = null,
   imageDataUrl,
   imageRef,
+  interactionPreviewStore,
   onBlockPointerDown,
   onStagePointerDown,
   onStagePointerLeave,
@@ -126,11 +123,10 @@ function ImageStageFrame({
         onPointerDown={onStagePointerDown}
       >
         <ImageStageLayerSet
-          blockCreateRect={blockCreateRect}
           blockPointerDisabled={blockPointerDisabled}
-          dragHud={dragHud}
           imageDataUrl={imageDataUrl}
           imageRef={imageRef}
+          interactionPreviewStore={interactionPreviewStore}
           onBlockPointerDown={onBlockPointerDown}
           page={page}
           regionSelectionActive={regionSelectionActive}
@@ -152,11 +148,10 @@ function ImageStageFrame({
 }
 
 function ImageStageLayerSet({
-  blockCreateRect = null,
   blockPointerDisabled = false,
-  dragHud = null,
   imageDataUrl,
   imageRef,
+  interactionPreviewStore,
   onBlockPointerDown,
   page,
   regionSelectionActive,
@@ -187,6 +182,7 @@ function ImageStageLayerSet({
       <OverlayBlockLayer
         blockPointerDisabled={blockPointerDisabled}
         imageDataUrl={imageDataUrl}
+        interactionPreviewStore={interactionPreviewStore}
         onBlockPointerDown={onBlockPointerDown}
         page={page}
         selectedBlockId={selectedBlockId}
@@ -208,13 +204,13 @@ function ImageStageLayerSet({
         retouchOriginalImageDataUrl={retouchOriginalImageDataUrl}
       />
       <StageMarqueeLayers
-        blockCreateRect={blockCreateRect}
         imageDataUrl={imageDataUrl}
+        interactionPreviewStore={interactionPreviewStore}
         regionSelectionActive={regionSelectionActive}
         regionSelectionRect={regionSelectionRect}
         stageSize={stageSize}
       />
-      <StageDragHud dragHud={dragHud} />
+      <StageDragHud interactionPreviewStore={interactionPreviewStore} />
     </>
   );
 }

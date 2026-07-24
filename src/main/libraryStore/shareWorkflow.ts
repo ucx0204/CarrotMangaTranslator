@@ -23,8 +23,6 @@ import {
 import { makeUniqueTitleInList, sanitizeTitle } from "./titles";
 import { openZipArchiveReader, type ZipArchiveReader } from "./zipSafety";
 
-export { exportWorkShareToFile } from "./shareExportWorkflow";
-
 export async function previewWorkShareImport(
   packagePath: string,
 ): Promise<WorkShareImportPreviewView> {

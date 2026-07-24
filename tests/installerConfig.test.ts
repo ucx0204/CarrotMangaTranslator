@@ -10,6 +10,11 @@ import {
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { migrateLegacyPackagedData, type AppPaths } from "../src/main/appPaths";
+import {
+  resolvePackagedBootstrapLogPath,
+  resolvePackagedElectronStoragePaths,
+} from "../src/main/electronStoragePaths";
 
 const repoRoot = join(__dirname, "..");
 const require = createRequire(import.meta.url);
@@ -17,11 +22,15 @@ const { nsisTemplatesDir } =
   require("app-builder-lib/out/targets/nsis/nsisUtil") as {
     nsisTemplatesDir: string;
   };
-const { copyTemplateDirectory, patchNsisTemplates } =
-  require("../scripts/build-windows-installer.cjs") as {
-    copyTemplateDirectory: (sourceDir: string, targetDir: string) => void;
-    patchNsisTemplates: (templatesDir: string) => void;
-  };
+const {
+  FAST_ZIP_COMPRESSION_LEVEL,
+  copyTemplateDirectory,
+  patchNsisTemplates,
+} = require("../scripts/build-windows-installer.cjs") as {
+  FAST_ZIP_COMPRESSION_LEVEL: string;
+  copyTemplateDirectory: (sourceDir: string, targetDir: string) => void;
+  patchNsisTemplates: (templatesDir: string) => void;
+};
 const {
   MAX_FAST_ZIP_INSTALL_DIR_LENGTH,
   MAX_FAST_ZIP_RELATIVE_PATH_LENGTH,
@@ -38,39 +47,55 @@ const {
     maxRelativePathLength: number;
   };
 };
+const electronBuilderConfig: unknown = require("../electron-builder.config.cjs");
+const { smokeOpenAiOauthRuntime } =
+  require("../scripts/smoke-openai-oauth-runtime.cjs") as {
+    smokeOpenAiOauthRuntime: (
+      runtimePath: string,
+      nativeImportModulePath: string,
+      options?: { log?: (message: string) => void },
+    ) => Promise<{ port: number; url: string }>;
+  };
 
 describe("Windows installer clean uninstall option", () => {
-  it("includes the custom NSIS script in electron-builder", () => {
-    const config = readFileSync(
-      join(repoRoot, "electron-builder.config.cjs"),
-      "utf8",
-    );
-
-    expect(config).toContain('include: "build/installer.nsh"');
-    expect(config).toContain("MGT_THIN_INSTALLER");
-    // Update metadata: publish target drives latest.yml/blockmap generation.
-    expect(config).toContain('provider: "github"');
-    expect(config).toContain('owner: "ucx0204"');
-    expect(config).toContain('repo: "CarrotMangaTranslator"');
-    expect(config).toContain('from: "tools/ffmpeg"');
-    expect(config).toContain('to: "tools/ffmpeg"');
-    expect(config).toContain("!dist{,/**/*}");
-    expect(config).toContain("!ocr-runtime{,/**/*}");
-    expect(config).toContain("!hf-cache{,/**/*}");
-    expect(config).toContain("!llama.cpp{,/**/*}");
-    expect(config).toContain("!runtime{,/**/*}");
-    expect(config).toContain("!tmp{,/**/*}");
-    expect(config).toContain("!fonts{,/**/*}");
-    expect(config).toContain("!panel-window-bounds.json");
-    expect(config).toContain("!docs{,/**/*}");
-    expect(config).toContain("differentialPackage: false");
-    expect(config).toContain("useZip: true");
-    expect(config).toContain("executableName: WINDOWS_EXECUTABLE_BASENAME");
-    expect(config).toContain("assertFastZipPayload(context.appOutDir)");
-    expect(config).toContain(
-      'electronLanguages: ["en-US", "en-GB", "ko", "ja", "zh-CN", "zh-TW"]',
-    );
-    expect(config).not.toContain('asarUnpack: ["node_modules/**/*"]');
+  it("exposes the intended electron-builder behavior as configuration", () => {
+    expect(electronBuilderConfig).toMatchObject({
+      publish: [
+        {
+          provider: "github",
+          owner: "ucx0204",
+          repo: "CarrotMangaTranslator",
+        },
+      ],
+      files: expect.arrayContaining([
+        "!dist{,/**/*}",
+        "!ocr-runtime{,/**/*}",
+        "!hf-cache{,/**/*}",
+        "!llama.cpp{,/**/*}",
+        "!runtime{,/**/*}",
+        "!tmp{,/**/*}",
+        "!fonts{,/**/*}",
+        "!panel-window-bounds.json",
+        "!docs{,/**/*}",
+      ]),
+      nsis: {
+        differentialPackage: false,
+        include: "build/installer.nsh",
+        useZip: true,
+      },
+      win: expect.objectContaining({
+        electronLanguages: ["en-US", "en-GB", "ko", "ja", "zh-CN", "zh-TW"],
+        executableName: WINDOWS_EXECUTABLE_BASENAME,
+        extraResources: expect.arrayContaining([
+          {
+            from: "tools/ffmpeg",
+            to: "tools/ffmpeg",
+          },
+        ]),
+      }),
+      afterPack: expect.any(Function),
+    });
+    expect(electronBuilderConfig).not.toHaveProperty("asarUnpack");
   });
 
   it("does not ship renderer-only or build-only packages twice", () => {
@@ -140,10 +165,6 @@ describe("Windows installer clean uninstall option", () => {
       join(repoRoot, "build", "installer.nsh"),
       "utf8",
     );
-    const buildScript = readFileSync(
-      join(repoRoot, "scripts", "build-windows-installer.cjs"),
-      "utf8",
-    );
 
     expect(installerScript).toContain("!macro customHeader");
     expect(installerScript).toContain("ShowInstDetails show");
@@ -154,33 +175,51 @@ describe("Windows installer clean uninstall option", () => {
       'DetailPrint "프로그램 파일 압축 해제를 완료했습니다."',
     );
 
-    expect(buildScript).toContain("SetDetailsPrint both");
-    expect(buildScript).toContain("설치 준비 중...");
-    expect(buildScript).toContain("프로그램 파일 압축을 해제하는 중...");
-    expect(buildScript).toContain("MgtZipExtractRetry");
-    expect(buildScript).toContain("압축 해제 재시도 $R1/3");
-    expect(buildScript).toContain("Call MgtValidateInstallDirectory");
-    expect(buildScript).toContain(
-      "Manual GitHub-release updates do not use electron-updater",
-    );
-    expect(buildScript).toContain('FAST_ZIP_COMPRESSION_LEVEL = "1"');
+    expect(FAST_ZIP_COMPRESSION_LEVEL).toBe("1");
   });
 
-  it("smokes the OAuth bundle through the packaged app import guard", () => {
-    const verifier = readFileSync(
-      join(repoRoot, "scripts", "verify-packaged-runtime.cjs"),
-      "utf8",
-    );
-    const smokeScript = readFileSync(
-      join(repoRoot, "scripts", "smoke-openai-oauth-runtime.cjs"),
-      "utf8",
-    );
+  it("loads the OAuth runtime through the packaged import boundary and closes it", async () => {
+    const temporaryRoot = mkdtempSync(join(tmpdir(), "mgt-oauth-smoke-"));
+    const runtimePath = join(temporaryRoot, "oauth-runtime.mjs");
+    const nativeImportPath = join(temporaryRoot, "native-import.cjs");
+    const closeMarkerPath = join(temporaryRoot, "closed.txt");
+    const logLines: string[] = [];
 
-    expect(verifier).toContain('"app.asar"');
-    expect(verifier).toContain('"nativeDynamicImport.js"');
-    expect(verifier).toContain("packagedNativeImportModule");
-    expect(smokeScript).toContain("require(nativeImportModulePath)");
-    expect(smokeScript).toContain("importNativeEsm(pathToFileURL(runtimePath)");
+    try {
+      writeFileSync(
+        runtimePath,
+        [
+          'import { writeFileSync } from "node:fs";',
+          "export async function startOpenAIOAuthServer(options) {",
+          '  if (options.host !== "127.0.0.1" || options.port !== 0) throw new Error("invalid bind options");',
+          "  return {",
+          "    port: 43123,",
+          '    url: "http://127.0.0.1:43123",',
+          `    async close() { writeFileSync(${JSON.stringify(closeMarkerPath)}, "closed"); },`,
+          "  };",
+          "}",
+        ].join("\n"),
+      );
+      writeFileSync(
+        nativeImportPath,
+        "exports.importNativeEsm = (href) => import(href);\n",
+      );
+
+      await expect(
+        smokeOpenAiOauthRuntime(runtimePath, nativeImportPath, {
+          log: (message) => logLines.push(message),
+        }),
+      ).resolves.toEqual({
+        port: 43123,
+        url: "http://127.0.0.1:43123",
+      });
+      expect(logLines).toEqual([
+        "packaged-oauth-runtime-ok http://127.0.0.1:43123",
+      ]);
+      expect(readFileSync(closeMarkerPath, "utf8")).toBe("closed");
+    } finally {
+      rmSync(temporaryRoot, { recursive: true, force: true });
+    }
   });
 
   it("strictly patches the actual electron-builder NSIS templates", () => {
@@ -230,6 +269,9 @@ describe("Windows installer clean uninstall option", () => {
       );
       expect(extractPackage).toContain(
         "      ${If} $R1 < 3\n        Sleep 750",
+      );
+      expect(extractPackage).toContain(
+        '      DetailPrint "압축 해제 재시도 $R1/3: $R0"',
       );
       expect(extractPackage).not.toContain('    StrCmp $R0 "success" +3');
       expect(installerFunctions).toContain(
@@ -362,19 +404,12 @@ describe("Windows installer clean uninstall option", () => {
       join(repoRoot, "build", "installer.nsh"),
       "utf8",
     );
-    const buildScript = readFileSync(
-      join(repoRoot, "scripts", "build-windows-installer.cjs"),
-      "utf8",
-    );
 
     expect(WINDOWS_EXECUTABLE_BASENAME).toBe("CarrotMangaTranslator");
     expect(installerScript).toContain(
       `!define MGT_MAX_FAST_ZIP_INSTALL_DIR_LENGTH ${MAX_FAST_ZIP_INSTALL_DIR_LENGTH}`,
     );
     expect(installerScript).toContain("Function MgtValidateInstallDirectory");
-    expect(buildScript).toContain(
-      '"Call MgtValidateInstallDirectory\\n!insertmacro uninstallOldVersion SHELL_CONTEXT"',
-    );
   });
 
   it("keeps the user-selected data root instead of recalculating it during install", () => {
@@ -438,45 +473,90 @@ describe("Windows installer clean uninstall option", () => {
     expect(script).not.toContain("StrCpy $MgtDataRoot $MgtDataRoot -2");
   });
 
-  it("stores packaged app data under the configured data root", () => {
-    const appPaths = readFileSync(
-      join(repoRoot, "src", "main", "appPaths.ts"),
-      "utf8",
-    );
+  it("migrates only supported legacy user data into the configured root", () => {
+    const temporaryRoot = mkdtempSync(join(tmpdir(), "mgt-data-migration-"));
+    const executableDir = join(temporaryRoot, "application");
+    const dataRoot = join(temporaryRoot, "configured-data");
+    const portableData = join(executableDir, "data");
+    const legacyUserData = join(temporaryRoot, "legacy-user-data");
+    const paths: AppPaths = {
+      isPackaged: true,
+      repoRoot: temporaryRoot,
+      executableDir,
+      resourcesDir: join(temporaryRoot, "resources"),
+      dataRoot,
+      settingsPath: join(dataRoot, "settings.json"),
+      libraryDir: join(dataRoot, "library"),
+      fontsDir: join(dataRoot, "fonts"),
+      logsDir: join(dataRoot, "logs"),
+      logFile: join(dataRoot, "logs", "app.log"),
+      runtimeDir: join(temporaryRoot, "resources", "app-runtime"),
+      toolsDir: join(temporaryRoot, "resources", "tools"),
+      ocrRuntimeDir: join(dataRoot, "ocr-runtime"),
+      llamaRuntimeDir: join(temporaryRoot, "resources", "tools", "llama"),
+      llamaServerPath: join(
+        temporaryRoot,
+        "resources",
+        "tools",
+        "llama",
+        "llama-server.exe",
+      ),
+    };
 
-    expect(appPaths).toContain("resolvePackagedDataRoot(executableDir, {");
-    expect(appPaths).toContain('appDataDir: app.getPath("appData")');
-    expect(appPaths).toContain(
-      'const ocrRuntimeDir = explicitOcrRuntimeDir || join(dataRoot, "ocr-runtime")',
-    );
-    expect(appPaths).toContain("migrateLegacyPackagedData(paths)");
-    expect(appPaths).toContain('join(paths.executableDir, "data")');
-    expect(appPaths).toContain("legacyAppDataRoots()");
-    expect(appPaths).toContain("copyLegacyUserDataIfMissing");
-    expect(appPaths).toContain('join(sourceDir, "settings.json")');
-    expect(appPaths).not.toContain('join(sourceDir, "hf-cache")');
-    expect(appPaths).not.toContain('join(sourceDir, "ocr-runtime")');
-    expect(appPaths).not.toContain(
-      'join(process.env.LOCALAPPDATA || dataRoot, "manga-gemma-translator", "ocr-runtime")',
-    );
+    try {
+      mkdirSync(join(portableData, "library"), { recursive: true });
+      writeFileSync(join(portableData, "library", "portable.json"), "portable");
+      mkdirSync(join(legacyUserData, "library"), { recursive: true });
+      mkdirSync(join(legacyUserData, "fonts"), { recursive: true });
+      mkdirSync(join(legacyUserData, "hf-cache"), { recursive: true });
+      mkdirSync(join(legacyUserData, "ocr-runtime"), { recursive: true });
+      writeFileSync(join(legacyUserData, "settings.json"), "settings");
+      writeFileSync(join(legacyUserData, "library", "legacy.json"), "library");
+      writeFileSync(join(legacyUserData, "fonts", "font.ttf"), "font");
+      writeFileSync(join(legacyUserData, "hf-cache", "model.bin"), "model");
+      writeFileSync(
+        join(legacyUserData, "ocr-runtime", "runtime.bin"),
+        "runtime",
+      );
+
+      migrateLegacyPackagedData(paths, [legacyUserData]);
+
+      expect(readFileSync(join(dataRoot, "settings.json"), "utf8")).toBe(
+        "settings",
+      );
+      expect(
+        readFileSync(join(dataRoot, "library", "portable.json"), "utf8"),
+      ).toBe("portable");
+      expect(
+        readFileSync(join(dataRoot, "library", "legacy.json"), "utf8"),
+      ).toBe("library");
+      expect(readFileSync(join(dataRoot, "fonts", "font.ttf"), "utf8")).toBe(
+        "font",
+      );
+      expect(() =>
+        readFileSync(join(dataRoot, "hf-cache", "model.bin"), "utf8"),
+      ).toThrow();
+      expect(() =>
+        readFileSync(join(dataRoot, "ocr-runtime", "runtime.bin"), "utf8"),
+      ).toThrow();
+    } finally {
+      rmSync(temporaryRoot, { recursive: true, force: true });
+    }
   });
 
-  it("moves packaged Electron storage under the configured data root", () => {
-    const bootstrap = readFileSync(
-      join(repoRoot, "src", "main", "bootstrap.ts"),
-      "utf8",
-    );
+  it("resolves every packaged Electron storage path below the data root", () => {
+    const dataRoot = join("D:\\", "MangaData");
 
-    expect(bootstrap).toContain("configurePackagedElectronStorage()");
-    expect(bootstrap).toContain('join(dataRoot, "electron-user-data")');
-    expect(bootstrap).toContain('join(dataRoot, "electron-session")');
-    expect(bootstrap).toContain('join(dataRoot, "tmp", "system-temp")');
-    expect(bootstrap).toContain('app.getPath("userData")');
-    expect(bootstrap).toContain(
-      'join(resolveBootstrapUserDataDir(), "logs", "bootstrap.log")',
-    );
-    expect(bootstrap).not.toContain(
-      'join(dirname(process.execPath), "bootstrap.log")',
+    const storage = resolvePackagedElectronStoragePaths(dataRoot);
+
+    expect(storage).toEqual({
+      userDataDir: join(dataRoot, "electron-user-data"),
+      sessionDataDir: join(dataRoot, "electron-session"),
+      tempDir: join(dataRoot, "tmp", "system-temp"),
+      diskCacheDir: join(dataRoot, "electron-session", "Cache"),
+    });
+    expect(resolvePackagedBootstrapLogPath(storage.userDataDir)).toBe(
+      join(dataRoot, "electron-user-data", "logs", "bootstrap.log"),
     );
   });
 });

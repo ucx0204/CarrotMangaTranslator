@@ -1,15 +1,15 @@
 import React from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
+import type { KeybindingOverrides } from "../../../shared/shortcutSettings";
 import { formatCombo } from "../lib/shortcuts/comboFromEvent";
 import {
   effectiveCombo,
   getShortcutActions,
   getShortcutCategoryLabels,
   SHORTCUT_CATEGORY_ORDER,
-  type KeybindingOverrides,
 } from "../lib/shortcuts/shortcutActions";
-import { Modal } from "./ui";
+import { Modal } from "./ui/Modal";
 
 type ShortcutHelpProps = {
   open: boolean;

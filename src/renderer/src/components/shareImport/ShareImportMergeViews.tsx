@@ -6,7 +6,7 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { Button } from "../ui";
+import { Button } from "../ui/Button";
 import { RefreshIcon, RestoreIcon } from "../ui/icons";
 import {
   CandidateChapterCard,

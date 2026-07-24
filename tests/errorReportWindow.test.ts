@@ -102,7 +102,7 @@ describe("ErrorReportWindowRegistry", () => {
 
   it("loads one isolated renderer window at the fixed error-report route", async () => {
     const { ErrorReportWindowRegistry } = await loadErrorReportWindowModule();
-    const registry = new ErrorReportWindowRegistry();
+    const registry = new ErrorReportWindowRegistry(createDependencies());
 
     const window = registry.open(makeContext("renderer-process"));
 
@@ -138,10 +138,11 @@ describe("ErrorReportWindowRegistry", () => {
 
   it("sends the in-memory context after load and trusts only its sender", async () => {
     const { ErrorReportWindowRegistry } = await loadErrorReportWindowModule();
-    const registry = new ErrorReportWindowRegistry();
+    const registry = new ErrorReportWindowRegistry(createDependencies());
     const context = makeContext("renderer-process");
 
-    const window = registry.open(context) as unknown as FakeBrowserWindow;
+    registry.open(context);
+    const window = requireLatestWindow();
     expect(window.webContents.send).not.toHaveBeenCalled();
 
     window.emitWebContents("did-finish-load");
@@ -156,10 +157,9 @@ describe("ErrorReportWindowRegistry", () => {
 
   it("reuses the live window and replaces its current context", async () => {
     const { ErrorReportWindowRegistry } = await loadErrorReportWindowModule();
-    const registry = new ErrorReportWindowRegistry();
-    const first = registry.open(
-      makeContext("renderer-process"),
-    ) as unknown as FakeBrowserWindow;
+    const registry = new ErrorReportWindowRegistry(createDependencies());
+    registry.open(makeContext("renderer-process"));
+    const first = requireLatestWindow();
     first.minimized = true;
 
     const secondContext = makeContext("main-process");
@@ -178,19 +178,17 @@ describe("ErrorReportWindowRegistry", () => {
 
   it("clears trust when the window closes or is destroyed", async () => {
     const { ErrorReportWindowRegistry } = await loadErrorReportWindowModule();
-    const registry = new ErrorReportWindowRegistry();
-    const window = registry.open(
-      makeContext("renderer-process"),
-    ) as unknown as FakeBrowserWindow;
+    const registry = new ErrorReportWindowRegistry(createDependencies());
+    registry.open(makeContext("renderer-process"));
+    const window = requireLatestWindow();
 
     registry.close();
     expect(window.close).toHaveBeenCalledTimes(1);
     expect(registry.getWindow()).toBeNull();
     expect(registry.isTrustedSender(window.webContents.id)).toBe(false);
 
-    const replacement = registry.open(
-      makeContext("main-process"),
-    ) as unknown as FakeBrowserWindow;
+    registry.open(makeContext("main-process"));
+    const replacement = requireLatestWindow();
     registry.closeAll();
     expect(replacement.destroy).toHaveBeenCalledTimes(1);
     expect(registry.getWindow()).toBeNull();
@@ -206,6 +204,25 @@ function makeContext(source: ErrorReportContext["source"]): ErrorReportContext {
   };
 }
 
+function requireLatestWindow(): FakeBrowserWindow {
+  if (!latestWindow) {
+    throw new Error("Expected ErrorReportWindowRegistry to create a window.");
+  }
+  return latestWindow;
+}
+
+function createDependencies() {
+  return {
+    applyRendererWindowGuards,
+    incidentChannel: "error-report:incident",
+    loadRendererIntoWindow,
+    parseContext: parseErrorIncident,
+    rendererWebPreferences,
+    resolveRendererLoadTarget,
+    title: () => "Carrot Manga Translator",
+  };
+}
+
 async function loadErrorReportWindowModule(): Promise<
   typeof import("../src/main/errorReportWindow")
 > {
@@ -213,23 +230,6 @@ async function loadErrorReportWindowModule(): Promise<
   latestWindow = null;
   vi.doMock("electron", () => ({
     BrowserWindow: FakeBrowserWindow,
-  }));
-  vi.doMock("../src/main/mainWindow", () => ({
-    applyRendererWindowGuards,
-    loadRendererIntoWindow,
-    rendererWebPreferences,
-    resolveRendererLoadTarget,
-  }));
-  vi.doMock("../src/main/i18n", () => ({
-    tMainCommon: () => "Carrot Manga Translator",
-  }));
-  vi.doMock("../src/shared/ipcContracts", () => ({
-    ipcEventContracts: {
-      errorIncident: {
-        channel: "error-report:incident",
-        payload: { parse: parseErrorIncident },
-      },
-    },
   }));
   return import("../src/main/errorReportWindow");
 }

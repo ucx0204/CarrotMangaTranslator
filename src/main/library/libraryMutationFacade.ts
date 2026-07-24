@@ -3,13 +3,15 @@ import type {
   LibraryIndex,
   MangaPage,
 } from "../../shared/libraryTypes";
-import type { SavePageBlocksRequest } from "../../shared/shareTypes";
+import type {
+  SavePageBlocksRequest,
+  SavePagesBlocksRequest,
+} from "../../shared/shareTypes";
 import {
   cleanupLibraryOrphansUnlocked,
   type LibraryCleanupResult,
 } from "../libraryStore/libraryCleanup";
 import {
-  appendAnalyzedPageBlocksUnlocked,
   deleteChapterUnlocked,
   deletePageUnlocked,
   deleteWorkUnlocked,
@@ -19,21 +21,59 @@ import {
   renameWorkUnlocked,
   reorderChaptersUnlocked,
   reorderPagesUnlocked,
-  savePageBlocksUnlocked,
-  setPageInpaintingResultUnlocked,
   updatePageAfterAnalysisUnlocked,
   updatePagesAfterAnalysisUnlocked,
-  updatePagesAfterInpaintingUnlocked,
-  type InpaintingArtifactCleanupOptions,
   type PageAnalysisUpdate,
 } from "../libraryStore/libraryMutations";
+import {
+  savePageBlocksUnlocked,
+  savePagesBlocksUnlocked,
+} from "../libraryStore/libraryPageBlockMutations";
+import { appendAnalyzedPageBlocksUnlocked } from "../libraryStore/libraryAnalysisMutations";
+import {
+  setPageInpaintingResultUnlocked,
+  updatePagesAfterInpaintingUnlocked,
+  type InpaintingArtifactCleanupOptions,
+} from "../libraryStore/libraryInpaintingMutations";
 import { withLibraryMutation } from "./lock";
 
-export async function savePageBlocks(
-  request: SavePageBlocksRequest,
-): Promise<ChapterSnapshot> {
-  return withLibraryMutation(() => savePageBlocksUnlocked(request));
+export type SavePageBlocksRuntime = {
+  runMutation: typeof withLibraryMutation;
+  savePageBlocks: typeof savePageBlocksUnlocked;
+};
+
+const productionSavePageBlocksRuntime: SavePageBlocksRuntime = {
+  runMutation: withLibraryMutation,
+  savePageBlocks: savePageBlocksUnlocked,
+};
+
+export function createSavePageBlocks(runtime: SavePageBlocksRuntime) {
+  return (request: SavePageBlocksRequest): Promise<ChapterSnapshot> =>
+    runtime.runMutation(() => runtime.savePageBlocks(request));
 }
+
+export const savePageBlocks = createSavePageBlocks(
+  productionSavePageBlocksRuntime,
+);
+
+export type SavePagesBlocksRuntime = {
+  runMutation: typeof withLibraryMutation;
+  savePagesBlocks: typeof savePagesBlocksUnlocked;
+};
+
+const productionSavePagesBlocksRuntime: SavePagesBlocksRuntime = {
+  runMutation: withLibraryMutation,
+  savePagesBlocks: savePagesBlocksUnlocked,
+};
+
+export function createSavePagesBlocks(runtime: SavePagesBlocksRuntime) {
+  return (request: SavePagesBlocksRequest): Promise<ChapterSnapshot> =>
+    runtime.runMutation(() => runtime.savePagesBlocks(request));
+}
+
+export const savePagesBlocks = createSavePagesBlocks(
+  productionSavePagesBlocksRuntime,
+);
 
 export async function appendAnalyzedPageBlocks(
   chapterId: string,

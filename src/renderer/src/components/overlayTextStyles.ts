@@ -7,18 +7,19 @@ import {
   resolveBlockTextWordBreak,
   type TextWordBreak,
 } from "../../../shared/textWrapping";
-import { resolveBlockFontFamily } from "../lib/fonts";
+import { resolveBlockFontFamily, type BlockFontCatalog } from "../lib/fonts";
 import { resolveFontWidthScale } from "../lib/blockFormatGeometry";
 import type { BlockTextLayout } from "../lib/overlayLayout";
 
 export function resolveOverlayTextWrapStyle(
   block: TranslationBlock,
   layout: BlockTextLayout,
+  fontCatalog: BlockFontCatalog,
 ): React.CSSProperties {
   return {
     bottom: "auto",
     color: block.textColor,
-    fontFamily: resolveBlockFontFamily(block.fontFamily),
+    fontFamily: resolveBlockFontFamily(block.fontFamily, fontCatalog),
     fontSize: `${layout.fontSizePx}px`,
     height: `${layout.layoutHeight}px`,
     left: 0,

@@ -1,10 +1,14 @@
 import { mkdir } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
-import type { FluxWorkerBackend, FluxWorkerLaunchSpec } from "../fluxWorker";
+import type {
+  FluxWorkerBackend,
+  FluxWorkerLaunchSpec,
+} from "../fluxWorkerTypes";
 import { logInpaintingRuntimeInfo } from "../inpaintingRuntimeLogger";
 import { FLUX_CUDA_RUNTIME_DIR } from "./constants";
 import type { FluxAssetProgress, FluxRuntimeBackend } from "./types";
-import { ensureFluxCudaRuntime, ensureManagedFluxRunner } from "./cudaRuntime";
+import { ensureFluxCudaRuntime } from "./cudaRuntime";
+import { ensureManagedFluxRunner } from "./runner";
 import { ensureFluxZludaSupportRuntime } from "./zludaRuntime";
 import { ensureFluxPythonRuntime } from "./pythonRuntime";
 

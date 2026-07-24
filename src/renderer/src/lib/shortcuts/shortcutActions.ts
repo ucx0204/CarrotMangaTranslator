@@ -1,10 +1,8 @@
-/**
- * User overrides keyed by shortcut action id. Structurally identical to (and
- * assignable from) the persisted `AppSettings.keybindings` shape; declared here
- * so the renderer shortcut modules don't couple to the shared settings types.
- * An empty string means the action is intentionally unbound.
- */
-export type KeybindingOverrides = Record<string, string>;
+import type { TFunction } from "i18next";
+import type {
+  KeybindingOverrides,
+  ShortcutActionId,
+} from "../../../../shared/shortcutSettings";
 
 /**
  * Single source of truth for the app's customizable keyboard shortcuts.
@@ -47,32 +45,6 @@ export const SHORTCUT_CATEGORY_ORDER: ShortcutCategory[] = [
   "inpaint",
   "global",
 ];
-
-export type ShortcutActionId =
-  | "toggle-block-chrome"
-  | "toggle-text-blocks"
-  | "toggle-peek-original"
-  | "zoom-in"
-  | "zoom-out"
-  | "zoom-reset"
-  | "stage-tool-select"
-  | "stage-tool-block"
-  | "stage-tool-hand"
-  | "toggle-stage-toolbar"
-  | "open-translate-options"
-  | "translate-pending"
-  | "translate-all"
-  | "gather-text"
-  | "cancel-job"
-  | "toggle-inpainting"
-  | "history-undo"
-  | "history-redo"
-  | "delete-block"
-  | "duplicate-block"
-  | "toggle-block-excluded"
-  | "toggle-command-palette"
-  | "toggle-shortcut-help"
-  | "open-settings";
 
 /**
  * Runtime context consulted by the dispatcher to decide whether an action may
@@ -306,7 +278,7 @@ export function getShortcutAction(
  * action is unbound (either by default or via an explicit empty override).
  */
 export function effectiveCombo(
-  actionId: string,
+  actionId: ShortcutActionId,
   overrides: KeybindingOverrides,
 ): string {
   const override = overrides[actionId];
@@ -392,4 +364,3 @@ function effectiveCombos(
     Boolean,
   );
 }
-import type { TFunction } from "i18next";

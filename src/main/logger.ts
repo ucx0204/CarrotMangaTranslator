@@ -1,24 +1,14 @@
-import {
-  appendFileSync,
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
 import { dirname } from "node:path";
 import { join } from "node:path";
 import { inspect } from "node:util";
 import { getAppPaths } from "./appPaths";
+import { createLoggerRuntime } from "./loggerRuntime";
 
-const UTF8_BOM = "\ufeff";
 const MAX_SERIALIZED_STRING_LENGTH = 16000;
 const MAX_SERIALIZED_STACK_LENGTH = 32000;
 const MAX_SERIALIZED_ARRAY_ITEMS = 40;
 const MAX_SERIALIZED_OBJECT_KEYS = 60;
 const MAX_SERIALIZATION_DEPTH = 8;
-let ensuredLogPath: string | null = null;
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 type NormalizedLogValueResult =
@@ -49,59 +39,15 @@ export function writeLog(
   message: string,
   detail?: unknown,
 ): void {
-  const logPath = getLogPath();
-  const timestamp = new Date().toISOString();
-  const suffix = detail === undefined ? "" : ` ${serializeLogDetail(detail)}`;
-  const line = `[${timestamp}] [${level.toUpperCase()}] ${message}${suffix}\n`;
-  writeConsole(level, line);
-
-  try {
-    mkdirSync(dirname(logPath), { recursive: true });
-    ensureUtf8Bom(logPath);
-    appendFileSync(logPath, line, "utf8");
-  } catch (error) {
-    console.error("Failed to write app log", error);
-  }
+  loggerRuntime.writeLog(level, message, detail);
 }
 
 export function resetAppLog(): void {
-  const logPath = getLogPath();
-  try {
-    mkdirSync(dirname(logPath), { recursive: true });
-    if (existsSync(logPath) && statSync(logPath).size > 0) {
-      try {
-        copyFileSync(logPath, getPreviousLogPath(logPath));
-      } catch (error) {
-        console.error(
-          "Failed to rotate app log; preserving current log",
-          error,
-        );
-        ensuredLogPath = null;
-        return;
-      }
-    }
-    writeFileSync(logPath, "", "utf8");
-    ensuredLogPath = null;
-  } catch (error) {
-    console.error("Failed to reset app log", error);
-  }
+  loggerRuntime.resetAppLog();
 }
 
 export function getPreviousLogPath(logPath = getLogPath()): string {
   return join(dirname(logPath), "previous.log");
-}
-
-function writeConsole(level: LogLevel, line: string): void {
-  const trimmed = line.trimEnd();
-  if (level === "error") {
-    console.error(trimmed);
-    return;
-  }
-  if (level === "warn") {
-    console.warn(trimmed);
-    return;
-  }
-  console.log(trimmed);
 }
 
 export function serializeLogDetail(detail: unknown): string {
@@ -389,34 +335,7 @@ function limitString(
   return `${value.slice(0, maxLength)}… [truncated ${value.length - maxLength} chars]`;
 }
 
-function ensureUtf8Bom(logPath: string): void {
-  if (ensuredLogPath === logPath) {
-    return;
-  }
-
-  if (!existsSync(logPath)) {
-    writeFileSync(logPath, UTF8_BOM, "utf8");
-    ensuredLogPath = logPath;
-    return;
-  }
-
-  if (statSync(logPath).size === 0) {
-    writeFileSync(logPath, UTF8_BOM, "utf8");
-    ensuredLogPath = logPath;
-    return;
-  }
-
-  const content = readFileSync(logPath);
-  const hasBom =
-    content.length >= 3 &&
-    content[0] === 0xef &&
-    content[1] === 0xbb &&
-    content[2] === 0xbf;
-  if (!hasBom) {
-    writeFileSync(
-      logPath,
-      Buffer.concat([Buffer.from(UTF8_BOM, "utf8"), content]),
-    );
-  }
-  ensuredLogPath = logPath;
-}
+const loggerRuntime = createLoggerRuntime({
+  resolveLogPath: getLogPath,
+  serializeDetail: serializeLogDetail,
+});

@@ -41,7 +41,7 @@ describe("OCR hint language cache", () => {
     );
     const runtime = {
       collectOcrHintsBatch,
-    } as unknown as TranslationRuntimePort;
+    } satisfies Pick<TranslationRuntimePort, "collectOcrHintsBatch">;
 
     const run = (sourceLanguage: string) =>
       prepareOcrHintsForPages({
@@ -74,7 +74,7 @@ describe("OCR hint language cache", () => {
     ]);
     const runtime = {
       collectOcrHintsBatch,
-    } as unknown as TranslationRuntimePort;
+    } satisfies Pick<TranslationRuntimePort, "collectOcrHintsBatch">;
     let options = {
       sourceLanguage: "ja",
       ocrDevice: "cpu",
@@ -158,7 +158,7 @@ describe("OCR hint language cache", () => {
     ]);
     const runtime = {
       collectOcrHintsBatch,
-    } as unknown as TranslationRuntimePort;
+    } satisfies Pick<TranslationRuntimePort, "collectOcrHintsBatch">;
     const options = {
       sourceLanguage: "ja",
       ocrDevice: "gpu",

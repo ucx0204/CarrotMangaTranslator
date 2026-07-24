@@ -1,8 +1,8 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import type { PageImageExportChapterSelection } from "../../../shared/pageImageExportTypes";
-import { mangaGateway } from "../api/mangaGateway";
-import { formatErrorMessage } from "../lib/appHelpers";
+import { exportGateway as mangaGateway } from "../api/exportGateway";
+import { formatErrorMessage } from "../lib/errorPresentation";
 import {
   failExportJob,
   saveDirtyChanges,

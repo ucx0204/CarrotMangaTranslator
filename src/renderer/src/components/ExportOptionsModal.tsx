@@ -10,7 +10,8 @@ import {
   type ExportChapterSelection,
 } from "../lib/exportSelection";
 import { ExportPagePicker } from "./ExportPagePicker";
-import { Button, Modal } from "./ui";
+import { Button } from "./ui/Button";
+import { Modal } from "./ui/Modal";
 
 export type ExportOptionsModalProps = {
   chapter: ChapterSnapshot;

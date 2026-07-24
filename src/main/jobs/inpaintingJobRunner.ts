@@ -5,13 +5,9 @@ import type {
 } from "../../shared/inpaintingTypes";
 import type { JobEvent } from "../../shared/jobTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
-import { inpaintDrawnPatternPage, inpaintPatternPage } from "../inpainting";
-import { acquireInpaintingEngine } from "../inpainting/inpaintingEnginePool";
-import { openChapter } from "../library";
-import { logError } from "../logger";
-import { getAppSettings } from "../settingsStore";
 import { isAbortError } from "./jobEvents";
 import type { InpaintingJobContext } from "./inpaintingJobTypes";
+import type { InpaintingJobRuntime } from "./inpaintingJobRuntime";
 import { saveInpaintingPageResult } from "./inpaintingJobHistory";
 import {
   emitInpaintingCancelled,
@@ -23,11 +19,13 @@ import {
 } from "./inpaintingJobProgress";
 
 type EmitJobEvent = (event: JobEvent) => void;
-type OpenedChapter = Awaited<ReturnType<typeof openChapter>>;
+type OpenedChapter = Awaited<ReturnType<InpaintingJobRuntime["openChapter"]>>;
 type InpaintingEngineLease = Awaited<
-  ReturnType<typeof acquireInpaintingEngine>
+  ReturnType<InpaintingJobRuntime["acquireEngine"]>
 >;
-type InpaintingPageResult = Awaited<ReturnType<typeof inpaintPatternPage>>;
+type InpaintingPageResult = Awaited<
+  ReturnType<InpaintingJobRuntime["inpaintPatternPage"]>
+>;
 
 export type InpaintingJobState = {
   chapter: OpenedChapter | null;
@@ -56,6 +54,7 @@ export async function runInpaintingPagesJob({
   emit,
   targets,
   state,
+  runtime,
 }: {
   context: InpaintingJobContext;
   request: StartInpaintingRequest;
@@ -64,6 +63,7 @@ export async function runInpaintingPagesJob({
   emit: EmitJobEvent;
   targets: InpaintingJobPage[];
   state: InpaintingJobState;
+  runtime: InpaintingJobRuntime;
 }): Promise<StartInpaintingResult> {
   const target = resolveInpaintingTarget(request);
   const totalTargetBlocks = countTargetBlocks(
@@ -80,6 +80,7 @@ export async function runInpaintingPagesJob({
     state,
     target,
     totalTargetBlocks,
+    runtime,
   });
 
   emitInpaintingCompleted(
@@ -110,6 +111,7 @@ export async function handleInpaintingJobError({
   request,
   state,
   context,
+  runtime,
 }: {
   abortController: AbortController;
   emit: EmitJobEvent;
@@ -118,9 +120,10 @@ export async function handleInpaintingJobError({
   request: StartInpaintingRequest;
   state: InpaintingJobState;
   context: InpaintingJobContext;
+  runtime: InpaintingJobRuntime;
 }): Promise<StartInpaintingResult> {
   const lastEvent = getLastJobEvent(context, id);
-  const refreshed = await refreshRequestChapters(request, state);
+  const refreshed = await refreshRequestChapters(request, state, runtime);
   if (isAbortError(error) || abortController.signal.aborted) {
     emitInpaintingCancelled(id, emit, lastEvent);
     return {
@@ -133,7 +136,7 @@ export async function handleInpaintingJobError({
   }
 
   const message = error instanceof Error ? error.message : String(error);
-  logError("Inpainting job failed", {
+  runtime.logError("Inpainting job failed", {
     jobId: id,
     request,
     lastEvent,
@@ -153,18 +156,19 @@ export async function handleInpaintingJobError({
 async function refreshRequestChapters(
   request: StartInpaintingRequest,
   state: InpaintingJobState,
+  runtime: InpaintingJobRuntime,
 ): Promise<Pick<StartInpaintingResult, "chapter" | "chapters">> {
   if (request.mode !== "selection-pattern") {
     return {
-      chapter: await openChapter(request.chapterId).catch(
-        () => state.chapter ?? undefined,
-      ),
+      chapter: await runtime
+        .openChapter(request.chapterId)
+        .catch(() => state.chapter ?? undefined),
     };
   }
 
   const chapters = await Promise.all(
     request.selections.map(async ({ chapterId }) =>
-      openChapter(chapterId).catch(() => state.chapters.get(chapterId)),
+      runtime.openChapter(chapterId).catch(() => state.chapters.get(chapterId)),
     ),
   );
   return { chapters: chapters.filter((chapter) => chapter !== undefined) };
@@ -207,6 +211,7 @@ async function processInpaintingPages({
   state,
   target,
   totalTargetBlocks,
+  runtime,
 }: {
   abortController: AbortController;
   context: InpaintingJobContext;
@@ -216,6 +221,7 @@ async function processInpaintingPages({
   state: InpaintingJobState;
   target: InpaintingTarget;
   totalTargetBlocks: number;
+  runtime: InpaintingJobRuntime;
 }): Promise<{
   savedChapters: OpenedChapter[];
   pagesChanged: number;
@@ -230,6 +236,7 @@ async function processInpaintingPages({
     id,
     pageCount: targets.length,
     totalTargetBlocks,
+    runtime,
   });
 
   for (const [pageIndex, targetPage] of targets.entries()) {
@@ -243,6 +250,7 @@ async function processInpaintingPages({
       pageCount: targets.length,
       state,
       target,
+      runtime,
     });
     if (result.blocksErased <= 0) {
       continue;
@@ -255,6 +263,7 @@ async function processInpaintingPages({
       transactionId: state.historyTransactionId,
       chapterId: targetPage.chapterId,
       previousPage: targetPage.page,
+      runtime,
     });
     state.chapters.set(targetPage.chapterId, savedChapter);
     if (state.chapter?.id === targetPage.chapterId) {
@@ -276,6 +285,7 @@ async function acquireInpaintingEngineIfNeeded({
   id,
   pageCount,
   totalTargetBlocks,
+  runtime,
 }: {
   abortController: AbortController;
   context: InpaintingJobContext;
@@ -283,12 +293,13 @@ async function acquireInpaintingEngineIfNeeded({
   id: string;
   pageCount: number;
   totalTargetBlocks: number;
+  runtime: InpaintingJobRuntime;
 }): Promise<InpaintingEngineLease | null> {
   if (totalTargetBlocks <= 0) {
     return null;
   }
-  const appSettings = await getAppSettings(context.appPaths);
-  return acquireInpaintingEngine({
+  const appSettings = await runtime.getSettings(context.appPaths);
+  return runtime.acquireEngine({
     appPaths: context.appPaths,
     model: appSettings.inpainting?.model ?? "flux-klein",
     fluxBackend: appSettings.inpainting?.fluxBackend,
@@ -326,6 +337,7 @@ async function processInpaintingPage({
   pageCount,
   state,
   target,
+  runtime,
 }: {
   abortController: AbortController;
   context: InpaintingJobContext;
@@ -336,6 +348,7 @@ async function processInpaintingPage({
   pageCount: number;
   state: InpaintingJobState;
   target: InpaintingTarget;
+  runtime: InpaintingJobRuntime;
 }): Promise<InpaintingPageResult> {
   if (abortController.signal.aborted) {
     throw new DOMException("Aborted", "AbortError");
@@ -349,14 +362,14 @@ async function processInpaintingPage({
     target,
   });
   const result = target.drawnPatternMode
-    ? await inpaintDrawnPatternPage(page, {
+    ? await runtime.inpaintDrawnPage(page, {
         signal: abortController.signal,
         decodeFallback: context.decodeImage,
         inpaintingEngine: state.inpaintingEngineLease?.engine,
         strokes: target.drawnStrokes,
         featherPx: target.drawnFeatherPx,
       })
-    : await inpaintPatternPage(page, {
+    : await runtime.inpaintPatternPage(page, {
         signal: abortController.signal,
         decodeFallback: context.decodeImage,
         inpaintingEngine: state.inpaintingEngineLease?.engine,

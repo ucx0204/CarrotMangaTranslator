@@ -10,7 +10,7 @@ import type {
   DragMode,
   PerspectiveHandle,
   ResizeHandle,
-} from "../hooks/workspacePointerGeometry";
+} from "../lib/workspaceInteractionTypes";
 
 export type BlockTransformMode = "select" | "perspective" | "curve";
 

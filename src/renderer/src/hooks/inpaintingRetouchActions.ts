@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
-import { mangaGateway } from "../api/mangaGateway";
+import { inpaintingGateway as mangaGateway } from "../api/inpaintingGateway";
 import { saveDirtyChanges } from "./inpaintingActionTypes";
 import type {
   InpaintingRetouchResult,

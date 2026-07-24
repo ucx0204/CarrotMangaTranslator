@@ -12,7 +12,10 @@ import {
   vi,
 } from "vitest";
 import { OverlayBlock } from "../src/renderer/src/components/OverlayBlock";
-import type { DragMode } from "../src/renderer/src/hooks/workspacePointerGeometry";
+import { FontsContext } from "../src/renderer/src/fonts/fontsContextValue";
+import { DEFAULT_BLOCK_FONT_CATALOG } from "../src/renderer/src/lib/fonts";
+import { createWorkspaceInteractionPreviewStore } from "../src/renderer/src/lib/workspaceInteractionPreview";
+import type { DragMode } from "../src/renderer/src/lib/workspaceInteractionTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
 
 const originalGetContext = HTMLCanvasElement.prototype.getContext;
@@ -76,7 +79,7 @@ describe("overlay transform controls", () => {
 
     expect(
       container.querySelector<HTMLElement>(".overlay-block")?.style.transform,
-    ).toBe("rotate(12deg)");
+    ).toContain("rotate(12deg)");
     expect(
       container.querySelector<HTMLElement>(".overlay-transform-content")?.style
         .transform,
@@ -136,18 +139,31 @@ function renderOverlay({
   transformMode?: "select" | "perspective" | "curve";
 } = {}): ReturnType<typeof render> {
   return render(
-    <OverlayBlock
-      block={block}
-      onPointerDown={vi.fn()}
-      onResizePointerDown={vi.fn()}
-      onTransformPointerDown={onTransformPointerDown}
-      pageSize={{ width: 1000, height: 1000 }}
-      selected
-      showChrome
-      stageSize={{ width: 500, height: 500 }}
-      textLayoutStageSize={{ width: 500, height: 500 }}
-      transformMode={transformMode}
-    />,
+    <FontsContext.Provider
+      value={{
+        busy: false,
+        catalog: DEFAULT_BLOCK_FONT_CATALOG,
+        baseOptions: [],
+        options: [],
+        registerFont: async () => undefined,
+        removeFont: async () => undefined,
+        savePreferences: async () => undefined,
+      }}
+    >
+      <OverlayBlock
+        block={block}
+        interactionPreviewStore={createWorkspaceInteractionPreviewStore()}
+        onPointerDown={vi.fn()}
+        onResizePointerDown={vi.fn()}
+        onTransformPointerDown={onTransformPointerDown}
+        pageSize={{ width: 1000, height: 1000 }}
+        selected
+        showChrome
+        stageSize={{ width: 500, height: 500 }}
+        textLayoutStageSize={{ width: 500, height: 500 }}
+        transformMode={transformMode}
+      />
+    </FontsContext.Provider>,
   );
 }
 

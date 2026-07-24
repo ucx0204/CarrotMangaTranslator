@@ -53,14 +53,17 @@ describe("workspaceHistory", () => {
 
   it("coalesces matching edits for 600ms, preserving first before and last after", () => {
     let state = emptyWorkspaceHistory();
-    state = recordWorkspaceHistory(
+    const first = recordWorkspaceHistory(
       state,
       chapterEntry("first", 0, "text:block-1"),
-    ).state;
-    state = recordWorkspaceHistory(
-      state,
+    );
+    expect(first.coalesced).toBe(false);
+    const second = recordWorkspaceHistory(
+      first.state,
       chapterEntry("second", 599, "text:block-1"),
-    ).state;
+    );
+    expect(second.coalesced).toBe(true);
+    state = second.state;
 
     expect(state.past).toHaveLength(1);
     const coalesced = state.past[0] as WorkspaceChapterEditHistoryEntry;
@@ -183,6 +186,31 @@ describe("workspaceHistory", () => {
     expect(restored.pages[0].analysisStatus).toBe("running");
   });
 
+  it("captures and restores only requested edit pages", () => {
+    const before = addSecondPage(
+      makeChapter("old image", [makeBlock("old first")]),
+      "old second",
+    );
+    const current = addSecondPage(
+      makeChapter("new image", [makeBlock("new first")]),
+      "new second",
+    );
+    const snapshot = captureWorkspaceChapterEditSnapshot(
+      before,
+      {
+        selectedPageId: "page-1",
+        selectedBlockId: "block-1",
+        selectedBlockIds: ["block-1"],
+      },
+      ["page-1"],
+    );
+
+    expect(snapshot.pages.map((page) => page.pageId)).toEqual(["page-1"]);
+    const restored = restoreWorkspaceChapterEditSnapshot(current, snapshot);
+    expect(restored.pages[0].blocks[0].translatedText).toBe("old first");
+    expect(restored.pages[1].blocks[0].translatedText).toBe("new second");
+  });
+
   it("rejects a block snapshot from a different chapter", () => {
     const chapter = makeChapter("image", []);
     const snapshot = chapterSnapshot("different");
@@ -293,5 +321,24 @@ function makeBlock(translatedText: string): TranslationBlock {
     textColor: "#000000",
     backgroundColor: "#ffffff",
     opacity: 1,
+  };
+}
+
+function addSecondPage(
+  chapter: ChapterSnapshot,
+  translatedText: string,
+): ChapterSnapshot {
+  const firstPage = chapter.pages[0];
+  if (!firstPage) throw new Error("Expected a first page");
+  const page = {
+    ...firstPage,
+    id: "page-2",
+    name: "002.png",
+    blocks: [{ ...makeBlock(translatedText), id: "block-2" }],
+  };
+  return {
+    ...chapter,
+    pageOrder: [...chapter.pageOrder, page.id],
+    pages: [...chapter.pages, page],
   };
 }

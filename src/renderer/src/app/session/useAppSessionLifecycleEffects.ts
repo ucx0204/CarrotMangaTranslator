@@ -8,6 +8,7 @@ import type { ErrorReportContext } from "../../../../shared/errorReportTypes";
 import type { RegionSelectionState } from "../../lib/appHelpers";
 import { toast } from "../../lib/toastStore";
 import { formatJobLabel } from "../../lib/jobProgress";
+import { useEventCallback } from "../../hooks/useEventCallback";
 
 type OpenErrorReport = (
   context: ErrorReportContext,
@@ -43,34 +44,13 @@ export function useAppSessionLifecycleEffects({
   const prevJobStatusRef = useRef<JobState["status"]>("idle");
   const reportedJobIdRef = useRef<string | null>(null);
   const previousPageIdRef = useRef(selectedPageId);
-
-  useEffect(() => {
+  const refreshStartedRef = useRef(false);
+  const runInitialLibraryRefresh = useEventCallback(() => {
     void refreshLibrary();
-  }, [refreshLibrary]);
-
-  useEffect(() => {
-    setRegionSelection(null);
-  }, [selectedPageId, setRegionSelection]);
-
-  useEffect(() => {
-    if (previousPageIdRef.current === selectedPageId) return;
-    previousPageIdRef.current = selectedPageId;
-    onPageChange();
-  }, [onPageChange, selectedPageId]);
-
-  useEffect(() => {
-    if (!currentChapter) {
-      resetChapterScopedUi();
-    }
-  }, [currentChapter, resetChapterScopedUi]);
-
-  useEffect(() => {
-    const previous = prevJobStatusRef.current;
-    const next = jobState.status;
-    if (previous === next) {
-      return;
-    }
-    prevJobStatusRef.current = next;
+  });
+  const notifyPageChange = useEventCallback(onPageChange);
+  const resetCurrentChapterUi = useEventCallback(resetChapterScopedUi);
+  const notifyJobStatusChange = useEventCallback(() => {
     handleJobStatusChange({
       jobState,
       onJobStart,
@@ -79,7 +59,43 @@ export function useAppSessionLifecycleEffects({
       t,
       translationFlowActive,
     });
-  }, [jobState, onJobStart, openErrorReport, translationFlowActive, t]);
+  });
+  const currentChapterId = currentChapter?.id ?? null;
+  const jobStatus = jobState.status;
+
+  useEffect(() => {
+    if (refreshStartedRef.current) {
+      return;
+    }
+    refreshStartedRef.current = true;
+    runInitialLibraryRefresh();
+  }, [runInitialLibraryRefresh]);
+
+  useEffect(() => {
+    setRegionSelection(null);
+  }, [selectedPageId, setRegionSelection]);
+
+  useEffect(() => {
+    if (previousPageIdRef.current === selectedPageId) return;
+    previousPageIdRef.current = selectedPageId;
+    notifyPageChange();
+  }, [notifyPageChange, selectedPageId]);
+
+  useEffect(() => {
+    if (!currentChapterId) {
+      resetCurrentChapterUi();
+    }
+  }, [currentChapterId, resetCurrentChapterUi]);
+
+  useEffect(() => {
+    const previous = prevJobStatusRef.current;
+    const next = jobStatus;
+    if (previous === next) {
+      return;
+    }
+    prevJobStatusRef.current = next;
+    notifyJobStatusChange();
+  }, [jobStatus, notifyJobStatusChange]);
 }
 
 type JobStatusChangeArgs = {

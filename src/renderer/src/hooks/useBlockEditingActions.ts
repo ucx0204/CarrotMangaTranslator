@@ -24,9 +24,6 @@ import {
   type BlockBackgroundApplyScope,
 } from "./useApplyBlockBackgroundOpacityAction";
 
-export type { FormatApplyScope } from "./blockEditingStatus";
-export type { BlockBackgroundApplyScope } from "./useApplyBlockBackgroundOpacityAction";
-
 type UseBlockEditingActionsOptions = {
   currentChapter: ChapterSnapshot | null;
   jobActive: boolean;

@@ -18,7 +18,6 @@ import {
   resolveNullableReasoningEffort,
   resolveNonEmptyString,
   resolveNumberRange,
-  resolveOcrDevice,
   resolveOpenAiCompatibleBaseUrl,
   resolveOptionalJsonObjectString,
   resolveOptionalString,
@@ -50,6 +49,7 @@ import {
 import { resolveRecommendedGenerationLimits } from "../../shared/modelPresets";
 import { normalizeBlockFormatDefaults } from "./blockFormatDefaultsNormalize";
 import { resolveUnsafeUnifiedMemorySetting } from "./gemmaMemorySettings";
+import { normalizeStoredKeybindingOverrides } from "../../shared/shortcutSettings";
 
 export function normalizeAppSettings(
   raw: unknown,
@@ -140,17 +140,11 @@ function normalizeKeybindings(
   keybindings: unknown,
   defaults: AppSettings,
 ): NonNullable<AppSettings["keybindings"]> {
-  const record = asRecord(keybindings);
-  if (!record) {
-    return { ...(defaults.keybindings ?? {}) };
-  }
-  const normalized: Record<string, string> = {};
-  for (const [actionId, combo] of Object.entries(record)) {
-    if (typeof actionId === "string" && typeof combo === "string") {
-      normalized[actionId] = combo;
+  return (
+    normalizeStoredKeybindingOverrides(keybindings) ?? {
+      ...(defaults.keybindings ?? {}),
     }
-  }
-  return normalized;
+  );
 }
 
 function normalizeGemmaSettings(
@@ -326,9 +320,11 @@ function normalizeOcrSettings(
   ocr: Record<string, unknown> | null,
   defaults: AppSettings,
 ): AppSettings["ocr"] {
-  const { gpuBackend, qualityMode: normalizedQualityMode } =
-    resolveStoredOcrModeSettings(ocr, defaults);
-  const device = resolveOcrDevice(ocr?.device, defaults.ocr.device);
+  const {
+    device,
+    gpuBackend,
+    qualityMode: normalizedQualityMode,
+  } = resolveStoredOcrModeSettings(ocr, defaults);
   return {
     device,
     // GPU 전용 고품질 모드는 CPU에서 못 쓸 만큼 느리므로 절약 품질로 강제한다.

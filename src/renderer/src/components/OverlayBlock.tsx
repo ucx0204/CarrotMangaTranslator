@@ -1,12 +1,16 @@
 import React from "react";
 import { IconEraserOff } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
-import { normalizeCurveLayout } from "../../../shared/blockTransforms";
 import type { TranslationBlock } from "../../../shared/textTypes";
-import type { DragMode } from "../hooks/workspacePointerGeometry";
+import type { DragMode } from "../lib/workspaceInteractionTypes";
+import { useFonts } from "../fonts/useFonts";
+import type { BlockFontCatalog } from "../lib/fonts";
 import type { ViewportSize } from "../lib/overlayLayout";
-import { CurveText } from "./CurveText";
-import { OverlayText } from "./OverlayText";
+import {
+  useBlockInteractionPreview,
+  type WorkspaceInteractionPreviewStore,
+} from "../lib/workspaceInteractionPreview";
+import { ArtworkBlock } from "./PageArtwork";
 import {
   resolveOverlayBlockRenderModel,
   type OverlayBlockRenderModel,
@@ -15,7 +19,7 @@ import {
   OverlayTransformControls,
   type BlockTransformMode,
 } from "./OverlayTransformControls";
-import "./overlayTransforms.css";
+import { usePreviewAwareBlockLayout } from "./useOverlayBlockLayout";
 
 type OverlayBlockProps = {
   block: TranslationBlock;
@@ -25,6 +29,7 @@ type OverlayBlockProps = {
   multiSelected?: boolean;
   showChrome: boolean;
   textLayoutStageSize: ViewportSize | null;
+  interactionPreviewStore: WorkspaceInteractionPreviewStore;
   textVisible?: boolean;
   pointerDisabled?: boolean;
   transformMode?: BlockTransformMode;
@@ -33,93 +38,123 @@ type OverlayBlockProps = {
   onTransformPointerDown?: (event: React.PointerEvent, mode: DragMode) => void;
 };
 
-export function OverlayBlock(props: OverlayBlockProps): React.JSX.Element {
-  const selectedMode =
-    props.transformMode ?? (props.selected ? "select" : undefined);
-  const excluded = Boolean(props.block.inpaintExcluded);
+export const OverlayBlock = React.memo(function OverlayBlock(
+  props: OverlayBlockProps,
+): React.JSX.Element {
+  const { catalog } = useFonts();
+  return <OverlayBlockView {...props} fontCatalog={catalog} />;
+});
+
+export const OverlayBlockView = React.memo(function OverlayBlockView(
+  props: OverlayBlockProps & {
+    fontCatalog: BlockFontCatalog;
+    fontRevision?: number;
+  },
+): React.JSX.Element {
+  const catalog = props.fontCatalog;
+  const previewBlock = useBlockInteractionPreview(
+    props.interactionPreviewStore,
+    props.block.id,
+  );
+  const block = resolvePreviewBlock(previewBlock, props.block);
+  const displayText = resolveDisplayText(block, props.showChrome);
+  const layout = usePreviewAwareBlockLayout({
+    block,
+    canonicalBlock: props.block,
+    displayText,
+    fontCatalog: catalog,
+    pageSize: props.pageSize,
+    stageSize: props.stageSize,
+    textLayoutStageSize: props.textLayoutStageSize,
+    fontRevision: props.fontRevision ?? 0,
+  });
+  const selectedMode = resolveSelectedMode(props);
+  const flags = resolveOverlayBlockFlags(props);
+  const excluded = Boolean(block.inpaintExcluded);
   const model = resolveOverlayBlockRenderModel({
     ...props,
+    block,
     excluded,
+    fontCatalog: catalog,
+    layout,
+    multiSelected: flags.multiSelected,
+    pointerDisabled: flags.pointerDisabled,
+    textVisible: flags.textVisible,
+    transformMode: selectedMode,
+  });
+  return (
+    <ArtworkBlock
+      afterContent={
+        <>
+          <OverlayExcludeControl excluded={excluded} />
+          <OverlayBlockControls
+            block={block}
+            model={model}
+            mode={selectedMode}
+            onPointerDown={resolveTransformPointerDown(props)}
+            pointerDisabled={flags.pointerDisabled}
+            selected={props.selected}
+            textVisible={flags.textVisible}
+          />
+        </>
+      }
+      block={block}
+      chrome={
+        model.showChromeLayer ? (
+          <div className="overlay-block-chrome" style={model.chromeStyle} />
+        ) : null
+      }
+      fontCatalog={catalog}
+      model={model}
+      onPointerDown={resolveOuterPointerDown(props)}
+    />
+  );
+});
+
+function resolvePreviewBlock(
+  preview: TranslationBlock | null,
+  canonical: TranslationBlock,
+): TranslationBlock {
+  return preview ?? canonical;
+}
+
+function resolveDisplayText(
+  block: TranslationBlock,
+  showChrome: boolean,
+): string {
+  return block.translatedText || block.sourceText || (showChrome ? "..." : "");
+}
+
+function resolveSelectedMode(
+  props: OverlayBlockProps,
+): BlockTransformMode | undefined {
+  return props.transformMode ?? (props.selected ? "select" : undefined);
+}
+
+function resolveOverlayBlockFlags(props: OverlayBlockProps): {
+  multiSelected: boolean;
+  pointerDisabled: boolean;
+  textVisible: boolean;
+} {
+  return {
     multiSelected: props.multiSelected ?? false,
     pointerDisabled: props.pointerDisabled ?? false,
     textVisible: props.textVisible ?? true,
-    transformMode: selectedMode,
-  });
-  const pointerDisabled = props.pointerDisabled ?? false;
-  return (
-    <div
-      className={model.outerClassName}
-      style={model.outerStyle}
-      onPointerDown={pointerDisabled ? undefined : props.onPointerDown}
-    >
-      <OverlayBlockContent
-        block={props.block}
-        model={model}
-        textVisible={props.textVisible ?? true}
-      />
-      <OverlayExcludeControl excluded={excluded} />
-      <OverlayBlockControls
-        block={props.block}
-        model={model}
-        mode={selectedMode}
-        onPointerDown={
-          props.onTransformPointerDown ??
-          ((event) => props.onResizePointerDown(event))
-        }
-        pointerDisabled={pointerDisabled}
-        selected={props.selected}
-        textVisible={props.textVisible ?? true}
-      />
-    </div>
-  );
+  };
 }
 
-function OverlayBlockContent({
-  block,
-  model,
-  textVisible,
-}: {
-  block: TranslationBlock;
-  model: OverlayBlockRenderModel;
-  textVisible: boolean;
-}): React.JSX.Element {
-  return (
-    <div className="overlay-transform-content" style={model.contentStyle}>
-      {model.showChromeLayer ? (
-        <div className="overlay-block-chrome" style={model.chromeStyle} />
-      ) : null}
-      <OverlayBlockText block={block} model={model} visible={textVisible} />
-    </div>
-  );
+function resolveOuterPointerDown(
+  props: OverlayBlockProps,
+): OverlayBlockProps["onPointerDown"] | undefined {
+  return props.pointerDisabled ? undefined : props.onPointerDown;
 }
 
-function OverlayBlockText({
-  block,
-  model,
-  visible,
-}: {
-  block: TranslationBlock;
-  model: OverlayBlockRenderModel;
-  visible: boolean;
-}): React.JSX.Element | null {
-  if (!visible) return null;
-  if (model.curveRenderable && block.curveLayout) {
-    return (
-      <CurveText
-        block={block}
-        curveLayout={normalizeCurveLayout(block.curveLayout)}
-        displayText={model.displayText}
-        layout={model.layout}
-      />
-    );
-  }
+function resolveTransformPointerDown(
+  props: OverlayBlockProps,
+): NonNullable<OverlayBlockProps["onTransformPointerDown"]> {
   return (
-    <OverlayText
-      block={block}
-      displayText={model.displayText}
-      layout={model.layout}
-      renderDirection={model.renderDirection}
-    />
+    props.onTransformPointerDown ??
+    ((event) => props.onResizePointerDown(event))
   );
 }
 

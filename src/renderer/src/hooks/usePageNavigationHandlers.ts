@@ -7,13 +7,14 @@ import {
   type RefObject,
   type SetStateAction,
 } from "react";
+import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import { isEditableTarget } from "../lib/appHelpers";
 import {
   resolveAdjacentPageId,
   resolveKeyboardPageNavigation,
   resolveWheelPageNavigation,
 } from "../lib/pageNavigation";
-import type { ChapterSnapshot } from "./hookLibraryTypes";
+import { useEventCallback } from "./useEventCallback";
 
 type UsePageNavigationHandlersOptions = {
   currentChapterRef: MutableRefObject<ChapterSnapshot | null>;
@@ -60,19 +61,22 @@ function useSelectPageForReading({
   setSelectedBlockId,
   setSelectedPageId,
 }: UsePageNavigationHandlersOptions): SelectPageForReading {
+  const notifyPageChange = useEventCallback(() => {
+    onPageChange?.();
+  });
   return useCallback(
     (pageId) => {
       if (!pageId) {
         return;
       }
-      onPageChange?.();
+      notifyPageChange();
       selectedPageIdRef.current = pageId;
       selectedBlockIdRef.current = null;
       setSelectedPageId(pageId);
       setSelectedBlockId(null);
     },
     [
-      onPageChange,
+      notifyPageChange,
       selectedBlockIdRef,
       selectedPageIdRef,
       setSelectedBlockId,
@@ -105,12 +109,23 @@ function useSelectAdjacentPageForReading(
 }
 
 function useKeyboardPageNavigationEffect(
-  options: UsePageNavigationHandlersOptions,
+  {
+    currentChapterRef,
+    modalOpen,
+    workspacePanelRef,
+  }: Pick<
+    UsePageNavigationHandlersOptions,
+    "currentChapterRef" | "modalOpen" | "workspacePanelRef"
+  >,
   selectAdjacentPageForReading: SelectAdjacentPageForReading,
 ): void {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const navigation = resolveKeyboardNavigationForEvent(event, options);
+      const navigation = resolveKeyboardNavigationForEvent(event, {
+        currentChapterRef,
+        modalOpen,
+        workspacePanelRef,
+      });
       if (!navigation) {
         return;
       }
@@ -126,7 +141,12 @@ function useKeyboardPageNavigationEffect(
     return () => {
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [options, selectAdjacentPageForReading]);
+  }, [
+    currentChapterRef,
+    modalOpen,
+    selectAdjacentPageForReading,
+    workspacePanelRef,
+  ]);
 }
 
 function useWorkspaceWheelHandler(
@@ -134,7 +154,10 @@ function useWorkspaceWheelHandler(
     currentChapterRef,
     modalOpen,
     workspacePanelRef,
-  }: UsePageNavigationHandlersOptions,
+  }: Pick<
+    UsePageNavigationHandlersOptions,
+    "currentChapterRef" | "modalOpen" | "workspacePanelRef"
+  >,
   selectAdjacentPageForReading: SelectAdjacentPageForReading,
   lastWheelNavigationAtRef: MutableRefObject<number>,
 ): (event: WheelEvent) => void {
@@ -217,7 +240,10 @@ function resolveKeyboardNavigationForEvent(
     currentChapterRef,
     modalOpen,
     workspacePanelRef,
-  }: UsePageNavigationHandlersOptions,
+  }: Pick<
+    UsePageNavigationHandlersOptions,
+    "currentChapterRef" | "modalOpen" | "workspacePanelRef"
+  >,
 ): ReturnType<typeof resolveKeyboardPageNavigation> {
   const activeElement =
     typeof document !== "undefined" ? document.activeElement : null;

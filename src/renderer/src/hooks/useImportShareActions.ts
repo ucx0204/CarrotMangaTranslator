@@ -7,13 +7,14 @@ import type {
   WorkShareExportRequest,
   WorkShareImportPreview,
 } from "../../../shared/shareTypes";
-import { formatErrorMessage } from "../lib/appHelpers";
+import { formatErrorMessage } from "../lib/errorPresentation";
 import type {
   ImportModalSubmit,
   TranslateSourceMode,
 } from "../lib/importFlowTypes";
 import type { ShareImportModalSubmit } from "../lib/shareImportTypes";
-import { mangaGateway } from "../api/mangaGateway";
+import { analysisGateway } from "../api/analysisGateway";
+import { libraryGateway as mangaGateway } from "../api/libraryGateway";
 
 type ImportPreviewMode = TranslateSourceMode | "zip-folder";
 
@@ -357,7 +358,7 @@ async function runImportedBatchAnalysis({
 }): Promise<void> {
   for (const chapterId of chapterIds) {
     await openChapter(chapterId);
-    const runResult = await mangaGateway.startAnalysis({
+    const runResult = await analysisGateway.startAnalysis({
       chapterId,
       runMode: "pending",
     });

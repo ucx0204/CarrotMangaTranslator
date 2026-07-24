@@ -17,12 +17,6 @@ import {
   type GemmaModelPresetId,
 } from "../../../shared/modelPresets";
 
-export {
-  MIN_CONTEXT_TOKENS,
-  MAX_MAX_TOKENS,
-  MIN_MAX_TOKENS,
-} from "../../../shared/modelPresets";
-
 const MODEL_PRESET_COPY: Record<
   GemmaModelPresetId,
   { labelKey: string; descriptionKey: string }

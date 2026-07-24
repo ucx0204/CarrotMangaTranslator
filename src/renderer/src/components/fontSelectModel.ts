@@ -16,8 +16,8 @@ export type FontOption = FontLibrary["options"][number];
 export type FontSelectModel = {
   activeIndex: number;
   busy: boolean;
-  customIds: Set<string>;
-  favoriteIds: Set<string>;
+  customIds: ReadonlySet<string>;
+  favoriteIds: ReadonlySet<string>;
   disabled: boolean;
   onAddFont: () => void;
   onListKeyDown: (event: React.KeyboardEvent) => void;
@@ -27,7 +27,7 @@ export type FontSelectModel = {
   onToggleFavorite: (id: string) => void;
   onTriggerKeyDown: (event: React.KeyboardEvent) => void;
   open: boolean;
-  options: FontOption[];
+  options: readonly FontOption[];
   selected: FontOption;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 };
@@ -54,15 +54,9 @@ export function useFontSelectModel({
   disabled = false,
   onChange,
 }: FontSelectProps): FontSelectModelResult {
-  const {
-    options,
-    customFonts,
-    preferences,
-    registerFont,
-    removeFont,
-    savePreferences,
-    busy,
-  } = useFonts();
+  const { catalog, options, registerFont, removeFont, savePreferences, busy } =
+    useFonts();
+  const { customFonts, preferences } = catalog;
   const customIds = React.useMemo(
     () => new Set(customFonts.map((font) => font.id)),
     [customFonts],
@@ -93,6 +87,7 @@ export function useFontSelectModel({
     disabled,
     onChange,
     options,
+    catalog,
     registerFont,
     removeFont,
     preferences,
@@ -125,6 +120,7 @@ function useFontSelectHandlers({
   disabled,
   onChange,
   options,
+  catalog,
   registerFont,
   removeFont,
   preferences,
@@ -136,20 +132,21 @@ function useFontSelectHandlers({
   close: () => void;
   disabled: boolean;
   onChange: FontSelectProps["onChange"];
-  options: FontOption[];
+  options: readonly FontOption[];
+  catalog: FontLibrary["catalog"];
   registerFont: FontLibrary["registerFont"];
   removeFont: FontLibrary["removeFont"];
-  preferences: FontLibrary["preferences"];
+  preferences: FontLibrary["catalog"]["preferences"];
   savePreferences: FontLibrary["savePreferences"];
   setActiveIndex: React.Dispatch<React.SetStateAction<number>>;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }): FontSelectHandlers {
   const commit = React.useCallback(
     (id: string) => {
-      onChange(normalizeBlockFontFamily(id));
+      onChange(normalizeBlockFontFamily(id, catalog));
       close();
     },
-    [onChange, close],
+    [catalog, onChange, close],
   );
   const onTriggerKeyDown = React.useCallback(
     (event: React.KeyboardEvent) => {
@@ -195,7 +192,7 @@ function useFontSelectHandlers({
 }
 
 function useFavoriteToggle(
-  preferences: FontLibrary["preferences"],
+  preferences: FontLibrary["catalog"]["preferences"],
   savePreferences: FontLibrary["savePreferences"],
 ): (id: string) => void {
   const { t } = useTranslation("components");
@@ -208,8 +205,9 @@ function useFavoriteToggle(
         favorites.add(id);
       }
       void savePreferences({
-        ...preferences,
         favoriteIds: [...favorites],
+        orderedIds: [...preferences.orderedIds],
+        defaultFontId: preferences.defaultFontId,
       }).catch((error) => {
         console.error(error);
         toast.error(t("fontManager.saveFailed"));
@@ -241,7 +239,7 @@ function useCloseOnOutsidePointer(
 
 function useSelectedFontIndex(
   open: boolean,
-  options: FontOption[],
+  options: readonly FontOption[],
   selectedId: string,
   setActiveIndex: React.Dispatch<React.SetStateAction<number>>,
 ): void {

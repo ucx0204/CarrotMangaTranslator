@@ -10,6 +10,11 @@ const { tmpdir } = require("node:os");
 const { delimiter, join } = require("node:path");
 const { spawnSync } = require("node:child_process");
 const { patchCandleMetalQMatMul } = require("./patch-candle-metal-qmatmul.cjs");
+const {
+  createCudaRootCandidates,
+  createFluxCargoInvocation,
+  createFluxKleinBuildPlan,
+} = require("./flux-klein-build-plan.cjs");
 
 /**
  * @typedef {{ outDir: string; outExe: string }} BuildAlias
@@ -21,15 +26,20 @@ const root = join(__dirname, "..");
 const manifestPath = join(root, "tools", "mgt-flux-klein-runner", "Cargo.toml");
 const runnerDirName = "mgt-flux-klein";
 const runnerExeName = "mgt-flux-klein.exe";
-const outDir = join(root, "tools", runnerDirName);
-const outExe = join(outDir, runnerExeName);
 const cargoTargetDir =
   process.env.MGT_FLUX_KLEIN_TARGET_DIR ||
   join(tmpdir(), "mgt-flux-klein-target");
 const cudaRoot = process.env.MGT_FLUX_KLEIN_CUDA_ROOT || findCudaRoot();
 const forceRebuild = process.env.MGT_FORCE_REBUILD_FLUX_RUNNER === "1";
 /** @type {BuildTarget[]} */
-const buildPlan = resolveBuildPlan();
+const buildPlan = createFluxKleinBuildPlan({
+  root,
+  cargoTargetDir,
+  computeCaps: process.env.MGT_FLUX_KLEIN_COMPUTE_CAPS,
+  singleComputeCap: process.env.CUDA_COMPUTE_CAP,
+  runnerDirName,
+  runnerExeName,
+});
 
 if (
   !forceRebuild &&
@@ -55,7 +65,7 @@ if (!existsSync(manifestPath)) {
 patchCandleMetalQMatMul({ cwd: root, manifestPath });
 patchKoharuFluxSources();
 for (const entry of buildPlan) {
-  runCargo(["build", "--release", "--manifest-path", manifestPath], entry);
+  runCargo(entry);
   const builtExe = join(entry.cargoTargetDir, "release", runnerExeName);
   if (!isUsableFile(builtExe)) {
     console.error(`Flux runner build did not produce ${builtExe}`);
@@ -75,109 +85,23 @@ for (const entry of buildPlan) {
 }
 
 /**
- * @param {string[]} args
  * @param {BuildTarget} buildTarget
  */
-function runCargo(args, buildTarget) {
+function runCargo(buildTarget) {
   const msvcBin = process.platform === "win32" ? findMsvcClBin() : null;
-  const pathParts = [
-    cudaRoot ? join(cudaRoot, "bin") : null,
-    msvcBin,
-    process.env.PATH ?? "",
-  ].filter(
-    (candidate) => typeof candidate === "string" && candidate.length > 0,
-  );
   if (buildTarget.computeCap) {
     console.log(`CUDA_COMPUTE_CAP=${buildTarget.computeCap}`);
   }
-  run("cargo", args, {
-    CARGO_TARGET_DIR: buildTarget.cargoTargetDir,
-    LLAMA_CPP_TAG: "b-mgt-unused",
-    RUSTFLAGS: buildRustFlags(),
-    ...(buildTarget.computeCap
-      ? {
-          CUDA_COMPUTE_CAP: buildTarget.computeCap,
-        }
-      : {}),
-    ...(cudaRoot
-      ? {
-          CUDA_PATH: cudaRoot,
-          CUDA_HOME: cudaRoot,
-          CUDA_ROOT: cudaRoot,
-          CUDACXX: join(cudaRoot, "bin", "nvcc.exe"),
-        }
-      : {}),
-    PATH: pathParts.join(delimiter),
+  const invocation = createFluxCargoInvocation({
+    manifestPath,
+    buildTarget,
+    cudaRoot,
+    msvcBin,
+    rustFlags: buildRustFlags(),
+    basePath: process.env.PATH ?? "",
+    pathDelimiter: delimiter,
   });
-}
-
-/** @returns {BuildTarget[]} */
-function resolveBuildPlan() {
-  const requestedCaps = parseComputeCaps(
-    process.env.MGT_FLUX_KLEIN_COMPUTE_CAPS,
-  );
-  if (requestedCaps.length > 0) {
-    return requestedCaps.map((computeCap, index) =>
-      makeBuildTarget(computeCap, index === 0 ? [{ outDir, outExe }] : []),
-    );
-  }
-
-  const singleComputeCap = normalizeComputeCap(process.env.CUDA_COMPUTE_CAP);
-  if (singleComputeCap) {
-    return [makeBuildTarget(singleComputeCap, [{ outDir, outExe }])];
-  }
-
-  return [
-    {
-      computeCap: null,
-      cargoTargetDir,
-      outDir,
-      outExe,
-      aliases: [],
-    },
-  ];
-}
-
-/**
- * @param {string} computeCap
- * @param {BuildAlias[]} aliases
- * @returns {BuildTarget}
- */
-function makeBuildTarget(computeCap, aliases) {
-  const dirName = `${runnerDirName}-sm${computeCap}`;
-  return {
-    computeCap,
-    cargoTargetDir: join(cargoTargetDir, `sm${computeCap}`),
-    outDir: join(root, "tools", dirName),
-    outExe: join(root, "tools", dirName, runnerExeName),
-    aliases,
-  };
-}
-
-/**
- * @param {unknown} value
- * @returns {string[]}
- */
-function parseComputeCaps(value) {
-  return String(value ?? "")
-    .split(/[,\s;]+/)
-    .map(normalizeComputeCap)
-    .filter((cap) => typeof cap === "string")
-    .filter((cap, index, values) => values.indexOf(cap) === index);
-}
-
-/**
- * @param {unknown} value
- * @returns {string | null}
- */
-function normalizeComputeCap(value) {
-  const normalized = String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/^sm[_-]?/, "")
-    .replace(/^compute[_-]?/, "")
-    .replace(/\./g, "");
-  return /^\d{2,3}$/.test(normalized) ? normalized : null;
+  run(invocation.command, invocation.args, invocation.env);
 }
 
 /**
@@ -265,66 +189,7 @@ function findMsvcClBin() {
 
 /** @returns {string | null} */
 function findCudaRoot() {
-  const rawCandidates = [
-    process.env.CUDA_PATH_V12_9,
-    join(
-      "C:",
-      "Program Files",
-      "NVIDIA GPU Computing Toolkit",
-      "CUDA",
-      "v12.9",
-    ),
-    process.env.CUDA_PATH_V12_8,
-    join(
-      "C:",
-      "Program Files",
-      "NVIDIA GPU Computing Toolkit",
-      "CUDA",
-      "v12.8",
-    ),
-    process.env.CUDA_PATH_V12_6,
-    join(
-      "C:",
-      "Program Files",
-      "NVIDIA GPU Computing Toolkit",
-      "CUDA",
-      "v12.6",
-    ),
-    ...(process.env.MGT_FLUX_ALLOW_LEGACY_CUDA_BUILD === "1"
-      ? [
-          process.env.CUDA_PATH_V12_4,
-          join(
-            "C:",
-            "Program Files",
-            "NVIDIA GPU Computing Toolkit",
-            "CUDA",
-            "v12.4",
-          ),
-          process.env.CUDA_PATH,
-          process.env.CUDA_HOME,
-        ]
-      : []),
-    ...(process.env.MGT_FLUX_ALLOW_CUDA13_BUILD === "1"
-      ? [
-          process.env.CUDA_PATH_V13_1,
-          join(
-            "C:",
-            "Program Files",
-            "NVIDIA GPU Computing Toolkit",
-            "CUDA",
-            "v13.1",
-          ),
-          process.env.CUDA_PATH_V13_0,
-          join(
-            "C:",
-            "Program Files",
-            "NVIDIA GPU Computing Toolkit",
-            "CUDA",
-            "v13.0",
-          ),
-        ]
-      : []),
-  ];
+  const rawCandidates = createCudaRootCandidates(process.env);
   /** @type {string[]} */
   const candidates = [];
   for (const candidate of rawCandidates) {

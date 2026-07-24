@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { MangaApi } from "../src/shared/mangaApi";
 import type { UiLocale } from "../src/shared/uiLocales";
+import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import { uiLocaleGateway } from "../src/renderer/src/api/uiLocaleGateway";
 
 afterEach(() => {
@@ -20,13 +20,13 @@ describe("uiLocaleGateway", () => {
   it("supports the partial locale bridge used by renderer tests", async () => {
     let listener: ((locale: UiLocale) => void) | undefined;
     const unsubscribe = vi.fn();
-    const api = {
+    const api = createTestMangaGatewayStub({
       getUiLocale: vi.fn().mockResolvedValue("ja"),
       onUiLocaleChanged: vi.fn((callback: (locale: UiLocale) => void) => {
         listener = callback;
         return unsubscribe;
       }),
-    } as unknown as MangaApi;
+    });
     vi.stubGlobal("window", { mangaApi: api });
 
     await expect(uiLocaleGateway.getUiLocale()).resolves.toBe("ja");

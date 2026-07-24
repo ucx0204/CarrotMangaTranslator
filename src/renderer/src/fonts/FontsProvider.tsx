@@ -6,53 +6,45 @@ import type {
   FontPreferences,
 } from "../../../shared/libraryTypes";
 import { normalizeUiLocale } from "../../../shared/uiLocales";
-import { mangaGateway } from "../api/mangaGateway";
+import { fontGateway as mangaGateway } from "../api/fontGateway";
 import {
-  DEFAULT_FONT_PREFERENCES,
+  createBlockFontCatalog,
+  DEFAULT_BLOCK_FONT_CATALOG,
   getBaseBlockFontOptions,
   getBlockFontOptions,
-  setCustomFontOptions,
-  setFontPreferences,
+  type BlockFontCatalog,
 } from "../lib/fonts";
 import { FontsContext, type FontsContextValue } from "./fontsContextValue";
 
-const STYLE_ELEMENT_ID = "mgt-custom-fonts";
-
-function injectCustomFontFaces(fonts: CustomFont[]): void {
-  let style = document.getElementById(
-    STYLE_ELEMENT_ID,
-  ) as HTMLStyleElement | null;
-  if (!style) {
-    style = document.createElement("style");
-    style.id = STYLE_ELEMENT_ID;
-    document.head.appendChild(style);
-  }
-  style.textContent = fonts
-    .map(
-      (font) =>
-        `@font-face { font-family: "${font.family}"; src: url("mgt-font://${font.id}"); font-display: swap; }`,
-    )
-    .join("\n");
-}
+export type FontLibrarySource = Pick<
+  typeof mangaGateway,
+  | "getFontLibrary"
+  | "onFontLibraryChanged"
+  | "registerCustomFont"
+  | "removeCustomFont"
+  | "saveFontPreferences"
+>;
 
 export function FontsProvider({
   children,
+  source = mangaGateway,
 }: {
   children: React.ReactNode;
+  source?: FontLibrarySource;
 }): React.JSX.Element {
   const { i18n, t } = useTranslation("renderer");
   const uiLocale = normalizeUiLocale(i18n.resolvedLanguage ?? i18n.language);
-  const library = useFontLibraryState();
-  const actions = useFontLibraryActions(library);
+  const library = useFontLibraryState(source);
+  const actions = useFontLibraryActions(library, source);
+  useCustomFontFaces(library.catalog.customFonts);
   const value = React.useMemo<FontsContextValue>(
     () => ({
-      customFonts: library.customFonts,
-      preferences: library.preferences,
-      baseOptions: getBaseBlockFontOptions(t, uiLocale, library.preferences),
-      options: getBlockFontOptions(t, uiLocale, library.preferences),
+      catalog: library.catalog,
+      baseOptions: getBaseBlockFontOptions(library.catalog, t, uiLocale),
+      options: getBlockFontOptions(library.catalog, t, uiLocale),
       ...actions,
     }),
-    [actions, library.customFonts, library.preferences, t, uiLocale],
+    [actions, library.catalog, t, uiLocale],
   );
 
   return (
@@ -61,63 +53,57 @@ export function FontsProvider({
 }
 
 type FontLibraryState = {
-  customFonts: CustomFont[];
-  preferences: FontPreferences;
+  catalog: BlockFontCatalog;
   apply: (snapshot: FontLibrarySnapshot) => void;
   refresh: () => Promise<void>;
 };
 
-function useFontLibraryState(): FontLibraryState {
-  const [customFonts, setFonts] = React.useState<CustomFont[]>([]);
-  const [preferences, setPreferences] = React.useState<FontPreferences>({
-    ...DEFAULT_FONT_PREFERENCES,
-  });
+function useFontLibraryState(source: FontLibrarySource): FontLibraryState {
+  const [catalog, setCatalog] = React.useState<BlockFontCatalog>(
+    DEFAULT_BLOCK_FONT_CATALOG,
+  );
   const apply = React.useCallback((snapshot: FontLibrarySnapshot) => {
-    setCustomFontOptions(snapshot.customFonts);
-    setFontPreferences(snapshot.preferences);
-    injectCustomFontFaces(snapshot.customFonts);
-    setFonts(snapshot.customFonts);
-    setPreferences(snapshot.preferences);
+    setCatalog(
+      createBlockFontCatalog(snapshot.customFonts, snapshot.preferences),
+    );
   }, []);
   const refresh = React.useCallback(async (): Promise<void> => {
-    apply(await loadFontLibrarySnapshot());
-  }, [apply]);
-  useFontLibrarySubscription(apply);
-  return { apply, customFonts, preferences, refresh };
+    apply(await source.getFontLibrary());
+  }, [apply, source]);
+  useFontLibrarySubscription(source, apply);
+  return { apply, catalog, refresh };
 }
 
 function useFontLibrarySubscription(
+  source: FontLibrarySource,
   apply: (snapshot: FontLibrarySnapshot) => void,
 ): void {
   React.useEffect(() => {
     let cancelled = false;
-    void loadFontLibrarySnapshot()
+    void source
+      .getFontLibrary()
       .then((snapshot) => {
         if (!cancelled) {
           apply(snapshot);
         }
       })
       .catch((error) => console.error(error));
-    const unsubscribe =
-      typeof mangaGateway.onFontLibraryChanged === "function"
-        ? mangaGateway.onFontLibraryChanged((snapshot) => {
-            if (!cancelled) {
-              apply(snapshot);
-            }
-          })
-        : undefined;
+    const unsubscribe = source.onFontLibraryChanged((snapshot) => {
+      if (!cancelled) {
+        apply(snapshot);
+      }
+    });
     return () => {
       cancelled = true;
-      unsubscribe?.();
+      unsubscribe();
     };
-  }, [apply]);
+  }, [apply, source]);
 }
 
-function useFontLibraryActions({
-  apply,
-  customFonts,
-  refresh,
-}: FontLibraryState): Pick<
+function useFontLibraryActions(
+  { apply, refresh }: FontLibraryState,
+  source: FontLibrarySource,
+): Pick<
   FontsContextValue,
   "busy" | "registerFont" | "removeFont" | "savePreferences"
 > {
@@ -125,7 +111,7 @@ function useFontLibraryActions({
   const registerFont = React.useCallback(async () => {
     setBusy(true);
     try {
-      const added = await mangaGateway.registerCustomFont();
+      const added = await source.registerCustomFont();
       if (added) {
         await refresh();
       }
@@ -134,54 +120,61 @@ function useFontLibraryActions({
     } finally {
       setBusy(false);
     }
-  }, [refresh]);
+  }, [refresh, source]);
 
   const removeFont = React.useCallback(
     async (id: string) => {
       setBusy(true);
       try {
-        const remaining = await mangaGateway.removeCustomFont(id);
-        if (typeof mangaGateway.getFontLibrary === "function") {
-          await refresh();
-        } else {
-          apply({
-            customFonts: remaining,
-            preferences: DEFAULT_FONT_PREFERENCES,
-          });
-        }
+        await source.removeCustomFont(id);
+        await refresh();
       } catch (error) {
         console.error(error);
       } finally {
         setBusy(false);
       }
     },
-    [apply, refresh],
+    [refresh, source],
   );
 
   const savePreferences = React.useCallback(
     async (nextPreferences: FontPreferences) => {
       setBusy(true);
       try {
-        if (typeof mangaGateway.saveFontPreferences !== "function") {
-          apply({ customFonts, preferences: nextPreferences });
-          return;
-        }
-        apply(await mangaGateway.saveFontPreferences(nextPreferences));
+        apply(await source.saveFontPreferences(nextPreferences));
       } finally {
         setBusy(false);
       }
     },
-    [apply, customFonts],
+    [apply, source],
   );
-  return { busy, registerFont, removeFont, savePreferences };
+  return React.useMemo(
+    () => ({ busy, registerFont, removeFont, savePreferences }),
+    [busy, registerFont, removeFont, savePreferences],
+  );
 }
 
-async function loadFontLibrarySnapshot(): Promise<FontLibrarySnapshot> {
-  if (typeof mangaGateway.getFontLibrary === "function") {
-    return mangaGateway.getFontLibrary();
-  }
-  return {
-    customFonts: await mangaGateway.listCustomFonts(),
-    preferences: DEFAULT_FONT_PREFERENCES,
-  };
+function useCustomFontFaces(fonts: readonly Readonly<CustomFont>[]): void {
+  const styleRef = React.useRef<HTMLStyleElement | null>(null);
+  React.useEffect(() => {
+    const style = document.createElement("style");
+    style.dataset.mgtCustomFonts = "";
+    document.head.appendChild(style);
+    styleRef.current = style;
+    return () => {
+      style.remove();
+      styleRef.current = null;
+    };
+  }, []);
+  React.useEffect(() => {
+    if (!styleRef.current) {
+      return;
+    }
+    styleRef.current.textContent = fonts
+      .map(
+        (font) =>
+          `@font-face { font-family: "${font.family}"; src: url("mgt-font://${font.id}"); font-display: swap; }`,
+      )
+      .join("\n");
+  }, [fonts]);
 }

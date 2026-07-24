@@ -13,7 +13,7 @@ import {
   resolveFluxPythonWorkerFile,
 } from "./pythonRuntimeLayout";
 import { sha256FileSync } from "./fileProbe";
-import type { FluxWorkerLaunchSpec } from "../fluxWorker";
+import type { FluxWorkerLaunchSpec } from "../fluxWorkerTypes";
 import {
   ensureMissingFluxPythonRuntime,
   type FluxPythonExpectedMarker,

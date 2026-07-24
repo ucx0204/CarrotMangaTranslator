@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 const { spawnSync } = require("node:child_process");
+const {
+  createWindowsThinDistributionPlan,
+  shouldBuildFluxNvidiaRunners,
+  shouldUseDistributionShell,
+} = require("./windows-thin-dist-plan.cjs");
 
-const withFluxNvidia =
-  process.argv.includes("--with-flux-nvidia") ||
-  process.env.MGT_BUILD_FLUX_NVIDIA_RUNNERS === "1";
+const withFluxNvidia = shouldBuildFluxNvidiaRunners(process.argv, process.env);
 
 /**
  * @param {string} command
@@ -13,7 +16,11 @@ const withFluxNvidia =
 function run(command, args, extraEnv = {}) {
   const result = spawnSync(command, args, {
     stdio: "inherit",
-    shell: process.platform === "win32" && command !== process.execPath,
+    shell: shouldUseDistributionShell(
+      command,
+      process.execPath,
+      process.platform,
+    ),
     env: {
       ...process.env,
       MGT_THIN_INSTALLER: "1",
@@ -29,17 +36,11 @@ function run(command, args, extraEnv = {}) {
   }
 }
 
-if (withFluxNvidia) {
-  run(process.execPath, ["scripts/prepare-flux-klein-runner.cjs"], {
-    MGT_FLUX_KLEIN_COMPUTE_CAPS:
-      process.env.MGT_FLUX_KLEIN_COMPUTE_CAPS || "75,80,86,89,90,120",
-    MGT_FORCE_REBUILD_FLUX_RUNNER:
-      process.env.MGT_FORCE_REBUILD_FLUX_RUNNER || "1",
-  });
-}
-
-run("npm", ["run", "build"]);
-run(process.execPath, ["scripts/build-windows-installer.cjs"], {
-  MGT_BUNDLE_FLUX_NVIDIA_RUNNERS: withFluxNvidia ? "1" : "0",
+const distributionPlan = createWindowsThinDistributionPlan({
+  nodeCommand: process.execPath,
+  withFluxNvidia,
+  env: process.env,
 });
-run(process.execPath, ["scripts/verify-packaged-runtime.cjs"]);
+for (const invocation of distributionPlan) {
+  run(invocation.command, invocation.args, invocation.env);
+}

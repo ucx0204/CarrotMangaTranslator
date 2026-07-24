@@ -22,6 +22,7 @@ import {
   resolveNeighborImageTargets,
   resolveSelectedPage,
   resolveWorkspaceImageDataUrl,
+  type NeighborImageTarget,
 } from "./appSessionSelectors";
 
 type UseAppSessionDerivedStateArgs = {
@@ -78,6 +79,10 @@ export function useAppSessionDerivedState({
     selectedPageOriginalImageDataUrlPageId,
   });
   const progressState = useProgressState(jobState);
+  const regionSelectionRect = useMemo(
+    () => resolveRegionSelectionRect(regionSelection),
+    [regionSelection],
+  );
 
   return {
     ...pageState,
@@ -85,7 +90,7 @@ export function useAppSessionDerivedState({
     ...workspaceState,
     clearPageImageCache,
     inpaintingToolActive: inpaintingTool !== "none",
-    regionSelectionRect: resolveRegionSelectionRect(regionSelection),
+    regionSelectionRect,
     selectedPageEditLocked: resolveSelectedPageEditLocked(
       progressState.jobActive,
       pageState.selectedPage,
@@ -120,16 +125,25 @@ function useSelectedPageState({
       selectedPage ? (patternMaskStrokesByPage[selectedPage.id] ?? []) : [],
     [patternMaskStrokesByPage, selectedPage],
   );
-  const neighborTargets = useMemo(
-    () => resolveNeighborImageTargets(currentChapter?.pages, selectedPage),
-    [currentChapter?.pages, selectedPage],
-  );
-  const selectedBlock =
-    selectedPage?.blocks.find((block) => block.id === selectedBlockId) ?? null;
-  const effectiveSelectedBlockIds = resolveEffectiveSelectedBlockIds(
+  const resolvedNeighborTargets = resolveNeighborImageTargets(
+    currentChapter?.pages,
     selectedPage,
-    selectedBlockId,
-    selectedBlockIds,
+  );
+  const neighborTargets = useStableNeighborTargets(resolvedNeighborTargets);
+  const selectedBlock = useMemo(
+    () =>
+      selectedPage?.blocks.find((block) => block.id === selectedBlockId) ??
+      null,
+    [selectedBlockId, selectedPage],
+  );
+  const effectiveSelectedBlockIds = useMemo(
+    () =>
+      resolveEffectiveSelectedBlockIds(
+        selectedPage,
+        selectedBlockId,
+        selectedBlockIds,
+      ),
+    [selectedBlockId, selectedBlockIds, selectedPage],
   );
 
   return {
@@ -143,6 +157,41 @@ function useSelectedPageState({
     selectedPageImagePath:
       selectedPage?.inpaintedImagePath ?? selectedPage?.imagePath ?? null,
   };
+}
+
+function useStableNeighborTargets(
+  targets: NeighborImageTarget[],
+): NeighborImageTarget[] {
+  const firstPageId = targets[0]?.pageId ?? null;
+  const firstImagePath = targets[0]?.imagePath ?? null;
+  const secondPageId = targets[1]?.pageId ?? null;
+  const secondImagePath = targets[1]?.imagePath ?? null;
+  return useMemo(
+    () =>
+      createNeighborTargets(
+        firstPageId,
+        firstImagePath,
+        secondPageId,
+        secondImagePath,
+      ),
+    [firstImagePath, firstPageId, secondImagePath, secondPageId],
+  );
+}
+
+function createNeighborTargets(
+  firstPageId: string | null,
+  firstImagePath: string | null,
+  secondPageId: string | null,
+  secondImagePath: string | null,
+): NeighborImageTarget[] {
+  const targets: NeighborImageTarget[] = [];
+  if (firstPageId && firstImagePath) {
+    targets.push({ pageId: firstPageId, imagePath: firstImagePath });
+  }
+  if (secondPageId && secondImagePath) {
+    targets.push({ pageId: secondPageId, imagePath: secondImagePath });
+  }
+  return targets;
 }
 
 /**

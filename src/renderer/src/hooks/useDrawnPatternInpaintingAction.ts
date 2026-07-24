@@ -1,8 +1,8 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { mangaGateway } from "../api/mangaGateway";
-import { formatErrorMessage } from "../lib/appHelpers";
+import { inpaintingGateway as mangaGateway } from "../api/inpaintingGateway";
+import { formatErrorMessage } from "../lib/errorPresentation";
 import { captureWorkspaceMaskSnapshot } from "../lib/workspaceHistory";
 import {
   failInpaintingJob,

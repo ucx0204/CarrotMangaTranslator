@@ -8,7 +8,6 @@ import {
 import { detectAppleGpuInfo } from "./appleGpuInfo";
 import type { DetectedGpuInfo } from "./gpuInfoTypes";
 
-export { buildAppleGpuInfo } from "./appleGpuInfo";
 export type { DetectedGpuInfo } from "./gpuInfoTypes";
 
 export {
@@ -18,14 +17,23 @@ export {
   resolveAmdRocmTargetFromInfo,
 } from "./amdRocmTargets";
 
-let cachedGpuInfoPromise: Promise<DetectedGpuInfo | null> | null = null;
 const WINDOWS_AMD_GPU_FIELD_SEPARATOR = "\u001f";
 
-export function detectBestGpuInfo(): Promise<DetectedGpuInfo | null> {
-  if (!cachedGpuInfoPromise) {
-    cachedGpuInfoPromise = queryBestGpuInfo();
+export class GpuInfoDetector {
+  private cachedPromise: Promise<DetectedGpuInfo | null> | null = null;
+
+  constructor(private readonly query: () => Promise<DetectedGpuInfo | null>) {}
+
+  detect(): Promise<DetectedGpuInfo | null> {
+    this.cachedPromise ??= this.query();
+    return this.cachedPromise;
   }
-  return cachedGpuInfoPromise;
+}
+
+const defaultGpuInfoDetector = new GpuInfoDetector(queryBestGpuInfo);
+
+export function detectBestGpuInfo(): Promise<DetectedGpuInfo | null> {
+  return defaultGpuInfoDetector.detect();
 }
 
 async function queryBestGpuInfo(): Promise<DetectedGpuInfo | null> {

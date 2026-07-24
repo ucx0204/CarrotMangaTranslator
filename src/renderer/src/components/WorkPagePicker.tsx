@@ -6,7 +6,8 @@ import type {
   LibraryWorkSummary,
   MangaPage,
 } from "../../../shared/libraryTypes";
-import { mangaGateway } from "../api/mangaGateway";
+import { libraryGateway as mangaGateway } from "../api/libraryGateway";
+import { useMountedRef } from "../hooks/useMountedRef";
 import type { TriState } from "../lib/translationSelection";
 import {
   PageThumb,
@@ -123,6 +124,7 @@ function useChapterPagesLoader(
   const [loading, setLoading] = React.useState<Set<string>>(() => new Set());
   const [errored, setErrored] = React.useState<Set<string>>(() => new Set());
   const requested = React.useRef<Set<string>>(new Set([currentChapter.id]));
+  const mountedRef = useMountedRef();
 
   React.useEffect(() => {
     setPages((prev) =>
@@ -131,35 +133,47 @@ function useChapterPagesLoader(
     requested.current.add(currentChapter.id);
   }, [currentChapter]);
 
-  const ensureLoaded = React.useCallback((chapterId: string) => {
-    if (requested.current.has(chapterId)) {
-      return;
-    }
-    requested.current.add(chapterId);
-    setErrored((prev) => {
-      const next = new Set(prev);
-      next.delete(chapterId);
-      return next;
-    });
-    setLoading((prev) => new Set(prev).add(chapterId));
-    void mangaGateway
-      .openChapter(chapterId)
-      .then((snapshot) => {
-        setPages((prev) => new Map(prev).set(chapterId, snapshot.pages));
-      })
-      .catch((error: unknown) => {
-        console.error(error);
-        requested.current.delete(chapterId);
-        setErrored((prev) => new Set(prev).add(chapterId));
-      })
-      .finally(() => {
-        setLoading((prev) => {
-          const next = new Set(prev);
-          next.delete(chapterId);
-          return next;
-        });
+  const ensureLoaded = React.useCallback(
+    (chapterId: string) => {
+      if (requested.current.has(chapterId)) {
+        return;
+      }
+      requested.current.add(chapterId);
+      setErrored((prev) => {
+        const next = new Set(prev);
+        next.delete(chapterId);
+        return next;
       });
-  }, []);
+      setLoading((prev) => new Set(prev).add(chapterId));
+      void mangaGateway
+        .openChapter(chapterId)
+        .then((snapshot) => {
+          if (!mountedRef.current) {
+            return;
+          }
+          setPages((prev) => new Map(prev).set(chapterId, snapshot.pages));
+        })
+        .catch((error: unknown) => {
+          if (!mountedRef.current) {
+            return;
+          }
+          console.error(error);
+          requested.current.delete(chapterId);
+          setErrored((prev) => new Set(prev).add(chapterId));
+        })
+        .finally(() => {
+          if (!mountedRef.current) {
+            return;
+          }
+          setLoading((prev) => {
+            const next = new Set(prev);
+            next.delete(chapterId);
+            return next;
+          });
+        });
+    },
+    [mountedRef],
+  );
 
   return {
     getPages: (chapterId) => pages.get(chapterId),

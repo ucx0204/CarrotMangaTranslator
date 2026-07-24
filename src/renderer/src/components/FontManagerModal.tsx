@@ -48,11 +48,11 @@ type FontManagerModel = {
   disabled: boolean;
   dragDisabled: boolean;
   draft: FontPreferences;
-  favoriteOptions: BlockFontOption[];
+  favoriteOptions: readonly BlockFontOption[];
   handleDragEnd: (event: DragEndEvent) => void;
   normalizedQuery: string;
-  orderedOptions: BlockFontOption[];
-  otherOptions: BlockFontOption[];
+  orderedOptions: readonly BlockFontOption[];
+  otherOptions: readonly BlockFontOption[];
   query: string;
   registerFont: () => Promise<void>;
   resetOrder: () => void;
@@ -66,8 +66,9 @@ type FontManagerModel = {
 
 function useFontManagerModel(onClose: () => void): FontManagerModel {
   const { t } = useTranslation("components");
-  const { baseOptions, busy, preferences, registerFont, savePreferences } =
+  const { baseOptions, busy, catalog, registerFont, savePreferences } =
     useFonts();
+  const { preferences } = catalog;
   const [draft, setDraft] = React.useState<FontPreferences>(() => ({
     favoriteIds: [...preferences.favoriteIds],
     orderedIds: [...preferences.orderedIds],
@@ -136,9 +137,9 @@ function useFontManagerModel(onClose: () => void): FontManagerModel {
 }
 
 function buildManagerOptions(
-  baseOptions: BlockFontOption[],
+  baseOptions: readonly BlockFontOption[],
   preferences: FontPreferences,
-): BlockFontOption[] {
+): readonly BlockFontOption[] {
   const designated = baseOptions.find(
     (option) => option.id === preferences.defaultFontId,
   );
@@ -157,9 +158,9 @@ function buildManagerOptions(
 }
 
 function filterFontOptions(
-  options: BlockFontOption[],
+  options: readonly BlockFontOption[],
   query: string,
-): BlockFontOption[] {
+): readonly BlockFontOption[] {
   return query
     ? options.filter((option) =>
         `${option.label} ${option.sample}`.toLocaleLowerCase().includes(query),
@@ -186,8 +187,8 @@ function useManagerDragEnd({
 }: {
   dragDisabled: boolean;
   favoriteIds: Set<string>;
-  favoriteOptions: BlockFontOption[];
-  otherOptions: BlockFontOption[];
+  favoriteOptions: readonly BlockFontOption[];
+  otherOptions: readonly BlockFontOption[];
   setDraft: React.Dispatch<React.SetStateAction<FontPreferences>>;
 }): (event: DragEndEvent) => void {
   return React.useCallback(
@@ -201,7 +202,7 @@ function useManagerDragEnd({
       if (activeIsFavorite !== favoriteIds.has(overId)) return;
       const source = activeIsFavorite ? favoriteOptions : otherOptions;
       const moved = moveItemById(
-        source,
+        [...source],
         activeId,
         overId,
         (option) => option.id,

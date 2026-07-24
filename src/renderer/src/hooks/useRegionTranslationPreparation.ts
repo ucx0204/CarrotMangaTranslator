@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { mangaGateway } from "../api/mangaGateway";
+import { inpaintingGateway as mangaGateway } from "../api/inpaintingGateway";
 
 type UseRegionTranslationPreparationOptions = {
   pushStatus: (line: string) => void;

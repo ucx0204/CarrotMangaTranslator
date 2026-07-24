@@ -9,8 +9,6 @@ import {
 import { createGatherTextProps } from "./createGatherTextProps";
 import { isWorkspaceImageReadyForSelectedPage } from "./appSessionSelectors";
 
-export type { AppSessionViewModel } from "./appSessionViewModel";
-
 export function createAppSessionViewProps(
   model: AppSessionViewModel,
 ): AppSessionViewProps {
@@ -327,8 +325,7 @@ function createWorkspaceProps({
 }: AppSessionViewModel): AppSessionViewProps["workspaceProps"] {
   return {
     ...createWorkspaceViewProps(uiState),
-    blockCreateRect: pointerHandlers.blockCreateRect,
-    dragHud: pointerHandlers.dragHud,
+    interactionPreviewStore: pointerHandlers.interactionPreviewStore,
     imageRef: core.imageRef,
     brushColor: uiState.inpaintingPaintColor,
     brushRadius: uiState.inpaintingBrushRadius,

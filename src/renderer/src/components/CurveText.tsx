@@ -5,6 +5,7 @@ import {
   type TextStyleRun,
 } from "../../../shared/richTextMarkup";
 import { resolveBlockFontFamily } from "../lib/fonts";
+import type { BlockFontCatalog } from "../lib/fonts";
 import { resolveFontWidthScale } from "../lib/blockFormatGeometry";
 import {
   layoutGlyphsOnCurve,
@@ -23,14 +24,16 @@ export function CurveText({
   block,
   curveLayout,
   displayText,
+  fontCatalog,
   layout,
 }: {
   block: TranslationBlock;
   curveLayout: CurveLayout;
   displayText: string;
+  fontCatalog: BlockFontCatalog;
   layout: BlockTextLayout;
 }): React.JSX.Element {
-  const fontFamily = resolveBlockFontFamily(block.fontFamily);
+  const fontFamily = resolveBlockFontFamily(block.fontFamily, fontCatalog);
   const glyphs = measureGlyphs(
     parseRichText(displayText, Boolean(block.bold), Boolean(block.italic)).runs,
     layout.fontSizePx,

@@ -1687,6 +1687,7 @@ dependencies = [
  "koharu-ml",
  "koharu-runtime",
  "libloading 0.8.9",
+ "runner-runtime-policy",
  "serde",
  "serde_json",
  "tokio",
@@ -2502,6 +2503,10 @@ dependencies = [
  "untrusted",
  "windows-sys 0.52.0",
 ]
+
+[[package]]
+name = "runner-runtime-policy"
+version = "0.1.0"
 
 [[package]]
 name = "rustdct"

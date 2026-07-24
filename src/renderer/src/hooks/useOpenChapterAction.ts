@@ -1,7 +1,8 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { formatErrorMessage } from "../lib/appHelpers";
-import { libraryGateway } from "./libraryGateway";
+import type { TFunction } from "i18next";
+import { formatErrorMessage } from "../lib/errorPresentation";
+import { libraryGateway } from "../api/libraryGateway";
 import type { UseLibraryActionsOptions } from "./libraryActionTypes";
 
 type OpenChapterOptions = Pick<
@@ -37,37 +38,34 @@ export function useOpenChapterAction({
   setSelectedPageId,
 }: OpenChapterOptions): (chapterId: string) => Promise<void> {
   const { t } = useTranslation("renderer");
+  const latestRequestIdRef = useRef(0);
   return useCallback(
     async (chapterId) => {
-      if (currentChapterRef.current?.id === chapterId) {
-        return;
-      }
+      const requestId = ++latestRequestIdRef.current;
+      const isLatestRequest = () => latestRequestIdRef.current === requestId;
       try {
-        if (hasPendingInpaintingMask) {
-          const confirmed = await askConfirm(
-            t("inpainting.maskDiscard.title"),
-            t("inpainting.maskDiscard.message"),
-            t("inpainting.maskDiscard.detail"),
-          );
-          if (!confirmed) {
-            return;
-          }
-        }
-        if (dirty) {
-          await saveNow();
-        }
-        const chapter = await libraryGateway.openChapter(chapterId);
-        clearDirtyTracking();
-        currentChapterRef.current = chapter;
-        resetSaveBaseline(chapter);
-        setCurrentChapter(chapter);
-        setSelectedPageId(chapter.pages[0]?.id ?? null);
-        setSelectedBlockId(null);
-        clearPendingInpaintingMasks?.();
-        onChapterOpened?.();
+        await performOpenChapterRequest({
+          askConfirm,
+          chapterId,
+          clearDirtyTracking,
+          clearPendingInpaintingMasks,
+          currentChapterRef,
+          dirty,
+          hasPendingInpaintingMask,
+          isLatestRequest,
+          onChapterOpened,
+          resetSaveBaseline,
+          saveNow,
+          setCurrentChapter,
+          setSelectedBlockId,
+          setSelectedPageId,
+          t,
+        });
       } catch (error) {
         console.error(error);
-        pushStatus(formatErrorMessage(error, t("library.openChapterFailed")));
+        if (isLatestRequest()) {
+          pushStatus(formatErrorMessage(error, t("library.openChapterFailed")));
+        }
       }
     },
     [
@@ -87,4 +85,74 @@ export function useOpenChapterAction({
       t,
     ],
   );
+}
+
+type PerformOpenChapterRequestOptions = Pick<
+  OpenChapterOptions,
+  | "askConfirm"
+  | "clearDirtyTracking"
+  | "clearPendingInpaintingMasks"
+  | "currentChapterRef"
+  | "dirty"
+  | "hasPendingInpaintingMask"
+  | "onChapterOpened"
+  | "resetSaveBaseline"
+  | "saveNow"
+  | "setCurrentChapter"
+  | "setSelectedBlockId"
+  | "setSelectedPageId"
+> & {
+  chapterId: string;
+  isLatestRequest: () => boolean;
+  t: TFunction<"renderer">;
+};
+
+async function performOpenChapterRequest(
+  options: PerformOpenChapterRequestOptions,
+): Promise<void> {
+  if (options.currentChapterRef.current?.id === options.chapterId) {
+    return;
+  }
+  if (!(await confirmPendingMaskDiscard(options))) {
+    return;
+  }
+  if (!(await saveDirtyChapter(options))) {
+    return;
+  }
+  const chapter = await libraryGateway.openChapter(options.chapterId);
+  if (!options.isLatestRequest()) {
+    return;
+  }
+  options.clearDirtyTracking();
+  options.currentChapterRef.current = chapter;
+  options.resetSaveBaseline(chapter);
+  options.setCurrentChapter(chapter);
+  options.setSelectedPageId(chapter.pages[0]?.id ?? null);
+  options.setSelectedBlockId(null);
+  options.clearPendingInpaintingMasks?.();
+  options.onChapterOpened?.();
+}
+
+async function confirmPendingMaskDiscard(
+  options: PerformOpenChapterRequestOptions,
+): Promise<boolean> {
+  if (!options.hasPendingInpaintingMask) {
+    return true;
+  }
+  const confirmed = await options.askConfirm(
+    options.t("inpainting.maskDiscard.title"),
+    options.t("inpainting.maskDiscard.message"),
+    options.t("inpainting.maskDiscard.detail"),
+  );
+  return confirmed && options.isLatestRequest();
+}
+
+async function saveDirtyChapter(
+  options: PerformOpenChapterRequestOptions,
+): Promise<boolean> {
+  if (!options.dirty) {
+    return true;
+  }
+  await options.saveNow();
+  return options.isLatestRequest();
 }

@@ -10,12 +10,15 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import {
+  createCustomFontLibrary,
+  type CustomFontLibrary,
+} from "../src/main/customFonts";
 
 const tempDirs: string[] = [];
 
 describe("custom font index validation", () => {
   afterEach(async () => {
-    vi.resetModules();
     vi.clearAllMocks();
     while (tempDirs.length > 0) {
       const dir = tempDirs.pop();
@@ -200,6 +203,21 @@ describe("custom font index validation", () => {
       defaultFontId: "default",
     });
   });
+
+  it("reports a corrupt index once and returns an empty catalog", async () => {
+    const rootDir = await createTempRoot();
+    const fontsDir = join(rootDir, "fonts");
+    await mkdir(fontsDir, { recursive: true });
+    await writeFile(join(fontsDir, "index.json"), "{broken", "utf8");
+    const reportError = vi.fn();
+    const customFonts = createTestCustomFonts(rootDir, reportError);
+
+    expect(customFonts.listCustomFonts()).toEqual([]);
+    expect(reportError).toHaveBeenCalledWith(
+      "Failed to read custom fonts index",
+      expect.any(SyntaxError),
+    );
+  });
 });
 
 async function createTempRoot(): Promise<string> {
@@ -208,19 +226,18 @@ async function createTempRoot(): Promise<string> {
   return rootDir;
 }
 
-async function loadCustomFonts(
+function loadCustomFonts(rootDir: string): Promise<CustomFontLibrary> {
+  return Promise.resolve(createTestCustomFonts(rootDir, vi.fn()));
+}
+
+function createTestCustomFonts(
   rootDir: string,
-): Promise<typeof import("../src/main/customFonts")> {
-  vi.resetModules();
-  vi.doMock("../src/main/appPaths", () => ({
-    getAppPaths: () => ({
-      fontsDir: join(rootDir, "fonts"),
-    }),
-  }));
-  vi.doMock("../src/main/logger", () => ({
-    logError: vi.fn(),
-  }));
-  return import("../src/main/customFonts");
+  reportError: (message: string, error: unknown) => void,
+): CustomFontLibrary {
+  return createCustomFontLibrary({
+    getFontsDirectory: () => join(rootDir, "fonts"),
+    reportError,
+  });
 }
 
 function makeTinyTtfBytes(): Buffer {

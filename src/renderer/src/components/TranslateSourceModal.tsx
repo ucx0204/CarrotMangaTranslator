@@ -1,7 +1,8 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { TranslateSourceMode } from "../lib/importFlowTypes";
-import { Button, Modal } from "./ui";
+import { Button } from "./ui/Button";
+import { Modal } from "./ui/Modal";
 
 type TranslateSourceModalProps = {
   busy: boolean;

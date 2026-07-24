@@ -4,9 +4,10 @@ import type {
   ChapterSnapshot,
   LibraryIndex,
 } from "../../../shared/libraryTypes";
+import { useEventCallback } from "../hooks/useEventCallback";
 import { LibraryTree } from "./LibraryTree";
 import { PageList } from "./PageList";
-import { Button } from "./ui";
+import { Button } from "./ui/Button";
 import { MacAlphaBadge } from "./MacAlphaBadge";
 
 type AppSidebarProps = {
@@ -67,6 +68,14 @@ function LibrarySidebarContent({
   settingsBusy,
   settingsOpen,
 }: AppSidebarProps): React.JSX.Element {
+  const stableOnOpenChapter = useEventCallback(onOpenChapter);
+  const stableOnRemovePage = useEventCallback(onRemovePage);
+  const stableOnRenameChapter = useEventCallback(onRenameChapter);
+  const stableOnRenameWork = useEventCallback(onRenameWork);
+  const stableOnReorderChapter = useEventCallback(onReorderChapter);
+  const stableOnReorderPage = useEventCallback(onReorderPage);
+  const stableOnRetranslatePage = useEventCallback(onRetranslatePage);
+  const stableOnSelectPage = useEventCallback(onSelectPage);
   return (
     <>
       <SidebarToolbar
@@ -86,20 +95,20 @@ function LibrarySidebarContent({
         library={library}
         currentChapterId={currentChapter?.id ?? null}
         jobActive={jobActive}
-        onOpenChapter={onOpenChapter}
-        onRenameWork={onRenameWork}
-        onRenameChapter={onRenameChapter}
-        onReorderChapter={onReorderChapter}
+        onOpenChapter={stableOnOpenChapter}
+        onRenameWork={stableOnRenameWork}
+        onRenameChapter={stableOnRenameChapter}
+        onReorderChapter={stableOnReorderChapter}
       />
 
       <PageList
         pages={currentChapter?.pages ?? []}
         selectedPageId={selectedPageId}
         jobActive={jobActive}
-        onSelect={onSelectPage}
-        onRetranslate={onRetranslatePage}
-        onRemove={onRemovePage}
-        onReorder={onReorderPage}
+        onSelect={stableOnSelectPage}
+        onRetranslate={stableOnRetranslatePage}
+        onRemove={stableOnRemovePage}
+        onReorder={stableOnReorderPage}
       />
     </>
   );

@@ -2,7 +2,10 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { loadSimplePageRuntime } from "../src/main/simplePageRuntime";
+import {
+  decodeImageThroughRuntime,
+  loadSimplePageRuntime,
+} from "../src/main/simplePageRuntime";
 
 const tempDirs: string[] = [];
 
@@ -89,5 +92,68 @@ module.exports = {
     expect(() => loadSimplePageRuntime(runtimeDir)).toThrow(
       /simple-page-translate\.cjs.*testModelReply/,
     );
+  });
+
+  it("forwards decoder cancellation to the runtime boundary", async () => {
+    const runtimeDir = writeRuntimeModule(`
+module.exports = {
+  startServer: async () => ({ baseUrl: "http://127.0.0.1", child: null, startedByScript: false }),
+  stopServer: async () => {},
+  isModelCached: () => true,
+  testModelReply: async () => ({ outputText: "", launchTarget: { launchMode: "unknown" } }),
+  convertImageToPngBufferWithFfmpeg: async (_filePath, options) =>
+    Buffer.from(options.abortSignal && options.abortSignal.aborted ? "aborted" : "active")
+};
+`);
+    const controller = new AbortController();
+    controller.abort();
+
+    const result = await decodeImageThroughRuntime(
+      runtimeDir,
+      "source.webp",
+      controller.signal,
+    );
+
+    expect(result?.toString()).toBe("aborted");
+  });
+
+  it("closes the abort race immediately after the FFmpeg process starts", async () => {
+    const { convertImageToPngBufferWithFfmpeg } =
+      require("../src/main/runtime/assets/image-source-assets.cjs") as {
+        convertImageToPngBufferWithFfmpeg: (
+          filePath: string,
+          options: { abortSignal: AbortSignal; ffmpegPath: string },
+        ) => Promise<Buffer>;
+      };
+    let listenerRegistered = false;
+    let listenerRemoved = false;
+    const signal = new AbortController().signal;
+    Object.defineProperties(signal, {
+      aborted: {
+        configurable: true,
+        get: () => listenerRegistered,
+      },
+      addEventListener: {
+        configurable: true,
+        value: () => {
+          listenerRegistered = true;
+        },
+      },
+      removeEventListener: {
+        configurable: true,
+        value: () => {
+          listenerRemoved = true;
+        },
+      },
+    });
+
+    await expect(
+      convertImageToPngBufferWithFfmpeg("missing-image.webp", {
+        abortSignal: signal,
+        ffmpegPath: process.execPath,
+      }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(listenerRegistered).toBe(true);
+    expect(listenerRemoved).toBe(true);
   });
 });

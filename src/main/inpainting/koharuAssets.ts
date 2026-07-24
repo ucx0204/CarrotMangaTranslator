@@ -5,15 +5,12 @@ import type {
   InpaintingModel,
   KoharuInpaintingBackend,
 } from "../../shared/inpaintingSettingsTypes";
-import { ensureFluxZludaSupportRuntime } from "./fluxAssets";
+import { FLUX_CUDA_RUNTIME_DIR } from "./fluxAssets/constants";
+import { ensureFluxCudaRuntime } from "./fluxAssets/cudaRuntime";
+import { ensureRemoteFile, hfResolveUrl } from "./fluxAssets/downloads";
+import { createCombinedDownloadProgress } from "./fluxAssets/progress";
+import { ensureFluxZludaSupportRuntime } from "./fluxAssets/zludaRuntime";
 import { tMain } from "./localization";
-import {
-  createCombinedDownloadProgress,
-  ensureFluxCudaRuntime,
-  ensureRemoteFile,
-  FLUX_CUDA_RUNTIME_DIR,
-  hfResolveUrl,
-} from "./fluxAssets";
 import { logInpaintingRuntimeInfo } from "./inpaintingRuntimeLogger";
 import type { InpaintingRuntimeProgress } from "./inpaintingEngine";
 import type { KoharuWorkerLaunchSpec } from "./koharuWorkerTypes";

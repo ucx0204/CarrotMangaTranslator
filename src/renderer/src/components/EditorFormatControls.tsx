@@ -7,7 +7,7 @@ import { BlockSpacingFields } from "./BlockSpacingFields";
 import { FontSizeNumberInput } from "./FontSizeNumberInput";
 import { FontSelect } from "./FontSelect";
 import { FormatBatchApplyModal } from "./FormatBatchApplyModal";
-import type { FormatApplyScope } from "../hooks/useBlockEditingActions";
+import type { FormatApplyScope } from "../hooks/blockEditingStatus";
 import { Button } from "./ui/Button";
 import { FieldSlider, FieldSliderGroup } from "./ui/FieldSlider";
 import { IconButton } from "./ui/IconButton";

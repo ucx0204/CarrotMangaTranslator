@@ -1,5 +1,12 @@
-import type { ChapterSnapshot } from "../../../shared/libraryTypes";
+import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { BlockCounts } from "../inpainting/inpaintingTypes";
+
+type PageInpaintingStats = {
+  inpainted: boolean;
+  targetBlockCount: number;
+};
+
+const pageStatsCache = new WeakMap<MangaPage, PageInpaintingStats>();
 
 export function countChapterBlocks(
   chapter: ChapterSnapshot | null,
@@ -10,16 +17,14 @@ export function countChapterBlocks(
   }
   return chapter.pages.reduce<BlockCounts>(
     (counts, page) => {
-      const targetBlocks = page.blocks.filter(
-        (block) => !block.inpaintExcluded,
-      ).length;
-      counts.total += targetBlocks;
+      const stats = resolvePageInpaintingStats(page);
+      counts.total += stats.targetBlockCount;
       if (page.id === selectedPageId) {
-        counts.selectedPage = targetBlocks;
+        counts.selectedPage = stats.targetBlockCount;
       }
-      if (!page.inpaintedImagePath && targetBlocks > 0) {
+      if (!stats.inpainted && stats.targetBlockCount > 0) {
         counts.pendingPages += 1;
-        counts.pendingTotal += targetBlocks;
+        counts.pendingTotal += stats.targetBlockCount;
       }
       return counts;
     },
@@ -29,7 +34,24 @@ export function countChapterBlocks(
 
 export function countInpaintedPages(chapter: ChapterSnapshot | null): number {
   return (
-    chapter?.pages.filter((page) => Boolean(page.inpaintedImagePath)).length ??
-    0
+    chapter?.pages.reduce(
+      (count, page) =>
+        count + (resolvePageInpaintingStats(page).inpainted ? 1 : 0),
+      0,
+    ) ?? 0
   );
+}
+
+function resolvePageInpaintingStats(page: MangaPage): PageInpaintingStats {
+  const cached = pageStatsCache.get(page);
+  if (cached) return cached;
+  const stats = {
+    inpainted: Boolean(page.inpaintedImagePath),
+    targetBlockCount: page.blocks.reduce(
+      (count, block) => count + (block.inpaintExcluded ? 0 : 1),
+      0,
+    ),
+  };
+  pageStatsCache.set(page, stats);
+  return stats;
 }

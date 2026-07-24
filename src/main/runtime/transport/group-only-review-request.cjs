@@ -15,6 +15,9 @@ const {
   reviewGroupOnlyCrop,
 } = require("../semantic-ocr/group-only-review.cjs");
 const {
+  classifyGroupOnlyReviewRequestFailure,
+} = require("../semantic-ocr/review-errors.cjs");
+const {
   buildPageReviewFingerprint,
   clearGroupOnlyPageReviewCache,
   deleteCachedPageReview,
@@ -61,28 +64,12 @@ async function requestGroupOnlyPageReview(server, options, ocr) {
 /**
  * @param {ModelServer} server
  * @param {ReviewOptions} options
- * @param {OcrBboxResult} ocr
+ * @param {OcrBboxResult} _ocr
  * @returns {Promise<PageReviewData>}
  */
-async function runPageReview(server, options, ocr) {
+async function runPageReview(server, options, _ocr) {
   const startedAt = nowMs();
-  try {
-    return await runPreparedPageReview(server, options, startedAt);
-  } catch (error) {
-    if (isAbort(error, options.abortSignal))
-      throw findAbortError(error) || error;
-    try {
-      return upstreamFallback(
-        options.ocrBboxHints,
-        startedAt,
-        "page-review-error",
-        error,
-        ocr.diagnostics,
-      );
-    } catch (fallbackError) {
-      return unavailable(startedAt, error, fallbackError);
-    }
-  }
+  return runPreparedPageReview(server, options, startedAt);
 }
 
 /**
@@ -96,12 +83,11 @@ async function runPreparedPageReview(server, options, startedAt) {
       /** @type {unknown} */ (options)
     ),
   );
-  const original = selectOriginal(
+  const source = readReviewSource(
     /** @type {ImageVariant[]} */ (prepared.imageVariants),
+    options,
   );
-  const width = positiveInteger(original?.width ?? options.imageWidth);
-  const height = positiveInteger(original?.height ?? options.imageHeight);
-  if (!original || !width || !height) {
+  if (!source) {
     return upstreamFallback(
       options.ocrBboxHints,
       startedAt,
@@ -114,11 +100,11 @@ async function runPreparedPageReview(server, options, startedAt) {
     /** @type {Parameters<typeof buildGroupReviewCropPlan>[0]} */ (
       /** @type {unknown} */ (options.ocrBboxHints)
     ),
-    width,
-    height,
+    source.width,
+    source.height,
   );
   const preparedCrops = buildGroupReviewCropImageVariants(
-    { imagePath: original.path },
+    { imagePath: source.original.path },
     plan,
   );
   if (preparedCrops.fallbackReason || preparedCrops.crops.length === 0) {
@@ -148,7 +134,9 @@ async function runPreparedPageReview(server, options, startedAt) {
           payload,
           crop.variant,
           GROUP_ONLY_REVIEW_REQUEST_VERSION,
-        ),
+        ).catch((error) => {
+          throw classifyGroupOnlyReviewRequestFailure(error);
+        }),
     );
     results.push(result);
     diagnostics.push(summarizeCrop(crop.region, result));
@@ -161,6 +149,15 @@ async function runPreparedPageReview(server, options, startedAt) {
     prepared.diagnostics,
     startedAt,
   );
+}
+
+/** @param {ImageVariant[]} variants @param {ReviewOptions} options */
+function readReviewSource(variants, options) {
+  const original = selectOriginal(variants);
+  if (!original) return null;
+  const width = positiveInteger(original.width ?? options.imageWidth);
+  const height = positiveInteger(original.height ?? options.imageHeight);
+  return width && height ? { original, width, height } : null;
 }
 
 /** @param {JsonRecord} region @param {Map<number,JsonRecord>} hintById */
@@ -319,28 +316,6 @@ function pageData(status, hints, groupCount, startedAt, details, rawResponse) {
       ...details,
     },
     rawResponse,
-  };
-}
-
-/** @param {number} startedAt @param {unknown} error @param {unknown} fallback */
-function unavailable(startedAt, error, fallback) {
-  return {
-    status: "unavailable",
-    reviewedHints: [],
-    validated: false,
-    summary: {
-      semanticGroupReviewRequestVersion: GROUP_ONLY_REVIEW_REQUEST_VERSION,
-      semanticGroupReviewStatus: "unavailable",
-      semanticGroupReviewWallMs: Math.round(nowMs() - startedAt),
-      semanticGroupReviewError: describeError(error),
-      semanticGroupReviewFallbackError: describeError(fallback),
-    },
-    rawResponse: {
-      status: "unavailable",
-      error: describeError(error),
-      fallbackError: describeError(fallback),
-      crops: [],
-    },
   };
 }
 

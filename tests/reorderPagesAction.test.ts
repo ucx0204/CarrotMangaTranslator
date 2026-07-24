@@ -4,17 +4,10 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
+import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import { useReorderPagesAction } from "../src/renderer/src/hooks/useReorderPagesAction";
 
-const { reorderPagesMock } = vi.hoisted(() => ({
-  reorderPagesMock: vi.fn(),
-}));
-
-vi.mock("../src/renderer/src/hooks/libraryGateway", () => ({
-  libraryGateway: {
-    reorderPages: reorderPagesMock,
-  },
-}));
+const reorderPagesMock = vi.fn();
 
 type Deferred<T> = {
   promise: Promise<T>;
@@ -32,11 +25,15 @@ type HarnessApi = {
 
 beforeEach(() => {
   reorderPagesMock.mockReset();
+  window.mangaApi = createTestMangaGatewayStub({
+    reorderPages: reorderPagesMock,
+  });
 });
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  Reflect.deleteProperty(window, "mangaApi");
 });
 
 describe("page reorder action", () => {

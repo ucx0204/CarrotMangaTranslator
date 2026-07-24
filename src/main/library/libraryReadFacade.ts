@@ -7,17 +7,37 @@ import {
 } from "../libraryStore/libraryAccess";
 import {
   findChapterLocation,
-  WORKS_ROOT,
   type ChapterRunPaths,
 } from "../libraryStore/libraryFiles";
-import { withLibraryRead } from "./lock";
+import { getWorksRoot } from "../libraryStore/libraryPaths";
+import { withLibraryNavigationRead } from "./lock";
 
-export async function listLibrary(): Promise<LibraryIndex> {
-  return withLibraryRead(listLibraryUnlocked);
+export const listLibrary = createListLibrary(() =>
+  withLibraryNavigationRead(listLibraryUnlocked),
+);
+
+export function createListLibrary(
+  loadLibrary: () => Promise<LibraryIndex>,
+): () => Promise<LibraryIndex> {
+  let inFlight: Promise<LibraryIndex> | null = null;
+  return () => {
+    if (inFlight) {
+      return inFlight;
+    }
+    const request = loadLibrary();
+    inFlight = request;
+    const clearIfCurrent = () => {
+      if (inFlight === request) {
+        inFlight = null;
+      }
+    };
+    void request.then(clearIfCurrent, clearIfCurrent);
+    return request;
+  };
 }
 
 export async function openChapter(chapterId: string): Promise<ChapterSnapshot> {
-  return withLibraryRead(() => openChapterUnlocked(chapterId));
+  return withLibraryNavigationRead(() => openChapterUnlocked(chapterId));
 }
 
 export async function resolvePagesForRun(
@@ -26,7 +46,7 @@ export async function resolvePagesForRun(
   pageId?: string,
   pageIds?: string[],
 ): Promise<Awaited<ReturnType<typeof resolvePagesForRunUnlocked>>> {
-  return withLibraryRead(() =>
+  return withLibraryNavigationRead(() =>
     resolvePagesForRunUnlocked(chapterId, runMode, pageId, pageIds),
   );
 }
@@ -35,13 +55,13 @@ export function getRunPaths(
   chapterId: string,
   runId: string,
 ): Promise<ChapterRunPaths> {
-  return withLibraryRead(async () => {
+  return withLibraryNavigationRead(async () => {
     const locator = await findChapterLocation(chapterId);
     if (!locator) {
       throw new Error("화를 찾지 못했습니다.");
     }
     const chapterDir = join(
-      WORKS_ROOT,
+      getWorksRoot(),
       locator.workId,
       "chapters",
       locator.chapterId,

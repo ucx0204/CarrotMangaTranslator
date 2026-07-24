@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 
+import React from "react";
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useAppSessionLifecycleEffects } from "../src/renderer/src/app/session/useAppSessionLifecycleEffects";
@@ -106,5 +107,74 @@ describe("unified workspace interaction state", () => {
     rerender({ id: "job-2", status: "running" });
     rerender({ id: "job-2", status: "failed" });
     expect(openErrorReport).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not restart unrelated lifecycle effects for job progress renders", () => {
+    const onJobStart = vi.fn();
+    const refreshLibrary = vi.fn();
+    const resetChapterScopedUi = vi.fn();
+    const { rerender } = renderHook(
+      ({ progressText }: { progressText: string }) =>
+        useAppSessionLifecycleEffects({
+          currentChapter: null,
+          jobState: {
+            id: "job-1",
+            kind: "gemma-analysis",
+            status: "running",
+            progressText,
+          },
+          onJobStart,
+          onPageChange: () => undefined,
+          openErrorReport: () => undefined,
+          refreshLibrary: () => {
+            refreshLibrary(progressText);
+          },
+          resetChapterScopedUi: () => {
+            resetChapterScopedUi(progressText);
+          },
+          selectedPageId: null,
+          setRegionSelection: () => undefined,
+          translationFlowActive: false,
+        }),
+      { initialProps: { progressText: "1%" } },
+    );
+
+    expect(refreshLibrary).toHaveBeenCalledOnce();
+    expect(resetChapterScopedUi).toHaveBeenCalledOnce();
+    expect(onJobStart).toHaveBeenCalledOnce();
+
+    rerender({ progressText: "50%" });
+    rerender({ progressText: "99%" });
+
+    expect(refreshLibrary).toHaveBeenCalledOnce();
+    expect(resetChapterScopedUi).toHaveBeenCalledOnce();
+    expect(onJobStart).toHaveBeenCalledOnce();
+  });
+
+  it("starts the initial library refresh once in development StrictMode", () => {
+    const refreshLibrary = vi.fn();
+    renderHook(
+      () =>
+        useAppSessionLifecycleEffects({
+          currentChapter: null,
+          jobState: {
+            id: "idle",
+            kind: "gemma-analysis",
+            status: "idle",
+            progressText: "",
+          },
+          onJobStart: () => undefined,
+          onPageChange: () => undefined,
+          openErrorReport: () => undefined,
+          refreshLibrary,
+          resetChapterScopedUi: () => undefined,
+          selectedPageId: null,
+          setRegionSelection: () => undefined,
+          translationFlowActive: false,
+        }),
+      { wrapper: React.StrictMode },
+    );
+
+    expect(refreshLibrary).toHaveBeenCalledOnce();
   });
 });

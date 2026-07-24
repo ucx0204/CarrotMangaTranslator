@@ -1,8 +1,9 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
+import type {
+  ChapterSnapshot,
+  LibraryIndex,
+} from "../../../shared/libraryTypes";
 import type { RenameTarget } from "../lib/libraryRenameTypes";
-import type { ChapterSnapshot, LibraryIndex } from "./hookLibraryTypes";
-
-export type { ChapterSnapshot, LibraryIndex } from "./hookLibraryTypes";
 
 type AskConfirm = (
   title: string,

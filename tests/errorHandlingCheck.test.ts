@@ -1,32 +1,78 @@
-import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+type RuleName =
+  | "promise-catch-undefined"
+  | "promise-catch-empty-block"
+  | "empty-catch-block"
+  | "implicit-catch-sentinel";
+
+type ErrorHandlingChecker = {
+  inspectSource: (
+    file: string,
+    sourceText: string,
+  ) => Array<{ file: string; line: number; rule: RuleName }>;
+  isCandidateFile: (file: string) => boolean;
+  listCandidateFiles: (repoRoot: string) => string[];
+};
+
+const require = createRequire(import.meta.url);
+const checker: ErrorHandlingChecker = require("../scripts/check-error-handling.cjs");
 const repoRoot = join(__dirname, "..");
 
 describe("error handling policy check", () => {
-  it("uses Git's file list without requiring ripgrep", () => {
-    const script = readFileSync(
-      join(repoRoot, "scripts", "check-error-handling.cjs"),
-      "utf8",
-    );
+  it.each([".cjs", ".mjs", ".js", ".ts", ".tsx"])(
+    "analyzes %s source files",
+    (extension) => {
+      expect(checker.isCandidateFile(`src/example${extension}`)).toBe(true);
+    },
+  );
 
-    expect(script).toContain('"ls-files"');
-    expect(script).toContain('"--cached"');
-    expect(script).toContain('"--others"');
-    expect(script).toContain('"--exclude-standard"');
-    expect(script).not.toMatch(/execFileSync\(\s*"rg"/u);
+  it("lists tracked and untracked source candidates through the repository", () => {
+    const files = checker.listCandidateFiles(repoRoot);
+
+    expect(files).toContain("scripts/check-error-handling.cjs");
+    expect(files).toContain("src/main/index.ts");
+    expect(files.every((file) => checker.isCandidateFile(file))).toBe(true);
   });
 
-  it("keeps the JavaScript and TypeScript candidate extensions", () => {
-    const script = readFileSync(
-      join(repoRoot, "scripts", "check-error-handling.cjs"),
-      "utf8",
-    );
-    const extensions = [".cjs", ".mjs", ".js", ".ts", ".tsx"];
+  it.each([
+    {
+      source: "task.catch(() => undefined);",
+      rule: "promise-catch-undefined",
+    },
+    {
+      source: "task.catch(() => {});",
+      rule: "promise-catch-empty-block",
+    },
+    {
+      source: "try { work(); } catch (error) {}",
+      rule: "empty-catch-block",
+    },
+    {
+      source:
+        "function run() { try { work(); } catch (error) { return null; } }",
+      rule: "implicit-catch-sentinel",
+    },
+  ] satisfies Array<{ source: string; rule: RuleName }>)(
+    "reports $rule from parsed behavior",
+    ({ source, rule }) => {
+      expect(checker.inspectSource("fixture.ts", source)).toEqual([
+        expect.objectContaining({ file: "fixture.ts", rule }),
+      ]);
+    },
+  );
 
-    for (const extension of extensions) {
-      expect(script).toContain(`"${extension}"`);
-    }
+  it("accepts an explicitly documented optional boundary", () => {
+    const source = `
+      try {
+        probeOptionalTool();
+      } catch (_error) {
+        // error-policy-allow: optional tool detection
+      }
+    `;
+
+    expect(checker.inspectSource("fixture.ts", source)).toEqual([]);
   });
 });

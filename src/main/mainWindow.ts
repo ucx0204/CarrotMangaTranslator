@@ -19,6 +19,16 @@ export type MainWindowIncidentHandlers = {
   onRendererLoadFailure?: (failure: RendererLoadFailure) => void;
 };
 
+export type MainWindowDiagnostics = {
+  error: typeof logError;
+  write: typeof writeLog;
+};
+
+const productionDiagnostics: MainWindowDiagnostics = {
+  error: logError,
+  write: writeLog,
+};
+
 export type RendererLoadTarget = {
   devRendererUrl: string | null;
   productionRendererPath: string;
@@ -55,6 +65,7 @@ export function rendererWebPreferences(): Electron.WebPreferences {
 export function applyRendererWindowGuards(
   window: BrowserWindow,
   allowedRendererUrl: string,
+  diagnostics: MainWindowDiagnostics = productionDiagnostics,
 ): void {
   window.webContents.on("console-message", (details) => {
     const level =
@@ -65,7 +76,7 @@ export function applyRendererWindowGuards(
           : details.level === "debug"
             ? "debug"
             : "info";
-    writeLog(level, "renderer console", {
+    diagnostics.write(level, "renderer console", {
       message: details.message,
       line: details.lineNumber,
       sourceId: details.sourceId,
@@ -75,7 +86,7 @@ export function applyRendererWindowGuards(
   window.webContents.on(
     "did-fail-load",
     (_event, errorCode, errorDescription, validatedURL) => {
-      logError("Renderer failed to load", {
+      diagnostics.error("Renderer failed to load", {
         errorCode,
         errorDescription,
         validatedURL,
@@ -84,7 +95,9 @@ export function applyRendererWindowGuards(
   );
 
   window.webContents.setWindowOpenHandler((details) => {
-    writeLog("warn", "Blocked renderer window open", { url: details.url });
+    diagnostics.write("warn", "Blocked renderer window open", {
+      url: details.url,
+    });
     return { action: "deny" };
   });
 
@@ -93,7 +106,7 @@ export function applyRendererWindowGuards(
       return;
     }
     event.preventDefault();
-    writeLog("warn", "Blocked renderer navigation", { url });
+    diagnostics.write("warn", "Blocked renderer navigation", { url });
   });
 }
 
@@ -117,6 +130,7 @@ export function loadRendererIntoWindow(
 
 export function createMainWindow(
   incidentHandlers: MainWindowIncidentHandlers = {},
+  diagnostics: MainWindowDiagnostics = productionDiagnostics,
 ): BrowserWindow {
   const target = resolveRendererLoadTarget();
   const window = new BrowserWindow({
@@ -131,8 +145,8 @@ export function createMainWindow(
     webPreferences: rendererWebPreferences(),
   });
 
-  applyRendererWindowGuards(window, target.allowedRendererUrl);
-  applyMainWindowIncidentHandlers(window, incidentHandlers);
+  applyRendererWindowGuards(window, target.allowedRendererUrl, diagnostics);
+  applyMainWindowIncidentHandlers(window, incidentHandlers, diagnostics);
   if (process.platform !== "darwin") {
     window.setMenuBarVisibility(false);
   }
@@ -143,6 +157,7 @@ export function createMainWindow(
 function applyMainWindowIncidentHandlers(
   window: BrowserWindow,
   { onRendererIncident, onRendererLoadFailure }: MainWindowIncidentHandlers,
+  diagnostics: MainWindowDiagnostics,
 ): void {
   let unresponsiveTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -151,7 +166,7 @@ function applyMainWindowIncidentHandlers(
       return;
     }
     const message = `Renderer process terminated: ${details.reason} (exit ${details.exitCode})`;
-    logError("Renderer process gone", details);
+    diagnostics.error("Renderer process gone", details);
     onRendererIncident?.({
       source: "renderer-process",
       summary: "Renderer process stopped unexpectedly",
@@ -163,7 +178,7 @@ function applyMainWindowIncidentHandlers(
     if (unresponsiveTimer) {
       return;
     }
-    writeLog("warn", "Renderer window became unresponsive");
+    diagnostics.write("warn", "Renderer window became unresponsive");
     unresponsiveTimer = setTimeout(() => {
       unresponsiveTimer = null;
       if (window.isDestroyed()) {
@@ -182,7 +197,7 @@ function applyMainWindowIncidentHandlers(
       clearTimeout(unresponsiveTimer);
       unresponsiveTimer = null;
     }
-    writeLog("info", "Renderer window became responsive");
+    diagnostics.write("info", "Renderer window became responsive");
   });
 
   window.on("closed", () => {

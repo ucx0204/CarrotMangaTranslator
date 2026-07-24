@@ -4,7 +4,8 @@ import type { AnalysisBlockMode } from "../../../shared/analysisTypes";
 import type { UiSettings } from "../../../shared/settingsTypes";
 import { getBlockModeOptions } from "../lib/blockModeOptions";
 import { OptionRow } from "./TranslationOptionsModal";
-import { Button, Modal } from "./ui";
+import { Button } from "./ui/Button";
+import { Modal } from "./ui/Modal";
 
 export function PageRetranslateModal({
   pageName,

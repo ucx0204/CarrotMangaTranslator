@@ -1,13 +1,11 @@
-import { useCallback, useRef, type MutableRefObject } from "react";
+import { useCallback, useMemo, useRef, type MutableRefObject } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
-import type { BBox } from "../../../shared/textTypes";
-import { isUsableRegionBbox } from "../../../shared/region";
-import { mangaGateway } from "../api/mangaGateway";
-import { formatErrorMessage } from "../lib/appHelpers";
+import { analysisGateway as mangaGateway } from "../api/analysisGateway";
+import { formatErrorMessage } from "../lib/errorPresentation";
 import { markChapterPagesRunning } from "../lib/chapterSync";
-import { toast } from "../lib/toastStore";
+import type { NotificationPort } from "../lib/notificationPort";
 import type { ChapterRunSelection } from "../lib/translationSelection";
 import {
   runSelectionsSequentially,
@@ -22,11 +20,8 @@ import type {
 } from "./translationActionTypes";
 import {
   failAnalysisJob,
-  handleTranslateRegionResult,
   makeStartAnalysisRequest,
-  mergeTranslatedRegionResult,
   refreshLibraryWithWarning,
-  regionTranslationStartingState,
   reportRefreshLibraryFailure,
   resolveStartOutcome,
   runSecondTranslationPass,
@@ -34,19 +29,38 @@ import {
   startingJobState,
 } from "./translationActionUtils";
 import { useRunAnalysisAction } from "./useRunAnalysisAction";
+import { useTranslateSelectedRegionAction } from "./useTranslateSelectedRegionAction";
 
 type FlowActiveRef = MutableRefObject<boolean>;
+type AnalysisJobContext = Pick<
+  UseTranslationActionsOptions,
+  | "beforeTranslate"
+  | "clearStatusLines"
+  | "currentChapter"
+  | "currentChapterRef"
+  | "mergeLiveChapter"
+  | "pushStatus"
+  | "refreshLibrary"
+  | "saveNow"
+  | "setCurrentChapter"
+  | "setJobState"
+> & {
+  notificationPort: NotificationPort;
+  t: TFunction<"renderer">;
+};
 export { reportRefreshLibraryFailure };
 
 export function useTranslationActionsImpl(
   options: UseTranslationActionsOptions,
+  notificationPort: NotificationPort,
 ): TranslationActions {
   const flowActiveRef = useRef(false);
-  const executeAnalysisJob = useExecuteAnalysisJob(options);
+  const executeAnalysisJob = useExecuteAnalysisJob(options, notificationPort);
   const runTranslationFlow = useRunTranslationFlowAction({
     ...options,
     executeAnalysisJob,
     flowActiveRef,
+    notificationPort,
   });
   const runAnalysis = useRunAnalysisAction({
     currentChapter: options.currentChapter,
@@ -59,83 +73,52 @@ export function useTranslationActionsImpl(
     analysisScopeDefault: options.analysisScopeDefault ?? "missing",
     blockModeDefault: options.blockModeDefault ?? "auto",
   });
-  const translateSelectedRegion = useTranslateSelectedRegionAction(options);
+  const translateSelectedRegion = useTranslateSelectedRegionAction(
+    options,
+    notificationPort,
+  );
 
   return { runAnalysis, runTranslationFlow, translateSelectedRegion };
 }
 
-function useExecuteAnalysisJob({
-  beforeTranslate,
-  clearStatusLines,
-  currentChapter,
-  currentChapterRef,
-  mergeLiveChapter,
-  pushStatus,
-  refreshLibrary,
-  saveNow,
-  setCurrentChapter,
-  setJobState,
-}: UseTranslationActionsOptions): ExecuteAnalysisJob {
+function useExecuteAnalysisJob(
+  {
+    beforeTranslate,
+    clearStatusLines,
+    currentChapter,
+    currentChapterRef,
+    mergeLiveChapter,
+    pushStatus,
+    refreshLibrary,
+    saveNow,
+    setCurrentChapter,
+    setJobState,
+  }: UseTranslationActionsOptions,
+  notificationPort: NotificationPort,
+): ExecuteAnalysisJob {
   const { t } = useTranslation("renderer");
-  return useCallback<ExecuteAnalysisJob>(
-    async (job) => {
-      const openChapterId = currentChapter?.id;
-      const targetChapterId = job.chapterId ?? openChapterId;
-      if (!targetChapterId) {
-        return "no-op";
-      }
-      const isOpenChapter = targetChapterId === openChapterId;
-      try {
-        if (isOpenChapter) {
-          await saveNow();
-        }
-        await beforeTranslate?.();
-        clearStatusLines();
-        setJobState(startingJobState(t));
-        markOpenChapterRunning({
-          currentChapter: isOpenChapter ? currentChapter : null,
-          currentChapterRef,
-          pageId: job.pageId,
-          pageIds: job.pageIds,
-          runMode: job.runMode,
-          setCurrentChapter,
-        });
-
-        const result = await mangaGateway.startAnalysis(
-          makeStartAnalysisRequest(
-            targetChapterId,
-            {
-              runMode: job.runMode,
-              pageId: job.pageId,
-              pageIds: job.pageIds,
-              blockMode: job.blockMode,
-              collectPageContext: job.collectPageContext,
-            },
-            t,
-          ),
-        );
-        if (result.chapter && result.chapter.id === openChapterId) {
-          mergeLiveChapter(result.chapter);
-        }
-        await refreshLibraryWithWarning(refreshLibrary, pushStatus, t);
-        return resolveStartOutcome(result, setJobState, pushStatus, t);
-      } catch (error) {
-        console.error(error);
-        failAnalysisJob(
-          setJobState,
-          pushStatus,
-          t("translation.errors.jobFailedTitle"),
-          formatErrorMessage(error, t("translation.errors.startFailed")),
-        );
-        return "failed";
-      }
-    },
-    [
-      clearStatusLines,
+  const context = useMemo<AnalysisJobContext>(
+    () => ({
       beforeTranslate,
+      clearStatusLines,
       currentChapter,
       currentChapterRef,
       mergeLiveChapter,
+      notificationPort,
+      pushStatus,
+      refreshLibrary,
+      saveNow,
+      setCurrentChapter,
+      setJobState,
+      t,
+    }),
+    [
+      beforeTranslate,
+      clearStatusLines,
+      currentChapter,
+      currentChapterRef,
+      mergeLiveChapter,
+      notificationPort,
       pushStatus,
       refreshLibrary,
       saveNow,
@@ -144,6 +127,71 @@ function useExecuteAnalysisJob({
       t,
     ],
   );
+  return useCallback<ExecuteAnalysisJob>(
+    (job) => executeAnalysisJob(job, context),
+    [context],
+  );
+}
+
+async function executeAnalysisJob(
+  job: Parameters<ExecuteAnalysisJob>[0],
+  context: AnalysisJobContext,
+): Promise<RunAnalysisOutcome> {
+  const openChapterId = context.currentChapter?.id;
+  const targetChapterId = job.chapterId ?? openChapterId;
+  if (!targetChapterId) return "no-op";
+  const isOpenChapter = targetChapterId === openChapterId;
+  try {
+    if (isOpenChapter) await context.saveNow();
+    await context.beforeTranslate?.();
+    context.clearStatusLines();
+    context.setJobState(startingJobState(context.t));
+    markOpenChapterRunning({
+      currentChapter: isOpenChapter ? context.currentChapter : null,
+      currentChapterRef: context.currentChapterRef,
+      pageId: job.pageId,
+      pageIds: job.pageIds,
+      runMode: job.runMode,
+      setCurrentChapter: context.setCurrentChapter,
+    });
+    const result = await mangaGateway.startAnalysis(
+      makeStartAnalysisRequest(
+        targetChapterId,
+        {
+          runMode: job.runMode,
+          pageId: job.pageId,
+          pageIds: job.pageIds,
+          blockMode: job.blockMode,
+          collectPageContext: job.collectPageContext,
+        },
+        context.t,
+      ),
+    );
+    if (result.chapter && result.chapter.id === openChapterId) {
+      context.mergeLiveChapter(result.chapter);
+    }
+    await refreshLibraryWithWarning(
+      context.refreshLibrary,
+      context.pushStatus,
+      context.t,
+      context.notificationPort,
+    );
+    return resolveStartOutcome(
+      result,
+      context.setJobState,
+      context.pushStatus,
+      context.t,
+    );
+  } catch (error) {
+    console.error(error);
+    failAnalysisJob(
+      context.setJobState,
+      context.pushStatus,
+      context.t("translation.errors.jobFailedTitle"),
+      formatErrorMessage(error, context.t("translation.errors.startFailed")),
+    );
+    return "failed";
+  }
 }
 
 function markOpenChapterRunning({
@@ -184,9 +232,11 @@ function useRunTranslationFlowAction({
   saveNow,
   setFlowActive,
   setJobState,
+  notificationPort,
 }: UseTranslationActionsOptions & {
   executeAnalysisJob: ExecuteAnalysisJob;
   flowActiveRef: FlowActiveRef;
+  notificationPort: NotificationPort;
 }): TranslationActions["runTranslationFlow"] {
   const { t } = useTranslation("renderer");
   return useCallback(
@@ -210,6 +260,7 @@ function useRunTranslationFlowAction({
           refreshLibrary,
           setJobState,
           t,
+          notificationPort,
         });
       } finally {
         flowActiveRef.current = false;
@@ -221,6 +272,7 @@ function useRunTranslationFlowAction({
       executeAnalysisJob,
       flowActiveRef,
       jobActive,
+      notificationPort,
       pushStatus,
       refreshLibrary,
       saveNow,
@@ -240,6 +292,7 @@ async function runTranslationFlowPasses({
   refreshLibrary,
   setJobState,
   t,
+  notificationPort,
 }: {
   chapterId: string;
   selection: ChapterRunSelection[];
@@ -249,6 +302,7 @@ async function runTranslationFlowPasses({
   refreshLibrary: UseTranslationActionsOptions["refreshLibrary"];
   setJobState: UseTranslationActionsOptions["setJobState"];
   t: TFunction<"renderer">;
+  notificationPort: NotificationPort;
 }): Promise<RunAnalysisOutcome> {
   const pass1 = await runSelectionsSequentially(
     executeAnalysisJob,
@@ -263,7 +317,7 @@ async function runTranslationFlowPasses({
     return pass1;
   }
   if (options.workflowMode !== "two-pass") {
-    toast.success(t("translation.flow.completed"));
+    notificationPort.success(t("translation.flow.completed"));
     return "completed";
   }
   const contextReady = await runWorkContextAnalysis({
@@ -273,6 +327,7 @@ async function runTranslationFlowPasses({
     refreshLibrary,
     setJobState,
     t,
+    notificationPort,
   });
   if (!contextReady) {
     return "failed";
@@ -283,85 +338,6 @@ async function runTranslationFlowPasses({
     pushStatus,
     options.blockMode,
     t,
-  );
-}
-
-function useTranslateSelectedRegionAction({
-  beforeTranslate,
-  clearStatusLines,
-  currentChapter,
-  currentChapterRef,
-  jobActive,
-  mergeLiveChapter,
-  pushStatus,
-  refreshLibrary,
-  saveNow,
-  selectedPage,
-  setJobState,
-  setSelectedBlockId,
-  syncSavedPageVersion,
-}: UseTranslationActionsOptions): TranslationActions["translateSelectedRegion"] {
-  const { t } = useTranslation("renderer");
-  return useCallback(
-    async (bbox: BBox) => {
-      if (!currentChapter || !selectedPage || jobActive) {
-        return;
-      }
-      if (!isUsableRegionBbox(bbox, 10)) {
-        return void pushStatus(t("regionTranslation.tooSmall"));
-      }
-
-      try {
-        await saveNow();
-        clearStatusLines();
-        setJobState(regionTranslationStartingState(t));
-        await beforeTranslate?.();
-        const result = await mangaGateway.translateRegion({
-          chapterId: currentChapter.id,
-          pageId: selectedPage.id,
-          bbox,
-        });
-        mergeTranslatedRegionResult(result, {
-          currentChapterRef,
-          mergeLiveChapter,
-          selectedPageId: selectedPage.id,
-          syncSavedPageVersion,
-        });
-        await refreshLibraryWithWarning(refreshLibrary, pushStatus, t);
-        handleTranslateRegionResult(
-          result,
-          {
-            pushStatus,
-            setJobState,
-            setSelectedBlockId,
-          },
-          t,
-        );
-      } catch (error) {
-        console.error(error);
-        failAnalysisJob(
-          setJobState,
-          pushStatus,
-          t("regionTranslation.failedTitle"),
-          formatErrorMessage(error, t("regionTranslation.startFailed")),
-        );
-      }
-    },
-    [
-      beforeTranslate,
-      clearStatusLines,
-      currentChapter,
-      currentChapterRef,
-      jobActive,
-      mergeLiveChapter,
-      pushStatus,
-      refreshLibrary,
-      saveNow,
-      selectedPage,
-      setJobState,
-      setSelectedBlockId,
-      syncSavedPageVersion,
-      t,
-    ],
+    notificationPort,
   );
 }

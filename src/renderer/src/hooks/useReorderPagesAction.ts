@@ -1,11 +1,12 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { formatErrorMessage, reorderByTarget } from "../lib/appHelpers";
-import { libraryGateway } from "./libraryGateway";
+import type { ChapterSnapshot } from "../../../shared/libraryTypes";
+import { reorderByTarget } from "../lib/appHelpers";
+import { formatErrorMessage } from "../lib/errorPresentation";
+import { libraryGateway } from "../api/libraryGateway";
 import type {
   ApplyChapterAction,
-  ChapterSnapshot,
   UseLibraryActionsOptions,
 } from "./libraryActionTypes";
 import { isSameStringOrder, reorderChapterPages } from "./libraryOrderHelpers";

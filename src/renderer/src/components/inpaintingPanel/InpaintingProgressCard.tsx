@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { JobState } from "../../../../shared/jobTypes";
 import type { ProgressSnapshot } from "../../lib/jobProgress";
 import { useEtaText } from "../../hooks/useEtaText";
-import { Button } from "../ui";
+import { Button } from "../ui/Button";
 
 type InpaintingProgressCardProps = {
   jobState: JobState;

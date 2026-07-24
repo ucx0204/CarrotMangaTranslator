@@ -1,6 +1,9 @@
 import { useCallback } from "react";
+import type {
+  ChapterSnapshot,
+  LibraryIndex,
+} from "../../../shared/libraryTypes";
 import type { RenameTarget } from "../lib/libraryRenameTypes";
-import type { ChapterSnapshot, LibraryIndex } from "./libraryActionTypes";
 
 type RenameTargetStateOptions = {
   currentChapter: ChapterSnapshot | null;

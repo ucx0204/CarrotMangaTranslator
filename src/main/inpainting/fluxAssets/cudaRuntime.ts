@@ -19,11 +19,6 @@ import {
   readNvidiaRedistPackage,
 } from "./downloads";
 
-export {
-  ensureManagedFluxRunner,
-  resolveFluxRunnerDirForComputeCapability,
-} from "./runner";
-
 type EnsureFluxCudaRuntimeOptions = {
   runtimeDir: string;
   signal?: AbortSignal;

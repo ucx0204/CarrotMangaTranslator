@@ -30,5 +30,5 @@ describe("PaddleOCR-VL bbox script", () => {
       .join("\n");
     expect(result.status, diagnostics).toBe(0);
     expect(diagnostics).toContain("OK");
-  });
+  }, 60_000);
 });

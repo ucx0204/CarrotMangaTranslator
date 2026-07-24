@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type MutableRefObject,
@@ -8,42 +9,27 @@ import {
 import {
   clearWorkspaceHistory,
   emptyWorkspaceHistory,
+  hasSameVisibleWorkspaceHistoryState,
   peekWorkspaceHistory,
   recordWorkspaceHistory,
   replayWorkspaceHistory,
   resolveWorkspaceChapterHistoryTarget,
   resolveWorkspaceMaskHistoryTarget,
-  type WorkspaceChapterEditHistoryEntry,
   type WorkspaceChapterEditSnapshot,
   type WorkspaceHistoryDirection,
   type WorkspaceHistoryEntry,
   type WorkspaceHistoryApplyOutcome,
   type WorkspaceHistoryState,
-  type WorkspaceImageEditHistoryEntry,
-  type WorkspaceMaskEditHistoryEntry,
   type WorkspaceMaskSnapshot,
 } from "../lib/workspaceHistory";
-
-type HistoryRecordMetadata = {
-  label: string;
-  mergeKey?: string;
-  time?: number;
-};
-
-type RecordWorkspaceChapterEdit = HistoryRecordMetadata & {
-  before: WorkspaceChapterEditSnapshot;
-  after: WorkspaceChapterEditSnapshot;
-};
-
-type RecordWorkspaceMaskEdit = HistoryRecordMetadata & {
-  before: WorkspaceMaskSnapshot;
-  after: WorkspaceMaskSnapshot;
-};
-
-type RecordWorkspaceImageEdit = Omit<HistoryRecordMetadata, "mergeKey"> & {
-  transactionId: string;
-  mask?: WorkspaceImageEditHistoryEntry["mask"];
-};
+import {
+  createChapterHistoryEntry,
+  createImageHistoryEntry,
+  createMaskHistoryEntry,
+  type RecordWorkspaceChapterEdit,
+  type RecordWorkspaceImageEdit,
+  type RecordWorkspaceMaskEdit,
+} from "./workspaceHistoryEntries";
 
 type ApplyWorkspaceImageTransaction = (request: {
   direction: WorkspaceHistoryDirection;
@@ -57,12 +43,12 @@ export type UseWorkspaceHistoryOptions = {
   applyMaskSnapshot: (snapshot: WorkspaceMaskSnapshot) => void;
   applyImageTransaction: ApplyWorkspaceImageTransaction;
   releaseImageTransactions?: (transactionIds: string[]) => void | Promise<void>;
-  onReplayError?: (
+  onReplayError: (
     error: unknown,
     entry: WorkspaceHistoryEntry,
     direction: WorkspaceHistoryDirection,
   ) => void;
-  onReleaseError?: (error: unknown) => void;
+  onReleaseError: (error: unknown) => void;
   maxEntries?: number;
   coalesceMs?: number;
 };
@@ -120,17 +106,34 @@ export function useWorkspaceHistory({
   const undoEntry = peekWorkspaceHistory(store.state, "undo");
   const redoEntry = peekWorkspaceHistory(store.state, "redo");
 
-  return {
-    ...recorders,
-    undo: replay.undo,
-    redo: replay.redo,
-    reset: store.reset,
-    canUndo: Boolean(undoEntry),
-    canRedo: Boolean(redoEntry),
-    undoLabel: undoEntry?.label ?? null,
-    redoLabel: redoEntry?.label ?? null,
-    busy: replay.busy,
-  };
+  const canUndo = Boolean(undoEntry);
+  const canRedo = Boolean(redoEntry);
+  const undoLabel = undoEntry?.label ?? null;
+  const redoLabel = redoEntry?.label ?? null;
+  return useMemo(
+    () => ({
+      ...recorders,
+      undo: replay.undo,
+      redo: replay.redo,
+      reset: store.reset,
+      canUndo,
+      canRedo,
+      undoLabel,
+      redoLabel,
+      busy: replay.busy,
+    }),
+    [
+      canRedo,
+      canUndo,
+      recorders,
+      redoLabel,
+      replay.busy,
+      replay.redo,
+      replay.undo,
+      store.reset,
+      undoLabel,
+    ],
+  );
 }
 
 type ReleaseTransactions = (transactionIds: string[]) => void;
@@ -149,10 +152,10 @@ function useTransactionRelease(
     if (transactionIds.length === 0 || !releaseRef.current) return;
     try {
       void Promise.resolve(releaseRef.current(transactionIds)).catch((error) =>
-        errorRef.current?.(error),
+        errorRef.current(error),
       );
     } catch (error) {
-      errorRef.current?.(error);
+      errorRef.current(error);
     }
   }, []);
 }
@@ -205,11 +208,21 @@ function useWorkspaceHistoryStore({
         }
         return false;
       }
-      const result = recordWorkspaceHistory(stateRef.current, entry, {
+      const previous = stateRef.current;
+      const result = recordWorkspaceHistory(previous, entry, {
         coalesceMs,
         maxEntries,
       });
-      publish(result.state);
+      if (
+        result.coalesced &&
+        hasSameVisibleWorkspaceHistoryState(previous, result.state)
+      ) {
+        // Coalescing still replaces the latest "after" snapshot and timestamp.
+        // Keep replay state current without rerendering unchanged undo/redo UI.
+        stateRef.current = result.state;
+      } else {
+        publish(result.state);
+      }
       releaseTransactions(result.releasedTransactionIds);
       return true;
     },
@@ -253,18 +266,23 @@ function useWorkspaceHistoryRecorders(
 > {
   const recordChapterEdit = useCallback(
     (input: RecordWorkspaceChapterEdit) =>
-      recordEntry(createChapterEntry(input)),
+      recordEntry(createChapterHistoryEntry(input)),
     [recordEntry],
   );
   const recordMaskEdit = useCallback(
-    (input: RecordWorkspaceMaskEdit) => recordEntry(createMaskEntry(input)),
+    (input: RecordWorkspaceMaskEdit) =>
+      recordEntry(createMaskHistoryEntry(input)),
     [recordEntry],
   );
   const recordImageEdit = useCallback(
-    (input: RecordWorkspaceImageEdit) => recordEntry(createImageEntry(input)),
+    (input: RecordWorkspaceImageEdit) =>
+      recordEntry(createImageHistoryEntry(input)),
     [recordEntry],
   );
-  return { recordChapterEdit, recordMaskEdit, recordImageEdit };
+  return useMemo(
+    () => ({ recordChapterEdit, recordMaskEdit, recordImageEdit }),
+    [recordChapterEdit, recordImageEdit, recordMaskEdit],
+  );
 }
 
 type EntryApplier = (
@@ -346,7 +364,7 @@ function useWorkspaceHistoryReplay({
         publish(result.state);
         return result.outcome === "applied";
       } catch (error) {
-        onReplayError?.(error, entry, direction);
+        onReplayError(error, entry, direction);
         return false;
       } finally {
         busyRef.current = false;
@@ -358,55 +376,4 @@ function useWorkspaceHistoryReplay({
   const undo = useCallback(() => runReplay("undo"), [runReplay]);
   const redo = useCallback(() => runReplay("redo"), [runReplay]);
   return { busy, undo, redo };
-}
-
-function createChapterEntry(
-  input: RecordWorkspaceChapterEdit,
-): WorkspaceChapterEditHistoryEntry {
-  return {
-    kind: "chapter-edit",
-    id: createHistoryEntryId(),
-    label: input.label,
-    mergeKey: input.mergeKey,
-    time: input.time ?? Date.now(),
-    before: input.before,
-    after: input.after,
-  };
-}
-
-function createMaskEntry(
-  input: RecordWorkspaceMaskEdit,
-): WorkspaceMaskEditHistoryEntry {
-  return {
-    kind: "mask-edit",
-    id: createHistoryEntryId(),
-    label: input.label,
-    mergeKey: input.mergeKey,
-    time: input.time ?? Date.now(),
-    before: input.before,
-    after: input.after,
-  };
-}
-
-function createImageEntry(
-  input: RecordWorkspaceImageEdit,
-): WorkspaceImageEditHistoryEntry {
-  return {
-    kind: "image-edit",
-    id: createHistoryEntryId(),
-    label: input.label,
-    time: input.time ?? Date.now(),
-    transactionId: input.transactionId,
-    mask: input.mask,
-  };
-}
-
-let fallbackHistoryId = 0;
-
-function createHistoryEntryId(): string {
-  if (typeof globalThis.crypto?.randomUUID === "function") {
-    return globalThis.crypto.randomUUID();
-  }
-  fallbackHistoryId += 1;
-  return `workspace-history-${Date.now()}-${fallbackHistoryId}`;
 }

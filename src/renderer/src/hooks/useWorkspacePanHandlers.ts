@@ -1,4 +1,10 @@
-import { useCallback, useRef, type PointerEvent, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  type PointerEvent,
+  type RefObject,
+} from "react";
 import {
   capturePointerSafely,
   releasePointerCaptureSafely,
@@ -10,6 +16,9 @@ type UseWorkspacePanHandlersOptions = {
 };
 
 type PanState = {
+  frameId: number | null;
+  latestClientX: number;
+  latestClientY: number;
   pointerId: number;
   startClientX: number;
   startClientY: number;
@@ -27,6 +36,7 @@ export function useWorkspacePanHandlers({
   startPan: (event: PointerEvent) => boolean;
 } {
   const panRef = useRef<PanState | null>(null);
+  usePanCleanup(panRef, stageRef);
 
   const startPan = useCallback(
     (event: PointerEvent) => {
@@ -36,6 +46,9 @@ export function useWorkspacePanHandlers({
         return false;
       }
       panRef.current = {
+        frameId: null,
+        latestClientX: event.clientX,
+        latestClientY: event.clientY,
         pointerId: event.pointerId,
         startClientX: event.clientX,
         startClientY: event.clientY,
@@ -56,9 +69,16 @@ export function useWorkspacePanHandlers({
       if (!pan || !panel) {
         return false;
       }
-      panel.scrollLeft =
-        pan.startScrollLeft - (event.clientX - pan.startClientX);
-      panel.scrollTop = pan.startScrollTop - (event.clientY - pan.startClientY);
+      pan.latestClientX = event.clientX;
+      pan.latestClientY = event.clientY;
+      if (pan.frameId === null) {
+        pan.frameId = requestAnimationFrame(() => {
+          const active = panRef.current;
+          if (!active) return;
+          active.frameId = null;
+          applyPanPosition(active, workspacePanelRef.current);
+        });
+      }
       return true;
     },
     [workspacePanelRef],
@@ -69,15 +89,49 @@ export function useWorkspacePanHandlers({
       if (!panRef.current) {
         return false;
       }
+      const pan = panRef.current;
+      pan.latestClientX = event.clientX;
+      pan.latestClientY = event.clientY;
+      if (pan.frameId !== null) {
+        cancelAnimationFrame(pan.frameId);
+        pan.frameId = null;
+      }
+      applyPanPosition(pan, workspacePanelRef.current);
       panRef.current = null;
-      releasePointerCaptureSafely(stageRef.current, event.pointerId);
+      releasePointerCaptureSafely(stageRef.current, pan.pointerId);
       if (stageRef.current) {
         stageRef.current.style.cursor = "";
       }
       return true;
     },
-    [stageRef],
+    [stageRef, workspacePanelRef],
   );
 
   return { onPanPointerMove, onPanPointerUp, startPan };
+}
+
+function usePanCleanup(
+  panRef: RefObject<PanState | null>,
+  stageRef: RefObject<HTMLDivElement | null>,
+): void {
+  useEffect(
+    () => () => {
+      const pan = panRef.current;
+      if (pan?.frameId !== null && pan?.frameId !== undefined) {
+        cancelAnimationFrame(pan.frameId);
+      }
+      if (pan) {
+        releasePointerCaptureSafely(stageRef.current, pan.pointerId);
+      }
+      panRef.current = null;
+    },
+    [panRef, stageRef],
+  );
+}
+
+function applyPanPosition(pan: PanState, panel: HTMLElement | null): void {
+  if (!panel) return;
+  panel.scrollLeft =
+    pan.startScrollLeft - (pan.latestClientX - pan.startClientX);
+  panel.scrollTop = pan.startScrollTop - (pan.latestClientY - pan.startClientY);
 }

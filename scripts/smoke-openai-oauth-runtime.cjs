@@ -1,8 +1,15 @@
 const { pathToFileURL } = require("node:url");
 
-async function main() {
-  const runtimePath = process.argv[2];
-  const nativeImportModulePath = process.argv[3];
+/**
+ * @param {string} runtimePath
+ * @param {string} nativeImportModulePath
+ * @param {{ log?: (message: string) => void }} [options]
+ */
+async function smokeOpenAiOauthRuntime(
+  runtimePath,
+  nativeImportModulePath,
+  options = {},
+) {
   if (!runtimePath || !nativeImportModulePath) {
     throw new Error(
       "OAuth runtime path and packaged native import module path are required.",
@@ -34,13 +41,29 @@ async function main() {
     ) {
       throw new Error("Packaged OAuth runtime returned an invalid server.");
     }
-    console.log(`packaged-oauth-runtime-ok ${server.url}`);
+    options.log?.(`packaged-oauth-runtime-ok ${server.url}`);
+    return {
+      port: server.port,
+      url: server.url,
+    };
   } finally {
     await server.close();
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+async function main() {
+  await smokeOpenAiOauthRuntime(process.argv[2], process.argv[3], {
+    log: (message) => console.log(message),
+  });
+}
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {
+  smokeOpenAiOauthRuntime,
+};

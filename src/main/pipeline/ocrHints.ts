@@ -25,7 +25,7 @@ import { tMain } from "./localization";
 const OCR_HINT_CACHE_SCHEMA_VERSION = 9;
 
 type PrepareOcrHintsOptions = {
-  runtime: TranslationRuntimePort;
+  runtime: Pick<TranslationRuntimePort, "collectOcrHintsBatch">;
   baseOptions: TranslationOptions;
   pages: MangaPage[];
   runPaths: ChapterRunPaths;

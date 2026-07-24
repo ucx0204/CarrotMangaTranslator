@@ -4,10 +4,8 @@ import type { TranslationBlock } from "../../../shared/textTypes";
 import type { BlockFormatGroupId } from "../../../shared/blockFormat";
 import type { TransformEditorMode } from "../../../shared/panelBridgeTypes";
 import { normalizeRenderDirection } from "../../../shared/geometry";
-import type {
-  BlockBackgroundApplyScope,
-  FormatApplyScope,
-} from "../hooks/useBlockEditingActions";
+import type { FormatApplyScope } from "../hooks/blockEditingStatus";
+import type { BlockBackgroundApplyScope } from "../hooks/useApplyBlockBackgroundOpacityAction";
 import {
   BlockActionButtons,
   BlockDisplayGroup,

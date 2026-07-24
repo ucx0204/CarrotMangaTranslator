@@ -5,7 +5,7 @@ import {
   BLOCK_FORMAT_GROUPS,
   type BlockFormatGroupId,
 } from "../../../shared/blockFormat";
-import type { FormatApplyScope } from "../hooks/useBlockEditingActions";
+import type { FormatApplyScope } from "../hooks/blockEditingStatus";
 import { formatShortcutTextForPlatform } from "../lib/shortcuts/comboFromEvent";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";

@@ -6,8 +6,6 @@ import { isSizableRetouchTool, type RetouchTool } from "../lib/stageTool";
 import { InpaintingProgressCard } from "./inpaintingPanel/InpaintingProgressCard";
 import { RetouchInpaintingStep } from "./inpaintingPanel/RetouchInpaintingStep";
 
-export { DisplayControlPanel } from "./inpaintingPanel/DisplayControlPanel";
-
 type CommonInspectorProps = {
   jobActive: boolean;
   jobState: JobState;

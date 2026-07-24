@@ -1,44 +1,15 @@
-import type { BrowserWindow } from "electron";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
-import type { InpaintingJobContext } from "../src/main/jobs/inpaintingJobTypes";
 import type {
-  InpaintingRevisionChange,
-  InpaintingRevisionStore,
-} from "../src/main/inpainting/inpaintingRevisionStore";
+  InpaintingJobContext,
+  InpaintingJobRevisionStore,
+} from "../src/main/jobs/inpaintingJobTypes";
+import type { InpaintingJobRuntime } from "../src/main/jobs/inpaintingJobRuntime";
+import type { InpaintingRevisionChange } from "../src/main/inpainting/inpaintingRevisionStore";
 import type { InpaintingEngine } from "../src/main/inpainting/inpaintingEngine";
-import type { MangaPage } from "../src/shared/libraryTypes";
-
-const mocks = vi.hoisted(() => ({
-  acquireEngine: vi.fn(),
-  inpaintPatternPage: vi.fn(),
-  openChapter: vi.fn(),
-  releaseEngine: vi.fn(),
-  runEngine: vi.fn(),
-  updatePagesAfterInpainting: vi.fn(),
-}));
-
-vi.mock("../src/main/library", () => ({
-  openChapter: mocks.openChapter,
-  updatePagesAfterInpainting: mocks.updatePagesAfterInpainting,
-}));
-vi.mock("../src/main/inpainting", () => ({
-  inpaintDrawnPatternPage: vi.fn(),
-  inpaintPatternPage: mocks.inpaintPatternPage,
-}));
-vi.mock("../src/main/inpainting/inpaintingEnginePool", () => ({
-  acquireInpaintingEngine: mocks.acquireEngine,
-}));
-vi.mock("../src/main/settingsStore", () => ({
-  getAppSettings: vi.fn(async () => ({
-    inpainting: { model: "flux-klein" },
-  })),
-}));
-vi.mock("../src/main/logger", () => ({
-  logError: vi.fn(),
-  logInfo: vi.fn(),
-  writeLog: vi.fn(),
-}));
+import type { AppPaths } from "../src/main/appPaths";
+import { resolveDefaultAppSettings } from "../src/main/appSettings";
+import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 
 const chapterAId = "11111111-1111-4111-8111-111111111111";
 const chapterBId = "22222222-2222-4222-8222-222222222222";
@@ -46,13 +17,31 @@ const pageA1Id = "33333333-3333-4333-8333-333333333333";
 const pageA2Id = "44444444-4444-4444-8444-444444444444";
 const pageB1Id = "55555555-5555-4555-8555-555555555555";
 
+type InpaintingRuntimeHarness = {
+  acquireEngine: ReturnType<
+    typeof vi.fn<InpaintingJobRuntime["acquireEngine"]>
+  >;
+  inpaintPatternPage: ReturnType<
+    typeof vi.fn<InpaintingJobRuntime["inpaintPatternPage"]>
+  >;
+  releaseEngine: ReturnType<typeof vi.fn<() => void>>;
+  runEngine: ReturnType<typeof vi.fn<InpaintingEngine["inpaint"]>>;
+  runtime: InpaintingJobRuntime;
+};
+
 describe("multi-chapter automatic inpainting jobs", () => {
   const chapters = new Map<string, ReturnType<typeof makeChapter>>();
   const revisionChanges: InpaintingRevisionChange[] = [];
-  const send = vi.fn();
+  let harness: InpaintingRuntimeHarness;
+  const send =
+    vi.fn<
+      (
+        channel: string,
+        event: import("../src/shared/jobTypes").JobEvent,
+      ) => void
+    >();
 
   beforeEach(() => {
-    vi.clearAllMocks();
     chapters.clear();
     revisionChanges.length = 0;
     chapters.set(
@@ -66,78 +55,28 @@ describe("multi-chapter automatic inpainting jobs", () => {
       chapterBId,
       makeChapter(chapterBId, "work-a", [makePage(pageB1Id, "b-1.png")]),
     );
-    mocks.openChapter.mockImplementation(async (chapterId: string) => {
-      const chapter = chapters.get(chapterId);
-      if (!chapter) {
-        throw new Error("missing chapter");
-      }
-      return chapter;
-    });
-    mocks.updatePagesAfterInpainting.mockImplementation(
-      async (chapterId: string, pages: MangaPage[]) => {
-        const chapter = chapters.get(chapterId);
-        if (!chapter) {
-          throw new Error("missing chapter");
-        }
-        const updates = new Map(pages.map((page) => [page.id, page]));
-        const saved = {
-          ...chapter,
-          pages: chapter.pages.map((page) => updates.get(page.id) ?? page),
-        };
-        chapters.set(chapterId, saved);
-        return saved;
-      },
-    );
-    mocks.inpaintPatternPage.mockImplementation(
-      async (
-        page: MangaPage,
-        options: { inpaintingEngine?: InpaintingEngine },
-      ) => {
-        await options.inpaintingEngine?.inpaint(
-          Buffer.alloc(4),
-          1,
-          1,
-          new Uint8Array(1).fill(1),
-          [{ x: 0, y: 0, w: 1, h: 1 }],
-        );
-        return {
-          page: {
-            ...page,
-            inpaintedImagePath: `${page.imagePath}.inpainted.png`,
-          },
-          blocksErased: 1,
-        };
-      },
-    );
-    mocks.runEngine.mockResolvedValue(undefined);
-    mocks.acquireEngine.mockResolvedValue({
-      engine: {
-        model: "flux-klein",
-        backend: "cuda-native",
-        runtimePath: "C:\\runtime\\flux.exe",
-        runRootDir: "C:\\runtime\\runs",
-        inpaint: mocks.runEngine,
-        dispose: vi.fn(),
-      },
-      release: mocks.releaseEngine,
-    });
+    harness = createInpaintingRuntimeHarness(chapters);
   });
 
   it("processes ordered selections with one engine lease and aggregate progress", async () => {
     const { startInpaintingJob } =
       await import("../src/main/jobs/inpaintingJobs");
-    const result = await startInpaintingJob(makeContext(send), {
-      mode: "selection-pattern",
-      workId: "work-a",
-      selections: [
-        {
-          chapterId: chapterAId,
-          mode: "page-set",
-          pageIds: [pageA2Id, pageA1Id],
-        },
-        { chapterId: chapterBId, mode: "all" },
-      ],
-    });
+    const result = await startInpaintingJob(
+      makeContext(send),
+      {
+        mode: "selection-pattern",
+        workId: "work-a",
+        selections: [
+          {
+            chapterId: chapterAId,
+            mode: "page-set",
+            pageIds: [pageA2Id, pageA1Id],
+          },
+          { chapterId: chapterBId, mode: "all" },
+        ],
+      },
+      harness.runtime,
+    );
 
     expect(result.status).toBe("completed");
     expect(result.chapter).toBeUndefined();
@@ -146,11 +85,11 @@ describe("multi-chapter automatic inpainting jobs", () => {
       chapterBId,
     ]);
     expect(result.pagesChanged).toBe(3);
-    expect(mocks.acquireEngine).toHaveBeenCalledTimes(1);
-    expect(mocks.runEngine).toHaveBeenCalledTimes(3);
-    expect(mocks.releaseEngine).toHaveBeenCalledTimes(1);
+    expect(harness.acquireEngine).toHaveBeenCalledTimes(1);
+    expect(harness.runEngine).toHaveBeenCalledTimes(3);
+    expect(harness.releaseEngine).toHaveBeenCalledTimes(1);
     expect(
-      mocks.inpaintPatternPage.mock.calls.map(([page]) => page.name),
+      harness.inpaintPatternPage.mock.calls.map(([page]) => page.name),
     ).toEqual(["a-1.png", "a-2.png", "b-1.png"]);
 
     const jobEvents = send.mock.calls.map((call) => call[1]);
@@ -203,16 +142,20 @@ describe("multi-chapter automatic inpainting jobs", () => {
     async ({ selections, error }) => {
       const { startInpaintingJob } =
         await import("../src/main/jobs/inpaintingJobs");
-      const result = await startInpaintingJob(makeContext(send), {
-        mode: "selection-pattern",
-        workId: "work-a",
-        selections,
-      });
+      const result = await startInpaintingJob(
+        makeContext(send),
+        {
+          mode: "selection-pattern",
+          workId: "work-a",
+          selections,
+        },
+        harness.runtime,
+      );
 
       expect(result.status).toBe("failed");
       expect(result.error).toMatch(error);
-      expect(mocks.acquireEngine).not.toHaveBeenCalled();
-      expect(mocks.inpaintPatternPage).not.toHaveBeenCalled();
+      expect(harness.acquireEngine).not.toHaveBeenCalled();
+      expect(harness.inpaintPatternPage).not.toHaveBeenCalled();
     },
   );
 
@@ -223,18 +166,22 @@ describe("multi-chapter automatic inpainting jobs", () => {
     );
     const { startInpaintingJob } =
       await import("../src/main/jobs/inpaintingJobs");
-    const result = await startInpaintingJob(makeContext(send), {
-      mode: "selection-pattern",
-      workId: "work-a",
-      selections: [
-        { chapterId: chapterAId, mode: "all" },
-        { chapterId: chapterBId, mode: "all" },
-      ],
-    });
+    const result = await startInpaintingJob(
+      makeContext(send),
+      {
+        mode: "selection-pattern",
+        workId: "work-a",
+        selections: [
+          { chapterId: chapterAId, mode: "all" },
+          { chapterId: chapterBId, mode: "all" },
+        ],
+      },
+      harness.runtime,
+    );
 
     expect(result.status).toBe("failed");
     expect(result.error).toMatch(/same work/);
-    expect(mocks.acquireEngine).not.toHaveBeenCalled();
+    expect(harness.acquireEngine).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -249,7 +196,7 @@ describe("multi-chapter automatic inpainting jobs", () => {
   ])(
     "returns one partial history transaction when a job is $status",
     async ({ status, error }) => {
-      mocks.inpaintPatternPage
+      harness.inpaintPatternPage
         .mockImplementationOnce(async (page: MangaPage) => ({
           page: {
             ...page,
@@ -268,6 +215,7 @@ describe("multi-chapter automatic inpainting jobs", () => {
           workId: "work-a",
           selections: [{ chapterId: chapterAId, mode: "all" }],
         },
+        harness.runtime,
       );
 
       expect(result.status).toBe(status);
@@ -279,14 +227,22 @@ describe("multi-chapter automatic inpainting jobs", () => {
         chapterId: chapterAId,
         pageId: pageA1Id,
       });
+      if (status === "failed") {
+        expect(harness.runtime.logError).toHaveBeenCalledWith(
+          "Inpainting job failed",
+          expect.objectContaining({ error }),
+        );
+      } else {
+        expect(harness.runtime.logError).not.toHaveBeenCalled();
+      }
     },
   );
 
   it("registers cleanup that waits for an active inpainting runner to settle", async () => {
-    mocks.inpaintPatternPage.mockImplementation(
-      (_page: MangaPage, options: { signal?: AbortSignal }) =>
+    harness.inpaintPatternPage.mockImplementation(
+      (_page: MangaPage, options) =>
         new Promise((_resolve, reject) => {
-          options.signal?.addEventListener(
+          options?.signal?.addEventListener(
             "abort",
             () => reject(new DOMException("Aborted", "AbortError")),
             { once: true },
@@ -296,13 +252,17 @@ describe("multi-chapter automatic inpainting jobs", () => {
     const { startInpaintingJob } =
       await import("../src/main/jobs/inpaintingJobs");
     const context = makeContext(send, revisionChanges);
-    const resultPromise = startInpaintingJob(context, {
-      mode: "selection-pattern",
-      workId: "work-a",
-      selections: [{ chapterId: chapterAId, mode: "all" }],
-    });
+    const resultPromise = startInpaintingJob(
+      context,
+      {
+        mode: "selection-pattern",
+        workId: "work-a",
+        selections: [{ chapterId: chapterAId, mode: "all" }],
+      },
+      harness.runtime,
+    );
     await vi.waitFor(() => {
-      expect(mocks.inpaintPatternPage).toHaveBeenCalled();
+      expect(harness.inpaintPatternPage).toHaveBeenCalled();
       expect(context.jobs.current?.cleanup).toBeTypeOf("function");
     });
     const job = context.jobs.current;
@@ -316,6 +276,93 @@ describe("multi-chapter automatic inpainting jobs", () => {
   });
 });
 
+function createInpaintingRuntimeHarness(
+  chapters: Map<string, ChapterSnapshot>,
+): InpaintingRuntimeHarness {
+  const runEngine = vi.fn<InpaintingEngine["inpaint"]>(async () => undefined);
+  const releaseEngine = vi.fn<() => void>();
+  const acquireEngine = vi.fn<InpaintingJobRuntime["acquireEngine"]>(
+    async () => ({
+      engine: {
+        model: "flux-klein",
+        backend: "cuda-native",
+        runtimePath: "C:\\runtime\\flux.exe",
+        runRootDir: "C:\\runtime\\runs",
+        inpaint: runEngine,
+        dispose: async () => undefined,
+      },
+      release: releaseEngine,
+    }),
+  );
+  const inpaintPatternPage = vi.fn<InpaintingJobRuntime["inpaintPatternPage"]>(
+    async (page, options) => {
+      await options?.inpaintingEngine?.inpaint(
+        Buffer.alloc(4),
+        1,
+        1,
+        new Uint8Array(1).fill(1),
+        [{ x: 0, y: 0, w: 1, h: 1 }],
+      );
+      return {
+        page: {
+          ...page,
+          inpaintedImagePath: `${page.imagePath}.inpainted.png`,
+        },
+        blocksErased: 1,
+      };
+    },
+  );
+  const settings = resolveDefaultAppSettings();
+  settings.inpainting = { model: "flux-klein" };
+  const savePages = vi.fn<InpaintingJobRuntime["savePages"]>(
+    async (chapterId, pages) => {
+      const chapter = requireChapter(chapters, chapterId);
+      const updates = new Map(pages.map((page) => [page.id, page]));
+      const saved: ChapterSnapshot = {
+        ...chapter,
+        pages: chapter.pages.map((page) => updates.get(page.id) ?? page),
+      };
+      chapters.set(chapterId, saved);
+      return saved;
+    },
+  );
+  const runtime: InpaintingJobRuntime = {
+    acquireEngine,
+    emitEvent: (jobs, mainWindow, event) => {
+      jobs.updateLastEvent(event.id, event);
+      mainWindow?.webContents.send("job:event", event);
+    },
+    getSettings: vi.fn(async () => settings),
+    inpaintDrawnPage: vi.fn(async () => {
+      throw new Error("drawn inpainting should not run");
+    }),
+    inpaintPatternPage,
+    logError: vi.fn(),
+    openChapter: vi.fn(async (chapterId) =>
+      requireChapter(chapters, chapterId),
+    ),
+    savePages,
+  };
+  return {
+    acquireEngine,
+    inpaintPatternPage,
+    releaseEngine,
+    runEngine,
+    runtime,
+  };
+}
+
+function requireChapter(
+  chapters: ReadonlyMap<string, ChapterSnapshot>,
+  chapterId: string,
+): ChapterSnapshot {
+  const chapter = chapters.get(chapterId);
+  if (!chapter) {
+    throw new Error(`missing chapter: ${chapterId}`);
+  }
+  return chapter;
+}
+
 function makePage(id: string, name: string): MangaPage {
   return {
     id,
@@ -324,7 +371,24 @@ function makePage(id: string, name: string): MangaPage {
     dataUrl: "data:image/png;base64,AA==",
     width: 100,
     height: 100,
-    blocks: [{}] as MangaPage["blocks"],
+    blocks: [
+      {
+        id: `${id}-block`,
+        type: "nonsolid",
+        bbox: { x: 0, y: 0, w: 1, h: 1 },
+        sourceText: "source",
+        translatedText: "translated",
+        confidence: 1,
+        sourceDirection: "horizontal",
+        renderDirection: "horizontal",
+        fontSizePx: 16,
+        lineHeight: 1.2,
+        textAlign: "left",
+        textColor: "#000000",
+        backgroundColor: "#ffffff",
+        opacity: 1,
+      },
+    ],
     analysisStatus: "completed",
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
@@ -348,13 +412,16 @@ function makeChapter(id: string, workId: string, pages: MangaPage[]) {
 const HISTORY_TRANSACTION_ID = "66666666-6666-4666-8666-666666666666";
 
 function makeContext(
-  send: ReturnType<typeof vi.fn>,
+  send: (
+    channel: string,
+    event: import("../src/shared/jobTypes").JobEvent,
+  ) => void,
   revisionChanges: InpaintingRevisionChange[] = [],
 ): InpaintingJobContext {
-  const mainWindow = { webContents: { send } } as unknown as BrowserWindow;
+  const mainWindow = { webContents: { send } };
   return {
-    appPaths: {} as InpaintingJobContext["appPaths"],
-    jobs: new ActiveJobStore(),
+    appPaths: makeAppPaths(),
+    jobs: new ActiveJobStore({ error: vi.fn(), info: vi.fn() }),
     getMainWindow: () => mainWindow,
     decodeImage: async () => {
       throw new Error("decode fallback should not run");
@@ -363,16 +430,36 @@ function makeContext(
   };
 }
 
+function makeAppPaths(): AppPaths {
+  return {
+    isPackaged: false,
+    repoRoot: "C:\\repo",
+    executableDir: "C:\\repo",
+    resourcesDir: "C:\\repo\\resources",
+    dataRoot: "C:\\repo",
+    settingsPath: "C:\\repo\\settings.json",
+    libraryDir: "C:\\repo\\library",
+    fontsDir: "C:\\repo\\fonts",
+    logsDir: "C:\\repo\\logs",
+    logFile: "C:\\repo\\logs\\app.log",
+    runtimeDir: "C:\\repo\\runtime",
+    toolsDir: "C:\\repo\\tools",
+    ocrRuntimeDir: "C:\\repo\\ocr",
+    llamaRuntimeDir: "C:\\repo\\llama",
+    llamaServerPath: "C:\\repo\\llama\\server.exe",
+  };
+}
+
 function makeRevisionStore(
   changes: InpaintingRevisionChange[],
-): InpaintingRevisionStore {
+): InpaintingJobRevisionStore {
   return {
     beginTransaction: () => HISTORY_TRANSACTION_ID,
     addChange: (_transactionId: string, change: InpaintingRevisionChange) => {
       changes.push(change);
       return true;
     },
-    removeChange: (
+    removeChange: async (
       _transactionId: string,
       chapterId: string,
       pageId: string,
@@ -395,5 +482,5 @@ function makeRevisionStore(
           Boolean(path),
         ),
       ),
-  } as unknown as InpaintingRevisionStore;
+  } satisfies InpaintingJobRevisionStore;
 }

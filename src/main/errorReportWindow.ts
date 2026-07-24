@@ -1,6 +1,7 @@
 import { BrowserWindow } from "electron";
 import { ipcEventContracts } from "../shared/ipcContracts";
 import type { ErrorReportContext } from "../shared/errorReportTypes";
+import { ErrorReportContextSchema } from "../shared/errorReportSchemas";
 import { tMainCommon } from "./i18n";
 import {
   applyRendererWindowGuards,
@@ -8,6 +9,26 @@ import {
   rendererWebPreferences,
   resolveRendererLoadTarget,
 } from "./mainWindow";
+
+export type ErrorReportWindowDependencies = {
+  applyRendererWindowGuards: typeof applyRendererWindowGuards;
+  incidentChannel: string;
+  loadRendererIntoWindow: typeof loadRendererIntoWindow;
+  parseContext: (context: ErrorReportContext) => ErrorReportContext;
+  rendererWebPreferences: typeof rendererWebPreferences;
+  resolveRendererLoadTarget: typeof resolveRendererLoadTarget;
+  title: () => string;
+};
+
+const productionDependencies: ErrorReportWindowDependencies = {
+  applyRendererWindowGuards,
+  incidentChannel: ipcEventContracts.errorIncident.channel,
+  loadRendererIntoWindow,
+  parseContext: (context) => ErrorReportContextSchema.parse(context),
+  rendererWebPreferences,
+  resolveRendererLoadTarget,
+  title: () => tMainCommon("app.title"),
+};
 
 /**
  * Owns the isolated error-report renderer window.
@@ -20,10 +41,12 @@ export class ErrorReportWindowRegistry {
   private window: BrowserWindow | null = null;
   private currentContext: ErrorReportContext | null = null;
 
+  constructor(
+    private readonly dependencies: ErrorReportWindowDependencies = productionDependencies,
+  ) {}
+
   open(context: ErrorReportContext): BrowserWindow {
-    this.currentContext = ipcEventContracts.errorIncident.payload.parse(
-      context,
-    ) as ErrorReportContext;
+    this.currentContext = this.dependencies.parseContext(context);
 
     const existing = this.getWindow();
     if (existing) {
@@ -36,23 +59,26 @@ export class ErrorReportWindowRegistry {
       return existing;
     }
 
-    const target = resolveRendererLoadTarget();
+    const target = this.dependencies.resolveRendererLoadTarget();
     const window = new BrowserWindow({
       width: 720,
       height: 780,
       minWidth: 360,
       minHeight: 520,
       show: false,
-      title: tMainCommon("app.title"),
+      title: this.dependencies.title(),
       ...(target.windowIconPath ? { icon: target.windowIconPath } : {}),
       backgroundColor: "#101114",
       autoHideMenuBar: true,
-      webPreferences: rendererWebPreferences(),
+      webPreferences: this.dependencies.rendererWebPreferences(),
     });
     this.window = window;
 
     window.setMenuBarVisibility(false);
-    applyRendererWindowGuards(window, target.allowedRendererUrl);
+    this.dependencies.applyRendererWindowGuards(
+      window,
+      target.allowedRendererUrl,
+    );
     window.webContents.on("did-finish-load", () => {
       this.sendCurrentContext(window);
     });
@@ -69,7 +95,7 @@ export class ErrorReportWindowRegistry {
       }
     });
 
-    loadRendererIntoWindow(window, target, "error-report");
+    this.dependencies.loadRendererIntoWindow(window, target, "error-report");
     return window;
   }
 
@@ -107,7 +133,7 @@ export class ErrorReportWindowRegistry {
       return;
     }
     window.webContents.send(
-      ipcEventContracts.errorIncident.channel,
+      this.dependencies.incidentChannel,
       this.currentContext,
     );
   }

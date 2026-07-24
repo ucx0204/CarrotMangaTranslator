@@ -1,13 +1,37 @@
-import type { ChapterSnapshot } from "../shared/libraryTypes";
-import type { PageStoryMemory } from "../shared/workContextTypes";
+import type { ChapterSnapshot, LibraryIndex } from "../shared/libraryTypes";
+import type {
+  ChapterStoryMemory,
+  PageStoryMemory,
+} from "../shared/workContextTypes";
 import { getChapterStoryMemory, listLibrary, openChapter } from "./library";
 import { logWarn } from "./logger";
+
+export type PreviousChapterContextRepository = {
+  listLibrary: () => Promise<LibraryIndex>;
+  openChapter: (chapterId: string) => Promise<ChapterSnapshot>;
+  getChapterStoryMemory: (chapterId: string) => Promise<ChapterStoryMemory>;
+};
+
+export type PreviousChapterContextLogger = {
+  warn: (message: string, detail?: unknown) => void;
+};
+
+type PreviousChapterContextDependencies = {
+  repository: PreviousChapterContextRepository;
+  logger: PreviousChapterContextLogger;
+};
+
+const defaultDependencies: PreviousChapterContextDependencies = {
+  repository: { getChapterStoryMemory, listLibrary, openChapter },
+  logger: { warn: logWarn },
+};
 
 export async function resolvePreviousChapterStoryPages(
   chapter: ChapterSnapshot,
   limit = Number.POSITIVE_INFINITY,
+  dependencies: PreviousChapterContextDependencies = defaultDependencies,
 ): Promise<PageStoryMemory[]> {
-  const library = await listLibrary();
+  const library = await dependencies.repository.listLibrary();
   const work = library.works.find((entry) => entry.id === chapter.workId);
   if (!work || limit <= 0) return [];
   const currentIndex = work.chapters.findIndex(
@@ -19,7 +43,7 @@ export async function resolvePreviousChapterStoryPages(
   const memories = await Promise.all(
     previousChapters.map(async (summary) => ({
       summary,
-      pages: await readLiveChapterMemory(summary.id),
+      pages: await readLiveChapterMemory(summary.id, dependencies),
     })),
   );
   const chronological = memories.flatMap(({ summary, pages }) =>
@@ -40,11 +64,12 @@ export async function resolvePreviousChapterStoryPages(
 
 async function readLiveChapterMemory(
   chapterId: string,
+  { repository, logger }: PreviousChapterContextDependencies,
 ): Promise<PageStoryMemory[]> {
   try {
     const [chapter, memory] = await Promise.all([
-      openChapter(chapterId),
-      getChapterStoryMemory(chapterId),
+      repository.openChapter(chapterId),
+      repository.getChapterStoryMemory(chapterId),
     ]);
     const livePagesById = new Map(
       chapter.pages.map((page, pageIndex) => [page.id, { page, pageIndex }]),
@@ -56,7 +81,7 @@ async function readLiveChapterMemory(
         : [];
     });
   } catch (error) {
-    logWarn("Previous chapter story context could not be loaded", {
+    logger.warn("Previous chapter story context could not be loaded", {
       chapterId,
       error,
     });

@@ -1,22 +1,39 @@
-import { useCallback, type PointerEvent, type RefObject } from "react";
+import {
+  useCallback,
+  useRef,
+  type MutableRefObject,
+  type PointerEvent,
+  type RefObject,
+} from "react";
 import { useTranslation } from "react-i18next";
-import type { BBox } from "../../../shared/textTypes";
+import type { MangaPage } from "../../../shared/libraryTypes";
 import { isUsableRegionBbox } from "../../../shared/region";
+import type { BBox } from "../../../shared/textTypes";
 import type { InpaintingTool } from "../inpainting/inpaintingTypes";
-import type { MangaPage } from "./hookLibraryTypes";
 import {
   regionSelectionToBbox,
   type RegionSelectionState,
 } from "../lib/appHelpers";
+import type { WorkspaceInteractionPreviewStore } from "../lib/workspaceInteractionPreview";
 import {
   capturePointerSafely,
   releasePointerCaptureSafely,
 } from "./workspacePointerCapture";
+import {
+  resolveNormalizedImagePoint,
+  type PointerRect,
+} from "./workspacePointerGeometry";
+
+type ActiveRegionSelection = {
+  current: { x: number; y: number };
+  pointerId: number;
+  pointerRect: PointerRect;
+  start: { x: number; y: number };
+};
 
 type UseWorkspaceRegionSelectionHandlersOptions = {
-  getNormalizedImagePoint: (
-    event: PointerEvent,
-  ) => { x: number; y: number } | null;
+  getImagePointerRect: () => PointerRect | null;
+  interactionPreviewStore: WorkspaceInteractionPreviewStore;
   jobActive: boolean;
   pushStatus: (line: string) => void;
   regionSelection: RegionSelectionState | null;
@@ -43,38 +60,55 @@ export function useWorkspaceRegionSelectionHandlers(
   onRegionPointerUp: (event: PointerEvent) => boolean;
   startRegionTranslationSelection: () => void;
 } {
-  const cancelRegionSelection = useCancelRegionSelection(options);
+  const activeRef = useRef<ActiveRegionSelection | null>(null);
+  const cancelRegionSelection = useCancelRegionSelection(options, activeRef);
   const startRegionTranslationSelection = useStartRegionTranslationSelection(
     options,
     cancelRegionSelection,
   );
-  const onRegionPointerDown = useRegionPointerDown(options);
-  const onRegionPointerMove = useRegionPointerMove(options);
-  const onRegionPointerUp = useRegionPointerUp(options);
 
   return {
     cancelRegionSelection,
-    onRegionPointerDown,
-    onRegionPointerMove,
-    onRegionPointerUp,
+    onRegionPointerDown: useRegionPointerDown(options, activeRef),
+    onRegionPointerMove: useRegionPointerMove(options, activeRef),
+    onRegionPointerUp: useRegionPointerUp(options, activeRef),
     startRegionTranslationSelection,
   };
 }
 
-function useCancelRegionSelection({
-  pushStatus,
-  regionSelection,
-  setRegionSelection,
-}: UseWorkspaceRegionSelectionHandlersOptions): () => boolean {
+function useCancelRegionSelection(
+  {
+    interactionPreviewStore,
+    pushStatus,
+    regionSelection,
+    setRegionSelection,
+    stageRef,
+  }: UseWorkspaceRegionSelectionHandlersOptions,
+  activeRef: MutableRefObject<ActiveRegionSelection | null>,
+): () => boolean {
   const { t } = useTranslation("renderer");
   return useCallback(() => {
-    if (!regionSelection?.active) {
+    const active = activeRef.current;
+    if (!regionSelection?.active && !active) {
       return false;
     }
+    if (active) {
+      releasePointerCaptureSafely(stageRef.current, active.pointerId);
+      activeRef.current = null;
+    }
+    interactionPreviewStore.set({ regionSelectionRect: null });
     setRegionSelection(null);
     pushStatus(t("regionTranslation.cancelledSelection"));
     return true;
-  }, [pushStatus, regionSelection?.active, setRegionSelection, t]);
+  }, [
+    activeRef,
+    interactionPreviewStore,
+    pushStatus,
+    regionSelection?.active,
+    setRegionSelection,
+    stageRef,
+    t,
+  ]);
 }
 
 function useStartRegionTranslationSelection(
@@ -119,16 +153,18 @@ function useStartRegionTranslationSelection(
   ]);
 }
 
-function useRegionPointerDown({
-  getNormalizedImagePoint,
-  regionTranslationReady,
-  regionSelection,
-  setRegionSelection,
-  setSelectedBlockId,
-  stageRef,
-}: UseWorkspaceRegionSelectionHandlersOptions): (
-  event: PointerEvent,
-) => boolean {
+function useRegionPointerDown(
+  {
+    getImagePointerRect,
+    interactionPreviewStore,
+    regionTranslationReady,
+    regionSelection,
+    setRegionSelection,
+    setSelectedBlockId,
+    stageRef,
+  }: UseWorkspaceRegionSelectionHandlersOptions,
+  activeRef: MutableRefObject<ActiveRegionSelection | null>,
+): (event: PointerEvent) => boolean {
   return useCallback(
     (event) => {
       if (!regionSelection?.active) {
@@ -138,24 +174,32 @@ function useRegionPointerDown({
         setRegionSelection(null);
         return true;
       }
-      const point = getNormalizedImagePoint(event);
-      if (!point || !stageRef.current) {
+      const pointerRect = getImagePointerRect();
+      const point = pointerRect
+        ? resolveNormalizedImagePoint(event, pointerRect)
+        : null;
+      if (!point || !pointerRect || !stageRef.current || event.button !== 0) {
         return true;
       }
       event.preventDefault();
       event.stopPropagation();
       setSelectedBlockId(null);
-      setRegionSelection({
-        active: true,
-        dragging: true,
-        start: point,
+      activeRef.current = {
         current: point,
+        pointerId: event.pointerId,
+        pointerRect,
+        start: point,
+      };
+      interactionPreviewStore.set({
+        regionSelectionRect: selectionToBbox(activeRef.current),
       });
       capturePointerSafely(stageRef.current, event.pointerId);
       return true;
     },
     [
-      getNormalizedImagePoint,
+      activeRef,
+      getImagePointerRect,
+      interactionPreviewStore,
       regionTranslationReady,
       regionSelection?.active,
       setRegionSelection,
@@ -165,68 +209,72 @@ function useRegionPointerDown({
   );
 }
 
-function useRegionPointerMove({
-  getNormalizedImagePoint,
-  regionTranslationReady,
-  regionSelection,
-  setRegionSelection,
-}: UseWorkspaceRegionSelectionHandlersOptions): (
-  event: PointerEvent,
-) => boolean {
+function useRegionPointerMove(
+  {
+    interactionPreviewStore,
+    regionTranslationReady,
+    setRegionSelection,
+  }: UseWorkspaceRegionSelectionHandlersOptions,
+  activeRef: MutableRefObject<ActiveRegionSelection | null>,
+): (event: PointerEvent) => boolean {
   return useCallback(
     (event) => {
-      if (!regionSelection?.active || !regionSelection.dragging) {
+      const active = activeRef.current;
+      if (!active) {
         return false;
       }
       if (!regionTranslationReady) {
+        activeRef.current = null;
+        interactionPreviewStore.set({ regionSelectionRect: null });
         setRegionSelection(null);
         return true;
       }
-      const point = getNormalizedImagePoint(event);
+      const point = resolveNormalizedImagePoint(event, active.pointerRect);
       if (point) {
-        setRegionSelection((current) =>
-          current?.active ? { ...current, current: point } : current,
-        );
+        active.current = point;
+        interactionPreviewStore.queue({
+          regionSelectionRect: selectionToBbox(active),
+        });
       }
       return true;
     },
     [
-      getNormalizedImagePoint,
-      regionSelection,
+      activeRef,
+      interactionPreviewStore,
       regionTranslationReady,
       setRegionSelection,
     ],
   );
 }
 
-function useRegionPointerUp({
-  getNormalizedImagePoint,
-  pushStatus,
-  regionTranslationReady,
-  regionSelection,
-  setRegionSelection,
-  stageRef,
-  translateSelectedRegion,
-}: UseWorkspaceRegionSelectionHandlersOptions): (
-  event: PointerEvent,
-) => boolean {
+function useRegionPointerUp(
+  {
+    interactionPreviewStore,
+    pushStatus,
+    regionTranslationReady,
+    setRegionSelection,
+    stageRef,
+    translateSelectedRegion,
+  }: UseWorkspaceRegionSelectionHandlersOptions,
+  activeRef: MutableRefObject<ActiveRegionSelection | null>,
+): (event: PointerEvent) => boolean {
   const { t } = useTranslation("renderer");
   return useCallback(
     (event) => {
-      if (!regionSelection?.active || !regionSelection.dragging) {
+      const active = activeRef.current;
+      if (!active) {
         return false;
       }
-      releasePointerCaptureSafely(stageRef.current, event.pointerId);
-      if (!regionTranslationReady) {
-        setRegionSelection(null);
+      releasePointerCaptureSafely(stageRef.current, active.pointerId);
+      activeRef.current = null;
+      interactionPreviewStore.set({ regionSelectionRect: null });
+      setRegionSelection(null);
+      if (!regionTranslationReady || event.type === "pointercancel") {
         return true;
       }
-      const finalPoint = getNormalizedImagePoint(event);
-      const completedSelection = finalPoint
-        ? { ...regionSelection, current: finalPoint }
-        : regionSelection;
-      const bbox = regionSelectionToBbox(completedSelection);
-      setRegionSelection(null);
+      const finalPoint = resolveNormalizedImagePoint(event, active.pointerRect);
+      if (finalPoint) active.current = finalPoint;
+      const bbox = selectionToBbox(active);
       if (!isUsableRegionBbox(bbox, 10)) {
         pushStatus(t("regionTranslation.tooSmall"));
         return true;
@@ -235,9 +283,9 @@ function useRegionPointerUp({
       return true;
     },
     [
-      getNormalizedImagePoint,
+      activeRef,
+      interactionPreviewStore,
       pushStatus,
-      regionSelection,
       regionTranslationReady,
       setRegionSelection,
       stageRef,
@@ -245,4 +293,16 @@ function useRegionPointerUp({
       t,
     ],
   );
+}
+
+function selectionToBbox(selection: {
+  current: { x: number; y: number };
+  start: { x: number; y: number };
+}): BBox {
+  return regionSelectionToBbox({
+    active: true,
+    dragging: true,
+    start: selection.start,
+    current: selection.current,
+  });
 }

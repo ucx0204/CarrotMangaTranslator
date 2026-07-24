@@ -1,15 +1,24 @@
 import { app } from "electron";
-import { appendFileSync, mkdirSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { createBootstrapLogger } from "./bootstrapLogger";
 import { resolvePackagedDataRoot } from "./dataRoot";
+import {
+  resolvePackagedBootstrapLogPath,
+  resolvePackagedElectronStoragePaths,
+} from "./electronStoragePaths";
+
+const bootstrapLogger = createBootstrapLogger({
+  resolveLogPath: bootstrapLogPath,
+});
 
 configurePackagedElectronStorage();
 configureDevelopmentElectronStorage();
 
 function bootstrapLogPath(): string {
   if (app.isPackaged || __dirname.includes("app.asar")) {
-    return join(resolveBootstrapUserDataDir(), "logs", "bootstrap.log");
+    return resolvePackagedBootstrapLogPath(resolveBootstrapUserDataDir());
   }
   return join(resolve(__dirname, "../.."), "logs", "bootstrap.log");
 }
@@ -36,18 +45,14 @@ function configurePackagedElectronStorage(): void {
       platform: process.platform,
       appDataDir: app.getPath("appData"),
     });
-    const userDataDir = join(dataRoot, "electron-user-data");
-    const sessionDataDir = join(dataRoot, "electron-session");
-    const tempDir = join(dataRoot, "tmp", "system-temp");
+    const { userDataDir, sessionDataDir, tempDir, diskCacheDir } =
+      resolvePackagedElectronStoragePaths(dataRoot);
     mkdirSync(userDataDir, { recursive: true });
     mkdirSync(sessionDataDir, { recursive: true });
     mkdirSync(tempDir, { recursive: true });
     app.setPath("userData", userDataDir);
     app.setPath("sessionData", sessionDataDir);
-    app.commandLine.appendSwitch(
-      "disk-cache-dir",
-      join(sessionDataDir, "Cache"),
-    );
+    app.commandLine.appendSwitch("disk-cache-dir", diskCacheDir);
     app.commandLine.appendSwitch("disable-gpu-shader-disk-cache");
     process.env.TEMP = tempDir;
     process.env.TMP = tempDir;
@@ -57,34 +62,7 @@ function configurePackagedElectronStorage(): void {
 }
 
 function writeBootstrapLog(message: string, detail?: unknown): void {
-  try {
-    const logPath = bootstrapLogPath();
-    mkdirSync(dirname(logPath), { recursive: true });
-    const line = `[${new Date().toISOString()}] ${message}${detail === undefined ? "" : ` ${serialize(detail)}`}\n`;
-    appendFileSync(logPath, line, "utf8");
-  } catch (_error) {
-    // error-policy-allow: bootstrap logging must not prevent the app from reporting startup errors.
-  }
-}
-
-function serialize(detail: unknown): string {
-  if (detail instanceof Error) {
-    return JSON.stringify({
-      name: detail.name,
-      message: detail.message,
-      stack: detail.stack,
-    });
-  }
-
-  if (typeof detail === "string") {
-    return detail;
-  }
-
-  try {
-    return JSON.stringify(detail);
-  } catch (_error) {
-    return String(detail);
-  }
+  bootstrapLogger.write(message, detail);
 }
 
 function configureDevelopmentElectronStorage(): void {
@@ -118,13 +96,16 @@ function isPackagedBootstrap(): boolean {
   return app.isPackaged || __dirname.includes("app.asar");
 }
 
-process.on("uncaughtException", (error) => {
+const logBootstrapUncaughtException = (error: Error): void => {
   writeBootstrapLog("uncaughtException", error);
-});
+};
 
-process.on("unhandledRejection", (reason) => {
+const logBootstrapUnhandledRejection = (reason: unknown): void => {
   writeBootstrapLog("unhandledRejection", reason);
-});
+};
+
+process.on("uncaughtException", logBootstrapUncaughtException);
+process.on("unhandledRejection", logBootstrapUnhandledRejection);
 
 writeBootstrapLog("bootstrap:start", {
   isPackaged: app.isPackaged,
@@ -138,4 +119,7 @@ try {
 } catch (error) {
   writeBootstrapLog("bootstrap:load-failed", error);
   throw error;
+} finally {
+  process.removeListener("uncaughtException", logBootstrapUncaughtException);
+  process.removeListener("unhandledRejection", logBootstrapUnhandledRejection);
 }

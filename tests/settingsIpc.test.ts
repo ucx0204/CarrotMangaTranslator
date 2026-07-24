@@ -4,8 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { AppSettings } from "../src/shared/settingsTypes";
 import type { ModelTestProgressEvent } from "../src/shared/jobTypes";
-import type { IpcContext } from "../src/main/ipc/context";
+import type { IpcContext, PanelWindowPort } from "../src/main/ipc/context";
 import type { SimplePageRuntime } from "../src/main/simplePageRuntime";
+import type { OpenAIOAuthEndpoint } from "../src/main/openaiOauthEndpoint";
 
 type IpcHandler = (
   event: {
@@ -26,10 +27,10 @@ const electronMock = vi.hoisted(() => {
   };
 });
 
-const oauthMock = vi.hoisted(() => ({
+const oauthMock = {
   start: vi.fn(),
   stop: vi.fn(async () => {}),
-}));
+};
 
 vi.mock("electron", () => ({
   app: {
@@ -42,11 +43,6 @@ vi.mock("electron", () => ({
   ipcMain: {
     handle: electronMock.handle,
   },
-}));
-
-vi.mock("../src/main/openaiOauthEndpoint", () => ({
-  startOpenAIOAuthEndpoint: oauthMock.start,
-  stopOpenAIOAuthEndpoint: oauthMock.stop,
 }));
 
 import { registerSettingsIpc } from "../src/main/ipc/settingsIpc";
@@ -152,8 +148,13 @@ describe("settings IPC model/runtime check", () => {
       child: null,
       startedByScript: true,
       provider: "openai-codex",
-      oauthServer: {},
-    };
+      oauthServer: {
+        host: "127.0.0.1",
+        port: 18080,
+        url: "http://127.0.0.1:18080/v1",
+        close: vi.fn(async () => {}),
+      },
+    } satisfies OpenAIOAuthEndpoint;
     oauthMock.start
       .mockRejectedValueOnce(portBindError())
       .mockResolvedValueOnce(endpoint);
@@ -263,7 +264,12 @@ async function invokeSettingsModelTest({
   const dataRoot = mkdtempSync(join(tmpdir(), "settings-ipc-"));
   tempDirs.push(dataRoot);
   const context = createContext(dataRoot, runtime);
-  registerSettingsIpc(context);
+  registerSettingsIpc(context, {
+    modelTestEndpointRuntime: {
+      startOpenAIOAuthEndpoint: oauthMock.start,
+      stopOpenAIOAuthEndpoint: oauthMock.stop,
+    },
+  });
   const handler = electronMock.handlers.get("settings:test-model");
   if (!handler) {
     throw new Error("settings:test-model handler was not registered");
@@ -330,7 +336,7 @@ function createContext(
       getLastState: () => null,
       isPanelSender: () => false,
       closeAll: () => undefined,
-    } as unknown as IpcContext["panelWindows"],
+    } satisfies PanelWindowPort,
     loadSimplePageRuntime: () => runtime,
     decodeImage: vi.fn(),
   };

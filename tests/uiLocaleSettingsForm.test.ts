@@ -2,10 +2,8 @@ import { describe, expect, it } from "vitest";
 import { resolveDefaultAppSettings } from "../src/main/appSettings";
 import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../src/shared/blockFormat";
 import { buildSettingsFromDraft } from "../src/renderer/src/components/settingsModal/settingsModalBuildSettings";
-import {
-  createSettingsFormValues,
-  resolveSettingsDraft,
-} from "../src/renderer/src/components/settingsModal/settingsModalFormUtils";
+import { resolveSettingsDraft } from "../src/renderer/src/components/settingsModal/settingsModalFormUtils";
+import { createSettingsFormValues } from "../src/renderer/src/components/settingsModal/settingsModalFormValues";
 
 describe("UI locale settings form", () => {
   it("loads the normalized locale into the form", () => {

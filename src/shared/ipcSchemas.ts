@@ -29,6 +29,7 @@ export {
   ReorderChaptersRequestSchema,
   ReorderPagesRequestSchema,
   SavePageBlocksRequestSchema,
+  SavePagesBlocksRequestSchema,
   StoredLibraryIndexFileSchema,
 } from "./ipcLibrarySchemas";
 export {

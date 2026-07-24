@@ -20,6 +20,12 @@ const attentionManifest = join(
   "candle-nn-metal-attention",
   "Cargo.toml",
 );
+const runtimePolicyManifest = join(
+  root,
+  "tools",
+  "runner-runtime-policy",
+  "Cargo.toml",
+);
 
 /** @param {string[]} args */
 function cargo(args) {
@@ -47,6 +53,7 @@ function main() {
   }
 
   patchCandleMetalQMatMul({ cwd: root, manifestPath: runnerManifest });
+  cargo(["test", "--manifest-path", runtimePolicyManifest, "--offline"]);
   cargo([
     "test",
     "--manifest-path",

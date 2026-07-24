@@ -16,6 +16,10 @@ import {
   createNodeLibraryImageUrlFiles,
   type LibraryImageUrlFiles,
 } from "../src/main/imageUrlCodec";
+import {
+  createProtocolFileResponse,
+  isProtocolFileUnavailableError,
+} from "../src/main/protocolFileResponse";
 
 const SECRET = Buffer.alloc(32, 0x5a);
 
@@ -98,6 +102,26 @@ function createSignedPayloadUrl(
 }
 
 describe("library image URL codec", () => {
+  it("canonicalizes the stable library root only once per codec", () => {
+    const virtual = createVirtualLibrary([
+      "pages/first.png",
+      "pages/second.png",
+    ]);
+    const realpath = vi.spyOn(virtual.files, "realpath");
+    const codec = createLibraryImageUrlCodec({
+      secret: SECRET,
+      files: virtual.files,
+    });
+
+    const urls = virtual.paths.map((path) => codec.createUrl(path));
+    urls.forEach((url) => codec.resolveUrl(url));
+
+    const rootCalls = realpath.mock.calls.filter(
+      ([path]) => resolve(path) === resolve(virtual.files.libraryRoot),
+    );
+    expect(rootCalls).toHaveLength(1);
+  });
+
   it("keeps 2,000 stateless URLs valid across repeated issuance", () => {
     const relativePaths = Array.from(
       { length: 2_000 },
@@ -246,10 +270,6 @@ describe("library image URL codec", () => {
 describe("image protocol integration", () => {
   afterEach(() => {
     vi.doUnmock("electron");
-    vi.doUnmock("node:fs/promises");
-    vi.doUnmock("../src/main/library");
-    vi.doUnmock("../src/main/customFonts");
-    vi.doUnmock("../src/main/logger");
     vi.resetModules();
   });
 
@@ -270,31 +290,31 @@ describe("image protocol integration", () => {
       (_scheme: string, _handler: TestProtocolHandler): void => undefined,
     );
     const registerSchemesAsPrivileged = vi.fn();
-    const fetch = vi.fn(async () => new Response("served"));
-    const fsPromises = await import("node:fs/promises");
-    const openProtocolFile = vi.fn(fsPromises.open);
     const logError = vi.fn();
     vi.doMock("electron", () => ({
-      net: { fetch },
       protocol: { handle: protocolHandle, registerSchemesAsPrivileged },
     }));
-    vi.doMock("node:fs/promises", () => ({
-      ...fsPromises,
-      open: openProtocolFile,
-    }));
-    vi.doMock("../src/main/library", () => ({
-      assertLibraryImagePath: (path: string) => path,
-      getLibraryRoot: () => libraryRoot,
-    }));
-    vi.doMock("../src/main/customFonts", () => ({
-      resolveCustomFontFilePath: () => fontPath,
-    }));
-    vi.doMock("../src/main/logger", () => ({ logError }));
 
     try {
       const imageProtocol = await import("../src/main/imageProtocol");
-      imageProtocol.registerImageProtocolScheme();
-      imageProtocol.registerImageProtocolHandler();
+      let serveFile = createProtocolFileResponse;
+      const controller = imageProtocol.createImageProtocolController({
+        protocol: {
+          handle: protocolHandle,
+          registerSchemesAsPrivileged,
+        },
+        imageUrls: createLibraryImageUrlCodec({
+          secret: SECRET,
+          files: createNodeLibraryImageUrlFiles(libraryRoot),
+        }),
+        resolveLibraryImagePath: (path) => path,
+        resolveFontFilePath: () => fontPath,
+        serveFile: (path, options) => serveFile(path, options),
+        isUnavailableError: isProtocolFileUnavailableError,
+        reportError: logError,
+      });
+      controller.registerScheme();
+      controller.registerHandler();
       const handlers = new Map<string, TestProtocolHandler>(
         protocolHandle.mock.calls,
       );
@@ -306,15 +326,13 @@ describe("image protocol integration", () => {
         throw new Error("protocol handlers were not registered");
       }
 
-      const imageUrl = imageProtocol.createLibraryImageUrl(imagePath);
+      const imageUrl = controller.createLibraryImageUrl(imagePath);
       const imageResponse = await imageHandler({ url: imageUrl });
       expect(imageResponse.status).toBe(200);
       expect(await imageResponse.text()).toBe("image");
       expect(imageResponse.headers.get("Content-Type")).toBe("image/png");
       expect(imageResponse.headers.get("Content-Length")).toBe("5");
       expect(imageResponse.headers.get("Cache-Control")).toContain("immutable");
-      expect(fetch).not.toHaveBeenCalled();
-
       for (const [fileName, contentType] of [
         ["page.jpg", "image/jpeg"],
         ["page.jpeg", "image/jpeg"],
@@ -323,7 +341,7 @@ describe("image protocol integration", () => {
         const variantPath = join(dirname(imagePath), fileName);
         writeFileSync(variantPath, fileName);
         const variantResponse = await imageHandler({
-          url: imageProtocol.createLibraryImageUrl(variantPath),
+          url: controller.createLibraryImageUrl(variantPath),
         });
         expect(variantResponse.status).toBe(200);
         expect(variantResponse.headers.get("Content-Type")).toBe(contentType);
@@ -337,23 +355,20 @@ describe("image protocol integration", () => {
       });
       expect(missingResponse.status).toBe(404);
       expect(missingResponse.headers.get("Cache-Control")).toBe("no-store");
-      expect(fetch).not.toHaveBeenCalled();
-
       rmSync(imagePath);
       const deletedResponse = await imageHandler({ url: imageUrl });
       expect(deletedResponse.status).toBe(404);
       expect(deletedResponse.headers.get("Cache-Control")).toBe("no-store");
-      expect(fetch).not.toHaveBeenCalled();
-
       const fontResponse = await fontHandler({ url: "mgt-font://font-id" });
       expect(fontResponse.status).toBe(200);
       expect(fontResponse.headers.get("Content-Type")).toBe("font/ttf");
       expect(await fontResponse.text()).toBe("font");
-      expect(fetch).not.toHaveBeenCalled();
 
       writeFileSync(imagePath, "replacement");
-      const replacementUrl = imageProtocol.createLibraryImageUrl(imagePath);
-      openProtocolFile.mockRejectedValueOnce(fileError("ENOENT"));
+      const replacementUrl = controller.createLibraryImageUrl(imagePath);
+      serveFile = async () => {
+        throw fileError("ENOENT");
+      };
       const racedMissingResponse = await imageHandler({
         url: replacementUrl,
       });
@@ -363,22 +378,9 @@ describe("image protocol integration", () => {
       );
       expect(logError).not.toHaveBeenCalled();
 
-      const closeMismatchedFile = vi.fn(async () => undefined);
-      openProtocolFile.mockResolvedValueOnce({
-        stat: vi.fn(async () => ({
-          isFile: () => true,
-          size: 999n,
-          mtimeNs: 999n,
-        })),
-        close: closeMismatchedFile,
-      } as never);
-      const mismatchedResponse = await imageHandler({ url: replacementUrl });
-      expect(mismatchedResponse.status).toBe(404);
-      expect(mismatchedResponse.headers.get("Cache-Control")).toBe("no-store");
-      expect(closeMismatchedFile).toHaveBeenCalledOnce();
-      expect(logError).not.toHaveBeenCalled();
-
-      openProtocolFile.mockRejectedValueOnce(new Error("open failed"));
+      serveFile = async () => {
+        throw new Error("open failed");
+      };
       const errorResponse = await imageHandler({ url: replacementUrl });
       expect(errorResponse.status).toBe(500);
       expect(errorResponse.headers.get("Cache-Control")).toBe("no-store");
@@ -386,6 +388,36 @@ describe("image protocol integration", () => {
         "Failed to serve image protocol request",
         expect.objectContaining({ url: replacementUrl }),
       );
+
+      const fontMissingController = imageProtocol.createImageProtocolController(
+        {
+          protocol: {
+            handle: protocolHandle,
+            registerSchemesAsPrivileged,
+          },
+          imageUrls: createLibraryImageUrlCodec({
+            secret: SECRET,
+            files: createNodeLibraryImageUrlFiles(libraryRoot),
+          }),
+          resolveLibraryImagePath: (path) => path,
+          resolveFontFilePath: () => null,
+          serveFile: createProtocolFileResponse,
+          isUnavailableError: isProtocolFileUnavailableError,
+          reportError: logError,
+        },
+      );
+      fontMissingController.registerHandler();
+      const missingFontHandler = new Map<string, TestProtocolHandler>(
+        protocolHandle.mock.calls,
+      ).get("mgt-font");
+      expect(missingFontHandler).toBeDefined();
+      if (!missingFontHandler) {
+        throw new Error("missing-font handler was not registered");
+      }
+      const missingFontResponse = await missingFontHandler({
+        url: "mgt-font://missing",
+      });
+      expect(missingFontResponse.status).toBe(404);
       expect(registerSchemesAsPrivileged).toHaveBeenCalledWith([
         {
           scheme: "mgt-image",

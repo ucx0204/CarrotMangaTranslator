@@ -10,20 +10,17 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import type {
   ChapterSnapshot,
   LibraryWorkSummary,
   MangaPage,
 } from "../src/shared/libraryTypes";
 
-const gatewayMocks = vi.hoisted(() => ({
+const gatewayMocks = {
   getPageImageDataUrl: vi.fn<(imagePath: string) => Promise<string>>(),
   openChapter: vi.fn(),
-}));
-
-vi.mock("../src/renderer/src/api/mangaGateway", () => ({
-  mangaGateway: gatewayMocks,
-}));
+};
 
 import {
   PageThumb,
@@ -33,6 +30,7 @@ import { WorkPagePicker } from "../src/renderer/src/components/WorkPagePicker";
 
 const WORK_ID = "11111111-1111-4111-8111-111111111111";
 const CHAPTER_ID = "22222222-2222-4222-8222-222222222222";
+const DEFERRED_CHAPTER_ID = "33333333-3333-4333-8333-333333333333";
 const TS = "2026-01-01T00:00:00.000Z";
 
 class MockIntersectionObserver implements IntersectionObserver {
@@ -141,10 +139,11 @@ function makeWork(pageCount: number): LibraryWorkSummary {
 function pickerElement(
   pages: MangaPage[],
   onTogglePage = vi.fn(),
+  work = makeWork(pages.length),
 ): React.JSX.Element {
   return (
     <WorkPagePicker
-      work={makeWork(pages.length)}
+      work={work}
       currentChapter={makeChapter(pages)}
       header={<h2>페이지 선택</h2>}
       getChapterTriState={() => "none"}
@@ -166,6 +165,7 @@ const revealImmediately: ObservePageThumbnail = (_element, onVisible) => {
 
 beforeEach(() => {
   observerInstances.length = 0;
+  window.mangaApi = createTestMangaGatewayStub(gatewayMocks);
   gatewayMocks.getPageImageDataUrl.mockImplementation((imagePath) =>
     Promise.resolve(`mgt-image://library/${encodeURIComponent(imagePath)}`),
   );
@@ -174,6 +174,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  window.mangaApi = createTestMangaGatewayStub();
   vi.restoreAllMocks();
   vi.clearAllMocks();
   vi.unstubAllGlobals();
@@ -235,6 +236,37 @@ describe("large WorkPagePicker thumbnails", () => {
     await waitFor(() => {
       expect(gatewayMocks.getPageImageDataUrl).toHaveBeenCalledTimes(2);
     });
+  });
+
+  it("ignores a late chapter failure after the picker unmounts", async () => {
+    let rejectRequest: ((error: Error) => void) | undefined;
+    const request = new Promise<ChapterSnapshot>((_resolve, reject) => {
+      rejectRequest = reject;
+    });
+    gatewayMocks.openChapter.mockReturnValueOnce(request);
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const work = makeWork(1);
+    work.chapterOrder.push(DEFERRED_CHAPTER_ID);
+    work.chapters.push({
+      ...work.chapters[0],
+      id: DEFERRED_CHAPTER_ID,
+      title: "2화",
+    });
+    const view = render(pickerElement([makePage(1)], vi.fn(), work));
+
+    fireEvent.click(screen.getByRole("button", { name: /2화/ }));
+    expect(gatewayMocks.openChapter).toHaveBeenCalledWith(DEFERRED_CHAPTER_ID);
+    view.unmount();
+    const lateFailure = new Error("late chapter failure");
+    const observedRejection = expect(request).rejects.toBe(lateFailure);
+    await act(async () => {
+      rejectRequest?.(lateFailure);
+      await observedRejection;
+    });
+
+    expect(consoleError).not.toHaveBeenCalled();
   });
 });
 

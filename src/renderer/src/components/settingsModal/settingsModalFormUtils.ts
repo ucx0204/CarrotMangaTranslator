@@ -5,8 +5,8 @@ import {
   MAX_MAX_TOKENS,
   MIN_CONTEXT_TOKENS,
   MIN_MAX_TOKENS,
-  MODEL_PRESETS,
-} from "../settingsOptions";
+} from "../../../../shared/modelPresets";
+import { MODEL_PRESETS } from "../settingsOptions";
 import type { SettingsFormValues } from "./settingsModalFormValues";
 import {
   MAX_API_KEY_MAX_ATTEMPTS,
@@ -17,9 +17,6 @@ import {
   normalizeApiKeysText,
   parseApiKeys,
 } from "../../../../shared/apiKeySettings";
-
-export { createSettingsFormValues } from "./settingsModalFormValues";
-export type { SettingsFormValues } from "./settingsModalFormValues";
 
 export type SettingsDraft = ReturnType<typeof resolveSettingsDraft>;
 

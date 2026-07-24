@@ -25,7 +25,6 @@ import {
   listZipFiles,
 } from "./importSources";
 import {
-  WORKS_ROOT,
   collectUsedChapterTitles,
   createWork,
   ensureExistingWork,
@@ -34,9 +33,11 @@ import {
   writeChapterFile,
   writeWorkFile,
 } from "./libraryFiles";
+import { getWorksRoot } from "./libraryPaths";
 import { makeUniqueTitleInList, sanitizeTitle } from "./titles";
 import type { ZipArchiveReader } from "./zipSafety";
 import { hydrateChapter } from "./chapterSnapshots";
+import type { ImportImageRuntime } from "./importImageRuntime";
 
 export async function previewImages(
   filePaths: string[],
@@ -170,6 +171,7 @@ export async function previewZipFolder(
 
 export async function createImportFromPreviewUnlocked(
   request: CreateImportFromPreviewRequest,
+  imageRuntime: ImportImageRuntime,
 ): Promise<CreateImportResult> {
   const selectedDraftIds = new Set(
     request.selections
@@ -198,6 +200,7 @@ export async function createImportFromPreviewUnlocked(
       selectedDrafts,
       request.selections,
       createdChapters,
+      imageRuntime,
     );
     if (createdChapters.length === 0) {
       throw new Error(tMain("import.errors.noChapterToCreate"));
@@ -237,6 +240,7 @@ async function materializeSelectedDrafts(
   selectedDrafts: ImportChapterDraft[],
   requestSelections: CreateImportFromPreviewRequest["selections"],
   createdChapters: LibraryChapter[],
+  imageRuntime: ImportImageRuntime,
 ): Promise<void> {
   const selections = new Map(
     requestSelections.map((selection) => [selection.draftId, selection]),
@@ -256,7 +260,13 @@ async function materializeSelectedDrafts(
       );
       usedTitles.add(title);
       createdChapters.push(
-        await materializeChapterFromDraft(workId, draft, title, zipReaderCache),
+        await materializeChapterFromDraft(
+          workId,
+          draft,
+          title,
+          zipReaderCache,
+          imageRuntime,
+        ),
       );
     }
   } finally {
@@ -271,6 +281,7 @@ async function materializeChapterFromDraft(
   draft: ImportChapterDraft,
   requestedTitle: string,
   zipReaderCache: Map<string, ZipArchiveReader>,
+  imageRuntime: ImportImageRuntime,
 ): Promise<LibraryChapter> {
   await ensureExistingWork(workId);
   const now = new Date().toISOString();
@@ -279,7 +290,7 @@ async function materializeChapterFromDraft(
     requestedTitle || draft.title,
     tMain("import.untitled"),
   );
-  const chapterDir = join(WORKS_ROOT, workId, "chapters", chapterId);
+  const chapterDir = join(getWorksRoot(), workId, "chapters", chapterId);
   const pagesDir = join(chapterDir, "pages");
 
   try {
@@ -288,7 +299,13 @@ async function materializeChapterFromDraft(
     const pages: LibraryPageRecord[] = [];
     for (const [index, pageDraft] of draft.pages.entries()) {
       pages.push(
-        await materializePageRecord(pageDraft, pagesDir, index, zipReaderCache),
+        await materializePageRecord(
+          pageDraft,
+          pagesDir,
+          index,
+          zipReaderCache,
+          imageRuntime,
+        ),
       );
     }
 

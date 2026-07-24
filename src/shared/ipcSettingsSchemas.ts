@@ -29,11 +29,24 @@ import {
   MIN_API_KEY_MAX_ATTEMPTS,
   MIN_API_RETRY_DELAY_SECONDS,
 } from "./apiKeySettings";
+import {
+  isCanonicalKeybindingCombo,
+  MAX_KEYBINDING_COMBO_LENGTH,
+  SHORTCUT_ACTION_IDS,
+} from "./shortcutSettings";
 
 const LanguageCodeSchema = z
   .string()
   .max(MAX_LANGUAGE_CODE_LENGTH)
   .regex(/^[a-z]{2,3}(-[a-zA-Z0-9]{1,16})*$/);
+
+const KeybindingOverridesSchema = z.record(
+  z.enum(SHORTCUT_ACTION_IDS),
+  z
+    .string()
+    .max(MAX_KEYBINDING_COMBO_LENGTH)
+    .refine(isCanonicalKeybindingCombo, "Invalid keyboard shortcut combo"),
+);
 
 export const AppSettingsSchema = z
   .object({
@@ -145,7 +158,7 @@ export const AppSettingsSchema = z
       })
       .strict()
       .optional(),
-    keybindings: z.record(z.string().max(80), z.string().max(60)).optional(),
+    keybindings: KeybindingOverridesSchema.optional(),
     runtimeHardware: z
       .object({
         gpuVendor: z.enum(["nvidia", "amd", "apple", "unknown"]),

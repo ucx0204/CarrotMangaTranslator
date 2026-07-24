@@ -1,14 +1,15 @@
+import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TranslationOptions } from "../src/main/appSettings";
 import type { ModelEndpointHandle } from "../src/main/pipeline/types";
-
-vi.mock("../src/main/appPaths", () => ({
-  getAppPaths: () => ({
-    runtimeDir: require("node:path").resolve(process.cwd(), "src/main/runtime"),
-  }),
-}));
-
 import { requestWorkContextAnalysisText } from "../src/main/workContextModelRequest";
+import { createWorkContextRequestRuntime } from "../src/main/workContextRequestRuntime";
+import { loadRuntimeModuleFromDirectory } from "../src/main/runtimeModuleLoader";
+
+const runtimeDirectory = resolve(process.cwd(), "src/main/runtime");
+const runtime = createWorkContextRequestRuntime((moduleId) =>
+  loadRuntimeModuleFromDirectory(runtimeDirectory, moduleId),
+);
 
 const apiEnvNames = [
   "MANGA_TRANSLATOR_API_KEY",
@@ -75,6 +76,7 @@ describe("work context API key retries", () => {
       systemPrompt: "system",
       userPrompt: "user",
       maxOutputTokens: 256,
+      runtime,
     });
 
     expect(result).toBe("작품 컨텍스트 완료");

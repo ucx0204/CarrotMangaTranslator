@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef } from "react";
+import type {
+  KeybindingOverrides,
+  ShortcutActionId,
+} from "../../../shared/shortcutSettings";
 import { isEditableTarget } from "../lib/appHelpers";
 import { comboFromEvent } from "../lib/shortcuts/comboFromEvent";
 import {
   getShortcutAction,
   resolveBindings,
-  type KeybindingOverrides,
   type ShortcutActionDef,
-  type ShortcutActionId,
   type ShortcutContext,
 } from "../lib/shortcuts/shortcutActions";
 

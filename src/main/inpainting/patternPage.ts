@@ -7,7 +7,7 @@ import {
   FLUX_INPAINT_FEATHER_PX,
   FLUX_INPAINT_MASK_PADDING_PX,
   FLUX_INPAINT_MAX_PIXELS,
-} from "./fluxEngine";
+} from "./fluxEngineConstants";
 import type { InpaintingEngine } from "./inpaintingEngine";
 import { hasUsableBbox } from "./maskGeometry";
 import { logInpaintingRuntimeInfo } from "./inpaintingRuntimeLogger";

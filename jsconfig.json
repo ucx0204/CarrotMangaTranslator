@@ -8,6 +8,7 @@
     "electron-builder.config.cjs",
     "eslint.config.mjs",
     "scripts/**/*.cjs",
+    "scripts/**/*.mjs",
     "src/main/runtime/runtime-jsdoc-types.d.ts",
     "src/main/runtime/**/*.cjs"
   ],

@@ -1,7 +1,7 @@
 import React from "react";
 import { Translation } from "react-i18next";
 import { errorReportGateway } from "../lib/errorReportGateway";
-import { Button } from "./ui";
+import { Button } from "./ui/Button";
 import { ErrorReportDialog } from "./ErrorReportDialog";
 
 type ErrorBoundaryProps = {

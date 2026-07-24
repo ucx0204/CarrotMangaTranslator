@@ -172,17 +172,43 @@ export const OpenChapterRequestSchema = z.object({ chapterId: uuid }).strict();
 export const ImageDataUrlRequestSchema = z
   .object({ imagePath: filePath })
   .strict();
-export const SavePageBlocksRequestSchema = z
+const SavePageBlocksUpdateSchema = z
   .object({
-    chapterId: uuid,
     pageId: uuid,
     baseUpdatedAt: z.string().max(80).optional(),
     baseBlocksHash: z.string().min(1).max(80).optional(),
-    dirtyVersion: z.number().int().nonnegative().optional(),
-    saveReason: z.enum(["autosave", "manual"]).optional(),
     blocks: z.array(TranslationBlockSchema).max(MAX_BLOCKS_PER_PAGE),
   })
   .strict();
+export const SavePageBlocksRequestSchema = SavePageBlocksUpdateSchema.extend({
+  chapterId: uuid,
+  dirtyVersion: z.number().int().nonnegative().optional(),
+  saveReason: z.enum(["autosave", "manual"]).optional(),
+}).strict();
+export const SavePagesBlocksRequestSchema = z
+  .object({
+    chapterId: uuid,
+    pages: z
+      .array(SavePageBlocksUpdateSchema)
+      .min(1)
+      .max(MAX_PAGES_PER_REQUEST),
+    dirtyVersion: z.number().int().nonnegative().optional(),
+    saveReason: z.enum(["autosave", "manual"]).optional(),
+  })
+  .strict()
+  .superRefine((request, context) => {
+    const pageIds = new Set<string>();
+    request.pages.forEach((page, index) => {
+      if (pageIds.has(page.pageId)) {
+        context.addIssue({
+          code: "custom",
+          message: "중복된 페이지 저장 요청입니다.",
+          path: ["pages", index, "pageId"],
+        });
+      }
+      pageIds.add(page.pageId);
+    });
+  });
 export const ReorderChaptersRequestSchema = z
   .object({ workId: uuid, chapterIds: z.array(uuid).max(MAX_ID_LIST_LENGTH) })
   .strict();

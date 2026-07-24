@@ -6,6 +6,10 @@ import type {
   TranslationActions,
   UseTranslationActionsOptions,
 } from "./translationActionTypes";
+import {
+  toastNotificationPort,
+  type NotificationPort,
+} from "../lib/notificationPort";
 
 export { reportRefreshLibraryFailure };
 export type {
@@ -16,6 +20,7 @@ export type {
 
 export function useTranslationActions(
   options: UseTranslationActionsOptions,
+  notificationPort: NotificationPort = toastNotificationPort,
 ): TranslationActions {
-  return useTranslationActionsImpl(options);
+  return useTranslationActionsImpl(options, notificationPort);
 }

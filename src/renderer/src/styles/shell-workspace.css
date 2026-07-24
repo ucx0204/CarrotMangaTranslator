@@ -1,0 +1,532 @@
+.app-shell {
+  display: grid;
+  grid-template-columns: 400px minmax(0, 1fr) 340px;
+  height: 100vh;
+  background: #0e0f13;
+}
+
+.sidebar,
+.right-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  overflow: hidden;
+  min-height: 0;
+  padding: var(--sp-5);
+}
+
+.sidebar {
+  border-right: 1px solid var(--glass-border);
+  background: var(--glass-rail);
+}
+
+.mac-alpha-badge {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid rgba(255, 171, 64, 0.55);
+  border-radius: 999px;
+  color: #ffe0aa;
+  background: rgba(131, 73, 10, 0.32);
+  font-size: 12px;
+  letter-spacing: 0.01em;
+}
+
+.mac-alpha-badge > span:last-child {
+  color: #f4c878;
+}
+
+.mac-alpha-badge-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ffad42;
+  box-shadow: 0 0 8px rgba(255, 173, 66, 0.7);
+}
+
+.right-rail {
+  border-left: 1px solid var(--glass-border);
+  background: var(--glass-rail);
+  overflow-y: auto;
+}
+
+/* Non-scrolling frame around the workspace so the stage toolbar can float
+   over the scroll container without scrolling with the page image. */
+.workspace-shell {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding-right: 48px;
+  background: #0c0d10;
+}
+
+.canvas-action-bar {
+  position: absolute;
+  z-index: 36;
+  top: 10px;
+  right: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: 42px;
+  padding: 0;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  background: #14161b;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  overflow: visible;
+}
+
+.canvas-action-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 40px;
+  gap: 0;
+}
+
+.canvas-action-control {
+  width: 40px;
+  height: 40px;
+}
+
+.canvas-action-control + .canvas-action-control {
+  border-top: 1px solid var(--border-soft);
+}
+
+.canvas-action-control > button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #aeb8c5;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.canvas-action-control > button:hover:not(:disabled) {
+  background: #20242b;
+  color: #f4f6f8;
+}
+
+.canvas-action-control > button:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.canvas-action-control > button:disabled {
+  color: #5d6672;
+  cursor: not-allowed;
+}
+
+.canvas-action-control > button.active {
+  background: var(--accent-soft);
+  color: var(--accent-hi);
+}
+
+.canvas-action-separator {
+  width: 40px;
+  height: 6px;
+  border-top: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border-soft);
+  background: #101217;
+}
+
+.workspace {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  padding: 24px;
+  background: #0c0d10;
+  outline: none;
+}
+
+.workspace-view-dock {
+  position: absolute;
+  z-index: 36;
+  right: 6px;
+  bottom: 10px;
+  width: 42px;
+}
+
+.workspace-view-controls {
+  display: flex;
+  flex-direction: column;
+  width: 42px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  background: rgba(20, 22, 27, 0.96);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  overflow: visible;
+  backdrop-filter: blur(8px);
+}
+
+.workspace-view-controls[hidden],
+.workspace-view-reveal-slot[hidden] {
+  display: none;
+}
+
+.workspace-view-zoom-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.workspace-view-control {
+  width: 40px;
+  height: 38px;
+}
+
+.workspace-view-control > button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #aeb8c5;
+  cursor: pointer;
+}
+
+.workspace-view-control > button:hover:not(:disabled),
+.workspace-view-control > button:focus-visible,
+.workspace-view-reveal > button:hover,
+.workspace-view-reveal > button:focus-visible,
+.workspace-fit-picker:hover,
+.workspace-fit-picker:focus-within {
+  background: #20242b;
+  color: #f4f6f8;
+}
+
+.workspace-view-control > button:focus-visible,
+.workspace-view-reveal > button:focus-visible,
+.workspace-fit-picker:focus-within {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.workspace-view-control > button:disabled {
+  color: #5d6672;
+  cursor: not-allowed;
+}
+
+.workspace-view-control.workspace-zoom-percent {
+  width: 40px;
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.workspace-view-control.workspace-zoom-percent > button {
+  width: 40px;
+  font-size: var(--font-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.workspace-view-collapse {
+  border-top: 1px solid var(--border-soft);
+}
+
+.workspace-view-zoom-row > .workspace-view-control:first-child > button {
+  border-radius: var(--r-md) var(--r-md) 0 0;
+}
+
+.workspace-view-collapse > button {
+  border-radius: 0 0 var(--r-md) var(--r-md);
+}
+
+.workspace-fit-picker {
+  position: relative;
+  border-top: 1px solid var(--border-soft);
+}
+
+.workspace-fit-picker-face {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 38px;
+  color: #aeb8c5;
+  pointer-events: none;
+}
+
+.workspace-fit-picker > select {
+  position: absolute;
+  inset: 0;
+  width: 40px;
+  height: 38px;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.workspace-view-reveal-slot {
+  display: block;
+  width: 42px;
+  height: 42px;
+}
+
+.workspace-view-reveal {
+  display: block;
+  width: 42px;
+  height: 42px;
+}
+
+.workspace-view-reveal > button {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 1px;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  background: rgba(20, 22, 27, 0.96);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  color: #d7dde6;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+
+.stage-toolbar {
+  position: absolute;
+  z-index: 34;
+  top: 12px;
+  left: 10px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  background: #14161b;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  overflow: visible;
+}
+
+.stage-toolbar-control {
+  position: relative;
+  display: block;
+  width: 40px;
+  height: 40px;
+}
+
+.stage-toolbar-control + .stage-toolbar-control {
+  border-top: 1px solid var(--border-soft);
+}
+
+.stage-toolbar-control.separated {
+  height: 45px;
+  padding-top: 5px;
+  border-top-color: var(--border-strong);
+}
+
+.stage-toolbar-button,
+.stage-toolbar-toggle {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #aeb8c7;
+  cursor: pointer;
+}
+
+.stage-toolbar-button:hover,
+.stage-toolbar-toggle:hover,
+.stage-toolbar-button:focus-visible,
+.stage-toolbar-toggle:focus-visible {
+  background: #1d2027;
+  color: #f5f7fb;
+}
+
+.stage-toolbar-button.active {
+  background: linear-gradient(145deg, rgba(200, 92, 59, 0.26), #211a1a);
+  color: var(--accent-hi);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.stage-toolbar-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.stage-toolbar-swatch {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 7px;
+  height: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55);
+}
+
+.stage-toolbar-button {
+  position: relative;
+}
+
+.stage-toolbar-toggle {
+  height: 32px;
+}
+
+.stage-toolbar-control:has(.stage-toolbar-toggle) {
+  height: 32px;
+}
+
+.stage-toolbar.collapsed .stage-toolbar-control,
+.stage-toolbar.collapsed .stage-toolbar-toggle {
+  width: 34px;
+  height: 34px;
+}
+
+.control-tooltip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.control-tooltip-bubble {
+  position: absolute;
+  z-index: 80;
+  width: max-content;
+  max-width: 280px;
+  padding: 7px 10px;
+  border: 1px solid #3a4351;
+  border-radius: 7px;
+  background: rgba(25, 29, 36, 0.98);
+  color: #f4f6fa;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.42);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: left;
+  white-space: normal;
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    opacity 130ms ease,
+    transform 160ms cubic-bezier(0.2, 0.75, 0.25, 1);
+}
+
+.control-tooltip-right .control-tooltip-bubble {
+  top: 50%;
+  left: calc(100% + 9px);
+  transform: translate(-4px, -50%) scale(0.97);
+  transform-origin: left center;
+}
+
+.control-tooltip-left .control-tooltip-bubble {
+  top: 50%;
+  right: calc(100% + 9px);
+  transform: translate(4px, -50%) scale(0.97);
+  transform-origin: right center;
+}
+
+.control-tooltip-top .control-tooltip-bubble {
+  bottom: calc(100% + 9px);
+  left: 50%;
+  transform: translate(-50%, 4px) scale(0.97);
+  transform-origin: center bottom;
+}
+
+.control-tooltip:hover .control-tooltip-bubble,
+.control-tooltip:has(:focus-visible) .control-tooltip-bubble {
+  visibility: visible;
+  opacity: 1;
+  transition-delay: 260ms;
+}
+
+.control-tooltip-right:hover .control-tooltip-bubble,
+.control-tooltip-right:has(:focus-visible) .control-tooltip-bubble,
+.control-tooltip-left:hover .control-tooltip-bubble,
+.control-tooltip-left:has(:focus-visible) .control-tooltip-bubble {
+  transform: translate(0, -50%) scale(1);
+}
+
+.control-tooltip-top:hover .control-tooltip-bubble,
+.control-tooltip-top:has(:focus-visible) .control-tooltip-bubble {
+  transform: translate(-50%, 0) scale(1);
+}
+
+.stage-active-tool-badge {
+  position: absolute;
+  z-index: 33;
+  top: 12px;
+  left: 62px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  padding: 5px 9px;
+  border: 1px solid var(--accent-bd);
+  border-radius: var(--r-pill);
+  background: rgba(20, 22, 27, 0.92);
+  color: var(--text);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.34);
+  font-size: var(--font-xs);
+  pointer-events: none;
+  backdrop-filter: blur(10px);
+}
+
+.stage-active-tool-badge strong {
+  color: var(--accent-hi);
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .control-tooltip-bubble {
+    transition: none;
+  }
+}
+
+/* Workspace zoom: the page image is sized explicitly so it (and its overlays)
+   scale together and can be scrolled. `safe center` keeps the content centered
+   while it fits but avoids clipping the scrollable edge once it overflows. */
+.workspace.is-zoomed {
+  place-items: safe center;
+}
+
+.workspace.is-zoomed .stage-wrap {
+  width: auto;
+  max-width: none;
+}
+
+.workspace.is-zoomed .workspace-pane {
+  width: auto;
+  max-width: none;
+}
+
+.workspace.is-zoomed .image-stage {
+  max-width: none;
+}
+
+.workspace.is-zoomed .page-image {
+  width: var(--page-display-w);
+  height: var(--page-display-h);
+  max-width: none;
+  max-height: none;
+}

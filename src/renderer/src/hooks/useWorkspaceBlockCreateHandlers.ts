@@ -1,6 +1,6 @@
 import {
   useCallback,
-  useState,
+  useRef,
   type Dispatch,
   type PointerEvent,
   type RefObject,
@@ -13,22 +13,26 @@ import {
 } from "../../../shared/blockFormat";
 import { resolveBlockVisualStyle } from "../../../shared/blockVisuals";
 import { estimateFontSizePx } from "../../../shared/geometry";
+import type { MangaPage } from "../../../shared/libraryTypes";
 import { isUsableRegionBbox } from "../../../shared/region";
 import type { BBox, TranslationBlock } from "../../../shared/textTypes";
 import { regionSelectionToBbox } from "../lib/appHelpers";
-import type { MangaPage } from "./hookLibraryTypes";
+import type { WorkspaceInteractionPreviewStore } from "../lib/workspaceInteractionPreview";
 import type { UpdateCurrentChapter } from "./useCurrentChapterUpdater";
 import {
   capturePointerSafely,
   releasePointerCaptureSafely,
 } from "./workspacePointerCapture";
+import {
+  resolveNormalizedImagePoint,
+  type PointerRect,
+} from "./workspacePointerGeometry";
 
 type UseWorkspaceBlockCreateHandlersOptions = {
   active: boolean;
   blockFormatDefaults?: BlockFormatDefaults;
-  getNormalizedImagePoint: (
-    event: PointerEvent,
-  ) => { x: number; y: number } | null;
+  getImagePointerRect: () => PointerRect | null;
+  interactionPreviewStore: WorkspaceInteractionPreviewStore;
   pushStatus: (line: string) => void;
   selectedPage: MangaPage | null;
   selectedPageEditLocked: boolean;
@@ -39,12 +43,13 @@ type UseWorkspaceBlockCreateHandlersOptions = {
 };
 
 type BlockCreateDraft = {
-  start: { x: number; y: number };
   current: { x: number; y: number };
+  pointerId: number;
+  pointerRect: PointerRect;
+  start: { x: number; y: number };
 };
 
 type BlockCreateHandlers = {
-  blockCreateRect: BBox | null;
   cancelBlockCreate: () => boolean;
   onBlockCreatePointerDown: (event: PointerEvent) => boolean;
   onBlockCreatePointerMove: (event: PointerEvent) => boolean;
@@ -52,83 +57,73 @@ type BlockCreateHandlers = {
 };
 
 /**
- * Block tool: dragging on the stage sketches a marquee and, on release,
- * appends a new empty text block covering the dragged area.
+ * Block tool: pointer bursts update only the isolated preview store. The
+ * chapter, history and persistence layers receive one semantic edit on release.
  */
 export function useWorkspaceBlockCreateHandlers(
   options: UseWorkspaceBlockCreateHandlersOptions,
 ): BlockCreateHandlers {
   const { t } = useTranslation("renderer");
-  const [draft, setDraft] = useState<BlockCreateDraft | null>(null);
+  const draftRef = useRef<BlockCreateDraft | null>(null);
   const createBlockFromBbox = useCreateBlockFromBbox(options);
-
-  const onBlockCreatePointerDown = useCallback(
-    (event: PointerEvent) => {
-      if (!options.active) {
-        return false;
-      }
-      if (!options.selectedPage || options.selectedPageEditLocked) {
-        return true;
-      }
-      const point = options.getNormalizedImagePoint(event);
-      if (!point || !options.stageRef.current || event.button !== 0) {
-        return true;
-      }
-      event.preventDefault();
-      setDraft({ start: point, current: point });
-      capturePointerSafely(options.stageRef.current, event.pointerId);
-      return true;
-    },
-    [options],
-  );
+  const { interactionPreviewStore, pushStatus, stageRef } = options;
+  const onBlockCreatePointerDown = useBlockCreatePointerDown(options, draftRef);
 
   const onBlockCreatePointerMove = useCallback(
     (event: PointerEvent) => {
+      const draft = draftRef.current;
       if (!draft) {
         return false;
       }
-      const point = options.getNormalizedImagePoint(event);
+      const point = resolveNormalizedImagePoint(event, draft.pointerRect);
       if (point) {
-        setDraft((current) =>
-          current ? { ...current, current: point } : current,
-        );
+        draft.current = point;
+        interactionPreviewStore.queue({
+          blockCreateRect: draftToBbox(draft),
+        });
       }
       return true;
     },
-    [draft, options],
+    [interactionPreviewStore],
   );
 
   const onBlockCreatePointerUp = useCallback(
     (event: PointerEvent) => {
+      const draft = draftRef.current;
       if (!draft) {
         return false;
       }
-      releasePointerCaptureSafely(options.stageRef.current, event.pointerId);
-      const finalPoint = options.getNormalizedImagePoint(event);
-      const bbox = draftToBbox(
-        finalPoint ? { ...draft, current: finalPoint } : draft,
-      );
-      setDraft(null);
+      releasePointerCaptureSafely(stageRef.current, draft.pointerId);
+      draftRef.current = null;
+      interactionPreviewStore.set({ blockCreateRect: null });
+      if (event.type === "pointercancel") {
+        return true;
+      }
+      const finalPoint = resolveNormalizedImagePoint(event, draft.pointerRect);
+      if (finalPoint) draft.current = finalPoint;
+      const bbox = draftToBbox(draft);
       if (!isUsableRegionBbox(bbox, 10)) {
-        options.pushStatus(t("blockCreate.tooSmall"));
+        pushStatus(t("blockCreate.tooSmall"));
         return true;
       }
       createBlockFromBbox(bbox);
       return true;
     },
-    [createBlockFromBbox, draft, options, t],
+    [createBlockFromBbox, interactionPreviewStore, pushStatus, stageRef, t],
   );
 
   const cancelBlockCreate = useCallback(() => {
+    const draft = draftRef.current;
     if (!draft) {
       return false;
     }
-    setDraft(null);
+    releasePointerCaptureSafely(stageRef.current, draft.pointerId);
+    draftRef.current = null;
+    interactionPreviewStore.set({ blockCreateRect: null });
     return true;
-  }, [draft]);
+  }, [interactionPreviewStore, stageRef]);
 
   return {
-    blockCreateRect: draft ? draftToBbox(draft) : null,
     cancelBlockCreate,
     onBlockCreatePointerDown,
     onBlockCreatePointerMove,
@@ -136,7 +131,59 @@ export function useWorkspaceBlockCreateHandlers(
   };
 }
 
-function draftToBbox(draft: BlockCreateDraft): BBox {
+function useBlockCreatePointerDown(
+  {
+    active,
+    getImagePointerRect,
+    interactionPreviewStore,
+    selectedPage,
+    selectedPageEditLocked,
+    stageRef,
+  }: UseWorkspaceBlockCreateHandlersOptions,
+  draftRef: RefObject<BlockCreateDraft | null>,
+): (event: PointerEvent) => boolean {
+  return useCallback(
+    (event: PointerEvent) => {
+      if (!active) {
+        return false;
+      }
+      if (!selectedPage || selectedPageEditLocked) {
+        return true;
+      }
+      const pointerRect = getImagePointerRect();
+      const point = pointerRect
+        ? resolveNormalizedImagePoint(event, pointerRect)
+        : null;
+      if (!point || !pointerRect || !stageRef.current || event.button !== 0) {
+        return true;
+      }
+      event.preventDefault();
+      const draft = {
+        current: point,
+        pointerId: event.pointerId,
+        pointerRect,
+        start: point,
+      };
+      draftRef.current = draft;
+      interactionPreviewStore.set({
+        blockCreateRect: draftToBbox(draft),
+      });
+      capturePointerSafely(stageRef.current, event.pointerId);
+      return true;
+    },
+    [
+      active,
+      draftRef,
+      getImagePointerRect,
+      interactionPreviewStore,
+      selectedPage,
+      selectedPageEditLocked,
+      stageRef,
+    ],
+  );
+}
+
+function draftToBbox(draft: Pick<BlockCreateDraft, "current" | "start">): BBox {
   return regionSelectionToBbox({
     active: true,
     dragging: true,

@@ -10,7 +10,8 @@ import {
   type AutoInpaintingChapterSelection,
 } from "../lib/autoInpaintingSelection";
 import { PageSelectionPicker } from "./ExportPagePicker";
-import { Button, Modal } from "./ui";
+import { Button } from "./ui/Button";
+import { Modal } from "./ui/Modal";
 
 export type AutoInpaintingOptionsModalProps = {
   chapter: ChapterSnapshot;

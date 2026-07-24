@@ -1,5 +1,9 @@
 import type { MangaPage } from "../../shared/libraryTypes";
-import type { PageStoryMemory } from "../../shared/workContextTypes";
+import type {
+  ChapterStoryMemory,
+  PageStoryMemory,
+  WorkStyleGuide,
+} from "../../shared/workContextTypes";
 import { saveChapterStoryMemory, saveWorkStyleGuide } from "../library";
 import { mergeCumulativePageContext } from "./cumulativePageContext";
 import { upsertPageStoryMemory } from "./storyMemoryBuilder";
@@ -11,15 +15,28 @@ import type {
 import type { WarningCollector } from "./warningCollector";
 import { logPipelineWarning } from "./translationAttemptLogging";
 
-export async function persistPageContextAfterSuccess({
-  page,
-  pageIndex,
-  pageContext,
-  ocrResult,
-  collectPageContext,
-  warningCollector,
-  workContext,
-}: {
+export type PageContextPersistenceRepository = {
+  saveChapterStoryMemory: (
+    memory: ChapterStoryMemory,
+  ) => Promise<ChapterStoryMemory>;
+  saveWorkStyleGuide: (guide: WorkStyleGuide) => Promise<WorkStyleGuide>;
+};
+
+export type PageContextPersistenceLogger = {
+  warn: (message: string, detail?: unknown) => void;
+};
+
+export type PageContextPersistenceDependencies = {
+  repository: PageContextPersistenceRepository;
+  logger: PageContextPersistenceLogger;
+};
+
+const defaultDependencies: PageContextPersistenceDependencies = {
+  repository: { saveChapterStoryMemory, saveWorkStyleGuide },
+  logger: { warn: logPipelineWarning },
+};
+
+type PersistPageContextInput = {
   page?: MangaPage;
   pageIndex: number;
   pageContext?: PageContextPayload;
@@ -27,7 +44,20 @@ export async function persistPageContextAfterSuccess({
   collectPageContext: boolean;
   warningCollector: WarningCollector;
   workContext?: PipelineWorkContext;
-}): Promise<void> {
+};
+
+export async function persistPageContextAfterSuccess(
+  {
+    page,
+    pageIndex,
+    pageContext,
+    ocrResult,
+    collectPageContext,
+    warningCollector,
+    workContext,
+  }: PersistPageContextInput,
+  dependencies: PageContextPersistenceDependencies = defaultDependencies,
+): Promise<void> {
   if (!workContext || !page || page.analysisStatus !== "completed") {
     return;
   }
@@ -41,6 +71,7 @@ export async function persistPageContextAfterSuccess({
         pageContext,
         ocrResult,
         existing,
+        dependencies,
         warningCollector,
         workContext,
       })
@@ -56,11 +87,18 @@ export async function persistPageContextAfterSuccess({
     pageMemory,
   );
   try {
-    workContext.storyMemory = await saveChapterStoryMemory(
-      workContext.storyMemory,
-    );
+    workContext.storyMemory =
+      await dependencies.repository.saveChapterStoryMemory(
+        workContext.storyMemory,
+      );
   } catch (error) {
-    addContextSaveWarning(warningCollector, page, "페이지 기억", error);
+    addContextSaveWarning(
+      warningCollector,
+      dependencies.logger,
+      page,
+      "페이지 기억",
+      error,
+    );
   }
 }
 
@@ -70,6 +108,7 @@ async function buildAndPersistCumulativeMemory({
   pageContext,
   ocrResult,
   existing,
+  dependencies,
   warningCollector,
   workContext,
 }: {
@@ -78,6 +117,7 @@ async function buildAndPersistCumulativeMemory({
   pageContext?: PageContextPayload;
   ocrResult?: OcrBboxResult;
   existing?: PageStoryMemory;
+  dependencies: PageContextPersistenceDependencies;
   warningCollector: WarningCollector;
   workContext: PipelineWorkContext;
 }): Promise<PageStoryMemory> {
@@ -95,10 +135,18 @@ async function buildAndPersistCumulativeMemory({
     return merged.pageMemory;
   }
   try {
-    workContext.styleGuide = await saveWorkStyleGuide(merged.styleGuide);
+    workContext.styleGuide = await dependencies.repository.saveWorkStyleGuide(
+      merged.styleGuide,
+    );
     return merged.pageMemory;
   } catch (error) {
-    addContextSaveWarning(warningCollector, page, "용어/캐릭터 기억", error);
+    addContextSaveWarning(
+      warningCollector,
+      dependencies.logger,
+      page,
+      "용어/캐릭터 기억",
+      error,
+    );
     return mergeCumulativePageContext({
       styleGuide: workContext.styleGuide,
       existingPageMemory: existing,
@@ -114,6 +162,7 @@ async function buildAndPersistCumulativeMemory({
 
 function addContextSaveWarning(
   warningCollector: WarningCollector,
+  logger: PageContextPersistenceLogger,
   page: MangaPage,
   kind: string,
   error: unknown,
@@ -122,7 +171,7 @@ function addContextSaveWarning(
   warningCollector.add(
     `${page.name}: ${kind} 저장에 실패했지만 번역 결과는 유지했습니다. ${message}`,
   );
-  logPipelineWarning("Cumulative page context save failed", {
+  logger.warn("Cumulative page context save failed", {
     pageId: page.id,
     pageName: page.name,
     kind,

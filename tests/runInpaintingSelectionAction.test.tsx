@@ -1,16 +1,20 @@
 // @vitest-environment jsdom
 
 import { act, cleanup, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import type { UseInpaintingActionsOptions } from "../src/renderer/src/hooks/inpaintingActionTypes";
 
-const startInpainting = vi.hoisted(() => vi.fn());
-const revertInpainting = vi.hoisted(() => vi.fn());
+const startInpainting = vi.fn();
+const revertInpainting = vi.fn();
 
-vi.mock("../src/renderer/src/api/mangaGateway", () => ({
-  mangaGateway: { revertInpainting, startInpainting },
-}));
+beforeEach(() => {
+  window.mangaApi = createTestMangaGatewayStub({
+    revertInpainting,
+    startInpainting,
+  });
+});
 
 import { useRevertInpaintingAction } from "../src/renderer/src/hooks/useRevertInpaintingAction";
 import { useRunInpaintingAction } from "../src/renderer/src/hooks/useRunInpaintingAction";
@@ -76,6 +80,7 @@ function makeOptions(
 
 afterEach(() => {
   cleanup();
+  window.mangaApi = createTestMangaGatewayStub();
   vi.clearAllMocks();
 });
 

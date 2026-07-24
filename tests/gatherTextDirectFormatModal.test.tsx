@@ -7,6 +7,7 @@ import type { TranslationBlock } from "../src/shared/textTypes";
 import { FontsContext } from "../src/renderer/src/fonts/fontsContextValue";
 import { GatherTextDirectFormatModal } from "../src/renderer/src/components/gatherText/GatherTextDirectFormatModal";
 import type { GatherTextFormatSelection } from "../src/renderer/src/components/gatherText/useGatherTextFormatSelection";
+import { createBlockFontCatalog } from "../src/renderer/src/lib/fonts";
 import { deriveGatherTextDirectFormatModel } from "../src/renderer/src/lib/gatherTextDirectFormatModel";
 
 afterEach(cleanup);
@@ -185,12 +186,11 @@ function renderModal(selection: GatherTextFormatSelection) {
     <FontsContext.Provider
       value={{
         busy: false,
-        customFonts: [],
-        preferences: {
+        catalog: createBlockFontCatalog([], {
           favoriteIds: [],
           orderedIds: [],
           defaultFontId: "nanum-gothic",
-        },
+        }),
         baseOptions: [],
         options: [
           {

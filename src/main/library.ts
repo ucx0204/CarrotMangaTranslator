@@ -1,7 +1,5 @@
-export {
-  assertLibraryImagePath,
-  getLibraryRoot,
-} from "./libraryStore/libraryFiles";
+export { assertLibraryImagePath } from "./libraryStore/libraryFiles";
+export { getLibraryRoot } from "./libraryStore/libraryPaths";
 export type { ChapterRunPaths } from "./libraryStore/libraryFiles";
 export type { LibraryCleanupResult } from "./libraryStore/libraryCleanup";
 export {
@@ -23,17 +21,23 @@ export {
   reorderChapters,
   reorderPages,
   savePageBlocks,
+  savePagesBlocks,
   setPageInpaintingResult,
   updatePageAfterAnalysis,
   updatePagesAfterAnalysis,
   updatePagesAfterInpainting,
 } from "./library/libraryMutationFacade";
 export {
+  createLibraryImportService,
   createImport,
   previewFolder,
   previewImages,
   previewZip,
   previewZipFolder,
+} from "./library/libraryImportFacade";
+export type {
+  LibraryImportRuntime,
+  LibraryImportService,
 } from "./library/libraryImportFacade";
 export {
   exportWorkShareToFile,

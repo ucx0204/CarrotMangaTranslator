@@ -21,8 +21,6 @@ import type {
   OcrGpuBackend,
   OcrQualityMode,
 } from "../../shared/settingsTypes";
-export { inferHardwareVendorFromDefaults } from "./hardwareVendor";
-
 export function resolveModelProvider(
   value: unknown,
   fallback: ModelProvider,
@@ -407,7 +405,7 @@ function clampInteger(value: number, min: number, max: number): number {
 }
 
 export function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object"
+  return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
 }

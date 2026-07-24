@@ -8,7 +8,7 @@ import type { WorkStyleGuide } from "../shared/workContextTypes";
 import type { TranslationOptions } from "./appSettings";
 import { getChapterStoryMemory } from "./library";
 import { logWarn } from "./logger";
-import { loadTranslationRuntimePort } from "./pipeline/translationRuntimePort";
+import { loadTranslationRuntimePort } from "./translationRuntime";
 import type { ModelEndpointHandle } from "./pipeline/types";
 import { resolveLanguagePair } from "../shared/translationLanguages";
 import {

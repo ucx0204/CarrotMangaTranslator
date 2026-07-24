@@ -170,15 +170,32 @@ async function main() {
   run(process.execPath, ["scripts/verify-mac-package.cjs"], buildEnv);
 }
 
+/**
+ * @param {() => Promise<void>} [build]
+ * @param {{ reportError: (error: unknown) => void; exit: (code: number) => void }} [runtime]
+ */
+async function runMacBuildCli(
+  build = main,
+  runtime = {
+    reportError: (error) => console.error(error),
+    exit: (code) => process.exit(code),
+  },
+) {
+  try {
+    await build();
+  } catch (error) {
+    runtime.reportError(error);
+    runtime.exit(1);
+  }
+}
+
 if (require.main === module) {
-  main().catch((error) => {
-    console.error(error);
-    process.exit(1);
-  });
+  void runMacBuildCli();
 }
 
 module.exports = {
   configureElectronBuilderSigningEnvironment,
   configureMacBuildChannel,
   resolveMacBuildChannel,
+  runMacBuildCli,
 };

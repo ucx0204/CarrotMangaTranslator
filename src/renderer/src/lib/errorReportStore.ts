@@ -3,6 +3,7 @@ import type { ErrorReportContext } from "../../../shared/errorReportTypes";
 import { errorReportGateway } from "./errorReportGateway";
 
 const DUPLICATE_WINDOW_MS = 30_000;
+const MAX_RECENT_FINGERPRINTS = 128;
 const MAX_MESSAGE_LENGTH = 4_000;
 const MAX_STACK_LENGTH = 16_000;
 
@@ -39,6 +40,7 @@ export function openErrorReport(
     if (previous !== undefined && now - previous < DUPLICATE_WINDOW_MS) {
       return false;
     }
+    evictOldestFingerprints();
     recentFingerprints.set(fingerprint, now);
   }
   currentIncident = normalized;
@@ -170,6 +172,16 @@ function pruneOldFingerprints(now: number): void {
     if (now - timestamp >= DUPLICATE_WINDOW_MS) {
       recentFingerprints.delete(fingerprint);
     }
+  }
+}
+
+function evictOldestFingerprints(): void {
+  while (recentFingerprints.size >= MAX_RECENT_FINGERPRINTS) {
+    const oldest = recentFingerprints.keys().next().value;
+    if (oldest === undefined) {
+      return;
+    }
+    recentFingerprints.delete(oldest);
   }
 }
 

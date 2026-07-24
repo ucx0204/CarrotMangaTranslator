@@ -4,10 +4,11 @@ import {
   normalizePerspectiveTransform,
   validateQuadraticPath,
 } from "../../../shared/blockTransforms";
+import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { BBox, TranslationBlock } from "../../../shared/textTypes";
-import type { ChapterSnapshot, MangaPage } from "./hookLibraryTypes";
 import { applyEditableBlockBbox } from "../lib/blockFormatGeometry";
 import { isPerspectiveVisibleOnPage } from "../lib/transformEditorModel";
+import type { DragMode } from "../lib/workspaceInteractionTypes";
 import {
   describeDragBbox,
   describeTransformPoint,
@@ -16,7 +17,6 @@ import {
   resolveDraggedCurveLayout,
   resolveDraggedPerspective,
   resolveDraggedRotationWithSnap,
-  type DragMode,
   type DragState,
   type PointerRect,
 } from "./workspacePointerGeometry";
@@ -74,27 +74,6 @@ export function applyResolvedBlockDrag(
     pages: chapter.pages.map((candidate) =>
       candidate.id === page.id
         ? applyResolutionToPage(candidate, page, drag, resolution)
-        : candidate,
-    ),
-  };
-}
-
-export function restoreDraggedBlock(
-  chapter: ChapterSnapshot,
-  page: MangaPage,
-  drag: DragState,
-): ChapterSnapshot {
-  return {
-    ...chapter,
-    pages: chapter.pages.map((candidate) =>
-      candidate.id === page.id
-        ? {
-            ...candidate,
-            updatedAt: new Date().toISOString(),
-            blocks: candidate.blocks.map((block) =>
-              block.id === drag.blockId ? drag.startBlock : block,
-            ),
-          }
         : candidate,
     ),
   };
@@ -163,13 +142,13 @@ function applyResolutionToPage(
     updatedAt: new Date().toISOString(),
     blocks: candidate.blocks.map((block) =>
       block.id === drag.blockId
-        ? applyBlockDragPatch(block, page, resolution)
+        ? applyBlockDragResolution(block, page, resolution)
         : block,
     ),
   };
 }
 
-function applyBlockDragPatch(
+export function applyBlockDragResolution(
   block: TranslationBlock,
   page: MangaPage,
   resolution: BlockDragResolution,

@@ -11,11 +11,11 @@ import {
   isRtlLanguageCode,
 } from "../../shared/translationLanguages";
 import type { PixelRect } from "../../shared/region";
-import { logInfo } from "../logger";
 import { tMain } from "./localization";
 import { loadImageForRegionCrop } from "../regionCrop";
 import { throwIfAborted } from "./failure";
 import { buildKeepBlocksOcrResult } from "./keepBlocksResult";
+import type { PipelineDiagnostics } from "./translationAttemptLogging";
 import type { OcrBboxResult, PipelineOptions } from "./types";
 import type { TranslationRuntimePort } from "./translationRuntimePort";
 
@@ -45,6 +45,7 @@ export async function prepareKeepBlockHints({
   jobId,
   signal,
   decodeImage,
+  diagnostics,
 }: {
   runtime: TranslationRuntimePort;
   baseOptions: TranslationOptions;
@@ -55,11 +56,12 @@ export async function prepareKeepBlockHints({
   jobId: string;
   signal: AbortSignal;
   decodeImage?: PipelineOptions["decodeImage"];
+  diagnostics: PipelineDiagnostics;
 }): Promise<Map<string, OcrBboxResult>> {
   if (keepPages.length === 0) {
     return new Map<string, OcrBboxResult>();
   }
-  logInfo("Keep-blocks mode: using existing blocks as OCR hints", {
+  diagnostics.info("Keep-blocks mode: using existing blocks as OCR hints", {
     jobId,
     keepPageCount: keepPages.length,
     pageCount,

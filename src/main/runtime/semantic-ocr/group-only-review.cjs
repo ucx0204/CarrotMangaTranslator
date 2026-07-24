@@ -1,158 +1,48 @@
 // @ts-check
-/* eslint-disable max-lines -- the v11 prompt, parser, and projection stay together as one frozen contract */
 
 const { readOcrCandidateText } = require("../prompts/ocr-text.cjs");
 const { isRecord, semanticContractError } = require("./values.cjs");
+const {
+  GROUP_ONLY_PROMPT_CONTRACT_VERSION,
+  GROUP_ONLY_REVIEW_ROLES,
+  buildGroupOnlyReviewPromptFromPlan,
+  buildGroupOnlyReviewResponseFormat,
+  buildGroupOnlyReviewSystemPrompt,
+} = require("./group-only-review-prompts.cjs");
+const {
+  attachMostlyContainedRubyLabels,
+  separateWeakDiagonalFragmentMerges,
+} = require("./group-only-review-stabilization.cjs");
+const {
+  GROUP_ONLY_REVIEW_VERSION,
+  assertNoDuplicateKeys,
+  describeError,
+  exactKeys,
+  fail,
+  integerArray,
+  isPlan,
+  normalizeEnvelope,
+  normalizeFragments,
+  optionalBox,
+  optionalString,
+  pixelBox,
+  positive,
+  record,
+  toCrop1000,
+  tupleBox,
+  unionBoxes,
+  validateLabels,
+} = require("./group-only-review-values.cjs");
+const { isExpectedGroupOnlyReviewFailure } = require("./review-errors.cjs");
 
-const GROUP_ONLY_REVIEW_VERSION = 1;
-const GROUP_ONLY_PROMPT_CONTRACT_VERSION = 11;
-const ROLES = ["body", "ruby"];
-
-/**
- * @typedef {{x1:number;y1:number;x2:number;y2:number}} Box
- * @typedef {[number,number,number,number]} TupleBox
- * @typedef {"body"|"ruby"} ReviewRole
- * @typedef {"model"|"upstream-fallback"|"singleton"} ReviewSource
- * @typedef {{group:number;role:ReviewRole}} ReviewLabel
- * @typedef {{id:number;index:number;hint:Record<string,unknown>;bbox:Box;text:string;score:number|null;bbox1000:TupleBox;paddleGroup:string|null;paddleOrder:number|null}} ReviewCandidate
- * @typedef {{fragment:string;status:string;candidateIds:number[]}} UpstreamFragment
- * @typedef {{version:number;reviewCase:Record<string,unknown>;region:Record<string,unknown>;candidates:ReviewCandidate[];candidateOrder:number[];upstreamFragments:UpstreamFragment[];spatialRelations:Record<string,unknown>}} ReviewPlan
- * @typedef {{localGroupIndex:number;modelGroup:number|null;candidateIds:number[];bodyCandidateIds:number[];rubyCandidateIds:number[];jp:string;bbox:Box}} ReviewedGroup
- * @typedef {{source:ReviewSource;labels:ReviewLabel[];groups:ReviewedGroup[];candidateOrder:number[]}} ReviewProjection
- * @typedef {ReviewProjection & {status:"reviewed"|"fallback"|"singleton";usedFallback:boolean;requestSkipped:boolean;rawResponse:unknown;fallbackError?:Record<string,unknown>}} ReviewResult
- * @typedef {{groupId:string;orderInGroup:number;groupSize:number;reviewRole:ReviewRole}} HintAssignment
- */
-
-function buildGroupOnlyReviewSystemPrompt() {
-  return [
-    "You conservatively group already-detected Japanese manga OCR candidates.",
-    "This is grouping only: never transcribe, correct, or output text or coordinates.",
-    "A group is one enclosing balloon, card, caption, or continuous printed composition; line and column boundaries alone never define groups.",
-    "Small visible furigana must attach to its host group as rubyIds; it must never become a standalone group.",
-    "First identify visible closed balloon or panel compartments. Never merge upstream fragments that belong to different closed compartments, even when they touch and share a Paddle group.",
-    "Only after preserving those hard visible boundaries, use Paddle groups to join fragments inside one compartment.",
-    "The supplied upstream fragments guarantee candidate coverage but are not final group boundaries.",
-    "Never preserve a fragment boundary merely because it was supplied.",
-    "This pass may merge upstream fragments but must never split one.",
-    "This pass must keep every supplied candidate; noise removal belongs to a later audit.",
-    "When unsure, prefer the shared Paddle group unless a visible boundary contradicts it.",
-    "Return exactly one label for every supplied candidate, in the supplied order.",
-    "Return only the schema-constrained JSON object.",
-  ].join("\n");
-}
-
-/** @param {ReviewPlan | Record<string,unknown>} value @param {Record<string,unknown>} [region] @returns {string} */
-function buildGroupOnlyReviewPrompt(value, region = {}) {
-  const plan = isPlan(value) ? value : buildGroupOnlyReviewPlan(value, region);
-  const samePaddle = /** @type {Map<string,number[]>} */ (new Map());
-  for (const candidate of plan.candidates) {
-    if (!candidate.paddleGroup) continue;
-    const ids = samePaddle.get(candidate.paddleGroup) ?? [];
-    ids.push(candidate.id);
-    samePaddle.set(candidate.paddleGroup, ids);
-  }
-  const byId = new Map(plan.candidates.map((item) => [item.id, item]));
-  const evidence = {
-    upstreamFragments: plan.upstreamFragments.map((fragment) => {
-      const members = /** @type {ReviewCandidate[]} */ (
-        fragment.candidateIds.map((id) => byId.get(id))
-      );
-      return {
-        fragment: fragment.fragment,
-        status: fragment.status,
-        ids: fragment.candidateIds,
-        text: members.map((item) => item.text).join(""),
-        bbox1000: unionTuples(members.map((item) => item.bbox1000)),
-      };
-    }),
-    candidates: plan.candidates.map((item) => ({
-      id: item.id,
-      text: item.text,
-      score: item.score,
-      bbox1000: item.bbox1000,
-      paddleGroup: item.paddleGroup,
-      paddleOrder: item.paddleOrder,
-    })),
-    samePaddleGroupSets: [...samePaddle].map(([paddleGroup, ids]) => ({
-      paddleGroup,
-      ids,
-    })),
-    spatialRelations: plan.spatialRelations,
-  };
-  return [
-    "# Existing OCR evidence",
-    JSON.stringify(evidence),
-    "",
-    "# Grouping-only task",
-    `candidateOrder=[${plan.candidateOrder.join(",")}].`,
-    `Return exactly ${plan.candidateOrder.length} labels. labels[i] classifies candidateOrder[i].`,
-    "For visible text, group is an integer from 1 through the candidate count. Candidates with the same group number form one final group.",
-    'role is "body" for main printed text or "ruby" for visibly smaller furigana that reads nearby main text.',
-    "Every candidate must use a nonzero group and one of those two roles. Do not discard candidates in this pass.",
-    "Do not output text. Do not correct OCR text. Do not output or propose coordinates.",
-    "The application will derive each group's bbox by the exact union of its Paddle boxes.",
-    "First decide the visible enclosing composition for every candidate; only then classify body versus ruby.",
-    "Grouping evidence priority is: visible closed container boundary first, shared Paddle group second, upstream fragment boundary last.",
-    "A group means all text inside one enclosing balloon, card, caption plate, or continuous printed composition.",
-    "A single line may be a complete group when it is its own balloon, card, caption, or independent composition.",
-    "Do not split one composition merely because of whitespace, line breaks, vertical columns, horizontal rows, staggered placement, or ruby gaps.",
-    "A clearly visible boundary between separate balloons, cards, or unrelated printed compositions does require separate groups.",
-    "Do not merge separate containers merely because their text is nearby, diagonal, or forms one sentence.",
-    "upstreamFragments guarantee coverage only. Separate fragments are not evidence of separate final groups.",
-    "confirmed means the fragment's internal association is useful, not that it is a complete container; confirmed fragments may be merged.",
-    "deferred fragments are explicitly unresolved and must not be preserved as standalone groups merely because they are separate.",
-    "Every candidate visibly printed inside one uninterrupted balloon, card, caption, or text panel must share that composition's group even when paddleGroup is null, confidence is low, or the OCR text guess is nonsense.",
-    "Never isolate a visible fragment merely because its OCR text does not fit the surrounding sentence.",
-    "Candidates sharing the same non-null paddleGroup normally use the same final group.",
-    "Override that hint when the image shows separate closed balloon lobes, separate outline compartments, a real enclosing border, or a clearly disconnected sound-effect composition.",
-    "Touching or connected balloons still remain separate when each lobe has its own visible outline compartment.",
-    "Whitespace, diagonal placement, a new line, or a new column is not enough to override a shared paddleGroup.",
-    "Classify every candidate's role again from its visible size and location; currentGroups and Paddle text do not establish body versus ruby.",
-    "Small-candidate OCR guesses are often wrong. A visibly small reading beside or above main kanji is ruby even when its OCR guess looks like kanji or nonsense.",
-    'Give such furigana the host body candidate\'s group and role="ruby", even if currentGroups listed it separately or as body.',
-    "Every nonzero group must contain at least one body candidate; furigana must never form a standalone group.",
-    "Do not label ordinary small body text, punctuation, sound effects, or unrelated marks as ruby.",
-    "Keep even a suspected duplicate in its host group; a later OCR audit can remove noise without risking lost text.",
-    "Never split a supplied upstream fragment. This pass only merges fragments and assigns body/ruby roles.",
-    "Mandatory final check 1: do not merge upstream fragments from visibly different closed balloon or panel compartments, even if their Paddle group matches.",
-    "Mandatory final check 2: after preserving those hard boundaries, unify non-discarded IDs in each samePaddleGroupSets entry that remain inside one compartment.",
-    "Before returning, verify that labels has exactly one entry per candidateOrder item and that each nonzero group has a body.",
-    "If uncertain, keep each upstream fragment intact, merge fragments sharing a Paddle group unless a visible boundary contradicts it, and classify only unmistakable furigana as ruby.",
-  ].join("\n");
-}
-
-/** @param {number} count @returns {Record<string,unknown>} */
-function buildGroupOnlyReviewResponseFormat(count) {
-  if (!Number.isInteger(count) || count < 1)
-    fail("candidate-count", "Candidate count must be positive.");
-  return {
-    type: "json_object",
-    schema: {
-      type: "object",
-      additionalProperties: false,
-      required: ["labels"],
-      properties: { labels: labelArraySchema(count) },
-    },
-  };
-}
-
-/** @param {number} count @returns {Record<string,unknown>} */
-function labelArraySchema(count) {
-  return {
-    type: "array",
-    minItems: count,
-    maxItems: count,
-    items: {
-      type: "object",
-      additionalProperties: false,
-      required: ["group", "role"],
-      properties: {
-        group: { type: "integer", minimum: 1, maximum: count },
-        role: { type: "string", enum: ROLES },
-      },
-    },
-  };
-}
+/** @typedef {import("./group-only-review-types").ReviewRole} ReviewRole */
+/** @typedef {import("./group-only-review-types").ReviewSource} ReviewSource */
+/** @typedef {import("./group-only-review-types").ReviewLabel} ReviewLabel */
+/** @typedef {import("./group-only-review-types").ReviewCandidate} ReviewCandidate */
+/** @typedef {import("./group-only-review-types").ReviewPlan} ReviewPlan */
+/** @typedef {import("./group-only-review-types").ReviewProjection} ReviewProjection */
+/** @typedef {import("./group-only-review-types").ReviewResult} ReviewResult */
+/** @typedef {import("./group-only-review-types").HintAssignment} HintAssignment */
 
 /**
  * candidates/hints is the canonical raw Paddle-hint array in exact model and
@@ -223,6 +113,12 @@ function buildGroupOnlyReviewPlan(reviewCase, region = {}) {
   };
 }
 
+/** @param {ReviewPlan | Record<string,unknown>} value @param {Record<string,unknown>} [region] */
+function buildGroupOnlyReviewPrompt(value, region = {}) {
+  const plan = isPlan(value) ? value : buildGroupOnlyReviewPlan(value, region);
+  return buildGroupOnlyReviewPromptFromPlan(plan);
+}
+
 /** @param {string} rawText @param {ReviewPlan} plan @returns {ReviewProjection} */
 function parseGroupOnlyReviewResponse(rawText, plan) {
   if (!isPlan(plan)) fail("plan", "A validated group-only plan is required.");
@@ -260,7 +156,7 @@ function parseGroupOnlyReviewResponse(rawText, plan) {
     ) {
       fail("group", `Invalid group at label ${index + 1}.`);
     }
-    if (!ROLES.includes(String(label.role)))
+    if (!GROUP_ONLY_REVIEW_ROLES.includes(String(label.role)))
       fail("role", `Invalid role at label ${index + 1}.`);
     return { group, role: /** @type {ReviewRole} */ (label.role) };
   });
@@ -289,414 +185,6 @@ function buildGroupOnlyReviewFallback(plan) {
   return projectGroupOnlyReviewLabels(plan, attached, "upstream-fallback");
 }
 
-/**
- * The model may merge confirmed fragments, but a tiny diagonal corner touch
- * between different Paddle lineages is not evidence that two balloons share
- * one text container. Split only that narrow case; aligned rows/columns,
- * shared Paddle ancestry, and deferred ruby fragments remain model-owned.
- *
- * @param {ReviewPlan} plan
- * @param {ReviewLabel[]} labels
- * @returns {ReviewLabel[]}
- */
-function separateWeakDiagonalFragmentMerges(plan, labels) {
-  const result = labels.map((label) => ({ ...label }));
-  const labelById = new Map(
-    plan.candidates.map((candidate, index) => [candidate.id, result[index]]),
-  );
-  const candidateById = new Map(
-    plan.candidates.map((candidate) => [candidate.id, candidate]),
-  );
-  const candidateIndexById = new Map(
-    plan.candidates.map((candidate, index) => [candidate.id, index]),
-  );
-  const freeGroups = Array.from(
-    { length: plan.candidates.length },
-    (_, index) => index + 1,
-  ).filter((group) => !result.some((label) => label.group === group));
-  const fragmentsByModelGroup = collectFragmentsByModelGroup(plan, labelById);
-
-  for (const [modelGroup, fragments] of fragmentsByModelGroup) {
-    const components = resolveWeakDiagonalComponents(
-      fragments,
-      modelGroup,
-      candidateById,
-      labelById,
-    );
-    if (!components || freeGroups.length < components.length - 1) {
-      continue;
-    }
-    promoteBodylessConfirmedComponents(
-      components,
-      result,
-      labelById,
-      candidateIndexById,
-    );
-    assignSeparatedComponents(
-      components,
-      modelGroup,
-      result,
-      candidateIndexById,
-      freeGroups,
-    );
-  }
-  return result;
-}
-
-/**
- * @param {ReviewPlan} plan
- * @param {Map<number,ReviewLabel>} labelById
- */
-function collectFragmentsByModelGroup(plan, labelById) {
-  /** @type {Map<number,UpstreamFragment[]>} */
-  const grouped = new Map();
-  for (const fragment of plan.upstreamFragments) {
-    const modelGroup = labelById.get(fragment.candidateIds[0])?.group;
-    if (!modelGroup) continue;
-    const members = grouped.get(modelGroup) ?? [];
-    members.push(fragment);
-    grouped.set(modelGroup, members);
-  }
-  return grouped;
-}
-
-/**
- * @param {UpstreamFragment[]} fragments
- * @param {number} modelGroup
- * @param {Map<number,ReviewCandidate>} candidateById
- * @param {Map<number,ReviewLabel>} labelById
- * @returns {Array<Array<ReturnType<typeof buildFragmentEvidence>>>|null}
- */
-function resolveWeakDiagonalComponents(
-  fragments,
-  modelGroup,
-  candidateById,
-  labelById,
-) {
-  if (
-    fragments.some(
-      (fragment) => !isIntactReviewFragment(fragment, modelGroup, labelById),
-    )
-  ) {
-    return null;
-  }
-  const evidence = fragments.map((fragment) =>
-    buildFragmentEvidence(fragment, candidateById),
-  );
-  const confirmed = evidence.filter((item) => item.status === "confirmed");
-  if (!hasSeparableConfirmedFragments(confirmed)) return null;
-  const components = collectPreservedFragmentComponents(confirmed);
-  if (components.length < 2) return null;
-  const deferred = evidence.filter((item) => item.status === "deferred");
-  return attachDeferredEvidence(components, deferred) ? components : null;
-}
-
-/**
- * @param {UpstreamFragment} fragment
- * @param {number} modelGroup
- * @param {Map<number,ReviewLabel>} labelById
- */
-function isIntactReviewFragment(fragment, modelGroup, labelById) {
-  return (
-    ["confirmed", "deferred"].includes(fragment.status) &&
-    fragment.candidateIds.every((id) => labelById.get(id)?.group === modelGroup)
-  );
-}
-
-/** @param {Array<ReturnType<typeof buildFragmentEvidence>>} confirmed */
-function hasSeparableConfirmedFragments(confirmed) {
-  return (
-    confirmed.length >= 2 &&
-    confirmed.every(
-      (item) => item.paddleGroups.size === 1 && item.candidateIds.length > 0,
-    )
-  );
-}
-
-/**
- * @param {Array<Array<ReturnType<typeof buildFragmentEvidence>>>} components
- * @param {Array<ReturnType<typeof buildFragmentEvidence>>} deferred
- */
-function attachDeferredEvidence(components, deferred) {
-  for (const item of deferred) {
-    if (item.paddleGroups.size !== 1 || item.candidateIds.length === 0)
-      return false;
-    const paddleGroup = [...item.paddleGroups][0];
-    const matching = components.filter((component) =>
-      component.some((anchor) => anchor.paddleGroups.has(paddleGroup)),
-    );
-    if (matching.length !== 1) return false;
-    matching[0].push(item);
-  }
-  return true;
-}
-
-/**
- * @param {Array<Array<ReturnType<typeof buildFragmentEvidence>>>} components
- * @param {ReviewLabel[]} result
- * @param {Map<number,ReviewLabel>} labelById
- * @param {Map<number,number>} candidateIndexById
- */
-function promoteBodylessConfirmedComponents(
-  components,
-  result,
-  labelById,
-  candidateIndexById,
-) {
-  for (const component of components) {
-    const componentIds = component.flatMap((item) => item.candidateIds);
-    if (componentIds.some((id) => labelById.get(id)?.role === "body")) continue;
-    const confirmedIds = component
-      .filter((item) => item.status === "confirmed")
-      .flatMap((item) => item.candidateIds);
-    for (const id of confirmedIds) {
-      const index = candidateIndexById.get(id);
-      if (index !== undefined) result[index].role = "body";
-    }
-  }
-}
-
-/**
- * @param {Array<Array<ReturnType<typeof buildFragmentEvidence>>>} components
- * @param {number} modelGroup
- * @param {ReviewLabel[]} result
- * @param {Map<number,number>} candidateIndexById
- * @param {number[]} freeGroups
- */
-function assignSeparatedComponents(
-  components,
-  modelGroup,
-  result,
-  candidateIndexById,
-  freeGroups,
-) {
-  components.sort(
-    (left, right) =>
-      Math.min(...left.flatMap((item) => item.candidateIds)) -
-      Math.min(...right.flatMap((item) => item.candidateIds)),
-  );
-  for (const [componentIndex, component] of components.entries()) {
-    const group =
-      componentIndex === 0
-        ? modelGroup
-        : /** @type {number} */ (freeGroups.shift());
-    const candidateIds = component.flatMap((item) => item.candidateIds);
-    for (const id of candidateIds) {
-      const index = candidateIndexById.get(id);
-      if (index !== undefined) result[index].group = group;
-    }
-  }
-}
-
-/**
- * @param {UpstreamFragment} fragment
- * @param {Map<number,ReviewCandidate>} candidateById
- */
-function buildFragmentEvidence(fragment, candidateById) {
-  const candidates = fragment.candidateIds.flatMap((id) => {
-    const candidate = candidateById.get(id);
-    return candidate ? [candidate] : [];
-  });
-  return {
-    candidateIds: candidates.map((candidate) => candidate.id),
-    bbox: unionBoxes(candidates.map((candidate) => candidate.bbox)),
-    status: fragment.status,
-    paddleGroups: new Set(
-      candidates.flatMap((candidate) =>
-        candidate.paddleGroup ? [candidate.paddleGroup] : [],
-      ),
-    ),
-  };
-}
-
-/**
- * @param {Array<ReturnType<typeof buildFragmentEvidence>>} evidence
- */
-function collectPreservedFragmentComponents(evidence) {
-  const parents = evidence.map((_, index) => index);
-  /** @param {number} index */
-  const root = (index) => {
-    while (parents[index] !== index) {
-      parents[index] = parents[parents[index]];
-      index = parents[index];
-    }
-    return index;
-  };
-  /** @param {number} left @param {number} right */
-  const join = (left, right) => {
-    const leftRoot = root(left);
-    const rightRoot = root(right);
-    if (leftRoot !== rightRoot) parents[rightRoot] = leftRoot;
-  };
-  for (let left = 0; left < evidence.length; left += 1)
-    for (let right = left + 1; right < evidence.length; right += 1)
-      if (!isWeakDiagonalMerge(evidence[left], evidence[right]))
-        join(left, right);
-  /** @type {Map<number,Array<ReturnType<typeof buildFragmentEvidence>>>} */
-  const components = new Map();
-  evidence.forEach((item, index) => {
-    const key = root(index);
-    const members = components.get(key) ?? [];
-    members.push(item);
-    components.set(key, members);
-  });
-  return [...components.values()];
-}
-
-/**
- * @param {ReturnType<typeof buildFragmentEvidence>} left
- * @param {ReturnType<typeof buildFragmentEvidence>} right
- */
-function isWeakDiagonalMerge(left, right) {
-  const leftPaddle = [...left.paddleGroups][0];
-  const rightPaddle = [...right.paddleGroups][0];
-  if (!leftPaddle || !rightPaddle || leftPaddle === rightPaddle) return false;
-  const intersection = boxIntersectionArea(left.bbox, right.bbox);
-  const smallerCoverage =
-    intersection /
-    Math.max(1, Math.min(boxArea(left.bbox), boxArea(right.bbox)));
-  return (
-    intersection > 0 &&
-    smallerCoverage <= 0.05 &&
-    axisOverlapRatio(left.bbox, right.bbox, "x") < 0.5 &&
-    axisOverlapRatio(left.bbox, right.bbox, "y") < 0.5
-  );
-}
-
-/**
- * Stabilize model and fallback labels only for an unambiguous, low-confidence
- * small satellite that is at least 90% covered by its original Paddle host.
- * The slight protrusion allowance prevents furigana from becoming a second
- * overlay because of one or two noisy bbox pixels.
- *
- * @param {ReviewPlan} plan
- * @param {ReviewLabel[]} labels
- * @returns {ReviewLabel[]}
- */
-function attachMostlyContainedRubyLabels(plan, labels) {
-  const result = labels.map((label) => ({ ...label }));
-  const candidateById = new Map(
-    plan.candidates.map((candidate) => [candidate.id, candidate]),
-  );
-  const candidateIndexById = new Map(
-    plan.candidates.map((candidate, index) => [candidate.id, index]),
-  );
-  const fragmentMembers = new Map(
-    plan.upstreamFragments.map((fragment) => [
-      fragment.fragment,
-      fragment.candidateIds.flatMap((id) => {
-        const candidate = candidateById.get(id);
-        return candidate ? [candidate] : [];
-      }),
-    ]),
-  );
-  for (const fragment of plan.upstreamFragments) {
-    const members = fragmentMembers.get(fragment.fragment) ?? [];
-    const satellite = readMostlyContainedRubySatellite(fragment, members);
-    if (!satellite) continue;
-    const hostMembers = findMostlyContainedRubyHost(
-      plan.upstreamFragments,
-      fragmentMembers,
-      fragment,
-      satellite,
-    );
-    if (!hostMembers) continue;
-    const satelliteIndex = candidateIndexById.get(satellite.id);
-    const hostIndex = candidateIndexById.get(hostMembers[0]?.id);
-    if (satelliteIndex === undefined || hostIndex === undefined) continue;
-    result[satelliteIndex] = {
-      group: result[hostIndex].group,
-      role: "ruby",
-    };
-  }
-  return result;
-}
-
-/**
- * @param {UpstreamFragment} fragment
- * @param {ReviewCandidate[]} members
- * @returns {ReviewCandidate|null}
- */
-function readMostlyContainedRubySatellite(fragment, members) {
-  if (members.length !== 1 || !isDeferredFragment(fragment, members))
-    return null;
-  const satellite = members[0];
-  const reasons = Array.isArray(satellite.hint.reviewReasons)
-    ? satellite.hint.reviewReasons.map(String)
-    : [];
-  return reasons.includes("small_low_confidence_text") &&
-    satellite.paddleGroup &&
-    satellite.score !== null &&
-    satellite.score < 0.58
-    ? satellite
-    : null;
-}
-
-/**
- * @param {UpstreamFragment[]} fragments
- * @param {Map<string,ReviewCandidate[]>} fragmentMembers
- * @param {UpstreamFragment} sourceFragment
- * @param {ReviewCandidate} satellite
- * @returns {ReviewCandidate[]|null}
- */
-function findMostlyContainedRubyHost(
-  fragments,
-  fragmentMembers,
-  sourceFragment,
-  satellite,
-) {
-  const hosts = [];
-  for (const host of fragments) {
-    const members = fragmentMembers.get(host.fragment) ?? [];
-    if (
-      host.fragment !== sourceFragment.fragment &&
-      isEligibleMostlyContainedRubyHost(host, members, satellite)
-    ) {
-      hosts.push(members);
-    }
-  }
-  return hosts.length === 1 ? hosts[0] : null;
-}
-
-/**
- * @param {UpstreamFragment} fragment
- * @param {ReviewCandidate[]} members
- * @param {ReviewCandidate} satellite
- */
-function isEligibleMostlyContainedRubyHost(fragment, members, satellite) {
-  if (
-    !isConfirmedFragment(fragment, members) ||
-    !members.some(
-      (candidate) => candidate.paddleGroup === satellite.paddleGroup,
-    )
-  ) {
-    return false;
-  }
-  const hostBox = unionBoxes(members.map((candidate) => candidate.bbox));
-  const areaRatio = boxArea(satellite.bbox) / Math.max(1, boxArea(hostBox));
-  const satelliteCoverage =
-    boxIntersectionArea(hostBox, satellite.bbox) /
-    Math.max(1, boxArea(satellite.bbox));
-  return satelliteCoverage >= 0.9 && areaRatio <= 0.2;
-}
-
-/** @param {UpstreamFragment} fragment @param {ReviewCandidate[]} members */
-function isDeferredFragment(fragment, members) {
-  return (
-    fragment.status === "deferred" ||
-    members.every((candidate) => candidate.hint.reviewStatus === "deferred")
-  );
-}
-
-/** @param {UpstreamFragment} fragment @param {ReviewCandidate[]} members */
-function isConfirmedFragment(fragment, members) {
-  return (
-    members.length > 0 &&
-    fragment.status === "confirmed" &&
-    members.every((candidate) => candidate.hint.reviewStatus !== "deferred")
-  );
-}
-
 /** @param {ReviewPlan} plan @param {ReviewLabel[]} labels @param {ReviewSource} source @returns {ReviewProjection} */
 function projectGroupOnlyReviewLabels(plan, labels, source) {
   if (labels.length !== plan.candidates.length)
@@ -723,9 +211,6 @@ function projectGroupOnlyReviewLabels(plan, labels, source) {
     return {
       localGroupIndex: index + 1,
       modelGroup: source === "model" ? modelGroup : null,
-      // Keep lexical body rows first and attach ruby afterwards. This matches
-      // the accepted v10 projection while preserving the original order
-      // within each role; JP is still derived from body rows only.
       candidateIds: [...body, ...ruby].map((item) => item.candidate.id),
       bodyCandidateIds: body.map((item) => item.candidate.id),
       rubyCandidateIds: ruby.map((item) => item.candidate.id),
@@ -743,12 +228,9 @@ function projectGroupOnlyReviewLabels(plan, labels, source) {
 
 /**
  * Applies crop results in crop/group order and issues page-global G001..Gnnn.
- * Every page hint must occur exactly once across results. Singleton hints keep
- * reviewRole but intentionally need no semantic group metadata.
  * @param {Record<string,unknown>[]} pageHints
  * @param {ReviewProjection[]} cropResults
  * @param {{validatedGroupOnlyReview?:boolean}} [options]
- * @returns {{hints:Record<string,unknown>[];groupOnlyReviewVersion:number;validatedGroupOnlyReview:boolean;reviewedGroupCount:number}}
  */
 function applyReviewedGroupsToHints(pageHints, cropResults, options = {}) {
   if (!Array.isArray(pageHints) || !Array.isArray(cropResults))
@@ -832,8 +314,6 @@ function applyReviewedGroupsToHints(pageHints, cropResults, options = {}) {
 }
 
 /**
- * Injected request returns raw JSON or {outputText,rawResponse?}. All failures
- * except AbortError fail open to the exact upstream-fragment partition.
  * @param {Record<string,unknown>} reviewCase
  * @param {Record<string,unknown>} region
  * @param {(request:Record<string,unknown>)=>Promise<string|{outputText:string;rawResponse?:unknown}>} requestReview
@@ -854,9 +334,9 @@ async function reviewGroupOnlyCrop(reviewCase, region, requestReview) {
       rawResponse: null,
     };
   }
+  if (typeof requestReview !== "function")
+    fail("request", "A request callback is required.");
   try {
-    if (typeof requestReview !== "function")
-      fail("request", "A request callback is required.");
     const response = await requestReview({
       case: reviewCase,
       region,
@@ -867,8 +347,7 @@ async function reviewGroupOnlyCrop(reviewCase, region, requestReview) {
         plan.candidates.length,
       ),
     });
-    const outputText =
-      typeof response === "string" ? response : response?.outputText;
+    const { outputText, rawResponse } = readReviewResponse(response);
     if (!outputText)
       fail("empty-response", "Group-only review returned no JSON.");
     return {
@@ -876,18 +355,11 @@ async function reviewGroupOnlyCrop(reviewCase, region, requestReview) {
       usedFallback: false,
       requestSkipped: false,
       ...parseGroupOnlyReviewResponse(outputText, plan),
-      rawResponse:
-        typeof response === "string"
-          ? response
-          : (response.rawResponse ?? response),
+      rawResponse,
     };
   } catch (error) {
-    const abortError = /** @type {Error & {code?:unknown}} */ (error);
-    if (
-      error instanceof Error &&
-      (error.name === "AbortError" || abortError.code === "ABORT_ERR")
-    )
-      throw error;
+    if (isReviewAbort(error)) throw error;
+    if (!isExpectedGroupOnlyReviewFailure(error)) throw error;
     return {
       status: "fallback",
       usedFallback: true,
@@ -899,327 +371,24 @@ async function reviewGroupOnlyCrop(reviewCase, region, requestReview) {
   }
 }
 
-/** @param {ReviewPlan} plan @param {ReviewLabel[]} labels */
-function validateLabels(plan, labels) {
-  const byId = new Map(
-    plan.candidates.map((item, index) => [item.id, labels[index]]),
-  );
-  for (const fragment of plan.upstreamFragments) {
-    const groups = fragment.candidateIds.map((id) => {
-      const label = byId.get(id);
-      if (!label) fail("candidate-coverage", `Candidate ${id} has no label.`);
-      return label.group;
-    });
-    if (new Set(groups).size !== 1)
-      fail("fragment-split", `Fragment ${fragment.fragment} was split.`);
-  }
-  const roles = /** @type {Map<number,Set<ReviewRole>>} */ (new Map());
-  labels.forEach((label) => {
-    const values = roles.get(label.group) ?? new Set();
-    values.add(label.role);
-    roles.set(label.group, values);
-  });
-  for (const [group, values] of roles)
-    if (!values.has("body")) fail("ruby-only", `Group ${group} has no body.`);
-}
-
-/** @param {unknown} value @param {number[]} ids @returns {UpstreamFragment[]} */
-function normalizeFragments(value, ids) {
-  const raw =
-    Array.isArray(value) && value.length
-      ? value
-      : ids.map((id) => ({ ids: [id] }));
-  const valid = new Set(ids);
-  const consumed = new Set();
-  const fragments = raw.map((item, index) => {
-    const source = record(item, `fragment ${index + 1}`);
-    const candidateIds = integerArray(
-      source.candidateIds ?? source.ids,
-      "fragment ids",
-    );
-    for (const id of candidateIds) {
-      if (!valid.has(id) || consumed.has(id))
-        fail(
-          "fragment-partition",
-          `Unknown or duplicate fragment candidate ${id}.`,
-        );
-      consumed.add(id);
-    }
-    return {
-      fragment:
-        optionalString(source.fragment ?? source.group) ??
-        `F${String(index + 1).padStart(3, "0")}`,
-      status: optionalString(source.status) ?? "confirmed",
-      candidateIds,
-    };
-  });
-  if (consumed.size !== ids.length)
-    fail(
-      "fragment-coverage",
-      "Fragments must cover every candidate exactly once.",
-    );
-  return fragments;
-}
-
-/** @param {string} text */
-function assertNoDuplicateKeys(text) {
-  let index = 0;
-  const ws = () => {
-    while (/\s/.test(text[index] ?? "")) index += 1;
-  };
-  const string = () => {
-    if (text[index] !== '"') fail("json", "Expected JSON string.");
-    const start = index++;
-    while (index < text.length) {
-      if (text[index] === "\\") index += 2;
-      else if (text[index++] === '"')
-        return JSON.parse(text.slice(start, index));
-    }
-    fail("json", "Unterminated JSON string.");
-  };
-  const value = () => {
-    ws();
-    if (text[index] === "{") return object();
-    if (text[index] === "[") return array();
-    if (text[index] === '"') return void string();
-    const match = text
-      .slice(index)
-      .match(
-        /^(?:-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?|true|false|null)/,
-      );
-    if (!match) fail("json", "Invalid JSON value.");
-    index += match[0].length;
-  };
-  const object = () => {
-    const keys = new Set();
-    index += 1;
-    ws();
-    if (text[index] === "}") return void (index += 1);
-    while (index < text.length) {
-      ws();
-      const key = string();
-      if (keys.has(key))
-        fail("json-duplicate-key", `Duplicate JSON key ${key}.`);
-      keys.add(key);
-      ws();
-      if (text[index++] !== ":") fail("json", "Missing JSON colon.");
-      value();
-      ws();
-      if (text[index] === "}") return void (index += 1);
-      if (text[index++] !== ",") fail("json", "Missing JSON comma.");
-    }
-  };
-  const array = () => {
-    index += 1;
-    ws();
-    if (text[index] === "]") return void (index += 1);
-    while (index < text.length) {
-      value();
-      ws();
-      if (text[index] === "]") return void (index += 1);
-      if (text[index++] !== ",") fail("json", "Missing JSON comma.");
-    }
-  };
-  value();
-  ws();
-  if (index !== text.length) fail("json", "Unexpected content after JSON.");
-}
-
-/** @param {unknown} value @returns {string} */
-function normalizeEnvelope(value) {
-  return String(value ?? "")
-    .trim()
-    .replace(/^(?:<\|start\|>\s*assistant|<start_of_turn>\s*model)\s*/i, "")
-    .replace(
-      /^<\|channel\|?>(?:thought|analysis|final)\s*(?:<channel\|>|<\|message\|?>)\s*/i,
-      "",
-    )
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/i, "")
-    .replace(
-      /\s*(?:<\|end\|>|<\|end_of_turn\|>|<end_of_turn>|<\|eot_id\|>)\s*$/i,
-      "",
-    )
-    .trim();
-}
-
-/** @param {Record<string,unknown>} value @param {string} label @returns {Box} */
-function pixelBox(value, label) {
-  const nested = isRecord(value.pageBbox)
-    ? value.pageBbox
-    : isRecord(value.bbox)
-      ? value.bbox
-      : value;
-  const array = Array.isArray(value.bbox) ? value.bbox : null;
-  const bbox = array
-    ? {
-        x1: Number(array[0]),
-        y1: Number(array[1]),
-        x2: Number(array[2]),
-        y2: Number(array[3]),
-      }
-    : {
-        x1: Number(nested.x1),
-        y1: Number(nested.y1),
-        x2: Number(nested.x2),
-        y2: Number(nested.y2),
-      };
-  if (
-    !Object.values(bbox).every(Number.isFinite) ||
-    bbox.x2 <= bbox.x1 ||
-    bbox.y2 <= bbox.y1
-  )
-    fail("bbox", `${label} has an invalid bbox.`);
-  return bbox;
-}
-
-/** @param {unknown} value @returns {Box|null} */
-function optionalBox(value) {
-  if (!isRecord(value)) return null;
-  const bbox = {
-    x1: Number(value.x1),
-    y1: Number(value.y1),
-    x2: Number(value.x2),
-    y2: Number(value.y2),
-  };
-  return Object.values(bbox).every(Number.isFinite) &&
-    bbox.x2 > bbox.x1 &&
-    bbox.y2 > bbox.y1
-    ? bbox
-    : null;
-}
-
-/** @param {unknown} value @returns {TupleBox|null} */
-function tupleBox(value) {
-  return Array.isArray(value) &&
-    value.length === 4 &&
-    value.every(Number.isFinite) &&
-    value[2] > value[0] &&
-    value[3] > value[1]
-    ? /** @type {TupleBox} */ (value.map(Number))
-    : null;
-}
-
-/** @param {Box[]} boxes @returns {Box} */
-function unionBoxes(boxes) {
+/** @param {string|{outputText?:string;rawResponse?:unknown}|null|undefined} response */
+function readReviewResponse(response) {
+  if (typeof response === "string")
+    return { outputText: response, rawResponse: response };
+  if (!response) return { outputText: "", rawResponse: response };
   return {
-    x1: Math.min(...boxes.map((b) => b.x1)),
-    y1: Math.min(...boxes.map((b) => b.y1)),
-    x2: Math.max(...boxes.map((b) => b.x2)),
-    y2: Math.max(...boxes.map((b) => b.y2)),
+    outputText: response.outputText,
+    rawResponse: response.rawResponse ?? response,
   };
 }
 
-/** @param {Box} box */
-function boxArea(box) {
-  return Math.max(1, box.x2 - box.x1) * Math.max(1, box.y2 - box.y1);
-}
-
-/** @param {Box} left @param {Box} right */
-function boxIntersectionArea(left, right) {
+/** @param {unknown} error */
+function isReviewAbort(error) {
+  const candidate = /** @type {Error & {code?:unknown}} */ (error);
   return (
-    Math.max(0, Math.min(left.x2, right.x2) - Math.max(left.x1, right.x1)) *
-    Math.max(0, Math.min(left.y2, right.y2) - Math.max(left.y1, right.y1))
+    error instanceof Error &&
+    (error.name === "AbortError" || candidate.code === "ABORT_ERR")
   );
-}
-
-/** @param {Box} left @param {Box} right @param {"x"|"y"} axis */
-function axisOverlapRatio(left, right, axis) {
-  const start = /** @type {"x1"|"y1"} */ (`${axis}1`);
-  const end = /** @type {"x2"|"y2"} */ (`${axis}2`);
-  const overlap = Math.max(
-    0,
-    Math.min(left[end], right[end]) - Math.max(left[start], right[start]),
-  );
-  return (
-    overlap /
-    Math.max(1, Math.min(left[end] - left[start], right[end] - right[start]))
-  );
-}
-
-/** @param {TupleBox[]} boxes @returns {TupleBox} */
-function unionTuples(boxes) {
-  return [
-    Math.min(...boxes.map((b) => b[0])),
-    Math.min(...boxes.map((b) => b[1])),
-    Math.max(...boxes.map((b) => b[2])),
-    Math.max(...boxes.map((b) => b[3])),
-  ];
-}
-
-/** @param {Box} box @param {Box} crop @returns {TupleBox} */
-function toCrop1000(box, crop) {
-  const x = crop.x2 - crop.x1;
-  const y = crop.y2 - crop.y1;
-  /** @param {number} n */
-  const clamp = (n) => Math.max(0, Math.min(1000, n));
-  return [
-    clamp(Math.floor(((box.x1 - crop.x1) / x) * 1000)),
-    clamp(Math.floor(((box.y1 - crop.y1) / y) * 1000)),
-    clamp(Math.ceil(((box.x2 - crop.x1) / x) * 1000)),
-    clamp(Math.ceil(((box.y2 - crop.y1) / y) * 1000)),
-  ];
-}
-
-/** @param {unknown} value @param {string} label @param {boolean} [allowEmpty] @returns {number[]} */
-function integerArray(value, label, allowEmpty = false) {
-  if (
-    !Array.isArray(value) ||
-    (!allowEmpty && !value.length) ||
-    value.some((id) => !positive(id)) ||
-    new Set(value).size !== value.length
-  )
-    fail("id-array", `${label} must contain unique positive integers.`);
-  return value.map(Number);
-}
-
-/** @param {Record<string,unknown>} value @param {string[]} wanted @param {string} label */
-function exactKeys(value, wanted, label) {
-  if (Object.keys(value).sort().join("\0") !== [...wanted].sort().join("\0"))
-    fail("fields", `${label} has extra or missing fields.`);
-}
-
-/** @param {unknown} value @param {string} label @returns {Record<string,unknown>} */
-function record(value, label) {
-  if (!isRecord(value)) fail("record", `${label} must be an object.`);
-  return value;
-}
-
-/** @param {unknown} value @returns {number|null} */
-function positive(value) {
-  const number = Number(value);
-  return Number.isInteger(number) && number > 0 ? number : null;
-}
-
-/** @param {unknown} value @returns {string|null} */
-function optionalString(value) {
-  return typeof value === "string" && value.trim() ? value.trim() : null;
-}
-
-/** @param {unknown} value @returns {value is ReviewPlan} */
-function isPlan(value) {
-  return (
-    isRecord(value) &&
-    value.version === GROUP_ONLY_REVIEW_VERSION &&
-    Array.isArray(value.candidates) &&
-    Array.isArray(value.upstreamFragments)
-  );
-}
-
-/** @param {unknown} error @returns {Record<string,unknown>} */
-function describeError(error) {
-  return {
-    name: error instanceof Error ? error.name : "Error",
-    message: error instanceof Error ? error.message : String(error),
-    ...(isRecord(error) && typeof error.code === "string"
-      ? { code: error.code }
-      : {}),
-  };
-}
-
-/** @param {string} suffix @param {string} message @returns {never} */
-function fail(suffix, message) {
-  throw semanticContractError(`group-only-review-${suffix}`, message);
 }
 
 module.exports = {

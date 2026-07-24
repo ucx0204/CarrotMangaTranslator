@@ -291,12 +291,6 @@ export function isBuiltInBlockFontId(value: string): boolean {
   return BUILT_IN_BLOCK_FONT_BY_ID.has(value);
 }
 
-export function resolveBuiltInBlockFontFamily(
-  value: string | undefined,
-): string | undefined {
-  return value ? BUILT_IN_BLOCK_FONT_BY_ID.get(value)?.cssFamily : undefined;
-}
-
 export function getPrioritizedBuiltInBlockFonts(
   locale: UiLocale,
 ): BuiltInBlockFontDefinition[] {

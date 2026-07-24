@@ -4,24 +4,10 @@ import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type { JobState } from "../../../shared/jobTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
 import { useEtaText } from "../hooks/useEtaText";
-import { Button } from "./ui";
+import { Button } from "./ui/Button";
 import { ChevronDownIcon, CopyIcon, InfoIcon } from "./ui/icons";
 
-export function RunPanel({
-  currentChapter,
-  jobActive,
-  flowActive,
-  showProgressBar,
-  progressSnapshot,
-  jobState,
-  onOpenExport,
-  onOpenTranslateOptions,
-  onOpenAutoInpaintingOptions,
-  onRunCurrentPageInpainting,
-  onShowGuide,
-  onCancelJob,
-  hasSelectedPage,
-}: {
+type RunPanelProps = {
   currentChapter: ChapterSnapshot | null;
   jobActive: boolean;
   flowActive: boolean;
@@ -35,7 +21,23 @@ export function RunPanel({
   onShowGuide: () => void;
   onCancelJob: () => void;
   hasSelectedPage: boolean;
-}): React.JSX.Element {
+};
+
+export const RunPanel = React.memo(function RunPanel({
+  currentChapter,
+  jobActive,
+  flowActive,
+  showProgressBar,
+  progressSnapshot,
+  jobState,
+  onOpenExport,
+  onOpenTranslateOptions,
+  onOpenAutoInpaintingOptions,
+  onRunCurrentPageInpainting,
+  onShowGuide,
+  onCancelJob,
+  hasSelectedPage,
+}: RunPanelProps): React.JSX.Element {
   const { t } = useTranslation("components");
   const actionsDisabled = !currentChapter || jobActive || flowActive;
   return (
@@ -78,6 +80,53 @@ export function RunPanel({
         showProgressBar={showProgressBar}
       />
     </section>
+  );
+}, areRunPanelPropsEqual);
+
+function areRunPanelPropsEqual(
+  previous: RunPanelProps,
+  next: RunPanelProps,
+): boolean {
+  return (
+    isSameChapterSummary(previous, next) &&
+    isSameRunState(previous, next) &&
+    isSameRunActions(previous, next)
+  );
+}
+
+function isSameChapterSummary(
+  previous: RunPanelProps,
+  next: RunPanelProps,
+): boolean {
+  return (
+    previous.currentChapter?.id === next.currentChapter?.id &&
+    previous.currentChapter?.title === next.currentChapter?.title &&
+    previous.currentChapter?.pages.length === next.currentChapter?.pages.length
+  );
+}
+
+function isSameRunState(previous: RunPanelProps, next: RunPanelProps): boolean {
+  return (
+    previous.flowActive === next.flowActive &&
+    previous.hasSelectedPage === next.hasSelectedPage &&
+    previous.jobActive === next.jobActive &&
+    previous.jobState === next.jobState &&
+    previous.progressSnapshot === next.progressSnapshot &&
+    previous.showProgressBar === next.showProgressBar
+  );
+}
+
+function isSameRunActions(
+  previous: RunPanelProps,
+  next: RunPanelProps,
+): boolean {
+  return (
+    previous.onCancelJob === next.onCancelJob &&
+    previous.onOpenAutoInpaintingOptions === next.onOpenAutoInpaintingOptions &&
+    previous.onOpenExport === next.onOpenExport &&
+    previous.onOpenTranslateOptions === next.onOpenTranslateOptions &&
+    previous.onRunCurrentPageInpainting === next.onRunCurrentPageInpainting &&
+    previous.onShowGuide === next.onShowGuide
   );
 }
 

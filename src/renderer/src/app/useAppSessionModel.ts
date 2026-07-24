@@ -18,6 +18,7 @@ import {
   useTranslationController,
   type TranslationController,
 } from "./session/useTranslationController";
+import { dispatchPanelCommand } from "./session/panelCommandDispatcher";
 
 export function useAppSessionModel(): AppSessionViewProps {
   const chapter = useChapterSessionController();
@@ -89,38 +90,17 @@ function usePanelCommandHandler(
     inpainting.pointerHandlers.startRegionTranslationSelection;
   return useCallback(
     (command: PanelCommand) => {
-      if (busy || isStaleBlockPanelCommand(command, selectedBlockId)) return;
-      if (command.type === "updateBlock") {
-        actions.updateSelectedBlock(command.patch);
-      } else if (command.type === "adjustFontSize") {
-        actions.adjustSelectedBlockFontSize(command.adjustment);
-      } else if (command.type === "deleteBlock") {
-        actions.deleteSelectedBlock();
-      } else if (command.type === "duplicateBlock") {
-        actions.duplicateSelectedBlock();
-      } else if (command.type === "selectTransformMode") {
-        selectWorkspaceTool(command.mode);
-      } else if (command.type === "applyFormat") {
-        actions.applyFormatToScope(command.scope, command.groupIds);
-      } else if (command.type === "applyBlockBackgroundOpacity") {
-        actions.applyBlockBackgroundOpacityToScope(command.scope);
-      } else {
-        startAreaTranslate();
-      }
+      dispatchPanelCommand({
+        actions: {
+          ...actions,
+          selectWorkspaceTool,
+          startAreaTranslate,
+        },
+        busy,
+        command,
+        selectedBlockId,
+      });
     },
     [actions, busy, selectedBlockId, selectWorkspaceTool, startAreaTranslate],
-  );
-}
-
-function isStaleBlockPanelCommand(
-  command: PanelCommand,
-  selectedBlockId: string | null,
-): boolean {
-  return (
-    (command.type === "updateBlock" ||
-      command.type === "adjustFontSize" ||
-      command.type === "deleteBlock" ||
-      command.type === "duplicateBlock") &&
-    command.blockId !== selectedBlockId
   );
 }

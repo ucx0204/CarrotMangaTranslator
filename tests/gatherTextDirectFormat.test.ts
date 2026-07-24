@@ -3,10 +3,7 @@ import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
 import { applyGatherTextFormatRequest } from "../src/renderer/src/app/session/applyGatherTextFormatRequest";
 import type { UpdateCurrentChapter } from "../src/renderer/src/hooks/useCurrentChapterUpdater";
-import {
-  applyGatherDirectFormat,
-  type GatherDirectFormatPatch,
-} from "../src/renderer/src/lib/gatherTextFormat";
+import { applyGatherDirectFormat } from "../src/renderer/src/lib/gatherTextFormat";
 
 const TS = "2026-01-01T00:00:00.000Z";
 
@@ -50,7 +47,7 @@ describe("applyGatherDirectFormat", () => {
       fontSizePx: 32,
       translatedText: "do-not-copy",
       bbox: { x: 90, y: 90, w: 1, h: 1 },
-    } as unknown as GatherDirectFormatPatch;
+    };
 
     const changed = applyGatherDirectFormat(chapter, {
       targets: [{ pageId: "p1", blockId: "one" }],

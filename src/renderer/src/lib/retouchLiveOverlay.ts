@@ -1,3 +1,6 @@
+import type { RetouchCanvasContext } from "./retouchCanvasContext";
+import { resolveRetouchCanvasPixelRatio } from "./retouchLiveGeometry";
+
 export type RetouchLivePoint = { x: number; y: number };
 
 export type RetouchLiveGeometry = {
@@ -35,8 +38,6 @@ type RetouchLiveState = {
 };
 
 const liveStates = new WeakMap<HTMLElement, RetouchLiveState>();
-const MAX_CANVAS_PIXELS = 4_000_000;
-const MAX_PIXEL_RATIO = 2;
 
 export function queueRetouchCursor(
   stage: HTMLElement,
@@ -206,10 +207,10 @@ function renderPendingPreview(stage: HTMLElement, preview: PreviewFrame): void {
 
 function prepareCanvas(
   canvas: HTMLCanvasElement,
-  context: CanvasRenderingContext2D,
+  context: RetouchCanvasContext,
   geometry: RetouchLiveGeometry,
 ): boolean {
-  const ratio = resolveCanvasPixelRatio(
+  const ratio = resolveRetouchCanvasPixelRatio(
     geometry.displayWidth,
     geometry.displayHeight,
   );
@@ -224,15 +225,9 @@ function prepareCanvas(
   return resized;
 }
 
-function resolveCanvasPixelRatio(width: number, height: number): number {
-  const nativeRatio = Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO);
-  const area = Math.max(1, width * height);
-  return Math.min(nativeRatio, Math.sqrt(MAX_CANVAS_PIXELS / area));
-}
-
 function drawPreviewSegment(
   stage: HTMLElement,
-  context: CanvasRenderingContext2D,
+  context: RetouchCanvasContext,
   previous: RetouchLivePoint | null,
   current: RetouchLivePoint,
   geometry: RetouchLiveGeometry,
@@ -271,7 +266,7 @@ function drawPreviewSegment(
 
 function drawEraserSegment(
   stage: HTMLElement,
-  context: CanvasRenderingContext2D,
+  context: RetouchCanvasContext,
   from: RetouchLivePoint,
   to: RetouchLivePoint,
   radius: number,
@@ -320,7 +315,7 @@ function drawEraserSegment(
 }
 
 function traceCapsule(
-  context: CanvasRenderingContext2D,
+  context: RetouchCanvasContext,
   from: RetouchLivePoint,
   to: RetouchLivePoint,
   radius: number,
@@ -401,7 +396,7 @@ function clearPreviewCanvas(stage: HTMLElement): void {
 
 function getCanvasContext(
   canvas: HTMLCanvasElement,
-): CanvasRenderingContext2D | null {
+): RetouchCanvasContext | null {
   try {
     return canvas.getContext("2d");
   } catch (error) {

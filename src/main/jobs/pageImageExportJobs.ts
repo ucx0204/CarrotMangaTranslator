@@ -9,6 +9,10 @@ import {
   handlePageImageExportError,
   runPageImageExportJob,
 } from "./pageImageExportJobRunner";
+import {
+  productionPageImageExportDependencies,
+  type PageImageExportDependencies,
+} from "./pageImageExportPorts";
 import type { InpaintingJobContext } from "./inpaintingJobTypes";
 import { emitJobEvent } from "./jobEvents";
 
@@ -16,6 +20,7 @@ export async function exportPageImages(
   context: InpaintingJobContext,
   request: PageImageExportRequest,
   outputParentDir: string,
+  dependencies: PageImageExportDependencies = productionPageImageExportDependencies,
 ): Promise<PageImageExportResult> {
   assertNoActiveJob(context);
 
@@ -33,6 +38,7 @@ export async function exportPageImages(
       id,
       abortController,
       emit,
+      dependencies,
     });
   } catch (error) {
     return handlePageImageExportError({
@@ -41,6 +47,7 @@ export async function exportPageImages(
       error,
       id,
       request,
+      dependencies,
     });
   } finally {
     context.jobs.clearIfCurrent(id);

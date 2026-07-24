@@ -4,8 +4,8 @@ import { useTranslation } from "react-i18next";
 import type {
   AppSettings,
   BlockFormatDefaults,
-  KeybindingOverrides,
 } from "../../../../shared/settingsTypes";
+import type { KeybindingOverrides } from "../../../../shared/shortcutSettings";
 import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../../../../shared/blockFormat";
 import { buildSettingsFromDraft } from "./settingsModalBuildSettings";
 import {
@@ -13,8 +13,8 @@ import {
   isSettingsFormSubmittable,
   resolveSettingsDraft,
   type SettingsDraft,
-  type SettingsFormValues,
 } from "./settingsModalFormUtils";
+import type { SettingsFormValues } from "./settingsModalFormValues";
 import type { SettingsFormSetters } from "./useSettingsFormState";
 import { useSettingsFormState } from "./useSettingsFormState";
 import { useSettingsLocalModelActions } from "./useSettingsLocalModelActions";

@@ -11,11 +11,15 @@ import type { JobEvent } from "../src/shared/jobTypes";
 import type { MangaPage } from "../src/shared/libraryTypes";
 import type { AppSettings } from "../src/shared/settingsTypes";
 import type { TranslationOptions } from "../src/main/appSettings";
+import type { AppPaths } from "../src/main/appPaths";
 import type {
   OcrBboxResult,
+  PipelineOptions,
   PipelineWorkContext,
 } from "../src/main/pipeline/types";
 import type { TranslationRuntimePort } from "../src/main/pipeline/translationRuntimePort";
+import type { WholePagePipelineDependencies } from "../src/main/pipeline/wholePagePipelinePorts";
+import { runWholePagePipeline as runWholePagePipelineWithDependencies } from "../src/main/wholePagePipeline";
 
 const tempDirs: string[] = [];
 let runSequence = 0;
@@ -31,7 +35,6 @@ const overlayParser = require(
 >;
 
 afterEach(async () => {
-  vi.resetModules();
   vi.clearAllMocks();
   delete process.env.MANGA_TRANSLATOR_PAGE_RETRIES;
   while (tempDirs.length > 0) {
@@ -67,6 +70,15 @@ describe("whole page pipeline", () => {
     });
     expect(runtime.saveArtifacts).toHaveBeenCalledOnce();
     expect(runtime.disposeEndpoint).toHaveBeenCalledTimes(1);
+    expect(runtime.warn).toHaveBeenCalledWith(
+      "Analysis attempt failed",
+      expect.objectContaining({
+        attempt: 1,
+        attemptTotal: 2,
+        willRetry: true,
+      }),
+    );
+    expect(runtime.error).not.toHaveBeenCalled();
     expect(events.map((event) => event.phase)).toContain("page_retry");
     expect(result.pages[0]?.analysisStatus).toBe("completed");
     expect(result.pages[0]?.blocks).toHaveLength(1);
@@ -280,7 +292,9 @@ describe("whole page pipeline", () => {
       },
     );
     const events: JobEvent[] = [];
-    const { runWholePagePipeline } = await loadPipeline({ requestTranslation });
+    const { runWholePagePipeline, runtime } = await loadPipeline({
+      requestTranslation,
+    });
 
     const result = await runWholePagePipeline({
       ...basePipelineOptions([firstPage, secondPage], events),
@@ -296,6 +310,8 @@ describe("whole page pipeline", () => {
       result.pages.every((page) => page.analysisStatus === "completed"),
     ).toBe(true);
     expect(requestTranslation).toHaveBeenCalledTimes(2);
+    expect(runtime.saveWorkStyleGuide).toHaveBeenCalledTimes(1);
+    expect(runtime.saveChapterStoryMemory).toHaveBeenCalledTimes(2);
     expect(
       events
         .filter((event) => event.phase === "page_running")
@@ -884,32 +900,41 @@ async function loadPipeline({
   startEndpointSession,
 }: {
   ocrHintsByImagePath?: ReadonlyMap<string, OcrBboxResult>;
-  requestTranslation?: ReturnType<typeof vi.fn>;
+  requestTranslation?: TranslationRuntimePort["requestTranslation"];
   sourceLanguage?: string;
-  startEndpointSession?: ReturnType<typeof vi.fn>;
+  startEndpointSession?: TranslationRuntimePort["startEndpointSession"];
 } = {}): Promise<{
-  runWholePagePipeline: (typeof import("../src/main/wholePagePipeline"))["runWholePagePipeline"];
+  runWholePagePipeline: (
+    options: PipelineOptions,
+  ) => ReturnType<typeof runWholePagePipelineWithDependencies>;
   runtime: {
     collectOcrHintsBatch: ReturnType<typeof vi.fn>;
     disposeEndpoint: ReturnType<typeof vi.fn>;
     saveArtifacts: ReturnType<typeof vi.fn>;
+    saveChapterStoryMemory: ReturnType<typeof vi.fn>;
+    saveWorkStyleGuide: ReturnType<typeof vi.fn>;
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
   };
 }> {
   const rootDir = await mkdtemp(join(tmpdir(), "mgt-pipeline-"));
   tempDirs.push(rootDir);
-  const disposeEndpoint = vi.fn(async () => undefined);
+  const disposeEndpoint = vi.fn(async (): Promise<void> => undefined);
   const resolveOcrResult = (options: TranslationOptions): OcrBboxResult =>
     ocrHintsByImagePath.get(options.imagePath) ?? emptyOcrResult();
-  const collectOcrHints = vi.fn(async (options: TranslationOptions) =>
-    resolveOcrResult(options),
+  const collectOcrHints = vi.fn<TranslationRuntimePort["collectOcrHints"]>(
+    async (options) => resolveOcrResult(options),
   );
-  const collectOcrHintsBatch = vi.fn(async (options: TranslationOptions[]) =>
-    options.map(resolveOcrResult),
+  const collectOcrHintsBatch = vi.fn<
+    TranslationRuntimePort["collectOcrHintsBatch"]
+  >(async (options) => options.map(resolveOcrResult));
+  const saveArtifacts = vi.fn<TranslationRuntimePort["saveArtifacts"]>(
+    async (): Promise<void> => undefined,
   );
-  const saveArtifacts = vi.fn(async () => undefined);
   const endpointStarter =
     startEndpointSession ??
-    vi.fn(async () => ({
+    vi.fn<TranslationRuntimePort["startEndpointSession"]>(async () => ({
       handle: {
         baseUrl: "http://127.0.0.1:39281",
         child: null,
@@ -917,43 +942,23 @@ async function loadPipeline({
       },
       dispose: disposeEndpoint,
     }));
-
-  vi.doMock("../src/main/appPaths", () => ({
-    getAppPaths: () => ({
-      isPackaged: false,
-      repoRoot: rootDir,
-      executableDir: rootDir,
-      resourcesDir: rootDir,
-      dataRoot: rootDir,
-      settingsPath: join(rootDir, "settings.json"),
-      libraryDir: join(rootDir, "library"),
-      fontsDir: join(rootDir, "fonts"),
-      logsDir: join(rootDir, "logs"),
-      logFile: join(rootDir, "logs", "app.log"),
-      runtimeDir: join(rootDir, "runtime"),
-      toolsDir: join(rootDir, "tools"),
-      ocrRuntimeDir: join(rootDir, "ocr-runtime"),
-      llamaRuntimeDir: join(rootDir, "tools", "llama"),
-      llamaServerPath: join(rootDir, "tools", "llama", "llama-server.exe"),
-      hfHomeDir: join(rootDir, "hf-home"),
-      hfHubCacheDir: join(rootDir, "hf-home", "hub"),
-      llamaCacheDir: join(rootDir, "llama-cache"),
-    }),
-  }));
-  vi.doMock("../src/main/settingsStore", () => ({
-    getAppSettings: vi.fn(async () => makeAppSettings(sourceLanguage)),
-  }));
-  vi.doMock("../src/main/logger", () => ({
-    logError: vi.fn(),
-    logInfo: vi.fn(),
-    logWarn: vi.fn(),
-  }));
-  vi.doMock("../src/main/library", () => ({
-    saveChapterStoryMemory: vi.fn(async (memory) => memory),
-    saveWorkStyleGuide: vi.fn(async (guide) => guide),
-  }));
-  vi.doMock("../src/main/pipeline/translationRuntimePort", () => ({
-    loadTranslationRuntimePort: () => ({
+  const saveChapterStoryMemory = vi.fn<
+    WholePagePipelineDependencies["pageContext"]["saveChapterStoryMemory"]
+  >(async (memory) => memory);
+  const saveWorkStyleGuide = vi.fn<
+    WholePagePipelineDependencies["pageContext"]["saveWorkStyleGuide"]
+  >(async (guide) => guide);
+  const info = vi.fn<WholePagePipelineDependencies["diagnostics"]["info"]>();
+  const warn = vi.fn<WholePagePipelineDependencies["diagnostics"]["warn"]>();
+  const error = vi.fn<WholePagePipelineDependencies["diagnostics"]["error"]>();
+  const dependencies = {
+    paths: makeAppPaths(rootDir),
+    settings: {
+      getAppSettings: vi.fn(async () => makeAppSettings(sourceLanguage)),
+    },
+    pageContext: { saveChapterStoryMemory, saveWorkStyleGuide },
+    diagnostics: { info, warn, error },
+    runtime: {
       isModelCached: () => true,
       startEndpointSession: endpointStarter,
       collectOcrHints,
@@ -961,13 +966,44 @@ async function loadPipeline({
       requestTranslation,
       saveArtifacts,
       ...overlayParser,
-    }),
-  }));
-
-  const pipeline = await import("../src/main/wholePagePipeline");
+    },
+  } satisfies WholePagePipelineDependencies;
   return {
-    runWholePagePipeline: pipeline.runWholePagePipeline,
-    runtime: { collectOcrHintsBatch, disposeEndpoint, saveArtifacts },
+    runWholePagePipeline: (options) =>
+      runWholePagePipelineWithDependencies(options, dependencies),
+    runtime: {
+      collectOcrHintsBatch,
+      disposeEndpoint,
+      saveArtifacts,
+      saveChapterStoryMemory,
+      saveWorkStyleGuide,
+      info,
+      warn,
+      error,
+    },
+  };
+}
+
+function makeAppPaths(rootDir: string): AppPaths {
+  return {
+    isPackaged: false,
+    repoRoot: rootDir,
+    executableDir: rootDir,
+    resourcesDir: rootDir,
+    dataRoot: rootDir,
+    settingsPath: join(rootDir, "settings.json"),
+    libraryDir: join(rootDir, "library"),
+    fontsDir: join(rootDir, "fonts"),
+    logsDir: join(rootDir, "logs"),
+    logFile: join(rootDir, "logs", "app.log"),
+    runtimeDir: join(rootDir, "runtime"),
+    toolsDir: join(rootDir, "tools"),
+    ocrRuntimeDir: join(rootDir, "ocr-runtime"),
+    llamaRuntimeDir: join(rootDir, "tools", "llama"),
+    llamaServerPath: join(rootDir, "tools", "llama", "llama-server.exe"),
+    hfHomeDir: join(rootDir, "hf-home"),
+    hfHubCacheDir: join(rootDir, "hf-home", "hub"),
+    llamaCacheDir: join(rootDir, "llama-cache"),
   };
 }
 

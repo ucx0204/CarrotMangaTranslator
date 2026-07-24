@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { Command } from "../lib/appCommandTypes";
-import { Modal } from "./ui";
+import { Modal } from "./ui/Modal";
 
 type CommandPaletteProps = {
   open: boolean;

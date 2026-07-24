@@ -1,7 +1,11 @@
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 import type { ModelTestResult } from "../shared/jobTypes";
 import type { OpenAICompatibleApiEndpoint } from "./openaiApiEndpoint";
 import type { OpenAIOAuthEndpoint } from "./openaiOauthEndpoint";
+import {
+  loadRuntimeModuleFromDirectory,
+  resolveAppRuntimeModulePath,
+} from "./runtimeModuleLoader";
 
 export type SimplePageRuntime = {
   startServer: (
@@ -16,7 +20,10 @@ export type SimplePageRuntime = {
     pythonPath?: string;
     prepared?: boolean;
   }>;
-  convertImageToPngBufferWithFfmpeg?: (filePath: string) => Promise<Buffer>;
+  convertImageToPngBufferWithFfmpeg?: (
+    filePath: string,
+    options?: { abortSignal?: AbortSignal | null },
+  ) => Promise<Buffer>;
   testModelReply: (
     server: { baseUrl: string },
     options: Record<string, unknown>,
@@ -39,8 +46,8 @@ export function loadSimplePageRuntime(runtimeDir: string): SimplePageRuntime {
     return cachedRuntime;
   }
 
-  const runtimePath = join(cacheKey, "simple-page-translate.cjs");
-  const runtime: unknown = require(runtimePath);
+  const runtimePath = resolveAppRuntimeModulePath(cacheKey, "simplePage");
+  const runtime = loadRuntimeModuleFromDirectory(cacheKey, "simplePage");
   assertSimplePageRuntime(runtime, runtimePath);
   runtimeCache.set(cacheKey, runtime);
   return runtime;
@@ -86,12 +93,15 @@ function assertOptionalFunction(value: unknown, label: string): void {
 export async function decodeImageThroughRuntime(
   runtimeDir: string,
   filePath: string,
+  signal?: AbortSignal,
 ): Promise<Buffer | null> {
   const runtime = loadSimplePageRuntime(runtimeDir);
   if (!runtime.convertImageToPngBufferWithFfmpeg) {
     return null;
   }
-  return runtime.convertImageToPngBufferWithFfmpeg(filePath);
+  return runtime.convertImageToPngBufferWithFfmpeg(filePath, {
+    abortSignal: signal,
+  });
 }
 
 export function isOpenAIOAuthEndpoint(

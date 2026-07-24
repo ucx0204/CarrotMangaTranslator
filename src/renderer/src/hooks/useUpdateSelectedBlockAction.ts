@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import type { MangaPage } from "../../../shared/libraryTypes";
+import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import {
   clampBbox,
@@ -42,52 +42,13 @@ export function useUpdateSelectedBlockAction({
       const mergeKey = resolveBlockEditMergeKey(selectedBlock.id, patch);
       updateCurrentChapter(
         selectedPage.id,
-        (current) => ({
-          ...current,
-          pages: current.pages.map((page) =>
-            page.id !== selectedPage.id
-              ? page
-              : {
-                  ...page,
-                  updatedAt: new Date().toISOString(),
-                  blocks: page.blocks.map((block) => {
-                    if (block.id !== selectedBlock.id) {
-                      return block;
-                    }
-
-                    const nextType = normalizeBlockType(
-                      patch.type ?? block.type,
-                    );
-                    const nextRenderDirection = normalizeRenderDirection(
-                      patch.renderDirection ?? block.renderDirection,
-                      block.renderDirection,
-                    );
-                    return {
-                      ...block,
-                      ...patch,
-                      type: nextType,
-                      renderDirection: nextRenderDirection,
-                      rotationDeg: normalizeRotationDeg(
-                        patch.rotationDeg ?? block.rotationDeg ?? 0,
-                      ),
-                      backgroundColor:
-                        patch.backgroundColor ?? block.backgroundColor,
-                      opacity: patch.opacity ?? block.opacity,
-                      bbox: patch.bbox ? clampBbox(patch.bbox) : block.bbox,
-                      bboxSpace: patch.bbox
-                        ? "normalized_1000"
-                        : block.bboxSpace,
-                      renderBbox: patch.renderBbox
-                        ? clampBbox(patch.renderBbox)
-                        : block.renderBbox,
-                      renderBboxSpace: patch.renderBbox
-                        ? "normalized_1000"
-                        : block.renderBboxSpace,
-                    };
-                  }),
-                },
+        (current) =>
+          applySelectedBlockPatch(
+            current,
+            selectedPage.id,
+            selectedBlock.id,
+            patch,
           ),
-        }),
         { label: t("workspaceHistory.blockEdit"), mergeKey },
       );
     },
@@ -99,4 +60,81 @@ export function useUpdateSelectedBlockAction({
       updateCurrentChapter,
     ],
   );
+}
+
+function applySelectedBlockPatch(
+  current: ChapterSnapshot,
+  pageId: string,
+  blockId: string,
+  patch: Partial<TranslationBlock>,
+): ChapterSnapshot {
+  let changed = false;
+  const pages = current.pages.map((page) => {
+    if (page.id !== pageId) return page;
+    const blocks = page.blocks.map((block) => {
+      if (block.id !== blockId) return block;
+      const next = normalizeBlockPatch(block, patch);
+      changed ||= next !== block;
+      return next;
+    });
+    return changed
+      ? { ...page, blocks, updatedAt: new Date().toISOString() }
+      : page;
+  });
+  return changed ? { ...current, pages } : current;
+}
+
+function normalizeBlockPatch(
+  block: TranslationBlock,
+  patch: Partial<TranslationBlock>,
+): TranslationBlock {
+  const next: TranslationBlock = {
+    ...block,
+    ...patch,
+    type: normalizeBlockType(patch.type ?? block.type),
+    renderDirection: normalizeRenderDirection(
+      patch.renderDirection ?? block.renderDirection,
+      block.renderDirection,
+    ),
+    rotationDeg: normalizeRotationDeg(
+      patch.rotationDeg ?? block.rotationDeg ?? 0,
+    ),
+    backgroundColor: patch.backgroundColor ?? block.backgroundColor,
+    opacity: patch.opacity ?? block.opacity,
+    bbox: patch.bbox ? clampBbox(patch.bbox) : block.bbox,
+    bboxSpace: patch.bbox ? "normalized_1000" : block.bboxSpace,
+    renderBbox: patch.renderBbox
+      ? clampBbox(patch.renderBbox)
+      : block.renderBbox,
+    renderBboxSpace: patch.renderBbox
+      ? "normalized_1000"
+      : block.renderBboxSpace,
+  };
+  return hasBlockChanged(block, next, patch) ? next : block;
+}
+
+function hasBlockChanged(
+  previous: TranslationBlock,
+  next: TranslationBlock,
+  patch: Partial<TranslationBlock>,
+): boolean {
+  const normalizedKeys: Array<keyof TranslationBlock> = [
+    "backgroundColor",
+    "bbox",
+    "bboxSpace",
+    "opacity",
+    "renderBbox",
+    "renderBboxSpace",
+    "renderDirection",
+    "rotationDeg",
+    "type",
+  ];
+  const keys = new Set<keyof TranslationBlock>([
+    ...(Object.keys(patch) as Array<keyof TranslationBlock>),
+    ...normalizedKeys,
+  ]);
+  for (const key of keys) {
+    if (!Object.is(previous[key], next[key])) return true;
+  }
+  return false;
 }

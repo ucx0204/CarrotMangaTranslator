@@ -8,7 +8,6 @@ import {
   StoredLibraryIndexFileSchema,
 } from "../../shared/ipcSchemas";
 import type { LibraryChapter, LibraryWork } from "../../shared/libraryTypes";
-import { getAppPaths } from "../appPaths";
 import { tMain } from "./localization";
 import { relocateCopiedChapterImagePath } from "./chapterImageRelocation";
 import { assertUniqueIds, readLibraryJsonFile } from "./libraryJsonValidation";
@@ -20,10 +19,13 @@ import {
   writeJsonFile,
 } from "./storage";
 import { makeUniqueTitleInList, sanitizeTitle } from "./titles";
-
-const LIBRARY_ROOT = getAppPaths().libraryDir;
-const INDEX_PATH = join(LIBRARY_ROOT, "index.json");
-export const WORKS_ROOT = join(LIBRARY_ROOT, "works");
+import {
+  getLibraryIndexPath,
+  getLibraryRoot,
+  getChapterFilePath,
+  getWorkFilePath,
+  getWorksRoot,
+} from "./libraryPaths";
 
 export function getDefaultWorkTitle(): string {
   return tMain("import.defaultWorkTitle");
@@ -41,10 +43,6 @@ export type ChapterRunPaths = {
   runDir: string;
 };
 
-export function getLibraryRoot(): string {
-  return LIBRARY_ROOT;
-}
-
 export function assertLibraryImagePath(imagePath: string): string {
   const resolvedImagePath = assertLibraryImagePathScope(imagePath);
   if (!existsSync(resolvedImagePath)) {
@@ -60,7 +58,7 @@ function assertLibraryImagePathScope(
   if (typeof imagePath !== "string" || imagePath.length === 0) {
     throw new Error(message);
   }
-  const resolvedRoot = resolve(LIBRARY_ROOT);
+  const resolvedRoot = resolve(getLibraryRoot());
   const resolvedImagePath = resolve(imagePath);
   if (!isPathInside(resolvedRoot, resolvedImagePath)) {
     throw new Error(message);
@@ -96,7 +94,9 @@ function assertChapterImagePathScope(
   message: string,
 ): string {
   const resolvedImagePath = assertLibraryImagePathScope(imagePath, message);
-  const chapterDir = resolve(join(WORKS_ROOT, workId, "chapters", chapterId));
+  const chapterDir = resolve(
+    join(getWorksRoot(), workId, "chapters", chapterId),
+  );
   if (!isPathInside(chapterDir, resolvedImagePath)) {
     throw new Error(message);
   }
@@ -108,7 +108,7 @@ export async function readIndexFile(): Promise<StoredIndexFile> {
   return validateIndexFile(
     readLibraryJsonFile(
       StoredLibraryIndexFileSchema,
-      await readJsonFile<unknown>(INDEX_PATH, { workOrder: [] }),
+      await readJsonFile<unknown>(getLibraryIndexPath(), { workOrder: [] }),
     ),
   );
 }
@@ -116,13 +116,16 @@ export async function readIndexFile(): Promise<StoredIndexFile> {
 export async function writeIndexFile(index: StoredIndexFile): Promise<void> {
   await ensureLibraryStructure();
   await writeJsonFile(
-    INDEX_PATH,
+    getLibraryIndexPath(),
     validateIndexFile(readLibraryJsonFile(StoredLibraryIndexFileSchema, index)),
   );
 }
 
 export async function readWorkFile(workId: string): Promise<WorkFile | null> {
-  const work = await readJsonFile<unknown | null>(workFilePath(workId), null);
+  const work = await readJsonFile<unknown | null>(
+    getWorkFilePath(workId),
+    null,
+  );
   return work
     ? validateWorkFile(workId, readLibraryJsonFile(LibraryWorkFileSchema, work))
     : null;
@@ -133,8 +136,8 @@ export async function writeWorkFile(work: WorkFile): Promise<void> {
     work.id,
     readLibraryJsonFile(LibraryWorkFileSchema, work),
   );
-  await mkdir(dirname(workFilePath(checkedWork.id)), { recursive: true });
-  await writeJsonFile(workFilePath(checkedWork.id), checkedWork);
+  await mkdir(dirname(getWorkFilePath(checkedWork.id)), { recursive: true });
+  await writeJsonFile(getWorkFilePath(checkedWork.id), checkedWork);
 }
 
 export async function touchWork(
@@ -154,7 +157,7 @@ export async function readChapterFile(
   chapterId: string,
 ): Promise<ChapterFile | null> {
   const chapter = await readJsonFile<unknown | null>(
-    chapterFilePath(workId, chapterId),
+    getChapterFilePath(workId, chapterId),
     null,
   );
   return chapter
@@ -173,11 +176,11 @@ export async function writeChapterFile(chapter: ChapterFile): Promise<void> {
     readLibraryJsonFile(LibraryChapterFileSchema, chapter),
   );
   await mkdir(
-    dirname(chapterFilePath(checkedChapter.workId, checkedChapter.id)),
+    dirname(getChapterFilePath(checkedChapter.workId, checkedChapter.id)),
     { recursive: true },
   );
   await writeJsonFile(
-    chapterFilePath(checkedChapter.workId, checkedChapter.id),
+    getChapterFilePath(checkedChapter.workId, checkedChapter.id),
     checkedChapter,
   );
 }
@@ -186,12 +189,19 @@ export async function findChapterLocation(
   chapterId: string,
 ): Promise<{ workId: string; chapterId: string } | null> {
   const index = await readIndexFile();
-  for (const workId of index.workOrder) {
-    const work = await readWorkFile(workId);
+  const workReads = await Promise.allSettled(
+    index.workOrder.map((workId) => readWorkFile(workId)),
+  );
+  for (const [indexPosition, outcome] of workReads.entries()) {
+    if (outcome.status === "rejected") {
+      throw outcome.reason;
+    }
+    const workId = index.workOrder[indexPosition];
+    const work = outcome.value;
     if (!work) {
       continue;
     }
-    if (work.chapterOrder.includes(chapterId)) {
+    if (workId && work.chapterOrder.includes(chapterId)) {
       return { workId, chapterId };
     }
   }
@@ -199,7 +209,7 @@ export async function findChapterLocation(
 }
 
 export async function ensureLibraryStructure(): Promise<void> {
-  await mkdir(WORKS_ROOT, { recursive: true });
+  await mkdir(getWorksRoot(), { recursive: true });
 }
 
 export async function createWork(title: string): Promise<LibraryWork> {
@@ -270,8 +280,8 @@ export async function removeWorkFromIndexAndDisk(
 }
 
 export async function removeWorkDirectory(workId: string): Promise<void> {
-  const worksRoot = resolve(WORKS_ROOT);
-  const workDir = resolve(join(WORKS_ROOT, workId));
+  const worksRoot = resolve(getWorksRoot());
+  const workDir = resolve(join(worksRoot, workId));
   if (!isPathInside(worksRoot, workDir) || workDir === worksRoot) {
     return;
   }
@@ -284,7 +294,7 @@ export async function removeChapterDirectory(
   workId: string,
   chapterId: string,
 ): Promise<void> {
-  const chaptersRoot = resolve(join(WORKS_ROOT, workId, "chapters"));
+  const chaptersRoot = resolve(join(getWorksRoot(), workId, "chapters"));
   const chapterDir = resolve(join(chaptersRoot, chapterId));
   if (!isPathInside(chaptersRoot, chapterDir) || chapterDir === chaptersRoot) {
     return;
@@ -294,23 +304,12 @@ export async function removeChapterDirectory(
   }
 }
 
-function workFilePath(workId: string): string {
-  assertSafeStoreId(workId, "작품 ID가 올바르지 않습니다.");
-  return join(WORKS_ROOT, workId, "work.json");
-}
-
-function chapterFilePath(workId: string, chapterId: string): string {
-  assertSafeStoreId(workId, "작품 ID가 올바르지 않습니다.");
-  assertSafeStoreId(chapterId, "화 ID가 올바르지 않습니다.");
-  return join(WORKS_ROOT, workId, "chapters", chapterId, "chapter.json");
-}
-
 export async function removePageArtifacts(
   workId: string,
   chapterId: string,
   pageId: string,
 ): Promise<void> {
-  const runsRoot = join(WORKS_ROOT, workId, "chapters", chapterId, "runs");
+  const runsRoot = join(getWorksRoot(), workId, "chapters", chapterId, "runs");
   if (!existsSync(runsRoot)) {
     return;
   }
@@ -404,7 +403,7 @@ function resolveChapterStoredImagePath(
     return assertChapterImagePathScope(workId, chapterId, imagePath, message);
   } catch (error) {
     const relocated = relocateCopiedChapterImagePath({
-      worksRoot: WORKS_ROOT,
+      worksRoot: getWorksRoot(),
       workId,
       chapterId,
       imagePath,
@@ -419,8 +418,8 @@ function resolveChapterStoredImagePath(
 function assertChapterStorageLocation(workId: string, chapterId: string): void {
   assertSafeStoreId(workId, "화 정보의 보관함 위치가 올바르지 않습니다.");
   assertSafeStoreId(chapterId, "화 정보의 보관함 위치가 올바르지 않습니다.");
-  const worksRoot = resolve(WORKS_ROOT);
-  const chaptersRoot = resolve(join(WORKS_ROOT, workId, "chapters"));
+  const worksRoot = resolve(getWorksRoot());
+  const chaptersRoot = resolve(join(worksRoot, workId, "chapters"));
   const chapterDir = resolve(join(chaptersRoot, chapterId));
   if (
     !isPathInside(worksRoot, chaptersRoot) ||

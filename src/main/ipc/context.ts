@@ -6,11 +6,22 @@ import type { ImageDecodeFallback } from "../regionCrop";
 import type { InpaintingRevisionStore } from "../inpainting/inpaintingRevisionStore";
 import type { SimplePageRuntime } from "../simplePageRuntime";
 
+export type PanelWindowPort = Pick<
+  PanelWindowRegistry,
+  | "close"
+  | "closeAll"
+  | "getLastState"
+  | "getOpenPanelIds"
+  | "isPanelSender"
+  | "open"
+  | "publishState"
+>;
+
 export type IpcContext = {
   appPaths: AppPaths;
   jobs: ActiveJobStore;
   getMainWindow: () => BrowserWindow | null;
-  panelWindows: PanelWindowRegistry;
+  panelWindows: PanelWindowPort;
   errorReportWindows?: {
     isTrustedSender: (webContentsId: number) => boolean;
   };

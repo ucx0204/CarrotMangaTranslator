@@ -16,7 +16,7 @@ import {
   TrashIcon,
 } from "./ui/icons";
 import { resolveColor, type EditorPanelModel } from "./editorPanelUtils";
-import type { BlockBackgroundApplyScope } from "../hooks/useBlockEditingActions";
+import type { BlockBackgroundApplyScope } from "../hooks/useApplyBlockBackgroundOpacityAction";
 import { BlockBackgroundApplyModal } from "./BlockBackgroundApplyModal";
 
 type BlockPatchHandler = (patch: Partial<TranslationBlock>) => void;
@@ -178,6 +178,7 @@ function useBlockTextDrafts(
   const [translated, setTranslated] = React.useState(block.translatedText);
   const [source, setSource] = React.useState(block.sourceText);
   const blockIdRef = React.useRef(block.id);
+  const selectionFrameRef = React.useRef<number | null>(null);
 
   React.useEffect(() => {
     const switched = blockIdRef.current !== block.id;
@@ -195,14 +196,22 @@ function useBlockTextDrafts(
     translatedRef,
     sourceRef,
   ]);
+  React.useEffect(
+    () => () => {
+      if (selectionFrameRef.current !== null) {
+        cancelAnimationFrame(selectionFrameRef.current);
+      }
+    },
+    [],
+  );
 
   const changeTranslated = (value: string): void => {
     setTranslated(value);
-    onUpdate({ translatedText: value });
+    React.startTransition(() => onUpdate({ translatedText: value }));
   };
   const changeSource = (value: string): void => {
     setSource(value);
-    onUpdate({ sourceText: value });
+    React.startTransition(() => onUpdate({ sourceText: value }));
   };
   const wrapTranslatedSelection = (marker: string): void => {
     const element = translatedRef.current;
@@ -216,7 +225,12 @@ function useBlockTextDrafts(
       marker,
     );
     changeTranslated(result.value);
-    requestAnimationFrame(() => {
+    if (selectionFrameRef.current !== null) {
+      cancelAnimationFrame(selectionFrameRef.current);
+    }
+    selectionFrameRef.current = requestAnimationFrame(() => {
+      selectionFrameRef.current = null;
+      if (!element.isConnected) return;
       element.focus();
       element.setSelectionRange(result.selectionStart, result.selectionEnd);
     });

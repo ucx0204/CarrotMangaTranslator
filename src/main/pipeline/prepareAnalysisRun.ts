@@ -1,21 +1,17 @@
 import type { TranslationOptions } from "../appSettings";
-import { getAppPaths, type AppPaths } from "../appPaths";
-import { getAppSettings } from "../settingsStore";
+import type { AppPaths } from "../appPaths";
 import type { AppSettings } from "../../shared/settingsTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
-import { logInfo } from "../logger";
 import { buildBaseOptions, summarizeTranslationOptions } from "./options";
 import {
   attachBaseProgress,
   emitOcrPreparation,
   type ProgressContext,
 } from "./progressEvents";
-import {
-  loadTranslationRuntimePort,
-  type TranslationRuntimePort,
-} from "./translationRuntimePort";
+import type { TranslationRuntimePort } from "./translationRuntimePort";
 import type { ChapterRunPaths } from "../library";
 import type { PipelineOptions } from "./types";
+import type { WholePagePipelineDependencies } from "./wholePagePipelinePorts";
 
 export type AnalysisRun = {
   paths: AppPaths;
@@ -34,19 +30,25 @@ export async function prepareAnalysisRun({
   emit,
   pages,
   runPaths,
+  runtime,
   signal,
   skipOcrPrepass,
+  dependencies,
 }: {
   jobId: string;
   emit: PipelineOptions["emit"];
   pages: MangaPage[];
   runPaths: ChapterRunPaths;
+  runtime: TranslationRuntimePort;
   signal: AbortSignal;
   skipOcrPrepass: boolean;
+  dependencies: Pick<
+    WholePagePipelineDependencies,
+    "diagnostics" | "paths" | "settings"
+  >;
 }): Promise<AnalysisRun> {
-  const paths = getAppPaths();
-  const appSettings = await getAppSettings(paths);
-  const runtime = loadTranslationRuntimePort();
+  const paths = dependencies.paths;
+  const appSettings = await dependencies.settings.getAppSettings(paths);
   const baseOptions = buildBaseOptions(
     jobId,
     runPaths.runDir,
@@ -67,7 +69,7 @@ export async function prepareAnalysisRun({
     pageTotal: pages.length,
   };
 
-  logInfo("Analysis pipeline initialized", {
+  dependencies.diagnostics.info("Analysis pipeline initialized", {
     jobId,
     pageCount: pages.length,
     runPaths,

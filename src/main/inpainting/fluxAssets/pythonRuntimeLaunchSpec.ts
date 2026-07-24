@@ -19,7 +19,7 @@ import type {
 import { ensureRemoteFile, hfResolveUrl } from "./downloads";
 import { resolveFluxPythonMode } from "./manifests";
 import { ensureFluxPythonModelCache } from "./pythonRuntimePackages";
-import type { FluxWorkerLaunchSpec } from "../fluxWorker";
+import type { FluxWorkerLaunchSpec } from "../fluxWorkerTypes";
 
 export async function buildFluxPythonLaunchSpec(options: {
   backend: FluxPythonBackend;

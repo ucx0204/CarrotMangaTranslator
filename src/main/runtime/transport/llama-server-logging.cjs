@@ -10,18 +10,22 @@ const { emitRuntimeProgress } = require("../simple-page-runtime-common.cjs");
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions & { label?: string | null; serverLogPath?: string | null }} ServerRuntimeOptions */
 
 /** @param {ServerRuntimeOptions} options @param {string} serverPath @param {string[]} launchArgs */
-function createServerLogStream(options, serverPath, launchArgs) {
+function createServerLogTarget(options, serverPath, launchArgs) {
   const logPath = String(options.serverLogPath ?? "").trim();
   if (!logPath) return null;
   try {
     mkdirSync(path.dirname(logPath), { recursive: true });
     const stream = createWriteStream(logPath, { flags: "a" });
-    stream.write(`# ${new Date().toISOString()}\n`);
-    stream.write(`# serverPath=${serverPath}\n`);
-    stream.write(`# launchArgs=${launchArgs.join(" ")}\n`);
-    return stream;
-  } catch (_error) {
-    return null;
+    return {
+      stream,
+      header: [
+        `# ${new Date().toISOString()}\n`,
+        `# serverPath=${serverPath}\n`,
+        `# launchArgs=${launchArgs.join(" ")}\n`,
+      ],
+    };
+  } catch (error) {
+    return { stream: null, header: [], creationError: error };
   }
 }
 
@@ -48,4 +52,4 @@ function emitServerLogLine(options, line) {
   );
 }
 
-module.exports = { createServerLogStream, emitServerInstallLog };
+module.exports = { createServerLogTarget, emitServerInstallLog };

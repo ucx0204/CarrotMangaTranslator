@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { settingsGateway } from "./settingsGateway";
+import { settingsGateway } from "../../api/settingsGateway";
 import type { TestState } from "../settingsModalTypes";
 import { SettingsSection } from "./SettingsSection";
 

@@ -1,6 +1,7 @@
 import { useChapterPersistence } from "../../hooks/useChapterPersistence";
-import { useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useJobEvents } from "../../hooks/useJobEvents";
 import { useLibraryActions } from "../../hooks/useLibraryActions";
 import { useLiveChapterSync } from "../../hooks/useLiveChapterSync";
@@ -67,9 +68,12 @@ function usePruneRemovedPageMasks(
   uiState: ReturnType<typeof useAppSessionUiState>,
 ): void {
   const { setPatternMaskStrokesByPage } = uiState;
+  const chapterId = currentChapter?.id ?? null;
+  const pageIdsKey =
+    currentChapter?.pages.map((page) => page.id).join("\u0000") ?? "";
   useEffect(() => {
-    if (!currentChapter) return;
-    const pageIds = new Set(currentChapter.pages.map((page) => page.id));
+    if (!chapterId) return;
+    const pageIds = new Set(pageIdsKey ? pageIdsKey.split("\u0000") : []);
     setPatternMaskStrokesByPage((current) => {
       const validEntries = Object.entries(current).filter(([pageId]) =>
         pageIds.has(pageId),
@@ -78,7 +82,7 @@ function usePruneRemovedPageMasks(
         ? current
         : Object.fromEntries(validEntries);
     });
-  }, [currentChapter, setPatternMaskStrokesByPage]);
+  }, [chapterId, pageIdsKey, setPatternMaskStrokesByPage]);
 }
 
 export type ChapterSessionController = ReturnType<
@@ -106,16 +110,16 @@ function useChapterRuntimeController({
   uiState,
 }: ChapterRuntimeArgs) {
   const { t } = useTranslation("renderer");
-  const persistence = useChapterPersistence({
-    currentChapter: core.currentChapter,
-    currentChapterRef: core.currentChapterRef,
-    onSaveError: (message) => {
-      const localized = t("chapter.saveFailed", { message });
-      statusLog.pushStatus(localized);
-      toast.error(localized);
-    },
-    setCurrentChapter: core.setCurrentChapter,
-  });
+  const { patternMaskStrokesByPage, setPatternMaskStrokesByPage } = uiState;
+  const hasPendingInpaintingMask = useMemo(
+    () => hasPendingMasks(patternMaskStrokesByPage),
+    [patternMaskStrokesByPage],
+  );
+  const clearPendingInpaintingMasks = useCallback(
+    () => setPatternMaskStrokesByPage({}),
+    [setPatternMaskStrokesByPage],
+  );
+  const persistence = useNotifyingChapterPersistence(core, statusLog, t);
   const bridgeActions = useAppSessionBridgeActions(statusLog.pushStatus);
   const libraryActions = useLibraryActions({
     askConfirm: modalController.confirmController.askConfirm,
@@ -123,10 +127,10 @@ function useChapterRuntimeController({
     currentChapter: core.currentChapter,
     currentChapterRef: core.currentChapterRef,
     dirty: persistence.dirty,
-    hasPendingInpaintingMask: hasPendingMasks(uiState.patternMaskStrokesByPage),
+    hasPendingInpaintingMask,
     library: core.library,
     pushStatus: statusLog.pushStatus,
-    clearPendingInpaintingMasks: () => uiState.setPatternMaskStrokesByPage({}),
+    clearPendingInpaintingMasks,
     onChapterOpened: uiState.resetChapterScopedUi,
     resetSaveBaseline: persistence.resetSaveBaseline,
     saveNow: persistence.saveNow,
@@ -176,6 +180,23 @@ function useChapterRuntimeController({
     overlayModalsOpen,
     persistence,
   };
+}
+
+function useNotifyingChapterPersistence(
+  core: AppSessionCoreState,
+  statusLog: ChapterRuntimeArgs["statusLog"],
+  t: TFunction<"renderer">,
+): ReturnType<typeof useChapterPersistence> {
+  return useChapterPersistence({
+    currentChapter: core.currentChapter,
+    currentChapterRef: core.currentChapterRef,
+    onSaveError: (message) => {
+      const localized = t("chapter.saveFailed", { message });
+      statusLog.pushStatus(localized);
+      toast.error(localized);
+    },
+    setCurrentChapter: core.setCurrentChapter,
+  });
 }
 
 function hasPendingMasks(
@@ -235,14 +256,20 @@ function useChapterRuntimeEffects({
   | "statusLog"
   | "uiState"
 >): void {
+  const { selectWorkspaceTool, setPeekOriginal } = uiState;
+  const handleJobStart = useCallback(
+    () => selectWorkspaceTool("select"),
+    [selectWorkspaceTool],
+  );
+  const handlePageChange = useCallback(() => {
+    selectWorkspaceTool("select");
+    setPeekOriginal(false);
+  }, [selectWorkspaceTool, setPeekOriginal]);
   useAppSessionLifecycleEffects({
     currentChapter: core.currentChapter,
     jobState: core.jobState,
-    onJobStart: () => uiState.selectWorkspaceTool("select"),
-    onPageChange: () => {
-      uiState.selectWorkspaceTool("select");
-      uiState.setPeekOriginal(false);
-    },
+    onJobStart: handleJobStart,
+    onPageChange: handlePageChange,
     openErrorReport,
     refreshLibrary: libraryActions.refreshLibrary,
     resetChapterScopedUi: uiState.resetChapterScopedUi,
@@ -255,7 +282,6 @@ function useChapterRuntimeEffects({
     appendStatusLine: statusLog.appendStatusLine,
     currentChapterRef: core.currentChapterRef,
     mergeLiveChapter,
-    refreshLibrary: libraryActions.refreshLibrary,
     setJobState: core.setJobState,
   });
 }

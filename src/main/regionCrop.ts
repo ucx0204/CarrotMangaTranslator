@@ -12,7 +12,10 @@ import {
 } from "../shared/region";
 import { logInfo } from "./logger";
 
-export type ImageDecodeFallback = (filePath: string) => Promise<Buffer | null>;
+export type ImageDecodeFallback = (
+  filePath: string,
+  signal?: AbortSignal,
+) => Promise<Buffer | null>;
 
 export async function createRegionCropPage(
   page: MangaPage,

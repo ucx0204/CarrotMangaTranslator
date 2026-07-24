@@ -136,18 +136,32 @@ function useModalEscapeClose({
 }: Pick<ModalProps, "closeDisabled" | "closeOnEsc" | "onClose"> & {
   modalId: symbol;
 }): void {
+  const requestClose = useStableModalCallback(() => {
+    if (!closeDisabled) {
+      onClose?.();
+    }
+  });
+  const enabled = closeOnEsc && Boolean(onClose);
   React.useEffect(() => {
-    if (!closeOnEsc || !onClose) {
+    if (!enabled) {
       return;
     }
     const handle = (event: KeyboardEvent): void => {
-      if (event.key === "Escape" && !closeDisabled && isTopModal(modalId)) {
-        onClose();
+      if (event.key === "Escape" && isTopModal(modalId)) {
+        requestClose();
       }
     };
     window.addEventListener("keydown", handle);
     return () => window.removeEventListener("keydown", handle);
-  }, [closeOnEsc, onClose, closeDisabled, modalId]);
+  }, [enabled, modalId, requestClose]);
+}
+
+function useStableModalCallback(callback: () => void): () => void {
+  const callbackRef = React.useRef(callback);
+  React.useLayoutEffect(() => {
+    callbackRef.current = callback;
+  }, [callback]);
+  return React.useCallback(() => callbackRef.current(), []);
 }
 
 function useModalStackRegistration(modalId: symbol): void {

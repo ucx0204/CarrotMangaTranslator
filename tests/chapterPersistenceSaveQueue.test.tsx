@@ -3,10 +3,10 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { MangaApi } from "../src/shared/mangaApi";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
-import type { SavePageBlocksRequest } from "../src/shared/shareTypes";
+import type { SavePagesBlocksRequest } from "../src/shared/shareTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
+import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import { useChapterPersistence } from "../src/renderer/src/hooks/useChapterPersistence";
 
 type Deferred<T> = {
@@ -18,32 +18,74 @@ type Deferred<T> = {
 type HarnessApi = {
   getChapter: () => ChapterSnapshot | null;
   getDirty: () => boolean;
+  getPersistence: () => ReturnType<typeof useChapterPersistence>;
+  refreshSameChapter: () => void;
+  rerenderUnrelated: () => void;
   saveNow: () => Promise<void>;
   updateText: (text: string) => void;
+  updateTwoPages: (firstText: string, secondText: string) => void;
 };
 
-const savePageBlocksMock =
-  vi.fn<(request: SavePageBlocksRequest) => Promise<ChapterSnapshot>>();
+const savePagesBlocksMock =
+  vi.fn<(request: SavePagesBlocksRequest) => Promise<ChapterSnapshot>>();
 
 beforeEach(() => {
-  savePageBlocksMock.mockReset();
-  (window as unknown as { mangaApi: Partial<MangaApi> }).mangaApi = {
-    savePageBlocks: savePageBlocksMock,
-  };
+  savePagesBlocksMock.mockReset();
+  window.mangaApi = createTestMangaGatewayStub({
+    savePagesBlocks: savePagesBlocksMock,
+  });
 });
 
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
   vi.restoreAllMocks();
-  delete (window as unknown as { mangaApi?: Partial<MangaApi> }).mangaApi;
+  Reflect.deleteProperty(window, "mangaApi");
 });
 
 describe("chapter persistence save queue", () => {
+  it("does not rehash unchanged clean pages after a local edit and saves the latest blocks", async () => {
+    savePagesBlocksMock.mockResolvedValue(
+      makeChapter("latest local edit", "2026-01-01T00:00:01.000Z"),
+    );
+    const initialChapter = makeChapter("base", "2026-01-01T00:00:00.000Z");
+    let cleanBlockReads = 0;
+    observeTranslatedTextReads(initialChapter.pages[1].blocks[0], () => {
+      cleanBlockReads += 1;
+    });
+    const { api } = renderHarness(undefined, initialChapter);
+    cleanBlockReads = 0;
+
+    act(() => {
+      api.current.updateText("latest local edit");
+    });
+
+    expect(cleanBlockReads).toBe(0);
+
+    await act(async () => {
+      await api.current.saveNow();
+    });
+
+    expect(savePagesBlocksMock).toHaveBeenCalledOnce();
+    expect(savePagesBlocksMock.mock.calls[0][0]).toMatchObject({
+      pages: [
+        {
+          baseUpdatedAt: "2026-01-01T00:00:00.000Z",
+          blocks: [{ translatedText: "latest local edit" }],
+          pageId: "page-1",
+        },
+      ],
+    });
+    expect(api.current.getChapter()?.pages[0].blocks[0].translatedText).toBe(
+      "latest local edit",
+    );
+    expect(api.current.getDirty()).toBe(false);
+  });
+
   it("serializes overlapping manual saves and resaves the latest chapter state", async () => {
     const firstSave = createDeferred<ChapterSnapshot>();
     const secondSave = createDeferred<ChapterSnapshot>();
-    savePageBlocksMock
+    savePagesBlocksMock
       .mockReturnValueOnce(firstSave.promise)
       .mockReturnValueOnce(secondSave.promise);
     const { api } = renderHarness();
@@ -54,16 +96,21 @@ describe("chapter persistence save queue", () => {
     const firstSaveNow = api.current.saveNow();
 
     await waitFor(() => {
-      expect(savePageBlocksMock).toHaveBeenCalledTimes(1);
+      expect(savePagesBlocksMock).toHaveBeenCalledTimes(1);
     });
-    expect(savePageBlocksMock.mock.calls[0][0]).toMatchObject({
-      baseUpdatedAt: "2026-01-01T00:00:00.000Z",
+    expect(savePagesBlocksMock.mock.calls[0][0]).toMatchObject({
       dirtyVersion: 1,
+      pages: [
+        {
+          baseUpdatedAt: "2026-01-01T00:00:00.000Z",
+          pageId: "page-1",
+        },
+      ],
       saveReason: "manual",
     });
-    expect(savePageBlocksMock.mock.calls[0][0].blocks[0].translatedText).toBe(
-      "first",
-    );
+    expect(
+      savePagesBlocksMock.mock.calls[0][0].pages[0]?.blocks[0]?.translatedText,
+    ).toBe("first");
 
     act(() => {
       api.current.updateText("second");
@@ -71,7 +118,7 @@ describe("chapter persistence save queue", () => {
     const secondSaveNow = api.current.saveNow();
     await flushMicrotasks();
 
-    expect(savePageBlocksMock).toHaveBeenCalledTimes(1);
+    expect(savePagesBlocksMock).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       firstSave.resolve(makeChapter("first", "2026-01-01T00:00:01.000Z"));
@@ -79,16 +126,21 @@ describe("chapter persistence save queue", () => {
     });
 
     await waitFor(() => {
-      expect(savePageBlocksMock).toHaveBeenCalledTimes(2);
+      expect(savePagesBlocksMock).toHaveBeenCalledTimes(2);
     });
-    expect(savePageBlocksMock.mock.calls[1][0]).toMatchObject({
-      baseUpdatedAt: "2026-01-01T00:00:01.000Z",
+    expect(savePagesBlocksMock.mock.calls[1][0]).toMatchObject({
       dirtyVersion: 2,
+      pages: [
+        {
+          baseUpdatedAt: "2026-01-01T00:00:01.000Z",
+          pageId: "page-1",
+        },
+      ],
       saveReason: "manual",
     });
-    expect(savePageBlocksMock.mock.calls[1][0].blocks[0].translatedText).toBe(
-      "second",
-    );
+    expect(
+      savePagesBlocksMock.mock.calls[1][0].pages[0]?.blocks[0]?.translatedText,
+    ).toBe("second");
 
     await act(async () => {
       secondSave.resolve(makeChapter("second", "2026-01-01T00:00:02.000Z"));
@@ -103,7 +155,7 @@ describe("chapter persistence save queue", () => {
 
   it("coalesces identical overlapping manual saves into one persistence call", async () => {
     const saveGate = createDeferred<ChapterSnapshot>();
-    savePageBlocksMock.mockReturnValue(saveGate.promise);
+    savePagesBlocksMock.mockReturnValue(saveGate.promise);
     const { api } = renderHarness();
 
     act(() => {
@@ -113,14 +165,14 @@ describe("chapter persistence save queue", () => {
     const duplicateSave = api.current.saveNow();
 
     await waitFor(() => {
-      expect(savePageBlocksMock).toHaveBeenCalledOnce();
+      expect(savePagesBlocksMock).toHaveBeenCalledOnce();
     });
     await act(async () => {
       saveGate.resolve(makeChapter("one draft", "2026-01-01T00:00:01.000Z"));
       await Promise.all([firstSave, duplicateSave]);
     });
 
-    expect(savePageBlocksMock).toHaveBeenCalledOnce();
+    expect(savePagesBlocksMock).toHaveBeenCalledOnce();
     expect(api.current.getDirty()).toBe(false);
     expect(api.current.getChapter()?.pages[0].blocks[0].translatedText).toBe(
       "one draft",
@@ -129,7 +181,7 @@ describe("chapter persistence save queue", () => {
 
   it("rejects every waiter on queue failure and allows a later retry", async () => {
     const failure = new Error("storage unavailable");
-    savePageBlocksMock
+    savePagesBlocksMock
       .mockRejectedValueOnce(failure)
       .mockResolvedValueOnce(
         makeChapter("retry draft", "2026-01-01T00:00:01.000Z"),
@@ -145,7 +197,7 @@ describe("chapter persistence save queue", () => {
     await act(async () => {
       await expect(Promise.all([firstSave, waitingSave])).rejects.toBe(failure);
     });
-    expect(savePageBlocksMock).toHaveBeenCalledOnce();
+    expect(savePagesBlocksMock).toHaveBeenCalledOnce();
     expect(api.current.getDirty()).toBe(true);
     expect(api.current.getChapter()?.pages[0].blocks[0].translatedText).toBe(
       "retry draft",
@@ -155,12 +207,58 @@ describe("chapter persistence save queue", () => {
       await api.current.saveNow();
     });
 
-    expect(savePageBlocksMock).toHaveBeenCalledTimes(2);
-    expect(savePageBlocksMock.mock.calls[1][0]).toMatchObject({
-      baseUpdatedAt: "2026-01-01T00:00:00.000Z",
+    expect(savePagesBlocksMock).toHaveBeenCalledTimes(2);
+    expect(savePagesBlocksMock.mock.calls[1][0]).toMatchObject({
       dirtyVersion: 1,
+      pages: [
+        {
+          baseUpdatedAt: "2026-01-01T00:00:00.000Z",
+          pageId: "page-1",
+        },
+      ],
       saveReason: "manual",
     });
+    expect(api.current.getDirty()).toBe(false);
+  });
+
+  it("persists every dirty page in one batch request", async () => {
+    savePagesBlocksMock.mockResolvedValue(
+      makeChapterWithPageTexts(
+        "first page saved",
+        "second page saved",
+        "2026-01-01T00:00:01.000Z",
+      ),
+    );
+    const { api } = renderHarness();
+
+    act(() => {
+      api.current.updateTwoPages("first page saved", "second page saved");
+    });
+    await act(async () => {
+      await api.current.saveNow();
+    });
+
+    expect(savePagesBlocksMock).toHaveBeenCalledOnce();
+    expect(savePagesBlocksMock.mock.calls[0][0]).toMatchObject({
+      dirtyVersion: 2,
+      pages: [
+        {
+          baseUpdatedAt: "2026-01-01T00:00:00.000Z",
+          pageId: "page-1",
+          blocks: [{ translatedText: "first page saved" }],
+        },
+        {
+          baseUpdatedAt: "2026-01-01T00:00:00.000Z",
+          pageId: "page-2",
+          blocks: [{ translatedText: "second page saved" }],
+        },
+      ],
+      saveReason: "manual",
+    });
+    expect(api.current.getChapter()?.pages.map(firstTranslatedText)).toEqual([
+      "first page saved",
+      "second page saved",
+    ]);
     expect(api.current.getDirty()).toBe(false);
   });
 
@@ -168,7 +266,7 @@ describe("chapter persistence save queue", () => {
     const staleError = Object.assign(new Error("stale version"), {
       code: "STALE_PAGE_SAVE",
     });
-    savePageBlocksMock.mockRejectedValue(staleError);
+    savePagesBlocksMock.mockRejectedValue(staleError);
     const { api } = renderHarness();
 
     act(() => {
@@ -183,7 +281,7 @@ describe("chapter persistence save queue", () => {
       });
     });
 
-    expect(savePageBlocksMock).toHaveBeenCalledOnce();
+    expect(savePagesBlocksMock).toHaveBeenCalledOnce();
     expect(api.current.getDirty()).toBe(true);
     expect(api.current.getChapter()?.pages[0].blocks[0].translatedText).toBe(
       "unsaved conflict draft",
@@ -204,14 +302,102 @@ describe("chapter persistence save queue", () => {
       await vi.advanceTimersByTimeAsync(500);
     });
 
-    expect(savePageBlocksMock).not.toHaveBeenCalled();
+    expect(savePagesBlocksMock).not.toHaveBeenCalled();
+  });
+
+  it("does not postpone autosave when unrelated session state rerenders", async () => {
+    vi.useFakeTimers();
+    savePagesBlocksMock.mockResolvedValue(
+      makeChapter("stable timer draft", "2026-01-01T00:00:01.000Z"),
+    );
+    const { api } = renderHarness();
+
+    act(() => {
+      api.current.updateText("stable timer draft");
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+    act(() => {
+      api.current.rerenderUnrelated();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150);
+    });
+
+    expect(savePagesBlocksMock).toHaveBeenCalledOnce();
+  });
+
+  it("does not postpone autosave for a same-chapter job snapshot refresh", async () => {
+    vi.useFakeTimers();
+    savePagesBlocksMock.mockResolvedValue(
+      makeChapter("stable timer draft", "2026-01-01T00:00:01.000Z"),
+    );
+    const { api } = renderHarness();
+
+    act(() => {
+      api.current.updateText("stable timer draft");
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+    act(() => {
+      api.current.refreshSameChapter();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150);
+    });
+
+    expect(savePagesBlocksMock).toHaveBeenCalledOnce();
+  });
+
+  it("still debounces from the latest semantic edit", async () => {
+    vi.useFakeTimers();
+    savePagesBlocksMock.mockResolvedValue(
+      makeChapter("second edit", "2026-01-01T00:00:01.000Z"),
+    );
+    const { api } = renderHarness();
+
+    act(() => {
+      api.current.updateText("first edit");
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+    act(() => {
+      api.current.updateText("second edit");
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150);
+    });
+    expect(savePagesBlocksMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+    expect(savePagesBlocksMock).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the persistence action boundary stable on unrelated root rerenders", () => {
+    const chapter = makeChapter("base", "2026-01-01T00:00:00.000Z");
+    const pagesIterator = vi.spyOn(chapter.pages, Symbol.iterator);
+    const { api } = renderHarness(undefined, chapter);
+    const initialPersistence = api.current.getPersistence();
+    pagesIterator.mockClear();
+
+    act(() => {
+      api.current.rerenderUnrelated();
+    });
+
+    expect(api.current.getPersistence()).toBe(initialPersistence);
+    expect(pagesIterator).not.toHaveBeenCalled();
   });
 
   it("deduplicates repeated autosave error notifications within the cooldown", async () => {
     vi.useFakeTimers();
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const onSaveError = vi.fn();
-    savePageBlocksMock.mockRejectedValue(new Error("storage unavailable"));
+    savePagesBlocksMock.mockRejectedValue(new Error("storage unavailable"));
     const { api } = renderHarness(onSaveError);
 
     act(() => {
@@ -220,7 +406,7 @@ describe("chapter persistence save queue", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(400);
     });
-    expect(savePageBlocksMock).toHaveBeenCalledOnce();
+    expect(savePagesBlocksMock).toHaveBeenCalledOnce();
     expect(onSaveError).toHaveBeenCalledWith("storage unavailable");
 
     act(() => {
@@ -229,7 +415,7 @@ describe("chapter persistence save queue", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(400);
     });
-    expect(savePageBlocksMock).toHaveBeenCalledTimes(2);
+    expect(savePagesBlocksMock).toHaveBeenCalledTimes(2);
     expect(onSaveError).toHaveBeenCalledOnce();
 
     await act(async () => {
@@ -241,12 +427,15 @@ describe("chapter persistence save queue", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(400);
     });
-    expect(savePageBlocksMock).toHaveBeenCalledTimes(3);
+    expect(savePagesBlocksMock).toHaveBeenCalledTimes(3);
     expect(onSaveError).toHaveBeenCalledTimes(2);
   });
 });
 
-function renderHarness(onSaveError?: (message: string) => void): {
+function renderHarness(
+  onSaveError?: (message: string) => void,
+  initialChapter = makeChapter("base", "2026-01-01T00:00:00.000Z"),
+): {
   api: React.MutableRefObject<HarnessApi>;
   unmount: () => void;
 } {
@@ -254,6 +443,7 @@ function renderHarness(onSaveError?: (message: string) => void): {
 
   const { unmount } = render(
     React.createElement(ChapterPersistenceHarness, {
+      initialChapter,
       onSaveError,
       onReady: (nextApi: HarnessApi) => {
         api.current = nextApi;
@@ -271,15 +461,18 @@ function renderHarness(onSaveError?: (message: string) => void): {
 }
 
 function ChapterPersistenceHarness({
+  initialChapter,
   onSaveError,
   onReady,
 }: {
+  initialChapter: ChapterSnapshot;
   onSaveError?: (message: string) => void;
   onReady: (api: HarnessApi) => void;
 }): React.JSX.Element | null {
-  const [chapter, setChapterState] = useState<ChapterSnapshot | null>(() =>
-    makeChapter("base", "2026-01-01T00:00:00.000Z"),
+  const [chapter, setChapterState] = useState<ChapterSnapshot | null>(
+    initialChapter,
   );
+  const [, setUnrelatedRevision] = useState(0);
   const currentChapterRef = useRef<ChapterSnapshot | null>(chapter);
   const setCurrentChapter = useCallback<
     React.Dispatch<React.SetStateAction<ChapterSnapshot | null>>
@@ -293,7 +486,7 @@ function ChapterPersistenceHarness({
   const persistence = useChapterPersistence({
     currentChapter: chapter,
     currentChapterRef,
-    onSaveError,
+    onSaveError: (message) => onSaveError?.(message),
     setCurrentChapter,
   });
 
@@ -311,14 +504,52 @@ function ChapterPersistenceHarness({
     [persistence],
   );
 
+  const updateTwoPages = useCallback(
+    (firstText: string, secondText: string) => {
+      const chapter = currentChapterRef.current;
+      if (!chapter) {
+        return;
+      }
+      const next = updateChapterTexts(
+        chapter,
+        new Map([
+          ["page-1", firstText],
+          ["page-2", secondText],
+        ]),
+      );
+      currentChapterRef.current = next;
+      setChapterState(next);
+      persistence.markDirty("page-1");
+      persistence.markDirty("page-2");
+    },
+    [persistence],
+  );
+
   useEffect(() => {
     onReady({
       getChapter: () => currentChapterRef.current,
       getDirty: () => persistence.dirty,
+      getPersistence: () => persistence,
+      refreshSameChapter: () => {
+        const current = currentChapterRef.current;
+        if (current) {
+          const refreshed = { ...current };
+          currentChapterRef.current = refreshed;
+          setChapterState(refreshed);
+        }
+      },
+      rerenderUnrelated: () => setUnrelatedRevision((revision) => revision + 1),
       saveNow: persistence.saveNow,
       updateText,
+      updateTwoPages,
     });
-  }, [onReady, persistence.dirty, persistence.saveNow, updateText]);
+  }, [
+    onReady,
+    persistence.dirty,
+    persistence.saveNow,
+    updateText,
+    updateTwoPages,
+  ]);
 
   return null;
 }
@@ -327,10 +558,18 @@ function updateChapterText(
   chapter: ChapterSnapshot,
   text: string,
 ): ChapterSnapshot {
+  return updateChapterTexts(chapter, new Map([["page-1", text]]));
+}
+
+function updateChapterTexts(
+  chapter: ChapterSnapshot,
+  textsByPageId: ReadonlyMap<string, string>,
+): ChapterSnapshot {
   return {
     ...chapter,
-    pages: chapter.pages.map((page) =>
-      page.id === "page-1"
+    pages: chapter.pages.map((page) => {
+      const text = textsByPageId.get(page.id);
+      return text !== undefined
         ? {
             ...page,
             blocks: page.blocks.map((block) => ({
@@ -338,8 +577,8 @@ function updateChapterText(
               translatedText: text,
             })),
           }
-        : page,
-    ),
+        : page;
+    }),
   };
 }
 
@@ -366,24 +605,35 @@ async function flushMicrotasks(): Promise<void> {
 }
 
 function makeChapter(text: string, updatedAt: string): ChapterSnapshot {
+  return makeChapterWithPageTexts(text, "base page two", updatedAt);
+}
+
+function makeChapterWithPageTexts(
+  firstText: string,
+  secondText: string,
+  updatedAt: string,
+): ChapterSnapshot {
   return {
     id: "22222222-2222-4222-8222-222222222222",
     workId: "11111111-1111-4111-8111-111111111111",
     title: "1화",
     sourceKind: "images",
     status: "idle",
-    pageOrder: ["page-1"],
-    pages: [makePage(text, updatedAt)],
+    pageOrder: ["page-1", "page-2"],
+    pages: [
+      makePage("page-1", firstText, updatedAt),
+      makePage("page-2", secondText, updatedAt),
+    ],
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt,
   };
 }
 
-function makePage(text: string, updatedAt: string): MangaPage {
+function makePage(id: string, text: string, updatedAt: string): MangaPage {
   return {
-    id: "page-1",
-    name: "page-1.png",
-    imagePath: "page-1.png",
+    id,
+    name: `${id}.png`,
+    imagePath: `${id}.png`,
     dataUrl: "",
     width: 1000,
     height: 1000,
@@ -392,6 +642,25 @@ function makePage(text: string, updatedAt: string): MangaPage {
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt,
   };
+}
+
+function firstTranslatedText(page: MangaPage): string | undefined {
+  return page.blocks[0]?.translatedText;
+}
+
+function observeTranslatedTextReads(
+  block: TranslationBlock,
+  onRead: () => void,
+): void {
+  const translatedText = block.translatedText;
+  Object.defineProperty(block, "translatedText", {
+    configurable: true,
+    enumerable: true,
+    get: () => {
+      onRead();
+      return translatedText;
+    },
+  });
 }
 
 function makeBlock(text: string): TranslationBlock {

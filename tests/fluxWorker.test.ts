@@ -1,15 +1,14 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
-import {
-  ensureFluxWorkerLaunch,
-  parsePipDownloadProgressLine,
-  resolveFluxPythonRuntimeLayout,
-  resolveWindowsNativeBuildEnv,
-} from "../src/main/inpainting/fluxAssets";
+import { ensureFluxWorkerLaunch } from "../src/main/inpainting/fluxAssets/workerLaunch";
+import { parsePipDownloadProgressLine } from "../src/main/inpainting/fluxAssets/progress";
+import { resolveFluxPythonRuntimeLayout } from "../src/main/inpainting/fluxAssets/pythonRuntimeLayout";
+import { resolveWindowsNativeBuildEnv } from "../src/main/inpainting/fluxAssets/windowsBuildEnv";
 import {
   CUDNN_REDIST_MANIFEST_URL,
   CUDA_REDIST_MANIFEST_URL,
@@ -22,8 +21,10 @@ import {
   FLUX_SDCPP_WORKER,
   FLUX_ZLUDA_SUPPORT_RUNTIME_DIR,
 } from "../src/main/inpainting/fluxAssets/constants";
-import { ensureManagedFluxRunner } from "../src/main/inpainting/fluxAssets/cudaRuntime";
-import { resolveFluxRunnerDirForComputeCapability } from "../src/main/inpainting/fluxAssets/cudaRuntime";
+import {
+  ensureManagedFluxRunner,
+  resolveFluxRunnerDirForComputeCapability,
+} from "../src/main/inpainting/fluxAssets/runner";
 import {
   resolveFluxPythonWorkerFile,
   ensureFluxPythonWorker,
@@ -39,12 +40,13 @@ import {
 import { resolveDefaultFluxRunRootDir } from "../src/main/inpainting/fluxEngine";
 import {
   buildFluxWorkerResponseError,
-  buildRuntimePathEnv,
   sanitizeFluxRuntimeStderr,
-} from "../src/main/inpainting/fluxWorker";
+} from "../src/main/inpainting/fluxWorkerErrors";
+import { buildRuntimePathEnv } from "../src/main/inpainting/fluxWorkerEnv";
 
 const tempDirs: string[] = [];
 const repoRoot = join(__dirname, "..");
+const require = createRequire(import.meta.url);
 const AdmZip = require("adm-zip");
 
 afterEach(() => {
@@ -562,123 +564,234 @@ describeWindows("Flux worker runtime helpers", () => {
     expect(shouldAllowFluxRocmSourceBuildFallback()).toBe(true);
   });
 
-  it("ships a logged reproducible Flux ROCm runtime builder script", () => {
-    const script = readFileSync(
-      join(repoRoot, "scripts", "build-flux-rocm-runtime.cjs"),
-      "utf8",
+  it("builds a reproducible Flux ROCm runtime context from explicit inputs", () => {
+    const config = require("../scripts/flux-rocm-build/config.cjs") as {
+      manifestFile: string;
+      outputFileName: string;
+      rocmPackageUrls: string[];
+      buildPackages: string[];
+      fluxPackages: string[];
+      defaultAmdGpuTargets: string[];
+      windowsMsvcCompilerTarget: string;
+    };
+    const { createBuildContext } =
+      require("../scripts/flux-rocm-build/runner.cjs") as {
+        createBuildContext(argv: string[]): {
+          outputPath: string;
+          workDir: string;
+          runtimeDir: string;
+          logPath: string;
+          envPath: string;
+          force: boolean;
+          logger: { close(): void };
+        };
+      };
+    const workDir = join(tmpdir(), `mgt-rocm-context-${Date.now()}`);
+    const outputPath = join(workDir, "runtime.zip");
+    const context = createBuildContext([
+      "--out",
+      outputPath,
+      "--work-dir",
+      workDir,
+      "--force",
+    ]);
+    context.logger.close();
+
+    expect(context).toMatchObject({
+      outputPath,
+      workDir,
+      runtimeDir: join(workDir, "runtime"),
+      logPath: join(workDir, "logs", "build.log"),
+      envPath: join(workDir, "logs", "environment.json"),
+      force: true,
+    });
+    expect(config.manifestFile).toBe("mgt-flux-rocm-runtime.json");
+    expect(config.outputFileName).toContain("mgt-flux-rocm-win-x64-rocm");
+    expect(config.rocmPackageUrls).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("rocm_sdk_core"),
+        expect.stringContaining("rocm_sdk_libraries_custom"),
+      ]),
     );
-
-    expect(script).toContain("build.log");
-    expect(script).toContain("environment.json");
-    expect(script).toContain("mgt-flux-rocm-runtime.json");
-    expect(script).toContain("mgt-flux-rocm-win-x64-rocm");
-    expect(script).toContain("stable-diffusion-cpp-python");
-    expect(script).toContain("--no-build-isolation");
-    expect(script).toContain("--force-reinstall");
-    expect(script).toContain("rocm_sdk_core");
-    expect(script).toContain("rocm_sdk_libraries_custom");
-    expect(script).toContain('"rocm_sdk", "init"');
-    expect(script).toContain('"rocm_sdk", "path", "--cmake"');
-    expect(script).toContain("CMAKE_ARGS");
-    expect(script).toContain("-DSD_HIPBLAS=ON");
-    expect(script).toContain("-Dhip_DIR:PATH=");
-    expect(script).toContain("-DHIP_PLATFORM=amd");
-    expect(script).toContain("x86_64-pc-windows-msvc");
-    expect(script).toContain("CMAKE_C_STANDARD_LIBRARIES");
-    expect(script).toContain("LDFLAGS");
-    expect(script).toContain("GPU_TARGETS");
-    expect(script).toContain("SHA256");
-
-    for (const target of [
-      "gfx1030",
-      "gfx1100",
-      "gfx1101",
-      "gfx1102",
-      "gfx1151",
-      "gfx1200",
-      "gfx1201",
-    ]) {
-      expect(script).toContain(target);
-      expect(DEFAULT_AMD_GPU_TARGETS).toContain(target);
-    }
+    expect(config.buildPackages).toContain("scikit-build-core>=0.11.0");
+    expect(config.fluxPackages).toEqual(
+      expect.arrayContaining([
+        "--no-build-isolation",
+        "--force-reinstall",
+        "stable-diffusion-cpp-python",
+      ]),
+    );
+    expect(config.windowsMsvcCompilerTarget).toBe("x86_64-pc-windows-msvc");
+    expect(config.defaultAmdGpuTargets).toEqual(DEFAULT_AMD_GPU_TARGETS);
   });
-
   it("builds Flux Klein CUDA runners with explicit compute-capability variants", () => {
-    const script = readFileSync(
-      join(repoRoot, "scripts", "prepare-flux-klein-runner.cjs"),
-      "utf8",
-    );
+    const {
+      createCudaRootCandidates,
+      createFluxCargoInvocation,
+      createFluxKleinBuildPlan,
+    } = require("../scripts/flux-klein-build-plan.cjs") as {
+      createCudaRootCandidates(
+        env: NodeJS.ProcessEnv,
+      ): Array<string | undefined>;
+      createFluxCargoInvocation(options: {
+        manifestPath: string;
+        buildTarget: {
+          computeCap: string | null;
+          cargoTargetDir: string;
+          outDir: string;
+          outExe: string;
+          aliases: Array<{ outDir: string; outExe: string }>;
+        };
+        cudaRoot: string | null;
+        msvcBin: string | null;
+        rustFlags: string;
+        basePath: string;
+        pathDelimiter: string;
+      }): {
+        command: string;
+        args: string[];
+        env: NodeJS.ProcessEnv;
+      };
+      createFluxKleinBuildPlan(options: {
+        root: string;
+        cargoTargetDir: string;
+        computeCaps?: unknown;
+        singleComputeCap?: unknown;
+      }): Array<{
+        computeCap: string | null;
+        cargoTargetDir: string;
+        outDir: string;
+        outExe: string;
+        aliases: Array<{ outDir: string; outExe: string }>;
+      }>;
+    };
+    const targetDir = join(repoRoot, ".tmp", "flux-target");
+    const plan = createFluxKleinBuildPlan({
+      root: repoRoot,
+      cargoTargetDir: targetDir,
+      computeCaps: "sm_75, 8.0;86,8.0",
+    });
 
-    expect(script).toContain("MGT_FLUX_KLEIN_COMPUTE_CAPS");
-    expect(script).toContain("CUDA_COMPUTE_CAP");
-    expect(script).toContain("${runnerDirName}-sm");
-    expect(script).toContain("index === 0 ? [{ outDir, outExe }] : []");
-    expect(script.indexOf("CUDA_PATH_V12_9")).toBeLessThan(
-      script.indexOf("MGT_FLUX_ALLOW_CUDA13_BUILD"),
+    expect(plan.map((entry) => entry.computeCap)).toEqual(["75", "80", "86"]);
+    expect(plan.map((entry) => entry.outDir)).toEqual([
+      join(repoRoot, "tools", "mgt-flux-klein-sm75"),
+      join(repoRoot, "tools", "mgt-flux-klein-sm80"),
+      join(repoRoot, "tools", "mgt-flux-klein-sm86"),
+    ]);
+    expect(plan[0]?.aliases).toEqual([
+      {
+        outDir: join(repoRoot, "tools", "mgt-flux-klein"),
+        outExe: join(repoRoot, "tools", "mgt-flux-klein", "mgt-flux-klein.exe"),
+      },
+    ]);
+    expect(plan[1]?.aliases).toEqual([]);
+
+    const sm80Target = plan[1];
+    if (!sm80Target) {
+      throw new Error("Expected an sm80 Flux build target");
+    }
+    const invocation = createFluxCargoInvocation({
+      manifestPath: join(
+        repoRoot,
+        "tools",
+        "mgt-flux-klein-runner",
+        "Cargo.toml",
+      ),
+      buildTarget: sm80Target,
+      cudaRoot: "C:\\CUDA\\v12.9",
+      msvcBin: "C:\\MSVC\\bin",
+      rustFlags: "--remap-path-prefix=C:\\repo=<mgt-source>",
+      basePath: "C:\\Windows\\System32",
+      pathDelimiter: ";",
+    });
+    expect(invocation).toMatchObject({
+      command: "cargo",
+      args: [
+        "build",
+        "--release",
+        "--manifest-path",
+        join(repoRoot, "tools", "mgt-flux-klein-runner", "Cargo.toml"),
+      ],
+      env: {
+        CARGO_TARGET_DIR: join(targetDir, "sm80"),
+        CUDA_COMPUTE_CAP: "80",
+        CUDA_PATH: "C:\\CUDA\\v12.9",
+        CUDACXX: join("C:\\CUDA\\v12.9", "bin", "nvcc.exe"),
+      },
+    });
+    expect(invocation.env.PATH?.split(";").slice(0, 2)).toEqual([
+      join("C:\\CUDA\\v12.9", "bin"),
+      "C:\\MSVC\\bin",
+    ]);
+
+    const cudaCandidates = createCudaRootCandidates({
+      CUDA_PATH_V12_9: "C:\\CUDA\\v12.9",
+      CUDA_PATH_V13_1: "C:\\CUDA\\v13.1",
+      MGT_FLUX_ALLOW_CUDA13_BUILD: "1",
+    });
+    expect(cudaCandidates.indexOf("C:\\CUDA\\v12.9")).toBeLessThan(
+      cudaCandidates.indexOf("C:\\CUDA\\v13.1"),
     );
   });
 
-  it("does not call the CUDA Runtime API diagnostic on the ZLUDA path", () => {
-    const source = readFileSync(
-      join(repoRoot, "tools", "mgt-flux-klein-runner", "src", "main.rs"),
+  it("locks both runners to the shared Rust CUDA runtime probe policy", () => {
+    const policyManifest = readFileSync(
+      join(repoRoot, "tools", "runner-runtime-policy", "Cargo.toml"),
       "utf8",
     );
-    const zludaBranchStart = source.indexOf("if cli.require_zluda {");
-    const nativeCudaBranchStart = source.indexOf("} else {", zludaBranchStart);
-    const modelLoadStart = source.indexOf(
-      "let load_started = Instant::now();",
-      nativeCudaBranchStart,
-    );
-    const runtimeProbe = source.indexOf(
-      "log_cuda_runtime_probe();",
-      zludaBranchStart,
+    expect(policyManifest).toMatch(
+      /name\s*=\s*"runner-runtime-policy"[\s\S]*path\s*=\s*"src\/lib\.rs"/,
     );
 
-    expect(zludaBranchStart).toBeGreaterThanOrEqual(0);
-    expect(nativeCudaBranchStart).toBeGreaterThan(zludaBranchStart);
-    expect(runtimeProbe).toBeGreaterThan(nativeCudaBranchStart);
-    expect(runtimeProbe).toBeLessThan(modelLoadStart);
-    expect(source.slice(zludaBranchStart, nativeCudaBranchStart)).toContain(
-      "CUDA runtime probe skipped for ZLUDA",
-    );
-  });
-
-  it("keeps the Koharu CUDA Runtime API diagnostic off its ZLUDA path", () => {
-    const source = readFileSync(
-      join(repoRoot, "tools", "mgt-koharu-inpaint-runner", "src", "main.rs"),
-      "utf8",
-    );
-    const zludaBranchStart = source.indexOf("if uses_zluda {");
-    const nativeCudaBranchStart = source.indexOf(
-      "} else if cli.backend != BackendKind::Cpu {",
-      zludaBranchStart,
-    );
-    const modelLoadStart = source.indexOf(
-      "let load_started = Instant::now();",
-      nativeCudaBranchStart,
-    );
-    const runtimeProbe = source.indexOf(
-      "log_cuda_runtime_probe();",
-      zludaBranchStart,
-    );
-
-    expect(zludaBranchStart).toBeGreaterThanOrEqual(0);
-    expect(nativeCudaBranchStart).toBeGreaterThan(zludaBranchStart);
-    expect(runtimeProbe).toBeGreaterThan(nativeCudaBranchStart);
-    expect(runtimeProbe).toBeLessThan(modelLoadStart);
-    expect(source.slice(zludaBranchStart, nativeCudaBranchStart)).toContain(
-      "CUDA runtime probe skipped for ZLUDA",
-    );
+    for (const runner of [
+      "mgt-flux-klein-runner",
+      "mgt-koharu-inpaint-runner",
+    ]) {
+      const manifest = readFileSync(
+        join(repoRoot, "tools", runner, "Cargo.toml"),
+        "utf8",
+      );
+      const lock = readFileSync(
+        join(repoRoot, "tools", runner, "Cargo.lock"),
+        "utf8",
+      );
+      expect(manifest).toMatch(
+        /runner-runtime-policy\s*=\s*\{\s*path\s*=\s*"\.\.\/runner-runtime-policy"\s*\}/,
+      );
+      expect(lock).toMatch(
+        /name = "runner-runtime-policy"\nversion = "0\.1\.0"/,
+      );
+    }
   });
 
   it("prepares CUDA 12.9 NVIDIA Flux runners before Windows NVIDIA packaging", () => {
     const packageJson = JSON.parse(
       readFileSync(join(repoRoot, "package.json"), "utf8"),
     ) as { scripts?: Record<string, string> };
-    const script = readFileSync(
-      join(repoRoot, "scripts", "dist-win-thin.cjs"),
-      "utf8",
-    );
+    const {
+      createWindowsThinDistributionPlan,
+      shouldBuildFluxNvidiaRunners,
+      shouldUseDistributionShell,
+    } = require("../scripts/windows-thin-dist-plan.cjs") as {
+      createWindowsThinDistributionPlan(options: {
+        nodeCommand: string;
+        withFluxNvidia: boolean;
+        env: NodeJS.ProcessEnv;
+      }): Array<{
+        command: string;
+        args: string[];
+        env: NodeJS.ProcessEnv;
+      }>;
+      shouldBuildFluxNvidiaRunners(
+        argv: string[],
+        env: NodeJS.ProcessEnv,
+      ): boolean;
+      shouldUseDistributionShell(
+        command: string,
+        nodeCommand: string,
+        platform: NodeJS.Platform,
+      ): boolean;
+    };
 
     expect(packageJson.scripts?.["dist:win"]).not.toContain(
       "--with-flux-nvidia",
@@ -686,14 +799,51 @@ describeWindows("Flux worker runtime helpers", () => {
     expect(packageJson.scripts?.["dist:win:nvidia"]).toContain(
       "--with-flux-nvidia",
     );
-    expect(script).toContain("MGT_BUILD_FLUX_NVIDIA_RUNNERS");
-    expect(script).toContain("MGT_BUNDLE_FLUX_NVIDIA_RUNNERS");
-    expect(script).toContain("MGT_FLUX_KLEIN_COMPUTE_CAPS");
-    expect(script).toContain("75,80,86,89,90,120");
-    expect(script).toContain("command !== process.execPath");
-    expect(script.indexOf("prepare-flux-klein-runner.cjs")).toBeLessThan(
-      script.indexOf('run("npm", ["run", "build"])'),
-    );
+    expect(
+      shouldBuildFluxNvidiaRunners(["node", "dist", "--with-flux-nvidia"], {}),
+    ).toBe(true);
+    expect(
+      shouldBuildFluxNvidiaRunners([], {
+        MGT_BUILD_FLUX_NVIDIA_RUNNERS: "1",
+      }),
+    ).toBe(true);
+
+    const plan = createWindowsThinDistributionPlan({
+      nodeCommand: "C:\\node\\node.exe",
+      withFluxNvidia: true,
+      env: {},
+    });
+    expect(plan).toEqual([
+      {
+        command: "C:\\node\\node.exe",
+        args: ["scripts/prepare-flux-klein-runner.cjs"],
+        env: {
+          MGT_FLUX_KLEIN_COMPUTE_CAPS: "75,80,86,89,90,120",
+          MGT_FORCE_REBUILD_FLUX_RUNNER: "1",
+        },
+      },
+      { command: "npm", args: ["run", "build"], env: {} },
+      {
+        command: "C:\\node\\node.exe",
+        args: ["scripts/build-windows-installer.cjs"],
+        env: { MGT_BUNDLE_FLUX_NVIDIA_RUNNERS: "1" },
+      },
+      {
+        command: "C:\\node\\node.exe",
+        args: ["scripts/verify-packaged-runtime.cjs"],
+        env: {},
+      },
+    ]);
+    expect(
+      shouldUseDistributionShell(
+        "C:\\node\\node.exe",
+        "C:\\node\\node.exe",
+        "win32",
+      ),
+    ).toBe(false);
+    expect(
+      shouldUseDistributionShell("npm", "C:\\node\\node.exe", "win32"),
+    ).toBe(true);
   });
 
   it("discovers Windows SDK and MSVC import libraries for ROCm source builds", () => {

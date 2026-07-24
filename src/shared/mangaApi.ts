@@ -44,6 +44,7 @@ import type {
 } from "./analysisTypes";
 import type {
   SavePageBlocksRequest,
+  SavePagesBlocksRequest,
   SaveTextFileRequest,
   SaveTextFileResult,
   WorkShareExportRequest,
@@ -116,6 +117,9 @@ export type MangaApi = {
   ) => Promise<AnalyzeWorkContextResult>;
   getPageImageDataUrl: (imagePath: string) => Promise<string>;
   savePageBlocks: (request: SavePageBlocksRequest) => Promise<ChapterSnapshot>;
+  savePagesBlocks: (
+    request: SavePagesBlocksRequest,
+  ) => Promise<ChapterSnapshot>;
   saveTextFile: (
     request: SaveTextFileRequest,
   ) => Promise<SaveTextFileResult | null>;

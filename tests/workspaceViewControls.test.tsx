@@ -50,8 +50,65 @@ describe("WorkspaceViewControls", () => {
       (screen.getByRole("button", { name: "확대" }) as HTMLButtonElement)
         .disabled,
     ).toBe(true);
-    fireEvent.click(screen.getByRole("button", { name: "배율 초기화" }));
+    const resetButton = screen.getByRole("button", {
+      name: "배율 초기화",
+    });
+    fireEvent.click(resetButton);
     expect(onResetZoom).toHaveBeenCalledOnce();
-    expect(screen.getByText("400%")).not.toBeNull();
+    expect(resetButton.textContent).toBe("400%");
+  });
+
+  it("collapses to an accessible reveal control without losing zoom or fit controls", () => {
+    render(
+      <WorkspaceViewControls
+        fitMode="contain"
+        zoom={1}
+        onChangeFitMode={() => undefined}
+        onResetZoom={() => undefined}
+        onZoomIn={() => undefined}
+        onZoomOut={() => undefined}
+      />,
+    );
+
+    const collapseButton = screen.getByRole("button", {
+      name: "보기 조절 접기",
+    });
+    expect(collapseButton.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByRole("button", { name: "축소" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: "확대" })).not.toBeNull();
+    expect(screen.getByLabelText("이미지 맞춤 방식")).not.toBeNull();
+
+    fireEvent.click(collapseButton);
+
+    const revealButton = screen.getByRole("button", {
+      name: "보기 조절 펼치기",
+    });
+    expect(revealButton.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(revealButton);
+    expect(
+      document.getElementById(revealButton.getAttribute("aria-controls") ?? ""),
+    ).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "축소" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "확대" })).toBeNull();
+    expect(
+      screen
+        .getByLabelText("이미지 맞춤 방식")
+        .closest("nav")
+        ?.hasAttribute("hidden"),
+    ).toBe(true);
+
+    fireEvent.click(revealButton);
+
+    const restoredCollapseButton = screen.getByRole("button", {
+      name: "보기 조절 접기",
+    });
+    expect(restoredCollapseButton.getAttribute("aria-expanded")).toBe("true");
+    expect(document.activeElement).toBe(restoredCollapseButton);
+    expect(
+      screen.getByRole("button", { name: "배율 초기화" }).textContent,
+    ).toBe("100%");
+    expect(
+      (screen.getByLabelText("이미지 맞춤 방식") as HTMLSelectElement).value,
+    ).toBe("contain");
   });
 });

@@ -1,5 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { useFonts } from "../../fonts/useFonts";
 import { resolveBlockFontFamily } from "../../lib/fonts";
 import type {
   GatherTextDirectFormatModel,
@@ -57,6 +58,7 @@ export function BlockFormatPreview({
   values: GatherTextDirectFormatValues;
   onExampleTextChange: (value: string) => void;
 }): React.JSX.Element {
+  const { catalog } = useFonts();
   const textShadow = resolvePreviewOutline(
     values.fontSizePx,
     values.outlineColor ?? "#ffffff",
@@ -90,7 +92,7 @@ export function BlockFormatPreview({
               {
                 "--gather-preview-font-size": `${values.fontSizePx}px`,
                 color: values.textColor,
-                fontFamily: resolveBlockFontFamily(values.fontFamily),
+                fontFamily: resolveBlockFontFamily(values.fontFamily, catalog),
                 fontSize: `${values.fontSizePx}px`,
                 fontStyle: values.italic ? "italic" : "normal",
                 fontSynthesis: "weight style",

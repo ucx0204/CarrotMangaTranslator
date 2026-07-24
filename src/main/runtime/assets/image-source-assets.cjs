@@ -7,6 +7,10 @@ const { resolveFfmpegPath } = require("../simple-page-runtime-paths.cjs");
 const { readPositiveInteger } = require("../simple-page-prompts.cjs");
 const { mimeFromPath } = require("../simple-page-image-utils.cjs");
 const { createDetailedError } = require("../simple-page-runtime-common.cjs");
+const { createAbortError } = require("../transport/shell-text.cjs");
+const {
+  terminateChildProcessTree,
+} = require("../transport/process-termination.cjs");
 
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions & { imageHeight?: unknown; imagePath: string; imageWidth?: unknown }} ImageVariantOptions */
 /** @typedef {{ width: number; height: number }} ImageSize */
@@ -30,15 +34,45 @@ function resolveElectronNativeImage() {
   }
 }
 
-/** @param {string} filePath @param {ImageVariantOptions} options @returns {Promise<Buffer>} */
-function convertImageToPngBufferWithFfmpeg(filePath, options) {
+/** @param {string} filePath @param {Partial<ImageVariantOptions>} [options] @returns {Promise<Buffer>} */
+function convertImageToPngBufferWithFfmpeg(filePath, options = {}) {
   return new Promise((resolve, reject) => {
+    if (options.abortSignal?.aborted) {
+      reject(createAbortError());
+      return;
+    }
     const ffmpegPath = resolveFfmpegPath(options);
     const state = {
       stdoutChunks: /** @type {Buffer[]} */ ([]),
       stderrChunks: /** @type {Buffer[]} */ ([]),
+      settled: false,
     };
     const child = spawnFfmpeg(ffmpegPath, filePath, options);
+    const cleanup = () =>
+      options.abortSignal?.removeEventListener("abort", onAbort);
+    /** @param {Buffer} output */
+    const resolveOnce = (output) => {
+      if (state.settled) return;
+      state.settled = true;
+      cleanup();
+      resolve(output);
+    };
+    /** @param {unknown} error */
+    const rejectOnce = (error) => {
+      if (state.settled) return;
+      state.settled = true;
+      cleanup();
+      reject(error);
+    };
+    const onAbort = () => {
+      if (state.settled) return;
+      terminateChildProcessTree(child);
+      state.stdoutChunks.length = 0;
+      state.stderrChunks.length = 0;
+      rejectOnce(createAbortError());
+    };
+    options.abortSignal?.addEventListener("abort", onAbort, { once: true });
+    if (options.abortSignal?.aborted) onAbort();
     child.stdout.on("data", (chunk) =>
       state.stdoutChunks.push(toBuffer(chunk)),
     );
@@ -46,7 +80,7 @@ function convertImageToPngBufferWithFfmpeg(filePath, options) {
       state.stderrChunks.push(toBuffer(chunk)),
     );
     child.on("error", (error) =>
-      reject(buildFfmpegStartError(filePath, ffmpegPath, error)),
+      rejectOnce(buildFfmpegStartError(filePath, ffmpegPath, error)),
     );
     child.on("close", (code) =>
       finishFfmpegConversion(
@@ -54,14 +88,14 @@ function convertImageToPngBufferWithFfmpeg(filePath, options) {
         ffmpegPath,
         state,
         code,
-        resolve,
-        reject,
+        resolveOnce,
+        rejectOnce,
       ),
     );
   });
 }
 
-/** @param {string} ffmpegPath @param {string} filePath @param {ImageVariantOptions} options */
+/** @param {string} ffmpegPath @param {string} filePath @param {Partial<ImageVariantOptions>} options */
 function spawnFfmpeg(ffmpegPath, filePath, options) {
   return spawn(
     ffmpegPath,

@@ -60,8 +60,6 @@ import {
   MIN_API_RETRY_DELAY_SECONDS,
 } from "../../shared/apiKeySettings";
 
-export { resolveHardwareDefaults } from "./hardwareDefaults";
-
 export function resolveDefaultAppSettings(
   env: NodeJS.ProcessEnv = process.env,
   detectedGpu?: number | DetectedGpuInfo | null,

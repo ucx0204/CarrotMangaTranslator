@@ -5,10 +5,8 @@ import type { TranslationBlock } from "../../../shared/textTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
 import { isRetouchTool, type WorkspaceTool } from "../lib/stageTool";
 import { EditorPanelSlot } from "../panels/EditorPanelSlot";
-import {
-  DisplayControlPanel,
-  InpaintingControlPanel,
-} from "./InpaintingControlPanel";
+import { InpaintingControlPanel } from "./InpaintingControlPanel";
+import { DisplayControlPanel } from "./inpaintingPanel/DisplayControlPanel";
 import { RunPanel, StatusPanel } from "./RunStatusPanels";
 
 export type UnifiedRightRailProps = {

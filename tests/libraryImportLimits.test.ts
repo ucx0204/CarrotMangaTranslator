@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm, truncate, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { ImportImageRuntime } from "../src/main/libraryStore/importImageRuntime";
 
 const MAX_IMPORT_IMAGE_BYTES = 256 * 1024 * 1024;
 const tempDirs: string[] = [];
@@ -159,6 +160,7 @@ describe("library import resource limits", () => {
     }
     expect(storedPath && existsSync(storedPath)).toBe(true);
     expect(await readFile(storedPath)).toEqual(Buffer.from("converted png"));
+    expect(library.decodedSources).toEqual([imagePath]);
   });
 
   it("detects webp content in a regular image with a jpg extension", async () => {
@@ -200,6 +202,7 @@ describe("library import resource limits", () => {
       throw new Error("Expected imported page image path");
     }
     expect(await readFile(storedPath)).toEqual(Buffer.from("converted png"));
+    expect(library.decodedSources).toEqual([imagePath]);
   });
 
   it("detects webp content in a zip entry with a jpg extension", async () => {
@@ -234,6 +237,9 @@ describe("library import resource limits", () => {
       throw new Error("Expected imported page image path");
     }
     expect(await readFile(storedPath)).toEqual(Buffer.from("converted png"));
+    expect(library.decodedSources).toHaveLength(1);
+    expect(library.decodedSources[0]).toMatch(/\.import-source\.webp$/);
+    expect(existsSync(library.decodedSources[0] ?? "")).toBe(false);
   });
 });
 
@@ -253,22 +259,15 @@ async function createTempLibrary(): Promise<string> {
 async function loadLibrary(
   rootDir: string,
   options: { decodeEmpty: boolean; width?: number; height?: number },
-): Promise<typeof import("../src/main/library")> {
+): Promise<
+  ReturnType<
+    (typeof import("../src/main/library"))["createLibraryImportService"]
+  > & {
+    decodedSources: string[];
+    listLibrary: (typeof import("../src/main/library"))["listLibrary"];
+  }
+> {
   vi.resetModules();
-  vi.doMock("electron", () => ({
-    app: {
-      isPackaged: false,
-    },
-    nativeImage: {
-      createFromPath: () => ({
-        isEmpty: () => options.decodeEmpty,
-        getSize: () =>
-          options.decodeEmpty
-            ? { width: 0, height: 0 }
-            : { width: options.width ?? 64, height: options.height ?? 96 },
-      }),
-    },
-  }));
   vi.doMock("../src/main/appPaths", () => ({
     getAppPaths: () => ({
       isPackaged: false,
@@ -288,8 +287,26 @@ async function loadLibrary(
       llamaServerPath: join(rootDir, "tools", "llama", "llama-server.exe"),
     }),
   }));
-  vi.doMock("../src/main/simplePageRuntime", () => ({
-    decodeImageThroughRuntime: vi.fn(async () => Buffer.from("converted png")),
-  }));
-  return import("../src/main/library");
+  const decodedSources: string[] = [];
+  const imageRuntime: ImportImageRuntime = {
+    decodeToPng: async (sourcePath) => {
+      decodedSources.push(sourcePath);
+      return Buffer.from("converted png");
+    },
+    inspectImage: () => ({
+      width: options.decodeEmpty ? 0 : (options.width ?? 64),
+      height: options.decodeEmpty ? 0 : (options.height ?? 96),
+      isEmpty: options.decodeEmpty,
+    }),
+  };
+  const library = await import("../src/main/library");
+  const service = library.createLibraryImportService({
+    image: imageRuntime,
+    runMutation: (operation) => operation(),
+  });
+  return {
+    ...service,
+    decodedSources,
+    listLibrary: library.listLibrary,
+  };
 }

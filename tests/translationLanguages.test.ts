@@ -284,12 +284,14 @@ describe("OCR source language plumbing", () => {
       id: "page-1",
       name: "001.png",
       imagePath: "001.png",
+      dataUrl: "data:image/png;base64,",
       width: 100,
       height: 100,
       blocks: [],
-      analysisStatus: "pending",
+      analysisStatus: "idle",
+      createdAt: "2026-01-01T00:00:00.000Z",
       updatedAt: "2026-01-01T00:00:00.000Z",
-    } as unknown as MangaPage;
+    } satisfies MangaPage;
     const hints = new Map([
       [
         "page-1",

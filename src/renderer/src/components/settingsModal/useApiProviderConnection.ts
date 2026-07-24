@@ -9,7 +9,8 @@ import {
   type DiscoverableApiProviderId,
 } from "../../../../shared/apiProviderPresets";
 import type { EngineSettingsPanelProps } from "./EngineSettingsPanelTypes";
-import { settingsGateway } from "./settingsGateway";
+import { settingsGateway } from "../../api/settingsGateway";
+import { useMountedRef } from "../../hooks/useMountedRef";
 
 export type ApiProviderConnectionProps = Pick<
   EngineSettingsPanelProps,
@@ -192,16 +193,31 @@ function useModelDiscovery(): DiscoveryController {
     status: "idle",
   });
   const requestSequence = React.useRef(0);
+  const activeRef = useMountedRef();
+  React.useEffect(
+    () => () => {
+      requestSequence.current += 1;
+    },
+    [],
+  );
   const invalidate = React.useCallback((): void => {
     requestSequence.current += 1;
     setModels([]);
     setDiscovery({ status: "idle" });
   }, []);
-  const reportError = React.useCallback((error: unknown): void => {
-    setDiscovery({ status: "error", message: readErrorMessage(error) });
-  }, []);
+  const reportError = React.useCallback(
+    (error: unknown): void => {
+      if (activeRef.current) {
+        setDiscovery({ status: "error", message: readErrorMessage(error) });
+      }
+    },
+    [activeRef],
+  );
   const load: DiscoveryController["load"] = React.useCallback(
     async (provider, apiKey, vertexProject, vertexLocation) => {
+      if (!activeRef.current) {
+        return;
+      }
       const sequence = ++requestSequence.current;
       setDiscovery({ status: "loading" });
       try {
@@ -212,7 +228,7 @@ function useModelDiscovery(): DiscoveryController {
             ? { vertexProject, vertexLocation }
             : {}),
         });
-        if (requestSequence.current !== sequence) return;
+        if (!activeRef.current || requestSequence.current !== sequence) return;
         setModels(result.models);
         setDiscovery({
           status: "success",
@@ -220,12 +236,12 @@ function useModelDiscovery(): DiscoveryController {
           unverifiedCount: result.unverifiedCount,
         });
       } catch (error) {
-        if (requestSequence.current !== sequence) return;
+        if (!activeRef.current || requestSequence.current !== sequence) return;
         setModels([]);
         reportError(error);
       }
     },
-    [reportError],
+    [activeRef, reportError],
   );
   return { discovery, models, invalidate, load, reportError };
 }

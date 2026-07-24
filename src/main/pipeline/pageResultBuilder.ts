@@ -13,14 +13,14 @@ import {
   shouldKeepExistingBlocks,
 } from "./keepBlocksResult";
 import { buildPreviousBlocksForPrompt } from "./previousBlocksForPrompt";
+import { filterRejectedOrUncertainSoundItems } from "./overlayItems";
+import { applyOcrCandidateGeometryLocks } from "./overlayOcrGeometryLocks";
 import {
-  applyOcrCandidateGeometryLocks,
-  filterRejectedOrUncertainSoundItems,
   getBboxNormalizationOptions,
   getOcrBboxHints,
   normalizeOverlayItemBboxes,
   validateOverlayItemsAgainstReferences,
-} from "./overlayItems";
+} from "./overlayItemReferences";
 import { buildPageOptions, summarizePreview } from "./options";
 import { attachPageProgress } from "./progressEvents";
 import type {

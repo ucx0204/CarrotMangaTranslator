@@ -1,5 +1,8 @@
 import { reorderRecordsByIdOrder } from "../lib/appHelpers";
-import type { ChapterSnapshot, LibraryIndex } from "./hookLibraryTypes";
+import type {
+  ChapterSnapshot,
+  LibraryIndex,
+} from "../../../shared/libraryTypes";
 
 export function isSameStringOrder(left: string[], right: string[]): boolean {
   return (

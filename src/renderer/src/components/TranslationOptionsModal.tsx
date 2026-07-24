@@ -18,7 +18,8 @@ import {
   type ChapterSelectionMap,
 } from "../lib/translationSelection";
 import { ChapterPagePicker } from "./ChapterPagePicker";
-import { Button, Modal } from "./ui";
+import { Button } from "./ui/Button";
+import { Modal } from "./ui/Modal";
 
 const ANALYSIS_OPTION_IDS: WorkContextAnalysisScope[] = [
   "work",

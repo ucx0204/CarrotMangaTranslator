@@ -435,6 +435,25 @@ describe("group review crop image variants", () => {
     expect(result.crops).toEqual([]);
     expect(result.fallbackReason).toBe("crop-decode-failed:C002");
   });
+
+  it("propagates programming errors from the native image adapter", () => {
+    const plan = buildGroupReviewCropPlan(
+      [candidate(1, [100, 100, 200, 300], "F001", "confirmed", 1)],
+      1000,
+      1000,
+    );
+    const bug = new TypeError("native image adapter contract changed");
+
+    expect(() =>
+      buildGroupReviewCropImageVariants({ imagePath: "C:\\page.png" }, plan, {
+        nativeImageModule: {
+          createFromPath: () => {
+            throw bug;
+          },
+        },
+      }),
+    ).toThrow(bug);
+  });
 });
 
 function candidate(

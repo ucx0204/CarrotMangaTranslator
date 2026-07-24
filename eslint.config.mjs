@@ -72,6 +72,12 @@ export default tseslint.config(
   {
     files: ["tests/**/*.{ts,tsx}"],
     rules: {
+      complexity: ["error", 20],
+      "max-depth": ["error", 4],
+      "max-lines": [
+        "error",
+        { max: 1200, skipBlankLines: true, skipComments: true },
+      ],
       "no-this-alias": "off",
     },
   },
@@ -257,6 +263,50 @@ export default tseslint.config(
     },
   },
   {
+    // All build/release/QA scripts have a structural ceiling. High-risk,
+    // actively maintained CLIs below use the same tighter budget as runtime
+    // code after being split into domain modules.
+    files: ["scripts/**/*.{cjs,mjs}"],
+    rules: {
+      complexity: ["error", 20],
+      "max-depth": ["error", 4],
+      "max-lines": [
+        "error",
+        { max: 600, skipBlankLines: true, skipComments: true },
+      ],
+      "max-lines-per-function": [
+        "error",
+        { max: 160, skipBlankLines: true, skipComments: true },
+      ],
+    },
+  },
+  {
+    files: [
+      "scripts/build-flux-rocm-runtime.cjs",
+      "scripts/benchmark-gemma-economy.cjs",
+      "scripts/smoke-overlay.cjs",
+      "scripts/verify-mac-package.cjs",
+      "scripts/ui-qa.mjs",
+      "scripts/flux-rocm-build/**/*.cjs",
+      "scripts/gemma-benchmark/**/*.cjs",
+      "scripts/smoke-overlay/**/*.cjs",
+      "scripts/mac-package-verification/**/*.cjs",
+      "scripts/ui-qa/**/*.mjs",
+    ],
+    rules: {
+      complexity: ["error", 16],
+      "max-depth": ["error", 3],
+      "max-lines": [
+        "error",
+        { max: 400, skipBlankLines: true, skipComments: true },
+      ],
+      "max-lines-per-function": [
+        "error",
+        { max: 120, skipBlankLines: true, skipComments: true },
+      ],
+    },
+  },
+  {
     files: ["**/*.{js,cjs,mjs,ts,tsx}"],
     rules: {
       "no-control-regex": "off",
@@ -273,6 +323,11 @@ export default tseslint.config(
           selector: "CatchClause[param=null]",
           message:
             "Use catch (error) and handle, rethrow, or explicitly ignore expected optional failures.",
+        },
+        {
+          selector: "TSAsExpression[expression.type='TSAsExpression']",
+          message:
+            "Nested type assertions hide contract mismatches. Validate the boundary or use one checked assertion.",
         },
         {
           selector:

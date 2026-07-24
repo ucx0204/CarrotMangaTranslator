@@ -4,10 +4,8 @@ import type {
   ChapterStoryMemory,
   WorkStyleGuide,
 } from "../src/shared/workContextTypes";
-import {
-  mergeAiWorkContextSuggestions,
-  type BasePageMemory,
-} from "../src/main/workContextAiMerge";
+import { mergeAiWorkContextSuggestions } from "../src/main/workContextAiMerge";
+import type { BasePageMemory } from "../src/main/workContextAiTypes";
 import { setMainLocale } from "../src/main/i18n";
 import { normalizeAiWorkContextSuggestions } from "../src/main/workContextAiNormalize";
 import { selectWorkTextForAnalysis } from "../src/main/workContextAnalysisPrompt";

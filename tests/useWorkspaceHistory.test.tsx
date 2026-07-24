@@ -14,6 +14,22 @@ import {
 afterEach(cleanup);
 
 describe("useWorkspaceHistory", () => {
+  it("keeps the controller boundary stable on unrelated root rerenders", () => {
+    const handlers = makeHandlers();
+    const { result, rerender } = renderHook(
+      ({ progress }: { progress: number }) => {
+        void progress;
+        return useWorkspaceHistory({ chapterId: "chapter-1", ...handlers });
+      },
+      { initialProps: { progress: 0 } },
+    );
+    const initialController = result.current;
+
+    rerender({ progress: 50 });
+
+    expect(result.current).toBe(initialController);
+  });
+
   it("replays mixed operations through one controller and exposes next labels", async () => {
     const handlers = makeHandlers();
     const { result } = renderHook(() =>
@@ -69,6 +85,82 @@ describe("useWorkspaceHistory", () => {
     expect(handlers.applyChapterSnapshot).toHaveBeenLastCalledWith(
       afterChapter,
     );
+  });
+
+  it("updates a coalesced replay target without rerendering unchanged history UI", async () => {
+    const handlers = makeHandlers();
+    let renderCount = 0;
+    const { result } = renderHook(() => {
+      renderCount += 1;
+      return useWorkspaceHistory({ chapterId: "chapter-1", ...handlers });
+    });
+    const firstBefore = chapterSnapshot("before-first");
+    const firstAfter = chapterSnapshot("after-first");
+    const latestAfter = chapterSnapshot("after-latest");
+
+    act(() => {
+      result.current.recordChapterEdit({
+        label: "텍스트 편집",
+        mergeKey: "text:block-1",
+        time: 100,
+        before: firstBefore,
+        after: firstAfter,
+      });
+    });
+    const rendersAfterFirstEdit = renderCount;
+
+    act(() => {
+      result.current.recordChapterEdit({
+        label: "텍스트 편집",
+        mergeKey: "text:block-1",
+        time: 200,
+        before: firstAfter,
+        after: latestAfter,
+      });
+    });
+
+    expect(renderCount).toBe(rendersAfterFirstEdit);
+    await act(async () => {
+      expect(await result.current.undo()).toBe(true);
+    });
+    expect(handlers.applyChapterSnapshot).toHaveBeenLastCalledWith(firstBefore);
+
+    await act(async () => {
+      expect(await result.current.redo()).toBe(true);
+    });
+    expect(handlers.applyChapterSnapshot).toHaveBeenLastCalledWith(latestAfter);
+  });
+
+  it("rerenders when a coalesced edit changes the visible undo label", () => {
+    const handlers = makeHandlers();
+    let renderCount = 0;
+    const { result } = renderHook(() => {
+      renderCount += 1;
+      return useWorkspaceHistory({ chapterId: "chapter-1", ...handlers });
+    });
+
+    act(() => {
+      result.current.recordChapterEdit({
+        label: "첫 편집",
+        mergeKey: "style:block-1",
+        time: 100,
+        before: chapterSnapshot("before"),
+        after: chapterSnapshot("middle"),
+      });
+    });
+    const rendersAfterFirstEdit = renderCount;
+    act(() => {
+      result.current.recordChapterEdit({
+        label: "표시 이름 변경",
+        mergeKey: "style:block-1",
+        time: 200,
+        before: chapterSnapshot("middle"),
+        after: chapterSnapshot("after"),
+      });
+    });
+
+    expect(renderCount).toBeGreaterThan(rendersAfterFirstEdit);
+    expect(result.current.undoLabel).toBe("표시 이름 변경");
   });
 
   it("leaves the entry available when an image transaction fails", async () => {
@@ -253,6 +345,27 @@ describe("useWorkspaceHistory", () => {
     ]);
   });
 
+  it("reports transaction release failures at the hook boundary", () => {
+    const handlers = makeHandlers();
+    const failure = new Error("release failed");
+    handlers.releaseImageTransactions.mockImplementation(() => {
+      throw failure;
+    });
+    const { result } = renderHook(() =>
+      useWorkspaceHistory({ chapterId: "chapter-1", ...handlers }),
+    );
+
+    act(() => {
+      result.current.recordImageEdit({
+        label: "자동 Flux",
+        transactionId: "transaction-1",
+      });
+      result.current.reset();
+    });
+
+    expect(handlers.onReleaseError).toHaveBeenCalledWith(failure);
+  });
+
   it("releases every retained image transaction when unmounted", () => {
     const handlers = makeHandlers();
     const { result, unmount } = renderHook(() =>
@@ -287,6 +400,8 @@ function makeHandlers() {
       .fn<UseWorkspaceHistoryOptions["applyImageTransaction"]>()
       .mockResolvedValue("applied"),
     releaseImageTransactions: vi.fn<(transactionIds: string[]) => void>(),
+    onReleaseError: vi.fn<(error: unknown) => void>(),
+    onReplayError: vi.fn<UseWorkspaceHistoryOptions["onReplayError"]>(),
   };
 }
 

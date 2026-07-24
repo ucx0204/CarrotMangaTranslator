@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
 import {
   appendRetouchStrokePoint,
   beginRetouchStroke,
   clearRetouchLiveOverlay,
   queueRetouchCursor,
 } from "../src/renderer/src/lib/retouchLiveOverlay";
+import type { RetouchCanvasContext } from "../src/renderer/src/lib/retouchCanvasContext";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -50,7 +51,7 @@ describe("retouch live overlay", () => {
   });
 });
 
-function makeStage(context: CanvasRenderingContext2D & MockContext): {
+function makeStage(context: RetouchCanvasContext & MockContext): {
   canvas: HTMLCanvasElement;
   cursor: HTMLDivElement;
   stage: HTMLDivElement;
@@ -69,42 +70,47 @@ function makeStage(context: CanvasRenderingContext2D & MockContext): {
 }
 
 type MockContext = {
-  arc: ReturnType<typeof vi.fn>;
-  beginPath: ReturnType<typeof vi.fn>;
-  clearRect: ReturnType<typeof vi.fn>;
-  clip: ReturnType<typeof vi.fn>;
-  closePath: ReturnType<typeof vi.fn>;
-  drawImage: ReturnType<typeof vi.fn>;
-  fill: ReturnType<typeof vi.fn>;
-  fillRect: ReturnType<typeof vi.fn>;
-  lineTo: ReturnType<typeof vi.fn>;
-  moveTo: ReturnType<typeof vi.fn>;
-  restore: ReturnType<typeof vi.fn>;
-  save: ReturnType<typeof vi.fn>;
-  setLineDash: ReturnType<typeof vi.fn>;
-  setTransform: ReturnType<typeof vi.fn>;
-  stroke: ReturnType<typeof vi.fn>;
+  arc: Mock<RetouchCanvasContext["arc"]>;
+  beginPath: Mock<RetouchCanvasContext["beginPath"]>;
+  clearRect: Mock<RetouchCanvasContext["clearRect"]>;
+  clip: Mock<RetouchCanvasContext["clip"]>;
+  closePath: Mock<RetouchCanvasContext["closePath"]>;
+  drawImage: Mock<RetouchCanvasContext["drawImage"]>;
+  fill: Mock<RetouchCanvasContext["fill"]>;
+  fillRect: Mock<RetouchCanvasContext["fillRect"]>;
+  lineTo: Mock<RetouchCanvasContext["lineTo"]>;
+  moveTo: Mock<RetouchCanvasContext["moveTo"]>;
+  restore: Mock<RetouchCanvasContext["restore"]>;
+  save: Mock<RetouchCanvasContext["save"]>;
+  setLineDash: Mock<RetouchCanvasContext["setLineDash"]>;
+  setTransform: Mock<RetouchCanvasContext["setTransform"]>;
+  stroke: Mock<RetouchCanvasContext["stroke"]>;
 };
 
-function makeCanvasContext(): CanvasRenderingContext2D & MockContext {
-  const methods: MockContext = {
-    arc: vi.fn(),
-    beginPath: vi.fn(),
-    clearRect: vi.fn(),
-    clip: vi.fn(),
-    closePath: vi.fn(),
-    drawImage: vi.fn(),
-    fill: vi.fn(),
-    fillRect: vi.fn(),
-    lineTo: vi.fn(),
-    moveTo: vi.fn(),
-    restore: vi.fn(),
-    save: vi.fn(),
-    setLineDash: vi.fn(),
-    setTransform: vi.fn(),
-    stroke: vi.fn(),
-  };
-  return methods as unknown as CanvasRenderingContext2D & MockContext;
+function makeCanvasContext(): RetouchCanvasContext & MockContext {
+  return {
+    arc: vi.fn<RetouchCanvasContext["arc"]>(),
+    beginPath: vi.fn<RetouchCanvasContext["beginPath"]>(),
+    clearRect: vi.fn<RetouchCanvasContext["clearRect"]>(),
+    clip: vi.fn<RetouchCanvasContext["clip"]>(),
+    closePath: vi.fn<RetouchCanvasContext["closePath"]>(),
+    drawImage: vi.fn<RetouchCanvasContext["drawImage"]>(),
+    fill: vi.fn<RetouchCanvasContext["fill"]>(),
+    fillRect: vi.fn<RetouchCanvasContext["fillRect"]>(),
+    fillStyle: "#000000",
+    globalAlpha: 1,
+    lineCap: "butt",
+    lineJoin: "miter",
+    lineWidth: 1,
+    lineTo: vi.fn<RetouchCanvasContext["lineTo"]>(),
+    moveTo: vi.fn<RetouchCanvasContext["moveTo"]>(),
+    restore: vi.fn<RetouchCanvasContext["restore"]>(),
+    save: vi.fn<RetouchCanvasContext["save"]>(),
+    setLineDash: vi.fn<RetouchCanvasContext["setLineDash"]>(),
+    setTransform: vi.fn<RetouchCanvasContext["setTransform"]>(),
+    stroke: vi.fn<RetouchCanvasContext["stroke"]>(),
+    strokeStyle: "#000000",
+  } satisfies RetouchCanvasContext & MockContext;
 }
 
 function installAnimationFrameController(): {

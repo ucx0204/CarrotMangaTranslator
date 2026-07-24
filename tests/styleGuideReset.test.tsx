@@ -11,6 +11,8 @@ import {
   within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
+import type { NotificationPort } from "../src/renderer/src/lib/notificationPort";
 import type { ChapterSnapshot } from "../src/shared/libraryTypes";
 import type {
   ChapterStoryMemory,
@@ -19,7 +21,7 @@ import type {
 } from "../src/shared/workContextTypes";
 import type { WorkContextUsage } from "../src/shared/workContextUsageTypes";
 
-const gatewayMocks = vi.hoisted(() => ({
+const gatewayMocks = {
   analyzeWorkContext: vi.fn(),
   getChapterStoryMemory: vi.fn(),
   getWorkContextUsage: vi.fn(),
@@ -27,21 +29,14 @@ const gatewayMocks = vi.hoisted(() => ({
   resetWorkContext: vi.fn(),
   saveChapterStoryMemory: vi.fn(),
   saveWorkStyleGuide: vi.fn(),
-}));
+};
 
-const toastMocks = vi.hoisted(() => ({
+const notificationMocks: NotificationPort = {
   error: vi.fn(),
   info: vi.fn(),
   success: vi.fn(),
-}));
-
-vi.mock("../src/renderer/src/api/mangaGateway", () => ({
-  mangaGateway: gatewayMocks,
-}));
-
-vi.mock("../src/renderer/src/lib/toastStore", () => ({
-  toast: toastMocks,
-}));
+  warn: vi.fn(),
+};
 
 import { StyleGuideModal } from "../src/renderer/src/components/StyleGuideModal";
 import { workContextIpcContracts } from "../src/shared/ipcContracts";
@@ -53,6 +48,7 @@ const TS = "2026-01-01T00:00:00.000Z";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  window.mangaApi = createTestMangaGatewayStub(gatewayMocks);
   gatewayMocks.getWorkStyleGuide.mockResolvedValue(makeGuide());
   gatewayMocks.getChapterStoryMemory.mockResolvedValue(makeMemory());
   gatewayMocks.getWorkContextUsage.mockResolvedValue(makeUsage(7));
@@ -65,6 +61,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  window.mangaApi = createTestMangaGatewayStub();
   vi.restoreAllMocks();
 });
 
@@ -107,9 +104,35 @@ describe("StyleGuideModal complete reset", () => {
       expect(screen.queryByDisplayValue("魔王")).toBeNull();
     });
     expect(gatewayMocks.getWorkContextUsage).toHaveBeenCalledTimes(2);
-    expect(toastMocks.success).toHaveBeenCalledWith(
+    expect(notificationMocks.success).toHaveBeenCalledWith(
       "용어/기억을 초기화하고 2화의 스토리 메모리를 비웠습니다.",
     );
+  });
+
+  it("reports reset failure and restores the reset action", async () => {
+    gatewayMocks.resetWorkContext.mockRejectedValueOnce(
+      new Error("reset failed"),
+    );
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    renderModal();
+    await screen.findByDisplayValue("魔王");
+
+    fireEvent.click(resetButton());
+    fireEvent.click(
+      within(
+        await screen.findByRole("dialog", {
+          name: /용어·기억 전체 초기화/,
+        }),
+      ).getByRole("button", { name: "확인" }),
+    );
+
+    await waitFor(() => {
+      expect(notificationMocks.error).toHaveBeenCalledWith(
+        "용어/기억 전체 초기화에 실패했습니다.",
+      );
+    });
+    expect(screen.getByDisplayValue("魔王")).toBeTruthy();
+    expect(resetButton().disabled).toBe(false);
   });
 
   it("keeps the reset action disabled while another app job is active", async () => {
@@ -195,6 +218,7 @@ function renderModal({
     <StyleGuideModal
       chapter={makeChapter()}
       jobActive={jobActive}
+      notificationPort={notificationMocks}
       settings={null}
       onClose={vi.fn()}
     />,

@@ -10,6 +10,10 @@ import {
   isUsableRemoteFile,
   writeRemoteFileMetadata,
 } from "./fileProbe";
+import {
+  assertRuntimeFunctions,
+  loadRuntimeModuleAtPath,
+} from "../../runtimeModuleLoader";
 
 const AdmZip = require("adm-zip");
 type DownloadRuntime = {
@@ -35,20 +39,21 @@ type DownloadRuntime = {
   probeContentLength: (url: string, signal?: AbortSignal) => Promise<number>;
 };
 
-let cachedDownloadRuntime: DownloadRuntime | null = null;
-
 function loadDownloadRuntime(): DownloadRuntime {
-  if (cachedDownloadRuntime) return cachedDownloadRuntime;
   const runtimePath = resolveDownloadRuntimePath();
-  const runtime = require(runtimePath) as Partial<DownloadRuntime>;
-  if (
-    typeof runtime.downloadHfFileWithProgress !== "function" ||
-    typeof runtime.probeContentLength !== "function"
-  ) {
-    throw new Error(`다운로드 런타임 모듈이 올바르지 않습니다: ${runtimePath}`);
-  }
-  cachedDownloadRuntime = runtime as DownloadRuntime;
-  return cachedDownloadRuntime;
+  const runtime = loadRuntimeModuleAtPath(runtimePath);
+  assertDownloadRuntime(runtime, runtimePath);
+  return runtime;
+}
+
+function assertDownloadRuntime(
+  value: unknown,
+  runtimePath: string,
+): asserts value is DownloadRuntime {
+  assertRuntimeFunctions(value, runtimePath, [
+    "downloadHfFileWithProgress",
+    "probeContentLength",
+  ]);
 }
 
 function resolveDownloadRuntimePath(): string {

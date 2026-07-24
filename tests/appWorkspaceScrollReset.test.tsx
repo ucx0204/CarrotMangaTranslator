@@ -9,6 +9,11 @@ import {
   FontsContext,
   type FontsContextValue,
 } from "../src/renderer/src/fonts/fontsContextValue";
+import { DEFAULT_BLOCK_FONT_CATALOG } from "../src/renderer/src/lib/fonts";
+import {
+  createWorkspaceInteractionPreviewStore,
+  type WorkspaceInteractionPreviewStore,
+} from "../src/renderer/src/lib/workspaceInteractionPreview";
 
 const PAGE_1_IMAGE =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
@@ -100,6 +105,54 @@ describe("AppWorkspace scroll reset", () => {
 
     expect(workspace.scrollTop).toBe(400);
   });
+
+  it("does not rescan canvas blocks for job-progress-only root updates", () => {
+    const refs = makeWorkspaceRefs();
+    const page = makePage("page-1");
+    let blockCollectionReads = 0;
+    page.blocks = new Proxy(page.blocks, {
+      get(target, property, receiver) {
+        if (property === "filter" || property === "map") {
+          blockCollectionReads += 1;
+        }
+        return Reflect.get(target, property, receiver);
+      },
+    });
+    const props = {
+      ...makeWorkspaceProps({
+        refs,
+        selectedPage: page,
+        selectedPageImageDataUrl: PAGE_1_IMAGE,
+        selectedPageImagePageId: "page-1",
+      }),
+      jobActive: true,
+      jobState: {
+        id: "job-1",
+        kind: "gemma-analysis" as const,
+        progressText: "1 / 100",
+        status: "running" as const,
+      },
+      stageSize: { height: 800, width: 500 },
+    };
+    const view = renderWorkspace(props);
+    expect(blockCollectionReads).toBeGreaterThan(0);
+    blockCollectionReads = 0;
+
+    view.rerender(
+      withFonts(
+        <AppWorkspace
+          {...props}
+          jobState={{
+            ...props.jobState,
+            detail: "2 / 100",
+            progressText: "2 / 100",
+          }}
+        />,
+      ),
+    );
+
+    expect(blockCollectionReads).toBe(0);
+  });
 });
 
 class ResizeObserverStub {
@@ -116,6 +169,7 @@ type AppWorkspaceProps = React.ComponentProps<typeof AppWorkspace>;
 
 type WorkspaceRefs = {
   imageRef: React.RefObject<HTMLImageElement | null>;
+  interactionPreviewStore: WorkspaceInteractionPreviewStore;
   stageRef: React.RefObject<HTMLDivElement | null>;
   workspacePanelRef: React.RefObject<HTMLElement | null>;
 };
@@ -135,6 +189,7 @@ function withFonts(node: React.ReactElement): React.JSX.Element {
 function makeWorkspaceRefs(): WorkspaceRefs {
   return {
     imageRef: React.createRef<HTMLImageElement | null>(),
+    interactionPreviewStore: createWorkspaceInteractionPreviewStore(),
     stageRef: React.createRef<HTMLDivElement | null>(),
     workspacePanelRef: React.createRef<HTMLElement | null>(),
   };
@@ -152,13 +207,12 @@ function makeWorkspaceProps({
   selectedPageImagePageId: string | null;
 }): AppWorkspaceProps {
   return {
-    blockCreateRect: null,
     brushColor: "#ffffff",
     brushRadius: 28,
     canRedo: false,
     canUndo: false,
-    dragHud: null,
     imageRef: refs.imageRef,
+    interactionPreviewStore: refs.interactionPreviewStore,
     jobActive: false,
     jobState: {
       id: "",
@@ -216,12 +270,7 @@ function makeWorkspaceProps({
 function makeFontsContext(): FontsContextValue {
   return {
     busy: false,
-    customFonts: [],
-    preferences: {
-      favoriteIds: [],
-      orderedIds: [],
-      defaultFontId: "default",
-    },
+    catalog: DEFAULT_BLOCK_FONT_CATALOG,
     baseOptions: [],
     options: [],
     registerFont: async () => undefined,

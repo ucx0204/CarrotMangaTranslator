@@ -14,8 +14,6 @@ import { emitPythonInstallLog } from "./progress";
 import { isExecutableFile } from "./fileProbe";
 import { sanitizeStandaloneEmbeddedPythonPathFile } from "./pythonPathFile";
 
-export { ensureEmbeddedPythonPackagePath } from "./pythonPathFile";
-
 type PythonBootstrapOptions = {
   runtimeDir: string;
   signal?: AbortSignal;

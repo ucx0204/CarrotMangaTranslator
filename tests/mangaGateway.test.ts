@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createMangaGateway,
+  createMangaDomainGateway,
   createTestMangaGatewayStub,
   getMangaGateway,
-  mangaGateway,
 } from "../src/renderer/src/api/mangaGateway";
 
 afterEach(() => {
@@ -14,7 +14,8 @@ describe("mangaGateway", () => {
   it("fails fast when the bridge is missing", () => {
     expect(() => createMangaGateway(undefined)).toThrow(/bridge/i);
     expect(() => getMangaGateway()).toThrow(/bridge/i);
-    expect(() => mangaGateway.writeLog).toThrow(/bridge/i);
+    const appGateway = createMangaDomainGateway("App", ["writeLog"]);
+    expect(() => appGateway.writeLog).toThrow(/bridge/i);
   });
 
   it("allows an explicit test stub only through the test option", async () => {
@@ -32,6 +33,15 @@ describe("mangaGateway", () => {
     });
     vi.stubGlobal("window", { mangaApi: api });
 
-    await expect(mangaGateway.getLibrary()).resolves.toBe(expectedLibrary);
+    const libraryGateway = createMangaDomainGateway("Library", ["getLibrary"]);
+    await expect(libraryGateway.getLibrary()).resolves.toBe(expectedLibrary);
+  });
+
+  it("does not expose methods outside a domain contract", () => {
+    const libraryGateway = createMangaDomainGateway("Library", ["getLibrary"]);
+
+    expect(() => Reflect.get(libraryGateway, "writeLog")).toThrow(
+      /does not expose writeLog/,
+    );
   });
 });

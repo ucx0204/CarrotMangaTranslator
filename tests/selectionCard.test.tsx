@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   SelectionCard,
   SelectionSurface,
-} from "../src/renderer/src/components/ui";
+} from "../src/renderer/src/components/ui/SelectionCard";
 
 afterEach(cleanup);
 

@@ -1,6 +1,12 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { join } from "node:path";
+import { describe, expect, it, vi } from "vitest";
+import type { ChapterSnapshot } from "../src/shared/libraryTypes";
 import { AsyncReaderWriterLock } from "../src/main/libraryStore/mutex";
+import { createSavePageBlocks } from "../src/main/library/libraryMutationFacade";
+import { createWorkShareExport } from "../src/main/library/libraryShareFacade";
+import {
+  withLibraryMutation,
+  withLibraryNavigationRead,
+} from "../src/main/library/lock";
 
 function createDeferred<T = void>(): {
   promise: Promise<T>;
@@ -20,15 +26,6 @@ function waitForTurn(): Promise<void> {
 }
 
 describe("AsyncReaderWriterLock", () => {
-  afterEach(() => {
-    vi.resetModules();
-    vi.clearAllMocks();
-    vi.doUnmock("electron");
-    vi.doUnmock("../src/main/appPaths");
-    vi.doUnmock("../src/main/libraryStore/libraryMutations");
-    vi.doUnmock("../src/main/libraryStore/shareWorkflow");
-  });
-
   it("runs queued reads concurrently", async () => {
     const lock = new AsyncReaderWriterLock();
     const releaseReads = createDeferred();
@@ -110,51 +107,12 @@ describe("AsyncReaderWriterLock", () => {
   });
 
   it("runs share exports through the read lock behind active mutations", async () => {
-    const rootDir = "C:\\manga-lock-test";
     const releaseMutation = createDeferred();
     const events: string[] = [];
-
-    vi.doMock("electron", () => ({
-      app: {
-        isPackaged: false,
-      },
-    }));
-    vi.doMock("../src/main/appPaths", () => ({
-      getAppPaths: () => ({
-        isPackaged: false,
-        repoRoot: rootDir,
-        executableDir: rootDir,
-        resourcesDir: rootDir,
-        dataRoot: rootDir,
-        settingsPath: join(rootDir, "settings.json"),
-        libraryDir: join(rootDir, "library"),
-        logsDir: join(rootDir, "logs"),
-        logFile: join(rootDir, "logs", "app.log"),
-        runtimeDir: join(rootDir, "runtime"),
-        toolsDir: join(rootDir, "tools"),
-        ocrRuntimeDir: join(rootDir, "ocr-runtime"),
-        llamaRuntimeDir: join(rootDir, "tools", "llama"),
-        llamaServerPath: join(rootDir, "tools", "llama", "llama-server.exe"),
-      }),
-    }));
-    vi.doMock("../src/main/libraryStore/libraryMutations", async () => {
-      const actual = await vi.importActual<
-        typeof import("../src/main/libraryStore/libraryMutations")
-      >("../src/main/libraryStore/libraryMutations");
-      return {
-        ...actual,
-        savePageBlocksUnlocked: vi.fn(async () => {
-          events.push("write:start");
-          await releaseMutation.promise;
-          events.push("write:end");
-          return {
-            id: "chapter-a",
-          } as Awaited<ReturnType<typeof actual.savePageBlocksUnlocked>>;
-        }),
-      };
-    });
-    vi.doMock("../src/main/libraryStore/shareWorkflow", () => ({
-      exportWorkShareToFile: vi.fn(async () => {
+    const lock = new AsyncReaderWriterLock();
+    const exportWorkShareToFile = createWorkShareExport({
+      runRead: (operation) => lock.runRead(operation),
+      exportWorkShare: vi.fn(async () => {
         events.push("export:start");
         return {
           filePath: "share.mgtshare",
@@ -163,12 +121,20 @@ describe("AsyncReaderWriterLock", () => {
           pageCount: 1,
         };
       }),
-      importWorkShareUnlocked: vi.fn(),
-      previewWorkShareImport: vi.fn(),
-    }));
+    });
+    const savePageBlocksWithEvents = createSavePageBlocks({
+      runMutation: (operation) => lock.runWrite(operation),
+      savePageBlocks: vi.fn(async () => {
+        events.push("write:start");
+        await releaseMutation.promise;
+        events.push("write:end");
+        return {
+          id: "chapter-a",
+        } as ChapterSnapshot;
+      }),
+    });
 
-    const library = await import("../src/main/library");
-    const mutation = library.savePageBlocks({
+    const mutation = savePageBlocksWithEvents({
       chapterId: "chapter-a",
       pageId: "page-a",
       blocks: [],
@@ -177,7 +143,7 @@ describe("AsyncReaderWriterLock", () => {
 
     expect(events).toEqual(["write:start"]);
 
-    const shareExport = library.exportWorkShareToFile({
+    const shareExport = exportWorkShareToFile({
       workId: "work-1",
       chapterIds: ["chapter-a"],
       outputPath: "share.mgtshare",
@@ -193,5 +159,28 @@ describe("AsyncReaderWriterLock", () => {
       filePath: "share.mgtshare",
     });
     expect(events).toEqual(["write:start", "write:end", "export:start"]);
+  });
+
+  it("does not queue atomic navigation reads behind a retrying mutation", async () => {
+    const releaseMutation = createDeferred();
+    const events: string[] = [];
+    const mutation = withLibraryMutation(async () => {
+      events.push("write:start");
+      await releaseMutation.promise;
+      events.push("write:end");
+    });
+    await waitForTurn();
+
+    const navigation = withLibraryNavigationRead(async () => {
+      events.push("navigation:read");
+      return "chapter snapshot";
+    });
+
+    await expect(navigation).resolves.toBe("chapter snapshot");
+    expect(events).toEqual(["write:start", "navigation:read"]);
+
+    releaseMutation.resolve();
+    await mutation;
+    expect(events).toEqual(["write:start", "navigation:read", "write:end"]);
   });
 });

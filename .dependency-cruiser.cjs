@@ -20,6 +20,12 @@ module.exports = {
       to: { path: "^src/(main|renderer|preload)/" },
     },
     {
+      name: "page-export-renderer-does-not-enter-app-features",
+      severity: "error",
+      from: { path: "^src/renderer/src/pageExport/" },
+      to: { path: "^src/renderer/src/(api|app|hooks|panels)/" },
+    },
+    {
       name: "ipc-and-jobs-use-locked-library-facade",
       severity: "error",
       from: { path: "^src/main/(ipc|jobs)/" },
@@ -36,6 +42,12 @@ module.exports = {
       severity: "error",
       from: { path: "^src/main/(pipeline/|wholePagePipeline\\.ts$)" },
       to: { path: "^src/main/libraryStore/" },
+    },
+    {
+      name: "main-pipeline-does-not-own-gpu-resources",
+      severity: "error",
+      from: { path: "^src/main/pipeline/" },
+      to: { path: "^src/main/inpainting/" },
     },
     {
       name: "main-jobs-do-not-import-ipc",
@@ -66,6 +78,12 @@ module.exports = {
       severity: "error",
       from: { path: "^src/renderer/src/api/" },
       to: { path: "^src/renderer/src/(app|components|hooks|lib)/" },
+    },
+    {
+      name: "renderer-features-use-domain-gateways",
+      severity: "error",
+      from: { path: "^src/renderer/src/(?!api/)" },
+      to: { path: "^src/renderer/src/api/mangaGateway\\.ts$" },
     },
     {
       name: "renderer-ui-components-stay-leaf-level",

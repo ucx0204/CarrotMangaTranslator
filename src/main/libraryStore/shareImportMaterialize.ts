@@ -10,11 +10,11 @@ import {
   writeNormalizedWebpImportImage,
 } from "./importImages";
 import {
-  WORKS_ROOT,
   removeChapterDirectory,
   writeChapterFile,
   type ChapterFile,
 } from "./libraryFiles";
+import { getWorksRoot } from "./libraryPaths";
 import { isSupportedImagePath, unlinkIfExists } from "./storage";
 import {
   MAX_SHARE_IMAGE_BYTES,
@@ -38,7 +38,7 @@ export async function materializeSharedChapter({
 }): Promise<ChapterFile> {
   const now = new Date().toISOString();
   const chapterId = randomUUID();
-  const chapterDir = join(WORKS_ROOT, workId, "chapters", chapterId);
+  const chapterDir = join(getWorksRoot(), workId, "chapters", chapterId);
   const pagesDir = join(chapterDir, "pages");
   const inpaintedDir = join(chapterDir, "inpainted");
   try {

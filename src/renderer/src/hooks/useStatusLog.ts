@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { mangaGateway } from "../api/mangaGateway";
+import { appGateway as mangaGateway } from "../api/appGateway";
 type UseStatusLogResult = {
   statusLines: string[];
   appendStatusLine: (

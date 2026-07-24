@@ -45,6 +45,8 @@
       "zoomOut": "縮小",
       "zoomIn": "放大",
       "resetZoom": "重設縮放",
+      "hideControls": "收合檢視控制",
+      "showControls": "展開檢視控制",
       "fitMode": "影像適配方式",
       "contain": "符合視窗",
       "width": "符合寬度",

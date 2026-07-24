@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import inpaintingGuideImage from "../assets/images/inpainting-guide.png";
 import styles from "./InpaintingGuideModal.module.css";
-import { Button, Modal } from "./ui";
+import { Button } from "./ui/Button";
+import { Modal } from "./ui/Modal";
 
 export function InpaintingGuideModal({
   onClose,

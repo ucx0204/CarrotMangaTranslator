@@ -1,12 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
-  buildAppleGpuInfo,
+  GpuInfoDetector,
   inferAmdRocmTargetFromName,
   parseRocmSmiGpuLine,
   parseRtxGeneration,
   parseWindowsAmdGpuLine,
   resolveAmdRocmTargetFromArch,
 } from "../src/main/gpuInfo";
+import { buildAppleGpuInfo } from "../src/main/appleGpuInfo";
 
 describe("Apple Silicon GPU detection", () => {
   it("reports Metal and unified system memory", () => {
@@ -27,6 +28,17 @@ describe("Apple Silicon GPU detection", () => {
 });
 
 describe("GPU info helpers", () => {
+  it("shares one in-flight hardware query within an explicit detector", async () => {
+    const detected = buildAppleGpuInfo("Apple M3 Pro", 36 * 1024 ** 3);
+    const query = vi.fn().mockResolvedValue(detected);
+    const detector = new GpuInfoDetector(query);
+
+    await expect(
+      Promise.all([detector.detect(), detector.detect()]),
+    ).resolves.toEqual([detected, detected]);
+    expect(query).toHaveBeenCalledOnce();
+  });
+
   it("parses NVIDIA RTX generations from common GPU names", () => {
     expect(parseRtxGeneration("NVIDIA GeForce RTX 4090")).toBe(40);
     expect(parseRtxGeneration("NVIDIA GeForce RTX 5070 Ti")).toBe(50);

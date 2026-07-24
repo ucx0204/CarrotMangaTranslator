@@ -28,29 +28,62 @@ import type {
   FontPreferences,
 } from "../shared/libraryTypes";
 import { getAppPaths } from "./appPaths";
+import { assertFontFileLooksValid } from "./customFontFileValidation";
 import { logError } from "./logger";
 
 const ALLOWED_EXTENSIONS = new Set([".ttf", ".otf"]);
-const MAX_CUSTOM_FONT_BYTES = 32 * 1024 * 1024;
 const MAX_FONTS = 200;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
-function fontsDir(): string {
-  const dir = getAppPaths().fontsDir;
+export type CustomFontLibraryDependencies = {
+  getFontsDirectory: () => string;
+  reportError: (message: string, error: unknown) => void;
+};
+
+export type CustomFontLibrary = {
+  listCustomFonts: () => CustomFont[];
+  readFontPreferences: (customFonts?: readonly CustomFont[]) => FontPreferences;
+  saveFontPreferences: (
+    value: unknown,
+    customFonts?: readonly CustomFont[],
+  ) => FontPreferences;
+  getFontLibrarySnapshot: () => FontLibrarySnapshot;
+  registerCustomFontFromFile: (sourcePath: string) => CustomFont;
+  removeCustomFont: (id: string) => CustomFont[];
+  resolveCustomFontFilePath: (id: string) => string | null;
+};
+
+const productionDependencies: CustomFontLibraryDependencies = {
+  getFontsDirectory: () => getAppPaths().fontsDir,
+  reportError: logError,
+};
+
+export function createCustomFontLibrary(
+  dependencies: CustomFontLibraryDependencies,
+): CustomFontLibrary {
+  return {
+    listCustomFonts: () => listCustomFontsWith(dependencies),
+    readFontPreferences: (fonts) =>
+      readFontPreferencesWith(dependencies, fonts),
+    saveFontPreferences: (value, fonts) =>
+      saveFontPreferencesWith(dependencies, value, fonts),
+    getFontLibrarySnapshot: () => getFontLibrarySnapshotWith(dependencies),
+    registerCustomFontFromFile: (sourcePath) =>
+      registerCustomFontFromFileWith(dependencies, sourcePath),
+    removeCustomFont: (id) => removeCustomFontWith(dependencies, id),
+    resolveCustomFontFilePath: (id) =>
+      resolveCustomFontFilePathWith(dependencies, id),
+  };
+}
+
+function fontsDir(dependencies: CustomFontLibraryDependencies): string {
+  const dir = dependencies.getFontsDirectory();
   mkdirSync(dir, { recursive: true });
   return dir;
 }
 
-function indexPath(): string {
-  return join(fontsDir(), "index.json");
-}
-
-function preferencesPath(): string {
-  return join(fontsDir(), "preferences.json");
-}
-
-export const DEFAULT_FONT_PREFERENCES: FontPreferences = {
+const DEFAULT_FONT_PREFERENCES: FontPreferences = {
   favoriteIds: [],
   orderedIds: [],
   defaultFontId: DEFAULT_BLOCK_FONT_ID,
@@ -122,7 +155,7 @@ function normalizeCustomFont(value: unknown): CustomFont | null {
 
 function resolveExistingFontFilePath(
   font: CustomFont,
-  fontsRoot = fontsDir(),
+  fontsRoot: string,
 ): string | null {
   const filePath = resolveFontFilePath(fontsRoot, font.id, font.fileName);
   if (!filePath) {
@@ -142,8 +175,14 @@ function resolveExistingFontFilePath(
 }
 
 export function listCustomFonts(): CustomFont[] {
+  return listCustomFontsWith(productionDependencies);
+}
+
+function listCustomFontsWith(
+  dependencies: CustomFontLibraryDependencies,
+): CustomFont[] {
   try {
-    const path = indexPath();
+    const path = join(fontsDir(dependencies), "index.json");
     if (!existsSync(path)) {
       return [];
     }
@@ -151,22 +190,25 @@ export function listCustomFonts(): CustomFont[] {
     if (!Array.isArray(parsed)) {
       return [];
     }
-    const root = fontsDir();
+    const root = fontsDir(dependencies);
     return parsed
       .map(normalizeCustomFont)
       .filter((font): font is CustomFont => Boolean(font))
       .filter((font) => Boolean(resolveExistingFontFilePath(font, root)));
   } catch (error) {
-    logError("Failed to read custom fonts index", error);
+    dependencies.reportError("Failed to read custom fonts index", error);
     return [];
   }
 }
 
-function saveIndex(fonts: CustomFont[]): void {
+function saveIndex(
+  dependencies: CustomFontLibraryDependencies,
+  fonts: CustomFont[],
+): void {
   const safeFonts = fonts
     .map(normalizeCustomFont)
     .filter((font): font is CustomFont => Boolean(font));
-  const targetPath = indexPath();
+  const targetPath = join(fontsDir(dependencies), "index.json");
   const tempPath = `${targetPath}.${process.pid}.tmp`;
   writeFileSync(tempPath, JSON.stringify(safeFonts, null, 2), "utf8");
   renameSync(tempPath, targetPath);
@@ -202,7 +244,7 @@ function normalizeKnownIds(
   return result;
 }
 
-export function normalizeFontPreferences(
+function normalizeFontPreferences(
   value: unknown,
   customFonts: readonly CustomFont[] = listCustomFonts(),
 ): FontPreferences {
@@ -225,7 +267,14 @@ export function normalizeFontPreferences(
 export function readFontPreferences(
   customFonts: readonly CustomFont[] = listCustomFonts(),
 ): FontPreferences {
-  const path = preferencesPath();
+  return readFontPreferencesWith(productionDependencies, customFonts);
+}
+
+function readFontPreferencesWith(
+  dependencies: CustomFontLibraryDependencies,
+  customFonts: readonly CustomFont[] = listCustomFontsWith(dependencies),
+): FontPreferences {
+  const path = join(fontsDir(dependencies), "preferences.json");
   if (!existsSync(path)) {
     return { ...DEFAULT_FONT_PREFERENCES };
   }
@@ -235,7 +284,7 @@ export function readFontPreferences(
       customFonts,
     );
   } catch (error) {
-    logError("Failed to read font preferences", error);
+    dependencies.reportError("Failed to read font preferences", error);
     return { ...DEFAULT_FONT_PREFERENCES };
   }
 }
@@ -244,8 +293,16 @@ export function saveFontPreferences(
   value: unknown,
   customFonts: readonly CustomFont[] = listCustomFonts(),
 ): FontPreferences {
+  return saveFontPreferencesWith(productionDependencies, value, customFonts);
+}
+
+function saveFontPreferencesWith(
+  dependencies: CustomFontLibraryDependencies,
+  value: unknown,
+  customFonts: readonly CustomFont[] = listCustomFontsWith(dependencies),
+): FontPreferences {
   const preferences = normalizeFontPreferences(value, customFonts);
-  const targetPath = preferencesPath();
+  const targetPath = join(fontsDir(dependencies), "preferences.json");
   const tempPath = `${targetPath}.${process.pid}.${randomUUID()}.tmp`;
   try {
     writeFileSync(tempPath, JSON.stringify(preferences, null, 2), "utf8");
@@ -259,10 +316,16 @@ export function saveFontPreferences(
 }
 
 export function getFontLibrarySnapshot(): FontLibrarySnapshot {
-  const customFonts = listCustomFonts();
+  return getFontLibrarySnapshotWith(productionDependencies);
+}
+
+function getFontLibrarySnapshotWith(
+  dependencies: CustomFontLibraryDependencies,
+): FontLibrarySnapshot {
+  const customFonts = listCustomFontsWith(dependencies);
   return {
     customFonts,
-    preferences: readFontPreferences(customFonts),
+    preferences: readFontPreferencesWith(dependencies, customFonts),
   };
 }
 
@@ -279,89 +342,92 @@ function sanitizeLabel(raw: string): string {
 }
 
 export function registerCustomFontFromFile(sourcePath: string): CustomFont {
+  return registerCustomFontFromFileWith(productionDependencies, sourcePath);
+}
+
+function registerCustomFontFromFileWith(
+  dependencies: CustomFontLibraryDependencies,
+  sourcePath: string,
+): CustomFont {
   const ext = extname(sourcePath).toLowerCase();
   if (!ALLOWED_EXTENSIONS.has(ext)) {
     throw new Error("TTF 또는 OTF 폰트 파일만 등록할 수 있습니다.");
   }
   assertFontFileLooksValid(sourcePath, ext);
-  const fonts = listCustomFonts();
+  const fonts = listCustomFontsWith(dependencies);
   if (fonts.length >= MAX_FONTS) {
     throw new Error("등록할 수 있는 폰트 수를 초과했습니다.");
   }
   const id = randomUUID();
   const fileName = `${id}${ext}`;
-  copyFileSync(sourcePath, join(fontsDir(), fileName));
+  copyFileSync(sourcePath, join(fontsDir(dependencies), fileName));
   const font: CustomFont = {
     id,
     label: sanitizeLabel(basename(sourcePath, extname(sourcePath))),
     family: `MGTUser-${id}`,
     fileName,
   };
-  saveIndex([...fonts, font]);
+  saveIndex(dependencies, [...fonts, font]);
   return font;
 }
 
-function assertFontFileLooksValid(sourcePath: string, ext: string): void {
-  const info = statSync(sourcePath);
-  if (!info.isFile()) {
-    throw new Error("폰트 파일을 읽지 못했습니다.");
-  }
-  if (info.size < 12 || info.size > MAX_CUSTOM_FONT_BYTES) {
-    throw new Error("폰트 파일 크기가 올바르지 않습니다.");
-  }
-  const header = readFileSync(sourcePath).subarray(0, 4);
-  const signature = header.toString("latin1");
-  const isTrueType =
-    header[0] === 0x00 &&
-    header[1] === 0x01 &&
-    header[2] === 0x00 &&
-    header[3] === 0x00;
-  const isOtf = signature === "OTTO";
-  const isAppleTrueType = signature === "true";
-  if (ext === ".otf" && !isOtf) {
-    throw new Error("OTF 폰트 파일 형식이 올바르지 않습니다.");
-  }
-  if (ext === ".ttf" && !isTrueType && !isAppleTrueType) {
-    throw new Error("TTF 폰트 파일 형식이 올바르지 않습니다.");
-  }
+export function removeCustomFont(id: string): CustomFont[] {
+  return removeCustomFontWith(productionDependencies, id);
 }
 
-export function removeCustomFont(id: string): CustomFont[] {
+function removeCustomFontWith(
+  dependencies: CustomFontLibraryDependencies,
+  id: string,
+): CustomFont[] {
   const normalizedId = normalizeUuid(id);
   if (!normalizedId) {
-    return listCustomFonts();
+    return listCustomFontsWith(dependencies);
   }
-  const fonts = listCustomFonts();
+  const fonts = listCustomFontsWith(dependencies);
   const target = fonts.find((font) => font.id === normalizedId);
   if (target) {
-    const fontPath = resolveExistingFontFilePath(target);
+    const fontPath = resolveExistingFontFilePath(
+      target,
+      fontsDir(dependencies),
+    );
     try {
       if (fontPath) {
         rmSync(fontPath, { force: true });
       }
     } catch (error) {
-      logError("Failed to delete custom font file", {
+      dependencies.reportError("Failed to delete custom font file", {
         id: normalizedId,
         error,
       });
     }
   }
   const remaining = fonts.filter((font) => font.id !== normalizedId);
-  saveIndex(remaining);
-  saveFontPreferences(readFontPreferences(fonts), remaining);
+  saveIndex(dependencies, remaining);
+  saveFontPreferencesWith(
+    dependencies,
+    readFontPreferencesWith(dependencies, fonts),
+    remaining,
+  );
   return remaining;
 }
 
 export function resolveCustomFontFilePath(id: string): string | null {
+  return resolveCustomFontFilePathWith(productionDependencies, id);
+}
+
+function resolveCustomFontFilePathWith(
+  dependencies: CustomFontLibraryDependencies,
+  id: string,
+): string | null {
   const normalizedId = normalizeUuid(id);
   if (!normalizedId) {
     return null;
   }
-  const font = listCustomFonts().find(
+  const font = listCustomFontsWith(dependencies).find(
     (candidate) => candidate.id === normalizedId,
   );
   if (!font) {
     return null;
   }
-  return resolveExistingFontFilePath(font);
+  return resolveExistingFontFilePath(font, fontsDir(dependencies));
 }

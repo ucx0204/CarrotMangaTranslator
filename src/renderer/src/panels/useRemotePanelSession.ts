@@ -3,7 +3,7 @@ import type {
   PanelCommand,
   PanelSyncState,
 } from "../../../shared/panelBridgeTypes";
-import { mangaGateway } from "../api/mangaGateway";
+import { panelGateway as mangaGateway } from "../api/panelGateway";
 import type { PanelSessionValue } from "./panelSession";
 
 const noop = (): void => undefined;
@@ -27,16 +27,22 @@ export function useRemotePanelSession(): PanelSessionValue | null {
     });
   }, []);
   React.useEffect(() => {
+    let active = true;
     void mangaGateway
       .getPanelState()
       .then((state) => {
-        if (state) {
+        if (active && state) {
           setSyncState((current) => current ?? state);
         }
       })
       .catch((error) => {
-        console.error(error);
+        if (active) {
+          console.error(error);
+        }
       });
+    return () => {
+      active = false;
+    };
   }, []);
   return React.useMemo(
     () => (syncState ? buildRemotePanelSessionValue(syncState) : null),

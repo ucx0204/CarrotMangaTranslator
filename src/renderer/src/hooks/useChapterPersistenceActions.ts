@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useMemo,
   type Dispatch,
   type MutableRefObject,
   type SetStateAction,
@@ -18,12 +19,14 @@ export function useDirtyTrackingActions({
   refs,
   runQueuedSave,
   setDirty,
+  setDirtyVersion,
   syncServerPageVersions,
 }: {
   currentChapterRef: MutableRefObject<ChapterSnapshot | null>;
   refs: ChapterPersistenceRefs;
   runQueuedSave: QueuedSaveRunner;
   setDirty: Dispatch<SetStateAction<boolean>>;
+  setDirtyVersion: Dispatch<SetStateAction<number>>;
   syncServerPageVersions: ServerVersionSyncActions["syncServerPageVersions"];
 }): DirtyTrackingActions {
   const resetSaveBaseline = useResetSaveBaselineAction({
@@ -35,7 +38,12 @@ export function useDirtyTrackingActions({
     resetSaveBaseline,
     setDirty,
   });
-  const markDirty = useMarkDirtyAction({ currentChapterRef, refs, setDirty });
+  const markDirty = useMarkDirtyAction({
+    currentChapterRef,
+    refs,
+    setDirty,
+    setDirtyVersion,
+  });
   const replaceDirtyPageIds = useReplaceDirtyPageIdsAction({ refs, setDirty });
   const saveNow = useSaveNowAction({
     currentChapterRef,
@@ -43,23 +51,34 @@ export function useDirtyTrackingActions({
     runQueuedSave,
   });
 
-  return {
-    clearDirtyTracking,
-    markDirty,
-    replaceDirtyPageIds,
-    resetSaveBaseline,
-    saveNow,
-  };
+  return useMemo(
+    () => ({
+      clearDirtyTracking,
+      markDirty,
+      replaceDirtyPageIds,
+      resetSaveBaseline,
+      saveNow,
+    }),
+    [
+      clearDirtyTracking,
+      markDirty,
+      replaceDirtyPageIds,
+      resetSaveBaseline,
+      saveNow,
+    ],
+  );
 }
 
 function useMarkDirtyAction({
   currentChapterRef,
   refs,
   setDirty,
+  setDirtyVersion,
 }: {
   currentChapterRef: MutableRefObject<ChapterSnapshot | null>;
   refs: ChapterPersistenceRefs;
   setDirty: Dispatch<SetStateAction<boolean>>;
+  setDirtyVersion: Dispatch<SetStateAction<number>>;
 }): DirtyTrackingActions["markDirty"] {
   const {
     blockedAutoSaveVersionRef,
@@ -71,6 +90,7 @@ function useMarkDirtyAction({
   return useCallback(
     (pageId?: string) => {
       dirtyVersionRef.current += 1;
+      setDirtyVersion(dirtyVersionRef.current);
       blockedAutoSaveVersionRef.current = null;
       if (pageId) {
         if (!dirtyPageIdsRef.current.has(pageId)) {
@@ -99,6 +119,7 @@ function useMarkDirtyAction({
       serverVersionByPageIdRef,
       serverVersionChapterIdRef,
       setDirty,
+      setDirtyVersion,
     ],
   );
 }

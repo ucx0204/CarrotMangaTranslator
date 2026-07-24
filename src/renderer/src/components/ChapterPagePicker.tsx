@@ -15,7 +15,7 @@ import {
   type ChapterSel,
   type ChapterSelectionMap,
 } from "../lib/translationSelection";
-import { Button } from "./ui";
+import { Button } from "./ui/Button";
 import { WorkPagePicker, type ChapterPagesLookup } from "./WorkPagePicker";
 
 type ChapterPagePickerProps = {

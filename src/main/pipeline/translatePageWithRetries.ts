@@ -24,6 +24,7 @@ import type { TranslationRuntimePort } from "./translationRuntimePort";
 import type { WarningCollector } from "./warningCollector";
 import type { ChapterRunPaths } from "../library";
 import { logAttemptFailure, logSkippedPage } from "./translationAttemptLogging";
+import type { PipelineDiagnostics } from "./translationAttemptLogging";
 import { translatePageAttempt } from "./pageTranslationAttempt";
 
 type TranslatePageWithRetriesOptions = {
@@ -47,6 +48,7 @@ type TranslatePageWithRetriesOptions = {
   workContext?: PipelineWorkContext;
   regionContext?: PipelineRegionContext;
   collectPageContext?: boolean;
+  diagnostics: PipelineDiagnostics;
 };
 
 type PageTranslationAttemptResult = {
@@ -84,6 +86,7 @@ export async function translatePageWithRetries({
   workContext,
   regionContext,
   collectPageContext,
+  diagnostics,
 }: TranslatePageWithRetriesOptions): Promise<{
   pageContext?: PageContextPayload;
   approved: boolean;
@@ -107,6 +110,7 @@ export async function translatePageWithRetries({
     workContext,
     regionContext,
     collectPageContext,
+    diagnostics,
   });
   if (result.successPage) {
     completedPagesById.set(page.id, result.successPage);
@@ -126,6 +130,7 @@ export async function translatePageWithRetries({
     result,
     runPaths,
     warningCollector,
+    diagnostics,
   });
   return { approved: false };
 }
@@ -149,6 +154,7 @@ async function runPageTranslationAttempts({
   workContext,
   regionContext,
   collectPageContext,
+  diagnostics,
 }: Omit<
   TranslatePageWithRetriesOptions,
   "completedPagesById" | "onPageFailed"
@@ -195,6 +201,7 @@ async function runPageTranslationAttempts({
       server,
       state,
       warningCollector,
+      diagnostics,
     });
     if (success) {
       successPage = success.page;
@@ -225,6 +232,7 @@ async function tryPageTranslationAttempt({
   server,
   state,
   warningCollector,
+  diagnostics,
 }: {
   attempt: number;
   context: ProgressContext;
@@ -238,6 +246,7 @@ async function tryPageTranslationAttempt({
   server: ModelEndpointHandle;
   state: PageTranslationAttemptState;
   warningCollector: WarningCollector;
+  diagnostics: PipelineDiagnostics;
 }): Promise<{
   page: MangaPage;
   pageContext?: PageContextPayload;
@@ -270,6 +279,7 @@ async function tryPageTranslationAttempt({
       runPaths,
       state,
       warningCollector,
+      diagnostics,
     });
     return null;
   }
@@ -286,6 +296,7 @@ function handlePageAttemptFailure({
   runPaths,
   state,
   warningCollector,
+  diagnostics,
 }: {
   attempt: number;
   context: ProgressContext;
@@ -297,6 +308,7 @@ function handlePageAttemptFailure({
   runPaths: ChapterRunPaths;
   state: PageTranslationAttemptState;
   warningCollector: WarningCollector;
+  diagnostics: PipelineDiagnostics;
 }): void {
   state.lastError = error;
   state.lastErrorMessage =
@@ -307,16 +319,19 @@ function handlePageAttemptFailure({
     maxAttempts,
     message: state.lastErrorMessage,
   });
-  logAttemptFailure({
-    attempt,
-    context,
-    error,
-    lastPageOptions: pageOptions,
-    maxAttempts,
-    page,
-    pageIndex,
-    runPaths,
-  });
+  logAttemptFailure(
+    {
+      attempt,
+      context,
+      error,
+      lastPageOptions: pageOptions,
+      maxAttempts,
+      page,
+      pageIndex,
+      runPaths,
+    },
+    diagnostics,
+  );
   if (attempt < maxAttempts) {
     emitPageRetry(context, page, pageIndex, attempt, maxAttempts);
   }
@@ -333,6 +348,7 @@ async function saveFailedPageAfterRetries({
   result,
   runPaths,
   warningCollector,
+  diagnostics,
 }: {
   completedPagesById: Map<string, MangaPage>;
   context: ProgressContext;
@@ -344,22 +360,26 @@ async function saveFailedPageAfterRetries({
   result: PageTranslationAttemptResult;
   runPaths: ChapterRunPaths;
   warningCollector: WarningCollector;
+  diagnostics: PipelineDiagnostics;
 }): Promise<void> {
   warningCollector.addPageSkipped({
     pageName: page.name,
     maxAttempts,
     message: result.lastErrorMessage,
   });
-  logSkippedPage({
-    context,
-    lastError: result.lastError,
-    lastErrorMessage: result.lastErrorMessage,
-    lastPageOptions: result.lastPageOptions,
-    maxAttempts,
-    page,
-    pageIndex: progressPageIndex,
-    runPaths,
-  });
+  logSkippedPage(
+    {
+      context,
+      lastError: result.lastError,
+      lastErrorMessage: result.lastErrorMessage,
+      lastPageOptions: result.lastPageOptions,
+      maxAttempts,
+      page,
+      pageIndex: progressPageIndex,
+      runPaths,
+    },
+    diagnostics,
+  );
   const failedPage = buildFailedPage(page, result.lastErrorMessage);
   completedPagesById.set(page.id, failedPage);
   await onPageFailed?.(failedPage, result.lastErrorMessage);

@@ -17,7 +17,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import type { MangaPage } from "../../../shared/libraryTypes";
 import { useStandardDndSensors } from "../lib/dnd";
-import { IconButton } from "./ui";
+import { IconButton } from "./ui/IconButton";
 import { CloseIcon, RefreshIcon } from "./ui/icons";
 
 type PageStatusMode = "translation" | "inpainting";
@@ -33,7 +33,7 @@ type PageListProps = {
   onReorder: (sourcePageId: string, targetPageId: string) => void;
 };
 
-export function PageList({
+function PageListView({
   pages,
   selectedPageId,
   jobActive,
@@ -47,6 +47,12 @@ export function PageList({
   const sensors = useStandardDndSensors();
   const [activePageId, setActivePageId] = React.useState<string | null>(null);
   const pageItemRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
+  const registerPageItemRef = React.useCallback(
+    (pageId: string, element: HTMLDivElement | null) => {
+      pageItemRefs.current[pageId] = element;
+    },
+    [],
+  );
   const activePage = pages.find((page) => page.id === activePageId) ?? null;
 
   React.useEffect(() => {
@@ -92,8 +98,8 @@ export function PageList({
           onRemove={onRemove}
           onRetranslate={onRetranslate}
           onSelect={onSelect}
-          pageItemRefs={pageItemRefs}
           pages={pages}
+          registerPageItemRef={registerPageItemRef}
           selectedPageId={selectedPageId}
           statusMode={statusMode}
         />
@@ -102,6 +108,8 @@ export function PageList({
   );
 }
 
+export const PageList = React.memo(PageListView);
+
 function PageSortableContent({
   activePage,
   activePageId,
@@ -109,8 +117,8 @@ function PageSortableContent({
   onRemove,
   onRetranslate,
   onSelect,
-  pageItemRefs,
   pages,
+  registerPageItemRef,
   selectedPageId,
   statusMode,
 }: {
@@ -120,8 +128,8 @@ function PageSortableContent({
   onRemove: (pageId: string) => void;
   onRetranslate: (pageId: string) => void;
   onSelect: (pageId: string) => void;
-  pageItemRefs: React.MutableRefObject<Record<string, HTMLDivElement | null>>;
   pages: MangaPage[];
+  registerPageItemRef: (pageId: string, element: HTMLDivElement | null) => void;
   selectedPageId: string | null;
   statusMode: PageStatusMode;
 }): React.JSX.Element {
@@ -144,9 +152,7 @@ function PageSortableContent({
                 onRetranslate={onRetranslate}
                 onSelect={onSelect}
                 page={page}
-                registerRef={(element) => {
-                  pageItemRefs.current[page.id] = element;
-                }}
+                registerRef={registerPageItemRef}
                 selected={page.id === selectedPageId}
                 statusMode={statusMode}
               />
@@ -172,7 +178,18 @@ function PageSortableContent({
   );
 }
 
-function SortablePageItem({
+type SortablePageItemProps = {
+  page: MangaPage;
+  selected: boolean;
+  disabled: boolean;
+  statusMode: PageStatusMode;
+  onSelect: (pageId: string) => void;
+  onRetranslate: (pageId: string) => void;
+  onRemove: (pageId: string) => void;
+  registerRef: (pageId: string, element: HTMLDivElement | null) => void;
+};
+
+const SortablePageItem = React.memo(function SortablePageItem({
   page,
   selected,
   disabled,
@@ -181,16 +198,7 @@ function SortablePageItem({
   onRetranslate,
   onRemove,
   registerRef,
-}: {
-  page: MangaPage;
-  selected: boolean;
-  disabled: boolean;
-  statusMode: PageStatusMode;
-  onSelect: (pageId: string) => void;
-  onRetranslate: (pageId: string) => void;
-  onRemove: (pageId: string) => void;
-  registerRef: (element: HTMLDivElement | null) => void;
-}): React.JSX.Element {
+}: SortablePageItemProps): React.JSX.Element {
   const { t } = useTranslation("components");
   const {
     attributes,
@@ -214,7 +222,7 @@ function SortablePageItem({
     <div
       ref={(element) => {
         setNodeRef(element);
-        registerRef(element);
+        registerRef(page.id, element);
       }}
       className={`page-item sortable-item ${selected ? "active" : ""} ${isDragging ? "dragging" : ""}`}
       style={style}
@@ -246,6 +254,25 @@ function SortablePageItem({
         statusMode={statusMode}
       />
     </div>
+  );
+}, areSortablePageItemPropsEqual);
+
+function areSortablePageItemPropsEqual(
+  previous: SortablePageItemProps,
+  next: SortablePageItemProps,
+): boolean {
+  return (
+    previous.disabled === next.disabled &&
+    previous.onRemove === next.onRemove &&
+    previous.onRetranslate === next.onRetranslate &&
+    previous.onSelect === next.onSelect &&
+    previous.registerRef === next.registerRef &&
+    previous.selected === next.selected &&
+    previous.statusMode === next.statusMode &&
+    previous.page.id === next.page.id &&
+    previous.page.name === next.page.name &&
+    previous.page.analysisStatus === next.page.analysisStatus &&
+    previous.page.inpaintedImagePath === next.page.inpaintedImagePath
   );
 }
 

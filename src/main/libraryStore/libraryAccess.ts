@@ -6,7 +6,7 @@ import type {
   MangaPage,
 } from "../../shared/libraryTypes";
 import { hydrateChapter } from "./chapterSnapshots";
-import { toChapterSummary } from "./chapterRecords";
+import { readChapterSummaryFile } from "./libraryChapterSummaries";
 import {
   findChapterLocation,
   readChapterFile,
@@ -16,28 +16,35 @@ import {
 
 export async function listLibrary(): Promise<LibraryIndex> {
   const index = await readIndexFile();
-  const works: LibraryWorkSummary[] = [];
-
-  for (const workId of index.workOrder) {
-    const work = await readWorkFile(workId);
-    if (!work) {
-      continue;
-    }
-    const chapters: LibraryChapterSummary[] = [];
-    for (const chapterId of work.chapterOrder) {
-      const chapter = await readChapterFile(workId, chapterId);
-      if (!chapter) {
-        continue;
-      }
-      chapters.push(toChapterSummary(chapter));
-    }
-    works.push({ ...work, chapters });
-  }
+  const workCandidates = await Promise.all(
+    index.workOrder.map(loadLibraryWorkSummary),
+  );
+  const works = workCandidates.filter(
+    (work): work is LibraryWorkSummary => work !== null,
+  );
 
   return {
     workOrder: works.map((work) => work.id),
     works,
   };
+}
+
+async function loadLibraryWorkSummary(
+  workId: string,
+): Promise<LibraryWorkSummary | null> {
+  const work = await readWorkFile(workId);
+  if (!work) {
+    return null;
+  }
+  const chapterCandidates = await Promise.all(
+    work.chapterOrder.map((chapterId) =>
+      readChapterSummaryFile(workId, chapterId),
+    ),
+  );
+  const chapters = chapterCandidates.filter(
+    (chapter): chapter is LibraryChapterSummary => chapter !== null,
+  );
+  return { ...work, chapters };
 }
 
 export async function openChapter(chapterId: string): Promise<ChapterSnapshot> {

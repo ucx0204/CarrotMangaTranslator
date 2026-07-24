@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
 import {
+  applyBlockDragResolution,
   applyResolvedBlockDrag,
   resolveBlockDrag,
-  restoreDraggedBlock,
 } from "../src/renderer/src/hooks/workspaceBlockDragModel";
 import type { DragState } from "../src/renderer/src/hooks/workspacePointerGeometry";
 
@@ -52,16 +52,18 @@ describe("workspace block drag model", () => {
     expect(result).toMatchObject({ invalid: true, invalidKind: "outside" });
   });
 
-  it("applies one drag patch and can restore the starting block", () => {
+  it("resolves the same preview block that is committed at gesture end", () => {
     const { chapter, page, drag } = makeFixture("rotate");
-    const changed = applyResolvedBlockDrag(chapter, page, drag, {
+    const resolution = {
       label: "30°",
       patch: { rotationDeg: 30 },
-    });
-    expect(changed.pages[0].blocks[0].rotationDeg).toBe(30);
+    };
+    const preview = applyBlockDragResolution(drag.startBlock, page, resolution);
+    const changed = applyResolvedBlockDrag(chapter, page, drag, resolution);
 
-    const restored = restoreDraggedBlock(changed, page, drag);
-    expect(restored.pages[0].blocks[0]).toEqual(drag.startBlock);
+    expect(preview.rotationDeg).toBe(30);
+    expect(changed.pages[0].blocks[0].rotationDeg).toBe(30);
+    expect(changed.pages[0].blocks[0]).toEqual(preview);
   });
 });
 

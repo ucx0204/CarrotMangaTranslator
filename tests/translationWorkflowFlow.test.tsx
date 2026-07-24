@@ -1,25 +1,28 @@
 // @vitest-environment jsdom
 
 import { act, cleanup, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
+import type { NotificationPort } from "../src/renderer/src/lib/notificationPort";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationWorkflowMode } from "../src/shared/settingsTypes";
 import type { UseTranslationActionsOptions } from "../src/renderer/src/hooks/translationActionTypes";
 
-const startAnalysis = vi.hoisted(() => vi.fn());
-const analyzeWorkContext = vi.hoisted(() => vi.fn());
+const startAnalysis = vi.fn();
+const analyzeWorkContext = vi.fn();
+const notificationMocks: NotificationPort = {
+  error: vi.fn(),
+  info: vi.fn(),
+  success: vi.fn(),
+  warn: vi.fn(),
+};
 
-vi.mock("../src/renderer/src/api/mangaGateway", () => ({
-  mangaGateway: { analyzeWorkContext, startAnalysis },
-}));
-
-vi.mock("../src/renderer/src/lib/toastStore", () => ({
-  toast: {
-    error: vi.fn(),
-    success: vi.fn(),
-    warn: vi.fn(),
-  },
-}));
+beforeEach(() => {
+  window.mangaApi = createTestMangaGatewayStub({
+    analyzeWorkContext,
+    startAnalysis,
+  });
+});
 
 import { useTranslationActions } from "../src/renderer/src/hooks/useTranslationActions";
 
@@ -80,7 +83,9 @@ async function runWorkflow(workflowMode: TranslationWorkflowMode) {
   const options = makeOptions();
   startAnalysis.mockResolvedValue({ status: "completed" });
   analyzeWorkContext.mockResolvedValue(undefined);
-  const { result } = renderHook(() => useTranslationActions(options));
+  const { result } = renderHook(() =>
+    useTranslationActions(options, notificationMocks),
+  );
 
   await act(async () => {
     await result.current.runTranslationFlow({
@@ -96,6 +101,7 @@ async function runWorkflow(workflowMode: TranslationWorkflowMode) {
 
 afterEach(() => {
   cleanup();
+  window.mangaApi = createTestMangaGatewayStub();
   vi.clearAllMocks();
 });
 
@@ -103,7 +109,9 @@ describe("translation workflow modes", () => {
   it("uses cumulative collection for direct translation entry points by default", async () => {
     const options = makeOptions();
     startAnalysis.mockResolvedValue({ status: "completed" });
-    const { result } = renderHook(() => useTranslationActions(options));
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
 
     await act(async () => {
       await result.current.runAnalysis("pending");
@@ -120,7 +128,9 @@ describe("translation workflow modes", () => {
       translationWorkflowDefault: "standard" as const,
     };
     startAnalysis.mockResolvedValue({ status: "completed" });
-    const { result } = renderHook(() => useTranslationActions(options));
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
 
     await act(async () => {
       await result.current.runAnalysis("all");
@@ -140,7 +150,9 @@ describe("translation workflow modes", () => {
     };
     startAnalysis.mockResolvedValue({ status: "completed" });
     analyzeWorkContext.mockResolvedValue(undefined);
-    const { result } = renderHook(() => useTranslationActions(options));
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
 
     await act(async () => {
       await result.current.runAnalysis("pending");
@@ -180,6 +192,7 @@ describe("translation workflow modes", () => {
       collectPageContext: true,
     });
     expect(analyzeWorkContext).not.toHaveBeenCalled();
+    expect(notificationMocks.success).toHaveBeenCalledOnce();
   });
 
   it("runs the standard workflow once without collecting page context", async () => {
@@ -212,5 +225,37 @@ describe("translation workflow modes", () => {
       blockMode: "auto",
       collectPageContext: false,
     });
+    expect(notificationMocks.success).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the first-pass state and reports a context-analysis failure", async () => {
+    const options = makeOptions();
+    startAnalysis.mockResolvedValue({ status: "completed" });
+    analyzeWorkContext.mockRejectedValueOnce(new Error("analysis failed"));
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
+
+    let outcome = "not-started";
+    await act(async () => {
+      outcome = await result.current.runTranslationFlow({
+        selection: [{ chapterId: "chapter-1", mode: "pending" }],
+        workflowMode: "two-pass",
+        analysisScope: "missing",
+        blockMode: "auto",
+      });
+    });
+
+    expect(outcome).toBe("failed");
+    expect(startAnalysis).toHaveBeenCalledOnce();
+    expect(options.setJobState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "flow-analysis-skipped",
+        status: "completed",
+      }),
+    );
+    expect(notificationMocks.error).toHaveBeenCalledOnce();
+    expect(options.setFlowActive).toHaveBeenLastCalledWith(false);
   });
 });

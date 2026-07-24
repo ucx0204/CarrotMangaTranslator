@@ -58,14 +58,28 @@ export function getMangaGateway(): MangaGateway {
   return createMangaGateway(readWindowMangaApi());
 }
 
-export const mangaGateway: MangaGateway = new Proxy({} as MangaGateway, {
-  get(_target, property) {
-    if (property === Symbol.toStringTag) {
-      return "MangaGateway";
-    }
+export function createMangaDomainGateway<const TMethod extends keyof MangaApi>(
+  domainName: string,
+  methods: readonly TMethod[],
+): Pick<MangaApi, TMethod> {
+  const allowedMethods = new Set<PropertyKey>(methods);
+  return new Proxy({} as Pick<MangaApi, TMethod>, {
+    get(_target, property) {
+      if (property === Symbol.toStringTag) {
+        return `${domainName}MangaGateway`;
+      }
+      if (!allowedMethods.has(property)) {
+        throw new Error(
+          `${domainName} gateway does not expose ${String(property)}.`,
+        );
+      }
 
-    const api = getMangaGateway();
-    const value = Reflect.get(api, property);
-    return typeof value === "function" ? value.bind(api) : value;
-  },
-});
+      const api = getMangaGateway();
+      const value = Reflect.get(api, property);
+      if (typeof value !== "function") {
+        throw createMissingBridgeError(String(property));
+      }
+      return value.bind(api);
+    },
+  });
+}

@@ -1,5 +1,4 @@
 // @ts-check
-/* eslint-disable max-lines-per-function -- keep the single accepted fixed-translation request path linear */
 
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
 /**
@@ -54,6 +53,51 @@ async function requestFixedBlockTranslation(
   ocrBboxResult,
   requestStartedAt,
 ) {
+  const context = await prepareFixedBlockRequest(
+    server,
+    options,
+    ocrBboxResult,
+  );
+  const { imageVariants, plan, promptText, requestSummary, systemPrompt } =
+    context;
+  if (plan.blocks.length === 0) {
+    return buildNoLexicalCandidatesResult(requestSummary);
+  }
+  const initialPass = await requestFixedBlockPass(
+    server,
+    options,
+    imageVariants,
+    plan,
+    promptText,
+    systemPrompt,
+    requestSummary,
+    requestStartedAt,
+  );
+  requestSummary.fixedBlockTranslationForbiddenTokenBias =
+    initialPass.forbiddenTokenBias;
+  requestSummary.localForbiddenTokenBias =
+    requestSummary.fixedBlockTranslationForbiddenTokenBias;
+  const initialPartial = parseFixedBlockTranslationPartialResponse(
+    initialPass.response.outputText,
+    plan,
+    options,
+  );
+  return completeFixedBlockTranslation(
+    server,
+    options,
+    context,
+    initialPass,
+    initialPartial,
+    requestStartedAt,
+  );
+}
+
+/**
+ * @param {ModelServer} server
+ * @param {SemanticRequestOptions} options
+ * @param {OcrBboxResult} ocrBboxResult
+ */
+async function prepareFixedBlockRequest(server, options, ocrBboxResult) {
   const prepared = await prepareImageVariants(
     /** @type {Parameters<typeof prepareImageVariants>[0]} */ (options),
   );
@@ -89,37 +133,38 @@ async function requestFixedBlockTranslation(
     "ocrBboxDiagnostics",
     ocrBboxResult.diagnostics,
   );
+  return { imageVariants, plan, promptText, requestSummary, systemPrompt };
+}
 
-  if (plan.blocks.length === 0) {
-    return {
-      requestBody: requestSummary,
-      rawResponse: {
-        skipped: true,
-        reason: "fixed-block-no-lexical-candidates",
-      },
-      outputText: '{"items":[]}',
-    };
-  }
+/** @param {RequestSummary} requestSummary */
+function buildNoLexicalCandidatesResult(requestSummary) {
+  return {
+    requestBody: requestSummary,
+    rawResponse: {
+      skipped: true,
+      reason: "fixed-block-no-lexical-candidates",
+    },
+    outputText: '{"items":[]}',
+  };
+}
 
-  const initialPass = await requestFixedBlockPass(
-    server,
-    options,
-    imageVariants,
-    plan,
-    promptText,
-    systemPrompt,
-    requestSummary,
-    requestStartedAt,
-  );
-  requestSummary.fixedBlockTranslationForbiddenTokenBias =
-    initialPass.forbiddenTokenBias;
-  requestSummary.localForbiddenTokenBias =
-    requestSummary.fixedBlockTranslationForbiddenTokenBias;
-  const initialPartial = parseFixedBlockTranslationPartialResponse(
-    initialPass.response.outputText,
-    plan,
-    options,
-  );
+/**
+ * @param {ModelServer} server
+ * @param {SemanticRequestOptions} options
+ * @param {Awaited<ReturnType<typeof prepareFixedBlockRequest>>} context
+ * @param {Awaited<ReturnType<typeof requestFixedBlockPass>>} initialPass
+ * @param {ReturnType<typeof parseFixedBlockTranslationPartialResponse>} initialPartial
+ * @param {number} requestStartedAt
+ */
+async function completeFixedBlockTranslation(
+  server,
+  options,
+  context,
+  initialPass,
+  initialPartial,
+  requestStartedAt,
+) {
+  const { imageVariants, plan, requestSummary } = context;
   const repaired = await repairInvalidFixedBlockTranslations(
     server,
     options,
@@ -208,37 +253,27 @@ async function repairInvalidFixedBlockTranslations(
     repairAttempt += 1
   ) {
     const repairIds = new Set(pendingBlockIds);
-    const repairPlan = {
-      ...plan,
-      blocks: plan.blocks.filter((block) => repairIds.has(block.blockId)),
-    };
-    const repairOptions = {
-      ...options,
-      collectPageContext: false,
-      translationAttempt:
-        Math.max(1, Number(options.translationAttempt) || 1) + repairAttempt,
-    };
-    const repairPrompt = buildFixedBlockTranslationPrompt(
-      repairPlan,
-      repairOptions,
+    const repair = buildFixedBlockRepairContext(
+      plan,
+      options,
+      repairIds,
+      repairAttempt,
     );
-    const repairSystemPrompt =
-      buildFixedBlockTranslationSystemPrompt(repairOptions);
     try {
       const repairPass = await requestFixedBlockPass(
         server,
-        repairOptions,
+        repair.options,
         imageVariants,
-        repairPlan,
-        repairPrompt,
-        repairSystemPrompt,
+        repair.plan,
+        repair.prompt,
+        repair.systemPrompt,
         requestSummary,
         requestStartedAt,
       );
       const partial = parseFixedBlockTranslationPartialResponse(
         repairPass.response.outputText,
-        repairPlan,
-        repairOptions,
+        repair.plan,
+        repair.options,
       );
       translations = mergeFixedBlockTranslationResults(
         translations,
@@ -268,6 +303,31 @@ async function repairInvalidFixedBlockTranslations(
   }
 
   return { translations, pendingBlockIds, responses, history };
+}
+
+/**
+ * @param {ReturnType<typeof buildFixedBlockPlan>} plan
+ * @param {SemanticRequestOptions} options
+ * @param {Set<string>} repairIds
+ * @param {number} repairAttempt
+ */
+function buildFixedBlockRepairContext(plan, options, repairIds, repairAttempt) {
+  const repairPlan = {
+    ...plan,
+    blocks: plan.blocks.filter((block) => repairIds.has(block.blockId)),
+  };
+  const repairOptions = {
+    ...options,
+    collectPageContext: false,
+    translationAttempt:
+      Math.max(1, Number(options.translationAttempt) || 1) + repairAttempt,
+  };
+  return {
+    plan: repairPlan,
+    options: repairOptions,
+    prompt: buildFixedBlockTranslationPrompt(repairPlan, repairOptions),
+    systemPrompt: buildFixedBlockTranslationSystemPrompt(repairOptions),
+  };
 }
 
 /**

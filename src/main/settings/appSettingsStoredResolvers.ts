@@ -12,16 +12,18 @@ import type {
   InpaintingModel,
   KoharuInpaintingBackend,
   LlamaRuntimeProfile,
+  OcrDevice,
   OcrGpuBackend,
   OcrQualityMode,
 } from "../../shared/settingsTypes";
 import { normalizeAmdRocmTarget } from "../gpuInfo";
+import { inferHardwareVendorFromDefaults } from "./hardwareVendor";
 import {
-  inferHardwareVendorFromDefaults,
   resolveFluxBackend,
   resolveInpaintingModel,
   resolveKoharuInpaintingBackend,
   resolveNonEmptyString,
+  resolveOcrDevice,
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
   resolveOcrQualityMode,
@@ -188,8 +190,13 @@ export function resolveStoredOcrGpuCudaTag(
 export function resolveStoredOcrModeSettings(
   ocr: Record<string, unknown> | null,
   defaults: AppSettings,
-): { gpuBackend: OcrGpuBackend; qualityMode: OcrQualityMode } {
+): {
+  device: OcrDevice;
+  gpuBackend: OcrGpuBackend;
+  qualityMode: OcrQualityMode;
+} {
   const hardwareVendor = inferHardwareVendorFromDefaults(defaults);
+  const requestedDevice = resolveOcrDevice(ocr?.device, defaults.ocr.device);
   const requestedBackend = resolveOcrGpuBackend(
     ocr?.gpuBackend,
     defaults.ocr.gpuBackend ?? "cuda",
@@ -209,6 +216,9 @@ export function resolveStoredOcrModeSettings(
     hardwareVendor === "amd" ||
     hardwareVendor === "apple";
   return {
+    // The packaged Apple Silicon OCR runtime is PaddlePaddle CPU-only. An old
+    // GPU/VL preference must not bypass the current PP-OCRv6 CPU route.
+    device: hardwareVendor === "apple" ? "cpu" : requestedDevice,
     gpuBackend,
     qualityMode:
       requestedQuality === "cuda-legacy-full" && rejectsCudaLegacy

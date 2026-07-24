@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import type { MangaPage } from "../../../shared/libraryTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
+import { useFonts } from "../fonts/useFonts";
 import {
   adjustBlockFontSizeInChapter,
   type FontSizeAdjustment,
@@ -24,6 +25,7 @@ export function useAdjustSelectedBlockFontSizeAction({
   adjustment: FontSizeAdjustment,
 ) => void {
   const { t } = useTranslation("renderer");
+  const { catalog } = useFonts();
   return useCallback(
     (adjustment: FontSizeAdjustment) => {
       if (!selectedPage || !selectedBlock || selectedPageEditLocked) {
@@ -34,7 +36,13 @@ export function useAdjustSelectedBlockFontSizeAction({
       updateCurrentChapter(
         pageId,
         (current) =>
-          adjustBlockFontSizeInChapter(current, pageId, blockId, adjustment),
+          adjustBlockFontSizeInChapter(
+            current,
+            pageId,
+            blockId,
+            adjustment,
+            catalog,
+          ),
         {
           label: t("workspaceHistory.blockEdit"),
           mergeKey: `style:${blockId}`,
@@ -42,6 +50,7 @@ export function useAdjustSelectedBlockFontSizeAction({
       );
     },
     [
+      catalog,
       selectedBlock,
       selectedPage,
       selectedPageEditLocked,

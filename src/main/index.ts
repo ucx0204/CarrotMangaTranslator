@@ -34,6 +34,7 @@ import {
   showMacAlphaFirstRunNotice,
 } from "./macIntegration";
 import { runMacPackageSmokeExit } from "./macPackageSmoke";
+import { scheduleStartupMaintenance } from "./startupMaintenance";
 
 const appPaths = ensureWritableAppDirectories();
 const jobs = new ActiveJobStore();
@@ -46,6 +47,7 @@ const panelWindows = new PanelWindowRegistry(
 const errorReportWindows = new ErrorReportWindowRegistry();
 let quitCleanupStarted = false;
 let rendererLoadFailureDialogOpen = false;
+let cancelStartupMaintenance: (() => void) | null = null;
 
 registerImageProtocolScheme();
 resetAppLog();
@@ -86,16 +88,6 @@ void app
       return;
     }
     registerImageProtocolHandler();
-    await cleanupLegacyLogs();
-    const cleanupResult = await cleanupLibraryOrphans();
-    if (
-      cleanupResult.missingWorkReferencesRemoved > 0 ||
-      cleanupResult.missingChapterReferencesRemoved > 0 ||
-      cleanupResult.workDirsRemoved > 0 ||
-      cleanupResult.chapterDirsRemoved > 0
-    ) {
-      logInfo("Library orphan cleanup finished", cleanupResult);
-    }
     installNativeApplicationMenu();
     registerIpc({
       appPaths,
@@ -104,12 +96,18 @@ void app
       panelWindows,
       errorReportWindows,
       loadSimplePageRuntime: () => loadSimplePageRuntime(appPaths.runtimeDir),
-      decodeImage: (filePath) =>
-        decodeImageThroughRuntime(appPaths.runtimeDir, filePath),
+      decodeImage: (filePath, signal) =>
+        decodeImageThroughRuntime(appPaths.runtimeDir, filePath, signal),
       inpaintingRevisionStore,
     });
     reactivateDock();
     openMainWindow();
+    cancelStartupMaintenance = scheduleStartupMaintenance({
+      isBusy: () => jobs.hasActive,
+      run: runStartupMaintenance,
+      reportError: (error) =>
+        logError("Deferred startup maintenance failed", error),
+    });
     void showMacAlphaFirstRunNotice(appPaths.dataRoot, mainWindow, logWarn);
 
     app.on("activate", () => {
@@ -137,8 +135,24 @@ app.on("before-quit", (event) => {
   }
   event.preventDefault();
   quitCleanupStarted = true;
+  cancelStartupMaintenance?.();
+  cancelStartupMaintenance = null;
   void finishAppQuitCleanup();
 });
+
+async function runStartupMaintenance(): Promise<void> {
+  await cleanupLegacyLogs();
+  const cleanupResult = await cleanupLibraryOrphans();
+  if (
+    cleanupResult.missingWorkReferencesRemoved === 0 &&
+    cleanupResult.missingChapterReferencesRemoved === 0 &&
+    cleanupResult.workDirsRemoved === 0 &&
+    cleanupResult.chapterDirsRemoved === 0
+  ) {
+    return;
+  }
+  logInfo("Library orphan cleanup finished", cleanupResult);
+}
 
 async function finishAppQuitCleanup(): Promise<void> {
   let inpaintingHistoryReleaseSafe = true;

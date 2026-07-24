@@ -9,6 +9,7 @@ import {
   parseIpcPayload,
   ReleaseInpaintingHistoryTransactionsRequestSchema,
   SavePageBlocksRequestSchema,
+  SavePagesBlocksRequestSchema,
   StartAnalysisRequestSchema,
   StartInpaintingRequestSchema,
   TranslationBlockSchema,
@@ -144,6 +145,51 @@ describe("IPC schemas", () => {
     expect(parsed.baseBlocksHash).toBe("0123456789abcdef");
     expect(parsed.dirtyVersion).toBe(3);
     expect(parsed.saveReason).toBe("autosave");
+  });
+
+  it("accepts a page batch and rejects empty or duplicate page ids", () => {
+    const secondPageId = "44444444-4444-4444-8444-444444444444";
+    const pageUpdate = {
+      pageId,
+      baseUpdatedAt: "2026-01-01T00:00:00.000Z",
+      baseBlocksHash: "0123456789abcdef",
+      blocks: makeChapterSnapshot().pages[0].blocks,
+    };
+    const parsed = parseIpcPayload(
+      SavePagesBlocksRequestSchema,
+      {
+        chapterId,
+        dirtyVersion: 4,
+        saveReason: "manual",
+        pages: [
+          pageUpdate,
+          {
+            ...pageUpdate,
+            pageId: secondPageId,
+          },
+        ],
+      },
+      "페이지 블록 일괄 저장",
+    );
+
+    expect(parsed.pages.map((page) => page.pageId)).toEqual([
+      pageId,
+      secondPageId,
+    ]);
+    expect(() =>
+      parseIpcPayload(
+        SavePagesBlocksRequestSchema,
+        { chapterId, pages: [] },
+        "페이지 블록 일괄 저장",
+      ),
+    ).toThrow(/요청 형식/);
+    expect(() =>
+      parseIpcPayload(
+        SavePagesBlocksRequestSchema,
+        { chapterId, pages: [pageUpdate, pageUpdate] },
+        "페이지 블록 일괄 저장",
+      ),
+    ).toThrow(/요청 형식/);
   });
 
   it("accepts rotation, perspective, and curve data in autosave payloads", () => {
@@ -556,6 +602,37 @@ describe("IPC schemas", () => {
         "설정 저장",
       ),
     ).toThrow(/요청 형식/);
+    expect(
+      parseIpcPayload(
+        AppSettingsSchema,
+        {
+          ...payload,
+          keybindings: {
+            "toggle-block-chrome": "ctrl+shift+b",
+            "delete-block": "",
+          },
+        },
+        "설정 저장",
+      ).keybindings,
+    ).toEqual({
+      "toggle-block-chrome": "ctrl+shift+b",
+      "delete-block": "",
+    });
+    for (const keybindings of [
+      ["ctrl+a"],
+      { "removed-action": "ctrl+r" },
+      { "toggle-block-chrome": "CTRL+B" },
+      { "toggle-block-chrome": "shift+ctrl+b" },
+      { "toggle-block-chrome": 42 },
+    ]) {
+      expect(() =>
+        parseIpcPayload(
+          AppSettingsSchema,
+          { ...payload, keybindings },
+          "설정 저장",
+        ),
+      ).toThrow(/요청 형식/);
+    }
   });
 
   it("treats progressPercent as a 0..1 ratio in all IPC progress events", () => {

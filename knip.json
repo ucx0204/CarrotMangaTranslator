@@ -4,16 +4,21 @@
     "src/main/bootstrap.ts",
     "src/preload/index.ts",
     "src/renderer/src/main.tsx",
+    "src/renderer/src/pageExport/browserEntry.tsx",
+    "tests/pageArtworkPixelParityPanelEntry.tsx",
+    "scripts/page-artwork-pixel-parity/electron-runner.cjs",
     "vite.renderer.config.ts",
+    "vite.page-export.config.ts",
     "vitest.config.ts",
     "electron-builder.config.cjs",
-    "scripts/*.cjs"
+    "scripts/*.{cjs,mjs}"
   ],
   "project": [
     "src/**/*.{ts,tsx,cjs}",
     "tests/**/*.ts",
-    "scripts/**/*.cjs",
+    "scripts/**/*.{cjs,mjs}",
     "vite.renderer.config.ts",
+    "vite.page-export.config.ts",
     "vitest.config.ts",
     "electron-builder.config.cjs"
   ],

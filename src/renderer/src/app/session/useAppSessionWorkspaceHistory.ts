@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { mangaGateway } from "../../api/mangaGateway";
+import { inpaintingGateway as mangaGateway } from "../../api/inpaintingGateway";
 import { useWorkspaceHistory } from "../../hooks/useWorkspaceHistory";
-import { formatErrorMessage } from "../../lib/appHelpers";
+import { formatErrorMessage } from "../../lib/errorPresentation";
 import {
   restoreWorkspaceChapterEditSnapshot,
   type WorkspaceChapterEditSnapshot,
@@ -10,12 +10,41 @@ import {
 } from "../../lib/workspaceHistory";
 import type { ChapterSessionController } from "./useChapterSessionController";
 
+export type WorkspaceHistoryChapterController = {
+  core: Pick<
+    ChapterSessionController["core"],
+    | "currentChapter"
+    | "currentChapterRef"
+    | "selectedBlockIdRef"
+    | "selectedPageIdRef"
+    | "setCurrentChapter"
+    | "setSelectedBlockId"
+    | "setSelectedBlockIds"
+    | "setSelectedPageId"
+  >;
+  derivedState: Pick<
+    ChapterSessionController["derivedState"],
+    "clearPageImageCache"
+  >;
+  libraryActions: Pick<
+    ChapterSessionController["libraryActions"],
+    "refreshLibrary"
+  >;
+  mergeLiveChapter: ChapterSessionController["mergeLiveChapter"];
+  persistence: Pick<ChapterSessionController["persistence"], "markDirty">;
+  statusLog: Pick<ChapterSessionController["statusLog"], "pushStatus">;
+  uiState: Pick<
+    ChapterSessionController["uiState"],
+    "setPatternMaskStrokesByPage"
+  >;
+};
+
 /**
  * Owns the one chapter-scoped timeline shared by block edits, mask drafts and
  * opaque main-process image revisions.
  */
 export function useAppSessionWorkspaceHistory(
-  chapter: ChapterSessionController,
+  chapter: WorkspaceHistoryChapterController,
 ) {
   const { t } = useTranslation("renderer");
   const appliers = useWorkspaceHistoryAppliers(
@@ -37,7 +66,7 @@ export function useAppSessionWorkspaceHistory(
     chapterId: chapter.core.currentChapter?.id ?? null,
     ...appliers,
     onReplayError,
-    onReleaseError: (error) => console.error(error),
+    onReleaseError: reportHistoryReleaseError,
   });
   useResetOnPageStructureChange(chapter.core.currentChapter, history.reset);
   return history;
@@ -48,19 +77,32 @@ function useResetOnPageStructureChange(
   reset: () => void,
 ): void {
   const chapterId = chapter?.id ?? null;
-  const pageOrder = chapter?.pageOrder.join("\u0000") ?? "";
+  const pageOrder = chapter?.pageOrder ?? EMPTY_PAGE_ORDER;
   const previousRef = useRef({ chapterId, pageOrder });
   useEffect(() => {
     const previous = previousRef.current;
     previousRef.current = { chapterId, pageOrder };
-    if (previous.chapterId === chapterId && previous.pageOrder !== pageOrder) {
+    if (
+      previous.chapterId === chapterId &&
+      !hasSamePageOrder(previous.pageOrder, pageOrder)
+    ) {
       reset();
     }
   }, [chapterId, pageOrder, reset]);
 }
 
+const EMPTY_PAGE_ORDER: string[] = [];
+
+function hasSamePageOrder(previous: string[], next: string[]): boolean {
+  return (
+    previous === next ||
+    (previous.length === next.length &&
+      previous.every((pageId, index) => pageId === next[index]))
+  );
+}
+
 function useWorkspaceHistoryAppliers(
-  chapter: ChapterSessionController,
+  chapter: WorkspaceHistoryChapterController,
   refreshFailureMessage: string,
 ) {
   return {
@@ -74,29 +116,48 @@ function useWorkspaceHistoryAppliers(
   };
 }
 
-function useApplyChapterSnapshot(chapter: ChapterSessionController) {
+function useApplyChapterSnapshot(chapter: WorkspaceHistoryChapterController) {
   const { core, persistence } = chapter;
+  const {
+    currentChapterRef,
+    selectedBlockIdRef,
+    selectedPageIdRef,
+    setCurrentChapter,
+    setSelectedBlockId,
+    setSelectedBlockIds,
+    setSelectedPageId,
+  } = core;
+  const { markDirty } = persistence;
   return useCallback(
     (snapshot: WorkspaceChapterEditSnapshot) => {
-      const current = core.currentChapterRef.current;
+      const current = currentChapterRef.current;
       if (!current) {
         throw new Error("No chapter is open for workspace history.");
       }
       const next = restoreWorkspaceChapterEditSnapshot(current, snapshot);
-      markChangedBlockPagesDirty(current, snapshot, persistence.markDirty);
-      core.currentChapterRef.current = next;
-      core.selectedPageIdRef.current = snapshot.selectedPageId;
-      core.selectedBlockIdRef.current = snapshot.selectedBlockId;
-      core.setCurrentChapter(next);
-      core.setSelectedPageId(snapshot.selectedPageId);
-      core.setSelectedBlockId(snapshot.selectedBlockId);
-      core.setSelectedBlockIds([...snapshot.selectedBlockIds]);
+      markChangedBlockPagesDirty(current, snapshot, markDirty);
+      currentChapterRef.current = next;
+      selectedPageIdRef.current = snapshot.selectedPageId;
+      selectedBlockIdRef.current = snapshot.selectedBlockId;
+      setCurrentChapter(next);
+      setSelectedPageId(snapshot.selectedPageId);
+      setSelectedBlockId(snapshot.selectedBlockId);
+      setSelectedBlockIds([...snapshot.selectedBlockIds]);
     },
-    [core, persistence.markDirty],
+    [
+      currentChapterRef,
+      markDirty,
+      selectedBlockIdRef,
+      selectedPageIdRef,
+      setCurrentChapter,
+      setSelectedBlockId,
+      setSelectedBlockIds,
+      setSelectedPageId,
+    ],
   );
 }
 
-function useApplyMaskSnapshot(chapter: ChapterSessionController) {
+function useApplyMaskSnapshot(chapter: WorkspaceHistoryChapterController) {
   const currentChapterRef = chapter.core.currentChapterRef;
   const setMasks = chapter.uiState.setPatternMaskStrokesByPage;
   return useCallback(
@@ -115,7 +176,7 @@ function useApplyMaskSnapshot(chapter: ChapterSessionController) {
 }
 
 function useApplyImageTransaction(
-  chapter: ChapterSessionController,
+  chapter: WorkspaceHistoryChapterController,
   refreshFailureMessage: string,
 ) {
   const currentChapterRef = chapter.core.currentChapterRef;
@@ -156,6 +217,10 @@ function useReleaseImageTransactions() {
   return useCallback(async (transactionIds: string[]) => {
     await mangaGateway.releaseInpaintingHistoryTransactions({ transactionIds });
   }, []);
+}
+
+function reportHistoryReleaseError(error: unknown): void {
+  console.error(error);
 }
 
 function applyMaskSnapshot(
