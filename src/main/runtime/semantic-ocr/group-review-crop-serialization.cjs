@@ -29,6 +29,7 @@ const {
 function serializeRegion(region, cropNumber) {
   const fragments = region.fragments.map((fragment) => ({
     reviewFragmentId: fragment.fragmentId,
+    reviewContextId: fragment.reviewContextId,
     reviewStatus: fragment.status,
     reviewReasons: [...fragment.reasons],
     candidateIds: fragment.candidates.map((candidate) => candidate.id),
@@ -40,6 +41,7 @@ function serializeRegion(region, cropNumber) {
       fragment.candidates.map((candidate) => ({
         candidateId: candidate.id,
         reviewFragmentId: fragment.fragmentId,
+        reviewContextId: candidate.reviewContextId,
         reviewStatus: fragment.status,
         reviewOrder: candidate.order,
         paddleGroupId: candidate.paddleGroupId,

@@ -8,7 +8,13 @@ import {
 } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
-import type { RemoteFileMetadata } from "./types";
+type RemoteFileMetadata = {
+  url: string;
+  bytes: number;
+  downloadedAt: string;
+  mtimeMs?: number;
+  sha256?: string;
+};
 
 type Dirent = import("node:fs").Dirent;
 

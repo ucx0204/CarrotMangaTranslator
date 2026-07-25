@@ -89,9 +89,16 @@
   height: 100%;
   pointer-events: none;
   contain: strict;
+  visibility: visible;
+  opacity: 1;
 }
 
-.retouch-live-canvas[hidden],
+.retouch-live-canvas[hidden] {
+  display: block;
+  visibility: hidden;
+  opacity: 0;
+}
+
 .retouch-original-source {
   display: none;
 }

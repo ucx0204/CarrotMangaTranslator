@@ -7,6 +7,13 @@ import {
   preloadPageImage,
   type PageImageRequestCoordinator,
 } from "./pageImageDataUrlCache";
+import {
+  createReadyPageImageFrame,
+  EMPTY_PAGE_IMAGE_FRAME,
+  markPageImageFramePending,
+  resolveRenderablePageImages,
+  type PageImageFrame,
+} from "./pageImageFrame";
 
 const EMPTY_NEIGHBOR_TARGETS: Array<{ pageId: string; imagePath: string }> = [];
 
@@ -26,21 +33,19 @@ type UsePageImageDataUrlsResult = {
   clearPageImageCache: () => void;
 };
 
-type ImageDataUrlSetter = React.Dispatch<React.SetStateAction<string>>;
-type PageImagePageIdSetter = React.Dispatch<
-  React.SetStateAction<string | null>
+type PageImageFrameSetter = React.Dispatch<
+  React.SetStateAction<PageImageFrame>
 >;
+
 type OriginalPageImageEffectOptions = {
   cacheRevision: number;
   pageImageCacheRef: React.MutableRefObject<Map<string, string>>;
   requestCoordinatorRef: React.MutableRefObject<PageImageRequestCoordinator>;
+  selectedPageImage: PageImageFrame;
   selectedPageId: string | null;
-  selectedPageImageDataUrl: string;
-  selectedPageImageDataUrlPageId: string | null;
   selectedPageImagePath: string | null;
   selectedPageOriginalImagePath: string | null;
-  setSelectedPageOriginalImageDataUrl: ImageDataUrlSetter;
-  setSelectedPageOriginalImageDataUrlPageId: PageImagePageIdSetter;
+  setSelectedPageOriginalImage: PageImageFrameSetter;
 };
 
 export function usePageImageDataUrls({
@@ -49,18 +54,10 @@ export function usePageImageDataUrls({
   selectedPageImagePath,
   neighborTargets = EMPTY_NEIGHBOR_TARGETS,
 }: UsePageImageDataUrlsOptions): UsePageImageDataUrlsResult {
-  const [selectedPageImageDataUrl, setSelectedPageImageDataUrl] =
-    React.useState("");
-  const [
-    selectedPageOriginalImageDataUrl,
-    setSelectedPageOriginalImageDataUrl,
-  ] = React.useState("");
-  const [selectedPageImageDataUrlPageId, setSelectedPageImageDataUrlPageId] =
-    React.useState<string | null>(null);
-  const [
-    selectedPageOriginalImageDataUrlPageId,
-    setSelectedPageOriginalImageDataUrlPageId,
-  ] = React.useState<string | null>(null);
+  const [selectedPageImage, setSelectedPageImage] =
+    React.useState<PageImageFrame>(EMPTY_PAGE_IMAGE_FRAME);
+  const [selectedPageOriginalImage, setSelectedPageOriginalImage] =
+    React.useState<PageImageFrame>(EMPTY_PAGE_IMAGE_FRAME);
   const [cacheRevision, setCacheRevision] = React.useState(0);
   const [pageImageCache] = React.useState(() => new Map<string, string>());
   const pageImageCacheRef = React.useRef<Map<string, string>>(pageImageCache);
@@ -71,16 +68,16 @@ export function usePageImageDataUrls({
     React.useRef<PageImageRequestCoordinator>(requestCoordinator);
   const selectedPageId = selectedPage?.id ?? null;
   const selectedPageOriginalImagePath = selectedPage?.imagePath ?? null;
+  const effectiveSelectedPageImagePath =
+    selectedPageImagePath ?? selectedPageOriginalImagePath;
 
   const clearPageImageCache = useClearPageImageCache({
     chapterId,
     pageImageCacheRef,
     requestCoordinatorRef,
     setCacheRevision,
-    setSelectedPageImageDataUrl,
-    setSelectedPageImageDataUrlPageId,
-    setSelectedPageOriginalImageDataUrl,
-    setSelectedPageOriginalImageDataUrlPageId,
+    setSelectedPageImage,
+    setSelectedPageOriginalImage,
   });
   useSelectedPageImageEffect({
     cacheRevision,
@@ -89,22 +86,17 @@ export function usePageImageDataUrls({
     selectedPageId,
     selectedPageImagePath,
     selectedPageOriginalImagePath,
-    setSelectedPageImageDataUrl,
-    setSelectedPageImageDataUrlPageId,
-    setSelectedPageOriginalImageDataUrl,
-    setSelectedPageOriginalImageDataUrlPageId,
+    setSelectedPageImage,
   });
   useOriginalPageImageEffect({
     cacheRevision,
     pageImageCacheRef,
     requestCoordinatorRef,
+    selectedPageImage,
     selectedPageId,
-    selectedPageImageDataUrl,
-    selectedPageImageDataUrlPageId,
     selectedPageImagePath,
     selectedPageOriginalImagePath,
-    setSelectedPageOriginalImageDataUrl,
-    setSelectedPageOriginalImageDataUrlPageId,
+    setSelectedPageOriginalImage,
   });
   useNeighborPagePrefetch(
     neighborTargets,
@@ -112,11 +104,21 @@ export function usePageImageDataUrls({
     requestCoordinatorRef,
   );
 
+  const { original, selected } = resolveRenderablePageImages({
+    coordinator: requestCoordinator,
+    currentOriginal: selectedPageOriginalImage,
+    currentSelected: selectedPageImage,
+    originalImagePath: selectedPageOriginalImagePath,
+    pageId: selectedPageId,
+    pageImageCache,
+    selectedImagePath: effectiveSelectedPageImagePath,
+  });
+
   return {
-    selectedPageImageDataUrl,
-    selectedPageImageDataUrlPageId,
-    selectedPageOriginalImageDataUrl,
-    selectedPageOriginalImageDataUrlPageId,
+    selectedPageImageDataUrl: selected.dataUrl,
+    selectedPageImageDataUrlPageId: selected.readyPageId,
+    selectedPageOriginalImageDataUrl: original.dataUrl,
+    selectedPageOriginalImageDataUrlPageId: original.readyPageId,
     clearPageImageCache,
   };
 }
@@ -126,43 +128,34 @@ function useClearPageImageCache({
   pageImageCacheRef,
   requestCoordinatorRef,
   setCacheRevision,
-  setSelectedPageImageDataUrl,
-  setSelectedPageImageDataUrlPageId,
-  setSelectedPageOriginalImageDataUrl,
-  setSelectedPageOriginalImageDataUrlPageId,
+  setSelectedPageImage,
+  setSelectedPageOriginalImage,
 }: {
   chapterId: string | null;
   pageImageCacheRef: React.MutableRefObject<Map<string, string>>;
   requestCoordinatorRef: React.MutableRefObject<PageImageRequestCoordinator>;
   setCacheRevision: React.Dispatch<React.SetStateAction<number>>;
-  setSelectedPageImageDataUrl: ImageDataUrlSetter;
-  setSelectedPageImageDataUrlPageId: PageImagePageIdSetter;
-  setSelectedPageOriginalImageDataUrl: ImageDataUrlSetter;
-  setSelectedPageOriginalImageDataUrlPageId: PageImagePageIdSetter;
+  setSelectedPageImage: PageImageFrameSetter;
+  setSelectedPageOriginalImage: PageImageFrameSetter;
 }): () => void {
   const clearPageImageCache = React.useCallback(() => {
     clearPageImageRequestCache(
       pageImageCacheRef.current,
       requestCoordinatorRef.current,
     );
-    setSelectedPageImageDataUrl("");
-    setSelectedPageImageDataUrlPageId(null);
-    setSelectedPageOriginalImageDataUrl("");
-    setSelectedPageOriginalImageDataUrlPageId(null);
     setCacheRevision((revision) => revision + 1);
-  }, [
-    pageImageCacheRef,
-    requestCoordinatorRef,
-    setCacheRevision,
-    setSelectedPageImageDataUrl,
-    setSelectedPageImageDataUrlPageId,
-    setSelectedPageOriginalImageDataUrl,
-    setSelectedPageOriginalImageDataUrlPageId,
-  ]);
+  }, [pageImageCacheRef, requestCoordinatorRef, setCacheRevision]);
 
   React.useEffect(() => {
+    setSelectedPageImage(EMPTY_PAGE_IMAGE_FRAME);
+    setSelectedPageOriginalImage(EMPTY_PAGE_IMAGE_FRAME);
     clearPageImageCache();
-  }, [chapterId, clearPageImageCache]);
+  }, [
+    chapterId,
+    clearPageImageCache,
+    setSelectedPageImage,
+    setSelectedPageOriginalImage,
+  ]);
   React.useEffect(
     () => () => {
       clearPageImageRequestCache(
@@ -183,10 +176,7 @@ function useSelectedPageImageEffect({
   selectedPageId,
   selectedPageImagePath,
   selectedPageOriginalImagePath,
-  setSelectedPageImageDataUrl,
-  setSelectedPageImageDataUrlPageId,
-  setSelectedPageOriginalImageDataUrl,
-  setSelectedPageOriginalImageDataUrlPageId,
+  setSelectedPageImage,
 }: {
   cacheRevision: number;
   pageImageCacheRef: React.MutableRefObject<Map<string, string>>;
@@ -194,49 +184,39 @@ function useSelectedPageImageEffect({
   selectedPageId: string | null;
   selectedPageImagePath: string | null;
   selectedPageOriginalImagePath: string | null;
-  setSelectedPageImageDataUrl: ImageDataUrlSetter;
-  setSelectedPageImageDataUrlPageId: PageImagePageIdSetter;
-  setSelectedPageOriginalImageDataUrl: ImageDataUrlSetter;
-  setSelectedPageOriginalImageDataUrlPageId: PageImagePageIdSetter;
+  setSelectedPageImage: PageImageFrameSetter;
 }): void {
   React.useEffect(() => {
     if (!selectedPageId || !selectedPageOriginalImagePath) {
-      setSelectedPageImageDataUrl("");
-      setSelectedPageImageDataUrlPageId(null);
-      setSelectedPageOriginalImageDataUrl("");
-      setSelectedPageOriginalImageDataUrlPageId(null);
+      setSelectedPageImage(EMPTY_PAGE_IMAGE_FRAME);
       return;
     }
 
     const imagePath = selectedPageImagePath ?? selectedPageOriginalImagePath;
-    setSelectedPageImageDataUrlPageId(null);
+    setSelectedPageImage((current) =>
+      markPageImageFramePending(current, selectedPageId),
+    );
     const cacheKey = `${selectedPageId}:${imagePath}`;
-    const cached = pageImageCacheRef.current.get(cacheKey);
-    if (cached) {
-      setSelectedPageImageDataUrl(cached);
-      setSelectedPageImageDataUrlPageId(selectedPageId);
-      return;
-    }
-
+    const coordinator = requestCoordinatorRef.current;
+    const requestEpoch = coordinator.epoch;
     let cancelled = false;
-    void getCachedPageImageDataUrl(
+    void loadDecodedPageImage(
       pageImageCacheRef.current,
-      requestCoordinatorRef.current,
+      coordinator,
       cacheKey,
       imagePath,
     )
       .then((dataUrl) => {
-        if (cancelled) {
+        if (cancelled || coordinator.epoch !== requestEpoch) {
           return;
         }
-        setSelectedPageImageDataUrl(dataUrl);
-        setSelectedPageImageDataUrlPageId(selectedPageId);
+        setSelectedPageImage(
+          createReadyPageImageFrame(selectedPageId, dataUrl),
+        );
       })
       .catch((error) => {
-        if (!cancelled) {
+        if (!cancelled && coordinator.epoch === requestEpoch) {
           console.error(error);
-          setSelectedPageImageDataUrl("");
-          setSelectedPageImageDataUrlPageId(null);
         }
       });
 
@@ -250,10 +230,7 @@ function useSelectedPageImageEffect({
     selectedPageId,
     selectedPageImagePath,
     selectedPageOriginalImagePath,
-    setSelectedPageImageDataUrl,
-    setSelectedPageImageDataUrlPageId,
-    setSelectedPageOriginalImageDataUrl,
-    setSelectedPageOriginalImageDataUrlPageId,
+    setSelectedPageImage,
   ]);
 }
 
@@ -261,59 +238,52 @@ function useOriginalPageImageEffect({
   cacheRevision,
   pageImageCacheRef,
   requestCoordinatorRef,
+  selectedPageImage,
   selectedPageId,
-  selectedPageImageDataUrl,
-  selectedPageImageDataUrlPageId,
   selectedPageImagePath,
   selectedPageOriginalImagePath,
-  setSelectedPageOriginalImageDataUrl,
-  setSelectedPageOriginalImageDataUrlPageId,
+  setSelectedPageOriginalImage,
 }: OriginalPageImageEffectOptions): void {
   React.useEffect(() => {
     if (!selectedPageId || !selectedPageOriginalImagePath) {
-      setSelectedPageOriginalImageDataUrl("");
-      setSelectedPageOriginalImageDataUrlPageId(null);
+      setSelectedPageOriginalImage(EMPTY_PAGE_IMAGE_FRAME);
       return;
     }
     if (
       selectedPageImagePath === selectedPageOriginalImagePath &&
-      selectedPageImageDataUrl &&
-      selectedPageImageDataUrlPageId === selectedPageId
+      selectedPageImage.dataUrl &&
+      selectedPageImage.readyPageId === selectedPageId
     ) {
-      setSelectedPageOriginalImageDataUrl(selectedPageImageDataUrl);
-      setSelectedPageOriginalImageDataUrlPageId(selectedPageId);
+      setSelectedPageOriginalImage(
+        createReadyPageImageFrame(selectedPageId, selectedPageImage.dataUrl),
+      );
       return;
     }
 
-    setSelectedPageOriginalImageDataUrlPageId(null);
+    setSelectedPageOriginalImage((current) =>
+      markPageImageFramePending(current, selectedPageId),
+    );
     const cacheKey = `${selectedPageId}:original:${selectedPageOriginalImagePath}`;
-    const cached = pageImageCacheRef.current.get(cacheKey);
-    if (cached) {
-      setSelectedPageOriginalImageDataUrl(cached);
-      setSelectedPageOriginalImageDataUrlPageId(selectedPageId);
-      return;
-    }
-
+    const coordinator = requestCoordinatorRef.current;
+    const requestEpoch = coordinator.epoch;
     let cancelled = false;
-    setSelectedPageOriginalImageDataUrl("");
-    void getCachedPageImageDataUrl(
+    void loadDecodedPageImage(
       pageImageCacheRef.current,
-      requestCoordinatorRef.current,
+      coordinator,
       cacheKey,
       selectedPageOriginalImagePath,
     )
       .then((dataUrl) => {
-        if (cancelled) {
+        if (cancelled || coordinator.epoch !== requestEpoch) {
           return;
         }
-        setSelectedPageOriginalImageDataUrl(dataUrl);
-        setSelectedPageOriginalImageDataUrlPageId(selectedPageId);
+        setSelectedPageOriginalImage(
+          createReadyPageImageFrame(selectedPageId, dataUrl),
+        );
       })
       .catch((error) => {
-        if (!cancelled) {
+        if (!cancelled && coordinator.epoch === requestEpoch) {
           console.error(error);
-          setSelectedPageOriginalImageDataUrl("");
-          setSelectedPageOriginalImageDataUrlPageId(null);
         }
       });
 
@@ -325,13 +295,27 @@ function useOriginalPageImageEffect({
     pageImageCacheRef,
     requestCoordinatorRef,
     selectedPageId,
-    selectedPageImageDataUrl,
-    selectedPageImageDataUrlPageId,
+    selectedPageImage,
     selectedPageImagePath,
     selectedPageOriginalImagePath,
-    setSelectedPageOriginalImageDataUrl,
-    setSelectedPageOriginalImageDataUrlPageId,
+    setSelectedPageOriginalImage,
   ]);
+}
+
+async function loadDecodedPageImage(
+  cache: Map<string, string>,
+  coordinator: PageImageRequestCoordinator,
+  cacheKey: string,
+  imagePath: string,
+): Promise<string> {
+  const dataUrl = await getCachedPageImageDataUrl(
+    cache,
+    coordinator,
+    cacheKey,
+    imagePath,
+  );
+  await preloadPageImage(coordinator, dataUrl);
+  return dataUrl;
 }
 
 function useNeighborPagePrefetch(

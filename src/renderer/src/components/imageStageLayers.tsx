@@ -7,6 +7,7 @@ import {
   useBlockCreateRectPreview,
   useRegionSelectionRectPreview,
 } from "../lib/workspaceInteractionPreview";
+import { resolveRetouchCanvasBackingSize } from "../lib/retouchLiveGeometry";
 import type { ImageStageProps, RetouchStageModel } from "./imageStageTypes";
 
 type StageImageProps = {
@@ -111,20 +112,25 @@ function areCommittedMaskLayerPropsEqual(
 export const RetouchLiveLayer = React.memo(function RetouchLiveLayer({
   retouchCursor,
   retouchOriginalImageDataUrl,
+  stageSize,
 }: {
   retouchCursor: ImageStageProps["retouchCursor"];
   retouchOriginalImageDataUrl: string;
+  stageSize: ViewportSize | null;
 }): React.JSX.Element | null {
   if (!retouchCursor) return null;
+  const canvasSize = stageSize
+    ? resolveRetouchCanvasBackingSize(stageSize.width, stageSize.height)
+    : { height: 1, width: 1 };
   return (
     <>
       <canvas
         aria-hidden="true"
         className="retouch-live-canvas"
         data-retouch-live-canvas=""
-        height={1}
+        height={canvasSize.height}
         hidden
-        width={1}
+        width={canvasSize.width}
       />
       {retouchCursor.mode === "eraser" && retouchOriginalImageDataUrl ? (
         <img

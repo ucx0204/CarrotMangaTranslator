@@ -15,6 +15,9 @@ const {
   reviewGroupOnlyCrop,
 } = require("../semantic-ocr/group-only-review.cjs");
 const {
+  buildAnimeTextSpatialRelations,
+} = require("../semantic-ocr/anime-text-review-relations.cjs");
+const {
   classifyGroupOnlyReviewRequestFailure,
 } = require("../semantic-ocr/review-errors.cjs");
 const {
@@ -29,7 +32,7 @@ const {
 const { findAbortError } = require("./model-http-errors.cjs");
 const { nowMs } = require("./model-runtime-services.cjs");
 
-const GROUP_ONLY_REVIEW_REQUEST_VERSION = 1;
+const GROUP_ONLY_REVIEW_REQUEST_VERSION = 4;
 
 /**
  * @typedef {Record<string,unknown>} JsonRecord
@@ -55,7 +58,7 @@ async function requestGroupOnlyPageReview(server, options, ocr) {
     return materializeOutcome(options, await cached.promise, cached.cacheHit);
   } catch (error) {
     if (isAbort(error, options.abortSignal)) {
-      deleteCachedPageReview(cached.key);
+      deleteCachedPageReview(cached.key, cached.promise);
     }
     throw error;
   }
@@ -179,6 +182,9 @@ function buildReviewCase(region, hintById) {
       paddleGroupSize: projected.paddleGroupSize,
     };
   });
+  const spatialRelations = buildAnimeTextSpatialRelations(candidates);
+  const hasAnimeTextRelation =
+    spatialRelations.sharedAnimeTextRegions.length > 0;
   return {
     candidates,
     candidateOrder: candidates.map((hint) => hint.id),
@@ -193,6 +199,7 @@ function buildReviewCase(region, hintById) {
         candidateIds: fragment.candidateIds,
       };
     }),
+    ...(hasAnimeTextRelation ? { spatialRelations } : {}),
   };
 }
 
@@ -215,7 +222,16 @@ function finalizeReviewedPage(
     validatedGroupOnlyReview: true,
   });
   const fallbackCount = results.filter((item) => item.usedFallback).length;
-  const requestCount = results.filter((item) => !item.requestSkipped).length;
+  const requestCount = results.reduce(
+    (total, item) =>
+      total +
+      (Number.isInteger(item.requestCount)
+        ? item.requestCount
+        : item.requestSkipped
+          ? 0
+          : 1),
+    0,
+  );
   const status =
     fallbackCount === 0
       ? requestCount === 0
@@ -394,6 +410,11 @@ function summarizeCrop(region, result) {
     source: result.source,
     usedFallback: result.usedFallback === true,
     requestSkipped: result.requestSkipped === true,
+    requestCount: Number.isInteger(result.requestCount)
+      ? result.requestCount
+      : result.requestSkipped
+        ? 0
+        : 1,
     groupCandidateIds: Array.isArray(result.groups)
       ? result.groups.map((group) => group.candidateIds)
       : [],
@@ -449,6 +470,7 @@ function describeError(error) {
 
 module.exports = {
   GROUP_ONLY_REVIEW_REQUEST_VERSION,
+  buildAnimeTextSpatialRelations,
   buildPageReviewFingerprint,
   clearGroupOnlyPageReviewCache,
   requestGroupOnlyPageReview,

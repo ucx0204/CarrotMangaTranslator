@@ -84,7 +84,7 @@ describe("group-only crop review contract", () => {
     };
 
     expect(plan.candidateOrder).toEqual([10, 11, 20, 21]);
-    expect(GROUP_ONLY_PROMPT_CONTRACT_VERSION).toBe(11);
+    expect(GROUP_ONLY_PROMPT_CONTRACT_VERSION).toBe(16);
     expect(prompt).toContain("candidateOrder=[10,11,20,21]");
     expect(prompt).toContain("Return exactly 4 labels");
     expect(prompt).toContain("Never split a supplied upstream fragment");
@@ -133,10 +133,10 @@ describe("group-only crop review contract", () => {
       {
         localGroupIndex: 1,
         modelGroup: 2,
-        candidateIds: [10, 20, 21, 11],
-        bodyCandidateIds: [10, 20, 21],
+        candidateIds: [21, 20, 10, 11],
+        bodyCandidateIds: [21, 20, 10],
         rubyCandidateIds: [11],
-        jp: "本文末",
+        jp: "末文本",
         bbox: { x1: 80, y1: 80, x2: 280, y2: 220 },
       },
     ]);
@@ -154,7 +154,7 @@ describe("group-only crop review contract", () => {
       y2: 220,
       untouched: "candidate-10",
       groupId: "G001",
-      orderInGroup: 1,
+      orderInGroup: 3,
       groupSize: 4,
       semanticGroup: true,
       rolePrior: "ordinary_mergeable",
@@ -174,6 +174,155 @@ describe("group-only crop review contract", () => {
     });
     expect(applied.validatedGroupOnlyReview).toBe(true);
     expect(reviewCase.candidates).toEqual(makeCase().candidates);
+  });
+
+  it("orders the actual p003 cross-fragment vertical group in Japanese reading order", () => {
+    const reviewCase = {
+      candidates: [
+        reviewCandidate(8, "心を風に", 1057, 1203, 1107, 1357, "P003"),
+        reviewCandidate(11, "しているから", 1018, 1207, 1059, 1426, "P003"),
+        reviewCandidate(7, "今", 1101, 1202, 1151, 1256, "P003"),
+      ],
+      upstreamFragments: [
+        { fragment: "B004", status: "confirmed", ids: [8, 11] },
+        { fragment: "D001", status: "deferred", ids: [7] },
+      ],
+    };
+    const plan = buildGroupOnlyReviewPlan(reviewCase, makeRegion());
+    const projected = parseGroupOnlyReviewResponse(
+      JSON.stringify({
+        labels: [
+          { group: 1, role: "body" },
+          { group: 1, role: "body" },
+          { group: 1, role: "body" },
+        ],
+      }),
+      plan,
+    );
+
+    expect(projected.groups).toEqual([
+      expect.objectContaining({
+        candidateIds: [7, 8, 11],
+        bodyCandidateIds: [7, 8, 11],
+        rubyCandidateIds: [],
+        jp: "今心を風にしているから",
+      }),
+    ]);
+    const applied = applyReviewedGroupsToHints(
+      reviewCase.candidates as JsonRecord[],
+      [projected],
+    );
+    const appliedById = new Map(applied.hints.map((hint) => [hint.id, hint]));
+    expect(applied.hints.map((hint) => hint.id)).toEqual([8, 11, 7]);
+    expect(appliedById.get(7)).toMatchObject({ orderInGroup: 1 });
+    expect(appliedById.get(8)).toMatchObject({ orderInGroup: 2 });
+    expect(appliedById.get(11)).toMatchObject({ orderInGroup: 3 });
+  });
+
+  it("orders the actual p002 deferred right column before its confirmed fragment", () => {
+    const reviewCase = {
+      candidates: [
+        reviewCandidate(3, "やってきた デー", 794, 225, 843, 522, "P002"),
+        reviewCandidate(4, "ついに", 837, 228, 890, 347, "P002"),
+      ],
+      upstreamFragments: [
+        { fragment: "B002", status: "confirmed", ids: [3] },
+        { fragment: "D001", status: "deferred", ids: [4] },
+      ],
+    };
+    const plan = buildGroupOnlyReviewPlan(reviewCase, makeRegion());
+    const projected = parseGroupOnlyReviewResponse(
+      JSON.stringify({
+        labels: [
+          { group: 1, role: "body" },
+          { group: 1, role: "body" },
+        ],
+      }),
+      plan,
+    );
+
+    expect(projected.groups).toEqual([
+      expect.objectContaining({
+        candidateIds: [4, 3],
+        bodyCandidateIds: [4, 3],
+        rubyCandidateIds: [],
+        jp: "ついにやってきた デー",
+      }),
+    ]);
+    const applied = applyReviewedGroupsToHints(
+      reviewCase.candidates as JsonRecord[],
+      [projected],
+    );
+    const appliedById = new Map(applied.hints.map((hint) => [hint.id, hint]));
+    expect(applied.hints.map((hint) => hint.id)).toEqual([3, 4]);
+    expect(appliedById.get(4)).toMatchObject({ orderInGroup: 1 });
+    expect(appliedById.get(3)).toMatchObject({ orderInGroup: 2 });
+  });
+
+  it("orders merged horizontal fragments by rows and then left to right", () => {
+    const reviewCase = {
+      candidates: [
+        reviewCandidate(3, "C", 20, 108, 100, 138, "HORIZONTAL"),
+        reviewCandidate(4, "D", 115, 112, 195, 142, "HORIZONTAL"),
+        reviewCandidate(1, "A", 20, 20, 100, 50, "HORIZONTAL"),
+        reviewCandidate(2, "B", 115, 24, 195, 54, "HORIZONTAL"),
+      ],
+      upstreamFragments: [
+        { fragment: "BOTTOM", status: "confirmed", ids: [3, 4] },
+        { fragment: "TOP", status: "deferred", ids: [1, 2] },
+      ],
+    };
+    const projected = parseGroupOnlyReviewResponse(
+      JSON.stringify({
+        labels: Array.from({ length: 4 }, () => ({
+          group: 1,
+          role: "body",
+        })),
+      }),
+      buildGroupOnlyReviewPlan(reviewCase, makeRegion()),
+    );
+
+    expect(projected.groups).toEqual([
+      expect.objectContaining({
+        candidateIds: [1, 2, 3, 4],
+        bodyCandidateIds: [1, 2, 3, 4],
+        rubyCandidateIds: [],
+        jp: "ABCD",
+      }),
+    ]);
+  });
+
+  it("orders merged bodies without letting ruby affect direction and keeps ruby last", () => {
+    const reviewCase = {
+      candidates: [
+        reviewCandidate(1, "前", 100, 100, 140, 300, "VERTICAL"),
+        reviewCandidate(9, "まえ", 142, 110, 157, 160, "VERTICAL"),
+        reviewCandidate(2, "後", 50, 100, 90, 300, "VERTICAL"),
+      ],
+      upstreamFragments: [
+        { fragment: "B001", status: "confirmed", ids: [1, 9] },
+        { fragment: "D001", status: "deferred", ids: [2] },
+      ],
+    };
+    const projected = parseGroupOnlyReviewResponse(
+      JSON.stringify({
+        labels: [
+          { group: 1, role: "body" },
+          { group: 1, role: "ruby" },
+          { group: 1, role: "body" },
+        ],
+      }),
+      buildGroupOnlyReviewPlan(reviewCase, makeRegion()),
+    );
+
+    expect(projected.groups).toEqual([
+      expect.objectContaining({
+        candidateIds: [1, 2, 9],
+        bodyCandidateIds: [1, 2],
+        rubyCandidateIds: [9],
+        jp: "前後",
+      }),
+    ]);
   });
 
   it("separates weak diagonal merges across different Paddle lineages and keeps each ruby host", () => {
@@ -222,20 +371,29 @@ describe("group-only crop review contract", () => {
 
   it("preserves same-Paddle, strongly aligned, and disjoint cross-fragment merges", () => {
     const cases = [
-      [
-        reviewCandidate(1, "右", 186, 521, 310, 686, "SHARED"),
-        reviewCandidate(2, "左", 129, 634, 193, 778, "SHARED"),
-      ],
-      [
-        reviewCandidate(1, "上", 100, 100, 140, 300, "PADDLE-A"),
-        reviewCandidate(2, "下", 130, 100, 170, 300, "PADDLE-B"),
-      ],
-      [
-        reviewCandidate(1, "斜", 100, 100, 150, 200, "PADDLE-A"),
-        reviewCandidate(2, "音", 300, 300, 350, 400, "PADDLE-B"),
-      ],
+      {
+        candidates: [
+          reviewCandidate(1, "右", 186, 521, 310, 686, "SHARED"),
+          reviewCandidate(2, "左", 129, 634, 193, 778, "SHARED"),
+        ],
+        expected: [1, 2],
+      },
+      {
+        candidates: [
+          reviewCandidate(1, "上", 100, 100, 140, 300, "PADDLE-A"),
+          reviewCandidate(2, "下", 130, 100, 170, 300, "PADDLE-B"),
+        ],
+        expected: [2, 1],
+      },
+      {
+        candidates: [
+          reviewCandidate(1, "斜", 100, 100, 150, 200, "PADDLE-A"),
+          reviewCandidate(2, "音", 300, 300, 350, 400, "PADDLE-B"),
+        ],
+        expected: [2, 1],
+      },
     ];
-    for (const candidates of cases) {
+    for (const { candidates, expected } of cases) {
       const plan = buildGroupOnlyReviewPlan(
         {
           candidates,
@@ -256,7 +414,7 @@ describe("group-only crop review contract", () => {
         plan,
       );
       expect(projected.groups.map((group) => group.candidateIds)).toEqual([
-        [1, 2],
+        expected,
       ]);
     }
   });
@@ -501,12 +659,49 @@ describe("group-only crop review contract", () => {
       source: "model",
       usedFallback: false,
       requestSkipped: false,
+      requestCount: 1,
       rawResponse: { usage: { prompt_tokens: 100 } },
     });
     expect(result.groups.map((group) => group.candidateIds)).toEqual([
       [10, 11],
       [20, 21],
     ]);
+  });
+
+  it("preserves exact upstream order after model failure instead of applying spatial merge order", async () => {
+    const reviewCase = {
+      candidates: [
+        reviewCandidate(3, "やってきた デー", 794, 225, 843, 522, "P002"),
+        reviewCandidate(4, "ついに", 837, 228, 890, 347, "P002"),
+      ],
+      upstreamFragments: [
+        { fragment: "B002", status: "confirmed", ids: [3, 4] },
+      ],
+    };
+    const result = await reviewGroupOnlyCrop(
+      reviewCase,
+      makeRegion(),
+      async () => {
+        throw Object.assign(new Error("HTTP 500"), {
+          failureCategory: "model-request",
+        });
+      },
+    );
+
+    expect(result).toMatchObject({
+      status: "fallback",
+      source: "upstream-fallback",
+      usedFallback: true,
+      requestSkipped: false,
+      groups: [
+        {
+          candidateIds: [3, 4],
+          bodyCandidateIds: [3, 4],
+          rubyCandidateIds: [],
+          jp: "やってきた デーついに",
+        },
+      ],
+    });
   });
 
   it.each([
@@ -622,6 +817,7 @@ describe("group-only crop review contract", () => {
       source: "singleton",
       usedFallback: false,
       requestSkipped: true,
+      requestCount: 0,
       labels: [{ group: 1, role: "body" }],
       groups: [
         {

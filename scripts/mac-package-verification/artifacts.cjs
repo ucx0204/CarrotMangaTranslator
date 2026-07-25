@@ -103,11 +103,7 @@ function verifyRequiredRuntimes(appPath) {
   }
   const capabilities = run(runner, ["--capabilities"], { timeout: 60_000 });
   const capabilityText = capabilities.stdout.trim();
-  if (
-    !/metal/i.test(capabilityText) ||
-    !/lama-manga/i.test(capabilityText) ||
-    !/aot-inpainting/i.test(capabilityText)
-  ) {
+  if (!hasRequiredKoharuCapabilities(capabilityText)) {
     throw new Error(
       `Incomplete Metal inpainting capabilities: ${capabilityText}`,
     );
@@ -138,6 +134,16 @@ function verifyRequiredRuntimes(appPath) {
   ) {
     throw new Error(`Flux worker protocol smoke failed: ${protocolSmoke}`);
   }
+}
+
+/** @param {string} capabilityText */
+function hasRequiredKoharuCapabilities(capabilityText) {
+  return (
+    /metal/i.test(capabilityText) &&
+    /lama-manga/i.test(capabilityText) &&
+    /aot-inpainting/i.test(capabilityText) &&
+    /anime-text-yolo/i.test(capabilityText)
+  );
 }
 
 /** @param {string} appPath */

@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { getAppPaths } from "./appPaths";
 
 const APP_RUNTIME_MODULE_FILES = {
+  animeTextRelations: "semantic-ocr/anime-text-review-relations.cjs",
   apiKeyRetry: "transport/api-key-retry.cjs",
   logitBias: "simple-page-logit-bias.cjs",
   modelHttpErrors: "transport/model-http-errors.cjs",

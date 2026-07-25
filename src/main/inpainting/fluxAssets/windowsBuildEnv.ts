@@ -14,7 +14,7 @@ import {
   readChildDirectories,
   uniqueExistingDirs,
   uniquePaths,
-} from "./fileProbe";
+} from "../../runtimeSupport/fileProbe";
 
 const WINDOWS_SDK_IMPORT_LIB_NAMES = [
   "kernel32.lib",

@@ -1,6 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 
-const DEFAULT_INPAINTING_REQUEST_TIMEOUT_MS = 30 * 60 * 1000;
+const DEFAULT_WORKER_REQUEST_TIMEOUT_MS = 30 * 60 * 1000;
 const MAX_RESPONSE_LINE_LENGTH = 1024 * 1024;
 const MAX_STDERR_CHUNK_LENGTH = 16_000;
 
@@ -24,20 +24,23 @@ type JsonLinesWorkerClientOptions = {
   onSpawn?: (pid: number | null) => void;
 };
 
-type PendingRequest = {
-  resolve: (response: JsonLinesWorkerResponse) => void;
+type PendingRequest<TResponse extends JsonLinesWorkerResponse> = {
+  resolve: (response: TResponse) => void;
   reject: (error: Error) => void;
   refreshTimeout: () => void;
 };
 
-type JsonLinesRequestHandle = {
+type JsonLinesRequestHandle<TResponse extends JsonLinesWorkerResponse> = {
   id: string;
-  response: Promise<JsonLinesWorkerResponse>;
+  response: Promise<TResponse>;
 };
 
-export class JsonLinesWorkerClient<TRequest extends object> {
+export class JsonLinesWorkerClient<
+  TRequest extends object,
+  TResponse extends JsonLinesWorkerResponse = JsonLinesWorkerResponse,
+> {
   private readonly child: ChildProcessWithoutNullStreams;
-  private readonly pending = new Map<string, PendingRequest>();
+  private readonly pending = new Map<string, PendingRequest<TResponse>>();
   private readonly stderrTail: string[] = [];
   private readonly requestTimeoutMs: number;
   private nextId = 1;
@@ -47,7 +50,7 @@ export class JsonLinesWorkerClient<TRequest extends object> {
 
   constructor(private readonly options: JsonLinesWorkerClientOptions) {
     this.requestTimeoutMs = normalizeRequestTimeout(
-      options.requestTimeoutMs ?? DEFAULT_INPAINTING_REQUEST_TIMEOUT_MS,
+      options.requestTimeoutMs ?? DEFAULT_WORKER_REQUEST_TIMEOUT_MS,
     );
     this.child = spawn(options.executable, options.args, {
       windowsHide: true,
@@ -66,11 +69,11 @@ export class JsonLinesWorkerClient<TRequest extends object> {
   startRequest(
     payload: TRequest,
     signal?: AbortSignal,
-  ): JsonLinesRequestHandle {
+  ): JsonLinesRequestHandle<TResponse> {
     throwIfAborted(signal);
     this.assertRunning();
     const id = String(this.nextId++);
-    const response = new Promise<JsonLinesWorkerResponse>((resolve, reject) => {
+    const response = new Promise<TResponse>((resolve, reject) => {
       this.registerPendingRequest(id, signal, resolve, reject);
       this.enqueueWrite(`${JSON.stringify({ ...payload, id })}\n`);
     });
@@ -130,10 +133,10 @@ export class JsonLinesWorkerClient<TRequest extends object> {
   private registerPendingRequest(
     id: string,
     signal: AbortSignal | undefined,
-    resolve: (response: JsonLinesWorkerResponse) => void,
+    resolve: (response: TResponse) => void,
     reject: (error: Error) => void,
   ): void {
-    const onAbort = () => this.failPermanently(createAbortError());
+    const onAbort = () => this.abortRequest(id);
     let timeout: ReturnType<typeof setTimeout>;
     const refreshTimeout = () => {
       clearTimeout(timeout);
@@ -162,6 +165,24 @@ export class JsonLinesWorkerClient<TRequest extends object> {
     if (signal?.aborted) {
       onAbort();
     }
+  }
+
+  private abortRequest(id: string): void {
+    const aborted = this.pending.get(id);
+    if (!aborted) {
+      return;
+    }
+    if (!this.closed) {
+      this.closed = true;
+      this.killChild();
+    }
+    this.pending.delete(id);
+    aborted.reject(createAbortError());
+    this.rejectAll(
+      new Error(
+        `${this.options.workerName} 워커가 다른 요청의 취소로 종료되었습니다.`,
+      ),
+    );
   }
 
   private enqueueWrite(line: string): void {
@@ -232,7 +253,7 @@ export class JsonLinesWorkerClient<TRequest extends object> {
       return false;
     }
     this.pending.delete(response.id);
-    pending.resolve(response);
+    pending.resolve(response as TResponse);
     return true;
   }
 

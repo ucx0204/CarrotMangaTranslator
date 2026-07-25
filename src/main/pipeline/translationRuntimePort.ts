@@ -8,6 +8,7 @@ import type {
   TranslationResult,
 } from "./types";
 import { startModelEndpointSession } from "./runtimeModules";
+import type { OcrGroupingEvidencePort } from "./ocrGroupingEvidencePort";
 
 type TranslationEndpointSession = {
   readonly handle: ModelEndpointHandle;
@@ -83,31 +84,37 @@ async function releaseInpaintingBeforeGemma(
 
 export function createTranslationRuntimePort({
   gpuMemory,
+  groupingEvidence,
   runtime,
 }: {
   gpuMemory: GpuMemoryCoordinator;
+  groupingEvidence: OcrGroupingEvidencePort;
   runtime: RuntimeModules;
 }): TranslationRuntimePort {
   return {
     isModelCached: (options) => runtime.simplePage.isModelCached(options),
     startEndpointSession: async (options) => {
+      await groupingEvidence.releaseIdleResources("translation-model-start");
       await releaseInpaintingBeforeGemma(gpuMemory, options);
       return startModelEndpointSession(runtime, options);
     },
     collectOcrHints: async (options) => {
       await releaseGpuBeforeOcr(gpuMemory, [options]);
-      return runtime.simplePage.collectOcrBboxHints(options);
+      const result = await runtime.simplePage.collectOcrBboxHints(options);
+      return groupingEvidence.annotate(options, result);
     },
     collectOcrHintsBatch: async (optionsList) => {
       await releaseGpuBeforeOcr(gpuMemory, optionsList);
       if (runtime.simplePage.collectOcrBboxHintsBatch) {
-        return runtime.simplePage.collectOcrBboxHintsBatch(optionsList);
+        const results =
+          await runtime.simplePage.collectOcrBboxHintsBatch(optionsList);
+        return groupingEvidence.annotateBatch(optionsList, results);
       }
       const results: OcrBboxResult[] = [];
       for (const options of optionsList) {
         results.push(await runtime.simplePage.collectOcrBboxHints(options));
       }
-      return results;
+      return groupingEvidence.annotateBatch(optionsList, results);
     },
     requestTranslation: (endpoint, options) =>
       runtime.simplePage.requestTranslation(endpoint, options),

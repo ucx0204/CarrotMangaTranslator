@@ -7,7 +7,7 @@ import { join } from "node:path";
 import {
   downloadToFile,
   ensureRemoteFile,
-} from "../src/main/inpainting/fluxAssets/downloads";
+} from "../src/main/runtimeSupport/modelDownloads";
 
 const tempDirs: string[] = [];
 

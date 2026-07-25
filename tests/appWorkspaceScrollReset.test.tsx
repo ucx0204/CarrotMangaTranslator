@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from "react";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MangaPage } from "../src/shared/libraryTypes";
 import { AppWorkspace } from "../src/renderer/src/components/AppWorkspace";
@@ -10,6 +10,7 @@ import {
   type FontsContextValue,
 } from "../src/renderer/src/fonts/fontsContextValue";
 import { DEFAULT_BLOCK_FONT_CATALOG } from "../src/renderer/src/lib/fonts";
+import type { WorkspaceTool } from "../src/renderer/src/lib/stageTool";
 import {
   createWorkspaceInteractionPreviewStore,
   type WorkspaceInteractionPreviewStore,
@@ -22,10 +23,12 @@ const PAGE_2_IMAGE =
 
 beforeEach(() => {
   vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
 });
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -153,6 +156,62 @@ describe("AppWorkspace scroll reset", () => {
 
     expect(blockCollectionReads).toBe(0);
   });
+
+  it("keeps the painted page image mounted across mask and retouch tool switches", () => {
+    const refs = makeWorkspaceRefs();
+    const props = {
+      ...makeWorkspaceProps({
+        refs,
+        selectedPage: makePage("page-1"),
+        selectedPageImageDataUrl: PAGE_1_IMAGE,
+        selectedPageImagePageId: "page-1",
+      }),
+      stageSize: { height: 800, width: 500 },
+    };
+    render(withFonts(<WorkspaceToolTransitionHarness props={props} />));
+    const pageImage = screen.getByRole("img", {
+      name: "page-1.png",
+    }) as HTMLImageElement;
+    const mutations: MutationRecord[] = [];
+    const observer = new MutationObserver((records) =>
+      mutations.push(...records),
+    );
+    observer.observe(pageImage.parentElement as HTMLElement, {
+      attributeFilter: ["src"],
+      attributes: true,
+      childList: true,
+      subtree: true,
+    });
+
+    for (const label of ["마스크", "브러시", "지우개", "선택"]) {
+      fireEvent.click(screen.getByRole("button", { name: label }));
+      expect(screen.getByRole("img", { name: "page-1.png" })).toBe(pageImage);
+      expect(pageImage.isConnected).toBe(true);
+      expect(pageImage.src).toBe(PAGE_1_IMAGE);
+      expect(document.querySelector(".page-image-placeholder")).toBeNull();
+      if (label !== "선택") {
+        const liveCanvas = document.querySelector<HTMLCanvasElement>(
+          "[data-retouch-live-canvas]",
+        );
+        expect(liveCanvas?.width).toBe(500);
+        expect(liveCanvas?.height).toBe(800);
+      }
+      mutations.push(...observer.takeRecords());
+    }
+    observer.disconnect();
+
+    expect(
+      mutations.some(
+        (mutation) =>
+          (mutation.type === "attributes" && mutation.target === pageImage) ||
+          Array.from(mutation.removedNodes).some(
+            (node) =>
+              node === pageImage ||
+              (node instanceof Element && node.contains(pageImage)),
+          ),
+      ),
+    ).toBe(false);
+  });
 });
 
 class ResizeObserverStub {
@@ -176,6 +235,26 @@ type WorkspaceRefs = {
 
 function renderWorkspace(props: AppWorkspaceProps) {
   return render(withFonts(<AppWorkspace {...props} />));
+}
+
+function WorkspaceToolTransitionHarness({
+  props,
+}: {
+  props: AppWorkspaceProps;
+}): React.JSX.Element {
+  const [tool, setTool] = React.useState<WorkspaceTool>("select");
+  const retouchCursor =
+    tool === "mask" || tool === "brush" || tool === "eraser"
+      ? { color: "#ffffff", mode: tool, radiusPx: 28 }
+      : null;
+  return (
+    <AppWorkspace
+      {...props}
+      onSelectStageTool={setTool}
+      retouchCursor={retouchCursor}
+      stageTool={tool}
+    />
+  );
 }
 
 function withFonts(node: React.ReactElement): React.JSX.Element {

@@ -174,6 +174,10 @@ export type BboxNormalizationOptions = {
 };
 
 export type RuntimeModules = {
+  animeTextRelations: {
+    hasPotentialAnimeTextRelation: (hints: unknown[]) => boolean;
+    qualifyAnimeTextRelationRegionIds: (hints: unknown[]) => string[];
+  };
   simplePage: {
     collectOcrBboxHints: (
       options: TranslationOptions,

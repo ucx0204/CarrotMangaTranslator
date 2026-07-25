@@ -6,7 +6,7 @@ import {
   findFirstFileRecursive,
   safeReadDir,
   uniqueExistingDirs,
-} from "./fileProbe";
+} from "../../runtimeSupport/fileProbe";
 
 export function resolveWindowsRocmSdkPaths(packageDir: string): {
   coreRoot: string;

@@ -20,7 +20,10 @@ import { managedFluxBootstrapPythonPath } from "./pythonBootstrap";
 import { ensureEmbeddedPythonPackagePath } from "./pythonPathFile";
 import { buildTargetPythonEnv } from "./rocmRuntime";
 import { hasUsablePackageDir } from "./pythonRuntimePackages";
-import { isExecutableFile, sha256FileSync } from "./fileProbe";
+import {
+  isExecutableFile,
+  sha256FileSync,
+} from "../../runtimeSupport/fileProbe";
 
 type FluxPythonRuntimeMarker = {
   backend: FluxPythonBackend;

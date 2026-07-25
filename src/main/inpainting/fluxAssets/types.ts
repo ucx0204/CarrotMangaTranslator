@@ -1,22 +1,7 @@
 import type { FluxBackend } from "../../../shared/inpaintingSettingsTypes";
+import type { RuntimeAssetProgress } from "../../runtimeSupport/modelDownloads";
 
-export type FluxAssetProgress = {
-  progressText: string;
-  detail?: string;
-  progressMode?: "determinate" | "indeterminate" | "log-only";
-  progressPercent?: number;
-  progressBytes?: number;
-  progressTotalBytes?: number;
-  installLogLine?: string;
-};
-
-export type RemoteFileMetadata = {
-  url: string;
-  bytes: number;
-  downloadedAt: string;
-  mtimeMs?: number;
-  sha256?: string;
-};
+export type FluxAssetProgress = RuntimeAssetProgress;
 
 export type WindowsNativeBuildEnv = {
   sdkVersion?: string;

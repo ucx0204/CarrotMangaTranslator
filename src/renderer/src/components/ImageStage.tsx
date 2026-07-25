@@ -202,6 +202,7 @@ function ImageStageLayerSet({
       <RetouchLiveLayer
         retouchCursor={retouchCursor}
         retouchOriginalImageDataUrl={retouchOriginalImageDataUrl}
+        stageSize={stageSize}
       />
       <StageMarqueeLayers
         imageDataUrl={imageDataUrl}

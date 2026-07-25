@@ -35,6 +35,7 @@ import {
 } from "./macIntegration";
 import { runMacPackageSmokeExit } from "./macPackageSmoke";
 import { scheduleStartupMaintenance } from "./startupMaintenance";
+import { disposeTranslationRuntimeResources } from "./translationRuntime";
 
 const appPaths = ensureWritableAppDirectories();
 const jobs = new ActiveJobStore();
@@ -179,7 +180,10 @@ async function finishAppQuitCleanup(): Promise<void> {
         );
       }
     }
-    await disposeCachedInpaintingEngines("app-quit");
+    await Promise.all([
+      disposeCachedInpaintingEngines("app-quit"),
+      disposeTranslationRuntimeResources("app-quit"),
+    ]);
     if (inpaintingHistoryReleaseSafe) {
       await inpaintingRevisionStore.releaseAll();
     }
@@ -206,7 +210,10 @@ function openMainWindow(): void {
   mainWindow.on("closed", () => {
     mainWindow = null;
     panelWindows.closeAll();
-    void disposeCachedInpaintingEngines("main-window-closed");
+    void Promise.all([
+      disposeCachedInpaintingEngines("main-window-closed"),
+      disposeTranslationRuntimeResources("main-window-closed"),
+    ]);
   });
 }
 

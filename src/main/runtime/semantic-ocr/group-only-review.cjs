@@ -1,7 +1,10 @@
 // @ts-check
 
-const { readOcrCandidateText } = require("../prompts/ocr-text.cjs");
-const { isRecord, semanticContractError } = require("./values.cjs");
+const { semanticContractError } = require("./values.cjs");
+const {
+  applyReviewedGroupsToHints,
+} = require("./group-only-review-application.cjs");
+const { buildGroupOnlyReviewPlan } = require("./group-only-review-plan.cjs");
 const {
   GROUP_ONLY_PROMPT_CONTRACT_VERSION,
   GROUP_ONLY_REVIEW_ROLES,
@@ -14,22 +17,20 @@ const {
   separateWeakDiagonalFragmentMerges,
 } = require("./group-only-review-stabilization.cjs");
 const {
+  orderReviewCandidatesByGeometry,
+} = require("./group-only-review-reading-order.cjs");
+const {
+  requiresRelationFreeRoleBaseline,
+} = require("./group-only-review-role-policy.cjs");
+const {
   GROUP_ONLY_REVIEW_VERSION,
   assertNoDuplicateKeys,
   describeError,
   exactKeys,
   fail,
-  integerArray,
   isPlan,
   normalizeEnvelope,
-  normalizeFragments,
-  optionalBox,
-  optionalString,
-  pixelBox,
-  positive,
   record,
-  toCrop1000,
-  tupleBox,
   unionBoxes,
   validateLabels,
 } = require("./group-only-review-values.cjs");
@@ -42,77 +43,6 @@ const { isExpectedGroupOnlyReviewFailure } = require("./review-errors.cjs");
 /** @typedef {import("./group-only-review-types").ReviewPlan} ReviewPlan */
 /** @typedef {import("./group-only-review-types").ReviewProjection} ReviewProjection */
 /** @typedef {import("./group-only-review-types").ReviewResult} ReviewResult */
-/** @typedef {import("./group-only-review-types").HintAssignment} HintAssignment */
-
-/**
- * candidates/hints is the canonical raw Paddle-hint array in exact model and
- * reading order. Original Paddle evidence is read only from sidecar fields
- * paddleGroupId/paddleOrder, never from a final groupId.
- * @param {Record<string,unknown>} reviewCase
- * @param {Record<string,unknown>} [region]
- * @returns {ReviewPlan}
- */
-function buildGroupOnlyReviewPlan(reviewCase, region = {}) {
-  record(reviewCase, "review case");
-  record(region, "review region");
-  const raw = /** @type {unknown[]} */ (
-    Array.isArray(reviewCase.candidates)
-      ? reviewCase.candidates
-      : reviewCase.hints
-  );
-  if (!Array.isArray(raw) || !raw.length)
-    fail("candidates", "Candidates must be a non-empty array.");
-  const seen = new Set();
-  const prelim = raw.map((value, index) => {
-    const hint = record(value, `candidate ${index + 1}`);
-    const id = positive(hint.id);
-    if (!id || seen.has(id))
-      fail(
-        "candidate-id",
-        `Candidate ${index + 1} needs a unique positive id.`,
-      );
-    seen.add(id);
-    return { id, index, hint, bbox: pixelBox(hint, `candidate ${id}`) };
-  });
-  const crop =
-    optionalBox(region.cropBbox ?? region.bbox ?? region) ??
-    unionBoxes(prelim.map((item) => item.bbox));
-  const candidates = prelim.map((item) => ({
-    ...item,
-    text: readOcrCandidateText(item.hint),
-    score: Number.isFinite(Number(item.hint.score))
-      ? Number(item.hint.score)
-      : null,
-    bbox1000: tupleBox(item.hint.bbox1000) ?? toCrop1000(item.bbox, crop),
-    paddleGroup: optionalString(
-      item.hint.paddleGroupId ?? item.hint.paddleGroup,
-    ),
-    paddleOrder: positive(item.hint.paddleOrder),
-  }));
-  const candidateOrder = candidates.map((item) => item.id);
-  if (
-    reviewCase.candidateOrder !== undefined &&
-    JSON.stringify(reviewCase.candidateOrder) !== JSON.stringify(candidateOrder)
-  ) {
-    fail("candidate-order", "candidateOrder must exactly match candidates.");
-  }
-  const upstreamFragments = normalizeFragments(
-    reviewCase.upstreamFragments ?? reviewCase.currentGroups,
-    candidateOrder,
-  );
-  return {
-    version: GROUP_ONLY_REVIEW_VERSION,
-    reviewCase,
-    region,
-    candidates,
-    candidateOrder,
-    upstreamFragments,
-    spatialRelations: isRecord(reviewCase.spatialRelations)
-      ? reviewCase.spatialRelations
-      : {},
-  };
-}
-
 /** @param {ReviewPlan | Record<string,unknown>} value @param {Record<string,unknown>} [region] */
 function buildGroupOnlyReviewPrompt(value, region = {}) {
   const plan = isPlan(value) ? value : buildGroupOnlyReviewPlan(value, region);
@@ -204,10 +134,35 @@ function projectGroupOnlyReviewLabels(plan, labels, source) {
       Math.min(...left[1].map((item) => item.candidate.id)) -
       Math.min(...right[1].map((item) => item.candidate.id)),
   );
+  const upstreamFragmentByCandidateId = new Map();
+  plan.upstreamFragments.forEach((fragment, index) => {
+    fragment.candidateIds.forEach((id) =>
+      upstreamFragmentByCandidateId.set(id, index),
+    );
+  });
   const groups = ordered.map(([modelGroup, members], index) => {
     const body = members.filter((item) => item.role === "body");
     const ruby = members.filter((item) => item.role === "ruby");
     if (!body.length) fail("ruby-only", `Group ${modelGroup} has no body.`);
+    const spansMultipleUpstreamFragments =
+      source === "model" &&
+      new Set(
+        members.map((item) =>
+          upstreamFragmentByCandidateId.get(item.candidate.id),
+        ),
+      ).size > 1;
+    if (spansMultipleUpstreamFragments && body.length > 1) {
+      const readingOrder = new Map(
+        orderReviewCandidatesByGeometry(body.map((item) => item.candidate)).map(
+          (candidate, order) => [candidate.id, order],
+        ),
+      );
+      body.sort(
+        (left, right) =>
+          Number(readingOrder.get(left.candidate.id)) -
+          Number(readingOrder.get(right.candidate.id)),
+      );
+    }
     return {
       localGroupIndex: index + 1,
       modelGroup: source === "model" ? modelGroup : null,
@@ -227,93 +182,6 @@ function projectGroupOnlyReviewLabels(plan, labels, source) {
 }
 
 /**
- * Applies crop results in crop/group order and issues page-global G001..Gnnn.
- * @param {Record<string,unknown>[]} pageHints
- * @param {ReviewProjection[]} cropResults
- * @param {{validatedGroupOnlyReview?:boolean}} [options]
- */
-function applyReviewedGroupsToHints(pageHints, cropResults, options = {}) {
-  if (!Array.isArray(pageHints) || !Array.isArray(cropResults))
-    fail("apply-input", "Hints and crop results must be arrays.");
-  const hintById = /** @type {Map<number,Record<string,unknown>>} */ (
-    new Map()
-  );
-  pageHints.forEach((hint, index) => {
-    const raw = record(hint, `page hint ${index + 1}`);
-    const id = positive(raw.id);
-    if (!id || hintById.has(id))
-      fail("apply-hint-id", "Page hint ids must be unique.");
-    hintById.set(id, raw);
-  });
-  const assignment = /** @type {Map<number,HintAssignment>} */ (new Map());
-  let groupNumber = 0;
-  for (const result of cropResults) {
-    for (const rawGroup of result.groups) {
-      const group = record(rawGroup, "reviewed group");
-      const ids = integerArray(group.candidateIds, "candidateIds");
-      const body = new Set(
-        integerArray(group.bodyCandidateIds, "bodyCandidateIds"),
-      );
-      const ruby = new Set(
-        integerArray(group.rubyCandidateIds, "rubyCandidateIds", true),
-      );
-      if (!body.size || ids.length !== body.size + ruby.size)
-        fail("apply-group", "Reviewed group partition is invalid.");
-      groupNumber += 1;
-      const groupId = `G${String(groupNumber).padStart(3, "0")}`;
-      ids.forEach((id, index) => {
-        const role = body.has(id) ? "body" : ruby.has(id) ? "ruby" : "";
-        if (!role || !hintById.has(id) || assignment.has(id))
-          fail("apply-partition", `Candidate ${id} is missing or duplicated.`);
-        assignment.set(id, {
-          groupId,
-          orderInGroup: index + 1,
-          groupSize: ids.length,
-          reviewRole: role,
-        });
-      });
-    }
-  }
-  if (assignment.size !== hintById.size)
-    fail(
-      "apply-coverage",
-      "Crop results must cover every page hint exactly once.",
-    );
-  const hints = pageHints.map((raw) => {
-    const hint = { ...raw };
-    delete hint.groupId;
-    delete hint.orderInGroup;
-    delete hint.groupSize;
-    delete hint.semanticGroup;
-    delete hint.rolePrior;
-    delete hint.containerType;
-    const id = positive(hint.id);
-    if (!id) fail("apply-hint-id", "Final hint id is invalid.");
-    const meta = assignment.get(id);
-    if (!meta) fail("apply-coverage", "Missing final hint assignment.");
-    hint.reviewRole = meta.reviewRole;
-    if (meta.groupSize > 1)
-      Object.assign(hint, {
-        groupId: meta.groupId,
-        orderInGroup: meta.orderInGroup,
-        groupSize: meta.groupSize,
-        semanticGroup: true,
-        rolePrior: "ordinary_mergeable",
-        containerType: "same_text_container",
-      });
-    return hint;
-  });
-  return {
-    hints,
-    groupOnlyReviewVersion: GROUP_ONLY_REVIEW_VERSION,
-    validatedGroupOnlyReview:
-      options.validatedGroupOnlyReview ??
-      cropResults.every((result) => result.source !== "upstream-fallback"),
-    reviewedGroupCount: groupNumber,
-  };
-}
-
-/**
  * @param {Record<string,unknown>} reviewCase
  * @param {Record<string,unknown>} region
  * @param {(request:Record<string,unknown>)=>Promise<string|{outputText:string;rawResponse?:unknown}>} requestReview
@@ -326,6 +194,7 @@ async function reviewGroupOnlyCrop(reviewCase, region, requestReview) {
       status: "singleton",
       usedFallback: false,
       requestSkipped: true,
+      requestCount: 0,
       ...projectGroupOnlyReviewLabels(
         plan,
         [{ group: 1, role: "body" }],
@@ -336,26 +205,22 @@ async function reviewGroupOnlyCrop(reviewCase, region, requestReview) {
   }
   if (typeof requestReview !== "function")
     fail("request", "A request callback is required.");
+  const attempts = { count: 0 };
   try {
-    const response = await requestReview({
-      case: reviewCase,
+    const reviewed = await requestReviewedProjection(
+      plan,
+      reviewCase,
       region,
-      candidateOrder: [...plan.candidateOrder],
-      systemPrompt: buildGroupOnlyReviewSystemPrompt(),
-      prompt: buildGroupOnlyReviewPrompt(plan),
-      responseFormat: buildGroupOnlyReviewResponseFormat(
-        plan.candidates.length,
-      ),
-    });
-    const { outputText, rawResponse } = readReviewResponse(response);
-    if (!outputText)
-      fail("empty-response", "Group-only review returned no JSON.");
+      requestReview,
+      attempts,
+    );
     return {
       status: "reviewed",
       usedFallback: false,
       requestSkipped: false,
-      ...parseGroupOnlyReviewResponse(outputText, plan),
-      rawResponse,
+      requestCount: attempts.count,
+      ...reviewed.projection,
+      rawResponse: reviewed.rawResponse,
     };
   } catch (error) {
     if (isReviewAbort(error)) throw error;
@@ -364,11 +229,151 @@ async function reviewGroupOnlyCrop(reviewCase, region, requestReview) {
       status: "fallback",
       usedFallback: true,
       requestSkipped: false,
+      requestCount: attempts.count,
       ...buildGroupOnlyReviewFallback(plan),
       rawResponse: null,
       fallbackError: describeError(error),
     };
   }
+}
+
+/**
+ * Auxiliary detector relations may change only grouping. Resolve roles from
+ * the same crop without that relation, then combine those roles with the
+ * relation-aware group labels.
+ *
+ * @param {ReviewPlan} plan
+ * @param {Record<string,unknown>} reviewCase
+ * @param {Record<string,unknown>} region
+ * @param {(request:Record<string,unknown>)=>Promise<string|{outputText:string;rawResponse?:unknown}>} requestReview
+ * @param {{count:number}} attempts
+ */
+async function requestReviewedProjection(
+  plan,
+  reviewCase,
+  region,
+  requestReview,
+  attempts,
+) {
+  const relationAware = hasAnimeTextRelation(plan);
+  const grouping = await requestSingleProjection(
+    plan,
+    reviewCase,
+    region,
+    requestReview,
+    attempts,
+    relationAware ? "relation-aware-grouping" : "grouping-and-roles",
+  );
+  if (
+    !relationAware ||
+    !requiresRelationFreeRoleBaseline(plan, grouping.projection)
+  ) {
+    return grouping;
+  }
+  const roleBaseline = await requestRelationFreeRoleBaseline(
+    reviewCase,
+    region,
+    requestReview,
+    attempts,
+  );
+  return {
+    projection: combineGroupingWithRoles(
+      plan,
+      grouping.projection,
+      roleBaseline.projection,
+    ),
+    rawResponse: {
+      grouping: grouping.rawResponse,
+      roleBaseline: roleBaseline.rawResponse,
+    },
+  };
+}
+
+/**
+ * @param {Record<string,unknown>} reviewCase
+ * @param {Record<string,unknown>} region
+ * @param {(request:Record<string,unknown>)=>Promise<string|{outputText:string;rawResponse?:unknown}>} requestReview
+ * @param {{count:number}} attempts
+ */
+function requestRelationFreeRoleBaseline(
+  reviewCase,
+  region,
+  requestReview,
+  attempts,
+) {
+  const relationFreeCase = { ...reviewCase };
+  delete relationFreeCase.spatialRelations;
+  return requestSingleProjection(
+    buildGroupOnlyReviewPlan(relationFreeCase, region),
+    relationFreeCase,
+    region,
+    requestReview,
+    attempts,
+    "relation-free-role-baseline",
+  );
+}
+
+/**
+ * @param {ReviewPlan} plan
+ * @param {Record<string,unknown>} reviewCase
+ * @param {Record<string,unknown>} region
+ * @param {(request:Record<string,unknown>)=>Promise<string|{outputText:string;rawResponse?:unknown}>} requestReview
+ * @param {{count:number}} attempts
+ * @param {string} reviewPurpose
+ */
+async function requestSingleProjection(
+  plan,
+  reviewCase,
+  region,
+  requestReview,
+  attempts,
+  reviewPurpose,
+) {
+  attempts.count += 1;
+  const response = await requestReview({
+    case: reviewCase,
+    region,
+    reviewPurpose,
+    candidateOrder: [...plan.candidateOrder],
+    systemPrompt: buildGroupOnlyReviewSystemPrompt(),
+    prompt: buildGroupOnlyReviewPrompt(plan),
+    responseFormat: buildGroupOnlyReviewResponseFormat(plan.candidates.length),
+  });
+  const { outputText, rawResponse } = readReviewResponse(response);
+  if (!outputText)
+    fail("empty-response", "Group-only review returned no JSON.");
+  return {
+    projection: parseGroupOnlyReviewResponse(outputText, plan),
+    rawResponse,
+  };
+}
+
+/**
+ * @param {ReviewPlan} plan
+ * @param {ReviewProjection} grouping
+ * @param {ReviewProjection} roleBaseline
+ */
+function combineGroupingWithRoles(plan, grouping, roleBaseline) {
+  if (
+    JSON.stringify(grouping.candidateOrder) !==
+      JSON.stringify(plan.candidateOrder) ||
+    JSON.stringify(roleBaseline.candidateOrder) !==
+      JSON.stringify(plan.candidateOrder)
+  ) {
+    fail("candidate-order", "Review projections must use the same candidates.");
+  }
+  const labels = grouping.labels.map((label, index) => ({
+    group: label.group,
+    role: roleBaseline.labels[index].role,
+  }));
+  validateLabels(plan, labels);
+  return projectGroupOnlyReviewLabels(plan, labels, "model");
+}
+
+/** @param {ReviewPlan} plan */
+function hasAnimeTextRelation(plan) {
+  const relations = plan.spatialRelations.sharedAnimeTextRegions;
+  return Array.isArray(relations) && relations.length > 0;
 }
 
 /** @param {string|{outputText?:string;rawResponse?:unknown}|null|undefined} response */

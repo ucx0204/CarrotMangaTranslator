@@ -19,7 +19,7 @@ import {
   logInpaintingRuntimeInfo,
   logInpaintingRuntimeWarn,
 } from "./inpaintingRuntimeLogger";
-import { LeasedIdleResourcePool } from "./leasedIdleResource";
+import { LeasedIdleResourcePool } from "../runtimeSupport/leasedIdleResource";
 
 const KOHARU_ENGINE_IDLE_TTL_MS = 30 * 1000;
 

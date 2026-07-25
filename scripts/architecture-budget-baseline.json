@@ -3,7 +3,7 @@
   "defaultMaxImportedBy": 25,
   "allow": {
     "src/main/logger.ts": {
-      "maxImportedBy": 27
+      "maxImportedBy": 26
     },
     "src/renderer/src/components/ui/Button.tsx": {
       "maxImportedBy": 42

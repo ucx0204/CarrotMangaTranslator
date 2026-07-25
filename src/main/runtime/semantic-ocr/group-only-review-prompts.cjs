@@ -2,7 +2,7 @@
 
 const { fail, unionTuples } = require("./group-only-review-values.cjs");
 
-const GROUP_ONLY_PROMPT_CONTRACT_VERSION = 11;
+const GROUP_ONLY_PROMPT_CONTRACT_VERSION = 16;
 const ROLES = ["body", "ruby"];
 
 /** @typedef {import("./group-only-review-types").ReviewCandidate} ReviewCandidate */
@@ -28,41 +28,8 @@ function buildGroupOnlyReviewSystemPrompt() {
 
 /** @param {ReviewPlan} plan */
 function buildGroupOnlyReviewPromptFromPlan(plan) {
-  const samePaddle = /** @type {Map<string,number[]>} */ (new Map());
-  for (const candidate of plan.candidates) {
-    if (!candidate.paddleGroup) continue;
-    const ids = samePaddle.get(candidate.paddleGroup) ?? [];
-    ids.push(candidate.id);
-    samePaddle.set(candidate.paddleGroup, ids);
-  }
-  const byId = new Map(plan.candidates.map((item) => [item.id, item]));
-  const evidence = {
-    upstreamFragments: plan.upstreamFragments.map((fragment) => {
-      const members = /** @type {ReviewCandidate[]} */ (
-        fragment.candidateIds.map((id) => byId.get(id))
-      );
-      return {
-        fragment: fragment.fragment,
-        status: fragment.status,
-        ids: fragment.candidateIds,
-        text: members.map((item) => item.text).join(""),
-        bbox1000: unionTuples(members.map((item) => item.bbox1000)),
-      };
-    }),
-    candidates: plan.candidates.map((item) => ({
-      id: item.id,
-      text: item.text,
-      score: item.score,
-      bbox1000: item.bbox1000,
-      paddleGroup: item.paddleGroup,
-      paddleOrder: item.paddleOrder,
-    })),
-    samePaddleGroupSets: [...samePaddle].map(([paddleGroup, ids]) => ({
-      paddleGroup,
-      ids,
-    })),
-    spatialRelations: plan.spatialRelations,
-  };
+  const evidence = buildGroupOnlyReviewEvidence(plan);
+  const animeTextInstructions = buildAnimeTextInstructions(plan);
   return [
     "# Existing OCR evidence",
     JSON.stringify(evidence),
@@ -76,7 +43,7 @@ function buildGroupOnlyReviewPromptFromPlan(plan) {
     "Do not output text. Do not correct OCR text. Do not output or propose coordinates.",
     "The application will derive each group's bbox by the exact union of its Paddle boxes.",
     "First decide the visible enclosing composition for every candidate; only then classify body versus ruby.",
-    "Grouping evidence priority is: visible closed container boundary first, shared Paddle group second, upstream fragment boundary last.",
+    ...animeTextInstructions,
     "A group means all text inside one enclosing balloon, card, caption plate, or continuous printed composition.",
     "A single line may be a complete group when it is its own balloon, card, caption, or independent composition.",
     "Do not split one composition merely because of whitespace, line breaks, vertical columns, horizontal rows, staggered placement, or ruby gaps.",
@@ -103,6 +70,76 @@ function buildGroupOnlyReviewPromptFromPlan(plan) {
     "Before returning, verify that labels has exactly one entry per candidateOrder item and that each nonzero group has a body.",
     "If uncertain, keep each upstream fragment intact, merge fragments sharing a Paddle group unless a visible boundary contradicts it, and classify only unmistakable furigana as ruby.",
   ].join("\n");
+}
+
+/** @param {ReviewPlan} plan */
+function buildGroupOnlyReviewEvidence(plan) {
+  const samePaddle = /** @type {Map<string,number[]>} */ (new Map());
+  for (const candidate of plan.candidates) {
+    if (!candidate.paddleGroup) continue;
+    const ids = samePaddle.get(candidate.paddleGroup) ?? [];
+    ids.push(candidate.id);
+    samePaddle.set(candidate.paddleGroup, ids);
+  }
+  const byId = new Map(plan.candidates.map((item) => [item.id, item]));
+  return {
+    upstreamFragments: plan.upstreamFragments.map((fragment) => {
+      const members = /** @type {ReviewCandidate[]} */ (
+        fragment.candidateIds.map((id) => byId.get(id))
+      );
+      return {
+        fragment: fragment.fragment,
+        status: fragment.status,
+        ids: fragment.candidateIds,
+        text: members.map((item) => item.text).join(""),
+        bbox1000: unionTuples(members.map((item) => item.bbox1000)),
+      };
+    }),
+    candidates: plan.candidates.map((item) => ({
+      id: item.id,
+      text: item.text,
+      score: item.score,
+      bbox1000: item.bbox1000,
+      paddleGroup: item.paddleGroup,
+      paddleOrder: item.paddleOrder,
+    })),
+    samePaddleGroupSets: [...samePaddle].map(([paddleGroup, ids]) => ({
+      paddleGroup,
+      ids,
+    })),
+    spatialRelations: plan.spatialRelations,
+  };
+}
+
+/** @param {ReviewPlan} plan */
+function buildAnimeTextInstructions(plan) {
+  return hasAnimeTextRelation(plan)
+    ? [
+        "Grouping evidence priority is: visible closed container boundary first, shared Paddle group second, anime-text-yolo auxiliary relation third, upstream fragment boundary last.",
+        "A shared_anime_text_region is emitted only after detector coverage plus an independent scale-relative reading-start alignment gate between exactly one confirmed and one deferred fragment.",
+        "The detector still has no balloon-boundary knowledge. First search the crop for an outline, compartment edge, caption border, or other separator between those fragments.",
+        "For every shared_anime_text_region, begin with all listed candidateIds in one provisional group.",
+        "Split that provisional group only when the crop shows a visible outline, compartment edge, caption border, or other separator between the listed confirmedFragment and deferredFragment boxes.",
+        "Whitespace, a short single glyph, unequal text height, a line or column break, and a missing shared Paddle group are not visible separators.",
+        "If a visible separator exists, keep the fragments apart regardless of the relation. If none exists, the listed candidateIds must share one final group.",
+        "Before returning labels, explicitly recheck every shared_anime_text_region: either its listed candidateIds share one group, or a visible separator in the crop justifies keeping them apart.",
+        "Never merge solely from detector coverage; the supplied alignment and your visual boundary check must both support the merge.",
+      ]
+    : [
+        "Grouping evidence priority is: visible closed container boundary first, shared Paddle group second, upstream fragment boundary last.",
+      ];
+}
+
+/** @param {ReviewPlan} plan */
+function hasAnimeTextRelation(plan) {
+  const spatialRelations =
+    plan.spatialRelations &&
+    typeof plan.spatialRelations === "object" &&
+    !Array.isArray(plan.spatialRelations)
+      ? /** @type {Record<string,unknown>} */ (plan.spatialRelations)
+      : {};
+  const relations = spatialRelations.sharedAnimeTextRegions;
+  return Array.isArray(relations) && relations.length > 0;
 }
 
 /** @param {number} count @returns {Record<string,unknown>} */

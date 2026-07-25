@@ -1,5 +1,5 @@
 import type { RetouchCanvasContext } from "./retouchCanvasContext";
-import { resolveRetouchCanvasPixelRatio } from "./retouchLiveGeometry";
+import { resolveRetouchCanvasBackingSize } from "./retouchLiveGeometry";
 
 export type RetouchLivePoint = { x: number; y: number };
 
@@ -210,17 +210,17 @@ function prepareCanvas(
   context: RetouchCanvasContext,
   geometry: RetouchLiveGeometry,
 ): boolean {
-  const ratio = resolveRetouchCanvasPixelRatio(
+  const backingSize = resolveRetouchCanvasBackingSize(
     geometry.displayWidth,
     geometry.displayHeight,
   );
-  const width = Math.max(1, Math.round(geometry.displayWidth * ratio));
-  const height = Math.max(1, Math.round(geometry.displayHeight * ratio));
-  const resized = canvas.width !== width || canvas.height !== height;
+  const resized =
+    canvas.width !== backingSize.width || canvas.height !== backingSize.height;
   if (resized) {
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = backingSize.width;
+    canvas.height = backingSize.height;
   }
+  const ratio = backingSize.pixelRatio;
   context.setTransform(ratio, 0, 0, ratio, 0, 0);
   return resized;
 }

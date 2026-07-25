@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { LeasedIdleResourcePool } from "../src/main/inpainting/leasedIdleResource";
+import { LeasedIdleResourcePool } from "../src/main/runtimeSupport/leasedIdleResource";
 
 type TestResource = {
   id: string;

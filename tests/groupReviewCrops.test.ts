@@ -9,9 +9,16 @@ type Candidate = {
   reviewStatus: Status;
   reviewReasons: string[];
   reviewOrder: number;
+  reviewContextId?: string;
   paddleGroupId?: string;
   paddleOrder?: number;
   paddleGroupSize?: number;
+  animeTextRegionId?: string;
+  animeTextRegionScore?: number;
+  animeTextContainment?: number;
+  animeTextRegionBbox?: number[];
+  animeTextEvidenceVersion?: number;
+  animeTextModelRevision?: string;
 };
 type Region = {
   cropId: string;
@@ -201,6 +208,73 @@ describe("group review crop planning", () => {
     expectNonOverlapping(plan);
   });
 
+  it("uses a unique shared detector region only to widen deferred visual review", () => {
+    const detectorEvidence = {
+      animeTextRegionId: "ATY001",
+      animeTextRegionScore: 0.84,
+      animeTextContainment: 0.9,
+      animeTextRegionBbox: [80, 80, 190, 280],
+      animeTextEvidenceVersion: 1,
+      animeTextModelRevision: "937f67dfe61fc4793549782e103751fdc1f0a8d9",
+    };
+    const plan = buildGroupReviewCropPlan(
+      [
+        {
+          ...candidate(1, [100, 100, 130, 260], "B001", "confirmed", 1),
+          ...detectorEvidence,
+        },
+        {
+          ...candidate(2, [142, 100, 172, 160], "D001", "deferred", 1),
+          ...detectorEvidence,
+        },
+      ],
+      1000,
+      1000,
+    );
+
+    expect(plan.regions).toHaveLength(1);
+    expect(plan.regions[0]).toMatchObject({
+      reasons: ["deferred_anime_text_hint", "deferred_attached_once"],
+      confirmedFragmentIds: ["B001"],
+      deferredFragmentIds: ["D001"],
+      candidateIds: [1, 2],
+    });
+  });
+
+  it("never joins two confirmed fragments from detector evidence alone", () => {
+    const detectorEvidence = {
+      animeTextRegionId: "ATY008",
+      animeTextRegionScore: 0.86,
+      animeTextContainment: 1,
+      animeTextRegionBbox: [80, 80, 750, 780],
+      animeTextEvidenceVersion: 1,
+      animeTextModelRevision: "937f67dfe61fc4793549782e103751fdc1f0a8d9",
+    };
+    const plan = buildGroupReviewCropPlan(
+      [
+        {
+          ...candidate(1, [100, 100, 130, 260], "B001", "confirmed", 1),
+          ...detectorEvidence,
+        },
+        {
+          ...candidate(2, [700, 600, 730, 760], "B002", "confirmed", 1),
+          ...detectorEvidence,
+        },
+      ],
+      1000,
+      1000,
+    );
+
+    expect(plan.regions).toHaveLength(2);
+    expect(plan.regions.map((region) => region.fragmentIds)).toEqual([
+      ["B001"],
+      ["B002"],
+    ]);
+    expect(plan.regions.flatMap((region) => region.reasons)).not.toContain(
+      "deferred_anime_text_hint",
+    );
+  });
+
   it("puts intersecting confirmed fragments in one joint visual region", () => {
     const plan = buildGroupReviewCropPlan(
       [
@@ -219,6 +293,89 @@ describe("group review crop planning", () => {
       contentBbox: { x1: 100, y1: 100, x2: 210, y2: 300 },
     });
   });
+
+  it.each([3, 4])(
+    "puts %i staggered vertical columns from one review context in one crop",
+    (columnCount) => {
+      const plan = buildGroupReviewCropPlan(
+        staggeredContextCandidates(columnCount),
+        1200,
+        1800,
+      );
+
+      expect(plan.regions).toHaveLength(1);
+      expect(plan.regions[0]).toMatchObject({
+        reasons: ["confirmed_review_context"],
+        fragmentIds:
+          columnCount === 3 ? ["B001", "B002"] : ["B001", "B002", "B003"],
+        candidateIds: Array.from(
+          { length: columnCount },
+          (_, index) => index + 1,
+        ),
+      });
+      expect(plan.regions[0].candidates).toEqual(
+        expect.arrayContaining(
+          Array.from({ length: columnCount }, (_, index) =>
+            expect.objectContaining({
+              candidateId: index + 1,
+              reviewContextId: "RC001",
+            }),
+          ),
+        ),
+      );
+      expect(plan.regions[0].contentBbox).toEqual({
+        x1: columnCount === 3 ? 620 : 580,
+        y1: 200,
+        x2: 732,
+        y2: columnCount === 3 ? 462 : 476,
+      });
+    },
+  );
+
+  it.each([
+    {
+      name: "invalid context id",
+      candidates: [
+        {
+          ...candidate(1, [100, 100, 120, 300], "B001", "confirmed", 1),
+          reviewContextId: "context-one",
+        },
+      ],
+      message: /reviewContextId is malformed/,
+    },
+    {
+      name: "orphan context",
+      candidates: [
+        {
+          ...candidate(1, [100, 100, 120, 300], "B001", "confirmed", 1),
+          reviewContextId: "RC001",
+        },
+      ],
+      message: /must connect at least two review fragments/,
+    },
+    {
+      name: "partial fragment context",
+      candidates: [
+        {
+          ...candidate(1, [100, 100, 120, 300], "B001", "confirmed", 1),
+          reviewContextId: "RC001",
+        },
+        candidate(2, [124, 100, 144, 300], "B001", "confirmed", 2),
+        {
+          ...candidate(3, [148, 100, 168, 300], "B002", "confirmed", 1),
+          reviewContextId: "RC001",
+        },
+      ],
+      message: /inconsistent reviewContextId/,
+    },
+  ])(
+    "rejects malformed crop review metadata: $name",
+    ({ candidates, message }) => {
+      expect(() => buildGroupReviewCropPlan(candidates, 1000, 1000)).toThrow(
+        message,
+      );
+    },
+  );
 
   it("joins hostless deferred fragments only on one compatible axis", () => {
     const plan = buildGroupReviewCropPlan(
@@ -472,6 +629,25 @@ function candidate(
     reviewReasons,
     reviewOrder,
   };
+}
+
+function staggeredContextCandidates(columnCount: number): Candidate[] {
+  const boxes: Box[] = [
+    [700, 200, 732, 390],
+    [660, 220, 692, 430],
+    [620, 252, 652, 462],
+    [580, 286, 612, 476],
+  ];
+  return boxes.slice(0, columnCount).map((bbox, index) => ({
+    ...candidate(
+      index + 1,
+      bbox,
+      index < 2 ? "B001" : `B00${index}`,
+      "confirmed",
+      index < 2 ? index + 1 : 1,
+    ),
+    reviewContextId: "RC001",
+  }));
 }
 
 function expectNonOverlapping(plan: Plan) {

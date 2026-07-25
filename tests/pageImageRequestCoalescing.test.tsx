@@ -2,12 +2,16 @@
 
 import React from "react";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { JobState } from "../src/shared/jobTypes";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import { useAppSessionDerivedState } from "../src/renderer/src/app/session/useAppSessionDerivedState";
 import { usePageImageDataUrls } from "../src/renderer/src/hooks/usePageImageDataUrls";
+
+beforeEach(() => {
+  vi.stubGlobal("Image", ImmediateDecodingImage);
+});
 
 afterEach(() => {
   cleanup();
@@ -54,6 +58,212 @@ describe("page image request coalescing", () => {
         "mgt-image://library/shared",
       ),
     );
+  });
+
+  it("keeps the current same-page frame until an invalidated replacement finishes decoding", async () => {
+    const replacementRequest = deferred<string>();
+    const replacementDecode = deferred<void>();
+    const decodedSources: string[] = [];
+    class ControlledDecodingImage {
+      decoding = "auto";
+      src = "";
+
+      async decode(): Promise<void> {
+        decodedSources.push(this.src);
+        if (this.src === "mgt-image://library/page-1-retouched.png") {
+          await replacementDecode.promise;
+        }
+      }
+
+      removeAttribute(): void {
+        this.src = "";
+      }
+    }
+    vi.stubGlobal("Image", ControlledDecodingImage);
+    const getPageImageDataUrl = vi.fn((path: string) =>
+      path === "page-1-retouched.png"
+        ? replacementRequest.promise
+        : Promise.resolve(`mgt-image://library/${path}`),
+    );
+    installImageGateway(getPageImageDataUrl);
+    const originalPage = makePage("page-1", "page-1.png");
+    const initialPage = {
+      ...originalPage,
+      inpaintedImagePath: "page-1-inpainted.png",
+    };
+    const view = renderHook(
+      ({ page }) =>
+        usePageImageDataUrls({
+          chapterId: "chapter-1",
+          selectedPage: page,
+          selectedPageImagePath: page.inpaintedImagePath ?? page.imagePath,
+        }),
+      { initialProps: { page: initialPage } },
+    );
+
+    await waitFor(() =>
+      expect(view.result.current.selectedPageImageDataUrl).toBe(
+        "mgt-image://library/page-1-inpainted.png",
+      ),
+    );
+    act(() => view.result.current.clearPageImageCache());
+    expect(view.result.current.selectedPageImageDataUrl).toBe(
+      "mgt-image://library/page-1-inpainted.png",
+    );
+
+    view.rerender({
+      page: {
+        ...initialPage,
+        inpaintedImagePath: "page-1-retouched.png",
+        updatedAt: "2026-01-02T00:00:00.000Z",
+      },
+    });
+    await waitFor(() =>
+      expect(getPageImageDataUrl).toHaveBeenCalledWith("page-1-retouched.png"),
+    );
+    await act(async () => {
+      replacementRequest.resolve("mgt-image://library/page-1-retouched.png");
+      await replacementRequest.promise;
+    });
+    await waitFor(() =>
+      expect(decodedSources).toContain(
+        "mgt-image://library/page-1-retouched.png",
+      ),
+    );
+    expect(view.result.current.selectedPageImageDataUrl).toBe(
+      "mgt-image://library/page-1-inpainted.png",
+    );
+
+    await act(async () => {
+      replacementDecode.resolve();
+      await replacementDecode.promise;
+    });
+    await waitFor(() =>
+      expect(view.result.current.selectedPageImageDataUrl).toBe(
+        "mgt-image://library/page-1-retouched.png",
+      ),
+    );
+  });
+
+  it("never exposes the previous page frame during a cross-page render", async () => {
+    const secondPageRequest = deferred<string>();
+    const getPageImageDataUrl = vi.fn((path: string) =>
+      path === "page-2.png"
+        ? secondPageRequest.promise
+        : Promise.resolve(`mgt-image://library/${path}`),
+    );
+    installImageGateway(getPageImageDataUrl);
+    const snapshots: Array<{ dataUrl: string; pageId: string }> = [];
+    const view = renderHook(
+      ({ page }) => {
+        const image = usePageImageDataUrls({
+          chapterId: "chapter-1",
+          selectedPage: page,
+          selectedPageImagePath: page.imagePath,
+        });
+        snapshots.push({
+          dataUrl: image.selectedPageImageDataUrl,
+          pageId: page.id,
+        });
+        return image;
+      },
+      { initialProps: { page: makePage("page-1", "page-1.png") } },
+    );
+    await waitFor(() =>
+      expect(view.result.current.selectedPageImageDataUrl).toBe(
+        "mgt-image://library/page-1.png",
+      ),
+    );
+
+    snapshots.length = 0;
+    view.rerender({ page: makePage("page-2", "page-2.png") });
+
+    const intermediatePageTwoRender = snapshots.find(
+      (snapshot) => snapshot.pageId === "page-2",
+    );
+    expect(intermediatePageTwoRender).toEqual({
+      dataUrl: "",
+      pageId: "page-2",
+    });
+    expect(
+      snapshots.every(
+        (snapshot) =>
+          snapshot.pageId !== "page-2" ||
+          snapshot.dataUrl !== "mgt-image://library/page-1.png",
+      ),
+    ).toBe(true);
+
+    await act(async () => {
+      secondPageRequest.resolve("mgt-image://library/page-2.png");
+      await secondPageRequest.promise;
+    });
+    await waitFor(() =>
+      expect(view.result.current.selectedPageImageDataUrl).toBe(
+        "mgt-image://library/page-2.png",
+      ),
+    );
+  });
+
+  it("uses a decoded prefetched frame on the first render after switching pages", async () => {
+    const decodedSources: string[] = [];
+    class RecordingImage extends ImmediateDecodingImage {
+      override async decode(): Promise<void> {
+        decodedSources.push(this.src);
+      }
+    }
+    vi.stubGlobal("Image", RecordingImage);
+    installImageGateway(
+      vi.fn(async (path: string) => `mgt-image://library/${path}`),
+    );
+    const snapshots: Array<{ dataUrl: string; pageId: string }> = [];
+    const view = renderHook(
+      ({ neighbors, page }) => {
+        const image = usePageImageDataUrls({
+          chapterId: "chapter-1",
+          neighborTargets: neighbors,
+          selectedPage: page,
+          selectedPageImagePath: page.imagePath,
+        });
+        snapshots.push({
+          dataUrl: image.selectedPageImageDataUrl,
+          pageId: page.id,
+        });
+        return image;
+      },
+      {
+        initialProps: {
+          neighbors: [{ pageId: "page-2", imagePath: "page-2.png" }],
+          page: makePage("page-1", "page-1.png"),
+        },
+      },
+    );
+    await waitFor(() => {
+      expect(view.result.current.selectedPageImageDataUrl).toBe(
+        "mgt-image://library/page-1.png",
+      );
+      expect(decodedSources).toContain("mgt-image://library/page-2.png");
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    snapshots.length = 0;
+    view.rerender({
+      neighbors: [{ pageId: "page-1", imagePath: "page-1.png" }],
+      page: makePage("page-2", "page-2.png"),
+    });
+
+    expect(snapshots[0]).toEqual({
+      dataUrl: "mgt-image://library/page-2.png",
+      pageId: "page-2",
+    });
+    expect(
+      snapshots.every(
+        (snapshot) =>
+          snapshot.pageId !== "page-2" ||
+          snapshot.dataUrl === "mgt-image://library/page-2.png",
+      ),
+    ).toBe(true);
   });
 
   it("keeps structurally unchanged neighbor targets referentially stable", async () => {
@@ -138,7 +348,7 @@ describe("page image request coalescing", () => {
     );
 
     await waitFor(() =>
-      expect(decodedSources).toEqual(["mgt-image://library/page-2.png"]),
+      expect(decodedSources).toContain("mgt-image://library/page-2.png"),
     );
   });
 
@@ -180,10 +390,10 @@ describe("page image request coalescing", () => {
 
     for (let index = 0; index < 6; index += 1) {
       view.rerender({ index });
-      await waitFor(() => expect(instances).toHaveLength(index + 1));
+      await waitFor(() => expect(instances).toHaveLength(index + 2));
     }
-    expect(instances.slice(0, 2).every((image) => image.src === "")).toBe(true);
-    expect(instances.slice(2).every((image) => image.src !== "")).toBe(true);
+    expect(instances.slice(0, 3).every((image) => image.src === "")).toBe(true);
+    expect(instances.slice(3).every((image) => image.src !== "")).toBe(true);
 
     view.unmount();
     expect(instances.every((image) => image.src === "")).toBe(true);
@@ -256,4 +466,17 @@ function deferred<T>(): {
       resolvePromise(value);
     },
   };
+}
+
+class ImmediateDecodingImage {
+  decoding = "auto";
+  src = "";
+
+  async decode(): Promise<void> {
+    return undefined;
+  }
+
+  removeAttribute(): void {
+    this.src = "";
+  }
 }

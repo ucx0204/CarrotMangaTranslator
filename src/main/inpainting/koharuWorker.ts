@@ -7,7 +7,7 @@ import {
 import {
   JsonLinesWorkerClient,
   type JsonLinesWorkerResponse,
-} from "./jsonLinesWorkerClient";
+} from "../runtimeSupport/jsonLinesWorkerClient";
 import type {
   KoharuWorkerLaunchSpec,
   KoharuWorkerRequest,

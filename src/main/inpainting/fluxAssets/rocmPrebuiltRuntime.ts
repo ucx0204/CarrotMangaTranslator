@@ -13,8 +13,9 @@ import type {
   FluxPythonRuntime,
   FluxPythonRuntimeLayout,
 } from "./types";
-import { downloadToFile, extractLargeZipSafely } from "./downloads";
-import { isExecutableFile, isUsableFile } from "./fileProbe";
+import { extractLargeZipSafely } from "./downloads";
+import { downloadToFile } from "../../runtimeSupport/modelDownloads";
+import { isExecutableFile, isUsableFile } from "../../runtimeSupport/fileProbe";
 import {
   resolveFluxRocmPrebuiltRuntimeUrl,
   shouldUsePrebuiltFluxRocmRuntime,

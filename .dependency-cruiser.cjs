@@ -50,6 +50,12 @@ module.exports = {
       to: { path: "^src/main/inpainting/" },
     },
     {
+      name: "main-pipeline-depends-on-evidence-contract-not-implementation",
+      severity: "error",
+      from: { path: "^src/main/pipeline/" },
+      to: { path: "^src/main/textDetection/" },
+    },
+    {
       name: "main-jobs-do-not-import-ipc",
       severity: "error",
       from: { path: "^src/main/jobs/" },

@@ -16,7 +16,10 @@ import type {
   FluxPythonBackend,
   FluxPythonRuntime,
 } from "./types";
-import { ensureRemoteFile, hfResolveUrl } from "./downloads";
+import {
+  ensureRemoteFile,
+  hfResolveUrl,
+} from "../../runtimeSupport/modelDownloads";
 import { resolveFluxPythonMode } from "./manifests";
 import { ensureFluxPythonModelCache } from "./pythonRuntimePackages";
 import type { FluxWorkerLaunchSpec } from "../fluxWorkerTypes";

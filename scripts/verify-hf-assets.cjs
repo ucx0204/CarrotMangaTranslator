@@ -16,6 +16,10 @@ const REQUEST_TIMEOUT_MS = 30000;
 const modelPresets = readSource("src/shared/modelPresets.ts");
 const fluxConstants = readSource("src/main/inpainting/fluxAssets/constants.ts");
 const koharuAssets = readSource("src/main/inpainting/koharuAssets.ts");
+const animeTextAssets = readSource("src/main/textDetection/animeTextAssets.ts");
+const animeTextContract = JSON.parse(
+  readSource("src/main/runtime/ocr/anime-text-evidence-contract.json"),
+);
 
 const assets = [
   pinnedGemmaAsset(
@@ -107,6 +111,16 @@ const assets = [
     "LAMA_MODEL_FILE",
     "LAMA_MODEL_REVISION",
   ),
+  {
+    label: "Anime text YOLO model",
+    repo: readStringConstant(animeTextAssets, "ANIME_TEXT_MODEL_REPO"),
+    file: readStringConstant(animeTextAssets, "ANIME_TEXT_MODEL_FILE"),
+    revision: String(animeTextContract.modelRevision),
+    expectedSha256: readStringConstant(
+      animeTextAssets,
+      "ANIME_TEXT_MODEL_SHA256",
+    ),
+  },
   ...PADDLE_OCR_MODEL_DOWNLOADS.flatMap((entry) =>
     entry.files.map((file) => ({
       label: `${entry.name}: ${file}`,
@@ -153,31 +167,23 @@ async function main() {
   );
 }
 
-/** @param {{ label: string; repo: string; file: string; revision?: string }} asset */
+/**
+ * @typedef {{
+ *   label:string;
+ *   repo:string;
+ *   file:string;
+ *   revision?:string;
+ *   expectedSha256?:string;
+ * }} RemoteAsset
+ */
+
+/** @param {RemoteAsset} asset */
 async function verifyAsset(asset) {
   const url = buildHfResolveUrl(asset.repo, asset.file, asset.revision);
   let lastError = null;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     try {
-      const response = await fetch(url, {
-        method: "HEAD",
-        redirect: "follow",
-        headers: {
-          "Accept-Encoding": "identity",
-          "User-Agent": "carrot-manga-translator-release-check",
-        },
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      });
-      if (!response.ok) {
-        throw new Error(
-          `HTTP ${response.status} ${response.statusText || ""}`.trim(),
-        );
-      }
-      const size = Number(response.headers.get("content-length"));
-      if (!Number.isFinite(size) || size <= 0) {
-        throw new Error("missing positive Content-Length");
-      }
-      return size;
+      return await verifyAssetHead(url, asset);
     } catch (error) {
       lastError = error;
       if (attempt < MAX_ATTEMPTS) {
@@ -188,19 +194,123 @@ async function verifyAsset(asset) {
   throw new Error(`${url}: ${formatError(lastError)}`);
 }
 
+/** @param {string} url @param {RemoteAsset} asset */
+async function verifyAssetHead(url, asset) {
+  const metadata = await fetchHead(url, "manual");
+  assertHeadStatus(metadata);
+  verifyPinnedSha256(asset, metadata);
+  const linkedSize = readPositiveHeader(metadata, "x-linked-size");
+  if (!isRedirect(metadata)) {
+    return linkedSize || requireContentLength(metadata);
+  }
+  const location = metadata.headers.get("location");
+  if (!location) {
+    throw new Error("redirect response is missing Location");
+  }
+  const content = await fetchHead(
+    new URL(location, metadata.url).href,
+    "follow",
+  );
+  assertHeadStatus(content);
+  return linkedSize || requireContentLength(content);
+}
+
+/** @param {string} url @param {"manual"|"follow"} redirect */
+function fetchHead(url, redirect) {
+  return fetch(url, {
+    method: "HEAD",
+    redirect,
+    headers: {
+      "Accept-Encoding": "identity",
+      "User-Agent": "carrot-manga-translator-release-check",
+    },
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+}
+
+/** @param {Response} response */
+function assertHeadStatus(response) {
+  if (response.ok || isRedirect(response)) return;
+  throw new Error(
+    `HTTP ${response.status} ${response.statusText || ""}`.trim(),
+  );
+}
+
+/** @param {Response} response */
+function isRedirect(response) {
+  return response.status >= 300 && response.status < 400;
+}
+
+/** @param {RemoteAsset} asset @param {Response} response */
+function verifyPinnedSha256(asset, response) {
+  if (!asset.expectedSha256) return;
+  const actual = normalizeEtag(
+    response.headers.get("x-linked-etag") || response.headers.get("etag"),
+  );
+  if (!/^[a-f0-9]{64}$/.test(actual)) {
+    throw new Error("missing Hugging Face SHA-256 object metadata");
+  }
+  if (actual !== asset.expectedSha256.toLowerCase()) {
+    throw new Error(
+      `SHA-256 mismatch: expected ${asset.expectedSha256}, got ${actual}`,
+    );
+  }
+}
+
+/** @param {string|null} value */
+function normalizeEtag(value) {
+  return String(value ?? "")
+    .trim()
+    .replace(/^W\//, "")
+    .replace(/^"|"$/g, "")
+    .toLowerCase();
+}
+
+/** @param {Response} response @param {string} name */
+function readPositiveHeader(response, name) {
+  const value = Number(response.headers.get(name));
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+/** @param {Response} response */
+function requireContentLength(response) {
+  const size = readPositiveHeader(response, "content-length");
+  if (size <= 0) {
+    throw new Error("missing positive Content-Length");
+  }
+  return size;
+}
+
 /** @param {string} relativePath */
 function readSource(relativePath) {
   return readFileSync(path.join(ROOT, relativePath), "utf8");
 }
 
-/** @param {string} label @param {string} source @param {string} repoName @param {string} fileName @param {string=} revisionName */
-function sourceAsset(label, source, repoName, fileName, revisionName) {
+/**
+ * @param {string} label
+ * @param {string} source
+ * @param {string} repoName
+ * @param {string} fileName
+ * @param {string=} revisionName
+ * @param {string=} sha256Name
+ */
+function sourceAsset(
+  label,
+  source,
+  repoName,
+  fileName,
+  revisionName,
+  sha256Name,
+) {
   return {
     label,
     repo: readStringConstant(source, repoName),
     file: readStringConstant(source, fileName),
     ...(revisionName
       ? { revision: readStringConstant(source, revisionName) }
+      : {}),
+    ...(sha256Name
+      ? { expectedSha256: readStringConstant(source, sha256Name) }
       : {}),
   };
 }

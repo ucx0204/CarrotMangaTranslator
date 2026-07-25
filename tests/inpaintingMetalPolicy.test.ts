@@ -7,7 +7,7 @@ import {
   FLUX_VAE_REVISION,
   FLUX_VAE_SHA256,
 } from "../src/main/inpainting/fluxAssets/constants";
-import { hfResolveUrl } from "../src/main/inpainting/fluxAssets/downloads";
+import { hfResolveUrl } from "../src/main/runtimeSupport/modelDownloads";
 import { resolveFluxWorkerBackend } from "../src/main/inpainting/fluxAssets/workerLaunch";
 import {
   buildFluxRuntimeExitError,

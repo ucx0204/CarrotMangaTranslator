@@ -16,6 +16,8 @@ import os
 import sys
 from pathlib import Path
 
+from paddleocr_review_contexts import build_textline_review_context_ids
+
 try:
   from PIL import Image
 except Exception:  # pragma: no cover - reported with the PaddleOCR install error path.
@@ -1245,6 +1247,7 @@ def preserve_paddle_group_evidence(items: list[dict]) -> None:
 def materialize_textline_heuristic_partition(partition: dict) -> list[dict]:
     """Flatten confirmed/deferred fragments while retaining every raw OCR box."""
 
+    review_context_by_candidate_id = build_textline_review_context_ids(partition)
     items: list[dict] = []
     for fragment_index, group in enumerate(partition.get("groups", []), start=1):
       fragment_id = f"B{fragment_index:03d}"
@@ -1273,6 +1276,9 @@ def materialize_textline_heuristic_partition(partition: dict) -> list[dict]:
                 "semanticGroup": True,
             }
         )
+        review_context_id = review_context_by_candidate_id.get(item.get("id"))
+        if review_context_id:
+          item["reviewContextId"] = review_context_id
         items.append(item)
 
     for fragment_index, entry in enumerate(partition.get("deferred", []), start=1):

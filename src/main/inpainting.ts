@@ -22,7 +22,7 @@ import {
 import {
   ensureRemoteFile,
   hfResolveUrl,
-} from "./inpainting/fluxAssets/downloads";
+} from "./runtimeSupport/modelDownloads";
 import { createCombinedDownloadProgress } from "./inpainting/fluxAssets/progress";
 import { ensureFluxWorkerLaunch } from "./inpainting/fluxAssets/workerLaunch";
 import {

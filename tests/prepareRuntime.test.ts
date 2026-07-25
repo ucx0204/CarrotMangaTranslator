@@ -50,6 +50,10 @@ function createRuntimeFixture() {
   mkdirSync(join(sourceDir, "transport"), { recursive: true });
   mkdirSync(join(sourceDir, "templates"), { recursive: true });
   writeFileSync(join(sourceDir, "root.cjs"), "root");
+  writeFileSync(
+    join(sourceDir, "paddleocr_review_contexts.py"),
+    "def build_textline_review_context_ids(partition): return {}",
+  );
   writeFileSync(join(sourceDir, "transport", "response.cjs"), "nested");
   writeFileSync(join(sourceDir, "templates", "chat-template.jinja"), "jinja");
   return { root, sourceDir };
@@ -66,6 +70,9 @@ describe("prepareRuntimeAssets", () => {
 
     expect(existsSync(join(outputDir, "stale.cjs"))).toBe(false);
     expect(readFileSync(join(outputDir, "root.cjs"), "utf8")).toBe("root");
+    expect(
+      readFileSync(join(outputDir, "paddleocr_review_contexts.py"), "utf8"),
+    ).toContain("build_textline_review_context_ids");
     expect(
       readFileSync(join(outputDir, "transport", "response.cjs"), "utf8"),
     ).toBe("nested");

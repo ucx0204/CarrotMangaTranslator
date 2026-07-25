@@ -1,7 +1,6 @@
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { clamp } from "../../shared/geometry";
-import { logWarn } from "../logger";
 import { safeCleanup } from "../safeCleanup";
 import {
   FLUX_INPAINT_CONTEXT_PX,
@@ -29,6 +28,7 @@ import {
   measureMaskedRegionChange,
   type MaskedRegionChangeStats,
 } from "./fluxChangeStats";
+import { logInpaintingRuntimeWarn } from "./inpaintingRuntimeLogger";
 
 type FluxInpaintRunOptions = {
   signal?: AbortSignal;
@@ -64,7 +64,7 @@ export type FluxInpaintDiagnostics = {
 };
 
 const productionDiagnostics: FluxInpaintDiagnostics = {
-  warn: logWarn,
+  warn: logInpaintingRuntimeWarn,
 };
 
 type FluxWindowProcessArgs = {

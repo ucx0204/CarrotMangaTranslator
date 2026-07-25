@@ -64,6 +64,7 @@ export interface ReviewResult extends ReviewProjection {
   status: "reviewed" | "fallback" | "singleton";
   usedFallback: boolean;
   requestSkipped: boolean;
+  requestCount: number;
   rawResponse: unknown;
   fallbackError?: Record<string, unknown>;
 }

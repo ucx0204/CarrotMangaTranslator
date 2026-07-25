@@ -15,9 +15,13 @@ import {
   FLUX_RUNNER_DIR,
   FLUX_RUNTIME_EXECUTABLE,
 } from "./constants";
-import { downloadToFile, extractZipSafely } from "./downloads";
+import { extractZipSafely } from "./downloads";
+import { downloadToFile } from "../../runtimeSupport/modelDownloads";
 import { throwIfAborted } from "./errors";
-import { isExecutableFile, sha256FileSync } from "./fileProbe";
+import {
+  isExecutableFile,
+  sha256FileSync,
+} from "../../runtimeSupport/fileProbe";
 import type { FluxAssetProgress } from "./types";
 
 type LocalFluxRunnerSource = {

@@ -82,6 +82,36 @@ describe("OCR bbox pipeline boundaries", () => {
     expect(hints.at(-1)?.id).toBe(80);
   });
 
+  it("keeps 80 candidates while removing a review context split by the cap", () => {
+    const hints = hintsRuntime.normalizeOcrBboxHintPayload(
+      {
+        coordinateSpace: "pixels",
+        width: 1200,
+        height: 1800,
+        items: reviewContextBoundaryItems(true),
+      },
+      { imageWidth: 1200, imageHeight: 1800, sourceLanguage: "ja" },
+    );
+
+    expect(hints).toHaveLength(80);
+    expect(hints.at(-1)?.id).toBe(80);
+    expect(hints.some((hint) => "reviewContextId" in hint)).toBe(false);
+  });
+
+  it("does not let the cap hide malformed full review context metadata", () => {
+    expect(() =>
+      hintsRuntime.normalizeOcrBboxHintPayload(
+        {
+          coordinateSpace: "pixels",
+          width: 1200,
+          height: 1800,
+          items: reviewContextBoundaryItems(false),
+        },
+        { imageWidth: 1200, imageHeight: 1800, sourceLanguage: "ja" },
+      ),
+    ).toThrow("must connect at least two review fragments");
+  });
+
   it("preserves axis-v4 review sidecars and stable sparse ids without regrouping", () => {
     const hints = hintsRuntime.normalizeOcrBboxHintPayload(
       {
@@ -165,6 +195,200 @@ describe("OCR bbox pipeline boundaries", () => {
     expect(hints[1]).not.toHaveProperty("groupId");
   });
 
+  it("normalizes a connected axis-v4 review context without changing fragments", () => {
+    const hints = hintsRuntime.normalizeOcrBboxHintPayload(
+      {
+        coordinateSpace: "pixels",
+        width: 1200,
+        height: 1800,
+        items: [
+          reviewContextItem(1, "B001", 700, 200, 732, 390),
+          reviewContextItem(2, "B001", 660, 220, 692, 430, 2),
+          reviewContextItem(3, "B002", 620, 252, 652, 462),
+        ],
+      },
+      { imageWidth: 1200, imageHeight: 1800, sourceLanguage: "ja" },
+    );
+
+    expect(hints.map((hint) => hint.reviewContextId)).toEqual([
+      "RC001",
+      "RC001",
+      "RC001",
+    ]);
+    expect(hints.map((hint) => hint.reviewFragmentId)).toEqual([
+      "B001",
+      "B001",
+      "B002",
+    ]);
+  });
+
+  it.each([
+    {
+      name: "ignored label",
+      filteredCandidate: {
+        ...reviewContextItem(3, "B002", 620, 252, 652, 462),
+        label: "image",
+      },
+    },
+    {
+      name: "invalid geometry",
+      filteredCandidate: {
+        ...reviewContextItem(3, "B002", 620, 252, 652, 462),
+        x2: 621,
+      },
+    },
+  ])(
+    "removes a valid review context atomically after filtering: $name",
+    ({ filteredCandidate }) => {
+      const hints = hintsRuntime.normalizeOcrBboxHintPayload(
+        {
+          coordinateSpace: "pixels",
+          width: 1200,
+          height: 1800,
+          items: [
+            reviewContextItem(1, "B001", 700, 200, 732, 390),
+            reviewContextItem(2, "B001", 660, 220, 692, 430, 2),
+            filteredCandidate,
+          ],
+        },
+        { imageWidth: 1200, imageHeight: 1800, sourceLanguage: "ja" },
+      );
+
+      expect(hints).toHaveLength(2);
+      expect(hints.map((hint) => hint.reviewFragmentId)).toEqual([
+        "B001",
+        "B001",
+      ]);
+      expect(hints.some((hint) => "reviewContextId" in hint)).toBe(false);
+    },
+  );
+
+  it("does not let filtering hide malformed source review metadata", () => {
+    expect(() =>
+      hintsRuntime.normalizeOcrBboxHintPayload(
+        {
+          coordinateSpace: "pixels",
+          width: 1200,
+          height: 1800,
+          items: [
+            reviewContextItem(1, "B001", 700, 200, 732, 390),
+            {
+              ...reviewContextItem(2, "B002", 620, 252, 652, 462),
+              label: "image",
+              reviewContextId: "context-one",
+            },
+          ],
+        },
+        { imageWidth: 1200, imageHeight: 1800, sourceLanguage: "ja" },
+      ),
+    ).toThrow("Invalid reviewContextId");
+  });
+
+  it("preserves complete anime-text-yolo evidence without changing OCR groups", () => {
+    const hints = hintsRuntime.normalizeOcrBboxHintPayload(
+      {
+        coordinateSpace: "pixels",
+        width: 1200,
+        height: 1800,
+        items: [
+          {
+            id: 7,
+            label: "ocr_textline",
+            x1: 1101,
+            y1: 1202,
+            x2: 1151,
+            y2: 1256,
+            reviewFragmentId: "D001",
+            reviewStatus: "deferred",
+            reviewReasons: ["dense_page_single_glyph"],
+            reviewOrder: 1,
+            animeTextRegionId: "ATY001",
+            animeTextRegionScore: 0.8443,
+            animeTextContainment: 0.9,
+            animeTextRegionBbox: [1015.7, 1199.8, 1145.8, 1427.3],
+            animeTextEvidenceVersion: 1,
+            animeTextModelRevision: "937f67dfe61fc4793549782e103751fdc1f0a8d9",
+          },
+        ],
+      },
+      { imageWidth: 1200, imageHeight: 1800, sourceLanguage: "ja" },
+    );
+
+    expect(hints).toEqual([
+      expect.objectContaining({
+        id: 7,
+        reviewFragmentId: "D001",
+        reviewStatus: "deferred",
+        animeTextRegionId: "ATY001",
+        animeTextRegionScore: 0.8443,
+        animeTextContainment: 0.9,
+        animeTextRegionBbox: [1015.7, 1199.8, 1145.8, 1427.3],
+        animeTextEvidenceVersion: 1,
+      }),
+    ]);
+    expect(hints[0]).not.toHaveProperty("groupId");
+  });
+
+  it("rejects partial anime-text-yolo evidence instead of silently using it", () => {
+    expect(() =>
+      hintsRuntime.normalizeOcrBboxHintPayload(
+        [
+          {
+            id: 1,
+            x1: 10,
+            y1: 10,
+            x2: 30,
+            y2: 50,
+            animeTextRegionId: "ATY001",
+          },
+        ],
+        { imageWidth: 100, imageHeight: 100 },
+      ),
+    ).toThrow("Incomplete anime-text-yolo evidence");
+  });
+
+  it.each([
+    {
+      name: "invalid id",
+      items: [
+        {
+          ...reviewContextItem(1, "B001", 700, 200, 732, 390),
+          reviewContextId: "context-one",
+        },
+      ],
+      message: /Invalid reviewContextId/,
+    },
+    {
+      name: "orphan context",
+      items: [reviewContextItem(1, "B001", 700, 200, 732, 390)],
+      message: /must connect at least two review fragments/,
+    },
+    {
+      name: "partial fragment context",
+      items: [
+        reviewContextItem(1, "B001", 700, 200, 732, 390),
+        reviewContextItem(2, "B001", 660, 220, 692, 430, 2, false),
+        reviewContextItem(3, "B002", 620, 252, 652, 462),
+      ],
+      message: /inconsistent reviewContextId/,
+    },
+  ])(
+    "rejects malformed review context metadata: $name",
+    ({ items, message }) => {
+      expect(() =>
+        hintsRuntime.normalizeOcrBboxHintPayload(
+          {
+            coordinateSpace: "pixels",
+            width: 1200,
+            height: 1800,
+            items,
+          },
+          { imageWidth: 1200, imageHeight: 1800, sourceLanguage: "ja" },
+        ),
+      ).toThrow(message);
+    },
+  );
+
   it("reports a JSON-file read failure without claiming the page has no text", async () => {
     const missingPath = join(tmpdir(), `missing-ocr-${Date.now()}.json`);
 
@@ -192,3 +416,58 @@ describe("OCR bbox pipeline boundaries", () => {
     expect(pipeline.readCompletedOcrBatchOutputPayload(outputPath)).toBeNull();
   });
 });
+
+function reviewContextItem(
+  id: number,
+  reviewFragmentId: string,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  reviewOrder = 1,
+  includeReviewContext = true,
+): Record<string, unknown> {
+  return {
+    id,
+    label: "ocr_textline",
+    x1,
+    y1,
+    x2,
+    y2,
+    ocrText: `本文${id}`,
+    score: 0.95,
+    reviewFragmentId,
+    reviewStatus: "confirmed",
+    reviewReasons: [],
+    reviewOrder,
+    groupId: reviewFragmentId.replace(/^B/, "G"),
+    orderInGroup: reviewOrder,
+    groupSize: reviewFragmentId === "B001" ? 2 : 1,
+    semanticGroup: true,
+    rolePrior: "ordinary_mergeable",
+    containerType: "same_text_container",
+    ...(includeReviewContext ? { reviewContextId: "rc001" } : {}),
+  };
+}
+
+function reviewContextBoundaryItems(
+  completeBoundaryContext: boolean,
+): Array<Record<string, unknown>> {
+  return Array.from({ length: 81 }, (_, index) => {
+    const id = index + 1;
+    const column = index % 20;
+    const row = Math.floor(index / 20);
+    const includeReviewContext =
+      id === 80 || (completeBoundaryContext && id === 81);
+    return reviewContextItem(
+      id,
+      `B${String(id + 99).padStart(3, "0")}`,
+      20 + column * 40,
+      20 + row * 80,
+      44 + column * 40,
+      70 + row * 80,
+      1,
+      includeReviewContext,
+    );
+  });
+}

@@ -41,7 +41,7 @@ function createMetalRunnerBuildPlan(root, target = METAL_TARGET) {
       target,
       directory: "mgt-koharu-inpaint-runner",
       binary: "mgt-koharu-inpaint-runner",
-      models: ["lama-manga", "aot-inpainting"],
+      models: ["lama-manga", "aot-inpainting", "anime-text-yolo"],
       protocolSmoke: false,
     }),
     createRunnerBuild({

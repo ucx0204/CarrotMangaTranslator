@@ -1,19 +1,25 @@
-import { chmod, copyFile, mkdir } from "node:fs/promises";
-import { existsSync } from "node:fs";
-import { basename, delimiter, dirname, join } from "node:path";
+import { mkdir } from "node:fs/promises";
+import { basename, delimiter, join } from "node:path";
 import type {
   InpaintingModel,
   KoharuInpaintingBackend,
 } from "../../shared/inpaintingSettingsTypes";
 import { FLUX_CUDA_RUNTIME_DIR } from "./fluxAssets/constants";
 import { ensureFluxCudaRuntime } from "./fluxAssets/cudaRuntime";
-import { ensureRemoteFile, hfResolveUrl } from "./fluxAssets/downloads";
+import {
+  ensureRemoteFile,
+  hfResolveUrl,
+} from "../runtimeSupport/modelDownloads";
 import { createCombinedDownloadProgress } from "./fluxAssets/progress";
 import { ensureFluxZludaSupportRuntime } from "./fluxAssets/zludaRuntime";
 import { tMain } from "./localization";
 import { logInpaintingRuntimeInfo } from "./inpaintingRuntimeLogger";
 import type { InpaintingRuntimeProgress } from "./inpaintingEngine";
 import type { KoharuWorkerLaunchSpec } from "./koharuWorkerTypes";
+import {
+  ensureManagedKoharuRunner,
+  KOHARU_RUNNER_DIRECTORY,
+} from "../runtimeSupport/koharuRunner";
 
 const AOT_MODEL_REPO = "mayocream/aot-inpainting";
 export const AOT_MODEL_REVISION = "bde6131f9d3ef841b435507def8534715ac8e87c";
@@ -28,12 +34,6 @@ const LAMA_MODEL_FILE = "lama-manga.safetensors";
 export const LAMA_MODEL_SHA256 =
   "a790515e9da839b8d89af7d565ceb110d908b7d6fbdb991f2acb2ec7d9b08bdb";
 
-const KOHARU_RUNTIME_EXECUTABLE =
-  process.platform === "win32"
-    ? "mgt-koharu-inpaint-runner.exe"
-    : "mgt-koharu-inpaint-runner";
-const KOHARU_RUNNER_DIR = "mgt-koharu-inpaint-runner";
-
 export type KoharuModelFiles =
   | {
       model: "lama-manga";
@@ -45,6 +45,16 @@ export type KoharuModelFiles =
       weightsPath: string;
       configPath: string;
     };
+
+type KoharuWorkerLaunchOptions = {
+  runtimeDir: string;
+  cudaRuntimeDir?: string;
+  model: Exclude<InpaintingModel, "flux-klein">;
+  modelFiles: KoharuModelFiles;
+  backend: KoharuInpaintingBackend;
+  signal?: AbortSignal;
+  onProgress?: (progress: InpaintingRuntimeProgress) => void;
+};
 
 export function resolveKoharuModelFiles(model: InpaintingModel): {
   repo: string;
@@ -120,18 +130,14 @@ export async function ensureKoharuModelAssets(options: {
   };
 }
 
-export async function ensureKoharuWorkerLaunch(options: {
-  runtimeDir: string;
-  cudaRuntimeDir?: string;
-  model: Exclude<InpaintingModel, "flux-klein">;
-  modelFiles: KoharuModelFiles;
-  backend: KoharuInpaintingBackend;
-  signal?: AbortSignal;
-  onProgress?: (progress: InpaintingRuntimeProgress) => void;
-}): Promise<KoharuWorkerLaunchSpec> {
+export async function ensureKoharuWorkerLaunch(
+  options: KoharuWorkerLaunchOptions,
+): Promise<KoharuWorkerLaunchSpec> {
   assertKoharuBackendPlatform(options.backend);
   await mkdir(options.runtimeDir, { recursive: true });
-  const runtimePath = await ensureManagedKoharuRunner(options);
+  const managedRunner = await ensureManagedKoharuRunner(options);
+  const runtimePath = managedRunner.path;
+  reportKoharuExecutablePreparing(options, managedRunner.sourcePath);
   const args = [
     "--model",
     options.model,
@@ -173,15 +179,7 @@ export async function ensureKoharuWorkerLaunch(options: {
     env.KOHARU_DATA_ROOT = zludaRuntimeRoot;
   }
 
-  options.onProgress?.({
-    progressText: tMain("inpainting.runtime.koharuReady"),
-    detail: `${options.model} / ${options.backend}`,
-    progressMode: "log-only",
-    installLogLine: tMain("inpainting.runtime.koharuReadyLog", {
-      model: options.model,
-      file: basename(runtimePath),
-    }),
-  });
+  reportKoharuReady(options, runtimePath);
   logInpaintingRuntimeInfo("Koharu runtime selected", {
     model: options.model,
     backend: options.backend,
@@ -204,6 +202,35 @@ export async function ensureKoharuWorkerLaunch(options: {
   };
 }
 
+function reportKoharuExecutablePreparing(
+  options: KoharuWorkerLaunchOptions,
+  sourcePath: string,
+): void {
+  options.onProgress?.({
+    progressText: tMain("inpainting.runtime.koharuExecutablePreparing"),
+    detail: basename(sourcePath),
+    progressMode: "log-only",
+    installLogLine: tMain("inpainting.runtime.koharuExecutableLog", {
+      file: `${KOHARU_RUNNER_DIRECTORY}/${basename(sourcePath)}`,
+    }),
+  });
+}
+
+function reportKoharuReady(
+  options: KoharuWorkerLaunchOptions,
+  runtimePath: string,
+): void {
+  options.onProgress?.({
+    progressText: tMain("inpainting.runtime.koharuReady"),
+    detail: `${options.model} / ${options.backend}`,
+    progressMode: "log-only",
+    installLogLine: tMain("inpainting.runtime.koharuReadyLog", {
+      model: options.model,
+      file: basename(runtimePath),
+    }),
+  });
+}
+
 function assertKoharuBackendPlatform(backend: KoharuInpaintingBackend): void {
   if (
     backend === "metal-native" &&
@@ -213,79 +240,6 @@ function assertKoharuBackendPlatform(backend: KoharuInpaintingBackend): void {
       "Koharu Metal 런타임은 Apple Silicon(macOS arm64)에서만 사용할 수 있습니다.",
     );
   }
-}
-
-async function ensureManagedKoharuRunner(options: {
-  runtimeDir: string;
-  signal?: AbortSignal;
-  onProgress?: (progress: InpaintingRuntimeProgress) => void;
-}): Promise<string> {
-  throwIfAborted(options.signal);
-  const sourcePath = resolveKoharuRunnerSource();
-  if (!sourcePath) {
-    throw new Error(
-      tMain("inpainting.errors.koharuExecutableMissing", {
-        executable: KOHARU_RUNTIME_EXECUTABLE,
-        directory: KOHARU_RUNNER_DIR,
-      }),
-    );
-  }
-
-  const managedDir = join(options.runtimeDir, KOHARU_RUNNER_DIR);
-  const managedPath = join(managedDir, KOHARU_RUNTIME_EXECUTABLE);
-  await mkdir(managedDir, { recursive: true });
-  await copyFile(sourcePath, managedPath);
-  if (process.platform !== "win32") {
-    await chmod(managedPath, 0o755);
-  }
-  options.onProgress?.({
-    progressText: tMain("inpainting.runtime.koharuExecutablePreparing"),
-    detail: basename(sourcePath),
-    progressMode: "log-only",
-    installLogLine: tMain("inpainting.runtime.koharuExecutableLog", {
-      file: `${basename(dirname(sourcePath))}/${basename(sourcePath)}`,
-    }),
-  });
-  return managedPath;
-}
-
-function resolveKoharuRunnerSource(): string | null {
-  const explicit = process.env.MGT_KOHARU_INPAINT_EXE;
-  if (explicit && existsSync(explicit)) {
-    return explicit;
-  }
-  for (const toolsRoot of resolveKoharuRunnerToolsRoots()) {
-    for (const candidate of [
-      join(toolsRoot, KOHARU_RUNNER_DIR, KOHARU_RUNTIME_EXECUTABLE),
-      join(
-        toolsRoot,
-        KOHARU_RUNNER_DIR,
-        "target",
-        "aarch64-apple-darwin",
-        "release",
-        KOHARU_RUNTIME_EXECUTABLE,
-      ),
-      join(
-        toolsRoot,
-        KOHARU_RUNNER_DIR,
-        "target",
-        "release",
-        KOHARU_RUNTIME_EXECUTABLE,
-      ),
-    ]) {
-      if (existsSync(candidate)) {
-        return candidate;
-      }
-    }
-  }
-  return null;
-}
-
-function resolveKoharuRunnerToolsRoots(): string[] {
-  return [
-    process.resourcesPath ? join(process.resourcesPath, "tools") : undefined,
-    join(process.cwd(), "tools"),
-  ].filter((value): value is string => Boolean(value));
 }
 
 function describeKoharuComputePolicy(
@@ -302,10 +256,4 @@ function prependPathEntry(
   entry: string,
 ): string {
   return [entry, currentPath].filter(Boolean).join(delimiter);
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-  if (signal?.aborted) {
-    throw new DOMException("Aborted", "AbortError");
-  }
 }

@@ -2,7 +2,7 @@
 /**
  * @typedef {Record<string, unknown>} JsonRecord
  * @typedef {{ x1: number; y1: number; x2: number; y2: number }} OcrBox
- * @typedef {OcrBox & { id?: number; label?: string; ocrText?: string; score?: number; [key: string]: unknown }} OcrHint
+ * @typedef {OcrBox & { id?: number; label?: string; ocrText?: string; score?: number; reviewContextId?: string; reviewFragmentId?: string; reviewStatus?: string; animeTextRegionId?: string; animeTextRegionScore?: number; animeTextContainment?: number; animeTextRegionBbox?: number[]; animeTextEvidenceVersion?: number; animeTextModelRevision?: string; [key: string]: unknown }} OcrHint
  * @typedef {{ imageWidth?: unknown; imageHeight?: unknown; sourceLanguage?: unknown; [key: string]: unknown }} OcrHintOptions
  */
 const {
@@ -13,6 +13,12 @@ const {
 } = require("../simple-page-prompts.cjs");
 const { attachOcrGroupingHints } = require("./hint-grouping.cjs");
 const { asRecord, readRawOcrBox } = require("./hint-boxes.cjs");
+const { copyAnimeTextEvidence } = require("./anime-text-evidence-contract.cjs");
+const {
+  MAX_OCR_BBOX_HINTS,
+  copyReviewContextMetadata,
+  limitPartitionedHints,
+} = require("./review-context-metadata.cjs");
 
 const IGNORED_LABELS = new Set([
   "image",
@@ -63,10 +69,14 @@ function findJsonRange(text, open, close) {
 function normalizeOcrBboxHintPayload(payload, options = {}) {
   const imageWidth = readPositiveInteger(options.imageWidth);
   const imageHeight = readPositiveInteger(options.imageHeight);
+  const candidates = collectOcrBboxCandidates(payload);
+  const sourceReviewHints = candidates.map(readSourceReviewMetadata);
+  validateReviewContextMetadata(sourceReviewHints);
   /** @type {OcrHint[]} */
   const hints = [];
+  const filteredReviewContextIds = new Set();
   const usedIds = new Set();
-  for (const candidate of collectOcrBboxCandidates(payload)) {
+  candidates.forEach((candidate, index) => {
     const hint = normalizeCandidate(
       candidate,
       payload,
@@ -74,27 +84,49 @@ function normalizeOcrBboxHintPayload(payload, options = {}) {
       imageWidth,
       imageHeight,
     );
-    if (hint) {
-      const record = asRecord(candidate);
-      const sourceId =
-        hasReviewPartitionMetadata(hint) && readPositiveInteger(record.id);
-      const id =
-        sourceId && !usedIds.has(sourceId) ? sourceId : nextHintId(usedIds);
-      usedIds.add(id);
-      hints.push({ ...hint, id });
+    if (!hint) {
+      filteredReviewContextIds.add(sourceReviewHints[index]?.reviewContextId);
+      return;
     }
-  }
+    const record = asRecord(candidate);
+    const sourceId =
+      hasReviewPartitionMetadata(hint) && readPositiveInteger(record.id);
+    const id =
+      sourceId && !usedIds.has(sourceId) ? sourceId : nextHintId(usedIds);
+    usedIds.add(id);
+    hints.push({ ...hint, id });
+  });
+  hints.forEach((hint) => {
+    if (
+      hint.reviewContextId &&
+      filteredReviewContextIds.has(hint.reviewContextId)
+    ) {
+      delete hint.reviewContextId;
+    }
+  });
+  validateReviewContextMetadata(hints);
   if (hints.length > 0 && hints.every(hasReviewPartitionMetadata)) {
     // Python axis-v4 has already partitioned every retained candidate. Running
     // the older JS adjacency grouper here would silently join confirmed
     // singleton/deferred fragments again.
-    return hints.slice(0, 80);
+    const limited = limitPartitionedHints(hints);
+    validateReviewContextMetadata(limited);
+    return limited;
   }
   return attachOcrGroupingHints(hints, {
     imageWidth,
     imageHeight,
     sourceLanguage: options.sourceLanguage,
-  }).slice(0, 80);
+  }).slice(0, MAX_OCR_BBOX_HINTS);
+}
+
+/** @param {unknown} candidate @returns {OcrHint} */
+function readSourceReviewMetadata(candidate) {
+  const record = asRecord(candidate);
+  const hint = /** @type {OcrHint} */ ({});
+  copyReviewPartitionMetadata(hint, record);
+  copyReviewContextMetadata(hint, record);
+  return hint;
 }
 
 /**
@@ -141,6 +173,12 @@ function normalizeCandidate(
   copyPreassignedGroupMetadata(hint, record);
   copyPaddleGroupEvidence(hint, record);
   copyReviewPartitionMetadata(hint, record);
+  copyReviewContextMetadata(hint, record);
+  copyAnimeTextEvidence(
+    hint,
+    record,
+    `OCR candidate ${String(record.id ?? "?")}`,
+  );
   return hint;
 }
 
@@ -250,6 +288,41 @@ function copyReviewPartitionMetadata(hint, record) {
         .filter((value) => typeof value === "string" && value.trim())
         .map((value) => value.trim())
     : [];
+}
+
+/** @param {OcrHint[]} hints */
+function validateReviewContextMetadata(hints) {
+  /** @type {Map<string, string | null>} */
+  const fragments = new Map();
+  /** @type {Map<string, Set<string>>} */
+  const contextFragments = new Map();
+  for (const hint of hints) {
+    const fragmentId = String(hint.reviewFragmentId ?? "");
+    const contextId =
+      typeof hint.reviewContextId === "string" ? hint.reviewContextId : null;
+    if (!fragmentId) {
+      continue;
+    }
+    if (fragments.has(fragmentId) && fragments.get(fragmentId) !== contextId) {
+      throw new Error(
+        `Review fragment ${fragmentId} has inconsistent reviewContextId metadata.`,
+      );
+    }
+    fragments.set(fragmentId, contextId);
+    if (!contextId) {
+      continue;
+    }
+    const members = contextFragments.get(contextId) || new Set();
+    members.add(fragmentId);
+    contextFragments.set(contextId, members);
+  }
+  for (const [contextId, memberFragments] of contextFragments) {
+    if (memberFragments.size < 2) {
+      throw new Error(
+        `reviewContextId ${contextId} must connect at least two review fragments.`,
+      );
+    }
+  }
 }
 
 /** @param {OcrHint} hint */

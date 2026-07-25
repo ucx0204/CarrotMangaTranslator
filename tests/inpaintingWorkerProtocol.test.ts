@@ -270,6 +270,30 @@ describe("inpainting worker JSON-lines protocol", () => {
     expect(worker.isHealthy()).toBe(false);
   });
 
+  it("does not misclassify collateral work as user cancellation", async () => {
+    const worker = createKoharuWorker("idle", 2_000);
+    const firstController = new AbortController();
+    const secondController = new AbortController();
+    const first = worker.inpaint(KOHARU_REQUEST, firstController.signal);
+    const second = worker.inpaint(
+      { ...KOHARU_REQUEST, output: "second-output.png" },
+      secondController.signal,
+    );
+
+    firstController.abort();
+
+    await expect(first).rejects.toMatchObject({
+      name: "AbortError",
+      message: "Aborted",
+    });
+    await expect(second).rejects.toMatchObject({
+      name: "Error",
+      message: expect.stringContaining("다른 요청의 취소"),
+    });
+    expect(secondController.signal.aborted).toBe(false);
+    expect(worker.isHealthy()).toBe(false);
+  });
+
   it("rejects pending work when disposed and refuses later requests", async () => {
     const worker = createFluxWorker("idle", 2_000);
     const inpaint = worker.inpaint(FLUX_REQUEST);

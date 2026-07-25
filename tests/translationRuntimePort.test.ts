@@ -12,7 +12,12 @@ function createPortWithStubs({ disposed = true } = {}) {
     calls.push("dispose");
     return disposed;
   });
+  const releaseGroupingEvidence = vi.fn(async () => false);
   const runtime: RuntimeModules = {
+    animeTextRelations: {
+      hasPotentialAnimeTextRelation: () => false,
+      qualifyAnimeTextRelationRegionIds: () => [],
+    },
     simplePage: {
       isModelCached: () => true,
       startServer: async () => {
@@ -60,9 +65,15 @@ function createPortWithStubs({ disposed = true } = {}) {
   return {
     port: createTranslationRuntimePort({
       gpuMemory: { releaseIdleResources },
+      groupingEvidence: {
+        annotate: async (_options, result) => result,
+        annotateBatch: async (_options, results) => results,
+        releaseIdleResources: releaseGroupingEvidence,
+      },
       runtime,
     }),
     releaseIdleResources,
+    releaseGroupingEvidence,
     calls,
     collectOptions,
   };
@@ -81,24 +92,32 @@ function makeOcrOptions(
 
 describe("translationRuntimePort GPU OCR preparation", () => {
   it("disposes cached inpainting before local Gemma starts", async () => {
-    const { port, releaseIdleResources, calls } = createPortWithStubs();
+    const { port, releaseGroupingEvidence, releaseIdleResources, calls } =
+      createPortWithStubs();
 
     await port.startEndpointSession(
       makeOcrOptions({ modelProvider: "gemma", ocrDevice: "cpu" }),
     );
 
     expect(releaseIdleResources).toHaveBeenCalledWith("gemma-start");
+    expect(releaseGroupingEvidence).toHaveBeenCalledWith(
+      "translation-model-start",
+    );
     expect(calls).toEqual(["dispose", "endpoint"]);
   });
 
   it("does not evict inpainting for remote translation providers", async () => {
-    const { port, releaseIdleResources, calls } = createPortWithStubs();
+    const { port, releaseGroupingEvidence, releaseIdleResources, calls } =
+      createPortWithStubs();
 
     await port.startEndpointSession(
       makeOcrOptions({ modelProvider: "openai-api", ocrDevice: "cpu" }),
     );
 
     expect(releaseIdleResources).not.toHaveBeenCalled();
+    expect(releaseGroupingEvidence).toHaveBeenCalledWith(
+      "translation-model-start",
+    );
     expect(calls).toEqual([]);
   });
 

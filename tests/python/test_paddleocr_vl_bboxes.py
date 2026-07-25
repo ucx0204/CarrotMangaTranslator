@@ -21,7 +21,15 @@ SPEC = importlib.util.spec_from_file_location("paddleocr_vl_bboxes", SCRIPT_PATH
 if SPEC is None or SPEC.loader is None:
     raise RuntimeError(f"Could not load OCR script: {SCRIPT_PATH}")
 OCR = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(OCR)
+RUNTIME_MODULE_PATH = str(SCRIPT_PATH.parent)
+ADDED_RUNTIME_MODULE_PATH = RUNTIME_MODULE_PATH not in sys.path
+if ADDED_RUNTIME_MODULE_PATH:
+    sys.path.insert(0, RUNTIME_MODULE_PATH)
+try:
+    SPEC.loader.exec_module(OCR)
+finally:
+    if ADDED_RUNTIME_MODULE_PATH:
+        sys.path.remove(RUNTIME_MODULE_PATH)
 
 
 def batch_args(progress_path: str) -> argparse.Namespace:
@@ -1025,6 +1033,156 @@ class HeuristicTextlinePartitionTests(unittest.TestCase):
             == {frozenset({1, 2}), frozenset({3, 4})}
         )
         self.assertEqual(edge["reason"], "staggered_vertical_components")
+
+    def test_three_and_four_staggered_columns_share_one_serialized_review_context(self) -> None:
+        fixtures = [
+            [
+                textline_candidate("右の本文", 700, 200, 732, 390),
+                textline_candidate("中の本文", 660, 220, 692, 430),
+                textline_candidate("左の本文", 620, 252, 652, 462),
+            ],
+            [
+                textline_candidate("右の本文", 700, 200, 732, 390),
+                textline_candidate("中右本文", 660, 220, 692, 430),
+                textline_candidate("中左本文", 620, 252, 652, 462),
+                textline_candidate("左の本文", 580, 286, 612, 476),
+            ],
+        ]
+
+        for candidates in fixtures:
+            for candidate_id, candidate in enumerate(candidates, start=1):
+                candidate["id"] = candidate_id
+            partition = OCR.partition_textline_candidates_heuristic(
+                candidates,
+                width=1200,
+                height=1800,
+                source_language="ja",
+            )
+            items = OCR.materialize_textline_heuristic_partition(partition)
+
+            with self.subTest(column_count=len(candidates)):
+                self.assertGreaterEqual(len(partition["groups"]), 2)
+                self.assertGreaterEqual(len(partition["reviewEdges"]), 1)
+                self.assertEqual(
+                    {item.get("reviewContextId") for item in items},
+                    {"RC001"},
+                )
+                self.assertEqual(
+                    sorted(item["id"] for item in items),
+                    list(range(1, len(candidates) + 1)),
+                )
+
+    def test_review_context_projection_rejects_unknown_candidate_ids(self) -> None:
+        with self.assertRaisesRegex(ValueError, "unknown candidate"):
+            OCR.build_textline_review_context_ids(
+                {
+                    "groups": [[{"id": 1}]],
+                    "deferred": [],
+                    "reviewEdges": [
+                        {
+                            "componentCandidateIds": [[1], [2]],
+                        }
+                    ],
+                }
+            )
+
+    def test_review_context_projection_is_transitive_stable_and_edge_scoped(self) -> None:
+        partition = {
+            "groups": [
+                [{"id": 8}, {"id": 3}],
+                [{"id": 5}],
+                [{"id": 40}],
+            ],
+            "deferred": [
+                {"items": [{"id": 21}]},
+                {"items": [{"id": 13}]},
+            ],
+            "reviewEdges": [
+                {"componentCandidateIds": [[21], [13]]},
+                {"componentCandidateIds": [[5], [3]]},
+                {"componentCandidateIds": [[8], [5]]},
+            ],
+        }
+
+        expected = {
+            3: "RC001",
+            5: "RC001",
+            8: "RC001",
+            13: "RC002",
+            21: "RC002",
+        }
+        self.assertEqual(
+            OCR.build_textline_review_context_ids(partition),
+            expected,
+        )
+        self.assertEqual(
+            OCR.build_textline_review_context_ids(
+                {
+                    **partition,
+                    "reviewEdges": list(reversed(partition["reviewEdges"])),
+                }
+            ),
+            expected,
+        )
+
+    def test_review_context_projection_rejects_invalid_partition_candidate_ids(self) -> None:
+        invalid_partitions = {
+            "duplicate": {
+                "groups": [[{"id": 1}]],
+                "deferred": [{"items": [{"id": 1}]}],
+            },
+            "zero": {
+                "groups": [[{"id": 1}, {"id": 0}]],
+                "deferred": [],
+            },
+            "boolean": {
+                "groups": [[{"id": 1}, {"id": True}]],
+                "deferred": [],
+            },
+        }
+        edge = {"componentCandidateIds": [[1], [1]]}
+
+        for name, partition in invalid_partitions.items():
+            with self.subTest(name=name):
+                with self.assertRaisesRegex(ValueError, "unique positive ids"):
+                    OCR.build_textline_review_context_ids(
+                        {**partition, "reviewEdges": [edge]}
+                    )
+
+    def test_review_context_projection_rejects_malformed_edge_components(self) -> None:
+        malformed_components = [
+            [[1]],
+            [[], [2]],
+            [[1], "not-a-list"],
+        ]
+
+        for component_ids in malformed_components:
+            with self.subTest(component_ids=component_ids):
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "needs two candidate components",
+                ):
+                    OCR.build_textline_review_context_ids(
+                        {
+                            "groups": [[{"id": 1}], [{"id": 2}]],
+                            "deferred": [],
+                            "reviewEdges": [
+                                {"componentCandidateIds": component_ids}
+                            ],
+                        }
+                    )
+
+    def test_review_context_projection_empty_edges_remain_a_noop(self) -> None:
+        self.assertEqual(
+            OCR.build_textline_review_context_ids(
+                {
+                    "groups": "not-validated-without-review-edges",
+                    "deferred": None,
+                    "reviewEdges": [],
+                }
+            ),
+            {},
+        )
 
     def test_review_questions_never_include_low_confidence_sfx(self) -> None:
         sfx = textline_candidate("新", 507, 17, 653, 186)

@@ -19,6 +19,10 @@ export function loadRuntimeModules(
   runtimeDir: string = getAppPaths().runtimeDir,
 ): RuntimeModules {
   const runtime = {
+    animeTextRelations: loadRuntimeModuleFromDirectory(
+      runtimeDir,
+      "animeTextRelations",
+    ),
     simplePage: loadRuntimeModuleFromDirectory(runtimeDir, "simplePage"),
     overlayTools: loadRuntimeModuleFromDirectory(runtimeDir, "overlayTools"),
   };
@@ -27,9 +31,15 @@ export function loadRuntimeModules(
 }
 
 function assertRuntimeModules(runtime: {
+  animeTextRelations: unknown;
   simplePage: unknown;
   overlayTools: unknown;
 }): asserts runtime is RuntimeModules {
+  assertRuntimeFunctions(
+    runtime.animeTextRelations,
+    "anime-text-review-relations.cjs",
+    ["hasPotentialAnimeTextRelation", "qualifyAnimeTextRelationRegionIds"],
+  );
   assertRuntimeFunctions(runtime.simplePage, "simple-page-translate.cjs", [
     "collectOcrBboxHints",
     "requestTranslation",

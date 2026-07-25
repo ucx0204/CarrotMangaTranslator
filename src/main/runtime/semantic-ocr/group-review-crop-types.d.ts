@@ -25,9 +25,16 @@ export interface ReviewCandidate {
   reviewStatus?: unknown;
   reviewReasons?: unknown;
   reviewOrder?: unknown;
+  reviewContextId?: unknown;
   paddleGroupId?: unknown;
   paddleOrder?: unknown;
   paddleGroupSize?: unknown;
+  animeTextRegionId?: unknown;
+  animeTextRegionScore?: unknown;
+  animeTextContainment?: unknown;
+  animeTextRegionBbox?: unknown;
+  animeTextEvidenceVersion?: unknown;
+  animeTextModelRevision?: unknown;
   [key: string]: unknown;
 }
 
@@ -37,16 +44,21 @@ export interface NormalizedCandidate {
   status: ReviewStatus;
   reasons: string[];
   order: number;
+  reviewContextId: string | null;
   bbox: PageBox;
   paddleGroupId: string | null;
   paddleOrder: number | null;
   paddleGroupSize: number | null;
+  animeTextRegionId: string | null;
+  animeTextRegionScore: number | null;
+  animeTextContainment: number | null;
 }
 
 export interface ReviewFragment {
   fragmentId: string;
   status: ReviewStatus;
   reasons: string[];
+  reviewContextId: string | null;
   candidates: NormalizedCandidate[];
   bbox: PageBox;
 }
@@ -62,6 +74,7 @@ export interface InternalRegion {
 export interface CropCandidate {
   candidateId: number;
   reviewFragmentId: string;
+  reviewContextId: string | null;
   reviewStatus: ReviewStatus;
   reviewOrder: number;
   paddleGroupId: string | null;
@@ -73,6 +86,7 @@ export interface CropCandidate {
 
 export interface CropFragment {
   reviewFragmentId: string;
+  reviewContextId: string | null;
   reviewStatus: ReviewStatus;
   reviewReasons: string[];
   candidateIds: number[];

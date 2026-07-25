@@ -20,14 +20,37 @@ type RequestBody = JsonRecord & {
 
 const electronModulePath = require.resolve("electron");
 const originalElectronModule = require.cache[electronModulePath];
-const { clearGroupOnlyPageReviewCache, requestGroupOnlyPageReview } =
-  require("../src/main/runtime/transport/group-only-review-request.cjs") as {
-    clearGroupOnlyPageReviewCache: () => void;
-    requestGroupOnlyPageReview: (
+const {
+  buildPageReviewFingerprint,
+  clearGroupOnlyPageReviewCache,
+  requestGroupOnlyPageReview,
+} = require("../src/main/runtime/transport/group-only-review-request.cjs") as {
+  buildPageReviewFingerprint: (
+    server: JsonRecord & { baseUrl: string },
+    options: JsonRecord & { ocrBboxHints: JsonRecord[] },
+  ) => string;
+  clearGroupOnlyPageReviewCache: () => void;
+  requestGroupOnlyPageReview: (
+    server: JsonRecord & { baseUrl: string },
+    options: JsonRecord & { ocrBboxHints: JsonRecord[] },
+    ocr: { hints: unknown[]; diagnostics: unknown[] },
+  ) => Promise<unknown>;
+};
+const { deleteCachedPageReview, getOrCreateCachedPageReview } =
+  require("../src/main/runtime/transport/group-only-review-cache.cjs") as {
+    deleteCachedPageReview: (
+      key: string,
+      expected: Promise<unknown>,
+    ) => boolean;
+    getOrCreateCachedPageReview: <T>(
       server: JsonRecord & { baseUrl: string },
       options: JsonRecord & { ocrBboxHints: JsonRecord[] },
-      ocr: { hints: unknown[]; diagnostics: unknown[] },
-    ) => Promise<unknown>;
+      create: () => Promise<T>,
+    ) => {
+      key: string;
+      cacheHit: boolean;
+      promise: Promise<T>;
+    };
   };
 
 beforeEach(() => {
@@ -46,6 +69,97 @@ afterEach(() => {
 });
 
 describe("axis-v4 group-only review transport", () => {
+  it("reviews four staggered columns in one crop and emits one final block", async () => {
+    const request = makeStaggeredRequest();
+    const bodies: RequestBody[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockImplementation(async (_input, init) => {
+        const body = postedBody(init);
+        bodies.push(body);
+        return isFixedTranslation(body)
+          ? chatResponse(fixedReply(body))
+          : chatResponse({
+              labels: Array.from({ length: 4 }, () => ({
+                group: 1,
+                role: "body",
+              })),
+            });
+      }),
+    );
+
+    const result = await requestTranslation(request.server, request.options);
+
+    expect(bodies).toHaveLength(2);
+    expect(readUserText(bodies[0])).toContain("candidateOrder=[1,2,3,4]");
+    expect(result.requestBody).toMatchObject({
+      semanticGroupReviewRequestVersion: 4,
+      semanticGroupReviewCropPlanVersion: 2,
+      semanticGroupReviewRegionCount: 1,
+      semanticGroupReviewRequestCount: 1,
+      semanticGroupReviewSingletonSkipCount: 0,
+      fixedBlockCandidateIds: [[1, 2, 3, 4]],
+    });
+  });
+
+  it("keeps nearby columns from separate balloons in separate final groups", async () => {
+    const request = makeStaggeredRequest();
+    const bodies: RequestBody[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockImplementation(async (_input, init) => {
+        const body = postedBody(init);
+        bodies.push(body);
+        return isFixedTranslation(body)
+          ? chatResponse(fixedReply(body))
+          : chatResponse({
+              labels: [
+                { group: 1, role: "body" },
+                { group: 1, role: "body" },
+                { group: 2, role: "body" },
+                { group: 2, role: "body" },
+              ],
+            });
+      }),
+    );
+
+    const result = await requestTranslation(request.server, request.options);
+
+    expect(bodies).toHaveLength(2);
+    expect(result.requestBody).toMatchObject({
+      semanticGroupReviewStatus: "reviewed",
+      semanticGroupReviewRegionCount: 1,
+      fixedBlockCandidateIds: [
+        [1, 2],
+        [3, 4],
+      ],
+    });
+  });
+
+  it("keeps the original staggered fragments when context review fails", async () => {
+    const request = makeStaggeredRequest();
+    const bodies: RequestBody[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockImplementation(async (_input, init) => {
+        const body = postedBody(init);
+        bodies.push(body);
+        return isFixedTranslation(body)
+          ? chatResponse(fixedReply(body))
+          : chatResponse({ labels: [{ group: 1, role: "body" }] });
+      }),
+    );
+
+    const result = await requestTranslation(request.server, request.options);
+
+    expect(bodies).toHaveLength(2);
+    expect(result.requestBody).toMatchObject({
+      semanticGroupReviewStatus: "upstream-fallback",
+      semanticGroupReviewFallbackCount: 1,
+      fixedBlockCandidateIds: [[1, 2], [3], [4]],
+    });
+  });
+
   it("reviews crops, skips old split/merge audits, then translates immutable blocks", async () => {
     const request = makeRequest();
     const bodies: RequestBody[] = [];
@@ -86,7 +200,7 @@ describe("axis-v4 group-only review transport", () => {
       semanticGroupReviewRequestCount: 1,
       semanticGroupReviewFallbackCount: 0,
       semanticGroupReviewCacheHit: false,
-      fixedBlockCandidateIds: [[1, 2]],
+      fixedBlockCandidateIds: [[2, 1]],
     });
     expect(result.requestBody).not.toHaveProperty("semanticSplitAuditStatus");
     expect(result.requestBody).not.toHaveProperty("semanticMergeAuditStatus");
@@ -97,7 +211,7 @@ describe("axis-v4 group-only review transport", () => {
         crops: [
           {
             status: "reviewed",
-            groupCandidateIds: [[1, 2]],
+            groupCandidateIds: [[2, 1]],
           },
         ],
       },
@@ -136,6 +250,118 @@ describe("axis-v4 group-only review transport", () => {
       semanticGroupReviewCacheHit: true,
       semanticGroupReviewStatus: "reviewed",
     });
+  });
+
+  it("includes review context metadata in the page review cache identity", () => {
+    const request = makeStaggeredRequest();
+    const first = buildPageReviewFingerprint(request.server, request.options);
+    const second = buildPageReviewFingerprint(request.server, {
+      ...request.options,
+      ocrBboxHints: request.options.ocrBboxHints.map((item) => ({
+        ...item,
+        reviewContextId: "RC002",
+      })),
+    });
+
+    expect(second).not.toBe(first);
+  });
+
+  it("coalesces concurrent page reviews onto the same pending promise", async () => {
+    const request = makeRequest();
+    const pending = createDeferred<JsonRecord>();
+    let createCount = 0;
+    const create = () => {
+      createCount += 1;
+      return pending.promise;
+    };
+
+    const first = getOrCreateCachedPageReview(
+      request.server,
+      request.options,
+      create,
+    );
+    const second = getOrCreateCachedPageReview(
+      request.server,
+      request.options,
+      create,
+    );
+
+    expect(first.cacheHit).toBe(false);
+    expect(second.cacheHit).toBe(true);
+    expect(second.promise).toBe(first.promise);
+    expect(createCount).toBe(1);
+
+    pending.resolve({ status: "reviewed" });
+    await expect(Promise.all([first.promise, second.promise])).resolves.toEqual(
+      [{ status: "reviewed" }, { status: "reviewed" }],
+    );
+  });
+
+  it("evicts a rejected page review so the next attempt can retry", async () => {
+    const request = makeRequest();
+    let createCount = 0;
+    const failed = getOrCreateCachedPageReview(
+      request.server,
+      request.options,
+      () => {
+        createCount += 1;
+        return Promise.reject(new Error("review unavailable"));
+      },
+    );
+
+    await expect(failed.promise).rejects.toThrow("review unavailable");
+
+    const retried = getOrCreateCachedPageReview(
+      request.server,
+      request.options,
+      async () => {
+        createCount += 1;
+        return { status: "reviewed" };
+      },
+    );
+
+    expect(retried.cacheHit).toBe(false);
+    expect(createCount).toBe(2);
+    await expect(retried.promise).resolves.toEqual({ status: "reviewed" });
+  });
+
+  it("does not let a late aborted review evict its newer replacement", async () => {
+    const request = makeRequest();
+    const older = createDeferred<JsonRecord>();
+    const newer = createDeferred<JsonRecord>();
+    const first = getOrCreateCachedPageReview(
+      request.server,
+      request.options,
+      () => older.promise,
+    );
+
+    expect(deleteCachedPageReview(first.key, first.promise)).toBe(true);
+    const replacement = getOrCreateCachedPageReview(
+      request.server,
+      request.options,
+      () => newer.promise,
+    );
+    older.reject(new DOMException("Aborted", "AbortError"));
+
+    await expect(first.promise).rejects.toMatchObject({ name: "AbortError" });
+    expect(deleteCachedPageReview(first.key, first.promise)).toBe(false);
+
+    let unexpectedCreateCount = 0;
+    const joined = getOrCreateCachedPageReview(
+      request.server,
+      request.options,
+      async () => {
+        unexpectedCreateCount += 1;
+        return { status: "unexpected" };
+      },
+    );
+
+    expect(joined.cacheHit).toBe(true);
+    expect(joined.promise).toBe(replacement.promise);
+    expect(unexpectedCreateCount).toBe(0);
+
+    newer.resolve({ status: "reviewed" });
+    await expect(joined.promise).resolves.toEqual({ status: "reviewed" });
   });
 
   it("falls back to exact upstream fragments and still uses fixed translation", async () => {
@@ -291,8 +517,8 @@ function makeRequest() {
       ocrQualityMode: "full",
       ocrMergeMode: "semantic",
       ocrBboxHints: [
-        hint(1, 100, 100, 150, 260, "右列", "B001"),
-        hint(2, 140, 100, 190, 260, "左列", "B002"),
+        hint(1, 100, 100, 150, 260, "左列", "B001"),
+        hint(2, 140, 100, 190, 260, "右列", "B002"),
       ],
       imagePath,
       outputDir,
@@ -305,6 +531,34 @@ function makeRequest() {
       translationAttempt: 1,
       disableUnused49LogitBias: true,
     },
+  };
+}
+
+function makeStaggeredRequest() {
+  const request = makeRequest();
+  request.options.ocrBboxHints = [
+    staggeredHint(1, 700, 200, 732, 390, "右の本文", "B001", 1),
+    staggeredHint(2, 660, 220, 692, 430, "中右本文", "B001", 2),
+    staggeredHint(3, 620, 252, 652, 462, "中左本文", "B002", 1),
+    staggeredHint(4, 580, 286, 612, 476, "左の本文", "B003", 1),
+  ];
+  return request;
+}
+
+function staggeredHint(
+  id: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  ocrText: string,
+  reviewFragmentId: string,
+  reviewOrder: number,
+): JsonRecord {
+  return {
+    ...hint(id, x1, y1, x2, y2, ocrText, reviewFragmentId),
+    reviewOrder,
+    reviewContextId: "RC001",
   };
 }
 
@@ -407,4 +661,14 @@ function chatResponse(content: unknown): Response {
     }),
     { status: 200 },
   );
+}
+
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, reject, resolve };
 }

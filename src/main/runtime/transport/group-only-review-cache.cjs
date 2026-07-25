@@ -34,6 +34,7 @@ function getOrCreateCachedPageReview(server, options, create) {
       pageReviewCache.delete(oldest);
     }
     pageReviewCache.set(key, pending);
+    evictRejectedPageReview(key, pending);
   }
   return {
     key,
@@ -56,6 +57,13 @@ function buildPageReviewFingerprint(server, options) {
     hint.reviewStatus,
     hint.reviewReasons,
     hint.reviewOrder,
+    hint.reviewContextId,
+    hint.animeTextRegionId,
+    hint.animeTextRegionScore,
+    hint.animeTextContainment,
+    hint.animeTextRegionBbox,
+    hint.animeTextEvidenceVersion,
+    hint.animeTextModelRevision,
     hint.paddleGroupId,
     hint.paddleOrder,
     hint.paddleGroupSize,
@@ -63,7 +71,7 @@ function buildPageReviewFingerprint(server, options) {
   return createHash("sha256")
     .update(
       JSON.stringify({
-        version: 11,
+        version: 14,
         image: imageFingerprint(options.imagePath),
         size: [options.imageWidth, options.imageHeight],
         model: [
@@ -93,9 +101,17 @@ function imageFingerprint(value) {
   }
 }
 
-/** @param {string} key */
-function deleteCachedPageReview(key) {
-  pageReviewCache.delete(key);
+/** @param {string} key @param {Promise<unknown>} pending */
+function evictRejectedPageReview(key, pending) {
+  void pending.catch(() => {
+    deleteCachedPageReview(key, pending);
+  });
+}
+
+/** @param {string} key @param {Promise<unknown>} expected */
+function deleteCachedPageReview(key, expected) {
+  if (pageReviewCache.get(key) !== expected) return false;
+  return pageReviewCache.delete(key);
 }
 
 function clearGroupOnlyPageReviewCache() {

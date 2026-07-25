@@ -10,7 +10,12 @@ use std::ffi::CStr;
 
 use anyhow::{Context, Result, bail};
 use clap::{Parser, ValueEnum};
-use koharu_ml::{aot_inpainting::AotInpainting, lama::Lama, types::TextRegion};
+use koharu_ml::{
+    anime_text::{AnimeTextDetection, AnimeTextDetector, AnimeTextYoloVariant},
+    aot_inpainting::AotInpainting,
+    lama::Lama,
+    types::TextRegion,
+};
 use koharu_runtime::{ComputePolicy, RuntimeManager};
 use serde::{Deserialize, Serialize};
 use tracing_subscriber::{EnvFilter, fmt};
@@ -60,7 +65,7 @@ const CUDA_OPTIONAL_DLLS: &[&str] = &[
 
 #[derive(Parser, Debug)]
 #[command(name = "mgt-koharu-inpaint-runner")]
-#[command(about = "Carrot Manga Translator Koharu LaMa/AOT inpainting runner")]
+#[command(about = "Carrot Manga Translator Koharu model runner")]
 struct Cli {
     #[arg(long, value_enum)]
     model: ModelKind,
@@ -90,6 +95,8 @@ enum ModelKind {
     LamaManga,
     #[value(name = "aot-inpainting")]
     AotInpainting,
+    #[value(name = "anime-text-yolo")]
+    AnimeTextYolo,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
@@ -120,21 +127,76 @@ enum WorkerRequest {
         #[serde(rename = "max_pixels")]
         _max_pixels: Option<u32>,
     },
+    #[serde(rename = "detect_text")]
+    DetectText {
+        id: String,
+        input: PathBuf,
+        confidence_threshold: Option<f32>,
+        nms_threshold: Option<f32>,
+    },
     #[serde(rename = "shutdown")]
     Shutdown,
 }
 
 #[derive(Debug, Serialize)]
-struct WorkerResponse<'a> {
-    id: &'a str,
+struct WorkerResponse {
+    id: String,
     ok: bool,
     elapsed_ms: u128,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    result: Option<AnimeTextDetection>,
     error: Option<String>,
 }
 
 enum LoadedModel {
     Lama(Lama),
     Aot(AotInpainting),
+    AnimeText(AnimeTextDetector),
+}
+
+trait WorkerOperations {
+    fn inpaint(
+        &self,
+        input: &Path,
+        mask: &Path,
+        bubble_mask: &Path,
+        output: &Path,
+        windows: Vec<[u32; 4]>,
+    ) -> Result<()>;
+
+    fn detect_text(
+        &self,
+        input: &Path,
+        confidence_threshold: f32,
+        nms_threshold: f32,
+    ) -> Result<AnimeTextDetection>;
+}
+
+impl WorkerOperations for LoadedModel {
+    fn inpaint(
+        &self,
+        input: &Path,
+        mask: &Path,
+        bubble_mask: &Path,
+        output: &Path,
+        windows: Vec<[u32; 4]>,
+    ) -> Result<()> {
+        run_inpaint(self, input, mask, bubble_mask, output, windows)
+    }
+
+    fn detect_text(
+        &self,
+        input: &Path,
+        confidence_threshold: f32,
+        nms_threshold: f32,
+    ) -> Result<AnimeTextDetection> {
+        run_text_detection(self, input, confidence_threshold, nms_threshold)
+    }
+}
+
+enum WorkerDispatch {
+    Shutdown,
+    Response(WorkerResponse),
 }
 
 #[tokio::main]
@@ -180,15 +242,23 @@ async fn main() -> Result<()> {
 }
 
 fn print_capabilities() -> Result<()> {
-    ensure_metal_available()?;
+    #[cfg(feature = "metal")]
+    let (backend, metal_device) = {
+        ensure_metal_available()?;
+        ("metal-native", true)
+    };
+    #[cfg(all(not(feature = "metal"), feature = "cuda"))]
+    let (backend, metal_device) = ("cuda-native", false);
+    #[cfg(not(any(feature = "metal", feature = "cuda")))]
+    let (backend, metal_device) = ("cpu", false);
     println!(
         "{}",
         serde_json::json!({
             "protocol_version": 1,
             "runner": "mgt-koharu-inpaint-runner",
-            "backend": "metal-native",
-            "metal_device": true,
-            "models": ["lama-manga", "aot-inpainting"],
+            "backend": backend,
+            "metal_device": metal_device,
+            "models": ["lama-manga", "aot-inpainting", "anime-text-yolo"],
         })
     );
     Ok(())
@@ -237,6 +307,11 @@ async fn load_model(cli: &Cli) -> Result<LoadedModel> {
             set_env_path("MGT_KOHARU_AOT_WEIGHTS_PATH", &cli.weights);
             let model = AotInpainting::load_from_paths(config, &cli.weights, cpu)?;
             Ok(LoadedModel::Aot(model))
+        }
+        ModelKind::AnimeTextYolo => {
+            let model =
+                AnimeTextDetector::load_from_path(&cli.weights, AnimeTextYoloVariant::N, cpu)?;
+            Ok(LoadedModel::AnimeText(model))
         }
     }
 }
@@ -592,53 +667,98 @@ fn run_worker(model: &LoadedModel) -> Result<()> {
     let stdin = io::stdin();
     let mut stdout = io::stdout();
     eprintln!("mgt-koharu-inpaint-runner: worker ready");
-    for line in stdin.lock().lines() {
+    run_worker_stream(model, stdin.lock(), &mut stdout)
+}
+
+fn run_worker_stream<R, W, O>(operations: &O, input: R, output: &mut W) -> Result<()>
+where
+    R: BufRead,
+    W: Write,
+    O: WorkerOperations,
+{
+    for line in input.lines() {
         let line = line?;
         if line.trim().is_empty() {
             continue;
         }
         let request: WorkerRequest = serde_json::from_str(&line)
             .with_context(|| format!("invalid worker request: {}", line))?;
-        match request {
-            WorkerRequest::Shutdown => break,
-            WorkerRequest::Inpaint {
-                id,
-                input,
-                mask,
-                bubble_mask,
-                output,
-                windows,
-                _max_pixels: _,
-            } => {
-                let started = Instant::now();
-                let result = run_inpaint(
-                    model,
-                    &input,
-                    &mask,
-                    &bubble_mask,
-                    &output,
-                    windows.unwrap_or_default(),
-                );
-                let response = match result {
-                    Ok(()) => WorkerResponse {
-                        id: &id,
-                        ok: true,
-                        elapsed_ms: started.elapsed().as_millis(),
-                        error: None,
-                    },
-                    Err(error) => WorkerResponse {
-                        id: &id,
-                        ok: false,
-                        elapsed_ms: started.elapsed().as_millis(),
-                        error: Some(format!("{error:#}")),
-                    },
-                };
-                serde_json::to_writer(&mut stdout, &response)?;
-                stdout.write_all(b"\n")?;
-                stdout.flush()?;
-            }
+        match dispatch_worker_request(operations, request) {
+            WorkerDispatch::Shutdown => break,
+            WorkerDispatch::Response(response) => write_jsonl(output, &response)?,
         }
     }
+    Ok(())
+}
+
+fn dispatch_worker_request<O: WorkerOperations>(
+    operations: &O,
+    request: WorkerRequest,
+) -> WorkerDispatch {
+    match request {
+        WorkerRequest::Shutdown => WorkerDispatch::Shutdown,
+        WorkerRequest::Inpaint {
+            id,
+            input,
+            mask,
+            bubble_mask,
+            output,
+            windows,
+            _max_pixels: _,
+        } => WorkerDispatch::Response(timed_worker_response(id, || {
+            operations.inpaint(
+                &input,
+                &mask,
+                &bubble_mask,
+                &output,
+                windows.unwrap_or_default(),
+            )?;
+            Ok(None)
+        })),
+        WorkerRequest::DetectText {
+            id,
+            input,
+            confidence_threshold,
+            nms_threshold,
+        } => WorkerDispatch::Response(timed_worker_response(id, || {
+            operations
+                .detect_text(
+                    &input,
+                    confidence_threshold.unwrap_or(0.25),
+                    nms_threshold.unwrap_or(0.45),
+                )
+                .map(Some)
+        })),
+    }
+}
+
+fn timed_worker_response<F>(id: String, operation: F) -> WorkerResponse
+where
+    F: FnOnce() -> Result<Option<AnimeTextDetection>>,
+{
+    let started = Instant::now();
+    match operation() {
+        Ok(result) => WorkerResponse {
+            id,
+            ok: true,
+            elapsed_ms: started.elapsed().as_millis(),
+            result,
+            error: None,
+        },
+        Err(error) => WorkerResponse {
+            id,
+            ok: false,
+            elapsed_ms: started.elapsed().as_millis(),
+            result: None,
+            error: Some(format!("{error:#}")),
+        },
+    }
+}
+
+fn write_jsonl<W: Write>(output: &mut W, response: &WorkerResponse) -> Result<()> {
+    serde_json::to_writer(&mut *output, response)?;
+    output.write_all(b"\n")?;
+    output.flush()?;
     Ok(())
 }
 
@@ -667,10 +787,39 @@ fn run_inpaint(
             }
         }
         LoadedModel::Aot(aot) => aot.inference(&image, &mask_image, &bubble_image)?,
+        LoadedModel::AnimeText(_) => {
+            bail!("anime-text-yolo does not accept inpaint requests")
+        }
     };
     result
         .save(output)
         .with_context(|| format!("failed to write output image {}", output.display()))?;
+    Ok(())
+}
+
+fn run_text_detection(
+    model: &LoadedModel,
+    input: &Path,
+    confidence_threshold: f32,
+    nms_threshold: f32,
+) -> Result<AnimeTextDetection> {
+    validate_detection_threshold("confidence_threshold", confidence_threshold)?;
+    validate_detection_threshold("nms_threshold", nms_threshold)?;
+    let detector = match model {
+        LoadedModel::AnimeText(detector) => detector,
+        LoadedModel::Lama(_) | LoadedModel::Aot(_) => {
+            bail!("the loaded inpainting model does not accept detect_text requests")
+        }
+    };
+    let image = image::open(input)
+        .with_context(|| format!("failed to open input image {}", input.display()))?;
+    detector.inference_with_thresholds(&image, confidence_threshold, nms_threshold)
+}
+
+fn validate_detection_threshold(name: &str, value: f32) -> Result<()> {
+    if !value.is_finite() || !(0.0..=1.0).contains(&value) {
+        bail!("{name} must be a finite number between 0 and 1");
+    }
     Ok(())
 }
 
@@ -749,4 +898,183 @@ fn install_panic_hook() {
             .unwrap_or("unknown panic");
         eprintln!("mgt-koharu-inpaint-runner: fatal runtime panic: {message}");
     }));
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        cell::{Cell, RefCell},
+        collections::VecDeque,
+        io::Cursor,
+    };
+
+    use super::*;
+
+    #[derive(Default)]
+    struct StubOperations {
+        inpaint_results: RefCell<VecDeque<Result<()>>>,
+        inpaint_calls: Cell<usize>,
+    }
+
+    impl StubOperations {
+        fn with_inpaint_results(results: Vec<Result<()>>) -> Self {
+            Self {
+                inpaint_results: RefCell::new(results.into()),
+                inpaint_calls: Cell::new(0),
+            }
+        }
+    }
+
+    impl WorkerOperations for StubOperations {
+        fn inpaint(
+            &self,
+            _input: &Path,
+            _mask: &Path,
+            _bubble_mask: &Path,
+            _output: &Path,
+            _windows: Vec<[u32; 4]>,
+        ) -> Result<()> {
+            self.inpaint_calls.set(self.inpaint_calls.get() + 1);
+            self.inpaint_results
+                .borrow_mut()
+                .pop_front()
+                .unwrap_or(Ok(()))
+        }
+
+        fn detect_text(
+            &self,
+            _input: &Path,
+            _confidence_threshold: f32,
+            _nms_threshold: f32,
+        ) -> Result<AnimeTextDetection> {
+            bail!("unexpected detect_text operation")
+        }
+    }
+
+    #[test]
+    fn parses_detect_text_request_with_thresholds() {
+        let request: WorkerRequest = serde_json::from_str(
+            r#"{"type":"detect_text","id":"42","input":"page.png","confidence_threshold":0.4,"nms_threshold":0.5}"#,
+        )
+        .expect("detect_text request");
+        match request {
+            WorkerRequest::DetectText {
+                id,
+                input,
+                confidence_threshold,
+                nms_threshold,
+            } => {
+                assert_eq!(id, "42");
+                assert_eq!(input, PathBuf::from("page.png"));
+                assert_eq!(confidence_threshold, Some(0.4));
+                assert_eq!(nms_threshold, Some(0.5));
+            }
+            _ => panic!("unexpected request variant"),
+        }
+    }
+
+    #[test]
+    fn rejects_invalid_detection_thresholds() {
+        assert!(validate_detection_threshold("confidence", -0.1).is_err());
+        assert!(validate_detection_threshold("confidence", 1.1).is_err());
+        assert!(validate_detection_threshold("confidence", f32::NAN).is_err());
+        assert!(validate_detection_threshold("confidence", 0.25).is_ok());
+    }
+
+    #[test]
+    fn shutdown_stops_without_running_or_writing() {
+        let operations = StubOperations::default();
+        let input = Cursor::new(
+            concat!(
+                "{\"type\":\"shutdown\"}\n",
+                "{\"type\":\"inpaint\",\"id\":\"ignored\",\"input\":\"i\",",
+                "\"mask\":\"m\",\"bubble_mask\":\"b\",\"output\":\"o\"}\n"
+            )
+            .as_bytes(),
+        );
+        let mut output = Vec::new();
+
+        run_worker_stream(&operations, input, &mut output).expect("shutdown");
+
+        assert_eq!(operations.inpaint_calls.get(), 0);
+        assert!(output.is_empty());
+    }
+
+    #[test]
+    fn operation_error_is_a_response_and_does_not_stop_the_worker() {
+        let operations = StubOperations::with_inpaint_results(vec![
+            Err(anyhow::anyhow!("expected operation failure")),
+            Ok(()),
+        ]);
+        let input = Cursor::new(
+            [
+                inpaint_request("failed"),
+                inpaint_request("succeeded"),
+                r#"{"type":"shutdown"}"#.to_string(),
+            ]
+            .join("\n"),
+        );
+        let mut output = Vec::new();
+
+        run_worker_stream(&operations, input, &mut output).expect("worker stream");
+
+        let responses = parse_jsonl(&output);
+        assert_eq!(operations.inpaint_calls.get(), 2);
+        assert_eq!(responses.len(), 2);
+        assert_eq!(responses[0]["id"], "failed");
+        assert_eq!(responses[0]["ok"], false);
+        assert_eq!(responses[0]["error"], "expected operation failure");
+        assert_eq!(responses[1]["id"], "succeeded");
+        assert_eq!(responses[1]["ok"], true);
+    }
+
+    #[test]
+    fn successful_operation_writes_a_success_response() {
+        let operations = StubOperations::with_inpaint_results(vec![Ok(())]);
+        let input = Cursor::new(inpaint_request("success"));
+        let mut output = Vec::new();
+
+        run_worker_stream(&operations, input, &mut output).expect("worker stream");
+
+        let responses = parse_jsonl(&output);
+        assert_eq!(responses.len(), 1);
+        assert_eq!(responses[0]["id"], "success");
+        assert_eq!(responses[0]["ok"], true);
+        assert!(responses[0]["elapsed_ms"].is_number());
+        assert_eq!(responses[0]["error"], serde_json::Value::Null);
+        assert!(responses[0].get("result").is_none());
+    }
+
+    #[test]
+    fn jsonl_writer_appends_exactly_one_newline() {
+        let response = WorkerResponse {
+            id: "line".to_string(),
+            ok: false,
+            elapsed_ms: 7,
+            result: None,
+            error: Some("first\nsecond".to_string()),
+        };
+        let mut output = Vec::new();
+
+        write_jsonl(&mut output, &response).expect("JSONL response");
+
+        assert_eq!(output.iter().filter(|byte| **byte == b'\n').count(), 1);
+        assert_eq!(output.last(), Some(&b'\n'));
+        serde_json::from_slice::<serde_json::Value>(&output[..output.len() - 1])
+            .expect("valid JSON before newline");
+    }
+
+    fn inpaint_request(id: &str) -> String {
+        format!(
+            r#"{{"type":"inpaint","id":"{id}","input":"input.png","mask":"mask.png","bubble_mask":"bubble.png","output":"output.png"}}"#
+        )
+    }
+
+    fn parse_jsonl(output: &[u8]) -> Vec<serde_json::Value> {
+        String::from_utf8(output.to_vec())
+            .expect("UTF-8 JSONL")
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("valid JSON line"))
+            .collect()
+    }
 }

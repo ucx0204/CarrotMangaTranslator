@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
-import { isPathInside } from "./fileProbe";
+import { isPathInside } from "../../runtimeSupport/fileProbe";
 
 export function ensureEmbeddedPythonPackagePath(
   pythonPath: string,

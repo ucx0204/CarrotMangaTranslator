@@ -1,6 +1,5 @@
 import { join } from "node:path";
 import type { AppPaths } from "../appPaths";
-import { logError, logInfo } from "../logger";
 import {
   prepareFluxInpaintingEngine,
   type FluxInpaintingEngine,
@@ -9,7 +8,11 @@ import {
 import type { FluxBackend } from "../../shared/inpaintingSettingsTypes";
 import { detectBestGpuInfo } from "../gpuInfo";
 import { tMain } from "./localization";
-import { LeasedIdleResourcePool } from "./leasedIdleResource";
+import { LeasedIdleResourcePool } from "../runtimeSupport/leasedIdleResource";
+import {
+  logInpaintingRuntimeError,
+  logInpaintingRuntimeInfo,
+} from "./inpaintingRuntimeLogger";
 
 // Apple Silicon shares RAM between the CPU and GPU. Releasing the worker soon
 // after a job prevents Flux from competing with local Gemma for unified memory.
@@ -78,7 +81,7 @@ export async function acquireFluxInpaintingEngine(options: {
       installLogLine: tMain("inpainting.runtime.cachedFluxLog"),
     });
   } else {
-    logInfo("Flux inpainting engine cached", {
+    logInpaintingRuntimeInfo("Flux inpainting engine cached", {
       ttlMs: FLUX_ENGINE_IDLE_TTL_MS,
     });
   }
@@ -101,12 +104,15 @@ async function disposeFluxEngine(
 ): Promise<void> {
   try {
     await engine.dispose();
-    logInfo("Flux inpainting engine disposed", { reason });
+    logInpaintingRuntimeInfo("Flux inpainting engine disposed", { reason });
   } catch (error) {
-    logError("Failed to dispose cached Flux inpainting engine", {
-      reason,
-      error,
-    });
+    logInpaintingRuntimeError(
+      "Failed to dispose cached Flux inpainting engine",
+      {
+        reason,
+        error,
+      },
+    );
   }
 }
 

@@ -8,10 +8,11 @@ import {
   resolveFluxRuntimeTempDir,
 } from "./constants";
 import type { FluxAssetProgress, PythonCommand } from "./types";
-import { downloadToFile, extractZipSafely } from "./downloads";
+import { extractZipSafely } from "./downloads";
+import { downloadToFile } from "../../runtimeSupport/modelDownloads";
 import { runCommand } from "./errors";
 import { emitPythonInstallLog } from "./progress";
-import { isExecutableFile } from "./fileProbe";
+import { isExecutableFile } from "../../runtimeSupport/fileProbe";
 import { sanitizeStandaloneEmbeddedPythonPathFile } from "./pythonPathFile";
 
 type PythonBootstrapOptions = {
