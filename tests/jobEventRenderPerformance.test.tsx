@@ -50,6 +50,35 @@ describe("job event render scheduling", () => {
     view.unmount();
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
+
+  it("does not regress a terminal job from a queued nonterminal event", () => {
+    const frames = installAnimationFrameController();
+    let emit: ((event: JobEvent) => void) | null = null;
+    const api = React.createRef<JobHarnessApi>();
+    render(
+      <JobHarness
+        onReady={(value) => {
+          api.current = value;
+        }}
+        subscribeJobEvents={(listener) => {
+          emit = listener;
+          return () => undefined;
+        }}
+      />,
+    );
+
+    act(() => {
+      emit?.(makeStateEvent("cancelled"));
+      frames.flush();
+    });
+    expect(api.current?.getJobState().status).toBe("cancelled");
+
+    act(() => {
+      emit?.(makeStateEvent("cancelling"));
+      frames.flush();
+    });
+    expect(api.current?.getJobState().status).toBe("cancelled");
+  });
 });
 
 type JobHarnessApi = {
@@ -100,6 +129,15 @@ function makeLogEvent(index: number): JobEvent {
     progressMode: "log-only",
     progressText: "running",
     status: "running",
+  };
+}
+
+function makeStateEvent(status: JobEvent["status"]): JobEvent {
+  return {
+    id: "job-1",
+    kind: "gemma-analysis",
+    progressText: status,
+    status,
   };
 }
 

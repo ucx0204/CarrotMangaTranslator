@@ -116,6 +116,7 @@ describe("page image export behavior", () => {
     });
 
     expect(result).toEqual({
+      status: "completed",
       outputDir: join(outputParentDir, "My_ Work-2026-01-02T03-04-05-000Z"),
       pageCount: 3,
     });
@@ -224,7 +225,7 @@ describe("page image export behavior", () => {
           dependencies: harness.dependencies,
         }),
       ),
-    ).rejects.toThrow("취소");
+    ).resolves.toEqual({ status: "cancelled" });
 
     expect(await readdir(outputParentDir)).toEqual([]);
     expect(harness.openDirectory).not.toHaveBeenCalled();
@@ -419,6 +420,7 @@ describe("page image export IPC boundary", () => {
     });
     const service = makeService();
     service.exportImages.mockResolvedValue({
+      status: "completed",
       outputDir: "D:\\exports\\result",
       pageCount: 1,
     });
@@ -428,6 +430,7 @@ describe("page image export IPC boundary", () => {
     const request = validRequest();
 
     await expect(handler?.(trustedEvent(), request)).resolves.toEqual({
+      status: "completed",
       outputDir: "D:\\exports\\result",
       pageCount: 1,
     });
@@ -436,6 +439,21 @@ describe("page image export IPC boundary", () => {
       request,
       "D:\\exports",
     );
+  });
+
+  it("returns an explicit cancellation result from an active export", async () => {
+    electronBoundary.showOpenDialog.mockResolvedValue({
+      canceled: false,
+      filePaths: ["D:\\exports"],
+    });
+    const service = makeService();
+    service.exportImages.mockResolvedValue({ status: "cancelled" });
+    registerPageImageExportIpc(makeContext("C:\\data"), service);
+    const handler = electronBoundary.handlers.get("page-images:export");
+
+    await expect(handler?.(trustedEvent(), validRequest())).resolves.toEqual({
+      status: "cancelled",
+    });
   });
 });
 

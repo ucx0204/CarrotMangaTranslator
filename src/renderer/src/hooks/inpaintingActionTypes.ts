@@ -65,7 +65,7 @@ export function failExportJob(
 ): void {
   setJobState({
     id: "failed-export",
-    kind: "inpainting",
+    kind: "page-export",
     status: "failed",
     progressText,
     detail: message,

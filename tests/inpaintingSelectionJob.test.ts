@@ -238,7 +238,16 @@ describe("multi-chapter automatic inpainting jobs", () => {
     },
   );
 
-  it("registers cleanup that waits for an active inpainting runner to settle", async () => {
+  it("emits cancellation before refresh and waits for the runner to settle", async () => {
+    const refreshedChapter = createDeferred<ChapterSnapshot>();
+    vi.mocked(harness.runtime.openChapter).mockImplementation(
+      async (chapterId) => {
+        if (vi.mocked(harness.runtime.openChapter).mock.calls.length === 1) {
+          return requireChapter(chapters, chapterId);
+        }
+        return refreshedChapter.promise;
+      },
+    );
     harness.inpaintPatternPage.mockImplementation(
       (_page: MangaPage, options) =>
         new Promise((_resolve, reject) => {
@@ -252,6 +261,18 @@ describe("multi-chapter automatic inpainting jobs", () => {
     const { startInpaintingJob } =
       await import("../src/main/jobs/inpaintingJobs");
     const context = makeContext(send, revisionChanges);
+    const terminalOrder: string[] = [];
+    send.mockImplementation((_channel, event) => {
+      if (event.status === "cancelled") {
+        expect(context.jobs.hasActive).toBe(true);
+        terminalOrder.push("cancelled");
+      }
+    });
+    const clearIfCurrent = context.jobs.clearIfCurrent.bind(context.jobs);
+    vi.spyOn(context.jobs, "clearIfCurrent").mockImplementation((jobId) => {
+      terminalOrder.push("clear");
+      clearIfCurrent(jobId);
+    });
     const resultPromise = startInpaintingJob(
       context,
       {
@@ -269,10 +290,18 @@ describe("multi-chapter automatic inpainting jobs", () => {
     expect(job).not.toBeNull();
     job?.abortController.abort();
 
-    if (job) await context.jobs.runCleanup(job, "test-cancel");
+    const cleanupPromise = job
+      ? context.jobs.runCleanup(job, "test-cancel")
+      : Promise.resolve();
+    await vi.waitFor(() => expect(terminalOrder).toEqual(["cancelled"]));
+    expect(context.jobs.current).not.toBeNull();
+    expect(harness.runtime.openChapter).toHaveBeenCalledTimes(2);
 
+    refreshedChapter.resolve(requireChapter(chapters, chapterAId));
+    await cleanupPromise;
     expect(context.jobs.current).toBeNull();
     await expect(resultPromise).resolves.toMatchObject({ status: "cancelled" });
+    expect(terminalOrder).toEqual(["cancelled", "clear"]);
   });
 });
 
@@ -329,6 +358,9 @@ function createInpaintingRuntimeHarness(
   const runtime: InpaintingJobRuntime = {
     acquireEngine,
     emitEvent: (jobs, mainWindow, event) => {
+      if (jobs.current?.id !== event.id) {
+        return;
+      }
       jobs.updateLastEvent(event.id, event);
       mainWindow?.webContents.send("job:event", event);
     },
@@ -410,6 +442,20 @@ function makeChapter(id: string, workId: string, pages: MangaPage[]) {
 }
 
 const HISTORY_TRANSACTION_ID = "66666666-6666-4666-8666-666666666666";
+
+function createDeferred<T>(): {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+} {
+  let resolvePromise: ((value: T) => void) | undefined;
+  const promise = new Promise<T>((resolve) => {
+    resolvePromise = resolve;
+  });
+  if (!resolvePromise) {
+    throw new Error("Failed to create deferred promise.");
+  }
+  return { promise, resolve: resolvePromise };
+}
 
 function makeContext(
   send: (

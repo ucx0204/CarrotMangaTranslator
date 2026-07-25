@@ -123,9 +123,9 @@ export async function handleInpaintingJobError({
   runtime: InpaintingJobRuntime;
 }): Promise<StartInpaintingResult> {
   const lastEvent = getLastJobEvent(context, id);
-  const refreshed = await refreshRequestChapters(request, state, runtime);
   if (isAbortError(error) || abortController.signal.aborted) {
     emitInpaintingCancelled(id, emit, lastEvent);
+    const refreshed = await refreshRequestChapters(request, state, runtime);
     return {
       status: "cancelled",
       ...refreshed,
@@ -135,6 +135,7 @@ export async function handleInpaintingJobError({
     };
   }
 
+  const refreshed = await refreshRequestChapters(request, state, runtime);
   const message = error instanceof Error ? error.message : String(error);
   runtime.logError("Inpainting job failed", {
     jobId: id,

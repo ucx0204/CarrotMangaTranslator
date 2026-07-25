@@ -1,7 +1,8 @@
 import { join } from "node:path";
 import type {
+  PageImageExportCancelledResult,
+  PageImageExportCompletedResult,
   PageImageExportRequest,
-  PageImageExportResult,
 } from "../../shared/pageImageExportTypes";
 import type { ChapterSnapshot, MangaPage } from "../../shared/libraryTypes";
 import type { PageExportRenderSession } from "../pageExport";
@@ -56,7 +57,7 @@ export async function runPageImageExportJob({
   abortController,
   emit,
   dependencies = productionPageImageExportDependencies,
-}: RunPageImageExportJobOptions): Promise<PageImageExportResult> {
+}: RunPageImageExportJobOptions): Promise<PageImageExportCompletedResult> {
   const resolved = await resolvePageImageExportSelection(
     request,
     dependencies.repository,
@@ -93,6 +94,7 @@ export async function runPageImageExportJob({
 
   const openError = await openExportOutputDirectory(outputDir, dependencies);
   return {
+    status: "completed",
     outputDir,
     pageCount: resolved.pageCount,
     ...(openError ? { openError } : {}),
@@ -113,11 +115,11 @@ export function handlePageImageExportError({
   id: string;
   request: PageImageExportRequest;
   dependencies?: PageImageExportDependencies;
-}): never {
+}): PageImageExportCancelledResult {
   if (isAbortError(error) || abortController.signal.aborted) {
     const progress = resolveAbortProgress(error);
     emitCancelledExport({ id, emit, progress });
-    throw new Error(tMain("export.cancelled"), { cause: error });
+    return { status: "cancelled" };
   }
 
   const message = error instanceof Error ? error.message : String(error);

@@ -21,6 +21,7 @@ export type ActiveJob = {
 
 export class ActiveJobStore {
   private activeJob: ActiveJob | null = null;
+  private readonly cleanupPromises = new WeakMap<ActiveJob, Promise<void>>();
 
   constructor(
     private readonly diagnostics: JobCleanupDiagnostics = productionDiagnostics,
@@ -60,11 +61,21 @@ export class ActiveJobStore {
   }
 
   async runCleanup(job: ActiveJob, reason: string): Promise<void> {
+    const inFlight = this.cleanupPromises.get(job);
+    if (inFlight) {
+      await inFlight;
+      return;
+    }
     const cleanup = job.cleanup;
     if (!cleanup) {
       return;
     }
     job.cleanup = undefined;
+    let resolveCleanup: (() => void) | undefined;
+    const cleanupPromise = new Promise<void>((resolve) => {
+      resolveCleanup = resolve;
+    });
+    this.cleanupPromises.set(job, cleanupPromise);
     try {
       await cleanup();
       this.diagnostics.info("Analysis runtime cleanup completed", {
@@ -77,6 +88,9 @@ export class ActiveJobStore {
         reason,
         error,
       });
+    } finally {
+      resolveCleanup?.();
+      this.cleanupPromises.delete(job);
     }
   }
 }

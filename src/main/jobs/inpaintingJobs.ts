@@ -82,7 +82,7 @@ export async function startInpaintingJob(
       runtime,
     });
   } catch (error) {
-    return handleInpaintingJobError({
+    return await handleInpaintingJobError({
       abortController,
       emit,
       error,

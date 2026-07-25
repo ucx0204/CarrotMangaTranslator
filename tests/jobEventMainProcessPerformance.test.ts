@@ -52,8 +52,16 @@ describe("main-process job event throughput", () => {
     expect(writeLog).toHaveBeenCalledTimes(2);
     expect(validateEvent).toHaveBeenCalledTimes(2);
 
-    jobs.clearIfCurrent("job-1");
     emitJobEvent(jobs, mainWindow, progressEvent(999));
+    vi.runAllTimers();
+
+    expect(jobs.current?.lastEvent).toEqual(completed);
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(writeLog).toHaveBeenCalledTimes(2);
+    expect(validateEvent).toHaveBeenCalledTimes(2);
+
+    jobs.clearIfCurrent("job-1");
+    emitJobEvent(jobs, mainWindow, progressEvent(1000));
     vi.runAllTimers();
 
     expect(send).toHaveBeenCalledTimes(2);

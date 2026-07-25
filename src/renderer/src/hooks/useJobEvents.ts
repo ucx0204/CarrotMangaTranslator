@@ -121,6 +121,9 @@ function reduceJobState(
   t: TFunction<"renderer">,
 ): JobState {
   const sameJob = current.id === event.id;
+  if (sameJob && isTerminalJobStatus(current.status)) {
+    return current;
+  }
   const preserveCurrentStatus = sameJob && isLogOnlyEvent(event);
   return {
     id: event.id,
@@ -189,6 +192,12 @@ function reduceJobState(
       event.attemptTotal,
     ),
   };
+}
+
+function isTerminalJobStatus(status: JobState["status"]): boolean {
+  return (
+    status === "cancelled" || status === "failed" || status === "completed"
+  );
 }
 
 function keepOrEvent<T>(preserve: boolean, current: T, eventValue: T): T {

@@ -23,9 +23,32 @@ import type { TranslationJobContext } from "./translationJobTypes";
 
 export type { TranslationJobContext } from "./translationJobTypes";
 
+type AnalysisJobRuntime = {
+  resolvePagesForRun: typeof resolvePagesForRun;
+  runResolvedAnalysisJob: typeof runResolvedAnalysisJob;
+  handleAnalysisJobError: typeof handleAnalysisJobError;
+};
+
+type RegionJobRuntime = {
+  runRegionTranslationJob: typeof runRegionTranslationJob;
+  handleRegionJobError: typeof handleRegionJobError;
+};
+
+const productionAnalysisJobRuntime: AnalysisJobRuntime = {
+  resolvePagesForRun,
+  runResolvedAnalysisJob,
+  handleAnalysisJobError,
+};
+
+const productionRegionJobRuntime: RegionJobRuntime = {
+  runRegionTranslationJob,
+  handleRegionJobError,
+};
+
 export async function startAnalysisJob(
   context: TranslationJobContext,
   request: StartAnalysisRequest,
+  runtime: AnalysisJobRuntime = productionAnalysisJobRuntime,
 ): Promise<StartAnalysisResult> {
   if (context.jobs.hasActive) {
     return { status: "failed", error: tMain("jobs.active") };
@@ -47,7 +70,7 @@ export async function startAnalysisJob(
       request.runMode === "single-page" ? request.pageId : undefined;
     const requestedPageIds =
       request.runMode === "page-set" ? request.pageIds : undefined;
-    state.resolved = await resolvePagesForRun(
+    state.resolved = await runtime.resolvePagesForRun(
       request.chapterId,
       request.runMode,
       requestedPageId,
@@ -70,7 +93,7 @@ export async function startAnalysisJob(
         warnings: [],
       };
     }
-    return await runResolvedAnalysisJob({
+    return await runtime.runResolvedAnalysisJob({
       context,
       request,
       id,
@@ -80,7 +103,7 @@ export async function startAnalysisJob(
       state,
     });
   } catch (error) {
-    return handleAnalysisJobError({
+    return await runtime.handleAnalysisJobError({
       abortController,
       emit,
       error,
@@ -101,6 +124,7 @@ export async function startAnalysisJob(
 export async function translateRegionJob(
   context: TranslationJobContext,
   request: RegionAnalysisRequest,
+  runtime: RegionJobRuntime = productionRegionJobRuntime,
 ): Promise<RegionAnalysisResult> {
   if (context.jobs.hasActive) {
     return { status: "failed", error: tMain("jobs.active") };
@@ -114,7 +138,7 @@ export async function translateRegionJob(
     emitJobEvent(context.jobs, context.getMainWindow(), event);
 
   try {
-    return await runRegionTranslationJob({
+    return await runtime.runRegionTranslationJob({
       context,
       request,
       id,
@@ -123,7 +147,7 @@ export async function translateRegionJob(
       state,
     });
   } catch (error) {
-    return handleRegionJobError({
+    return await runtime.handleRegionJobError({
       abortController,
       emit,
       error,

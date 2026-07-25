@@ -14,8 +14,17 @@ export type PageImageExportRequest = {
   selections: PageImageExportChapterSelection[];
 };
 
-export type PageImageExportResult = {
+export type PageImageExportCompletedResult = {
+  status: "completed";
   outputDir: string;
   pageCount: number;
   openError?: string;
 };
+
+export type PageImageExportCancelledResult = {
+  status: "cancelled";
+};
+
+export type PageImageExportResult =
+  | PageImageExportCompletedResult
+  | PageImageExportCancelledResult;

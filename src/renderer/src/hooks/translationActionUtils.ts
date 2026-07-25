@@ -329,6 +329,9 @@ export function handleTranslateRegionResult(
     reportCompletedRegionTranslation(result, pushStatus, setSelectedBlockId, t);
     return;
   }
+  if (result.status === "cancelled") {
+    return;
+  }
   if (result.status === "failed") {
     if (result.error) {
       console.error(result.error);

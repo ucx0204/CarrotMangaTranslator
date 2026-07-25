@@ -116,13 +116,17 @@ const applyInpaintingHistoryTransactionResultSchema = z
 const releaseInpaintingHistoryTransactionsResultSchema = z
   .object({ released: nonNegativeInteger })
   .strict();
-const pageImageExportResultSchema = z
-  .object({
-    outputDir: localPathResult,
-    pageCount: nonNegativeInteger,
-    openError: diagnosticString.optional(),
-  })
-  .strict();
+const pageImageExportResultSchema = z.discriminatedUnion("status", [
+  z
+    .object({
+      status: z.literal("completed"),
+      outputDir: localPathResult,
+      pageCount: nonNegativeInteger,
+      openError: diagnosticString.optional(),
+    })
+    .strict(),
+  z.object({ status: z.literal("cancelled") }).strict(),
+]);
 const disposeInpaintingResultSchema = z
   .object({ disposed: z.boolean() })
   .strict();

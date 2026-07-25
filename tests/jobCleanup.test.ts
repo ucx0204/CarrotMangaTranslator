@@ -61,6 +61,12 @@ describe("ActiveJobStore cleanup", () => {
     const concurrent = jobs.runCleanup(job, "concurrent");
 
     expect(cleanup).toHaveBeenCalledTimes(1);
+    let concurrentSettled = false;
+    void concurrent.then(() => {
+      concurrentSettled = true;
+    });
+    await Promise.resolve();
+    expect(concurrentSettled).toBe(false);
     cleanupGate.resolve(undefined);
     await expect(Promise.all([first, concurrent])).resolves.toEqual([
       undefined,
@@ -149,6 +155,12 @@ describe("job cancellation IPC", () => {
     const result = await invocation;
 
     expect(result).toEqual({ cancelled: true });
+    expect(job.lastEvent).toEqual(
+      expect.objectContaining({
+        id: job.id,
+        status: "cancelling",
+      }),
+    );
     expect(events).toEqual([
       "event",
       "abort",

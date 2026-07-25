@@ -1,8 +1,6 @@
 import type { JobEvent } from "../../shared/jobTypes";
-import {
-  ipcEventContracts,
-  jobControlIpcContracts,
-} from "../../shared/ipcContracts";
+import { jobControlIpcContracts } from "../../shared/ipcContracts";
+import { emitJobEvent } from "../jobs/jobEvents";
 import type { IpcContext } from "./context";
 import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
@@ -28,12 +26,7 @@ export function registerJobControlIpc(context: JobControlIpcContext): void {
       attempt: job.lastEvent?.attempt,
       attemptTotal: job.lastEvent?.attemptTotal,
     } satisfies JobEvent;
-    context
-      .getMainWindow()
-      ?.webContents.send(
-        ipcEventContracts.jobEvent.channel,
-        ipcEventContracts.jobEvent.payload.parse(payload),
-      );
+    emitJobEvent(context.jobs, context.getMainWindow(), payload);
     job.abortController.abort();
     await context.jobs.runCleanup(job, "cancel");
     return { cancelled: true };

@@ -43,7 +43,11 @@ export function createJobEventEmitter(
     return queue;
   };
   return (jobs, mainWindow, event) => {
-    if (jobs.current?.id !== event.id) {
+    const current = jobs.current;
+    if (
+      current?.id !== event.id ||
+      (current.lastEvent && isTerminalJobEvent(current.lastEvent))
+    ) {
       return;
     }
     jobs.updateLastEvent(event.id, event);

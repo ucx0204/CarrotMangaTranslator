@@ -46,6 +46,9 @@ export function useExportPageImagesAction({
         if (!result) {
           return false;
         }
+        if (result.status === "cancelled") {
+          return false;
+        }
         pushStatus(
           result.openError
             ? t("inpainting.export.openFolderFailed", {
