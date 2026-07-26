@@ -85,10 +85,10 @@ void app
       appPaths.settingsPath,
       process.env.MANGA_TRANSLATOR_UI_LOCALE,
     );
+    registerImageProtocolHandler();
     if (await runMacPackageSmokeExit(appPaths)) {
       return;
     }
-    registerImageProtocolHandler();
     installNativeApplicationMenu();
     registerIpc({
       appPaths,

@@ -208,6 +208,21 @@ type ElectronBuilderMacConfig = {
 };
 
 describe("Apple Silicon Alpha packaging", () => {
+  it("registers the image protocol before the packaged-app export smoke", () => {
+    const mainEntry = readFileSync(
+      join(repoRoot, "src", "main", "index.ts"),
+      "utf8",
+    );
+    const handlerRegistration = mainEntry.indexOf(
+      "registerImageProtocolHandler();",
+    );
+    const packageSmoke = mainEntry.indexOf("runMacPackageSmokeExit(appPaths)");
+
+    expect(handlerRegistration).toBeGreaterThanOrEqual(0);
+    expect(packageSmoke).toBeGreaterThanOrEqual(0);
+    expect(handlerRegistration).toBeLessThan(packageSmoke);
+  });
+
   it("pins Electron and every downloaded executable runtime", () => {
     const packageJson = JSON.parse(
       readFileSync(join(repoRoot, "package.json"), "utf8"),
