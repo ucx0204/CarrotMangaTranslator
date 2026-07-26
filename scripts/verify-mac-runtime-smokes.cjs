@@ -20,6 +20,21 @@ const koharuSource = readFileSync(
   join(root, "src", "main", "inpainting", "koharuAssets.ts"),
   "utf8",
 );
+const OCR_SMOKE_FIXTURE = Object.freeze({
+  fontPath: join(
+    root,
+    "src",
+    "renderer",
+    "src",
+    "assets",
+    "fonts",
+    "ja",
+    "dela-gothic-one.ttf",
+  ),
+  text: "日本語漫画",
+  width: 640,
+  height: 256,
+});
 
 const KOHARU_SMOKE_ASSETS = [
   {
@@ -141,6 +156,11 @@ function hfResolveUrl(repo, file, revision) {
 /** @param {string} python @param {string} workRoot */
 function createSmokeImages(python, workRoot) {
   mkdirSync(workRoot, { recursive: true });
+  if (!existsSync(OCR_SMOKE_FIXTURE.fontPath)) {
+    throw new Error(
+      `Mac OCR smoke font is missing: ${OCR_SMOKE_FIXTURE.fontPath}`,
+    );
+  }
   const paths = {
     ocr: join(workRoot, "ocr-smoke.png"),
     input: join(workRoot, "inpaint-input.png"),
@@ -150,11 +170,11 @@ function createSmokeImages(python, workRoot) {
   const script = [
     "from PIL import Image, ImageDraw, ImageFont",
     "import sys",
-    "ocr = Image.new('RGB', (640, 256), 'white')",
+    `ocr = Image.new('RGB', (${OCR_SMOKE_FIXTURE.width}, ${OCR_SMOKE_FIXTURE.height}), 'white')`,
     "draw = ImageDraw.Draw(ocr)",
-    "font_path = '/System/Library/Fonts/Supplemental/Arial.ttf'",
+    "font_path = sys.argv[5]",
     "font = ImageFont.truetype(font_path, 72)",
-    "draw.text((36, 72), 'MANGA 123', fill='black', font=font)",
+    "draw.text((36, 72), sys.argv[6], fill='black', font=font)",
     "ocr.save(sys.argv[1])",
     "source = Image.new('RGB', (128, 128), (242, 242, 242))",
     "source_draw = ImageDraw.Draw(source)",
@@ -167,7 +187,16 @@ function createSmokeImages(python, workRoot) {
   ].join("\n");
   run(
     python,
-    ["-c", script, paths.ocr, paths.input, paths.mask, paths.bubble],
+    [
+      "-c",
+      script,
+      paths.ocr,
+      paths.input,
+      paths.mask,
+      paths.bubble,
+      OCR_SMOKE_FIXTURE.fontPath,
+      OCR_SMOKE_FIXTURE.text,
+    ],
     {
       timeout: 60_000,
       env: buildSmokePythonEnv(workRoot),
@@ -208,7 +237,7 @@ async function verifyOcrImageSmoke(
     python,
     [
       "-c",
-      "from PIL import Image; import sys; assert Image.open(sys.argv[1]).size == (640, 256)",
+      `from PIL import Image; import sys; assert Image.open(sys.argv[1]).size == (${OCR_SMOKE_FIXTURE.width}, ${OCR_SMOKE_FIXTURE.height})`,
       images.ocr,
     ],
     {
@@ -379,6 +408,7 @@ async function verifyMacRuntimeSmokes(options) {
 
 module.exports = {
   KOHARU_SMOKE_ASSETS,
+  OCR_SMOKE_FIXTURE,
   buildSmokePythonEnv,
   createKoharuSmokeRequest,
   createOcrSmokeRequest,

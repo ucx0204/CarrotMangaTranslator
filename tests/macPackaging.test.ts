@@ -107,11 +107,18 @@ const {
 };
 const {
   KOHARU_SMOKE_ASSETS,
+  OCR_SMOKE_FIXTURE,
   buildSmokePythonEnv,
   createKoharuSmokeRequest,
   createOcrSmokeRequest,
 } = require("../scripts/verify-mac-runtime-smokes.cjs") as {
   KOHARU_SMOKE_ASSETS: ReadonlyArray<{ model: string }>;
+  OCR_SMOKE_FIXTURE: Readonly<{
+    fontPath: string;
+    text: string;
+    width: number;
+    height: number;
+  }>;
   buildSmokePythonEnv: (workRoot: string) => NodeJS.ProcessEnv;
   createKoharuSmokeRequest: (
     model: string,
@@ -657,6 +664,12 @@ describe("Apple Silicon Alpha packaging", () => {
 
   it("builds concrete OCR, Metal, and packaged-app smoke requests", () => {
     const workRoot = join("work", "smoke");
+    expect(existsSync(OCR_SMOKE_FIXTURE.fontPath)).toBe(true);
+    expect(OCR_SMOKE_FIXTURE.text).toMatch(/[\u3040-\u30ff\u3400-\u9fff]/u);
+    expect(OCR_SMOKE_FIXTURE).toMatchObject({
+      width: 640,
+      height: 256,
+    });
     expect(buildSmokePythonEnv(workRoot)).toMatchObject({
       PYTHONNOUSERSITE: "1",
       PYTHONDONTWRITEBYTECODE: "1",
