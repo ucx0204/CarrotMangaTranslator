@@ -12,6 +12,7 @@ import {
 } from "../src/renderer/src/lib/shortcuts/shortcutActions";
 import {
   isCanonicalKeybindingCombo,
+  normalizeStoredKeybindingOverrides,
   SHORTCUT_ACTION_IDS,
 } from "../src/shared/shortcutSettings";
 
@@ -117,6 +118,25 @@ describe("shortcut binding resolution", () => {
     expect(isCanonicalKeybindingCombo("ctrl+ctrl+b")).toBe(false);
     expect(isCanonicalKeybindingCombo("  ")).toBe(false);
     expect(isCanonicalKeybindingCombo("ctrl+\n")).toBe(false);
+  });
+
+  it("normalizes stored shortcut overrides at the platform-neutral boundary", () => {
+    expect(normalizeStoredKeybindingOverrides(null)).toBeNull();
+    expect(normalizeStoredKeybindingOverrides("ctrl+b")).toBeNull();
+    expect(normalizeStoredKeybindingOverrides(["ctrl+b"])).toBeNull();
+    expect(normalizeStoredKeybindingOverrides({})).toEqual({});
+    expect(
+      normalizeStoredKeybindingOverrides({
+        "toggle-block-chrome": "CTRL+SHIFT+B",
+        "delete-block": "",
+        "open-settings": "shift+ctrl+k",
+        "zoom-in": 42,
+        "removed-action": "ctrl+r",
+      }),
+    ).toEqual({
+      "toggle-block-chrome": "ctrl+shift+b",
+      "delete-block": "",
+    });
   });
 
   it("falls back to the built-in default combo", () => {

@@ -225,7 +225,9 @@ async function capturePanelArtwork(input) {
   await writeFile(htmlPath, buildPanelHtml(input), "utf8");
   const win = new BrowserWindow({
     backgroundColor: "#ffffff",
-    height: input.panelSize.height + 48,
+    // Deliberately keep the viewport shorter than the fixture so this check
+    // cannot pass only because the host display happens to fit the full page.
+    height: Math.min(input.panelSize.height + 48, 600),
     show: false,
     useContentSize: true,
     width: input.panelSize.width + 48,
@@ -294,6 +296,10 @@ async function capturePanelArtwork(input) {
  * }} input
  */
 function buildPanelHtml(input) {
+  const documentSize = {
+    height: input.panelSize.height + 48,
+    width: input.panelSize.width + 48,
+  };
   const document = {
     fontLibrary: {
       customFonts: [],
@@ -319,7 +325,17 @@ function buildPanelHtml(input) {
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; font-src data: file:; style-src 'unsafe-inline' file:; script-src file:; base-uri 'none';" />
 <link rel="stylesheet" href="${escapeHtml(rendererStylesheet)}" />
 <link rel="stylesheet" href="${escapeHtml(panelStyles)}" />
-<style>html, body, #root { width: 100%; height: 100%; margin: 0; overflow: hidden; }</style>
+<style>
+html, body, #root {
+  width: ${documentSize.width}px;
+  height: ${documentSize.height}px;
+  margin: 0;
+  overflow: visible;
+}
+[data-pixel-parity-workspace] {
+  overflow: visible;
+}
+</style>
 </head>
 <body>
 <div id="root"></div>

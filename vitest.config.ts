@@ -1,5 +1,7 @@
 import { defineConfig } from "vitest/config";
 
+const enforceWindowsCoverageThresholds = process.platform === "win32";
+
 export default defineConfig({
   test: {
     coverage: {
@@ -21,10 +23,18 @@ export default defineConfig({
         "src/renderer/src/pageExport/browserEntry.tsx",
       ],
       thresholds: {
-        statements: 66,
-        branches: 59,
-        functions: 66,
-        lines: 67,
+        // The Windows job is the canonical global coverage gate because it
+        // executes the Windows runtime/settings suites that are intentionally
+        // skipped on macOS. macOS still collects coverage and enforces the
+        // platform-neutral file thresholds below.
+        ...(enforceWindowsCoverageThresholds
+          ? {
+              statements: 66,
+              branches: 59,
+              functions: 66,
+              lines: 67,
+            }
+          : {}),
         "src/main/inpainting/jsonLinesWorkerClient.ts": {
           statements: 90,
           branches: 85,
