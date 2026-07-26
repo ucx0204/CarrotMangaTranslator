@@ -35,7 +35,7 @@ describe("official Gemma 4 26B chat template", () => {
       "4d7ae4984b7db7de8f8457170b3f1a419ee76d52",
     );
     expect(templateModule.GEMMA4_OFFICIAL_CHAT_TEMPLATE_FILE).toBe(
-      "gemma-4-26b-a4b-it-4d7ae4984b7db7de8f8457170b3f1a419ee76d52.jinja",
+      "gemma4-26b-4d7ae498.jinja",
     );
     expect(templateModule.GEMMA4_OFFICIAL_CHAT_TEMPLATE_SOURCE).toBe(
       "https://huggingface.co/google/gemma-4-26B-A4B-it/raw/4d7ae4984b7db7de8f8457170b3f1a419ee76d52/chat_template.jinja",

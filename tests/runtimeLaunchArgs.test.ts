@@ -257,7 +257,7 @@ describe("runtime launch argument contracts", () => {
     expect(jinjaIndex).toBeGreaterThanOrEqual(0);
     expect(templateIndex).toBe(jinjaIndex + 1);
     expect(args[templateIndex + 1]).toMatch(
-      /templates[\\/]gemma-4-26b-a4b-it-4d7ae4984b7db7de8f8457170b3f1a419ee76d52\.jinja$/,
+      /templates[\\/]gemma4-26b-4d7ae498\.jinja$/,
     );
     expect(args).not.toContain("--no-mmap");
     expect(args).not.toContain("--mlock");

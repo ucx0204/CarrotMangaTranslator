@@ -50,12 +50,20 @@ function createRuntimeFixture() {
   mkdirSync(join(sourceDir, "transport"), { recursive: true });
   mkdirSync(join(sourceDir, "templates"), { recursive: true });
   writeFileSync(join(sourceDir, "root.cjs"), "root");
+  writeFileSync(join(sourceDir, "runtime-jsdoc-types.d.ts"), "types");
   writeFileSync(
     join(sourceDir, "paddleocr_review_contexts.py"),
     "def build_textline_review_context_ids(partition): return {}",
   );
   writeFileSync(join(sourceDir, "transport", "response.cjs"), "nested");
+  writeFileSync(join(sourceDir, "transport", "stale.pyc"), "bytecode");
+  writeFileSync(join(sourceDir, "transport", "stale.pyo"), "bytecode");
   writeFileSync(join(sourceDir, "templates", "chat-template.jinja"), "jinja");
+  mkdirSync(join(sourceDir, "__pycache__"), { recursive: true });
+  writeFileSync(
+    join(sourceDir, "__pycache__", "runtime.cpython-312.pyc"),
+    "bytecode",
+  );
   return { root, sourceDir };
 }
 
@@ -79,6 +87,22 @@ describe("prepareRuntimeAssets", () => {
     expect(
       readFileSync(join(outputDir, "templates", "chat-template.jinja"), "utf8"),
     ).toBe("jinja");
+  });
+
+  it("omits development declarations and Python bytecode caches", () => {
+    const { root, sourceDir } = createRuntimeFixture();
+    const outputDir = join(root, "out", "app-runtime");
+
+    prepareRuntimeAssets({ root, outputDir });
+
+    expect(existsSync(join(outputDir, "runtime-jsdoc-types.d.ts"))).toBe(false);
+    expect(existsSync(join(outputDir, "transport", "stale.pyc"))).toBe(false);
+    expect(existsSync(join(outputDir, "transport", "stale.pyo"))).toBe(false);
+    expect(existsSync(join(outputDir, "__pycache__"))).toBe(false);
+    expect(existsSync(join(sourceDir, "runtime-jsdoc-types.d.ts"))).toBe(true);
+    expect(existsSync(join(sourceDir, "transport", "stale.pyc"))).toBe(true);
+    expect(existsSync(join(sourceDir, "transport", "stale.pyo"))).toBe(true);
+    expect(existsSync(join(sourceDir, "__pycache__"))).toBe(true);
   });
 
   it("refuses to clean the project root or any runtime source path", () => {

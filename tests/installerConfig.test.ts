@@ -47,6 +47,12 @@ const {
     maxRelativePathLength: number;
   };
 };
+const { prepareRuntimeAssets } = require("../scripts/prepare-runtime.cjs") as {
+  prepareRuntimeAssets: (options: {
+    root: string;
+    outputDir: string;
+  }) => string;
+};
 const electronBuilderConfig: unknown = require("../electron-builder.config.cjs");
 const { smokeOpenAiOauthRuntime } =
   require("../scripts/smoke-openai-oauth-runtime.cjs") as {
@@ -315,6 +321,32 @@ describe("Windows installer clean uninstall option", () => {
       expect(() => assertFastZipPayload(temporaryRoot)).toThrow(
         "safety budget",
       );
+    } finally {
+      rmSync(temporaryRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps the complete app runtime inside the Fast ZIP path budget", () => {
+    const temporaryRoot = mkdtempSync(
+      join(tmpdir(), "mgt-runtime-zip-safety-test-"),
+    );
+    const sourceRuntime = join(temporaryRoot, "src", "main", "runtime");
+    const appOutDir = join(temporaryRoot, "package");
+
+    try {
+      copyTemplateDirectory(
+        join(repoRoot, "src", "main", "runtime"),
+        sourceRuntime,
+      );
+      prepareRuntimeAssets({
+        root: temporaryRoot,
+        outputDir: join(appOutDir, "resources", "app-runtime"),
+      });
+      writeFileSync(join(appOutDir, WINDOWS_EXECUTABLE_FILENAME), "executable");
+
+      expect(
+        assertFastZipPayload(appOutDir).maxRelativePathLength,
+      ).toBeLessThanOrEqual(MAX_FAST_ZIP_RELATIVE_PATH_LENGTH);
     } finally {
       rmSync(temporaryRoot, { recursive: true, force: true });
     }

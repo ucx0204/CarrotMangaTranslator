@@ -45,7 +45,9 @@ const allowedElectronLocales = new Set([
   "zh-CN.pak",
   "zh-TW.pak",
 ]);
-const MAX_PACKAGED_FILES = 190;
+// The clean v1.7.0 thin payload is 217 files after development-only runtime
+// artifacts are omitted. Keep roughly the same regression headroom as v1.6.5.
+const MAX_PACKAGED_FILES = 240;
 const MAX_PACKAGED_BYTES = 700 * 1024 * 1024;
 
 if (!existsSync(oauthRuntimePath)) {

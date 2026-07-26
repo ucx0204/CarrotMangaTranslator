@@ -55,6 +55,9 @@ function emptyDirectory(directory) {
  */
 function copyDirectoryContents(sourceDir, outputDir) {
   for (const entry of readdirSync(sourceDir, { withFileTypes: true })) {
+    if (isDevelopmentRuntimeEntry(entry)) {
+      continue;
+    }
     const sourcePath = join(sourceDir, entry.name);
     const outputPath = join(outputDir, entry.name);
     if (entry.isDirectory()) {
@@ -66,6 +69,23 @@ function copyDirectoryContents(sourceDir, outputDir) {
       copyFileSync(sourcePath, outputPath);
     }
   }
+}
+
+/**
+ * Type declarations and Python bytecode caches support development but are
+ * never read by the packaged runtime.
+ *
+ * @param {import("node:fs").Dirent} entry
+ */
+function isDevelopmentRuntimeEntry(entry) {
+  const name = entry.name.toLowerCase();
+  return (
+    (entry.isDirectory() && name === "__pycache__") ||
+    (entry.isFile() &&
+      (name.endsWith(".d.ts") ||
+        name.endsWith(".pyc") ||
+        name.endsWith(".pyo")))
+  );
 }
 
 /**
