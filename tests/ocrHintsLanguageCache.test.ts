@@ -6,6 +6,7 @@ import type { MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationOptions } from "../src/main/appSettings";
 import { prepareOcrHintsForPages } from "../src/main/pipeline/ocrHints";
 import type { TranslationRuntimePort } from "../src/main/pipeline/translationRuntimePort";
+import type { OcrBboxResult } from "../src/main/pipeline/types";
 
 const tempDirs: string[] = [];
 
@@ -41,7 +42,11 @@ describe("OCR hint language cache", () => {
     );
     const runtime = {
       collectOcrHintsBatch,
-    } satisfies Pick<TranslationRuntimePort, "collectOcrHintsBatch">;
+      annotateOcrGroupingEvidenceBatch: async (_options, results) => results,
+    } satisfies Pick<
+      TranslationRuntimePort,
+      "annotateOcrGroupingEvidenceBatch" | "collectOcrHintsBatch"
+    >;
 
     const run = (sourceLanguage: string) =>
       prepareOcrHintsForPages({
@@ -74,7 +79,11 @@ describe("OCR hint language cache", () => {
     ]);
     const runtime = {
       collectOcrHintsBatch,
-    } satisfies Pick<TranslationRuntimePort, "collectOcrHintsBatch">;
+      annotateOcrGroupingEvidenceBatch: async (_options, results) => results,
+    } satisfies Pick<
+      TranslationRuntimePort,
+      "annotateOcrGroupingEvidenceBatch" | "collectOcrHintsBatch"
+    >;
     let options = {
       sourceLanguage: "ja",
       ocrDevice: "cpu",
@@ -133,11 +142,10 @@ describe("OCR hint language cache", () => {
     }
   });
 
-  it("invalidates stale hints after OCR grouping changes", async () => {
+  it("migrates schema 9 Anime YOLO evidence without rerunning Paddle OCR", async () => {
     const chapterDir = await mkdtemp(join(tmpdir(), "mgt-ocr-order-cache-"));
     tempDirs.push(chapterDir);
     const page = makePage();
-    let freshText = "fresh-order-1";
     const collectOcrHintsBatch = vi.fn(async () => [
       {
         hints: [
@@ -148,7 +156,7 @@ describe("OCR hint language cache", () => {
             y1: 10,
             x2: 80,
             y2: 90,
-            ocrText: freshText,
+            ocrText: "preserved-axis-v4-order",
           },
         ],
         diagnostics: [],
@@ -156,9 +164,32 @@ describe("OCR hint language cache", () => {
         textEvidenceCount: 1,
       },
     ]);
+    const annotateOcrGroupingEvidenceBatch = vi.fn(
+      async (_options: TranslationOptions[], results: OcrBboxResult[]) =>
+        results.map((result) => ({
+          ...result,
+          groupingEvidence: {
+            contractVersion: 1 as const,
+            status: "completed" as const,
+          },
+          hints: result.hints.map((hint) => ({
+            ...(hint as Record<string, unknown>),
+            animeTextRegionId: "ATY001",
+            animeTextRegionScore: 0.9,
+            animeTextContainment: 1,
+            animeTextRegionBbox: [8, 8, 82, 92],
+            animeTextEvidenceVersion: 1,
+            animeTextModelRevision: "new-revision",
+          })),
+        })),
+    );
     const runtime = {
       collectOcrHintsBatch,
-    } satisfies Pick<TranslationRuntimePort, "collectOcrHintsBatch">;
+      annotateOcrGroupingEvidenceBatch,
+    } satisfies Pick<
+      TranslationRuntimePort,
+      "annotateOcrGroupingEvidenceBatch" | "collectOcrHintsBatch"
+    >;
     const options = {
       sourceLanguage: "ja",
       ocrDevice: "gpu",
@@ -180,29 +211,154 @@ describe("OCR hint language cache", () => {
       });
     const cachePath = join(chapterDir, "ocr-hints", page.id, "result.json");
 
-    expect(readFirstOcrText(await run(), page.id)).toBe("fresh-order-1");
+    expect(readFirstOcrText(await run(), page.id)).toBe(
+      "preserved-axis-v4-order",
+    );
     const staleCache = JSON.parse(await readFile(cachePath, "utf8")) as {
       schemaVersion: number;
       hints: Array<{ ocrText?: string }>;
     };
-    expect(staleCache.schemaVersion).toBe(9);
-    staleCache.schemaVersion = 8;
+    expect(staleCache.schemaVersion).toBe(10);
+    staleCache.schemaVersion = 9;
     const staleHint = staleCache.hints[0];
     if (!staleHint) throw new Error("Expected one cached OCR hint");
-    staleHint.ocrText = "stale-scrambled-order";
+    staleHint.ocrText = "legacy-order-still-valid";
+    Object.assign(staleHint, {
+      animeTextRegionId: "ATY999",
+      animeTextRegionScore: 0.1,
+      animeTextContainment: 0.1,
+      animeTextRegionBbox: [0, 0, 1, 1],
+      animeTextEvidenceVersion: 0,
+      animeTextModelRevision: "stale-revision",
+    });
     await writeFile(
       cachePath,
       `${JSON.stringify(staleCache, null, 2)}\n`,
       "utf8",
     );
 
-    freshText = "fresh-order-2";
-    expect(readFirstOcrText(await run(), page.id)).toBe("fresh-order-2");
-    expect(collectOcrHintsBatch).toHaveBeenCalledTimes(2);
+    expect(readFirstOcrText(await run(), page.id)).toBe(
+      "legacy-order-still-valid",
+    );
+    expect(collectOcrHintsBatch).toHaveBeenCalledTimes(1);
+    expect(annotateOcrGroupingEvidenceBatch).toHaveBeenCalledTimes(1);
+    expect(annotateOcrGroupingEvidenceBatch.mock.calls[0]?.[1]).toEqual([
+      expect.objectContaining({
+        hints: [
+          expect.not.objectContaining({
+            animeTextRegionId: expect.anything(),
+          }),
+        ],
+      }),
+    ]);
     const rewrittenCache = JSON.parse(await readFile(cachePath, "utf8")) as {
       schemaVersion: number;
+      groupingEvidence?: unknown;
+      hints: Array<{
+        animeTextRegionId?: string;
+        animeTextModelRevision?: string;
+      }>;
     };
-    expect(rewrittenCache.schemaVersion).toBe(9);
+    expect(rewrittenCache.schemaVersion).toBe(10);
+    expect(rewrittenCache.groupingEvidence).toEqual({
+      contractVersion: 1,
+      status: "completed",
+    });
+    expect(rewrittenCache.hints[0]).toMatchObject({
+      animeTextRegionId: "ATY001",
+      animeTextModelRevision: "new-revision",
+    });
+  });
+
+  it("retries unavailable schema 10 grouping evidence without rerunning Paddle OCR", async () => {
+    const chapterDir = await mkdtemp(join(tmpdir(), "mgt-ocr-yolo-retry-"));
+    tempDirs.push(chapterDir);
+    const page = makePage();
+    const collectOcrHintsBatch = vi.fn(async () => [
+      {
+        hints: [
+          {
+            id: 1,
+            label: "ocr_textgroup",
+            x1: 10,
+            y1: 10,
+            x2: 80,
+            y2: 90,
+            ocrText: "paddle-result",
+          },
+        ],
+        diagnostics: [],
+        noTextDetected: false,
+        textEvidenceCount: 1,
+      },
+    ]);
+    let evidenceAttempt = 0;
+    const annotateOcrGroupingEvidenceBatch = vi.fn(
+      async (_options: TranslationOptions[], results: OcrBboxResult[]) => {
+        evidenceAttempt += 1;
+        return results.map((result) => ({
+          ...result,
+          groupingEvidence: {
+            contractVersion: 1 as const,
+            status:
+              evidenceAttempt === 1
+                ? ("unavailable" as const)
+                : ("completed" as const),
+          },
+        }));
+      },
+    );
+    const runtime = {
+      collectOcrHintsBatch,
+      annotateOcrGroupingEvidenceBatch,
+    } satisfies Pick<
+      TranslationRuntimePort,
+      "annotateOcrGroupingEvidenceBatch" | "collectOcrHintsBatch"
+    >;
+    const options = {
+      sourceLanguage: "ja",
+      ocrDevice: "gpu",
+      ocrGpuBackend: "rocm-transformers",
+      ocrQualityMode: "full",
+      ocrBboxMode: "ocr",
+      ocrEngine: "transformers",
+      ocrMergeMode: "conservative",
+    } as TranslationOptions;
+    const run = () =>
+      prepareOcrHintsForPages({
+        runtime,
+        baseOptions: options,
+        pages: [page],
+        runPaths: { chapterDir, runDir: join(chapterDir, "run") },
+        emit: () => undefined,
+        jobId: "job-yolo-retry",
+        signal: new AbortController().signal,
+      });
+    const cachePath = join(chapterDir, "ocr-hints", page.id, "result.json");
+
+    await run();
+    const cache = JSON.parse(await readFile(cachePath, "utf8")) as {
+      schemaVersion: number;
+    };
+    cache.schemaVersion = 9;
+    await writeFile(cachePath, `${JSON.stringify(cache, null, 2)}\n`, "utf8");
+
+    expect(readFirstOcrText(await run(), page.id)).toBe("paddle-result");
+    expect(readFirstOcrText(await run(), page.id)).toBe("paddle-result");
+    expect(readFirstOcrText(await run(), page.id)).toBe("paddle-result");
+    expect(collectOcrHintsBatch).toHaveBeenCalledTimes(1);
+    expect(annotateOcrGroupingEvidenceBatch).toHaveBeenCalledTimes(2);
+    const finalCache = JSON.parse(await readFile(cachePath, "utf8")) as {
+      schemaVersion: number;
+      groupingEvidence?: unknown;
+    };
+    expect(finalCache).toMatchObject({
+      schemaVersion: 10,
+      groupingEvidence: {
+        contractVersion: 1,
+        status: "completed",
+      },
+    });
   });
 });
 

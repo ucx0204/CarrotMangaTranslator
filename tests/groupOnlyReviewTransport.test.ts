@@ -52,6 +52,10 @@ const { deleteCachedPageReview, getOrCreateCachedPageReview } =
       promise: Promise<T>;
     };
   };
+const { buildReviewCropImageOptions } =
+  require("../src/main/runtime/transport/group-only-review-image-options.cjs") as {
+    buildReviewCropImageOptions: (original: JsonRecord) => JsonRecord;
+  };
 
 beforeEach(() => {
   clearGroupOnlyPageReviewCache();
@@ -69,6 +73,29 @@ afterEach(() => {
 });
 
 describe("axis-v4 group-only review transport", () => {
+  it("forwards only ffmpeg-hydrated WebP PNG data to crop preparation", () => {
+    const dataUrl = "data:image/png;base64,d2VicA==";
+    expect(
+      buildReviewCropImageOptions({
+        role: "original",
+        path: "legacy.webp",
+        dataUrl,
+        convertedFromMime: "image/webp",
+      }),
+    ).toEqual({
+      imagePath: "legacy.webp",
+      sourceImageDataUrl: dataUrl,
+    });
+    expect(
+      buildReviewCropImageOptions({
+        role: "original",
+        path: "normal.png",
+        dataUrl,
+        convertedFromMime: null,
+      }),
+    ).toEqual({ imagePath: "normal.png" });
+  });
+
   it("reviews four staggered columns in one crop and emits one final block", async () => {
     const request = makeStaggeredRequest();
     const bodies: RequestBody[] = [];
@@ -93,7 +120,7 @@ describe("axis-v4 group-only review transport", () => {
     expect(bodies).toHaveLength(2);
     expect(readUserText(bodies[0])).toContain("candidateOrder=[1,2,3,4]");
     expect(result.requestBody).toMatchObject({
-      semanticGroupReviewRequestVersion: 4,
+      semanticGroupReviewRequestVersion: 5,
       semanticGroupReviewCropPlanVersion: 2,
       semanticGroupReviewRegionCount: 1,
       semanticGroupReviewRequestCount: 1,
@@ -264,6 +291,45 @@ describe("axis-v4 group-only review transport", () => {
     });
 
     expect(second).not.toBe(first);
+  });
+
+  it("includes inferred review roles in the page review cache identity", () => {
+    const request = makeStaggeredRequest();
+    const first = buildPageReviewFingerprint(request.server, request.options);
+    const withReviewRole = buildPageReviewFingerprint(request.server, {
+      ...request.options,
+      ocrBboxHints: request.options.ocrBboxHints.map((item, index) => ({
+        ...item,
+        reviewRole: index === 0 ? "ruby" : "body",
+      })),
+    });
+    const withLegacyRole = buildPageReviewFingerprint(request.server, {
+      ...request.options,
+      ocrBboxHints: request.options.ocrBboxHints.map((item, index) => ({
+        ...item,
+        role: index === 0 ? "ruby" : "body",
+      })),
+    });
+
+    expect(withReviewRole).not.toBe(first);
+    expect(withLegacyRole).not.toBe(first);
+    expect(withLegacyRole).not.toBe(withReviewRole);
+  });
+
+  it("includes request-body settings in the page review cache identity", () => {
+    const request = makeStaggeredRequest();
+    const first = buildPageReviewFingerprint(request.server, request.options);
+    const withTokenLimit = buildPageReviewFingerprint(request.server, {
+      ...request.options,
+      maxTokens: Number(request.options.maxTokens) + 1024,
+    });
+    const withSampling = buildPageReviewFingerprint(request.server, {
+      ...request.options,
+      temperature: 0.1,
+    });
+
+    expect(withTokenLimit).not.toBe(first);
+    expect(withSampling).not.toBe(first);
   });
 
   it("coalesces concurrent page reviews onto the same pending promise", async () => {

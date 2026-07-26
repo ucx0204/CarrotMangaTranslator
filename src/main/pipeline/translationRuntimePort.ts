@@ -24,6 +24,10 @@ export type TranslationRuntimePort = {
   collectOcrHintsBatch: (
     options: TranslationOptions[],
   ) => Promise<OcrBboxResult[]>;
+  annotateOcrGroupingEvidenceBatch: (
+    options: TranslationOptions[],
+    results: OcrBboxResult[],
+  ) => Promise<OcrBboxResult[]>;
   requestTranslation: (
     endpoint: ModelEndpointHandle,
     options: TranslationOptions,
@@ -116,6 +120,8 @@ export function createTranslationRuntimePort({
       }
       return groupingEvidence.annotateBatch(optionsList, results);
     },
+    annotateOcrGroupingEvidenceBatch: (optionsList, results) =>
+      groupingEvidence.annotateBatch(optionsList, results),
     requestTranslation: (endpoint, options) =>
       runtime.simplePage.requestTranslation(endpoint, options),
     saveArtifacts: (options, result) =>

@@ -186,6 +186,66 @@ describe("group review crop planning", () => {
     expectNonOverlapping(heldOut);
   });
 
+  it("recovers a complete two-candidate Paddle group split only by uncertain-SFX classification", () => {
+    const plan = buildGroupReviewCropPlan(
+      [
+        {
+          ...candidate(15, [105, 1046, 178, 1346], "B006", "confirmed", 1),
+          paddleGroupId: "G005",
+          paddleOrder: 2,
+          paddleGroupSize: 2,
+        },
+        {
+          ...candidate(14, [165, 1045, 242, 1302], "D001", "deferred", 1, [
+            "oversized_uncertain_sfx",
+          ]),
+          paddleGroupId: "G005",
+          paddleOrder: 1,
+          paddleGroupSize: 2,
+        },
+      ],
+      1000,
+      1400,
+    );
+
+    expect(plan.regions).toHaveLength(1);
+    expect(plan.regions[0]).toMatchObject({
+      reasons: ["deferred_attached_once"],
+      confirmedFragmentIds: ["B006"],
+      deferredFragmentIds: ["D001"],
+      candidateIds: [15, 14],
+    });
+  });
+
+  it("does not change crop topology when the complete Paddle pair fails the recovery alignment gate", () => {
+    const plan = buildGroupReviewCropPlan(
+      [
+        {
+          ...candidate(1, [100, 100, 120, 400], "B001", "confirmed", 1),
+          paddleGroupId: "G001",
+          paddleOrder: 1,
+          paddleGroupSize: 2,
+        },
+        {
+          ...candidate(2, [124, 250, 144, 550], "D001", "deferred", 1, [
+            "oversized_uncertain_sfx",
+          ]),
+          paddleGroupId: "G001",
+          paddleOrder: 2,
+          paddleGroupSize: 2,
+        },
+      ],
+      1000,
+      1000,
+    );
+
+    expect(plan.regions).toHaveLength(2);
+    expect(plan.regions.map((region) => region.candidateIds)).toEqual([
+      [1],
+      [2],
+    ]);
+  });
+
   it("leaves a deferred fragment independent when two hosts are equally plausible", () => {
     const plan = buildGroupReviewCropPlan(
       [
@@ -591,6 +651,83 @@ describe("group review crop image variants", () => {
     expect(plan.regions).toHaveLength(2);
     expect(result.crops).toEqual([]);
     expect(result.fallbackReason).toBe("crop-decode-failed:C002");
+  });
+
+  it("uses a hydrated WebP PNG and resizes it into the OCR coordinate frame", () => {
+    const plan = buildGroupReviewCropPlan(
+      [candidate(1, [100, 100, 200, 300], "F001", "confirmed", 1)],
+      1000,
+      1400,
+    );
+    const cropped = {
+      isEmpty: () => false,
+      toPNG: () => Buffer.from("crop"),
+    };
+    const resized = {
+      isEmpty: () => false,
+      getSize: () => ({ width: 1000, height: 1400 }),
+      crop: vi.fn(() => cropped),
+      toPNG: () => Buffer.from([]),
+    };
+    const resize = vi.fn(() => resized);
+    const createFromDataURL = vi.fn(() => ({
+      isEmpty: () => false,
+      getSize: () => ({ width: 836, height: 1200 }),
+      crop: vi.fn(),
+      resize,
+      toPNG: () => Buffer.from([]),
+    }));
+    const createFromPath = vi.fn();
+
+    const result = buildGroupReviewCropImageVariants(
+      {
+        imagePath: "C:\\legacy.webp",
+        sourceImageDataUrl: "data:image/png;base64,AAAA",
+      },
+      plan,
+      { nativeImageModule: { createFromDataURL, createFromPath } },
+    );
+
+    expect(result.fallbackReason).toBeNull();
+    expect(createFromDataURL).toHaveBeenCalledWith(
+      "data:image/png;base64,AAAA",
+    );
+    expect(createFromPath).not.toHaveBeenCalled();
+    expect(resize).toHaveBeenCalledWith({
+      width: 1000,
+      height: 1400,
+      quality: "best",
+    });
+    expect(resized.crop).toHaveBeenCalledWith(plan.regions[0].cropRect);
+    expect(result.crops).toHaveLength(1);
+  });
+
+  it("keeps direct path size mismatches as an atomic fallback", () => {
+    const plan = buildGroupReviewCropPlan(
+      [candidate(1, [100, 100, 200, 300], "F001", "confirmed", 1)],
+      1000,
+      1400,
+    );
+    const resize = vi.fn();
+    const result = buildGroupReviewCropImageVariants(
+      { imagePath: "C:\\legacy.webp" },
+      plan,
+      {
+        nativeImageModule: {
+          createFromPath: () => ({
+            isEmpty: () => false,
+            getSize: () => ({ width: 836, height: 1200 }),
+            crop: vi.fn(),
+            resize,
+            toPNG: () => Buffer.from([]),
+          }),
+        },
+      },
+    );
+
+    expect(result.crops).toEqual([]);
+    expect(result.fallbackReason).toBe("source-size-mismatch");
+    expect(resize).not.toHaveBeenCalled();
   });
 
   it("propagates programming errors from the native image adapter", () => {

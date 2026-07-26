@@ -52,7 +52,7 @@ function buildGroupReviewCropImageVariantsUnsafe(options, plan, dependencies) {
   assertGroupReviewCropPlan(plan);
   const imagePath = requireImagePath(options.imagePath);
   const nativeImage = requireNativeImageModule(dependencies.nativeImageModule);
-  const source = decodeSourceImage(nativeImage, imagePath, plan);
+  const source = decodeSourceImage(nativeImage, imagePath, options, plan);
   const crops = plan.regions.map((region) =>
     createPreparedImageCrop(source, imagePath, plan, region),
   );
@@ -62,12 +62,20 @@ function buildGroupReviewCropImageVariantsUnsafe(options, plan, dependencies) {
 /**
  * @param {NativeImageModule} nativeImage
  * @param {string} imagePath
+ * @param {GroupReviewCropOptions} options
  * @param {GroupReviewCropPlan} plan
  */
-function decodeSourceImage(nativeImage, imagePath, plan) {
+function decodeSourceImage(nativeImage, imagePath, options, plan) {
   let decoded;
+  const dataUrl = readSourceImageDataUrl(options.sourceImageDataUrl);
+  let decodedFromDataUrl = false;
   try {
-    decoded = nativeImage.createFromPath(imagePath);
+    if (dataUrl && typeof nativeImage.createFromDataURL === "function") {
+      decoded = nativeImage.createFromDataURL(dataUrl);
+      decodedFromDataUrl = true;
+    } else {
+      decoded = nativeImage.createFromPath(imagePath);
+    }
   } catch (error) {
     if (error instanceof TypeError) throw error;
     throw groupReviewImageError(
@@ -76,7 +84,7 @@ function decodeSourceImage(nativeImage, imagePath, plan) {
       error,
     );
   }
-  return requireSourceImage(decoded, plan);
+  return requireSourceImage(decoded, plan, decodedFromDataUrl);
 }
 
 /** @param {unknown} value */
@@ -88,6 +96,12 @@ function requireImagePath(value) {
       "Group review image path is missing.",
     );
   return imagePath;
+}
+
+/** @param {unknown} value */
+function readSourceImageDataUrl(value) {
+  const dataUrl = String(value ?? "").trim();
+  return /^data:image\/[a-z0-9.+-]+;base64,/i.test(dataUrl) ? dataUrl : null;
 }
 
 /** @param {NativeImageModule|null|undefined} injected */
@@ -106,8 +120,17 @@ function requireNativeImageModule(injected) {
   return nativeImage;
 }
 
-/** @param {NativeImageLike} source @param {GroupReviewCropPlan} plan */
-function requireSourceImage(source, plan) {
+/**
+ * OCR coordinates may already have been normalized from the decoded source
+ * dimensions into the page metadata frame. Only hydrated model assets are
+ * allowed to resize into that same frame; direct path decoding keeps the
+ * previous strict mismatch fallback.
+ *
+ * @param {NativeImageLike} source
+ * @param {GroupReviewCropPlan} plan
+ * @param {boolean} allowResize
+ */
+function requireSourceImage(source, plan, allowResize) {
   if (!source || source.isEmpty() || typeof source.crop !== "function") {
     throw groupReviewImageError(
       "source-decode-failed",
@@ -115,17 +138,59 @@ function requireSourceImage(source, plan) {
     );
   }
   const sourceSize = source.getSize?.();
-  if (
-    sourceSize &&
-    (sourceSize.width !== plan.pageWidth ||
-      sourceSize.height !== plan.pageHeight)
-  ) {
+  if (!sourceSize || sourceMatchesPlan(sourceSize, plan)) {
+    return source;
+  }
+  if (allowResize) {
+    return resizeSourceImage(source, plan);
+  }
+  throw sourceSizeMismatch();
+}
+
+/** @param {{width:number;height:number}} size @param {GroupReviewCropPlan} plan */
+function sourceMatchesPlan(size, plan) {
+  return size.width === plan.pageWidth && size.height === plan.pageHeight;
+}
+
+/** @param {NativeImageLike} source @param {GroupReviewCropPlan} plan */
+function resizeSourceImage(source, plan) {
+  if (typeof source.resize !== "function") {
+    throw sourceSizeMismatch();
+  }
+  let resized;
+  try {
+    resized = source.resize({
+      width: plan.pageWidth,
+      height: plan.pageHeight,
+      quality: "best",
+    });
+  } catch (error) {
+    if (error instanceof TypeError) throw error;
     throw groupReviewImageError(
-      "source-size-mismatch",
-      "The source image size does not match the crop plan.",
+      "source-resize-failed",
+      "The hydrated source image could not be resized to the crop coordinate frame.",
+      error,
     );
   }
-  return source;
+  if (
+    !resized ||
+    resized.isEmpty() ||
+    typeof resized.crop !== "function" ||
+    (resized.getSize?.() && !sourceMatchesPlan(resized.getSize(), plan))
+  ) {
+    throw groupReviewImageError(
+      "source-resize-failed",
+      "The hydrated source image could not be resized to the crop coordinate frame.",
+    );
+  }
+  return resized;
+}
+
+function sourceSizeMismatch() {
+  return groupReviewImageError(
+    "source-size-mismatch",
+    "The source image size does not match the crop plan.",
+  );
 }
 
 /**

@@ -115,6 +115,15 @@ export type OcrBboxResult = {
   diagnostics: unknown[];
   noTextDetected?: boolean;
   textEvidenceCount?: number;
+  /**
+   * Optional Anime YOLO pass state. Missing means that no detector run was
+   * needed. "unavailable" is persisted so a later run retries only this
+   * inexpensive evidence pass instead of rerunning Paddle OCR.
+   */
+  groupingEvidence?: {
+    contractVersion: 1;
+    status: "completed" | "unavailable";
+  };
 };
 
 export type OverlayItem = {

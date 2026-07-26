@@ -58,6 +58,8 @@ function buildPageReviewFingerprint(server, options) {
     hint.reviewReasons,
     hint.reviewOrder,
     hint.reviewContextId,
+    hint.reviewRole,
+    hint.role,
     hint.animeTextRegionId,
     hint.animeTextRegionScore,
     hint.animeTextContainment,
@@ -71,7 +73,7 @@ function buildPageReviewFingerprint(server, options) {
   return createHash("sha256")
     .update(
       JSON.stringify({
-        version: 14,
+        version: 15,
         image: imageFingerprint(options.imagePath),
         size: [options.imageWidth, options.imageHeight],
         model: [
@@ -83,6 +85,18 @@ function buildPageReviewFingerprint(server, options) {
           options.localMmprojPath,
         ],
         vision: [options.imageMinTokens, options.imageMaxTokens],
+        request: [
+          options.modelProvider,
+          options.apiModel,
+          options.maxTokens,
+          options.temperature,
+          options.topP,
+          options.topK,
+          options.disableUnused49LogitBias,
+          options.forbiddenTokenBias,
+          options.forbiddenTokenIds,
+          options.forbiddenTokenTexts,
+        ],
         server: server.baseUrl,
         hints,
       }),

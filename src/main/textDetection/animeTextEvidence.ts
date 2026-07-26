@@ -28,6 +28,7 @@ type AcquireAnimeTextDetector = (options: {
   onProgress?: (progress: RuntimeAssetProgress) => void;
 }) => Promise<AnimeTextDetectorLease>;
 type HasPotentialAnimeTextRelation = (hints: unknown[]) => boolean;
+const GROUPING_EVIDENCE_CONTRACT_VERSION = 1 as const;
 
 type EvidencePortOptions = {
   dataRoot: string;
@@ -119,14 +120,21 @@ async function annotateSelectedPages({
   if (optionsList.length !== results.length) {
     throw new Error("OCR options and results must have matching lengths.");
   }
-  const selected = selectEligiblePages(
+  const { failedIndexes, selected } = selectEligiblePages(
     optionsList,
     results,
     hasPotentialRelation,
     reportWarning,
   );
+  const annotated = [...results];
+  for (const index of failedIndexes) {
+    const result = results[index];
+    if (result) {
+      annotated[index] = markGroupingEvidence(result, "unavailable");
+    }
+  }
   if (selected.length === 0) {
-    return results;
+    return preserveOriginalArrayWhenUnchanged(results, annotated);
   }
   const lease = await acquireDetectorOrNoop(
     dataRoot,
@@ -135,9 +143,11 @@ async function annotateSelectedPages({
     reportWarning,
   );
   if (!lease) {
-    return results;
+    for (const item of selected) {
+      annotated[item.index] = markGroupingEvidence(item.result, "unavailable");
+    }
+    return preserveOriginalArrayWhenUnchanged(results, annotated);
   }
-  const annotated = [...results];
   try {
     await annotateWithLease(
       selected,
@@ -149,9 +159,7 @@ async function annotateSelectedPages({
   } finally {
     lease.release();
   }
-  return annotated.every((value, index) => value === results[index])
-    ? results
-    : annotated;
+  return preserveOriginalArrayWhenUnchanged(results, annotated);
 }
 
 type SelectedPage = {
@@ -165,8 +173,9 @@ function selectEligiblePages(
   results: OcrBboxResult[],
   hasPotentialRelation: HasPotentialAnimeTextRelation,
   reportWarning: typeof logAnimeTextWarning,
-): SelectedPage[] {
+): { selected: SelectedPage[]; failedIndexes: number[] } {
   const selected: SelectedPage[] = [];
+  const failedIndexes: number[] = [];
   for (let index = 0; index < optionsList.length; index += 1) {
     const result = results[index];
     const translationOptions = optionsList[index];
@@ -185,9 +194,10 @@ function selectEligiblePages(
       }
     } catch (error) {
       reportDetectorFailure(translationOptions, error, reportWarning);
+      failedIndexes.push(index);
     }
   }
-  return selected;
+  return { selected, failedIndexes };
 }
 
 async function acquireDetectorOrNoop(
@@ -232,22 +242,55 @@ async function annotateWithLease(
         item.translationOptions.imagePath,
         item.translationOptions.abortSignal,
       );
-      annotated[item.index] = attachAnimeTextEvidence(
-        item.result,
-        detection,
-        qualifyRelationRegionIds,
-        {
-          width: item.translationOptions.imageWidth,
-          height: item.translationOptions.imageHeight,
-        },
+      annotated[item.index] = markGroupingEvidence(
+        attachAnimeTextEvidence(
+          item.result,
+          detection,
+          qualifyRelationRegionIds,
+          {
+            width: item.translationOptions.imageWidth,
+            height: item.translationOptions.imageHeight,
+          },
+        ),
+        "completed",
       );
     } catch (error) {
       if (isAbortError(error)) {
         throw error;
       }
       reportDetectorFailure(item.translationOptions, error, reportWarning);
+      annotated[item.index] = markGroupingEvidence(item.result, "unavailable");
     }
   }
+}
+
+function markGroupingEvidence(
+  result: OcrBboxResult,
+  status: "completed" | "unavailable",
+): OcrBboxResult {
+  if (
+    result.groupingEvidence?.contractVersion ===
+      GROUPING_EVIDENCE_CONTRACT_VERSION &&
+    result.groupingEvidence.status === status
+  ) {
+    return result;
+  }
+  return {
+    ...result,
+    groupingEvidence: {
+      contractVersion: GROUPING_EVIDENCE_CONTRACT_VERSION,
+      status,
+    },
+  };
+}
+
+function preserveOriginalArrayWhenUnchanged(
+  original: OcrBboxResult[],
+  candidate: OcrBboxResult[],
+): OcrBboxResult[] {
+  return candidate.every((value, index) => value === original[index])
+    ? original
+    : candidate;
 }
 
 function reportDetectorFailure(

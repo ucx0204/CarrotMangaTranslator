@@ -29,10 +29,11 @@ const {
 const {
   requestGroupOnlyCropCompletion,
 } = require("./group-only-review-completion.cjs");
+const reviewImage = require("./group-only-review-image-options.cjs");
 const { findAbortError } = require("./model-http-errors.cjs");
 const { nowMs } = require("./model-runtime-services.cjs");
 
-const GROUP_ONLY_REVIEW_REQUEST_VERSION = 4;
+const GROUP_ONLY_REVIEW_REQUEST_VERSION = 5;
 
 /**
  * @typedef {Record<string,unknown>} JsonRecord
@@ -107,7 +108,7 @@ async function runPreparedPageReview(server, options, startedAt) {
     source.height,
   );
   const preparedCrops = buildGroupReviewCropImageVariants(
-    { imagePath: source.original.path },
+    reviewImage.buildReviewCropImageOptions(source.original),
     plan,
   );
   if (preparedCrops.fallbackReason || preparedCrops.crops.length === 0) {
@@ -184,7 +185,11 @@ function buildReviewCase(region, hintById) {
   });
   const spatialRelations = buildAnimeTextSpatialRelations(candidates);
   const hasAnimeTextRelation =
-    spatialRelations.sharedAnimeTextRegions.length > 0;
+    spatialRelations.sharedAnimeTextRegions.length > 0 ||
+    (Array.isArray(spatialRelations.distinctAnimeTextRegionBarriers) &&
+      spatialRelations.distinctAnimeTextRegionBarriers.length > 0) ||
+    (Array.isArray(spatialRelations.paddleClassifierRecoveries) &&
+      spatialRelations.paddleClassifierRecoveries.length > 0);
   return {
     candidates,
     candidateOrder: candidates.map((hint) => hint.id),

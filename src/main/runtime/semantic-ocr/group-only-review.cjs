@@ -372,8 +372,14 @@ function combineGroupingWithRoles(plan, grouping, roleBaseline) {
 
 /** @param {ReviewPlan} plan */
 function hasAnimeTextRelation(plan) {
-  const relations = plan.spatialRelations.sharedAnimeTextRegions;
-  return Array.isArray(relations) && relations.length > 0;
+  const shared = plan.spatialRelations.sharedAnimeTextRegions;
+  const distinct = plan.spatialRelations.distinctAnimeTextRegionBarriers;
+  const recoveries = plan.spatialRelations.paddleClassifierRecoveries;
+  return (
+    (Array.isArray(shared) && shared.length > 0) ||
+    (Array.isArray(distinct) && distinct.length > 0) ||
+    (Array.isArray(recoveries) && recoveries.length > 0)
+  );
 }
 
 /** @param {string|{outputText?:string;rawResponse?:unknown}|null|undefined} response */

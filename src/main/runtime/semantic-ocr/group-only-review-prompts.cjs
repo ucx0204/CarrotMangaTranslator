@@ -2,7 +2,7 @@
 
 const { fail, unionTuples } = require("./group-only-review-values.cjs");
 
-const GROUP_ONLY_PROMPT_CONTRACT_VERSION = 16;
+const GROUP_ONLY_PROMPT_CONTRACT_VERSION = 17;
 const ROLES = ["body", "ruby"];
 
 /** @typedef {import("./group-only-review-types").ReviewCandidate} ReviewCandidate */
@@ -113,33 +113,78 @@ function buildGroupOnlyReviewEvidence(plan) {
 
 /** @param {ReviewPlan} plan */
 function buildAnimeTextInstructions(plan) {
-  return hasAnimeTextRelation(plan)
-    ? [
-        "Grouping evidence priority is: visible closed container boundary first, shared Paddle group second, anime-text-yolo auxiliary relation third, upstream fragment boundary last.",
-        "A shared_anime_text_region is emitted only after detector coverage plus an independent scale-relative reading-start alignment gate between exactly one confirmed and one deferred fragment.",
-        "The detector still has no balloon-boundary knowledge. First search the crop for an outline, compartment edge, caption border, or other separator between those fragments.",
-        "For every shared_anime_text_region, begin with all listed candidateIds in one provisional group.",
-        "Split that provisional group only when the crop shows a visible outline, compartment edge, caption border, or other separator between the listed confirmedFragment and deferredFragment boxes.",
-        "Whitespace, a short single glyph, unequal text height, a line or column break, and a missing shared Paddle group are not visible separators.",
-        "If a visible separator exists, keep the fragments apart regardless of the relation. If none exists, the listed candidateIds must share one final group.",
-        "Before returning labels, explicitly recheck every shared_anime_text_region: either its listed candidateIds share one group, or a visible separator in the crop justifies keeping them apart.",
-        "Never merge solely from detector coverage; the supplied alignment and your visual boundary check must both support the merge.",
-      ]
-    : [
-        "Grouping evidence priority is: visible closed container boundary first, shared Paddle group second, upstream fragment boundary last.",
-      ];
+  const relations = readAnimeTextRelations(plan);
+  const instructions =
+    relations.shared.length > 0
+      ? [
+          "Grouping evidence priority is: visible closed container boundary first, shared Paddle group second, anime-text-yolo auxiliary relation third, upstream fragment boundary last.",
+          "A shared_anime_text_region is emitted only after detector coverage plus an independent scale-relative reading-start alignment gate between exactly one confirmed and one deferred fragment.",
+          "The detector still has no balloon-boundary knowledge. First search the crop for an outline, compartment edge, caption border, or other separator between those fragments.",
+          "For every shared_anime_text_region, begin with all listed candidateIds in one provisional group.",
+          "Split that provisional group only when the crop shows a visible outline, compartment edge, caption border, or other separator between the listed confirmedFragment and deferredFragment boxes.",
+          "Whitespace, a short single glyph, unequal text height, a line or column break, and a missing shared Paddle group are not visible separators.",
+          "If a visible separator exists, keep the fragments apart regardless of the relation. If none exists, the listed candidateIds must share one final group.",
+          "Before returning labels, explicitly recheck every shared_anime_text_region: either its listed candidateIds share one group, or a visible separator in the crop justifies keeping them apart.",
+          "Never merge solely from detector coverage; the supplied alignment and your visual boundary check must both support the merge.",
+        ]
+      : [
+          "Grouping evidence priority is: visible closed container boundary first, shared Paddle group second, upstream fragment boundary last.",
+        ];
+  if (relations.hardDistinct.length > 0) {
+    instructions.push(
+      "Each distinctAnimeTextRegionBarriers entry is a hard merge barrier: keep both listed fragments intact; their candidates must never share a final group.",
+      "Recheck every hard barrier before returning, even when its fragments share a Paddle group or appear semantically related.",
+    );
+    if (
+      relations.hardDistinct.some(
+        (relation) => relation.internalPartitionKind === "reading_start_bands",
+      )
+    ) {
+      instructions.push(
+        "For a reading_start_bands entry, keep its two synthetic band fragments separate even though they share one Paddle group.",
+      );
+    }
+  }
+  if (relations.internalSplitPriors.length > 0) {
+    instructions.push(
+      "For strength=conservative_split_prior, the application has replaced one source fragment with two synthetic fragments; prefer keeping them separate.",
+      "This internal split prior is not a hard boundary: merge the pair when the crop clearly shows one uninterrupted composition.",
+    );
+  }
+  return instructions;
 }
 
 /** @param {ReviewPlan} plan */
-function hasAnimeTextRelation(plan) {
+function readAnimeTextRelations(plan) {
   const spatialRelations =
     plan.spatialRelations &&
     typeof plan.spatialRelations === "object" &&
     !Array.isArray(plan.spatialRelations)
       ? /** @type {Record<string,unknown>} */ (plan.spatialRelations)
       : {};
-  const relations = spatialRelations.sharedAnimeTextRegions;
-  return Array.isArray(relations) && relations.length > 0;
+  const distinct = Array.isArray(
+    spatialRelations.distinctAnimeTextRegionBarriers,
+  )
+    ? spatialRelations.distinctAnimeTextRegionBarriers.filter(isRecord)
+    : [];
+  return {
+    shared: Array.isArray(spatialRelations.sharedAnimeTextRegions)
+      ? spatialRelations.sharedAnimeTextRegions
+      : [],
+    hardDistinct: distinct.filter(
+      (relation) => relation.strength === "conservative_merge_barrier",
+    ),
+    internalSplitPriors: distinct.filter(
+      (relation) =>
+        relation.strength === "conservative_split_prior" &&
+        Boolean(relation.sourceFragmentId),
+    ),
+  };
+}
+
+/** @param {unknown} value */
+function isRecord(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 /** @param {number} count @returns {Record<string,unknown>} */

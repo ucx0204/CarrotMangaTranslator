@@ -1,13 +1,32 @@
 import { describe, expect, it } from "vitest";
+import {
+  distinctBalloonCandidates,
+  distinctUpstreamFragments,
+  mangaElevenInternalPaddleCandidates,
+  mangaFiveSingletonCandidates,
+} from "./fixtures/animeTextDistinctCases";
 
-const { buildAnimeTextSpatialRelations, qualifyAnimeTextRelationRegionIds } =
+const {
+  buildAnimeTextSpatialRelations,
+  hasPotentialAnimeTextRelation,
+  qualifyAnimeTextRelationRegionIds,
+  qualifySharedAnimeTextRelationRegionIds,
+} =
   require("../src/main/runtime/semantic-ocr/anime-text-review-relations.cjs") as {
     buildAnimeTextSpatialRelations: (
       candidates: Array<Record<string, unknown>>,
     ) => {
       sharedAnimeTextRegions: Array<Record<string, unknown>>;
+      distinctAnimeTextRegionBarriers?: Array<Record<string, unknown>>;
+      paddleClassifierRecoveries?: Array<Record<string, unknown>>;
     };
+    hasPotentialAnimeTextRelation: (
+      candidates: Array<Record<string, unknown>>,
+    ) => boolean;
     qualifyAnimeTextRelationRegionIds: (
+      candidates: Array<Record<string, unknown>>,
+    ) => string[];
+    qualifySharedAnimeTextRelationRegionIds: (
       candidates: Array<Record<string, unknown>>,
     ) => string[];
   };
@@ -145,6 +164,9 @@ describe("anime-text-yolo review-only contract", () => {
     });
 
     expect(qualifyAnimeTextRelationRegionIds(candidates)).toEqual(["ATY001"]);
+    expect(qualifySharedAnimeTextRelationRegionIds(candidates)).toEqual([
+      "ATY001",
+    ]);
     expect(spatialRelations.sharedAnimeTextRegions).toEqual([
       expect.objectContaining({
         kind: "shared_anime_text_region",
@@ -517,6 +539,577 @@ describe("anime-text-yolo review-only contract", () => {
       sharedAnimeTextRegions: [],
     });
   });
+
+  it("emits a hard barrier for the manga (11) two-lobe counterexample", () => {
+    const candidates = distinctBalloonCandidates();
+    const spatialRelations = buildAnimeTextSpatialRelations(candidates);
+    const plan = buildDistinctBarrierPlan(candidates, spatialRelations);
+
+    expect(hasPotentialAnimeTextRelation(candidates)).toBe(true);
+    expect(qualifyAnimeTextRelationRegionIds(candidates)).toEqual([
+      "ATY101",
+      "ATY102",
+    ]);
+    expect(qualifySharedAnimeTextRelationRegionIds(candidates)).toEqual([]);
+    expect(spatialRelations).toEqual({
+      sharedAnimeTextRegions: [],
+      distinctAnimeTextRegionBarriers: [
+        expect.objectContaining({
+          kind: "distinct_anime_text_regions",
+          strength: "conservative_merge_barrier",
+          recommendedAction: "keep_fragments_separate",
+          reviewContextId: "RC001",
+          paddleGroupId: "G002",
+          smallerRegionOverlap: 0,
+          fragments: [
+            expect.objectContaining({
+              fragmentId: "B002",
+              candidateIds: [5, 4],
+              regionId: "ATY101",
+            }),
+            expect.objectContaining({
+              fragmentId: "B003",
+              candidateIds: [6, 7, 9, 8],
+              regionId: "ATY102",
+            }),
+          ],
+        }),
+      ],
+    });
+    expect(buildGroupOnlyReviewPrompt(plan)).toContain(
+      "is a hard merge barrier",
+    );
+    expect(buildGroupOnlyReviewPrompt(plan)).toContain(
+      "must never share a final group",
+    );
+  });
+
+  it("emits a hard barrier for the actual 10.2 manga (5) Paddle-less singleton fragments", () => {
+    const candidates = mangaFiveSingletonCandidates();
+    const spatialRelations = buildAnimeTextSpatialRelations(candidates);
+    const barrier = spatialRelations.distinctAnimeTextRegionBarriers?.[0];
+
+    expect(hasPotentialAnimeTextRelation(candidates)).toBe(true);
+    expect(qualifyAnimeTextRelationRegionIds(candidates)).toEqual([
+      "ATY501",
+      "ATY502",
+    ]);
+    expect(spatialRelations.sharedAnimeTextRegions).toEqual([]);
+    expect(barrier).toEqual(
+      expect.objectContaining({
+        kind: "distinct_anime_text_regions",
+        strength: "conservative_merge_barrier",
+        reviewContextId: "RC001",
+        geometry: {
+          writingMode: "vertical",
+          characterScale: 51,
+          startDeltaPx: 115,
+          crossGapPx: 26,
+          readingGapPx: 0,
+        },
+        fragments: [
+          expect.objectContaining({
+            fragmentId: "B003",
+            candidateIds: [9],
+            regionId: "ATY501",
+            bboxPixels: [1094.7, 407.1, 1144.2, 616.8],
+          }),
+          expect.objectContaining({
+            fragmentId: "B004",
+            candidateIds: [10],
+            regionId: "ATY502",
+            bboxPixels: [1017.1, 520.4, 1067.9, 784.8],
+          }),
+        ],
+      }),
+    );
+    expect(barrier).not.toHaveProperty("paddleGroupId");
+  });
+
+  it("does not hard-split upper and lower OCR chunks of one uninterrupted vertical column", () => {
+    const candidates = [
+      [1, "B001", 100, 100, 130, 220, "ATY701", [95, 95, 170, 345]],
+      [2, "B001", 135, 220, 165, 340, "ATY701", [95, 95, 170, 345]],
+      [3, "B002", 105, 390, 135, 510, "ATY702", [100, 385, 175, 635]],
+      [4, "B002", 140, 510, 170, 630, "ATY702", [100, 385, 175, 635]],
+    ].map(([id, fragment, x1, y1, x2, y2, regionId, regionBbox], index) => ({
+      id,
+      x1,
+      y1,
+      x2,
+      y2,
+      ocrText: `세로조각-${index}`,
+      reviewFragmentId: fragment,
+      reviewStatus: "confirmed",
+      reviewReasons: [],
+      reviewContextId: "RC001",
+      paddleGroupId: "G001",
+      animeTextRegionId: regionId,
+      animeTextRegionScore: 0.9,
+      animeTextContainment: 1,
+      animeTextRegionBbox: regionBbox,
+      animeTextEvidenceVersion: 1,
+      animeTextModelRevision: "hard-negative-fixture",
+    }));
+
+    expect(hasPotentialAnimeTextRelation(candidates)).toBe(false);
+    expect(
+      buildAnimeTextSpatialRelations(candidates)
+        .distinctAnimeTextRegionBarriers,
+    ).toBeUndefined();
+  });
+
+  it("emits an internal split barrier for the actual 10.2 manga (11) two-Paddle-group fragment", () => {
+    const candidates = mangaElevenInternalPaddleCandidates();
+    const spatialRelations = buildAnimeTextSpatialRelations(candidates);
+    const barrier = spatialRelations.distinctAnimeTextRegionBarriers?.[0];
+
+    expect(hasPotentialAnimeTextRelation(candidates)).toBe(true);
+    expect(qualifyAnimeTextRelationRegionIds(candidates)).toEqual([
+      "ATY601",
+      "ATY602",
+    ]);
+    expect(spatialRelations.sharedAnimeTextRegions).toEqual([]);
+    expect(barrier).toEqual(
+      expect.objectContaining({
+        kind: "distinct_anime_text_regions",
+        strength: "conservative_split_prior",
+        recommendedAction: "prefer_fragments_separate",
+        sourceFragmentId: "B003",
+        paddleGroupIds: ["G002", "G004"],
+        geometry: {
+          writingMode: "vertical",
+          characterScale: 46,
+          startDeltaPx: 244,
+          crossGapPx: 0,
+          readingGapPx: 23,
+        },
+        fragments: [
+          expect.objectContaining({
+            fragmentId: "B003::paddle::G002",
+            syntheticFragmentId: "B003::paddle::G002",
+            sourceFragmentId: "B003",
+            paddleGroupId: "G002",
+            candidateIds: [6, 7, 9, 8],
+            regionId: "ATY601",
+            bboxPixels: [180.7, 201.6, 355.7, 433.3],
+          }),
+          expect.objectContaining({
+            fragmentId: "B003::paddle::G004",
+            syntheticFragmentId: "B003::paddle::G004",
+            sourceFragmentId: "B003",
+            paddleGroupId: "G004",
+            candidateIds: [12, 14, 15, 13],
+            regionId: "ATY602",
+            bboxPixels: [83.5, 449.4, 260.3, 648],
+          }),
+        ],
+      }),
+    );
+    expect(barrier).not.toHaveProperty("reviewContextId");
+    expect(barrier).not.toHaveProperty("paddleGroupId");
+  });
+
+  it("hard-splits one complete Paddle group when two clear 3-column reading bands have distinct pure detector regions", () => {
+    const candidates = mangaSevenReadingBandCandidates();
+    const withoutDetector = candidates.map(withoutAnimeTextEvidence);
+
+    expect(hasPotentialAnimeTextRelation(withoutDetector)).toBe(true);
+    expect(buildAnimeTextSpatialRelations(withoutDetector)).toEqual({
+      sharedAnimeTextRegions: [],
+    });
+
+    const spatialRelations = buildAnimeTextSpatialRelations(candidates);
+    const barrier = spatialRelations.distinctAnimeTextRegionBarriers?.[0];
+    expect(barrier).toEqual(
+      expect.objectContaining({
+        kind: "distinct_anime_text_regions",
+        strength: "conservative_merge_barrier",
+        recommendedAction: "keep_fragments_separate",
+        sourceFragmentId: "B006",
+        internalPartitionKind: "reading_start_bands",
+        paddleGroupId: "G005",
+        fragments: [
+          expect.objectContaining({
+            fragmentId: "B006::band::1",
+            partitionKey: "band-1",
+            candidateIds: [17, 16, 15],
+            regionId: "ATY801",
+          }),
+          expect.objectContaining({
+            fragmentId: "B006::band::2",
+            partitionKey: "band-2",
+            candidateIds: [23, 24, 22],
+            regionId: "ATY802",
+          }),
+        ],
+      }),
+    );
+
+    const plan = buildGroupOnlyReviewPlan({
+      candidates,
+      candidateOrder: candidates.map((candidate) => candidate.id),
+      upstreamFragments: [
+        {
+          fragment: "B006",
+          status: "confirmed",
+          candidateIds: candidates.map((candidate) => candidate.id),
+        },
+      ],
+      spatialRelations,
+    });
+    expect(plan.upstreamFragments).toEqual([
+      {
+        fragment: "B006::band::1",
+        status: "confirmed",
+        candidateIds: [17, 16, 15],
+      },
+      {
+        fragment: "B006::band::2",
+        status: "confirmed",
+        candidateIds: [23, 24, 22],
+      },
+    ]);
+    expect(() =>
+      parseGroupOnlyReviewResponse(
+        JSON.stringify({
+          labels: candidates.map(() => ({ group: 1, role: "body" })),
+        }),
+        plan,
+      ),
+    ).toThrow(/distinct anime-text regions/i);
+  });
+
+  it("emits the exact uncertain-SFX Paddle recovery only for the candidate plan", () => {
+    const candidates = [
+      {
+        id: 15,
+        x1: 105,
+        y1: 1046,
+        x2: 178,
+        y2: 1346,
+        ocrText: "どうしたの！？",
+        reviewFragmentId: "B006",
+        reviewStatus: "confirmed",
+        reviewReasons: [],
+        paddleGroupId: "G005",
+        paddleOrder: 2,
+        paddleGroupSize: 2,
+      },
+      {
+        id: 14,
+        x1: 165,
+        y1: 1045,
+        x2: 242,
+        y2: 1302,
+        ocrText: "ギャ～～～！！",
+        reviewFragmentId: "D001",
+        reviewStatus: "deferred",
+        reviewReasons: ["oversized_uncertain_sfx"],
+        paddleGroupId: "G005",
+        paddleOrder: 1,
+        paddleGroupSize: 2,
+      },
+    ];
+    const upstreamFragments = [
+      { fragment: "B006", status: "confirmed", candidateIds: [15] },
+      { fragment: "D001", status: "deferred", candidateIds: [14] },
+    ];
+    const spatialRelations = buildAnimeTextSpatialRelations(candidates);
+
+    expect(spatialRelations).toEqual({
+      sharedAnimeTextRegions: [],
+      paddleClassifierRecoveries: [
+        {
+          kind: "complete_paddle_classifier_recovery",
+          strength: "exact_upstream_fragment_recovery",
+          basis:
+            "complete_two_candidate_paddle_group_split_only_by_uncertain_sfx_classifier",
+          recommendedAction: "merge_fragments",
+          paddleGroupId: "G005",
+          sourceFragmentIds: ["B006", "D001"],
+          targetFragmentId: "B006::paddle-recovery::G005",
+          candidateIds: [15, 14],
+        },
+      ],
+    });
+    expect(
+      buildGroupOnlyReviewPlan({
+        candidates,
+        candidateOrder: [15, 14],
+        upstreamFragments,
+      }).upstreamFragments,
+    ).toEqual(upstreamFragments);
+    expect(
+      buildGroupOnlyReviewPlan({
+        candidates,
+        candidateOrder: [15, 14],
+        upstreamFragments,
+        spatialRelations,
+      }).upstreamFragments,
+    ).toEqual([
+      {
+        fragment: "B006::paddle-recovery::G005",
+        status: "confirmed",
+        candidateIds: [15, 14],
+      },
+    ]);
+  });
+
+  it("keeps the third-fragment veto for the actual 10.2 manga (5) singleton context", () => {
+    const candidates = [
+      ...mangaFiveSingletonCandidates(),
+      {
+        ...mangaFiveSingletonCandidates()[0],
+        id: 11,
+        x1: 930,
+        y1: 640,
+        x2: 980,
+        y2: 840,
+        reviewFragmentId: "B005",
+        animeTextRegionId: "ATY503",
+        animeTextRegionBbox: [925, 635, 985, 845],
+      },
+    ];
+
+    expect(hasPotentialAnimeTextRelation(candidates)).toBe(false);
+    expect(
+      buildAnimeTextSpatialRelations(candidates)
+        .distinctAnimeTextRegionBarriers,
+    ).toBeUndefined();
+  });
+
+  it.each([
+    [
+      "a third Paddle group",
+      (candidates: Array<Record<string, unknown>>) =>
+        candidates.map((candidate) =>
+          candidate.id === 13
+            ? { ...candidate, paddleGroupId: "G005" }
+            : candidate,
+        ),
+    ],
+    [
+      "a one-candidate Paddle component",
+      (candidates: Array<Record<string, unknown>>) =>
+        candidates.map((candidate) =>
+          candidate.id === 14 || candidate.id === 15 || candidate.id === 13
+            ? { ...candidate, paddleGroupId: "G002" }
+            : candidate,
+        ),
+    ],
+    [
+      "missing Paddle sidecar size metadata",
+      (candidates: Array<Record<string, unknown>>) =>
+        candidates.map((candidate) =>
+          candidate.id === 12
+            ? { ...candidate, paddleGroupSize: undefined }
+            : candidate,
+        ),
+    ],
+    [
+      "duplicate Paddle sidecar order metadata",
+      (candidates: Array<Record<string, unknown>>) =>
+        candidates.map((candidate) =>
+          candidate.id === 14 ? { ...candidate, paddleOrder: 1 } : candidate,
+        ),
+    ],
+    [
+      "an impure child region",
+      (candidates: Array<Record<string, unknown>>) => [
+        ...candidates,
+        {
+          ...candidates[0],
+          id: 99,
+          reviewFragmentId: "B099",
+          paddleGroupId: "G099",
+        },
+      ],
+    ],
+  ])("does not emit the internal split barrier for %s", (_label, mutate) => {
+    const candidates = mutate(mangaElevenInternalPaddleCandidates());
+
+    expect(
+      buildAnimeTextSpatialRelations(candidates)
+        .distinctAnimeTextRegionBarriers,
+    ).toBeUndefined();
+  });
+
+  it("rejects a model merge across the qualified barrier and falls back to the two upstream fragments", async () => {
+    const candidates = distinctBalloonCandidates();
+    const spatialRelations = buildAnimeTextSpatialRelations(candidates);
+    const plan = buildDistinctBarrierPlan(candidates, spatialRelations);
+    const merged = JSON.stringify({
+      labels: candidates.map(() => ({ group: 1, role: "body" })),
+    });
+
+    expect(() => parseGroupOnlyReviewResponse(merged, plan)).toThrow(
+      "Distinct anime-text regions must remain in separate groups.",
+    );
+
+    const result = await reviewGroupOnlyCrop(
+      {
+        candidates,
+        candidateOrder: candidates.map((candidate) => candidate.id),
+        upstreamFragments: distinctUpstreamFragments(),
+        spatialRelations,
+      },
+      { cropBbox: { x1: 80, y1: 220, x2: 440, y2: 720 } },
+      async () => ({ outputText: merged, rawResponse: { merged: true } }),
+    );
+
+    expect(result).toMatchObject({
+      status: "fallback",
+      usedFallback: true,
+      requestCount: 1,
+      fallbackError: {
+        code: "group-only-review-distinct-anime-text-region-merge",
+      },
+    });
+    expect(result.groups.map((group) => group.candidateIds)).toEqual([
+      [5, 4],
+      [6, 7, 9, 8],
+    ]);
+  });
+
+  it.each([
+    [
+      "a single-candidate fragment",
+      (candidates: Array<Record<string, unknown>>) =>
+        candidates.filter((candidate) => candidate.id !== 4),
+    ],
+    [
+      "a missing shared review context",
+      (candidates: Array<Record<string, unknown>>) =>
+        candidates.map((candidate) =>
+          candidate.id === 6
+            ? { ...candidate, reviewContextId: undefined }
+            : candidate,
+        ),
+    ],
+    [
+      "different Paddle groups",
+      (candidates: Array<Record<string, unknown>>) =>
+        candidates.map((candidate) =>
+          candidate.reviewFragmentId === "B003"
+            ? { ...candidate, paddleGroupId: "G003" }
+            : candidate,
+        ),
+    ],
+    [
+      "a low detector score",
+      (candidates: Array<Record<string, unknown>>) =>
+        candidates.map((candidate) =>
+          candidate.id === 6
+            ? { ...candidate, animeTextRegionScore: 0.79 }
+            : candidate,
+        ),
+    ],
+    [
+      "low candidate containment",
+      (candidates: Array<Record<string, unknown>>) =>
+        candidates.map((candidate) =>
+          candidate.id === 7
+            ? { ...candidate, animeTextContainment: 0.89 }
+            : candidate,
+        ),
+    ],
+    [
+      "overlapping detector regions",
+      (candidates: Array<Record<string, unknown>>) =>
+        candidates.map((candidate) =>
+          candidate.reviewFragmentId === "B003"
+            ? {
+                ...candidate,
+                animeTextRegionBbox: [280, 356.6, 420, 690.5],
+              }
+            : candidate,
+        ),
+    ],
+    [
+      "aligned vertical reading starts",
+      (candidates: Array<Record<string, unknown>>) =>
+        candidates.map((candidate) =>
+          candidate.reviewFragmentId === "B002"
+            ? {
+                ...candidate,
+                y1: Number(candidate.y1) + 95,
+                y2: Number(candidate.y2) + 95,
+                animeTextRegionBbox: [316.6, 353.6, 405.3, 620.7],
+              }
+            : candidate,
+        ),
+    ],
+    [
+      "a sub-scale cross-axis gap",
+      (candidates: Array<Record<string, unknown>>) =>
+        candidates.map((candidate) =>
+          candidate.reviewFragmentId === "B002"
+            ? {
+                ...candidate,
+                x1: Number(candidate.x1) - 25,
+                x2: Number(candidate.x2) - 25,
+                animeTextRegionBbox: [291.9, 258.6, 380.6, 525.7],
+              }
+            : candidate,
+        ),
+    ],
+    [
+      "deferred evidence",
+      (candidates: Array<Record<string, unknown>>) =>
+        candidates.map((candidate) =>
+          candidate.reviewFragmentId === "B003"
+            ? { ...candidate, reviewStatus: "deferred" }
+            : candidate,
+        ),
+    ],
+    [
+      "pre-existing ruby evidence",
+      (candidates: Array<Record<string, unknown>>) =>
+        candidates.map((candidate) =>
+          candidate.id === 7 ? { ...candidate, reviewRole: "ruby" } : candidate,
+        ),
+    ],
+    [
+      "forbidden display-text evidence",
+      (candidates: Array<Record<string, unknown>>) =>
+        candidates.map((candidate) =>
+          candidate.id === 7
+            ? { ...candidate, reviewReasons: ["oversized_display_text"] }
+            : candidate,
+        ),
+    ],
+    [
+      "an impure detector region",
+      (candidates: Array<Record<string, unknown>>) => [
+        ...candidates,
+        {
+          ...candidates[0],
+          id: 20,
+          reviewFragmentId: "B020",
+          reviewContextId: undefined,
+        },
+      ],
+    ],
+    [
+      "a third fragment in the same review context",
+      (candidates: Array<Record<string, unknown>>) => [
+        ...candidates,
+        {
+          ...candidates[0],
+          id: 21,
+          reviewFragmentId: "B021",
+        },
+      ],
+    ],
+  ])("does not emit the barrier for %s", (_label, mutate) => {
+    const candidates = mutate(distinctBalloonCandidates());
+
+    expect(
+      buildAnimeTextSpatialRelations(candidates)
+        .distinctAnimeTextRegionBarriers,
+    ).toBeUndefined();
+  });
 });
 
 function rolePolicyReviewCase(
@@ -613,4 +1206,50 @@ function withoutAnimeTextEvidence(
   delete result.animeTextEvidenceVersion;
   delete result.animeTextModelRevision;
   return result;
+}
+
+function buildDistinctBarrierPlan(
+  candidates: Array<Record<string, unknown>>,
+  spatialRelations: Record<string, unknown>,
+): Record<string, unknown> {
+  return buildGroupOnlyReviewPlan({
+    candidates,
+    candidateOrder: candidates.map((candidate) => candidate.id),
+    upstreamFragments: distinctUpstreamFragments(),
+    spatialRelations,
+  });
+}
+
+function mangaSevenReadingBandCandidates(): Array<Record<string, unknown>> {
+  const rows = [
+    [17, 964, 523, 1001, 666, 1, "ATY801", [890, 510, 1010, 700]],
+    [16, 928, 523, 966, 692, 2, "ATY801", [890, 510, 1010, 700]],
+    [15, 896, 523, 934, 690, 3, "ATY801", [890, 510, 1010, 700]],
+    [23, 908, 707, 947, 824, 4, "ATY802", [830, 700, 960, 890]],
+    [24, 877, 708, 912, 824, 5, "ATY802", [830, 700, 960, 890]],
+    [22, 841, 707, 881, 876, 6, "ATY802", [830, 700, 960, 890]],
+  ] as const;
+  return rows.map(
+    ([id, x1, y1, x2, y2, paddleOrder, regionId, regionBbox]) => ({
+      id,
+      x1,
+      y1,
+      x2,
+      y2,
+      ocrText: `candidate-${id}`,
+      reviewFragmentId: "B006",
+      reviewStatus: "confirmed",
+      reviewReasons: [],
+      reviewOrder: paddleOrder,
+      paddleGroupId: "G005",
+      paddleOrder,
+      paddleGroupSize: 6,
+      animeTextRegionId: regionId,
+      animeTextRegionScore: 0.92,
+      animeTextContainment: 0.96,
+      animeTextRegionBbox: regionBbox,
+      animeTextEvidenceVersion: 1,
+      animeTextModelRevision: "937f67dfe61fc4793549782e103751fdc1f0a8d9",
+    }),
+  );
 }

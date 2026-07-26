@@ -1,6 +1,9 @@
 // @ts-check
 
 const { isRecord, semanticContractError } = require("./values.cjs");
+const {
+  readDistinctAnimeTextRegionBarrierCandidatePair,
+} = require("./anime-text-distinct-region-plan.cjs");
 
 const GROUP_ONLY_REVIEW_VERSION = 1;
 
@@ -25,6 +28,7 @@ function validateLabels(plan, labels) {
     if (new Set(groups).size !== 1)
       fail("fragment-split", `Fragment ${fragment.fragment} was split.`);
   }
+  validateDistinctAnimeTextRegionBarriers(plan, byId);
   const roles = /** @type {Map<number,Set<ReviewRole>>} */ (new Map());
   labels.forEach((label) => {
     const values = roles.get(label.group) ?? new Set();
@@ -33,6 +37,48 @@ function validateLabels(plan, labels) {
   });
   for (const [group, values] of roles)
     if (!values.has("body")) fail("ruby-only", `Group ${group} has no body.`);
+}
+
+/**
+ * Reject a model grouping that crosses a fully-qualified detector barrier.
+ * Malformed optional relations are ignored; only a recognized barrier whose
+ * candidate sets exactly match two confirmed upstream fragments is enforced.
+ *
+ * @param {ReviewPlan} plan
+ * @param {Map<number,ReviewLabel>} byId
+ */
+function validateDistinctAnimeTextRegionBarriers(plan, byId) {
+  const relations = isRecord(plan.spatialRelations)
+    ? plan.spatialRelations.distinctAnimeTextRegionBarriers
+    : null;
+  if (!Array.isArray(relations)) return;
+  for (const relation of relations) {
+    const pair = readDistinctAnimeTextRegionBarrierCandidatePair(
+      plan,
+      relation,
+    );
+    if (!pair) continue;
+    const leftGroups = new Set(
+      pair[0].map((id) => {
+        const label = byId.get(id);
+        if (!label) fail("candidate-coverage", `Candidate ${id} has no label.`);
+        return label.group;
+      }),
+    );
+    const rightGroups = new Set(
+      pair[1].map((id) => {
+        const label = byId.get(id);
+        if (!label) fail("candidate-coverage", `Candidate ${id} has no label.`);
+        return label.group;
+      }),
+    );
+    if ([...leftGroups].some((group) => rightGroups.has(group))) {
+      fail(
+        "distinct-anime-text-region-merge",
+        "Distinct anime-text regions must remain in separate groups.",
+      );
+    }
+  }
 }
 
 /** @param {unknown} value @param {number[]} ids @returns {UpstreamFragment[]} */

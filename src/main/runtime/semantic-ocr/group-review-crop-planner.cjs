@@ -29,6 +29,9 @@ const {
 const {
   fragmentsHaveConservativeAnimeTextRelation,
 } = require("./anime-text-review-relations.cjs");
+const {
+  canRecoverCompleteTwoCandidatePaddleGroup,
+} = require("./paddle-classifier-recovery.cjs");
 
 /** @typedef {import("./group-review-crop-types").ReviewCandidate} ReviewCandidate */
 /** @typedef {import("./group-review-crop-types").ReviewFragment} ReviewFragment */
@@ -191,14 +194,18 @@ function validateReviewContexts(fragments) {
 function attachDeferredToConfirmed(confirmed, deferred, contactMargin) {
   const owners = new Map();
   for (const fragment of deferred) {
-    if (
-      fragment.reasons.some((reason) =>
-        FORBIDDEN_DEFERRED_HOST_REASONS.has(reason),
-      )
-    ) {
+    const hasForbiddenReason = fragment.reasons.some((reason) =>
+      FORBIDDEN_DEFERRED_HOST_REASONS.has(reason),
+    );
+    const eligibleHosts = hasForbiddenReason
+      ? confirmed.filter((host) =>
+          canRecoverCompleteTwoCandidatePaddleGroup(host, fragment),
+        )
+      : confirmed;
+    if (eligibleHosts.length === 0) {
       continue;
     }
-    const matches = confirmed
+    const matches = eligibleHosts
       .flatMap((host) => {
         const score = deferredHostScore(
           host.bbox,

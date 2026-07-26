@@ -84,7 +84,7 @@ describe("group-only crop review contract", () => {
     };
 
     expect(plan.candidateOrder).toEqual([10, 11, 20, 21]);
-    expect(GROUP_ONLY_PROMPT_CONTRACT_VERSION).toBe(16);
+    expect(GROUP_ONLY_PROMPT_CONTRACT_VERSION).toBe(17);
     expect(prompt).toContain("candidateOrder=[10,11,20,21]");
     expect(prompt).toContain("Return exactly 4 labels");
     expect(prompt).toContain("Never split a supplied upstream fragment");
@@ -938,6 +938,146 @@ describe("group-only crop review contract", () => {
     expect(applied.reviewedGroupCount).toBe(2);
     expect(applied.validatedGroupOnlyReview).toBe(true);
   });
+
+  it("refines one detector-certified over-merged fragment before model validation and fallback", async () => {
+    const reviewCase = makeInternalDistinctBarrierCase();
+    const plan = buildGroupOnlyReviewPlan(reviewCase, {
+      cropBbox: { x1: 40, y1: 160, x2: 390, y2: 690 },
+    });
+
+    expect(plan.upstreamFragments).toEqual([
+      {
+        fragment: "B003::paddle::G002",
+        status: "confirmed",
+        candidateIds: [6, 7, 9, 8],
+      },
+      {
+        fragment: "B003::paddle::G004",
+        status: "confirmed",
+        candidateIds: [12, 14, 15, 13],
+      },
+    ]);
+    const barrierPrompt = buildGroupOnlyReviewPrompt(plan);
+    expect(barrierPrompt).toContain("strength=conservative_split_prior");
+    expect(barrierPrompt).toContain(
+      "This internal split prior is not a hard boundary",
+    );
+    const separated = await reviewGroupOnlyCrop(
+      reviewCase,
+      { cropBbox: { x1: 40, y1: 160, x2: 390, y2: 690 } },
+      async () => ({
+        outputText: JSON.stringify({
+          labels: [
+            ...Array.from({ length: 4 }, () => ({
+              group: 1,
+              role: "body",
+            })),
+            ...Array.from({ length: 4 }, () => ({
+              group: 2,
+              role: "body",
+            })),
+          ],
+        }),
+      }),
+    );
+    expect(separated).toMatchObject({
+      status: "reviewed",
+      usedFallback: false,
+    });
+    expect(separated.groups.map((group) => group.candidateIds)).toEqual([
+      [6, 7, 9, 8],
+      [12, 14, 15, 13],
+    ]);
+
+    const visuallyUnified = parseGroupOnlyReviewResponse(
+      JSON.stringify({
+        labels: Array.from({ length: 8 }, () => ({
+          group: 1,
+          role: "body",
+        })),
+      }),
+      plan,
+    );
+    expect(visuallyUnified.groups.map((group) => group.candidateIds)).toEqual([
+      [6, 7, 9, 12, 8, 14, 15, 13],
+    ]);
+  });
+
+  it("keeps the exact complete Paddle pair together when only the uncertain-SFX classifier split it", async () => {
+    const candidates = [
+      {
+        ...reviewCandidate(15, "どうしたの！？", 105, 1046, 178, 1346, "G005"),
+        paddleOrder: 2,
+        paddleGroupSize: 2,
+        reviewFragmentId: "B006",
+        reviewStatus: "confirmed",
+        reviewReasons: [],
+      },
+      {
+        ...reviewCandidate(14, "ギャ～～～！！", 165, 1045, 242, 1302, "G005"),
+        paddleOrder: 1,
+        paddleGroupSize: 2,
+        reviewFragmentId: "D001",
+        reviewStatus: "deferred",
+        reviewReasons: ["oversized_uncertain_sfx"],
+      },
+    ];
+    const reviewCase = {
+      candidates,
+      candidateOrder: [15, 14],
+      upstreamFragments: [
+        { fragment: "B006", status: "confirmed", candidateIds: [15] },
+        { fragment: "D001", status: "deferred", candidateIds: [14] },
+      ],
+      spatialRelations: {
+        paddleClassifierRecoveries: [
+          {
+            kind: "complete_paddle_classifier_recovery",
+            strength: "exact_upstream_fragment_recovery",
+            basis:
+              "complete_two_candidate_paddle_group_split_only_by_uncertain_sfx_classifier",
+            recommendedAction: "merge_fragments",
+            paddleGroupId: "G005",
+            sourceFragmentIds: ["B006", "D001"],
+            targetFragmentId: "B006::paddle-recovery::G005",
+            candidateIds: [15, 14],
+          },
+        ],
+      },
+    };
+    const region = {
+      cropBbox: { x1: 80, y1: 1020, x2: 270, y2: 1370 },
+    };
+    const plan = buildGroupOnlyReviewPlan(reviewCase, region);
+    expect(plan.upstreamFragments).toEqual([
+      {
+        fragment: "B006::paddle-recovery::G005",
+        status: "confirmed",
+        candidateIds: [15, 14],
+      },
+    ]);
+    expect(
+      buildGroupOnlyReviewFallback(plan).groups.map(
+        (group) => group.candidateIds,
+      ),
+    ).toEqual([[15, 14]]);
+
+    const result = await reviewGroupOnlyCrop(reviewCase, region, async () => ({
+      outputText: JSON.stringify({
+        labels: [
+          { group: 1, role: "body" },
+          { group: 2, role: "body" },
+        ],
+      }),
+    }));
+    expect(result).toMatchObject({
+      status: "fallback",
+      usedFallback: true,
+    });
+    expect(result.groups.map((group) => group.candidateIds)).toEqual([
+      [15, 14],
+    ]);
+  });
 });
 
 function validLabels() {
@@ -1057,5 +1197,55 @@ function makeCase(): JsonRecord {
       { fragment: "F001", status: "confirmed", ids: [10, 11] },
       { fragment: "F002", status: "deferred", ids: [20, 21] },
     ],
+  };
+}
+
+function makeInternalDistinctBarrierCase(): JsonRecord {
+  const candidates = [
+    reviewCandidate(6, "母との約束で", 309, 207, 358, 427, "G002"),
+    reviewCandidate(7, "公にはして", 267, 208, 313, 392, "G002"),
+    reviewCandidate(9, "いなかったの", 224, 210, 267, 428, "G002"),
+    reviewCandidate(8, "ですが", 180, 209, 226, 321, "G002"),
+    reviewCandidate(12, "公爵様には", 214, 451, 262, 639, "G004"),
+    reviewCandidate(14, "お伝えして", 170, 455, 218, 639, "G004"),
+    reviewCandidate(15, "おかねばと", 128, 456, 171, 638, "G004"),
+    reviewCandidate(13, "思いまして", 84, 452, 127, 638, "G004"),
+  ];
+  const relation = {
+    kind: "distinct_anime_text_regions",
+    strength: "conservative_split_prior",
+    basis:
+      "one_confirmed_fragment_partitioned_by_two_paddle_groups_in_distinct_pure_detector_regions",
+    recommendedAction: "prefer_fragments_separate",
+    sourceFragmentId: "B003",
+    fragments: [
+      {
+        fragmentId: "B003::paddle::G002",
+        paddleGroupId: "G002",
+        candidateIds: [6, 7, 9, 8],
+        regionId: "ATY005",
+      },
+      {
+        fragmentId: "B003::paddle::G004",
+        paddleGroupId: "G004",
+        candidateIds: [12, 14, 15, 13],
+        regionId: "ATY006",
+      },
+    ],
+  };
+  return {
+    candidates,
+    candidateOrder: candidates.map((candidate) => candidate.id),
+    upstreamFragments: [
+      {
+        fragment: "B003",
+        status: "confirmed",
+        ids: candidates.map((candidate) => candidate.id),
+      },
+    ],
+    spatialRelations: {
+      sharedAnimeTextRegions: [],
+      distinctAnimeTextRegionBarriers: [relation],
+    },
   };
 }

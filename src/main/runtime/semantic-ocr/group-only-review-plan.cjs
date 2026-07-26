@@ -3,6 +3,12 @@
 const { readOcrCandidateText } = require("../prompts/ocr-text.cjs");
 const { isRecord } = require("./values.cjs");
 const {
+  refineUpstreamFragmentsForDistinctAnimeTextRegions,
+} = require("./anime-text-distinct-region-plan.cjs");
+const {
+  readCompleteTwoCandidatePaddleClassifierSplit,
+} = require("./paddle-classifier-recovery.cjs");
+const {
   GROUP_ONLY_REVIEW_VERSION,
   fail,
   normalizeFragments,
@@ -71,9 +77,20 @@ function buildGroupOnlyReviewPlan(reviewCase, region = {}) {
   ) {
     fail("candidate-order", "candidateOrder must exactly match candidates.");
   }
-  const upstreamFragments = normalizeFragments(
-    reviewCase.upstreamFragments ?? reviewCase.currentGroups,
-    candidateOrder,
+  const spatialRelations = isRecord(reviewCase.spatialRelations)
+    ? reviewCase.spatialRelations
+    : {};
+  const upstreamFragments = refineUpstreamFragmentsForDistinctAnimeTextRegions(
+    recoverCompleteTwoCandidatePaddleClassifierSplit(
+      normalizeFragments(
+        reviewCase.upstreamFragments ?? reviewCase.currentGroups,
+        candidateOrder,
+      ),
+      candidates,
+      candidateOrder,
+      spatialRelations,
+    ),
+    spatialRelations,
   );
   return {
     version: GROUP_ONLY_REVIEW_VERSION,
@@ -82,10 +99,116 @@ function buildGroupOnlyReviewPlan(reviewCase, region = {}) {
     candidates,
     candidateOrder,
     upstreamFragments,
-    spatialRelations: isRecord(reviewCase.spatialRelations)
-      ? reviewCase.spatialRelations
-      : {},
+    spatialRelations,
   };
+}
+
+/**
+ * Treat an exact classifier-only Paddle disagreement as one immutable review
+ * fragment, but only when the page-wide relation authorizes the recovery.
+ *
+ * @param {import("./group-only-review-types").UpstreamFragment[]} fragments
+ * @param {import("./group-only-review-types").ReviewCandidate[]} candidates
+ * @param {number[]} candidateOrder
+ * @param {Record<string,unknown>} spatialRelations
+ */
+function recoverCompleteTwoCandidatePaddleClassifierSplit(
+  fragments,
+  candidates,
+  candidateOrder,
+  spatialRelations,
+) {
+  const candidateById = new Map(
+    candidates.map((candidate) => [candidate.id, candidate]),
+  );
+  const consumed = new Set();
+  const result = [];
+  for (let index = 0; index < fragments.length; index += 1) {
+    if (consumed.has(index)) continue;
+    const left = fragments[index];
+    let recovered = null;
+    for (
+      let otherIndex = index + 1;
+      otherIndex < fragments.length;
+      otherIndex += 1
+    ) {
+      if (consumed.has(otherIndex)) continue;
+      const right = fragments[otherIndex];
+      const targetFragmentId = readMatchingPaddleClassifierRecovery(
+        spatialRelations,
+        left,
+        right,
+        candidateById,
+      );
+      if (!targetFragmentId) continue;
+      recovered = { otherIndex, right, targetFragmentId };
+      break;
+    }
+    if (!recovered) {
+      result.push(left);
+      continue;
+    }
+    consumed.add(recovered.otherIndex);
+    result.push({
+      fragment: recovered.targetFragmentId,
+      status: "confirmed",
+      candidateIds: candidateOrder.filter(
+        (id) =>
+          left.candidateIds.includes(id) ||
+          recovered.right.candidateIds.includes(id),
+      ),
+    });
+  }
+  return result.length === fragments.length ? fragments : result;
+}
+
+/**
+ * @param {Record<string,unknown>} spatialRelations
+ * @param {import("./group-only-review-types").UpstreamFragment} left
+ * @param {import("./group-only-review-types").UpstreamFragment} right
+ * @param {Map<number,import("./group-only-review-types").ReviewCandidate>} candidateById
+ */
+function readMatchingPaddleClassifierRecovery(
+  spatialRelations,
+  left,
+  right,
+  candidateById,
+) {
+  const split = readCompleteTwoCandidatePaddleClassifierSplit(
+    left,
+    right,
+    candidateById,
+  );
+  if (!split) return null;
+  const sourceIds = [left.fragment, right.fragment].sort();
+  const candidateIds = [...left.candidateIds, ...right.candidateIds].sort(
+    (first, second) => first - second,
+  );
+  const expectedTarget = `${split.confirmedFragment.fragment}::paddle-recovery::${split.paddleGroupId}`;
+  const relations = Array.isArray(spatialRelations.paddleClassifierRecoveries)
+    ? spatialRelations.paddleClassifierRecoveries.filter(isRecord)
+    : [];
+  const matches = relations.filter((relation) => {
+    const relationSources = Array.isArray(relation.sourceFragmentIds)
+      ? relation.sourceFragmentIds.map(String).sort()
+      : [];
+    const relationCandidates = Array.isArray(relation.candidateIds)
+      ? relation.candidateIds
+          .map(Number)
+          .filter(Number.isInteger)
+          .sort((first, second) => first - second)
+      : [];
+    return (
+      relation.kind === "complete_paddle_classifier_recovery" &&
+      relation.strength === "exact_upstream_fragment_recovery" &&
+      relation.recommendedAction === "merge_fragments" &&
+      optionalString(relation.paddleGroupId) === split.paddleGroupId &&
+      optionalString(relation.targetFragmentId) === expectedTarget &&
+      JSON.stringify(relationSources) === JSON.stringify(sourceIds) &&
+      JSON.stringify(relationCandidates) === JSON.stringify(candidateIds)
+    );
+  });
+  return matches.length === 1 ? String(matches[0].targetFragmentId) : null;
 }
 
 module.exports = { buildGroupOnlyReviewPlan };

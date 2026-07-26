@@ -6,6 +6,14 @@ const {
 const {
   tryReadAnimeTextEvidence: tryReadCanonicalAnimeTextEvidence,
 } = require("../ocr/anime-text-evidence-contract.cjs");
+const {
+  buildDistinctAnimeTextRegionBarriers,
+  hasPotentialDistinctAnimeTextRelation,
+  qualifyDistinctAnimeTextRelationRegionIds,
+} = require("./anime-text-distinct-region-barriers.cjs");
+const {
+  buildPaddleClassifierRecoveryRelations,
+} = require("./paddle-classifier-recovery.cjs");
 
 /**
  * @typedef {{
@@ -66,6 +74,16 @@ const {
  * @returns {string[]}
  */
 function qualifyAnimeTextRelationRegionIds(pageCandidates) {
+  return [
+    ...new Set([
+      ...qualifySharedAnimeTextRelationRegionIds(pageCandidates),
+      ...qualifyDistinctAnimeTextRelationRegionIds(pageCandidates),
+    ]),
+  ];
+}
+
+/** @param {unknown[]} pageCandidates */
+function qualifySharedAnimeTextRelationRegionIds(pageCandidates) {
   return collectQualifiedAnimeTextRegions(pageCandidates).map(
     (region) => region.regionId,
   );
@@ -79,9 +97,19 @@ function qualifyAnimeTextRelationRegionIds(pageCandidates) {
  * @param {unknown[]} pageCandidates
  */
 function buildAnimeTextSpatialRelations(pageCandidates) {
+  const distinctAnimeTextRegionBarriers =
+    buildDistinctAnimeTextRegionBarriers(pageCandidates);
+  const paddleClassifierRecoveries =
+    buildPaddleClassifierRecoveryRelations(pageCandidates);
   return {
     sharedAnimeTextRegions:
       collectQualifiedAnimeTextRegions(pageCandidates).map(toSpatialRelation),
+    ...(distinctAnimeTextRegionBarriers.length > 0
+      ? { distinctAnimeTextRegionBarriers }
+      : {}),
+    ...(paddleClassifierRecoveries.length > 0
+      ? { paddleClassifierRecoveries }
+      : {}),
   };
 }
 
@@ -163,6 +191,14 @@ function toSpatialRelation(region) {
 
 /** @param {CandidateLike[]} candidates */
 function hasPotentialAnimeTextRelation(candidates) {
+  return (
+    hasPotentialSharedAnimeTextRelation(candidates) ||
+    hasPotentialDistinctAnimeTextRelation(candidates)
+  );
+}
+
+/** @param {CandidateLike[]} candidates */
+function hasPotentialSharedAnimeTextRelation(candidates) {
   const fragments = buildReviewFragments(candidates);
   const confirmed = fragments.filter(
     (fragment) => fragment.status === "confirmed",
@@ -465,5 +501,7 @@ module.exports = {
   buildAnimeTextSpatialRelations,
   fragmentsHaveConservativeAnimeTextRelation,
   hasPotentialAnimeTextRelation,
+  hasPotentialSharedAnimeTextRelation,
   qualifyAnimeTextRelationRegionIds,
+  qualifySharedAnimeTextRelationRegionIds,
 };

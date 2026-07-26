@@ -92,6 +92,88 @@ function ambiguousResult(): OcrBboxResult {
   };
 }
 
+function confirmedSeparationResult(): OcrBboxResult {
+  return {
+    hints: [
+      {
+        id: 5,
+        x1: 320,
+        y1: 270,
+        x2: 350,
+        y2: 390,
+        reviewFragmentId: "B002",
+        reviewStatus: "confirmed",
+        reviewContextId: "RC001",
+        paddleGroupId: "G002",
+        groupId: "G002",
+        groupSize: 2,
+        orderInGroup: 1,
+      },
+      {
+        id: 4,
+        x1: 370,
+        y1: 280,
+        x2: 400,
+        y2: 510,
+        reviewFragmentId: "B002",
+        reviewStatus: "confirmed",
+        reviewContextId: "RC001",
+        paddleGroupId: "G002",
+        groupId: "G002",
+        groupSize: 2,
+        orderInGroup: 2,
+      },
+      {
+        id: 6,
+        x1: 120,
+        y1: 370,
+        x2: 150,
+        y2: 500,
+        reviewFragmentId: "B003",
+        reviewStatus: "confirmed",
+        reviewContextId: "RC001",
+        paddleGroupId: "G002",
+        groupId: "G003",
+        groupSize: 2,
+        orderInGroup: 1,
+      },
+      {
+        id: 7,
+        x1: 250,
+        y1: 520,
+        x2: 280,
+        y2: 680,
+        reviewFragmentId: "B003",
+        reviewStatus: "confirmed",
+        reviewContextId: "RC001",
+        paddleGroupId: "G002",
+        groupId: "G003",
+        groupSize: 2,
+        orderInGroup: 2,
+      },
+    ],
+    diagnostics: [],
+    noTextDetected: false,
+    textEvidenceCount: 4,
+  };
+}
+
+const distinctConfirmedDetection: AnimeTextDetection = {
+  ...detection,
+  regions: [
+    {
+      ...detection.regions[0],
+      score: 0.91,
+      bbox: [310, 260, 410, 520],
+    },
+    {
+      ...detection.regions[0],
+      score: 0.92,
+      bbox: [110, 360, 290, 690],
+    },
+  ],
+};
+
 describe("anime-text-yolo grouping evidence", () => {
   it("pins the detector to CPU independently of the translation GPU backend", () => {
     expect(
@@ -189,6 +271,71 @@ describe("anime-text-yolo grouping evidence", () => {
         relationRuntime.hasPotentialAnimeTextRelation,
       ),
     ).toBe(false);
+  });
+
+  it("runs and preserves two distinct regions for a qualified confirmed-only pair", async () => {
+    const result = confirmedSeparationResult();
+    const detect = vi.fn(async () => distinctConfirmedDetection);
+    const release = vi.fn();
+    const acquireDetector = vi.fn(async () => ({
+      detector: { detect },
+      release,
+    }));
+    const port = createAnimeTextEvidencePort({
+      dataRoot: "C:/data",
+      hasPotentialRelation: relationRuntime.hasPotentialAnimeTextRelation,
+      qualifyRelationRegionIds:
+        relationRuntime.qualifyAnimeTextRelationRegionIds,
+      acquireDetector,
+      reportWarning: vi.fn(),
+    });
+
+    expect(
+      shouldRunAnimeTextDetector(
+        options(),
+        result,
+        relationRuntime.hasPotentialAnimeTextRelation,
+      ),
+    ).toBe(true);
+
+    const actual = await port.annotate(options(), result);
+
+    expect(acquireDetector).toHaveBeenCalledOnce();
+    expect(detect).toHaveBeenCalledOnce();
+    expect(release).toHaveBeenCalledOnce();
+    expect(
+      actual.hints.map((hint) => ({
+        id: (hint as { id?: number }).id,
+        regionId: (hint as { animeTextRegionId?: string }).animeTextRegionId,
+      })),
+    ).toEqual([
+      { id: 5, regionId: "ATY001" },
+      { id: 4, regionId: "ATY001" },
+      { id: 6, regionId: "ATY002" },
+      { id: 7, regionId: "ATY002" },
+    ]);
+  });
+
+  it("does not preserve a shared detector region for a confirmed-only pair", () => {
+    const result = confirmedSeparationResult();
+    const sharedDetection: AnimeTextDetection = {
+      ...detection,
+      regions: [
+        {
+          ...detection.regions[0],
+          score: 0.92,
+          bbox: [100, 250, 420, 700],
+        },
+      ],
+    };
+
+    expect(
+      attachAnimeTextEvidence(
+        result,
+        sharedDetection,
+        relationRuntime.qualifyAnimeTextRelationRegionIds,
+      ),
+    ).toBe(result);
   });
 
   it("skips deferred-only pages because there is no confirmed fragment to review against", () => {
@@ -363,7 +510,167 @@ describe("anime-text-yolo grouping evidence", () => {
     ).toBe(result);
   });
 
-  it("keeps the exact OCR result when detector inference fails", async () => {
+  it("falls back to narrow leaf regions when a composite detector box hides a manga5-style pair", () => {
+    const result: OcrBboxResult = {
+      hints: [
+        {
+          id: 9,
+          x1: 170,
+          y1: 120,
+          x2: 195,
+          y2: 270,
+          reviewFragmentId: "B009",
+          reviewStatus: "confirmed",
+          reviewContextId: "RC001",
+        },
+        {
+          id: 10,
+          x1: 95,
+          y1: 120,
+          x2: 120,
+          y2: 300,
+          reviewFragmentId: "B010",
+          reviewStatus: "confirmed",
+          reviewContextId: "RC001",
+        },
+      ],
+      diagnostics: [],
+    };
+    const nestedDetection: AnimeTextDetection = {
+      ...detection,
+      regions: [
+        {
+          ...detection.regions[0],
+          score: 0.94,
+          bbox: [70, 80, 220, 340],
+        },
+        {
+          ...detection.regions[0],
+          score: 0.91,
+          bbox: [85, 100, 130, 320],
+        },
+        {
+          ...detection.regions[0],
+          score: 0.92,
+          bbox: [160, 100, 205, 290],
+        },
+      ],
+    };
+    const qualifyRelationRegionIds = vi.fn((hints: unknown[]) => {
+      const regionIds = hints
+        .map(
+          (hint) =>
+            (hint as { animeTextRegionId?: string }).animeTextRegionId ?? "",
+        )
+        .filter(Boolean);
+      return regionIds.length === 2 && new Set(regionIds).size === 2
+        ? regionIds
+        : [];
+    });
+
+    const actual = attachAnimeTextEvidence(
+      result,
+      nestedDetection,
+      qualifyRelationRegionIds,
+    );
+
+    expect(qualifyRelationRegionIds).toHaveBeenCalledTimes(2);
+    expect(
+      (
+        qualifyRelationRegionIds.mock.calls[0][0] as Array<{
+          animeTextRegionId?: string;
+        }>
+      ).map((hint) => hint.animeTextRegionId),
+    ).toEqual([undefined, undefined]);
+    expect(
+      actual.hints.map((hint) => ({
+        id: (hint as { id?: number }).id,
+        regionId: (hint as { animeTextRegionId?: string }).animeTextRegionId,
+        regionBox: (hint as { animeTextRegionBbox?: number[] })
+          .animeTextRegionBbox,
+      })),
+    ).toEqual([
+      { id: 9, regionId: "ATY003", regionBox: [160, 100, 205, 290] },
+      { id: 10, regionId: "ATY002", regionBox: [85, 100, 130, 320] },
+    ]);
+  });
+
+  it("retains lower-confidence leaf regions only for the exact manga7 3+3 reading-band contract", () => {
+    const rows = [
+      [17, 964, 523, 1001, 666, 1],
+      [16, 928, 523, 966, 692, 2],
+      [15, 896, 523, 934, 690, 3],
+      [23, 908, 707, 947, 824, 4],
+      [24, 877, 708, 912, 824, 5],
+      [22, 841, 707, 881, 876, 6],
+    ] as const;
+    const result: OcrBboxResult = {
+      hints: rows.map(([id, x1, y1, x2, y2, paddleOrder]) => ({
+        id,
+        x1,
+        y1,
+        x2,
+        y2,
+        ocrText: `candidate-${id}`,
+        reviewFragmentId: "B006",
+        reviewStatus: "confirmed",
+        reviewReasons: [],
+        reviewOrder: paddleOrder,
+        paddleGroupId: "G005",
+        paddleOrder,
+        paddleGroupSize: 6,
+      })),
+      diagnostics: [],
+    };
+    const actualDetection: AnimeTextDetection = {
+      imageWidth: 1126,
+      imageHeight: 1600,
+      variant: "n",
+      regions: [
+        {
+          labelId: 0,
+          label: "text_block",
+          score: 0.85752124,
+          bbox: [836.32666, 516.39435, 1000.72577, 887.6529],
+        },
+        {
+          labelId: 0,
+          label: "text_block",
+          score: 0.7599796,
+          bbox: [895.15045, 520.3684, 997.1219, 695.84515],
+        },
+        {
+          labelId: 0,
+          label: "text_block",
+          score: 0.6741514,
+          bbox: [842.2758, 703.9862, 944.2457, 880.6186],
+        },
+      ],
+    };
+
+    const actual = attachAnimeTextEvidence(
+      result,
+      actualDetection,
+      relationRuntime.qualifyAnimeTextRelationRegionIds,
+      { width: 1126, height: 1600 },
+    );
+
+    expect(
+      actual.hints.map((hint) => ({
+        id: (hint as { id?: number }).id,
+        regionId: (hint as { animeTextRegionId?: string }).animeTextRegionId,
+      })),
+    ).toEqual([
+      { id: 17, regionId: "ATY002" },
+      { id: 16, regionId: "ATY002" },
+      { id: 15, regionId: "ATY002" },
+      { id: 23, regionId: "ATY003" },
+      { id: 24, regionId: "ATY003" },
+      { id: 22, regionId: "ATY003" },
+    ]);
+  });
+
+  it("keeps OCR content and marks detector inference failures retryable", async () => {
     const result = ambiguousResult();
     const release = vi.fn();
     const onProgress = vi.fn();
@@ -386,7 +693,13 @@ describe("anime-text-yolo grouping evidence", () => {
 
     const actual = await port.annotate(options({ onProgress }), result);
 
-    expect(actual).toBe(result);
+    expect(actual).toEqual({
+      ...result,
+      groupingEvidence: {
+        contractVersion: 1,
+        status: "unavailable",
+      },
+    });
     expect(release).toHaveBeenCalledOnce();
     expect(onProgress).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -420,16 +733,21 @@ describe("anime-text-yolo grouping evidence", () => {
       }),
     });
 
-    await expect(
-      port.annotate(
-        options({
-          onProgress: () => {
-            throw new Error("progress sink unavailable");
-          },
-        }),
-        result,
-      ),
-    ).resolves.toBe(result);
+    const actual = await port.annotate(
+      options({
+        onProgress: () => {
+          throw new Error("progress sink unavailable");
+        },
+      }),
+      result,
+    );
+    expect(actual).toEqual({
+      ...result,
+      groupingEvidence: {
+        contractVersion: 1,
+        status: "unavailable",
+      },
+    });
     expect(release).toHaveBeenCalledOnce();
     expect(consoleWarning).toHaveBeenCalled();
   });

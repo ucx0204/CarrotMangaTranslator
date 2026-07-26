@@ -145,6 +145,7 @@ export interface GroupReviewImageResult {
 
 export interface GroupReviewCropOptions {
   imagePath?: unknown;
+  sourceImageDataUrl?: unknown;
   [key: string]: unknown;
 }
 
@@ -153,8 +154,14 @@ export interface NativeImageLike {
   crop(rect: CropRect): NativeImageLike;
   toPNG(): Buffer;
   getSize?(): { width: number; height: number };
+  resize?(options: {
+    width: number;
+    height: number;
+    quality?: "good" | "better" | "best";
+  }): NativeImageLike;
 }
 
 export interface NativeImageModule {
   createFromPath(path: string): NativeImageLike;
+  createFromDataURL?(dataUrl: string): NativeImageLike;
 }

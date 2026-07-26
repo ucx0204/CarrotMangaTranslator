@@ -89,7 +89,7 @@ class CommandLineBehaviorTests(unittest.TestCase):
 
     def test_help_is_available_without_optional_ocr_dependencies(self) -> None:
         result = subprocess.run(
-            [sys.executable, str(SCRIPT_PATH), "--help"],
+            [sys.executable, "-I", str(SCRIPT_PATH), "--help"],
             cwd=ROOT,
             capture_output=True,
             text=True,

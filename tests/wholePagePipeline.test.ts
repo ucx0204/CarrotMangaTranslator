@@ -963,6 +963,7 @@ async function loadPipeline({
       startEndpointSession: endpointStarter,
       collectOcrHints,
       collectOcrHintsBatch,
+      annotateOcrGroupingEvidenceBatch: async (_options, results) => results,
       requestTranslation,
       saveArtifacts,
       ...overlayParser,

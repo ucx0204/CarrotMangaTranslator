@@ -1,31 +1,25 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
 import type { TranslationOptions } from "../appSettings";
 import type { ChapterRunPaths } from "../library";
 import type { JobEvent } from "../../shared/jobTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
-import {
-  DEFAULT_SOURCE_LANGUAGE,
-  normalizeLanguageCode,
-} from "../../shared/translationLanguages";
 import { throwIfAborted } from "./failure";
 import { isOcrResultNoTextDetected } from "./noText";
 import {
-  buildOcrCacheConfiguration,
-  matchesOcrCacheConfiguration,
-} from "./ocrHintsCacheConfiguration";
+  buildOcrPageOptions,
+  getOcrHintsCachePath,
+  readCachedOcrHints,
+  removeStaleAnimeTextEvidence,
+  writeCachedOcrHints,
+} from "./ocrHintsCache";
 import type { TranslationRuntimePort } from "./translationRuntimePort";
 import type { OcrBboxResult } from "./types";
 import { tMain } from "./localization";
 
-// Schema 9 adds deterministic axis-v4 review-fragment metadata used by the
-// image-aware group-only pass. Older semantic caches must be regenerated:
-// treating their legacy Paddle groups as reviewed final groups would lock in
-// the exact split/merge regressions this stage is meant to prevent.
-const OCR_HINT_CACHE_SCHEMA_VERSION = 9;
-
 type PrepareOcrHintsOptions = {
-  runtime: Pick<TranslationRuntimePort, "collectOcrHintsBatch">;
+  runtime: Pick<
+    TranslationRuntimePort,
+    "annotateOcrGroupingEvidenceBatch" | "collectOcrHintsBatch"
+  >;
   baseOptions: TranslationOptions;
   pages: MangaPage[];
   runPaths: ChapterRunPaths;
@@ -39,6 +33,10 @@ type PendingOcrPage = {
   index: number;
   options: TranslationOptions;
   cachePath: string;
+};
+
+type PendingGroupingEvidencePage = PendingOcrPage & {
+  cachedResult: OcrBboxResult;
 };
 
 type OcrHintsProgressContext = PrepareOcrHintsOptions & {
@@ -67,44 +65,87 @@ export async function prepareOcrHintsForPages({
     signal,
     total: pages.length,
   } satisfies OcrHintsProgressContext;
-  const pendingPages = await collectPendingOcrPages(progressContext);
-  await collectPendingOcrHintsBatch(progressContext, pendingPages);
+  const pending = await collectPendingOcrPages(progressContext);
+  await refreshPendingGroupingEvidenceBatch(
+    progressContext,
+    pending.groupingEvidencePages,
+  );
+  await collectPendingOcrHintsBatch(progressContext, pending.ocrPages);
   emitOcrHintsCompleted(progressContext);
   return results;
 }
 
 async function collectPendingOcrPages(
   progressContext: OcrHintsProgressContext,
-): Promise<PendingOcrPage[]> {
+): Promise<{
+  ocrPages: PendingOcrPage[];
+  groupingEvidencePages: PendingGroupingEvidencePage[];
+}> {
   const { baseOptions, pages, results, runPaths, signal, total } =
     progressContext;
-  const pendingPages: PendingOcrPage[] = [];
+  const ocrPages: PendingOcrPage[] = [];
+  const groupingEvidencePages: PendingGroupingEvidencePage[] = [];
   for (const [index, page] of pages.entries()) {
     throwIfAborted(signal);
     const cachePath = getOcrHintsCachePath(runPaths, page);
     const cached = await readCachedOcrHints(cachePath, page, baseOptions);
     if (cached) {
-      results.set(page.id, cached);
-      emitCachedOcrHintProgress(progressContext, page, index, total, cached);
+      if (!cached.requiresGroupingEvidenceRefresh) {
+        results.set(page.id, cached.result);
+        emitCachedOcrHintProgress(
+          progressContext,
+          page,
+          index,
+          total,
+          cached.result,
+        );
+      } else {
+        groupingEvidencePages.push({
+          page,
+          index,
+          options: buildPendingOcrPageOptions(
+            progressContext,
+            page,
+            index,
+            total,
+          ),
+          cachePath,
+          cachedResult: removeStaleAnimeTextEvidence(cached.result),
+        });
+      }
       continue;
     }
 
-    const ocrOptions = buildOcrPageOptions(
-      baseOptions,
+    ocrPages.push({
       page,
-      runPaths,
       index,
-      total,
-    );
-    ocrOptions.abortSignal = signal;
-    ocrOptions.onProgress = createOcrPageProgressHandler({
-      index,
-      options: ocrOptions,
-      progressContext: { ...progressContext, results, total },
+      options: buildPendingOcrPageOptions(progressContext, page, index, total),
+      cachePath,
     });
-    pendingPages.push({ page, index, options: ocrOptions, cachePath });
   }
-  return pendingPages;
+  return { ocrPages, groupingEvidencePages };
+}
+
+function buildPendingOcrPageOptions(
+  progressContext: OcrHintsProgressContext,
+  page: MangaPage,
+  index: number,
+  total: number,
+): TranslationOptions {
+  const options = buildOcrPageOptions(
+    progressContext.baseOptions,
+    page,
+    progressContext.runPaths,
+    index,
+    total,
+  );
+  options.abortSignal = progressContext.signal;
+  options.onProgress = createOcrPageProgressHandler({
+    index,
+    options,
+    progressContext,
+  });
+  return options;
 }
 
 function emitCachedOcrHintProgress(
@@ -203,6 +244,47 @@ async function collectPendingOcrHintsBatch(
   }
 }
 
+async function refreshPendingGroupingEvidenceBatch(
+  progressContext: OcrHintsProgressContext,
+  pendingPages: PendingGroupingEvidencePage[],
+): Promise<void> {
+  if (pendingPages.length === 0) {
+    return;
+  }
+  preparePendingOcrBatchOptions(progressContext, pendingPages);
+  const refreshed =
+    await progressContext.runtime.annotateOcrGroupingEvidenceBatch(
+      pendingPages.map((entry) => entry.options),
+      pendingPages.map((entry) => entry.cachedResult),
+    );
+  if (refreshed.length !== pendingPages.length) {
+    throw new Error(
+      "OCR grouping-evidence migration returned an unexpected result count.",
+    );
+  }
+  for (const [index, result] of refreshed.entries()) {
+    throwIfAborted(progressContext.signal);
+    const entry = pendingPages[index];
+    if (!entry) {
+      continue;
+    }
+    await writeCachedOcrHints(
+      entry.cachePath,
+      entry.page,
+      result,
+      entry.options,
+    );
+    progressContext.results.set(entry.page.id, result);
+    emitCachedOcrHintProgress(
+      progressContext,
+      entry.page,
+      entry.index,
+      progressContext.total,
+      result,
+    );
+  }
+}
+
 function preparePendingOcrBatchOptions(
   { results, total }: OcrHintsProgressContext,
   pendingPages: PendingOcrPage[],
@@ -282,118 +364,4 @@ function formatOcrHintDetail(result: OcrBboxResult): string {
     });
   }
   return tMain("ocr.hintDetail", { count: result.hints.length });
-}
-
-function buildOcrPageOptions(
-  baseOptions: TranslationOptions,
-  page: MangaPage,
-  runPaths: ChapterRunPaths,
-  index: number,
-  total: number,
-): TranslationOptions {
-  const outputDir = getOcrHintsOutputDir(runPaths, page);
-  return {
-    ...baseOptions,
-    imagePath: page.imagePath,
-    imageWidth: page.width,
-    imageHeight: page.height,
-    outputDir,
-    label: `ocr-page-${index + 1}`,
-    ocrPageIndex: index + 1,
-    ocrPageTotal: total,
-    ocrProgressDefaultToPage: true,
-  };
-}
-
-function getOcrHintsOutputDir(
-  runPaths: ChapterRunPaths,
-  page: MangaPage,
-): string {
-  return join(runPaths.chapterDir, "ocr-hints", page.id);
-}
-
-function getOcrHintsCachePath(
-  runPaths: ChapterRunPaths,
-  page: MangaPage,
-): string {
-  return join(getOcrHintsOutputDir(runPaths, page), "result.json");
-}
-
-async function readCachedOcrHints(
-  cachePath: string,
-  page: MangaPage,
-  options: TranslationOptions,
-): Promise<OcrBboxResult | null> {
-  try {
-    const raw = JSON.parse(await readFile(cachePath, "utf8")) as {
-      schemaVersion?: number;
-      imagePath?: string;
-      width?: number;
-      height?: number;
-      sourceLanguage?: string;
-      configuration?: unknown;
-      hints?: unknown[];
-      diagnostics?: unknown[];
-      noTextDetected?: boolean;
-      textEvidenceCount?: number;
-    };
-    if (
-      raw.schemaVersion !== OCR_HINT_CACHE_SCHEMA_VERSION ||
-      raw.imagePath !== page.imagePath ||
-      raw.width !== page.width ||
-      raw.height !== page.height ||
-      raw.sourceLanguage !==
-        normalizeOcrCacheLanguage(options.sourceLanguage) ||
-      !matchesOcrCacheConfiguration(raw.configuration, options) ||
-      !Array.isArray(raw.hints)
-    ) {
-      return null;
-    }
-    return {
-      hints: raw.hints,
-      diagnostics: Array.isArray(raw.diagnostics) ? raw.diagnostics : [],
-      noTextDetected: Boolean(raw.noTextDetected),
-      textEvidenceCount: Number.isFinite(raw.textEvidenceCount)
-        ? Number(raw.textEvidenceCount)
-        : undefined,
-    };
-  } catch (_error) {
-    return null;
-  }
-}
-
-async function writeCachedOcrHints(
-  cachePath: string,
-  page: MangaPage,
-  result: OcrBboxResult,
-  options: TranslationOptions,
-): Promise<void> {
-  await mkdir(dirname(cachePath), { recursive: true });
-  await writeFile(
-    cachePath,
-    `${JSON.stringify(
-      {
-        imagePath: page.imagePath,
-        width: page.width,
-        height: page.height,
-        sourceLanguage: normalizeOcrCacheLanguage(options.sourceLanguage),
-        configuration: buildOcrCacheConfiguration(options),
-        schemaVersion: OCR_HINT_CACHE_SCHEMA_VERSION,
-        hints: result.hints,
-        diagnostics: result.diagnostics,
-        noTextDetected: Boolean(result.noTextDetected),
-        textEvidenceCount: Number.isFinite(result.textEvidenceCount)
-          ? result.textEvidenceCount
-          : undefined,
-        updatedAt: new Date().toISOString(),
-      },
-      null,
-      2,
-    )}\n`,
-    "utf8",
-  );
-}
-
-function normalizeOcrCacheLanguage(sourceLanguage?: string): string {
-  return normalizeLanguageCode(sourceLanguage, DEFAULT_SOURCE_LANGUAGE);
 }

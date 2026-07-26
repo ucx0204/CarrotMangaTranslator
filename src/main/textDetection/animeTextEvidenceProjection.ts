@@ -8,6 +8,12 @@ import type { AnimeTextDetection, AnimeTextRegion } from "./animeTextContracts";
 import type { OcrBboxResult } from "../pipeline/types";
 
 const AMBIGUOUS_CONTAINMENT_DELTA = 0.03;
+// A low-confidence leaf is never retained on score alone. It is considered
+// here only so a downstream relation contract can validate an exact,
+// geometry-derived partition instead of being masked by its stronger parent.
+const MIN_COMPOSITE_CHILD_SCORE = 0.65;
+const MIN_COMPOSITE_CHILD_CONTAINMENT = 0.95;
+const MAX_COMPOSITE_CHILD_OVERLAP = 0.05;
 const EVIDENCE_KEYS = [
   "animeTextRegionId",
   "animeTextRegionScore",
@@ -43,19 +49,138 @@ export function attachAnimeTextEvidence(
   const projectedHints = result.hints.map((hint) =>
     projectFreshEvidence(hint, regions),
   );
-  const qualifiedIds =
+  const defaultQualifiedIds =
     regions.length === 0
       ? new Set<string>()
       : new Set(qualifyRelationRegionIds(projectedHints));
+  const fallback = projectCompositeLeafEvidence({
+    sourceHints: result.hints,
+    projectedHints,
+    regions,
+    defaultQualifiedIds,
+    qualifyRelationRegionIds,
+  });
+  const evidenceHints = fallback?.hints ?? projectedHints;
+  const qualifiedIds = fallback?.qualifiedIds ?? defaultQualifiedIds;
   const hints =
     qualifiedIds.size === 0
       ? result.hints.map(removeAnimeTextEvidence)
-      : projectedHints.map((hint) =>
+      : evidenceHints.map((hint) =>
           keepOnlyQualifiedEvidence(hint, qualifiedIds),
         );
   return hints.every((hint, index) => hint === result.hints[index])
     ? result
     : { ...result, hints };
+}
+
+function projectCompositeLeafEvidence(options: {
+  sourceHints: unknown[];
+  projectedHints: unknown[];
+  regions: NormalizedRegion[];
+  defaultQualifiedIds: Set<string>;
+  qualifyRelationRegionIds: QualifyAnimeTextRelationRegionIds;
+}): { hints: unknown[]; qualifiedIds: Set<string> } | null {
+  const compositeParentIds = findCompositeParentIds(options.regions);
+  if (compositeParentIds.size === 0) {
+    return null;
+  }
+  const leafRegions = options.regions.filter(
+    (region) => !compositeParentIds.has(region.id),
+  );
+  const unresolvedIndices = options.projectedHints
+    .map((hint, index) =>
+      options.defaultQualifiedIds.has(readProjectedRegionId(hint)) ? -1 : index,
+    )
+    .filter((index) => index >= 0);
+  if (unresolvedIndices.length === 0) {
+    return null;
+  }
+  const unresolved = new Set(unresolvedIndices);
+  const fallbackHints = options.projectedHints.map((hint, index) =>
+    unresolved.has(index)
+      ? projectFreshEvidence(options.sourceHints[index], leafRegions)
+      : hint,
+  );
+  const fallbackRegionIds = new Set(
+    unresolvedIndices
+      .map((index) => readProjectedRegionId(fallbackHints[index]))
+      .filter(Boolean),
+  );
+  const newlyQualifiedIds = options
+    .qualifyRelationRegionIds(fallbackHints)
+    .filter(
+      (regionId) =>
+        !options.defaultQualifiedIds.has(regionId) &&
+        fallbackRegionIds.has(regionId),
+    );
+  if (newlyQualifiedIds.length === 0) {
+    return null;
+  }
+  return {
+    hints: fallbackHints,
+    qualifiedIds: new Set([
+      ...options.defaultQualifiedIds,
+      ...newlyQualifiedIds,
+    ]),
+  };
+}
+
+function findCompositeParentIds(regions: NormalizedRegion[]): Set<string> {
+  const result = new Set<string>();
+  for (const parent of regions) {
+    const parentBox = tupleToBox(parent.region.bbox);
+    const children = regions.filter(
+      (child) =>
+        child.id !== parent.id &&
+        child.region.score >= MIN_COMPOSITE_CHILD_SCORE &&
+        child.area < parent.area &&
+        regionContainment(child, parentBox) >= MIN_COMPOSITE_CHILD_CONTAINMENT,
+    );
+    if (hasNearlyDisjointPair(children)) {
+      result.add(parent.id);
+    }
+  }
+  return result;
+}
+
+function hasNearlyDisjointPair(regions: NormalizedRegion[]): boolean {
+  for (let leftIndex = 0; leftIndex < regions.length; leftIndex += 1) {
+    for (
+      let rightIndex = leftIndex + 1;
+      rightIndex < regions.length;
+      rightIndex += 1
+    ) {
+      const left = regions[leftIndex];
+      const right = regions[rightIndex];
+      const smallerArea = Math.min(left.area, right.area);
+      if (
+        smallerArea > 0 &&
+        intersectionArea(
+          tupleToBox(left.region.bbox),
+          tupleToBox(right.region.bbox),
+        ) /
+          smallerArea <=
+          MAX_COMPOSITE_CHILD_OVERLAP
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function regionContainment(inner: NormalizedRegion, outer: PixelBox): number {
+  if (inner.area <= 0) {
+    return 0;
+  }
+  const innerBox = tupleToBox(inner.region.bbox);
+  return centerInside(innerBox, outer)
+    ? intersectionArea(innerBox, outer) / inner.area
+    : 0;
+}
+
+function readProjectedRegionId(hint: unknown): string {
+  return String(asRecord(hint).animeTextRegionId ?? "");
 }
 
 function projectFreshEvidence(

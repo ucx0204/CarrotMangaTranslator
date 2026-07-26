@@ -16,6 +16,12 @@ import os
 import sys
 from pathlib import Path
 
+# The bundled Windows interpreter is isolated by python312._pth, so it does
+# not add this script's directory to sys.path automatically.
+RUNTIME_MODULE_PATH = str(Path(__file__).resolve().parent)
+if RUNTIME_MODULE_PATH not in sys.path:
+    sys.path.insert(0, RUNTIME_MODULE_PATH)
+
 from paddleocr_review_contexts import build_textline_review_context_ids
 
 try:
