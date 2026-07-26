@@ -30,6 +30,7 @@ const productName = isMacBuild ? "CarrotMangaTranslator" : "당근망가번역�
 const macDeveloperSigning = process.env.MGT_MAC_SIGNING_MODE === "developer-id";
 const macRuntimeRoot =
   process.env.MGT_MAC_RUNTIME_ROOT || join(__dirname, ".tmp", "mac-runtime");
+const stagedMacTools = join(macRuntimeRoot, "tools");
 const extraResources = [
   {
     from: "out/app-runtime",
@@ -100,16 +101,28 @@ if (existsSync(koharuRunnerPath)) {
 }
 
 if (isMacBuild) {
-  const stagedTools = join(macRuntimeRoot, "tools");
-  if (!existsSync(stagedTools)) {
-    throw new Error(
-      `Missing staged Apple Silicon runtime: ${stagedTools}. Run npm run prepare:mac:runtime first.`,
-    );
-  }
   macExtraResources.push({
-    from: stagedTools,
+    from: stagedMacTools,
     to: "tools",
   });
+}
+
+/**
+ * Keep the configuration importable by macOS checks that do not package the
+ * app. The runtime must still exist before electron-builder starts a real
+ * Apple Silicon package.
+ *
+ * @param {import("app-builder-lib").PackContext} context
+ */
+function verifyMacRuntimeReady(context) {
+  if (
+    context.electronPlatformName === "darwin" &&
+    !existsSync(stagedMacTools)
+  ) {
+    throw new Error(
+      `Missing staged Apple Silicon runtime: ${stagedMacTools}. Run npm run prepare:mac:runtime first.`,
+    );
+  }
 }
 
 /**
@@ -295,5 +308,6 @@ module.exports = {
     useZip: true,
     include: "build/installer.nsh",
   },
+  beforePack: verifyMacRuntimeReady,
   afterPack: verifyPlatformPayload,
 };

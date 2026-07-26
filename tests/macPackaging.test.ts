@@ -199,6 +199,7 @@ type ElectronBuilderMacConfig = {
   };
   dmg: { size: string; sign: boolean };
   win: { extraResources: Array<{ from: string; to: string }> };
+  beforePack: (context: { electronPlatformName: string }) => void;
   afterPack: (context: {
     electronPlatformName: string;
     appOutDir: string;
@@ -561,6 +562,18 @@ describe("Apple Silicon Alpha packaging", () => {
         "mac-alpha",
         "adhoc",
       );
+      expect(() =>
+        alphaConfig.beforePack({ electronPlatformName: "darwin" }),
+      ).toThrow("Missing staged Apple Silicon runtime");
+      expect(() =>
+        alphaConfig.beforePack({ electronPlatformName: "win32" }),
+      ).not.toThrow();
+
+      mkdirSync(join(temporaryRoot, "tools"), { recursive: true });
+      expect(() =>
+        alphaConfig.beforePack({ electronPlatformName: "darwin" }),
+      ).not.toThrow();
+
       const stableConfig = loadMacBuilderConfig(
         temporaryRoot,
         "stable",
@@ -863,7 +876,6 @@ function loadMacBuilderConfig(
   channel: "mac-alpha" | "stable",
   signingMode: "adhoc" | "developer-id",
 ): ElectronBuilderMacConfig {
-  mkdirSync(join(runtimeRoot, "tools"), { recursive: true });
   const modulePath = require.resolve("../electron-builder.config.cjs");
   const keys = [
     "MGT_TARGET_PLATFORM",

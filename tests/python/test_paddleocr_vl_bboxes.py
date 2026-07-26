@@ -56,6 +56,26 @@ def rectangle_poly(x1: int, y1: int, x2: int, y2: int) -> list[list[int]]:
     return [[x1, y1], [x2, y1], [x2, y2], [x1, y2]]
 
 
+class OpenedImageStub:
+    """Pillow-free context manager exposing only the dimensions used here."""
+
+    def __init__(self, size: tuple[int, int]) -> None:
+        self.size = size
+
+    def __enter__(self) -> OpenedImageStub:
+        return self
+
+    def __exit__(self, _exc_type, _exc, _traceback) -> bool:
+        return False
+
+
+def patch_ocr_image_size(width: int, height: int):
+    image_api = types.SimpleNamespace(
+        open=lambda _image_path: OpenedImageStub((width, height))
+    )
+    return patch.object(OCR, "Image", image_api)
+
+
 class AmbiguousTruthSequence:
     """Small ndarray stand-in that fails if production code tests its truthiness."""
 
@@ -449,19 +469,19 @@ class TextlineReadingOrderTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             image_path = Path(temp_dir) / "page.png"
             output_path = Path(temp_dir) / "result.json"
-            OCR.Image.new("RGB", (844, 1200), "white").save(image_path)
 
-            OCR.write_page_bboxes_from_ocr(
-                image_path=image_path,
-                output_path=output_path,
-                ocr=FakeOcr(),
-                source="paddleocr-ppocrv6-transformers",
-                merge_mode="semantic",
-                args=argparse.Namespace(
-                    source_language="ja",
-                    text_recognition_model_name="PP-OCRv6_mobile_rec",
-                ),
-            )
+            with patch_ocr_image_size(844, 1200):
+                OCR.write_page_bboxes_from_ocr(
+                    image_path=image_path,
+                    output_path=output_path,
+                    ocr=FakeOcr(),
+                    source="paddleocr-ppocrv6-transformers",
+                    merge_mode="semantic",
+                    args=argparse.Namespace(
+                        source_language="ja",
+                        text_recognition_model_name="PP-OCRv6_mobile_rec",
+                    ),
+                )
             payload = json.loads(output_path.read_text(encoding="utf-8"))
 
         # The raw detector-only row has no Japanese text, so axis-v4 excludes
@@ -506,19 +526,19 @@ class TextlineReadingOrderTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             image_path = Path(temp_dir) / "page.png"
             output_path = Path(temp_dir) / "result.json"
-            OCR.Image.new("RGB", (844, 1200), "white").save(image_path)
 
-            OCR.write_page_bboxes_from_ocr(
-                image_path=image_path,
-                output_path=output_path,
-                ocr=FakeStaticOcr(),
-                source="paddleocr-ppocrv6",
-                merge_mode="semantic",
-                args=argparse.Namespace(
-                    source_language="ja",
-                    text_recognition_model_name="PP-OCRv6_small_rec",
-                ),
-            )
+            with patch_ocr_image_size(844, 1200):
+                OCR.write_page_bboxes_from_ocr(
+                    image_path=image_path,
+                    output_path=output_path,
+                    ocr=FakeStaticOcr(),
+                    source="paddleocr-ppocrv6",
+                    merge_mode="semantic",
+                    args=argparse.Namespace(
+                        source_language="ja",
+                        text_recognition_model_name="PP-OCRv6_small_rec",
+                    ),
+                )
             payload = json.loads(output_path.read_text(encoding="utf-8"))
 
         self.assertEqual(payload["source"], "paddleocr-ppocrv6")
@@ -565,19 +585,19 @@ class TextlineReadingOrderTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             image_path = Path(temp_dir) / "page.png"
             output_path = Path(temp_dir) / "result.json"
-            OCR.Image.new("RGB", (1000, 1000), "white").save(image_path)
 
-            OCR.write_page_bboxes_from_ocr(
-                image_path=image_path,
-                output_path=output_path,
-                ocr=FakeStaticOcr(),
-                source="paddleocr-ppocrv6",
-                merge_mode="semantic",
-                args=argparse.Namespace(
-                    source_language="ja",
-                    text_recognition_model_name="PP-OCRv6_small_rec",
-                ),
-            )
+            with patch_ocr_image_size(1000, 1000):
+                OCR.write_page_bboxes_from_ocr(
+                    image_path=image_path,
+                    output_path=output_path,
+                    ocr=FakeStaticOcr(),
+                    source="paddleocr-ppocrv6",
+                    merge_mode="semantic",
+                    args=argparse.Namespace(
+                        source_language="ja",
+                        text_recognition_model_name="PP-OCRv6_small_rec",
+                    ),
+                )
             payload = json.loads(output_path.read_text(encoding="utf-8"))
 
         items_by_x1 = {item["x1"]: item for item in payload["items"]}
@@ -608,19 +628,19 @@ class TextlineReadingOrderTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             image_path = Path(temp_dir) / "page.png"
             output_path = Path(temp_dir) / "result.json"
-            OCR.Image.new("RGB", (1000, 1000), "white").save(image_path)
 
-            OCR.write_page_bboxes_from_ocr(
-                image_path=image_path,
-                output_path=output_path,
-                ocr=FakeStaticOcr(),
-                source="paddleocr-ppocrv6",
-                merge_mode="semantic",
-                args=argparse.Namespace(
-                    source_language="ja",
-                    text_recognition_model_name="PP-OCRv6_small_rec",
-                ),
-            )
+            with patch_ocr_image_size(1000, 1000):
+                OCR.write_page_bboxes_from_ocr(
+                    image_path=image_path,
+                    output_path=output_path,
+                    ocr=FakeStaticOcr(),
+                    source="paddleocr-ppocrv6",
+                    merge_mode="semantic",
+                    args=argparse.Namespace(
+                        source_language="ja",
+                        text_recognition_model_name="PP-OCRv6_small_rec",
+                    ),
+                )
             payload = json.loads(output_path.read_text(encoding="utf-8"))
 
         # The ASCII row becomes id 1 in the established semantic Paddle order

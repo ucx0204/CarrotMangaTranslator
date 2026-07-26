@@ -242,7 +242,7 @@ describe("Hugging Face download fallback", () => {
 
       await downloadHfFileWithProgress(task, {}, { totalBytes: body.length });
 
-      expect(await readFile(task.destination)).toEqual(body);
+      expect((await readFile(task.destination)).equals(body)).toBe(true);
       expect(fetchMock).toHaveBeenCalledTimes(4);
       expect(maxActiveRequests).toBe(3);
     },
@@ -290,7 +290,7 @@ describe("Hugging Face download fallback", () => {
         { totalBytes: original.length },
       );
 
-      expect(await readFile(task.destination)).toEqual(replacement);
+      expect((await readFile(task.destination)).equals(replacement)).toBe(true);
       expect(fetchMock).toHaveBeenCalledTimes(3);
       expect(getRangeHeader(fetchMock.mock.calls[2]?.[1])).toBeUndefined();
     },
@@ -471,8 +471,8 @@ describe("Hugging Face download fallback", () => {
       ]);
 
       expect(maxActiveRequests).toBe(2);
-      expect(await readFile(firstTask.destination)).toEqual(body);
-      expect(await readFile(secondTask.destination)).toEqual(body);
+      expect((await readFile(firstTask.destination)).equals(body)).toBe(true);
+      expect((await readFile(secondTask.destination)).equals(body)).toBe(true);
     },
     DOWNLOAD_IO_TEST_TIMEOUT_MS,
   );
