@@ -2,6 +2,7 @@ import { clamp } from "../../shared/geometry";
 import type {
   InpaintingMaskStroke,
   InpaintingPoint,
+  InpaintingRetouchShapeGeometry,
 } from "../../shared/inpaintingTypes";
 import type { PixelRect } from "./maskGeometry";
 
@@ -170,6 +171,73 @@ export function applyRetouchCircle(
   }
 }
 
+export function applyRetouchRectangle(
+  bitmap: Buffer,
+  originalBitmap: Buffer,
+  width: number,
+  height: number,
+  geometry: InpaintingRetouchShapeGeometry,
+  mode: "paint" | "restore",
+  paintColor: Rgb | null,
+): void {
+  const bounds = resolveRetouchShapeBounds(geometry, width, height);
+  for (let y = bounds.top; y <= bounds.bottom; y += 1) {
+    for (let x = bounds.left; x <= bounds.right; x += 1) {
+      applyRetouchPixel(bitmap, originalBitmap, width, x, y, mode, paintColor);
+    }
+  }
+}
+
+export function applyRetouchEllipse(
+  bitmap: Buffer,
+  originalBitmap: Buffer,
+  width: number,
+  height: number,
+  geometry: InpaintingRetouchShapeGeometry,
+  mode: "paint" | "restore",
+  paintColor: Rgb | null,
+): void {
+  const bounds = resolveRetouchShapeBounds(geometry, width, height);
+  const centerX = (bounds.left + bounds.right + 1) / 2;
+  const centerY = (bounds.top + bounds.bottom + 1) / 2;
+  const radiusX = Math.max(0.5, (bounds.right - bounds.left + 1) / 2);
+  const radiusY = Math.max(0.5, (bounds.bottom - bounds.top + 1) / 2);
+  for (let y = bounds.top; y <= bounds.bottom; y += 1) {
+    for (let x = bounds.left; x <= bounds.right; x += 1) {
+      const normalizedX = (x + 0.5 - centerX) / radiusX;
+      const normalizedY = (y + 0.5 - centerY) / radiusY;
+      if (
+        normalizedX * normalizedX + normalizedY * normalizedY >
+        1 + Number.EPSILON
+      ) {
+        continue;
+      }
+      applyRetouchPixel(bitmap, originalBitmap, width, x, y, mode, paintColor);
+    }
+  }
+}
+
+export function resolveRetouchShapeBounds(
+  geometry: InpaintingRetouchShapeGeometry,
+  width: number,
+  height: number,
+): { bottom: number; left: number; right: number; top: number } {
+  const startX = clamp(Math.round(geometry.start.x), 0, Math.max(0, width - 1));
+  const startY = clamp(
+    Math.round(geometry.start.y),
+    0,
+    Math.max(0, height - 1),
+  );
+  const endX = clamp(Math.round(geometry.end.x), 0, Math.max(0, width - 1));
+  const endY = clamp(Math.round(geometry.end.y), 0, Math.max(0, height - 1));
+  return {
+    bottom: Math.max(startY, endY),
+    left: Math.min(startX, endX),
+    right: Math.max(startX, endX),
+    top: Math.min(startY, endY),
+  };
+}
+
 export function sanitizePoints(
   points: InpaintingPoint[],
   width: number,
@@ -282,6 +350,22 @@ function writeRgb(
   bitmap[offset + 1] = color.g;
   bitmap[offset + 2] = color.r;
   bitmap[offset + 3] = 255;
+}
+
+function applyRetouchPixel(
+  bitmap: Buffer,
+  originalBitmap: Buffer,
+  width: number,
+  x: number,
+  y: number,
+  mode: "paint" | "restore",
+  paintColor: Rgb | null,
+): void {
+  if (mode === "paint" && paintColor) {
+    writeRgb(bitmap, width, x, y, paintColor);
+    return;
+  }
+  copyPixel(originalBitmap, bitmap, width, x, y);
 }
 
 function copyPixel(

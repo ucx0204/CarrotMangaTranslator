@@ -18,8 +18,8 @@
 
 당근망가번역기는 이미지에서 대사와 효과음을 찾고, AI로 번역 블록을 만든 뒤, 사람이 문장과 배치를 다듬어 완성 PNG로 내보낼 수 있는 만화 작업 도구입니다. 기본 번역은 일본어 → 한국어이며, 다른 원문·번역 언어도 선택할 수 있습니다.
 
-- v1.7.0 정식판 다운로드(Windows EXE · Apple Silicon DMG/ZIP): [GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
-- 현재 버전 안내: [v1.7.0 패치노트](docs/release-notes/v1.7.0.md)
+- v1.8.0 정식판 다운로드(Windows EXE · Apple Silicon DMG/ZIP): [GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
+- 현재 버전 안내: [v1.8.0 패치노트](docs/release-notes/v1.8.0.md)
 - 코드 구조와 기여 규칙: [docs/architecture.md](docs/architecture.md)
 
 ## 한눈에 보기
@@ -40,11 +40,11 @@
 - 인터넷: 설치와 첫 모델 다운로드, Codex/API 사용에 필요합니다. 로컬 모델은 준비가 끝난 뒤 오프라인 작업이 가능합니다.
 - GPU가 없어도 일부 CPU 경로를 쓸 수 있지만 OCR, 로컬 번역, Flux 인페인팅은 크게 느릴 수 있습니다.
 
-Windows 설치 파일은 비교적 작게 유지됩니다. Apple Silicon 정식판에는 arm64 FFmpeg, Paddle OCR CPU용 Python 런타임과 Metal 실행 런타임이 포함되며 Gemma·OCR·인페인팅 모델 가중치만 첫 사용 시 체크섬 검증 후 내려받습니다. v1.7.0 macOS 빌드는 인증서 없이 ad-hoc 서명되어 Gatekeeper가 처음 실행을 차단하면 `시스템 설정 → 개인정보 보호 및 보안`에서 수동으로 승인해야 할 수 있습니다. macOS 데이터는 `~/Library/Application Support/manga-gemma-translator`에 저장됩니다.
+Windows 설치 파일은 비교적 작게 유지됩니다. Apple Silicon 정식판에는 arm64 FFmpeg, Paddle OCR CPU용 Python 런타임과 Metal 실행 런타임이 포함되며 Gemma·OCR·인페인팅 모델 가중치만 첫 사용 시 체크섬 검증 후 내려받습니다. v1.8.0 macOS 빌드는 인증서 없이 ad-hoc 서명되어 Gatekeeper가 처음 실행을 차단하면 `시스템 설정 → 개인정보 보호 및 보안`에서 수동으로 승인해야 할 수 있습니다. macOS 데이터는 `~/Library/Application Support/manga-gemma-translator`에 저장됩니다.
 
 ## 빠른 시작
 
-1. [v1.7.0 정식 릴리스](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v1.7.0)에서 Windows는 `CarrotMangaTranslator-Setup-v1.7.0.exe`, Apple Silicon은 arm64 DMG 또는 ZIP을 받습니다. macOS에서 처음 실행이 차단되면 `시스템 설정 → 개인정보 보호 및 보안`에서 앱을 수동으로 승인합니다.
+1. [v1.8.0 정식 릴리스](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v1.8.0)에서 Windows는 `CarrotMangaTranslator-Setup-v1.8.0.exe`, Apple Silicon은 arm64 DMG 또는 ZIP을 받습니다. macOS에서 처음 실행이 차단되면 `시스템 설정 → 개인정보 보호 및 보안`에서 앱을 수동으로 승인합니다.
 2. `설정 → 일반`에서 앱 화면 언어를 확인합니다. 지원되는 Windows 언어는 처음 실행할 때 자동 선택되며, 그 밖의 환경은 한국어를 사용합니다.
 3. `설정 → 번역 엔진`에서 원문 언어, 번역 언어와 엔진을 고릅니다.
    - 내 PC에서 처리하려면 `Gemma 4`

@@ -243,6 +243,7 @@
     "text": "텍스트",
     "translatedText": "번역문",
     "blockColors": "블록 색상",
+    "swapTextOutlineColors": "글자색과 외곽선색 바꾸기",
     "display": {
       "title": "편집 표시",
       "batchApply": "일괄 적용",
@@ -515,6 +516,8 @@
       },
       "mask": { "label": "마스크", "title": "마스크 붓" },
       "brush": { "label": "브러시", "title": "보정 브러시" },
+      "rectangle": { "label": "사각형", "title": "드래그로 사각형 덮기" },
+      "ellipse": { "label": "원형", "title": "드래그로 원형 덮기" },
       "eraser": { "label": "지우개", "title": "보정 내용 지우개" },
       "picker": { "label": "색 추출", "title": "캔버스에서 색 추출" }
     }
@@ -837,6 +840,8 @@
     },
     "tools": {
       "brush": "붓",
+      "rectangle": "사각형",
+      "ellipse": "원형",
       "eraser": "복원",
       "mask": "마스크 붓",
       "none": "도구를 선택하세요",
@@ -1252,9 +1257,9 @@
       }
     },
     "shortcuts": {
-      "description": "항목을 클릭한 뒤 원하는 키 조합을 누르면 지정됩니다. Esc로 취소하고 ‘비우기’로 해제할 수 있습니다.",
+      "description": "항목을 클릭한 뒤 원하는 키 조합을 누르면 지정됩니다. 이미지 확대·축소는 보조키와 마우스 휠 조합도 지정할 수 있습니다. Esc로 취소하고 ‘비우기’로 해제할 수 있습니다.",
       "changeAria": "{{label}} 단축키 변경",
-      "waiting": "키 입력 대기…",
+      "waiting": "키 또는 휠 입력 대기…",
       "unassigned": "미지정",
       "reset": "기본값",
       "clear": "비우기",

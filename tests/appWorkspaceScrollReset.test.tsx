@@ -212,6 +212,118 @@ describe("AppWorkspace scroll reset", () => {
       ),
     ).toBe(false);
   });
+
+  it("shows only the original and disables stage editing while comparing", () => {
+    const refs = makeWorkspaceRefs();
+    const page = makePage("page-1");
+    page.blocks = [makeBlock()];
+    const onStagePointerDown = vi.fn();
+    const onStagePointerLeave = vi.fn();
+    const onStagePointerMove = vi.fn();
+    const onStagePointerUp = vi.fn();
+    const props = {
+      ...makeWorkspaceProps({
+        refs,
+        selectedPage: page,
+        selectedPageImageDataUrl: PAGE_1_IMAGE,
+        selectedPageImagePageId: "page-1",
+      }),
+      maskStrokes: [
+        {
+          points: [
+            { x: 10, y: 20 },
+            { x: 30, y: 40 },
+          ],
+          radiusPx: 12,
+        },
+      ],
+      onStagePointerDown,
+      onStagePointerLeave,
+      onStagePointerMove,
+      onStagePointerUp,
+      regionSelectionActive: true,
+      regionSelectionRect: { x: 10, y: 20, w: 100, h: 80 },
+      retouchCursor: {
+        color: "#ffffff",
+        mode: "brush" as const,
+        radiusPx: 28,
+      },
+      showBlockChrome: true,
+      showTextBlocks: true,
+      stageSize: { height: 800, width: 500 },
+    };
+    const view = renderWorkspace(props);
+
+    expect(screen.getByText("translated text")).not.toBeNull();
+    expect(view.container.querySelector(".overlay-block")).not.toBeNull();
+    expect(
+      view.container.querySelector(".retouch-preview-committed-mask"),
+    ).not.toBeNull();
+    expect(
+      view.container.querySelector("[data-retouch-live-cursor]"),
+    ).not.toBeNull();
+    expect(
+      view.container.querySelector(".region-selection-box"),
+    ).not.toBeNull();
+
+    view.rerender(
+      withFonts(<AppWorkspace {...props} showingOriginalPeek={true} />),
+    );
+    expect(screen.queryByText("translated text")).toBeNull();
+    expect(view.container.querySelector(".overlay-block")).toBeNull();
+    expect(
+      view.container.querySelector(".retouch-preview-committed-mask"),
+    ).toBeNull();
+    expect(
+      view.container.querySelector("[data-retouch-live-cursor]"),
+    ).toBeNull();
+    expect(view.container.querySelector(".region-selection-box")).toBeNull();
+
+    const stage = view.container.querySelector(".image-stage");
+    expect(stage).not.toBeNull();
+    fireEvent.pointerDown(stage as Element);
+    fireEvent.pointerMove(stage as Element);
+    fireEvent.pointerUp(stage as Element);
+    fireEvent.pointerLeave(stage as Element);
+    expect(onStagePointerDown).not.toHaveBeenCalled();
+    expect(onStagePointerMove).not.toHaveBeenCalled();
+    expect(onStagePointerUp).not.toHaveBeenCalled();
+    expect(onStagePointerLeave).not.toHaveBeenCalled();
+
+    view.rerender(
+      withFonts(<AppWorkspace {...props} showingOriginalPeek={false} />),
+    );
+    expect(screen.getByText("translated text")).not.toBeNull();
+    expect(view.container.querySelector(".overlay-block")).not.toBeNull();
+    expect(
+      view.container.querySelector(".retouch-preview-committed-mask"),
+    ).not.toBeNull();
+    expect(
+      view.container.querySelector("[data-retouch-live-cursor]"),
+    ).not.toBeNull();
+    expect(
+      view.container.querySelector(".region-selection-box"),
+    ).not.toBeNull();
+  });
+
+  it("focuses the workspace before a child pointer handler prevents default", () => {
+    const refs = makeWorkspaceRefs();
+    const props = makeWorkspaceProps({
+      refs,
+      selectedPage: makePage("page-1"),
+      selectedPageImageDataUrl: PAGE_1_IMAGE,
+      selectedPageImagePageId: "page-1",
+    });
+    props.onStagePointerDown = (event) => event.preventDefault();
+    const view = renderWorkspace(props);
+    const workspace = screen.getByLabelText("읽기 영역");
+    const stage = view.container.querySelector(".image-stage");
+    expect(stage).not.toBeNull();
+
+    fireEvent.pointerDown(stage as Element);
+
+    expect(document.activeElement).toBe(workspace);
+  });
 });
 
 class ResizeObserverStub {
@@ -370,5 +482,25 @@ function makePage(id: string): MangaPage {
     analysisStatus: "idle",
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
+  };
+}
+
+function makeBlock(): MangaPage["blocks"][number] {
+  return {
+    id: "block-1",
+    type: "nonsolid",
+    bbox: { x: 100, y: 100, w: 300, h: 160 },
+    sourceText: "source text",
+    translatedText: "translated text",
+    confidence: 1,
+    sourceDirection: "horizontal",
+    renderDirection: "vertical",
+    fontSizePx: 24,
+    lineHeight: 1.2,
+    textAlign: "center",
+    textColor: "#000000",
+    backgroundColor: "#ffffff",
+    opacity: 1,
+    inpaintExcluded: true,
   };
 }

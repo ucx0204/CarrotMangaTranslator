@@ -30,7 +30,7 @@ export function resolveStageClassName({
     "image-stage",
     regionSelectionActive ? "selecting-region" : "",
     blockPointerDisabled ? "editing-mask" : "",
-    retouchCursor ? "retouch-tool-enabled" : "",
+    resolveRetouchToolClassName(retouchCursor),
     stageTool === "hand" ? "stage-tool-hand" : "",
     stageTool === "block" ? "stage-tool-block" : "",
     stageTool === "perspective" ? "stage-tool-perspective" : "",
@@ -38,6 +38,15 @@ export function resolveStageClassName({
   ]
     .filter(Boolean)
     .join(" ");
+}
+
+function resolveRetouchToolClassName(
+  retouchCursor: ImageStageProps["retouchCursor"],
+): string {
+  if (!retouchCursor) return "";
+  return retouchCursor.mode === "rectangle" || retouchCursor.mode === "ellipse"
+    ? "retouch-shape-tool-enabled"
+    : "retouch-tool-enabled";
 }
 
 function pointsToPath(points: Array<{ x: number; y: number }>): string {

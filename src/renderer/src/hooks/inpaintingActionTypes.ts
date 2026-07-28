@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { InpaintingMaskStroke } from "../../../shared/inpaintingTypes";
 import type { JobState } from "../../../shared/jobTypes";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
+import type { InpaintingTool } from "../inpainting/inpaintingTypes";
 import { formatErrorMessage } from "../lib/errorPresentation";
 import type { WorkspaceHistoryController } from "./useWorkspaceHistory";
 
@@ -30,9 +31,7 @@ export type UseInpaintingActionsOptions = {
   refreshLibrary: () => Promise<void>;
   saveNow: () => Promise<void>;
   selectedPage: MangaPage | null;
-  setInpaintingTool: Dispatch<
-    SetStateAction<"none" | "brush" | "eraser" | "picker" | "mask">
-  >;
+  setInpaintingTool: Dispatch<SetStateAction<InpaintingTool>>;
   setJobState: Dispatch<SetStateAction<JobState>>;
   setPatternMaskStrokesByPage: Dispatch<
     SetStateAction<Record<string, InpaintingMaskStroke[]>>

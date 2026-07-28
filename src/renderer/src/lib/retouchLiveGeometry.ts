@@ -1,6 +1,15 @@
 const MAX_CANVAS_PIXELS = 4_000_000;
 const MAX_PIXEL_RATIO = 2;
 
+export type RetouchLivePoint = { x: number; y: number };
+
+export type RetouchLiveGeometry = {
+  displayHeight: number;
+  displayWidth: number;
+  imageHeight: number;
+  imageWidth: number;
+};
+
 export type RetouchCanvasBackingSize = {
   height: number;
   pixelRatio: number;

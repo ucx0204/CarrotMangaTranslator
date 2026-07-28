@@ -239,6 +239,7 @@
     "text": "文字",
     "translatedText": "譯文",
     "blockColors": "文字區塊顏色",
+    "swapTextOutlineColors": "交換文字色與描邊色",
     "display": {
       "title": "編輯顯示",
       "batchApply": "批次套用",
@@ -508,6 +509,8 @@
       },
       "mask": { "label": "遮罩", "title": "遮罩畫筆" },
       "brush": { "label": "畫筆", "title": "修整畫筆" },
+      "rectangle": { "label": "矩形", "title": "用實心矩形覆蓋" },
+      "ellipse": { "label": "橢圓", "title": "用實心橢圓覆蓋" },
       "eraser": { "label": "橡皮擦", "title": "清除修整筆觸" },
       "picker": { "label": "取色", "title": "從畫布取色" }
     }
@@ -830,6 +833,8 @@
     },
     "tools": {
       "brush": "畫筆",
+      "rectangle": "矩形",
+      "ellipse": "橢圓",
       "eraser": "復原",
       "mask": "遮罩畫筆",
       "none": "請選取工具",
@@ -1227,9 +1232,9 @@
       }
     },
     "shortcuts": {
-      "description": "點按項目後，按下所需的按鍵組合。按 Esc 取消，或用「清空」解除綁定。",
+      "description": "點按項目後，按下所需的按鍵組合。影像放大與縮小也可綁定搭配修飾鍵的滾輪操作。按 Esc 取消，或用「清空」解除綁定。",
       "changeAria": "變更{{label}}的快速鍵",
-      "waiting": "等待按鍵…",
+      "waiting": "等待按鍵或滾輪輸入…",
       "unassigned": "未指派",
       "reset": "預設值",
       "clear": "清空",

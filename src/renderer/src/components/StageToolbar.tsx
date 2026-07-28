@@ -8,8 +8,10 @@ import {
   IconEraser,
   IconHandStop,
   IconLassoPolygon,
+  IconOval,
   IconPerspective,
   IconPointer2,
+  IconRectangle,
   IconSquarePlus,
   IconTextScan2,
   IconVectorBezier,
@@ -84,6 +86,18 @@ const TOOL_BUTTONS: {
     labelKey: "stageToolbar.tools.brush.label",
     titleKey: "stageToolbar.tools.brush.title",
     Icon: IconBrush,
+  },
+  {
+    id: "rectangle",
+    labelKey: "stageToolbar.tools.rectangle.label",
+    titleKey: "stageToolbar.tools.rectangle.title",
+    Icon: IconRectangle,
+  },
+  {
+    id: "ellipse",
+    labelKey: "stageToolbar.tools.ellipse.label",
+    titleKey: "stageToolbar.tools.ellipse.title",
+    Icon: IconOval,
   },
   {
     id: "eraser",
@@ -234,7 +248,7 @@ function StageToolButton({
         onClick={() => onSelectTool(id)}
       >
         <Icon size={22} stroke={2.1} aria-hidden="true" />
-        {id === "brush" ? (
+        {id === "brush" || id === "rectangle" || id === "ellipse" ? (
           <i
             className="stage-toolbar-swatch"
             style={{ backgroundColor: brushColor }}

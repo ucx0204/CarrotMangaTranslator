@@ -4,6 +4,7 @@ import {
   AppSettingsSchema,
   AnalyzeWorkContextRequestSchema,
   ChapterSnapshotSchema,
+  InpaintingRetouchRequestSchema,
   JobEventSchema,
   ModelTestProgressEventSchema,
   parseIpcPayload,
@@ -123,6 +124,69 @@ describe("IPC schemas", () => {
         StartAnalysisRequestSchema,
         { chapterId, runMode: "page-set", pageIds: [pageId], pageId },
         "번역 작업",
+      ),
+    ).toThrow(/요청 형식/);
+  });
+
+  it("accepts strict stroke and filled-shape retouch geometries", () => {
+    const base = {
+      chapterId,
+      pageId,
+      mode: "paint" as const,
+      color: "#ffffff",
+    };
+    const geometries = [
+      {
+        kind: "stroke" as const,
+        points: [{ x: 10, y: 20 }],
+        radiusPx: 28,
+      },
+      {
+        kind: "rectangle" as const,
+        start: { x: 10, y: 20 },
+        end: { x: 200, y: 300 },
+      },
+      {
+        kind: "ellipse" as const,
+        start: { x: 200, y: 300 },
+        end: { x: 10, y: 20 },
+      },
+    ];
+
+    for (const geometry of geometries) {
+      expect(
+        parseIpcPayload(
+          InpaintingRetouchRequestSchema,
+          { ...base, geometry },
+          "수동 보정",
+        ).geometry,
+      ).toEqual(geometry);
+    }
+
+    expect(() =>
+      parseIpcPayload(
+        InpaintingRetouchRequestSchema,
+        {
+          ...base,
+          geometry: {
+            kind: "rectangle",
+            start: { x: 0, y: 0 },
+            end: { x: 20, y: 20 },
+            radiusPx: 4,
+          },
+        },
+        "수동 보정",
+      ),
+    ).toThrow(/요청 형식/);
+    expect(() =>
+      parseIpcPayload(
+        InpaintingRetouchRequestSchema,
+        {
+          ...base,
+          points: [{ x: 0, y: 0 }],
+          radiusPx: 4,
+        },
+        "수동 보정",
       ),
     ).toThrow(/요청 형식/);
   });

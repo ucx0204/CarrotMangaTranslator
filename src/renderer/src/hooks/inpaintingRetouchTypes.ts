@@ -1,4 +1,5 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
+import type { InpaintingRetouchGeometry } from "../../../shared/inpaintingTypes";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { WorkspaceHistoryController } from "./useWorkspaceHistory";
 
@@ -10,7 +11,10 @@ export type RetouchHistoryEntry = {
   afterPath?: string;
 };
 
-export type RetouchApplyTool = "brush" | "eraser";
+export type RetouchApplyOperation = {
+  geometry: InpaintingRetouchGeometry;
+  mode: "paint" | "restore";
+};
 
 export type UseInpaintingRetouchOptions = {
   clearPageImageCache: () => void;
@@ -30,10 +34,7 @@ export type UseInpaintingRetouchOptions = {
 
 export type InpaintingRetouchResult = {
   appendRetouchPoint: (point: RetouchPoint) => RetouchPoint | null;
-  applyRetouchPoints: (
-    tool: RetouchApplyTool,
-    points: RetouchPoint[],
-  ) => Promise<void>;
+  applyRetouchOperation: (operation: RetouchApplyOperation) => Promise<void>;
   clearRetouchHistory: () => void;
   inpaintingRetouchDrawingRef: MutableRefObject<boolean>;
   inpaintingRetouchPointsRef: MutableRefObject<RetouchPoint[]>;

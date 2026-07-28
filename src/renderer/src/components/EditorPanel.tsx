@@ -9,11 +9,11 @@ import type { BlockBackgroundApplyScope } from "../hooks/useApplyBlockBackground
 import {
   BlockActionButtons,
   BlockDisplayGroup,
-  ColorEditorGroup,
   EmptyEditorPanel,
   InpaintingBlockOption,
   TextEditorGroup,
 } from "./EditorPanelSections";
+import { EditorColorGroup } from "./EditorColorGroup";
 import { FormatEditorGroup } from "./EditorFormatControls";
 import {
   clampFontSize,
@@ -178,7 +178,7 @@ function EditorBlockGroups({
         onUpdate={onUpdate}
         selectedBlockCount={selectedBlockCount}
       />
-      <ColorEditorGroup
+      <EditorColorGroup
         block={block}
         disabled={disabled}
         model={model}

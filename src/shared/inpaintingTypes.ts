@@ -84,12 +84,27 @@ export type InpaintingMaskStroke = {
   radiusPx: number;
 };
 
+type InpaintingRetouchStrokeGeometry = {
+  kind: "stroke";
+  points: InpaintingPoint[];
+  radiusPx: number;
+};
+
+export type InpaintingRetouchShapeGeometry = {
+  kind: "rectangle" | "ellipse";
+  start: InpaintingPoint;
+  end: InpaintingPoint;
+};
+
+export type InpaintingRetouchGeometry =
+  | InpaintingRetouchStrokeGeometry
+  | InpaintingRetouchShapeGeometry;
+
 export type InpaintingRetouchRequest = {
   chapterId: string;
   pageId: string;
   mode: "paint" | "restore";
-  points: InpaintingPoint[];
-  radiusPx: number;
+  geometry: InpaintingRetouchGeometry;
   color?: string;
   retainedInpaintedArtifactPaths?: string[];
 };

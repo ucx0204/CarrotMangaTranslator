@@ -102,6 +102,29 @@ const InpaintingMaskStrokeSchema = z
     radiusPx: finiteNumber.min(1).max(512),
   })
   .strict();
+const InpaintingRetouchGeometrySchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      kind: z.literal("stroke"),
+      points: z.array(InpaintingPointSchema).min(1).max(MAX_STROKE_POINTS),
+      radiusPx: finiteNumber.min(1).max(512),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("rectangle"),
+      start: InpaintingPointSchema,
+      end: InpaintingPointSchema,
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("ellipse"),
+      start: InpaintingPointSchema,
+      end: InpaintingPointSchema,
+    })
+    .strict(),
+]);
 
 const AutoInpaintingChapterSelectionSchema = z.discriminatedUnion("mode", [
   z.object({ chapterId: uuid, mode: z.literal("all") }).strict(),
@@ -147,8 +170,7 @@ export const InpaintingRetouchRequestSchema = z
     chapterId: uuid,
     pageId: uuid,
     mode: z.enum(["paint", "restore"]),
-    points: z.array(InpaintingPointSchema).min(1).max(MAX_STROKE_POINTS),
-    radiusPx: finiteNumber.min(1).max(512),
+    geometry: InpaintingRetouchGeometrySchema,
     color: hexColor.optional(),
     retainedInpaintedArtifactPaths: z
       .array(filePath)

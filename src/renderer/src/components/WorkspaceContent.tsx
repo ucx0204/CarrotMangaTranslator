@@ -34,6 +34,7 @@ export const WorkspaceContent = React.memo(function WorkspaceContent(
       blockPointerDisabled={
         props.jobActive || !isBlockEditingTool(props.stageTool)
       }
+      hideEditingOverlays={props.showingOriginalPeek}
       imageDataUrl={props.selectedPageImageDataUrl}
       imageRef={props.imageRef}
       interactionPreviewStore={props.interactionPreviewStore}

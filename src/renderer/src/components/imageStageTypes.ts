@@ -18,10 +18,11 @@ export type ImageStageProps = {
   selectedBlockIds?: string[];
   showTextBlocks: boolean;
   showBlockChrome: boolean;
+  hideEditingOverlays?: boolean;
   blockPointerDisabled?: boolean;
   retouchCursor?: {
     radiusPx: number;
-    mode: "brush" | "eraser" | "mask";
+    mode: "brush" | "rectangle" | "ellipse" | "eraser" | "mask";
     color: string;
   } | null;
   retouchOriginalImageDataUrl?: string;

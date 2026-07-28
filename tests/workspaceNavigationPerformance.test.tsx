@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import React, { useLayoutEffect, useRef } from "react";
+import React, { useLayoutEffect, useRef, useState } from "react";
 import {
   act,
   cleanup,
@@ -10,10 +10,14 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useWorkspacePanHandlers } from "../src/renderer/src/hooks/useWorkspacePanHandlers";
+import { usePageNavigationHandlers } from "../src/renderer/src/hooks/usePageNavigationHandlers";
 import { useWorkspaceWheelZoom } from "../src/renderer/src/hooks/useWorkspaceWheelZoom";
+import type { ChapterSnapshot } from "../src/shared/libraryTypes";
+import type { KeybindingOverrides } from "../src/shared/shortcutSettings";
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -76,10 +80,98 @@ describe("workspace navigation performance", () => {
     expect(zoomIn).toHaveBeenCalledTimes(1);
     expect(zoomOut).not.toHaveBeenCalled();
 
+    fireEvent.wheel(panel, { ctrlKey: true, deltaY: 1 });
+    act(() => frames.flush());
+    expect(zoomOut).toHaveBeenCalledTimes(1);
+
     view.unmount();
     fireEvent.wheel(panel, { ctrlKey: true, deltaY: 1 });
     expect(frames.count()).toBe(0);
+    expect(zoomOut).toHaveBeenCalledTimes(1);
+  });
+
+  it("consumes matching bare and modified wheel bindings before page navigation", () => {
+    const frames = installAnimationFrameController();
+    const zoomIn = vi.fn();
+    const zoomOut = vi.fn();
+    render(
+      <WheelHarness
+        overrides={{
+          "zoom-in": "wheelup",
+          "zoom-out": "alt+wheeldown",
+        }}
+        zoomIn={zoomIn}
+        zoomOut={zoomOut}
+      />,
+    );
+    const panel = screen.getByTestId("wheel-panel");
+    const pageNavigation = vi.fn();
+    panel.addEventListener("wheel", (event) => {
+      if (!event.defaultPrevented) {
+        pageNavigation();
+      }
+    });
+
+    fireEvent.wheel(panel, { deltaY: -80 });
+    expect(pageNavigation).not.toHaveBeenCalled();
+    act(() => frames.flush());
+    expect(zoomIn).toHaveBeenCalledOnce();
+
+    fireEvent.wheel(panel, { altKey: true, deltaY: 80 });
+    expect(pageNavigation).not.toHaveBeenCalled();
+    act(() => frames.flush());
+    expect(zoomOut).toHaveBeenCalledOnce();
+
+    fireEvent.wheel(panel, { deltaY: 80 });
+    expect(pageNavigation).toHaveBeenCalledOnce();
+  });
+
+  it("blocks Chromium page zoom after Ctrl+wheel is reassigned", () => {
+    const frames = installAnimationFrameController();
+    const zoomIn = vi.fn();
+    const zoomOut = vi.fn();
+    render(
+      <WheelHarness
+        overrides={{
+          "zoom-in": "wheelup",
+          "zoom-out": "alt+wheeldown",
+        }}
+        zoomIn={zoomIn}
+        zoomOut={zoomOut}
+      />,
+    );
+    const panel = screen.getByTestId("wheel-panel");
+    const event = new WheelEvent("wheel", {
+      bubbles: true,
+      cancelable: true,
+      ctrlKey: true,
+      deltaY: -80,
+    });
+
+    panel.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(frames.count()).toBe(0);
+    expect(zoomIn).not.toHaveBeenCalled();
     expect(zoomOut).not.toHaveBeenCalled();
+  });
+
+  it("routes a custom wheel zoom ahead of the fixed page handler", () => {
+    const frames = installAnimationFrameController();
+    const now = vi.spyOn(performance, "now").mockReturnValue(1_000);
+    const zoomIn = vi.fn();
+    render(<WheelAndPageHarness zoomIn={zoomIn} />);
+    const panel = screen.getByTestId("wheel-page-panel");
+
+    fireEvent.wheel(panel, { deltaY: -80 });
+    act(() => frames.flush());
+
+    expect(zoomIn).toHaveBeenCalledOnce();
+    expect(screen.getByTestId("selected-page").textContent).toBe("page-2");
+
+    fireEvent.wheel(panel, { deltaY: 80 });
+    expect(screen.getByTestId("selected-page").textContent).toBe("page-3");
+    now.mockRestore();
   });
 });
 
@@ -114,15 +206,77 @@ function PanHarness({
 }
 
 function WheelHarness({
+  overrides,
   zoomIn,
   zoomOut,
 }: {
+  overrides?: KeybindingOverrides;
   zoomIn: () => void;
   zoomOut: () => void;
 }): React.JSX.Element {
   const workspacePanelRef = useRef<HTMLElement | null>(null);
-  useWorkspaceWheelZoom({ workspacePanelRef, zoomIn, zoomOut });
+  useWorkspaceWheelZoom({ overrides, workspacePanelRef, zoomIn, zoomOut });
   return <section data-testid="wheel-panel" ref={workspacePanelRef} />;
+}
+
+function WheelAndPageHarness({
+  zoomIn,
+}: {
+  zoomIn: () => void;
+}): React.JSX.Element {
+  const workspacePanelRef = useRef<HTMLElement | null>(null);
+  const currentChapterRef = useRef<ChapterSnapshot | null>(
+    makeNavigationChapter(),
+  );
+  const selectedPageIdRef = useRef<string | null>("page-2");
+  const selectedBlockIdRef = useRef<string | null>(null);
+  const [selectedPageId, setSelectedPageId] = useState<string | null>("page-2");
+  const [, setSelectedBlockId] = useState<string | null>(null);
+  usePageNavigationHandlers({
+    currentChapterRef,
+    modalOpen: false,
+    selectedBlockIdRef,
+    selectedPageIdRef,
+    setSelectedBlockId,
+    setSelectedPageId,
+    workspacePanelRef,
+  });
+  useWorkspaceWheelZoom({
+    overrides: { "zoom-in": "wheelup", "zoom-out": "alt+wheeldown" },
+    workspacePanelRef,
+    zoomIn,
+    zoomOut: () => undefined,
+  });
+  return (
+    <section data-testid="wheel-page-panel" ref={workspacePanelRef}>
+      <span data-testid="selected-page">{selectedPageId}</span>
+    </section>
+  );
+}
+
+function makeNavigationChapter(): ChapterSnapshot {
+  return {
+    id: "chapter-1",
+    workId: "work-1",
+    title: "1화",
+    sourceKind: "images",
+    status: "idle",
+    pageOrder: ["page-1", "page-2", "page-3"],
+    pages: ["page-1", "page-2", "page-3"].map((id) => ({
+      id,
+      name: `${id}.png`,
+      imagePath: `${id}.png`,
+      dataUrl: "",
+      width: 100,
+      height: 100,
+      blocks: [],
+      analysisStatus: "idle",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    })),
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  };
 }
 
 function installAnimationFrameController(): {

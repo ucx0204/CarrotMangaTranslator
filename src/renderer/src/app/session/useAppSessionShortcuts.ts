@@ -6,6 +6,8 @@ import type { ShortcutContext } from "../../lib/shortcuts/shortcutActions";
 import type { ChapterSessionController } from "./useChapterSessionController";
 import type { InpaintingController } from "./useInpaintingController";
 import type { TranslationController } from "./useTranslationController";
+import { useSelectedBlockKeyboardNudge } from "../../hooks/useSelectedBlockKeyboardNudge";
+import { isBlockEditingTool } from "../../lib/stageTool";
 
 type AppSessionShortcutsArgs = {
   chapter: ChapterSessionController;
@@ -30,19 +32,33 @@ export function useAppSessionShortcuts({
     core.setRegionSelection(null);
     uiState.selectWorkspaceTool(tool);
   };
+  const jobActive =
+    inpainting.inpaintingBridge.contextValue.jobActive ||
+    uiState.translationFlowActive ||
+    workspaceHistory.busy;
 
   const context: ShortcutContext = {
     blockingModalOpen: chapter.overlayModalsOpen,
     paletteOpen: uiState.commandPaletteOpen,
     helpOpen: uiState.shortcutHelpOpen,
     chapterOpen: Boolean(core.currentChapter),
-    jobActive:
-      inpainting.inpaintingBridge.contextValue.jobActive ||
-      uiState.translationFlowActive ||
-      workspaceHistory.busy,
+    jobActive,
     retouchToolActive: derivedState.inpaintingToolActive,
     blockSelected: Boolean(derivedState.selectedBlock),
   };
+
+  useSelectedBlockKeyboardNudge({
+    blocked: chapter.modalOpen,
+    enabled:
+      Boolean(derivedState.selectedBlock) &&
+      !derivedState.selectedPageEditLocked &&
+      !derivedState.showingOriginalPeek &&
+      !jobActive &&
+      uiState.showTextBlocks &&
+      isBlockEditingTool(uiState.stageTool),
+    onNudge: blockEditingActions.nudgeSelectedBlocks,
+    workspacePanelRef: core.workspacePanelRef,
+  });
 
   const handlers: ShortcutHandlers = {
     "toggle-block-chrome": () => uiState.setShowBlockChrome((value) => !value),

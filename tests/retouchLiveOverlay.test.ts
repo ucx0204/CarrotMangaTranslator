@@ -3,9 +3,11 @@
 import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
 import {
   appendRetouchStrokePoint,
+  beginRetouchShape,
   beginRetouchStroke,
   clearRetouchLiveOverlay,
   queueRetouchCursor,
+  updateRetouchShape,
 } from "../src/renderer/src/lib/retouchLiveOverlay";
 import type { RetouchCanvasContext } from "../src/renderer/src/lib/retouchCanvasContext";
 
@@ -49,6 +51,53 @@ describe("retouch live overlay", () => {
     expect(cursor.style.transform).toContain("translate3d(51px, 51px, 0)");
     clearRetouchLiveOverlay(stage);
   });
+
+  it("redraws the latest filled rectangle or ellipse once per frame", () => {
+    const frames = installAnimationFrameController();
+    const context = makeCanvasContext();
+    const { canvas, stage } = makeStage(context);
+    const geometry = {
+      displayHeight: 100,
+      displayWidth: 100,
+      imageHeight: 1000,
+      imageWidth: 1000,
+    };
+
+    beginRetouchShape(stage, { x: 100, y: 200 }, geometry, {
+      color: "#ffffff",
+      kind: "rectangle",
+    });
+    updateRetouchShape(stage, { x: 700, y: 800 }, geometry);
+    updateRetouchShape(stage, { x: 800, y: 900 }, geometry);
+
+    expect(frames.count()).toBe(1);
+    expect(context.fillRect).not.toHaveBeenCalled();
+
+    frames.flush();
+
+    expect(canvas.hidden).toBe(false);
+    expect(context.fillRect).toHaveBeenCalledOnce();
+    expect(context.fillRect).toHaveBeenLastCalledWith(10, 20, 70, 70);
+
+    beginRetouchShape(stage, { x: 900, y: 800 }, geometry, {
+      color: "#ffcc00",
+      kind: "ellipse",
+    });
+    updateRetouchShape(stage, { x: 100, y: 200 }, geometry);
+    frames.flush();
+
+    expect(context.ellipse).toHaveBeenCalledOnce();
+    expect(context.ellipse).toHaveBeenLastCalledWith(
+      50,
+      50,
+      40,
+      30,
+      0,
+      0,
+      Math.PI * 2,
+    );
+    clearRetouchLiveOverlay(stage);
+  });
 });
 
 function makeStage(context: RetouchCanvasContext & MockContext): {
@@ -76,6 +125,7 @@ type MockContext = {
   clip: Mock<RetouchCanvasContext["clip"]>;
   closePath: Mock<RetouchCanvasContext["closePath"]>;
   drawImage: Mock<RetouchCanvasContext["drawImage"]>;
+  ellipse: Mock<RetouchCanvasContext["ellipse"]>;
   fill: Mock<RetouchCanvasContext["fill"]>;
   fillRect: Mock<RetouchCanvasContext["fillRect"]>;
   lineTo: Mock<RetouchCanvasContext["lineTo"]>;
@@ -95,6 +145,7 @@ function makeCanvasContext(): RetouchCanvasContext & MockContext {
     clip: vi.fn<RetouchCanvasContext["clip"]>(),
     closePath: vi.fn<RetouchCanvasContext["closePath"]>(),
     drawImage: vi.fn<RetouchCanvasContext["drawImage"]>(),
+    ellipse: vi.fn<RetouchCanvasContext["ellipse"]>(),
     fill: vi.fn<RetouchCanvasContext["fill"]>(),
     fillRect: vi.fn<RetouchCanvasContext["fillRect"]>(),
     fillStyle: "#000000",

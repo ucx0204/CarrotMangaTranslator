@@ -243,6 +243,7 @@
     "text": "テキスト",
     "translatedText": "翻訳文",
     "blockColors": "ブロックの色",
+    "swapTextOutlineColors": "文字色と縁取り色を入れ替え",
     "display": {
       "title": "編集表示",
       "batchApply": "一括適用",
@@ -521,6 +522,8 @@
       },
       "mask": { "label": "マスク", "title": "マスクブラシ" },
       "brush": { "label": "ブラシ", "title": "補正ブラシ" },
+      "rectangle": { "label": "矩形", "title": "塗りつぶした矩形で覆う" },
+      "ellipse": { "label": "楕円", "title": "塗りつぶした楕円で覆う" },
       "eraser": { "label": "消しゴム", "title": "補正内容を消去" },
       "picker": { "label": "色を抽出", "title": "キャンバスから色を抽出" }
     }
@@ -843,6 +846,8 @@
     },
     "tools": {
       "brush": "ブラシ",
+      "rectangle": "矩形",
+      "ellipse": "楕円",
       "eraser": "復元",
       "mask": "マスクブラシ",
       "none": "ツールを選択してください",
@@ -1258,9 +1263,9 @@
       }
     },
     "shortcuts": {
-      "description": "項目をクリックして、設定したいキーの組み合わせを押してください。Escでキャンセルし、「クリア」で解除できます。",
+      "description": "項目をクリックして、設定したいキーの組み合わせを押してください。拡大・縮小には修飾キー付きのホイール操作も設定できます。Escでキャンセルし、「クリア」で解除できます。",
       "changeAria": "{{label}}のショートカットを変更",
-      "waiting": "キー入力待ち…",
+      "waiting": "キーまたはホイール入力待ち…",
       "unassigned": "未設定",
       "reset": "既定値",
       "clear": "クリア",

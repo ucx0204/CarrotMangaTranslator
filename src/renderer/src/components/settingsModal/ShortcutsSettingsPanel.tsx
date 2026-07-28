@@ -1,4 +1,5 @@
 import React from "react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type {
   KeybindingOverrides,
@@ -6,6 +7,7 @@ import type {
 } from "../../../../shared/shortcutSettings";
 import {
   comboFromEvent,
+  comboFromWheelEvent,
   formatCombo,
 } from "../../lib/shortcuts/comboFromEvent";
 import {
@@ -210,6 +212,20 @@ function useCaptureListener({
     if (!capturingId) {
       return;
     }
+    const actionId = capturingId;
+    const commitCombo = (combo: string): void =>
+      commitCapturedCombo(combo, {
+        actionId,
+        displacedNote: (displacedActionId) =>
+          t("settings.shortcuts.displaced", {
+            label: translateActionLabel(displacedActionId),
+          }),
+        onChange,
+        overrides,
+        setCapturingId,
+        setNote,
+        tRenderer,
+      });
     const onKeyDown = (event: KeyboardEvent): void => {
       event.preventDefault();
       event.stopPropagation();
@@ -221,25 +237,28 @@ function useCaptureListener({
       if (!combo) {
         return;
       }
-      const { next, displacedActionId } = assignBinding(
-        overrides,
-        capturingId,
-        combo,
-        tRenderer,
-      );
-      onChange(next);
-      setNote(
-        displacedActionId
-          ? t("settings.shortcuts.displaced", {
-              label: translateActionLabel(displacedActionId),
-            })
-          : null,
-      );
-      setCapturingId(null);
+      commitCombo(combo);
+    };
+    const onWheel = (event: WheelEvent): void => {
+      if (!isWheelBindableAction(actionId)) {
+        return;
+      }
+      const combo = comboFromWheelEvent(event);
+      if (!combo) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      commitCombo(combo);
     };
     window.addEventListener("keydown", onKeyDown, true);
+    window.addEventListener("wheel", onWheel, {
+      capture: true,
+      passive: false,
+    });
     return () => {
       window.removeEventListener("keydown", onKeyDown, true);
+      window.removeEventListener("wheel", onWheel, true);
     };
   }, [
     capturingId,
@@ -251,4 +270,41 @@ function useCaptureListener({
     tRenderer,
     translateActionLabel,
   ]);
+}
+
+function isWheelBindableAction(actionId: ShortcutActionId): boolean {
+  return actionId === "zoom-in" || actionId === "zoom-out";
+}
+
+function commitCapturedCombo(
+  combo: string,
+  {
+    actionId,
+    displacedNote,
+    onChange,
+    overrides,
+    setCapturingId,
+    setNote,
+    tRenderer,
+  }: {
+    actionId: ShortcutActionId;
+    displacedNote: (actionId: ShortcutActionId) => string;
+    onChange: (next: KeybindingOverrides) => void;
+    overrides: KeybindingOverrides;
+    setCapturingId: React.Dispatch<
+      React.SetStateAction<ShortcutActionId | null>
+    >;
+    setNote: React.Dispatch<React.SetStateAction<string | null>>;
+    tRenderer: TFunction<"renderer">;
+  },
+): void {
+  const { next, displacedActionId } = assignBinding(
+    overrides,
+    actionId,
+    combo,
+    tRenderer,
+  );
+  onChange(next);
+  setNote(displacedActionId ? displacedNote(displacedActionId) : null);
+  setCapturingId(null);
 }

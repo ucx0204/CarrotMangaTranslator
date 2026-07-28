@@ -239,6 +239,7 @@
     "text": "文本",
     "translatedText": "译文",
     "blockColors": "文本块颜色",
+    "swapTextOutlineColors": "交换文字色与描边色",
     "display": {
       "title": "编辑显示",
       "batchApply": "批量应用",
@@ -508,6 +509,8 @@
       },
       "mask": { "label": "蒙版", "title": "蒙版画笔" },
       "brush": { "label": "画笔", "title": "修整画笔" },
+      "rectangle": { "label": "矩形", "title": "用实心矩形覆盖" },
+      "ellipse": { "label": "椭圆", "title": "用实心椭圆覆盖" },
       "eraser": { "label": "橡皮擦", "title": "清除修整笔触" },
       "picker": { "label": "取色", "title": "从画布取色" }
     }
@@ -830,6 +833,8 @@
     },
     "tools": {
       "brush": "画笔",
+      "rectangle": "矩形",
+      "ellipse": "椭圆",
       "eraser": "恢复",
       "mask": "蒙版画笔",
       "none": "请选择工具",
@@ -1224,9 +1229,9 @@
       }
     },
     "shortcuts": {
-      "description": "单击项目后按下所需的组合键。按Esc取消，或用“清空”解除绑定。",
+      "description": "单击项目后按下所需的组合键。图像放大和缩小也可绑定带修饰键的滚轮操作。按Esc取消，或用“清空”解除绑定。",
       "changeAria": "更改{{label}}的快捷键",
-      "waiting": "等待按键…",
+      "waiting": "等待按键或滚轮输入…",
       "unassigned": "未指定",
       "reset": "默认值",
       "clear": "清空",

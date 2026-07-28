@@ -18,6 +18,7 @@ export type { ImageStageProps } from "./imageStageTypes";
 
 export function ImageStage({
   blockPointerDisabled = false,
+  hideEditingOverlays = false,
   imageDataUrl,
   imageRef,
   interactionPreviewStore,
@@ -53,6 +54,7 @@ export function ImageStage({
   return (
     <ImageStageFrame
       blockPointerDisabled={blockPointerDisabled}
+      hideEditingOverlays={hideEditingOverlays}
       imageDataUrl={imageDataUrl}
       imageRef={imageRef}
       interactionPreviewStore={interactionPreviewStore}
@@ -81,6 +83,7 @@ export function ImageStage({
 
 function ImageStageFrame({
   blockPointerDisabled = false,
+  hideEditingOverlays = false,
   imageDataUrl,
   imageRef,
   interactionPreviewStore,
@@ -106,24 +109,30 @@ function ImageStageFrame({
 }: ImageStageProps & {
   retouchModel: RetouchStageModel;
 }): React.JSX.Element {
+  const stagePointerHandlers = hideEditingOverlays
+    ? {}
+    : {
+        onPointerMove: onStagePointerMove,
+        onPointerUp: onStagePointerUp,
+        onPointerCancel: onStagePointerUp,
+        onPointerLeave: onStagePointerLeave,
+        onPointerDown: onStagePointerDown,
+      };
   return (
     <div className="stage-wrap">
       <div
         ref={stageRef}
         className={resolveStageClassName({
           blockPointerDisabled,
-          regionSelectionActive,
-          retouchCursor,
-          stageTool,
+          regionSelectionActive: !hideEditingOverlays && regionSelectionActive,
+          retouchCursor: hideEditingOverlays ? null : retouchCursor,
+          stageTool: hideEditingOverlays ? undefined : stageTool,
         })}
-        onPointerMove={onStagePointerMove}
-        onPointerUp={onStagePointerUp}
-        onPointerCancel={onStagePointerUp}
-        onPointerLeave={onStagePointerLeave}
-        onPointerDown={onStagePointerDown}
+        {...stagePointerHandlers}
       >
         <ImageStageLayerSet
           blockPointerDisabled={blockPointerDisabled}
+          hideEditingOverlays={hideEditingOverlays}
           imageDataUrl={imageDataUrl}
           imageRef={imageRef}
           interactionPreviewStore={interactionPreviewStore}
@@ -149,6 +158,7 @@ function ImageStageFrame({
 
 function ImageStageLayerSet({
   blockPointerDisabled = false,
+  hideEditingOverlays = false,
   imageDataUrl,
   imageRef,
   interactionPreviewStore,
@@ -179,39 +189,43 @@ function ImageStageLayerSet({
   return (
     <>
       <StageImage imageDataUrl={imageDataUrl} imageRef={imageRef} page={page} />
-      <OverlayBlockLayer
-        blockPointerDisabled={blockPointerDisabled}
-        imageDataUrl={imageDataUrl}
-        interactionPreviewStore={interactionPreviewStore}
-        onBlockPointerDown={onBlockPointerDown}
-        page={page}
-        selectedBlockId={selectedBlockId}
-        selectedBlockIds={selectedBlockIds}
-        showBlockChrome={showBlockChrome}
-        showTextBlocks={showTextBlocks}
-        stageTool={stageTool}
-        stageSize={stageSize}
-        textLayoutStageSize={textLayoutStageSize}
-      />
-      <CommittedMaskLayer
-        imageDataUrl={imageDataUrl}
-        page={page}
-        retouchModel={retouchModel}
-        stageSize={stageSize}
-      />
-      <RetouchLiveLayer
-        retouchCursor={retouchCursor}
-        retouchOriginalImageDataUrl={retouchOriginalImageDataUrl}
-        stageSize={stageSize}
-      />
-      <StageMarqueeLayers
-        imageDataUrl={imageDataUrl}
-        interactionPreviewStore={interactionPreviewStore}
-        regionSelectionActive={regionSelectionActive}
-        regionSelectionRect={regionSelectionRect}
-        stageSize={stageSize}
-      />
-      <StageDragHud interactionPreviewStore={interactionPreviewStore} />
+      {hideEditingOverlays ? null : (
+        <>
+          <OverlayBlockLayer
+            blockPointerDisabled={blockPointerDisabled}
+            imageDataUrl={imageDataUrl}
+            interactionPreviewStore={interactionPreviewStore}
+            onBlockPointerDown={onBlockPointerDown}
+            page={page}
+            selectedBlockId={selectedBlockId}
+            selectedBlockIds={selectedBlockIds}
+            showBlockChrome={showBlockChrome}
+            showTextBlocks={showTextBlocks}
+            stageTool={stageTool}
+            stageSize={stageSize}
+            textLayoutStageSize={textLayoutStageSize}
+          />
+          <CommittedMaskLayer
+            imageDataUrl={imageDataUrl}
+            page={page}
+            retouchModel={retouchModel}
+            stageSize={stageSize}
+          />
+          <RetouchLiveLayer
+            retouchCursor={retouchCursor}
+            retouchOriginalImageDataUrl={retouchOriginalImageDataUrl}
+            stageSize={stageSize}
+          />
+          <StageMarqueeLayers
+            imageDataUrl={imageDataUrl}
+            interactionPreviewStore={interactionPreviewStore}
+            regionSelectionActive={regionSelectionActive}
+            regionSelectionRect={regionSelectionRect}
+            stageSize={stageSize}
+          />
+          <StageDragHud interactionPreviewStore={interactionPreviewStore} />
+        </>
+      )}
     </>
   );
 }

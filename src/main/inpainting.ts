@@ -5,7 +5,7 @@ import { clamp } from "../shared/geometry";
 import type { FluxBackend } from "../shared/settingsTypes";
 import type {
   InpaintingMaskStroke,
-  InpaintingPoint,
+  InpaintingRetouchGeometry,
 } from "../shared/inpaintingTypes";
 import type { MangaPage } from "../shared/libraryTypes";
 import { tMain } from "./i18n";
@@ -45,6 +45,8 @@ import { expandRect, rectHasMask } from "./inpainting/maskGeometry";
 import { resolvePatternInpaintWindows } from "./inpainting/patternWindowPolicy";
 import {
   applyRetouchCircle,
+  applyRetouchEllipse,
+  applyRetouchRectangle,
   buildMaskFromStrokes,
   interpolatePoints,
   maskComponents,
@@ -268,17 +270,11 @@ export async function applyInpaintingRetouch(
   page: MangaPage,
   options: {
     mode: "paint" | "restore";
-    points: InpaintingPoint[];
-    radiusPx: number;
+    geometry: InpaintingRetouchGeometry;
     color?: string;
     decodeFallback?: ImageDecodeFallback;
   },
 ): Promise<MangaPage> {
-  const points = sanitizePoints(options.points, page.width, page.height);
-  if (points.length === 0) {
-    return page;
-  }
-
   const baseImage = await loadPageImage(
     page.inpaintedImagePath ?? page.imagePath,
     options.decodeFallback,
@@ -298,30 +294,14 @@ export async function applyInpaintingRetouch(
 
   const bitmap = Buffer.from(baseImage.toBitmap());
   const originalBitmap = Buffer.from(originalImage.toBitmap());
-  const radius = clamp(Math.round(options.radiusPx), 2, 180);
-  const paintColor =
-    options.mode === "paint" ? parseHexColor(options.color) : null;
-
-  for (let index = 0; index < points.length; index += 1) {
-    const previous = points[index - 1] ?? points[index];
-    const current = points[index];
-    for (const point of interpolatePoints(
-      previous,
-      current,
-      Math.max(1, radius * 0.35),
-    )) {
-      applyRetouchCircle(
-        bitmap,
-        originalBitmap,
-        size.width,
-        size.height,
-        point,
-        radius,
-        options.mode,
-        paintColor,
-      );
-    }
-  }
+  const changed = applyRetouchGeometry(
+    bitmap,
+    originalBitmap,
+    size.width,
+    size.height,
+    options,
+  );
+  if (!changed) return page;
 
   const outputImage = nativeImage.createFromBitmap(bitmap, {
     width: size.width,
@@ -341,6 +321,83 @@ export async function applyInpaintingRetouch(
     inpaintedImagePath: outputPath,
     updatedAt: new Date().toISOString(),
   };
+}
+
+function applyRetouchGeometry(
+  bitmap: Buffer,
+  originalBitmap: Buffer,
+  width: number,
+  height: number,
+  options: {
+    color?: string;
+    geometry: InpaintingRetouchGeometry;
+    mode: "paint" | "restore";
+  },
+): boolean {
+  const paintColor =
+    options.mode === "paint" ? parseHexColor(options.color) : null;
+  if (options.geometry.kind === "stroke") {
+    const points = sanitizePoints(options.geometry.points, width, height);
+    if (points.length === 0) return false;
+    applyRetouchStroke(
+      bitmap,
+      originalBitmap,
+      width,
+      height,
+      points,
+      options.geometry.radiusPx,
+      options.mode,
+      paintColor,
+    );
+    return true;
+  }
+  const applyShape =
+    options.geometry.kind === "rectangle"
+      ? applyRetouchRectangle
+      : applyRetouchEllipse;
+  applyShape(
+    bitmap,
+    originalBitmap,
+    width,
+    height,
+    options.geometry,
+    options.mode,
+    paintColor,
+  );
+  return true;
+}
+
+function applyRetouchStroke(
+  bitmap: Buffer,
+  originalBitmap: Buffer,
+  width: number,
+  height: number,
+  points: Array<{ x: number; y: number }>,
+  radiusPx: number,
+  mode: "paint" | "restore",
+  paintColor: ReturnType<typeof parseHexColor> | null,
+): void {
+  const radius = clamp(Math.round(radiusPx), 2, 180);
+  for (let index = 0; index < points.length; index += 1) {
+    const previous = points[index - 1] ?? points[index];
+    const current = points[index];
+    for (const point of interpolatePoints(
+      previous,
+      current,
+      Math.max(1, radius * 0.35),
+    )) {
+      applyRetouchCircle(
+        bitmap,
+        originalBitmap,
+        width,
+        height,
+        point,
+        radius,
+        mode,
+        paintColor,
+      );
+    }
+  }
 }
 
 export async function sampleImageColor(

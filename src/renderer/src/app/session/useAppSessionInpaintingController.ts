@@ -196,7 +196,7 @@ function usePointerController(
   );
   return useWorkspacePointerHandlers({
     appendRetouchPoint: retouch.appendRetouchPoint,
-    applyRetouchPoints: retouch.applyRetouchPoints,
+    applyRetouchOperation: retouch.applyRetouchOperation,
     blockFormatDefaults,
     currentChapter: core.currentChapter,
     imageRef: core.imageRef,
@@ -205,7 +205,8 @@ function usePointerController(
     inpaintingRetouchDrawingRef: retouch.inpaintingRetouchDrawingRef,
     inpaintingRetouchPointsRef: retouch.inpaintingRetouchPointsRef,
     inpaintingTool: uiState.inpaintingTool,
-    inpaintingToolActive: derivedState.inpaintingToolActive,
+    inpaintingToolActive:
+      derivedState.inpaintingToolActive && !derivedState.showingOriginalPeek,
     jobActive:
       derivedState.jobActive ||
       inpaintingActions.actionBusy ||

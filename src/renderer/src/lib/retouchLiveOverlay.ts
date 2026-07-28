@@ -1,19 +1,27 @@
 import type { RetouchCanvasContext } from "./retouchCanvasContext";
-import { resolveRetouchCanvasBackingSize } from "./retouchLiveGeometry";
-
-export type RetouchLivePoint = { x: number; y: number };
-
-export type RetouchLiveGeometry = {
-  displayHeight: number;
-  displayWidth: number;
-  imageHeight: number;
-  imageWidth: number;
-};
+import type {
+  RetouchLiveGeometry,
+  RetouchLivePoint,
+} from "./retouchLiveGeometry";
+import {
+  clearPreviewCanvas,
+  drawEraserSegment,
+  findCanvas,
+  getCanvasContext,
+  prepareCanvas,
+  renderShapePreview,
+  type ShapePreviewFrame,
+} from "./retouchLivePreviewDrawing";
 
 export type RetouchLiveStyle = {
   color: string;
   mode: "brush" | "eraser" | "mask";
   radiusPx: number;
+};
+
+export type RetouchLiveShapeStyle = {
+  color: string;
+  kind: "rectangle" | "ellipse";
 };
 
 type CursorFrame = {
@@ -22,12 +30,15 @@ type CursorFrame = {
   radiusPx: number;
 };
 
-type PreviewFrame = {
+type StrokePreviewFrame = {
+  kind: "stroke";
   geometry: RetouchLiveGeometry;
   lastDrawnPoint: RetouchLivePoint | null;
   pendingPoints: RetouchLivePoint[];
   style: RetouchLiveStyle;
 };
+
+type PreviewFrame = StrokePreviewFrame | ShapePreviewFrame;
 
 type RetouchLiveState = {
   clearTimer: number | null;
@@ -73,6 +84,7 @@ export function beginRetouchStroke(
   cancelPreviewClear(state);
   clearPreviewCanvas(stage);
   state.previewFrame = {
+    kind: "stroke",
     geometry,
     lastDrawnPoint: null,
     pendingPoints: [point],
@@ -88,9 +100,43 @@ export function appendRetouchStrokePoint(
 ): void {
   const state = getLiveState(stage);
   const preview = state.previewFrame;
-  if (!preview) return;
+  if (!preview || preview.kind !== "stroke") return;
   preview.geometry = geometry;
   preview.pendingPoints.push(point);
+  scheduleLiveFrame(stage, state);
+}
+
+export function beginRetouchShape(
+  stage: HTMLElement,
+  start: RetouchLivePoint,
+  geometry: RetouchLiveGeometry,
+  style: RetouchLiveShapeStyle,
+): void {
+  const state = getLiveState(stage);
+  cancelPreviewClear(state);
+  clearPreviewCanvas(stage);
+  state.previewFrame = {
+    color: style.color,
+    current: start,
+    dirty: true,
+    geometry,
+    kind: style.kind,
+    start,
+  };
+  scheduleLiveFrame(stage, state);
+}
+
+export function updateRetouchShape(
+  stage: HTMLElement,
+  current: RetouchLivePoint,
+  geometry: RetouchLiveGeometry,
+): void {
+  const state = getLiveState(stage);
+  const preview = state.previewFrame;
+  if (!preview || preview.kind === "stroke") return;
+  preview.current = current;
+  preview.dirty = true;
+  preview.geometry = geometry;
   scheduleLiveFrame(stage, state);
 }
 
@@ -153,8 +199,11 @@ function flushLiveFrame(stage: HTMLElement, state: RetouchLiveState): void {
   } else if (state.cursorFrame) {
     renderCursor(stage, state.cursorFrame);
   }
-  if (state.previewFrame?.pendingPoints.length) {
-    renderPendingPreview(stage, state.previewFrame);
+  const preview = state.previewFrame;
+  if (preview?.kind === "stroke" && preview.pendingPoints.length) {
+    renderPendingPreview(stage, preview);
+  } else if (preview?.kind !== "stroke" && preview?.dirty) {
+    renderShapePreview(stage, preview);
   }
 }
 
@@ -175,7 +224,10 @@ function renderCursor(stage: HTMLElement, frame: CursorFrame): void {
   cursor.style.opacity = "1";
 }
 
-function renderPendingPreview(stage: HTMLElement, preview: PreviewFrame): void {
+function renderPendingPreview(
+  stage: HTMLElement,
+  preview: StrokePreviewFrame,
+): void {
   const canvas = findCanvas(stage);
   if (!canvas) {
     preview.pendingPoints.length = 0;
@@ -203,26 +255,6 @@ function renderPendingPreview(stage: HTMLElement, preview: PreviewFrame): void {
     );
     preview.lastDrawnPoint = point;
   }
-}
-
-function prepareCanvas(
-  canvas: HTMLCanvasElement,
-  context: RetouchCanvasContext,
-  geometry: RetouchLiveGeometry,
-): boolean {
-  const backingSize = resolveRetouchCanvasBackingSize(
-    geometry.displayWidth,
-    geometry.displayHeight,
-  );
-  const resized =
-    canvas.width !== backingSize.width || canvas.height !== backingSize.height;
-  if (resized) {
-    canvas.width = backingSize.width;
-    canvas.height = backingSize.height;
-  }
-  const ratio = backingSize.pixelRatio;
-  context.setTransform(ratio, 0, 0, ratio, 0, 0);
-  return resized;
 }
 
 function drawPreviewSegment(
@@ -264,106 +296,6 @@ function drawPreviewSegment(
   context.restore();
 }
 
-function drawEraserSegment(
-  stage: HTMLElement,
-  context: RetouchCanvasContext,
-  from: RetouchLivePoint,
-  to: RetouchLivePoint,
-  radius: number,
-  geometry: RetouchLiveGeometry,
-): void {
-  const source = findOriginalSource(stage);
-  context.save();
-  traceCapsule(context, from, to, radius);
-  context.clip();
-  if (source?.complete && source.naturalWidth > 0 && source.naturalHeight > 0) {
-    const bounds = resolveSegmentBounds(from, to, radius, geometry);
-    const sourceX = (bounds.x / geometry.displayWidth) * source.naturalWidth;
-    const sourceY = (bounds.y / geometry.displayHeight) * source.naturalHeight;
-    const sourceWidth =
-      (bounds.width / geometry.displayWidth) * source.naturalWidth;
-    const sourceHeight =
-      (bounds.height / geometry.displayHeight) * source.naturalHeight;
-    context.drawImage(
-      source,
-      sourceX,
-      sourceY,
-      sourceWidth,
-      sourceHeight,
-      bounds.x,
-      bounds.y,
-      bounds.width,
-      bounds.height,
-    );
-  } else {
-    context.fillStyle = "rgba(112, 183, 255, 0.24)";
-    context.fillRect(0, 0, geometry.displayWidth, geometry.displayHeight);
-  }
-  context.restore();
-  context.save();
-  context.globalAlpha = 0.78;
-  context.lineCap = "round";
-  context.lineJoin = "round";
-  context.lineWidth = radius * 2;
-  context.strokeStyle = "rgba(112, 183, 255, 0.9)";
-  context.setLineDash([8, 5]);
-  context.beginPath();
-  context.moveTo(from.x, from.y);
-  context.lineTo(to.x, to.y);
-  context.stroke();
-  context.restore();
-}
-
-function traceCapsule(
-  context: RetouchCanvasContext,
-  from: RetouchLivePoint,
-  to: RetouchLivePoint,
-  radius: number,
-): void {
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) {
-    context.beginPath();
-    context.arc(to.x, to.y, radius, 0, Math.PI * 2);
-    context.closePath();
-    return;
-  }
-  const angle = Math.atan2(dy, dx);
-  const normalX = -Math.sin(angle) * radius;
-  const normalY = Math.cos(angle) * radius;
-  context.beginPath();
-  context.moveTo(from.x + normalX, from.y + normalY);
-  context.lineTo(to.x + normalX, to.y + normalY);
-  context.arc(to.x, to.y, radius, angle + Math.PI / 2, angle - Math.PI / 2);
-  context.lineTo(from.x - normalX, from.y - normalY);
-  context.arc(from.x, from.y, radius, angle - Math.PI / 2, angle + Math.PI / 2);
-  context.closePath();
-}
-
-function resolveSegmentBounds(
-  from: RetouchLivePoint,
-  to: RetouchLivePoint,
-  radius: number,
-  geometry: RetouchLiveGeometry,
-): { height: number; width: number; x: number; y: number } {
-  const x = Math.max(0, Math.min(from.x, to.x) - radius - 1);
-  const y = Math.max(0, Math.min(from.y, to.y) - radius - 1);
-  const right = Math.min(
-    geometry.displayWidth,
-    Math.max(from.x, to.x) + radius + 1,
-  );
-  const bottom = Math.min(
-    geometry.displayHeight,
-    Math.max(from.y, to.y) + radius + 1,
-  );
-  return {
-    height: Math.max(1, bottom - y),
-    width: Math.max(1, right - x),
-    x,
-    y,
-  };
-}
-
 function pointsMatch(
   first: RetouchLivePoint,
   second: RetouchLivePoint,
@@ -386,38 +318,8 @@ function cancelPreviewClear(state: RetouchLiveState): void {
   state.clearTimer = null;
 }
 
-function clearPreviewCanvas(stage: HTMLElement): void {
-  const canvas = findCanvas(stage);
-  if (!canvas) return;
-  const context = getCanvasContext(canvas);
-  context?.clearRect(0, 0, canvas.width, canvas.height);
-  canvas.hidden = true;
-}
-
-function getCanvasContext(
-  canvas: HTMLCanvasElement,
-): RetouchCanvasContext | null {
-  try {
-    return canvas.getContext("2d");
-  } catch (error) {
-    // Canvas is optional in non-visual test environments.
-    void error;
-    return null;
-  }
-}
-
-function findCanvas(stage: HTMLElement): HTMLCanvasElement | null {
-  return stage.querySelector<HTMLCanvasElement>("[data-retouch-live-canvas]");
-}
-
 function findCursor(stage: HTMLElement): HTMLElement | null {
   return stage.querySelector<HTMLElement>("[data-retouch-live-cursor]");
-}
-
-function findOriginalSource(stage: HTMLElement): HTMLImageElement | null {
-  return stage.querySelector<HTMLImageElement>(
-    "[data-retouch-original-source]",
-  );
 }
 
 function hideRetouchCursorElement(stage: HTMLElement): void {

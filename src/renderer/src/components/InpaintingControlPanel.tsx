@@ -2,7 +2,11 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import type { JobState } from "../../../shared/jobTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
-import { isSizableRetouchTool, type RetouchTool } from "../lib/stageTool";
+import {
+  isPaintColorRetouchTool,
+  isSizableRetouchTool,
+  type RetouchTool,
+} from "../lib/stageTool";
 import { InpaintingProgressCard } from "./inpaintingPanel/InpaintingProgressCard";
 import { RetouchInpaintingStep } from "./inpaintingPanel/RetouchInpaintingStep";
 
@@ -85,6 +89,7 @@ function RetouchInspectorBody({
       activeToolLabel={t(`inpainting.tools.${props.tool}`)}
       brushColor={props.brushColor}
       brushRadius={props.brushRadius}
+      colorTool={isPaintColorRetouchTool(props.tool)}
       hasSelectedPage={props.hasSelectedPage}
       jobActive={props.jobActive}
       maskStrokeCount={props.maskStrokeCount}

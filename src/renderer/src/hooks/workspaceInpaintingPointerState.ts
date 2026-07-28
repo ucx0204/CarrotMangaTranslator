@@ -5,11 +5,18 @@ import type { PointerRect } from "./workspacePointerGeometry";
 
 export type ImagePoint = { x: number; y: number };
 export type RetouchDrawTool = "brush" | "eraser" | "mask";
+export type RetouchShapeTool = "rectangle" | "ellipse";
 
 export function isRetouchDrawTool(
   tool: InpaintingTool,
 ): tool is RetouchDrawTool {
   return tool === "brush" || tool === "eraser" || tool === "mask";
+}
+
+export function isRetouchShapeTool(
+  tool: InpaintingTool,
+): tool is RetouchShapeTool {
+  return tool === "rectangle" || tool === "ellipse";
 }
 
 export function resolveImagePixelPoint(

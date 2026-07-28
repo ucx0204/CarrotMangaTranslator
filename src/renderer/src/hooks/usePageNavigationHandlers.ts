@@ -163,6 +163,10 @@ function useWorkspaceWheelHandler(
 ): (event: WheelEvent) => void {
   return useCallback(
     (event) => {
+      // User-configured wheel shortcuts are resolved in capture phase.
+      if (event.defaultPrevented) {
+        return;
+      }
       // Ctrl+wheel is the workspace zoom gesture, never page navigation.
       if (event.ctrlKey) {
         return;

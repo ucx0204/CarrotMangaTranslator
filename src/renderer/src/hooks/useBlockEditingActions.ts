@@ -23,6 +23,7 @@ import {
   useApplyBlockBackgroundOpacityAction,
   type BlockBackgroundApplyScope,
 } from "./useApplyBlockBackgroundOpacityAction";
+import { useNudgeSelectedBlocksAction } from "./useNudgeSelectedBlocksAction";
 
 type UseBlockEditingActionsOptions = {
   currentChapter: ChapterSnapshot | null;
@@ -48,6 +49,7 @@ type BlockEditingActions = {
   ) => void;
   deleteSelectedBlock: () => void;
   duplicateSelectedBlock: () => void;
+  nudgeSelectedBlocks: (deltaPx: { x: number; y: number }) => void;
   toggleBlockInpaintExcluded: (blockId: string) => void;
   updateSelectedBlock: (patch: Partial<TranslationBlock>) => void;
 };
@@ -65,6 +67,7 @@ export function useBlockEditingActions(
   const applyFormatToScope = useApplyFormatToScopeAction(options);
   const deleteSelectedBlock = useDeleteSelectedBlockAction(options);
   const duplicateSelectedBlock = useDuplicateSelectedBlockAction(options);
+  const nudgeSelectedBlocks = useNudgeSelectedBlocksAction(options);
 
   return {
     adjustSelectedBlockFontSize,
@@ -72,6 +75,7 @@ export function useBlockEditingActions(
     applyFormatToScope,
     deleteSelectedBlock,
     duplicateSelectedBlock,
+    nudgeSelectedBlocks,
     toggleBlockInpaintExcluded,
     updateSelectedBlock,
   };

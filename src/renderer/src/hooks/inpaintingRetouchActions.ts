@@ -5,7 +5,6 @@ import { inpaintingGateway as mangaGateway } from "../api/inpaintingGateway";
 import { saveDirtyChanges } from "./inpaintingActionTypes";
 import type {
   InpaintingRetouchResult,
-  RetouchApplyTool,
   RetouchHistoryEntry,
   RetouchPoint,
   RetouchStackSetter,
@@ -29,7 +28,7 @@ import {
 type RetouchActions = Pick<
   InpaintingRetouchResult,
   | "appendRetouchPoint"
-  | "applyRetouchPoints"
+  | "applyRetouchOperation"
   | "clearRetouchHistory"
   | "redoRetouch"
   | "undoRetouch"
@@ -55,7 +54,7 @@ export function useInpaintingRetouchActions({
   const saveChapterWithInpaintPath = useSaveChapterWithInpaintPath(options);
   return {
     appendRetouchPoint: useAppendRetouchPointAction(options, refs),
-    applyRetouchPoints: useApplyRetouchPointsAction({
+    applyRetouchOperation: useApplyRetouchOperationAction({
       options,
       refs,
       state,
@@ -154,7 +153,7 @@ function useSaveChapterWithInpaintPath({
   );
 }
 
-function useApplyRetouchPointsAction({
+function useApplyRetouchOperationAction({
   options,
   refs,
   state,
@@ -162,15 +161,20 @@ function useApplyRetouchPointsAction({
   options: UseInpaintingRetouchOptions;
   refs: InpaintingRetouchRefs;
   state: InpaintingRetouchState;
-}): RetouchActions["applyRetouchPoints"] {
+}): RetouchActions["applyRetouchOperation"] {
   const { t } = useTranslation("renderer");
   const { currentChapter, jobActive, selectedPage } = options;
   return useCallback(
-    async (tool: RetouchApplyTool, points: RetouchPoint[]) => {
+    async (operation) => {
       if (!currentChapter || !selectedPage) {
         return;
       }
-      if (points.length === 0 || jobActive || refs.retouchBusyRef.current) {
+      if (
+        (operation.geometry.kind === "stroke" &&
+          operation.geometry.points.length === 0) ||
+        jobActive ||
+        refs.retouchBusyRef.current
+      ) {
         return;
       }
       setRetouchBusyState(refs, state.setRetouchBusy, true);
@@ -185,8 +189,7 @@ function useApplyRetouchPointsAction({
         await saveDirtyChanges(options.dirty, options.saveNow);
         const result = await applyRetouchRequest(
           options,
-          tool,
-          points,
+          operation,
           retainedInpaintedArtifactPaths,
         );
         const afterPath = findPageInpaintPath(result.chapter, selectedPage.id);

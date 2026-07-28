@@ -56,6 +56,10 @@
   cursor: none;
 }
 
+.image-stage.retouch-shape-tool-enabled {
+  cursor: crosshair;
+}
+
 .retouch-cursor {
   position: absolute;
   left: 0;

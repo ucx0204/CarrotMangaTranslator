@@ -21,6 +21,15 @@ type ComboEventLike = {
   shiftKey: boolean;
 };
 
+type WheelComboEventLike = {
+  deltaX: number;
+  deltaY: number;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  altKey: boolean;
+  shiftKey: boolean;
+};
+
 const MODIFIER_KEYS = new Set([
   "Control",
   "Shift",
@@ -38,13 +47,7 @@ export function comboFromEvent(event: ComboEventLike): string | null {
     return null;
   }
 
-  const parts: string[] = [];
-  if (event.ctrlKey || event.metaKey) {
-    parts.push("ctrl");
-  }
-  if (event.altKey) {
-    parts.push("alt");
-  }
+  const parts = modifierTokens(event, false);
 
   const isSingleChar = key.length === 1;
   const isAlnum = isSingleChar && /^[a-z0-9]$/i.test(key);
@@ -62,6 +65,48 @@ export function comboFromEvent(event: ComboEventLike): string | null {
 
   parts.push(main);
   return parts.join("+");
+}
+
+/**
+ * Normalizes a vertical wheel gesture into the same canonical combo namespace
+ * as keyboard shortcuts. Up/down describe the user's wheel direction, while
+ * Ctrl and Meta (Cmd) share the platform-neutral `ctrl` token.
+ */
+export function comboFromWheelEvent(event: WheelComboEventLike): string | null {
+  const delta = resolveWheelGestureDelta(event);
+  if (!delta) {
+    return null;
+  }
+  return [
+    ...modifierTokens(event, true),
+    delta < 0 ? "wheelup" : "wheeldown",
+  ].join("+");
+}
+
+function resolveWheelGestureDelta(event: WheelComboEventLike): number {
+  if (event.deltaY && Math.abs(event.deltaY) >= Math.abs(event.deltaX)) {
+    return event.deltaY;
+  }
+  // Chromium can translate Shift+physical-wheel into horizontal delta. Treat
+  // that platform form as the same Shift+wheel gesture.
+  return event.shiftKey ? event.deltaX : 0;
+}
+
+function modifierTokens(
+  event: Pick<ComboEventLike, "ctrlKey" | "metaKey" | "altKey" | "shiftKey">,
+  includeShift: boolean,
+): string[] {
+  const parts: string[] = [];
+  if (event.ctrlKey || event.metaKey) {
+    parts.push("ctrl");
+  }
+  if (event.altKey) {
+    parts.push("alt");
+  }
+  if (includeShift && event.shiftKey) {
+    parts.push("shift");
+  }
+  return parts;
 }
 
 function normalizeKeyboardKey(event: ComboEventLike): string {
@@ -84,6 +129,8 @@ const NAMED_KEY_LABELS: Record<string, string> = {
   escape: "Esc",
   numpadadd: "+",
   tab: "Tab",
+  wheeldown: "Wheel ↓",
+  wheelup: "Wheel ↑",
   " ": "Space",
 };
 

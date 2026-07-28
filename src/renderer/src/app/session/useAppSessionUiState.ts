@@ -143,7 +143,9 @@ function resolveInpaintingTool(tool: StageTool): InpaintingTool {
 function isManualInpaintingTool(
   tool: StageTool,
 ): tool is Exclude<InpaintingTool, "none"> {
-  return ["mask", "brush", "eraser", "picker"].includes(tool);
+  return ["mask", "brush", "rectangle", "ellipse", "eraser", "picker"].includes(
+    tool,
+  );
 }
 
 function useTranslateModalUiState() {

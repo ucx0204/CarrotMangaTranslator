@@ -18,10 +18,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { InpaintingMaskStroke } from "../src/shared/inpaintingTypes";
 import type { MangaPage } from "../src/shared/libraryTypes";
 import { useWorkspaceInpaintingPointerHandlers } from "../src/renderer/src/hooks/useWorkspaceInpaintingPointerHandlers";
+import type { InpaintingTool } from "../src/renderer/src/inpainting/inpaintingTypes";
 
 type RetouchHarnessApi = {
   appendRetouchPoint: ReturnType<typeof vi.fn>;
-  applyRetouchPoints: ReturnType<typeof vi.fn>;
+  applyRetouchOperation: ReturnType<typeof vi.fn>;
   getBounds: ReturnType<typeof vi.fn>;
   getRenderCount: () => number;
 };
@@ -80,22 +81,57 @@ describe("workspace retouch pointer performance", () => {
     expect(api.current.getRenderCount()).toBe(initialRenderCount);
     expect(api.current.getBounds).toHaveBeenCalledTimes(1);
     expect(api.current.appendRetouchPoint).toHaveBeenCalledTimes(5);
-    expect(api.current.applyRetouchPoints).toHaveBeenCalledTimes(1);
-    expect(api.current.applyRetouchPoints).toHaveBeenCalledWith("brush", [
-      { x: 100, y: 100 },
-      { x: 200, y: 200 },
-      { x: 300, y: 300 },
-      { x: 400, y: 400 },
-      { x: 500, y: 500 },
-    ]);
+    expect(api.current.applyRetouchOperation).toHaveBeenCalledTimes(1);
+    expect(api.current.applyRetouchOperation).toHaveBeenCalledWith({
+      geometry: {
+        kind: "stroke",
+        points: [
+          { x: 100, y: 100 },
+          { x: 200, y: 200 },
+          { x: 300, y: 300 },
+          { x: 400, y: 400 },
+          { x: 500, y: 500 },
+        ],
+        radiusPx: 28,
+      },
+      mode: "paint",
+    });
+    expect(frames.count()).toBe(0);
+  });
+
+  it("commits one reverse-drag rectangle operation without collecting stroke points", () => {
+    const frames = installAnimationFrameController();
+    const api = renderRetouchHarness("rectangle");
+    const stage = screen.getByTestId("retouch-stage");
+    const initialRenderCount = api.current.getRenderCount();
+
+    fireEvent.pointerDown(stage, { clientX: 80, clientY: 90, pointerId: 7 });
+    fireEvent.pointerMove(stage, { clientX: 40, clientY: 50, pointerId: 7 });
+    fireEvent.pointerUp(stage, { clientX: 20, clientY: 30, pointerId: 7 });
+
+    expect(api.current.getRenderCount()).toBe(initialRenderCount);
+    expect(api.current.getBounds).toHaveBeenCalledTimes(1);
+    expect(api.current.appendRetouchPoint).not.toHaveBeenCalled();
+    expect(api.current.applyRetouchOperation).toHaveBeenCalledOnce();
+    expect(api.current.applyRetouchOperation).toHaveBeenCalledWith({
+      geometry: {
+        kind: "rectangle",
+        start: { x: 800, y: 900 },
+        end: { x: 200, y: 300 },
+      },
+      mode: "paint",
+    });
     expect(frames.count()).toBe(0);
   });
 });
 
-function renderRetouchHarness(): React.MutableRefObject<RetouchHarnessApi> {
+function renderRetouchHarness(
+  tool: InpaintingTool = "brush",
+): React.MutableRefObject<RetouchHarnessApi> {
   const api = React.createRef<RetouchHarnessApi>();
   render(
     <RetouchHarness
+      tool={tool}
       onReady={(nextApi) => {
         api.current = nextApi;
       }}
@@ -109,8 +145,10 @@ function renderRetouchHarness(): React.MutableRefObject<RetouchHarnessApi> {
 
 function RetouchHarness({
   onReady,
+  tool,
 }: {
   onReady: (api: RetouchHarnessApi) => void;
+  tool: InpaintingTool;
 }): React.JSX.Element {
   const renderCountRef = useRef(0);
   renderCountRef.current += 1;
@@ -125,7 +163,7 @@ function RetouchHarness({
   const [, setMasks] = useState<Record<string, InpaintingMaskStroke[]>>({});
   const page = useMemo(makePage, []);
   const appendRetouchPoint = useMemo(() => vi.fn(), []);
-  const applyRetouchPoints = useMemo(() => vi.fn(async () => undefined), []);
+  const applyRetouchOperation = useMemo(() => vi.fn(async () => undefined), []);
   const getBounds = useMemo(() => vi.fn(() => makeDomRect()), []);
   const appendPoint = useCallback(
     (point: { x: number; y: number }) => {
@@ -139,13 +177,13 @@ function RetouchHarness({
   );
   const handlers = useWorkspaceInpaintingPointerHandlers({
     appendRetouchPoint: appendPoint,
-    applyRetouchPoints,
+    applyRetouchOperation,
     imageRef,
     inpaintingBrushRadius: 28,
     inpaintingPaintColor: "#ffffff",
     inpaintingRetouchDrawingRef: drawingRef,
     inpaintingRetouchPointsRef: pointsRef,
-    inpaintingTool: "brush",
+    inpaintingTool: tool,
     inpaintingToolActive: true,
     jobActive: false,
     lastInpaintingRetouchPointRef: lastPointRef,
@@ -165,11 +203,11 @@ function RetouchHarness({
     if (imageRef.current) imageRef.current.getBoundingClientRect = getBounds;
     onReady({
       appendRetouchPoint,
-      applyRetouchPoints,
+      applyRetouchOperation,
       getBounds,
       getRenderCount: () => renderCountRef.current,
     });
-  }, [appendRetouchPoint, applyRetouchPoints, getBounds, onReady]);
+  }, [appendRetouchPoint, applyRetouchOperation, getBounds, onReady]);
 
   return (
     <div

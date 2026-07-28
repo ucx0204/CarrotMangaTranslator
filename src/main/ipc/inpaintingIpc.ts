@@ -99,8 +99,7 @@ function registerInpaintingRetouchIpc(context: IpcContext): void {
       }
       const nextPage = await applyInpaintingRetouch(page, {
         mode: request.mode,
-        points: request.points,
-        radiusPx: request.radiusPx,
+        geometry: request.geometry,
         color: request.color,
         decodeFallback: context.decodeImage,
       });

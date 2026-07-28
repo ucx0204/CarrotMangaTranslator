@@ -1,7 +1,7 @@
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import { inpaintingGateway as mangaGateway } from "../api/inpaintingGateway";
 import type {
-  RetouchApplyTool,
+  RetouchApplyOperation,
   RetouchHistoryEntry,
   RetouchPoint,
   UseInpaintingRetouchOptions,
@@ -71,12 +71,10 @@ export function updateChapterInpaintPath(
 export async function applyRetouchRequest(
   {
     currentChapter,
-    inpaintingBrushRadius,
     inpaintingPaintColor,
     selectedPage,
   }: UseInpaintingRetouchOptions,
-  tool: RetouchApplyTool,
-  points: RetouchPoint[],
+  operation: RetouchApplyOperation,
   retainedInpaintedArtifactPaths: string[],
 ): ReturnType<typeof mangaGateway.applyInpaintingRetouch> {
   if (!currentChapter || !selectedPage) {
@@ -85,9 +83,8 @@ export async function applyRetouchRequest(
   return mangaGateway.applyInpaintingRetouch({
     chapterId: currentChapter.id,
     pageId: selectedPage.id,
-    mode: tool === "brush" ? "paint" : "restore",
-    points,
-    radiusPx: inpaintingBrushRadius,
+    mode: operation.mode,
+    geometry: operation.geometry,
     color: inpaintingPaintColor,
     retainedInpaintedArtifactPaths,
   });

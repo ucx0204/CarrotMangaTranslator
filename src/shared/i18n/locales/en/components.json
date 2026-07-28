@@ -247,6 +247,7 @@
     "text": "Text",
     "translatedText": "Translation",
     "blockColors": "Block colors",
+    "swapTextOutlineColors": "Swap text and outline colors",
     "display": {
       "title": "Editor display",
       "batchApply": "Batch apply",
@@ -528,6 +529,11 @@
       },
       "mask": { "label": "Mask", "title": "Mask brush" },
       "brush": { "label": "Brush", "title": "Retouch brush" },
+      "rectangle": {
+        "label": "Rectangle",
+        "title": "Cover with a filled rectangle"
+      },
+      "ellipse": { "label": "Ellipse", "title": "Cover with a filled ellipse" },
       "eraser": { "label": "Eraser", "title": "Erase retouch strokes" },
       "picker": { "label": "Pick color", "title": "Pick a canvas color" }
     }
@@ -850,6 +856,8 @@
     },
     "tools": {
       "brush": "Brush",
+      "rectangle": "Rectangle",
+      "ellipse": "Ellipse",
       "eraser": "Restore",
       "mask": "Mask brush",
       "none": "Select a tool",
@@ -1268,9 +1276,9 @@
       }
     },
     "shortcuts": {
-      "description": "Click an item, then press the desired key combination. Press Esc to cancel or Clear to unassign it.",
+      "description": "Click an item, then press the desired key combination. Zoom in/out also accept a wheel gesture with optional modifier keys. Press Esc to cancel or Clear to unassign it.",
       "changeAria": "Change shortcut for {{label}}",
-      "waiting": "Waiting for key input…",
+      "waiting": "Waiting for key or wheel input…",
       "unassigned": "Unassigned",
       "reset": "Default",
       "clear": "Clear",

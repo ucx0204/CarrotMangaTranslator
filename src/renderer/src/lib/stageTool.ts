@@ -10,6 +10,8 @@
  * - "curve": select/move blocks and edit an enabled curve text path.
  * - "mask": paint a mask which can be sent to the inpainting engine.
  * - "brush": paint directly on the current inpainting result.
+ * - "rectangle": drag a filled rectangle onto the current inpainting result.
+ * - "ellipse": drag a filled ellipse onto the current inpainting result.
  * - "eraser": restore the underlying image below retouch strokes.
  * - "picker": sample a brush colour from the canvas.
  */
@@ -21,6 +23,8 @@ export type WorkspaceTool =
   | "curve"
   | "mask"
   | "brush"
+  | "rectangle"
+  | "ellipse"
   | "eraser"
   | "picker";
 
@@ -29,13 +33,15 @@ export type StageTool = WorkspaceTool;
 
 export type RetouchTool = Extract<
   WorkspaceTool,
-  "mask" | "brush" | "eraser" | "picker"
+  "mask" | "brush" | "rectangle" | "ellipse" | "eraser" | "picker"
 >;
 
 export function isRetouchTool(tool: WorkspaceTool): tool is RetouchTool {
   return (
     tool === "mask" ||
     tool === "brush" ||
+    tool === "rectangle" ||
+    tool === "ellipse" ||
     tool === "eraser" ||
     tool === "picker"
   );
@@ -54,6 +60,12 @@ export function isBlockEditingTool(
 
 export function isSizableRetouchTool(
   tool: WorkspaceTool,
-): tool is Exclude<RetouchTool, "picker"> {
+): tool is Extract<RetouchTool, "mask" | "brush" | "eraser"> {
   return tool === "mask" || tool === "brush" || tool === "eraser";
+}
+
+export function isPaintColorRetouchTool(
+  tool: WorkspaceTool,
+): tool is Extract<RetouchTool, "brush" | "rectangle" | "ellipse"> {
+  return tool === "brush" || tool === "rectangle" || tool === "ellipse";
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   appendMaskStroke,
   isRetouchDrawTool,
+  isRetouchShapeTool,
   resolveImagePixelPoint,
 } from "../src/renderer/src/hooks/workspaceInpaintingPointerState";
 
@@ -12,6 +13,13 @@ describe("workspace inpainting pointer state", () => {
     expect(isRetouchDrawTool("mask")).toBe(true);
     expect(isRetouchDrawTool("picker")).toBe(false);
     expect(isRetouchDrawTool("none")).toBe(false);
+  });
+
+  it("recognizes filled retouch shape tools separately from strokes", () => {
+    expect(isRetouchShapeTool("rectangle")).toBe(true);
+    expect(isRetouchShapeTool("ellipse")).toBe(true);
+    expect(isRetouchShapeTool("brush")).toBe(false);
+    expect(isRetouchDrawTool("rectangle")).toBe(false);
   });
 
   it("resolves image pixel points and clamps outside the rendered image", () => {

@@ -8,6 +8,7 @@ export {
   MAX_FONT_WIDTH_SCALE,
   MIN_FONT_WIDTH_SCALE,
   applyEditableBlockBbox,
+  clamp,
   clampBbox,
   normalizeBlockType,
   normalizeRenderDirection,

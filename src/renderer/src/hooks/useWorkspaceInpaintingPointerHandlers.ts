@@ -1,6 +1,5 @@
 import {
   useCallback,
-  useEffect,
   useRef,
   type Dispatch,
   type MutableRefObject,
@@ -10,7 +9,10 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import type { InpaintingMaskStroke } from "../../../shared/inpaintingTypes";
+import type {
+  InpaintingMaskStroke,
+  InpaintingRetouchGeometry,
+} from "../../../shared/inpaintingTypes";
 import type { MangaPage } from "../../../shared/libraryTypes";
 import type { InpaintingTool } from "../inpainting/inpaintingTypes";
 import {
@@ -20,16 +22,28 @@ import {
   finishRetouchStroke,
   hideRetouchCursor,
   queueRetouchCursor,
-  type RetouchLiveGeometry,
 } from "../lib/retouchLiveOverlay";
 import { inpaintingGateway } from "../api/inpaintingGateway";
 import {
   appendMaskStroke,
   isRetouchDrawTool,
-  resolveImagePixelPoint,
+  isRetouchShapeTool,
   type ImagePoint,
   type RetouchDrawTool,
 } from "./workspaceInpaintingPointerState";
+import {
+  getCoalescedPointerSamples,
+  useWorkspaceImagePointResolver,
+  type ImagePointResolver,
+  type ResolvedImagePoint,
+} from "./useWorkspaceImagePointResolver";
+import {
+  commitWorkspaceRetouchShape,
+  startWorkspaceRetouchShape,
+  updateWorkspaceRetouchShape,
+  updateWorkspaceRetouchShapeFromPointer,
+  type RetouchShapeDrawing,
+} from "./workspaceRetouchShapeGesture";
 import {
   capturePointerSafely,
   releasePointerCaptureSafely,
@@ -37,10 +51,10 @@ import {
 
 type UseWorkspaceInpaintingPointerHandlersOptions = {
   appendRetouchPoint: (point: ImagePoint) => ImagePoint | null;
-  applyRetouchPoints: (
-    tool: "brush" | "eraser",
-    points: ImagePoint[],
-  ) => Promise<void>;
+  applyRetouchOperation: (operation: {
+    geometry: InpaintingRetouchGeometry;
+    mode: "paint" | "restore";
+  }) => Promise<void>;
   imageRef: RefObject<HTMLImageElement | null>;
   inpaintingBrushRadius: number;
   inpaintingPaintColor: string;
@@ -80,17 +94,24 @@ export function useWorkspaceInpaintingPointerHandlers(
   options: UseWorkspaceInpaintingPointerHandlersOptions,
 ): InpaintingPointerHandlers {
   const { t } = useTranslation("renderer");
-  const imagePointResolver = useImagePixelPoint(options);
+  const shapeDrawingRef = useRef<RetouchShapeDrawing | null>(null);
+  const imagePointResolver = useWorkspaceImagePointResolver(options);
   const onPointerDown = useInpaintingPointerDown(
     options,
     imagePointResolver.resolve,
+    shapeDrawingRef,
     t,
   );
   const onPointerMove = useInpaintingPointerMove(
     options,
     imagePointResolver.resolve,
+    shapeDrawingRef,
   );
-  const onPointerUp = useInpaintingPointerUp(options);
+  const onPointerUp = useInpaintingPointerUp(
+    options,
+    imagePointResolver.resolve,
+    shapeDrawingRef,
+  );
   const { inpaintingRetouchDrawingRef, stageRef } = options;
   const onPointerLeave = useCallback(() => {
     if (!inpaintingRetouchDrawingRef.current) {
@@ -98,7 +119,7 @@ export function useWorkspaceInpaintingPointerHandlers(
       imagePointResolver.invalidate();
     }
   }, [imagePointResolver, inpaintingRetouchDrawingRef, stageRef]);
-  const cancelDrawing = useCancelRetouchDrawing(options);
+  const cancelDrawing = useCancelRetouchDrawing(options, shapeDrawingRef);
 
   return {
     cancelDrawing,
@@ -109,85 +130,10 @@ export function useWorkspaceInpaintingPointerHandlers(
   };
 }
 
-type ResolvedImagePoint = {
-  geometry: RetouchLiveGeometry;
-  point: ImagePoint;
-};
-
-type ImagePointResolver = {
-  invalidate: () => void;
-  resolve: (
-    event: Pick<PointerEvent, "clientX" | "clientY">,
-    refreshBounds?: boolean,
-  ) => ResolvedImagePoint | null;
-};
-
-function useImagePixelPoint({
-  imageRef,
-  selectedPage,
-  stageRef,
-}: UseWorkspaceInpaintingPointerHandlersOptions): ImagePointResolver {
-  const boundsRef = useRef<DOMRect | null>(null);
-  const invalidate = useCallback(() => {
-    boundsRef.current = null;
-  }, []);
-  const selectedPageId = selectedPage?.id;
-
-  useEffect(() => {
-    invalidate();
-    const image = imageRef.current;
-    const observer =
-      image && typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(invalidate)
-        : null;
-    if (image) observer?.observe(image);
-    window.addEventListener("resize", invalidate);
-    document.addEventListener("scroll", invalidate, true);
-    return () => {
-      observer?.disconnect();
-      window.removeEventListener("resize", invalidate);
-      document.removeEventListener("scroll", invalidate, true);
-    };
-  }, [imageRef, invalidate, selectedPageId]);
-
-  const resolve = useCallback(
-    (
-      event: Pick<PointerEvent, "clientX" | "clientY">,
-      refreshBounds = false,
-    ) => {
-      const stage = stageRef.current;
-      const page = selectedPage;
-      if (!stage || !page) {
-        return null;
-      }
-      if (refreshBounds || !boundsRef.current) {
-        boundsRef.current =
-          imageRef.current?.getBoundingClientRect() ??
-          stage.getBoundingClientRect();
-      }
-      const rect = boundsRef.current;
-      const point = resolveImagePixelPoint(event, rect, page);
-      return point
-        ? {
-            geometry: {
-              displayHeight: rect.height,
-              displayWidth: rect.width,
-              imageHeight: page.height,
-              imageWidth: page.width,
-            },
-            point,
-          }
-        : null;
-    },
-    [imageRef, selectedPage, stageRef],
-  );
-
-  return { invalidate, resolve };
-}
-
 function useInpaintingPointerDown(
   options: UseWorkspaceInpaintingPointerHandlersOptions,
   getImagePixelPoint: ImagePointResolver["resolve"],
+  shapeDrawingRef: MutableRefObject<RetouchShapeDrawing | null>,
   t: TFunction<"renderer">,
 ): (event: PointerEvent) => boolean {
   return useCallback(
@@ -214,30 +160,49 @@ function useInpaintingPointerDown(
         sampleInpaintingColor(options, resolved.point, t);
       } else if (isRetouchDrawTool(options.inpaintingTool)) {
         startRetouchDrawing(options, resolved, event, options.inpaintingTool);
+      } else if (isRetouchShapeTool(options.inpaintingTool)) {
+        startWorkspaceRetouchShape(
+          {
+            color: options.inpaintingPaintColor,
+            drawingRef: options.inpaintingRetouchDrawingRef,
+            lastPointRef: options.lastInpaintingRetouchPointRef,
+            pointsRef: options.inpaintingRetouchPointsRef,
+            shapeDrawingRef,
+            stageRef: options.stageRef,
+          },
+          resolved,
+          event,
+          options.inpaintingTool,
+        );
       }
       return true;
     },
-    [getImagePixelPoint, options, t],
+    [getImagePixelPoint, options, shapeDrawingRef, t],
   );
 }
 
-function useCancelRetouchDrawing({
-  inpaintingRetouchDrawingRef,
-  inpaintingRetouchPointsRef,
-  lastInpaintingRetouchPointRef,
-  stageRef,
-}: UseWorkspaceInpaintingPointerHandlersOptions): () => boolean {
+function useCancelRetouchDrawing(
+  {
+    inpaintingRetouchDrawingRef,
+    inpaintingRetouchPointsRef,
+    lastInpaintingRetouchPointRef,
+    stageRef,
+  }: UseWorkspaceInpaintingPointerHandlersOptions,
+  shapeDrawingRef: MutableRefObject<RetouchShapeDrawing | null>,
+): () => boolean {
   return useCallback(() => {
     if (!inpaintingRetouchDrawingRef.current) return false;
     inpaintingRetouchDrawingRef.current = false;
     inpaintingRetouchPointsRef.current = [];
     lastInpaintingRetouchPointRef.current = null;
+    shapeDrawingRef.current = null;
     clearRetouchLiveOverlay(stageRef.current);
     return true;
   }, [
     inpaintingRetouchDrawingRef,
     inpaintingRetouchPointsRef,
     lastInpaintingRetouchPointRef,
+    shapeDrawingRef,
     stageRef,
   ]);
 }
@@ -245,11 +210,23 @@ function useCancelRetouchDrawing({
 function useInpaintingPointerMove(
   options: UseWorkspaceInpaintingPointerHandlersOptions,
   getImagePixelPoint: ImagePointResolver["resolve"],
+  shapeDrawingRef: MutableRefObject<RetouchShapeDrawing | null>,
 ): (event: PointerEvent) => boolean {
   return useCallback(
     (event) => {
       if (!options.inpaintingToolActive) {
         return false;
+      }
+      if (isRetouchShapeTool(options.inpaintingTool)) {
+        return updateWorkspaceRetouchShapeFromPointer(
+          {
+            jobActive: options.jobActive,
+            shapeDrawingRef,
+            stageRef: options.stageRef,
+          },
+          getImagePixelPoint,
+          event,
+        );
       }
       if (!isRetouchDrawTool(options.inpaintingTool)) {
         return true;
@@ -278,12 +255,14 @@ function useInpaintingPointerMove(
       }
       return true;
     },
-    [getImagePixelPoint, options],
+    [getImagePixelPoint, options, shapeDrawingRef],
   );
 }
 
 function useInpaintingPointerUp(
   options: UseWorkspaceInpaintingPointerHandlersOptions,
+  getImagePixelPoint: ImagePointResolver["resolve"],
+  shapeDrawingRef: MutableRefObject<RetouchShapeDrawing | null>,
 ): (event: PointerEvent) => boolean {
   return useCallback(
     (event) => {
@@ -293,13 +272,30 @@ function useInpaintingPointerUp(
       releasePointerCaptureSafely(options.stageRef.current, event.pointerId);
       options.inpaintingRetouchDrawingRef.current = false;
       options.lastInpaintingRetouchPointRef.current = null;
+      const shapeDrawing = shapeDrawingRef.current;
+      const shapeEnd = shapeDrawing ? getImagePixelPoint(event) : null;
+      if (shapeDrawing && shapeEnd && options.stageRef.current) {
+        updateWorkspaceRetouchShape(
+          options.stageRef.current,
+          shapeDrawing,
+          shapeEnd,
+        );
+      }
+      shapeDrawingRef.current = null;
       const points = options.inpaintingRetouchPointsRef.current;
       options.inpaintingRetouchPointsRef.current = [];
-      commitRetouchPoints(options, points);
+      if (shapeDrawing) {
+        commitWorkspaceRetouchShape(
+          options.applyRetouchOperation,
+          shapeDrawing,
+        );
+      } else {
+        commitRetouchPoints(options, points);
+      }
       finishRetouchStroke(options.stageRef.current);
       return true;
     },
-    [options],
+    [getImagePixelPoint, options, shapeDrawingRef],
   );
 }
 
@@ -357,21 +353,9 @@ function startRetouchDrawing(
   capturePointerSafely(stageRef.current, event.pointerId);
 }
 
-function getCoalescedPointerSamples(
-  event: PointerEvent,
-): Array<Pick<PointerEvent, "clientX" | "clientY">> {
-  const nativeEvent = event.nativeEvent;
-  const samples = nativeEvent.getCoalescedEvents?.() ?? [];
-  if (samples.length === 0) return [event];
-  const last = samples[samples.length - 1];
-  return last?.clientX === event.clientX && last.clientY === event.clientY
-    ? samples
-    : [...samples, event];
-}
-
 function commitRetouchPoints(
   {
-    applyRetouchPoints,
+    applyRetouchOperation,
     inpaintingBrushRadius,
     inpaintingTool,
     onPatternMaskChange,
@@ -382,7 +366,14 @@ function commitRetouchPoints(
   points: ImagePoint[],
 ): void {
   if (inpaintingTool === "brush" || inpaintingTool === "eraser") {
-    void applyRetouchPoints(inpaintingTool, points);
+    void applyRetouchOperation({
+      geometry: {
+        kind: "stroke",
+        points,
+        radiusPx: inpaintingBrushRadius,
+      },
+      mode: inpaintingTool === "brush" ? "paint" : "restore",
+    });
   } else if (inpaintingTool === "mask" && points.length > 0) {
     const pageId = selectedPageIdRef.current;
     if (pageId) {

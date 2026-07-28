@@ -21,6 +21,15 @@ export type RetouchCanvasContext = {
     destinationWidth: number,
     destinationHeight: number,
   ) => void;
+  ellipse: (
+    x: number,
+    y: number,
+    radiusX: number,
+    radiusY: number,
+    rotation: number,
+    startAngle: number,
+    endAngle: number,
+  ) => void;
   fill: () => void;
   fillRect: (x: number, y: number, width: number, height: number) => void;
   fillStyle: string | CanvasGradient | CanvasPattern;

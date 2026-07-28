@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   comboFromEvent,
+  comboFromWheelEvent,
   formatCombo,
 } from "../src/renderer/src/lib/shortcuts/comboFromEvent";
 import {
@@ -77,6 +78,55 @@ describe("comboFromEvent", () => {
   });
 });
 
+describe("comboFromWheelEvent", () => {
+  it("normalizes wheel direction and ordered modifier combinations", () => {
+    expect(
+      comboFromWheelEvent({
+        deltaX: 0,
+        deltaY: -120,
+        ctrlKey: false,
+        metaKey: false,
+        altKey: false,
+        shiftKey: false,
+      }),
+    ).toBe("wheelup");
+    expect(
+      comboFromWheelEvent({
+        deltaX: 0,
+        deltaY: 120,
+        ctrlKey: false,
+        metaKey: true,
+        altKey: true,
+        shiftKey: true,
+      }),
+    ).toBe("ctrl+alt+shift+wheeldown");
+  });
+
+  it("uses horizontal delta for Chromium's Shift+physical-wheel form", () => {
+    expect(
+      comboFromWheelEvent({
+        deltaX: -120,
+        deltaY: 0,
+        ctrlKey: false,
+        metaKey: false,
+        altKey: false,
+        shiftKey: true,
+      }),
+    ).toBe("shift+wheelup");
+  });
+
+  it("ignores zero and unmodified horizontal-dominant wheel movement", () => {
+    const base = {
+      ctrlKey: false,
+      metaKey: false,
+      altKey: false,
+      shiftKey: false,
+    };
+    expect(comboFromWheelEvent({ ...base, deltaX: 0, deltaY: 0 })).toBeNull();
+    expect(comboFromWheelEvent({ ...base, deltaX: 80, deltaY: 40 })).toBeNull();
+  });
+});
+
 describe("formatCombo", () => {
   it("renders display tokens", () => {
     expect(formatCombo("ctrl+shift+t", "Win32")).toEqual([
@@ -87,6 +137,11 @@ describe("formatCombo", () => {
     expect(formatCombo("?", "Win32")).toEqual(["?"]);
     expect(formatCombo("ctrl+,", "Win32")).toEqual(["Ctrl", ","]);
     expect(formatCombo("ctrl+numpadadd", "Win32")).toEqual(["Ctrl", "+"]);
+    expect(formatCombo("alt+wheelup", "Win32")).toEqual(["Alt", "Wheel ↑"]);
+    expect(formatCombo("shift+wheeldown", "Win32")).toEqual([
+      "Shift",
+      "Wheel ↓",
+    ]);
     expect(formatCombo("delete", "Win32")).toEqual(["Del"]);
     expect(formatCombo("", "Win32")).toEqual([]);
   });
@@ -110,6 +165,8 @@ describe("shortcut binding resolution", () => {
 
   it("accepts only canonical persisted shortcut combos", () => {
     expect(isCanonicalKeybindingCombo("ctrl+alt+shift+b")).toBe(true);
+    expect(isCanonicalKeybindingCombo("ctrl+wheelup")).toBe(true);
+    expect(isCanonicalKeybindingCombo("alt+wheeldown")).toBe(true);
     expect(isCanonicalKeybindingCombo("ctrl++")).toBe(true);
     expect(isCanonicalKeybindingCombo(" ")).toBe(true);
     expect(isCanonicalKeybindingCombo("")).toBe(true);
@@ -131,11 +188,13 @@ describe("shortcut binding resolution", () => {
         "delete-block": "",
         "open-settings": "shift+ctrl+k",
         "zoom-in": 42,
+        "zoom-out": "ALT+WHEELDOWN",
         "removed-action": "ctrl+r",
       }),
     ).toEqual({
       "toggle-block-chrome": "ctrl+shift+b",
       "delete-block": "",
+      "zoom-out": "alt+wheeldown",
     });
   });
 
@@ -167,11 +226,13 @@ describe("shortcut binding resolution", () => {
     expect(bindings.get("ctrl+y")).toBe("history-redo");
   });
 
-  it("binds workspace zoom to ctrl+= / ctrl+- / ctrl+0", () => {
+  it("binds workspace zoom to keyboard and ctrl-wheel defaults", () => {
     const bindings = resolveBindings({});
     expect(bindings.get("ctrl+=")).toBe("zoom-in");
     expect(bindings.get("ctrl+numpadadd")).toBe("zoom-in");
+    expect(bindings.get("ctrl+wheelup")).toBe("zoom-in");
     expect(bindings.get("ctrl+-")).toBe("zoom-out");
+    expect(bindings.get("ctrl+wheeldown")).toBe("zoom-out");
     expect(bindings.get("ctrl+0")).toBe("zoom-reset");
   });
 

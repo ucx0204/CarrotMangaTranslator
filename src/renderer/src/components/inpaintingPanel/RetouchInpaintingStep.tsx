@@ -9,6 +9,7 @@ type RetouchInpaintingStepProps = {
   activeToolLabel: string;
   brushColor: string;
   brushRadius: number;
+  colorTool: boolean;
   hasSelectedPage: boolean;
   jobActive: boolean;
   maskStrokeCount: number;
@@ -41,7 +42,9 @@ function RetouchToolsBar(props: RetouchInpaintingStepProps): React.JSX.Element {
   return (
     <div className="retouch-tools-bar">
       <RetouchToolsHeader {...props} />
-      {props.sizableTool ? <RetouchToolSettings {...props} /> : null}
+      {props.sizableTool || props.colorTool ? (
+        <RetouchToolSettings {...props} />
+      ) : null}
     </div>
   );
 }
@@ -57,8 +60,10 @@ function RetouchToolsHeader({
 }
 
 function RetouchToolSettings({
+  activeToolLabel,
   brushColor,
   brushRadius,
+  colorTool,
   jobActive,
   onBrushColorChange,
   onBrushRadiusChange,
@@ -67,32 +72,64 @@ function RetouchToolSettings({
   const { t } = useTranslation("components");
   return (
     <div className="retouch-tool-settings">
-      <label className="brush-size-control">
-        <span className="brush-size-label">{t("format.size")}</span>
-        <RangeInput
-          min={4}
-          max={90}
-          value={brushRadius}
-          disabled={jobActive}
-          onChange={(event) => onBrushRadiusChange(Number(event.target.value))}
-        />
-        <strong>{brushRadius}px</strong>
-      </label>
-      {tool === "brush" ? (
-        <label
-          className="brush-color-control"
-          title={t("inpainting.retouch.brushColor")}
-        >
-          <input
-            type="color"
-            aria-label={t("inpainting.retouch.brushColor")}
-            value={brushColor}
+      {tool === "brush" || tool === "eraser" || tool === "mask" ? (
+        <label className="brush-size-control">
+          <span className="brush-size-label">{t("format.size")}</span>
+          <RangeInput
+            min={4}
+            max={90}
+            value={brushRadius}
             disabled={jobActive}
-            onChange={(event) => onBrushColorChange(event.target.value)}
+            onChange={(event) =>
+              onBrushRadiusChange(Number(event.target.value))
+            }
           />
+          <strong>{brushRadius}px</strong>
         </label>
       ) : null}
+      {colorTool ? (
+        <RetouchColorControl
+          activeToolLabel={activeToolLabel}
+          brushColor={brushColor}
+          disabled={jobActive}
+          onBrushColorChange={onBrushColorChange}
+        />
+      ) : null}
     </div>
+  );
+}
+
+function RetouchColorControl({
+  activeToolLabel,
+  brushColor,
+  disabled,
+  onBrushColorChange,
+}: Pick<
+  RetouchInpaintingStepProps,
+  "activeToolLabel" | "brushColor" | "onBrushColorChange"
+> & {
+  disabled: boolean;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const accessibleLabel = `${activeToolLabel} ${t("format.color")}`;
+
+  return (
+    <label className="retouch-color-control">
+      <span className="retouch-color-label">{t("format.color")}</span>
+      <span className="retouch-color-picker">
+        <input
+          className="retouch-color-input"
+          type="color"
+          aria-label={accessibleLabel}
+          value={brushColor}
+          disabled={disabled}
+          onChange={(event) => onBrushColorChange(event.target.value)}
+        />
+        <span className="retouch-color-details">
+          <code>{brushColor.toUpperCase()}</code>
+        </span>
+      </span>
+    </label>
   );
 }
 

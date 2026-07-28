@@ -35,7 +35,7 @@ export function AppWorkspace(props: AppWorkspaceProps): React.JSX.Element {
         style={zoomStyle.style}
         tabIndex={0}
         aria-label={t("workspace.readingArea")}
-        onMouseDown={() => workspacePanelRef.current?.focus()}
+        onPointerDownCapture={() => workspacePanelRef.current?.focus()}
       >
         <WorkspaceContent {...stableProps} />
         <InstallProgressOverlay

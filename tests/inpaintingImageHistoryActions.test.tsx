@@ -127,14 +127,18 @@ describe("manual retouch image history", () => {
       { x: 30, y: 40 },
     ];
 
-    await act(() => result.current.applyRetouchPoints("brush", points));
+    await act(() =>
+      result.current.applyRetouchOperation({
+        geometry: { kind: "stroke", points, radiusPx: 32 },
+        mode: "paint",
+      }),
+    );
 
     expect(applyInpaintingRetouch).toHaveBeenCalledWith({
       chapterId: "chapter-1",
       pageId: "page-1",
       mode: "paint",
-      points,
-      radiusPx: 32,
+      geometry: { kind: "stroke", points, radiusPx: 32 },
       color: "#ffcc00",
       retainedInpaintedArtifactPaths: ["before.png"],
     });

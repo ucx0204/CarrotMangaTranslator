@@ -418,7 +418,7 @@ function WorkspacePointerHarness({
   const block = page.blocks[0];
   const handlers = useWorkspacePointerHandlers({
     appendRetouchPoint: () => null,
-    applyRetouchPoints: async () => undefined,
+    applyRetouchOperation: async () => undefined,
     currentChapter: makeChapter(page),
     imageRef,
     inpaintingBrushRadius: 28,

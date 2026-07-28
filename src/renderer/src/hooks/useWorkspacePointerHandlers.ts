@@ -9,7 +9,10 @@ import {
   type SetStateAction,
 } from "react";
 import type { BlockFormatDefaults } from "../../../shared/blockFormat";
-import type { InpaintingMaskStroke } from "../../../shared/inpaintingTypes";
+import type {
+  InpaintingMaskStroke,
+  InpaintingRetouchGeometry,
+} from "../../../shared/inpaintingTypes";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import type { InpaintingTool } from "../inpainting/inpaintingTypes";
@@ -34,10 +37,10 @@ type UseWorkspacePointerHandlersOptions = {
     x: number;
     y: number;
   }) => { x: number; y: number } | null;
-  applyRetouchPoints: (
-    tool: "brush" | "eraser",
-    points: Array<{ x: number; y: number }>,
-  ) => Promise<void>;
+  applyRetouchOperation: (operation: {
+    geometry: InpaintingRetouchGeometry;
+    mode: "paint" | "restore";
+  }) => Promise<void>;
   blockFormatDefaults?: BlockFormatDefaults;
   currentChapter: ChapterSnapshot | null;
   imageRef: RefObject<HTMLImageElement | null>;
@@ -237,7 +240,7 @@ function useInpaintingPointerHandlers(
   options: Pick<
     UseWorkspacePointerHandlersOptions,
     | "appendRetouchPoint"
-    | "applyRetouchPoints"
+    | "applyRetouchOperation"
     | "imageRef"
     | "inpaintingBrushRadius"
     | "inpaintingPaintColor"

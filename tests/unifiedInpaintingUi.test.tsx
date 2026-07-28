@@ -51,7 +51,7 @@ describe("unified workspace toolbar", () => {
       />,
     );
 
-    expect(screen.getAllByRole("button")).toHaveLength(11);
+    expect(screen.getAllByRole("button")).toHaveLength(13);
     expect(screen.getByRole("button", { name: "원근" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "곡선" })).toBeTruthy();
     expect(
@@ -308,6 +308,51 @@ describe("unified right rail", () => {
 
     view.rerender(<AppRightRail {...makeRightRailProps()} />);
     expect(screen.getByRole("heading", { name: "상태" })).not.toBeNull();
+  });
+
+  it("shows an accessible full-width color row for every paint tool", () => {
+    const props = makeRightRailProps({
+      brushColor: "#fa8128",
+      stageTool: "brush",
+    });
+    const view = renderRightRail(props);
+
+    const brushColorInput = screen.getByLabelText(
+      "붓 색상",
+    ) as HTMLInputElement;
+    expect(brushColorInput.type).toBe("color");
+    expect(brushColorInput.value).toBe("#fa8128");
+    expect(screen.getByText("#FA8128")).not.toBeNull();
+    expect(document.querySelector(".brush-size-control")).not.toBeNull();
+    expect(document.querySelector(".retouch-color-label")?.textContent).toBe(
+      "색상",
+    );
+    expect(document.querySelector(".retouch-color-tool")).toBeNull();
+    brushColorInput.focus();
+    expect(document.activeElement).toBe(brushColorInput);
+
+    fireEvent.change(brushColorInput, { target: { value: "#123456" } });
+    expect(props.onBrushColorChange).toHaveBeenCalledWith("#123456");
+
+    for (const [tool, label] of [
+      ["rectangle", "사각형 색상"],
+      ["ellipse", "원형 색상"],
+    ] as const) {
+      view.rerender(
+        <AppRightRail
+          {...makeRightRailProps({
+            brushColor: "#abcdef",
+            stageTool: tool,
+          })}
+        />,
+      );
+
+      const shapeColorInput = screen.getByLabelText(label) as HTMLInputElement;
+      expect(shapeColorInput.type).toBe("color");
+      expect(shapeColorInput.value).toBe("#abcdef");
+      expect(screen.getByText("#ABCDEF")).not.toBeNull();
+      expect(document.querySelector(".brush-size-control")).toBeNull();
+    }
   });
 
   it("keeps the raw job failure visible while the block editor replaces status", () => {

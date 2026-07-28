@@ -44,7 +44,7 @@ type UseInpaintingContextBridgeOptions = {
   undoRetouch: () => Promise<void>;
 };
 
-type RetouchCursorMode = "brush" | "eraser" | "mask";
+type RetouchCursorMode = "brush" | "rectangle" | "ellipse" | "eraser" | "mask";
 
 type RetouchCursor = {
   color: string;
@@ -85,7 +85,7 @@ type InpaintingBridgeResult = {
 };
 
 const RETOUCH_CURSOR_COLORS: Record<
-  Exclude<RetouchCursorMode, "brush">,
+  Extract<RetouchCursorMode, "eraser" | "mask">,
   string
 > = {
   eraser: "#70b7ff",
@@ -93,7 +93,13 @@ const RETOUCH_CURSOR_COLORS: Record<
 };
 
 function isRetouchCursorMode(tool: InpaintingTool): tool is RetouchCursorMode {
-  return tool === "brush" || tool === "eraser" || tool === "mask";
+  return (
+    tool === "brush" ||
+    tool === "rectangle" ||
+    tool === "ellipse" ||
+    tool === "eraser" ||
+    tool === "mask"
+  );
 }
 
 function resolveRetouchCursor({
@@ -108,9 +114,12 @@ function resolveRetouchCursor({
     return null;
   }
   return {
-    radiusPx: brushRadius,
+    radiusPx: tool === "rectangle" || tool === "ellipse" ? 0 : brushRadius,
     mode: tool,
-    color: tool === "brush" ? brushColor : RETOUCH_CURSOR_COLORS[tool],
+    color:
+      tool === "brush" || tool === "rectangle" || tool === "ellipse"
+        ? brushColor
+        : RETOUCH_CURSOR_COLORS[tool],
   };
 }
 
@@ -250,10 +259,11 @@ function useInpaintingContextValue(
 export function useInpaintingContextBridge(
   options: UseInpaintingContextBridgeOptions,
 ): InpaintingBridgeResult {
-  const { brushColor, brushRadius, tool } = options;
+  const { brushColor, brushRadius, peeking, tool } = options;
   const retouchCursor = useMemo(
-    () => resolveRetouchCursor({ brushColor, brushRadius, tool }),
-    [brushColor, brushRadius, tool],
+    () =>
+      peeking ? null : resolveRetouchCursor({ brushColor, brushRadius, tool }),
+    [brushColor, brushRadius, peeking, tool],
   );
   const contextValue = useInpaintingContextValue(options);
 
