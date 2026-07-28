@@ -9,6 +9,7 @@ const {
   writeFileSync,
 } = require("node:fs");
 const { dirname, isAbsolute, join, relative, resolve } = require("node:path");
+const { isDevelopmentRuntimePath } = require("./prepare-runtime.cjs");
 
 const CACHE_SCHEMA_VERSION = 1;
 
@@ -211,7 +212,12 @@ function createElectronCompileCacheStep(root) {
  */
 function createRuntimeAssetsCacheStep(root, outputDir) {
   const sourceDir = join(root, "src", "main", "runtime");
-  const sourceFiles = () => listTreeFiles(sourceDir);
+  const sourceFiles = () =>
+    listTreeFiles(
+      sourceDir,
+      (sourcePath) =>
+        !isDevelopmentRuntimePath(relative(sourceDir, sourcePath)),
+    );
   return {
     root,
     cacheFile: join(root, ".tmp", "dev-build-cache", "runtime-assets.json"),
@@ -219,7 +225,7 @@ function createRuntimeAssetsCacheStep(root, outputDir) {
     fingerprintSalt: platformFingerprintSalt(),
     getInputFiles: () => [
       join(root, "scripts", "prepare-runtime.cjs"),
-      __filename,
+      join(root, "scripts", "dev-build-cache.cjs"),
       ...sourceFiles(),
     ],
     getOutputFiles: () => listTreeFiles(outputDir, undefined, true),

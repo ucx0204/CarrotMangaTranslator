@@ -78,10 +78,22 @@ function copyDirectoryContents(sourceDir, outputDir) {
  * @param {import("node:fs").Dirent} entry
  */
 function isDevelopmentRuntimeEntry(entry) {
-  const name = entry.name.toLowerCase();
+  return isDevelopmentRuntimePath(entry.name, entry.isDirectory());
+}
+
+/**
+ * @param {string} relativePath
+ * @param {boolean} [leafIsDirectory]
+ */
+function isDevelopmentRuntimePath(relativePath, leafIsDirectory = false) {
+  const pathParts = relativePath
+    .split(/[\\/]+/)
+    .filter(Boolean)
+    .map((part) => part.toLowerCase());
+  const name = pathParts.at(-1) ?? "";
   return (
-    (entry.isDirectory() && name === "__pycache__") ||
-    (entry.isFile() &&
+    pathParts.includes("__pycache__") ||
+    (!leafIsDirectory &&
       (name.endsWith(".d.ts") ||
         name.endsWith(".pyc") ||
         name.endsWith(".pyo")))
@@ -127,6 +139,7 @@ function isSameOrDescendant(parent, candidate) {
 }
 
 module.exports = {
+  isDevelopmentRuntimePath,
   prepareRuntimeAssets,
 };
 

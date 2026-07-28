@@ -30,6 +30,10 @@ type CachedBuildPlan = {
 };
 
 type DevBuildCacheModule = {
+  createRuntimeAssetsCacheStep: (
+    root: string,
+    outputDir: string,
+  ) => CachedBuildStep;
   listTreeFiles: (
     directory: string,
     include?: (filePath: string) => boolean,
@@ -47,6 +51,12 @@ const { cleanElectronTypeScriptOutDirs } =
   require("../scripts/compile-electron.cjs") as {
     cleanElectronTypeScriptOutDirs: (root?: string) => void;
   };
+const { prepareRuntimeAssets } = require("../scripts/prepare-runtime.cjs") as {
+  prepareRuntimeAssets: (options: {
+    root: string;
+    outputDir: string;
+  }) => string;
+};
 const temporaryRoots: string[] = [];
 const temporaryPrefix = join(tmpdir(), "dev-build-cache-test-");
 
@@ -136,6 +146,35 @@ function createTypeScriptCleanupFixture() {
   }
 
   return { sourceDir, mainOutDir, preloadMarker, step, rebuild };
+}
+
+function createRuntimeAssetsCacheFixture() {
+  const root = mkdtempSync(temporaryPrefix);
+  temporaryRoots.push(root);
+  const scriptsDir = join(root, "scripts");
+  const sourceDir = join(root, "src", "main", "runtime");
+  const outputDir = join(root, "out", "app-runtime");
+  const pycacheDir = join(sourceDir, "__pycache__");
+  const transportDir = join(sourceDir, "transport");
+  mkdirSync(scriptsDir, { recursive: true });
+  mkdirSync(pycacheDir, { recursive: true });
+  mkdirSync(transportDir, { recursive: true });
+  writeFileSync(join(scriptsDir, "prepare-runtime.cjs"), "prepare");
+  writeFileSync(join(scriptsDir, "dev-build-cache.cjs"), "cache");
+  writeFileSync(join(sourceDir, "root.cjs"), "root");
+  writeFileSync(join(sourceDir, "runtime-jsdoc-types.d.ts"), "types");
+  writeFileSync(join(transportDir, "response.cjs"), "nested");
+  writeFileSync(join(transportDir, "stale.pyc"), "bytecode");
+  writeFileSync(join(transportDir, "stale.pyo"), "bytecode");
+  const pycacheFile = join(pycacheDir, "runtime.cpython-312.pyc");
+  writeFileSync(pycacheFile, "bytecode");
+
+  const step = cache.createRuntimeAssetsCacheStep(root, outputDir);
+  const rebuild = () => {
+    prepareRuntimeAssets({ root, outputDir });
+  };
+
+  return { outputDir, pycacheFile, sourceDir, step, rebuild };
 }
 
 describe("dev content build cache", () => {
@@ -261,5 +300,51 @@ describe("dev content build cache", () => {
     expect(existsSync(removedOutput)).toBe(false);
     expect(readFileSync(fixture.preloadMarker, "utf8")).toBe("preload");
     expect(cache.planCachedBuildStep(fixture.step).decision).toBe("skip");
+  });
+
+  it("uses the runtime preparer's development-file exclusions", () => {
+    const fixture = createRuntimeAssetsCacheFixture();
+
+    expect(
+      cache.runCachedBuildStep(fixture.step, fixture.rebuild),
+    ).toMatchObject({
+      status: "built",
+    });
+    expect(readFileSync(join(fixture.outputDir, "root.cjs"), "utf8")).toBe(
+      "root",
+    );
+    expect(
+      readFileSync(
+        join(fixture.outputDir, "transport", "response.cjs"),
+        "utf8",
+      ),
+    ).toBe("nested");
+    expect(
+      existsSync(join(fixture.outputDir, "runtime-jsdoc-types.d.ts")),
+    ).toBe(false);
+    expect(existsSync(join(fixture.outputDir, "transport", "stale.pyc"))).toBe(
+      false,
+    );
+    expect(existsSync(join(fixture.outputDir, "transport", "stale.pyo"))).toBe(
+      false,
+    );
+    expect(existsSync(join(fixture.outputDir, "__pycache__"))).toBe(false);
+
+    expect(cache.runCachedBuildStep(fixture.step, fixture.rebuild)).toEqual({
+      status: "skipped",
+      reason: "input and output content are unchanged",
+    });
+
+    writeFileSync(fixture.pycacheFile, "changed bytecode");
+    expect(cache.planCachedBuildStep(fixture.step).decision).toBe("skip");
+
+    writeFileSync(join(fixture.sourceDir, "root.cjs"), "changed root");
+    expect(cache.runCachedBuildStep(fixture.step, fixture.rebuild)).toEqual({
+      status: "built",
+      reason: "input content changed",
+    });
+    expect(readFileSync(join(fixture.outputDir, "root.cjs"), "utf8")).toBe(
+      "changed root",
+    );
   });
 });
