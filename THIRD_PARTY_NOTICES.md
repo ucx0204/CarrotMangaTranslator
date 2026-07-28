@@ -5,6 +5,7 @@
 대표 구성요소는 아래와 같습니다.
 
 - Electron, React, Vite, TypeScript, dnd-kit, Radix UI, Tabler Icons 등 JavaScript 패키지
+- Apache-2.0 `ogkalu/comic-text-and-bubble-detector`의 RT-DETR-v2 ONNX 모델과 MIT `onnxruntime-web`. 앱은 말풍선·말풍선 안 텍스트·자유글 후보를 찾기 위해 고정 revision의 INT8 모델을 SHA-256 검증 후 내려받습니다.
 - `openai-oauth`와 해당 런타임 의존성. 설치판에서는 하나의 ESM 파일로 묶으며, 정확히 포함된 패키지의 라이선스 원문을 `resources/app-runtime/openai-oauth-runtime-LICENSES.txt`에 함께 제공합니다.
 - ffmpeg
 - llama.cpp, beellama, Lemonade ROCm runtime

@@ -11,7 +11,16 @@ export type AutoInpaintingChapterSelection =
       pageIds: string[];
     };
 
-export type StartInpaintingRequest =
+export type BubbleLayoutPolicy = "safe" | "balanced" | "maximize";
+
+export type InpaintingPostprocessOptions = {
+  bubbleLayout?: {
+    enabled: boolean;
+    policy: BubbleLayoutPolicy;
+  };
+};
+
+type StartInpaintingTargetRequest =
   | {
       chapterId: string;
       mode: "chapter-pattern-pending";
@@ -29,10 +38,20 @@ export type StartInpaintingRequest =
       featherPx?: number;
     }
   | {
+      chapterId: string;
+      mode: "page-bubble-layout";
+      pageId: string;
+      policy: BubbleLayoutPolicy;
+    }
+  | {
       mode: "selection-pattern";
       workId: string;
       selections: AutoInpaintingChapterSelection[];
     };
+
+export type StartInpaintingRequest = StartInpaintingTargetRequest & {
+  postprocess?: InpaintingPostprocessOptions;
+};
 
 export type StartInpaintingResult = {
   status: "completed" | "cancelled" | "failed";

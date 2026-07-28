@@ -63,6 +63,7 @@ export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
       runMode: z.literal("pending"),
       blockMode: AnalysisBlockModeSchema.optional(),
       collectPageContext: z.boolean().optional(),
+      naturalTextLayout: z.boolean().optional(),
     })
     .strict(),
   z
@@ -71,6 +72,7 @@ export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
       runMode: z.literal("all"),
       blockMode: AnalysisBlockModeSchema.optional(),
       collectPageContext: z.boolean().optional(),
+      naturalTextLayout: z.boolean().optional(),
     })
     .strict(),
   z
@@ -80,6 +82,7 @@ export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
       pageId: uuid,
       blockMode: AnalysisBlockModeSchema.optional(),
       collectPageContext: z.boolean().optional(),
+      naturalTextLayout: z.boolean().optional(),
     })
     .strict(),
   z
@@ -89,6 +92,7 @@ export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
       pageIds: z.array(uuid).min(1),
       blockMode: AnalysisBlockModeSchema.optional(),
       collectPageContext: z.boolean().optional(),
+      naturalTextLayout: z.boolean().optional(),
     })
     .strict(),
 ]);
@@ -137,12 +141,42 @@ const AutoInpaintingChapterSelectionSchema = z.discriminatedUnion("mode", [
     .strict(),
 ]);
 
+const InpaintingPostprocessOptionsSchema = z
+  .object({
+    bubbleLayout: z
+      .object({
+        enabled: z.boolean(),
+        policy: z.enum(["safe", "balanced", "maximize"]),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
+
 export const StartInpaintingRequestSchema = z.discriminatedUnion("mode", [
   z
-    .object({ chapterId: uuid, mode: z.literal("chapter-pattern-pending") })
+    .object({
+      chapterId: uuid,
+      mode: z.literal("chapter-pattern-pending"),
+      postprocess: InpaintingPostprocessOptionsSchema.optional(),
+    })
     .strict(),
   z
-    .object({ chapterId: uuid, mode: z.literal("page-pattern"), pageId: uuid })
+    .object({
+      chapterId: uuid,
+      mode: z.literal("page-bubble-layout"),
+      pageId: uuid,
+      policy: z.enum(["safe", "balanced", "maximize"]),
+      postprocess: InpaintingPostprocessOptionsSchema.optional(),
+    })
+    .strict(),
+  z
+    .object({
+      chapterId: uuid,
+      mode: z.literal("page-pattern"),
+      pageId: uuid,
+      postprocess: InpaintingPostprocessOptionsSchema.optional(),
+    })
     .strict(),
   z
     .object({
@@ -151,6 +185,7 @@ export const StartInpaintingRequestSchema = z.discriminatedUnion("mode", [
       pageId: uuid,
       strokes: z.array(InpaintingMaskStrokeSchema).min(1).max(MAX_MASK_STROKES),
       featherPx: finiteNumber.min(0).max(128).optional(),
+      postprocess: InpaintingPostprocessOptionsSchema.optional(),
     })
     .strict(),
   z
@@ -161,6 +196,7 @@ export const StartInpaintingRequestSchema = z.discriminatedUnion("mode", [
         .array(AutoInpaintingChapterSelectionSchema)
         .min(1)
         .max(MAX_ID_LIST_LENGTH),
+      postprocess: InpaintingPostprocessOptionsSchema.optional(),
     })
     .strict(),
 ]);

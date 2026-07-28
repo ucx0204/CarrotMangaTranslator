@@ -1,11 +1,17 @@
 import type {
-  InpaintingMaskStroke,
   StartInpaintingRequest,
   StartInpaintingResult,
 } from "../../shared/inpaintingTypes";
 import type { JobEvent } from "../../shared/jobTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
+import type { AppSettings } from "../../shared/settingsTypes";
+import { prepareBubbleLayoutJob } from "./bubbleLayoutJob";
 import { isAbortError } from "./jobEvents";
+import {
+  processInpaintingPage,
+  type InpaintingJobState,
+  type InpaintingTarget,
+} from "./inpaintingJobPageProcessor";
 import type { InpaintingJobContext } from "./inpaintingJobTypes";
 import type { InpaintingJobRuntime } from "./inpaintingJobRuntime";
 import { saveInpaintingPageResult } from "./inpaintingJobHistory";
@@ -13,8 +19,6 @@ import {
   emitInpaintingCancelled,
   emitInpaintingCompleted,
   emitInpaintingFailed,
-  emitInpaintingPageDone,
-  emitInpaintingPageRunning,
   emitInpaintingStarting,
 } from "./inpaintingJobProgress";
 
@@ -23,27 +27,18 @@ type OpenedChapter = Awaited<ReturnType<InpaintingJobRuntime["openChapter"]>>;
 type InpaintingEngineLease = Awaited<
   ReturnType<InpaintingJobRuntime["acquireEngine"]>
 >;
-type InpaintingPageResult = Awaited<
-  ReturnType<InpaintingJobRuntime["inpaintPatternPage"]>
->;
 
-export type InpaintingJobState = {
-  chapter: OpenedChapter | null;
-  chapters: Map<string, OpenedChapter>;
-  historyTransactionId: string | null;
-  inpaintingEngineLease: InpaintingEngineLease | null;
-};
+export type { InpaintingJobState, InpaintingTarget };
 
 export type InpaintingJobPage = {
   chapterId: string;
   page: MangaPage;
 };
 
-type InpaintingTarget = {
-  drawnPatternMode: boolean;
-  drawnStrokes: InpaintingMaskStroke[];
-  drawnFeatherPx?: number;
-  targetType: "drawn" | "source";
+type ProcessInpaintingPagesResult = {
+  savedChapters: OpenedChapter[];
+  pagesChanged: number;
+  blocksErased: number;
 };
 
 export async function runInpaintingPagesJob({
@@ -76,6 +71,7 @@ export async function runInpaintingPagesJob({
     context,
     emit,
     id,
+    request,
     targets,
     state,
     target,
@@ -178,17 +174,27 @@ async function refreshRequestChapters(
 function resolveInpaintingTarget(
   request: StartInpaintingRequest,
 ): InpaintingTarget {
+  if (request.mode === "page-bubble-layout") {
+    return {
+      drawnPatternMode: false,
+      drawnStrokes: [],
+      layoutOnly: true,
+      targetType: "source",
+    };
+  }
   if (request.mode === "page-pattern-drawn") {
     return {
       drawnPatternMode: true,
       drawnStrokes: request.strokes,
       drawnFeatherPx: request.featherPx,
+      layoutOnly: false,
       targetType: "drawn",
     };
   }
   return {
     drawnPatternMode: false,
     drawnStrokes: [],
+    layoutOnly: false,
     targetType: "source",
   };
 }
@@ -208,6 +214,7 @@ async function processInpaintingPages({
   context,
   emit,
   id,
+  request,
   targets,
   state,
   target,
@@ -218,23 +225,31 @@ async function processInpaintingPages({
   context: InpaintingJobContext;
   emit: EmitJobEvent;
   id: string;
+  request: StartInpaintingRequest;
   targets: InpaintingJobPage[];
   state: InpaintingJobState;
   target: InpaintingTarget;
   totalTargetBlocks: number;
   runtime: InpaintingJobRuntime;
-}): Promise<{
-  savedChapters: OpenedChapter[];
-  pagesChanged: number;
-  blocksErased: number;
-}> {
+}): Promise<ProcessInpaintingPagesResult> {
   let blocksErased = 0;
   let pagesChanged = 0;
+  const preparedBubbleLayout = await prepareBubbleLayoutJob({
+    context,
+    request,
+    runtime,
+    totalTargetBlocks,
+  });
+  const { appSettings } = preparedBubbleLayout;
+  state.bubbleLayoutPostprocess = preparedBubbleLayout.config;
+  state.bubbleLayoutRunner = preparedBubbleLayout.runner;
   state.inpaintingEngineLease = await acquireInpaintingEngineIfNeeded({
     abortController,
+    appSettings,
     context,
     emit,
     id,
+    shouldAcquireEngine: !target.layoutOnly,
     pageCount: targets.length,
     totalTargetBlocks,
     runtime,
@@ -260,16 +275,12 @@ async function processInpaintingPages({
     pagesChanged += 1;
     const savedChapter = await saveInpaintingPageResult({
       context,
-      resultPage: result.page,
+      result,
       transactionId: state.historyTransactionId,
-      chapterId: targetPage.chapterId,
-      previousPage: targetPage.page,
+      targetPage,
       runtime,
     });
-    state.chapters.set(targetPage.chapterId, savedChapter);
-    if (state.chapter?.id === targetPage.chapterId) {
-      state.chapter = savedChapter;
-    }
+    recordSavedChapter(state, targetPage.chapterId, savedChapter);
   }
 
   return {
@@ -279,27 +290,44 @@ async function processInpaintingPages({
   };
 }
 
+function recordSavedChapter(
+  state: InpaintingJobState,
+  chapterId: string,
+  chapter: OpenedChapter,
+): void {
+  state.chapters.set(chapterId, chapter);
+  if (state.chapter?.id === chapterId) {
+    state.chapter = chapter;
+  }
+}
+
 async function acquireInpaintingEngineIfNeeded({
   abortController,
+  appSettings,
   context,
   emit,
   id,
+  shouldAcquireEngine,
   pageCount,
   totalTargetBlocks,
   runtime,
 }: {
   abortController: AbortController;
+  appSettings: AppSettings | null;
   context: InpaintingJobContext;
   emit: EmitJobEvent;
   id: string;
+  shouldAcquireEngine: boolean;
   pageCount: number;
   totalTargetBlocks: number;
   runtime: InpaintingJobRuntime;
 }): Promise<InpaintingEngineLease | null> {
-  if (totalTargetBlocks <= 0) {
+  if (!shouldAcquireEngine || totalTargetBlocks <= 0) {
     return null;
   }
-  const appSettings = await runtime.getSettings(context.appPaths);
+  if (!appSettings) {
+    return null;
+  }
   return runtime.acquireEngine({
     appPaths: context.appPaths,
     model: appSettings.inpainting?.model ?? "flux-klein",
@@ -326,64 +354,6 @@ async function acquireInpaintingEngineIfNeeded({
         installLogLine: progress.installLogLine,
       }),
   });
-}
-
-async function processInpaintingPage({
-  abortController,
-  context,
-  emit,
-  id,
-  page,
-  pageIndex,
-  pageCount,
-  state,
-  target,
-  runtime,
-}: {
-  abortController: AbortController;
-  context: InpaintingJobContext;
-  emit: EmitJobEvent;
-  id: string;
-  page: MangaPage;
-  pageIndex: number;
-  pageCount: number;
-  state: InpaintingJobState;
-  target: InpaintingTarget;
-  runtime: InpaintingJobRuntime;
-}): Promise<InpaintingPageResult> {
-  if (abortController.signal.aborted) {
-    throw new DOMException("Aborted", "AbortError");
-  }
-
-  const pageTargetCount = target.drawnPatternMode
-    ? target.drawnStrokes.length
-    : page.blocks.length;
-  emitInpaintingPageRunning(id, emit, page, pageIndex, pageCount, {
-    pageTargetCount,
-    target,
-  });
-  const result = target.drawnPatternMode
-    ? await runtime.inpaintDrawnPage(page, {
-        signal: abortController.signal,
-        decodeFallback: context.decodeImage,
-        inpaintingEngine: state.inpaintingEngineLease?.engine,
-        strokes: target.drawnStrokes,
-        featherPx: target.drawnFeatherPx,
-      })
-    : await runtime.inpaintPatternPage(page, {
-        signal: abortController.signal,
-        decodeFallback: context.decodeImage,
-        inpaintingEngine: state.inpaintingEngineLease?.engine,
-      });
-  emitInpaintingPageDone(
-    id,
-    emit,
-    pageIndex,
-    pageCount,
-    target,
-    result.blocksErased,
-  );
-  return result;
 }
 
 function getLastJobEvent(

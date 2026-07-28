@@ -1,5 +1,6 @@
 import { useCallback, useSyncExternalStore } from "react";
-import type { BBox, TranslationBlock } from "../../../shared/textTypes";
+import type { BubbleLayout } from "../../../shared/bubbleLayout";
+import type { BBox, Point, TranslationBlock } from "../../../shared/textTypes";
 import type { DragHud } from "./workspaceInteractionTypes";
 
 type BlockInteractionPreview = {
@@ -7,9 +8,45 @@ type BlockInteractionPreview = {
   blockId: string;
 };
 
+export type BubbleLayoutDraftMode = "polygon" | "add" | "subtract";
+
+export type BubbleLayoutDraftShape = {
+  bubbleLayout: BubbleLayout;
+  renderBbox: BBox;
+  renderBboxSpace: "normalized_1000";
+};
+
+export type BubbleLayoutDraftSnapshot = {
+  dirty: boolean;
+  points: Point[];
+  shape: BubbleLayoutDraftShape | null;
+};
+
+export type BubbleLayoutDraftStroke = {
+  base: BubbleLayoutDraftSnapshot;
+  pointerId: number;
+  points: Point[];
+  result: "applied" | "detached" | "disconnect" | "empty" | "invalid";
+};
+
+export type BubbleLayoutDraftPreview = {
+  blockId: string;
+  brushRadius: number;
+  direction: "horizontal" | "vertical";
+  dirty: boolean;
+  history: BubbleLayoutDraftSnapshot[];
+  hoverPoint: Point | null;
+  mode: BubbleLayoutDraftMode;
+  notice: "detached" | "disconnect" | "empty" | "invalid" | null;
+  points: Point[];
+  shape: BubbleLayoutDraftShape | null;
+  stroke: BubbleLayoutDraftStroke | null;
+};
+
 type WorkspaceInteractionPreviewState = {
   blockCreateRect: BBox | null;
   blockPreview: BlockInteractionPreview | null;
+  bubbleLayoutDraft: BubbleLayoutDraftPreview | null;
   dragHud: DragHud | null;
   regionSelectionRect: BBox | null;
 };
@@ -22,6 +59,7 @@ export type WorkspaceInteractionPreviewStore = {
   flush: () => void;
   getBlockCreateRect: () => BBox | null;
   getBlockPreview: (blockId: string) => TranslationBlock | null;
+  getBubbleLayoutDraft: () => BubbleLayoutDraftPreview | null;
   getDragHud: () => DragHud | null;
   getRegionSelectionRect: () => BBox | null;
   getSnapshot: () => WorkspaceInteractionPreviewState;
@@ -34,6 +72,7 @@ export type WorkspaceInteractionPreviewStore = {
 const EMPTY_PREVIEW_STATE: WorkspaceInteractionPreviewState = {
   blockCreateRect: null,
   blockPreview: null,
+  bubbleLayoutDraft: null,
   dragHud: null,
   regionSelectionRect: null,
 };
@@ -85,6 +124,7 @@ export function createWorkspaceInteractionPreviewStore(): WorkspaceInteractionPr
     getBlockCreateRect: () => state.blockCreateRect,
     getBlockPreview: (blockId) =>
       state.blockPreview?.blockId === blockId ? state.blockPreview.block : null,
+    getBubbleLayoutDraft: () => state.bubbleLayoutDraft,
     getDragHud: () => state.dragHud,
     getRegionSelectionRect: () => state.regionSelectionRect,
     getSnapshot: () => state,
@@ -126,6 +166,16 @@ export function useBlockCreateRectPreview(
   );
 }
 
+export function useBubbleLayoutDraftPreview(
+  store: WorkspaceInteractionPreviewStore,
+): BubbleLayoutDraftPreview | null {
+  return useSyncExternalStore(
+    store.subscribe,
+    store.getBubbleLayoutDraft,
+    store.getBubbleLayoutDraft,
+  );
+}
+
 export function useDragHudPreview(
   store: WorkspaceInteractionPreviewStore,
 ): DragHud | null {
@@ -153,6 +203,7 @@ function mergePreviewState(
   const next = { ...current, ...patch };
   return next.blockCreateRect === current.blockCreateRect &&
     next.blockPreview === current.blockPreview &&
+    next.bubbleLayoutDraft === current.bubbleLayoutDraft &&
     next.dragHud === current.dragHud &&
     next.regionSelectionRect === current.regionSelectionRect
     ? current

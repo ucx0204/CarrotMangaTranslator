@@ -45,6 +45,9 @@ type AppSessionInpaintingControllerArgs = {
 export function useAppSessionInpaintingController(
   args: AppSessionInpaintingControllerArgs,
 ): {
+  clearRetouchHistory: ReturnType<
+    typeof useInpaintingRetouch
+  >["clearRetouchHistory"];
   inpaintingActions: ReturnType<typeof useInpaintingActions>;
   inpaintingBridge: ReturnType<typeof useInpaintingContextBridge>;
   pageNavigationHandlers: ReturnType<typeof usePageNavigationHandlers>;
@@ -65,6 +68,7 @@ export function useAppSessionInpaintingController(
   );
 
   return {
+    clearRetouchHistory: retouch.clearRetouchHistory,
     inpaintingActions,
     inpaintingBridge,
     pageNavigationHandlers,
@@ -140,6 +144,7 @@ function useInpaintingRunController(
     setJobState: core.setJobState,
     setPatternMaskStrokesByPage: uiState.setPatternMaskStrokesByPage,
     setPeekOriginal: uiState.setPeekOriginal,
+    setShowBlockChrome: uiState.setShowBlockChrome,
     workspaceHistory,
   });
 }
@@ -214,7 +219,9 @@ function usePointerController(
       uiState.translationFlowActive ||
       workspaceHistory.busy,
     onPatternMaskChange,
+    onBubbleLayoutApplied: () => uiState.selectWorkspaceTool("select"),
     onEscapeTool: () => uiState.selectWorkspaceTool("select"),
+    ...createBlockSelectionPointerOptions(core, uiState),
     lastInpaintingRetouchPointRef: retouch.lastInpaintingRetouchPointRef,
     pushStatus,
     patternMaskStrokesByPage: uiState.patternMaskStrokesByPage,
@@ -240,6 +247,27 @@ function usePointerController(
     updateCurrentChapter,
     workspacePanelRef: core.workspacePanelRef,
   });
+}
+
+function createBlockSelectionPointerOptions(
+  core: AppSessionInpaintingControllerArgs["core"],
+  uiState: AppSessionInpaintingControllerArgs["uiState"],
+): {
+  onSelectedBlockChange: () => void;
+  selectedBlockId: string | null;
+} {
+  return {
+    onSelectedBlockChange: () => resetBlockTransformTool(uiState),
+    selectedBlockId: core.selectedBlockId,
+  };
+}
+
+function resetBlockTransformTool(
+  uiState: AppSessionInpaintingControllerArgs["uiState"],
+): void {
+  if (uiState.stageTool === "perspective" || uiState.stageTool === "curve") {
+    uiState.selectWorkspaceTool("select");
+  }
 }
 
 function useInpaintingBridgeController(

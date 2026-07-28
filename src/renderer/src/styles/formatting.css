@@ -136,9 +136,125 @@
   border-left: 1px solid var(--border-soft);
 }
 
+.format-emphasis-control {
+  display: grid;
+  gap: 3px;
+}
+
+.format-toolbar-label {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.editor-overflow {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.editor-overflow-menu {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 6px);
+  right: 0;
+  display: grid;
+  width: 224px;
+  padding: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: #191b21;
+  box-shadow: var(--shadow-lg);
+}
+
+.editor-overflow-menu button {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--font-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.editor-overflow-menu button:hover,
+.editor-overflow-menu button:focus-visible {
+  background: var(--bg-hover);
+  outline: none;
+}
+
+.editor-overflow-menu button.danger {
+  color: #e7a3a3;
+}
+
+.editor-overflow-check {
+  color: var(--accent-hi);
+  font-weight: 800;
+  text-align: center;
+}
+
+.editor-panel.has-block .editor-text-group > textarea {
+  width: 100%;
+  min-height: 88px;
+}
+
+.editor-inline-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.editor-inline-toolbar > span {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.editor-source-field {
+  display: grid;
+  min-width: 0;
+  gap: var(--sp-2);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border-soft);
+}
+
+.editor-source-field > span {
+  color: var(--text-dim);
+  font-size: var(--font-xs);
+  font-weight: 650;
+}
+
+.editor-panel.has-block .editor-source-field textarea {
+  width: 100%;
+  min-height: 72px;
+}
+
 .block-style-group {
   display: flex;
   gap: var(--sp-2);
+}
+
+@container editor-panel (max-width: 360px) {
+  .format-toolbar {
+    align-items: end;
+    gap: var(--sp-2);
+  }
+
+  .format-toolbar > * + * {
+    padding-left: var(--sp-2);
+  }
 }
 
 /* Korean text segmented toggle for writing direction */

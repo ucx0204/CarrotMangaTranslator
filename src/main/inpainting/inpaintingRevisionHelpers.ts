@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import type { ChapterSnapshot } from "../../shared/libraryTypes";
+import type { InpaintingBlockLayoutState } from "./inpaintingLayoutState";
 import { openChapter as openChapterUnlocked } from "../libraryStore/libraryAccess";
 import { assertChapterImagePath } from "../libraryStore/libraryFiles";
 import { logInpaintingRuntimeWarn } from "./inpaintingRuntimeLogger";
@@ -9,7 +10,36 @@ export type InpaintingRevisionChange = {
   pageId: string;
   beforePath?: string;
   afterPath?: string;
+  beforeLayout?: InpaintingBlockLayoutState[];
+  afterLayout?: InpaintingBlockLayoutState[];
 };
+
+export function assertRevisionLayoutPair(
+  change: InpaintingRevisionChange,
+): void {
+  const hasBefore = change.beforeLayout !== undefined;
+  const hasAfter = change.afterLayout !== undefined;
+  if (hasBefore !== hasAfter) {
+    throw new Error(
+      "인페인팅 텍스트 배치 기록은 변경 전후 상태가 모두 필요합니다.",
+    );
+  }
+  if (!hasBefore || !hasAfter) {
+    return;
+  }
+  const beforeIds = change.beforeLayout?.map((state) => state.blockId) ?? [];
+  const afterIds = change.afterLayout?.map((state) => state.blockId) ?? [];
+  if (
+    beforeIds.length !== new Set(beforeIds).size ||
+    afterIds.length !== new Set(afterIds).size ||
+    beforeIds.length !== afterIds.length ||
+    beforeIds.some((blockId, index) => afterIds[index] !== blockId)
+  ) {
+    throw new Error(
+      "인페인팅 텍스트 배치 기록의 변경 전후 블록이 일치하지 않습니다.",
+    );
+  }
+}
 
 export class InpaintingRevisionRollbackError extends Error {
   readonly currentChapters: ChapterSnapshot[];

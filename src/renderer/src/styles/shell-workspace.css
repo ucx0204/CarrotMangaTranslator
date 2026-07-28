@@ -1,6 +1,6 @@
 .app-shell {
   display: grid;
-  grid-template-columns: 400px minmax(0, 1fr) 340px;
+  grid-template-columns: 400px minmax(0, 1fr) 44px 340px;
   height: 100vh;
   background: #0e0f13;
 }
@@ -54,28 +54,18 @@
   overflow-y: auto;
 }
 
-/* Non-scrolling frame around the workspace so the stage toolbar can float
-   over the scroll container without scrolling with the page image. */
-.workspace-shell {
-  position: relative;
+.right-quick-rail {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
-  padding-right: 48px;
+  padding-top: 12px;
   background: #0c0d10;
 }
 
-.canvas-action-bar {
-  position: absolute;
-  z-index: 36;
-  top: 10px;
-  right: 6px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
+.chapter-quick-controls-frame {
   width: 42px;
-  padding: 0;
   border: 1px solid var(--border-soft);
   border-radius: var(--r-md);
   background: #14161b;
@@ -83,67 +73,39 @@
   overflow: visible;
 }
 
-.canvas-action-group {
+.chapter-quick-controls {
   display: flex;
   flex-direction: column;
-  align-items: center;
   width: 40px;
-  gap: 0;
 }
 
-.canvas-action-control {
-  width: 40px;
-  height: 40px;
-}
-
-.canvas-action-control + .canvas-action-control {
-  border-top: 1px solid var(--border-soft);
-}
-
-.canvas-action-control > button {
-  display: grid;
-  place-items: center;
+.chapter-quick-control,
+.chapter-quick-control > button {
   width: 40px;
   height: 40px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: #aeb8c5;
-  cursor: pointer;
-  transition:
-    background 120ms ease,
-    color 120ms ease;
 }
 
-.canvas-action-control > button:hover:not(:disabled) {
-  background: #20242b;
-  color: #f4f6f8;
-}
-
-.canvas-action-control > button:focus-visible {
-  position: relative;
-  z-index: 1;
-  outline: 2px solid var(--focus);
-  outline-offset: -2px;
-}
-
-.canvas-action-control > button:disabled {
-  color: #5d6672;
+.chapter-quick-control > button:disabled {
   cursor: not-allowed;
+  opacity: 0.42;
 }
 
-.canvas-action-control > button.active {
-  background: var(--accent-soft);
-  color: var(--accent-hi);
-}
-
-.canvas-action-separator {
+.chapter-quick-separator {
   width: 40px;
-  height: 6px;
-  border-top: 1px solid var(--border-strong);
+  height: 9px;
+  border-top: 1px solid var(--border-soft);
   border-bottom: 1px solid var(--border-soft);
-  background: #101217;
+  background: rgba(9, 10, 13, 0.48);
+}
+
+/* Non-scrolling frame around the workspace so the stage toolbar can float
+   over the scroll container without scrolling with the page image. */
+.workspace-shell {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: #0c0d10;
 }
 
 .workspace {
@@ -334,12 +296,6 @@
   border-top: 1px solid var(--border-soft);
 }
 
-.stage-toolbar-control.separated {
-  height: 45px;
-  padding-top: 5px;
-  border-top-color: var(--border-strong);
-}
-
 .stage-toolbar-button,
 .stage-toolbar-toggle {
   display: grid;
@@ -374,17 +330,105 @@
 
 .stage-toolbar-swatch {
   position: absolute;
-  right: 4px;
-  bottom: 4px;
-  width: 7px;
-  height: 7px;
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  border-radius: 50%;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55);
+  right: 10px;
+  bottom: 3px;
+  left: 10px;
+  height: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  border-radius: 999px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.72);
 }
 
 .stage-toolbar-button {
   position: relative;
+}
+
+.stage-toolbar-group-control {
+  position: relative;
+}
+
+.stage-toolbar-group-trigger {
+  width: 40px;
+  height: 40px;
+}
+
+.stage-toolbar-group-chevron {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  opacity: 0.72;
+}
+
+.stage-toolbar-flyout {
+  position: absolute;
+  z-index: 82;
+  top: -1px;
+  left: calc(100% + 8px);
+  display: grid;
+  grid-template-columns: minmax(132px, 1fr);
+  gap: 2px;
+  width: 148px;
+  max-width: calc(100vw - 76px);
+  padding: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: rgba(20, 22, 27, 0.98);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(10px);
+  overflow: visible;
+}
+
+.stage-toolbar-flyout-control,
+.stage-toolbar-flyout-control > button {
+  width: 100%;
+  height: 36px;
+}
+
+.stage-toolbar-flyout-control > button {
+  display: flex;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 0 9px;
+  border-radius: var(--r-sm);
+}
+
+.stage-toolbar-flyout-label {
+  min-width: 0;
+  overflow: hidden;
+  color: inherit;
+  font-size: var(--font-sm);
+  font-weight: 650;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stage-toolbar-flyout-control > button.active {
+  box-shadow: inset 0 -3px 0 var(--accent);
+}
+
+.stage-toolbar-flyout-control .control-tooltip-bubble {
+  max-width: min(260px, calc(100vw - 238px));
+}
+
+@media (max-height: 520px) {
+  .stage-toolbar-flyout[data-stage-tool-menu="retouch"] {
+    grid-template-columns: repeat(2, minmax(122px, 1fr));
+    width: 276px;
+  }
+
+  .stage-toolbar-flyout-control,
+  .stage-toolbar-flyout-control > button {
+    height: 32px;
+  }
+
+  .stage-toolbar-flyout-control .control-tooltip-bubble {
+    max-width: min(260px, calc(100vw - 360px));
+  }
+
+  .stage-toolbar-flyout-control:nth-child(odd) .control-tooltip-bubble {
+    left: calc(200% + 13px);
+  }
 }
 
 .stage-toolbar-toggle {

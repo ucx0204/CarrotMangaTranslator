@@ -85,6 +85,14 @@ function buildRemotePanelSessionValue(
         dispatchCommand({ type: "duplicateBlock", blockId: selectedBlockId });
       }
     },
+    onRemoveBubbleLayout: () => {
+      if (selectedBlockId) {
+        dispatchCommand({
+          type: "removeBubbleLayout",
+          blockId: selectedBlockId,
+        });
+      }
+    },
     onSelectTransformMode: (mode) =>
       dispatchCommand({ type: "selectTransformMode", mode }),
     onStartAreaTranslate: () => dispatchCommand({ type: "startAreaTranslate" }),

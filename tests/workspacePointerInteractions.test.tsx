@@ -27,6 +27,7 @@ import {
 } from "vitest";
 import type { BBox, TranslationBlock } from "../src/shared/textTypes";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
+import { BubbleLayoutContextBar } from "../src/renderer/src/components/BubbleLayoutContextBar";
 import { ImageStage } from "../src/renderer/src/components/ImageStage";
 import {
   FontsContext,
@@ -37,6 +38,7 @@ import type { InpaintingTool } from "../src/renderer/src/inpainting/inpaintingTy
 import type { RegionSelectionState } from "../src/renderer/src/lib/appHelpers";
 import { DEFAULT_BLOCK_FONT_CATALOG } from "../src/renderer/src/lib/fonts";
 import type { StageTool } from "../src/renderer/src/lib/stageTool";
+import type { BubbleLayoutDraftPreview } from "../src/renderer/src/lib/workspaceInteractionPreview";
 
 type UpdateCurrentChapterMock = ReturnType<
   typeof createUpdateCurrentChapterMock
@@ -57,15 +59,18 @@ const fontsContext: FontsContextValue = {
 };
 
 type HarnessApi = {
+  applyBubbleLayoutDraft: () => boolean;
   getBounds: ReturnType<typeof vi.fn>;
   getBlockCreateRect: () => BBox | null;
   getBlockPreview: () => TranslationBlock | null;
+  getBubbleLayoutDraft: () => BubbleLayoutDraftPreview | null;
   getRenderCount: () => number;
   getRegionSelection: () => RegionSelectionState | null;
   getRegionSelectionPreview: () => BBox | null;
   getSelectedBlockId: () => string | null;
   startRegionTranslationSelection: () => void;
   statuses: string[];
+  onBubbleLayoutFinished: ReturnType<typeof vi.fn>;
   translateSelectedRegion: TranslateSelectedRegionMock;
   updateCurrentChapter: UpdateCurrentChapterMock;
 };
@@ -240,6 +245,189 @@ describe("workspace pointer interactions", () => {
     expect(blockApi.current.updateCurrentChapter).toHaveBeenCalledTimes(1);
   });
 
+  it("applies a point-authored bubble region as one undoable block edit", () => {
+    const api = renderHarness({
+      initialSelectedBlockId: "block-1",
+      renderOverlay: true,
+      stageTool: "bubble",
+    });
+    const stage = document.querySelector<HTMLElement>(".image-stage");
+    expect(stage).not.toBeNull();
+    const contextBar = screen.getByRole("region", {
+      name: "말풍선 모양 편집",
+    });
+    expect(stage?.contains(contextBar)).toBe(false);
+    expect(document.querySelector(".bubble-layout-draft-hud")).toBeNull();
+
+    for (const [clientX, clientY] of [
+      [20, 20],
+      [80, 18],
+      [84, 72],
+      [24, 82],
+    ]) {
+      fireEvent.pointerDown(stage as HTMLElement, {
+        button: 0,
+        clientX,
+        clientY,
+        pointerId: 9,
+      });
+    }
+
+    expect(
+      document.querySelectorAll("[data-bubble-layout-point]"),
+    ).toHaveLength(4);
+    fireEvent.click(screen.getByRole("button", { name: "적용" }));
+
+    expect(api.current.updateCurrentChapter).toHaveBeenCalledTimes(1);
+    expect(api.current.updateCurrentChapter.mock.calls[0]?.[2]).toMatchObject({
+      label: "말풍선 모양 편집",
+    });
+    const updater = api.current.updateCurrentChapter.mock.calls[0]?.[1];
+    const updated = updater?.(makeChapter(makePage()));
+    const block = updated?.pages[0]?.blocks[0];
+    expect(block?.renderDirection).toBe("horizontal");
+    expect(block?.renderBboxSpace).toBe("normalized_1000");
+    expect(block?.bubbleLayout).toMatchObject({
+      direction: "horizontal",
+      origin: "manual",
+      modelId: "manual-shape-v1",
+    });
+    expect(block?.bubbleLayout).not.toHaveProperty("sourceImageRevision");
+    expect(api.current.getBubbleLayoutDraft()).toBeNull();
+  });
+
+  it("sculpts an automatically detected bubble, supports undo, and commits manual provenance", () => {
+    const api = renderHarness({
+      initialSelectedBlockId: "block-1",
+      renderOverlay: true,
+      stageTool: "bubble",
+      withBubbleLayout: true,
+    });
+    const stage = document.querySelector<HTMLElement>(".image-stage");
+    expect(stage).not.toBeNull();
+    expect(
+      document.querySelector(".overlay-block")?.classList.contains("selected"),
+    ).toBe(false);
+    expect(document.querySelector("[data-bubble-layout-guide]")).not.toBeNull();
+    expect(document.querySelector(".overlay-resize-handle")).toBeNull();
+    expect(
+      screen
+        .getByRole("button", { name: "+ 늘리기" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+    const radius = screen.getByLabelText("브러시") as HTMLInputElement;
+    expect(radius.value).toBe("36");
+    const renderCountBeforeDraftControls = api.current.getRenderCount();
+    fireEvent.change(radius, { target: { value: "60" } });
+    expect(api.current.getRenderCount()).toBe(renderCountBeforeDraftControls);
+
+    drawBubbleBrush(stage as HTMLElement, [
+      [28, 15],
+      [38, 15],
+    ]);
+    expect(api.current.getRenderCount()).toBe(renderCountBeforeDraftControls);
+    expect(
+      document.querySelector(".bubble-layout-brush-cursor")?.getAttribute("r"),
+    ).toBe("60");
+
+    const expanded = api.current.getBubbleLayoutDraft();
+    expect(expanded?.dirty).toBe(true);
+    expect(expanded?.history).toHaveLength(1);
+    expect(
+      (expanded?.shape?.renderBbox.x ?? 0) +
+        (expanded?.shape?.renderBbox.w ?? 0),
+    ).toBeGreaterThan(300);
+
+    fireEvent.click(screen.getByRole("button", { name: "되돌리기" }));
+    const restored = api.current.getBubbleLayoutDraft();
+    expect(restored?.dirty).toBe(false);
+    expect(restored?.shape?.renderBbox).toEqual({
+      x: 100,
+      y: 100,
+      w: 200,
+      h: 100,
+    });
+
+    drawBubbleBrush(stage as HTMLElement, [
+      [28, 15],
+      [38, 15],
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: "적용" }));
+    expectSculptedBubbleCommit(api.current);
+  });
+
+  it("shows a detached brush rejection without creating history or dirty state", () => {
+    const api = renderHarness({
+      initialSelectedBlockId: "block-1",
+      renderOverlay: true,
+      stageTool: "bubble",
+      withBubbleLayout: true,
+    });
+    const stage = document.querySelector<HTMLElement>(".image-stage");
+
+    drawBubbleBrush(stage as HTMLElement, [[80, 80]]);
+
+    const draft = api.current.getBubbleLayoutDraft();
+    expect(draft?.dirty).toBe(false);
+    expect(draft?.history).toHaveLength(0);
+    expect(draft?.notice).toBe("detached");
+    expect(
+      screen.getByText("현재 모양에 닿은 곳부터 늘려 주세요.").textContent,
+    ).toBe("현재 모양에 닿은 곳부터 늘려 주세요.");
+  });
+
+  it("requires a fresh valid polygon after leaving sculpt mode", () => {
+    const api = renderHarness({
+      initialSelectedBlockId: "block-1",
+      renderOverlay: true,
+      stageTool: "bubble",
+      withBubbleLayout: true,
+    });
+    const stage = document.querySelector<HTMLElement>(".image-stage");
+    expect(stage).not.toBeNull();
+    drawBubbleBrush(stage as HTMLElement, [
+      [28, 15],
+      [38, 15],
+    ]);
+
+    fireEvent.click(screen.getByRole("button", { name: "다각형" }));
+    expect(api.current.getBubbleLayoutDraft()?.points).toHaveLength(0);
+    for (const clientX of [20, 40, 60]) {
+      fireEvent.pointerDown(stage as HTMLElement, {
+        button: 0,
+        clientX,
+        clientY: 20,
+        pointerId: 20,
+      });
+    }
+
+    expect(
+      (screen.getByRole("button", { name: "적용" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    expect(api.current.updateCurrentChapter).not.toHaveBeenCalled();
+  });
+
+  it("cancels bubble sculpting without a chapter write and exits the tool", () => {
+    const api = renderHarness({
+      initialSelectedBlockId: "block-1",
+      renderOverlay: true,
+      stageTool: "bubble",
+      withBubbleLayout: true,
+    });
+    const stage = document.querySelector<HTMLElement>(".image-stage");
+    drawBubbleBrush(stage as HTMLElement, [
+      [28, 15],
+      [38, 15],
+    ]);
+
+    fireEvent.click(screen.getByRole("button", { name: "취소" }));
+
+    expect(api.current.getBubbleLayoutDraft()).toBeNull();
+    expect(api.current.updateCurrentChapter).not.toHaveBeenCalled();
+    expect(api.current.onBubbleLayoutFinished).toHaveBeenCalledTimes(1);
+  });
+
   it("cancels an active region selection with Escape", () => {
     const api = renderHarness();
 
@@ -339,6 +527,7 @@ function renderHarness(
     selectedPageEditLocked?: boolean;
     stageTool?: StageTool;
     strictMode?: boolean;
+    withBubbleLayout?: boolean;
   } = {},
 ): React.MutableRefObject<HarnessApi> {
   const api = React.createRef<HarnessApi>();
@@ -354,6 +543,7 @@ function renderHarness(
       regionTranslationReady={props.regionTranslationReady ?? true}
       selectedPageEditLocked={props.selectedPageEditLocked ?? false}
       stageTool={props.stageTool ?? "select"}
+      withBubbleLayout={props.withBubbleLayout ?? false}
     />
   );
   render(
@@ -374,6 +564,7 @@ function WorkspacePointerHarness({
   regionTranslationReady,
   selectedPageEditLocked,
   stageTool,
+  withBubbleLayout,
 }: {
   initialSelectedBlockId: string | null;
   jobActive: boolean;
@@ -382,6 +573,7 @@ function WorkspacePointerHarness({
   regionTranslationReady: boolean;
   selectedPageEditLocked: boolean;
   stageTool: StageTool;
+  withBubbleLayout: boolean;
 }): React.JSX.Element {
   const renderCountRef = useRef(0);
   renderCountRef.current += 1;
@@ -409,12 +601,13 @@ function WorkspacePointerHarness({
   >({});
   const statusesRef = useRef<string[]>([]);
   const updateCurrentChapter = useMemo(createUpdateCurrentChapterMock, []);
+  const onBubbleLayoutFinished = useMemo(() => vi.fn(), []);
   const translateSelectedRegion = useMemo(
     createTranslateSelectedRegionMock,
     [],
   );
   const getBounds = useMemo(() => vi.fn(() => makeDomRect()), []);
-  const page = makePage();
+  const page = makePage({ withBubbleLayout });
   const block = page.blocks[0];
   const handlers = useWorkspacePointerHandlers({
     appendRetouchPoint: () => null,
@@ -430,6 +623,7 @@ function WorkspacePointerHarness({
     jobActive,
     lastInpaintingRetouchPointRef,
     onPatternMaskChange: () => undefined,
+    onBubbleLayoutApplied: onBubbleLayoutFinished,
     patternMaskStrokesByPage,
     pushStatus: (line) => {
       statusesRef.current.push(line);
@@ -437,6 +631,7 @@ function WorkspacePointerHarness({
     regionTranslationReady,
     regionSelection,
     selectedPage: page,
+    selectedBlockId,
     selectedPageEditLocked,
     selectedPageIdRef,
     selectedPageImagePath: "page-1.png",
@@ -464,15 +659,19 @@ function WorkspacePointerHarness({
 
   useEffect(() => {
     onReady({
+      applyBubbleLayoutDraft: handlers.applyBubbleLayoutDraft,
       getBounds,
       getBlockCreateRect: handlers.interactionPreviewStore.getBlockCreateRect,
       getBlockPreview: () =>
         handlers.interactionPreviewStore.getBlockPreview("block-1"),
+      getBubbleLayoutDraft:
+        handlers.interactionPreviewStore.getBubbleLayoutDraft,
       getRenderCount: () => renderCountRef.current,
       getRegionSelection: () => regionSelection,
       getRegionSelectionPreview:
         handlers.interactionPreviewStore.getRegionSelectionRect,
       getSelectedBlockId: () => selectedBlockId,
+      onBubbleLayoutFinished,
       startRegionTranslationSelection: handlers.startRegionTranslationSelection,
       statuses: statusesRef.current,
       translateSelectedRegion,
@@ -482,6 +681,7 @@ function WorkspacePointerHarness({
     handlers.startRegionTranslationSelection,
     handlers.interactionPreviewStore,
     getBounds,
+    onBubbleLayoutFinished,
     onReady,
     regionSelection,
     selectedBlockId,
@@ -492,30 +692,38 @@ function WorkspacePointerHarness({
   return (
     <section ref={workspacePanelRef}>
       {renderOverlay ? (
-        <TestFontsProvider>
-          <ImageStage
-            blockPointerDisabled={false}
-            imageDataUrl="data:image/png;base64,preview"
-            imageRef={imageRef}
+        <>
+          <BubbleLayoutContextBar
             interactionPreviewStore={handlers.interactionPreviewStore}
-            onBlockPointerDown={handlers.onBlockPointerDown}
-            onStagePointerDown={handlers.onStagePointerDown}
-            onStagePointerLeave={handlers.onStagePointerLeave}
-            onStagePointerMove={handlers.onStagePointerMove}
-            onStagePointerUp={handlers.onStagePointerUp}
-            page={page}
-            regionSelectionActive={Boolean(regionSelection?.active)}
-            regionSelectionRect={null}
-            selectedBlockId={selectedBlockId}
-            selectedBlockIds={selectedBlockIds}
-            showBlockChrome
-            showTextBlocks
-            stageRef={stageRef}
-            stageSize={{ height: 100, width: 100 }}
-            stageTool="select"
-            textLayoutStageSize={{ height: 100, width: 100 }}
+            onApply={handlers.applyBubbleLayoutDraft}
+            onCancel={handlers.cancelBubbleLayoutDraft}
+            onUndoPoint={handlers.undoBubbleLayoutPoint}
           />
-        </TestFontsProvider>
+          <TestFontsProvider>
+            <ImageStage
+              blockPointerDisabled={false}
+              imageDataUrl="data:image/png;base64,preview"
+              imageRef={imageRef}
+              interactionPreviewStore={handlers.interactionPreviewStore}
+              onBlockPointerDown={handlers.onBlockPointerDown}
+              onStagePointerDown={handlers.onStagePointerDown}
+              onStagePointerLeave={handlers.onStagePointerLeave}
+              onStagePointerMove={handlers.onStagePointerMove}
+              onStagePointerUp={handlers.onStagePointerUp}
+              page={page}
+              regionSelectionActive={Boolean(regionSelection?.active)}
+              regionSelectionRect={null}
+              selectedBlockId={selectedBlockId}
+              selectedBlockIds={selectedBlockIds}
+              showBlockChrome
+              showTextBlocks
+              stageRef={stageRef}
+              stageSize={{ height: 100, width: 100 }}
+              stageTool={stageTool}
+              textLayoutStageSize={{ height: 100, width: 100 }}
+            />
+          </TestFontsProvider>
+        </>
       ) : (
         <div
           data-testid="stage"
@@ -559,9 +767,11 @@ function createUpdateCurrentChapterMock() {
     (
       pageId: string,
       updater: (chapter: ChapterSnapshot) => ChapterSnapshot,
+      options?: { label?: string },
     ) => {
       void pageId;
       void updater;
+      void options;
     },
   );
 }
@@ -633,7 +843,11 @@ function makeChapter(page: MangaPage): ChapterSnapshot {
   };
 }
 
-function makePage(): MangaPage {
+function makePage({
+  withBubbleLayout = false,
+}: {
+  withBubbleLayout?: boolean;
+} = {}): MangaPage {
   return {
     id: "page-1",
     name: "page-1.png",
@@ -641,14 +855,14 @@ function makePage(): MangaPage {
     dataUrl: "",
     width: 1000,
     height: 1000,
-    blocks: [makeBlock()],
+    blocks: [makeBlock(withBubbleLayout)],
     analysisStatus: "idle",
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
   };
 }
 
-function makeBlock(): TranslationBlock {
+function makeBlock(withBubbleLayout = false): TranslationBlock {
   return {
     id: "block-1",
     type: "nonsolid",
@@ -658,11 +872,77 @@ function makeBlock(): TranslationBlock {
     confidence: 0.9,
     sourceDirection: "horizontal",
     renderDirection: "horizontal",
+    renderBbox: withBubbleLayout
+      ? { x: 100, y: 100, w: 200, h: 100 }
+      : undefined,
+    renderBboxSpace: withBubbleLayout ? "normalized_1000" : undefined,
+    bubbleLayout: withBubbleLayout
+      ? {
+          version: 1,
+          direction: "horizontal",
+          confidence: 0.97,
+          origin: "detected",
+          modelId: "comic-rtdetr-v1",
+          sourceImageRevision: "revision-1",
+          insetRatio: 0,
+          regions: [
+            {
+              spans: [
+                {
+                  blockStart: 0,
+                  blockEnd: 1,
+                  inlineStart: 0,
+                  inlineEnd: 1,
+                },
+              ],
+            },
+          ],
+        }
+      : undefined,
     fontSizePx: 24,
     lineHeight: 1.2,
     textAlign: "center",
     textColor: "#111111",
     backgroundColor: "#ffffff",
     opacity: 1,
+    wordBreak: "keep-all",
   };
+}
+
+function drawBubbleBrush(
+  stage: HTMLElement,
+  points: Array<[number, number]>,
+): void {
+  const [first, ...rest] = points;
+  if (!first) return;
+  fireEvent.pointerDown(stage, {
+    button: 0,
+    clientX: first[0],
+    clientY: first[1],
+    pointerId: 19,
+  });
+  for (const [clientX, clientY] of rest) {
+    fireEvent.pointerMove(stage, { clientX, clientY, pointerId: 19 });
+  }
+  const last = points.at(-1) ?? first;
+  fireEvent.pointerUp(stage, {
+    clientX: last[0],
+    clientY: last[1],
+    pointerId: 19,
+  });
+}
+
+function expectSculptedBubbleCommit(api: HarnessApi): void {
+  const updater = api.updateCurrentChapter.mock.calls[0]?.[1];
+  const updated = updater?.(makeChapter(makePage({ withBubbleLayout: true })));
+  const block = updated?.pages[0]?.blocks[0];
+  expect(block?.bubbleLayout).toMatchObject({
+    direction: "horizontal",
+    origin: "manual",
+    modelId: "manual-sculpt-v1",
+  });
+  expect(block?.bubbleLayout).not.toHaveProperty("sourceImageRevision");
+  expect(block?.renderDirection).toBe("horizontal");
+  expect(block?.wordBreak).toBe("keep-all");
+  expect(api.onBubbleLayoutFinished).toHaveBeenCalledTimes(1);
 }

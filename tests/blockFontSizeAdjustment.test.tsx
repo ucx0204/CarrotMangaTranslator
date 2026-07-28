@@ -35,7 +35,10 @@ vi.stubGlobal(
   },
 );
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  window.localStorage.clear();
+});
 
 describe("selected block font-size adjustment", () => {
   it("adjusts only the active manual-size block by one pixel", () => {
@@ -159,6 +162,262 @@ describe("selected block font-size adjustment", () => {
     expect(updateCurrentChapter).toHaveBeenCalledTimes(2);
   });
 
+  it("removes a failed bubble fit and its render bounds in one history edit", () => {
+    const fittedBlock = makeBlock({
+      renderBbox: { x: 50, y: 60, w: 320, h: 420 },
+      renderBboxSpace: "normalized_1000",
+      bubbleLayout: makeBubbleLayout(),
+    });
+    let chapter = makeChapter([fittedBlock]);
+    const page = chapter.pages[0] as MangaPage;
+    const updateCurrentChapter = vi.fn<UpdateCurrentChapter>(
+      (_pageId, updater) => {
+        chapter = updater(chapter);
+      },
+    );
+    const { result } = renderHook(
+      () =>
+        useBlockEditingActions({
+          currentChapter: chapter,
+          jobActive: false,
+          pushStatus: vi.fn(),
+          selectedBlock: fittedBlock,
+          selectedBlockIds: [fittedBlock.id],
+          selectedPage: page,
+          selectedPageEditLocked: false,
+          setSelectedBlockId: vi.fn(),
+          setSelectedBlockIds: vi.fn(),
+          updateCurrentChapter,
+        }),
+      { wrapper: FontsTestProvider },
+    );
+
+    act(() => result.current.removeSelectedBlockBubbleLayout());
+
+    const restored = chapter.pages[0]?.blocks[0];
+    expect(restored?.bbox).toEqual(fittedBlock.bbox);
+    expect(restored).not.toHaveProperty("bubbleLayout");
+    expect(restored).not.toHaveProperty("renderBbox");
+    expect(restored).not.toHaveProperty("renderBboxSpace");
+    expect(updateCurrentChapter).toHaveBeenCalledOnce();
+    expect(updateCurrentChapter.mock.calls[0]?.[2]).toEqual({
+      label: "말풍선 맞춤 해제",
+    });
+  });
+
+  it("shows an accessible remove action only for a bubble-fitted block", () => {
+    const onRemoveBubbleLayout = vi.fn();
+    const { rerender } = render(
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock({ bubbleLayout: makeBubbleLayout() })}
+          disabled={false}
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onRemoveBubbleLayout={onRemoveBubbleLayout}
+          onUpdate={vi.fn()}
+        />
+      </FontsTestProvider>,
+    );
+
+    const remove = screen.getByRole("button", {
+      name: "말풍선 맞춤 해제",
+    });
+    expect(remove.hasAttribute("title")).toBe(false);
+    expect(
+      screen.getByRole("tab", { name: "텍스트" }).getAttribute("aria-selected"),
+    ).toBe("true");
+    selectEditorTab("서식");
+    expect(
+      screen.getByRole("button", { name: "말풍선 맞춤 해제" }),
+    ).not.toBeNull();
+    fireEvent.click(remove);
+    expect(onRemoveBubbleLayout).toHaveBeenCalledOnce();
+
+    rerender(
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock()}
+          disabled={false}
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onRemoveBubbleLayout={onRemoveBubbleLayout}
+          onUpdate={vi.fn()}
+        />
+      </FontsTestProvider>,
+    );
+    expect(
+      screen.queryByRole("button", { name: "말풍선 맞춤 해제" }),
+    ).toBeNull();
+  });
+
+  it("keeps text and OCR visible and preserves drafts across tabs", () => {
+    const onUpdate = vi.fn();
+    const { container } = render(
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock({
+            sourceText: "OCR 첫 줄\nOCR 둘째 줄",
+            translatedText: "처음 번역",
+          })}
+          disabled={false}
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onUpdate={onUpdate}
+        />
+      </FontsTestProvider>,
+    );
+
+    expect(
+      screen.getByRole("tab", { name: "텍스트" }).getAttribute("aria-selected"),
+    ).toBe("true");
+    const translation = screen.getByRole("textbox", {
+      name: "번역문",
+    }) as HTMLTextAreaElement;
+    fireEvent.change(translation, { target: { value: "작성 중 번역" } });
+    expect(onUpdate).toHaveBeenCalledWith({ translatedText: "작성 중 번역" });
+
+    const source = screen.getByRole("textbox", {
+      name: "OCR",
+    }) as HTMLTextAreaElement;
+    expect(source.value).toBe("OCR 첫 줄\nOCR 둘째 줄");
+    expect(container.querySelector(".editor-source-disclosure")).toBeNull();
+    expect(container.querySelector(".editor-source-field")).not.toBeNull();
+    expect(container.querySelector(".markup-hint")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "부분 강조 도움말" }));
+    expect(container.querySelector(".markup-hint")).not.toBeNull();
+    expect(
+      screen.getByRole("button", { name: "굵게 (**굵게**)" }),
+    ).not.toBeNull();
+    fireEvent.change(source, { target: { value: "수정한 OCR" } });
+    expect(onUpdate).toHaveBeenCalledWith({ sourceText: "수정한 OCR" });
+
+    selectEditorTab("서식");
+    expect(
+      screen.getByRole("button", { name: "블록 전체 굵게" }),
+    ).not.toBeNull();
+    selectEditorTab("텍스트");
+    expect(
+      (screen.getByRole("textbox", { name: "번역문" }) as HTMLTextAreaElement)
+        .value,
+    ).toBe("작성 중 번역");
+    expect(
+      (screen.getByRole("textbox", { name: "OCR" }) as HTMLTextAreaElement)
+        .value,
+    ).toBe("수정한 OCR");
+  });
+
+  it("supports tab keyboard navigation and remembers the selected tab", () => {
+    const props = {
+      block: makeBlock(),
+      disabled: false,
+      onAdjustFontSize: vi.fn(),
+      onDelete: vi.fn(),
+      onDuplicate: vi.fn(),
+      onUpdate: vi.fn(),
+    };
+    const view = render(
+      <FontsTestProvider>
+        <EditorPanel {...props} />
+      </FontsTestProvider>,
+    );
+    const textTab = screen.getByRole("tab", { name: "텍스트" });
+
+    fireEvent.keyDown(textTab, { key: "ArrowRight" });
+    const layoutTab = screen.getByRole("tab", { name: "배치" });
+    expect(layoutTab.getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(layoutTab);
+
+    fireEvent.keyDown(layoutTab, { key: "End" });
+    expect(
+      screen.getByRole("tab", { name: "서식" }).getAttribute("aria-selected"),
+    ).toBe("true");
+    view.unmount();
+    render(
+      <FontsTestProvider>
+        <EditorPanel {...props} />
+      </FontsTestProvider>,
+    );
+    expect(
+      screen.getByRole("tab", { name: "서식" }).getAttribute("aria-selected"),
+    ).toBe("true");
+  });
+
+  it("reveals layout for a newly entered transform mode without trapping tabs", () => {
+    const props = {
+      block: makeBlock(),
+      disabled: false,
+      onAdjustFontSize: vi.fn(),
+      onDelete: vi.fn(),
+      onDuplicate: vi.fn(),
+      onUpdate: vi.fn(),
+    };
+    const view = render(
+      <FontsTestProvider>
+        <EditorPanel {...props} transformMode="select" />
+      </FontsTestProvider>,
+    );
+
+    view.rerender(
+      <FontsTestProvider>
+        <EditorPanel {...props} transformMode="perspective" />
+      </FontsTestProvider>,
+    );
+    expect(
+      screen.getByRole("tab", { name: "배치" }).getAttribute("aria-selected"),
+    ).toBe("true");
+
+    selectEditorTab("텍스트");
+    view.rerender(
+      <FontsTestProvider>
+        <EditorPanel {...props} transformMode="curve" />
+      </FontsTestProvider>,
+    );
+    expect(
+      screen.getByRole("tab", { name: "텍스트" }).getAttribute("aria-selected"),
+    ).toBe("true");
+  });
+
+  it("keeps external header actions and moves block actions into overflow", () => {
+    const onDelete = vi.fn();
+    const onDuplicate = vi.fn();
+    const onUpdate = vi.fn();
+    render(
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock({ inpaintExcluded: true })}
+          disabled={false}
+          headerActions={<button type="button">패널 분리</button>}
+          onAdjustFontSize={vi.fn()}
+          onDelete={onDelete}
+          onDuplicate={onDuplicate}
+          onUpdate={onUpdate}
+        />
+      </FontsTestProvider>,
+    );
+
+    expect(screen.getByRole("button", { name: "패널 분리" })).not.toBeNull();
+    expect(screen.getByText("자동 지우기에서 제외")).not.toBeNull();
+    openBlockMenu();
+    const exclusion = screen.getByRole("menuitemcheckbox", {
+      name: "자동 지우기에서 제외",
+    });
+    expect(exclusion.getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(exclusion);
+    expect(onUpdate).toHaveBeenCalledWith({ inpaintExcluded: false });
+
+    openBlockMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: "복제" }));
+    expect(onDuplicate).toHaveBeenCalledOnce();
+    openBlockMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: "삭제" }));
+    expect(onDelete).toHaveBeenCalledOnce();
+  });
+
   it("renders accessible minus/plus controls and delegates relative actions", () => {
     const onAdjustFontSize = vi.fn();
     render(
@@ -174,6 +433,7 @@ describe("selected block font-size adjustment", () => {
       </FontsTestProvider>,
     );
 
+    selectEditorTab("서식");
     act(() => screen.getByRole("button", { name: "글자 크기 줄이기" }).click());
     act(() => screen.getByRole("button", { name: "글자 크기 늘리기" }).click());
 
@@ -195,6 +455,7 @@ describe("selected block font-size adjustment", () => {
       </FontsTestProvider>,
     );
 
+    selectEditorTab("서식");
     const select = screen.getByRole("combobox", { name: "줄바꿈 방식" });
     expect((select as HTMLSelectElement).value).toBe("break-all");
     expect(screen.getByRole("option", { name: "글자 단위" })).toBeTruthy();
@@ -221,6 +482,7 @@ describe("selected block font-size adjustment", () => {
       </FontsTestProvider>,
     );
 
+    selectEditorTab("서식");
     expect(
       (
         screen.getByRole("combobox", {
@@ -247,6 +509,7 @@ describe("selected block font-size adjustment", () => {
       </FontsTestProvider>,
     );
 
+    selectEditorTab("서식");
     const textOpacity = screen.getByRole("slider", { name: "글자 투명도" });
     const backgroundOpacity = screen.getByRole("slider", {
       name: "블록 배경 투명도",
@@ -451,6 +714,7 @@ describe("font-size panel bridge", () => {
     { type: "adjustFontSize", adjustment: 1 },
     { type: "deleteBlock" },
     { type: "duplicateBlock" },
+    { type: "removeBubbleLayout" },
   ])("requires a block id for $type commands", (command) => {
     expect(() => PanelCommandSchema.parse(command)).toThrow();
   });
@@ -498,6 +762,7 @@ describe("font-size panel bridge", () => {
     act(() => result.current?.onUpdateBlock({ translatedText: "수정" }));
     act(() => result.current?.onDeleteBlock());
     act(() => result.current?.onDuplicateBlock());
+    act(() => result.current?.onRemoveBubbleLayout());
     act(() => result.current?.onApplyBlockBackgroundOpacity("chapter"));
 
     expect(sendPanelCommand).toHaveBeenCalledWith({
@@ -519,11 +784,23 @@ describe("font-size panel bridge", () => {
       blockId: block.id,
     });
     expect(sendPanelCommand).toHaveBeenCalledWith({
+      type: "removeBubbleLayout",
+      blockId: block.id,
+    });
+    expect(sendPanelCommand).toHaveBeenCalledWith({
       type: "applyBlockBackgroundOpacity",
       scope: "chapter",
     });
   });
 });
+
+function selectEditorTab(name: "텍스트" | "배치" | "서식"): void {
+  fireEvent.click(screen.getByRole("tab", { name }));
+}
+
+function openBlockMenu(): void {
+  fireEvent.click(screen.getByRole("button", { name: "블록 작업 더 보기" }));
+}
 
 function makeBlock(patch: Partial<TranslationBlock> = {}): TranslationBlock {
   return {
@@ -543,6 +820,28 @@ function makeBlock(patch: Partial<TranslationBlock> = {}): TranslationBlock {
     opacity: 1,
     autoFitText: false,
     ...patch,
+  };
+}
+
+function makeBubbleLayout(): NonNullable<TranslationBlock["bubbleLayout"]> {
+  return {
+    version: 1,
+    direction: "horizontal",
+    confidence: 0.9,
+    origin: "manual",
+    insetRatio: 0.04,
+    regions: [
+      {
+        spans: [
+          {
+            blockStart: 0,
+            blockEnd: 1,
+            inlineStart: 0,
+            inlineEnd: 1,
+          },
+        ],
+      },
+    ],
   };
 }
 

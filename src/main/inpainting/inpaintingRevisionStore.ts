@@ -8,12 +8,19 @@ import type { ChapterSnapshot, MangaPage } from "../../shared/libraryTypes";
 import type { InpaintingArtifactCleanupOptions } from "../libraryStore/libraryInpaintingMutations";
 import { logInpaintingRuntimeWarn } from "./inpaintingRuntimeLogger";
 import {
+  assertRevisionLayoutPair,
   groupChangesByChapter,
   InpaintingRevisionRollbackError,
   sameOptionalPath,
   uniqueRevisionChanges,
   type InpaintingRevisionChange,
 } from "./inpaintingRevisionHelpers";
+import {
+  cloneInpaintingLayoutStates,
+  inpaintingLayoutStatesEqual,
+  type InpaintingPageLayoutPatch,
+} from "./inpaintingLayoutState";
+import { prepareInpaintingPageRevision } from "./inpaintingRevisionPreparation";
 import {
   libraryInpaintingRevisionRepository,
   type InpaintingRevisionRepository,
@@ -37,6 +44,8 @@ type InpaintingRevisionTransaction = {
 type PreparedChapterRevision = {
   nextPages: MangaPage[];
   originalPages: MangaPage[];
+  nextLayoutPatches: InpaintingPageLayoutPatch[];
+  originalLayoutPatches: InpaintingPageLayoutPatch[];
 };
 
 export class InpaintingRevisionStore {
@@ -61,7 +70,11 @@ export class InpaintingRevisionStore {
 
   addChange(transactionId: string, change: InpaintingRevisionChange): boolean {
     const transaction = this.requireTransaction(transactionId);
-    if (sameOptionalPath(change.beforePath, change.afterPath)) {
+    assertRevisionLayoutPair(change);
+    if (
+      sameOptionalPath(change.beforePath, change.afterPath) &&
+      inpaintingLayoutStatesEqual(change.beforeLayout, change.afterLayout)
+    ) {
       return false;
     }
     if (
@@ -75,7 +88,11 @@ export class InpaintingRevisionStore {
         "하나의 인페인팅 기록에 같은 페이지를 중복 등록할 수 없습니다.",
       );
     }
-    transaction.changes.push({ ...change });
+    transaction.changes.push({
+      ...change,
+      beforeLayout: cloneInpaintingLayoutStates(change.beforeLayout),
+      afterLayout: cloneInpaintingLayoutStates(change.afterLayout),
+    });
     return true;
   }
 
@@ -245,7 +262,10 @@ export class InpaintingRevisionStore {
           await this.repository.savePages(
             chapterId,
             revision.nextPages,
-            this.cleanupOptionsForChapter(chapterId),
+            this.mutationOptionsForChapter(
+              chapterId,
+              revision.nextLayoutPatches,
+            ),
           ),
         );
       }
@@ -260,7 +280,10 @@ export class InpaintingRevisionStore {
         await this.repository.savePages(
           chapterId,
           revision.originalPages,
-          this.cleanupOptionsForChapter(chapterId),
+          this.mutationOptionsForChapter(
+            chapterId,
+            revision.originalLayoutPatches,
+          ),
         );
       } catch (error) {
         rollbackErrors.push(error);
@@ -293,40 +316,41 @@ export class InpaintingRevisionStore {
       const chapter = await this.repository.readChapter(chapterId);
       const nextPages: MangaPage[] = [];
       const originalPages: MangaPage[] = [];
+      const nextLayoutPatches: InpaintingPageLayoutPatch[] = [];
+      const originalLayoutPatches: InpaintingPageLayoutPatch[] = [];
       for (const change of changes) {
         this.repository.validateChangePaths(chapter, change);
-        const page = chapter.pages.find(
-          (candidate) => candidate.id === change.pageId,
-        );
-        if (!page) {
-          throw new Error("인페인팅 기록의 페이지를 찾지 못했습니다.");
-        }
-        const expectedPath =
-          direction === "undo" ? change.afterPath : change.beforePath;
-        if (!sameOptionalPath(page.inpaintedImagePath, expectedPath)) {
-          throw new Error(
-            "페이지가 다른 작업으로 변경되어 인페인팅 기록을 적용할 수 없습니다.",
-          );
-        }
-        const targetPath =
-          direction === "undo" ? change.beforePath : change.afterPath;
-        originalPages.push(page);
-        nextPages.push({
-          ...page,
-          inpaintedImagePath: targetPath,
-          updatedAt: new Date().toISOString(),
+        const preparedPage = prepareInpaintingPageRevision({
+          chapter,
+          change,
+          direction,
         });
+        originalPages.push(preparedPage.originalPage);
+        nextPages.push(preparedPage.nextPage);
+        if (preparedPage.nextLayoutPatch) {
+          nextLayoutPatches.push(preparedPage.nextLayoutPatch);
+        }
+        if (preparedPage.originalLayoutPatch) {
+          originalLayoutPatches.push(preparedPage.originalLayoutPatch);
+        }
       }
-      prepared.set(chapterId, { nextPages, originalPages });
+      prepared.set(chapterId, {
+        nextPages,
+        originalPages,
+        nextLayoutPatches,
+        originalLayoutPatches,
+      });
     }
     return prepared;
   }
 
-  private cleanupOptionsForChapter(
+  private mutationOptionsForChapter(
     chapterId: string,
+    layoutPatches: InpaintingPageLayoutPatch[] = [],
   ): InpaintingArtifactCleanupOptions {
     return {
       retainedInpaintedArtifactPaths: this.getRetainedArtifactPaths(chapterId),
+      ...(layoutPatches.length > 0 ? { layoutPatches } : {}),
     };
   }
 

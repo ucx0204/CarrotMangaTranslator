@@ -1,168 +1,147 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import type { ChapterSnapshot } from "../../../shared/libraryTypes";
-import type { JobState } from "../../../shared/jobTypes";
-import type { ProgressSnapshot } from "../lib/jobProgress";
-import { useEtaText } from "../hooks/useEtaText";
+import { IconDownload, IconWand } from "@tabler/icons-react";
+import type { AutoInpaintingEntryScope } from "../lib/autoInpaintingSelection";
 import { Button } from "./ui/Button";
-import { ChevronDownIcon, CopyIcon, InfoIcon } from "./ui/icons";
+import { ChevronDownIcon } from "./ui/icons";
+import { ControlTooltip } from "./ui/ControlTooltip";
+import { RunJobFeedback } from "./RunStatusFeedback";
+import { ChapterTaskHeader } from "./ChapterTaskHeader";
+import { areChapterTaskHubPropsEqual } from "./chapterTaskHubMemo";
+import type { ChapterTaskHubProps } from "./chapterTaskHubTypes";
 
-type RunPanelProps = {
-  currentChapter: ChapterSnapshot | null;
-  jobActive: boolean;
-  flowActive: boolean;
-  showProgressBar: boolean;
-  progressSnapshot: ProgressSnapshot | null;
-  jobState: JobState;
-  onOpenExport: () => void;
-  onOpenTranslateOptions: () => void;
-  onOpenAutoInpaintingOptions: () => void;
-  onRunCurrentPageInpainting: () => void;
-  onShowGuide: () => void;
-  onCancelJob: () => void;
-  hasSelectedPage: boolean;
-};
-
-export const RunPanel = React.memo(function RunPanel({
-  currentChapter,
-  jobActive,
-  flowActive,
-  showProgressBar,
-  progressSnapshot,
-  jobState,
-  onOpenExport,
-  onOpenTranslateOptions,
-  onOpenAutoInpaintingOptions,
-  onRunCurrentPageInpainting,
-  onShowGuide,
-  onCancelJob,
-  hasSelectedPage,
-}: RunPanelProps): React.JSX.Element {
+export const ChapterTaskHub = React.memo(function ChapterTaskHub(
+  props: ChapterTaskHubProps,
+): React.JSX.Element {
   const { t } = useTranslation("components");
-  const actionsDisabled = !currentChapter || jobActive || flowActive;
+  const actionsDisabled =
+    !props.currentChapter || props.jobActive || props.flowActive;
   return (
-    <section className="run-panel">
-      <div className="run-title">
-        <h2>{currentChapter?.title ?? t("sidebar.noCurrentChapter")}</h2>
-        <small>
-          {currentChapter
-            ? t("common.pageCount", { count: currentChapter.pages.length })
-            : t("runPanel.openChapterHint")}
-        </small>
-      </div>
+    <section className="run-panel chapter-task-hub">
+      <ChapterTaskHeader currentChapter={props.currentChapter} />
       <div className="run-primary-actions">
         <Button
           variant="primary"
           fullWidth
-          onClick={onOpenTranslateOptions}
+          onClick={props.onOpenTranslateOptions}
           disabled={actionsDisabled}
         >
           {t("sidebar.translate")}
         </Button>
-        <AutomaticEraseActions
-          disabled={actionsDisabled || !hasSelectedPage}
-          onOpenMultiPage={onOpenAutoInpaintingOptions}
-          onRunCurrentPage={onRunCurrentPageInpainting}
-          onShowGuide={onShowGuide}
-        />
-        <Button fullWidth onClick={onOpenExport} disabled={actionsDisabled}>
-          {t("inpainting.export.pngAction")}
-        </Button>
+        {props.currentChapter && props.hasSelectedPage ? (
+          <CurrentPageActionsSection
+            actionsDisabled={actionsDisabled}
+            canRunBubbleLayout={props.canRunBubbleLayout}
+            hasSelectedPage={props.hasSelectedPage}
+            onOpenAutoInpaintingOptions={props.onOpenAutoInpaintingOptions}
+            onOpenExport={props.onOpenExport}
+            onRunBubbleLayout={props.onRunBubbleLayout}
+            onRunCurrentPageInpainting={props.onRunCurrentPageInpainting}
+          />
+        ) : null}
       </div>
-      {jobActive ? (
-        <Button variant="danger" fullWidth onClick={onCancelJob}>
+      {props.jobActive ? (
+        <Button variant="danger" fullWidth onClick={props.onCancelJob}>
           {t("common.cancel")}
         </Button>
       ) : null}
       <RunJobFeedback
-        jobState={jobState}
-        progressSnapshot={progressSnapshot}
-        showProgressBar={showProgressBar}
+        jobState={props.jobState}
+        progressSnapshot={props.progressSnapshot}
+        showProgressBar={props.showProgressBar}
       />
     </section>
   );
-}, areRunPanelPropsEqual);
+}, areChapterTaskHubPropsEqual);
 
-function areRunPanelPropsEqual(
-  previous: RunPanelProps,
-  next: RunPanelProps,
-): boolean {
-  return (
-    isSameChapterSummary(previous, next) &&
-    isSameRunState(previous, next) &&
-    isSameRunActions(previous, next)
-  );
-}
-
-function isSameChapterSummary(
-  previous: RunPanelProps,
-  next: RunPanelProps,
-): boolean {
-  return (
-    previous.currentChapter?.id === next.currentChapter?.id &&
-    previous.currentChapter?.title === next.currentChapter?.title &&
-    previous.currentChapter?.pages.length === next.currentChapter?.pages.length
-  );
-}
-
-function isSameRunState(previous: RunPanelProps, next: RunPanelProps): boolean {
-  return (
-    previous.flowActive === next.flowActive &&
-    previous.hasSelectedPage === next.hasSelectedPage &&
-    previous.jobActive === next.jobActive &&
-    previous.jobState === next.jobState &&
-    previous.progressSnapshot === next.progressSnapshot &&
-    previous.showProgressBar === next.showProgressBar
-  );
-}
-
-function isSameRunActions(
-  previous: RunPanelProps,
-  next: RunPanelProps,
-): boolean {
-  return (
-    previous.onCancelJob === next.onCancelJob &&
-    previous.onOpenAutoInpaintingOptions === next.onOpenAutoInpaintingOptions &&
-    previous.onOpenExport === next.onOpenExport &&
-    previous.onOpenTranslateOptions === next.onOpenTranslateOptions &&
-    previous.onRunCurrentPageInpainting === next.onRunCurrentPageInpainting &&
-    previous.onShowGuide === next.onShowGuide
-  );
-}
-
-function RunJobFeedback({
-  jobState,
-  progressSnapshot,
-  showProgressBar,
+function CurrentPageActionsSection({
+  actionsDisabled,
+  canRunBubbleLayout,
+  hasSelectedPage,
+  onOpenAutoInpaintingOptions,
+  onOpenExport,
+  onRunBubbleLayout,
+  onRunCurrentPageInpainting,
 }: {
-  jobState: JobState;
-  progressSnapshot: ProgressSnapshot | null;
-  showProgressBar: boolean;
-}): React.JSX.Element | null {
-  if (jobState.status === "failed" && jobState.detail?.trim()) {
-    return (
-      <div className="job-failure-card" role="alert">
-        <strong>{jobState.progressText}</strong>
-        <p>{jobState.detail}</p>
-      </div>
-    );
-  }
-  if (!showProgressBar || !progressSnapshot) return null;
+  actionsDisabled: boolean;
+  canRunBubbleLayout: boolean;
+  hasSelectedPage: boolean;
+  onOpenAutoInpaintingOptions: (scope: AutoInpaintingEntryScope) => void;
+  onOpenExport: () => void;
+  onRunBubbleLayout: () => void;
+  onRunCurrentPageInpainting: () => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
   return (
-    <ProgressCard jobState={jobState} progressSnapshot={progressSnapshot} />
+    <div className="current-page-actions-section">
+      <small className="current-page-actions-label">
+        {t("runPanel.currentPage")}
+      </small>
+      <div className="current-page-actions">
+        <AutomaticEraseActions
+          disabled={actionsDisabled || !hasSelectedPage}
+          onOpenScope={onOpenAutoInpaintingOptions}
+          onRunCurrentPage={onRunCurrentPageInpainting}
+        />
+        <BubbleLayoutAction
+          canRun={canRunBubbleLayout}
+          disabled={actionsDisabled || !canRunBubbleLayout}
+          onRun={onRunBubbleLayout}
+        />
+        <Button
+          aria-label={t("inpainting.export.pngAction")}
+          className="current-page-export-action"
+          disabled={actionsDisabled}
+          fullWidth
+          iconLeft={<IconDownload size={16} stroke={2.1} />}
+          onClick={onOpenExport}
+          size="sm"
+        >
+          {t("inpainting.export.pngAction")}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function BubbleLayoutAction({
+  canRun,
+  disabled,
+  onRun,
+}: {
+  canRun: boolean;
+  disabled: boolean;
+  onRun: () => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const label = t("inpainting.auto.bubbleLayoutAction");
+  return (
+    <ControlTooltip
+      className="current-page-action-tooltip"
+      content={canRun ? label : t("inpainting.auto.bubbleLayoutRequiresBlocks")}
+      placement="top"
+    >
+      <Button
+        aria-label={label}
+        disabled={disabled}
+        fullWidth
+        iconLeft={<IconWand size={17} stroke={2.1} />}
+        onClick={onRun}
+      >
+        {t("inpainting.auto.bubbleLayoutShort")}
+      </Button>
+    </ControlTooltip>
   );
 }
 
 function AutomaticEraseActions({
   disabled,
-  onOpenMultiPage,
+  onOpenScope,
   onRunCurrentPage,
-  onShowGuide,
 }: {
   disabled: boolean;
-  onOpenMultiPage: () => void;
+  onOpenScope: (scope: AutoInpaintingEntryScope) => void;
   onRunCurrentPage: () => void;
-  onShowGuide: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   const [menuOpen, setMenuOpen] = React.useState(false);
@@ -199,8 +178,13 @@ function AutomaticEraseActions({
 
   return (
     <div className="auto-inpainting-action" ref={rootRef}>
-      <Button fullWidth onClick={onRunCurrentPage} disabled={disabled}>
-        {t("inpainting.auto.currentPageAction")}
+      <Button
+        aria-label={t("inpainting.auto.currentPageAction")}
+        disabled={disabled}
+        fullWidth
+        onClick={onRunCurrentPage}
+      >
+        {t("inpainting.auto.eraseShort")}
       </Button>
       <Button
         ref={triggerRef}
@@ -217,8 +201,7 @@ function AutomaticEraseActions({
       {menuOpen && !disabled ? (
         <AutomaticEraseMenu
           onClose={closeMenuAndRestoreFocus}
-          onOpenMultiPage={onOpenMultiPage}
-          onShowGuide={onShowGuide}
+          onOpenScope={onOpenScope}
         />
       ) : null}
     </div>
@@ -227,12 +210,10 @@ function AutomaticEraseActions({
 
 function AutomaticEraseMenu({
   onClose,
-  onOpenMultiPage,
-  onShowGuide,
+  onOpenScope,
 }: {
   onClose: () => void;
-  onOpenMultiPage: () => void;
-  onShowGuide: () => void;
+  onOpenScope: (scope: AutoInpaintingEntryScope) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   const runAndClose = (action: () => void): void => {
@@ -254,92 +235,17 @@ function AutomaticEraseMenu({
       <button
         type="button"
         role="menuitem"
-        onClick={() => runAndClose(onOpenMultiPage)}
+        onClick={() => runAndClose(() => onOpenScope("all"))}
       >
-        <CopyIcon size={16} />
-        <span>{t("inpainting.auto.selectMultiplePages")}</span>
+        <span>{t("inpainting.auto.allPagesErase")}</span>
       </button>
       <button
         type="button"
         role="menuitem"
-        onClick={() => runAndClose(onShowGuide)}
+        onClick={() => runAndClose(() => onOpenScope("select"))}
       >
-        <InfoIcon size={16} />
-        <span>{t("inpainting.auto.guideAction")}</span>
+        <span>{t("inpainting.auto.selectPagesErase")}</span>
       </button>
-    </div>
-  );
-}
-
-export function StatusPanel({
-  jobState,
-  statusLines,
-}: {
-  jobState: JobState;
-  statusLines: string[];
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <section className="status-panel">
-      <h2>{t("status.title")}</h2>
-      <div
-        className={`job-pill ${jobState.status}`}
-        role="status"
-        aria-live="polite"
-      >
-        {jobState.progressText}
-      </div>
-      <div className="status-log-scroll">
-        {statusLines.length ? (
-          statusLines.map((line, index) => (
-            <p key={`${line}-${index}`}>{line}</p>
-          ))
-        ) : (
-          <p className="muted-line">{t("status.empty")}</p>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function ProgressCard({
-  jobState,
-  progressSnapshot,
-}: {
-  jobState: JobState;
-  progressSnapshot: ProgressSnapshot;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  const etaText = useEtaText(progressSnapshot);
-  return (
-    <div className="progress-card">
-      <div className="progress-meta">
-        <span>{jobState.progressText}</span>
-        {progressSnapshot.mode === "determinate" ? (
-          <strong>
-            {progressSnapshot.current} / {progressSnapshot.total}
-          </strong>
-        ) : (
-          <strong>{t("common.preparing")}</strong>
-        )}
-      </div>
-      {jobState.detail ? (
-        <small className="progress-detail">{jobState.detail}</small>
-      ) : null}
-      {etaText ? <small className="progress-eta">{etaText}</small> : null}
-      <div
-        className={`progress-track ${progressSnapshot.mode === "indeterminate" ? "indeterminate" : ""}`}
-        aria-hidden="true"
-      >
-        <div
-          className={`progress-fill ${progressSnapshot.mode === "indeterminate" ? "indeterminate" : ""}`}
-          style={
-            progressSnapshot.mode === "determinate"
-              ? { width: `${Math.round(progressSnapshot.ratio * 100)}%` }
-              : undefined
-          }
-        />
-      </div>
     </div>
   );
 }

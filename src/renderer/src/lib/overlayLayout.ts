@@ -9,23 +9,25 @@ import {
   resolveFontWidthScale,
 } from "../../../shared/geometry";
 import { parseRichText } from "../../../shared/richTextMarkup";
+import type { BlockFontCatalog } from "./fonts";
 import {
-  resolveBlockTextWordBreak,
-  type TextWordBreak,
-} from "../../../shared/textWrapping";
-import { resolveBlockFontFamily, type BlockFontCatalog } from "./fonts";
+  doesBlockTextFit as doesTextFit,
+  resolveFixedHorizontalTextLines,
+  resolveHorizontalTextContentWidth,
+} from "./blockTextMeasurement";
 import {
-  measureStyledWrappedText,
-  measureUniformWrappedText,
-  type BlockTextLine,
-} from "./overlayTextWrapping";
+  createGeneratedBubbleQualityBudget,
+  doesGeneratedBubbleQualityFit,
+  resolveBubbleWrappedText,
+  resolveRectangularBubbleBaselineBlock,
+  shouldGateGeneratedBubbleLayout,
+  type GeneratedBubbleQualityBudget,
+} from "./bubbleBlockTextLayout";
+import { type BlockTextLine } from "./overlayTextWrapping";
 
 const MIN_FONT_SIZE_PX = MIN_READABLE_FONT_SIZE_PX;
 const MAX_AUTOFIT_FONT_SIZE_PX = 256;
 const MIN_INNER_SIZE_PX = 1;
-const MAX_VERTICAL_COLUMNS = 2;
-
-let measureCanvas: HTMLCanvasElement | null = null;
 
 export type ViewportSize = {
   width: number;
@@ -74,6 +76,49 @@ export function resolveBlockTextLayout(
   fontCatalog: BlockFontCatalog,
   options: BlockTextLayoutOptions = {},
 ): BlockTextLayout {
+  if (!shouldGateGeneratedBubbleLayout(block, text)) {
+    return resolveBlockTextLayoutCore(
+      block,
+      text,
+      pageSize,
+      stageSize,
+      fontCatalog,
+      options,
+    );
+  }
+  const baseline = resolveBlockTextLayoutCore(
+    resolveRectangularBubbleBaselineBlock(block),
+    text,
+    pageSize,
+    stageSize,
+    fontCatalog,
+    options,
+  );
+  const qualityBudget = createGeneratedBubbleQualityBudget({
+    block,
+    text,
+    baselineLines: baseline.lines,
+  });
+  return resolveBlockTextLayoutCore(
+    block,
+    text,
+    pageSize,
+    stageSize,
+    fontCatalog,
+    options,
+    qualityBudget,
+  );
+}
+
+function resolveBlockTextLayoutCore(
+  block: TranslationBlock,
+  text: string,
+  pageSize: ViewportSize,
+  stageSize: ViewportSize,
+  fontCatalog: BlockFontCatalog,
+  options: BlockTextLayoutOptions,
+  bubbleQualityBudget: GeneratedBubbleQualityBudget | null = null,
+): BlockTextLayout {
   const { plainText } = parseRichText(
     text,
     Boolean(block.bold),
@@ -106,6 +151,7 @@ export function resolveBlockTextLayout(
     fontCatalog,
     layoutStageSize,
     pageSize,
+    bubbleQualityBudget,
   });
 
   return {
@@ -123,15 +169,7 @@ export function resolveBlockTextLayout(
   };
 }
 
-function resolveBlockTextMetrics({
-  block,
-  text,
-  fitInnerWidth,
-  fitInnerHeight,
-  fontCatalog,
-  layoutStageSize,
-  pageSize,
-}: {
+type TextMetricsInput = {
   block: TranslationBlock;
   text: string;
   fitInnerWidth: number;
@@ -139,10 +177,27 @@ function resolveBlockTextMetrics({
   fontCatalog: BlockFontCatalog;
   layoutStageSize: ViewportSize;
   pageSize: ViewportSize;
-}): Pick<
+  bubbleQualityBudget: GeneratedBubbleQualityBudget | null;
+};
+
+type BubbleMeasurer = (
+  fontSize: number,
+) => ReturnType<typeof resolveBubbleWrappedText>;
+
+function resolveBlockTextMetrics(
+  input: TextMetricsInput,
+): Pick<
   BlockTextLayout,
   "fontSizePx" | "textContentWidth" | "lines" | "overflow"
 > {
+  const {
+    block,
+    text,
+    fitInnerWidth,
+    fitInnerHeight,
+    layoutStageSize,
+    pageSize,
+  } = input;
   const scale = Math.min(
     layoutStageSize.width / Math.max(1, pageSize.width),
     layoutStageSize.height / Math.max(1, pageSize.height),
@@ -157,82 +212,99 @@ function resolveBlockTextMetrics({
     fitInnerWidth,
     fitInnerHeight,
   );
+  const bubbleMeasurer = createBubbleMeasurer(input);
   const fontSizePx = resolveTextFontSizePx(
     block,
     text,
     maxFontSize,
-    fitInnerWidth,
-    fitInnerHeight,
-    fontCatalog,
+    createFitsAtFontSize(input, bubbleMeasurer),
   );
+  return resolveFinalTextMetrics(input, fontSizePx, bubbleMeasurer);
+}
+
+function createBubbleMeasurer(input: TextMetricsInput): BubbleMeasurer | null {
+  const { block, text, fitInnerWidth, fitInnerHeight, fontCatalog } = input;
+  if (!text.trim() || block.curveLayout) return null;
+  const measure: BubbleMeasurer = (fontSize) =>
+    resolveBubbleWrappedText(
+      block,
+      text,
+      fontSize,
+      fitInnerWidth,
+      fitInnerHeight,
+      fontCatalog,
+    );
+  return measure(MIN_FONT_SIZE_PX) ? measure : null;
+}
+
+function createFitsAtFontSize(
+  input: TextMetricsInput,
+  bubbleMeasurer: BubbleMeasurer | null,
+): (fontSize: number) => boolean {
+  if (bubbleMeasurer) {
+    return (fontSize) => {
+      const measured = bubbleMeasurer(fontSize);
+      return Boolean(
+        measured &&
+        (!input.bubbleQualityBudget ||
+          doesGeneratedBubbleQualityFit(
+            measured.lines,
+            input.bubbleQualityBudget,
+          )),
+      );
+    };
+  }
+  const { block, text, fitInnerWidth, fitInnerHeight, fontCatalog } = input;
+  return (fontSize) =>
+    doesTextFit(
+      block,
+      text,
+      fontSize,
+      fitInnerWidth,
+      fitInnerHeight,
+      fontCatalog,
+    );
+}
+
+function resolveFinalTextMetrics(
+  input: TextMetricsInput,
+  fontSizePx: number,
+  bubbleMeasurer: BubbleMeasurer | null,
+): Pick<
+  BlockTextLayout,
+  "fontSizePx" | "textContentWidth" | "lines" | "overflow"
+> {
+  const { block, text, fitInnerWidth, fitInnerHeight, fontCatalog } = input;
   const textContentWidth = resolveHorizontalTextContentWidth(
     block,
     fitInnerWidth,
   );
+  const bubbleMeasurement = bubbleMeasurer?.(fontSizePx) ?? null;
   return {
     fontSizePx,
     textContentWidth,
-    lines: resolveFixedHorizontalTextLines(
-      block,
-      text,
-      fontSizePx,
-      textContentWidth,
-      fontCatalog,
-    ),
-    overflow: text.trim()
-      ? !doesTextFit(
-          block,
-          text,
-          fontSizePx,
-          fitInnerWidth,
-          fitInnerHeight,
-          fontCatalog,
-        )
-      : false,
+    lines:
+      bubbleMeasurement?.lines ??
+      resolveFixedHorizontalTextLines(
+        block,
+        text,
+        fontSizePx,
+        textContentWidth,
+        fontCatalog,
+      ),
+    overflow: bubbleMeasurement
+      ? false
+      : text.trim()
+        ? !doesTextFit(
+            block,
+            text,
+            fontSizePx,
+            fitInnerWidth,
+            fitInnerHeight,
+            fontCatalog,
+          )
+        : false,
   };
-}
-
-function resolveHorizontalTextContentWidth(
-  block: TranslationBlock,
-  innerWidth: number,
-): number {
-  if (
-    normalizeRenderDirection(block.renderDirection, "horizontal") === "vertical"
-  ) {
-    return innerWidth;
-  }
-  return innerWidth / resolveFontWidthScale(block.fontWidthScale);
-}
-
-function resolveFixedHorizontalTextLines(
-  block: TranslationBlock,
-  text: string,
-  fontSize: number,
-  contentWidth: number,
-  fontCatalog: BlockFontCatalog,
-): BlockTextLine[] | null {
-  if (
-    !text.trim() ||
-    normalizeRenderDirection(block.renderDirection, "horizontal") === "vertical"
-  ) {
-    return null;
-  }
-  const letterSpacingPx = resolveLetterSpacingPx(block, fontSize);
-  const { runs } = parseRichText(
-    text,
-    Boolean(block.bold),
-    Boolean(block.italic),
-  );
-  return measureStyledWrappedText(
-    getMeasureContext(),
-    runs,
-    contentWidth,
-    fontSize * block.lineHeight,
-    fontSize,
-    resolveBlockFontFamily(block.fontFamily, fontCatalog),
-    letterSpacingPx,
-    resolveBlockTextWordBreak(block.wordBreak, "horizontal"),
-  ).lines;
 }
 
 function resolveTextLayoutStageSize(
@@ -274,9 +346,7 @@ function resolveTextFontSizePx(
   block: TranslationBlock,
   text: string,
   maxFontSize: number,
-  innerWidth: number,
-  innerHeight: number,
-  fontCatalog: BlockFontCatalog,
+  fitsAtFontSize: (fontSize: number) => boolean,
 ): number {
   const capped = Math.max(MIN_FONT_SIZE_PX, Math.floor(maxFontSize));
   if (!(block.autoFitText ?? true) || !text.trim()) {
@@ -288,7 +358,7 @@ function resolveTextFontSizePx(
   let best = MIN_FONT_SIZE_PX;
   while (low <= high) {
     const mid = Math.floor((low + high) / 2);
-    if (doesTextFit(block, text, mid, innerWidth, innerHeight, fontCatalog)) {
+    if (fitsAtFontSize(mid)) {
       best = mid;
       low = mid + 1;
     } else {
@@ -296,68 +366,6 @@ function resolveTextFontSizePx(
     }
   }
   return Math.min(best, capped);
-}
-
-function doesTextFit(
-  block: TranslationBlock,
-  text: string,
-  fontSize: number,
-  innerWidth: number,
-  innerHeight: number,
-  fontCatalog: BlockFontCatalog,
-): boolean {
-  const letterSpacingPx = resolveLetterSpacingPx(block, fontSize);
-  const scaleX = resolveFontWidthScale(block.fontWidthScale);
-  const { runs, plainText } = parseRichText(
-    text,
-    Boolean(block.bold),
-    Boolean(block.italic),
-  );
-  if (
-    normalizeRenderDirection(block.renderDirection, "horizontal") === "vertical"
-  ) {
-    // Vertical advance is style-independent, so the marker-free text length is
-    // what matters for column counting.
-    return measureVerticalText(
-      plainText,
-      fontSize,
-      innerWidth,
-      innerHeight,
-      fontSize * block.lineHeight + letterSpacingPx,
-      scaleX,
-      resolveBlockTextWordBreak(block.wordBreak, "vertical"),
-    ).fits;
-  }
-
-  // 장평 squeezes/expands glyphs horizontally, so the usable measurement width
-  // is the box width divided by the scale; wrapped widths are then scaled back.
-  const effectiveWidth = innerWidth / scaleX;
-  const context = getMeasureContext();
-  const measured = measureStyledWrappedText(
-    context,
-    runs,
-    effectiveWidth,
-    fontSize * block.lineHeight,
-    fontSize,
-    resolveBlockFontFamily(block.fontFamily, fontCatalog),
-    letterSpacingPx,
-    resolveBlockTextWordBreak(block.wordBreak, "horizontal"),
-  );
-  return (
-    measured.totalHeight <= innerHeight &&
-    measured.maxLineWidth <= effectiveWidth
-  );
-}
-
-function resolveLetterSpacingPx(
-  block: TranslationBlock,
-  fontSize: number,
-): number {
-  const em = block.letterSpacing;
-  if (!em || !Number.isFinite(em)) {
-    return 0;
-  }
-  return em * fontSize;
 }
 
 function resolveAutoFitUpperBound(
@@ -383,48 +391,4 @@ function resolveAutoFitUpperBound(
     MIN_FONT_SIZE_PX,
     MAX_AUTOFIT_FONT_SIZE_PX,
   );
-}
-
-function measureVerticalText(
-  text: string,
-  fontSize: number,
-  maxWidth: number,
-  maxHeight: number,
-  lineHeight: number,
-  fontWidthScale: number,
-  wordBreak: TextWordBreak,
-): { columnCount: number; fits: boolean } {
-  if (!text.trim()) {
-    return { columnCount: 0, fits: true };
-  }
-
-  const measured = measureUniformWrappedText(
-    text,
-    maxHeight,
-    1,
-    Math.max(fontSize, lineHeight),
-    wordBreak,
-  );
-  const columnCount = Math.max(1, measured.lineCount);
-  const estimatedColumnWidth = fontSize * 1.15 * fontWidthScale;
-  return {
-    columnCount,
-    fits:
-      columnCount <= MAX_VERTICAL_COLUMNS &&
-      columnCount * estimatedColumnWidth <= maxWidth &&
-      measured.maxLineWidth <= maxHeight,
-  };
-}
-
-function getMeasureContext(): CanvasRenderingContext2D {
-  if (typeof document === "undefined") {
-    throw new Error("Document is not available for canvas text measurement");
-  }
-
-  measureCanvas ??= document.createElement("canvas");
-  const context = measureCanvas.getContext("2d");
-  if (!context) {
-    throw new Error("Canvas context is not available");
-  }
-  return context;
 }

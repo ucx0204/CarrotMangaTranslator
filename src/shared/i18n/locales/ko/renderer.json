@@ -186,7 +186,7 @@
       "translate-all": "전체 다시 번역",
       "gather-text": "텍스트 모아보기",
       "cancel-job": "작업 취소",
-      "toggle-inpainting": "현재 페이지 자동 지우기",
+      "toggle-inpainting": "현재 페이지 지우기",
       "history-undo": "실행 취소",
       "history-redo": "다시 실행",
       "delete-block": "선택한 블록 삭제",
@@ -209,9 +209,21 @@
     "importText": "번역문 가져오기",
     "maskEdit": "마스크 편집",
     "autoInpainting": "자동 지우기",
+    "bubbleLayout": "말풍선 맞춤 배치",
+    "bubbleLayoutManual": "말풍선 모양 편집",
+    "removeBubbleLayout": "말풍선 맞춤 해제",
     "drawnInpainting": "그린 영역 지우기",
     "retouch": "수동 보정",
     "resetOriginal": "원본으로 초기화"
+  },
+  "bubbleLayoutEditor": {
+    "needsMorePoints": "말풍선 영역에는 점이 3개 이상 필요합니다.",
+    "invalidRegion": "말풍선 영역이 너무 작거나 올바르지 않습니다.",
+    "brushDetached": "늘리기 브러시는 현재 말풍선 모양에 닿는 곳부터 시작하세요.",
+    "brushDisconnect": "말풍선 모양이 끊어지는 깎기라 되돌렸습니다.",
+    "brushNoChange": "브러시로 바뀐 말풍선 영역이 없습니다.",
+    "cancelled": "말풍선 영역 지정을 취소했습니다.",
+    "applied": "선택한 블록에 편집한 말풍선 모양을 적용했습니다."
   },
   "blockEditing": {
     "chapterApplyWhileRunning": "작업 중에는 이 화 전체 서식 일괄 적용을 사용할 수 없습니다.",
@@ -302,6 +314,13 @@
       "failed": "원문 지우기에 실패했습니다.",
       "success": "원문 지우기 완료: {{pages}}페이지, {{blocks}}블록"
     },
+    "bubbleLayout": {
+      "requiresBlocks": "말풍선을 감지할 텍스트 블록이 없습니다.",
+      "preparing": "말풍선 맞춤 배치 준비 중",
+      "success": "현재 페이지의 번역 블록을 말풍선에 맞췄습니다.",
+      "failedTitle": "말풍선 맞춤 실패",
+      "failed": "번역 블록을 말풍선에 맞추지 못했습니다."
+    },
     "export": {
       "noPage": "출력할 페이지가 선택되어 있지 않습니다.",
       "saveFailed": "PNG 출력 전에 변경사항을 저장하지 못했습니다.",
@@ -359,6 +378,10 @@
       "startFailed": "번역 작업을 시작하지 못했습니다."
     },
     "refreshWarning": "번역은 완료됐지만 보관함 목록 새로고침에 실패했습니다.",
+    "eraseOriginalWorkflowCompleted": "번역·원문 지우기를 완료했습니다.",
+    "eraseOriginalWorkflowFailed": "번역 후 원문 지우기에 실패했습니다.",
+    "bubbleLayoutWorkflowCompleted": "번역·자동 지우기·말풍선 맞춤을 완료했습니다.",
+    "bubbleLayoutWorkflowFailed": "번역 후 자동 지우기·말풍선 맞춤에 실패했습니다.",
     "flow": {
       "firstPass": "1차",
       "secondPass": "2차",

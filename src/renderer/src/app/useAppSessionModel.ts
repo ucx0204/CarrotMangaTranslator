@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { PanelCommand } from "../../../shared/panelBridgeTypes";
 import { useWorkspaceWheelZoom } from "../hooks/useWorkspaceWheelZoom";
 import { usePanelBridgeHost } from "../panels/usePanelBridgeHost";
@@ -22,8 +22,16 @@ import { dispatchPanelCommand } from "./session/panelCommandDispatcher";
 
 export function useAppSessionModel(): AppSessionViewProps {
   const chapter = useChapterSessionController();
-  const translation = useTranslationController(chapter);
+  const clearRetouchHistoryRef = useRef<() => void>(() => undefined);
+  const clearRetouchHistory = useCallback(
+    () => clearRetouchHistoryRef.current(),
+    [],
+  );
+  const translation = useTranslationController(chapter, clearRetouchHistory);
   const inpainting = useInpaintingController(chapter, translation);
+  useEffect(() => {
+    clearRetouchHistoryRef.current = inpainting.clearRetouchHistory;
+  }, [inpainting.clearRetouchHistory]);
 
   useAppSessionShortcuts({ chapter, inpainting, translation });
   useWorkspaceWheelZoom({

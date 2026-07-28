@@ -166,66 +166,6 @@
   background: rgba(48, 28, 30, 0.72);
 }
 
-.display-panel {
-  align-content: start;
-  gap: var(--sp-2);
-}
-
-.display-icon-toolbar {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  width: 100%;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-md);
-  background: #14161b;
-  overflow: visible;
-}
-
-.display-icon-control {
-  width: 100%;
-  height: 40px;
-}
-
-.display-icon-control + .display-icon-control {
-  border-left: 1px solid var(--border-soft);
-}
-
-.display-icon-control > button {
-  display: grid;
-  place-items: center;
-  width: 100%;
-  height: 40px;
-  min-width: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: #aeb8c5;
-  cursor: pointer;
-}
-
-.display-icon-control > button:hover:not(:disabled) {
-  background: #20242b;
-  color: #f4f6f8;
-}
-
-.display-icon-control > button:focus-visible {
-  position: relative;
-  z-index: 1;
-  outline: 2px solid var(--focus);
-  outline-offset: -2px;
-}
-
-.display-icon-control > button:disabled {
-  color: #5d6672;
-  cursor: not-allowed;
-}
-
-.display-icon-control > button.active {
-  background: var(--accent-soft);
-  color: var(--accent-hi);
-}
-
 .inpainting-exit-panel {
   align-content: start;
 }
@@ -389,12 +329,6 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-3);
-}
-
-.inpainting-panel .display-panel {
-  padding: 0;
-  border: 0;
-  background: transparent;
 }
 
 .inpainting-guide-button {

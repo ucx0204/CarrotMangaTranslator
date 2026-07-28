@@ -12,6 +12,7 @@ function createTarget(): PanelCommandTarget {
     applyFormatToScope: vi.fn(),
     deleteSelectedBlock: vi.fn(),
     duplicateSelectedBlock: vi.fn(),
+    removeSelectedBlockBubbleLayout: vi.fn(),
     selectWorkspaceTool: vi.fn(),
     startAreaTranslate: vi.fn(),
     updateSelectedBlock: vi.fn(),
@@ -28,6 +29,7 @@ describe("panel command dispatch", () => {
     { type: "adjustFontSize", blockId: "stale-block", adjustment: 1 },
     { type: "deleteBlock", blockId: "stale-block" },
     { type: "duplicateBlock", blockId: "stale-block" },
+    { type: "removeBubbleLayout", blockId: "stale-block" },
   ] satisfies PanelCommand[])("rejects a stale $type command", (command) => {
     const actions = createTarget();
 
@@ -57,6 +59,7 @@ describe("panel command dispatch", () => {
       { type: "adjustFontSize", blockId: "current-block", adjustment: -1 },
       { type: "deleteBlock", blockId: "current-block" },
       { type: "duplicateBlock", blockId: "current-block" },
+      { type: "removeBubbleLayout", blockId: "current-block" },
       { type: "selectTransformMode", mode: "curve" },
       { type: "applyFormat", scope: "selection", groupIds: ["font"] },
       { type: "applyBlockBackgroundOpacity", scope: "page" },
@@ -80,6 +83,7 @@ describe("panel command dispatch", () => {
     expect(actions.adjustSelectedBlockFontSize).toHaveBeenCalledWith(-1);
     expect(actions.deleteSelectedBlock).toHaveBeenCalledOnce();
     expect(actions.duplicateSelectedBlock).toHaveBeenCalledOnce();
+    expect(actions.removeSelectedBlockBubbleLayout).toHaveBeenCalledOnce();
     expect(actions.selectWorkspaceTool).toHaveBeenCalledWith("curve");
     expect(actions.applyFormatToScope).toHaveBeenCalledWith("selection", [
       "font",

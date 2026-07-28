@@ -32,11 +32,15 @@ function useStableRightRailActions(
   | "onOpenStyleGuide"
   | "onOpenTextView"
   | "onOpenTranslateOptions"
+  | "onPeekToggle"
+  | "onRedo"
+  | "onResetPage"
   | "onRunCurrentPageInpainting"
+  | "onRunBubbleLayout"
   | "onRunDrawnPattern"
-  | "onShowGuide"
   | "onToggleBlocks"
   | "onToggleChrome"
+  | "onUndo"
 > {
   return {
     onBrushColorChange: useEventCallback(props.onBrushColorChange),
@@ -50,12 +54,16 @@ function useStableRightRailActions(
     onOpenStyleGuide: useEventCallback(props.onOpenStyleGuide),
     onOpenTextView: useEventCallback(props.onOpenTextView),
     onOpenTranslateOptions: useEventCallback(props.onOpenTranslateOptions),
+    onPeekToggle: useEventCallback(props.onPeekToggle),
+    onRedo: useEventCallback(props.onRedo),
+    onResetPage: useEventCallback(props.onResetPage),
     onRunCurrentPageInpainting: useEventCallback(
       props.onRunCurrentPageInpainting,
     ),
+    onRunBubbleLayout: useEventCallback(props.onRunBubbleLayout),
     onRunDrawnPattern: useEventCallback(props.onRunDrawnPattern),
-    onShowGuide: useEventCallback(props.onShowGuide),
     onToggleBlocks: useEventCallback(props.onToggleBlocks),
     onToggleChrome: useEventCallback(props.onToggleChrome),
+    onUndo: useEventCallback(props.onUndo),
   };
 }

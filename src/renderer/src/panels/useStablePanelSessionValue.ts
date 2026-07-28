@@ -11,6 +11,7 @@ type PanelSessionCallbacks = Pick<
   | "onDockEditorWindow"
   | "onDuplicateBlock"
   | "onPopOutEditor"
+  | "onRemoveBubbleLayout"
   | "onSelectTransformMode"
   | "onStartAreaTranslate"
   | "onToggleEditorFloat"
@@ -75,6 +76,7 @@ function useStablePanelSessionCallbacks(
   const onDockEditorWindow = useEventCallback(value.onDockEditorWindow);
   const onDuplicateBlock = useEventCallback(value.onDuplicateBlock);
   const onPopOutEditor = useEventCallback(value.onPopOutEditor);
+  const onRemoveBubbleLayout = useEventCallback(value.onRemoveBubbleLayout);
   const onSelectTransformMode = useEventCallback(value.onSelectTransformMode);
   const onStartAreaTranslate = useEventCallback(value.onStartAreaTranslate);
   const onToggleEditorFloat = useEventCallback(value.onToggleEditorFloat);
@@ -89,6 +91,7 @@ function useStablePanelSessionCallbacks(
       onDockEditorWindow,
       onDuplicateBlock,
       onPopOutEditor,
+      onRemoveBubbleLayout,
       onSelectTransformMode,
       onStartAreaTranslate,
       onToggleEditorFloat,
@@ -102,6 +105,7 @@ function useStablePanelSessionCallbacks(
       onDockEditorWindow,
       onDuplicateBlock,
       onPopOutEditor,
+      onRemoveBubbleLayout,
       onSelectTransformMode,
       onStartAreaTranslate,
       onToggleEditorFloat,

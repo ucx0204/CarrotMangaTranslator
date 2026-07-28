@@ -71,6 +71,7 @@ export function summarizeTranslationOptions(
     ...summarizeEngineContext(options),
     port: options.port,
     strictRefineMode: options.strictRefineMode,
+    naturalTextLayout: options.naturalTextLayout,
     previousBlocksForPrompt: options.previousBlocksForPrompt?.length,
     promptOverrideText: options.promptOverrideText
       ? summarizePreview(options.promptOverrideText, 600)

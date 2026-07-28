@@ -180,7 +180,7 @@
       "translate-all": "全部重新翻譯",
       "gather-text": "彙整文字",
       "cancel-job": "取消工作",
-      "toggle-inpainting": "自動清除目前頁面",
+      "toggle-inpainting": "清除目前頁面",
       "history-undo": "復原",
       "history-redo": "重做",
       "delete-block": "刪除所選文字區塊",
@@ -203,9 +203,21 @@
     "importText": "匯入譯文",
     "maskEdit": "編輯遮罩",
     "autoInpainting": "自動清除",
+    "bubbleLayout": "適配對話框配置",
+    "bubbleLayoutManual": "編輯對話框形狀",
+    "removeBubbleLayout": "取消對話框適配",
     "drawnInpainting": "清除繪製區域",
     "retouch": "手動修補",
     "resetOriginal": "重設為原圖"
+  },
+  "bubbleLayoutEditor": {
+    "needsMorePoints": "對話框區域至少需要三個點。",
+    "invalidRegion": "對話框區域太小或無效。",
+    "brushDetached": "請從接觸目前對話框形狀的位置開始使用擴展筆刷。",
+    "brushDisconnect": "此修剪會切斷對話框形狀，操作已復原。",
+    "brushNoChange": "筆刷沒有改變對話框形狀。",
+    "cancelled": "已取消編輯對話框區域。",
+    "applied": "已將編輯後的對話框形狀套用到所選文字區塊。"
   },
   "blockEditing": {
     "chapterApplyWhileRunning": "工作執行時無法對整章批次套用格式。",
@@ -293,6 +305,13 @@
       "failed": "清除原文失敗。",
       "success": "原文清除完成：{{pages}}頁，{{blocks}}個文字區塊"
     },
+    "bubbleLayout": {
+      "requiresBlocks": "沒有可用來偵測對話框的文字區塊。",
+      "preparing": "正在準備對話框適配配置",
+      "success": "已將目前頁面的譯文文字區塊適配到對話框內。",
+      "failedTitle": "對話框適配失敗",
+      "failed": "無法將譯文文字區塊適配到對話框內。"
+    },
     "export": {
       "noPage": "尚未選取要匯出的頁面。",
       "saveFailed": "匯出 PNG 前無法儲存修改。",
@@ -350,6 +369,10 @@
       "startFailed": "無法開始翻譯工作。"
     },
     "refreshWarning": "翻譯已完成，但無法重新整理資料庫。",
+    "eraseOriginalWorkflowCompleted": "翻譯和原文清除已完成。",
+    "eraseOriginalWorkflowFailed": "翻譯後的原文清除失敗。",
+    "bubbleLayoutWorkflowCompleted": "翻譯、自動清除和對話框適配已完成。",
+    "bubbleLayoutWorkflowFailed": "翻譯後的自動清除和對話框適配失敗。",
     "flow": {
       "firstPass": "第一輪",
       "secondPass": "第二輪",

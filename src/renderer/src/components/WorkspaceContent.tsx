@@ -34,8 +34,12 @@ export const WorkspaceContent = React.memo(function WorkspaceContent(
       blockPointerDisabled={
         props.jobActive || !isBlockEditingTool(props.stageTool)
       }
-      hideEditingOverlays={props.showingOriginalPeek}
+      hideEditingOverlays={
+        props.showingOriginalPeek ||
+        props.selectedPageImagePageId !== props.selectedPage.id
+      }
       imageDataUrl={props.selectedPageImageDataUrl}
+      imageLoading={props.selectedPageImageLoading}
       imageRef={props.imageRef}
       interactionPreviewStore={props.interactionPreviewStore}
       maskStrokes={props.maskStrokes}
@@ -93,6 +97,8 @@ const WORKSPACE_CONTENT_RENDER_KEYS = [
   "selectedBlockIds",
   "selectedPage",
   "selectedPageImageDataUrl",
+  "selectedPageImageLoading",
+  "selectedPageImagePageId",
   "showBlockChrome",
   "showTextBlocks",
   "showingOriginalPeek",

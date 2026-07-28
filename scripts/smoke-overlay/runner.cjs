@@ -86,19 +86,28 @@ async function prepareRun(config) {
 function loadRuntimeModules(root) {
   /** @param {string} relativePath */
   const load = (relativePath) => require(path.join(root, relativePath));
-  const pipeline = load("out/main/pipeline/overlayItems.js");
+  const overlayItems = load("out/main/pipeline/overlayItems.js");
+  const overlayItemReferences = load(
+    "out/main/pipeline/overlayItemReferences.js",
+  );
+  const overlayOcrGeometryLocks = load(
+    "out/main/pipeline/overlayOcrGeometryLocks.js",
+  );
   return {
     getAppPaths: load("out/main/appPaths.js").getAppPaths,
     appSettings: load("out/main/appSettings.js"),
     oauth: load("out/main/openaiOauthEndpoint.js"),
     pipeline: {
-      applyOcrCandidateGeometryLocks: pipeline.applyOcrCandidateGeometryLocks,
+      applyOcrCandidateGeometryLocks:
+        overlayOcrGeometryLocks.applyOcrCandidateGeometryLocks,
       filterRejectedOrUncertainSoundItems:
-        pipeline.filterRejectedOrUncertainSoundItems,
-      getPipelineBboxNormalizationOptions: pipeline.getBboxNormalizationOptions,
-      getOcrBboxHints: pipeline.getOcrBboxHints,
-      normalizeOverlayItemBboxes: pipeline.normalizeOverlayItemBboxes,
-      overlayItemToBlock: pipeline.overlayItemToBlock,
+        overlayItems.filterRejectedOrUncertainSoundItems,
+      getPipelineBboxNormalizationOptions:
+        overlayItemReferences.getBboxNormalizationOptions,
+      getOcrBboxHints: overlayItemReferences.getOcrBboxHints,
+      normalizeOverlayItemBboxes:
+        overlayItemReferences.normalizeOverlayItemBboxes,
+      overlayItemToBlock: overlayItems.overlayItemToBlock,
     },
     sharedGeometry: load("out/shared/geometry.js"),
     simplePage: load("out/app-runtime/simple-page-translate.cjs"),

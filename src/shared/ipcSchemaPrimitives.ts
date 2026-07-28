@@ -14,6 +14,12 @@ import {
   MIN_MAX_TOKENS,
 } from "./modelPresets";
 import { TEXT_WORD_BREAK_VALUES } from "./textWrapping";
+import {
+  MAX_BUBBLE_LAYOUT_INSET_RATIO,
+  MAX_BUBBLE_LAYOUT_METADATA_LENGTH,
+  MAX_BUBBLE_LAYOUT_REGIONS,
+  MAX_BUBBLE_REGION_SPANS,
+} from "./bubbleLayout";
 
 export { MAX_MAX_TOKENS, MIN_CONTEXT_TOKENS, MIN_MAX_TOKENS };
 
@@ -179,6 +185,98 @@ const CurveLayoutSchema = z
   })
   .strict();
 
+export const BubbleShapeSpanSchema = z
+  .object({
+    blockStart: finiteNumber.min(0).max(1),
+    blockEnd: finiteNumber.min(0).max(1),
+    inlineStart: finiteNumber.min(0).max(1),
+    inlineEnd: finiteNumber.min(0).max(1),
+  })
+  .strict()
+  .superRefine((span, context) => {
+    if (span.blockStart >= span.blockEnd) {
+      context.addIssue({
+        code: "custom",
+        message: "blockStart must be less than blockEnd",
+        path: ["blockEnd"],
+      });
+    }
+    if (span.inlineStart >= span.inlineEnd) {
+      context.addIssue({
+        code: "custom",
+        message: "inlineStart must be less than inlineEnd",
+        path: ["inlineEnd"],
+      });
+    }
+  });
+
+export const BubbleShapeRegionSchema = z
+  .object({
+    spans: z.array(BubbleShapeSpanSchema).min(1).max(MAX_BUBBLE_REGION_SPANS),
+  })
+  .strict()
+  .superRefine((region, context) => {
+    for (let index = 1; index < region.spans.length; index += 1) {
+      const previous = region.spans[index - 1];
+      const current = region.spans[index];
+      if (current.blockStart < previous.blockEnd) {
+        context.addIssue({
+          code: "custom",
+          message:
+            "spans must be ordered and non-overlapping on the block axis",
+          path: ["spans", index, "blockStart"],
+        });
+      }
+    }
+  });
+
+export const BubbleLayoutSchema = z
+  .object({
+    version: z.literal(1),
+    direction: z.enum(["horizontal", "vertical"]),
+    confidence: finiteNumber.min(0).max(1),
+    origin: z.enum(["detected", "manual"]).optional(),
+    modelId: z
+      .string()
+      .min(1)
+      .max(MAX_BUBBLE_LAYOUT_METADATA_LENGTH)
+      .optional(),
+    sourceImageRevision: z
+      .string()
+      .min(1)
+      .max(MAX_BUBBLE_LAYOUT_METADATA_LENGTH)
+      .optional(),
+    insetRatio: finiteNumber.min(0).max(MAX_BUBBLE_LAYOUT_INSET_RATIO),
+    regions: z
+      .array(BubbleShapeRegionSchema)
+      .min(1)
+      .max(MAX_BUBBLE_LAYOUT_REGIONS),
+  })
+  .strict()
+  .superRefine((layout, context) => {
+    if (
+      layout.origin === "detected" &&
+      (!layout.modelId || !layout.sourceImageRevision)
+    ) {
+      context.addIssue({
+        code: "custom",
+        message:
+          "detected bubble layouts require modelId and sourceImageRevision",
+        path: !layout.modelId ? ["modelId"] : ["sourceImageRevision"],
+      });
+    }
+    if (
+      layout.origin === "manual" &&
+      layout.sourceImageRevision !== undefined
+    ) {
+      context.addIssue({
+        code: "custom",
+        message: "manual bubble layouts cannot have sourceImageRevision",
+        path: ["sourceImageRevision"],
+      });
+    }
+  });
+
 export const TranslationBlockSchema = z
   .object({
     id: z.string().min(1).max(200),
@@ -187,6 +285,7 @@ export const TranslationBlockSchema = z
     renderBbox: BBoxSchema.optional(),
     bboxSpace: z.enum(["normalized_1000", "pixels"]).optional(),
     renderBboxSpace: z.enum(["normalized_1000", "pixels"]).optional(),
+    bubbleLayout: BubbleLayoutSchema.optional(),
     sourceText: boundedText,
     translatedText: boundedText,
     confidence: finiteNumber.min(0).max(1),

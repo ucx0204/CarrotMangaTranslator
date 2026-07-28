@@ -30,6 +30,10 @@ import {
 } from "./translationActionUtils";
 import { useRunAnalysisAction } from "./useRunAnalysisAction";
 import { useTranslateSelectedRegionAction } from "./useTranslateSelectedRegionAction";
+import {
+  resolveTranslationCompletionOptions,
+  runTranslationFlowAction,
+} from "./translationBubbleLayoutWorkflow";
 
 type FlowActiveRef = MutableRefObject<boolean>;
 type AnalysisJobContext = Pick<
@@ -72,6 +76,7 @@ export function useTranslationActionsImpl(
       options.translationWorkflowDefault ?? "cumulative",
     analysisScopeDefault: options.analysisScopeDefault ?? "missing",
     blockModeDefault: options.blockModeDefault ?? "auto",
+    naturalTextLayoutDefault: options.naturalTextLayoutDefault ?? true,
   });
   const translateSelectedRegion = useTranslateSelectedRegionAction(
     options,
@@ -163,6 +168,7 @@ async function executeAnalysisJob(
           pageIds: job.pageIds,
           blockMode: job.blockMode,
           collectPageContext: job.collectPageContext,
+          naturalTextLayout: job.naturalTextLayout,
         },
         context.t,
       ),
@@ -223,14 +229,19 @@ function markOpenChapterRunning({
 }
 
 function useRunTranslationFlowAction({
+  clearPageImageCache,
+  clearRetouchHistory,
   currentChapter,
   executeAnalysisJob,
   flowActiveRef,
   jobActive,
+  mergeLiveChapter,
   pushStatus,
   refreshLibrary,
+  recordImageEdit,
   saveNow,
   setFlowActive,
+  setShowBlockChrome,
   setJobState,
   notificationPort,
 }: UseTranslationActionsOptions & {
@@ -240,43 +251,49 @@ function useRunTranslationFlowAction({
 }): TranslationActions["runTranslationFlow"] {
   const { t } = useTranslation("renderer");
   return useCallback(
-    async (options: TranslationFlowOptions): Promise<RunAnalysisOutcome> => {
-      if (!currentChapter || jobActive || flowActiveRef.current) {
-        return "no-op";
-      }
-      if (options.selection.length === 0) {
-        return "no-op";
-      }
-      flowActiveRef.current = true;
-      setFlowActive(true);
-      try {
-        await saveNow();
-        return await runTranslationFlowPasses({
-          chapterId: currentChapter.id,
-          selection: options.selection,
-          executeAnalysisJob,
-          options,
-          pushStatus,
-          refreshLibrary,
-          setJobState,
-          t,
-          notificationPort,
-        });
-      } finally {
-        flowActiveRef.current = false;
-        setFlowActive(false);
-      }
-    },
+    (options: TranslationFlowOptions) =>
+      runTranslationFlowAction(options, {
+        clearPageImageCache,
+        clearRetouchHistory,
+        currentChapter,
+        flowActiveRef,
+        jobActive,
+        mergeLiveChapter,
+        notificationPort,
+        recordImageEdit,
+        refreshLibrary,
+        saveNow,
+        setFlowActive,
+        setShowBlockChrome,
+        t,
+        runPasses: (chapter) =>
+          runTranslationFlowPasses({
+            chapterId: chapter.id,
+            selection: options.selection,
+            executeAnalysisJob,
+            options,
+            pushStatus,
+            refreshLibrary,
+            setJobState,
+            t,
+            notificationPort,
+          }),
+      }),
     [
       currentChapter,
+      clearPageImageCache,
+      clearRetouchHistory,
       executeAnalysisJob,
       flowActiveRef,
       jobActive,
+      mergeLiveChapter,
       notificationPort,
       pushStatus,
       refreshLibrary,
+      recordImageEdit,
       saveNow,
       setFlowActive,
+      setShowBlockChrome,
       setJobState,
       t,
     ],
@@ -304,6 +321,15 @@ async function runTranslationFlowPasses({
   t: TFunction<"renderer">;
   notificationPort: NotificationPort;
 }): Promise<RunAnalysisOutcome> {
+  // Bubble layout is resolved only after inpainting, against a render region
+  // that can be much larger than the OCR bbox. Baking hard line breaks before
+  // that step would preserve stale narrow-bbox wrapping inside the final
+  // shape-aware layout, so let the Bubble renderer own wrapping in this
+  // combined workflow.
+  const completion = resolveTranslationCompletionOptions(options);
+  const naturalTextLayout = completion.bubbleLayout
+    ? undefined
+    : options.naturalTextLayout;
   const pass1 = await runSelectionsSequentially(
     executeAnalysisJob,
     selection,
@@ -311,6 +337,7 @@ async function runTranslationFlowPasses({
     t("translation.flow.firstPass"),
     options.blockMode,
     options.workflowMode === "cumulative",
+    naturalTextLayout,
     t,
   );
   if (pass1 !== "completed") {
@@ -337,6 +364,7 @@ async function runTranslationFlowPasses({
     selection,
     pushStatus,
     options.blockMode,
+    naturalTextLayout,
     t,
     notificationPort,
   );

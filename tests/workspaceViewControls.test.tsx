@@ -20,6 +20,7 @@ describe("WorkspaceViewControls", () => {
         onZoomOut={() => undefined}
       />,
     );
+    expandViewControls();
 
     const select = screen.getByLabelText("이미지 맞춤 방식");
     expect(
@@ -45,6 +46,7 @@ describe("WorkspaceViewControls", () => {
         onZoomOut={() => undefined}
       />,
     );
+    expandViewControls();
 
     expect(
       (screen.getByRole("button", { name: "확대" }) as HTMLButtonElement)
@@ -70,23 +72,30 @@ describe("WorkspaceViewControls", () => {
       />,
     );
 
+    const revealButton = screen.getByRole("button", {
+      name: "보기 조절 펼치기",
+    });
+    expect(revealButton.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(revealButton);
+
     const collapseButton = screen.getByRole("button", {
       name: "보기 조절 접기",
     });
-    expect(collapseButton.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByRole("button", { name: "축소" })).not.toBeNull();
     expect(screen.getByRole("button", { name: "확대" })).not.toBeNull();
     expect(screen.getByLabelText("이미지 맞춤 방식")).not.toBeNull();
 
     fireEvent.click(collapseButton);
 
-    const revealButton = screen.getByRole("button", {
+    const restoredRevealButton = screen.getByRole("button", {
       name: "보기 조절 펼치기",
     });
-    expect(revealButton.getAttribute("aria-expanded")).toBe("false");
-    expect(document.activeElement).toBe(revealButton);
+    expect(restoredRevealButton.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(restoredRevealButton);
     expect(
-      document.getElementById(revealButton.getAttribute("aria-controls") ?? ""),
+      document.getElementById(
+        restoredRevealButton.getAttribute("aria-controls") ?? "",
+      ),
     ).not.toBeNull();
     expect(screen.queryByRole("button", { name: "축소" })).toBeNull();
     expect(screen.queryByRole("button", { name: "확대" })).toBeNull();
@@ -97,7 +106,7 @@ describe("WorkspaceViewControls", () => {
         ?.hasAttribute("hidden"),
     ).toBe(true);
 
-    fireEvent.click(revealButton);
+    fireEvent.click(restoredRevealButton);
 
     const restoredCollapseButton = screen.getByRole("button", {
       name: "보기 조절 접기",
@@ -112,3 +121,7 @@ describe("WorkspaceViewControls", () => {
     ).toBe("contain");
   });
 });
+
+function expandViewControls(): void {
+  fireEvent.click(screen.getByRole("button", { name: "보기 조절 펼치기" }));
+}

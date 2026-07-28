@@ -8,6 +8,7 @@ import {
 import type { InpaintingMaskStroke } from "../../../../shared/inpaintingTypes";
 import type { InpaintingTool } from "../../inpainting/inpaintingTypes";
 import type { StageTool } from "../../lib/stageTool";
+import type { AutoInpaintingEntryScope } from "../../lib/autoInpaintingSelection";
 import {
   clampWorkspaceZoom,
   WORKSPACE_ZOOM_STEP,
@@ -72,6 +73,8 @@ function useInpaintingUiState() {
   const [inpaintingGuideOpen, setInpaintingGuideOpen] = useState(false);
   const [autoInpaintingOptionsOpen, setAutoInpaintingOptionsOpen] =
     useState(false);
+  const [autoInpaintingEntryScope, setAutoInpaintingEntryScope] =
+    useState<AutoInpaintingEntryScope>("select");
   const [exportOptionsOpen, setExportOptionsOpen] = useState(false);
   const [inpaintingBrushRadius, setInpaintingBrushRadius] = useState(28);
   const [inpaintingPaintColor, setInpaintingPaintColor] = useState("#ffffff");
@@ -98,6 +101,7 @@ function useInpaintingUiState() {
   }, []);
   return {
     autoInpaintingOptionsOpen,
+    autoInpaintingEntryScope,
     exportOptionsOpen,
     inpaintingBrushRadius,
     inpaintingGuideOpen,
@@ -108,6 +112,7 @@ function useInpaintingUiState() {
     resetInpaintingUi,
     selectWorkspaceTool,
     setAutoInpaintingOptionsOpen,
+    setAutoInpaintingEntryScope,
     setExportOptionsOpen,
     setInpaintingBrushRadius,
     setInpaintingGuideOpen,

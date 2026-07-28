@@ -174,6 +174,7 @@ function makeInpaintingOptions(
     setJobState: vi.fn(),
     setPatternMaskStrokesByPage: vi.fn(),
     setPeekOriginal: vi.fn(),
+    setShowBlockChrome: vi.fn(),
     workspaceHistory: { recordImageEdit },
   };
 }

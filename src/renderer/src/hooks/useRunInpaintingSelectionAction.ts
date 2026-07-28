@@ -1,6 +1,10 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
+import type {
+  InpaintingPostprocessOptions,
+  StartInpaintingRequest,
+} from "../../../shared/inpaintingTypes";
 import type { AutoInpaintingChapterSelection } from "../lib/autoInpaintingSelection";
 import { inpaintingGateway as mangaGateway } from "../api/inpaintingGateway";
 import { formatErrorMessage } from "../lib/errorPresentation";
@@ -13,10 +17,14 @@ import {
 
 export function useRunInpaintingSelectionAction(
   options: UseInpaintingActionsOptions,
-): (selections: AutoInpaintingChapterSelection[]) => Promise<void> {
+): (
+  selections: AutoInpaintingChapterSelection[],
+  postprocess?: InpaintingPostprocessOptions,
+) => Promise<void> {
   const { t } = useTranslation("renderer");
   return useCallback(
-    async (selections) => runSelectedInpainting(options, selections, t),
+    async (selections, postprocess) =>
+      runSelectedInpainting(options, selections, postprocess, t),
     [options, t],
   );
 }
@@ -24,6 +32,7 @@ export function useRunInpaintingSelectionAction(
 async function runSelectedInpainting(
   options: UseInpaintingActionsOptions,
   selections: AutoInpaintingChapterSelection[],
+  postprocess: InpaintingPostprocessOptions | undefined,
   t: TFunction<"renderer">,
 ): Promise<void> {
   if (!options.currentChapter || options.jobActive || selections.length === 0) {
@@ -34,11 +43,12 @@ async function runSelectedInpainting(
     return;
   }
   try {
-    const result = await mangaGateway.startInpainting({
-      mode: "selection-pattern",
-      workId: options.currentChapter.workId,
+    const request = createSelectionInpaintingRequest(
+      options.currentChapter.workId,
       selections,
-    });
+      postprocess,
+    );
+    const result = await mangaGateway.startInpainting(request);
     const currentChapter = result.chapters?.find(
       (chapter) => chapter.id === options.currentChapter?.id,
     );
@@ -53,6 +63,7 @@ async function runSelectedInpainting(
         transactionId: result.historyTransaction.transactionId,
       });
     }
+    hideEditChromeAfterBubbleLayout(result.status, postprocess, options);
     void refreshLibraryWithStatus(
       options.refreshLibrary,
       options.pushStatus,
@@ -67,6 +78,30 @@ async function runSelectedInpainting(
       t("inpainting.common.jobFailedTitle"),
       formatErrorMessage(error, t("inpainting.erase.startFailed")),
     );
+  }
+}
+
+function createSelectionInpaintingRequest(
+  workId: string,
+  selections: AutoInpaintingChapterSelection[],
+  postprocess: InpaintingPostprocessOptions | undefined,
+): StartInpaintingRequest {
+  const request: StartInpaintingRequest = {
+    mode: "selection-pattern",
+    workId,
+    selections,
+  };
+  if (postprocess) request.postprocess = postprocess;
+  return request;
+}
+
+function hideEditChromeAfterBubbleLayout(
+  status: "completed" | "cancelled" | "failed",
+  postprocess: InpaintingPostprocessOptions | undefined,
+  options: UseInpaintingActionsOptions,
+): void {
+  if (status === "completed" && postprocess?.bubbleLayout?.enabled) {
+    options.setShowBlockChrome(false);
   }
 }
 

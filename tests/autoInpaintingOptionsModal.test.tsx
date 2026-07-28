@@ -100,13 +100,18 @@ function makeLibrary(): LibraryIndex {
   };
 }
 
-async function renderModal() {
+async function renderModal(
+  initialScope: React.ComponentProps<
+    typeof AutoInpaintingOptionsModal
+  >["initialScope"] = "select",
+) {
   const onStart = vi.fn();
   const onClose = vi.fn();
   render(
     <AutoInpaintingOptionsModal
       chapter={makeChapter()}
       currentPageId="p2"
+      initialScope={initialScope}
       library={makeLibrary()}
       onStart={onStart}
       onClose={onClose}
@@ -130,10 +135,46 @@ describe("AutoInpaintingOptionsModal", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "자동 지우기 시작" }));
 
-    expect(onStart).toHaveBeenCalledWith([
-      { chapterId: CHAPTER_ID, mode: "page-set", pageIds: ["p2"] },
-    ]);
+    expect(onStart).toHaveBeenCalledWith(
+      [{ chapterId: CHAPTER_ID, mode: "page-set", pageIds: ["p2"] }],
+      {
+        bubbleLayout: {
+          enabled: true,
+          policy: "balanced",
+        },
+      },
+    );
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("uses fixed current/all scopes and can disable bubble postprocess", async () => {
+    const current = await renderModal("current");
+    expect(screen.getByText("현재 페이지만 지웁니다.")).toBeTruthy();
+    const bubbleToggle = screen.getByRole("switch", {
+      name: /인페인팅 후 말풍선 맞춤/,
+    });
+    expect(bubbleToggle.getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(bubbleToggle);
+    fireEvent.click(screen.getByRole("button", { name: "자동 지우기 시작" }));
+    expect(current.onStart).toHaveBeenCalledWith(
+      [{ chapterId: CHAPTER_ID, mode: "page-set", pageIds: ["p2"] }],
+      undefined,
+    );
+
+    cleanup();
+    const all = await renderModal("all");
+    expect(screen.getByText("현재 화의 전체 2페이지를 지웁니다.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "전체 선택" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "자동 지우기 시작" }));
+    expect(all.onStart).toHaveBeenCalledWith(
+      [{ chapterId: CHAPTER_ID, mode: "all" }],
+      {
+        bubbleLayout: {
+          enabled: true,
+          policy: "balanced",
+        },
+      },
+    );
   });
 
   it("supports whole-work and clear quick actions", async () => {
@@ -141,10 +182,18 @@ describe("AutoInpaintingOptionsModal", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "전체 선택" }));
     fireEvent.click(screen.getByRole("button", { name: "자동 지우기 시작" }));
-    expect(onStart).toHaveBeenCalledWith([
-      { chapterId: CHAPTER_ID, mode: "all" },
-      { chapterId: SECOND_CHAPTER_ID, mode: "all" },
-    ]);
+    expect(onStart).toHaveBeenCalledWith(
+      [
+        { chapterId: CHAPTER_ID, mode: "all" },
+        { chapterId: SECOND_CHAPTER_ID, mode: "all" },
+      ],
+      {
+        bubbleLayout: {
+          enabled: true,
+          policy: "balanced",
+        },
+      },
+    );
 
     cleanup();
     await renderModal();

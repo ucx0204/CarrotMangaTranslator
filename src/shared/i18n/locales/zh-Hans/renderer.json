@@ -180,7 +180,7 @@
       "translate-all": "全部重新翻译",
       "gather-text": "汇总文本",
       "cancel-job": "取消任务",
-      "toggle-inpainting": "自动清除当前页",
+      "toggle-inpainting": "清除当前页",
       "history-undo": "撤销",
       "history-redo": "重做",
       "delete-block": "删除所选文本块",
@@ -203,9 +203,21 @@
     "importText": "导入译文",
     "maskEdit": "编辑蒙版",
     "autoInpainting": "自动清除",
+    "bubbleLayout": "适配气泡布局",
+    "bubbleLayoutManual": "编辑气泡形状",
+    "removeBubbleLayout": "取消气泡适配",
     "drawnInpainting": "清除绘制区域",
     "retouch": "手动修补",
     "resetOriginal": "重置为原图"
+  },
+  "bubbleLayoutEditor": {
+    "needsMorePoints": "气泡区域至少需要三个点。",
+    "invalidRegion": "气泡区域太小或无效。",
+    "brushDetached": "请从接触当前气泡形状的位置开始使用扩展画笔。",
+    "brushDisconnect": "该修剪会切断气泡形状，操作已撤销。",
+    "brushNoChange": "画笔没有改变气泡形状。",
+    "cancelled": "已取消编辑气泡区域。",
+    "applied": "已将编辑后的气泡形状应用到所选文本块。"
   },
   "blockEditing": {
     "chapterApplyWhileRunning": "任务运行时无法对整章批量应用格式。",
@@ -293,6 +305,13 @@
       "failed": "擦除原文失败。",
       "success": "原文擦除完成：{{pages}}页，{{blocks}}个文本块"
     },
+    "bubbleLayout": {
+      "requiresBlocks": "没有可用于检测气泡的文本块。",
+      "preparing": "正在准备气泡适配布局",
+      "success": "已将当前页的译文文本块适配到气泡内。",
+      "failedTitle": "气泡适配失败",
+      "failed": "无法将译文文本块适配到气泡内。"
+    },
     "export": {
       "noPage": "尚未选择要导出的页面。",
       "saveFailed": "导出 PNG 前无法保存修改。",
@@ -350,6 +369,10 @@
       "startFailed": "无法开始翻译任务。"
     },
     "refreshWarning": "翻译已完成，但无法刷新资料库。",
+    "eraseOriginalWorkflowCompleted": "翻译和原文擦除已完成。",
+    "eraseOriginalWorkflowFailed": "翻译后的原文擦除失败。",
+    "bubbleLayoutWorkflowCompleted": "翻译、自动擦除和气泡适配已完成。",
+    "bubbleLayoutWorkflowFailed": "翻译后的自动擦除和气泡适配失败。",
     "flow": {
       "firstPass": "第一遍",
       "secondPass": "第二遍",

@@ -44,8 +44,17 @@ export function resolveOverlayTextContentStyle(
   renderDirection: RenderTextDirection,
 ): React.CSSProperties {
   const scaleX = resolveFontWidthScale(block.fontWidthScale);
+  const hasBubbleSlots = Boolean(
+    layout.lines?.some((line) => line.slot !== undefined),
+  );
   const breakStyle = resolveWordBreakCss(
     resolveBlockTextWordBreak(block.wordBreak, renderDirection),
+  );
+  const geometryStyle = resolveTextContentGeometryStyle(
+    hasBubbleSlots,
+    layout,
+    renderDirection,
+    block.textAlign,
   );
   return {
     boxSizing: "border-box",
@@ -54,11 +63,11 @@ export function resolveOverlayTextContentStyle(
     textOrientation: renderDirection === "vertical" ? "upright" : undefined,
     width:
       renderDirection === "vertical"
-        ? "max-content"
+        ? hasBubbleSlots
+          ? `${layout.fitInnerWidth / scaleX}px`
+          : "max-content"
         : `${layout.textContentWidth}px`,
-    height:
-      renderDirection === "vertical" ? `${layout.fitInnerHeight}px` : undefined,
-    maxWidth: "100%",
+    ...geometryStyle,
     maxHeight: "100%",
     overflow: "visible",
     // Horizontal text is already split into deterministic fixed lines, but
@@ -72,7 +81,32 @@ export function resolveOverlayTextContentStyle(
     fontSynthesis: "weight style",
     textShadow: resolveBlockTextOutlineShadow(block, layout.fontSizePx),
     transform: scaleX === 1 ? undefined : `scaleX(${scaleX})`,
-    transformOrigin: resolveFontWidthOrigin(renderDirection, block.textAlign),
+  };
+}
+
+function resolveTextContentGeometryStyle(
+  hasBubbleSlots: boolean,
+  layout: BlockTextLayout,
+  renderDirection: RenderTextDirection,
+  textAlign: TranslationBlock["textAlign"],
+): Pick<
+  React.CSSProperties,
+  "flexShrink" | "height" | "maxWidth" | "position" | "transformOrigin"
+> {
+  if (hasBubbleSlots) {
+    return {
+      flexShrink: 0,
+      height: `${layout.fitInnerHeight}px`,
+      maxWidth: "none",
+      position: "relative",
+      transformOrigin: "center center",
+    };
+  }
+  return {
+    height:
+      renderDirection === "vertical" ? `${layout.fitInnerHeight}px` : undefined,
+    maxWidth: "100%",
+    transformOrigin: resolveFontWidthOrigin(renderDirection, textAlign),
   };
 }
 

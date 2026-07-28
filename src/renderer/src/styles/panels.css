@@ -26,7 +26,7 @@
 .run-primary-actions {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--sp-2);
+  gap: var(--sp-3);
 }
 
 .run-primary-actions > :first-child {
@@ -36,6 +36,71 @@
 .run-primary-actions button {
   min-width: 0;
   padding-inline: var(--sp-2);
+}
+
+.chapter-task-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.chapter-task-header h2,
+.chapter-task-header small {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chapter-task-header h2 {
+  color: #f3ecdf;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.chapter-task-header small {
+  max-width: 120px;
+  color: var(--text-muted);
+}
+
+.current-page-actions-section {
+  display: grid;
+  gap: 5px;
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--border-soft);
+}
+
+.current-page-actions-label {
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  font-weight: 650;
+}
+
+.current-page-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.current-page-actions button {
+  min-height: 36px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.current-page-actions button > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.current-page-action-tooltip {
+  width: 100%;
+  min-width: 0;
 }
 
 .auto-inpainting-action {
@@ -51,7 +116,7 @@
 }
 
 .auto-inpainting-action .auto-inpainting-menu-trigger {
-  width: 34px;
+  width: 32px;
   margin-left: -1px;
   padding-inline: 0;
   border-radius: 0 var(--r-md) var(--r-md) 0;
@@ -62,8 +127,11 @@
   z-index: 48;
   top: calc(100% + 6px);
   right: 0;
+  left: 0;
   display: grid;
-  width: 100%;
+  width: auto;
+  min-width: 0;
+  max-width: none;
   padding: 4px;
   border: 1px solid var(--border-strong);
   border-radius: var(--r-md);
@@ -86,6 +154,7 @@
   font: inherit;
   font-size: var(--font-sm);
   text-align: left;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -116,6 +185,16 @@
   grid-template-rows: auto minmax(0, 1fr);
 }
 
+.page-list.empty {
+  flex: 0 0 auto;
+  grid-template-rows: auto auto;
+}
+
+.page-list.empty .page-list-scroll {
+  overflow: visible;
+  padding-right: 0;
+}
+
 .status-panel {
   flex: 1 1 220px;
   grid-template-rows: auto auto minmax(0, 1fr);
@@ -124,13 +203,31 @@
 .editor-panel {
   align-content: start;
   min-height: 0;
+  container-name: editor-panel;
+  container-type: inline-size;
 }
 
 .editor-panel.has-block {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
+  max-height: 100%;
   overflow-x: hidden;
   overflow-y: auto;
   padding-right: var(--sp-3);
+}
+
+.editor-panel-sticky {
+  position: sticky;
+  z-index: 35;
+  top: 0;
+  display: grid;
+  gap: var(--sp-2);
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--border-soft);
+  background: linear-gradient(
+    to bottom,
+    var(--glass-panel) 82%,
+    color-mix(in srgb, var(--glass-panel) 88%, transparent)
+  );
 }
 
 .editor-panel-header {
@@ -138,12 +235,86 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-3);
+  min-width: 0;
+}
+
+.editor-panel-title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.editor-state-badge {
+  min-width: 0;
+  max-width: 170px;
+  padding: 2px 7px;
+  overflow: hidden;
+  border: 1px solid rgba(230, 183, 116, 0.38);
+  border-radius: var(--r-pill);
+  background: rgba(230, 183, 116, 0.08);
+  color: #e6b774;
+  font-size: 10px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .editor-panel-header-actions {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: var(--sp-2);
+}
+
+.editor-panel-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+}
+
+.editor-panel-tabs button {
+  min-width: 0;
+  min-height: 32px;
+  padding: 4px var(--sp-2);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.editor-panel-tabs button:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.editor-panel-tabs button[aria-selected="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  box-shadow: inset 0 0 0 1px var(--accent-bd);
+}
+
+.editor-panel-tabs button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -1px;
+}
+
+.editor-tab-panel {
+  display: grid;
+  gap: var(--sp-3);
+  min-width: 0;
+  padding-top: var(--sp-1);
+}
+
+.editor-tab-panel[hidden] {
+  display: none;
 }
 
 .editor-float-placeholder {
@@ -241,6 +412,34 @@
   margin-top: var(--sp-1);
   padding-top: var(--sp-4);
   border-top: 1px solid var(--border-soft);
+}
+
+.editor-bubble-layout-status {
+  display: grid;
+  grid-template-columns: minmax(120px, 140px) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+}
+
+.editor-bubble-layout-status strong {
+  min-width: 0;
+  color: var(--text-head);
+  font-size: var(--font-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-bubble-layout-status button {
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  border-color: var(--accent-bd);
+  color: var(--accent-hi);
 }
 
 /* Dense, mode-aware block transform inspector. Values stay compact while the
@@ -552,74 +751,6 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.editor-panel.has-block .editor-inpainting-option {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 9px;
-  min-height: 38px;
-  padding: 6px 2px;
-  border-bottom: 1px solid var(--border-soft);
-  cursor: pointer;
-}
-
-.editor-panel.has-block .editor-inpainting-option:has(input:focus-visible) {
-  outline: 2px solid var(--focus);
-  outline-offset: 1px;
-}
-
-.editor-panel.has-block .editor-inpainting-option:has(input:disabled) {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.editor-panel.has-block .editor-inpainting-option input {
-  appearance: none;
-  position: relative;
-  flex: 0 0 auto;
-  width: 32px;
-  height: 18px;
-  margin: 0;
-  padding: 0;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: var(--bg-sunken);
-  cursor: pointer;
-  transition:
-    border-color 120ms ease,
-    background 120ms ease;
-}
-
-.editor-panel.has-block .editor-inpainting-option input::after {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--text-muted);
-  transition:
-    transform 140ms ease,
-    background 120ms ease;
-}
-
-.editor-panel.has-block .editor-inpainting-option input:checked {
-  border-color: var(--accent-bd);
-  background: var(--accent-soft);
-}
-
-.editor-panel.has-block .editor-inpainting-option input:checked::after {
-  background: var(--accent-hi);
-  transform: translateX(14px);
-}
-
-.editor-inpainting-option strong {
-  color: var(--text-head);
-  font-size: var(--font-sm);
-  font-weight: 650;
-}
-
 .editor-panel.has-block .editor-group > label {
   display: grid;
   gap: var(--sp-1);
@@ -637,6 +768,39 @@
 .editor-panel.has-block textarea {
   min-height: 52px;
   resize: vertical;
+}
+
+@container editor-panel (max-width: 360px) {
+  .editor-panel-header {
+    gap: var(--sp-2);
+  }
+
+  .editor-state-badge {
+    max-width: 92px;
+  }
+
+  .editor-inline-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .editor-inline-toolbar > span {
+    width: 100%;
+    text-align: right;
+  }
+
+  .editor-bubble-layout-status {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .editor-bubble-layout-status button {
+    width: 100%;
+  }
+
+  .transform-corner-grid,
+  .transform-select-row,
+  .transform-control-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .panel-header,

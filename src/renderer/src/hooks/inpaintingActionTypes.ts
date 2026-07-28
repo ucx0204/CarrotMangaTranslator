@@ -37,6 +37,7 @@ export type UseInpaintingActionsOptions = {
     SetStateAction<Record<string, InpaintingMaskStroke[]>>
   >;
   setPeekOriginal: Dispatch<SetStateAction<boolean>>;
+  setShowBlockChrome: (visible: boolean) => void;
   workspaceHistory: Pick<WorkspaceHistoryController, "recordImageEdit">;
 };
 

@@ -44,6 +44,10 @@
   cursor: crosshair;
 }
 
+.image-stage.stage-tool-bubble {
+  cursor: crosshair;
+}
+
 .image-stage.stage-tool-hand {
   cursor: grab;
 }
@@ -191,6 +195,53 @@
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
 }
 
+.page-image-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 35;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: rgba(7, 9, 12, 0.12);
+}
+
+.page-image-loading-spinner {
+  width: 34px;
+  height: 34px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 999px;
+  background: rgba(10, 12, 16, 0.38);
+  box-shadow:
+    0 0 0 8px rgba(10, 12, 16, 0.32),
+    0 5px 18px rgba(0, 0, 0, 0.42);
+  animation: page-image-loading-spin 0.72s linear infinite;
+}
+
+.page-image-loading-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@keyframes page-image-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-image-loading-spinner {
+    animation-duration: 1.4s;
+  }
+}
+
 .overlay-block {
   position: absolute;
   overflow: visible;
@@ -311,6 +362,304 @@
   box-shadow:
     0 0 0 1px rgba(9, 15, 22, 0.72),
     0 0 0 9999px rgba(5, 7, 10, 0.18);
+}
+
+.bubble-layout-draft-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 26;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  filter: drop-shadow(0 0 1px rgba(5, 8, 13, 0.95))
+    drop-shadow(0 0 6px rgba(255, 177, 64, 0.28));
+}
+
+.bubble-layout-draft-fill {
+  fill: rgba(255, 178, 63, 0.14);
+  stroke: rgba(255, 201, 117, 0.96);
+  stroke-width: 2px;
+  stroke-linejoin: round;
+  stroke-dasharray: 9 6;
+  vector-effect: non-scaling-stroke;
+}
+
+.bubble-layout-draft-shape polygon {
+  fill: rgba(255, 177, 64, 0.17);
+  stroke: rgba(255, 211, 142, 0.98);
+  stroke-width: 2px;
+  stroke-linejoin: round;
+  stroke-dasharray: 9 6;
+  vector-effect: non-scaling-stroke;
+}
+
+.bubble-layout-draft-shape.add polygon {
+  fill: rgba(78, 226, 172, 0.16);
+  stroke: rgba(111, 245, 197, 0.98);
+}
+
+.bubble-layout-draft-shape.subtract polygon {
+  fill: rgba(255, 121, 112, 0.13);
+  stroke: rgba(255, 151, 139, 0.98);
+}
+
+.bubble-layout-draft-line {
+  fill: none;
+  stroke: #ffc66d;
+  stroke-width: 2px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.bubble-layout-brush-stroke {
+  fill: none;
+  opacity: 0.24;
+  stroke: #75f1c3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.bubble-layout-brush-stroke.subtract {
+  stroke: #ff8d82;
+}
+
+.bubble-layout-brush-cursor {
+  fill: rgba(74, 229, 170, 0.12);
+  stroke: #78f2c5;
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+}
+
+.bubble-layout-brush-cursor.subtract {
+  fill: rgba(255, 116, 106, 0.1);
+  stroke: #ff9187;
+}
+
+.bubble-layout-draft-layer circle {
+  fill: #fff8e9;
+  stroke: #d87624;
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+}
+
+.bubble-layout-draft-layer circle.first {
+  fill: #ffad42;
+  stroke: #fff4df;
+}
+
+.bubble-layout-draft-layer .bubble-layout-brush-cursor {
+  fill: rgba(74, 229, 170, 0.12);
+  stroke: #78f2c5;
+}
+
+.bubble-layout-draft-layer .bubble-layout-brush-cursor.subtract {
+  fill: rgba(255, 116, 106, 0.1);
+  stroke: #ff9187;
+}
+
+.workspace-shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  padding-right: 0;
+  container-name: bubble-workspace;
+  container-type: inline-size;
+}
+
+.workspace-canvas-viewport {
+  position: relative;
+  grid-row: 2;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding-right: 48px;
+  background: #0c0d10;
+}
+
+.bubble-layout-context-bar {
+  position: relative;
+  grid-row: 1;
+  z-index: 38;
+  display: grid;
+  align-items: center;
+  grid-template-areas: "info modes actions";
+  grid-template-columns: minmax(150px, 1fr) auto auto;
+  gap: 8px 12px;
+  min-width: 0;
+  padding: 8px 10px 8px 12px;
+  border-bottom: 1px solid rgba(255, 184, 83, 0.58);
+  background: #15161b;
+  color: var(--text);
+  line-height: 1.35;
+  box-shadow: inset 0 -1px 0 rgba(255, 220, 169, 0.05);
+}
+
+.bubble-layout-context-info {
+  display: grid;
+  grid-area: info;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bubble-layout-context-info strong {
+  color: #ffe2b6;
+  font-size: var(--font-sm);
+  white-space: nowrap;
+}
+
+.bubble-layout-context-hint {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bubble-layout-context-hint.bubble-layout-editor-notice {
+  color: #ffaaa2;
+  font-weight: 700;
+}
+
+.bubble-layout-context-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 5px;
+  grid-area: actions;
+}
+
+.bubble-layout-context-actions button,
+.bubble-layout-context-modes button {
+  min-height: 30px;
+  padding: 4px 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--font-xs);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bubble-layout-context-modes {
+  display: flex;
+  align-items: center;
+  flex: 0 1 auto;
+  gap: 4px;
+  grid-area: modes;
+  min-width: 0;
+}
+
+.bubble-layout-context-modes button[aria-pressed="true"] {
+  border-color: rgba(119, 239, 196, 0.74);
+  background: rgba(29, 132, 104, 0.34);
+  color: #d9fff1;
+  box-shadow: inset 0 0 0 1px rgba(95, 220, 175, 0.16);
+}
+
+.bubble-layout-context-radius {
+  display: grid;
+  align-items: center;
+  grid-template-columns: auto minmax(56px, 92px) 24px;
+  gap: 5px;
+  margin-left: 3px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  font-weight: 650;
+}
+
+.bubble-layout-context-radius input {
+  min-width: 0;
+  width: 100%;
+  accent-color: #5cddb0;
+}
+
+.bubble-layout-context-radius output {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.bubble-layout-context-actions button.primary {
+  border-color: rgba(255, 184, 83, 0.64);
+  background: rgba(195, 89, 34, 0.36);
+  color: #fff3df;
+}
+
+.bubble-layout-context-actions button:disabled,
+.bubble-layout-context-modes button:disabled,
+.bubble-layout-context-radius input:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.bubble-layout-context-actions button:focus-visible,
+.bubble-layout-context-modes button:focus-visible,
+.bubble-layout-context-radius input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+@container bubble-workspace (max-width: 760px) {
+  .bubble-layout-context-bar {
+    grid-template-areas:
+      "info actions"
+      "modes modes";
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 8px;
+    padding-block: 7px;
+  }
+
+  .bubble-layout-context-modes {
+    gap: 3px;
+  }
+
+  .bubble-layout-context-actions {
+    gap: 3px;
+  }
+
+  .bubble-layout-context-actions button,
+  .bubble-layout-context-modes button {
+    padding-inline: 6px;
+  }
+
+  .bubble-layout-context-radius {
+    flex: 1 1 112px;
+    margin-left: auto;
+  }
+}
+
+@container bubble-workspace (max-width: 420px) {
+  .bubble-layout-context-hint {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .bubble-layout-context-info strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .bubble-layout-context-actions button,
+  .bubble-layout-context-modes button {
+    min-height: 28px;
+    padding: 3px 5px;
+  }
+
+  .bubble-layout-context-radius {
+    grid-template-columns: auto minmax(42px, 1fr) 22px;
+    gap: 3px;
+    font-size: 10px;
+  }
 }
 
 .stage-drag-hud {

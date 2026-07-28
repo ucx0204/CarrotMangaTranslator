@@ -10,11 +10,24 @@ export type AutoInpaintingChapterSelection =
 
 export type AutoInpaintingSelectionMap = ExportSelectionMap;
 
+export type AutoInpaintingEntryScope = "current" | "all" | "select";
+
 export function createDefaultAutoInpaintingSelection(
   chapterId: string,
   currentPageId: string,
 ): AutoInpaintingSelectionMap {
   return createDefaultExportSelection(chapterId, currentPageId);
+}
+
+export function createScopedAutoInpaintingSelection(
+  chapterId: string,
+  currentPageId: string,
+  scope: AutoInpaintingEntryScope,
+): AutoInpaintingSelectionMap {
+  if (scope === "all") {
+    return new Map([[chapterId, { kind: "all" }]]);
+  }
+  return createDefaultAutoInpaintingSelection(chapterId, currentPageId);
 }
 
 export function buildAutoInpaintingSelection(

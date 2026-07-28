@@ -56,6 +56,7 @@ export function EditorPanelContainer(): React.JSX.Element {
       onUpdate={session.onUpdateBlock}
       onDelete={session.onDeleteBlock}
       onDuplicate={session.onDuplicateBlock}
+      onRemoveBubbleLayout={session.onRemoveBubbleLayout}
       onSelectTransformMode={session.onSelectTransformMode}
     />
   );

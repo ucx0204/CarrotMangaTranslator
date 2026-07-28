@@ -80,6 +80,7 @@ export async function runResolvedAnalysisJob({
       previousStoryPages,
     },
     collectPageContext: request.collectPageContext,
+    naturalTextLayout: request.naturalTextLayout,
     canonicalPageIndexById: new Map(
       resolved.chapter.pages.map((page, index) => [page.id, index]),
     ),

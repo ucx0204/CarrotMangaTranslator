@@ -19,6 +19,7 @@ export type PanelCommandTarget = {
   ) => void;
   deleteSelectedBlock: () => void;
   duplicateSelectedBlock: () => void;
+  removeSelectedBlockBubbleLayout: () => void;
   applyFormatToScope: (
     scope: ApplyFormatCommand["scope"],
     groupIds: ApplyFormatCommand["groupIds"],
@@ -65,6 +66,9 @@ function applyPanelCommand(
     case "duplicateBlock":
       actions.duplicateSelectedBlock();
       return;
+    case "removeBubbleLayout":
+      actions.removeSelectedBlockBubbleLayout();
+      return;
     case "selectTransformMode":
       actions.selectWorkspaceTool(command.mode);
       return;
@@ -86,7 +90,8 @@ function isStaleBlockCommand(
   return command.type === "updateBlock" ||
     command.type === "adjustFontSize" ||
     command.type === "deleteBlock" ||
-    command.type === "duplicateBlock"
+    command.type === "duplicateBlock" ||
+    command.type === "removeBubbleLayout"
     ? command.blockId !== selectedBlockId
     : false;
 }

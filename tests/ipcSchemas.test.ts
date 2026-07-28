@@ -91,6 +91,23 @@ describe("IPC schemas", () => {
     ).toThrow(/요청 형식/);
   });
 
+  it("accepts only a boolean natural text layout option", () => {
+    expect(
+      parseIpcPayload(
+        StartAnalysisRequestSchema,
+        { chapterId, runMode: "all", naturalTextLayout: true },
+        "번역 작업",
+      ).naturalTextLayout,
+    ).toBe(true);
+    expect(() =>
+      parseIpcPayload(
+        StartAnalysisRequestSchema,
+        { chapterId, runMode: "all", naturalTextLayout: "yes" },
+        "번역 작업",
+      ),
+    ).toThrow(/요청 형식/);
+  });
+
   it("accepts a bounded page-set analysis request and rejects malformed ones", () => {
     const parsed = parseIpcPayload(
       StartAnalysisRequestSchema,
@@ -427,6 +444,73 @@ describe("IPC schemas", () => {
     ).toThrow(/요청 형식/);
   });
 
+  it("accepts only strict bubble-layout postprocess options", () => {
+    const parsed = parseIpcPayload(
+      StartInpaintingRequestSchema,
+      {
+        chapterId,
+        mode: "page-pattern",
+        pageId,
+        postprocess: {
+          bubbleLayout: { enabled: true, policy: "balanced" },
+        },
+      },
+      "인페인팅 작업",
+    );
+    expect(parsed.postprocess?.bubbleLayout).toEqual({
+      enabled: true,
+      policy: "balanced",
+    });
+    expect(() =>
+      parseIpcPayload(
+        StartInpaintingRequestSchema,
+        {
+          chapterId,
+          mode: "page-pattern",
+          pageId,
+          postprocess: {
+            bubbleLayout: { enabled: true, policy: "aggressive" },
+          },
+        },
+        "인페인팅 작업",
+      ),
+    ).toThrow(/요청 형식/);
+    expect(() =>
+      parseIpcPayload(
+        StartInpaintingRequestSchema,
+        {
+          chapterId,
+          mode: "page-pattern",
+          pageId,
+          postprocess: {
+            bubbleLayout: {
+              enabled: true,
+              policy: "safe",
+              bbox: { x: 0, y: 0, w: 1, h: 1 },
+            },
+          },
+        },
+        "인페인팅 작업",
+      ),
+    ).toThrow(/요청 형식/);
+
+    expect(
+      parseIpcPayload(
+        StartInpaintingRequestSchema,
+        {
+          chapterId,
+          mode: "page-bubble-layout",
+          pageId,
+          policy: "maximize",
+        },
+        "인페인팅 작업",
+      ),
+    ).toMatchObject({
+      mode: "page-bubble-layout",
+      policy: "maximize",
+    });
+  });
+
   it("accepts bounded multi-chapter automatic inpainting selections", () => {
     const otherChapterId = "44444444-4444-4444-8444-444444444444";
     const otherPageId = "55555555-5555-4555-8555-555555555555";
@@ -543,6 +627,11 @@ describe("IPC schemas", () => {
         model: "lama",
         fluxBackend: "rocm",
         koharuBackend: "amd",
+        bubbleLayoutAfterInpainting: true,
+      },
+      ui: {
+        eraseOriginalWorkflowDefault: true,
+        bubbleLayoutWorkflowDefault: false,
       },
       maxTokens: 32768,
       ctx: 131072,
@@ -564,6 +653,9 @@ describe("IPC schemas", () => {
     expect(parsed.api.reasoningEffort).toBe("minimal");
     expect(parsed.ocr.qualityMode).toBe("economy");
     expect(parsed.ocr.gpuBackend).toBe("rocm-transformers");
+    expect(parsed.inpainting?.bubbleLayoutAfterInpainting).toBe(true);
+    expect(parsed.ui?.eraseOriginalWorkflowDefault).toBe(true);
+    expect(parsed.ui?.bubbleLayoutWorkflowDefault).toBe(false);
     expect(
       parseIpcPayload(
         AppSettingsSchema,

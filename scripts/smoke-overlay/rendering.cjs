@@ -1,5 +1,5 @@
 const { BrowserWindow } = require("electron");
-const { readFile, writeFile } = require("node:fs/promises");
+const { readFile, rm, writeFile } = require("node:fs/promises");
 const path = require("node:path");
 
 /**
@@ -61,6 +61,8 @@ async function createPageView(page, maxLongSide) {
 
 /** @param {string} html @param {string} outputPath @param {number} width @param {number} height */
 async function captureHtml(html, outputPath, width, height) {
+  const htmlPath = `${outputPath}.html`;
+  await writeFile(htmlPath, html, "utf8");
   const win = new BrowserWindow({
     width,
     height,
@@ -68,14 +70,13 @@ async function captureHtml(html, outputPath, width, height) {
     webPreferences: { offscreen: true },
   });
   try {
-    await win.loadURL(
-      `data:text/html;charset=utf-8,${encodeURIComponent(html)}`,
-    );
+    await win.loadFile(htmlPath);
     await waitForReady(win);
     const image = await win.webContents.capturePage();
     await writeFile(outputPath, image.toPNG());
   } finally {
     win.destroy();
+    await rm(htmlPath, { force: true });
   }
 }
 

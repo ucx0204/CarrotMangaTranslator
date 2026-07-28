@@ -82,6 +82,8 @@
   },
   "workspaceActions": {
     "label": "キャンバス操作",
+    "showTranslations": "翻訳文を表示",
+    "showEditingChrome": "背景・枠線",
     "undo": "元に戻す（Ctrl+Z）",
     "redo": "やり直す（Ctrl+Y / Ctrl+Shift+Z）",
     "undoNamed": "{{action}}を元に戻す（Ctrl+Z）",
@@ -109,6 +111,9 @@
     "bold": "太字",
     "italic": "斜体",
     "italicShort": "斜体",
+    "blockStyle": "ブロック全体",
+    "blockBold": "ブロック全体を太字",
+    "blockItalic": "ブロック全体を斜体",
     "align": { "left": "左揃え", "center": "中央揃え", "right": "右揃え" },
     "direction": { "horizontal": "横書き", "vertical": "縦書き" },
     "size": "サイズ",
@@ -242,6 +247,14 @@
   "editor": {
     "text": "テキスト",
     "translatedText": "翻訳文",
+    "moreActions": "ブロック操作を表示",
+    "sourceEmpty": "OCRテキストなし",
+    "tabs": {
+      "label": "ブロック編集セクション",
+      "text": "テキスト",
+      "layout": "配置",
+      "format": "書式"
+    },
     "blockColors": "ブロックの色",
     "swapTextOutlineColors": "文字色と縁取り色を入れ替え",
     "display": {
@@ -255,6 +268,11 @@
       "exclude": "自動消去から除外",
       "excludeHint": "自動インペインティングでこのブロック内の文字を消去しません。"
     },
+    "bubbleLayout": {
+      "active": "吹き出し調整済み",
+      "remove": "吹き出しフィットを解除",
+      "removeHint": "自動または手動で設定した吹き出し領域を削除し、元のOCRテキスト領域に戻します。"
+    },
     "markupHint": {
       "emphasis": "部分強調:",
       "escape": "アスタリスクを入力するには"
@@ -264,6 +282,7 @@
       "boldTitle": "選択した文字を太字にする（**太字**）",
       "italicLabel": "斜体（*斜体*）",
       "italicTitle": "選択した文字を斜体にする（*斜体*）",
+      "help": "部分強調のヘルプ",
       "resetHeight": "入力欄の高さをリセット"
     }
   },
@@ -353,11 +372,20 @@
     "noSelectedPages": "ページが選択されていません。",
     "selectionSummary": "{{chapterCount}}話・{{pageCount}}ページ",
     "start": "自動消去を開始",
-    "workUnavailable": "作品情報を読み込めませんでした。現在のページだけを処理します。"
+    "workUnavailable": "作品情報を読み込めませんでした。現在のページだけを処理します。",
+    "currentPageSummary": "現在のページだけを消去します。",
+    "allPagesSummary": "現在の話の全{{count}}ページを消去します。",
+    "bubbleLayout": "消去後に吹き出しへ合わせる",
+    "bubbleLayoutHint": "消去後の画像から吹き出し領域を検出し、翻訳文の配置も自動調整します。"
   },
   "translationOptions": {
     "start": "翻訳を開始",
     "workUnavailable": "作品情報を読み込めませんでした。現在の話だけを翻訳します。",
+    "sections": {
+      "quality": "翻訳品質",
+      "blockLayout": "ブロック・改行",
+      "completion": "完了処理"
+    },
     "workflowMode": "翻訳方式",
     "workflowOptions": {
       "standard": {
@@ -380,6 +408,33 @@
       "work": "最初からやり直す",
       "missing": "空の話のみ",
       "chapter": "現在の話のみ"
+    },
+    "blockModeSummaries": {
+      "auto": "ページごとにテキストブロックを自動検出します。",
+      "keep": "既存ブロックの領域と書式を維持します。"
+    },
+    "naturalTextLayout": "自然な改行配置",
+    "naturalTextLayoutOff": "使用しない",
+    "naturalTextLayoutOn": "使用する",
+    "naturalTextLayoutHint": "テキストブロックの大きさに合わせて翻訳文自体に改行を入れます。非常に細長い新規ブロックは、1列に収まる場合だけ縦書きにします。ブロックの折り返し設定は変更しません。",
+    "naturalTextLayoutSummaries": {
+      "off": "翻訳文の折り返しはブロックに任せます。",
+      "on": "ブロックの大きさに合わせて翻訳文の改行を整えます。"
+    },
+    "completionMode": "完了方法",
+    "completionModeTranslate": "翻訳のみ",
+    "completionModeErase": "原文を消去",
+    "completionModeSummaries": {
+      "translate": "翻訳だけを完了し、元画像はそのまま残します。",
+      "erase": "翻訳後、選択したページの原文を自動で消去します。"
+    },
+    "bubbleLayoutWorkflow": "吹き出しフィット",
+    "bubbleLayoutWorkflowOff": "使用しない",
+    "bubbleLayoutWorkflowOn": "使用する",
+    "bubbleLayoutWorkflowHint": "原文を消去した後、翻訳ブロックを吹き出し内へ自然に収めます。",
+    "bubbleLayoutWorkflowSummaries": {
+      "off": "原文だけを消去し、現在のブロック配置を維持します。",
+      "on": "原文を消去した後、翻訳文を吹き出し内に収めます。"
     },
     "keepBlocksHint": "ブロックがあるページは領域と書式を保ち、テキストだけを入れ直します。ブロックがないページは自動生成されます。"
   },
@@ -486,7 +541,11 @@
     "inProgressShort": "進行",
     "erased": "消去済み"
   },
-  "runPanel": { "openChapterHint": "ライブラリから話を開いてください。" },
+  "runPanel": {
+    "openChapterHint": "ライブラリから話を開いてください。",
+    "chapterTools": "話のツール",
+    "currentPage": "現在のページ"
+  },
   "areaTranslation": {
     "title": "範囲翻訳",
     "cancelSelection": "選択をキャンセル"
@@ -498,6 +557,16 @@
     "hideTitle": "ツールバーを隠す（4）",
     "imageTools": "画像ツール",
     "radius": "{{radius}}px",
+    "groups": {
+      "textShape": {
+        "label": "テキスト形状",
+        "title": "遠近・曲線・吹き出し領域ツール"
+      },
+      "retouch": {
+        "label": "画像補正",
+        "title": "マスク・ブラシ・図形・復元ツール"
+      }
+    },
     "tools": {
       "select": { "label": "選択", "title": "選択ツール（1）" },
       "block": {
@@ -520,6 +589,10 @@
         "label": "曲線",
         "title": "曲線テキスト — 効果音をパスに沿って配置します"
       },
+      "bubble": {
+        "label": "吹き出し領域",
+        "title": "選択ブロックの吹き出し領域を直接指定 — 点を置いて Enter で適用"
+      },
       "mask": { "label": "マスク", "title": "マスクブラシ" },
       "brush": { "label": "ブラシ", "title": "補正ブラシ" },
       "rectangle": { "label": "矩形", "title": "塗りつぶした矩形で覆う" },
@@ -527,6 +600,28 @@
       "eraser": { "label": "消しゴム", "title": "補正内容を消去" },
       "picker": { "label": "色を抽出", "title": "キャンバスから色を抽出" }
     }
+  },
+  "bubbleLayoutEditor": {
+    "title": "吹き出し形状を編集",
+    "emptyHint": "吹き出しの内側に沿って点を置いてください。",
+    "activeHint": "{{count}}点 · Enter で適用 · Backspace で1点戻す",
+    "addHint": "現在の形状に接する位置から外側へブラシで広げます。",
+    "subtractHint": "形状を分断しない範囲で内側をブラシで削ります。",
+    "modeLabel": "吹き出し形状の編集モード",
+    "modes": {
+      "polygon": "多角形",
+      "add": "＋ 広げる",
+      "subtract": "− 削る"
+    },
+    "rejections": {
+      "detached": "現在の形状に触れてから広げてください。",
+      "disconnect": "形状が分断されるため削り操作を戻しました。",
+      "empty": "このブラシ操作では形状が変わりませんでした。",
+      "invalid": "このブラシ操作は適用できません。"
+    },
+    "radius": "ブラシ",
+    "undo": "元に戻す",
+    "apply": "適用"
   },
   "display": {
     "title": "表示",
@@ -855,11 +950,14 @@
     },
     "auto": {
       "description": "まず原文の文字を自動で消します。1ページずつ、または残りのページをまとめて処理できます。",
-      "currentPageAction": "現在のページを自動消去",
+      "currentPageAction": "現在のページを消去",
+      "eraseShort": "現在のページを消去",
       "moreActions": "自動消去の追加操作",
-      "commandHint": "メインボタンは現在のページだけを処理します。必要な場合のみ範囲を選択してください。",
-      "selectMultiplePages": "複数ページを選択…",
-      "guideAction": "自動消去の使い方",
+      "allPagesErase": "全ページを消去",
+      "selectPagesErase": "消去するページを選択",
+      "bubbleLayoutAction": "現在のページの吹き出しを自動検出",
+      "bubbleLayoutShort": "吹き出し調整",
+      "bubbleLayoutRequiresBlocks": "先に現在のページを消去してください。",
       "nextRetouch": "次へ: 補正 →",
       "noOpenChapter": "話が開かれていません。",
       "remainingSummary": "残り {{pendingPages}} / {{totalPages}}ページ・{{blockCount}}ブロック",

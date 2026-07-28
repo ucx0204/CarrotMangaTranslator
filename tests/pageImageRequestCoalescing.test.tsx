@@ -145,7 +145,7 @@ describe("page image request coalescing", () => {
     );
   });
 
-  it("never exposes the previous page frame during a cross-page render", async () => {
+  it("keeps the previous decoded frame visible until the next page is ready", async () => {
     const secondPageRequest = deferred<string>();
     const getPageImageDataUrl = vi.fn((path: string) =>
       path === "page-2.png"
@@ -153,7 +153,12 @@ describe("page image request coalescing", () => {
         : Promise.resolve(`mgt-image://library/${path}`),
     );
     installImageGateway(getPageImageDataUrl);
-    const snapshots: Array<{ dataUrl: string; pageId: string }> = [];
+    const snapshots: Array<{
+      dataUrl: string;
+      loading: boolean;
+      pageId: string;
+      readyPageId: string | null;
+    }> = [];
     const view = renderHook(
       ({ page }) => {
         const image = usePageImageDataUrls({
@@ -163,7 +168,9 @@ describe("page image request coalescing", () => {
         });
         snapshots.push({
           dataUrl: image.selectedPageImageDataUrl,
+          loading: image.selectedPageImageLoading,
           pageId: page.id,
+          readyPageId: image.selectedPageImageDataUrlPageId,
         });
         return image;
       },
@@ -182,16 +189,11 @@ describe("page image request coalescing", () => {
       (snapshot) => snapshot.pageId === "page-2",
     );
     expect(intermediatePageTwoRender).toEqual({
-      dataUrl: "",
+      dataUrl: "mgt-image://library/page-1.png",
+      loading: true,
       pageId: "page-2",
+      readyPageId: null,
     });
-    expect(
-      snapshots.every(
-        (snapshot) =>
-          snapshot.pageId !== "page-2" ||
-          snapshot.dataUrl !== "mgt-image://library/page-1.png",
-      ),
-    ).toBe(true);
 
     await act(async () => {
       secondPageRequest.resolve("mgt-image://library/page-2.png");
@@ -202,6 +204,56 @@ describe("page image request coalescing", () => {
         "mgt-image://library/page-2.png",
       ),
     );
+    expect(view.result.current.selectedPageImageDataUrlPageId).toBe("page-2");
+    expect(view.result.current.selectedPageImageLoading).toBe(false);
+  });
+
+  it("preserves the previous frame and stops loading when the next page fails", async () => {
+    const secondPageRequest = deferred<string>();
+    const error = new Error("page image failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    installImageGateway(
+      vi.fn((path: string) =>
+        path === "page-2.png"
+          ? secondPageRequest.promise
+          : Promise.resolve(`mgt-image://library/${path}`),
+      ),
+    );
+    const view = renderHook(
+      ({ page }) =>
+        usePageImageDataUrls({
+          chapterId: "chapter-1",
+          selectedPage: page,
+          selectedPageImagePath: page.imagePath,
+        }),
+      { initialProps: { page: makePage("page-1", "page-1.png") } },
+    );
+    await waitFor(() =>
+      expect(view.result.current.selectedPageImageDataUrl).toBe(
+        "mgt-image://library/page-1.png",
+      ),
+    );
+
+    view.rerender({ page: makePage("page-2", "page-2.png") });
+    expect(view.result.current.selectedPageImageDataUrl).toBe(
+      "mgt-image://library/page-1.png",
+    );
+    expect(view.result.current.selectedPageImageLoading).toBe(true);
+
+    await act(async () => {
+      secondPageRequest.reject(error);
+      await expect(secondPageRequest.promise).rejects.toBe(error);
+    });
+    await waitFor(() =>
+      expect(view.result.current.selectedPageImageLoading).toBe(false),
+    );
+    expect(view.result.current.selectedPageImageDataUrl).toBe(
+      "mgt-image://library/page-1.png",
+    );
+    expect(view.result.current.selectedPageImageDataUrlPageId).toBeNull();
+    expect(consoleError).toHaveBeenCalledWith(error);
   });
 
   it("uses a decoded prefetched frame on the first render after switching pages", async () => {
@@ -452,14 +504,22 @@ function makePage(id: string, imagePath: string): MangaPage {
 
 function deferred<T>(): {
   promise: Promise<T>;
+  reject: (reason?: unknown) => void;
   resolve: (value: T) => void;
 } {
+  let rejectPromise: ((reason?: unknown) => void) | undefined;
   let resolvePromise: ((value: T) => void) | undefined;
-  const promise = new Promise<T>((resolve) => {
+  const promise = new Promise<T>((resolve, reject) => {
+    rejectPromise = reject;
     resolvePromise = resolve;
   });
   return {
     promise,
+    reject(reason) {
+      if (!rejectPromise)
+        throw new Error("Deferred promise was not initialized.");
+      rejectPromise(reason);
+    },
     resolve(value) {
       if (!resolvePromise)
         throw new Error("Deferred promise was not initialized.");

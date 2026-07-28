@@ -2,10 +2,12 @@ import type {
   InpaintingScope,
   UseInpaintingActionsOptions,
 } from "./inpaintingActionTypes";
+import type { InpaintingPostprocessOptions } from "../../../shared/inpaintingTypes";
 import type { PageImageExportChapterSelection } from "../../../shared/pageImageExportTypes";
 import { useDrawnPatternInpaintingAction } from "./useDrawnPatternInpaintingAction";
 import { useExportPageImagesAction } from "./useExportPageImagesAction";
 import { useRevertInpaintingAction } from "./useRevertInpaintingAction";
+import { useRunBubbleLayoutAction } from "./useRunBubbleLayoutAction";
 import { useRunInpaintingAction } from "./useRunInpaintingAction";
 import { useRunInpaintingSelectionAction } from "./useRunInpaintingSelectionAction";
 import type { AutoInpaintingChapterSelection } from "../lib/autoInpaintingSelection";
@@ -17,10 +19,12 @@ type InpaintingActions = {
     selections: PageImageExportChapterSelection[],
   ) => Promise<boolean>;
   revertInpainting: (scope: InpaintingScope) => Promise<void>;
+  runBubbleLayout: () => Promise<void>;
   runDrawnPatternInpainting: () => Promise<void>;
   runInpainting: (scope: InpaintingScope) => Promise<void>;
   runInpaintingSelection: (
     selections: AutoInpaintingChapterSelection[],
+    postprocess?: InpaintingPostprocessOptions,
   ) => Promise<void>;
 };
 
@@ -30,6 +34,7 @@ export function useInpaintingActions(
   const refreshLibrary = useSerializedLibraryRefresh(options.refreshLibrary);
   const queuedOptions = { ...options, refreshLibrary };
   const rawActions = {
+    runBubbleLayout: useRunBubbleLayoutAction(queuedOptions),
     runInpainting: useRunInpaintingAction(queuedOptions),
     runDrawnPatternInpainting: useDrawnPatternInpaintingAction(queuedOptions),
     revertInpainting: useRevertInpaintingAction(queuedOptions),
@@ -85,19 +90,29 @@ function useExclusiveImageActions(
     () => runExclusive(actions.runDrawnPatternInpainting),
     [actions, runExclusive],
   );
+  const runBubbleLayout = useCallback(
+    () => runExclusive(actions.runBubbleLayout),
+    [actions, runExclusive],
+  );
   const revertInpainting = useCallback(
     (scope: InpaintingScope) =>
       runExclusive(() => actions.revertInpainting(scope)),
     [actions, runExclusive],
   );
   const runInpaintingSelection = useCallback(
-    (selections: AutoInpaintingChapterSelection[]) =>
-      runExclusive(() => actions.runInpaintingSelection(selections)),
+    (
+      selections: AutoInpaintingChapterSelection[],
+      postprocess?: InpaintingPostprocessOptions,
+    ) =>
+      runExclusive(() =>
+        actions.runInpaintingSelection(selections, postprocess),
+      ),
     [actions, runExclusive],
   );
   return {
     actionBusy,
     revertInpainting,
+    runBubbleLayout,
     runDrawnPatternInpainting,
     runInpainting,
     runInpaintingSelection,

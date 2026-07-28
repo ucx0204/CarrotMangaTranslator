@@ -82,6 +82,8 @@
   },
   "workspaceActions": {
     "label": "캔버스 작업",
+    "showTranslations": "번역문 표시",
+    "showEditingChrome": "배경/테두리",
     "undo": "실행 취소 (Ctrl+Z)",
     "redo": "다시 실행 (Ctrl+Y / Ctrl+Shift+Z)",
     "undoNamed": "{{action}} 실행 취소 (Ctrl+Z)",
@@ -109,6 +111,9 @@
     "bold": "굵게",
     "italic": "기울임꼴",
     "italicShort": "기울임",
+    "blockStyle": "블록 전체",
+    "blockBold": "블록 전체 굵게",
+    "blockItalic": "블록 전체 기울임",
     "align": {
       "left": "왼쪽 정렬",
       "center": "가운데 정렬",
@@ -242,6 +247,14 @@
   "editor": {
     "text": "텍스트",
     "translatedText": "번역문",
+    "moreActions": "블록 작업 더 보기",
+    "sourceEmpty": "OCR 텍스트 없음",
+    "tabs": {
+      "label": "블록 편집 영역",
+      "text": "텍스트",
+      "layout": "배치",
+      "format": "서식"
+    },
     "blockColors": "블록 색상",
     "swapTextOutlineColors": "글자색과 외곽선색 바꾸기",
     "display": {
@@ -255,12 +268,18 @@
       "exclude": "자동 지우기에서 제외",
       "excludeHint": "자동 인페인팅이 이 블록의 글자를 지우지 않습니다."
     },
+    "bubbleLayout": {
+      "active": "말풍선 맞춤 적용됨",
+      "remove": "말풍선 맞춤 해제",
+      "removeHint": "자동 또는 수동으로 적용한 말풍선 영역을 지우고 원래 OCR 텍스트 영역으로 되돌립니다."
+    },
     "markupHint": { "emphasis": "일부 강조:", "escape": "별표 문자는" },
     "markupToolbar": {
       "boldLabel": "굵게 (**굵게**)",
       "boldTitle": "선택한 글자를 굵게 (**굵게**)",
       "italicLabel": "기울임 (*기울임*)",
       "italicTitle": "선택한 글자를 기울임 (*기울임*)",
+      "help": "부분 강조 도움말",
       "resetHeight": "입력칸 높이 초기화"
     }
   },
@@ -350,11 +369,20 @@
     "noSelectedPages": "선택된 페이지가 없습니다.",
     "selectionSummary": "{{chapterCount}}개 화 · {{pageCount}}페이지",
     "start": "자동 지우기 시작",
-    "workUnavailable": "작품 정보를 불러오지 못했습니다. 현재 페이지만 처리합니다."
+    "workUnavailable": "작품 정보를 불러오지 못했습니다. 현재 페이지만 처리합니다.",
+    "currentPageSummary": "현재 페이지만 지웁니다.",
+    "allPagesSummary": "현재 화의 전체 {{count}}페이지를 지웁니다.",
+    "bubbleLayout": "인페인팅 후 말풍선 맞춤",
+    "bubbleLayoutHint": "지운 이미지에서 말풍선 영역을 찾아 번역문 배치까지 자동으로 맞춥니다."
   },
   "translationOptions": {
     "start": "번역 시작",
     "workUnavailable": "작품 정보를 불러오지 못했습니다. 현재 화만 번역합니다.",
+    "sections": {
+      "quality": "번역 품질",
+      "blockLayout": "블록 · 줄 나눔",
+      "completion": "완료 처리"
+    },
     "workflowMode": "번역 방식",
     "workflowOptions": {
       "standard": {
@@ -377,6 +405,33 @@
       "work": "처음부터 다시",
       "missing": "비어있는 화만",
       "chapter": "현재 화만"
+    },
+    "blockModeSummaries": {
+      "auto": "페이지마다 텍스트 블록을 자동으로 찾습니다.",
+      "keep": "기존 블록의 영역과 서식을 유지합니다."
+    },
+    "naturalTextLayout": "자연스러운 줄 나눔",
+    "naturalTextLayoutOff": "사용 안 함",
+    "naturalTextLayoutOn": "사용",
+    "naturalTextLayoutHint": "텍스트 블록 크기에 맞춰 번역문 자체에 줄바꿈을 넣습니다. 매우 좁고 긴 새 블록은 한 열에 들어갈 때만 세로쓰기로 설정하며, 블록의 줄바꿈 방식 설정은 바꾸지 않습니다.",
+    "naturalTextLayoutSummaries": {
+      "off": "번역문 줄바꿈을 블록에 맡깁니다.",
+      "on": "블록 크기에 맞춰 번역문의 줄바꿈을 정돈합니다."
+    },
+    "completionMode": "완료 방식",
+    "completionModeTranslate": "번역만",
+    "completionModeErase": "원문 지우기",
+    "completionModeSummaries": {
+      "translate": "번역만 완료하고 원본 이미지는 그대로 둡니다.",
+      "erase": "번역 후 선택한 페이지의 원문을 자동으로 지웁니다."
+    },
+    "bubbleLayoutWorkflow": "말풍선 맞춤",
+    "bubbleLayoutWorkflowOff": "사용 안 함",
+    "bubbleLayoutWorkflowOn": "사용",
+    "bubbleLayoutWorkflowHint": "원문을 지운 뒤 번역 블록을 말풍선 안에 자연스럽게 맞춥니다.",
+    "bubbleLayoutWorkflowSummaries": {
+      "off": "원문만 지우고 현재 블록 배치는 유지합니다.",
+      "on": "원문을 지운 뒤 번역문을 말풍선 안에 맞춥니다."
     },
     "keepBlocksHint": "블록이 있는 페이지는 영역·서식을 그대로 두고 텍스트만 다시 채웁니다. 블록이 없는 페이지는 자동 생성됩니다."
   },
@@ -483,7 +538,11 @@
     "inProgressShort": "진행",
     "erased": "지움"
   },
-  "runPanel": { "openChapterHint": "보관함에서 화를 열어 주세요." },
+  "runPanel": {
+    "openChapterHint": "보관함에서 화를 열어 주세요.",
+    "chapterTools": "챕터 도구",
+    "currentPage": "현재 페이지"
+  },
   "areaTranslation": { "title": "영역 번역", "cancelSelection": "선택 취소" },
   "stageToolbar": {
     "show": "도구 모음 표시",
@@ -492,6 +551,16 @@
     "hideTitle": "도구 모음 숨기기 (4)",
     "imageTools": "이미지 도구",
     "radius": "{{radius}}px",
+    "groups": {
+      "textShape": {
+        "label": "텍스트 모양",
+        "title": "원근·곡선·말풍선 영역 도구"
+      },
+      "retouch": {
+        "label": "이미지 보정",
+        "title": "마스크·붓·도형·복원 도구"
+      }
+    },
     "tools": {
       "select": { "label": "선택", "title": "선택 도구 (1)" },
       "block": {
@@ -514,6 +583,10 @@
         "label": "곡선",
         "title": "곡선 텍스트 — 효과음을 경로를 따라 배치합니다"
       },
+      "bubble": {
+        "label": "말풍선 영역",
+        "title": "선택 블록의 말풍선 영역 직접 지정 — 점을 찍고 Enter로 적용"
+      },
       "mask": { "label": "마스크", "title": "마스크 붓" },
       "brush": { "label": "브러시", "title": "보정 브러시" },
       "rectangle": { "label": "사각형", "title": "드래그로 사각형 덮기" },
@@ -521,6 +594,28 @@
       "eraser": { "label": "지우개", "title": "보정 내용 지우개" },
       "picker": { "label": "색 추출", "title": "캔버스에서 색 추출" }
     }
+  },
+  "bubbleLayoutEditor": {
+    "title": "말풍선 모양 편집",
+    "emptyHint": "말풍선 안쪽을 따라 점을 찍으세요.",
+    "activeHint": "점 {{count}}개 · Enter 적용 · Backspace 한 점 취소",
+    "addHint": "현재 모양에 닿은 곳부터 바깥으로 브러시를 밀어 넓히세요.",
+    "subtractHint": "모양이 끊어지지 않도록 안쪽을 브러시로 깎으세요.",
+    "modeLabel": "말풍선 모양 편집 방식",
+    "modes": {
+      "polygon": "다각형",
+      "add": "+ 늘리기",
+      "subtract": "− 깎기"
+    },
+    "rejections": {
+      "detached": "현재 모양에 닿은 곳부터 늘려 주세요.",
+      "disconnect": "모양이 끊어져 깎기를 되돌렸습니다.",
+      "empty": "이 브러시로 바뀐 영역이 없습니다.",
+      "invalid": "이 브러시 움직임은 적용할 수 없습니다."
+    },
+    "radius": "브러시",
+    "undo": "되돌리기",
+    "apply": "적용"
   },
   "display": {
     "title": "표시",
@@ -849,11 +944,14 @@
     },
     "auto": {
       "description": "먼저 원문 글자를 자동으로 지웁니다. 한 페이지씩 또는 남은 페이지를 한 번에 처리할 수 있어요.",
-      "currentPageAction": "현재 페이지 자동 지우기",
+      "currentPageAction": "현재 페이지 지우기",
+      "eraseShort": "현재 페이지 지우기",
       "moreActions": "자동 지우기 추가 작업",
-      "commandHint": "기본 버튼은 현재 페이지만 처리합니다. 필요할 때만 범위를 선택하세요.",
-      "selectMultiplePages": "여러 페이지 선택…",
-      "guideAction": "자동 지우기 사용 안내",
+      "allPagesErase": "전체 페이지 지우기",
+      "selectPagesErase": "지울 페이지 선택",
+      "bubbleLayoutAction": "현재 페이지 말풍선 자동 감지",
+      "bubbleLayoutShort": "말풍선 맞춤",
+      "bubbleLayoutRequiresBlocks": "먼저 현재 페이지를 지워 주세요.",
       "nextRetouch": "다음: 보정 →",
       "noOpenChapter": "화가 열려 있지 않습니다.",
       "remainingSummary": "남은 {{pendingPages}} / {{totalPages}}페이지 · {{blockCount}}개 블록",

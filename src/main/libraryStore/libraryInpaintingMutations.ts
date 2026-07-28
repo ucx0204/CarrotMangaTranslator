@@ -15,9 +15,20 @@ import {
 } from "./libraryFiles";
 import { getWorksRoot } from "./libraryPaths";
 import { logLibraryWarning } from "./libraryLogger";
+import {
+  applyInpaintingLayoutStates,
+  pageMatchesInpaintingLayoutStates,
+  type InpaintingPageLayoutPatch,
+} from "../inpainting/inpaintingLayoutState";
 
 export type InpaintingArtifactCleanupOptions = {
   retainedInpaintedArtifactPaths?: string[];
+  /**
+   * Explicit render-only block updates committed with the image path.
+   * The source `bbox` and all translation/format fields remain authoritative
+   * from the chapter file and are never copied from the long-running job page.
+   */
+  layoutPatches?: InpaintingPageLayoutPatch[];
 };
 
 export type InpaintingMutationMaintenance = {
@@ -94,6 +105,9 @@ async function updatePagesAfterInpaintingWithMaintenance(
   );
   const replacedInpaintedPaths: string[] = [];
   const pageMap = new Map(pages.map((page) => [page.id, page]));
+  const layoutPatchMap = resolveLayoutPatchMap(cleanupOptions.layoutPatches, [
+    ...pageMap.keys(),
+  ]);
   const now = new Date().toISOString();
   chapter.pages = chapter.pages.map((record) => {
     const next = pageMap.get(record.id);
@@ -114,8 +128,20 @@ async function updatePagesAfterInpaintingWithMaintenance(
     ) {
       replacedInpaintedPaths.push(record.inpaintedImagePath);
     }
+    const layoutPatch = layoutPatchMap.get(record.id);
+    if (
+      layoutPatch?.expectedStates &&
+      !pageMatchesInpaintingLayoutStates(record, layoutPatch.expectedStates)
+    ) {
+      throw new Error(
+        "페이지의 텍스트 배치가 다른 작업으로 변경되어 인페인팅 결과를 저장할 수 없습니다.",
+      );
+    }
+    const withLayout = layoutPatch
+      ? applyInpaintingLayoutStates(record, layoutPatch.states)
+      : record;
     return {
-      ...record,
+      ...withLayout,
       inpaintedImagePath: resolvedInpaintedPath,
     };
   });
@@ -132,6 +158,24 @@ async function updatePagesAfterInpaintingWithMaintenance(
     maintenance,
   });
   return savedChapter;
+}
+
+function resolveLayoutPatchMap(
+  patches: readonly InpaintingPageLayoutPatch[] | undefined,
+  knownPageIds: readonly string[],
+): Map<string, InpaintingPageLayoutPatch> {
+  const known = new Set(knownPageIds);
+  const patchMap = new Map<string, InpaintingPageLayoutPatch>();
+  for (const patch of patches ?? []) {
+    if (!known.has(patch.pageId)) {
+      throw new Error("말풍선 배치를 적용할 페이지를 찾지 못했습니다.");
+    }
+    if (patchMap.has(patch.pageId)) {
+      throw new Error("같은 페이지의 말풍선 배치가 중복되었습니다.");
+    }
+    patchMap.set(patch.pageId, patch);
+  }
+  return patchMap;
 }
 
 async function setPageInpaintingResultWithMaintenance(

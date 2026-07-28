@@ -3,11 +3,13 @@ import type { ChapterSnapshot } from "./libraryTypes";
 
 export type AnalysisBlockMode = "auto" | "keep";
 
-type PageContextCollectionOption = {
+type TranslationRunOptions = {
   collectPageContext?: boolean;
+  /** Insert natural hard line breaks into translated text for the detected block size. */
+  naturalTextLayout?: boolean;
 };
 
-export type StartAnalysisRequest = PageContextCollectionOption &
+export type StartAnalysisRequest = TranslationRunOptions &
   (
     | {
         chapterId: string;

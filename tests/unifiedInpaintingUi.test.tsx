@@ -1,13 +1,19 @@
 /** @vitest-environment jsdom */
 
 import React from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
+import { AppRightQuickRail } from "../src/renderer/src/components/AppRightQuickRail";
 import { AppRightRail } from "../src/renderer/src/components/AppRightRail";
 import { AppSidebar } from "../src/renderer/src/components/AppSidebar";
-import { DisplayControlPanel } from "../src/renderer/src/components/inpaintingPanel/DisplayControlPanel";
 import { StageToolbar } from "../src/renderer/src/components/StageToolbar";
 import { FontsContext } from "../src/renderer/src/fonts/fontsContextValue";
 import {
@@ -30,14 +36,18 @@ class ResizeObserverStub {
 
 vi.stubGlobal("ResizeObserver", ResizeObserverStub);
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 describe("unified workspace toolbar", () => {
   it("renders one mutually-exclusive toolbar for translation and retouch tools", () => {
     const onSelectTool = vi.fn();
     const onToggleRegionTranslation = vi.fn();
-    render(
+    const { container } = render(
       <StageToolbar
+        bubbleLayoutAvailable
         brushColor="#fa8128"
         brushRadius={28}
         disabled={false}
@@ -51,33 +61,145 @@ describe("unified workspace toolbar", () => {
       />,
     );
 
-    expect(screen.getAllByRole("button")).toHaveLength(13);
-    expect(screen.getByRole("button", { name: "원근" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "곡선" })).toBeTruthy();
+    expect(screen.getAllByRole("button")).toHaveLength(7);
+    const groupTriggers = Array.from(
+      container.querySelectorAll<HTMLButtonElement>(
+        ".stage-toolbar-group-trigger",
+      ),
+    );
+    expect(groupTriggers).toHaveLength(1);
+    expect(groupTriggers[0]?.getAttribute("aria-pressed")).toBe("true");
+    expect(groupTriggers[0]?.dataset.activeTool).toBe("brush");
+    expect(container.querySelectorAll("[data-stage-tool-swatch]")).toHaveLength(
+      1,
+    );
     expect(
-      screen
-        .getByRole("button", { name: "브러시" })
-        .getAttribute("aria-pressed"),
-    ).toBe("true");
+      container.querySelector('[data-stage-tool-group="text-shape"]'),
+    ).toBeNull();
+    expect(screen.queryByRole("button", { name: "원근" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "곡선" })).toBeNull();
+    expect(screen.getByRole("button", { name: "말풍선 영역" })).toBeTruthy();
+
+    fireEvent.pointerEnter(groupTriggers[0] as HTMLButtonElement);
+    const brush = screen.getByRole("menuitemradio", { name: "브러시" });
+    expect(
+      screen.queryByRole("tooltip", {
+        name: "마스크·붓·도형·복원 도구",
+      }),
+    ).toBeNull();
+    expect(brush.getAttribute("aria-checked")).toBe("true");
+    expect(brush.textContent).toContain("브러시");
     expect(screen.getByRole("status").textContent).toContain("브러시");
     expect(screen.getByRole("status").textContent).toContain("28px");
     expect(screen.getByRole("status").textContent).toContain("·");
     expect(screen.getByRole("tooltip", { name: "보정 브러시" })).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "브러시" }).hasAttribute("title"),
-    ).toBe(false);
+    expect(brush.hasAttribute("title")).toBe(false);
 
-    fireEvent.click(screen.getByRole("button", { name: "마스크" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "마스크" }));
     expect(onSelectTool).toHaveBeenCalledWith("mask");
 
-    fireEvent.click(screen.getByRole("button", { name: "원근" }));
-    expect(onSelectTool).toHaveBeenCalledWith("perspective");
-
-    fireEvent.click(screen.getByRole("button", { name: "곡선" }));
-    expect(onSelectTool).toHaveBeenCalledWith("curve");
+    fireEvent.click(screen.getByRole("button", { name: "말풍선 영역" }));
+    expect(onSelectTool).toHaveBeenCalledWith("bubble");
 
     fireEvent.click(screen.getByRole("button", { name: "영역 번역" }));
     expect(onToggleRegionTranslation).toHaveBeenCalledOnce();
+  });
+
+  it("opens retouch tools on hover and keeps the pointer gap stable", () => {
+    vi.useFakeTimers();
+    const { container } = render(
+      <StageToolbar
+        bubbleLayoutAvailable
+        brushColor="#ffffff"
+        brushRadius={20}
+        disabled={false}
+        hidden={false}
+        onSelectTool={() => undefined}
+        onToggleRegionTranslation={() => undefined}
+        onToggleHidden={() => undefined}
+        regionTranslationActive={false}
+        regionTranslationAvailable={true}
+        tool="select"
+      />,
+    );
+    const retouch = container.querySelector<HTMLButtonElement>(
+      '[data-stage-tool-group="retouch"]',
+    );
+    const group = retouch?.closest(".stage-toolbar-group-control");
+    fireEvent.pointerEnter(retouch as HTMLButtonElement);
+    const menu = screen.getByRole("menu");
+    expect(screen.getAllByRole("menuitemradio")).toHaveLength(6);
+
+    fireEvent.pointerLeave(group as HTMLElement);
+    fireEvent.pointerEnter(menu);
+    vi.advanceTimersByTime(200);
+    expect(screen.getByRole("menu")).toBeTruthy();
+
+    fireEvent.pointerLeave(group as HTMLElement);
+    act(() => vi.advanceTimersByTime(200));
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("supports keyboard focus, Escape, and outside interaction", () => {
+    const { container } = render(
+      <StageToolbar
+        bubbleLayoutAvailable
+        brushColor="#ffffff"
+        brushRadius={20}
+        disabled={false}
+        hidden={false}
+        onSelectTool={() => undefined}
+        onToggleRegionTranslation={() => undefined}
+        onToggleHidden={() => undefined}
+        regionTranslationActive={false}
+        regionTranslationAvailable={true}
+        tool="select"
+      />,
+    );
+    const retouch = container.querySelector<HTMLButtonElement>(
+      '[data-stage-tool-group="retouch"]',
+    );
+    fireEvent.focus(retouch as HTMLButtonElement);
+    expect(screen.getByRole("menu")).toBeTruthy();
+    fireEvent.keyDown(retouch as HTMLButtonElement, { key: "Escape" });
+    expect(screen.queryByRole("menu")).toBeNull();
+
+    fireEvent.pointerEnter(retouch as HTMLButtonElement);
+    expect(screen.getByRole("menu")).toBeTruthy();
+    fireEvent.click(retouch as HTMLButtonElement);
+    const firstItem = screen.getByRole("menuitemradio", { name: "마스크" });
+    expect(document.activeElement).toBe(firstItem);
+    fireEvent.keyDown(firstItem, { key: "Escape" });
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(document.activeElement).toBe(retouch);
+
+    fireEvent.pointerEnter(retouch as HTMLButtonElement);
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("keeps unavailable bubble editing disabled as a direct tool", () => {
+    render(
+      <StageToolbar
+        brushColor="#ffffff"
+        brushRadius={20}
+        disabled={false}
+        hidden={false}
+        onSelectTool={() => undefined}
+        onToggleRegionTranslation={() => undefined}
+        onToggleHidden={() => undefined}
+        regionTranslationActive={false}
+        regionTranslationAvailable={true}
+        tool="select"
+      />,
+    );
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "말풍선 영역",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
   });
 
   it("keeps region translation visible and exposes its active state", () => {
@@ -145,48 +267,99 @@ describe("unified workspace toolbar", () => {
       />,
     );
 
-    for (const name of [
-      "선택",
-      "블록",
-      "영역 번역",
-      "손바닥",
-      "마스크",
-      "브러시",
-      "지우개",
-      "색 추출",
-    ]) {
+    for (const name of ["선택", "블록", "영역 번역", "손바닥", "말풍선 영역"]) {
       expect(
         (screen.getByRole("button", { name }) as HTMLButtonElement).disabled,
       ).toBe(true);
+    }
+    for (const trigger of document.querySelectorAll<HTMLButtonElement>(
+      ".stage-toolbar-group-trigger",
+    )) {
+      expect(trigger.disabled).toBe(true);
     }
   });
 });
 
 describe("unified right rail", () => {
-  it("uses app tooltips instead of native titles for display controls", () => {
-    render(
-      <DisplayControlPanel
-        showBlockChrome={true}
-        showTextBlocks={false}
-        canOpenTextView={true}
-        onToggleChrome={() => undefined}
-        onToggleBlocks={() => undefined}
-        onOpenTextView={() => undefined}
-        onOpenStyleGuide={() => undefined}
-      />,
-    );
-
-    const backgroundControl = screen.getByRole("button", {
-      name: "배경/테두리",
+  it("keeps all page quick actions in one icon toolbar off the canvas", () => {
+    const props = makeRightRailProps({
+      canRedo: false,
+      showBlockChrome: false,
+      showTextBlocks: true,
+      undoLabel: "텍스트 편집",
     });
-    const tooltip = screen.getByRole("tooltip", { name: "배경/테두리" });
-    expect(backgroundControl.hasAttribute("title")).toBe(false);
-    expect(backgroundControl.getAttribute("aria-describedby")).toBe(tooltip.id);
-    expect(backgroundControl.getAttribute("aria-pressed")).toBe("true");
-    expect(screen.getAllByRole("button")).toHaveLength(4);
+    renderQuickRail(props);
+
+    const toolbar = screen.getByRole("toolbar", { name: "캔버스 작업" });
+    const translations = screen.getByRole("button", {
+      name: "번역문 표시",
+    });
+    const chrome = screen.getByRole("button", { name: "배경/테두리" });
+    expect(translations.getAttribute("aria-pressed")).toBe("true");
+    expect(chrome.getAttribute("aria-pressed")).toBe("false");
+    expect(
+      Array.from(toolbar.querySelectorAll("button")).map((button) =>
+        button.getAttribute("aria-label"),
+      ),
+    ).toEqual([
+      "텍스트 편집 실행 취소 (Ctrl+Z)",
+      "다시 실행 (Ctrl+Y / Ctrl+Shift+Z)",
+      "원본과 비교",
+      "이 페이지를 원본 이미지로 초기화 (확인 후 실행)",
+      "번역문 표시",
+      "배경/테두리",
+      "텍스트 모아보기",
+      "용어/기억",
+    ]);
+    expect(toolbar.closest(".right-quick-rail")).not.toBeNull();
+    expect(toolbar.closest(".right-rail")).toBeNull();
+    expect(document.querySelector(".canvas-action-bar")).toBeNull();
+
+    const undo = screen.getByRole("button", {
+      name: "텍스트 편집 실행 취소 (Ctrl+Z)",
+    });
+    const redo = screen.getByRole("button", {
+      name: "다시 실행 (Ctrl+Y / Ctrl+Shift+Z)",
+    }) as HTMLButtonElement;
+    const compare = screen.getByRole("button", { name: "원본과 비교" });
+    const reset = screen.getByRole("button", {
+      name: "이 페이지를 원본 이미지로 초기화 (확인 후 실행)",
+    });
+    expect(redo.disabled).toBe(true);
+    expect(undo.hasAttribute("title")).toBe(false);
+    expect(
+      screen.getByRole("tooltip", {
+        name: "텍스트 편집 실행 취소 (Ctrl+Z)",
+      }),
+    ).not.toBeNull();
+
+    fireEvent.click(translations);
+    fireEvent.click(chrome);
+    fireEvent.click(undo);
+    fireEvent.click(compare);
+    fireEvent.click(reset);
+    fireEvent.click(screen.getByRole("button", { name: "텍스트 모아보기" }));
+    fireEvent.click(screen.getByRole("button", { name: "용어/기억" }));
+    expect(props.onToggleBlocks).toHaveBeenCalledOnce();
+    expect(props.onToggleChrome).toHaveBeenCalledOnce();
+    expect(props.onUndo).toHaveBeenCalledOnce();
+    expect(props.onPeekToggle).toHaveBeenCalledOnce();
+    expect(props.onResetPage).toHaveBeenCalledOnce();
+    expect(props.onOpenTextView).toHaveBeenCalledOnce();
+    expect(props.onOpenStyleGuide).toHaveBeenCalledOnce();
   });
 
-  it("runs the current page directly and keeps page selection secondary", () => {
+  it("keeps chapter utilities directly available without an overflow menu", () => {
+    const props = makeRightRailProps();
+    const { container } = renderQuickRail(props);
+    fireEvent.click(screen.getByRole("button", { name: "텍스트 모아보기" }));
+    expect(props.onOpenTextView).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole("button", { name: "용어/기억" }));
+    expect(props.onOpenStyleGuide).toHaveBeenCalledOnce();
+    expect(container.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  it("offers current, whole-chapter, and selected-page erase scopes", () => {
     const props = makeRightRailProps();
     renderRightRail(props);
 
@@ -197,7 +370,7 @@ describe("unified right rail", () => {
     expect(
       (
         screen.getByRole("button", {
-          name: "현재 페이지 자동 지우기",
+          name: "현재 페이지 지우기",
         }) as HTMLButtonElement
       ).disabled,
     ).toBe(false);
@@ -209,12 +382,10 @@ describe("unified right rail", () => {
     fireEvent.click(screen.getByRole("button", { name: "PNG 출력" }));
     expect(props.onOpenExport).toHaveBeenCalledOnce();
     expect(
-      screen.queryByRole("menuitem", { name: "여러 페이지 선택…" }),
+      screen.queryByRole("menuitem", { name: "지울 페이지 선택" }),
     ).toBeNull();
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "현재 페이지 자동 지우기" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "현재 페이지 지우기" }));
     expect(props.onRunCurrentPageInpainting).toHaveBeenCalledOnce();
     expect(props.onOpenAutoInpaintingOptions).not.toHaveBeenCalled();
 
@@ -222,9 +393,60 @@ describe("unified right rail", () => {
       screen.getByRole("button", { name: "자동 지우기 추가 작업" }),
     );
     fireEvent.click(
-      screen.getByRole("menuitem", { name: "여러 페이지 선택…" }),
+      screen.getByRole("menuitem", { name: "전체 페이지 지우기" }),
     );
-    expect(props.onOpenAutoInpaintingOptions).toHaveBeenCalledOnce();
+    expect(props.onOpenAutoInpaintingOptions).toHaveBeenCalledWith("all");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "자동 지우기 추가 작업" }),
+    );
+    fireEvent.click(screen.getByRole("menuitem", { name: "지울 페이지 선택" }));
+    expect(props.onOpenAutoInpaintingOptions).toHaveBeenLastCalledWith(
+      "select",
+    );
+  });
+
+  it("shows bubble detection as its own action and only requires text blocks", () => {
+    const props = makeRightRailProps({ canRunBubbleLayout: true });
+    const view = renderRightRail(props);
+    const bubbleLayout = screen.getByRole("button", {
+      name: "현재 페이지 말풍선 자동 감지",
+    }) as HTMLButtonElement;
+
+    expect(bubbleLayout.disabled).toBe(false);
+    fireEvent.click(bubbleLayout);
+    expect(props.onRunBubbleLayout).toHaveBeenCalledOnce();
+    expect(
+      Array.from(
+        document.querySelectorAll<HTMLButtonElement>(
+          ".current-page-actions button:not(.auto-inpainting-menu-trigger)",
+        ),
+      ).map((button) => button.getAttribute("aria-label")),
+    ).toEqual([
+      "현재 페이지 지우기",
+      "현재 페이지 말풍선 자동 감지",
+      "PNG 출력",
+    ]);
+
+    view.rerender(<AppRightRail {...props} canRunBubbleLayout={false} />);
+    const disabledBubbleLayout = screen.getByRole("button", {
+      name: "현재 페이지 말풍선 자동 감지",
+    }) as HTMLButtonElement;
+    expect(disabledBubbleLayout.disabled).toBe(true);
+    expect(
+      screen.getByRole("tooltip", {
+        name: "먼저 현재 페이지를 지워 주세요.",
+      }),
+    ).not.toBeNull();
+    expect(disabledBubbleLayout.hasAttribute("title")).toBe(false);
+    fireEvent.click(
+      screen.getByRole("button", { name: "자동 지우기 추가 작업" }),
+    );
+    expect(
+      screen.queryByRole("menuitem", {
+        name: "현재 페이지 말풍선 자동 감지",
+      }),
+    ).toBeNull();
   });
 
   it("closes and disables the automatic erase menu when work becomes busy", () => {
@@ -235,14 +457,14 @@ describe("unified right rail", () => {
       screen.getByRole("button", { name: "자동 지우기 추가 작업" }),
     );
     const firstMenuItem = screen.getByRole("menuitem", {
-      name: "여러 페이지 선택…",
+      name: "전체 페이지 지우기",
     });
     expect(firstMenuItem).not.toBeNull();
     expect(document.activeElement).toBe(firstMenuItem);
 
     fireEvent.keyDown(firstMenuItem, { key: "Escape" });
     expect(
-      screen.queryByRole("menuitem", { name: "여러 페이지 선택…" }),
+      screen.queryByRole("menuitem", { name: "전체 페이지 지우기" }),
     ).toBeNull();
     const enabledTrigger = screen.getByRole("button", {
       name: "자동 지우기 추가 작업",
@@ -251,13 +473,13 @@ describe("unified right rail", () => {
 
     fireEvent.click(enabledTrigger);
     expect(
-      screen.getByRole("menuitem", { name: "여러 페이지 선택…" }),
+      screen.getByRole("menuitem", { name: "전체 페이지 지우기" }),
     ).not.toBeNull();
 
     view.rerender(<AppRightRail {...props} jobActive={true} />);
 
     expect(
-      screen.queryByRole("menuitem", { name: "여러 페이지 선택…" }),
+      screen.queryByRole("menuitem", { name: "전체 페이지 지우기" }),
     ).toBeNull();
     const trigger = screen.getByRole("button", {
       name: "자동 지우기 추가 작업",
@@ -265,21 +487,20 @@ describe("unified right rail", () => {
     expect(trigger.disabled).toBe(true);
     fireEvent.click(trigger);
     expect(
-      screen.queryByRole("menuitem", { name: "여러 페이지 선택…" }),
+      screen.queryByRole("menuitem", { name: "전체 페이지 지우기" }),
     ).toBeNull();
     expect(props.onOpenAutoInpaintingOptions).not.toHaveBeenCalled();
-    expect(props.onShowGuide).not.toHaveBeenCalled();
   });
 
-  it("disables current-page automatic erase without a selected page", () => {
+  it("hides current-page actions without a selected page", () => {
     const props = makeRightRailProps({ selectedPage: null });
     renderRightRail(props);
 
-    const currentPage = screen.getByRole("button", {
-      name: "현재 페이지 자동 지우기",
-    }) as HTMLButtonElement;
-    expect(currentPage.disabled).toBe(true);
-    fireEvent.click(currentPage);
+    expect(
+      screen.queryByRole("button", {
+        name: "현재 페이지 지우기",
+      }),
+    ).toBeNull();
     expect(props.onRunCurrentPageInpainting).not.toHaveBeenCalled();
   });
 
@@ -307,7 +528,63 @@ describe("unified right rail", () => {
     expect(document.querySelector(".editor-panel.has-block")).not.toBeNull();
 
     view.rerender(<AppRightRail {...makeRightRailProps()} />);
+    expect(screen.queryByRole("heading", { name: "상태" })).toBeNull();
+
+    view.rerender(
+      <AppRightRail
+        {...makeRightRailProps({
+          statusLines: ["완료한 작업이 있습니다."],
+        })}
+      />,
+    );
     expect(screen.getByRole("heading", { name: "상태" })).not.toBeNull();
+  });
+
+  it("does not keep completed work in the right rail", () => {
+    renderRightRail(
+      makeRightRailProps({
+        jobState: {
+          id: "job-completed",
+          kind: "inpainting",
+          status: "completed",
+          progressText: "자동 지우기 완료",
+        },
+        progressSnapshot: {
+          mode: "determinate",
+          current: 3,
+          total: 3,
+          ratio: 1,
+        },
+        showProgressBar: true,
+      }),
+    );
+
+    expect(document.querySelector(".progress-card")).toBeNull();
+    expect(screen.queryByText("자동 지우기 완료")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "상태" })).toBeNull();
+  });
+
+  it("removes the progress card as soon as determinate progress reaches its total", () => {
+    renderRightRail(
+      makeRightRailProps({
+        jobState: {
+          id: "job-running-at-total",
+          kind: "inpainting",
+          status: "running",
+          progressText: "자동 지우기 완료",
+        },
+        progressSnapshot: {
+          mode: "determinate",
+          current: 1,
+          total: 1,
+          ratio: 1,
+        },
+        showProgressBar: true,
+      }),
+    );
+
+    expect(document.querySelector(".progress-card")).toBeNull();
+    expect(screen.queryByText("자동 지우기 완료")).toBeNull();
   });
 
   it("shows an accessible full-width color row for every paint tool", () => {
@@ -462,6 +739,12 @@ function renderRightRail(props: RightRailProps) {
   });
 }
 
+function renderQuickRail(props: RightRailProps) {
+  return render(<AppRightQuickRail {...props} />, {
+    wrapper: RightRailTestProviders,
+  });
+}
+
 function RightRailTestProviders({
   children,
 }: {
@@ -483,6 +766,7 @@ function RightRailTestProviders({
     onDockEditorWindow: () => undefined,
     onDuplicateBlock: () => undefined,
     onPopOutEditor: () => undefined,
+    onRemoveBubbleLayout: () => undefined,
     onSelectTransformMode: () => undefined,
     onStartAreaTranslate: () => undefined,
     onToggleEditorFloat: () => undefined,
@@ -518,6 +802,10 @@ function makeRightRailProps(
   return {
     brushColor: "#ffffff",
     brushRadius: 28,
+    canRedo: true,
+    canUndo: true,
+    canRunBubbleLayout: false,
+    compareAvailable: true,
     currentChapter: makeChapter(),
     flowActive: false,
     jobActive: false,
@@ -536,15 +824,21 @@ function makeRightRailProps(
     onOpenStyleGuide: vi.fn(),
     onOpenTextView: vi.fn(),
     onOpenTranslateOptions: vi.fn(),
+    onPeekToggle: vi.fn(),
+    onRedo: vi.fn(),
+    onResetPage: vi.fn(),
     onRunDrawnPattern: vi.fn(),
+    onRunBubbleLayout: vi.fn(),
     onRunCurrentPageInpainting: vi.fn(),
-    onShowGuide: vi.fn(),
     onOpenAutoInpaintingOptions: vi.fn(),
     onToggleBlocks: vi.fn(),
     onToggleChrome: vi.fn(),
+    onUndo: vi.fn(),
+    peeking: false,
     progressSnapshot: null,
     selectedBlock: null,
     selectedPage: makePage(),
+    resetAvailable: true,
     showBlockChrome: true,
     showProgressBar: false,
     showTextBlocks: true,

@@ -515,6 +515,572 @@ describe("render layout padding", () => {
     expect(legacy.overflow).toBe(breakAll.overflow);
     expect(lineTexts(legacy)).toEqual(lineTexts(breakAll));
   });
+
+  it("renders horizontal text through centered bubble scanline slots", () => {
+    installCanvasMeasureMock();
+    const block: TranslationBlock = {
+      id: "block-bubble",
+      type: "nonsolid",
+      bbox: { x: 0, y: 0, w: 200, h: 200 },
+      renderBbox: { x: 0, y: 0, w: 200, h: 200 },
+      bubbleLayout: {
+        version: 1,
+        direction: "horizontal",
+        confidence: 0.95,
+        insetRatio: 0.04,
+        regions: [
+          {
+            spans: [
+              {
+                blockStart: 0,
+                blockEnd: 1,
+                inlineStart: 0.25,
+                inlineEnd: 0.75,
+              },
+            ],
+          },
+        ],
+      },
+      sourceText: "가나다라마",
+      translatedText: "가나다라마",
+      confidence: 1,
+      sourceDirection: "horizontal",
+      renderDirection: "horizontal",
+      fontSizePx: 20,
+      lineHeight: 1,
+      textAlign: "center",
+      textColor: "#111111",
+      backgroundColor: "#fffdf5",
+      opacity: 1,
+      autoFitText: false,
+    };
+
+    const layout = resolveBlockTextLayout(
+      block,
+      block.translatedText,
+      { width: 1000, height: 1000 },
+      { width: 1000, height: 1000 },
+    );
+
+    expect(layout.fontSizePx).toBe(20);
+    expect(layout.overflow).toBe(false);
+    expect(lineTexts(layout)).toEqual(["가나다라마"]);
+    expect(layout.lines?.[0]?.slot).toEqual({
+      blockOffsetPx: 90,
+      inlineOffsetPx: 50,
+      availableWidth: 100,
+      regionIndex: 0,
+    });
+
+    const bubbleLayout = block.bubbleLayout;
+    if (!bubbleLayout) throw new Error("expected bubble layout fixture");
+    const staleFallback = resolveBlockTextLayout(
+      {
+        ...block,
+        bubbleLayout: { ...bubbleLayout, confidence: 0.1 },
+      },
+      block.translatedText,
+      { width: 1000, height: 1000 },
+      { width: 1000, height: 1000 },
+    );
+    expect(staleFallback.lines?.[0]?.slot).toBeUndefined();
+    expect(lineTexts(staleFallback)).toEqual(["가나다라마"]);
+  });
+
+  it("flows through separated horizontal regions without placing a line in the gap", () => {
+    installCanvasMeasureMock();
+    const block: TranslationBlock = {
+      id: "block-bubble-separated-horizontal",
+      type: "nonsolid",
+      bbox: { x: 0, y: 0, w: 200, h: 200 },
+      renderBbox: { x: 0, y: 0, w: 200, h: 200 },
+      bubbleLayout: {
+        version: 1,
+        direction: "horizontal",
+        confidence: 0.95,
+        insetRatio: 0.04,
+        regions: [
+          {
+            spans: [
+              {
+                blockStart: 0.05,
+                blockEnd: 0.3,
+                inlineStart: 0.1,
+                inlineEnd: 0.9,
+              },
+            ],
+          },
+          {
+            spans: [
+              {
+                blockStart: 0.7,
+                blockEnd: 0.95,
+                inlineStart: 0.1,
+                inlineEnd: 0.9,
+              },
+            ],
+          },
+        ],
+      },
+      sourceText: "abcdefghijklmnopq",
+      translatedText: "abcdefghijklmnopq",
+      confidence: 1,
+      sourceDirection: "horizontal",
+      renderDirection: "horizontal",
+      fontSizePx: 20,
+      lineHeight: 1,
+      textAlign: "center",
+      textColor: "#111111",
+      backgroundColor: "#fffdf5",
+      opacity: 1,
+      autoFitText: false,
+      wordBreak: "break-all",
+    };
+
+    const layout = resolveBlockTextLayout(
+      block,
+      block.translatedText,
+      { width: 1000, height: 1000 },
+      { width: 1000, height: 1000 },
+    );
+
+    expect(lineTexts(layout)).toEqual(["abcdefgh", "ijklmnop", "q"]);
+    expect(layout.lines?.map((line) => line.slot?.regionIndex)).toEqual([
+      0, 0, 1,
+    ]);
+    expect(layout.lines?.map((line) => line.slot?.blockOffsetPx)).toEqual([
+      15, 35, 155,
+    ]);
+    expect(
+      layout.lines?.some((line) => {
+        const offset = line.slot?.blockOffsetPx ?? -1;
+        return offset >= 60 && offset < 140;
+      }),
+    ).toBe(false);
+  });
+
+  it("uses bubble slots in the same auto-fit word-break search", () => {
+    installCanvasMeasureMock();
+    const base: TranslationBlock = {
+      id: "block-bubble-word-break",
+      type: "nonsolid",
+      bbox: { x: 0, y: 0, w: 200, h: 200 },
+      renderBbox: { x: 0, y: 0, w: 200, h: 200 },
+      bubbleLayout: {
+        version: 1,
+        direction: "horizontal",
+        confidence: 0.95,
+        insetRatio: 0.04,
+        regions: [
+          {
+            spans: [
+              {
+                blockStart: 0,
+                blockEnd: 1,
+                inlineStart: 0.25,
+                inlineEnd: 0.75,
+              },
+            ],
+          },
+        ],
+      },
+      sourceText: "abcdefghij",
+      translatedText: "abcdefghij",
+      confidence: 1,
+      sourceDirection: "horizontal",
+      renderDirection: "horizontal",
+      fontSizePx: 20,
+      lineHeight: 1,
+      textAlign: "center",
+      textColor: "#111111",
+      backgroundColor: "#fffdf5",
+      opacity: 1,
+      autoFitText: true,
+    };
+    const pageSize = { width: 1000, height: 1000 };
+
+    const normal = resolveBlockTextLayout(
+      { ...base, wordBreak: "normal" },
+      base.translatedText,
+      pageSize,
+      pageSize,
+    );
+    const breakWord = resolveBlockTextLayout(
+      { ...base, wordBreak: "break-word" },
+      base.translatedText,
+      pageSize,
+      pageSize,
+    );
+
+    expect(normal.fontSizePx).toBe(MIN_READABLE_FONT_SIZE_PX);
+    expect(normal.lines?.every((line) => line.slot)).toBe(true);
+    expect(breakWord.fontSizePx).toBeGreaterThan(normal.fontSizePx);
+    expect(breakWord.lines?.every((line) => line.slot)).toBe(true);
+    expect(breakWord.overflow).toBe(false);
+  });
+
+  it("renders an existing vertical block through right-to-left bubble columns", () => {
+    const block: TranslationBlock = {
+      id: "block-bubble-vertical",
+      type: "nonsolid",
+      bbox: { x: 0, y: 0, w: 200, h: 300 },
+      renderBbox: { x: 0, y: 0, w: 200, h: 300 },
+      bubbleLayout: {
+        version: 1,
+        direction: "vertical",
+        confidence: 0.95,
+        insetRatio: 0.04,
+        regions: [
+          {
+            spans: [
+              {
+                blockStart: 0,
+                blockEnd: 1,
+                inlineStart: 0.2,
+                inlineEnd: 0.8,
+              },
+            ],
+          },
+        ],
+      },
+      sourceText: "가나다라마",
+      translatedText: "가나다라마",
+      confidence: 1,
+      sourceDirection: "vertical",
+      renderDirection: "vertical",
+      fontSizePx: 20,
+      fontWidthScale: 0.8,
+      lineHeight: 1,
+      textAlign: "center",
+      textColor: "#111111",
+      backgroundColor: "#fffdf5",
+      opacity: 1,
+      autoFitText: false,
+    };
+
+    const layout = resolveBlockTextLayout(
+      block,
+      block.translatedText,
+      { width: 1000, height: 1000 },
+      { width: 1000, height: 1000 },
+    );
+
+    expect(block.renderDirection).toBe("vertical");
+    expect(layout.fontSizePx).toBe(20);
+    expect(layout.overflow).toBe(false);
+    expect(lineTexts(layout)).toEqual(["가나다라마"]);
+    expect(layout.lines?.[0]?.slot).toMatchObject({
+      blockOffsetPx: 115,
+      inlineOffsetPx: 60,
+      regionIndex: 0,
+    });
+    expect(layout.lines?.[0]?.slot?.availableWidth).toBeCloseTo(180);
+  });
+
+  it("keeps fused vertical bubble regions independent while flowing text", () => {
+    const block: TranslationBlock = {
+      id: "block-bubble-vertical-fused",
+      type: "nonsolid",
+      bbox: { x: 0, y: 0, w: 200, h: 300 },
+      renderBbox: { x: 0, y: 0, w: 200, h: 300 },
+      bubbleLayout: {
+        version: 1,
+        direction: "vertical",
+        confidence: 0.95,
+        insetRatio: 0.04,
+        regions: [
+          {
+            spans: [
+              {
+                blockStart: 0.55,
+                blockEnd: 0.95,
+                inlineStart: 0.1,
+                inlineEnd: 0.3,
+              },
+            ],
+          },
+          {
+            spans: [
+              {
+                blockStart: 0.05,
+                blockEnd: 0.45,
+                inlineStart: 0.7,
+                inlineEnd: 0.9,
+              },
+            ],
+          },
+        ],
+      },
+      sourceText: "abcdefghijklmnop",
+      translatedText: "abcdefghijklmnop",
+      confidence: 1,
+      sourceDirection: "vertical",
+      renderDirection: "vertical",
+      fontSizePx: 20,
+      fontWidthScale: 0.8,
+      lineHeight: 1,
+      textAlign: "center",
+      textColor: "#111111",
+      backgroundColor: "#fffdf5",
+      opacity: 1,
+      autoFitText: false,
+      wordBreak: "break-all",
+    };
+
+    const layout = resolveBlockTextLayout(
+      block,
+      block.translatedText,
+      { width: 1000, height: 1000 },
+      { width: 1000, height: 1000 },
+    );
+
+    expect(lineTexts(layout)).toEqual(["abc", "def", "ghi", "jkl", "mno", "p"]);
+    expect(layout.lines?.map((line) => line.slot?.regionIndex)).toEqual([
+      0, 0, 0, 1, 1, 1,
+    ]);
+    expect(
+      (layout.lines?.[0]?.slot?.blockOffsetPx ?? 0) >
+        (layout.lines?.[1]?.slot?.blockOffsetPx ?? 0),
+    ).toBe(true);
+    expect(layout.lines?.[2]?.slot?.inlineOffsetPx).toBe(30);
+    expect(layout.lines?.[3]?.slot?.inlineOffsetPx).toBe(210);
+  });
+
+  it("maps explicit lines to separate fused regions before reusing one region", () => {
+    installCanvasMeasureMock();
+    const block: TranslationBlock = {
+      id: "block-bubble-explicit-regions",
+      type: "nonsolid",
+      bbox: { x: 0, y: 0, w: 200, h: 100 },
+      renderBbox: { x: 0, y: 0, w: 200, h: 100 },
+      bubbleLayout: {
+        version: 1,
+        direction: "horizontal",
+        confidence: 0.95,
+        insetRatio: 0.04,
+        regions: [
+          {
+            spans: [
+              {
+                blockStart: 0,
+                blockEnd: 0.4,
+                inlineStart: 0.1,
+                inlineEnd: 0.4,
+              },
+            ],
+          },
+          {
+            spans: [
+              {
+                blockStart: 0.6,
+                blockEnd: 1,
+                inlineStart: 0.6,
+                inlineEnd: 0.9,
+              },
+            ],
+          },
+        ],
+      },
+      sourceText: "말했어\n말했네",
+      translatedText: "말했어\n말했네",
+      confidence: 1,
+      sourceDirection: "horizontal",
+      renderDirection: "horizontal",
+      fontSizePx: 20,
+      lineHeight: 1,
+      textAlign: "center",
+      textColor: "#111111",
+      backgroundColor: "#fffdf5",
+      opacity: 1,
+      autoFitText: false,
+      wordBreak: "break-all",
+    };
+
+    const layout = resolveBlockTextLayout(
+      block,
+      block.translatedText,
+      { width: 1000, height: 1000 },
+      { width: 1000, height: 1000 },
+    );
+
+    expect(lineTexts(layout)).toEqual(["말했어", "말했네"]);
+    expect(layout.lines?.map((line) => line.slot?.regionIndex)).toEqual([0, 1]);
+    expect(layout.lines?.map((line) => line.slot?.blockOffsetPx)).toEqual([
+      10, 70,
+    ]);
+  });
+
+  it("keeps a one-line fused-bubble translation in the first safe region", () => {
+    installCanvasMeasureMock();
+    const block: TranslationBlock = {
+      id: "block-bubble-short-regions",
+      type: "nonsolid",
+      bbox: { x: 0, y: 0, w: 200, h: 100 },
+      renderBbox: { x: 0, y: 0, w: 200, h: 100 },
+      bubbleLayout: {
+        version: 1,
+        direction: "horizontal",
+        confidence: 0.95,
+        insetRatio: 0.04,
+        regions: [
+          {
+            spans: [
+              {
+                blockStart: 0,
+                blockEnd: 0.4,
+                inlineStart: 0.1,
+                inlineEnd: 0.4,
+              },
+            ],
+          },
+          {
+            spans: [
+              {
+                blockStart: 0.6,
+                blockEnd: 1,
+                inlineStart: 0.6,
+                inlineEnd: 0.9,
+              },
+            ],
+          },
+        ],
+      },
+      sourceText: "응",
+      translatedText: "응",
+      confidence: 1,
+      sourceDirection: "horizontal",
+      renderDirection: "horizontal",
+      fontSizePx: 20,
+      lineHeight: 1,
+      textAlign: "center",
+      textColor: "#111111",
+      backgroundColor: "#fffdf5",
+      opacity: 1,
+      autoFitText: false,
+    };
+
+    const layout = resolveBlockTextLayout(
+      block,
+      block.translatedText,
+      { width: 1000, height: 1000 },
+      { width: 1000, height: 1000 },
+    );
+
+    expect(lineTexts(layout)).toEqual(["응"]);
+    expect(layout.lines?.[0]?.slot?.regionIndex).toBe(0);
+    expect(layout.lines?.[0]?.slot?.blockOffsetPx).toBe(10);
+  });
+
+  it("falls back without changing a vertical block when bubble axes disagree", () => {
+    const block: TranslationBlock = {
+      id: "block-bubble-vertical-mismatch",
+      type: "nonsolid",
+      bbox: { x: 0, y: 0, w: 200, h: 300 },
+      renderBbox: { x: 0, y: 0, w: 200, h: 300 },
+      bubbleLayout: {
+        version: 1,
+        direction: "horizontal",
+        confidence: 0.95,
+        insetRatio: 0.04,
+        regions: [
+          {
+            spans: [
+              {
+                blockStart: 0,
+                blockEnd: 1,
+                inlineStart: 0.2,
+                inlineEnd: 0.8,
+              },
+            ],
+          },
+        ],
+      },
+      sourceText: "세로쓰기",
+      translatedText: "세로쓰기",
+      confidence: 1,
+      sourceDirection: "vertical",
+      renderDirection: "vertical",
+      fontSizePx: 20,
+      lineHeight: 1,
+      textAlign: "center",
+      textColor: "#111111",
+      backgroundColor: "#fffdf5",
+      opacity: 1,
+      autoFitText: false,
+    };
+
+    const layout = resolveBlockTextLayout(
+      block,
+      block.translatedText,
+      { width: 1000, height: 1000 },
+      { width: 1000, height: 1000 },
+    );
+
+    expect(block.renderDirection).toBe("vertical");
+    expect(layout.lines).toBeNull();
+  });
+
+  it("keeps curve layout ahead of bubble-aware wrapping", () => {
+    installCanvasMeasureMock();
+    const block: TranslationBlock = {
+      id: "block-bubble-curve",
+      type: "nonsolid",
+      bbox: { x: 0, y: 0, w: 200, h: 200 },
+      renderBbox: { x: 0, y: 0, w: 200, h: 200 },
+      bubbleLayout: {
+        version: 1,
+        direction: "horizontal",
+        confidence: 0.95,
+        insetRatio: 0.04,
+        regions: [
+          {
+            spans: [
+              {
+                blockStart: 0,
+                blockEnd: 1,
+                inlineStart: 0.25,
+                inlineEnd: 0.75,
+              },
+            ],
+          },
+        ],
+      },
+      curveLayout: {
+        version: 1,
+        alignment: "center",
+        offsetEm: 0,
+        orientation: "tangent",
+        path: {
+          type: "quadratic",
+          start: { x: 0, y: 0.7 },
+          control: { x: 0.5, y: 0.2 },
+          end: { x: 1, y: 0.7 },
+        },
+      },
+      sourceText: "가나다라마",
+      translatedText: "가나다라마",
+      confidence: 1,
+      sourceDirection: "horizontal",
+      renderDirection: "horizontal",
+      fontSizePx: 20,
+      lineHeight: 1,
+      textAlign: "center",
+      textColor: "#111111",
+      backgroundColor: "#fffdf5",
+      opacity: 1,
+      autoFitText: false,
+    };
+
+    const layout = resolveBlockTextLayout(
+      block,
+      block.translatedText,
+      { width: 1000, height: 1000 },
+      { width: 1000, height: 1000 },
+    );
+
+    expect(layout.lines).toHaveLength(1);
+    expect(layout.lines?.[0]?.slot).toBeUndefined();
+  });
 });
 
 function lineTexts(

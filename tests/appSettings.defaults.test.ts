@@ -66,7 +66,11 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     expect(defaults.ocr.gpuCudaTag).toBe(DEFAULT_OCR_GPU_CUDA_TAG);
     expect(defaults.inpainting?.model).toBe("flux-klein");
     expect(defaults.inpainting?.koharuBackend).toBe("auto");
+    expect(defaults.inpainting?.bubbleLayoutAfterInpainting).toBe(false);
     expect(defaults.blockFormatDefaults?.wordBreak).toBe("break-word");
+    expect(defaults.ui?.naturalTextLayoutDefault).toBe(true);
+    expect(defaults.ui?.eraseOriginalWorkflowDefault).toBe(false);
+    expect(defaults.ui?.bubbleLayoutWorkflowDefault).toBe(true);
     expect(defaults.maxTokens).toBe(DEFAULT_MAX_TOKENS);
     expect(defaults.ctx).toBe(DEFAULT_CONTEXT_TOKENS);
   });
@@ -92,6 +96,101 @@ describeWindows("app settings helpers: defaults and stored values", () => {
         defaults,
       ).blockFormatDefaults?.wordBreak,
     ).toBe("break-word");
+  });
+
+  it("defaults natural layout on while preserving an explicit saved off setting", () => {
+    const defaults = resolveDefaultAppSettings();
+
+    expect(
+      parseStoredAppSettings(
+        JSON.stringify({ ui: { naturalTextLayoutDefault: true } }),
+        defaults,
+      ).ui?.naturalTextLayoutDefault,
+    ).toBe(true);
+    expect(
+      parseStoredAppSettings(JSON.stringify({ ui: {} }), defaults).ui
+        ?.naturalTextLayoutDefault,
+    ).toBe(true);
+    expect(
+      parseStoredAppSettings(
+        JSON.stringify({ ui: { naturalTextLayoutDefault: false } }),
+        defaults,
+      ).ui?.naturalTextLayoutDefault,
+    ).toBe(false);
+    expect(
+      parseStoredAppSettings(
+        JSON.stringify({ ui: { naturalTextLayoutDefault: "yes" } }),
+        defaults,
+      ).ui?.naturalTextLayoutDefault,
+    ).toBe(true);
+  });
+
+  it("migrates the legacy combined workflow into erase plus nested bubble defaults", () => {
+    const defaults = resolveDefaultAppSettings();
+
+    expect(
+      parseStoredAppSettings(JSON.stringify({ ui: {} }), defaults).ui,
+    ).toMatchObject({
+      eraseOriginalWorkflowDefault: false,
+      bubbleLayoutWorkflowDefault: true,
+    });
+    expect(
+      parseStoredAppSettings(
+        JSON.stringify({ ui: { bubbleLayoutWorkflowDefault: false } }),
+        defaults,
+      ).ui,
+    ).toMatchObject({
+      eraseOriginalWorkflowDefault: false,
+      bubbleLayoutWorkflowDefault: true,
+    });
+    expect(
+      parseStoredAppSettings(
+        JSON.stringify({ ui: { bubbleLayoutWorkflowDefault: true } }),
+        defaults,
+      ).ui,
+    ).toMatchObject({
+      eraseOriginalWorkflowDefault: true,
+      bubbleLayoutWorkflowDefault: true,
+    });
+    expect(
+      parseStoredAppSettings(
+        JSON.stringify({
+          ui: {
+            eraseOriginalWorkflowDefault: true,
+            bubbleLayoutWorkflowDefault: false,
+          },
+        }),
+        defaults,
+      ).ui,
+    ).toMatchObject({
+      eraseOriginalWorkflowDefault: true,
+      bubbleLayoutWorkflowDefault: false,
+    });
+  });
+
+  it("keeps bubble layout after inpainting as an explicit safe opt-in", () => {
+    const defaults = resolveDefaultAppSettings();
+
+    expect(
+      parseStoredAppSettings(
+        JSON.stringify({
+          inpainting: { bubbleLayoutAfterInpainting: true },
+        }),
+        defaults,
+      ).inpainting?.bubbleLayoutAfterInpainting,
+    ).toBe(true);
+    expect(
+      parseStoredAppSettings(JSON.stringify({ inpainting: {} }), defaults)
+        .inpainting?.bubbleLayoutAfterInpainting,
+    ).toBe(false);
+    expect(
+      parseStoredAppSettings(
+        JSON.stringify({
+          inpainting: { bubbleLayoutAfterInpainting: "yes" },
+        }),
+        defaults,
+      ).inpainting?.bubbleLayoutAfterInpainting,
+    ).toBe(false);
   });
 
   it("uses hardware-based provider and VRAM mode defaults when no override is provided", () => {

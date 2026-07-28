@@ -1,6 +1,11 @@
 import { z } from "zod";
 
-export { TranslationBlockSchema } from "./ipcSchemaPrimitives";
+export {
+  BubbleLayoutSchema,
+  BubbleShapeRegionSchema,
+  BubbleShapeSpanSchema,
+  TranslationBlockSchema,
+} from "./ipcSchemaPrimitives";
 export {
   AnalyzeWorkContextRequestSchema,
   ChapterStoryMemoryRequestSchema,

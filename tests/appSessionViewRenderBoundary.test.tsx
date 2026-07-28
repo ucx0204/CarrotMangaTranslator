@@ -24,12 +24,17 @@ describe("AppSessionView render boundaries", () => {
     const onRender = vi.fn();
     const firstUpdate = vi.fn();
     const latestUpdate = vi.fn();
+    const firstRemoveBubbleLayout = vi.fn();
+    const latestRemoveBubbleLayout = vi.fn();
     const { rerender } = render(
       <PanelSessionHarness
         onCommit={onCommit}
         onRender={onRender}
         rootRevision={0}
-        value={makePanelSessionValue({ onUpdateBlock: firstUpdate })}
+        value={makePanelSessionValue({
+          onRemoveBubbleLayout: firstRemoveBubbleLayout,
+          onUpdateBlock: firstUpdate,
+        })}
       />,
     );
 
@@ -43,6 +48,7 @@ describe("AppSessionView render boundaries", () => {
         rootRevision={1}
         value={makePanelSessionValue({
           onUpdateBlock: latestUpdate,
+          onRemoveBubbleLayout: latestRemoveBubbleLayout,
           selectedPageSize: { width: 1200, height: 1800 },
         })}
       />,
@@ -58,6 +64,8 @@ describe("AppSessionView render boundaries", () => {
     expect(latestUpdate).toHaveBeenCalledWith({
       translatedText: "latest callback",
     });
+    expect(firstRemoveBubbleLayout).not.toHaveBeenCalled();
+    expect(latestRemoveBubbleLayout).toHaveBeenCalledOnce();
   });
 
   it("publishes selected data, disabled, and page-size changes immediately", () => {
@@ -238,9 +246,10 @@ const PanelSessionProbe = React.memo(function PanelSessionProbe({
       <button
         type="button"
         data-testid="panel-consumer"
-        onClick={() =>
-          session.onUpdateBlock({ translatedText: "latest callback" })
-        }
+        onClick={() => {
+          session.onUpdateBlock({ translatedText: "latest callback" });
+          session.onRemoveBubbleLayout();
+        }}
       >
         {`${session.editorDisabled}:${session.selectedPageSize?.width ?? 0}:${
           session.selectedBlock?.id ?? "none"
@@ -290,6 +299,7 @@ function makePanelSessionValue(
     onDockEditorWindow: vi.fn(),
     onDuplicateBlock: vi.fn(),
     onPopOutEditor: vi.fn(),
+    onRemoveBubbleLayout: vi.fn(),
     onSelectTransformMode: vi.fn(),
     onStartAreaTranslate: vi.fn(),
     onToggleEditorFloat: vi.fn(),

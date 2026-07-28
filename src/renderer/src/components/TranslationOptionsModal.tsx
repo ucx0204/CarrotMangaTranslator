@@ -18,6 +18,11 @@ import {
   type ChapterSelectionMap,
 } from "../lib/translationSelection";
 import { ChapterPagePicker } from "./ChapterPagePicker";
+import {
+  OptionRow,
+  TranslationCompletionOptions,
+  TranslationOptionSection,
+} from "./TranslationOptionControls";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
 
@@ -40,7 +45,12 @@ type TranslationOptionsModalProps = {
   onPersistDefaults: (
     patch: Pick<
       UiSettings,
-      "translationWorkflowDefault" | "analysisScopeDefault" | "blockModeDefault"
+      | "translationWorkflowDefault"
+      | "analysisScopeDefault"
+      | "blockModeDefault"
+      | "naturalTextLayoutDefault"
+      | "eraseOriginalWorkflowDefault"
+      | "bubbleLayoutWorkflowDefault"
     >,
   ) => void;
   onClose: () => void;
@@ -55,77 +65,45 @@ export function TranslationOptionsModal({
   onClose,
 }: TranslationOptionsModalProps): React.JSX.Element {
   const { t } = useTranslation("components");
-  const work = React.useMemo(
-    () => library.works.find((item) => item.id === chapter.workId) ?? null,
-    [library.works, chapter.workId],
-  );
-  const [selection, setSelection] = React.useState<ChapterSelectionMap>(
-    () => new Map([[chapter.id, { kind: "pending" }]]),
-  );
-  const [workflowMode, setWorkflowMode] = React.useState(
-    uiSettings?.translationWorkflowDefault ?? "cumulative",
-  );
-  const [analysisScope, setAnalysisScope] =
-    React.useState<WorkContextAnalysisScope>(
-      uiSettings?.analysisScopeDefault ?? "missing",
-    );
-  const [blockMode, setBlockMode] = React.useState<AnalysisBlockMode>(
-    uiSettings?.blockModeDefault ?? "auto",
-  );
-
-  const chapterOrder = React.useMemo(
-    () => (work ? work.chapters.map((item) => item.id) : [chapter.id]),
-    [work, chapter.id],
-  );
-  const runSelection = React.useMemo(
-    () => buildRunSelection(chapterOrder, selection),
-    [chapterOrder, selection],
-  );
-
+  const state = useTranslationOptionsModalState(chapter, library, uiSettings);
   const handleStart = (): void => {
-    if (runSelection.length === 0) {
-      return;
-    }
+    if (state.runSelection.length === 0) return;
     onPersistDefaults({
-      translationWorkflowDefault: workflowMode,
-      analysisScopeDefault: analysisScope,
-      blockModeDefault: blockMode,
+      translationWorkflowDefault: state.formProps.workflowMode,
+      analysisScopeDefault: state.formProps.analysisScope,
+      blockModeDefault: state.formProps.blockMode,
+      naturalTextLayoutDefault: state.formProps.naturalTextLayout,
+      eraseOriginalWorkflowDefault: state.formProps.eraseOriginalWorkflow,
+      bubbleLayoutWorkflowDefault: state.formProps.bubbleLayoutWorkflow,
     });
     onStart({
-      selection: runSelection,
-      workflowMode,
-      analysisScope,
-      blockMode,
+      selection: state.runSelection,
+      workflowMode: state.formProps.workflowMode,
+      analysisScope: state.formProps.analysisScope,
+      blockMode: state.formProps.blockMode,
+      naturalTextLayout: state.formProps.naturalTextLayout,
+      eraseOriginalWorkflow: state.formProps.eraseOriginalWorkflow,
+      bubbleLayoutWorkflow: state.formProps.bubbleLayoutWorkflow,
     });
     onClose();
   };
-
   return (
     <Modal
       title={t("sidebar.translate")}
       size="lg"
       onClose={onClose}
       closeOnBackdrop
+      cardClassName="translation-options-modal"
+      bodyClassName="translation-options-modal-body"
       footer={
         <TranslationOptionsFooter
           onCancel={onClose}
           onStart={handleStart}
-          startDisabled={runSelection.length === 0}
+          startDisabled={state.runSelection.length === 0}
         />
       }
     >
-      <TranslationOptionsForm
-        chapter={chapter}
-        work={work}
-        selection={selection}
-        onSelectionChange={setSelection}
-        workflowMode={workflowMode}
-        onWorkflowModeChange={setWorkflowMode}
-        analysisScope={analysisScope}
-        onAnalysisScopeChange={setAnalysisScope}
-        blockMode={blockMode}
-        onBlockModeChange={setBlockMode}
-      />
+      <TranslationOptionsForm {...state.formProps} />
     </Modal>
   );
 }
@@ -161,7 +139,95 @@ type TranslationOptionsFormProps = {
   onAnalysisScopeChange: (scope: WorkContextAnalysisScope) => void;
   blockMode: AnalysisBlockMode;
   onBlockModeChange: (mode: AnalysisBlockMode) => void;
+  naturalTextLayout: boolean;
+  onNaturalTextLayoutChange: (enabled: boolean) => void;
+  eraseOriginalWorkflow: boolean;
+  onEraseOriginalWorkflowChange: (enabled: boolean) => void;
+  bubbleLayoutWorkflow: boolean;
+  onBubbleLayoutWorkflowChange: (enabled: boolean) => void;
 };
+
+function useTranslationOptionsModalState(
+  chapter: ChapterSnapshot,
+  library: LibraryIndex,
+  uiSettings: UiSettings | undefined,
+): {
+  formProps: TranslationOptionsFormProps;
+  runSelection: TranslationFlowOptions["selection"];
+} {
+  const work = React.useMemo(
+    () => library.works.find((item) => item.id === chapter.workId) ?? null,
+    [chapter.workId, library.works],
+  );
+  const [selection, setSelection] = React.useState<ChapterSelectionMap>(
+    () => new Map([[chapter.id, { kind: "pending" }]]),
+  );
+  const [workflowMode, setWorkflowMode] = React.useState(
+    uiSettings?.translationWorkflowDefault ?? "cumulative",
+  );
+  const [analysisScope, setAnalysisScope] =
+    React.useState<WorkContextAnalysisScope>(
+      uiSettings?.analysisScopeDefault ?? "missing",
+    );
+  const [blockMode, setBlockMode] = React.useState<AnalysisBlockMode>(
+    uiSettings?.blockModeDefault ?? "auto",
+  );
+  const [naturalTextLayout, setNaturalTextLayout] = React.useState(
+    uiSettings?.naturalTextLayoutDefault ?? true,
+  );
+  const completionDefaults = resolveInitialCompletionDefaults(uiSettings);
+  const [eraseOriginalWorkflow, setEraseOriginalWorkflow] = React.useState(
+    completionDefaults.eraseOriginal,
+  );
+  const [bubbleLayoutWorkflow, setBubbleLayoutWorkflow] = React.useState(
+    completionDefaults.bubbleLayout,
+  );
+  const chapterOrder = React.useMemo(
+    () => (work ? work.chapters.map((item) => item.id) : [chapter.id]),
+    [chapter.id, work],
+  );
+  const runSelection = React.useMemo(
+    () => buildRunSelection(chapterOrder, selection),
+    [chapterOrder, selection],
+  );
+  return {
+    formProps: {
+      analysisScope,
+      blockMode,
+      bubbleLayoutWorkflow,
+      chapter,
+      eraseOriginalWorkflow,
+      naturalTextLayout,
+      onAnalysisScopeChange: setAnalysisScope,
+      onBlockModeChange: setBlockMode,
+      onBubbleLayoutWorkflowChange: setBubbleLayoutWorkflow,
+      onEraseOriginalWorkflowChange: setEraseOriginalWorkflow,
+      onNaturalTextLayoutChange: setNaturalTextLayout,
+      onSelectionChange: setSelection,
+      onWorkflowModeChange: setWorkflowMode,
+      selection,
+      work,
+      workflowMode,
+    },
+    runSelection,
+  };
+}
+
+function resolveInitialCompletionDefaults(uiSettings: UiSettings | undefined): {
+  eraseOriginal: boolean;
+  bubbleLayout: boolean;
+} {
+  if (uiSettings?.eraseOriginalWorkflowDefault === undefined) {
+    return {
+      eraseOriginal: uiSettings?.bubbleLayoutWorkflowDefault ?? false,
+      bubbleLayout: true,
+    };
+  }
+  return {
+    eraseOriginal: uiSettings.eraseOriginalWorkflowDefault,
+    bubbleLayout: uiSettings.bubbleLayoutWorkflowDefault ?? true,
+  };
+}
 
 function TranslationOptionsForm(
   props: TranslationOptionsFormProps,
@@ -170,19 +236,57 @@ function TranslationOptionsForm(
   const { t: tRenderer } = useTranslation("renderer");
   return (
     <div className="translate-options">
-      {props.work ? (
-        <ChapterPagePicker
-          work={props.work}
-          currentChapter={props.chapter}
-          selection={props.selection}
-          onChange={props.onSelectionChange}
-        />
-      ) : (
-        <p className="translate-options-hint">
-          {t("translationOptions.workUnavailable")}
-        </p>
-      )}
+      <div className="translate-options-selection">
+        {props.work ? (
+          <ChapterPagePicker
+            work={props.work}
+            currentChapter={props.chapter}
+            selection={props.selection}
+            onChange={props.onSelectionChange}
+          />
+        ) : (
+          <p className="translate-options-hint">
+            {t("translationOptions.workUnavailable")}
+          </p>
+        )}
+      </div>
+      <div className="translate-options-sections">
+        <TranslationOptionSection
+          className="translate-options-section--quality"
+          title={t("translationOptions.sections.quality")}
+        >
+          <TranslationWorkflowOptions {...props} />
+        </TranslationOptionSection>
+        <TranslationOptionSection
+          title={t("translationOptions.sections.blockLayout")}
+        >
+          <OptionRow
+            label={t("common.blocks")}
+            options={getBlockModeOptions(tRenderer)}
+            value={props.blockMode}
+            onChange={props.onBlockModeChange}
+            description={t(
+              `translationOptions.blockModeSummaries.${props.blockMode}`,
+            )}
+          />
+          <NaturalTextLayoutOptions {...props} />
+        </TranslationOptionSection>
+        <TranslationOptionSection
+          title={t("translationOptions.sections.completion")}
+        >
+          <TranslationCompletionOptions {...props} />
+        </TranslationOptionSection>
+      </div>
+    </div>
+  );
+}
 
+function TranslationWorkflowOptions(
+  props: TranslationOptionsFormProps,
+): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <>
       <OptionRow
         label={t("translationOptions.workflowMode")}
         options={WORKFLOW_OPTION_IDS.map((id) => ({
@@ -193,12 +297,11 @@ function TranslationOptionsForm(
         }))}
         value={props.workflowMode}
         onChange={props.onWorkflowModeChange}
-      />
-      <p className="translate-options-hint" aria-live="polite">
-        {t(
+        description={t(
           `translationOptions.workflowOptions.${workflowTranslationKey(props.workflowMode)}.description`,
         )}
-      </p>
+        showLabel={false}
+      />
       {props.workflowMode === "two-pass" ? (
         <OptionRow
           label={t("translationOptions.analysisScope")}
@@ -210,18 +313,27 @@ function TranslationOptionsForm(
           onChange={props.onAnalysisScopeChange}
         />
       ) : null}
-      <OptionRow
-        label={t("common.blocks")}
-        options={getBlockModeOptions(tRenderer)}
-        value={props.blockMode}
-        onChange={props.onBlockModeChange}
-      />
-      {props.blockMode === "keep" ? (
-        <p className="translate-options-hint">
-          {t("translationOptions.keepBlocksHint")}
-        </p>
-      ) : null}
-    </div>
+    </>
+  );
+}
+
+function NaturalTextLayoutOptions(
+  props: TranslationOptionsFormProps,
+): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <OptionRow
+      label={t("translationOptions.naturalTextLayout")}
+      options={[
+        { id: "off", label: t("translationOptions.naturalTextLayoutOff") },
+        { id: "on", label: t("translationOptions.naturalTextLayoutOn") },
+      ]}
+      value={props.naturalTextLayout ? "on" : "off"}
+      onChange={(value) => props.onNaturalTextLayoutChange(value === "on")}
+      description={t(
+        `translationOptions.naturalTextLayoutSummaries.${props.naturalTextLayout ? "on" : "off"}`,
+      )}
+    />
   );
 }
 
@@ -229,38 +341,4 @@ function workflowTranslationKey(
   mode: TranslationWorkflowMode,
 ): "standard" | "cumulative" | "twoPass" {
   return mode === "two-pass" ? "twoPass" : mode;
-}
-
-export function OptionRow<T extends string>({
-  label,
-  options,
-  value,
-  onChange,
-  disabled = false,
-}: {
-  label: string;
-  options: { id: T; label: string }[];
-  value: T;
-  onChange: (value: T) => void;
-  disabled?: boolean;
-}): React.JSX.Element {
-  return (
-    <div className={`translate-options-row ${disabled ? "disabled" : ""}`}>
-      <span className="translate-options-label">{label}</span>
-      <div className="settings-mode-group" role="group" aria-label={label}>
-        {options.map((option) => (
-          <button
-            key={option.id}
-            type="button"
-            className={`settings-preset-button ${value === option.id ? "active" : ""}`}
-            aria-pressed={value === option.id}
-            disabled={disabled}
-            onClick={() => onChange(option.id)}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
 }

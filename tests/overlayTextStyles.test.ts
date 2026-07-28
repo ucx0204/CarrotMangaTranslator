@@ -24,6 +24,72 @@ describe("overlay text word-break styles", () => {
       expect(style.overflowWrap).toBe(expectedOverflowWrap);
     },
   );
+
+  it("uses the full block plane for positioned bubble lines", () => {
+    const style = resolveOverlayTextContentStyle(
+      {
+        ...BLOCK,
+        renderDirection: "horizontal",
+        textAlign: "left",
+        fontWidthScale: 0.8,
+      },
+      {
+        ...LAYOUT,
+        textContentWidth: 125,
+        lines: [
+          {
+            runs: [{ text: "번역", bold: false, italic: false }],
+            width: 30,
+            slot: {
+              blockOffsetPx: 20,
+              inlineOffsetPx: 12.5,
+              availableWidth: 100,
+              regionIndex: 0,
+            },
+          },
+        ],
+      },
+      "horizontal",
+    );
+
+    expect(style.position).toBe("relative");
+    expect(style.height).toBe("100px");
+    expect(style.maxWidth).toBe("none");
+    expect(style.flexShrink).toBe(0);
+    expect(style.transform).toBe("scaleX(0.8)");
+    expect(style.transformOrigin).toBe("center center");
+  });
+
+  it("gives positioned vertical bubble columns the full unscaled block plane", () => {
+    const style = resolveOverlayTextContentStyle(
+      {
+        ...BLOCK,
+        fontWidthScale: 0.8,
+      },
+      {
+        ...LAYOUT,
+        lines: [
+          {
+            runs: [{ text: "세로", bold: false, italic: false }],
+            width: 48,
+            slot: {
+              blockOffsetPx: 40,
+              inlineOffsetPx: 12,
+              availableWidth: 76,
+              regionIndex: 0,
+            },
+          },
+        ],
+      },
+      "vertical",
+    );
+
+    expect(style.position).toBe("relative");
+    expect(style.height).toBe("100px");
+    expect(style.width).toBe("125px");
+    expect(style.maxWidth).toBe("none");
+    expect(style.transform).toBe("scaleX(0.8)");
+  });
 });
 
 const BLOCK: TranslationBlock = {

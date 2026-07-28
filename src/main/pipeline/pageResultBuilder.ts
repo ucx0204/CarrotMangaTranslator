@@ -242,6 +242,7 @@ export async function buildPageResult({
       items: soundFiltered.items,
       previousBlocks: pageOptions.previousBlocksForPrompt ?? [],
       soundDroppedCount: soundFiltered.droppedCount,
+      naturalLayout: resolveKeepBlocksNaturalLayout(pageOptions),
     });
     return {
       kind: "completed",
@@ -261,6 +262,16 @@ export async function buildPageResult({
     contextWarnings: parsed.warnings,
     pageContext: parsed.pageContext,
   });
+}
+
+function resolveKeepBlocksNaturalLayout(pageOptions: TranslationOptions): {
+  enabled?: boolean;
+  locale?: string;
+} {
+  return {
+    enabled: pageOptions.naturalTextLayout,
+    locale: pageOptions.targetLanguage,
+  };
 }
 
 function buildEmptyItemsResult(

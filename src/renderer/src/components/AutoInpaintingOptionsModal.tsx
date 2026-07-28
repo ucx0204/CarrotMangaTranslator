@@ -4,10 +4,12 @@ import type {
   ChapterSnapshot,
   LibraryIndex,
 } from "../../../shared/libraryTypes";
+import type { InpaintingPostprocessOptions } from "../../../shared/inpaintingTypes";
 import {
   buildAutoInpaintingSelection,
-  createDefaultAutoInpaintingSelection,
+  createScopedAutoInpaintingSelection,
   type AutoInpaintingChapterSelection,
+  type AutoInpaintingEntryScope,
 } from "../lib/autoInpaintingSelection";
 import { PageSelectionPicker } from "./ExportPagePicker";
 import { Button } from "./ui/Button";
@@ -16,9 +18,11 @@ import { Modal } from "./ui/Modal";
 export type AutoInpaintingOptionsModalProps = {
   chapter: ChapterSnapshot;
   currentPageId: string;
+  initialScope: AutoInpaintingEntryScope;
   library: LibraryIndex;
   onStart: (
     selection: AutoInpaintingChapterSelection[],
+    postprocess?: InpaintingPostprocessOptions,
   ) => void | Promise<void>;
   onClose: () => void;
 };
@@ -26,17 +30,77 @@ export type AutoInpaintingOptionsModalProps = {
 export function AutoInpaintingOptionsModal({
   chapter,
   currentPageId,
+  initialScope,
   library,
   onStart,
   onClose,
 }: AutoInpaintingOptionsModalProps): React.JSX.Element {
   const { t } = useTranslation("components");
+  const state = useAutoInpaintingModalState({
+    chapter,
+    currentPageId,
+    initialScope,
+    library,
+  });
+  const [includeBubbleLayout, setIncludeBubbleLayout] = React.useState(true);
+  const handleStart = (): void => {
+    if (state.runSelection.length === 0) return;
+    void onStart(state.runSelection, resolvePostprocess(includeBubbleLayout));
+    onClose();
+  };
+  return (
+    <Modal
+      title={t("autoInpaintingOptions.title")}
+      size={initialScope === "select" ? "lg" : "md"}
+      onClose={onClose}
+      closeOnBackdrop
+      footer={
+        <>
+          <Button onClick={onClose}>{t("common.cancel")}</Button>
+          <Button
+            variant="primary"
+            onClick={handleStart}
+            disabled={state.runSelection.length === 0}
+          >
+            {t("autoInpaintingOptions.start")}
+          </Button>
+        </>
+      }
+    >
+      <AutoInpaintingScopeBody
+        chapter={chapter}
+        initialScope={initialScope}
+        selection={state.selection}
+        work={state.work}
+        onSelectionChange={state.setSelection}
+      />
+      <BubblePostprocessToggle
+        enabled={includeBubbleLayout}
+        onToggle={() => setIncludeBubbleLayout((enabled) => !enabled)}
+      />
+    </Modal>
+  );
+}
+
+function useAutoInpaintingModalState({
+  chapter,
+  currentPageId,
+  initialScope,
+  library,
+}: Pick<
+  AutoInpaintingOptionsModalProps,
+  "chapter" | "currentPageId" | "initialScope" | "library"
+>) {
   const work = React.useMemo(
     () => library.works.find((item) => item.id === chapter.workId) ?? null,
     [chapter.workId, library.works],
   );
   const [selection, setSelection] = React.useState(() =>
-    createDefaultAutoInpaintingSelection(chapter.id, currentPageId),
+    createScopedAutoInpaintingSelection(
+      chapter.id,
+      currentPageId,
+      initialScope,
+    ),
   );
   const chapterOrder = React.useMemo(
     () => work?.chapterOrder ?? [chapter.id],
@@ -46,58 +110,101 @@ export function AutoInpaintingOptionsModal({
     () => buildAutoInpaintingSelection(chapterOrder, selection),
     [chapterOrder, selection],
   );
+  return { runSelection, selection, setSelection, work };
+}
 
-  const handleStart = (): void => {
-    if (runSelection.length === 0) {
-      return;
-    }
-    void onStart(runSelection);
-    onClose();
-  };
+type AutoInpaintingScopeBodyProps = {
+  chapter: ChapterSnapshot;
+  initialScope: AutoInpaintingEntryScope;
+  selection: ReturnType<typeof createScopedAutoInpaintingSelection>;
+  work: LibraryIndex["works"][number] | null;
+  onSelectionChange: React.Dispatch<
+    React.SetStateAction<ReturnType<typeof createScopedAutoInpaintingSelection>>
+  >;
+};
 
+function AutoInpaintingScopeBody({
+  chapter,
+  initialScope,
+  selection,
+  work,
+  onSelectionChange,
+}: AutoInpaintingScopeBodyProps): React.JSX.Element {
+  const { t } = useTranslation("components");
+  if (initialScope === "select" && work) {
+    return (
+      <PageSelectionPicker
+        work={work}
+        currentChapter={chapter}
+        selection={selection}
+        onChange={onSelectionChange}
+        copy={{
+          prompt: t("autoInpaintingOptions.prompt"),
+          currentChapter: t("autoInpaintingOptions.currentChapter"),
+          chapterSummary: (count) =>
+            t("autoInpaintingOptions.chapterSummary", { count }),
+          noSelectedPages: t("autoInpaintingOptions.noSelectedPages"),
+          selectionSummary: (chapterCount, pageCount) =>
+            t("autoInpaintingOptions.selectionSummary", {
+              chapterCount,
+              pageCount,
+            }),
+        }}
+      />
+    );
+  }
+  if (initialScope === "select") {
+    return (
+      <p className="translate-options-hint">
+        {t("autoInpaintingOptions.workUnavailable")}
+      </p>
+    );
+  }
   return (
-    <Modal
-      title={t("autoInpaintingOptions.title")}
-      size="lg"
-      onClose={onClose}
-      closeOnBackdrop
-      footer={
-        <>
-          <Button onClick={onClose}>{t("common.cancel")}</Button>
-          <Button
-            variant="primary"
-            onClick={handleStart}
-            disabled={runSelection.length === 0}
-          >
-            {t("autoInpaintingOptions.start")}
-          </Button>
-        </>
-      }
-    >
-      {work ? (
-        <PageSelectionPicker
-          work={work}
-          currentChapter={chapter}
-          selection={selection}
-          onChange={setSelection}
-          copy={{
-            prompt: t("autoInpaintingOptions.prompt"),
-            currentChapter: t("autoInpaintingOptions.currentChapter"),
-            chapterSummary: (count) =>
-              t("autoInpaintingOptions.chapterSummary", { count }),
-            noSelectedPages: t("autoInpaintingOptions.noSelectedPages"),
-            selectionSummary: (chapterCount, pageCount) =>
-              t("autoInpaintingOptions.selectionSummary", {
-                chapterCount,
-                pageCount,
-              }),
-          }}
-        />
-      ) : (
-        <p className="translate-options-hint">
-          {t("autoInpaintingOptions.workUnavailable")}
-        </p>
-      )}
-    </Modal>
+    <p className="auto-inpainting-scope-summary">
+      {initialScope === "current"
+        ? t("autoInpaintingOptions.currentPageSummary")
+        : t("autoInpaintingOptions.allPagesSummary", {
+            count: chapter.pages.length,
+          })}
+    </p>
   );
+}
+
+function BubblePostprocessToggle({
+  enabled,
+  onToggle,
+}: {
+  enabled: boolean;
+  onToggle: () => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <button
+      type="button"
+      className="auto-inpainting-postprocess-toggle"
+      role="switch"
+      aria-checked={enabled}
+      onClick={onToggle}
+    >
+      <span aria-hidden="true" />
+      <span>
+        <strong>{t("autoInpaintingOptions.bubbleLayout")}</strong>
+        <small>{t("autoInpaintingOptions.bubbleLayoutHint")}</small>
+      </span>
+    </button>
+  );
+}
+
+function resolvePostprocess(
+  includeBubbleLayout: boolean,
+): InpaintingPostprocessOptions | undefined {
+  return includeBubbleLayout
+    ? {
+        bubbleLayout: {
+          enabled: true,
+          policy: "balanced",
+        },
+      }
+    : undefined;
 }

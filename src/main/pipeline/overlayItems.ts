@@ -17,6 +17,7 @@ import type {
 import type { BlockFormatDefaults } from "../../shared/blockFormat";
 import type { MangaPage } from "../../shared/libraryTypes";
 import { applyFormatDefaultsToBlock } from "../../shared/blockFormat";
+import { applyNaturalTextLayout } from "../../shared/naturalTextLayout";
 import { tMain } from "./localization";
 import type { OverlayItem } from "./types";
 
@@ -26,12 +27,18 @@ const REQUIRED_SOUND_CONFIDENCE = 1;
 
 type NormalizedTextRole = "ordinary" | "sound" | "nontext" | "";
 
+export type OverlayNaturalTextLayoutOptions = {
+  enabled?: boolean;
+  locale?: string;
+};
+
 export function overlayItemToBlock(
   item: OverlayItem,
   page: MangaPage,
   index: number,
   runId?: string,
   formatDefaults?: BlockFormatDefaults,
+  naturalLayout?: OverlayNaturalTextLayoutOptions,
 ): TranslationBlock {
   const type = mapOverlayType(item.type);
   const textRole = normalizeOverlayTextRole(item.textRole);
@@ -85,7 +92,38 @@ export function overlayItemToBlock(
     opacity: visualStyle.defaultOpacity,
     autoFitText: true,
   };
-  return applyFormatDefaultsToBlock(block, formatDefaults);
+  const formatted = applyFormatDefaultsToBlock(block, formatDefaults);
+  return applyNaturalLayoutToOverlayBlock(
+    formatted,
+    page,
+    textRole,
+    formatDefaults,
+    naturalLayout,
+  );
+}
+
+function applyNaturalLayoutToOverlayBlock(
+  formatted: TranslationBlock,
+  page: MangaPage,
+  textRole: NormalizedTextRole,
+  formatDefaults: BlockFormatDefaults | undefined,
+  naturalLayout: OverlayNaturalTextLayoutOptions | undefined,
+): TranslationBlock {
+  if (!naturalLayout?.enabled || textRole === "sound") {
+    return formatted;
+  }
+  const layout = applyNaturalTextLayout(formatted, {
+    enabled: true,
+    pageSize: { width: page.width, height: page.height },
+    locale: naturalLayout.locale,
+    allowAutoVertical: textRole === "ordinary" || textRole === "",
+    directionPreference: formatDefaults?.renderDirection ?? "auto",
+  });
+  return {
+    ...formatted,
+    translatedText: layout.translatedText,
+    renderDirection: layout.renderDirection,
+  };
 }
 
 function normalizeBlockRunId(runId: string | undefined): string {

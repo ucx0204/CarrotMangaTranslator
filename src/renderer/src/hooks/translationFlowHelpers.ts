@@ -11,6 +11,7 @@ type ExecuteAnalysisArgs = {
   pageIds?: string[];
   blockMode?: AnalysisBlockMode;
   collectPageContext?: boolean;
+  naturalTextLayout?: boolean;
 };
 
 export type ExecuteAnalysisJob = (
@@ -31,6 +32,7 @@ export async function runSelectionsSequentially(
   passLabel: string,
   blockMode?: AnalysisBlockMode,
   collectPageContext?: boolean,
+  naturalTextLayout?: boolean,
   t?: TFunction<"renderer">,
 ): Promise<RunAnalysisOutcome> {
   let anyCompleted = false;
@@ -54,6 +56,7 @@ export async function runSelectionsSequentially(
       pageIds: selection.mode === "page-set" ? selection.pageIds : undefined,
       blockMode,
       collectPageContext,
+      naturalTextLayout,
     });
     if (outcome === "cancelled") {
       return "cancelled";

@@ -25,12 +25,14 @@ import {
 } from "../lib/workspaceInteractionPreview";
 import { useWorkspaceBlockCreateHandlers } from "./useWorkspaceBlockCreateHandlers";
 import { useWorkspaceBlockDragHandlers } from "./useWorkspaceBlockDragHandlers";
+import { useWorkspaceBubbleLayoutHandlers } from "./useWorkspaceBubbleLayoutHandlers";
 import { useEventCallback } from "./useEventCallback";
 import { useStagePointerRouter } from "./useStagePointerRouter";
 import { useWorkspaceInpaintingPointerHandlers } from "./useWorkspaceInpaintingPointerHandlers";
 import { useWorkspacePanHandlers } from "./useWorkspacePanHandlers";
 import { useWorkspaceRegionSelectionHandlers } from "./useWorkspaceRegionSelectionHandlers";
 import { type PointerRect } from "./workspacePointerGeometry";
+import type { UpdateCurrentChapter } from "./useCurrentChapterUpdater";
 
 type UseWorkspacePointerHandlersOptions = {
   appendRetouchPoint: (point: {
@@ -53,6 +55,8 @@ type UseWorkspacePointerHandlersOptions = {
   inpaintingToolActive: boolean;
   jobActive: boolean;
   onEscapeTool?: () => void;
+  onBubbleLayoutApplied?: () => void;
+  onSelectedBlockChange?: (blockId: string) => void;
   lastInpaintingRetouchPointRef: MutableRefObject<{
     x: number;
     y: number;
@@ -65,6 +69,7 @@ type UseWorkspacePointerHandlersOptions = {
   ) => void;
   regionSelection: RegionSelectionState | null;
   selectedPage: MangaPage | null;
+  selectedBlockId: string | null;
   selectedPageEditLocked: boolean;
   selectedPageIdRef: MutableRefObject<string | null>;
   regionTranslationReady: boolean;
@@ -85,14 +90,13 @@ type UseWorkspacePointerHandlersOptions = {
     w: number;
     h: number;
   }) => Promise<void>;
-  updateCurrentChapter: (
-    pageId: string,
-    updater: (chapter: ChapterSnapshot) => ChapterSnapshot,
-  ) => void;
+  updateCurrentChapter: UpdateCurrentChapter;
   workspacePanelRef: RefObject<HTMLElement | null>;
 };
 
 type WorkspacePointerHandlers = {
+  applyBubbleLayoutDraft: () => boolean;
+  cancelBubbleLayoutDraft: () => boolean;
   interactionPreviewStore: WorkspaceInteractionPreviewStore;
   onBlockPointerDown: (
     event: PointerEvent,
@@ -104,6 +108,7 @@ type WorkspacePointerHandlers = {
   onStagePointerMove: (event: PointerEvent) => void;
   onStagePointerUp: (event: PointerEvent) => void;
   startRegionTranslationSelection: () => void;
+  undoBubbleLayoutPoint: () => void;
 };
 
 const NOOP = (): void => undefined;
@@ -123,6 +128,63 @@ export function useWorkspacePointerHandlers(
     options,
     interactionPreviewStore,
   );
+  const { blockCreateHandlers, bubbleLayoutHandlers, regionSelectionHandlers } =
+    useWorkspaceDrawingHandlers(
+      options,
+      getImagePointerRect,
+      interactionPreviewStore,
+    );
+  const panHandlers = useWorkspacePanHandlers({
+    stageRef: options.stageRef,
+    workspacePanelRef: options.workspacePanelRef,
+  });
+  useEscapePointerCancellation(
+    blockDrag.cancelActiveDrag,
+    regionSelectionHandlers.cancelRegionSelection,
+    blockCreateHandlers.cancelBlockCreate,
+    bubbleLayoutHandlers.cancelBubbleLayoutDraft,
+    inpaintingHandlers.cancelDrawing,
+    options.onEscapeTool ?? NOOP,
+  );
+  const stageHandlers = useStagePointerRouter({
+    blockCreateHandlers,
+    blockDrag,
+    bubbleLayoutHandlers,
+    inpaintingHandlers,
+    jobActive: options.jobActive,
+    panHandlers,
+    regionSelectionHandlers,
+    setSelectedBlockId: options.setSelectedBlockId,
+    setSelectedBlockIds: options.setSelectedBlockIds,
+    stageTool: options.stageTool,
+  });
+
+  return {
+    applyBubbleLayoutDraft: bubbleLayoutHandlers.applyBubbleLayoutDraft,
+    cancelBubbleLayoutDraft: bubbleLayoutHandlers.cancelBubbleLayoutDraft,
+    interactionPreviewStore,
+    onBlockPointerDown: blockDrag.onBlockPointerDown,
+    onStagePointerDown: stageHandlers.onStagePointerDown,
+    onStagePointerLeave: stageHandlers.onStagePointerLeave,
+    onStagePointerMove: stageHandlers.onStagePointerMove,
+    onStagePointerUp: stageHandlers.onStagePointerUp,
+    startRegionTranslationSelection:
+      regionSelectionHandlers.startRegionTranslationSelection,
+    undoBubbleLayoutPoint: bubbleLayoutHandlers.undoBubbleLayoutPoint,
+  };
+}
+
+function useWorkspaceDrawingHandlers(
+  options: UseWorkspacePointerHandlersOptions,
+  getImagePointerRect: () => PointerRect | null,
+  interactionPreviewStore: WorkspaceInteractionPreviewStore,
+): {
+  blockCreateHandlers: ReturnType<typeof useWorkspaceBlockCreateHandlers>;
+  bubbleLayoutHandlers: ReturnType<typeof useWorkspaceBubbleLayoutHandlers>;
+  regionSelectionHandlers: ReturnType<
+    typeof useWorkspaceRegionSelectionHandlers
+  >;
+} {
   const regionSelectionHandlers = useWorkspaceRegionSelectionHandlers({
     getImagePointerRect,
     interactionPreviewStore,
@@ -150,38 +212,22 @@ export function useWorkspacePointerHandlers(
     stageRef: options.stageRef,
     updateCurrentChapter: options.updateCurrentChapter,
   });
-  const panHandlers = useWorkspacePanHandlers({
-    stageRef: options.stageRef,
-    workspacePanelRef: options.workspacePanelRef,
-  });
-  useEscapePointerCancellation(
-    blockDrag.cancelActiveDrag,
-    regionSelectionHandlers.cancelRegionSelection,
-    blockCreateHandlers.cancelBlockCreate,
-    inpaintingHandlers.cancelDrawing,
-    options.onEscapeTool ?? NOOP,
-  );
-  const stageHandlers = useStagePointerRouter({
-    blockCreateHandlers,
-    blockDrag,
-    inpaintingHandlers,
-    jobActive: options.jobActive,
-    panHandlers,
-    regionSelectionHandlers,
-    setSelectedBlockId: options.setSelectedBlockId,
-    setSelectedBlockIds: options.setSelectedBlockIds,
-    stageTool: options.stageTool,
-  });
-
-  return {
+  const bubbleLayoutHandlers = useWorkspaceBubbleLayoutHandlers({
+    active: options.stageTool === "bubble" && !options.inpaintingToolActive,
+    getImagePointerRect,
     interactionPreviewStore,
-    onBlockPointerDown: blockDrag.onBlockPointerDown,
-    onStagePointerDown: stageHandlers.onStagePointerDown,
-    onStagePointerLeave: stageHandlers.onStagePointerLeave,
-    onStagePointerMove: stageHandlers.onStagePointerMove,
-    onStagePointerUp: stageHandlers.onStagePointerUp,
-    startRegionTranslationSelection:
-      regionSelectionHandlers.startRegionTranslationSelection,
+    onFinished: options.onBubbleLayoutApplied ?? NOOP,
+    pushStatus: options.pushStatus,
+    selectedBlockId: options.selectedBlockId,
+    selectedPage: options.selectedPage,
+    selectedPageEditLocked: options.selectedPageEditLocked,
+    stageRef: options.stageRef,
+    updateCurrentChapter: options.updateCurrentChapter,
+  });
+  return {
+    blockCreateHandlers,
+    bubbleLayoutHandlers,
+    regionSelectionHandlers,
   };
 }
 
@@ -189,6 +235,7 @@ function useBlockDragHandlersForWorkspace(
   options: UseWorkspacePointerHandlersOptions,
   interactionPreviewStore: WorkspaceInteractionPreviewStore,
 ): ReturnType<typeof useWorkspaceBlockDragHandlers> {
+  const setSelectedBlockId = useNotifyingBlockSelectionSetter(options);
   return useWorkspaceBlockDragHandlers({
     currentChapter: options.currentChapter,
     imageRef: options.imageRef,
@@ -198,11 +245,28 @@ function useBlockDragHandlersForWorkspace(
     regionSelectionActive: Boolean(options.regionSelection?.active),
     selectedPage: options.selectedPage,
     selectedPageEditLocked: options.selectedPageEditLocked,
-    setSelectedBlockId: options.setSelectedBlockId,
+    setSelectedBlockId,
     setSelectedBlockIds: options.setSelectedBlockIds,
     stageRef: options.stageRef,
     updateCurrentChapter: options.updateCurrentChapter,
   });
+}
+
+function useNotifyingBlockSelectionSetter(
+  options: Pick<
+    UseWorkspacePointerHandlersOptions,
+    "onSelectedBlockChange" | "selectedBlockId" | "setSelectedBlockId"
+  >,
+): (blockId: string | null) => void {
+  return useCallback(
+    (blockId) => {
+      if (blockId !== null && blockId !== options.selectedBlockId) {
+        options.onSelectedBlockChange?.(blockId);
+      }
+      options.setSelectedBlockId(blockId);
+    },
+    [options],
+  );
 }
 
 function useWorkspaceInteractionPreviewStore(
@@ -269,12 +333,17 @@ function useEscapePointerCancellation(
   cancelActiveDrag: () => boolean,
   cancelRegionSelection: () => boolean,
   cancelBlockCreate: () => boolean,
+  cancelBubbleLayoutDraft: () => boolean,
   cancelInpaintingDrawing: () => boolean,
   onEscapeTool: () => void,
 ): void {
   const cancelPointerInteraction = useEventCallback(() => {
     cancelInpaintingDrawing();
-    if (!cancelActiveDrag() && !cancelBlockCreate()) {
+    if (
+      !cancelActiveDrag() &&
+      !cancelBlockCreate() &&
+      !cancelBubbleLayoutDraft()
+    ) {
       cancelRegionSelection();
     }
     onEscapeTool();

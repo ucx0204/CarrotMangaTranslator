@@ -36,6 +36,8 @@ export type TranslationOptions = {
   translationAttempt?: number;
   /** Ask the page translation response to append a delimited cumulative context payload. */
   collectPageContext?: boolean;
+  /** Post-process translated text with block-size-aware hard line breaks. */
+  naturalTextLayout?: boolean;
   strictRefineMode?: boolean;
   keepBlocksMode?: boolean;
   previousBlocksForPrompt?: PreviousOverlayBlockForPrompt[];

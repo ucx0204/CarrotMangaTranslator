@@ -78,6 +78,26 @@ describe("page artwork renderer parity", () => {
     expect(readArtworkBlocks(exported.container)).toEqual(
       readArtworkBlocks(panel.container),
     );
+    const bubbleLine = exported.container.querySelector<HTMLElement>(
+      '[data-bubble-slot=""]',
+    );
+    expect(bubbleLine).not.toBeNull();
+    expect(bubbleLine?.style.position).toBe("absolute");
+    expect(bubbleLine?.style.width).not.toBe("");
+    expect(bubbleLine?.parentElement?.style.maxWidth).toBe("none");
+    expect(bubbleLine?.parentElement?.style.flexShrink).toBe("0");
+    expect(bubbleLine?.parentElement?.style.transform).toBe("scaleX(0.8)");
+    const verticalBubbleColumn = exported.container.querySelector<HTMLElement>(
+      '[data-bubble-direction="vertical"]',
+    );
+    expect(verticalBubbleColumn).not.toBeNull();
+    expect(verticalBubbleColumn?.style.position).toBe("absolute");
+    expect(verticalBubbleColumn?.style.writingMode).toBe("vertical-rl");
+    expect(verticalBubbleColumn?.style.height).not.toBe("");
+    expect(verticalBubbleColumn?.style.width).not.toBe("");
+    expect(verticalBubbleColumn?.parentElement?.style.width).not.toBe(
+      "max-content",
+    );
   });
 });
 
@@ -166,6 +186,61 @@ function makeBlocks(): TranslationBlock[] {
       bbox: { x: 420, y: 1030, w: 360, h: 90 },
       inpaintExcluded: true,
       translatedText: "인페인팅 제외 텍스트",
+    }),
+    makeBlock("bubble", {
+      autoFitText: false,
+      bbox: { x: 650, y: 980, w: 280, h: 180 },
+      fontWidthScale: 0.8,
+      bubbleLayout: {
+        version: 1,
+        direction: "horizontal",
+        confidence: 0.96,
+        insetRatio: 0.04,
+        regions: [
+          {
+            spans: [
+              {
+                blockStart: 0,
+                blockEnd: 1,
+                inlineStart: 0.12,
+                inlineEnd: 0.88,
+              },
+            ],
+          },
+        ],
+      },
+      fontSizePx: 24,
+      lineHeight: 1,
+      translatedText: "말풍선 모양 줄배치",
+    }),
+    makeBlock("vertical-bubble", {
+      autoFitText: false,
+      bbox: { x: 330, y: 760, w: 280, h: 180 },
+      renderBbox: { x: 330, y: 760, w: 280, h: 180 },
+      fontWidthScale: 0.75,
+      bubbleLayout: {
+        version: 1,
+        direction: "vertical",
+        confidence: 0.96,
+        insetRatio: 0.04,
+        regions: [
+          {
+            spans: [
+              {
+                blockStart: 0.1,
+                blockEnd: 0.9,
+                inlineStart: 0.12,
+                inlineEnd: 0.88,
+              },
+            ],
+          },
+        ],
+      },
+      fontSizePx: 24,
+      lineHeight: 1,
+      renderDirection: "vertical",
+      sourceDirection: "vertical",
+      translatedText: "세로 말풍선",
     }),
   ];
 }

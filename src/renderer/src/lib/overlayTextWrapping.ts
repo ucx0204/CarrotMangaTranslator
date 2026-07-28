@@ -12,6 +12,17 @@ import {
 export type BlockTextLine = {
   runs: TextStyleRun[];
   width: number;
+  slot?: TextLineSlot;
+};
+
+export type TextLineSlot = {
+  /** Block-axis position: line top for horizontal, column left for vertical. */
+  blockOffsetPx: number;
+  /** Inline-axis position: line left for horizontal, column top for vertical. */
+  inlineOffsetPx: number;
+  /** Inline-axis room available after any applicable font-width scaling. */
+  availableWidth: number;
+  regionIndex: number;
 };
 
 export type WrappedTextMeasurement = {
@@ -21,7 +32,7 @@ export type WrappedTextMeasurement = {
   maxLineWidth: number;
 };
 
-type StyledGrapheme = {
+export type StyledGrapheme = {
   text: string;
   bold: boolean;
   italic: boolean;
@@ -83,7 +94,7 @@ export function measureUniformWrappedText(
   );
 }
 
-function measureStyledGraphemes(
+export function measureStyledGraphemes(
   context: TextMeasurementContext,
   runs: TextStyleRun[],
   fontSize: number,
@@ -258,7 +269,7 @@ function wrapEagerly(
   return lines;
 }
 
-function buildNaturalUnits(
+export function buildNaturalUnits(
   graphemes: StyledGrapheme[],
   allowCjkBreaks: boolean,
 ): StyledGrapheme[][] {
@@ -289,7 +300,7 @@ function buildNaturalUnits(
   return units;
 }
 
-function measureGraphemeSequence(
+export function measureGraphemeSequence(
   graphemes: StyledGrapheme[],
   letterSpacingPx: number,
 ): number {
@@ -300,7 +311,7 @@ function measureGraphemeSequence(
   );
 }
 
-function toBlockTextLine(
+export function toBlockTextLine(
   graphemes: StyledGrapheme[],
   width: number,
 ): BlockTextLine {

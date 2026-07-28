@@ -35,7 +35,7 @@ export function OverlayText({
         style={resolveOverlayTextContentStyle(block, layout, renderDirection)}
       >
         {layout.lines
-          ? renderFixedHorizontalLines(layout.lines)
+          ? renderFixedLines(block, layout, renderDirection)
           : renderParsedTextRuns(block, displayText)}
       </span>
     </div>
@@ -54,18 +54,59 @@ function renderParsedTextRuns(
   return runs.map((run, index) => renderTextRun(run, index));
 }
 
-function renderFixedHorizontalLines(lines: BlockTextLine[]): React.ReactNode {
-  return lines.map((line, lineIndex) => (
+function renderFixedLines(
+  block: TranslationBlock,
+  layout: BlockTextLayout,
+  renderDirection: RenderTextDirection,
+): React.ReactNode {
+  return layout.lines?.map((line, lineIndex) => (
     <span
       className="overlay-text-line"
+      data-bubble-direction={line.slot ? renderDirection : undefined}
+      data-bubble-slot={line.slot ? "" : undefined}
       key={lineIndex}
-      style={{ display: "block", whiteSpace: "pre" }}
+      style={resolveFixedLineStyle(
+        line,
+        block,
+        layout.fontSizePx,
+        renderDirection,
+      )}
     >
       {line.runs.length > 0
         ? line.runs.map((run, runIndex) => renderTextRun(run, runIndex))
         : "\u00a0"}
     </span>
   ));
+}
+
+function resolveFixedLineStyle(
+  line: BlockTextLine,
+  block: TranslationBlock,
+  fontSizePx: number,
+  renderDirection: RenderTextDirection,
+): React.CSSProperties {
+  if (!line.slot) return { display: "block", whiteSpace: "pre" };
+  if (renderDirection === "vertical") {
+    return {
+      display: "block",
+      height: line.slot.availableWidth,
+      left: line.slot.blockOffsetPx,
+      position: "absolute",
+      textOrientation: "upright",
+      top: line.slot.inlineOffsetPx,
+      whiteSpace: "pre",
+      width: fontSizePx * block.lineHeight,
+      writingMode: "vertical-rl",
+    };
+  }
+  return {
+    display: "block",
+    left: line.slot.inlineOffsetPx,
+    position: "absolute",
+    top: line.slot.blockOffsetPx,
+    whiteSpace: "pre",
+    width: line.slot.availableWidth,
+  };
 }
 
 function renderTextRun(

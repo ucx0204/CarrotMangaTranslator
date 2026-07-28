@@ -33,6 +33,7 @@ export type PipelineOptions = {
   regionContext?: PipelineRegionContext;
   writeStoryMemory?: boolean;
   collectPageContext?: boolean;
+  naturalTextLayout?: boolean;
   /** Canonical zero-based positions in the complete chapter, independent of run selection. */
   canonicalPageIndexById?: ReadonlyMap<string, number>;
 };

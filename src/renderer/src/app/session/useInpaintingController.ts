@@ -43,8 +43,13 @@ export function useInpaintingController(
       translation.importShareActions.openShareImportPreview,
     runAnalysis: (runMode) =>
       void translation.translationActions.runAnalysis(runMode),
-    runCurrentPageInpainting: () =>
-      void inpainting.inpaintingActions.runInpainting("page"),
+    runCurrentPageInpainting: () => {
+      chapter.core.setRegionSelection(null);
+      chapter.uiState.selectWorkspaceTool("select");
+      chapter.uiState.setPeekOriginal(false);
+      chapter.uiState.setAutoInpaintingEntryScope("current");
+      chapter.uiState.setAutoInpaintingOptionsOpen(true);
+    },
     setShareExportOpen: chapter.importShareModal.setShareExportOpen,
     setShortcutHelpOpen: chapter.uiState.setShortcutHelpOpen,
     setTextViewOpen: chapter.uiState.setTextViewOpen,

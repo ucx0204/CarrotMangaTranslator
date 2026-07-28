@@ -165,25 +165,34 @@ function TextEmphasisButtons({
 }: BlockSectionProps): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <div className="block-style-group">
-      <IconButton
-        label={t("format.bold")}
-        title={t("format.bold")}
-        aria-pressed={Boolean(block.bold)}
-        disabled={disabled}
-        onClick={() => onUpdate({ bold: !block.bold })}
-      >
-        <BoldIcon size={18} />
-      </IconButton>
-      <IconButton
-        label={t("format.italic")}
-        title={t("format.italic")}
-        aria-pressed={Boolean(block.italic)}
-        disabled={disabled}
-        onClick={() => onUpdate({ italic: !block.italic })}
-      >
-        <ItalicIcon size={18} />
-      </IconButton>
+    <div className="format-emphasis-control">
+      <span className="format-toolbar-label">
+        {t("format.blockStyle", { defaultValue: "블록 전체" })}
+      </span>
+      <div className="block-style-group">
+        <IconButton
+          label={t("format.blockBold", { defaultValue: "블록 전체 굵게" })}
+          title={t("format.blockBold", { defaultValue: "블록 전체 굵게" })}
+          aria-pressed={Boolean(block.bold)}
+          disabled={disabled}
+          onClick={() => onUpdate({ bold: !block.bold })}
+        >
+          <BoldIcon size={18} />
+        </IconButton>
+        <IconButton
+          label={t("format.blockItalic", {
+            defaultValue: "블록 전체 기울임",
+          })}
+          title={t("format.blockItalic", {
+            defaultValue: "블록 전체 기울임",
+          })}
+          aria-pressed={Boolean(block.italic)}
+          disabled={disabled}
+          onClick={() => onUpdate({ italic: !block.italic })}
+        >
+          <ItalicIcon size={18} />
+        </IconButton>
+      </div>
     </div>
   );
 }

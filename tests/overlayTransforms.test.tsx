@@ -109,6 +109,49 @@ describe("overlay transform controls", () => {
     expect(container.querySelector(".curve-path-line")).not.toBeNull();
   });
 
+  it("shows the selected bubble profile even when block chrome is hidden", () => {
+    const block: TranslationBlock = {
+      ...makeBlock(),
+      bubbleLayout: {
+        version: 1,
+        direction: "horizontal",
+        confidence: 1,
+        origin: "manual",
+        modelId: "manual-shape-v1",
+        insetRatio: 0,
+        regions: [
+          {
+            spans: [
+              {
+                blockStart: 0,
+                blockEnd: 0.5,
+                inlineStart: 0.18,
+                inlineEnd: 0.82,
+              },
+              {
+                blockStart: 0.5,
+                blockEnd: 1,
+                inlineStart: 0.08,
+                inlineEnd: 0.92,
+              },
+            ],
+          },
+        ],
+      },
+    };
+    const { container } = renderOverlay({ block, showChrome: false });
+
+    const guide = container.querySelector<SVGElement>(
+      '[data-bubble-layout-guide="manual"]',
+    );
+    expect(guide).not.toBeNull();
+    expect(guide?.querySelectorAll("polygon")).toHaveLength(1);
+    expect(guide?.querySelector("polygon")?.getAttribute("points")).toContain(
+      "180,0",
+    );
+    expect(container.querySelector(".overlay-block-chrome")).toBeNull();
+  });
+
   it.each([
     { renderDirection: "vertical" as const, translatedText: "세로" },
     { renderDirection: "horizontal" as const, translatedText: "두\n줄" },
@@ -132,10 +175,12 @@ function renderOverlay({
   onTransformPointerDown = vi.fn<
     (event: React.PointerEvent, mode: DragMode) => void
   >(),
+  showChrome = true,
   transformMode = "select",
 }: {
   block?: TranslationBlock;
   onTransformPointerDown?: (event: React.PointerEvent, mode: DragMode) => void;
+  showChrome?: boolean;
   transformMode?: "select" | "perspective" | "curve";
 } = {}): ReturnType<typeof render> {
   return render(
@@ -158,7 +203,7 @@ function renderOverlay({
         onTransformPointerDown={onTransformPointerDown}
         pageSize={{ width: 1000, height: 1000 }}
         selected
-        showChrome
+        showChrome={showChrome}
         stageSize={{ width: 500, height: 500 }}
         textLayoutStageSize={{ width: 500, height: 500 }}
         transformMode={transformMode}

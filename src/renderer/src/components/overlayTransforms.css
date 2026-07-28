@@ -22,6 +22,33 @@
   pointer-events: none;
 }
 
+.bubble-layout-guide {
+  position: absolute;
+  inset: -1px;
+  z-index: 6;
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
+  overflow: visible;
+  pointer-events: none;
+  filter: drop-shadow(0 0 1px rgba(5, 10, 18, 0.92))
+    drop-shadow(0 0 5px rgba(70, 211, 196, 0.24));
+}
+
+.bubble-layout-guide polygon {
+  fill: rgba(68, 214, 193, 0.12);
+  stroke: rgba(111, 238, 219, 0.98);
+  stroke-width: 2px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 8 5;
+  vector-effect: non-scaling-stroke;
+}
+
+.bubble-layout-guide.manual polygon {
+  fill: rgba(255, 180, 71, 0.1);
+  stroke: rgba(255, 191, 92, 0.98);
+}
+
 .overlay-block.transform-mode-perspective.selected,
 .overlay-block.transform-mode-curve.selected {
   outline: 0;

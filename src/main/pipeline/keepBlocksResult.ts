@@ -6,6 +6,7 @@ import {
 } from "../../shared/geometry";
 import type { TranslationBlock } from "../../shared/textTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
+import { applyNaturalTextLayout } from "../../shared/naturalTextLayout";
 import type { PreviousOverlayBlockForPrompt } from "../appSettings";
 import { tMain } from "./localization";
 import { buildPageWarnings } from "./overlayItems";
@@ -18,6 +19,11 @@ export type KeepBlocksMappingResult = {
   updatedCount: number;
   keptCount: number;
   droppedItemCount: number;
+};
+
+type KeepBlocksNaturalLayoutOptions = {
+  enabled?: boolean;
+  locale?: string;
 };
 
 export function shouldKeepExistingBlocks(
@@ -70,16 +76,19 @@ export function buildKeepBlocksCompletedPage({
   items,
   previousBlocks,
   soundDroppedCount,
+  naturalLayout,
 }: {
   page: MangaPage;
   items: OverlayItem[];
   previousBlocks: PreviousOverlayBlockForPrompt[];
   soundDroppedCount: number;
+  naturalLayout?: KeepBlocksNaturalLayoutOptions;
 }): { page: MangaPage; warnings: string[]; detail: string } {
   const mapping = applyOverlayItemsToExistingBlocks({
     page,
     items,
     previousBlocks,
+    naturalLayout,
   });
   return {
     page: {
@@ -132,10 +141,12 @@ export function applyOverlayItemsToExistingBlocks({
   page,
   items,
   previousBlocks,
+  naturalLayout,
 }: {
   page: MangaPage;
   items: OverlayItem[];
   previousBlocks: PreviousOverlayBlockForPrompt[];
+  naturalLayout?: KeepBlocksNaturalLayoutOptions;
 }): KeepBlocksMappingResult {
   const blockIndexByCandidateId = buildBlockIndexByCandidateId(
     page,
@@ -143,6 +154,9 @@ export function applyOverlayItemsToExistingBlocks({
   );
   const itemByBlockIndex = new Map<number, OverlayItem>();
   const unmatchedItems: OverlayItem[] = [];
+  const textRoleByBlockId = new Map(
+    previousBlocks.map((block) => [block.previousId, block.textRole] as const),
+  );
 
   for (const item of items) {
     const blockIndex = blockIndexByCandidateId.get(item.id);
@@ -159,11 +173,29 @@ export function applyOverlayItemsToExistingBlocks({
     if (!item) {
       return block;
     }
-    return {
+    const updated = {
       ...block,
       sourceText: item.jp.trim(),
       translatedText: item.ko.trim(),
       confidence: normalizeItemConfidence(item.confidence, block.confidence),
+    };
+    if (
+      !naturalLayout?.enabled ||
+      block.curveLayout ||
+      textRoleByBlockId.get(block.id) === "sound"
+    ) {
+      return updated;
+    }
+    const layout = applyNaturalTextLayout(updated, {
+      enabled: true,
+      pageSize: { width: page.width, height: page.height },
+      locale: naturalLayout.locale,
+      allowAutoVertical: false,
+      directionPreference: block.renderDirection,
+    });
+    return {
+      ...updated,
+      translatedText: layout.translatedText,
     };
   });
 

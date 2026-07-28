@@ -36,6 +36,10 @@ export function buildTranslatedPageResult({
       itemIndex,
       jobId,
       pageOptions.blockFormatDefaults,
+      {
+        enabled: pageOptions.naturalTextLayout,
+        locale: pageOptions.targetLanguage,
+      },
     ),
   );
   return {

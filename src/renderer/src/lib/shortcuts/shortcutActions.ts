@@ -196,7 +196,7 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
   },
   {
     id: "toggle-inpainting",
-    label: "현재 페이지 자동 지우기",
+    label: "현재 페이지 지우기",
     category: "inpaint",
     defaultCombo: "i",
     enabled: (c) => c.chapterOpen && !c.jobActive,

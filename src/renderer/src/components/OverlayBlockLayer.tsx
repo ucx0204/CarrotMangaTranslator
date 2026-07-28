@@ -81,6 +81,7 @@ const OverlayBlockLayerView = React.memo(function OverlayBlockLayerView({
           selected={block.id === selectedBlockId}
           multiSelected={multiSelectedIds?.has(block.id) ?? false}
           showChrome={showBlockChrome}
+          shapeEditMode={stageTool === "bubble" && block.id === selectedBlockId}
           textLayoutStageSize={stableTextLayoutStageSize}
           pointerDisabled={!showTextBlocks || (blockPointerDisabled ?? false)}
           textVisible={showTextBlocks}

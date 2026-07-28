@@ -23,7 +23,7 @@ import {
 } from "./pipeline/pageContextPersistence";
 import { preparePageOcrHints } from "./pipeline/pageOcrPreparation";
 import {
-  createDefaultWholePagePipelineDependencies,
+  createDefaultWholePagePipelineDependencies as createDependencies,
   type WholePagePipelineDependencies,
 } from "./pipeline/wholePagePipelinePorts";
 
@@ -45,6 +45,7 @@ export async function runWholePagePipeline(
     regionContext,
     writeStoryMemory = true,
     collectPageContext = false,
+    naturalTextLayout = false,
     canonicalPageIndexById,
   }: PipelineOptions,
   injectedDependencies?: WholePagePipelineDependencies,
@@ -52,8 +53,7 @@ export async function runWholePagePipeline(
   if (pages.length === 0) return { pages: [], warnings: [] };
 
   throwIfAborted(signal);
-  const dependencies =
-    injectedDependencies ?? createDefaultWholePagePipelineDependencies();
+  const dependencies = injectedDependencies ?? createDependencies();
   const { ocrHintsByPageId, run } = await prepareWholePageRun({
     jobId,
     emit,
@@ -66,8 +66,8 @@ export async function runWholePagePipeline(
     regionContext,
     dependencies,
   });
-  const warningCollector = createWarningCollector();
-  throwIfAborted(signal);
+  run.baseOptions.naturalTextLayout = naturalTextLayout || undefined;
+  const warningCollector = createPipelineWarnings(signal);
 
   const filtered = filterPagesByOcrText(pages, ocrHintsByPageId, {
     allowNoTextSkip: !collectPageContext && allowOcrNoTextSkip(run.baseOptions),
@@ -228,10 +228,8 @@ function emitPagesReadyWithoutModel(
   context: Parameters<typeof emitFinalizing>[0],
   count: number,
 ): void {
-  emitFinalizing(
-    context,
-    tMain("translation.progress.pagesReadyNoModel", { count }),
-  );
+  const message = tMain("translation.progress.pagesReadyNoModel", { count });
+  emitFinalizing(context, message);
 }
 
 /** OCR "텍스트 없음" 스킵은 일본어 원문에서만 허용한다. */
@@ -239,15 +237,19 @@ function allowOcrNoTextSkip(baseOptions: { sourceLanguage?: string }): boolean {
   return isJapaneseLanguageCode(baseOptions.sourceLanguage);
 }
 
+function createPipelineWarnings(signal: AbortSignal) {
+  const collector = createWarningCollector();
+  throwIfAborted(signal);
+  return collector;
+}
+
 function buildPipelineResult(
   pages: MangaPage[],
   filtered: ReturnType<typeof filterPagesByOcrText>,
   warningCollector: ReturnType<typeof createWarningCollector>,
 ): { pages: MangaPage[]; warnings: string[] } {
-  return {
-    pages: buildPipelinePages(pages, filtered.completedPagesById),
-    warnings: warningCollector.warnings,
-  };
+  const completedPages = buildPipelinePages(pages, filtered.completedPagesById);
+  return { pages: completedPages, warnings: warningCollector.warnings };
 }
 
 async function prepareWholePageRun({
@@ -407,8 +409,6 @@ async function translatePages({
 function pageContextDependencies(
   dependencies: WholePagePipelineDependencies,
 ): PageContextPersistenceDependencies {
-  return {
-    repository: dependencies.pageContext,
-    logger: { warn: dependencies.diagnostics.warn },
-  };
+  const { pageContext: repository, diagnostics } = dependencies;
+  return { repository, logger: { warn: diagnostics.warn } };
 }

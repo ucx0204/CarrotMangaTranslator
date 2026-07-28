@@ -77,11 +77,7 @@ export function useAppSessionShortcuts({
     "translate-all": () => void translationActions.runAnalysis("all"),
     "gather-text": () => uiState.setTextViewOpen(true),
     "cancel-job": () => chapter.bridgeActions.cancelJob(),
-    "toggle-inpainting": () => {
-      core.setRegionSelection(null);
-      uiState.selectWorkspaceTool("select");
-      void inpainting.inpaintingActions.runInpainting("page");
-    },
+    "toggle-inpainting": () => openCurrentPageEraseOptions(chapter),
     "history-undo": () => void workspaceHistory.undo(),
     "history-redo": () => void workspaceHistory.redo(),
     "delete-block": () => blockEditingActions.deleteSelectedBlock(),
@@ -103,4 +99,12 @@ export function useAppSessionShortcuts({
     handlers,
     overrides: chapter.settingsDialog.settings?.keybindings ?? {},
   });
+}
+
+function openCurrentPageEraseOptions(chapter: ChapterSessionController): void {
+  chapter.core.setRegionSelection(null);
+  chapter.uiState.selectWorkspaceTool("select");
+  chapter.uiState.setPeekOriginal(false);
+  chapter.uiState.setAutoInpaintingEntryScope("current");
+  chapter.uiState.setAutoInpaintingOptionsOpen(true);
 }

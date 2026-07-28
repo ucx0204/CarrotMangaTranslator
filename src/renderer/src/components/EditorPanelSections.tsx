@@ -1,21 +1,11 @@
 import React from "react";
-import { IconEraserOff } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import { useStickyTextareaHeight } from "../hooks/useStickyTextareaHeight";
 import { applyInlineMarkup } from "../lib/textareaMarkup";
 import { Button } from "./ui/Button";
-import { FieldSlider } from "./ui/FieldSlider";
 import { IconButton } from "./ui/IconButton";
-import {
-  BoldIcon,
-  CopyIcon,
-  ItalicIcon,
-  RestoreIcon,
-  TrashIcon,
-} from "./ui/icons";
-import type { BlockBackgroundApplyScope } from "../hooks/useApplyBlockBackgroundOpacityAction";
-import { BlockBackgroundApplyModal } from "./BlockBackgroundApplyModal";
+import { BoldIcon, ItalicIcon, RestoreIcon } from "./ui/icons";
 
 type BlockPatchHandler = (patch: Partial<TranslationBlock>) => void;
 
@@ -25,64 +15,31 @@ type BlockSectionProps = {
   onUpdate: BlockPatchHandler;
 };
 
-export function InpaintingBlockOption({
-  block,
+export function BubbleLayoutOption({
   disabled,
-  onUpdate,
-}: BlockSectionProps): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <div className="editor-inpainting-group">
-      <label className="editor-inpainting-option">
-        <IconEraserOff size={19} stroke={2.1} aria-hidden="true" />
-        <strong>{t("editor.inpainting.exclude")}</strong>
-        <input
-          type="checkbox"
-          checked={Boolean(block.inpaintExcluded)}
-          disabled={disabled}
-          onChange={(event) =>
-            onUpdate({ inpaintExcluded: event.target.checked })
-          }
-        />
-      </label>
-    </div>
-  );
-}
-
-export function EmptyEditorPanel({
-  areaTranslateAvailable,
-  areaTranslateSelecting,
-  disabled,
-  headerActions,
-  onStartAreaTranslate,
+  onRemove,
 }: {
-  areaTranslateAvailable: boolean;
-  areaTranslateSelecting: boolean;
   disabled: boolean;
-  headerActions?: React.ReactNode;
-  onStartAreaTranslate?: () => void;
+  onRemove: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <section className="editor-panel muted">
-      <header className="editor-panel-header">
-        <h2>{t("common.blocks")}</h2>
-        {headerActions ? (
-          <div className="editor-panel-header-actions">{headerActions}</div>
-        ) : null}
-      </header>
-      <button
-        className={`area-translate-button ${areaTranslateSelecting ? "active" : ""}`}
-        disabled={disabled || !areaTranslateAvailable}
-        onClick={onStartAreaTranslate}
+    <div className="editor-bubble-layout-status">
+      <strong role="status">
+        {t("editor.bubbleLayout.active", {
+          defaultValue: "말풍선 맞춤 적용됨",
+        })}
+      </strong>
+      <Button
+        size="sm"
+        variant="secondary"
+        iconLeft={<RestoreIcon size={15} />}
+        disabled={disabled}
+        onClick={onRemove}
       >
-        {t(
-          areaTranslateSelecting
-            ? "areaTranslation.cancelSelection"
-            : "areaTranslation.title",
-        )}
-      </button>
-    </section>
+        {t("editor.bubbleLayout.remove")}
+      </Button>
+    </div>
   );
 }
 
@@ -98,6 +55,8 @@ export function TextEditorGroup({
     useStickyTextareaHeight("editor.textareaHeight.source");
   const translatedRef = React.useRef<HTMLTextAreaElement | null>(null);
   const sourceRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const [helpOpen, setHelpOpen] = React.useState(false);
+  const markupHelpId = React.useId();
   const drafts = useBlockTextDrafts(block, onUpdate, translatedRef, sourceRef);
   const setTranslatedRef = React.useCallback(
     (element: HTMLTextAreaElement | null) => {
@@ -119,39 +78,64 @@ export function TextEditorGroup({
   }, [resetTranslatedHeight, resetSourceHeight]);
 
   return (
-    <div className="editor-group">
+    <div className="editor-group editor-text-group">
       <div className="editor-group-head">
-        <h3>{t("editor.text")}</h3>
+        <h3>{t("editor.translatedText")}</h3>
         <TextMarkupToolbar
           disabled={disabled}
+          helpId={markupHelpId}
+          helpOpen={helpOpen}
           onWrap={drafts.wrapTranslatedSelection}
           onResetHeights={resetTextareaHeights}
+          onToggleHelp={() => setHelpOpen((open) => !open)}
         />
       </div>
-      <label>
-        {t("editor.translatedText")}
-        <textarea
-          ref={setTranslatedRef}
-          value={drafts.translated}
-          disabled={disabled}
-          onChange={(event) => drafts.changeTranslated(event.target.value)}
-        />
-      </label>
-      <p className="muted-line markup-hint">
-        {t("editor.markupHint.emphasis")} <code>**{t("format.bold")}**</code>,{" "}
-        <code>*{t("format.italicShort")}*</code> ·{" "}
-        {t("editor.markupHint.escape")} <code>\*</code>
-      </p>
-      <label>
-        OCR
-        <textarea
-          ref={setSourceRef}
-          value={drafts.source}
-          disabled={disabled}
-          onChange={(event) => drafts.changeSource(event.target.value)}
-        />
-      </label>
+      <textarea
+        ref={setTranslatedRef}
+        aria-label={t("editor.translatedText")}
+        value={drafts.translated}
+        disabled={disabled}
+        onChange={(event) => drafts.changeTranslated(event.target.value)}
+      />
+      {helpOpen ? (
+        <p className="muted-line markup-hint" id={markupHelpId}>
+          {t("editor.markupHint.emphasis")} <code>**{t("format.bold")}**</code>,{" "}
+          <code>*{t("format.italicShort")}*</code> ·{" "}
+          {t("editor.markupHint.escape")} <code>\*</code>
+        </p>
+      ) : null}
+      <SourceTextField
+        disabled={disabled}
+        refCallback={setSourceRef}
+        value={drafts.source}
+        onChange={drafts.changeSource}
+      />
     </div>
+  );
+}
+
+function SourceTextField({
+  disabled,
+  refCallback,
+  value,
+  onChange,
+}: {
+  disabled: boolean;
+  refCallback: (element: HTMLTextAreaElement | null) => void;
+  value: string;
+  onChange: (value: string) => void;
+}): React.JSX.Element {
+  return (
+    <label className="editor-source-field">
+      <span>OCR</span>
+      <textarea
+        ref={refCallback}
+        aria-label="OCR"
+        value={value}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </label>
   );
 }
 
@@ -245,123 +229,62 @@ function useBlockTextDrafts(
 
 function TextMarkupToolbar({
   disabled,
+  helpId,
+  helpOpen,
   onWrap,
   onResetHeights,
+  onToggleHelp,
 }: {
   disabled: boolean;
+  helpId: string;
+  helpOpen: boolean;
   onWrap: (marker: string) => void;
   onResetHeights: () => void;
+  onToggleHelp: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <div className="block-style-group">
-      <IconButton
-        size="sm"
-        label={t("editor.markupToolbar.boldLabel")}
-        title={t("editor.markupToolbar.boldTitle")}
-        disabled={disabled}
-        onClick={() => onWrap("**")}
-      >
-        <BoldIcon size={14} />
-      </IconButton>
-      <IconButton
-        size="sm"
-        label={t("editor.markupToolbar.italicLabel")}
-        title={t("editor.markupToolbar.italicTitle")}
-        disabled={disabled}
-        onClick={() => onWrap("*")}
-      >
-        <ItalicIcon size={14} />
-      </IconButton>
-      <IconButton
-        size="sm"
-        label={t("editor.markupToolbar.resetHeight")}
-        title={t("editor.markupToolbar.resetHeight")}
-        onClick={onResetHeights}
-      >
-        <RestoreIcon size={14} />
-      </IconButton>
-    </div>
-  );
-}
-
-export function BlockDisplayGroup({
-  block,
-  disabled,
-  disableChapterApply,
-  onApply,
-  onUpdate,
-}: BlockSectionProps & {
-  disableChapterApply: boolean;
-  onApply?: (scope: BlockBackgroundApplyScope) => void;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  const [batchOpen, setBatchOpen] = React.useState(false);
-  return (
-    <div className="editor-group editor-display-group">
-      <div className="editor-group-head">
-        <h3>{t("editor.display.title")}</h3>
-        {onApply ? (
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={disabled}
-            onClick={() => setBatchOpen(true)}
-          >
-            {t("editor.display.batchApply")}
-          </Button>
-        ) : null}
+    <div className="editor-inline-toolbar">
+      <span>{t("editor.markupHint.emphasis")}</span>
+      <div className="block-style-group">
+        <IconButton
+          size="sm"
+          label={t("editor.markupToolbar.boldLabel")}
+          title={t("editor.markupToolbar.boldTitle")}
+          disabled={disabled}
+          onClick={() => onWrap("**")}
+        >
+          <BoldIcon size={14} />
+        </IconButton>
+        <IconButton
+          size="sm"
+          label={t("editor.markupToolbar.italicLabel")}
+          title={t("editor.markupToolbar.italicTitle")}
+          disabled={disabled}
+          onClick={() => onWrap("*")}
+        >
+          <ItalicIcon size={14} />
+        </IconButton>
+        <IconButton
+          size="sm"
+          label={t("editor.markupToolbar.resetHeight")}
+          title={t("editor.markupToolbar.resetHeight")}
+          onClick={onResetHeights}
+        >
+          <RestoreIcon size={14} />
+        </IconButton>
+        <IconButton
+          size="sm"
+          label={t("editor.markupToolbar.help", {
+            defaultValue: "부분 강조 도움말",
+          })}
+          aria-controls={helpId}
+          aria-expanded={helpOpen}
+          onClick={onToggleHelp}
+        >
+          <span aria-hidden="true">?</span>
+        </IconButton>
       </div>
-      <FieldSlider
-        label={t("format.blockBackgroundOpacity")}
-        valueLabel={`${Math.round(block.opacity * 100)}%`}
-        min={0}
-        max={1}
-        step={0.01}
-        value={block.opacity}
-        disabled={disabled}
-        onChange={(event) => onUpdate({ opacity: Number(event.target.value) })}
-      />
-      {batchOpen && onApply ? (
-        <BlockBackgroundApplyModal
-          disableChapterApply={disableChapterApply}
-          onApply={onApply}
-          onClose={() => setBatchOpen(false)}
-        />
-      ) : null}
-    </div>
-  );
-}
-
-export function BlockActionButtons({
-  disabled,
-  onDelete,
-  onDuplicate,
-}: {
-  disabled: boolean;
-  onDelete: () => void;
-  onDuplicate: () => void;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <div className="block-actions">
-      <Button
-        fullWidth
-        iconLeft={<CopyIcon size={15} />}
-        onClick={onDuplicate}
-        disabled={disabled}
-      >
-        {t("common.duplicate")}
-      </Button>
-      <Button
-        variant="danger"
-        fullWidth
-        iconLeft={<TrashIcon size={15} />}
-        onClick={onDelete}
-        disabled={disabled}
-      >
-        {t("common.delete")}
-      </Button>
     </div>
   );
 }

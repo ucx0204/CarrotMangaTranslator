@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { AnalysisBlockMode } from "../../../shared/analysisTypes";
 import type { UiSettings } from "../../../shared/settingsTypes";
 import { getBlockModeOptions } from "../lib/blockModeOptions";
-import { OptionRow } from "./TranslationOptionsModal";
+import { OptionRow } from "./TranslationOptionControls";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
 
@@ -18,8 +18,10 @@ export function PageRetranslateModal({
   pageName: string;
   blockCount: number;
   uiSettings: UiSettings | undefined;
-  onStart: (blockMode: AnalysisBlockMode) => void;
-  onPersistDefaults: (patch: Pick<UiSettings, "blockModeDefault">) => void;
+  onStart: (blockMode: AnalysisBlockMode, naturalTextLayout: boolean) => void;
+  onPersistDefaults: (
+    patch: Pick<UiSettings, "blockModeDefault" | "naturalTextLayoutDefault">,
+  ) => void;
   onClose: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
@@ -27,10 +29,16 @@ export function PageRetranslateModal({
   const [blockMode, setBlockMode] = React.useState<AnalysisBlockMode>(
     uiSettings?.blockModeDefault ?? "auto",
   );
+  const [naturalTextLayout, setNaturalTextLayout] = React.useState(
+    uiSettings?.naturalTextLayoutDefault ?? true,
+  );
 
   const handleStart = (): void => {
-    onPersistDefaults({ blockModeDefault: blockMode });
-    onStart(blockMode);
+    onPersistDefaults({
+      blockModeDefault: blockMode,
+      naturalTextLayoutDefault: naturalTextLayout,
+    });
+    onStart(blockMode, naturalTextLayout);
     onClose();
   };
 
@@ -64,10 +72,40 @@ export function PageRetranslateModal({
             ? t("retranslate.keepBlocksHint")
             : t("retranslate.autoBlocksHint")}
         </p>
+        <NaturalTextLayoutOption
+          enabled={naturalTextLayout}
+          onChange={setNaturalTextLayout}
+        />
         <p className="translate-options-hint">
           {t("retranslate.overwriteWarning")}
         </p>
       </div>
     </Modal>
+  );
+}
+
+function NaturalTextLayoutOption({
+  enabled,
+  onChange,
+}: {
+  enabled: boolean;
+  onChange: (enabled: boolean) => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <>
+      <OptionRow
+        label={t("translationOptions.naturalTextLayout")}
+        options={[
+          { id: "off", label: t("translationOptions.naturalTextLayoutOff") },
+          { id: "on", label: t("translationOptions.naturalTextLayoutOn") },
+        ]}
+        value={enabled ? "on" : "off"}
+        onChange={(value) => onChange(value === "on")}
+      />
+      <p className="translate-options-hint">
+        {t("translationOptions.naturalTextLayoutHint")}
+      </p>
+    </>
   );
 }

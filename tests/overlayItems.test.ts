@@ -5,6 +5,7 @@ import {
 } from "../src/main/pipeline/overlayItems";
 import type { MangaPage } from "../src/shared/libraryTypes";
 import type { OverlayItem } from "../src/main/pipeline/types";
+import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../src/shared/blockFormat";
 
 describe("overlay item conversion", () => {
   it("renders ordinary speech/caption horizontally even when Japanese OCR direction is vertical", () => {
@@ -164,6 +165,85 @@ describe("overlay item conversion", () => {
 
     expect(result.droppedCount).toBe(0);
     expect(result.items.map((item) => item.id)).toEqual([1]);
+  });
+
+  it("applies natural hard breaks without changing the wrapping policy", () => {
+    const defaults = {
+      ...DEFAULT_BLOCK_FORMAT_DEFAULTS,
+      renderDirection: "horizontal" as const,
+      wordBreak: "keep-all" as const,
+    };
+    const block = overlayItemToBlock(
+      {
+        id: 1,
+        type: "nonsolid",
+        textRole: "ordinary",
+        bbox: { x: 100, y: 100, w: 72, h: 180 },
+        jp: "超人工知能翻訳技術",
+        ko: "초인공지능번역기술",
+        direction: "horizontal",
+        fontSize: 20,
+        confidence: 1,
+      },
+      makePage(),
+      0,
+      undefined,
+      defaults,
+      { enabled: true, locale: "ko" },
+    );
+
+    expect(block.translatedText).toBe("초인공지능번역기술");
+    expect(block.wordBreak).toBe("keep-all");
+    expect(block.renderDirection).toBe("horizontal");
+  });
+
+  it("applies natural hard breaks when no wrapping default is materialized", () => {
+    const block = overlayItemToBlock(
+      {
+        id: 1,
+        type: "nonsolid",
+        textRole: "ordinary",
+        bbox: { x: 100, y: 100, w: 100, h: 120 },
+        jp: "既存ブロックの折り返し設定はそのままです",
+        ko: "기존 블록의 줄바꿈 서식은 그대로 둡니다",
+        direction: "horizontal",
+        fontSize: 20,
+        confidence: 1,
+      },
+      makePage(),
+      0,
+      undefined,
+      undefined,
+      { enabled: true, locale: "ko" },
+    );
+
+    expect(block.translatedText).toContain("\n");
+    expect(block.wordBreak).toBeUndefined();
+    expect(block.renderDirection).toBe("horizontal");
+  });
+
+  it("auto-selects vertical only for a one-column ordinary block", () => {
+    const block = overlayItemToBlock(
+      {
+        id: 1,
+        type: "nonsolid",
+        textRole: "ordinary",
+        bbox: { x: 100, y: 100, w: 25, h: 300 },
+        jp: "縦書き",
+        ko: "세로쓰기",
+        direction: "vertical",
+        fontSize: 20,
+        confidence: 1,
+      },
+      makePage(),
+      0,
+      undefined,
+      undefined,
+      { enabled: true, locale: "ko" },
+    );
+
+    expect(block.renderDirection).toBe("vertical");
+    expect(block.translatedText).toBe("세로쓰기");
   });
 });
 

@@ -1,3 +1,5 @@
+import type { BubbleLayout } from "./bubbleLayout";
+
 export type BlockType = "nonsolid";
 
 export type SourceTextDirection = "horizontal" | "vertical";
@@ -48,6 +50,11 @@ export type TranslationBlock = {
   renderBbox?: BBox;
   bboxSpace?: "normalized_1000" | "pixels";
   renderBboxSpace?: "normalized_1000" | "pixels";
+  /**
+   * Shape-aware usable text regions relative to `renderBbox ?? bbox`.
+   * This is per-block geometry, not a reusable formatting default.
+   */
+  bubbleLayout?: BubbleLayout;
   sourceText: string;
   translatedText: string;
   confidence: number;

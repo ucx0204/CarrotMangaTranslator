@@ -125,6 +125,9 @@ export const AppSettingsSchema = z
           .optional(),
         analysisScopeDefault: z.enum(["work", "missing", "chapter"]).optional(),
         blockModeDefault: z.enum(["auto", "keep"]).optional(),
+        naturalTextLayoutDefault: z.boolean().optional(),
+        eraseOriginalWorkflowDefault: z.boolean().optional(),
+        bubbleLayoutWorkflowDefault: z.boolean().optional(),
       })
       .strict()
       .optional(),
@@ -134,6 +137,7 @@ export const AppSettingsSchema = z
         fluxBackend: FluxBackendSchema.optional(),
         koharuBackend: KoharuInpaintingBackendSchema.optional(),
         allowUnsafeLowMemoryFlux: z.boolean().optional(),
+        bubbleLayoutAfterInpainting: z.boolean().optional(),
       })
       .strict()
       .optional(),

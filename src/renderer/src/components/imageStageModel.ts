@@ -35,6 +35,7 @@ export function resolveStageClassName({
     stageTool === "block" ? "stage-tool-block" : "",
     stageTool === "perspective" ? "stage-tool-perspective" : "",
     stageTool === "curve" ? "stage-tool-curve" : "",
+    stageTool === "bubble" ? "stage-tool-bubble" : "",
   ]
     .filter(Boolean)
     .join(" ");

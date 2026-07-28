@@ -25,6 +25,7 @@ type RunAnalysisDependencies = {
   blockModeDefault: NonNullable<
     UseTranslationActionsOptions["blockModeDefault"]
   >;
+  naturalTextLayoutDefault: boolean;
 };
 
 type DirectAnalysisRequest = {
@@ -33,19 +34,28 @@ type DirectAnalysisRequest = {
   chapterId?: string;
   blockMode?: AnalysisBlockMode;
   collectPageContext?: boolean;
+  naturalTextLayout?: boolean;
 };
 
 export function useRunAnalysisAction(
   dependencies: RunAnalysisDependencies,
 ): TranslationActions["runAnalysis"] {
   return useCallback(
-    (runMode, pageId, chapterId, blockMode, collectPageContext) =>
+    (
+      runMode,
+      pageId,
+      chapterId,
+      blockMode,
+      collectPageContext,
+      naturalTextLayout,
+    ) =>
       runDirectAnalysis(dependencies, {
         runMode,
         pageId,
         chapterId,
         blockMode,
         collectPageContext,
+        naturalTextLayout,
       }),
     [dependencies],
   );
@@ -66,6 +76,8 @@ async function runDirectAnalysis(
       workflowMode: "two-pass",
       analysisScope: dependencies.analysisScopeDefault,
       blockMode: request.blockMode ?? dependencies.blockModeDefault,
+      naturalTextLayout:
+        request.naturalTextLayout ?? dependencies.naturalTextLayoutDefault,
     });
   }
   return dependencies.executeAnalysisJob({
@@ -74,6 +86,8 @@ async function runDirectAnalysis(
     collectPageContext:
       request.collectPageContext ??
       dependencies.translationWorkflowDefault === "cumulative",
+    naturalTextLayout:
+      request.naturalTextLayout ?? dependencies.naturalTextLayoutDefault,
   });
 }
 

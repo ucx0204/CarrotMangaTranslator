@@ -82,6 +82,8 @@
   },
   "workspaceActions": {
     "label": "畫布操作",
+    "showTranslations": "顯示譯文",
+    "showEditingChrome": "背景／邊框",
     "undo": "復原（Ctrl+Z）",
     "redo": "重做（Ctrl+Y / Ctrl+Shift+Z）",
     "undoNamed": "復原{{action}}（Ctrl+Z）",
@@ -109,6 +111,9 @@
     "bold": "粗體",
     "italic": "斜體",
     "italicShort": "斜體",
+    "blockStyle": "整個文字區塊",
+    "blockBold": "整區塊粗體",
+    "blockItalic": "整區塊斜體",
     "align": { "left": "靠左對齊", "center": "置中", "right": "靠右對齊" },
     "direction": { "horizontal": "橫排", "vertical": "直排" },
     "size": "大小",
@@ -238,6 +243,14 @@
   "editor": {
     "text": "文字",
     "translatedText": "譯文",
+    "moreActions": "更多文字區塊操作",
+    "sourceEmpty": "無 OCR 文字",
+    "tabs": {
+      "label": "文字區塊編輯區域",
+      "text": "文字",
+      "layout": "配置",
+      "format": "格式"
+    },
     "blockColors": "文字區塊顏色",
     "swapTextOutlineColors": "交換文字色與描邊色",
     "display": {
@@ -251,12 +264,18 @@
       "exclude": "從自動清除中排除",
       "excludeHint": "自動修補不會清除這個文字區塊內的文字。"
     },
+    "bubbleLayout": {
+      "active": "已套用對話框適配",
+      "remove": "取消對話框適配",
+      "removeHint": "移除自動或手動設定的對話框區域，並恢復為原始OCR文字區域。"
+    },
     "markupHint": { "emphasis": "局部強調：", "escape": "輸入星號請使用" },
     "markupToolbar": {
       "boldLabel": "粗體（**粗體**）",
       "boldTitle": "將所選文字設為粗體（**粗體**）",
       "italicLabel": "斜體（*斜體*）",
       "italicTitle": "將所選文字設為斜體（*斜體*）",
+      "help": "局部強調說明",
       "resetHeight": "重設輸入框高度"
     }
   },
@@ -346,11 +365,20 @@
     "noSelectedPages": "未選擇頁面。",
     "selectionSummary": "{{chapterCount}}話 · {{pageCount}}頁",
     "start": "開始自動清除",
-    "workUnavailable": "無法載入作品資訊。將只處理目前頁面。"
+    "workUnavailable": "無法載入作品資訊。將只處理目前頁面。",
+    "currentPageSummary": "只清除目前頁面。",
+    "allPagesSummary": "清除目前章節的全部{{count}}頁。",
+    "bubbleLayout": "清除後適配對話框",
+    "bubbleLayoutHint": "從清除後的圖片偵測對話框區域，並自動調整譯文排版。"
   },
   "translationOptions": {
     "start": "開始翻譯",
     "workUnavailable": "無法載入作品資訊。將只翻譯目前章節。",
+    "sections": {
+      "quality": "翻譯品質",
+      "blockLayout": "文字區塊與分行",
+      "completion": "完成處理"
+    },
     "workflowMode": "翻譯方式",
     "workflowOptions": {
       "standard": {
@@ -373,6 +401,33 @@
       "work": "從頭重新分析",
       "missing": "僅空白章節",
       "chapter": "僅目前章節"
+    },
+    "blockModeSummaries": {
+      "auto": "自動偵測每頁的文字區塊。",
+      "keep": "保留現有文字區塊的範圍和格式。"
+    },
+    "naturalTextLayout": "自然分行",
+    "naturalTextLayoutOff": "關閉",
+    "naturalTextLayoutOn": "開啟",
+    "naturalTextLayoutHint": "依文字區塊大小直接在譯文中加入換行。特別窄而高的新文字區塊只有在單欄可容納時才會切換為直排，且不會更改文字區塊的自動換行方式。",
+    "naturalTextLayoutSummaries": {
+      "off": "由文字區塊自行處理譯文換行。",
+      "on": "依文字區塊大小整理譯文換行。"
+    },
+    "completionMode": "完成方式",
+    "completionModeTranslate": "僅翻譯",
+    "completionModeErase": "清除原文",
+    "completionModeSummaries": {
+      "translate": "僅完成翻譯，保留原始圖像。",
+      "erase": "翻譯後自動清除所選頁面的原文。"
+    },
+    "bubbleLayoutWorkflow": "對話框適配",
+    "bubbleLayoutWorkflowOff": "關閉",
+    "bubbleLayoutWorkflowOn": "開啟",
+    "bubbleLayoutWorkflowHint": "清除原文後，將譯文文字區塊自然地適配到對話框內。",
+    "bubbleLayoutWorkflowSummaries": {
+      "off": "僅清除原文，保留目前的文字區塊配置。",
+      "on": "清除原文後，將譯文適配到對話框內。"
     },
     "keepBlocksHint": "已有文字區塊的頁面會保留區域和格式，只重新填入文字。沒有文字區塊的頁面會自動產生。"
   },
@@ -479,7 +534,11 @@
     "inProgressShort": "進行",
     "erased": "已擦除"
   },
-  "runPanel": { "openChapterHint": "請從資料庫開啟一個章節。" },
+  "runPanel": {
+    "openChapterHint": "請從資料庫開啟一個章節。",
+    "chapterTools": "章節工具",
+    "currentPage": "目前頁面"
+  },
   "areaTranslation": { "title": "區域翻譯", "cancelSelection": "取消選擇" },
   "stageToolbar": {
     "show": "顯示工具列",
@@ -488,6 +547,16 @@
     "hideTitle": "隱藏工具列（4）",
     "imageTools": "影像工具",
     "radius": "{{radius}}px",
+    "groups": {
+      "textShape": {
+        "label": "文字形狀",
+        "title": "透視、曲線與對話框區域工具"
+      },
+      "retouch": {
+        "label": "影像修補",
+        "title": "遮罩、筆刷、形狀與還原工具"
+      }
+    },
     "tools": {
       "select": { "label": "選取", "title": "選取工具（1）" },
       "block": {
@@ -507,6 +576,10 @@
         "label": "曲線",
         "title": "曲線文字 — 讓效果音沿路徑排列"
       },
+      "bubble": {
+        "label": "對話框區域",
+        "title": "手動指定所選文字區塊的對話框區域 — 逐點描邊後按 Enter 套用"
+      },
       "mask": { "label": "遮罩", "title": "遮罩畫筆" },
       "brush": { "label": "畫筆", "title": "修整畫筆" },
       "rectangle": { "label": "矩形", "title": "用實心矩形覆蓋" },
@@ -514,6 +587,28 @@
       "eraser": { "label": "橡皮擦", "title": "清除修整筆觸" },
       "picker": { "label": "取色", "title": "從畫布取色" }
     }
+  },
+  "bubbleLayoutEditor": {
+    "title": "編輯對話框形狀",
+    "emptyHint": "沿對話框內側逐點描邊。",
+    "activeHint": "{{count}} 個點 · Enter 套用 · Backspace 復原一個點",
+    "addHint": "從目前形狀的邊緣向外塗刷以擴展區域。",
+    "subtractHint": "在不切斷形狀的前提下向內塗刷修剪。",
+    "modeLabel": "對話框形狀編輯模式",
+    "modes": {
+      "polygon": "多邊形",
+      "add": "＋ 擴展",
+      "subtract": "− 修剪"
+    },
+    "rejections": {
+      "detached": "請先接觸目前形狀再向外擴展。",
+      "disconnect": "修剪會切斷形狀，已復原。",
+      "empty": "此筆刷沒有改變形狀。",
+      "invalid": "無法套用此筆刷操作。"
+    },
+    "radius": "筆刷",
+    "undo": "復原",
+    "apply": "套用"
   },
   "display": {
     "title": "顯示",
@@ -842,11 +937,14 @@
     },
     "auto": {
       "description": "先自動清除原文文字。可以逐頁處理，也可以一次處理所有剩餘頁面。",
-      "currentPageAction": "自動清除目前頁面",
+      "currentPageAction": "清除目前頁面",
+      "eraseShort": "清除目前頁面",
       "moreActions": "更多自動清除操作",
-      "commandHint": "主按鈕只處理目前頁面。僅在需要時選擇頁面範圍。",
-      "selectMultiplePages": "選擇多個頁面…",
-      "guideAction": "自動清除使用指南",
+      "allPagesErase": "清除全部頁面",
+      "selectPagesErase": "選擇要清除的頁面",
+      "bubbleLayoutAction": "自動偵測目前頁面的對話框",
+      "bubbleLayoutShort": "對話框適配",
+      "bubbleLayoutRequiresBlocks": "請先清除目前頁面。",
       "nextRetouch": "下一步：修整 →",
       "noOpenChapter": "尚未開啟章節。",
       "remainingSummary": "剩餘 {{pendingPages}}／{{totalPages}}頁 · {{blockCount}}個文字區塊",

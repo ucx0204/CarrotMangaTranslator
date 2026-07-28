@@ -9,6 +9,7 @@ import type { WorkspaceInteractionPreviewStore } from "../lib/workspaceInteracti
 export type ImageStageProps = {
   page: MangaPage;
   imageDataUrl: string;
+  imageLoading?: boolean;
   imageRef: React.RefObject<HTMLImageElement | null>;
   stageRef: React.RefObject<HTMLDivElement | null>;
   stageSize: ViewportSize | null;
@@ -34,6 +35,9 @@ export type ImageStageProps = {
   onStagePointerUp: (event: React.PointerEvent) => void;
   onStagePointerDown: (event: React.PointerEvent) => void;
   onStagePointerLeave?: (event: React.PointerEvent) => void;
+  onApplyBubbleLayoutDraft?: () => void;
+  onCancelBubbleLayoutDraft?: () => void;
+  onUndoBubbleLayoutPoint?: () => void;
   onBlockPointerDown: (
     event: React.PointerEvent,
     block: TranslationBlock,

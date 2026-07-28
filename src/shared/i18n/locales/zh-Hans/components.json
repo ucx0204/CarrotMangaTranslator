@@ -82,6 +82,8 @@
   },
   "workspaceActions": {
     "label": "画布操作",
+    "showTranslations": "显示译文",
+    "showEditingChrome": "背景/边框",
     "undo": "撤销（Ctrl+Z）",
     "redo": "重做（Ctrl+Y / Ctrl+Shift+Z）",
     "undoNamed": "撤销{{action}}（Ctrl+Z）",
@@ -109,6 +111,9 @@
     "bold": "粗体",
     "italic": "斜体",
     "italicShort": "斜体",
+    "blockStyle": "整个文本块",
+    "blockBold": "整块加粗",
+    "blockItalic": "整块斜体",
     "align": { "left": "左对齐", "center": "居中", "right": "右对齐" },
     "direction": { "horizontal": "横排", "vertical": "竖排" },
     "size": "大小",
@@ -238,6 +243,14 @@
   "editor": {
     "text": "文本",
     "translatedText": "译文",
+    "moreActions": "更多文本块操作",
+    "sourceEmpty": "无 OCR 文本",
+    "tabs": {
+      "label": "文本块编辑区域",
+      "text": "文本",
+      "layout": "布局",
+      "format": "格式"
+    },
     "blockColors": "文本块颜色",
     "swapTextOutlineColors": "交换文字色与描边色",
     "display": {
@@ -251,12 +264,18 @@
       "exclude": "从自动擦除中排除",
       "excludeHint": "自动修复不会擦除这个文本块内的文字。"
     },
+    "bubbleLayout": {
+      "active": "已应用气泡适配",
+      "remove": "取消气泡适配",
+      "removeHint": "移除自动或手动设置的气泡区域，并恢复为原始OCR文本区域。"
+    },
     "markupHint": { "emphasis": "局部强调：", "escape": "输入星号请使用" },
     "markupToolbar": {
       "boldLabel": "粗体（**粗体**）",
       "boldTitle": "将所选文字设为粗体（**粗体**）",
       "italicLabel": "斜体（*斜体*）",
       "italicTitle": "将所选文字设为斜体（*斜体*）",
+      "help": "局部强调帮助",
       "resetHeight": "重置输入框高度"
     }
   },
@@ -346,11 +365,20 @@
     "noSelectedPages": "未选择页面。",
     "selectionSummary": "{{chapterCount}}话 · {{pageCount}}页",
     "start": "开始自动擦除",
-    "workUnavailable": "无法加载作品信息。将只处理当前页面。"
+    "workUnavailable": "无法加载作品信息。将只处理当前页面。",
+    "currentPageSummary": "仅擦除当前页面。",
+    "allPagesSummary": "擦除当前章节的全部{{count}}页。",
+    "bubbleLayout": "擦除后适配气泡",
+    "bubbleLayoutHint": "从擦除后的图像中检测气泡区域，并自动调整译文排版。"
   },
   "translationOptions": {
     "start": "开始翻译",
     "workUnavailable": "无法加载作品信息。将只翻译当前章节。",
+    "sections": {
+      "quality": "翻译质量",
+      "blockLayout": "文本块与分行",
+      "completion": "完成处理"
+    },
     "workflowMode": "翻译方式",
     "workflowOptions": {
       "standard": {
@@ -373,6 +401,33 @@
       "work": "从头重新分析",
       "missing": "仅空白章节",
       "chapter": "仅当前章节"
+    },
+    "blockModeSummaries": {
+      "auto": "自动检测每页的文本块。",
+      "keep": "保留现有文本块的区域和格式。"
+    },
+    "naturalTextLayout": "自然分行",
+    "naturalTextLayoutOff": "关闭",
+    "naturalTextLayoutOn": "开启",
+    "naturalTextLayoutHint": "根据文本块大小直接在译文中加入换行。特别窄而高的新文本块只有在单列可容纳时才会切换为竖排，且不会更改文本块的自动换行方式。",
+    "naturalTextLayoutSummaries": {
+      "off": "由文本块自行处理译文换行。",
+      "on": "根据文本块大小整理译文换行。"
+    },
+    "completionMode": "完成方式",
+    "completionModeTranslate": "仅翻译",
+    "completionModeErase": "擦除原文",
+    "completionModeSummaries": {
+      "translate": "仅完成翻译，保留原始图像。",
+      "erase": "翻译后自动擦除所选页面的原文。"
+    },
+    "bubbleLayoutWorkflow": "气泡适配",
+    "bubbleLayoutWorkflowOff": "关闭",
+    "bubbleLayoutWorkflowOn": "开启",
+    "bubbleLayoutWorkflowHint": "擦除原文后，将译文文本块自然地适配到气泡内。",
+    "bubbleLayoutWorkflowSummaries": {
+      "off": "仅擦除原文，保留当前文本块布局。",
+      "on": "擦除原文后，将译文适配到气泡内。"
     },
     "keepBlocksHint": "已有文本块的页面会保留区域和格式，只重新填入文本。没有文本块的页面会自动生成。"
   },
@@ -479,7 +534,11 @@
     "inProgressShort": "进行中",
     "erased": "已擦除"
   },
-  "runPanel": { "openChapterHint": "请从资料库打开一个章节。" },
+  "runPanel": {
+    "openChapterHint": "请从资料库打开一个章节。",
+    "chapterTools": "章节工具",
+    "currentPage": "当前页"
+  },
   "areaTranslation": { "title": "区域翻译", "cancelSelection": "取消选择" },
   "stageToolbar": {
     "show": "显示工具栏",
@@ -488,6 +547,16 @@
     "hideTitle": "隐藏工具栏（4）",
     "imageTools": "图像工具",
     "radius": "{{radius}}px",
+    "groups": {
+      "textShape": {
+        "label": "文本形状",
+        "title": "透视、曲线和气泡区域工具"
+      },
+      "retouch": {
+        "label": "图像修补",
+        "title": "蒙版、画笔、形状和恢复工具"
+      }
+    },
     "tools": {
       "select": { "label": "选择", "title": "选择工具（1）" },
       "block": {
@@ -507,6 +576,10 @@
         "label": "曲线",
         "title": "曲线文字 — 让拟声词沿路径排列"
       },
+      "bubble": {
+        "label": "气泡区域",
+        "title": "手动指定所选文本块的气泡区域 — 逐点描边后按 Enter 应用"
+      },
       "mask": { "label": "蒙版", "title": "蒙版画笔" },
       "brush": { "label": "画笔", "title": "修整画笔" },
       "rectangle": { "label": "矩形", "title": "用实心矩形覆盖" },
@@ -514,6 +587,28 @@
       "eraser": { "label": "橡皮擦", "title": "清除修整笔触" },
       "picker": { "label": "取色", "title": "从画布取色" }
     }
+  },
+  "bubbleLayoutEditor": {
+    "title": "编辑气泡形状",
+    "emptyHint": "沿气泡内侧逐点描边。",
+    "activeHint": "{{count}} 个点 · Enter 应用 · Backspace 撤销一个点",
+    "addHint": "从当前形状的边缘向外涂刷以扩展区域。",
+    "subtractHint": "在不切断形状的前提下向内涂刷修剪。",
+    "modeLabel": "气泡形状编辑模式",
+    "modes": {
+      "polygon": "多边形",
+      "add": "＋ 扩展",
+      "subtract": "− 修剪"
+    },
+    "rejections": {
+      "detached": "请先接触当前形状再向外扩展。",
+      "disconnect": "修剪会切断形状，已撤销。",
+      "empty": "该画笔没有改变形状。",
+      "invalid": "无法应用该画笔操作。"
+    },
+    "radius": "画笔",
+    "undo": "撤销",
+    "apply": "应用"
   },
   "display": {
     "title": "显示",
@@ -842,11 +937,14 @@
     },
     "auto": {
       "description": "先自动清除原文文字。可以逐页处理，也可以一次处理所有剩余页面。",
-      "currentPageAction": "自动擦除当前页",
+      "currentPageAction": "擦除当前页",
+      "eraseShort": "擦除当前页",
       "moreActions": "更多自动擦除操作",
-      "commandHint": "主按钮只处理当前页。仅在需要时选择页面范围。",
-      "selectMultiplePages": "选择多个页面…",
-      "guideAction": "自动擦除使用指南",
+      "allPagesErase": "擦除全部页面",
+      "selectPagesErase": "选择要擦除的页面",
+      "bubbleLayoutAction": "自动检测当前页气泡",
+      "bubbleLayoutShort": "气泡适配",
+      "bubbleLayoutRequiresBlocks": "请先擦除当前页面。",
       "nextRetouch": "下一步：修整 →",
       "noOpenChapter": "未打开章节。",
       "remainingSummary": "剩余 {{pendingPages}} / {{totalPages}}页 · {{blockCount}}个文本块",

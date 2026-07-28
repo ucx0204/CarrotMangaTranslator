@@ -9,6 +9,8 @@ import type { TranslationWorkflowMode } from "../src/shared/settingsTypes";
 import type { UseTranslationActionsOptions } from "../src/renderer/src/hooks/translationActionTypes";
 
 const startAnalysis = vi.fn();
+const startInpainting = vi.fn();
+const openChapter = vi.fn();
 const analyzeWorkContext = vi.fn();
 const notificationMocks: NotificationPort = {
   error: vi.fn(),
@@ -20,7 +22,9 @@ const notificationMocks: NotificationPort = {
 beforeEach(() => {
   window.mangaApi = createTestMangaGatewayStub({
     analyzeWorkContext,
+    openChapter,
     startAnalysis,
+    startInpainting,
   });
 });
 
@@ -61,6 +65,8 @@ function makeChapter(): ChapterSnapshot {
 function makeOptions(): UseTranslationActionsOptions {
   const chapter = makeChapter();
   return {
+    clearPageImageCache: vi.fn(),
+    clearRetouchHistory: vi.fn(),
     clearStatusLines: vi.fn(),
     currentChapter: chapter,
     currentChapterRef: { current: chapter },
@@ -69,10 +75,12 @@ function makeOptions(): UseTranslationActionsOptions {
     mergeLiveChapter: vi.fn(),
     pushStatus: vi.fn(),
     refreshLibrary: vi.fn().mockResolvedValue(undefined),
+    recordImageEdit: vi.fn(),
     saveNow: vi.fn().mockResolvedValue(undefined),
     selectedPage: null,
     setCurrentChapter: vi.fn(),
     setFlowActive: vi.fn(),
+    setShowBlockChrome: vi.fn(),
     setJobState: vi.fn(),
     setSelectedBlockId: vi.fn(),
     syncSavedPageVersion: vi.fn(),
@@ -106,6 +114,293 @@ afterEach(() => {
 });
 
 describe("translation workflow modes", () => {
+  it("snapshots pending pages, then translates, inpaints, and lays them out", async () => {
+    const options = makeOptions();
+    const pendingSnapshot = {
+      ...makeChapter(),
+      pageOrder: ["page-1", "page-done"],
+      pages: [
+        makePage(),
+        {
+          ...makePage(),
+          id: "page-done",
+          name: "done.png",
+          analysisStatus: "completed" as const,
+        },
+      ],
+    };
+    const completedChapter = {
+      ...makeChapter(),
+      pages: [
+        {
+          ...makePage(),
+          analysisStatus: "completed" as const,
+          inpaintedImagePath: "C:/page-clean.png",
+        },
+      ],
+    };
+    openChapter.mockResolvedValue(pendingSnapshot);
+    startAnalysis.mockResolvedValue({ status: "completed" });
+    startInpainting.mockResolvedValue({
+      status: "completed",
+      chapters: [completedChapter],
+      historyTransaction: { transactionId: "tx-translation-layout" },
+    });
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
+
+    let outcome = "not-started";
+    await act(async () => {
+      outcome = await result.current.runTranslationFlow({
+        selection: [{ chapterId: "chapter-1", mode: "pending" }],
+        workflowMode: "cumulative",
+        analysisScope: "missing",
+        blockMode: "auto",
+        bubbleLayoutWorkflow: true,
+      });
+    });
+
+    expect(outcome).toBe("completed");
+    expect(openChapter).toHaveBeenCalledWith("chapter-1");
+    expect(startInpainting).toHaveBeenCalledWith({
+      mode: "selection-pattern",
+      workId: "work-1",
+      selections: [
+        {
+          chapterId: "chapter-1",
+          mode: "page-set",
+          pageIds: ["page-1"],
+        },
+      ],
+      postprocess: {
+        bubbleLayout: { enabled: true, policy: "balanced" },
+      },
+    });
+    expect(startAnalysis.mock.invocationCallOrder[0]).toBeLessThan(
+      startInpainting.mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(options.mergeLiveChapter).toHaveBeenCalledWith(completedChapter);
+    expect(options.clearRetouchHistory).toHaveBeenCalledOnce();
+    expect(options.recordImageEdit).toHaveBeenCalledWith({
+      label: "자동 지우기",
+      transactionId: "tx-translation-layout",
+    });
+    expect(options.setShowBlockChrome).toHaveBeenCalledWith(false);
+  });
+
+  it("can erase translated source text without running bubble postprocess", async () => {
+    const options = makeOptions();
+    startAnalysis.mockResolvedValue({ status: "completed" });
+    startInpainting.mockResolvedValue({
+      status: "completed",
+      chapters: [makeChapter()],
+    });
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
+
+    await act(async () => {
+      await result.current.runTranslationFlow({
+        selection: [{ chapterId: "chapter-1", mode: "all" }],
+        workflowMode: "cumulative",
+        analysisScope: "missing",
+        blockMode: "auto",
+        naturalTextLayout: true,
+        eraseOriginalWorkflow: true,
+        bubbleLayoutWorkflow: false,
+      });
+    });
+
+    expect(startAnalysis).toHaveBeenCalledWith(
+      expect.objectContaining({ naturalTextLayout: true }),
+    );
+    expect(startInpainting).toHaveBeenCalledWith({
+      mode: "selection-pattern",
+      workId: "work-1",
+      selections: [{ chapterId: "chapter-1", mode: "all" }],
+    });
+    expect(notificationMocks.success).toHaveBeenCalledWith(
+      "번역·원문 지우기를 완료했습니다.",
+    );
+  });
+
+  it("does not erase when the new completion mode is explicitly translation only", async () => {
+    const options = makeOptions();
+    startAnalysis.mockResolvedValue({ status: "completed" });
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
+
+    await act(async () => {
+      await result.current.runTranslationFlow({
+        selection: [{ chapterId: "chapter-1", mode: "all" }],
+        workflowMode: "cumulative",
+        analysisScope: "missing",
+        blockMode: "auto",
+        eraseOriginalWorkflow: false,
+        bubbleLayoutWorkflow: true,
+      });
+    });
+
+    expect(startAnalysis).toHaveBeenCalledOnce();
+    expect(startInpainting).not.toHaveBeenCalled();
+  });
+
+  it("does not erase or lay out pages when translation fails", async () => {
+    const options = makeOptions();
+    openChapter.mockResolvedValue(makeChapter());
+    startAnalysis.mockResolvedValue({
+      status: "failed",
+      error: "translation failed",
+    });
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
+
+    let outcome = "not-started";
+    await act(async () => {
+      outcome = await result.current.runTranslationFlow({
+        selection: [{ chapterId: "chapter-1", mode: "pending" }],
+        workflowMode: "cumulative",
+        analysisScope: "missing",
+        blockMode: "auto",
+        bubbleLayoutWorkflow: true,
+      });
+    });
+
+    expect(outcome).toBe("failed");
+    expect(startInpainting).not.toHaveBeenCalled();
+    expect(options.setShowBlockChrome).not.toHaveBeenCalled();
+  });
+
+  it("keeps partial Bubble workflow changes undoable when inpainting fails", async () => {
+    const options = makeOptions();
+    const partiallyUpdatedChapter = {
+      ...makeChapter(),
+      pages: [
+        {
+          ...makePage(),
+          inpaintedImagePath: "C:/page-partial-clean.png",
+        },
+      ],
+    };
+    startAnalysis.mockResolvedValue({ status: "completed" });
+    startInpainting.mockResolvedValue({
+      status: "failed",
+      error: "postprocess failed",
+      chapters: [partiallyUpdatedChapter],
+      historyTransaction: { transactionId: "tx-partial-failed" },
+    });
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
+
+    let outcome = "not-started";
+    await act(async () => {
+      outcome = await result.current.runTranslationFlow({
+        selection: [{ chapterId: "chapter-1", mode: "all" }],
+        workflowMode: "cumulative",
+        analysisScope: "missing",
+        blockMode: "auto",
+        bubbleLayoutWorkflow: true,
+      });
+    });
+
+    expect(outcome).toBe("failed");
+    expect(options.clearPageImageCache).toHaveBeenCalledOnce();
+    expect(options.clearRetouchHistory).toHaveBeenCalledOnce();
+    expect(options.mergeLiveChapter).toHaveBeenCalledWith(
+      partiallyUpdatedChapter,
+    );
+    expect(options.recordImageEdit).toHaveBeenCalledWith({
+      label: "자동 지우기",
+      transactionId: "tx-partial-failed",
+    });
+    expect(options.setShowBlockChrome).not.toHaveBeenCalled();
+    expect(notificationMocks.success).not.toHaveBeenCalledWith(
+      "번역·자동 지우기·말풍선 맞춤을 완료했습니다.",
+    );
+    expect(notificationMocks.error).toHaveBeenCalledWith("postprocess failed");
+  });
+
+  it("keeps partial Bubble workflow changes undoable when inpainting is cancelled", async () => {
+    const options = makeOptions();
+    const partiallyUpdatedChapter = {
+      ...makeChapter(),
+      pages: [
+        {
+          ...makePage(),
+          inpaintedImagePath: "C:/page-partial-cancelled.png",
+        },
+      ],
+    };
+    startAnalysis.mockResolvedValue({ status: "completed" });
+    startInpainting.mockResolvedValue({
+      status: "cancelled",
+      chapters: [partiallyUpdatedChapter],
+      historyTransaction: { transactionId: "tx-partial-cancelled" },
+    });
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
+
+    let outcome = "not-started";
+    await act(async () => {
+      outcome = await result.current.runTranslationFlow({
+        selection: [{ chapterId: "chapter-1", mode: "all" }],
+        workflowMode: "cumulative",
+        analysisScope: "missing",
+        blockMode: "auto",
+        bubbleLayoutWorkflow: true,
+      });
+    });
+
+    expect(outcome).toBe("cancelled");
+    expect(options.clearPageImageCache).toHaveBeenCalledOnce();
+    expect(options.clearRetouchHistory).toHaveBeenCalledOnce();
+    expect(options.mergeLiveChapter).toHaveBeenCalledWith(
+      partiallyUpdatedChapter,
+    );
+    expect(options.recordImageEdit).toHaveBeenCalledWith({
+      label: "자동 지우기",
+      transactionId: "tx-partial-cancelled",
+    });
+    expect(options.setShowBlockChrome).not.toHaveBeenCalled();
+    expect(notificationMocks.success).not.toHaveBeenCalledWith(
+      "번역·자동 지우기·말풍선 맞춤을 완료했습니다.",
+    );
+  });
+
+  it("does not clear retouch history when Bubble workflow returns no live chapter", async () => {
+    const options = makeOptions();
+    startAnalysis.mockResolvedValue({ status: "completed" });
+    startInpainting.mockResolvedValue({
+      status: "completed",
+      chapters: [],
+    });
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
+
+    let outcome = "not-started";
+    await act(async () => {
+      outcome = await result.current.runTranslationFlow({
+        selection: [{ chapterId: "chapter-1", mode: "all" }],
+        workflowMode: "cumulative",
+        analysisScope: "missing",
+        blockMode: "auto",
+        bubbleLayoutWorkflow: true,
+      });
+    });
+
+    expect(outcome).toBe("completed");
+    expect(options.clearRetouchHistory).not.toHaveBeenCalled();
+    expect(options.clearPageImageCache).not.toHaveBeenCalled();
+    expect(options.mergeLiveChapter).not.toHaveBeenCalled();
+    expect(options.setShowBlockChrome).toHaveBeenCalledWith(false);
+  });
+
   it("uses cumulative collection for direct translation entry points by default", async () => {
     const options = makeOptions();
     startAnalysis.mockResolvedValue({ status: "completed" });
@@ -138,6 +433,105 @@ describe("translation workflow modes", () => {
 
     expect(startAnalysis).toHaveBeenCalledWith(
       expect.objectContaining({ collectPageContext: false }),
+    );
+  });
+
+  it("defaults natural layout on for direct translation entry points", async () => {
+    const options = makeOptions();
+    startAnalysis.mockResolvedValue({ status: "completed" });
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
+
+    await act(async () => {
+      await result.current.runAnalysis("pending");
+    });
+
+    expect(startAnalysis).toHaveBeenCalledWith(
+      expect.objectContaining({ naturalTextLayout: true }),
+    );
+  });
+
+  it("preserves an explicitly saved natural layout off setting", async () => {
+    const options = {
+      ...makeOptions(),
+      naturalTextLayoutDefault: false,
+    };
+    startAnalysis.mockResolvedValue({ status: "completed" });
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
+
+    await act(async () => {
+      await result.current.runAnalysis("pending");
+    });
+
+    expect(startAnalysis).toHaveBeenCalledWith(
+      expect.objectContaining({ naturalTextLayout: false }),
+    );
+  });
+
+  it("forwards natural layout through both precision passes", async () => {
+    const options = makeOptions();
+    startAnalysis.mockResolvedValue({ status: "completed" });
+    analyzeWorkContext.mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
+
+    await act(async () => {
+      await result.current.runTranslationFlow({
+        selection: [{ chapterId: "chapter-1", mode: "pending" }],
+        workflowMode: "two-pass",
+        analysisScope: "missing",
+        blockMode: "auto",
+        naturalTextLayout: true,
+      });
+    });
+
+    expect(startAnalysis).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ naturalTextLayout: true }),
+    );
+    expect(startAnalysis).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ naturalTextLayout: true }),
+    );
+  });
+
+  it("does not bake OCR-bbox hard breaks before Bubble postprocess", async () => {
+    const options = makeOptions();
+    openChapter.mockResolvedValue(makeChapter());
+    startAnalysis.mockResolvedValue({ status: "completed" });
+    startInpainting.mockResolvedValue({
+      status: "completed",
+      chapters: [makeChapter()],
+    });
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
+
+    await act(async () => {
+      await result.current.runTranslationFlow({
+        selection: [{ chapterId: "chapter-1", mode: "all" }],
+        workflowMode: "cumulative",
+        analysisScope: "missing",
+        blockMode: "auto",
+        naturalTextLayout: true,
+        bubbleLayoutWorkflow: true,
+      });
+    });
+
+    expect(startAnalysis).toHaveBeenCalledOnce();
+    expect(startAnalysis.mock.calls[0]?.[0]).not.toHaveProperty(
+      "naturalTextLayout",
+    );
+    expect(startInpainting).toHaveBeenCalledWith(
+      expect.objectContaining({
+        postprocess: {
+          bubbleLayout: { enabled: true, policy: "balanced" },
+        },
+      }),
     );
   });
 

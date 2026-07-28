@@ -1,5 +1,4 @@
 import React from "react";
-import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import type { BlockFormatGroupId } from "../../../shared/blockFormat";
 import type { TransformEditorMode } from "../../../shared/panelBridgeTypes";
@@ -7,13 +6,15 @@ import { normalizeRenderDirection } from "../../../shared/geometry";
 import type { FormatApplyScope } from "../hooks/blockEditingStatus";
 import type { BlockBackgroundApplyScope } from "../hooks/useApplyBlockBackgroundOpacityAction";
 import {
-  BlockActionButtons,
-  BlockDisplayGroup,
+  BlockOverflowMenu,
+  EditorPanelHeader,
+  EditorPanelTabs,
+  EditorTabPanel,
   EmptyEditorPanel,
-  InpaintingBlockOption,
-  TextEditorGroup,
-} from "./EditorPanelSections";
-import { EditorColorGroup } from "./EditorColorGroup";
+  type EditorTabId,
+} from "./EditorPanelChrome";
+import { BubbleLayoutOption, TextEditorGroup } from "./EditorPanelSections";
+import { BlockDisplayGroup, EditorColorGroup } from "./EditorColorGroup";
 import { FormatEditorGroup } from "./EditorFormatControls";
 import {
   clampFontSize,
@@ -43,8 +44,12 @@ type EditorPanelProps = {
   onUpdate: (patch: Partial<TranslationBlock>) => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  onRemoveBubbleLayout?: () => void;
   onSelectTransformMode?: (mode: TransformEditorMode) => void;
 };
+
+const EDITOR_TABS: EditorTabId[] = ["text", "layout", "format"];
+const EDITOR_TAB_STORAGE_KEY = "editor.activeTab.v1";
 
 export function EditorPanel({
   block,
@@ -63,11 +68,14 @@ export function EditorPanel({
   onUpdate,
   onDelete,
   onDuplicate,
+  onRemoveBubbleLayout = () => undefined,
   onSelectTransformMode,
 }: EditorPanelProps): React.JSX.Element {
   const [fontFamilyDraft, setFontFamilyDraft] = React.useState<
     string | undefined
   >(block?.fontFamily);
+  const [activeTab, setActiveTab] = useEditorTab(transformMode);
+  const panelIdBase = React.useId();
 
   React.useEffect(() => {
     setFontFamilyDraft(block?.fontFamily);
@@ -87,9 +95,24 @@ export function EditorPanel({
 
   return (
     <section className="editor-panel has-block">
-      <EditorPanelHeader actions={headerActions} />
+      <SelectedBlockHeader
+        {...{
+          activeTab,
+          baseId: panelIdBase,
+          block,
+          disabled,
+          headerActions,
+          onDelete,
+          onDuplicate,
+          onRemoveBubbleLayout,
+          onSelect: setActiveTab,
+          onUpdate,
+        }}
+      />
       <EditorBlockGroups
         {...{
+          activeTab,
+          baseId: panelIdBase,
           block,
           disabled,
           disableChapterApply,
@@ -97,8 +120,6 @@ export function EditorPanel({
           onAdjustFontSize,
           onApplyBlockBackgroundOpacity,
           onApplyFormat,
-          onDelete,
-          onDuplicate,
           onSelectTransformMode,
           onUpdate,
           pageSize,
@@ -111,7 +132,64 @@ export function EditorPanel({
   );
 }
 
+function SelectedBlockHeader({
+  activeTab,
+  baseId,
+  block,
+  disabled,
+  headerActions,
+  onDelete,
+  onDuplicate,
+  onRemoveBubbleLayout,
+  onSelect,
+  onUpdate,
+}: {
+  activeTab: EditorTabId;
+  baseId: string;
+  block: TranslationBlock;
+  disabled: boolean;
+  headerActions?: React.ReactNode;
+  onDelete: () => void;
+  onDuplicate: () => void;
+  onRemoveBubbleLayout: () => void;
+  onSelect: (tab: EditorTabId) => void;
+  onUpdate: EditorPanelProps["onUpdate"];
+}): React.JSX.Element {
+  return (
+    <div className="editor-panel-sticky">
+      <EditorPanelHeader
+        excluded={Boolean(block.inpaintExcluded)}
+        actions={
+          <>
+            {headerActions}
+            <BlockOverflowMenu
+              block={block}
+              disabled={disabled}
+              onDelete={onDelete}
+              onDuplicate={onDuplicate}
+              onUpdate={onUpdate}
+            />
+          </>
+        }
+      />
+      <EditorPanelTabs
+        activeTab={activeTab}
+        baseId={baseId}
+        onSelect={onSelect}
+      />
+      {block.bubbleLayout ? (
+        <BubbleLayoutOption
+          disabled={disabled}
+          onRemove={onRemoveBubbleLayout}
+        />
+      ) : null}
+    </div>
+  );
+}
+
 type EditorBlockGroupsProps = {
+  activeTab: EditorTabId;
+  baseId: string;
   block: TranslationBlock;
   disabled: boolean;
   disableChapterApply: boolean;
@@ -119,8 +197,6 @@ type EditorBlockGroupsProps = {
   onAdjustFontSize: EditorPanelProps["onAdjustFontSize"];
   onApplyBlockBackgroundOpacity?: EditorPanelProps["onApplyBlockBackgroundOpacity"];
   onApplyFormat: EditorPanelProps["onApplyFormat"];
-  onDelete: EditorPanelProps["onDelete"];
-  onDuplicate: EditorPanelProps["onDuplicate"];
   onSelectTransformMode?: EditorPanelProps["onSelectTransformMode"];
   onUpdate: EditorPanelProps["onUpdate"];
   pageSize: NonNullable<EditorPanelProps["pageSize"]> | null;
@@ -130,6 +206,8 @@ type EditorBlockGroupsProps = {
 };
 
 function EditorBlockGroups({
+  activeTab,
+  baseId,
   block,
   disabled,
   disableChapterApply,
@@ -137,8 +215,6 @@ function EditorBlockGroups({
   onAdjustFontSize,
   onApplyBlockBackgroundOpacity,
   onApplyFormat,
-  onDelete,
-  onDuplicate,
   onSelectTransformMode,
   onUpdate,
   pageSize,
@@ -149,53 +225,53 @@ function EditorBlockGroups({
   const model = resolveEditorPanelModel(block);
   return (
     <>
-      <InpaintingBlockOption
-        block={block}
-        disabled={disabled}
-        onUpdate={onUpdate}
-      />
-      <TextEditorGroup block={block} disabled={disabled} onUpdate={onUpdate} />
-      <BlockTransformEditor
-        key={block.id}
-        {...{
-          block,
-          disabled,
-          onSelectTransformMode,
-          onUpdate,
-          pageSize,
-          transformMode,
-        }}
-      />
-      <FormatEditorGroup
-        block={block}
-        disabled={disabled}
-        disableChapterApply={disableChapterApply}
-        fontFamilyDraft={fontFamilyDraft}
-        model={model}
-        onApplyFormat={onApplyFormat}
-        onAdjustFontSize={onAdjustFontSize}
-        onFontFamilyDraftChange={setFontFamilyDraft}
-        onUpdate={onUpdate}
-        selectedBlockCount={selectedBlockCount}
-      />
-      <EditorColorGroup
-        block={block}
-        disabled={disabled}
-        model={model}
-        onUpdate={onUpdate}
-      />
-      <BlockDisplayGroup
-        block={block}
-        disabled={disabled}
-        disableChapterApply={disableChapterApply}
-        onApply={onApplyBlockBackgroundOpacity}
-        onUpdate={onUpdate}
-      />
-      <BlockActionButtons
-        disabled={disabled}
-        onDelete={onDelete}
-        onDuplicate={onDuplicate}
-      />
+      <EditorTabPanel activeTab={activeTab} baseId={baseId} tab="text">
+        <TextEditorGroup
+          block={block}
+          disabled={disabled}
+          onUpdate={onUpdate}
+        />
+      </EditorTabPanel>
+      <EditorTabPanel activeTab={activeTab} baseId={baseId} tab="layout">
+        <BlockTransformEditor
+          key={block.id}
+          {...{
+            block,
+            disabled,
+            onSelectTransformMode,
+            onUpdate,
+            pageSize,
+            transformMode,
+          }}
+        />
+      </EditorTabPanel>
+      <EditorTabPanel activeTab={activeTab} baseId={baseId} tab="format">
+        <FormatEditorGroup
+          block={block}
+          disabled={disabled}
+          disableChapterApply={disableChapterApply}
+          fontFamilyDraft={fontFamilyDraft}
+          model={model}
+          onApplyFormat={onApplyFormat}
+          onAdjustFontSize={onAdjustFontSize}
+          onFontFamilyDraftChange={setFontFamilyDraft}
+          onUpdate={onUpdate}
+          selectedBlockCount={selectedBlockCount}
+        />
+        <EditorColorGroup
+          block={block}
+          disabled={disabled}
+          model={model}
+          onUpdate={onUpdate}
+        />
+        <BlockDisplayGroup
+          block={block}
+          disabled={disabled}
+          disableChapterApply={disableChapterApply}
+          onApply={onApplyBlockBackgroundOpacity}
+          onUpdate={onUpdate}
+        />
+      </EditorTabPanel>
     </>
   );
 }
@@ -227,20 +303,37 @@ function BlockTransformEditor({
   );
 }
 
-function EditorPanelHeader({
-  actions,
-}: {
-  actions?: React.ReactNode;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <header className="editor-panel-header">
-      <h2>{t("common.blocks")}</h2>
-      {actions ? (
-        <div className="editor-panel-header-actions">{actions}</div>
-      ) : null}
-    </header>
+function useEditorTab(
+  transformMode: TransformEditorMode,
+): [EditorTabId, (tab: EditorTabId) => void] {
+  const [activeTab, setActiveTab] = React.useState<EditorTabId>(() =>
+    transformMode === "select" ? readStoredEditorTab() : "layout",
   );
+  const previousMode = React.useRef(transformMode);
+  React.useEffect(() => {
+    const shouldRevealLayout =
+      previousMode.current === "select" && transformMode !== "select";
+    previousMode.current = transformMode;
+    if (shouldRevealLayout) setActiveTab("layout");
+  }, [transformMode]);
+  React.useEffect(() => {
+    try {
+      window.localStorage.setItem(EDITOR_TAB_STORAGE_KEY, activeTab);
+    } catch (error) {
+      console.warn("Editor tab state write failed", error);
+    }
+  }, [activeTab]);
+  return [activeTab, setActiveTab];
+}
+
+function readStoredEditorTab(): EditorTabId {
+  try {
+    const stored = window.localStorage.getItem(EDITOR_TAB_STORAGE_KEY);
+    return EDITOR_TABS.find((tab) => tab === stored) ?? "text";
+  } catch (error) {
+    console.warn("Editor tab state read failed", error);
+    return "text";
+  }
 }
 
 function resolveEditorPanelModel(block: TranslationBlock): EditorPanelModel {

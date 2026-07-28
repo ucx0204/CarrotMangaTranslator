@@ -1,5 +1,6 @@
 import React from "react";
 import { AppModals } from "../../components/AppModals";
+import { AppRightQuickRail } from "../../components/AppRightQuickRail";
 import { AppRightRail } from "../../components/AppRightRail";
 import { AppSidebar } from "../../components/AppSidebar";
 import { AppWorkspace } from "../../components/AppWorkspace";
@@ -67,6 +68,7 @@ export function AppSessionView({
       <main className="app-shell">
         <AppSidebar {...sidebarProps} />
         <AppWorkspace {...workspaceProps} />
+        <AppRightQuickRail {...rightRailProps} />
         <AppRightRail {...rightRailProps} />
         <MemoizedAppModals {...modalsProps} />
       </main>

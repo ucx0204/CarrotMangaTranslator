@@ -20,9 +20,14 @@ export type TranslationFlowOptions = {
   workflowMode: TranslationWorkflowMode;
   analysisScope: WorkContextAnalysisScope;
   blockMode: AnalysisBlockMode;
+  naturalTextLayout?: boolean;
+  eraseOriginalWorkflow?: boolean;
+  bubbleLayoutWorkflow?: boolean;
 };
 
 export type UseTranslationActionsOptions = {
+  clearPageImageCache: () => void;
+  clearRetouchHistory: () => void;
   clearStatusLines: () => void;
   currentChapter: ChapterSnapshot | null;
   currentChapterRef: MutableRefObject<ChapterSnapshot | null>;
@@ -41,8 +46,11 @@ export type UseTranslationActionsOptions = {
   translationWorkflowDefault?: TranslationWorkflowMode;
   analysisScopeDefault?: WorkContextAnalysisScope;
   blockModeDefault?: AnalysisBlockMode;
+  naturalTextLayoutDefault?: boolean;
+  recordImageEdit: (entry: { label: string; transactionId: string }) => void;
   setCurrentChapter: Dispatch<SetStateAction<ChapterSnapshot | null>>;
   setFlowActive: (active: boolean) => void;
+  setShowBlockChrome: (visible: boolean) => void;
   setJobState: Dispatch<SetStateAction<JobState>>;
   setSelectedBlockId: Dispatch<SetStateAction<string | null>>;
 };
@@ -54,6 +62,7 @@ export type TranslationActions = {
     chapterId?: string,
     blockMode?: AnalysisBlockMode,
     collectPageContext?: boolean,
+    naturalTextLayout?: boolean,
   ) => Promise<RunAnalysisOutcome>;
   runTranslationFlow: (
     options: TranslationFlowOptions,

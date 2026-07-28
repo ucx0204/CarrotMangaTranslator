@@ -80,7 +80,7 @@ function PageListView({
   );
 
   return (
-    <section className="page-list">
+    <section className={`page-list ${pages.length ? "" : "empty"}`.trim()}>
       <div className="panel-header">
         <h2>{t("common.pages")}</h2>
       </div>

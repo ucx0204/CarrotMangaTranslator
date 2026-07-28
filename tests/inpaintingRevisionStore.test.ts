@@ -77,6 +77,289 @@ describe("InpaintingRevisionStore", () => {
     expect(existsSync(paths.afterB)).toBe(true);
   });
 
+  it("undoes and redoes the image and bubble layout as one revision", async () => {
+    const rootDir = await createTempLibrary();
+    const paths = await seedLibrary(rootDir);
+    const { InpaintingRevisionStore, library, mutationOperations } =
+      await loadModules(rootDir);
+    const { captureInpaintingLayoutStates } =
+      await import("../src/main/inpainting/inpaintingLayoutState");
+    const store = new InpaintingRevisionStore();
+    const initialPage = firstPage(await library.openChapter(CHAPTER_A_ID));
+    const originalBbox = initialPage.blocks[0]?.bbox;
+    const beforeLayout = captureInpaintingLayoutStates(initialPage, [
+      "seed-block",
+    ]);
+    const beforeState = beforeLayout[0];
+    if (!beforeState) {
+      throw new Error("Expected a captured block layout.");
+    }
+    const afterLayout = [
+      {
+        ...beforeState,
+        renderBbox: { x: 120, y: 140, w: 400, h: 360 },
+        renderBboxSpace: "normalized_1000" as const,
+        bubbleLayout: {
+          version: 1 as const,
+          direction: "horizontal" as const,
+          confidence: 0.94,
+          insetRatio: 0.08,
+          regions: [
+            {
+              spans: [
+                {
+                  blockStart: 0.1,
+                  blockEnd: 0.9,
+                  inlineStart: 0.12,
+                  inlineEnd: 0.88,
+                },
+              ],
+            },
+          ],
+        },
+      },
+    ];
+    await mutationOperations.updatePagesAfterInpaintingUnlocked(
+      CHAPTER_A_ID,
+      [initialPage],
+      {
+        layoutPatches: [{ pageId: PAGE_A_ID, states: afterLayout }],
+      },
+    );
+    const transactionId = store.beginTransaction();
+    store.addChange(transactionId, {
+      chapterId: CHAPTER_A_ID,
+      pageId: PAGE_A_ID,
+      beforePath: paths.beforeA,
+      afterPath: paths.afterA,
+      beforeLayout,
+      afterLayout,
+    });
+
+    await store.applyTransaction({ transactionId, direction: "undo" });
+    const undone = firstPage(await library.openChapter(CHAPTER_A_ID));
+    expect(undone.inpaintedImagePath).toBe(paths.beforeA);
+    expect(undone.blocks[0]?.bbox).toEqual(originalBbox);
+    expect(undone.blocks[0]?.renderBbox).toBeUndefined();
+    expect(undone.blocks[0]?.bubbleLayout).toBeUndefined();
+
+    await store.applyTransaction({ transactionId, direction: "redo" });
+    const redone = firstPage(await library.openChapter(CHAPTER_A_ID));
+    expect(redone.inpaintedImagePath).toBe(paths.afterA);
+    expect(redone.blocks[0]?.bbox).toEqual(originalBbox);
+    expect(redone.blocks[0]?.renderBbox).toEqual(afterLayout[0]?.renderBbox);
+    expect(redone.blocks[0]?.bubbleLayout).toEqual(
+      afterLayout[0]?.bubbleLayout,
+    );
+  });
+
+  it("replays a layout-only revision while keeping the image path unchanged", async () => {
+    const rootDir = await createTempLibrary();
+    const paths = await seedLibrary(rootDir);
+    const { InpaintingRevisionStore, library, mutationOperations } =
+      await loadModules(rootDir);
+    const { captureInpaintingLayoutStates } =
+      await import("../src/main/inpainting/inpaintingLayoutState");
+    const store = new InpaintingRevisionStore();
+    const page = firstPage(await library.openChapter(CHAPTER_A_ID));
+    const beforeLayout = captureInpaintingLayoutStates(page, ["seed-block"]);
+    const beforeState = beforeLayout[0];
+    if (!beforeState) {
+      throw new Error("Expected a captured block layout.");
+    }
+    const afterLayout = [
+      {
+        ...beforeState,
+        renderBbox: { x: 160, y: 180, w: 320, h: 280 },
+        renderBboxSpace: "normalized_1000" as const,
+        bubbleLayout: {
+          version: 1 as const,
+          direction: "horizontal" as const,
+          confidence: 1,
+          origin: "manual" as const,
+          modelId: "manual-shape-v1",
+          insetRatio: 0.05,
+          regions: [
+            {
+              spans: [
+                {
+                  blockStart: 0.05,
+                  blockEnd: 0.95,
+                  inlineStart: 0.1,
+                  inlineEnd: 0.9,
+                },
+              ],
+            },
+          ],
+        },
+      },
+    ];
+    await mutationOperations.updatePagesAfterInpaintingUnlocked(
+      CHAPTER_A_ID,
+      [page],
+      {
+        layoutPatches: [{ pageId: PAGE_A_ID, states: afterLayout }],
+      },
+    );
+    const transactionId = store.beginTransaction();
+    expect(
+      store.addChange(transactionId, {
+        chapterId: CHAPTER_A_ID,
+        pageId: PAGE_A_ID,
+        beforePath: paths.afterA,
+        afterPath: paths.afterA,
+        beforeLayout,
+        afterLayout,
+      }),
+    ).toBe(true);
+
+    await store.applyTransaction({ transactionId, direction: "undo" });
+    let replayed = firstPage(await library.openChapter(CHAPTER_A_ID));
+    expect(replayed.inpaintedImagePath).toBe(paths.afterA);
+    expect(replayed.blocks[0]?.renderBbox).toBeUndefined();
+    expect(replayed.blocks[0]?.bubbleLayout).toBeUndefined();
+
+    await store.applyTransaction({ transactionId, direction: "redo" });
+    replayed = firstPage(await library.openChapter(CHAPTER_A_ID));
+    expect(replayed.inpaintedImagePath).toBe(paths.afterA);
+    expect(replayed.blocks[0]?.renderBbox).toEqual(afterLayout[0]?.renderBbox);
+    expect(replayed.blocks[0]?.bubbleLayout).toEqual(
+      afterLayout[0]?.bubbleLayout,
+    );
+  });
+
+  it("refuses to overwrite a newer manual render layout during undo", async () => {
+    const rootDir = await createTempLibrary();
+    const paths = await seedLibrary(rootDir);
+    const { InpaintingRevisionStore, library, mutationOperations } =
+      await loadModules(rootDir);
+    const { captureInpaintingLayoutStates } =
+      await import("../src/main/inpainting/inpaintingLayoutState");
+    const store = new InpaintingRevisionStore();
+    const page = firstPage(await library.openChapter(CHAPTER_A_ID));
+    const beforeLayout = captureInpaintingLayoutStates(page, ["seed-block"]);
+    const beforeState = beforeLayout[0];
+    if (!beforeState) {
+      throw new Error("Expected a captured block layout.");
+    }
+    const afterLayout = [
+      {
+        ...beforeState,
+        renderBbox: { x: 120, y: 120, w: 300, h: 300 },
+        renderBboxSpace: "normalized_1000" as const,
+      },
+    ];
+    await mutationOperations.updatePagesAfterInpaintingUnlocked(
+      CHAPTER_A_ID,
+      [page],
+      {
+        layoutPatches: [{ pageId: PAGE_A_ID, states: afterLayout }],
+      },
+    );
+    const transactionId = store.beginTransaction();
+    store.addChange(transactionId, {
+      chapterId: CHAPTER_A_ID,
+      pageId: PAGE_A_ID,
+      beforePath: paths.beforeA,
+      afterPath: paths.afterA,
+      beforeLayout,
+      afterLayout,
+    });
+    const current = firstPage(await library.openChapter(CHAPTER_A_ID));
+    const generatedState = afterLayout[0];
+    if (!generatedState) {
+      throw new Error("Expected a generated block layout.");
+    }
+    await mutationOperations.updatePagesAfterInpaintingUnlocked(
+      CHAPTER_A_ID,
+      [current],
+      {
+        layoutPatches: [
+          {
+            pageId: PAGE_A_ID,
+            states: [
+              {
+                ...generatedState,
+                renderBbox: { x: 200, y: 200, w: 250, h: 250 },
+              },
+            ],
+          },
+        ],
+      },
+    );
+
+    await expect(
+      store.applyTransaction({ transactionId, direction: "undo" }),
+    ).rejects.toThrow(/텍스트 배치가 다른 작업/);
+    const preserved = firstPage(await library.openChapter(CHAPTER_A_ID));
+    expect(preserved.inpaintedImagePath).toBe(paths.afterA);
+    expect(preserved.blocks[0]?.renderBbox).toEqual({
+      x: 200,
+      y: 200,
+      w: 250,
+      h: 250,
+    });
+    expect(store.getReference(transactionId)).toEqual({ transactionId });
+  });
+
+  it("rejects a stale postprocess patch at the chapter commit point", async () => {
+    const rootDir = await createTempLibrary();
+    const paths = await seedLibrary(rootDir);
+    const { library, mutationOperations } = await loadModules(rootDir);
+    const { captureInpaintingLayoutStates } =
+      await import("../src/main/inpainting/inpaintingLayoutState");
+    const original = firstPage(await library.openChapter(CHAPTER_A_ID));
+    const expectedStates = captureInpaintingLayoutStates(original, [
+      "seed-block",
+    ]);
+    const expectedState = expectedStates[0];
+    if (!expectedState) {
+      throw new Error("Expected a captured block layout.");
+    }
+    const manualStates = [
+      {
+        ...expectedState,
+        renderBbox: { x: 220, y: 220, w: 260, h: 260 },
+        renderBboxSpace: "normalized_1000" as const,
+      },
+    ];
+    await mutationOperations.updatePagesAfterInpaintingUnlocked(
+      CHAPTER_A_ID,
+      [original],
+      {
+        layoutPatches: [{ pageId: PAGE_A_ID, states: manualStates }],
+      },
+    );
+
+    await expect(
+      mutationOperations.updatePagesAfterInpaintingUnlocked(
+        CHAPTER_A_ID,
+        [{ ...original, inpaintedImagePath: paths.otherA }],
+        {
+          layoutPatches: [
+            {
+              pageId: PAGE_A_ID,
+              expectedStates,
+              states: [
+                {
+                  ...expectedState,
+                  renderBbox: { x: 100, y: 100, w: 400, h: 400 },
+                  renderBboxSpace: "normalized_1000",
+                },
+              ],
+            },
+          ],
+        },
+      ),
+    ).rejects.toThrow(/다른 작업으로 변경/);
+    const preserved = firstPage(await library.openChapter(CHAPTER_A_ID));
+    expect(preserved.inpaintedImagePath).toBe(paths.afterA);
+    expect(preserved.blocks[0]?.renderBbox).toEqual(
+      manualStates[0]?.renderBbox,
+    );
+    expect(preserved.blocks[0]?.bbox).toEqual(original.blocks[0]?.bbox);
+  });
+
   it("rejects a stale transaction without moving or deleting it", async () => {
     const rootDir = await createTempLibrary();
     const paths = await seedLibrary(rootDir);
@@ -457,7 +740,24 @@ async function seedChapter(
         inpaintedImagePath,
         width: 64,
         height: 96,
-        blocks: [],
+        blocks: [
+          {
+            id: "seed-block",
+            type: "nonsolid",
+            bbox: { x: 100, y: 100, w: 500, h: 400 },
+            sourceText: "source",
+            translatedText: "translated",
+            confidence: 1,
+            sourceDirection: "horizontal",
+            renderDirection: "horizontal",
+            fontSizePx: 16,
+            lineHeight: 1.2,
+            textAlign: "center",
+            textColor: "#000000",
+            backgroundColor: "#ffffff",
+            opacity: 1,
+          },
+        ],
         analysisStatus: "completed",
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-01T00:00:00.000Z",

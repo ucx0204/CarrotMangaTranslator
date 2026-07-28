@@ -36,12 +36,14 @@ export function createPageRetranslateProps({
         blockCount: page.blocks.length,
         onClose: () => uiState.setRetranslatePageId(null),
         onPersistDefaults: createPersistUiDefaults(settingsDialog),
-        onStart: (blockMode) =>
+        onStart: (blockMode, naturalTextLayout) =>
           void translationActions.runAnalysis(
             "single-page",
             pageId,
             undefined,
             blockMode,
+            undefined,
+            naturalTextLayout,
           ),
         pageName: page.name,
         uiSettings: settingsDialog.settings?.ui,

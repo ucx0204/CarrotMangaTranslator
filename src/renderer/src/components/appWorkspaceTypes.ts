@@ -12,6 +12,7 @@ export type AppWorkspaceProps = {
   workspaceZoom: number;
   selectedPage: MangaPage | null;
   selectedPageImageDataUrl: string;
+  selectedPageImageLoading?: boolean;
   selectedPageImagePageId: string | null;
   imageRef: ImageStageProps["imageRef"];
   stageRef: ImageStageProps["stageRef"];
@@ -22,12 +23,6 @@ export type AppWorkspaceProps = {
   showTextBlocks: boolean;
   showBlockChrome: boolean;
   showingOriginalPeek: boolean;
-  canRedo: boolean;
-  canUndo: boolean;
-  compareAvailable: boolean;
-  resetAvailable: boolean;
-  redoLabel?: string | null;
-  undoLabel?: string | null;
   brushColor: string;
   brushRadius: number;
   retouchCursor: ImageStageProps["retouchCursor"];
@@ -52,11 +47,16 @@ export type AppWorkspaceProps = {
   onStagePointerUp: ImageStageProps["onStagePointerUp"];
   onStagePointerDown: ImageStageProps["onStagePointerDown"];
   onStagePointerLeave: ImageStageProps["onStagePointerLeave"];
+  onApplyBubbleLayoutDraft: NonNullable<
+    ImageStageProps["onApplyBubbleLayoutDraft"]
+  >;
+  onCancelBubbleLayoutDraft: NonNullable<
+    ImageStageProps["onCancelBubbleLayoutDraft"]
+  >;
+  onUndoBubbleLayoutPoint: NonNullable<
+    ImageStageProps["onUndoBubbleLayoutPoint"]
+  >;
   onBlockPointerDown: ImageStageProps["onBlockPointerDown"];
-  onPeekToggle: () => void;
-  onRedo: () => void;
-  onResetPage: () => void;
-  onUndo: () => void;
   onOpenTranslationSource: () => void;
   onOpenBatchImport: () => void;
   onOpenShareImport: () => void;

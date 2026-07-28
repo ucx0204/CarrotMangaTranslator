@@ -105,8 +105,33 @@ describe("keep-blocks translation mode", () => {
   });
 
   it("maps items to blocks by candidate id, preserving geometry and format", () => {
+    const manualBubbleLayout: NonNullable<TranslationBlock["bubbleLayout"]> = {
+      version: 1,
+      direction: "horizontal",
+      confidence: 1,
+      origin: "manual",
+      modelId: "manual-shape-v1",
+      insetRatio: 0.05,
+      regions: [
+        {
+          spans: [
+            {
+              blockStart: 0.05,
+              blockEnd: 0.95,
+              inlineStart: 0.1,
+              inlineEnd: 0.9,
+            },
+          ],
+        },
+      ],
+    };
     const page = makePage([
-      makeBlock("b-1", { x: 100, y: 100, w: 200, h: 100 }, "이전 번역"),
+      {
+        ...makeBlock("b-1", { x: 100, y: 100, w: 200, h: 100 }, "이전 번역"),
+        renderBbox: { x: 80, y: 80, w: 240, h: 140 },
+        renderBboxSpace: "normalized_1000",
+        bubbleLayout: manualBubbleLayout,
+      },
       makeBlock("b-2", { x: 500, y: 500, w: 100, h: 100 }),
     ]);
     const previousBlocks = buildPreviousBlocksForPrompt(page, [], {
@@ -132,6 +157,8 @@ describe("keep-blocks translation mode", () => {
       sourceText: "ありがとう",
       translatedText: "고마워",
       fontSizePx: 24,
+      renderBbox: { x: 80, y: 80, w: 240, h: 140 },
+      bubbleLayout: manualBubbleLayout,
     });
     expect(mapping.blocks[1]).toMatchObject({
       id: "b-2",
@@ -182,6 +209,101 @@ describe("keep-blocks translation mode", () => {
 
     expect(mapping.updatedCount).toBe(1);
     expect(mapping.blocks[0].translatedText).toBe("네");
+  });
+
+  it("adds hard breaks while preserving an existing block's formatting", () => {
+    const original = {
+      ...makeBlock("b-1", { x: 100, y: 100, w: 72, h: 180 }),
+      wordBreak: "keep-all" as const,
+      fontWidthScale: 0.9,
+    };
+    const page = makePage([original]);
+    const previousBlocks = buildPreviousBlocksForPrompt(page, [], {
+      assignSequentialCandidateIds: true,
+    });
+    const mapping = applyOverlayItemsToExistingBlocks({
+      page,
+      items: [
+        makeItem(
+          1,
+          { x: 100, y: 100, w: 72, h: 180 },
+          "超人工知能翻訳技術",
+          "초인공지능번역기술",
+        ),
+      ],
+      previousBlocks,
+      naturalLayout: { enabled: true, locale: "ko" },
+    });
+
+    expect(mapping.blocks[0].translatedText).toBe("초인공지능번역기술");
+    expect(mapping.blocks[0]).toMatchObject({
+      bbox: original.bbox,
+      renderDirection: original.renderDirection,
+      wordBreak: "keep-all",
+      fontWidthScale: 0.9,
+    });
+  });
+
+  it("adds hard breaks to a legacy block without adding wordBreak", () => {
+    const original = makeBlock(
+      "b-1",
+      { x: 100, y: 100, w: 100, h: 120 },
+      "이전 번역",
+    );
+    const page = makePage([original]);
+    const previousBlocks = buildPreviousBlocksForPrompt(page, [], {
+      assignSequentialCandidateIds: true,
+    }).map((block) => ({ ...block, textRole: "ordinary" as const }));
+    const mapping = applyOverlayItemsToExistingBlocks({
+      page,
+      items: [
+        makeItem(
+          1,
+          original.bbox,
+          "既存ブロックの折り返し設定はそのままです",
+          "기존 블록의 줄바꿈 서식은 그대로 둡니다",
+        ),
+      ],
+      previousBlocks,
+      naturalLayout: { enabled: true, locale: "ko" },
+    });
+
+    expect(mapping.blocks[0]?.translatedText).toContain("\n");
+    expect(mapping.blocks[0]?.wordBreak).toBeUndefined();
+    expect(original.wordBreak).toBeUndefined();
+  });
+
+  it("does not disturb curve text while applying natural layout", () => {
+    const curved = {
+      ...makeBlock("b-1", { x: 100, y: 100, w: 72, h: 180 }),
+      curveLayout: {
+        version: 1 as const,
+        path: {
+          type: "quadratic" as const,
+          start: { x: 0, y: 500 },
+          control: { x: 500, y: 0 },
+          end: { x: 1000, y: 500 },
+        },
+        alignment: "center" as const,
+        offsetEm: 0,
+        orientation: "tangent" as const,
+      },
+    };
+    const page = makePage([curved]);
+    const previousBlocks = buildPreviousBlocksForPrompt(page, [], {
+      assignSequentialCandidateIds: true,
+    });
+    const mapping = applyOverlayItemsToExistingBlocks({
+      page,
+      items: [
+        makeItem(1, curved.bbox, "超人工知能翻訳技術", "초인공지능번역기술"),
+      ],
+      previousBlocks,
+      naturalLayout: { enabled: true, locale: "ko" },
+    });
+
+    expect(mapping.blocks[0].translatedText).toBe("초인공지능번역기술");
+    expect(mapping.blocks[0].curveLayout).toEqual(curved.curveLayout);
   });
 });
 

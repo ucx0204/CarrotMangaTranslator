@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
 
 import React from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MangaPage } from "../src/shared/libraryTypes";
 import { AppWorkspace } from "../src/renderer/src/components/AppWorkspace";
@@ -15,6 +21,7 @@ import {
   createWorkspaceInteractionPreviewStore,
   type WorkspaceInteractionPreviewStore,
 } from "../src/renderer/src/lib/workspaceInteractionPreview";
+import { createBubbleLayoutDraft } from "../src/renderer/src/lib/bubbleLayoutDraft";
 
 const PAGE_1_IMAGE =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
@@ -33,6 +40,40 @@ afterEach(() => {
 });
 
 describe("AppWorkspace scroll reset", () => {
+  it("reserves a context row outside the canvas while retaining the workspace scroll ref", () => {
+    const refs = makeWorkspaceRefs();
+    const page = makePage("page-1");
+    const block = makeBlock();
+    page.blocks = [block];
+    refs.interactionPreviewStore.set({
+      bubbleLayoutDraft: createBubbleLayoutDraft(block, page),
+    });
+    const view = renderWorkspace(
+      makeWorkspaceProps({
+        refs,
+        selectedPage: page,
+        selectedPageImageDataUrl: PAGE_1_IMAGE,
+        selectedPageImagePageId: "page-1",
+      }),
+    );
+
+    const shell = view.container.querySelector(".workspace-shell");
+    const contextBar = screen.getByRole("region", {
+      name: "말풍선 모양 편집",
+    });
+    const viewport = view.container.querySelector(".workspace-canvas-viewport");
+    const workspace = screen.getByLabelText("읽기 영역");
+    const stage = view.container.querySelector(".image-stage");
+
+    expect(shell?.firstElementChild).toBe(contextBar);
+    expect(shell?.lastElementChild).toBe(viewport);
+    expect(viewport?.contains(contextBar)).toBe(false);
+    expect(viewport?.contains(workspace)).toBe(true);
+    expect(workspace.contains(stage)).toBe(true);
+    expect(stage?.contains(contextBar)).toBe(false);
+    expect(refs.workspacePanelRef.current).toBe(workspace);
+  });
+
   it("waits until the selected page image is actually rendered before resetting scroll", () => {
     const refs = makeWorkspaceRefs();
     const view = renderWorkspace(
@@ -44,40 +85,62 @@ describe("AppWorkspace scroll reset", () => {
       }),
     );
     const workspace = screen.getByLabelText("읽기 영역") as HTMLElement;
+    const renderedImage = view.container.querySelector(
+      ".page-image",
+    ) as HTMLImageElement;
     workspace.scrollTop = 600;
     workspace.scrollLeft = 320;
+    const pendingPage = makePage("page-2");
+    pendingPage.blocks = [makeBlock()];
 
     view.rerender(
       withFonts(
         <AppWorkspace
           {...makeWorkspaceProps({
             refs,
-            selectedPage: makePage("page-2"),
+            selectedPage: pendingPage,
             selectedPageImageDataUrl: PAGE_1_IMAGE,
-            selectedPageImagePageId: "page-1",
+            selectedPageImageLoading: true,
+            selectedPageImagePageId: null,
           })}
+          showTextBlocks
+          stageSize={{ height: 800, width: 500 }}
         />,
       ),
     );
 
     expect(workspace.scrollTop).toBe(600);
     expect(workspace.scrollLeft).toBe(320);
+    expect(
+      screen.getByRole("status", { name: "이미지 불러오는 중" }),
+    ).not.toBeNull();
+    expect(
+      (view.container.querySelector(".page-image") as HTMLImageElement).src,
+    ).toBe(PAGE_1_IMAGE);
+    expect(view.container.querySelector(".page-image")).toBe(renderedImage);
+    expect(view.container.querySelector(".overlay-block")).toBeNull();
 
     view.rerender(
       withFonts(
         <AppWorkspace
           {...makeWorkspaceProps({
             refs,
-            selectedPage: makePage("page-2"),
+            selectedPage: pendingPage,
             selectedPageImageDataUrl: PAGE_2_IMAGE,
+            selectedPageImageLoading: false,
             selectedPageImagePageId: "page-2",
           })}
+          showTextBlocks
+          stageSize={{ height: 800, width: 500 }}
         />,
       ),
     );
 
     expect(workspace.scrollTop).toBe(0);
     expect(workspace.scrollLeft).toBe(0);
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(view.container.querySelector(".page-image")).toBe(renderedImage);
+    expect(view.container.querySelector(".overlay-block")).not.toBeNull();
   });
 
   it("does not keep forcing scroll to top while the same page remains rendered", () => {
@@ -184,7 +247,24 @@ describe("AppWorkspace scroll reset", () => {
     });
 
     for (const label of ["마스크", "브러시", "지우개", "선택"]) {
-      fireEvent.click(screen.getByRole("button", { name: label }));
+      if (label === "선택") {
+        fireEvent.click(screen.getByRole("button", { name: label }));
+      } else {
+        const retouchTrigger = document.querySelectorAll<HTMLButtonElement>(
+          ".stage-toolbar-group-trigger",
+        )[0];
+        expect(retouchTrigger).toBeDefined();
+        fireEvent.click(retouchTrigger as HTMLButtonElement);
+        const retouchMenu = document.querySelector<HTMLElement>(
+          '[data-stage-tool-menu="retouch"]',
+        );
+        expect(retouchMenu).not.toBeNull();
+        fireEvent.click(
+          within(retouchMenu as HTMLElement).getByRole("menuitemradio", {
+            name: label,
+          }),
+        );
+      }
       expect(screen.getByRole("img", { name: "page-1.png" })).toBe(pageImage);
       expect(pageImage.isConnected).toBe(true);
       expect(pageImage.src).toBe(PAGE_1_IMAGE);
@@ -390,18 +470,18 @@ function makeWorkspaceProps({
   refs,
   selectedPage,
   selectedPageImageDataUrl,
+  selectedPageImageLoading = false,
   selectedPageImagePageId,
 }: {
   refs: WorkspaceRefs;
   selectedPage: MangaPage;
   selectedPageImageDataUrl: string;
+  selectedPageImageLoading?: boolean;
   selectedPageImagePageId: string | null;
 }): AppWorkspaceProps {
   return {
     brushColor: "#ffffff",
     brushRadius: 28,
-    canRedo: false,
-    canUndo: false,
     imageRef: refs.imageRef,
     interactionPreviewStore: refs.interactionPreviewStore,
     jobActive: false,
@@ -412,10 +492,9 @@ function makeWorkspaceProps({
       status: "idle",
     },
     maskStrokes: [],
+    onApplyBubbleLayoutDraft: () => undefined,
     onBlockPointerDown: () => undefined,
-    onPeekToggle: () => undefined,
-    onRedo: () => undefined,
-    onResetPage: () => undefined,
+    onCancelBubbleLayoutDraft: () => undefined,
     onOpenBatchImport: () => undefined,
     onOpenSettings: () => undefined,
     onOpenShareImport: () => undefined,
@@ -427,13 +506,11 @@ function makeWorkspaceProps({
     onStagePointerUp: () => undefined,
     onToggleRegionTranslation: () => undefined,
     onToggleStageToolbarHidden: () => undefined,
+    onUndoBubbleLayoutPoint: () => undefined,
     onChangeWorkspaceFitMode: () => undefined,
     onResetWorkspaceZoom: () => undefined,
     onZoomInWorkspace: () => undefined,
     onZoomOutWorkspace: () => undefined,
-    onUndo: () => undefined,
-    compareAvailable: false,
-    resetAvailable: false,
     progressSnapshot: null,
     regionSelectionActive: false,
     regionTranslationAvailable: true,
@@ -444,6 +521,7 @@ function makeWorkspaceProps({
     selectedBlockIds: [],
     selectedPage,
     selectedPageImageDataUrl,
+    selectedPageImageLoading,
     selectedPageImagePageId,
     showBlockChrome: false,
     showTextBlocks: false,

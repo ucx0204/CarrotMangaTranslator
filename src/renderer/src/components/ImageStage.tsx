@@ -13,6 +13,7 @@ import {
 } from "./imageStageModel";
 import type { ImageStageProps, RetouchStageModel } from "./imageStageTypes";
 import { clearRetouchLiveOverlay } from "../lib/retouchLiveOverlay";
+import { BubbleLayoutDraftLayer } from "./BubbleLayoutDraftLayer";
 
 export type { ImageStageProps } from "./imageStageTypes";
 
@@ -20,6 +21,7 @@ export function ImageStage({
   blockPointerDisabled = false,
   hideEditingOverlays = false,
   imageDataUrl,
+  imageLoading = false,
   imageRef,
   interactionPreviewStore,
   maskStrokes = [],
@@ -56,6 +58,7 @@ export function ImageStage({
       blockPointerDisabled={blockPointerDisabled}
       hideEditingOverlays={hideEditingOverlays}
       imageDataUrl={imageDataUrl}
+      imageLoading={imageLoading}
       imageRef={imageRef}
       interactionPreviewStore={interactionPreviewStore}
       onBlockPointerDown={onBlockPointerDown}
@@ -85,6 +88,7 @@ function ImageStageFrame({
   blockPointerDisabled = false,
   hideEditingOverlays = false,
   imageDataUrl,
+  imageLoading = false,
   imageRef,
   interactionPreviewStore,
   onBlockPointerDown,
@@ -134,6 +138,7 @@ function ImageStageFrame({
           blockPointerDisabled={blockPointerDisabled}
           hideEditingOverlays={hideEditingOverlays}
           imageDataUrl={imageDataUrl}
+          imageLoading={imageLoading}
           imageRef={imageRef}
           interactionPreviewStore={interactionPreviewStore}
           onBlockPointerDown={onBlockPointerDown}
@@ -156,10 +161,22 @@ function ImageStageFrame({
   );
 }
 
+type ImageStageLayerSetProps = Omit<
+  ImageStageProps,
+  | "onStagePointerDown"
+  | "onStagePointerLeave"
+  | "onStagePointerMove"
+  | "onStagePointerUp"
+  | "stageRef"
+> & {
+  retouchModel: RetouchStageModel;
+};
+
 function ImageStageLayerSet({
   blockPointerDisabled = false,
   hideEditingOverlays = false,
   imageDataUrl,
+  imageLoading = false,
   imageRef,
   interactionPreviewStore,
   onBlockPointerDown,
@@ -176,19 +193,15 @@ function ImageStageLayerSet({
   stageTool,
   stageSize,
   textLayoutStageSize,
-}: Omit<
-  ImageStageProps,
-  | "onStagePointerDown"
-  | "onStagePointerLeave"
-  | "onStagePointerMove"
-  | "onStagePointerUp"
-  | "stageRef"
-> & {
-  retouchModel: RetouchStageModel;
-}): React.JSX.Element {
+}: ImageStageLayerSetProps): React.JSX.Element {
   return (
     <>
-      <StageImage imageDataUrl={imageDataUrl} imageRef={imageRef} page={page} />
+      <StageImage
+        imageDataUrl={imageDataUrl}
+        imageLoading={imageLoading}
+        imageRef={imageRef}
+        page={page}
+      />
       {hideEditingOverlays ? null : (
         <>
           <OverlayBlockLayer
@@ -223,9 +236,28 @@ function ImageStageLayerSet({
             regionSelectionRect={regionSelectionRect}
             stageSize={stageSize}
           />
+          <StageBubbleLayoutDraft
+            imageDataUrl={imageDataUrl}
+            interactionPreviewStore={interactionPreviewStore}
+          />
           <StageDragHud interactionPreviewStore={interactionPreviewStore} />
         </>
       )}
     </>
+  );
+}
+
+function StageBubbleLayoutDraft({
+  imageDataUrl,
+  interactionPreviewStore,
+}: Pick<
+  ImageStageProps,
+  "imageDataUrl" | "interactionPreviewStore"
+>): React.JSX.Element {
+  return (
+    <BubbleLayoutDraftLayer
+      imageDataUrl={imageDataUrl}
+      interactionPreviewStore={interactionPreviewStore}
+    />
   );
 }

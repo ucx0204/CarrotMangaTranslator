@@ -1,0 +1,97 @@
+import { useCallback } from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
+import { inpaintingGateway } from "../api/inpaintingGateway";
+import { formatErrorMessage } from "../lib/errorPresentation";
+import {
+  failInpaintingJob,
+  refreshLibraryWithStatus,
+  saveDirtyChanges,
+  type UseInpaintingActionsOptions,
+} from "./inpaintingActionTypes";
+
+export function useRunBubbleLayoutAction(
+  options: UseInpaintingActionsOptions,
+): () => Promise<void> {
+  const { t } = useTranslation("renderer");
+  return useCallback(async () => runBubbleLayout(options, t), [options, t]);
+}
+
+async function runBubbleLayout(
+  options: UseInpaintingActionsOptions,
+  t: TFunction<"renderer">,
+): Promise<void> {
+  const chapter = options.currentChapter;
+  const page = options.selectedPage;
+  if (!chapter || !page || options.jobActive) return;
+  if (page.blocks.length === 0) {
+    options.pushStatus(t("inpainting.bubbleLayout.requiresBlocks"));
+    return;
+  }
+  if (!(await prepareBubbleLayout(options, t))) return;
+  try {
+    const result = await inpaintingGateway.startInpainting({
+      chapterId: chapter.id,
+      mode: "page-bubble-layout",
+      pageId: page.id,
+      policy: "balanced",
+    });
+    if (result.chapter) {
+      options.clearRetouchHistory();
+      options.clearPageImageCache();
+      options.mergeLiveChapter(result.chapter);
+    }
+    if (result.historyTransaction) {
+      options.workspaceHistory.recordImageEdit({
+        label: t("workspaceHistory.bubbleLayout"),
+        transactionId: result.historyTransaction.transactionId,
+      });
+    }
+    if (result.status === "completed") {
+      options.setShowBlockChrome(false);
+      options.pushStatus(t("inpainting.bubbleLayout.success"));
+    } else if (result.status === "failed") {
+      options.pushStatus(result.error ?? t("inpainting.bubbleLayout.failed"));
+    }
+    void refreshLibraryWithStatus(
+      options.refreshLibrary,
+      options.pushStatus,
+      t("library.refreshAfterJobFailed"),
+    );
+  } catch (error) {
+    console.error(error);
+    failInpaintingJob(
+      options.setJobState,
+      options.pushStatus,
+      t("inpainting.bubbleLayout.failedTitle"),
+      formatErrorMessage(error, t("inpainting.bubbleLayout.failed")),
+    );
+  }
+}
+
+async function prepareBubbleLayout(
+  options: UseInpaintingActionsOptions,
+  t: TFunction<"renderer">,
+): Promise<boolean> {
+  try {
+    await saveDirtyChanges(options.dirty, options.saveNow);
+  } catch (error) {
+    console.error(error);
+    failInpaintingJob(
+      options.setJobState,
+      options.pushStatus,
+      t("inpainting.common.saveFailedTitle"),
+      formatErrorMessage(error, t("inpainting.erase.saveFailed")),
+    );
+    return false;
+  }
+  options.setPeekOriginal(false);
+  options.setJobState({
+    id: "pending-bubble-layout",
+    kind: "inpainting",
+    status: "starting",
+    progressText: t("inpainting.bubbleLayout.preparing"),
+    phase: "inpainting_preparing",
+  });
+  return true;
+}

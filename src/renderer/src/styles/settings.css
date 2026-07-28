@@ -937,7 +937,7 @@
 
 @media (max-width: 1400px) {
   .app-shell {
-    grid-template-columns: 340px minmax(0, 1fr) 300px;
+    grid-template-columns: 340px minmax(0, 1fr) 44px 300px;
   }
 }
 
@@ -947,13 +947,22 @@
   }
 
   .app-shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) 44px;
     height: auto;
   }
 
   .sidebar,
   .right-rail {
+    grid-column: 1 / -1;
     border: 0;
+  }
+
+  .workspace-shell {
+    grid-column: 1;
+  }
+
+  .right-quick-rail {
+    grid-column: 2;
   }
 
   .workspace {

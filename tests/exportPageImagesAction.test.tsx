@@ -111,6 +111,7 @@ function makeOptions(
     setJobState,
     setPatternMaskStrokesByPage: vi.fn(),
     setPeekOriginal: vi.fn(),
+    setShowBlockChrome: vi.fn(),
     workspaceHistory: { recordImageEdit: vi.fn() },
   };
 }

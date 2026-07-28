@@ -5,7 +5,6 @@ import {
 } from "../../shared/translationLanguages";
 import {
   asRecord,
-  resolveAnalysisScopeDefault,
   resolveBoolean,
   resolveCodexReasoningEffort,
   resolveContextTokens,
@@ -36,7 +35,6 @@ import {
   resolveStoredOcrModeSettings,
 } from "./appSettingsStoredResolvers";
 import { getModeAwareGemmaDefaults } from "./gemmaModelPresets";
-import { normalizeUiLocale } from "../../shared/uiLocales";
 import {
   DEFAULT_API_KEY_MAX_ATTEMPTS,
   DEFAULT_API_RETRY_DELAY_SECONDS,
@@ -48,6 +46,7 @@ import {
 } from "../../shared/apiKeySettings";
 import { resolveRecommendedGenerationLimits } from "../../shared/modelPresets";
 import { normalizeBlockFormatDefaults } from "./blockFormatDefaultsNormalize";
+import { normalizeUiSettings } from "./appSettingsUiNormalize";
 import { resolveUnsafeUnifiedMemorySetting } from "./gemmaMemorySettings";
 import { normalizeStoredKeybindingOverrides } from "../../shared/shortcutSettings";
 
@@ -339,37 +338,6 @@ function normalizeOcrSettings(
   };
 }
 
-function normalizeUiSettings(
-  ui: Record<string, unknown> | null,
-  defaults: AppSettings,
-): NonNullable<AppSettings["ui"]> {
-  const data = ui ?? {};
-  const base = defaults.ui ?? {};
-  const blockModeDefault =
-    data.blockModeDefault === "auto" || data.blockModeDefault === "keep"
-      ? data.blockModeDefault
-      : base.blockModeDefault;
-  const translationWorkflowDefault =
-    data.translationWorkflowDefault === "standard" ||
-    data.translationWorkflowDefault === "cumulative" ||
-    data.translationWorkflowDefault === "two-pass"
-      ? data.translationWorkflowDefault
-      : (base.translationWorkflowDefault ?? "cumulative");
-  return {
-    locale: normalizeUiLocale(data.locale, base.locale),
-    inpaintingGuideHidden: resolveBoolean(
-      data.inpaintingGuideHidden,
-      base.inpaintingGuideHidden ?? false,
-    ),
-    translationWorkflowDefault,
-    analysisScopeDefault: resolveAnalysisScopeDefault(
-      data.analysisScopeDefault,
-      base.analysisScopeDefault ?? "missing",
-    ),
-    ...(blockModeDefault ? { blockModeDefault } : {}),
-  };
-}
-
 function normalizeInpaintingSettings(
   inpainting: Record<string, unknown> | null,
   defaults: AppSettings,
@@ -381,6 +349,10 @@ function normalizeInpaintingSettings(
     allowUnsafeLowMemoryFlux: resolveBoolean(
       inpainting?.allowUnsafeLowMemoryFlux,
       defaults.inpainting?.allowUnsafeLowMemoryFlux ?? false,
+    ),
+    bubbleLayoutAfterInpainting: resolveBoolean(
+      inpainting?.bubbleLayoutAfterInpainting,
+      defaults.inpainting?.bubbleLayoutAfterInpainting ?? false,
     ),
   };
 }

@@ -7,7 +7,10 @@ import { useTranslationActions } from "../../hooks/useTranslationActions";
 import type { ChapterSessionController } from "./useChapterSessionController";
 import { useAppSessionWorkspaceHistory } from "./useAppSessionWorkspaceHistory";
 
-export function useTranslationController(chapter: ChapterSessionController) {
+export function useTranslationController(
+  chapter: ChapterSessionController,
+  clearRetouchHistory: () => void,
+) {
   const workspaceHistory = useAppSessionWorkspaceHistory(chapter);
   const importShareActions = useImportShareController(
     chapter,
@@ -15,7 +18,8 @@ export function useTranslationController(chapter: ChapterSessionController) {
   );
   const translationActions = useTranslationActionController(
     chapter,
-    workspaceHistory.reset,
+    workspaceHistory,
+    clearRetouchHistory,
   );
   const updateCurrentChapter = useCurrentChapterUpdater({
     currentChapterRef: chapter.core.currentChapterRef,
@@ -93,17 +97,21 @@ function useImportShareController(
 
 function useTranslationActionController(
   chapter: ChapterSessionController,
-  resetWorkspaceHistory: () => void,
+  workspaceHistory: ReturnType<typeof useAppSessionWorkspaceHistory>,
+  clearRetouchHistory: () => void,
 ) {
   const prepareRegionTranslation = useRegionTranslationPreparation({
     pushStatus: chapter.statusLog.pushStatus,
   });
+  const uiDefaults = chapter.settingsDialog.settings?.ui ?? {};
 
   return useTranslationActions({
     beforeTranslate: async () => {
-      resetWorkspaceHistory();
+      workspaceHistory.reset();
       await prepareRegionTranslation();
     },
+    clearPageImageCache: chapter.derivedState.clearPageImageCache,
+    clearRetouchHistory,
     clearStatusLines: chapter.statusLog.clearStatusLines,
     currentChapter: chapter.core.currentChapter,
     currentChapterRef: chapter.core.currentChapterRef,
@@ -115,14 +123,14 @@ function useTranslationActionController(
     saveNow: chapter.persistence.saveNow,
     selectedPage: chapter.derivedState.selectedPage,
     translationWorkflowDefault:
-      chapter.settingsDialog.settings?.ui?.translationWorkflowDefault ??
-      "cumulative",
-    analysisScopeDefault:
-      chapter.settingsDialog.settings?.ui?.analysisScopeDefault ?? "missing",
-    blockModeDefault:
-      chapter.settingsDialog.settings?.ui?.blockModeDefault ?? "auto",
+      uiDefaults.translationWorkflowDefault ?? "cumulative",
+    analysisScopeDefault: uiDefaults.analysisScopeDefault ?? "missing",
+    blockModeDefault: uiDefaults.blockModeDefault ?? "auto",
+    naturalTextLayoutDefault: uiDefaults.naturalTextLayoutDefault ?? true,
+    recordImageEdit: workspaceHistory.recordImageEdit,
     setCurrentChapter: chapter.core.setCurrentChapter,
     setFlowActive: chapter.uiState.setTranslationFlowActive,
+    setShowBlockChrome: chapter.uiState.setShowBlockChrome,
     setJobState: chapter.core.setJobState,
     setSelectedBlockId: chapter.core.setSelectedBlockId,
     syncSavedPageVersion: chapter.persistence.syncSavedPageVersion,

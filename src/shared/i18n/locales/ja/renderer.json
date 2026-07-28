@@ -183,7 +183,7 @@
       "translate-all": "すべて再翻訳",
       "gather-text": "テキストをまとめて表示",
       "cancel-job": "処理をキャンセル",
-      "toggle-inpainting": "現在のページを自動消去",
+      "toggle-inpainting": "現在のページを消去",
       "history-undo": "元に戻す",
       "history-redo": "やり直す",
       "delete-block": "選択したブロックを削除",
@@ -206,9 +206,21 @@
     "importText": "翻訳文を読み込み",
     "maskEdit": "マスクを編集",
     "autoInpainting": "自動消去",
+    "bubbleLayout": "吹き出しフィット配置",
+    "bubbleLayoutManual": "吹き出し形状を編集",
+    "removeBubbleLayout": "吹き出しフィットを解除",
     "drawnInpainting": "描画範囲を消去",
     "retouch": "手動補正",
     "resetOriginal": "原画像に戻す"
+  },
+  "bubbleLayoutEditor": {
+    "needsMorePoints": "吹き出し領域には3点以上必要です。",
+    "invalidRegion": "吹き出し領域が小さすぎるか、正しくありません。",
+    "brushDetached": "広げるブラシは現在の吹き出し形状に触れる位置から始めてください。",
+    "brushDisconnect": "吹き出し形状が分断されるため、この削り操作を元に戻しました。",
+    "brushNoChange": "ブラシ操作による吹き出し形状の変更はありませんでした。",
+    "cancelled": "吹き出し領域の指定をキャンセルしました。",
+    "applied": "編集した吹き出し形状を選択中のブロックに適用しました。"
   },
   "blockEditing": {
     "chapterApplyWhileRunning": "処理中は話全体への一括書式適用を使用できません。",
@@ -296,6 +308,13 @@
       "failed": "原文の消去に失敗しました。",
       "success": "原文の消去完了: {{pages}}ページ、{{blocks}}ブロック"
     },
+    "bubbleLayout": {
+      "requiresBlocks": "吹き出しを検出するテキストブロックがありません。",
+      "preparing": "吹き出しフィット配置を準備中",
+      "success": "現在のページの翻訳ブロックを吹き出しに合わせました。",
+      "failedTitle": "吹き出しフィット失敗",
+      "failed": "翻訳ブロックを吹き出しに合わせられませんでした。"
+    },
     "export": {
       "noPage": "出力するページが選択されていません。",
       "saveFailed": "PNG出力前に変更を保存できませんでした。",
@@ -353,6 +372,10 @@
       "startFailed": "翻訳処理を開始できませんでした。"
     },
     "refreshWarning": "翻訳は完了しましたが、ライブラリを更新できませんでした。",
+    "eraseOriginalWorkflowCompleted": "翻訳と原文消去が完了しました。",
+    "eraseOriginalWorkflowFailed": "翻訳後の原文消去に失敗しました。",
+    "bubbleLayoutWorkflowCompleted": "翻訳・自動消去・吹き出しフィットが完了しました。",
+    "bubbleLayoutWorkflowFailed": "翻訳後の自動消去・吹き出しフィットに失敗しました。",
     "flow": {
       "firstPass": "1回目",
       "secondPass": "2回目",

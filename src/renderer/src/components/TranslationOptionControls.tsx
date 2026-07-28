@@ -1,0 +1,149 @@
+import React from "react";
+import { useTranslation } from "react-i18next";
+
+export function TranslationOptionSection({
+  className,
+  title,
+  children,
+}: {
+  className?: string;
+  title: string;
+  children: React.ReactNode;
+}): React.JSX.Element {
+  const titleId = React.useId();
+  return (
+    <section
+      className={["translate-options-section", className ?? ""]
+        .filter(Boolean)
+        .join(" ")}
+      aria-labelledby={titleId}
+    >
+      <h3 id={titleId} className="translate-options-section-title">
+        {title}
+      </h3>
+      <div className="translate-options-section-body">{children}</div>
+    </section>
+  );
+}
+
+export function TranslationCompletionOptions({
+  bubbleLayoutWorkflow,
+  eraseOriginalWorkflow,
+  onBubbleLayoutWorkflowChange,
+  onEraseOriginalWorkflowChange,
+}: {
+  bubbleLayoutWorkflow: boolean;
+  eraseOriginalWorkflow: boolean;
+  onBubbleLayoutWorkflowChange: (enabled: boolean) => void;
+  onEraseOriginalWorkflowChange: (enabled: boolean) => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <>
+      <OptionRow
+        label={t("translationOptions.completionMode")}
+        options={[
+          {
+            id: "translate",
+            label: t("translationOptions.completionModeTranslate"),
+          },
+          {
+            id: "erase",
+            label: t("translationOptions.completionModeErase"),
+          },
+        ]}
+        value={eraseOriginalWorkflow ? "erase" : "translate"}
+        onChange={(value) => onEraseOriginalWorkflowChange(value === "erase")}
+        description={t(
+          `translationOptions.completionModeSummaries.${eraseOriginalWorkflow ? "erase" : "translate"}`,
+        )}
+        showLabel={false}
+      />
+      {eraseOriginalWorkflow ? (
+        <div className="translate-options-nested">
+          <OptionRow
+            label={t("translationOptions.bubbleLayoutWorkflow")}
+            options={[
+              {
+                id: "off",
+                label: t("translationOptions.bubbleLayoutWorkflowOff"),
+              },
+              {
+                id: "on",
+                label: t("translationOptions.bubbleLayoutWorkflowOn"),
+              },
+            ]}
+            value={bubbleLayoutWorkflow ? "on" : "off"}
+            onChange={(value) => onBubbleLayoutWorkflowChange(value === "on")}
+            description={t(
+              `translationOptions.bubbleLayoutWorkflowSummaries.${bubbleLayoutWorkflow ? "on" : "off"}`,
+            )}
+          />
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+export function OptionRow<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+  disabled = false,
+  description,
+  showLabel = true,
+}: {
+  label: string;
+  options: { id: T; label: string }[];
+  value: T;
+  onChange: (value: T) => void;
+  disabled?: boolean;
+  description?: string;
+  showLabel?: boolean;
+}): React.JSX.Element {
+  const descriptionId = React.useId();
+  return (
+    <div
+      className={[
+        "translate-options-row",
+        disabled ? "disabled" : "",
+        showLabel ? "" : "translate-options-row--unlabeled",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      {showLabel ? (
+        <span className="translate-options-label">{label}</span>
+      ) : null}
+      <div
+        className="settings-mode-group"
+        role="group"
+        aria-label={label}
+        aria-describedby={description ? descriptionId : undefined}
+      >
+        {options.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            className={`settings-preset-button ${value === option.id ? "active" : ""}`}
+            aria-pressed={value === option.id}
+            disabled={disabled}
+            onClick={() => onChange(option.id)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+      {description ? (
+        <p
+          id={descriptionId}
+          className="translate-options-selected-hint"
+          aria-live="polite"
+        >
+          {description}
+        </p>
+      ) : null}
+    </div>
+  );
+}

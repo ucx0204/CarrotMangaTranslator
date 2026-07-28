@@ -12,31 +12,50 @@ import type { ImageStageProps, RetouchStageModel } from "./imageStageTypes";
 
 type StageImageProps = {
   imageDataUrl: string;
+  imageLoading: boolean;
   imageRef: React.RefObject<HTMLImageElement | null>;
   page: MangaPage;
 };
 
 export const StageImage = React.memo(function StageImage({
   imageDataUrl,
+  imageLoading,
   imageRef,
   page,
 }: StageImageProps): React.JSX.Element {
   const { t } = useTranslation("components");
-  return imageDataUrl ? (
-    <img
-      ref={imageRef}
-      className="page-image"
-      src={imageDataUrl}
-      alt={page.name}
-      draggable={false}
-    />
-  ) : (
-    <div
-      className="page-image-placeholder"
-      style={{ aspectRatio: `${page.width} / ${page.height}` }}
-    >
-      {t("imageStage.loadingImage")}
-    </div>
+  return (
+    <>
+      {imageDataUrl ? (
+        <img
+          ref={imageRef}
+          className="page-image"
+          src={imageDataUrl}
+          alt={page.name}
+          draggable={false}
+        />
+      ) : (
+        <div
+          className="page-image-placeholder"
+          style={{ aspectRatio: `${page.width} / ${page.height}` }}
+        >
+          {t("imageStage.loadingImage")}
+        </div>
+      )}
+      {imageLoading ? (
+        <div
+          aria-label={t("imageStage.loadingImage")}
+          aria-live="polite"
+          className="page-image-loading-overlay"
+          role="status"
+        >
+          <span aria-hidden="true" className="page-image-loading-spinner" />
+          <span className="page-image-loading-label">
+            {t("imageStage.loadingImage")}
+          </span>
+        </div>
+      ) : null}
+    </>
   );
 }, areStageImagePropsEqual);
 
@@ -46,6 +65,7 @@ function areStageImagePropsEqual(
 ): boolean {
   return (
     previous.imageDataUrl === next.imageDataUrl &&
+    previous.imageLoading === next.imageLoading &&
     previous.imageRef === next.imageRef &&
     previous.page.id === next.page.id &&
     previous.page.name === next.page.name

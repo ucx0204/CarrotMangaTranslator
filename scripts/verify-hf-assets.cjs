@@ -17,6 +17,7 @@ const modelPresets = readSource("src/shared/modelPresets.ts");
 const fluxConstants = readSource("src/main/inpainting/fluxAssets/constants.ts");
 const koharuAssets = readSource("src/main/inpainting/koharuAssets.ts");
 const animeTextAssets = readSource("src/main/textDetection/animeTextAssets.ts");
+const bubbleLayoutAssets = readSource("src/main/bubbleLayout/constants.ts");
 const animeTextContract = JSON.parse(
   readSource("src/main/runtime/ocr/anime-text-evidence-contract.json"),
 );
@@ -119,6 +120,19 @@ const assets = [
     expectedSha256: readStringConstant(
       animeTextAssets,
       "ANIME_TEXT_MODEL_SHA256",
+    ),
+  },
+  {
+    label: "Comic bubble and text detector",
+    repo: readStringConstant(bubbleLayoutAssets, "COMIC_BUBBLE_DETECTOR_REPO"),
+    file: readStringConstant(bubbleLayoutAssets, "COMIC_BUBBLE_DETECTOR_FILE"),
+    revision: readStringConstant(
+      bubbleLayoutAssets,
+      "COMIC_BUBBLE_DETECTOR_REVISION",
+    ),
+    expectedSha256: readStringConstant(
+      bubbleLayoutAssets,
+      "COMIC_BUBBLE_DETECTOR_SHA256",
     ),
   },
   ...PADDLE_OCR_MODEL_DOWNLOADS.flatMap((entry) =>

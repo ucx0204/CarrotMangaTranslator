@@ -59,12 +59,22 @@ export function makeStartAnalysisRequest(
     pageIds?: string[];
     blockMode?: AnalysisBlockMode;
     collectPageContext?: boolean;
+    naturalTextLayout?: boolean;
   },
   t?: TFunction<"renderer">,
 ): StartAnalysisRequest {
-  const { runMode, pageId, pageIds, blockMode, collectPageContext } = args;
+  const {
+    runMode,
+    pageId,
+    pageIds,
+    blockMode,
+    collectPageContext,
+    naturalTextLayout,
+  } = args;
   const contextOption =
     collectPageContext === undefined ? {} : { collectPageContext };
+  const layoutOption =
+    naturalTextLayout === undefined ? {} : { naturalTextLayout };
   if (runMode === "single-page") {
     if (!pageId) {
       throw new Error(
@@ -73,7 +83,14 @@ export function makeStartAnalysisRequest(
           : "다시 번역할 페이지를 찾지 못했습니다.",
       );
     }
-    return { chapterId, runMode, pageId, blockMode, ...contextOption };
+    return {
+      chapterId,
+      runMode,
+      pageId,
+      blockMode,
+      ...contextOption,
+      ...layoutOption,
+    };
   }
   if (runMode === "page-set") {
     if (!pageIds || pageIds.length === 0) {
@@ -83,9 +100,22 @@ export function makeStartAnalysisRequest(
           : "번역할 페이지를 찾지 못했습니다.",
       );
     }
-    return { chapterId, runMode, pageIds, blockMode, ...contextOption };
+    return {
+      chapterId,
+      runMode,
+      pageIds,
+      blockMode,
+      ...contextOption,
+      ...layoutOption,
+    };
   }
-  return { chapterId, runMode, blockMode, ...contextOption };
+  return {
+    chapterId,
+    runMode,
+    blockMode,
+    ...contextOption,
+    ...layoutOption,
+  };
 }
 
 export function startingJobState(t?: TFunction<"renderer">): JobState {
@@ -225,6 +255,7 @@ export async function runSecondTranslationPass(
   selection: ChapterRunSelection[],
   pushStatus: UseTranslationActionsOptions["pushStatus"],
   blockMode?: AnalysisBlockMode,
+  naturalTextLayout?: boolean,
   t?: TFunction<"renderer">,
   notificationPort: NotificationPort = toastNotificationPort,
 ): Promise<RunAnalysisOutcome> {
@@ -235,6 +266,7 @@ export async function runSecondTranslationPass(
     t ? t("translation.flow.secondPass") : "2차",
     blockMode,
     false,
+    naturalTextLayout,
     t,
   );
   if (pass2 === "completed") {

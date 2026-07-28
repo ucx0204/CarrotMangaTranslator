@@ -82,6 +82,8 @@
   },
   "workspaceActions": {
     "label": "Canvas actions",
+    "showTranslations": "Show translations",
+    "showEditingChrome": "Editing guides",
     "undo": "Undo (Ctrl+Z)",
     "redo": "Redo (Ctrl+Y / Ctrl+Shift+Z)",
     "undoNamed": "Undo {{action}} (Ctrl+Z)",
@@ -109,6 +111,9 @@
     "bold": "Bold",
     "italic": "Italic",
     "italicShort": "Italic",
+    "blockStyle": "Whole block",
+    "blockBold": "Bold entire block",
+    "blockItalic": "Italicize entire block",
     "align": {
       "left": "Align left",
       "center": "Align center",
@@ -246,6 +251,14 @@
   "editor": {
     "text": "Text",
     "translatedText": "Translation",
+    "moreActions": "More block actions",
+    "sourceEmpty": "No OCR text",
+    "tabs": {
+      "label": "Block editing sections",
+      "text": "Text",
+      "layout": "Layout",
+      "format": "Style"
+    },
     "blockColors": "Block colors",
     "swapTextOutlineColors": "Swap text and outline colors",
     "display": {
@@ -259,6 +272,11 @@
       "exclude": "Exclude from automatic erase",
       "excludeHint": "Automatic inpainting will leave the text inside this block untouched."
     },
+    "bubbleLayout": {
+      "active": "Bubble fit applied",
+      "remove": "Remove bubble fit",
+      "removeHint": "Remove the automatic or manual bubble region and return to the original OCR text area."
+    },
     "markupHint": {
       "emphasis": "Emphasis:",
       "escape": "To type an asterisk, use"
@@ -268,6 +286,7 @@
       "boldTitle": "Make selected text bold (**bold**)",
       "italicLabel": "Italic (*italic*)",
       "italicTitle": "Italicize selected text (*italic*)",
+      "help": "Inline emphasis help",
       "resetHeight": "Reset input height"
     }
   },
@@ -360,11 +379,20 @@
     "noSelectedPages": "No pages selected.",
     "selectionSummary": "Chapters: {{chapterCount}} · Pages: {{pageCount}}",
     "start": "Start automatic erase",
-    "workUnavailable": "Could not load work information. Only the current page will be processed."
+    "workUnavailable": "Could not load work information. Only the current page will be processed.",
+    "currentPageSummary": "Erase only the current page.",
+    "allPagesSummary": "Erase all {{count}} pages in the current chapter.",
+    "bubbleLayout": "Fit text to bubbles after erasing",
+    "bubbleLayoutHint": "Detects bubble interiors in the erased image and automatically fits translated text."
   },
   "translationOptions": {
     "start": "Start translation",
     "workUnavailable": "Could not load work information. Only the current chapter will be translated.",
+    "sections": {
+      "quality": "Translation quality",
+      "blockLayout": "Blocks & line splitting",
+      "completion": "Completion"
+    },
     "workflowMode": "Translation workflow",
     "workflowOptions": {
       "standard": {
@@ -387,6 +415,33 @@
       "work": "Start over",
       "missing": "Only empty chapters",
       "chapter": "Current chapter only"
+    },
+    "blockModeSummaries": {
+      "auto": "Detect text blocks automatically on each page.",
+      "keep": "Keep the regions and formatting of existing blocks."
+    },
+    "naturalTextLayout": "Natural line layout",
+    "naturalTextLayoutOff": "Off",
+    "naturalTextLayoutOn": "On",
+    "naturalTextLayoutHint": "Adds hard line breaks to the translated text for the block size. A very narrow, tall new block switches to vertical only when it fits in one column. The block's wrapping policy is left unchanged.",
+    "naturalTextLayoutSummaries": {
+      "off": "Leave translated-text wrapping to each block.",
+      "on": "Arrange translated-text line breaks for the block size."
+    },
+    "completionMode": "Completion mode",
+    "completionModeTranslate": "Translate only",
+    "completionModeErase": "Erase source text",
+    "completionModeSummaries": {
+      "translate": "Finish after translation and leave the source image unchanged.",
+      "erase": "Automatically erase source text from selected pages after translation."
+    },
+    "bubbleLayoutWorkflow": "Bubble fitting",
+    "bubbleLayoutWorkflowOff": "Off",
+    "bubbleLayoutWorkflowOn": "On",
+    "bubbleLayoutWorkflowHint": "Fit translated blocks naturally inside their bubbles after erasing.",
+    "bubbleLayoutWorkflowSummaries": {
+      "off": "Erase source text while keeping the current block layout.",
+      "on": "Fit translated text inside bubbles after erasing."
     },
     "keepBlocksHint": "Pages with blocks keep their regions and formatting while only the text is replaced. Blocks are generated automatically on pages without them."
   },
@@ -493,7 +548,11 @@
     "inProgressShort": "Running",
     "erased": "Erased"
   },
-  "runPanel": { "openChapterHint": "Open a chapter from the library." },
+  "runPanel": {
+    "openChapterHint": "Open a chapter from the library.",
+    "chapterTools": "Chapter tools",
+    "currentPage": "Current page"
+  },
   "areaTranslation": {
     "title": "Region translation",
     "cancelSelection": "Cancel selection"
@@ -505,6 +564,16 @@
     "hideTitle": "Hide toolbar (4)",
     "imageTools": "Image tools",
     "radius": "{{radius}}px",
+    "groups": {
+      "textShape": {
+        "label": "Text shape",
+        "title": "Perspective, curved text, and bubble area tools"
+      },
+      "retouch": {
+        "label": "Image retouch",
+        "title": "Mask, brush, shape, and restore tools"
+      }
+    },
     "tools": {
       "select": { "label": "Select", "title": "Select tool (1)" },
       "block": {
@@ -527,6 +596,10 @@
         "label": "Curve",
         "title": "Curved text — place an effect along a path"
       },
+      "bubble": {
+        "label": "Bubble region",
+        "title": "Draw the selected block's bubble region — place points, then press Enter"
+      },
       "mask": { "label": "Mask", "title": "Mask brush" },
       "brush": { "label": "Brush", "title": "Retouch brush" },
       "rectangle": {
@@ -537,6 +610,28 @@
       "eraser": { "label": "Eraser", "title": "Erase retouch strokes" },
       "picker": { "label": "Pick color", "title": "Pick a canvas color" }
     }
+  },
+  "bubbleLayoutEditor": {
+    "title": "Edit bubble shape",
+    "emptyHint": "Place points around the safe inside edge of the bubble.",
+    "activeHint": "{{count}} points · Enter to apply · Backspace to undo a point",
+    "addHint": "Brush from the current shape outward to expand it.",
+    "subtractHint": "Brush inside the shape to trim it without splitting it.",
+    "modeLabel": "Bubble shape edit mode",
+    "modes": {
+      "polygon": "Polygon",
+      "add": "+ Expand",
+      "subtract": "− Trim"
+    },
+    "rejections": {
+      "detached": "Touch the current shape before expanding.",
+      "disconnect": "Trim reverted: it would split the shape.",
+      "empty": "That stroke did not change the shape.",
+      "invalid": "That brush stroke cannot be applied."
+    },
+    "radius": "Brush",
+    "undo": "Undo",
+    "apply": "Apply"
   },
   "display": {
     "title": "Display",
@@ -866,10 +961,13 @@
     "auto": {
       "description": "First, erase the source text automatically. Process one page or all remaining pages at once.",
       "currentPageAction": "Erase current page",
+      "eraseShort": "Erase current page",
       "moreActions": "More automatic erase actions",
-      "commandHint": "The main button processes only the current page. Choose a range only when needed.",
-      "selectMultiplePages": "Select multiple pages…",
-      "guideAction": "Automatic erase guide",
+      "allPagesErase": "Erase all pages",
+      "selectPagesErase": "Choose pages to erase",
+      "bubbleLayoutAction": "Auto-detect bubbles on this page",
+      "bubbleLayoutShort": "Bubble fit",
+      "bubbleLayoutRequiresBlocks": "Erase the current page first.",
       "nextRetouch": "Next: Retouch →",
       "noOpenChapter": "No chapter is open.",
       "remainingSummary": "Pages remaining: {{pendingPages}}/{{totalPages}} · Blocks: {{blockCount}}",

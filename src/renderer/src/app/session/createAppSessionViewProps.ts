@@ -8,6 +8,7 @@ import {
 } from "./createTranslationModalProps";
 import { createGatherTextProps } from "./createGatherTextProps";
 import { isWorkspaceImageReadyForSelectedPage } from "./appSessionSelectors";
+import { createWorkspaceViewProps } from "./createWorkspaceViewProps";
 
 export function createAppSessionViewProps(
   model: AppSessionViewModel,
@@ -41,11 +42,15 @@ function createAutoInpaintingOptionsProps({
     ? {
         chapter: core.currentChapter,
         currentPageId: derivedState.selectedPage.id,
+        initialScope: uiState.autoInpaintingEntryScope,
         library: core.library,
         onClose: () => uiState.setAutoInpaintingOptionsOpen(false),
-        onStart: (selection) => {
+        onStart: (selection, postprocess) => {
           uiState.setPeekOriginal(false);
-          return inpaintingActions.runInpaintingSelection(selection);
+          return inpaintingActions.runInpaintingSelection(
+            selection,
+            postprocess,
+          );
         },
       }
     : null;
@@ -167,6 +172,7 @@ function createPanelSessionValue(
     onDockEditorWindow: panelBridge.closeEditorWindow,
     onDeleteBlock: blockEditingActions.deleteSelectedBlock,
     onDuplicateBlock: blockEditingActions.duplicateSelectedBlock,
+    onRemoveBubbleLayout: blockEditingActions.removeSelectedBlockBubbleLayout,
     onSelectTransformMode: (mode) => {
       uiState.selectWorkspaceTool(mode);
     },
@@ -189,6 +195,13 @@ function createRightRailProps({
   return {
     brushColor: inpainting.brushColor,
     brushRadius: inpainting.brushRadius,
+    canRedo: workspaceHistory.canRedo,
+    canUndo: workspaceHistory.canUndo,
+    canRunBubbleLayout: Boolean(
+      derivedState.selectedPage?.inpaintedImagePath &&
+      derivedState.selectedPage.blocks.length,
+    ),
+    compareAvailable: derivedState.peekAvailable,
     currentChapter: core.currentChapter,
     flowActive: uiState.translationFlowActive,
     jobActive:
@@ -205,21 +218,33 @@ function createRightRailProps({
     onOpenStyleGuide: () => uiState.setStyleGuideOpen(true),
     onOpenTextView: () => uiState.setTextViewOpen(true),
     onOpenTranslateOptions: () => uiState.setTranslateOptionsOpen(true),
-    onRunDrawnPattern: inpainting.onRunDrawnPattern,
-    onRunCurrentPageInpainting: () => {
+    onPeekToggle: inpainting.onPeekToggle,
+    onRedo: () => void workspaceHistory.redo(),
+    onResetPage: () => {
       uiState.setPeekOriginal(false);
-      void inpaintingActions.runInpainting("page");
+      void inpaintingActions.revertInpainting("page");
     },
-    onShowGuide: inpainting.onShowGuide,
-    onOpenAutoInpaintingOptions: () => {
+    onRunDrawnPattern: inpainting.onRunDrawnPattern,
+    onRunBubbleLayout: () => void inpaintingActions.runBubbleLayout(),
+    onRunCurrentPageInpainting: () => {
       core.setRegionSelection(null);
       uiState.selectWorkspaceTool("select");
       uiState.setPeekOriginal(false);
+      uiState.setAutoInpaintingEntryScope("current");
       uiState.setAutoInpaintingOptionsOpen(true);
     },
-    onToggleBlocks: () => uiState.setShowTextBlocks((value) => !value),
-    onToggleChrome: () => uiState.setShowBlockChrome((value) => !value),
+    onOpenAutoInpaintingOptions: (scope) => {
+      core.setRegionSelection(null);
+      uiState.selectWorkspaceTool("select");
+      uiState.setPeekOriginal(false);
+      uiState.setAutoInpaintingEntryScope(scope);
+      uiState.setAutoInpaintingOptionsOpen(true);
+    },
+    onUndo: () => void workspaceHistory.undo(),
+    peeking: derivedState.showingOriginalPeek,
     progressSnapshot: derivedState.progressSnapshot,
+    redoLabel: workspaceHistory.redoLabel,
+    resetAvailable: Boolean(derivedState.selectedPage?.inpaintedImagePath),
     selectedBlock: derivedState.selectedBlock,
     selectedPage: derivedState.selectedPage,
     showBlockChrome: uiState.showBlockChrome,
@@ -227,6 +252,9 @@ function createRightRailProps({
     showTextBlocks: uiState.showTextBlocks,
     stageTool: uiState.stageTool,
     statusLines: statusLog.statusLines,
+    undoLabel: workspaceHistory.undoLabel,
+    onToggleBlocks: () => uiState.setShowTextBlocks((visible) => !visible),
+    onToggleChrome: () => uiState.setShowBlockChrome((visible) => !visible),
   };
 }
 
@@ -316,7 +344,6 @@ function createWorkspaceProps({
   derivedState,
   importShareActions,
   importShareModal,
-  inpaintingActions,
   inpaintingBridge,
   pointerHandlers,
   settingsDialog,
@@ -329,29 +356,21 @@ function createWorkspaceProps({
     imageRef: core.imageRef,
     brushColor: uiState.inpaintingPaintColor,
     brushRadius: uiState.inpaintingBrushRadius,
-    canRedo: workspaceHistory.canRedo,
-    canUndo: workspaceHistory.canUndo,
-    compareAvailable: derivedState.peekAvailable,
     jobActive:
       inpaintingBridge.contextValue.jobActive ||
       uiState.translationFlowActive ||
       workspaceHistory.busy,
     jobState: core.jobState,
     maskStrokes: derivedState.patternMaskStrokes,
-    resetAvailable: Boolean(derivedState.selectedPage?.inpaintedImagePath),
     onBlockPointerDown: pointerHandlers.onBlockPointerDown,
+    onApplyBubbleLayoutDraft: pointerHandlers.applyBubbleLayoutDraft,
+    onCancelBubbleLayoutDraft: pointerHandlers.cancelBubbleLayoutDraft,
     onOpenBatchImport: () =>
       void importShareActions.openImportPreview("zip-folder"),
     onOpenSettings: () => void settingsDialog.openSettings(),
     onOpenShareImport: () => void importShareActions.openShareImportPreview(),
     onOpenTranslationSource: () =>
       importShareModal.setTranslationSourceOpen(true),
-    onPeekToggle: inpaintingBridge.contextValue.onPeekToggle,
-    onRedo: () => void workspaceHistory.redo(),
-    onResetPage: () => {
-      uiState.setPeekOriginal(false);
-      void inpaintingActions.revertInpainting("page");
-    },
     onSelectStageTool: (tool) => {
       core.setRegionSelection(null);
       uiState.selectWorkspaceTool(tool);
@@ -361,10 +380,10 @@ function createWorkspaceProps({
     onStagePointerLeave: pointerHandlers.onStagePointerLeave,
     onStagePointerMove: pointerHandlers.onStagePointerMove,
     onStagePointerUp: pointerHandlers.onStagePointerUp,
+    onUndoBubbleLayoutPoint: pointerHandlers.undoBubbleLayoutPoint,
     onToggleStageToolbarHidden: () =>
       uiState.setStageToolbarHidden((hidden) => !hidden),
     progressSnapshot: derivedState.progressSnapshot,
-    redoLabel: workspaceHistory.redoLabel,
     regionSelectionActive: Boolean(core.regionSelection?.active),
     regionTranslationAvailable: isRegionTranslationAvailable(derivedState),
     regionSelectionRect: derivedState.regionSelectionRect,
@@ -374,6 +393,7 @@ function createWorkspaceProps({
     selectedBlockIds: derivedState.selectedBlockIds,
     selectedPage: derivedState.selectedPage,
     selectedPageImageDataUrl: derivedState.workspaceImageDataUrl,
+    selectedPageImageLoading: derivedState.workspaceImageLoading,
     selectedPageImagePageId: derivedState.workspaceImagePageId,
     showBlockChrome: uiState.showBlockChrome,
     showTextBlocks: uiState.showTextBlocks,
@@ -382,29 +402,6 @@ function createWorkspaceProps({
     stageSize: derivedState.stageSize,
     stageTool: uiState.stageTool,
     stageToolbarHidden: uiState.stageToolbarHidden,
-    undoLabel: workspaceHistory.undoLabel,
-    onUndo: () => void workspaceHistory.undo(),
     workspacePanelRef: core.workspacePanelRef,
-  };
-}
-
-function createWorkspaceViewProps(
-  uiState: AppSessionViewModel["uiState"],
-): Pick<
-  AppSessionViewProps["workspaceProps"],
-  | "onChangeWorkspaceFitMode"
-  | "onResetWorkspaceZoom"
-  | "onZoomInWorkspace"
-  | "onZoomOutWorkspace"
-  | "workspaceFitMode"
-  | "workspaceZoom"
-> {
-  return {
-    onChangeWorkspaceFitMode: uiState.setWorkspaceFitMode,
-    onResetWorkspaceZoom: uiState.resetWorkspaceZoom,
-    onZoomInWorkspace: uiState.zoomInWorkspace,
-    onZoomOutWorkspace: uiState.zoomOutWorkspace,
-    workspaceFitMode: uiState.workspaceFitMode,
-    workspaceZoom: uiState.workspaceZoom,
   };
 }

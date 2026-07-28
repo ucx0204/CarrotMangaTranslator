@@ -126,6 +126,12 @@ export type UiSettings = {
   analysisScopeDefault?: "work" | "missing" | "chapter";
   /** Default 블록 mode for translate: auto-detect blocks or keep existing block regions. */
   blockModeDefault?: "auto" | "keep";
+  /** Insert size-aware hard line breaks into newly translated block text. */
+  naturalTextLayoutDefault?: boolean;
+  /** Erase source text with automatic inpainting after translation. */
+  eraseOriginalWorkflowDefault?: boolean;
+  /** Fit translated text to detected speech balloons after erasing. */
+  bubbleLayoutWorkflowDefault?: boolean;
 };
 
 type InpaintingSettings = {
@@ -134,6 +140,8 @@ type InpaintingSettings = {
   koharuBackend?: KoharuInpaintingBackend;
   /** Explicit Alpha opt-in for Flux Metal below the recommended 16 GiB. */
   allowUnsafeLowMemoryFlux?: boolean;
+  /** Run bubble-aware text placement after an inpainting result is created. */
+  bubbleLayoutAfterInpainting?: boolean;
 };
 
 export type AppSettings = {

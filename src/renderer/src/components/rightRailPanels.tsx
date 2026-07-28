@@ -3,28 +3,37 @@ import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { JobState } from "../../../shared/jobTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
+import type { AutoInpaintingEntryScope } from "../lib/autoInpaintingSelection";
 import { isRetouchTool, type WorkspaceTool } from "../lib/stageTool";
 import { EditorPanelSlot } from "../panels/EditorPanelSlot";
 import { InpaintingControlPanel } from "./InpaintingControlPanel";
-import { DisplayControlPanel } from "./inpaintingPanel/DisplayControlPanel";
-import { RunPanel, StatusPanel } from "./RunStatusPanels";
+import { ChapterTaskHub } from "./RunStatusPanels";
+import { StatusPanel } from "./RunStatusFeedback";
 
 export type UnifiedRightRailProps = {
   brushColor: string;
   brushRadius: number;
+  canRedo: boolean;
+  canUndo: boolean;
+  compareAvailable: boolean;
   currentChapter: ChapterSnapshot | null;
   flowActive: boolean;
   jobActive: boolean;
   jobState: JobState;
   maskStrokeCount: number;
+  peeking: boolean;
   progressSnapshot: ProgressSnapshot | null;
+  redoLabel?: string | null;
+  resetAvailable: boolean;
   selectedBlock: TranslationBlock | null;
   selectedPage: MangaPage | null;
+  canRunBubbleLayout: boolean;
   showBlockChrome: boolean;
   showProgressBar: boolean;
   showTextBlocks: boolean;
   stageTool: WorkspaceTool;
   statusLines: string[];
+  undoLabel?: string | null;
   onBrushColorChange: (value: string) => void;
   onBrushRadiusChange: (value: number) => void;
   onCancelJob: () => void;
@@ -33,12 +42,16 @@ export type UnifiedRightRailProps = {
   onOpenStyleGuide: () => void;
   onOpenTextView: () => void;
   onOpenTranslateOptions: () => void;
+  onPeekToggle: () => void;
+  onRedo: () => void;
+  onResetPage: () => void;
   onRunDrawnPattern: () => void;
+  onRunBubbleLayout: () => void;
   onRunCurrentPageInpainting: () => void;
-  onShowGuide: () => void;
-  onOpenAutoInpaintingOptions: () => void;
   onToggleBlocks: () => void;
   onToggleChrome: () => void;
+  onUndo: () => void;
+  onOpenAutoInpaintingOptions: (scope: AutoInpaintingEntryScope) => void;
 };
 
 export function UnifiedRightRail(
@@ -46,8 +59,9 @@ export function UnifiedRightRail(
 ): React.JSX.Element {
   return (
     <>
-      <RunPanel
+      <ChapterTaskHub
         currentChapter={props.currentChapter}
+        canRunBubbleLayout={props.canRunBubbleLayout}
         hasSelectedPage={Boolean(props.selectedPage)}
         flowActive={props.flowActive}
         jobActive={props.jobActive}
@@ -57,18 +71,9 @@ export function UnifiedRightRail(
         onOpenTranslateOptions={props.onOpenTranslateOptions}
         onOpenAutoInpaintingOptions={props.onOpenAutoInpaintingOptions}
         onRunCurrentPageInpainting={props.onRunCurrentPageInpainting}
-        onShowGuide={props.onShowGuide}
+        onRunBubbleLayout={props.onRunBubbleLayout}
         progressSnapshot={props.progressSnapshot}
         showProgressBar={props.showProgressBar}
-      />
-      <DisplayControlPanel
-        showBlockChrome={props.showBlockChrome}
-        showTextBlocks={props.showTextBlocks}
-        canOpenTextView={Boolean(props.currentChapter)}
-        onToggleChrome={props.onToggleChrome}
-        onToggleBlocks={props.onToggleBlocks}
-        onOpenTextView={props.onOpenTextView}
-        onOpenStyleGuide={props.onOpenStyleGuide}
       />
       <ContextualRightRailPanel {...props} />
     </>
@@ -77,7 +82,7 @@ export function UnifiedRightRail(
 
 function ContextualRightRailPanel(
   props: UnifiedRightRailProps,
-): React.JSX.Element {
+): React.JSX.Element | null {
   if (isRetouchTool(props.stageTool)) {
     return (
       <InpaintingControlPanel
@@ -100,6 +105,9 @@ function ContextualRightRailPanel(
   }
   if (props.selectedBlock) {
     return <EditorPanelSlot />;
+  }
+  if (props.statusLines.length === 0) {
+    return null;
   }
   return (
     <StatusPanel jobState={props.jobState} statusLines={props.statusLines} />

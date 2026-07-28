@@ -183,7 +183,7 @@
       "translate-all": "Retranslate all",
       "gather-text": "Gather text",
       "cancel-job": "Cancel job",
-      "toggle-inpainting": "Auto erase current page",
+      "toggle-inpainting": "Erase current page",
       "history-undo": "Undo",
       "history-redo": "Redo",
       "delete-block": "Delete selected block",
@@ -206,9 +206,21 @@
     "importText": "Import translated text",
     "maskEdit": "Edit mask",
     "autoInpainting": "Auto erase",
+    "bubbleLayout": "Fit text to bubbles",
+    "bubbleLayoutManual": "Edit bubble shape",
+    "removeBubbleLayout": "Remove bubble fit",
     "drawnInpainting": "Erase drawn area",
     "retouch": "Manual retouch",
     "resetOriginal": "Reset to original"
+  },
+  "bubbleLayoutEditor": {
+    "needsMorePoints": "A bubble region needs at least three points.",
+    "invalidRegion": "The bubble region is too small or invalid.",
+    "brushDetached": "Start the expand brush where it touches the current bubble shape.",
+    "brushDisconnect": "That trim would split the bubble shape, so it was reverted.",
+    "brushNoChange": "The brush stroke did not change the bubble shape.",
+    "cancelled": "Cancelled bubble-region editing.",
+    "applied": "Applied the edited bubble shape to the selected block."
   },
   "blockEditing": {
     "chapterApplyWhileRunning": "Whole-chapter batch formatting is unavailable while a job is running.",
@@ -299,6 +311,13 @@
       "failed": "Failed to erase source text.",
       "success": "Source text erased · Pages: {{pages}} · Blocks: {{blocks}}"
     },
+    "bubbleLayout": {
+      "requiresBlocks": "There are no text blocks to match with bubbles.",
+      "preparing": "Preparing bubble-fit layout",
+      "success": "Fitted the current page's translated blocks to their bubbles.",
+      "failedTitle": "Bubble-fit layout failed",
+      "failed": "Could not fit the translated blocks to their bubbles."
+    },
     "export": {
       "noPage": "No page is selected for export.",
       "saveFailed": "Could not save changes before PNG export.",
@@ -356,6 +375,10 @@
       "startFailed": "Could not start the translation job."
     },
     "refreshWarning": "Translation completed, but the library could not be refreshed.",
+    "eraseOriginalWorkflowCompleted": "Translation and source-text erasing complete.",
+    "eraseOriginalWorkflowFailed": "Source-text erasing after translation failed.",
+    "bubbleLayoutWorkflowCompleted": "Translation, automatic erase, and bubble fitting complete.",
+    "bubbleLayoutWorkflowFailed": "Automatic erase and bubble fitting after translation failed.",
     "flow": {
       "firstPass": "First pass",
       "secondPass": "Second pass",

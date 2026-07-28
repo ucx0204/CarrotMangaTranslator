@@ -11,6 +11,7 @@ import {
   type WorkspaceInteractionPreviewStore,
 } from "../lib/workspaceInteractionPreview";
 import { ArtworkBlock } from "./PageArtwork";
+import { BubbleLayoutGuide } from "./BubbleLayoutGuide";
 import {
   resolveOverlayBlockRenderModel,
   type OverlayBlockRenderModel,
@@ -28,6 +29,7 @@ type OverlayBlockProps = {
   selected: boolean;
   multiSelected?: boolean;
   showChrome: boolean;
+  shapeEditMode?: boolean;
   textLayoutStageSize: ViewportSize | null;
   interactionPreviewStore: WorkspaceInteractionPreviewStore;
   textVisible?: boolean;
@@ -79,6 +81,7 @@ export const OverlayBlockView = React.memo(function OverlayBlockView(
     layout,
     multiSelected: flags.multiSelected,
     pointerDisabled: flags.pointerDisabled,
+    selected: props.selected && !props.shapeEditMode,
     textVisible: flags.textVisible,
     transformMode: selectedMode,
   });
@@ -100,9 +103,17 @@ export const OverlayBlockView = React.memo(function OverlayBlockView(
       }
       block={block}
       chrome={
-        model.showChromeLayer ? (
-          <div className="overlay-block-chrome" style={model.chromeStyle} />
-        ) : null
+        <>
+          {model.showChromeLayer ? (
+            <div className="overlay-block-chrome" style={model.chromeStyle} />
+          ) : null}
+          <BubbleLayoutGuide
+            block={block}
+            height={model.layout.layoutHeight}
+            selected={props.selected}
+            width={model.layout.layoutWidth}
+          />
+        </>
       }
       fontCatalog={catalog}
       model={model}
@@ -128,6 +139,7 @@ function resolveDisplayText(
 function resolveSelectedMode(
   props: OverlayBlockProps,
 ): BlockTransformMode | undefined {
+  if (props.shapeEditMode) return undefined;
   return props.transformMode ?? (props.selected ? "select" : undefined);
 }
 

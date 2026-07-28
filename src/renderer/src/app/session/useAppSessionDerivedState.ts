@@ -61,8 +61,10 @@ export function useAppSessionDerivedState({
     clearPageImageCache,
     selectedPageImageDataUrl,
     selectedPageImageDataUrlPageId,
+    selectedPageImageLoading,
     selectedPageOriginalImageDataUrl,
     selectedPageOriginalImageDataUrlPageId,
+    selectedPageOriginalImageLoading,
   } = usePageImageDataUrls({
     chapterId: currentChapter?.id ?? null,
     neighborTargets: pageState.neighborTargets,
@@ -75,8 +77,10 @@ export function useAppSessionDerivedState({
     selectedPage: pageState.selectedPage,
     selectedPageImageDataUrl,
     selectedPageImageDataUrlPageId,
+    selectedPageImageLoading,
     selectedPageOriginalImageDataUrl,
     selectedPageOriginalImageDataUrlPageId,
+    selectedPageOriginalImageLoading,
   });
   const progressState = useProgressState(jobState);
   const regionSelectionRect = useMemo(
@@ -222,16 +226,20 @@ function useWorkspaceImageState({
   selectedPage,
   selectedPageImageDataUrl,
   selectedPageImageDataUrlPageId,
+  selectedPageImageLoading,
   selectedPageOriginalImageDataUrl,
   selectedPageOriginalImageDataUrlPageId,
+  selectedPageOriginalImageLoading,
 }: {
   imageRef: RefObject<HTMLImageElement | null>;
   peekOriginal: boolean;
   selectedPage: MangaPage | null;
   selectedPageImageDataUrl: string;
   selectedPageImageDataUrlPageId: string | null;
+  selectedPageImageLoading: boolean;
   selectedPageOriginalImageDataUrl: string;
   selectedPageOriginalImageDataUrlPageId: string | null;
+  selectedPageOriginalImageLoading: boolean;
 }) {
   const workspaceImage = useMemo(
     () =>
@@ -260,12 +268,16 @@ function useWorkspaceImageState({
   const workspaceImagePageId = workspaceImage.showingOriginalPeek
     ? selectedPageOriginalImageDataUrlPageId
     : selectedPageImageDataUrlPageId;
+  const workspaceImageLoading = workspaceImage.showingOriginalPeek
+    ? selectedPageOriginalImageLoading
+    : selectedPageImageLoading;
 
   return {
     peekAvailable: workspaceImage.peekAvailable,
     showingOriginalPeek: workspaceImage.showingOriginalPeek,
     stageSize,
     workspaceImageDataUrl: workspaceImage.imageDataUrl,
+    workspaceImageLoading,
     workspaceImagePageId,
   };
 }

@@ -17,6 +17,7 @@ beforeEach(() => {
 });
 
 import { useRevertInpaintingAction } from "../src/renderer/src/hooks/useRevertInpaintingAction";
+import { useRunBubbleLayoutAction } from "../src/renderer/src/hooks/useRunBubbleLayoutAction";
 import { useRunInpaintingAction } from "../src/renderer/src/hooks/useRunInpaintingAction";
 import { useRunInpaintingSelectionAction } from "../src/renderer/src/hooks/useRunInpaintingSelectionAction";
 import { useInpaintingActions } from "../src/renderer/src/hooks/useInpaintingActions";
@@ -73,6 +74,7 @@ function makeOptions(
     setJobState: vi.fn(),
     setPatternMaskStrokesByPage: vi.fn(),
     setPeekOriginal: vi.fn(),
+    setShowBlockChrome: vi.fn(),
     workspaceHistory: { recordImageEdit: vi.fn() },
     ...overrides,
   };
@@ -139,6 +141,34 @@ describe("useRunInpaintingSelectionAction", () => {
     expect(options.setJobState).toHaveBeenCalledWith(
       expect.objectContaining({ status: "failed" }),
     );
+  });
+
+  it("passes bubble postprocess and hides edit chrome after completion", async () => {
+    const options = makeOptions();
+    startInpainting.mockResolvedValue({
+      status: "completed",
+      chapters: [makeChapter()],
+      pagesChanged: 1,
+      blocksErased: 2,
+    });
+    const { result } = renderHook(() =>
+      useRunInpaintingSelectionAction(options),
+    );
+    const postprocess = {
+      bubbleLayout: { enabled: true, policy: "balanced" as const },
+    };
+
+    await act(() =>
+      result.current([{ chapterId: "chapter-1", mode: "all" }], postprocess),
+    );
+
+    expect(startInpainting).toHaveBeenCalledWith({
+      mode: "selection-pattern",
+      workId: "work-1",
+      selections: [{ chapterId: "chapter-1", mode: "all" }],
+      postprocess,
+    });
+    expect(options.setShowBlockChrome).toHaveBeenCalledWith(false);
   });
 });
 
@@ -230,6 +260,71 @@ describe("original comparison during page operations", () => {
     );
   });
 });
+
+describe("useRunBubbleLayoutAction", () => {
+  it("runs balanced layout on the current page without requiring inpainting", async () => {
+    const page = { ...makePage(), blocks: [makeBlock()] };
+    const chapter = { ...makeChapter(), pages: [page] };
+    const options = makeOptions({
+      currentChapter: chapter,
+      selectedPage: page,
+    });
+    startInpainting.mockResolvedValue({
+      status: "completed",
+      chapter,
+      historyTransaction: { transactionId: "tx-bubble-layout" },
+    });
+    const { result } = renderHook(() => useRunBubbleLayoutAction(options));
+
+    await act(() => result.current());
+
+    expect(options.askConfirm).not.toHaveBeenCalled();
+    expect(startInpainting).toHaveBeenCalledWith({
+      chapterId: "chapter-1",
+      mode: "page-bubble-layout",
+      pageId: "page-1",
+      policy: "balanced",
+    });
+    expect(options.clearPageImageCache).toHaveBeenCalledOnce();
+    expect(options.mergeLiveChapter).toHaveBeenCalledWith(chapter);
+    expect(options.workspaceHistory.recordImageEdit).toHaveBeenCalledWith({
+      label: "말풍선 맞춤 배치",
+      transactionId: "tx-bubble-layout",
+    });
+    expect(options.setShowBlockChrome).toHaveBeenCalledWith(false);
+  });
+
+  it("explains why a page without text blocks cannot be laid out", async () => {
+    const options = makeOptions();
+    const { result } = renderHook(() => useRunBubbleLayoutAction(options));
+
+    await act(() => result.current());
+
+    expect(startInpainting).not.toHaveBeenCalled();
+    expect(options.pushStatus).toHaveBeenCalledWith(
+      "말풍선을 감지할 텍스트 블록이 없습니다.",
+    );
+  });
+});
+
+function makeBlock(): MangaPage["blocks"][number] {
+  return {
+    id: "block-1",
+    type: "nonsolid",
+    bbox: { x: 100, y: 100, w: 300, h: 200 },
+    sourceText: "source",
+    translatedText: "translated",
+    confidence: 1,
+    sourceDirection: "horizontal",
+    renderDirection: "horizontal",
+    fontSizePx: 24,
+    lineHeight: 1.2,
+    textAlign: "center",
+    textColor: "#111111",
+    backgroundColor: "#ffffff",
+    opacity: 1,
+  };
+}
 
 function createVoidDeferred(): {
   promise: Promise<void>;

@@ -281,6 +281,9 @@ function resolveDefaultUiSettings(
     inpaintingGuideHidden: false,
     translationWorkflowDefault: "cumulative",
     analysisScopeDefault: "missing",
+    naturalTextLayoutDefault: true,
+    eraseOriginalWorkflowDefault: false,
+    bubbleLayoutWorkflowDefault: true,
   };
 }
 
@@ -303,5 +306,6 @@ function resolveDefaultInpaintingSettings(
       "auto",
     ),
     allowUnsafeLowMemoryFlux: false,
+    bubbleLayoutAfterInpainting: false,
   };
 }

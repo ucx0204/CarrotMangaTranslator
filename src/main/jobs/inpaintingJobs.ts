@@ -39,6 +39,8 @@ export async function startInpaintingJob(
     historyTransactionId:
       context.inpaintingRevisionStore?.beginTransaction() ?? null,
     inpaintingEngineLease: null,
+    bubbleLayoutRunner: null,
+    bubbleLayoutPostprocess: null,
   };
   context.jobs.start({
     id,

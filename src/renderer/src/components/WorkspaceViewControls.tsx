@@ -76,7 +76,7 @@ function useCollapsibleViewControls(): {
   expand: () => void;
   revealButtonRef: React.RefObject<HTMLButtonElement | null>;
 } {
-  const [collapsed, setCollapsed] = React.useState(false);
+  const [collapsed, setCollapsed] = React.useState(true);
   const collapseButtonRef = React.useRef<HTMLButtonElement>(null);
   const revealButtonRef = React.useRef<HTMLButtonElement>(null);
   const focusAfterToggleRef = React.useRef(false);

@@ -34,12 +34,12 @@ async function runCandidates(dependencies, input) {
     if (rendered.length >= input.sampleCount) break;
     const pageOutDir = path.join(
       input.pagesDir,
-      String(rendered.length + 1).padStart(2, "0"),
+      String(candidateIndex + 1).padStart(2, "0"),
     );
     await mkdir(pageOutDir, { recursive: true });
     const outcome = await processCandidate(dependencies, {
       candidateIndex,
-      index: rendered.length,
+      index: candidateIndex,
       pageOutDir,
       sample,
       sampleCount: input.sampleCount,

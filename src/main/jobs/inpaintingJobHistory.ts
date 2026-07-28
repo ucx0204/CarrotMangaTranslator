@@ -1,20 +1,23 @@
 import type { MangaPage } from "../../shared/libraryTypes";
+import type { InpaintingBlockLayoutState } from "../inpainting/inpaintingLayoutState";
 import type { InpaintingJobContext } from "./inpaintingJobTypes";
 import type { InpaintingJobRuntime } from "./inpaintingJobRuntime";
 
 export async function saveInpaintingPageResult({
   context,
-  resultPage,
+  result,
   transactionId,
-  chapterId,
-  previousPage,
+  targetPage,
   runtime,
 }: {
   context: InpaintingJobContext;
-  resultPage: MangaPage;
+  result: {
+    page: MangaPage;
+    beforeLayout?: InpaintingBlockLayoutState[];
+    afterLayout?: InpaintingBlockLayoutState[];
+  };
   transactionId: string | null;
-  chapterId: string;
-  previousPage: MangaPage;
+  targetPage: { chapterId: string; page: MangaPage };
   runtime: InpaintingJobRuntime;
 }) {
   const revisionStore = context.inpaintingRevisionStore;
@@ -22,31 +25,72 @@ export async function saveInpaintingPageResult({
     revisionStore &&
     transactionId &&
     revisionStore.addChange(transactionId, {
-      chapterId,
-      pageId: previousPage.id,
-      beforePath: previousPage.inpaintedImagePath,
-      afterPath: resultPage.inpaintedImagePath,
+      chapterId: targetPage.chapterId,
+      pageId: targetPage.page.id,
+      beforePath: targetPage.page.inpaintedImagePath,
+      afterPath: result.page.inpaintedImagePath,
+      beforeLayout: result.beforeLayout,
+      afterLayout: result.afterLayout,
     }),
   );
   try {
     return await runtime.savePages(
-      chapterId,
-      [resultPage],
-      revisionStore
-        ? {
-            retainedInpaintedArtifactPaths:
-              revisionStore.getRetainedArtifactPaths(chapterId),
-          }
-        : undefined,
+      targetPage.chapterId,
+      [result.page],
+      buildInpaintingSaveOptions({
+        afterLayout: result.afterLayout,
+        beforeLayout: result.beforeLayout,
+        chapterId: targetPage.chapterId,
+        pageId: targetPage.page.id,
+        revisionStore,
+      }),
     );
   } catch (error) {
     if (changeAdded && transactionId) {
       await revisionStore?.removeChange(
         transactionId,
-        chapterId,
-        previousPage.id,
+        targetPage.chapterId,
+        targetPage.page.id,
       );
     }
     throw error;
   }
+}
+
+function buildInpaintingSaveOptions({
+  afterLayout,
+  beforeLayout,
+  chapterId,
+  pageId,
+  revisionStore,
+}: {
+  afterLayout?: InpaintingBlockLayoutState[];
+  beforeLayout?: InpaintingBlockLayoutState[];
+  chapterId: string;
+  pageId: string;
+  revisionStore: InpaintingJobContext["inpaintingRevisionStore"];
+}): Parameters<InpaintingJobRuntime["savePages"]>[2] {
+  const hasLayout = Boolean(afterLayout?.length);
+  if (!revisionStore && !hasLayout) {
+    return undefined;
+  }
+  return {
+    ...(hasLayout
+      ? {
+          layoutPatches: [
+            {
+              pageId,
+              states: afterLayout ?? [],
+              ...(beforeLayout ? { expectedStates: beforeLayout } : {}),
+            },
+          ],
+        }
+      : {}),
+    ...(revisionStore
+      ? {
+          retainedInpaintedArtifactPaths:
+            revisionStore.getRetainedArtifactPaths(chapterId),
+        }
+      : {}),
+  };
 }

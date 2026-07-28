@@ -50,6 +50,7 @@ type BlockEditingActions = {
   deleteSelectedBlock: () => void;
   duplicateSelectedBlock: () => void;
   nudgeSelectedBlocks: (deltaPx: { x: number; y: number }) => void;
+  removeSelectedBlockBubbleLayout: () => void;
   toggleBlockInpaintExcluded: (blockId: string) => void;
   updateSelectedBlock: (patch: Partial<TranslationBlock>) => void;
 };
@@ -67,6 +68,8 @@ export function useBlockEditingActions(
   const applyFormatToScope = useApplyFormatToScopeAction(options);
   const deleteSelectedBlock = useDeleteSelectedBlockAction(options);
   const duplicateSelectedBlock = useDuplicateSelectedBlockAction(options);
+  const removeSelectedBlockBubbleLayout =
+    useRemoveSelectedBlockBubbleLayoutAction(options);
   const nudgeSelectedBlocks = useNudgeSelectedBlocksAction(options);
 
   return {
@@ -76,9 +79,61 @@ export function useBlockEditingActions(
     deleteSelectedBlock,
     duplicateSelectedBlock,
     nudgeSelectedBlocks,
+    removeSelectedBlockBubbleLayout,
     toggleBlockInpaintExcluded,
     updateSelectedBlock,
   };
+}
+
+function useRemoveSelectedBlockBubbleLayoutAction({
+  selectedBlock,
+  selectedPage,
+  selectedPageEditLocked,
+  updateCurrentChapter,
+}: UseBlockEditingActionsOptions): BlockEditingActions["removeSelectedBlockBubbleLayout"] {
+  const { t } = useTranslation("renderer");
+  return useCallback(() => {
+    if (
+      !selectedPage ||
+      !selectedBlock?.bubbleLayout ||
+      selectedPageEditLocked
+    ) {
+      return;
+    }
+    updateCurrentChapter(
+      selectedPage.id,
+      (current) => {
+        let changed = false;
+        const pages = current.pages.map((page) => {
+          if (page.id !== selectedPage.id) return page;
+          const blocks = page.blocks.map((block) => {
+            if (block.id !== selectedBlock.id || !block.bubbleLayout) {
+              return block;
+            }
+            changed = true;
+            const {
+              bubbleLayout: _bubbleLayout,
+              renderBbox: _renderBbox,
+              renderBboxSpace: _renderBboxSpace,
+              ...restoredBlock
+            } = block;
+            return restoredBlock;
+          });
+          return changed
+            ? { ...page, blocks, updatedAt: new Date().toISOString() }
+            : page;
+        });
+        return changed ? { ...current, pages } : current;
+      },
+      { label: t("workspaceHistory.removeBubbleLayout") },
+    );
+  }, [
+    selectedBlock,
+    selectedPage,
+    selectedPageEditLocked,
+    t,
+    updateCurrentChapter,
+  ]);
 }
 
 function useToggleBlockInpaintExcludedAction({
