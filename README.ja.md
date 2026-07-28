@@ -20,7 +20,9 @@
 
 - v1.8.0正式版のダウンロード（Windows EXE・Apple Silicon DMG/ZIP）：[GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
 - 現在のバージョン情報：[v1.8.0 パッチノート](docs/release-notes/v1.8.0.md)
-- コード構成とコントリビューション規約：[docs/architecture.md](docs/architecture.md)
+- コントリビューションガイド：[CONTRIBUTING.md](CONTRIBUTING.md)
+- コード構成と品質規則：[docs/architecture.md](docs/architecture.md)
+- プロジェクトの利用状況と公開資料：[docs/reputation.md](docs/reputation.md)
 
 ## 概要
 
@@ -340,7 +342,10 @@ npm run dist:win
 
 Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
 
+**ステータス（2026年7月28日）：** SignPath Foundation への申請は現在審査中です。現在の Windows リリース成果物は未署名であり、このコード署名ポリシーの対象ではありません。
+
 - [コード署名ポリシー全文](CODE_SIGNING_POLICY.md)
+- [セキュリティポリシー](SECURITY.md)
 - [プライバシーポリシー](docs/privacy-policy.md)
 
 ## デモ画像の出典

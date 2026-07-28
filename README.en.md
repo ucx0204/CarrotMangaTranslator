@@ -20,7 +20,9 @@ Carrot Manga Translator is a manga production tool that finds dialogue and sound
 
 - Download the stable v1.8.0 release (Windows EXE · Apple Silicon DMG/ZIP): [GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
 - Current version information: [v1.8.0 release notes](docs/release-notes/v1.8.0.md)
-- Code structure and contribution guidelines: [docs/architecture.md](docs/architecture.md)
+- Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Architecture and quality rules: [docs/architecture.md](docs/architecture.md)
+- Project usage and public references: [docs/reputation.md](docs/reputation.md)
 
 ## At a Glance
 
@@ -340,7 +342,10 @@ For process boundaries, the SSOT, error handling, and testing rules, see [Code B
 
 Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
 
+**Status (28 July 2026):** The SignPath Foundation application is currently under review. Current Windows release artifacts are unsigned and are not covered by this code-signing policy.
+
 - [Full code signing policy](CODE_SIGNING_POLICY.md)
+- [Security policy](SECURITY.md)
 - [Privacy policy](docs/privacy-policy.md)
 
 ## Demo Image Sources

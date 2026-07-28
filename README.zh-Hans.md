@@ -20,7 +20,9 @@
 
 - 下载 v1.8.0 正式版（Windows EXE · Apple Silicon DMG/ZIP）：[GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
 - 当前版本说明：[v1.8.0 更新说明](docs/release-notes/v1.8.0.md)
-- 代码结构与贡献规范：[docs/architecture.md](docs/architecture.md)
+- 贡献指南：[CONTRIBUTING.md](CONTRIBUTING.md)
+- 代码结构与质量规范：[docs/architecture.md](docs/architecture.md)
+- 项目使用情况与公开资料：[docs/reputation.md](docs/reputation.md)
 
 ## 功能概览
 
@@ -340,7 +342,10 @@ npm run dist:win
 
 Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/).
 
+**状态（2026年7月28日）：** SignPath Foundation 申请目前正在审核中。当前 Windows 发布产物尚未签名，不受此代码签名策略保护。
+
 - [完整代码签名策略](CODE_SIGNING_POLICY.md)
+- [安全策略](SECURITY.md)
 - [隐私政策](docs/privacy-policy.md)
 
 ## 演示图片来源

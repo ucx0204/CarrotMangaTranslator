@@ -1,7 +1,7 @@
 {
   "name": "carrot-manga-translator",
   "version": "1.8.0",
-  "description": "Windows and Apple Silicon macOS desktop manga translation, editing, and inpainting tool powered by Gemma 4 and OpenAI Codex.",
+  "description": "Open-source desktop OCR, AI translation, editing and inpainting tool for user-provided manga and comic images.",
   "license": "GPL-3.0-only",
   "type": "commonjs",
   "main": "out/main/bootstrap.js",

@@ -3,6 +3,10 @@
 Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by
 [SignPath Foundation](https://signpath.org/).
 
+**Status (28 July 2026):** The SignPath Foundation application is currently
+under review. Current Windows release artifacts are unsigned and are not
+covered by this code-signing policy.
+
 ## Scope
 
 For Windows, this policy applies only to release artifacts that carry a valid
@@ -71,7 +75,10 @@ See the project [Privacy policy](docs/privacy-policy.md).
 
 ## Reporting concerns
 
-Report suspected policy violations through the project's
-[GitHub issue tracker](https://github.com/ucx0204/CarrotMangaTranslator/issues).
-Do not include private images, credentials, access tokens, or unredacted logs in
-a public issue.
+Report suspected vulnerabilities, signing-key compromise, or release-pipeline
+compromise privately through
+[GitHub Security Advisories](https://github.com/ucx0204/CarrotMangaTranslator/security/advisories/new).
+Use the project's
+[GitHub issue tracker](https://github.com/ucx0204/CarrotMangaTranslator/issues)
+for non-sensitive policy questions. Do not include private images,
+credentials, access tokens, or unredacted logs in a public issue.
