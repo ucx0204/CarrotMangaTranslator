@@ -6,6 +6,11 @@ import {
 } from "../../shared/ipcSchemas";
 import { textReviewIpcContracts } from "../../shared/ipcContracts";
 import type { SaveTextFileResult } from "../../shared/shareTypes";
+import {
+  getRecentDialogFileDefaultPath,
+  recentDialogPathKeys,
+  rememberRecentDialogFile,
+} from "../recentDialogPaths";
 import type { IpcContext } from "./context";
 import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
@@ -29,9 +34,14 @@ export function registerTextExportIpc(context: IpcContext): void {
         rawRequest,
         tMain("ipc.labels.textSave"),
       );
+      const defaultName = sanitizeTextFileName(request.defaultName);
       const options = {
         title: tMain("dialogs.saveText"),
-        defaultPath: sanitizeTextFileName(request.defaultName),
+        defaultPath: getRecentDialogFileDefaultPath(
+          context.appPaths.dataRoot,
+          recentDialogPathKeys.plainTextExport,
+          defaultName,
+        ),
         filters: [{ name: tMain("dialogs.filters.text"), extensions: ["txt"] }],
       } satisfies Electron.SaveDialogOptions;
       const window = context.getMainWindow();
@@ -45,6 +55,11 @@ export function registerTextExportIpc(context: IpcContext): void {
         ? result.filePath
         : `${result.filePath}.txt`;
       await writeFile(filePath, request.content, "utf8");
+      rememberRecentDialogFile(
+        context.appPaths.dataRoot,
+        recentDialogPathKeys.plainTextExport,
+        filePath,
+      );
       return { saved: true, path: filePath };
     },
   );

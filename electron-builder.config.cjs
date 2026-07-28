@@ -218,6 +218,7 @@ module.exports = {
     "!logs{,/**/*}",
     "!settings.json",
     "!panel-window-bounds.json",
+    "!recent-dialog-paths.json",
     "!docs{,/**/*}",
     "!AGENTS.md",
     "!.dependency-cruiser.cjs",

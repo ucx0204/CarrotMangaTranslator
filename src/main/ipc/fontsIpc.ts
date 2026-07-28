@@ -12,11 +12,29 @@ import {
   removeCustomFont,
   saveFontPreferences,
 } from "../customFonts";
+import {
+  getRecentDialogDirectory,
+  recentDialogPathKeys,
+  rememberRecentDialogFile,
+} from "../recentDialogPaths";
 import type { IpcContext } from "./context";
 import { trustedHandleContract } from "./trustedIpc";
 import { tMain } from "./localization";
 
-export function registerFontsIpc(context: IpcContext): void {
+export type FontRegistrationService = {
+  getFontLibrarySnapshot: typeof getFontLibrarySnapshot;
+  registerCustomFontFromFile: typeof registerCustomFontFromFile;
+};
+
+const productionFontRegistrationService: FontRegistrationService = {
+  getFontLibrarySnapshot,
+  registerCustomFontFromFile,
+};
+
+export function registerFontsIpc(
+  context: IpcContext,
+  registrationService: FontRegistrationService = productionFontRegistrationService,
+): void {
   trustedHandleContract(
     context,
     fontIpcContracts.getFontLibrary,
@@ -50,6 +68,10 @@ export function registerFontsIpc(context: IpcContext): void {
     async (): Promise<CustomFont | null> => {
       const options = {
         title: tMain("dialogs.registerFont"),
+        defaultPath: getRecentDialogDirectory(
+          context.appPaths.dataRoot,
+          recentDialogPathKeys.customFontImport,
+        ),
         properties: ["openFile"],
         filters: [
           {
@@ -65,8 +87,15 @@ export function registerFontsIpc(context: IpcContext): void {
       if (result.canceled || !result.filePaths[0]) {
         return null;
       }
-      const font = registerCustomFontFromFile(result.filePaths[0]);
-      broadcastFontLibrary(getFontLibrarySnapshot());
+      const font = registrationService.registerCustomFontFromFile(
+        result.filePaths[0],
+      );
+      rememberRecentDialogFile(
+        context.appPaths.dataRoot,
+        recentDialogPathKeys.customFontImport,
+        result.filePaths[0],
+      );
+      broadcastFontLibrary(registrationService.getFontLibrarySnapshot());
       return font;
     },
   );

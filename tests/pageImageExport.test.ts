@@ -455,6 +455,58 @@ describe("page image export IPC boundary", () => {
       status: "cancelled",
     });
   });
+
+  it("reopens at the last successfully completed export directory", async () => {
+    const dataRoot = await mkdtemp(join(tmpdir(), "page-export-dialog-"));
+    tempDirs.push(dataRoot);
+    const exportDirectory = join(dataRoot, "exports");
+    await mkdir(exportDirectory);
+    electronBoundary.showOpenDialog
+      .mockResolvedValueOnce({
+        canceled: false,
+        filePaths: [exportDirectory],
+      })
+      .mockResolvedValueOnce({ canceled: true, filePaths: [] });
+    const service = makeService();
+    service.exportImages.mockResolvedValue({
+      status: "completed",
+      outputDir: join(exportDirectory, "result"),
+      pageCount: 1,
+    });
+    registerPageImageExportIpc(makeContext(dataRoot), service);
+    const handler = electronBoundary.handlers.get("page-images:export");
+
+    await handler?.(trustedEvent(), validRequest());
+    await handler?.(trustedEvent(), validRequest());
+
+    expect(electronBoundary.showOpenDialog.mock.calls[1]?.[1]).toMatchObject({
+      defaultPath: exportDirectory,
+    });
+  });
+
+  it("does not remember an export directory when the active export is cancelled", async () => {
+    const dataRoot = await mkdtemp(join(tmpdir(), "page-export-cancelled-"));
+    tempDirs.push(dataRoot);
+    const exportDirectory = join(dataRoot, "exports");
+    await mkdir(exportDirectory);
+    electronBoundary.showOpenDialog
+      .mockResolvedValueOnce({
+        canceled: false,
+        filePaths: [exportDirectory],
+      })
+      .mockResolvedValueOnce({ canceled: true, filePaths: [] });
+    const service = makeService();
+    service.exportImages.mockResolvedValue({ status: "cancelled" });
+    registerPageImageExportIpc(makeContext(dataRoot), service);
+    const handler = electronBoundary.handlers.get("page-images:export");
+
+    await handler?.(trustedEvent(), validRequest());
+    await handler?.(trustedEvent(), validRequest());
+
+    expect(electronBoundary.showOpenDialog.mock.calls[1]?.[1]).toMatchObject({
+      defaultPath: undefined,
+    });
+  });
 });
 
 type DependencyOverrides = {

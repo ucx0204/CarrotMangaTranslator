@@ -13,6 +13,12 @@ import {
   resetAppSettings,
   saveAppSettings,
 } from "../settingsStore";
+import {
+  getRecentDialogDirectory,
+  recentDialogPathKeys,
+  rememberRecentDialogFile,
+  type RecentDialogPathKey,
+} from "../recentDialogPaths";
 import type { IpcContext } from "./context";
 import {
   handleModelSettingsTest,
@@ -69,7 +75,12 @@ export function registerSettingsIpc(
   trustedHandleContract(
     context,
     settingsIpcContracts.pickLocalMmprojFile,
-    async () => pickGgufFile(context, tMain("settings.mmprojDialogTitle")),
+    async () =>
+      pickGgufFile(
+        context,
+        tMain("settings.mmprojDialogTitle"),
+        recentDialogPathKeys.localMmproj,
+      ),
   );
   trustedHandleContract(
     context,
@@ -98,6 +109,7 @@ async function pickLocalModelFile(
   const modelPath = await pickGgufFile(
     context,
     tMain("settings.localModelDialogTitle"),
+    recentDialogPathKeys.localModel,
   );
   if (!modelPath) {
     return null;
@@ -112,9 +124,14 @@ async function pickLocalModelFile(
 async function pickGgufFile(
   context: IpcContext,
   title: string,
+  recentPathKey: RecentDialogPathKey,
 ): Promise<string | null> {
   const options = {
     title,
+    defaultPath: getRecentDialogDirectory(
+      context.appPaths.dataRoot,
+      recentPathKey,
+    ),
     properties: ["openFile"],
     filters: [{ name: "GGUF Model", extensions: ["gguf"] }],
   } satisfies Electron.OpenDialogOptions;
@@ -122,7 +139,12 @@ async function pickGgufFile(
   const result = window
     ? await dialog.showOpenDialog(window, options)
     : await dialog.showOpenDialog(options);
-  return result.canceled || !result.filePaths[0] ? null : result.filePaths[0];
+  const filePath = result.filePaths[0];
+  if (result.canceled || !filePath) {
+    return null;
+  }
+  rememberRecentDialogFile(context.appPaths.dataRoot, recentPathKey, filePath);
+  return filePath;
 }
 
 function broadcastUiLocale(locale: ReturnType<typeof setMainLocale>): void {

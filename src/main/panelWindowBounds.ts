@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { PanelId } from "../shared/panelBridgeTypes";
-import { logError } from "./logger";
+import { logStateStoreError } from "./stateStoreDiagnostics";
 
 export type PanelWindowBounds = {
   x: number;
@@ -42,7 +42,7 @@ export class PanelWindowBoundsStore {
         : {};
     } catch (error) {
       if (!isMissingFileError(error)) {
-        logError("Failed to read panel window bounds", { error });
+        logStateStoreError("Failed to read panel window bounds", { error });
       }
       return {};
     }
@@ -52,7 +52,7 @@ export class PanelWindowBoundsStore {
     try {
       writeFileSync(this.filePath, JSON.stringify(this.bounds));
     } catch (error) {
-      logError("Failed to write panel window bounds", { error });
+      logStateStoreError("Failed to write panel window bounds", { error });
     }
   }
 }

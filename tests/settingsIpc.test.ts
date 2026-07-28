@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { AppSettings } from "../src/shared/settingsTypes";
@@ -245,6 +245,67 @@ describe("settings IPC model/runtime check", () => {
     ).toBe(expected);
     expect(JSON.stringify({ result, progressEvents })).not.toContain(
       "raw runtime failure",
+    );
+  });
+});
+
+describe("settings IPC recent model directories", () => {
+  it("keeps local model and MMProj folders independent and reuses each one", async () => {
+    const dataRoot = mkdtempSync(join(tmpdir(), "settings-paths-ipc-"));
+    tempDirs.push(dataRoot);
+    const modelDir = join(dataRoot, "models");
+    const mmprojDir = join(dataRoot, "mmproj");
+    const modelPath = join(modelDir, "translation-model.gguf");
+    const mmprojPath = join(mmprojDir, "vision-projection.gguf");
+    mkdirSync(modelDir, { recursive: true });
+    mkdirSync(mmprojDir, { recursive: true });
+    writeFileSync(modelPath, "model");
+    writeFileSync(mmprojPath, "mmproj");
+
+    registerSettingsIpc(
+      createContext(dataRoot, createRuntime({ cached: true })),
+    );
+    const modelHandler = electronMock.handlers.get("settings:pick-local-model");
+    const mmprojHandler = electronMock.handlers.get(
+      "settings:pick-local-mmproj",
+    );
+    if (!modelHandler || !mmprojHandler) {
+      throw new Error("Local model file picker handlers were not registered");
+    }
+    const event = {
+      sender: { id: 1, send: vi.fn() },
+      senderFrame: { url: "http://127.0.0.1:5173/" },
+    };
+    electronMock.showOpenDialog
+      .mockResolvedValueOnce({ canceled: false, filePaths: [modelPath] })
+      .mockResolvedValueOnce({ canceled: false, filePaths: [mmprojPath] })
+      .mockResolvedValueOnce({ canceled: true, filePaths: [] })
+      .mockResolvedValueOnce({ canceled: true, filePaths: [] });
+
+    await expect(modelHandler(event)).resolves.toEqual({ modelPath });
+    await expect(mmprojHandler(event)).resolves.toBe(mmprojPath);
+    await expect(modelHandler(event)).resolves.toBeNull();
+    await expect(mmprojHandler(event)).resolves.toBeNull();
+
+    expect(electronMock.showOpenDialog).toHaveBeenNthCalledWith(
+      1,
+      expect.anything(),
+      expect.objectContaining({ defaultPath: undefined }),
+    );
+    expect(electronMock.showOpenDialog).toHaveBeenNthCalledWith(
+      2,
+      expect.anything(),
+      expect.objectContaining({ defaultPath: undefined }),
+    );
+    expect(electronMock.showOpenDialog).toHaveBeenNthCalledWith(
+      3,
+      expect.anything(),
+      expect.objectContaining({ defaultPath: modelDir }),
+    );
+    expect(electronMock.showOpenDialog).toHaveBeenNthCalledWith(
+      4,
+      expect.anything(),
+      expect.objectContaining({ defaultPath: mmprojDir }),
     );
   });
 });

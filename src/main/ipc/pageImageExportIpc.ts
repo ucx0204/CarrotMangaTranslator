@@ -10,6 +10,11 @@ import {
   exportPageImages,
 } from "../jobs/pageImageExportJobs";
 import type { InpaintingJobContext } from "../jobs/inpaintingJobTypes";
+import {
+  getRecentDialogDirectory,
+  recentDialogPathKeys,
+  rememberRecentDialogDirectory,
+} from "../recentDialogPaths";
 import type { IpcContext } from "./context";
 import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
@@ -48,6 +53,10 @@ export function registerPageImageExportIpc(
 
       const options = {
         title: tMain("dialogs.exportPngFolder"),
+        defaultPath: getRecentDialogDirectory(
+          context.appPaths.dataRoot,
+          recentDialogPathKeys.pageImageExport,
+        ),
         properties: ["openDirectory", "createDirectory"],
       } satisfies Electron.OpenDialogOptions;
       const window = context.getMainWindow();
@@ -59,7 +68,19 @@ export function registerPageImageExportIpc(
         return null;
       }
 
-      return service.exportImages(context, request, outputParentDir);
+      const exported = await service.exportImages(
+        context,
+        request,
+        outputParentDir,
+      );
+      if (exported.status === "completed") {
+        rememberRecentDialogDirectory(
+          context.appPaths.dataRoot,
+          recentDialogPathKeys.pageImageExport,
+          outputParentDir,
+        );
+      }
+      return exported;
     },
   );
 }

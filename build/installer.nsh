@@ -373,6 +373,7 @@ FunctionEnd
 
     ${If} $4 == "1"
       Delete "$MgtDataRoot\settings.json"
+      Delete "$MgtDataRoot\recent-dialog-paths.json"
       Delete "$MgtDataRoot\.manga-gemma-translator-data"
       RMDir /r "$MgtDataRoot\logs"
       RMDir /r "$MgtDataRoot\model-tests"
@@ -382,18 +383,23 @@ FunctionEnd
     ${EndIf}
 
     Delete "$LOCALAPPDATA\manga-gemma-translator\settings.json"
+    Delete "$LOCALAPPDATA\manga-gemma-translator\recent-dialog-paths.json"
     RMDir /r "$LOCALAPPDATA\manga-gemma-translator\logs"
     RMDir /r "$LOCALAPPDATA\manga-gemma-translator\model-tests"
     Delete "$APPDATA\manga-gemma-translator\settings.json"
+    Delete "$APPDATA\manga-gemma-translator\recent-dialog-paths.json"
     RMDir /r "$APPDATA\manga-gemma-translator\logs"
     RMDir /r "$APPDATA\manga-gemma-translator\model-tests"
     Delete "$LOCALAPPDATA\망가번역기\settings.json"
+    Delete "$LOCALAPPDATA\망가번역기\recent-dialog-paths.json"
     RMDir /r "$LOCALAPPDATA\망가번역기\logs"
     Delete "$APPDATA\망가번역기\settings.json"
+    Delete "$APPDATA\망가번역기\recent-dialog-paths.json"
     RMDir /r "$APPDATA\망가번역기\logs"
 
     ; Legacy data location used by older builds.
     Delete "$INSTDIR\data\settings.json"
+    Delete "$INSTDIR\data\recent-dialog-paths.json"
     RMDir /r "$INSTDIR\data\logs"
     RMDir /r "$INSTDIR\data\model-tests"
 

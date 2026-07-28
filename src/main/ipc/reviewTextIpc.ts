@@ -10,6 +10,11 @@ import { buildReviewRows, serializeReviewRows } from "../../shared/reviewTable";
 import type { SaveTextFileResult } from "../../shared/shareTypes";
 import { resolveSourceReadingDirection } from "../../shared/translationLanguages";
 import { importReviewText, openChapter } from "../library";
+import {
+  getRecentDialogFileDefaultPath,
+  recentDialogPathKeys,
+  rememberRecentDialogFile,
+} from "../recentDialogPaths";
 import { getAppSettings } from "../settingsStore";
 import type { IpcContext } from "./context";
 import { tMain } from "./localization";
@@ -35,9 +40,14 @@ export function registerReviewTextIpc(context: IpcContext): void {
         request.format,
         request.includeBom ?? true,
       );
+      const defaultName = sanitizeReviewFileName(chapter.title, request.format);
       const options = {
         title: tMain("dialogs.saveReview"),
-        defaultPath: sanitizeReviewFileName(chapter.title, request.format),
+        defaultPath: getRecentDialogFileDefaultPath(
+          context.appPaths.dataRoot,
+          recentDialogPathKeys.reviewTextExport,
+          defaultName,
+        ),
         filters: [
           {
             name: request.format.toUpperCase(),
@@ -54,6 +64,11 @@ export function registerReviewTextIpc(context: IpcContext): void {
       }
       const filePath = ensureExtension(result.filePath, request.format);
       await writeFile(filePath, content, "utf8");
+      rememberRecentDialogFile(
+        context.appPaths.dataRoot,
+        recentDialogPathKeys.reviewTextExport,
+        filePath,
+      );
       return { saved: true, path: filePath };
     },
   );

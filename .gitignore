@@ -42,3 +42,4 @@ logs/app.log
 /fonts/
 settings.json
 panel-window-bounds.json
+recent-dialog-paths.json

@@ -17,7 +17,7 @@ review. Each linked source should be evaluated directly.
 | Public GitHub repository    | Created on 20 April 2026                                                                                                                                     |
 | Initial public release      | [v0.1.0 on 20 April 2026](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v0.1.0)                                                              |
 | First 1.x release           | [v1.0.0 on 12 July 2026](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v1.0.0)                                                               |
-| Current stable release      | [v1.8.0 on 28 July 2026](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v1.8.0)                                                               |
+| Current stable release      | [v1.8.1 on 28 July 2026](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v1.8.1)                                                               |
 | Supported release platforms | Windows 10/11 x64 and Apple Silicon macOS 14+                                                                                                                |
 
 The April community material describes the early prototype. The current
@@ -140,10 +140,10 @@ for the complete disclosure.
 
 As of 28 July 2026, the project's SignPath Foundation application is under
 review. No current Windows release carries a SignPath Foundation Authenticode
-signature. The v1.8.0 Windows installer is unsigned and is not covered by the
+signature. The v1.8.1 Windows installer is unsigned and is not covered by the
 SignPath Foundation policy.
 
-The v1.8.0 Apple Silicon artifacts are ad-hoc signed for integrity, without an
+The v1.8.1 Apple Silicon artifacts are ad-hoc signed for integrity, without an
 Apple-verified publisher identity or notarization. The
 [code-signing policy](https://github.com/ucx0204/CarrotMangaTranslator/blob/master/CODE_SIGNING_POLICY.md)
 applies only to artifacts that carry the applicable valid signature.

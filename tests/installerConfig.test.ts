@@ -82,6 +82,7 @@ describe("Windows installer clean uninstall option", () => {
         "!tmp{,/**/*}",
         "!fonts{,/**/*}",
         "!panel-window-bounds.json",
+        "!recent-dialog-paths.json",
         "!docs{,/**/*}",
       ]),
       nsis: {
@@ -423,6 +424,7 @@ describe("Windows installer clean uninstall option", () => {
     expect(script).toContain('Section /o "un.');
     expect(script).toContain("$INSTDIR\\data");
     expect(script).toContain("$MgtDataRoot\\ocr-runtime");
+    expect(script).toContain('Delete "$MgtDataRoot\\recent-dialog-paths.json"');
     expect(script).toContain("$LOCALAPPDATA\\manga-gemma-translator");
     expect(script).toContain("$APPDATA\\망가번역기");
     expect(script).toContain('!define APP_FILENAME "carrot-manga-translator"');
