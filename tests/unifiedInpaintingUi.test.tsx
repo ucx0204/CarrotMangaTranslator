@@ -52,6 +52,7 @@ describe("unified workspace toolbar", () => {
         brushRadius={28}
         disabled={false}
         hidden={false}
+        lastRetouchTool="brush"
         onSelectTool={onSelectTool}
         onToggleRegionTranslation={onToggleRegionTranslation}
         onToggleHidden={() => undefined}
@@ -105,6 +106,43 @@ describe("unified workspace toolbar", () => {
     expect(onToggleRegionTranslation).toHaveBeenCalledOnce();
   });
 
+  it("activates the remembered retouch tool directly from the group button", () => {
+    const onSelectTool = vi.fn();
+    const { container } = render(
+      <StageToolbar
+        bubbleLayoutAvailable
+        brushColor="#ffffff"
+        brushRadius={20}
+        disabled={false}
+        hidden={false}
+        lastRetouchTool="ellipse"
+        onSelectTool={onSelectTool}
+        onToggleRegionTranslation={() => undefined}
+        onToggleHidden={() => undefined}
+        regionTranslationActive={false}
+        regionTranslationAvailable={true}
+        tool="hand"
+      />,
+    );
+    const retouch = container.querySelector<HTMLButtonElement>(
+      '[data-stage-tool-group="retouch"]',
+    );
+
+    expect(retouch?.dataset.activeTool).toBeUndefined();
+    expect(retouch?.dataset.selectedTool).toBe("ellipse");
+    expect(retouch?.getAttribute("aria-pressed")).toBe("false");
+
+    fireEvent.click(retouch as HTMLButtonElement);
+
+    expect(onSelectTool).toHaveBeenCalledOnce();
+    expect(onSelectTool).toHaveBeenCalledWith("ellipse");
+    expect(
+      screen
+        .getByRole("menuitemradio", { name: "원형" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
+  });
+
   it("opens retouch tools on hover and keeps the pointer gap stable", () => {
     vi.useFakeTimers();
     const { container } = render(
@@ -114,6 +152,7 @@ describe("unified workspace toolbar", () => {
         brushRadius={20}
         disabled={false}
         hidden={false}
+        lastRetouchTool="brush"
         onSelectTool={() => undefined}
         onToggleRegionTranslation={() => undefined}
         onToggleHidden={() => undefined}
@@ -148,6 +187,7 @@ describe("unified workspace toolbar", () => {
         brushRadius={20}
         disabled={false}
         hidden={false}
+        lastRetouchTool="brush"
         onSelectTool={() => undefined}
         onToggleRegionTranslation={() => undefined}
         onToggleHidden={() => undefined}
@@ -185,6 +225,7 @@ describe("unified workspace toolbar", () => {
         brushRadius={20}
         disabled={false}
         hidden={false}
+        lastRetouchTool="brush"
         onSelectTool={() => undefined}
         onToggleRegionTranslation={() => undefined}
         onToggleHidden={() => undefined}
@@ -209,6 +250,7 @@ describe("unified workspace toolbar", () => {
         brushRadius={20}
         disabled={false}
         hidden={false}
+        lastRetouchTool="brush"
         onSelectTool={() => undefined}
         onToggleRegionTranslation={() => undefined}
         onToggleHidden={() => undefined}
@@ -233,6 +275,7 @@ describe("unified workspace toolbar", () => {
         brushRadius={20}
         disabled={false}
         hidden={false}
+        lastRetouchTool="brush"
         onSelectTool={() => undefined}
         onToggleRegionTranslation={() => undefined}
         onToggleHidden={() => undefined}
@@ -258,6 +301,7 @@ describe("unified workspace toolbar", () => {
         brushRadius={20}
         disabled={true}
         hidden={false}
+        lastRetouchTool="brush"
         onSelectTool={() => undefined}
         onToggleRegionTranslation={() => undefined}
         onToggleHidden={() => undefined}
@@ -765,6 +809,8 @@ function RightRailTestProviders({
     onDeleteBlock: () => undefined,
     onDockEditorWindow: () => undefined,
     onDuplicateBlock: () => undefined,
+    onEraseBlockOriginal: () => undefined,
+    onFitBlockBubble: () => undefined,
     onPopOutEditor: () => undefined,
     onRemoveBubbleLayout: () => undefined,
     onSelectTransformMode: () => undefined,

@@ -18,7 +18,7 @@ type UseAppSessionCommandControllerArgs = {
   setShareExportOpen: Dispatch<SetStateAction<boolean>>;
   setShortcutHelpOpen: Dispatch<SetStateAction<boolean>>;
   setTextViewOpen: Dispatch<SetStateAction<boolean>>;
-  setTranslateOptionsOpen: Dispatch<SetStateAction<boolean>>;
+  openTranslateOptions: () => void;
   setTranslationSourceOpen: Dispatch<SetStateAction<boolean>>;
 };
 
@@ -37,7 +37,7 @@ export function useAppSessionCommandController({
   setShareExportOpen,
   setShortcutHelpOpen,
   setTextViewOpen,
-  setTranslateOptionsOpen,
+  openTranslateOptions,
   setTranslationSourceOpen,
 }: UseAppSessionCommandControllerArgs): Command[] {
   return useAppCommands({
@@ -53,7 +53,7 @@ export function useAppSessionCommandController({
     openShareImportPreview,
     openShortcutHelp: () => setShortcutHelpOpen(true),
     openTextView: () => setTextViewOpen(true),
-    openTranslateOptions: () => setTranslateOptionsOpen(true),
+    openTranslateOptions,
     openTranslationSource: () => setTranslationSourceOpen(true),
     runAnalysis,
     runCurrentPageInpainting,

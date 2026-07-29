@@ -4,7 +4,6 @@ import type {
   BubbleShapeRegion,
 } from "../src/shared/bubbleLayout";
 import {
-  MIN_BUBBLE_TEXT_LAYOUT_CONFIDENCE,
   resolveBubbleRegionLineInterval,
   resolveBubbleTextSlotPlans,
 } from "../src/renderer/src/lib/bubbleTextLayout";
@@ -157,7 +156,7 @@ describe("bubble text slot geometry", () => {
     expect(plans[1]?.map((slot) => slot.blockOffsetPx)).toEqual([187.5, 137.5]);
   });
 
-  it("falls back for low-confidence or direction-mismatched metadata", () => {
+  it("honors stored low-confidence geometry but rejects a direction mismatch", () => {
     const base = makeLayout([makeRegion(0.1, 0.9)]);
     const input = {
       blockExtentPx: 100,
@@ -168,11 +167,8 @@ describe("bubble text slot geometry", () => {
     };
 
     expect(
-      resolveBubbleTextSlotPlans(
-        { ...base, confidence: MIN_BUBBLE_TEXT_LAYOUT_CONFIDENCE - 0.01 },
-        input,
-      ),
-    ).toEqual([]);
+      resolveBubbleTextSlotPlans({ ...base, confidence: 0.47 }, input),
+    ).not.toEqual([]);
     expect(
       resolveBubbleTextSlotPlans({ ...base, direction: "vertical" }, input),
     ).toEqual([]);

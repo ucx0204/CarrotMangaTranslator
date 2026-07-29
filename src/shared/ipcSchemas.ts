@@ -2,8 +2,6 @@ import { z } from "zod";
 
 export {
   BubbleLayoutSchema,
-  BubbleShapeRegionSchema,
-  BubbleShapeSpanSchema,
   TranslationBlockSchema,
 } from "./ipcSchemaPrimitives";
 export {

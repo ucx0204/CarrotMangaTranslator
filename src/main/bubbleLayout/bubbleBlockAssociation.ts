@@ -23,7 +23,16 @@ export type BlockBubbleCandidateOwnership<Owner> = {
 };
 
 export type BubbleOwnershipPartition = {
+  /**
+   * Coarse axis-aligned cell retained for diagnostics. The actual pixel
+   * ownership is resolved from the OCR boxes so diagonally arranged text can
+   * use free space on both sides of this straight cut.
+   */
   clipBox: BBox;
+  ownerBox: BBox;
+  competingOwnerBoxes: BBox[];
+  competingBubbleBoxes: BBox[];
+  scope: "full" | "bubble-overlap";
   gapPx: number;
   ownerCount: number;
 };
@@ -38,7 +47,8 @@ export function selectBlockBubbleCandidates(
       (candidate): candidate is BlockBubbleCandidate => candidate !== null,
     )
     .sort((left, right) => right.score - left.score);
-  return suppressDuplicateCandidates(candidates).slice(0, 4);
+  const deduplicated = suppressDuplicateCandidates(candidates).slice(0, 4);
+  return selectDominantContainingCandidate(blockBox, deduplicated);
 }
 
 /**
@@ -112,6 +122,41 @@ function suppressDuplicateCandidates(
     if (!duplicate) kept.push(candidate);
   }
   return kept;
+}
+
+/**
+ * Connected balloons are commonly returned as two overlapping detector boxes.
+ * If one box contains nearly the whole OCR block while every alternative only
+ * clips an edge, keep that one-to-one match. A genuinely merged OCR block
+ * spanning two lobes has no such dominant candidate and therefore retains
+ * both candidates for the existing multi-region path.
+ */
+function selectDominantContainingCandidate(
+  blockBox: BBox,
+  candidates: BlockBubbleCandidate[],
+): BlockBubbleCandidate[] {
+  if (candidates.length < 2) return candidates;
+  const ranked = candidates
+    .map((candidate) => ({
+      candidate,
+      coverage: overlapRatio(blockBox, candidate.bubbleBox),
+    }))
+    .sort(
+      (left, right) =>
+        right.coverage - left.coverage ||
+        right.candidate.score - left.candidate.score,
+    );
+  const best = ranked[0];
+  const runnerUp = ranked[1];
+  if (
+    best &&
+    runnerUp &&
+    best.coverage >= 0.88 &&
+    (runnerUp.coverage <= 0.7 || best.coverage - runnerUp.coverage >= 0.22)
+  ) {
+    return [best.candidate];
+  }
+  return candidates;
 }
 
 function detectionBoxToBbox(detection: ComicPageDetection): BBox {

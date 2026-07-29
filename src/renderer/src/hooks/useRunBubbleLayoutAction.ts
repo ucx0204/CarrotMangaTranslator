@@ -12,19 +12,23 @@ import {
 
 export function useRunBubbleLayoutAction(
   options: UseInpaintingActionsOptions,
-): () => Promise<void> {
+): (blockId?: string) => Promise<void> {
   const { t } = useTranslation("renderer");
-  return useCallback(async () => runBubbleLayout(options, t), [options, t]);
+  return useCallback(
+    async (blockId) => runBubbleLayout(options, blockId, t),
+    [options, t],
+  );
 }
 
 async function runBubbleLayout(
   options: UseInpaintingActionsOptions,
+  blockId: string | undefined,
   t: TFunction<"renderer">,
 ): Promise<void> {
   const chapter = options.currentChapter;
   const page = options.selectedPage;
   if (!chapter || !page || options.jobActive) return;
-  if (page.blocks.length === 0) {
+  if (!isBubbleLayoutTargetAvailable(page.blocks, blockId)) {
     options.pushStatus(t("inpainting.bubbleLayout.requiresBlocks"));
     return;
   }
@@ -35,6 +39,7 @@ async function runBubbleLayout(
       mode: "page-bubble-layout",
       pageId: page.id,
       policy: "balanced",
+      blockId,
     });
     if (result.chapter) {
       options.clearRetouchHistory();
@@ -48,8 +53,7 @@ async function runBubbleLayout(
       });
     }
     if (result.status === "completed") {
-      options.setShowBlockChrome(false);
-      options.pushStatus(t("inpainting.bubbleLayout.success"));
+      reportBubbleLayoutCompleted(options, t, blockId, result.blocksErased);
     } else if (result.status === "failed") {
       options.pushStatus(result.error ?? t("inpainting.bubbleLayout.failed"));
     }
@@ -67,6 +71,40 @@ async function runBubbleLayout(
       formatErrorMessage(error, t("inpainting.bubbleLayout.failed")),
     );
   }
+}
+
+function reportBubbleLayoutCompleted(
+  options: UseInpaintingActionsOptions,
+  t: TFunction<"renderer">,
+  blockId: string | undefined,
+  blocksChanged: number | undefined,
+): void {
+  if (blockId && blocksChanged === 0) {
+    options.pushStatus(t("inpainting.bubbleLayout.selectedBlockNoMatch"));
+    return;
+  }
+  options.setShowBlockChrome(false);
+  options.pushStatus(t(resolveBubbleLayoutSuccessKey(blockId)));
+}
+
+function isBubbleLayoutTargetAvailable(
+  blocks: Array<{ id: string }>,
+  blockId: string | undefined,
+): boolean {
+  return (
+    blocks.length > 0 &&
+    (!blockId || blocks.some((block) => block.id === blockId))
+  );
+}
+
+function resolveBubbleLayoutSuccessKey(
+  blockId: string | undefined,
+):
+  | "inpainting.bubbleLayout.selectedBlockSuccess"
+  | "inpainting.bubbleLayout.success" {
+  return blockId
+    ? "inpainting.bubbleLayout.selectedBlockSuccess"
+    : "inpainting.bubbleLayout.success";
 }
 
 async function prepareBubbleLayout(

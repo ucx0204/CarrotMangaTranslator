@@ -6,11 +6,10 @@ import type {
 } from "./bubbleBlockAssociation";
 
 /**
- * Bubbles claimed by different OCR blocks can overlap even when the detector
- * returned separate bubble objects for connected lobes. Build conflict
- * components from candidate boxes that overlap or sit closer than the gutter.
- * All claims of an owner in a conflict stay in one component so their final
- * union bounds cannot bridge across another owner's cell.
+ * A detector bubble claimed by multiple OCR blocks needs a shared ownership
+ * cell. Separately detected connected lobes retain their own refined contours
+ * outside the actual bubble overlap; only their overlapping lens is assigned.
+ * This avoids the long artificial seam produced by globally cutting boxes.
  */
 export function partitionSharedBubbleOwnership<Owner>(
   ownerships: readonly BlockBubbleCandidateOwnership<Owner>[],
@@ -23,7 +22,7 @@ export function partitionSharedBubbleOwnership<Owner>(
     BlockBubbleCandidate,
     BubbleOwnershipPartition
   >();
-  for (const conflict of findOwnershipConflicts(claims, gapPx)) {
+  for (const conflict of findOwnershipConflicts(claims)) {
     for (const result of buildConflictPartitions(conflict, ownerBox, gapPx)) {
       partitionsByCandidate.set(result.candidate, result.partition);
     }
@@ -57,20 +56,26 @@ function collectCandidateClaims<Owner>(
 
 function findOwnershipConflicts<Owner>(
   claims: BubbleClaim<Owner>[],
-  requestedGapPx: number,
 ): BubbleClaim<Owner>[][] {
   const parents = claims.map((_, index) => index);
   for (let left = 0; left < claims.length; left += 1) {
     for (let right = left + 1; right < claims.length; right += 1) {
       const sameOwner = claims[left].owner === claims[right].owner;
-      const competingBoxesAreTooClose =
+      const competingOwnersShareDetection =
         !sameOwner &&
-        boxesAreCloserThanGap(
+        claims[left].candidate.bubbleDetection ===
+          claims[right].candidate.bubbleDetection;
+      const competingBubbleBoxesOverlap =
+        !sameOwner &&
+        boxesOverlap(
           claims[left].candidate.bubbleBox,
           claims[right].candidate.bubbleBox,
-          requestedGapPx,
         );
-      if (sameOwner || competingBoxesAreTooClose) {
+      if (
+        sameOwner ||
+        competingOwnersShareDetection ||
+        competingBubbleBoxesOverlap
+      ) {
         joinConflict(parents, left, right);
       }
     }
@@ -140,15 +145,46 @@ function buildConflictPartitions<Owner>(
       owner.owner,
       {
         clipBox: buildPartitionBox(bubbleBox, axis, cuts, index, gapPx),
-        gapPx,
-        ownerCount: ordered.length,
+        ownerBox: owner.box,
+        competingOwnerBoxes: ordered
+          .filter((_, competingIndex) => competingIndex !== index)
+          .map((competingOwner) => competingOwner.box),
       },
     ]),
   );
-  return claims.map((claim) => ({
-    candidate: claim.candidate,
-    partition: requirePartition(partitionsByOwner.get(claim.owner)),
-  }));
+  return claims.map((claim) => {
+    const base = requirePartition(partitionsByOwner.get(claim.owner));
+    const competingClaims = claims.filter(
+      (competingClaim) => competingClaim.owner !== claim.owner,
+    );
+    const sharesDetection = competingClaims.some(
+      (competingClaim) =>
+        competingClaim.candidate.bubbleDetection ===
+        claim.candidate.bubbleDetection,
+    );
+    const competingBubbleBoxes = deduplicateBoxes(
+      competingClaims
+        .filter(
+          (competingClaim) =>
+            sharesDetection ||
+            boxesOverlap(
+              claim.candidate.bubbleBox,
+              competingClaim.candidate.bubbleBox,
+            ),
+        )
+        .map((competingClaim) => competingClaim.candidate.bubbleBox),
+    );
+    return {
+      candidate: claim.candidate,
+      partition: {
+        ...base,
+        competingBubbleBoxes,
+        scope: sharesDetection ? "full" : "bubble-overlap",
+        gapPx,
+        ownerCount: ordered.length,
+      },
+    };
+  });
 }
 
 function uniqueOwners<Owner>(claims: BubbleClaim<Owner>[]): Owner[] {
@@ -168,12 +204,37 @@ function orderOwners<Owner>(
 }
 
 function requirePartition(
-  partition: BubbleOwnershipPartition | undefined,
-): BubbleOwnershipPartition {
+  partition:
+    | Pick<
+        BubbleOwnershipPartition,
+        "clipBox" | "ownerBox" | "competingOwnerBoxes"
+      >
+    | undefined,
+): Pick<
+  BubbleOwnershipPartition,
+  "clipBox" | "ownerBox" | "competingOwnerBoxes"
+> {
   if (!partition) {
     throw new Error("공유 말풍선 소유권 분할 결과가 누락되었습니다.");
   }
   return partition;
+}
+
+function boxesOverlap(left: BBox, right: BBox): boolean {
+  return (
+    Math.min(left.x + left.w, right.x + right.w) > Math.max(left.x, right.x) &&
+    Math.min(left.y + left.h, right.y + right.h) > Math.max(left.y, right.y)
+  );
+}
+
+function deduplicateBoxes(boxes: readonly BBox[]): BBox[] {
+  const seen = new Set<string>();
+  return boxes.filter((box) => {
+    const key = [box.x, box.y, box.w, box.h].join(":");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function unionBounds(boxes: BBox[]): BBox {
@@ -309,31 +370,6 @@ function axisLength(box: BBox, axis: PartitionAxis): number {
 
 function axisCenter(box: BBox, axis: PartitionAxis): number {
   return axisStart(box, axis) + axisLength(box, axis) / 2;
-}
-
-function boxesAreCloserThanGap(
-  left: BBox,
-  right: BBox,
-  requestedGapPx: number,
-): boolean {
-  const gapPx = Math.max(0, requestedGapPx);
-  return (
-    axisSeparation(left.x, left.w, right.x, right.w) < gapPx &&
-    axisSeparation(left.y, left.h, right.y, right.h) < gapPx
-  );
-}
-
-function axisSeparation(
-  leftStart: number,
-  leftLength: number,
-  rightStart: number,
-  rightLength: number,
-): number {
-  return Math.max(
-    0,
-    Math.max(leftStart, rightStart) -
-      Math.min(leftStart + leftLength, rightStart + rightLength),
-  );
 }
 
 function resolvePartitionGapPx(requestedGapPx: number): number {

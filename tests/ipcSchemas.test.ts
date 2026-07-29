@@ -21,6 +21,7 @@ import { MAX_MAX_TOKENS } from "../src/shared/modelPresets";
 const workId = "11111111-1111-4111-8111-111111111111";
 const chapterId = "22222222-2222-4222-8222-222222222222";
 const pageId = "33333333-3333-4333-8333-333333333333";
+const blockId = "block-1";
 
 describe("IPC schemas", () => {
   it("rejects forged ids before IPC handlers reach filesystem paths", () => {
@@ -509,6 +510,41 @@ describe("IPC schemas", () => {
       mode: "page-bubble-layout",
       policy: "maximize",
     });
+  });
+
+  it("accepts one optional block target for automatic page actions", () => {
+    expect(
+      parseIpcPayload(
+        StartInpaintingRequestSchema,
+        { chapterId, mode: "page-pattern", pageId, blockId },
+        "인페인팅 작업",
+      ),
+    ).toMatchObject({ mode: "page-pattern", blockId });
+    expect(
+      parseIpcPayload(
+        StartInpaintingRequestSchema,
+        {
+          chapterId,
+          mode: "page-bubble-layout",
+          pageId,
+          blockId,
+          policy: "balanced",
+        },
+        "인페인팅 작업",
+      ),
+    ).toMatchObject({ mode: "page-bubble-layout", blockId });
+    expect(() =>
+      parseIpcPayload(
+        StartInpaintingRequestSchema,
+        {
+          chapterId,
+          mode: "page-pattern",
+          pageId,
+          blockId: "",
+        },
+        "인페인팅 작업",
+      ),
+    ).toThrow(/요청 형식/);
   });
 
   it("accepts bounded multi-chapter automatic inpainting selections", () => {

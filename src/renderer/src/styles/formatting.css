@@ -207,6 +207,16 @@
   min-height: 88px;
 }
 
+.editor-text-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-2);
+}
+
+.editor-text-actions > button {
+  min-width: 0;
+}
+
 .editor-inline-toolbar {
   display: flex;
   align-items: center;

@@ -15,6 +15,11 @@ type BlockSectionProps = {
   onUpdate: BlockPatchHandler;
 };
 
+type BlockTextActionProps = {
+  onEraseOriginal?: () => void;
+  onFitBubble?: () => void;
+};
+
 export function BubbleLayoutOption({
   disabled,
   onRemove,
@@ -46,8 +51,10 @@ export function BubbleLayoutOption({
 export function TextEditorGroup({
   block,
   disabled,
+  onEraseOriginal,
+  onFitBubble,
   onUpdate,
-}: BlockSectionProps): React.JSX.Element {
+}: BlockSectionProps & BlockTextActionProps): React.JSX.Element {
   const { t } = useTranslation("components");
   const { refCallback: translatedTextareaRef, reset: resetTranslatedHeight } =
     useStickyTextareaHeight("editor.textareaHeight.translated");
@@ -79,6 +86,7 @@ export function TextEditorGroup({
 
   return (
     <div className="editor-group editor-text-group">
+      <TextBlockActions {...{ disabled, onEraseOriginal, onFitBubble }} />
       <div className="editor-group-head">
         <h3>{t("editor.translatedText")}</h3>
         <TextMarkupToolbar
@@ -110,6 +118,24 @@ export function TextEditorGroup({
         value={drafts.source}
         onChange={drafts.changeSource}
       />
+    </div>
+  );
+}
+
+function TextBlockActions({
+  disabled,
+  onEraseOriginal,
+  onFitBubble,
+}: { disabled: boolean } & BlockTextActionProps): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <div className="editor-text-actions">
+      <Button fullWidth size="sm" disabled={disabled} onClick={onEraseOriginal}>
+        {t("editor.eraseOriginal")}
+      </Button>
+      <Button fullWidth size="sm" disabled={disabled} onClick={onFitBubble}>
+        {t("editor.fitBubble")}
+      </Button>
     </div>
   );
 }

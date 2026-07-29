@@ -25,13 +25,17 @@ import type {
 export async function inpaintPatternPage(
   page: MangaPage,
   options: {
+    blockId?: string;
     signal?: AbortSignal;
     decodeFallback?: ImageDecodeFallback;
     inpaintingEngine?: InpaintingEngine;
   } = {},
 ): Promise<PatternPageInpaintingResult> {
   const patternBlocks = page.blocks.filter(
-    (block) => hasUsableBbox(block.bbox) && !block.inpaintExcluded,
+    (block) =>
+      (!options.blockId || block.id === options.blockId) &&
+      hasUsableBbox(block.bbox) &&
+      (!block.inpaintExcluded || block.id === options.blockId),
   );
   if (patternBlocks.length === 0) {
     return { page, blocksErased: 0 };
@@ -52,6 +56,7 @@ export async function inpaintPatternPage(
   }
 
   const maskContext = buildPatternPageMask({
+    blockId: options.blockId,
     page,
     bitmap,
     width: size.width,

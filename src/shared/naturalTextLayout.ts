@@ -13,7 +13,7 @@ import { segmentNaturalTextGraphemes } from "./naturalTextLayoutSegmentation";
 import { stripRichTextMarkup } from "./richTextMarkup";
 import type { RenderTextDirection, TranslationBlock } from "./textTypes";
 
-export type NaturalTextLayoutStrategy =
+type NaturalTextLayoutStrategy =
   | "disabled"
   | "unchanged"
   | "markup-preserved"
@@ -34,7 +34,7 @@ export type NaturalTextLayoutOptions = {
   directionPreference?: "auto" | "horizontal" | "vertical";
 };
 
-export type NaturalTextLayoutDiagnostics = {
+type NaturalTextLayoutDiagnostics = {
   widthPx: number;
   heightPx: number;
   graphemeCount: number;

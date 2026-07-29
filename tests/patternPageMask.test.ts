@@ -46,6 +46,37 @@ describe("pattern page text masks", () => {
     expect(context.pageMask[centers[1].y * width + centers[1].x]).toBe(1);
   });
 
+  it("limits the page mask to the requested block", () => {
+    const width = 128;
+    const height = 64;
+    const page = createPage(width, height);
+    const requestedBlock = page.blocks[1];
+    if (!requestedBlock) {
+      throw new Error("expected requested block");
+    }
+    requestedBlock.inpaintExcluded = true;
+    const context = buildPatternPageMask({
+      blockId: "block-2",
+      page,
+      bitmap: Buffer.alloc(width * height * 4, 255),
+      width,
+      height,
+    });
+    const blockRects = page.blocks.map((block) =>
+      bboxToPixelRect(block.bbox, page),
+    );
+    const centers = blockRects.map((rect) => ({
+      x: rect.x + Math.floor(rect.w / 2),
+      y: rect.y + Math.floor(rect.h / 2),
+    }));
+
+    expect(context.blocksErased).toBe(1);
+    expect(context.inpaintWindows).toHaveLength(1);
+    expect(context.inpaintWindowMasks).toHaveLength(1);
+    expect(context.pageMask[centers[0].y * width + centers[0].x]).toBe(0);
+    expect(context.pageMask[centers[1].y * width + centers[1].x]).toBe(1);
+  });
+
   it("passes a detected text mask directly to the engine window", () => {
     const width = 80;
     const height = 80;

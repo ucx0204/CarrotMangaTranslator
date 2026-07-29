@@ -253,6 +253,66 @@ describe("selected block font-size adjustment", () => {
     ).toBeNull();
   });
 
+  it("runs block-only erase and bubble-fit actions above the translation", () => {
+    const onEraseOriginal = vi.fn();
+    const onFitBubble = vi.fn();
+    const view = render(
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock()}
+          disabled={false}
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onEraseOriginal={onEraseOriginal}
+          onFitBubble={onFitBubble}
+          onUpdate={vi.fn()}
+        />
+      </FontsTestProvider>,
+    );
+
+    const erase = screen.getByRole("button", { name: "원문 지우기" });
+    const fit = screen.getByRole("button", { name: "말풍선 맞춤" });
+    const actionRow = view.container.querySelector(".editor-text-actions");
+    expect(
+      actionRow?.nextElementSibling?.classList.contains("editor-group-head"),
+    ).toBe(true);
+
+    fireEvent.click(erase);
+    fireEvent.click(fit);
+    expect(onEraseOriginal).toHaveBeenCalledOnce();
+    expect(onFitBubble).toHaveBeenCalledOnce();
+
+    view.rerender(
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock()}
+          disabled
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onEraseOriginal={onEraseOriginal}
+          onFitBubble={onFitBubble}
+          onUpdate={vi.fn()}
+        />
+      </FontsTestProvider>,
+    );
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "원문 지우기",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "말풍선 맞춤",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+  });
+
   it("keeps text and OCR visible and preserves drafts across tabs", () => {
     const onUpdate = vi.fn();
     const { container } = render(
@@ -714,6 +774,8 @@ describe("font-size panel bridge", () => {
     { type: "adjustFontSize", adjustment: 1 },
     { type: "deleteBlock" },
     { type: "duplicateBlock" },
+    { type: "eraseBlockOriginal" },
+    { type: "fitBlockBubble" },
     { type: "removeBubbleLayout" },
   ])("requires a block id for $type commands", (command) => {
     expect(() => PanelCommandSchema.parse(command)).toThrow();
@@ -762,6 +824,8 @@ describe("font-size panel bridge", () => {
     act(() => result.current?.onUpdateBlock({ translatedText: "수정" }));
     act(() => result.current?.onDeleteBlock());
     act(() => result.current?.onDuplicateBlock());
+    act(() => result.current?.onEraseBlockOriginal());
+    act(() => result.current?.onFitBlockBubble());
     act(() => result.current?.onRemoveBubbleLayout());
     act(() => result.current?.onApplyBlockBackgroundOpacity("chapter"));
 
@@ -781,6 +845,14 @@ describe("font-size panel bridge", () => {
     });
     expect(sendPanelCommand).toHaveBeenCalledWith({
       type: "duplicateBlock",
+      blockId: block.id,
+    });
+    expect(sendPanelCommand).toHaveBeenCalledWith({
+      type: "eraseBlockOriginal",
+      blockId: block.id,
+    });
+    expect(sendPanelCommand).toHaveBeenCalledWith({
+      type: "fitBlockBubble",
       blockId: block.id,
     });
     expect(sendPanelCommand).toHaveBeenCalledWith({

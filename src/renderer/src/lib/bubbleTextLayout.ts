@@ -7,8 +7,6 @@ import type { RenderTextDirection } from "../../../shared/textTypes";
 import { resolveDisjointBubbleLayout } from "../../../shared/bubbleLayoutDisjoint";
 import type { TextLineSlot } from "./overlayTextWrapping";
 
-export const MIN_BUBBLE_TEXT_LAYOUT_CONFIDENCE = 0.5;
-
 const MAX_BUBBLE_TEXT_LINES = 128;
 const MAX_PLANS_PER_SLOT_COUNT = 64;
 const COORDINATE_EPSILON = 1e-7;
@@ -108,7 +106,6 @@ function isBubbleLayoutEligible(
 ): value is BubbleLayout {
   return (
     isUsableBubbleLayout(value) &&
-    value.confidence >= MIN_BUBBLE_TEXT_LAYOUT_CONFIDENCE &&
     value.direction === input.renderDirection &&
     isPositiveFinite(input.blockExtentPx) &&
     isPositiveFinite(input.inlineExtentPx) &&

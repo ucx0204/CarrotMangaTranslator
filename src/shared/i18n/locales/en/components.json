@@ -251,6 +251,8 @@
   "editor": {
     "text": "Text",
     "translatedText": "Translation",
+    "eraseOriginal": "Erase source",
+    "fitBubble": "Bubble fit",
     "moreActions": "More block actions",
     "sourceEmpty": "No OCR text",
     "tabs": {
@@ -462,7 +464,7 @@
   "import": {
     "batchTitle": "Prepare batch translation",
     "addToLibrary": "Add to library",
-    "createAndTranslate": "Create and start translating",
+    "createAndTranslate": "Translate",
     "createNewWork": "Create new work",
     "addToExistingWork": "Add to existing work",
     "selectWork": "Select work",

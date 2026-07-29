@@ -22,7 +22,7 @@ export type BubbleLayoutDraftSnapshot = {
   shape: BubbleLayoutDraftShape | null;
 };
 
-export type BubbleLayoutDraftStroke = {
+type BubbleLayoutDraftStroke = {
   base: BubbleLayoutDraftSnapshot;
   pointerId: number;
   points: Point[];

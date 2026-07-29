@@ -85,6 +85,19 @@ function buildRemotePanelSessionValue(
         dispatchCommand({ type: "duplicateBlock", blockId: selectedBlockId });
       }
     },
+    onEraseBlockOriginal: () => {
+      if (selectedBlockId) {
+        dispatchCommand({
+          type: "eraseBlockOriginal",
+          blockId: selectedBlockId,
+        });
+      }
+    },
+    onFitBlockBubble: () => {
+      if (selectedBlockId) {
+        dispatchCommand({ type: "fitBlockBubble", blockId: selectedBlockId });
+      }
+    },
     onRemoveBubbleLayout: () => {
       if (selectedBlockId) {
         dispatchCommand({

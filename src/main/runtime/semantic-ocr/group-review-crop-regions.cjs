@@ -221,11 +221,25 @@ function clipContentSeam(before, after, axis, boundary) {
   ) {
     return false;
   }
-  const changed =
-    before.cropBbox[endKey] > boundary || after.cropBbox[startKey] < boundary;
-  before.cropBbox[endKey] = Math.min(before.cropBbox[endKey], boundary);
-  after.cropBbox[startKey] = Math.max(after.cropBbox[startKey], boundary);
-  return changed;
+  const beforeEnd = Math.min(before.cropBbox[endKey], boundary);
+  const afterStart = Math.max(after.cropBbox[startKey], boundary);
+  if (
+    beforeEnd === before.cropBbox[endKey] &&
+    afterStart === after.cropBbox[startKey]
+  ) {
+    return false;
+  }
+  const beforeCrop = { ...before.cropBbox, [endKey]: beforeEnd };
+  const afterCrop = { ...after.cropBbox, [startKey]: afterStart };
+  if (
+    !cropRetainsEveryCandidate(before, beforeCrop) ||
+    !cropRetainsEveryCandidate(after, afterCrop)
+  ) {
+    return false;
+  }
+  before.cropBbox[endKey] = beforeEnd;
+  after.cropBbox[startKey] = afterStart;
+  return true;
 }
 
 /** @param {InternalRegion} region @param {"x"|"y"} axis @param {number} boundary */
@@ -238,6 +252,8 @@ function clipRegionEnd(region, axis, boundary) {
   ) {
     return false;
   }
+  const nextCrop = { ...region.cropBbox, [endKey]: boundary };
+  if (!cropRetainsEveryCandidate(region, nextCrop)) return false;
   region.cropBbox[endKey] = boundary;
   return true;
 }
@@ -252,8 +268,19 @@ function clipRegionStart(region, axis, boundary) {
   ) {
     return false;
   }
+  const nextCrop = { ...region.cropBbox, [startKey]: boundary };
+  if (!cropRetainsEveryCandidate(region, nextCrop)) return false;
   region.cropBbox[startKey] = boundary;
   return true;
+}
+
+/** @param {InternalRegion} region @param {PageBox} cropBbox */
+function cropRetainsEveryCandidate(region, cropBbox) {
+  return region.fragments.every((fragment) =>
+    fragment.candidates.every(
+      (candidate) => boxIntersectionArea(candidate.bbox, cropBbox) > 0,
+    ),
+  );
 }
 
 /** @param {InternalRegion} region */

@@ -527,6 +527,63 @@ describe("group review crop planning", () => {
     expectNonOverlapping(plan);
   });
 
+  it.each([
+    {
+      candidates: [
+        candidate(2, [523, 89, 585, 467], "B001", "confirmed", 2),
+        candidate(3, [505, 96, 528, 148], "D001", "deferred", 1, [
+          "local_reading_aid",
+          "oversized_display_text",
+        ]),
+      ],
+      pageWidth: 960,
+      pageHeight: 1365,
+      expectedCandidateIds: [2, 3],
+    },
+    {
+      candidates: [
+        candidate(5, [598, 454, 658, 699], "B002", "confirmed", 2),
+        candidate(7, [580, 638, 606, 694], "D002", "deferred", 1, [
+          "local_reading_aid",
+          "oversized_display_text",
+        ]),
+      ],
+      pageWidth: 960,
+      pageHeight: 1365,
+      expectedCandidateIds: [5, 7],
+    },
+    {
+      candidates: [
+        candidate(33, [543, 780, 595, 880], "B009", "confirmed", 1),
+        candidate(35, [527, 815, 587, 927], "D002", "deferred", 1, [
+          "oversized_uncertain_sfx",
+        ]),
+        candidate(37, [533, 884, 569, 942], "D003", "deferred", 1, [
+          "low_confidence_short_text",
+        ]),
+      ],
+      pageWidth: 800,
+      pageHeight: 1138,
+      expectedCandidateIds: [33, 35, 37],
+    },
+  ])(
+    "merges overlapping review regions when display clipping would erase a candidate",
+    ({ candidates, pageWidth, pageHeight, expectedCandidateIds }) => {
+      const plan = buildGroupReviewCropPlan(candidates, pageWidth, pageHeight);
+
+      expect(plan.regions).toHaveLength(1);
+      expect(plan.regions[0]).toMatchObject({
+        reasons: expect.arrayContaining(["joint_content_overlap"]),
+        candidateIds: expectedCandidateIds,
+      });
+      for (const entry of plan.regions[0].candidates) {
+        expect(entry.bbox1000[0]).toBeLessThan(entry.bbox1000[2]);
+        expect(entry.bbox1000[1]).toBeLessThan(entry.bbox1000[3]);
+      }
+      expectNonOverlapping(plan);
+    },
+  );
+
   it("cuts a detector-only hairline seam instead of making a huge joint crop", () => {
     const plan = buildGroupReviewCropPlan(
       [
@@ -542,6 +599,28 @@ describe("group review crop planning", () => {
       "narrow_content_seam",
     );
     expectNonOverlapping(plan);
+  });
+
+  it("merges a narrow seam when clipping would erase a member candidate", () => {
+    const plan = buildGroupReviewCropPlan(
+      [
+        candidate(1, [100, 100, 150, 250], "F001", "confirmed", 1),
+        candidate(2, [100, 299, 150, 300], "F001", "confirmed", 2),
+        candidate(3, [40, 298, 600, 360], "D001", "deferred", 1),
+      ],
+      1000,
+      1000,
+    );
+
+    expect(plan.regions).toHaveLength(1);
+    expect(plan.regions[0]).toMatchObject({
+      reasons: expect.arrayContaining(["joint_content_overlap"]),
+      candidateIds: expect.arrayContaining([1, 2, 3]),
+    });
+    for (const entry of plan.regions[0].candidates) {
+      expect(entry.bbox1000[0]).toBeLessThan(entry.bbox1000[2]);
+      expect(entry.bbox1000[1]).toBeLessThan(entry.bbox1000[3]);
+    }
   });
 
   it("rejects malformed fragment metadata before any geometry grouping", () => {

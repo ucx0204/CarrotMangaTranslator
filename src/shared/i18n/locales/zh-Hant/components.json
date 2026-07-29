@@ -243,6 +243,8 @@
   "editor": {
     "text": "文字",
     "translatedText": "譯文",
+    "eraseOriginal": "清除原文",
+    "fitBubble": "適配對話框",
     "moreActions": "更多文字區塊操作",
     "sourceEmpty": "無 OCR 文字",
     "tabs": {
@@ -448,7 +450,7 @@
   "import": {
     "batchTitle": "準備批次翻譯作品",
     "addToLibrary": "新增到資料庫",
-    "createAndTranslate": "建立並開始翻譯",
+    "createAndTranslate": "翻譯",
     "createNewWork": "建立新作品",
     "addToExistingWork": "新增到現有作品",
     "selectWork": "選擇作品",

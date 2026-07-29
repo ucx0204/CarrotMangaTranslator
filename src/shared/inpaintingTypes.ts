@@ -29,6 +29,7 @@ type StartInpaintingTargetRequest =
       chapterId: string;
       mode: "page-pattern";
       pageId: string;
+      blockId?: string;
     }
   | {
       chapterId: string;
@@ -41,6 +42,7 @@ type StartInpaintingTargetRequest =
       chapterId: string;
       mode: "page-bubble-layout";
       pageId: string;
+      blockId?: string;
       policy: BubbleLayoutPolicy;
     }
   | {

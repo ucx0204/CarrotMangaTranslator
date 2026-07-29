@@ -22,7 +22,7 @@ export type BubbleShapeRegion = {
   spans: BubbleShapeSpan[];
 };
 
-export type BubbleLayoutOrigin = "detected" | "manual";
+type BubbleLayoutOrigin = "detected" | "manual";
 
 export type BubbleLayout = {
   version: 1;

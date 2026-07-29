@@ -20,17 +20,6 @@ export async function getComicBubbleDetectorSession(
   return session;
 }
 
-export async function clearComicBubbleDetectorSessionCache(): Promise<void> {
-  const pending = [...sessionCache.values()];
-  sessionCache.clear();
-  await Promise.allSettled(
-    pending.map(async (sessionPromise) => {
-      const session = await sessionPromise;
-      await session.release();
-    }),
-  );
-}
-
 function createCachedSession(modelPath: string): Promise<ort.InferenceSession> {
   configureWasmRuntime();
   const pending = ort.InferenceSession.create(modelPath, {

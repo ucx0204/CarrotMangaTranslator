@@ -14,11 +14,11 @@ import {
 
 export function useRunInpaintingAction(
   options: UseInpaintingActionsOptions,
-): (scope: InpaintingScope) => Promise<void> {
+): (scope: InpaintingScope, blockId?: string) => Promise<void> {
   const { t } = useTranslation("renderer");
   return useCallback(
-    async (scope) => {
-      await runPatternInpainting(options, scope, t);
+    async (scope, blockId) => {
+      await runPatternInpainting(options, scope, blockId, t);
     },
     [options, t],
   );
@@ -27,6 +27,7 @@ export function useRunInpaintingAction(
 async function runPatternInpainting(
   options: UseInpaintingActionsOptions,
   scope: InpaintingScope,
+  blockId: string | undefined,
   t: TFunction<"renderer">,
 ): Promise<void> {
   const target = resolveInpaintingTarget(
@@ -37,7 +38,13 @@ async function runPatternInpainting(
   if (!target || options.jobActive) {
     return;
   }
-  const ready = await preparePatternInpainting(options, scope, t);
+  if (
+    blockId &&
+    (!target.page || !target.page.blocks.some((block) => block.id === blockId))
+  ) {
+    return;
+  }
+  const ready = await preparePatternInpainting(options, scope, blockId, t);
   if (!ready) {
     return;
   }
@@ -48,6 +55,7 @@ async function runPatternInpainting(
             chapterId: target.chapterId,
             mode: "page-pattern",
             pageId: target.pageId,
+            ...(blockId ? { blockId } : {}),
           }
         : { chapterId: target.chapterId, mode: "chapter-pattern-pending" },
     );
@@ -82,6 +90,7 @@ async function runPatternInpainting(
 async function preparePatternInpainting(
   options: UseInpaintingActionsOptions,
   scope: InpaintingScope,
+  blockId: string | undefined,
   t: TFunction<"renderer">,
 ): Promise<boolean> {
   try {
@@ -99,6 +108,7 @@ async function preparePatternInpainting(
   const confirmed = await confirmPatternInpainting(
     options.askConfirm,
     scope,
+    blockId,
     t,
   );
   if (!confirmed) {
@@ -118,12 +128,15 @@ async function preparePatternInpainting(
 function confirmPatternInpainting(
   askConfirm: UseInpaintingActionsOptions["askConfirm"],
   scope: InpaintingScope,
+  blockId: string | undefined,
   t: TFunction<"renderer">,
 ): Promise<boolean> {
   const scopeLabel = t(
-    scope === "page"
-      ? "inpainting.erase.currentPage"
-      : "inpainting.erase.pendingPages",
+    blockId
+      ? "inpainting.erase.selectedBlock"
+      : scope === "page"
+        ? "inpainting.erase.currentPage"
+        : "inpainting.erase.pendingPages",
   );
   return askConfirm(
     t("inpainting.erase.title"),

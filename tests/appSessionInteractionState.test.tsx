@@ -7,6 +7,20 @@ import { useAppSessionLifecycleEffects } from "../src/renderer/src/app/session/u
 import { useAppSessionUiState } from "../src/renderer/src/app/session/useAppSessionUiState";
 
 describe("unified workspace interaction state", () => {
+  it("resets batch translation selection when the options modal closes", () => {
+    const { result } = renderHook(() => useAppSessionUiState());
+
+    expect(result.current.translateOptionsInitialScope).toBe("current-pending");
+
+    act(() => result.current.openTranslateOptions("work-all"));
+    expect(result.current.translateOptionsOpen).toBe(true);
+    expect(result.current.translateOptionsInitialScope).toBe("work-all");
+
+    act(() => result.current.closeTranslateOptions());
+    expect(result.current.translateOptionsOpen).toBe(false);
+    expect(result.current.translateOptionsInitialScope).toBe("current-pending");
+  });
+
   it("keeps ordinary workspace tools and clears original peek before retouch", () => {
     const { result } = renderHook(() => useAppSessionUiState());
 
@@ -19,6 +33,34 @@ describe("unified workspace interaction state", () => {
     });
     expect(result.current.stageTool).toBe("brush");
     expect(result.current.peekOriginal).toBe(false);
+  });
+
+  it("keeps the active and remembered retouch tool for the app session", () => {
+    const first = renderHook(() => useAppSessionUiState());
+
+    expect(first.result.current.stageTool).toBe("select");
+    expect(first.result.current.lastRetouchTool).toBe("brush");
+
+    act(() => first.result.current.selectWorkspaceTool("ellipse"));
+    expect(first.result.current.stageTool).toBe("ellipse");
+    expect(first.result.current.lastRetouchTool).toBe("ellipse");
+
+    act(() => first.result.current.selectWorkspaceTool("hand"));
+    expect(first.result.current.stageTool).toBe("hand");
+    expect(first.result.current.lastRetouchTool).toBe("ellipse");
+
+    act(() => first.result.current.resetChapterScopedUi());
+    expect(first.result.current.stageTool).toBe("hand");
+    expect(first.result.current.lastRetouchTool).toBe("ellipse");
+
+    act(() => first.result.current.selectWorkspaceTool("rectangle"));
+    expect(first.result.current.stageTool).toBe("rectangle");
+    expect(first.result.current.lastRetouchTool).toBe("rectangle");
+
+    first.unmount();
+    const restarted = renderHook(() => useAppSessionUiState());
+    expect(restarted.result.current.stageTool).toBe("select");
+    expect(restarted.result.current.lastRetouchTool).toBe("brush");
   });
 
   it("uses screen fit by default and resets zoom when the fit basis changes", () => {

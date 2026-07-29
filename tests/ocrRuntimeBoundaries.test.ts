@@ -49,6 +49,24 @@ function replaceCachedExports(modulePath: string, exports: unknown): void {
 const describeWindows = process.platform === "win32" ? describe : describe.skip;
 
 describeWindows("OCR runtime boundary behavior", () => {
+  it("propagates a cancelled runtime check without marking Paddle OCR as broken", async () => {
+    const verification =
+      require("../src/main/runtime/ocr/runtime-verification.cjs") as {
+        checkPaddleOcrImport: (
+          pythonPath: string,
+          options: { abortSignal: AbortSignal },
+        ) => Promise<unknown>;
+      };
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      verification.checkPaddleOcrImport("missing-python.exe", {
+        abortSignal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+  });
+
   it("rejects Apple GPU OCR instead of opening the bundled CPU runtime", async () => {
     const platformDescriptor = Object.getOwnPropertyDescriptor(
       process,

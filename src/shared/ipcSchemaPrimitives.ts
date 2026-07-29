@@ -185,7 +185,7 @@ const CurveLayoutSchema = z
   })
   .strict();
 
-export const BubbleShapeSpanSchema = z
+const BubbleShapeSpanSchema = z
   .object({
     blockStart: finiteNumber.min(0).max(1),
     blockEnd: finiteNumber.min(0).max(1),
@@ -210,7 +210,7 @@ export const BubbleShapeSpanSchema = z
     }
   });
 
-export const BubbleShapeRegionSchema = z
+const BubbleShapeRegionSchema = z
   .object({
     spans: z.array(BubbleShapeSpanSchema).min(1).max(MAX_BUBBLE_REGION_SPANS),
   })

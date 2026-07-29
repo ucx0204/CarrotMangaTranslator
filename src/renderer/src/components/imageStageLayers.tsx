@@ -8,6 +8,7 @@ import {
   useRegionSelectionRectPreview,
 } from "../lib/workspaceInteractionPreview";
 import { resolveRetouchCanvasBackingSize } from "../lib/retouchLiveGeometry";
+import { CircularBrushCursor } from "./CircularBrushCursor";
 import type { ImageStageProps, RetouchStageModel } from "./imageStageTypes";
 
 type StageImageProps = {
@@ -161,18 +162,11 @@ export const RetouchLiveLayer = React.memo(function RetouchLiveLayer({
           src={retouchOriginalImageDataUrl}
         />
       ) : null}
-      <div
-        aria-hidden="true"
-        className={`retouch-cursor retouch-cursor-${retouchCursor.mode}`}
-        data-retouch-live-cursor=""
-        style={
-          {
-            "--retouch-cursor-color": retouchCursor.color,
-          } as React.CSSProperties
-        }
-      >
-        <span />
-      </div>
+      <CircularBrushCursor
+        className={`retouch-cursor-${retouchCursor.mode}`}
+        color={retouchCursor.color}
+        kind="retouch"
+      />
     </>
   );
 });

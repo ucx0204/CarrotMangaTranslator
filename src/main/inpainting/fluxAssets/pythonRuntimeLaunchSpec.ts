@@ -1,5 +1,4 @@
 import { mkdir } from "node:fs/promises";
-import { join } from "node:path";
 import {
   FLUX_DIFFUSERS_MODEL_ID,
   FLUX_MODEL_FILE,
@@ -21,7 +20,10 @@ import {
   hfResolveUrl,
 } from "../../runtimeSupport/modelDownloads";
 import { resolveFluxPythonMode } from "./manifests";
-import { ensureFluxPythonModelCache } from "./pythonRuntimePackages";
+import {
+  buildFluxPythonHuggingFaceEnv,
+  ensureFluxPythonModelCache,
+} from "./pythonRuntimePackages";
 import type { FluxWorkerLaunchSpec } from "../fluxWorkerTypes";
 
 export async function buildFluxPythonLaunchSpec(options: {
@@ -81,7 +83,10 @@ async function buildRocmFluxPythonLaunchSpec(options: {
       "--llm",
       models.llmPath,
     ],
-    env: buildPythonLaunchEnv(options.pythonRuntime, options.modelDir),
+    env: buildFluxPythonHuggingFaceEnv(
+      options.pythonRuntime.env,
+      options.modelDir,
+    ),
   };
 }
 
@@ -171,18 +176,9 @@ async function buildCpuFluxPythonLaunchSpec(options: {
       "--cache-dir",
       options.modelDir,
     ],
-    env: buildPythonLaunchEnv(options.pythonRuntime, options.modelDir),
-  };
-}
-
-function buildPythonLaunchEnv(
-  pythonRuntime: FluxPythonRuntime,
-  modelDir: string,
-): NodeJS.ProcessEnv {
-  return {
-    ...pythonRuntime.env,
-    HF_HOME: modelDir,
-    HUGGINGFACE_HUB_CACHE: join(modelDir, "hub"),
-    HF_HUB_DISABLE_SYMLINKS_WARNING: "1",
+    env: buildFluxPythonHuggingFaceEnv(
+      options.pythonRuntime.env,
+      options.modelDir,
+    ),
   };
 }

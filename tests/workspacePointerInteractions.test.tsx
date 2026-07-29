@@ -300,6 +300,7 @@ describe("workspace pointer interactions", () => {
     const api = renderHarness({
       initialSelectedBlockId: "block-1",
       renderOverlay: true,
+      stageSize: { height: 180, width: 100 },
       stageTool: "bubble",
       withBubbleLayout: true,
     });
@@ -326,9 +327,16 @@ describe("workspace pointer interactions", () => {
       [38, 15],
     ]);
     expect(api.current.getRenderCount()).toBe(renderCountBeforeDraftControls);
-    expect(
-      document.querySelector(".bubble-layout-brush-cursor")?.getAttribute("r"),
-    ).toBe("60");
+    const brushCursor = document.querySelector<HTMLElement>(
+      "[data-bubble-layout-brush-cursor]",
+    );
+    expect(brushCursor?.classList.contains("retouch-cursor")).toBe(true);
+    expect(brushCursor?.style.width).toBe("12px");
+    expect(brushCursor?.style.height).toBe("12px");
+    expect(brushCursor?.style.getPropertyValue("--retouch-cursor-color")).toBe(
+      "#78f2c5",
+    );
+    expect(brushCursor?.querySelector("span")).not.toBeNull();
 
     const expanded = api.current.getBubbleLayoutDraft();
     expect(expanded?.dirty).toBe(true);
@@ -525,6 +533,7 @@ function renderHarness(
     renderOverlay?: boolean;
     regionTranslationReady?: boolean;
     selectedPageEditLocked?: boolean;
+    stageSize?: { height: number; width: number };
     stageTool?: StageTool;
     strictMode?: boolean;
     withBubbleLayout?: boolean;
@@ -542,6 +551,7 @@ function renderHarness(
       renderOverlay={props.renderOverlay ?? false}
       regionTranslationReady={props.regionTranslationReady ?? true}
       selectedPageEditLocked={props.selectedPageEditLocked ?? false}
+      stageSize={props.stageSize ?? { height: 100, width: 100 }}
       stageTool={props.stageTool ?? "select"}
       withBubbleLayout={props.withBubbleLayout ?? false}
     />
@@ -563,6 +573,7 @@ function WorkspacePointerHarness({
   renderOverlay,
   regionTranslationReady,
   selectedPageEditLocked,
+  stageSize,
   stageTool,
   withBubbleLayout,
 }: {
@@ -572,6 +583,7 @@ function WorkspacePointerHarness({
   renderOverlay: boolean;
   regionTranslationReady: boolean;
   selectedPageEditLocked: boolean;
+  stageSize: { height: number; width: number };
   stageTool: StageTool;
   withBubbleLayout: boolean;
 }): React.JSX.Element {
@@ -718,9 +730,9 @@ function WorkspacePointerHarness({
               showBlockChrome
               showTextBlocks
               stageRef={stageRef}
-              stageSize={{ height: 100, width: 100 }}
+              stageSize={stageSize}
               stageTool={stageTool}
-              textLayoutStageSize={{ height: 100, width: 100 }}
+              textLayoutStageSize={stageSize}
             />
           </TestFontsProvider>
         </>

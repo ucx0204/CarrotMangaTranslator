@@ -101,16 +101,6 @@ export function trimNaturalWhitespace(
   return index;
 }
 
-export function countVisibleNaturalGraphemes(
-  graphemes: string[],
-  start: number,
-  end: number,
-): number {
-  return graphemes
-    .slice(start, end)
-    .filter((value) => !isNaturalWhitespace(value)).length;
-}
-
 /**
  * Counts graphemes carrying readable content rather than decoration.
  * Punctuation and brackets do not turn `고!`, `어,`, or `【아` into a

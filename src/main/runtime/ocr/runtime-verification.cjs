@@ -47,12 +47,24 @@ async function checkPaddleOcrImport(pythonPath, options = {}, runtime = null) {
     );
     return { ok: true, message: "" };
   } catch (error) {
+    if (options.abortSignal?.aborted || isAbortError(error)) {
+      throw error;
+    }
     return {
       ok: false,
       message: error instanceof Error ? error.message : String(error),
       error,
     };
   }
+}
+
+/** @param {unknown} error @returns {boolean} */
+function isAbortError(error) {
+  return Boolean(
+    error &&
+    typeof error === "object" &&
+    /** @type {{ name?: unknown }} */ (error).name === "AbortError",
+  );
 }
 
 /** @param {string} message @param {Record<string, unknown>} [detail] @param {unknown} [cause] @returns {Error} */

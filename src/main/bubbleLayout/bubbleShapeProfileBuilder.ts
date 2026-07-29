@@ -16,6 +16,8 @@ export type BubbleShapeProfileInput = {
   regions: RefinedBubbleRegion[];
   pageWidth: number;
   pageHeight: number;
+  /** Page-space pixel bounds of the source text used to reject tiny shards. */
+  textBounds?: BBox;
   renderDirection: RenderTextDirection;
   sourceDirection: SourceTextDirection;
   confidence: number;
@@ -31,25 +33,37 @@ export type BubbleShapeProfileResult = {
   bubbleLayout: BubbleLayout;
 };
 
+const DOMINANT_TEXT_REGION_MIN_COVERAGE = 0.7;
+const SECONDARY_TEXT_REGION_MAX_COVERAGE = 0.15;
+
 export function buildBubbleShapeProfile(
   input: BubbleShapeProfileInput,
 ): BubbleShapeProfileResult | null {
   if (input.regions.length === 0) return null;
-  const ordered = partitionSameBlockBubbleRegions(
+  let ordered = partitionSameBlockBubbleRegions(
     orderBubbleRegions(input.regions, input.sourceDirection),
     input.regionGapPx,
   );
   if (ordered.length === 0) return null;
-  const pixelBounds = unionBounds(ordered.map((region) => region.bounds));
-  if (pixelBounds.w < 2 || pixelBounds.h < 2) return null;
-  const regions = ordered
-    .map((region) =>
-      buildRegionProfile(region, pixelBounds, input.renderDirection),
-    )
-    .filter((region): region is BubbleShapeRegion => region.spans.length > 0);
-  if (regions.length === 0) return null;
+  let profile = buildProfileData(ordered, input.renderDirection);
+  if (!profile) return null;
+  const dominantRegionIndex = selectDominantTextRegionIndex(
+    profile.regions.map((item) => item.profile),
+    profile.pixelBounds,
+    input.textBounds,
+    input.renderDirection,
+  );
+  if (dominantRegionIndex !== null) {
+    ordered = [profile.regions[dominantRegionIndex].source];
+    profile = buildProfileData(ordered, input.renderDirection);
+    if (!profile) return null;
+  }
   return {
-    renderBbox: pixelsToBbox(pixelBounds, input.pageWidth, input.pageHeight),
+    renderBbox: pixelsToBbox(
+      profile.pixelBounds,
+      input.pageWidth,
+      input.pageHeight,
+    ),
     renderBboxSpace: "normalized_1000",
     bubbleLayout: {
       version: 1,
@@ -59,16 +73,115 @@ export function buildBubbleShapeProfile(
       modelId: input.modelId,
       sourceImageRevision: input.sourceImageRevision,
       insetRatio: clamp(
-        input.insetPx / Math.max(1, Math.min(pixelBounds.w, pixelBounds.h)),
+        input.insetPx /
+          Math.max(1, Math.min(profile.pixelBounds.w, profile.pixelBounds.h)),
         0,
         0.49,
       ),
-      regions,
+      regions: profile.regions.map((item) => item.profile),
     },
   };
 }
 
-export function orderBubbleRegions(
+function buildProfileData(
+  regions: RefinedBubbleRegion[],
+  renderDirection: RenderTextDirection,
+): {
+  pixelBounds: BBox;
+  regions: Array<{
+    source: RefinedBubbleRegion;
+    profile: BubbleShapeRegion;
+  }>;
+} | null {
+  const pixelBounds = unionBounds(regions.map((region) => region.bounds));
+  if (pixelBounds.w < 2 || pixelBounds.h < 2) return null;
+  const profiledRegions = regions
+    .map((source) => ({
+      source,
+      profile: buildRegionProfile(source, pixelBounds, renderDirection),
+    }))
+    .filter((item) => item.profile.spans.length > 0);
+  return profiledRegions.length > 0
+    ? { pixelBounds, regions: profiledRegions }
+    : null;
+}
+
+function selectDominantTextRegionIndex(
+  regions: BubbleShapeRegion[],
+  renderBounds: BBox,
+  textBounds: BBox | undefined,
+  direction: RenderTextDirection,
+): number | null {
+  if (
+    !textBounds ||
+    textBounds.w <= 0 ||
+    textBounds.h <= 0 ||
+    regions.length <= 1
+  ) {
+    return null;
+  }
+  const coverages = regions.map((region) =>
+    resolveTextCoverage(region, renderBounds, textBounds, direction),
+  );
+  const primaryIndex = coverages.reduce(
+    (best, coverage, index) => (coverage > coverages[best] ? index : best),
+    0,
+  );
+  return coverages[primaryIndex] >= DOMINANT_TEXT_REGION_MIN_COVERAGE &&
+    coverages.every(
+      (coverage, index) =>
+        index === primaryIndex ||
+        coverage <= SECONDARY_TEXT_REGION_MAX_COVERAGE,
+    )
+    ? primaryIndex
+    : null;
+}
+
+function resolveTextCoverage(
+  region: BubbleShapeRegion,
+  renderBounds: BBox,
+  textBounds: BBox,
+  direction: RenderTextDirection,
+): number {
+  const coveredArea = region.spans.reduce(
+    (total, span) =>
+      total +
+      intersectionArea(spanToPixels(span, renderBounds, direction), textBounds),
+    0,
+  );
+  return clamp(coveredArea / Math.max(1, textBounds.w * textBounds.h), 0, 1);
+}
+
+function spanToPixels(
+  span: BubbleShapeSpan,
+  renderBounds: BBox,
+  direction: RenderTextDirection,
+): BBox {
+  if (direction === "horizontal") {
+    return {
+      x: renderBounds.x + span.inlineStart * renderBounds.w,
+      y: renderBounds.y + span.blockStart * renderBounds.h,
+      w: (span.inlineEnd - span.inlineStart) * renderBounds.w,
+      h: (span.blockEnd - span.blockStart) * renderBounds.h,
+    };
+  }
+  return {
+    x: renderBounds.x + span.blockStart * renderBounds.w,
+    y: renderBounds.y + span.inlineStart * renderBounds.h,
+    w: (span.blockEnd - span.blockStart) * renderBounds.w,
+    h: (span.inlineEnd - span.inlineStart) * renderBounds.h,
+  };
+}
+
+function intersectionArea(left: BBox, right: BBox): number {
+  const x1 = Math.max(left.x, right.x);
+  const y1 = Math.max(left.y, right.y);
+  const x2 = Math.min(left.x + left.w, right.x + right.w);
+  const y2 = Math.min(left.y + left.h, right.y + right.h);
+  return Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
+}
+
+function orderBubbleRegions(
   regions: RefinedBubbleRegion[],
   sourceDirection: SourceTextDirection,
 ): RefinedBubbleRegion[] {

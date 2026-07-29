@@ -3,6 +3,8 @@ import {
   processDetectedBubbleLayouts,
   resolveBubbleLayoutBlockRevision,
 } from "../src/main/bubbleLayout/bubbleLayoutPageProcessor";
+import { isUsableAutomaticBubbleRegionSet } from "../src/main/bubbleLayout/bubbleFragmentRepair";
+import type { RefinedBubbleRegion } from "../src/main/bubbleLayout/bubbleMaskTypes";
 import type { MangaPage } from "../src/shared/libraryTypes";
 import type {
   ComicDetectionLabelId,
@@ -30,7 +32,7 @@ describe("bubble layout page processor", () => {
         detection(1, [20, 28, 45, 52], 0.97),
         detection(1, [75, 28, 101, 52], 0.96),
       ],
-      policy: "balanced",
+      policy: "maximize",
       pageRevision: "page-revision",
     });
 
@@ -38,6 +40,62 @@ describe("bubble layout page processor", () => {
     expect(patches[0].bubbleLayout?.regions).toHaveLength(2);
     expect(Object.hasOwn(patches[0], "bbox")).toBe(false);
     expect(page.blocks[0].bbox).toEqual({ x: 150, y: 225, w: 700, h: 450 });
+  });
+
+  it("falls back to the OCR box when a match fragments into three regions", () => {
+    const bitmap = createBitmap(25);
+    paintCircle(bitmap, 22, 40, 16, 245);
+    paintCircle(bitmap, 60, 40, 16, 245);
+    paintCircle(bitmap, 98, 40, 16, 245);
+    const page = createPage();
+    page.blocks[0] = {
+      ...page.blocks[0],
+      renderBbox: { x: 50, y: 100, w: 900, h: 800 },
+      renderBboxSpace: "normalized_1000",
+      bubbleLayout: generatedBubbleLayout(),
+    };
+
+    const patches = processDetectedBubbleLayouts({
+      page,
+      bitmap,
+      imageWidth: WIDTH,
+      imageHeight: HEIGHT,
+      detections: [
+        detection(0, [4, 20, 40, 60], 0.97),
+        detection(0, [42, 20, 78, 60], 0.96),
+        detection(0, [80, 20, 116, 60], 0.95),
+        detection(1, [12, 30, 32, 50], 0.98),
+        detection(1, [50, 30, 70, 50], 0.97),
+        detection(1, [88, 30, 108, 50], 0.96),
+      ],
+      policy: "balanced",
+      pageRevision: "page-revision",
+    });
+
+    expect(patches).toEqual([
+      {
+        blockId: "merged",
+        renderBbox: null,
+        renderBboxSpace: null,
+        bubbleLayout: null,
+      },
+    ]);
+  });
+
+  it("rejects a two-region match when one sliver barely covers the OCR block", () => {
+    const blockBounds = { x: 0, y: 0, w: 20, h: 20 };
+    const main = filledRegion({ x: 0, y: 0, w: 12, h: 20 });
+    const sliver = filledRegion({ x: 18, y: 0, w: 2, h: 20 });
+
+    expect(isUsableAutomaticBubbleRegionSet([main, sliver], blockBounds)).toBe(
+      false,
+    );
+    expect(
+      isUsableAutomaticBubbleRegionSet(
+        [main, filledRegion({ x: 12, y: 0, w: 8, h: 20 })],
+        blockBounds,
+      ),
+    ).toBe(true);
   });
 
   it("leaves an unrecognized block unchanged", () => {
@@ -223,7 +281,7 @@ describe("bubble layout page processor", () => {
     expect(bounds[2].x - (bounds[1].x + bounds[1].w)).toBeGreaterThanOrEqual(3);
   });
 
-  it("partitions separately detected connected lobes when their boxes overlap", () => {
+  it("preserves separately detected connected-lobe contours without a global cut", () => {
     const page = createPage();
     const template = page.blocks[0];
     page.blocks = [
@@ -250,17 +308,20 @@ describe("bubble layout page processor", () => {
         detection(1, [15, 20, 45, 60], 0.98),
         detection(1, [75, 15, 105, 50], 0.98),
       ],
-      policy: "balanced",
+      policy: "maximize",
       pageRevision: "page-revision",
+      repairOriginalTextInk: true,
     });
 
     expect(patches).toHaveLength(2);
     const [left, right] = patches.map(patchBoundsInPixels);
-    expect(intersectionArea(left, right)).toBe(0);
-    expect(right.x - (left.x + left.w)).toBeGreaterThanOrEqual(3);
+    expect(intersectionArea(left, right)).toBeGreaterThan(0);
+    expect(patches.map((patch) => patch.bubbleLayout?.regions.length)).toEqual([
+      1, 1,
+    ]);
   });
 
-  it("keeps a multi-candidate owner from spanning across a competing block", () => {
+  it("keeps a multi-candidate owner without overlapping a competing block's shape", () => {
     const page = createPage();
     const template = page.blocks[0];
     page.blocks = [
@@ -295,9 +356,11 @@ describe("bubble layout page processor", () => {
     });
 
     expect(patches).toHaveLength(2);
-    const [wide, nested] = patches.map(patchBoundsInPixels);
-    expect(intersectionArea(wide, nested)).toBe(0);
-    expect(nested.x - (wide.x + wide.w)).toBeGreaterThanOrEqual(3);
+    expect(patches.map((patch) => patch.blockId)).toEqual([
+      "wide-owner",
+      "nested-owner",
+    ]);
+    expectPatchShapesDisjoint(patches[0], patches[1]);
   });
 
   it("partitions pixel-space OCR boxes against resized detector geometry", () => {
@@ -351,6 +414,48 @@ function patchBoundsInPixels(
     w: (bbox.w / 1000) * WIDTH,
     h: (bbox.h / 1000) * HEIGHT,
   };
+}
+
+function expectPatchShapesDisjoint(
+  leftPatch: ReturnType<typeof processDetectedBubbleLayouts>[number],
+  rightPatch: ReturnType<typeof processDetectedBubbleLayouts>[number],
+): void {
+  const leftRects = patchShapeRectsInPixels(leftPatch);
+  const rightRects = patchShapeRectsInPixels(rightPatch);
+  expect(leftRects.length).toBeGreaterThan(0);
+  expect(rightRects.length).toBeGreaterThan(0);
+  for (const left of leftRects) {
+    for (const right of rightRects) {
+      // Span quantization can leave a sub-pixel-scale overlap even though the
+      // underlying ownership masks are disjoint.
+      expect(intersectionArea(left, right)).toBeLessThanOrEqual(4);
+    }
+  }
+}
+
+function patchShapeRectsInPixels(
+  patch: ReturnType<typeof processDetectedBubbleLayouts>[number],
+): { x: number; y: number; w: number; h: number }[] {
+  const bounds = patchBoundsInPixels(patch);
+  const layout = patch.bubbleLayout;
+  if (!layout) throw new Error(`bubbleLayout이 없습니다: ${patch.blockId}`);
+  return layout.regions.flatMap((region) =>
+    region.spans.map((span) =>
+      layout.direction === "horizontal"
+        ? {
+            x: bounds.x + span.inlineStart * bounds.w,
+            y: bounds.y + span.blockStart * bounds.h,
+            w: (span.inlineEnd - span.inlineStart) * bounds.w,
+            h: (span.blockEnd - span.blockStart) * bounds.h,
+          }
+        : {
+            x: bounds.x + span.blockStart * bounds.w,
+            y: bounds.y + span.inlineStart * bounds.h,
+            w: (span.blockEnd - span.blockStart) * bounds.w,
+            h: (span.inlineEnd - span.inlineStart) * bounds.h,
+          },
+    ),
+  );
 }
 
 function intersectionArea(
@@ -505,4 +610,21 @@ function paintRect(
       bitmap[index + 2] = value;
     }
   }
+}
+
+function filledRegion(bounds: {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}): RefinedBubbleRegion {
+  const width = Math.round(bounds.w);
+  const height = Math.round(bounds.h);
+  return {
+    bounds,
+    width,
+    height,
+    area: width * height,
+    mask: new Uint8Array(width * height).fill(1),
+  };
 }

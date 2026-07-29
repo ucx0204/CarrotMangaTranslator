@@ -152,7 +152,6 @@ function useInpaintingRunController(
 function useNavigationController({
   core,
   modalOpen,
-  uiState,
 }: AppSessionInpaintingControllerArgs): ReturnType<
   typeof usePageNavigationHandlers
 > {
@@ -162,7 +161,6 @@ function useNavigationController({
     selectedBlockIdRef: core.selectedBlockIdRef,
     workspacePanelRef: core.workspacePanelRef,
     modalOpen,
-    onPageChange: () => uiState.selectWorkspaceTool("select"),
     setSelectedPageId: core.setSelectedPageId,
     setSelectedBlockId: core.setSelectedBlockId,
   });

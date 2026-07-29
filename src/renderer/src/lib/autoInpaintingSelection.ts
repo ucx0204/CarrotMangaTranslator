@@ -12,7 +12,7 @@ export type AutoInpaintingSelectionMap = ExportSelectionMap;
 
 export type AutoInpaintingEntryScope = "current" | "all" | "select";
 
-export function createDefaultAutoInpaintingSelection(
+function createDefaultAutoInpaintingSelection(
   chapterId: string,
   currentPageId: string,
 ): AutoInpaintingSelectionMap {

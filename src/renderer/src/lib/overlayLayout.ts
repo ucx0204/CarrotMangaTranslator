@@ -15,14 +15,7 @@ import {
   resolveFixedHorizontalTextLines,
   resolveHorizontalTextContentWidth,
 } from "./blockTextMeasurement";
-import {
-  createGeneratedBubbleQualityBudget,
-  doesGeneratedBubbleQualityFit,
-  resolveBubbleWrappedText,
-  resolveRectangularBubbleBaselineBlock,
-  shouldGateGeneratedBubbleLayout,
-  type GeneratedBubbleQualityBudget,
-} from "./bubbleBlockTextLayout";
+import { resolveBubbleWrappedText } from "./bubbleBlockTextLayout";
 import { type BlockTextLine } from "./overlayTextWrapping";
 
 const MIN_FONT_SIZE_PX = MIN_READABLE_FONT_SIZE_PX;
@@ -76,29 +69,6 @@ export function resolveBlockTextLayout(
   fontCatalog: BlockFontCatalog,
   options: BlockTextLayoutOptions = {},
 ): BlockTextLayout {
-  if (!shouldGateGeneratedBubbleLayout(block, text)) {
-    return resolveBlockTextLayoutCore(
-      block,
-      text,
-      pageSize,
-      stageSize,
-      fontCatalog,
-      options,
-    );
-  }
-  const baseline = resolveBlockTextLayoutCore(
-    resolveRectangularBubbleBaselineBlock(block),
-    text,
-    pageSize,
-    stageSize,
-    fontCatalog,
-    options,
-  );
-  const qualityBudget = createGeneratedBubbleQualityBudget({
-    block,
-    text,
-    baselineLines: baseline.lines,
-  });
   return resolveBlockTextLayoutCore(
     block,
     text,
@@ -106,7 +76,6 @@ export function resolveBlockTextLayout(
     stageSize,
     fontCatalog,
     options,
-    qualityBudget,
   );
 }
 
@@ -117,7 +86,6 @@ function resolveBlockTextLayoutCore(
   stageSize: ViewportSize,
   fontCatalog: BlockFontCatalog,
   options: BlockTextLayoutOptions,
-  bubbleQualityBudget: GeneratedBubbleQualityBudget | null = null,
 ): BlockTextLayout {
   const { plainText } = parseRichText(
     text,
@@ -151,7 +119,6 @@ function resolveBlockTextLayoutCore(
     fontCatalog,
     layoutStageSize,
     pageSize,
-    bubbleQualityBudget,
   });
 
   return {
@@ -177,7 +144,6 @@ type TextMetricsInput = {
   fontCatalog: BlockFontCatalog;
   layoutStageSize: ViewportSize;
   pageSize: ViewportSize;
-  bubbleQualityBudget: GeneratedBubbleQualityBudget | null;
 };
 
 type BubbleMeasurer = (
@@ -242,17 +208,7 @@ function createFitsAtFontSize(
   bubbleMeasurer: BubbleMeasurer | null,
 ): (fontSize: number) => boolean {
   if (bubbleMeasurer) {
-    return (fontSize) => {
-      const measured = bubbleMeasurer(fontSize);
-      return Boolean(
-        measured &&
-        (!input.bubbleQualityBudget ||
-          doesGeneratedBubbleQualityFit(
-            measured.lines,
-            input.bubbleQualityBudget,
-          )),
-      );
-    };
+    return (fontSize) => Boolean(bubbleMeasurer(fontSize));
   }
   const { block, text, fitInnerWidth, fitInnerHeight, fontCatalog } = input;
   return (fontSize) =>

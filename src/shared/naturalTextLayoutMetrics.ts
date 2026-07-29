@@ -60,7 +60,7 @@ export function resolveNaturalTextMetrics(
   };
 }
 
-export function measureNaturalText(
+function measureNaturalText(
   value: string,
   metrics: NaturalTextMetrics,
 ): number {

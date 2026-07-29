@@ -48,6 +48,8 @@ export type PanelSessionValue = {
   onUpdateBlock: (patch: Partial<TranslationBlock>) => void;
   onDeleteBlock: () => void;
   onDuplicateBlock: () => void;
+  onEraseBlockOriginal: () => void;
+  onFitBlockBubble: () => void;
   onRemoveBubbleLayout: () => void;
   onSelectTransformMode: (mode: TransformEditorMode) => void;
   onApplyFormat: (

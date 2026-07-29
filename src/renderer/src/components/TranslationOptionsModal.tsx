@@ -16,6 +16,7 @@ import { getBlockModeOptions } from "../lib/blockModeOptions";
 import {
   buildRunSelection,
   type ChapterSelectionMap,
+  type TranslationOptionsInitialScope,
 } from "../lib/translationSelection";
 import { ChapterPagePicker } from "./ChapterPagePicker";
 import {
@@ -39,6 +40,7 @@ const WORKFLOW_OPTION_IDS: TranslationWorkflowMode[] = [
 
 type TranslationOptionsModalProps = {
   chapter: ChapterSnapshot;
+  initialScope?: TranslationOptionsInitialScope;
   library: LibraryIndex;
   uiSettings: UiSettings | undefined;
   onStart: (options: TranslationFlowOptions) => void;
@@ -58,6 +60,7 @@ type TranslationOptionsModalProps = {
 
 export function TranslationOptionsModal({
   chapter,
+  initialScope = "current-pending",
   library,
   uiSettings,
   onStart,
@@ -65,7 +68,12 @@ export function TranslationOptionsModal({
   onClose,
 }: TranslationOptionsModalProps): React.JSX.Element {
   const { t } = useTranslation("components");
-  const state = useTranslationOptionsModalState(chapter, library, uiSettings);
+  const state = useTranslationOptionsModalState(
+    chapter,
+    initialScope,
+    library,
+    uiSettings,
+  );
   const handleStart = (): void => {
     if (state.runSelection.length === 0) return;
     onPersistDefaults({
@@ -149,6 +157,7 @@ type TranslationOptionsFormProps = {
 
 function useTranslationOptionsModalState(
   chapter: ChapterSnapshot,
+  initialScope: TranslationOptionsInitialScope,
   library: LibraryIndex,
   uiSettings: UiSettings | undefined,
 ): {
@@ -159,8 +168,8 @@ function useTranslationOptionsModalState(
     () => library.works.find((item) => item.id === chapter.workId) ?? null,
     [chapter.workId, library.works],
   );
-  const [selection, setSelection] = React.useState<ChapterSelectionMap>(
-    () => new Map([[chapter.id, { kind: "pending" }]]),
+  const [selection, setSelection] = React.useState<ChapterSelectionMap>(() =>
+    createInitialSelection(chapter, work, initialScope),
   );
   const [workflowMode, setWorkflowMode] = React.useState(
     uiSettings?.translationWorkflowDefault ?? "cumulative",
@@ -211,6 +220,19 @@ function useTranslationOptionsModalState(
     },
     runSelection,
   };
+}
+
+function createInitialSelection(
+  chapter: ChapterSnapshot,
+  work: LibraryWorkSummary | null,
+  initialScope: TranslationOptionsInitialScope,
+): ChapterSelectionMap {
+  if (initialScope === "work-all" && work) {
+    return new Map(
+      work.chapters.map((item) => [item.id, { kind: "all" }] as const),
+    );
+  }
+  return new Map([[chapter.id, { kind: "pending" }]]);
 }
 
 function resolveInitialCompletionDefaults(uiSettings: UiSettings | undefined): {

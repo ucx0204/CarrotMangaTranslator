@@ -295,6 +295,7 @@
     "erase": {
       "title": "擦除原文",
       "currentPage": "当前页面",
+      "selectedBlock": "所选文本块",
       "pendingPages": "尚未擦除的页面",
       "selectedPages": "所选页面",
       "message": "擦除{{scope}}中翻译文本块位置的原文。",
@@ -309,6 +310,8 @@
       "requiresBlocks": "没有可用于检测气泡的文本块。",
       "preparing": "正在准备气泡适配布局",
       "success": "已将当前页的译文文本块适配到气泡内。",
+      "selectedBlockSuccess": "已将所选译文文本块适配到气泡内。",
+      "selectedBlockNoMatch": "未找到与所选文本块匹配的气泡区域。",
       "failedTitle": "气泡适配失败",
       "failed": "无法将译文文本块适配到气泡内。"
     },

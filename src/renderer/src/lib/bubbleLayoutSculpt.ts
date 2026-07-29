@@ -17,8 +17,8 @@ import {
   type SculptRaster,
 } from "./bubbleLayoutSculptRaster";
 
-export type BubbleLayoutSculptMode = "add" | "subtract";
-export type BubbleLayoutSculptSource = Pick<
+type BubbleLayoutSculptMode = "add" | "subtract";
+type BubbleLayoutSculptSource = Pick<
   TranslationBlock,
   "bbox" | "bboxSpace" | "renderBbox" | "renderBboxSpace" | "bubbleLayout"
 >;

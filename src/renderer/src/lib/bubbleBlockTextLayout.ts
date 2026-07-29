@@ -1,4 +1,3 @@
-import { isGeneratedBubbleLayout } from "../../../shared/bubbleLayout";
 import { parseRichText } from "../../../shared/richTextMarkup";
 import { resolveBlockTextWordBreak } from "../../../shared/textWrapping";
 import type { TranslationBlock } from "../../../shared/textTypes";
@@ -8,26 +7,14 @@ import {
 } from "./blockTextMeasurement";
 import { resolveBubbleTextSlotPlans } from "./bubbleTextLayout";
 import {
-  assessWrappedTextQuality,
   measureStyledWrappedTextInSlots,
   measureUniformStyledWrappedTextInSlots,
-  type WrappedTextQuality,
 } from "./bubbleTextWrapping";
 import { resolveBlockFontFamily, type BlockFontCatalog } from "./fonts";
 import {
   normalizeRenderDirection,
   resolveFontWidthScale,
 } from "./blockFormatGeometry";
-import type { BlockTextLine } from "./overlayTextWrapping";
-
-export type GeneratedBubbleQualityBudget = {
-  plainText: string;
-  baseline: WrappedTextQuality;
-};
-
-const SEVERE_FRAGMENT_MIN_GRAPHEMES = 12;
-const SEVERE_FRAGMENT_MIN_WORD_SPLITS = 2;
-const SEVERE_FRAGMENT_MAX_AVERAGE_GRAPHEMES = 3.2;
 
 export function resolveBubbleWrappedText(
   block: TranslationBlock,
@@ -98,78 +85,6 @@ export function resolveBubbleWrappedText(
     }
   }
   return null;
-}
-
-export function shouldGateGeneratedBubbleLayout(
-  block: TranslationBlock,
-  text: string,
-): boolean {
-  return (
-    Boolean(text.trim()) &&
-    (block.autoFitText ?? true) &&
-    !block.curveLayout &&
-    normalizeRenderDirection(block.renderDirection, "horizontal") ===
-      "horizontal" &&
-    isGeneratedBubbleLayout(block.bubbleLayout)
-  );
-}
-
-export function resolveRectangularBubbleBaselineBlock(
-  block: TranslationBlock,
-): TranslationBlock {
-  const baseline = { ...block };
-  delete baseline.renderBbox;
-  delete baseline.renderBboxSpace;
-  delete baseline.bubbleLayout;
-  return baseline;
-}
-
-export function createGeneratedBubbleQualityBudget({
-  block,
-  text,
-  baselineLines,
-}: {
-  block: TranslationBlock;
-  text: string;
-  baselineLines: readonly BlockTextLine[] | null;
-}): GeneratedBubbleQualityBudget | null {
-  if (!shouldGateGeneratedBubbleLayout(block, text) || !baselineLines) {
-    return null;
-  }
-  const { plainText } = parseRichText(
-    text,
-    Boolean(block.bold),
-    Boolean(block.italic),
-  );
-  return {
-    plainText,
-    baseline: assessWrappedTextQuality(plainText, baselineLines),
-  };
-}
-
-export function doesGeneratedBubbleQualityFit(
-  lines: readonly BlockTextLine[],
-  budget: GeneratedBubbleQualityBudget,
-): boolean {
-  const candidateQuality = assessWrappedTextQuality(budget.plainText, lines);
-  return (
-    candidateQuality.intraWordSplitCount <=
-      budget.baseline.intraWordSplitCount &&
-    candidateQuality.orphanLineCount <= budget.baseline.orphanLineCount &&
-    candidateQuality.lineCount <= budget.baseline.lineCount &&
-    !isSeverelyFragmentedGeneratedText(candidateQuality)
-  );
-}
-
-function isSeverelyFragmentedGeneratedText(
-  quality: ReturnType<typeof assessWrappedTextQuality>,
-): boolean {
-  return (
-    quality.semanticGraphemeCount >= SEVERE_FRAGMENT_MIN_GRAPHEMES &&
-    quality.intraWordSplitCount >= SEVERE_FRAGMENT_MIN_WORD_SPLITS &&
-    quality.averageSemanticGraphemesPerLine <
-      SEVERE_FRAGMENT_MAX_AVERAGE_GRAPHEMES
-  );
 }
 
 function resolveMaximumTextSlotCount(plainText: string): number {

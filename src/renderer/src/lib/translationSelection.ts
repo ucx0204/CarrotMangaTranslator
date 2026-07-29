@@ -21,6 +21,8 @@ export type ChapterSel =
 
 export type ChapterSelectionMap = Map<string, ChapterSel>;
 
+export type TranslationOptionsInitialScope = "current-pending" | "work-all";
+
 export type TriState = "none" | "some" | "all";
 
 function pendingIds(pages: MangaPage[]): string[] {

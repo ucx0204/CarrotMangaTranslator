@@ -247,6 +247,8 @@
   "editor": {
     "text": "テキスト",
     "translatedText": "翻訳文",
+    "eraseOriginal": "原文を消去",
+    "fitBubble": "吹き出しに合わせる",
     "moreActions": "ブロック操作を表示",
     "sourceEmpty": "OCRテキストなし",
     "tabs": {
@@ -455,7 +457,7 @@
   "import": {
     "batchTitle": "作品の一括翻訳を準備",
     "addToLibrary": "ライブラリに追加",
-    "createAndTranslate": "作成して翻訳を開始",
+    "createAndTranslate": "翻訳",
     "createNewWork": "新しい作品を作成",
     "addToExistingWork": "既存の作品に追加",
     "selectWork": "作品を選択",

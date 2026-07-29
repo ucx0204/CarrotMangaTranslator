@@ -7,6 +7,7 @@ import {
   createTranslationOptionsProps,
 } from "./createTranslationModalProps";
 import { createGatherTextProps } from "./createGatherTextProps";
+import { createPanelBlockActions } from "./createPanelBlockActions";
 import { isWorkspaceImageReadyForSelectedPage } from "./appSessionSelectors";
 import { createWorkspaceViewProps } from "./createWorkspaceViewProps";
 
@@ -160,6 +161,7 @@ function createPanelSessionValue(
   const { blockEditingActions, panelBridge, pointerHandlers, uiState } = model;
   return {
     ...buildPanelSyncState(model),
+    ...createPanelBlockActions(model),
     editorFloating: uiState.editorFloating,
     editorPoppedOut: panelBridge.openPanelIds.includes("editor"),
     showDetachControls: true,
@@ -217,7 +219,7 @@ function createRightRailProps({
     onOpenExport: () => uiState.setExportOptionsOpen(true),
     onOpenStyleGuide: () => uiState.setStyleGuideOpen(true),
     onOpenTextView: () => uiState.setTextViewOpen(true),
-    onOpenTranslateOptions: () => uiState.setTranslateOptionsOpen(true),
+    onOpenTranslateOptions: () => uiState.openTranslateOptions(),
     onPeekToggle: inpainting.onPeekToggle,
     onRedo: () => void workspaceHistory.redo(),
     onResetPage: () => {
@@ -362,6 +364,7 @@ function createWorkspaceProps({
       workspaceHistory.busy,
     jobState: core.jobState,
     maskStrokes: derivedState.patternMaskStrokes,
+    lastRetouchTool: uiState.lastRetouchTool,
     onBlockPointerDown: pointerHandlers.onBlockPointerDown,
     onApplyBubbleLayoutDraft: pointerHandlers.applyBubbleLayoutDraft,
     onCancelBubbleLayoutDraft: pointerHandlers.cancelBubbleLayoutDraft,

@@ -16,7 +16,11 @@ import {
   type FontsContextValue,
 } from "../src/renderer/src/fonts/fontsContextValue";
 import { DEFAULT_BLOCK_FONT_CATALOG } from "../src/renderer/src/lib/fonts";
-import type { WorkspaceTool } from "../src/renderer/src/lib/stageTool";
+import {
+  isRetouchTool,
+  type RetouchTool,
+  type WorkspaceTool,
+} from "../src/renderer/src/lib/stageTool";
 import {
   createWorkspaceInteractionPreviewStore,
   type WorkspaceInteractionPreviewStore,
@@ -435,6 +439,14 @@ function WorkspaceToolTransitionHarness({
   props: AppWorkspaceProps;
 }): React.JSX.Element {
   const [tool, setTool] = React.useState<WorkspaceTool>("select");
+  const [lastRetouchTool, setLastRetouchTool] =
+    React.useState<RetouchTool>("brush");
+  const selectTool = (nextTool: WorkspaceTool): void => {
+    setTool(nextTool);
+    if (isRetouchTool(nextTool)) {
+      setLastRetouchTool(nextTool);
+    }
+  };
   const retouchCursor =
     tool === "mask" || tool === "brush" || tool === "eraser"
       ? { color: "#ffffff", mode: tool, radiusPx: 28 }
@@ -442,7 +454,8 @@ function WorkspaceToolTransitionHarness({
   return (
     <AppWorkspace
       {...props}
-      onSelectStageTool={setTool}
+      lastRetouchTool={lastRetouchTool}
+      onSelectStageTool={selectTool}
       retouchCursor={retouchCursor}
       stageTool={tool}
     />
@@ -491,6 +504,7 @@ function makeWorkspaceProps({
       progressText: "",
       status: "idle",
     },
+    lastRetouchTool: "brush",
     maskStrokes: [],
     onApplyBubbleLayoutDraft: () => undefined,
     onBlockPointerDown: () => undefined,

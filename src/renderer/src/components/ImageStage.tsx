@@ -239,6 +239,7 @@ function ImageStageLayerSet({
           <StageBubbleLayoutDraft
             imageDataUrl={imageDataUrl}
             interactionPreviewStore={interactionPreviewStore}
+            stageSize={stageSize}
           />
           <StageDragHud interactionPreviewStore={interactionPreviewStore} />
         </>
@@ -250,14 +251,16 @@ function ImageStageLayerSet({
 function StageBubbleLayoutDraft({
   imageDataUrl,
   interactionPreviewStore,
+  stageSize,
 }: Pick<
   ImageStageProps,
-  "imageDataUrl" | "interactionPreviewStore"
+  "imageDataUrl" | "interactionPreviewStore" | "stageSize"
 >): React.JSX.Element {
   return (
     <BubbleLayoutDraftLayer
       imageDataUrl={imageDataUrl}
       interactionPreviewStore={interactionPreviewStore}
+      stageSize={stageSize}
     />
   );
 }

@@ -95,6 +95,50 @@ describe("bubble shape profile builder", () => {
     }
     expect(comparedBands).toBeGreaterThan(0);
   });
+
+  it("drops a tiny separated region when one region contains nearly all text", () => {
+    const result = buildBubbleShapeProfile({
+      regions: [
+        rectangularRegion(10, 10, 80, 80),
+        rectangularRegion(96, 10, 12, 12),
+      ],
+      pageWidth: 120,
+      pageHeight: 120,
+      textBounds: { x: 20, y: 20, w: 70, h: 70 },
+      renderDirection: "horizontal",
+      sourceDirection: "horizontal",
+      confidence: 0.9,
+      modelId: "test",
+      sourceImageRevision: "revision",
+      insetPx: 3,
+      regionGapPx: 4,
+    });
+
+    expect(result?.bubbleLayout.regions).toHaveLength(1);
+    expect(result?.renderBbox.x).toBeCloseTo((10 / 120) * 1000);
+    expect(result?.renderBbox.w).toBeCloseTo((80 / 120) * 1000);
+  });
+
+  it("keeps two regions when both contain meaningful text", () => {
+    const result = buildBubbleShapeProfile({
+      regions: [
+        rectangularRegion(10, 10, 40, 80),
+        rectangularRegion(60, 10, 40, 80),
+      ],
+      pageWidth: 120,
+      pageHeight: 120,
+      textBounds: { x: 20, y: 20, w: 70, h: 60 },
+      renderDirection: "horizontal",
+      sourceDirection: "horizontal",
+      confidence: 0.9,
+      modelId: "test",
+      sourceImageRevision: "revision",
+      insetPx: 3,
+      regionGapPx: 4,
+    });
+
+    expect(result?.bubbleLayout.regions).toHaveLength(2);
+  });
 });
 
 function rectangularRegion(

@@ -9,6 +9,7 @@ import type { InpaintingMaskStroke } from "../../../../shared/inpaintingTypes";
 import type { InpaintingTool } from "../../inpainting/inpaintingTypes";
 import type { StageTool } from "../../lib/stageTool";
 import type { AutoInpaintingEntryScope } from "../../lib/autoInpaintingSelection";
+import type { TranslationOptionsInitialScope } from "../../lib/translationSelection";
 import {
   clampWorkspaceZoom,
   WORKSPACE_ZOOM_STEP,
@@ -82,22 +83,28 @@ function useInpaintingUiState() {
   const [patternMaskStrokesByPage, setPatternMaskStrokesByPage] = useState<
     Record<string, InpaintingMaskStroke[]>
   >({});
-  const [stageTool, setStageTool] = useState<StageTool>("select");
-  const inpaintingTool = resolveInpaintingTool(stageTool);
-  const setInpaintingTool = useInpaintingToolSetter(setStageTool);
-  const selectWorkspaceTool = useCallback((tool: StageTool) => {
-    setStageTool(tool);
-    if (isManualInpaintingTool(tool)) {
-      setPeekOriginal(false);
-    }
-  }, []);
+  const {
+    inpaintingTool,
+    lastRetouchTool,
+    setInpaintingTool,
+    setStageTool,
+    stageTool,
+  } = useWorkspaceToolState();
+  const selectWorkspaceTool = useCallback(
+    (tool: StageTool) => {
+      setStageTool(tool);
+      if (isManualInpaintingTool(tool)) {
+        setPeekOriginal(false);
+      }
+    },
+    [setStageTool],
+  );
   const resetInpaintingUi = useCallback(() => {
     setAutoInpaintingOptionsOpen(false);
     setExportOptionsOpen(false);
     setInpaintingGuideOpen(false);
     setPatternMaskStrokesByPage({});
     setPeekOriginal(false);
-    setStageTool("select");
   }, []);
   return {
     autoInpaintingOptionsOpen,
@@ -107,6 +114,7 @@ function useInpaintingUiState() {
     inpaintingGuideOpen,
     inpaintingPaintColor,
     inpaintingTool,
+    lastRetouchTool,
     patternMaskStrokesByPage,
     peekOriginal,
     resetInpaintingUi,
@@ -120,6 +128,46 @@ function useInpaintingUiState() {
     setInpaintingTool,
     setPatternMaskStrokesByPage,
     setPeekOriginal,
+    setStageTool,
+    stageTool,
+  };
+}
+
+function useWorkspaceToolState() {
+  const [{ stageTool, lastRetouchTool }, setWorkspaceToolState] = useState<{
+    stageTool: StageTool;
+    lastRetouchTool: Exclude<InpaintingTool, "none">;
+  }>({
+    stageTool: "select",
+    lastRetouchTool: "brush",
+  });
+  const setStageTool = useMemo<Dispatch<SetStateAction<StageTool>>>(
+    () => (nextTool) => {
+      setWorkspaceToolState((current) => {
+        const stageTool =
+          typeof nextTool === "function"
+            ? nextTool(current.stageTool)
+            : nextTool;
+        const lastRetouchTool = isManualInpaintingTool(stageTool)
+          ? stageTool
+          : current.lastRetouchTool;
+        if (
+          stageTool === current.stageTool &&
+          lastRetouchTool === current.lastRetouchTool
+        ) {
+          return current;
+        }
+        return { stageTool, lastRetouchTool };
+      });
+    },
+    [],
+  );
+  const inpaintingTool = resolveInpaintingTool(stageTool);
+  const setInpaintingTool = useInpaintingToolSetter(setStageTool);
+  return {
+    inpaintingTool,
+    lastRetouchTool,
+    setInpaintingTool,
     setStageTool,
     stageTool,
   };
@@ -155,22 +203,46 @@ function isManualInpaintingTool(
 
 function useTranslateModalUiState() {
   const [translateOptionsOpen, setTranslateOptionsOpen] = useState(false);
+  const [translateOptionsInitialScope, setTranslateOptionsInitialScope] =
+    useState<TranslationOptionsInitialScope>("current-pending");
   const [retranslatePageId, setRetranslatePageId] = useState<string | null>(
     null,
   );
-  const resetTranslateModals = useCallback(() => {
+  const openTranslateOptions = useCallback(
+    (
+      initialScope: TranslationOptionsInitialScope = "current-pending",
+    ): void => {
+      setTranslateOptionsInitialScope(initialScope);
+      setTranslateOptionsOpen(true);
+    },
+    [],
+  );
+  const closeTranslateOptions = useCallback(() => {
     setTranslateOptionsOpen(false);
-    setRetranslatePageId(null);
+    setTranslateOptionsInitialScope("current-pending");
   }, []);
+  const resetTranslateModals = useCallback(() => {
+    closeTranslateOptions();
+    setRetranslatePageId(null);
+  }, [closeTranslateOptions]);
   return useMemo(
     () => ({
+      closeTranslateOptions,
+      openTranslateOptions,
       resetTranslateModals,
       retranslatePageId,
       setRetranslatePageId,
-      setTranslateOptionsOpen,
+      translateOptionsInitialScope,
       translateOptionsOpen,
     }),
-    [resetTranslateModals, retranslatePageId, translateOptionsOpen],
+    [
+      closeTranslateOptions,
+      openTranslateOptions,
+      resetTranslateModals,
+      retranslatePageId,
+      translateOptionsInitialScope,
+      translateOptionsOpen,
+    ],
   );
 }
 

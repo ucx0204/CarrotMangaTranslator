@@ -97,11 +97,15 @@ function usePanelCommandHandler(
   const selectWorkspaceTool = chapter.uiState.selectWorkspaceTool;
   const startAreaTranslate =
     inpainting.pointerHandlers.startRegionTranslationSelection;
+  const runInpainting = inpainting.inpaintingActions.runInpainting;
+  const runBubbleLayout = inpainting.inpaintingActions.runBubbleLayout;
   return useCallback(
     (command: PanelCommand) => {
       dispatchPanelCommand({
         actions: {
           ...actions,
+          eraseBlockOriginal: (blockId) => void runInpainting("page", blockId),
+          fitBlockBubble: (blockId) => void runBubbleLayout(blockId),
           selectWorkspaceTool,
           startAreaTranslate,
         },
@@ -110,6 +114,14 @@ function usePanelCommandHandler(
         selectedBlockId,
       });
     },
-    [actions, busy, selectedBlockId, selectWorkspaceTool, startAreaTranslate],
+    [
+      actions,
+      busy,
+      runBubbleLayout,
+      runInpainting,
+      selectedBlockId,
+      selectWorkspaceTool,
+      startAreaTranslate,
+    ],
   );
 }

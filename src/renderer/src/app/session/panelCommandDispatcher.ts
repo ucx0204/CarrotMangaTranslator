@@ -19,6 +19,8 @@ export type PanelCommandTarget = {
   ) => void;
   deleteSelectedBlock: () => void;
   duplicateSelectedBlock: () => void;
+  eraseBlockOriginal: (blockId: string) => void;
+  fitBlockBubble: (blockId: string) => void;
   removeSelectedBlockBubbleLayout: () => void;
   applyFormatToScope: (
     scope: ApplyFormatCommand["scope"],
@@ -66,6 +68,12 @@ function applyPanelCommand(
     case "duplicateBlock":
       actions.duplicateSelectedBlock();
       return;
+    case "eraseBlockOriginal":
+      actions.eraseBlockOriginal(command.blockId);
+      return;
+    case "fitBlockBubble":
+      actions.fitBlockBubble(command.blockId);
+      return;
     case "removeBubbleLayout":
       actions.removeSelectedBlockBubbleLayout();
       return;
@@ -91,6 +99,8 @@ function isStaleBlockCommand(
     command.type === "adjustFontSize" ||
     command.type === "deleteBlock" ||
     command.type === "duplicateBlock" ||
+    command.type === "eraseBlockOriginal" ||
+    command.type === "fitBlockBubble" ||
     command.type === "removeBubbleLayout"
     ? command.blockId !== selectedBlockId
     : false;

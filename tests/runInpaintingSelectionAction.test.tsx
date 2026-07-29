@@ -237,6 +237,36 @@ describe("original comparison during page operations", () => {
     ).toBeLessThan(startInpainting.mock.invocationCallOrder[0] ?? 0);
   });
 
+  it("limits automatic erase to the requested text block", async () => {
+    const page = { ...makePage(), blocks: [makeBlock()] };
+    const chapter = { ...makeChapter(), pages: [page] };
+    const options = makeOptions({
+      currentChapter: chapter,
+      selectedPage: page,
+    });
+    startInpainting.mockResolvedValue({
+      status: "completed",
+      chapter,
+      pagesChanged: 1,
+      blocksErased: 1,
+    });
+    const { result } = renderHook(() => useRunInpaintingAction(options));
+
+    await act(() => result.current("page", "block-1"));
+
+    expect(startInpainting).toHaveBeenCalledWith({
+      blockId: "block-1",
+      chapterId: "chapter-1",
+      mode: "page-pattern",
+      pageId: "page-1",
+    });
+    expect(options.askConfirm).toHaveBeenCalledWith(
+      "원문 지우기",
+      expect.stringContaining("선택한 텍스트 블록"),
+      expect.any(String),
+    );
+  });
+
   it("clears original comparison before resetting the page", async () => {
     const options = makeOptions();
     revertInpainting.mockResolvedValue({
@@ -292,6 +322,54 @@ describe("useRunBubbleLayoutAction", () => {
       transactionId: "tx-bubble-layout",
     });
     expect(options.setShowBlockChrome).toHaveBeenCalledWith(false);
+  });
+
+  it("limits bubble fitting to the requested text block", async () => {
+    const page = { ...makePage(), blocks: [makeBlock()] };
+    const chapter = { ...makeChapter(), pages: [page] };
+    const options = makeOptions({
+      currentChapter: chapter,
+      selectedPage: page,
+    });
+    startInpainting.mockResolvedValue({
+      status: "completed",
+      chapter,
+    });
+    const { result } = renderHook(() => useRunBubbleLayoutAction(options));
+
+    await act(() => result.current("block-1"));
+
+    expect(startInpainting).toHaveBeenCalledWith({
+      blockId: "block-1",
+      chapterId: "chapter-1",
+      mode: "page-bubble-layout",
+      pageId: "page-1",
+      policy: "balanced",
+    });
+    expect(options.pushStatus).toHaveBeenCalledWith(
+      "선택한 번역 블록을 말풍선에 맞췄습니다.",
+    );
+  });
+
+  it("reports when no bubble area matches the requested text block", async () => {
+    const page = { ...makePage(), blocks: [makeBlock()] };
+    const chapter = { ...makeChapter(), pages: [page] };
+    const options = makeOptions({
+      currentChapter: chapter,
+      selectedPage: page,
+    });
+    startInpainting.mockResolvedValue({
+      status: "completed",
+      blocksErased: 0,
+    });
+    const { result } = renderHook(() => useRunBubbleLayoutAction(options));
+
+    await act(() => result.current("block-1"));
+
+    expect(options.pushStatus).toHaveBeenCalledWith(
+      "선택한 블록에서 맞출 말풍선 영역을 찾지 못했습니다.",
+    );
+    expect(options.setShowBlockChrome).not.toHaveBeenCalled();
   });
 
   it("explains why a page without text blocks cannot be laid out", async () => {

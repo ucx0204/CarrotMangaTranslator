@@ -72,7 +72,7 @@ export function useAppSessionShortcuts({
     "stage-tool-hand": () => selectStageTool("hand"),
     "toggle-stage-toolbar": () =>
       uiState.setStageToolbarHidden((hidden) => !hidden),
-    "open-translate-options": () => uiState.setTranslateOptionsOpen(true),
+    "open-translate-options": () => uiState.openTranslateOptions(),
     "translate-pending": () => void translationActions.runAnalysis("pending"),
     "translate-all": () => void translationActions.runAnalysis("all"),
     "gather-text": () => uiState.setTextViewOpen(true),

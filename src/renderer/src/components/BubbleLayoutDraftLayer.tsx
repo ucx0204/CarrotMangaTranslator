@@ -1,6 +1,7 @@
 import React from "react";
 import type { BubbleShapeRegion } from "../../../shared/bubbleLayout";
 import type { Point } from "../../../shared/textTypes";
+import type { ViewportSize } from "../lib/overlayLayout";
 import {
   useBubbleLayoutDraftPreview,
   type BubbleLayoutDraftMode,
@@ -8,17 +9,27 @@ import {
   type BubbleLayoutDraftShape,
   type WorkspaceInteractionPreviewStore,
 } from "../lib/workspaceInteractionPreview";
+import { CircularBrushCursor } from "./CircularBrushCursor";
+
+const BUBBLE_BRUSH_CURSOR_COLOR = "#78f2c5";
 
 export function BubbleLayoutDraftLayer({
   imageDataUrl,
   interactionPreviewStore,
+  stageSize,
 }: {
   imageDataUrl: string;
   interactionPreviewStore: WorkspaceInteractionPreviewStore;
+  stageSize: ViewportSize | null;
 }): React.JSX.Element | null {
   const draft = useBubbleLayoutDraftPreview(interactionPreviewStore);
   if (!imageDataUrl || !draft) return null;
-  return <BubbleLayoutDraftSvg draft={draft} />;
+  return (
+    <>
+      <BubbleLayoutDraftSvg draft={draft} />
+      <BubbleLayoutBrushCursor draft={draft} stageSize={stageSize} />
+    </>
+  );
 }
 
 function BubbleLayoutDraftSvg({
@@ -70,15 +81,34 @@ function BubbleLayoutDraftSvg({
           strokeWidth={draft.brushRadius * 2}
         />
       ) : null}
-      {draft.mode !== "polygon" && draft.hoverPoint ? (
-        <circle
-          className={`bubble-layout-brush-cursor ${draft.mode}`}
-          cx={draft.hoverPoint.x}
-          cy={draft.hoverPoint.y}
-          r={draft.brushRadius}
-        />
-      ) : null}
     </svg>
+  );
+}
+
+function BubbleLayoutBrushCursor({
+  draft,
+  stageSize,
+}: {
+  draft: BubbleLayoutDraftPreview;
+  stageSize: ViewportSize | null;
+}): React.JSX.Element | null {
+  if (draft.mode === "polygon" || !draft.hoverPoint || !stageSize) {
+    return null;
+  }
+  const scaleX = stageSize.width / 1000;
+  const scaleY = stageSize.height / 1000;
+  const radius = Math.max(3, draft.brushRadius * Math.min(scaleX, scaleY));
+  return (
+    <CircularBrushCursor
+      className={`bubble-layout-brush-cursor ${draft.mode}`}
+      color={BUBBLE_BRUSH_CURSOR_COLOR}
+      kind="bubble-layout"
+      style={{
+        height: `${radius * 2}px`,
+        transform: `translate3d(${draft.hoverPoint.x * scaleX}px, ${draft.hoverPoint.y * scaleY}px, 0) translate(-50%, -50%)`,
+        width: `${radius * 2}px`,
+      }}
+    />
   );
 }
 

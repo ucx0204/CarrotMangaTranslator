@@ -22,6 +22,7 @@ export type PatternMaskContext = {
 };
 
 export function buildPatternPageMask(options: {
+  blockId?: string;
   page: MangaPage;
   bitmap: Buffer;
   width: number;
@@ -36,7 +37,13 @@ export function buildPatternPageMask(options: {
     otsuBlocks: 0,
   };
   for (const block of options.page.blocks) {
-    if (!hasUsableBbox(block.bbox) || block.inpaintExcluded) continue;
+    if (options.blockId && block.id !== options.blockId) continue;
+    if (
+      !hasUsableBbox(block.bbox) ||
+      (block.inpaintExcluded && block.id !== options.blockId)
+    ) {
+      continue;
+    }
     throwIfAborted(options.signal);
     mergePatternBlock(options, context, block);
   }

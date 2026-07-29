@@ -295,6 +295,7 @@
     "erase": {
       "title": "清除原文",
       "currentPage": "目前頁面",
+      "selectedBlock": "所選文字區塊",
       "pendingPages": "尚未清除的頁面",
       "selectedPages": "所選頁面",
       "message": "清除{{scope}}中翻譯文字區塊位置的原文。",
@@ -309,6 +310,8 @@
       "requiresBlocks": "沒有可用來偵測對話框的文字區塊。",
       "preparing": "正在準備對話框適配配置",
       "success": "已將目前頁面的譯文文字區塊適配到對話框內。",
+      "selectedBlockSuccess": "已將所選譯文文字區塊適配到對話框內。",
+      "selectedBlockNoMatch": "找不到與所選文字區塊匹配的對話框區域。",
       "failedTitle": "對話框適配失敗",
       "failed": "無法將譯文文字區塊適配到對話框內。"
     },

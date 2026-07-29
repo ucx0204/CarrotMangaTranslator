@@ -426,15 +426,9 @@
 }
 
 .bubble-layout-brush-cursor {
-  fill: rgba(74, 229, 170, 0.12);
-  stroke: #78f2c5;
-  stroke-width: 2px;
-  vector-effect: non-scaling-stroke;
-}
-
-.bubble-layout-brush-cursor.subtract {
-  fill: rgba(255, 116, 106, 0.1);
-  stroke: #ff9187;
+  z-index: 27;
+  visibility: visible;
+  opacity: 1;
 }
 
 .bubble-layout-draft-layer circle {
@@ -449,14 +443,8 @@
   stroke: #fff4df;
 }
 
-.bubble-layout-draft-layer .bubble-layout-brush-cursor {
-  fill: rgba(74, 229, 170, 0.12);
-  stroke: #78f2c5;
-}
-
-.bubble-layout-draft-layer .bubble-layout-brush-cursor.subtract {
-  fill: rgba(255, 116, 106, 0.1);
-  stroke: #ff9187;
+.image-stage:has(.bubble-layout-brush-cursor) {
+  cursor: none;
 }
 
 .workspace-shell {

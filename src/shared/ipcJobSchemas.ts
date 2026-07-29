@@ -11,6 +11,7 @@ import {
   MAX_RETAINED_INPAINTING_ARTIFACTS,
   MAX_STROKE_POINTS,
   BBoxSchema,
+  TranslationBlockSchema,
   filePath,
   finiteNumber,
   hexColor,
@@ -166,6 +167,7 @@ export const StartInpaintingRequestSchema = z.discriminatedUnion("mode", [
       chapterId: uuid,
       mode: z.literal("page-bubble-layout"),
       pageId: uuid,
+      blockId: TranslationBlockSchema.shape.id.optional(),
       policy: z.enum(["safe", "balanced", "maximize"]),
       postprocess: InpaintingPostprocessOptionsSchema.optional(),
     })
@@ -175,6 +177,7 @@ export const StartInpaintingRequestSchema = z.discriminatedUnion("mode", [
       chapterId: uuid,
       mode: z.literal("page-pattern"),
       pageId: uuid,
+      blockId: TranslationBlockSchema.shape.id.optional(),
       postprocess: InpaintingPostprocessOptionsSchema.optional(),
     })
     .strict(),

@@ -96,7 +96,7 @@ export function hasForbiddenNaturalLineEdge(
   );
 }
 
-export function isLegalNaturalBoundary(
+function isLegalNaturalBoundary(
   graphemes: string[],
   boundary: number,
 ): boolean {

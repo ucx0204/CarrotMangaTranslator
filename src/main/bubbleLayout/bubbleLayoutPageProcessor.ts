@@ -9,10 +9,14 @@ import {
   selectBlockBubbleCandidates,
   type BlockBubbleCandidate,
 } from "./bubbleBlockAssociation";
+import {
+  isUsableAutomaticBubbleRegionSet,
+  repairFragmentedBubbleRegions,
+  type ScoredBubbleRegion,
+} from "./bubbleFragmentRepair";
 import { partitionSharedBubbleOwnership } from "./bubbleOwnershipPartition";
 import type { ComicPageDetection } from "./contracts";
 import { refineBubbleSafeMask } from "./bubbleMaskRefinement";
-import type { RefinedBubbleRegion } from "./bubbleMaskTypes";
 import {
   buildOwnershipFallbackRegion,
   clipRegionsToOwnershipPartition,
@@ -20,7 +24,8 @@ import {
 } from "./bubbleRegionPartition";
 import { buildBubbleShapeProfile } from "./bubbleShapeProfileBuilder";
 
-export const BUBBLE_LAYOUT_MODEL_ID = "comic-rtdetr-v4-s-int8+safe-distance-v1";
+const BUBBLE_LAYOUT_MODEL_ID =
+  "comic-rtdetr-v4-s-int8+safe-distance-v2-overlap-fragment-guard-v3";
 
 const POLICY_CONFIDENCE_THRESHOLD = {
   safe: 0.72,
@@ -28,11 +33,7 @@ const POLICY_CONFIDENCE_THRESHOLD = {
   maximize: 0.52,
 } as const;
 
-type ScoredRegion = {
-  region: RefinedBubbleRegion;
-  confidence: number;
-  insetPx: number;
-};
+type ScoredRegion = ScoredBubbleRegion;
 
 export function processDetectedBubbleLayouts(options: {
   page: MangaPage;
@@ -83,13 +84,34 @@ function processBlock(
   const scoredRegions = candidates.flatMap((candidate) =>
     refineCandidateRegions(block, candidate, options),
   );
-  const regions = deduplicateRegions(scoredRegions).slice(0, 4);
+  const initialRegions = deduplicateRegions(scoredRegions).slice(0, 4);
+  const blockBounds = blockBboxToPixels(block, options);
+  const fragmentRepair = repairFragmentedBubbleRegions({
+    block,
+    candidates,
+    initialRegions,
+    blockBounds,
+    bitmap: options.bitmap,
+    imageWidth: options.imageWidth,
+    imageHeight: options.imageHeight,
+    policy: options.policy,
+    outlineWidthPx: resolveOutlineWidthPx(block),
+    repairOriginalTextInk: options.repairOriginalTextInk,
+  });
+  if (fragmentRepair === null) {
+    return clearGeneratedLayoutPatch(block);
+  }
+  const regions = fragmentRepair ?? initialRegions;
   const confidence = resolveCombinedConfidence(regions);
   const hasSharedOwnership = candidates.some(
     (candidate) => candidate.ownershipPartition !== undefined,
   );
   if (
     regions.length === 0 ||
+    !isUsableAutomaticBubbleRegionSet(
+      regions.map((item) => item.region),
+      blockBounds,
+    ) ||
     (!hasSharedOwnership &&
       confidence < POLICY_CONFIDENCE_THRESHOLD[options.policy])
   ) {
@@ -100,6 +122,7 @@ function processBlock(
     regions: regions.map((item) => item.region),
     pageWidth: options.imageWidth,
     pageHeight: options.imageHeight,
+    textBounds: blockBounds,
     renderDirection: block.renderDirection,
     sourceDirection: block.sourceDirection,
     confidence,

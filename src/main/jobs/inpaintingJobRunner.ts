@@ -28,7 +28,7 @@ type InpaintingEngineLease = Awaited<
   ReturnType<InpaintingJobRuntime["acquireEngine"]>
 >;
 
-export type { InpaintingJobState, InpaintingTarget };
+export type { InpaintingJobState };
 
 export type InpaintingJobPage = {
   chapterId: string;
@@ -61,6 +61,7 @@ export async function runInpaintingPagesJob({
   runtime: InpaintingJobRuntime;
 }): Promise<StartInpaintingResult> {
   const target = resolveInpaintingTarget(request);
+  assertRequestedBlockExists(targets, target);
   const totalTargetBlocks = countTargetBlocks(
     targets.map(({ page }) => page),
     target,
@@ -176,6 +177,7 @@ function resolveInpaintingTarget(
 ): InpaintingTarget {
   if (request.mode === "page-bubble-layout") {
     return {
+      ...(request.blockId === undefined ? {} : { blockId: request.blockId }),
       drawnPatternMode: false,
       drawnStrokes: [],
       layoutOnly: true,
@@ -191,7 +193,9 @@ function resolveInpaintingTarget(
       targetType: "drawn",
     };
   }
+  const blockId = request.mode === "page-pattern" ? request.blockId : undefined;
   return {
+    ...(blockId === undefined ? {} : { blockId }),
     drawnPatternMode: false,
     drawnStrokes: [],
     layoutOnly: false,
@@ -203,10 +207,29 @@ function countTargetBlocks(
   pages: MangaPage[],
   target: InpaintingTarget,
 ): number {
+  if (target.blockId) {
+    return 1;
+  }
   if (target.drawnPatternMode) {
     return target.drawnStrokes.length;
   }
   return pages.reduce((count, page) => count + page.blocks.length, 0);
+}
+
+function assertRequestedBlockExists(
+  targets: readonly InpaintingJobPage[],
+  target: InpaintingTarget,
+): void {
+  if (!target.blockId) {
+    return;
+  }
+  const page = targets[0]?.page;
+  if (
+    targets.length !== 1 ||
+    !page?.blocks.some((block) => block.id === target.blockId)
+  ) {
+    throw new Error("선택한 텍스트 블록을 페이지에서 찾지 못했습니다.");
+  }
 }
 
 async function processInpaintingPages({

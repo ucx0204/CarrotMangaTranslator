@@ -6,7 +6,7 @@ import {
   type ComicPageDetection,
 } from "./contracts";
 
-export type ComicDetectorTensorLike = {
+type ComicDetectorTensorLike = {
   data: ArrayLike<number | bigint>;
   dims?: readonly number[];
 };

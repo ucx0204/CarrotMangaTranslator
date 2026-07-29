@@ -157,7 +157,10 @@ async function downloadFluxPythonModelCache(
     ],
     {
       signal: options.signal,
-      env: buildFluxPythonModelCacheEnv(options),
+      env: buildFluxPythonHuggingFaceEnv(
+        options.pythonRuntime.env,
+        options.modelDir,
+      ),
       onLine: (line) => {
         const installLogLine = normalizeHuggingFaceModelCacheLogLine(
           line,
@@ -184,14 +187,20 @@ function buildHuggingFaceSnapshotDownloadScript(): string {
   ].join("\n");
 }
 
-function buildFluxPythonModelCacheEnv(
-  options: EnsureFluxPythonModelCacheOptions,
+export function buildFluxPythonHuggingFaceEnv(
+  runtimeEnv: NodeJS.ProcessEnv = {},
+  modelDir: string,
 ): NodeJS.ProcessEnv {
+  const hubCacheDir = join(modelDir, "hub");
   return {
-    ...options.pythonRuntime.env,
-    HF_HOME: options.modelDir,
-    HUGGINGFACE_HUB_CACHE: join(options.modelDir, "hub"),
+    ...runtimeEnv,
+    HF_HOME: modelDir,
+    HF_HUB_CACHE: hubCacheDir,
+    HUGGINGFACE_HUB_CACHE: hubCacheDir,
+    HF_HUB_ETAG_TIMEOUT: runtimeEnv.HF_HUB_ETAG_TIMEOUT || "30",
+    HF_HUB_DOWNLOAD_TIMEOUT: runtimeEnv.HF_HUB_DOWNLOAD_TIMEOUT || "300",
     HF_HUB_DISABLE_SYMLINKS_WARNING: "1",
+    HF_HUB_DISABLE_XET: runtimeEnv.HF_HUB_DISABLE_XET || "1",
   };
 }
 

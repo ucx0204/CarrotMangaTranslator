@@ -1,7 +1,7 @@
 import type { JobState } from "../../../shared/jobTypes";
 import type { MangaPage } from "../../../shared/libraryTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
-import type { WorkspaceTool } from "../lib/stageTool";
+import type { RetouchTool, WorkspaceTool } from "../lib/stageTool";
 import type { WorkspaceFitMode } from "../lib/workspaceZoom";
 import type { WorkspaceInteractionPreviewStore } from "../lib/workspaceInteractionPreview";
 import type { ImageStageProps } from "./ImageStage";
@@ -31,6 +31,7 @@ export type AppWorkspaceProps = {
   regionSelectionActive: boolean;
   regionTranslationAvailable: boolean;
   regionSelectionRect: ImageStageProps["regionSelectionRect"];
+  lastRetouchTool: RetouchTool;
   stageTool: WorkspaceTool;
   stageToolbarHidden: boolean;
   jobActive: boolean;

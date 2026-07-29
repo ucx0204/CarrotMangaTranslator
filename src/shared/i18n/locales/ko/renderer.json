@@ -304,6 +304,7 @@
     "erase": {
       "title": "원문 지우기",
       "currentPage": "현재 페이지",
+      "selectedBlock": "선택한 텍스트 블록",
       "pendingPages": "아직 지우지 않은 페이지",
       "selectedPages": "선택한 페이지",
       "message": "{{scope}}의 번역 블록 위치에 있는 원문을 지웁니다.",
@@ -318,6 +319,8 @@
       "requiresBlocks": "말풍선을 감지할 텍스트 블록이 없습니다.",
       "preparing": "말풍선 맞춤 배치 준비 중",
       "success": "현재 페이지의 번역 블록을 말풍선에 맞췄습니다.",
+      "selectedBlockSuccess": "선택한 번역 블록을 말풍선에 맞췄습니다.",
+      "selectedBlockNoMatch": "선택한 블록에서 맞출 말풍선 영역을 찾지 못했습니다.",
       "failedTitle": "말풍선 맞춤 실패",
       "failed": "번역 블록을 말풍선에 맞추지 못했습니다."
     },

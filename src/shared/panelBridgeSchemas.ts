@@ -58,6 +58,18 @@ export const PanelCommandSchema = z.discriminatedUnion("type", [
     .strict(),
   z
     .object({
+      type: z.literal("eraseBlockOriginal"),
+      blockId: TranslationBlockSchema.shape.id,
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("fitBlockBubble"),
+      blockId: TranslationBlockSchema.shape.id,
+    })
+    .strict(),
+  z
+    .object({
       type: z.literal("removeBubbleLayout"),
       blockId: TranslationBlockSchema.shape.id,
     })

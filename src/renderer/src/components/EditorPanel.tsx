@@ -44,6 +44,8 @@ type EditorPanelProps = {
   onUpdate: (patch: Partial<TranslationBlock>) => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  onEraseOriginal?: () => void;
+  onFitBubble?: () => void;
   onRemoveBubbleLayout?: () => void;
   onSelectTransformMode?: (mode: TransformEditorMode) => void;
 };
@@ -68,18 +70,19 @@ export function EditorPanel({
   onUpdate,
   onDelete,
   onDuplicate,
+  onEraseOriginal,
+  onFitBubble,
   onRemoveBubbleLayout = () => undefined,
   onSelectTransformMode,
 }: EditorPanelProps): React.JSX.Element {
-  const [fontFamilyDraft, setFontFamilyDraft] = React.useState<
-    string | undefined
-  >(block?.fontFamily);
+  const fontFamilyDraftState = React.useState(block?.fontFamily);
+  const [fontFamilyDraft, setFontFamilyDraft] = fontFamilyDraftState;
   const [activeTab, setActiveTab] = useEditorTab(transformMode);
   const panelIdBase = React.useId();
 
   React.useEffect(() => {
     setFontFamilyDraft(block?.fontFamily);
-  }, [block?.id, block?.fontFamily]);
+  }, [block?.id, block?.fontFamily, setFontFamilyDraft]);
 
   if (!block) {
     return (
@@ -120,6 +123,8 @@ export function EditorPanel({
           onAdjustFontSize,
           onApplyBlockBackgroundOpacity,
           onApplyFormat,
+          onEraseOriginal,
+          onFitBubble,
           onSelectTransformMode,
           onUpdate,
           pageSize,
@@ -197,6 +202,8 @@ type EditorBlockGroupsProps = {
   onAdjustFontSize: EditorPanelProps["onAdjustFontSize"];
   onApplyBlockBackgroundOpacity?: EditorPanelProps["onApplyBlockBackgroundOpacity"];
   onApplyFormat: EditorPanelProps["onApplyFormat"];
+  onEraseOriginal?: EditorPanelProps["onEraseOriginal"];
+  onFitBubble?: EditorPanelProps["onFitBubble"];
   onSelectTransformMode?: EditorPanelProps["onSelectTransformMode"];
   onUpdate: EditorPanelProps["onUpdate"];
   pageSize: NonNullable<EditorPanelProps["pageSize"]> | null;
@@ -215,6 +222,8 @@ function EditorBlockGroups({
   onAdjustFontSize,
   onApplyBlockBackgroundOpacity,
   onApplyFormat,
+  onEraseOriginal,
+  onFitBubble,
   onSelectTransformMode,
   onUpdate,
   pageSize,
@@ -229,6 +238,8 @@ function EditorBlockGroups({
         <TextEditorGroup
           block={block}
           disabled={disabled}
+          onEraseOriginal={onEraseOriginal}
+          onFitBubble={onFitBubble}
           onUpdate={onUpdate}
         />
       </EditorTabPanel>

@@ -298,6 +298,7 @@
     "erase": {
       "title": "原文を消去",
       "currentPage": "現在のページ",
+      "selectedBlock": "選択したテキストブロック",
       "pendingPages": "まだ消去していないページ",
       "selectedPages": "選択したページ",
       "message": "{{scope}}の翻訳ブロック位置にある原文を消去します。",
@@ -312,6 +313,8 @@
       "requiresBlocks": "吹き出しを検出するテキストブロックがありません。",
       "preparing": "吹き出しフィット配置を準備中",
       "success": "現在のページの翻訳ブロックを吹き出しに合わせました。",
+      "selectedBlockSuccess": "選択した翻訳ブロックを吹き出しに合わせました。",
+      "selectedBlockNoMatch": "選択したブロックに合う吹き出し領域が見つかりませんでした。",
       "failedTitle": "吹き出しフィット失敗",
       "failed": "翻訳ブロックを吹き出しに合わせられませんでした。"
     },

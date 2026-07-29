@@ -33,6 +33,7 @@ export type InpaintingJobState = {
 };
 
 export type InpaintingTarget = {
+  blockId?: string;
   drawnPatternMode: boolean;
   layoutOnly: boolean;
   drawnStrokes: InpaintingMaskStroke[];
@@ -74,9 +75,11 @@ export async function processInpaintingPage({
     throw new DOMException("Aborted", "AbortError");
   }
 
-  const pageTargetCount = target.drawnPatternMode
-    ? target.drawnStrokes.length
-    : page.blocks.length;
+  const pageTargetCount = target.blockId
+    ? 1
+    : target.drawnPatternMode
+      ? target.drawnStrokes.length
+      : page.blocks.length;
   emitInpaintingPageRunning(id, emit, page, pageIndex, pageCount, {
     pageTargetCount,
     target,
@@ -102,6 +105,7 @@ export async function processInpaintingPage({
         featherPx: target.drawnFeatherPx,
       })
     : await runtime.inpaintPatternPage(page, {
+        blockId: target.blockId,
         signal: abortController.signal,
         decodeFallback: context.decodeImage,
         inpaintingEngine: state.inpaintingEngineLease?.engine,
@@ -112,6 +116,7 @@ export async function processInpaintingPage({
     state.bubbleLayoutRunner
       ? await runBubbleLayoutPostprocess({
           config: state.bubbleLayoutPostprocess,
+          blockId: target.blockId,
           page: result.page,
           runner: state.bubbleLayoutRunner,
           signal: abortController.signal,
@@ -151,6 +156,7 @@ async function processLayoutOnlyInpaintingPage({
   target: InpaintingTarget;
 }): Promise<ProcessedInpaintingPageResult> {
   const result = await runBubbleLayoutOnlyPage({
+    blockId: target.blockId,
     config: state.bubbleLayoutPostprocess,
     page,
     runner: state.bubbleLayoutRunner,

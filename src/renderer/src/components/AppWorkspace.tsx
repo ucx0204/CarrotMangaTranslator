@@ -93,6 +93,7 @@ function WorkspaceCanvasChrome({
         brushRadius={props.brushRadius}
         disabled={props.jobActive}
         hidden={props.stageToolbarHidden}
+        lastRetouchTool={props.lastRetouchTool}
         onSelectTool={props.onSelectStageTool}
         onToggleRegionTranslation={props.onToggleRegionTranslation}
         onToggleHidden={props.onToggleStageToolbarHidden}

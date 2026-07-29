@@ -87,11 +87,13 @@ export function resolveBubbleLayoutPostprocessConfig(
 }
 
 export async function runBubbleLayoutPostprocess({
+  blockId,
   config,
   page,
   runner,
   signal,
 }: {
+  blockId?: string;
   config: BubbleLayoutPostprocessConfig;
   page: MangaPage;
   runner: BubbleLayoutRunner;
@@ -124,6 +126,7 @@ export async function runBubbleLayoutPostprocess({
     result,
     baselinePage,
     config.overwriteManual,
+    blockId,
   );
   if (patches.length === 0) {
     return { page: baselinePage };
@@ -160,6 +163,7 @@ function parseRunnerPatches(
   result: BubbleLayoutRunnerResult,
   page: MangaPage,
   overwriteManual: boolean,
+  blockId?: string,
 ): BubbleLayoutBlockPatch[] {
   if (!result || !Array.isArray(result.patches)) {
     throw new Error("말풍선 배치 결과 형식이 올바르지 않습니다.");
@@ -176,6 +180,9 @@ function parseRunnerPatches(
       throw new Error("말풍선 배치 결과에 같은 블록이 중복되었습니다.");
     }
     seen.add(rawPatch.blockId);
+    if (blockId && rawPatch.blockId !== blockId) {
+      continue;
+    }
     if (!overwriteManual && isManualBubbleLayout(block.bubbleLayout)) {
       continue;
     }

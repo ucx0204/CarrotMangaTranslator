@@ -52,11 +52,13 @@ export async function prepareBubbleLayoutJob({
 }
 
 export async function runBubbleLayoutOnlyPage({
+  blockId,
   config,
   page,
   runner,
   signal,
 }: {
+  blockId?: string;
   config: BubbleLayoutPostprocessConfig | null;
   page: MangaPage;
   runner: BubbleLayoutRunner | null;
@@ -66,6 +68,7 @@ export async function runBubbleLayoutOnlyPage({
     throw new Error("말풍선 배치 실행기를 사용할 수 없습니다.");
   }
   const processed = await runBubbleLayoutPostprocess({
+    blockId,
     config,
     page,
     runner,

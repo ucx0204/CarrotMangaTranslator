@@ -15,7 +15,7 @@ import {
   IconTextScan2,
   type TablerIcon,
 } from "@tabler/icons-react";
-import type { WorkspaceTool } from "../lib/stageTool";
+import type { RetouchTool, WorkspaceTool } from "../lib/stageTool";
 import { StageActiveToolBadge } from "./StageActiveToolBadge";
 import {
   CollapsedStageToolbar,
@@ -35,6 +35,7 @@ type StageToolbarProps = {
   brushRadius: number;
   disabled: boolean;
   hidden: boolean;
+  lastRetouchTool: RetouchTool;
   onSelectTool: (tool: WorkspaceTool) => void;
   onToggleRegionTranslation: () => void;
   onToggleHidden: () => void;
@@ -67,6 +68,7 @@ type StageToolGroupProps = {
   onSelectTool: (tool: WorkspaceTool) => void;
   onScheduleClose: StageToolbarFlyout["scheduleClose"];
   open: boolean;
+  selectedTool: RetouchTool;
 };
 
 type StageToolGroupTriggerProps = Pick<
@@ -78,7 +80,9 @@ type StageToolGroupTriggerProps = Pick<
   | "onActivate"
   | "onClose"
   | "onOpenFromPointerOrFocus"
+  | "onSelectTool"
   | "open"
+  | "selectedTool"
 > & {
   label: string;
   LauncherIcon: TablerIcon;
@@ -211,6 +215,7 @@ function ExpandedStageToolbar({
             onActivate={flyout.activate}
             onScheduleClose={flyout.scheduleClose}
             open={flyout.openGroup === group.id}
+            selectedTool={props.lastRetouchTool}
           />
         ))}
         <StageToolbarHideButton onToggleHidden={props.onToggleHidden} />
@@ -251,9 +256,10 @@ function StageToolGroup({
   onSelectTool,
   onScheduleClose,
   open,
+  selectedTool,
 }: StageToolGroupProps): React.JSX.Element {
   const { t } = useTranslation("components");
-  const selectedEntry = activeTool ? TOOL_BY_ID.get(activeTool) : null;
+  const selectedEntry = TOOL_BY_ID.get(selectedTool);
   const LauncherIcon = selectedEntry?.Icon ?? group.fallbackIcon;
   const menuId = React.useId();
   return (
@@ -274,11 +280,12 @@ function StageToolGroup({
         onActivate={onActivate}
         onClose={onClose}
         onOpenFromPointerOrFocus={onOpenFromPointerOrFocus}
+        onSelectTool={onSelectTool}
         open={open}
+        selectedTool={selectedTool}
       />
       {open ? (
         <StageToolGroupMenu
-          activeTool={activeTool}
           disabled={disabled}
           group={group}
           label={t(group.labelKey)}
@@ -286,6 +293,7 @@ function StageToolGroup({
           onClose={onClose}
           onKeyDown={onMenuKeyDown}
           onSelectTool={onSelectTool}
+          selectedTool={selectedTool}
         />
       ) : null}
     </span>
@@ -303,7 +311,9 @@ function StageToolGroupTrigger({
   onActivate,
   onClose,
   onOpenFromPointerOrFocus,
+  onSelectTool,
   open,
+  selectedTool,
 }: StageToolGroupTriggerProps): React.JSX.Element {
   const openAndFocus = (
     event: React.KeyboardEvent<HTMLButtonElement>,
@@ -325,9 +335,13 @@ function StageToolGroupTrigger({
       aria-pressed={Boolean(activeTool)}
       className={`stage-toolbar-button stage-toolbar-group-trigger ${activeTool ? "active" : ""}`.trim()}
       data-active-tool={activeTool ?? undefined}
+      data-selected-tool={selectedTool}
       data-stage-tool-group={group.id}
       disabled={disabled}
-      onClick={(event) => onActivate(group.id, event.currentTarget)}
+      onClick={(event) => {
+        onSelectTool(selectedTool);
+        onActivate(group.id, event.currentTarget);
+      }}
       onFocus={(event) =>
         onOpenFromPointerOrFocus(group.id, event.currentTarget)
       }
@@ -355,7 +369,6 @@ function StageToolGroupTrigger({
 }
 
 function StageToolGroupMenu({
-  activeTool,
   disabled,
   group,
   label,
@@ -363,8 +376,8 @@ function StageToolGroupMenu({
   onClose,
   onKeyDown,
   onSelectTool,
+  selectedTool,
 }: {
-  activeTool: WorkspaceTool | null;
   disabled: boolean;
   group: (typeof TOOL_GROUPS)[number];
   label: string;
@@ -372,6 +385,7 @@ function StageToolGroupMenu({
   onClose: () => void;
   onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void;
   onSelectTool: (tool: WorkspaceTool) => void;
+  selectedTool: RetouchTool;
 }): React.JSX.Element {
   return (
     <div
@@ -384,7 +398,7 @@ function StageToolGroupMenu({
     >
       {group.tools.map((entry) => (
         <StageToolButton
-          active={entry.id === activeTool}
+          active={entry.id === selectedTool}
           disabled={disabled}
           entry={entry}
           key={entry.id}

@@ -51,7 +51,7 @@ function findBestBubbleAssociation(
   return best;
 }
 
-export function intersectionOverTextArea(
+function intersectionOverTextArea(
   textBox: readonly [number, number, number, number],
   bubbleBox: readonly [number, number, number, number],
 ): number {

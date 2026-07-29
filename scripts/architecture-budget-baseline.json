@@ -3,10 +3,13 @@
   "defaultMaxImportedBy": 25,
   "allow": {
     "src/main/logger.ts": {
-      "maxImportedBy": 26
+      "maxImportedBy": 27
+    },
+    "src/shared/geometry.ts": {
+      "maxImportedBy": 29
     },
     "src/renderer/src/components/ui/Button.tsx": {
-      "maxImportedBy": 42
+      "maxImportedBy": 43
     }
   }
 }

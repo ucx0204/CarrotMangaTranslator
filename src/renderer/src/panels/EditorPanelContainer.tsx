@@ -56,6 +56,8 @@ export function EditorPanelContainer(): React.JSX.Element {
       onUpdate={session.onUpdateBlock}
       onDelete={session.onDeleteBlock}
       onDuplicate={session.onDuplicateBlock}
+      onEraseOriginal={session.onEraseBlockOriginal}
+      onFitBubble={session.onFitBlockBubble}
       onRemoveBubbleLayout={session.onRemoveBubbleLayout}
       onSelectTransformMode={session.onSelectTransformMode}
     />

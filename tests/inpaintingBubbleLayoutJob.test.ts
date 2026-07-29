@@ -15,6 +15,7 @@ import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 const CHAPTER_ID = "11111111-1111-4111-8111-111111111111";
 const PAGE_ID = "22222222-2222-4222-8222-222222222222";
 const BLOCK_ID = "block-1";
+const SECOND_BLOCK_ID = "block-2";
 const TRANSACTION_ID = "33333333-3333-4333-8333-333333333333";
 
 describe("bubble-aware inpainting postprocess", () => {
@@ -244,6 +245,118 @@ describe("bubble-aware inpainting postprocess", () => {
       makeBubbleLayout(),
     );
   });
+
+  it("detects the full page but applies layout only to the requested block", async () => {
+    const page = makePage();
+    const firstBlock = page.blocks[0];
+    if (!firstBlock) {
+      throw new Error("expected first block");
+    }
+    page.blocks.push({
+      ...structuredClone(firstBlock),
+      id: SECOND_BLOCK_ID,
+      bbox: { x: 600, y: 620, w: 180, h: 200 },
+    });
+    const chapters = new Map([[CHAPTER_ID, makeChapter(page)]]);
+    const changes: InpaintingRevisionChange[] = [];
+    const firstLayout = makeBubbleLayout();
+    const secondLayout = {
+      ...makeBubbleLayout(),
+      sourceImageRevision: "second-source-revision",
+    };
+    const runPage = vi.fn<BubbleLayoutRunner["runPage"]>(async ({ page }) => ({
+      patches: page.blocks.map((block) => ({
+        blockId: block.id,
+        renderBbox:
+          block.id === BLOCK_ID
+            ? { x: 100, y: 120, w: 300, h: 260 }
+            : { x: 580, y: 600, w: 220, h: 240 },
+        renderBboxSpace: "normalized_1000",
+        bubbleLayout: block.id === BLOCK_ID ? firstLayout : secondLayout,
+      })),
+    }));
+    const runtime = makeRuntime(chapters, () => ({ runPage }));
+    const emitEvent = vi.fn<InpaintingJobRuntime["emitEvent"]>(
+      (jobs, _window, event) => {
+        jobs.updateLastEvent(event.id, event);
+      },
+    );
+    runtime.emitEvent = emitEvent;
+    const { startInpaintingJob } =
+      await import("../src/main/jobs/inpaintingJobs");
+
+    const result = await startInpaintingJob(
+      makeContext(changes),
+      {
+        chapterId: CHAPTER_ID,
+        mode: "page-bubble-layout",
+        pageId: PAGE_ID,
+        blockId: BLOCK_ID,
+        policy: "balanced",
+      },
+      runtime,
+    );
+
+    expect(result.status).toBe("completed");
+    expect(
+      runPage.mock.calls[0]?.[0].page.blocks.map((block) => block.id),
+    ).toEqual([BLOCK_ID, SECOND_BLOCK_ID]);
+    expect(result.chapter?.pages[0]?.blocks[0]?.bubbleLayout).toEqual(
+      firstLayout,
+    );
+    expect(result.chapter?.pages[0]?.blocks[1]?.bubbleLayout).toBeUndefined();
+    expect(changes[0]?.beforeLayout).toHaveLength(1);
+    expect(changes[0]?.beforeLayout?.[0]?.blockId).toBe(BLOCK_ID);
+    expect(changes[0]?.afterLayout).toHaveLength(1);
+    const startingEvent = emitEvent.mock.calls
+      .map(([, , event]) => event)
+      .find((event) => event.status === "starting");
+    expect(startingEvent?.detail).toBe("1페이지, 1개 블록");
+  });
+
+  it.each(["page-pattern", "page-bubble-layout"] as const)(
+    "rejects an unknown requested block before starting %s work",
+    async (mode) => {
+      const page = makePage();
+      const chapters = new Map([[CHAPTER_ID, makeChapter(page)]]);
+      const changes: InpaintingRevisionChange[] = [];
+      const runPage = vi.fn<BubbleLayoutRunner["runPage"]>(async () => ({
+        patches: [],
+      }));
+      const createBubbleLayoutRunner = vi.fn(() => ({ runPage }));
+      const runtime = makeRuntime(chapters, createBubbleLayoutRunner);
+      const { startInpaintingJob } =
+        await import("../src/main/jobs/inpaintingJobs");
+
+      const result = await startInpaintingJob(
+        makeContext(changes),
+        mode === "page-pattern"
+          ? {
+              chapterId: CHAPTER_ID,
+              mode,
+              pageId: PAGE_ID,
+              blockId: "missing-block",
+            }
+          : {
+              chapterId: CHAPTER_ID,
+              mode,
+              pageId: PAGE_ID,
+              blockId: "missing-block",
+              policy: "balanced",
+            },
+        runtime,
+      );
+
+      expect(result.status).toBe("failed");
+      expect(result.error).toMatch(/텍스트 블록.*찾지 못했습니다/);
+      expect(runtime.acquireEngine).not.toHaveBeenCalled();
+      expect(runtime.inpaintPatternPage).not.toHaveBeenCalled();
+      expect(createBubbleLayoutRunner).not.toHaveBeenCalled();
+      expect(runPage).not.toHaveBeenCalled();
+      expect(runtime.savePages).not.toHaveBeenCalled();
+      expect(changes).toHaveLength(0);
+    },
+  );
 
   it("keeps a manual layout during automatic postprocess after inpainting", async () => {
     const page = makePage();

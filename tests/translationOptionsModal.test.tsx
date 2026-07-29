@@ -18,6 +18,7 @@ import type {
   PageAnalysisStatus,
 } from "../src/shared/libraryTypes";
 import type { UiSettings } from "../src/shared/settingsTypes";
+import type { TranslationOptionsInitialScope } from "../src/renderer/src/lib/translationSelection";
 
 beforeEach(() => {
   window.mangaApi = createTestMangaGatewayStub({
@@ -96,13 +97,17 @@ function makeLibrary(): LibraryIndex {
   };
 }
 
-async function renderModal(uiSettings?: UiSettings) {
+async function renderModal(
+  uiSettings?: UiSettings,
+  initialScope?: TranslationOptionsInitialScope,
+) {
   const onStart = vi.fn();
   const onClose = vi.fn();
   const onPersistDefaults = vi.fn();
   render(
     <TranslationOptionsModal
       chapter={makeCurrentChapter()}
+      initialScope={initialScope}
       library={makeLibrary()}
       uiSettings={uiSettings}
       onStart={onStart}
@@ -332,6 +337,22 @@ describe("TranslationOptionsModal", () => {
     const { onStart } = await renderModal();
 
     fireEvent.click(screen.getByRole("button", { name: "전체 선택" }));
+    fireEvent.click(screen.getByRole("button", { name: "번역 시작" }));
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selection: [
+          { chapterId: CHAPTER_ID, mode: "all" },
+          { chapterId: "c2", mode: "all" },
+        ],
+      }),
+    );
+  });
+
+  it("starts with the whole work selected for a batch import", async () => {
+    const { onStart } = await renderModal(undefined, "work-all");
+
+    expect(screen.getByRole("button", { name: "전체 해제" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "번역 시작" }));
 
     expect(onStart).toHaveBeenCalledWith(

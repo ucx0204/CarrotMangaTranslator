@@ -109,7 +109,7 @@ describe("block-to-bubble association", () => {
     expect(bottomBox?.w).toBe(80);
   });
 
-  it("trims detector boxes that are closer than the requested gutter", () => {
+  it("keeps separately detected neighboring balloons on their own contours", () => {
     const associations = associateComicDetections([
       detection(0, [10, 10, 50, 60], 0.96),
       detection(0, [52, 10, 92, 60], 0.95),
@@ -127,13 +127,38 @@ describe("block-to-bubble association", () => {
       4,
     );
 
-    const leftBox = partitioned[0].candidates[0].ownershipPartition?.clipBox;
-    const rightBox = partitioned[1].candidates[0].ownershipPartition?.clipBox;
-    expect(leftBox).toBeDefined();
-    expect(rightBox).toBeDefined();
-    expect((rightBox?.x ?? 0) - ((leftBox?.x ?? 0) + (leftBox?.w ?? 0))).toBe(
+    expect(partitioned[0].candidates[0].ownershipPartition).toBeUndefined();
+    expect(partitioned[1].candidates[0].ownershipPartition).toBeUndefined();
+  });
+
+  it("limits distinct connected-balloon ownership to their overlapping lens", () => {
+    const associations = associateComicDetections([
+      detection(0, [10, 10, 72, 90], 0.96),
+      detection(0, [58, 10, 120, 90], 0.95),
+      detection(1, [20, 25, 48, 75], 0.97),
+      detection(1, [82, 25, 110, 75], 0.96),
+    ]);
+    const left = { id: "left", bbox: { x: 18, y: 22, w: 34, h: 56 } };
+    const right = { id: "right", bbox: { x: 78, y: 22, w: 34, h: 56 } };
+    const partitioned = partitionSharedBubbleOwnership(
+      [left, right].map((owner) => ({
+        owner,
+        candidates: selectBlockBubbleCandidates(owner.bbox, associations),
+      })),
+      (owner) => owner.bbox,
       4,
     );
+
+    const leftPartition = partitioned[0].candidates[0].ownershipPartition;
+    const rightPartition = partitioned[1].candidates[0].ownershipPartition;
+    expect(leftPartition?.scope).toBe("bubble-overlap");
+    expect(rightPartition?.scope).toBe("bubble-overlap");
+    expect(leftPartition?.competingBubbleBoxes).toEqual([
+      { x: 58, y: 10, w: 62, h: 80 },
+    ]);
+    expect(rightPartition?.competingBubbleBoxes).toEqual([
+      { x: 10, y: 10, w: 62, h: 80 },
+    ]);
   });
 
   it("keeps three diagonally ordered owners pairwise disjoint", () => {
@@ -181,6 +206,36 @@ describe("block-to-bubble association", () => {
     );
     expect(candidates).toHaveLength(1);
     expect(candidates[0].bubbleBox.x).toBe(10);
+  });
+
+  it("selects one dominant containing balloon instead of an adjacent shard", () => {
+    const detections = [
+      detection(0, [10, 10, 70, 90], 0.94),
+      detection(0, [62, 10, 120, 90], 0.96),
+      detection(1, [72, 25, 108, 75], 0.97),
+    ];
+    const candidates = selectBlockBubbleCandidates(
+      { x: 70, y: 22, w: 40, h: 56 },
+      associateComicDetections(detections),
+    );
+
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0].bubbleBox.x).toBe(62);
+  });
+
+  it("retains both balloons when a merged OCR block genuinely spans them", () => {
+    const detections = [
+      detection(0, [10, 10, 65, 90], 0.95),
+      detection(0, [60, 10, 120, 90], 0.94),
+      detection(1, [20, 25, 52, 75], 0.96),
+      detection(1, [72, 25, 108, 75], 0.95),
+    ];
+    const candidates = selectBlockBubbleCandidates(
+      { x: 20, y: 22, w: 88, h: 56 },
+      associateComicDetections(detections),
+    );
+
+    expect(candidates).toHaveLength(2);
   });
 });
 

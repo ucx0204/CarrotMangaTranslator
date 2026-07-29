@@ -13,7 +13,7 @@ import type {
   TranslateSourceMode,
 } from "../lib/importFlowTypes";
 import type { ShareImportModalSubmit } from "../lib/shareImportTypes";
-import { analysisGateway } from "../api/analysisGateway";
+import type { TranslationOptionsInitialScope } from "../lib/translationSelection";
 import { libraryGateway as mangaGateway } from "../api/libraryGateway";
 
 type ImportPreviewMode = TranslateSourceMode | "zip-folder";
@@ -30,8 +30,7 @@ type UseImportShareActionsOptions = {
   ) => Promise<boolean>;
   dirty: boolean;
   importPreview: ImportPreviewSession | null;
-  mergeLiveChapter: (chapter: ChapterSnapshot) => void;
-  openChapter: (chapterId: string) => Promise<void>;
+  openTranslateOptions: (initialScope?: TranslationOptionsInitialScope) => void;
   pushStatus: (line: string) => void;
   refreshLibrary: () => Promise<void>;
   resetWorkspaceHistory: () => void;
@@ -279,8 +278,7 @@ function useSubmitImportAction({
   applyChapter,
   dirty,
   importPreview,
-  mergeLiveChapter,
-  openChapter,
+  openTranslateOptions,
   pushStatus,
   refreshLibrary,
   resetWorkspaceHistory,
@@ -314,12 +312,7 @@ function useSubmitImportAction({
         setImportPreview(null);
 
         if (importPreview.mode === "batch") {
-          await runImportedBatchAnalysis({
-            chapterIds: result.chapterIds,
-            mergeLiveChapter,
-            openChapter,
-            refreshLibrary,
-          });
+          openTranslateOptions("work-all");
         }
       } catch (error) {
         console.error(error);
@@ -332,8 +325,7 @@ function useSubmitImportAction({
       applyChapter,
       dirty,
       importPreview,
-      mergeLiveChapter,
-      openChapter,
+      openTranslateOptions,
       pushStatus,
       refreshLibrary,
       resetWorkspaceHistory,
@@ -343,31 +335,4 @@ function useSubmitImportAction({
       t,
     ],
   );
-}
-
-async function runImportedBatchAnalysis({
-  chapterIds,
-  mergeLiveChapter,
-  openChapter,
-  refreshLibrary,
-}: {
-  chapterIds: string[];
-  mergeLiveChapter: UseImportShareActionsOptions["mergeLiveChapter"];
-  openChapter: UseImportShareActionsOptions["openChapter"];
-  refreshLibrary: UseImportShareActionsOptions["refreshLibrary"];
-}): Promise<void> {
-  for (const chapterId of chapterIds) {
-    await openChapter(chapterId);
-    const runResult = await analysisGateway.startAnalysis({
-      chapterId,
-      runMode: "pending",
-    });
-    if (runResult.chapter) {
-      mergeLiveChapter(runResult.chapter);
-    }
-    await refreshLibrary();
-    if (runResult.status !== "completed") {
-      return;
-    }
-  }
 }

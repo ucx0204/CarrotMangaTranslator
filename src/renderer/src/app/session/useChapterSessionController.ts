@@ -262,9 +262,8 @@ function useChapterRuntimeEffects({
     [selectWorkspaceTool],
   );
   const handlePageChange = useCallback(() => {
-    selectWorkspaceTool("select");
     setPeekOriginal(false);
-  }, [selectWorkspaceTool, setPeekOriginal]);
+  }, [setPeekOriginal]);
   useAppSessionLifecycleEffects({
     currentChapter: core.currentChapter,
     jobState: core.jobState,

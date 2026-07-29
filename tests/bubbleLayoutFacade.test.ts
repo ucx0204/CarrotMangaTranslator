@@ -165,7 +165,8 @@ function makeDetectedLayout(sourceImageRevision: string): BubbleLayout {
     direction: "horizontal",
     confidence: 0.9,
     origin: "detected",
-    modelId: "comic-rtdetr-v4-s-int8+safe-distance-v1",
+    modelId:
+      "comic-rtdetr-v4-s-int8+safe-distance-v2-overlap-fragment-guard-v3",
     sourceImageRevision,
     insetRatio: 0.05,
     regions: [

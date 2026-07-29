@@ -574,7 +574,7 @@ describe("render layout padding", () => {
 
     const bubbleLayout = block.bubbleLayout;
     if (!bubbleLayout) throw new Error("expected bubble layout fixture");
-    const staleFallback = resolveBlockTextLayout(
+    const lowConfidenceLayout = resolveBlockTextLayout(
       {
         ...block,
         bubbleLayout: { ...bubbleLayout, confidence: 0.1 },
@@ -583,8 +583,8 @@ describe("render layout padding", () => {
       { width: 1000, height: 1000 },
       { width: 1000, height: 1000 },
     );
-    expect(staleFallback.lines?.[0]?.slot).toBeUndefined();
-    expect(lineTexts(staleFallback)).toEqual(["가나다라마"]);
+    expect(lowConfidenceLayout.lines).toEqual(layout.lines);
+    expect(lowConfidenceLayout.overflow).toBe(false);
   });
 
   it("flows through separated horizontal regions without placing a line in the gap", () => {

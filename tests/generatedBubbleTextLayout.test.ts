@@ -1,8 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { doesGeneratedBubbleQualityFit } from "../src/renderer/src/lib/bubbleBlockTextLayout";
 import { resolveBlockTextLayout as resolveBlockTextLayoutWithCatalog } from "../src/renderer/src/lib/overlayLayout";
 import { DEFAULT_BLOCK_FONT_CATALOG } from "../src/renderer/src/lib/fonts";
-import type { BlockTextLine } from "../src/renderer/src/lib/overlayTextWrapping";
 import type { TranslationBlock } from "../src/shared/textTypes";
 
 const originalDocument = globalThis.document;
@@ -16,7 +14,7 @@ afterEach(() => {
   });
 });
 
-describe("generated bubble text do-no-harm gate", () => {
+describe("generated bubble text layout", () => {
   it("keeps a generated shape when it does not worsen the baseline", () => {
     installCanvasMeasureMock();
     const block: TranslationBlock = {
@@ -52,7 +50,7 @@ describe("generated bubble text do-no-harm gate", () => {
     expect(block.wordBreak).toBe("break-word");
   });
 
-  it("reduces only the font size when generated slots would damage Korean words", () => {
+  it("uses the same auto-fit result for detected and manual bubble geometry", () => {
     installCanvasMeasureMock();
     const base = makeQualityGateBlock();
     const manualCandidate: TranslationBlock = {
@@ -108,7 +106,8 @@ describe("generated bubble text do-no-harm gate", () => {
     expect(ungatedCandidate.lines?.some((line) => line.slot)).toBe(true);
     expect(generated.rect).toEqual(ungatedCandidate.rect);
     expect(generated.rect).not.toEqual(baseline.rect);
-    expect(generated.fontSizePx).toBeLessThan(ungatedCandidate.fontSizePx);
+    expect(generated.fontSizePx).toBe(ungatedCandidate.fontSizePx);
+    expect(lineTexts(generated)).toEqual(lineTexts(ungatedCandidate));
     expect(generated.lines?.every((line) => line.slot)).toBe(true);
     expect(manualCandidate.translatedText).toBe(base.translatedText);
     expect(manualCandidate.wordBreak).toBe(base.wordBreak);
@@ -139,7 +138,7 @@ describe("generated bubble text do-no-harm gate", () => {
     });
   });
 
-  it("does not gate manual geometry or a user-disabled auto-fit layout", () => {
+  it("keeps manual geometry and a user-disabled auto-fit layout", () => {
     installCanvasMeasureMock();
     const base = makeQualityGateBlock();
     const renderBbox = { x: 940, y: 80, w: 100, h: 220 };
@@ -171,47 +170,7 @@ describe("generated bubble text do-no-harm gate", () => {
     expect(fixedLayout.fontSizePx).toBe(fixedAuto.fontSizePx);
   });
 
-  it("rejects severe absolute fragmentation even within the baseline budget", () => {
-    const equallyFragmented = {
-      plainText: "abcdefghijkl",
-      baseline: {
-        intraWordSplitCount: 5,
-        orphanLineCount: 0,
-        lineCount: 6,
-        semanticGraphemeCount: 12,
-        averageSemanticGraphemesPerLine: 2,
-      },
-    };
-
-    expect(
-      doesGeneratedBubbleQualityFit(
-        ["ab", "cd", "ef", "gh", "ij", "kl"].map(makeTextLine),
-        equallyFragmented,
-      ),
-    ).toBe(false);
-  });
-
-  it("does not over-apply the absolute gate when line density stays readable", () => {
-    const readableBudget = {
-      plainText: "abcdefghijkl",
-      baseline: {
-        intraWordSplitCount: 2,
-        orphanLineCount: 0,
-        lineCount: 3,
-        semanticGraphemeCount: 12,
-        averageSemanticGraphemesPerLine: 4,
-      },
-    };
-
-    expect(
-      doesGeneratedBubbleQualityFit(
-        ["abcd", "efgh", "ijkl"].map(makeTextLine),
-        readableBudget,
-      ),
-    ).toBe(true);
-  });
-
-  it("keeps adjacent ownership boxes disjoint while lowering a damaged block", () => {
+  it("keeps adjacent generated ownership boxes disjoint", () => {
     installCanvasMeasureMock();
     const first: TranslationBlock = {
       ...makeQualityGateBlock(),
@@ -258,6 +217,44 @@ describe("generated bubble text do-no-harm gate", () => {
       height: 500,
     });
     expect(firstLayout.lines?.every((line) => line.slot)).toBe(true);
+  });
+
+  it("keeps text inside stored low-confidence shared-bubble geometry", () => {
+    installCanvasMeasureMock();
+    const block: TranslationBlock = {
+      ...makeQualityGateBlock(),
+      translatedText: "이쪽은 너 때문에 넘어져서 망신을 당했단 말이야!?",
+      renderBbox: { x: 200, y: 30, w: 200, h: 175 },
+      renderBboxSpace: "normalized_1000",
+      bubbleLayout: {
+        ...makeGeneratedBubbleLayout(),
+        confidence: 0.47,
+        regions: [
+          {
+            spans: [
+              {
+                blockStart: 0,
+                blockEnd: 1,
+                inlineStart: 0.08,
+                inlineEnd: 0.92,
+              },
+            ],
+          },
+        ],
+      },
+    };
+
+    const layout = resolveBlockTextLayout(block);
+
+    expect(layout.lines?.length).toBeGreaterThan(0);
+    for (const line of layout.lines ?? []) {
+      expect(line.slot?.regionIndex).toBe(0);
+      expect(line.slot?.inlineOffsetPx).toBeCloseTo(16);
+      expect(
+        (line.slot?.inlineOffsetPx ?? 0) + (line.slot?.availableWidth ?? 0),
+      ).toBeCloseTo(184);
+    }
+    expect(layout.overflow).toBe(false);
   });
 });
 
@@ -324,13 +321,6 @@ function makeGeneratedBubbleLayout(): NonNullable<
         ],
       },
     ],
-  };
-}
-
-function makeTextLine(text: string): BlockTextLine {
-  return {
-    runs: [{ text, bold: false, italic: false }],
-    width: text.length,
   };
 }
 

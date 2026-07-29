@@ -19,9 +19,9 @@ type InpaintingActions = {
     selections: PageImageExportChapterSelection[],
   ) => Promise<boolean>;
   revertInpainting: (scope: InpaintingScope) => Promise<void>;
-  runBubbleLayout: () => Promise<void>;
+  runBubbleLayout: (blockId?: string) => Promise<void>;
   runDrawnPatternInpainting: () => Promise<void>;
-  runInpainting: (scope: InpaintingScope) => Promise<void>;
+  runInpainting: (scope: InpaintingScope, blockId?: string) => Promise<void>;
   runInpaintingSelection: (
     selections: AutoInpaintingChapterSelection[],
     postprocess?: InpaintingPostprocessOptions,
@@ -82,8 +82,8 @@ function useExclusiveImageActions(
     }
   }, []);
   const runInpainting = useCallback(
-    (scope: InpaintingScope) =>
-      runExclusive(() => actions.runInpainting(scope)),
+    (scope: InpaintingScope, blockId?: string) =>
+      runExclusive(() => actions.runInpainting(scope, blockId)),
     [actions, runExclusive],
   );
   const runDrawnPatternInpainting = useCallback(
@@ -91,7 +91,7 @@ function useExclusiveImageActions(
     [actions, runExclusive],
   );
   const runBubbleLayout = useCallback(
-    () => runExclusive(actions.runBubbleLayout),
+    (blockId?: string) => runExclusive(() => actions.runBubbleLayout(blockId)),
     [actions, runExclusive],
   );
   const revertInpainting = useCallback(

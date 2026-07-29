@@ -12,7 +12,7 @@ import type {
   UseTranslationActionsOptions,
 } from "./translationActionTypes";
 
-export async function resolveTranslationInpaintingSelections(
+async function resolveTranslationInpaintingSelections(
   selection: ChapterRunSelection[],
 ): Promise<AutoInpaintingChapterSelection[]> {
   const resolved = await Promise.all(
@@ -143,7 +143,7 @@ type TranslationInpaintingResult = Awaited<
   ReturnType<typeof inpaintingGateway.startInpainting>
 >;
 
-export async function runTranslationInpaintingWorkflow(
+async function runTranslationInpaintingWorkflow(
   options: TranslationInpaintingWorkflowOptions,
 ): Promise<RunAnalysisOutcome> {
   if (options.selections.length === 0) {

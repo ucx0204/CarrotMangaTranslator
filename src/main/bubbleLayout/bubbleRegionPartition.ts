@@ -5,6 +5,11 @@ import type {
 } from "./bubbleBlockAssociation";
 import type { RefinedBubbleRegion } from "./bubbleMaskTypes";
 
+const TEXT_SHAPE_WEIGHT = 0.78;
+const MIN_TEXT_RADIUS_SCALE = 0.55;
+const MAX_TEXT_RADIUS_SCALE = 1.8;
+const OWNERSHIP_GUTTER_SCALE = 1.5;
+
 export function resolveBubblePartitionGapPx(
   imageWidth: number,
   imageHeight: number,
@@ -18,7 +23,7 @@ export function clipRegionsToOwnershipPartition(
 ): RefinedBubbleRegion[] {
   if (!partition) return [...regions];
   return regions.flatMap((region) => {
-    const clipped = clipRegionToBox(region, partition.clipBox);
+    const clipped = clipRegionToOwnershipCell(region, partition);
     return clipped ? [clipped] : [];
   });
 }
@@ -30,12 +35,7 @@ export function buildOwnershipFallbackRegion(
 ): RefinedBubbleRegion | null {
   const partition = candidate.ownershipPartition;
   if (!partition && !allowUnpartitioned) return null;
-  const fallbackBounds = insetPartitionBox(
-    partition
-      ? intersectionBox(candidate.bubbleBox, partition.clipBox)
-      : candidate.bubbleBox,
-    insetPx,
-  );
+  const fallbackBounds = insetPartitionBox(candidate.bubbleBox, insetPx);
   if (!fallbackBounds || fallbackBounds.w < 2 || fallbackBounds.h < 2) {
     return null;
   }
@@ -46,18 +46,17 @@ export function buildOwnershipFallbackRegion(
   const width = Math.max(0, right - x);
   const height = Math.max(0, bottom - y);
   if (width < 2 || height < 2) return null;
-  const mask = partition
-    ? new Uint8Array(width * height).fill(1)
-    : buildEllipseMask(width, height);
+  const mask = buildEllipseMask(width, height);
   const area = countMask(mask);
   if (area < 4) return null;
-  return {
+  const ellipse = {
     bounds: { x, y, w: width, h: height },
     width,
     height,
     area,
     mask,
   };
+  return partition ? clipRegionToOwnershipCell(ellipse, partition) : ellipse;
 }
 
 function buildEllipseMask(width: number, height: number): Uint8Array {
@@ -84,54 +83,206 @@ function countMask(mask: Uint8Array): number {
   return area;
 }
 
-function clipRegionToBox(
+function clipRegionToOwnershipCell(
   region: RefinedBubbleRegion,
-  clipBox: BBox,
+  partition: BubbleOwnershipPartition,
 ): RefinedBubbleRegion | null {
-  const bounds = intersectionBox(region.bounds, clipBox);
-  if (!bounds) return null;
-  const x = Math.ceil(bounds.x);
-  const y = Math.ceil(bounds.y);
-  const right = Math.floor(bounds.x + bounds.w);
-  const bottom = Math.floor(bounds.y + bounds.h);
-  const width = Math.max(0, right - x);
-  const height = Math.max(0, bottom - y);
-  if (width < 1 || height < 1) return null;
+  const mask = new Uint8Array(region.width * region.height);
+  let area = 0;
+  for (let localY = 0; localY < region.height; localY += 1) {
+    for (let localX = 0; localX < region.width; localX += 1) {
+      const sourceIndex = localY * region.width + localX;
+      if (!region.mask[sourceIndex]) continue;
+      const pageX = region.bounds.x + localX + 0.5;
+      const pageY = region.bounds.y + localY + 0.5;
+      if (
+        shouldApplyOwnershipAtPoint(pageX, pageY, partition) &&
+        !isOwnedPartitionPoint(pageX, pageY, partition)
+      ) {
+        continue;
+      }
+      mask[sourceIndex] = 1;
+      area += 1;
+    }
+  }
+  return trimRegionToMask({
+    bounds: { ...region.bounds },
+    width: region.width,
+    height: region.height,
+    area,
+    mask,
+  });
+}
+
+function shouldApplyOwnershipAtPoint(
+  x: number,
+  y: number,
+  partition: BubbleOwnershipPartition,
+): boolean {
+  return (
+    partition.scope === "full" ||
+    partition.competingBubbleBoxes.some((box) => isInsideEllipseBox(x, y, box))
+  );
+}
+
+function isInsideEllipseBox(x: number, y: number, box: BBox): boolean {
+  const radiusX = Math.max(0.5, box.w / 2);
+  const radiusY = Math.max(0.5, box.h / 2);
+  const centerX = box.x + box.w / 2;
+  const centerY = box.y + box.h / 2;
+  const dx = (x - centerX) / radiusX;
+  const dy = (y - centerY) / radiusY;
+  return dx * dx + dy * dy <= 1;
+}
+
+function isOwnedPartitionPoint(
+  x: number,
+  y: number,
+  partition: BubbleOwnershipPartition,
+): boolean {
+  return partition.competingOwnerBoxes.every((competingOwnerBox) =>
+    isOwnedAgainstCompetingText(
+      x,
+      y,
+      partition.ownerBox,
+      competingOwnerBox,
+      partition.scope === "bubble-overlap" ? 0 : partition.gapPx,
+    ),
+  );
+}
+
+/**
+ * Compare regularized elliptical influence fields centered on the OCR boxes.
+ * Unlike a point/capsule Voronoi split, differently sized text fields produce
+ * curved conic bisectors. A shared radial term prevents a large OCR box from
+ * swallowing a smaller neighbor while keeping the result symmetric.
+ */
+function isOwnedAgainstCompetingText(
+  x: number,
+  y: number,
+  ownerBox: BBox,
+  competingOwnerBox: BBox,
+  gapPx: number,
+): boolean {
+  const sharedScale = Math.max(
+    4,
+    (Math.sqrt(ownerBox.w * ownerBox.h) +
+      Math.sqrt(competingOwnerBox.w * competingOwnerBox.h)) /
+      4,
+  );
+  const ownerDistance = distanceToTextInfluence(x, y, ownerBox, sharedScale);
+  const competitorDistance = distanceToTextInfluence(
+    x,
+    y,
+    competingOwnerBox,
+    sharedScale,
+  );
+  return (
+    ownerDistance + (gapPx * OWNERSHIP_GUTTER_SCALE) / sharedScale <=
+    competitorDistance
+  );
+}
+
+function distanceToTextInfluence(
+  x: number,
+  y: number,
+  box: BBox,
+  sharedScale: number,
+): number {
+  const centerX = box.x + box.w / 2;
+  const centerY = box.y + box.h / 2;
+  const dx = x - centerX;
+  const dy = y - centerY;
+  const radiusX = clamp(
+    box.w / 2,
+    sharedScale * MIN_TEXT_RADIUS_SCALE,
+    sharedScale * MAX_TEXT_RADIUS_SCALE,
+  );
+  const radiusY = clamp(
+    box.h / 2,
+    sharedScale * MIN_TEXT_RADIUS_SCALE,
+    sharedScale * MAX_TEXT_RADIUS_SCALE,
+  );
+  const ellipticalDistance = Math.hypot(dx / radiusX, dy / radiusY);
+  const radialDistance = Math.hypot(dx, dy) / sharedScale;
+  return (
+    ellipticalDistance * TEXT_SHAPE_WEIGHT +
+    radialDistance * (1 - TEXT_SHAPE_WEIGHT)
+  );
+}
+
+function trimRegionToMask(
+  region: RefinedBubbleRegion,
+): RefinedBubbleRegion | null {
+  if (region.area <= 0) return null;
+  const activeBounds = findActiveMaskBounds(region);
+  if (!activeBounds) return null;
+  const { left, top, right, bottom } = activeBounds;
+  const width = right - left + 1;
+  const height = bottom - top + 1;
+  if (
+    left === 0 &&
+    top === 0 &&
+    width === region.width &&
+    height === region.height
+  ) {
+    return region;
+  }
+  return copyMaskWindow(region, left, top, width, height);
+}
+
+function findActiveMaskBounds(region: RefinedBubbleRegion): {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+} | null {
+  let left = region.width;
+  let top = region.height;
+  let right = -1;
+  let bottom = -1;
+  for (let y = 0; y < region.height; y += 1) {
+    for (let x = 0; x < region.width; x += 1) {
+      if (!region.mask[y * region.width + x]) continue;
+      left = Math.min(left, x);
+      top = Math.min(top, y);
+      right = Math.max(right, x);
+      bottom = Math.max(bottom, y);
+    }
+  }
+  return right < left || bottom < top ? null : { left, top, right, bottom };
+}
+
+function copyMaskWindow(
+  region: RefinedBubbleRegion,
+  left: number,
+  top: number,
+  width: number,
+  height: number,
+): RefinedBubbleRegion {
   const mask = new Uint8Array(width * height);
   let area = 0;
-  for (let targetY = 0; targetY < height; targetY += 1) {
-    for (let targetX = 0; targetX < width; targetX += 1) {
-      const value = readRegionMask(region, x + targetX, y + targetY);
-      mask[targetY * width + targetX] = value;
+  for (let y = 0; y < height; y += 1) {
+    const sourceOffset = (top + y) * region.width + left;
+    const targetOffset = y * width;
+    for (let x = 0; x < width; x += 1) {
+      const value = region.mask[sourceOffset + x] ?? 0;
+      mask[targetOffset + x] = value;
       area += value;
     }
   }
-  return area > 0
-    ? {
-        bounds: { x, y, w: width, h: height },
-        width,
-        height,
-        area,
-        mask,
-      }
-    : null;
-}
-
-function readRegionMask(
-  region: RefinedBubbleRegion,
-  pageX: number,
-  pageY: number,
-): number {
-  const sourceX = pageX - region.bounds.x;
-  const sourceY = pageY - region.bounds.y;
-  const isInBounds =
-    Number.isInteger(sourceX) &&
-    Number.isInteger(sourceY) &&
-    sourceX >= 0 &&
-    sourceY >= 0 &&
-    sourceX < region.width &&
-    sourceY < region.height;
-  return isInBounds ? (region.mask[sourceY * region.width + sourceX] ?? 0) : 0;
+  return {
+    bounds: {
+      x: region.bounds.x + left,
+      y: region.bounds.y + top,
+      w: width,
+      h: height,
+    },
+    width,
+    height,
+    area,
+    mask,
+  };
 }
 
 function insetPartitionBox(
@@ -147,14 +298,6 @@ function insetPartitionBox(
     w: box.w - inset * 2,
     h: box.h - inset * 2,
   };
-}
-
-function intersectionBox(left: BBox, right: BBox): BBox | null {
-  const x = Math.max(left.x, right.x);
-  const y = Math.max(left.y, right.y);
-  const farX = Math.min(left.x + left.w, right.x + right.w);
-  const farY = Math.min(left.y + left.h, right.y + right.h);
-  return farX > x && farY > y ? { x, y, w: farX - x, h: farY - y } : null;
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
