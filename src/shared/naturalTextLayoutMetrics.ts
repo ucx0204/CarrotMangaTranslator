@@ -5,11 +5,14 @@ import {
   cjkRatio,
   isCjkGrapheme,
   isEmojiGrapheme,
+  isHangulWord,
+  isKoreanNaturalText,
   isNaturalPunctuation,
   isNaturalWhitespace,
   isSemanticNaturalGrapheme,
   normalizeParagraphWhitespace,
   segmentNaturalTextGraphemes,
+  segmentNaturalTextEojeols,
   segmentNaturalTextWords,
 } from "./naturalTextLayoutSegmentation";
 
@@ -36,12 +39,10 @@ export type NaturalVerticalOptions = {
 
 const MIN_READABLE_FONT_SIZE_PX = 10;
 const WORD_MODE_MIN_WORDS_PER_LINE = 1.5;
-const VERTICAL_MIN_ASPECT_RATIO = 6;
 const VERTICAL_COLUMN_WIDTH_RATIO = 1.15;
-const VERTICAL_MAX_PREFERRED_WIDTH_CAPACITY = 1.3;
-const VERTICAL_MIN_PREFERRED_FONT_RATIO = 0.95;
+const VERTICAL_HORIZONTAL_SAFETY_RATIO = 0.94;
+const VERTICAL_MIN_PREFERRED_FONT_RATIO = 1;
 const VERTICAL_MIN_READABLE_FONT_SIZE_PX = 16;
-const VERTICAL_ONE_COLUMN_ADVANTAGE_RATIO = 1.35;
 const VERTICAL_MAX_AUTO_GLYPHS = 10;
 
 export function resolveNaturalTextMetrics(
@@ -92,8 +93,13 @@ export function resolveNaturalWrapMode(
   const normalized = normalizeParagraphWhitespace(
     text.replace(/\r\n?/gu, "\n").replace(/\n/gu, " "),
   );
-  const widths = segmentNaturalTextWords(normalized, locale)
-    .filter((entry) => entry.isWordLike)
+  const koreanText = isKoreanNaturalText(normalized);
+  const wordSegments = (
+    koreanText
+      ? segmentNaturalTextEojeols(normalized)
+      : segmentNaturalTextWords(normalized, locale)
+  ).filter((entry) => entry.isWordLike);
+  const widths = wordSegments
     .map((entry) => measureNaturalText(entry.segment, metrics))
     .filter((width) => width > 0)
     .sort((left, right) => left - right);
@@ -105,10 +111,12 @@ export function resolveNaturalWrapMode(
     );
   const estimatedWordsPerLine =
     maxWidth / Math.max(1, medianWordWidth + measureNaturalText(" ", metrics));
+  const prefersKoreanWords = koreanText && wordSegments.length >= 2;
   return {
     mode:
-      widths.length >= 2 &&
-      estimatedWordsPerLine >= WORD_MODE_MIN_WORDS_PER_LINE
+      prefersKoreanWords ||
+      (widths.length >= 2 &&
+        estimatedWordsPerLine >= WORD_MODE_MIN_WORDS_PER_LINE)
         ? "word"
         : "grapheme",
     estimatedWordsPerLine,
@@ -175,8 +183,10 @@ function hasVerticalShapeAndScript(
   rect: { w: number; h: number },
   visible: string[],
 ): boolean {
+  const canRecoverHorizontalOcrDirection =
+    block.sourceDirection === "vertical" || visible.some(isHangulWord);
   if (
-    block.sourceDirection !== "vertical" ||
+    !canRecoverHorizontalOcrDirection ||
     visible.length < 2 ||
     visible.length > VERTICAL_MAX_AUTO_GLYPHS ||
     cjkRatio(visible) < 0.9
@@ -184,13 +194,10 @@ function hasVerticalShapeAndScript(
     return false;
   }
   const metrics = resolveNaturalTextMetrics(block);
-  const aspectRatio = rect.h / Math.max(1, rect.w);
-  const widthCapacity =
-    rect.w / Math.max(1, metrics.fontSizePx * metrics.fontWidthScale);
-  return (
-    aspectRatio >= VERTICAL_MIN_ASPECT_RATIO &&
-    widthCapacity <= VERTICAL_MAX_PREFERRED_WIDTH_CAPACITY
-  );
+  const horizontalAvailableWidth =
+    (rect.w * VERTICAL_HORIZONTAL_SAFETY_RATIO) /
+    Math.max(0.01, metrics.fontWidthScale);
+  return measureNaturalText("가가", metrics) > horizontalAvailableWidth;
 }
 
 function compareVerticalColumnFits(
@@ -201,7 +208,7 @@ function compareVerticalColumnFits(
   const metrics = resolveNaturalTextMetrics(block);
   const advanceFactor = Math.max(
     1,
-    Math.max(1, block.lineHeight || 1.18) + (block.letterSpacing ?? 0),
+    (block.lineHeight || 1.18) + (block.letterSpacing ?? 0),
   );
   const oneColumnMaxFontPx = maxVerticalFontForColumns(
     rect,
@@ -223,9 +230,7 @@ function compareVerticalColumnFits(
           Math.max(
             VERTICAL_MIN_READABLE_FONT_SIZE_PX,
             metrics.fontSizePx * VERTICAL_MIN_PREFERRED_FONT_RATIO,
-          ) &&
-        oneColumnMaxFontPx >=
-          twoColumnMaxFontPx * VERTICAL_ONE_COLUMN_ADVANTAGE_RATIO
+          ) && oneColumnMaxFontPx >= twoColumnMaxFontPx
       : fixedFontFitsOneColumn(rect, metrics, glyphCount, advanceFactor);
   return {
     eligible,

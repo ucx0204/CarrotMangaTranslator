@@ -31,6 +31,19 @@ export function segmentNaturalTextWords(
   return segmentWordsFallback(value);
 }
 
+export function segmentNaturalTextEojeols(value: string): NaturalWordSegment[] {
+  const entries: NaturalWordSegment[] = [];
+  const pattern = /\s+|[^\s]+/gu;
+  for (const match of value.matchAll(pattern)) {
+    entries.push({
+      segment: match[0],
+      index: match.index,
+      isWordLike: !/^\s+$/u.test(match[0]),
+    });
+  }
+  return entries;
+}
+
 export function normalizeParagraphWhitespace(value: string): string {
   return value.trim().replace(/\s+/gu, " ");
 }
@@ -63,6 +76,25 @@ export function isNaturalWhitespace(value: string): boolean {
 export function isCjkGrapheme(value: string): boolean {
   return /[\p{Script=Han}\p{Script=Hangul}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Bopomofo}]/u.test(
     value,
+  );
+}
+
+export function isHangulWord(value: string): boolean {
+  return (
+    /\p{Script=Hangul}/u.test(value) &&
+    /^[\p{Script=Hangul}\p{Number}]+$/u.test(value)
+  );
+}
+
+export function isKoreanNaturalText(value: string): boolean {
+  return /\p{Script=Hangul}/u.test(value);
+}
+
+export function hasKoreanWordPriority(value: string): boolean {
+  return (
+    isKoreanNaturalText(value) &&
+    segmentNaturalTextEojeols(value).filter((entry) => entry.isWordLike)
+      .length >= 2
   );
 }
 
@@ -145,16 +177,7 @@ function resolveSegmenter(
 }
 
 function segmentWordsFallback(value: string): NaturalWordSegment[] {
-  const entries: NaturalWordSegment[] = [];
-  const pattern = /\s+|[^\s]+/gu;
-  for (const match of value.matchAll(pattern)) {
-    entries.push({
-      segment: match[0],
-      index: match.index,
-      isWordLike: !/^\s+$/u.test(match[0]),
-    });
-  }
-  return entries;
+  return segmentNaturalTextEojeols(value);
 }
 
 function segmentGraphemesFallback(value: string): string[] {

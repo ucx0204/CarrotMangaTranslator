@@ -7,8 +7,11 @@ import {
 } from "./naturalTextLayoutMetrics";
 import {
   countSemanticNaturalGraphemes,
+  hasKoreanWordPriority,
+  isKoreanNaturalText,
   segmentNaturalTextGraphemes,
 } from "./naturalTextLayoutSegmentation";
+import { selectNaturalBreakCandidate } from "./naturalTextLayoutCandidateSelection";
 import {
   resolveNaturalShapeSlotPlans,
   type NaturalShapeLineSlot,
@@ -44,6 +47,8 @@ const HORIZONTAL_SAFETY_RATIO = 0.94;
 const HORIZONTAL_HEIGHT_SAFETY_RATIO = 0.96;
 const MIN_GRAPHEMES_PER_HARD_LINE = 2;
 const MIN_HARD_BREAK_FONT_SIZE_PX = 12;
+const MIN_SEMANTIC_FONT_RATIO = 0.8;
+const MIN_IDEAL_BREAK_FONT_RATIO = 0.82;
 const MAX_AUTOFIT_FONT_SIZE_PX = 256;
 const MAX_NATURAL_HARD_LINES = 12;
 
@@ -63,14 +68,13 @@ export function evaluateNaturalHorizontalLayout(
     1,
   );
   const candidate = baseline
-    ? resolveHorizontalCandidateAtFont(
+    ? resolvePreferredHorizontalCandidate(
         block,
         text,
         rect,
         baseMetrics,
-        baseline.fontSizePx,
         locale,
-        MIN_GRAPHEMES_PER_HARD_LINE,
+        baseline,
       )
     : null;
   const evaluation: NaturalHorizontalLayoutEvaluation = {
@@ -94,6 +98,36 @@ export function evaluateNaturalHorizontalLayout(
       translatedText: candidate.wrapped.text,
     },
   };
+}
+
+function resolvePreferredHorizontalCandidate(
+  block: TranslationBlock,
+  text: string,
+  rect: { w: number; h: number },
+  baseMetrics: NaturalTextMetrics,
+  locale: string | undefined,
+  baseline: NaturalHorizontalCandidate,
+): NaturalHorizontalCandidate | null {
+  const koreanWordPriority = hasKoreanWordPriority(text);
+  return selectNaturalBreakCandidate({
+    autoFitText: block.autoFitText ?? true,
+    baselineFontSizePx: baseline.fontSizePx,
+    minimumReadableFontSizePx: MIN_HARD_BREAK_FONT_SIZE_PX,
+    minimumSemanticFontRatio: MIN_SEMANTIC_FONT_RATIO,
+    minimumIdealFontRatio: MIN_IDEAL_BREAK_FONT_RATIO,
+    semanticWordPriority: koreanWordPriority,
+    resolveAtFont: (fontSizePx, allowSinglePreferredUnit) =>
+      resolveHorizontalCandidateAtFont(
+        block,
+        text,
+        rect,
+        baseMetrics,
+        fontSizePx,
+        locale,
+        MIN_GRAPHEMES_PER_HARD_LINE,
+        allowSinglePreferredUnit,
+      ),
+  });
 }
 
 function resolveBestHorizontalCandidate(
@@ -164,11 +198,13 @@ function resolveHorizontalCandidateAtFont(
   fontSizePx: number,
   locale: string | undefined,
   minimumLineGraphemes: number,
+  allowSinglePreferredUnit = false,
 ): NaturalHorizontalCandidate | null {
   const metrics = resizeNaturalTextMetrics(baseMetrics, fontSizePx);
   const maximumSlotCount = resolveMaximumHardLineCount(
     text,
     minimumLineGraphemes,
+    allowSinglePreferredUnit,
   );
   const shapePlans = resolveNaturalShapeSlotPlans(block.bubbleLayout, {
     blockExtentPx: Math.max(1, rect.h) * HORIZONTAL_HEIGHT_SAFETY_RATIO,
@@ -195,6 +231,7 @@ function resolveHorizontalCandidateAtFont(
     fontSizePx,
     locale,
     minimumLineGraphemes,
+    allowSinglePreferredUnit,
   );
 }
 
@@ -206,9 +243,11 @@ function selectBestCandidateForPlans(
   fontSizePx: number,
   locale: string | undefined,
   minimumLineGraphemes: number,
+  allowSinglePreferredUnit: boolean,
 ): NaturalHorizontalCandidate | null {
   let best: NaturalHorizontalCandidate | null = null;
   let bestScore = Number.POSITIVE_INFINITY;
+  const koreanBreakPriority = isKoreanNaturalText(text);
   for (const slots of plans) {
     const modeDecision = resolveNaturalWrapMode(
       text,
@@ -222,11 +261,13 @@ function selectBestCandidateForPlans(
       metrics,
       modeDecision.mode,
       locale,
-      { minimumLineGraphemes },
+      { minimumLineGraphemes, allowSinglePreferredUnit },
     );
     if (!wrapped) continue;
     const coveredRegions = new Set(slots.map((slot) => slot.regionIndex)).size;
     const score =
+      (koreanBreakPriority ? wrapped.emergencyBreakCount * 10_000 : 0) +
+      (koreanBreakPriority ? wrapped.discouragedBreakCount * 5_000 : 0) +
       wrapped.cost +
       slots.length * 0.5 -
       (shapeAware ? coveredRegions * 18 : 0);
@@ -272,6 +313,7 @@ function resolveRectangularSlotPlans(
 function resolveMaximumHardLineCount(
   text: string,
   minimumLineGraphemes: number,
+  allowSinglePreferredUnit: boolean,
 ): number {
   const graphemes = segmentNaturalTextGraphemes(text);
   const visibleCount = countSemanticNaturalGraphemes(
@@ -283,7 +325,10 @@ function resolveMaximumHardLineCount(
     1,
     Math.min(
       MAX_NATURAL_HARD_LINES,
-      Math.floor(visibleCount / Math.max(1, minimumLineGraphemes)),
+      Math.floor(
+        visibleCount /
+          Math.max(1, allowSinglePreferredUnit ? 1 : minimumLineGraphemes),
+      ),
     ),
   );
 }
@@ -306,32 +351,10 @@ function isReadableHardBreakCandidate(
     lines.length >= 2 &&
     lines.length <= MAX_NATURAL_HARD_LINES &&
     candidate.fontSizePx >= MIN_HARD_BREAK_FONT_SIZE_PX &&
-    candidate.fontSizePx >= baseline.fontSizePx &&
-    !hasUnreadablyShortHardLine(candidate.wrapped.text) &&
+    candidate.fontSizePx >= baseline.fontSizePx * MIN_SEMANTIC_FONT_RATIO &&
     candidate.slots.every((slot, index) => {
       const width = candidate.wrapped.lineWidthsPx[index];
       return Number.isFinite(width) && width <= slot.availableWidthPx + 1e-6;
-    })
-  );
-}
-
-function hasUnreadablyShortHardLine(value: string): boolean {
-  return hasHardLineShorterThan(value, MIN_GRAPHEMES_PER_HARD_LINE);
-}
-
-function hasHardLineShorterThan(
-  value: string,
-  minimumGraphemes: number,
-): boolean {
-  const lines = value.replace(/\r\n?/gu, "\n").split("\n");
-  return (
-    lines.length > 1 &&
-    lines.some((line) => {
-      const graphemes = segmentNaturalTextGraphemes(line);
-      return (
-        countSemanticNaturalGraphemes(graphemes, 0, graphemes.length) <
-        minimumGraphemes
-      );
     })
   );
 }

@@ -14,18 +14,28 @@ import {
 import type { NaturalShapeLineSlot } from "./naturalTextLayoutShape";
 import {
   hasForbiddenNaturalLineEdge,
+  resolveNaturalBreakProfile,
   resolveAllowedNaturalBreaks,
-  resolvePreferredNaturalBreaks,
+  type NaturalBreakProfile,
 } from "./naturalTextLayoutBreaks";
+import {
+  classifyNaturalBreak,
+  isCompletePreferredNaturalUnit,
+  resolveNaturalBoundaryPenalty,
+} from "./naturalTextLayoutBreakQuality";
 
 export type VariableNaturalWrapResult = {
   text: string;
   cost: number;
   lineWidthsPx: number[];
+  emergencyBreakCount: number;
+  secondaryBreakCount: number;
+  discouragedBreakCount: number;
 };
 
 export type VariableNaturalWrapOptions = {
   minimumLineGraphemes?: number;
+  allowSinglePreferredUnit?: boolean;
 };
 
 type VariableWrapTable = {
@@ -40,8 +50,7 @@ type VariableTransition = {
   width: number;
 };
 
-const GRAPHEME_BREAK_PENALTY = 28;
-const WORD_BREAK_PENALTY = 240;
+const SINGLE_EOJEOL_LINE_PENALTY = 48;
 const WIDTH_EPSILON_PX = 1e-6;
 
 /**
@@ -74,16 +83,22 @@ export function wrapNaturalTextToShapeSlots(
     visibleCount,
     slots.length,
   );
-  if (visibleCount < slots.length * minimumLineGraphemes) return null;
+  if (
+    !options.allowSinglePreferredUnit &&
+    visibleCount < slots.length * minimumLineGraphemes
+  ) {
+    return null;
+  }
 
-  const preferred = resolvePreferredNaturalBreaks(
+  const breakProfile = resolveNaturalBreakProfile(
     normalized,
     graphemes,
     locale,
   );
   const allowed = resolveAllowedNaturalBreaks(
     graphemes,
-    preferred,
+    breakProfile.preferred,
+    breakProfile.secondary,
     Math.max(...slots.map((slot) => slot.availableWidthPx)),
     metrics,
     mode,
@@ -92,22 +107,24 @@ export function wrapNaturalTextToShapeSlots(
     graphemes,
     slots,
     allowed,
-    preferred,
+    breakProfile,
     metrics,
     mode,
     minimumLineGraphemes,
+    Boolean(options.allowSinglePreferredUnit),
   );
-  return reconstructVariableWrap(graphemes, slots, table);
+  return reconstructVariableWrap(graphemes, slots, table, breakProfile);
 }
 
 function buildVariableWrapTable(
   graphemes: string[],
   slots: readonly NaturalShapeLineSlot[],
   allowed: ReadonlySet<number>,
-  preferred: ReadonlySet<number>,
+  breakProfile: NaturalBreakProfile,
   metrics: NaturalTextMetrics,
   mode: NaturalWrapMode,
   minimumLineGraphemes: number,
+  allowSinglePreferredUnit: boolean,
 ): VariableWrapTable {
   const lineCount = slots.length;
   const graphemeCount = graphemes.length;
@@ -127,13 +144,14 @@ function buildVariableWrapTable(
       const start = skipNaturalWhitespace(graphemes, rawStart);
       const transition = findBestVariableTransition({
         allowed,
+        allowSinglePreferredUnit,
         costs,
         graphemes,
         lineIndex,
         metrics,
         minimumLineGraphemes,
         mode,
-        preferred,
+        breakProfile,
         slots,
         start,
       });
@@ -148,13 +166,14 @@ function buildVariableWrapTable(
 
 function findBestVariableTransition(context: {
   allowed: ReadonlySet<number>;
+  allowSinglePreferredUnit: boolean;
   costs: number[][];
   graphemes: string[];
   lineIndex: number;
   metrics: NaturalTextMetrics;
   minimumLineGraphemes: number;
   mode: NaturalWrapMode;
-  preferred: ReadonlySet<number>;
+  breakProfile: NaturalBreakProfile;
   slots: readonly NaturalShapeLineSlot[];
   start: number;
 }): VariableTransition | null {
@@ -202,9 +221,7 @@ function resolveVariableTransition(
   const tailCost = context.costs[context.lineIndex + 1][following];
   if (!Number.isFinite(tailCost)) return null;
   return {
-    cost:
-      tailCost +
-      calculateVariableLineCost(context, boundary, end, following, width),
+    cost: tailCost + calculateVariableLineCost(context, end, following, width),
     next: following,
     width,
   };
@@ -221,7 +238,33 @@ function hasValidVariableLineRange(
     context.start,
     end,
   );
-  if (visible < context.minimumLineGraphemes) return false;
+  if (
+    visible < context.minimumLineGraphemes &&
+    !(
+      context.allowSinglePreferredUnit &&
+      visible === 1 &&
+      isCompletePreferredNaturalUnit(
+        context.graphemes.length,
+        context.start,
+        end,
+        context.breakProfile.preferred,
+      )
+    )
+  ) {
+    return false;
+  }
+  if (
+    visible === 1 &&
+    context.allowSinglePreferredUnit &&
+    !isCompletePreferredNaturalUnit(
+      context.graphemes.length,
+      context.start,
+      end,
+      context.breakProfile.preferred,
+    )
+  ) {
+    return false;
+  }
   const isLastLine = context.lineIndex === context.slots.length - 1;
   return isLastLine
     ? following >= context.graphemes.length
@@ -230,7 +273,6 @@ function hasValidVariableLineRange(
 
 function calculateVariableLineCost(
   context: Parameters<typeof findBestVariableTransition>[0],
-  boundary: number,
   end: number,
   following: number,
   width: number,
@@ -239,13 +281,20 @@ function calculateVariableLineCost(
   const fillRatio = width / Math.max(1, slot.availableWidthPx);
   const isLastLine = context.lineIndex === context.slots.length - 1;
   let cost = (isLastLine ? 38 : 100) * (1 - fillRatio) ** 2 + 8;
-  if (!context.preferred.has(boundary) && boundary < context.graphemes.length) {
-    cost +=
-      context.mode === "word" ? WORD_BREAK_PENALTY : GRAPHEME_BREAK_PENALTY;
-  }
-  if (crossesRegionAfterLine(context, boundary)) cost += 320;
+  cost += resolveNaturalBoundaryPenalty(
+    context.breakProfile,
+    context.mode,
+    end,
+    context.graphemes.length,
+  );
+  if (crossesRegionAfterLine(context, end)) cost += 320;
   if (isNaturalPunctuationSlice(context.graphemes, context.start, end)) {
     cost += 500;
+  }
+  if (
+    countSemanticNaturalGraphemes(context.graphemes, context.start, end) === 1
+  ) {
+    cost += SINGLE_EOJEOL_LINE_PENALTY;
   }
   const remainingVisible = countSemanticNaturalGraphemes(
     context.graphemes,
@@ -270,7 +319,7 @@ function crossesRegionAfterLine(
   return Boolean(
     nextSlot &&
     nextSlot.regionIndex !== context.slots[context.lineIndex].regionIndex &&
-    !context.preferred.has(boundary),
+    !context.breakProfile.preferred.has(boundary),
   );
 }
 
@@ -294,10 +343,14 @@ function reconstructVariableWrap(
   graphemes: string[],
   slots: readonly NaturalShapeLineSlot[],
   table: VariableWrapTable,
+  breakProfile: NaturalBreakProfile,
 ): VariableNaturalWrapResult | null {
   if (!Number.isFinite(table.costs[0]?.[0])) return null;
   const lines: string[] = [];
   const lineWidthsPx: number[] = [];
+  let emergencyBreakCount = 0;
+  let secondaryBreakCount = 0;
+  let discouragedBreakCount = 0;
   let start = 0;
   for (let lineIndex = 0; lineIndex < slots.length; lineIndex += 1) {
     start = skipNaturalWhitespace(graphemes, start);
@@ -308,6 +361,12 @@ function reconstructVariableWrap(
     if (!line) return null;
     lines.push(line);
     lineWidthsPx.push(table.widths[lineIndex]?.[start] ?? 0);
+    if (lineIndex < slots.length - 1) {
+      const counts = classifyNaturalBreak(breakProfile, end);
+      emergencyBreakCount += counts.emergency;
+      secondaryBreakCount += counts.secondary;
+      discouragedBreakCount += counts.discouraged;
+    }
     start = following;
   }
   if (skipNaturalWhitespace(graphemes, start) < graphemes.length) return null;
@@ -315,6 +374,9 @@ function reconstructVariableWrap(
     text: lines.join("\n"),
     cost: table.costs[0][0],
     lineWidthsPx,
+    emergencyBreakCount,
+    secondaryBreakCount,
+    discouragedBreakCount,
   };
 }
 

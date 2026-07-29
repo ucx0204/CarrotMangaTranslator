@@ -4,7 +4,12 @@ import {
   segmentNaturalTextGraphemes,
 } from "../src/shared/naturalTextLayout";
 import { resolveNaturalShapeSlotPlans } from "../src/shared/naturalTextLayoutShape";
-import { countSemanticNaturalGraphemes } from "../src/shared/naturalTextLayoutSegmentation";
+import {
+  countSemanticNaturalGraphemes,
+  isSemanticNaturalGrapheme,
+  segmentNaturalTextWords,
+} from "../src/shared/naturalTextLayoutSegmentation";
+import { wrapNaturalTextToShapeSlots } from "../src/shared/naturalTextLayoutVariableWrapping";
 import type { BubbleLayout } from "../src/shared/bubbleLayout";
 import type { TranslationBlock } from "../src/shared/textTypes";
 
@@ -41,6 +46,306 @@ describe("natural translated-text layout", () => {
     expect(result.translatedText.replace(/\n/gu, " ")).toBe(
       block.translatedText,
     );
+  });
+
+  it("keeps Korean eojeols intact across different rectangular sizes", () => {
+    const compact = "잘웃는여자였어";
+    for (const size of [
+      { w: 203, h: 288 },
+      { w: 150, h: 230 },
+      { w: 260, h: 180 },
+    ]) {
+      const result = layout(makeBlock("잘 웃는 여자였어", size));
+
+      expect(result.changed, JSON.stringify(size)).toBe(true);
+      expect(result.translatedText.replace(/\s/gu, "")).toBe(compact);
+      expect(result.translatedText, JSON.stringify(size)).not.toMatch(
+        /웃\n는|여\n자|였\n어/u,
+      );
+      expect(result.diagnostics.estimatedFontSizePx).toBeGreaterThanOrEqual(
+        (result.diagnostics.baselineEstimatedFontSizePx ?? 0) * 0.8,
+      );
+    }
+
+    const staleFont = layout(
+      makeBlock(
+        "잘 웃는 여자였어",
+        { w: 203, h: 288 },
+        { autoFitText: true, fontSizePx: 100 },
+      ),
+    );
+    expect(staleFont.translatedText.replace(/\s/gu, "")).toBe(compact);
+    expect(staleFont.translatedText).not.toMatch(/웃\n는|여\n자|였\n어/u);
+    expect(staleFont.diagnostics.estimatedFontSizePx).toBeGreaterThanOrEqual(
+      (staleFont.diagnostics.baselineEstimatedFontSizePx ?? 0) * 0.8,
+    );
+  });
+
+  it("keeps Korean phrases and conservative ending splits in an oval bubble", () => {
+    const block = makeBlock(
+      "이 녀석 이런 얼굴이었나",
+      { w: 159, h: 279 },
+      {
+        bubbleLayout: makeCircularBubbleLayout(),
+        wordBreak: "break-word",
+      },
+    );
+    const result = layout(block);
+
+    expect(result.changed).toBe(true);
+    expect(result.diagnostics.shapeAware).toBe(true);
+    expect(result.translatedText.replace(/\s/gu, "")).toBe(
+      "이녀석이런얼굴이었나",
+    );
+    expect(result.translatedText).not.toMatch(
+      /이\n녀석|이 녀\n석|얼\n굴|얼굴이\n었나|이었\n나/u,
+    );
+  });
+
+  it("uses the same Korean break priorities with a fixed 24px font", () => {
+    const metrics = {
+      fontSizePx: 24,
+      fontWidthScale: 1,
+      letterSpacingPx: 0,
+      bold: false,
+      italic: false,
+    };
+    const cases = [
+      {
+        text: "잘 웃는 여자였어",
+        widths: [84, 102],
+        expected: "잘 웃는\n여자였어",
+      },
+      {
+        text: "잘 웃는 여자였어",
+        widths: [30, 54, 54, 54],
+        expected: "잘\n웃는\n여자\n였어",
+      },
+      {
+        text: "잘 웃는 여자였어!",
+        widths: [30, 54, 54, 70],
+        expected: "잘\n웃는\n여자\n였어!",
+      },
+      {
+        text: "이 녀석 이런 얼굴이었나",
+        widths: [90, 180],
+        expected: "이 녀석\n이런 얼굴이었나",
+      },
+      {
+        text: "이 녀석 이런 얼굴이었나",
+        widths: [90, 114, 78],
+        expected: "이 녀석\n이런 얼굴\n이었나",
+      },
+    ] as const;
+
+    for (const fixture of cases) {
+      const result = wrapNaturalTextToShapeSlots(
+        fixture.text,
+        fixture.widths.map((availableWidthPx) => ({
+          availableWidthPx,
+          regionIndex: 0,
+        })),
+        metrics,
+        "word",
+        "ko",
+        {
+          minimumLineGraphemes: 2,
+          allowSinglePreferredUnit: true,
+        },
+      );
+      expect(result?.text, JSON.stringify(fixture.widths)).toBe(
+        fixture.expected,
+      );
+      expect(result?.emergencyBreakCount).toBe(0);
+      expect(result?.discouragedBreakCount).toBe(0);
+    }
+  });
+
+  it("uses Korean break penalties for a single eojeol without shrinking", () => {
+    const wrapped = wrapNaturalTextToShapeSlots(
+      "얼굴이었나",
+      [75, 100].map((availableWidthPx) => ({
+        availableWidthPx,
+        regionIndex: 0,
+      })),
+      {
+        fontSizePx: 24,
+        fontWidthScale: 1,
+        letterSpacingPx: 0,
+        bold: false,
+        italic: false,
+      },
+      "grapheme",
+      "ko",
+      { minimumLineGraphemes: 2 },
+    );
+    expect(wrapped?.text).toBe("얼굴\n이었나");
+    expect(wrapped?.emergencyBreakCount).toBe(0);
+    expect(wrapped?.secondaryBreakCount).toBe(1);
+
+    const automatic = layout(makeBlock("얼굴이었나", { w: 100, h: 60 }));
+    expect(automatic.translatedText).toBe("얼굴\n이었나");
+    expect(automatic.diagnostics.estimatedFontSizePx).toBe(
+      automatic.diagnostics.baselineEstimatedFontSizePx,
+    );
+  });
+
+  it("keeps mixed-script Korean eojeols together", () => {
+    const metrics = {
+      fontSizePx: 24,
+      fontWidthScale: 1,
+      letterSpacingPx: 0,
+      bold: false,
+      italic: false,
+    };
+    const fixtures = [
+      {
+        text: "USB가 없다",
+        widths: [75, 54],
+        expected: "USB가\n없다",
+      },
+      {
+        text: "그녀는 AI를 좋아한다",
+        widths: [75, 60, 100],
+        expected: "그녀는\nAI를\n좋아한다",
+      },
+      {
+        text: "100원은 비싸다",
+        widths: [90, 75],
+        expected: "100원은\n비싸다",
+      },
+    ] as const;
+
+    for (const fixture of fixtures) {
+      const result = wrapNaturalTextToShapeSlots(
+        fixture.text,
+        fixture.widths.map((availableWidthPx) => ({
+          availableWidthPx,
+          regionIndex: 0,
+        })),
+        metrics,
+        "word",
+        "ko",
+        { minimumLineGraphemes: 2, allowSinglePreferredUnit: true },
+      );
+      expect(result?.text).toBe(fixture.expected);
+      expect(result?.emergencyBreakCount).toBe(0);
+    }
+  });
+
+  it("keeps hyphens and currency amounts on legal line edges", () => {
+    const metrics = {
+      fontSizePx: 24,
+      fontWidthScale: 1,
+      letterSpacingPx: 0,
+      bold: false,
+      italic: false,
+    };
+    const hyphenated = wrapNaturalTextToShapeSlots(
+      "안녕-하세요",
+      [
+        { availableWidthPx: 60, regionIndex: 0 },
+        { availableWidthPx: 80, regionIndex: 0 },
+      ],
+      metrics,
+      "word",
+      "ko",
+      { minimumLineGraphemes: 2 },
+    );
+    const currency = wrapNaturalTextToShapeSlots(
+      "가격은 $100입니다",
+      [
+        { availableWidthPx: 80, regionIndex: 0 },
+        { availableWidthPx: 140, regionIndex: 0 },
+      ],
+      metrics,
+      "word",
+      "ko",
+      { minimumLineGraphemes: 2 },
+    );
+
+    expect(hyphenated?.text).toBe("안녕-\n하세요");
+    expect(currency?.text).toBe("가격은\n$100입니다");
+  });
+
+  it("does not mistake an ordinary verb ending for a copula split", () => {
+    const result = wrapNaturalTextToShapeSlots(
+      "없어보였다 괜찮다",
+      [72, 72, 72].map((availableWidthPx) => ({
+        availableWidthPx,
+        regionIndex: 0,
+      })),
+      {
+        fontSizePx: 24,
+        fontWidthScale: 1,
+        letterSpacingPx: 0,
+        bold: false,
+        italic: false,
+      },
+      "word",
+      "ko",
+      { minimumLineGraphemes: 2 },
+    );
+
+    expect(result?.secondaryBreakCount).toBe(0);
+  });
+
+  it("integrates fixed 24px Korean layout for rectangles and shaped bubbles", () => {
+    const fixtures = [
+      {
+        text: "잘 웃는 여자였어",
+        size: { w: 110, h: 125 },
+        bubbleLayout: undefined,
+        expected: "잘 웃는\n여자였어",
+      },
+      {
+        text: "이 녀석 이런 얼굴이었나",
+        size: { w: 190, h: 170 },
+        bubbleLayout: makeCircularBubbleLayout(),
+        expected: "이 녀석\n이런 얼굴\n이었나",
+      },
+    ] as const;
+
+    for (const fixture of fixtures) {
+      const result = layout(
+        makeBlock(fixture.text, fixture.size, {
+          autoFitText: false,
+          fontSizePx: 24,
+          bubbleLayout: fixture.bubbleLayout,
+        }),
+      );
+      expect(result.translatedText).toBe(fixture.expected);
+      expect(result.diagnostics.baselineEstimatedFontSizePx).toBe(24);
+      expect(result.diagnostics.estimatedFontSizePx).toBe(24);
+    }
+  });
+
+  it("does not persist a bad Korean phrase split at a fixed font size", () => {
+    const block = makeBlock(
+      "이 녀석",
+      { w: 60, h: 120 },
+      { autoFitText: false, fontSizePx: 24 },
+    );
+    const result = layout(block);
+
+    expect(result.changed).toBe(false);
+    expect(result.translatedText).toBe("이 녀석");
+    expect(result.diagnostics.baselineEstimatedFontSizePx).toBe(24);
+  });
+
+  it("falls back unchanged when auto-fit cannot avoid a bad Korean split", () => {
+    const fixtures = [
+      makeBlock("이 녀석", { w: 60, h: 84 }),
+      makeBlock("사람에게 넘어서", { w: 68, h: 84 }),
+    ];
+
+    for (const block of fixtures) {
+      const result = layout(block);
+      expect(result.changed, block.translatedText).toBe(false);
+      expect(result.translatedText, block.translatedText).toBe(
+        block.translatedText,
+      );
+    }
   });
 
   it("uses grapheme boundaries in a thin horizontal block", () => {
@@ -83,7 +388,7 @@ describe("natural translated-text layout", () => {
     expect(result.diagnostics.estimatedFontSizePx).toBeUndefined();
   });
 
-  it("does not count punctuation as a second readable character", () => {
+  it("does not use punctuation to disguise a one-grapheme fragment", () => {
     const cases = [
       ["나도 알고 있다고!", 52, 180],
       ["마을에... 튈 줄이야!?", 62, 190],
@@ -103,7 +408,11 @@ describe("natural translated-text layout", () => {
             0,
             graphemes.length,
           );
-          return semanticCount >= 2 || countSemanticTextGraphemes(text) <= 1;
+          return (
+            semanticCount >= 2 ||
+            countSemanticTextGraphemes(text) <= 1 ||
+            isCompleteSingleEojeolLine(line, text)
+          );
         }),
         `${text}: ${result.translatedText}`,
       ).toBe(true);
@@ -137,7 +446,115 @@ describe("natural translated-text layout", () => {
     );
   });
 
-  it("rejects vertical when one column does not decisively beat two", () => {
+  it("uses vertical fallback for an ultra-narrow block even if OCR said horizontal", () => {
+    const block = makeBlock("세로쓰기", { w: 25, h: 300 });
+    const result = layout(block, {
+      allowAutoVertical: true,
+      directionPreference: "auto",
+    });
+
+    expect(block.sourceDirection).toBe("horizontal");
+    expect(result.strategy).toBe("vertical");
+    expect(result.renderDirection).toBe("vertical");
+  });
+
+  it("does not reinterpret horizontal Japanese as vertical Korean fallback", () => {
+    const result = layout(makeBlock("セロガキ", { w: 25, h: 300 }), {
+      allowAutoVertical: true,
+      directionPreference: "auto",
+    });
+
+    expect(result.renderDirection).toBe("horizontal");
+    expect(result.strategy).not.toBe("vertical");
+  });
+
+  it("does not apply Korean one-eojeol lines to English text under ko locale", () => {
+    const fixtures = [
+      ["I am", { w: 16, h: 48 }],
+      ["A test", { w: 24, h: 60 }],
+      ["1 2", { w: 20, h: 96 }],
+    ] as const;
+
+    for (const [text, size] of fixtures) {
+      const result = layout(makeBlock(text, size));
+      expect(
+        result.translatedText.split("\n").every((line) => {
+          const graphemes = segmentNaturalTextGraphemes(line);
+          return (
+            countSemanticNaturalGraphemes(graphemes, 0, graphemes.length) >= 2
+          );
+        }),
+        `${text}: ${result.translatedText}`,
+      ).toBe(true);
+    }
+  });
+
+  it("never shrinks a fixed 24px font just to force one vertical column", () => {
+    const fitsAt24 = layout(
+      makeBlock(
+        "세로쓰기",
+        { w: 50, h: 120 },
+        { autoFitText: false, fontSizePx: 24 },
+      ),
+      { allowAutoVertical: true, directionPreference: "auto" },
+    );
+    const tooNarrowAt24 = layout(
+      makeBlock(
+        "세로쓰기",
+        { w: 26, h: 200 },
+        { autoFitText: false, fontSizePx: 24 },
+      ),
+      { allowAutoVertical: true, directionPreference: "auto" },
+    );
+    const automaticAt24 = layout(
+      makeBlock("세로쓰기", { w: 50, h: 120 }, { fontSizePx: 24 }),
+      { allowAutoVertical: true, directionPreference: "auto" },
+    );
+
+    expect(fitsAt24.strategy).toBe("vertical");
+    expect(fitsAt24.renderDirection).toBe("vertical");
+    expect(automaticAt24.strategy).toBe("vertical");
+    expect(automaticAt24.renderDirection).toBe("vertical");
+    expect(automaticAt24.diagnostics.oneColumnMaxFontPx).toBeGreaterThanOrEqual(
+      24,
+    );
+    expect(tooNarrowAt24.strategy).toBe("unchanged");
+    expect(tooNarrowAt24.renderDirection).toBe("horizontal");
+    expect(tooNarrowAt24.diagnostics.oneColumnMaxFontPx).toBeLessThan(24);
+  });
+
+  it("never shrinks the configured auto-fit size for vertical fallback", () => {
+    const result = layout(
+      makeBlock("세로쓰기", { w: 22.5, h: 300 }, { fontSizePx: 20 }),
+      { allowAutoVertical: true, directionPreference: "auto" },
+    );
+
+    expect(result.diagnostics.oneColumnMaxFontPx).toBeLessThan(20);
+    expect(result.renderDirection).toBe("horizontal");
+    expect(result.strategy).not.toBe("vertical");
+  });
+
+  it("matches renderer vertical advance with compact line height and spacing", () => {
+    const result = layout(
+      makeBlock(
+        "세로쓰기",
+        { w: 42, h: 130 },
+        {
+          autoFitText: true,
+          fontSizePx: 24,
+          lineHeight: 0.8,
+          letterSpacing: 0.5,
+        },
+      ),
+      { allowAutoVertical: true, directionPreference: "auto" },
+    );
+
+    expect(result.strategy).toBe("vertical");
+    expect(result.renderDirection).toBe("vertical");
+    expect(result.diagnostics.oneColumnMaxFontPx).toBeGreaterThanOrEqual(24);
+  });
+
+  it("rejects vertical when the configured font does not fit one column", () => {
     const block = makeBlock(
       "가나다라마바사아자차",
       { w: 25, h: 160 },
@@ -151,12 +568,7 @@ describe("natural translated-text layout", () => {
     expect(result.strategy).not.toBe("vertical");
     expect(result.renderDirection).toBe("horizontal");
     expect(result.diagnostics.autoVerticalEligible).toBe(false);
-    expect(result.diagnostics.oneColumnMaxFontPx).toBeGreaterThan(
-      result.diagnostics.twoColumnMaxFontPx ?? 0,
-    );
-    expect(result.diagnostics.oneColumnMaxFontPx).toBeLessThan(
-      (result.diagnostics.twoColumnMaxFontPx ?? 0) * 1.35,
-    );
+    expect(result.diagnostics.oneColumnMaxFontPx).toBeLessThan(24);
   });
 
   it("rejects auto vertical when its one-column font would be tiny", () => {
@@ -558,4 +970,14 @@ function makeConnectedBubbleLayout(): BubbleLayout {
 function countSemanticTextGraphemes(value: string): number {
   const graphemes = segmentNaturalTextGraphemes(value);
   return countSemanticNaturalGraphemes(graphemes, 0, graphemes.length);
+}
+
+function isCompleteSingleEojeolLine(line: string, sourceText: string): boolean {
+  const semanticText = segmentNaturalTextGraphemes(line)
+    .filter(isSemanticNaturalGrapheme)
+    .join("");
+  if (segmentNaturalTextGraphemes(semanticText).length !== 1) return false;
+  return segmentNaturalTextWords(sourceText, "ko").some(
+    (entry) => entry.isWordLike && entry.segment === semanticText,
+  );
 }
