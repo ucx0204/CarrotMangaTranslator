@@ -45,6 +45,7 @@ type TranslationFlowActionContext = Pick<
   | "currentChapter"
   | "jobActive"
   | "mergeLiveChapter"
+  | "naturalTextLayoutDefault"
   | "recordImageEdit"
   | "refreshLibrary"
   | "saveNow"
@@ -71,6 +72,10 @@ export async function runTranslationFlowAction(
     return "no-op";
   }
   const completion = resolveTranslationCompletionOptions(options);
+  const naturalTextLayout = resolveNaturalTextLayout(
+    options.naturalTextLayout,
+    context.naturalTextLayoutDefault,
+  );
   context.flowActiveRef.current = true;
   context.setFlowActive(true);
   try {
@@ -86,6 +91,7 @@ export async function runTranslationFlowAction(
       clearRetouchHistory: context.clearRetouchHistory,
       currentChapter: chapter,
       mergeLiveChapter: context.mergeLiveChapter,
+      naturalTextLayout,
       notificationPort: context.notificationPort,
       recordImageEdit: context.recordImageEdit,
       refreshLibrary: context.refreshLibrary,
@@ -111,6 +117,16 @@ export async function runTranslationFlowAction(
   }
 }
 
+function resolveNaturalTextLayout(
+  requested: boolean | undefined,
+  savedDefault: boolean | undefined,
+): boolean {
+  if (requested !== undefined) {
+    return requested;
+  }
+  return savedDefault ?? true;
+}
+
 export function resolveTranslationCompletionOptions(
   options: Pick<
     TranslationFlowOptions,
@@ -131,6 +147,7 @@ type TranslationInpaintingWorkflowOptions = {
   clearRetouchHistory: () => void;
   currentChapter: ChapterSnapshot;
   mergeLiveChapter: (chapter: ChapterSnapshot) => void;
+  naturalTextLayout: boolean;
   notificationPort: NotificationPort;
   recordImageEdit: (entry: { label: string; transactionId: string }) => void;
   refreshLibrary: () => Promise<void>;
@@ -161,6 +178,9 @@ async function runTranslationInpaintingWorkflow(
               bubbleLayout: {
                 enabled: true as const,
                 policy: "balanced" as const,
+                ...(options.naturalTextLayout
+                  ? { naturalTextLayout: true as const }
+                  : {}),
               },
             },
           }

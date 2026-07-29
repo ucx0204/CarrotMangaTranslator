@@ -17,6 +17,11 @@ export type InpaintingPostprocessOptions = {
   bubbleLayout?: {
     enabled: boolean;
     policy: BubbleLayoutPolicy;
+    /**
+     * Recompute automatic hard line breaks after the final balloon geometry
+     * is known. This avoids preserving wrapping measured against the OCR bbox.
+     */
+    naturalTextLayout?: boolean;
   };
 };
 

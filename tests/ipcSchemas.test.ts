@@ -453,7 +453,11 @@ describe("IPC schemas", () => {
         mode: "page-pattern",
         pageId,
         postprocess: {
-          bubbleLayout: { enabled: true, policy: "balanced" },
+          bubbleLayout: {
+            enabled: true,
+            policy: "balanced",
+            naturalTextLayout: true,
+          },
         },
       },
       "인페인팅 작업",
@@ -461,6 +465,7 @@ describe("IPC schemas", () => {
     expect(parsed.postprocess?.bubbleLayout).toEqual({
       enabled: true,
       policy: "balanced",
+      naturalTextLayout: true,
     });
     expect(() =>
       parseIpcPayload(

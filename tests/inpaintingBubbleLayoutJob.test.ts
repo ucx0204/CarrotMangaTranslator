@@ -17,6 +17,7 @@ const PAGE_ID = "22222222-2222-4222-8222-222222222222";
 const BLOCK_ID = "block-1";
 const SECOND_BLOCK_ID = "block-2";
 const TRANSACTION_ID = "33333333-3333-4333-8333-333333333333";
+const NATURAL_LAYOUT_TEXT = "자연스러운 문장 배치를 여러 단어로 확인합니다";
 
 describe("bubble-aware inpainting postprocess", () => {
   it("applies only the render allowlist and records one compound revision", async () => {
@@ -147,6 +148,140 @@ describe("bubble-aware inpainting postprocess", () => {
 
     expect(result.status).toBe("completed");
     expect(createBubbleLayoutRunner).not.toHaveBeenCalled();
+  });
+
+  it("stores natural hard breaks only after the final Bubble shape is applied", async () => {
+    const page = makePage();
+    const block = page.blocks[0];
+    if (!block) {
+      throw new Error("expected block");
+    }
+    block.translatedText = NATURAL_LAYOUT_TEXT;
+    block.wordBreak = "break-word";
+    const chapters = new Map([[CHAPTER_ID, makeChapter(page)]]);
+    const changes: InpaintingRevisionChange[] = [];
+    const layout = makeBubbleLayout();
+    const runPage = vi.fn<BubbleLayoutRunner["runPage"]>(async () => ({
+      patches: [
+        {
+          blockId: BLOCK_ID,
+          renderBbox: { x: 100, y: 120, w: 240, h: 140 },
+          renderBboxSpace: "normalized_1000",
+          bubbleLayout: layout,
+        },
+      ],
+    }));
+    const runtime = makeRuntime(chapters, () => ({ runPage }));
+    const { startInpaintingJob } =
+      await import("../src/main/jobs/inpaintingJobs");
+
+    const result = await startInpaintingJob(
+      makeContext(changes),
+      {
+        chapterId: CHAPTER_ID,
+        mode: "page-pattern",
+        pageId: PAGE_ID,
+        postprocess: {
+          bubbleLayout: {
+            enabled: true,
+            policy: "balanced",
+            naturalTextLayout: true,
+          },
+        },
+      },
+      runtime,
+    );
+
+    const translatedText =
+      result.chapter?.pages[0]?.blocks[0]?.translatedText ?? "";
+    expect(translatedText).toContain("\n");
+    expect(translatedText.replace(/\n/gu, " ")).toBe(NATURAL_LAYOUT_TEXT);
+    expect(changes[0]?.beforeLayout?.[0]).toHaveProperty(
+      "translatedText",
+      NATURAL_LAYOUT_TEXT,
+    );
+    expect(changes[0]?.afterLayout?.[0]).toHaveProperty(
+      "translatedText",
+      translatedText,
+    );
+    expect(changes[0]?.afterLayout?.[0]?.bubbleLayout).toEqual(layout);
+  });
+
+  it("reflows against an existing manual shape even when detection returns no patch", async () => {
+    const page = makePage();
+    const block = page.blocks[0];
+    if (!block) {
+      throw new Error("expected block");
+    }
+    block.translatedText = NATURAL_LAYOUT_TEXT;
+    block.wordBreak = "break-word";
+    block.renderBbox = { x: 100, y: 120, w: 240, h: 140 };
+    block.renderBboxSpace = "normalized_1000";
+    block.bubbleLayout = makeManualBubbleLayout();
+    const processed = await runBubbleLayoutPostprocess({
+      config: {
+        policy: "balanced",
+        overwriteManual: false,
+        naturalTextLayout: { locale: "ko" },
+      },
+      page,
+      runner: { runPage: async () => ({ patches: [] }) },
+      signal: new AbortController().signal,
+    });
+
+    const translatedText = processed.page.blocks[0]?.translatedText ?? "";
+    expect(translatedText).toContain("\n");
+    expect(translatedText.replace(/\n/gu, " ")).toBe(NATURAL_LAYOUT_TEXT);
+    expect(processed.beforeLayout?.[0]).toHaveProperty(
+      "translatedText",
+      NATURAL_LAYOUT_TEXT,
+    );
+    expect(processed.afterLayout?.[0]).toHaveProperty(
+      "translatedText",
+      translatedText,
+    );
+    expect(processed.page.blocks[0]?.bubbleLayout).toEqual(
+      makeManualBubbleLayout(),
+    );
+  });
+
+  it("leaves hard breaks dynamic when a low-confidence shape is not eligible", async () => {
+    const page = makePage();
+    const block = page.blocks[0];
+    if (!block) {
+      throw new Error("expected block");
+    }
+    block.translatedText = NATURAL_LAYOUT_TEXT;
+    block.wordBreak = "break-word";
+    const lowConfidenceLayout = {
+      ...makeBubbleLayout(),
+      confidence: 0.47,
+    };
+    const processed = await runBubbleLayoutPostprocess({
+      config: {
+        policy: "balanced",
+        overwriteManual: false,
+        naturalTextLayout: { locale: "ko" },
+      },
+      page,
+      runner: {
+        runPage: async () => ({
+          patches: [
+            {
+              blockId: BLOCK_ID,
+              renderBbox: { x: 100, y: 120, w: 240, h: 140 },
+              renderBboxSpace: "normalized_1000",
+              bubbleLayout: lowConfidenceLayout,
+            },
+          ],
+        }),
+      },
+      signal: new AbortController().signal,
+    });
+
+    expect(processed.page.blocks[0]?.translatedText).toBe(NATURAL_LAYOUT_TEXT);
+    expect(processed.beforeLayout?.[0]).not.toHaveProperty("translatedText");
+    expect(processed.afterLayout?.[0]).not.toHaveProperty("translatedText");
   });
 
   it("runs layout-only mode without rerunning the inpainting engine", async () => {

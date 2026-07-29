@@ -14,9 +14,13 @@ import {
 import {
   applyInpaintingLayoutStates,
   captureInpaintingLayoutStates,
-  inpaintingLayoutStatesEqual,
   type InpaintingBlockLayoutState,
 } from "./inpaintingLayoutState";
+import {
+  applyBubbleNaturalTextLayout,
+  collectBubbleLayoutChanges,
+  type BubbleNaturalTextLayoutConfig,
+} from "./bubbleLayoutNaturalText";
 
 type RenderBboxSpace = NonNullable<TranslationBlock["renderBboxSpace"]>;
 
@@ -61,6 +65,8 @@ export type BubbleLayoutPostprocessConfig = {
    * geometry. Translation/inpainting follow-up jobs keep it intact.
    */
   overwriteManual: boolean;
+  /** Apply hard line breaks only after the final balloon geometry is known. */
+  naturalTextLayout?: BubbleNaturalTextLayoutConfig;
 };
 
 export type BubbleLayoutPostprocessResult = {
@@ -82,6 +88,13 @@ export function resolveBubbleLayoutPostprocessConfig(
     ? {
         policy: requested?.policy ?? "balanced",
         overwriteManual: false,
+        ...(requested?.naturalTextLayout
+          ? {
+              naturalTextLayout: {
+                locale: settings.translation?.targetLanguage,
+              },
+            }
+          : {}),
       }
     : null;
 }
@@ -128,26 +141,17 @@ export async function runBubbleLayoutPostprocess({
     config.overwriteManual,
     blockId,
   );
-  if (patches.length === 0) {
-    return { page: baselinePage };
-  }
-
-  const beforeLayout: InpaintingBlockLayoutState[] = [];
-  const afterLayout: InpaintingBlockLayoutState[] = [];
-  for (const patch of patches) {
-    const before = captureInpaintingLayoutStates(baselinePage, [
-      patch.blockId,
-    ])[0];
-    if (!before) {
-      throw new Error("말풍선 배치를 적용할 텍스트 블록을 찾지 못했습니다.");
-    }
-    const after = applyRunnerPatchToState(before, patch, baselinePage);
-    if (inpaintingLayoutStatesEqual([before], [after])) {
-      continue;
-    }
-    beforeLayout.push(before);
-    afterLayout.push(after);
-  }
+  const geometryPage = applyRunnerPatchesToPage(baselinePage, patches);
+  const finalPage = applyBubbleNaturalTextLayout(
+    geometryPage,
+    config.naturalTextLayout,
+    blockId,
+  );
+  const { beforeLayout, afterLayout } = collectBubbleLayoutChanges(
+    baselinePage,
+    finalPage,
+    patches.map((patch) => patch.blockId),
+  );
   if (afterLayout.length === 0) {
     return { page: baselinePage };
   }
@@ -157,6 +161,20 @@ export async function runBubbleLayoutPostprocess({
     beforeLayout,
     afterLayout,
   };
+}
+
+function applyRunnerPatchesToPage(
+  page: MangaPage,
+  patches: readonly BubbleLayoutBlockPatch[],
+): MangaPage {
+  const states = patches.map((patch) => {
+    const before = captureInpaintingLayoutStates(page, [patch.blockId])[0];
+    if (!before) {
+      throw new Error("말풍선 배치를 적용할 텍스트 블록을 찾지 못했습니다.");
+    }
+    return applyRunnerPatchToState(before, patch, page);
+  });
+  return applyInpaintingLayoutStates(page, states);
 }
 
 function parseRunnerPatches(

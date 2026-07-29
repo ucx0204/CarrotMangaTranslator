@@ -148,6 +148,7 @@ const InpaintingPostprocessOptionsSchema = z
       .object({
         enabled: z.boolean(),
         policy: z.enum(["safe", "balanced", "maximize"]),
+        naturalTextLayout: z.boolean().optional(),
       })
       .strict()
       .optional(),

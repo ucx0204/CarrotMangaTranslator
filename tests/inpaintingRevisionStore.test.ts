@@ -77,6 +77,182 @@ describe("InpaintingRevisionStore", () => {
     expect(existsSync(paths.afterB)).toBe(true);
   });
 
+  it("keeps legacy layout states geometry-only and compares opt-in text per block", async () => {
+    const rootDir = await createTempLibrary();
+    await seedLibrary(rootDir);
+    const { library } = await loadModules(rootDir);
+    const {
+      applyInpaintingLayoutStates,
+      captureInpaintingLayoutStates,
+      pageMatchesInpaintingLayoutStates,
+    } = await import("../src/main/inpainting/inpaintingLayoutState");
+    const page = firstPage(await library.openChapter(CHAPTER_A_ID));
+    const firstBlock = page.blocks[0];
+    if (!firstBlock) {
+      throw new Error("Expected a seeded block.");
+    }
+    const mixedPage: MangaPage = {
+      ...page,
+      blocks: [
+        firstBlock,
+        {
+          ...structuredClone(firstBlock),
+          id: "second-block",
+          translatedText: "second translation",
+        },
+      ],
+    };
+
+    const geometryOnly = captureInpaintingLayoutStates(mixedPage, [
+      "seed-block",
+    ]);
+    expect(geometryOnly).toEqual([
+      {
+        blockId: "seed-block",
+        renderBbox: null,
+        renderBboxSpace: null,
+        bubbleLayout: null,
+      },
+    ]);
+    expect(geometryOnly[0]).not.toHaveProperty("translatedText");
+
+    const secondWithText = captureInpaintingLayoutStates(
+      mixedPage,
+      ["second-block"],
+      { includeTranslatedText: true },
+    );
+    expect(secondWithText[0]).toHaveProperty(
+      "translatedText",
+      "second translation",
+    );
+    const geometryState = geometryOnly[0];
+    const textState = secondWithText[0];
+    if (!geometryState || !textState) {
+      throw new Error("Expected captured layout states.");
+    }
+    const mixedExpected = [geometryState, textState];
+    expect(pageMatchesInpaintingLayoutStates(mixedPage, mixedExpected)).toBe(
+      true,
+    );
+    expect(
+      pageMatchesInpaintingLayoutStates(
+        {
+          ...mixedPage,
+          blocks: mixedPage.blocks.map((block) =>
+            block.id === "seed-block"
+              ? { ...block, translatedText: "ignored manual edit" }
+              : block,
+          ),
+        },
+        mixedExpected,
+      ),
+    ).toBe(true);
+    expect(
+      pageMatchesInpaintingLayoutStates(
+        {
+          ...mixedPage,
+          blocks: mixedPage.blocks.map((block) =>
+            block.id === "second-block"
+              ? { ...block, translatedText: "conflicting edit" }
+              : block,
+          ),
+        },
+        mixedExpected,
+      ),
+    ).toBe(false);
+
+    const geometryApplied = applyInpaintingLayoutStates(
+      {
+        ...page,
+        blocks: page.blocks.map((block) => ({
+          ...block,
+          translatedText: "keep this edit",
+        })),
+      },
+      geometryOnly,
+    );
+    expect(geometryApplied.blocks[0]?.translatedText).toBe("keep this edit");
+
+    const invalidTextState = structuredClone(textState);
+    Reflect.set(invalidTextState, "translatedText", 42);
+    expect(() =>
+      applyInpaintingLayoutStates(mixedPage, [invalidTextState]),
+    ).toThrow(/번역문이 올바르지 않습니다/);
+    const invalidTextPage = structuredClone(mixedPage);
+    const invalidTextBlock = invalidTextPage.blocks.find(
+      (block) => block.id === "second-block",
+    );
+    if (!invalidTextBlock) {
+      throw new Error("Expected the second block.");
+    }
+    Reflect.set(invalidTextBlock, "translatedText", null);
+    expect(() =>
+      captureInpaintingLayoutStates(invalidTextPage, ["second-block"], {
+        includeTranslatedText: true,
+      }),
+    ).toThrow(/번역문이 올바르지 않습니다/);
+  });
+
+  it("undoes and redoes opt-in translated text with its layout state", async () => {
+    const rootDir = await createTempLibrary();
+    const paths = await seedLibrary(rootDir);
+    const { InpaintingRevisionStore, library, mutationOperations } =
+      await loadModules(rootDir);
+    const { captureInpaintingLayoutStates } =
+      await import("../src/main/inpainting/inpaintingLayoutState");
+    const store = new InpaintingRevisionStore();
+    const page = firstPage(await library.openChapter(CHAPTER_A_ID));
+    const beforeLayout = captureInpaintingLayoutStates(page, ["seed-block"], {
+      includeTranslatedText: true,
+    });
+    const beforeState = beforeLayout[0];
+    if (!beforeState) {
+      throw new Error("Expected a captured block layout.");
+    }
+    const afterLayout = [
+      {
+        ...beforeState,
+        renderBbox: { x: 140, y: 160, w: 360, h: 300 },
+        renderBboxSpace: "normalized_1000" as const,
+        translatedText: "history generated translation",
+      },
+    ];
+    await mutationOperations.updatePagesAfterInpaintingUnlocked(
+      CHAPTER_A_ID,
+      [page],
+      {
+        layoutPatches: [{ pageId: PAGE_A_ID, states: afterLayout }],
+      },
+    );
+    const committed = firstPage(await library.openChapter(CHAPTER_A_ID));
+    expect(committed.blocks[0]?.translatedText).toBe(
+      "history generated translation",
+    );
+    expect(committed.blocks[0]?.renderBbox).toEqual(afterLayout[0]?.renderBbox);
+
+    const transactionId = store.beginTransaction();
+    store.addChange(transactionId, {
+      chapterId: CHAPTER_A_ID,
+      pageId: PAGE_A_ID,
+      beforePath: paths.afterA,
+      afterPath: paths.afterA,
+      beforeLayout,
+      afterLayout,
+    });
+
+    await store.applyTransaction({ transactionId, direction: "undo" });
+    const undone = firstPage(await library.openChapter(CHAPTER_A_ID));
+    expect(undone.blocks[0]?.translatedText).toBe("translated");
+    expect(undone.blocks[0]?.renderBbox).toBeUndefined();
+
+    await store.applyTransaction({ transactionId, direction: "redo" });
+    const redone = firstPage(await library.openChapter(CHAPTER_A_ID));
+    expect(redone.blocks[0]?.translatedText).toBe(
+      "history generated translation",
+    );
+    expect(redone.blocks[0]?.renderBbox).toEqual(afterLayout[0]?.renderBbox);
+  });
+
   it("undoes and redoes the image and bubble layout as one revision", async () => {
     const rootDir = await createTempLibrary();
     const paths = await seedLibrary(rootDir);

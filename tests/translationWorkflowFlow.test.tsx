@@ -174,7 +174,11 @@ describe("translation workflow modes", () => {
         },
       ],
       postprocess: {
-        bubbleLayout: { enabled: true, policy: "balanced" },
+        bubbleLayout: {
+          enabled: true,
+          policy: "balanced",
+          naturalTextLayout: true,
+        },
       },
     });
     expect(startAnalysis.mock.invocationCallOrder[0]).toBeLessThan(
@@ -499,7 +503,7 @@ describe("translation workflow modes", () => {
     );
   });
 
-  it("does not bake OCR-bbox hard breaks before Bubble postprocess", async () => {
+  it("defers natural hard breaks until Bubble postprocess knows the final shape", async () => {
     const options = makeOptions();
     openChapter.mockResolvedValue(makeChapter());
     startAnalysis.mockResolvedValue({ status: "completed" });
@@ -523,6 +527,45 @@ describe("translation workflow modes", () => {
     });
 
     expect(startAnalysis).toHaveBeenCalledOnce();
+    expect(startAnalysis.mock.calls[0]?.[0]).not.toHaveProperty(
+      "naturalTextLayout",
+    );
+    expect(startInpainting).toHaveBeenCalledWith(
+      expect.objectContaining({
+        postprocess: {
+          bubbleLayout: {
+            enabled: true,
+            policy: "balanced",
+            naturalTextLayout: true,
+          },
+        },
+      }),
+    );
+  });
+
+  it("keeps natural hard breaks disabled during Bubble postprocess when requested", async () => {
+    const options = makeOptions();
+    openChapter.mockResolvedValue(makeChapter());
+    startAnalysis.mockResolvedValue({ status: "completed" });
+    startInpainting.mockResolvedValue({
+      status: "completed",
+      chapters: [makeChapter()],
+    });
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
+
+    await act(async () => {
+      await result.current.runTranslationFlow({
+        selection: [{ chapterId: "chapter-1", mode: "all" }],
+        workflowMode: "cumulative",
+        analysisScope: "missing",
+        blockMode: "auto",
+        naturalTextLayout: false,
+        bubbleLayoutWorkflow: true,
+      });
+    });
+
     expect(startAnalysis.mock.calls[0]?.[0]).not.toHaveProperty(
       "naturalTextLayout",
     );
