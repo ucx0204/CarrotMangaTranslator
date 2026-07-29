@@ -3,10 +3,12 @@
 /**
  * @typedef {RuntimeOptions & { apiKey?: unknown; [key: string]: unknown }} TranslationRequestOptions
  * @typedef {Record<string, unknown>} RequestSummary
+ * @typedef {{ resetAt?: number; resetInSeconds?: number }} UsageLimitFailure
  */
 
 const {
   isOpenAIApiProvider,
+  isOpenAICodexProvider,
   resolveProviderDisplayName,
 } = require("../simple-page-model-config.cjs");
 const { parseApiKeyLines } = require("../simple-page-api-key-config.cjs");
@@ -34,23 +36,123 @@ function createHttpFailureError(options, requestSummary, response, rawText) {
     response.status,
     rawText,
   );
+  const usageLimitFailure = isOpenAICodexProvider(options)
+    ? readUsageLimitFailure(response.status, rawText)
+    : null;
   const nonRetriable =
-    isNonRetriableHttpStatus(response.status) && !retryableCredentialFailure;
-  const message = buildHttpFailureMessage(
-    options,
-    response.status,
-    response.statusText,
-  );
+    (isNonRetriableHttpStatus(response.status) || usageLimitFailure !== null) &&
+    !retryableCredentialFailure;
+  const message = usageLimitFailure
+    ? buildUsageLimitFailureMessage(options, usageLimitFailure)
+    : buildHttpFailureMessage(options, response.status, response.statusText);
   return createDetailedError(message, {
     requestSummary,
     status: response.status,
     statusText: response.statusText,
     rawTextPreview: truncateSensitiveText(rawText, options, 4000),
+    ...(usageLimitFailure
+      ? {
+          usageLimitReached: true,
+          ...(usageLimitFailure.resetAt !== undefined
+            ? { usageLimitResetAt: usageLimitFailure.resetAt }
+            : {}),
+          ...(usageLimitFailure.resetInSeconds !== undefined
+            ? {
+                usageLimitResetInSeconds: usageLimitFailure.resetInSeconds,
+              }
+            : {}),
+        }
+      : {}),
     ...(retryableCredentialFailure ? { apiKeyRetryable: true } : {}),
     ...(nonRetriable
       ? { nonRetriable: true, failureCategory: "model-request" }
       : {}),
   });
+}
+
+/**
+ * A Codex account usage limit is different from a transient 429. Retrying page
+ * after page cannot succeed until the service-provided reset window has passed.
+ *
+ * @param {number} status
+ * @param {unknown} rawText
+ * @returns {UsageLimitFailure | null}
+ */
+function readUsageLimitFailure(status, rawText) {
+  if (status !== 429) {
+    return null;
+  }
+  try {
+    const parsed = asRecord(JSON.parse(String(rawText ?? "")));
+    const detail = asRecord(parsed?.error);
+    const type = String(detail?.type ?? "")
+      .trim()
+      .toLowerCase();
+    if (type !== "usage_limit_reached") {
+      return null;
+    }
+    return {
+      resetAt: readNonNegativeInteger(detail?.resets_at),
+      resetInSeconds: readNonNegativeInteger(detail?.resets_in_seconds),
+    };
+  } catch (_error) {
+    return null;
+  }
+}
+
+/**
+ * @param {TranslationRequestOptions} options
+ * @param {UsageLimitFailure} failure
+ */
+function buildUsageLimitFailureMessage(options, failure) {
+  const providerName = resolveProviderDisplayName(options);
+  const resetHint = buildUsageLimitResetHint(failure);
+  return `${providerName} 요청 실패: 사용 한도에 도달했습니다.${resetHint} 한도가 초기화된 후 다시 시도하거나 설정에서 다른 모델 제공자를 선택하세요.`;
+}
+
+/** @param {UsageLimitFailure} failure */
+function buildUsageLimitResetHint(failure) {
+  const resetInSeconds =
+    failure.resetInSeconds ??
+    (failure.resetAt === undefined
+      ? undefined
+      : Math.max(0, Math.ceil(failure.resetAt - Date.now() / 1000)));
+  if (resetInSeconds === undefined) {
+    return "";
+  }
+  if (resetInSeconds <= 0) {
+    return " 사용 한도가 곧 초기화될 예정입니다.";
+  }
+  return ` 사용 한도 초기화까지 약 ${formatRemainingDuration(resetInSeconds)} 남았습니다.`;
+}
+
+/** @param {number} totalSeconds */
+function formatRemainingDuration(totalSeconds) {
+  const totalMinutes = Math.max(1, Math.floor(totalSeconds / 60));
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+  const minutes = totalMinutes % 60;
+  if (days > 0) {
+    return hours > 0 ? `${days}일 ${hours}시간` : `${days}일`;
+  }
+  if (hours > 0) {
+    return minutes > 0 ? `${hours}시간 ${minutes}분` : `${hours}시간`;
+  }
+  return `${totalMinutes}분`;
+}
+
+/** @param {unknown} value */
+function readNonNegativeInteger(value) {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? Math.floor(value)
+    : undefined;
+}
+
+/** @param {unknown} value @returns {Record<string, unknown> | null} */
+function asRecord(value) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? /** @type {Record<string, unknown>} */ (value)
+    : null;
 }
 
 /**

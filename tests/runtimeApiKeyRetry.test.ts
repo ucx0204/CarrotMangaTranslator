@@ -130,6 +130,87 @@ describe("runtime API key retry policy", () => {
     }
   });
 
+  it("stops immediately when Codex reports a hard usage limit", () => {
+    const rawText = JSON.stringify({
+      error: {
+        type: "usage_limit_reached",
+        message: "The usage limit has been reached",
+        resets_at: 1_785_903_018,
+        resets_in_seconds: 558_651,
+      },
+    });
+    const error = createHttpFailureError(
+      { modelProvider: "openai-codex" },
+      {},
+      new Response(rawText, {
+        status: 429,
+        statusText: "Too Many Requests",
+      }),
+      rawText,
+    );
+
+    expect(error).toMatchObject({
+      failureCategory: "model-request",
+      nonRetriable: true,
+      status: 429,
+      usageLimitReached: true,
+      usageLimitResetAt: 1_785_903_018,
+      usageLimitResetInSeconds: 558_651,
+    });
+    expect(error.message).toContain(
+      "OpenAI Codex 요청 실패: 사용 한도에 도달했습니다.",
+    );
+    expect(error.message).toContain("약 6일 11시간");
+    expect(error.message).toContain("다른 모델 제공자를 선택하세요.");
+  });
+
+  it("keeps an ordinary 429 retryable", () => {
+    const rawText = '{"error":{"type":"server_busy"}}';
+    const error = createHttpFailureError(
+      { modelProvider: "openai-codex" },
+      {},
+      new Response(rawText, {
+        status: 429,
+        statusText: "Too Many Requests",
+      }),
+      rawText,
+    );
+
+    expect(error.message).toBe("OpenAI Codex request failed (429).");
+    expect(error.nonRetriable).toBeUndefined();
+  });
+
+  it("leaves the API-key provider's 429 policy unchanged", () => {
+    const rawText = '{"error":{"type":"usage_limit_reached"}}';
+    const error = createHttpFailureError(
+      { modelProvider: "openai-api" },
+      {},
+      new Response(rawText, { status: 429 }),
+      rawText,
+    );
+
+    expect(error.nonRetriable).toBeUndefined();
+    expect(error).not.toHaveProperty("usageLimitReached");
+  });
+
+  it("does not infer a Codex usage limit from malformed or unstructured text", () => {
+    for (const rawText of [
+      "usage_limit_reached",
+      '{"error":{"message":"usage_limit_reached"}}',
+      '{"error":',
+    ]) {
+      const error = createHttpFailureError(
+        { modelProvider: "openai-codex" },
+        {},
+        new Response(rawText, { status: 429 }),
+        rawText,
+      );
+
+      expect(error.nonRetriable).toBeUndefined();
+      expect(error).not.toHaveProperty("usageLimitReached");
+    }
+  });
+
   it("stops immediately for an independent 4xx response", async () => {
     const error = Object.assign(new Error("bad request"), {
       failureCategory: "model-request",
