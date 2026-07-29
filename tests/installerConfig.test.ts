@@ -84,6 +84,17 @@ describe("Windows installer clean uninstall option", () => {
         "!panel-window-bounds.json",
         "!recent-dialog-paths.json",
         "!docs{,/**/*}",
+        "!node_modules/onnxruntime-web/docs{,/**/*}",
+        "!node_modules/onnxruntime-web/lib{,/**/*}",
+        "!node_modules/onnxruntime-web/dist/!(ort.node.min.js)",
+        "!node_modules/{flatbuffers,guid-typescript,long,platform,protobufjs}{,/**/*}",
+        "!node_modules/@protobufjs{,/**/*}",
+      ]),
+      extraResources: expect.arrayContaining([
+        {
+          from: "node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs",
+          to: "app-runtime/onnxruntime-web/1.27.0/ort-wasm-simd-threaded.mjs",
+        },
       ]),
       nsis: {
         differentialPackage: false,
@@ -129,9 +140,16 @@ describe("Windows installer clean uninstall option", () => {
       expect(packageJson.dependencies).not.toHaveProperty(packageName);
       expect(packageJson.devDependencies).toHaveProperty(packageName);
     }
-    for (const runtimePackage of ["adm-zip", "i18next", "yauzl", "zod"]) {
+    for (const runtimePackage of [
+      "adm-zip",
+      "i18next",
+      "onnxruntime-web",
+      "yauzl",
+      "zod",
+    ]) {
       expect(packageJson.dependencies).toHaveProperty(runtimePackage);
     }
+    expect(packageJson.dependencies["onnxruntime-web"]).toBe("1.27.0");
   });
 
   it("refuses mismatched release metadata and publishes notes with the policy link", () => {

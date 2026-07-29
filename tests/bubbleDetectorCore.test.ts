@@ -6,6 +6,14 @@ import {
   COMIC_BUBBLE_DETECTOR_FILE,
   COMIC_BUBBLE_DETECTOR_REVISION,
   COMIC_BUBBLE_DETECTOR_SHA256,
+  ONNXRUNTIME_WEB_VERSION,
+  ONNXRUNTIME_WEB_WASM_BINARY_BYTES,
+  ONNXRUNTIME_WEB_WASM_BINARY_FILE,
+  ONNXRUNTIME_WEB_WASM_BINARY_SHA256,
+  ONNXRUNTIME_WEB_WASM_BINARY_URL,
+  ONNXRUNTIME_WEB_WASM_MODULE_BYTES,
+  ONNXRUNTIME_WEB_WASM_MODULE_FILE,
+  ONNXRUNTIME_WEB_WASM_MODULE_SHA256,
 } from "../src/main/bubbleLayout/constants";
 import type { ComicPageDetection } from "../src/main/bubbleLayout/contracts";
 import { parseComicDetectorOutputs } from "../src/main/bubbleLayout/outputs";
@@ -23,6 +31,22 @@ describe("comic bubble RT-DETR core", () => {
     expect(COMIC_BUBBLE_DETECTOR_BYTES).toBe(11_120_765);
     expect(COMIC_BUBBLE_DETECTOR_URL).toContain(
       `/resolve/${COMIC_BUBBLE_DETECTOR_REVISION}/${COMIC_BUBBLE_DETECTOR_FILE}`,
+    );
+    expect(ONNXRUNTIME_WEB_VERSION).toBe("1.27.0");
+    expect(ONNXRUNTIME_WEB_WASM_MODULE_FILE).toBe("ort-wasm-simd-threaded.mjs");
+    expect(ONNXRUNTIME_WEB_WASM_MODULE_BYTES).toBe(24_180);
+    expect(ONNXRUNTIME_WEB_WASM_MODULE_SHA256).toBe(
+      "0a1e718d99c41b22c21f2520ff4f9e883a6b5533856e398d21816ee8eb8185d3",
+    );
+    expect(ONNXRUNTIME_WEB_WASM_BINARY_FILE).toBe(
+      "ort-wasm-simd-threaded.wasm",
+    );
+    expect(ONNXRUNTIME_WEB_WASM_BINARY_BYTES).toBe(13_479_978);
+    expect(ONNXRUNTIME_WEB_WASM_BINARY_SHA256).toBe(
+      "d1ab1b94b16a65b29d710d0b587b29e7bed336827577623913479b8afe8113e6",
+    );
+    expect(ONNXRUNTIME_WEB_WASM_BINARY_URL).toBe(
+      "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.27.0/dist/ort-wasm-simd-threaded.wasm",
     );
   });
 

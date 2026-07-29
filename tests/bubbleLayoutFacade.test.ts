@@ -2,15 +2,23 @@ import { createHash } from "node:crypto";
 import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resolveBubbleLayoutBlockRevision } from "../src/main/bubbleLayout/bubbleLayoutPageProcessor";
 import type { BubbleLayout } from "../src/shared/bubbleLayout";
 import type { MangaPage } from "../src/shared/libraryTypes";
 
+const bubbleRuntimeMocks = vi.hoisted(() => ({
+  detectComicPageLayout: vi.fn(),
+  ensureComicBubbleDetectorAssets: vi.fn(),
+}));
+
 vi.mock("../src/main/bubbleLayout/assets", () => ({
-  ensureComicBubbleDetectorModel: vi.fn(async () => {
-    throw new Error("detector unavailable");
-  }),
+  ensureComicBubbleDetectorAssets:
+    bubbleRuntimeMocks.ensureComicBubbleDetectorAssets,
+}));
+
+vi.mock("../src/main/bubbleLayout/detector", () => ({
+  detectComicPageLayout: bubbleRuntimeMocks.detectComicPageLayout,
 }));
 
 vi.mock("../src/main/logger", () => ({
@@ -18,6 +26,14 @@ vi.mock("../src/main/logger", () => ({
 }));
 
 const temporaryRoots: string[] = [];
+
+beforeEach(() => {
+  bubbleRuntimeMocks.ensureComicBubbleDetectorAssets.mockReset();
+  bubbleRuntimeMocks.ensureComicBubbleDetectorAssets.mockRejectedValue(
+    new Error("detector unavailable"),
+  );
+  bubbleRuntimeMocks.detectComicPageLayout.mockReset();
+});
 
 afterEach(async () => {
   await Promise.all(
@@ -28,6 +44,49 @@ afterEach(async () => {
 });
 
 describe("production bubble layout failure fallback", () => {
+  it("passes the verified model and WASM runtime paths to the detector", async () => {
+    const files = await createPageFiles();
+    const page = makePage(files.original, files.cleaned);
+    const detectorAssets = {
+      modelPath: join(files.root, "model.onnx"),
+      wasmBinaryPath: join(files.root, "ort.wasm"),
+      wasmModulePath: join(files.root, "ort.mjs"),
+    };
+    bubbleRuntimeMocks.ensureComicBubbleDetectorAssets.mockResolvedValue(
+      detectorAssets,
+    );
+    bubbleRuntimeMocks.detectComicPageLayout.mockRejectedValue(
+      new Error("stop after forwarding"),
+    );
+    const { createProductionBubbleLayoutRunner } =
+      await import("../src/main/bubbleLayout/bubbleLayoutFacade");
+    const runner = createProductionBubbleLayoutRunner({
+      dataRoot: files.root,
+    });
+    const signal = new AbortController().signal;
+
+    await runner.runPage({
+      imagePath: files.cleaned,
+      page,
+      policy: "balanced",
+      signal,
+    });
+
+    expect(
+      bubbleRuntimeMocks.ensureComicBubbleDetectorAssets,
+    ).toHaveBeenCalledWith({
+      dataRoot: files.root,
+      signal,
+    });
+    expect(bubbleRuntimeMocks.detectComicPageLayout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        imagePath: files.original,
+        ...detectorAssets,
+        signal,
+      }),
+    );
+  });
+
   it("preserves a current generated layout but clears it after the image changes", async () => {
     const files = await createPageFiles();
     const page = makePage(files.original, files.cleaned);

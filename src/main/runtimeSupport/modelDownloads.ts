@@ -26,6 +26,7 @@ type DownloadRuntime = {
       file: string;
       destination: string;
       label: string;
+      expectedSha256?: string;
       progressPhase?: string;
       progressTitle?: string;
       completeTitle?: string;
@@ -82,6 +83,8 @@ export async function ensureRemoteFile(options: {
     progressPhase: options.progressPhase,
     progressText: tMain("downloads.downloading", { label: options.label }),
     label: options.fileName,
+    expectedSha256: options.expectedSha256,
+    minimumBytes: options.minimumBytes,
     onProgress: options.onProgress,
   });
   if (!options.expectedSha256) {
@@ -113,10 +116,17 @@ export async function downloadToFile(options: {
   progressPhase?: string;
   progressText: string;
   label: string;
+  expectedSha256?: string;
+  minimumBytes?: number;
   expectedTotalBytes?: number;
   onProgress?: (progress: RuntimeAssetProgress) => void;
 }): Promise<void> {
-  if (await isUsableRemoteFile(options.outputPath, options.url)) {
+  if (
+    await isUsableRemoteFile(options.outputPath, options.url, {
+      expectedSha256: options.expectedSha256,
+      minimumBytes: options.minimumBytes,
+    })
+  ) {
     reportDownloadCacheHit(options);
     return;
   }
@@ -134,6 +144,7 @@ export async function downloadToFile(options: {
       file: path.basename(options.outputPath),
       destination: options.outputPath,
       label: options.label,
+      expectedSha256: options.expectedSha256,
       progressPhase: options.progressPhase ?? "inpainting_downloading",
       progressTitle: options.progressText,
       completeTitle: tMain("downloads.completed", { label: options.label }),

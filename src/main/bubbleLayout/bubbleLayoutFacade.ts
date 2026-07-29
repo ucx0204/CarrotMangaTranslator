@@ -9,7 +9,7 @@ import type {
   BubbleLayoutRunnerResult,
 } from "../inpainting/bubbleLayoutRunner";
 import { loadPageImage } from "../inpainting/imageIO";
-import { ensureComicBubbleDetectorModel } from "./assets";
+import { ensureComicBubbleDetectorAssets } from "./assets";
 import { detectComicPageLayout } from "./detector";
 import {
   processDetectedBubbleLayouts,
@@ -35,13 +35,15 @@ async function runProductionBubbleLayout(
       request.page.imagePath,
       request.imagePath,
     );
-    const modelPath = await ensureComicBubbleDetectorModel({
+    const detectorAssets = await ensureComicBubbleDetectorAssets({
       dataRoot: options.dataRoot,
       signal: request.signal,
     });
     const detection = await detectComicPageLayout({
       imagePath: request.page.imagePath,
-      modelPath,
+      modelPath: detectorAssets.modelPath,
+      wasmBinaryPath: detectorAssets.wasmBinaryPath,
+      wasmModulePath: detectorAssets.wasmModulePath,
       scoreThreshold: 0.35,
       signal: request.signal,
       decodeFallback: options.decodeFallback,

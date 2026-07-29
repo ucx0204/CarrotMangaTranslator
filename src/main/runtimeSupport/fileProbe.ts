@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   createReadStream,
   existsSync,
@@ -6,7 +6,7 @@ import {
   readFileSync,
   statSync,
 } from "node:fs";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
 type RemoteFileMetadata = {
   url: string;
@@ -244,30 +244,32 @@ export async function isUsableRemoteFile(
     return false;
   }
   const metadata = await readRemoteFileMetadata(filePath);
-  if (!metadata) {
-    return !options.expectedSha256;
-  }
   try {
     const fileStat = statSync(filePath);
     const expectedSha256 = options.expectedSha256?.toLowerCase();
+    if (!expectedSha256) {
+      return metadata
+        ? remoteFileMetadataMatches(metadata, url, fileStat.size, minimumBytes)
+        : true;
+    }
     if (
-      !remoteFileMetadataMatches(
+      metadata &&
+      remoteFileMetadataMatches(
         metadata,
         url,
         fileStat.size,
         minimumBytes,
         expectedSha256,
-      )
+      ) &&
+      metadata.mtimeMs === fileStat.mtimeMs
     ) {
-      return false;
-    }
-    if (!expectedSha256 || metadata.mtimeMs === fileStat.mtimeMs) {
       return true;
     }
     return await verifyRemoteFileHash(
       filePath,
+      url,
       expectedSha256,
-      fileStat.mtimeMs,
+      fileStat,
       metadata,
     );
   } catch (_error) {
@@ -292,17 +294,20 @@ function remoteFileMetadataMatches(
 
 async function verifyRemoteFileHash(
   filePath: string,
+  url: string,
   expectedSha256: string,
-  mtimeMs: number,
-  metadata: RemoteFileMetadata,
+  fileStat: { size: number; mtimeMs: number },
+  metadata: RemoteFileMetadata | null,
 ): Promise<boolean> {
   if ((await sha256File(filePath)) !== expectedSha256) {
     return false;
   }
   try {
     await writeRemoteFileMetadata(filePath, {
-      ...metadata,
-      mtimeMs,
+      url,
+      bytes: fileStat.size,
+      downloadedAt: metadata?.downloadedAt ?? new Date().toISOString(),
+      mtimeMs: fileStat.mtimeMs,
       sha256: expectedSha256,
     });
   } catch (_error) {
@@ -336,11 +341,18 @@ export async function writeRemoteFileMetadata(
   filePath: string,
   metadata: RemoteFileMetadata,
 ): Promise<void> {
-  await writeFile(
-    remoteFileMetadataPath(filePath),
-    `${JSON.stringify(metadata, null, 2)}\n`,
-    "utf8",
-  );
+  const metadataPath = remoteFileMetadataPath(filePath);
+  const temporaryPath = `${metadataPath}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(
+      temporaryPath,
+      `${JSON.stringify(metadata, null, 2)}\n`,
+      "utf8",
+    );
+    await rename(temporaryPath, metadataPath);
+  } finally {
+    await rm(temporaryPath, { force: true });
+  }
 }
 
 function remoteFileMetadataPath(filePath: string): string {

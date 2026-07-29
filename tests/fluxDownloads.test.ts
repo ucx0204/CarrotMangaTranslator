@@ -136,7 +136,113 @@ describe("Flux asset downloads", () => {
         expectedSha256: "0".repeat(64),
         minimumBytes: 1,
       }),
-    ).rejects.toThrow(/SHA-256 검증/);
+    ).rejects.toThrow(/체크섬|SHA-256/);
     await expect(readFile(join(dir, "invalid.gguf"))).rejects.toThrow();
+    await expect(readFile(join(dir, "invalid.gguf.part"))).rejects.toThrow();
+  });
+
+  it.each(["missing", "incomplete"] as const)(
+    "recovers a valid committed payload with %s metadata without downloading",
+    async (metadataState) => {
+      const dir = await mkdtemp(join(tmpdir(), "manga-flux-recover-"));
+      tempDirs.push(dir);
+      const fileName = "committed.bin";
+      const outputPath = join(dir, fileName);
+      const metadataPath = `${outputPath}.mgtmeta.json`;
+      const url =
+        "https://huggingface.co/example/repo/resolve/revision/committed.bin";
+      const body = Buffer.from("committed-before-metadata");
+      const expectedSha256 = createHash("sha256").update(body).digest("hex");
+      await writeFile(outputPath, body);
+      if (metadataState === "incomplete") {
+        await writeFile(
+          metadataPath,
+          `${JSON.stringify({
+            url,
+            bytes: body.length,
+            downloadedAt: new Date().toISOString(),
+          })}\n`,
+        );
+      }
+      const fetchMock = vi.fn(async () => {
+        throw new Error("valid committed payload must not be downloaded");
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      await ensureRemoteFile({
+        modelDir: dir,
+        fileName,
+        label: "Committed asset",
+        url,
+        expectedSha256,
+        minimumBytes: 1,
+      });
+
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(await readFile(outputPath)).toEqual(body);
+      expect(JSON.parse(await readFile(metadataPath, "utf8"))).toMatchObject({
+        url,
+        bytes: body.length,
+        mtimeMs: expect.any(Number),
+        sha256: expectedSha256,
+      });
+    },
+  );
+
+  it("does not commit a cancelled checksummed download", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "manga-flux-abort-"));
+    tempDirs.push(dir);
+    const fileName = "cancelled.bin";
+    const outputPath = join(dir, fileName);
+    const url =
+      "https://huggingface.co/example/repo/resolve/revision/cancelled.bin";
+    const abortController = new AbortController();
+    const expectedSha256 = createHash("sha256")
+      .update("complete-payload")
+      .digest("hex");
+    let pullCount = 0;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pullCount += 1;
+        if (pullCount === 1) {
+          controller.enqueue(Buffer.from("partial"));
+          return;
+        }
+        abortController.abort();
+        const error = new Error("cancelled while streaming");
+        error.name = "AbortError";
+        controller.error(error);
+      },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init?: RequestInit) =>
+        init?.method === "HEAD"
+          ? new Response(null, { status: 200 })
+          : new Response(body, { status: 200 }),
+      ),
+    );
+
+    await expect(
+      ensureRemoteFile({
+        modelDir: dir,
+        fileName,
+        label: "Cancelled asset",
+        url,
+        expectedSha256,
+        minimumBytes: 1,
+        signal: abortController.signal,
+      }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+
+    await expect(readFile(outputPath)).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    await expect(readFile(`${outputPath}.part`)).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    await expect(readFile(`${outputPath}.mgtmeta.json`)).rejects.toMatchObject({
+      code: "ENOENT",
+    });
   });
 });

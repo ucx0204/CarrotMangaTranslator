@@ -182,6 +182,7 @@ const { resolveMacArtifactSet, verifyUnpackedApplication } =
         verifyNative: (appPath: string) => unknown;
         verifyChannel: (appPath: string) => void;
         verifySignature: (appPath: string) => void;
+        verifyOnnx: (appPath: string) => void;
         verifyTar: (appPath: string) => void;
         verifyApplicationSmoke: (appPath: string) => void;
         verifyRuntimes: (appPath: string) => void;
@@ -750,6 +751,7 @@ describe("Apple Silicon Alpha packaging", () => {
       verifyNative: record("native"),
       verifyChannel: record("channel"),
       verifySignature: record("signature"),
+      verifyOnnx: record("onnx"),
       verifyTar: record("tar"),
       verifyApplicationSmoke: record("application-smoke"),
       verifyRuntimes: record("runtimes"),
@@ -765,6 +767,7 @@ describe("Apple Silicon Alpha packaging", () => {
       "native",
       "channel",
       "signature",
+      "onnx",
       "tar",
       "application-smoke",
       "runtimes",

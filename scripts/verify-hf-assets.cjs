@@ -1,4 +1,5 @@
 // @ts-check
+const { createHash } = require("node:crypto");
 const { readFileSync } = require("node:fs");
 const path = require("node:path");
 const {
@@ -135,6 +136,21 @@ const assets = [
       "COMIC_BUBBLE_DETECTOR_SHA256",
     ),
   },
+  {
+    label: "ONNX bubble detector WASM runtime",
+    url: readStringConstant(
+      bubbleLayoutAssets,
+      "ONNXRUNTIME_WEB_WASM_BINARY_URL",
+    ),
+    expectedSha256: readStringConstant(
+      bubbleLayoutAssets,
+      "ONNXRUNTIME_WEB_WASM_BINARY_SHA256",
+    ),
+    expectedBytes: readNumberConstant(
+      bubbleLayoutAssets,
+      "ONNXRUNTIME_WEB_WASM_BINARY_BYTES",
+    ),
+  },
   ...PADDLE_OCR_MODEL_DOWNLOADS.flatMap((entry) =>
     entry.files.map((file) => ({
       label: `${entry.name}: ${file}`,
@@ -184,20 +200,30 @@ async function main() {
 /**
  * @typedef {{
  *   label:string;
- *   repo:string;
- *   file:string;
+ *   repo?:string;
+ *   file?:string;
+ *   url?:string;
  *   revision?:string;
  *   expectedSha256?:string;
+ *   expectedBytes?:number;
  * }} RemoteAsset
  */
 
 /** @param {RemoteAsset} asset */
 async function verifyAsset(asset) {
-  const url = buildHfResolveUrl(asset.repo, asset.file, asset.revision);
+  const url =
+    asset.url ||
+    buildHfResolveUrl(
+      requireAssetField(asset.repo, asset.label, "repo"),
+      requireAssetField(asset.file, asset.label, "file"),
+      asset.revision,
+    );
   let lastError = null;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     try {
-      return await verifyAssetHead(url, asset);
+      return asset.url
+        ? await verifyDirectAsset(url, asset)
+        : await verifyAssetHead(url, asset);
     } catch (error) {
       lastError = error;
       if (attempt < MAX_ATTEMPTS) {
@@ -206,6 +232,44 @@ async function verifyAsset(asset) {
     }
   }
   throw new Error(`${url}: ${formatError(lastError)}`);
+}
+
+/** @param {string} url @param {RemoteAsset} asset */
+async function verifyDirectAsset(url, asset) {
+  const response = await fetch(url, {
+    redirect: "follow",
+    headers: {
+      "Accept-Encoding": "identity",
+      "User-Agent": "carrot-manga-translator-release-check",
+    },
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+  assertHeadStatus(response);
+  if (!response.body) {
+    throw new Error("download response is missing a body");
+  }
+  const hash = createHash("sha256");
+  let bytes = 0;
+  for await (const chunk of response.body) {
+    const buffer = Buffer.from(chunk);
+    bytes += buffer.length;
+    hash.update(buffer);
+  }
+  if (asset.expectedBytes && bytes !== asset.expectedBytes) {
+    throw new Error(
+      `size mismatch: expected ${asset.expectedBytes}, got ${bytes}`,
+    );
+  }
+  const actualSha256 = hash.digest("hex");
+  if (
+    asset.expectedSha256 &&
+    actualSha256 !== asset.expectedSha256.toLowerCase()
+  ) {
+    throw new Error(
+      `SHA-256 mismatch: expected ${asset.expectedSha256}, got ${actualSha256}`,
+    );
+  }
+  return bytes;
 }
 
 /** @param {string} url @param {RemoteAsset} asset */
@@ -350,6 +414,23 @@ function readStringConstant(source, name) {
   const match = pattern.exec(source);
   if (!match) throw new Error(`String constant not found: ${name}`);
   return match[1];
+}
+
+/** @param {string} source @param {string} name */
+function readNumberConstant(source, name) {
+  const pattern = new RegExp(
+    `(?:export\\s+)?const\\s+${escapeRegExp(name)}\\s*=\\s*([\\d_]+)\\s*;`,
+    "s",
+  );
+  const match = pattern.exec(source);
+  if (!match) throw new Error(`Number constant not found: ${name}`);
+  return Number(match[1].replaceAll("_", ""));
+}
+
+/** @param {string|undefined} value @param {string} label @param {string} name */
+function requireAssetField(value, label, name) {
+  if (!value) throw new Error(`${label} is missing ${name}`);
+  return value;
 }
 
 /** @param {string} value */

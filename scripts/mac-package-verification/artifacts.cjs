@@ -176,6 +176,52 @@ function verifyPackagedTarRuntime(appPath) {
 }
 
 /** @param {string} appPath */
+function verifyPackagedOnnxRuntime(appPath) {
+  const appExecutable = join(
+    appPath,
+    "Contents",
+    "MacOS",
+    "CarrotMangaTranslator",
+  );
+  const resourcesDir = join(appPath, "Contents", "Resources");
+  const runtimeEntryPath = join(
+    resourcesDir,
+    "app.asar",
+    "node_modules",
+    "onnxruntime-web",
+    "dist",
+    "ort.node.min.js",
+  );
+  const wasmModulePath = join(
+    resourcesDir,
+    "app-runtime",
+    "onnxruntime-web",
+    "1.27.0",
+    "ort-wasm-simd-threaded.mjs",
+  );
+  const wasmBinaryFixturePath = join(
+    root,
+    "node_modules",
+    "onnxruntime-web",
+    "dist",
+    "ort-wasm-simd-threaded.wasm",
+  );
+  run(
+    appExecutable,
+    [
+      join(root, "scripts", "smoke-packaged-onnx-runtime.cjs"),
+      runtimeEntryPath,
+      wasmModulePath,
+      wasmBinaryFixturePath,
+    ],
+    {
+      env: { ELECTRON_RUN_AS_NODE: "1" },
+      timeout: 30_000,
+    },
+  );
+}
+
+/** @param {string} appPath */
 function verifyPackagedBuildChannel(appPath) {
   const appExecutable = join(
     appPath,
@@ -323,6 +369,7 @@ module.exports = {
   verifyFinalZipArchive,
   verifyNativePayload,
   verifyPackagedBuildChannel,
+  verifyPackagedOnnxRuntime,
   verifyPackagedTarRuntime,
   verifyRequiredRuntimes,
   verifySigning,

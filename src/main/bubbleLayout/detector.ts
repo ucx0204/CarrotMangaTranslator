@@ -11,6 +11,8 @@ export async function detectComicPageLayout(options: {
   /** Callers should pass the original page image, not an inpainted derivative. */
   imagePath: string;
   modelPath: string;
+  wasmBinaryPath: string;
+  wasmModulePath: string;
   scoreThreshold?: number;
   signal?: AbortSignal;
   decodeFallback?: ImageDecodeFallback;
@@ -18,10 +20,12 @@ export async function detectComicPageLayout(options: {
   throwIfAborted(options.signal);
   const image = await loadPageImage(options.imagePath, options.decodeFallback);
   const prepared = prepareComicDetectorImage(image, options.signal);
-  const session = await getComicBubbleDetectorSession(
-    options.modelPath,
-    options.signal,
-  );
+  const session = await getComicBubbleDetectorSession({
+    modelPath: options.modelPath,
+    wasmBinaryPath: options.wasmBinaryPath,
+    wasmModulePath: options.wasmModulePath,
+    signal: options.signal,
+  });
   const inputs = createDetectorInputs(prepared);
   try {
     const outputs = await runDetectorSession(session, inputs, options.signal);

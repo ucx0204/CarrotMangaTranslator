@@ -31,10 +31,16 @@ const macDeveloperSigning = process.env.MGT_MAC_SIGNING_MODE === "developer-id";
 const macRuntimeRoot =
   process.env.MGT_MAC_RUNTIME_ROOT || join(__dirname, ".tmp", "mac-runtime");
 const stagedMacTools = join(macRuntimeRoot, "tools");
+const onnxRuntimeWebVersion = "1.27.0";
+const onnxWasmModuleFile = "ort-wasm-simd-threaded.mjs";
 const extraResources = [
   {
     from: "out/app-runtime",
     to: "app-runtime",
+  },
+  {
+    from: `node_modules/onnxruntime-web/dist/${onnxWasmModuleFile}`,
+    to: `app-runtime/onnxruntime-web/${onnxRuntimeWebVersion}/${onnxWasmModuleFile}`,
   },
 ];
 const windowsExtraResources = [];
@@ -235,6 +241,18 @@ module.exports = {
     "!vite*.config.ts",
     "!vitest.config.ts",
     "!out/app-runtime{,/**/*}",
+    // Bubble detection uses the Node WASM entry. Keep its tiny JS loader and
+    // shared API, stage the 24 KiB ESM glue above, and download the pinned
+    // 13 MiB WASM binary into the persistent data root on first use.
+    "!node_modules/onnxruntime-web/docs{,/**/*}",
+    "!node_modules/onnxruntime-web/lib{,/**/*}",
+    "!node_modules/onnxruntime-web/dist/!(ort.node.min.js)",
+    // These are browser-only dependencies of onnxruntime-web. The Node entry
+    // requires only onnxruntime-common and Node built-ins.
+    "!node_modules/{flatbuffers,guid-typescript,long,platform,protobufjs}{,/**/*}",
+    "!node_modules/@protobufjs{,/**/*}",
+    "!node_modules/@types/node{,/**/*}",
+    "!node_modules/undici-types{,/**/*}",
   ],
   extraResources,
   asar: true,

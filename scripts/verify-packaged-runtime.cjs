@@ -36,7 +36,30 @@ const packagedNativeImportModule = join(
   "main",
   "nativeDynamicImport.js",
 );
-const smokeScript = join(__dirname, "smoke-openai-oauth-runtime.cjs");
+const oauthSmokeScript = join(__dirname, "smoke-openai-oauth-runtime.cjs");
+const onnxSmokeScript = join(__dirname, "smoke-packaged-onnx-runtime.cjs");
+const onnxRuntimeEntryPath = join(
+  resourcesDir,
+  "app.asar",
+  "node_modules",
+  "onnxruntime-web",
+  "dist",
+  "ort.node.min.js",
+);
+const onnxWasmModulePath = join(
+  resourcesDir,
+  "app-runtime",
+  "onnxruntime-web",
+  "1.27.0",
+  "ort-wasm-simd-threaded.mjs",
+);
+const onnxWasmBinaryFixturePath = join(
+  root,
+  "node_modules",
+  "onnxruntime-web",
+  "dist",
+  "ort-wasm-simd-threaded.wasm",
+);
 const allowedElectronLocales = new Set([
   "en-GB.pak",
   "en-US.pak",
@@ -66,6 +89,16 @@ if (existsSync(asarUnpackedNodeModules)) {
 if (!existsSync(appExecutable)) {
   throw new Error(`Packaged Electron executable is missing: ${appExecutable}`);
 }
+if (!existsSync(onnxWasmModulePath)) {
+  throw new Error(
+    `Packaged ONNX module glue is missing: ${onnxWasmModulePath}`,
+  );
+}
+if (!existsSync(onnxWasmBinaryFixturePath)) {
+  throw new Error(
+    `ONNX smoke WASM fixture is missing: ${onnxWasmBinaryFixturePath}`,
+  );
+}
 const zipSafety = assertFastZipPayload(unpackedDir);
 const packagedElectronLocales = new Set(
   readdirSync(join(unpackedDir, "locales")),
@@ -81,9 +114,9 @@ for (const localeFile of packagedElectronLocales) {
   }
 }
 
-const result = spawnSync(
+const oauthResult = spawnSync(
   appExecutable,
-  [smokeScript, oauthRuntimePath, packagedNativeImportModule],
+  [oauthSmokeScript, oauthRuntimePath, packagedNativeImportModule],
   {
     encoding: "utf8",
     env: {
@@ -94,20 +127,26 @@ const result = spawnSync(
     windowsHide: true,
   },
 );
-if (result.error) {
-  throw result.error;
-}
-if (result.status !== 0) {
-  throw new Error(
-    [
-      `Packaged OAuth runtime smoke failed with exit code ${result.status}.`,
-      result.stdout,
-      result.stderr,
-    ]
-      .filter(Boolean)
-      .join("\n"),
-  );
-}
+assertSmokeSucceeded(oauthResult, "Packaged OAuth runtime");
+const onnxResult = spawnSync(
+  appExecutable,
+  [
+    onnxSmokeScript,
+    onnxRuntimeEntryPath,
+    onnxWasmModulePath,
+    onnxWasmBinaryFixturePath,
+  ],
+  {
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      ELECTRON_RUN_AS_NODE: "1",
+    },
+    timeout: 30_000,
+    windowsHide: true,
+  },
+);
+assertSmokeSucceeded(onnxResult, "Packaged ONNX runtime");
 
 const packageStats = countFiles(unpackedDir);
 if (packageStats.files > MAX_PACKAGED_FILES) {
@@ -124,7 +163,8 @@ if (packageStats.bytes > MAX_PACKAGED_BYTES) {
     ).toFixed(1)} MiB > ${MAX_PACKAGED_BYTES / 1024 / 1024} MiB`,
   );
 }
-console.log(result.stdout.trim());
+console.log(oauthResult.stdout.trim());
+console.log(onnxResult.stdout.trim());
 console.log(
   `[package] ${packageStats.files} files, ${(
     packageStats.bytes /
@@ -155,4 +195,25 @@ function countFiles(directory) {
     }
   }
   return { files, bytes };
+}
+
+/**
+ * @param {import("node:child_process").SpawnSyncReturns<string>} result
+ * @param {string} label
+ */
+function assertSmokeSucceeded(result, label) {
+  if (result.error) {
+    throw result.error;
+  }
+  if (result.status !== 0) {
+    throw new Error(
+      [
+        `${label} smoke failed with exit code ${result.status}.`,
+        result.stdout,
+        result.stderr,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
+  }
 }
