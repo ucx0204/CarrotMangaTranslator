@@ -67,6 +67,7 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     expect(defaults.inpainting?.model).toBe("flux-klein");
     expect(defaults.inpainting?.koharuBackend).toBe("auto");
     expect(defaults.inpainting?.bubbleLayoutAfterInpainting).toBe(false);
+    expect(defaults.inpainting?.bubbleLayoutPaddingRatio).toBe(0.12);
     expect(defaults.blockFormatDefaults?.wordBreak).toBe("break-word");
     expect(defaults.ui?.naturalTextLayoutDefault).toBe(true);
     expect(defaults.ui?.eraseOriginalWorkflowDefault).toBe(false);
@@ -191,6 +192,47 @@ describeWindows("app settings helpers: defaults and stored values", () => {
         defaults,
       ).inpainting?.bubbleLayoutAfterInpainting,
     ).toBe(false);
+  });
+
+  it("defaults bubble layout padding to 12% and clamps stored ratios", () => {
+    const defaults = resolveDefaultAppSettings();
+
+    expect(
+      parseStoredAppSettings(JSON.stringify({ inpainting: {} }), defaults)
+        .inpainting?.bubbleLayoutPaddingRatio,
+    ).toBe(0.12);
+    expect(
+      parseStoredAppSettings(
+        JSON.stringify({
+          inpainting: { bubbleLayoutPaddingRatio: 0.24 },
+        }),
+        defaults,
+      ).inpainting?.bubbleLayoutPaddingRatio,
+    ).toBe(0.24);
+    expect(
+      parseStoredAppSettings(
+        JSON.stringify({
+          inpainting: { bubbleLayoutPaddingRatio: -0.1 },
+        }),
+        defaults,
+      ).inpainting?.bubbleLayoutPaddingRatio,
+    ).toBe(0);
+    expect(
+      parseStoredAppSettings(
+        JSON.stringify({
+          inpainting: { bubbleLayoutPaddingRatio: 1 },
+        }),
+        defaults,
+      ).inpainting?.bubbleLayoutPaddingRatio,
+    ).toBe(0.7);
+    expect(
+      parseStoredAppSettings(
+        JSON.stringify({
+          inpainting: { bubbleLayoutPaddingRatio: "invalid" },
+        }),
+        defaults,
+      ).inpainting?.bubbleLayoutPaddingRatio,
+    ).toBe(0.12);
   });
 
   it("uses hardware-based provider and VRAM mode defaults when no override is provided", () => {

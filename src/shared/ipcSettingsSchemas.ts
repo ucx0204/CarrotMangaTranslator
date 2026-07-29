@@ -30,6 +30,10 @@ import {
   MIN_API_RETRY_DELAY_SECONDS,
 } from "./apiKeySettings";
 import {
+  MAX_BUBBLE_LAYOUT_PADDING_RATIO,
+  MIN_BUBBLE_LAYOUT_PADDING_RATIO,
+} from "./bubbleLayoutSettings";
+import {
   isCanonicalKeybindingCombo,
   MAX_KEYBINDING_COMBO_LENGTH,
   SHORTCUT_ACTION_IDS,
@@ -138,6 +142,11 @@ export const AppSettingsSchema = z
         koharuBackend: KoharuInpaintingBackendSchema.optional(),
         allowUnsafeLowMemoryFlux: z.boolean().optional(),
         bubbleLayoutAfterInpainting: z.boolean().optional(),
+        bubbleLayoutPaddingRatio: z
+          .number()
+          .min(MIN_BUBBLE_LAYOUT_PADDING_RATIO)
+          .max(MAX_BUBBLE_LAYOUT_PADDING_RATIO)
+          .optional(),
       })
       .strict()
       .optional(),

@@ -669,6 +669,7 @@ describe("IPC schemas", () => {
         fluxBackend: "rocm",
         koharuBackend: "amd",
         bubbleLayoutAfterInpainting: true,
+        bubbleLayoutPaddingRatio: 0.24,
       },
       ui: {
         eraseOriginalWorkflowDefault: true,
@@ -695,6 +696,7 @@ describe("IPC schemas", () => {
     expect(parsed.ocr.qualityMode).toBe("economy");
     expect(parsed.ocr.gpuBackend).toBe("rocm-transformers");
     expect(parsed.inpainting?.bubbleLayoutAfterInpainting).toBe(true);
+    expect(parsed.inpainting?.bubbleLayoutPaddingRatio).toBe(0.24);
     expect(parsed.ui?.eraseOriginalWorkflowDefault).toBe(true);
     expect(parsed.ui?.bubbleLayoutWorkflowDefault).toBe(false);
     expect(
@@ -748,6 +750,21 @@ describe("IPC schemas", () => {
     expect(() =>
       parseIpcPayload(AppSettingsSchema, { ...payload, ctx: 512 }, "설정 저장"),
     ).toThrow(/요청 형식/);
+    for (const bubbleLayoutPaddingRatio of [-0.01, 0.71]) {
+      expect(() =>
+        parseIpcPayload(
+          AppSettingsSchema,
+          {
+            ...payload,
+            inpainting: {
+              ...payload.inpainting,
+              bubbleLayoutPaddingRatio,
+            },
+          },
+          "설정 저장",
+        ),
+      ).toThrow(/요청 형식/);
+    }
     expect(
       parseIpcPayload(
         AppSettingsSchema,

@@ -309,6 +309,7 @@ describe("bubble layout page processor", () => {
         detection(1, [75, 15, 105, 50], 0.98),
       ],
       policy: "maximize",
+      paddingRatio: 0,
       pageRevision: "page-revision",
       repairOriginalTextInk: true,
     });

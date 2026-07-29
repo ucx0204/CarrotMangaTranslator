@@ -117,6 +117,10 @@ function useSettingsFormSetters(
         setValues,
         "allowUnsafeLowMemoryFlux",
       ),
+      setBubbleLayoutPaddingRatio: createFormFieldDispatch(
+        setValues,
+        "bubbleLayoutPaddingRatio",
+      ),
       setMaxTokens: createFormFieldDispatch(setValues, "maxTokens"),
       setContextTokens: createFormFieldDispatch(setValues, "contextTokens"),
     }),

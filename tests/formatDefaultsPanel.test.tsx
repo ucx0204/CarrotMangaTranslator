@@ -12,7 +12,7 @@ import { createBlockFontCatalog } from "../src/renderer/src/lib/fonts";
 afterEach(cleanup);
 
 describe("FormatDefaultsPanel", () => {
-  it("uses the same preview and three always-visible editor sections", () => {
+  it("uses the same preview and four always-visible editor sections", () => {
     const { container } = renderPanel();
 
     expect(container.querySelector(".gather-direct-preview")).toBeTruthy();
@@ -20,12 +20,14 @@ describe("FormatDefaultsPanel", () => {
       container.querySelectorAll(
         ".format-defaults-editor-controls > .gather-direct-editor-section",
       ),
-    ).toHaveLength(3);
+    ).toHaveLength(4);
     expect(container.querySelector("details")).toBeNull();
     expect(screen.getByRole("slider", { name: "줄 간격" })).toBeTruthy();
     expect(screen.getByRole("slider", { name: "자간" })).toBeTruthy();
     expect(screen.getByRole("slider", { name: "장평" })).toBeTruthy();
     expect(screen.getByRole("slider", { name: "글자 투명도" })).toBeTruthy();
+    expect(screen.getByRole("slider", { name: "안쪽 여백" })).toBeTruthy();
+    expect(screen.getByText("12%")).toBeTruthy();
     expect(
       (
         screen.getByRole("combobox", {
@@ -124,28 +126,57 @@ describe("FormatDefaultsPanel", () => {
       screen.getByText("단어를 자르지 않고 단어 사이에서 줄을 바꿉니다."),
     ).toBeTruthy();
   });
+
+  it("updates bubble-fit padding as a bounded percentage ratio", () => {
+    const onPaddingChange = vi.fn();
+    renderPanel(vi.fn(), onPaddingChange);
+    const slider = screen.getByRole("slider", {
+      name: "안쪽 여백",
+    }) as HTMLInputElement;
+
+    expect(slider.value).toBe("0.12");
+    expect(slider.min).toBe("0");
+    expect(slider.max).toBe("0.7");
+    expect(slider.step).toBe("0.01");
+
+    fireEvent.change(slider, { target: { value: "0.7" } });
+
+    expect(onPaddingChange).toHaveBeenLastCalledWith(0.7);
+    expect(screen.getByText("70%")).toBeTruthy();
+  });
 });
 
-function renderPanel(onChange = vi.fn()) {
+function renderPanel(onChange = vi.fn(), onPaddingChange = vi.fn()) {
   return render(
     <FontsContext.Provider value={FONT_CONTEXT_VALUE}>
-      <FormatDefaultsHarness onChange={onChange} />
+      <FormatDefaultsHarness
+        onChange={onChange}
+        onPaddingChange={onPaddingChange}
+      />
     </FontsContext.Provider>,
   );
 }
 
 function FormatDefaultsHarness({
   onChange,
+  onPaddingChange,
 }: {
   onChange: (patch: Partial<BlockFormatDefaults>) => void;
+  onPaddingChange: (value: number) => void;
 }): React.JSX.Element {
   const [value, setValue] = React.useState<BlockFormatDefaults>({
     ...DEFAULT_BLOCK_FORMAT_DEFAULTS,
     fontSizePx: 24,
   });
+  const [paddingRatio, setPaddingRatio] = React.useState(0.12);
   return (
     <FormatDefaultsPanel
+      bubbleLayoutPaddingRatio={paddingRatio}
       value={value}
+      onBubbleLayoutPaddingRatioChange={(nextValue) => {
+        onPaddingChange(nextValue);
+        setPaddingRatio(nextValue);
+      }}
       onChange={(patch) => {
         onChange(patch);
         setValue((current) => ({ ...current, ...patch }));

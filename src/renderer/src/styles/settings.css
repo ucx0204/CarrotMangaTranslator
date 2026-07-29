@@ -446,6 +446,10 @@
   opacity: 0.48;
 }
 
+.format-defaults-bubble-padding-slider {
+  max-width: 560px;
+}
+
 @container (max-width: 620px) {
   .format-defaults-editor .gather-direct-preview-head {
     align-items: stretch;
@@ -484,6 +488,19 @@
 }
 
 @container (max-width: 440px) {
+  .format-defaults-bubble-padding-slider {
+    grid-template-columns: minmax(0, 1fr) max-content;
+    column-gap: var(--sp-3);
+    row-gap: 8px;
+    max-width: none;
+  }
+
+  .format-defaults-bubble-padding-slider > .range-input-shell {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+  }
+
   .format-defaults-editor .gather-direct-editor-type-row,
   .format-defaults-editor .gather-direct-editor-color-row {
     grid-template-columns: 1fr;

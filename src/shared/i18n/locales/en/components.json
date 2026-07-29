@@ -1364,6 +1364,11 @@
         "letterSpacing": "Letter spacing",
         "fontWidth": "Character width"
       },
+      "bubbleLayout": {
+        "title": "Bubble fitting",
+        "description": "Space reserved inside the detected bubble boundary",
+        "padding": "Inner padding"
+      },
       "color": {
         "title": "Color & outline",
         "ariaLabel": "Default colors",

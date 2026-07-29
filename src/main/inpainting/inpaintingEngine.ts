@@ -24,6 +24,11 @@ type InpaintRunOptions = {
   maxPixels?: number;
   bubbleMask?: Uint8Array;
   windowMasks?: InpaintingWindowMask[];
+  /**
+   * Optional per-window hard boundaries for the final composite. A null entry
+   * keeps that window unconstrained.
+   */
+  compositeConstraints?: Array<InpaintingWindowMask | null>;
 };
 
 export type InpaintingEngine = {

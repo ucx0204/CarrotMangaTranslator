@@ -11,16 +11,13 @@ import {
 } from "./fluxEngineConstants";
 import { resolveFluxCropPaths, writeFluxCropInputs } from "./fluxCropIO";
 import { FluxWorker } from "./fluxWorker";
-import {
-  compositeFluxOutput,
-  cropBitmapFromPage,
-  readGeneratedBitmap,
-} from "./imageRaster";
+import { cropBitmapFromPage, readGeneratedBitmap } from "./imageRaster";
 import type { InpaintingWindowMask } from "./inpaintingEngine";
 import {
   buildExclusivePaddedWindowMasks,
   type ExclusiveInpaintingWindowMasks,
 } from "./inpaintingWindowMask";
+import { compositeConstrainedFluxOutput } from "./fluxCompositeConstraint";
 import type { PixelRect } from "./maskGeometry";
 import { prepareFluxWindow } from "./fluxWindowPreparation";
 import {
@@ -37,6 +34,7 @@ type FluxInpaintRunOptions = {
   maskPaddingPx?: number;
   maxPixels?: number;
   windowMasks?: InpaintingWindowMask[];
+  compositeConstraints?: Array<InpaintingWindowMask | null>;
 };
 
 type ResolvedFluxInpaintOptions = {
@@ -128,9 +126,20 @@ export async function runFluxInpaint(
   ) {
     throw new Error("Block-owned mask count does not match Flux window count.");
   }
+  if (runOptions.compositeConstraints) {
+    if (
+      runOptions.compositeConstraints.length !== windows.length ||
+      runOptions.windowMasks?.length !== windows.length
+    ) {
+      throw new Error(
+        "Composite constraint count does not match Flux window count.",
+      );
+    }
+  }
   const options = resolveFluxInpaintOptions(runOptions);
   const windowMasks =
-    isolateWindowMasks && runOptions.windowMasks
+    (isolateWindowMasks || runOptions.compositeConstraints) &&
+    runOptions.windowMasks
       ? buildExclusivePaddedWindowMasks(
           runOptions.windowMasks,
           width,
@@ -236,7 +245,7 @@ async function processFluxWindow({
   const { crops, effectiveMask } = prepareFluxWindow({
     cropOptions: options,
     height,
-    isolateWindowMasks,
+    isolateWindowMasks: isolateWindowMasks || !!runOptions.compositeConstraints,
     mask,
     tileLargeCrops,
     width,
@@ -282,15 +291,19 @@ async function processFluxWindow({
     if (stats.maskedPixels > 0) {
       changeStats.push(stats);
     }
-    compositeFluxOutput(
+    compositeConstrainedFluxOutput({
       bitmap,
       generated,
       effectiveMask,
       width,
-      crop.paddedBounds,
-      options.featherPx,
-      crop.writeBounds,
-    );
+      height,
+      crop,
+      featherPx: options.featherPx,
+      index,
+      windowMask: windowMasks?.[index],
+      coreWindowMasks: runOptions.windowMasks,
+      compositeConstraints: runOptions.compositeConstraints,
+    });
   }
   return summarizeFluxWindowChange(changeStats, index);
 }

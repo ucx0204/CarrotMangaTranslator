@@ -1351,6 +1351,11 @@
         "letterSpacing": "字間",
         "fontWidth": "文字幅"
       },
+      "bubbleLayout": {
+        "title": "吹き出し合わせ",
+        "description": "検出した吹き出しの境界から内側に確保する余白",
+        "padding": "内側の余白"
+      },
       "color": {
         "title": "色・縁取り",
         "ariaLabel": "既定の色",

@@ -49,6 +49,11 @@ import { normalizeBlockFormatDefaults } from "./blockFormatDefaultsNormalize";
 import { normalizeUiSettings } from "./appSettingsUiNormalize";
 import { resolveUnsafeUnifiedMemorySetting } from "./gemmaMemorySettings";
 import { normalizeStoredKeybindingOverrides } from "../../shared/shortcutSettings";
+import {
+  DEFAULT_BUBBLE_LAYOUT_PADDING_RATIO,
+  MAX_BUBBLE_LAYOUT_PADDING_RATIO,
+  MIN_BUBBLE_LAYOUT_PADDING_RATIO,
+} from "../../shared/bubbleLayoutSettings";
 
 export function normalizeAppSettings(
   raw: unknown,
@@ -353,6 +358,13 @@ function normalizeInpaintingSettings(
     bubbleLayoutAfterInpainting: resolveBoolean(
       inpainting?.bubbleLayoutAfterInpainting,
       defaults.inpainting?.bubbleLayoutAfterInpainting ?? false,
+    ),
+    bubbleLayoutPaddingRatio: resolveNumberRange(
+      inpainting?.bubbleLayoutPaddingRatio,
+      defaults.inpainting?.bubbleLayoutPaddingRatio ??
+        DEFAULT_BUBBLE_LAYOUT_PADDING_RATIO,
+      MIN_BUBBLE_LAYOUT_PADDING_RATIO,
+      MAX_BUBBLE_LAYOUT_PADDING_RATIO,
     ),
   };
 }

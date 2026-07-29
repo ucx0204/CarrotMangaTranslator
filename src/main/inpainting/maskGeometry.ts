@@ -1,4 +1,8 @@
-import { bboxToPixels, clamp } from "../../shared/geometry";
+import {
+  bboxToPixels,
+  clamp,
+  resolveBlockRenderBbox,
+} from "../../shared/geometry";
 import type { BBox, TranslationBlock } from "../../shared/textTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
 
@@ -99,6 +103,19 @@ export function bboxToPixelRect(bbox: BBox, page: MangaPage): PixelRect {
     w: Math.max(1, x2 - x1),
     h: Math.max(1, y2 - y1),
   };
+}
+
+export function resolveBlockRenderBboxInPixels(
+  block: TranslationBlock,
+  page: Pick<MangaPage, "width" | "height">,
+  imageWidth: number,
+  imageHeight: number,
+): BBox {
+  return bboxToPixels(
+    resolveBlockRenderBbox(block, page),
+    imageWidth,
+    imageHeight,
+  );
 }
 
 export function resolvePatternBlockMarginPx(

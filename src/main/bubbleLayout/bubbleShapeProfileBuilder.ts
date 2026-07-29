@@ -3,6 +3,10 @@ import type {
   BubbleShapeRegion,
   BubbleShapeSpan,
 } from "../../shared/bubbleLayout";
+import {
+  applyBubbleLayoutPaddingToBounds,
+  type BubbleLayoutEnvelope,
+} from "../../shared/bubbleLayoutPadding";
 import { pixelsToBbox } from "../../shared/geometry";
 import type {
   BBox,
@@ -25,6 +29,7 @@ export type BubbleShapeProfileInput = {
   sourceImageRevision: string;
   insetPx: number;
   regionGapPx: number;
+  paddingRatio?: number;
 };
 
 export type BubbleShapeProfileResult = {
@@ -58,28 +63,64 @@ export function buildBubbleShapeProfile(
     profile = buildProfileData(ordered, input.renderDirection);
     if (!profile) return null;
   }
+  const rawBubbleLayout: BubbleLayout = {
+    version: 1,
+    direction: input.renderDirection,
+    confidence: clamp(input.confidence, 0, 1),
+    origin: "detected",
+    modelId: input.modelId,
+    sourceImageRevision: input.sourceImageRevision,
+    insetRatio: 0,
+    regions: profile.regions.map((item) => item.profile),
+  };
+  const padded = applyBubbleLayoutPaddingToBounds(
+    rawBubbleLayout,
+    input.paddingRatio,
+  );
+  const paddedPixelBounds = cropBoundsToLogicalEnvelope(
+    profile.pixelBounds,
+    padded.envelope,
+    input.renderDirection,
+  );
   return {
     renderBbox: pixelsToBbox(
-      profile.pixelBounds,
+      paddedPixelBounds,
       input.pageWidth,
       input.pageHeight,
     ),
     renderBboxSpace: "normalized_1000",
     bubbleLayout: {
-      version: 1,
-      direction: input.renderDirection,
-      confidence: clamp(input.confidence, 0, 1),
-      origin: "detected",
-      modelId: input.modelId,
-      sourceImageRevision: input.sourceImageRevision,
+      ...padded.bubbleLayout,
       insetRatio: clamp(
         input.insetPx /
-          Math.max(1, Math.min(profile.pixelBounds.w, profile.pixelBounds.h)),
+          Math.max(1, Math.min(paddedPixelBounds.w, paddedPixelBounds.h)),
         0,
         0.49,
       ),
-      regions: profile.regions.map((item) => item.profile),
     },
+  };
+}
+
+function cropBoundsToLogicalEnvelope(
+  bounds: BBox,
+  envelope: BubbleLayoutEnvelope,
+  direction: RenderTextDirection,
+): BBox {
+  const blockExtent = envelope.blockEnd - envelope.blockStart;
+  const inlineExtent = envelope.inlineEnd - envelope.inlineStart;
+  if (direction === "horizontal") {
+    return {
+      x: bounds.x + envelope.inlineStart * bounds.w,
+      y: bounds.y + envelope.blockStart * bounds.h,
+      w: inlineExtent * bounds.w,
+      h: blockExtent * bounds.h,
+    };
+  }
+  return {
+    x: bounds.x + envelope.blockStart * bounds.w,
+    y: bounds.y + envelope.inlineStart * bounds.h,
+    w: blockExtent * bounds.w,
+    h: inlineExtent * bounds.h,
   };
 }
 

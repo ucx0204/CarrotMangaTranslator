@@ -89,7 +89,10 @@ export function useSettingsModalController({
     draft,
     form,
     formatPanelProps: {
+      bubbleLayoutPaddingRatio: form.values.bubbleLayoutPaddingRatio,
       value: blockFormatDefaults,
+      onBubbleLayoutPaddingRatioChange:
+        form.setters.setBubbleLayoutPaddingRatio,
       onChange: updateBlockFormatDefaults,
     },
     jobActive,

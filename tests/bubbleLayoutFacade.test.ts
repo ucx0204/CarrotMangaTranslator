@@ -12,6 +12,11 @@ const bubbleRuntimeMocks = vi.hoisted(() => ({
   ensureComicBubbleDetectorAssets: vi.fn(),
 }));
 
+const nativeImageMocks = vi.hoisted(() => ({
+  createFromBuffer: vi.fn(),
+  createFromPath: vi.fn(),
+}));
+
 vi.mock("../src/main/bubbleLayout/assets", () => ({
   ensureComicBubbleDetectorAssets:
     bubbleRuntimeMocks.ensureComicBubbleDetectorAssets,
@@ -19,6 +24,13 @@ vi.mock("../src/main/bubbleLayout/assets", () => ({
 
 vi.mock("../src/main/bubbleLayout/detector", () => ({
   detectComicPageLayout: bubbleRuntimeMocks.detectComicPageLayout,
+}));
+
+vi.mock("electron", () => ({
+  nativeImage: {
+    createFromBuffer: nativeImageMocks.createFromBuffer,
+    createFromPath: nativeImageMocks.createFromPath,
+  },
 }));
 
 vi.mock("../src/main/logger", () => ({
@@ -33,6 +45,8 @@ beforeEach(() => {
     new Error("detector unavailable"),
   );
   bubbleRuntimeMocks.detectComicPageLayout.mockReset();
+  nativeImageMocks.createFromBuffer.mockReset();
+  nativeImageMocks.createFromPath.mockReset();
 });
 
 afterEach(async () => {
@@ -44,6 +58,113 @@ afterEach(async () => {
 });
 
 describe("production bubble layout failure fallback", () => {
+  it("reuses original-page detector output across mask and final layout passes", async () => {
+    const files = await createPageFiles();
+    const finalPage = makePage(files.original, files.cleaned);
+    const prepassPage = structuredClone(finalPage);
+    delete prepassPage.inpaintedImagePath;
+    const detectorAssets = {
+      modelPath: join(files.root, "model.onnx"),
+      wasmBinaryPath: join(files.root, "ort.wasm"),
+      wasmModulePath: join(files.root, "ort.mjs"),
+    };
+    const image = createFakeNativeImage();
+    bubbleRuntimeMocks.ensureComicBubbleDetectorAssets.mockResolvedValue(
+      detectorAssets,
+    );
+    bubbleRuntimeMocks.detectComicPageLayout.mockResolvedValue({
+      imageWidth: 4,
+      imageHeight: 4,
+      detections: [],
+    });
+    nativeImageMocks.createFromPath.mockReturnValue(image);
+    const { createProductionBubbleLayoutRunner } =
+      await import("../src/main/bubbleLayout/bubbleLayoutFacade");
+    const runner = createProductionBubbleLayoutRunner({
+      dataRoot: files.root,
+    });
+    const signal = new AbortController().signal;
+
+    await runner.runPage({
+      imagePath: files.original,
+      page: prepassPage,
+      paddingRatio: 0,
+      policy: "balanced",
+      signal,
+    });
+    await runner.runPage({
+      imagePath: files.cleaned,
+      page: finalPage,
+      paddingRatio: 0.12,
+      policy: "balanced",
+      signal,
+    });
+
+    expect(
+      bubbleRuntimeMocks.ensureComicBubbleDetectorAssets,
+    ).toHaveBeenCalledTimes(1);
+    expect(bubbleRuntimeMocks.detectComicPageLayout).toHaveBeenCalledTimes(1);
+    expect(bubbleRuntimeMocks.detectComicPageLayout).toHaveBeenCalledWith(
+      expect.objectContaining({
+        imagePath: files.original,
+        ...detectorAssets,
+      }),
+    );
+    expect(nativeImageMocks.createFromPath).toHaveBeenNthCalledWith(
+      1,
+      files.original,
+    );
+    expect(nativeImageMocks.createFromPath).toHaveBeenNthCalledWith(
+      2,
+      files.cleaned,
+    );
+  });
+
+  it("retries final detection after a transient prepass failure", async () => {
+    const files = await createPageFiles();
+    const finalPage = makePage(files.original, files.cleaned);
+    const prepassPage = structuredClone(finalPage);
+    delete prepassPage.inpaintedImagePath;
+    bubbleRuntimeMocks.ensureComicBubbleDetectorAssets.mockResolvedValue({
+      modelPath: join(files.root, "model.onnx"),
+      wasmBinaryPath: join(files.root, "ort.wasm"),
+      wasmModulePath: join(files.root, "ort.mjs"),
+    });
+    bubbleRuntimeMocks.detectComicPageLayout
+      .mockRejectedValueOnce(new Error("transient detector failure"))
+      .mockResolvedValueOnce({
+        imageWidth: 4,
+        imageHeight: 4,
+        detections: [],
+      });
+    nativeImageMocks.createFromPath.mockReturnValue(createFakeNativeImage());
+    const { createProductionBubbleLayoutRunner } =
+      await import("../src/main/bubbleLayout/bubbleLayoutFacade");
+    const runner = createProductionBubbleLayoutRunner({
+      dataRoot: files.root,
+    });
+    const signal = new AbortController().signal;
+
+    await runner.runPage({
+      imagePath: files.original,
+      page: prepassPage,
+      paddingRatio: 0,
+      policy: "balanced",
+      signal,
+    });
+    await runner.runPage({
+      imagePath: files.cleaned,
+      page: finalPage,
+      paddingRatio: 0.12,
+      policy: "balanced",
+      signal,
+    });
+
+    expect(bubbleRuntimeMocks.detectComicPageLayout).toHaveBeenCalledTimes(2);
+    expect(nativeImageMocks.createFromPath).toHaveBeenCalledTimes(1);
+    expect(nativeImageMocks.createFromPath).toHaveBeenCalledWith(files.cleaned);
+  });
+
   it("passes the verified model and WASM runtime paths to the detector", async () => {
     const files = await createPageFiles();
     const page = makePage(files.original, files.cleaned);
@@ -241,4 +362,16 @@ function makeDetectedLayout(sourceImageRevision: string): BubbleLayout {
       },
     ],
   };
+}
+
+function createFakeNativeImage() {
+  const bitmap = new Uint8Array(4 * 4 * 4).fill(255);
+  const image = {
+    getSize: () => ({ width: 4, height: 4 }),
+    isEmpty: () => false,
+    resize: vi.fn(),
+    toBitmap: () => bitmap,
+  };
+  image.resize.mockReturnValue(image);
+  return image;
 }

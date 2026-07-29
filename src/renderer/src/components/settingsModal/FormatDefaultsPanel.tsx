@@ -1,6 +1,10 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { DEFAULT_BLOCK_FONT_ID } from "../../../../shared/blockFontCatalog";
+import {
+  MAX_BUBBLE_LAYOUT_PADDING_RATIO,
+  MIN_BUBBLE_LAYOUT_PADDING_RATIO,
+} from "../../../../shared/bubbleLayoutSettings";
 import type {
   BlockFormatDefaults,
   BlockFormatDirectionDefault,
@@ -20,17 +24,20 @@ import {
   BoldIcon,
   ItalicIcon,
 } from "../ui/icons";
+import { FieldSlider } from "../ui/FieldSlider";
 import {
   FormatDefaultsColorSection,
   FormatDefaultsFineTuningSection,
 } from "./FormatDefaultsDetailSections";
 
 export type FormatDefaultsPanelProps = {
+  bubbleLayoutPaddingRatio: number;
   value: BlockFormatDefaults;
+  onBubbleLayoutPaddingRatioChange: (value: number) => void;
   onChange: (patch: Partial<BlockFormatDefaults>) => void;
 };
 
-type SectionProps = FormatDefaultsPanelProps;
+type SectionProps = Pick<FormatDefaultsPanelProps, "value" | "onChange">;
 
 const DEFAULT_FONT_VALUE = "__format_defaults_font__";
 
@@ -44,7 +51,9 @@ const DIRECTION_OPTIONS: {
 ];
 
 export function FormatDefaultsPanel({
+  bubbleLayoutPaddingRatio,
   value,
+  onBubbleLayoutPaddingRatioChange,
   onChange,
 }: FormatDefaultsPanelProps): React.JSX.Element {
   const { t } = useTranslation("components");
@@ -72,8 +81,42 @@ export function FormatDefaultsPanel({
         <TypographySection value={value} onChange={onChange} />
         <FormatDefaultsColorSection value={value} onChange={onChange} />
         <FormatDefaultsFineTuningSection value={value} onChange={onChange} />
+        <BubbleLayoutPaddingSection
+          value={bubbleLayoutPaddingRatio}
+          onChange={onBubbleLayoutPaddingRatioChange}
+        />
       </div>
     </div>
+  );
+}
+
+function BubbleLayoutPaddingSection({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <section className="gather-direct-editor-section">
+      <DirectSectionHeading
+        title={t("settings.format.bubbleLayout.title")}
+        description={t("settings.format.bubbleLayout.description")}
+      />
+      <FieldSlider
+        className="format-defaults-bubble-padding-slider"
+        label={t("settings.format.bubbleLayout.padding")}
+        valueLabel={`${Math.round(value * 100)}%`}
+        min={MIN_BUBBLE_LAYOUT_PADDING_RATIO}
+        max={MAX_BUBBLE_LAYOUT_PADDING_RATIO}
+        step={0.01}
+        value={value}
+        onChange={(event) =>
+          onChange(Math.round(Number(event.target.value) * 100) / 100)
+        }
+      />
+    </section>
   );
 }
 

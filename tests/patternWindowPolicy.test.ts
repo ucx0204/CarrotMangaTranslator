@@ -32,6 +32,17 @@ describe("resolvePatternInpaintWindows", () => {
     expect(resolved[0]).not.toBe(touchingWindows[0]);
   });
 
+  it("keeps CUDA windows aligned with green-region ownership", () => {
+    const resolved = resolvePatternInpaintWindows(
+      touchingWindows,
+      createEngine("flux-klein", "cuda-native"),
+      { preserveBlockOwnership: true },
+    );
+
+    expect(resolved).toEqual(touchingWindows);
+    expect(resolved[0]).not.toBe(touchingWindows[0]);
+  });
+
   it.each([
     ["flux-klein", "cuda-native"],
     ["lama-manga", "metal-native"],

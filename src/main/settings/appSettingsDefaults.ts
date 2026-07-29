@@ -14,6 +14,7 @@ import {
   resolveRecommendedGenerationLimits,
 } from "../../shared/modelPresets";
 import type { AppSettings } from "../../shared/settingsTypes";
+import { DEFAULT_BUBBLE_LAYOUT_PADDING_RATIO } from "../../shared/bubbleLayoutSettings";
 import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../../shared/blockFormat";
 import {
   DEFAULT_SOURCE_LANGUAGE,
@@ -307,5 +308,6 @@ function resolveDefaultInpaintingSettings(
     ),
     allowUnsafeLowMemoryFlux: false,
     bubbleLayoutAfterInpainting: false,
+    bubbleLayoutPaddingRatio: DEFAULT_BUBBLE_LAYOUT_PADDING_RATIO,
   };
 }

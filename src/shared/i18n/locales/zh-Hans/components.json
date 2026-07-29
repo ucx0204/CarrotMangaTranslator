@@ -1317,6 +1317,11 @@
         "letterSpacing": "字距",
         "fontWidth": "字宽"
       },
+      "bubbleLayout": {
+        "title": "气泡适配",
+        "description": "在检测到的气泡边界内侧预留的间距",
+        "padding": "内边距"
+      },
       "color": {
         "title": "颜色与描边",
         "ariaLabel": "默认颜色",

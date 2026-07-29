@@ -1320,6 +1320,11 @@
         "letterSpacing": "字距",
         "fontWidth": "字寬"
       },
+      "bubbleLayout": {
+        "title": "對話框配合",
+        "description": "在偵測到的對話框邊界內側保留的間距",
+        "padding": "內距"
+      },
       "color": {
         "title": "顏色與描邊",
         "ariaLabel": "預設顏色",

@@ -31,6 +31,7 @@ import {
   DEFAULT_API_KEY_MAX_ATTEMPTS,
   DEFAULT_API_RETRY_DELAY_SECONDS,
 } from "../../../../shared/apiKeySettings";
+import { DEFAULT_BUBBLE_LAYOUT_PADDING_RATIO } from "../../../../shared/bubbleLayoutSettings";
 
 export type SettingsFormValues = {
   uiLocale: UiLocale;
@@ -66,6 +67,7 @@ export type SettingsFormValues = {
   inpaintingModel: InpaintingModel;
   fluxBackend: FluxBackend;
   allowUnsafeLowMemoryFlux: boolean;
+  bubbleLayoutPaddingRatio: number;
   maxTokens: string;
   contextTokens: string;
 };
@@ -187,6 +189,7 @@ function resolveHardwareFormValues(
   | "inpaintingModel"
   | "fluxBackend"
   | "allowUnsafeLowMemoryFlux"
+  | "bubbleLayoutPaddingRatio"
 > {
   return {
     ocrDevice: settings.ocr.device,
@@ -196,6 +199,9 @@ function resolveHardwareFormValues(
     fluxBackend: settings.inpainting?.fluxBackend ?? "cuda-native",
     allowUnsafeLowMemoryFlux:
       settings.inpainting?.allowUnsafeLowMemoryFlux === true,
+    bubbleLayoutPaddingRatio:
+      settings.inpainting?.bubbleLayoutPaddingRatio ??
+      DEFAULT_BUBBLE_LAYOUT_PADDING_RATIO,
   };
 }
 

@@ -190,79 +190,86 @@ describe("Flux inpainting engine change detection", () => {
     ).toBe(true);
   });
 
-  it("keeps overlapping Metal windows scoped to their block-owned masks", async () => {
-    vi.doMock("electron", () => ({ nativeImage: createFakeNativeImage() }));
+  it.each(["metal-native", "cuda-native"] as const)(
+    "keeps overlapping %s windows scoped to their block-owned masks",
+    async (backend) => {
+      vi.doMock("electron", () => ({ nativeImage: createFakeNativeImage() }));
 
-    const { createFluxEngine } =
-      await import("../src/main/inpainting/fluxEngine");
-    const root = createTempDir("mgt-flux-owned-masks-");
-    const capturePath = join(root, "requests.json");
-    const workerPath = join(root, "capture-worker.cjs");
-    writeFileSync(
-      workerPath,
-      createMaskCaptureWorkerScript(capturePath),
-      "utf8",
-    );
-    const engine = createFluxEngine({
-      diagnostics: createTestDiagnostics(),
-      launch: {
-        backend: "metal-native",
-        executable: process.execPath,
-        args: [workerPath],
-        runtimePath: root,
-        label: "test Flux Metal worker",
-      },
-      runRootDir: root,
-    });
-    const width = 128;
-    const height = 64;
-    const bitmap = createCoordinateBitmap(width, height);
-    const mask = new Uint8Array(width * height);
-    mask[32 * width + 48] = 1;
-    mask[32 * width + 64] = 1;
+      const { createFluxEngine } =
+        await import("../src/main/inpainting/fluxEngine");
+      const root = createTempDir("mgt-flux-owned-masks-");
+      const capturePath = join(root, "requests.json");
+      const workerPath = join(root, "capture-worker.cjs");
+      writeFileSync(
+        workerPath,
+        createMaskCaptureWorkerScript(capturePath),
+        "utf8",
+      );
+      const engine = createFluxEngine({
+        diagnostics: createTestDiagnostics(),
+        launch: {
+          backend,
+          executable: process.execPath,
+          args: [workerPath],
+          runtimePath: root,
+          label: "test Flux Metal worker",
+        },
+        runRootDir: root,
+      });
+      const width = 128;
+      const height = 64;
+      const bitmap = createCoordinateBitmap(width, height);
+      const mask = new Uint8Array(width * height);
+      mask[32 * width + 48] = 1;
+      mask[32 * width + 64] = 1;
+      const ownedMasks = [
+        {
+          bounds: { x: 48, y: 32, w: 1, h: 1 },
+          data: Uint8Array.of(1),
+        },
+        {
+          bounds: { x: 64, y: 32, w: 1, h: 1 },
+          data: Uint8Array.of(1),
+        },
+      ];
 
-    await engine.inpaint(
-      bitmap,
-      width,
-      height,
-      mask,
-      [
-        { x: 16, y: 16, w: 80, h: 32 },
-        { x: 32, y: 16, w: 80, h: 32 },
-      ],
-      {
-        contextPx: 16,
-        featherPx: 0,
-        maskPaddingPx: 16,
-        maxPixels: 256 * 256,
-        windowMasks: [
-          {
-            bounds: { x: 48, y: 32, w: 1, h: 1 },
-            data: Uint8Array.of(1),
-          },
-          {
-            bounds: { x: 64, y: 32, w: 1, h: 1 },
-            data: Uint8Array.of(1),
-          },
+      await engine.inpaint(
+        bitmap,
+        width,
+        height,
+        mask,
+        [
+          { x: 16, y: 16, w: 80, h: 32 },
+          { x: 32, y: 16, w: 80, h: 32 },
         ],
-      },
-    );
-    await engine.dispose();
+        {
+          contextPx: 16,
+          featherPx: 0,
+          maskPaddingPx: 16,
+          maxPixels: 256 * 256,
+          windowMasks: ownedMasks,
+          ...(backend === "cuda-native"
+            ? { compositeConstraints: ownedMasks }
+            : {}),
+        },
+      );
+      await engine.dispose();
 
-    const requests = JSON.parse(readFileSync(capturePath, "utf8")) as Array<{
-      activePixels: string[];
-    }>;
-    expect(requests).toHaveLength(2);
-    expect(requests[0].activePixels).toContain("48,32");
-    expect(requests[1].activePixels).toContain("64,32");
-    expect(requests.every((request) => request.activePixels.length > 1)).toBe(
-      true,
-    );
-    const firstPixels = new Set(requests[0].activePixels);
-    expect(
-      requests[1].activePixels.some((pixel) => firstPixels.has(pixel)),
-    ).toBe(false);
-  });
+      const requests = JSON.parse(readFileSync(capturePath, "utf8")) as Array<{
+        activePixels: string[];
+      }>;
+      expect(requests).toHaveLength(2);
+      expect(requests[0].activePixels).toContain("48,32");
+      expect(requests[1].activePixels).toContain("64,32");
+      expect(requests.every((request) => request.activePixels.length > 1)).toBe(
+        true,
+      );
+      const firstPixels = new Set(requests[0].activePixels);
+      expect(
+        requests[1].activePixels.some((pixel) => firstPixels.has(pixel)),
+      ).toBe(false);
+    },
+  );
 
   it("sends zero runner padding after expanding the mask in the app", async () => {
     vi.doMock("electron", () => ({ nativeImage: createFakeNativeImage() }));

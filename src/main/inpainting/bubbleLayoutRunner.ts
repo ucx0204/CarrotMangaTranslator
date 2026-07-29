@@ -5,6 +5,7 @@ import type {
 import type { MangaPage } from "../../shared/libraryTypes";
 import type { AppSettings } from "../../shared/settingsTypes";
 import type { BBox, TranslationBlock } from "../../shared/textTypes";
+import { resolveBubbleLayoutPaddingRatio } from "../../shared/bubbleLayoutPadding";
 import type { ImageDecodeFallback } from "../regionCrop";
 import {
   isManualBubbleLayout,
@@ -35,6 +36,7 @@ export type BubbleLayoutRunnerRequest = {
   imagePath: string;
   page: MangaPage;
   policy: BubbleLayoutPolicy;
+  paddingRatio?: number;
   signal: AbortSignal;
 };
 
@@ -60,6 +62,7 @@ export type BubbleLayoutRunnerFactory = (
 
 export type BubbleLayoutPostprocessConfig = {
   policy: BubbleLayoutPolicy;
+  paddingRatio?: number;
   /**
    * Only the explicit "detect again" command may replace user-authored
    * geometry. Translation/inpainting follow-up jobs keep it intact.
@@ -87,6 +90,7 @@ export function resolveBubbleLayoutPostprocessConfig(
   return enabled
     ? {
         policy: requested?.policy ?? "balanced",
+        paddingRatio: resolveSettingsBubbleLayoutPaddingRatio(settings),
         overwriteManual: false,
         ...(requested?.naturalTextLayout
           ? {
@@ -132,6 +136,7 @@ export async function runBubbleLayoutPostprocess({
     imagePath,
     page: runnerPage,
     policy: config.policy,
+    paddingRatio: resolveBubbleLayoutPaddingRatio(config.paddingRatio),
     signal,
   });
   throwIfAborted(signal);
@@ -358,4 +363,12 @@ function throwIfAborted(signal: AbortSignal): void {
 
 function hasOwn(value: object, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(value, key);
+}
+
+function resolveSettingsBubbleLayoutPaddingRatio(
+  settings: AppSettings,
+): number {
+  return resolveBubbleLayoutPaddingRatio(
+    settings.inpainting?.bubbleLayoutPaddingRatio,
+  );
 }

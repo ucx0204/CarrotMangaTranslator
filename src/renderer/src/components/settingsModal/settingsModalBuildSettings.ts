@@ -60,6 +60,7 @@ export function buildSettingsFromDraft({
     inpaintingModel: values.inpaintingModel,
     fluxBackend: values.fluxBackend,
     allowUnsafeLowMemoryFlux: values.allowUnsafeLowMemoryFlux,
+    bubbleLayoutPaddingRatio: values.bubbleLayoutPaddingRatio,
     maxTokens: draft.parsedMaxTokens,
     ctx: draft.parsedContextTokens,
   });

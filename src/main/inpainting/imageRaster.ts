@@ -108,6 +108,7 @@ export function compositeFluxOutput(
   rect: PixelRect,
   featherPx: number,
   writeBounds: PixelRect = rect,
+  compositeConstraint?: Uint8Array,
 ): void {
   const startX = clamp(writeBounds.x - rect.x, 0, rect.w);
   const startY = clamp(writeBounds.y - rect.y, 0, rect.h);
@@ -117,6 +118,11 @@ export function compositeFluxOutput(
     for (let x = startX; x < endX; x += 1) {
       const pageX = rect.x + x;
       const pageY = rect.y + y;
+      if (
+        !allowsCompositePixel(compositeConstraint, pageY * pageWidth + pageX)
+      ) {
+        continue;
+      }
       const alpha = maskSoftAlphaAt(
         pageMask,
         pageWidth,
@@ -147,6 +153,13 @@ export function compositeFluxOutput(
       bitmap[targetOffset + 3] = 255;
     }
   }
+}
+
+function allowsCompositePixel(
+  constraint: Uint8Array | undefined,
+  index: number,
+): boolean {
+  return !constraint || Boolean(constraint[index]);
 }
 
 export function maskBoundsInRect(

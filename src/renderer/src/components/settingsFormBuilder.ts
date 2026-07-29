@@ -57,6 +57,7 @@ type BuildSettingsFromFormInput = {
   inpaintingModel: InpaintingModel;
   fluxBackend: FluxBackend;
   allowUnsafeLowMemoryFlux: boolean;
+  bubbleLayoutPaddingRatio: number;
   keybindings: KeybindingOverrides;
   blockFormatDefaults: BlockFormatDefaults;
   maxTokens: number;
@@ -92,6 +93,7 @@ export function buildSettingsFromForm(
       model: input.inpaintingModel,
       fluxBackend: input.fluxBackend,
       allowUnsafeLowMemoryFlux: input.allowUnsafeLowMemoryFlux,
+      bubbleLayoutPaddingRatio: input.bubbleLayoutPaddingRatio,
       koharuBackend: input.initialSettings.inpainting?.koharuBackend ?? "auto",
     },
     keybindings: input.keybindings,

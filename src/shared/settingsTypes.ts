@@ -142,6 +142,8 @@ type InpaintingSettings = {
   allowUnsafeLowMemoryFlux?: boolean;
   /** Run bubble-aware text placement after an inpainting result is created. */
   bubbleLayoutAfterInpainting?: boolean;
+  /** Total fraction removed from each detected balloon text-region axis. */
+  bubbleLayoutPaddingRatio?: number;
 };
 
 export type AppSettings = {

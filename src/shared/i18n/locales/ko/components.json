@@ -1345,6 +1345,11 @@
         "letterSpacing": "자간",
         "fontWidth": "장평"
       },
+      "bubbleLayout": {
+        "title": "말풍선 맞춤",
+        "description": "감지된 말풍선 경계에서 안쪽으로 확보하는 여백",
+        "padding": "안쪽 여백"
+      },
       "color": {
         "title": "색상 · 외곽선",
         "ariaLabel": "기본 색상",

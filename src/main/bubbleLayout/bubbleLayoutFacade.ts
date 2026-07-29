@@ -11,6 +11,7 @@ import type {
 import { loadPageImage } from "../inpainting/imageIO";
 import { ensureComicBubbleDetectorAssets } from "./assets";
 import { detectComicPageLayout } from "./detector";
+import type { ComicPageDetectionResult } from "./contracts";
 import {
   processDetectedBubbleLayouts,
   resolveBubbleLayoutBlockRevision,
@@ -19,14 +20,20 @@ import {
 export function createProductionBubbleLayoutRunner(
   options: BubbleLayoutRunnerFactoryOptions,
 ): BubbleLayoutRunner {
+  const detectionsByOriginalPath = new Map<
+    string,
+    Promise<ComicPageDetectionResult>
+  >();
   return {
-    runPage: (request) => runProductionBubbleLayout(options, request),
+    runPage: (request) =>
+      runProductionBubbleLayout(options, request, detectionsByOriginalPath),
   };
 }
 
 async function runProductionBubbleLayout(
   options: BubbleLayoutRunnerFactoryOptions,
   request: BubbleLayoutRunnerRequest,
+  detectionsByOriginalPath: Map<string, Promise<ComicPageDetectionResult>>,
 ): Promise<BubbleLayoutRunnerResult> {
   let pageRevision: string | null = null;
   try {
@@ -35,19 +42,11 @@ async function runProductionBubbleLayout(
       request.page.imagePath,
       request.imagePath,
     );
-    const detectorAssets = await ensureComicBubbleDetectorAssets({
-      dataRoot: options.dataRoot,
-      signal: request.signal,
-    });
-    const detection = await detectComicPageLayout({
-      imagePath: request.page.imagePath,
-      modelPath: detectorAssets.modelPath,
-      wasmBinaryPath: detectorAssets.wasmBinaryPath,
-      wasmModulePath: detectorAssets.wasmModulePath,
-      scoreThreshold: 0.35,
-      signal: request.signal,
-      decodeFallback: options.decodeFallback,
-    });
+    const detection = await detectOriginalPageLayout(
+      options,
+      request,
+      detectionsByOriginalPath,
+    );
     const image = await loadPageImage(
       request.imagePath,
       options.decodeFallback,
@@ -66,6 +65,7 @@ async function runProductionBubbleLayout(
         imageHeight: detection.imageHeight,
         detections: detection.detections,
         policy: request.policy,
+        paddingRatio: request.paddingRatio,
         pageRevision,
         repairOriginalTextInk:
           !request.page.inpaintedImagePath &&
@@ -84,6 +84,48 @@ async function runProductionBubbleLayout(
       patches: clearStaleGeneratedLayouts(request, pageRevision),
     };
   }
+}
+
+function detectOriginalPageLayout(
+  options: BubbleLayoutRunnerFactoryOptions,
+  request: BubbleLayoutRunnerRequest,
+  detectionsByOriginalPath: Map<string, Promise<ComicPageDetectionResult>>,
+): Promise<ComicPageDetectionResult> {
+  const originalPath = request.page.imagePath;
+  const cached = detectionsByOriginalPath.get(originalPath);
+  if (cached) {
+    return cached;
+  }
+  const detection = detectOriginalPageLayoutUncached(options, request);
+  // A runner belongs to one inpainting job. Successful raw detections are
+  // shared by the mask pre-pass and final postprocess.
+  detectionsByOriginalPath.set(originalPath, detection);
+  void detection.catch(() => {
+    // A failed pre-pass must not consume the final postprocess's retry.
+    if (detectionsByOriginalPath.get(originalPath) === detection) {
+      detectionsByOriginalPath.delete(originalPath);
+    }
+  });
+  return detection;
+}
+
+async function detectOriginalPageLayoutUncached(
+  options: BubbleLayoutRunnerFactoryOptions,
+  request: BubbleLayoutRunnerRequest,
+): Promise<ComicPageDetectionResult> {
+  const detectorAssets = await ensureComicBubbleDetectorAssets({
+    dataRoot: options.dataRoot,
+    signal: request.signal,
+  });
+  return detectComicPageLayout({
+    imagePath: request.page.imagePath,
+    modelPath: detectorAssets.modelPath,
+    wasmBinaryPath: detectorAssets.wasmBinaryPath,
+    wasmModulePath: detectorAssets.wasmModulePath,
+    scoreThreshold: 0.35,
+    signal: request.signal,
+    decodeFallback: options.decodeFallback,
+  });
 }
 
 function normalizeImageSize(

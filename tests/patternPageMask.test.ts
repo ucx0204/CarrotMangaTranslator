@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   bboxToPixelRect,
   expandRect,
+  resolvePatternRegionPaddingPx,
 } from "../src/main/inpainting/maskGeometry";
 import { expandWindowMaskToPage } from "../src/main/inpainting/inpaintingWindowMask";
 import { buildPatternPageMask } from "../src/main/inpainting/patternPageMask";
@@ -128,6 +129,176 @@ describe("pattern page text masks", () => {
     expect(fallback?.data.every((value) => value === 1)).toBe(true);
     expect(context.pageMask.some((value) => value !== 0)).toBe(true);
     expect(bitmap).toEqual(original);
+  });
+
+  it("restores the legacy filled OCR support region for Flux without a bubble shape", () => {
+    const width = 100;
+    const height = 100;
+    const block = createBlock("block-1", 300, {
+      y: 300,
+      w: 200,
+      h: 240,
+    });
+    const page = createPage(width, height, [block]);
+    const context = buildPatternPageMask({
+      page,
+      bitmap: Buffer.alloc(width * height * 4, 255),
+      width,
+      height,
+      mode: "flux-region",
+    });
+    const expected = expandRect(
+      bboxToPixelRect(block.bbox, page),
+      width,
+      height,
+      resolvePatternRegionPaddingPx(block, page),
+    );
+    const constraint = context.inpaintWindowConstraints[0];
+
+    expect(context.otsuBlocks).toBe(0);
+    expect(context.inpaintWindowMasks[0]?.bounds).toEqual(expected);
+    expect(constraint).toBeNull();
+    expect(context.pageMask[expected.y * width + expected.x]).toBe(1);
+    expect(
+      context.pageMask[(expected.y + expected.h) * width + expected.x],
+    ).toBe(0);
+  });
+
+  it("keeps legacy detected glyph fringe outside the filled Flux support region", () => {
+    const width = 100;
+    const height = 100;
+    const block = createBlock("block-1", 300, {
+      y: 300,
+      w: 200,
+      h: 240,
+    });
+    const page = createPage(width, height, [block]);
+    const bitmap = Buffer.alloc(width * height * 4, 255);
+    // The stroke starts inside the OCR box and extends past its 2px support
+    // padding, matching furigana/punctuation that the old Flux mask retained.
+    fillRect(bitmap, width, { x: 48, y: 40, w: 10, h: 4 }, 10);
+    const context = buildPatternPageMask({
+      page,
+      bitmap,
+      width,
+      height,
+      mode: "flux-region",
+    });
+    const support = expandRect(
+      bboxToPixelRect(block.bbox, page),
+      width,
+      height,
+      resolvePatternRegionPaddingPx(block, page),
+    );
+
+    expect(56).toBeGreaterThanOrEqual(support.x + support.w);
+    expect(context.pageMask[42 * width + 56]).toBe(1);
+    expect(context.inpaintWindowConstraints[0]).toBeNull();
+  });
+
+  it("uses only the green bubble region when Flux has usable shape geometry", () => {
+    const width = 100;
+    const height = 100;
+    const block = {
+      ...createBlock("block-1", 100, {
+        y: 100,
+        w: 800,
+        h: 800,
+      }),
+      renderBbox: { x: 300, y: 300, w: 400, h: 400 },
+      renderBboxSpace: "normalized_1000" as const,
+      bubbleLayout: {
+        version: 1 as const,
+        direction: "horizontal" as const,
+        confidence: 1,
+        origin: "manual" as const,
+        insetRatio: 0.08,
+        regions: [
+          {
+            spans: [
+              {
+                blockStart: 0,
+                blockEnd: 1,
+                inlineStart: 0.25,
+                inlineEnd: 0.75,
+              },
+            ],
+          },
+        ],
+      },
+    };
+    const page = createPage(width, height, [block]);
+    const context = buildPatternPageMask({
+      page,
+      bitmap: Buffer.alloc(width * height * 4, 255),
+      width,
+      height,
+      mode: "flux-region",
+      bubbleLayoutConstraintBlockIds: [block.id],
+    });
+    const core = context.inpaintWindowMasks[0];
+    const constraint = context.inpaintWindowConstraints[0];
+
+    expect(core?.bounds).toEqual({ x: 30, y: 30, w: 40, h: 40 });
+    expect(constraint).toBe(core);
+    expect(context.pageMask[50 * width + 50]).toBe(1);
+    // The oversized OCR bbox covers this point, but the authoritative green
+    // region does not. A connected neighboring balloon must remain untouched.
+    expect(context.pageMask[50 * width + 20]).toBe(0);
+    expect(context.pageMask[50 * width + 39]).toBe(0);
+    expect(context.pageMask[50 * width + 40]).toBe(1);
+    expect(context.pageMask[50 * width + 59]).toBe(1);
+    expect(context.pageMask[50 * width + 60]).toBe(0);
+  });
+
+  it("ignores persisted green geometry unless a zero-padding prepass enables it", () => {
+    const width = 100;
+    const height = 100;
+    const block = {
+      ...createBlock("block-1", 100, {
+        y: 100,
+        w: 800,
+        h: 800,
+      }),
+      renderBbox: { x: 300, y: 300, w: 400, h: 400 },
+      bubbleLayout: {
+        version: 1 as const,
+        direction: "horizontal" as const,
+        confidence: 1,
+        origin: "manual" as const,
+        insetRatio: 0.08,
+        regions: [
+          {
+            spans: [
+              {
+                blockStart: 0,
+                blockEnd: 1,
+                inlineStart: 0.25,
+                inlineEnd: 0.75,
+              },
+            ],
+          },
+        ],
+      },
+    };
+    const page = createPage(width, height, [block]);
+    const context = buildPatternPageMask({
+      page,
+      bitmap: Buffer.alloc(width * height * 4, 255),
+      width,
+      height,
+      mode: "flux-region",
+    });
+
+    expect(context.pageMask[50 * width + 20]).toBe(1);
+    expect(context.inpaintWindowMasks[0]?.bounds).toEqual(
+      expandRect(
+        bboxToPixelRect(block.bbox, page),
+        width,
+        height,
+        resolvePatternRegionPaddingPx(block, page),
+      ),
+    );
   });
 
   it("skips excluded and unusable blocks", () => {

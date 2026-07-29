@@ -53,6 +53,7 @@ describe("bubble shape profile builder", () => {
       sourceImageRevision: "revision",
       insetPx: 0,
       regionGapPx: 4,
+      paddingRatio: 0,
     });
     const spans = result?.bubbleLayout.regions[0].spans ?? [];
     expect(spans[0].inlineStart).toBeCloseTo(0.2);
@@ -74,6 +75,7 @@ describe("bubble shape profile builder", () => {
       sourceImageRevision: "revision",
       insetPx: 3,
       regionGapPx: 4,
+      paddingRatio: 0,
     });
 
     expect(result?.bubbleLayout.regions).toHaveLength(2);
@@ -112,6 +114,7 @@ describe("bubble shape profile builder", () => {
       sourceImageRevision: "revision",
       insetPx: 3,
       regionGapPx: 4,
+      paddingRatio: 0,
     });
 
     expect(result?.bubbleLayout.regions).toHaveLength(1);
@@ -138,6 +141,37 @@ describe("bubble shape profile builder", () => {
     });
 
     expect(result?.bubbleLayout.regions).toHaveLength(2);
+  });
+
+  it("keeps a non-empty 30% render area at the maximum padding", () => {
+    const result = buildBubbleShapeProfile({
+      regions: [rectangularRegion(10, 20, 80, 60)],
+      pageWidth: 100,
+      pageHeight: 100,
+      renderDirection: "horizontal",
+      sourceDirection: "horizontal",
+      confidence: 0.9,
+      modelId: "test",
+      sourceImageRevision: "revision",
+      insetPx: 3,
+      regionGapPx: 4,
+      paddingRatio: 0.7,
+    });
+
+    expect(result?.renderBbox.x).toBeCloseTo(380);
+    expect(result?.renderBbox.y).toBeCloseTo(410);
+    expect(result?.renderBbox.w).toBeCloseTo(240);
+    expect(result?.renderBbox.h).toBeCloseTo(180);
+    expect(result?.bubbleLayout.regions[0]?.spans[0]?.blockStart).toBeCloseTo(
+      0,
+    );
+    expect(result?.bubbleLayout.regions[0]?.spans[0]?.inlineStart).toBeCloseTo(
+      0,
+    );
+    expect(result?.bubbleLayout.regions[0]?.spans[0]?.inlineEnd).toBeCloseTo(1);
+    expect(result?.bubbleLayout.regions[0]?.spans.at(-1)?.blockEnd).toBeCloseTo(
+      1,
+    );
   });
 });
 

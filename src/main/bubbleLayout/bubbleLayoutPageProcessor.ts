@@ -42,6 +42,7 @@ export function processDetectedBubbleLayouts(options: {
   imageHeight: number;
   detections: ComicPageDetection[];
   policy: BubbleLayoutPolicy;
+  paddingRatio?: number;
   pageRevision: string;
   repairOriginalTextInk?: boolean;
 }): BubbleLayoutBlockPatch[] {
@@ -136,6 +137,7 @@ function processBlock(
       options.imageWidth,
       options.imageHeight,
     ),
+    paddingRatio: options.paddingRatio,
   });
   return profile
     ? { blockId: block.id, ...profile }

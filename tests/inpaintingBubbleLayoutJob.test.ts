@@ -25,28 +25,36 @@ describe("bubble-aware inpainting postprocess", () => {
     const chapters = new Map([[CHAPTER_ID, makeChapter(originalPage)]]);
     const changes: InpaintingRevisionChange[] = [];
     const layout = makeBubbleLayout();
-    const runPage = vi.fn<BubbleLayoutRunner["runPage"]>(async ({ page }) => {
-      // Adapter-side mutation cannot escape because the port receives a clone.
-      const adapterBlock = page.blocks[0];
-      if (!adapterBlock) {
-        throw new Error("expected adapter block");
-      }
-      adapterBlock.bbox = { x: 999, y: 999, w: 1, h: 1 };
-      return {
-        patches: [
-          {
-            blockId: BLOCK_ID,
-            renderBbox: { x: 100, y: 120, w: 300, h: 260 },
-            renderBboxSpace: "normalized_1000",
-            bubbleLayout: layout,
-            // Runtime-shaped malicious data is deliberately outside the type.
-            bbox: { x: 900, y: 900, w: 10, h: 10 },
-            renderDirection: "vertical",
-            sourceDirection: "vertical",
-          } as never,
-        ],
-      };
-    });
+    const maskLayout = {
+      ...makeBubbleLayout(),
+      modelId: "fake-mask-runner",
+      sourceImageRevision: "fake-mask-source-revision",
+      insetRatio: 0,
+    };
+    const runPage = vi.fn<BubbleLayoutRunner["runPage"]>(
+      async ({ page, paddingRatio }) => {
+        // Adapter-side mutation cannot escape because the port receives a clone.
+        const adapterBlock = page.blocks[0];
+        if (!adapterBlock) {
+          throw new Error("expected adapter block");
+        }
+        adapterBlock.bbox = { x: 999, y: 999, w: 1, h: 1 };
+        return {
+          patches: [
+            {
+              blockId: BLOCK_ID,
+              renderBbox: { x: 100, y: 120, w: 300, h: 260 },
+              renderBboxSpace: "normalized_1000",
+              bubbleLayout: paddingRatio === 0 ? maskLayout : layout,
+              // Runtime-shaped malicious data is deliberately outside the type.
+              bbox: { x: 900, y: 900, w: 10, h: 10 },
+              renderDirection: "vertical",
+              sourceDirection: "vertical",
+            } as never,
+          ],
+        };
+      },
+    );
     const createBubbleLayoutRunner = vi.fn(() => ({ runPage }));
     const runtime = makeRuntime(chapters, createBubbleLayoutRunner);
     const { startInpaintingJob } =
@@ -67,10 +75,32 @@ describe("bubble-aware inpainting postprocess", () => {
 
     expect(result.status).toBe("completed");
     expect(createBubbleLayoutRunner).toHaveBeenCalledTimes(1);
-    expect(runPage).toHaveBeenCalledWith(
+    expect(runPage).toHaveBeenCalledTimes(2);
+    expect(runPage.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        imagePath: originalPage.imagePath,
+        paddingRatio: 0,
+        policy: "safe",
+      }),
+    );
+    expect(runPage.mock.calls[1]?.[0]).toEqual(
       expect.objectContaining({
         imagePath: `${originalPage.imagePath}.inpainted.png`,
+        paddingRatio: 0.12,
         policy: "safe",
+      }),
+    );
+    expect(runtime.inpaintPatternPage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        blocks: [
+          expect.objectContaining({
+            id: BLOCK_ID,
+            bubbleLayout: maskLayout,
+          }),
+        ],
+      }),
+      expect.objectContaining({
+        bubbleLayoutConstraintBlockIds: [BLOCK_ID],
       }),
     );
     const savedBlock = result.chapter?.pages[0]?.blocks[0];
@@ -128,6 +158,11 @@ describe("bubble-aware inpainting postprocess", () => {
 
   it("keeps the safe default off and does not construct the runner", async () => {
     const page = makePage();
+    const block = page.blocks[0];
+    if (!block) {
+      throw new Error("expected block");
+    }
+    block.bubbleLayout = makeBubbleLayout();
     const chapters = new Map([[CHAPTER_ID, makeChapter(page)]]);
     const createBubbleLayoutRunner = vi.fn(() => ({
       runPage: vi.fn(),
@@ -148,6 +183,82 @@ describe("bubble-aware inpainting postprocess", () => {
 
     expect(result.status).toBe("completed");
     expect(createBubbleLayoutRunner).not.toHaveBeenCalled();
+    expect(
+      vi.mocked(runtime.inpaintPatternPage).mock.calls[0]?.[1],
+    ).not.toHaveProperty("bubbleLayoutConstraintBlockIds");
+  });
+
+  it("keeps persisted padding out of the mask and as the history baseline", async () => {
+    const page = makePage();
+    const block = page.blocks[0];
+    if (!block) {
+      throw new Error("expected block");
+    }
+    const persistedLayout = makeBubbleLayout();
+    block.bubbleLayout = persistedLayout;
+    block.renderBbox = { x: 90, y: 110, w: 320, h: 300 };
+    block.renderBboxSpace = "normalized_1000";
+    const finalLayout = {
+      ...makeBubbleLayout(),
+      sourceImageRevision: "final-source-revision",
+    };
+    const chapters = new Map([[CHAPTER_ID, makeChapter(page)]]);
+    const changes: InpaintingRevisionChange[] = [];
+    const runPage = vi.fn<BubbleLayoutRunner["runPage"]>(
+      async ({ paddingRatio }) =>
+        makePaddingAwareRunnerResult(paddingRatio, finalLayout),
+    );
+    const runtime = makeRuntime(chapters, () => ({ runPage }));
+    const { startInpaintingJob } =
+      await import("../src/main/jobs/inpaintingJobs");
+
+    const result = await startInpaintingJob(
+      makeContext(changes),
+      {
+        chapterId: CHAPTER_ID,
+        mode: "page-pattern",
+        pageId: PAGE_ID,
+        postprocess: {
+          bubbleLayout: { enabled: true, policy: "balanced" },
+        },
+      },
+      runtime,
+    );
+
+    expect(result.status).toBe("completed");
+    expect(runPage).toHaveBeenCalledTimes(2);
+    const [prepassRequest] = requireArrayItem(runPage.mock.calls, 0);
+    const [finalRequest] = requireArrayItem(runPage.mock.calls, 1);
+    const [inpaintPage, inpaintOptions] = requireArrayItem(
+      vi.mocked(runtime.inpaintPatternPage).mock.calls,
+      0,
+    );
+    const prepassBlock = requireArrayItem(prepassRequest.page.blocks, 0);
+    const finalBlock = requireArrayItem(finalRequest.page.blocks, 0);
+    const inpaintBlock = requireArrayItem(inpaintPage.blocks, 0);
+    expect(prepassRequest.paddingRatio).toBe(0);
+    expect(prepassBlock.bubbleLayout).toBeUndefined();
+    expect(prepassBlock.renderBbox).toBeUndefined();
+    expect(prepassBlock.renderBboxSpace).toBeUndefined();
+    expect(finalRequest.paddingRatio).toBe(0.12);
+    expect(finalBlock.bubbleLayout).toEqual(persistedLayout);
+    expect(inpaintBlock.bubbleLayout).toBeUndefined();
+    expect(inpaintOptions).toHaveProperty("bubbleLayoutConstraintBlockIds", []);
+    expect(result.chapter?.pages[0]?.blocks[0]?.bubbleLayout).toEqual(
+      finalLayout,
+    );
+    expect(changes[0]?.beforeLayout?.[0]).toMatchObject({
+      blockId: BLOCK_ID,
+      renderBbox: { x: 90, y: 110, w: 320, h: 300 },
+      renderBboxSpace: "normalized_1000",
+      bubbleLayout: persistedLayout,
+    });
+    expect(changes[0]?.afterLayout?.[0]).toMatchObject({
+      blockId: BLOCK_ID,
+      renderBbox: { x: 100, y: 120, w: 300, h: 260 },
+      renderBboxSpace: "normalized_1000",
+      bubbleLayout: finalLayout,
+    });
   });
 
   it("stores natural hard breaks only after the final Bubble shape is applied", async () => {
@@ -302,6 +413,12 @@ describe("bubble-aware inpainting postprocess", () => {
       ],
     }));
     const runtime = makeRuntime(chapters, () => ({ runPage }));
+    const settings = resolveDefaultAppSettings();
+    settings.inpainting = {
+      ...settings.inpainting,
+      bubbleLayoutPaddingRatio: 0.22,
+    };
+    runtime.getSettings = vi.fn(async () => settings);
     const { startInpaintingJob } =
       await import("../src/main/jobs/inpaintingJobs");
 
@@ -322,6 +439,7 @@ describe("bubble-aware inpainting postprocess", () => {
     expect(runPage).toHaveBeenCalledWith(
       expect.objectContaining({
         imagePath: page.inpaintedImagePath,
+        paddingRatio: 0.22,
         policy: "maximize",
       }),
     );
@@ -533,7 +651,10 @@ describe("bubble-aware inpainting postprocess", () => {
     );
 
     expect(result.status).toBe("completed");
-    expect(runPage).toHaveBeenCalledTimes(1);
+    expect(runPage).toHaveBeenCalledTimes(2);
+    expect(
+      vi.mocked(runtime.inpaintPatternPage).mock.calls[0]?.[1],
+    ).toHaveProperty("bubbleLayoutConstraintBlockIds", [BLOCK_ID]);
     const savedBlock = result.chapter?.pages[0]?.blocks[0];
     expect(savedBlock?.renderBbox).toEqual(block.renderBbox);
     expect(savedBlock?.bubbleLayout).toEqual(manualLayout);
@@ -850,4 +971,31 @@ function makeManualBubbleLayout(): BubbleLayout {
       },
     ],
   };
+}
+
+function makePaddingAwareRunnerResult(
+  paddingRatio: number | undefined,
+  finalLayout: BubbleLayout,
+) {
+  if (paddingRatio === 0) {
+    return { patches: [] };
+  }
+  return {
+    patches: [
+      {
+        blockId: BLOCK_ID,
+        renderBbox: { x: 100, y: 120, w: 300, h: 260 },
+        renderBboxSpace: "normalized_1000" as const,
+        bubbleLayout: finalLayout,
+      },
+    ],
+  };
+}
+
+function requireArrayItem<T>(items: readonly T[], index: number): T {
+  const item = items[index];
+  if (item === undefined) {
+    throw new Error(`expected item at index ${index}`);
+  }
+  return item;
 }

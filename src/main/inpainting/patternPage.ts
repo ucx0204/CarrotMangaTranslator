@@ -29,6 +29,12 @@ export async function inpaintPatternPage(
     signal?: AbortSignal;
     decodeFallback?: ImageDecodeFallback;
     inpaintingEngine?: InpaintingEngine;
+    /**
+     * Accept bubble geometry only from the current job's zero-padding prepass.
+     * Persisted automatic layouts may contain display padding and must not be
+     * reused here. Existing manual geometry is explicitly allowlisted.
+     */
+    bubbleLayoutConstraintBlockIds?: readonly string[];
   } = {},
 ): Promise<PatternPageInpaintingResult> {
   const patternBlocks = page.blocks.filter(
@@ -61,6 +67,11 @@ export async function inpaintPatternPage(
     bitmap,
     width: size.width,
     height: size.height,
+    mode:
+      options.inpaintingEngine?.model === "flux-klein"
+        ? "flux-region"
+        : "glyph",
+    bubbleLayoutConstraintBlockIds: options.bubbleLayoutConstraintBlockIds,
     signal: options.signal,
   });
   if (maskContext.blocksErased === 0) {
@@ -99,6 +110,11 @@ async function runPatternInpaintingEngine(options: {
   if (!options.engine) {
     throw new Error("원문 지우기 엔진이 준비되지 않았습니다.");
   }
+  const hasBubbleConstraints =
+    options.engine.model === "flux-klein" &&
+    options.maskContext.inpaintWindowConstraints.some(
+      (constraint) => constraint !== null,
+    );
   await options.engine.inpaint(
     options.bitmap,
     options.width,
@@ -107,6 +123,7 @@ async function runPatternInpaintingEngine(options: {
     resolvePatternInpaintWindows(
       options.maskContext.inpaintWindows,
       options.engine,
+      { preserveBlockOwnership: hasBubbleConstraints },
     ),
     {
       signal: options.signal,
@@ -119,10 +136,12 @@ async function runPatternInpaintingEngine(options: {
           ? undefined
           : new Uint8Array(options.width * options.height),
       windowMasks:
-        options.engine.model === "flux-klein" &&
-        options.engine.backend === "metal-native"
+        options.engine.model === "flux-klein"
           ? options.maskContext.inpaintWindowMasks
           : undefined,
+      compositeConstraints: hasBubbleConstraints
+        ? options.maskContext.inpaintWindowConstraints
+        : undefined,
     },
   );
 }
