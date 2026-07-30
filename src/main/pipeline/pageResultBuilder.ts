@@ -243,6 +243,7 @@ export async function buildPageResult({
       previousBlocks: pageOptions.previousBlocksForPrompt ?? [],
       soundDroppedCount: soundFiltered.droppedCount,
       naturalLayout: resolveKeepBlocksNaturalLayout(pageOptions),
+      automaticFont: resolveKeepBlocksAutomaticFont(pageOptions),
     });
     return {
       kind: "completed",
@@ -271,6 +272,15 @@ function resolveKeepBlocksNaturalLayout(pageOptions: TranslationOptions): {
   return {
     enabled: pageOptions.naturalTextLayout,
     locale: pageOptions.targetLanguage,
+  };
+}
+
+function resolveKeepBlocksAutomaticFont(pageOptions: TranslationOptions) {
+  return {
+    enabled: pageOptions.autoFontMatching,
+    targetLanguage: pageOptions.targetLanguage,
+    workTitle: pageOptions.fontMatchingWorkTitle,
+    candidates: pageOptions.fontMatchingCandidates,
   };
 }
 

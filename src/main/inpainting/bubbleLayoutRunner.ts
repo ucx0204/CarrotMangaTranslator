@@ -30,6 +30,8 @@ export type BubbleLayoutBlockPatch = {
   renderBbox?: BBox | null;
   renderBboxSpace?: RenderBboxSpace | null;
   bubbleLayout?: BubbleLayout | null;
+  /** Job-local only; never applied to or persisted with a TranslationBlock. */
+  sharedInpaintGroupIds?: string[];
 };
 
 export type BubbleLayoutRunnerRequest = {
@@ -37,6 +39,12 @@ export type BubbleLayoutRunnerRequest = {
   page: MangaPage;
   policy: BubbleLayoutPolicy;
   paddingRatio?: number;
+  /**
+   * Render layouts keep a narrow seam between blocks that share one detected
+   * balloon. The transient inpainting prepass sets this to zero so all owners
+   * share one uncut safe region and Flux never sees half of a source glyph.
+   */
+  sharedOwnershipGapPx?: number;
   signal: AbortSignal;
 };
 
@@ -63,6 +71,7 @@ export type BubbleLayoutRunnerFactory = (
 export type BubbleLayoutPostprocessConfig = {
   policy: BubbleLayoutPolicy;
   paddingRatio?: number;
+  sharedOwnershipGapPx?: number;
   /**
    * Only the explicit "detect again" command may replace user-authored
    * geometry. Translation/inpainting follow-up jobs keep it intact.
@@ -76,6 +85,7 @@ export type BubbleLayoutPostprocessResult = {
   page: MangaPage;
   beforeLayout?: InpaintingBlockLayoutState[];
   afterLayout?: InpaintingBlockLayoutState[];
+  sharedInpaintGroupIdsByBlock?: Record<string, string[]>;
 };
 
 export function resolveBubbleLayoutPostprocessConfig(
@@ -137,6 +147,7 @@ export async function runBubbleLayoutPostprocess({
     page: runnerPage,
     policy: config.policy,
     paddingRatio: resolveBubbleLayoutPaddingRatio(config.paddingRatio),
+    sharedOwnershipGapPx: config.sharedOwnershipGapPx,
     signal,
   });
   throwIfAborted(signal);
@@ -157,14 +168,23 @@ export async function runBubbleLayoutPostprocess({
     finalPage,
     patches.map((patch) => patch.blockId),
   );
+  const sharedInpaintGroupIdsByBlock = collectSharedInpaintGroups(patches);
   if (afterLayout.length === 0) {
-    return { page: baselinePage };
+    return {
+      page: baselinePage,
+      ...(Object.keys(sharedInpaintGroupIdsByBlock).length
+        ? { sharedInpaintGroupIdsByBlock }
+        : {}),
+    };
   }
 
   return {
     page: applyInpaintingLayoutStates(baselinePage, afterLayout),
     beforeLayout,
     afterLayout,
+    ...(Object.keys(sharedInpaintGroupIdsByBlock).length
+      ? { sharedInpaintGroupIdsByBlock }
+      : {}),
   };
 }
 
@@ -207,6 +227,10 @@ function parseRunnerPatches(
       continue;
     }
     if (!overwriteManual && isManualBubbleLayout(block.bubbleLayout)) {
+      const metadataPatch = copyRunnerJobMetadataPatch(rawPatch);
+      if (metadataPatch.sharedInpaintGroupIds?.length) {
+        patches.push(metadataPatch);
+      }
       continue;
     }
     patches.push(copyRunnerRenderPatch(rawPatch));
@@ -232,6 +256,18 @@ function resolveRunnerPatchBlock(
   return block;
 }
 
+function copyRunnerJobMetadataPatch(
+  rawPatch: BubbleLayoutBlockPatch,
+): BubbleLayoutBlockPatch {
+  const patch: BubbleLayoutBlockPatch = { blockId: rawPatch.blockId };
+  if (hasOwn(rawPatch, "sharedInpaintGroupIds")) {
+    patch.sharedInpaintGroupIds = parseSharedInpaintGroupIds(
+      rawPatch.sharedInpaintGroupIds,
+    );
+  }
+  return patch;
+}
+
 function copyRunnerRenderPatch(
   rawPatch: BubbleLayoutBlockPatch,
 ): BubbleLayoutBlockPatch {
@@ -248,7 +284,35 @@ function copyRunnerRenderPatch(
   if (hasOwn(rawPatch, "bubbleLayout")) {
     patch.bubbleLayout = rawPatch.bubbleLayout;
   }
+  if (hasOwn(rawPatch, "sharedInpaintGroupIds")) {
+    patch.sharedInpaintGroupIds = parseSharedInpaintGroupIds(
+      rawPatch.sharedInpaintGroupIds,
+    );
+  }
   return patch;
+}
+
+function parseSharedInpaintGroupIds(value: unknown): string[] {
+  if (!Array.isArray(value) || value.length > 8) {
+    throw new Error("말풍선 공유 인페인팅 그룹 형식이 올바르지 않습니다.");
+  }
+  const ids = value.map((item) => String(item));
+  if (ids.some((id) => !/^shared-[1-9]\d{0,5}$/.test(id))) {
+    throw new Error("말풍선 공유 인페인팅 그룹 형식이 올바르지 않습니다.");
+  }
+  return [...new Set(ids)];
+}
+
+function collectSharedInpaintGroups(
+  patches: readonly BubbleLayoutBlockPatch[],
+): Record<string, string[]> {
+  return Object.fromEntries(
+    patches.flatMap((patch) =>
+      patch.sharedInpaintGroupIds?.length
+        ? [[patch.blockId, [...patch.sharedInpaintGroupIds]]]
+        : [],
+    ),
+  );
 }
 
 function applyRunnerPatchToState(

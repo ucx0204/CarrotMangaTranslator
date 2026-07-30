@@ -20,6 +20,7 @@ export type TranslationFlowOptions = {
   workflowMode: TranslationWorkflowMode;
   analysisScope: WorkContextAnalysisScope;
   blockMode: AnalysisBlockMode;
+  autoFontMatching?: boolean;
   naturalTextLayout?: boolean;
   eraseOriginalWorkflow?: boolean;
   bubbleLayoutWorkflow?: boolean;
@@ -46,6 +47,7 @@ export type UseTranslationActionsOptions = {
   translationWorkflowDefault?: TranslationWorkflowMode;
   analysisScopeDefault?: WorkContextAnalysisScope;
   blockModeDefault?: AnalysisBlockMode;
+  autoFontMatchingDefault?: boolean;
   naturalTextLayoutDefault?: boolean;
   recordImageEdit: (entry: { label: string; transactionId: string }) => void;
   setCurrentChapter: Dispatch<SetStateAction<ChapterSnapshot | null>>;
@@ -63,6 +65,7 @@ export type TranslationActions = {
     blockMode?: AnalysisBlockMode,
     collectPageContext?: boolean,
     naturalTextLayout?: boolean,
+    autoFontMatching?: boolean,
   ) => Promise<RunAnalysisOutcome>;
   runTranslationFlow: (
     options: TranslationFlowOptions,

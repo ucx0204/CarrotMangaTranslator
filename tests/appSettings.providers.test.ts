@@ -30,6 +30,7 @@ describeWindows("app settings helpers: model providers", () => {
       ),
     ).toEqual({
       modelProvider: defaults.modelProvider,
+      hardware: defaults.hardware,
       translation: defaults.translation,
       gemma: {
         modelSource: "local",
@@ -69,6 +70,7 @@ describeWindows("app settings helpers: model providers", () => {
       ),
     ).toEqual({
       modelProvider: "openai-codex",
+      hardware: defaults.hardware,
       translation: defaults.translation,
       gemma: defaults.gemma,
       codex: {
@@ -104,6 +106,7 @@ describeWindows("app settings helpers: model providers", () => {
       ),
     ).toEqual({
       modelProvider: "openai-api",
+      hardware: defaults.hardware,
       translation: defaults.translation,
       gemma: defaults.gemma,
       codex: defaults.codex,

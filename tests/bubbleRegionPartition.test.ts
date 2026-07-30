@@ -51,6 +51,39 @@ describe("bubble ownership region partition", () => {
     expectRegionsDisjoint(upperRegion, lowerRegion, bubbleBox);
   });
 
+  it("keeps zero-gap ownership disjoint and marks one shared crop group", () => {
+    const bubbleBox = { x: 10, y: 10, w: 100, h: 60 };
+    const left = { id: "left", bbox: { x: 20, y: 25, w: 25, h: 30 } };
+    const right = { id: "right", bbox: { x: 75, y: 25, w: 25, h: 30 } };
+    const sharedDetection = bubbleDetection(bubbleBox);
+    const ownerships = partitionSharedBubbleOwnership(
+      [left, right].map((owner) => ({
+        owner,
+        candidates: [candidate(bubbleBox, sharedDetection)],
+      })),
+      (owner) => owner.bbox,
+      0,
+    );
+    const leftPartition = ownerships[0].candidates[0].ownershipPartition;
+    const rightPartition = ownerships[1].candidates[0].ownershipPartition;
+    const leftRegion = buildOwnershipFallbackRegion(
+      ownerships[0].candidates[0],
+      0,
+    );
+    const rightRegion = buildOwnershipFallbackRegion(
+      ownerships[1].candidates[0],
+      0,
+    );
+
+    expect(leftPartition?.sharedGroupId).toBe(rightPartition?.sharedGroupId);
+    expect(leftPartition?.gapPx).toBe(0);
+    expect(rightPartition?.gapPx).toBe(0);
+    expect(
+      (leftPartition?.clipBox.x ?? 0) + (leftPartition?.clipBox.w ?? 0),
+    ).toBe(rightPartition?.clipBox.x);
+    expectRegionsDisjoint(leftRegion, rightRegion, bubbleBox);
+  });
+
   it("keeps fallback regions rounded while preserving a gap between owners", () => {
     const bubbleBox = { x: 10, y: 10, w: 100, h: 60 };
     const left = { id: "left", bbox: { x: 20, y: 25, w: 25, h: 30 } };

@@ -1,4 +1,5 @@
 import type { BlockFormatDefaults } from "../../shared/blockFormat";
+import type { AutomaticFontCandidate } from "../../shared/fontMatchingTypes";
 import type {
   CodexReasoningEffort,
   ApiReasoningEffort,
@@ -38,6 +39,12 @@ export type TranslationOptions = {
   collectPageContext?: boolean;
   /** Post-process translated text with block-size-aware hard line breaks. */
   naturalTextLayout?: boolean;
+  /** Choose a locale-compatible bundled or user font before downstream layout. */
+  autoFontMatching?: boolean;
+  /** Stable work metadata used only by the portable automatic-font policy. */
+  fontMatchingWorkTitle?: string;
+  /** Immutable custom-font metadata captured once at translation job start. */
+  fontMatchingCandidates?: readonly AutomaticFontCandidate[];
   strictRefineMode?: boolean;
   keepBlocksMode?: boolean;
   previousBlocksForPrompt?: PreviousOverlayBlockForPrompt[];
@@ -64,6 +71,8 @@ export type TranslationOptions = {
   ubatch: number;
   gemmaVramMode: GemmaVramMode;
   fitTargetMb: number;
+  /** Backend-local CUDA/HIP GPU ordinal. Missing keeps automatic selection. */
+  computeGpuIndex?: number;
   gpuLayers?: number | "fit";
   cacheTypeK?: string;
   cacheTypeV?: string;

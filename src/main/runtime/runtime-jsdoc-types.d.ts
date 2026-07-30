@@ -4,6 +4,7 @@ export type RuntimeOptions = {
   apiKeyMaxAttempts?: number | string | null;
   apiRetryDelaySeconds?: number | string | null;
   amdRocmTarget?: string | null;
+  computeGpuIndex?: number | null;
   disableHostRocmTargetDetection?: boolean | null;
   hfEndpoint?: string | null;
   hfHomeDir?: string | null;

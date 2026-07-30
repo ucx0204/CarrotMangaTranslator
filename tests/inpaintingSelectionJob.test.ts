@@ -86,6 +86,9 @@ describe("multi-chapter automatic inpainting jobs", () => {
     ]);
     expect(result.pagesChanged).toBe(3);
     expect(harness.acquireEngine).toHaveBeenCalledTimes(1);
+    expect(harness.acquireEngine).toHaveBeenCalledWith(
+      expect.objectContaining({ computeGpuIndex: 2 }),
+    );
     expect(harness.runEngine).toHaveBeenCalledTimes(3);
     expect(harness.releaseEngine).toHaveBeenCalledTimes(1);
     expect(
@@ -342,6 +345,10 @@ function createInpaintingRuntimeHarness(
     },
   );
   const settings = resolveDefaultAppSettings();
+  settings.hardware = {
+    ...settings.hardware,
+    computeGpuIndex: 2,
+  };
   settings.inpainting = { model: "flux-klein" };
   const savePages = vi.fn<InpaintingJobRuntime["savePages"]>(
     async (chapterId, pages) => {

@@ -336,8 +336,10 @@ function buildHardwarePanelProps({
 }): SettingsModalViewProps["hardwarePanelProps"] {
   return {
     clearTestState: test.clearTestState,
+    computeGpuIndex: form.values.computeGpuIndex,
     controlsBusy,
     fluxBackend: form.values.fluxBackend,
+    graphicsGpuPreference: form.values.graphicsGpuPreference,
     allowUnsafeLowMemoryFlux: form.values.allowUnsafeLowMemoryFlux,
     inpaintingModel: form.values.inpaintingModel,
     isFluxBackendOptionDisabled: runtime.isFluxBackendOptionDisabled,
@@ -345,6 +347,8 @@ function buildHardwarePanelProps({
     ocrGpuBackend: form.values.ocrGpuBackend,
     ocrQualityMode: form.values.ocrQualityMode,
     setFluxBackend: form.setters.setFluxBackend,
+    setGraphicsGpuPreference: form.setters.setGraphicsGpuPreference,
+    setComputeGpuIndex: form.setters.setComputeGpuIndex,
     setAllowUnsafeLowMemoryFlux: form.setters.setAllowUnsafeLowMemoryFlux,
     setInpaintingModel: form.setters.setInpaintingModel,
     setOcrDevice: form.setters.setOcrDevice,

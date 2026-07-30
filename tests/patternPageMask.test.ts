@@ -251,6 +251,74 @@ describe("pattern page text masks", () => {
     expect(context.pageMask[50 * width + 60]).toBe(0);
   });
 
+  it("unions different masks from one detector conflict into one Flux window", () => {
+    const width = 100;
+    const height = 100;
+    const makeSharedBlock = (
+      id: string,
+      renderBbox: { x: number; y: number; w: number; h: number },
+    ) => ({
+      ...createBlock(id, renderBbox.x),
+      renderBbox,
+      renderBboxSpace: "normalized_1000" as const,
+      bubbleLayout: {
+        version: 1 as const,
+        direction: "horizontal" as const,
+        confidence: 1,
+        origin: "detected" as const,
+        modelId: "comic-rtdetr-test",
+        sourceImageRevision: `revision-${id}`,
+        insetRatio: 0,
+        regions: [
+          {
+            spans: [
+              {
+                blockStart: 0,
+                blockEnd: 1,
+                inlineStart: 0,
+                inlineEnd: 1,
+              },
+            ],
+          },
+        ],
+      },
+    });
+    const left = makeSharedBlock("left", {
+      x: 150,
+      y: 250,
+      w: 400,
+      h: 400,
+    });
+    const right = makeSharedBlock("right", {
+      x: 450,
+      y: 300,
+      w: 400,
+      h: 300,
+    });
+    const page = createPage(width, height, [left, right]);
+
+    const context = buildPatternPageMask({
+      page,
+      bitmap: Buffer.alloc(width * height * 4, 255),
+      width,
+      height,
+      mode: "flux-region",
+      bubbleLayoutConstraintBlockIds: [left.id, right.id],
+      sharedInpaintGroupIdsByBlock: {
+        [left.id]: ["shared-1"],
+        [right.id]: ["shared-1"],
+      },
+    });
+
+    expect(context.blocksErased).toBe(2);
+    expect(context.inpaintWindows).toHaveLength(1);
+    expect(context.inpaintWindowMasks).toHaveLength(1);
+    expect(context.inpaintWindowConstraints).toHaveLength(1);
+    expect(context.inpaintWindowGroupIds).toEqual([["shared-1"]]);
+    expect(context.pageMask[40 * width + 20]).toBe(1);
+    expect(context.pageMask[40 * width + 80]).toBe(1);
+  });
+
   it("ignores persisted green geometry unless a zero-padding prepass enables it", () => {
     const width = 100;
     const height = 100;

@@ -39,11 +39,15 @@ describe("selected inpainting model routing", () => {
           appPaths,
           model: "flux-klein",
           fluxBackend: "metal-native",
+          computeGpuIndex: 3,
         },
         dependencies,
       ),
     ).resolves.toBe(fluxLease);
     expect(acquireFlux).toHaveBeenCalledOnce();
+    expect(acquireFlux).toHaveBeenCalledWith(
+      expect.objectContaining({ computeGpuIndex: 3 }),
+    );
     expect(acquireKoharu).not.toHaveBeenCalled();
     expect(disposeKoharu).toHaveBeenCalledWith("switch-to-flux");
   });
@@ -60,12 +64,13 @@ describe("selected inpainting model routing", () => {
             appPaths,
             model,
             koharuBackend: "metal-native",
+            computeGpuIndex: 4,
           },
           dependencies,
         ),
       ).resolves.toBe(koharuLease);
       expect(acquireKoharu).toHaveBeenCalledWith(
-        expect.objectContaining({ model }),
+        expect.objectContaining({ model, computeGpuIndex: 4 }),
       );
       expect(acquireFlux).not.toHaveBeenCalled();
       expect(disposeFlux).toHaveBeenCalledWith("switch-to-koharu");

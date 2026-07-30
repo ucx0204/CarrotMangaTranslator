@@ -66,6 +66,7 @@ async function runProductionBubbleLayout(
         detections: detection.detections,
         policy: request.policy,
         paddingRatio: request.paddingRatio,
+        sharedOwnershipGapPx: request.sharedOwnershipGapPx,
         pageRevision,
         repairOriginalTextInk:
           !request.page.inpaintedImagePath &&

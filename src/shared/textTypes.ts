@@ -57,6 +57,8 @@ export type TranslationBlock = {
   bubbleLayout?: BubbleLayout;
   sourceText: string;
   translatedText: string;
+  /** Persisted visual role so keep-block retranslations do not guess by length. */
+  textRole?: "ordinary" | "sound";
   confidence: number;
   sourceDirection: SourceTextDirection;
   renderDirection: RenderTextDirection;

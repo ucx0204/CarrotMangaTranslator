@@ -125,6 +125,7 @@ function useTranslationActionController(
       uiDefaults.translationWorkflowDefault ?? "cumulative",
     analysisScopeDefault: uiDefaults.analysisScopeDefault ?? "missing",
     blockModeDefault: uiDefaults.blockModeDefault ?? "auto",
+    autoFontMatchingDefault: uiDefaults.autoFontMatchingDefault ?? false,
     naturalTextLayoutDefault: uiDefaults.naturalTextLayoutDefault ?? true,
     recordImageEdit: workspaceHistory.recordImageEdit,
     setCurrentChapter: chapter.core.setCurrentChapter,

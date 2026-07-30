@@ -15,6 +15,8 @@ const {
 const {
   buildGemma4OfficialChatTemplateArgs,
 } = require("./gemma4-official-chat-template.cjs");
+const { resolveComputeGpuIndex } = require("../compute-gpu-selection.cjs");
+const { resolveLlamaRuntimeProfile } = require("./runtime-profile.cjs");
 
 /** @typedef {Record<string, any>} LaunchOptions */
 /** @typedef {ReturnType<typeof inspectModelLaunch>} LaunchTarget */
@@ -153,9 +155,18 @@ function buildComputeArgs(options, useBeellama) {
     options.gpuLayers === "fit"
       ? ["-ngl", "auto"]
       : ["-ngl", String(options.gpuLayers ?? "all")];
+  const computeGpuIndex =
+    resolveLlamaRuntimeProfile(options) === "metal"
+      ? null
+      : resolveComputeGpuIndex(options.computeGpuIndex);
+  const gpuSelectionArgs =
+    computeGpuIndex === null
+      ? []
+      : ["--split-mode", "none", "--main-gpu", String(computeGpuIndex)];
   return [
     ...fitArgs,
     ...gpuLayerArgs,
+    ...gpuSelectionArgs,
     "-fa",
     "on",
     "-c",

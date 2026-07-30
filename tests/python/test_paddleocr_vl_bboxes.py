@@ -1320,6 +1320,300 @@ class HeuristicTextlinePartitionTests(unittest.TestCase):
             ["●4日目につづく"],
         )
 
+    def test_high_confidence_latin_game_title_is_deferred_at_real_geometry(self) -> None:
+        candidates = [
+            textline_candidate("ようこそ", 565, 961, 652, 989),
+            textline_candidate(
+                "【Monster・Evolve・Online】",
+                566,
+                989,
+                838,
+                1013,
+            ),
+            textline_candidate("の世界へ", 565, 1014, 651, 1040),
+        ]
+        candidates[1]["_score"] = 0.9727
+
+        result = OCR.partition_textline_candidates_heuristic(
+            candidates,
+            width=1000,
+            height=1421,
+            source_language="ja",
+        )
+
+        title_entry = next(
+            entry
+            for entry in result["deferred"]
+            if any(
+                item["_text"] == "【Monster・Evolve・Online】"
+                for item in entry["items"]
+            )
+        )
+        self.assertEqual(
+            [
+                (
+                    item["x1"],
+                    item["y1"],
+                    item["x2"],
+                    item["y2"],
+                )
+                for item in title_entry["items"]
+            ],
+            [(566, 989, 838, 1013)],
+        )
+        self.assertEqual(
+            title_entry["reasons"],
+            ["high_confidence_latin_title"],
+        )
+        self.assertNotIn(
+            "【Monster・Evolve・Online】",
+            [entry["item"]["_text"] for entry in result["excluded"]],
+        )
+
+    def test_short_latin_acronym_requires_japanese_paddle_group_context(self) -> None:
+        japanese = textline_candidate("当選", 831, 285, 864, 337)
+        japanese_tail = textline_candidate("しちゃった…", 831, 338, 864, 440)
+        acronym = textline_candidate("[MEO]", 858, 285, 891, 376)
+        acronym["_score"] = 0.8503
+        japanese["paddleGroupId"] = "G002"
+        japanese_tail["paddleGroupId"] = "G002"
+        acronym["paddleGroupId"] = "G002"
+
+        contextual = OCR.partition_textline_candidates_heuristic(
+            [japanese, japanese_tail, acronym],
+            width=1000,
+            height=1421,
+            source_language="ja",
+        )
+        acronym_entry = next(
+            entry
+            for entry in contextual["deferred"]
+            if any(item["_text"] == "[MEO]" for item in entry["items"])
+        )
+        self.assertEqual(
+            acronym_entry["reasons"],
+            ["contextual_latin_acronym"],
+        )
+
+        low_confidence_acronym = textline_candidate(
+            "[MEO]",
+            858,
+            285,
+            891,
+            376,
+        )
+        low_confidence_acronym["_score"] = 0.799
+        low_confidence_acronym["paddleGroupId"] = "G002"
+        low_confidence = OCR.partition_textline_candidates_heuristic(
+            [japanese, japanese_tail, low_confidence_acronym],
+            width=1000,
+            height=1421,
+            source_language="ja",
+        )
+        self.assertIn(
+            "[MEO]",
+            [entry["item"]["_text"] for entry in low_confidence["excluded"]],
+        )
+
+        orphan_japanese = textline_candidate(
+            "当選",
+            831,
+            285,
+            864,
+            337,
+        )
+        orphan_acronym = textline_candidate("[MEO]", 858, 285, 891, 376)
+        orphan_acronym["_score"] = 0.8503
+        orphan = OCR.partition_textline_candidates_heuristic(
+            [orphan_japanese, orphan_acronym],
+            width=1000,
+            height=1421,
+            source_language="ja",
+        )
+        self.assertEqual(
+            [entry["item"]["_text"] for entry in orphan["excluded"]],
+            ["[MEO]"],
+        )
+
+        weak_anchor = textline_candidate("当選", 831, 285, 864, 337)
+        weak_anchor["_score"] = 0.01
+        weak_acronym = textline_candidate("[MEO]", 858, 285, 891, 376)
+        weak_acronym["_score"] = 0.8503
+        weak_anchor["paddleGroupId"] = "G002"
+        weak_acronym["paddleGroupId"] = "G002"
+        weak_context = OCR.partition_textline_candidates_heuristic(
+            [weak_anchor, weak_acronym],
+            width=1000,
+            height=1421,
+            source_language="ja",
+        )
+        self.assertIn(
+            "[MEO]",
+            [entry["item"]["_text"] for entry in weak_context["excluded"]],
+        )
+
+    def test_common_latin_title_punctuation_is_not_example_specific(self) -> None:
+        candidates = [
+            textline_candidate("Re:ZERO Starting Life", 100, 100, 500, 125),
+            textline_candidate("D.Gray-man Online", 100, 200, 500, 225),
+            textline_candidate("Cats & Dogs + Magic", 100, 300, 500, 325),
+            textline_candidate("LEVEL 2: Second Stage", 100, 400, 500, 425),
+            textline_candidate("Fate/Grand Order Online", 100, 500, 500, 525),
+            textline_candidate("BanG Dream! 2nd Season", 100, 600, 500, 625),
+        ]
+        for candidate in candidates:
+            candidate["_score"] = 0.99
+
+        result = OCR.partition_textline_candidates_heuristic(
+            candidates,
+            width=1000,
+            height=1421,
+            source_language="ja",
+        )
+
+        self.assertCountEqual(
+            [
+                item["_text"]
+                for entry in result["deferred"]
+                for item in entry["items"]
+            ],
+            [candidate["_text"] for candidate in candidates],
+        )
+
+    def test_uppercase_latin_title_requires_reliable_japanese_context(self) -> None:
+        title = textline_candidate(
+            "STEINS;GATE ADVENTURE",
+            100,
+            100,
+            500,
+            125,
+        )
+        title["_score"] = 0.99
+        orphan = OCR.partition_textline_candidates_heuristic(
+            [title],
+            width=1000,
+            height=1421,
+            source_language="ja",
+        )
+        self.assertEqual(
+            [entry["item"]["_text"] for entry in orphan["excluded"]],
+            ["STEINS;GATE ADVENTURE"],
+        )
+
+        first_anchor = textline_candidate("日本語", 100, 140, 200, 165)
+        second_anchor = textline_candidate("本文です", 100, 170, 220, 195)
+        for item in (title, first_anchor, second_anchor):
+            item["paddleGroupId"] = "G010"
+        contextual = OCR.partition_textline_candidates_heuristic(
+            [title, first_anchor, second_anchor],
+            width=1000,
+            height=1421,
+            source_language="ja",
+        )
+        title_entry = next(
+            entry
+            for entry in contextual["deferred"]
+            if any(
+                item["_text"] == "STEINS;GATE ADVENTURE"
+                for item in entry["items"]
+            )
+        )
+        self.assertEqual(
+            title_entry["reasons"],
+            ["contextual_uppercase_latin_title"],
+        )
+
+    def test_domain_shape_is_excluded_without_blocking_dot_in_prose(self) -> None:
+        domain_texts = [
+            "MANGA.EXAMPLE.DEV",
+            "Example.COM",
+            "Example.Com",
+            "MangaDex.ORG",
+            "MangaDex.Org",
+            "Example.com/path",
+            "Manga.Example.DEV/chapter",
+            "Assets/Image",
+            "Alpha/Beta",
+        ]
+        domains = [
+            textline_candidate(text, 100, 100 + index * 40, 500, 125 + index * 40)
+            for index, text in enumerate(domain_texts)
+        ]
+        prose = textline_candidate(
+            "Welcome.Comrades Home",
+            100,
+            340,
+            500,
+            365,
+        )
+        mixed_case_title = textline_candidate(
+            "Blue.Lock Adventure",
+            100,
+            380,
+            500,
+            405,
+        )
+        for domain in domains:
+            domain["_score"] = 0.99
+        prose["_score"] = 0.99
+        mixed_case_title["_score"] = 0.99
+
+        result = OCR.partition_textline_candidates_heuristic(
+            [*domains, prose, mixed_case_title],
+            width=1000,
+            height=1421,
+            source_language="ja",
+        )
+
+        self.assertCountEqual(
+            [
+                entry["item"]["_text"]
+                for entry in result["excluded"]
+                if entry["item"]["_text"] in domain_texts
+            ],
+            domain_texts,
+        )
+        retained = [
+                item["_text"]
+                for entry in result["deferred"]
+                for item in entry["items"]
+        ]
+        self.assertIn("Welcome.Comrades Home", retained)
+        self.assertIn("Blue.Lock Adventure", retained)
+
+    def test_latin_rescue_keeps_numeric_url_and_shape_noise_excluded(self) -> None:
+        candidates = [
+            textline_candidate("Monster2026Online", 100, 100, 420, 125),
+            textline_candidate("Monster.Example.Com", 100, 200, 420, 225),
+            textline_candidate("IIIIIIIIIIII", 100, 300, 420, 325),
+            textline_candidate("Monster・Evolve・Online", 100, 400, 420, 425),
+            textline_candidate("MEO2", 100, 500, 180, 525),
+            textline_candidate("------MonsterOnline------", 100, 600, 500, 625),
+        ]
+        candidates[3]["_score"] = 0.899
+        for candidate in candidates:
+            candidate["paddleGroupId"] = "G099"
+        japanese = textline_candidate("日本語本文", 100, 540, 240, 570)
+        japanese["paddleGroupId"] = "G099"
+
+        result = OCR.partition_textline_candidates_heuristic(
+            candidates + [japanese],
+            width=1000,
+            height=1421,
+            source_language="ja",
+        )
+
+        self.assertCountEqual(
+            [entry["item"]["_text"] for entry in result["excluded"]],
+            [candidate["_text"] for candidate in candidates],
+        )
+        self.assertTrue(
+            all(
+                entry["reason"] == "non_japanese_or_numeric_noise"
+                for entry in result["excluded"]
+            )
+        )
+
     def test_local_reading_aid_does_not_steal_neighbour_edge(self) -> None:
         candidates = [
             textline_candidate("冒険者だよ！", 103, 399, 161, 658),

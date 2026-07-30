@@ -2,6 +2,7 @@ import type { MangaPage } from "../../shared/libraryTypes";
 import type { TranslationOptions } from "../appSettings";
 import { tMain } from "./localization";
 import { buildPageWarnings, overlayItemToBlock } from "./overlayItems";
+import { buildAutomaticBodyTextCorpus } from "./automaticFontMatching";
 import type {
   CompletedPageBuildResult,
   OverlayItem,
@@ -39,6 +40,13 @@ export function buildTranslatedPageResult({
       {
         enabled: pageOptions.naturalTextLayout,
         locale: pageOptions.targetLanguage,
+      },
+      {
+        enabled: pageOptions.autoFontMatching,
+        targetLanguage: pageOptions.targetLanguage,
+        workTitle: pageOptions.fontMatchingWorkTitle,
+        bodyTextCorpus: buildAutomaticBodyTextCorpus(items),
+        candidates: pageOptions.fontMatchingCandidates,
       },
     ),
   );

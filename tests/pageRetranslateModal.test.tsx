@@ -32,12 +32,20 @@ describe("PageRetranslateModal", () => {
     const { onPersistDefaults, onStart } = renderModal();
 
     expect(
-      screen.getByRole("button", { name: "사용" }).getAttribute("aria-pressed"),
+      screen
+        .getByRole("button", { name: "자연스러운 줄 나눔" })
+        .getAttribute("aria-pressed"),
     ).toBe("true");
+    expect(
+      screen
+        .getByRole("button", { name: "폰트 자동 맞춤" })
+        .getAttribute("aria-pressed"),
+    ).toBe("false");
     fireEvent.click(screen.getByRole("button", { name: "재번역 시작" }));
 
-    expect(onStart).toHaveBeenCalledWith("auto", true);
+    expect(onStart).toHaveBeenCalledWith("auto", true, false);
     expect(onPersistDefaults).toHaveBeenCalledWith({
+      autoFontMatchingDefault: false,
       blockModeDefault: "auto",
       naturalTextLayoutDefault: true,
     });
@@ -50,15 +58,34 @@ describe("PageRetranslateModal", () => {
 
     expect(
       screen
-        .getByRole("button", { name: "사용 안 함" })
+        .getByRole("button", { name: "자연스러운 줄 나눔" })
+        .getAttribute("aria-pressed"),
+    ).toBe("false");
+    fireEvent.click(screen.getByRole("button", { name: "재번역 시작" }));
+
+    expect(onStart).toHaveBeenCalledWith("auto", false, false);
+    expect(onPersistDefaults).toHaveBeenCalledWith({
+      autoFontMatchingDefault: false,
+      blockModeDefault: "auto",
+      naturalTextLayoutDefault: false,
+    });
+  });
+
+  it("shows and forwards the saved automatic font setting", () => {
+    const { onPersistDefaults, onStart } = renderModal({
+      autoFontMatchingDefault: true,
+    });
+
+    expect(
+      screen
+        .getByRole("button", { name: "폰트 자동 맞춤" })
         .getAttribute("aria-pressed"),
     ).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "재번역 시작" }));
 
-    expect(onStart).toHaveBeenCalledWith("auto", false);
-    expect(onPersistDefaults).toHaveBeenCalledWith({
-      blockModeDefault: "auto",
-      naturalTextLayoutDefault: false,
-    });
+    expect(onStart).toHaveBeenCalledWith("auto", true, true);
+    expect(onPersistDefaults).toHaveBeenCalledWith(
+      expect.objectContaining({ autoFontMatchingDefault: true }),
+    );
   });
 });

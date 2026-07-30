@@ -183,6 +183,70 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: "MGT Dohyeon";
+  src: url("../assets/fonts/ko/dohyeon.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Ridi Batang";
+  src: url("../assets/fonts/ko/ridi-batang.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Cafe24 Gowoonbam";
+  src: url("../assets/fonts/ko/cafe24-gowoonbam.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Start Over";
+  src: url("../assets/fonts/ko/start-over.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Jua";
+  src: url("../assets/fonts/ko/jua.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Gaegu";
+  src: url("../assets/fonts/ko/gaegu-light.ttf") format("truetype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Gaegu";
+  src: url("../assets/fonts/ko/gaegu-regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Gaegu";
+  src: url("../assets/fonts/ko/gaegu-bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* English comic and handwriting fonts. */
 @font-face {
   font-family: "MGT Comic Neue";

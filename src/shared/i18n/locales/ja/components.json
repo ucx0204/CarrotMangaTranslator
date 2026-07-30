@@ -423,6 +423,8 @@
       "off": "翻訳文の折り返しはブロックに任せます。",
       "on": "ブロックの大きさに合わせて翻訳文の改行を整えます。"
     },
+    "autoFontMatching": "フォント自動調整",
+    "autoFontMatchingSummary": "セリフは統一し、効果音は雰囲気に合うフォントを選びます。",
     "completionMode": "完了方法",
     "completionModeTranslate": "翻訳のみ",
     "completionModeErase": "原文を消去",
@@ -1303,6 +1305,16 @@
       }
     },
     "hardware": {
+      "gpuSection": "GPUの割り当て",
+      "gpuSectionDescription": "アプリ画面とローカルAI処理で使用するGPUを個別に指定します。",
+      "graphicsGpu": "アプリ描画GPU",
+      "graphicsGpuAuto": "自動（OS設定を使用）",
+      "graphicsGpuHighPerformance": "高性能GPUを優先（RTX／外付け）",
+      "computeGpu": "ローカルAI演算GPU",
+      "computeGpuAuto": "自動（推奨）",
+      "computeGpuOption": "演算デバイス {{index}}（CUDA/HIP/Vulkan）",
+      "gpuNumberingNote": "演算デバイス番号は各AIランタイム基準で、WindowsタスクマネージャーのGPU 0/1とは異なる場合があります。Intel＋RTX環境ではアプリ描画を高性能GPU優先にし、演算GPUはまず自動を推奨します。",
+      "graphicsGpuRestartNote": "アプリ描画GPUの変更は、アプリを再起動すると適用されます。",
       "ocrSection": "OCR",
       "inpaintingSection": "インペインティング",
       "ocrQuality": "Paddle OCR品質",

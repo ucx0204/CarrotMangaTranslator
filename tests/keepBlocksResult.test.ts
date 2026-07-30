@@ -9,6 +9,7 @@ import { buildPreviousBlocksForPrompt } from "../src/main/pipeline/previousBlock
 import type { MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
 import type { OverlayItem } from "../src/main/pipeline/types";
+import { makeAutomaticFontCandidate } from "./helpers/automaticFontCandidate";
 
 describe("keep-blocks translation mode", () => {
   it("keeps existing blocks only when keep mode is on and blocks exist", () => {
@@ -242,6 +243,130 @@ describe("keep-blocks translation mode", () => {
       wordBreak: "keep-all",
       fontWidthScale: 0.9,
     });
+  });
+
+  it("applies automatic fonts before keep-mode natural layout", () => {
+    const page = makePage([
+      makeBlock("b-1", { x: 100, y: 100, w: 120, h: 180 }),
+    ]);
+    const previousBlocks = buildPreviousBlocksForPrompt(page, [], {
+      assignSequentialCandidateIds: true,
+    });
+    const candidate = makeAutomaticFontCandidate();
+    const mapping = applyOverlayItemsToExistingBlocks({
+      page,
+      items: [
+        makeItem(1, page.blocks[0].bbox, "長い台詞です", "긴 대사입니다"),
+      ],
+      previousBlocks,
+      automaticFont: {
+        enabled: true,
+        targetLanguage: "ko",
+        candidates: [candidate],
+      },
+      naturalLayout: { enabled: true, locale: "ko" },
+    });
+
+    expect(mapping.blocks[0].fontFamily).toBe(candidate.fontId);
+    expect(mapping.blocks[0]).not.toHaveProperty("fontMetricWidthScale");
+  });
+
+  it("preserves an existing sound role when the model omits it", () => {
+    const page = makePage([
+      makeBlock("b-1", { x: 100, y: 100, w: 160, h: 120 }, "쾅"),
+    ]);
+    const previousBlocks = buildPreviousBlocksForPrompt(page, [], {
+      assignSequentialCandidateIds: true,
+    });
+    const item = {
+      ...makeItem(1, page.blocks[0].bbox, "ドン", "쾅!"),
+      textRole: undefined,
+    };
+
+    const mapping = applyOverlayItemsToExistingBlocks({
+      page,
+      items: [item],
+      previousBlocks,
+      automaticFont: {
+        enabled: true,
+        targetLanguage: "ko",
+      },
+    });
+
+    expect(previousBlocks[0].textRole).toBe("sound");
+    expect(mapping.blocks[0].fontFamily).toBe("dohyeon");
+    expect(mapping.blocks[0].textRole).toBe("sound");
+  });
+
+  it("persists a new model-classified sound role across keep retranslations", () => {
+    const page = makePage([
+      {
+        ...makeBlock(
+          "b-1",
+          { x: 100, y: 100, w: 160, h: 120 },
+          "긴 일반문으로 저장된 블록",
+        ),
+        textRole: "ordinary",
+      },
+    ]);
+    const previousBlocks = buildPreviousBlocksForPrompt(page, [], {
+      assignSequentialCandidateIds: true,
+    });
+    const mapping = applyOverlayItemsToExistingBlocks({
+      page,
+      items: [
+        {
+          ...makeItem(1, page.blocks[0].bbox, "ビリリ！", "찌릿!"),
+          textRole: "sound",
+          confidence: 1,
+        },
+      ],
+      previousBlocks,
+      automaticFont: {
+        enabled: true,
+        targetLanguage: "ko",
+      },
+    });
+
+    expect(mapping.blocks[0].textRole).toBe("sound");
+    expect(mapping.blocks[0].fontFamily).not.toBe("nanum-barun-gothic");
+    expect(
+      buildPreviousBlocksForPrompt(makePage(mapping.blocks), [])[0].textRole,
+    ).toBe("sound");
+  });
+
+  it("lets an explicit visual ordinary role correct a legacy short-text guess", () => {
+    const page = makePage([
+      makeBlock("b-1", { x: 100, y: 100, w: 160, h: 120 }, "네"),
+    ]);
+    const previousBlocks = buildPreviousBlocksForPrompt(page, [], {
+      assignSequentialCandidateIds: true,
+    });
+    expect(previousBlocks[0].textRole).toBe("sound");
+
+    const mapping = applyOverlayItemsToExistingBlocks({
+      page,
+      items: [
+        {
+          ...makeItem(1, page.blocks[0].bbox, "はい", "네"),
+          textRole: "ordinary",
+        },
+      ],
+      previousBlocks,
+    });
+
+    expect(mapping.blocks[0].textRole).toBe("ordinary");
+  });
+
+  it("trusts a persisted ordinary role instead of guessing from short text", () => {
+    const page = makePage([
+      {
+        ...makeBlock("b-1", { x: 100, y: 100, w: 160, h: 120 }, "네"),
+        textRole: "ordinary",
+      },
+    ]);
+
+    expect(buildPreviousBlocksForPrompt(page, [])[0].textRole).toBe("ordinary");
   });
 
   it("adds hard breaks to a legacy block without adding wordBreak", () => {

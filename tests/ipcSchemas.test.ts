@@ -109,6 +109,39 @@ describe("IPC schemas", () => {
     ).toThrow(/요청 형식/);
   });
 
+  it("accepts automatic font matching on every analysis run mode", () => {
+    const requests = [
+      { chapterId, runMode: "pending", autoFontMatching: true },
+      { chapterId, runMode: "all", autoFontMatching: true },
+      {
+        chapterId,
+        runMode: "single-page",
+        pageId,
+        autoFontMatching: true,
+      },
+      {
+        chapterId,
+        runMode: "page-set",
+        pageIds: [pageId],
+        autoFontMatching: true,
+      },
+    ] as const;
+
+    for (const request of requests) {
+      expect(
+        parseIpcPayload(StartAnalysisRequestSchema, request, "번역 작업")
+          .autoFontMatching,
+      ).toBe(true);
+    }
+    expect(() =>
+      parseIpcPayload(
+        StartAnalysisRequestSchema,
+        { chapterId, runMode: "all", autoFontMatching: "yes" },
+        "번역 작업",
+      ),
+    ).toThrow(/요청 형식/);
+  });
+
   it("accepts a bounded page-set analysis request and rejects malformed ones", () => {
     const parsed = parseIpcPayload(
       StartAnalysisRequestSchema,
@@ -672,6 +705,7 @@ describe("IPC schemas", () => {
         bubbleLayoutPaddingRatio: 0.24,
       },
       ui: {
+        autoFontMatchingDefault: false,
         eraseOriginalWorkflowDefault: true,
         bubbleLayoutWorkflowDefault: false,
       },
@@ -697,6 +731,7 @@ describe("IPC schemas", () => {
     expect(parsed.ocr.gpuBackend).toBe("rocm-transformers");
     expect(parsed.inpainting?.bubbleLayoutAfterInpainting).toBe(true);
     expect(parsed.inpainting?.bubbleLayoutPaddingRatio).toBe(0.24);
+    expect(parsed.ui?.autoFontMatchingDefault).toBe(false);
     expect(parsed.ui?.eraseOriginalWorkflowDefault).toBe(true);
     expect(parsed.ui?.bubbleLayoutWorkflowDefault).toBe(false);
     expect(

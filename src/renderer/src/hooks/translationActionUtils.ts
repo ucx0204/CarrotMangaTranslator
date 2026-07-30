@@ -60,6 +60,7 @@ export function makeStartAnalysisRequest(
     blockMode?: AnalysisBlockMode;
     collectPageContext?: boolean;
     naturalTextLayout?: boolean;
+    autoFontMatching?: boolean;
   },
   t?: TFunction<"renderer">,
 ): StartAnalysisRequest {
@@ -70,11 +71,13 @@ export function makeStartAnalysisRequest(
     blockMode,
     collectPageContext,
     naturalTextLayout,
+    autoFontMatching,
   } = args;
   const contextOption =
     collectPageContext === undefined ? {} : { collectPageContext };
   const layoutOption =
     naturalTextLayout === undefined ? {} : { naturalTextLayout };
+  const fontOption = autoFontMatching === undefined ? {} : { autoFontMatching };
   if (runMode === "single-page") {
     if (!pageId) {
       throw new Error(
@@ -90,6 +93,7 @@ export function makeStartAnalysisRequest(
       blockMode,
       ...contextOption,
       ...layoutOption,
+      ...fontOption,
     };
   }
   if (runMode === "page-set") {
@@ -107,6 +111,7 @@ export function makeStartAnalysisRequest(
       blockMode,
       ...contextOption,
       ...layoutOption,
+      ...fontOption,
     };
   }
   return {
@@ -115,6 +120,7 @@ export function makeStartAnalysisRequest(
     blockMode,
     ...contextOption,
     ...layoutOption,
+    ...fontOption,
   };
 }
 
@@ -256,6 +262,7 @@ export async function runSecondTranslationPass(
   pushStatus: UseTranslationActionsOptions["pushStatus"],
   blockMode?: AnalysisBlockMode,
   naturalTextLayout?: boolean,
+  autoFontMatching?: boolean,
   t?: TFunction<"renderer">,
   notificationPort: NotificationPort = toastNotificationPort,
 ): Promise<RunAnalysisOutcome> {
@@ -267,6 +274,7 @@ export async function runSecondTranslationPass(
     blockMode,
     false,
     naturalTextLayout,
+    autoFontMatching,
     t,
   );
   if (pass2 === "completed") {

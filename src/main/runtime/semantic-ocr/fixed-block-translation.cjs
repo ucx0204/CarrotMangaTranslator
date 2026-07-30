@@ -5,8 +5,8 @@
  *
  * OCR and the group-only crop review already own candidate membership and geometry.
  * This module gives the translator only opaque block ids and accepts only
- * transcription/translation text back. The model cannot recreate coordinates,
- * candidate ids, or groups.
+ * role/translation text back. The model cannot recreate coordinates, candidate
+ * ids, or groups.
  */
 
 const {
@@ -38,13 +38,13 @@ const {
   parseFixedBlockTranslationResponse,
 } = require("./fixed-block-response.cjs");
 
-const FIXED_BLOCK_TRANSLATION_VERSION = 4;
+const FIXED_BLOCK_TRANSLATION_VERSION = 5;
 
 /**
  * @typedef {{id:number;bbox:[number,number,number,number];text:string;score:number|null;orientation:"horizontal"|"vertical";soundCandidate:boolean}} FixedCandidate
  * @typedef {{blockId:string;representativeId:number;candidateIds:number[];jp:string;direction:"horizontal"|"vertical";bbox:{x1:number;y1:number;x2:number;y2:number};confidence:number;soundCandidate:boolean;fragments:Array<{candidateId:number;text:string;score:number|null;bbox:[number,number,number,number]}>}} FixedBlock
- * @typedef {{version:4;blocks:FixedBlock[]}} FixedBlockPlan
- * @typedef {{blockId:string;ko:string}} FixedBlockTranslation
+ * @typedef {{version:5;blocks:FixedBlock[]}} FixedBlockPlan
+ * @typedef {{blockId:string;ko:string;textRole?:"ordinary"|"sound"}} FixedBlockTranslation
  * @typedef {{items:FixedBlockTranslation[];pageContext?:Record<string,unknown>}} FixedBlockTranslationResult
  * @typedef {{sourceLanguage?:unknown;targetLanguage?:unknown;modelProvider?:unknown;regionCropMode?:unknown;keepBlocksMode?:unknown;promptOverrideText?:unknown;translationAttempt?:unknown;collectPageContext?:unknown;ocrBboxHints?:unknown;validatedGroupOnlyReview?:unknown;[key:string]:unknown}} FixedBlockOptions
  * @typedef {{role:string;dataUrl?:string;width?:unknown;height?:unknown;originalWidth?:unknown;originalHeight?:unknown;[key:string]:unknown}} ImageVariant
@@ -259,12 +259,16 @@ function buildFixedBlockTranslationPrompt(plan, options = {}) {
   const attempt = Number(options.translationAttempt);
   return [
     `Translate every supplied immutable ${profile.sourceName} manga string into natural ${profile.targetName}.`,
-    "Image 1 is context only. Use it to understand speakers, tone, and the scene.",
+    "Image 1 is visual evidence. Use each bbox and the visible lettering/container to classify the text role as well as understand speakers, tone, and the scene.",
     "Every blockId, jp, direction, bbox, block count, and block order was already fixed before translation.",
     "You may not merge, split, add, remove, reorder, or relocate blocks. Return exactly one item for every supplied blockId and no other blockId.",
     "Never transcribe, correct, normalize, merge, split, add, remove, reorder, or replace any jp text.",
     "Translate the exact supplied jp string even when it is short, stylized, noisy, or contains an OCR error.",
-    "Each item has exactly two keys: blockId and ko. Never output jp, candidateIds, coordinates, bbox, type, role, confidence, action, or commentary.",
+    'Each item has exactly three keys: blockId, textRole, and ko. textRole must be exactly "ordinary" or "sound". Never output jp, candidateIds, coordinates, bbox, type, confidence, action, or commentary.',
+    'Use textRole "ordinary" for speech balloons, narration, captions, interface labels, titles, signs, notes, and readable dialogue even when the string is very short.',
+    'Use textRole "sound" only for standalone printed sound effects, action noises, and stylized reaction lettering that belongs to the depicted scene rather than a speaker or label.',
+    'Judge textRole from the original page image, bbox, lettering, and scene context. Do not classify by string length alone; when genuinely ambiguous, use "ordinary".',
+    'For textRole "sound", translate as compact natural effect lettering instead of an explanatory sentence.',
     "ko must faithfully translate the complete jp without losing the opening phrase, modifiers, negation, names, numbers, honorifics, register, modality, or final predicate.",
     "ko must be one plain continuous line with natural target-language spaces. The renderer performs visual wrapping.",
     `Every ko value must be written only in ${profile.targetName}; never copy untranslated ${profile.sourceName} script from jp.`,
@@ -298,7 +302,7 @@ function buildFixedBlockTranslationSystemPrompt(options = {}) {
   const profile = resolvePromptLanguageProfile(
     /** @type {import("../prompts/prompt-types").PromptOptions} */ (options),
   );
-  return `You are a faithful ${profile.sourceName}-to-${profile.targetName} manga translator. Source strings, geometry, and grouping are immutable; write ko only in ${profile.targetName} without untranslated source script, and output only blockId and ko as valid JSON.`;
+  return `You are a faithful ${profile.sourceName}-to-${profile.targetName} manga translator and visual text-role classifier. Source strings, geometry, and grouping are immutable; classify each visible fixed block as ordinary or sound, write ko only in ${profile.targetName} without untranslated source script, and output only blockId, textRole, and ko as valid JSON.`;
 }
 
 /** @param {FixedBlock} block */
@@ -328,21 +332,32 @@ function buildFixedBlockOverlayPayload(plan, translations) {
           `Missing fixed-block translation ${block.blockId}.`,
         );
       }
+      const modelClassifiedSound =
+        translation.textRole === "sound" && block.confidence >= 0.58;
+      const soundCandidate = block.soundCandidate || modelClassifiedSound;
       return [
         {
           id: block.representativeId,
           candidateIds: block.candidateIds,
           type: "nonsolid",
-          textRole: block.soundCandidate ? "sound" : "ordinary",
+          textRole: soundCandidate ? "sound" : "ordinary",
           ...block.bbox,
           jp: block.jp,
           ko: translation.ko,
           direction: block.direction,
           angle: 0,
-          // Only strong OCR evidence is code-approved for the existing exact-1
-          // SFX gate. Low-confidence sounds retain their real score and are
-          // discarded by the ordinary page policy.
-          confidence: resolveFixedBlockConfidence(block),
+          // A vision-classified effect still needs usable OCR evidence. Once
+          // both agree, approve it for the existing exact-1 SFX gate so role
+          // classification cannot make previously accepted text disappear.
+          confidence: resolveFixedBlockConfidence(
+            modelClassifiedSound
+              ? {
+                  ...block,
+                  soundCandidate: true,
+                  confidence: Math.max(block.confidence, 0.82),
+                }
+              : { ...block, soundCandidate },
+          ),
         },
       ];
     }),

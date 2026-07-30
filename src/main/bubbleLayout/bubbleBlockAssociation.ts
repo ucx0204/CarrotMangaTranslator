@@ -23,6 +23,8 @@ export type BlockBubbleCandidateOwnership<Owner> = {
 };
 
 export type BubbleOwnershipPartition = {
+  /** Job-local conflict component key used to merge one transient Flux crop. */
+  sharedGroupId: string;
   /**
    * Coarse axis-aligned cell retained for diagnostics. The actual pixel
    * ownership is resolved from the OCR boxes so diagonally arranged text can

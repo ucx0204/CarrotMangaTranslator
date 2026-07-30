@@ -22,6 +22,8 @@ export function buildSettingsFromDraft({
 }): AppSettings {
   return buildSettingsFromForm({
     initialSettings,
+    graphicsGpuPreference: values.graphicsGpuPreference,
+    computeGpuIndex: values.computeGpuIndex,
     uiLocale: values.uiLocale,
     keybindings,
     blockFormatDefaults,

@@ -8,13 +8,20 @@ import {
   resolvePackagedBootstrapLogPath,
   resolvePackagedElectronStoragePaths,
 } from "./electronStoragePaths";
+import {
+  readBootstrapGraphicsGpuPreference,
+  resolveBootstrapSettingsPath,
+  resolveGraphicsGpuSwitch,
+} from "./bootstrapGraphicsGpu";
 
 const bootstrapLogger = createBootstrapLogger({
   resolveLogPath: bootstrapLogPath,
 });
 
-configurePackagedElectronStorage();
-configureDevelopmentElectronStorage();
+const bootstrapDataRoot = resolveBootstrapDataRoot();
+configurePackagedElectronStorage(bootstrapDataRoot);
+configureDevelopmentElectronStorage(bootstrapDataRoot);
+configureGraphicsGpu(bootstrapDataRoot);
 
 function bootstrapLogPath(): string {
   if (app.isPackaged || __dirname.includes("app.asar")) {
@@ -35,16 +42,26 @@ function resolveBootstrapUserDataDir(): string {
   }
 }
 
-function configurePackagedElectronStorage(): void {
-  if (!isPackagedBootstrap()) {
+function resolveBootstrapDataRoot(): string | null {
+  try {
+    return isPackagedBootstrap()
+      ? resolvePackagedDataRoot(dirname(process.execPath), {
+          platform: process.platform,
+          appDataDir: app.getPath("appData"),
+        })
+      : resolve(__dirname, "../..");
+  } catch (error) {
+    writeBootstrapLog("bootstrap:data-root-resolution-failed", error);
+    return null;
+  }
+}
+
+function configurePackagedElectronStorage(dataRoot: string | null): void {
+  if (!isPackagedBootstrap() || !dataRoot) {
     return;
   }
 
   try {
-    const dataRoot = resolvePackagedDataRoot(dirname(process.execPath), {
-      platform: process.platform,
-      appDataDir: app.getPath("appData"),
-    });
     const { userDataDir, sessionDataDir, tempDir, diskCacheDir } =
       resolvePackagedElectronStoragePaths(dataRoot);
     mkdirSync(userDataDir, { recursive: true });
@@ -65,18 +82,17 @@ function writeBootstrapLog(message: string, detail?: unknown): void {
   bootstrapLogger.write(message, detail);
 }
 
-function configureDevelopmentElectronStorage(): void {
-  if (isPackagedBootstrap()) {
+function configureDevelopmentElectronStorage(dataRoot: string | null): void {
+  if (isPackagedBootstrap() || !dataRoot) {
     return;
   }
 
-  const repoRoot = resolve(__dirname, "../..");
   const userDataDir =
     process.env.MANGA_TRANSLATOR_DEV_USER_DATA?.trim() ||
-    join(repoRoot, ".tmp", "electron-dev", "user-data");
+    join(dataRoot, ".tmp", "electron-dev", "user-data");
   const sessionDataDir =
     process.env.MANGA_TRANSLATOR_DEV_SESSION_DATA?.trim() ||
-    join(repoRoot, ".tmp", "electron-dev", "session-data");
+    join(dataRoot, ".tmp", "electron-dev", "session-data");
   try {
     mkdirSync(userDataDir, { recursive: true });
     mkdirSync(sessionDataDir, { recursive: true });
@@ -89,6 +105,28 @@ function configureDevelopmentElectronStorage(): void {
     app.commandLine.appendSwitch("disable-gpu-shader-disk-cache");
   } catch (error) {
     writeBootstrapLog("bootstrap:dev-storage-config-failed", error);
+  }
+}
+
+function configureGraphicsGpu(dataRoot: string | null): void {
+  if (!dataRoot) {
+    return;
+  }
+
+  try {
+    const settingsPath = resolveBootstrapSettingsPath(dataRoot);
+    const preference = readBootstrapGraphicsGpuPreference(settingsPath);
+    const gpuSwitch = resolveGraphicsGpuSwitch(preference);
+    if (!gpuSwitch) {
+      return;
+    }
+    app.commandLine.appendSwitch(gpuSwitch);
+    writeBootstrapLog("bootstrap:graphics-gpu-preference-applied", {
+      preference,
+      platform: process.platform,
+    });
+  } catch (error) {
+    writeBootstrapLog("bootstrap:graphics-gpu-preference-failed", error);
   }
 }
 

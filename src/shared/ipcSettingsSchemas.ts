@@ -38,6 +38,7 @@ import {
   MAX_KEYBINDING_COMBO_LENGTH,
   SHORTCUT_ACTION_IDS,
 } from "./shortcutSettings";
+import { MAX_COMPUTE_GPU_INDEX, MIN_COMPUTE_GPU_INDEX } from "./gpuSettings";
 
 const LanguageCodeSchema = z
   .string()
@@ -130,6 +131,7 @@ export const AppSettingsSchema = z
         analysisScopeDefault: z.enum(["work", "missing", "chapter"]).optional(),
         blockModeDefault: z.enum(["auto", "keep"]).optional(),
         naturalTextLayoutDefault: z.boolean().optional(),
+        autoFontMatchingDefault: z.boolean().optional(),
         eraseOriginalWorkflowDefault: z.boolean().optional(),
         bubbleLayoutWorkflowDefault: z.boolean().optional(),
       })
@@ -172,6 +174,18 @@ export const AppSettingsSchema = z
       .strict()
       .optional(),
     keybindings: KeybindingOverridesSchema.optional(),
+    hardware: z
+      .object({
+        graphicsGpuPreference: z.enum(["auto", "high-performance"]).optional(),
+        computeGpuIndex: z
+          .number()
+          .int()
+          .min(MIN_COMPUTE_GPU_INDEX)
+          .max(MAX_COMPUTE_GPU_INDEX)
+          .optional(),
+      })
+      .strict()
+      .optional(),
     runtimeHardware: z
       .object({
         gpuVendor: z.enum(["nvidia", "amd", "apple", "unknown"]),

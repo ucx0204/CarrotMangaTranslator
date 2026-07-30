@@ -3,9 +3,29 @@ import { useTranslation } from "react-i18next";
 import type { AnalysisBlockMode } from "../../../shared/analysisTypes";
 import type { UiSettings } from "../../../shared/settingsTypes";
 import { getBlockModeOptions } from "../lib/blockModeOptions";
-import { OptionRow } from "./TranslationOptionControls";
+import { OptionRow, ToggleOptionRow } from "./TranslationOptionControls";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
+
+type PageRetranslateModalProps = {
+  pageName: string;
+  blockCount: number;
+  uiSettings: UiSettings | undefined;
+  onStart: (
+    blockMode: AnalysisBlockMode,
+    naturalTextLayout: boolean,
+    autoFontMatching: boolean,
+  ) => void;
+  onPersistDefaults: (
+    patch: Pick<
+      UiSettings,
+      | "autoFontMatchingDefault"
+      | "blockModeDefault"
+      | "naturalTextLayoutDefault"
+    >,
+  ) => void;
+  onClose: () => void;
+};
 
 export function PageRetranslateModal({
   pageName,
@@ -14,16 +34,7 @@ export function PageRetranslateModal({
   onStart,
   onPersistDefaults,
   onClose,
-}: {
-  pageName: string;
-  blockCount: number;
-  uiSettings: UiSettings | undefined;
-  onStart: (blockMode: AnalysisBlockMode, naturalTextLayout: boolean) => void;
-  onPersistDefaults: (
-    patch: Pick<UiSettings, "blockModeDefault" | "naturalTextLayoutDefault">,
-  ) => void;
-  onClose: () => void;
-}): React.JSX.Element {
+}: PageRetranslateModalProps): React.JSX.Element {
   const { t } = useTranslation("components");
   const { t: tRenderer } = useTranslation("renderer");
   const [blockMode, setBlockMode] = React.useState<AnalysisBlockMode>(
@@ -32,13 +43,17 @@ export function PageRetranslateModal({
   const [naturalTextLayout, setNaturalTextLayout] = React.useState(
     uiSettings?.naturalTextLayoutDefault ?? true,
   );
+  const [autoFontMatching, setAutoFontMatching] = React.useState(
+    uiSettings?.autoFontMatchingDefault ?? false,
+  );
 
   const handleStart = (): void => {
     onPersistDefaults({
       blockModeDefault: blockMode,
       naturalTextLayoutDefault: naturalTextLayout,
+      autoFontMatchingDefault: autoFontMatching,
     });
-    onStart(blockMode, naturalTextLayout);
+    onStart(blockMode, naturalTextLayout, autoFontMatching);
     onClose();
   };
 
@@ -48,6 +63,7 @@ export function PageRetranslateModal({
       size="md"
       onClose={onClose}
       closeOnBackdrop
+      cardClassName="translation-options-modal"
       footer={
         <>
           <Button onClick={onClose}>{t("common.cancel")}</Button>
@@ -57,55 +73,78 @@ export function PageRetranslateModal({
         </>
       }
     >
-      <div className="translate-options">
-        <p className="translate-options-context">
-          {t("retranslate.context", { pageName, count: blockCount })}
-        </p>
-        <OptionRow
-          label={t("common.blocks")}
-          options={getBlockModeOptions(tRenderer)}
-          value={blockMode}
-          onChange={setBlockMode}
-        />
-        <p className="translate-options-hint">
-          {blockMode === "keep"
-            ? t("retranslate.keepBlocksHint")
-            : t("retranslate.autoBlocksHint")}
-        </p>
-        <NaturalTextLayoutOption
-          enabled={naturalTextLayout}
-          onChange={setNaturalTextLayout}
-        />
-        <p className="translate-options-hint">
-          {t("retranslate.overwriteWarning")}
-        </p>
-      </div>
+      <PageRetranslateOptions
+        autoFontMatching={autoFontMatching}
+        blockCount={blockCount}
+        blockMode={blockMode}
+        naturalTextLayout={naturalTextLayout}
+        onAutoFontMatchingChange={setAutoFontMatching}
+        onBlockModeChange={setBlockMode}
+        onNaturalTextLayoutChange={setNaturalTextLayout}
+        pageName={pageName}
+        t={t}
+        tRenderer={tRenderer}
+      />
     </Modal>
   );
 }
 
-function NaturalTextLayoutOption({
-  enabled,
-  onChange,
+function PageRetranslateOptions({
+  autoFontMatching,
+  blockCount,
+  blockMode,
+  naturalTextLayout,
+  onAutoFontMatchingChange,
+  onBlockModeChange,
+  onNaturalTextLayoutChange,
+  pageName,
+  t,
+  tRenderer,
 }: {
-  enabled: boolean;
-  onChange: (enabled: boolean) => void;
+  autoFontMatching: boolean;
+  blockCount: number;
+  blockMode: AnalysisBlockMode;
+  naturalTextLayout: boolean;
+  onAutoFontMatchingChange: (enabled: boolean) => void;
+  onBlockModeChange: (mode: AnalysisBlockMode) => void;
+  onNaturalTextLayoutChange: (enabled: boolean) => void;
+  pageName: string;
+  t: ReturnType<typeof useTranslation>["t"];
+  tRenderer: ReturnType<typeof useTranslation>["t"];
 }): React.JSX.Element {
-  const { t } = useTranslation("components");
   return (
-    <>
+    <div className="translate-options">
+      <p className="translate-options-context">
+        {t("retranslate.context", { pageName, count: blockCount })}
+      </p>
       <OptionRow
-        label={t("translationOptions.naturalTextLayout")}
-        options={[
-          { id: "off", label: t("translationOptions.naturalTextLayoutOff") },
-          { id: "on", label: t("translationOptions.naturalTextLayoutOn") },
-        ]}
-        value={enabled ? "on" : "off"}
-        onChange={(value) => onChange(value === "on")}
+        label={t("common.blocks")}
+        options={getBlockModeOptions(tRenderer)}
+        value={blockMode}
+        onChange={onBlockModeChange}
       />
       <p className="translate-options-hint">
-        {t("translationOptions.naturalTextLayoutHint")}
+        {t(
+          blockMode === "keep"
+            ? "retranslate.keepBlocksHint"
+            : "retranslate.autoBlocksHint",
+        )}
       </p>
-    </>
+      <div className="translate-options-toggle-grid">
+        <ToggleOptionRow
+          label={t("translationOptions.naturalTextLayout")}
+          pressed={naturalTextLayout}
+          onChange={onNaturalTextLayoutChange}
+        />
+        <ToggleOptionRow
+          label={t("translationOptions.autoFontMatching")}
+          pressed={autoFontMatching}
+          onChange={onAutoFontMatchingChange}
+        />
+      </div>
+      <p className="translate-options-hint">
+        {t("retranslate.overwriteWarning")}
+      </p>
+    </div>
   );
 }

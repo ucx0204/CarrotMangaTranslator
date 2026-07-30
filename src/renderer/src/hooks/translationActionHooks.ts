@@ -76,6 +76,7 @@ export function useTranslationActionsImpl(
       options.translationWorkflowDefault ?? "cumulative",
     analysisScopeDefault: options.analysisScopeDefault ?? "missing",
     blockModeDefault: options.blockModeDefault ?? "auto",
+    autoFontMatchingDefault: options.autoFontMatchingDefault ?? false,
     naturalTextLayoutDefault: options.naturalTextLayoutDefault ?? true,
   });
   const translateSelectedRegion = useTranslateSelectedRegionAction(
@@ -169,6 +170,7 @@ async function executeAnalysisJob(
           blockMode: job.blockMode,
           collectPageContext: job.collectPageContext,
           naturalTextLayout: job.naturalTextLayout,
+          autoFontMatching: job.autoFontMatching,
         },
         context.t,
       ),
@@ -341,6 +343,7 @@ async function runTranslationFlowPasses({
     options.blockMode,
     options.workflowMode === "cumulative",
     naturalTextLayout,
+    options.autoFontMatching,
     t,
   );
   if (pass1 !== "completed") {
@@ -368,6 +371,7 @@ async function runTranslationFlowPasses({
     pushStatus,
     options.blockMode,
     naturalTextLayout,
+    options.autoFontMatching,
     t,
     notificationPort,
   );

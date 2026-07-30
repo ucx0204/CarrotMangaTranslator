@@ -521,12 +521,16 @@ describe("translation workflow modes", () => {
         workflowMode: "cumulative",
         analysisScope: "missing",
         blockMode: "auto",
+        autoFontMatching: true,
         naturalTextLayout: true,
         bubbleLayoutWorkflow: true,
       });
     });
 
     expect(startAnalysis).toHaveBeenCalledOnce();
+    expect(startAnalysis.mock.calls[0]?.[0]).toMatchObject({
+      autoFontMatching: true,
+    });
     expect(startAnalysis.mock.calls[0]?.[0]).not.toHaveProperty(
       "naturalTextLayout",
     );

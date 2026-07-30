@@ -108,6 +108,11 @@ function useSettingsFormSetters(
         setValues,
         "apiCustomHeadersJson",
       ),
+      setGraphicsGpuPreference: createFormFieldDispatch(
+        setValues,
+        "graphicsGpuPreference",
+      ),
+      setComputeGpuIndex: createFormFieldDispatch(setValues, "computeGpuIndex"),
       setOcrDevice: createFormFieldDispatch(setValues, "ocrDevice"),
       setOcrGpuBackend: createFormFieldDispatch(setValues, "ocrGpuBackend"),
       setOcrQualityMode: createFormFieldDispatch(setValues, "ocrQualityMode"),

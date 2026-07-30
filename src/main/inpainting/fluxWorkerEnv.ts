@@ -4,6 +4,7 @@ import type {
   FluxWorkerBackend,
   FluxWorkerLaunchSpec,
 } from "./fluxWorkerTypes";
+import { applyComputeGpuVisibilityEnv } from "./computeGpuEnv";
 
 const DEFAULT_ROCM_PATH = process.platform === "win32" ? "" : "/opt/rocm";
 
@@ -34,6 +35,7 @@ export function buildFluxWorkerEnv(
   copyHostRuntimeEnv(env);
   applyRocmRuntimeEnv(env, launch.backend);
   applyZludaRuntimeEnv(env, launch.backend);
+  applyComputeGpuVisibilityEnv(env, launch.computeGpuIndex, launch.backend);
   return env;
 }
 

@@ -40,7 +40,8 @@ const MAX_FIXED_BLOCK_REPAIR_ATTEMPTS = 3;
 
 /**
  * Translate code-owned OCR groups. The model receives the page for context,
- * but its response can contain only one Korean string per opaque block id.
+ * but its response can contain only one visual text role and target-language
+ * string per opaque block id.
  *
  * @param {ModelServer} server
  * @param {SemanticRequestOptions} options
@@ -225,7 +226,7 @@ async function completeFixedBlockTranslation(
  * @param {SemanticRequestOptions} options
  * @param {ImageVariant[]} imageVariants
  * @param {ReturnType<typeof buildFixedBlockPlan>} plan
- * @param {{items:Array<{blockId:string;ko:string}>;pageContext?:Record<string,unknown>}} initialTranslations
+ * @param {{items:Array<{blockId:string;ko:string;textRole?:"ordinary"|"sound"}>;pageContext?:Record<string,unknown>}} initialTranslations
  * @param {string[]} initialPendingBlockIds
  * @param {RequestSummary} requestSummary
  * @param {number} requestStartedAt

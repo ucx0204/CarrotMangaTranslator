@@ -17,6 +17,7 @@ export type FluxWorkerBackend =
 
 export type FluxWorkerLaunchSpec = {
   backend: FluxWorkerBackend;
+  computeGpuIndex?: number;
   executable: string;
   args: string[];
   runtimePath: string;

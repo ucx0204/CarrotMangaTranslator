@@ -38,6 +38,7 @@ export async function getChapterStoryMemory(
 
 export async function resolveWorkContextForChapter(chapterId: string): Promise<{
   workId: string;
+  workTitle: string;
   styleGuide: WorkStyleGuide;
   storyMemory: ChapterStoryMemory;
 }> {

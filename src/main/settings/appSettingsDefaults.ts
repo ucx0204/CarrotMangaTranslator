@@ -60,6 +60,10 @@ import {
   MIN_API_KEY_MAX_ATTEMPTS,
   MIN_API_RETRY_DELAY_SECONDS,
 } from "../../shared/apiKeySettings";
+import {
+  normalizeComputeGpuIndex,
+  normalizeGraphicsGpuPreference,
+} from "../../shared/gpuSettings";
 
 export function resolveDefaultAppSettings(
   env: NodeJS.ProcessEnv = process.env,
@@ -83,6 +87,7 @@ export function resolveDefaultAppSettings(
   );
   return {
     modelProvider,
+    hardware: resolveDefaultHardwareGpuSettings(env),
     translation: resolveDefaultTranslationLanguageSettings(env),
     gemma,
     codex,
@@ -100,6 +105,21 @@ export function resolveDefaultAppSettings(
       env.MANGA_TRANSLATOR_CTX,
       recommendedLimits.contextTokens,
     ),
+  };
+}
+
+function resolveDefaultHardwareGpuSettings(
+  env: NodeJS.ProcessEnv,
+): NonNullable<AppSettings["hardware"]> {
+  const computeGpuIndex = normalizeComputeGpuIndex(
+    env.MANGA_TRANSLATOR_COMPUTE_GPU_INDEX ?? env.MGT_COMPUTE_GPU_INDEX,
+  );
+  return {
+    graphicsGpuPreference: normalizeGraphicsGpuPreference(
+      env.MANGA_TRANSLATOR_GRAPHICS_GPU_PREFERENCE ??
+        env.MGT_GRAPHICS_GPU_PREFERENCE,
+    ),
+    ...(computeGpuIndex === undefined ? {} : { computeGpuIndex }),
   };
 }
 
@@ -283,6 +303,7 @@ function resolveDefaultUiSettings(
     translationWorkflowDefault: "cumulative",
     analysisScopeDefault: "missing",
     naturalTextLayoutDefault: true,
+    autoFontMatchingDefault: false,
     eraseOriginalWorkflowDefault: false,
     bubbleLayoutWorkflowDefault: true,
   };

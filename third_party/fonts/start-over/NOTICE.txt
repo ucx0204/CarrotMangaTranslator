@@ -1,0 +1,20 @@
+Copyright (c) 2019 NAVER Corporation. All rights reserved.
+Font created by CLOVA AI OCR Team.
+
+NAVER's current Nanum font license also publishes this copyright notice:
+Copyright (c) 2010, NAVER Corporation (https://www.navercorp.com/) with
+Reserved Font Name Nanum, Naver Nanum, NanumGothic, Naver NanumGothic,
+NanumMyeongjo, Naver NanumMyeongjo, NanumBrush, Naver NanumBrush, NanumPen,
+Naver NanumPen, Naver NanumGothicEco, NanumGothicEco,
+Naver NanumMyeongjoEco, NanumMyeongjoEco, Naver NanumGothicLight,
+NanumGothicLight, NanumBarunGothic, Naver NanumBarunGothic,
+NanumSquareRound, NanumBarunPen, MaruBuri, NanumSquareNeo.
+
+The unmodified Nanum DaSiSiJagHae TTF was downloaded from NAVER CLOVA's
+official handwriting font catalog:
+https://clova.ai/handwriting/list.html
+
+NAVER permits Nanum fonts to be bundled and redistributed with its copyright
+notice and the SIL Open Font License, Version 1.1. The matching OFL-1.1 text
+is included in this directory. Current license guidance:
+https://help.naver.com/service/11029/contents/18088

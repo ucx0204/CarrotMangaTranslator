@@ -65,6 +65,7 @@ export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
       blockMode: AnalysisBlockModeSchema.optional(),
       collectPageContext: z.boolean().optional(),
       naturalTextLayout: z.boolean().optional(),
+      autoFontMatching: z.boolean().optional(),
     })
     .strict(),
   z
@@ -74,6 +75,7 @@ export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
       blockMode: AnalysisBlockModeSchema.optional(),
       collectPageContext: z.boolean().optional(),
       naturalTextLayout: z.boolean().optional(),
+      autoFontMatching: z.boolean().optional(),
     })
     .strict(),
   z
@@ -84,6 +86,7 @@ export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
       blockMode: AnalysisBlockModeSchema.optional(),
       collectPageContext: z.boolean().optional(),
       naturalTextLayout: z.boolean().optional(),
+      autoFontMatching: z.boolean().optional(),
     })
     .strict(),
   z
@@ -94,6 +97,7 @@ export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
       blockMode: AnalysisBlockModeSchema.optional(),
       collectPageContext: z.boolean().optional(),
       naturalTextLayout: z.boolean().optional(),
+      autoFontMatching: z.boolean().optional(),
     })
     .strict(),
 ]);

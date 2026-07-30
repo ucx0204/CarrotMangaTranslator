@@ -99,6 +99,48 @@ export const BUILT_IN_BLOCK_FONTS = [
     cssFamily: fontFamily("MGT Seoul Hangang", KOREAN_SERIF_FALLBACK),
     sample: "서울한강 Aa",
   },
+  {
+    id: "dohyeon",
+    locale: "ko",
+    label: "도현체",
+    cssFamily: fontFamily("MGT Dohyeon", KOREAN_SANS_FALLBACK),
+    sample: "도현체 대사",
+  },
+  {
+    id: "ridi-batang",
+    locale: "ko",
+    label: "리디바탕",
+    cssFamily: fontFamily("MGT Ridi Batang", KOREAN_SERIF_FALLBACK),
+    sample: "리디바탕 본문",
+  },
+  {
+    id: "cafe24-gowoonbam",
+    locale: "ko",
+    label: "카페24 고운밤",
+    cssFamily: fontFamily("MGT Cafe24 Gowoonbam", KOREAN_SANS_FALLBACK),
+    sample: "고운 밤 손글씨",
+  },
+  {
+    id: "start-over",
+    locale: "ko",
+    label: "다시 시작해",
+    cssFamily: fontFamily("MGT Start Over", KOREAN_SANS_FALLBACK),
+    sample: "다시 시작해",
+  },
+  {
+    id: "jua",
+    locale: "ko",
+    label: "주아체",
+    cssFamily: fontFamily("MGT Jua", KOREAN_SANS_FALLBACK),
+    sample: "주아체 이야기",
+  },
+  {
+    id: "gaegu",
+    locale: "ko",
+    label: "개구쟁이체",
+    cssFamily: fontFamily("MGT Gaegu", KOREAN_SANS_FALLBACK),
+    sample: "개구쟁이 낙서",
+  },
 
   // English
   {

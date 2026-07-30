@@ -4,6 +4,7 @@ import {
   segmentNaturalTextGraphemes,
 } from "../src/shared/naturalTextLayout";
 import { resolveNaturalShapeSlotPlans } from "../src/shared/naturalTextLayoutShape";
+import { resolveNaturalTextMetrics } from "../src/shared/naturalTextLayoutMetrics";
 import {
   countSemanticNaturalGraphemes,
   isSemanticNaturalGrapheme,
@@ -46,6 +47,19 @@ describe("natural translated-text layout", () => {
     expect(result.translatedText.replace(/\n/gu, " ")).toBe(
       block.translatedText,
     );
+  });
+
+  it("combines automatic font metrics with 장평 without stretching the stored 장평", () => {
+    const block = makeBlock(
+      "자동 글꼴의 폭을 줄 나눔 계산에 반영합니다",
+      { w: 180, h: 120 },
+      { fontWidthScale: 0.9 },
+    );
+
+    expect(resolveNaturalTextMetrics(block, 0.75).fontWidthScale).toBeCloseTo(
+      0.675,
+    );
+    expect(block.fontWidthScale).toBe(0.9);
   });
 
   it("keeps Korean eojeols intact across different rectangular sizes", () => {

@@ -70,6 +70,7 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     expect(defaults.inpainting?.bubbleLayoutPaddingRatio).toBe(0.12);
     expect(defaults.blockFormatDefaults?.wordBreak).toBe("break-word");
     expect(defaults.ui?.naturalTextLayoutDefault).toBe(true);
+    expect(defaults.ui?.autoFontMatchingDefault).toBe(false);
     expect(defaults.ui?.eraseOriginalWorkflowDefault).toBe(false);
     expect(defaults.ui?.bubbleLayoutWorkflowDefault).toBe(true);
     expect(defaults.maxTokens).toBe(DEFAULT_MAX_TOKENS);
@@ -124,6 +125,33 @@ describeWindows("app settings helpers: defaults and stored values", () => {
         defaults,
       ).ui?.naturalTextLayoutDefault,
     ).toBe(true);
+  });
+
+  it("defaults automatic font matching off while preserving an explicit saved on setting", () => {
+    const defaults = resolveDefaultAppSettings();
+
+    expect(
+      parseStoredAppSettings(
+        JSON.stringify({ ui: { autoFontMatchingDefault: true } }),
+        defaults,
+      ).ui?.autoFontMatchingDefault,
+    ).toBe(true);
+    expect(
+      parseStoredAppSettings(JSON.stringify({ ui: {} }), defaults).ui
+        ?.autoFontMatchingDefault,
+    ).toBe(false);
+    expect(
+      parseStoredAppSettings(
+        JSON.stringify({ ui: { autoFontMatchingDefault: false } }),
+        defaults,
+      ).ui?.autoFontMatchingDefault,
+    ).toBe(false);
+    expect(
+      parseStoredAppSettings(
+        JSON.stringify({ ui: { autoFontMatchingDefault: "yes" } }),
+        defaults,
+      ).ui?.autoFontMatchingDefault,
+    ).toBe(false);
   });
 
   it("migrates the legacy combined workflow into erase plus nested bubble defaults", () => {
@@ -302,6 +330,7 @@ describeWindows("app settings helpers: defaults and stored values", () => {
       parseStoredAppSettings('{"gemma":{"modelRepo":"custom/repo"}}', defaults),
     ).toEqual({
       modelProvider: defaults.modelProvider,
+      hardware: defaults.hardware,
       translation: defaults.translation,
       gemma: {
         modelSource: "huggingface",
@@ -375,6 +404,7 @@ describeWindows("app settings helpers: defaults and stored values", () => {
       parseStoredAppSettings('{"translationMode":"accuracy"}', defaults),
     ).toEqual({
       modelProvider: defaults.modelProvider,
+      hardware: defaults.hardware,
       translation: defaults.translation,
       gemma: defaults.gemma,
       codex: defaults.codex,
@@ -392,6 +422,7 @@ describeWindows("app settings helpers: defaults and stored values", () => {
       parseStoredAppSettings('{"translationMode":"turbo"}', defaults),
     ).toEqual({
       modelProvider: defaults.modelProvider,
+      hardware: defaults.hardware,
       translation: defaults.translation,
       gemma: defaults.gemma,
       codex: defaults.codex,

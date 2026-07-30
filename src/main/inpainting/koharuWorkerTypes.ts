@@ -11,6 +11,7 @@ export type KoharuWorkerRequest = {
 
 export type KoharuWorkerLaunchSpec = {
   backend: KoharuInpaintingBackend;
+  computeGpuIndex?: number;
   executable: string;
   args: string[];
   runtimePath: string;

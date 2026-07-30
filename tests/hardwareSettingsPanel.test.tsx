@@ -19,8 +19,10 @@ describe("HardwareSettingsPanel", () => {
       <HardwareSettingsPanel
         allowUnsafeLowMemoryFlux={false}
         clearTestState={vi.fn()}
+        computeGpuIndex={null}
         controlsBusy
         fluxBackend="cuda-native"
+        graphicsGpuPreference="auto"
         inpaintingModel="flux-klein"
         isFluxBackendOptionDisabled={() => false}
         ocrDevice="gpu"
@@ -28,6 +30,8 @@ describe("HardwareSettingsPanel", () => {
         ocrQualityMode="minimum"
         setFluxBackend={vi.fn()}
         setAllowUnsafeLowMemoryFlux={vi.fn()}
+        setComputeGpuIndex={vi.fn()}
+        setGraphicsGpuPreference={vi.fn()}
         setInpaintingModel={vi.fn()}
         setOcrDevice={vi.fn()}
         setOcrGpuBackend={vi.fn()}
@@ -58,8 +62,10 @@ describe("HardwareSettingsPanel", () => {
       <HardwareSettingsPanel
         allowUnsafeLowMemoryFlux={false}
         clearTestState={vi.fn()}
+        computeGpuIndex={null}
         controlsBusy={false}
         fluxBackend="cuda-native"
+        graphicsGpuPreference="auto"
         inpaintingModel="flux-klein"
         isFluxBackendOptionDisabled={() => false}
         ocrDevice="gpu"
@@ -67,6 +73,8 @@ describe("HardwareSettingsPanel", () => {
         ocrQualityMode="full"
         setFluxBackend={vi.fn()}
         setAllowUnsafeLowMemoryFlux={vi.fn()}
+        setComputeGpuIndex={vi.fn()}
+        setGraphicsGpuPreference={vi.fn()}
         setInpaintingModel={vi.fn()}
         setOcrDevice={setOcrDevice}
         setOcrGpuBackend={vi.fn()}
@@ -94,8 +102,10 @@ describe("HardwareSettingsPanel", () => {
       <HardwareSettingsPanel
         allowUnsafeLowMemoryFlux={false}
         clearTestState={vi.fn()}
+        computeGpuIndex={null}
         controlsBusy={false}
         fluxBackend="cuda-native"
+        graphicsGpuPreference="auto"
         inpaintingModel="flux-klein"
         isFluxBackendOptionDisabled={() => false}
         ocrDevice="gpu"
@@ -103,6 +113,8 @@ describe("HardwareSettingsPanel", () => {
         ocrQualityMode="full"
         setFluxBackend={vi.fn()}
         setAllowUnsafeLowMemoryFlux={vi.fn()}
+        setComputeGpuIndex={vi.fn()}
+        setGraphicsGpuPreference={vi.fn()}
         setInpaintingModel={vi.fn()}
         setOcrDevice={setOcrDevice}
         setOcrGpuBackend={setOcrGpuBackend}
@@ -125,8 +137,10 @@ describe("HardwareSettingsPanel", () => {
       <HardwareSettingsPanel
         allowUnsafeLowMemoryFlux={false}
         clearTestState={vi.fn()}
+        computeGpuIndex={null}
         controlsBusy={false}
         fluxBackend="zluda-native"
+        graphicsGpuPreference="auto"
         inpaintingModel="flux-klein"
         isFluxBackendOptionDisabled={() => false}
         ocrDevice="gpu"
@@ -134,6 +148,8 @@ describe("HardwareSettingsPanel", () => {
         ocrQualityMode="full"
         setFluxBackend={vi.fn()}
         setAllowUnsafeLowMemoryFlux={vi.fn()}
+        setComputeGpuIndex={vi.fn()}
+        setGraphicsGpuPreference={vi.fn()}
         setInpaintingModel={vi.fn()}
         setOcrDevice={vi.fn()}
         setOcrGpuBackend={vi.fn()}

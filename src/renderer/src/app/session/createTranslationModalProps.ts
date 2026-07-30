@@ -37,7 +37,7 @@ export function createPageRetranslateProps({
         blockCount: page.blocks.length,
         onClose: () => uiState.setRetranslatePageId(null),
         onPersistDefaults: createPersistUiDefaults(settingsDialog),
-        onStart: (blockMode, naturalTextLayout) =>
+        onStart: (blockMode, naturalTextLayout, autoFontMatching) =>
           void translationActions.runAnalysis(
             "single-page",
             pageId,
@@ -45,6 +45,7 @@ export function createPageRetranslateProps({
             blockMode,
             undefined,
             naturalTextLayout,
+            autoFontMatching,
           ),
         pageName: page.name,
         uiSettings: settingsDialog.settings?.ui,

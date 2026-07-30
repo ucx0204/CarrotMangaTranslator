@@ -1,0 +1,12 @@
+Copyright (c) 2014 WOOWA BROTHERS Corporation (www.woowahan.com) with
+Reserved Font Name "BM JUA".
+BM JUA is a registered trademark of WOOWA BROTHERS Corporation.
+
+The unmodified BM JUA TTF was downloaded from Woowa Brothers' official font
+host:
+https://pop.baemin.com/fonts/jua/BMJUA_ttf.ttf
+
+Woowa Brothers publishes its Baemin fonts under the SIL Open Font License,
+Version 1.1, and permits software bundling and redistribution with the
+copyright notice and license. Current license guidance:
+https://www.woowahan.com/fonts/license

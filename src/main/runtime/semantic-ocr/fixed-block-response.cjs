@@ -12,7 +12,7 @@ const {
 } = require("./fixed-block-quality.cjs");
 
 /**
- * @typedef {{blockId:string;ko:string}} FixedBlockTranslation
+ * @typedef {{blockId:string;ko:string;textRole?:"ordinary"|"sound"}} FixedBlockTranslation
  * @typedef {{items:FixedBlockTranslation[];pageContext?:Record<string,unknown>}} FixedBlockTranslationResult
  * @typedef {{blocks:Array<{blockId:string}>}} FixedBlockPlan
  * @typedef {{sourceLanguage?:unknown;targetLanguage?:unknown;collectPageContext?:unknown;[key:string]:unknown}} FixedBlockOptions
@@ -33,7 +33,9 @@ function parseFixedBlockTranslationResponse(rawText, plan, options = {}) {
 
 /**
  * Strict parser retained for callers that require the complete immutable
- * response contract before using any item.
+ * response contract before using any item. The parser still accepts legacy
+ * two-field fixtures/results without textRole as ordinary; the runtime JSON
+ * schema requires textRole for every newly generated response.
  *
  * @param {string} rawText
  * @param {FixedBlockPlan} plan
@@ -61,7 +63,7 @@ function parseFixedBlockTranslationDraft(rawText, plan, options = {}) {
 /**
  * Salvage independently valid items from a structurally readable response.
  * An item is trusted only when its expected blockId is claimed exactly once
- * and the complete item passes the immutable two-field contract. Missing,
+ * and the complete item passes the immutable text contract. Missing,
  * duplicated, malformed, unexpected, and source-script-leaking items become
  * targeted retry ids without affecting any accepted block.
  *
@@ -236,7 +238,7 @@ function readFixedBlockTranslation(value, index) {
     );
   }
   const unexpectedKeys = Object.keys(value).filter(
-    (key) => !["blockId", "ko"].includes(key),
+    (key) => !["blockId", "textRole", "ko"].includes(key),
   );
   if (unexpectedKeys.length > 0) {
     throw semanticContractError(
@@ -245,6 +247,7 @@ function readFixedBlockTranslation(value, index) {
     );
   }
   const blockId = String(value.blockId ?? "").trim();
+  const textRole = readFixedBlockTextRole(value.textRole, index);
   if (
     typeof value.ko === "string" &&
     (/[\r\n]/u.test(value.ko) || /\\[nr]/u.test(value.ko))
@@ -267,7 +270,34 @@ function readFixedBlockTranslation(value, index) {
       `Fixed-block translation ${index + 1} must return non-empty ko.`,
     );
   }
-  return { blockId, ko };
+  return buildFixedBlockTranslation(blockId, ko, textRole);
+}
+
+/**
+ * @param {unknown} value
+ * @param {number} index
+ * @returns {"ordinary"|"sound"|undefined}
+ */
+function readFixedBlockTextRole(value, index) {
+  if (value === undefined) return undefined;
+  const textRole = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (textRole === "ordinary" || textRole === "sound") return textRole;
+  throw semanticContractError(
+    "fixed-block-translation-role-invalid",
+    `Fixed-block translation ${index + 1} textRole must be ordinary or sound.`,
+  );
+}
+
+/**
+ * @param {string} blockId
+ * @param {string} ko
+ * @param {"ordinary"|"sound"|undefined} textRole
+ * @returns {FixedBlockTranslation}
+ */
+function buildFixedBlockTranslation(blockId, ko, textRole) {
+  return textRole ? { blockId, textRole, ko } : { blockId, ko };
 }
 
 /** @param {FixedBlockTranslation[]} items @param {string[]} expectedIds */

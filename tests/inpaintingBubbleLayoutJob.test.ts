@@ -7,6 +7,7 @@ import {
 } from "../src/main/inpainting/bubbleLayoutRunner";
 import type { InpaintingRevisionChange } from "../src/main/inpainting/inpaintingRevisionStore";
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
+import { runBubbleLayoutMaskPrepass } from "../src/main/jobs/bubbleLayoutJob";
 import type { InpaintingJobContext } from "../src/main/jobs/inpaintingJobTypes";
 import type { InpaintingJobRuntime } from "../src/main/jobs/inpaintingJobRuntime";
 import type { BubbleLayout } from "../src/shared/bubbleLayout";
@@ -46,6 +47,9 @@ describe("bubble-aware inpainting postprocess", () => {
               renderBbox: { x: 100, y: 120, w: 300, h: 260 },
               renderBboxSpace: "normalized_1000",
               bubbleLayout: paddingRatio === 0 ? maskLayout : layout,
+              ...(paddingRatio === 0
+                ? { sharedInpaintGroupIds: ["shared-1"] }
+                : {}),
               // Runtime-shaped malicious data is deliberately outside the type.
               bbox: { x: 900, y: 900, w: 10, h: 10 },
               renderDirection: "vertical",
@@ -81,6 +85,7 @@ describe("bubble-aware inpainting postprocess", () => {
         imagePath: originalPage.imagePath,
         paddingRatio: 0,
         policy: "safe",
+        sharedOwnershipGapPx: 0,
       }),
     );
     expect(runPage.mock.calls[1]?.[0]).toEqual(
@@ -90,6 +95,7 @@ describe("bubble-aware inpainting postprocess", () => {
         policy: "safe",
       }),
     );
+    expect(runPage.mock.calls[1]?.[0].sharedOwnershipGapPx).toBeUndefined();
     expect(runtime.inpaintPatternPage).toHaveBeenCalledWith(
       expect.objectContaining({
         blocks: [
@@ -101,6 +107,9 @@ describe("bubble-aware inpainting postprocess", () => {
       }),
       expect.objectContaining({
         bubbleLayoutConstraintBlockIds: [BLOCK_ID],
+        sharedInpaintGroupIdsByBlock: {
+          [BLOCK_ID]: ["shared-1"],
+        },
       }),
     );
     const savedBlock = result.chapter?.pages[0]?.blocks[0];
@@ -118,6 +127,7 @@ describe("bubble-aware inpainting postprocess", () => {
       h: 260,
     });
     expect(savedBlock?.bubbleLayout).toEqual(layout);
+    expect(savedBlock).not.toHaveProperty("sharedInpaintGroupIds");
 
     expect(changes).toHaveLength(1);
     expect(changes[0]).toMatchObject({
@@ -154,6 +164,38 @@ describe("bubble-aware inpainting postprocess", () => {
         ],
       }),
     );
+  });
+
+  it("keeps one-block mask retries partitioned from neighboring text", async () => {
+    const page = makePage();
+    const firstBlock = page.blocks[0];
+    if (!firstBlock) {
+      throw new Error("expected first block");
+    }
+    page.blocks.push({
+      ...structuredClone(firstBlock),
+      id: SECOND_BLOCK_ID,
+      bbox: { x: 480, y: 380, w: 180, h: 200 },
+    });
+    const runPage = vi.fn<BubbleLayoutRunner["runPage"]>(async () => ({
+      patches: [],
+    }));
+
+    const result = await runBubbleLayoutMaskPrepass({
+      blockId: BLOCK_ID,
+      config: { policy: "balanced", overwriteManual: false },
+      page,
+      runner: { runPage },
+      signal: new AbortController().signal,
+    });
+
+    expect(runPage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        paddingRatio: 0,
+      }),
+    );
+    expect(runPage.mock.calls[0]?.[0].sharedOwnershipGapPx).toBeUndefined();
+    expect(result.sharedInpaintGroupIdsByBlock).toBeUndefined();
   });
 
   it("keeps the safe default off and does not construct the runner", async () => {
@@ -623,16 +665,21 @@ describe("bubble-aware inpainting postprocess", () => {
     block.bubbleLayout = manualLayout;
     const chapters = new Map([[CHAPTER_ID, makeChapter(page)]]);
     const changes: InpaintingRevisionChange[] = [];
-    const runPage = vi.fn<BubbleLayoutRunner["runPage"]>(async () => ({
-      patches: [
-        {
-          blockId: BLOCK_ID,
-          renderBbox: { x: 140, y: 160, w: 280, h: 240 },
-          renderBboxSpace: "normalized_1000",
-          bubbleLayout: makeBubbleLayout(),
-        },
-      ],
-    }));
+    const runPage = vi.fn<BubbleLayoutRunner["runPage"]>(
+      async ({ paddingRatio }) => ({
+        patches: [
+          {
+            blockId: BLOCK_ID,
+            renderBbox: { x: 140, y: 160, w: 280, h: 240 },
+            renderBboxSpace: "normalized_1000",
+            bubbleLayout: makeBubbleLayout(),
+            ...(paddingRatio === 0
+              ? { sharedInpaintGroupIds: ["shared-1"] }
+              : {}),
+          },
+        ],
+      }),
+    );
     const runtime = makeRuntime(chapters, () => ({ runPage }));
     const { startInpaintingJob } =
       await import("../src/main/jobs/inpaintingJobs");
@@ -655,6 +702,11 @@ describe("bubble-aware inpainting postprocess", () => {
     expect(
       vi.mocked(runtime.inpaintPatternPage).mock.calls[0]?.[1],
     ).toHaveProperty("bubbleLayoutConstraintBlockIds", [BLOCK_ID]);
+    expect(
+      vi.mocked(runtime.inpaintPatternPage).mock.calls[0]?.[1],
+    ).toHaveProperty("sharedInpaintGroupIdsByBlock", {
+      [BLOCK_ID]: ["shared-1"],
+    });
     const savedBlock = result.chapter?.pages[0]?.blocks[0];
     expect(savedBlock?.renderBbox).toEqual(block.renderBbox);
     expect(savedBlock?.bubbleLayout).toEqual(manualLayout);

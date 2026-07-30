@@ -35,6 +35,7 @@ export async function inpaintPatternPage(
      * reused here. Existing manual geometry is explicitly allowlisted.
      */
     bubbleLayoutConstraintBlockIds?: readonly string[];
+    sharedInpaintGroupIdsByBlock?: Readonly<Record<string, readonly string[]>>;
   } = {},
 ): Promise<PatternPageInpaintingResult> {
   const patternBlocks = page.blocks.filter(
@@ -72,6 +73,7 @@ export async function inpaintPatternPage(
         ? "flux-region"
         : "glyph",
     bubbleLayoutConstraintBlockIds: options.bubbleLayoutConstraintBlockIds,
+    sharedInpaintGroupIdsByBlock: options.sharedInpaintGroupIdsByBlock,
     signal: options.signal,
   });
   if (maskContext.blocksErased === 0) {

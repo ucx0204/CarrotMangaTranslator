@@ -12,6 +12,7 @@ type ExecuteAnalysisArgs = {
   blockMode?: AnalysisBlockMode;
   collectPageContext?: boolean;
   naturalTextLayout?: boolean;
+  autoFontMatching?: boolean;
 };
 
 export type ExecuteAnalysisJob = (
@@ -33,6 +34,7 @@ export async function runSelectionsSequentially(
   blockMode?: AnalysisBlockMode,
   collectPageContext?: boolean,
   naturalTextLayout?: boolean,
+  autoFontMatching?: boolean,
   t?: TFunction<"renderer">,
 ): Promise<RunAnalysisOutcome> {
   let anyCompleted = false;
@@ -57,6 +59,7 @@ export async function runSelectionsSequentially(
       blockMode,
       collectPageContext,
       naturalTextLayout,
+      autoFontMatching,
     });
     if (outcome === "cancelled") {
       return "cancelled";

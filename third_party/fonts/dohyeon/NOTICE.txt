@@ -1,0 +1,11 @@
+Copyright © 2015 Sandoll Communications Inc. All rights reserved.
+BMDoHyeon is a registered trademark of Sandoll Communications Inc.
+
+The unmodified BM DoHyeon TTF was downloaded from Woowa Brothers' official
+font host:
+https://pop.baemin.com/fonts/dohyeon/BMDOHYEON_ttf.ttf
+
+Woowa Brothers publishes its Baemin fonts under the SIL Open Font License,
+Version 1.1, and permits software bundling and redistribution with the
+copyright notice and license. Current license guidance:
+https://www.woowahan.com/fonts/license

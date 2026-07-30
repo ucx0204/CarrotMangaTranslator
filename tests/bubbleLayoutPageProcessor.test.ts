@@ -5,6 +5,8 @@ import {
 } from "../src/main/bubbleLayout/bubbleLayoutPageProcessor";
 import { isUsableAutomaticBubbleRegionSet } from "../src/main/bubbleLayout/bubbleFragmentRepair";
 import type { RefinedBubbleRegion } from "../src/main/bubbleLayout/bubbleMaskTypes";
+import { expandWindowMaskToPage } from "../src/main/inpainting/inpaintingWindowMask";
+import { buildPatternPageMask } from "../src/main/inpainting/patternPageMask";
 import type { MangaPage } from "../src/shared/libraryTypes";
 import type {
   ComicDetectionLabelId,
@@ -230,6 +232,86 @@ describe("bubble layout page processor", () => {
       stale.bbox,
       manual.bbox,
     ]);
+  });
+
+  it("joins stacked shared-bubble masks only for the zero-gap inpaint prepass", () => {
+    const buildSharedBubbleMask = (sharedOwnershipGapPx?: number) => {
+      const page = createPage();
+      const template = page.blocks[0];
+      page.blocks = [
+        {
+          ...template,
+          id: "top",
+          bbox: { x: 225, y: 125, w: 500, h: 350 },
+        },
+        {
+          ...template,
+          id: "bottom",
+          bbox: { x: 225, y: 525, w: 500, h: 350 },
+        },
+      ];
+      const patches = processDetectedBubbleLayouts({
+        page,
+        bitmap: createBitmap(240),
+        imageWidth: WIDTH,
+        imageHeight: HEIGHT,
+        detections: [
+          detection(0, [5, 5, 115, 75], 0.98),
+          detection(1, [16, 14, 104, 66], 0.98),
+        ],
+        policy: "balanced",
+        paddingRatio: 0,
+        sharedOwnershipGapPx,
+        pageRevision: "page-revision",
+      });
+      applyLayoutPatches(page, patches);
+      const sharedInpaintGroupIdsByBlock = Object.fromEntries(
+        patches.flatMap((patch) =>
+          patch.sharedInpaintGroupIds?.length
+            ? [[patch.blockId, patch.sharedInpaintGroupIds]]
+            : [],
+        ),
+      );
+      const context = buildPatternPageMask({
+        page,
+        bitmap: Buffer.alloc(WIDTH * HEIGHT * 4, 255),
+        width: WIDTH,
+        height: HEIGHT,
+        mode: "flux-region",
+        bubbleLayoutConstraintBlockIds: page.blocks.map((block) => block.id),
+        sharedInpaintGroupIdsByBlock,
+      });
+      return {
+        context,
+        ownedMasks: context.inpaintWindowMasks.map((mask) =>
+          expandWindowMaskToPage(mask, WIDTH, HEIGHT),
+        ),
+      };
+    };
+
+    const finalLayout = buildSharedBubbleMask();
+    const inpaintPrepass = buildSharedBubbleMask(0);
+    const centerX = WIDTH / 2;
+
+    expect(finalLayout.context.blocksErased).toBe(2);
+    expect(inpaintPrepass.context.blocksErased).toBe(2);
+    expect(finalLayout.ownedMasks).toHaveLength(2);
+    expect(inpaintPrepass.ownedMasks).toHaveLength(1);
+    expect(inpaintPrepass.context.inpaintWindows).toHaveLength(1);
+    expect(inpaintPrepass.context.inpaintWindowConstraints).toHaveLength(1);
+    expect(
+      countUnmaskedRowsBetweenOwners(finalLayout.ownedMasks, centerX),
+    ).toBeGreaterThanOrEqual(3);
+
+    const activeRows = activeRowsAtX(inpaintPrepass.context.pageMask, centerX);
+    const firstActiveRow = activeRows[0];
+    const lastActiveRow = activeRows.at(-1);
+    if (firstActiveRow === undefined || lastActiveRow === undefined) {
+      throw new Error("expected a non-empty shared-bubble inpaint mask");
+    }
+    for (let y = firstActiveRow; y <= lastActiveRow; y += 1) {
+      expect(inpaintPrepass.context.pageMask[y * WIDTH + centerX]).toBe(1);
+    }
   });
 
   it("keeps three OCR blocks in one detected balloon pairwise disjoint", () => {
@@ -472,6 +554,49 @@ function intersectionArea(
     Math.min(left.y + left.h, right.y + right.h) - Math.max(left.y, right.y),
   );
   return width * height;
+}
+
+function applyLayoutPatches(
+  page: MangaPage,
+  patches: ReturnType<typeof processDetectedBubbleLayouts>,
+): void {
+  const patchesByBlock = new Map(
+    patches.map((patch) => [patch.blockId, patch]),
+  );
+  page.blocks = page.blocks.map((block) => {
+    const patch = patchesByBlock.get(block.id);
+    if (!patch?.renderBbox || !patch.renderBboxSpace || !patch.bubbleLayout) {
+      return block;
+    }
+    return {
+      ...block,
+      renderBbox: patch.renderBbox,
+      renderBboxSpace: patch.renderBboxSpace,
+      bubbleLayout: patch.bubbleLayout,
+    };
+  });
+}
+
+function countUnmaskedRowsBetweenOwners(
+  ownedMasks: Uint8Array[],
+  x: number,
+): number {
+  const topRows = activeRowsAtX(ownedMasks[0] ?? new Uint8Array(), x);
+  const bottomRows = activeRowsAtX(ownedMasks[1] ?? new Uint8Array(), x);
+  const topEnd = topRows.at(-1);
+  const bottomStart = bottomRows[0];
+  if (topEnd === undefined || bottomStart === undefined) {
+    throw new Error("expected both shared-bubble owner masks");
+  }
+  return Math.max(0, bottomStart - topEnd - 1);
+}
+
+function activeRowsAtX(mask: Uint8Array, x: number): number[] {
+  const rows: number[] = [];
+  for (let y = 0; y < HEIGHT; y += 1) {
+    if (mask[y * WIDTH + x]) rows.push(y);
+  }
+  return rows;
 }
 
 function createPage(): MangaPage {

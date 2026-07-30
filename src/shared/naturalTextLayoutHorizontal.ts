@@ -57,8 +57,9 @@ export function evaluateNaturalHorizontalLayout(
   text: string,
   rect: { w: number; h: number },
   locale?: string,
+  fontMetricWidthScale?: number,
 ): NaturalHorizontalLayoutEvaluation {
-  const baseMetrics = resolveNaturalTextMetrics(block);
+  const baseMetrics = resolveNaturalTextMetrics(block, fontMetricWidthScale);
   const baseline = resolveBestHorizontalCandidate(
     block,
     text,

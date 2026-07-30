@@ -14,6 +14,7 @@ import type {
   OcrQualityMode,
   UiLocale,
 } from "../../../shared/settingsTypes";
+import type { GraphicsGpuPreference } from "../../../shared/gpuSettings";
 import type { KeybindingOverrides } from "../../../shared/shortcutSettings";
 import {
   DEFAULT_GEMMA_MODEL_FILE,
@@ -23,6 +24,8 @@ import { resolveTranslationLanguageSettings } from "../../../shared/translationL
 
 type BuildSettingsFromFormInput = {
   initialSettings: AppSettings;
+  graphicsGpuPreference: GraphicsGpuPreference;
+  computeGpuIndex: number | null;
   uiLocale: UiLocale;
   modelProvider: ModelProvider;
   sourceLanguage: string;
@@ -69,6 +72,12 @@ export function buildSettingsFromForm(
 ): AppSettings {
   return {
     modelProvider: input.modelProvider,
+    hardware: {
+      graphicsGpuPreference: input.graphicsGpuPreference,
+      ...(input.computeGpuIndex === null
+        ? {}
+        : { computeGpuIndex: input.computeGpuIndex }),
+    },
     translation: resolveTranslationLanguageSettings(
       {
         sourceLanguage: input.sourceLanguage,

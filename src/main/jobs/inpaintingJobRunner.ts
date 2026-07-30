@@ -356,6 +356,7 @@ async function acquireInpaintingEngineIfNeeded({
     model: appSettings.inpainting?.model ?? "flux-klein",
     fluxBackend: appSettings.inpainting?.fluxBackend,
     koharuBackend: appSettings.inpainting?.koharuBackend,
+    computeGpuIndex: appSettings.hardware?.computeGpuIndex,
     allowUnsafeLowMemoryFlux:
       appSettings.inpainting?.allowUnsafeLowMemoryFlux ?? false,
     signal: abortController.signal,

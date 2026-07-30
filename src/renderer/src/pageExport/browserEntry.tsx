@@ -78,9 +78,12 @@ async function waitForRenderedImage(stage: HTMLElement): Promise<void> {
 
 function assertFontsLoaded(report: BlockFontLoadReport): void {
   if (report.failures.length > 0) {
-    throw new AggregateError(
-      report.failures.map((failure) => failure.error),
-      "Page export font loading failed.",
+    throw new Error(
+      `Page export font loading failed: ${report.failures
+        .map(
+          (failure) => `${failure.css} (${formatFontLoadError(failure.error)})`,
+        )
+        .join("; ")}`,
     );
   }
   if (report.missingFamilies.length > 0) {
@@ -88,6 +91,10 @@ function assertFontsLoaded(report: BlockFontLoadReport): void {
       `Page export fonts are missing: ${report.missingFamilies.join(", ")}`,
     );
   }
+}
+
+function formatFontLoadError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function waitForTwoAnimationFrames(): Promise<void> {

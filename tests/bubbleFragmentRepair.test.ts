@@ -20,8 +20,8 @@ describe("fragmented bubble re-segmentation", () => {
     const repaired = repairFragmentedBubbleRegions({
       block: block(blockBounds),
       candidates: [
-        candidate({ x: 15, y: 8, w: 80, h: 64 }, blockBounds, 0.92),
-        candidate({ x: 90, y: 8, w: 18, h: 64 }, blockBounds, 0.84),
+        candidate({ x: 15, y: 8, w: 80, h: 64 }, blockBounds, 0.92, "shared-1"),
+        candidate({ x: 90, y: 8, w: 18, h: 64 }, blockBounds, 0.84, "shared-2"),
       ],
       initialRegions: [main, shard],
       blockBounds,
@@ -40,6 +40,7 @@ describe("fragmented bubble re-segmentation", () => {
       (repaired?.[0]?.region.bounds.x ?? 0) +
         (repaired?.[0]?.region.bounds.w ?? 0),
     ).toBeGreaterThan(blockBounds.x + blockBounds.w);
+    expect(repaired?.[0]?.sharedGroupIds).toEqual(["shared-1"]);
   });
 
   it("leaves two substantial connected-balloon regions on the normal path", () => {
@@ -135,6 +136,7 @@ function candidate(
   bubbleBox: BBox,
   promptBox: BBox,
   score: number,
+  sharedGroupId?: string,
 ): BlockBubbleCandidate {
   return {
     bubbleDetection: {
@@ -151,6 +153,20 @@ function candidate(
     bubbleBox,
     promptBoxes: [promptBox],
     score,
+    ...(sharedGroupId
+      ? {
+          ownershipPartition: {
+            sharedGroupId,
+            clipBox: bubbleBox,
+            ownerBox: promptBox,
+            competingOwnerBoxes: [],
+            competingBubbleBoxes: [],
+            scope: "full" as const,
+            gapPx: 0,
+            ownerCount: 2,
+          },
+        }
+      : {}),
   };
 }
 

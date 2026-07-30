@@ -34,6 +34,8 @@ export type PipelineOptions = {
   writeStoryMemory?: boolean;
   collectPageContext?: boolean;
   naturalTextLayout?: boolean;
+  /** Match locale-compatible bundled and user fonts before line and bubble layout. */
+  autoFontMatching?: boolean;
   /** Canonical zero-based positions in the complete chapter, independent of run selection. */
   canonicalPageIndexById?: ReadonlyMap<string, number>;
 };
@@ -46,6 +48,8 @@ export type PipelineRegionContext = {
 
 export type PipelineWorkContext = {
   workId: string;
+  /** Stable title prior for portable automatic font matching. */
+  workTitle?: string;
   chapterId: string;
   styleGuide: WorkStyleGuide;
   storyMemory: ChapterStoryMemory;

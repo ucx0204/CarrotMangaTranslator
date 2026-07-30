@@ -25,6 +25,7 @@ type RunAnalysisDependencies = {
   blockModeDefault: NonNullable<
     UseTranslationActionsOptions["blockModeDefault"]
   >;
+  autoFontMatchingDefault: boolean;
   naturalTextLayoutDefault: boolean;
 };
 
@@ -35,6 +36,7 @@ type DirectAnalysisRequest = {
   blockMode?: AnalysisBlockMode;
   collectPageContext?: boolean;
   naturalTextLayout?: boolean;
+  autoFontMatching?: boolean;
 };
 
 export function useRunAnalysisAction(
@@ -48,6 +50,7 @@ export function useRunAnalysisAction(
       blockMode,
       collectPageContext,
       naturalTextLayout,
+      autoFontMatching,
     ) =>
       runDirectAnalysis(dependencies, {
         runMode,
@@ -56,6 +59,7 @@ export function useRunAnalysisAction(
         blockMode,
         collectPageContext,
         naturalTextLayout,
+        autoFontMatching,
       }),
     [dependencies],
   );
@@ -76,6 +80,7 @@ async function runDirectAnalysis(
       workflowMode: "two-pass",
       analysisScope: dependencies.analysisScopeDefault,
       blockMode: request.blockMode ?? dependencies.blockModeDefault,
+      autoFontMatching: resolveAutoFontMatching(dependencies, request),
       naturalTextLayout:
         request.naturalTextLayout ?? dependencies.naturalTextLayoutDefault,
     });
@@ -88,7 +93,15 @@ async function runDirectAnalysis(
       dependencies.translationWorkflowDefault === "cumulative",
     naturalTextLayout:
       request.naturalTextLayout ?? dependencies.naturalTextLayoutDefault,
+    autoFontMatching: resolveAutoFontMatching(dependencies, request),
   });
+}
+
+function resolveAutoFontMatching(
+  dependencies: RunAnalysisDependencies,
+  request: DirectAnalysisRequest,
+): boolean {
+  return request.autoFontMatching ?? dependencies.autoFontMatchingDefault;
 }
 
 function shouldRunPreciseFlow(

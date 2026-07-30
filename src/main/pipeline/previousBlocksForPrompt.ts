@@ -19,7 +19,8 @@ export function buildPreviousBlocksForPrompt(
         ? index + 1
         : findMatchingOcrCandidateId(bbox, ocrHints, page),
       bbox,
-      textRole: inferPreviousBlockTextRole(block.translatedText),
+      textRole:
+        block.textRole ?? inferPreviousBlockTextRole(block.translatedText),
       sourceText: block.sourceText,
       translatedText: block.translatedText,
       confidence: block.confidence,

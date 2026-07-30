@@ -26,11 +26,13 @@ import {
   createDefaultWholePagePipelineDependencies as createDependencies,
   type WholePagePipelineDependencies,
 } from "./pipeline/wholePagePipelinePorts";
+import { configureWholePageOutputOptions } from "./pipeline/wholePageOutputOptions";
 
 export async function runWholePagePipeline(
-  {
-    jobId,
-    emit,
+  options: PipelineOptions,
+  injectedDependencies?: WholePagePipelineDependencies,
+): Promise<{ pages: MangaPage[]; warnings: string[] }> {
+  const {
     onCleanupReady,
     onPageComplete,
     onPagesComplete,
@@ -40,33 +42,29 @@ export async function runWholePagePipeline(
     signal,
     skipOcrPrepass = false,
     blockMode,
-    decodeImage,
     workContext,
     regionContext,
     writeStoryMemory = true,
     collectPageContext = false,
     naturalTextLayout = false,
+    autoFontMatching = false,
     canonicalPageIndexById,
-  }: PipelineOptions,
-  injectedDependencies?: WholePagePipelineDependencies,
-): Promise<{ pages: MangaPage[]; warnings: string[] }> {
+  } = options;
   if (pages.length === 0) return { pages: [], warnings: [] };
 
   throwIfAborted(signal);
   const dependencies = injectedDependencies ?? createDependencies();
-  const { ocrHintsByPageId, run } = await prepareWholePageRun({
-    jobId,
-    emit,
-    pages,
-    runPaths,
-    signal,
-    skipOcrPrepass,
-    blockMode,
-    decodeImage,
-    regionContext,
+  const { ocrHintsByPageId, run } = await prepareWholePageRun(
+    options,
     dependencies,
+  );
+  configureWholePageOutputOptions({
+    autoFontMatching,
+    dependencies,
+    naturalTextLayout,
+    run,
+    workTitle: workContext?.workTitle,
   });
-  run.baseOptions.naturalTextLayout = naturalTextLayout || undefined;
   const warningCollector = createPipelineWarnings(signal);
 
   const filtered = filterPagesByOcrText(pages, ocrHintsByPageId, {
@@ -252,34 +250,24 @@ function buildPipelineResult(
   return { pages: completedPages, warnings: warningCollector.warnings };
 }
 
-async function prepareWholePageRun({
-  jobId,
-  emit,
-  pages,
-  regionContext,
-  runPaths,
-  signal,
-  skipOcrPrepass,
-  blockMode,
-  decodeImage,
-  dependencies,
-}: Pick<
-  PipelineOptions,
-  | "blockMode"
-  | "decodeImage"
-  | "emit"
-  | "jobId"
-  | "pages"
-  | "regionContext"
-  | "runPaths"
-  | "signal"
-> & {
-  skipOcrPrepass: boolean;
-  dependencies: WholePagePipelineDependencies;
-}): Promise<{
+async function prepareWholePageRun(
+  options: PipelineOptions,
+  dependencies: WholePagePipelineDependencies,
+): Promise<{
   ocrHintsByPageId: Map<string, OcrBboxResult>;
   run: Awaited<ReturnType<typeof prepareAnalysisRun>>;
 }> {
+  const {
+    blockMode,
+    decodeImage,
+    emit,
+    jobId,
+    pages,
+    regionContext,
+    runPaths,
+    signal,
+    skipOcrPrepass = false,
+  } = options;
   const run = await prepareAnalysisRun({
     jobId,
     emit,

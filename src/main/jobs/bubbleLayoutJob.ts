@@ -119,6 +119,7 @@ export async function runBubbleLayoutMaskPrepass({
   bubbleLayoutConstraintBlockIds: string[];
   page: MangaPage;
   restoreLayout?: InpaintingBlockLayoutState[];
+  sharedInpaintGroupIdsByBlock?: Record<string, string[]>;
 }> {
   const blockIds = blockId ? [blockId] : page.blocks.map((block) => block.id);
   const restoreLayout = captureInpaintingLayoutStates(page, blockIds);
@@ -145,6 +146,10 @@ export async function runBubbleLayoutMaskPrepass({
       // Inpainting uses the detector's raw safe region. User-configured
       // padding is render-only and is applied by the final postprocess.
       paddingRatio: 0,
+      // Full-page Flux receives each shared balloon as one grouped region.
+      // A one-block retry must keep the normal ownership split so it cannot
+      // erase source text owned by a neighboring block.
+      sharedOwnershipGapPx: blockId ? undefined : 0,
       overwriteManual: false,
     },
     page: maskBaselinePage,
@@ -170,5 +175,10 @@ export async function runBubbleLayoutMaskPrepass({
     bubbleLayoutConstraintBlockIds: [...bubbleLayoutConstraintBlockIds],
     page: processed.page,
     ...(restoreLayout.length ? { restoreLayout } : {}),
+    ...(processed.sharedInpaintGroupIdsByBlock
+      ? {
+          sharedInpaintGroupIdsByBlock: processed.sharedInpaintGroupIdsByBlock,
+        }
+      : {}),
   };
 }

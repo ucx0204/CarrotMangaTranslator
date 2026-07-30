@@ -11,7 +11,8 @@ const SINGLE_LINE_JSON_STRING_PATTERN = String.raw`^[^"\\\u0000-\u001F]+$`;
  * The common fixed-block path deliberately exposes no geometry or grouping
  * fields in its output grammar. `blockId` is an opaque code-owned slot id,
  * separate from OCR candidate ids. Source text and every visual property are
- * immutable inputs; the translator may return only the Korean translation.
+ * immutable inputs; the translator may return only a visual text role and the
+ * target-language translation.
  *
  * @param {string[]} blockIds
  * @param {{collectPageContext?: unknown}} [options]
@@ -25,9 +26,10 @@ function buildFixedBlockTranslationResponseFormat(blockIds, options = {}) {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["blockId", "ko"],
+        required: ["blockId", "textRole", "ko"],
         properties: {
           blockId: { type: "string", enum: blockIds },
+          textRole: { type: "string", enum: ["ordinary", "sound"] },
           ko: singleLineNonEmptyStringSchema(),
         },
       },

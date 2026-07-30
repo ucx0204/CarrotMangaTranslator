@@ -7,6 +7,8 @@ type TranslationRunOptions = {
   collectPageContext?: boolean;
   /** Insert natural hard line breaks into translated text for the detected block size. */
   naturalTextLayout?: boolean;
+  /** Choose locale-compatible fonts for newly detected translation blocks. */
+  autoFontMatching?: boolean;
 };
 
 export type StartAnalysisRequest = TranslationRunOptions &

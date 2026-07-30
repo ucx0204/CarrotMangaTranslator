@@ -61,20 +61,10 @@ export function TranslationCompletionOptions({
       />
       {eraseOriginalWorkflow ? (
         <div className="translate-options-nested">
-          <OptionRow
+          <ToggleOptionRow
             label={t("translationOptions.bubbleLayoutWorkflow")}
-            options={[
-              {
-                id: "off",
-                label: t("translationOptions.bubbleLayoutWorkflowOff"),
-              },
-              {
-                id: "on",
-                label: t("translationOptions.bubbleLayoutWorkflowOn"),
-              },
-            ]}
-            value={bubbleLayoutWorkflow ? "on" : "off"}
-            onChange={(value) => onBubbleLayoutWorkflowChange(value === "on")}
+            pressed={bubbleLayoutWorkflow}
+            onChange={onBubbleLayoutWorkflowChange}
             description={t(
               `translationOptions.bubbleLayoutWorkflowSummaries.${bubbleLayoutWorkflow ? "on" : "off"}`,
             )}
@@ -82,6 +72,49 @@ export function TranslationCompletionOptions({
         </div>
       ) : null}
     </>
+  );
+}
+
+export function ToggleOptionRow({
+  label,
+  pressed,
+  onChange,
+  description,
+  disabled = false,
+}: {
+  label: string;
+  pressed: boolean;
+  onChange: (pressed: boolean) => void;
+  description?: string;
+  disabled?: boolean;
+}): React.JSX.Element {
+  const descriptionId = React.useId();
+  return (
+    <div
+      className={["translate-options-toggle-row", disabled ? "disabled" : ""]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <button
+        type="button"
+        className="translate-options-toggle-button"
+        aria-pressed={pressed}
+        aria-describedby={description ? descriptionId : undefined}
+        disabled={disabled}
+        onClick={() => onChange(!pressed)}
+      >
+        <span
+          className="translate-options-toggle-indicator"
+          aria-hidden="true"
+        />
+        <span>{label}</span>
+      </button>
+      {description ? (
+        <p id={descriptionId} className="translate-options-selected-hint">
+          {description}
+        </p>
+      ) : null}
+    </div>
   );
 }
 

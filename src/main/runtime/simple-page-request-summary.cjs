@@ -8,7 +8,7 @@ const path = require("node:path");
  * @typedef {{ role?: string; path: string; mime?: string; convertedFromMime?: unknown; width?: unknown; height?: unknown; originalWidth?: unknown; originalHeight?: unknown; [key: string]: unknown }} ImageVariantSummaryInput
  * @typedef {import("./simple-page-prompts.cjs").PromptOptions} PromptOptions
  * @typedef {{ baseUrl: string }} RequestServer
- * @typedef {{ label?: unknown; imagePath?: string | null; outputDir?: string | null; port?: unknown; promptMode?: unknown; strictRefineMode?: unknown; previousBlocksForPrompt?: unknown[]; temperature?: unknown; topP?: unknown; topK?: unknown; maxTokens?: unknown; ctx?: unknown; batch?: unknown; ubatch?: unknown; gemmaVramMode?: unknown; fitTargetMb?: unknown; cacheTypeK?: unknown; cacheTypeV?: unknown; ctxCheckpoints?: unknown; kvOffload?: unknown; mmprojOffload?: unknown; threads?: unknown; threadsBatch?: unknown; poll?: unknown; pollBatch?: unknown; prioBatch?: unknown; cacheIdleSlots?: unknown; cacheReuse?: unknown; enableMetrics?: unknown; enablePerf?: unknown; useDraft?: boolean | null; imageMinTokens?: unknown; imageMaxTokens?: unknown; includeEnhancedVariant?: unknown; enhancedMaxLongSide?: unknown; enhancedContrast?: unknown; imageFirst?: unknown; reuseServer?: unknown; llamaRuntimeProfile?: unknown; llamaRocmTarget?: string | null; workingDir?: string | null; toolsDir?: string | null; serverPath?: string | null; modelRepo?: unknown; modelFile?: unknown; codexOauthPort?: unknown; workContextBudget?: WorkContextBudget; ocrBboxHints?: OcrBboxHint[]; [key: string]: unknown }} RequestSummaryOptions
+ * @typedef {{ label?: unknown; imagePath?: string | null; outputDir?: string | null; port?: unknown; promptMode?: unknown; strictRefineMode?: unknown; previousBlocksForPrompt?: unknown[]; temperature?: unknown; topP?: unknown; topK?: unknown; maxTokens?: unknown; ctx?: unknown; batch?: unknown; ubatch?: unknown; gemmaVramMode?: unknown; fitTargetMb?: unknown; computeGpuIndex?: number | null; cacheTypeK?: unknown; cacheTypeV?: unknown; ctxCheckpoints?: unknown; kvOffload?: unknown; mmprojOffload?: unknown; threads?: unknown; threadsBatch?: unknown; poll?: unknown; pollBatch?: unknown; prioBatch?: unknown; cacheIdleSlots?: unknown; cacheReuse?: unknown; enableMetrics?: unknown; enablePerf?: unknown; useDraft?: boolean | null; imageMinTokens?: unknown; imageMaxTokens?: unknown; includeEnhancedVariant?: unknown; enhancedMaxLongSide?: unknown; enhancedContrast?: unknown; imageFirst?: unknown; reuseServer?: unknown; llamaRuntimeProfile?: unknown; llamaRocmTarget?: string | null; workingDir?: string | null; toolsDir?: string | null; serverPath?: string | null; modelRepo?: unknown; modelFile?: unknown; codexOauthPort?: unknown; workContextBudget?: WorkContextBudget; ocrBboxHints?: OcrBboxHint[]; [key: string]: unknown }} RequestSummaryOptions
  */
 
 const {
@@ -123,6 +123,7 @@ function buildGenerationOptionSummary(options) {
     ubatch: options.ubatch,
     gemmaVramMode: options.gemmaVramMode,
     fitTargetMb: options.fitTargetMb,
+    computeGpuIndex: options.computeGpuIndex,
     cacheTypeK: options.cacheTypeK,
     cacheTypeV: options.cacheTypeV,
     ctxCheckpoints: options.ctxCheckpoints,

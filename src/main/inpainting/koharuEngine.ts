@@ -15,6 +15,7 @@ import type {
   InpaintingModel,
   KoharuInpaintingBackend,
 } from "../../shared/inpaintingSettingsTypes";
+import { normalizeComputeGpuIndex } from "../../shared/gpuSettings";
 
 export type KoharuInpaintingEngine = InpaintingEngine & {
   model: Exclude<InpaintingModel, "flux-klein">;
@@ -26,6 +27,7 @@ export async function prepareKoharuInpaintingEngine(options: {
   modelDir: string;
   model: Exclude<InpaintingModel, "flux-klein">;
   backend: KoharuInpaintingBackend;
+  computeGpuIndex?: number;
   runRootDir: string;
   signal?: AbortSignal;
   onProgress?: (progress: InpaintingRuntimeProgress) => void;
@@ -45,6 +47,7 @@ export async function prepareKoharuInpaintingEngine(options: {
     signal: options.signal,
     onProgress: options.onProgress,
   });
+  launch.computeGpuIndex = normalizeComputeGpuIndex(options.computeGpuIndex);
   return createKoharuEngine({
     launch,
     model: options.model,

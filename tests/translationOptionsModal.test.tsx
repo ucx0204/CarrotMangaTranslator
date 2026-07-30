@@ -7,7 +7,6 @@ import {
   fireEvent,
   render,
   screen,
-  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
@@ -143,14 +142,21 @@ describe("TranslationOptionsModal", () => {
         .getAttribute("aria-pressed"),
     ).toBe("true");
     expect(
-      screen.getByRole("button", { name: "사용" }).getAttribute("aria-pressed"),
+      screen
+        .getByRole("button", { name: "자연스러운 줄 나눔" })
+        .getAttribute("aria-pressed"),
     ).toBe("true");
+    expect(
+      screen
+        .getByRole("button", { name: "폰트 자동 맞춤" })
+        .getAttribute("aria-pressed"),
+    ).toBe("false");
     expect(
       screen
         .getByRole("button", { name: "번역만" })
         .getAttribute("aria-pressed"),
     ).toBe("true");
-    expect(screen.queryByRole("group", { name: "말풍선 맞춤" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "말풍선 맞춤" })).toBeNull();
     expect(screen.queryByText("자동 분석 범위")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "번역 시작" }));
@@ -160,6 +166,7 @@ describe("TranslationOptionsModal", () => {
       workflowMode: "cumulative",
       analysisScope: "missing",
       blockMode: "auto",
+      autoFontMatching: false,
       naturalTextLayout: true,
       eraseOriginalWorkflow: false,
       bubbleLayoutWorkflow: true,
@@ -168,6 +175,7 @@ describe("TranslationOptionsModal", () => {
       translationWorkflowDefault: "cumulative",
       analysisScopeDefault: "missing",
       blockModeDefault: "auto",
+      autoFontMatchingDefault: false,
       naturalTextLayoutDefault: true,
       eraseOriginalWorkflowDefault: false,
       bubbleLayoutWorkflowDefault: true,
@@ -220,6 +228,11 @@ describe("TranslationOptionsModal", () => {
       screen.getByText("블록 크기에 맞춰 번역문의 줄바꿈을 정돈합니다."),
     ).toBeTruthy();
     expect(
+      screen.getByText(
+        "대사는 일관되게, 효과음은 분위기에 맞춰 폰트를 고릅니다.",
+      ),
+    ).toBeTruthy();
+    expect(
       screen.queryByText(
         "텍스트 블록 크기에 맞춰 번역문 자체에 줄바꿈을 넣습니다. 매우 좁고 긴 새 블록은 한 열에 들어갈 때만 세로쓰기로 설정하며, 블록의 줄바꿈 방식 설정은 바꾸지 않습니다.",
       ),
@@ -245,9 +258,9 @@ describe("TranslationOptionsModal", () => {
 
     expect(
       screen
-        .getByRole("button", { name: "사용 안 함" })
+        .getByRole("button", { name: "자연스러운 줄 나눔" })
         .getAttribute("aria-pressed"),
-    ).toBe("true");
+    ).toBe("false");
     fireEvent.click(screen.getByRole("button", { name: "번역 시작" }));
 
     expect(onStart).toHaveBeenCalledWith(
@@ -258,18 +271,31 @@ describe("TranslationOptionsModal", () => {
     );
   });
 
+  it("can enable automatic font matching and persists the choice", async () => {
+    const { onStart, onPersistDefaults } = await renderModal();
+    const toggle = screen.getByRole("button", { name: "폰트 자동 맞춤" });
+
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "번역 시작" }));
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({ autoFontMatching: true }),
+    );
+    expect(onPersistDefaults).toHaveBeenCalledWith(
+      expect.objectContaining({ autoFontMatchingDefault: true }),
+    );
+  });
+
   it("persists and starts the combined bubble layout workflow when enabled", async () => {
     const { onStart, onPersistDefaults } = await renderModal();
 
     fireEvent.click(screen.getByRole("button", { name: "원문 지우기" }));
-    const bubbleOptions = screen.getByRole("group", {
+    const bubbleOptions = screen.getByRole("button", {
       name: "말풍선 맞춤",
     });
-    expect(
-      within(bubbleOptions)
-        .getByRole("button", { name: "사용" })
-        .getAttribute("aria-pressed"),
-    ).toBe("true");
+    expect(bubbleOptions.getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "번역 시작" }));
 
     expect(onStart).toHaveBeenCalledWith(
@@ -290,12 +316,10 @@ describe("TranslationOptionsModal", () => {
     const { onStart, onPersistDefaults } = await renderModal();
 
     fireEvent.click(screen.getByRole("button", { name: "원문 지우기" }));
-    const bubbleOptions = screen.getByRole("group", {
+    const bubbleOptions = screen.getByRole("button", {
       name: "말풍선 맞춤",
     });
-    fireEvent.click(
-      within(bubbleOptions).getByRole("button", { name: "사용 안 함" }),
-    );
+    fireEvent.click(bubbleOptions);
     fireEvent.click(screen.getByRole("button", { name: "번역 시작" }));
 
     expect(onStart).toHaveBeenCalledWith(
@@ -323,14 +347,10 @@ describe("TranslationOptionsModal", () => {
         .getByRole("button", { name: "원문 지우기" })
         .getAttribute("aria-pressed"),
     ).toBe("true");
-    const bubbleOptions = screen.getByRole("group", {
+    const bubbleOptions = screen.getByRole("button", {
       name: "말풍선 맞춤",
     });
-    expect(
-      within(bubbleOptions)
-        .getByRole("button", { name: "사용 안 함" })
-        .getAttribute("aria-pressed"),
-    ).toBe("true");
+    expect(bubbleOptions.getAttribute("aria-pressed")).toBe("false");
   });
 
   it("selects the whole work with 전체 선택", async () => {

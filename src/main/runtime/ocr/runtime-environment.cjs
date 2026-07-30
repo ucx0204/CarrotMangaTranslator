@@ -23,6 +23,7 @@
  */
 
 const path = require("node:path");
+const gpuSelection = require("../compute-gpu-selection.cjs");
 const {
   HF_CHILD_ENV_KEYS,
   NETWORK_CHILD_ENV_KEYS,
@@ -70,7 +71,7 @@ function buildOcrRuntimeEnv(
   runtime = null,
 ) {
   const context = createOcrEnvContext(options, runtime);
-  return {
+  const env = {
     ...buildBaseChildEnv(options, runtime, context),
     ...buildHuggingFaceEnv(options, context),
     ...buildOcrDeviceEnv(options, context),
@@ -79,6 +80,8 @@ function buildOcrRuntimeEnv(
     ...buildRocmSafetyEnv(options, context.rocmGpuRequested),
     ...buildPythonRuntimeEnv(options, runtime, context),
   };
+  gpuSelection.applyOcrComputeGpuVisibility(env, options, context);
+  return env;
 }
 
 /** @param {OcrConfigOptions} options @param {OcrRuntimeLayout | null} runtime @returns {OcrEnvContext} */

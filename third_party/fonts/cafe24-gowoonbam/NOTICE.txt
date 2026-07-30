@@ -1,0 +1,10 @@
+Copyright (c) Cafe24 Corp.
+
+The unmodified Cafe24 OnePrettyNight 2.0 TTF was downloaded from Cafe24's
+official font archive:
+https://img.cafe24.com/csdstatic/freefonts/download/kr/Cafe24Oneprettynight-v2.0.zip
+
+Cafe24 publishes Cafe24 OnePrettyNight under the SIL Open Font License,
+Version 1.1, and permits software bundling and redistribution. The official
+Korean license guide from that archive is included as LICENSE.pdf, alongside
+the OFL-1.1 text.

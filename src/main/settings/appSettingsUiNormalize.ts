@@ -37,6 +37,10 @@ export function normalizeUiSettings(
       data.naturalTextLayoutDefault,
       base.naturalTextLayoutDefault ?? true,
     ),
+    autoFontMatchingDefault: resolveBoolean(
+      data.autoFontMatchingDefault,
+      base.autoFontMatchingDefault ?? false,
+    ),
     eraseOriginalWorkflowDefault: completionDefaults.eraseOriginal,
     bubbleLayoutWorkflowDefault: completionDefaults.bubbleLayout,
     ...(blockModeDefault ? { blockModeDefault } : {}),

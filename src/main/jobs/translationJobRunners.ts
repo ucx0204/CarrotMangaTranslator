@@ -81,6 +81,7 @@ export async function runResolvedAnalysisJob({
     },
     collectPageContext: request.collectPageContext,
     naturalTextLayout: request.naturalTextLayout,
+    autoFontMatching: request.autoFontMatching,
     canonicalPageIndexById: new Map(
       resolved.chapter.pages.map((page, index) => [page.id, index]),
     ),

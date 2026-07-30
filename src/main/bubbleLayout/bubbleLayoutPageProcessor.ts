@@ -43,6 +43,7 @@ export function processDetectedBubbleLayouts(options: {
   detections: ComicPageDetection[];
   policy: BubbleLayoutPolicy;
   paddingRatio?: number;
+  sharedOwnershipGapPx?: number;
   pageRevision: string;
   repairOriginalTextInk?: boolean;
 }): BubbleLayoutBlockPatch[] {
@@ -59,7 +60,8 @@ export function processDetectedBubbleLayouts(options: {
   const ownerships = partitionSharedBubbleOwnership(
     eligibleOwnerships,
     (block) => blockBboxToPixels(block, options),
-    resolveBubblePartitionGapPx(options.imageWidth, options.imageHeight),
+    options.sharedOwnershipGapPx ??
+      resolveBubblePartitionGapPx(options.imageWidth, options.imageHeight),
   );
   const candidatesByBlock = new Map(
     ownerships.map(({ owner, candidates }) => [owner, candidates]),
@@ -139,9 +141,24 @@ function processBlock(
     ),
     paddingRatio: options.paddingRatio,
   });
-  return profile
-    ? { blockId: block.id, ...profile }
-    : clearGeneratedLayoutPatch(block);
+  if (!profile) return clearGeneratedLayoutPatch(block);
+  const sharedInpaintGroupIds = resolveSharedInpaintGroupIds(
+    regions,
+    options.sharedOwnershipGapPx,
+  );
+  return {
+    blockId: block.id,
+    ...profile,
+    ...(sharedInpaintGroupIds.length ? { sharedInpaintGroupIds } : {}),
+  };
+}
+
+function resolveSharedInpaintGroupIds(
+  regions: readonly ScoredRegion[],
+  sharedOwnershipGapPx: number | undefined,
+): string[] {
+  if (sharedOwnershipGapPx !== 0) return [];
+  return [...new Set(regions.flatMap((region) => region.sharedGroupIds ?? []))];
 }
 
 function refineCandidateRegions(
@@ -172,6 +189,11 @@ function refineCandidateRegions(
         region,
         confidence,
         insetPx: refined.insetPx,
+        ...(candidate.ownershipPartition?.sharedGroupId
+          ? {
+              sharedGroupIds: [candidate.ownershipPartition.sharedGroupId],
+            }
+          : {}),
       }));
     }
   }
@@ -191,6 +213,11 @@ function refineCandidateRegions(
           confidence:
             candidate.score * (options.repairOriginalTextInk ? 0.7 : 0.55),
           insetPx,
+          ...(candidate.ownershipPartition?.sharedGroupId
+            ? {
+                sharedGroupIds: [candidate.ownershipPartition.sharedGroupId],
+              }
+            : {}),
         },
       ]
     : [];

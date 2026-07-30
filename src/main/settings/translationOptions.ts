@@ -1,4 +1,5 @@
 import type { AppSettings } from "../../shared/settingsTypes";
+import { normalizeComputeGpuIndex } from "../../shared/gpuSettings";
 import { resolveTranslationLanguageSettings } from "../../shared/translationLanguages";
 import type {
   TranslationOptionPaths,
@@ -28,6 +29,9 @@ export function buildBaseTranslationOptions({
 }): TranslationOptions {
   const runtimeEnv = filterPackagedRuntimeEnv(env, paths);
   const runtimeState = resolveTranslationRuntimeState(runtimeEnv, settings);
+  const computeGpuIndex = normalizeComputeGpuIndex(
+    settings.hardware?.computeGpuIndex,
+  );
   return {
     imagePath: "",
     outputDir: runDir,
@@ -47,6 +51,7 @@ export function buildBaseTranslationOptions({
       settings,
       runtimeState.gemmaVramMode,
     ),
+    ...(computeGpuIndex === undefined ? {} : { computeGpuIndex }),
     ocrRuntimeDir: paths.ocrRuntimeDir,
     hfHomeDir: paths.hfHomeDir,
     hfHubCacheDir: paths.hfHubCacheDir,

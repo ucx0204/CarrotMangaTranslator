@@ -430,6 +430,8 @@
       "off": "Leave translated-text wrapping to each block.",
       "on": "Arrange translated-text line breaks for the block size."
     },
+    "autoFontMatching": "Automatic font matching",
+    "autoFontMatchingSummary": "Keeps dialogue consistent and matches SFX fonts to their tone.",
     "completionMode": "Completion mode",
     "completionModeTranslate": "Translate only",
     "completionModeErase": "Erase source text",
@@ -1316,6 +1318,16 @@
       }
     },
     "hardware": {
+      "gpuSection": "GPU assignment",
+      "gpuSectionDescription": "Choose GPU routing separately for the app window and local AI workloads.",
+      "graphicsGpu": "App graphics GPU",
+      "graphicsGpuAuto": "Automatic (use OS preference)",
+      "graphicsGpuHighPerformance": "Prefer high-performance GPU (RTX/discrete)",
+      "computeGpu": "Local AI compute GPU",
+      "computeGpuAuto": "Automatic (recommended)",
+      "computeGpuOption": "Compute device {{index}} (CUDA/HIP/Vulkan)",
+      "gpuNumberingNote": "Compute device numbers come from each AI runtime and may differ from the GPU 0/1 numbers in Windows Task Manager. On an Intel + RTX PC, prefer the high-performance graphics GPU and try automatic compute selection first.",
+      "graphicsGpuRestartNote": "Restart the app to apply an app graphics GPU change.",
       "ocrSection": "OCR",
       "inpaintingSection": "Inpainting",
       "ocrQuality": "Paddle OCR quality",

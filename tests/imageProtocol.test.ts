@@ -435,6 +435,7 @@ describe("image protocol integration", () => {
             secure: true,
             stream: true,
             supportFetchAPI: true,
+            corsEnabled: true,
           },
         },
       ]);

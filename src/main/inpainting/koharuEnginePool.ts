@@ -20,6 +20,7 @@ import {
   logInpaintingRuntimeWarn,
 } from "./inpaintingRuntimeLogger";
 import { LeasedIdleResourcePool } from "../runtimeSupport/leasedIdleResource";
+import { normalizeComputeGpuIndex } from "../../shared/gpuSettings";
 
 const KOHARU_ENGINE_IDLE_TTL_MS = 30 * 1000;
 
@@ -34,6 +35,7 @@ type AcquireKoharuEngineOptions = {
   appPaths: AppPaths;
   model: Exclude<InpaintingModel, "flux-klein">;
   backend: KoharuInpaintingBackend;
+  computeGpuIndex?: number;
   signal?: AbortSignal;
   onProgress?: (progress: InpaintingRuntimeProgress) => void;
 };
@@ -56,6 +58,7 @@ export async function acquireKoharuInpaintingEngine(
 ): Promise<KoharuEngineLease> {
   const paths = resolveKoharuEnginePaths(options.appPaths, options.model);
   const { cudaRuntimeDir, runtimeDir, modelDir, runRootDir } = paths;
+  const computeGpuIndex = normalizeComputeGpuIndex(options.computeGpuIndex);
   const candidates = await resolveKoharuBackendCandidates(options.backend);
   logKoharuBackendCandidatesResolved(
     options.model,
@@ -65,10 +68,14 @@ export async function acquireKoharuInpaintingEngine(
   const errors: string[] = [];
 
   for (const [candidateIndex, backend] of candidates.entries()) {
-    const key = `${options.model}\n${backend}\n${runtimeDir}\n${modelDir}\n${runRootDir}\n${cudaRuntimeDir}`;
+    const key = `${options.model}\n${backend}\n${computeGpuIndex ?? "auto"}\n${runtimeDir}\n${modelDir}\n${runRootDir}\n${cudaRuntimeDir}`;
     try {
       const lease = await koharuEnginePool.acquire(key, () =>
-        prepareKoharuEngineCandidate(paths, options, backend),
+        prepareKoharuEngineCandidate(
+          paths,
+          { ...options, computeGpuIndex },
+          backend,
+        ),
       );
       if (lease.reused) {
         options.onProgress?.({
@@ -131,6 +138,7 @@ async function prepareKoharuEngineCandidate(
       ...paths,
       model: options.model,
       backend,
+      computeGpuIndex: options.computeGpuIndex,
       signal: options.signal,
       onProgress: options.onProgress,
     });

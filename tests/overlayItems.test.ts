@@ -29,6 +29,7 @@ describe("overlay item conversion", () => {
 
     expect(block.sourceDirection).toBe("vertical");
     expect(block.renderDirection).toBe("horizontal");
+    expect(block.textRole).toBe("ordinary");
   });
 
   it("keeps translated ordinary text upright when the model reports a left slant", () => {
@@ -68,6 +69,7 @@ describe("overlay item conversion", () => {
     );
 
     expect(block.rotationDeg).toBe(-18);
+    expect(block.textRole).toBe("sound");
   });
 
   it("preserves a visible slant for ordinary horizontal text", () => {
@@ -220,6 +222,61 @@ describe("overlay item conversion", () => {
     expect(block.translatedText).toContain("\n");
     expect(block.wordBreak).toBeUndefined();
     expect(block.renderDirection).toBe("horizontal");
+  });
+
+  it("matches a Korean font before applying natural line layout", () => {
+    const block = overlayItemToBlock(
+      {
+        id: 1,
+        type: "nonsolid",
+        textRole: "ordinary",
+        bbox: { x: 100, y: 100, w: 100, h: 120 },
+        jp: "既存ブロックの折り返し設定はそのままです",
+        ko: "기존 블록의 줄바꿈 서식은 그대로 둡니다",
+        direction: "horizontal",
+        fontSize: 20,
+        confidence: 1,
+      },
+      makePage(),
+      0,
+      undefined,
+      { ...DEFAULT_BLOCK_FORMAT_DEFAULTS, fontFamily: "jua" },
+      { enabled: true, locale: "ko" },
+      {
+        enabled: true,
+        targetLanguage: "ko",
+        workTitle: "공작 영애의 계약 결혼",
+      },
+    );
+
+    expect(block.fontFamily).toBe("ridi-batang");
+    expect(block.translatedText).toContain("\n");
+  });
+
+  it("uses the English built-in catalog for an English target", () => {
+    const block = overlayItemToBlock(
+      {
+        id: 1,
+        type: "nonsolid",
+        textRole: "sound",
+        bbox: { x: 100, y: 100, w: 200, h: 120 },
+        jp: "ドン",
+        ko: "Boom",
+        confidence: 1,
+      },
+      makePage(),
+      0,
+      undefined,
+      { ...DEFAULT_BLOCK_FORMAT_DEFAULTS, fontFamily: "comic-neue" },
+      undefined,
+      {
+        enabled: true,
+        targetLanguage: "en",
+        workTitle: "Action",
+      },
+    );
+
+    expect(block.fontFamily).toBe("bangers");
   });
 
   it("auto-selects vertical only for a one-column ordinary block", () => {

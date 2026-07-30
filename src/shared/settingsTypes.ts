@@ -8,6 +8,7 @@ import type { CodexReasoningEffort } from "./codexSettings";
 import type { TranslationLanguageSettings } from "./translationLanguages";
 import type { UiLocale } from "./uiLocales";
 import type { KeybindingOverrides } from "./shortcutSettings";
+import type { HardwareGpuSettings } from "./gpuSettings";
 
 export type {
   FluxBackend,
@@ -128,6 +129,8 @@ export type UiSettings = {
   blockModeDefault?: "auto" | "keep";
   /** Insert size-aware hard line breaks into newly translated block text. */
   naturalTextLayoutDefault?: boolean;
+  /** Choose locale-compatible fonts for newly detected translation blocks. */
+  autoFontMatchingDefault?: boolean;
   /** Erase source text with automatic inpainting after translation. */
   eraseOriginalWorkflowDefault?: boolean;
   /** Fit translated text to detected speech balloons after erasing. */
@@ -148,6 +151,8 @@ type InpaintingSettings = {
 
 export type AppSettings = {
   modelProvider: ModelProvider;
+  /** Persistent GPU routing preferences. Runtime-detected hardware is separate. */
+  hardware?: HardwareGpuSettings;
   /**
    * 작품 번역 언어쌍(원문 -> 번역). 모델 제공자와 독립인 번역 도메인 설정.
    * 저장 설정에 없으면 normalize에서 일본어 -> 한국어로 채워진다.

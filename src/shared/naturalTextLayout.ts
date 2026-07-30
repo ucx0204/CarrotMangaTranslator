@@ -32,6 +32,8 @@ export type NaturalTextLayoutOptions = {
   allowAutoVertical?: boolean;
   /** Explicit user defaults always win over automatic direction selection. */
   directionPreference?: "auto" | "horizontal" | "vertical";
+  /** Transient font-file width estimate used only by this layout pass. */
+  fontMetricWidthScale?: number;
 };
 
 type NaturalTextLayoutDiagnostics = {
@@ -111,11 +113,18 @@ export function applyNaturalTextLayout(
     text,
     true,
   );
-  return resolveHorizontalResult(block, text, horizontalRect, options.locale, {
-    ...withVerticalMetrics,
-    widthPx: horizontalRect.w,
-    heightPx: horizontalRect.h,
-  });
+  return resolveHorizontalResult(
+    block,
+    text,
+    horizontalRect,
+    options.locale,
+    options.fontMetricWidthScale,
+    {
+      ...withVerticalMetrics,
+      widthPx: horizontalRect.w,
+      heightPx: horizontalRect.h,
+    },
+  );
 }
 
 function resolveHorizontalResult(
@@ -123,9 +132,16 @@ function resolveHorizontalResult(
   text: string,
   rect: { w: number; h: number },
   locale: string | undefined,
+  fontMetricWidthScale: number | undefined,
   diagnostics: NaturalTextLayoutDiagnostics,
 ): NaturalTextLayoutResult {
-  const evaluation = evaluateNaturalHorizontalLayout(block, text, rect, locale);
+  const evaluation = evaluateNaturalHorizontalLayout(
+    block,
+    text,
+    rect,
+    locale,
+    fontMetricWidthScale,
+  );
   const measuredDiagnostics = {
     ...diagnostics,
     baselineEstimatedFontSizePx:

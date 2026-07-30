@@ -7,6 +7,7 @@ import { getAppPaths, type AppPaths } from "../appPaths";
 import type { AppSettings } from "../../shared/settingsTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
 import { parseApiKeys } from "../../shared/apiKeySettings";
+import type { AutomaticFontCandidate } from "../../shared/fontMatchingTypes";
 import { tMain } from "./localization";
 
 export function buildBaseOptions(
@@ -49,6 +50,21 @@ export function buildPageOptions(
   };
 }
 
+export function applyOutputOptions(
+  options: TranslationOptions,
+  naturalTextLayout: boolean,
+  autoFontMatching: boolean,
+  workTitle: string | undefined,
+  fontMatchingCandidates: readonly AutomaticFontCandidate[] = [],
+): void {
+  options.naturalTextLayout = naturalTextLayout || undefined;
+  options.autoFontMatching = autoFontMatching || undefined;
+  options.fontMatchingWorkTitle = autoFontMatching ? workTitle : undefined;
+  options.fontMatchingCandidates = autoFontMatching
+    ? [...fontMatchingCandidates]
+    : undefined;
+}
+
 export function formatGemmaVramMode(
   mode: TranslationOptions["gemmaVramMode"],
 ): string {
@@ -71,6 +87,8 @@ export function summarizeTranslationOptions(
     ...summarizeEngineContext(options),
     port: options.port,
     strictRefineMode: options.strictRefineMode,
+    autoFontMatching: options.autoFontMatching,
+    fontCandidateCount: options.fontMatchingCandidates?.length,
     naturalTextLayout: options.naturalTextLayout,
     previousBlocksForPrompt: options.previousBlocksForPrompt?.length,
     promptOverrideText: options.promptOverrideText
@@ -85,6 +103,7 @@ export function summarizeTranslationOptions(
     ubatch: options.ubatch,
     gemmaVramMode: options.gemmaVramMode,
     fitTargetMb: options.fitTargetMb,
+    computeGpuIndex: options.computeGpuIndex,
     gpuLayers: options.gpuLayers,
     cacheTypeK: options.cacheTypeK,
     cacheTypeV: options.cacheTypeV,

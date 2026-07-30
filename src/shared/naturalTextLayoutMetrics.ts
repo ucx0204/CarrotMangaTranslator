@@ -35,6 +35,8 @@ export type NaturalVerticalDecision = {
 export type NaturalVerticalOptions = {
   allowAutoVertical?: boolean;
   directionPreference?: "auto" | "horizontal" | "vertical";
+  /** Transient font-file width estimate; never persisted on the block. */
+  fontMetricWidthScale?: number;
 };
 
 const MIN_READABLE_FONT_SIZE_PX = 10;
@@ -47,6 +49,7 @@ const VERTICAL_MAX_AUTO_GLYPHS = 10;
 
 export function resolveNaturalTextMetrics(
   block: TranslationBlock,
+  fontMetricWidthScale?: number,
 ): NaturalTextMetrics {
   const fontSizePx = Math.max(
     MIN_READABLE_FONT_SIZE_PX,
@@ -54,11 +57,19 @@ export function resolveNaturalTextMetrics(
   );
   return {
     fontSizePx,
-    fontWidthScale: resolveFontWidthScale(block.fontWidthScale),
+    fontWidthScale:
+      resolveFontWidthScale(block.fontWidthScale) *
+      resolveFontMetricWidthScale(fontMetricWidthScale),
     letterSpacingPx: (block.letterSpacing ?? 0) * fontSizePx,
     bold: Boolean(block.bold),
     italic: Boolean(block.italic),
   };
+}
+
+function resolveFontMetricWidthScale(value: number | undefined): number {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.min(2, Math.max(0.5, value))
+    : 1;
 }
 
 function measureNaturalText(
@@ -150,10 +161,22 @@ export function resolveNaturalVerticalDecision(
     (value) => value !== "\r" && value !== "\n",
   );
   const visible = graphemes.filter(isSemanticNaturalGrapheme);
-  if (!hasVerticalShapeAndScript(block, rect, visible)) {
+  if (
+    !hasVerticalShapeAndScript(
+      block,
+      rect,
+      visible,
+      options.fontMetricWidthScale,
+    )
+  ) {
     return { eligible: false };
   }
-  return compareVerticalColumnFits(block, rect, graphemes.length);
+  return compareVerticalColumnFits(
+    block,
+    rect,
+    graphemes.length,
+    options.fontMetricWidthScale,
+  );
 }
 
 function canConsiderVertical(
@@ -182,6 +205,7 @@ function hasVerticalShapeAndScript(
   block: TranslationBlock,
   rect: { w: number; h: number },
   visible: string[],
+  fontMetricWidthScale: number | undefined,
 ): boolean {
   const canRecoverHorizontalOcrDirection =
     block.sourceDirection === "vertical" || visible.some(isHangulWord);
@@ -193,7 +217,7 @@ function hasVerticalShapeAndScript(
   ) {
     return false;
   }
-  const metrics = resolveNaturalTextMetrics(block);
+  const metrics = resolveNaturalTextMetrics(block, fontMetricWidthScale);
   const horizontalAvailableWidth =
     (rect.w * VERTICAL_HORIZONTAL_SAFETY_RATIO) /
     Math.max(0.01, metrics.fontWidthScale);
@@ -204,8 +228,9 @@ function compareVerticalColumnFits(
   block: TranslationBlock,
   rect: { w: number; h: number },
   glyphCount: number,
+  fontMetricWidthScale: number | undefined,
 ): NaturalVerticalDecision {
-  const metrics = resolveNaturalTextMetrics(block);
+  const metrics = resolveNaturalTextMetrics(block, fontMetricWidthScale);
   const advanceFactor = Math.max(
     1,
     (block.lineHeight || 1.18) + (block.letterSpacing ?? 0),

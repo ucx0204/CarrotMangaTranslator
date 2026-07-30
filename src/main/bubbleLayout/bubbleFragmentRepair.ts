@@ -20,6 +20,8 @@ export type ScoredBubbleRegion = {
   region: RefinedBubbleRegion;
   confidence: number;
   insetPx: number;
+  /** Conflict groups that actually contributed this selected region. */
+  sharedGroupIds?: string[];
 };
 
 type FragmentRepairInput = {
@@ -110,6 +112,9 @@ function repairSuspiciousFragmentedBubbleRegions(
     region,
     confidence,
     insetPx: refined.insetPx,
+    ...(partition?.sharedGroupId
+      ? { sharedGroupIds: [partition.sharedGroupId] }
+      : {}),
   }));
   if (
     repaired.length !== 1 ||
@@ -170,6 +175,11 @@ function repairFromSingleCandidate(
           region: bestRegion,
           confidence,
           insetPx: refined.insetPx,
+          ...(candidate.ownershipPartition?.sharedGroupId
+            ? {
+                sharedGroupIds: [candidate.ownershipPartition.sharedGroupId],
+              }
+            : {}),
         },
       },
     ];
@@ -321,6 +331,7 @@ function resolveCompatibleOwnershipPartition(
 
 function ownershipPartitionKey(partition: BubbleOwnershipPartition): string {
   return JSON.stringify({
+    sharedGroupId: partition.sharedGroupId,
     ownerBox: partition.ownerBox,
     competingOwnerBoxes: partition.competingOwnerBoxes,
     competingBubbleBoxes: partition.competingBubbleBoxes,

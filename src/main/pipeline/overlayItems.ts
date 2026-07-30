@@ -16,8 +16,10 @@ import type {
 } from "../../shared/textTypes";
 import type { BlockFormatDefaults } from "../../shared/blockFormat";
 import type { MangaPage } from "../../shared/libraryTypes";
+import type { AutomaticFontCandidate } from "../../shared/fontMatchingTypes";
 import { applyFormatDefaultsToBlock } from "../../shared/blockFormat";
 import { applyNaturalTextLayout } from "../../shared/naturalTextLayout";
+import { resolveAutomaticFontDecision } from "./automaticFontMatching";
 import { tMain } from "./localization";
 import type { OverlayItem } from "./types";
 
@@ -32,6 +34,14 @@ export type OverlayNaturalTextLayoutOptions = {
   locale?: string;
 };
 
+export type OverlayAutomaticFontOptions = {
+  enabled?: boolean;
+  targetLanguage?: string;
+  workTitle?: string;
+  bodyTextCorpus?: string;
+  candidates?: readonly AutomaticFontCandidate[];
+};
+
 export function overlayItemToBlock(
   item: OverlayItem,
   page: MangaPage,
@@ -39,6 +49,7 @@ export function overlayItemToBlock(
   runId?: string,
   formatDefaults?: BlockFormatDefaults,
   naturalLayout?: OverlayNaturalTextLayoutOptions,
+  automaticFont?: OverlayAutomaticFontOptions,
 ): TranslationBlock {
   const type = mapOverlayType(item.type);
   const textRole = normalizeOverlayTextRole(item.textRole);
@@ -79,6 +90,7 @@ export function overlayItemToBlock(
     bboxSpace: "normalized_1000",
     sourceText,
     translatedText,
+    ...(textRole === "sound" || textRole === "ordinary" ? { textRole } : {}),
     confidence: normalizeConfidence(item.confidence, sourceText ? 0.92 : 0.75),
     sourceDirection,
     renderDirection,
@@ -93,13 +105,51 @@ export function overlayItemToBlock(
     autoFitText: true,
   };
   const formatted = applyFormatDefaultsToBlock(block, formatDefaults);
-  return applyNaturalLayoutToOverlayBlock(
+  const fontMatched = applyAutomaticFontToOverlayBlock(
     formatted,
+    item,
+    page,
+    automaticFont,
+  );
+  return applyNaturalLayoutToOverlayBlock(
+    fontMatched.block,
     page,
     textRole,
     formatDefaults,
     naturalLayout,
+    fontMatched.fontMetricWidthScale,
   );
+}
+
+function applyAutomaticFontToOverlayBlock(
+  block: TranslationBlock,
+  item: OverlayItem,
+  page: MangaPage,
+  automaticFont: OverlayAutomaticFontOptions | undefined,
+): {
+  block: TranslationBlock;
+  fontMetricWidthScale?: number;
+} {
+  if (!automaticFont?.enabled) {
+    return { block };
+  }
+  const decision = resolveAutomaticFontDecision({
+    item,
+    page,
+    workTitle: automaticFont.workTitle,
+    targetLanguage: automaticFont.targetLanguage,
+    bodyTextCorpus: automaticFont.bodyTextCorpus,
+    candidates: automaticFont.candidates,
+  });
+  return decision
+    ? {
+        block: {
+          ...block,
+          fontFamily: decision.fontId,
+        },
+        fontMetricWidthScale: decision.fontMetricWidthScale,
+      }
+    : { block };
 }
 
 function applyNaturalLayoutToOverlayBlock(
@@ -108,6 +158,7 @@ function applyNaturalLayoutToOverlayBlock(
   textRole: NormalizedTextRole,
   formatDefaults: BlockFormatDefaults | undefined,
   naturalLayout: OverlayNaturalTextLayoutOptions | undefined,
+  fontMetricWidthScale: number | undefined,
 ): TranslationBlock {
   if (!naturalLayout?.enabled || textRole === "sound") {
     return formatted;
@@ -118,6 +169,7 @@ function applyNaturalLayoutToOverlayBlock(
     locale: naturalLayout.locale,
     allowAutoVertical: textRole === "ordinary" || textRole === "",
     directionPreference: formatDefaults?.renderDirection ?? "auto",
+    fontMetricWidthScale,
   });
   return {
     ...formatted,

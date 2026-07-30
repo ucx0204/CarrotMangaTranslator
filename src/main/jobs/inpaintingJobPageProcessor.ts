@@ -163,6 +163,12 @@ async function runInpaintingPagePipeline({
                 maskPreparation.bubbleLayoutConstraintBlockIds,
             }
           : {}),
+        ...("sharedInpaintGroupIdsByBlock" in maskPreparation
+          ? {
+              sharedInpaintGroupIdsByBlock:
+                maskPreparation.sharedInpaintGroupIdsByBlock,
+            }
+          : {}),
       });
   const result = {
     ...rawResult,
@@ -207,6 +213,7 @@ async function preparePatternMaskPage({
   bubbleLayoutConstraintBlockIds?: string[];
   page: MangaPage;
   restoreLayout?: InpaintingBlockLayoutState[];
+  sharedInpaintGroupIdsByBlock?: Record<string, string[]>;
 }> {
   if (
     state.inpaintingEngineLease?.engine.model !== "flux-klein" ||

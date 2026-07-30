@@ -416,6 +416,8 @@
       "off": "由文本块自行处理译文换行。",
       "on": "根据文本块大小整理译文换行。"
     },
+    "autoFontMatching": "自动匹配字体",
+    "autoFontMatchingSummary": "保持对白字体一致，并按氛围为拟声词选择字体。",
     "completionMode": "完成方式",
     "completionModeTranslate": "仅翻译",
     "completionModeErase": "擦除原文",
@@ -1269,6 +1271,16 @@
       }
     },
     "hardware": {
+      "gpuSection": "GPU 分配",
+      "gpuSectionDescription": "分别指定应用界面和本地 AI 任务使用的 GPU。",
+      "graphicsGpu": "应用图形 GPU",
+      "graphicsGpuAuto": "自动（使用系统设置）",
+      "graphicsGpuHighPerformance": "优先使用高性能 GPU（RTX/独立显卡）",
+      "computeGpu": "本地 AI 计算 GPU",
+      "computeGpuAuto": "自动（推荐）",
+      "computeGpuOption": "计算设备 {{index}}（CUDA/HIP/Vulkan）",
+      "gpuNumberingNote": "计算设备编号以各 AI 运行时为准，可能与 Windows 任务管理器中的 GPU 0/1 不同。Intel + RTX 电脑建议将应用图形设为高性能 GPU，并优先尝试自动选择计算 GPU。",
+      "graphicsGpuRestartNote": "更改应用图形 GPU 后需重启应用才能生效。",
       "ocrSection": "OCR",
       "inpaintingSection": "图像修复",
       "ocrQuality": "Paddle OCR质量",

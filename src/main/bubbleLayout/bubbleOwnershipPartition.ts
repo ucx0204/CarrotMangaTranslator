@@ -4,6 +4,16 @@ import type {
   BlockBubbleCandidateOwnership,
   BubbleOwnershipPartition,
 } from "./bubbleBlockAssociation";
+import {
+  axisCenter,
+  buildPartitionBox,
+  buildPartitionCuts,
+  choosePartitionAxis,
+  constrainPartitionCuts,
+  otherAxis,
+  resolvePartitionGapPx,
+  type PartitionAxis,
+} from "./bubbleOwnershipGeometry";
 
 /**
  * A detector bubble claimed by multiple OCR blocks needs a shared ownership
@@ -22,8 +32,15 @@ export function partitionSharedBubbleOwnership<Owner>(
     BlockBubbleCandidate,
     BubbleOwnershipPartition
   >();
-  for (const conflict of findOwnershipConflicts(claims)) {
-    for (const result of buildConflictPartitions(conflict, ownerBox, gapPx)) {
+  for (const [conflictIndex, conflict] of findOwnershipConflicts(
+    claims,
+  ).entries()) {
+    for (const result of buildConflictPartitions(
+      conflict,
+      ownerBox,
+      gapPx,
+      `shared-${conflictIndex + 1}`,
+    )) {
       partitionsByCandidate.set(result.candidate, result.partition);
     }
   }
@@ -114,6 +131,7 @@ function buildConflictPartitions<Owner>(
   claims: BubbleClaim<Owner>[],
   ownerBox: (owner: Owner) => BBox,
   requestedGapPx: number,
+  sharedGroupId: string,
 ): {
   candidate: BlockBubbleCandidate;
   partition: BubbleOwnershipPartition;
@@ -121,6 +139,25 @@ function buildConflictPartitions<Owner>(
   const bubbleBox = unionBounds(
     claims.map((claim) => claim.candidate.bubbleBox),
   );
+  return buildDisjointConflictPartitions(
+    claims,
+    ownerBox,
+    requestedGapPx,
+    bubbleBox,
+    sharedGroupId,
+  );
+}
+
+function buildDisjointConflictPartitions<Owner>(
+  claims: BubbleClaim<Owner>[],
+  ownerBox: (owner: Owner) => BBox,
+  requestedGapPx: number,
+  bubbleBox: BBox,
+  sharedGroupId: string,
+): Array<{
+  candidate: BlockBubbleCandidate;
+  partition: BubbleOwnershipPartition;
+}> {
   const owners = uniqueOwners(claims).map((owner) => ({
     owner,
     box: ownerBox(owner),
@@ -178,6 +215,7 @@ function buildConflictPartitions<Owner>(
       candidate: claim.candidate,
       partition: {
         ...base,
+        sharedGroupId,
         competingBubbleBoxes,
         scope: sharesDetection ? "full" : "bubble-overlap",
         gapPx,
@@ -243,139 +281,4 @@ function unionBounds(boxes: BBox[]): BBox {
   const right = Math.max(...boxes.map((box) => box.x + box.w));
   const bottom = Math.max(...boxes.map((box) => box.y + box.h));
   return { x, y, w: right - x, h: bottom - y };
-}
-
-type PartitionAxis = "x" | "y";
-
-function choosePartitionAxis(boxes: BBox[], bubbleBox: BBox): PartitionAxis {
-  const score = (axis: PartitionAxis) => {
-    const centers = boxes.map((box) => axisCenter(box, axis));
-    const spread = Math.max(...centers) - Math.min(...centers);
-    const meanExtent =
-      boxes.reduce((total, box) => total + axisLength(box, axis), 0) /
-      Math.max(1, boxes.length);
-    return (
-      spread / Math.max(1, meanExtent) +
-      (spread / Math.max(1, axisLength(bubbleBox, axis))) * 0.35
-    );
-  };
-  return score("x") >= score("y") ? "x" : "y";
-}
-
-function buildPartitionCuts(boxes: BBox[], axis: PartitionAxis): number[] {
-  const cuts: number[] = [];
-  for (let index = 0; index < boxes.length - 1; index += 1) {
-    const current = boxes[index];
-    const next = boxes[index + 1];
-    const currentEnd = axisStart(current, axis) + axisLength(current, axis);
-    const nextStart = axisStart(next, axis);
-    cuts.push(
-      currentEnd <= nextStart
-        ? (currentEnd + nextStart) / 2
-        : (axisCenter(current, axis) + axisCenter(next, axis)) / 2,
-    );
-  }
-  return cuts;
-}
-
-function constrainPartitionCuts(
-  idealCuts: number[],
-  bubbleBox: BBox,
-  axis: PartitionAxis,
-  gapPx: number,
-): number[] {
-  if (idealCuts.length === 0) return [];
-  const start = axisStart(bubbleBox, axis);
-  const end = start + axisLength(bubbleBox, axis);
-  const minimumCellSize = 2;
-  const requiredLength =
-    minimumCellSize * (idealCuts.length + 1) + gapPx * idealCuts.length;
-  if (end - start < requiredLength) {
-    return evenlySpacedCuts(start, end, idealCuts.length);
-  }
-  const cuts = [...idealCuts];
-  for (let index = 0; index < cuts.length; index += 1) {
-    cuts[index] = Math.max(
-      cuts[index],
-      start + minimumCellSize * (index + 1) + gapPx * index + gapPx / 2,
-    );
-  }
-  for (let index = cuts.length - 1; index >= 0; index -= 1) {
-    const remainingCells = cuts.length - index;
-    cuts[index] = Math.min(
-      cuts[index],
-      end -
-        minimumCellSize * remainingCells -
-        gapPx * (remainingCells - 1) -
-        gapPx / 2,
-    );
-  }
-  return cuts;
-}
-
-function evenlySpacedCuts(
-  start: number,
-  end: number,
-  cutCount: number,
-): number[] {
-  return Array.from(
-    { length: cutCount },
-    (_, index) => start + ((end - start) * (index + 1)) / (cutCount + 1),
-  );
-}
-
-function buildPartitionBox(
-  bubbleBox: BBox,
-  axis: PartitionAxis,
-  cuts: number[],
-  index: number,
-  gapPx: number,
-): BBox {
-  const bubbleStart = axisStart(bubbleBox, axis);
-  const bubbleEnd = bubbleStart + axisLength(bubbleBox, axis);
-  const start =
-    index === 0
-      ? bubbleStart
-      : Math.min(bubbleEnd, cuts[index - 1] + gapPx / 2);
-  const end =
-    index === cuts.length
-      ? bubbleEnd
-      : Math.max(bubbleStart, cuts[index] - gapPx / 2);
-  return axis === "x"
-    ? {
-        x: start,
-        y: bubbleBox.y,
-        w: Math.max(0, end - start),
-        h: bubbleBox.h,
-      }
-    : {
-        x: bubbleBox.x,
-        y: start,
-        w: bubbleBox.w,
-        h: Math.max(0, end - start),
-      };
-}
-
-function otherAxis(axis: PartitionAxis): PartitionAxis {
-  return axis === "x" ? "y" : "x";
-}
-
-function axisStart(box: BBox, axis: PartitionAxis): number {
-  return axis === "x" ? box.x : box.y;
-}
-
-function axisLength(box: BBox, axis: PartitionAxis): number {
-  return axis === "x" ? box.w : box.h;
-}
-
-function axisCenter(box: BBox, axis: PartitionAxis): number {
-  return axisStart(box, axis) + axisLength(box, axis) / 2;
-}
-
-function resolvePartitionGapPx(requestedGapPx: number): number {
-  return Number.isFinite(requestedGapPx) ? clamp(requestedGapPx, 3, 6) : 3;
-}
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.min(maximum, Math.max(minimum, value));
 }

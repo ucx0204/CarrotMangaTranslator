@@ -10,16 +10,17 @@ import type {
 import type { JobEvent } from "../src/shared/jobTypes";
 import type { MangaPage } from "../src/shared/libraryTypes";
 import type { AppSettings } from "../src/shared/settingsTypes";
+import type { AutomaticFontCandidate } from "../src/shared/fontMatchingTypes";
 import type { TranslationOptions } from "../src/main/appSettings";
 import type { AppPaths } from "../src/main/appPaths";
 import type {
   OcrBboxResult,
-  PipelineOptions,
   PipelineWorkContext,
 } from "../src/main/pipeline/types";
 import type { TranslationRuntimePort } from "../src/main/pipeline/translationRuntimePort";
 import type { WholePagePipelineDependencies } from "../src/main/pipeline/wholePagePipelinePorts";
 import { runWholePagePipeline as runWholePagePipelineWithDependencies } from "../src/main/wholePagePipeline";
+import { makeAutomaticFontCandidate } from "./helpers/automaticFontCandidate";
 
 const tempDirs: string[] = [];
 let runSequence = 0;
@@ -69,6 +70,7 @@ describe("whole page pipeline", () => {
       pageIndex: 0,
     });
     expect(runtime.saveArtifacts).toHaveBeenCalledOnce();
+    expect(runtime.loadFontMatchingCandidates).not.toHaveBeenCalled();
     expect(runtime.disposeEndpoint).toHaveBeenCalledTimes(1);
     expect(runtime.warn).toHaveBeenCalledWith(
       "Analysis attempt failed",
@@ -243,6 +245,7 @@ describe("whole page pipeline", () => {
   it("feeds a successful page context into the next canonical chapter page", async () => {
     const firstPage = makePage("page-a", "005.png");
     const secondPage = makePage("page-b", "008.png");
+    const fontCandidate = makeAutomaticFontCandidate();
     const workContext = {
       workId: "work-a",
       chapterId: "chapter-a",
@@ -294,12 +297,14 @@ describe("whole page pipeline", () => {
     const events: JobEvent[] = [];
     const { runWholePagePipeline, runtime } = await loadPipeline({
       requestTranslation,
+      fontMatchingCandidates: [fontCandidate],
     });
 
     const result = await runWholePagePipeline({
       ...basePipelineOptions([firstPage, secondPage], events),
       workContext,
       collectPageContext: true,
+      autoFontMatching: true,
       canonicalPageIndexById: new Map([
         [firstPage.id, 4],
         [secondPage.id, 7],
@@ -310,6 +315,15 @@ describe("whole page pipeline", () => {
       result.pages.every((page) => page.analysisStatus === "completed"),
     ).toBe(true);
     expect(requestTranslation).toHaveBeenCalledTimes(2);
+    expect(runtime.loadFontMatchingCandidates).toHaveBeenCalledOnce();
+    const fontSnapshots = requestTranslation.mock.calls.map(
+      (call) => call[1].fontMatchingCandidates,
+    );
+    expect(fontSnapshots[0]).toBe(fontSnapshots[1]);
+    expect(result.pages.map((page) => page.blocks[0]?.fontFamily)).toEqual([
+      fontCandidate.fontId,
+      fontCandidate.fontId,
+    ]);
     expect(runtime.saveWorkStyleGuide).toHaveBeenCalledTimes(1);
     expect(runtime.saveChapterStoryMemory).toHaveBeenCalledTimes(2);
     expect(
@@ -898,26 +912,14 @@ async function loadPipeline({
   requestTranslation = vi.fn().mockResolvedValue(successTranslationResult()),
   sourceLanguage = "ja",
   startEndpointSession,
+  fontMatchingCandidates = [],
 }: {
   ocrHintsByImagePath?: ReadonlyMap<string, OcrBboxResult>;
   requestTranslation?: TranslationRuntimePort["requestTranslation"];
   sourceLanguage?: string;
   startEndpointSession?: TranslationRuntimePort["startEndpointSession"];
-} = {}): Promise<{
-  runWholePagePipeline: (
-    options: PipelineOptions,
-  ) => ReturnType<typeof runWholePagePipelineWithDependencies>;
-  runtime: {
-    collectOcrHintsBatch: ReturnType<typeof vi.fn>;
-    disposeEndpoint: ReturnType<typeof vi.fn>;
-    saveArtifacts: ReturnType<typeof vi.fn>;
-    saveChapterStoryMemory: ReturnType<typeof vi.fn>;
-    saveWorkStyleGuide: ReturnType<typeof vi.fn>;
-    info: ReturnType<typeof vi.fn>;
-    warn: ReturnType<typeof vi.fn>;
-    error: ReturnType<typeof vi.fn>;
-  };
-}> {
+  fontMatchingCandidates?: readonly AutomaticFontCandidate[];
+} = {}) {
   const rootDir = await mkdtemp(join(tmpdir(), "mgt-pipeline-"));
   tempDirs.push(rootDir);
   const disposeEndpoint = vi.fn(async (): Promise<void> => undefined);
@@ -951,11 +953,15 @@ async function loadPipeline({
   const info = vi.fn<WholePagePipelineDependencies["diagnostics"]["info"]>();
   const warn = vi.fn<WholePagePipelineDependencies["diagnostics"]["warn"]>();
   const error = vi.fn<WholePagePipelineDependencies["diagnostics"]["error"]>();
+  const loadFontMatchingCandidates = vi.fn(
+    (_targetLanguage?: string) => fontMatchingCandidates,
+  );
   const dependencies = {
     paths: makeAppPaths(rootDir),
     settings: {
       getAppSettings: vi.fn(async () => makeAppSettings(sourceLanguage)),
     },
+    fontMatching: { loadCandidates: loadFontMatchingCandidates },
     pageContext: { saveChapterStoryMemory, saveWorkStyleGuide },
     diagnostics: { info, warn, error },
     runtime: {
@@ -970,8 +976,9 @@ async function loadPipeline({
     },
   } satisfies WholePagePipelineDependencies;
   return {
-    runWholePagePipeline: (options) =>
-      runWholePagePipelineWithDependencies(options, dependencies),
+    runWholePagePipeline: (
+      options: Parameters<typeof runWholePagePipelineWithDependencies>[0],
+    ) => runWholePagePipelineWithDependencies(options, dependencies),
     runtime: {
       collectOcrHintsBatch,
       disposeEndpoint,
@@ -981,6 +988,7 @@ async function loadPipeline({
       info,
       warn,
       error,
+      loadFontMatchingCandidates,
     },
   };
 }

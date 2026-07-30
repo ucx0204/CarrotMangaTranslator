@@ -84,6 +84,7 @@ function registerScheme(protocolBoundary: ProtocolBoundary): void {
         secure: true,
         stream: true,
         supportFetchAPI: true,
+        corsEnabled: true,
       },
     },
   ]);

@@ -21,6 +21,7 @@ import {
 import { ChapterPagePicker } from "./ChapterPagePicker";
 import {
   OptionRow,
+  ToggleOptionRow,
   TranslationCompletionOptions,
   TranslationOptionSection,
 } from "./TranslationOptionControls";
@@ -50,6 +51,7 @@ type TranslationOptionsModalProps = {
       | "translationWorkflowDefault"
       | "analysisScopeDefault"
       | "blockModeDefault"
+      | "autoFontMatchingDefault"
       | "naturalTextLayoutDefault"
       | "eraseOriginalWorkflowDefault"
       | "bubbleLayoutWorkflowDefault"
@@ -80,6 +82,7 @@ export function TranslationOptionsModal({
       translationWorkflowDefault: state.formProps.workflowMode,
       analysisScopeDefault: state.formProps.analysisScope,
       blockModeDefault: state.formProps.blockMode,
+      autoFontMatchingDefault: state.formProps.autoFontMatching,
       naturalTextLayoutDefault: state.formProps.naturalTextLayout,
       eraseOriginalWorkflowDefault: state.formProps.eraseOriginalWorkflow,
       bubbleLayoutWorkflowDefault: state.formProps.bubbleLayoutWorkflow,
@@ -89,6 +92,7 @@ export function TranslationOptionsModal({
       workflowMode: state.formProps.workflowMode,
       analysisScope: state.formProps.analysisScope,
       blockMode: state.formProps.blockMode,
+      autoFontMatching: state.formProps.autoFontMatching,
       naturalTextLayout: state.formProps.naturalTextLayout,
       eraseOriginalWorkflow: state.formProps.eraseOriginalWorkflow,
       bubbleLayoutWorkflow: state.formProps.bubbleLayoutWorkflow,
@@ -147,6 +151,8 @@ type TranslationOptionsFormProps = {
   onAnalysisScopeChange: (scope: WorkContextAnalysisScope) => void;
   blockMode: AnalysisBlockMode;
   onBlockModeChange: (mode: AnalysisBlockMode) => void;
+  autoFontMatching: boolean;
+  onAutoFontMatchingChange: (enabled: boolean) => void;
   naturalTextLayout: boolean;
   onNaturalTextLayoutChange: (enabled: boolean) => void;
   eraseOriginalWorkflow: boolean;
@@ -181,6 +187,9 @@ function useTranslationOptionsModalState(
   const [blockMode, setBlockMode] = React.useState<AnalysisBlockMode>(
     uiSettings?.blockModeDefault ?? "auto",
   );
+  const [autoFontMatching, setAutoFontMatching] = React.useState(
+    uiSettings?.autoFontMatchingDefault ?? false,
+  );
   const [naturalTextLayout, setNaturalTextLayout] = React.useState(
     uiSettings?.naturalTextLayoutDefault ?? true,
   );
@@ -202,12 +211,14 @@ function useTranslationOptionsModalState(
   return {
     formProps: {
       analysisScope,
+      autoFontMatching,
       blockMode,
       bubbleLayoutWorkflow,
       chapter,
       eraseOriginalWorkflow,
       naturalTextLayout,
       onAnalysisScopeChange: setAnalysisScope,
+      onAutoFontMatchingChange: setAutoFontMatching,
       onBlockModeChange: setBlockMode,
       onBubbleLayoutWorkflowChange: setBubbleLayoutWorkflow,
       onEraseOriginalWorkflowChange: setEraseOriginalWorkflow,
@@ -291,7 +302,10 @@ function TranslationOptionsForm(
               `translationOptions.blockModeSummaries.${props.blockMode}`,
             )}
           />
-          <NaturalTextLayoutOptions {...props} />
+          <div className="translate-options-toggle-grid">
+            <NaturalTextLayoutOptions {...props} />
+            <AutoFontMatchingOptions {...props} />
+          </div>
         </TranslationOptionSection>
         <TranslationOptionSection
           title={t("translationOptions.sections.completion")}
@@ -344,17 +358,27 @@ function NaturalTextLayoutOptions(
 ): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <OptionRow
+    <ToggleOptionRow
       label={t("translationOptions.naturalTextLayout")}
-      options={[
-        { id: "off", label: t("translationOptions.naturalTextLayoutOff") },
-        { id: "on", label: t("translationOptions.naturalTextLayoutOn") },
-      ]}
-      value={props.naturalTextLayout ? "on" : "off"}
-      onChange={(value) => props.onNaturalTextLayoutChange(value === "on")}
+      pressed={props.naturalTextLayout}
+      onChange={props.onNaturalTextLayoutChange}
       description={t(
         `translationOptions.naturalTextLayoutSummaries.${props.naturalTextLayout ? "on" : "off"}`,
       )}
+    />
+  );
+}
+
+function AutoFontMatchingOptions(
+  props: TranslationOptionsFormProps,
+): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <ToggleOptionRow
+      label={t("translationOptions.autoFontMatching")}
+      pressed={props.autoFontMatching}
+      onChange={props.onAutoFontMatchingChange}
+      description={t("translationOptions.autoFontMatchingSummary")}
     />
   );
 }

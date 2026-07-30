@@ -7,6 +7,7 @@ import type {
   OcrGpuBackend,
   OcrQualityMode,
 } from "../../../../shared/settingsTypes";
+import type { GraphicsGpuPreference } from "../../../../shared/gpuSettings";
 import {
   FLUX_BACKEND_OPTIONS,
   OCR_DEVICE_OPTIONS,
@@ -19,18 +20,25 @@ import {
 } from "./HardwareContextNotes";
 import { SettingsSection } from "./SettingsSection";
 import { InpaintingModelSettings } from "./InpaintingModelSettings";
+import { GpuAssignmentSettings } from "./GpuAssignmentSettings";
 
 type HardwareSettingsPanelProps = {
   allowUnsafeLowMemoryFlux: boolean;
   clearTestState: () => void;
+  computeGpuIndex: number | null;
   controlsBusy: boolean;
   fluxBackend: FluxBackend;
+  graphicsGpuPreference: GraphicsGpuPreference;
   inpaintingModel: InpaintingModel;
   isFluxBackendOptionDisabled: (backend: FluxBackend) => boolean;
   ocrGpuBackend: OcrGpuBackend;
   ocrDevice: OcrDevice;
   ocrQualityMode: OcrQualityMode;
   setFluxBackend: React.Dispatch<React.SetStateAction<FluxBackend>>;
+  setGraphicsGpuPreference: React.Dispatch<
+    React.SetStateAction<GraphicsGpuPreference>
+  >;
+  setComputeGpuIndex: React.Dispatch<React.SetStateAction<number | null>>;
   setAllowUnsafeLowMemoryFlux: React.Dispatch<React.SetStateAction<boolean>>;
   setInpaintingModel: React.Dispatch<React.SetStateAction<InpaintingModel>>;
   setOcrDevice: React.Dispatch<React.SetStateAction<OcrDevice>>;
@@ -44,84 +52,113 @@ type HardwareSettingsPanelProps = {
   unifiedMemoryMb: number | null;
 };
 
-export function HardwareSettingsPanel({
+export function HardwareSettingsPanel(
+  props: HardwareSettingsPanelProps,
+): React.JSX.Element {
+  return (
+    <div className="settings-panel-stack">
+      {!props.usesAppleHardware ? (
+        <GpuAssignmentSettings
+          clearTestState={props.clearTestState}
+          computeGpuIndex={props.computeGpuIndex}
+          controlsBusy={props.controlsBusy}
+          graphicsGpuPreference={props.graphicsGpuPreference}
+          setComputeGpuIndex={props.setComputeGpuIndex}
+          setGraphicsGpuPreference={props.setGraphicsGpuPreference}
+        />
+      ) : null}
+      <OcrSettingsSection {...props} />
+      <InpaintingSettingsSection {...props} />
+    </div>
+  );
+}
+
+function OcrSettingsSection({
+  clearTestState,
+  controlsBusy,
+  ocrDevice,
+  ocrGpuBackend,
+  ocrQualityMode,
+  setOcrDevice,
+  setOcrGpuBackend,
+  setOcrQualityMode,
+  usesAmdOcrContext,
+  usesAppleHardware,
+  usesNvidiaOcrContext,
+}: HardwareSettingsPanelProps): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <SettingsSection title={t("settings.hardware.ocrSection")}>
+      <div className="settings-subsection-stack">
+        <OcrQualitySettings
+          clearTestState={clearTestState}
+          controlsBusy={controlsBusy}
+          ocrQualityMode={ocrQualityMode}
+          setOcrDevice={setOcrDevice}
+          setOcrGpuBackend={setOcrGpuBackend}
+          setOcrQualityMode={setOcrQualityMode}
+          usesAmdOcrContext={usesAmdOcrContext}
+          usesAppleHardware={usesAppleHardware}
+          usesNvidiaOcrContext={usesNvidiaOcrContext}
+        />
+        <OcrDeviceSettings
+          clearTestState={clearTestState}
+          controlsBusy={controlsBusy}
+          ocrDevice={ocrDevice}
+          ocrGpuBackend={ocrGpuBackend}
+          setOcrDevice={setOcrDevice}
+          setOcrGpuBackend={setOcrGpuBackend}
+          usesAmdOcrContext={usesAmdOcrContext}
+          usesAppleHardware={usesAppleHardware}
+          usesNvidiaOcrContext={usesNvidiaOcrContext}
+        />
+      </div>
+    </SettingsSection>
+  );
+}
+
+function InpaintingSettingsSection({
   allowUnsafeLowMemoryFlux,
   clearTestState,
   controlsBusy,
   fluxBackend,
   inpaintingModel,
   isFluxBackendOptionDisabled,
-  ocrGpuBackend,
-  ocrDevice,
-  ocrQualityMode,
-  setFluxBackend,
   setAllowUnsafeLowMemoryFlux,
+  setFluxBackend,
   setInpaintingModel,
-  setOcrDevice,
-  setOcrGpuBackend,
-  setOcrQualityMode,
+  unifiedMemoryMb,
   usesAmdHardware,
   usesAppleHardware,
-  usesAmdOcrContext,
   usesNvidiaHardware,
-  usesNvidiaOcrContext,
-  unifiedMemoryMb,
 }: HardwareSettingsPanelProps): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <div className="settings-panel-stack">
-      <SettingsSection title={t("settings.hardware.ocrSection")}>
-        <div className="settings-subsection-stack">
-          <OcrQualitySettings
-            clearTestState={clearTestState}
-            controlsBusy={controlsBusy}
-            ocrQualityMode={ocrQualityMode}
-            setOcrDevice={setOcrDevice}
-            setOcrGpuBackend={setOcrGpuBackend}
-            setOcrQualityMode={setOcrQualityMode}
-            usesAmdOcrContext={usesAmdOcrContext}
-            usesAppleHardware={usesAppleHardware}
-            usesNvidiaOcrContext={usesNvidiaOcrContext}
-          />
-          <OcrDeviceSettings
-            clearTestState={clearTestState}
-            controlsBusy={controlsBusy}
-            ocrDevice={ocrDevice}
-            ocrGpuBackend={ocrGpuBackend}
-            setOcrDevice={setOcrDevice}
-            setOcrGpuBackend={setOcrGpuBackend}
-            usesAmdOcrContext={usesAmdOcrContext}
-            usesAppleHardware={usesAppleHardware}
-            usesNvidiaOcrContext={usesNvidiaOcrContext}
-          />
-        </div>
-      </SettingsSection>
-      <SettingsSection title={t("settings.hardware.inpaintingSection")}>
-        <div className="settings-subsection-stack">
-          <InpaintingModelSettings
-            allowUnsafeLowMemoryFlux={allowUnsafeLowMemoryFlux}
-            clearTestState={clearTestState}
-            controlsBusy={controlsBusy}
-            inpaintingModel={inpaintingModel}
-            setAllowUnsafeLowMemoryFlux={setAllowUnsafeLowMemoryFlux}
-            setInpaintingModel={setInpaintingModel}
-            unifiedMemoryMb={unifiedMemoryMb}
-            usesAppleHardware={usesAppleHardware}
-          />
-          <FluxBackendSettings
-            clearTestState={clearTestState}
-            controlsBusy={controlsBusy}
-            fluxBackend={fluxBackend}
-            inpaintingModel={inpaintingModel}
-            isFluxBackendOptionDisabled={isFluxBackendOptionDisabled}
-            setFluxBackend={setFluxBackend}
-            usesAmdHardware={usesAmdHardware}
-            usesAppleHardware={usesAppleHardware}
-            usesNvidiaHardware={usesNvidiaHardware}
-          />
-        </div>
-      </SettingsSection>
-    </div>
+    <SettingsSection title={t("settings.hardware.inpaintingSection")}>
+      <div className="settings-subsection-stack">
+        <InpaintingModelSettings
+          allowUnsafeLowMemoryFlux={allowUnsafeLowMemoryFlux}
+          clearTestState={clearTestState}
+          controlsBusy={controlsBusy}
+          inpaintingModel={inpaintingModel}
+          setAllowUnsafeLowMemoryFlux={setAllowUnsafeLowMemoryFlux}
+          setInpaintingModel={setInpaintingModel}
+          unifiedMemoryMb={unifiedMemoryMb}
+          usesAppleHardware={usesAppleHardware}
+        />
+        <FluxBackendSettings
+          clearTestState={clearTestState}
+          controlsBusy={controlsBusy}
+          fluxBackend={fluxBackend}
+          inpaintingModel={inpaintingModel}
+          isFluxBackendOptionDisabled={isFluxBackendOptionDisabled}
+          setFluxBackend={setFluxBackend}
+          usesAmdHardware={usesAmdHardware}
+          usesAppleHardware={usesAppleHardware}
+          usesNvidiaHardware={usesNvidiaHardware}
+        />
+      </div>
+    </SettingsSection>
   );
 }
 

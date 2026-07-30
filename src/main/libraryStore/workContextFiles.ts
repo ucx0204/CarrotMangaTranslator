@@ -198,6 +198,7 @@ export async function syncChapterStoryMemoryPages(
 
 export async function resolveWorkContextForChapter(chapterId: string): Promise<{
   workId: string;
+  workTitle: string;
   styleGuide: WorkStyleGuide;
   storyMemory: ChapterStoryMemory;
 }> {
@@ -209,10 +210,15 @@ export async function resolveWorkContextForChapter(chapterId: string): Promise<{
   if (!chapter) {
     throw new Error("작품 번역 컨텍스트를 찾지 못했습니다.");
   }
+  const work = await readWorkFile(locator.workId);
+  if (!work) {
+    throw new Error("작품 번역 컨텍스트를 찾지 못했습니다.");
+  }
   const storyMemory = await readChapterStoryMemory(locator.chapterId);
   const canonicalPages = reorderRecords(chapter.pages, chapter.pageOrder);
   return {
     workId: locator.workId,
+    workTitle: work.title,
     styleGuide: await readWorkStyleGuide(locator.workId),
     storyMemory: {
       ...storyMemory,

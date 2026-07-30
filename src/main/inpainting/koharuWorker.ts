@@ -12,6 +12,7 @@ import type {
   KoharuWorkerLaunchSpec,
   KoharuWorkerRequest,
 } from "./koharuWorkerTypes";
+import { applyComputeGpuVisibilityEnv } from "./computeGpuEnv";
 
 type KoharuWorkerRequestSummary = {
   inputFile: string;
@@ -137,14 +138,14 @@ export class KoharuWorker {
   }
 }
 
-function buildKoharuWorkerEnv(
+export function buildKoharuWorkerEnv(
   launch: KoharuWorkerLaunchSpec,
 ): NodeJS.ProcessEnv {
   const backend =
     launch.backend === "cpu" || launch.backend === "auto"
       ? "python-cpu"
       : launch.backend;
-  return {
+  const env: NodeJS.ProcessEnv = {
     ...launch.env,
     PATH: [
       launch.env?.PATH,
@@ -157,6 +158,8 @@ function buildKoharuWorkerEnv(
     RUST_BACKTRACE: launch.env?.RUST_BACKTRACE ?? "1",
     RUST_LOG: launch.env?.RUST_LOG ?? "warn,koharu_runtime=info",
   };
+  applyComputeGpuVisibilityEnv(env, launch.computeGpuIndex, launch.backend);
+  return env;
 }
 
 function sanitizeKoharuRuntimeStderr(text: string): string {

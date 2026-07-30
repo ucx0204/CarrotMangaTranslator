@@ -61,6 +61,7 @@ type FixedBlockResponseFormat = {
           additionalProperties: boolean;
           properties: {
             blockId: { enum: string[] };
+            textRole: { enum: string[] };
             ko: { pattern: string };
           };
         };
@@ -82,9 +83,13 @@ type FixedBlock = {
   fragments: Array<Record<string, unknown>>;
 };
 
-type FixedBlockPlan = { version: 4; blocks: FixedBlock[] };
+type FixedBlockPlan = { version: 5; blocks: FixedBlock[] };
 type FixedTranslationResult = {
-  items: Array<{ blockId: string; ko: string }>;
+  items: Array<{
+    blockId: string;
+    textRole?: "ordinary" | "sound";
+    ko: string;
+  }>;
   pageContext?: Record<string, unknown>;
 };
 
@@ -363,8 +368,13 @@ describe("fixed-block translation contract", () => {
     ]);
     const itemSchema = responseFormat.schema.properties.items.items;
     expect(itemSchema.additionalProperties).toBe(false);
-    expect(Object.keys(itemSchema.properties)).toEqual(["blockId", "ko"]);
+    expect(Object.keys(itemSchema.properties)).toEqual([
+      "blockId",
+      "textRole",
+      "ko",
+    ]);
     expect(itemSchema.properties.blockId.enum).toEqual(["B001", "B002"]);
+    expect(itemSchema.properties.textRole.enum).toEqual(["ordinary", "sound"]);
     expect(itemSchema.properties.ko.pattern).not.toContain("*");
   });
 
@@ -791,6 +801,84 @@ describe("fixed-block translation contract", () => {
     ).toMatchObject({ textRole: "sound", confidence: 0.43 });
   });
 
+  it("uses Gemma's image-grounded role without changing code-owned geometry", () => {
+    const plan = fixed.buildFixedBlockPlan(
+      {
+        ...baseOptions,
+        ocrBboxHints: [
+          {
+            id: 19,
+            label: "ocr_textline",
+            x1: 320,
+            y1: 140,
+            x2: 520,
+            y2: 240,
+            score: 0.7,
+            ocrText: "ビリリ！",
+          },
+          {
+            id: 20,
+            label: "ocr_textline",
+            x1: 600,
+            y1: 200,
+            x2: 720,
+            y2: 260,
+            score: 0.99,
+            ocrText: "あれ…",
+          },
+        ],
+      },
+      [baseVariant],
+    );
+    const translations = fixed.parseFixedBlockTranslationResponse(
+      JSON.stringify({
+        items: [
+          { blockId: "B001", textRole: "sound", ko: "찌릿!" },
+          { blockId: "B002", textRole: "ordinary", ko: "어라…" },
+        ],
+      }),
+      plan,
+      baseOptions,
+    );
+
+    expect(
+      fixed.buildFixedBlockOverlayPayload(plan, translations).items,
+    ).toEqual([
+      expect.objectContaining({
+        id: 19,
+        x1: 320,
+        y1: 140,
+        x2: 520,
+        y2: 240,
+        textRole: "sound",
+        confidence: 1,
+      }),
+      expect.objectContaining({
+        id: 20,
+        x1: 600,
+        y1: 200,
+        x2: 720,
+        y2: 260,
+        textRole: "ordinary",
+        confidence: 0.99,
+      }),
+    ]);
+  });
+
+  it("rejects an unknown visual text role", () => {
+    expect(() =>
+      fixed.parseFixedBlockTranslationResponse(
+        JSON.stringify({
+          items: [
+            { blockId: "B001", textRole: "dialogue", ko: "오른쪽" },
+            { blockId: "B002", textRole: "ordinary", ko: "왼쪽" },
+          ],
+        }),
+        twoSingletonPlan(),
+      ),
+    ).toThrow(/textRole must be ordinary or sound/i);
+  });
+
   it("allows pageContext only when requested and keeps it outside block items", () => {
     const plan = twoSingletonPlan();
     const pageContext = {
@@ -877,7 +965,12 @@ describe("fixed-block translation contract", () => {
     expect(prompt).toContain(
       "Every blockId, jp, direction, bbox, block count, and block order was already fixed before translation",
     );
-    expect(prompt).toContain("Each item has exactly two keys: blockId and ko");
+    expect(prompt).toContain(
+      "Each item has exactly three keys: blockId, textRole, and ko",
+    );
+    expect(prompt).toContain(
+      'Use textRole "sound" only for standalone printed sound effects',
+    );
     expect(prompt).toContain(
       "Japanese kana, kanji, iteration marks, and Japanese prolonged-sound marks are forbidden",
     );

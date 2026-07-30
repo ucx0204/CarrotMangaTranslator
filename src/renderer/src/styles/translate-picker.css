@@ -80,7 +80,7 @@
 
 .translate-options-sections {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1.14fr) minmax(0, 0.86fr);
   align-items: stretch;
   gap: var(--sp-3);
   min-width: 0;
@@ -90,9 +90,9 @@
 .translate-options-section {
   display: grid;
   align-content: start;
-  gap: var(--sp-3);
+  gap: var(--sp-2);
   min-width: 0;
-  padding: var(--sp-4);
+  padding: var(--sp-3);
   border: 1px solid var(--border-soft);
   border-radius: var(--r-md);
   background: color-mix(in srgb, var(--bg-sunken) 68%, transparent);
@@ -112,14 +112,12 @@
 
 .translate-options-section-body {
   display: grid;
-  gap: var(--sp-3);
+  gap: var(--sp-2);
   min-width: 0;
 }
 
 .translate-options-nested {
   min-width: 0;
-  padding-top: var(--sp-3);
-  border-top: 1px solid var(--border-soft);
 }
 
 .translation-options-modal .translate-options-row {
@@ -139,10 +137,84 @@
 }
 
 .translation-options-modal .settings-preset-button {
-  min-height: 34px;
-  padding: 6px 9px;
+  min-height: 32px;
+  padding: 5px 8px;
   font-size: var(--font-sm);
   line-height: 1.25;
+}
+
+.translate-options-toggle-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.translate-options-toggle-row {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+}
+
+.translation-options-modal .translate-options-toggle-button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 7px;
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  padding: 5px 9px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
+  color: var(--text-dim);
+  font-size: var(--font-sm);
+  font-weight: 650;
+  line-height: 1.25;
+  text-align: left;
+}
+
+.translation-options-modal
+  .translate-options-toggle-button:hover:not(:disabled),
+.translation-options-modal
+  .translate-options-toggle-button:focus-visible:not(:disabled) {
+  border-color: var(--border-hover);
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.translation-options-modal
+  .translate-options-toggle-button[aria-pressed="true"] {
+  border-color: var(--accent-bd);
+  background: var(--accent-soft);
+  color: var(--accent-hi);
+}
+
+.translation-options-modal
+  .translate-options-toggle-button[aria-pressed="true"]:hover:not(:disabled) {
+  border-color: var(--accent-bd);
+  background: var(--accent-hover);
+  color: var(--accent-text);
+}
+
+.translate-options-toggle-indicator {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.translate-options-toggle-button[aria-pressed="true"]
+  .translate-options-toggle-indicator {
+  background: var(--accent-hi);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.translate-options-toggle-row.disabled {
+  opacity: 0.5;
 }
 
 .translation-options-modal .translate-picker-list {
@@ -159,6 +231,20 @@
     .translate-options-row:not(.translate-options-row--unlabeled) {
     grid-template-columns: 140px minmax(0, 1fr);
     align-items: center;
+  }
+
+  .translation-options-modal
+    .translate-options-section:not(.translate-options-section--quality)
+    .translate-options-row:not(.translate-options-row--unlabeled) {
+    grid-template-columns: 76px minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .translation-options-modal
+    .translate-options-section:not(.translate-options-section--quality)
+    .translate-options-row:not(.translate-options-row--unlabeled)
+    .translate-options-selected-hint {
+    grid-column: 1 / -1;
   }
 }
 
@@ -190,6 +276,10 @@
 
   .translation-options-modal .settings-mode-group {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .translate-options-toggle-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 

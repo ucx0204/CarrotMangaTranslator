@@ -13,6 +13,7 @@ import gc
 import json
 import math
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -1633,6 +1634,30 @@ def partition_textline_candidates_heuristic(
       descriptor["role"] = role
       descriptor["reason"] = reason
 
+    japanese_paddle_groups = reliable_japanese_paddle_groups(descriptors)
+    for descriptor in descriptors:
+      role = str(descriptor["role"])
+      reason = str(descriptor["reason"])
+      paddle_group_id = (
+          str(descriptor["item"].get("paddleGroupId") or "").strip().upper()
+      )
+      if (
+          role == "excluded"
+          and paddle_group_id in japanese_paddle_groups
+      ):
+        if is_high_confidence_latin_acronym(descriptor):
+          # A short all-caps token is too easy to hallucinate from manga art
+          # on its own. Keep it only beside multiple reliable Japanese rows.
+          role = "standalone"
+          reason = "contextual_latin_acronym"
+        elif is_high_confidence_uppercase_latin_title_row(descriptor):
+          # All-uppercase UI textures resemble titles. Admit them only when
+          # Paddle also found a reliable Japanese text container around them.
+          role = "standalone"
+          reason = "contextual_uppercase_latin_title"
+      descriptor["role"] = role
+      descriptor["reason"] = reason
+
     # A page-wide font estimate is not sufficient for ruby: a large display
     # line can have its own, proportionally small reading aid.  Detect those
     # local satellites before building any graph so they can never steal a
@@ -1986,6 +2011,37 @@ def heuristic_review_anchor_cost(left: dict, right: dict) -> tuple[float, int, i
     )
 
 
+def reliable_japanese_paddle_groups(descriptors: list[dict]) -> set[str]:
+    grouped: dict[str, list[dict]] = {}
+    for descriptor in descriptors:
+      group_id = (
+          str(descriptor["item"].get("paddleGroupId") or "").strip().upper()
+      )
+      if (
+          not group_id
+          or str(descriptor.get("role") or "") not in {"primary", "display"}
+          or int(descriptor.get("japaneseCount") or 0) < 2
+          or float(descriptor.get("score") or 0.0) < 0.75
+      ):
+        continue
+      grouped.setdefault(group_id, []).append(descriptor)
+
+    reliable: set[str] = set()
+    for group_id, anchors in grouped.items():
+      total_japanese = sum(int(item["japaneseCount"]) for item in anchors)
+      maximum_score = max(float(item["score"]) for item in anchors)
+      has_multiple_anchors = (
+          len(anchors) >= 2 and total_japanese >= 4 and maximum_score >= 0.90
+      )
+      has_strong_long_anchor = any(
+          int(item["japaneseCount"]) >= 6 and float(item["score"]) >= 0.95
+          for item in anchors
+      )
+      if has_multiple_anchors or has_strong_long_anchor:
+        reliable.add(group_id)
+    return reliable
+
+
 def heuristic_textline_descriptor(item: dict, index: int) -> dict:
     x1, y1, x2, y2 = box_tuple(item)
     item_width = max(1.0, float(x2 - x1))
@@ -2013,9 +2069,27 @@ def heuristic_textline_descriptor(item: dict, index: int) -> dict:
         "orientation": orientation,
         "scale": scale,
         "text": text,
-        "japaneseCount": count_japanese_chars(text),
+        # Japanese punctuation alone (notably the middle dots in a Latin
+        # product title) must not make an otherwise Latin row look Japanese.
+        "japaneseCount": count_japanese_lexical_chars(text),
         "score": score,
     }
+
+
+def count_japanese_lexical_chars(text: str) -> int:
+    count = 0
+    for char in text:
+      code = ord(char)
+      if (
+          0x3041 <= code <= 0x3096
+          or 0x30A1 <= code <= 0x30FA
+          or 0x30FD <= code <= 0x30FF
+          or 0x3400 <= code <= 0x4DBF
+          or 0x4E00 <= code <= 0x9FFF
+          or 0xF900 <= code <= 0xFAFF
+      ):
+        count += 1
+    return count
 
 
 def heuristic_reference_scale(descriptors: list[dict], orientation: str) -> float:
@@ -2066,6 +2140,11 @@ def classify_heuristic_textline(
     sparse_page: bool = False,
 ) -> tuple[str, str]:
     if int(descriptor["japaneseCount"]) == 0:
+      if is_high_confidence_latin_title_row(descriptor):
+        # Latin product/game titles can be meaningful source text on a
+        # Japanese page.  Do not let them bridge Japanese dialogue rows; the
+        # image-aware stage reviews this exact detector box as a deferred item.
+        return ("standalone", "high_confidence_latin_title")
       return ("excluded", "non_japanese_or_numeric_noise")
     score = float(descriptor["score"])
     japanese_count = int(descriptor["japaneseCount"])
@@ -2099,6 +2178,153 @@ def classify_heuristic_textline(
     if score < 0.62:
       return ("standalone", "low_confidence_no_bridge")
     return ("primary", "ordinary_axis_candidate")
+
+
+def is_high_confidence_latin_title_row(descriptor: dict) -> bool:
+    if not is_plausible_latin_title_row(descriptor):
+      return False
+    letters = [
+        char
+        for char in str(descriptor.get("text") or "")
+        if char.isascii() and char.isalpha()
+    ]
+    return any(char.islower() for char in letters)
+
+
+def is_high_confidence_uppercase_latin_title_row(descriptor: dict) -> bool:
+    if not is_plausible_latin_title_row(descriptor):
+      return False
+    letters = [
+        char
+        for char in str(descriptor.get("text") or "")
+        if char.isascii() and char.isalpha()
+    ]
+    return bool(letters) and all(char.isupper() for char in letters)
+
+
+def is_plausible_latin_title_row(descriptor: dict) -> bool:
+    text = str(descriptor.get("text") or "").strip()
+    if (
+        float(descriptor.get("score") or 0.0) < 0.90
+        or descriptor.get("orientation") != "horizontal"
+        or float(descriptor.get("width") or 0.0)
+        < float(descriptor.get("height") or 1.0) * 2.5
+    ):
+      return False
+    letters = [char for char in text if char.isascii() and char.isalpha()]
+    if len(letters) < 8 or not any(char.isupper() for char in letters):
+      return False
+    if len({char.lower() for char in letters}) < 3:
+      return False
+    visible_chars = [char for char in text if not char.isspace()]
+    if len(letters) / max(1, len(visible_chars)) < 0.58:
+      return False
+    if looks_like_latin_url_or_path(text):
+      return False
+    allowed_separators = " \t-'’・·[]()【】:：.,&＆+＋×!/;；?"
+    if any(
+        not (char.isascii() and char.isalnum())
+        and char not in allowed_separators
+        for char in text
+    ):
+      return False
+    if has_embedded_latin_digit_run(text):
+      return False
+    separator_count = sum(
+        1
+        for char in visible_chars
+        if not (char.isascii() and char.isalnum())
+    )
+    if separator_count > max(6, len(letters) // 2):
+      return False
+    tokens = latin_alpha_tokens(text)
+    return bool(tokens) and max(len(token) for token in tokens) >= 4
+
+
+def looks_like_latin_url_or_path(text: str) -> bool:
+    value = text.strip()
+    normalized = value.lower()
+    if (
+        "://" in normalized
+        or normalized.startswith("www.")
+        or "@" in normalized
+        or "\\" in normalized
+        or "_" in normalized
+        or normalized.startswith("/")
+        or "//" in normalized
+        or ("/" in value and not any(char.isspace() for char in value))
+        or re.match(r"^[a-z]:[/\\]", normalized)
+    ):
+      return True
+    if re.search(r"\.(exe|jpg|jpeg|png|webp|pdf|zip|rar|7z)$", normalized):
+      return True
+    if any(char.isspace() for char in value):
+      return False
+    domain = re.fullmatch(
+        r"(?P<host>"
+        r"[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?"
+        r"(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+"
+        r")(?P<suffix>(?:[/:?#].*)?)",
+        value,
+    )
+    if not domain:
+      return False
+    labels = domain.group("host").split(".")
+    final_label = labels[-1]
+    common_tlds = {
+        "app", "biz", "com", "dev", "edu", "info", "io", "jp", "kr",
+        "me", "net", "org", "tv",
+    }
+    return (
+        len(labels) >= 3
+        or bool(domain.group("suffix"))
+        or final_label.lower() in common_tlds
+        or final_label.islower()
+        or final_label.isupper()
+    )
+
+
+def has_embedded_latin_digit_run(text: str) -> bool:
+    for token in re.findall(r"[A-Za-z0-9]+", text):
+      if not any(char.isdigit() for char in token):
+        continue
+      if not any(char.isalpha() for char in token):
+        continue
+      if re.fullmatch(r"\d+(?:st|nd|rd|th)", token, flags=re.IGNORECASE):
+        continue
+      return True
+    return False
+
+
+def is_high_confidence_latin_acronym(descriptor: dict) -> bool:
+    if float(descriptor.get("score") or 0.0) < 0.80:
+      return False
+    text = str(descriptor.get("text") or "").strip()
+    wrapper_pairs = {"[": "]", "(": ")", "【": "】"}
+    if len(text) >= 2 and wrapper_pairs.get(text[0]) == text[-1]:
+      text = text[1:-1].strip()
+    return (
+        3 <= len(text) <= 5
+        and text.isascii()
+        and text.isalpha()
+        and text.isupper()
+        and len(set(text)) >= 2
+    )
+
+
+def latin_alpha_tokens(text: str) -> list[str]:
+    tokens: list[str] = []
+    current: list[str] = []
+    for char in text:
+      if char.isascii() and char.isalpha():
+        current.append(char)
+        continue
+      if current:
+        tokens.append("".join(current))
+        current = []
+    if current:
+      tokens.append("".join(current))
+    return tokens
 
 
 def demote_local_heuristic_satellites(descriptors: list[dict]) -> None:

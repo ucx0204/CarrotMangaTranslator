@@ -13,6 +13,7 @@ import type {
   OcrQualityMode,
   UiLocale,
 } from "../../../../shared/settingsTypes";
+import type { GraphicsGpuPreference } from "../../../../shared/gpuSettings";
 import {
   DEFAULT_SOURCE_LANGUAGE,
   DEFAULT_TARGET_LANGUAGE,
@@ -35,6 +36,8 @@ import { DEFAULT_BUBBLE_LAYOUT_PADDING_RATIO } from "../../../../shared/bubbleLa
 
 export type SettingsFormValues = {
   uiLocale: UiLocale;
+  graphicsGpuPreference: GraphicsGpuPreference;
+  computeGpuIndex: number | null;
   modelProvider: ModelProvider;
   sourceLanguage: string;
   targetLanguage: string;
@@ -79,6 +82,7 @@ export function createSettingsFormValues(
     ...resolveGeneralFormValues(settings),
     ...resolveModelFormValues(settings),
     ...resolveApiFormValues(settings),
+    ...resolveGpuFormValues(settings),
     ...resolveHardwareFormValues(settings),
     maxTokens: String(settings.maxTokens),
     contextTokens: String(settings.ctx),
@@ -202,6 +206,15 @@ function resolveHardwareFormValues(
     bubbleLayoutPaddingRatio:
       settings.inpainting?.bubbleLayoutPaddingRatio ??
       DEFAULT_BUBBLE_LAYOUT_PADDING_RATIO,
+  };
+}
+
+function resolveGpuFormValues(
+  settings: AppSettings,
+): Pick<SettingsFormValues, "graphicsGpuPreference" | "computeGpuIndex"> {
+  return {
+    graphicsGpuPreference: settings.hardware?.graphicsGpuPreference ?? "auto",
+    computeGpuIndex: settings.hardware?.computeGpuIndex ?? null,
   };
 }
 

@@ -17,6 +17,7 @@ import {
   acquireKoharuInpaintingEngine,
   disposeCachedKoharuInpaintingEngine,
 } from "./koharuEnginePool";
+import { normalizeComputeGpuIndex } from "../../shared/gpuSettings";
 
 export type InpaintingEngineLease = {
   engine: InpaintingEngine;
@@ -51,12 +52,14 @@ export async function acquireInpaintingEngine(
     model: InpaintingModel;
     fluxBackend?: FluxBackend;
     koharuBackend?: KoharuInpaintingBackend;
+    computeGpuIndex?: number;
     allowUnsafeLowMemoryFlux?: boolean;
     signal?: AbortSignal;
     onProgress?: (progress: InpaintingRuntimeProgress) => void;
   },
   dependencies: InpaintingEnginePoolDependencies = defaultDependencies,
 ): Promise<InpaintingEngineLease> {
+  const computeGpuIndex = normalizeComputeGpuIndex(options.computeGpuIndex);
   if (options.model === "flux-klein") {
     assertFluxMemoryPolicy({
       backend:
@@ -71,6 +74,7 @@ export async function acquireInpaintingEngine(
     return dependencies.acquireFlux({
       appPaths: options.appPaths,
       fluxBackend: options.fluxBackend,
+      computeGpuIndex,
       signal: options.signal,
       onProgress: options.onProgress,
     });
@@ -81,6 +85,7 @@ export async function acquireInpaintingEngine(
     appPaths: options.appPaths,
     model: options.model,
     backend: options.koharuBackend ?? "auto",
+    computeGpuIndex,
     signal: options.signal,
     onProgress: options.onProgress,
   });

@@ -1,5 +1,5 @@
 {
-  "generatedOn": "2026-07-12",
+  "generatedOn": "2026-07-30",
   "sourceRevisions": {
     "google-fonts": "ec0464b978de222073645d6d3366f3fdf03376d8",
     "chenyuluoyan_thin-v2.0": "79d19aa663b4647291c57568d52321d81b719103",
@@ -173,6 +173,120 @@
       "locale": "zh-Hant",
       "file": "src/renderer/src/assets/fonts/zh-hant/cubic-11.ttf",
       "sha256": "0193f5f033612496df6b45ee92ac3b335bc6a5a24ff95da55ca87b33e57dcf62"
+    }
+  ],
+  "koreanFonts": [
+    {
+      "id": "dohyeon",
+      "family": "도현체",
+      "locale": "ko",
+      "source": "https://pop.baemin.com/fonts/dohyeon/BMDOHYEON_ttf.ttf",
+      "license": "OFL-1.1",
+      "licenseSource": "https://www.woowahan.com/fonts/license",
+      "faces": [
+        {
+          "file": "src/renderer/src/assets/fonts/ko/dohyeon.ttf",
+          "sha256": "43a71996b1205786ba7a793d870d4f9d28b9dc71e22cc4c9078a5e5f24f23971",
+          "format": "ttf",
+          "weight": 400
+        }
+      ]
+    },
+    {
+      "id": "ridi-batang",
+      "family": "리디바탕",
+      "locale": "ko",
+      "source": "https://ridicorp.com/wp-content/themes/ridicorp/css/font/RIDIBatang.otf",
+      "sourceVersion": "1.0.1 Build 20191001",
+      "license": "OFL-1.1",
+      "licenseSource": "https://ridicorp.com/ridibatang/",
+      "faces": [
+        {
+          "file": "src/renderer/src/assets/fonts/ko/ridi-batang.otf",
+          "sha256": "f13a49c0815d254ac15e392953a0b056613dec08ceb378e54eeed14c4fda9a54",
+          "format": "otf",
+          "weight": 400
+        }
+      ]
+    },
+    {
+      "id": "cafe24-gowoonbam",
+      "family": "카페24 고운밤",
+      "locale": "ko",
+      "source": "https://img.cafe24.com/csdstatic/freefonts/download/kr/Cafe24Oneprettynight-v2.0.zip",
+      "sourceArchiveSha256": "19293e3f82dc13de53bed40128379032688c2de9debf13a31edcc3aef1fd1728",
+      "sourceVersion": "2.0",
+      "license": "OFL-1.1",
+      "licenseSource": "https://fonts.cafe24.com/",
+      "faces": [
+        {
+          "file": "src/renderer/src/assets/fonts/ko/cafe24-gowoonbam.ttf",
+          "sha256": "9d9110d9a4a35628b72d1fb37c37cd04f69968dd0f81832c1054e06545c02f31",
+          "format": "ttf",
+          "weight": 400
+        }
+      ]
+    },
+    {
+      "id": "start-over",
+      "family": "다시 시작해",
+      "locale": "ko",
+      "source": "https://ssl.pstatic.net/static/clova/service/clova_ai/event/handwriting/download/%EB%82%98%EB%88%94%EC%86%90%EA%B8%80%EC%94%A8%20%EB%8B%A4%EC%8B%9C%20%EC%8B%9C%EC%9E%91%ED%95%B4.ttf",
+      "sourceCatalog": "https://clova.ai/static/font.json",
+      "sourceVersion": "Version 1.000",
+      "license": "OFL-1.1",
+      "licenseSource": "https://help.naver.com/service/11029/contents/18088",
+      "faces": [
+        {
+          "file": "src/renderer/src/assets/fonts/ko/start-over.ttf",
+          "sha256": "7475cbc7766d16baa748ab6388501c50969240fb2bae69ac6820edb3c2293e18",
+          "format": "ttf",
+          "weight": 400
+        }
+      ]
+    },
+    {
+      "id": "jua",
+      "family": "주아체",
+      "locale": "ko",
+      "source": "https://pop.baemin.com/fonts/jua/BMJUA_ttf.ttf",
+      "license": "OFL-1.1",
+      "licenseSource": "https://www.woowahan.com/fonts/license",
+      "faces": [
+        {
+          "file": "src/renderer/src/assets/fonts/ko/jua.ttf",
+          "sha256": "e8e6aa8b1b662c7bf0d7f136f29e822e0985176458a6e5d0ba08afc4a5c901a9",
+          "format": "ttf",
+          "weight": 400
+        }
+      ]
+    },
+    {
+      "id": "gaegu",
+      "family": "개구쟁이체",
+      "locale": "ko",
+      "source": "https://github.com/google/fonts/tree/7ff85c87f93ea6cca5f41c69f2e4edcb90240f26/ofl/gaegu",
+      "license": "OFL-1.1",
+      "faces": [
+        {
+          "file": "src/renderer/src/assets/fonts/ko/gaegu-light.ttf",
+          "sha256": "da44ad6e5823819599ec42e1a516f23002cc0e72f968f93bd49e793360cd77ca",
+          "format": "ttf",
+          "weight": 300
+        },
+        {
+          "file": "src/renderer/src/assets/fonts/ko/gaegu-regular.ttf",
+          "sha256": "aa52c98336f7c62e2896fc8b12b56a75d5b476d88a2f104b0980f4f7ce0adfc3",
+          "format": "ttf",
+          "weight": 400
+        },
+        {
+          "file": "src/renderer/src/assets/fonts/ko/gaegu-bold.ttf",
+          "sha256": "cc38a4af9506a45254d1ce07c589ec473d9e5f0be319e5a77b17c214903f8c1c",
+          "format": "ttf",
+          "weight": 700
+        }
+      ]
     }
   ]
 }

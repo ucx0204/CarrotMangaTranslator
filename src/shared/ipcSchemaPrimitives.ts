@@ -288,6 +288,7 @@ export const TranslationBlockSchema = z
     bubbleLayout: BubbleLayoutSchema.optional(),
     sourceText: boundedText,
     translatedText: boundedText,
+    textRole: z.enum(["ordinary", "sound"]).optional(),
     confidence: finiteNumber.min(0).max(1),
     sourceDirection: z.enum(["horizontal", "vertical"]),
     renderDirection: LegacyRenderDirectionSchema,

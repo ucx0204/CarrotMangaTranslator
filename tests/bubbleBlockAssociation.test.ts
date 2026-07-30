@@ -86,6 +86,33 @@ describe("block-to-bubble association", () => {
     expect(rightBox?.h).toBe(60);
   });
 
+  it("allows an inpainting-only partition with no unmasked seam", () => {
+    const associations = associateComicDetections([
+      detection(0, [10, 10, 110, 70], 0.96),
+      detection(1, [20, 20, 100, 60], 0.97),
+    ]);
+    const left = { id: "left", bbox: { x: 15, y: 18, w: 40, h: 40 } };
+    const right = { id: "right", bbox: { x: 60, y: 18, w: 40, h: 40 } };
+    const partitioned = partitionSharedBubbleOwnership(
+      [left, right].map((owner) => ({
+        owner,
+        candidates: selectBlockBubbleCandidates(owner.bbox, associations),
+      })),
+      (owner) => owner.bbox,
+      0,
+    );
+
+    const leftPartition = partitioned[0].candidates[0].ownershipPartition;
+    const rightPartition = partitioned[1].candidates[0].ownershipPartition;
+    const leftBox = leftPartition?.clipBox;
+    const rightBox = rightPartition?.clipBox;
+    expect(leftPartition?.gapPx).toBe(0);
+    expect(rightPartition?.gapPx).toBe(0);
+    expect((rightBox?.x ?? 0) - ((leftBox?.x ?? 0) + (leftBox?.w ?? 0))).toBe(
+      0,
+    );
+  });
+
   it("uses a horizontal gutter when OCR blocks are stacked", () => {
     const associations = associateComicDetections([
       detection(0, [10, 10, 90, 130], 0.96),

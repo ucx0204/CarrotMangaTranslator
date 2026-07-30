@@ -61,6 +61,7 @@ import type {
   ImageDecodeFallback,
   PatternPageInpaintingResult,
 } from "./inpainting/inpaintingTypes";
+import { normalizeComputeGpuIndex } from "../shared/gpuSettings";
 
 export type {
   FluxInpaintingEngine,
@@ -189,6 +190,7 @@ export async function prepareFluxInpaintingEngine(options: {
   runtimeDir: string;
   modelDir: string;
   fluxBackend?: FluxBackend;
+  computeGpuIndex?: number;
   nvidiaComputeCapability?: number | null;
   runRootDir?: string;
   signal?: AbortSignal;
@@ -202,6 +204,7 @@ export async function prepareFluxInpaintingEngine(options: {
     signal: options.signal,
     onProgress: options.onProgress,
   });
+  launch.computeGpuIndex = normalizeComputeGpuIndex(options.computeGpuIndex);
   let modelPath: string | undefined;
   let vaePath: string | undefined;
   if (

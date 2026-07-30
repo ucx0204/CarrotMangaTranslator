@@ -54,6 +54,10 @@ import {
   MAX_BUBBLE_LAYOUT_PADDING_RATIO,
   MIN_BUBBLE_LAYOUT_PADDING_RATIO,
 } from "../../shared/bubbleLayoutSettings";
+import {
+  normalizeComputeGpuIndex,
+  normalizeGraphicsGpuPreference,
+} from "../../shared/gpuSettings";
 
 export function normalizeAppSettings(
   raw: unknown,
@@ -74,6 +78,7 @@ export function normalizeAppSettings(
   });
   return {
     modelProvider,
+    hardware: normalizeHardwareGpuSettings(asRecord(record.hardware), defaults),
     // 언어쌍이 없거나 잘못된 기존 설정은 항상 일본어 -> 한국어로 정규화된다.
     translation: resolveTranslationLanguageSettings(
       record.translation,
@@ -95,6 +100,22 @@ export function normalizeAppSettings(
     keybindings: normalizeKeybindings(record.keybindings, defaults),
     maxTokens: resolveMaxTokens(record.maxTokens, limitFallbacks.maxTokens),
     ctx: resolveContextTokens(record.ctx, limitFallbacks.contextTokens),
+  };
+}
+
+function normalizeHardwareGpuSettings(
+  hardware: Record<string, unknown> | null,
+  defaults: AppSettings,
+): NonNullable<AppSettings["hardware"]> {
+  const computeGpuIndex =
+    normalizeComputeGpuIndex(hardware?.computeGpuIndex) ??
+    normalizeComputeGpuIndex(defaults.hardware?.computeGpuIndex);
+  return {
+    graphicsGpuPreference: normalizeGraphicsGpuPreference(
+      hardware?.graphicsGpuPreference,
+      normalizeGraphicsGpuPreference(defaults.hardware?.graphicsGpuPreference),
+    ),
+    ...(computeGpuIndex === undefined ? {} : { computeGpuIndex }),
   };
 }
 

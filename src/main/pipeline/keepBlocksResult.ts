@@ -9,7 +9,14 @@ import type { MangaPage } from "../../shared/libraryTypes";
 import { applyNaturalTextLayout } from "../../shared/naturalTextLayout";
 import type { PreviousOverlayBlockForPrompt } from "../appSettings";
 import { tMain } from "./localization";
-import { buildPageWarnings } from "./overlayItems";
+import {
+  buildPageWarnings,
+  type OverlayAutomaticFontOptions,
+} from "./overlayItems";
+import {
+  buildAutomaticBodyTextCorpus,
+  resolveAutomaticFontDecision,
+} from "./automaticFontMatching";
 import type { OcrBboxResult, OverlayItem } from "./types";
 
 const FALLBACK_MATCH_MIN_OVERLAP = 0.3;
@@ -77,18 +84,21 @@ export function buildKeepBlocksCompletedPage({
   previousBlocks,
   soundDroppedCount,
   naturalLayout,
+  automaticFont,
 }: {
   page: MangaPage;
   items: OverlayItem[];
   previousBlocks: PreviousOverlayBlockForPrompt[];
   soundDroppedCount: number;
   naturalLayout?: KeepBlocksNaturalLayoutOptions;
+  automaticFont?: OverlayAutomaticFontOptions;
 }): { page: MangaPage; warnings: string[]; detail: string } {
   const mapping = applyOverlayItemsToExistingBlocks({
     page,
     items,
     previousBlocks,
     naturalLayout,
+    automaticFont,
   });
   return {
     page: {
@@ -142,11 +152,13 @@ export function applyOverlayItemsToExistingBlocks({
   items,
   previousBlocks,
   naturalLayout,
+  automaticFont,
 }: {
   page: MangaPage;
   items: OverlayItem[];
   previousBlocks: PreviousOverlayBlockForPrompt[];
   naturalLayout?: KeepBlocksNaturalLayoutOptions;
+  automaticFont?: OverlayAutomaticFontOptions;
 }): KeepBlocksMappingResult {
   const blockIndexByCandidateId = buildBlockIndexByCandidateId(
     page,
@@ -167,36 +179,31 @@ export function applyOverlayItemsToExistingBlocks({
     }
   }
   matchRemainingItemsByOverlap(page, unmatchedItems, itemByBlockIndex);
+  const bodyTextCorpus = buildKeepBlocksBodyTextCorpus(
+    page,
+    itemByBlockIndex,
+    textRoleByBlockId,
+  );
 
   const blocks = page.blocks.map((block, index) => {
     const item = itemByBlockIndex.get(index);
-    if (!item) {
-      return block;
-    }
-    const updated = {
-      ...block,
-      sourceText: item.jp.trim(),
-      translatedText: item.ko.trim(),
-      confidence: normalizeItemConfidence(item.confidence, block.confidence),
-    };
-    if (
-      !naturalLayout?.enabled ||
-      block.curveLayout ||
-      textRoleByBlockId.get(block.id) === "sound"
-    ) {
-      return updated;
-    }
-    const layout = applyNaturalTextLayout(updated, {
-      enabled: true,
-      pageSize: { width: page.width, height: page.height },
-      locale: naturalLayout.locale,
-      allowAutoVertical: false,
-      directionPreference: block.renderDirection,
-    });
-    return {
-      ...updated,
-      translatedText: layout.translatedText,
-    };
+    const previousTextRole = block.textRole ?? textRoleByBlockId.get(block.id);
+    const effectiveTextRole =
+      normalizePersistentTextRole(item?.textRole) ??
+      normalizePersistentTextRole(previousTextRole);
+    return item
+      ? applyOverlayItemToExistingBlock({
+          automaticFont,
+          block,
+          bodyTextCorpus,
+          item,
+          naturalLayout,
+          page,
+          effectiveTextRole,
+          skipNaturalLayout:
+            Boolean(block.curveLayout) || effectiveTextRole === "sound",
+        })
+      : block;
   });
 
   return {
@@ -205,6 +212,88 @@ export function applyOverlayItemsToExistingBlocks({
     keptCount: page.blocks.length - itemByBlockIndex.size,
     droppedItemCount: items.length - itemByBlockIndex.size,
   };
+}
+
+function applyOverlayItemToExistingBlock({
+  automaticFont,
+  block,
+  bodyTextCorpus,
+  item,
+  naturalLayout,
+  page,
+  effectiveTextRole,
+  skipNaturalLayout,
+}: {
+  automaticFont?: OverlayAutomaticFontOptions;
+  block: TranslationBlock;
+  bodyTextCorpus: string;
+  item: OverlayItem;
+  naturalLayout?: KeepBlocksNaturalLayoutOptions;
+  page: MangaPage;
+  effectiveTextRole?: TranslationBlock["textRole"];
+  skipNaturalLayout: boolean;
+}): TranslationBlock {
+  const textUpdated = {
+    ...block,
+    sourceText: item.jp.trim(),
+    translatedText: item.ko.trim(),
+    ...(effectiveTextRole ? { textRole: effectiveTextRole } : {}),
+    confidence: normalizeItemConfidence(item.confidence, block.confidence),
+  };
+  const fontDecision = automaticFont?.enabled
+    ? resolveAutomaticFontDecision({
+        item: effectiveTextRole
+          ? { ...item, textRole: effectiveTextRole }
+          : item,
+        page,
+        bodyTextCorpus,
+        workTitle: automaticFont.workTitle,
+        targetLanguage: automaticFont.targetLanguage,
+        candidates: automaticFont.candidates,
+      })
+    : undefined;
+  const updated = fontDecision
+    ? { ...textUpdated, fontFamily: fontDecision.fontId }
+    : textUpdated;
+  if (!naturalLayout?.enabled || skipNaturalLayout) {
+    return updated;
+  }
+  const layout = applyNaturalTextLayout(updated, {
+    enabled: true,
+    pageSize: { width: page.width, height: page.height },
+    locale: naturalLayout.locale,
+    allowAutoVertical: false,
+    directionPreference: block.renderDirection,
+    fontMetricWidthScale: fontDecision?.fontMetricWidthScale,
+  });
+  return { ...updated, translatedText: layout.translatedText };
+}
+
+function buildKeepBlocksBodyTextCorpus(
+  page: MangaPage,
+  itemByBlockIndex: ReadonlyMap<number, OverlayItem>,
+  textRoleByBlockId: ReadonlyMap<
+    string,
+    PreviousOverlayBlockForPrompt["textRole"]
+  >,
+): string {
+  const matchedItems = [...itemByBlockIndex].map(([index, item]) => {
+    const textRole =
+      normalizePersistentTextRole(item.textRole) ??
+      page.blocks[index]?.textRole ??
+      normalizePersistentTextRole(
+        textRoleByBlockId.get(page.blocks[index]?.id),
+      );
+    return textRole ? { ...item, textRole } : item;
+  });
+  return buildAutomaticBodyTextCorpus(matchedItems);
+}
+
+function normalizePersistentTextRole(
+  value: unknown,
+): TranslationBlock["textRole"] {
+  if (value === "ordinary" || value === "sound") return value;
+  return undefined;
 }
 
 function buildBlockIndexByCandidateId(
