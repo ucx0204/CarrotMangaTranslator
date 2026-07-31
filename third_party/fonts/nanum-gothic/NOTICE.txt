@@ -1,0 +1,19 @@
+Copyright (c) 2010, NAVER Corporation (https://www.navercorp.com/).
+Font designed by Sandoll Communications Inc.
+
+The unmodified NanumGothic regular, bold, and extra-bold TTF files bundled in
+this repository were extracted from NAVER's official NanumFont_TTF_ALL.zip:
+http://cdn.naver.com/naver/NanumFont/fontfiles/NanumFont_TTF_ALL.zip
+
+Official catalog: https://hangeul.naver.com/download
+Archive SHA-256: 25eee9a54f391d1d81dc5bbaab313f6c055bcbd2e7ab5d2cca8a0aa57257bdd9
+Font version: 3.020
+
+NAVER permits Nanum fonts to be bundled and redistributed with its copyright
+notice and the SIL Open Font License, Version 1.1. The license is included as
+OFL.txt in this directory. Current license guidance:
+https://help.naver.com/service/11029/contents/18088
+
+The pre-existing NanumGothic Light face is recorded separately in
+third_party/fonts/manifest.json. Its exact source archive has not yet been
+identified; this notice does not claim that it came from the archive above.

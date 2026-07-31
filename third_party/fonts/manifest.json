@@ -177,6 +177,52 @@
   ],
   "koreanFonts": [
     {
+      "id": "nanum-gothic",
+      "family": "나눔고딕",
+      "locale": "ko",
+      "source": "http://cdn.naver.com/naver/NanumFont/fontfiles/NanumFont_TTF_ALL.zip",
+      "sourceCatalog": "https://hangeul.naver.com/download",
+      "sourceArchiveSha256": "25eee9a54f391d1d81dc5bbaab313f6c055bcbd2e7ab5d2cca8a0aa57257bdd9",
+      "sourceVersion": "3.020",
+      "license": "OFL-1.1",
+      "licenseSource": "https://help.naver.com/service/11029/contents/18088",
+      "faces": [
+        {
+          "file": "src/renderer/src/assets/fonts/nanum-gothic-regular.ttf",
+          "sourceFile": "NanumGothic.ttf",
+          "sha256": "31cf6994c8c022a086d8ac6f5662b5729d1cdbe26e6886eeeb43e59e89de05dd",
+          "format": "ttf",
+          "weight": 400
+        },
+        {
+          "file": "src/renderer/src/assets/fonts/nanum-gothic-bold.ttf",
+          "sourceFile": "NanumGothicBold.ttf",
+          "sha256": "9a83877e343381d01b0b39a83be28fa4ece1309e73583663feb656a3da2a0ad2",
+          "format": "ttf",
+          "weight": 700,
+          "intrinsicWeight": 600
+        },
+        {
+          "file": "src/renderer/src/assets/fonts/nanum-gothic-extra-bold.ttf",
+          "sourceFile": "NanumGothicExtraBold.ttf",
+          "sha256": "9aae816805e79b28e573d9f775f589690665cc1db06c3eb6c3967059b5191e68",
+          "format": "ttf",
+          "weight": 800,
+          "intrinsicWeight": 700
+        }
+      ],
+      "additionalBundledFaces": [
+        {
+          "file": "src/renderer/src/assets/fonts/nanum-gothic-light.ttf",
+          "sha256": "da39544c39be58124a4fcb296eafc2bf73530b3dbd1b19aa802c5c3fd227e31c",
+          "format": "ttf",
+          "weight": 300,
+          "sourceVersion": "1.000",
+          "provenanceStatus": "preexisting-source-archive-not-recorded"
+        }
+      ]
+    },
+    {
       "id": "dohyeon",
       "family": "도현체",
       "locale": "ko",

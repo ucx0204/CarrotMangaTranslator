@@ -43,6 +43,9 @@ logs/app.log
 /datasets/fontclip-source-*/
 /datasets/fontclip-accepted-*/
 /datasets/fontclip-hard-*/
+/datasets/fontclip-font-catalog-*/
+/datasets/fontclip-font-render-bank-*/
+/datasets/font-matching-review-inventory-*/
 settings.json
 panel-window-bounds.json
 recent-dialog-paths.json
