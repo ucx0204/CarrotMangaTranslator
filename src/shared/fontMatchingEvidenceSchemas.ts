@@ -237,11 +237,20 @@ function validateDecisionEvidence(
     });
   }
   const isUnknownRole = evidence.role.primary === "unknown_needs_review";
-  if (isUnknownRole && evidence.decision.mode !== "abstain") {
+  const isExplicitUserLock =
+    evidence.decision.mode === "apply" &&
+    (evidence.decision.resolvedBy === "block_user_lock" ||
+      evidence.decision.resolvedBy === "work_role_user_lock");
+  if (
+    isUnknownRole &&
+    evidence.decision.mode !== "abstain" &&
+    !isExplicitUserLock
+  ) {
     context.addIssue({
       code: "custom",
       path: ["decision", "abstainReason"],
-      message: "unknown roles must abstain",
+      message:
+        "unknown roles must abstain unless an explicit user lock applies",
     });
   }
   if (evidence.decision.abstainReason === "role_unknown" && !isUnknownRole) {

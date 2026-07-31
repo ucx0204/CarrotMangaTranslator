@@ -61,7 +61,7 @@
 - [x] 지속 가능한 semantic role과 intentional override 계약
 - [ ] page batch local inference와 prototype cache
 - [ ] 번역문 coverage/layout rerank
-- [ ] 사용자 block/work lock 우선순위
+- [x] 사용자 block/work lock 우선순위 결정 계약
 - [ ] 기존 수동 폰트 무덮어쓰기 회귀 테스트
 - [ ] 현행 제목/정규식 엔진 제품 fallback 제거
 - [ ] 실제 UI 렌더 QA, typecheck, lint, tests, build 통과
@@ -136,4 +136,33 @@ YYYY-MM-DD / 단계
 - 명령: focused Vitest, ESLint, Prettier, `npm run deadcode:exports`, `npm run arch:deps`
 - 결과: 15개 semantic role, source style/treatment, ranked evidence와 abstain, block lock → work role lock → profile → V2 → user default/Top-3 우선순위, 본문 anchor+hysteresis, 역할별 2–4 family palette, intentional override, 장르 style bias 최대 10%를 version 2 schema로 고정. V1 migration과 작품별 `typography-profile.json` 원자 저장을 구현했고 10/10 focused test를 통과함.
 - artifact: `src/shared/fontMatchingProfile*.ts`, `src/shared/fontMatchingEvidenceSchemas.ts`, `src/main/libraryStore/workTypographyProfileFiles.ts`
-- 남은 실패/예외: 아직 현재 번역 pipeline이나 UI에는 연결하지 않았다. 전체 typecheck는 동시 작업 중인 별도 inpainting 변경의 타입 오류 때문에 이 시점에 재확인하지 못했고, 이 범위 focused 검증은 모두 통과함.
+- 남은 실패/예외: 아직 현재 번역 pipeline이나 UI에는 연결하지 않았다. 이 범위 focused 검증은 모두 통과했고, 뒤이은 V2 결정 엔진 통합 검증에서 저장소 전체 typecheck도 통과함.
+
+2026-08-01 / P3 최종판정 학습 export 계약
+
+- 명령: `python -m pytest tests/python/test_export_font_matching_training_examples.py -q`, Ruff format/check, `py_compile`
+- 결과: 완료된 human final/adjudication만 `raw_224/context_224/glyph_224` 실데이터, listwise tier, pairwise 순위, multi-positive retrieval 예제로 결정론적 변환한다. unfinished/unresolved, QA overlay, synthetic core, 작품 split 누출, font/render/hash 변조는 hard-fail하며 생성형 증강은 별도 train-only manifest에서 evaluation 불가로 고정했다. focused 7/7 test 통과.
+- artifact: `scripts/export_font_matching_training_examples.py`
+- 남은 실패/예외: 실제 pilot/final 라벨이 완료되기 전에는 학습 예제를 생성하지 않는다.
+
+2026-08-01 / P4 순수 V2 결정 엔진
+
+- 명령: focused Vitest, TypeScript typecheck, ESLint, Prettier, dependency architecture, architecture budget
+- 결과: block lock → role lock → 작품 anchor/palette → calibrated V2 → user default/Top-3 abstain 순서를 구현했다. 번역문 glyph coverage·layout·orientation을 hard gate로 두고, 본문 hysteresis, 역할별 palette/visual-cluster 재사용, intentional override margin, 장르 style 기여 최대 10%를 적용한다. legacy 제목/정규식 fallback은 항상 false이며 33/33 focused test를 통과했다.
+- artifact: `src/main/pipeline/fontMatchingDecisionV2*.ts`
+- 남은 실패/예외: 현재 제품 pipeline에는 아직 연결하지 않았다. 명시적 사용자 lock이 렌더 불가일 때는 자동 폰트로 조용히 덮지 않고 abstain하며, unknown role도 hard-gate-safe한 명시적 user lock만 예외적으로 허용한다.
+
+2026-08-01 / P1 전체 pilot 카드·실검수 원장
+
+- 명령: canonical master/inventory/assignment를 사용한 `build_font_matching_review_cards.py build`와 독립 2회 결정론적 재빌드·전 파일 SHA 비교, 이어서 `font_matching_review_ledger.py init/validate/claim/prepare-response/submit`
+- 결과: 1,200개 고유 실표본의 primary 1,200장과 secondary 255장, 총 1,455개 blind 카드와 후보 패널 21,326개를 생성했다. 가로 카드의 세로전용 후보 499칸만 명시적 `orientation_unrenderable`이며 font ID/name/model 제안 노출은 0이다. 1,458개 파일 1.75GB를 durable dataset으로 복사하고 원본과 전 파일 SHA가 일치함을 확인했다. 첫 calibration 12건은 세 검수자가 카드를 원본 크기로 한 장씩 직접 확인해 제출했고 원장 무결성 오류는 0이다.
+- artifact: `datasets/font-matching-review-cards-pilot-v1`, `datasets/font-matching-review-ledger-pilot-v1`
+- SHA-256: card manifest `e508aef74ea90efc9ea0fd5b9585af233b63a531d8d0eaa3ab4f44407731e09a`, ledger workspace record `f45185ece607d84243273a6878f06cc2c90da44b0d6eda5ed72301fd0ce56bb5`
+- 남은 실패/예외: primary 1,188건과 secondary 255건, 모든 불일치·저확신·none·수동 재크롭 adjudication이 남았다. QA 카드는 계속 학습 입력에서 제외한다.
+
+2026-08-01 / P3 오프라인 release 평가 계약
+
+- 명령: `python -m pytest tests/python/test_evaluate_font_matching_v2.py tests/python/test_export_font_matching_training_examples.py ... -q`, Ruff check, CLI gate fixture
+- 결과: Preferred@1, Acceptable@1/3, tier NDCG, pairwise agreement, none precision/recall/F1, selective accuracy/abstain, role/style/treatment, 작품·역할 macro와 하위 10%, 11개 핵심 cohort를 계산한다. current-rule/role-work-majority 대비 작품 bootstrap 95% CI와 장르 제거·교환 및 cohort 퇴행 gate를 기계 판정하며, frozen-test 누출·누락·중복·hash/catalog/model 불일치는 hard-fail한다. 관련 Python 회귀 61/61이 통과했다.
+- artifact: `scripts/evaluate_font_matching_v2.py`, `scripts/export_font_matching_training_examples.py`
+- 남은 실패/예외: 실제 final label과 학습 모델이 아직 없으므로 실데이터 release gate 실행은 의도적으로 대기한다. baseline이나 장르 variant가 빠지면 평가기는 `not_evaluable`로 기록하고 release를 거부한다.

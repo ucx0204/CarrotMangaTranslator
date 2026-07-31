@@ -136,6 +136,22 @@ def review_response(
     }
 
 
+def minimal_decision(task: dict, *, use_positions: bool = True) -> dict:
+    aliases = list(task["binding"]["candidate_order_aliases"])
+    decision = core_decision(aliases)
+    if use_positions:
+        position = {alias: index for index, alias in enumerate(aliases, 1)}
+        judgment = decision["font_judgment"]
+        for tier in LEDGER.labels.FONT_TIERS:
+            judgment[tier] = [position[alias] for alias in judgment[tier]]
+    return {
+        "assignment_id": task["assignment_id"],
+        **decision,
+        "confidence": 0.95,
+        "flags": [],
+    }
+
+
 def adjudication_response(claim: dict, task: dict) -> dict:
     binding = task["binding"]
     decision = copy.deepcopy(task["blind_reviews"][0]["decision"])
@@ -163,6 +179,7 @@ class Fixture:
         self.render_bank = root / "render-bank.json"
         self.card_root = root / "review-cards"
         self.card_manifest = self.card_root / "manifest.json"
+        self.canonical_assignments = root / "canonical-assignments.jsonl"
         self.sample_count = sample_count
         self.secondary_count = secondary_count
         self._build()
@@ -234,6 +251,8 @@ class Fixture:
         assignment_payload = LEDGER.jsonl_bytes(
             assignment.as_dict() for assignment in assignments
         )
+        self.canonical_assignments.write_bytes(assignment_payload)
+        self.assignment_objects = list(assignments)
         renderer_hash = sha("card-renderer")
         self.card_root.mkdir()
         (self.card_root / "cards").mkdir()
@@ -316,6 +335,52 @@ class Fixture:
         }
         write_json(self.card_manifest, card_manifest)
 
+    def pilot_stage(self, selected_ids: list[str]) -> tuple[Path, Path, int]:
+        inventory = self.root / "pilot-inventory.jsonl"
+        master_hash = LEDGER.sha256_file(self.master)
+        inventory_rows = [
+            {
+                "schema_version": 1,
+                "sample_id": sample_id,
+                "master_manifest_sha256": master_hash,
+                "batches": {
+                    "pilot": {
+                        "review_order": index,
+                        "selection_reasons": ["unit:pilot"],
+                    }
+                },
+                "provenance": {"qa_overlay": False, "synthetic": False},
+            }
+            for index, sample_id in enumerate(selected_ids, 1)
+        ]
+        inventory.write_bytes(LEDGER.jsonl_bytes(inventory_rows))
+        full_manifest = json.loads(self.card_manifest.read_text(encoding="utf-8"))
+        selected = set(selected_ids)
+        full_manifest["cards"] = [
+            card
+            for card in full_manifest["cards"]
+            if card["assignment"]["sample_id"] in selected
+        ]
+        full_manifest["card_count"] = len(full_manifest["cards"])
+        full_manifest["configuration"] = {
+            "stage": "all",
+            "batch": "pilot",
+            "limit": None,
+        }
+        full_manifest["input_hashes"]["inventory_sha256"] = LEDGER.sha256_file(
+            inventory
+        )
+        full_manifest["input_hashes"]["assignments_sha256"] = LEDGER.sha256_file(
+            self.canonical_assignments
+        )
+        pilot_manifest = self.card_root / "pilot-manifest.json"
+        write_json(pilot_manifest, full_manifest)
+        secondary_count = sum(
+            assignment.stage == "secondary" and assignment.sample_id in selected
+            for assignment in self.assignment_objects
+        )
+        return inventory, pilot_manifest, secondary_count
+
     def init(self) -> dict:
         return LEDGER.initialize_workspace(
             workspace=self.workspace,
@@ -332,6 +397,136 @@ class Fixture:
 
 
 class ReviewLedgerContractTest(unittest.TestCase):
+    def test_pilot_staged_init_projects_only_canonical_selected_assignments(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = Fixture(Path(temporary))
+            selected = ["sample-002", "sample-000", "sample-003"]
+            inventory, card_manifest, secondary_count = fixture.pilot_stage(selected)
+            workspace = fixture.root / "pilot-workspace"
+            report = LEDGER.initialize_workspace(
+                workspace=workspace,
+                master_manifest=fixture.master,
+                card_manifest=card_manifest,
+                font_catalog=fixture.catalog,
+                render_bank=fixture.render_bank,
+                catalog_version=CATALOG_VERSION,
+                allocation_seed=ALLOCATION_SEED,
+                priority_inventory=inventory,
+                canonical_assignments=fixture.canonical_assignments,
+                batch="pilot",
+                expected_primary=fixture.sample_count,
+                expected_secondary=fixture.secondary_count,
+                expected_batch_primary=len(selected),
+                expected_batch_secondary=secondary_count,
+                expected_candidates=len(CANDIDATES),
+            )
+            self.assertEqual(len(selected), report["expected"]["primary"])
+            self.assertEqual(secondary_count, report["expected"]["secondary"])
+            state = LEDGER.load_workspace(workspace)
+            primary_rows = [
+                row for row in state.rows if row["assignment"]["stage"] == "primary"
+            ]
+            secondary_rows = [
+                row for row in state.rows if row["assignment"]["stage"] == "secondary"
+            ]
+            self.assertEqual(
+                selected, [row["assignment"]["sample_id"] for row in primary_rows]
+            )
+            canonical_secondary = {
+                assignment.sample_id
+                for assignment in fixture.assignment_objects
+                if assignment.stage == "secondary"
+            }
+            self.assertEqual(
+                [
+                    sample_id
+                    for sample_id in selected
+                    if sample_id in canonical_secondary
+                ],
+                [row["assignment"]["sample_id"] for row in secondary_rows],
+            )
+            self.assertEqual(
+                len(selected) + secondary_count,
+                len({row["assignment"]["assignment_id"] for row in state.rows}),
+            )
+            for row in state.rows:
+                sample_id = row["assignment"]["sample_id"]
+                self.assertEqual(
+                    selected.index(sample_id) + 1,
+                    row["priority_batches"]["pilot"]["review_order"],
+                )
+            self.assertEqual("pilot", state.contract["scope"]["batch"])
+            self.assertEqual(
+                LEDGER.sha256_file(fixture.master),
+                state.contract["inputs"]["master_manifest_sha256"],
+            )
+            self.assertEqual(
+                LEDGER.sha256_file(fixture.canonical_assignments),
+                state.contract["inputs"]["canonical_assignments_sha256"],
+            )
+
+    def test_pilot_staged_init_rejects_out_of_scope_and_missing_cards(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = Fixture(Path(temporary))
+            selected = ["sample-000", "sample-001", "sample-002"]
+            inventory, card_manifest, secondary_count = fixture.pilot_stage(selected)
+            manifest = json.loads(card_manifest.read_text(encoding="utf-8"))
+            full = json.loads(fixture.card_manifest.read_text(encoding="utf-8"))
+            outside = next(
+                card
+                for card in full["cards"]
+                if card["assignment"]["sample_id"] not in set(selected)
+            )
+            contaminated = copy.deepcopy(manifest)
+            contaminated["cards"].append(outside)
+            contaminated["card_count"] += 1
+            contaminated_path = fixture.card_root / "pilot-contaminated.json"
+            write_json(contaminated_path, contaminated)
+            with self.assertRaisesRegex(LEDGER.ReviewLedgerError, "missing=.*extra"):
+                LEDGER.initialize_workspace(
+                    workspace=fixture.root / "contaminated-workspace",
+                    master_manifest=fixture.master,
+                    card_manifest=contaminated_path,
+                    font_catalog=fixture.catalog,
+                    render_bank=fixture.render_bank,
+                    catalog_version=CATALOG_VERSION,
+                    allocation_seed=ALLOCATION_SEED,
+                    priority_inventory=inventory,
+                    canonical_assignments=fixture.canonical_assignments,
+                    batch="pilot",
+                    expected_primary=fixture.sample_count,
+                    expected_secondary=fixture.secondary_count,
+                    expected_batch_primary=len(selected),
+                    expected_batch_secondary=secondary_count,
+                    expected_candidates=len(CANDIDATES),
+                )
+
+            missing = copy.deepcopy(manifest)
+            missing["cards"].pop()
+            missing["card_count"] -= 1
+            missing_path = fixture.card_root / "pilot-missing.json"
+            write_json(missing_path, missing)
+            with self.assertRaisesRegex(LEDGER.ReviewLedgerError, "missing=.*extra"):
+                LEDGER.initialize_workspace(
+                    workspace=fixture.root / "missing-workspace",
+                    master_manifest=fixture.master,
+                    card_manifest=missing_path,
+                    font_catalog=fixture.catalog,
+                    render_bank=fixture.render_bank,
+                    catalog_version=CATALOG_VERSION,
+                    allocation_seed=ALLOCATION_SEED,
+                    priority_inventory=inventory,
+                    canonical_assignments=fixture.canonical_assignments,
+                    batch="pilot",
+                    expected_primary=fixture.sample_count,
+                    expected_secondary=fixture.secondary_count,
+                    expected_batch_primary=len(selected),
+                    expected_batch_secondary=secondary_count,
+                    expected_candidates=len(CANDIDATES),
+                )
+
     def test_plan_owns_full_assignment_and_card_inventory_inputs(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture = Fixture(Path(temporary))
@@ -404,6 +599,146 @@ class ReviewLedgerContractTest(unittest.TestCase):
             for candidate_id in CANDIDATES:
                 self.assertNotIn(candidate_id, rendered)
             self.assertIn(ALIASES["family-a"], rendered)
+
+    def test_prepare_response_binds_positions_and_aliases_then_submits(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = Fixture(Path(temporary))
+            fixture.init()
+            claim = LEDGER.claim_batch(
+                fixture.workspace,
+                reviewer="reviewer-a",
+                target_kind="primary",
+                count=2,
+                now=NOW,
+            )
+            decisions = [
+                minimal_decision(claim["tasks"][1], use_positions=False),
+                minimal_decision(claim["tasks"][0], use_positions=True),
+            ]
+            responses = LEDGER.prepare_review_responses(
+                claim,
+                decisions,
+                reviewed_at=NOW + timedelta(minutes=1),
+            )
+
+            self.assertEqual(
+                [task["assignment_id"] for task in claim["tasks"]],
+                [response["assignment_id"] for response in responses],
+            )
+            for task, response in zip(claim["tasks"], responses, strict=True):
+                self.assertEqual(claim["claim_id"], response["claim_id"])
+                self.assertEqual(
+                    {
+                        key: task["binding"][key]
+                        for key in (
+                            "source_page_sha256",
+                            "sample_crop_sha256",
+                            "review_card_sha256",
+                            "candidate_order_seed",
+                            "candidate_order_aliases",
+                        )
+                    },
+                    response["binding"],
+                )
+                judged = [
+                    alias
+                    for tier in LEDGER.labels.FONT_TIERS
+                    for alias in response["font_judgment"][tier]
+                ]
+                self.assertCountEqual(
+                    task["binding"]["candidate_order_aliases"], judged
+                )
+            rendered = json.dumps(responses, ensure_ascii=False)
+            for candidate_id in CANDIDATES:
+                self.assertNotIn(candidate_id, rendered)
+
+            created = LEDGER.submit_review_batch(
+                fixture.workspace,
+                responses,
+                now=NOW + timedelta(minutes=2),
+            )
+            self.assertEqual(2, len(created))
+
+    def test_prepare_response_rejects_nonblind_or_incomplete_decisions(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = Fixture(Path(temporary))
+            fixture.init()
+            claim = LEDGER.claim_batch(
+                fixture.workspace,
+                reviewer="reviewer-a",
+                target_kind="primary",
+                count=2,
+                now=NOW,
+            )
+            first = minimal_decision(claim["tasks"][0])
+            second = minimal_decision(claim["tasks"][1])
+
+            invalid_decisions: dict[str, list[dict]] = {}
+
+            out_of_range = copy.deepcopy(first)
+            out_of_range["font_judgment"]["preferred"] = [len(CANDIDATES) + 1]
+            invalid_decisions["out-of-range position"] = [out_of_range, second]
+
+            duplicate = copy.deepcopy(first)
+            duplicate["font_judgment"]["acceptable"] = [1]
+            invalid_decisions["candidate repeated across tiers"] = [duplicate, second]
+
+            missing_candidate = copy.deepcopy(first)
+            missing_candidate["font_judgment"]["unacceptable"].pop()
+            invalid_decisions["candidate missing from partition"] = [
+                missing_candidate,
+                second,
+            ]
+
+            exposed_font_id = copy.deepcopy(first)
+            exposed_font_id["font_judgment"]["preferred"] = ["family-a"]
+            invalid_decisions["font id instead of blind alias"] = [
+                exposed_font_id,
+                second,
+            ]
+
+            extra_identity_field = copy.deepcopy(first)
+            extra_identity_field["font_id"] = "family-a"
+            invalid_decisions["font identity field"] = [
+                extra_identity_field,
+                second,
+            ]
+
+            reveal_map = copy.deepcopy(first)
+            reveal_map["reveal_map"] = {ALIASES["family-a"]: "family-a"}
+            invalid_decisions["reveal map"] = [reveal_map, second]
+
+            invalid_decisions["missing decision row"] = [first]
+            invalid_decisions["duplicate decision row"] = [first, first]
+
+            for reason, decisions in invalid_decisions.items():
+                with self.subTest(reason=reason):
+                    with self.assertRaises(LEDGER.ReviewLedgerError):
+                        LEDGER.prepare_review_responses(
+                            claim,
+                            decisions,
+                            reviewed_at=NOW + timedelta(minutes=1),
+                        )
+
+            tampered_claim = copy.deepcopy(claim)
+            tampered_claim["reviewer"] = "reviewer-b"
+            with self.assertRaisesRegex(LEDGER.ReviewLedgerError, "binding failed"):
+                LEDGER.prepare_review_responses(
+                    tampered_claim,
+                    [first, second],
+                    reviewed_at=NOW + timedelta(minutes=1),
+                )
+
+            leaked_claim = copy.deepcopy(claim)
+            leaked_claim["reveal_map"] = {
+                ALIASES["family-a"]: "family-a",
+            }
+            with self.assertRaisesRegex(LEDGER.ReviewLedgerError, "unexpected"):
+                LEDGER.prepare_review_responses(
+                    LEDGER.seal(leaked_claim),
+                    [first, second],
+                    reviewed_at=NOW + timedelta(minutes=1),
+                )
 
     def test_release_makes_an_unfinished_batch_claimable_again(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

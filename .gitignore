@@ -48,6 +48,8 @@ logs/app.log
 /datasets/font-matching-review-inventory-*/
 /datasets/font-matching-review-cards-*/
 /datasets/font-matching-review-ledger-*/
+/datasets/font-matching-master-*/
+/datasets/font-matching-training-*/
 settings.json
 panel-window-bounds.json
 recent-dialog-paths.json

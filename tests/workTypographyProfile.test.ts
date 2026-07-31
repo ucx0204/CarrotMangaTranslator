@@ -253,6 +253,27 @@ describe("font matching V2 contracts", () => {
         },
       }),
     ).toThrow(/unknown roles|role_unknown/);
+    expect(
+      validateFontMatchDecisionEvidenceV2({
+        ...evidence,
+        role: {
+          primary: "unknown_needs_review",
+          confidence: 0.4,
+          alternatives: [],
+        },
+        decision: {
+          mode: "apply",
+          selectedFontId: "nanum-gothic",
+          topCandidateFontIds: ["nanum-gothic"],
+          noneAcceptable: false,
+          abstainReason: null,
+          resolvedBy: "block_user_lock",
+        },
+      }),
+    ).toMatchObject({
+      role: { primary: "unknown_needs_review" },
+      decision: { mode: "apply", resolvedBy: "block_user_lock" },
+    });
   });
 });
 

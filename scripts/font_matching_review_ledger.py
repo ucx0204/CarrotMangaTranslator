@@ -93,6 +93,8 @@ OWNER_FILE = ".font-matching-review-ledger-owner.json"
 EXPECTED_PRIMARY = 28_115
 EXPECTED_SECONDARY = 5_623
 EXPECTED_CANDIDATES = 15
+EXPECTED_PILOT_PRIMARY = 1_200
+EXPECTED_PILOT_SECONDARY = 255
 DEFAULT_LOW_CONFIDENCE = 0.75
 DEFAULT_STYLE_TOLERANCE = 0.15
 
@@ -904,6 +906,121 @@ def _execution_assignment_row(
     )
 
 
+def read_canonical_assignments(
+    path: Path,
+    *,
+    masters: Sequence[MasterBinding],
+    candidate_ids: Sequence[str],
+    catalog_version: str,
+    expected_primary: int,
+    expected_secondary: int,
+) -> tuple[list[labels.ReviewAssignment], str]:
+    """Validate the immutable full-corpus assignment plan before staging it."""
+
+    master_by_id = {item.sample.sample_id: item for item in masters}
+    rows = read_jsonl(path)
+    assignments: list[labels.ReviewAssignment] = []
+    assignment_ids: set[str] = set()
+    pairs: set[tuple[str, str]] = set()
+    for index, row in enumerate(rows, 1):
+        try:
+            assignment = labels.ReviewAssignment.from_mapping(row)
+        except labels.LabelValidationError as error:
+            raise ReviewLedgerError(
+                f"canonical_assignments[{index}]: {error}"
+            ) from error
+        if assignment.assignment_id in assignment_ids:
+            raise ReviewLedgerError(
+                f"canonical assignments repeat {assignment.assignment_id}"
+            )
+        pair = (assignment.sample_id, assignment.stage)
+        if pair in pairs:
+            raise ReviewLedgerError(
+                f"canonical assignments repeat sample/stage {pair!r}"
+            )
+        master = master_by_id.get(assignment.sample_id)
+        if master is None:
+            raise ReviewLedgerError(
+                f"canonical assignment targets unknown sample {assignment.sample_id}"
+            )
+        if (
+            assignment.work_id != master.sample.work_id
+            or assignment.source_page_sha256 != master.sample.source_page_sha256
+            or assignment.catalog_version != catalog_version
+            or set(assignment.candidate_order) != set(candidate_ids)
+        ):
+            raise ReviewLedgerError(
+                f"canonical assignment binding differs for {assignment.sample_id}"
+            )
+        assignment_ids.add(assignment.assignment_id)
+        pairs.add(pair)
+        assignments.append(assignment)
+    primary_ids = {item.sample_id for item in assignments if item.stage == "primary"}
+    secondary_ids = {
+        item.sample_id for item in assignments if item.stage == "secondary"
+    }
+    if len(primary_ids) != expected_primary or primary_ids != set(master_by_id):
+        missing = sorted(set(master_by_id) - primary_ids)
+        extra = sorted(primary_ids - set(master_by_id))
+        raise ReviewLedgerError(
+            "canonical primary assignments must cover the full master exactly once: "
+            f"count={len(primary_ids)}, missing={missing[:8]}, extra={extra[:8]}"
+        )
+    if len(secondary_ids) != expected_secondary:
+        raise ReviewLedgerError(
+            f"canonical secondary count must be {expected_secondary}, "
+            f"got {len(secondary_ids)}"
+        )
+    if not secondary_ids <= primary_ids:
+        raise ReviewLedgerError("canonical secondary set is not a primary subset")
+    if expected_secondary >= len({item.sample.work_id for item in masters}):
+        secondary_works = {
+            item.work_id for item in assignments if item.stage == "secondary"
+        }
+        all_works = {item.sample.work_id for item in masters}
+        if secondary_works != all_works:
+            raise ReviewLedgerError(
+                "canonical secondary allocation is not stratified across all works"
+            )
+    return assignments, sha256_file(path)
+
+
+def _pilot_selection(
+    priorities: Mapping[str, Mapping[str, Any]],
+    *,
+    master_ids: set[str],
+    expected_count: int,
+) -> tuple[str, ...]:
+    ranked: list[tuple[int, str]] = []
+    for sample_id, batches in priorities.items():
+        pilot = batches.get("pilot")
+        if pilot is None:
+            continue
+        pilot = require_mapping(pilot, location=f"priority[{sample_id}].pilot")
+        order = pilot.get("review_order")
+        if isinstance(order, bool) or not isinstance(order, int) or order < 1:
+            raise ReviewLedgerError(
+                f"priority[{sample_id}].pilot.review_order must be positive"
+            )
+        if sample_id not in master_ids:
+            raise ReviewLedgerError(
+                f"pilot priority targets unknown sample {sample_id}"
+            )
+        ranked.append((order, sample_id))
+    orders = [order for order, _sample_id in ranked]
+    if len(orders) != len(set(orders)):
+        raise ReviewLedgerError("pilot review_order values contain duplicates")
+    if len(ranked) != expected_count:
+        raise ReviewLedgerError(
+            f"pilot selection must contain {expected_count} samples, got {len(ranked)}"
+        )
+    if set(orders) != set(range(1, expected_count + 1)):
+        raise ReviewLedgerError(
+            "pilot review_order must be a contiguous 1-based sequence"
+        )
+    return tuple(sample_id for _order, sample_id in sorted(ranked))
+
+
 def initialize_workspace(
     *,
     workspace: Path,
@@ -914,8 +1031,12 @@ def initialize_workspace(
     catalog_version: str,
     allocation_seed: str,
     priority_inventory: Path | None = None,
+    canonical_assignments: Path | None = None,
+    batch: str = "all",
     expected_primary: int = EXPECTED_PRIMARY,
     expected_secondary: int = EXPECTED_SECONDARY,
+    expected_batch_primary: int = EXPECTED_PILOT_PRIMARY,
+    expected_batch_secondary: int = EXPECTED_PILOT_SECONDARY,
     expected_candidates: int = EXPECTED_CANDIDATES,
     verify_card_files: bool = True,
 ) -> dict[str, Any]:
@@ -923,6 +1044,14 @@ def initialize_workspace(
 
     require_id(catalog_version, location="catalog_version")
     require_text(allocation_seed, location="allocation_seed")
+    if batch not in {"all", "pilot"}:
+        raise ReviewLedgerError("batch must be all or pilot")
+    if batch == "pilot" and (
+        canonical_assignments is None or priority_inventory is None
+    ):
+        raise ReviewLedgerError(
+            "pilot staged init requires --assignments and --priority-inventory"
+        )
     if workspace.exists() and any(workspace.iterdir()):
         raise ReviewLedgerError(f"workspace must be empty: {workspace}")
     workspace.mkdir(parents=True, exist_ok=True)
@@ -944,36 +1073,88 @@ def initialize_workspace(
         )
     candidate_ids = tuple(item.candidate_id for item in canonical)
     candidate_alias = {item.candidate_id: item.blind_alias for item in canonical}
-    samples = [
-        labels.ReviewSample(
-            sample_id=item.sample.sample_id,
-            work_id=item.sample.work_id,
-            source_page_sha256=item.sample.source_page_sha256,
-            candidate_ids=candidate_ids,
-        )
-        for item in masters
-    ]
-    double_fraction = expected_secondary / expected_primary if expected_primary else 0.0
-    assignments = labels.build_blind_review_assignments(
-        samples,
-        catalog_version=catalog_version,
-        allocation_seed=allocation_seed,
-        double_review_fraction=double_fraction,
-    )
-    observed_secondary = sum(item.stage == "secondary" for item in assignments)
-    if observed_secondary != expected_secondary:
-        raise ReviewLedgerError(
-            f"secondary allocation must be exactly {expected_secondary}, got {observed_secondary}"
-        )
-    if expected_secondary >= len({item.sample.work_id for item in masters}):
-        secondary_works = {
-            item.work_id for item in assignments if item.stage == "secondary"
-        }
-        all_works = {item.sample.work_id for item in masters}
-        if secondary_works != all_works:
-            raise ReviewLedgerError(
-                "secondary allocation is not stratified across all works"
+    if canonical_assignments is None:
+        samples = [
+            labels.ReviewSample(
+                sample_id=item.sample.sample_id,
+                work_id=item.sample.work_id,
+                source_page_sha256=item.sample.source_page_sha256,
+                candidate_ids=candidate_ids,
             )
+            for item in masters
+        ]
+        double_fraction = (
+            expected_secondary / expected_primary if expected_primary else 0.0
+        )
+        full_assignments = list(
+            labels.build_blind_review_assignments(
+                samples,
+                catalog_version=catalog_version,
+                allocation_seed=allocation_seed,
+                double_review_fraction=double_fraction,
+            )
+        )
+        observed_secondary = sum(item.stage == "secondary" for item in full_assignments)
+        if observed_secondary != expected_secondary:
+            raise ReviewLedgerError(
+                f"secondary allocation must be exactly {expected_secondary}, "
+                f"got {observed_secondary}"
+            )
+        canonical_assignment_sha = sha256_bytes(
+            jsonl_bytes(assignment.as_dict() for assignment in full_assignments)
+        )
+    else:
+        full_assignments, canonical_assignment_sha = read_canonical_assignments(
+            canonical_assignments,
+            masters=masters,
+            candidate_ids=candidate_ids,
+            catalog_version=catalog_version,
+            expected_primary=expected_primary,
+            expected_secondary=expected_secondary,
+        )
+
+    priorities, priority_master_sha = read_priority_inventory(priority_inventory)
+    if priority_master_sha is not None and priority_master_sha != master_sha:
+        raise ReviewLedgerError("priority inventory binds a different master manifest")
+    all_master_ids = {item.sample.sample_id for item in masters}
+    unknown_priority = sorted(set(priorities) - all_master_ids)
+    if unknown_priority:
+        raise ReviewLedgerError(
+            f"priority inventory contains unknown samples: {unknown_priority[:8]}"
+        )
+    if batch == "pilot":
+        selected_sample_ids = _pilot_selection(
+            priorities,
+            master_ids=all_master_ids,
+            expected_count=expected_batch_primary,
+        )
+        selected_set = set(selected_sample_ids)
+        assignments = [
+            assignment
+            for assignment in full_assignments
+            if assignment.sample_id in selected_set
+        ]
+        observed_secondary = sum(item.stage == "secondary" for item in assignments)
+        if observed_secondary != expected_batch_secondary:
+            raise ReviewLedgerError(
+                f"pilot secondary count must be {expected_batch_secondary}, "
+                f"got {observed_secondary}"
+            )
+        primary_ids = {
+            item.sample_id for item in assignments if item.stage == "primary"
+        }
+        if primary_ids != selected_set:
+            raise ReviewLedgerError(
+                "every selected pilot sample must have exactly one primary assignment"
+            )
+        execution_expected_primary = expected_batch_primary
+        execution_expected_secondary = expected_batch_secondary
+    else:
+        assignments = list(full_assignments)
+        selected_sample_ids = tuple(sorted(all_master_ids))
+        selected_set = set(selected_sample_ids)
+        execution_expected_primary = expected_primary
+        execution_expected_secondary = expected_secondary
 
     cards, card_manifest_sha, card_renderer_hash, card_input_hashes = (
         read_card_manifest(card_manifest)
@@ -984,22 +1165,10 @@ def initialize_workspace(
         raise ReviewLedgerError(
             f"cards must cover assignments exactly once: missing={missing[:8]}, extra={extra[:8]}"
         )
-    priorities, priority_master_sha = read_priority_inventory(priority_inventory)
-    if priority_master_sha is not None and priority_master_sha != master_sha:
-        raise ReviewLedgerError("priority inventory binds a different master manifest")
-    unknown_priority = sorted(
-        set(priorities) - {item.sample.sample_id for item in masters}
-    )
-    if unknown_priority:
-        raise ReviewLedgerError(
-            f"priority inventory contains unknown samples: {unknown_priority[:8]}"
-        )
     expected_card_inputs = {
         "master_manifest_sha256": master_sha,
         "render_bank_manifest_sha256": render_bank_sha,
-        "assignments_sha256": sha256_bytes(
-            jsonl_bytes(assignment.as_dict() for assignment in assignments)
-        ),
+        "assignments_sha256": canonical_assignment_sha,
     }
     if priority_inventory is not None:
         expected_card_inputs["inventory_sha256"] = sha256_file(priority_inventory)
@@ -1009,7 +1178,11 @@ def initialize_workspace(
                 f"card manifest {key} does not bind the supplied input"
             )
 
-    master_by_id = {item.sample.sample_id: item for item in masters}
+    master_by_id = {
+        item.sample.sample_id: item
+        for item in masters
+        if item.sample.sample_id in selected_set
+    }
     for assignment in assignments:
         _validate_card_against_assignment(
             cards[assignment.assignment_id],
@@ -1019,15 +1192,29 @@ def initialize_workspace(
             card_root=card_manifest.parent,
             verify_file=verify_card_files,
         )
-    ordered = sorted(
-        assignments,
-        key=lambda item: _review_order_key(
-            item,
-            master_by_id[item.sample_id],
-            priorities.get(item.sample_id, {}),
-            allocation_seed=allocation_seed,
-        ),
-    )
+    if batch == "pilot":
+        pilot_rank = {
+            sample_id: int(priorities[sample_id]["pilot"]["review_order"])
+            for sample_id in selected_sample_ids
+        }
+        ordered = sorted(
+            assignments,
+            key=lambda item: (
+                labels.REVIEW_STAGES.index(item.stage),
+                pilot_rank[item.sample_id],
+                item.assignment_id,
+            ),
+        )
+    else:
+        ordered = sorted(
+            assignments,
+            key=lambda item: _review_order_key(
+                item,
+                master_by_id[item.sample_id],
+                priorities.get(item.sample_id, {}),
+                allocation_seed=allocation_seed,
+            ),
+        )
     rows = [
         _execution_assignment_row(
             assignment,
@@ -1049,6 +1236,9 @@ def initialize_workspace(
         "priority_inventory": str(priority_inventory.resolve())
         if priority_inventory is not None
         else None,
+        "canonical_assignments": str(canonical_assignments.resolve())
+        if canonical_assignments is not None
+        else None,
     }
     workspace_record = seal(
         {
@@ -1056,16 +1246,28 @@ def initialize_workspace(
             "record_type": WORKSPACE_RECORD_TYPE,
             "catalog_version": catalog_version,
             "allocation_seed": allocation_seed,
+            "scope": {
+                "batch": batch,
+                "canonical_primary": expected_primary,
+                "canonical_secondary": expected_secondary,
+            },
             "expected": {
-                "primary": expected_primary,
-                "secondary": expected_secondary,
+                "primary": execution_expected_primary,
+                "secondary": execution_expected_secondary,
                 "candidates": expected_candidates,
             },
             "counts": {
-                "samples": len(masters),
+                "samples": len(selected_set),
                 "assignments": len(rows),
-                "works": len({item.sample.work_id for item in masters}),
-                "manual_recrops": sum(item.manual_recrop for item in masters),
+                "works": len(
+                    {
+                        master_by_id[sample_id].sample.work_id
+                        for sample_id in selected_set
+                    }
+                ),
+                "manual_recrops": sum(
+                    master_by_id[sample_id].manual_recrop for sample_id in selected_set
+                ),
             },
             "inputs": {
                 "master_manifest_sha256": master_sha,
@@ -1074,6 +1276,9 @@ def initialize_workspace(
                 "render_bank_sha256": render_bank_sha,
                 "priority_inventory_sha256": sha256_file(priority_inventory)
                 if priority_inventory is not None
+                else None,
+                "canonical_assignments_sha256": canonical_assignment_sha
+                if canonical_assignments is not None
                 else None,
             },
             "source_paths": source_paths,
@@ -1415,6 +1620,7 @@ def load_workspace(
             "font_catalog": "font_catalog_sha256",
             "render_bank": "render_bank_sha256",
             "priority_inventory": "priority_inventory_sha256",
+            "canonical_assignments": "canonical_assignments_sha256",
         }
         for path_key, hash_key in path_to_hash.items():
             source = paths.get(path_key)
@@ -2296,6 +2502,386 @@ def _validate_response_binding(
             raise ReviewLedgerError(f"{location}.binding.{field} differs from claim")
 
 
+def _tier_references_to_aliases(
+    value: Any,
+    *,
+    aliases: Sequence[str],
+    location: str,
+) -> list[str]:
+    if not isinstance(value, list):
+        raise ReviewLedgerError(f"{location} must be an array")
+    output: list[str] = []
+    for index, reference in enumerate(value):
+        if isinstance(reference, bool):
+            raise ReviewLedgerError(
+                f"{location}[{index}] must be a blind alias or 1-based position"
+            )
+        if isinstance(reference, int):
+            if not 1 <= reference <= len(aliases):
+                raise ReviewLedgerError(
+                    f"{location}[{index}] position is outside 1..{len(aliases)}"
+                )
+            alias = aliases[reference - 1]
+        elif isinstance(reference, str):
+            alias = require_id(reference, location=f"{location}[{index}]")
+            if alias not in aliases:
+                raise ReviewLedgerError(
+                    f"{location}[{index}] is not a blind alias from the claim"
+                )
+        else:
+            raise ReviewLedgerError(
+                f"{location}[{index}] must be a blind alias or 1-based position"
+            )
+        output.append(alias)
+    if len(output) != len(set(output)):
+        raise ReviewLedgerError(f"{location} contains duplicate candidates")
+    return output
+
+
+def _validate_public_claim_for_preparation(claim: Mapping[str, Any]) -> None:
+    validate_seal(claim, location="claim")
+    require_exact_keys(
+        claim,
+        {
+            "schema_version",
+            "record_type",
+            "claim_id",
+            "target_kind",
+            "reviewer",
+            "claimed_at",
+            "expires_at",
+            "task_count",
+            "tasks",
+            "blindness",
+            "record_sha256",
+        },
+        location="claim",
+    )
+    if (
+        claim.get("schema_version") != SCHEMA_VERSION
+        or claim.get("record_type") != PUBLIC_CLAIM_TYPE
+        or claim.get("target_kind") not in labels.REVIEW_STAGES
+    ):
+        raise ReviewLedgerError("prepare-response requires a blind review claim")
+    require_id(claim.get("claim_id"), location="claim.claim_id")
+    require_id(claim.get("reviewer"), location="claim.reviewer")
+    claimed_at = parse_timestamp(claim.get("claimed_at"), location="claim.claimed_at")
+    expires_at = parse_timestamp(claim.get("expires_at"), location="claim.expires_at")
+    if expires_at <= claimed_at:
+        raise ReviewLedgerError("claim.expires_at must be after claim.claimed_at")
+    blindness = require_mapping(claim.get("blindness"), location="claim.blindness")
+    if blindness != {
+        "font_ids_visible": False,
+        "font_names_visible": False,
+        "model_suggestions_visible": False,
+    }:
+        raise ReviewLedgerError("claim blindness contract is invalid")
+    tasks = claim.get("tasks")
+    if (
+        not isinstance(tasks, list)
+        or claim.get("task_count") != len(tasks)
+        or not tasks
+    ):
+        raise ReviewLedgerError("claim tasks are missing or inconsistent")
+    task_keys = {
+        "assignment_id",
+        "sample_id",
+        "work_id",
+        "chapter_id",
+        "page_id",
+        "stage",
+        "binding",
+        "card_file",
+        "manual_recrop",
+        "cohorts",
+        "priority_batches",
+    }
+    binding_keys = {
+        "source_page_sha256",
+        "sample_crop_sha256",
+        "view_sha256",
+        "review_card_sha256",
+        "candidate_order_seed",
+        "candidate_order_aliases",
+    }
+    for index, task_value in enumerate(tasks, 1):
+        task = require_mapping(task_value, location=f"claim.tasks[{index}]")
+        require_exact_keys(task, task_keys, location=f"claim.tasks[{index}]")
+        for key in ("assignment_id", "sample_id", "work_id", "chapter_id", "page_id"):
+            require_id(task.get(key), location=f"claim.tasks[{index}].{key}")
+        if task.get("stage") != claim["target_kind"]:
+            raise ReviewLedgerError(
+                f"claim.tasks[{index}].stage differs from claim target"
+            )
+        require_text(task.get("card_file"), location=f"claim.tasks[{index}].card_file")
+        require_bool(
+            task.get("manual_recrop"),
+            location=f"claim.tasks[{index}].manual_recrop",
+        )
+        cohorts = task.get("cohorts")
+        if not isinstance(cohorts, list) or any(
+            not isinstance(cohort, str) for cohort in cohorts
+        ):
+            raise ReviewLedgerError(
+                f"claim.tasks[{index}].cohorts must be a string array"
+            )
+        require_mapping(
+            task.get("priority_batches"),
+            location=f"claim.tasks[{index}].priority_batches",
+        )
+        binding = require_mapping(
+            task.get("binding"), location=f"claim.tasks[{index}].binding"
+        )
+        require_exact_keys(
+            binding,
+            binding_keys,
+            location=f"claim.tasks[{index}].binding",
+        )
+        for key in (
+            "source_page_sha256",
+            "sample_crop_sha256",
+            "review_card_sha256",
+            "candidate_order_seed",
+        ):
+            require_sha(
+                binding.get(key),
+                location=f"claim.tasks[{index}].binding.{key}",
+            )
+        view_hashes = require_mapping(
+            binding.get("view_sha256"),
+            location=f"claim.tasks[{index}].binding.view_sha256",
+        )
+        for name, value in view_hashes.items():
+            require_id(name, location=f"claim.tasks[{index}].binding.view_sha256 key")
+            require_sha(
+                value,
+                location=f"claim.tasks[{index}].binding.view_sha256.{name}",
+            )
+        aliases = binding.get("candidate_order_aliases")
+        if not isinstance(aliases, list) or not aliases:
+            raise ReviewLedgerError(
+                f"claim.tasks[{index}].binding.candidate_order_aliases must be non-empty"
+            )
+        normalized = [
+            require_id(
+                alias,
+                location=(
+                    f"claim.tasks[{index}].binding.candidate_order_aliases[{position}]"
+                ),
+            )
+            for position, alias in enumerate(aliases)
+        ]
+        if len(normalized) != len(set(normalized)):
+            raise ReviewLedgerError(
+                f"claim.tasks[{index}].binding.candidate_order_aliases contains duplicates"
+            )
+
+
+def prepare_review_responses(
+    claim: Mapping[str, Any],
+    decisions: Sequence[Mapping[str, Any]],
+    *,
+    reviewed_at: datetime | None = None,
+) -> list[dict[str, Any]]:
+    """Bind minimal blind decisions to immutable claim metadata.
+
+    Tier entries may use the opaque alias shown on the card or its 1-based card
+    position.  Font IDs/names and reveal-map fields are structurally impossible
+    because decisions use an exact allow-list and every candidate reference is
+    resolved solely against ``candidate_order_aliases`` from the sealed claim.
+    """
+
+    _validate_public_claim_for_preparation(claim)
+    tasks = {
+        require_id(task.get("assignment_id"), location="claim.task.assignment_id"): task
+        for task_value in claim["tasks"]
+        for task in [require_mapping(task_value, location="claim.task")]
+    }
+    if len(tasks) != len(claim["tasks"]):
+        raise ReviewLedgerError("claim repeats an assignment task")
+    required = {
+        "assignment_id",
+        "role",
+        "source_style",
+        "treatment",
+        "font_judgment",
+        "consistency",
+        "confidence",
+        "flags",
+    }
+    decision_by_assignment: dict[str, Mapping[str, Any]] = {}
+    for index, raw in enumerate(decisions, 1):
+        decision = require_mapping(raw, location=f"decisions[{index}]")
+        require_exact_keys(decision, required, location=f"decisions[{index}]")
+        assignment_id = require_id(
+            decision.get("assignment_id"),
+            location=f"decisions[{index}].assignment_id",
+        )
+        if assignment_id in decision_by_assignment:
+            raise ReviewLedgerError(f"decisions repeat assignment {assignment_id}")
+        if assignment_id not in tasks:
+            raise ReviewLedgerError(
+                f"decision targets an assignment outside the claim: {assignment_id}"
+            )
+        decision_by_assignment[assignment_id] = decision
+    if set(decision_by_assignment) != set(tasks):
+        missing = sorted(set(tasks) - set(decision_by_assignment))
+        raise ReviewLedgerError(
+            f"decisions must cover the claim exactly: missing={missing[:8]}"
+        )
+
+    recorded_at = timestamp((reviewed_at or utc_now()).astimezone(timezone.utc))
+    responses: list[dict[str, Any]] = []
+    for task_value in claim["tasks"]:
+        task = require_mapping(task_value, location="claim.task")
+        assignment_id = str(task["assignment_id"])
+        decision = decision_by_assignment[assignment_id]
+        binding = require_mapping(task.get("binding"), location="claim.task.binding")
+        aliases_value = binding.get("candidate_order_aliases")
+        if not isinstance(aliases_value, list) or not aliases_value:
+            raise ReviewLedgerError(
+                "claim.task.binding.candidate_order_aliases must be non-empty"
+            )
+        aliases = [
+            require_id(alias, location="claim.task.candidate_order_aliases")
+            for alias in aliases_value
+        ]
+        if len(aliases) != len(set(aliases)):
+            raise ReviewLedgerError("claim candidate aliases contain duplicates")
+        judgment = require_mapping(
+            decision.get("font_judgment"),
+            location=f"decision[{assignment_id}].font_judgment",
+        )
+        require_exact_keys(
+            judgment,
+            {*labels.FONT_TIERS, "none_acceptable"},
+            location=f"decision[{assignment_id}].font_judgment",
+        )
+        converted_judgment: dict[str, Any] = {
+            tier: _tier_references_to_aliases(
+                judgment.get(tier),
+                aliases=aliases,
+                location=f"decision[{assignment_id}].font_judgment.{tier}",
+            )
+            for tier in labels.FONT_TIERS
+        }
+        converted_judgment["none_acceptable"] = require_bool(
+            judgment.get("none_acceptable"),
+            location=f"decision[{assignment_id}].font_judgment.none_acceptable",
+        )
+        confidence = require_unit(
+            decision.get("confidence"),
+            location=f"decision[{assignment_id}].confidence",
+        )
+        flags_value = decision.get("flags")
+        if not isinstance(flags_value, list) or any(
+            not isinstance(flag, str) for flag in flags_value
+        ):
+            raise ReviewLedgerError(
+                f"decision[{assignment_id}].flags must be a string array"
+            )
+        if len(flags_value) != len(set(flags_value)):
+            raise ReviewLedgerError(
+                f"decision[{assignment_id}].flags contains duplicates"
+            )
+        for flag in flags_value:
+            if flag not in labels.REVIEW_FLAGS:
+                raise ReviewLedgerError(
+                    f"decision[{assignment_id}].flags contains unsupported {flag!r}"
+                )
+        core = {
+            "schema_version": labels.SCHEMA_VERSION,
+            "sample_id": require_id(
+                task.get("sample_id"), location="claim.task.sample_id"
+            ),
+            "work_id": require_id(task.get("work_id"), location="claim.task.work_id"),
+            "source_page_sha256": require_sha(
+                binding.get("source_page_sha256"),
+                location="claim.task.binding.source_page_sha256",
+            ),
+            "role": copy.deepcopy(
+                dict(
+                    require_mapping(
+                        decision.get("role"),
+                        location=f"decision[{assignment_id}].role",
+                    )
+                )
+            ),
+            "source_style": copy.deepcopy(
+                dict(
+                    require_mapping(
+                        decision.get("source_style"),
+                        location=f"decision[{assignment_id}].source_style",
+                    )
+                )
+            ),
+            "treatment": copy.deepcopy(
+                dict(
+                    require_mapping(
+                        decision.get("treatment"),
+                        location=f"decision[{assignment_id}].treatment",
+                    )
+                )
+            ),
+            "font_judgment": converted_judgment,
+            "consistency": copy.deepcopy(
+                dict(
+                    require_mapping(
+                        decision.get("consistency"),
+                        location=f"decision[{assignment_id}].consistency",
+                    )
+                )
+            ),
+        }
+        try:
+            labels._validate_core_label(core, aliases)  # noqa: SLF001
+        except labels.LabelValidationError as error:
+            raise ReviewLedgerError(
+                f"decision[{assignment_id}] is invalid: {error}"
+            ) from error
+        none_flag = "none_acceptable" in flags_value
+        if none_flag != bool(converted_judgment["none_acceptable"]):
+            raise ReviewLedgerError(
+                f"decision[{assignment_id}] none_acceptable flag is inconsistent"
+            )
+        role_confidence = float(core["role"]["confidence"])
+        if (
+            min(role_confidence, confidence) < DEFAULT_LOW_CONFIDENCE
+            and "low_confidence" not in flags_value
+        ):
+            raise ReviewLedgerError(
+                f"decision[{assignment_id}] requires low_confidence flag"
+            )
+        response_binding = {
+            key: copy.deepcopy(binding[key])
+            for key in (
+                "source_page_sha256",
+                "sample_crop_sha256",
+                "review_card_sha256",
+                "candidate_order_seed",
+                "candidate_order_aliases",
+            )
+        }
+        responses.append(
+            {
+                "schema_version": SCHEMA_VERSION,
+                "record_type": REVIEW_RESPONSE_TYPE,
+                "claim_id": claim["claim_id"],
+                "assignment_id": assignment_id,
+                "binding": response_binding,
+                "role": core["role"],
+                "source_style": core["source_style"],
+                "treatment": core["treatment"],
+                "font_judgment": converted_judgment,
+                "consistency": core["consistency"],
+                "confidence": confidence,
+                "flags": list(flags_value),
+                "reviewed_at": recorded_at,
+            }
+        )
+    return responses
+
+
 def _build_review_record(
     response: Mapping[str, Any],
     *,
@@ -3162,11 +3748,27 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument("--font-catalog", type=Path, required=True)
     init.add_argument("--render-bank", type=Path, required=True)
     init.add_argument("--priority-inventory", type=Path)
+    init.add_argument(
+        "--assignments",
+        type=Path,
+        help="canonical full-corpus assignments required by --batch pilot",
+    )
+    init.add_argument("--batch", choices=("all", "pilot"), default="all")
     init.add_argument("--catalog-version", required=True)
     init.add_argument("--allocation-seed", required=True)
     init.add_argument("--expected-primary", type=positive_int, default=EXPECTED_PRIMARY)
     init.add_argument(
         "--expected-secondary", type=non_negative_int, default=EXPECTED_SECONDARY
+    )
+    init.add_argument(
+        "--expected-batch-primary",
+        type=positive_int,
+        default=EXPECTED_PILOT_PRIMARY,
+    )
+    init.add_argument(
+        "--expected-batch-secondary",
+        type=non_negative_int,
+        default=EXPECTED_PILOT_SECONDARY,
     )
     init.add_argument(
         "--expected-candidates", type=positive_int, default=EXPECTED_CANDIDATES
@@ -3188,6 +3790,14 @@ def build_parser() -> argparse.ArgumentParser:
     release.add_argument("--workspace", type=Path, required=True)
     release.add_argument("--claim-id", required=True)
     release.add_argument("--reviewer", required=True)
+
+    prepare = commands.add_parser(
+        "prepare-response",
+        help="bind minimal blind decisions to a sealed claim without submitting",
+    )
+    prepare.add_argument("--claim", type=Path, required=True)
+    prepare.add_argument("--decisions", type=Path, required=True)
+    prepare.add_argument("--output", type=Path, required=True)
 
     submit = commands.add_parser("submit", help="atomically submit one blind batch")
     submit.add_argument("--workspace", type=Path, required=True)
@@ -3259,10 +3869,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                 priority_inventory=args.priority_inventory.resolve()
                 if args.priority_inventory is not None
                 else None,
+                canonical_assignments=args.assignments.resolve()
+                if args.assignments is not None
+                else None,
+                batch=args.batch,
                 catalog_version=args.catalog_version,
                 allocation_seed=args.allocation_seed,
                 expected_primary=args.expected_primary,
                 expected_secondary=args.expected_secondary,
+                expected_batch_primary=args.expected_batch_primary,
+                expected_batch_secondary=args.expected_batch_secondary,
                 expected_candidates=args.expected_candidates,
                 verify_card_files=not args.skip_card_files,
             )
@@ -3291,6 +3907,19 @@ def main(argv: Sequence[str] | None = None) -> int:
                 reviewer=args.reviewer,
             )
             _emit_json({"claim_id": args.claim_id, "status": "released"})
+        elif args.command == "prepare-response":
+            responses = prepare_review_responses(
+                read_json(args.claim.resolve()),
+                read_jsonl(args.decisions.resolve()),
+            )
+            atomic_write(args.output.resolve(), jsonl_bytes(responses))
+            _emit_json(
+                {
+                    "output": str(args.output.resolve()),
+                    "prepared": len(responses),
+                    "status": "validated_not_submitted",
+                }
+            )
         elif args.command == "submit":
             created = submit_review_batch(
                 args.workspace.resolve(), read_jsonl(args.responses.resolve())
