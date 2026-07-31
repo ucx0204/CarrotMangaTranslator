@@ -56,6 +56,10 @@ export const ModelTestProgressEventSchema = z
   .strict();
 
 const AnalysisBlockModeSchema = z.enum(["auto", "keep"]);
+const TranslationCompletionWorkflowSchema = z.enum([
+  "erase-original",
+  "bubble-layout",
+]);
 
 export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
   z
@@ -66,6 +70,7 @@ export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
       collectPageContext: z.boolean().optional(),
       naturalTextLayout: z.boolean().optional(),
       autoFontMatching: z.boolean().optional(),
+      completionWorkflow: TranslationCompletionWorkflowSchema.optional(),
     })
     .strict(),
   z
@@ -76,6 +81,7 @@ export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
       collectPageContext: z.boolean().optional(),
       naturalTextLayout: z.boolean().optional(),
       autoFontMatching: z.boolean().optional(),
+      completionWorkflow: TranslationCompletionWorkflowSchema.optional(),
     })
     .strict(),
   z
@@ -87,17 +93,26 @@ export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
       collectPageContext: z.boolean().optional(),
       naturalTextLayout: z.boolean().optional(),
       autoFontMatching: z.boolean().optional(),
+      completionWorkflow: TranslationCompletionWorkflowSchema.optional(),
     })
     .strict(),
   z
     .object({
       chapterId: uuid,
       runMode: z.literal("page-set"),
-      pageIds: z.array(uuid).min(1),
+      pageIds: z
+        .array(uuid)
+        .min(1)
+        .max(MAX_ID_LIST_LENGTH)
+        .refine(
+          (pageIds) => new Set(pageIds).size === pageIds.length,
+          "중복된 페이지 ID가 있습니다.",
+        ),
       blockMode: AnalysisBlockModeSchema.optional(),
       collectPageContext: z.boolean().optional(),
       naturalTextLayout: z.boolean().optional(),
       autoFontMatching: z.boolean().optional(),
+      completionWorkflow: TranslationCompletionWorkflowSchema.optional(),
     })
     .strict(),
 ]);
@@ -141,7 +156,14 @@ const AutoInpaintingChapterSelectionSchema = z.discriminatedUnion("mode", [
     .object({
       chapterId: uuid,
       mode: z.literal("page-set"),
-      pageIds: z.array(uuid).min(1).max(MAX_ID_LIST_LENGTH),
+      pageIds: z
+        .array(uuid)
+        .min(1)
+        .max(MAX_ID_LIST_LENGTH)
+        .refine(
+          (pageIds) => new Set(pageIds).size === pageIds.length,
+          "pageIds must be unique",
+        ),
     })
     .strict(),
 ]);
@@ -200,10 +222,7 @@ export const StartInpaintingRequestSchema = z.discriminatedUnion("mode", [
     .object({
       mode: z.literal("selection-pattern"),
       workId: uuid,
-      selections: z
-        .array(AutoInpaintingChapterSelectionSchema)
-        .min(1)
-        .max(MAX_ID_LIST_LENGTH),
+      selections: z.array(AutoInpaintingChapterSelectionSchema).min(1).max(1),
       postprocess: InpaintingPostprocessOptionsSchema.optional(),
     })
     .strict(),

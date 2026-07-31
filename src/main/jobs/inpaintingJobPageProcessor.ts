@@ -1,11 +1,6 @@
 import type { JobEvent } from "../../shared/jobTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
-import type { InpaintingMaskStroke } from "../../shared/inpaintingTypes";
-import {
-  runBubbleLayoutPostprocess,
-  type BubbleLayoutPostprocessConfig,
-  type BubbleLayoutRunner,
-} from "../inpainting/bubbleLayoutRunner";
+import { runBubbleLayoutPostprocess } from "../inpainting/bubbleLayoutRunner";
 import {
   applyInpaintingLayoutStates,
   type InpaintingBlockLayoutState,
@@ -16,41 +11,23 @@ import {
 } from "./bubbleLayoutJob";
 import type { InpaintingJobContext } from "./inpaintingJobTypes";
 import type { InpaintingJobRuntime } from "./inpaintingJobRuntime";
+import type {
+  InpaintingJobState,
+  InpaintingTarget,
+  ProcessedInpaintingPageResult,
+} from "./inpaintingJobPageTypes";
+import { tMain } from "./localization";
+import {
+  assertInpaintingPageCanRun,
+  assertRequiredBubblePostprocess,
+  completeTargetlessInpaintingPage,
+  completeTranslationWorkflow,
+  countInpaintingPageTargets,
+} from "./inpaintingJobPageCompletion";
 import {
   emitInpaintingPageDone,
   emitInpaintingPageRunning,
 } from "./inpaintingJobProgress";
-
-type InpaintingPageResult = Awaited<
-  ReturnType<InpaintingJobRuntime["inpaintPatternPage"]>
->;
-type OpenedChapter = Awaited<ReturnType<InpaintingJobRuntime["openChapter"]>>;
-type InpaintingEngineLease = Awaited<
-  ReturnType<InpaintingJobRuntime["acquireEngine"]>
->;
-
-export type InpaintingJobState = {
-  chapter: OpenedChapter | null;
-  chapters: Map<string, OpenedChapter>;
-  historyTransactionId: string | null;
-  inpaintingEngineLease: InpaintingEngineLease | null;
-  bubbleLayoutRunner: BubbleLayoutRunner | null;
-  bubbleLayoutPostprocess: BubbleLayoutPostprocessConfig | null;
-};
-
-export type InpaintingTarget = {
-  blockId?: string;
-  drawnPatternMode: boolean;
-  layoutOnly: boolean;
-  drawnStrokes: InpaintingMaskStroke[];
-  drawnFeatherPx?: number;
-  targetType: "drawn" | "source";
-};
-
-export type ProcessedInpaintingPageResult = InpaintingPageResult & {
-  beforeLayout?: InpaintingBlockLayoutState[];
-  afterLayout?: InpaintingBlockLayoutState[];
-};
 
 type ProcessInpaintingPageOptions = {
   abortController: AbortController;
@@ -65,6 +42,11 @@ type ProcessInpaintingPageOptions = {
   runtime: InpaintingJobRuntime;
 };
 
+type RunInpaintingPagePipelineOptions = Pick<
+  ProcessInpaintingPageOptions,
+  "context" | "page" | "runtime" | "state" | "target"
+> & { signal: AbortSignal };
+
 export async function processInpaintingPage({
   abortController,
   context,
@@ -77,39 +59,67 @@ export async function processInpaintingPage({
   target,
   runtime,
 }: ProcessInpaintingPageOptions): Promise<ProcessedInpaintingPageResult> {
-  if (abortController.signal.aborted) {
-    throw new DOMException("Aborted", "AbortError");
-  }
-
-  const pageTargetCount = target.blockId
-    ? 1
-    : target.drawnPatternMode
-      ? target.drawnStrokes.length
-      : page.blocks.length;
+  assertInpaintingPageCanRun(abortController.signal, page, target);
+  const pageTargetCount = countInpaintingPageTargets(page, target);
   emitInpaintingPageRunning(id, emit, page, pageIndex, pageCount, {
     pageTargetCount,
     target,
   });
-  if (target.layoutOnly) {
-    return processLayoutOnlyInpaintingPage({
-      emit,
-      id,
-      page,
-      pageCount,
-      pageIndex,
-      state,
-      target,
-      signal: abortController.signal,
-    });
+  if (pageTargetCount === 0) {
+    const result = completeTargetlessInpaintingPage(page, state, target);
+    emitInpaintingPageDone(id, emit, pageIndex, pageCount, target, 0);
+    return result;
   }
-  const result = await runInpaintingPagePipeline({
-    context,
+  const result = target.layoutOnly
+    ? await processLayoutOnlyInpaintingPage({
+        page,
+        state,
+        target,
+        signal: abortController.signal,
+      })
+    : await runInpaintingPagePipeline({
+        context,
+        page,
+        runtime,
+        signal: abortController.signal,
+        state,
+        target,
+      });
+  return finishProcessedInpaintingPage({
+    emit,
+    id,
     page,
-    runtime,
-    signal: abortController.signal,
+    pageCount,
+    pageIndex,
+    result,
     state,
     target,
   });
+}
+
+function finishProcessedInpaintingPage({
+  emit,
+  id,
+  page,
+  pageCount,
+  pageIndex,
+  result,
+  state,
+  target,
+}: {
+  emit: (event: JobEvent) => void;
+  id: string;
+  page: MangaPage;
+  pageCount: number;
+  pageIndex: number;
+  result: ProcessedInpaintingPageResult;
+  state: InpaintingJobState;
+  target: InpaintingTarget;
+}): ProcessedInpaintingPageResult {
+  if (result.blocksErased <= 0) {
+    throw new Error(tMain("inpainting.noChanges"));
+  }
+  assertRequiredBubblePostprocess(page, result, state, target);
   emitInpaintingPageDone(
     id,
     emit,
@@ -118,7 +128,7 @@ export async function processInpaintingPage({
     target,
     result.blocksErased,
   );
-  return result;
+  return completeTranslationWorkflow(result, state, target);
 }
 
 async function runInpaintingPagePipeline({
@@ -128,14 +138,7 @@ async function runInpaintingPagePipeline({
   signal,
   state,
   target,
-}: {
-  context: InpaintingJobContext;
-  page: MangaPage;
-  runtime: InpaintingJobRuntime;
-  signal: AbortSignal;
-  state: InpaintingJobState;
-  target: InpaintingTarget;
-}): Promise<ProcessedInpaintingPageResult> {
+}: RunInpaintingPagePipelineOptions): Promise<ProcessedInpaintingPageResult> {
   const maskPreparation = target.drawnPatternMode
     ? { page }
     : await preparePatternMaskPage({
@@ -170,7 +173,7 @@ async function runInpaintingPagePipeline({
             }
           : {}),
       });
-  const result = {
+  const result: ProcessedInpaintingPageResult = {
     ...rawResult,
     page: maskPreparation.restoreLayout
       ? applyInpaintingLayoutStates(
@@ -196,6 +199,7 @@ async function runInpaintingPagePipeline({
   return {
     ...result,
     ...processed,
+    bubbleLayoutPostprocessed: true,
   };
 }
 
@@ -229,26 +233,16 @@ async function preparePatternMaskPage({
     runner: state.bubbleLayoutRunner,
     signal,
   });
-  return {
-    ...prepared,
-  };
+  return { ...prepared };
 }
 
 async function processLayoutOnlyInpaintingPage({
-  emit,
-  id,
   page,
-  pageCount,
-  pageIndex,
   signal,
   state,
   target,
 }: {
-  emit: (event: JobEvent) => void;
-  id: string;
   page: MangaPage;
-  pageCount: number;
-  pageIndex: number;
   signal: AbortSignal;
   state: InpaintingJobState;
   target: InpaintingTarget;
@@ -260,13 +254,5 @@ async function processLayoutOnlyInpaintingPage({
     runner: state.bubbleLayoutRunner,
     signal,
   });
-  emitInpaintingPageDone(
-    id,
-    emit,
-    pageIndex,
-    pageCount,
-    target,
-    result.blocksErased,
-  );
-  return result;
+  return { ...result, bubbleLayoutPostprocessed: true };
 }

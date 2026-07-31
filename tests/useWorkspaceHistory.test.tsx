@@ -87,6 +87,28 @@ describe("useWorkspaceHistory", () => {
     );
   });
 
+  it("rejects and releases an image transaction for a different chapter", () => {
+    const handlers = makeHandlers();
+    const { result } = renderHook(() =>
+      useWorkspaceHistory({ chapterId: "chapter-1", ...handlers }),
+    );
+
+    let recorded = true;
+    act(() => {
+      recorded = result.current.recordImageEdit({
+        label: "다른 화 자동 지우기",
+        transactionId: "transaction-other-chapter",
+        chapterId: "chapter-2",
+      });
+    });
+
+    expect(recorded).toBe(false);
+    expect(result.current.canUndo).toBe(false);
+    expect(handlers.releaseImageTransactions).toHaveBeenCalledWith([
+      "transaction-other-chapter",
+    ]);
+  });
+
   it("updates a coalesced replay target without rerendering unchanged history UI", async () => {
     const handlers = makeHandlers();
     let renderCount = 0;

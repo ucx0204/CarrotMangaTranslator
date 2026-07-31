@@ -15,6 +15,7 @@ import { cropBitmapFromPage, readGeneratedBitmap } from "./imageRaster";
 import type { InpaintingWindowMask } from "./inpaintingEngine";
 import {
   buildExclusivePaddedWindowMasks,
+  isWindowMaskFullyOwnedByEarlierWindow,
   type ExclusiveInpaintingWindowMasks,
 } from "./inpaintingWindowMask";
 import { compositeConstrainedFluxOutput } from "./fluxCompositeConstraint";
@@ -26,6 +27,11 @@ import {
   type MaskedRegionChangeStats,
 } from "./fluxChangeStats";
 import { logInpaintingRuntimeWarn } from "./inpaintingRuntimeLogger";
+import {
+  reportFluxInpaintSummary,
+  type FluxInpaintSummary,
+  type FluxUnchangedCropStats,
+} from "./fluxInpaintSummary";
 
 type FluxInpaintRunOptions = {
   signal?: AbortSignal;
@@ -35,6 +41,7 @@ type FluxInpaintRunOptions = {
   maxPixels?: number;
   windowMasks?: InpaintingWindowMask[];
   compositeConstraints?: Array<InpaintingWindowMask | null>;
+  requirePixelChange?: boolean;
 };
 
 type ResolvedFluxInpaintOptions = {
@@ -83,6 +90,7 @@ type FluxWindowProcessArgs = {
 
 type FluxWindowProcessResult =
   | {
+      covered: boolean;
       eligible: false;
     }
   | {
@@ -90,19 +98,6 @@ type FluxWindowProcessResult =
       unchanged: boolean;
       unchangedStats?: FluxUnchangedCropStats;
     };
-
-type FluxInpaintSummary = {
-  eligibleWindows: number;
-  processedWindows: number;
-  unchangedStats: FluxUnchangedCropStats[];
-  unchangedWindows: number;
-};
-
-type FluxUnchangedCropStats = {
-  changedRatio: number;
-  crop: number;
-  meanDelta: number;
-};
 
 export async function runFluxInpaint(
   {
@@ -167,7 +162,11 @@ export async function runFluxInpaint(
       width,
       windows,
     });
-    logFluxInpaintSummary(summary, diagnostics);
+    reportFluxInpaintSummary(
+      summary,
+      diagnostics,
+      runOptions.requirePixelChange === true,
+    );
   } finally {
     await cleanupFluxRunDir(runDir);
   }
@@ -206,7 +205,8 @@ async function processFluxWindows(
   },
 ): Promise<FluxInpaintSummary> {
   const summary: FluxInpaintSummary = {
-    eligibleWindows: 0,
+    coveredWindows: 0,
+    eligibleWindows: args.windows.length,
     processedWindows: 0,
     unchangedStats: [],
     unchangedWindows: 0,
@@ -215,9 +215,11 @@ async function processFluxWindows(
     throwIfAborted(args.runOptions.signal);
     const result = await processFluxWindow({ ...args, index, window });
     if (!result.eligible) {
+      if (result.covered) {
+        summary.coveredWindows += 1;
+      }
       continue;
     }
-    summary.eligibleWindows += 1;
     summary.processedWindows += 1;
     if (result.unchanged && result.unchangedStats) {
       summary.unchangedWindows += 1;
@@ -227,33 +229,30 @@ async function processFluxWindows(
   return summary;
 }
 
-async function processFluxWindow({
-  bitmap,
-  getWorker,
-  height,
-  index,
-  isolateWindowMasks,
-  tileLargeCrops,
-  mask,
-  options,
-  runDir,
-  runOptions,
-  windowMasks,
-  width,
-  window,
-}: FluxWindowProcessArgs): Promise<FluxWindowProcessResult> {
-  const { crops, effectiveMask } = prepareFluxWindow({
-    cropOptions: options,
+async function processFluxWindow(
+  args: FluxWindowProcessArgs,
+): Promise<FluxWindowProcessResult> {
+  const {
+    bitmap,
+    getWorker,
     height,
-    isolateWindowMasks: isolateWindowMasks || !!runOptions.compositeConstraints,
-    mask,
+    index,
     tileLargeCrops,
+    options,
+    runDir,
+    runOptions,
+    windowMasks,
     width,
-    window,
-    windowMask: windowMasks?.[index],
-  });
+  } = args;
+  const { crops, effectiveMask } = prepareFluxWindowForProcessing(args);
   if (crops.length === 0) {
-    return { eligible: false };
+    return {
+      covered: isWindowMaskFullyOwnedByEarlierWindow(
+        runOptions.windowMasks?.[index],
+        windowMasks?.[index],
+      ),
+      eligible: false,
+    };
   }
   const changeStats: MaskedRegionChangeStats[] = [];
   for (const [tileIndex, crop] of crops.entries()) {
@@ -308,6 +307,30 @@ async function processFluxWindow({
   return summarizeFluxWindowChange(changeStats, index);
 }
 
+function prepareFluxWindowForProcessing({
+  height,
+  index,
+  isolateWindowMasks,
+  mask,
+  options,
+  runOptions,
+  tileLargeCrops,
+  width,
+  window,
+  windowMasks,
+}: FluxWindowProcessArgs) {
+  return prepareFluxWindow({
+    cropOptions: options,
+    height,
+    isolateWindowMasks: isolateWindowMasks || !!runOptions.compositeConstraints,
+    mask,
+    tileLargeCrops,
+    width,
+    window,
+    windowMask: windowMasks?.[index],
+  });
+}
+
 function summarizeFluxWindowChange(
   changeStats: MaskedRegionChangeStats[],
   index: number,
@@ -356,33 +379,6 @@ function summarizeFluxCropChange(
       meanDelta: changeStats.meanDelta,
     },
   };
-}
-
-function logFluxInpaintSummary(
-  {
-    eligibleWindows,
-    processedWindows,
-    unchangedStats,
-    unchangedWindows,
-  }: FluxInpaintSummary,
-  diagnostics: FluxInpaintDiagnostics,
-): void {
-  if (eligibleWindows > 0 && processedWindows === 0) {
-    diagnostics.warn("Flux inpainting skipped every eligible crop", {
-      eligibleWindows,
-    });
-    return;
-  }
-  if (processedWindows > 0 && unchangedWindows === processedWindows) {
-    diagnostics.warn(
-      "Flux inpainting left every masked crop effectively unchanged",
-      {
-        eligibleWindows,
-        processedWindows,
-        unchangedStats,
-      },
-    );
-  }
 }
 
 async function cleanupFluxRunDir(runDir: string): Promise<void> {

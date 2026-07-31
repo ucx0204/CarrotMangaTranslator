@@ -9,9 +9,11 @@ import type { InpaintingArtifactCleanupOptions } from "../libraryStore/libraryIn
 import { logInpaintingRuntimeWarn } from "./inpaintingRuntimeLogger";
 import {
   assertRevisionLayoutPair,
+  cloneTranslationCompletion,
   groupChangesByChapter,
   InpaintingRevisionRollbackError,
   sameOptionalPath,
+  translationCompletionsEqual,
   uniqueRevisionChanges,
   type InpaintingRevisionChange,
 } from "./inpaintingRevisionHelpers";
@@ -73,7 +75,11 @@ export class InpaintingRevisionStore {
     assertRevisionLayoutPair(change);
     if (
       sameOptionalPath(change.beforePath, change.afterPath) &&
-      inpaintingLayoutStatesEqual(change.beforeLayout, change.afterLayout)
+      inpaintingLayoutStatesEqual(change.beforeLayout, change.afterLayout) &&
+      translationCompletionsEqual(
+        change.beforeTranslationCompletion,
+        change.afterTranslationCompletion,
+      )
     ) {
       return false;
     }
@@ -92,6 +98,12 @@ export class InpaintingRevisionStore {
       ...change,
       beforeLayout: cloneInpaintingLayoutStates(change.beforeLayout),
       afterLayout: cloneInpaintingLayoutStates(change.afterLayout),
+      beforeTranslationCompletion: cloneTranslationCompletion(
+        change.beforeTranslationCompletion,
+      ),
+      afterTranslationCompletion: cloneTranslationCompletion(
+        change.afterTranslationCompletion,
+      ),
     });
     return true;
   }

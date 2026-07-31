@@ -7,6 +7,33 @@ import { useAppSessionLifecycleEffects } from "../src/renderer/src/app/session/u
 import { useAppSessionUiState } from "../src/renderer/src/app/session/useAppSessionUiState";
 
 describe("unified workspace interaction state", () => {
+  it("shares one aggregate-flow flag across translation and inpainting", () => {
+    const { result } = renderHook(() => useAppSessionUiState());
+
+    act(() => result.current.setJobFlowActive(true));
+    expect(result.current.jobFlowActive).toBe(true);
+    expect(result.current.translationFlowActive).toBe(true);
+
+    act(() => result.current.setTranslationFlowActive(false));
+    expect(result.current.jobFlowActive).toBe(false);
+  });
+
+  it("latches cancellation only for the active aggregate flow", () => {
+    const { result } = renderHook(() => useAppSessionUiState());
+
+    act(() => result.current.requestJobFlowCancellation());
+    expect(result.current.jobFlowCancellationRef.current).toBe(false);
+
+    act(() => {
+      result.current.setJobFlowActive(true);
+      result.current.requestJobFlowCancellation();
+    });
+    expect(result.current.jobFlowCancellationRef.current).toBe(true);
+
+    act(() => result.current.setJobFlowActive(true));
+    expect(result.current.jobFlowCancellationRef.current).toBe(false);
+  });
+
   it("resets batch translation selection when the options modal closes", () => {
     const { result } = renderHook(() => useAppSessionUiState());
 

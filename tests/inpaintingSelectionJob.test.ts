@@ -29,7 +29,7 @@ type InpaintingRuntimeHarness = {
   runtime: InpaintingJobRuntime;
 };
 
-describe("multi-chapter automatic inpainting jobs", () => {
+describe("single-chapter automatic inpainting jobs", () => {
   const chapters = new Map<string, ReturnType<typeof makeChapter>>();
   const revisionChanges: InpaintingRevisionChange[] = [];
   let harness: InpaintingRuntimeHarness;
@@ -58,7 +58,7 @@ describe("multi-chapter automatic inpainting jobs", () => {
     harness = createInpaintingRuntimeHarness(chapters);
   });
 
-  it("processes ordered selections with one engine lease and aggregate progress", async () => {
+  it("processes one chapter with one engine lease and aggregate progress", async () => {
     const { startInpaintingJob } =
       await import("../src/main/jobs/inpaintingJobs");
     const result = await startInpaintingJob(
@@ -72,7 +72,6 @@ describe("multi-chapter automatic inpainting jobs", () => {
             mode: "page-set",
             pageIds: [pageA2Id, pageA1Id],
           },
-          { chapterId: chapterBId, mode: "all" },
         ],
       },
       harness.runtime,
@@ -80,44 +79,528 @@ describe("multi-chapter automatic inpainting jobs", () => {
 
     expect(result.status).toBe("completed");
     expect(result.chapter).toBeUndefined();
-    expect(result.chapters?.map((chapter) => chapter.id)).toEqual([
-      chapterAId,
-      chapterBId,
-    ]);
-    expect(result.pagesChanged).toBe(3);
+    expect(result.chapters?.map((chapter) => chapter.id)).toEqual([chapterAId]);
+    expect(result.pagesChanged).toBe(2);
     expect(harness.acquireEngine).toHaveBeenCalledTimes(1);
     expect(harness.acquireEngine).toHaveBeenCalledWith(
       expect.objectContaining({ computeGpuIndex: 2 }),
     );
-    expect(harness.runEngine).toHaveBeenCalledTimes(3);
+    expect(harness.runEngine).toHaveBeenCalledTimes(2);
     expect(harness.releaseEngine).toHaveBeenCalledTimes(1);
     expect(
       harness.inpaintPatternPage.mock.calls.map(([page]) => page.name),
-    ).toEqual(["a-1.png", "a-2.png", "b-1.png"]);
+    ).toEqual(["a-1.png", "a-2.png"]);
 
     const jobEvents = send.mock.calls.map((call) => call[1]);
     expect(jobEvents.at(-1)).toMatchObject({
       status: "completed",
-      progressCurrent: 3,
-      progressTotal: 3,
-      pageTotal: 3,
+      progressCurrent: 2,
+      progressTotal: 2,
+      pageTotal: 2,
     });
     expect(
       jobEvents
         .filter((event) => event.status === "running")
-        .every((event) => event.progressTotal === 3 && event.pageTotal === 3),
+        .every((event) => event.progressTotal === 2 && event.pageTotal === 2),
     ).toBe(true);
   });
 
+  it("rejects multiple chapters before opening either chapter", async () => {
+    const { startInpaintingJob } =
+      await import("../src/main/jobs/inpaintingJobs");
+    const result = await startInpaintingJob(
+      makeContext(send),
+      {
+        mode: "selection-pattern",
+        workId: "work-a",
+        selections: [
+          { chapterId: chapterAId, mode: "all" },
+          { chapterId: chapterBId, mode: "all" },
+        ],
+      },
+      harness.runtime,
+    );
+
+    expect(result).toMatchObject({
+      status: "failed",
+      error: "Exactly one chapter selection is required.",
+      pagesChanged: 0,
+      blocksErased: 0,
+    });
+    expect(harness.runtime.openChapter).not.toHaveBeenCalled();
+    expect(harness.acquireEngine).not.toHaveBeenCalled();
+    expect(harness.runtime.savePages).not.toHaveBeenCalled();
+  });
+
+  it("fails instead of completing when an expected erase produces no result", async () => {
+    const firstPage = requireChapter(chapters, chapterAId).pages[0];
+    if (!firstPage) {
+      throw new Error("expected first page");
+    }
+    harness.inpaintPatternPage.mockResolvedValueOnce({
+      page: firstPage,
+      blocksErased: 0,
+    });
+    const { startInpaintingJob } =
+      await import("../src/main/jobs/inpaintingJobs");
+
+    const result = await startInpaintingJob(
+      makeContext(send),
+      {
+        mode: "selection-pattern",
+        workId: "work-a",
+        selections: [
+          {
+            chapterId: chapterAId,
+            mode: "page-set",
+            pageIds: [pageA1Id],
+          },
+        ],
+      },
+      harness.runtime,
+    );
+
+    expect(result).toMatchObject({
+      status: "failed",
+      error: "인페인팅 결과가 생성되지 않았습니다.",
+    });
+    expect(harness.runtime.savePages).not.toHaveBeenCalled();
+    expect(send.mock.calls.at(-1)?.[1]).toMatchObject({
+      status: "failed",
+    });
+  });
+
+  it("fails before engine acquisition when every selected block is ineligible", async () => {
+    const chapter = requireChapter(chapters, chapterAId);
+    const firstBlock = chapter.pages[0]?.blocks[0];
+    const secondBlock = chapter.pages[1]?.blocks[0];
+    if (!firstBlock || !secondBlock) throw new Error("expected blocks");
+    firstBlock.inpaintExcluded = true;
+    secondBlock.bbox.w = 0;
+    const { startInpaintingJob } =
+      await import("../src/main/jobs/inpaintingJobs");
+
+    const result = await startInpaintingJob(
+      makeContext(send),
+      {
+        mode: "selection-pattern",
+        workId: "work-a",
+        selections: [{ chapterId: chapterAId, mode: "all" }],
+      },
+      harness.runtime,
+    );
+
+    expect(result).toMatchObject({
+      status: "failed",
+      pagesChanged: 0,
+      blocksErased: 0,
+    });
+    expect(harness.acquireEngine).not.toHaveBeenCalled();
+    expect(harness.inpaintPatternPage).not.toHaveBeenCalled();
+    expect(harness.runtime.savePages).not.toHaveBeenCalled();
+  });
+
+  it("completes a no-text receipt without counting an image change in a mixed chapter", async () => {
+    const chapter = requireChapter(chapters, chapterAId);
+    const firstPage = chapter.pages[0];
+    const secondPage = chapter.pages[1];
+    if (!firstPage || !secondPage) throw new Error("expected pages");
+    firstPage.blocks = [];
+    firstPage.translationCompletion = {
+      workflow: "erase-original",
+      status: "pending",
+    };
+    secondPage.translationCompletion = {
+      workflow: "erase-original",
+      status: "pending",
+    };
+    const { startInpaintingJob } =
+      await import("../src/main/jobs/inpaintingJobs");
+
+    const result = await startInpaintingJob(
+      makeContext(send, revisionChanges),
+      {
+        mode: "selection-pattern",
+        workId: "work-a",
+        selections: [{ chapterId: chapterAId, mode: "all" }],
+      },
+      harness.runtime,
+    );
+
+    expect(result).toMatchObject({
+      status: "completed",
+      pagesChanged: 1,
+      blocksErased: 1,
+    });
+    expect(harness.inpaintPatternPage).toHaveBeenCalledTimes(1);
+    expect(harness.inpaintPatternPage).toHaveBeenCalledWith(
+      expect.objectContaining({ id: pageA2Id }),
+      expect.anything(),
+    );
+    expect(
+      result.chapters?.[0]?.pages.map((page) => page.translationCompletion),
+    ).toEqual([
+      { workflow: "erase-original", status: "completed" },
+      { workflow: "erase-original", status: "completed" },
+    ]);
+    expect(revisionChanges).toHaveLength(2);
+    expect(
+      revisionChanges.map((change) => ({
+        after: change.afterTranslationCompletion,
+        before: change.beforeTranslationCompletion,
+      })),
+    ).toEqual([
+      {
+        before: { workflow: "erase-original", status: "pending" },
+        after: { workflow: "erase-original", status: "completed" },
+      },
+      {
+        before: { workflow: "erase-original", status: "pending" },
+        after: { workflow: "erase-original", status: "completed" },
+      },
+    ]);
+  });
+
+  it("completes all no-text receipts without acquiring an engine", async () => {
+    const chapter = requireChapter(chapters, chapterAId);
+    for (const page of chapter.pages) {
+      page.blocks = [];
+      page.translationCompletion = {
+        workflow: "erase-original",
+        status: "pending",
+      };
+    }
+    const { startInpaintingJob } =
+      await import("../src/main/jobs/inpaintingJobs");
+
+    const result = await startInpaintingJob(
+      makeContext(send, revisionChanges),
+      {
+        mode: "selection-pattern",
+        workId: "work-a",
+        selections: [{ chapterId: chapterAId, mode: "all" }],
+      },
+      harness.runtime,
+    );
+
+    expect(result).toMatchObject({
+      status: "completed",
+      pagesChanged: 0,
+      blocksErased: 0,
+      historyTransaction: { transactionId: HISTORY_TRANSACTION_ID },
+    });
+    expect(harness.acquireEngine).not.toHaveBeenCalled();
+    expect(harness.inpaintPatternPage).not.toHaveBeenCalled();
+    expect(harness.runtime.savePages).toHaveBeenCalledTimes(2);
+    expect(
+      result.chapters?.[0]?.pages.every(
+        (page) => page.translationCompletion?.status === "completed",
+      ),
+    ).toBe(true);
+    expect(revisionChanges).toHaveLength(2);
+    expect(revisionChanges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          beforeTranslationCompletion: {
+            workflow: "erase-original",
+            status: "pending",
+          },
+          afterTranslationCompletion: {
+            workflow: "erase-original",
+            status: "completed",
+          },
+        }),
+      ]),
+    );
+  });
+
+  it("completes all no-text Bubble receipts without starting postprocess", async () => {
+    const chapter = requireChapter(chapters, chapterAId);
+    for (const page of chapter.pages) {
+      page.blocks = [];
+      page.translationCompletion = {
+        workflow: "bubble-layout",
+        status: "pending",
+      };
+    }
+    const { startInpaintingJob } =
+      await import("../src/main/jobs/inpaintingJobs");
+
+    const result = await startInpaintingJob(
+      makeContext(send, revisionChanges),
+      {
+        mode: "selection-pattern",
+        workId: "work-a",
+        selections: [{ chapterId: chapterAId, mode: "all" }],
+        postprocess: {
+          bubbleLayout: { enabled: true, policy: "balanced" },
+        },
+      },
+      harness.runtime,
+    );
+
+    expect(result).toMatchObject({
+      status: "completed",
+      pagesChanged: 0,
+      blocksErased: 0,
+      historyTransaction: { transactionId: HISTORY_TRANSACTION_ID },
+    });
+    expect(harness.acquireEngine).not.toHaveBeenCalled();
+    expect(harness.inpaintPatternPage).not.toHaveBeenCalled();
+    expect(harness.runtime.savePages).toHaveBeenCalledTimes(2);
+    expect(
+      result.chapters?.[0]?.pages.every(
+        (page) =>
+          page.translationCompletion?.workflow === "bubble-layout" &&
+          page.translationCompletion.status === "completed",
+      ),
+    ).toBe(true);
+    expect(revisionChanges).toHaveLength(2);
+    expect(revisionChanges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          beforeTranslationCompletion: {
+            workflow: "bubble-layout",
+            status: "pending",
+          },
+          afterTranslationCompletion: {
+            workflow: "bubble-layout",
+            status: "completed",
+          },
+        }),
+      ]),
+    );
+  });
+
+  it("does not treat a non-excluded block with an invalid box as no-text", async () => {
+    const chapter = requireChapter(chapters, chapterAId);
+    const page = chapter.pages[0];
+    const block = page?.blocks[0];
+    if (!page || !block) throw new Error("expected page block");
+    block.bbox = { ...block.bbox, w: 0 };
+    page.translationCompletion = {
+      workflow: "erase-original",
+      status: "pending",
+    };
+    const { startInpaintingJob } =
+      await import("../src/main/jobs/inpaintingJobs");
+
+    const result = await startInpaintingJob(
+      makeContext(send, revisionChanges),
+      {
+        mode: "selection-pattern",
+        workId: "work-a",
+        selections: [
+          {
+            chapterId: chapterAId,
+            mode: "page-set",
+            pageIds: [pageA1Id],
+          },
+        ],
+        postprocess: {
+          bubbleLayout: { enabled: false, policy: "balanced" },
+        },
+      },
+      harness.runtime,
+    );
+
+    expect(result.status).toBe("failed");
+    expect(result.chapters?.[0]?.pages[0]?.translationCompletion).toEqual({
+      workflow: "erase-original",
+      status: "failed",
+    });
+    expect(harness.inpaintPatternPage).not.toHaveBeenCalled();
+  });
+
+  it("fails the whole page when a valid block is mixed with an invalid required block", async () => {
+    const chapter = requireChapter(chapters, chapterAId);
+    const page = chapter.pages[0];
+    const validBlock = page?.blocks[0];
+    if (!page || !validBlock) throw new Error("expected page block");
+    page.blocks.push({
+      ...validBlock,
+      id: `${validBlock.id}-invalid`,
+      bbox: { ...validBlock.bbox, h: 0 },
+    });
+    page.translationCompletion = {
+      workflow: "erase-original",
+      status: "pending",
+    };
+    const { startInpaintingJob } =
+      await import("../src/main/jobs/inpaintingJobs");
+
+    const result = await startInpaintingJob(
+      makeContext(send, revisionChanges),
+      {
+        mode: "selection-pattern",
+        workId: "work-a",
+        selections: [
+          {
+            chapterId: chapterAId,
+            mode: "page-set",
+            pageIds: [pageA1Id],
+          },
+        ],
+      },
+      harness.runtime,
+    );
+
+    expect(result.status).toBe("failed");
+    expect(result.chapters?.[0]?.pages[0]?.translationCompletion?.status).toBe(
+      "failed",
+    );
+    expect(harness.inpaintPatternPage).not.toHaveBeenCalled();
+    expect(harness.runtime.savePages).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips a legacy blank page when another page has direct inpainting targets", async () => {
+    const chapter = requireChapter(chapters, chapterAId);
+    const blankPage = chapter.pages[0];
+    if (!blankPage) throw new Error("expected blank page");
+    blankPage.blocks = [];
+    delete blankPage.translationCompletion;
+    const { startInpaintingJob } =
+      await import("../src/main/jobs/inpaintingJobs");
+
+    const result = await startInpaintingJob(
+      makeContext(send, revisionChanges),
+      {
+        mode: "selection-pattern",
+        workId: "work-a",
+        selections: [{ chapterId: chapterAId, mode: "all" }],
+      },
+      harness.runtime,
+    );
+
+    expect(result).toMatchObject({
+      status: "completed",
+      pagesChanged: 1,
+      blocksErased: 1,
+    });
+    expect(harness.inpaintPatternPage).toHaveBeenCalledTimes(1);
+    expect(harness.inpaintPatternPage).toHaveBeenCalledWith(
+      expect.objectContaining({ id: pageA2Id }),
+      expect.anything(),
+    );
+    expect(harness.runtime.savePages).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows an explicitly excluded block to complete without inpainting", async () => {
+    const chapter = requireChapter(chapters, chapterAId);
+    const page = chapter.pages[0];
+    const block = page?.blocks[0];
+    if (!page || !block) throw new Error("expected page block");
+    block.inpaintExcluded = true;
+    page.translationCompletion = {
+      workflow: "erase-original",
+      status: "pending",
+    };
+    const { startInpaintingJob } =
+      await import("../src/main/jobs/inpaintingJobs");
+
+    const result = await startInpaintingJob(
+      makeContext(send, revisionChanges),
+      {
+        mode: "selection-pattern",
+        workId: "work-a",
+        selections: [
+          {
+            chapterId: chapterAId,
+            mode: "page-set",
+            pageIds: [pageA1Id],
+          },
+        ],
+        postprocess: {
+          bubbleLayout: { enabled: false, policy: "balanced" },
+        },
+      },
+      harness.runtime,
+    );
+
+    expect(result).toMatchObject({
+      status: "completed",
+      pagesChanged: 0,
+      blocksErased: 0,
+    });
+    expect(result.chapters?.[0]?.pages[0]?.translationCompletion).toEqual({
+      workflow: "erase-original",
+      status: "completed",
+    });
+    expect(harness.inpaintPatternPage).not.toHaveBeenCalled();
+  });
+
+  it("rejects an inpainting result for a different page before saving", async () => {
+    const page = requireChapter(chapters, chapterAId).pages[0];
+    if (!page) throw new Error("expected page");
+    harness.inpaintPatternPage.mockResolvedValueOnce({
+      page: {
+        ...page,
+        id: pageA2Id,
+        inpaintedImagePath: `${page.imagePath}.inpainted.png`,
+      },
+      blocksErased: 1,
+    });
+    const { startInpaintingJob } =
+      await import("../src/main/jobs/inpaintingJobs");
+
+    const result = await startInpaintingJob(
+      makeContext(send, revisionChanges),
+      {
+        mode: "selection-pattern",
+        workId: "work-a",
+        selections: [
+          {
+            chapterId: chapterAId,
+            mode: "page-set",
+            pageIds: [pageA1Id],
+          },
+        ],
+      },
+      harness.runtime,
+    );
+
+    expect(result).toMatchObject({
+      status: "failed",
+      pagesChanged: 0,
+      blocksErased: 0,
+    });
+    expect(harness.runtime.savePages).not.toHaveBeenCalled();
+    expect(revisionChanges).toHaveLength(0);
+  });
+
+  it("fails when the save result does not contain the committed artifact", async () => {
+    vi.mocked(harness.runtime.savePages).mockImplementationOnce(
+      async (chapterId) => requireChapter(chapters, chapterId),
+    );
+    const { startInpaintingJob } =
+      await import("../src/main/jobs/inpaintingJobs");
+
+    const result = await startInpaintingJob(
+      makeContext(send, revisionChanges),
+      {
+        mode: "selection-pattern",
+        workId: "work-a",
+        selections: [
+          {
+            chapterId: chapterAId,
+            mode: "page-set",
+            pageIds: [pageA1Id],
+          },
+        ],
+      },
+      harness.runtime,
+    );
+
+    expect(result).toMatchObject({
+      status: "failed",
+      error: "인페인팅 결과 이미지가 저장되지 않았습니다.",
+      pagesChanged: 0,
+      blocksErased: 0,
+    });
+    expect(revisionChanges).toHaveLength(0);
+  });
+
   it.each([
-    {
-      label: "duplicate chapters",
-      selections: [
-        { chapterId: chapterAId, mode: "all" as const },
-        { chapterId: chapterAId, mode: "all" as const },
-      ],
-      error: /Duplicate chapter/,
-    },
     {
       label: "duplicate pages",
       selections: [
@@ -162,7 +645,7 @@ describe("multi-chapter automatic inpainting jobs", () => {
     },
   );
 
-  it("rejects selections spanning multiple works", async () => {
+  it("rejects a selected chapter from a different work", async () => {
     chapters.set(
       chapterBId,
       makeChapter(chapterBId, "work-b", [makePage(pageB1Id, "b-1.png")]),
@@ -174,16 +657,13 @@ describe("multi-chapter automatic inpainting jobs", () => {
       {
         mode: "selection-pattern",
         workId: "work-a",
-        selections: [
-          { chapterId: chapterAId, mode: "all" },
-          { chapterId: chapterBId, mode: "all" },
-        ],
+        selections: [{ chapterId: chapterBId, mode: "all" }],
       },
       harness.runtime,
     );
 
     expect(result.status).toBe("failed");
-    expect(result.error).toMatch(/same work/);
+    expect(result.error).toMatch(/requested work/);
     expect(harness.acquireEngine).not.toHaveBeenCalled();
   });
 
@@ -225,6 +705,8 @@ describe("multi-chapter automatic inpainting jobs", () => {
       expect(result.historyTransaction).toEqual({
         transactionId: HISTORY_TRANSACTION_ID,
       });
+      expect(result.pagesChanged).toBe(1);
+      expect(result.blocksErased).toBe(1);
       expect(revisionChanges).toHaveLength(1);
       expect(revisionChanges[0]).toMatchObject({
         chapterId: chapterAId,
@@ -241,7 +723,7 @@ describe("multi-chapter automatic inpainting jobs", () => {
     },
   );
 
-  it("emits cancellation before refresh and waits for the runner to settle", async () => {
+  it("emits cancellation after refresh and before clearing the runner", async () => {
     const refreshedChapter = createDeferred<ChapterSnapshot>();
     vi.mocked(harness.runtime.openChapter).mockImplementation(
       async (chapterId) => {
@@ -296,9 +778,11 @@ describe("multi-chapter automatic inpainting jobs", () => {
     const cleanupPromise = job
       ? context.jobs.runCleanup(job, "test-cancel")
       : Promise.resolve();
-    await vi.waitFor(() => expect(terminalOrder).toEqual(["cancelled"]));
+    await vi.waitFor(() =>
+      expect(harness.runtime.openChapter).toHaveBeenCalledTimes(2),
+    );
+    expect(terminalOrder).toEqual([]);
     expect(context.jobs.current).not.toBeNull();
-    expect(harness.runtime.openChapter).toHaveBeenCalledTimes(2);
 
     refreshedChapter.resolve(requireChapter(chapters, chapterAId));
     await cleanupPromise;

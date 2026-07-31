@@ -86,6 +86,7 @@ describe("production bubble layout failure fallback", () => {
     const signal = new AbortController().signal;
 
     await runner.runPage({
+      failureMode: "best-effort",
       imagePath: files.original,
       page: prepassPage,
       paddingRatio: 0,
@@ -146,6 +147,7 @@ describe("production bubble layout failure fallback", () => {
     const signal = new AbortController().signal;
 
     await runner.runPage({
+      failureMode: "best-effort",
       imagePath: files.original,
       page: prepassPage,
       paddingRatio: 0,
@@ -187,6 +189,7 @@ describe("production bubble layout failure fallback", () => {
     const signal = new AbortController().signal;
 
     await runner.runPage({
+      failureMode: "best-effort",
       imagePath: files.cleaned,
       page,
       policy: "balanced",
@@ -208,6 +211,25 @@ describe("production bubble layout failure fallback", () => {
     );
   });
 
+  it("defaults an unspecified failure mode to required", async () => {
+    const files = await createPageFiles();
+    const page = makePage(files.original, files.cleaned);
+    const { createProductionBubbleLayoutRunner } =
+      await import("../src/main/bubbleLayout/bubbleLayoutFacade");
+    const runner = createProductionBubbleLayoutRunner({
+      dataRoot: files.root,
+    });
+
+    await expect(
+      runner.runPage({
+        imagePath: files.cleaned,
+        page,
+        policy: "balanced",
+        signal: new AbortController().signal,
+      }),
+    ).rejects.toThrow("detector unavailable");
+  });
+
   it("preserves a current generated layout but clears it after the image changes", async () => {
     const files = await createPageFiles();
     const page = makePage(files.original, files.cleaned);
@@ -223,6 +245,7 @@ describe("production bubble layout failure fallback", () => {
     });
 
     const current = await runner.runPage({
+      failureMode: "best-effort",
       imagePath: files.cleaned,
       page,
       policy: "balanced",
@@ -232,6 +255,7 @@ describe("production bubble layout failure fallback", () => {
 
     await writeFile(files.cleaned, "changed-cleaned-image", "utf8");
     const stale = await runner.runPage({
+      failureMode: "best-effort",
       imagePath: files.cleaned,
       page,
       policy: "balanced",
@@ -265,6 +289,7 @@ describe("production bubble layout failure fallback", () => {
     });
 
     const result = await runner.runPage({
+      failureMode: "best-effort",
       imagePath: files.cleaned,
       page,
       policy: "balanced",

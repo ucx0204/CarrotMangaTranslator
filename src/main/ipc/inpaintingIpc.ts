@@ -21,6 +21,7 @@ import type {
 import { applyInpaintingRetouch, sampleImageColor } from "../inpainting";
 import { disposeCachedInpaintingEngines } from "../inpainting/inpaintingEnginePool";
 import type { InpaintingRevisionStore } from "../inpainting/inpaintingRevisionStore";
+import { prepareInpaintingRevertRevision } from "../inpainting/inpaintingRevisionPreparation";
 import { startInpaintingJob } from "../jobs/inpaintingJobs";
 import {
   assertLibraryImagePath,
@@ -109,6 +110,8 @@ function registerInpaintingRetouchIpc(context: IpcContext): void {
         pageId: request.pageId,
         beforePath: page.inpaintedImagePath,
         afterPath: nextPage.inpaintedImagePath,
+        beforeTranslationCompletion: page.translationCompletion,
+        afterTranslationCompletion: nextPage.translationCompletion,
       });
       if (!changeAdded) {
         revisionStore.discardIfEmpty(transactionId);
@@ -203,19 +206,16 @@ function registerInpaintingRevertIpc(context: IpcContext): void {
           pagesChanged: 0,
         };
       }
-      const reverted = pages.map((page) => ({
-        ...page,
-        inpaintedImagePath: undefined,
-        updatedAt: new Date().toISOString(),
-      }));
-      const transactionId = revisionStore.beginTransaction();
-      for (const page of pages) {
-        revisionStore.addChange(transactionId, {
+      const revisions = pages.map((page) =>
+        prepareInpaintingRevertRevision({
           chapterId: request.chapterId,
-          pageId: page.id,
-          beforePath: page.inpaintedImagePath,
-          afterPath: undefined,
-        });
+          page,
+        }),
+      );
+      const reverted = revisions.map((revision) => revision.revertedPage);
+      const transactionId = revisionStore.beginTransaction();
+      for (const revision of revisions) {
+        revisionStore.addChange(transactionId, revision.change);
       }
       let saved: Awaited<ReturnType<typeof updatePagesAfterInpainting>>;
       try {

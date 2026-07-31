@@ -183,7 +183,7 @@
   "translation": {
     "noPages": "沒有需要翻譯的頁面。",
     "allPagesFailed": "翻譯失敗：所有頁面均失敗。請檢查各頁面狀態與記錄中的最新錯誤。",
-    "completedWithFailures": "翻譯完成 - {{count}} 頁失敗",
+    "incompleteWithFailures": "翻譯未完成（{{count}} 頁未能完成）",
     "completed": "翻譯工作完成",
     "vram": {
       "minimum12b": "12B 最低模式",
@@ -270,6 +270,8 @@
     "cancelled": "修補工作已取消。",
     "failed": "修補工作失敗",
     "pageNotFound": "找不到要修補的頁面。",
+    "noTargets": "沒有可修補的文字區塊。",
+    "noChanges": "未產生修補結果。",
     "assets": { "fluxModel": "Flux 模型", "aot": "AOT 修補" },
     "runtime": {
       "fluxReady": "Flux 修補準備完成",

@@ -271,6 +271,75 @@ describe("Flux inpainting engine change detection", () => {
     },
   );
 
+  it("accepts a fully contained target mask handled by an earlier crop", async () => {
+    const logWarn = vi.fn();
+    vi.doMock("electron", () => ({ nativeImage: createFakeNativeImage() }));
+
+    const { createFluxEngine } =
+      await import("../src/main/inpainting/fluxEngine");
+    const root = createTempDir("mgt-flux-contained-mask-");
+    const capturePath = join(root, "request-count.txt");
+    const workerPath = join(root, "changing-worker.cjs");
+    writeFileSync(
+      workerPath,
+      createMaskChangingWorkerScript(capturePath),
+      "utf8",
+    );
+    const engine = createFluxEngine({
+      diagnostics: { info: vi.fn(), warn: logWarn },
+      launch: {
+        backend: "cuda-native",
+        executable: process.execPath,
+        args: [workerPath],
+        runtimePath: root,
+        label: "test Flux worker",
+      },
+      runRootDir: root,
+    });
+    const width = 64;
+    const height = 64;
+    const bitmap = Buffer.alloc(width * height * 4, 180);
+    const mask = new Uint8Array(width * height);
+    const outer = {
+      bounds: { x: 16, y: 16, w: 16, h: 16 },
+      data: new Uint8Array(16 * 16).fill(1),
+    };
+    const inner = {
+      bounds: { x: 20, y: 20, w: 4, h: 4 },
+      data: new Uint8Array(4 * 4).fill(1),
+    };
+    for (let y = 16; y < 32; y += 1) {
+      mask.fill(1, y * width + 16, y * width + 32);
+    }
+
+    await expect(
+      engine.inpaint(
+        bitmap,
+        width,
+        height,
+        mask,
+        [outer.bounds, inner.bounds],
+        {
+          contextPx: 16,
+          featherPx: 0,
+          maskPaddingPx: 0,
+          maxPixels: 256 * 256,
+          windowMasks: [outer, inner],
+          compositeConstraints: [outer, inner],
+          requirePixelChange: true,
+        },
+      ),
+    ).resolves.toBeUndefined();
+    await engine.dispose();
+
+    expect(readFileSync(capturePath, "utf8")).toBe("1");
+    expect(bitmap[(20 * width + 20) * 4]).toBe(0);
+    expect(logWarn).not.toHaveBeenCalledWith(
+      expect.stringContaining("skipped"),
+      expect.anything(),
+    );
+  });
+
   it("sends zero runner padding after expanding the mask in the app", async () => {
     vi.doMock("electron", () => ({ nativeImage: createFakeNativeImage() }));
 
@@ -309,7 +378,7 @@ describe("Flux inpainting engine change detection", () => {
     expect(capture.activeMaskPixels).toBeGreaterThan(1);
   });
 
-  it("warns instead of failing when every crop comes back unchanged", async () => {
+  it("fails when every crop comes back unchanged", async () => {
     const logWarn = vi.fn();
     vi.doMock("electron", () => ({ nativeImage: createFakeNativeImage() }));
 
@@ -337,8 +406,9 @@ describe("Flux inpainting engine change detection", () => {
         contextPx: 16,
         maskPaddingPx: 0,
         maxPixels: 256 * 256,
+        requirePixelChange: true,
       }),
-    ).resolves.toBeUndefined();
+    ).rejects.toThrow("인페인팅 결과가 생성되지 않았습니다.");
     await engine.dispose();
 
     expect(logWarn).toHaveBeenCalledWith(
@@ -477,6 +547,41 @@ rl.on("line", (line) => {
   requests.push({ activePixels });
   fs.writeFileSync(${JSON.stringify(capturePath)}, JSON.stringify(requests));
   fs.copyFileSync(request.input, request.output);
+  process.stdout.write(JSON.stringify({ id: request.id, ok: true }) + "\\n");
+});
+`;
+}
+
+function createMaskChangingWorkerScript(capturePath: string): string {
+  return `
+const fs = require("node:fs");
+const readline = require("node:readline");
+const rl = readline.createInterface({ input: process.stdin });
+rl.on("line", (line) => {
+  const request = JSON.parse(line);
+  if (request.type === "shutdown") {
+    process.exit(0);
+  }
+  const inputFile = fs.readFileSync(request.input);
+  const inputNewline = inputFile.indexOf(10);
+  const inputBitmap = Buffer.from(inputFile.subarray(inputNewline + 1));
+  const maskFile = fs.readFileSync(request.mask);
+  const maskNewline = maskFile.indexOf(10);
+  const maskBitmap = maskFile.subarray(maskNewline + 1);
+  for (let offset = 0; offset < maskBitmap.length; offset += 4) {
+    if (maskBitmap[offset] === 0) continue;
+    inputBitmap[offset] = 0;
+    inputBitmap[offset + 1] = 0;
+    inputBitmap[offset + 2] = 0;
+  }
+  fs.writeFileSync(
+    request.output,
+    Buffer.concat([inputFile.subarray(0, inputNewline + 1), inputBitmap]),
+  );
+  const requestCount = fs.existsSync(${JSON.stringify(capturePath)})
+    ? Number(fs.readFileSync(${JSON.stringify(capturePath)}, "utf8"))
+    : 0;
+  fs.writeFileSync(${JSON.stringify(capturePath)}, String(requestCount + 1));
   process.stdout.write(JSON.stringify({ id: request.id, ok: true }) + "\\n");
 });
 `;

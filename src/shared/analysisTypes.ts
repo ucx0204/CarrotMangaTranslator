@@ -1,5 +1,6 @@
 import type { BBox } from "./textTypes";
 import type { ChapterSnapshot } from "./libraryTypes";
+import type { TranslationCompletionWorkflow } from "./libraryTypes";
 
 export type AnalysisBlockMode = "auto" | "keep";
 
@@ -9,6 +10,8 @@ type TranslationRunOptions = {
   naturalTextLayout?: boolean;
   /** Choose locale-compatible fonts for newly detected translation blocks. */
   autoFontMatching?: boolean;
+  /** Required downstream stage for a combined translation workflow. */
+  completionWorkflow?: TranslationCompletionWorkflow;
 };
 
 export type StartAnalysisRequest = TranslationRunOptions &

@@ -274,6 +274,7 @@ export async function updatePagesAfterAnalysisUnlocked(
       ...record,
       blocks: update.page.blocks,
       analysisStatus: "completed",
+      translationCompletion: update.page.translationCompletion,
       lastError: undefined,
       updatedAt: now,
     };

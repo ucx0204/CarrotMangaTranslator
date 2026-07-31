@@ -16,6 +16,12 @@ const PageAnalysisStatusSchema = z.enum([
   "completed",
   "failed",
 ]);
+const TranslationCompletionReceiptSchema = z
+  .object({
+    workflow: z.enum(["erase-original", "bubble-layout"]),
+    status: z.enum(["pending", "completed", "failed"]),
+  })
+  .strict();
 const ChapterStatusSchema = z.enum([
   "idle",
   "running",
@@ -41,6 +47,7 @@ const MangaPageSchema = z
     height: z.number().int().min(1).max(100000),
     blocks: z.array(TranslationBlockSchema).max(MAX_BLOCKS_PER_PAGE),
     analysisStatus: PageAnalysisStatusSchema,
+    translationCompletion: TranslationCompletionReceiptSchema.optional(),
     lastError: z.string().max(4000).optional(),
     createdAt: z.string().max(80),
     updatedAt: z.string().max(80),
@@ -57,6 +64,7 @@ const LibraryPageRecordSchema = z
     height: z.number().int().min(1).max(100000),
     blocks: z.array(TranslationBlockSchema).max(MAX_BLOCKS_PER_PAGE),
     analysisStatus: PageAnalysisStatusSchema,
+    translationCompletion: TranslationCompletionReceiptSchema.optional(),
     lastError: z.string().max(4000).optional(),
     createdAt: z.string().max(80),
     updatedAt: z.string().max(80),

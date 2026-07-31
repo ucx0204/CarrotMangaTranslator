@@ -70,6 +70,7 @@ function makeOptions(
     refreshLibrary: vi.fn().mockResolvedValue(undefined),
     saveNow: vi.fn().mockResolvedValue(undefined),
     selectedPage: makePage(),
+    setFlowActive: vi.fn(),
     setInpaintingTool: vi.fn(),
     setJobState: vi.fn(),
     setPatternMaskStrokesByPage: vi.fn(),
@@ -83,6 +84,8 @@ function makeOptions(
 afterEach(() => {
   cleanup();
   window.mangaApi = createTestMangaGatewayStub();
+  startInpainting.mockReset();
+  revertInpainting.mockReset();
   vi.clearAllMocks();
 });
 
@@ -121,9 +124,107 @@ describe("useRunInpaintingSelectionAction", () => {
     expect(options.workspaceHistory.recordImageEdit).toHaveBeenCalledWith(
       expect.objectContaining({ transactionId: "tx-batch" }),
     );
+    expect(options.setFlowActive).toHaveBeenNthCalledWith(1, true);
+    expect(options.setFlowActive).toHaveBeenLastCalledWith(false);
+    expect(options.setJobState).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        id: "inpainting-flow-completed",
+        status: "completed",
+      }),
+    );
+    expect(options.pushStatus).toHaveBeenCalledOnce();
     expect(vi.mocked(options.saveNow).mock.invocationCallOrder[0]).toBeLessThan(
       startInpainting.mock.invocationCallOrder[0] ?? 0,
     );
+  });
+
+  it("stops the chapter sequence at the first failed result", async () => {
+    const options = makeOptions();
+    const chapter2 = {
+      ...makeChapter(),
+      id: "chapter-2",
+      title: "2화",
+    };
+    startInpainting
+      .mockResolvedValueOnce({
+        status: "completed",
+        chapters: [makeChapter()],
+        pagesChanged: 1,
+        blocksErased: 1,
+        historyTransaction: { transactionId: "tx-1" },
+      })
+      .mockResolvedValueOnce({
+        status: "failed",
+        error: "chapter 2 failed",
+        chapters: [chapter2],
+        historyTransaction: { transactionId: "tx-2" },
+      });
+    const { result } = renderHook(() =>
+      useRunInpaintingSelectionAction(options),
+    );
+
+    await act(() =>
+      result.current(
+        [
+          { chapterId: "chapter-1", mode: "all" },
+          { chapterId: "chapter-2", mode: "all" },
+          { chapterId: "chapter-3", mode: "all" },
+        ],
+        {
+          bubbleLayout: { enabled: true, policy: "balanced" },
+        },
+      ),
+    );
+
+    expect(startInpainting).toHaveBeenCalledTimes(2);
+    expect(
+      startInpainting.mock.calls.map(([request]) => request.selections),
+    ).toEqual([
+      [{ chapterId: "chapter-1", mode: "all" }],
+      [{ chapterId: "chapter-2", mode: "all" }],
+    ]);
+    expect(options.workspaceHistory.recordImageEdit).toHaveBeenCalledTimes(2);
+    expect(options.setJobState).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        id: "inpainting-flow-failed",
+        status: "failed",
+        detail: "chapter 2 failed",
+      }),
+    );
+    expect(options.setShowBlockChrome).not.toHaveBeenCalled();
+    expect(options.refreshLibrary).toHaveBeenCalledOnce();
+  });
+
+  it("stops immediately on cancellation and leaves aggregate state cancelled", async () => {
+    const options = makeOptions();
+    startInpainting
+      .mockResolvedValueOnce({
+        status: "completed",
+        chapters: [makeChapter()],
+        pagesChanged: 1,
+        blocksErased: 1,
+      })
+      .mockResolvedValueOnce({ status: "cancelled" });
+    const { result } = renderHook(() =>
+      useRunInpaintingSelectionAction(options),
+    );
+
+    await act(() =>
+      result.current([
+        { chapterId: "chapter-1", mode: "all" },
+        { chapterId: "chapter-2", mode: "all" },
+        { chapterId: "chapter-3", mode: "all" },
+      ]),
+    );
+
+    expect(startInpainting).toHaveBeenCalledTimes(2);
+    expect(options.setJobState).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        id: "inpainting-flow-cancelled",
+        status: "cancelled",
+      }),
+    );
+    expect(options.setFlowActive).toHaveBeenLastCalledWith(false);
   });
 
   it("does not start when saving dirty edits fails", async () => {

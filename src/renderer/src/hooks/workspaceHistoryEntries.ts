@@ -27,6 +27,7 @@ export type RecordWorkspaceImageEdit = Omit<
   "mergeKey"
 > & {
   transactionId: string;
+  chapterId?: string;
   mask?: WorkspaceImageEditHistoryEntry["mask"];
 };
 
@@ -67,6 +68,7 @@ export function createImageHistoryEntry(
     label: input.label,
     time: input.time ?? Date.now(),
     transactionId: input.transactionId,
+    chapterId: input.chapterId,
     mask: input.mask,
   };
 }

@@ -5,13 +5,21 @@ import type {
 import type { JobEvent } from "../../shared/jobTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
 import type { AppSettings } from "../../shared/settingsTypes";
+import { isBubbleLayoutBlockEligible } from "../bubbleLayout/bubbleLayoutBlockEligibility";
+import { countEligiblePatternBlocks } from "../inpainting/patternBlockEligibility";
 import { prepareBubbleLayoutJob } from "./bubbleLayoutJob";
-import { isAbortError } from "./jobEvents";
 import {
-  processInpaintingPage,
-  type InpaintingJobState,
-  type InpaintingTarget,
-} from "./inpaintingJobPageProcessor";
+  assertInpaintingJobHasTargets,
+  markFailedTranslationCompletions,
+  recordSavedInpaintingChapter,
+  refreshInpaintingRequestChapters,
+} from "./inpaintingJobCompletion";
+import { isAbortError } from "./jobEvents";
+import { processInpaintingPage } from "./inpaintingJobPageProcessor";
+import type {
+  InpaintingJobState,
+  InpaintingTarget,
+} from "./inpaintingJobPageTypes";
 import type { InpaintingJobContext } from "./inpaintingJobTypes";
 import type { InpaintingJobRuntime } from "./inpaintingJobRuntime";
 import { saveInpaintingPageResult } from "./inpaintingJobHistory";
@@ -27,8 +35,6 @@ type OpenedChapter = Awaited<ReturnType<InpaintingJobRuntime["openChapter"]>>;
 type InpaintingEngineLease = Awaited<
   ReturnType<InpaintingJobRuntime["acquireEngine"]>
 >;
-
-export type { InpaintingJobState };
 
 export type InpaintingJobPage = {
   chapterId: string;
@@ -121,18 +127,29 @@ export async function handleInpaintingJobError({
 }): Promise<StartInpaintingResult> {
   const lastEvent = getLastJobEvent(context, id);
   if (isAbortError(error) || abortController.signal.aborted) {
+    const refreshed = await refreshInpaintingRequestChapters(
+      request,
+      state,
+      runtime,
+    );
     emitInpaintingCancelled(id, emit, lastEvent);
-    const refreshed = await refreshRequestChapters(request, state, runtime);
     return {
       status: "cancelled",
       ...refreshed,
+      pagesChanged: state.pagesChanged,
+      blocksErased: state.blocksErased,
       historyTransaction: context.inpaintingRevisionStore?.getReference(
         state.historyTransactionId,
       ),
     };
   }
 
-  const refreshed = await refreshRequestChapters(request, state, runtime);
+  await markFailedTranslationCompletions(request, state, runtime);
+  const refreshed = await refreshInpaintingRequestChapters(
+    request,
+    state,
+    runtime,
+  );
   const message = error instanceof Error ? error.message : String(error);
   runtime.logError("Inpainting job failed", {
     jobId: id,
@@ -145,31 +162,12 @@ export async function handleInpaintingJobError({
     status: "failed",
     error: message,
     ...refreshed,
+    pagesChanged: state.pagesChanged,
+    blocksErased: state.blocksErased,
     historyTransaction: context.inpaintingRevisionStore?.getReference(
       state.historyTransactionId,
     ),
   };
-}
-
-async function refreshRequestChapters(
-  request: StartInpaintingRequest,
-  state: InpaintingJobState,
-  runtime: InpaintingJobRuntime,
-): Promise<Pick<StartInpaintingResult, "chapter" | "chapters">> {
-  if (request.mode !== "selection-pattern") {
-    return {
-      chapter: await runtime
-        .openChapter(request.chapterId)
-        .catch(() => state.chapter ?? undefined),
-    };
-  }
-
-  const chapters = await Promise.all(
-    request.selections.map(async ({ chapterId }) =>
-      runtime.openChapter(chapterId).catch(() => state.chapters.get(chapterId)),
-    ),
-  );
-  return { chapters: chapters.filter((chapter) => chapter !== undefined) };
 }
 
 function resolveInpaintingTarget(
@@ -207,13 +205,23 @@ function countTargetBlocks(
   pages: MangaPage[],
   target: InpaintingTarget,
 ): number {
-  if (target.blockId) {
-    return 1;
-  }
   if (target.drawnPatternMode) {
     return target.drawnStrokes.length;
   }
-  return pages.reduce((count, page) => count + page.blocks.length, 0);
+  if (target.layoutOnly) {
+    return pages.reduce(
+      (count, page) =>
+        count +
+        page.blocks.filter((block) =>
+          isBubbleLayoutBlockEligible(block, target.blockId),
+        ).length,
+      0,
+    );
+  }
+  return pages.reduce(
+    (count, page) => count + countEligiblePatternBlocks(page, target.blockId),
+    0,
+  );
 }
 
 function assertRequestedBlockExists(
@@ -255,8 +263,6 @@ async function processInpaintingPages({
   totalTargetBlocks: number;
   runtime: InpaintingJobRuntime;
 }): Promise<ProcessInpaintingPagesResult> {
-  let blocksErased = 0;
-  let pagesChanged = 0;
   const preparedBubbleLayout = await prepareBubbleLayoutJob({
     context,
     request,
@@ -266,6 +272,7 @@ async function processInpaintingPages({
   const { appSettings } = preparedBubbleLayout;
   state.bubbleLayoutPostprocess = preparedBubbleLayout.config;
   state.bubbleLayoutRunner = preparedBubbleLayout.runner;
+  assertInpaintingJobHasTargets(targets, state, target, totalTargetBlocks);
   state.inpaintingEngineLease = await acquireInpaintingEngineIfNeeded({
     abortController,
     appSettings,
@@ -291,11 +298,9 @@ async function processInpaintingPages({
       target,
       runtime,
     });
-    if (result.blocksErased <= 0) {
+    if (result.blocksErased <= 0 && !result.workflowReceiptChanged) {
       continue;
     }
-    blocksErased += result.blocksErased;
-    pagesChanged += 1;
     const savedChapter = await saveInpaintingPageResult({
       context,
       result,
@@ -303,25 +308,18 @@ async function processInpaintingPages({
       targetPage,
       runtime,
     });
-    recordSavedChapter(state, targetPage.chapterId, savedChapter);
+    recordSavedInpaintingChapter(state, targetPage.chapterId, savedChapter);
+    if (result.blocksErased > 0) {
+      state.blocksErased += result.blocksErased;
+      state.pagesChanged += 1;
+    }
   }
 
   return {
     savedChapters: [...state.chapters.values()],
-    pagesChanged,
-    blocksErased,
+    pagesChanged: state.pagesChanged,
+    blocksErased: state.blocksErased,
   };
-}
-
-function recordSavedChapter(
-  state: InpaintingJobState,
-  chapterId: string,
-  chapter: OpenedChapter,
-): void {
-  state.chapters.set(chapterId, chapter);
-  if (state.chapter?.id === chapterId) {
-    state.chapter = chapter;
-  }
 }
 
 async function acquireInpaintingEngineIfNeeded({

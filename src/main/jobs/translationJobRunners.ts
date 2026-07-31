@@ -16,6 +16,7 @@ import {
 import { logError } from "../logger";
 import { tMain } from "./localization";
 import type { PipelineOptions } from "../pipeline/types";
+import type { MangaPage } from "../../shared/libraryTypes";
 import { runWholePagePipeline } from "../wholePagePipeline";
 import { isAbortError } from "./jobEvents";
 import type { TranslationJobContext } from "./translationJobTypes";
@@ -150,7 +151,7 @@ function buildAnalysisPipelineCallbacks({
     onPageComplete: async (page) => {
       return updatePageAfterAnalysis(
         request.chapterId,
-        page,
+        withTranslationCompletionReceipt(page, request),
         [],
         "completed",
         expectedUpdatedAtByPageId.get(page.id),
@@ -160,7 +161,7 @@ function buildAnalysisPipelineCallbacks({
       return updatePagesAfterAnalysis(
         request.chapterId,
         pages.map((page) => ({
-          page,
+          page: withTranslationCompletionReceipt(page, request),
           warnings: [],
           status: "completed" as const,
           expectedUpdatedAt: expectedUpdatedAtByPageId.get(page.id),
@@ -179,41 +180,93 @@ function buildAnalysisPipelineCallbacks({
   };
 }
 
-function completeAnalysisJob(
+function withTranslationCompletionReceipt(
+  page: MangaPage,
+  request: StartAnalysisRequest,
+): MangaPage {
+  return {
+    ...page,
+    translationCompletion: request.completionWorkflow
+      ? { workflow: request.completionWorkflow, status: "pending" }
+      : undefined,
+  };
+}
+
+export async function completeAnalysisJob(
   id: string,
   emit: EmitJobEvent,
   request: StartAnalysisRequest,
   resolved: ResolvedRunPages,
   result: PipelineResult,
+  openPersistedChapter: typeof openChapter = openChapter,
 ): Promise<StartAnalysisResult> {
-  const failedPageCount = result.pages.filter(
-    (page) => page.analysisStatus === "failed",
+  // The pipeline result can still look completed when persisting a page loses
+  // an optimistic-concurrency race. Re-open the chapter before emitting a
+  // terminal event and treat anything other than a persisted completed target
+  // as an incomplete job.
+  const chapter = await openPersistedChapter(request.chapterId);
+  const persistedPagesById = new Map(
+    chapter.pages.map((page) => [page.id, page]),
+  );
+  const incompletePageCount = resolved.pages.filter(
+    (page) =>
+      !isPersistedAnalysisTargetComplete(
+        persistedPagesById.get(page.id),
+        request,
+      ),
   ).length;
-  if (failedPageCount === result.pages.length) {
-    throw new Error(tMain("translation.allPagesFailed"));
+
+  if (incompletePageCount > 0) {
+    const message = tMain("translation.incompleteWithFailures", {
+      count: incompletePageCount,
+    });
+    emit({
+      id,
+      kind: "gemma-analysis",
+      status: "failed",
+      progressText: message,
+      phase: "failed",
+      progressCurrent: resolved.pages.length,
+      progressTotal: resolved.pages.length,
+      pageTotal: resolved.pages.length,
+      detail: message,
+    });
+    return {
+      status: "failed",
+      chapter,
+      warnings: result.warnings,
+      error: message,
+    };
   }
 
   emit({
     id,
     kind: "gemma-analysis",
     status: "completed",
-    progressText:
-      failedPageCount > 0
-        ? tMain("translation.completedWithFailures", {
-            count: failedPageCount,
-          })
-        : tMain("translation.completed"),
+    progressText: tMain("translation.completed"),
     phase: "done",
     progressCurrent: resolved.pages.length,
     progressTotal: resolved.pages.length,
     pageTotal: resolved.pages.length,
   });
 
-  return openChapter(request.chapterId).then((chapter) => ({
+  return {
     status: "completed",
     chapter,
     warnings: result.warnings,
-  }));
+  };
+}
+
+function isPersistedAnalysisTargetComplete(
+  page: MangaPage | undefined,
+  request: StartAnalysisRequest,
+): boolean {
+  if (page?.analysisStatus !== "completed") return false;
+  if (!request.completionWorkflow) return true;
+  return (
+    page.translationCompletion?.workflow === request.completionWorkflow &&
+    page.translationCompletion.status === "pending"
+  );
 }
 
 async function handleAnalysisAbort(
@@ -232,6 +285,9 @@ async function handleAnalysisAbort(
       id,
     );
   }
+  const chapter = await openChapter(request.chapterId).catch(
+    () => state.resolved?.chapter,
+  );
   emit({
     id,
     kind: "gemma-analysis",
@@ -247,9 +303,7 @@ async function handleAnalysisAbort(
   });
   return {
     status: "cancelled",
-    chapter: await openChapter(request.chapterId).catch(
-      () => state.resolved?.chapter,
-    ),
+    chapter,
   };
 }
 
@@ -283,13 +337,14 @@ async function handleAnalysisFailure(
     lastEvent,
     error,
   });
+  const chapter = await openChapter(request.chapterId).catch(
+    () => state.resolved?.chapter,
+  );
   emitFailedAnalysisJob(id, emit, lastEvent, message);
   return {
     status: "failed",
     error: message,
-    chapter: await openChapter(request.chapterId).catch(
-      () => state.resolved?.chapter,
-    ),
+    chapter,
   };
 }
 

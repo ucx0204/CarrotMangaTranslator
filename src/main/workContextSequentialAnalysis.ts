@@ -9,6 +9,7 @@ import type { TranslationOptions } from "./appSettings";
 import { getChapterStoryMemory } from "./library";
 import { logWarn } from "./logger";
 import { loadTranslationRuntimePort } from "./translationRuntime";
+import type { TranslationRuntimePort } from "./pipeline/translationRuntimePort";
 import type { ModelEndpointHandle } from "./pipeline/types";
 import { resolveLanguagePair } from "../shared/translationLanguages";
 import {
@@ -34,6 +35,8 @@ export async function runSequentialWorkAnalysis({
   options,
   maxInputChars,
   runChapterAnalysis,
+  startEndpointSession = (sessionOptions) =>
+    loadTranslationRuntimePort().startEndpointSession(sessionOptions),
 }: {
   guide: WorkStyleGuide;
   request: AnalyzeWorkContextRequest;
@@ -42,9 +45,9 @@ export async function runSequentialWorkAnalysis({
   options: TranslationOptions;
   maxInputChars: number;
   runChapterAnalysis: RunChapterAnalysis;
+  startEndpointSession?: TranslationRuntimePort["startEndpointSession"];
 }): Promise<AnalyzeWorkContextResult> {
-  const runtime = loadTranslationRuntimePort();
-  const session = await runtime.startEndpointSession(options);
+  const session = await startEndpointSession(options);
   const state = createSequentialState({
     guide,
     workId,
@@ -54,6 +57,7 @@ export async function runSequentialWorkAnalysis({
   });
   try {
     for (const chapter of chapters) {
+      options.abortSignal?.throwIfAborted();
       await analyzeSequentialChapter({
         chapter,
         state,
@@ -211,6 +215,7 @@ async function persistSequentialChapter({
       ),
     );
   } catch (error) {
+    options.abortSignal?.throwIfAborted();
     state.errors.push(error);
     logWarn("AI work context chapter analysis failed", {
       chapterId: chapter.id,

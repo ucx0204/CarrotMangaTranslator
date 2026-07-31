@@ -183,7 +183,7 @@
   "translation": {
     "noPages": "번역할 페이지가 없습니다.",
     "allPagesFailed": "번역 작업 실패: 모든 페이지가 실패했습니다. 마지막 오류는 각 페이지 상태와 로그를 확인하세요.",
-    "completedWithFailures": "번역 완료 - {{count}}페이지 실패",
+    "incompleteWithFailures": "번역 미완료 - {{count}}페이지를 완료하지 못했습니다.",
     "completed": "번역 작업 완료",
     "vram": {
       "minimum12b": "12B 최소 모드",
@@ -270,6 +270,8 @@
     "cancelled": "인페인팅 작업이 취소되었습니다.",
     "failed": "인페인팅 작업 실패",
     "pageNotFound": "인페인팅할 페이지를 찾지 못했습니다.",
+    "noTargets": "인페인팅할 텍스트 블록이 없습니다.",
+    "noChanges": "인페인팅 결과가 생성되지 않았습니다.",
     "assets": { "fluxModel": "Flux 모델", "aot": "AOT 인페인팅" },
     "runtime": {
       "fluxReady": "Flux 인페인팅 준비 완료",

@@ -1,6 +1,7 @@
 import {
   useCallback,
   useMemo,
+  useRef,
   useState,
   type Dispatch,
   type SetStateAction,
@@ -26,7 +27,17 @@ export function useAppSessionUiState() {
   const [textViewOpen, setTextViewOpen] = useState(false);
   const [styleGuideOpen, setStyleGuideOpen] = useState(false);
   const translateModals = useTranslateModalUiState();
-  const [translationFlowActive, setTranslationFlowActive] = useState(false);
+  const [jobFlowActive, setJobFlowActiveState] = useState(false);
+  const jobFlowActiveRef = useRef(false);
+  const jobFlowCancellationRef = useRef(false);
+  const setJobFlowActive = useCallback((active: boolean) => {
+    if (active) jobFlowCancellationRef.current = false;
+    jobFlowActiveRef.current = active;
+    setJobFlowActiveState(active);
+  }, []);
+  const requestJobFlowCancellation = useCallback(() => {
+    if (jobFlowActiveRef.current) jobFlowCancellationRef.current = true;
+  }, []);
   const [editorFloating, setEditorFloating] = useState(false);
   const [stageToolbarHidden, setStageToolbarHidden] = useState(false);
   const zoom = useWorkspaceZoomControls();
@@ -59,14 +70,18 @@ export function useAppSessionUiState() {
     setStageToolbarHidden,
     setStyleGuideOpen,
     setTextViewOpen,
-    setTranslationFlowActive,
+    jobFlowActive,
+    jobFlowCancellationRef,
+    requestJobFlowCancellation,
+    setJobFlowActive,
+    setTranslationFlowActive: setJobFlowActive,
     shortcutHelpOpen,
     showBlockChrome,
     showTextBlocks,
     stageToolbarHidden,
     styleGuideOpen,
     textViewOpen,
-    translationFlowActive,
+    translationFlowActive: jobFlowActive,
   };
 }
 

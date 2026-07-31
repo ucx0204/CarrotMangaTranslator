@@ -158,7 +158,12 @@ describe("AutoInpaintingOptionsModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "자동 지우기 시작" }));
     expect(current.onStart).toHaveBeenCalledWith(
       [{ chapterId: CHAPTER_ID, mode: "page-set", pageIds: ["p2"] }],
-      undefined,
+      {
+        bubbleLayout: {
+          enabled: false,
+          policy: "balanced",
+        },
+      },
     );
 
     cleanup();

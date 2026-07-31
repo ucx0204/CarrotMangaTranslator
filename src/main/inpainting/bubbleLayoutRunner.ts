@@ -35,6 +35,11 @@ export type BubbleLayoutBlockPatch = {
 };
 
 export type BubbleLayoutRunnerRequest = {
+  /**
+   * Mask preparation may fall back and let the final pass retry. A persisted
+   * final/layout-only pass must surface detector and image-processing errors.
+   */
+  failureMode?: "best-effort" | "required";
   imagePath: string;
   page: MangaPage;
   policy: BubbleLayoutPolicy;
@@ -116,12 +121,14 @@ export function resolveBubbleLayoutPostprocessConfig(
 export async function runBubbleLayoutPostprocess({
   blockId,
   config,
+  failureMode = "required",
   page,
   runner,
   signal,
 }: {
   blockId?: string;
   config: BubbleLayoutPostprocessConfig;
+  failureMode?: "best-effort" | "required";
   page: MangaPage;
   runner: BubbleLayoutRunner;
   signal: AbortSignal;
@@ -142,14 +149,22 @@ export async function runBubbleLayoutPostprocess({
     ...baselinePage,
     blocks: baselinePage.blocks.map((block) => structuredClone(block)),
   };
-  const result = await runner.runPage({
-    imagePath,
-    page: runnerPage,
-    policy: config.policy,
-    paddingRatio: resolveBubbleLayoutPaddingRatio(config.paddingRatio),
-    sharedOwnershipGapPx: config.sharedOwnershipGapPx,
-    signal,
-  });
+  let result: BubbleLayoutRunnerResult;
+  try {
+    result = await runner.runPage({
+      failureMode,
+      imagePath,
+      page: runnerPage,
+      policy: config.policy,
+      paddingRatio: resolveBubbleLayoutPaddingRatio(config.paddingRatio),
+      sharedOwnershipGapPx: config.sharedOwnershipGapPx,
+      signal,
+    });
+  } catch (error) {
+    throwIfAborted(signal);
+    if (failureMode !== "best-effort") throw error;
+    return { page: baselinePage };
+  }
   throwIfAborted(signal);
   const patches = parseRunnerPatches(
     result,

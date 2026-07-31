@@ -465,6 +465,7 @@ function createEmptyOutputError(parsed, rawText, requestSummary, options) {
     rawResponse: redactSensitivePayload(parsed, options),
     failureCategory: failure.failureCategory,
     ...(failure.nonRetriable ? { nonRetriable: true } : {}),
+    ...(failure.outputTruncated ? { outputTruncated: true } : {}),
   });
 }
 

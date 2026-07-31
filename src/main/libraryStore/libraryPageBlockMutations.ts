@@ -18,6 +18,7 @@ import {
   writeChapterFile,
 } from "./libraryFiles";
 import { logLibraryWarning } from "./libraryLogger";
+import { resolveCompletionAfterBlockMutation } from "./translationCompletionInvalidation";
 
 export type SavePagesBlocksMutationRuntime = {
   findChapterLocation: typeof findChapterLocation;
@@ -148,16 +149,21 @@ function applyPageUpdates(
 ): LibraryChapter {
   const pages = chapter.pages.map((page) => {
     const update = updates.get(page.id);
-    return update
-      ? {
-          ...page,
-          blocks: update.blocks.map((block) => ({
-            ...block,
-            type: normalizeBlockType(block.type),
-          })),
-          updatedAt,
-        }
-      : page;
+    if (!update) return page;
+    const blocks = update.blocks.map((block) => ({
+      ...block,
+      type: normalizeBlockType(block.type),
+    }));
+    return {
+      ...page,
+      blocks,
+      translationCompletion: resolveCompletionAfterBlockMutation(
+        page.translationCompletion,
+        page.blocks,
+        blocks,
+      ),
+      updatedAt,
+    };
   });
   return {
     ...chapter,

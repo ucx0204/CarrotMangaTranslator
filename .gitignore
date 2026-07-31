@@ -40,6 +40,9 @@ logs/*
 logs/app.log
 /library/
 /fonts/
+/datasets/fontclip-source-*/
+/datasets/fontclip-accepted-*/
+/datasets/fontclip-hard-*/
 settings.json
 panel-window-bounds.json
 recent-dialog-paths.json

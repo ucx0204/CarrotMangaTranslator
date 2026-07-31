@@ -23,6 +23,7 @@ import {
   resolveBubblePartitionGapPx,
 } from "./bubbleRegionPartition";
 import { buildBubbleShapeProfile } from "./bubbleShapeProfileBuilder";
+import { isBubbleLayoutBlockEligible } from "./bubbleLayoutBlockEligibility";
 
 const BUBBLE_LAYOUT_MODEL_ID =
   "comic-rtdetr-v4-s-int8+safe-distance-v2-overlap-fragment-guard-v3";
@@ -49,7 +50,7 @@ export function processDetectedBubbleLayouts(options: {
 }): BubbleLayoutBlockPatch[] {
   const associations = associateComicDetections(options.detections);
   const eligibleOwnerships = options.page.blocks
-    .filter(isEligibleBlock)
+    .filter((block) => isBubbleLayoutBlockEligible(block))
     .map((block) => ({
       owner: block,
       candidates: selectBlockBubbleCandidates(
@@ -83,7 +84,7 @@ function processBlock(
   candidates: readonly BlockBubbleCandidate[],
   options: Parameters<typeof processDetectedBubbleLayouts>[0],
 ): BubbleLayoutBlockPatch | null {
-  if (!isEligibleBlock(block)) return null;
+  if (!isBubbleLayoutBlockEligible(block)) return null;
   const scoredRegions = candidates.flatMap((candidate) =>
     refineCandidateRegions(block, candidate, options),
   );
@@ -261,16 +262,6 @@ function unionBounds(boxes: readonly BBox[]): BBox {
   const right = Math.max(...boxes.map((box) => box.x + box.w));
   const bottom = Math.max(...boxes.map((box) => box.y + box.h));
   return { x: left, y: top, w: right - left, h: bottom - top };
-}
-
-function isEligibleBlock(block: TranslationBlock): boolean {
-  return (
-    !block.inpaintExcluded &&
-    !block.curveLayout &&
-    Boolean(block.translatedText.trim()) &&
-    block.bbox.w > 0 &&
-    block.bbox.h > 0
-  );
 }
 
 function resolveFallbackInsetPx(

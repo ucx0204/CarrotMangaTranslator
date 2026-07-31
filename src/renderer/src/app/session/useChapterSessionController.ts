@@ -120,7 +120,7 @@ function useChapterRuntimeController({
     [setPatternMaskStrokesByPage],
   );
   const persistence = useNotifyingChapterPersistence(core, statusLog, t);
-  const bridgeActions = useAppSessionBridgeActions(statusLog.pushStatus);
+  const bridgeActions = useChapterBridgeActions(statusLog, uiState);
   const libraryActions = useLibraryActions({
     askConfirm: modalController.confirmController.askConfirm,
     clearDirtyTracking: persistence.clearDirtyTracking,
@@ -180,6 +180,16 @@ function useChapterRuntimeController({
     overlayModalsOpen,
     persistence,
   };
+}
+
+function useChapterBridgeActions(
+  statusLog: ChapterRuntimeArgs["statusLog"],
+  uiState: ChapterRuntimeArgs["uiState"],
+): ReturnType<typeof useAppSessionBridgeActions> {
+  return useAppSessionBridgeActions(
+    statusLog.pushStatus,
+    uiState.requestJobFlowCancellation,
+  );
 }
 
 function useNotifyingChapterPersistence(
@@ -274,13 +284,15 @@ function useChapterRuntimeEffects({
     resetChapterScopedUi: uiState.resetChapterScopedUi,
     selectedPageId: derivedState.selectedPage?.id ?? null,
     setRegionSelection: core.setRegionSelection,
-    translationFlowActive: uiState.translationFlowActive,
+    translationFlowActive: uiState.jobFlowActive,
   });
 
   useJobEvents({
     appendStatusLine: statusLog.appendStatusLine,
     currentChapterRef: core.currentChapterRef,
+    jobState: core.jobState,
     mergeLiveChapter,
     setJobState: core.setJobState,
+    suppressTerminalEvents: uiState.jobFlowActive,
   });
 }

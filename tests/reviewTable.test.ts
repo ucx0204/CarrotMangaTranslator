@@ -146,6 +146,29 @@ describe("review CSV/TSV tables", () => {
     );
     expect(result.chapter.pages[0]?.blocks[1]?.reviewStatus).toBeUndefined();
   });
+
+  it("invalidates completed Bubble postprocess when imported text changes", async () => {
+    const rootDir = await createTempLibrary();
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir, { completedBubbleWorkflow: true });
+    const chapter = await library.openChapter("chapter-a");
+    const rows = buildReviewRows(chapter);
+    rows[0].translated_text = "레이아웃 다시 계산";
+
+    const result = await library.importReviewText({
+      chapterId: "chapter-a",
+      content: serializeReviewRows(rows, "csv"),
+      format: "csv",
+      updateSourceText: false,
+      requireSourceMatch: false,
+    });
+
+    expect(result.chapter.pages[0]?.translationCompletion).toEqual({
+      workflow: "bubble-layout",
+      status: "pending",
+    });
+    expect(result.chapter.status).toBe("partial");
+  });
 });
 
 function makeChapter() {
@@ -206,6 +229,7 @@ async function loadLibrary(
 }
 
 type SeedLibraryOptions = {
+  completedBubbleWorkflow?: boolean;
   duplicateBlockIdsAcrossPages?: boolean;
 };
 
@@ -283,6 +307,14 @@ function makeStoredChapter(
       height: 120,
       blocks: makeBlocks(),
       analysisStatus: "completed",
+      ...(options.completedBubbleWorkflow
+        ? {
+            translationCompletion: {
+              workflow: "bubble-layout" as const,
+              status: "completed" as const,
+            },
+          }
+        : {}),
       createdAt: "2026-01-01T00:00:00.000Z",
       updatedAt: "2026-01-01T00:00:00.000Z",
     },

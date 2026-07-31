@@ -198,7 +198,7 @@ function BubblePostprocessToggle({
 
 function resolvePostprocess(
   includeBubbleLayout: boolean,
-): InpaintingPostprocessOptions | undefined {
+): InpaintingPostprocessOptions {
   return includeBubbleLayout
     ? {
         bubbleLayout: {
@@ -206,5 +206,10 @@ function resolvePostprocess(
           policy: "balanced",
         },
       }
-    : undefined;
+    : {
+        bubbleLayout: {
+          enabled: false,
+          policy: "balanced",
+        },
+      };
 }

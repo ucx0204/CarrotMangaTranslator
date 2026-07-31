@@ -1,5 +1,8 @@
 import type { ChapterStoryMemory, WorkStyleGuide } from "./workContextTypes";
 
+export const WORK_CONTEXT_ANALYSIS_CANCELLED_ERROR =
+  "WORK_CONTEXT_ANALYSIS_CANCELLED";
+
 export type WorkContextAnalysisScope = "chapter" | "work" | "missing";
 
 export type AnalyzeWorkContextRequest = {

@@ -415,6 +415,71 @@ describe("runtime Responses request body contracts", () => {
     });
   });
 
+  it("classifies a partial nonempty chat response stopped by max_tokens", () => {
+    expect(
+      extractModelOutputFailure({
+        choices: [
+          {
+            finish_reason: "length",
+            message: { content: '{"items":[' },
+          },
+        ],
+      }),
+    ).toMatchObject({
+      failureCategory: "empty-model-response",
+      outputTruncated: true,
+    });
+  });
+
+  it("classifies a partial nonempty Responses result stopped by max_output_tokens", () => {
+    expect(
+      extractModelOutputFailure({
+        status: "incomplete",
+        incomplete_details: { reason: "max_output_tokens" },
+        output: [
+          {
+            type: "message",
+            content: [{ type: "output_text", text: '{"items":[' }],
+          },
+        ],
+      }),
+    ).toMatchObject({
+      failureCategory: "empty-model-response",
+      outputTruncated: true,
+    });
+  });
+
+  it("classifies a raw response.incomplete SSE event", () => {
+    expect(
+      extractModelOutputFailure({
+        type: "response.incomplete",
+        response: {
+          status: "incomplete",
+          incomplete_details: { reason: "max_output_tokens" },
+        },
+      }),
+    ).toMatchObject({
+      failureCategory: "empty-model-response",
+      outputTruncated: true,
+    });
+  });
+
+  it("does not classify final content plus provider reasoning as reasoning-only", () => {
+    expect(
+      extractModelOutputFailure({
+        choices: [
+          {
+            finish_reason: "stop",
+            message: {
+              content: '{"items":[]}',
+              reasoning_content: "internal thoughts",
+            },
+          },
+        ],
+      }),
+    ).toBeNull();
+  });
+
   it("collects Responses API streaming text deltas", () => {
     const parsed = parseResponsesSseText(
       [

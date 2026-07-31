@@ -2,6 +2,13 @@ import type { TranslationBlock } from "./textTypes";
 
 export type PageAnalysisStatus = "idle" | "running" | "completed" | "failed";
 
+export type TranslationCompletionWorkflow = "erase-original" | "bubble-layout";
+
+export type TranslationCompletionReceipt = {
+  workflow: TranslationCompletionWorkflow;
+  status: "pending" | "completed" | "failed";
+};
+
 type ChapterStatus = "idle" | "running" | "completed" | "partial" | "failed";
 
 export type RunMode = "pending" | "all" | "single-page" | "page-set";
@@ -36,6 +43,12 @@ export type MangaPage = {
   height: number;
   blocks: TranslationBlock[];
   analysisStatus: PageAnalysisStatus;
+  /**
+   * Present when translation was started as a combined workflow. A translated
+   * page is not considered complete until the requested erase/postprocess
+   * stage has persisted its result and flips this receipt to completed.
+   */
+  translationCompletion?: TranslationCompletionReceipt;
   lastError?: string;
   createdAt: string;
   updatedAt: string;

@@ -30,12 +30,19 @@ export function reorderRecords<T extends { id: string }>(
 }
 
 export function resolveChapterStatus(
-  pages: Array<Pick<LibraryPageRecord, "analysisStatus">>,
+  pages: Array<
+    Pick<LibraryPageRecord, "analysisStatus" | "translationCompletion">
+  >,
 ): LibraryChapter["status"] {
   if (pages.length === 0) {
     return "idle";
   }
-  const statuses = pages.map((page) => page.analysisStatus);
+  const statuses = pages.map((page) => {
+    if (page.analysisStatus !== "completed") return page.analysisStatus;
+    if (page.translationCompletion?.status === "failed") return "failed";
+    if (page.translationCompletion?.status === "pending") return "partial";
+    return "completed";
+  });
   if (statuses.every((status) => status === "completed")) {
     return "completed";
   }
@@ -45,5 +52,12 @@ export function resolveChapterStatus(
   if (statuses.every((status) => status === "failed")) {
     return "failed";
   }
-  return statuses.some((status) => status === "completed") ? "partial" : "idle";
+  if (statuses.some((status) => status === "partial")) {
+    return "partial";
+  }
+  return statuses.some(
+    (status) => status === "completed" || status === "failed",
+  )
+    ? "partial"
+    : "idle";
 }

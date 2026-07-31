@@ -1,6 +1,7 @@
 import { join, resolve } from "node:path";
 import type { ChapterSnapshot, MangaPage } from "../../shared/libraryTypes";
 import { hydrateChapter } from "./chapterSnapshots";
+import { resolveChapterStatus } from "./chapterRecords";
 import {
   collectManagedInpaintedArtifacts,
   inpaintedPathChanged,
@@ -104,6 +105,7 @@ async function updatePagesAfterInpaintingWithMaintenance(
     join(getWorksRoot(), locator.workId, "chapters", locator.chapterId),
   );
   const replacedInpaintedPaths: string[] = [];
+  assertRequestedInpaintingPagesExist(chapter.pages, pages);
   const pageMap = new Map(pages.map((page) => [page.id, page]));
   const layoutPatchMap = resolveLayoutPatchMap(cleanupOptions.layoutPatches, [
     ...pageMap.keys(),
@@ -143,8 +145,10 @@ async function updatePagesAfterInpaintingWithMaintenance(
     return {
       ...withLayout,
       inpaintedImagePath: resolvedInpaintedPath,
+      ...copyTranslationCompletionProperty(next),
     };
   });
+  chapter.status = resolveChapterStatus(chapter.pages);
   chapter.updatedAt = now;
   const savedChapter = hydrateChapter(chapter);
   await writeChapterFile(chapter);
@@ -158,6 +162,36 @@ async function updatePagesAfterInpaintingWithMaintenance(
     maintenance,
   });
   return savedChapter;
+}
+
+function copyTranslationCompletionProperty(
+  page: MangaPage,
+): Pick<MangaPage, "translationCompletion"> | Record<never, never> {
+  if (!Object.hasOwn(page, "translationCompletion")) {
+    return {};
+  }
+  return {
+    translationCompletion: page.translationCompletion
+      ? { ...page.translationCompletion }
+      : undefined,
+  };
+}
+
+function assertRequestedInpaintingPagesExist(
+  storedPages: ReadonlyArray<Pick<MangaPage, "id">>,
+  requestedPages: readonly MangaPage[],
+): void {
+  const knownPageIds = new Set(storedPages.map((page) => page.id));
+  const requestedPageIds = new Set<string>();
+  for (const page of requestedPages) {
+    if (requestedPageIds.has(page.id)) {
+      throw new Error("같은 페이지의 인페인팅 결과가 중복되었습니다.");
+    }
+    requestedPageIds.add(page.id);
+    if (!knownPageIds.has(page.id)) {
+      throw new Error("인페인팅 결과를 적용할 페이지를 찾지 못했습니다.");
+    }
+  }
 }
 
 function resolveLayoutPatchMap(

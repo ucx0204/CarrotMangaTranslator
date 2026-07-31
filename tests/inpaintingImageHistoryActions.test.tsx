@@ -170,6 +170,7 @@ function makeInpaintingOptions(
     refreshLibrary: vi.fn().mockResolvedValue(undefined),
     saveNow: vi.fn().mockResolvedValue(undefined),
     selectedPage: chapter.pages[0] ?? null,
+    setFlowActive: vi.fn(),
     setInpaintingTool: vi.fn(),
     setJobState: vi.fn(),
     setPatternMaskStrokesByPage: vi.fn(),

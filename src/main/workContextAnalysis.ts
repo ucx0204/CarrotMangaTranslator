@@ -41,18 +41,18 @@ import { parseWorkContextModelJson } from "./workContextJsonParser";
 import { requestWorkContextAnalysisText } from "./workContextModelRequest";
 import { logInfo, logWarn } from "./logger";
 import { tMain } from "./i18n";
-
-const MAX_ANALYSIS_OUTPUT_TOKENS = 4096;
-const MAX_GEMMA_ANALYSIS_OUTPUT_TOKENS = 2048;
-const ANALYSIS_PROMPT_OVERHEAD_TOKENS = 1000;
-const CHARS_PER_TOKEN_ESTIMATE = 2;
-const DEFAULT_API_ANALYSIS_INPUT_CHARS = 64_000;
-const MIN_ANALYSIS_INPUT_CHARS = 4_000;
+import {
+  resolveAnalysisInputBudget,
+  resolveAnalysisOutputTokens,
+} from "./workContextAnalysisBudget";
 
 export async function analyzeWorkContextWithAi(
   request: AnalyzeWorkContextRequest,
+  signal?: AbortSignal,
 ): Promise<AnalyzeWorkContextResult> {
+  signal?.throwIfAborted();
   const chapters = await loadWorkChapters(request.chapterId);
+  signal?.throwIfAborted();
   const currentChapter = chapters.find(
     (chapter) => chapter.id === request.chapterId,
   );
@@ -62,6 +62,8 @@ export async function analyzeWorkContextWithAi(
   const guide = await getWorkStyleGuide(currentChapter.workId);
   const settings = await getAppSettings();
   const options = await buildAnalysisOptions(request.chapterId, settings);
+  options.abortSignal = signal;
+  signal?.throwIfAborted();
   const maxInputChars = resolveAnalysisInputBudget({
     options,
     override: request.maxInputChars,
@@ -157,6 +159,7 @@ async function runAiAnalysisWithEndpoint({
   options: Awaited<ReturnType<typeof buildAnalysisOptions>>;
   endpoint: ModelEndpointHandle;
 }): Promise<AnalyzeWorkContextResult> {
+  options.abortSignal?.throwIfAborted();
   const prompt = buildWorkContextAnalysisPrompt({
     guide,
     selection,
@@ -167,13 +170,15 @@ async function runAiAnalysisWithEndpoint({
     options,
     systemPrompt: prompt.systemPrompt,
     userPrompt: prompt.userPrompt,
-    maxOutputTokens: resolveAnalysisOutputTokens(options),
+    maxOutputTokens: resolveAnalysisOutputTokens(options, 1),
   });
+  options.abortSignal?.throwIfAborted();
   const parsed = await parseOrRepairAnalysisResponse({
     rawText,
     endpoint,
     options,
   });
+  options.abortSignal?.throwIfAborted();
   return persistAiAnalysisResult({
     guide,
     request,
@@ -281,41 +286,6 @@ async function buildEmptyAnalysisResult(
   };
 }
 
-function resolveAnalysisInputBudget({
-  options,
-  override,
-}: {
-  options: Awaited<ReturnType<typeof buildAnalysisOptions>>;
-  override?: number;
-}): number {
-  if (override) {
-    return override;
-  }
-  if (options.modelProvider === "gemma") {
-    const availableTokens = Math.max(
-      1000,
-      options.ctx -
-        resolveAnalysisOutputTokens(options) -
-        ANALYSIS_PROMPT_OVERHEAD_TOKENS,
-    );
-    return Math.max(
-      MIN_ANALYSIS_INPUT_CHARS,
-      availableTokens * CHARS_PER_TOKEN_ESTIMATE,
-    );
-  }
-  return DEFAULT_API_ANALYSIS_INPUT_CHARS;
-}
-
-function resolveAnalysisOutputTokens(
-  options: Awaited<ReturnType<typeof buildAnalysisOptions>>,
-): number {
-  const cap =
-    options.modelProvider === "gemma"
-      ? MAX_GEMMA_ANALYSIS_OUTPUT_TOKENS
-      : MAX_ANALYSIS_OUTPUT_TOKENS;
-  return Math.min(options.maxTokens, cap);
-}
-
 function buildResultWarnings(
   selection: WorkTextSelection,
   warnings: string[],
@@ -394,7 +364,7 @@ async function repairAnalysisResponse({
     options,
     systemPrompt: prompt.systemPrompt,
     userPrompt: prompt.userPrompt,
-    maxOutputTokens: resolveAnalysisOutputTokens(options),
+    maxOutputTokens: resolveAnalysisOutputTokens(options, 2),
   });
   try {
     return parseWorkContextModelJson(repairedText);

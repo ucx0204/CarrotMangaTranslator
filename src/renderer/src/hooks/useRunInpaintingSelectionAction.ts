@@ -1,19 +1,19 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import type {
-  InpaintingPostprocessOptions,
-  StartInpaintingRequest,
-} from "../../../shared/inpaintingTypes";
+import type { InpaintingPostprocessOptions } from "../../../shared/inpaintingTypes";
 import type { AutoInpaintingChapterSelection } from "../lib/autoInpaintingSelection";
 import { inpaintingGateway as mangaGateway } from "../api/inpaintingGateway";
 import { formatErrorMessage } from "../lib/errorPresentation";
 import {
-  failInpaintingJob,
   refreshLibraryWithStatus,
   saveDirtyChanges,
   type UseInpaintingActionsOptions,
 } from "./inpaintingActionTypes";
+import {
+  runInpaintingSelectionsSequentially,
+  type SequentialInpaintingResult,
+} from "./inpaintingSelectionFlow";
 
 export function useRunInpaintingSelectionAction(
   options: UseInpaintingActionsOptions,
@@ -38,65 +38,73 @@ async function runSelectedInpainting(
   if (!options.currentChapter || options.jobActive || selections.length === 0) {
     return;
   }
-  const ready = await prepareSelectedInpainting(options, t);
-  if (!ready) {
-    return;
+  if (options.flowCancellationRef) {
+    options.flowCancellationRef.current = false;
   }
+  options.setFlowActive(true);
   try {
-    const request = createSelectionInpaintingRequest(
-      options.currentChapter.workId,
+    const ready = await prepareSelectedInpainting(options, t);
+    if (!ready) return;
+    if (options.flowCancellationRef?.current) {
+      reportSelectionResult(cancelledSelectionResult(), options, t);
+      return;
+    }
+    const outcome = await runInpaintingSelectionsSequentially({
+      workId: options.currentChapter.workId,
       selections,
       postprocess,
-    );
-    const result = await mangaGateway.startInpainting(request);
-    const currentChapter = result.chapters?.find(
-      (chapter) => chapter.id === options.currentChapter?.id,
-    );
-    if (currentChapter) {
-      options.clearRetouchHistory();
-      options.clearPageImageCache();
-      options.mergeLiveChapter(currentChapter);
-    }
-    if (result.historyTransaction) {
-      options.workspaceHistory.recordImageEdit({
-        label: t("workspaceHistory.autoInpainting"),
-        transactionId: result.historyTransaction.transactionId,
-      });
-    }
-    hideEditChromeAfterBubbleLayout(result.status, postprocess, options);
+      shouldCancel: () => options.flowCancellationRef?.current === true,
+      onResult: (result, selection) =>
+        applySelectionResult(result, selection.chapterId, options, t),
+    });
+    hideEditChromeAfterBubbleLayout(outcome.status, postprocess, options);
     void refreshLibraryWithStatus(
       options.refreshLibrary,
       options.pushStatus,
       t("library.refreshAfterJobFailed"),
     );
-    reportSelectionResult(result, options.pushStatus, t);
+    reportSelectionResult(outcome, options, t);
   } catch (error) {
     console.error(error);
-    failInpaintingJob(
-      options.setJobState,
-      options.pushStatus,
-      t("inpainting.common.jobFailedTitle"),
+    reportSelectionFailure(
       formatErrorMessage(error, t("inpainting.erase.startFailed")),
+      options,
+      t,
     );
+  } finally {
+    options.setFlowActive(false);
   }
 }
 
-function createSelectionInpaintingRequest(
-  workId: string,
-  selections: AutoInpaintingChapterSelection[],
-  postprocess: InpaintingPostprocessOptions | undefined,
-): StartInpaintingRequest {
-  const request: StartInpaintingRequest = {
-    mode: "selection-pattern",
-    workId,
-    selections,
-  };
-  if (postprocess) request.postprocess = postprocess;
-  return request;
+function cancelledSelectionResult(): SequentialInpaintingResult {
+  return { status: "cancelled", pagesChanged: 0, blocksErased: 0 };
+}
+
+function applySelectionResult(
+  result: Awaited<ReturnType<typeof mangaGateway.startInpainting>>,
+  chapterId: string,
+  options: UseInpaintingActionsOptions,
+  t: TFunction<"renderer">,
+): void {
+  const currentChapter = result.chapters?.find(
+    (chapter) => chapter.id === options.currentChapter?.id,
+  );
+  if (currentChapter) {
+    options.clearRetouchHistory();
+    options.clearPageImageCache();
+    options.mergeLiveChapter(currentChapter);
+  }
+  if (result.historyTransaction) {
+    options.workspaceHistory.recordImageEdit({
+      label: t("workspaceHistory.autoInpainting"),
+      transactionId: result.historyTransaction.transactionId,
+      chapterId,
+    });
+  }
 }
 
 function hideEditChromeAfterBubbleLayout(
-  status: "completed" | "cancelled" | "failed",
+  status: SequentialInpaintingResult["status"],
   postprocess: InpaintingPostprocessOptions | undefined,
   options: UseInpaintingActionsOptions,
 ): void {
@@ -113,11 +121,11 @@ async function prepareSelectedInpainting(
     await saveDirtyChanges(options.dirty, options.saveNow);
   } catch (error) {
     console.error(error);
-    failInpaintingJob(
-      options.setJobState,
-      options.pushStatus,
-      t("inpainting.common.saveFailedTitle"),
+    reportSelectionFailure(
       formatErrorMessage(error, t("inpainting.erase.saveFailed")),
+      options,
+      t,
+      t("inpainting.common.saveFailedTitle"),
     );
     return false;
   }
@@ -133,18 +141,57 @@ async function prepareSelectedInpainting(
 }
 
 function reportSelectionResult(
-  result: Awaited<ReturnType<typeof mangaGateway.startInpainting>>,
-  pushStatus: (line: string) => void,
+  result: SequentialInpaintingResult,
+  options: UseInpaintingActionsOptions,
   t: TFunction<"renderer">,
 ): void {
   if (result.status === "completed") {
-    pushStatus(
-      t("inpainting.erase.success", {
-        pages: result.pagesChanged ?? 0,
-        blocks: result.blocksErased ?? 0,
-      }),
-    );
-  } else if (result.status === "failed") {
-    pushStatus(t("inpainting.erase.failed"));
+    const message = t("inpainting.erase.success", {
+      pages: result.pagesChanged ?? 0,
+      blocks: result.blocksErased ?? 0,
+    });
+    options.setJobState({
+      id: "inpainting-flow-completed",
+      kind: "inpainting",
+      status: "completed",
+      progressText: message,
+      phase: "inpainting_done",
+    });
+    options.pushStatus(message);
+    return;
   }
+  if (result.status === "failed") {
+    reportSelectionFailure(
+      result.error?.trim() || t("inpainting.erase.failed"),
+      options,
+      t,
+    );
+    return;
+  }
+  if (result.status === "cancelled") {
+    options.setJobState({
+      id: "inpainting-flow-cancelled",
+      kind: "inpainting",
+      status: "cancelled",
+      progressText: t("job.phase.cancelled"),
+      phase: "cancelled",
+    });
+  }
+}
+
+function reportSelectionFailure(
+  message: string,
+  options: UseInpaintingActionsOptions,
+  t: TFunction<"renderer">,
+  progressText = t("inpainting.common.jobFailedTitle"),
+): void {
+  options.setJobState({
+    id: "inpainting-flow-failed",
+    kind: "inpainting",
+    status: "failed",
+    progressText,
+    detail: message,
+    phase: "failed",
+  });
+  options.pushStatus(message);
 }

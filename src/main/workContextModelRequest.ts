@@ -100,7 +100,7 @@ async function requestChatText(
         rawText,
       );
     }
-    return extractChatOutput(rawText, runtime.responseText);
+    return extractChatOutput(rawText, options, runtime);
   });
 }
 
@@ -148,6 +148,14 @@ async function requestCodexText(
     );
   }
   const parsed = runtime.responseText.parseResponsesSseText(rawText);
+  if (runtime.responseText.extractModelOutputFailure(parsed.rawResponse)) {
+    throw runtime.modelHttpErrors.createEmptyOutputError(
+      parsed.rawResponse,
+      rawText,
+      {},
+      options,
+    );
+  }
   if (!parsed.outputText.trim()) {
     throw new Error(tMain("workContext.errors.emptyResponse"));
   }
@@ -156,10 +164,19 @@ async function requestCodexText(
 
 function extractChatOutput(
   rawText: string,
-  responseText: WorkContextRequestRuntime["responseText"],
+  options: TranslationOptions,
+  runtime: WorkContextRequestRuntime,
 ): string {
   const parsed = JSON.parse(rawText) as unknown;
-  const outputText = responseText.extractModelOutputText(parsed);
+  if (runtime.responseText.extractModelOutputFailure(parsed)) {
+    throw runtime.modelHttpErrors.createEmptyOutputError(
+      parsed,
+      rawText,
+      {},
+      options,
+    );
+  }
+  const outputText = runtime.responseText.extractModelOutputText(parsed);
   if (!outputText.trim()) {
     throw new Error(tMain("workContext.errors.emptyResponse"));
   }

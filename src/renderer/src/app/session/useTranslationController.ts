@@ -114,6 +114,7 @@ function useTranslationActionController(
     clearStatusLines: chapter.statusLog.clearStatusLines,
     currentChapter: chapter.core.currentChapter,
     currentChapterRef: chapter.core.currentChapterRef,
+    flowCancellationRef: chapter.uiState.jobFlowCancellationRef,
     jobActive: chapter.derivedState.jobActive,
     library: chapter.core.library,
     mergeLiveChapter: chapter.mergeLiveChapter,

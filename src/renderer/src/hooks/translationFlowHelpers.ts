@@ -1,4 +1,5 @@
 import type { AnalysisBlockMode } from "../../../shared/analysisTypes";
+import type { TranslationCompletionWorkflow } from "../../../shared/libraryTypes";
 import type { TFunction } from "i18next";
 import type { ChapterRunSelection } from "../lib/translationSelection";
 
@@ -13,6 +14,8 @@ type ExecuteAnalysisArgs = {
   collectPageContext?: boolean;
   naturalTextLayout?: boolean;
   autoFontMatching?: boolean;
+  completionWorkflow?: TranslationCompletionWorkflow;
+  deferTerminalFailure?: boolean;
 };
 
 export type ExecuteAnalysisJob = (
@@ -21,10 +24,9 @@ export type ExecuteAnalysisJob = (
 
 /**
  * Translate a list of chapter selections in order, each with its own scope
- * (whole chapter, pending pages, or an explicit page subset). Stops on
- * cancellation; tolerates an individual chapter failing. Returns "completed" if
- * at least one chapter finished, "failed" if all attempted chapters failed,
- * "cancelled" on cancel.
+ * (whole chapter, pending pages, or an explicit page subset). Stops on the
+ * first cancellation or failure so later chapters cannot overtake incomplete
+ * work. The aggregate is completed only when every attempted chapter completed.
  */
 export async function runSelectionsSequentially(
   execute: ExecuteAnalysisJob,
@@ -36,6 +38,8 @@ export async function runSelectionsSequentially(
   naturalTextLayout?: boolean,
   autoFontMatching?: boolean,
   t?: TFunction<"renderer">,
+  completionWorkflow?: TranslationCompletionWorkflow,
+  deferTerminalFailure?: boolean,
 ): Promise<RunAnalysisOutcome> {
   let anyCompleted = false;
   let anyAttempted = false;
@@ -60,6 +64,8 @@ export async function runSelectionsSequentially(
       collectPageContext,
       naturalTextLayout,
       autoFontMatching,
+      completionWorkflow,
+      deferTerminalFailure,
     });
     if (outcome === "cancelled") {
       return "cancelled";
@@ -69,6 +75,9 @@ export async function runSelectionsSequentially(
     }
     if (outcome === "completed") {
       anyCompleted = true;
+    }
+    if (outcome === "failed") {
+      return "failed";
     }
   }
   if (anyCompleted) {

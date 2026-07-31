@@ -1,4 +1,5 @@
-import { inpaintDrawnPatternPage, inpaintPatternPage } from "../inpainting";
+import { inpaintPatternPage } from "../inpainting";
+import { inpaintDrawnPatternPage } from "../inpainting/drawnPatternPage";
 import { acquireInpaintingEngine } from "../inpainting/inpaintingEnginePool";
 import { createProductionBubbleLayoutRunner } from "../bubbleLayout/bubbleLayoutFacade";
 import { openChapter, updatePagesAfterInpainting } from "../library";

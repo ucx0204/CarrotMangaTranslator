@@ -183,7 +183,7 @@
   "translation": {
     "noPages": "没有需要翻译的页面。",
     "allPagesFailed": "翻译失败：所有页面均失败。请检查各页面状态和日志中的最新错误。",
-    "completedWithFailures": "翻译完成（失败页面：{{count}}）",
+    "incompleteWithFailures": "翻译未完成（{{count}} 页未能完成）",
     "completed": "翻译任务完成",
     "vram": {
       "minimum12b": "12B 最低模式",
@@ -270,6 +270,8 @@
     "cancelled": "修复任务已取消。",
     "failed": "修复任务失败",
     "pageNotFound": "找不到要修复的页面。",
+    "noTargets": "没有可修复的文本块。",
+    "noChanges": "未生成修复结果。",
     "assets": { "fluxModel": "Flux 模型", "aot": "AOT 修复" },
     "runtime": {
       "fluxReady": "Flux 修复准备完成",

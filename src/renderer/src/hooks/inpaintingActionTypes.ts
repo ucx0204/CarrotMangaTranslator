@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type { InpaintingMaskStroke } from "../../../shared/inpaintingTypes";
 import type { JobState } from "../../../shared/jobTypes";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
@@ -24,6 +24,7 @@ export type UseInpaintingActionsOptions = {
   clearRetouchHistory: () => void;
   currentChapter: ChapterSnapshot | null;
   dirty: boolean;
+  flowCancellationRef?: MutableRefObject<boolean>;
   jobActive: boolean;
   mergeLiveChapter: (chapter: ChapterSnapshot) => void;
   patternMaskStrokes: InpaintingMaskStroke[];
@@ -32,6 +33,7 @@ export type UseInpaintingActionsOptions = {
   saveNow: () => Promise<void>;
   selectedPage: MangaPage | null;
   setInpaintingTool: Dispatch<SetStateAction<InpaintingTool>>;
+  setFlowActive: (active: boolean) => void;
   setJobState: Dispatch<SetStateAction<JobState>>;
   setPatternMaskStrokesByPage: Dispatch<
     SetStateAction<Record<string, InpaintingMaskStroke[]>>

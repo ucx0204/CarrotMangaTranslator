@@ -77,10 +77,19 @@ async function runProductionBubbleLayout(
     if (request.signal.aborted) {
       throw new DOMException("Aborted", "AbortError");
     }
-    logWarn("Bubble-aware layout postprocess skipped", {
-      pageId: request.page.id,
-      error,
-    });
+    const failureIsRequired = request.failureMode !== "best-effort";
+    logWarn(
+      failureIsRequired
+        ? "Bubble-aware layout postprocess failed"
+        : "Bubble-aware layout postprocess skipped",
+      {
+        pageId: request.page.id,
+        error,
+      },
+    );
+    if (failureIsRequired) {
+      throw error;
+    }
     return {
       patches: clearStaleGeneratedLayouts(request, pageRevision),
     };

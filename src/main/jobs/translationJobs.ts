@@ -6,6 +6,7 @@ import type {
   StartAnalysisResult,
 } from "../../shared/analysisTypes";
 import type { JobEvent } from "../../shared/jobTypes";
+import { MAX_ID_LIST_LENGTH } from "../../shared/ipcSchemaPrimitives";
 import { resolvePagesForRun } from "../library";
 import { tMain } from "./localization";
 import { emitJobEvent } from "./jobEvents";
@@ -70,12 +71,14 @@ export async function startAnalysisJob(
       request.runMode === "single-page" ? request.pageId : undefined;
     const requestedPageIds =
       request.runMode === "page-set" ? request.pageIds : undefined;
+    assertValidRequestedPageIds(request);
     state.resolved = await runtime.resolvePagesForRun(
       request.chapterId,
       request.runMode,
       requestedPageId,
       requestedPageIds,
     );
+    assertResolvedRequestedPages(request, state.resolved);
     if (state.resolved.pages.length === 0) {
       emit({
         id,
@@ -118,6 +121,54 @@ export async function startAnalysisJob(
       await context.jobs.runCleanup(job, "job-finished");
       context.jobs.clearIfCurrent(id);
     }
+  }
+}
+
+function assertValidRequestedPageIds(request: StartAnalysisRequest): void {
+  if (request.runMode !== "page-set") {
+    return;
+  }
+  if (request.pageIds.length === 0) {
+    throw new Error("번역 페이지를 하나 이상 선택해야 합니다.");
+  }
+  if (request.pageIds.length > MAX_ID_LIST_LENGTH) {
+    throw new Error(
+      `번역 페이지는 한 번에 최대 ${MAX_ID_LIST_LENGTH}개까지 선택할 수 있습니다.`,
+    );
+  }
+  if (new Set(request.pageIds).size !== request.pageIds.length) {
+    throw new Error("번역 페이지 선택에 중복된 페이지 ID가 있습니다.");
+  }
+}
+
+function assertResolvedRequestedPages(
+  request: StartAnalysisRequest,
+  resolved: Awaited<ReturnType<typeof resolvePagesForRun>>,
+): void {
+  if (request.runMode !== "single-page" && request.runMode !== "page-set") {
+    return;
+  }
+
+  const requestedIds =
+    request.runMode === "single-page" ? [request.pageId] : request.pageIds;
+  const requestedIdSet = new Set(requestedIds);
+  const resolvedIds = resolved.pages.map((page) => page.id);
+  const resolvedIdSet = new Set(resolvedIds);
+  const chapterIds = resolved.chapter.pages.map((page) => page.id);
+  const chapterIdSet = new Set(chapterIds);
+  const selectionMatches =
+    resolved.chapter.id === request.chapterId &&
+    requestedIdSet.size === requestedIds.length &&
+    resolvedIdSet.size === resolvedIds.length &&
+    chapterIdSet.size === chapterIds.length &&
+    requestedIds.every((pageId) => chapterIdSet.has(pageId)) &&
+    requestedIds.length === resolvedIds.length &&
+    requestedIds.every((pageId) => resolvedIdSet.has(pageId));
+
+  if (!selectionMatches) {
+    throw new Error(
+      "선택한 번역 페이지가 현재 화의 저장 상태와 일치하지 않습니다. 화를 새로고침한 뒤 다시 시도하세요.",
+    );
   }
 }
 

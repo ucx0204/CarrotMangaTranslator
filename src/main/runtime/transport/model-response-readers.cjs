@@ -9,7 +9,10 @@
 const {
   resolveProviderDisplayName,
 } = require("../simple-page-model-config.cjs");
-const { parseResponsesSseText } = require("../simple-page-response-text.cjs");
+const {
+  extractModelOutputFailure,
+  parseResponsesSseText,
+} = require("../simple-page-response-text.cjs");
 const {
   createEmptyOutputError,
   createModelTransportError,
@@ -46,7 +49,7 @@ async function readCodexResponsesStream(response, requestSummary, options) {
   const rawText = await readResponseText(response, requestSummary, options);
   const parsed = parseResponsesSseText(rawText);
   const outputText = parsed.outputText.trim();
-  if (!outputText) {
+  if (extractModelOutputFailure(parsed.rawResponse) || !outputText) {
     throw createEmptyOutputError(
       parsed.rawResponse,
       rawText,

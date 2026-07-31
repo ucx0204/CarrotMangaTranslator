@@ -152,6 +152,7 @@ export async function runBubbleLayoutMaskPrepass({
       sharedOwnershipGapPx: blockId ? undefined : 0,
       overwriteManual: false,
     },
+    failureMode: "best-effort",
     page: maskBaselinePage,
     runner,
     signal,

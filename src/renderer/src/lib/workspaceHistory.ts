@@ -57,6 +57,8 @@ export type WorkspaceMaskEditHistoryEntry = WorkspaceHistoryEntryBase & {
 export type WorkspaceImageEditHistoryEntry = WorkspaceHistoryEntryBase & {
   kind: "image-edit";
   transactionId: string;
+  /** Chapter this opaque transaction mutates, when known. */
+  chapterId?: string;
   /**
    * Drawn-mask Flux clears its draft on success. Keeping the draft alongside
    * the opaque main-process transaction lets the single image step restore

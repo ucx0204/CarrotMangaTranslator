@@ -129,6 +129,7 @@ function useInpaintingRunController(
     clearRetouchHistory: retouch.clearRetouchHistory,
     currentChapter: core.currentChapter,
     dirty,
+    flowCancellationRef: uiState.jobFlowCancellationRef,
     jobActive:
       derivedState.jobActive ||
       retouch.retouchBusy ||
@@ -140,6 +141,7 @@ function useInpaintingRunController(
     refreshLibrary,
     saveNow,
     selectedPage: derivedState.selectedPage,
+    setFlowActive: uiState.setJobFlowActive,
     setInpaintingTool: uiState.setInpaintingTool,
     setJobState: core.setJobState,
     setPatternMaskStrokesByPage: uiState.setPatternMaskStrokesByPage,

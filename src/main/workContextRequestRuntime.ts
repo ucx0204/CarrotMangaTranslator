@@ -25,6 +25,12 @@ export type WorkContextRequestRuntime = {
     ) => Promise<unknown>;
   };
   modelHttpErrors: {
+    createEmptyOutputError: (
+      parsed: unknown,
+      rawText: string,
+      requestSummary: Record<string, unknown>,
+      options: TranslationOptions,
+    ) => Error;
     createHttpFailureError: (
       options: TranslationOptions,
       requestSummary: Record<string, unknown>,
@@ -53,6 +59,12 @@ export type WorkContextRequestRuntime = {
     resolveRequestModelName: (options: TranslationOptions) => string;
   };
   responseText: {
+    extractModelOutputFailure: (parsed: unknown) => {
+      message: string;
+      failureCategory: string;
+      nonRetriable?: boolean;
+      outputTruncated?: boolean;
+    } | null;
     extractModelOutputText: (parsed: unknown) => string;
     parseResponsesSseText: (rawText: string) => {
       outputText: string;
@@ -112,6 +124,7 @@ function assertModelHttpErrorsModule(
   value: unknown,
 ): asserts value is WorkContextRequestRuntime["modelHttpErrors"] {
   assertRuntimeFunctions(value, "transport/model-http-errors.cjs", [
+    "createEmptyOutputError",
     "createHttpFailureError",
     "createModelTransportError",
   ]);
@@ -138,6 +151,7 @@ function assertResponseTextModule(
   value: unknown,
 ): asserts value is WorkContextRequestRuntime["responseText"] {
   assertRuntimeFunctions(value, "simple-page-response-text.cjs", [
+    "extractModelOutputFailure",
     "extractModelOutputText",
     "parseResponsesSseText",
   ]);

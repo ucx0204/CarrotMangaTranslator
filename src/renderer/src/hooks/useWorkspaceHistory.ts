@@ -202,6 +202,14 @@ function useWorkspaceHistoryStore({
   });
   const recordEntry = useCallback(
     (entry: WorkspaceHistoryEntry) => {
+      if (
+        entry.kind === "image-edit" &&
+        entry.chapterId &&
+        entry.chapterId !== chapterId
+      ) {
+        releaseTransactions([entry.transactionId]);
+        return false;
+      }
       if (busyRef.current) {
         if (entry.kind === "image-edit") {
           releaseTransactions([entry.transactionId]);
@@ -226,7 +234,7 @@ function useWorkspaceHistoryStore({
       releaseTransactions(result.releasedTransactionIds);
       return true;
     },
-    [busyRef, coalesceMs, maxEntries, publish, releaseTransactions],
+    [busyRef, chapterId, coalesceMs, maxEntries, publish, releaseTransactions],
   );
   return { state, stateRef, publish, recordEntry, reset };
 }

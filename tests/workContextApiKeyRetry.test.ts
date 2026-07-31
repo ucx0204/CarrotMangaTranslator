@@ -86,4 +86,94 @@ describe("work context API key retries", () => {
       "Bearer key-one",
     ]);
   });
+
+  it("rejects nonempty chat output stopped by max_tokens", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            choices: [
+              {
+                finish_reason: "length",
+                message: { content: '{"glossary":[' },
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+
+    await expect(
+      requestWorkContextAnalysisText({
+        endpoint: {
+          baseUrl: "https://provider.invalid/v1",
+          child: null,
+          provider: "openai-api",
+          startedByScript: false,
+        } satisfies ModelEndpointHandle,
+        options: {
+          modelProvider: "openai-api",
+          apiBaseUrl: "https://provider.invalid/v1",
+          apiModel: "vision-model",
+          apiKey: "key-one",
+          apiKeyMaxAttempts: 0,
+          apiRetryDelaySeconds: 0,
+        } as TranslationOptions,
+        systemPrompt: "system",
+        userPrompt: "user",
+        maxOutputTokens: 256,
+        runtime,
+      }),
+    ).rejects.toMatchObject({
+      failureCategory: "empty-model-response",
+      outputTruncated: true,
+    });
+  });
+
+  it("rejects nonempty Codex Responses output stopped by max_output_tokens", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(
+          new Response(
+            [
+              "event: response.output_text.delta",
+              'data: {"type":"response.output_text.delta","delta":"{\\"glossary\\":["}',
+              "",
+              "event: response.incomplete",
+              'data: {"type":"response.incomplete","response":{"id":"resp_1","status":"incomplete","incomplete_details":{"reason":"max_output_tokens"},"output":[]}}',
+              "",
+              "data: [DONE]",
+              "",
+            ].join("\n"),
+            { status: 200 },
+          ),
+        ),
+    );
+
+    await expect(
+      requestWorkContextAnalysisText({
+        endpoint: {
+          baseUrl: "https://codex.invalid/v1",
+          child: null,
+          startedByScript: false,
+        } satisfies ModelEndpointHandle,
+        options: {
+          modelProvider: "openai-codex",
+          codexModel: "gpt-5.6-sol",
+          codexReasoningEffort: "low",
+        } as TranslationOptions,
+        systemPrompt: "system",
+        userPrompt: "user",
+        maxOutputTokens: 256,
+        runtime,
+      }),
+    ).rejects.toMatchObject({
+      failureCategory: "empty-model-response",
+      outputTruncated: true,
+    });
+  });
 });

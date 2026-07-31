@@ -17,6 +17,7 @@ import {
   WorkShareImportRequestSchema,
 } from "../src/shared/ipcSchemas";
 import { MAX_MAX_TOKENS } from "../src/shared/modelPresets";
+import { MAX_ID_LIST_LENGTH } from "../src/shared/ipcSchemaPrimitives";
 
 const workId = "11111111-1111-4111-8111-111111111111";
 const chapterId = "22222222-2222-4222-8222-222222222222";
@@ -142,6 +143,26 @@ describe("IPC schemas", () => {
     ).toThrow(/요청 형식/);
   });
 
+  it("accepts only known combined-workflow completion requirements", () => {
+    const parsed = parseIpcPayload(
+      StartAnalysisRequestSchema,
+      {
+        chapterId,
+        runMode: "all",
+        completionWorkflow: "bubble-layout",
+      },
+      "번역 작업",
+    );
+    expect(parsed.completionWorkflow).toBe("bubble-layout");
+    expect(() =>
+      parseIpcPayload(
+        StartAnalysisRequestSchema,
+        { chapterId, runMode: "all", completionWorkflow: "unknown" },
+        "번역 작업",
+      ),
+    ).toThrow(/요청 형식/);
+  });
+
   it("accepts a bounded page-set analysis request and rejects malformed ones", () => {
     const parsed = parseIpcPayload(
       StartAnalysisRequestSchema,
@@ -174,6 +195,27 @@ describe("IPC schemas", () => {
       parseIpcPayload(
         StartAnalysisRequestSchema,
         { chapterId, runMode: "page-set", pageIds: [pageId], pageId },
+        "번역 작업",
+      ),
+    ).toThrow(/요청 형식/);
+
+    expect(() =>
+      parseIpcPayload(
+        StartAnalysisRequestSchema,
+        { chapterId, runMode: "page-set", pageIds: [pageId, pageId] },
+        "번역 작업",
+      ),
+    ).toThrow(/중복된 페이지 ID/);
+
+    const excessivePageIds = Array.from(
+      { length: MAX_ID_LIST_LENGTH + 1 },
+      (_, index) =>
+        `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
+    );
+    expect(() =>
+      parseIpcPayload(
+        StartAnalysisRequestSchema,
+        { chapterId, runMode: "page-set", pageIds: excessivePageIds },
         "번역 작업",
       ),
     ).toThrow(/요청 형식/);
@@ -585,22 +627,14 @@ describe("IPC schemas", () => {
     ).toThrow(/요청 형식/);
   });
 
-  it("accepts bounded multi-chapter automatic inpainting selections", () => {
+  it("accepts exactly one automatic inpainting chapter selection", () => {
     const otherChapterId = "44444444-4444-4444-8444-444444444444";
-    const otherPageId = "55555555-5555-4555-8555-555555555555";
     const parsed = parseIpcPayload(
       StartInpaintingRequestSchema,
       {
         mode: "selection-pattern",
         workId,
-        selections: [
-          { chapterId, mode: "all" },
-          {
-            chapterId: otherChapterId,
-            mode: "page-set",
-            pageIds: [pageId, otherPageId],
-          },
-        ],
+        selections: [{ chapterId, mode: "all" }],
       },
       "인페인팅 작업",
     );
@@ -608,7 +642,21 @@ describe("IPC schemas", () => {
     expect(parsed.mode).toBe("selection-pattern");
     expect(
       parsed.mode === "selection-pattern" ? parsed.selections : [],
-    ).toHaveLength(2);
+    ).toHaveLength(1);
+    expect(() =>
+      parseIpcPayload(
+        StartInpaintingRequestSchema,
+        {
+          mode: "selection-pattern",
+          workId,
+          selections: [
+            { chapterId, mode: "all" },
+            { chapterId: otherChapterId, mode: "all" },
+          ],
+        },
+        "인페인팅 작업",
+      ),
+    ).toThrow(/요청 형식/);
     expect(() =>
       parseIpcPayload(
         StartInpaintingRequestSchema,
@@ -623,6 +671,19 @@ describe("IPC schemas", () => {
           mode: "selection-pattern",
           workId,
           selections: [{ chapterId, mode: "page-set", pageIds: [] }],
+        },
+        "인페인팅 작업",
+      ),
+    ).toThrow(/요청 형식/);
+    expect(() =>
+      parseIpcPayload(
+        StartInpaintingRequestSchema,
+        {
+          mode: "selection-pattern",
+          workId,
+          selections: [
+            { chapterId, mode: "page-set", pageIds: [pageId, pageId] },
+          ],
         },
         "인페인팅 작업",
       ),
@@ -952,6 +1013,27 @@ describe("IPC schemas", () => {
       y: 999,
       w: 1,
       h: 1,
+    });
+  });
+
+  it("round-trips a persisted combined-workflow completion receipt", () => {
+    const base = makeChapterSnapshot();
+    const payload = {
+      ...base,
+      pages: base.pages.map((page) => ({
+        ...page,
+        translationCompletion: {
+          workflow: "bubble-layout" as const,
+          status: "pending" as const,
+        },
+      })),
+    };
+
+    const parsed = parseIpcPayload(ChapterSnapshotSchema, payload, "화 저장");
+
+    expect(parsed.pages[0].translationCompletion).toEqual({
+      workflow: "bubble-layout",
+      status: "pending",
     });
   });
 

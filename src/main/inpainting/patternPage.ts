@@ -9,9 +9,10 @@ import {
   FLUX_INPAINT_MAX_PIXELS,
 } from "./fluxEngineConstants";
 import type { InpaintingEngine } from "./inpaintingEngine";
-import { hasUsableBbox } from "./maskGeometry";
 import { logInpaintingRuntimeInfo } from "./inpaintingRuntimeLogger";
 import { loadPageImage, resolveInpaintedImagePath } from "./imageIO";
+import { measureWindowMaskedRegionChange } from "./fluxChangeStats";
+import { isPatternInpaintingBlockEligible } from "./patternBlockEligibility";
 import { resolvePatternInpaintWindows } from "./patternWindowPolicy";
 import {
   buildPatternPageMask,
@@ -38,11 +39,8 @@ export async function inpaintPatternPage(
     sharedInpaintGroupIdsByBlock?: Readonly<Record<string, readonly string[]>>;
   } = {},
 ): Promise<PatternPageInpaintingResult> {
-  const patternBlocks = page.blocks.filter(
-    (block) =>
-      (!options.blockId || block.id === options.blockId) &&
-      hasUsableBbox(block.bbox) &&
-      (!block.inpaintExcluded || block.id === options.blockId),
+  const patternBlocks = page.blocks.filter((block) =>
+    isPatternInpaintingBlockEligible(block, options.blockId),
   );
   if (patternBlocks.length === 0) {
     return { page, blocksErased: 0 };
@@ -79,6 +77,7 @@ export async function inpaintPatternPage(
   if (maskContext.blocksErased === 0) {
     return { page, blocksErased: 0 };
   }
+  const beforeBitmap = Buffer.from(bitmap);
   await runPatternInpaintingEngine({
     bitmap,
     engine: options.inpaintingEngine,
@@ -87,6 +86,17 @@ export async function inpaintPatternPage(
     signal: options.signal,
     width: size.width,
   });
+  if (
+    !hasPatternPixelChanges(
+      beforeBitmap,
+      bitmap,
+      maskContext,
+      options.inpaintingEngine,
+      size.width,
+    )
+  ) {
+    return { page, blocksErased: 0 };
+  }
   logPatternInpaintingResult(maskContext, options.inpaintingEngine);
 
   const outputPath = await writePatternInpaintedImage(page, bitmap, size);
@@ -98,6 +108,31 @@ export async function inpaintPatternPage(
       updatedAt: new Date().toISOString(),
     },
   };
+}
+
+function hasPatternPixelChanges(
+  before: Buffer,
+  after: Buffer,
+  mask: PatternMaskContext,
+  engine: InpaintingEngine | undefined,
+  width: number,
+): boolean {
+  const stats = mask.validationWindowMasks.map((windowMask) =>
+    measureWindowMaskedRegionChange(before, after, width, windowMask),
+  );
+  const unchangedTargets = stats.filter((item) => item.changedPixels <= 0);
+  if (stats.length > 0 && unchangedTargets.length === 0) return true;
+  logInpaintingRuntimeInfo(
+    "Selected inpainting model left one or more target masks unchanged",
+    {
+      model: engine?.model,
+      blocks: mask.blocksErased,
+      targetMasks: stats.length,
+      unchangedTargetMasks: unchangedTargets.length,
+      unchangedStats: unchangedTargets,
+    },
+  );
+  return false;
 }
 
 async function runPatternInpaintingEngine(options: {
@@ -144,6 +179,7 @@ async function runPatternInpaintingEngine(options: {
       compositeConstraints: hasBubbleConstraints
         ? options.maskContext.inpaintWindowConstraints
         : undefined,
+      requirePixelChange: true,
     },
   );
 }

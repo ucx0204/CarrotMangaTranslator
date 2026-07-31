@@ -2,7 +2,17 @@
 
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
 /**
- * @typedef {RuntimeOptions & {maxTokens?:unknown;temperature?:unknown;[key:string]:unknown}} SemanticRequestOptions
+ * @typedef {RuntimeOptions & {
+ *   maxTokens?:unknown;
+ *   ctx?:unknown;
+ *   temperature?:unknown;
+ *   translationAttempt?:unknown;
+ *   collectPageContext?:unknown;
+ *   workContextBudget?:{
+ *     effective?:{outputHeadroomTokens?:unknown};
+ *   };
+ *   [key:string]:unknown;
+ * }} SemanticRequestOptions
  * @typedef {{role:string;dataUrl?:string;[key:string]:unknown}} ImageVariant
  */
 
@@ -13,6 +23,11 @@ const SEMANTIC_REPEAT_LAST_N = 256;
 const SEMANTIC_REPEAT_PENALTY = 1.08;
 const SEMANTIC_SEED = 424242;
 const SEMANTIC_GROUPING_TOKENS_PER_UNIT = 64;
+const SEMANTIC_TRANSLATION_BASE_TOKENS = 4096;
+const SEMANTIC_TRANSLATION_TOKENS_PER_UNIT = 1024;
+const SEMANTIC_PAGE_CONTEXT_TOKENS = 8192;
+const SEMANTIC_TRANSLATION_MAX_RETRY_SCALE = 4;
+const SEMANTIC_TRANSLATION_INPUT_RESERVE_TOKENS = 6400;
 
 /**
  * @param {SemanticRequestOptions} options
@@ -85,14 +100,40 @@ function buildSemanticStageRequestBody(
  */
 function resolveStructuredMaxTokens(options, stage, unitCount) {
   const configured = Math.max(256, Number(options.maxTokens) || 4096);
-  const requested =
-    stage === "grouping"
-      ? 192 + Math.max(0, unitCount) * SEMANTIC_GROUPING_TOKENS_PER_UNIT
-      : 384 + Math.max(1, unitCount) * 320;
-  return Math.min(
-    configured,
-    Math.max(stage === "grouping" ? 256 : 768, requested),
+  if (stage === "grouping") {
+    const requested =
+      192 + Math.max(0, unitCount) * SEMANTIC_GROUPING_TOKENS_PER_UNIT;
+    return Math.min(configured, Math.max(256, requested));
+  }
+
+  const attempt = Math.max(
+    1,
+    Math.trunc(Number(options.translationAttempt) || 1),
   );
+  const retryScale = Math.min(
+    SEMANTIC_TRANSLATION_MAX_RETRY_SCALE,
+    2 ** Math.min(2, attempt - 1),
+  );
+  const requested =
+    (SEMANTIC_TRANSLATION_BASE_TOKENS +
+      Math.max(1, unitCount) * SEMANTIC_TRANSLATION_TOKENS_PER_UNIT +
+      (options.collectPageContext ? SEMANTIC_PAGE_CONTEXT_TOKENS : 0)) *
+    retryScale;
+  const budgetHeadroom = Number(
+    options.workContextBudget?.effective?.outputHeadroomTokens,
+  );
+  const contextTokens = Number(options.ctx);
+  const contextHeadroom =
+    Number.isFinite(contextTokens) && contextTokens > 0
+      ? contextTokens - SEMANTIC_TRANSLATION_INPUT_RESERVE_TOKENS
+      : Number.NaN;
+  const outputHeadroom = Number.isFinite(budgetHeadroom)
+    ? budgetHeadroom
+    : contextHeadroom;
+  const safeCap = Number.isFinite(outputHeadroom)
+    ? Math.max(256, Math.trunc(outputHeadroom))
+    : configured;
+  return Math.min(configured, safeCap, Math.max(768, requested));
 }
 
 module.exports = {

@@ -1,5 +1,8 @@
 import { resolve } from "node:path";
-import type { ChapterSnapshot } from "../../shared/libraryTypes";
+import type {
+  ChapterSnapshot,
+  TranslationCompletionReceipt,
+} from "../../shared/libraryTypes";
 import type { InpaintingBlockLayoutState } from "./inpaintingLayoutState";
 import { openChapter as openChapterUnlocked } from "../libraryStore/libraryAccess";
 import { assertChapterImagePath } from "../libraryStore/libraryFiles";
@@ -12,6 +15,8 @@ export type InpaintingRevisionChange = {
   afterPath?: string;
   beforeLayout?: InpaintingBlockLayoutState[];
   afterLayout?: InpaintingBlockLayoutState[];
+  beforeTranslationCompletion?: TranslationCompletionReceipt;
+  afterTranslationCompletion?: TranslationCompletionReceipt;
 };
 
 export function assertRevisionLayoutPair(
@@ -110,6 +115,22 @@ export function sameOptionalPath(left?: string, right?: string): boolean {
   return process.platform === "win32"
     ? resolvedLeft.toLowerCase() === resolvedRight.toLowerCase()
     : resolvedLeft === resolvedRight;
+}
+
+export function cloneTranslationCompletion(
+  receipt?: TranslationCompletionReceipt,
+): TranslationCompletionReceipt | undefined {
+  return receipt ? { ...receipt } : undefined;
+}
+
+export function translationCompletionsEqual(
+  left?: TranslationCompletionReceipt,
+  right?: TranslationCompletionReceipt,
+): boolean {
+  if (!left || !right) {
+    return !left && !right;
+  }
+  return left.workflow === right.workflow && left.status === right.status;
 }
 
 export async function readCurrentChapterAfterRollbackFailure(

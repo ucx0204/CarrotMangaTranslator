@@ -8,11 +8,11 @@ import type { JobEvent } from "../../shared/jobTypes";
 import type { ChapterSnapshot } from "../../shared/libraryTypes";
 import { tMain } from "./localization";
 import {
-  type InpaintingJobState,
   type InpaintingJobPage,
   handleInpaintingJobError,
   runInpaintingPagesJob,
 } from "./inpaintingJobRunner";
+import type { InpaintingJobState } from "./inpaintingJobPageTypes";
 import type { InpaintingJobContext } from "./inpaintingJobTypes";
 import {
   productionInpaintingJobRuntime,
@@ -33,15 +33,7 @@ export async function startInpaintingJob(
   const id = randomUUID();
   const abortController = new AbortController();
   const completion = createInpaintingJobCompletion();
-  const state: InpaintingJobState = {
-    chapter: null,
-    chapters: new Map(),
-    historyTransactionId:
-      context.inpaintingRevisionStore?.beginTransaction() ?? null,
-    inpaintingEngineLease: null,
-    bubbleLayoutRunner: null,
-    bubbleLayoutPostprocess: null,
-  };
+  const state = createInpaintingJobState(context, request);
   context.jobs.start({
     id,
     kind: "inpainting",
@@ -53,6 +45,7 @@ export async function startInpaintingJob(
 
   try {
     const targets = await resolveInpaintingJobPages(request, state, runtime);
+    recordInpaintingTargetPages(state, targets);
     if (targets.length === 0) {
       emit({
         id,
@@ -71,6 +64,8 @@ export async function startInpaintingJob(
           ? { chapters: [...state.chapters.values()] }
           : { chapter: state.chapter ?? undefined }),
         error: tMain("inpainting.pageNotFound"),
+        pagesChanged: state.pagesChanged,
+        blocksErased: state.blocksErased,
       };
     }
     return await runInpaintingPagesJob({
@@ -96,6 +91,51 @@ export async function startInpaintingJob(
     });
   } finally {
     finishInpaintingJob(context, state, id, completion.resolve);
+  }
+}
+
+function createInpaintingJobState(
+  context: InpaintingJobContext,
+  request: StartInpaintingRequest,
+): InpaintingJobState {
+  return {
+    chapter: null,
+    chapters: new Map(),
+    historyTransactionId:
+      context.inpaintingRevisionStore?.beginTransaction() ?? null,
+    inpaintingEngineLease: null,
+    bubbleLayoutRunner: null,
+    bubbleLayoutPostprocess: null,
+    pagesChanged: 0,
+    blocksErased: 0,
+    targetPageIds: new Map(),
+    ...resolveRequestedCompletionWorkflow(request),
+  };
+}
+
+function resolveRequestedCompletionWorkflow(
+  request: StartInpaintingRequest,
+): Pick<InpaintingJobState, "requestedCompletionWorkflow"> {
+  if (
+    request.mode === "page-bubble-layout" ||
+    request.postprocess?.bubbleLayout?.enabled === true
+  ) {
+    return { requestedCompletionWorkflow: "bubble-layout" };
+  }
+  if (request.postprocess?.bubbleLayout?.enabled === false) {
+    return { requestedCompletionWorkflow: "erase-original" };
+  }
+  return {};
+}
+
+function recordInpaintingTargetPages(
+  state: InpaintingJobState,
+  targets: readonly InpaintingJobPage[],
+): void {
+  for (const target of targets) {
+    const pageIds = state.targetPageIds.get(target.chapterId) ?? new Set();
+    pageIds.add(target.page.id);
+    state.targetPageIds.set(target.chapterId, pageIds);
   }
 }
 
@@ -148,26 +188,20 @@ async function resolveInpaintingJobPages(
     return pages.map((page) => ({ chapterId: chapter.id, page }));
   }
 
-  if (request.selections.length === 0) {
-    throw new Error("At least one chapter selection is required.");
+  if (request.selections.length !== 1) {
+    throw new Error("Exactly one chapter selection is required.");
   }
 
-  const targets: InpaintingJobPage[] = [];
-  const selectedChapterIds = new Set<string>();
-  for (const selection of request.selections) {
-    if (selectedChapterIds.has(selection.chapterId)) {
-      throw new Error("Duplicate chapter selections are not allowed.");
-    }
-    selectedChapterIds.add(selection.chapterId);
-
-    const chapter = await runtime.openChapter(selection.chapterId);
-    if (chapter.workId !== request.workId) {
-      throw new Error("Selected chapters must belong to the same work.");
-    }
-    state.chapters.set(chapter.id, chapter);
-    targets.push(...resolveSelectedChapterPages(chapter, selection));
+  const selection = request.selections[0];
+  if (!selection) {
+    throw new Error("Exactly one chapter selection is required.");
   }
-  return targets;
+  const chapter = await runtime.openChapter(selection.chapterId);
+  if (chapter.workId !== request.workId) {
+    throw new Error("The selected chapter must belong to the requested work.");
+  }
+  state.chapters.set(chapter.id, chapter);
+  return resolveSelectedChapterPages(chapter, selection);
 }
 
 function resolveSelectedChapterPages(

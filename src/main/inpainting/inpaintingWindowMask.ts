@@ -40,6 +40,18 @@ export function buildExclusivePaddedWindowMasks(
   }));
 }
 
+export function isWindowMaskFullyOwnedByEarlierWindow(
+  original: InpaintingWindowMask | undefined,
+  exclusive: ExclusiveInpaintingWindowMasks | undefined,
+): boolean {
+  return (
+    !!original &&
+    !!exclusive &&
+    original.data.some((value) => value > 0) &&
+    !exclusive.core.data.some((value) => value > 0)
+  );
+}
+
 export function expandWindowMaskToPage(
   windowMask: InpaintingWindowMask,
   pageWidth: number,

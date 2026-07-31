@@ -156,6 +156,7 @@ async function runDrawnInpaintingRequest({
     );
     reportDrawnInpaintingResult(result, selectedPageId, t, {
       pushStatus,
+      setJobState,
       setPatternMaskStrokesByPage,
     });
   } catch (error) {
@@ -175,10 +176,11 @@ function reportDrawnInpaintingResult(
   t: TFunction<"renderer">,
   {
     pushStatus,
+    setJobState,
     setPatternMaskStrokesByPage,
   }: Pick<
     UseInpaintingActionsOptions,
-    "pushStatus" | "setPatternMaskStrokesByPage"
+    "pushStatus" | "setJobState" | "setPatternMaskStrokesByPage"
   >,
 ): void {
   if (result.status === "completed") {
@@ -193,8 +195,13 @@ function reportDrawnInpaintingResult(
         regions: result.blocksErased ?? 0,
       }),
     );
-  } else if (result.status === "failed" && result.error) {
-    console.error(result.error);
-    pushStatus(t("inpainting.drawn.failed"));
+  } else if (result.status === "failed") {
+    if (result.error) console.error(result.error);
+    failInpaintingJob(
+      setJobState,
+      pushStatus,
+      t("inpainting.common.jobFailedTitle"),
+      result.error?.trim() || t("inpainting.drawn.failed"),
+    );
   }
 }

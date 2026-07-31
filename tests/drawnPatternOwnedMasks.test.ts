@@ -38,8 +38,19 @@ describe("drawn-pattern block-owned masks", () => {
         createFromPath: () => inputImage,
       },
     }));
-    const inpaint = vi.fn(
-      async (..._args: Parameters<InpaintingEngine["inpaint"]>) => {},
+    const inpaint = vi.fn<InpaintingEngine["inpaint"]>(
+      async (bitmap: Parameters<InpaintingEngine["inpaint"]>[0]) => {
+        const changedPoints: Array<[number, number]> = [
+          [32, 32],
+          [48, 32],
+        ];
+        for (const [x, y] of changedPoints) {
+          const offset = (y * width + x) * 4;
+          bitmap[offset] = 0;
+          bitmap[offset + 1] = 0;
+          bitmap[offset + 2] = 0;
+        }
+      },
     );
     const engine: InpaintingEngine = {
       model: "flux-klein",
@@ -55,7 +66,8 @@ describe("drawn-pattern block-owned masks", () => {
       width,
       height,
     );
-    const { inpaintDrawnPatternPage } = await import("../src/main/inpainting");
+    const { inpaintDrawnPatternPage } =
+      await import("../src/main/inpainting/drawnPatternPage");
 
     const result = await inpaintDrawnPatternPage(page, {
       inpaintingEngine: engine,
@@ -80,6 +92,58 @@ describe("drawn-pattern block-owned masks", () => {
     expect(maskValueAt(windowMasks?.[1], 48, 32)).toBe(1);
     expect(pageMask[32 * width + 32]).toBe(1);
     expect(pageMask[32 * width + 48]).toBe(1);
+  });
+
+  it("returns no result when the engine leaves a drawn mask unchanged", async () => {
+    const width = 64;
+    const height = 64;
+    const inputImage = new FakeImage(
+      Buffer.alloc(width * height * 4, 180),
+      width,
+      height,
+    );
+    vi.doMock("electron", () => ({
+      nativeImage: {
+        createFromBitmap: (
+          bitmap: Buffer,
+          size: { width: number; height: number },
+        ) => new FakeImage(Buffer.from(bitmap), size.width, size.height),
+        createFromBuffer: () => FakeImage.empty(),
+        createFromPath: () => inputImage,
+      },
+    }));
+    const inpaint = vi.fn<InpaintingEngine["inpaint"]>(async () => undefined);
+    const engine: InpaintingEngine = {
+      model: "lama-manga",
+      runtimePath: "test-runtime",
+      backend: "cpu",
+      runRootDir: "test-runs",
+      inpaint,
+      dispose: async () => undefined,
+    };
+    const root = createTempDir("mgt-drawn-no-change-");
+    const page = createPage(
+      join(root, "chapter", "images", "page.png"),
+      width,
+      height,
+    );
+    const { inpaintDrawnPatternPage } =
+      await import("../src/main/inpainting/drawnPatternPage");
+
+    const result = await inpaintDrawnPatternPage(page, {
+      inpaintingEngine: engine,
+      strokes: [{ points: [{ x: 32, y: 32 }], radiusPx: 3 }],
+    });
+
+    expect(result).toEqual({ page, blocksErased: 0 });
+    expect(inpaint).toHaveBeenCalledWith(
+      expect.any(Buffer),
+      width,
+      height,
+      expect.any(Uint8Array),
+      expect.any(Array),
+      expect.objectContaining({ requirePixelChange: true }),
+    );
   });
 });
 

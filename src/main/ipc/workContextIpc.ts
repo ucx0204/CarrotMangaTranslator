@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   AnalyzeWorkContextRequestSchema,
   ChapterStoryMemoryRequestSchema,
@@ -7,8 +8,15 @@ import {
   parseIpcPayload,
 } from "../../shared/ipcSchemas";
 import { workContextIpcContracts } from "../../shared/ipcContracts";
+import type { JobEvent } from "../../shared/jobTypes";
+import {
+  WORK_CONTEXT_ANALYSIS_CANCELLED_ERROR,
+  type AnalyzeWorkContextRequest,
+  type AnalyzeWorkContextResult,
+} from "../../shared/workContextAnalysisTypes";
 import { analyzeWorkContextWithAi } from "../workContextAnalysis";
 import { buildWorkContextUsage } from "../workContextUsage";
+import { emitJobEvent } from "../jobs/jobEvents";
 import {
   getChapterStoryMemory,
   getWorkStyleGuide,
@@ -113,7 +121,8 @@ export function registerWorkContextIpc(context: IpcContext): void {
     workContextIpcContracts.analyzeWorkContext,
     async (_event, raw: unknown) =>
       operationGate.run(() =>
-        analyzeWorkContextWithAi(
+        runWorkContextAnalysisJob(
+          context,
           parseIpcPayload(
             AnalyzeWorkContextRequestSchema,
             raw,
@@ -122,6 +131,78 @@ export function registerWorkContextIpc(context: IpcContext): void {
         ),
       ),
   );
+}
+
+type WorkContextJobContext = Pick<IpcContext, "getMainWindow" | "jobs">;
+type WorkContextAnalyzer = (
+  request: AnalyzeWorkContextRequest,
+  signal: AbortSignal,
+) => Promise<AnalyzeWorkContextResult>;
+
+/**
+ * Owns the AI context request as a real cancellable job so the common cancel
+ * IPC can abort the model fetch, including the gap between translation passes.
+ */
+export async function runWorkContextAnalysisJob(
+  context: WorkContextJobContext,
+  request: AnalyzeWorkContextRequest,
+  analyze: WorkContextAnalyzer = analyzeWorkContextWithAi,
+): Promise<AnalyzeWorkContextResult> {
+  if (context.jobs.hasActive) {
+    throw new Error(tMain("jobs.active"));
+  }
+  const id = `work-context-${randomUUID()}`;
+  const abortController = new AbortController();
+  context.jobs.start({ id, kind: "gemma-analysis", abortController });
+  const emit = (event: JobEvent): void =>
+    emitJobEvent(context.jobs, context.getMainWindow(), event);
+  emit({
+    id,
+    kind: "gemma-analysis",
+    status: "running",
+    progressText: tMain("ipc.labels.workContextAnalysis"),
+    phase: "model_requesting",
+    progressMode: "indeterminate",
+  });
+  try {
+    const result = await analyze(request, abortController.signal);
+    abortController.signal.throwIfAborted();
+    emit({
+      id,
+      kind: "gemma-analysis",
+      status: "completed",
+      progressText: tMain("ipc.labels.workContextAnalysis"),
+      phase: "done",
+    });
+    return result;
+  } catch (error) {
+    if (abortController.signal.aborted) {
+      emit({
+        id,
+        kind: "gemma-analysis",
+        status: "cancelled",
+        progressText: tMain("jobs.cancelled"),
+        phase: "cancelled",
+      });
+      throw new Error(WORK_CONTEXT_ANALYSIS_CANCELLED_ERROR, { cause: error });
+    }
+    const detail = error instanceof Error ? error.message : String(error);
+    emit({
+      id,
+      kind: "gemma-analysis",
+      status: "failed",
+      progressText: tMain("jobs.failed"),
+      phase: "failed",
+      detail,
+    });
+    throw error;
+  } finally {
+    const job = context.jobs.current;
+    if (job?.id === id) {
+      await context.jobs.runCleanup(job, "work-context-finished");
+      context.jobs.clearIfCurrent(id);
+    }
+  }
 }
 
 function createWorkContextOperationGate(

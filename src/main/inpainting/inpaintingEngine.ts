@@ -29,6 +29,8 @@ type InpaintRunOptions = {
    * keeps that window unconstrained.
    */
   compositeConstraints?: Array<InpaintingWindowMask | null>;
+  /** Fail fast when an engine can prove that every processed pixel is unchanged. */
+  requirePixelChange?: boolean;
 };
 
 export type InpaintingEngine = {

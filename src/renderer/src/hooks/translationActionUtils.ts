@@ -6,6 +6,7 @@ import type {
   StartAnalysisResult,
 } from "../../../shared/analysisTypes";
 import type { JobState } from "../../../shared/jobTypes";
+import type { TranslationCompletionWorkflow } from "../../../shared/libraryTypes";
 import { analysisGateway as mangaGateway } from "../api/analysisGateway";
 import { formatErrorMessage } from "../lib/errorPresentation";
 import type { LiveChapterMergeOptions } from "../lib/chapterSync";
@@ -25,7 +26,6 @@ import {
 } from "./translationFlowHelpers";
 import type {
   RunAnalysisMode,
-  TranslationFlowOptions,
   UseTranslationActionsOptions,
 } from "./translationActionTypes";
 
@@ -61,6 +61,7 @@ export function makeStartAnalysisRequest(
     collectPageContext?: boolean;
     naturalTextLayout?: boolean;
     autoFontMatching?: boolean;
+    completionWorkflow?: TranslationCompletionWorkflow;
   },
   t?: TFunction<"renderer">,
 ): StartAnalysisRequest {
@@ -72,12 +73,14 @@ export function makeStartAnalysisRequest(
     collectPageContext,
     naturalTextLayout,
     autoFontMatching,
+    completionWorkflow,
   } = args;
   const contextOption =
     collectPageContext === undefined ? {} : { collectPageContext };
   const layoutOption =
     naturalTextLayout === undefined ? {} : { naturalTextLayout };
   const fontOption = autoFontMatching === undefined ? {} : { autoFontMatching };
+  const completionOption = completionWorkflow ? { completionWorkflow } : {};
   if (runMode === "single-page") {
     if (!pageId) {
       throw new Error(
@@ -94,6 +97,7 @@ export function makeStartAnalysisRequest(
       ...contextOption,
       ...layoutOption,
       ...fontOption,
+      ...completionOption,
     };
   }
   if (runMode === "page-set") {
@@ -112,6 +116,7 @@ export function makeStartAnalysisRequest(
       ...contextOption,
       ...layoutOption,
       ...fontOption,
+      ...completionOption,
     };
   }
   return {
@@ -121,6 +126,7 @@ export function makeStartAnalysisRequest(
     ...contextOption,
     ...layoutOption,
     ...fontOption,
+    ...completionOption,
   };
 }
 
@@ -200,62 +206,6 @@ export async function refreshLibraryWithWarning(
   }
 }
 
-export async function runWorkContextAnalysis({
-  analysisScope,
-  chapterId,
-  pushStatus,
-  refreshLibrary,
-  setJobState,
-  t,
-  notificationPort,
-}: {
-  analysisScope: TranslationFlowOptions["analysisScope"];
-  chapterId: string;
-  pushStatus: UseTranslationActionsOptions["pushStatus"];
-  refreshLibrary: UseTranslationActionsOptions["refreshLibrary"];
-  setJobState: SetJobState;
-  t?: TFunction<"renderer">;
-  notificationPort: NotificationPort;
-}): Promise<boolean> {
-  setJobState({
-    id: "flow-analysis",
-    kind: "gemma-analysis",
-    status: "running",
-    progressText: t
-      ? t("translation.flow.contextAnalysis")
-      : "AI 용어/기억 분석 중",
-    phase: "model_requesting",
-    progressMode: "indeterminate",
-  });
-  try {
-    await mangaGateway.analyzeWorkContext({ chapterId, scope: analysisScope });
-    await refreshLibraryWithWarning(
-      refreshLibrary,
-      pushStatus,
-      t,
-      notificationPort,
-    );
-    return true;
-  } catch (error) {
-    console.error(error);
-    setJobState({
-      id: "flow-analysis-skipped",
-      kind: "gemma-analysis",
-      status: "completed",
-      progressText: t
-        ? t("translation.flow.contextSkipped")
-        : "1차 번역 완료 (AI 분석 건너뜀)",
-      phase: "done",
-    });
-    notificationPort.error(
-      t
-        ? t("translation.flow.contextFailed")
-        : "AI 용어/기억 분석에 실패해 1차 번역 결과만 유지합니다.",
-    );
-    return false;
-  }
-}
-
 export async function runSecondTranslationPass(
   executeAnalysisJob: ExecuteAnalysisJob,
   selection: ChapterRunSelection[],
@@ -265,6 +215,8 @@ export async function runSecondTranslationPass(
   autoFontMatching?: boolean,
   t?: TFunction<"renderer">,
   notificationPort: NotificationPort = toastNotificationPort,
+  completionWorkflow?: TranslationCompletionWorkflow,
+  deferTerminalFailure = false,
 ): Promise<RunAnalysisOutcome> {
   const pass2 = await runSelectionsSequentially(
     executeAnalysisJob,
@@ -276,14 +228,10 @@ export async function runSecondTranslationPass(
     naturalTextLayout,
     autoFontMatching,
     t,
+    completionWorkflow,
+    deferTerminalFailure,
   );
-  if (pass2 === "completed") {
-    notificationPort.success(
-      t
-        ? t("translation.flow.secondPassCompleted")
-        : "2차 번역까지 완료했습니다.",
-    );
-  }
+  void notificationPort;
   return pass2;
 }
 

@@ -15,6 +15,7 @@ import {
   writeChapterFile,
   type ChapterFile,
 } from "./libraryFiles";
+import { resolveCompletionAfterBlockMutation } from "./translationCompletionInvalidation";
 
 const VALID_REVIEW_STATUSES = new Set<ReviewStatus>([
   "draft",
@@ -306,16 +307,21 @@ function replaceBlock(
   blockId: string,
   nextBlock: TranslationBlock,
 ): void {
-  chapter.pages = chapter.pages.map((page) =>
-    page.id === pageId
-      ? {
-          ...page,
-          blocks: page.blocks.map((block) =>
-            block.id === blockId ? nextBlock : block,
-          ),
-        }
-      : page,
-  );
+  chapter.pages = chapter.pages.map((page) => {
+    if (page.id !== pageId) return page;
+    const blocks = page.blocks.map((block) =>
+      block.id === blockId ? nextBlock : block,
+    );
+    return {
+      ...page,
+      blocks,
+      translationCompletion: resolveCompletionAfterBlockMutation(
+        page.translationCompletion,
+        page.blocks,
+        blocks,
+      ),
+    };
+  });
 }
 
 async function saveChangedReviewPages({

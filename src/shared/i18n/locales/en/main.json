@@ -183,7 +183,7 @@
   "translation": {
     "noPages": "There are no pages to translate.",
     "allPagesFailed": "Translation failed: every page failed. Check each page's status and the logs for the latest error.",
-    "completedWithFailures": "Translation complete — Failed pages: {{count}}",
+    "incompleteWithFailures": "Translation incomplete — {{count}} page(s) did not finish.",
     "completed": "Translation complete",
     "vram": {
       "minimum12b": "12B minimum mode",
@@ -270,6 +270,8 @@
     "cancelled": "The inpainting job was cancelled.",
     "failed": "Inpainting job failed",
     "pageNotFound": "No pages were found to inpaint.",
+    "noTargets": "There are no text blocks to inpaint.",
+    "noChanges": "The inpainting operation produced no result.",
     "assets": { "fluxModel": "Flux model", "aot": "AOT inpainting" },
     "runtime": {
       "fluxReady": "Flux inpainting ready",

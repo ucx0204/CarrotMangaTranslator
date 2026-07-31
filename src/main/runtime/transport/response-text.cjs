@@ -147,12 +147,16 @@ function appendOutputItemText(parts, item) {
 
 /**
  * @param {unknown} parsed
- * @returns {{ message: string; failureCategory: string; nonRetriable?: boolean } | null}
+ * @returns {{ message: string; failureCategory: string; nonRetriable?: boolean; outputTruncated?: boolean } | null}
  */
 function extractModelOutputFailure(parsed) {
   const record = asRecord(parsed);
   if (!record) {
     return null;
+  }
+  const responsesFailure = extractResponsesOutputFailure(record);
+  if (responsesFailure) {
+    return responsesFailure;
   }
   const choice = readFirstChoice(record);
   const refusal = readChoiceMessage(record)?.refusal;
@@ -164,6 +168,7 @@ function extractModelOutputFailure(parsed) {
       message:
         "모델 응답이 max_tokens 제한으로 잘렸습니다. 최대 출력 토큰을 늘리거나 요청 설정을 조정하세요.",
       failureCategory: "empty-model-response",
+      outputTruncated: true,
     };
   }
   if (choice?.finish_reason === "content_filter") {
@@ -174,6 +179,34 @@ function extractModelOutputFailure(parsed) {
     };
   }
   return hasReasoningOnlyPayload(record) ? reasoningOnlyFailure() : null;
+}
+
+/**
+ * Accept both a Responses API response object and a raw response.incomplete
+ * event so every transport can share the same truncation classification.
+ *
+ * @param {JsonRecord} parsed
+ * @returns {{ message: string; failureCategory: string; outputTruncated: true } | null}
+ */
+function extractResponsesOutputFailure(parsed) {
+  const response =
+    parsed.type === "response.incomplete"
+      ? (asRecord(parsed.response) ?? parsed)
+      : parsed;
+  const details = asRecord(response.incomplete_details);
+  if (
+    (response.status === "incomplete" ||
+      parsed.type === "response.incomplete") &&
+    details?.reason === "max_output_tokens"
+  ) {
+    return {
+      message:
+        "모델 응답이 max_output_tokens 제한으로 잘렸습니다. 최대 출력 토큰을 늘리거나 요청 설정을 조정하세요.",
+      failureCategory: "empty-model-response",
+      outputTruncated: true,
+    };
+  }
+  return null;
 }
 
 /** @param {string} refusal */
@@ -196,6 +229,9 @@ function reasoningOnlyFailure() {
 
 /** @param {JsonRecord} parsed @returns {boolean} */
 function hasReasoningOnlyPayload(parsed) {
+  if (extractChatMessageText(parsed)?.trim()) {
+    return false;
+  }
   if (hasReasoningText(readChoiceMessage(parsed)) || hasReasoningText(parsed)) {
     return true;
   }

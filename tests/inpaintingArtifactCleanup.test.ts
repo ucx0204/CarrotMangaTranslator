@@ -19,6 +19,52 @@ describe("inpainting artifact cleanup", () => {
     }
   });
 
+  it("rejects an inpainting update for a page outside the chapter", async () => {
+    const rootDir = await createTempLibrary();
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir);
+    const chapter = await library.openChapter("chapter-a");
+
+    await expect(
+      library.updatePagesAfterInpainting(chapter.id, [
+        { ...firstPage(chapter), id: "missing-page" },
+      ]),
+    ).rejects.toThrow("인페인팅 결과를 적용할 페이지를 찾지 못했습니다.");
+  });
+
+  it("persists a completed translation workflow receipt with the result", async () => {
+    const rootDir = await createTempLibrary();
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir);
+    const chapter = await library.openChapter("chapter-a");
+    const pending = await library.updatePagesAfterInpainting(chapter.id, [
+      {
+        ...firstPage(chapter),
+        translationCompletion: {
+          workflow: "erase-original",
+          status: "pending",
+        },
+      },
+    ]);
+    expect(pending.status).toBe("partial");
+
+    const saved = await library.updatePagesAfterInpainting(chapter.id, [
+      {
+        ...firstPage(pending),
+        translationCompletion: {
+          workflow: "erase-original",
+          status: "completed",
+        },
+      },
+    ]);
+
+    expect(saved.pages[0]?.translationCompletion).toEqual({
+      workflow: "erase-original",
+      status: "completed",
+    });
+    expect(saved.status).toBe("completed");
+  });
+
   it("removes the previous same-page inpainted artifact after replacement", async () => {
     const rootDir = await createTempLibrary();
     const library = await loadLibrary(rootDir);

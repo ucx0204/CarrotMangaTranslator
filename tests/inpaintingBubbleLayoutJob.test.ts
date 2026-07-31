@@ -23,6 +23,10 @@ const NATURAL_LAYOUT_TEXT = "자연스러운 문장 배치를 여러 단어로 �
 describe("bubble-aware inpainting postprocess", () => {
   it("applies only the render allowlist and records one compound revision", async () => {
     const originalPage = makePage();
+    originalPage.translationCompletion = {
+      workflow: "bubble-layout",
+      status: "pending",
+    };
     const chapters = new Map([[CHAPTER_ID, makeChapter(originalPage)]]);
     const changes: InpaintingRevisionChange[] = [];
     const layout = makeBubbleLayout();
@@ -128,6 +132,10 @@ describe("bubble-aware inpainting postprocess", () => {
     });
     expect(savedBlock?.bubbleLayout).toEqual(layout);
     expect(savedBlock).not.toHaveProperty("sharedInpaintGroupIds");
+    expect(result.chapter?.pages[0]?.translationCompletion).toEqual({
+      workflow: "bubble-layout",
+      status: "completed",
+    });
 
     expect(changes).toHaveLength(1);
     expect(changes[0]).toMatchObject({
@@ -135,6 +143,14 @@ describe("bubble-aware inpainting postprocess", () => {
       pageId: PAGE_ID,
       beforePath: undefined,
       afterPath: `${originalPage.imagePath}.inpainted.png`,
+      beforeTranslationCompletion: {
+        workflow: "bubble-layout",
+        status: "pending",
+      },
+      afterTranslationCompletion: {
+        workflow: "bubble-layout",
+        status: "completed",
+      },
       beforeLayout: [
         {
           blockId: BLOCK_ID,
@@ -164,6 +180,66 @@ describe("bubble-aware inpainting postprocess", () => {
         ],
       }),
     );
+  });
+
+  it("fails the job when the required final Bubble postprocess throws", async () => {
+    const originalPage = makePage();
+    originalPage.translationCompletion = {
+      workflow: "bubble-layout",
+      status: "pending",
+    };
+    const chapters = new Map([[CHAPTER_ID, makeChapter(originalPage)]]);
+    const runPage = vi
+      .fn<BubbleLayoutRunner["runPage"]>()
+      .mockResolvedValueOnce({ patches: [] })
+      .mockRejectedValueOnce(new Error("final detector failed"));
+    const runtime = makeRuntime(
+      chapters,
+      vi.fn(() => ({ runPage })),
+    );
+    const { startInpaintingJob } =
+      await import("../src/main/jobs/inpaintingJobs");
+
+    const result = await startInpaintingJob(
+      makeContext([]),
+      {
+        chapterId: CHAPTER_ID,
+        mode: "page-pattern",
+        pageId: PAGE_ID,
+        postprocess: {
+          bubbleLayout: { enabled: true, policy: "balanced" },
+        },
+      },
+      runtime,
+    );
+
+    expect(result).toMatchObject({
+      status: "failed",
+      error: "final detector failed",
+    });
+    expect(runPage).toHaveBeenCalledTimes(2);
+    expect(runPage.mock.calls[0]?.[0]).toMatchObject({
+      failureMode: "best-effort",
+    });
+    expect(runPage.mock.calls[1]?.[0]).toMatchObject({
+      failureMode: "required",
+    });
+    expect(runtime.savePages).toHaveBeenCalledWith(CHAPTER_ID, [
+      expect.objectContaining({
+        id: PAGE_ID,
+        translationCompletion: {
+          workflow: "bubble-layout",
+          status: "failed",
+        },
+      }),
+    ]);
+    expect(
+      vi.mocked(runtime.savePages).mock.calls[0]?.[1]?.[0],
+    ).not.toHaveProperty("inpaintedImagePath");
+    expect(result.chapter?.pages[0]?.translationCompletion).toEqual({
+      workflow: "bubble-layout",
+      status: "failed",
+    });
   });
 
   it("keeps one-block mask retries partitioned from neighboring text", async () => {
@@ -441,6 +517,10 @@ describe("bubble-aware inpainting postprocess", () => {
     const page = {
       ...makePage(),
       inpaintedImagePath: "C:\\library\\page.inpainted.png",
+      translationCompletion: {
+        workflow: "bubble-layout" as const,
+        status: "pending" as const,
+      },
     };
     const chapters = new Map([[CHAPTER_ID, makeChapter(page)]]);
     const changes: InpaintingRevisionChange[] = [];
@@ -491,6 +571,100 @@ describe("bubble-aware inpainting postprocess", () => {
     expect(changes[0]?.beforeLayout?.[0]?.bubbleLayout).toBeNull();
     expect(changes[0]?.afterLayout?.[0]?.bubbleLayout).toEqual(
       makeBubbleLayout(),
+    );
+    expect(changes[0]?.beforeTranslationCompletion).toEqual({
+      workflow: "bubble-layout",
+      status: "pending",
+    });
+    expect(changes[0]?.afterTranslationCompletion).toEqual({
+      workflow: "bubble-layout",
+      status: "pending",
+    });
+    expect(result.chapter?.pages[0]?.translationCompletion).toEqual({
+      workflow: "bubble-layout",
+      status: "pending",
+    });
+  });
+
+  it.each([undefined, BLOCK_ID])(
+    "fails layout-only when no patch is produced (blockId=%s)",
+    async (blockId) => {
+      const page = makePage();
+      page.translationCompletion = {
+        workflow: "bubble-layout",
+        status: "pending",
+      };
+      const chapters = new Map([[CHAPTER_ID, makeChapter(page)]]);
+      const changes: InpaintingRevisionChange[] = [];
+      const runPage = vi.fn<BubbleLayoutRunner["runPage"]>(async () => ({
+        patches: [],
+      }));
+      const runtime = makeRuntime(chapters, () => ({ runPage }));
+      const { startInpaintingJob } =
+        await import("../src/main/jobs/inpaintingJobs");
+
+      const result = await startInpaintingJob(
+        makeContext(changes),
+        {
+          chapterId: CHAPTER_ID,
+          mode: "page-bubble-layout",
+          pageId: PAGE_ID,
+          ...(blockId ? { blockId } : {}),
+          policy: "balanced",
+        },
+        runtime,
+      );
+
+      expect(result).toMatchObject({
+        status: "failed",
+        error: "인페인팅 결과가 생성되지 않았습니다.",
+        pagesChanged: 0,
+        blocksErased: 0,
+      });
+      expect(runtime.savePages).not.toHaveBeenCalled();
+      expect(changes).toHaveLength(0);
+      expect(result.chapter?.pages[0]?.translationCompletion).toEqual({
+        workflow: "bubble-layout",
+        status: "pending",
+      });
+    },
+  );
+
+  it("keeps an explicitly selected excluded block eligible", async () => {
+    const page = makePage();
+    const block = page.blocks[0];
+    if (!block) throw new Error("expected block");
+    block.inpaintExcluded = true;
+    page.translationCompletion = {
+      workflow: "erase-original",
+      status: "pending",
+    };
+    const chapters = new Map([[CHAPTER_ID, makeChapter(page)]]);
+    const runtime = makeRuntime(chapters, () => ({
+      runPage: vi.fn(async () => ({ patches: [] })),
+    }));
+    const { startInpaintingJob } =
+      await import("../src/main/jobs/inpaintingJobs");
+
+    const result = await startInpaintingJob(
+      makeContext([]),
+      {
+        chapterId: CHAPTER_ID,
+        mode: "page-pattern",
+        pageId: PAGE_ID,
+        blockId: BLOCK_ID,
+      },
+      runtime,
+    );
+
+    expect(result.status).toBe("completed");
+    expect(result.chapter?.pages[0]?.translationCompletion).toEqual({
+      workflow: "erase-original",
+      status: "pending",
+    });
+    expect(runtime.inpaintPatternPage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ blockId: BLOCK_ID }),
     );
   });
 

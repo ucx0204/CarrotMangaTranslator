@@ -2,7 +2,6 @@ import type { MangaPage } from "../../shared/libraryTypes";
 import {
   bboxToPixelRect,
   expandRect,
-  hasUsableBbox,
   mergeMaskIntoPage,
   resolvePatternBlockMarginPx,
   resolvePatternDilationRadius,
@@ -15,6 +14,7 @@ import {
   buildBubbleLayoutConstraintMask,
   projectWindowMask,
 } from "./bubbleLayoutConstraintMask";
+import { isPatternInpaintingBlockEligible } from "./patternBlockEligibility";
 import { buildPatternTextMask } from "./patternTextMask";
 
 export type PatternPageMaskMode = "glyph" | "flux-region";
@@ -25,6 +25,7 @@ export type PatternMaskContext = {
   inpaintWindowMasks: InpaintingWindowMask[];
   inpaintWindowConstraints: Array<InpaintingWindowMask | null>;
   inpaintWindowGroupIds: string[][];
+  validationWindowMasks: InpaintingWindowMask[];
   blocksErased: number;
   otsuBlocks: number;
 };
@@ -51,17 +52,12 @@ export function buildPatternPageMask(options: {
     inpaintWindowMasks: [],
     inpaintWindowConstraints: [],
     inpaintWindowGroupIds: [],
+    validationWindowMasks: [],
     blocksErased: 0,
     otsuBlocks: 0,
   };
   for (const block of options.page.blocks) {
-    if (options.blockId && block.id !== options.blockId) continue;
-    if (
-      !hasUsableBbox(block.bbox) ||
-      (block.inpaintExcluded && block.id !== options.blockId)
-    ) {
-      continue;
-    }
+    if (!isPatternInpaintingBlockEligible(block, options.blockId)) continue;
     throwIfAborted(options.signal);
     mergePatternBlock(options, context, block);
   }
@@ -107,6 +103,7 @@ function mergePatternBlock(
     ),
   );
   context.inpaintWindowMasks.push(detection.windowMask);
+  context.validationWindowMasks.push(detection.windowMask);
   context.inpaintWindowConstraints.push(null);
   context.inpaintWindowGroupIds.push([]);
   if (detection.usedOtsu) context.otsuBlocks += 1;
@@ -155,6 +152,7 @@ function mergeFluxRegionMask(
     ),
   );
   context.inpaintWindowMasks.push(regionMask);
+  context.validationWindowMasks.push(regionMask);
   // Only a detected green region is a hard final-composite boundary. The
   // no-green fallback intentionally preserves the legacy OCR-region feather.
   context.inpaintWindowConstraints.push(bubbleMask ? regionMask : null);

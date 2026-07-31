@@ -7,6 +7,7 @@ import {
   writeChapterFile,
   type ChapterFile,
 } from "./libraryFiles";
+import { resolveCompletionAfterBlockMutation } from "./translationCompletionInvalidation";
 
 type PageBlocks = ChapterFile["pages"][number]["blocks"];
 type ChapterSnapshot = ReturnType<typeof hydrateChapter>;
@@ -30,17 +31,22 @@ export async function appendAnalyzedPageBlocksUnlocked(
   }
 
   const now = new Date().toISOString();
-  const pages = chapter.pages.map((candidate) =>
-    candidate.id === pageId
-      ? {
-          ...candidate,
-          blocks: [...candidate.blocks, ...blocks],
-          analysisStatus: "completed" as const,
-          lastError: undefined,
-          updatedAt: now,
-        }
-      : candidate,
-  );
+  const pages = chapter.pages.map((candidate) => {
+    if (candidate.id !== pageId) return candidate;
+    const nextBlocks = [...candidate.blocks, ...blocks];
+    return {
+      ...candidate,
+      blocks: nextBlocks,
+      analysisStatus: "completed" as const,
+      translationCompletion: resolveCompletionAfterBlockMutation(
+        candidate.translationCompletion,
+        candidate.blocks,
+        nextBlocks,
+      ),
+      lastError: undefined,
+      updatedAt: now,
+    };
+  });
   const nextChapter: ChapterFile = {
     ...chapter,
     pages,

@@ -107,6 +107,7 @@ function makeOptions(
     refreshLibrary: vi.fn(),
     saveNow: vi.fn(),
     selectedPage: null,
+    setFlowActive: vi.fn(),
     setInpaintingTool: vi.fn(),
     setJobState,
     setPatternMaskStrokesByPage: vi.fn(),

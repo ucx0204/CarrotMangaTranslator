@@ -204,6 +204,7 @@ const runtimeHelpers = {
     message: string;
     failureCategory: string;
     nonRetriable?: boolean;
+    outputTruncated?: boolean;
   };
   inspectModelLaunch: (options: { [key: string]: unknown }) => {
     [key: string]: unknown;

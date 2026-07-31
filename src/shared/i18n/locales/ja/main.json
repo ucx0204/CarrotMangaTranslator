@@ -183,7 +183,7 @@
   "translation": {
     "noPages": "翻訳するページがありません。",
     "allPagesFailed": "翻訳に失敗しました：すべてのページでエラーが発生しました。各ページの状態とログを確認してください。",
-    "completedWithFailures": "翻訳完了（{{count}}ページ失敗）",
+    "incompleteWithFailures": "翻訳未完了（{{count}}ページを完了できませんでした）",
     "completed": "翻訳が完了しました",
     "vram": {
       "minimum12b": "12B最小モード",
@@ -270,6 +270,8 @@
     "cancelled": "インペインティングジョブはキャンセルされました。",
     "failed": "インペインティングジョブが失敗しました",
     "pageNotFound": "インペインティングするページが見つかりません。",
+    "noTargets": "インペインティングするテキストブロックがありません。",
+    "noChanges": "インペインティング結果を生成できませんでした。",
     "assets": { "fluxModel": "Fluxモデル", "aot": "AOTインペインティング" },
     "runtime": {
       "fluxReady": "Fluxインペインティング準備完了",

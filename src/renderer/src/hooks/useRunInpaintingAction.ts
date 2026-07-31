@@ -75,7 +75,7 @@ async function runPatternInpainting(
       options.pushStatus,
       t("library.refreshAfterJobFailed"),
     );
-    reportPatternInpaintingResult(result, options.pushStatus, t);
+    reportPatternInpaintingResult(result, options, t);
   } catch (error) {
     console.error(error);
     failInpaintingJob(
@@ -147,18 +147,23 @@ function confirmPatternInpainting(
 
 function reportPatternInpaintingResult(
   result: Awaited<ReturnType<typeof mangaGateway.startInpainting>>,
-  pushStatus: (line: string) => void,
+  options: Pick<UseInpaintingActionsOptions, "pushStatus" | "setJobState">,
   t: TFunction<"renderer">,
 ): void {
   if (result.status === "completed") {
-    pushStatus(
+    options.pushStatus(
       t("inpainting.erase.success", {
         pages: result.pagesChanged ?? 0,
         blocks: result.blocksErased ?? 0,
       }),
     );
-  } else if (result.status === "failed" && result.error) {
-    console.error(result.error);
-    pushStatus(t("inpainting.erase.failed"));
+  } else if (result.status === "failed") {
+    if (result.error) console.error(result.error);
+    failInpaintingJob(
+      options.setJobState,
+      options.pushStatus,
+      t("inpainting.common.jobFailedTitle"),
+      result.error?.trim() || t("inpainting.erase.failed"),
+    );
   }
 }

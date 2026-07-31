@@ -32,6 +32,7 @@ export type UseTranslationActionsOptions = {
   clearStatusLines: () => void;
   currentChapter: ChapterSnapshot | null;
   currentChapterRef: MutableRefObject<ChapterSnapshot | null>;
+  flowCancellationRef?: MutableRefObject<boolean>;
   jobActive: boolean;
   library: LibraryIndex;
   mergeLiveChapter: (
@@ -49,7 +50,11 @@ export type UseTranslationActionsOptions = {
   blockModeDefault?: AnalysisBlockMode;
   autoFontMatchingDefault?: boolean;
   naturalTextLayoutDefault?: boolean;
-  recordImageEdit: (entry: { label: string; transactionId: string }) => void;
+  recordImageEdit: (entry: {
+    label: string;
+    transactionId: string;
+    chapterId?: string;
+  }) => void;
   setCurrentChapter: Dispatch<SetStateAction<ChapterSnapshot | null>>;
   setFlowActive: (active: boolean) => void;
   setShowBlockChrome: (visible: boolean) => void;

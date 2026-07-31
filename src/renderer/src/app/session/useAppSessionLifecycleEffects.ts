@@ -42,6 +42,7 @@ export function useAppSessionLifecycleEffects({
 }: UseAppSessionLifecycleEffectsArgs): void {
   const { t } = useTranslation("renderer");
   const prevJobStatusRef = useRef<JobState["status"]>("idle");
+  const prevFlowActiveRef = useRef(translationFlowActive);
   const reportedJobIdRef = useRef<string | null>(null);
   const previousPageIdRef = useRef(selectedPageId);
   const refreshStartedRef = useRef(false);
@@ -90,12 +91,21 @@ export function useAppSessionLifecycleEffects({
   useEffect(() => {
     const previous = prevJobStatusRef.current;
     const next = jobStatus;
-    if (previous === next) {
+    const flowJustFinished =
+      prevFlowActiveRef.current && !translationFlowActive;
+    prevFlowActiveRef.current = translationFlowActive;
+    if (previous === next && !(flowJustFinished && isTerminalStatus(next))) {
       return;
     }
     prevJobStatusRef.current = next;
     notifyJobStatusChange();
-  }, [jobStatus, notifyJobStatusChange]);
+  }, [jobStatus, notifyJobStatusChange, translationFlowActive]);
+}
+
+function isTerminalStatus(status: JobState["status"]): boolean {
+  return (
+    status === "completed" || status === "failed" || status === "cancelled"
+  );
 }
 
 type JobStatusChangeArgs = {
@@ -120,12 +130,11 @@ function handleJobStatusChange({
     onJobStart();
     return;
   }
+  if (translationFlowActive && isTerminalStatus(next)) return;
   if (next === "completed") {
-    if (!translationFlowActive) {
-      toast.success(
-        formatJobLabel(jobState, t) || t("job.notifications.completed"),
-      );
-    }
+    toast.success(
+      formatJobLabel(jobState, t) || t("job.notifications.completed"),
+    );
     return;
   }
   if (next === "failed") {

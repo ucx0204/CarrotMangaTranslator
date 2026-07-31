@@ -7,6 +7,7 @@ import type {
   LibraryChapter,
   LibraryWork,
   MangaPage,
+  TranslationCompletionReceipt,
 } from "../src/shared/libraryTypes";
 import type { InpaintingMutationMaintenance } from "../src/main/libraryStore/libraryInpaintingMutations";
 
@@ -75,6 +76,212 @@ describe("InpaintingRevisionStore", () => {
     expect(existsSync(paths.beforeA)).toBe(true);
     expect(existsSync(paths.afterA)).toBe(true);
     expect(existsSync(paths.afterB)).toBe(true);
+  });
+
+  it.each([
+    {
+      label: "pending",
+      beforeReceipt: {
+        workflow: "bubble-layout",
+        status: "pending",
+      } satisfies TranslationCompletionReceipt,
+      undoChapterStatus: "partial",
+    },
+    {
+      label: "failed",
+      beforeReceipt: {
+        workflow: "bubble-layout",
+        status: "failed",
+      } satisfies TranslationCompletionReceipt,
+      undoChapterStatus: "failed",
+    },
+    {
+      label: "missing",
+      beforeReceipt: undefined,
+      undoChapterStatus: "completed",
+    },
+  ])(
+    "restores a $label completion receipt on undo and reapplies completion on redo",
+    async ({ beforeReceipt, undoChapterStatus }) => {
+      const rootDir = await createTempLibrary();
+      const paths = await seedLibrary(rootDir);
+      const { InpaintingRevisionStore, library, mutationOperations } =
+        await loadModules(rootDir);
+      const store = new InpaintingRevisionStore();
+      const page = firstPage(await library.openChapter(CHAPTER_A_ID));
+      const completedReceipt = {
+        workflow: "bubble-layout",
+        status: "completed",
+      } satisfies TranslationCompletionReceipt;
+      await mutationOperations.updatePagesAfterInpaintingUnlocked(
+        CHAPTER_A_ID,
+        [{ ...page, translationCompletion: completedReceipt }],
+      );
+      const transactionId = store.beginTransaction();
+
+      expect(
+        store.addChange(transactionId, {
+          chapterId: CHAPTER_A_ID,
+          pageId: PAGE_A_ID,
+          beforePath: paths.afterA,
+          afterPath: paths.afterA,
+          beforeTranslationCompletion: beforeReceipt,
+          afterTranslationCompletion: completedReceipt,
+        }),
+      ).toBe(true);
+
+      await store.applyTransaction({ transactionId, direction: "undo" });
+      const undone = await library.openChapter(CHAPTER_A_ID);
+      expect(firstPage(undone).translationCompletion).toEqual(beforeReceipt);
+      expect(undone.status).toBe(undoChapterStatus);
+
+      await store.applyTransaction({ transactionId, direction: "redo" });
+      const redone = await library.openChapter(CHAPTER_A_ID);
+      expect(firstPage(redone).translationCompletion).toEqual(completedReceipt);
+      expect(redone.status).toBe("completed");
+    },
+  );
+
+  it("treats matching image, layout, and completion receipts as a no-op", async () => {
+    const rootDir = await createTempLibrary();
+    const paths = await seedLibrary(rootDir);
+    const { InpaintingRevisionStore } = await loadModules(rootDir);
+    const store = new InpaintingRevisionStore();
+    const transactionId = store.beginTransaction();
+    const receipt = {
+      workflow: "erase-original",
+      status: "completed",
+    } satisfies TranslationCompletionReceipt;
+
+    expect(
+      store.addChange(transactionId, {
+        chapterId: CHAPTER_A_ID,
+        pageId: PAGE_A_ID,
+        beforePath: paths.afterA,
+        afterPath: paths.afterA,
+        beforeTranslationCompletion: receipt,
+        afterTranslationCompletion: { ...receipt },
+      }),
+    ).toBe(false);
+    store.discardIfEmpty(transactionId);
+    expect(store.getReference(transactionId)).toBeUndefined();
+  });
+
+  it("rejects undo after a completion receipt was changed independently", async () => {
+    const rootDir = await createTempLibrary();
+    const paths = await seedLibrary(rootDir);
+    const { InpaintingRevisionStore, library, mutationOperations } =
+      await loadModules(rootDir);
+    const store = new InpaintingRevisionStore();
+    const page = firstPage(await library.openChapter(CHAPTER_A_ID));
+    const completedReceipt = {
+      workflow: "erase-original",
+      status: "completed",
+    } satisfies TranslationCompletionReceipt;
+    await mutationOperations.updatePagesAfterInpaintingUnlocked(CHAPTER_A_ID, [
+      { ...page, translationCompletion: completedReceipt },
+    ]);
+    const transactionId = store.beginTransaction();
+    store.addChange(transactionId, {
+      chapterId: CHAPTER_A_ID,
+      pageId: PAGE_A_ID,
+      beforePath: paths.afterA,
+      afterPath: paths.afterA,
+      beforeTranslationCompletion: {
+        workflow: "erase-original",
+        status: "pending",
+      },
+      afterTranslationCompletion: completedReceipt,
+    });
+    await mutationOperations.updatePagesAfterInpaintingUnlocked(CHAPTER_A_ID, [
+      {
+        ...firstPage(await library.openChapter(CHAPTER_A_ID)),
+        translationCompletion: {
+          workflow: "erase-original",
+          status: "failed",
+        },
+      },
+    ]);
+
+    await expect(
+      store.applyTransaction({ transactionId, direction: "undo" }),
+    ).rejects.toThrow(/번역 완료 상태가 다른 작업/);
+    expect(store.getReference(transactionId)).toEqual({ transactionId });
+    expect(
+      firstPage(await library.openChapter(CHAPTER_A_ID)).translationCompletion,
+    ).toEqual({ workflow: "erase-original", status: "failed" });
+  });
+
+  it("records direct image revert receipt changes for exact undo and redo", async () => {
+    const rootDir = await createTempLibrary();
+    const paths = await seedLibrary(rootDir);
+    const { InpaintingRevisionStore, library, mutationOperations } =
+      await loadModules(rootDir);
+    const { prepareInpaintingRevertRevision } =
+      await import("../src/main/inpainting/inpaintingRevisionPreparation");
+    const store = new InpaintingRevisionStore();
+    const page = firstPage(await library.openChapter(CHAPTER_A_ID));
+    const completedPage = {
+      ...page,
+      translationCompletion: {
+        workflow: "bubble-layout",
+        status: "completed",
+      } as const,
+    };
+    await mutationOperations.updatePagesAfterInpaintingUnlocked(CHAPTER_A_ID, [
+      completedPage,
+    ]);
+    const revision = prepareInpaintingRevertRevision({
+      chapterId: CHAPTER_A_ID,
+      page: completedPage,
+      updatedAt: "2026-02-01T00:00:00.000Z",
+    });
+    expect(revision.change).toMatchObject({
+      beforeTranslationCompletion: {
+        workflow: "bubble-layout",
+        status: "completed",
+      },
+      afterTranslationCompletion: {
+        workflow: "bubble-layout",
+        status: "pending",
+      },
+    });
+    const transactionId = store.beginTransaction();
+    expect(store.addChange(transactionId, revision.change)).toBe(true);
+
+    const reverted =
+      await mutationOperations.updatePagesAfterInpaintingUnlocked(
+        CHAPTER_A_ID,
+        [revision.revertedPage],
+        {
+          retainedInpaintedArtifactPaths:
+            store.getRetainedArtifactPaths(CHAPTER_A_ID),
+        },
+      );
+    expect(firstPage(reverted).inpaintedImagePath).toBeUndefined();
+    expect(firstPage(reverted).translationCompletion).toEqual({
+      workflow: "bubble-layout",
+      status: "pending",
+    });
+    expect(reverted.status).toBe("partial");
+
+    await store.applyTransaction({ transactionId, direction: "undo" });
+    const undone = await library.openChapter(CHAPTER_A_ID);
+    expect(firstPage(undone).inpaintedImagePath).toBe(paths.afterA);
+    expect(firstPage(undone).translationCompletion).toEqual({
+      workflow: "bubble-layout",
+      status: "completed",
+    });
+    expect(undone.status).toBe("completed");
+
+    await store.applyTransaction({ transactionId, direction: "redo" });
+    const redone = await library.openChapter(CHAPTER_A_ID);
+    expect(firstPage(redone).inpaintedImagePath).toBeUndefined();
+    expect(firstPage(redone).translationCompletion).toEqual({
+      workflow: "bubble-layout",
+      status: "pending",
+    });
+    expect(redone.status).toBe("partial");
   });
 
   it("keeps legacy layout states geometry-only and compares opt-in text per block", async () => {

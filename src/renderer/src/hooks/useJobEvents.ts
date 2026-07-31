@@ -14,14 +14,59 @@ import {
 } from "../lib/liveChapterRefreshCoordinator";
 import { analysisGateway as mangaGateway } from "../api/analysisGateway";
 import { libraryGateway } from "../api/libraryGateway";
+import {
+  createAggregateJobEventGuard,
+  isAggregateFlowTerminal,
+  isTerminalJobStatus,
+  shouldIgnoreAggregateJobEvent,
+  updateAggregateJobEventGuard,
+  type AggregateJobEventGuard,
+} from "./jobEventFlowGuard";
+import {
+  isLogOnlyEvent,
+  resolveAnimationFrameScheduler,
+  shouldRefreshLiveChapter,
+} from "./jobEventUtils";
 
 type UseJobEventsOptions = {
   appendStatusLine: (line: string, replace?: (line: string) => boolean) => void;
   currentChapterRef: React.MutableRefObject<ChapterSnapshot | null>;
+  jobState?: JobState;
   mergeLiveChapter: (chapter: ChapterSnapshot) => void;
   openChapter?: (chapterId: string) => Promise<ChapterSnapshot>;
   setJobState: React.Dispatch<React.SetStateAction<JobState>>;
+  suppressTerminalEvents?: boolean;
   subscribeJobEvents?: (callback: (event: JobEvent) => void) => () => void;
+};
+
+type JobEventSubscriptionOptions = Required<
+  Pick<
+    UseJobEventsOptions,
+    | "appendStatusLine"
+    | "currentChapterRef"
+    | "mergeLiveChapter"
+    | "openChapter"
+    | "setJobState"
+    | "subscribeJobEvents"
+    | "suppressTerminalEvents"
+  >
+> & {
+  aggregateGuardRef: React.MutableRefObject<AggregateJobEventGuard>;
+  jobStateRef: React.MutableRefObject<JobState | undefined>;
+  t: TFunction<"renderer">;
+};
+
+type PendingJobEventBatch = {
+  dispose: () => void;
+  enqueue: (event: JobEvent) => void;
+};
+
+type NextJobStateOptions = {
+  current: JobState;
+  event: JobEvent;
+  preserveCurrentStatus: boolean;
+  sameJob: boolean;
+  t: TFunction<"renderer">;
 };
 
 const openChapterFromLibrary = (chapterId: string): Promise<ChapterSnapshot> =>
@@ -33,75 +78,165 @@ const subscribeToJobEvents = (
 export function useJobEvents({
   appendStatusLine,
   currentChapterRef,
+  jobState,
   mergeLiveChapter,
   openChapter = openChapterFromLibrary,
   setJobState,
+  suppressTerminalEvents = false,
   subscribeJobEvents = subscribeToJobEvents,
 }: UseJobEventsOptions): void {
   const { t } = useTranslation("renderer");
+  const aggregateGuardRef = React.useRef<AggregateJobEventGuard>(
+    createAggregateJobEventGuard(),
+  );
+  const jobStateRef = React.useRef(jobState);
   React.useEffect(() => {
-    const previousLineByGroup = new Map<string, string>();
-    const pendingEvents: JobEvent[] = [];
-    let frameId: number | null = null;
-    let disposed = false;
-    const requestFrame =
-      typeof window.requestAnimationFrame === "function"
-        ? window.requestAnimationFrame.bind(window)
-        : (callback: FrameRequestCallback) =>
-            window.setTimeout(() => callback(performance.now()), 0);
-    const cancelFrame =
-      typeof window.cancelAnimationFrame === "function"
-        ? window.cancelAnimationFrame.bind(window)
-        : window.clearTimeout.bind(window);
-    const liveChapterRefresh = createLiveChapterRefreshCoordinator({
-      getCurrentChapterId: () => currentChapterRef.current?.id,
+    jobStateRef.current = jobState;
+  }, [jobState]);
+  React.useEffect(() => {
+    updateAggregateJobEventGuard(
+      aggregateGuardRef.current,
+      suppressTerminalEvents,
+    );
+  }, [suppressTerminalEvents]);
+  React.useEffect(
+    () =>
+      subscribeToJobEventUpdates({
+        aggregateGuardRef,
+        appendStatusLine,
+        currentChapterRef,
+        jobStateRef,
+        mergeLiveChapter,
+        openChapter,
+        setJobState,
+        subscribeJobEvents,
+        suppressTerminalEvents,
+        t,
+      }),
+    [
+      appendStatusLine,
+      currentChapterRef,
       mergeLiveChapter,
       openChapter,
-      reportError: (error) => {
-        console.error(error);
-      },
-    });
-    const flushPendingEvents = (): void => {
-      frameId = null;
-      if (disposed || pendingEvents.length === 0) return;
-      const events = pendingEvents.splice(0);
-      React.startTransition(() => {
-        setJobState((current) => reduceJobEventBatch(current, events, t));
-        for (const event of events) {
-          appendJobStatusLine(event, appendStatusLine, previousLineByGroup, t);
-        }
-      });
-    };
-    const schedulePendingEvents = (): void => {
-      if (frameId !== null) return;
-      frameId = requestFrame(flushPendingEvents);
-    };
-    const unsubscribe = subscribeJobEvents((event) => {
-      pendingEvents.push(event);
-      schedulePendingEvents();
-      refreshLiveChapterAfterJobEvent({
+      setJobState,
+      subscribeJobEvents,
+      suppressTerminalEvents,
+      t,
+    ],
+  );
+}
+
+function subscribeToJobEventUpdates({
+  aggregateGuardRef,
+  appendStatusLine,
+  currentChapterRef,
+  jobStateRef,
+  mergeLiveChapter,
+  openChapter,
+  setJobState,
+  subscribeJobEvents,
+  suppressTerminalEvents,
+  t,
+}: JobEventSubscriptionOptions): () => void {
+  const liveChapterRefresh = createLiveChapterRefreshCoordinator({
+    getCurrentChapterId: () => currentChapterRef.current?.id,
+    mergeLiveChapter,
+    openChapter,
+    reportError: (error) => {
+      console.error(error);
+    },
+  });
+  const pendingBatch = createPendingJobEventBatch({
+    aggregateGuardRef,
+    appendStatusLine,
+    jobStateRef,
+    setJobState,
+    suppressTerminalEvents,
+    t,
+  });
+  const unsubscribe = subscribeJobEvents((event) => {
+    if (
+      shouldIgnoreAggregateJobEvent(
+        jobStateRef.current,
         event,
-        liveChapterRefresh,
-      });
+        aggregateGuardRef.current,
+        suppressTerminalEvents,
+      )
+    ) {
+      return;
+    }
+    if (suppressTerminalEvents) {
+      aggregateGuardRef.current.activeJobIds.add(event.id);
+    }
+    pendingBatch.enqueue(event);
+    refreshLiveChapterAfterJobEvent({ event, liveChapterRefresh });
+  });
+  return () => {
+    pendingBatch.dispose();
+    unsubscribe();
+    liveChapterRefresh.dispose();
+  };
+}
+
+function createPendingJobEventBatch({
+  aggregateGuardRef,
+  appendStatusLine,
+  jobStateRef,
+  setJobState,
+  suppressTerminalEvents,
+  t,
+}: Pick<
+  JobEventSubscriptionOptions,
+  | "aggregateGuardRef"
+  | "appendStatusLine"
+  | "jobStateRef"
+  | "setJobState"
+  | "suppressTerminalEvents"
+  | "t"
+>): PendingJobEventBatch {
+  const previousLineByGroup = new Map<string, string>();
+  const pendingEvents: JobEvent[] = [];
+  const { cancelFrame, requestFrame } = resolveAnimationFrameScheduler();
+  let frameId: number | null = null;
+  let disposed = false;
+  const flushPendingEvents = (): void => {
+    frameId = null;
+    if (disposed || pendingEvents.length === 0) return;
+    const events = pendingEvents
+      .splice(0)
+      .filter(
+        (event) =>
+          !shouldIgnoreAggregateJobEvent(
+            jobStateRef.current,
+            event,
+            aggregateGuardRef.current,
+            suppressTerminalEvents,
+          ) &&
+          (!suppressTerminalEvents || !isTerminalJobStatus(event.status)),
+      );
+    if (events.length === 0) return;
+    React.startTransition(() => {
+      setJobState((current) => reduceJobEventBatch(current, events, t));
+      for (const event of events) {
+        appendJobStatusLine(event, appendStatusLine, previousLineByGroup, t);
+      }
     });
-    return () => {
+  };
+  return {
+    enqueue: (event) => {
+      pendingEvents.push(event);
+      if (frameId === null) {
+        frameId = requestFrame(flushPendingEvents);
+      }
+    },
+    dispose: () => {
       disposed = true;
       if (frameId !== null) {
         cancelFrame(frameId);
       }
       pendingEvents.length = 0;
-      unsubscribe();
-      liveChapterRefresh.dispose();
-    };
-  }, [
-    appendStatusLine,
-    currentChapterRef,
-    mergeLiveChapter,
-    openChapter,
-    setJobState,
-    subscribeJobEvents,
-    t,
-  ]);
+    },
+  };
 }
 
 function reduceJobEventBatch(
@@ -120,11 +255,34 @@ function reduceJobState(
   event: JobEvent,
   t: TFunction<"renderer">,
 ): JobState {
+  if (
+    isAggregateFlowTerminal(current) &&
+    event.id !== current.id &&
+    isTerminalJobStatus(event.status)
+  ) {
+    return current;
+  }
   const sameJob = current.id === event.id;
   if (sameJob && isTerminalJobStatus(current.status)) {
     return current;
   }
   const preserveCurrentStatus = sameJob && isLogOnlyEvent(event);
+  return buildNextJobState({
+    current,
+    event,
+    preserveCurrentStatus,
+    sameJob,
+    t,
+  });
+}
+
+function buildNextJobState({
+  current,
+  event,
+  preserveCurrentStatus,
+  sameJob,
+  t,
+}: NextJobStateOptions): JobState {
   return {
     id: event.id,
     kind: preserveCurrentStatus ? current.kind : event.kind,
@@ -194,12 +352,6 @@ function reduceJobState(
   };
 }
 
-function isTerminalJobStatus(status: JobState["status"]): boolean {
-  return (
-    status === "cancelled" || status === "failed" || status === "completed"
-  );
-}
-
 function keepOrEvent<T>(preserve: boolean, current: T, eventValue: T): T {
   return preserve ? current : eventValue;
 }
@@ -260,16 +412,4 @@ function refreshLiveChapterAfterJobEvent({
     return;
   }
   liveChapterRefresh.request();
-}
-
-function shouldRefreshLiveChapter(event: JobEvent): boolean {
-  return (
-    event.phase === "page_done" ||
-    event.phase === "page_skipped" ||
-    event.phase === "inpainting_done"
-  );
-}
-
-function isLogOnlyEvent(event: JobEvent): boolean {
-  return Boolean(event.installLogLine && event.progressMode === "log-only");
 }

@@ -10,7 +10,10 @@ const {
   isOpenAIApiProvider,
   resolveProviderDisplayName,
 } = require("../simple-page-model-config.cjs");
-const { extractModelOutputText } = require("../simple-page-response-text.cjs");
+const {
+  extractModelOutputFailure,
+  extractModelOutputText,
+} = require("../simple-page-response-text.cjs");
 const {
   buildChatRequestHeaders,
 } = require("../simple-page-request-builders.cjs");
@@ -90,6 +93,9 @@ async function readChatCompletionResult(
   }
 
   const parsed = parseChatResponse(rawText, options, requestSummary);
+  if (extractModelOutputFailure(parsed)) {
+    throw createEmptyOutputError(parsed, rawText, requestSummary, options);
+  }
   const outputText = extractModelOutputText(parsed);
   if (!outputText.trim()) {
     throw createEmptyOutputError(parsed, rawText, requestSummary, options);

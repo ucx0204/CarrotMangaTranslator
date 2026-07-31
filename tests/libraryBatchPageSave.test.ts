@@ -93,6 +93,36 @@ describe("batch page block saves", () => {
     expect(storage.touchWork).not.toHaveBeenCalled();
     expect(storage.readStoredChapter()).toEqual(before);
   });
+
+  it("marks a completed page pending when its source box changes", async () => {
+    const chapter = makeChapter();
+    const page = requirePage(chapter, "page-a");
+    const block = { ...makeBlock("translated"), id: "stable-block" };
+    page.blocks = [block];
+    page.analysisStatus = "completed";
+    page.translationCompletion = {
+      workflow: "erase-original",
+      status: "completed",
+    };
+    const storage = createStorageRuntime(chapter);
+    const savePagesBlocks = createSavePagesBlocksMutation(storage.runtime);
+
+    const saved = await savePagesBlocks(
+      makeRequest([
+        {
+          pageId: page.id,
+          baseUpdatedAt: BASE_TIME,
+          baseBlocksHash: hashTranslationBlocks(page.blocks),
+          blocks: [{ ...block, bbox: { ...block.bbox, x: 250 } }],
+        },
+      ]),
+    );
+
+    expect(saved.pages[0]?.translationCompletion).toEqual({
+      workflow: "erase-original",
+      status: "pending",
+    });
+  });
 });
 
 function createStorageRuntime(initialChapter: LibraryChapter) {

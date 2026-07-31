@@ -6,6 +6,7 @@ import { formatErrorMessage } from "../../lib/errorPresentation";
 
 export function useAppSessionBridgeActions(
   pushStatus: (line: string) => void,
+  requestJobFlowCancellation?: () => void,
 ): {
   cancelJob: () => void;
   openLibraryFolder: () => void;
@@ -13,11 +14,12 @@ export function useAppSessionBridgeActions(
 } {
   const { t } = useTranslation("renderer");
   const cancelJob = useCallback(() => {
+    requestJobFlowCancellation?.();
     void analysisGateway.cancelJob().catch((error) => {
       console.error(error);
       pushStatus(formatErrorMessage(error, t("bridge.cancelJobFailed")));
     });
-  }, [pushStatus, t]);
+  }, [pushStatus, requestJobFlowCancellation, t]);
 
   const openLibraryFolder = useCallback(() => {
     void appGateway.openLibraryFolder().catch((error) => {

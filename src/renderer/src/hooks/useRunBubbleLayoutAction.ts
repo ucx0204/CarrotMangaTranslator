@@ -55,7 +55,7 @@ async function runBubbleLayout(
     if (result.status === "completed") {
       reportBubbleLayoutCompleted(options, t, blockId, result.blocksErased);
     } else if (result.status === "failed") {
-      options.pushStatus(result.error ?? t("inpainting.bubbleLayout.failed"));
+      reportBubbleLayoutFailed(options, t, result.error);
     }
     void refreshLibraryWithStatus(
       options.refreshLibrary,
@@ -71,6 +71,19 @@ async function runBubbleLayout(
       formatErrorMessage(error, t("inpainting.bubbleLayout.failed")),
     );
   }
+}
+
+function reportBubbleLayoutFailed(
+  options: UseInpaintingActionsOptions,
+  t: TFunction<"renderer">,
+  error: string | undefined,
+): void {
+  failInpaintingJob(
+    options.setJobState,
+    options.pushStatus,
+    t("inpainting.bubbleLayout.failedTitle"),
+    error?.trim() || t("inpainting.bubbleLayout.failed"),
+  );
 }
 
 function reportBubbleLayoutCompleted(
