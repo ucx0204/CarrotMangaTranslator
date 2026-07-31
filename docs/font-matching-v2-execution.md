@@ -23,9 +23,10 @@
 ## P1 — blind review 기반
 
 - [x] 라벨 JSON Schema와 candidate tier 불변식
+- [x] 역할·스타일·후처리·tier 육안검수 규약
 - [x] deterministic blind candidate order
 - [x] primary/double/adjudication assignment 계약과 exactly-once 불변식
-- [ ] 프로덕션 렌더러 기반 후보 카드
+- [x] 프로덕션 렌더러 기반 후보 카드
 - [x] 1,000–1,200건 pilot inventory
 - [ ] pilot 역할 합의 macro-F1 ≥ 0.85
 - [ ] pilot tier pairwise 합의 ≥ 0.80
@@ -56,8 +57,8 @@
 
 ## P4 — 앱 통합
 
-- [ ] `WorkTypographyProfile` 저장·마이그레이션
-- [ ] 지속 가능한 semantic role과 intentional override
+- [x] `WorkTypographyProfile` 저장·마이그레이션
+- [x] 지속 가능한 semantic role과 intentional override 계약
 - [ ] page batch local inference와 prototype cache
 - [ ] 번역문 coverage/layout rerank
 - [ ] 사용자 block/work lock 우선순위
@@ -113,3 +114,26 @@ YYYY-MM-DD / 단계
 - artifact: `C:\tmp\font-matching-review-inventory-p1`
 - SHA-256: inventory `c115cd4e03b736a8bd6976e1c4705eb95c971a0908afd603d80306e38c1889f9`
 - 남은 실패/예외: 계획 당시 nominal hard 위험군 2,972건보다 실제 정책 합집합이 3건 많은 2,975건. ordinary proxy 후보 자체가 부족한 3개 화에서 총 11건 부족하며 `coverage_gap`으로 보존함.
+
+2026-08-01 / P1 블라인드 실렌더 review 카드
+
+- 명령: `python scripts/build_font_matching_review_cards.py build ... --output-dir C:\tmp\font-matching-review-card-qa-live-v1 --stage primary --batch all`, 이어서 같은 입력으로 `validate`
+- 결과: 실데이터 가로·세로 카드 각 1장, 15 family 후보 총 30칸 중 실제 렌더 29/29, 가로 카드의 세로전용 family 1칸만 `orientation_unrenderable`. font 이름·ID·모델 제안 노출 0, 학습 asset 복사·수정 0. 두 PNG를 원본 2,400×3,508 해상도로 직접 열어 bbox, 문맥, raw/context/glyph, 후보 15개, 워터마크의 잘림·겹침이 없음을 확인함.
+- artifact: `C:\tmp\font-matching-review-card-qa-live-v1` (QA 전용, `qa_overlay=true`, `training_asset=false`)
+- SHA-256: manifest `a7fb153bbf98d41566fcb32b7c1b2f74261a2385123016df07d31f88530e841d`, builder source `b79efc687a0ae44420448abbdc46264849eb993218a3b543ec2d8ce647953982`, renderer `b356a7a09ad900af63696c111a24d0fbfa53a4c85fba86a868b072cd9c483df6`, vertical card `c07d2aaecfdff4e5be65f356b5cb9c688248e551473b6346fe6ec6b0e894fa53`, horizontal card `5bad10152d969f64791eef5d3cf0dc95696a773f57bd450bfa9aa5558708a0bb`
+- 남은 실패/예외: 카드 자체는 학습 입력으로 사용하지 않는다. pilot 합의 gate가 통과되기 전에는 전수 라벨 확장 및 모델 학습을 시작하지 않는다.
+
+2026-08-01 / P2 전수 검수 assignment·원장 계약
+
+- 명령: `python scripts/font_matching_review_ledger.py plan --master-manifest C:\tmp\font-matching-master-p0-live\manifest.jsonl --render-bank datasets/fontclip-font-render-bank-v1/manifest.json --base-priority-inventory C:\tmp\font-matching-review-inventory-p1\inventory.jsonl ...`
+- 결과: primary 28,115건, secondary 정확히 5,623건, 총 33,738 assignment, 24/24 작품에 독립 2차 표본, 수동 재크롭 39건 추적. claim/submit은 원자적이며 secondary와 adjudicator의 reviewer 독립성을 강제한다. disagreement·저확신·none·미검수·crop/render/catalog/policy/role·수동 재크롭을 모두 재판정 큐로 보내고, unresolved queue가 있으면 완료 검증을 거부한다.
+- artifact: `C:\tmp\font-matching-review-ledger-plan-v1`
+- SHA-256: assignments `750c4b3742b1b9b7ff7e0e7bb1659b19c37803166cd4a9a421d9b3f207d3bd93`, inventory `7172847598db7fc738e898d43cc4885d92b686783f83151240b1600ce4b61963`
+- 남은 실패/예외: 이는 검수 실행계획과 원장 계약 완료이며, 사람/에이전트의 실제 28,115건 판정 완료를 뜻하지 않는다.
+
+2026-08-01 / P4 작품 타이포그래피 프로필 계약
+
+- 명령: focused Vitest, ESLint, Prettier, `npm run deadcode:exports`, `npm run arch:deps`
+- 결과: 15개 semantic role, source style/treatment, ranked evidence와 abstain, block lock → work role lock → profile → V2 → user default/Top-3 우선순위, 본문 anchor+hysteresis, 역할별 2–4 family palette, intentional override, 장르 style bias 최대 10%를 version 2 schema로 고정. V1 migration과 작품별 `typography-profile.json` 원자 저장을 구현했고 10/10 focused test를 통과함.
+- artifact: `src/shared/fontMatchingProfile*.ts`, `src/shared/fontMatchingEvidenceSchemas.ts`, `src/main/libraryStore/workTypographyProfileFiles.ts`
+- 남은 실패/예외: 아직 현재 번역 pipeline이나 UI에는 연결하지 않았다. 전체 typecheck는 동시 작업 중인 별도 inpainting 변경의 타입 오류 때문에 이 시점에 재확인하지 못했고, 이 범위 focused 검증은 모두 통과함.
