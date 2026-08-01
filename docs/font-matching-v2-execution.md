@@ -192,3 +192,19 @@ YYYY-MM-DD / 단계
 - artifact: `src/main/pipeline/automaticFontMatchingV2Catalog.ts`, `src/main/pipeline/automaticFontMatchingV2Ranking.ts`, `src/main/pipeline/fontMatchingDecisionV2Compatibility.ts`
 - SHA-256 또는 commit: 커밋 전 작업트리
 - 남은 실패/예외: 저장소 전체 lint budget은 이번 변경과 무관한 작업트리의 인페인팅 파일 9개 오류 때문에 실패한다. 자동 적용의 실제 픽셀 retrieval과 Chromium 실측 layout evidence는 P3/P4 후속 구현 전까지 의도적으로 비활성 상태다.
+
+2026-08-01 / P1 v2 규약·독립 calibration 표본
+
+- 명령: `python scripts/build_font_matching_rubric_calibration.py --master-manifest C:\tmp\font-matching-master-p0-live\manifest.jsonl --inventory C:\tmp\font-matching-review-inventory-p1\inventory.jsonl --rubric docs\font-matching-v2-review-rubric-v2.md --output-dir C:\tmp\font-matching-rubric-calibration-v2`, 이어서 `font_matching_review_ledger.py plan`으로 primary/secondary 100% 이중검수 assignment 생성
+- 결과: v1 pilot과 frozen test를 모두 제외한 18개 development 작품에서 작품당 최대 16개, 총 282개를 결정론적으로 선택했다. train 218/val 64이며 ordinary proxy 151, aside/free 70, SFX 42, treatment 위험군 140, OCR 위험군 35, 가로쓰기 52가 중복 cohort로 포함된다. 282개 모두 primary+secondary를 배정해 총 564 assignment이며 QA overlay·synthetic·pilot overlap·frozen test 유입은 0이다.
+- artifact: `C:\tmp\font-matching-rubric-calibration-v2`, `docs/font-matching-v2-review-rubric-v2.md`
+- SHA-256: rubric `e4c39bd127d3392b060669a538a344083065d3a385191378a4584e257933b0ef`, subset master `9100b9d834b344c9c06f6dbe5bc7d5151adc724deb4e4bf28acbaea7ce8046ce`, inventory `d9b31e573bea5cd1ccf2e0a0bf97834aedcd174ad473381ca913ebf6711e5bb8`, assignments `f518ce08daa4b72b1300744ac10160af54c6666c76797e30b78ee4a28e703e15`
+- 남은 실패/예외: v2 독립검수는 orientation 사전감사와 카드 재봉인이 끝날 때까지 시작하지 않는다.
+
+2026-08-01 / P1 v2 예비 카드와 orientation 사전감사 gate
+
+- 명령: `build_font_matching_review_cards.py build ... --stage all --batch calibration`, 대표 primary/secondary 가로·세로 카드 4장을 `view_image(detail=original)`로 직접 확인, `python scripts/font_matching_orientation_audit.py build ... --shards 3 --expected-samples 282`
+- 결과: 예비 blind 카드 564장, 실제 후보 패널 8,356개, 방향 미지원 104개, identity leak 0, 학습 asset 복사·수정 0. deterministic 내부 재빌드 검증을 통과했다. 대표 카드의 source page/local/raw/context/glyph, 15개 패널, header/footer는 잘림·겹침 없이 선명했고 primary/secondary 후보 순서도 독립적이었다. 그러나 실제 세로 원문을 horizontal로 표시한 metadata 오판을 육안으로 발견했다. 당시 완료된 v1 final 750건을 대조하니 69건(9.2%)에서 detector 방향과 최종 육안 방향이 달랐으므로, 예비 카드는 calibration 판정에 사용하지 않고 282건 전수 방향 검사를 먼저 수행하도록 차단했다.
+- artifact: `C:\tmp\font-matching-rubric-calibration-cards-v2`, `C:\tmp\font-matching-orientation-audit-v2`
+- SHA-256: card manifest `9a047e0c9766888f5b7ea76769afd8c6fad0106f1dc0922cb879f79246ed595b`, orientation tasks `849ae274d64078ffe54462087ef57c6874fcbe1b3cc2df0ebc99e99c3fe9cfed`
+- 남은 실패/예외: 3개 shard 각 94건을 original detail로 전수 확인하고 horizontal/vertical/mixed/unknown 및 recrop 상태를 확정한 뒤, 고친 방향으로 564장을 다시 렌더·봉인해야 한다.
