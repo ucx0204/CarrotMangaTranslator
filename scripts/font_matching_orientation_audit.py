@@ -26,6 +26,7 @@ REPORT_TYPE = "font_matching_orientation_audit_report"
 APPLY_REPORT_TYPE = "font_matching_orientation_apply_report"
 DECISION_TYPE = "font_matching_orientation_applied_decision"
 CARRY_REPORT_TYPE = "font_matching_orientation_carry_report"
+PREPARE_REPORT_TYPE = "font_matching_orientation_prepare_report"
 DEFAULT_SEED = "font-matching-orientation-audit-v1"
 ORIENTATIONS = frozenset({"horizontal", "vertical", "mixed", "unknown"})
 CROP_STATUSES = frozenset({"usable", "needs_recrop", "mixed_hierarchy", "unusable"})
@@ -424,6 +425,86 @@ def _validate_response(
     return {**dict(value), "notes": notes, "confidence": float(confidence)}
 
 
+def prepare_responses(
+    *,
+    workspace: Path,
+    decision_paths: Sequence[Path],
+    reviewer: str,
+    output: Path,
+    report_output: Path,
+    allow_partial: bool = False,
+) -> dict[str, Any]:
+    tasks = _load_tasks(workspace)
+    normalized_reviewer = require_text(reviewer, location="reviewer")
+    expected_keys = {
+        "sample_id",
+        "viewed_original",
+        "actual_orientation",
+        "confidence",
+        "crop_status",
+        "notes",
+    }
+    responses: dict[str, dict[str, Any]] = {}
+    for path in decision_paths:
+        for index, decision in enumerate(
+            read_jsonl(path, location=str(path), allow_empty=True), 1
+        ):
+            location = f"{path}:{index}"
+            if set(decision) != expected_keys:
+                raise OrientationAuditError(
+                    f"{location}: decision keys differ: {sorted(set(decision) ^ expected_keys)}"
+                )
+            sample_id = require_text(
+                decision.get("sample_id"), location=f"{location}.sample_id"
+            )
+            if sample_id not in tasks:
+                raise OrientationAuditError(f"{location}: unknown sample {sample_id}")
+            if sample_id in responses:
+                raise OrientationAuditError(
+                    f"duplicate orientation decision: {sample_id}"
+                )
+            task = tasks[sample_id]
+            response = {
+                "schema_version": SCHEMA_VERSION,
+                "record_type": RESPONSE_TYPE,
+                "sample_id": sample_id,
+                "primary_assignment_id": task["primary_assignment_id"],
+                "card_sha256": task["card_sha256"],
+                "reviewer": normalized_reviewer,
+                "viewed_original": decision["viewed_original"],
+                "actual_orientation": decision["actual_orientation"],
+                "confidence": decision["confidence"],
+                "crop_status": decision["crop_status"],
+                "notes": decision["notes"],
+            }
+            responses[sample_id] = _validate_response(response, task, location=location)
+    if not responses:
+        raise OrientationAuditError("orientation decisions: no records")
+    missing = sorted(set(tasks) - set(responses))
+    if missing and not allow_partial:
+        raise OrientationAuditError(f"missing orientation decisions: {missing[:8]}")
+    ordered = [responses[sample_id] for sample_id in sorted(responses)]
+    payload = jsonl_bytes(ordered)
+    report = _seal(
+        {
+            "schema_version": SCHEMA_VERSION,
+            "record_type": PREPARE_REPORT_TYPE,
+            "complete": not missing,
+            "reviewer": normalized_reviewer,
+            "counts": {
+                "tasks": len(tasks),
+                "prepared": len(ordered),
+                "missing": len(missing),
+            },
+            "missing_sample_ids": missing,
+            "responses_sha256": sha256_bytes(payload),
+        }
+    )
+    _atomic_write(output, payload)
+    _atomic_write(report_output, json_bytes(report, pretty=True))
+    return report
+
+
 def validate_responses(
     *,
     workspace: Path,
@@ -813,6 +894,13 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     carry.add_argument("--responses", type=Path, action="append", required=True)
     carry.add_argument("--output", type=Path, required=True)
     carry.add_argument("--report-output", type=Path, required=True)
+    prepare = subparsers.add_parser("prepare")
+    prepare.add_argument("--workspace", type=Path, required=True)
+    prepare.add_argument("--decisions", type=Path, action="append", required=True)
+    prepare.add_argument("--reviewer", required=True)
+    prepare.add_argument("--output", type=Path, required=True)
+    prepare.add_argument("--report-output", type=Path, required=True)
+    prepare.add_argument("--allow-partial", action="store_true")
     return parser.parse_args(argv)
 
 
@@ -846,13 +934,22 @@ def main(argv: Sequence[str] | None = None) -> int:
                 master_path=args.master.resolve(),
                 output_dir=args.output_dir.resolve(),
             )
-        else:
+        elif args.command == "carry":
             report = carry_responses(
                 source_workspace=args.source_workspace.resolve(),
                 target_workspace=args.target_workspace.resolve(),
                 response_paths=[path.resolve() for path in args.responses],
                 output=args.output.resolve(),
                 report_output=args.report_output.resolve(),
+            )
+        else:
+            report = prepare_responses(
+                workspace=args.workspace.resolve(),
+                decision_paths=[path.resolve() for path in args.decisions],
+                reviewer=args.reviewer,
+                output=args.output.resolve(),
+                report_output=args.report_output.resolve(),
+                allow_partial=args.allow_partial,
             )
     except OrientationAuditError as error:
         print(f"error: {error}")

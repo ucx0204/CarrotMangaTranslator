@@ -407,6 +407,60 @@ class OrientationAuditTests(unittest.TestCase):
             )
             self.assertTrue(validation["complete"])
 
+    def test_prepares_hash_bound_responses_from_minimal_visual_decisions(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            inventory, assignments, manifest, cards_root = self.fixture(root)
+            workspace = root / "workspace"
+            AUDIT.build_workspace(
+                inventory_path=inventory,
+                assignments_path=assignments,
+                card_manifest_path=manifest,
+                cards_root=cards_root,
+                output_dir=workspace,
+                shards=1,
+                expected_samples=2,
+            )
+            task = AUDIT.read_jsonl(workspace / "tasks.jsonl", location="tasks")[0]
+            decisions = root / "decisions.jsonl"
+            write_jsonl(
+                decisions,
+                [
+                    {
+                        "sample_id": task["sample_id"],
+                        "viewed_original": True,
+                        "actual_orientation": task["declared_orientation"],
+                        "confidence": 0.96,
+                        "crop_status": "usable",
+                        "notes": "원본 카드의 실제 글자 흐름을 직접 확인함",
+                    }
+                ],
+            )
+            responses = root / "responses.jsonl"
+            report_path = root / "prepare-report.json"
+
+            report = AUDIT.prepare_responses(
+                workspace=workspace,
+                decision_paths=[decisions],
+                reviewer="orientation-reviewer-a",
+                output=responses,
+                report_output=report_path,
+                allow_partial=True,
+            )
+
+            self.assertEqual(1, report["counts"]["prepared"])
+            prepared = AUDIT.read_jsonl(responses, location="responses")[0]
+            self.assertEqual(
+                task["primary_assignment_id"], prepared["primary_assignment_id"]
+            )
+            self.assertEqual(task["card_sha256"], prepared["card_sha256"])
+            validation = AUDIT.validate_responses(
+                workspace=workspace,
+                response_paths=[responses],
+                allow_partial=True,
+            )
+            self.assertEqual(1, validation["counts"]["responses"])
+
 
 if __name__ == "__main__":
     unittest.main()
