@@ -216,3 +216,11 @@ YYYY-MM-DD / 단계
 - artifact: `scripts/font_matching_orientation_audit.py`, `scripts/build_font_matching_work_references.py`, `scripts/build_font_matching_review_cards.py`, `scripts/font_matching_review_ledger.py`
 - SHA-256: 현재 870개 final을 이용한 예비 reference manifest `53d13a8e189e983a3ca275b6b6558ad11fb0a9f1b3226135f920bed433364930`; 최종 artifact는 1,200개 final과 방향 감사 완료 후 다시 봉인한다.
 - 남은 실패/예외: 이 예비 reference manifest는 final ledger가 계속 증가하므로 calibration 검수에 사용하지 않는다. 1,200/1,200 final 및 282/282 방향 감사 완료 뒤 `--require-final-count 1200`으로 재생성하고 최종 카드 전체를 다시 봉인해야 한다.
+
+2026-08-01 / P2 보수적 작품 프로필 집계기
+
+- 명령: `python scripts/build_font_matching_work_profiles.py --final-labels datasets/font-matching-review-ledger-pilot-v1/finals.jsonl ...`, Python focused test/Ruff/py_compile, 생성된 24개 profile을 `WorkTypographyProfileV2Schema`로 전수 parse
+- 결과: 봉인된 human final만 받아 작품명·장르 없이 작품별 대사/내레이션/생각 anchor와 역할별 2–4개 accent palette를 독립 집계한다. 일반 대사는 고신뢰 반복 근거 20개 이상, top score 0.65 이상, 차점 대비 margin 0.08 이상을 모두 만족해야 하며 희소하거나 애매하면 null로 기권한다. 역할 palette도 최소 반복 근거와 후보 2개가 없으면 만들지 않는다. source catalog/renderer가 섞이거나 final seal·후보 전수판정·runtime hash가 맞지 않으면 hard-fail한다. 현재 진행 중인 1,014개 파일럿 final의 예비 실행은 24작품 모두 dialogue anchor를 기권했고 역할 palette 53개만 생성했으며, 24/24 profile이 TypeScript 제품 schema를 통과했다.
+- artifact: `scripts/build_font_matching_work_profiles.py`, `tests/python/test_build_font_matching_work_profiles.py`, `C:\tmp\font-matching-work-profiles-preliminary-v1.jsonl`
+- SHA-256: 예비 finals `60bd1059bb2167f6cf3d205aa9b41938c5276c9838fe47d059bba0135c28d855`, 예비 profiles `775494ac07d8bfa32ff4d3544b817fc1c85bf521d491c4435d2694d856caeb88`
+- 남은 실패/예외: 파일럿 합의 gate와 adjudication이 아직 끝나지 않았고 runtime catalog tag도 `offline-unreleased`이므로 이 예비 profile은 설치하거나 자동 적용하지 않는다. v2 calibration 통과 후 28,115개 최종판정에서 `--expected-finals 28115`로 다시 만들고 실제 runtime catalog/model/renderer 계약을 넣어야 한다.
