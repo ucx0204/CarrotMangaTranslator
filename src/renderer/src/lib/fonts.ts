@@ -47,7 +47,7 @@ const DEFAULT_FONT_PREFERENCES: ReadonlyFontPreferences = Object.freeze({
   defaultFontId: DEFAULT_BLOCK_FONT_ID,
 });
 
-const ADDED_KOREAN_FONT_IDS = [
+const FIRST_KOREAN_FONT_ADDITION_IDS = [
   "dohyeon",
   "ridi-batang",
   "cafe24-gowoonbam",
@@ -55,10 +55,34 @@ const ADDED_KOREAN_FONT_IDS = [
   "jua",
   "gaegu",
 ] as const;
-const ADDED_KOREAN_FONT_ID_SET = new Set<string>(ADDED_KOREAN_FONT_IDS);
-const PRE_ADDITION_BUILT_IN_FONT_IDS = BUILT_IN_BLOCK_FONTS.filter(
-  (font) => !ADDED_KOREAN_FONT_ID_SET.has(font.id),
-).map((font) => font.id);
+const SFX_KOREAN_FONT_ADDITION_IDS = [
+  "black-and-white-picture",
+  "black-han-sans",
+  "gasoek-one",
+  "gugi",
+  "kirang-haerang",
+  "nanum-brush-script",
+  "single-day",
+] as const;
+
+const KOREAN_FONT_ADDITION_MIGRATIONS = [
+  {
+    addedIds: FIRST_KOREAN_FONT_ADDITION_IDS,
+    requiredIds: BUILT_IN_BLOCK_FONTS.filter(
+      (font) =>
+        !FIRST_KOREAN_FONT_ADDITION_IDS.some((id) => id === font.id) &&
+        !SFX_KOREAN_FONT_ADDITION_IDS.some((id) => id === font.id),
+    ).map((font) => font.id),
+    anchorId: "seoul-hangang",
+  },
+  {
+    addedIds: SFX_KOREAN_FONT_ADDITION_IDS,
+    requiredIds: BUILT_IN_BLOCK_FONTS.filter(
+      (font) => !SFX_KOREAN_FONT_ADDITION_IDS.some((id) => id === font.id),
+    ).map((font) => font.id),
+    anchorId: "gaegu",
+  },
+] as const;
 
 export const DEFAULT_BLOCK_FONT_CATALOG: BlockFontCatalog =
   createBlockFontCatalog([], DEFAULT_FONT_PREFERENCES);
@@ -93,24 +117,30 @@ function reconcileAddedKoreanFontOrder(
 ): ReadonlyFontPreferences {
   const orderedIds = [...preferences.orderedIds];
   const orderedIdSet = new Set(orderedIds);
+  let changed = false;
 
   // The font manager stores a complete ordering snapshot after a drag. An
-  // older snapshot therefore contains every pre-addition built-in but none of
-  // the newly bundled Korean fonts. Migrate only that exact shape so partial
-  // user-defined orders keep their existing "move these to the front" meaning.
-  if (
-    ADDED_KOREAN_FONT_IDS.some((id) => orderedIdSet.has(id)) ||
-    !PRE_ADDITION_BUILT_IN_FONT_IDS.every((id) => orderedIdSet.has(id))
-  ) {
-    return preferences;
+  // older snapshot contains every built-in from that generation but none of
+  // the next generation. Apply each generation only to that exact shape so a
+  // partial user-defined order keeps its "move these to the front" meaning.
+  for (const migration of KOREAN_FONT_ADDITION_MIGRATIONS) {
+    if (
+      migration.addedIds.some((id) => orderedIdSet.has(id)) ||
+      !migration.requiredIds.every((id) => orderedIdSet.has(id))
+    ) {
+      continue;
+    }
+
+    const anchorIndex = orderedIds.indexOf(migration.anchorId);
+    if (anchorIndex < 0) {
+      continue;
+    }
+    orderedIds.splice(anchorIndex + 1, 0, ...migration.addedIds);
+    migration.addedIds.forEach((id) => orderedIdSet.add(id));
+    changed = true;
   }
 
-  const anchorIndex = orderedIds.indexOf("seoul-hangang");
-  if (anchorIndex < 0) {
-    return preferences;
-  }
-  orderedIds.splice(anchorIndex + 1, 0, ...ADDED_KOREAN_FONT_IDS);
-  return { ...preferences, orderedIds };
+  return changed ? { ...preferences, orderedIds } : preferences;
 }
 
 function customFontToOption(font: Readonly<CustomFont>): BlockFontOption {

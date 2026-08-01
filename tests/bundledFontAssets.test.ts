@@ -47,6 +47,13 @@ const NEW_KOREAN_FONT_IDS = [
   "start-over",
   "jua",
   "gaegu",
+  "black-and-white-picture",
+  "black-han-sans",
+  "gasoek-one",
+  "gugi",
+  "kirang-haerang",
+  "nanum-brush-script",
+  "single-day",
 ] as const;
 const FONT_SIGNATURES = {
   ttf: Buffer.from([0, 1, 0, 0]),
@@ -130,7 +137,7 @@ describe("bundled multilingual font assets", () => {
     }
   });
 
-  it("keeps the seven redistributable Korean fonts and all of their faces in sync", () => {
+  it("keeps the redistributable Korean fonts and all of their faces in sync", () => {
     const manifest = JSON.parse(
       readFileSync(MANIFEST_PATH, "utf8"),
     ) as BundledFontManifest;

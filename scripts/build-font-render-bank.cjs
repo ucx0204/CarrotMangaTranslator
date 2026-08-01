@@ -123,8 +123,8 @@ function assertManifestContract(root, manifest, expectedLimit) {
     throw new Error("Font render-bank render inventory is stale.");
   }
   if (
-    manifest.family_count !== 15 ||
-    manifest.face_count !== 31 ||
+    manifest.family_count !== currentPlan.source_face_manifest.family_count ||
+    manifest.face_count !== currentPlan.source_face_manifest.face_count ||
     manifest.candidate_count !== currentPlan.candidates.length
   ) {
     throw new Error(
@@ -390,7 +390,7 @@ function buildReport(manifest, manifestSha256) {
               severity: "error",
               count: unrenderableFaces.length,
               detail:
-                "The original production assets are omitted, not silently normalized: Chromium reports `OTS parsing error: TSI3: zero-length table`. Replace or explicitly exclude these exact source faces before a 31-face bank can be complete.",
+                `The original production assets are omitted, not silently normalized: Chromium reports \`OTS parsing error: TSI3: zero-length table\`. Replace or explicitly exclude these exact source faces before a ${manifest.face_count}-face bank can be complete.`,
             },
           ]
         : []),
@@ -418,7 +418,7 @@ function buildInputs(root, plan) {
   ];
   return [
     {
-      path: "datasets/fontclip-font-catalog-v1/manifest.json (derived)",
+      path: "datasets/fontclip-font-catalog-v2/manifest.json (derived)",
       sha256: plan.source_face_manifest_sha256,
     },
     ...paths.map((path) => ({
@@ -537,7 +537,7 @@ async function main() {
   }
   const outputDirectory = args.output
     ? resolve(args.output)
-    : join(root, "datasets", "fontclip-font-render-bank-v1");
+    : join(root, "datasets", "fontclip-font-render-bank-v2");
   const artifacts = args.check
     ? verifyOutput(root, outputDirectory, args.limit)
     : await writeArtifacts(root, outputDirectory, args.limit);

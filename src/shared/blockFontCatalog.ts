@@ -141,6 +141,58 @@ export const BUILT_IN_BLOCK_FONTS = [
     cssFamily: fontFamily("MGT Gaegu", KOREAN_SANS_FALLBACK),
     sample: "개구쟁이 낙서",
   },
+  {
+    id: "black-and-white-picture",
+    locale: "ko",
+    label: "Black And White Picture",
+    cssFamily: fontFamily(
+      "MGT Black And White Picture",
+      KOREAN_SANS_FALLBACK,
+    ),
+    sample: "거친 효과음 쾅!",
+  },
+  {
+    id: "black-han-sans",
+    locale: "ko",
+    label: "Black Han Sans",
+    cssFamily: fontFamily("MGT Black Han Sans", KOREAN_SANS_FALLBACK),
+    sample: "강한 외침 쾅!",
+  },
+  {
+    id: "gasoek-one",
+    locale: "ko",
+    label: "Gasoek One",
+    cssFamily: fontFamily("MGT Gasoek One", KOREAN_SANS_FALLBACK),
+    sample: "압축 충격음 콰앙!",
+  },
+  {
+    id: "gugi",
+    locale: "ko",
+    label: "Gugi",
+    cssFamily: fontFamily("MGT Gugi", KOREAN_SANS_FALLBACK),
+    sample: "각진 효과음 휙!",
+  },
+  {
+    id: "kirang-haerang",
+    locale: "ko",
+    label: "Kirang Haerang",
+    cssFamily: fontFamily("MGT Kirang Haerang", KOREAN_SANS_FALLBACK),
+    sample: "불규칙 반응 삐질",
+  },
+  {
+    id: "nanum-brush-script",
+    locale: "ko",
+    label: "Nanum Brush Script",
+    cssFamily: fontFamily("MGT Nanum Brush Script", KOREAN_SANS_FALLBACK),
+    sample: "붓글씨 스르륵",
+  },
+  {
+    id: "single-day",
+    locale: "ko",
+    label: "Single Day",
+    cssFamily: fontFamily("MGT Single Day", KOREAN_SANS_FALLBACK),
+    sample: "가벼운 낙서 두근",
+  },
 
   // English
   {

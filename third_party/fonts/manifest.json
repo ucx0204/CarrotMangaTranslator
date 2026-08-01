@@ -1,7 +1,7 @@
 {
-  "generatedOn": "2026-07-30",
+  "generatedOn": "2026-08-01",
   "sourceRevisions": {
-    "google-fonts": "ec0464b978de222073645d6d3366f3fdf03376d8",
+    "google-fonts": "2796410152d4f9524b68ed46e69c1b60f8e0f7c3",
     "chenyuluoyan_thin-v2.0": "79d19aa663b4647291c57568d52321d81b719103",
     "cubic-11-v1.500": "4c566f7d6cc5c05ee360fe9cff56b5da1fcafd4d"
   },
@@ -331,6 +331,125 @@
           "sha256": "cc38a4af9506a45254d1ce07c589ec473d9e5f0be319e5a77b17c214903f8c1c",
           "format": "ttf",
           "weight": 700
+        }
+      ]
+    },
+    {
+      "id": "black-and-white-picture",
+      "family": "Black And White Picture",
+      "locale": "ko",
+      "source": "https://github.com/google/fonts/tree/2796410152d4f9524b68ed46e69c1b60f8e0f7c3/ofl/blackandwhitepicture",
+      "license": "OFL-1.1",
+      "licenseSource": "https://github.com/google/fonts/blob/2796410152d4f9524b68ed46e69c1b60f8e0f7c3/ofl/blackandwhitepicture/OFL.txt",
+      "faces": [
+        {
+          "file": "src/renderer/src/assets/fonts/ko/black-and-white-picture.ttf",
+          "sourceFile": "BlackAndWhitePicture-Regular.ttf",
+          "sha256": "4d72cd6de1f210b446c86f06b4e13d7641cbcfb1b375c6927341388aa8e08056",
+          "format": "ttf",
+          "weight": 400
+        }
+      ]
+    },
+    {
+      "id": "black-han-sans",
+      "family": "Black Han Sans",
+      "locale": "ko",
+      "source": "https://github.com/google/fonts/tree/2796410152d4f9524b68ed46e69c1b60f8e0f7c3/ofl/blackhansans",
+      "license": "OFL-1.1",
+      "licenseSource": "https://github.com/google/fonts/blob/2796410152d4f9524b68ed46e69c1b60f8e0f7c3/ofl/blackhansans/OFL.txt",
+      "faces": [
+        {
+          "file": "src/renderer/src/assets/fonts/ko/black-han-sans.ttf",
+          "sourceFile": "BlackHanSans-Regular.ttf",
+          "sha256": "31960809284026681774a8e52dc19ebcad26cf69b0ad9d560f288296fbb52739",
+          "format": "ttf",
+          "weight": 400
+        }
+      ]
+    },
+    {
+      "id": "gasoek-one",
+      "family": "Gasoek One",
+      "locale": "ko",
+      "source": "https://github.com/google/fonts/tree/2796410152d4f9524b68ed46e69c1b60f8e0f7c3/ofl/gasoekone",
+      "license": "OFL-1.1",
+      "licenseSource": "https://github.com/google/fonts/blob/2796410152d4f9524b68ed46e69c1b60f8e0f7c3/ofl/gasoekone/OFL.txt",
+      "faces": [
+        {
+          "file": "src/renderer/src/assets/fonts/ko/gasoek-one.ttf",
+          "sourceFile": "GasoekOne-Regular.ttf",
+          "sha256": "73a6b8e0d12a56f0a070f19b44a93ae050f98eb926da5d2a7c8d6db92bd8d9c3",
+          "format": "ttf",
+          "weight": 400
+        }
+      ]
+    },
+    {
+      "id": "gugi",
+      "family": "Gugi",
+      "locale": "ko",
+      "source": "https://github.com/google/fonts/tree/2796410152d4f9524b68ed46e69c1b60f8e0f7c3/ofl/gugi",
+      "license": "OFL-1.1",
+      "licenseSource": "https://github.com/google/fonts/blob/2796410152d4f9524b68ed46e69c1b60f8e0f7c3/ofl/gugi/OFL.txt",
+      "faces": [
+        {
+          "file": "src/renderer/src/assets/fonts/ko/gugi.ttf",
+          "sourceFile": "Gugi-Regular.ttf",
+          "sha256": "c0b1f979979cfc309fb2438fa9464f96173353e0c4842cc7a5919658184ed9d3",
+          "format": "ttf",
+          "weight": 400
+        }
+      ]
+    },
+    {
+      "id": "kirang-haerang",
+      "family": "Kirang Haerang",
+      "locale": "ko",
+      "source": "https://github.com/google/fonts/tree/2796410152d4f9524b68ed46e69c1b60f8e0f7c3/ofl/kiranghaerang",
+      "license": "OFL-1.1",
+      "licenseSource": "https://github.com/google/fonts/blob/2796410152d4f9524b68ed46e69c1b60f8e0f7c3/ofl/kiranghaerang/OFL.txt",
+      "faces": [
+        {
+          "file": "src/renderer/src/assets/fonts/ko/kirang-haerang.ttf",
+          "sourceFile": "KirangHaerang-Regular.ttf",
+          "sha256": "d677d28d466989017c520f00a2a7794ea581ea3d9fa9a830fbb44f1015eac72d",
+          "format": "ttf",
+          "weight": 400
+        }
+      ]
+    },
+    {
+      "id": "nanum-brush-script",
+      "family": "Nanum Brush Script",
+      "locale": "ko",
+      "source": "https://github.com/google/fonts/tree/2796410152d4f9524b68ed46e69c1b60f8e0f7c3/ofl/nanumbrushscript",
+      "license": "OFL-1.1",
+      "licenseSource": "https://github.com/google/fonts/blob/2796410152d4f9524b68ed46e69c1b60f8e0f7c3/ofl/nanumbrushscript/OFL.txt",
+      "faces": [
+        {
+          "file": "src/renderer/src/assets/fonts/ko/nanum-brush-script.ttf",
+          "sourceFile": "NanumBrushScript-Regular.ttf",
+          "sha256": "27ceaf578c96f594cdf07fe0181b251790acbb746a164e45c1f6473f89911a31",
+          "format": "ttf",
+          "weight": 400
+        }
+      ]
+    },
+    {
+      "id": "single-day",
+      "family": "Single Day",
+      "locale": "ko",
+      "source": "https://github.com/google/fonts/tree/2796410152d4f9524b68ed46e69c1b60f8e0f7c3/ofl/singleday",
+      "license": "OFL-1.1",
+      "licenseSource": "https://github.com/google/fonts/blob/2796410152d4f9524b68ed46e69c1b60f8e0f7c3/ofl/singleday/OFL.txt",
+      "faces": [
+        {
+          "file": "src/renderer/src/assets/fonts/ko/single-day.ttf",
+          "sourceFile": "SingleDay-Regular.ttf",
+          "sha256": "716ff67a4b0675b35c26d60a4bb83173f7d153ab754474ed36c3369593ca1ca8",
+          "format": "ttf",
+          "weight": 400
         }
       ]
     }

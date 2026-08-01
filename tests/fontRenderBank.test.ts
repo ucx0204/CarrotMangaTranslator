@@ -158,20 +158,20 @@ afterEach(async () => {
 });
 
 describe("font-render-bank-v1", () => {
-  it("freezes 15 Korean families, all 31 physical faces, CSS weights, modes, and role probes", () => {
+  it("freezes 22 Korean families, all 38 physical faces, CSS weights, modes, and role probes", () => {
     const plan = buildRenderPlan(ROOT);
 
     expect(plan.source_face_manifest).toMatchObject({
-      family_count: 15,
-      face_count: 31,
+      family_count: 22,
+      face_count: 38,
     });
     expect(
       new Set(plan.candidates.map((candidate) => candidate.font_id)).size,
-    ).toBe(15);
+    ).toBe(22);
     expect(
       new Set(plan.candidates.map((candidate) => candidate.face_id)).size,
-    ).toBe(31);
-    expect(plan.candidates).toHaveLength(35);
+    ).toBe(38);
+    expect(plan.candidates).toHaveLength(42);
     expect(plan.probes).toHaveLength(10);
     expect(plan.probes.map((probe) => probe.role)).toEqual([
       "dialogue_body",
@@ -193,15 +193,15 @@ describe("font-render-bank-v1", () => {
           Number.isFinite(probe.letter_spacing_em),
       ),
     ).toBe(true);
-    expect(plan.jobs).toHaveLength(680);
-    expect(plan.full_render_count).toBe(680);
-    expect(plan.expected_render_count).toBe(680);
+    expect(plan.jobs).toHaveLength(820);
+    expect(plan.full_render_count).toBe(820);
+    expect(plan.expected_render_count).toBe(820);
     expect(
       plan.jobs.filter((job) => job.writing_mode === "horizontal"),
-    ).toHaveLength(330);
+    ).toHaveLength(400);
     expect(
       plan.jobs.filter((job) => job.writing_mode === "vertical"),
-    ).toHaveLength(350);
+    ).toHaveLength(420);
 
     const unrenderable = plan.candidates.filter(
       (candidate) => !candidate.production_asset_status.chromium_ots_compatible,
@@ -210,7 +210,7 @@ describe("font-render-bank-v1", () => {
     const canonical = plan.candidates.filter(
       (candidate) => candidate.production_400_normal_canonical,
     );
-    expect(canonical).toHaveLength(15);
+    expect(canonical).toHaveLength(22);
     expect(
       canonical.every(
         (candidate) =>
@@ -299,15 +299,15 @@ function assertFixtureMetadata(
 ) {
   expect(manifest.schema_version).toBe("font-render-bank-v1");
   expect(manifest).toMatchObject({
-    family_count: 15,
-    face_count: 31,
-    candidate_count: 35,
+    family_count: 22,
+    face_count: 38,
+    candidate_count: 42,
     rendered_candidate_count: 1,
     generation: {
       limit: 2,
       partial: true,
-      expected_render_count: 680,
-      full_render_count: 680,
+      expected_render_count: 820,
+      full_render_count: 820,
       production_asset_omitted_render_count: 0,
       complete_against_production_assets: false,
       rendered_count: 2,
@@ -325,9 +325,9 @@ function assertFixtureMetadata(
   });
   expect(report.schema_version).toBe("font-render-bank-report-v1");
   expect(report.summary).toEqual({
-    family_count: 15,
-    face_count: 31,
-    candidate_count: 35,
+    family_count: 22,
+    face_count: 38,
+    candidate_count: 42,
     rendered_candidate_count: 1,
     rendered_png_count: 2,
     fonts_ready_pass_count: 2,
@@ -368,7 +368,7 @@ function assertFixturePngs(output: string, manifest: RenderManifest) {
     expect(sha256(png)).toBe(render.artifact.sha256);
     const expected =
       render.writing_mode === "vertical"
-        ? { width: 224, height: 448 }
+        ? { width: 224, height: 480 }
         : { width: 448, height: 224 };
     expect(render.artifact).toMatchObject(expected);
     expect(render.pixels.ink_bounds.min_x).toBeGreaterThanOrEqual(22);

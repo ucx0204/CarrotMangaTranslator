@@ -46,9 +46,9 @@ function readKoreanCatalog(catalogPath) {
     });
   }
 
-  if (entries.length !== 15) {
+  if (entries.length !== 22) {
     throw new Error(
-      `Expected 15 Korean catalog entries, found ${entries.length}.`,
+      `Expected 22 Korean catalog entries, found ${entries.length}.`,
     );
   }
   assertUnique(

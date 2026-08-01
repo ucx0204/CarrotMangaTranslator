@@ -30,6 +30,13 @@ const EXPECTED_IDS_BY_LOCALE = {
     "start-over",
     "jua",
     "gaegu",
+    "black-and-white-picture",
+    "black-han-sans",
+    "gasoek-one",
+    "gugi",
+    "kirang-haerang",
+    "nanum-brush-script",
+    "single-day",
   ],
   en: [
     "comic-neue",
@@ -72,7 +79,7 @@ const BASE_LOCALE_ORDER: readonly UiLocale[] = [
   "zh-Hans",
   "zh-Hant",
 ];
-const ADDED_KOREAN_FONT_IDS = [
+const FIRST_KOREAN_FONT_ADDITION_IDS = [
   "dohyeon",
   "ridi-batang",
   "cafe24-gowoonbam",
@@ -80,10 +87,23 @@ const ADDED_KOREAN_FONT_IDS = [
   "jua",
   "gaegu",
 ] as const;
+const SFX_KOREAN_FONT_ADDITION_IDS = [
+  "black-and-white-picture",
+  "black-han-sans",
+  "gasoek-one",
+  "gugi",
+  "kirang-haerang",
+  "nanum-brush-script",
+  "single-day",
+] as const;
+const ADDED_KOREAN_FONT_IDS = [
+  ...FIRST_KOREAN_FONT_ADDITION_IDS,
+  ...SFX_KOREAN_FONT_ADDITION_IDS,
+] as const;
 
 describe("built-in block font catalog", () => {
   it("contains the expected stable kebab-case IDs for every locale", () => {
-    expect(BUILT_IN_BLOCK_FONTS).toHaveLength(39);
+    expect(BUILT_IN_BLOCK_FONTS).toHaveLength(46);
     const ids = BUILT_IN_BLOCK_FONTS.map((font) => font.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids.every((id) => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id))).toBe(true);
@@ -177,6 +197,45 @@ describe("built-in block font catalog", () => {
         optionIds.indexOf("comic-neue"),
       ),
     ).toEqual(ADDED_KOREAN_FONT_IDS);
+    expect(optionIds.at(-1)).toBe(customId);
+  });
+
+  it("inserts the SFX expansion into a saved post-first-addition full order", () => {
+    const customId = "7432f752-8615-4708-a3d6-57bbcb05bdda";
+    const catalog = createBlockFontCatalog(
+      [
+        {
+          id: customId,
+          label: "My Font",
+          family: `MGTUser-${customId}`,
+          fileName: `${customId}.ttf`,
+        },
+      ],
+      {
+        favoriteIds: [],
+        orderedIds: [
+          DEFAULT_BLOCK_FONT_ID,
+          ...BUILT_IN_BLOCK_FONTS.filter(
+            (font) =>
+              !SFX_KOREAN_FONT_ADDITION_IDS.some(
+                (newId) => newId === font.id,
+              ),
+          ).map((font) => font.id),
+          customId,
+        ],
+        defaultFontId: DEFAULT_BLOCK_FONT_ID,
+      },
+    );
+
+    const optionIds = getBlockFontOptions(catalog, undefined, "ko").map(
+      (option) => option.id,
+    );
+    expect(
+      optionIds.slice(
+        optionIds.indexOf("gaegu") + 1,
+        optionIds.indexOf("comic-neue"),
+      ),
+    ).toEqual(SFX_KOREAN_FONT_ADDITION_IDS);
     expect(optionIds.at(-1)).toBe(customId);
   });
 

@@ -247,6 +247,63 @@
   font-display: swap;
 }
 
+/* Korean display, sound-effect, and handwriting expansion. */
+@font-face {
+  font-family: "MGT Black And White Picture";
+  src: url("../assets/fonts/ko/black-and-white-picture.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Black Han Sans";
+  src: url("../assets/fonts/ko/black-han-sans.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Gasoek One";
+  src: url("../assets/fonts/ko/gasoek-one.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Gugi";
+  src: url("../assets/fonts/ko/gugi.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Kirang Haerang";
+  src: url("../assets/fonts/ko/kirang-haerang.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Nanum Brush Script";
+  src: url("../assets/fonts/ko/nanum-brush-script.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "MGT Single Day";
+  src: url("../assets/fonts/ko/single-day.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* English comic and handwriting fonts. */
 @font-face {
   font-family: "MGT Comic Neue";

@@ -185,9 +185,9 @@ function buildArtifacts(root) {
     face_count: families.reduce((sum, family) => sum + family.faces.length, 0),
     families,
   };
-  if (manifest.family_count !== 15 || manifest.face_count !== 31) {
+  if (manifest.family_count !== 22 || manifest.face_count !== 38) {
     throw new Error(
-      `Expected 15 Korean families and 31 faces, found ${manifest.family_count}/${manifest.face_count}.`,
+      `Expected 22 Korean families and 38 faces, found ${manifest.family_count}/${manifest.face_count}.`,
     );
   }
   const serializedManifest = serializeJson(manifest);
@@ -614,7 +614,7 @@ function main() {
   }
   const outputDirectory = args.output
     ? resolve(args.output)
-    : join(root, "datasets", "fontclip-font-catalog-v1");
+    : join(root, "datasets", "fontclip-font-catalog-v2");
   const artifacts = args.check
     ? checkArtifacts(root, outputDirectory)
     : writeArtifacts(root, outputDirectory);

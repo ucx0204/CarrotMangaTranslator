@@ -105,7 +105,8 @@ YYYY-MM-DD / 단계
 
 - 명령: `npm run build:font-face-manifest`, `npm run build:font-render-bank`, `npm run check:font-face-manifest`, `npm run check:font-render-bank`
 - 결과: 15 family/31 face/35 weight 후보, Electron Chromium 실제 렌더 680/680, `fonts.ready` 680/680, fallback 0, 잘림 0, QA overlay 0.
-- artifact: `datasets/fontclip-font-catalog-v1`, `datasets/fontclip-font-render-bank-v1` (둘 다 gitignored 재생성 artifact)
+- 기존 15종 파일럿 보존 artifact: `datasets/fontclip-font-catalog-v1`, `datasets/fontclip-font-render-bank-v1`
+- 확장 22종 artifact: `datasets/fontclip-font-catalog-v2`, `datasets/fontclip-font-render-bank-v2` (모두 gitignored 재생성 artifact)
 - SHA-256: render manifest `131181d5ed384655c14c2448b90f90783c5950561e96fe4b91d74041cb371ccf`
 - 남은 실패/예외: 나눔고딕 light의 원본 archive provenance는 미확인으로 명시. Chromium이 거부하던 regular/bold/extra-bold 3종은 공식 Naver archive SHA `25eee9a54f391d1d81dc5bbaab313f6c055bcbd2e7ab5d2cca8a0aa57257bdd9`의 무변형 파일로 교체함.
 

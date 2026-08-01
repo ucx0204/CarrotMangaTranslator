@@ -95,7 +95,7 @@ const RENDER_SPEC = {
   background: "#ffffff",
   fill: "#111111",
   horizontal_canvas: { width: 448, height: 224 },
-  vertical_canvas: { width: 224, height: 448 },
+  vertical_canvas: { width: 224, height: 480 },
   padding_px: 24,
   line_height: 1.15,
   font_synthesis: "weight style",

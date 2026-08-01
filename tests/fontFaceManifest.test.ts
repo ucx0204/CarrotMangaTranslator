@@ -77,7 +77,7 @@ afterEach(() => {
 });
 
 describe("font-face-manifest-v1", () => {
-  it("deterministically audits all 15 Korean families and 31 production faces", () => {
+  it("deterministically audits all 22 Korean families and 38 production faces", () => {
     const output = mkdtempSync(join(tmpdir(), "mgt-font-face-manifest-"));
     temporaryDirectories.push(output);
 
@@ -94,19 +94,19 @@ describe("font-face-manifest-v1", () => {
     ).map((font) => font.id);
     expect(manifest.schema_version).toBe("font-face-manifest-v1");
     expect(manifest.deterministic).toBe(true);
-    expect(manifest.family_count).toBe(15);
-    expect(manifest.face_count).toBe(31);
+    expect(manifest.family_count).toBe(22);
+    expect(manifest.face_count).toBe(38);
     expect(manifest.families.map((family) => family.font_id)).toEqual(
       koreanCatalogIds,
     );
     expect(report.schema_version).toBe("font-face-audit-report-v1");
     expect(report.manifest_sha256).toBe(sha256(manifestBytes));
     expect(report.summary).toMatchObject({
-      family_count: 15,
-      face_count: 31,
-      limited_hangul_syllable_face_count: 5,
+      family_count: 22,
+      face_count: 38,
+      limited_hangul_syllable_face_count: 9,
       static_face_weight_range_count: 4,
-      synthetic_or_aliased_800_family_count: 15,
+      synthetic_or_aliased_800_family_count: 22,
     });
 
     assertFaceContracts(manifest);
@@ -162,7 +162,7 @@ function assertFaceContracts(manifest: FontFaceManifest) {
       );
     }
   }
-  expect(faceIds.size).toBe(31);
+  expect(faceIds.size).toBe(38);
 }
 
 const COVERAGE_RANGES: Record<string, { start: number; end: number }> = {

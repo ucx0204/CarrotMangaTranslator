@@ -195,7 +195,7 @@ describe("built-in font matching catalog", () => {
       (candidate) => candidate.fontId === "ridi-batang",
     );
 
-    expect(candidates).toHaveLength(15);
+    expect(candidates).toHaveLength(22);
     expect(reportWarning).not.toHaveBeenCalled();
     expect(startOver && fontCandidateSupportsText(startOver, "슥…")).toBe(
       false,
@@ -294,6 +294,13 @@ function resolveTestRelativePath(fontId: string): string {
       "start-over",
       "jua",
       "gaegu",
+      "black-and-white-picture",
+      "black-han-sans",
+      "gasoek-one",
+      "gugi",
+      "kirang-haerang",
+      "nanum-brush-script",
+      "single-day",
     ].includes(fontId)
   ) {
     return join("ko", fileName);
