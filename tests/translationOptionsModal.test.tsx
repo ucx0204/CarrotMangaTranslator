@@ -229,7 +229,7 @@ describe("TranslationOptionsModal", () => {
     ).toBeTruthy();
     expect(
       screen.getByText(
-        "대사는 일관되게, 효과음은 분위기에 맞춰 폰트를 고릅니다.",
+        "작품별 대사 폰트는 유지하고, 확실한 효과음·강조만 바꿉니다. 애매하면 현재 폰트를 유지합니다.",
       ),
     ).toBeTruthy();
     expect(

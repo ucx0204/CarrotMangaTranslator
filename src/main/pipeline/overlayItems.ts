@@ -16,10 +16,13 @@ import type {
 } from "../../shared/textTypes";
 import type { BlockFormatDefaults } from "../../shared/blockFormat";
 import type { MangaPage } from "../../shared/libraryTypes";
-import type { AutomaticFontCandidate } from "../../shared/fontMatchingTypes";
 import { applyFormatDefaultsToBlock } from "../../shared/blockFormat";
 import { applyNaturalTextLayout } from "../../shared/naturalTextLayout";
-import { resolveAutomaticFontDecision } from "./automaticFontMatching";
+import {
+  applyAutomaticFontDecisionV2,
+  resolveAutomaticFontDecisionV2,
+  type AutomaticFontOptionsV2,
+} from "./automaticFontMatchingV2";
 import { tMain } from "./localization";
 import type { OverlayItem } from "./types";
 
@@ -34,13 +37,7 @@ export type OverlayNaturalTextLayoutOptions = {
   locale?: string;
 };
 
-export type OverlayAutomaticFontOptions = {
-  enabled?: boolean;
-  targetLanguage?: string;
-  workTitle?: string;
-  bodyTextCorpus?: string;
-  candidates?: readonly AutomaticFontCandidate[];
-};
+export type OverlayAutomaticFontOptions = AutomaticFontOptionsV2;
 
 export function overlayItemToBlock(
   item: OverlayItem,
@@ -91,6 +88,7 @@ export function overlayItemToBlock(
     sourceText,
     translatedText,
     ...(textRole === "sound" || textRole === "ordinary" ? { textRole } : {}),
+    ...buildOverlayFontIntent(item),
     confidence: normalizeConfidence(item.confidence, sourceText ? 0.92 : 0.75),
     sourceDirection,
     renderDirection,
@@ -121,6 +119,17 @@ export function overlayItemToBlock(
   );
 }
 
+function buildOverlayFontIntent(
+  item: OverlayItem,
+): Pick<TranslationBlock, "fontRole" | "fontRoleConfidence"> {
+  return item.fontRole
+    ? {
+        fontRole: item.fontRole,
+        fontRoleConfidence: normalizeConfidence(item.fontRoleConfidence, 0),
+      }
+    : {};
+}
+
 function applyAutomaticFontToOverlayBlock(
   block: TranslationBlock,
   item: OverlayItem,
@@ -133,23 +142,19 @@ function applyAutomaticFontToOverlayBlock(
   if (!automaticFont?.enabled) {
     return { block };
   }
-  const decision = resolveAutomaticFontDecision({
+  const decision = resolveAutomaticFontDecisionV2({
+    block,
     item,
     page,
-    workTitle: automaticFont.workTitle,
-    targetLanguage: automaticFont.targetLanguage,
-    bodyTextCorpus: automaticFont.bodyTextCorpus,
-    candidates: automaticFont.candidates,
+    options: automaticFont,
   });
-  return decision
-    ? {
-        block: {
-          ...block,
-          fontFamily: decision.fontId,
-        },
-        fontMetricWidthScale: decision.fontMetricWidthScale,
-      }
-    : { block };
+  return {
+    block: applyAutomaticFontDecisionV2(block, decision),
+    ...(decision?.result.decision.mode === "apply" &&
+    decision.fontMetricWidthScale
+      ? { fontMetricWidthScale: decision.fontMetricWidthScale }
+      : {}),
+  };
 }
 
 function applyNaturalLayoutToOverlayBlock(

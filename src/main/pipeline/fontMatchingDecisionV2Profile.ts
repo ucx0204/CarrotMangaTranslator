@@ -25,6 +25,9 @@ const BODY_ANCHOR_KEYS = {
   thought: "thoughtAnchor",
 } as const;
 
+const MINIMUM_PROFILE_EVIDENCE_COUNT = 1;
+const MINIMUM_PALETTE_EVIDENCE_COUNT = 1;
+
 export function resolveProfileSelection(
   state: DecisionState,
 ): ProfileResolution {
@@ -34,13 +37,69 @@ export function resolveProfileSelection(
   const anchorKey =
     BODY_ANCHOR_KEYS[state.input.role.primary as keyof typeof BODY_ANCHOR_KEYS];
   const anchor = anchorKey ? profile[anchorKey] : null;
-  if (anchor) return resolveAnchorSelection(state, anchor);
+  if (anchor) {
+    const failure = resolveAnchorEvidenceFailure(state, anchor);
+    return failure
+      ? constrainedFailure(failure)
+      : resolveAnchorSelection(state, anchor);
+  }
 
   const palette = profile.rolePalettes.find(
     (entry) => entry.role === state.input.role.primary,
   );
-  if (palette) return resolvePaletteSelection(state, palette);
+  if (palette) {
+    const failure = resolvePaletteEvidenceFailure(state, palette);
+    return failure
+      ? constrainedFailure(failure)
+      : resolvePaletteSelection(state, palette);
+  }
   return resolveOverrideWithoutBaseline(state);
+}
+
+function resolveProfileEvidenceFailure(state: DecisionState): string | null {
+  const profile = state.input.profile;
+  if (!profile) return "profile_missing";
+  const threshold = state.input.calibration.minimumRoleConfidence;
+  if (state.input.role.confidence < threshold) {
+    return "profile_role_confidence_below_threshold";
+  }
+  if (profile.confidence < threshold) {
+    return "profile_confidence_below_threshold";
+  }
+  if (profile.evidenceCount < MINIMUM_PROFILE_EVIDENCE_COUNT) {
+    return "profile_evidence_insufficient";
+  }
+  return null;
+}
+
+function resolveAnchorEvidenceFailure(
+  state: DecisionState,
+  anchor: TypographyAnchorV2,
+): string | null {
+  const profileFailure = resolveProfileEvidenceFailure(state);
+  if (profileFailure) return profileFailure;
+  if (anchor.confidence < state.input.calibration.minimumRoleConfidence) {
+    return "anchor_confidence_below_threshold";
+  }
+  if (anchor.evidenceCount < anchor.replacementPolicy.minimumEvidenceCount) {
+    return "anchor_evidence_insufficient";
+  }
+  return null;
+}
+
+function resolvePaletteEvidenceFailure(
+  state: DecisionState,
+  palette: RoleFontPaletteV2,
+): string | null {
+  const profileFailure = resolveProfileEvidenceFailure(state);
+  if (profileFailure) return profileFailure;
+  if (palette.confidence < state.input.calibration.minimumRoleConfidence) {
+    return "palette_confidence_below_threshold";
+  }
+  if (palette.evidenceCount < MINIMUM_PALETTE_EVIDENCE_COUNT) {
+    return "palette_evidence_insufficient";
+  }
+  return null;
 }
 
 function resolveAnchorSelection(

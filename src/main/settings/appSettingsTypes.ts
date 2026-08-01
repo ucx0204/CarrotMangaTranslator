@@ -1,5 +1,6 @@
 import type { BlockFormatDefaults } from "../../shared/blockFormat";
 import type { AutomaticFontCandidate } from "../../shared/fontMatchingTypes";
+import type { WorkTypographyProfileV2 } from "../../shared/fontMatchingProfileTypes";
 import type {
   CodexReasoningEffort,
   ApiReasoningEffort,
@@ -39,10 +40,13 @@ export type TranslationOptions = {
   collectPageContext?: boolean;
   /** Post-process translated text with block-size-aware hard line breaks. */
   naturalTextLayout?: boolean;
-  /** Choose a locale-compatible bundled or user font before downstream layout. */
+  /** Apply Font Matching V2 work anchors or high-confidence accent decisions. */
   autoFontMatching?: boolean;
-  /** Stable work metadata used only by the portable automatic-font policy. */
-  fontMatchingWorkTitle?: string;
+  /** Stable identities for the V2 work-profile and audit boundary. */
+  fontMatchingWorkId?: string;
+  fontMatchingChapterId?: string;
+  /** Immutable snapshot loaded once at job start. */
+  fontMatchingProfile?: WorkTypographyProfileV2 | null;
   /** Immutable custom-font metadata captured once at translation job start. */
   fontMatchingCandidates?: readonly AutomaticFontCandidate[];
   strictRefineMode?: boolean;

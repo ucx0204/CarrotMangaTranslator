@@ -1,4 +1,5 @@
 import type { BubbleLayout } from "./bubbleLayout";
+import type { FontMatchingSemanticRole } from "./fontMatchingProfileTypes";
 
 export type BlockType = "nonsolid";
 
@@ -59,6 +60,10 @@ export type TranslationBlock = {
   translatedText: string;
   /** Persisted visual role so keep-block retranslations do not guess by length. */
   textRole?: "ordinary" | "sound";
+  /** V2 visual typography intent, persisted for stable retranslations. */
+  fontRole?: FontMatchingSemanticRole;
+  /** Confidence in `fontRole`, independent of translation confidence. */
+  fontRoleConfidence?: number;
   confidence: number;
   sourceDirection: SourceTextDirection;
   renderDirection: RenderTextDirection;

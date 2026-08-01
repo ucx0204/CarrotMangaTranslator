@@ -424,7 +424,7 @@
       "on": "ブロックの大きさに合わせて翻訳文の改行を整えます。"
     },
     "autoFontMatching": "フォント自動調整",
-    "autoFontMatchingSummary": "セリフは統一し、効果音は雰囲気に合うフォントを選びます。",
+    "autoFontMatchingSummary": "作品ごとのセリフ書体を維持し、確信度の高い効果音・強調だけを変更します。曖昧な場合は現在の書体を維持します。",
     "completionMode": "完了方法",
     "completionModeTranslate": "翻訳のみ",
     "completionModeErase": "原文を消去",

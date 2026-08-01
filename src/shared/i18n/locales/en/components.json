@@ -431,7 +431,7 @@
       "on": "Arrange translated-text line breaks for the block size."
     },
     "autoFontMatching": "Automatic font matching",
-    "autoFontMatchingSummary": "Keeps dialogue consistent and matches SFX fonts to their tone.",
+    "autoFontMatchingSummary": "Keeps each work's dialogue font stable and changes only confident SFX or emphasis. Uncertain blocks keep their current font.",
     "completionMode": "Completion mode",
     "completionModeTranslate": "Translate only",
     "completionModeErase": "Erase source text",

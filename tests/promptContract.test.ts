@@ -555,6 +555,23 @@ describe("prompt contracts", () => {
     expect(prompt).not.toMatch(/[가-힣]/);
   });
 
+  it("adds V2 visual-role output only when automatic font matching is enabled", () => {
+    const base = createPromptContractOptions();
+    const enabled = getOverlayPrompt(
+      { ...base, autoFontMatching: true },
+      createPromptContractVariants(),
+    );
+    const disabled = getOverlayPrompt(base, createPromptContractVariants());
+
+    expect(enabled).toContain("fontRole: <fine-grained role>");
+    expect(enabled).toContain("fontRoleConfidence: <0.00-1.00>");
+    expect(enabled).toContain("aside_balloon_edge");
+    expect(enabled).toContain(
+      "not the work title, genre stereotype, translated wording, or string length",
+    );
+    expect(disabled).not.toContain("fontRoleConfidence");
+  });
+
   it("summarizes API chat endpoints without leaking API keys", () => {
     const options = {
       modelProvider: "openai-api",

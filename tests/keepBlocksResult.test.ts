@@ -245,14 +245,17 @@ describe("keep-blocks translation mode", () => {
     });
   });
 
-  it("applies automatic fonts before keep-mode natural layout", () => {
+  it("preserves an explicit keep-mode block font without treating it as a lock", () => {
+    const candidate = makeAutomaticFontCandidate();
     const page = makePage([
-      makeBlock("b-1", { x: 100, y: 100, w: 120, h: 180 }),
+      {
+        ...makeBlock("b-1", { x: 100, y: 100, w: 120, h: 180 }),
+        fontFamily: candidate.fontId,
+      },
     ]);
     const previousBlocks = buildPreviousBlocksForPrompt(page, [], {
       assignSequentialCandidateIds: true,
     });
-    const candidate = makeAutomaticFontCandidate();
     const mapping = applyOverlayItemsToExistingBlocks({
       page,
       items: [
@@ -269,6 +272,34 @@ describe("keep-blocks translation mode", () => {
 
     expect(mapping.blocks[0].fontFamily).toBe(candidate.fontId);
     expect(mapping.blocks[0]).not.toHaveProperty("fontMetricWidthScale");
+  });
+
+  it("preserves an implicit renderer-default font in keep mode", () => {
+    const page = makePage([
+      makeBlock("b-1", { x: 100, y: 100, w: 120, h: 180 }),
+    ]);
+    const previousBlocks = buildPreviousBlocksForPrompt(page, [], {
+      assignSequentialCandidateIds: true,
+    });
+    const mapping = applyOverlayItemsToExistingBlocks({
+      page,
+      items: [
+        makeItem(1, page.blocks[0].bbox, "長い台詞です", "긴 대사입니다"),
+      ],
+      previousBlocks,
+      automaticFont: {
+        enabled: true,
+        targetLanguage: "ko",
+        candidates: [
+          makeAutomaticFontCandidate({
+            source: "built-in",
+            fontId: "dohyeon",
+          }),
+        ],
+      },
+    });
+
+    expect(mapping.blocks[0]).not.toHaveProperty("fontFamily");
   });
 
   it("preserves an existing sound role when the model omits it", () => {
@@ -294,7 +325,7 @@ describe("keep-blocks translation mode", () => {
     });
 
     expect(previousBlocks[0].textRole).toBe("sound");
-    expect(mapping.blocks[0].fontFamily).toBe("dohyeon");
+    expect(mapping.blocks[0].fontFamily).toBeUndefined();
     expect(mapping.blocks[0].textRole).toBe("sound");
   });
 

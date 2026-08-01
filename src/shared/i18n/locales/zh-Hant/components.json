@@ -417,7 +417,7 @@
       "on": "依文字區塊大小整理譯文換行。"
     },
     "autoFontMatching": "自動配對字型",
-    "autoFontMatchingSummary": "保持對白字型一致，並依氛圍為擬聲詞選擇字型。",
+    "autoFontMatchingSummary": "維持每部作品的對白字型，只調整高信心的擬聲詞或強調；不確定時保留目前字型。",
     "completionMode": "完成方式",
     "completionModeTranslate": "僅翻譯",
     "completionModeErase": "清除原文",

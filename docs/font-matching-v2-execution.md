@@ -28,9 +28,9 @@
 - [x] primary/double/adjudication assignment 계약과 exactly-once 불변식
 - [x] 프로덕션 렌더러 기반 후보 카드
 - [x] 1,000–1,200건 pilot inventory
-- [ ] pilot 역할 합의 macro-F1 ≥ 0.85
-- [ ] pilot tier pairwise 합의 ≥ 0.80
-- [ ] pilot acceptable-set Jaccard ≥ 0.70
+- [ ] pilot 역할 합의 macro-F1 ≥ 0.85 (실측 0.6362, 실패)
+- [ ] pilot tier pairwise 합의 ≥ 0.80 (실측 0.5747, 실패)
+- [ ] pilot acceptable-set Jaccard ≥ 0.70 (실측 0.4714, 실패)
 - [ ] `none_acceptable` catalog ceiling 판정
 
 ## P2 — 전수 대응
@@ -60,11 +60,13 @@
 - [x] `WorkTypographyProfile` 저장·마이그레이션
 - [x] 지속 가능한 semantic role과 intentional override 계약
 - [ ] page batch local inference와 prototype cache
-- [ ] 번역문 coverage/layout rerank
+- [x] 번역문 glyph coverage hard gate
+- [ ] 실제 렌더 측정 기반 layout rerank
 - [x] 사용자 block/work lock 우선순위 결정 계약
-- [ ] 기존 수동 폰트 무덮어쓰기 회귀 테스트
-- [ ] 현행 제목/정규식 엔진 제품 fallback 제거
-- [ ] 실제 UI 렌더 QA, typecheck, lint, tests, build 통과
+- [x] 기존 수동 폰트 무덮어쓰기 회귀 테스트
+- [x] 현행 제목/정규식 엔진 제품 fallback 제거
+- [x] 실제 UI 렌더 QA, typecheck, tests, build 통과
+- [x] 변경 범위 lint 및 안전성 감사 P1 수정 통과
 
 ## P5 — blind QA와 출시 판정
 
@@ -155,10 +157,10 @@ YYYY-MM-DD / 단계
 2026-08-01 / P1 전체 pilot 카드·실검수 원장
 
 - 명령: canonical master/inventory/assignment를 사용한 `build_font_matching_review_cards.py build`와 독립 2회 결정론적 재빌드·전 파일 SHA 비교, 이어서 `font_matching_review_ledger.py init/validate/claim/prepare-response/submit`
-- 결과: 1,200개 고유 실표본의 primary 1,200장과 secondary 255장, 총 1,455개 blind 카드와 후보 패널 21,326개를 생성했다. 가로 카드의 세로전용 후보 499칸만 명시적 `orientation_unrenderable`이며 font ID/name/model 제안 노출은 0이다. 1,458개 파일 1.75GB를 durable dataset으로 복사하고 원본과 전 파일 SHA가 일치함을 확인했다. 첫 calibration 12건은 세 검수자가 카드를 원본 크기로 한 장씩 직접 확인해 제출했고 원장 무결성 오류는 0이다.
+- 결과: 1,200개 고유 실표본의 primary 1,200장과 secondary 255장, 총 1,455개 blind 카드를 모두 원본 크기로 한 장씩 확인했다. 가로 카드의 세로전용 후보 499칸만 명시적 `orientation_unrenderable`이며 font ID/name/model 제안 노출은 0이다. 1,458개 파일 1.75GB를 durable dataset으로 복사하고 원본과 전 파일 SHA가 일치함을 확인했다. exactly-once assignment 1,455건, 교차 단계 중복 0, 원장 무결성 오류 0이다.
 - artifact: `datasets/font-matching-review-cards-pilot-v1`, `datasets/font-matching-review-ledger-pilot-v1`
 - SHA-256: card manifest `e508aef74ea90efc9ea0fd5b9585af233b63a531d8d0eaa3ab4f44407731e09a`, ledger workspace record `f45185ece607d84243273a6878f06cc2c90da44b0d6eda5ed72301fd0ce56bb5`
-- 남은 실패/예외: primary 1,188건과 secondary 255건, 모든 불일치·저확신·none·수동 재크롭 adjudication이 남았다. QA 카드는 계속 학습 입력에서 제외한다.
+- 남은 실패/예외: agreement gate 실패로 662건이 adjudication 대상이다. 일치한 538건은 uncontested final로 확정했으며, QA 카드는 계속 학습 입력에서 제외한다.
 
 2026-08-01 / P3 오프라인 release 평가 계약
 
@@ -166,3 +168,27 @@ YYYY-MM-DD / 단계
 - 결과: Preferred@1, Acceptable@1/3, tier NDCG, pairwise agreement, none precision/recall/F1, selective accuracy/abstain, role/style/treatment, 작품·역할 macro와 하위 10%, 11개 핵심 cohort를 계산한다. current-rule/role-work-majority 대비 작품 bootstrap 95% CI와 장르 제거·교환 및 cohort 퇴행 gate를 기계 판정하며, frozen-test 누출·누락·중복·hash/catalog/model 불일치는 hard-fail한다. 관련 Python 회귀 61/61이 통과했다.
 - artifact: `scripts/evaluate_font_matching_v2.py`, `scripts/export_font_matching_training_examples.py`
 - 남은 실패/예외: 실제 final label과 학습 모델이 아직 없으므로 실데이터 release gate 실행은 의도적으로 대기한다. baseline이나 장르 variant가 빠지면 평가기는 `not_evaluable`로 기록하고 release를 거부한다.
+
+2026-08-01 / P1 pilot 이중검수 완료와 합의 gate
+
+- 명령: `python scripts/evaluate_font_matching_review_agreement.py --reviews datasets/font-matching-review-ledger-pilot-v1/reviews.jsonl --output datasets/font-matching-review-ledger-pilot-v1/agreement.json`, `python scripts/font_matching_review_ledger.py finalize-uncontested --workspace datasets/font-matching-review-ledger-pilot-v1 --resolver pilot-uncontested-v1`
+- 결과: primary 1,200/1,200, secondary 255/255, exactly-once 1,455, 무결성 오류 0. 24작품·255개 이중검수에서 역할 macro-F1 0.6362, tier pairwise 0.5747, acceptable-set Jaccard 0.4714, none agreement 0.9412로 세 필수 gate가 모두 실패했다. 일치한 538건만 uncontested final로 확정했다.
+- artifact: `datasets/font-matching-review-ledger-pilot-v1/agreement.json`, `datasets/font-matching-review-ledger-pilot-v1/finals.jsonl`
+- SHA-256: workspace record `f45185ece607d84243273a6878f06cc2c90da44b0d6eda5ed72301fd0ce56bb5`, reviews `cd1ce23bdd5c45aec4a643aca85369fd3f2675638ab74e53e058d0a6709c3c5b`
+- 남은 실패/예외: 662건을 원본·후보 15종·두 blind review를 대조해 제3자 adjudication한다. 이 큐와 rubric/card/tier 보정이 끝날 때까지 28,115건 전수 라벨과 학습을 시작하지 않는다.
+
+2026-08-01 / P4 자동 맞춤 제품 경로 V2 교체
+
+- 명령: `npm run typecheck`, `npm run typecheck:js`, focused Vitest, `npm test`, `npm run build`, `npm run qa:ui -- --entry qa.html ...`의 1,440×1,000 및 760×900 캡처
+- 결과: 제품 pipeline에서 제목·본문 키워드·폰트명 정규식 기반 legacy 선택기를 제거했다. Gemma/API/Codex 출력에 15개 시각 역할과 독립 신뢰도를 추가하고, 작품 프로필·사용자 lock·glyph coverage·보수적 abstain 결정을 연결했다. 자동 맞춤 설명 문구를 실제 정책에 맞게 바꾸고 실제 `TranslationOptionsModal`을 넓은/좁은 화면에서 확인했다. 전체 Vitest와 production build가 통과했다.
+- artifact: `src/main/pipeline/automaticFontMatchingV2.ts`, `src/main/runtime/font-matching-intent.cjs`, `src/main/runtime/prompts/font-matching-intent.cjs`
+- SHA-256 또는 commit: 커밋 전 작업트리
+- 남은 실패/예외: 실제 crop pixel encoder/ranker와 실렌더 layout 측정은 아직 없다. 따라서 semantic bootstrap 단독 결과는 신뢰도를 0으로 고정해 shadow/abstain만 허용하며, 검증된 호환 작품 프로필이나 명시적 사용자 lock이 없으면 폰트를 자동 적용하지 않는다.
+
+2026-08-01 / P4 자동 맞춤 안전성 감사와 회귀 검증
+
+- 명령: `npm run typecheck`, `npm run typecheck:js`, focused ESLint/Prettier/Vitest, `npm test`, `npm run build`, `npm run arch:deps`, `npm run arch:budget`, `npm run check:reexports`, `git diff --check`
+- 결과: 낮은 역할·프로필 신뢰도와 근거 수, stale work/catalog/model/renderer 프로필, persisted lock 복원, keep 재번역 서식 보존, parser token injection·범위 밖 confidence·역할 모순, profile load error를 모두 fail-closed로 고쳤다. built-in 후보 metadata로 catalog 호환성을 판정하며 custom font 변화는 작품 프로필 전체를 잘못 폐기하지 않는다. 전체 Vitest 313개 파일에서 2,222개 통과·2개 skip, TypeScript/JavaScript typecheck, production build, 변경 범위 lint·format, dependency/re-export/architecture 검사가 통과했다.
+- artifact: `src/main/pipeline/automaticFontMatchingV2Catalog.ts`, `src/main/pipeline/automaticFontMatchingV2Ranking.ts`, `src/main/pipeline/fontMatchingDecisionV2Compatibility.ts`
+- SHA-256 또는 commit: 커밋 전 작업트리
+- 남은 실패/예외: 저장소 전체 lint budget은 이번 변경과 무관한 작업트리의 인페인팅 파일 9개 오류 때문에 실패한다. 자동 적용의 실제 픽셀 retrieval과 Chromium 실측 layout evidence는 P3/P4 후속 구현 전까지 의도적으로 비활성 상태다.

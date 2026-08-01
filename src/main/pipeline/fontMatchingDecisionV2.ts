@@ -18,6 +18,7 @@ import {
   type DecisionState,
 } from "./fontMatchingDecisionV2Candidates";
 import { resolveProfileSelection } from "./fontMatchingDecisionV2Profile";
+import { resolveProfileCompatibilityFailure } from "./fontMatchingDecisionV2Compatibility";
 import type {
   FontCandidatePolicyRejectReasonV2,
   FontMatchingDecisionInputV2,
@@ -45,6 +46,22 @@ export function resolveFontMatchingDecisionV2(
 ): FontMatchingDecisionResultV2 {
   validateCalibration(input);
   const state = createDecisionState(input);
+  const compatibilityFailure = resolveProfileCompatibilityFailure(input);
+  if (compatibilityFailure) {
+    recordDecisionTrace(state, "block_user_lock", "not_reached", null, [
+      "profile_version_gate",
+    ]);
+    recordDecisionTrace(state, "work_role_user_lock", "not_reached", null, [
+      "profile_version_gate",
+    ]);
+    recordDecisionTrace(state, "work_profile", "rejected", null, [
+      compatibilityFailure,
+    ]);
+    recordDecisionTrace(state, "v2_automatic", "not_reached", null, [
+      "profile_version_gate",
+    ]);
+    return finishAbstained(state, compatibilityFailure);
+  }
   const blockResult = resolveLock(
     state,
     "block_user_lock",
@@ -54,11 +71,7 @@ export function resolveFontMatchingDecisionV2(
     return finishApplied(state, blockResult.selection, "block_user_lock");
   }
 
-  const roleResult = resolveLock(
-    state,
-    "work_role_user_lock",
-    resolveRoleLock(input),
-  );
+  const roleResult = resolveRoleLockWithConfidenceGate(state);
   if (roleResult.selection) {
     return finishApplied(state, roleResult.selection, "work_role_user_lock");
   }
@@ -79,17 +92,25 @@ type LockResolution = {
   unavailable: boolean;
 };
 
-function resolveAfterLocks(state: DecisionState): FontMatchingDecisionResultV2 {
-  const compatibilityFailure = resolveProfileCompatibilityFailure(state.input);
-  if (compatibilityFailure) {
-    recordDecisionTrace(state, "work_profile", "rejected", null, [
-      compatibilityFailure,
+function resolveRoleLockWithConfidenceGate(
+  state: DecisionState,
+): LockResolution {
+  if (
+    state.input.role.confidence < state.input.calibration.minimumRoleConfidence
+  ) {
+    recordDecisionTrace(state, "work_role_user_lock", "skipped", null, [
+      "role_confidence_below_threshold",
     ]);
-    recordDecisionTrace(state, "v2_automatic", "not_reached", null, [
-      "profile_version_gate",
-    ]);
-    return finishAbstained(state, compatibilityFailure);
+    return { selection: null, unavailable: false };
   }
+  return resolveLock(
+    state,
+    "work_role_user_lock",
+    resolveRoleLock(state.input),
+  );
+}
+
+function resolveAfterLocks(state: DecisionState): FontMatchingDecisionResultV2 {
   if (state.input.role.primary === "unknown_needs_review") {
     recordDecisionTrace(state, "work_profile", "skipped", null, [
       "role_unknown",
@@ -254,17 +275,6 @@ function passesAutomaticConfidence(
     (best.calibratedCandidateConfidence ?? 0) >= threshold &&
     state.input.role.confidence >= state.input.calibration.minimumRoleConfidence
   );
-}
-
-function resolveProfileCompatibilityFailure(
-  input: FontMatchingDecisionInputV2,
-): FontMatchAbstainReason | null {
-  if (!input.profile) return null;
-  if (input.profile.workId !== input.workId) return "profile_conflict";
-  const incompatible =
-    input.profile.catalogVersion !== input.localEvidence.catalogVersion ||
-    input.profile.rendererHash !== input.localEvidence.rendererHash;
-  return incompatible ? "catalog_mismatch" : null;
 }
 
 function resolveProfileAbstainReason(

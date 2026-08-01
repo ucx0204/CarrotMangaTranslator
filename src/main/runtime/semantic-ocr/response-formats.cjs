@@ -6,6 +6,7 @@
 // available directly. Keeping this grammar to printable, unescaped content
 // prevents both decoded line breaks and JSON-like escape workarounds.
 const SINGLE_LINE_JSON_STRING_PATTERN = String.raw`^[^"\\\u0000-\u001F]+$`;
+const { FONT_MATCHING_SEMANTIC_ROLES } = require("../font-matching-intent.cjs");
 
 /**
  * The common fixed-block path deliberately exposes no geometry or grouping
@@ -15,7 +16,7 @@ const SINGLE_LINE_JSON_STRING_PATTERN = String.raw`^[^"\\\u0000-\u001F]+$`;
  * target-language translation.
  *
  * @param {string[]} blockIds
- * @param {{collectPageContext?: unknown}} [options]
+ * @param {{collectPageContext?: unknown;autoFontMatching?:unknown}} [options]
  */
 function buildFixedBlockTranslationResponseFormat(blockIds, options = {}) {
   const properties = {
@@ -26,10 +27,30 @@ function buildFixedBlockTranslationResponseFormat(blockIds, options = {}) {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["blockId", "textRole", "ko"],
+        required: [
+          "blockId",
+          "textRole",
+          ...(options.autoFontMatching
+            ? ["fontRole", "fontRoleConfidence"]
+            : []),
+          "ko",
+        ],
         properties: {
           blockId: { type: "string", enum: blockIds },
           textRole: { type: "string", enum: ["ordinary", "sound"] },
+          ...(options.autoFontMatching
+            ? {
+                fontRole: {
+                  type: "string",
+                  enum: FONT_MATCHING_SEMANTIC_ROLES,
+                },
+                fontRoleConfidence: {
+                  type: "number",
+                  minimum: 0,
+                  maximum: 1,
+                },
+              }
+            : {}),
           ko: singleLineNonEmptyStringSchema(),
         },
       },

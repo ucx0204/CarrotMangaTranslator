@@ -53,3 +53,7 @@ export {
   saveChapterStoryMemory,
   saveWorkStyleGuide,
 } from "./library/libraryContextFacade";
+export {
+  readWorkTypographyProfile,
+  writeWorkTypographyProfile,
+} from "./libraryStore/workTypographyProfileFiles";

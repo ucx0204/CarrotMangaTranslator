@@ -180,6 +180,94 @@ describe("font matching V2 decision policy", () => {
     expect(result.audit.modelReportedNoneAcceptable).toBe(true);
   });
 
+  it("abstains when role or profile anchor evidence is not trustworthy", () => {
+    const cases: Array<{
+      input: Partial<FontMatchingDecisionInputV2>;
+      reason: string;
+    }> = [
+      {
+        input: {
+          role: rolePrediction("dialogue", 0.1),
+          profile: makeProfile({
+            dialogueAnchor: anchor("font-b", ["font-b"]),
+          }),
+        },
+        reason: "profile_role_confidence_below_threshold",
+      },
+      {
+        input: {
+          profile: makeProfile({
+            confidence: 0.1,
+            dialogueAnchor: anchor("font-b", ["font-b"]),
+          }),
+        },
+        reason: "profile_confidence_below_threshold",
+      },
+      {
+        input: {
+          profile: makeProfile({
+            evidenceCount: 0,
+            dialogueAnchor: anchor("font-b", ["font-b"]),
+          }),
+        },
+        reason: "profile_evidence_insufficient",
+      },
+      {
+        input: {
+          profile: makeProfile({
+            dialogueAnchor: {
+              ...anchor("font-b", ["font-b"]),
+              confidence: 0.1,
+            },
+          }),
+        },
+        reason: "anchor_confidence_below_threshold",
+      },
+      {
+        input: {
+          profile: makeProfile({
+            dialogueAnchor: {
+              ...anchor("font-b", ["font-b"]),
+              evidenceCount: 19,
+            },
+          }),
+        },
+        reason: "anchor_evidence_insufficient",
+      },
+    ];
+
+    for (const testCase of cases) {
+      const result = resolveFontMatchingDecisionV2(makeInput(testCase.input));
+      expect(result.decision).toMatchObject({
+        mode: "abstain",
+        selectedFontId: null,
+        abstainReason: "profile_conflict",
+      });
+      expect(result.audit.priorityTrace[2]?.reasonCodes).toContain(
+        testCase.reason,
+      );
+    }
+  });
+
+  it("abstains when a role palette has insufficient confidence or evidence", () => {
+    for (const rolePalette of [
+      { ...palette("sfx_impact", ["font-b", "font-c"], 2), confidence: 0.1 },
+      { ...palette("sfx_impact", ["font-b", "font-c"], 2), evidenceCount: 0 },
+    ]) {
+      const result = resolveFontMatchingDecisionV2(
+        makeInput({
+          role: rolePrediction("sfx_impact"),
+          profile: makeProfile({ rolePalettes: [rolePalette] }),
+        }),
+      );
+      expect(result.decision).toMatchObject({
+        mode: "abstain",
+        selectedFontId: null,
+        abstainReason: "profile_conflict",
+      });
+    }
+  });
+
   it("requires the anchor replacement margin for intentional body overrides", () => {
     const profile = makeProfile({
       dialogueAnchor: anchor("font-b", ["font-b"], 0.1),
@@ -445,6 +533,37 @@ describe("font matching V2 decision policy", () => {
     });
   });
 
+  it("does not apply a work role lock from a low-confidence role", () => {
+    const profile = makeProfile({
+      userLocks: [
+        {
+          id: "role-lock",
+          scope: { type: "role", role: "dialogue" },
+          selection: { fontId: "font-b" },
+          createdAt: CREATED_AT,
+          updatedAt: CREATED_AT,
+        },
+      ],
+    });
+    const result = resolveFontMatchingDecisionV2(
+      makeInput({
+        profile,
+        role: rolePrediction("dialogue", 0.01),
+      }),
+    );
+
+    expect(result.decision).toMatchObject({
+      mode: "abstain",
+      selectedFontId: null,
+      abstainReason: "low_confidence",
+    });
+    expect(result.audit.priorityTrace[1]).toMatchObject({
+      priority: "work_role_user_lock",
+      status: "skipped",
+      reasonCodes: ["role_confidence_below_threshold"],
+    });
+  });
+
   it("replaces stale layout evidence with the translation layout score", () => {
     const candidates = [
       candidate("font-a", 1, 1, { layoutFit: 0.5 }),
@@ -524,6 +643,53 @@ describe("font matching V2 decision policy", () => {
     expect(result.audit.genreContributionCap).toBe(0);
   });
 
+  it("gates stale persisted locks before lock resolution", () => {
+    const result = resolveFontMatchingDecisionV2(
+      makeInput({
+        profile: makeProfile({
+          catalogVersion: "old-catalog",
+          userLocks: [
+            {
+              id: "stale-block-lock",
+              scope: {
+                type: "block",
+                chapterId: "chapter-1",
+                pageId: "page-1",
+                blockId: "block-1",
+              },
+              selection: { fontId: "font-c" },
+              createdAt: CREATED_AT,
+              updatedAt: CREATED_AT,
+            },
+          ],
+        }),
+      }),
+    );
+
+    expect(result.decision).toMatchObject({
+      mode: "abstain",
+      selectedFontId: null,
+      abstainReason: "catalog_mismatch",
+    });
+    expect(result.audit.priorityTrace[0]).toMatchObject({
+      priority: "block_user_lock",
+      status: "not_reached",
+      reasonCodes: ["profile_version_gate"],
+    });
+  });
+
+  it("treats a model-version mismatch as an incompatible profile", () => {
+    const result = resolveFontMatchingDecisionV2(
+      makeInput({ profile: makeProfile({ modelVersion: "old-model" }) }),
+    );
+
+    expect(result.decision).toMatchObject({
+      mode: "abstain",
+      selectedFontId: null,
+      abstainReason: "catalog_mismatch",
+    });
+  });
+
   it("never consumes a persisted lock from a different work profile", () => {
     const profile = makeProfile({
       workId: "other-work",
@@ -551,7 +717,7 @@ describe("font matching V2 decision policy", () => {
     });
     expect(result.audit.priorityTrace[0]).toMatchObject({
       priority: "block_user_lock",
-      status: "skipped",
+      status: "not_reached",
     });
   });
 

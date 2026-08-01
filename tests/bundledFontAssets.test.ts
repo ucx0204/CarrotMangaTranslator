@@ -22,6 +22,12 @@ type BundledFontManifest = {
       format: "ttf" | "otf";
       weight: number;
     }>;
+    additionalBundledFaces?: Array<{
+      file: string;
+      sha256: string;
+      format: "ttf" | "otf";
+      weight: number;
+    }>;
   }>;
 };
 
@@ -34,6 +40,7 @@ const ROOT = process.cwd();
 const MANIFEST_PATH = join(ROOT, "third_party", "fonts", "manifest.json");
 const RENDERER_STYLES_PATH = join(ROOT, "src", "renderer", "src", "styles.css");
 const NEW_KOREAN_FONT_IDS = [
+  "nanum-gothic",
   "dohyeon",
   "ridi-batang",
   "cafe24-gowoonbam",
@@ -123,7 +130,7 @@ describe("bundled multilingual font assets", () => {
     }
   });
 
-  it("keeps the six redistributable Korean fonts and all of their faces in sync", () => {
+  it("keeps the seven redistributable Korean fonts and all of their faces in sync", () => {
     const manifest = JSON.parse(
       readFileSync(MANIFEST_PATH, "utf8"),
     ) as BundledFontManifest;
@@ -147,7 +154,10 @@ describe("bundled multilingual font assets", () => {
       expect(entry.family).toBe(catalogEntry?.label);
       expect(entry.faces.length).toBeGreaterThan(0);
 
-      const expectedCssFaces = entry.faces.map((face) => {
+      const expectedCssFaces = [
+        ...entry.faces,
+        ...(entry.additionalBundledFaces ?? []),
+      ].map((face) => {
         const fontPath = join(ROOT, ...face.file.split("/"));
         expect(existsSync(fontPath), face.file).toBe(true);
         const bytes = readFileSync(fontPath);

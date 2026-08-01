@@ -9,6 +9,7 @@ import type {
   FontMatchingDecisionInputV2,
   TranslationFontAssessmentV2,
 } from "./fontMatchingDecisionV2Types";
+import { resolveCompatibleProfile } from "./fontMatchingDecisionV2Compatibility";
 
 export type CandidateEvaluation = FontCandidateDecisionAuditV2;
 
@@ -240,17 +241,6 @@ function resolveOrientationRejectReason(
     policy.verticalAllowedFontIds !== null &&
     !policy.verticalAllowedFontIds.includes(fontId);
   return forbidden ? "vertical_orientation_forbidden" : null;
-}
-
-function resolveCompatibleProfile(
-  input: FontMatchingDecisionInputV2,
-): FontMatchingDecisionInputV2["profile"] {
-  const { profile, localEvidence } = input;
-  if (!profile || profile.workId !== input.workId) return null;
-  const compatible =
-    profile.catalogVersion === localEvidence.catalogVersion &&
-    profile.rendererHash === localEvidence.rendererHash;
-  return compatible ? profile : null;
 }
 
 function resolveGenreContribution(

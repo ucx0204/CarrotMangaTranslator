@@ -417,7 +417,7 @@
       "on": "根据文本块大小整理译文换行。"
     },
     "autoFontMatching": "自动匹配字体",
-    "autoFontMatchingSummary": "保持对白字体一致，并按氛围为拟声词选择字体。",
+    "autoFontMatchingSummary": "保持每部作品的对白字体稳定，仅调整高置信度的拟声词或强调；不确定时保留当前字体。",
     "completionMode": "完成方式",
     "completionModeTranslate": "仅翻译",
     "completionModeErase": "擦除原文",

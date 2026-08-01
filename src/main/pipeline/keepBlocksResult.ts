@@ -14,9 +14,9 @@ import {
   type OverlayAutomaticFontOptions,
 } from "./overlayItems";
 import {
-  buildAutomaticBodyTextCorpus,
-  resolveAutomaticFontDecision,
-} from "./automaticFontMatching";
+  applyAutomaticFontDecisionV2,
+  resolveAutomaticFontDecisionV2,
+} from "./automaticFontMatchingV2";
 import type { OcrBboxResult, OverlayItem } from "./types";
 
 const FALLBACK_MATCH_MIN_OVERLAP = 0.3;
@@ -179,12 +179,6 @@ export function applyOverlayItemsToExistingBlocks({
     }
   }
   matchRemainingItemsByOverlap(page, unmatchedItems, itemByBlockIndex);
-  const bodyTextCorpus = buildKeepBlocksBodyTextCorpus(
-    page,
-    itemByBlockIndex,
-    textRoleByBlockId,
-  );
-
   const blocks = page.blocks.map((block, index) => {
     const item = itemByBlockIndex.get(index);
     const previousTextRole = block.textRole ?? textRoleByBlockId.get(block.id);
@@ -195,7 +189,6 @@ export function applyOverlayItemsToExistingBlocks({
       ? applyOverlayItemToExistingBlock({
           automaticFont,
           block,
-          bodyTextCorpus,
           item,
           naturalLayout,
           page,
@@ -217,7 +210,6 @@ export function applyOverlayItemsToExistingBlocks({
 function applyOverlayItemToExistingBlock({
   automaticFont,
   block,
-  bodyTextCorpus,
   item,
   naturalLayout,
   page,
@@ -226,7 +218,6 @@ function applyOverlayItemToExistingBlock({
 }: {
   automaticFont?: OverlayAutomaticFontOptions;
   block: TranslationBlock;
-  bodyTextCorpus: string;
   item: OverlayItem;
   naturalLayout?: KeepBlocksNaturalLayoutOptions;
   page: MangaPage;
@@ -238,23 +229,34 @@ function applyOverlayItemToExistingBlock({
     sourceText: item.jp.trim(),
     translatedText: item.ko.trim(),
     ...(effectiveTextRole ? { textRole: effectiveTextRole } : {}),
+    ...(item.fontRole
+      ? {
+          fontRole: item.fontRole,
+          fontRoleConfidence: normalizeItemConfidence(
+            item.fontRoleConfidence,
+            0,
+          ),
+        }
+      : {}),
     confidence: normalizeItemConfidence(item.confidence, block.confidence),
   };
-  const fontDecision = automaticFont?.enabled
-    ? resolveAutomaticFontDecision({
-        item: effectiveTextRole
-          ? { ...item, textRole: effectiveTextRole }
-          : item,
-        page,
-        bodyTextCorpus,
-        workTitle: automaticFont.workTitle,
-        targetLanguage: automaticFont.targetLanguage,
-        candidates: automaticFont.candidates,
-      })
-    : undefined;
-  const updated = fontDecision
-    ? { ...textUpdated, fontFamily: fontDecision.fontId }
-    : textUpdated;
+  const itemWithPersistedIntent =
+    item.fontRole || !block.fontRole
+      ? item
+      : {
+          ...item,
+          fontRole: block.fontRole,
+          fontRoleConfidence: block.fontRoleConfidence,
+        };
+  const fontDecision = resolveKeepBlocksFontDecision({
+    automaticFont,
+    block: textUpdated,
+    item: effectiveTextRole
+      ? { ...itemWithPersistedIntent, textRole: effectiveTextRole }
+      : itemWithPersistedIntent,
+    page,
+  });
+  const updated = applyAutomaticFontDecisionV2(textUpdated, fontDecision);
   if (!naturalLayout?.enabled || skipNaturalLayout) {
     return updated;
   }
@@ -264,29 +266,34 @@ function applyOverlayItemToExistingBlock({
     locale: naturalLayout.locale,
     allowAutoVertical: false,
     directionPreference: block.renderDirection,
-    fontMetricWidthScale: fontDecision?.fontMetricWidthScale,
+    fontMetricWidthScale:
+      fontDecision?.result.decision.mode === "apply"
+        ? fontDecision.fontMetricWidthScale
+        : undefined,
   });
   return { ...updated, translatedText: layout.translatedText };
 }
 
-function buildKeepBlocksBodyTextCorpus(
-  page: MangaPage,
-  itemByBlockIndex: ReadonlyMap<number, OverlayItem>,
-  textRoleByBlockId: ReadonlyMap<
-    string,
-    PreviousOverlayBlockForPrompt["textRole"]
-  >,
-): string {
-  const matchedItems = [...itemByBlockIndex].map(([index, item]) => {
-    const textRole =
-      normalizePersistentTextRole(item.textRole) ??
-      page.blocks[index]?.textRole ??
-      normalizePersistentTextRole(
-        textRoleByBlockId.get(page.blocks[index]?.id),
-      );
-    return textRole ? { ...item, textRole } : item;
-  });
-  return buildAutomaticBodyTextCorpus(matchedItems);
+function resolveKeepBlocksFontDecision({
+  automaticFont,
+  block,
+  item,
+  page,
+}: {
+  automaticFont?: OverlayAutomaticFontOptions;
+  block: TranslationBlock;
+  item: OverlayItem;
+  page: MangaPage;
+}) {
+  return automaticFont?.enabled
+    ? resolveAutomaticFontDecisionV2({
+        block,
+        item,
+        page,
+        options: automaticFont,
+        preserveExistingFont: true,
+      })
+    : undefined;
 }
 
 function normalizePersistentTextRole(

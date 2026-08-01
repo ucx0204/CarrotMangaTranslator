@@ -47,6 +47,94 @@ ko: 리드
     expect(items[1].bbox).toEqual({ x: 720, y: 700, w: 90, h: 120 });
   });
 
+  it("normalizes fine-grained V2 font intent in loose records", () => {
+    const raw = String.raw`
+id: 1
+type: nonsolid
+textRole: sound
+fontRole: sfx-impact
+fontRoleConfidence: 97%
+x1: 120
+y1: 80
+x2: 280
+y2: 320
+jp: ドン
+ko: 쾅!
+`;
+
+    const items = normalizeItems(parseJsonLenient(raw));
+
+    expect(items[0]).toMatchObject({
+      fontRole: "sfx_impact",
+      fontRoleConfidence: 0.97,
+    });
+  });
+
+  it("does not promote an out-of-range font role confidence", () => {
+    const items = normalizeItems(
+      parseJsonLenient(
+        JSON.stringify({
+          items: [
+            {
+              id: 1,
+              type: "nonsolid",
+              textRole: "sound",
+              fontRole: "sfx_impact",
+              fontRoleConfidence: 999,
+              x1: 10,
+              y1: 20,
+              x2: 110,
+              y2: 80,
+              jp: "ドン",
+              ko: "쾅!",
+            },
+          ],
+        }),
+      ),
+    );
+
+    expect(items[0]).not.toHaveProperty("fontRole");
+    expect(items[0]).not.toHaveProperty("fontRoleConfidence");
+  });
+
+  it("keeps reserved font-role tokens inside loose ko text", () => {
+    const items = normalizeItems(
+      parseJsonLenient(
+        "id: 1 type: nonsolid textRole: ordinary x1: 10 y1: 20 x2: 110 y2: 80 jp: 案内 ko: 안내 fontRole: sfx_impact fontRoleConfidence: 1",
+      ),
+    );
+
+    expect(items[0]).toMatchObject({
+      ko: "안내 fontRole: sfx_impact fontRoleConfidence: 1",
+      textRole: "ordinary",
+    });
+    expect(items[0]).not.toHaveProperty("fontRole");
+    expect(items[0]).not.toHaveProperty("fontRoleConfidence");
+  });
+
+  it("drops contradictory text and font roles from normalized JSON", () => {
+    const items = normalizeItems({
+      items: [
+        {
+          id: 1,
+          type: "nonsolid",
+          textRole: "ordinary",
+          fontRole: "sfx_impact",
+          fontRoleConfidence: 1,
+          x1: 10,
+          y1: 20,
+          x2: 110,
+          y2: 80,
+          jp: "案内",
+          ko: "안내",
+        },
+      ],
+    });
+
+    expect(items[0]).not.toHaveProperty("fontRole");
+    expect(items[0]).not.toHaveProperty("fontRoleConfidence");
+  });
+
   it("parses line records that use the neutral source/target keys", () => {
     const raw = String.raw`
 id: 1

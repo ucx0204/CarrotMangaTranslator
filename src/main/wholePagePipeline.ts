@@ -58,12 +58,13 @@ export async function runWholePagePipeline(
     options,
     dependencies,
   );
-  configureWholePageOutputOptions({
+  await configureWholePageOutputOptions({
     autoFontMatching,
+    chapterId: workContext?.chapterId,
     dependencies,
     naturalTextLayout,
     run,
-    workTitle: workContext?.workTitle,
+    workId: workContext?.workId,
   });
   const warningCollector = createPipelineWarnings(signal);
 

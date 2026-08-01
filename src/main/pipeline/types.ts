@@ -12,6 +12,7 @@ import type {
 } from "../../shared/workContextTypes";
 import type { PixelRect } from "../../shared/region";
 import type { ChapterRunPaths } from "../library";
+import type { FontMatchingSemanticRole } from "../../shared/fontMatchingProfileTypes";
 
 export type PipelineOptions = {
   jobId: string;
@@ -48,7 +49,7 @@ export type PipelineRegionContext = {
 
 export type PipelineWorkContext = {
   workId: string;
-  /** Stable title prior for portable automatic font matching. */
+  /** Display/prompt context only; automatic font matching must not infer style from it. */
   workTitle?: string;
   chapterId: string;
   styleGuide: WorkStyleGuide;
@@ -137,6 +138,10 @@ export type OverlayItem = {
   candidateIds?: number[];
   type: string;
   textRole?: "sound" | "ordinary" | "nontext" | string;
+  /** Fine-grained visual role used only by Font Matching V2. */
+  fontRole?: FontMatchingSemanticRole;
+  /** Calibrated visual-role confidence supplied by the page model. */
+  fontRoleConfidence?: number;
   bbox: BBox;
   /** 하위 호환 별칭. 신규 코드는 sourceText/translatedText를 우선 사용한다. */
   jp: string;

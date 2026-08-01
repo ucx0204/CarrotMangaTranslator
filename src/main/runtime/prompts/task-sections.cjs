@@ -177,9 +177,10 @@ function buildRegionTaskSection(imageVariants = []) {
 
 /**
  * @param {PromptLanguageProfile} profile
+ * @param {PromptOptions} [options]
  * @returns {PromptSection}
  */
-function buildRegionOutputSection(profile) {
+function buildRegionOutputSection(profile, options = {}) {
   // The generic profile keeps the JSON example ASCII-only so the language
   // localization line filter can never break the example structure.
   const sourceExample = profile.isDefaultJapaneseToKorean
@@ -196,6 +197,9 @@ function buildRegionOutputSection(profile) {
     '  "item": {',
     '    "type": "nonsolid",',
     '    "textRole": "ordinary",',
+    ...(options.autoFontMatching
+      ? ['    "fontRole": "dialogue",', '    "fontRoleConfidence": 0.94,']
+      : []),
     '    "x1": 10,',
     '    "y1": 20,',
     '    "x2": 110,',
@@ -213,6 +217,11 @@ function buildRegionOutputSection(profile) {
     '  "item": null',
     "}",
     "Use type nonsolid. Use textRole ordinary for speech, captions, labels, signs, and notes; use textRole sound only for standalone printed SFX or reaction lettering.",
+    ...(options.autoFontMatching
+      ? [
+          "fontRole and fontRoleConfidence are required and follow the Font matching intent section.",
+        ]
+      : []),
     "x1, y1, x2, y2 tightly cover the visible Japanese glyph ink and outline inside Image 1.",
     "jp contains the visible Japanese source from Image 1 in natural reading order. ko contains one coherent Korean translation.",
     "Use horizontal Korean for ordinary speech, captions, labels, signs, and notes.",

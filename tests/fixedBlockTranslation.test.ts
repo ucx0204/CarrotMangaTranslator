@@ -62,6 +62,8 @@ type FixedBlockResponseFormat = {
           properties: {
             blockId: { enum: string[] };
             textRole: { enum: string[] };
+            fontRole?: { enum: string[] };
+            fontRoleConfidence?: { minimum: number; maximum: number };
             ko: { pattern: string };
           };
         };
@@ -88,6 +90,8 @@ type FixedTranslationResult = {
   items: Array<{
     blockId: string;
     textRole?: "ordinary" | "sound";
+    fontRole?: string;
+    fontRoleConfidence?: number;
     ko: string;
   }>;
   pageContext?: Record<string, unknown>;
@@ -376,6 +380,28 @@ describe("fixed-block translation contract", () => {
     expect(itemSchema.properties.blockId.enum).toEqual(["B001", "B002"]);
     expect(itemSchema.properties.textRole.enum).toEqual(["ordinary", "sound"]);
     expect(itemSchema.properties.ko.pattern).not.toContain("*");
+  });
+
+  it("adds only the V2 visual-role fields when automatic matching is enabled", () => {
+    const responseFormat = formats.buildFixedBlockTranslationResponseFormat(
+      ["B001"],
+      { autoFontMatching: true },
+    );
+    const itemSchema = responseFormat.schema.properties.items.items;
+
+    expect(Object.keys(itemSchema.properties)).toEqual([
+      "blockId",
+      "textRole",
+      "fontRole",
+      "fontRoleConfidence",
+      "ko",
+    ]);
+    expect(itemSchema.properties.fontRole?.enum).toContain("sfx_impact");
+    expect(itemSchema.properties.fontRoleConfidence).toEqual({
+      type: "number",
+      minimum: 0,
+      maximum: 1,
+    });
   });
 
   it("rejects the old page-17 style response that creates ids and coordinates", () => {
@@ -865,6 +891,72 @@ describe("fixed-block translation contract", () => {
     ]);
   });
 
+  it("validates and forwards a fine-grained visual font role", () => {
+    const plan = twoSingletonPlan();
+    const translations = fixed.parseFixedBlockTranslationResponse(
+      JSON.stringify({
+        items: [
+          {
+            blockId: "B001",
+            textRole: "sound",
+            fontRole: "sfx_impact",
+            fontRoleConfidence: 0.96,
+            ko: "쾅!",
+          },
+          {
+            blockId: "B002",
+            textRole: "ordinary",
+            fontRole: "dialogue",
+            fontRoleConfidence: 0.93,
+            ko: "그래.",
+          },
+        ],
+      }),
+      plan,
+      { ...baseOptions, autoFontMatching: true },
+    );
+
+    expect(
+      fixed.buildFixedBlockOverlayPayload(plan, translations).items,
+    ).toEqual([
+      expect.objectContaining({
+        fontRole: "sfx_impact",
+        fontRoleConfidence: 0.96,
+      }),
+      expect.objectContaining({
+        fontRole: "dialogue",
+        fontRoleConfidence: 0.93,
+      }),
+    ]);
+  });
+
+  it("rejects missing or invalid V2 visual-role evidence", () => {
+    const plan = twoSingletonPlan();
+    const invalid = {
+      items: [
+        {
+          blockId: "B001",
+          textRole: "sound",
+          fontRole: "impactful-ish",
+          fontRoleConfidence: 0.96,
+          ko: "쾅!",
+        },
+        {
+          blockId: "B002",
+          textRole: "ordinary",
+          ko: "그래.",
+        },
+      ],
+    };
+
+    expect(() =>
+      fixed.parseFixedBlockTranslationResponse(JSON.stringify(invalid), plan, {
+        ...baseOptions,
+        autoFontMatching: true,
+      }),
+    ).toThrow(/valid fontRole and fontRoleConfidence/i);
+  });
+
   it("rejects an unknown visual text role", () => {
     expect(() =>
       fixed.parseFixedBlockTranslationResponse(
@@ -984,6 +1076,19 @@ describe("fixed-block translation contract", () => {
       "direction",
       "bbox",
     ]);
+  });
+
+  it("asks Gemma for visual intent without title or genre inference", () => {
+    const prompt = fixed.buildFixedBlockTranslationPrompt(twoSingletonPlan(), {
+      ...baseOptions,
+      autoFontMatching: true,
+    });
+
+    expect(prompt).toContain(
+      "Each item has exactly five keys: blockId, textRole, fontRole, fontRoleConfidence, and ko",
+    );
+    expect(prompt).toContain("aside_balloon_edge");
+    expect(prompt).toContain("never from the work title, genre stereotype");
   });
 });
 

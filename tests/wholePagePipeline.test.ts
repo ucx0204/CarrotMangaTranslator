@@ -21,6 +21,13 @@ import type { TranslationRuntimePort } from "../src/main/pipeline/translationRun
 import type { WholePagePipelineDependencies } from "../src/main/pipeline/wholePagePipelinePorts";
 import { runWholePagePipeline as runWholePagePipelineWithDependencies } from "../src/main/wholePagePipeline";
 import { makeAutomaticFontCandidate } from "./helpers/automaticFontCandidate";
+import {
+  regionNullTranslationResult,
+  regionSoundTranslationResult,
+  regionSuccessTranslationResult,
+  successTranslationResult,
+  translationWithPageContext,
+} from "./helpers/wholePageTranslationResults";
 
 const tempDirs: string[] = [];
 let runSequence = 0;
@@ -316,13 +323,14 @@ describe("whole page pipeline", () => {
     ).toBe(true);
     expect(requestTranslation).toHaveBeenCalledTimes(2);
     expect(runtime.loadFontMatchingCandidates).toHaveBeenCalledOnce();
+    expect(runtime.loadFontMatchingProfile).toHaveBeenCalledWith("work-a");
     const fontSnapshots = requestTranslation.mock.calls.map(
       (call) => call[1].fontMatchingCandidates,
     );
     expect(fontSnapshots[0]).toBe(fontSnapshots[1]);
     expect(result.pages.map((page) => page.blocks[0]?.fontFamily)).toEqual([
-      fontCandidate.fontId,
-      fontCandidate.fontId,
+      undefined,
+      undefined,
     ]);
     expect(runtime.saveWorkStyleGuide).toHaveBeenCalledTimes(1);
     expect(runtime.saveChapterStoryMemory).toHaveBeenCalledTimes(2);
@@ -956,12 +964,16 @@ async function loadPipeline({
   const loadFontMatchingCandidates = vi.fn(
     (_targetLanguage?: string) => fontMatchingCandidates,
   );
+  const loadFontMatchingProfile = vi.fn(async (_workId: string) => null);
   const dependencies = {
     paths: makeAppPaths(rootDir),
     settings: {
       getAppSettings: vi.fn(async () => makeAppSettings(sourceLanguage)),
     },
-    fontMatching: { loadCandidates: loadFontMatchingCandidates },
+    fontMatching: {
+      loadCandidates: loadFontMatchingCandidates,
+      loadProfile: loadFontMatchingProfile,
+    },
     pageContext: { saveChapterStoryMemory, saveWorkStyleGuide },
     diagnostics: { info, warn, error },
     runtime: {
@@ -989,6 +1001,7 @@ async function loadPipeline({
       warn,
       error,
       loadFontMatchingCandidates,
+      loadFontMatchingProfile,
     },
   };
 }
@@ -1145,121 +1158,5 @@ function makeStoryMemory(): ChapterStoryMemory {
       summary: `summary ${pageIndex}`,
       updatedAt: "2026-01-01T00:00:00.000Z",
     })),
-  };
-}
-
-function successTranslationResult(): {
-  outputText: string;
-  rawResponse: unknown;
-  requestBody: unknown;
-} {
-  return {
-    outputText: JSON.stringify({
-      items: [
-        {
-          id: 1,
-          type: "speech",
-          x1: 100,
-          y1: 100,
-          x2: 300,
-          y2: 200,
-          jp: "こんにちは",
-          ko: "안녕",
-          direction: "horizontal",
-          confidence: 0.95,
-        },
-      ],
-    }),
-    rawResponse: {},
-    requestBody: {},
-  };
-}
-
-function translationWithPageContext(
-  source: string,
-  target: string,
-  pageContext: Record<string, unknown>,
-): { outputText: string; rawResponse: unknown; requestBody: unknown } {
-  return {
-    outputText: `${JSON.stringify({
-      items: [
-        {
-          id: 1,
-          type: "speech",
-          x1: 100,
-          y1: 100,
-          x2: 300,
-          y2: 200,
-          jp: source,
-          ko: target,
-          direction: "horizontal",
-          confidence: 0.95,
-        },
-      ],
-    })}\n<page-context>${JSON.stringify(pageContext)}</page-context>`,
-    rawResponse: {},
-    requestBody: {},
-  };
-}
-
-function regionSuccessTranslationResult(): {
-  outputText: string;
-  rawResponse: unknown;
-  requestBody: unknown;
-} {
-  return {
-    outputText: JSON.stringify({
-      item: {
-        type: "nonsolid",
-        textRole: "ordinary",
-        x1: 20,
-        y1: 40,
-        x2: 120,
-        y2: 160,
-        jp: "こんにちは",
-        ko: "안녕",
-        direction: "horizontal",
-        confidence: 0.95,
-      },
-    }),
-    rawResponse: {},
-    requestBody: {},
-  };
-}
-
-function regionNullTranslationResult(): {
-  outputText: string;
-  rawResponse: unknown;
-  requestBody: unknown;
-} {
-  return {
-    outputText: JSON.stringify({ item: null }),
-    rawResponse: {},
-    requestBody: {},
-  };
-}
-
-function regionSoundTranslationResult(): {
-  outputText: string;
-  rawResponse: unknown;
-  requestBody: unknown;
-} {
-  return {
-    outputText: JSON.stringify({
-      item: {
-        type: "nonsolid",
-        textRole: "sound",
-        x1: 20,
-        y1: 40,
-        x2: 220,
-        y2: 160,
-        jp: "スタコラサッサ",
-        ko: "후다닥",
-        direction: "vertical",
-        confidence: 0.95,
-      },
-    }),
-    rawResponse: {},
-    requestBody: {},
   };
 }

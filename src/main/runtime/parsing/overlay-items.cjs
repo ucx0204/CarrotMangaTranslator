@@ -1,10 +1,15 @@
 // @ts-check
 /**
  * @typedef {{ x: number; y: number; w: number; h: number }} ParsedBbox
- * @typedef {{ id: number; candidateIds?: number[]; type: string; x1?: number; y1?: number; x2?: number; y2?: number; jp: string; ko: string; sourceText?: string; translatedText?: string; textRole?: string; direction?: "horizontal" | "vertical"; angle?: number; fontSize?: number | null; confidence?: number | null }} LooseParsedOutput
+ * @typedef {{ id: number; candidateIds?: number[]; type: string; x1?: number; y1?: number; x2?: number; y2?: number; jp: string; ko: string; sourceText?: string; translatedText?: string; textRole?: string; fontRole?: string; fontRoleConfidence?: number; direction?: "horizontal" | "vertical"; angle?: number; fontSize?: number | null; confidence?: number | null }} LooseParsedOutput
  */
 
 const { asRecord, normalizeBBox, toNumber } = require("./overlay-geometry.cjs");
+const {
+  isFontRoleCompatibleWithTextRole,
+  normalizeFontRole,
+  normalizeFontRoleConfidence,
+} = require("../font-matching-intent.cjs");
 const {
   isPlaceholderOnly,
   normalizeAngle,
@@ -111,14 +116,11 @@ function isOnlyPlaceholderPair(translated, source) {
  * @param {string} translatedText
  */
 function buildNormalizedItem(record, index, bbox, sourceText, translatedText) {
-  const textRole = normalizeTextRole(
-    record.textRole ?? record.text_role ?? record.role,
-  );
   return {
     id: toNumber(record.id) ?? index + 1,
     ...readCandidateIds(record.candidateIds),
     type: normalizeParsedType(record.type),
-    ...(textRole ? { textRole } : {}),
+    ...readSemanticIntent(record),
     bbox,
     // jp/ko는 하위 호환 별칭이고 sourceText/translatedText가 중립 명칭이다.
     jp: sourceText,
@@ -135,6 +137,25 @@ function buildNormalizedItem(record, index, bbox, sourceText, translatedText) {
       record.fontSize ?? record.font_size ?? record.font,
     ),
     confidence: normalizeConfidence(record.confidence ?? record.score),
+  };
+}
+
+/** @param {Record<string, unknown>} record */
+function readSemanticIntent(record) {
+  const textRole = normalizeTextRole(
+    record.textRole ?? record.text_role ?? record.role,
+  );
+  const fontRole = normalizeFontRole(record.fontRole ?? record.font_role);
+  const fontRoleConfidence = normalizeFontRoleConfidence(
+    record.fontRoleConfidence ?? record.font_role_confidence,
+  );
+  const fontIntentIsValid =
+    fontRole !== undefined &&
+    fontRoleConfidence !== undefined &&
+    isFontRoleCompatibleWithTextRole(textRole, fontRole);
+  return {
+    ...(textRole ? { textRole } : {}),
+    ...(fontIntentIsValid ? { fontRole, fontRoleConfidence } : {}),
   };
 }
 

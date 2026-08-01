@@ -20,6 +20,7 @@ import {
   MAX_BUBBLE_LAYOUT_REGIONS,
   MAX_BUBBLE_REGION_SPANS,
 } from "./bubbleLayout";
+import { FONT_MATCHING_SEMANTIC_ROLES } from "./fontMatchingProfileTypes";
 
 export { MAX_MAX_TOKENS, MIN_CONTEXT_TOKENS, MIN_MAX_TOKENS };
 
@@ -289,6 +290,8 @@ export const TranslationBlockSchema = z
     sourceText: boundedText,
     translatedText: boundedText,
     textRole: z.enum(["ordinary", "sound"]).optional(),
+    fontRole: z.enum(FONT_MATCHING_SEMANTIC_ROLES).optional(),
+    fontRoleConfidence: finiteNumber.min(0).max(1).optional(),
     confidence: finiteNumber.min(0).max(1),
     sourceDirection: z.enum(["horizontal", "vertical"]),
     renderDirection: LegacyRenderDirectionSchema,

@@ -23,6 +23,10 @@ const {
 } = require("./task-sections.cjs");
 const { buildWorkContextSection } = require("./work-context.cjs");
 const { buildPageContextSection } = require("./page-context.cjs");
+const {
+  applyFontMatchingIntentOutput,
+  buildFontMatchingIntentSection,
+} = require("./font-matching-intent.cjs");
 
 /**
  * @param {PromptSection[]} sections
@@ -110,6 +114,7 @@ function buildOverlayPrompt(baseSections, options = {}, imageVariants = []) {
   sections[0] = buildTaskSection(options, imageVariants);
   applyModelSpecificPromptProfile(sections);
   applyPageContextOutputException(sections, options);
+  applyFontMatchingIntentOutput(sections, options);
   insertOptionalSection(
     sections,
     buildCoordinateCalibrationSection(options, imageVariants),
@@ -141,6 +146,10 @@ function buildOverlayPrompt(baseSections, options = {}, imageVariants = []) {
       "Previous pass blocks",
     ],
   );
+  insertOptionalSection(sections, buildFontMatchingIntentSection(options), [
+    "OCR candidates",
+    "Previous pass blocks",
+  ]);
   const pageContextSection = buildPageContextSection(options);
   if (pageContextSection.length > 1) {
     sections.push(pageContextSection);
@@ -159,7 +168,8 @@ function buildRegionOverlayPrompt(options = {}, imageVariants = []) {
   const sections = [
     buildRegionTaskSection(imageVariants),
     buildCoordinateCalibrationSection(options, imageVariants),
-    buildRegionOutputSection(languageProfile),
+    buildRegionOutputSection(languageProfile, options),
+    buildFontMatchingIntentSection(options),
     buildWorkContextSection(options),
     buildRegionOcrReadingHintSection(options, imageVariants),
   ].filter((section) => section.length > 1);

@@ -10,12 +10,17 @@ const {
   findFixedBlockTargetLanguageViolations,
   validateFixedBlockTargetLanguage,
 } = require("./fixed-block-quality.cjs");
+const {
+  isFontRoleCompatibleWithTextRole,
+  normalizeFontRole,
+  normalizeFontRoleConfidence,
+} = require("../font-matching-intent.cjs");
 
 /**
- * @typedef {{blockId:string;ko:string;textRole?:"ordinary"|"sound"}} FixedBlockTranslation
+ * @typedef {{blockId:string;ko:string;textRole?:"ordinary"|"sound";fontRole?:string;fontRoleConfidence?:number}} FixedBlockTranslation
  * @typedef {{items:FixedBlockTranslation[];pageContext?:Record<string,unknown>}} FixedBlockTranslationResult
  * @typedef {{blocks:Array<{blockId:string}>}} FixedBlockPlan
- * @typedef {{sourceLanguage?:unknown;targetLanguage?:unknown;collectPageContext?:unknown;[key:string]:unknown}} FixedBlockOptions
+ * @typedef {{sourceLanguage?:unknown;targetLanguage?:unknown;collectPageContext?:unknown;autoFontMatching?:unknown;[key:string]:unknown}} FixedBlockOptions
  * @typedef {{translations:FixedBlockTranslationResult;retryBlockIds:string[]}} FixedBlockPartialResult
  */
 
@@ -46,7 +51,9 @@ function parseFixedBlockTranslationDraft(rawText, plan, options = {}) {
   const raw = parseJsonObject(rawText, "Fixed-block translation");
   validateTopLevelKeys(raw, options);
   const rawItems = requireItemsArray(raw);
-  const items = rawItems.map(readFixedBlockTranslation);
+  const items = rawItems.map((item, index) =>
+    readFixedBlockTranslation(item, index, options),
+  );
   const expectedIds = plan.blocks.map((block) => block.blockId);
   validateFixedBlockPartition(items, expectedIds);
   validateFixedBlockOrder(items, expectedIds);
@@ -89,6 +96,7 @@ function parseFixedBlockTranslationPartialResponse(
     rawItems,
     expectedIdSet,
     claimCounts,
+    options,
   );
   const orderedItems = readItemsInOrder(expectedIds, validById);
   const violationIds = new Set(
@@ -182,16 +190,17 @@ function countExpectedBlockIdClaims(rawItems, expectedIds) {
  * @param {unknown[]} rawItems
  * @param {Set<string>} expectedIds
  * @param {Map<string,number>} claimCounts
+ * @param {FixedBlockOptions} options
  * @returns {Map<string,FixedBlockTranslation>}
  */
-function collectUniqueValidItems(rawItems, expectedIds, claimCounts) {
+function collectUniqueValidItems(rawItems, expectedIds, claimCounts, options) {
   const validById = new Map();
   for (const [index, value] of rawItems.entries()) {
     if (!isRecord(value) || typeof value.blockId !== "string") continue;
     const blockId = value.blockId.trim();
     if (!expectedIds.has(blockId) || claimCounts.get(blockId) !== 1) continue;
     try {
-      const item = readFixedBlockTranslation(value, index);
+      const item = readFixedBlockTranslation(value, index, options);
       validById.set(item.blockId, item);
     } catch (error) {
       if (!isFixedBlockItemContractError(error)) throw error;
@@ -229,16 +238,19 @@ function readOptionalPageContext(raw, options) {
   return raw.pageContext;
 }
 
-/** @param {unknown} value @param {number} index @returns {FixedBlockTranslation} */
-function readFixedBlockTranslation(value, index) {
+/** @param {unknown} value @param {number} index @param {FixedBlockOptions} options @returns {FixedBlockTranslation} */
+function readFixedBlockTranslation(value, index, options = {}) {
   if (!isRecord(value)) {
     throw semanticContractError(
       "fixed-block-translation-invalid",
       `Fixed-block translation ${index + 1} is not an object.`,
     );
   }
+  const allowedKeys = options.autoFontMatching
+    ? ["blockId", "textRole", "fontRole", "fontRoleConfidence", "ko"]
+    : ["blockId", "textRole", "ko"];
   const unexpectedKeys = Object.keys(value).filter(
-    (key) => !["blockId", "textRole", "ko"].includes(key),
+    (key) => !allowedKeys.includes(key),
   );
   if (unexpectedKeys.length > 0) {
     throw semanticContractError(
@@ -248,6 +260,7 @@ function readFixedBlockTranslation(value, index) {
   }
   const blockId = String(value.blockId ?? "").trim();
   const textRole = readFixedBlockTextRole(value.textRole, index);
+  const fontIntent = readFixedBlockFontIntent(value, index, options, textRole);
   if (
     typeof value.ko === "string" &&
     (/[\r\n]/u.test(value.ko) || /\\[nr]/u.test(value.ko))
@@ -270,7 +283,29 @@ function readFixedBlockTranslation(value, index) {
       `Fixed-block translation ${index + 1} must return non-empty ko.`,
     );
   }
-  return buildFixedBlockTranslation(blockId, ko, textRole);
+  return buildFixedBlockTranslation(blockId, ko, textRole, fontIntent);
+}
+
+/** @param {Record<string,unknown>} value @param {number} index @param {FixedBlockOptions} options @param {"ordinary"|"sound"|undefined} textRole */
+function readFixedBlockFontIntent(value, index, options, textRole) {
+  if (!options.autoFontMatching) return undefined;
+  const fontRole = normalizeFontRole(value.fontRole);
+  const fontRoleConfidence = normalizeFontRoleConfidence(
+    value.fontRoleConfidence,
+  );
+  if (!fontRole || fontRoleConfidence === undefined) {
+    throw semanticContractError(
+      "fixed-block-translation-font-role-invalid",
+      `Fixed-block translation ${index + 1} must return a valid fontRole and fontRoleConfidence.`,
+    );
+  }
+  if (!isFontRoleCompatibleWithTextRole(textRole, fontRole)) {
+    throw semanticContractError(
+      "fixed-block-translation-font-role-conflict",
+      `Fixed-block translation ${index + 1} fontRole conflicts with textRole.`,
+    );
+  }
+  return { fontRole, fontRoleConfidence };
 }
 
 /**
@@ -294,10 +329,16 @@ function readFixedBlockTextRole(value, index) {
  * @param {string} blockId
  * @param {string} ko
  * @param {"ordinary"|"sound"|undefined} textRole
+ * @param {{fontRole:string;fontRoleConfidence:number}|undefined} fontIntent
  * @returns {FixedBlockTranslation}
  */
-function buildFixedBlockTranslation(blockId, ko, textRole) {
-  return textRole ? { blockId, textRole, ko } : { blockId, ko };
+function buildFixedBlockTranslation(blockId, ko, textRole, fontIntent) {
+  return {
+    blockId,
+    ...(textRole ? { textRole } : {}),
+    ...(fontIntent ?? {}),
+    ko,
+  };
 }
 
 /** @param {FixedBlockTranslation[]} items @param {string[]} expectedIds */

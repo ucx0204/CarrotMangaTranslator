@@ -45,6 +45,7 @@ const APPROVED_REEXPORT_BOUNDARIES = new Map([
       "./libraryStore/libraryCleanup",
       "./libraryStore/libraryFiles",
       "./libraryStore/libraryPaths",
+      "./libraryStore/workTypographyProfileFiles",
     ]),
   ],
   ["src/main/inpainting/localization.ts", new Set(["../i18n"])],
@@ -52,6 +53,14 @@ const APPROVED_REEXPORT_BOUNDARIES = new Map([
   ["src/main/jobs/localization.ts", new Set(["../i18n"])],
   ["src/main/libraryStore/localization.ts", new Set(["../i18n"])],
   ["src/main/pipeline/localization.ts", new Set(["../i18n"])],
+  [
+    "src/main/pipeline/fontMatchingDecisionV2.ts",
+    new Set(["./fontMatchingDecisionV2Types"]),
+  ],
+  [
+    "src/main/pipeline/automaticFontMatchingV2.ts",
+    new Set(["./automaticFontMatchingV2Catalog"]),
+  ],
   ["src/main/jobs/inpaintingJobs.ts", new Set(["./inpaintingJobTypes"])],
   ["src/main/jobs/translationJobs.ts", new Set(["./translationJobTypes"])],
   [

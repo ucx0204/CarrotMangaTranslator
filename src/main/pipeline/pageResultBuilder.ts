@@ -279,7 +279,9 @@ function resolveKeepBlocksAutomaticFont(pageOptions: TranslationOptions) {
   return {
     enabled: pageOptions.autoFontMatching,
     targetLanguage: pageOptions.targetLanguage,
-    workTitle: pageOptions.fontMatchingWorkTitle,
+    workId: pageOptions.fontMatchingWorkId,
+    chapterId: pageOptions.fontMatchingChapterId,
+    profile: pageOptions.fontMatchingProfile,
     candidates: pageOptions.fontMatchingCandidates,
   };
 }

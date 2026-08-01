@@ -176,7 +176,7 @@ function repairBrokenJson(candidate) {
 /** @param {string} candidate */
 function repairKnownKeys(candidate) {
   return candidate.replace(
-    /"?(id|type|textRole|text_role|bbox|jp|ko|sourceText|translatedText|source|target|direction|angle|fontSize|confidence|x1|y1|x2|y2)(?::|\s*:)/gi,
+    /"?(id|type|textRole|text_role|fontRole|font_role|fontRoleConfidence|font_role_confidence|bbox|jp|ko|sourceText|translatedText|source|target|direction|angle|fontSize|confidence|x1|y1|x2|y2)(?::|\s*:)/gi,
     /** @param {string} _ @param {string} key */
     (_, key) => `"${normalizeRepairedJsonKey(key)}":`,
   );
@@ -204,6 +204,10 @@ function normalizeRepairedJsonKey(key) {
     fontsize: "fontSize",
     textrole: "textRole",
     text_role: "textRole",
+    fontrole: "fontRole",
+    font_role: "fontRole",
+    fontroleconfidence: "fontRoleConfidence",
+    font_role_confidence: "fontRoleConfidence",
     sourcetext: "sourceText",
     translatedtext: "translatedText",
   };

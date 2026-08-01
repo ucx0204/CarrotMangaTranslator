@@ -8,6 +8,7 @@ import type { AppSettings } from "../../shared/settingsTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
 import { parseApiKeys } from "../../shared/apiKeySettings";
 import type { AutomaticFontCandidate } from "../../shared/fontMatchingTypes";
+import type { WorkTypographyProfileV2 } from "../../shared/fontMatchingProfileTypes";
 import { tMain } from "./localization";
 
 export function buildBaseOptions(
@@ -54,12 +55,22 @@ export function applyOutputOptions(
   options: TranslationOptions,
   naturalTextLayout: boolean,
   autoFontMatching: boolean,
-  workTitle: string | undefined,
+  context: {
+    workId?: string;
+    chapterId?: string;
+    profile?: WorkTypographyProfileV2 | null;
+  },
   fontMatchingCandidates: readonly AutomaticFontCandidate[] = [],
 ): void {
   options.naturalTextLayout = naturalTextLayout || undefined;
   options.autoFontMatching = autoFontMatching || undefined;
-  options.fontMatchingWorkTitle = autoFontMatching ? workTitle : undefined;
+  options.fontMatchingWorkId = autoFontMatching ? context.workId : undefined;
+  options.fontMatchingChapterId = autoFontMatching
+    ? context.chapterId
+    : undefined;
+  options.fontMatchingProfile = autoFontMatching
+    ? (context.profile ?? null)
+    : undefined;
   options.fontMatchingCandidates = autoFontMatching
     ? [...fontMatchingCandidates]
     : undefined;

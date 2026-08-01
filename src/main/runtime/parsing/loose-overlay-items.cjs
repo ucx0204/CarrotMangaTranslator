@@ -2,8 +2,8 @@
 /**
  * @typedef {{ x: number; y: number; w: number; h: number }} ParsedBbox
  * @typedef {{ [key: string]: number | undefined; x1?: number; y1?: number; x2?: number; y2?: number }} PartialParsedBbox
- * @typedef {{ id?: number; type?: string; textRole?: string; direction?: "horizontal" | "vertical"; angle?: number; fontSize?: number | null; confidence?: number | null; partialBbox?: PartialParsedBbox; bbox?: ParsedBbox | null; jp?: string; ko?: string }} LooseParsedItem
- * @typedef {{ id: number; type: string; x1?: number; y1?: number; x2?: number; y2?: number; jp: string; ko: string; textRole?: string; direction?: "horizontal" | "vertical"; angle?: number; fontSize?: number | null; confidence?: number | null }} LooseParsedOutput
+ * @typedef {{ id?: number; type?: string; textRole?: string; fontRole?: string; fontRoleConfidence?: number; direction?: "horizontal" | "vertical"; angle?: number; fontSize?: number | null; confidence?: number | null; partialBbox?: PartialParsedBbox; bbox?: ParsedBbox | null; jp?: string; ko?: string }} LooseParsedItem
+ * @typedef {{ id: number; type: string; x1?: number; y1?: number; x2?: number; y2?: number; jp: string; ko: string; textRole?: string; fontRole?: string; fontRoleConfidence?: number; direction?: "horizontal" | "vertical"; angle?: number; fontSize?: number | null; confidence?: number | null }} LooseParsedOutput
  * @typedef {{ requireBbox?: boolean }} LooseParseOptions
  * @typedef {{ items: LooseParsedOutput[]; current: LooseParsedItem | null; currentTextKey: "jp" | "ko" | null; requireBbox: boolean }} LooseParserState
  * @typedef {{ pattern: RegExp; apply: (item: LooseParsedItem, value: string) => void }} ScalarFieldHandler
@@ -11,6 +11,11 @@
  */
 
 const { bboxFromPartial } = require("./overlay-geometry.cjs");
+const {
+  isFontRoleCompatibleWithTextRole,
+  normalizeFontRole,
+  normalizeFontRoleConfidence,
+} = require("../font-matching-intent.cjs");
 const {
   normalizeDirection,
   normalizeParsedType,
@@ -28,6 +33,19 @@ const SCALAR_FIELD_HANDLERS = [
     pattern: /^"?(?:textRole|text_role|role)"?\s*:\s*["']?([^"',}]+)["']?/i,
     apply: (item, value) => {
       item.textRole = value;
+    },
+  },
+  {
+    pattern: /^"?(?:fontRole|font_role)"?\s*:\s*["']?([^"',}]+)["']?/i,
+    apply: (item, value) => {
+      item.fontRole = normalizeFontRole(value);
+    },
+  },
+  {
+    pattern:
+      /^"?(?:fontRoleConfidence|font_role_confidence)"?\s*:\s*["']?([0-9.]+%?)["']?/i,
+    apply: (item, value) => {
+      item.fontRoleConfidence = normalizeFontRoleConfidence(value);
     },
   },
   {
@@ -117,6 +135,17 @@ function processLooseLine(state, line) {
     return;
   }
   const current = ensureCurrentItem(state);
+  // `ko` is terminal in the documented record contract. Once its value has
+  // started, reserved-looking text belongs to the translation and must not be
+  // reinterpreted as font intent or confidence fields.
+  if (state.currentTextKey === "ko") {
+    if (/^[}\]],?$/u.test(line)) {
+      state.currentTextKey = null;
+      return;
+    }
+    appendTextContinuation(state, current, line);
+    return;
+  }
   if (applyScalarField(state, current, line)) {
     return;
   }
@@ -283,6 +312,14 @@ function addOptionalLooseFields(output, current) {
   if (current.textRole) {
     output.textRole = current.textRole;
   }
+  if (
+    current.fontRole &&
+    current.fontRoleConfidence !== undefined &&
+    isFontRoleCompatibleWithTextRole(current.textRole, current.fontRole)
+  ) {
+    output.fontRole = current.fontRole;
+    output.fontRoleConfidence = current.fontRoleConfidence;
+  }
   if (current.direction) {
     output.direction = current.direction;
   }
@@ -293,7 +330,7 @@ function addOptionalLooseFields(output, current) {
 
 /**
  * @param {LooseParsedOutput} output
- * @param {"angle" | "fontSize" | "confidence"} key
+ * @param {"angle" | "fontSize" | "confidence" | "fontRoleConfidence"} key
  * @param {number | null | undefined} value
  */
 function addFiniteField(output, key, value) {
@@ -308,7 +345,7 @@ function expandLooseRecordLines(text) {
   /** @type {string[]} */
   const expanded = [];
   const keyPattern =
-    /(?:^|\s)(id|type|textRole|text_role|role|direction|angle|fontSize|font_size|font|confidence|x1|y1|x2|y2|jp|ko|sourceText|source_text|source|translatedText|translated_text|target)\s*:/gi;
+    /(?:^|\s)(id|type|textRole|text_role|role|fontRole|font_role|fontRoleConfidence|font_role_confidence|direction|angle|fontSize|font_size|font|confidence|x1|y1|x2|y2|jp|ko|sourceText|source_text|source|translatedText|translated_text|target)\s*:/gi;
   for (const rawLine of rawLines) {
     expandLooseRecordLine(rawLine, keyPattern, expanded);
   }
@@ -317,7 +354,7 @@ function expandLooseRecordLines(text) {
 
 /** @param {string} line @param {RegExp} pattern @param {string[]} output */
 function expandLooseRecordLine(line, pattern, output) {
-  const matches = [...line.matchAll(pattern)];
+  const matches = findSafeLooseRecordMatches(line, pattern);
   if (matches.length <= 1) {
     output.push(line);
     return;
@@ -326,10 +363,26 @@ function expandLooseRecordLine(line, pattern, output) {
     const start = matches[index].index ?? 0;
     const end = matches[index + 1]?.index ?? line.length;
     const segment = line.slice(start, end).trim();
-    if (segment) {
-      output.push(segment);
+    if (segment) output.push(segment);
+  }
+}
+
+/** @param {string} line @param {RegExp} pattern */
+function findSafeLooseRecordMatches(line, pattern) {
+  /** @type {RegExpMatchArray[]} */
+  const matches = [];
+  let insideTranslatedText = false;
+  for (const match of line.matchAll(pattern)) {
+    const key = match[1] ?? "";
+    if (insideTranslatedText && !/^id$/iu.test(key)) continue;
+    matches.push(match);
+    if (/^(?:ko|translatedText|translated_text|target)$/iu.test(key)) {
+      insideTranslatedText = true;
+    } else if (/^id$/iu.test(key)) {
+      insideTranslatedText = false;
     }
   }
+  return matches;
 }
 
 module.exports = {

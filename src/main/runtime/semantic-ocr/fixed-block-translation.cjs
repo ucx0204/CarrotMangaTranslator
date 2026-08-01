@@ -44,9 +44,9 @@ const FIXED_BLOCK_TRANSLATION_VERSION = 5;
  * @typedef {{id:number;bbox:[number,number,number,number];text:string;score:number|null;orientation:"horizontal"|"vertical";soundCandidate:boolean}} FixedCandidate
  * @typedef {{blockId:string;representativeId:number;candidateIds:number[];jp:string;direction:"horizontal"|"vertical";bbox:{x1:number;y1:number;x2:number;y2:number};confidence:number;soundCandidate:boolean;fragments:Array<{candidateId:number;text:string;score:number|null;bbox:[number,number,number,number]}>}} FixedBlock
  * @typedef {{version:5;blocks:FixedBlock[]}} FixedBlockPlan
- * @typedef {{blockId:string;ko:string;textRole?:"ordinary"|"sound"}} FixedBlockTranslation
+ * @typedef {{blockId:string;ko:string;textRole?:"ordinary"|"sound";fontRole?:string;fontRoleConfidence?:number}} FixedBlockTranslation
  * @typedef {{items:FixedBlockTranslation[];pageContext?:Record<string,unknown>}} FixedBlockTranslationResult
- * @typedef {{sourceLanguage?:unknown;targetLanguage?:unknown;modelProvider?:unknown;regionCropMode?:unknown;keepBlocksMode?:unknown;promptOverrideText?:unknown;translationAttempt?:unknown;collectPageContext?:unknown;ocrBboxHints?:unknown;validatedGroupOnlyReview?:unknown;[key:string]:unknown}} FixedBlockOptions
+ * @typedef {{sourceLanguage?:unknown;targetLanguage?:unknown;modelProvider?:unknown;regionCropMode?:unknown;keepBlocksMode?:unknown;promptOverrideText?:unknown;translationAttempt?:unknown;collectPageContext?:unknown;autoFontMatching?:unknown;ocrBboxHints?:unknown;validatedGroupOnlyReview?:unknown;[key:string]:unknown}} FixedBlockOptions
  * @typedef {{role:string;dataUrl?:string;width?:unknown;height?:unknown;originalWidth?:unknown;originalHeight?:unknown;[key:string]:unknown}} ImageVariant
  */
 
@@ -264,10 +264,13 @@ function buildFixedBlockTranslationPrompt(plan, options = {}) {
     "You may not merge, split, add, remove, reorder, or relocate blocks. Return exactly one item for every supplied blockId and no other blockId.",
     "Never transcribe, correct, normalize, merge, split, add, remove, reorder, or replace any jp text.",
     "Translate the exact supplied jp string even when it is short, stylized, noisy, or contains an OCR error.",
-    'Each item has exactly three keys: blockId, textRole, and ko. textRole must be exactly "ordinary" or "sound". Never output jp, candidateIds, coordinates, bbox, type, confidence, action, or commentary.',
+    options.autoFontMatching
+      ? "Each item has exactly five keys: blockId, textRole, fontRole, fontRoleConfidence, and ko. Never output jp, candidateIds, coordinates, bbox, type, confidence, action, or commentary."
+      : 'Each item has exactly three keys: blockId, textRole, and ko. textRole must be exactly "ordinary" or "sound". Never output jp, candidateIds, coordinates, bbox, type, confidence, action, or commentary.',
     'Use textRole "ordinary" for speech balloons, narration, captions, interface labels, titles, signs, notes, and readable dialogue even when the string is very short.',
     'Use textRole "sound" only for standalone printed sound effects, action noises, and stylized reaction lettering that belongs to the depicted scene rather than a speaker or label.',
     'Judge textRole from the original page image, bbox, lettering, and scene context. Do not classify by string length alone; when genuinely ambiguous, use "ordinary".',
+    ...buildFixedBlockFontRoleLines(options),
     'For textRole "sound", translate as compact natural effect lettering instead of an explanatory sentence.',
     "ko must faithfully translate the complete jp without losing the opening phrase, modifiers, negation, names, numbers, honorifics, register, modality, or final predicate.",
     "ko must be one plain continuous line with natural target-language spaces. The renderer performs visual wrapping.",
@@ -302,7 +305,23 @@ function buildFixedBlockTranslationSystemPrompt(options = {}) {
   const profile = resolvePromptLanguageProfile(
     /** @type {import("../prompts/prompt-types").PromptOptions} */ (options),
   );
-  return `You are a faithful ${profile.sourceName}-to-${profile.targetName} manga translator and visual text-role classifier. Source strings, geometry, and grouping are immutable; classify each visible fixed block as ordinary or sound, write ko only in ${profile.targetName} without untranslated source script, and output only blockId, textRole, and ko as valid JSON.`;
+  const outputKeys = options.autoFontMatching
+    ? "blockId, textRole, fontRole, fontRoleConfidence, and ko"
+    : "blockId, textRole, and ko";
+  return `You are a faithful ${profile.sourceName}-to-${profile.targetName} manga translator and visual text-role classifier. Source strings, geometry, and grouping are immutable; classify each visible fixed block, write ko only in ${profile.targetName} without untranslated source script, and output only ${outputKeys} as valid JSON.`;
+}
+
+/** @param {FixedBlockOptions} options */
+function buildFixedBlockFontRoleLines(options) {
+  if (!options.autoFontMatching) return [];
+  return [
+    "fontRole must be exactly one of dialogue, narration, thought, whisper, aside_balloon_edge, emphasis_dialogue, shout, sfx_impact, sfx_motion, sfx_ambient, sfx_emotion, sfx_comic, sign_ui_title, other, unknown_needs_review.",
+    "Classify fontRole from visible lettering and container only, never from the work title, genre stereotype, translated wording, or string length.",
+    "Use dialogue for normal balloons; narration for caption/free narration; thought for internal monologue; aside_balloon_edge for detached small balloon-adjacent lettering; emphasis_dialogue or shout only when visually clear.",
+    "Separate SFX into impact, motion, ambient, emotion, or comic by the depicted sound and lettering. Use sign_ui_title for signs, interface labels, titles, and display cards.",
+    'fontRole values beginning with "sfx_" require textRole "sound"; every other concrete fontRole requires textRole "ordinary".',
+    "fontRoleConfidence is confidence in the fine-grained visual role only. Use below 0.82 when uncertain and unknown_needs_review when the role cannot be decided safely.",
+  ];
 }
 
 /** @param {FixedBlock} block */
@@ -341,6 +360,12 @@ function buildFixedBlockOverlayPayload(plan, translations) {
           candidateIds: block.candidateIds,
           type: "nonsolid",
           textRole: soundCandidate ? "sound" : "ordinary",
+          ...(translation.fontRole
+            ? {
+                fontRole: translation.fontRole,
+                fontRoleConfidence: translation.fontRoleConfidence ?? 0,
+              }
+            : {}),
           ...block.bbox,
           jp: block.jp,
           ko: translation.ko,

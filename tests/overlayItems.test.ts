@@ -6,6 +6,7 @@ import {
 import type { MangaPage } from "../src/shared/libraryTypes";
 import type { OverlayItem } from "../src/main/pipeline/types";
 import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../src/shared/blockFormat";
+import { makeAutomaticFontCandidate } from "./helpers/automaticFontCandidate";
 
 describe("overlay item conversion", () => {
   it("renders ordinary speech/caption horizontally even when Japanese OCR direction is vertical", () => {
@@ -224,7 +225,7 @@ describe("overlay item conversion", () => {
     expect(block.renderDirection).toBe("horizontal");
   });
 
-  it("matches a Korean font before applying natural line layout", () => {
+  it("keeps the current Korean font when V2 has no visual-role evidence", () => {
     const block = overlayItemToBlock(
       {
         id: 1,
@@ -245,15 +246,20 @@ describe("overlay item conversion", () => {
       {
         enabled: true,
         targetLanguage: "ko",
-        workTitle: "공작 영애의 계약 결혼",
+        candidates: [
+          makeAutomaticFontCandidate({
+            source: "built-in",
+            fontId: "ridi-batang",
+          }),
+        ],
       },
     );
 
-    expect(block.fontFamily).toBe("ridi-batang");
+    expect(block.fontFamily).toBe("jua");
     expect(block.translatedText).toContain("\n");
   });
 
-  it("uses the English built-in catalog for an English target", () => {
+  it("does not guess an English SFX font without a verified visual ranker", () => {
     const block = overlayItemToBlock(
       {
         id: 1,
@@ -272,11 +278,61 @@ describe("overlay item conversion", () => {
       {
         enabled: true,
         targetLanguage: "en",
-        workTitle: "Action",
+        candidates: [
+          makeAutomaticFontCandidate({
+            source: "built-in",
+            fontId: "bangers",
+            supportedLocales: ["en"],
+          }),
+        ],
       },
     );
 
-    expect(block.fontFamily).toBe("bangers");
+    expect(block.fontFamily).toBe("comic-neue");
+  });
+
+  it("records a Korean impact role without applying a font before pixel evidence", () => {
+    const block = overlayItemToBlock(
+      {
+        id: 1,
+        type: "nonsolid",
+        textRole: "sound",
+        fontRole: "sfx_impact",
+        fontRoleConfidence: 0.98,
+        bbox: { x: 100, y: 100, w: 200, h: 120 },
+        jp: "ドン",
+        ko: "쾅!",
+        confidence: 1,
+      },
+      makePage(),
+      0,
+      undefined,
+      { ...DEFAULT_BLOCK_FORMAT_DEFAULTS, fontFamily: "nanum-gothic" },
+      undefined,
+      {
+        enabled: true,
+        targetLanguage: "ko",
+        candidates: [
+          makeAutomaticFontCandidate({
+            source: "built-in",
+            fontId: "dohyeon",
+            defaultFont: false,
+          }),
+          makeAutomaticFontCandidate({
+            source: "built-in",
+            fontId: "jua",
+            defaultFont: true,
+            preferenceRank: 1,
+          }),
+        ],
+      },
+    );
+
+    expect(block.fontFamily).toBe("nanum-gothic");
+    expect(block).toMatchObject({
+      fontRole: "sfx_impact",
+      fontRoleConfidence: 0.98,
+    });
   });
 
   it("auto-selects vertical only for a one-column ordinary block", () => {
