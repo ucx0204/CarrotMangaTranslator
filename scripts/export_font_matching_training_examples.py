@@ -18,7 +18,9 @@ from __future__ import annotations
 import argparse
 import copy
 import hashlib
+import itertools
 import json
+import math
 import os
 import re
 import shutil
@@ -36,6 +38,7 @@ if str(SCRIPT_DIR) not in sys.path:
 
 import font_matching_labels as labels  # noqa: E402
 import font_matching_review_ledger as review_ledger  # noqa: E402
+import build_font_matching_master as master_builder  # noqa: E402
 
 
 SCHEMA_VERSION = "font-matching-training-export-v1"
@@ -46,7 +49,41 @@ RETRIEVAL_SCHEMA_VERSION = "font-matching-retrieval-example-v1"
 PROTOTYPE_SCHEMA_VERSION = "font-matching-font-prototype-v1"
 AUGMENTATION_SCHEMA_VERSION = "font-matching-generated-augmentation-v1"
 EXPORTED_AUGMENTATION_SCHEMA_VERSION = "font-matching-train-only-augmentation-v1"
+CHAPTER_PAIR_SCHEMA_VERSION = "font-matching-chapter-pair-v1"
 REPORT_SCHEMA_VERSION = "font-matching-training-export-report-v1"
+BODY_DIALOGUE_DEDUPLICATION_SCHEMA_VERSION = (
+    "font-matching-body-dialogue-deduplication-v1"
+)
+SOURCE_STYLE_CLUSTER_ALGORITHM = "font-source-style-quarter-bin-fingerprint-v1"
+BODY_DIALOGUE_CAP = 3
+HIGH_VARIANT_STYLE_THRESHOLD = 0.5
+CHAPTER_PAIR_FILE = "chapter-pairs.jsonl"
+CHAPTER_PAIR_SELECTION_ALGORITHM = "font-matching-chapter-pair-selection-v1"
+CHAPTER_PAIR_MIN_LABEL_QUALITY = 0.8
+CHAPTER_PAIR_MIN_ORDINARY_POSITIVE_JACCARD = 0.5
+CHAPTER_PAIR_MAX_OVERRIDE_JACCARD = 0.5
+MAX_ORDINARY_CHAPTER_PAIRS_PER_GROUP = 2
+MAX_LOCAL_OVERRIDE_PAIRS_PER_GROUP = 3
+VARIANT_ROLES = frozenset(
+    {
+        "whisper",
+        "aside_balloon_edge",
+        "emphasis_dialogue",
+        "shout",
+        "sfx_impact",
+        "sfx_motion",
+        "sfx_ambient",
+        "sfx_emotion",
+        "sfx_comic",
+        "sign_ui_title",
+    }
+)
+PLAIN_TREATMENT = {
+    "outline": "none",
+    "shadow": "none",
+    "fill": "solid",
+    "distortion": "none",
+}
 OWNER = "carrot-manga-translator/font-matching-training-export"
 MARKER_FILE = ".font-matching-training-export-owned.json"
 MANIFEST_FILE = "manifest.json"
@@ -127,6 +164,31 @@ class ExportContext:
     review_scope: dict[str, Any]
     work_split: dict[str, str]
     resolution_counts: dict[str, int]
+    completed_final_count: int
+    excluded_final_ids: tuple[str, ...]
+    excluded_final_ids_sha256: str
+    catalog_registry_sha256: str | None
+    master_report_sha256: str | None
+    master_split_map_sha256: str | None
+    parent_workspace_projection: bool
+    registry_attestation: dict[str, Any] | None
+    body_dialogue_deduplication: dict[str, Any]
+    chapter_pair_rows: list[dict[str, Any]]
+    chapter_pair_contract: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class RegistryContract:
+    catalog_source_kinds: Mapping[str, str]
+    expected_counts: Mapping[str, int]
+    expected_total: int
+    excluded_parent_ids: frozenset[str]
+    invalidated_parent_ids: frozenset[str]
+    input_attestation: Mapping[str, Any]
+    parent_master_manifest_sha256: str | None
+    record_sha256: str
+    registry_sha256: str
+    source_configuration: master_builder.SourceConfiguration
 
 
 def canonical_json_bytes(value: Any, *, pretty: bool = False) -> bytes:
@@ -166,6 +228,12 @@ def sha256_file(path: Path) -> str:
 
 def stable_hash(*parts: str) -> str:
     return hashlib.sha256("\0".join(parts).encode("utf-8")).hexdigest()
+
+
+def sorted_ids_sha256(values: Iterable[str]) -> str:
+    ordered = sorted(values)
+    payload = ("\n".join(ordered) + ("\n" if ordered else "")).encode("utf-8")
+    return sha256_bytes(payload)
 
 
 def seal(record: Mapping[str, Any]) -> dict[str, Any]:
@@ -299,6 +367,121 @@ def read_jsonl(path: Path, location: str) -> list[dict[str, Any]]:
     return rows
 
 
+def load_registry_contract(path: Path) -> RegistryContract:
+    resolved = path.resolve()
+    try:
+        configuration = master_builder.load_catalog_registry(resolved)
+    except (master_builder.MasterManifestError, OSError) as error:
+        raise TrainingExportError(
+            f"catalog registry is not complete and valid: {error}"
+        ) from error
+    attestation = require_mapping(
+        configuration.input_attestation, "catalog registry attestation"
+    )
+    registry_binding = require_mapping(
+        attestation.get("catalog_registry"),
+        "catalog registry attestation.catalog_registry",
+    )
+    registry_sha256 = require_sha(
+        registry_binding.get("sha256"),
+        "catalog registry attestation.catalog_registry.sha256",
+    )
+    if registry_sha256 != sha256_file(resolved):
+        raise TrainingExportError("catalog registry SHA binding failed")
+    record_sha256 = require_sha(
+        registry_binding.get("record_sha256"),
+        "catalog registry attestation.catalog_registry.record_sha256",
+    )
+    parent_binding = attestation.get("parent_master")
+    parent_master_manifest_sha256: str | None = None
+    if parent_binding is not None:
+        parent_master_manifest_sha256 = require_sha(
+            require_mapping(
+                parent_binding, "catalog registry attestation.parent_master"
+            ).get("manifest_sha256"),
+            "catalog registry attestation.parent_master.manifest_sha256",
+        )
+    excluded_parent_ids = [
+        require_id(
+            exclusion.parent_master_id,
+            "catalog registry exclusion.parent_master_id",
+        )
+        for exclusion in configuration.exclusions.values()
+    ]
+    if len(excluded_parent_ids) != len(set(excluded_parent_ids)):
+        raise TrainingExportError("catalog registry reuses an excluded parent ID")
+    verified_parent_ids: set[str] = set()
+    invalidated_parent_ids: set[str] = set()
+    raw_ledger_bindings = attestation.get("exclusion_ledgers", [])
+    if not isinstance(raw_ledger_bindings, list):
+        raise TrainingExportError(
+            "catalog registry attestation.exclusion_ledgers must be an array"
+        )
+    for ledger_index, raw_binding in enumerate(raw_ledger_bindings, 1):
+        binding = require_mapping(
+            raw_binding,
+            f"catalog registry attestation.exclusion_ledgers[{ledger_index}]",
+        )
+        ledger_path = Path(
+            require_text(
+                binding.get("path"),
+                f"catalog registry exclusion ledger[{ledger_index}].path",
+            )
+        ).resolve()
+        expected_sha = require_sha(
+            binding.get("sha256"),
+            f"catalog registry exclusion ledger[{ledger_index}].sha256",
+        )
+        if sha256_file(ledger_path) != expected_sha:
+            raise TrainingExportError(
+                f"catalog registry exclusion ledger changed: {ledger_path}"
+            )
+        ledger_rows = read_jsonl(
+            ledger_path, f"catalog registry exclusion ledger[{ledger_index}]"
+        )
+        if binding.get("record_count") != len(ledger_rows):
+            raise TrainingExportError(
+                f"catalog registry exclusion ledger[{ledger_index}] count changed"
+            )
+        for row_index, row in enumerate(ledger_rows, 1):
+            parent_id = require_id(
+                row.get("parent_master_id"),
+                "catalog registry exclusion ledger"
+                f"[{ledger_index}][{row_index}].parent_master_id",
+            )
+            if parent_id in verified_parent_ids:
+                raise TrainingExportError(
+                    f"catalog registry repeats excluded parent {parent_id}"
+                )
+            verified_parent_ids.add(parent_id)
+            invalidated = row.get("prior_final_labels_invalidated")
+            if not isinstance(invalidated, bool):
+                raise TrainingExportError(
+                    f"{parent_id}: prior_final_labels_invalidated must be boolean"
+                )
+            if invalidated:
+                invalidated_parent_ids.add(parent_id)
+    if verified_parent_ids != set(excluded_parent_ids):
+        raise TrainingExportError(
+            "catalog registry exclusion attestation differs from loaded exclusions"
+        )
+    catalog_source_kinds = {
+        catalog.catalog_id: catalog.source_kind for catalog in configuration.catalogs
+    }
+    return RegistryContract(
+        catalog_source_kinds=dict(sorted(catalog_source_kinds.items())),
+        expected_counts=dict(sorted(configuration.expected_counts.items())),
+        expected_total=configuration.expected_total,
+        excluded_parent_ids=frozenset(excluded_parent_ids),
+        invalidated_parent_ids=frozenset(invalidated_parent_ids),
+        input_attestation=copy.deepcopy(dict(attestation)),
+        parent_master_manifest_sha256=parent_master_manifest_sha256,
+        record_sha256=record_sha256,
+        registry_sha256=registry_sha256,
+        source_configuration=configuration,
+    )
+
+
 def validate_view_descriptor(
     value: Any, *, view_name: str, location: str
 ) -> dict[str, Any]:
@@ -337,12 +520,16 @@ def validate_view_descriptor(
     return descriptor
 
 
-def read_master_rows(path: Path) -> tuple[list[dict[str, Any]], dict[str, str], str]:
+def read_master_rows(
+    path: Path, *, registry: RegistryContract | None = None
+) -> tuple[list[dict[str, Any]], dict[str, str], str]:
     rows = read_jsonl(path, "master manifest")
     if not rows:
         raise TrainingExportError("master manifest is empty")
     output: list[dict[str, Any]] = []
     work_splits: dict[str, str] = {}
+    component_splits: dict[str, str] = {}
+    catalog_counts: Counter[str] = Counter()
     seen: set[str] = set()
     for index, row in enumerate(rows, 1):
         location = f"master[{index}]"
@@ -359,6 +546,37 @@ def read_master_rows(path: Path) -> tuple[list[dict[str, Any]], dict[str, str], 
             raise TrainingExportError(
                 f"{sample_id}: synthetic or QA-overlay master rows are forbidden"
             )
+        source_catalog_value = provenance.get("source_catalog_id")
+        source_kind_value = provenance.get("source_kind")
+        source_catalog_id: str | None = None
+        source_kind: str | None = None
+        if source_catalog_value is not None or source_kind_value is not None:
+            source_catalog_id = require_id(
+                source_catalog_value, f"{location}.provenance.source_catalog_id"
+            )
+            source_kind = require_text(
+                source_kind_value, f"{location}.provenance.source_kind"
+            )
+            if source_kind not in {"base", "hard"}:
+                raise TrainingExportError(
+                    f"{location}.provenance.source_kind must be base or hard"
+                )
+        if registry is not None:
+            if source_catalog_id is None or source_kind is None:
+                raise TrainingExportError(
+                    f"{sample_id}: registry-attested master lacks source provenance"
+                )
+            expected_kind = registry.catalog_source_kinds.get(source_catalog_id)
+            if expected_kind is None:
+                raise TrainingExportError(
+                    f"{sample_id}: master names catalog absent from registry: "
+                    f"{source_catalog_id}"
+                )
+            if source_kind != expected_kind:
+                raise TrainingExportError(
+                    f"{sample_id}: master source_kind differs from registry"
+                )
+            catalog_counts[source_catalog_id] += 1
         work = require_mapping(row.get("work"), f"{location}.work")
         work_id = require_id(work.get("id"), f"{location}.work.id")
         split = require_text(row.get("split"), f"{location}.split")
@@ -368,6 +586,41 @@ def read_master_rows(path: Path) -> tuple[list[dict[str, Any]], dict[str, str], 
         if previous != split:
             raise TrainingExportError(
                 f"work-disjoint split violation for {work_id}: {previous}/{split}"
+            )
+        groups_value = row.get("groups")
+        split_component: str | None = None
+        if groups_value is not None:
+            groups = require_mapping(groups_value, f"{location}.groups")
+            split_component = require_id(
+                groups.get("split_component"),
+                f"{location}.groups.split_component",
+            )
+            component_split = component_splits.setdefault(split_component, split)
+            if component_split != split:
+                raise TrainingExportError(
+                    "split-component leakage for "
+                    f"{split_component}: {component_split}/{split}"
+                )
+        elif registry is not None:
+            raise TrainingExportError(
+                f"{sample_id}: registry-attested master lacks groups.split_component"
+            )
+        work_balance_value = row.get("work_balance_weight")
+        work_balance_weight: float | None = None
+        if work_balance_value is not None:
+            if (
+                not isinstance(work_balance_value, (int, float))
+                or isinstance(work_balance_value, bool)
+                or not math.isfinite(float(work_balance_value))
+                or float(work_balance_value) <= 0.0
+            ):
+                raise TrainingExportError(
+                    f"{location}.work_balance_weight must be finite and positive"
+                )
+            work_balance_weight = float(work_balance_value)
+        elif registry is not None:
+            raise TrainingExportError(
+                f"{sample_id}: registry-attested master lacks work_balance_weight"
             )
         views_value = require_mapping(row.get("views"), f"{location}.views")
         if set(views_value) != set(VIEW_NAMES):
@@ -382,6 +635,9 @@ def read_master_rows(path: Path) -> tuple[list[dict[str, Any]], dict[str, str], 
         }
         page = require_mapping(row.get("page"), f"{location}.page")
         chapter = require_mapping(row.get("chapter"), f"{location}.chapter")
+        manual_recrop = (
+            nested(row, "metadata", "cohort_signals", "manual_recrop") is True
+        )
         output.append(
             {
                 "chapter_id": require_id(chapter.get("id"), f"{location}.chapter.id"),
@@ -389,6 +645,7 @@ def read_master_rows(path: Path) -> tuple[list[dict[str, Any]], dict[str, str], 
                     nested(row, "metadata", "candidate_categories") or []
                 ),
                 "geometry": copy.deepcopy(row.get("geometry")),
+                "manual_recrop": manual_recrop,
                 "master_provenance": copy.deepcopy(dict(provenance)),
                 "page_id": require_id(page.get("id"), f"{location}.page.id"),
                 "sample_crop_sha256": require_sha(
@@ -400,13 +657,138 @@ def read_master_rows(path: Path) -> tuple[list[dict[str, Any]], dict[str, str], 
                     page.get("source_page_sha256"),
                     f"{location}.page.source_page_sha256",
                 ),
+                "source_catalog_id": source_catalog_id,
+                "source_kind": source_kind,
                 "split": split,
+                "split_component": split_component,
                 "views": views,
+                "work_balance_weight": work_balance_weight,
                 "work_id": work_id,
             }
         )
+    if registry is not None:
+        expected_counts = {
+            catalog_id: count
+            for catalog_id, count in registry.expected_counts.items()
+            if count
+        }
+        if dict(sorted(catalog_counts.items())) != expected_counts:
+            raise TrainingExportError(
+                "master catalog counts differ from the sealed registry"
+            )
+        if len(output) != registry.expected_total:
+            raise TrainingExportError(
+                "master row count differs from the sealed registry: "
+                f"{len(output)} != {registry.expected_total}"
+            )
+        leaked_exclusions = sorted(
+            registry.excluded_parent_ids & {row["sample_id"] for row in output}
+        )
+        if leaked_exclusions:
+            raise TrainingExportError(
+                "excluded parent records leaked into the registry-attested master: "
+                f"{leaked_exclusions[:8]}"
+            )
     output.sort(key=lambda row: row["sample_id"])
     return output, work_splits, sha256_file(path)
+
+
+def validate_registry_master_report(
+    master_manifest: Path,
+    *,
+    master_manifest_sha256: str,
+    registry: RegistryContract,
+) -> tuple[str, str]:
+    resolved_manifest = master_manifest.resolve()
+    if resolved_manifest.name != "manifest.jsonl":
+        raise TrainingExportError(
+            "registry-attested master manifest must be named manifest.jsonl"
+        )
+    report_path = resolved_manifest.with_name("report.json")
+    split_map_path = resolved_manifest.with_name("split_map.json")
+    report = read_json(report_path, "master report")
+    if report.get("tool") != master_builder.TOOL_ID:
+        raise TrainingExportError("master report ownership marker is invalid")
+    if nested(report, "outputs", "master_manifest_sha256") != master_manifest_sha256:
+        raise TrainingExportError("master report binds another manifest")
+    split_map_sha256 = sha256_file(split_map_path)
+    if nested(report, "outputs", "split_map_sha256") != split_map_sha256:
+        raise TrainingExportError("master report binds another split map")
+    if nested(report, "inputs", "attestation") != registry.input_attestation:
+        raise TrainingExportError(
+            "master report attestation differs from the sealed registry"
+        )
+    if nested(report, "statistics", "record_count") != registry.expected_total:
+        raise TrainingExportError(
+            "master report row count differs from the sealed registry"
+        )
+    reported_catalogs = require_mapping(
+        nested(report, "inputs", "catalogs"), "master report.inputs.catalogs"
+    )
+    if set(reported_catalogs) != set(registry.catalog_source_kinds):
+        raise TrainingExportError(
+            "master report catalog inventory differs from the sealed registry"
+        )
+    for catalog_id, source_kind in registry.catalog_source_kinds.items():
+        catalog = require_mapping(
+            reported_catalogs.get(catalog_id),
+            f"master report.inputs.catalogs[{catalog_id!r}]",
+        )
+        if catalog.get("catalog_id") != catalog_id:
+            raise TrainingExportError(
+                f"master report catalog identity differs for {catalog_id}"
+            )
+        if catalog.get("source_kind") != source_kind:
+            raise TrainingExportError(
+                f"master report source_kind differs for {catalog_id}"
+            )
+        if catalog.get("record_count") != registry.expected_counts[catalog_id]:
+            raise TrainingExportError(
+                f"master report record count differs for {catalog_id}"
+            )
+    expected_by_catalog = {
+        catalog_id: count
+        for catalog_id, count in registry.expected_counts.items()
+        if count
+    }
+    if nested(report, "statistics", "by_catalog") != expected_by_catalog:
+        raise TrainingExportError(
+            "master report catalog statistics differ from the sealed registry"
+        )
+    expected_by_source_kind: Counter[str] = Counter()
+    for catalog_id, count in registry.expected_counts.items():
+        expected_by_source_kind[registry.catalog_source_kinds[catalog_id]] += count
+    normalized_by_source_kind = {
+        source_kind: count
+        for source_kind, count in sorted(expected_by_source_kind.items())
+        if count
+    }
+    if nested(report, "statistics", "by_source_kind") != normalized_by_source_kind:
+        raise TrainingExportError(
+            "master report source-kind statistics differ from the sealed registry"
+        )
+    configuration = registry.source_configuration
+    try:
+        validation = master_builder.validate_master(
+            resolved_manifest.parent,
+            configuration.catalogs,
+            expected_total=configuration.expected_total,
+            verify_assets=False,
+            expected_counts=configuration.expected_counts,
+            expected_physical_counts=configuration.expected_physical_counts,
+            exclusions=configuration.exclusions,
+            frozen_split_map=configuration.frozen_split_map,
+            input_attestation=configuration.input_attestation,
+        )
+    except (master_builder.MasterManifestError, OSError) as error:
+        raise TrainingExportError(
+            f"registry-attested master is not reproducible: {error}"
+        ) from error
+    if validation.get("manifest_sha256") != master_manifest_sha256:
+        raise TrainingExportError(
+            "deep master validation returned another manifest hash"
+        )
+    return sha256_file(report_path), split_map_sha256
 
 
 def _validate_render_artifact(
@@ -624,6 +1006,7 @@ def build_sample_rows(
     render_specification_sha256: str,
     font_catalog_sha256: str,
     renderer_hash: str,
+    catalog_registry_sha256: str | None = None,
 ) -> list[dict[str, Any]]:
     candidate_set = set(candidate_ids)
     output: list[dict[str, Any]] = []
@@ -666,48 +1049,57 @@ def build_sample_rows(
             raise TrainingExportError(f"{sample_id}: final uses another font catalog")
         if resolution.get("renderer_hash") != renderer_hash:
             raise TrainingExportError(f"{sample_id}: final uses another renderer")
-        output.append(
-            seal(
-                {
-                    "chapter_id": master["chapter_id"],
-                    "cohorts": copy.deepcopy(master["cohorts"]),
-                    "consistency": copy.deepcopy(final["consistency"]),
-                    "example_id": "fmts-"
-                    + stable_hash("font-matching-training-sample-v1", sample_id)[:32],
-                    "font_judgment": copy.deepcopy(dict(judgment)),
-                    "input_bindings": {
-                        "font_catalog_sha256": font_catalog_sha256,
-                        "master_manifest_sha256": master_manifest_sha256,
-                        "render_bank_manifest_sha256": render_bank_manifest_sha256,
-                        "render_specification_sha256": render_specification_sha256,
-                        "renderer_hash": renderer_hash,
-                    },
-                    "page_id": master["page_id"],
-                    "provenance": {
-                        "approval": "completed_human_final_label",
-                        "master": copy.deepcopy(master["master_provenance"]),
-                        "qa_overlay": False,
-                        "synthetic": False,
-                    },
-                    "review_provenance": _review_provenance(
-                        final, review_by_label=review_by_label
-                    ),
-                    "role": copy.deepcopy(final["role"]),
-                    "sample_id": sample_id,
-                    "schema_version": SAMPLE_SCHEMA_VERSION,
-                    "source": {
-                        "geometry": copy.deepcopy(master["geometry"]),
-                        "sample_crop_sha256": master["sample_crop_sha256"],
-                        "source_page_sha256": master["source_page_sha256"],
-                        "views": copy.deepcopy(master["views"]),
-                    },
-                    "source_style": copy.deepcopy(final["source_style"]),
-                    "split": master["split"],
-                    "treatment": copy.deepcopy(final["treatment"]),
-                    "work_id": master["work_id"],
-                }
-            )
-        )
+        input_bindings = {
+            "font_catalog_sha256": font_catalog_sha256,
+            "master_manifest_sha256": master_manifest_sha256,
+            "render_bank_manifest_sha256": render_bank_manifest_sha256,
+            "render_specification_sha256": render_specification_sha256,
+            "renderer_hash": renderer_hash,
+        }
+        if catalog_registry_sha256 is not None:
+            input_bindings["catalog_registry_sha256"] = catalog_registry_sha256
+        provenance = {
+            "approval": "completed_human_final_label",
+            "master": copy.deepcopy(master["master_provenance"]),
+            "qa_overlay": False,
+            "synthetic": False,
+        }
+        if master["source_catalog_id"] is not None:
+            provenance["source_catalog_id"] = master["source_catalog_id"]
+            provenance["source_kind"] = master["source_kind"]
+        sample_record = {
+            "chapter_id": master["chapter_id"],
+            "cohorts": copy.deepcopy(master["cohorts"]),
+            "consistency": copy.deepcopy(final["consistency"]),
+            "example_id": "fmts-"
+            + stable_hash("font-matching-training-sample-v1", sample_id)[:32],
+            "font_judgment": copy.deepcopy(dict(judgment)),
+            "input_bindings": input_bindings,
+            "manual_recrop": bool(master["manual_recrop"]),
+            "page_id": master["page_id"],
+            "provenance": provenance,
+            "review_provenance": _review_provenance(
+                final, review_by_label=review_by_label
+            ),
+            "role": copy.deepcopy(final["role"]),
+            "sample_id": sample_id,
+            "schema_version": SAMPLE_SCHEMA_VERSION,
+            "source": {
+                "geometry": copy.deepcopy(master["geometry"]),
+                "sample_crop_sha256": master["sample_crop_sha256"],
+                "source_page_sha256": master["source_page_sha256"],
+                "views": copy.deepcopy(master["views"]),
+            },
+            "source_style": copy.deepcopy(final["source_style"]),
+            "split": master["split"],
+            "treatment": copy.deepcopy(final["treatment"]),
+            "work_id": master["work_id"],
+        }
+        if master["split_component"] is not None:
+            sample_record["groups"] = {"split_component": master["split_component"]}
+        if master["work_balance_weight"] is not None:
+            sample_record["work_balance_weight"] = master["work_balance_weight"]
+        output.append(seal(sample_record))
     if set(final_by_sample) != {row["sample_id"] for row in output}:
         extras = sorted(set(final_by_sample) - {row["sample_id"] for row in output})
         raise TrainingExportError(
@@ -715,6 +1107,907 @@ def build_sample_rows(
         )
     output.sort(key=lambda row: row["sample_id"])
     return output
+
+
+def _source_style_cluster(source_style: Mapping[str, Any]) -> dict[str, Any]:
+    """Build an identity-free, deterministic cluster from reviewed style axes."""
+
+    unknown_fields_value = source_style.get("unknown_fields")
+    unknown_fields = (
+        set(unknown_fields_value) if isinstance(unknown_fields_value, list) else set()
+    )
+    axis_bins: dict[str, int | None] = {}
+    for field in labels.STYLE_FIELDS:
+        value = source_style.get(field)
+        if field in unknown_fields or value is None:
+            axis_bins[field] = None
+            continue
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(float(value))
+            or not 0.0 <= float(value) <= 1.0
+        ):
+            raise TrainingExportError(
+                f"source_style.{field}: expected a finite value from 0 to 1"
+            )
+        axis_bins[field] = min(4, max(0, int(math.floor(float(value) * 4.0 + 0.5))))
+    fingerprint = {
+        "algorithm": SOURCE_STYLE_CLUSTER_ALGORITHM,
+        "axis_bins": axis_bins,
+    }
+    fingerprint_sha256 = sha256_bytes(
+        json.dumps(
+            fingerprint, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+    )
+    return {
+        **fingerprint,
+        "cluster_id": f"fmsc-{fingerprint_sha256[:24]}",
+        "fingerprint_sha256": fingerprint_sha256,
+    }
+
+
+def _style_score(sample: Mapping[str, Any], field: str) -> float:
+    value = nested(sample, "source_style", field)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return 0.0
+    return float(value)
+
+
+def _manual_recrop(sample: Mapping[str, Any]) -> bool:
+    if sample.get("manual_recrop") is True:
+        return True
+    flags = nested(sample, "review_provenance", "resolution", "flags")
+    if isinstance(flags, list) and "manual_recrop_resolved" in flags:
+        return True
+    source_reviews = nested(sample, "review_provenance", "source_reviews")
+    return isinstance(source_reviews, list) and any(
+        isinstance(review, Mapping)
+        and isinstance(review.get("flags"), list)
+        and "manual_recrop" in review["flags"]
+        for review in source_reviews
+    )
+
+
+def _body_dialogue_protection_reasons(sample: Mapping[str, Any]) -> list[str]:
+    if sample.get("split") != "train":
+        return ["evaluation_split_unchanged"]
+    role = nested(sample, "role", "primary")
+    if role != "dialogue":
+        return ["variant_role" if role in VARIANT_ROLES else "non_dialogue_role"]
+
+    reasons: list[str] = []
+    if _style_score(sample, "handwritten") >= HIGH_VARIANT_STYLE_THRESHOLD:
+        reasons.append("handwritten")
+    if _style_score(sample, "irregularity") >= HIGH_VARIANT_STYLE_THRESHOLD:
+        reasons.append("irregular")
+    consistency = sample.get("consistency")
+    if isinstance(consistency, Mapping) and (
+        consistency.get("policy") == "intentional_override"
+        or consistency.get("action") == "local_override"
+    ):
+        reasons.append("source_family_override")
+    if _manual_recrop(sample):
+        reasons.append("manual_recrop")
+    treatment = sample.get("treatment")
+    if isinstance(treatment, Mapping) and any(
+        treatment.get(field) != value for field, value in PLAIN_TREATMENT.items()
+    ):
+        reasons.append("noncanonical_treatment")
+    if isinstance(treatment, Mapping) and treatment.get("orientation") in {
+        "mixed",
+        "unknown",
+    }:
+        reasons.append("noncanonical_orientation")
+    if nested(sample, "font_judgment", "none_acceptable") is True:
+        reasons.append("catalog_gap_or_abstention")
+    return sorted(set(reasons))
+
+
+def _geometry_signature(sample: Mapping[str, Any]) -> tuple[int, int, int] | None:
+    geometry = nested(sample, "source", "geometry")
+    if not isinstance(geometry, Mapping):
+        return None
+    bbox: Sequence[Any] | None = None
+    for field in (
+        "mask_tight_bbox_px",
+        "bbox_px",
+        "crop_bbox_px",
+        "final_bbox_px",
+    ):
+        candidate = geometry.get(field)
+        if isinstance(candidate, list) and len(candidate) == 4:
+            bbox = candidate
+            break
+    if bbox is None or any(
+        isinstance(value, bool) or not isinstance(value, (int, float)) for value in bbox
+    ):
+        return None
+    width = float(bbox[2]) - float(bbox[0])
+    height = float(bbox[3]) - float(bbox[1])
+    if width <= 0.0 or height <= 0.0:
+        return None
+    aspect_bucket = min(
+        12, max(-12, int(math.floor(math.log2(width / height) * 2.0 + 0.5)))
+    )
+    page_size = geometry.get("page_size_px")
+    if (
+        isinstance(page_size, list)
+        and len(page_size) == 2
+        and all(
+            not isinstance(value, bool)
+            and isinstance(value, (int, float))
+            and float(value) > 0.0
+            for value in page_size
+        )
+    ):
+        width_bucket = min(20, int(math.floor(width / float(page_size[0]) * 20.0)))
+        height_bucket = min(20, int(math.floor(height / float(page_size[1]) * 20.0)))
+    else:
+        width_bucket = min(20, int(math.floor(math.log2(width + 1.0))))
+        height_bucket = min(20, int(math.floor(math.log2(height + 1.0))))
+    return aspect_bucket, width_bucket, height_bucket
+
+
+def _quality_sort_key(
+    sample: Mapping[str, Any],
+) -> tuple[float, float, float, int, str]:
+    declared_label_quality = nested(sample, "label_quality", "weight")
+    if declared_label_quality is None:
+        declared_label_quality = nested(sample, "label_quality", "confidence")
+    resolution_confidence = nested(
+        sample, "review_provenance", "resolution", "confidence"
+    )
+    role_confidence = nested(sample, "role", "confidence")
+    label_quality_score = (
+        float(declared_label_quality)
+        if isinstance(declared_label_quality, (int, float))
+        and not isinstance(declared_label_quality, bool)
+        and math.isfinite(float(declared_label_quality))
+        else 0.0
+    )
+    resolution_score = (
+        float(resolution_confidence)
+        if isinstance(resolution_confidence, (int, float))
+        and not isinstance(resolution_confidence, bool)
+        and math.isfinite(float(resolution_confidence))
+        else 0.0
+    )
+    role_score = (
+        float(role_confidence)
+        if isinstance(role_confidence, (int, float))
+        and not isinstance(role_confidence, bool)
+        and math.isfinite(float(role_confidence))
+        else 0.0
+    )
+    return (
+        -label_quality_score,
+        -resolution_score,
+        -role_score,
+        0 if _geometry_signature(sample) is not None else 1,
+        stable_hash(
+            BODY_DIALOGUE_DEDUPLICATION_SCHEMA_VERSION,
+            str(sample.get("sample_id")),
+        ),
+    )
+
+
+def _geometry_control_sort_key(
+    sample: Mapping[str, Any], selected: Sequence[Mapping[str, Any]]
+) -> tuple[float, float, float, float, int, str]:
+    signature = _geometry_signature(sample)
+    selected_signatures = [
+        candidate
+        for candidate in (_geometry_signature(row) for row in selected)
+        if candidate is not None
+    ]
+    if signature is None or not selected_signatures:
+        distance = 0.0
+    else:
+        distance = float(
+            min(
+                sum(abs(left - right) for left, right in zip(signature, reference))
+                for reference in selected_signatures
+            )
+        )
+    quality = _quality_sort_key(sample)
+    return (-distance, *quality)
+
+
+def _body_dialogue_group_key(sample: Mapping[str, Any]) -> tuple[str, ...]:
+    return (
+        str(sample.get("work_id")),
+        str(sample.get("chapter_id")),
+        str(nested(sample, "role", "primary")),
+        str(nested(sample, "treatment", "orientation")),
+        str(nested(sample, "source_style_cluster", "cluster_id")),
+    )
+
+
+def deduplicate_body_dialogue_samples(
+    samples: Sequence[Mapping[str, Any]], *, cap: int = BODY_DIALOGUE_CAP
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Cap only redundant train dialogue while retaining hard/variant evidence."""
+
+    if isinstance(cap, bool) or not isinstance(cap, int) or cap < 1:
+        raise TrainingExportError("body dialogue cap must be a positive integer")
+    prepared: list[dict[str, Any]] = []
+    for sample in samples:
+        row = copy.deepcopy(dict(sample))
+        row.pop("record_sha256", None)
+        row["source_style_cluster"] = _source_style_cluster(
+            require_mapping(row.get("source_style"), "training sample.source_style")
+        )
+        prepared.append(row)
+
+    groups: dict[tuple[str, ...], list[dict[str, Any]]] = {}
+    retained: dict[str, tuple[str, list[str]]] = {}
+    protection_counts: Counter[str] = Counter()
+    for row in prepared:
+        sample_id = require_id(row.get("sample_id"), "training sample.sample_id")
+        reasons = _body_dialogue_protection_reasons(row)
+        if reasons:
+            retained[sample_id] = ("protected", reasons)
+            protection_counts.update(reasons)
+            continue
+        groups.setdefault(_body_dialogue_group_key(row), []).append(row)
+
+    capped_group_count = 0
+    selection_slot_counts: Counter[str] = Counter()
+    for group_rows in groups.values():
+        ordered = sorted(group_rows, key=_quality_sort_key)
+        if len(ordered) > cap:
+            capped_group_count += 1
+        selected: list[dict[str, Any]] = []
+        if ordered:
+            selected.append(ordered.pop(0))
+            reason = "canonical_quality"
+            retained[str(selected[-1]["sample_id"])] = (reason, [])
+            selection_slot_counts[reason] += 1
+        if ordered and len(selected) < cap:
+            canonical_page = str(selected[0].get("page_id"))
+            different_page = next(
+                (
+                    candidate
+                    for candidate in ordered
+                    if str(candidate.get("page_id")) != canonical_page
+                ),
+                None,
+            )
+            positive = different_page if different_page is not None else ordered[0]
+            ordered.remove(positive)
+            selected.append(positive)
+            reason = (
+                "chapter_consistency_positive"
+                if different_page is not None
+                else "same_page_diversity_fallback"
+            )
+            retained[str(positive["sample_id"])] = (reason, [])
+            selection_slot_counts[reason] += 1
+        if ordered and len(selected) < cap:
+            control = sorted(
+                ordered,
+                key=lambda candidate: _geometry_control_sort_key(candidate, selected),
+            )[0]
+            ordered.remove(control)
+            selected.append(control)
+            reason = "geometry_treatment_control"
+            retained[str(control["sample_id"])] = (reason, [])
+            selection_slot_counts[reason] += 1
+        while ordered and len(selected) < cap:
+            fallback = ordered.pop(0)
+            selected.append(fallback)
+            reason = "quality_fallback"
+            retained[str(fallback["sample_id"])] = (reason, [])
+            selection_slot_counts[reason] += 1
+
+    output: list[dict[str, Any]] = []
+    preservation_counts: Counter[str] = Counter()
+    retained_cap_counts: Counter[tuple[str, ...]] = Counter()
+    for row in prepared:
+        sample_id = str(row["sample_id"])
+        retained_entry = retained.get(sample_id)
+        if retained_entry is None:
+            continue
+        retention_reason, protection_reasons = retained_entry
+        group_key = _body_dialogue_group_key(row)
+        cap_eligible = not protection_reasons
+        if cap_eligible:
+            retained_cap_counts[group_key] += 1
+        preservation_counts[retention_reason] += 1
+        row["training_selection"] = {
+            "algorithm": BODY_DIALOGUE_DEDUPLICATION_SCHEMA_VERSION,
+            "cap": cap,
+            "cap_eligible": cap_eligible,
+            "group_key_sha256": stable_hash(
+                BODY_DIALOGUE_DEDUPLICATION_SCHEMA_VERSION, *group_key
+            ),
+            "protection_reasons": protection_reasons,
+            "retention_reason": retention_reason,
+        }
+        output.append(seal(row))
+    output.sort(key=lambda row: row["sample_id"])
+
+    cap_violation_count = sum(
+        retained_count > cap for retained_count in retained_cap_counts.values()
+    )
+    if cap_violation_count:
+        raise TrainingExportError("body dialogue cap invariant failed")
+    before_eval_ids = {
+        str(row["sample_id"]) for row in prepared if row.get("split") in {"val", "test"}
+    }
+    after_ids = {str(row["sample_id"]) for row in output}
+    if not before_eval_ids <= after_ids:
+        raise TrainingExportError("body dialogue cap removed evaluation samples")
+    dropped_ids = sorted({str(row["sample_id"]) for row in prepared} - after_ids)
+    before_by_split = Counter(str(row.get("split")) for row in prepared)
+    after_by_split = Counter(str(row.get("split")) for row in output)
+    statistics = {
+        "after_by_split": dict(sorted(after_by_split.items())),
+        "after_sample_count": len(output),
+        "algorithm": BODY_DIALOGUE_DEDUPLICATION_SCHEMA_VERSION,
+        "applied_split": "train",
+        "before_by_split": dict(sorted(before_by_split.items())),
+        "before_sample_count": len(prepared),
+        "cap": cap,
+        "canonical_quality_order": [
+            "label_quality.weight_or_confidence_desc",
+            "review_provenance.resolution.confidence_desc",
+            "role.confidence_desc",
+            "geometry_available",
+            "stable_sample_hash",
+        ],
+        "cap_eligible_after_count": sum(retained_cap_counts.values()),
+        "cap_eligible_before_count": sum(len(rows) for rows in groups.values()),
+        "cap_excludes_protected_samples": True,
+        "cap_violation_count": cap_violation_count,
+        "capped_group_count": capped_group_count,
+        "dropped_sample_count": len(dropped_ids),
+        "dropped_sample_ids_sha256": sorted_ids_sha256(dropped_ids),
+        "evaluation_splits_unchanged": True,
+        "evaluation_sample_count_unchanged": len(before_eval_ids),
+        "group_key_fields": [
+            "work_id",
+            "chapter_id",
+            "role.primary",
+            "treatment.orientation",
+            "source_style_cluster.cluster_id",
+        ],
+        "group_count": len(groups),
+        "max_cap_eligible_retained_per_group": max(
+            retained_cap_counts.values(), default=0
+        ),
+        "preservation_reason_counts": dict(sorted(preservation_counts.items())),
+        "protection_signal_counts": dict(sorted(protection_counts.items())),
+        "selection_slot_counts": dict(sorted(selection_slot_counts.items())),
+        "selection_slots": [
+            "canonical_quality",
+            "chapter_consistency_positive",
+            "geometry_treatment_control",
+        ],
+        "source_style_cluster": {
+            "algorithm": SOURCE_STYLE_CLUSTER_ALGORITHM,
+            "axis_order": list(labels.STYLE_FIELDS),
+            "binning": "nearest-quarter-0-through-4-with-explicit-null",
+            "fingerprint": "sha256-canonical-json-v1",
+        },
+    }
+    return output, statistics
+
+
+def _chapter_pair_consistency_action(sample: Mapping[str, Any]) -> str:
+    consistency = sample.get("consistency")
+    if not isinstance(consistency, Mapping):
+        return "undetermined"
+    action = consistency.get("action")
+    if action is None:
+        action = {
+            "inherit_work_anchor": "inherit_anchor",
+            "intentional_override": "local_override",
+        }.get(consistency.get("policy"), "undetermined")
+    return str(action)
+
+
+def _chapter_pair_positive_candidates(sample: Mapping[str, Any]) -> frozenset[str]:
+    judgment = sample.get("font_judgment")
+    if not isinstance(judgment, Mapping):
+        return frozenset()
+    preferred = judgment.get("preferred")
+    acceptable = judgment.get("acceptable")
+    if not isinstance(preferred, list) or not isinstance(acceptable, list):
+        return frozenset()
+    return frozenset(str(value) for value in [*preferred, *acceptable])
+
+
+def _candidate_jaccard(left: frozenset[str], right: frozenset[str]) -> float:
+    union = left | right
+    return len(left & right) / len(union) if union else 1.0
+
+
+def _chapter_pair_priority(sample: Mapping[str, Any]) -> int:
+    """Mirror the trainer's compatibility priority without importing it."""
+
+    judgment = sample.get("font_judgment")
+    source_style = sample.get("source_style")
+    if not isinstance(judgment, Mapping) or not isinstance(source_style, Mapping):
+        return 0
+    unknown_fields = source_style.get("unknown_fields")
+    if judgment.get("none_acceptable") is True or (
+        isinstance(unknown_fields, list) and len(unknown_fields) >= 5
+    ):
+        return 0
+    role = nested(sample, "role", "primary")
+    handwritten = source_style.get("handwritten")
+    irregularity = source_style.get("irregularity")
+    if (
+        role in VARIANT_ROLES
+        or (
+            isinstance(handwritten, (int, float))
+            and not isinstance(handwritten, bool)
+            and float(handwritten) >= HIGH_VARIANT_STYLE_THRESHOLD
+        )
+        or (
+            isinstance(irregularity, (int, float))
+            and not isinstance(irregularity, bool)
+            and float(irregularity) >= HIGH_VARIANT_STYLE_THRESHOLD
+        )
+        or _manual_recrop(sample)
+        or _chapter_pair_consistency_action(sample) == "local_override"
+    ):
+        return 1
+    return 2
+
+
+def _chapter_pair_endpoint_eligibility(
+    sample: Mapping[str, Any],
+) -> tuple[bool, float, str]:
+    """Return whether a finalized human label is safe as pair supervision."""
+
+    if nested(sample, "provenance", "approval") != "completed_human_final_label":
+        return False, 0.0, "not_completed_human_final_label"
+    review = sample.get("review_provenance")
+    if not isinstance(review, Mapping):
+        return False, 0.0, "missing_review_provenance"
+    final_sha = review.get("final_record_sha256")
+    if not isinstance(final_sha, str) or SHA_RE.fullmatch(final_sha) is None:
+        return False, 0.0, "missing_final_label_binding"
+    resolution = review.get("resolution")
+    if not isinstance(resolution, Mapping) or resolution.get("kind") not in set(
+        labels.RESOLUTION_KINDS
+    ):
+        return False, 0.0, "not_finalized_human_resolution"
+    source_label_ids = resolution.get("source_label_ids")
+    source_reviews = review.get("source_reviews")
+    if (
+        not isinstance(source_label_ids, list)
+        or not source_label_ids
+        or not isinstance(source_reviews, list)
+        or not source_reviews
+    ):
+        return False, 0.0, "missing_human_source_reviews"
+    review_by_label: dict[str, Mapping[str, Any]] = {}
+    for source_review in source_reviews:
+        if not isinstance(source_review, Mapping):
+            return False, 0.0, "malformed_human_source_review"
+        label_id = source_review.get("label_id")
+        reviewer = source_review.get("reviewer")
+        stage = source_review.get("stage")
+        record_sha = source_review.get("record_sha256")
+        if (
+            not isinstance(label_id, str)
+            or not isinstance(reviewer, str)
+            or not reviewer
+            or stage not in labels.REVIEW_STAGES
+            or not isinstance(record_sha, str)
+            or SHA_RE.fullmatch(record_sha) is None
+        ):
+            return False, 0.0, "malformed_human_source_review"
+        review_by_label[label_id] = source_review
+    if any(str(label_id) not in review_by_label for label_id in source_label_ids):
+        return False, 0.0, "final_resolution_source_review_drift"
+
+    role_confidence = nested(sample, "role", "confidence")
+    resolution_confidence = resolution.get("confidence")
+    confidences = [role_confidence, resolution_confidence]
+    if any(
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(float(value))
+        or not 0.0 <= float(value) <= 1.0
+        for value in confidences
+    ):
+        return False, 0.0, "invalid_label_quality"
+    legacy_quality = min(float(value) for value in confidences)
+    quality = sample.get("label_quality")
+    if quality is not None:
+        if not isinstance(quality, Mapping):
+            return False, 0.0, "invalid_label_quality"
+        if quality.get("ranking_truth_eligible") is not True:
+            return False, 0.0, "ranking_truth_ineligible"
+        raw_quality = quality.get("weight", quality.get("confidence"))
+        if (
+            isinstance(raw_quality, bool)
+            or not isinstance(raw_quality, (int, float))
+            or not math.isfinite(float(raw_quality))
+            or not 0.0 <= float(raw_quality) <= 1.0
+        ):
+            return False, 0.0, "invalid_label_quality"
+        legacy_quality = float(raw_quality)
+    if legacy_quality < CHAPTER_PAIR_MIN_LABEL_QUALITY:
+        return False, legacy_quality, "label_quality_below_pair_threshold"
+    if not _chapter_pair_positive_candidates(sample):
+        return False, legacy_quality, "no_acceptable_font_candidate"
+    return True, legacy_quality, "eligible"
+
+
+def _chapter_pair_group_key(sample: Mapping[str, Any]) -> tuple[str, ...]:
+    return (
+        str(sample.get("split")),
+        str(sample.get("work_id")),
+        str(sample.get("chapter_id")),
+        str(nested(sample, "role", "primary")),
+    )
+
+
+def _chapter_pair_quality_key(sample: Mapping[str, Any]) -> tuple[Any, ...]:
+    eligible, quality, _reason = _chapter_pair_endpoint_eligibility(sample)
+    return (
+        0 if eligible else 1,
+        -quality,
+        *_quality_sort_key(sample),
+    )
+
+
+def _make_chapter_pair_row(
+    *, kind: str, anchor: Mapping[str, Any], target: Mapping[str, Any]
+) -> dict[str, Any]:
+    group = _chapter_pair_group_key(anchor)
+    split, _work_id, chapter_id, role = group
+    anchor_id = str(anchor["sample_id"])
+    target_id = str(target["sample_id"])
+    pair_id = (
+        "fmcp-"
+        + stable_hash(
+            CHAPTER_PAIR_SCHEMA_VERSION,
+            CHAPTER_PAIR_SELECTION_ALGORITHM,
+            kind,
+            *group,
+            anchor_id,
+            target_id,
+        )[:32]
+    )
+    return seal(
+        {
+            "anchor_label_record_sha256": nested(
+                anchor, "review_provenance", "final_record_sha256"
+            ),
+            "anchor_sample_id": anchor_id,
+            "anchor_training_sample_record_sha256": anchor["record_sha256"],
+            "chapter_id": chapter_id,
+            "human_confirmed": True,
+            "pair_id": pair_id,
+            "pair_kind": kind,
+            "role": role,
+            "schema_version": CHAPTER_PAIR_SCHEMA_VERSION,
+            "split": split,
+            "target_label_record_sha256": nested(
+                target, "review_provenance", "final_record_sha256"
+            ),
+            "target_sample_id": target_id,
+            "target_training_sample_record_sha256": target["record_sha256"],
+        }
+    )
+
+
+def _select_chapter_pair_rows(
+    samples: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    groups: dict[tuple[str, ...], list[Mapping[str, Any]]] = {}
+    for sample in samples:
+        # Test relationships are hidden evaluator truth.  Even sealed test rows
+        # would disclose endpoint IDs, label hashes, roles, and pair semantics to
+        # development code, so this exporter must never materialize them.
+        if sample.get("split") == "test":
+            continue
+        eligible, _quality, _reason = _chapter_pair_endpoint_eligibility(sample)
+        if eligible:
+            groups.setdefault(_chapter_pair_group_key(sample), []).append(sample)
+
+    output: list[dict[str, Any]] = []
+    for group_key in sorted(groups):
+        members = sorted(groups[group_key], key=lambda row: str(row["sample_id"]))
+        ordinary = [
+            row
+            for row in members
+            if _chapter_pair_consistency_action(row) == "inherit_anchor"
+            and _chapter_pair_priority(row) == 2
+        ]
+        ordinary_options: list[
+            tuple[tuple[Any, ...], Mapping[str, Any], Mapping[str, Any]]
+        ] = []
+        for left, right in itertools.combinations(ordinary, 2):
+            left_positive = _chapter_pair_positive_candidates(left)
+            right_positive = _chapter_pair_positive_candidates(right)
+            overlap = _candidate_jaccard(left_positive, right_positive)
+            if overlap < CHAPTER_PAIR_MIN_ORDINARY_POSITIVE_JACCARD:
+                continue
+            anchor, target = sorted((left, right), key=_chapter_pair_quality_key)
+            different_page = str(anchor.get("page_id")) != str(target.get("page_id"))
+            option_key = (
+                0 if different_page else 1,
+                -overlap,
+                _chapter_pair_quality_key(anchor),
+                _chapter_pair_quality_key(target),
+                stable_hash(
+                    CHAPTER_PAIR_SELECTION_ALGORITHM,
+                    "ordinary",
+                    str(anchor["sample_id"]),
+                    str(target["sample_id"]),
+                ),
+            )
+            ordinary_options.append((option_key, anchor, target))
+        used_ordinary_endpoints: set[str] = set()
+        ordinary_count = 0
+        for _key, anchor, target in sorted(ordinary_options, key=lambda row: row[0]):
+            endpoint_ids = {str(anchor["sample_id"]), str(target["sample_id"])}
+            if endpoint_ids & used_ordinary_endpoints:
+                continue
+            output.append(
+                _make_chapter_pair_row(
+                    kind="ordinary_consistency_positive",
+                    anchor=anchor,
+                    target=target,
+                )
+            )
+            used_ordinary_endpoints.update(endpoint_ids)
+            ordinary_count += 1
+            if ordinary_count >= MAX_ORDINARY_CHAPTER_PAIRS_PER_GROUP:
+                break
+
+        anchors = [
+            row
+            for row in members
+            if _chapter_pair_consistency_action(row) == "inherit_anchor"
+        ]
+        override_targets = sorted(
+            (
+                row
+                for row in members
+                if _chapter_pair_consistency_action(row) == "local_override"
+            ),
+            key=_chapter_pair_quality_key,
+        )
+        override_count = 0
+        for target in override_targets:
+            target_positive = _chapter_pair_positive_candidates(target)
+            override_options: list[tuple[tuple[Any, ...], Mapping[str, Any]]] = []
+            for anchor in anchors:
+                anchor_positive = _chapter_pair_positive_candidates(anchor)
+                overlap = _candidate_jaccard(anchor_positive, target_positive)
+                if (
+                    overlap >= CHAPTER_PAIR_MAX_OVERRIDE_JACCARD
+                    or not (anchor_positive - target_positive)
+                    or not (target_positive - anchor_positive)
+                ):
+                    continue
+                different_page = str(anchor.get("page_id")) != str(
+                    target.get("page_id")
+                )
+                option_key = (
+                    0 if different_page else 1,
+                    overlap,
+                    _chapter_pair_quality_key(anchor),
+                    stable_hash(
+                        CHAPTER_PAIR_SELECTION_ALGORITHM,
+                        "override",
+                        str(anchor["sample_id"]),
+                        str(target["sample_id"]),
+                    ),
+                )
+                override_options.append((option_key, anchor))
+            if not override_options:
+                continue
+            _key, anchor = sorted(override_options, key=lambda row: row[0])[0]
+            output.append(
+                _make_chapter_pair_row(
+                    kind="local_override_margin", anchor=anchor, target=target
+                )
+            )
+            override_count += 1
+            if override_count >= MAX_LOCAL_OVERRIDE_PAIRS_PER_GROUP:
+                break
+    return sorted(output, key=lambda row: row["pair_id"])
+
+
+def _validate_chapter_pair_rows(
+    samples: Sequence[Mapping[str, Any]],
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    require_deterministic: bool,
+) -> None:
+    sample_by_id: dict[str, Mapping[str, Any]] = {}
+    for sample in samples:
+        sample_id = require_id(sample.get("sample_id"), "training sample.sample_id")
+        if sample_id in sample_by_id:
+            raise TrainingExportError("chapter pairs: duplicate sample endpoint")
+        validate_seal(sample, location=f"training sample {sample_id}")
+        sample_by_id[sample_id] = sample
+
+    expected_keys = {
+        "anchor_label_record_sha256",
+        "anchor_sample_id",
+        "anchor_training_sample_record_sha256",
+        "chapter_id",
+        "human_confirmed",
+        "pair_id",
+        "pair_kind",
+        "record_sha256",
+        "role",
+        "schema_version",
+        "split",
+        "target_label_record_sha256",
+        "target_sample_id",
+        "target_training_sample_record_sha256",
+    }
+    pair_ids: set[str] = set()
+    endpoint_pairs: set[frozenset[str]] = set()
+    group_kind_counts: Counter[tuple[str, ...]] = Counter()
+    for index, row in enumerate(rows):
+        location = f"{CHAPTER_PAIR_FILE}[{index}]"
+        if set(row) != expected_keys:
+            raise TrainingExportError(f"{location}: chapter pair fields drifted")
+        if row.get("schema_version") != CHAPTER_PAIR_SCHEMA_VERSION:
+            raise TrainingExportError(f"{location}: unsupported schema")
+        validate_seal(row, location=location)
+        pair_id = require_id(row.get("pair_id"), f"{location}.pair_id")
+        if pair_id in pair_ids:
+            raise TrainingExportError(f"{location}: duplicate pair ID")
+        pair_ids.add(pair_id)
+        if row.get("human_confirmed") is not True:
+            raise TrainingExportError(f"{location}: pair is not human-confirmed")
+        kind = row.get("pair_kind")
+        if kind not in {"ordinary_consistency_positive", "local_override_margin"}:
+            raise TrainingExportError(f"{location}: unsupported pair kind")
+        anchor_id = require_id(
+            row.get("anchor_sample_id"), f"{location}.anchor_sample_id"
+        )
+        target_id = require_id(
+            row.get("target_sample_id"), f"{location}.target_sample_id"
+        )
+        if anchor_id == target_id:
+            raise TrainingExportError(f"{location}: pair endpoints must differ")
+        endpoint_pair = frozenset({anchor_id, target_id})
+        if endpoint_pair in endpoint_pairs:
+            raise TrainingExportError(f"{location}: duplicate endpoint pair")
+        endpoint_pairs.add(endpoint_pair)
+        if anchor_id not in sample_by_id or target_id not in sample_by_id:
+            raise TrainingExportError(f"{location}: unknown pair endpoint")
+        anchor = sample_by_id[anchor_id]
+        target = sample_by_id[target_id]
+        anchor_group = _chapter_pair_group_key(anchor)
+        target_group = _chapter_pair_group_key(target)
+        if anchor_group != target_group:
+            raise TrainingExportError(
+                f"{location}: split/work/chapter/role leakage in chapter pair"
+            )
+        split, _work_id, chapter_id, role = anchor_group
+        if split not in {"train", "val"}:
+            raise TrainingExportError(
+                f"{location}: test chapter pairs are forbidden in development export"
+            )
+        if (
+            row.get("split") != split
+            or row.get("chapter_id") != chapter_id
+            or row.get("role") != role
+        ):
+            raise TrainingExportError(f"{location}: grouping binding drifted")
+        for endpoint_name, endpoint in (("anchor", anchor), ("target", target)):
+            if row.get(
+                f"{endpoint_name}_training_sample_record_sha256"
+            ) != endpoint.get("record_sha256") or row.get(
+                f"{endpoint_name}_label_record_sha256"
+            ) != nested(
+                endpoint, "review_provenance", "final_record_sha256"
+            ):
+                raise TrainingExportError(
+                    f"{location}: {endpoint_name} label/training SHA binding drifted"
+                )
+            eligible, _quality, reason = _chapter_pair_endpoint_eligibility(endpoint)
+            if not eligible:
+                raise TrainingExportError(
+                    f"{location}: {endpoint_name} is nonhuman or low-quality ({reason})"
+                )
+        anchor_positive = _chapter_pair_positive_candidates(anchor)
+        target_positive = _chapter_pair_positive_candidates(target)
+        overlap = _candidate_jaccard(anchor_positive, target_positive)
+        anchor_action = _chapter_pair_consistency_action(anchor)
+        target_action = _chapter_pair_consistency_action(target)
+        if kind == "ordinary_consistency_positive":
+            if (
+                anchor_action != "inherit_anchor"
+                or target_action != "inherit_anchor"
+                or _chapter_pair_priority(anchor) != 2
+                or _chapter_pair_priority(target) != 2
+            ):
+                raise TrainingExportError(
+                    f"{location}: variant or non-inherited ordinary pair"
+                )
+            if overlap < CHAPTER_PAIR_MIN_ORDINARY_POSITIVE_JACCARD:
+                raise TrainingExportError(
+                    f"{location}: ordinary pair candidate overlap is too low"
+                )
+        else:
+            if anchor_action != "inherit_anchor" or target_action != "local_override":
+                raise TrainingExportError(
+                    f"{location}: local override direction drifted"
+                )
+            if (
+                overlap >= CHAPTER_PAIR_MAX_OVERRIDE_JACCARD
+                or not (anchor_positive - target_positive)
+                or not (target_positive - anchor_positive)
+            ):
+                raise TrainingExportError(
+                    f"{location}: local override candidate margin is not useful"
+                )
+        group_kind_counts[(*anchor_group, str(kind))] += 1
+
+    for group_kind, count in group_kind_counts.items():
+        limit = (
+            MAX_ORDINARY_CHAPTER_PAIRS_PER_GROUP
+            if group_kind[-1] == "ordinary_consistency_positive"
+            else MAX_LOCAL_OVERRIDE_PAIRS_PER_GROUP
+        )
+        if count > limit:
+            raise TrainingExportError("chapter pair per-group diversity cap exceeded")
+    if require_deterministic:
+        expected = _select_chapter_pair_rows(samples)
+        actual_bytes = b"".join(canonical_jsonl_record(row) for row in rows)
+        expected_bytes = b"".join(canonical_jsonl_record(row) for row in expected)
+        if actual_bytes != expected_bytes:
+            raise TrainingExportError("chapter pair deterministic selection drifted")
+
+
+def build_chapter_pair_rows(
+    samples: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    rows = _select_chapter_pair_rows(samples)
+    _validate_chapter_pair_rows(samples, rows, require_deterministic=False)
+    return rows
+
+
+def validate_chapter_pair_rows(
+    samples: Sequence[Mapping[str, Any]], rows: Sequence[Mapping[str, Any]]
+) -> None:
+    _validate_chapter_pair_rows(samples, rows, require_deterministic=True)
+
+
+def build_chapter_pair_contract(
+    rows: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    by_kind = Counter(str(row["pair_kind"]) for row in rows)
+    by_split = Counter(str(row["split"]) for row in rows)
+    status = "enabled" if rows else "disabled_no_safe_human_confirmed_pairs"
+    return {
+        "algorithm": CHAPTER_PAIR_SELECTION_ALGORITHM,
+        "artifact_file": CHAPTER_PAIR_FILE if rows else None,
+        "by_kind": dict(sorted(by_kind.items())),
+        "by_split": dict(sorted(by_split.items())),
+        "development_pair_count": len(rows),
+        "human_confirmed_only": True,
+        "label_quality_minimum": CHAPTER_PAIR_MIN_LABEL_QUALITY,
+        "limits_per_split_work_chapter_role": {
+            "local_override_margin": MAX_LOCAL_OVERRIDE_PAIRS_PER_GROUP,
+            "ordinary_consistency_positive": MAX_ORDINARY_CHAPTER_PAIRS_PER_GROUP,
+        },
+        "pair_count": len(rows),
+        "schema_version": CHAPTER_PAIR_SCHEMA_VERSION,
+        "status": status,
+        "test_pair_generation": "separate_hidden_evaluator_only",
+        "test_pair_rows_emitted": 0,
+        "test_pair_rows_used": 0,
+        "test_rows_available_to_development": False,
+    }
 
 
 def _tier_by_candidate(judgment: Mapping[str, Any]) -> dict[str, str]:
@@ -925,12 +2218,127 @@ def read_augmentations(
     return output, manifest_sha
 
 
+def reconcile_review_scope(
+    *,
+    selected_ids: set[str],
+    final_by_sample: Mapping[str, Mapping[str, Any]],
+    master_ids: set[str],
+    registry: RegistryContract | None,
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    final_ids = set(final_by_sample)
+    missing_finals = sorted(selected_ids - final_ids)
+    unknown_finals = sorted(final_ids - selected_ids)
+    if missing_finals:
+        raise TrainingExportError(
+            f"completed review scope lacks final labels: {missing_finals[:8]}"
+        )
+    if unknown_finals:
+        raise TrainingExportError(
+            f"final ledger contains unknown samples: {unknown_finals[:8]}"
+        )
+    excluded_final_ids = (
+        selected_ids & registry.invalidated_parent_ids
+        if registry is not None
+        else set()
+    )
+    leaked = sorted(excluded_final_ids & master_ids)
+    if leaked:
+        raise TrainingExportError(
+            "registry-excluded parent finals still exist in the current master: "
+            f"{leaked[:8]}"
+        )
+    missing_master_ids = selected_ids - master_ids
+    unknown_missing = sorted(missing_master_ids - excluded_final_ids)
+    if unknown_missing:
+        raise TrainingExportError(
+            "review ledger references samples missing from the current master for an "
+            f"unapproved reason: {unknown_missing[:8]}"
+        )
+    if missing_master_ids != excluded_final_ids:
+        raise TrainingExportError(
+            "registry exclusions and missing reviewed master samples disagree"
+        )
+    active_ids = selected_ids - excluded_final_ids
+    return tuple(sorted(active_ids)), tuple(sorted(excluded_final_ids))
+
+
+def _training_view_source_sha256(view: Mapping[str, Any]) -> str:
+    direct = view.get("file_sha256")
+    if direct is not None:
+        return require_sha(direct, "master view.file_sha256")
+    native = require_mapping(view.get("source_native"), "master view.source_native")
+    return require_sha(
+        native.get("file_sha256"), "master view.source_native.file_sha256"
+    )
+
+
+def validate_review_projection(
+    active_ids: Sequence[str],
+    *,
+    master_by_id: Mapping[str, Mapping[str, Any]],
+    state: review_ledger.WorkspaceState,
+    card_by_assignment: Mapping[str, review_ledger.CardBinding],
+) -> None:
+    for sample_id in active_ids:
+        master = master_by_id[sample_id]
+        assignments = state.assignments_by_sample.get(sample_id)
+        if not assignments:
+            raise TrainingExportError(
+                f"{sample_id}: completed review has no bound assignments"
+            )
+        for assignment in assignments:
+            row = state.row_by_assignment[assignment.assignment_id]
+            card = card_by_assignment.get(assignment.assignment_id)
+            if card is None:
+                raise TrainingExportError(
+                    f"{sample_id}: review card binding is missing"
+                )
+            scalar_bindings = (
+                ("work_id", assignment.work_id, master["work_id"]),
+                (
+                    "source_page_sha256",
+                    assignment.source_page_sha256,
+                    master["source_page_sha256"],
+                ),
+                ("chapter_id", row.get("chapter_id"), master["chapter_id"]),
+                ("page_id", row.get("page_id"), master["page_id"]),
+                ("split", row.get("split"), master["split"]),
+                (
+                    "sample_crop_sha256",
+                    row.get("sample_crop_sha256"),
+                    master["sample_crop_sha256"],
+                ),
+                (
+                    "card_sample_crop_sha256",
+                    card.sample_crop_sha256,
+                    master["sample_crop_sha256"],
+                ),
+            )
+            for field, reviewed, current in scalar_bindings:
+                if reviewed != current:
+                    raise TrainingExportError(
+                        f"{sample_id}: parent/current master {field} differs"
+                    )
+            for view_name in VIEW_NAMES:
+                current_view_sha = _training_view_source_sha256(
+                    require_mapping(
+                        master["views"].get(view_name),
+                        f"{sample_id}.views.{view_name}",
+                    )
+                )
+                if card.source_view_sha256.get(view_name) != current_view_sha:
+                    raise TrainingExportError(
+                        f"{sample_id}: parent/current master {view_name} view differs"
+                    )
+
+
 def load_context(
     *,
     master_manifest: Path,
     review_workspace: Path,
     render_bank_manifest: Path,
     augmentation_manifest: Path | None,
+    catalog_registry: Path | None = None,
 ) -> ExportContext:
     try:
         report = review_ledger.validate_workspace(
@@ -952,10 +2360,73 @@ def load_context(
             "review ledger has unresolved reviews or adjudications"
         )
 
-    masters, _full_work_split, master_sha = read_master_rows(master_manifest)
+    registry = (
+        load_registry_contract(catalog_registry)
+        if catalog_registry is not None
+        else None
+    )
+    masters, _full_work_split, master_sha = read_master_rows(
+        master_manifest, registry=registry
+    )
+    master_report_sha: str | None = None
+    master_split_map_sha: str | None = None
+    if registry is not None:
+        master_report_sha, master_split_map_sha = validate_registry_master_report(
+            master_manifest,
+            master_manifest_sha256=master_sha,
+            registry=registry,
+        )
     contract_inputs = require_mapping(state.contract.get("inputs"), "workspace.inputs")
-    if contract_inputs.get("master_manifest_sha256") != master_sha:
-        raise TrainingExportError("review ledger binds another master manifest")
+    source_paths = require_mapping(
+        state.contract.get("source_paths"), "workspace.source_paths"
+    )
+    card_manifest_path = Path(
+        require_text(
+            source_paths.get("card_manifest"),
+            "workspace.source_paths.card_manifest",
+        )
+    )
+    try:
+        (
+            card_by_assignment,
+            bound_card_manifest_sha,
+            _card_renderer_hash,
+            card_input_hashes,
+        ) = review_ledger.read_card_manifest(card_manifest_path)
+    except review_ledger.ReviewLedgerError as error:
+        raise TrainingExportError(
+            f"review card manifest is not complete and valid: {error}"
+        ) from error
+    if bound_card_manifest_sha != contract_inputs.get("card_manifest_sha256"):
+        raise TrainingExportError("workspace/card-manifest hash binding failed")
+    card_registry_sha = card_input_hashes.get("catalog_registry_sha256")
+    if card_registry_sha is not None:
+        if registry is None:
+            raise TrainingExportError(
+                "review cards require their sealed catalog registry"
+            )
+        if card_registry_sha != registry.registry_sha256:
+            raise TrainingExportError("review cards bind another catalog registry")
+    workspace_master_sha = require_sha(
+        contract_inputs.get("master_manifest_sha256"),
+        "workspace.inputs.master_manifest_sha256",
+    )
+    allowed_workspace_master_hashes = {master_sha}
+    if registry is not None and registry.parent_master_manifest_sha256 is not None:
+        allowed_workspace_master_hashes.add(registry.parent_master_manifest_sha256)
+    if workspace_master_sha not in allowed_workspace_master_hashes:
+        raise TrainingExportError(
+            "review ledger binds neither the current master nor the registry's "
+            "verified parent master"
+        )
+    parent_workspace_projection = workspace_master_sha != master_sha
+    if parent_workspace_projection and (
+        registry is None
+        or workspace_master_sha != registry.parent_master_manifest_sha256
+    ):
+        raise TrainingExportError(
+            "parent workspace projection lacks an exact registry parent binding"
+        )
     render_sha = sha256_file(render_bank_manifest)
     if contract_inputs.get("render_bank_sha256") != render_sha:
         raise TrainingExportError("review ledger binds another render bank")
@@ -983,16 +2454,26 @@ def load_context(
     }
     master_by_id = {str(row["sample_id"]): row for row in masters}
     selected_ids = set(state.sample_by_id)
-    missing_master_ids = sorted(selected_ids - set(master_by_id))
-    if missing_master_ids:
-        raise TrainingExportError(
-            f"review ledger references unknown master samples: {missing_master_ids[:8]}"
-        )
-    selected_masters = [master_by_id[sample_id] for sample_id in sorted(selected_ids)]
-    work_split = {str(row["work_id"]): str(row["split"]) for row in selected_masters}
-    samples = build_sample_rows(
-        selected_masters,
+    active_ids, excluded_final_ids = reconcile_review_scope(
+        selected_ids=selected_ids,
         final_by_sample=final_by_sample,
+        master_ids=set(master_by_id),
+        registry=registry,
+    )
+    validate_review_projection(
+        active_ids,
+        master_by_id=master_by_id,
+        state=state,
+        card_by_assignment=card_by_assignment,
+    )
+    selected_masters = [master_by_id[sample_id] for sample_id in active_ids]
+    active_final_by_sample = {
+        sample_id: final_by_sample[sample_id] for sample_id in active_ids
+    }
+    work_split = {str(row["work_id"]): str(row["split"]) for row in selected_masters}
+    uncapped_samples = build_sample_rows(
+        selected_masters,
+        final_by_sample=active_final_by_sample,
         review_by_label=review_by_label,
         candidate_ids=candidate_ids,
         master_manifest_sha256=master_sha,
@@ -1000,9 +2481,18 @@ def load_context(
         render_specification_sha256=specification_sha,
         font_catalog_sha256=font_catalog_sha,
         renderer_hash=renderer_hash,
+        catalog_registry_sha256=(
+            registry.registry_sha256 if registry is not None else None
+        ),
     )
-    if len(samples) != state.contract["expected"]["primary"]:
+    expected_primary = int(state.contract["expected"]["primary"])
+    if len(uncapped_samples) + len(excluded_final_ids) != expected_primary:
         raise TrainingExportError("training sample count differs from completed ledger")
+    samples, body_dialogue_deduplication = deduplicate_body_dialogue_samples(
+        uncapped_samples
+    )
+    chapter_pair_rows = build_chapter_pair_rows(samples)
+    chapter_pair_contract = build_chapter_pair_contract(chapter_pair_rows)
     sample_by_id = {str(row["sample_id"]): row for row in samples}
     augmentations, augmentation_sha = read_augmentations(
         augmentation_manifest, sample_by_id=sample_by_id
@@ -1015,12 +2505,17 @@ def load_context(
         "canonical_assignments_sha256": contract_inputs.get(
             "canonical_assignments_sha256"
         ),
+        "catalog_registry_sha256": (
+            registry.registry_sha256 if registry is not None else None
+        ),
         "card_manifest_sha256": contract_inputs.get("card_manifest_sha256"),
         "claims_sha256": sha256_file(review_workspace / review_ledger.CLAIMS_FILE),
         "exporter_source_sha256": sha256_file(Path(__file__).resolve()),
         "finals_sha256": sha256_file(review_workspace / review_ledger.FINALS_FILE),
         "font_catalog_sha256": font_catalog_sha,
         "master_manifest_sha256": master_sha,
+        "master_report_sha256": master_report_sha,
+        "master_split_map_sha256": master_split_map_sha,
         "priority_inventory_sha256": contract_inputs.get("priority_inventory_sha256"),
         "render_bank_manifest_sha256": render_sha,
         "render_specification_sha256": specification_sha,
@@ -1028,7 +2523,9 @@ def load_context(
         "workspace_contract_sha256": sha256_file(
             review_workspace / review_ledger.WORKSPACE_FILE
         ),
+        "excluded_final_ids_sha256": sorted_ids_sha256(excluded_final_ids),
     }
+    active_final_ids = set(active_ids)
     return ExportContext(
         samples=samples,
         prototype_rows=prototypes,
@@ -1045,15 +2542,38 @@ def load_context(
         ),
         work_split=work_split,
         resolution_counts=dict(
-            sorted(Counter(row["resolution"]["kind"] for row in final_rows).items())
+            sorted(
+                Counter(
+                    row["resolution"]["kind"]
+                    for row in final_rows
+                    if row.get("sample_id") in active_final_ids
+                ).items()
+            )
         ),
+        completed_final_count=len(final_rows),
+        excluded_final_ids=excluded_final_ids,
+        excluded_final_ids_sha256=sorted_ids_sha256(excluded_final_ids),
+        catalog_registry_sha256=(
+            registry.registry_sha256 if registry is not None else None
+        ),
+        master_report_sha256=master_report_sha,
+        master_split_map_sha256=master_split_map_sha,
+        parent_workspace_projection=parent_workspace_projection,
+        registry_attestation=(
+            copy.deepcopy(dict(registry.input_attestation))
+            if registry is not None
+            else None
+        ),
+        body_dialogue_deduplication=body_dialogue_deduplication,
+        chapter_pair_rows=chapter_pair_rows,
+        chapter_pair_contract=chapter_pair_contract,
     )
 
 
 def artifact_iterators(
     context: ExportContext,
 ) -> dict[str, Callable[[], Iterable[dict[str, Any]]]]:
-    return {
+    output: dict[str, Callable[[], Iterable[dict[str, Any]]]] = {
         "augmentations.jsonl": lambda: iter(context.augmentation_rows),
         "font-prototypes.jsonl": lambda: iter(context.prototype_rows),
         "listwise.jsonl": lambda: iter_listwise(context),
@@ -1061,6 +2581,9 @@ def artifact_iterators(
         "retrieval.jsonl": lambda: iter_retrieval(context),
         "samples.jsonl": lambda: iter(context.samples),
     }
+    if context.chapter_pair_rows:
+        output[CHAPTER_PAIR_FILE] = lambda: iter(context.chapter_pair_rows)
+    return output
 
 
 def write_jsonl_artifact(
@@ -1110,7 +2633,16 @@ def build_manifest(
                 "generated_output_file": "augmentations.jsonl",
                 "generated_parent_split": "train",
             },
+            "body_dialogue_deduplication": copy.deepcopy(
+                context.body_dialogue_deduplication
+            ),
+            "chapter_pairs": copy.deepcopy(context.chapter_pair_contract),
             "examples": {
+                "chapter_pairs": {
+                    "file": (CHAPTER_PAIR_FILE if context.chapter_pair_rows else None),
+                    "schema_version": CHAPTER_PAIR_SCHEMA_VERSION,
+                    "status": context.chapter_pair_contract["status"],
+                },
                 "font_prototypes": {
                     "file": "font-prototypes.jsonl",
                     "schema_version": PROTOTYPE_SCHEMA_VERSION,
@@ -1152,6 +2684,7 @@ def build_manifest(
                 "required_views": list(VIEW_NAMES),
             },
             "split": {
+                "development_component_key": "groups.split_component",
                 "group_key": "work_id",
                 "work_disjoint": True,
             },
@@ -1161,7 +2694,28 @@ def build_manifest(
             },
         },
         "input_hashes": dict(sorted(context.input_hashes.items())),
+        "master_registry_binding": {
+            "attestation": copy.deepcopy(context.registry_attestation),
+            "master_report_sha256": context.master_report_sha256,
+            "master_split_map_sha256": context.master_split_map_sha256,
+            "mode": (
+                "registry_parent_workspace_projection"
+                if context.parent_workspace_projection
+                else (
+                    "registry_current_master"
+                    if context.catalog_registry_sha256 is not None
+                    else "legacy_no_registry"
+                )
+            ),
+            "successor_label_inheritance_allowed": False,
+        },
         "real_sample_count": len(context.samples),
+        "registry_exclusions": {
+            "catalog_registry_sha256": context.catalog_registry_sha256,
+            "excluded_final_count": len(context.excluded_final_ids),
+            "excluded_final_ids_sha256": context.excluded_final_ids_sha256,
+            "ids_digest_algorithm": "sha256-sorted-lf-utf8-v1",
+        },
         "review_scope": copy.deepcopy(context.review_scope),
         "renderer_bindings": {
             "font_catalog_sha256": context.font_catalog_sha256,
@@ -1183,15 +2737,34 @@ def build_report(
     abstain = sum(row["font_judgment"]["none_acceptable"] for row in context.samples)
     return {
         "checks": {
+            "body_dialogue_cap_violation_count": context.body_dialogue_deduplication[
+                "cap_violation_count"
+            ],
+            "chapter_pair_duplicate_endpoint_count": 0,
+            "chapter_pair_label_binding_drift_count": 0,
+            "chapter_pair_leakage_count": 0,
+            "chapter_pair_low_quality_or_nonhuman_count": 0,
             "complete_final_labels": True,
             "core_qa_overlay_count": 0,
             "core_synthetic_count": 0,
             "generated_evaluation_count": 0,
             "not_reviewed_candidate_count": 0,
+            "successor_label_inheritance_count": 0,
             "unresolved_adjudication_count": 0,
             "work_split_leakage_count": 0,
         },
         "manifest_sha256": manifest_sha256,
+        "body_dialogue_deduplication": copy.deepcopy(
+            context.body_dialogue_deduplication
+        ),
+        "chapter_pairs": copy.deepcopy(context.chapter_pair_contract),
+        "registry_exclusions": {
+            "catalog_registry_sha256": context.catalog_registry_sha256,
+            "excluded_final_count": len(context.excluded_final_ids),
+            "excluded_final_ids_sha256": context.excluded_final_ids_sha256,
+            "ids_digest_algorithm": "sha256-sorted-lf-utf8-v1",
+            "parent_workspace_projection": context.parent_workspace_projection,
+        },
         "outputs": {name: descriptors[name].as_dict() for name in sorted(descriptors)},
         "schema_version": REPORT_SCHEMA_VERSION,
         "summary": {
@@ -1199,6 +2772,21 @@ def build_report(
             "augmentation_count": len(context.augmentation_rows),
             "by_split": dict(sorted(by_split.items())),
             "candidate_count": len(context.candidate_ids),
+            "chapter_pair_count": len(context.chapter_pair_rows),
+            "chapter_pair_development_count": context.chapter_pair_contract[
+                "development_pair_count"
+            ],
+            "completed_final_count": context.completed_final_count,
+            "excluded_final_count": len(context.excluded_final_ids),
+            "migration_mode": (
+                "registry_parent_workspace_projection"
+                if context.parent_workspace_projection
+                else (
+                    "registry_current_master"
+                    if context.catalog_registry_sha256 is not None
+                    else "legacy_no_registry"
+                )
+            ),
             "resolution_kind": context.resolution_counts,
             "sample_count": len(context.samples),
             "work_count": len(context.work_split),
@@ -1215,14 +2803,22 @@ def assert_safe_output(output_dir: Path) -> None:
 
 
 def assert_disjoint_output(
-    output_dir: Path, *, review_workspace: Path, render_bank_manifest: Path
+    output_dir: Path,
+    *,
+    review_workspace: Path,
+    render_bank_manifest: Path,
+    master_manifest: Path,
+    catalog_registry: Path | None,
 ) -> None:
     output = output_dir.resolve()
-    protected_roots = (
+    protected_inputs = [
         review_workspace.resolve(),
         render_bank_manifest.parent.resolve(),
-    )
-    for protected in protected_roots:
+        master_manifest.resolve(),
+    ]
+    if catalog_registry is not None:
+        protected_inputs.append(catalog_registry.resolve())
+    for protected in protected_inputs:
         if (
             output == protected
             or protected in output.parents
@@ -1294,11 +2890,14 @@ def build_output(
     review_workspace: Path,
     render_bank_manifest: Path,
     augmentation_manifest: Path | None = None,
+    catalog_registry: Path | None = None,
 ) -> dict[str, Any]:
     assert_disjoint_output(
         output_dir,
         review_workspace=review_workspace,
         render_bank_manifest=render_bank_manifest,
+        master_manifest=master_manifest,
+        catalog_registry=catalog_registry,
     )
     assert_replaceable_output(output_dir)
     context = load_context(
@@ -1306,6 +2905,7 @@ def build_output(
         review_workspace=review_workspace,
         render_bank_manifest=render_bank_manifest,
         augmentation_manifest=augmentation_manifest,
+        catalog_registry=catalog_registry,
     )
     output_dir.parent.mkdir(parents=True, exist_ok=True)
     staging = Path(
@@ -1331,13 +2931,7 @@ def build_output(
         (staging / MANIFEST_FILE).write_bytes(manifest_payload)
         (staging / REPORT_FILE).write_bytes(report_payload)
         (staging / MARKER_FILE).write_bytes(canonical_json_bytes(marker, pretty=True))
-        validate_output(
-            output_dir=staging,
-            master_manifest=master_manifest,
-            review_workspace=review_workspace,
-            render_bank_manifest=render_bank_manifest,
-            augmentation_manifest=augmentation_manifest,
-        )
+        _validate_output_with_context(output_dir=staging, context=context)
         atomic_replace_directory(output_dir, staging)
         completed = True
         return report
@@ -1346,14 +2940,10 @@ def build_output(
             shutil.rmtree(staging)
 
 
-def validate_output(
-    *,
-    output_dir: Path,
-    master_manifest: Path,
-    review_workspace: Path,
-    render_bank_manifest: Path,
-    augmentation_manifest: Path | None = None,
+def _validate_output_with_context(
+    *, output_dir: Path, context: ExportContext
 ) -> dict[str, Any]:
+    validate_chapter_pair_rows(context.samples, context.chapter_pair_rows)
     assert_owned_output(output_dir)
     marker = read_json(output_dir / MARKER_FILE, "ownership marker")
     manifest_path = output_dir / MANIFEST_FILE
@@ -1372,16 +2962,14 @@ def validate_output(
         raise TrainingExportError("training export manifest schema is unsupported")
     if report.get("schema_version") != REPORT_SCHEMA_VERSION:
         raise TrainingExportError("training export report schema is unsupported")
-
-    context = load_context(
-        master_manifest=master_manifest,
-        review_workspace=review_workspace,
-        render_bank_manifest=render_bank_manifest,
-        augmentation_manifest=augmentation_manifest,
-    )
     if manifest.get("input_hashes") != dict(sorted(context.input_hashes.items())):
         raise TrainingExportError("training export input hashes are stale")
-    expected_files = {MARKER_FILE, MANIFEST_FILE, REPORT_FILE, *ARTIFACT_FILES}
+    expected_files = {
+        MARKER_FILE,
+        MANIFEST_FILE,
+        REPORT_FILE,
+        *artifact_iterators(context),
+    }
     actual_files = list_files(output_dir)
     if expected_files != actual_files:
         raise TrainingExportError(
@@ -1418,8 +3006,39 @@ def validate_output(
     }
 
 
+def validate_output(
+    *,
+    output_dir: Path,
+    master_manifest: Path,
+    review_workspace: Path,
+    render_bank_manifest: Path,
+    augmentation_manifest: Path | None = None,
+    catalog_registry: Path | None = None,
+) -> dict[str, Any]:
+    assert_owned_output(output_dir)
+    manifest = read_json(output_dir / MANIFEST_FILE, "training export manifest")
+    sealed_registry_sha = nested(manifest, "input_hashes", "catalog_registry_sha256")
+    if sealed_registry_sha is not None and catalog_registry is None:
+        raise TrainingExportError(
+            "registry-attested training export requires --catalog-registry"
+        )
+    context = load_context(
+        master_manifest=master_manifest,
+        review_workspace=review_workspace,
+        render_bank_manifest=render_bank_manifest,
+        augmentation_manifest=augmentation_manifest,
+        catalog_registry=catalog_registry,
+    )
+    return _validate_output_with_context(output_dir=output_dir, context=context)
+
+
 def add_input_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--master-manifest", type=Path, required=True)
+    parser.add_argument(
+        "--catalog-registry",
+        type=Path,
+        help="Optional sealed dynamic catalog/exclusion registry for master v2.",
+    )
     parser.add_argument("--review-workspace", type=Path, required=True)
     parser.add_argument("--render-bank-manifest", type=Path, required=True)
     parser.add_argument("--augmentation-manifest", type=Path)
@@ -1441,9 +3060,16 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     kwargs = {
-        "augmentation_manifest": args.augmentation_manifest.resolve()
-        if args.augmentation_manifest is not None
-        else None,
+        "augmentation_manifest": (
+            args.augmentation_manifest.resolve()
+            if args.augmentation_manifest is not None
+            else None
+        ),
+        "catalog_registry": (
+            args.catalog_registry.resolve()
+            if args.catalog_registry is not None
+            else None
+        ),
         "master_manifest": args.master_manifest.resolve(),
         "output_dir": args.output_dir.resolve(),
         "render_bank_manifest": args.render_bank_manifest.resolve(),

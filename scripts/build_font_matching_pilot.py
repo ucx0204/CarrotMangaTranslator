@@ -7,11 +7,12 @@ only emits references to reviewed real samples plus explicit cohort and batch
 membership.
 
 The pilot is deliberately enriched for horizontal writing and hard visual
-cohorts while covering every work and chapter.  The calibration batch is the
-union of every explicit hard-risk record and four to six deterministic
-ordinary-dialogue *proxy* controls per chapter.  Proxy is intentional: roles
-have not been annotated yet, so this inventory must not pretend that a source
-heuristic is a font-matching label.
+cohorts while covering every work and chapter.  The development calibration
+batch uses only train/validation rows and is the union of every eligible
+explicit hard-risk record and four to six deterministic ordinary-dialogue
+*proxy* controls per eligible chapter.  Test rows remain sealed holdouts.
+Proxy is intentional: roles have not been annotated yet, so this inventory
+must not pretend that a source heuristic is a font-matching label.
 """
 
 from __future__ import annotations
@@ -31,22 +32,17 @@ from typing import Any, Iterable, Mapping, Sequence
 
 
 TOOL_ID = "manga-translator-font-matching-pilot-builder"
-ALGORITHM_VERSION = "font-matching-pilot-calibration-v1"
+ALGORITHM_VERSION = "font-matching-pilot-calibration-v2"
 INVENTORY_SCHEMA_VERSION = 1
 REPORT_SCHEMA_VERSION = 1
-EXPECTED_MASTER_ROWS = 28_115
-EXPECTED_WORKS = 24
-EXPECTED_CHAPTERS = 214
-EXPECTED_MANUAL_RECROPS = 39
 NOMINAL_HARD_RISK_COUNT = 2_972
 NOMINAL_CALIBRATION_SIZE = 4_000
 DEFAULT_PILOT_SIZE = 1_200
 MIN_PILOT_SIZE = 1_000
 MAX_PILOT_SIZE = 1_200
 DEFAULT_SEED = ALGORITHM_VERSION
-BASE_CATALOG_ID = "fontclip-accepted-v1"
-HARD_CATALOG_ID = "fontclip-hard-accepted-v2"
-KNOWN_CATALOG_IDS = frozenset({BASE_CATALOG_ID, HARD_CATALOG_ID})
+MASTER_TOOL_ID = "manga-translator-font-matching-master-builder"
+SOURCE_KINDS = frozenset({"base", "hard"})
 HEX_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 HARD_CATEGORY_COHORTS = {
@@ -119,6 +115,30 @@ class BuildConfig:
 
 
 @dataclass(frozen=True)
+class MasterCatalogContract:
+    catalog_id: str
+    source_kind: str
+    record_count: int
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "catalog_id": self.catalog_id,
+            "record_count": self.record_count,
+            "source_kind": self.source_kind,
+        }
+
+
+@dataclass(frozen=True)
+class MasterReportContract:
+    report_sha256: str
+    manifest_sha256: str
+    record_count: int
+    work_count: int
+    chapter_count: int
+    catalogs: Mapping[str, MasterCatalogContract]
+
+
+@dataclass(frozen=True)
 class Sample:
     line_number: int
     sample_id: str
@@ -127,6 +147,7 @@ class Sample:
     page_id: str
     split: str
     catalog_id: str
+    source_kind: str
     orientation: str
     categories: frozenset[str]
     primary_category: str | None
@@ -232,6 +253,149 @@ def require_key(mapping: Mapping[str, Any], key: str, *, location: str) -> Any:
     return mapping[key]
 
 
+def required_non_negative_integer(value: Any, *, location: str) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise PilotInventoryError(f"{location}: expected a non-negative integer")
+    return value
+
+
+def load_master_report_contract(path: Path) -> MasterReportContract:
+    try:
+        payload = path.read_bytes()
+        report = json.loads(payload.decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise PilotInventoryError(f"could not read {path}: {error}") from error
+    if not isinstance(report, dict):
+        raise PilotInventoryError(f"{path}: expected JSON object")
+    if report.get("tool") != MASTER_TOOL_ID:
+        raise PilotInventoryError(f"{path}: master report tool marker is invalid")
+    outputs = required_mapping(report.get("outputs"), location="master report.outputs")
+    statistics = required_mapping(
+        report.get("statistics"), location="master report.statistics"
+    )
+    work_balance = required_mapping(
+        statistics.get("work_balance"),
+        location="master report.statistics.work_balance",
+    )
+    inputs = required_mapping(report.get("inputs"), location="master report.inputs")
+    raw_catalogs = required_mapping(
+        inputs.get("catalogs"), location="master report.inputs.catalogs"
+    )
+    manifest_sha256 = required_text(
+        outputs.get("master_manifest_sha256"),
+        location="master report.outputs.master_manifest_sha256",
+    ).lower()
+    if not HEX_SHA256.fullmatch(manifest_sha256):
+        raise PilotInventoryError(
+            "master report.outputs.master_manifest_sha256: expected lowercase SHA-256"
+        )
+    record_count = required_non_negative_integer(
+        statistics.get("record_count"),
+        location="master report.statistics.record_count",
+    )
+    work_count = required_non_negative_integer(
+        work_balance.get("work_count"),
+        location="master report.statistics.work_balance.work_count",
+    )
+    chapter_count = required_non_negative_integer(
+        statistics.get("chapter_count"),
+        location="master report.statistics.chapter_count",
+    )
+    catalogs: dict[str, MasterCatalogContract] = {}
+    for catalog_key, raw_contract in sorted(raw_catalogs.items()):
+        location = f"master report.inputs.catalogs[{catalog_key!r}]"
+        catalog_id = required_text(catalog_key, location=f"{location}.key")
+        contract = required_mapping(raw_contract, location=location)
+        declared_id = required_text(
+            contract.get("catalog_id"), location=f"{location}.catalog_id"
+        )
+        if declared_id != catalog_id:
+            raise PilotInventoryError(
+                f"{location}.catalog_id: expected {catalog_id!r}, found {declared_id!r}"
+            )
+        source_kind = required_text(
+            contract.get("source_kind"), location=f"{location}.source_kind"
+        )
+        if source_kind not in SOURCE_KINDS:
+            raise PilotInventoryError(
+                f"{location}.source_kind: expected base or hard, found {source_kind!r}"
+            )
+        catalog_count = required_non_negative_integer(
+            contract.get("record_count"), location=f"{location}.record_count"
+        )
+        catalogs[catalog_id] = MasterCatalogContract(
+            catalog_id=catalog_id,
+            source_kind=source_kind,
+            record_count=catalog_count,
+        )
+    if not catalogs:
+        raise PilotInventoryError("master report.inputs.catalogs: expected catalogs")
+    catalog_total = sum(contract.record_count for contract in catalogs.values())
+    if catalog_total != record_count:
+        raise PilotInventoryError(
+            "master report catalog counts do not sum to statistics.record_count: "
+            f"{catalog_total} != {record_count}"
+        )
+    raw_by_catalog = statistics.get("by_catalog")
+    if raw_by_catalog is not None:
+        by_catalog = required_mapping(
+            raw_by_catalog, location="master report.statistics.by_catalog"
+        )
+        normalized_by_catalog = {
+            required_text(
+                key, location="master report.statistics.by_catalog key"
+            ): required_non_negative_integer(
+                value,
+                location=f"master report.statistics.by_catalog[{key!r}]",
+            )
+            for key, value in by_catalog.items()
+        }
+        expected_by_catalog = {
+            catalog_id: contract.record_count
+            for catalog_id, contract in catalogs.items()
+            if contract.record_count
+        }
+        if normalized_by_catalog != expected_by_catalog:
+            raise PilotInventoryError(
+                "master report statistics.by_catalog disagrees with inputs.catalogs"
+            )
+    raw_by_source_kind = statistics.get("by_source_kind")
+    if raw_by_source_kind is not None:
+        by_source_kind = required_mapping(
+            raw_by_source_kind,
+            location="master report.statistics.by_source_kind",
+        )
+        normalized_by_source_kind = {
+            required_text(
+                key, location="master report.statistics.by_source_kind key"
+            ): required_non_negative_integer(
+                value,
+                location=f"master report.statistics.by_source_kind[{key!r}]",
+            )
+            for key, value in by_source_kind.items()
+        }
+        expected_by_source_kind = Counter()
+        for contract in catalogs.values():
+            expected_by_source_kind[contract.source_kind] += contract.record_count
+        positive_by_source_kind = {
+            source_kind: count
+            for source_kind, count in sorted(expected_by_source_kind.items())
+            if count
+        }
+        if normalized_by_source_kind != positive_by_source_kind:
+            raise PilotInventoryError(
+                "master report statistics.by_source_kind disagrees with inputs.catalogs"
+            )
+    return MasterReportContract(
+        report_sha256=sha256_bytes(payload),
+        manifest_sha256=manifest_sha256,
+        record_count=record_count,
+        work_count=work_count,
+        chapter_count=chapter_count,
+        catalogs=catalogs,
+    )
+
+
 def stable_digest(seed: str, purpose: str, sample_id: str) -> str:
     payload = f"{seed}\0{purpose}\0{sample_id}".encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
@@ -316,14 +480,22 @@ def classify_cohorts(
     chapter_id = required_text(chapter.get("id"), location=f"{location}.chapter.id")
     page_id = required_text(page.get("id"), location=f"{location}.page.id")
     split = required_text(row.get("split"), location=f"{location}.split")
+    if split not in {"train", "val", "test"}:
+        raise PilotInventoryError(
+            f"{location}.split: expected train, val, or test; found {split!r}"
+        )
     catalog_id = required_text(
         provenance.get("source_catalog_id"),
         location=f"{location}.provenance.source_catalog_id",
     )
-    if catalog_id not in KNOWN_CATALOG_IDS:
+    source_kind = required_text(
+        provenance.get("source_kind"),
+        location=f"{location}.provenance.source_kind",
+    )
+    if source_kind not in SOURCE_KINDS:
         raise PilotInventoryError(
-            f"{location}.provenance.source_catalog_id: unsupported catalog "
-            f"{catalog_id!r}; source kind must not be inferred"
+            f"{location}.provenance.source_kind: expected base or hard, found "
+            f"{source_kind!r}"
         )
     if (
         require_key(provenance, "synthetic", location=f"{location}.provenance")
@@ -372,7 +544,7 @@ def classify_cohorts(
         )
 
     cohorts: set[str] = {orientation}
-    if catalog_id == BASE_CATALOG_ID:
+    if source_kind == "base":
         # The base catalog has no hard-style metrics.  Requiring those values
         # here would manufacture missing evidence; the catalog itself is the
         # explicit proxy stratum used for ordinary controls.
@@ -445,6 +617,7 @@ def classify_cohorts(
         page_id=page_id,
         split=split,
         catalog_id=catalog_id,
+        source_kind=source_kind,
         orientation=orientation,
         categories=categories,
         primary_category=primary_value,
@@ -509,6 +682,99 @@ def validate_expected_coverage(
     for label, observed, expected in checks:
         if expected is not None and observed != expected:
             raise PilotInventoryError(f"expected {expected} {label}, found {observed}")
+
+
+def resolve_expected_coverage(
+    contract: MasterReportContract | None,
+    *,
+    expected_rows: int | None,
+    expected_works: int | None,
+    expected_chapters: int | None,
+) -> tuple[int | None, int | None, int | None]:
+    if contract is None:
+        return expected_rows, expected_works, expected_chapters
+    declared = (
+        ("master rows", expected_rows, contract.record_count),
+        ("works", expected_works, contract.work_count),
+        ("chapters", expected_chapters, contract.chapter_count),
+    )
+    for label, override, reported in declared:
+        if override is not None and override != reported:
+            raise PilotInventoryError(
+                f"explicit expected {label} {override} disagrees with master report "
+                f"value {reported}"
+            )
+    return contract.record_count, contract.work_count, contract.chapter_count
+
+
+def validate_catalog_contract(
+    samples: Sequence[Sample],
+    *,
+    master_hash: str,
+    contract: MasterReportContract | None,
+) -> dict[str, dict[str, Any]]:
+    observed_counts = Counter(sample.catalog_id for sample in samples)
+    observed_kinds: defaultdict[str, set[str]] = defaultdict(set)
+    for sample in samples:
+        observed_kinds[sample.catalog_id].add(sample.source_kind)
+    for catalog_id, kinds in sorted(observed_kinds.items()):
+        if len(kinds) != 1:
+            raise PilotInventoryError(
+                f"catalog {catalog_id!r} has inconsistent row source_kind values: "
+                f"{sorted(kinds)}"
+            )
+    if contract is not None:
+        if master_hash != contract.manifest_sha256:
+            raise PilotInventoryError(
+                "master manifest hash does not match master report: "
+                f"{master_hash} != {contract.manifest_sha256}"
+            )
+        unknown = sorted(set(observed_counts) - set(contract.catalogs))
+        missing = sorted(
+            catalog_id
+            for catalog_id, catalog_contract in contract.catalogs.items()
+            if catalog_contract.record_count and catalog_id not in observed_counts
+        )
+        if unknown:
+            raise PilotInventoryError(
+                f"master manifest contains catalogs absent from report: {unknown}"
+            )
+        if missing:
+            raise PilotInventoryError(
+                f"master report catalogs are absent from manifest: {missing}"
+            )
+        for catalog_id, catalog_contract in sorted(contract.catalogs.items()):
+            if catalog_contract.record_count == 0:
+                if observed_counts[catalog_id] != 0:
+                    raise PilotInventoryError(
+                        f"catalog {catalog_id!r} count mismatch: manifest "
+                        f"{observed_counts[catalog_id]}, report 0"
+                    )
+                continue
+            observed_kind = next(iter(observed_kinds[catalog_id]))
+            if observed_kind != catalog_contract.source_kind:
+                raise PilotInventoryError(
+                    f"catalog {catalog_id!r} source_kind mismatch: manifest "
+                    f"{observed_kind!r}, report {catalog_contract.source_kind!r}"
+                )
+            observed_count = observed_counts[catalog_id]
+            if observed_count != catalog_contract.record_count:
+                raise PilotInventoryError(
+                    f"catalog {catalog_id!r} count mismatch: manifest "
+                    f"{observed_count}, report {catalog_contract.record_count}"
+                )
+        return {
+            catalog_id: catalog_contract.as_dict()
+            for catalog_id, catalog_contract in sorted(contract.catalogs.items())
+        }
+    return {
+        catalog_id: {
+            "catalog_id": catalog_id,
+            "record_count": observed_counts[catalog_id],
+            "source_kind": next(iter(observed_kinds[catalog_id])),
+        }
+        for catalog_id in sorted(observed_counts)
+    }
 
 
 def pilot_quotas(samples: Sequence[Sample], pilot_size: int) -> dict[str, int]:
@@ -822,16 +1088,22 @@ def select_calibration(
     samples: Sequence[Sample], config: BuildConfig
 ) -> tuple[list[str], dict[str, list[str]], dict[str, Any]]:
     samples_by_id = {sample.sample_id: sample for sample in samples}
+    eligible_samples = [
+        sample for sample in samples if sample.split in {"train", "val"}
+    ]
+    test_holdouts = [sample for sample in samples if sample.split == "test"]
     selected: set[str] = set()
     reasons: defaultdict[str, set[str]] = defaultdict(set)
-    risk_samples = [sample for sample in samples if "hard_risk_union" in sample.cohorts]
+    risk_samples = [
+        sample for sample in eligible_samples if "hard_risk_union" in sample.cohorts
+    ]
     for sample in risk_samples:
         selected.add(sample.sample_id)
         reasons[sample.sample_id].add("mandatory:hard_risk_union")
 
-    chapters = sorted({sample.chapter_key for sample in samples})
+    chapters = sorted({sample.chapter_key for sample in eligible_samples})
     by_chapter: defaultdict[tuple[str, str], list[Sample]] = defaultdict(list)
-    for sample in samples:
+    for sample in eligible_samples:
         if "ordinary_dialogue_proxy_control" in sample.cohorts:
             by_chapter[sample.chapter_key].append(sample)
 
@@ -883,6 +1155,10 @@ def select_calibration(
         "risk_count_delta_from_plan": len(risk_samples) - NOMINAL_HARD_RISK_COUNT,
         "risk_count_nominal": NOMINAL_HARD_RISK_COUNT,
         "risk_count_observed": len(risk_samples),
+        "test_holdout_count": len(test_holdouts),
+        "test_manual_recrop_holdout_count": sum(
+            "manual_recrop" in sample.cohorts for sample in test_holdouts
+        ),
     }
     normalized_reasons = {
         sample_id: sorted(values) for sample_id, values in reasons.items()
@@ -1006,11 +1282,12 @@ def summarize_selection(
         "by_catalog": _counter_dict(sample.catalog_id for sample in selected),
         "by_cohort": dict(sorted(cohort_counts.items())),
         "by_orientation": dict(sorted(orientation_counts.items())),
+        "by_source_kind": _counter_dict(sample.source_kind for sample in selected),
         "by_split": _counter_dict(sample.split for sample in selected),
         "chapter_count": len({sample.chapter_key for sample in selected}),
-        "horizontal_rate": round(orientation_counts["horizontal"] / total, 8)
-        if total
-        else 0.0,
+        "horizontal_rate": (
+            round(orientation_counts["horizontal"] / total, 8) if total else 0.0
+        ),
         "record_count": total,
         "unique_page_count": len({sample.page_key for sample in selected}),
         "work_count": len({sample.work_id for sample in selected}),
@@ -1032,12 +1309,27 @@ def build_bundle(
     master_manifest: Path,
     *,
     config: BuildConfig = BuildConfig(),
-    expected_rows: int | None = EXPECTED_MASTER_ROWS,
-    expected_works: int | None = EXPECTED_WORKS,
-    expected_chapters: int | None = EXPECTED_CHAPTERS,
-    expected_manual_recrops: int | None = EXPECTED_MANUAL_RECROPS,
+    master_report: Path | None = None,
+    expected_rows: int | None = None,
+    expected_works: int | None = None,
+    expected_chapters: int | None = None,
+    expected_manual_recrops: int | None = None,
 ) -> InventoryBundle:
+    contract = (
+        load_master_report_contract(master_report.resolve())
+        if master_report is not None
+        else None
+    )
+    expected_rows, expected_works, expected_chapters = resolve_expected_coverage(
+        contract,
+        expected_rows=expected_rows,
+        expected_works=expected_works,
+        expected_chapters=expected_chapters,
+    )
     samples, master_hash = read_master(master_manifest, thresholds=config.thresholds)
+    catalog_contracts = validate_catalog_contract(
+        samples, master_hash=master_hash, contract=contract
+    )
     validate_expected_coverage(
         samples,
         expected_rows=expected_rows,
@@ -1075,11 +1367,15 @@ def build_bundle(
                 "cohorts": sorted(sample.cohorts),
                 "master_line_number": sample.line_number,
                 "master_manifest_sha256": master_hash,
+                "master_report_sha256": (
+                    contract.report_sha256 if contract is not None else None
+                ),
                 "orientation": sample.orientation,
                 "page_id": sample.page_id,
                 "provenance": {
                     "qa_overlay": False,
                     "source_catalog_id": sample.catalog_id,
+                    "source_kind": sample.source_kind,
                     "synthetic": False,
                 },
                 "sample_id": sample.sample_id,
@@ -1116,6 +1412,12 @@ def build_bundle(
         "algorithm_version": ALGORITHM_VERSION,
         "configuration": _configuration_dict(config),
         "coverage": {
+            "calibration_test_holdout_count": calibration_diagnostics[
+                "test_holdout_count"
+            ],
+            "calibration_test_manual_recrop_holdout_count": (
+                calibration_diagnostics["test_manual_recrop_holdout_count"]
+            ),
             "flags": coverage_flags,
             "manual_recrops_in_pilot": pilot_summary["by_cohort"].get(
                 "manual_recrop", 0
@@ -1133,13 +1435,28 @@ def build_bundle(
             "pilot_all_works_covered": (
                 pilot_summary["work_count"] == source_summary["work_count"]
             ),
-            "pilot_horizontal_enrichment_ratio": round(horizontal_enrichment, 8)
-            if horizontal_enrichment is not None
-            else None,
+            "pilot_horizontal_enrichment_ratio": (
+                round(horizontal_enrichment, 8)
+                if horizontal_enrichment is not None
+                else None
+            ),
             "status": coverage_status,
         },
         "inputs": {
+            "catalogs": catalog_contracts,
             "master_manifest_sha256": master_hash,
+            "master_report_contract": (
+                {
+                    "chapter_count": contract.chapter_count,
+                    "record_count": contract.record_count,
+                    "work_count": contract.work_count,
+                }
+                if contract is not None
+                else None
+            ),
+            "master_report_sha256": (
+                contract.report_sha256 if contract is not None else None
+            ),
             "record_count": len(samples),
         },
         "outputs": {
@@ -1253,10 +1570,11 @@ def validate_bundle(
     output_dir: Path,
     master_manifest: Path,
     *,
-    expected_rows: int | None = EXPECTED_MASTER_ROWS,
-    expected_works: int | None = EXPECTED_WORKS,
-    expected_chapters: int | None = EXPECTED_CHAPTERS,
-    expected_manual_recrops: int | None = EXPECTED_MANUAL_RECROPS,
+    master_report: Path | None = None,
+    expected_rows: int | None = None,
+    expected_works: int | None = None,
+    expected_chapters: int | None = None,
+    expected_manual_recrops: int | None = None,
 ) -> dict[str, Any]:
     inventory_path = output_dir / "inventory.jsonl"
     report_path = output_dir / "report.json"
@@ -1275,10 +1593,29 @@ def validate_bundle(
         ) from error
     if nested(report, "outputs", "inventory_sha256") != sha256_bytes(inventory_payload):
         raise PilotInventoryError("inventory hash does not match report")
+    effective_master_report = master_report
+    if (
+        effective_master_report is None
+        and nested(report, "inputs", "master_report_sha256") is not None
+    ):
+        sibling = master_manifest.resolve().with_name("report.json")
+        if not sibling.is_file():
+            raise PilotInventoryError(
+                "validation requires the master report that sealed this inventory"
+            )
+        effective_master_report = sibling
+    if effective_master_report is not None:
+        sealed_master_report_hash = nested(report, "inputs", "master_report_sha256")
+        actual_master_report_hash = sha256_file(effective_master_report)
+        if sealed_master_report_hash != actual_master_report_hash:
+            raise PilotInventoryError(
+                "master report hash does not match the sealed inventory report"
+            )
     config = config_from_report(report)
     rebuilt = build_bundle(
         master_manifest,
         config=config,
+        master_report=effective_master_report,
         expected_rows=expected_rows,
         expected_works=expected_works,
         expected_chapters=expected_chapters,
@@ -1326,18 +1663,29 @@ def add_master_arguments(parser: argparse.ArgumentParser) -> None:
         default=Path("datasets/font-matching-master-v1/manifest.jsonl"),
     )
     parser.add_argument(
-        "--expected-master-count", type=non_negative_int, default=EXPECTED_MASTER_ROWS
+        "--master-report",
+        type=Path,
+        help="Master report contract; defaults to report.json beside the manifest.",
     )
     parser.add_argument(
-        "--expected-work-count", type=non_negative_int, default=EXPECTED_WORKS
+        "--expected-master-count",
+        type=non_negative_int,
+        help="Optional legacy/test override; must match the master report when present.",
     )
     parser.add_argument(
-        "--expected-chapter-count", type=non_negative_int, default=EXPECTED_CHAPTERS
+        "--expected-work-count",
+        type=non_negative_int,
+        help="Optional legacy/test override; must match the master report when present.",
+    )
+    parser.add_argument(
+        "--expected-chapter-count",
+        type=non_negative_int,
+        help="Optional legacy/test override; must match the master report when present.",
     )
     parser.add_argument(
         "--expected-manual-recrop-count",
         type=non_negative_int,
-        default=EXPECTED_MANUAL_RECROPS,
+        help="Optional legacy/test expectation not supplied by the master report.",
     )
 
 
@@ -1368,7 +1716,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _expected_kwargs(args: argparse.Namespace) -> dict[str, int]:
+def _expected_kwargs(args: argparse.Namespace) -> dict[str, int | None]:
     return {
         "expected_rows": args.expected_master_count,
         "expected_works": args.expected_work_count,
@@ -1391,10 +1739,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
+        master_manifest = args.master_manifest.resolve()
+        master_report = (
+            args.master_report.resolve()
+            if args.master_report is not None
+            else master_manifest.with_name("report.json")
+        )
         if args.command in {"build", "report"}:
             bundle = build_bundle(
-                args.master_manifest.resolve(),
+                master_manifest,
                 config=BuildConfig(pilot_size=args.pilot_size, seed=args.seed),
+                master_report=master_report,
                 **_expected_kwargs(args),
             )
             if args.command == "report" or args.dry_run:
@@ -1405,7 +1760,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         result = validate_bundle(
             args.output_dir.resolve(),
-            args.master_manifest.resolve(),
+            master_manifest,
+            master_report=master_report,
             **_expected_kwargs(args),
         )
         print(canonical_json(result))

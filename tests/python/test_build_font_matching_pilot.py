@@ -7,6 +7,7 @@ import json
 import sys
 import tempfile
 import unittest
+from collections import Counter
 from pathlib import Path
 
 
@@ -18,6 +19,10 @@ if SPEC is None or SPEC.loader is None:
 PILOT = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = PILOT
 SPEC.loader.exec_module(PILOT)
+
+BASE_CATALOG_ID = "fixture-base"
+HARD_CATALOG_ID = "fixture-hard"
+DELTA_HARD_CATALOG_ID = "fixture-hard-delta"
 
 
 def digest(value: str) -> str:
@@ -33,6 +38,49 @@ def write_jsonl(path: Path, rows: list[dict]) -> None:
         ),
         encoding="utf-8",
     )
+
+
+def write_master_report(
+    master: Path, rows: list[dict], *, path: Path | None = None
+) -> Path:
+    catalog_counts = Counter(row["provenance"]["source_catalog_id"] for row in rows)
+    catalog_kinds: dict[str, str] = {}
+    for row in rows:
+        provenance = row["provenance"]
+        catalog_id = provenance["source_catalog_id"]
+        source_kind = provenance["source_kind"]
+        previous = catalog_kinds.setdefault(catalog_id, source_kind)
+        if previous != source_kind:
+            raise AssertionError("fixture catalog has mixed source kinds")
+    report = {
+        "inputs": {
+            "catalogs": {
+                catalog_id: {
+                    "catalog_id": catalog_id,
+                    "record_count": catalog_counts[catalog_id],
+                    "source_kind": catalog_kinds[catalog_id],
+                }
+                for catalog_id in sorted(catalog_counts)
+            }
+        },
+        "outputs": {
+            "master_manifest_sha256": hashlib.sha256(master.read_bytes()).hexdigest()
+        },
+        "statistics": {
+            "chapter_count": len(
+                {(row["work"]["id"], row["chapter"]["id"]) for row in rows}
+            ),
+            "record_count": len(rows),
+            "work_balance": {"work_count": len({row["work"]["id"] for row in rows})},
+        },
+        "tool": PILOT.MASTER_TOOL_ID,
+    }
+    output = path or master.with_name("report.json")
+    output.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return output
 
 
 def hard_signals(
@@ -79,31 +127,33 @@ def make_row(
     chapter_id: str,
     page_id: str,
     *,
-    catalog_id: str = PILOT.HARD_CATALOG_ID,
+    catalog_id: str = HARD_CATALOG_ID,
+    source_kind: str = "hard",
     orientation: str = "vertical",
     categories: list[str] | None = None,
     primary: str | None = None,
     signals: dict | None = None,
     split: str = "train",
 ) -> dict:
-    is_base = catalog_id == PILOT.BASE_CATALOG_ID
+    is_base = source_kind == "base"
     return {
         "chapter": {"id": chapter_id, "title": chapter_id},
         "id": sample_id,
         "metadata": {
             "candidate_categories": [] if is_base else (categories or ["bubble_edge"]),
-            "candidate_primary_category": None
-            if is_base
-            else (primary or "bubble_edge"),
-            "cohort_signals": base_signals()
-            if is_base
-            else (signals or hard_signals()),
+            "candidate_primary_category": (
+                None if is_base else (primary or "bubble_edge")
+            ),
+            "cohort_signals": (
+                base_signals() if is_base else (signals or hard_signals())
+            ),
             "orientation": orientation,
         },
         "page": {"id": page_id},
         "provenance": {
             "qa_overlay": False,
             "source_catalog_id": catalog_id,
+            "source_kind": source_kind,
             "synthetic": False,
         },
         "sample_crop_sha256": digest(f"crop:{sample_id}"),
@@ -164,7 +214,8 @@ def make_fixture_rows() -> list[dict]:
                             work_id,
                             chapter_id,
                             f"page-{work_index}-{chapter_index}-{row_index // 2}",
-                            catalog_id=PILOT.BASE_CATALOG_ID,
+                            catalog_id=BASE_CATALOG_ID,
+                            source_kind="base",
                             orientation=orientation,
                             split=split,
                         )
@@ -177,13 +228,11 @@ class FontMatchingPilotTests(unittest.TestCase):
         master = root / "manifest.jsonl"
         rows = make_fixture_rows()
         write_jsonl(master, rows)
+        master_report = write_master_report(master, rows)
         bundle = PILOT.build_bundle(
             master,
             config=PILOT.BuildConfig(pilot_size=pilot_size, seed="unit-test"),
-            expected_rows=len(rows),
-            expected_works=3,
-            expected_chapters=12,
-            expected_manual_recrops=3,
+            master_report=master_report,
         )
         return rows, master, bundle
 
@@ -194,10 +243,7 @@ class FontMatchingPilotTests(unittest.TestCase):
             second = PILOT.build_bundle(
                 master,
                 config=PILOT.BuildConfig(pilot_size=60, seed="unit-test"),
-                expected_rows=len(rows),
-                expected_works=3,
-                expected_chapters=12,
-                expected_manual_recrops=3,
+                master_report=master.with_name("report.json"),
             )
             self.assertEqual(first.inventory_bytes, second.inventory_bytes)
             self.assertEqual(first.report_bytes, second.report_bytes)
@@ -207,6 +253,21 @@ class FontMatchingPilotTests(unittest.TestCase):
             self.assertTrue(first.report["coverage"]["pilot_all_works_covered"])
             self.assertTrue(
                 first.report["coverage"]["pilot_all_manual_recrops_included"]
+            )
+            master_report_hash = hashlib.sha256(
+                master.with_name("report.json").read_bytes()
+            ).hexdigest()
+            self.assertEqual(
+                first.report["inputs"]["master_report_sha256"], master_report_hash
+            )
+            self.assertEqual(
+                first.report["inputs"]["master_report_contract"]["chapter_count"], 12
+            )
+            self.assertTrue(
+                all(
+                    row["master_report_sha256"] == master_report_hash
+                    for row in first.inventory_rows
+                )
             )
             self.assertGreaterEqual(
                 first.report["selection"]["pilot"]["summary"]["horizontal_rate"],
@@ -232,6 +293,16 @@ class FontMatchingPilotTests(unittest.TestCase):
                     row["split"] == source_splits[row["sample_id"]] for row in inventory
                 )
             )
+            self.assertTrue(
+                all(
+                    row["provenance"]["source_kind"] in {"base", "hard"}
+                    for row in inventory
+                )
+            )
+            self.assertEqual(
+                bundle.report["selection"]["source"]["by_source_kind"],
+                {"base": 48, "hard": 96},
+            )
             text_free = next(
                 row
                 for row in inventory
@@ -250,15 +321,229 @@ class FontMatchingPilotTests(unittest.TestCase):
             calibration = bundle.report["selection"]["calibration"]
             diagnostics = calibration["diagnostics"]
             self.assertFalse(diagnostics["ordinary_chapter_shortfalls"])
+            self.assertEqual(diagnostics["test_holdout_count"], 48)
+            self.assertEqual(diagnostics["test_manual_recrop_holdout_count"], 1)
             targets = diagnostics["ordinary_target_by_chapter"]
             self.assertTrue(targets)
             self.assertTrue(all(4 <= value <= 6 for value in targets.values()))
+            split_by_id = {
+                row["sample_id"]: row["split"] for row in bundle.inventory_rows
+            }
+            self.assertTrue(
+                all(
+                    split_by_id[sample_id] != "test"
+                    for sample_id in bundle.calibration_ids
+                )
+            )
             risk_ids = {
                 row["sample_id"]
                 for row in bundle.inventory_rows
                 if "hard_risk_union" in row["cohorts"]
+                and row["split"] in {"train", "val"}
             }
             self.assertTrue(risk_ids <= set(bundle.calibration_ids))
+            self.assertEqual(
+                bundle.report["coverage"]["calibration_test_holdout_count"], 48
+            )
+            self.assertEqual(
+                bundle.report["coverage"][
+                    "calibration_test_manual_recrop_holdout_count"
+                ],
+                1,
+            )
+
+    def test_accepts_third_hard_catalog_from_dynamic_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            rows = make_fixture_rows()
+            delta_ids = set()
+            for row in rows[:6]:
+                row["provenance"]["source_catalog_id"] = DELTA_HARD_CATALOG_ID
+                row["provenance"]["source_kind"] = "hard"
+                delta_ids.add(row["id"])
+            master = root / "manifest.jsonl"
+            write_jsonl(master, rows)
+            master_report = write_master_report(master, rows)
+            report = json.loads(master_report.read_text(encoding="utf-8"))
+            report["inputs"]["catalogs"]["fixture-empty-hard-delta"] = {
+                "catalog_id": "fixture-empty-hard-delta",
+                "record_count": 0,
+                "source_kind": "hard",
+            }
+            report["statistics"]["by_catalog"] = dict(
+                sorted(
+                    Counter(
+                        row["provenance"]["source_catalog_id"] for row in rows
+                    ).items()
+                )
+            )
+            report["statistics"]["by_source_kind"] = dict(
+                sorted(
+                    Counter(row["provenance"]["source_kind"] for row in rows).items()
+                )
+            )
+            master_report.write_text(
+                json.dumps(report, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            bundle = PILOT.build_bundle(
+                master,
+                config=PILOT.BuildConfig(pilot_size=60, seed="unit-test"),
+                master_report=master_report,
+            )
+            self.assertEqual(
+                bundle.report["inputs"]["catalogs"][DELTA_HARD_CATALOG_ID],
+                {
+                    "catalog_id": DELTA_HARD_CATALOG_ID,
+                    "record_count": 6,
+                    "source_kind": "hard",
+                },
+            )
+            self.assertEqual(
+                bundle.report["inputs"]["catalogs"]["fixture-empty-hard-delta"][
+                    "record_count"
+                ],
+                0,
+            )
+            selected_delta = {
+                row["sample_id"]
+                for row in bundle.inventory_rows
+                if row["provenance"]["source_catalog_id"] == DELTA_HARD_CATALOG_ID
+            }
+            self.assertTrue(selected_delta)
+            self.assertTrue(selected_delta <= delta_ids)
+            self.assertTrue(
+                all(
+                    row["provenance"]["source_kind"] == "hard"
+                    for row in bundle.inventory_rows
+                    if row["sample_id"] in selected_delta
+                )
+            )
+
+    def test_rejects_catalog_source_kind_mismatch_and_missing_row_kind(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            rows = make_fixture_rows()
+            master = root / "manifest.jsonl"
+            write_jsonl(master, rows)
+            report_path = write_master_report(master, rows)
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            report["inputs"]["catalogs"][HARD_CATALOG_ID]["source_kind"] = "base"
+            report_path.write_text(
+                json.dumps(report, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(
+                PILOT.PilotInventoryError, "source_kind mismatch"
+            ):
+                PILOT.build_bundle(
+                    master,
+                    config=PILOT.BuildConfig(pilot_size=60),
+                    master_report=report_path,
+                )
+
+            del rows[0]["provenance"]["source_kind"]
+            write_jsonl(master, rows)
+            with self.assertRaisesRegex(
+                PILOT.PilotInventoryError,
+                r"provenance\.source_kind: expected a non-empty string",
+            ):
+                PILOT.build_bundle(
+                    master,
+                    config=PILOT.BuildConfig(pilot_size=60),
+                    expected_rows=len(rows),
+                    expected_works=3,
+                    expected_chapters=12,
+                )
+
+    def test_dynamic_master_report_counts_and_hash_are_sealed(self) -> None:
+        mutations = (
+            (
+                "chapter count",
+                lambda report: report["statistics"].update(
+                    {"chapter_count": report["statistics"]["chapter_count"] + 1}
+                ),
+                "chapters",
+            ),
+            (
+                "catalog count",
+                lambda report: report["inputs"]["catalogs"][HARD_CATALOG_ID].update(
+                    {
+                        "record_count": report["inputs"]["catalogs"][HARD_CATALOG_ID][
+                            "record_count"
+                        ]
+                        + 1
+                    }
+                ),
+                "catalog counts",
+            ),
+            (
+                "manifest hash",
+                lambda report: report["outputs"].update(
+                    {"master_manifest_sha256": "0" * 64}
+                ),
+                "manifest hash",
+            ),
+        )
+        for label, mutate, message in mutations:
+            with (
+                self.subTest(label=label),
+                tempfile.TemporaryDirectory() as temporary,
+            ):
+                root = Path(temporary)
+                rows = make_fixture_rows()
+                master = root / "manifest.jsonl"
+                write_jsonl(master, rows)
+                report_path = write_master_report(master, rows)
+                report = json.loads(report_path.read_text(encoding="utf-8"))
+                mutate(report)
+                report_path.write_text(
+                    json.dumps(report, indent=2, sort_keys=True) + "\n",
+                    encoding="utf-8",
+                )
+                with self.assertRaisesRegex(PILOT.PilotInventoryError, message):
+                    PILOT.build_bundle(
+                        master,
+                        config=PILOT.BuildConfig(pilot_size=60),
+                        master_report=report_path,
+                    )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            rows = make_fixture_rows()
+            master = root / "manifest.jsonl"
+            write_jsonl(master, rows)
+            report_path = write_master_report(master, rows)
+            with self.assertRaisesRegex(
+                PILOT.PilotInventoryError, "disagrees with master report"
+            ):
+                PILOT.build_bundle(
+                    master,
+                    config=PILOT.BuildConfig(pilot_size=60),
+                    master_report=report_path,
+                    expected_rows=len(rows) + 1,
+                )
+
+    def test_direct_api_legacy_fixture_uses_optional_expected_values(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            rows = make_fixture_rows()
+            master = root / "manifest.jsonl"
+            write_jsonl(master, rows)
+            bundle = PILOT.build_bundle(
+                master,
+                config=PILOT.BuildConfig(pilot_size=60, seed="legacy-fixture"),
+                expected_rows=len(rows),
+                expected_works=3,
+                expected_chapters=12,
+                expected_manual_recrops=3,
+            )
+            self.assertIsNone(bundle.report["inputs"]["master_report_sha256"])
+            self.assertTrue(
+                all(
+                    row["master_report_sha256"] is None for row in bundle.inventory_rows
+                )
+            )
 
     def test_reports_ordinary_proxy_shortfall_without_inventing_a_role(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -267,7 +552,8 @@ class FontMatchingPilotTests(unittest.TestCase):
             affected = ("work-0", "chapter-0-0")
             for row in rows:
                 if (row["work"]["id"], row["chapter"]["id"]) == affected:
-                    row["provenance"]["source_catalog_id"] = PILOT.HARD_CATALOG_ID
+                    row["provenance"]["source_catalog_id"] = HARD_CATALOG_ID
+                    row["provenance"]["source_kind"] = "hard"
                     row["metadata"]["candidate_categories"] = ["page_sound"]
                     row["metadata"]["candidate_primary_category"] = "page_sound"
                     row["metadata"]["cohort_signals"] = hard_signals()
@@ -275,13 +561,11 @@ class FontMatchingPilotTests(unittest.TestCase):
             rows[4]["metadata"]["cohort_signals"]["manual_recrop"] = True
             master = root / "manifest.jsonl"
             write_jsonl(master, rows)
+            master_report = write_master_report(master, rows)
             bundle = PILOT.build_bundle(
                 master,
                 config=PILOT.BuildConfig(pilot_size=60, seed="unit-test"),
-                expected_rows=len(rows),
-                expected_works=3,
-                expected_chapters=12,
-                expected_manual_recrops=3,
+                master_report=master_report,
             )
             shortfalls = bundle.report["selection"]["calibration"]["diagnostics"][
                 "ordinary_chapter_shortfalls"
@@ -370,11 +654,36 @@ class FontMatchingPilotTests(unittest.TestCase):
                     expected_chapters=12,
                     expected_manual_recrops=3,
                 )
+            (output / "inventory.jsonl").write_bytes(bundle.inventory_bytes)
+            master_report = master.with_name("report.json")
+            report = json.loads(master_report.read_text(encoding="utf-8"))
+            report["tampered"] = True
+            master_report.write_text(
+                json.dumps(report, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(
+                PILOT.PilotInventoryError, "master report hash"
+            ):
+                PILOT.validate_bundle(
+                    output,
+                    master,
+                    expected_rows=len(rows),
+                    expected_works=3,
+                    expected_chapters=12,
+                    expected_manual_recrops=3,
+                )
 
     def test_production_cli_rejects_out_of_range_pilot_size(self) -> None:
         with self.assertRaises(Exception):
             PILOT.production_pilot_size("999")
         self.assertEqual(PILOT.production_pilot_size("1200"), 1200)
+        parsed = PILOT.build_parser().parse_args(["validate"])
+        self.assertIsNone(parsed.master_report)
+        self.assertIsNone(parsed.expected_master_count)
+        self.assertIsNone(parsed.expected_work_count)
+        self.assertIsNone(parsed.expected_chapter_count)
+        self.assertIsNone(parsed.expected_manual_recrop_count)
 
 
 if __name__ == "__main__":
