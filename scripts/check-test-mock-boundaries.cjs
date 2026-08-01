@@ -25,6 +25,7 @@ const ALLOWED_INTERNAL_BOUNDARY_MOCKS = new Set([
   "tests/reviewTable.test.ts::../src/main/appPaths",
   "tests/workContextFiles.test.ts::../src/main/appPaths",
   "tests/workShare.test.ts::../src/main/appPaths",
+  "tests/workTypographyProfile.test.ts::../src/main/appPaths",
 ]);
 
 /** @typedef {{ file: string, line: number, moduleName: string }} MockBoundaryViolation */
