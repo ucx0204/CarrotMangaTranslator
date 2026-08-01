@@ -142,6 +142,8 @@ export type OverlayItem = {
   fontRole?: FontMatchingSemanticRole;
   /** Calibrated visual-role confidence supplied by the page model. */
   fontRoleConfidence?: number;
+  /** Canonical page-local identifier for repeated accent lettering. */
+  visualClusterId?: string;
   bbox: BBox;
   /** 하위 호환 별칭. 신규 코드는 sourceText/translatedText를 우선 사용한다. */
   jp: string;

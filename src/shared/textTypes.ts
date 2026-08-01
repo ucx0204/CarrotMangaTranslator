@@ -64,6 +64,8 @@ export type TranslationBlock = {
   fontRole?: FontMatchingSemanticRole;
   /** Confidence in `fontRole`, independent of translation confidence. */
   fontRoleConfidence?: number;
+  /** Canonical page-local identifier for repeated accent lettering. */
+  visualClusterId?: string;
   confidence: number;
   sourceDirection: SourceTextDirection;
   renderDirection: RenderTextDirection;

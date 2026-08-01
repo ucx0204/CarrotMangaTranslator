@@ -238,6 +238,7 @@ function applyOverlayItemToExistingBlock({
           ),
         }
       : {}),
+    ...(item.visualClusterId ? { visualClusterId: item.visualClusterId } : {}),
     confidence: normalizeItemConfidence(item.confidence, block.confidence),
   };
   const itemWithPersistedIntent =

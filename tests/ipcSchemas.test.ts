@@ -1037,6 +1037,47 @@ describe("IPC schemas", () => {
     });
   });
 
+  it("round-trips partial inpainting block ownership in a completion receipt", () => {
+    const base = makeChapterSnapshot();
+    const payload = {
+      ...base,
+      pages: base.pages.map((page) => ({
+        ...page,
+        translationCompletion: {
+          workflow: "erase-original" as const,
+          status: "pending" as const,
+          erasedBlockIds: [page.blocks[0].id],
+        },
+      })),
+    };
+
+    const parsed = parseIpcPayload(ChapterSnapshotSchema, payload, "화 저장");
+
+    expect(parsed.pages[0].translationCompletion).toEqual({
+      workflow: "erase-original",
+      status: "pending",
+      erasedBlockIds: [base.pages[0].blocks[0].id],
+    });
+  });
+
+  it("rejects duplicate partial inpainting block ownership ids", () => {
+    const base = makeChapterSnapshot();
+    const blockId = base.pages[0].blocks[0].id;
+    const payload = {
+      ...base,
+      pages: base.pages.map((page) => ({
+        ...page,
+        translationCompletion: {
+          workflow: "erase-original" as const,
+          status: "pending" as const,
+          erasedBlockIds: [blockId, blockId],
+        },
+      })),
+    };
+
+    expect(ChapterSnapshotSchema.safeParse(payload).success).toBe(false);
+  });
+
   it("accepts optional review/name memory fields on translation blocks", () => {
     const block = makeChapterSnapshot().pages[0].blocks[0];
     expect(TranslationBlockSchema.safeParse(block).success).toBe(true);
@@ -1057,6 +1098,34 @@ describe("IPC schemas", () => {
     expect(parsed.reviewNote).toBe("말투 확인");
     expect(parsed.speakerId).toBe("hero");
     expect(parsed.glossaryEntryIds).toEqual(["glossary-1"]);
+  });
+
+  it("serializes canonical visual cluster ids and migrates blocks without one", () => {
+    const legacyBlock = makeChapterSnapshot().pages[0].blocks[0];
+    expect(TranslationBlockSchema.safeParse(legacyBlock).success).toBe(true);
+
+    const serialized = JSON.parse(
+      JSON.stringify({
+        ...legacyBlock,
+        visualClusterId: "  repeat－impact  ",
+      }),
+    );
+    const parsed = parseIpcPayload(TranslationBlockSchema, serialized, "블록");
+    expect(parsed.visualClusterId).toBe("repeat-impact");
+
+    for (const visualClusterId of [
+      " ",
+      "x".repeat(201),
+      "../escape",
+      "hidden\u0000cluster",
+    ]) {
+      expect(
+        TranslationBlockSchema.safeParse({
+          ...legacyBlock,
+          visualClusterId,
+        }).success,
+      ).toBe(false);
+    }
   });
 
   it("accepts an in-range 장평 (fontWidthScale) on translation blocks", () => {

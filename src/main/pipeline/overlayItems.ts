@@ -18,6 +18,7 @@ import type { BlockFormatDefaults } from "../../shared/blockFormat";
 import type { MangaPage } from "../../shared/libraryTypes";
 import { applyFormatDefaultsToBlock } from "../../shared/blockFormat";
 import { applyNaturalTextLayout } from "../../shared/naturalTextLayout";
+import { normalizeVisualClusterId } from "../../shared/visualClusterId";
 import {
   applyAutomaticFontDecisionV2,
   resolveAutomaticFontDecisionV2,
@@ -121,13 +122,20 @@ export function overlayItemToBlock(
 
 function buildOverlayFontIntent(
   item: OverlayItem,
-): Pick<TranslationBlock, "fontRole" | "fontRoleConfidence"> {
-  return item.fontRole
-    ? {
-        fontRole: item.fontRole,
-        fontRoleConfidence: normalizeConfidence(item.fontRoleConfidence, 0),
-      }
-    : {};
+): Pick<
+  TranslationBlock,
+  "fontRole" | "fontRoleConfidence" | "visualClusterId"
+> {
+  const visualClusterId = normalizeVisualClusterId(item.visualClusterId);
+  return {
+    ...(item.fontRole
+      ? {
+          fontRole: item.fontRole,
+          fontRoleConfidence: normalizeConfidence(item.fontRoleConfidence, 0),
+        }
+      : {}),
+    ...(visualClusterId ? { visualClusterId } : {}),
+  };
 }
 
 function applyAutomaticFontToOverlayBlock(
@@ -142,19 +150,25 @@ function applyAutomaticFontToOverlayBlock(
   if (!automaticFont?.enabled) {
     return { block };
   }
-  const decision = resolveAutomaticFontDecisionV2({
-    block,
-    item,
-    page,
-    options: automaticFont,
-  });
-  return {
-    block: applyAutomaticFontDecisionV2(block, decision),
-    ...(decision?.result.decision.mode === "apply" &&
-    decision.fontMetricWidthScale
-      ? { fontMetricWidthScale: decision.fontMetricWidthScale }
-      : {}),
-  };
+  try {
+    const decision = resolveAutomaticFontDecisionV2({
+      block,
+      item,
+      page,
+      options: automaticFont,
+    });
+    return {
+      block: applyAutomaticFontDecisionV2(block, decision),
+      ...(decision?.result.decision.mode === "apply" &&
+      decision.fontMetricWidthScale
+        ? { fontMetricWidthScale: decision.fontMetricWidthScale }
+        : {}),
+    };
+  } catch (_error) {
+    // Font matching is optional. Invalid block-local evidence must abstain for
+    // this block instead of failing construction of the complete page.
+    return { block };
+  }
 }
 
 function applyNaturalLayoutToOverlayBlock(

@@ -15,9 +15,10 @@ const {
   normalizeFontRole,
   normalizeFontRoleConfidence,
 } = require("../font-matching-intent.cjs");
+const { normalizeVisualClusterId } = require("../visual-cluster-id.cjs");
 
 /**
- * @typedef {{blockId:string;ko:string;textRole?:"ordinary"|"sound";fontRole?:string;fontRoleConfidence?:number}} FixedBlockTranslation
+ * @typedef {{blockId:string;ko:string;textRole?:"ordinary"|"sound";fontRole?:string;fontRoleConfidence?:number;visualClusterId?:string}} FixedBlockTranslation
  * @typedef {{items:FixedBlockTranslation[];pageContext?:Record<string,unknown>}} FixedBlockTranslationResult
  * @typedef {{blocks:Array<{blockId:string}>}} FixedBlockPlan
  * @typedef {{sourceLanguage?:unknown;targetLanguage?:unknown;collectPageContext?:unknown;autoFontMatching?:unknown;[key:string]:unknown}} FixedBlockOptions
@@ -247,7 +248,15 @@ function readFixedBlockTranslation(value, index, options = {}) {
     );
   }
   const allowedKeys = options.autoFontMatching
-    ? ["blockId", "textRole", "fontRole", "fontRoleConfidence", "ko"]
+    ? [
+        "blockId",
+        "textRole",
+        "fontRole",
+        "fontRoleConfidence",
+        "visualClusterId",
+        "visual_cluster_id",
+        "ko",
+      ]
     : ["blockId", "textRole", "ko"];
   const unexpectedKeys = Object.keys(value).filter(
     (key) => !allowedKeys.includes(key),
@@ -261,6 +270,7 @@ function readFixedBlockTranslation(value, index, options = {}) {
   const blockId = String(value.blockId ?? "").trim();
   const textRole = readFixedBlockTextRole(value.textRole, index);
   const fontIntent = readFixedBlockFontIntent(value, index, options, textRole);
+  const visualClusterId = readFixedBlockVisualClusterId(value, options);
   if (
     typeof value.ko === "string" &&
     (/[\r\n]/u.test(value.ko) || /\\[nr]/u.test(value.ko))
@@ -283,7 +293,21 @@ function readFixedBlockTranslation(value, index, options = {}) {
       `Fixed-block translation ${index + 1} must return non-empty ko.`,
     );
   }
-  return buildFixedBlockTranslation(blockId, ko, textRole, fontIntent);
+  return buildFixedBlockTranslation(
+    blockId,
+    ko,
+    textRole,
+    fontIntent,
+    visualClusterId,
+  );
+}
+
+/** @param {Record<string,unknown>} value @param {FixedBlockOptions} options */
+function readFixedBlockVisualClusterId(value, options) {
+  if (!options.autoFontMatching) return undefined;
+  return normalizeVisualClusterId(
+    value.visualClusterId ?? value.visual_cluster_id,
+  );
 }
 
 /** @param {Record<string,unknown>} value @param {number} index @param {FixedBlockOptions} options @param {"ordinary"|"sound"|undefined} textRole */
@@ -330,13 +354,21 @@ function readFixedBlockTextRole(value, index) {
  * @param {string} ko
  * @param {"ordinary"|"sound"|undefined} textRole
  * @param {{fontRole:string;fontRoleConfidence:number}|undefined} fontIntent
+ * @param {string|undefined} visualClusterId
  * @returns {FixedBlockTranslation}
  */
-function buildFixedBlockTranslation(blockId, ko, textRole, fontIntent) {
+function buildFixedBlockTranslation(
+  blockId,
+  ko,
+  textRole,
+  fontIntent,
+  visualClusterId,
+) {
   return {
     blockId,
     ...(textRole ? { textRole } : {}),
     ...(fontIntent ?? {}),
+    ...(visualClusterId ? { visualClusterId } : {}),
     ko,
   };
 }

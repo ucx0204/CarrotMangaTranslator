@@ -64,8 +64,10 @@ type FixedBlockResponseFormat = {
             textRole: { enum: string[] };
             fontRole?: { enum: string[] };
             fontRoleConfidence?: { minimum: number; maximum: number };
+            visualClusterId?: { type: string; maxLength?: number };
             ko: { pattern: string };
           };
+          required: string[];
         };
       };
       pageContext?: unknown;
@@ -92,6 +94,7 @@ type FixedTranslationResult = {
     textRole?: "ordinary" | "sound";
     fontRole?: string;
     fontRoleConfidence?: number;
+    visualClusterId?: string;
     ko: string;
   }>;
   pageContext?: Record<string, unknown>;
@@ -394,6 +397,7 @@ describe("fixed-block translation contract", () => {
       "textRole",
       "fontRole",
       "fontRoleConfidence",
+      "visualClusterId",
       "ko",
     ]);
     expect(itemSchema.properties.fontRole?.enum).toContain("sfx_impact");
@@ -402,6 +406,9 @@ describe("fixed-block translation contract", () => {
       minimum: 0,
       maximum: 1,
     });
+    expect(itemSchema.properties.visualClusterId).toEqual({ type: "string" });
+    expect(itemSchema.required).not.toContain("visualClusterId");
+    expect(itemSchema.properties).not.toHaveProperty("visual_cluster_id");
   });
 
   it("rejects the old page-17 style response that creates ids and coordinates", () => {
@@ -901,6 +908,7 @@ describe("fixed-block translation contract", () => {
             textRole: "sound",
             fontRole: "sfx_impact",
             fontRoleConfidence: 0.96,
+            visualClusterId: "  repeat－impact  ",
             ko: "쾅!",
           },
           {
@@ -908,6 +916,7 @@ describe("fixed-block translation contract", () => {
             textRole: "ordinary",
             fontRole: "dialogue",
             fontRoleConfidence: 0.93,
+            visual_cluster_id: "repeat-impact",
             ko: "그래.",
           },
         ],
@@ -922,12 +931,52 @@ describe("fixed-block translation contract", () => {
       expect.objectContaining({
         fontRole: "sfx_impact",
         fontRoleConfidence: 0.96,
+        visualClusterId: "repeat-impact",
       }),
       expect.objectContaining({
         fontRole: "dialogue",
         fontRoleConfidence: 0.93,
+        visualClusterId: "repeat-impact",
       }),
     ]);
+    expect(translations.items[1]).not.toHaveProperty("visual_cluster_id");
+  });
+
+  it("treats invalid optional cluster ids as omitted legacy metadata", () => {
+    const plan = twoSingletonPlan();
+    for (const visualClusterId of [
+      " ",
+      "x".repeat(201),
+      "../escape",
+      "hidden\u0000cluster",
+    ]) {
+      const translations = fixed.parseFixedBlockTranslationResponse(
+        JSON.stringify({
+          items: [
+            {
+              blockId: "B001",
+              textRole: "sound",
+              fontRole: "sfx_impact",
+              fontRoleConfidence: 0.96,
+              visualClusterId,
+              ko: "쾅!",
+            },
+            {
+              blockId: "B002",
+              textRole: "ordinary",
+              fontRole: "dialogue",
+              fontRoleConfidence: 0.93,
+              ko: "그래.",
+            },
+          ],
+        }),
+        plan,
+        { ...baseOptions, autoFontMatching: true },
+      );
+
+      expect(translations.items[0]).not.toHaveProperty("visualClusterId");
+      expect(translations.items[1]).not.toHaveProperty("visualClusterId");
+    }
   });
 
   it("rejects missing or invalid V2 visual-role evidence", () => {
@@ -1085,9 +1134,10 @@ describe("fixed-block translation contract", () => {
     });
 
     expect(prompt).toContain(
-      "Each item has exactly five keys: blockId, textRole, fontRole, fontRoleConfidence, and ko",
+      "Each item requires blockId, textRole, fontRole, fontRoleConfidence, and ko, and may additionally include visualClusterId",
     );
     expect(prompt).toContain("aside_balloon_edge");
+    expect(prompt).toContain("Omit visualClusterId for dialogue");
     expect(prompt).toContain("never from the work title, genre stereotype");
   });
 });

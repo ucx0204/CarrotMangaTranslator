@@ -13,9 +13,13 @@ function applyFontMatchingIntentOutput(sections, options) {
     line.startsWith("Use exactly these keys, one per line:"),
   );
   if (keyIndex >= 0) {
-    output[keyIndex] = output[keyIndex].replace(
-      "textRole,",
-      `textRole, ${FONT_ROLE_KEYS},`,
+    output[keyIndex] = output[keyIndex]
+      .replace("Use exactly these keys", "Use these required keys")
+      .replace("textRole,", `textRole, ${FONT_ROLE_KEYS},`);
+    output.splice(
+      keyIndex + 1,
+      0,
+      "visualClusterId is optional; when used, place it after fontRoleConfidence and before ko.",
     );
   }
   const templateIndex = output.findIndex(
@@ -47,6 +51,8 @@ function buildFontMatchingIntentSection(options) {
     'fontRole values beginning with "sfx_" require textRole "sound"; every other concrete fontRole requires textRole "ordinary".',
     "Use sign_ui_title for signs, interface labels, chapter/title lettering, and display cards. Use unknown_needs_review whenever the visual role is genuinely ambiguous.",
     "fontRoleConfidence is confidence in that fine-grained visual role only. It is separate from translation confidence; use below 0.82 when the container, lettering intent, or SFX class is uncertain.",
+    "visualClusterId is optional. Use one short ID only when two or more separate non-body accent blocks visibly share the same repeated lettering treatment, and reuse that exact ID on those members.",
+    "Omit visualClusterId for dialogue, narration, thought, and whenever the visual grouping is uncertain.",
   ];
 }
 

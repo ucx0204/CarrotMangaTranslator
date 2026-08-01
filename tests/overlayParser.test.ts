@@ -54,6 +54,7 @@ type: nonsolid
 textRole: sound
 fontRole: sfx-impact
 fontRoleConfidence: 97%
+visual_cluster_id: repeated-impact-1
 x1: 120
 y1: 80
 x2: 280
@@ -67,7 +68,58 @@ ko: 쾅!
     expect(items[0]).toMatchObject({
       fontRole: "sfx_impact",
       fontRoleConfidence: 0.97,
+      visualClusterId: "repeated-impact-1",
     });
+    expect(items[0]).not.toHaveProperty("visual_cluster_id");
+  });
+
+  it("migrates snake-case visual cluster ids to the canonical field", () => {
+    const items = normalizeItems({
+      items: [
+        {
+          id: 1,
+          type: "nonsolid",
+          visual_cluster_id: "  repeat－impact  ",
+          x1: 10,
+          y1: 20,
+          x2: 110,
+          y2: 80,
+          jp: "ドン",
+          ko: "쾅",
+        },
+      ],
+    });
+
+    expect(items[0].visualClusterId).toBe("repeat-impact");
+    expect(items[0]).not.toHaveProperty("visual_cluster_id");
+  });
+
+  it("drops unsafe or unusable visual cluster ids without dropping text", () => {
+    const invalidIds = [
+      "   ",
+      "x".repeat(201),
+      "../other-cluster",
+      "hidden\u0000cluster",
+      "hidden\u202ecluster",
+    ];
+    const items = normalizeItems({
+      items: invalidIds.map((visualClusterId, index) => ({
+        id: index + 1,
+        type: "nonsolid",
+        visualClusterId,
+        x1: 10,
+        y1: 20 + index * 100,
+        x2: 110,
+        y2: 80 + index * 100,
+        jp: "ドン",
+        ko: "쾅",
+      })),
+    });
+
+    expect(items).toHaveLength(invalidIds.length);
+    expect(
+      items.every((item: Record<string, unknown>) => !item.visualClusterId),
+    ).toBe(true);
   });
 
   it("does not promote an out-of-range font role confidence", () => {

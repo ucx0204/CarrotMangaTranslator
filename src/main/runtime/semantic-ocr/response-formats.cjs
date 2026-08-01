@@ -49,6 +49,10 @@ function buildFixedBlockTranslationResponseFormat(blockIds, options = {}) {
                   minimum: 0,
                   maximum: 1,
                 },
+                // Keep this optional and runtime-bounded. Some local
+                // llama.cpp JSON-schema converters reject large maxLength
+                // repetitions before sampling starts.
+                visualClusterId: stringSchema(),
               }
             : {}),
           ko: singleLineNonEmptyStringSchema(),

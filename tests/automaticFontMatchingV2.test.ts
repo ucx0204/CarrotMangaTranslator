@@ -5,6 +5,11 @@ import {
   resolveFontMatchingV2CatalogVersion,
   resolveAutomaticFontDecisionV2,
 } from "../src/main/pipeline/automaticFontMatchingV2";
+import {
+  createAutomaticFontPageCoordinatorV2,
+  orderAutomaticFontMatchingPageItemIndexes,
+} from "../src/main/pipeline/automaticFontMatchingV2PageCoordinator";
+import type { FontMatchingDecisionResultV2 } from "../src/main/pipeline/fontMatchingDecisionV2";
 import type { OverlayItem } from "../src/main/pipeline/types";
 import type { WorkTypographyProfileV2 } from "../src/shared/fontMatchingProfileTypes";
 import type { MangaPage } from "../src/shared/libraryTypes";
@@ -53,11 +58,11 @@ describe("automatic font matching V2 adapter", () => {
     expect(decision?.result.decision).toMatchObject({
       mode: "abstain",
       selectedFontId: null,
-      abstainReason: "profile_conflict",
+      abstainReason: "low_confidence",
     });
   });
 
-  it("uses a well-evidenced compatible work anchor in shadow mode", () => {
+  it("does not apply a well-evidenced profile without verified pixel inference", () => {
     const candidates = [builtIn("ridi-batang"), builtIn("jua")];
     const decision = resolveAutomaticFontDecisionV2({
       block: makeBlock({ fontFamily: "jua" }),
@@ -76,9 +81,9 @@ describe("automatic font matching V2 adapter", () => {
     });
 
     expect(decision?.result.decision).toMatchObject({
-      mode: "apply",
-      selectedFontId: "ridi-batang",
-      resolvedBy: "work_profile",
+      mode: "abstain",
+      selectedFontId: null,
+      abstainReason: "low_confidence",
     });
   });
 
@@ -103,7 +108,7 @@ describe("automatic font matching V2 adapter", () => {
     expect(decision?.result.decision).toMatchObject({
       mode: "abstain",
       selectedFontId: null,
-      abstainReason: "catalog_mismatch",
+      abstainReason: "low_confidence",
     });
   });
 
@@ -215,7 +220,178 @@ describe("automatic font matching V2 adapter", () => {
       ]),
     );
   });
+
+  it("orders body anchors before accents while preserving source order", () => {
+    const items = [
+      makeItem("sfx_impact", 1),
+      makeItem("dialogue", 1),
+      makeItem("thought", 1),
+      makeItem("aside_balloon_edge", 1),
+      makeItem("sign_ui_title", 1),
+    ];
+
+    expect(orderAutomaticFontMatchingPageItemIndexes(items)).toEqual([
+      1, 2, 0, 3, 4,
+    ]);
+  });
+
+  it("never assigns a visual cluster to ordinary body roles", () => {
+    const coordinator = createAutomaticFontPageCoordinatorV2();
+    const item = Object.assign(makeItem("dialogue", 1), {
+      visualClusterId: "explicit-body-cluster",
+    });
+
+    expect(coordinator.prepareWorkState(item, "dialogue")).toBeUndefined();
+  });
+
+  it("uses explicit clusters for accents but does not derive them for asides", () => {
+    const coordinator = createAutomaticFontPageCoordinatorV2();
+    const aside = makeItem("aside_balloon_edge", 1);
+    const explicitAside = Object.assign(
+      { ...aside },
+      {
+        visualClusterId: "aside-cluster-1",
+      },
+    );
+
+    expect(
+      coordinator.prepareWorkState(aside, "aside_balloon_edge"),
+    ).toBeUndefined();
+    expect(
+      coordinator.prepareWorkState(explicitAside, "aside_balloon_edge"),
+    ).toMatchObject({ visualClusterId: "aside-cluster-1" });
+  });
+
+  it("keeps meaningful Japanese symbols distinct in derived clusters", () => {
+    const coordinator = createAutomaticFontPageCoordinatorV2();
+    const plain = {
+      ...makeItem("sfx_emotion", 1),
+      jp: "ドキ",
+      sourceText: "ドキ",
+    };
+    const decorated = {
+      ...makeItem("sfx_emotion", 1),
+      jp: "ドキ♡",
+      sourceText: "ドキ♡",
+    };
+
+    const plainState = coordinator.prepareWorkState(plain, "sfx_emotion");
+    const decoratedState = coordinator.prepareWorkState(
+      decorated,
+      "sfx_emotion",
+    );
+
+    expect(plainState?.visualClusterId).not.toBe(
+      decoratedState?.visualClusterId,
+    );
+  });
+
+  it("does not cache intentional overrides as cluster defaults", () => {
+    const coordinator = createAutomaticFontPageCoordinatorV2();
+    const item = makeItem("sfx_impact", 1);
+    const profile = makeProfile({
+      dialogueAnchor: null,
+      rolePalettes: [
+        {
+          role: "sfx_impact",
+          allowedFontIds: ["jua", "dohyeon"],
+          maxDistinctFonts: 2,
+          reuseVisualClusterFont: true,
+          evidenceCount: 20,
+          confidence: 1,
+        },
+      ],
+    });
+    const initialState = coordinator.prepareWorkState(item, "sfx_impact");
+    coordinator.recordDecision(
+      "sfx_impact",
+      initialState,
+      makeCoordinatorResult("jua"),
+      profile,
+    );
+    const clusteredState = coordinator.prepareWorkState(item, "sfx_impact");
+    expect(clusteredState?.visualClusterFontId).toBe("jua");
+
+    coordinator.recordDecision(
+      "sfx_impact",
+      clusteredState,
+      makeCoordinatorResult("dohyeon", [
+        "intentional_override_margin_passed",
+        "role_palette",
+      ]),
+      profile,
+    );
+
+    expect(
+      coordinator.prepareWorkState(item, "sfx_impact")?.visualClusterFontId,
+    ).toBe("jua");
+  });
+
+  it("does not cache a manual role lock as automatic page state", () => {
+    const coordinator = createAutomaticFontPageCoordinatorV2();
+    const item = makeItem("sfx_impact", 1);
+    const profile = makeProfile({
+      dialogueAnchor: null,
+      rolePalettes: [
+        {
+          role: "sfx_impact",
+          allowedFontIds: ["jua"],
+          maxDistinctFonts: 1,
+          reuseVisualClusterFont: true,
+          evidenceCount: 20,
+          confidence: 1,
+        },
+      ],
+    });
+    const initialState = coordinator.prepareWorkState(item, "sfx_impact");
+    coordinator.recordDecision(
+      "sfx_impact",
+      initialState,
+      makeCoordinatorResult("jua", ["role_palette"], "work_role_user_lock"),
+      profile,
+    );
+
+    expect(
+      coordinator.prepareWorkState(item, "sfx_impact")?.visualClusterFontId,
+    ).toBeUndefined();
+  });
 });
+
+function makeCoordinatorResult(
+  fontId: string,
+  reasonCodes: string[] = ["role_palette"],
+  resolvedBy: "work_profile" | "work_role_user_lock" = "work_profile",
+): FontMatchingDecisionResultV2 {
+  return {
+    decision: {
+      mode: "apply",
+      selectedFontId: fontId,
+      topCandidateFontIds: [fontId],
+      noneAcceptable: false,
+      abstainReason: null,
+      resolvedBy,
+    },
+    selectedStyle: { fontId },
+    audit: {
+      policyVersion: "font-matching-decision-v2.0",
+      legacyTitleOrRegexFallbackUsed: false,
+      modelReportedNoneAcceptable: false,
+      localCalibratedConfidence: 0,
+      roleConfidence: 1,
+      genreContributionCap: 0,
+      evaluatedCandidates: [],
+      rejectedCandidates: [],
+      priorityTrace: [
+        {
+          priority: "work_profile",
+          status: "selected",
+          candidateFontId: fontId,
+          reasonCodes,
+        },
+      ],
+    },
+  };
+}
 
 function builtIn(fontId: string) {
   return makeAutomaticFontCandidate({

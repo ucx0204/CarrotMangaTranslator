@@ -1,7 +1,7 @@
 // @ts-check
 /**
  * @typedef {{ x: number; y: number; w: number; h: number }} ParsedBbox
- * @typedef {{ id: number; candidateIds?: number[]; type: string; x1?: number; y1?: number; x2?: number; y2?: number; jp: string; ko: string; sourceText?: string; translatedText?: string; textRole?: string; fontRole?: string; fontRoleConfidence?: number; direction?: "horizontal" | "vertical"; angle?: number; fontSize?: number | null; confidence?: number | null }} LooseParsedOutput
+ * @typedef {{ id: number; candidateIds?: number[]; type: string; x1?: number; y1?: number; x2?: number; y2?: number; jp: string; ko: string; sourceText?: string; translatedText?: string; textRole?: string; fontRole?: string; fontRoleConfidence?: number; visualClusterId?: string; direction?: "horizontal" | "vertical"; angle?: number; fontSize?: number | null; confidence?: number | null }} LooseParsedOutput
  */
 
 const { asRecord, normalizeBBox, toNumber } = require("./overlay-geometry.cjs");
@@ -20,6 +20,7 @@ const {
   normalizeTextField,
   normalizeTextRole,
 } = require("./overlay-values.cjs");
+const { normalizeVisualClusterId } = require("../visual-cluster-id.cjs");
 
 const TRANSLATED_TEXT_KEYS = [
   "ko",
@@ -121,6 +122,7 @@ function buildNormalizedItem(record, index, bbox, sourceText, translatedText) {
     ...readCandidateIds(record.candidateIds),
     type: normalizeParsedType(record.type),
     ...readSemanticIntent(record),
+    ...readVisualClusterId(record),
     bbox,
     // jp/ko는 하위 호환 별칭이고 sourceText/translatedText가 중립 명칭이다.
     jp: sourceText,
@@ -138,6 +140,14 @@ function buildNormalizedItem(record, index, bbox, sourceText, translatedText) {
     ),
     confidence: normalizeConfidence(record.confidence ?? record.score),
   };
+}
+
+/** @param {Record<string, unknown>} record */
+function readVisualClusterId(record) {
+  const visualClusterId = normalizeVisualClusterId(
+    record.visualClusterId ?? record.visual_cluster_id,
+  );
+  return visualClusterId ? { visualClusterId } : {};
 }
 
 /** @param {Record<string, unknown>} record */

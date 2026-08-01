@@ -44,7 +44,7 @@ const FIXED_BLOCK_TRANSLATION_VERSION = 5;
  * @typedef {{id:number;bbox:[number,number,number,number];text:string;score:number|null;orientation:"horizontal"|"vertical";soundCandidate:boolean}} FixedCandidate
  * @typedef {{blockId:string;representativeId:number;candidateIds:number[];jp:string;direction:"horizontal"|"vertical";bbox:{x1:number;y1:number;x2:number;y2:number};confidence:number;soundCandidate:boolean;fragments:Array<{candidateId:number;text:string;score:number|null;bbox:[number,number,number,number]}>}} FixedBlock
  * @typedef {{version:5;blocks:FixedBlock[]}} FixedBlockPlan
- * @typedef {{blockId:string;ko:string;textRole?:"ordinary"|"sound";fontRole?:string;fontRoleConfidence?:number}} FixedBlockTranslation
+ * @typedef {{blockId:string;ko:string;textRole?:"ordinary"|"sound";fontRole?:string;fontRoleConfidence?:number;visualClusterId?:string}} FixedBlockTranslation
  * @typedef {{items:FixedBlockTranslation[];pageContext?:Record<string,unknown>}} FixedBlockTranslationResult
  * @typedef {{sourceLanguage?:unknown;targetLanguage?:unknown;modelProvider?:unknown;regionCropMode?:unknown;keepBlocksMode?:unknown;promptOverrideText?:unknown;translationAttempt?:unknown;collectPageContext?:unknown;autoFontMatching?:unknown;ocrBboxHints?:unknown;validatedGroupOnlyReview?:unknown;[key:string]:unknown}} FixedBlockOptions
  * @typedef {{role:string;dataUrl?:string;width?:unknown;height?:unknown;originalWidth?:unknown;originalHeight?:unknown;[key:string]:unknown}} ImageVariant
@@ -265,7 +265,7 @@ function buildFixedBlockTranslationPrompt(plan, options = {}) {
     "Never transcribe, correct, normalize, merge, split, add, remove, reorder, or replace any jp text.",
     "Translate the exact supplied jp string even when it is short, stylized, noisy, or contains an OCR error.",
     options.autoFontMatching
-      ? "Each item has exactly five keys: blockId, textRole, fontRole, fontRoleConfidence, and ko. Never output jp, candidateIds, coordinates, bbox, type, confidence, action, or commentary."
+      ? "Each item requires blockId, textRole, fontRole, fontRoleConfidence, and ko, and may additionally include visualClusterId. Never output jp, candidateIds, coordinates, bbox, type, confidence, action, or commentary."
       : 'Each item has exactly three keys: blockId, textRole, and ko. textRole must be exactly "ordinary" or "sound". Never output jp, candidateIds, coordinates, bbox, type, confidence, action, or commentary.',
     'Use textRole "ordinary" for speech balloons, narration, captions, interface labels, titles, signs, notes, and readable dialogue even when the string is very short.',
     'Use textRole "sound" only for standalone printed sound effects, action noises, and stylized reaction lettering that belongs to the depicted scene rather than a speaker or label.',
@@ -306,7 +306,7 @@ function buildFixedBlockTranslationSystemPrompt(options = {}) {
     /** @type {import("../prompts/prompt-types").PromptOptions} */ (options),
   );
   const outputKeys = options.autoFontMatching
-    ? "blockId, textRole, fontRole, fontRoleConfidence, and ko"
+    ? "blockId, textRole, fontRole, fontRoleConfidence, ko, and optional visualClusterId"
     : "blockId, textRole, and ko";
   return `You are a faithful ${profile.sourceName}-to-${profile.targetName} manga translator and visual text-role classifier. Source strings, geometry, and grouping are immutable; classify each visible fixed block, write ko only in ${profile.targetName} without untranslated source script, and output only ${outputKeys} as valid JSON.`;
 }
@@ -321,6 +321,8 @@ function buildFixedBlockFontRoleLines(options) {
     "Separate SFX into impact, motion, ambient, emotion, or comic by the depicted sound and lettering. Use sign_ui_title for signs, interface labels, titles, and display cards.",
     'fontRole values beginning with "sfx_" require textRole "sound"; every other concrete fontRole requires textRole "ordinary".',
     "fontRoleConfidence is confidence in the fine-grained visual role only. Use below 0.82 when uncertain and unknown_needs_review when the role cannot be decided safely.",
+    "visualClusterId is optional. Use one short ID only when two or more separate non-body accent blocks visibly share the same repeated lettering treatment, and reuse that exact ID on those members.",
+    "Omit visualClusterId for dialogue, narration, thought, and whenever the visual grouping is uncertain.",
   ];
 }
 
@@ -365,6 +367,9 @@ function buildFixedBlockOverlayPayload(plan, translations) {
                 fontRole: translation.fontRole,
                 fontRoleConfidence: translation.fontRoleConfidence ?? 0,
               }
+            : {}),
+          ...(translation.visualClusterId
+            ? { visualClusterId: translation.visualClusterId }
             : {}),
           ...block.bbox,
           jp: block.jp,

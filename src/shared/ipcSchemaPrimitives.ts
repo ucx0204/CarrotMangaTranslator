@@ -21,6 +21,7 @@ import {
   MAX_BUBBLE_REGION_SPANS,
 } from "./bubbleLayout";
 import { FONT_MATCHING_SEMANTIC_ROLES } from "./fontMatchingProfileTypes";
+import { normalizeVisualClusterId } from "./visualClusterId";
 
 export { MAX_MAX_TOKENS, MIN_CONTEXT_TOKENS, MIN_MAX_TOKENS };
 
@@ -52,6 +53,10 @@ export const storeId = z
       !value.includes("\\"),
     "invalid store id",
   );
+export const visualClusterId = z.preprocess(
+  normalizeVisualClusterId,
+  z.string(),
+);
 export const title = z.string().max(MAX_TITLE_LENGTH);
 export const filePath = z.string().min(1).max(MAX_PATH_LENGTH);
 const boundedText = z.string().max(MAX_TEXT_LENGTH);
@@ -292,6 +297,7 @@ export const TranslationBlockSchema = z
     textRole: z.enum(["ordinary", "sound"]).optional(),
     fontRole: z.enum(FONT_MATCHING_SEMANTIC_ROLES).optional(),
     fontRoleConfidence: finiteNumber.min(0).max(1).optional(),
+    visualClusterId: visualClusterId.optional(),
     confidence: finiteNumber.min(0).max(1),
     sourceDirection: z.enum(["horizontal", "vertical"]),
     renderDirection: LegacyRenderDirectionSchema,

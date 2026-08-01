@@ -565,11 +565,14 @@ describe("prompt contracts", () => {
 
     expect(enabled).toContain("fontRole: <fine-grained role>");
     expect(enabled).toContain("fontRoleConfidence: <0.00-1.00>");
+    expect(enabled).toContain("visualClusterId is optional");
+    expect(enabled).toContain("Omit visualClusterId for dialogue");
     expect(enabled).toContain("aside_balloon_edge");
     expect(enabled).toContain(
       "not the work title, genre stereotype, translated wording, or string length",
     );
     expect(disabled).not.toContain("fontRoleConfidence");
+    expect(disabled).not.toContain("visualClusterId");
   });
 
   it("summarizes API chat endpoints without leaking API keys", () => {

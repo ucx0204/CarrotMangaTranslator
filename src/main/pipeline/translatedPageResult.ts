@@ -1,5 +1,10 @@
 import type { MangaPage } from "../../shared/libraryTypes";
+import type { TranslationBlock } from "../../shared/textTypes";
 import type { TranslationOptions } from "../appSettings";
+import {
+  createAutomaticFontPageCoordinatorV2,
+  orderAutomaticFontMatchingPageItemIndexes,
+} from "./automaticFontMatchingV2PageCoordinator";
 import { tMain } from "./localization";
 import { buildPageWarnings, overlayItemToBlock } from "./overlayItems";
 import type {
@@ -29,9 +34,16 @@ export function buildTranslatedPageResult({
   contextWarnings: string[];
   pageContext?: PageContextPayload;
 }): CompletedPageBuildResult {
-  const blocks = items.map((item, itemIndex) =>
-    overlayItemToBlock(
-      item,
+  const pageCoordinator = pageOptions.autoFontMatching
+    ? createAutomaticFontPageCoordinatorV2()
+    : undefined;
+  const processingOrder = pageOptions.autoFontMatching
+    ? orderAutomaticFontMatchingPageItemIndexes(items)
+    : items.map((_item, index) => index);
+  const blocks = new Array<TranslationBlock>(items.length);
+  for (const itemIndex of processingOrder) {
+    blocks[itemIndex] = overlayItemToBlock(
+      items[itemIndex],
       page,
       itemIndex,
       jobId,
@@ -47,9 +59,10 @@ export function buildTranslatedPageResult({
         chapterId: pageOptions.fontMatchingChapterId,
         profile: pageOptions.fontMatchingProfile,
         candidates: pageOptions.fontMatchingCandidates,
+        ...(pageCoordinator ? { pageCoordinator } : {}),
       },
-    ),
-  );
+    );
+  }
   return {
     kind: "completed",
     page: {

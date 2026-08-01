@@ -2,8 +2,8 @@
 /**
  * @typedef {{ x: number; y: number; w: number; h: number }} ParsedBbox
  * @typedef {{ [key: string]: number | undefined; x1?: number; y1?: number; x2?: number; y2?: number }} PartialParsedBbox
- * @typedef {{ id?: number; type?: string; textRole?: string; fontRole?: string; fontRoleConfidence?: number; direction?: "horizontal" | "vertical"; angle?: number; fontSize?: number | null; confidence?: number | null; partialBbox?: PartialParsedBbox; bbox?: ParsedBbox | null; jp?: string; ko?: string }} LooseParsedItem
- * @typedef {{ id: number; type: string; x1?: number; y1?: number; x2?: number; y2?: number; jp: string; ko: string; textRole?: string; fontRole?: string; fontRoleConfidence?: number; direction?: "horizontal" | "vertical"; angle?: number; fontSize?: number | null; confidence?: number | null }} LooseParsedOutput
+ * @typedef {{ id?: number; type?: string; textRole?: string; fontRole?: string; fontRoleConfidence?: number; visualClusterId?: string; direction?: "horizontal" | "vertical"; angle?: number; fontSize?: number | null; confidence?: number | null; partialBbox?: PartialParsedBbox; bbox?: ParsedBbox | null; jp?: string; ko?: string }} LooseParsedItem
+ * @typedef {{ id: number; type: string; x1?: number; y1?: number; x2?: number; y2?: number; jp: string; ko: string; textRole?: string; fontRole?: string; fontRoleConfidence?: number; visualClusterId?: string; direction?: "horizontal" | "vertical"; angle?: number; fontSize?: number | null; confidence?: number | null }} LooseParsedOutput
  * @typedef {{ requireBbox?: boolean }} LooseParseOptions
  * @typedef {{ items: LooseParsedOutput[]; current: LooseParsedItem | null; currentTextKey: "jp" | "ko" | null; requireBbox: boolean }} LooseParserState
  * @typedef {{ pattern: RegExp; apply: (item: LooseParsedItem, value: string) => void }} ScalarFieldHandler
@@ -20,6 +20,7 @@ const {
   normalizeDirection,
   normalizeParsedType,
 } = require("./overlay-values.cjs");
+const { normalizeVisualClusterId } = require("../visual-cluster-id.cjs");
 
 /** @type {ScalarFieldHandler[]} */
 const SCALAR_FIELD_HANDLERS = [
@@ -46,6 +47,13 @@ const SCALAR_FIELD_HANDLERS = [
       /^"?(?:fontRoleConfidence|font_role_confidence)"?\s*:\s*["']?([0-9.]+%?)["']?/i,
     apply: (item, value) => {
       item.fontRoleConfidence = normalizeFontRoleConfidence(value);
+    },
+  },
+  {
+    pattern:
+      /^"?(?:visualClusterId|visual_cluster_id)"?\s*:\s*["']?([^"',}]+)["']?/i,
+    apply: (item, value) => {
+      item.visualClusterId = normalizeVisualClusterId(value);
     },
   },
   {
@@ -320,6 +328,9 @@ function addOptionalLooseFields(output, current) {
     output.fontRole = current.fontRole;
     output.fontRoleConfidence = current.fontRoleConfidence;
   }
+  if (current.visualClusterId) {
+    output.visualClusterId = current.visualClusterId;
+  }
   if (current.direction) {
     output.direction = current.direction;
   }
@@ -345,7 +356,7 @@ function expandLooseRecordLines(text) {
   /** @type {string[]} */
   const expanded = [];
   const keyPattern =
-    /(?:^|\s)(id|type|textRole|text_role|role|fontRole|font_role|fontRoleConfidence|font_role_confidence|direction|angle|fontSize|font_size|font|confidence|x1|y1|x2|y2|jp|ko|sourceText|source_text|source|translatedText|translated_text|target)\s*:/gi;
+    /(?:^|\s)(id|type|textRole|text_role|role|fontRole|font_role|fontRoleConfidence|font_role_confidence|visualClusterId|visual_cluster_id|direction|angle|fontSize|font_size|font|confidence|x1|y1|x2|y2|jp|ko|sourceText|source_text|source|translatedText|translated_text|target)\s*:/gi;
   for (const rawLine of rawLines) {
     expandLooseRecordLine(rawLine, keyPattern, expanded);
   }

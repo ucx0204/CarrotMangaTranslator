@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { finiteNumber, storeId } from "./ipcSchemaPrimitives";
+import { finiteNumber, storeId, visualClusterId } from "./ipcSchemaPrimitives";
 import {
   FONT_MATCHING_PALETTE_ROLES,
   FONT_MATCHING_SEMANTIC_ROLES,
@@ -96,9 +96,7 @@ const overrideScopeSchema = z.discriminatedUnion("type", [
       blockId: storeId,
     })
     .strict(),
-  z
-    .object({ type: z.literal("visual_cluster"), visualClusterId: storeId })
-    .strict(),
+  z.object({ type: z.literal("visual_cluster"), visualClusterId }).strict(),
 ]);
 
 const intentionalOverrideSchema = z

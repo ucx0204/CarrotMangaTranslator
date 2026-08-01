@@ -112,6 +112,24 @@ describe("overlay item conversion", () => {
     expect(block.translatedText).toBe("Bonjour");
   });
 
+  it("persists a canonical visual cluster id on the created block", () => {
+    const block = overlayItemToBlock(
+      {
+        id: 1,
+        type: "nonsolid",
+        textRole: "sound",
+        visualClusterId: "  repeat－impact  ",
+        bbox: { x: 10, y: 10, w: 180, h: 80 },
+        jp: "ドン",
+        ko: "쾅",
+      },
+      makePage(),
+      0,
+    );
+
+    expect(block.visualClusterId).toBe("repeat-impact");
+  });
+
   it("drops sound-effect items unless confidence is exactly 1", () => {
     const items: OverlayItem[] = [
       {
