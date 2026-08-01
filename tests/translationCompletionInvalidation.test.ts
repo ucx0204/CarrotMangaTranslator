@@ -32,6 +32,22 @@ describe("translation completion invalidation", () => {
     ).toEqual({ workflow: "erase-original", status: "pending" });
   });
 
+  it("clears partial erased block ids when source target state changes", () => {
+    const block = makeBlock("block-1");
+
+    expect(
+      resolveCompletionAfterBlockMutation(
+        {
+          workflow: "erase-original",
+          status: "pending",
+          erasedBlockIds: [block.id],
+        },
+        [block],
+        [{ ...block, bbox: { ...block.bbox, x: 300 } }],
+      ),
+    ).toEqual({ workflow: "erase-original", status: "pending" });
+  });
+
   it("keeps erase completion for a translation-text-only edit", () => {
     const block = makeBlock("block-1");
 

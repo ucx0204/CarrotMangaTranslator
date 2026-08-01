@@ -70,7 +70,7 @@ function dispatchJobEvent(
   runtime.writeLog(
     event.status === "failed"
       ? "error"
-      : event.status === "cancelled"
+      : event.status === "cancelled" || event.status === "partial"
         ? "warn"
         : "info",
     `job:${event.kind}:${event.status}`,
@@ -122,6 +122,7 @@ function isTerminalJobEvent(event: JobEvent): boolean {
   return (
     event.status === "cancelled" ||
     event.status === "failed" ||
+    event.status === "partial" ||
     event.status === "completed"
   );
 }

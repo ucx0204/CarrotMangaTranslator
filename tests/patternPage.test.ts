@@ -48,6 +48,10 @@ describe("pattern page inpainting result validation", () => {
       isEmpty: () => false,
       toBitmap: () => Buffer.from(bitmap),
     });
+    nativeImageMocks.createFromBitmap.mockReturnValue({
+      isEmpty: () => false,
+      toPNG: () => Buffer.from("png"),
+    });
   });
 
   it("returns no result when the engine changes no masked pixels", async () => {
@@ -69,11 +73,42 @@ describe("pattern page inpainting result validation", () => {
     });
 
     expect(inpaint).toHaveBeenCalledTimes(1);
-    expect(result).toEqual({ page, blocksErased: 0 });
+    expect(result).toEqual({
+      page,
+      blocksErased: 0,
+      blocksIncomplete: 1,
+      erasedBlockIds: [],
+      incompleteBlockIds: ["block-1"],
+    });
     expect(nativeImageMocks.createFromBitmap).not.toHaveBeenCalled();
   });
 
-  it("returns no result when even one target mask stays unchanged", async () => {
+  it("starts a freshly translated pending workflow from the original image", async () => {
+    const engine: InpaintingEngine = {
+      model: "lama-manga",
+      runtimePath: "C:\\runtime\\inpaint.exe",
+      backend: "cpu",
+      runRootDir: "C:\\runtime\\runs",
+      inpaint: vi.fn(async () => undefined),
+      dispose: vi.fn(async () => undefined),
+    };
+    const page = makePage();
+    page.inpaintedImagePath = join(testLogDirectory, "old-clean.png");
+    page.translationCompletion = {
+      workflow: "erase-original",
+      status: "pending",
+    };
+    const { inpaintPatternPage } =
+      await import("../src/main/inpainting/patternPage");
+
+    await inpaintPatternPage(page, { inpaintingEngine: engine });
+
+    expect(nativeImageMocks.createFromPath).toHaveBeenCalledWith(
+      page.imagePath,
+    );
+  });
+
+  it("writes changed targets when another target mask stays unchanged", async () => {
     const inpaint = vi.fn<InpaintingEngine["inpaint"]>(async (bitmap) => {
       const offset = (16 * 32 + 16) * 4;
       bitmap[offset] = 0;
@@ -104,8 +139,59 @@ describe("pattern page inpainting result validation", () => {
     });
 
     expect(inpaint).toHaveBeenCalledTimes(1);
-    expect(result).toEqual({ page, blocksErased: 0 });
-    expect(nativeImageMocks.createFromBitmap).not.toHaveBeenCalled();
+    expect(result).toEqual(
+      expect.objectContaining({
+        blocksErased: 1,
+        blocksIncomplete: 1,
+        erasedBlockIds: ["block-1"],
+        incompleteBlockIds: ["block-2"],
+        page: expect.objectContaining({
+          inpaintedImagePath: expect.stringContaining("pattern-"),
+        }),
+      }),
+    );
+    expect(nativeImageMocks.createFromBitmap).toHaveBeenCalledTimes(1);
+  });
+
+  it("excludes previously committed targets while retrying incomplete blocks", async () => {
+    const inpaint = vi.fn<InpaintingEngine["inpaint"]>(async (bitmap) => {
+      const offset = (2 * 32 + 2) * 4;
+      bitmap[offset] = 0;
+      bitmap[offset + 1] = 0;
+      bitmap[offset + 2] = 0;
+    });
+    const engine: InpaintingEngine = {
+      model: "lama-manga",
+      runtimePath: "C:\\runtime\\inpaint.exe",
+      backend: "cpu",
+      runRootDir: "C:\\runtime\\runs",
+      inpaint,
+      dispose: vi.fn(async () => undefined),
+    };
+    const page = makePage();
+    const firstBlock = page.blocks[0];
+    if (!firstBlock) throw new Error("expected block");
+    page.blocks.push({
+      ...structuredClone(firstBlock),
+      id: "block-2",
+      bbox: { x: 0, y: 0, w: 180, h: 180 },
+    });
+    const { inpaintPatternPage } =
+      await import("../src/main/inpainting/patternPage");
+
+    const result = await inpaintPatternPage(page, {
+      excludedBlockIds: ["block-1"],
+      inpaintingEngine: engine,
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        blocksErased: 1,
+        blocksIncomplete: 0,
+        erasedBlockIds: ["block-2"],
+        incompleteBlockIds: [],
+      }),
+    );
   });
 });
 
@@ -113,7 +199,7 @@ function makePage(): MangaPage {
   return {
     id: "page-1",
     name: "page.png",
-    imagePath: "C:\\library\\pages\\page.png",
+    imagePath: join(testLogDirectory, "page.png"),
     dataUrl: "data:image/png;base64,AA==",
     width: 32,
     height: 32,

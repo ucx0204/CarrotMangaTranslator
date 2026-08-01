@@ -6,8 +6,47 @@ import {
 import { translationCompletionsEqual } from "../inpainting/inpaintingRevisionHelpers";
 import type { InpaintingJobContext } from "./inpaintingJobTypes";
 import type { InpaintingJobRuntime } from "./inpaintingJobRuntime";
+import { recordSavedInpaintingChapter } from "./inpaintingJobCompletion";
+import { countIncompleteInpaintingTargets } from "./inpaintingJobPageCompletion";
+import type {
+  InpaintingJobState,
+  ProcessedInpaintingPageResult,
+} from "./inpaintingJobPageTypes";
 
-export async function saveInpaintingPageResult({
+export async function commitProcessedInpaintingPage({
+  context,
+  result,
+  targetPage,
+  runtime,
+  state,
+}: {
+  context: InpaintingJobContext;
+  result: ProcessedInpaintingPageResult;
+  targetPage: { chapterId: string; page: MangaPage };
+  runtime: InpaintingJobRuntime;
+  state: InpaintingJobState;
+}): Promise<void> {
+  if (result.blocksErased <= 0 && !result.workflowReceiptChanged) return;
+  const savedChapter = await saveInpaintingPageResult({
+    context,
+    result,
+    transactionId: state.historyTransactionId,
+    targetPage,
+    runtime,
+  });
+  recordSavedInpaintingChapter(state, targetPage.chapterId, savedChapter);
+  if (result.blocksErased > 0) {
+    state.blocksErased += result.blocksErased;
+    state.pagesChanged += 1;
+  }
+  const blocksIncomplete = countIncompleteInpaintingTargets(result);
+  if (blocksIncomplete > 0) {
+    state.blocksIncomplete += blocksIncomplete;
+    state.pagesIncomplete += 1;
+  }
+}
+
+async function saveInpaintingPageResult({
   context,
   result,
   transactionId,

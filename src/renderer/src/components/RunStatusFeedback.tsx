@@ -21,6 +21,17 @@ export function RunJobFeedback({
       </div>
     );
   }
+  if (jobState.status === "partial") {
+    return (
+      <div className="job-partial-card" role="status">
+        <strong>{jobState.progressText}</strong>
+        {jobState.detail?.trim() &&
+        jobState.detail.trim() !== jobState.progressText.trim() ? (
+          <p>{jobState.detail}</p>
+        ) : null}
+      </div>
+    );
+  }
   if (
     jobState.status === "completed" ||
     isCompleteProgressSnapshot(progressSnapshot)

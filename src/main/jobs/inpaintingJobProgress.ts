@@ -128,6 +128,33 @@ export function emitInpaintingCompleted(
   });
 }
 
+export function emitInpaintingPartial(
+  id: string,
+  emit: EmitJobEvent,
+  pageCount: number,
+  pagesIncomplete: number,
+  blocksErased: number,
+  blocksIncomplete: number,
+  targetType: InpaintingProgressTarget["targetType"],
+): void {
+  const targetLabel = resolveTargetLabel(targetType);
+  emit({
+    id,
+    kind: "inpainting",
+    status: "partial",
+    progressText: tMain("inpainting.partial", { target: targetLabel }),
+    phase: "partial",
+    progressCurrent: pageCount,
+    progressTotal: pageCount,
+    pageTotal: pageCount,
+    detail: tMain("inpainting.partialDetail", {
+      pages: pagesIncomplete,
+      erased: blocksErased,
+      incomplete: blocksIncomplete,
+    }),
+  });
+}
+
 export function emitInpaintingCancelled(
   id: string,
   emit: EmitJobEvent,

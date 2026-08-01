@@ -170,6 +170,220 @@ describe("single-chapter automatic inpainting jobs", () => {
     });
   });
 
+  it("commits a partial page, keeps its receipt pending, and continues later pages", async () => {
+    const chapter = requireChapter(chapters, chapterAId);
+    const firstPage = chapter.pages[0];
+    const secondPage = chapter.pages[1];
+    const firstBlock = firstPage?.blocks[0];
+    if (!firstPage || !secondPage || !firstBlock) {
+      throw new Error("expected two pages and a source block");
+    }
+    const incompleteBlock = {
+      ...firstBlock,
+      id: `${firstPage.id}-incomplete-block`,
+    };
+    firstPage.blocks.push(incompleteBlock);
+    firstPage.translationCompletion = {
+      workflow: "erase-original",
+      status: "pending",
+    };
+    secondPage.translationCompletion = {
+      workflow: "erase-original",
+      status: "pending",
+    };
+    harness.inpaintPatternPage.mockResolvedValueOnce({
+      page: {
+        ...firstPage,
+        inpaintedImagePath: `${firstPage.imagePath}.partial.png`,
+      },
+      blocksErased: 1,
+      blocksIncomplete: 0,
+      erasedBlockIds: [firstBlock.id],
+      incompleteBlockIds: [incompleteBlock.id],
+    });
+    const { startInpaintingJob } =
+      await import("../src/main/jobs/inpaintingJobs");
+
+    const result = await startInpaintingJob(
+      makeContext(send, revisionChanges),
+      {
+        mode: "selection-pattern",
+        workId: "work-a",
+        selections: [{ chapterId: chapterAId, mode: "all" }],
+        postprocess: {
+          bubbleLayout: { enabled: false, policy: "balanced" },
+        },
+      },
+      harness.runtime,
+    );
+
+    expect(result).toMatchObject({
+      status: "partial",
+      pagesChanged: 2,
+      pagesIncomplete: 1,
+      blocksErased: 2,
+      blocksIncomplete: 1,
+    });
+    expect(harness.inpaintPatternPage).toHaveBeenCalledTimes(2);
+    expect(
+      harness.inpaintPatternPage.mock.calls.map(([page]) => page.id),
+    ).toEqual([pageA1Id, pageA2Id]);
+    expect(result.chapters?.[0]?.pages[0]?.translationCompletion).toEqual({
+      workflow: "erase-original",
+      status: "pending",
+      erasedBlockIds: [firstBlock.id],
+    });
+    expect(result.chapters?.[0]?.pages[1]?.translationCompletion?.status).toBe(
+      "completed",
+    );
+    expect(revisionChanges).toHaveLength(2);
+    expect(revisionChanges[0]).toMatchObject({
+      pageId: pageA1Id,
+      afterPath: `${firstPage.imagePath}.partial.png`,
+      afterTranslationCompletion: {
+        workflow: "erase-original",
+        status: "pending",
+        erasedBlockIds: [firstBlock.id],
+      },
+    });
+    expect(send.mock.calls.at(-1)?.[1]).toMatchObject({
+      status: "partial",
+      phase: "partial",
+    });
+  });
+
+  it("includes a saved partial page in pending mode and retries only unfinished blocks", async () => {
+    const chapter = requireChapter(chapters, chapterAId);
+    const partialPage = chapter.pages[0];
+    const completedPage = chapter.pages[1];
+    const alreadyErasedBlock = partialPage?.blocks[0];
+    if (!partialPage || !completedPage || !alreadyErasedBlock) {
+      throw new Error("expected two pages and a source block");
+    }
+    const remainingBlock = {
+      ...alreadyErasedBlock,
+      id: `${partialPage.id}-remaining-block`,
+    };
+    partialPage.blocks.push(remainingBlock);
+    partialPage.inpaintedImagePath = `${partialPage.imagePath}.partial.png`;
+    partialPage.translationCompletion = {
+      workflow: "erase-original",
+      status: "pending",
+      erasedBlockIds: [alreadyErasedBlock.id],
+    };
+    completedPage.inpaintedImagePath = `${completedPage.imagePath}.done.png`;
+    completedPage.translationCompletion = {
+      workflow: "erase-original",
+      status: "completed",
+    };
+    harness.inpaintPatternPage.mockImplementationOnce(async (page, options) => {
+      expect(options?.excludedBlockIds).toEqual([alreadyErasedBlock.id]);
+      return {
+        page: {
+          ...page,
+          inpaintedImagePath: `${page.imagePath}.done.png`,
+        },
+        blocksErased: 1,
+        blocksIncomplete: 0,
+        erasedBlockIds: [remainingBlock.id],
+        incompleteBlockIds: [],
+      };
+    });
+    const { startInpaintingJob } =
+      await import("../src/main/jobs/inpaintingJobs");
+
+    const result = await startInpaintingJob(
+      makeContext(send, revisionChanges),
+      {
+        mode: "chapter-pattern-pending",
+        chapterId: chapterAId,
+        postprocess: {
+          bubbleLayout: { enabled: false, policy: "balanced" },
+        },
+      },
+      harness.runtime,
+    );
+
+    expect(result).toMatchObject({
+      status: "completed",
+      pagesChanged: 1,
+      pagesIncomplete: 0,
+      blocksErased: 1,
+      blocksIncomplete: 0,
+    });
+    expect(harness.inpaintPatternPage).toHaveBeenCalledTimes(1);
+    expect(result.chapter?.pages[0]?.translationCompletion).toEqual({
+      workflow: "erase-original",
+      status: "completed",
+      erasedBlockIds: [alreadyErasedBlock.id, remainingBlock.id],
+    });
+    expect(result.chapter?.pages[1]?.inpaintedImagePath).toBe(
+      completedPage.inpaintedImagePath,
+    );
+  });
+
+  it("retries a failed completion even when an older inpainted artifact exists", async () => {
+    const chapter = requireChapter(chapters, chapterAId);
+    const failedPage = chapter.pages[0];
+    const completedPage = chapter.pages[1];
+    const failedBlock = failedPage?.blocks[0];
+    if (!failedPage || !completedPage || !failedBlock) {
+      throw new Error("expected two pages and a source block");
+    }
+    failedPage.inpaintedImagePath = `${failedPage.imagePath}.stale.png`;
+    failedPage.translationCompletion = {
+      workflow: "erase-original",
+      status: "failed",
+    };
+    completedPage.inpaintedImagePath = `${completedPage.imagePath}.done.png`;
+    completedPage.translationCompletion = {
+      workflow: "erase-original",
+      status: "completed",
+    };
+    harness.inpaintPatternPage.mockImplementationOnce(async (page) => ({
+      page: {
+        ...page,
+        inpaintedImagePath: `${page.imagePath}.retried.png`,
+      },
+      blocksErased: 1,
+      blocksIncomplete: 0,
+      erasedBlockIds: [failedBlock.id],
+      incompleteBlockIds: [],
+    }));
+    const { startInpaintingJob } =
+      await import("../src/main/jobs/inpaintingJobs");
+
+    const result = await startInpaintingJob(
+      makeContext(send, revisionChanges),
+      {
+        mode: "chapter-pattern-pending",
+        chapterId: chapterAId,
+        postprocess: {
+          bubbleLayout: { enabled: false, policy: "balanced" },
+        },
+      },
+      harness.runtime,
+    );
+
+    expect(result).toMatchObject({
+      status: "completed",
+      pagesChanged: 1,
+      blocksErased: 1,
+    });
+    expect(harness.inpaintPatternPage).toHaveBeenCalledTimes(1);
+    expect(result.chapter?.pages[0]).toMatchObject({
+      inpaintedImagePath: `${failedPage.imagePath}.retried.png`,
+      translationCompletion: {
+        workflow: "erase-original",
+        status: "completed",
+        erasedBlockIds: [failedBlock.id],
+      },
+    });
+    expect(result.chapter?.pages[1]?.inpaintedImagePath).toBe(
+      completedPage.inpaintedImagePath,
+    );
+  });
+
   it("fails before engine acquisition when every selected block is ineligible", async () => {
     const chapter = requireChapter(chapters, chapterAId);
     const firstBlock = chapter.pages[0]?.blocks[0];

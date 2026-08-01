@@ -45,6 +45,7 @@ export async function startInpaintingJob(
 
   try {
     const targets = await resolveInpaintingJobPages(request, state, runtime);
+    inferRequestedCompletionWorkflow(request, state, targets);
     recordInpaintingTargetPages(state, targets);
     if (targets.length === 0) {
       emit({
@@ -66,6 +67,8 @@ export async function startInpaintingJob(
         error: tMain("inpainting.pageNotFound"),
         pagesChanged: state.pagesChanged,
         blocksErased: state.blocksErased,
+        pagesIncomplete: state.pagesIncomplete,
+        blocksIncomplete: state.blocksIncomplete,
       };
     }
     return await runInpaintingPagesJob({
@@ -107,7 +110,9 @@ function createInpaintingJobState(
     bubbleLayoutRunner: null,
     bubbleLayoutPostprocess: null,
     pagesChanged: 0,
+    pagesIncomplete: 0,
     blocksErased: 0,
+    blocksIncomplete: 0,
     targetPageIds: new Map(),
     ...resolveRequestedCompletionWorkflow(request),
   };
@@ -126,6 +131,49 @@ function resolveRequestedCompletionWorkflow(
     return { requestedCompletionWorkflow: "erase-original" };
   }
   return {};
+}
+
+function inferRequestedCompletionWorkflow(
+  request: StartInpaintingRequest,
+  state: InpaintingJobState,
+  targets: readonly InpaintingJobPage[],
+): void {
+  if (!canInferFullPageCompletionWorkflow(request)) return;
+  const workflows = new Set(
+    targets.flatMap(({ page }) =>
+      page.translationCompletion ? [page.translationCompletion.workflow] : [],
+    ),
+  );
+  if (workflows.size > 1) {
+    throw new Error(tMain("inpainting.mixedCompletionWorkflows"));
+  }
+  const inferredWorkflow = [...workflows][0];
+  if (
+    state.requestedCompletionWorkflow &&
+    inferredWorkflow &&
+    targets.some(
+      ({ page }) =>
+        page.translationCompletion?.status === "pending" &&
+        page.translationCompletion.workflow !==
+          state.requestedCompletionWorkflow,
+    )
+  ) {
+    throw new Error(tMain("inpainting.mixedCompletionWorkflows"));
+  }
+  if (state.requestedCompletionWorkflow) return;
+  if (workflows.size === 1) {
+    state.requestedCompletionWorkflow = inferredWorkflow;
+  }
+}
+
+function canInferFullPageCompletionWorkflow(
+  request: StartInpaintingRequest,
+): boolean {
+  return (
+    request.mode === "selection-pattern" ||
+    request.mode === "chapter-pattern-pending" ||
+    (request.mode === "page-pattern" && request.blockId === undefined)
+  );
 }
 
 function recordInpaintingTargetPages(
@@ -183,7 +231,12 @@ async function resolveInpaintingJobPages(
     state.chapters.set(chapter.id, chapter);
     const pages =
       request.mode === "chapter-pattern-pending"
-        ? chapter.pages.filter((page) => !page.inpaintedImagePath)
+        ? chapter.pages.filter(
+            (page) =>
+              !page.inpaintedImagePath ||
+              (page.translationCompletion !== undefined &&
+                page.translationCompletion.status !== "completed"),
+          )
         : chapter.pages.filter((page) => page.id === request.pageId);
     return pages.map((page) => ({ chapterId: chapter.id, page }));
   }

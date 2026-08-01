@@ -78,6 +78,42 @@ describe("pattern page text masks", () => {
     expect(context.pageMask[centers[1].y * width + centers[1].x]).toBe(1);
   });
 
+  it("keeps validation ownership while excluding previously committed blocks", () => {
+    const width = 128;
+    const height = 64;
+    const page = createPage(width, height);
+
+    const context = buildPatternPageMask({
+      page,
+      bitmap: Buffer.alloc(width * height * 4, 255),
+      width,
+      height,
+      excludedBlockIds: ["block-1"],
+    });
+
+    expect(context.blocksErased).toBe(1);
+    expect(context.validationBlockIds).toEqual(["block-2"]);
+    expect(context.validationWindowMasks).toHaveLength(1);
+  });
+
+  it("allows an explicitly requested block even when it was previously committed", () => {
+    const width = 128;
+    const height = 64;
+    const page = createPage(width, height);
+
+    const context = buildPatternPageMask({
+      blockId: "block-1",
+      page,
+      bitmap: Buffer.alloc(width * height * 4, 255),
+      width,
+      height,
+      excludedBlockIds: ["block-1"],
+    });
+
+    expect(context.blocksErased).toBe(1);
+    expect(context.validationBlockIds).toEqual(["block-1"]);
+  });
+
   it("passes a detected text mask directly to the engine window", () => {
     const width = 80;
     const height = 80;

@@ -106,6 +106,11 @@ describe("job event dispatch queue", () => {
     expect(
       shouldCoalesceJobEvent(makeEvent({ status: "failed", phase: "failed" })),
     ).toBe(false);
+    expect(
+      shouldCoalesceJobEvent(
+        makeEvent({ status: "partial", phase: "partial" }),
+      ),
+    ).toBe(false);
   });
 });
 

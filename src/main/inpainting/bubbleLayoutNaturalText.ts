@@ -15,14 +15,17 @@ export function applyBubbleNaturalTextLayout(
   page: MangaPage,
   config: BubbleNaturalTextLayoutConfig | undefined,
   blockId?: string,
+  blockIds?: readonly string[],
 ): MangaPage {
   if (!config) {
     return page;
   }
+  const allowedBlockIds = blockIds ? new Set(blockIds) : null;
   let changed = false;
   const blocks = page.blocks.map((block) => {
     if (
       (blockId && block.id !== blockId) ||
+      (allowedBlockIds && !allowedBlockIds.has(block.id)) ||
       block.curveLayout ||
       !isUsableBubbleLayout(block.bubbleLayout)
     ) {

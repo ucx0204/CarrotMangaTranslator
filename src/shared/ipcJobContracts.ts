@@ -67,13 +67,21 @@ const regionAnalysisResultSchema = startAnalysisResultSchema
       .optional(),
   })
   .strict();
+const inpaintingResultStatusSchema = z.enum([
+  "completed",
+  "partial",
+  "cancelled",
+  "failed",
+]);
 const startInpaintingResultSchema = z
   .object({
-    status: analysisResultStatusSchema,
+    status: inpaintingResultStatusSchema,
     chapter: ChapterSnapshotSchema.optional(),
     chapters: z.array(ChapterSnapshotSchema).max(MAX_ID_LIST_LENGTH).optional(),
     pagesChanged: nonNegativeInteger.optional(),
     blocksErased: nonNegativeInteger.optional(),
+    pagesIncomplete: nonNegativeInteger.optional(),
+    blocksIncomplete: nonNegativeInteger.optional(),
     historyTransaction: z
       .object({ transactionId: z.string().uuid() })
       .strict()

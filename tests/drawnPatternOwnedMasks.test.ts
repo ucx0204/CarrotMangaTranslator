@@ -78,6 +78,7 @@ describe("drawn-pattern block-owned masks", () => {
     });
 
     expect(result.blocksErased).toBe(2);
+    expect(result.blocksIncomplete).toBe(0);
     expect(inpaint).toHaveBeenCalledOnce();
     const call = inpaint.mock.calls[0];
     const pageMask = call[3];
@@ -135,7 +136,7 @@ describe("drawn-pattern block-owned masks", () => {
       strokes: [{ points: [{ x: 32, y: 32 }], radiusPx: 3 }],
     });
 
-    expect(result).toEqual({ page, blocksErased: 0 });
+    expect(result).toEqual({ page, blocksErased: 0, blocksIncomplete: 1 });
     expect(inpaint).toHaveBeenCalledWith(
       expect.any(Buffer),
       width,

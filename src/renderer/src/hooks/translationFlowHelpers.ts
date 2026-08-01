@@ -3,7 +3,12 @@ import type { TranslationCompletionWorkflow } from "../../../shared/libraryTypes
 import type { TFunction } from "i18next";
 import type { ChapterRunSelection } from "../lib/translationSelection";
 
-export type RunAnalysisOutcome = "completed" | "cancelled" | "failed" | "no-op";
+export type RunAnalysisOutcome =
+  | "completed"
+  | "partial"
+  | "cancelled"
+  | "failed"
+  | "no-op";
 
 type ExecuteAnalysisArgs = {
   runMode: "pending" | "all" | "single-page" | "page-set";
@@ -42,19 +47,10 @@ export async function runSelectionsSequentially(
   deferTerminalFailure?: boolean,
 ): Promise<RunAnalysisOutcome> {
   let anyCompleted = false;
+  let anyPartial = false;
   let anyAttempted = false;
   for (let index = 0; index < selections.length; index += 1) {
-    if (selections.length > 1) {
-      pushStatus(
-        t
-          ? t("translation.flow.chapterProgress", {
-              pass: passLabel,
-              current: index + 1,
-              total: selections.length,
-            })
-          : `${passLabel} 번역 ${index + 1}/${selections.length}화`,
-      );
-    }
+    pushChapterProgress(pushStatus, passLabel, index, selections.length, t);
     const selection = selections[index];
     const outcome = await execute({
       runMode: selection.mode,
@@ -67,21 +63,43 @@ export async function runSelectionsSequentially(
       completionWorkflow,
       deferTerminalFailure,
     });
-    if (outcome === "cancelled") {
-      return "cancelled";
-    }
-    if (outcome !== "no-op") {
-      anyAttempted = true;
-    }
-    if (outcome === "completed") {
-      anyCompleted = true;
-    }
-    if (outcome === "failed") {
-      return "failed";
-    }
+    const terminalOutcome = getTerminalAnalysisOutcome(outcome);
+    if (terminalOutcome) return terminalOutcome;
+    anyAttempted ||= outcome !== "no-op";
+    anyCompleted ||= outcome === "completed";
+    anyPartial ||= outcome === "partial";
+  }
+  if (anyPartial) {
+    return "partial";
   }
   if (anyCompleted) {
     return "completed";
   }
   return anyAttempted ? "failed" : "no-op";
+}
+
+function pushChapterProgress(
+  pushStatus: (line: string) => void,
+  passLabel: string,
+  index: number,
+  total: number,
+  t?: TFunction<"renderer">,
+): void {
+  if (total <= 1) return;
+  pushStatus(
+    t
+      ? t("translation.flow.chapterProgress", {
+          pass: passLabel,
+          current: index + 1,
+          total,
+        })
+      : `${passLabel} 번역 ${index + 1}/${total}화`,
+  );
+}
+
+function getTerminalAnalysisOutcome(
+  outcome: RunAnalysisOutcome,
+): "cancelled" | "failed" | undefined {
+  if (outcome === "cancelled" || outcome === "failed") return outcome;
+  return undefined;
 }

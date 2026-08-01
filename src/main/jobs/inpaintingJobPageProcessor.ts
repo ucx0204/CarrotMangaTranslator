@@ -6,6 +6,10 @@ import {
   type InpaintingBlockLayoutState,
 } from "../inpainting/inpaintingLayoutState";
 import {
+  resolveEligiblePatternBlocks,
+  shouldUseOriginalPatternImage,
+} from "../inpainting/patternBlockEligibility";
+import {
   runBubbleLayoutMaskPrepass,
   runBubbleLayoutOnlyPage,
 } from "./bubbleLayoutJob";
@@ -20,9 +24,11 @@ import { tMain } from "./localization";
 import {
   assertInpaintingPageCanRun,
   assertRequiredBubblePostprocess,
+  canCompleteTranslationWorkflowWithoutTargets,
   completeTargetlessInpaintingPage,
   completeTranslationWorkflow,
   countInpaintingPageTargets,
+  resolvePreviouslyErasedBlockIds,
 } from "./inpaintingJobPageCompletion";
 import {
   emitInpaintingPageDone,
@@ -59,8 +65,14 @@ export async function processInpaintingPage({
   target,
   runtime,
 }: ProcessInpaintingPageOptions): Promise<ProcessedInpaintingPageResult> {
-  assertInpaintingPageCanRun(abortController.signal, page, target);
-  const pageTargetCount = countInpaintingPageTargets(page, target);
+  const pageTargetCount = countInpaintingPageTargets(page, state, target);
+  assertInpaintingPageCanRun(
+    abortController.signal,
+    page,
+    target,
+    pageTargetCount === 0 &&
+      canCompleteTranslationWorkflowWithoutTargets(page, state, target),
+  );
   emitInpaintingPageRunning(id, emit, page, pageIndex, pageCount, {
     pageTargetCount,
     target,
@@ -157,6 +169,7 @@ async function runInpaintingPagePipeline({
       })
     : await runtime.inpaintPatternPage(maskPreparation.page, {
         blockId: target.blockId,
+        excludedBlockIds: resolvePreviouslyErasedBlockIds(page, state, target),
         signal,
         decodeFallback: context.decodeImage,
         inpaintingEngine: state.inpaintingEngineLease?.engine,
@@ -192,6 +205,7 @@ async function runInpaintingPagePipeline({
   const processed = await runBubbleLayoutPostprocess({
     config: state.bubbleLayoutPostprocess,
     blockId: target.blockId,
+    ...resolveBubblePostprocessBlockSelection(target, result),
     page: result.page,
     runner: state.bubbleLayoutRunner,
     signal,
@@ -201,6 +215,15 @@ async function runInpaintingPagePipeline({
     ...processed,
     bubbleLayoutPostprocessed: true,
   };
+}
+
+function resolveBubblePostprocessBlockSelection(
+  target: InpaintingTarget,
+  result: ProcessedInpaintingPageResult,
+): { blockIds?: readonly string[] } {
+  return target.blockId === undefined && result.erasedBlockIds
+    ? { blockIds: result.erasedBlockIds }
+    : {};
 }
 
 async function preparePatternMaskPage({
@@ -226,10 +249,26 @@ async function preparePatternMaskPage({
   ) {
     return { page };
   }
+  const previouslyErasedBlockIds = resolvePreviouslyErasedBlockIds(
+    page,
+    state,
+    target,
+  );
+  const retryBlockIds = previouslyErasedBlockIds?.length
+    ? resolveEligiblePatternBlocks(
+        page,
+        target.blockId,
+        previouslyErasedBlockIds,
+      ).map((block) => block.id)
+    : undefined;
+  const prepassPage = shouldUseOriginalPatternImage(page)
+    ? { ...page, inpaintedImagePath: undefined }
+    : page;
   const prepared = await runBubbleLayoutMaskPrepass({
     blockId: target.blockId,
+    ...(retryBlockIds ? { blockIds: retryBlockIds } : {}),
     config: state.bubbleLayoutPostprocess,
-    page,
+    page: prepassPage,
     runner: state.bubbleLayoutRunner,
     signal,
   });

@@ -8,6 +8,7 @@ import { inpaintingGateway } from "../api/inpaintingGateway";
 
 type InpaintingSelectionOutcome =
   | "completed"
+  | "partial"
   | "cancelled"
   | "failed"
   | "no-op";
@@ -22,6 +23,8 @@ export type SequentialInpaintingResult = {
   status: InpaintingSelectionOutcome;
   pagesChanged: number;
   blocksErased: number;
+  pagesIncomplete: number;
+  blocksIncomplete: number;
   error?: string;
 };
 
@@ -29,13 +32,22 @@ type ChapterInpaintingAttempt = {
   status: Exclude<InpaintingSelectionOutcome, "no-op">;
   pagesChanged: number;
   blocksErased: number;
+  pagesIncomplete: number;
+  blocksIncomplete: number;
   error?: string;
+};
+
+type InpaintingAggregate = Omit<
+  SequentialInpaintingResult,
+  "status" | "error"
+> & {
+  anyPartial: boolean;
 };
 
 /**
  * Runs one main-process inpainting job per chapter. Completed changes from an
- * earlier chapter are preserved, but a failed or cancelled chapter stops the
- * remaining selections so a later chapter can never overtake incomplete work.
+ * earlier chapter are preserved. A partially completed chapter is persisted
+ * and the flow continues; only a hard failure or cancellation stops it.
  */
 export async function runInpaintingSelectionsSequentially({
   onResult,
@@ -56,16 +68,20 @@ export async function runInpaintingSelectionsSequentially({
   workId: string;
 }): Promise<SequentialInpaintingResult> {
   if (selections.length === 0) {
-    return { status: "no-op", pagesChanged: 0, blocksErased: 0 };
+    return {
+      status: "no-op",
+      pagesChanged: 0,
+      blocksErased: 0,
+      pagesIncomplete: 0,
+      blocksIncomplete: 0,
+    };
   }
   const isCancellationRequested = shouldCancel ?? NEVER_CANCEL;
-
-  let pagesChanged = 0;
-  let blocksErased = 0;
+  const aggregate = createInpaintingAggregate();
 
   for (const selection of selections) {
     if (isCancellationRequested()) {
-      return { status: "cancelled", pagesChanged, blocksErased };
+      return createSequentialInpaintingResult("cancelled", aggregate);
     }
     const attempt = await runChapterInpainting({
       onResult,
@@ -74,25 +90,69 @@ export async function runInpaintingSelectionsSequentially({
       startInpainting,
       workId,
     });
-    pagesChanged += attempt.pagesChanged;
-    blocksErased += attempt.blocksErased;
-    if (attempt.status === "cancelled" || isCancellationRequested()) {
-      return { status: "cancelled", pagesChanged, blocksErased };
-    }
-    if (attempt.status === "failed") {
-      return {
-        status: "failed",
-        pagesChanged,
-        blocksErased,
-        ...(attempt.error ? { error: attempt.error } : {}),
-      };
+    addChapterAttempt(aggregate, attempt);
+    const terminalStatus = getTerminalInpaintingStatus(
+      attempt,
+      isCancellationRequested(),
+    );
+    if (terminalStatus) {
+      return createSequentialInpaintingResult(
+        terminalStatus,
+        aggregate,
+        attempt.error,
+      );
     }
   }
 
+  return createSequentialInpaintingResult(
+    aggregate.anyPartial ? "partial" : "completed",
+    aggregate,
+  );
+}
+
+function createInpaintingAggregate(): InpaintingAggregate {
   return {
-    status: "completed",
-    pagesChanged,
-    blocksErased,
+    pagesChanged: 0,
+    blocksErased: 0,
+    pagesIncomplete: 0,
+    blocksIncomplete: 0,
+    anyPartial: false,
+  };
+}
+
+function addChapterAttempt(
+  aggregate: InpaintingAggregate,
+  attempt: ChapterInpaintingAttempt,
+): void {
+  aggregate.pagesChanged += attempt.pagesChanged;
+  aggregate.blocksErased += attempt.blocksErased;
+  aggregate.pagesIncomplete += attempt.pagesIncomplete;
+  aggregate.blocksIncomplete += attempt.blocksIncomplete;
+  aggregate.anyPartial ||= attempt.status === "partial";
+}
+
+function getTerminalInpaintingStatus(
+  attempt: ChapterInpaintingAttempt,
+  cancellationRequested: boolean,
+): "cancelled" | "failed" | undefined {
+  if (attempt.status === "cancelled" || cancellationRequested) {
+    return "cancelled";
+  }
+  return attempt.status === "failed" ? "failed" : undefined;
+}
+
+function createSequentialInpaintingResult(
+  status: SequentialInpaintingResult["status"],
+  aggregate: InpaintingAggregate,
+  error?: string,
+): SequentialInpaintingResult {
+  return {
+    status,
+    pagesChanged: aggregate.pagesChanged,
+    blocksErased: aggregate.blocksErased,
+    pagesIncomplete: aggregate.pagesIncomplete,
+    blocksIncomplete: aggregate.blocksIncomplete,
+    ...(status === "failed" && error ? { error } : {}),
   };
 }
 
@@ -117,30 +177,61 @@ async function runChapterInpainting({
       createChapterInpaintingRequest(workId, selection, postprocess),
     );
     await onResult?.(result, selection);
-    const counts = {
-      pagesChanged: Math.max(0, result.pagesChanged ?? 0),
-      blocksErased: Math.max(0, result.blocksErased ?? 0),
-    };
-    if (result.status === "cancelled") {
-      return { status: "cancelled", ...counts };
-    }
-    if (isSuccessfulChapterResult(result, selection, postprocess)) {
-      return { status: "completed", ...counts };
-    }
-    return {
-      status: "failed",
-      ...counts,
-      ...(result.error?.trim() ? { error: result.error.trim() } : {}),
-    };
+    return toChapterInpaintingAttempt(result, selection, postprocess);
   } catch (error) {
     console.error(error);
     return {
       status: "failed",
       pagesChanged: 0,
       blocksErased: 0,
+      pagesIncomplete: 0,
+      blocksIncomplete: 0,
       error: error instanceof Error ? error.message : String(error),
     };
   }
+}
+
+function toChapterInpaintingAttempt(
+  result: StartInpaintingResult,
+  selection: AutoInpaintingChapterSelection,
+  postprocess: InpaintingPostprocessOptions | undefined,
+): ChapterInpaintingAttempt {
+  const counts = {
+    pagesChanged: Math.max(0, result.pagesChanged ?? 0),
+    blocksErased: Math.max(0, result.blocksErased ?? 0),
+    pagesIncomplete: Math.max(0, result.pagesIncomplete ?? 0),
+    blocksIncomplete: Math.max(0, result.blocksIncomplete ?? 0),
+  };
+  if (result.status === "cancelled") {
+    return { status: "cancelled", ...counts };
+  }
+  if (isSuccessfulChapterResult(result, selection, postprocess)) {
+    return { status: "completed", ...counts };
+  }
+  if (isPartialChapterResult(result, selection)) {
+    return { status: "partial", ...counts };
+  }
+  return {
+    status: "failed",
+    ...counts,
+    ...(result.error?.trim() ? { error: result.error.trim() } : {}),
+  };
+}
+
+function isPartialChapterResult(
+  result: StartInpaintingResult,
+  selection: AutoInpaintingChapterSelection,
+): boolean {
+  return (
+    result.status === "partial" &&
+    (result.pagesChanged ?? 0) > 0 &&
+    (result.blocksErased ?? 0) > 0 &&
+    Boolean(
+      result.chapters?.some(
+        (candidate) => candidate.id === selection.chapterId,
+      ),
+    )
+  );
 }
 
 function createChapterInpaintingRequest(

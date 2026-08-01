@@ -28,7 +28,7 @@ export function assertInpaintingJobHasTargets(
     !targets.some(
       ({ page }) =>
         pageHasMatchingTranslationCompletion(page, state, target) &&
-        canCompleteTranslationWorkflowWithoutTargets(page, target),
+        canCompleteTranslationWorkflowWithoutTargets(page, state, target),
     )
   ) {
     throw new Error(tMain("inpainting.noTargets"));
@@ -52,7 +52,8 @@ export async function markFailedTranslationCompletions(
         const completion = page.translationCompletion;
         return targetPageIds.has(page.id) &&
           completion?.workflow === expectedWorkflow &&
-          completion.status === "pending"
+          completion.status === "pending" &&
+          !completion.erasedBlockIds?.length
           ? [
               {
                 ...page,

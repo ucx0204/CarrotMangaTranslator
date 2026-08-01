@@ -20,6 +20,11 @@ const TranslationCompletionReceiptSchema = z
   .object({
     workflow: z.enum(["erase-original", "bubble-layout"]),
     status: z.enum(["pending", "completed", "failed"]),
+    erasedBlockIds: z
+      .array(z.string().min(1).max(200))
+      .max(MAX_BLOCKS_PER_PAGE)
+      .refine((ids) => new Set(ids).size === ids.length)
+      .optional(),
   })
   .strict();
 const ChapterStatusSchema = z.enum([

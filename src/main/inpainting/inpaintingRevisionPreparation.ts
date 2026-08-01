@@ -107,7 +107,10 @@ export function prepareInpaintingRevertRevision({
   revertedPage: MangaPage;
 } {
   const pendingTranslationCompletion = page.translationCompletion
-    ? { ...page.translationCompletion, status: "pending" as const }
+    ? {
+        workflow: page.translationCompletion.workflow,
+        status: "pending" as const,
+      }
     : undefined;
   return {
     change: {

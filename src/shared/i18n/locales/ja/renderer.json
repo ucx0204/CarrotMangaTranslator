@@ -51,6 +51,7 @@
       "ready": "モデルの準備完了",
       "cancelled": "処理をキャンセルしました",
       "failed": "処理に失敗しました",
+      "partial": "処理は一部完了しました",
       "ocrPreparing": "Paddle OCRを準備中",
       "modelRequesting": "AI翻訳をリクエスト中",
       "pageRunning": "翻訳中",
@@ -68,6 +69,7 @@
       "cancelling": "処理をキャンセル中",
       "cancelled": "処理をキャンセルしました",
       "failed": "処理に失敗しました",
+      "partial": "処理は一部完了しました",
       "completed": "翻訳完了",
       "idle": "待機中"
     },
@@ -79,6 +81,7 @@
     },
     "notifications": {
       "completed": "処理が完了しました。",
+      "partial": "一部のブロックで処理に失敗しました。",
       "failed": "処理に失敗しました。",
       "cancelled": "処理をキャンセルしました。",
       "openLogs": "ログフォルダーを開く",
@@ -307,7 +310,8 @@
       "saveFailed": "原文を消去する前に変更を保存できませんでした。",
       "startFailed": "原文の消去を開始できませんでした。",
       "failed": "原文の消去に失敗しました。",
-      "success": "原文の消去完了: {{pages}}ページ、{{blocks}}ブロック"
+      "success": "原文の消去完了: {{pages}}ページ、{{blocks}}ブロック",
+      "partial": "{{incompleteBlocks}}ブロックで処理に失敗しました。"
     },
     "bubbleLayout": {
       "requiresBlocks": "吹き出しを検出するテキストブロックがありません。",
@@ -376,14 +380,17 @@
     },
     "refreshWarning": "翻訳は完了しましたが、ライブラリを更新できませんでした。",
     "eraseOriginalWorkflowCompleted": "翻訳と原文消去が完了しました。",
+    "eraseOriginalWorkflowPartial": "一部のブロックで原文消去に失敗しました。",
     "eraseOriginalWorkflowFailed": "翻訳後の原文消去に失敗しました。",
     "bubbleLayoutWorkflowCompleted": "翻訳・自動消去・吹き出しフィットが完了しました。",
+    "bubbleLayoutWorkflowPartial": "一部のブロックで後処理に失敗しました。",
     "bubbleLayoutWorkflowFailed": "翻訳後の自動消去・吹き出しフィットに失敗しました。",
     "flow": {
       "firstPass": "1回目",
       "secondPass": "2回目",
       "chapterProgress": "{{pass}}翻訳 {{current}}/{{total}}話",
       "completed": "翻訳が完了しました。",
+      "partial": "一部のブロックで後処理に失敗しました。",
       "contextAnalysis": "AI用語／メモリを解析中",
       "contextSkipped": "1回目の翻訳完了（AI解析をスキップ）",
       "contextFailed": "AI用語／メモリ解析に失敗したため、1回目の翻訳結果のみ保持します。",

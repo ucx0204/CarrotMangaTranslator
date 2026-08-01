@@ -51,6 +51,7 @@
       "ready": "模型准备完成",
       "cancelled": "任务已取消",
       "failed": "任务失败",
+      "partial": "任务部分完成",
       "ocrPreparing": "正在准备 Paddle OCR",
       "modelRequesting": "正在请求 AI 翻译",
       "pageRunning": "正在翻译",
@@ -68,6 +69,7 @@
       "cancelling": "正在取消任务",
       "cancelled": "任务已取消",
       "failed": "任务失败",
+      "partial": "任务部分完成",
       "completed": "翻译完成",
       "idle": "等待中"
     },
@@ -79,6 +81,7 @@
     },
     "notifications": {
       "completed": "任务已完成。",
+      "partial": "部分文本块处理失败。",
       "failed": "任务失败。",
       "cancelled": "任务已取消。",
       "openLogs": "打开日志文件夹",
@@ -304,7 +307,8 @@
       "saveFailed": "擦除原文前无法保存修改。",
       "startFailed": "无法开始擦除原文。",
       "failed": "擦除原文失败。",
-      "success": "原文擦除完成：{{pages}}页，{{blocks}}个文本块"
+      "success": "原文擦除完成：{{pages}}页，{{blocks}}个文本块",
+      "partial": "{{incompleteBlocks}} 个文本块处理失败。"
     },
     "bubbleLayout": {
       "requiresBlocks": "没有可用于检测气泡的文本块。",
@@ -373,14 +377,17 @@
     },
     "refreshWarning": "翻译已完成，但无法刷新资料库。",
     "eraseOriginalWorkflowCompleted": "翻译和原文擦除已完成。",
+    "eraseOriginalWorkflowPartial": "部分文本块原文擦除失败。",
     "eraseOriginalWorkflowFailed": "翻译后的原文擦除失败。",
     "bubbleLayoutWorkflowCompleted": "翻译、自动擦除和气泡适配已完成。",
+    "bubbleLayoutWorkflowPartial": "部分文本块后处理失败。",
     "bubbleLayoutWorkflowFailed": "翻译后的自动擦除和气泡适配失败。",
     "flow": {
       "firstPass": "第一遍",
       "secondPass": "第二遍",
       "chapterProgress": "{{pass}}翻译 {{current}}/{{total}}章",
       "completed": "翻译已完成。",
+      "partial": "部分文本块后处理失败。",
       "contextAnalysis": "正在分析 AI 术语/记忆",
       "contextSkipped": "第一遍翻译完成（已跳过 AI 分析）",
       "contextFailed": "AI 术语/记忆分析失败，仅保留第一遍翻译结果。",

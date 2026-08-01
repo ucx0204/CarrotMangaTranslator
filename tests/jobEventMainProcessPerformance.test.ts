@@ -100,6 +100,29 @@ describe("main-process job event throughput", () => {
     );
   });
 
+  it("treats a partial result as terminal and ignores later child progress", () => {
+    const jobs = new ActiveJobStore();
+    jobs.start({
+      id: "job-1",
+      kind: "inpainting",
+      abortController: new AbortController(),
+    });
+    const send = vi.fn();
+    const mainWindow = { webContents: { send } };
+    const partial = makeEvent({
+      kind: "inpainting",
+      status: "partial",
+      phase: "partial",
+      progressText: "partially complete",
+    });
+
+    emitJobEvent(jobs, mainWindow, partial);
+    emitJobEvent(jobs, mainWindow, progressEvent(1));
+
+    expect(jobs.current?.lastEvent).toEqual(partial);
+    expect(send).toHaveBeenCalledOnce();
+  });
+
   it("surfaces an invalid event contract instead of treating it as a renderer race", () => {
     const jobs = new ActiveJobStore();
     jobs.start({

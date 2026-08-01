@@ -5,28 +5,27 @@ import type {
 import type { JobEvent } from "../../shared/jobTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
 import type { AppSettings } from "../../shared/settingsTypes";
-import { isBubbleLayoutBlockEligible } from "../bubbleLayout/bubbleLayoutBlockEligibility";
-import { countEligiblePatternBlocks } from "../inpainting/patternBlockEligibility";
 import { prepareBubbleLayoutJob } from "./bubbleLayoutJob";
 import {
   assertInpaintingJobHasTargets,
   markFailedTranslationCompletions,
-  recordSavedInpaintingChapter,
   refreshInpaintingRequestChapters,
 } from "./inpaintingJobCompletion";
 import { isAbortError } from "./jobEvents";
 import { processInpaintingPage } from "./inpaintingJobPageProcessor";
+import { countInpaintingPageTargets } from "./inpaintingJobPageCompletion";
 import type {
   InpaintingJobState,
   InpaintingTarget,
 } from "./inpaintingJobPageTypes";
 import type { InpaintingJobContext } from "./inpaintingJobTypes";
 import type { InpaintingJobRuntime } from "./inpaintingJobRuntime";
-import { saveInpaintingPageResult } from "./inpaintingJobHistory";
+import { commitProcessedInpaintingPage } from "./inpaintingJobHistory";
 import {
   emitInpaintingCancelled,
   emitInpaintingCompleted,
   emitInpaintingFailed,
+  emitInpaintingPartial,
   emitInpaintingStarting,
 } from "./inpaintingJobProgress";
 
@@ -44,7 +43,9 @@ export type InpaintingJobPage = {
 type ProcessInpaintingPagesResult = {
   savedChapters: OpenedChapter[];
   pagesChanged: number;
+  pagesIncomplete: number;
   blocksErased: number;
+  blocksIncomplete: number;
 };
 
 export async function runInpaintingPagesJob({
@@ -70,6 +71,7 @@ export async function runInpaintingPagesJob({
   assertRequestedBlockExists(targets, target);
   const totalTargetBlocks = countTargetBlocks(
     targets.map(({ page }) => page),
+    state,
     target,
   );
   emitInpaintingStarting(id, emit, targets.length, totalTargetBlocks, target);
@@ -86,20 +88,34 @@ export async function runInpaintingPagesJob({
     runtime,
   });
 
-  emitInpaintingCompleted(
-    id,
-    emit,
-    targets.length,
-    result.blocksErased,
-    target.targetType,
-  );
+  if (result.pagesIncomplete > 0) {
+    emitInpaintingPartial(
+      id,
+      emit,
+      targets.length,
+      result.pagesIncomplete,
+      result.blocksErased,
+      result.blocksIncomplete,
+      target.targetType,
+    );
+  } else {
+    emitInpaintingCompleted(
+      id,
+      emit,
+      targets.length,
+      result.blocksErased,
+      target.targetType,
+    );
+  }
   return {
-    status: "completed",
+    status: result.pagesIncomplete > 0 ? "partial" : "completed",
     ...(request.mode === "selection-pattern"
       ? { chapters: result.savedChapters }
       : { chapter: result.savedChapters[0] }),
     pagesChanged: result.pagesChanged,
     blocksErased: result.blocksErased,
+    pagesIncomplete: result.pagesIncomplete,
+    blocksIncomplete: result.blocksIncomplete,
     historyTransaction: context.inpaintingRevisionStore?.getReference(
       state.historyTransactionId,
     ),
@@ -138,6 +154,8 @@ export async function handleInpaintingJobError({
       ...refreshed,
       pagesChanged: state.pagesChanged,
       blocksErased: state.blocksErased,
+      pagesIncomplete: state.pagesIncomplete,
+      blocksIncomplete: state.blocksIncomplete,
       historyTransaction: context.inpaintingRevisionStore?.getReference(
         state.historyTransactionId,
       ),
@@ -164,6 +182,8 @@ export async function handleInpaintingJobError({
     ...refreshed,
     pagesChanged: state.pagesChanged,
     blocksErased: state.blocksErased,
+    pagesIncomplete: state.pagesIncomplete,
+    blocksIncomplete: state.blocksIncomplete,
     historyTransaction: context.inpaintingRevisionStore?.getReference(
       state.historyTransactionId,
     ),
@@ -203,23 +223,11 @@ function resolveInpaintingTarget(
 
 function countTargetBlocks(
   pages: MangaPage[],
+  state: InpaintingJobState,
   target: InpaintingTarget,
 ): number {
-  if (target.drawnPatternMode) {
-    return target.drawnStrokes.length;
-  }
-  if (target.layoutOnly) {
-    return pages.reduce(
-      (count, page) =>
-        count +
-        page.blocks.filter((block) =>
-          isBubbleLayoutBlockEligible(block, target.blockId),
-        ).length,
-      0,
-    );
-  }
   return pages.reduce(
-    (count, page) => count + countEligiblePatternBlocks(page, target.blockId),
+    (count, page) => count + countInpaintingPageTargets(page, state, target),
     0,
   );
 }
@@ -264,6 +272,7 @@ async function processInpaintingPages({
   runtime: InpaintingJobRuntime;
 }): Promise<ProcessInpaintingPagesResult> {
   const preparedBubbleLayout = await prepareBubbleLayoutJob({
+    completionWorkflow: state.requestedCompletionWorkflow,
     context,
     request,
     runtime,
@@ -298,27 +307,21 @@ async function processInpaintingPages({
       target,
       runtime,
     });
-    if (result.blocksErased <= 0 && !result.workflowReceiptChanged) {
-      continue;
-    }
-    const savedChapter = await saveInpaintingPageResult({
+    await commitProcessedInpaintingPage({
       context,
       result,
-      transactionId: state.historyTransactionId,
       targetPage,
       runtime,
+      state,
     });
-    recordSavedInpaintingChapter(state, targetPage.chapterId, savedChapter);
-    if (result.blocksErased > 0) {
-      state.blocksErased += result.blocksErased;
-      state.pagesChanged += 1;
-    }
   }
 
   return {
     savedChapters: [...state.chapters.values()],
     pagesChanged: state.pagesChanged,
+    pagesIncomplete: state.pagesIncomplete,
     blocksErased: state.blocksErased,
+    blocksIncomplete: state.blocksIncomplete,
   };
 }
 

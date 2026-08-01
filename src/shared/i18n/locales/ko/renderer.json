@@ -57,6 +57,7 @@
       "ready": "모델 준비 완료",
       "cancelled": "작업이 취소됨",
       "failed": "작업 실패",
+      "partial": "작업 부분 완료",
       "ocrPreparing": "Paddle OCR 준비 중",
       "modelRequesting": "AI 번역 요청 중",
       "pageRunning": "번역 중",
@@ -74,6 +75,7 @@
       "cancelling": "작업 취소 중",
       "cancelled": "작업이 취소됨",
       "failed": "작업 실패",
+      "partial": "작업 부분 완료",
       "completed": "번역 완료",
       "idle": "대기 중"
     },
@@ -85,6 +87,7 @@
     },
     "notifications": {
       "completed": "작업이 완료되었습니다.",
+      "partial": "일부 블록은 작업에 실패했습니다.",
       "failed": "작업에 실패했습니다.",
       "cancelled": "작업이 취소되었습니다.",
       "openLogs": "로그 폴더 열기",
@@ -313,7 +316,8 @@
       "saveFailed": "원문 지우기 전에 변경사항을 저장하지 못했습니다.",
       "startFailed": "원문 지우기를 시작하지 못했습니다.",
       "failed": "원문 지우기에 실패했습니다.",
-      "success": "원문 지우기 완료: {{pages}}페이지, {{blocks}}블록"
+      "success": "원문 지우기 완료: {{pages}}페이지, {{blocks}}블록",
+      "partial": "{{incompleteBlocks}}블록은 작업에 실패했습니다."
     },
     "bubbleLayout": {
       "requiresBlocks": "말풍선을 감지할 텍스트 블록이 없습니다.",
@@ -382,14 +386,17 @@
     },
     "refreshWarning": "번역은 완료됐지만 보관함 목록 새로고침에 실패했습니다.",
     "eraseOriginalWorkflowCompleted": "번역·원문 지우기를 완료했습니다.",
+    "eraseOriginalWorkflowPartial": "일부 블록은 원문 지우기에 실패했습니다.",
     "eraseOriginalWorkflowFailed": "번역 후 원문 지우기에 실패했습니다.",
     "bubbleLayoutWorkflowCompleted": "번역·자동 지우기·말풍선 맞춤을 완료했습니다.",
+    "bubbleLayoutWorkflowPartial": "일부 블록은 후처리에 실패했습니다.",
     "bubbleLayoutWorkflowFailed": "번역 후 자동 지우기·말풍선 맞춤에 실패했습니다.",
     "flow": {
       "firstPass": "1차",
       "secondPass": "2차",
       "chapterProgress": "{{pass}} 번역 {{current}}/{{total}}화",
       "completed": "번역을 완료했습니다.",
+      "partial": "일부 블록은 후처리에 실패했습니다.",
       "contextAnalysis": "AI 용어/기억 분석 중",
       "contextSkipped": "1차 번역 완료 (AI 분석 건너뜀)",
       "contextFailed": "AI 용어/기억 분석에 실패해 1차 번역 결과만 유지합니다.",

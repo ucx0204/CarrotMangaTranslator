@@ -74,6 +74,35 @@ describe("sequential chapter inpainting flow", () => {
     expect(outcome.status).toBe("failed");
   });
 
+  it("keeps partial chapter results and continues with later chapters", async () => {
+    const startInpainting = vi
+      .fn<StartInpainting>()
+      .mockResolvedValueOnce({
+        status: "partial",
+        chapters: [makeChapter("chapter-1")],
+        pagesChanged: 1,
+        blocksErased: 6,
+        pagesIncomplete: 1,
+        blocksIncomplete: 1,
+      })
+      .mockResolvedValueOnce(completedResult("chapter-2", "tx-2"));
+
+    const outcome = await runInpaintingSelectionsSequentially({
+      workId: "work-1",
+      selections: selections.slice(0, 2),
+      startInpainting,
+    });
+
+    expect(startInpainting).toHaveBeenCalledTimes(2);
+    expect(outcome).toEqual({
+      status: "partial",
+      pagesChanged: 2,
+      blocksErased: 7,
+      pagesIncomplete: 1,
+      blocksIncomplete: 1,
+    });
+  });
+
   it("accepts a persisted receipt-only completion for a no-text page", async () => {
     const chapter = makeChapter("chapter-1");
     chapter.pageOrder = ["page-1"];

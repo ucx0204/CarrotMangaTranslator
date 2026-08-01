@@ -54,6 +54,7 @@
       "ready": "Model ready",
       "cancelled": "Job cancelled",
       "failed": "Job failed",
+      "partial": "Job partially complete",
       "ocrPreparing": "Preparing Paddle OCR",
       "modelRequesting": "Requesting AI translation",
       "pageRunning": "Translating",
@@ -71,6 +72,7 @@
       "cancelling": "Cancelling job",
       "cancelled": "Job cancelled",
       "failed": "Job failed",
+      "partial": "Job partially complete",
       "completed": "Translation complete",
       "idle": "Idle"
     },
@@ -82,6 +84,7 @@
     },
     "notifications": {
       "completed": "The job is complete.",
+      "partial": "Some blocks failed.",
       "failed": "The job failed.",
       "cancelled": "The job was cancelled.",
       "openLogs": "Open log folder",
@@ -310,7 +313,8 @@
       "saveFailed": "Could not save changes before erasing source text.",
       "startFailed": "Could not start erasing source text.",
       "failed": "Failed to erase source text.",
-      "success": "Source text erased · Pages: {{pages}} · Blocks: {{blocks}}"
+      "success": "Source text erased · Pages: {{pages}} · Blocks: {{blocks}}",
+      "partial": "{{incompleteBlocks}} blocks failed."
     },
     "bubbleLayout": {
       "requiresBlocks": "There are no text blocks to match with bubbles.",
@@ -379,14 +383,17 @@
     },
     "refreshWarning": "Translation completed, but the library could not be refreshed.",
     "eraseOriginalWorkflowCompleted": "Translation and source-text erasing complete.",
+    "eraseOriginalWorkflowPartial": "Some blocks failed source-text erasing.",
     "eraseOriginalWorkflowFailed": "Source-text erasing after translation failed.",
     "bubbleLayoutWorkflowCompleted": "Translation, automatic erase, and bubble fitting complete.",
+    "bubbleLayoutWorkflowPartial": "Some blocks failed post-processing.",
     "bubbleLayoutWorkflowFailed": "Automatic erase and bubble fitting after translation failed.",
     "flow": {
       "firstPass": "First pass",
       "secondPass": "Second pass",
       "chapterProgress": "{{pass}} translation · Chapter {{current}}/{{total}}",
       "completed": "Translation complete.",
+      "partial": "Some blocks failed post-processing.",
       "contextAnalysis": "Analyzing AI terminology/memory",
       "contextSkipped": "First pass complete (AI analysis skipped)",
       "contextFailed": "AI terminology/memory analysis failed; keeping first-pass results only.",

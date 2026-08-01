@@ -267,10 +267,13 @@
     "blockDetail": "{{page}} · {{count}} 个文本块",
     "pageDone": "第 {{current}} / {{total}} 页的{{target}}擦除完成",
     "completed": "{{target}}擦除完成",
+    "partial": "{{target}}擦除部分完成",
+    "partialDetail": "{{incomplete}} 个文本块处理失败。",
     "cancelled": "修复任务已取消。",
     "failed": "修复任务失败",
     "pageNotFound": "找不到要修复的页面。",
     "noTargets": "没有可修复的文本块。",
+    "mixedCompletionWorkflows": "所选页面使用了不同的翻译完成工作流，无法作为同一任务处理。",
     "noChanges": "未生成修复结果。",
     "assets": { "fluxModel": "Flux 模型", "aot": "AOT 修复" },
     "runtime": {

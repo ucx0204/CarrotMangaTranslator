@@ -267,10 +267,13 @@
     "blockDetail": "{{page}} · ブロック{{count}}個",
     "pageDone": "{{current}} / {{total}}ページの{{target}}完了",
     "completed": "{{target}}の消去完了",
+    "partial": "{{target}}の消去は一部完了",
+    "partialDetail": "{{incomplete}}ブロックで処理に失敗しました。",
     "cancelled": "インペインティングジョブはキャンセルされました。",
     "failed": "インペインティングジョブが失敗しました",
     "pageNotFound": "インペインティングするページが見つかりません。",
     "noTargets": "インペインティングするテキストブロックがありません。",
+    "mixedCompletionWorkflows": "選択したページの翻訳完了ワークフローが異なるため、1つのジョブとして処理できません。",
     "noChanges": "インペインティング結果を生成できませんでした。",
     "assets": { "fluxModel": "Fluxモデル", "aot": "AOTインペインティング" },
     "runtime": {

@@ -7,6 +7,12 @@ export type TranslationCompletionWorkflow = "erase-original" | "bubble-layout";
 export type TranslationCompletionReceipt = {
   workflow: TranslationCompletionWorkflow;
   status: "pending" | "completed" | "failed";
+  /**
+   * Blocks whose source text has already been erased by a partially completed
+   * full-page workflow. A retry starts from the saved partial image and skips
+   * these blocks so that successful work is not thrown away or reprocessed.
+   */
+  erasedBlockIds?: readonly string[];
 };
 
 type ChapterStatus = "idle" | "running" | "completed" | "partial" | "failed";

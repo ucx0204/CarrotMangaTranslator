@@ -172,7 +172,14 @@ function copyTranslationCompletionProperty(
   }
   return {
     translationCompletion: page.translationCompletion
-      ? { ...page.translationCompletion }
+      ? {
+          ...page.translationCompletion,
+          ...(page.translationCompletion.erasedBlockIds
+            ? {
+                erasedBlockIds: [...page.translationCompletion.erasedBlockIds],
+              }
+            : {}),
+        }
       : undefined,
   };
 }

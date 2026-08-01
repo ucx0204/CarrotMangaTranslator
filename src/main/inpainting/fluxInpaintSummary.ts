@@ -37,15 +37,15 @@ export function reportFluxInpaintSummary(
         processedWindows,
       },
     );
-    if (requirePixelChange) {
-      throw new Error("인페인팅 결과가 생성되지 않았습니다.");
-    }
   }
   if (processedWindows === 0) {
     if (eligibleWindows === 0) {
       diagnostics.warn("Flux inpainting received no eligible crop", {
         eligibleWindows,
       });
+    }
+    if (requirePixelChange && skippedWindows > 0) {
+      throw new Error("인페인팅 결과가 생성되지 않았습니다.");
     }
     return;
   }
@@ -56,7 +56,8 @@ export function reportFluxInpaintSummary(
       : "Flux inpainting left one or more masked crops effectively unchanged",
     { eligibleWindows, processedWindows, unchangedStats },
   );
-  if (requirePixelChange) {
+  const changedWindows = processedWindows - unchangedWindows;
+  if (requirePixelChange && changedWindows <= 0) {
     throw new Error("인페인팅 결과가 생성되지 않았습니다.");
   }
 }

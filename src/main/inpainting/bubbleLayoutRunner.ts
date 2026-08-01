@@ -7,11 +7,7 @@ import type { AppSettings } from "../../shared/settingsTypes";
 import type { BBox, TranslationBlock } from "../../shared/textTypes";
 import { resolveBubbleLayoutPaddingRatio } from "../../shared/bubbleLayoutPadding";
 import type { ImageDecodeFallback } from "../regionCrop";
-import {
-  isManualBubbleLayout,
-  isUsableBubbleLayout,
-  type BubbleLayout,
-} from "../../shared/bubbleLayout";
+import { isUsableBubbleLayout } from "../../shared/bubbleLayout";
 import {
   applyInpaintingLayoutStates,
   captureInpaintingLayoutStates,
@@ -22,17 +18,13 @@ import {
   collectBubbleLayoutChanges,
   type BubbleNaturalTextLayoutConfig,
 } from "./bubbleLayoutNaturalText";
+import {
+  collectSharedInpaintGroups,
+  parseBubbleLayoutRunnerPatches,
+  type BubbleLayoutBlockPatch,
+} from "./bubbleLayoutRunnerPatches";
 
 type RenderBboxSpace = NonNullable<TranslationBlock["renderBboxSpace"]>;
-
-export type BubbleLayoutBlockPatch = {
-  blockId: string;
-  renderBbox?: BBox | null;
-  renderBboxSpace?: RenderBboxSpace | null;
-  bubbleLayout?: BubbleLayout | null;
-  /** Job-local only; never applied to or persisted with a TranslationBlock. */
-  sharedInpaintGroupIds?: string[];
-};
 
 export type BubbleLayoutRunnerRequest = {
   /**
@@ -120,6 +112,7 @@ export function resolveBubbleLayoutPostprocessConfig(
 
 export async function runBubbleLayoutPostprocess({
   blockId,
+  blockIds,
   config,
   failureMode = "required",
   page,
@@ -127,6 +120,8 @@ export async function runBubbleLayoutPostprocess({
   signal,
 }: {
   blockId?: string;
+  /** Limit persisted layout/text changes to blocks erased in this run. */
+  blockIds?: readonly string[];
   config: BubbleLayoutPostprocessConfig;
   failureMode?: "best-effort" | "required";
   page: MangaPage;
@@ -141,14 +136,8 @@ export async function runBubbleLayoutPostprocess({
 
   // Never expose the page instance that will be committed to an adapter.
   // Returned data is applied through the render-only patch allowlist below.
-  const baselinePage: MangaPage = {
-    ...page,
-    blocks: page.blocks.map((block) => structuredClone(block)),
-  };
-  const runnerPage: MangaPage = {
-    ...baselinePage,
-    blocks: baselinePage.blocks.map((block) => structuredClone(block)),
-  };
+  const baselinePage = clonePageWithBlocks(page);
+  const runnerPage = clonePageWithBlocks(baselinePage);
   let result: BubbleLayoutRunnerResult;
   try {
     result = await runner.runPage({
@@ -166,17 +155,19 @@ export async function runBubbleLayoutPostprocess({
     return { page: baselinePage };
   }
   throwIfAborted(signal);
-  const patches = parseRunnerPatches(
+  const patches = parseBubbleLayoutRunnerPatches(
     result,
     baselinePage,
     config.overwriteManual,
     blockId,
+    blockIds,
   );
   const geometryPage = applyRunnerPatchesToPage(baselinePage, patches);
   const finalPage = applyBubbleNaturalTextLayout(
     geometryPage,
     config.naturalTextLayout,
     blockId,
+    blockIds,
   );
   const { beforeLayout, afterLayout } = collectBubbleLayoutChanges(
     baselinePage,
@@ -203,6 +194,13 @@ export async function runBubbleLayoutPostprocess({
   };
 }
 
+function clonePageWithBlocks(page: MangaPage): MangaPage {
+  return {
+    ...page,
+    blocks: page.blocks.map((block) => structuredClone(block)),
+  };
+}
+
 function applyRunnerPatchesToPage(
   page: MangaPage,
   patches: readonly BubbleLayoutBlockPatch[],
@@ -215,119 +213,6 @@ function applyRunnerPatchesToPage(
     return applyRunnerPatchToState(before, patch, page);
   });
   return applyInpaintingLayoutStates(page, states);
-}
-
-function parseRunnerPatches(
-  result: BubbleLayoutRunnerResult,
-  page: MangaPage,
-  overwriteManual: boolean,
-  blockId?: string,
-): BubbleLayoutBlockPatch[] {
-  if (!result || !Array.isArray(result.patches)) {
-    throw new Error("말풍선 배치 결과 형식이 올바르지 않습니다.");
-  }
-  if (result.patches.length > page.blocks.length) {
-    throw new Error("말풍선 배치 결과에 너무 많은 블록이 포함되었습니다.");
-  }
-  const blocksById = new Map(page.blocks.map((block) => [block.id, block]));
-  const seen = new Set<string>();
-  const patches: BubbleLayoutBlockPatch[] = [];
-  for (const rawPatch of result.patches) {
-    const block = resolveRunnerPatchBlock(rawPatch, blocksById);
-    if (seen.has(rawPatch.blockId)) {
-      throw new Error("말풍선 배치 결과에 같은 블록이 중복되었습니다.");
-    }
-    seen.add(rawPatch.blockId);
-    if (blockId && rawPatch.blockId !== blockId) {
-      continue;
-    }
-    if (!overwriteManual && isManualBubbleLayout(block.bubbleLayout)) {
-      const metadataPatch = copyRunnerJobMetadataPatch(rawPatch);
-      if (metadataPatch.sharedInpaintGroupIds?.length) {
-        patches.push(metadataPatch);
-      }
-      continue;
-    }
-    patches.push(copyRunnerRenderPatch(rawPatch));
-  }
-  return patches;
-}
-
-function resolveRunnerPatchBlock(
-  rawPatch: BubbleLayoutBlockPatch,
-  blocksById: ReadonlyMap<string, TranslationBlock>,
-): TranslationBlock {
-  if (
-    !rawPatch ||
-    typeof rawPatch !== "object" ||
-    typeof rawPatch.blockId !== "string"
-  ) {
-    throw new Error("말풍선 배치 결과에 알 수 없는 블록이 포함되었습니다.");
-  }
-  const block = blocksById.get(rawPatch.blockId);
-  if (!block) {
-    throw new Error("말풍선 배치 결과에 알 수 없는 블록이 포함되었습니다.");
-  }
-  return block;
-}
-
-function copyRunnerJobMetadataPatch(
-  rawPatch: BubbleLayoutBlockPatch,
-): BubbleLayoutBlockPatch {
-  const patch: BubbleLayoutBlockPatch = { blockId: rawPatch.blockId };
-  if (hasOwn(rawPatch, "sharedInpaintGroupIds")) {
-    patch.sharedInpaintGroupIds = parseSharedInpaintGroupIds(
-      rawPatch.sharedInpaintGroupIds,
-    );
-  }
-  return patch;
-}
-
-function copyRunnerRenderPatch(
-  rawPatch: BubbleLayoutBlockPatch,
-): BubbleLayoutBlockPatch {
-  // Construct a fresh object instead of spreading adapter output. In
-  // particular, an accidental/malicious `bbox` field can never cross this
-  // boundary.
-  const patch: BubbleLayoutBlockPatch = { blockId: rawPatch.blockId };
-  if (hasOwn(rawPatch, "renderBbox")) {
-    patch.renderBbox = rawPatch.renderBbox;
-  }
-  if (hasOwn(rawPatch, "renderBboxSpace")) {
-    patch.renderBboxSpace = rawPatch.renderBboxSpace;
-  }
-  if (hasOwn(rawPatch, "bubbleLayout")) {
-    patch.bubbleLayout = rawPatch.bubbleLayout;
-  }
-  if (hasOwn(rawPatch, "sharedInpaintGroupIds")) {
-    patch.sharedInpaintGroupIds = parseSharedInpaintGroupIds(
-      rawPatch.sharedInpaintGroupIds,
-    );
-  }
-  return patch;
-}
-
-function parseSharedInpaintGroupIds(value: unknown): string[] {
-  if (!Array.isArray(value) || value.length > 8) {
-    throw new Error("말풍선 공유 인페인팅 그룹 형식이 올바르지 않습니다.");
-  }
-  const ids = value.map((item) => String(item));
-  if (ids.some((id) => !/^shared-[1-9]\d{0,5}$/.test(id))) {
-    throw new Error("말풍선 공유 인페인팅 그룹 형식이 올바르지 않습니다.");
-  }
-  return [...new Set(ids)];
-}
-
-function collectSharedInpaintGroups(
-  patches: readonly BubbleLayoutBlockPatch[],
-): Record<string, string[]> {
-  return Object.fromEntries(
-    patches.flatMap((patch) =>
-      patch.sharedInpaintGroupIds?.length
-        ? [[patch.blockId, [...patch.sharedInpaintGroupIds]]]
-        : [],
-    ),
-  );
 }
 
 function applyRunnerPatchToState(

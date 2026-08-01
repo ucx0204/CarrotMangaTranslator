@@ -190,7 +190,7 @@ export async function applyInpaintingRetouch(
     ...(options.mode === "restore" && page.translationCompletion
       ? {
           translationCompletion: {
-            ...page.translationCompletion,
+            workflow: page.translationCompletion.workflow,
             status: "pending" as const,
           },
         }

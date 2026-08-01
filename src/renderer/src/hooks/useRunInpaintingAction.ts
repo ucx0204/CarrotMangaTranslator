@@ -157,6 +157,11 @@ function reportPatternInpaintingResult(
         blocks: result.blocksErased ?? 0,
       }),
     );
+  } else if (result.status === "partial") {
+    const message = t("inpainting.erase.partial", {
+      incompleteBlocks: result.blocksIncomplete ?? 0,
+    });
+    options.pushStatus(message);
   } else if (result.status === "failed") {
     if (result.error) console.error(result.error);
     failInpaintingJob(

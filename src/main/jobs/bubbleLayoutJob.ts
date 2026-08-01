@@ -1,5 +1,8 @@
 import type { StartInpaintingRequest } from "../../shared/inpaintingTypes";
-import type { MangaPage } from "../../shared/libraryTypes";
+import type {
+  MangaPage,
+  TranslationCompletionWorkflow,
+} from "../../shared/libraryTypes";
 import type { AppSettings } from "../../shared/settingsTypes";
 import { resolveBubbleLayoutPaddingRatio } from "../../shared/bubbleLayoutPadding";
 import {
@@ -27,11 +30,13 @@ export type PreparedBubbleLayoutJob = {
 };
 
 export async function prepareBubbleLayoutJob({
+  completionWorkflow,
   context,
   request,
   runtime,
   totalTargetBlocks,
 }: {
+  completionWorkflow?: TranslationCompletionWorkflow;
   context: InpaintingJobContext;
   request: StartInpaintingRequest;
   runtime: InpaintingJobRuntime;
@@ -41,16 +46,11 @@ export async function prepareBubbleLayoutJob({
     return { appSettings: null, config: null, runner: null };
   }
   const appSettings = await runtime.getSettings(context.appPaths);
-  const config =
-    request.mode === "page-bubble-layout"
-      ? {
-          policy: request.policy,
-          paddingRatio: resolveBubbleLayoutPaddingRatio(
-            appSettings.inpainting?.bubbleLayoutPaddingRatio,
-          ),
-          overwriteManual: true,
-        }
-      : resolveBubbleLayoutPostprocessConfig(request, appSettings);
+  const config = resolveJobBubbleLayoutConfig(
+    request,
+    appSettings,
+    completionWorkflow,
+  );
   if (!config) {
     return { appSettings, config: null, runner: null };
   }
@@ -64,6 +64,33 @@ export async function prepareBubbleLayoutJob({
       dataRoot: context.appPaths.dataRoot,
       decodeFallback: context.decodeImage,
     }),
+  };
+}
+
+function resolveJobBubbleLayoutConfig(
+  request: StartInpaintingRequest,
+  appSettings: AppSettings,
+  completionWorkflow: TranslationCompletionWorkflow | undefined,
+): BubbleLayoutPostprocessConfig | null {
+  if (request.mode === "page-bubble-layout") {
+    return {
+      policy: request.policy,
+      paddingRatio: resolveBubbleLayoutPaddingRatio(
+        appSettings.inpainting?.bubbleLayoutPaddingRatio,
+      ),
+      overwriteManual: true,
+    };
+  }
+  const configured = resolveBubbleLayoutPostprocessConfig(request, appSettings);
+  if (request.postprocess?.bubbleLayout) return configured;
+  if (completionWorkflow === "erase-original") return null;
+  if (configured || completionWorkflow !== "bubble-layout") return configured;
+  return {
+    policy: "balanced",
+    paddingRatio: resolveBubbleLayoutPaddingRatio(
+      appSettings.inpainting?.bubbleLayoutPaddingRatio,
+    ),
+    overwriteManual: false,
   };
 }
 
@@ -105,12 +132,14 @@ export async function runBubbleLayoutOnlyPage({
  */
 export async function runBubbleLayoutMaskPrepass({
   blockId,
+  blockIds,
   config,
   page,
   runner,
   signal,
 }: {
   blockId?: string;
+  blockIds?: readonly string[];
   config: BubbleLayoutPostprocessConfig;
   page: MangaPage;
   runner: BubbleLayoutRunner;
@@ -121,13 +150,15 @@ export async function runBubbleLayoutMaskPrepass({
   restoreLayout?: InpaintingBlockLayoutState[];
   sharedInpaintGroupIdsByBlock?: Record<string, string[]>;
 }> {
-  const blockIds = blockId ? [blockId] : page.blocks.map((block) => block.id);
-  const restoreLayout = captureInpaintingLayoutStates(page, blockIds);
+  const targetBlockIds = resolvePrepassBlockIds(page, blockId, blockIds);
+  const targetBlockIdSet = new Set(targetBlockIds);
+  const hasSubset = blockId !== undefined || blockIds !== undefined;
+  const restoreLayout = captureInpaintingLayoutStates(page, targetBlockIds);
   const maskBaselinePage: MangaPage = {
     ...page,
     blocks: page.blocks.map((block) => {
       if (
-        (blockId === undefined || block.id === blockId) &&
+        targetBlockIdSet.has(block.id) &&
         isGeneratedBubbleLayout(block.bubbleLayout)
       ) {
         const withoutPersistedLayout = { ...block };
@@ -141,6 +172,7 @@ export async function runBubbleLayoutMaskPrepass({
   };
   const processed = await runBubbleLayoutPostprocess({
     blockId,
+    ...(blockId === undefined && blockIds ? { blockIds } : {}),
     config: {
       policy: config.policy,
       // Inpainting uses the detector's raw safe region. User-configured
@@ -149,7 +181,7 @@ export async function runBubbleLayoutMaskPrepass({
       // Full-page Flux receives each shared balloon as one grouped region.
       // A one-block retry must keep the normal ownership split so it cannot
       // erase source text owned by a neighboring block.
-      sharedOwnershipGapPx: blockId ? undefined : 0,
+      sharedOwnershipGapPx: hasSubset ? undefined : 0,
       overwriteManual: false,
     },
     failureMode: "best-effort",
@@ -161,7 +193,7 @@ export async function runBubbleLayoutMaskPrepass({
     page.blocks
       .filter(
         (block) =>
-          (blockId === undefined || block.id === blockId) &&
+          targetBlockIdSet.has(block.id) &&
           isManualBubbleLayout(block.bubbleLayout) &&
           isUsableBubbleLayout(block.bubbleLayout),
       )
@@ -182,4 +214,14 @@ export async function runBubbleLayoutMaskPrepass({
         }
       : {}),
   };
+}
+
+function resolvePrepassBlockIds(
+  page: MangaPage,
+  blockId: string | undefined,
+  blockIds: readonly string[] | undefined,
+): string[] {
+  if (blockId) return [blockId];
+  if (blockIds) return [...blockIds];
+  return page.blocks.map((block) => block.id);
 }

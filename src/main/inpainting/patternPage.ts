@@ -12,7 +12,10 @@ import type { InpaintingEngine } from "./inpaintingEngine";
 import { logInpaintingRuntimeInfo } from "./inpaintingRuntimeLogger";
 import { loadPageImage, resolveInpaintedImagePath } from "./imageIO";
 import { measureWindowMaskedRegionChange } from "./fluxChangeStats";
-import { isPatternInpaintingBlockEligible } from "./patternBlockEligibility";
+import {
+  resolveEligiblePatternBlocks,
+  shouldUseOriginalPatternImage,
+} from "./patternBlockEligibility";
 import { resolvePatternInpaintWindows } from "./patternWindowPolicy";
 import {
   buildPatternPageMask,
@@ -36,29 +39,22 @@ export async function inpaintPatternPage(
      * reused here. Existing manual geometry is explicitly allowlisted.
      */
     bubbleLayoutConstraintBlockIds?: readonly string[];
+    /** Block ids already committed by an earlier partial page run. */
+    excludedBlockIds?: readonly string[];
     sharedInpaintGroupIdsByBlock?: Readonly<Record<string, readonly string[]>>;
   } = {},
 ): Promise<PatternPageInpaintingResult> {
-  const patternBlocks = page.blocks.filter((block) =>
-    isPatternInpaintingBlockEligible(block, options.blockId),
+  const patternBlocks = resolveEligiblePatternBlocks(
+    page,
+    options.blockId,
+    options.excludedBlockIds,
   );
-  if (patternBlocks.length === 0) {
-    return { page, blocksErased: 0 };
-  }
+  if (patternBlocks.length === 0) return { page, blocksErased: 0 };
 
-  const image = await loadPageImage(
-    page.inpaintedImagePath ?? page.imagePath,
+  const { bitmap, size } = await loadPatternPageBitmap(
+    page,
     options.decodeFallback,
   );
-  const size = image.getSize();
-  if (!size.width || !size.height) {
-    throw new Error(`페이지 이미지를 읽지 못했습니다: ${page.name}`);
-  }
-
-  const bitmap = Buffer.from(image.toBitmap());
-  if (bitmap.length < size.width * size.height * 4) {
-    throw new Error(`페이지 이미지 비트맵을 만들지 못했습니다: ${page.name}`);
-  }
 
   const maskContext = buildPatternPageMask({
     blockId: options.blockId,
@@ -71,6 +67,7 @@ export async function inpaintPatternPage(
         ? "flux-region"
         : "glyph",
     bubbleLayoutConstraintBlockIds: options.bubbleLayoutConstraintBlockIds,
+    excludedBlockIds: options.excludedBlockIds,
     sharedInpaintGroupIdsByBlock: options.sharedInpaintGroupIdsByBlock,
     signal: options.signal,
   });
@@ -86,22 +83,30 @@ export async function inpaintPatternPage(
     signal: options.signal,
     width: size.width,
   });
-  if (
-    !hasPatternPixelChanges(
-      beforeBitmap,
-      bitmap,
-      maskContext,
-      options.inpaintingEngine,
-      size.width,
-    )
-  ) {
-    return { page, blocksErased: 0 };
+  const changes = resolvePatternPixelChanges(
+    beforeBitmap,
+    bitmap,
+    maskContext,
+    options.inpaintingEngine,
+    size.width,
+  );
+  if (changes.erasedBlockIds.length === 0) {
+    return {
+      page,
+      blocksErased: 0,
+      blocksIncomplete: changes.incompleteBlockIds.length,
+      erasedBlockIds: [],
+      incompleteBlockIds: changes.incompleteBlockIds,
+    };
   }
-  logPatternInpaintingResult(maskContext, options.inpaintingEngine);
+  logPatternInpaintingResult(maskContext, options.inpaintingEngine, changes);
 
   const outputPath = await writePatternInpaintedImage(page, bitmap, size);
   return {
-    blocksErased: maskContext.blocksErased,
+    blocksErased: changes.erasedBlockIds.length,
+    blocksIncomplete: changes.incompleteBlockIds.length,
+    erasedBlockIds: changes.erasedBlockIds,
+    incompleteBlockIds: changes.incompleteBlockIds,
     page: {
       ...page,
       inpaintedImagePath: outputPath,
@@ -110,29 +115,65 @@ export async function inpaintPatternPage(
   };
 }
 
-function hasPatternPixelChanges(
+async function loadPatternPageBitmap(
+  page: MangaPage,
+  decodeFallback: ImageDecodeFallback | undefined,
+): Promise<{ bitmap: Buffer; size: { width: number; height: number } }> {
+  const image = await loadPageImage(
+    shouldUseOriginalPatternImage(page)
+      ? page.imagePath
+      : (page.inpaintedImagePath ?? page.imagePath),
+    decodeFallback,
+  );
+  const size = image.getSize();
+  if (!size.width || !size.height) {
+    throw new Error(`페이지 이미지를 읽지 못했습니다: ${page.name}`);
+  }
+  const bitmap = Buffer.from(image.toBitmap());
+  if (bitmap.length < size.width * size.height * 4) {
+    throw new Error(`페이지 이미지 비트맵을 만들지 못했습니다: ${page.name}`);
+  }
+  return { bitmap, size };
+}
+
+type PatternPixelChanges = {
+  erasedBlockIds: string[];
+  incompleteBlockIds: string[];
+};
+
+function resolvePatternPixelChanges(
   before: Buffer,
   after: Buffer,
   mask: PatternMaskContext,
   engine: InpaintingEngine | undefined,
   width: number,
-): boolean {
-  const stats = mask.validationWindowMasks.map((windowMask) =>
-    measureWindowMaskedRegionChange(before, after, width, windowMask),
-  );
+): PatternPixelChanges {
+  if (mask.validationWindowMasks.length !== mask.validationBlockIds.length) {
+    throw new Error("Inpainting validation mask ownership is incomplete.");
+  }
+  const stats = mask.validationWindowMasks.map((windowMask, index) => ({
+    blockId: mask.validationBlockIds[index] as string,
+    ...measureWindowMaskedRegionChange(before, after, width, windowMask),
+  }));
   const unchangedTargets = stats.filter((item) => item.changedPixels <= 0);
-  if (stats.length > 0 && unchangedTargets.length === 0) return true;
-  logInpaintingRuntimeInfo(
-    "Selected inpainting model left one or more target masks unchanged",
-    {
-      model: engine?.model,
-      blocks: mask.blocksErased,
-      targetMasks: stats.length,
-      unchangedTargetMasks: unchangedTargets.length,
-      unchangedStats: unchangedTargets,
-    },
-  );
-  return false;
+  if (unchangedTargets.length > 0) {
+    logInpaintingRuntimeInfo(
+      "Selected inpainting model left one or more target masks unchanged",
+      {
+        model: engine?.model,
+        blocks: mask.blocksErased,
+        targetMasks: stats.length,
+        unchangedTargetMasks: unchangedTargets.length,
+        unchangedStats: unchangedTargets,
+      },
+    );
+  }
+  return {
+    erasedBlockIds: stats
+      .filter((item) => item.changedPixels > 0)
+      .map((item) => item.blockId),
+    incompleteBlockIds: unchangedTargets.map((item) => item.blockId),
+  };
 }
 
 async function runPatternInpaintingEngine(options: {
@@ -187,10 +228,13 @@ async function runPatternInpaintingEngine(options: {
 function logPatternInpaintingResult(
   mask: PatternMaskContext,
   engine: InpaintingEngine | undefined,
+  changes: PatternPixelChanges,
 ): void {
   logInpaintingRuntimeInfo("Selected inpainting model processing completed", {
     model: engine?.model,
     blocks: mask.blocksErased,
+    blocksErased: changes.erasedBlockIds.length,
+    blocksIncomplete: changes.incompleteBlockIds.length,
     otsuBlocks: mask.otsuBlocks,
   });
 }

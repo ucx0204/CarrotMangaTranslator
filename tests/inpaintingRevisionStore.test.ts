@@ -226,6 +226,7 @@ describe("InpaintingRevisionStore", () => {
       translationCompletion: {
         workflow: "bubble-layout",
         status: "completed",
+        erasedBlockIds: ["block-a"],
       } as const,
     };
     await mutationOperations.updatePagesAfterInpaintingUnlocked(CHAPTER_A_ID, [
@@ -240,6 +241,7 @@ describe("InpaintingRevisionStore", () => {
       beforeTranslationCompletion: {
         workflow: "bubble-layout",
         status: "completed",
+        erasedBlockIds: ["block-a"],
       },
       afterTranslationCompletion: {
         workflow: "bubble-layout",
@@ -271,6 +273,7 @@ describe("InpaintingRevisionStore", () => {
     expect(firstPage(undone).translationCompletion).toEqual({
       workflow: "bubble-layout",
       status: "completed",
+      erasedBlockIds: ["block-a"],
     });
     expect(undone.status).toBe("completed");
 

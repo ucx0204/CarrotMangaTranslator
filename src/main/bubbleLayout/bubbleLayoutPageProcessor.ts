@@ -3,7 +3,7 @@ import { isGeneratedBubbleLayout } from "../../shared/bubbleLayout";
 import type { BubbleLayoutPolicy } from "../../shared/inpaintingTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
 import type { BBox, TranslationBlock } from "../../shared/textTypes";
-import type { BubbleLayoutBlockPatch } from "../inpainting/bubbleLayoutRunner";
+import type { BubbleLayoutBlockPatch } from "../inpainting/bubbleLayoutRunnerPatches";
 import { associateComicDetections } from "./association";
 import {
   selectBlockBubbleCandidates,

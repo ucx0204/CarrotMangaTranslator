@@ -51,6 +51,7 @@ type TranslationFlowActionContext = Pick<
 type FlowAggregate = {
   anyAttempted: boolean;
   anyFailed: boolean;
+  anyPartial: boolean;
   firstError?: string;
 };
 
@@ -71,6 +72,7 @@ type ChapterFlowResult =
       status: "continue";
       attempted: boolean;
       failed: boolean;
+      partial: boolean;
       error?: string;
     }
   | {
@@ -89,6 +91,11 @@ const FLOW_MESSAGE_KEYS = {
     "translation.errors.jobFailed",
     "translation.eraseOriginalWorkflowFailed",
     "translation.bubbleLayoutWorkflowFailed",
+  ],
+  partial: [
+    "translation.flow.partial",
+    "translation.eraseOriginalWorkflowPartial",
+    "translation.bubbleLayoutWorkflowPartial",
   ],
 } as const;
 
@@ -135,7 +142,11 @@ async function executeTranslationFlow(
   execution: FlowExecution,
 ): Promise<RunAnalysisOutcome> {
   const { completion, context, options } = execution;
-  const aggregate: FlowAggregate = { anyAttempted: false, anyFailed: false };
+  const aggregate: FlowAggregate = {
+    anyAttempted: false,
+    anyFailed: false,
+    anyPartial: false,
+  };
   await context.saveNow();
   if (isFlowCancellationRequested(context)) {
     return finishCancelledFlow(context, completion.eraseOriginal);
@@ -211,6 +222,7 @@ async function runTranslationChapter(
     true,
     inpaintingResult.status === "failed",
     inpaintingResult.error,
+    inpaintingResult.status === "partial",
   );
 }
 
@@ -225,15 +237,20 @@ function resolveTranslationChapterResult(
       refreshLibrary: false,
     };
   }
-  return outcome === "failed" ? continuationResult(true, true) : null;
+  if (outcome === "failed") return continuationResult(true, true);
+  if (outcome === "partial") {
+    return continuationResult(true, false, undefined, true);
+  }
+  return null;
 }
 
 function continuationResult(
   attempted: boolean,
   failed: boolean,
   error?: string,
+  partial = false,
 ): ChapterFlowResult {
-  return { status: "continue", attempted, failed, error };
+  return { status: "continue", attempted, failed, partial, error };
 }
 
 function mergeChapterFlowResult(
@@ -242,6 +259,7 @@ function mergeChapterFlowResult(
 ): void {
   if (result.attempted) aggregate.anyAttempted = true;
   if (result.failed) aggregate.anyFailed = true;
+  if (result.partial) aggregate.anyPartial = true;
   if (!aggregate.firstError && result.error)
     aggregate.firstError = result.error;
 }
@@ -262,7 +280,7 @@ function failTranslationFlow(
 
 function resolveFlowMessageKey(
   completion: TranslationCompletion,
-  status: "completed" | "failed",
+  status: "completed" | "partial" | "failed",
 ) {
   const workflowIndex = !completion.eraseOriginal
     ? 0
@@ -330,6 +348,12 @@ function finishTranslationFlow(
     context.notificationPort.error(message);
     return "failed";
   }
+  if (aggregate.anyPartial) {
+    const message = context.t(resolveFlowMessageKey(completion, "partial"));
+    setFlowTerminal(context, "partial", message, message);
+    context.notificationPort.warn(message);
+    return "partial";
+  }
 
   const message = context.t(resolveFlowMessageKey(completion, "completed"));
   setFlowTerminal(context, "completed", message);
@@ -356,16 +380,21 @@ function finishCancelledFlow(
 
 function setFlowTerminal(
   context: TranslationFlowActionContext,
-  status: "completed" | "failed",
+  status: "completed" | "partial" | "failed",
   progressText: string,
   detail?: string,
 ): void {
   context.setJobState({
     id: `translation-flow-${status}`,
-    kind: "gemma-analysis",
+    kind: status === "partial" ? "inpainting" : "gemma-analysis",
     status,
     progressText,
-    phase: status === "completed" ? "done" : "failed",
+    phase:
+      status === "completed"
+        ? "done"
+        : status === "partial"
+          ? "partial"
+          : "failed",
     ...(detail ? { detail } : {}),
   });
   if (detail) context.pushStatus(detail);

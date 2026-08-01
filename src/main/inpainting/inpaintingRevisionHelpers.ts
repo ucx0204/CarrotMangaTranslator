@@ -120,7 +120,14 @@ export function sameOptionalPath(left?: string, right?: string): boolean {
 export function cloneTranslationCompletion(
   receipt?: TranslationCompletionReceipt,
 ): TranslationCompletionReceipt | undefined {
-  return receipt ? { ...receipt } : undefined;
+  return receipt
+    ? {
+        ...receipt,
+        ...(receipt.erasedBlockIds
+          ? { erasedBlockIds: [...receipt.erasedBlockIds] }
+          : {}),
+      }
+    : undefined;
 }
 
 export function translationCompletionsEqual(
@@ -130,7 +137,27 @@ export function translationCompletionsEqual(
   if (!left || !right) {
     return !left && !right;
   }
-  return left.workflow === right.workflow && left.status === right.status;
+  return (
+    left.workflow === right.workflow &&
+    left.status === right.status &&
+    stringListsEqual(left.erasedBlockIds, right.erasedBlockIds)
+  );
+}
+
+function stringListsEqual(
+  left: readonly string[] | undefined,
+  right: readonly string[] | undefined,
+): boolean {
+  if (!left || !right) return !left?.length && !right?.length;
+  if (left.length !== right.length) return false;
+  const leftValues = new Set(left);
+  const rightValues = new Set(right);
+  return (
+    leftValues.size === left.length &&
+    rightValues.size === right.length &&
+    leftValues.size === rightValues.size &&
+    [...leftValues].every((value) => rightValues.has(value))
+  );
 }
 
 export async function readCurrentChapterAfterRollbackFailure(

@@ -267,10 +267,13 @@
     "blockDetail": "{{page}} · {{count}}개 블록",
     "pageDone": "{{current}} / {{total}} 페이지 {{target}} 완료",
     "completed": "{{target}} 지우기 완료",
+    "partial": "{{target}} 지우기 부분 완료",
+    "partialDetail": "{{incomplete}}블록은 작업에 실패했습니다.",
     "cancelled": "인페인팅 작업이 취소되었습니다.",
     "failed": "인페인팅 작업 실패",
     "pageNotFound": "인페인팅할 페이지를 찾지 못했습니다.",
     "noTargets": "인페인팅할 텍스트 블록이 없습니다.",
+    "mixedCompletionWorkflows": "선택한 페이지의 번역 완료 워크플로가 서로 달라 한 작업으로 처리할 수 없습니다.",
     "noChanges": "인페인팅 결과가 생성되지 않았습니다.",
     "assets": { "fluxModel": "Flux 모델", "aot": "AOT 인페인팅" },
     "runtime": {

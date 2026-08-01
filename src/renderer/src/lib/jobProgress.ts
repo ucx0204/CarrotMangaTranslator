@@ -48,6 +48,7 @@ const PROGRESS_TEXT_FALLBACK_BY_PHASE: Partial<
   },
   finalizing: { key: "job.phase.finalizing", fallback: "결과 정리 중" },
   done: { key: "job.phase.done", fallback: "작업 완료" },
+  partial: { key: "job.phase.partial", fallback: "작업 부분 완료" },
 };
 
 const STATIC_LABEL_BY_PHASE: Partial<
@@ -396,6 +397,8 @@ function fallbackFromStatus(
       return translate(t, "job.status.cancelled", "작업이 취소됨");
     case "failed":
       return translate(t, "job.status.failed", "작업 실패");
+    case "partial":
+      return translate(t, "job.status.partial", "작업 부분 완료");
     case "completed":
       return translate(t, "job.status.completed", "번역 완료");
     default:

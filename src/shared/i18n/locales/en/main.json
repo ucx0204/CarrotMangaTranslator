@@ -267,10 +267,13 @@
     "blockDetail": "{{page}} · Blocks: {{count}}",
     "pageDone": "{{target}} complete on page {{current}} / {{total}}",
     "completed": "Finished erasing {{target}}",
+    "partial": "Partially finished erasing {{target}}",
+    "partialDetail": "{{incomplete}} blocks failed.",
     "cancelled": "The inpainting job was cancelled.",
     "failed": "Inpainting job failed",
     "pageNotFound": "No pages were found to inpaint.",
     "noTargets": "There are no text blocks to inpaint.",
+    "mixedCompletionWorkflows": "The selected pages use different translation completion workflows and cannot be processed as one job.",
     "noChanges": "The inpainting operation produced no result.",
     "assets": { "fluxModel": "Flux model", "aot": "AOT inpainting" },
     "runtime": {

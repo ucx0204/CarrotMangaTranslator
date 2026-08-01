@@ -143,6 +143,12 @@ describe("job progress helpers", () => {
     );
   });
 
+  it("labels a partial terminal job without calling it completed", () => {
+    expect(formatJobLabel({ status: "partial", phase: "partial" })).toBe(
+      "작업 부분 완료",
+    );
+  });
+
   it("preserves detailed event text while allowing locale refreshes to discard it", () => {
     const job = {
       status: "running" as const,

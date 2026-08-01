@@ -470,6 +470,11 @@
   background: var(--accent-soft);
 }
 
+.inpainting-progress-card.partial {
+  border-color: #a7772e;
+  background: #352a1c;
+}
+
 .inpainting-progress-card small {
   color: #d2cabe;
   overflow-wrap: anywhere;

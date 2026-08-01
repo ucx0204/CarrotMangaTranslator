@@ -53,7 +53,10 @@ export function isAggregateFlowTerminal(
 
 export function isTerminalJobStatus(status: JobState["status"]): boolean {
   return (
-    status === "cancelled" || status === "failed" || status === "completed"
+    status === "cancelled" ||
+    status === "failed" ||
+    status === "partial" ||
+    status === "completed"
   );
 }
 

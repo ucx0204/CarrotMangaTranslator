@@ -77,7 +77,13 @@ async function runSelectedInpainting(
 }
 
 function cancelledSelectionResult(): SequentialInpaintingResult {
-  return { status: "cancelled", pagesChanged: 0, blocksErased: 0 };
+  return {
+    status: "cancelled",
+    pagesChanged: 0,
+    blocksErased: 0,
+    pagesIncomplete: 0,
+    blocksIncomplete: 0,
+  };
 }
 
 function applySelectionResult(
@@ -156,6 +162,21 @@ function reportSelectionResult(
       status: "completed",
       progressText: message,
       phase: "inpainting_done",
+    });
+    options.pushStatus(message);
+    return;
+  }
+  if (result.status === "partial") {
+    const message = t("inpainting.erase.partial", {
+      incompleteBlocks: result.blocksIncomplete,
+    });
+    options.setJobState({
+      id: "inpainting-flow-partial",
+      kind: "inpainting",
+      status: "partial",
+      progressText: message,
+      detail: message,
+      phase: "partial",
     });
     options.pushStatus(message);
     return;

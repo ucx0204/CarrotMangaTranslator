@@ -26,6 +26,7 @@ export type PatternMaskContext = {
   inpaintWindowConstraints: Array<InpaintingWindowMask | null>;
   inpaintWindowGroupIds: string[][];
   validationWindowMasks: InpaintingWindowMask[];
+  validationBlockIds: string[];
   blocksErased: number;
   otsuBlocks: number;
 };
@@ -43,6 +44,7 @@ export function buildPatternPageMask(options: {
    * inpainting boundary.
    */
   bubbleLayoutConstraintBlockIds?: readonly string[];
+  excludedBlockIds?: readonly string[];
   sharedInpaintGroupIdsByBlock?: Readonly<Record<string, readonly string[]>>;
   signal?: AbortSignal;
 }): PatternMaskContext {
@@ -53,11 +55,20 @@ export function buildPatternPageMask(options: {
     inpaintWindowConstraints: [],
     inpaintWindowGroupIds: [],
     validationWindowMasks: [],
+    validationBlockIds: [],
     blocksErased: 0,
     otsuBlocks: 0,
   };
   for (const block of options.page.blocks) {
-    if (!isPatternInpaintingBlockEligible(block, options.blockId)) continue;
+    if (
+      !isPatternInpaintingBlockEligible(
+        block,
+        options.blockId,
+        options.excludedBlockIds,
+      )
+    ) {
+      continue;
+    }
     throwIfAborted(options.signal);
     mergePatternBlock(options, context, block);
   }
@@ -104,6 +115,7 @@ function mergePatternBlock(
   );
   context.inpaintWindowMasks.push(detection.windowMask);
   context.validationWindowMasks.push(detection.windowMask);
+  context.validationBlockIds.push(block.id);
   context.inpaintWindowConstraints.push(null);
   context.inpaintWindowGroupIds.push([]);
   if (detection.usedOtsu) context.otsuBlocks += 1;
@@ -153,6 +165,7 @@ function mergeFluxRegionMask(
   );
   context.inpaintWindowMasks.push(regionMask);
   context.validationWindowMasks.push(regionMask);
+  context.validationBlockIds.push(block.id);
   // Only a detected green region is a hard final-composite boundary. The
   // no-green fallback intentionally preserves the legacy OCR-region feather.
   context.inpaintWindowConstraints.push(bubbleMask ? regionMask : null);

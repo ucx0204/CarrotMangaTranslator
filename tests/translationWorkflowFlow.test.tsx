@@ -440,6 +440,65 @@ describe("translation workflow modes", () => {
     expect(notificationMocks.success).not.toHaveBeenCalled();
   });
 
+  it("persists a partial inpainting result and continues with the next chapter", async () => {
+    const options = makeOptions();
+    const calls: string[] = [];
+    startAnalysis.mockImplementation(async (request) => {
+      calls.push(`T:${request.chapterId}`);
+      return { status: "completed" };
+    });
+    startInpainting.mockImplementation(async (request) => {
+      const selection = request.selections[0];
+      calls.push(`I:${selection.chapterId}`);
+      return selection.chapterId === "chapter-1"
+        ? {
+            status: "partial",
+            chapters: [{ ...makeChapter(), id: selection.chapterId }],
+            pagesChanged: 1,
+            blocksErased: 6,
+            pagesIncomplete: 1,
+            blocksIncomplete: 1,
+          }
+        : {
+            status: "completed",
+            chapters: [{ ...makeChapter(), id: selection.chapterId }],
+            pagesChanged: 1,
+            blocksErased: 1,
+          };
+    });
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
+
+    let outcome = "not-started";
+    await act(async () => {
+      outcome = await result.current.runTranslationFlow({
+        selection: [
+          { chapterId: "chapter-1", mode: "all" },
+          { chapterId: "chapter-2", mode: "all" },
+        ],
+        workflowMode: "cumulative",
+        analysisScope: "missing",
+        blockMode: "auto",
+        bubbleLayoutWorkflow: true,
+      });
+    });
+
+    expect(outcome).toBe("partial");
+    expect(calls).toEqual([
+      "T:chapter-1",
+      "I:chapter-1",
+      "T:chapter-2",
+      "I:chapter-2",
+    ]);
+    expect(options.setJobState).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: "partial", phase: "partial" }),
+    );
+    expect(notificationMocks.warn).toHaveBeenCalledOnce();
+    expect(notificationMocks.error).not.toHaveBeenCalled();
+    expect(notificationMocks.success).not.toHaveBeenCalled();
+  });
+
   it("stops the whole pipeline immediately when a chapter is cancelled", async () => {
     const options = makeOptions();
     startAnalysis.mockResolvedValue({ status: "completed" });

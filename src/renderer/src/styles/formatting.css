@@ -695,6 +695,32 @@
   overflow-wrap: anywhere;
 }
 
+.job-partial-card {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 10px;
+  border: 1px solid #a7772e;
+  border-radius: 8px;
+  background: #352a1c;
+  color: #ffe8b0;
+}
+
+.job-partial-card strong {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.job-partial-card p {
+  margin: 0;
+  color: #f2d59b;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .progress-meta {
   display: flex;
   align-items: center;
@@ -788,6 +814,10 @@
 
 .job-pill.failed {
   background: #773434;
+}
+
+.job-pill.partial {
+  background: #79561e;
 }
 
 .job-pill.completed {

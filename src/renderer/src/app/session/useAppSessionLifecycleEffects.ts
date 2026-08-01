@@ -104,7 +104,10 @@ export function useAppSessionLifecycleEffects({
 
 function isTerminalStatus(status: JobState["status"]): boolean {
   return (
-    status === "completed" || status === "failed" || status === "cancelled"
+    status === "completed" ||
+    status === "partial" ||
+    status === "failed" ||
+    status === "cancelled"
   );
 }
 
@@ -135,6 +138,10 @@ function handleJobStatusChange({
     toast.success(
       formatJobLabel(jobState, t) || t("job.notifications.completed"),
     );
+    return;
+  }
+  if (next === "partial") {
+    toast.warn(formatJobLabel(jobState, t) || t("job.notifications.partial"));
     return;
   }
   if (next === "failed") {

@@ -23,7 +23,9 @@ export type InpaintingJobState = {
   bubbleLayoutRunner: BubbleLayoutRunner | null;
   bubbleLayoutPostprocess: BubbleLayoutPostprocessConfig | null;
   pagesChanged: number;
+  pagesIncomplete: number;
   blocksErased: number;
+  blocksIncomplete: number;
   targetPageIds: Map<string, Set<string>>;
   requestedCompletionWorkflow?: TranslationCompletionWorkflow;
 };

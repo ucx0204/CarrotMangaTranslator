@@ -61,11 +61,13 @@ export type StartInpaintingRequest = StartInpaintingTargetRequest & {
 };
 
 export type StartInpaintingResult = {
-  status: "completed" | "cancelled" | "failed";
+  status: "completed" | "partial" | "cancelled" | "failed";
   chapter?: ChapterSnapshot;
   chapters?: ChapterSnapshot[];
   pagesChanged?: number;
   blocksErased?: number;
+  pagesIncomplete?: number;
+  blocksIncomplete?: number;
   historyTransaction?: InpaintingHistoryTransactionRef;
   error?: string;
 };

@@ -60,10 +60,17 @@ export async function inpaintDrawnPatternPage(
   const engine = requireInpaintingEngine(options.inpaintingEngine);
   const beforeBitmap = Buffer.from(input.bitmap);
   await runDrawnPatternInpainting(input, engine, options);
-  if (!allComponentsChanged(beforeBitmap, input)) {
-    return { page, blocksErased: 0 };
+  const blocksErased = countChangedComponents(beforeBitmap, input);
+  const blocksIncomplete = input.components.length - blocksErased;
+  if (blocksErased === 0) {
+    return { page, blocksErased: 0, blocksIncomplete };
   }
-  return writeDrawnInpaintingResult(page, input);
+  return writeDrawnInpaintingResult(
+    page,
+    input,
+    blocksErased,
+    blocksIncomplete,
+  );
 }
 
 async function loadDrawnPatternInput(
@@ -164,22 +171,24 @@ function resolveOwnedWindowMasks(
   }));
 }
 
-function allComponentsChanged(
+function countChangedComponents(
   beforeBitmap: Buffer,
   input: DrawnPatternInput,
-): boolean {
-  return input.components.every(
+): number {
+  return input.components.filter(
     (component) =>
       measureWindowMaskedRegionChange(beforeBitmap, input.bitmap, input.width, {
         bounds: component.rect,
         data: component.data,
       }).changedPixels > 0,
-  );
+  ).length;
 }
 
 async function writeDrawnInpaintingResult(
   page: MangaPage,
   input: DrawnPatternInput,
+  blocksErased: number,
+  blocksIncomplete: number,
 ): Promise<PatternPageInpaintingResult> {
   const outputImage = nativeImage.createFromBitmap(input.bitmap, {
     width: input.width,
@@ -194,7 +203,8 @@ async function writeDrawnInpaintingResult(
   await mkdir(dirname(outputPath), { recursive: true });
   await writeFile(outputPath, outputImage.toPNG());
   return {
-    blocksErased: input.components.length,
+    blocksErased,
+    blocksIncomplete,
     page: {
       ...page,
       inpaintedImagePath: outputPath,

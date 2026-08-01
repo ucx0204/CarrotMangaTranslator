@@ -15,6 +15,7 @@ const JOB_STATUS_VALUES = [
   "cancelling",
   "cancelled",
   "failed",
+  "partial",
   "completed",
 ] as const;
 export type JobStatus = (typeof JOB_STATUS_VALUES)[number];
@@ -39,6 +40,7 @@ const JOB_PHASE_VALUES = [
   "done",
   "cancelled",
   "failed",
+  "partial",
 ] as const;
 export type JobPhase = (typeof JOB_PHASE_VALUES)[number];
 export const JobPhaseSchema = z.enum(JOB_PHASE_VALUES);

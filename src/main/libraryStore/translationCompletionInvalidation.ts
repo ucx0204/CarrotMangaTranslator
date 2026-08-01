@@ -13,7 +13,7 @@ export function resolveCompletionAfterBlockMutation(
   ) {
     return current;
   }
-  return { ...current, status: "pending" };
+  return { workflow: current.workflow, status: "pending" };
 }
 
 function targetBlockState(

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { reportFluxInpaintSummary } from "../src/main/inpainting/fluxInpaintSummary";
 
 describe("Flux inpainting completion summary", () => {
-  it("fails a required run when any target window is skipped", () => {
+  it("keeps a required run when one target window succeeds and another is skipped", () => {
     const warn = vi.fn();
 
     expect(() =>
@@ -17,7 +17,7 @@ describe("Flux inpainting completion summary", () => {
         { warn },
         true,
       ),
-    ).toThrow("인페인팅 결과가 생성되지 않았습니다.");
+    ).not.toThrow();
     expect(warn).toHaveBeenCalledWith(
       "Flux inpainting skipped one or more eligible crops",
       { eligibleWindows: 2, processedWindows: 1 },
@@ -43,7 +43,7 @@ describe("Flux inpainting completion summary", () => {
     expect(warn).not.toHaveBeenCalled();
   });
 
-  it("fails a required run when any processed target window is unchanged", () => {
+  it("keeps a required run when one processed target changes", () => {
     const warn = vi.fn();
 
     expect(() =>
@@ -58,7 +58,7 @@ describe("Flux inpainting completion summary", () => {
         { warn },
         true,
       ),
-    ).toThrow("인페인팅 결과가 생성되지 않았습니다.");
+    ).not.toThrow();
     expect(warn).toHaveBeenCalledWith(
       "Flux inpainting left one or more masked crops effectively unchanged",
       expect.objectContaining({
@@ -66,5 +66,44 @@ describe("Flux inpainting completion summary", () => {
         unchangedStats: [expect.objectContaining({ crop: 2 })],
       }),
     );
+  });
+
+  it("fails a required run when every processed target is unchanged", () => {
+    const warn = vi.fn();
+
+    expect(() =>
+      reportFluxInpaintSummary(
+        {
+          coveredWindows: 0,
+          eligibleWindows: 2,
+          processedWindows: 2,
+          unchangedWindows: 2,
+          unchangedStats: [
+            { crop: 1, changedRatio: 0, meanDelta: 0 },
+            { crop: 2, changedRatio: 0, meanDelta: 0 },
+          ],
+        },
+        { warn },
+        true,
+      ),
+    ).toThrow("인페인팅 결과가 생성되지 않았습니다.");
+  });
+
+  it("fails a required run when every eligible target is skipped", () => {
+    const warn = vi.fn();
+
+    expect(() =>
+      reportFluxInpaintSummary(
+        {
+          coveredWindows: 0,
+          eligibleWindows: 2,
+          processedWindows: 0,
+          unchangedWindows: 0,
+          unchangedStats: [],
+        },
+        { warn },
+        true,
+      ),
+    ).toThrow("인페인팅 결과가 생성되지 않았습니다.");
   });
 });
