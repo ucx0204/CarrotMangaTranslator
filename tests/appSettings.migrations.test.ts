@@ -13,6 +13,7 @@ import {
   DEFAULT_GEMMA_CONTEXT_TOKENS,
   DEFAULT_CONTEXT_TOKENS,
 } from "../src/main/appSettings";
+import { CURRENT_GENERATION_LIMITS_VERSION } from "../src/main/settings/appSettingsGenerationLimitMigration";
 import {
   resolveOcrGpuBackend,
   resolveOcrQualityMode,
@@ -428,6 +429,78 @@ describeWindows("app settings helpers: UI settings and migrations", () => {
 
     expect(stored.maxTokens).toBe(20000);
     expect(stored.ctx).toBe(45000);
+  });
+
+  it("migrates only the paired legacy remote defaults to model-aware limits", () => {
+    const defaults = resolveDefaultAppSettings();
+    const codex = parseStoredAppSettings(
+      JSON.stringify({
+        modelProvider: "openai-codex",
+        codex: { model: "gpt-5.6-sol" },
+        maxTokens: DEFAULT_GEMMA_MAX_TOKENS,
+        ctx: DEFAULT_GEMMA_CONTEXT_TOKENS,
+      }),
+      defaults,
+    );
+    const gemini = parseStoredAppSettings(
+      JSON.stringify({
+        modelProvider: "openai-api",
+        api: { model: "gemini-3.5-flash-lite" },
+        maxTokens: DEFAULT_GEMMA_MAX_TOKENS,
+        ctx: DEFAULT_GEMMA_CONTEXT_TOKENS,
+      }),
+      defaults,
+    );
+
+    expect(codex.maxTokens).toBe(32768);
+    expect(codex.ctx).toBe(65536);
+    expect(gemini.maxTokens).toBe(65536);
+    expect(gemini.ctx).toBe(524288);
+  });
+
+  it("preserves custom, local, and versioned generation limits", () => {
+    const defaults = resolveDefaultAppSettings();
+    const parse = (settings: Record<string, unknown>) =>
+      parseStoredAppSettings(JSON.stringify(settings), defaults);
+
+    expect(
+      parse({
+        modelProvider: "openai-api",
+        api: { model: "gemini-3.5-flash-lite" },
+        maxTokens: 12001,
+        ctx: DEFAULT_GEMMA_CONTEXT_TOKENS,
+      }),
+    ).toMatchObject({ maxTokens: 12001, ctx: DEFAULT_GEMMA_CONTEXT_TOKENS });
+    expect(
+      parse({
+        modelProvider: "openai-api",
+        api: { model: "gemini-3.5-flash-lite" },
+        maxTokens: DEFAULT_GEMMA_MAX_TOKENS,
+        ctx: 20000,
+      }),
+    ).toMatchObject({ maxTokens: DEFAULT_GEMMA_MAX_TOKENS, ctx: 20000 });
+    expect(
+      parse({
+        modelProvider: "gemma",
+        maxTokens: DEFAULT_GEMMA_MAX_TOKENS,
+        ctx: DEFAULT_GEMMA_CONTEXT_TOKENS,
+      }),
+    ).toMatchObject({
+      maxTokens: DEFAULT_GEMMA_MAX_TOKENS,
+      ctx: DEFAULT_GEMMA_CONTEXT_TOKENS,
+    });
+    expect(
+      parse({
+        generationLimitsVersion: CURRENT_GENERATION_LIMITS_VERSION,
+        modelProvider: "openai-api",
+        api: { model: "gemini-3.5-flash-lite" },
+        maxTokens: DEFAULT_GEMMA_MAX_TOKENS,
+        ctx: DEFAULT_GEMMA_CONTEXT_TOKENS,
+      }),
+    ).toMatchObject({
+      maxTokens: DEFAULT_GEMMA_MAX_TOKENS,
+      ctx: DEFAULT_GEMMA_CONTEXT_TOKENS,
+    });
   });
 
   it("normalizes context length settings without an upper cap", () => {

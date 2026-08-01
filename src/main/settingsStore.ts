@@ -7,6 +7,7 @@ import {
   parseStoredAppSettings,
   resolveDefaultAppSettings,
 } from "./appSettings";
+import { CURRENT_GENERATION_LIMITS_VERSION } from "./settings/appSettingsGenerationLimitMigration";
 import {
   detectBestGpuInfo,
   resolveAmdRocmTargetFromInfo,
@@ -84,7 +85,10 @@ async function persistAppSettings(
   settings: AppSettings,
   paths: AppPaths,
 ): Promise<void> {
-  await writeJsonFile(paths.settingsPath, settings);
+  await writeJsonFile(paths.settingsPath, {
+    generationLimitsVersion: CURRENT_GENERATION_LIMITS_VERSION,
+    ...settings,
+  });
 }
 
 function attachRuntimeHardware(

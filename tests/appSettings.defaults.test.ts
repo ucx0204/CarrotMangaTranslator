@@ -318,6 +318,16 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     expect(rtx5070Defaults.ocr.gpuCudaTag).toBe(RTX_50_OCR_GPU_CUDA_TAG);
   });
 
+  it("uses model-aware first-run limits for Gemini 3.5 Flash-Lite", () => {
+    const defaults = resolveDefaultAppSettings({
+      MANGA_TRANSLATOR_MODEL_PROVIDER: "openai-api",
+      MANGA_TRANSLATOR_API_MODEL: "gemini-3.5-flash-lite",
+    });
+
+    expect(defaults.maxTokens).toBe(65536);
+    expect(defaults.ctx).toBe(524288);
+  });
+
   it("fills missing or partial stored settings from environment-based defaults", () => {
     const env = {
       MANGA_TRANSLATOR_MODEL_HF: "env/default-repo",

@@ -58,6 +58,7 @@ import {
   normalizeComputeGpuIndex,
   normalizeGraphicsGpuPreference,
 } from "../../shared/gpuSettings";
+import { migrateLegacyRemoteGenerationLimits } from "./appSettingsGenerationLimitMigration";
 
 export function normalizeAppSettings(
   raw: unknown,
@@ -398,5 +399,9 @@ export function parseStoredAppSettings(
     return defaults;
   }
 
-  return normalizeAppSettings(JSON.parse(rawText), defaults);
+  const raw = JSON.parse(rawText);
+  return migrateLegacyRemoteGenerationLimits(
+    raw,
+    normalizeAppSettings(raw, defaults),
+  );
 }

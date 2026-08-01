@@ -1,13 +1,16 @@
 import { existsSync } from "node:fs";
-import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppPaths } from "../src/main/appPaths";
 import {
   getAppSettings,
+  saveAppSettings,
   type SettingsStoreDiagnostics,
 } from "../src/main/settingsStore";
+import { resolveDefaultAppSettings } from "../src/main/appSettings";
+import { CURRENT_GENERATION_LIMITS_VERSION } from "../src/main/settings/appSettingsGenerationLimitMigration";
 
 const tempDirs: string[] = [];
 
@@ -45,6 +48,32 @@ describe("settings store", () => {
     expect(existsSync(settingsPath)).toBe(true);
     expect(diagnostics.warn).toHaveBeenCalledOnce();
     expect(diagnostics.error).not.toHaveBeenCalled();
+  });
+
+  it("marks newly saved limits so an intentional legacy-sized pair is preserved", async () => {
+    const rootDir = await createTempDir();
+    const paths = makeAppPaths(rootDir);
+    const custom = {
+      ...resolveDefaultAppSettings({
+        MANGA_TRANSLATOR_MODEL_PROVIDER: "openai-api",
+        MANGA_TRANSLATOR_API_MODEL: "gemini-3.5-flash-lite",
+      }),
+      maxTokens: 12000,
+      ctx: 16384,
+    };
+
+    await saveAppSettings(custom, paths, {}, async () => null);
+    const persisted = JSON.parse(
+      await readFile(paths.settingsPath, "utf8"),
+    ) as {
+      generationLimitsVersion?: number;
+    };
+    const restored = await getAppSettings(paths, {}, async () => null);
+
+    expect(persisted.generationLimitsVersion).toBe(
+      CURRENT_GENERATION_LIMITS_VERSION,
+    );
+    expect(restored).toMatchObject({ maxTokens: 12000, ctx: 16384 });
   });
 });
 

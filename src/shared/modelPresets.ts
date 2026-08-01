@@ -56,10 +56,32 @@ export type CodexModelPreset = {
   recommendedContextTokens: number;
 };
 
+type ApiModelPreset = {
+  id: string;
+  /** Publicly documented model input/context ceiling. */
+  contextWindowTokens: number;
+  /** Publicly documented output ceiling. */
+  maxOutputTokens: number;
+  /** App-level working default, capped by the published output ceiling. */
+  recommendedMaxTokens: number;
+  /** Prompt-memory budget used by this app, not a server-side context setting. */
+  recommendedContextTokens: number;
+};
+
 export const DEFAULT_REMOTE_MAX_TOKENS = 32768;
 export const DEFAULT_REMOTE_CONTEXT_TOKENS = 65536;
 export const DEFAULT_GEMMA_MAX_TOKENS = 12000;
 export const DEFAULT_GEMMA_CONTEXT_TOKENS = 16384;
+
+const API_MODEL_PRESETS = [
+  {
+    id: "gemini-3.5-flash-lite",
+    contextWindowTokens: 1_048_576,
+    maxOutputTokens: 65_536,
+    recommendedMaxTokens: 65_536,
+    recommendedContextTokens: 524_288,
+  },
+] as const satisfies readonly ApiModelPreset[];
 
 /**
  * Models advertised by the visible Codex model catalog. Keep Custom available
@@ -152,6 +174,13 @@ export function findCodexModelPreset(
   return CODEX_MODEL_PRESETS.find((preset) => preset.id === normalized);
 }
 
+function findApiModelPreset(
+  model: string | null | undefined,
+): ApiModelPreset | undefined {
+  const normalized = model?.trim();
+  return API_MODEL_PRESETS.find((preset) => preset.id === normalized);
+}
+
 export function resolveRecommendedGenerationLimits(
   provider: ModelProvider,
   model?: string | null,
@@ -166,7 +195,9 @@ export function resolveRecommendedGenerationLimits(
   }
 
   const preset =
-    provider === "openai-codex" ? findCodexModelPreset(model) : undefined;
+    provider === "openai-codex"
+      ? findCodexModelPreset(model)
+      : findApiModelPreset(model);
   return {
     maxTokens: preset?.recommendedMaxTokens ?? DEFAULT_REMOTE_MAX_TOKENS,
     contextTokens:

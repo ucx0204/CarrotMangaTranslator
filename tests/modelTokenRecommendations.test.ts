@@ -53,4 +53,26 @@ describe("model token recommendations", () => {
       maxTokens: DEFAULT_REMOTE_MAX_TOKENS,
     });
   });
+
+  it("uses published Gemini 3.5 Flash-Lite limits without guessing other API models", () => {
+    expect(
+      resolveRecommendedGenerationLimits("openai-api", "gemini-3.5-flash-lite"),
+    ).toEqual({
+      contextTokens: 524_288,
+      contextWindowTokens: 1_048_576,
+      maxOutputTokens: 65_536,
+      maxTokens: 65_536,
+    });
+    expect(
+      resolveRecommendedGenerationLimits(
+        "openai-api",
+        "unlisted-compatible-model",
+      ),
+    ).toEqual({
+      contextTokens: DEFAULT_REMOTE_CONTEXT_TOKENS,
+      contextWindowTokens: null,
+      maxOutputTokens: null,
+      maxTokens: DEFAULT_REMOTE_MAX_TOKENS,
+    });
+  });
 });
