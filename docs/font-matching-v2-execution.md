@@ -225,3 +225,27 @@ YYYY-MM-DD / 단계
 - artifact: `scripts/build_font_matching_work_profiles.py`, `tests/python/test_build_font_matching_work_profiles.py`, `C:\tmp\font-matching-work-profiles-preliminary-v1.jsonl`
 - SHA-256: 예비 finals `60bd1059bb2167f6cf3d205aa9b41938c5276c9838fe47d059bba0135c28d855`, 예비 profiles `775494ac07d8bfa32ff4d3544b817fc1c85bf521d491c4435d2694d856caeb88`
 - 남은 실패/예외: 파일럿 합의 gate와 adjudication이 아직 끝나지 않았고 runtime catalog tag도 `offline-unreleased`이므로 이 예비 profile은 설치하거나 자동 적용하지 않는다. v2 calibration 통과 후 28,115개 최종판정에서 `--expected-finals 28115`로 다시 만들고 실제 runtime catalog/model/renderer 계약을 넣어야 한다.
+
+2026-08-01 / P0 한국어 만화 폰트 카탈로그 확장
+
+- 명령: Google Fonts의 OFL 원본 7종을 고정 커밋에서 내려받아 face manifest와 Chromium render bank를 재생성하고, 가로·세로 140개 대표 셀 및 실제 `FontManager`의 1,440×1,000·760×900 화면을 육안 확인했다. 이어서 font asset/catalog/render-bank 집중 테스트와 typecheck를 실행했다.
+- 결과: `black-and-white-picture`, `black-han-sans`, `gasoek-one`, `gugi`, `kirang-haerang`, `nanum-brush-script`, `single-day`를 추가해 한국어 후보를 15 family에서 22 family로 확장했다. 확장 render bank는 820/820 Chromium 렌더가 font-ready, fallback 없음, content-fit을 통과했다. 기존 15-family pilot catalog와 render bank는 불변으로 유지한다.
+- artifact: `datasets/fontclip-font-catalog-v2`, `datasets/fontclip-font-render-bank-v2`, `src/renderer/src/assets/fonts/ko`, `third_party/fonts`
+- SHA-256 또는 commit: `9aaaf62`
+- 남은 실패/예외: 기존 15-family pilot에서 `none_acceptable`이었던 131건은 새 7종만 별도 blind 재심사해야 하며, old review가 새 후보를 본 것처럼 재해석하지 않는다.
+
+2026-08-01 / P1 신규 카탈로그 rescue 입력·카드 경로
+
+- 명령: `build_font_matching_catalog_rescue_inputs.py build/validate`, 7개 후보 subset을 허용한 `build_font_matching_review_cards.py`, Python unittest 16건, Ruff, py_compile, 실제 131건 output 재검증 및 primary/secondary smoke 카드 4장 원본 확인
+- 결과: 기존 final에서 `none_acceptable`인 131건만 골라 새 canonical 7종의 Chromium 렌더 140개를 별도 bank로 복사했다. 24작품, hard SFX 45건이며 synthetic/QA overlay는 0이다. Windows 경로 이탈, 중복 candidate/display/render/artifact, 불완전 렌더 행렬, readiness/fallback/hash 불일치, 변조·비관리 output 교체를 모두 hard-fail한다. 카드에는 실제로 검토한 7개 alias만 노출·reveal된다. 후속 human-final 방향 결속 검사에서 mixed 10건과 unknown 1건을 발견해 기존 smoke output의 최종 사용을 차단했으며, 이 11건은 재크롭 큐로 보냈다.
+- artifact: `scripts/build_font_matching_catalog_rescue_inputs.py`, `datasets/font-matching-catalog-rescue-inputs-v2`, `datasets/font-matching-catalog-rescue-plan-v2`
+- SHA-256 또는 commit: `175027d`; assignments `069a38ff2c34feed58dc8ab4d7510f46b920a3708fcc76b961583b1fa59755e9`
+- 남은 실패/예외: orientation/recrop 교정이 끝난 최종 master에서 rescue 입력·assignment·카드를 다시 봉인하고 131건 전부를 독립 이중검수한다.
+
+2026-08-01 / P1 282건 orientation 원본 전수감사 완료
+
+- 명령: 3개 shard의 282개 카드를 `view_image(detail=original)`로 한 장씩 열어 source page/local context/raw/context/glyph만으로 방향과 crop 상태를 판정하고, 12개 응답 묶음을 `font_matching_orientation_audit.py validate/apply`로 재검증했다.
+- 결과: 응답 282/282, 누락·중복·해시 오류 0. 실제 방향은 vertical 233, horizontal 42, mixed 3, unknown 4였고 선언 방향 불일치는 23건이다. `usable + horizontal/vertical` 222건만 별도 교정 master로 승격했으며 `needs_recrop` 38, `mixed_hierarchy` 19, `unusable` 3의 총 60건은 격리했다. 원본 파일 수정, overlay/synthetic/mixed/unusable 승격은 모두 0이다.
+- artifact: `C:\tmp\font-matching-orientation-audit-v2`, `C:\tmp\font-matching-rubric-calibration-orientation-applied-v2`
+- SHA-256: complete validation `a796e56713052338437127e901ddb3fcbfcb2a60bfe64bbd8294128f28787a81`, corrected master `50172149c98635f2bace30d0ba6a19264e20594add970aafe5502a406aa16fe4`, rejected ledger `390106aa2fc0613df6ecc81263ab89e86f61530fbad1ce5479a8831a4e1fb4ce`
+- 남은 실패/예외: 격리 60건을 원본 페이지 좌표에서 직접 재크롭하거나 대체하고, 생성된 실제 crop을 다시 전수감사한 뒤에만 282건 최종 calibration 카드를 봉인한다.

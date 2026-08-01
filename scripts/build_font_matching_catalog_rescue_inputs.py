@@ -238,7 +238,43 @@ def _filter_master(
             prior_treatment = require_mapping(
                 prior.get("treatment"), f"final[{sample_id}].treatment"
             )
-            master_rows.append(row)
+            prior_final_id = require_text(
+                prior.get("final_id"), f"final[{sample_id}].final_id"
+            )
+            prior_final_sha256 = require_sha(
+                prior.get("record_sha256"),
+                f"final[{sample_id}].record_sha256",
+            )
+            prior_orientation = require_text(
+                prior_treatment.get("orientation"),
+                f"final[{sample_id}].treatment.orientation",
+            )
+            if prior_orientation not in {"horizontal", "vertical"}:
+                raise RescueInputError(
+                    f"final[{sample_id}]: unsupported reviewed orientation "
+                    f"{prior_orientation!r}"
+                )
+            source_master_record_sha256 = sha256_bytes(json_bytes(row))
+            corrected_master = copy.deepcopy(row)
+            metadata = dict(
+                require_mapping(
+                    corrected_master.get("metadata", {}),
+                    f"master[{sample_id}].metadata",
+                )
+            )
+            previous_orientation = metadata.get("orientation")
+            metadata["orientation"] = prior_orientation
+            metadata["catalog_rescue_orientation"] = {
+                "source": "prior_final_human_orientation",
+                "prior_final_id": prior_final_id,
+                "prior_final_record_sha256": prior_final_sha256,
+                "source_master_record_sha256": source_master_record_sha256,
+                "previous_orientation": previous_orientation,
+                "applied_orientation": prior_orientation,
+                "orientation_changed": previous_orientation != prior_orientation,
+            }
+            corrected_master["metadata"] = metadata
+            master_rows.append(corrected_master)
             selection_rows.append(
                 seal(
                     {
@@ -248,22 +284,17 @@ def _filter_master(
                         "work_id": work_id,
                         "source_page_sha256": source_page_sha256,
                         "source_master_line_number": line_number,
-                        "source_master_record_sha256": sha256_bytes(json_bytes(row)),
-                        "prior_final_id": require_text(
-                            prior.get("final_id"), f"final[{sample_id}].final_id"
-                        ),
-                        "prior_final_record_sha256": require_sha(
-                            prior.get("record_sha256"),
-                            f"final[{sample_id}].record_sha256",
-                        ),
+                        "source_master_record_sha256": source_master_record_sha256,
+                        "prior_final_id": prior_final_id,
+                        "prior_final_record_sha256": prior_final_sha256,
                         "prior_role": require_text(
                             prior_role.get("primary"),
                             f"final[{sample_id}].role.primary",
                         ),
-                        "prior_orientation": require_text(
-                            prior_treatment.get("orientation"),
-                            f"final[{sample_id}].treatment.orientation",
-                        ),
+                        "previous_master_orientation": previous_orientation,
+                        "prior_orientation": prior_orientation,
+                        "orientation_changed": previous_orientation
+                        != prior_orientation,
                         "selection_reason": "prior_none_acceptable",
                     }
                 )

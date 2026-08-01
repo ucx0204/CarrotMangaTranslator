@@ -215,6 +215,7 @@ class Fixture:
                 "id": "sample-none",
                 "work": {"id": "work-none"},
                 "page": {"source_page_sha256": none_page_sha},
+                "metadata": {"orientation": "horizontal"},
                 "provenance": {"qa_overlay": False, "synthetic": False},
             },
         ]
@@ -374,6 +375,15 @@ class CatalogRescueInputTests(unittest.TestCase):
             self.assertEqual(["sample-none"], [row["id"] for row in masters])
             self.assertEqual(["sample-none"], [row["sample_id"] for row in selections])
             self.assertEqual("prior_none_acceptable", selections[0]["selection_reason"])
+            self.assertEqual("vertical", masters[0]["metadata"]["orientation"])
+            self.assertEqual(
+                "prior_final_human_orientation",
+                masters[0]["metadata"]["catalog_rescue_orientation"]["source"],
+            )
+            self.assertTrue(selections[0]["orientation_changed"])
+            self.assertEqual(
+                "horizontal", selections[0]["previous_master_orientation"]
+            )
             self.assertEqual(
                 list(NEW_FONT_IDS),
                 [candidate["font_id"] for candidate in bank["candidates"]],
@@ -411,6 +421,19 @@ class CatalogRescueInputTests(unittest.TestCase):
             fixture.rewrite_master()
 
             with self.assertRaisesRegex(RESCUE.RescueInputError, "source-page"):
+                fixture.build_files()
+
+    def test_requires_a_reviewed_single_writing_orientation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Fixture(Path(directory))
+            changed = copy.deepcopy(fixture.final_rows[1])
+            changed["treatment"]["orientation"] = "mixed"
+            fixture.final_rows[1] = LABELS.seal_record(changed)
+            fixture.rewrite_labels()
+
+            with self.assertRaisesRegex(
+                RESCUE.RescueInputError, "unsupported reviewed orientation 'mixed'"
+            ):
                 fixture.build_files()
 
     def test_rejects_expanded_catalog_that_drops_a_legacy_family(self) -> None:
