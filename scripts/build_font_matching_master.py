@@ -43,6 +43,8 @@ MASTER_SCHEMA_VERSION = 1
 CATALOG_SCHEMA_VERSION = 1
 SPLIT_MAP_SCHEMA_VERSION = 1
 REPORT_SCHEMA_VERSION = 1
+CATALOG_REGISTRY_SCHEMA_VERSION = "font-matching-catalog-registry-v1"
+CATALOG_REGISTRY_RECORD_TYPE = "font_matching_catalog_registry"
 EXPECTED_BASE_ROWS = 8_763
 EXPECTED_HARD_ROWS = 19_352
 EXPECTED_TOTAL_ROWS = 28_115
@@ -100,6 +102,32 @@ class CatalogReadResult:
     records: list[dict[str, Any]]
     manifest_sha256: str
     row_count: int
+    physical_row_count: int
+    excluded_row_count: int
+
+
+@dataclass(frozen=True)
+class SourceExclusion:
+    catalog_id: str
+    source_id: str
+    source_line_number: int
+    source_line_sha256: str
+    parent_master_id: str
+    parent_master_record_sha256: str
+    ledger_path: str
+    ledger_sha256: str
+    record_sha256: str
+
+
+@dataclass(frozen=True)
+class SourceConfiguration:
+    catalogs: list[SourceCatalog]
+    expected_counts: dict[str, int]
+    expected_physical_counts: dict[str, int] | None
+    expected_total: int
+    exclusions: dict[tuple[str, str], SourceExclusion]
+    frozen_split_map: dict[str, Any] | None
+    input_attestation: dict[str, Any] | None
 
 
 @dataclass
@@ -227,6 +255,14 @@ def resolve_inside(root: Path, relative: str, *, location: str) -> Path:
             f"{location}: asset path escaped catalog root: {relative}"
         ) from error
     return candidate
+
+
+def _is_within(root: Path, candidate: Path) -> bool:
+    try:
+        candidate.resolve().relative_to(root.resolve())
+        return True
+    except (OSError, ValueError):
+        return False
 
 
 def nested(mapping: Mapping[str, Any], *keys: str) -> Any:
@@ -817,27 +853,37 @@ def compact_source_row(
             "candidate_primary_category": candidate_primary_category,
             "candidate_score": candidate_score,
             "cohort_signals": build_cohort_signals(row),
-            "ocr_text": row.get("ocr_text")
-            if isinstance(row.get("ocr_text"), str)
-            else None,
-            "orientation": row.get("orientation")
-            if isinstance(row.get("orientation"), str)
-            else None,
-            "style_metrics": row.get("style_metrics")
-            if isinstance(row.get("style_metrics"), Mapping)
-            else None,
+            "ocr_text": (
+                row.get("ocr_text") if isinstance(row.get("ocr_text"), str) else None
+            ),
+            "orientation": (
+                row.get("orientation")
+                if isinstance(row.get("orientation"), str)
+                else None
+            ),
+            "style_metrics": (
+                row.get("style_metrics")
+                if isinstance(row.get("style_metrics"), Mapping)
+                else None
+            ),
             "tier": row.get("tier") if isinstance(row.get("tier"), str) else None,
             "visual_review_trace": {
-                "adjudication": row.get("adjudication")
-                if isinstance(row.get("adjudication"), Mapping)
-                else None,
-                "audit_history": row.get("audit_history")
-                if isinstance(row.get("audit_history"), list)
-                else None,
+                "adjudication": (
+                    row.get("adjudication")
+                    if isinstance(row.get("adjudication"), Mapping)
+                    else None
+                ),
+                "audit_history": (
+                    row.get("audit_history")
+                    if isinstance(row.get("audit_history"), list)
+                    else None
+                ),
                 "audit_status": row.get("audit_status"),
-                "review": row.get("review")
-                if isinstance(row.get("review"), Mapping)
-                else None,
+                "review": (
+                    row.get("review")
+                    if isinstance(row.get("review"), Mapping)
+                    else None
+                ),
             },
         },
         "page": {
@@ -854,12 +900,13 @@ def compact_source_row(
             "approval": "exhaustive_manual_visual_review",
             "qa_overlay": False,
             "source_catalog_id": catalog.catalog_id,
+            "source_kind": catalog.source_kind,
             "source_id": source_id,
             "source_line_number": line_number,
             "source_line_sha256": source_line_sha256,
-            "source_lineage": row.get("lineage")
-            if isinstance(row.get("lineage"), list)
-            else None,
+            "source_lineage": (
+                row.get("lineage") if isinstance(row.get("lineage"), list) else None
+            ),
             "source_provenance": row.get("provenance"),
             "source_schema_version": row.get("schema_version"),
             "synthetic": False,
@@ -885,6 +932,7 @@ def read_catalog(
     catalog: SourceCatalog,
     *,
     verify_assets: bool,
+    exclusions: Mapping[tuple[str, str], SourceExclusion] | None = None,
 ) -> CatalogReadResult:
     if not catalog.manifest_path.is_file():
         raise MasterManifestError(
@@ -892,12 +940,20 @@ def read_catalog(
         )
     digest = hashlib.sha256()
     records: list[dict[str, Any]] = []
+    physical_row_count = 0
+    matched_exclusions: set[tuple[str, str]] = set()
+    catalog_exclusions = {
+        key: value
+        for key, value in (exclusions or {}).items()
+        if key[0] == catalog.catalog_id
+    }
     with catalog.manifest_path.open("rb") as handle:
         for physical_line, payload in enumerate(handle, start=1):
             digest.update(payload)
             stripped = payload.rstrip(b"\r\n")
             if not stripped.strip():
                 continue
+            physical_row_count += 1
             try:
                 row = json.loads(stripped)
             except (UnicodeDecodeError, json.JSONDecodeError) as error:
@@ -908,6 +964,30 @@ def read_catalog(
                 raise MasterManifestError(
                     f"{catalog.catalog_id}:{physical_line}: expected a JSON object"
                 )
+            source_id = text(
+                row.get("id"),
+                location=f"{catalog.catalog_id}:{physical_line}.id",
+            )
+            assert source_id is not None
+            source_key = (catalog.catalog_id, source_id)
+            exclusion = catalog_exclusions.get(source_key)
+            if exclusion is not None:
+                source_line_sha256 = sha256_bytes(stripped)
+                if (
+                    exclusion.source_line_number != physical_line
+                    or exclusion.source_line_sha256 != source_line_sha256
+                ):
+                    raise MasterManifestError(
+                        f"{catalog.catalog_id}:{physical_line}: exclusion source-line "
+                        "binding drifted"
+                    )
+                assert_real_approved_record(
+                    catalog,
+                    row,
+                    line_number=physical_line,
+                )
+                matched_exclusions.add(source_key)
+                continue
             records.append(
                 compact_source_row(
                     catalog,
@@ -917,11 +997,19 @@ def read_catalog(
                     verify_assets=verify_assets,
                 )
             )
+    missing_exclusions = sorted(set(catalog_exclusions) - matched_exclusions)
+    if missing_exclusions:
+        raise MasterManifestError(
+            f"{catalog.catalog_id}: exclusions did not match physical source rows: "
+            f"{missing_exclusions[:8]}"
+        )
     return CatalogReadResult(
         catalog=catalog,
         records=records,
         manifest_sha256=digest.hexdigest(),
         row_count=len(records),
+        physical_row_count=physical_row_count,
+        excluded_row_count=len(matched_exclusions),
     )
 
 
@@ -1238,6 +1326,110 @@ def apply_global_splits(
     }
 
 
+def apply_frozen_splits(
+    records: list[dict[str, Any]],
+    *,
+    frozen_split_map: Mapping[str, Any],
+    frozen_binding: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Reuse an already-reviewed work split without rebalancing it.
+
+    A repair delta changes row counts but must not move any work between
+    train/validation/test.  New lineage or normalized-glyph links are allowed
+    only when all works in the resulting component already share one frozen
+    assignment.
+    """
+
+    if frozen_split_map.get("schema_version") != SPLIT_MAP_SCHEMA_VERSION:
+        raise MasterManifestError("frozen split map has an unsupported schema")
+    raw_assignments = frozen_split_map.get("work_assignments")
+    if not isinstance(raw_assignments, Mapping):
+        raise MasterManifestError("frozen split map lacks work_assignments")
+    assignments: dict[str, str] = {}
+    for raw_work_id, raw_split in raw_assignments.items():
+        work_id = text(raw_work_id, location="frozen split work id")
+        split = text(raw_split, location=f"frozen split[{work_id}]")
+        assert work_id and split
+        if split not in DEFAULT_SPLIT_RATIOS:
+            raise MasterManifestError(
+                f"frozen split[{work_id}] has unsupported assignment {split!r}"
+            )
+        assignments[work_id] = split
+
+    observed_work_ids = {str(nested(record, "work", "id")) for record in records}
+    if observed_work_ids != set(assignments):
+        missing = sorted(observed_work_ids - set(assignments))
+        stale = sorted(set(assignments) - observed_work_ids)
+        raise MasterManifestError(
+            "frozen split work coverage differs from the rebuilt master: "
+            f"missing={missing[:8]} stale={stale[:8]}"
+        )
+
+    components = build_work_components(records)
+    work_component: dict[str, str] = {}
+    for component in components:
+        work_ids = [str(value) for value in component["work_ids"]]
+        splits = {assignments[work_id] for work_id in work_ids}
+        if len(splits) != 1:
+            raise MasterManifestError(
+                "new catalog lineage connects frozen work assignments across "
+                f"splits: component={component['id']} works={work_ids}"
+            )
+        split = next(iter(splits))
+        component["split"] = split
+        for work_id in work_ids:
+            work_component[work_id] = str(component["id"])
+
+    work_counts = Counter(str(nested(record, "work", "id")) for record in records)
+    for record in records:
+        work_id = str(nested(record, "work", "id"))
+        record["split"] = assignments[work_id]
+        record["groups"]["split_component"] = work_component[work_id]
+        record["work_balance_weight"] = round(1.0 / work_counts[work_id], 12)
+
+    link_signature = [
+        {
+            "id": component["id"],
+            "sample_count": component["sample_count"],
+            "work_ids": component["work_ids"],
+        }
+        for component in sorted(components, key=lambda item: item["id"])
+    ]
+    frozen_algorithm = frozen_split_map.get("algorithm")
+    ratios = (
+        frozen_algorithm.get("ratios")
+        if isinstance(frozen_algorithm, Mapping)
+        else None
+    )
+    if not isinstance(ratios, Mapping):
+        ratios = dict(DEFAULT_SPLIT_RATIOS)
+    effective_ratios = validate_ratios(ratios)
+    assignment_counts = Counter(assignments.values())
+    work_targets = {split: assignment_counts[split] for split in DEFAULT_SPLIT_RATIOS}
+    algorithm: dict[str, Any] = {
+        "id": "frozen-work-assignment",
+        "ratios": effective_ratios,
+        "seed": (
+            frozen_algorithm.get("seed")
+            if isinstance(frozen_algorithm, Mapping)
+            else None
+        ),
+        "version": 1,
+        "work_targets": work_targets,
+    }
+    if frozen_binding is not None:
+        algorithm["frozen_source"] = dict(frozen_binding)
+    return {
+        "algorithm": algorithm,
+        "catalog_version": CATALOG_SCHEMA_VERSION,
+        "components": sorted(components, key=lambda item: item["id"]),
+        "constraint_signature_sha256": sha256_bytes(json_bytes(link_signature)),
+        "schema_version": SPLIT_MAP_SCHEMA_VERSION,
+        "tool": TOOL_ID,
+        "work_assignments": dict(sorted(assignments.items())),
+    }
+
+
 def _group_statistics(
     records: Sequence[Mapping[str, Any]], group_name: str
 ) -> dict[str, Any]:
@@ -1269,8 +1461,18 @@ def summarize_records(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     by_catalog = Counter(
         str(nested(record, "provenance", "source_catalog_id")) for record in records
     )
+    by_source_kind = Counter(
+        str(nested(record, "provenance", "source_kind")) for record in records
+    )
     by_split = Counter(str(record["split"]) for record in records)
     by_work = Counter(str(nested(record, "work", "id")) for record in records)
+    chapters = {
+        (
+            str(nested(record, "work", "id")),
+            str(nested(record, "chapter", "id")),
+        )
+        for record in records
+    }
     work_splits: dict[str, set[str]] = defaultdict(set)
     view_statuses: dict[str, Counter[str]] = {name: Counter() for name in VIEW_NAMES}
     split_works: dict[str, set[str]] = defaultdict(set)
@@ -1312,7 +1514,9 @@ def summarize_records(records: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
             }
     return {
         "by_catalog": dict(sorted(by_catalog.items())),
+        "by_source_kind": dict(sorted(by_source_kind.items())),
         "by_split": dict(sorted(by_split.items())),
+        "chapter_count": len(chapters),
         "group_statistics": {
             name: _group_statistics(records, name)
             for name in ("root", "variant", "normalized_glyph")
@@ -1389,9 +1593,11 @@ def build_verification_statistics(
         )
         signature = (
             str(locator["file_sha256"]),
-            locator.get("size_bytes")
-            if isinstance(locator.get("size_bytes"), int)
-            else None,
+            (
+                locator.get("size_bytes")
+                if isinstance(locator.get("size_bytes"), int)
+                else None
+            ),
             size_px,
         )
         previous = library_pages.setdefault(relative, signature)
@@ -1443,15 +1649,15 @@ def build_verification_statistics(
     return {
         "available_224": {
             "unique_catalog_paths": len(available_views),
-            "verified_file_hash_and_decode_count": len(available_views)
-            if verify_assets
-            else 0,
+            "verified_file_hash_and_decode_count": (
+                len(available_views) if verify_assets else 0
+            ),
         },
         "derivable_raw_native": {
             "unique_catalog_paths": len(derivable_native),
-            "verified_file_hash_and_decode_count": len(derivable_native)
-            if verify_assets
-            else 0,
+            "verified_file_hash_and_decode_count": (
+                len(derivable_native) if verify_assets else 0
+            ),
         },
         "source_page_locators": {
             "reference_count": source_page_references,
@@ -1471,14 +1677,45 @@ def build_bundle(
     *,
     expected_counts: Mapping[str, int] | None,
     expected_total: int | None,
+    expected_physical_counts: Mapping[str, int] | None = None,
     split_ratios: Mapping[str, float] = DEFAULT_SPLIT_RATIOS,
     work_targets: Mapping[str, int] | None = None,
     split_seed: str = ALGORITHM_VERSION,
     verify_assets: bool = False,
     library_root: Path | None = None,
+    exclusions: Mapping[tuple[str, str], SourceExclusion] | None = None,
+    frozen_split_map: Mapping[str, Any] | None = None,
+    input_attestation: Mapping[str, Any] | None = None,
 ) -> BuildBundle:
+    catalog_ids = {catalog.catalog_id for catalog in catalogs}
+    unknown_exclusion_catalogs = sorted(
+        {catalog_id for catalog_id, _source_id in (exclusions or {})} - catalog_ids
+    )
+    if unknown_exclusion_catalogs:
+        raise MasterManifestError(
+            "exclusions reference catalogs outside the build registry: "
+            f"{unknown_exclusion_catalogs[:8]}"
+        )
     ratios = validate_ratios(split_ratios)
-    reads = [read_catalog(catalog, verify_assets=verify_assets) for catalog in catalogs]
+    reads = [
+        read_catalog(
+            catalog,
+            verify_assets=verify_assets,
+            exclusions=exclusions,
+        )
+        for catalog in catalogs
+    ]
+    if expected_physical_counts is not None:
+        for read in reads:
+            expected_physical = expected_physical_counts.get(read.catalog.catalog_id)
+            if (
+                expected_physical is not None
+                and read.physical_row_count != expected_physical
+            ):
+                raise MasterManifestError(
+                    f"{read.catalog.catalog_id}: expected {expected_physical} physical "
+                    f"rows, found {read.physical_row_count}"
+                )
     if expected_counts is not None:
         for read in reads:
             expected = expected_counts.get(read.catalog.catalog_id)
@@ -1493,11 +1730,24 @@ def build_bundle(
             f"expected {expected_total} approved rows, found {len(records)}"
         )
     validate_unique_source_rows(records)
-    split_map = apply_global_splits(
-        records,
-        ratios=ratios,
-        work_targets=work_targets,
-        seed=split_seed,
+    split_map = (
+        apply_frozen_splits(
+            records,
+            frozen_split_map=frozen_split_map,
+            frozen_binding=(
+                input_attestation.get("frozen_split_map")
+                if isinstance(input_attestation, Mapping)
+                and isinstance(input_attestation.get("frozen_split_map"), Mapping)
+                else None
+            ),
+        )
+        if frozen_split_map is not None
+        else apply_global_splits(
+            records,
+            ratios=ratios,
+            work_targets=work_targets,
+            seed=split_seed,
+        )
     )
     records.sort(key=lambda record: str(record["id"]))
     verification_statistics = build_verification_statistics(
@@ -1514,6 +1764,8 @@ def build_bundle(
             "manifest_name": read.catalog.manifest_name,
             "manifest_sha256": read.manifest_sha256,
             "record_count": read.row_count,
+            "physical_record_count": read.physical_row_count,
+            "excluded_record_count": read.excluded_row_count,
             "source_kind": read.catalog.source_kind,
         }
         for read in reads
@@ -1524,6 +1776,11 @@ def build_bundle(
         "catalog_schema_version": CATALOG_SCHEMA_VERSION,
         "inputs": {
             "catalogs": dict(sorted(input_catalogs.items())),
+            "attestation": (
+                json.loads(canonical_json(input_attestation))
+                if input_attestation is not None
+                else None
+            ),
             "storage_root_contracts": {
                 "library_root": (
                     "caller-supplied manga library root; distinct from every "
@@ -1767,6 +2024,11 @@ def validate_master(
     expected_total: int | None,
     verify_assets: bool,
     library_root: Path | None = None,
+    expected_counts: Mapping[str, int] | None = None,
+    expected_physical_counts: Mapping[str, int] | None = None,
+    exclusions: Mapping[tuple[str, str], SourceExclusion] | None = None,
+    frozen_split_map: Mapping[str, Any] | None = None,
+    input_attestation: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     catalog_map = {catalog.catalog_id: catalog for catalog in catalogs}
     manifest_path = master_dir / "manifest.jsonl"
@@ -1835,7 +2097,23 @@ def validate_master(
         assert catalog_id and source_id
         if catalog_id not in catalog_map:
             raise MasterManifestError(f"{item_id}: unknown source catalog {catalog_id}")
+        source_kind = nested(record, "provenance", "source_kind")
+        if (
+            source_kind is not None
+            and source_kind != catalog_map[catalog_id].source_kind
+        ):
+            raise MasterManifestError(
+                f"{item_id}: source kind differs from catalog registry"
+            )
+        if input_attestation is not None and source_kind is None:
+            raise MasterManifestError(
+                f"{item_id}: attested master record lacks source kind"
+            )
         source_key = (catalog_id, source_id)
+        if exclusions is not None and source_key in exclusions:
+            raise MasterManifestError(
+                f"excluded parent source row leaked into master: {source_key}"
+            )
         if source_key in seen_sources:
             raise MasterManifestError(f"duplicate source row {source_key}")
         seen_sources.add(source_key)
@@ -1885,7 +2163,16 @@ def validate_master(
         raise MasterManifestError(f"group split leakage: {leaking_groups[0]}")
 
     observed_statistics = summarize_records(records)
-    if report.get("statistics") != observed_statistics:
+    reported_statistics = report.get("statistics")
+    comparable_statistics = dict(observed_statistics)
+    if input_attestation is None and isinstance(reported_statistics, Mapping):
+        # The checked-in pre-registry schema-1 master predates these additive
+        # statistics.  Accept their absence only on the unattested legacy CLI
+        # path; registry-built masters must carry the complete current report.
+        for additive_field in ("by_source_kind", "chapter_count"):
+            if additive_field not in reported_statistics:
+                comparable_statistics.pop(additive_field, None)
+    if reported_statistics != comparable_statistics:
         raise MasterManifestError("report statistics do not match manifest")
     observed_verification = build_verification_statistics(
         records,
@@ -1930,6 +2217,37 @@ def validate_master(
             raise MasterManifestError(
                 "asset verification report does not match exhaustive recheck"
             )
+
+    # A registry-attested master is reproducible from immutable source manifests,
+    # sealed exclusions, and the frozen work assignment.  Rebuilding the exact
+    # manifest here binds every included record to its source line number/hash,
+    # derived master id, compacted metadata, and split component.  Merely
+    # recomputing the output report after editing a master row must never make
+    # validation succeed.
+    if input_attestation is not None:
+        if frozen_split_map is None:
+            raise MasterManifestError(
+                "attested master validation requires the sealed frozen split map"
+            )
+        rebuilt = build_bundle(
+            catalogs,
+            expected_counts=expected_counts,
+            expected_physical_counts=expected_physical_counts,
+            expected_total=expected_total,
+            verify_assets=False,
+            library_root=library_root,
+            exclusions=exclusions,
+            frozen_split_map=frozen_split_map,
+            input_attestation=input_attestation,
+        )
+        if manifest_path.read_bytes() != rebuilt.manifest_bytes:
+            raise MasterManifestError(
+                "master manifest differs from the sealed source-catalog rebuild"
+            )
+        if split_payload != rebuilt.split_map_bytes:
+            raise MasterManifestError(
+                "split map differs from the sealed frozen-assignment rebuild"
+            )
     reported_catalogs = nested(report, "inputs", "catalogs")
     if not isinstance(reported_catalogs, Mapping):
         raise MasterManifestError("report lacks source catalog hashes")
@@ -1940,6 +2258,37 @@ def validate_master(
         current_hash = sha256_file(catalog.manifest_path)
         if reported.get("manifest_sha256") != current_hash:
             raise MasterManifestError(f"source manifest changed: {catalog.catalog_id}")
+        if reported.get("source_kind") != catalog.source_kind:
+            raise MasterManifestError(f"source kind changed: {catalog.catalog_id}")
+        if (
+            expected_counts is not None
+            and catalog.catalog_id in expected_counts
+            and reported.get("record_count") != expected_counts[catalog.catalog_id]
+        ):
+            raise MasterManifestError(
+                f"included row count changed: {catalog.catalog_id}"
+            )
+        if (
+            expected_physical_counts is not None
+            and catalog.catalog_id in expected_physical_counts
+            and reported.get("physical_record_count")
+            != expected_physical_counts[catalog.catalog_id]
+        ):
+            raise MasterManifestError(
+                f"physical row count changed: {catalog.catalog_id}"
+            )
+    if input_attestation is not None and reported_catalogs != nested(
+        rebuilt.report, "inputs", "catalogs"
+    ):
+        raise MasterManifestError(
+            "reported catalog counts or bindings differ from sealed source catalogs"
+        )
+    if input_attestation is not None and nested(
+        report, "inputs", "attestation"
+    ) != json.loads(canonical_json(input_attestation)):
+        raise MasterManifestError(
+            "master input attestation differs from catalog registry"
+        )
     return {
         "manifest_sha256": manifest_hash,
         "record_count": len(records),
@@ -1995,6 +2344,414 @@ def parse_work_targets(value: str) -> dict[str, int]:
     return parts
 
 
+def _resolve_registry_path(base: Path, value: Any, *, location: str) -> Path:
+    raw = text(value, location=location)
+    assert raw is not None
+    candidate = Path(raw).expanduser()
+    return (candidate if candidate.is_absolute() else base / candidate).resolve()
+
+
+def _validate_sealed_record(record: Mapping[str, Any], *, location: str) -> str:
+    expected = valid_sha256(
+        record.get("record_sha256"), location=f"{location}.record_sha256"
+    )
+    core = {key: value for key, value in record.items() if key != "record_sha256"}
+    actual = sha256_bytes(canonical_json(core).encode("utf-8"))
+    if actual != expected:
+        raise MasterManifestError(f"{location}: record seal mismatch")
+    return expected
+
+
+def _read_jsonl_objects(path: Path, *, location: str) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    try:
+        with path.open("r", encoding="utf-8-sig") as handle:
+            for line_number, line in enumerate(handle, 1):
+                if not line.strip():
+                    continue
+                try:
+                    value = json.loads(line)
+                except json.JSONDecodeError as error:
+                    raise MasterManifestError(
+                        f"{location}:{line_number}: invalid JSON: {error}"
+                    ) from error
+                if not isinstance(value, dict):
+                    raise MasterManifestError(
+                        f"{location}:{line_number}: expected an object"
+                    )
+                rows.append(value)
+    except OSError as error:
+        raise MasterManifestError(f"could not read {location}: {error}") from error
+    return rows
+
+
+def _load_registry_exclusions(
+    registry: Mapping[str, Any],
+    *,
+    registry_base: Path,
+    catalog_ids: set[str],
+) -> tuple[
+    dict[tuple[str, str], SourceExclusion],
+    list[dict[str, Any]],
+]:
+    raw_ledgers = registry.get("exclusion_ledgers", [])
+    if not isinstance(raw_ledgers, list):
+        raise MasterManifestError("catalog registry exclusion_ledgers must be a list")
+    exclusions: dict[tuple[str, str], SourceExclusion] = {}
+    bindings: list[dict[str, Any]] = []
+    for ledger_index, raw_ledger in enumerate(raw_ledgers, 1):
+        if not isinstance(raw_ledger, Mapping):
+            raise MasterManifestError(
+                f"catalog registry exclusion_ledgers[{ledger_index}] must be an object"
+            )
+        ledger_path = _resolve_registry_path(
+            registry_base,
+            raw_ledger.get("path"),
+            location=f"exclusion_ledgers[{ledger_index}].path",
+        )
+        if not ledger_path.is_file():
+            raise MasterManifestError(f"missing exclusion ledger: {ledger_path}")
+        expected_sha = valid_sha256(
+            raw_ledger.get("sha256"),
+            location=f"exclusion_ledgers[{ledger_index}].sha256",
+        )
+        actual_sha = sha256_file(ledger_path)
+        if actual_sha != expected_sha:
+            raise MasterManifestError(f"exclusion ledger changed: {ledger_path}")
+        expected_rows = raw_ledger.get("expected_rows")
+        if (
+            not isinstance(expected_rows, int)
+            or isinstance(expected_rows, bool)
+            or expected_rows < 0
+        ):
+            raise MasterManifestError(
+                f"exclusion_ledgers[{ledger_index}].expected_rows is invalid"
+            )
+        rows = _read_jsonl_objects(
+            ledger_path, location=f"exclusion ledger {ledger_path.name}"
+        )
+        if len(rows) != expected_rows:
+            raise MasterManifestError(
+                f"{ledger_path}: expected {expected_rows} exclusions, found {len(rows)}"
+            )
+        for row_index, row in enumerate(rows, 1):
+            location = f"{ledger_path.name}:{row_index}"
+            _validate_sealed_record(row, location=location)
+            if row.get("record_type") != "font_matching_master_parent_exclusion":
+                raise MasterManifestError(f"{location}: unsupported exclusion record")
+            if (
+                row.get("excluded_from_training") is not True
+                or row.get("excluded_from_font_review") is not True
+                or row.get("synthetic") is not False
+            ):
+                raise MasterManifestError(f"{location}: unsafe exclusion semantics")
+            catalog_id = text(
+                row.get("source_catalog_id"), location=f"{location}.source_catalog_id"
+            )
+            source_id = text(row.get("source_id"), location=f"{location}.source_id")
+            parent_id = text(
+                row.get("parent_master_id"), location=f"{location}.parent_master_id"
+            )
+            assert catalog_id and source_id and parent_id
+            if catalog_id not in catalog_ids:
+                raise MasterManifestError(
+                    f"{location}: exclusion names unknown catalog {catalog_id}"
+                )
+            line_number = row.get("source_line_number")
+            if (
+                not isinstance(line_number, int)
+                or isinstance(line_number, bool)
+                or line_number < 1
+            ):
+                raise MasterManifestError(f"{location}: invalid source line number")
+            exclusion = SourceExclusion(
+                catalog_id=catalog_id,
+                source_id=source_id,
+                source_line_number=line_number,
+                source_line_sha256=valid_sha256(
+                    row.get("source_line_sha256"),
+                    location=f"{location}.source_line_sha256",
+                ),
+                parent_master_id=parent_id,
+                parent_master_record_sha256=valid_sha256(
+                    row.get("parent_master_record_sha256"),
+                    location=f"{location}.parent_master_record_sha256",
+                ),
+                ledger_path=str(ledger_path),
+                ledger_sha256=actual_sha,
+                record_sha256=valid_sha256(
+                    row.get("record_sha256"),
+                    location=f"{location}.record_sha256",
+                ),
+            )
+            key = (catalog_id, source_id)
+            if key in exclusions:
+                raise MasterManifestError(f"duplicate source exclusion {key}")
+            exclusions[key] = exclusion
+        bindings.append(
+            {
+                "path": str(ledger_path),
+                "sha256": actual_sha,
+                "record_count": len(rows),
+            }
+        )
+    return exclusions, bindings
+
+
+def _validate_exclusion_parent_master(
+    exclusions: Mapping[tuple[str, str], SourceExclusion],
+    *,
+    parent_manifest: Path,
+    expected_manifest_sha256: str,
+) -> dict[str, Any]:
+    if not parent_manifest.is_file():
+        raise MasterManifestError(f"missing parent master manifest: {parent_manifest}")
+    current_sha = sha256_file(parent_manifest)
+    if current_sha != expected_manifest_sha256:
+        raise MasterManifestError("parent master manifest changed")
+    expected_by_id = {
+        exclusion.parent_master_id: exclusion for exclusion in exclusions.values()
+    }
+    if len(expected_by_id) != len(exclusions):
+        raise MasterManifestError("source exclusions reuse a parent master ID")
+    found: set[str] = set()
+    try:
+        with parent_manifest.open("r", encoding="utf-8") as handle:
+            for line_number, line in enumerate(handle, 1):
+                if not line.strip():
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError as error:
+                    raise MasterManifestError(
+                        f"parent master:{line_number}: invalid JSON: {error}"
+                    ) from error
+                if not isinstance(row, Mapping):
+                    raise MasterManifestError(
+                        f"parent master:{line_number}: expected object"
+                    )
+                parent_id = row.get("id")
+                exclusion = expected_by_id.get(str(parent_id))
+                if exclusion is None:
+                    continue
+                if parent_id in found:
+                    raise MasterManifestError(f"duplicate parent master ID {parent_id}")
+                found.add(str(parent_id))
+                if (
+                    sha256_bytes(canonical_json(row).encode("utf-8"))
+                    != exclusion.parent_master_record_sha256
+                ):
+                    raise MasterManifestError(
+                        f"{parent_id}: exclusion parent-master hash drifted"
+                    )
+                if _master_id(exclusion.catalog_id, exclusion.source_id) != parent_id:
+                    raise MasterManifestError(
+                        f"{parent_id}: exclusion source identity does not derive the parent ID"
+                    )
+                provenance = row.get("provenance")
+                if not isinstance(provenance, Mapping):
+                    raise MasterManifestError(
+                        f"{parent_id}: parent provenance is missing"
+                    )
+                if (
+                    provenance.get("source_catalog_id") != exclusion.catalog_id
+                    or provenance.get("source_id") != exclusion.source_id
+                    or provenance.get("source_line_number")
+                    != exclusion.source_line_number
+                    or provenance.get("source_line_sha256")
+                    != exclusion.source_line_sha256
+                ):
+                    raise MasterManifestError(
+                        f"{parent_id}: exclusion provenance differs from parent master"
+                    )
+    except OSError as error:
+        raise MasterManifestError(f"could not read parent master: {error}") from error
+    missing = sorted(set(expected_by_id) - found)
+    if missing:
+        raise MasterManifestError(
+            f"parent master lacks excluded records: {missing[:8]}"
+        )
+    return {
+        "manifest": str(parent_manifest),
+        "manifest_sha256": current_sha,
+        "verified_exclusion_count": len(found),
+    }
+
+
+def load_catalog_registry(path_value: Path) -> SourceConfiguration:
+    sha256_file.cache_clear()
+    path = path_value.expanduser().resolve()
+    registry = read_json_object(path)
+    if (
+        registry.get("schema_version") != CATALOG_REGISTRY_SCHEMA_VERSION
+        or registry.get("record_type") != CATALOG_REGISTRY_RECORD_TYPE
+    ):
+        raise MasterManifestError("unsupported catalog registry contract")
+    record_sha = _validate_sealed_record(registry, location="catalog registry")
+    raw_catalogs = registry.get("catalogs")
+    if not isinstance(raw_catalogs, list) or not raw_catalogs:
+        raise MasterManifestError("catalog registry must contain catalogs")
+    catalogs: list[SourceCatalog] = []
+    expected_counts: dict[str, int] = {}
+    expected_physical_counts: dict[str, int] = {}
+    catalog_bindings: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    for index, raw_catalog in enumerate(raw_catalogs, 1):
+        if not isinstance(raw_catalog, Mapping):
+            raise MasterManifestError(f"catalogs[{index}] must be an object")
+        catalog_id = text(
+            raw_catalog.get("catalog_id"), location=f"catalogs[{index}].catalog_id"
+        )
+        source_kind = text(
+            raw_catalog.get("source_kind"), location=f"catalogs[{index}].source_kind"
+        )
+        assert catalog_id and source_kind
+        if catalog_id in seen_ids:
+            raise MasterManifestError(f"duplicate registry catalog {catalog_id}")
+        seen_ids.add(catalog_id)
+        if source_kind not in {"base", "hard"}:
+            raise MasterManifestError(
+                f"catalogs[{index}]: source_kind must be base or hard"
+            )
+        root = _resolve_registry_path(
+            path.parent,
+            raw_catalog.get("root"),
+            location=f"catalogs[{index}].root",
+        )
+        manifest_name = safe_relative_path(
+            raw_catalog.get("manifest_name", "manifest.jsonl"),
+            location=f"catalogs[{index}].manifest_name",
+        )
+        if "/" in manifest_name:
+            # Catalog manifests may be named differently, but must remain a
+            # direct file under the declared immutable catalog root.
+            raise MasterManifestError(
+                f"catalogs[{index}].manifest_name must be a direct child"
+            )
+        catalog = SourceCatalog(catalog_id, source_kind, root, manifest_name)
+        if not catalog.manifest_path.is_file():
+            raise MasterManifestError(
+                f"missing registry manifest {catalog.manifest_path}"
+            )
+        manifest_sha = valid_sha256(
+            raw_catalog.get("manifest_sha256"),
+            location=f"catalogs[{index}].manifest_sha256",
+        )
+        if sha256_file(catalog.manifest_path) != manifest_sha:
+            raise MasterManifestError(f"catalog manifest changed: {catalog_id}")
+        physical = raw_catalog.get("expected_physical_rows")
+        included = raw_catalog.get("expected_included_rows")
+        for field, value in (
+            ("expected_physical_rows", physical),
+            ("expected_included_rows", included),
+        ):
+            if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                raise MasterManifestError(f"catalogs[{index}].{field} is invalid")
+        if included > physical:
+            raise MasterManifestError(f"catalogs[{index}]: included exceeds physical")
+        catalogs.append(catalog)
+        expected_physical_counts[catalog_id] = physical
+        expected_counts[catalog_id] = included
+        catalog_bindings.append(
+            {
+                "catalog_id": catalog_id,
+                "source_kind": source_kind,
+                "root": str(root),
+                "manifest": str(catalog.manifest_path),
+                "manifest_sha256": manifest_sha,
+                "expected_physical_rows": physical,
+                "expected_included_rows": included,
+            }
+        )
+
+    for left_index, left in enumerate(catalogs):
+        for right in catalogs[left_index + 1 :]:
+            if (
+                left.root == right.root
+                or _is_within(left.root, right.root)
+                or _is_within(right.root, left.root)
+            ):
+                raise MasterManifestError(
+                    f"catalog roots must be separate: {left.catalog_id}, {right.catalog_id}"
+                )
+
+    exclusions, exclusion_bindings = _load_registry_exclusions(
+        registry,
+        registry_base=path.parent,
+        catalog_ids=seen_ids,
+    )
+    observed_exclusions = Counter(key[0] for key in exclusions)
+    for catalog_id in seen_ids:
+        expected_excluded = (
+            expected_physical_counts[catalog_id] - expected_counts[catalog_id]
+        )
+        if observed_exclusions[catalog_id] != expected_excluded:
+            raise MasterManifestError(
+                f"{catalog_id}: registry count delta expects {expected_excluded} "
+                f"exclusions, found {observed_exclusions[catalog_id]}"
+            )
+
+    parent_binding: dict[str, Any] | None = None
+    raw_parent = registry.get("parent_master")
+    if exclusions:
+        if not isinstance(raw_parent, Mapping):
+            raise MasterManifestError("registry exclusions require parent_master")
+        parent_manifest = _resolve_registry_path(
+            path.parent,
+            raw_parent.get("manifest"),
+            location="parent_master.manifest",
+        )
+        parent_sha = valid_sha256(
+            raw_parent.get("manifest_sha256"),
+            location="parent_master.manifest_sha256",
+        )
+        parent_binding = _validate_exclusion_parent_master(
+            exclusions,
+            parent_manifest=parent_manifest,
+            expected_manifest_sha256=parent_sha,
+        )
+    elif raw_parent is not None:
+        raise MasterManifestError("parent_master is unnecessary without exclusions")
+
+    raw_frozen = registry.get("frozen_split_map")
+    if not isinstance(raw_frozen, Mapping):
+        raise MasterManifestError("catalog registry requires frozen_split_map")
+    frozen_path = _resolve_registry_path(
+        path.parent,
+        raw_frozen.get("path"),
+        location="frozen_split_map.path",
+    )
+    frozen_sha = valid_sha256(
+        raw_frozen.get("sha256"), location="frozen_split_map.sha256"
+    )
+    if not frozen_path.is_file() or sha256_file(frozen_path) != frozen_sha:
+        raise MasterManifestError("frozen split map changed")
+    frozen_split_map = read_json_object(frozen_path)
+    if frozen_split_map.get("schema_version") != SPLIT_MAP_SCHEMA_VERSION:
+        raise MasterManifestError("frozen split map schema is unsupported")
+    frozen_binding = {"path": str(frozen_path), "sha256": frozen_sha}
+    attestation = {
+        "catalog_registry": {
+            "path": str(path),
+            "sha256": sha256_file(path),
+            "record_sha256": record_sha,
+        },
+        "catalogs": catalog_bindings,
+        "exclusion_ledgers": exclusion_bindings,
+        "parent_master": parent_binding,
+        "frozen_split_map": frozen_binding,
+    }
+    return SourceConfiguration(
+        catalogs=catalogs,
+        expected_counts=expected_counts,
+        expected_physical_counts=expected_physical_counts,
+        expected_total=sum(expected_counts.values()),
+        exclusions=exclusions,
+        frozen_split_map=frozen_split_map,
+        input_attestation=attestation,
+    )
+
+
 def add_source_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--base-root",
@@ -2006,22 +2763,60 @@ def add_source_arguments(parser: argparse.ArgumentParser) -> None:
         type=Path,
         default=Path("datasets/fontclip-hard-accepted-v2"),
     )
+    parser.add_argument(
+        "--catalog-registry",
+        type=Path,
+        help=(
+            "sealed dynamic catalog/exclusion/frozen-split registry; when set, "
+            "the legacy --base-root/--hard-root source list is not used"
+        ),
+    )
     parser.add_argument("--library-root", type=Path, default=Path("library"))
     parser.add_argument("--verify-assets", action="store_true")
 
 
 def catalogs_from_args(args: argparse.Namespace) -> list[SourceCatalog]:
-    return [
-        SourceCatalog("fontclip-accepted-v1", "base", args.base_root.resolve()),
-        SourceCatalog("fontclip-hard-accepted-v2", "hard", args.hard_root.resolve()),
-    ]
+    return source_configuration_from_args(args).catalogs
+
+
+def source_configuration_from_args(args: argparse.Namespace) -> SourceConfiguration:
+    if args.catalog_registry is not None:
+        configuration = load_catalog_registry(args.catalog_registry)
+        supplied_total = getattr(args, "expected_total", None)
+        if (
+            supplied_total is not None
+            and supplied_total != configuration.expected_total
+        ):
+            raise MasterManifestError(
+                f"--expected-total {supplied_total} differs from sealed registry "
+                f"total {configuration.expected_total}"
+            )
+        return configuration
+    expected_base = getattr(args, "expected_base", EXPECTED_BASE_ROWS)
+    expected_hard = getattr(args, "expected_hard", EXPECTED_HARD_ROWS)
+    supplied_total = getattr(args, "expected_total", None)
+    expected_total = EXPECTED_TOTAL_ROWS if supplied_total is None else supplied_total
+    return SourceConfiguration(
+        catalogs=[
+            SourceCatalog("fontclip-accepted-v1", "base", args.base_root.resolve()),
+            SourceCatalog(
+                "fontclip-hard-accepted-v2", "hard", args.hard_root.resolve()
+            ),
+        ],
+        expected_counts={
+            "fontclip-accepted-v1": expected_base,
+            "fontclip-hard-accepted-v2": expected_hard,
+        },
+        expected_physical_counts=None,
+        expected_total=expected_total,
+        exclusions={},
+        frozen_split_map=None,
+        input_attestation=None,
+    )
 
 
 def expected_counts_from_args(args: argparse.Namespace) -> dict[str, int]:
-    return {
-        "fontclip-accepted-v1": args.expected_base,
-        "fontclip-hard-accepted-v2": args.expected_hard,
-    }
+    return source_configuration_from_args(args).expected_counts
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -2037,9 +2832,7 @@ def build_parser() -> argparse.ArgumentParser:
         sub.add_argument(
             "--expected-hard", type=positive_or_zero, default=EXPECTED_HARD_ROWS
         )
-        sub.add_argument(
-            "--expected-total", type=positive_or_zero, default=EXPECTED_TOTAL_ROWS
-        )
+        sub.add_argument("--expected-total", type=positive_or_zero)
         sub.add_argument(
             "--split-ratios",
             type=parse_ratios,
@@ -2071,9 +2864,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=Path("datasets/font-matching-master-v1"),
     )
-    validate_parser.add_argument(
-        "--expected-total", type=positive_or_zero, default=EXPECTED_TOTAL_ROWS
-    )
+    validate_parser.add_argument("--expected-total", type=positive_or_zero)
     return parser
 
 
@@ -2091,17 +2882,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        catalogs = catalogs_from_args(args)
+        source_configuration = source_configuration_from_args(args)
+        catalogs = source_configuration.catalogs
         if args.command in {"build", "report"}:
             bundle = build_bundle(
                 catalogs,
-                expected_counts=expected_counts_from_args(args),
-                expected_total=args.expected_total,
+                expected_counts=source_configuration.expected_counts,
+                expected_physical_counts=(
+                    source_configuration.expected_physical_counts
+                ),
+                expected_total=source_configuration.expected_total,
                 split_ratios=args.split_ratios,
                 work_targets=args.work_targets,
                 split_seed=args.split_seed,
                 verify_assets=args.verify_assets,
                 library_root=args.library_root.resolve(),
+                exclusions=source_configuration.exclusions,
+                frozen_split_map=source_configuration.frozen_split_map,
+                input_attestation=source_configuration.input_attestation,
             )
             if args.command == "report" or args.dry_run:
                 print(bundle.report_bytes.decode("utf-8"), end="")
@@ -2112,9 +2910,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         result = validate_master(
             args.master_dir.resolve(),
             catalogs,
-            expected_total=args.expected_total,
+            expected_total=source_configuration.expected_total,
             verify_assets=args.verify_assets,
             library_root=args.library_root.resolve(),
+            expected_counts=source_configuration.expected_counts,
+            expected_physical_counts=(source_configuration.expected_physical_counts),
+            exclusions=source_configuration.exclusions,
+            frozen_split_map=source_configuration.frozen_split_map,
+            input_attestation=source_configuration.input_attestation,
         )
         print(canonical_json(result))
         return 0

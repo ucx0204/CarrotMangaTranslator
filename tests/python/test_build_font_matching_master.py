@@ -52,6 +52,41 @@ def read_jsonl(path: Path) -> list[dict]:
     ]
 
 
+def write_master_tree(
+    path: Path,
+    *,
+    rows: list[dict],
+    split_map: dict,
+    report: dict,
+) -> None:
+    path.mkdir(parents=True, exist_ok=True)
+    manifest_payload = MASTER.jsonl_bytes(rows)
+    split_payload = MASTER.json_bytes(split_map, pretty=True)
+    updated_report = copy.deepcopy(report)
+    updated_report["statistics"] = MASTER.summarize_records(rows)
+    updated_report["outputs"]["master_manifest_sha256"] = MASTER.sha256_bytes(
+        manifest_payload
+    )
+    updated_report["outputs"]["split_map_sha256"] = MASTER.sha256_bytes(split_payload)
+    (path / "manifest.jsonl").write_bytes(manifest_payload)
+    (path / "split_map.json").write_bytes(split_payload)
+    (path / "report.json").write_bytes(MASTER.json_bytes(updated_report, pretty=True))
+
+
+def seal_record(row: dict) -> dict:
+    output = copy.deepcopy(row)
+    output.pop("record_sha256", None)
+    output["record_sha256"] = digest(
+        json.dumps(
+            output,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+    )
+    return output
+
+
 def write_view(root: Path, relative: str, color: tuple[int, int, int]) -> str:
     path = root / Path(*Path(relative).parts)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -618,6 +653,350 @@ class FontMatchingMasterTests(unittest.TestCase):
             self.assertEqual(
                 json.loads(output.getvalue())["statistics"]["record_count"], 6
             )
+
+    def test_sealed_registry_excludes_mixed_parents_adds_third_catalog_and_freezes_splits(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            fixture = MasterFixture(root)
+            fixture.add_base("base-a", "work-a")
+            fixture.add_base("base-b", "work-b")
+            fixture.add_hard("hard-c", "work-c")
+            fixture.add_hard("hard-d", "work-d")
+            fixture.save()
+            original = MASTER.build_bundle(
+                fixture.catalogs(),
+                expected_counts={
+                    "fontclip-accepted-v1": 2,
+                    "fontclip-hard-accepted-v2": 2,
+                },
+                expected_total=4,
+                split_ratios={"train": 0.5, "val": 0.25, "test": 0.25},
+                work_targets={"train": 2, "val": 1, "test": 1},
+                split_seed="frozen-fixture",
+                verify_assets=True,
+                library_root=fixture.library,
+            )
+            MASTER.write_bundle(fixture.output, original)
+
+            delta = root / "delta"
+            original_hard_root = fixture.hard
+            fixture.hard = delta
+            fixture.add_hard("delta-a", "work-a")
+            fixture.add_hard("delta-c", "work-c")
+            delta_rows = fixture.hard_rows[-2:]
+            del fixture.hard_rows[-2:]
+            fixture.hard = original_hard_root
+            write_jsonl(delta / "manifest.jsonl", delta_rows)
+
+            original_by_source = {
+                (
+                    row["provenance"]["source_catalog_id"],
+                    row["provenance"]["source_id"],
+                ): row
+                for row in original.records
+            }
+            exclusion_rows = []
+            for catalog_id, source_id in (
+                ("fontclip-accepted-v1", "base-a"),
+                ("fontclip-hard-accepted-v2", "hard-c"),
+            ):
+                parent = original_by_source[(catalog_id, source_id)]
+                provenance = parent["provenance"]
+                exclusion_rows.append(
+                    seal_record(
+                        {
+                            "schema_version": "font-matching-recrop-promotion-v1",
+                            "record_type": "font_matching_master_parent_exclusion",
+                            "parent_master_id": parent["id"],
+                            "parent_master_record_sha256": digest(
+                                json.dumps(
+                                    parent,
+                                    ensure_ascii=False,
+                                    sort_keys=True,
+                                    separators=(",", ":"),
+                                )
+                            ),
+                            "source_catalog_id": catalog_id,
+                            "source_id": source_id,
+                            "source_line_number": provenance["source_line_number"],
+                            "source_line_sha256": provenance["source_line_sha256"],
+                            "terminal_status": "recheck_pass",
+                            "successor_catalog_id": "fontclip-recrop-accepted-v1",
+                            "successor_source_id": (
+                                "delta-a" if source_id == "base-a" else "delta-c"
+                            ),
+                            "successor_expected_master_id": "fixture",
+                            "excluded_from_training": True,
+                            "excluded_from_font_review": True,
+                            "prior_final_labels_invalidated": False,
+                            "crosswalk_record_sha256": "a" * 64,
+                            "synthetic": False,
+                        }
+                    )
+                )
+            exclusions_path = root / "parent-exclusions.jsonl"
+            write_jsonl(exclusions_path, exclusion_rows)
+            frozen_path = root / "frozen-split-map.json"
+            frozen_path.write_bytes(MASTER.json_bytes(original.split_map, pretty=True))
+            registry_path = root / "catalog-registry.json"
+            registry = seal_record(
+                {
+                    "schema_version": MASTER.CATALOG_REGISTRY_SCHEMA_VERSION,
+                    "record_type": MASTER.CATALOG_REGISTRY_RECORD_TYPE,
+                    "catalogs": [
+                        {
+                            "catalog_id": "fontclip-accepted-v1",
+                            "source_kind": "base",
+                            "root": str(fixture.base),
+                            "manifest_name": "manifest.jsonl",
+                            "manifest_sha256": file_digest(
+                                fixture.base / "manifest.jsonl"
+                            ),
+                            "expected_physical_rows": 2,
+                            "expected_included_rows": 1,
+                        },
+                        {
+                            "catalog_id": "fontclip-hard-accepted-v2",
+                            "source_kind": "hard",
+                            "root": str(fixture.hard),
+                            "manifest_name": "manifest.jsonl",
+                            "manifest_sha256": file_digest(
+                                fixture.hard / "manifest.jsonl"
+                            ),
+                            "expected_physical_rows": 2,
+                            "expected_included_rows": 1,
+                        },
+                        {
+                            "catalog_id": "fontclip-recrop-accepted-v1",
+                            "source_kind": "hard",
+                            "root": str(delta),
+                            "manifest_name": "manifest.jsonl",
+                            "manifest_sha256": file_digest(delta / "manifest.jsonl"),
+                            "expected_physical_rows": 2,
+                            "expected_included_rows": 2,
+                        },
+                    ],
+                    "exclusion_ledgers": [
+                        {
+                            "path": str(exclusions_path),
+                            "sha256": file_digest(exclusions_path),
+                            "expected_rows": 2,
+                        }
+                    ],
+                    "parent_master": {
+                        "manifest": str(fixture.output / "manifest.jsonl"),
+                        "manifest_sha256": file_digest(
+                            fixture.output / "manifest.jsonl"
+                        ),
+                    },
+                    "frozen_split_map": {
+                        "path": str(frozen_path),
+                        "sha256": file_digest(frozen_path),
+                    },
+                }
+            )
+            registry_path.write_bytes(MASTER.json_bytes(registry, pretty=True))
+
+            configuration = MASTER.load_catalog_registry(registry_path)
+            self.assertEqual(configuration.expected_total, 4)
+            self.assertEqual(len(configuration.catalogs), 3)
+            self.assertEqual(len(configuration.exclusions), 2)
+            rebuilt = MASTER.build_bundle(
+                configuration.catalogs,
+                expected_counts=configuration.expected_counts,
+                expected_physical_counts=configuration.expected_physical_counts,
+                expected_total=configuration.expected_total,
+                verify_assets=True,
+                library_root=fixture.library,
+                exclusions=configuration.exclusions,
+                frozen_split_map=configuration.frozen_split_map,
+                input_attestation=configuration.input_attestation,
+            )
+            rebuilt_sources = {
+                (
+                    row["provenance"]["source_catalog_id"],
+                    row["provenance"]["source_id"],
+                )
+                for row in rebuilt.records
+            }
+            self.assertNotIn(("fontclip-accepted-v1", "base-a"), rebuilt_sources)
+            self.assertNotIn(("fontclip-hard-accepted-v2", "hard-c"), rebuilt_sources)
+            self.assertIn(("fontclip-recrop-accepted-v1", "delta-a"), rebuilt_sources)
+            self.assertIn(("fontclip-recrop-accepted-v1", "delta-c"), rebuilt_sources)
+            self.assertEqual(
+                rebuilt.split_map["work_assignments"],
+                original.split_map["work_assignments"],
+            )
+            self.assertTrue(
+                all(
+                    row["provenance"]["source_kind"]
+                    == (
+                        "base"
+                        if row["provenance"]["source_catalog_id"]
+                        == "fontclip-accepted-v1"
+                        else "hard"
+                    )
+                    for row in rebuilt.records
+                )
+            )
+            self.assertEqual(
+                rebuilt.report["inputs"]["catalogs"]["fontclip-accepted-v1"][
+                    "physical_record_count"
+                ],
+                2,
+            )
+            self.assertEqual(
+                rebuilt.report["inputs"]["catalogs"]["fontclip-accepted-v1"][
+                    "excluded_record_count"
+                ],
+                1,
+            )
+            dynamic_output = root / "dynamic-master"
+            MASTER.write_bundle(dynamic_output, rebuilt)
+            validated = MASTER.validate_master(
+                dynamic_output,
+                configuration.catalogs,
+                expected_total=4,
+                verify_assets=True,
+                library_root=fixture.library,
+                expected_counts=configuration.expected_counts,
+                expected_physical_counts=configuration.expected_physical_counts,
+                exclusions=configuration.exclusions,
+                frozen_split_map=configuration.frozen_split_map,
+                input_attestation=configuration.input_attestation,
+            )
+            self.assertEqual(validated["record_count"], 4)
+
+            source_tamper = root / "tampered-source-master"
+            source_rows = copy.deepcopy(rebuilt.records)
+            source_rows[0]["provenance"]["source_id"] = "not-in-source-manifest"
+            source_rows[0]["provenance"]["source_line_number"] = 999999
+            source_rows[0]["provenance"]["source_line_sha256"] = "f" * 64
+            write_master_tree(
+                source_tamper,
+                rows=source_rows,
+                split_map=copy.deepcopy(rebuilt.split_map),
+                report=rebuilt.report,
+            )
+            with self.assertRaisesRegex(
+                MASTER.MasterManifestError, "sealed source-catalog rebuild"
+            ):
+                MASTER.validate_master(
+                    source_tamper,
+                    configuration.catalogs,
+                    expected_total=4,
+                    verify_assets=False,
+                    library_root=fixture.library,
+                    expected_counts=configuration.expected_counts,
+                    expected_physical_counts=configuration.expected_physical_counts,
+                    exclusions=configuration.exclusions,
+                    frozen_split_map=configuration.frozen_split_map,
+                    input_attestation=configuration.input_attestation,
+                )
+
+            split_tamper = root / "tampered-split-master"
+            split_rows = copy.deepcopy(rebuilt.records)
+            split_map = copy.deepcopy(rebuilt.split_map)
+            assignments = split_map["work_assignments"]
+            left_work, right_work = next(
+                (left, right)
+                for left in sorted(assignments)
+                for right in sorted(assignments)
+                if left < right and assignments[left] != assignments[right]
+            )
+            assignments[left_work], assignments[right_work] = (
+                assignments[right_work],
+                assignments[left_work],
+            )
+            for row in split_rows:
+                row["split"] = assignments[row["work"]["id"]]
+            for component in split_map["components"]:
+                component_splits = {
+                    assignments[work_id] for work_id in component["work_ids"]
+                }
+                self.assertEqual(len(component_splits), 1)
+                component["split"] = next(iter(component_splits))
+            write_master_tree(
+                split_tamper,
+                rows=split_rows,
+                split_map=split_map,
+                report=rebuilt.report,
+            )
+            with self.assertRaisesRegex(
+                MASTER.MasterManifestError, "sealed source-catalog rebuild"
+            ):
+                MASTER.validate_master(
+                    split_tamper,
+                    configuration.catalogs,
+                    expected_total=4,
+                    verify_assets=False,
+                    library_root=fixture.library,
+                    expected_counts=configuration.expected_counts,
+                    expected_physical_counts=configuration.expected_physical_counts,
+                    exclusions=configuration.exclusions,
+                    frozen_split_map=configuration.frozen_split_map,
+                    input_attestation=configuration.input_attestation,
+                )
+
+            exclusions_path.write_text("tampered\n", encoding="utf-8")
+            with self.assertRaisesRegex(
+                MASTER.MasterManifestError, "exclusion ledger changed"
+            ):
+                MASTER.load_catalog_registry(registry_path)
+
+    def test_frozen_split_rejects_new_cross_split_lineage(self) -> None:
+        records = [
+            {
+                "work": {"id": "work-a"},
+                "groups": {
+                    "root": "shared-root",
+                    "variant": "variant-a",
+                    "normalized_glyph": "glyph-a",
+                },
+            },
+            {
+                "work": {"id": "work-b"},
+                "groups": {
+                    "root": "shared-root",
+                    "variant": "variant-b",
+                    "normalized_glyph": "glyph-b",
+                },
+            },
+        ]
+        frozen = {
+            "schema_version": MASTER.SPLIT_MAP_SCHEMA_VERSION,
+            "algorithm": {"ratios": {"train": 0.7, "val": 0.15, "test": 0.15}},
+            "work_assignments": {"work-a": "train", "work-b": "test"},
+        }
+        with self.assertRaisesRegex(
+            MASTER.MasterManifestError, "connects frozen work assignments"
+        ):
+            MASTER.apply_frozen_splits(records, frozen_split_map=frozen)
+
+    def test_legacy_schema_one_master_without_source_kind_still_validates(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = self.make_fixture(Path(temporary))
+            bundle = fixture.build()
+            rows = copy.deepcopy(bundle.records)
+            for row in rows:
+                row["provenance"].pop("source_kind")
+            legacy_output = Path(temporary) / "legacy-master"
+            write_master_tree(
+                legacy_output,
+                rows=rows,
+                split_map=copy.deepcopy(bundle.split_map),
+                report=bundle.report,
+            )
+            result = MASTER.validate_master(
+                legacy_output,
+                fixture.catalogs(),
+                expected_total=6,
+                verify_assets=False,
+                library_root=fixture.library,
+            )
+            self.assertEqual(result["status"], "valid")
 
 
 if __name__ == "__main__":
