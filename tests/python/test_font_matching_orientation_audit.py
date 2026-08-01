@@ -196,6 +196,149 @@ class OrientationAuditTests(unittest.TestCase):
                     allow_partial=True,
                 )
 
+    def test_applies_corrected_orientation_and_excludes_bad_crops(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            inventory, assignments, manifest, cards_root = self.fixture(root)
+            workspace = root / "workspace"
+            AUDIT.build_workspace(
+                inventory_path=inventory,
+                assignments_path=assignments,
+                card_manifest_path=manifest,
+                cards_root=cards_root,
+                output_dir=workspace,
+                shards=1,
+                expected_samples=2,
+            )
+            tasks = AUDIT.read_jsonl(workspace / "tasks.jsonl", location="tasks")
+            task_by_id = {task["sample_id"]: task for task in tasks}
+            responses = []
+            for sample_id, orientation, crop_status in (
+                ("a", "vertical", "usable"),
+                ("b", "mixed", "mixed_hierarchy"),
+            ):
+                task = task_by_id[sample_id]
+                responses.append(
+                    {
+                        "schema_version": AUDIT.SCHEMA_VERSION,
+                        "record_type": AUDIT.RESPONSE_TYPE,
+                        "sample_id": sample_id,
+                        "primary_assignment_id": task["primary_assignment_id"],
+                        "card_sha256": task["card_sha256"],
+                        "reviewer": "reviewer-a",
+                        "viewed_original": True,
+                        "actual_orientation": orientation,
+                        "confidence": 0.95,
+                        "crop_status": crop_status,
+                        "notes": "원문의 실제 글자 흐름과 crop 계층을 확인함",
+                    }
+                )
+            response_path = root / "responses.jsonl"
+            write_jsonl(response_path, responses)
+            master = root / "master.jsonl"
+            write_jsonl(
+                master,
+                [
+                    {
+                        "id": sample_id,
+                        "metadata": {"orientation": orientation},
+                        "provenance": {"qa_overlay": False, "synthetic": False},
+                    }
+                    for sample_id, orientation in (
+                        ("a", "horizontal"),
+                        ("b", "vertical"),
+                    )
+                ],
+            )
+            output = root / "corrected"
+
+            report = AUDIT.apply_orientation_decisions(
+                workspace=workspace,
+                response_paths=[response_path],
+                inventory_path=inventory,
+                master_path=master,
+                output_dir=output,
+            )
+
+            self.assertEqual(1, report["counts"]["accepted"])
+            self.assertEqual(1, report["counts"]["rejected"])
+            corrected_master = AUDIT.read_jsonl(
+                output / "master.jsonl", location="corrected master"
+            )
+            self.assertEqual(["a"], [row["id"] for row in corrected_master])
+            self.assertEqual("vertical", corrected_master[0]["metadata"]["orientation"])
+            corrected_inventory = AUDIT.read_jsonl(
+                output / "inventory.jsonl", location="corrected inventory"
+            )
+            self.assertEqual(["a"], [row["sample_id"] for row in corrected_inventory])
+            self.assertEqual(
+                report["hashes"]["corrected_master_sha256"],
+                corrected_inventory[0]["master_manifest_sha256"],
+            )
+            self.assertEqual(
+                report["hashes"]["corrected_master_sha256"],
+                AUDIT.sha256_file(output / "master.jsonl"),
+            )
+
+    def test_refuses_to_apply_partial_audit(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            inventory, assignments, manifest, cards_root = self.fixture(root)
+            workspace = root / "workspace"
+            AUDIT.build_workspace(
+                inventory_path=inventory,
+                assignments_path=assignments,
+                card_manifest_path=manifest,
+                cards_root=cards_root,
+                output_dir=workspace,
+                shards=1,
+                expected_samples=2,
+            )
+            task = AUDIT.read_jsonl(workspace / "tasks.jsonl", location="tasks")[0]
+            response_path = root / "response.jsonl"
+            write_jsonl(
+                response_path,
+                [
+                    {
+                        "schema_version": AUDIT.SCHEMA_VERSION,
+                        "record_type": AUDIT.RESPONSE_TYPE,
+                        "sample_id": task["sample_id"],
+                        "primary_assignment_id": task["primary_assignment_id"],
+                        "card_sha256": task["card_sha256"],
+                        "reviewer": "reviewer-a",
+                        "viewed_original": True,
+                        "actual_orientation": "horizontal",
+                        "confidence": 0.9,
+                        "crop_status": "usable",
+                        "notes": "원본을 확인함",
+                    }
+                ],
+            )
+            master = root / "master.jsonl"
+            write_jsonl(
+                master,
+                [
+                    {
+                        "id": sample_id,
+                        "metadata": {"orientation": orientation},
+                        "provenance": {"qa_overlay": False, "synthetic": False},
+                    }
+                    for sample_id, orientation in (
+                        ("a", "horizontal"),
+                        ("b", "vertical"),
+                    )
+                ],
+            )
+
+            with self.assertRaisesRegex(AUDIT.OrientationAuditError, "incomplete"):
+                AUDIT.apply_orientation_decisions(
+                    workspace=workspace,
+                    response_paths=[response_path],
+                    inventory_path=inventory,
+                    master_path=master,
+                    output_dir=root / "corrected",
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

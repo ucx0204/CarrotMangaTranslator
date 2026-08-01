@@ -397,6 +397,36 @@ class Fixture:
 
 
 class ReviewLedgerContractTest(unittest.TestCase):
+    def test_card_parser_accepts_bound_anonymous_work_references(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = Fixture(Path(temporary), sample_count=2, secondary_count=1)
+            manifest = json.loads(fixture.card_manifest.read_text(encoding="utf-8"))
+            card = manifest["cards"][0]
+            reference_views = card["source"]["views"]
+            card["work_references"] = {
+                "anonymous": True,
+                "count": 3,
+                "evidence_policy": "high-confidence-finalized-ordinary-dialogue",
+                "reference_set_sha256": sha("reference-set"),
+                "items": [
+                    {
+                        "blind_alias": f"same-work-dialogue-{index:02d}",
+                        "orientation": "vertical",
+                        "role": "dialogue",
+                        "sample_crop_sha256": sha(f"reference-crop-{index}"),
+                        "views": reference_views,
+                    }
+                    for index in range(1, 4)
+                ],
+            }
+
+            binding = LEDGER.parse_card_binding(card, location="card")
+
+            self.assertEqual(3, binding.work_reference_count)
+            card["work_references"]["items"][0]["role"] = "sfx_impact"
+            with self.assertRaisesRegex(LEDGER.ReviewLedgerError, "must be dialogue"):
+                LEDGER.parse_card_binding(card, location="card")
+
     def test_pilot_staged_init_projects_only_canonical_selected_assignments(
         self,
     ) -> None:

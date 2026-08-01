@@ -108,11 +108,72 @@ class Fixture:
         self.inventory = self.inventory_dir / "inventory.jsonl"
         self.assignments = self.assignment_dir / "assignments.jsonl"
         self.bank_manifest = self.bank / "manifest.json"
+        self.work_references = root / "work-reference-input" / "manifest.json"
         self.master_rows: list[dict] = []
         self.page_hashes: dict[str, str] = {}
         self._build_sources()
         self._build_bank()
         self._write_master_inventory_assignments()
+
+    def write_work_reference_manifest(self) -> Path:
+        targets = []
+        for sample in self.master_rows:
+            references = []
+            for index in range(3):
+                source = self.master_rows[(index + 1) % len(self.master_rows)]
+                references.append(
+                    {
+                        "blind_alias": f"same-work-dialogue-{index + 1:02d}",
+                        "source_sample_id": f"reference-source-{sample['id']}-{index}",
+                        "source_final_sha256": stable_hash(
+                            "final", sample["id"], str(index)
+                        ),
+                        "role": "dialogue",
+                        "role_confidence": 0.95,
+                        "resolution_confidence": 0.9,
+                        "orientation": sample["metadata"]["orientation"],
+                        "chapter_id": f"reference-chapter-{index}",
+                        "page_id": f"reference-page-{index}",
+                        "sample_crop_sha256": stable_hash(
+                            "crop", sample["id"], str(index)
+                        ),
+                        "source_catalog_id": source["provenance"]["source_catalog_id"],
+                        "views": source["views"],
+                    }
+                )
+            core = {
+                "schema_version": "font-matching-work-references-v1",
+                "record_type": "font_matching_work_reference_target",
+                "target_sample_id": sample["id"],
+                "target_work_id": sample["work"]["id"],
+                "target_orientation": sample["metadata"]["orientation"],
+                "references": references,
+            }
+            targets.append({**core, "record_sha256": CARDS.sha256_json(core)})
+        manifest_core = {
+            "schema_version": "font-matching-work-references-v1",
+            "record_type": "font_matching_work_reference_manifest",
+            "seed": "fixture",
+            "references_per_target": 3,
+            "input_hashes": {},
+            "targets": targets,
+            "safety": {
+                "font_names_visible": False,
+                "model_suggestions_visible": False,
+                "work_titles_visible": False,
+                "qa_overlay": True,
+                "training_asset": False,
+                "images_copied_or_modified": 0,
+            },
+        }
+        write_json(
+            self.work_references,
+            {
+                **manifest_core,
+                "record_sha256": CARDS.sha256_json(manifest_core),
+            },
+        )
+        return self.work_references
 
     def _build_sources(self) -> None:
         specs = (
@@ -568,6 +629,32 @@ class ReviewCardBuilderTest(unittest.TestCase):
                 set(FONT_IDS), {row["font_id"] for row in reveal["mappings"]}
             )
             self.assertFalse((fixture.output / CARDS.REVEAL_FILE).exists())
+
+    def test_embeds_three_anonymous_same_work_dialogue_references(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = Fixture(Path(temporary))
+            references = fixture.write_work_reference_manifest()
+            report = CARDS.build_output(
+                **fixture.kwargs(),
+                config=CARDS.RunConfig(stage="primary", limit=1),
+                work_reference_manifest=references,
+            )
+
+            self.assertEqual(3, report["summary"]["work_reference_count"])
+            manifest = json.loads(
+                (fixture.output / CARDS.MANIFEST_FILE).read_text(encoding="utf-8")
+            )
+            card = manifest["cards"][0]
+            self.assertEqual(3, card["work_references"]["count"])
+            self.assertTrue(card["work_references"]["anonymous"])
+            public_text = json.dumps(manifest, sort_keys=True)
+            self.assertNotIn("reference-source", public_text)
+            self.assertNotIn("target_work_id", public_text)
+            self.assertNotIn("chapter_id", public_text)
+            CARDS.validate_output(
+                **fixture.kwargs(),
+                work_reference_manifest=references,
+            )
 
 
 if __name__ == "__main__":

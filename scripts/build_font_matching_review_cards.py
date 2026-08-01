@@ -91,6 +91,7 @@ class LoadedInputs:
     input_hashes: dict[str, str]
     renderer_hash: str
     identity_terms: tuple[str, ...]
+    work_references_by_target: dict[str, dict[str, Any]]
 
 
 def canonical_json(value: Any) -> str:
@@ -218,6 +219,138 @@ def _stable_hash(*parts: str) -> str:
     return hashlib.sha256("\0".join(parts).encode("utf-8")).hexdigest()
 
 
+def _validate_record_seal(value: Mapping[str, Any], location: str) -> None:
+    expected = require_sha(value.get("record_sha256"), f"{location}.record_sha256")
+    core = {key: item for key, item in value.items() if key != "record_sha256"}
+    if sha256_json(core) != expected:
+        raise ReviewCardError(f"{location}: record seal mismatch")
+
+
+def _load_work_references(
+    path: Path | None,
+    *,
+    inventory_ids: set[str],
+    master_by_id: Mapping[str, Mapping[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    if path is None:
+        return {}
+    manifest = read_json(path, "work reference manifest")
+    _validate_record_seal(manifest, "work reference manifest")
+    if (
+        manifest.get("schema_version") != "font-matching-work-references-v1"
+        or manifest.get("record_type") != "font_matching_work_reference_manifest"
+    ):
+        raise ReviewCardError("work reference manifest schema is unsupported")
+    safety = require_mapping(manifest.get("safety"), "work reference safety")
+    if (
+        safety.get("font_names_visible") is not False
+        or safety.get("model_suggestions_visible") is not False
+        or safety.get("work_titles_visible") is not False
+        or safety.get("qa_overlay") is not True
+        or safety.get("training_asset") is not False
+        or safety.get("images_copied_or_modified") != 0
+    ):
+        raise ReviewCardError("work reference manifest violates blind QA safety")
+    expected_count = manifest.get("references_per_target")
+    if (
+        isinstance(expected_count, bool)
+        or not isinstance(expected_count, int)
+        or expected_count < 3
+    ):
+        raise ReviewCardError("work reference count must be at least three")
+    targets = manifest.get("targets")
+    if not isinstance(targets, list):
+        raise ReviewCardError("work reference targets must be an array")
+    output: dict[str, dict[str, Any]] = {}
+    for index, raw in enumerate(targets, 1):
+        target = dict(require_mapping(raw, f"work references:{index}"))
+        _validate_record_seal(target, f"work references:{index}")
+        if (
+            target.get("schema_version") != "font-matching-work-references-v1"
+            or target.get("record_type") != "font_matching_work_reference_target"
+        ):
+            raise ReviewCardError(f"work references:{index}: unsupported schema")
+        sample_id = require_id(
+            target.get("target_sample_id"),
+            f"work references:{index}.target_sample_id",
+        )
+        if sample_id not in inventory_ids:
+            raise ReviewCardError(
+                f"work references:{index}: target is outside review inventory"
+            )
+        if sample_id in output:
+            raise ReviewCardError(f"work references:{index}: duplicate target")
+        master = master_by_id[sample_id]
+        work_id = require_id(
+            require_mapping(master.get("work"), f"master[{sample_id}].work").get("id"),
+            f"master[{sample_id}].work.id",
+        )
+        orientation = require_mapping(
+            master.get("metadata"), f"master[{sample_id}].metadata"
+        ).get("orientation")
+        if (
+            target.get("target_work_id") != work_id
+            or target.get("target_orientation") != orientation
+        ):
+            raise ReviewCardError(
+                f"work references:{index}: target work/orientation binding mismatch"
+            )
+        references = target.get("references")
+        if not isinstance(references, list) or len(references) != expected_count:
+            raise ReviewCardError(
+                f"work references:{index}: expected {expected_count} references"
+            )
+        source_ids: set[str] = set()
+        aliases: set[str] = set()
+        for reference_index, raw_reference in enumerate(references, 1):
+            location = f"work references:{index}.references[{reference_index}]"
+            reference = require_mapping(raw_reference, location)
+            source_id = require_id(
+                reference.get("source_sample_id"), f"{location}.source_sample_id"
+            )
+            alias = require_id(reference.get("blind_alias"), f"{location}.blind_alias")
+            if source_id == sample_id or source_id in source_ids or alias in aliases:
+                raise ReviewCardError(f"{location}: duplicate/self reference")
+            source_ids.add(source_id)
+            aliases.add(alias)
+            if reference.get("role") != "dialogue":
+                raise ReviewCardError(f"{location}: only ordinary dialogue is valid")
+            for field in ("role_confidence", "resolution_confidence"):
+                confidence = reference.get(field)
+                if (
+                    isinstance(confidence, bool)
+                    or not isinstance(confidence, (int, float))
+                    or not 0 <= float(confidence) <= 1
+                ):
+                    raise ReviewCardError(f"{location}.{field}: invalid confidence")
+            if reference.get("orientation") not in {"horizontal", "vertical"}:
+                raise ReviewCardError(f"{location}: invalid orientation")
+            require_sha(
+                reference.get("source_final_sha256"),
+                f"{location}.source_final_sha256",
+            )
+            require_sha(
+                reference.get("sample_crop_sha256"),
+                f"{location}.sample_crop_sha256",
+            )
+            if reference.get("source_catalog_id") not in {
+                "fontclip-accepted-v1",
+                "fontclip-hard-accepted-v2",
+            }:
+                raise ReviewCardError(f"{location}: unsupported source catalog")
+            views = require_mapping(reference.get("views"), f"{location}.views")
+            if set(views) != {"raw_224", "context_224", "glyph_224"}:
+                raise ReviewCardError(f"{location}: incomplete reference views")
+        output[sample_id] = target
+    if set(output) != inventory_ids:
+        missing = sorted(inventory_ids - set(output))
+        extra = sorted(set(output) - inventory_ids)
+        raise ReviewCardError(
+            f"work references must cover every inventory target; missing={missing[:8]} extra={extra[:8]}"
+        )
+    return output
+
+
 def expected_candidate_order(values: Iterable[str], seed: str) -> list[str]:
     return sorted(
         values,
@@ -303,6 +436,7 @@ def load_inputs(
     inventory: Path,
     assignments: Path,
     render_bank_manifest: Path,
+    work_reference_manifest: Path | None = None,
 ) -> LoadedInputs:
     paths = {
         "master_manifest_sha256": master_manifest,
@@ -314,6 +448,14 @@ def load_inputs(
         if not path.is_file():
             raise ReviewCardError(f"{label}: input does not exist: {path}")
     input_hashes = {label: sha256_file(path) for label, path in paths.items()}
+    if work_reference_manifest is not None:
+        if not work_reference_manifest.is_file():
+            raise ReviewCardError(
+                f"work_reference_manifest_sha256: input does not exist: {work_reference_manifest}"
+            )
+        input_hashes["work_reference_manifest_sha256"] = sha256_file(
+            work_reference_manifest
+        )
     input_hashes["card_builder_source_sha256"] = sha256_file(Path(__file__).resolve())
 
     inventory_rows = read_jsonl(inventory, "review inventory")
@@ -381,6 +523,12 @@ def load_inputs(
         raise ReviewCardError(
             f"inventory samples are absent from master: {missing_master_ids[:8]}"
         )
+
+    work_references_by_target = _load_work_references(
+        work_reference_manifest,
+        inventory_ids=inventory_ids,
+        master_by_id=master_by_id,
+    )
 
     assignment_rows = [
         validate_assignment(row, f"assignments:{index}")
@@ -500,6 +648,7 @@ def load_inputs(
         input_hashes=input_hashes,
         renderer_hash=renderer_hash,
         identity_terms=tuple(sorted(set(identity_terms))),
+        work_references_by_target=work_references_by_target,
     )
 
 
@@ -881,6 +1030,50 @@ def build_card(
         views[view_name] = image
         public_views[view_name] = public
 
+    reference_images: list[dict[str, Any]] = []
+    public_work_references: dict[str, Any] | None = None
+    reference_target = inputs.work_references_by_target.get(sample_id)
+    if reference_target is not None:
+        public_reference_items: list[dict[str, Any]] = []
+        for reference_value in reference_target["references"]:
+            reference = require_mapping(reference_value, "work reference")
+            reference_views = require_mapping(
+                reference.get("views"), "work reference.views"
+            )
+            loaded_images: dict[str, Image.Image | None] = {}
+            loaded_public: dict[str, dict[str, Any]] = {}
+            for view_name in ("raw_224", "context_224", "glyph_224"):
+                image, public = load_view(
+                    view_name,
+                    reference_views.get(view_name),
+                    catalog_roots=catalog_roots,
+                )
+                loaded_images[view_name] = image
+                loaded_public[view_name] = public
+            reference_images.append(
+                {
+                    "blind_alias": reference["blind_alias"],
+                    "orientation": reference["orientation"],
+                    "images": loaded_images,
+                }
+            )
+            public_reference_items.append(
+                {
+                    "blind_alias": reference["blind_alias"],
+                    "orientation": reference["orientation"],
+                    "role": "dialogue",
+                    "sample_crop_sha256": reference["sample_crop_sha256"],
+                    "views": loaded_public,
+                }
+            )
+        public_work_references = {
+            "anonymous": True,
+            "count": len(public_reference_items),
+            "evidence_policy": "high-confidence-finalized-ordinary-dialogue",
+            "reference_set_sha256": reference_target["record_sha256"],
+            "items": public_reference_items,
+        }
+
     candidate_panels: list[dict[str, Any]] = []
     candidate_images: list[list[tuple[Image.Image, dict[str, Any]]]] = []
     order = assignment["candidate_order"]
@@ -982,29 +1175,73 @@ def build_card(
             )
 
     draw.rectangle((1796, 144, 2366, 1032), fill=WHITE, outline=MID, width=3)
-    _draw_label(draw, (1818, 166), "BLIND REVIEW BINDING", 29)
-    info_lines = (
-        f"CARD: {_card_id(str(assignment['assignment_id']), inputs.renderer_hash)}",
-        f"ASSIGNMENT: {assignment['assignment_id']}",
-        f"STAGE: {assignment['stage']}",
-        f"ORIENTATION: {orientation}",
-        f"BBOX: {','.join(str(value) for value in bbox)}",
-        f"PAGE SHA: {page_sha[:20]}...",
-        f"ORDER SEED: {assignment['candidate_order_seed'][:20]}...",
-        "FONT NAMES: HIDDEN",
-        "MODEL PROPOSALS: HIDDEN",
-        "CHECK ROLE / STYLE / TREATMENT",
-        "TIER ALL 15; none_acceptable IS VALID",
-        "CONFIDENCE < 0.75 => low_confidence",
-        "BAD SOURCE => crop_needs_review",
-        "BROKEN RENDER => rendering_issue",
-        "CYAN BOX: REVIEW ONLY",
-        "DO NOT USE THIS CARD FOR TRAINING",
-    )
-    y = 218
-    for line in info_lines:
-        _draw_wrapped(draw, (1818, y, 2340, y + 48), line, size=21, fill=DARK)
-        y += 50
+    if reference_images:
+        _draw_label(draw, (1818, 162), "ANONYMOUS SAME-WORK DIALOGUE", 24)
+        draw.text(
+            (1818, 198),
+            "REFERENCE EVIDENCE ONLY / FONT NAMES HIDDEN",
+            font=_font(17),
+            fill=MID,
+        )
+        for reference_index, reference in enumerate(reference_images):
+            top = 228 + reference_index * 254
+            bottom = top + 238
+            draw.rectangle((1814, top, 2348, bottom), fill=PALE, outline=MID, width=2)
+            draw.text(
+                (1828, top + 10),
+                f"R{reference_index + 1}  {reference['orientation'].upper()}  ORDINARY DIALOGUE",
+                font=_font(20),
+                fill=DARK,
+            )
+            for view_index, view_name in enumerate(("raw_224", "glyph_224")):
+                left = 1828 + view_index * 254
+                right = left + 238
+                draw.text(
+                    (left, top + 44),
+                    "RAW" if view_name == "raw_224" else "GLYPH",
+                    font=_font(16),
+                    fill=MID,
+                )
+                image = reference["images"][view_name]
+                if image is None:
+                    _draw_wrapped(
+                        draw,
+                        (left, top + 70, right, bottom - 10),
+                        "UNAVAILABLE",
+                        size=20,
+                    )
+                else:
+                    _fit_image(card, image, (left, top + 68, right, bottom - 10))
+        draw.text(
+            (1818, 1000),
+            "Use only for work-anchor consistency; ignore for SFX overrides.",
+            font=_font(16),
+            fill=MID,
+        )
+    else:
+        _draw_label(draw, (1818, 166), "BLIND REVIEW BINDING", 29)
+        info_lines = (
+            f"CARD: {_card_id(str(assignment['assignment_id']), inputs.renderer_hash)}",
+            f"ASSIGNMENT: {assignment['assignment_id']}",
+            f"STAGE: {assignment['stage']}",
+            f"ORIENTATION: {orientation}",
+            f"BBOX: {','.join(str(value) for value in bbox)}",
+            f"PAGE SHA: {page_sha[:20]}...",
+            f"ORDER SEED: {assignment['candidate_order_seed'][:20]}...",
+            "FONT NAMES: HIDDEN",
+            "MODEL PROPOSALS: HIDDEN",
+            "CHECK ROLE / STYLE / TREATMENT",
+            "TIER ALL 15; none_acceptable IS VALID",
+            "CONFIDENCE < 0.75 => low_confidence",
+            "BAD SOURCE => crop_needs_review",
+            "BROKEN RENDER => rendering_issue",
+            "CYAN BOX: REVIEW ONLY",
+            "DO NOT USE THIS CARD FOR TRAINING",
+        )
+        y = 218
+        for line in info_lines:
+            _draw_wrapped(draw, (1818, y, 2340, y + 48), line, size=21, fill=DARK)
+            y += 50
 
     # Fifteen opaque candidates, exactly in the assignment's seeded order.
     grid_top = 1150
@@ -1092,12 +1329,17 @@ def build_card(
             "views": public_views,
         },
     }
+    if public_work_references is not None:
+        record["work_references"] = public_work_references
     return payload, record
 
 
 def _public_manifest(
     inputs: LoadedInputs, config: RunConfig, cards: Sequence[dict[str, Any]]
 ) -> dict[str, Any]:
+    reference_count = sum(
+        int(card.get("work_references", {}).get("count", 0)) for card in cards
+    )
     return {
         "blindness_contract": {
             "candidate_identity_fields_present": False,
@@ -1105,6 +1347,7 @@ def _public_manifest(
             "model_suggestions_visible": False,
             "public_candidates_use_blind_alias_only": True,
             "reveal_map_embedded": False,
+            "same_work_references_anonymous": True,
         },
         "card_render_contract": {
             "canvas_px": [CARD_WIDTH, CARD_HEIGHT],
@@ -1123,6 +1366,7 @@ def _public_manifest(
         "renderer_hash": inputs.renderer_hash,
         "schema_version": SCHEMA_VERSION,
         "training_asset": False,
+        "work_reference_count": reference_count,
     }
 
 
@@ -1151,6 +1395,9 @@ def _public_report(manifest: Mapping[str, Any], manifest_sha256: str) -> dict[st
             ),
             "unique_sample_count": len(
                 {card["assignment"]["sample_id"] for card in cards}
+            ),
+            "work_reference_count": sum(
+                int(card.get("work_references", {}).get("count", 0)) for card in cards
             ),
         },
     }
@@ -1243,6 +1490,7 @@ def build_output(
     hard_root: Path,
     library_root: Path,
     config: RunConfig,
+    work_reference_manifest: Path | None = None,
 ) -> dict[str, Any]:
     render_bank_root = render_bank_manifest.parent
     protected = (
@@ -1253,6 +1501,7 @@ def build_output(
         base_root,
         hard_root,
         library_root,
+        *((work_reference_manifest,) if work_reference_manifest else ()),
     )
     _assert_disjoint_output(output_dir, protected)
     _assert_replaceable(output_dir)
@@ -1261,6 +1510,7 @@ def build_output(
         inventory=inventory,
         assignments=assignments,
         render_bank_manifest=render_bank_manifest,
+        work_reference_manifest=work_reference_manifest,
     )
     selected = select_assignments(inputs, config)
     output_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -1310,6 +1560,7 @@ def build_output(
             hard_root=hard_root,
             library_root=library_root,
             expected_config=config,
+            work_reference_manifest=work_reference_manifest,
         )
         _atomic_replace_directory(output_dir, staging)
         completed = True
@@ -1350,6 +1601,7 @@ def validate_output(
     hard_root: Path,
     library_root: Path,
     expected_config: RunConfig | None = None,
+    work_reference_manifest: Path | None = None,
 ) -> dict[str, Any]:
     _assert_owned_output(output_dir)
     manifest_path = output_dir / MANIFEST_FILE
@@ -1379,6 +1631,7 @@ def validate_output(
         inventory=inventory,
         assignments=assignments,
         render_bank_manifest=render_bank_manifest,
+        work_reference_manifest=work_reference_manifest,
     )
     if manifest.get("input_hashes") != dict(sorted(inputs.input_hashes.items())):
         raise ReviewCardError("review-card input hashes are stale")
@@ -1544,6 +1797,7 @@ def add_input_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--base-root", type=Path, required=True)
     parser.add_argument("--hard-root", type=Path, required=True)
     parser.add_argument("--library-root", type=Path, required=True)
+    parser.add_argument("--work-reference-manifest", type=Path)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1574,7 +1828,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _resolved_input_kwargs(args: argparse.Namespace) -> dict[str, Path]:
-    return {
+    values = {
         "master_manifest": args.master_manifest.resolve(),
         "inventory": args.inventory.resolve(),
         "assignments": args.assignments.resolve(),
@@ -1583,6 +1837,9 @@ def _resolved_input_kwargs(args: argparse.Namespace) -> dict[str, Path]:
         "hard_root": args.hard_root.resolve(),
         "library_root": args.library_root.resolve(),
     }
+    if args.work_reference_manifest is not None:
+        values["work_reference_manifest"] = args.work_reference_manifest.resolve()
+    return values
 
 
 def main(argv: Sequence[str] | None = None) -> int:

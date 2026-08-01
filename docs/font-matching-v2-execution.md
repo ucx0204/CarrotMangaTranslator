@@ -208,3 +208,11 @@ YYYY-MM-DD / 단계
 - artifact: `C:\tmp\font-matching-rubric-calibration-cards-v2`, `C:\tmp\font-matching-orientation-audit-v2`
 - SHA-256: card manifest `9a047e0c9766888f5b7ea76769afd8c6fad0106f1dc0922cb879f79246ed595b`, orientation tasks `849ae274d64078ffe54462087ef57c6874fcbe1b3cc2df0ebc99e99c3fe9cfed`
 - 남은 실패/예외: 3개 shard 각 94건을 original detail로 전수 확인하고 horizontal/vertical/mixed/unknown 및 recrop 상태를 확정한 뒤, 고친 방향으로 564장을 다시 렌더·봉인해야 한다.
+
+2026-08-01 / P1 orientation 적용·작품 일관성 증거 gate
+
+- 명령: `font_matching_orientation_audit.py apply`, `build_font_matching_work_references.py`, work-reference 옵션을 켠 `build_font_matching_review_cards.py` 집중 회귀 테스트와 원본 크기 QA 카드 확인
+- 결과: 282건 방향 감사가 전부 끝나기 전에는 파생 manifest를 만들 수 없고, `usable`이면서 실제 방향이 horizontal/vertical로 확정된 표본만 새 master/inventory로 복사한다. 원본 calibration 파일은 수정하지 않으며, 변경 방향·검수 카드 SHA·검수자·crop 상태를 샘플별 봉인하고 새 inventory를 새 master SHA에 재결합한다. mixed/unknown/재크롭 필요 표본은 별도 reject ledger로 빠진다. 또한 기존 파일럿에서 확정된 고신뢰 ordinary dialogue만 사용해 작품별 대표 3개를 서로 다른 화 우선으로 고르는 익명 reference manifest와 카드 패널을 구현했다. 작품명·장르·font 이름·모델 제안은 카드에 노출하지 않고 raw/glyph 증거만 보여주며 SFX override 판단에는 사용하지 않는다. fixture 카드를 2,400×3,508 원본으로 열어 reference 3개, source/context/views, 후보 15개, footer의 잘림·겹침이 없음을 확인했다.
+- artifact: `scripts/font_matching_orientation_audit.py`, `scripts/build_font_matching_work_references.py`, `scripts/build_font_matching_review_cards.py`, `scripts/font_matching_review_ledger.py`
+- SHA-256: 현재 870개 final을 이용한 예비 reference manifest `53d13a8e189e983a3ca275b6b6558ad11fb0a9f1b3226135f920bed433364930`; 최종 artifact는 1,200개 final과 방향 감사 완료 후 다시 봉인한다.
+- 남은 실패/예외: 이 예비 reference manifest는 final ledger가 계속 증가하므로 calibration 검수에 사용하지 않는다. 1,200/1,200 final 및 282/282 방향 감사 완료 뒤 `--require-final-count 1200`으로 재생성하고 최종 카드 전체를 다시 봉인해야 한다.

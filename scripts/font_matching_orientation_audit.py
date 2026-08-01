@@ -23,6 +23,8 @@ SCHEMA_VERSION = "font-matching-orientation-audit-v1"
 TASK_TYPE = "font_matching_orientation_task"
 RESPONSE_TYPE = "font_matching_orientation_response"
 REPORT_TYPE = "font_matching_orientation_audit_report"
+APPLY_REPORT_TYPE = "font_matching_orientation_apply_report"
+DECISION_TYPE = "font_matching_orientation_applied_decision"
 DEFAULT_SEED = "font-matching-orientation-audit-v1"
 ORIENTATIONS = frozenset({"horizontal", "vertical", "mixed", "unknown"})
 CROP_STATUSES = frozenset({"usable", "needs_recrop", "mixed_hierarchy", "unusable"})
@@ -428,25 +430,10 @@ def validate_responses(
     allow_partial: bool = False,
 ) -> dict[str, Any]:
     tasks = _load_tasks(workspace)
-    responses: dict[str, dict[str, Any]] = {}
-    for path in response_paths:
-        for index, value in enumerate(
-            read_jsonl(path, location=str(path), allow_empty=True), 1
-        ):
-            sample_id = require_text(
-                value.get("sample_id"), location=f"{path}:{index}.sample_id"
-            )
-            if sample_id not in tasks:
-                raise OrientationAuditError(
-                    f"{path}:{index}: unknown sample {sample_id}"
-                )
-            if sample_id in responses:
-                raise OrientationAuditError(
-                    f"duplicate orientation response: {sample_id}"
-                )
-            responses[sample_id] = _validate_response(
-                value, tasks[sample_id], location=f"{path}:{index}"
-            )
+    responses = _load_validated_responses(
+        tasks=tasks,
+        response_paths=response_paths,
+    )
     missing = sorted(set(tasks) - set(responses))
     if missing and not allow_partial:
         raise OrientationAuditError(f"missing orientation responses: {missing[:8]}")
@@ -484,6 +471,242 @@ def validate_responses(
     return _seal(report_core)
 
 
+def _load_validated_responses(
+    *,
+    tasks: Mapping[str, Mapping[str, Any]],
+    response_paths: Sequence[Path],
+) -> dict[str, dict[str, Any]]:
+    responses: dict[str, dict[str, Any]] = {}
+    for path in response_paths:
+        for index, value in enumerate(
+            read_jsonl(path, location=str(path), allow_empty=True), 1
+        ):
+            sample_id = require_text(
+                value.get("sample_id"), location=f"{path}:{index}.sample_id"
+            )
+            if sample_id not in tasks:
+                raise OrientationAuditError(
+                    f"{path}:{index}: unknown sample {sample_id}"
+                )
+            if sample_id in responses:
+                raise OrientationAuditError(
+                    f"duplicate orientation response: {sample_id}"
+                )
+            responses[sample_id] = _validate_response(
+                value, tasks[sample_id], location=f"{path}:{index}"
+            )
+    return responses
+
+
+def _orientation_provenance(
+    *,
+    task: Mapping[str, Any],
+    response: Mapping[str, Any],
+) -> dict[str, Any]:
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "task_record_sha256": task["record_sha256"],
+        "primary_assignment_id": task["primary_assignment_id"],
+        "card_sha256": task["card_sha256"],
+        "declared_orientation": task["declared_orientation"],
+        "actual_orientation": response["actual_orientation"],
+        "confidence": response["confidence"],
+        "crop_status": response["crop_status"],
+        "reviewer": response["reviewer"],
+        "viewed_original": True,
+        "notes": response["notes"],
+    }
+
+
+def apply_orientation_decisions(
+    *,
+    workspace: Path,
+    response_paths: Sequence[Path],
+    inventory_path: Path,
+    master_path: Path,
+    output_dir: Path,
+) -> dict[str, Any]:
+    """Write a corrected derivative dataset after a complete visual audit.
+
+    The source calibration files are immutable.  Only samples explicitly marked
+    usable with a concrete horizontal/vertical decision enter the corrected
+    derivative.  Every changed orientation is bound to the reviewed card and
+    the output inventory is rebound to the corrected master byte hash.
+    """
+
+    tasks = _load_tasks(workspace)
+    responses = _load_validated_responses(
+        tasks=tasks,
+        response_paths=response_paths,
+    )
+    missing = sorted(set(tasks) - set(responses))
+    if missing:
+        raise OrientationAuditError(
+            f"cannot apply incomplete orientation audit; missing: {missing[:8]}"
+        )
+
+    inventory_rows = read_jsonl(inventory_path, location="calibration inventory")
+    inventory_by_id: dict[str, dict[str, Any]] = {}
+    for index, row in enumerate(inventory_rows, 1):
+        sample_id = require_text(
+            row.get("sample_id"), location=f"inventory[{index}].sample_id"
+        )
+        if sample_id in inventory_by_id:
+            raise OrientationAuditError(f"duplicate inventory sample: {sample_id}")
+        inventory_by_id[sample_id] = row
+
+    master_rows = read_jsonl(master_path, location="calibration master")
+    master_by_id: dict[str, dict[str, Any]] = {}
+    for index, row in enumerate(master_rows, 1):
+        sample_id = require_text(row.get("id"), location=f"master[{index}].id")
+        if sample_id in master_by_id:
+            raise OrientationAuditError(f"duplicate master sample: {sample_id}")
+        master_by_id[sample_id] = row
+
+    task_ids = set(tasks)
+    if set(inventory_by_id) != task_ids:
+        difference = sorted(set(inventory_by_id) ^ task_ids)
+        raise OrientationAuditError(
+            f"inventory/task sample set mismatch: {difference[:8]}"
+        )
+    if set(master_by_id) != task_ids:
+        difference = sorted(set(master_by_id) ^ task_ids)
+        raise OrientationAuditError(
+            f"master/task sample set mismatch: {difference[:8]}"
+        )
+
+    accepted_ids: set[str] = set()
+    decision_rows: list[dict[str, Any]] = []
+    rejected_rows: list[dict[str, Any]] = []
+    for sample_id, task in tasks.items():
+        response = responses[sample_id]
+        inventory_row = inventory_by_id[sample_id]
+        master_row = master_by_id[sample_id]
+        declared = task["declared_orientation"]
+        if inventory_row.get("orientation") != declared:
+            raise OrientationAuditError(
+                f"{sample_id}: inventory orientation drifted from sealed task"
+            )
+        metadata = require_mapping(
+            master_row.get("metadata"), location=f"{sample_id}.metadata"
+        )
+        if metadata.get("orientation") != declared:
+            raise OrientationAuditError(
+                f"{sample_id}: master orientation drifted from sealed task"
+            )
+        accepted = response["crop_status"] == "usable" and response[
+            "actual_orientation"
+        ] in {"horizontal", "vertical"}
+        provenance = _orientation_provenance(task=task, response=response)
+        decision = _seal(
+            {
+                "schema_version": SCHEMA_VERSION,
+                "record_type": DECISION_TYPE,
+                "sample_id": sample_id,
+                "accepted": accepted,
+                "orientation": response["actual_orientation"],
+                "orientation_changed": response["actual_orientation"] != declared,
+                "audit": provenance,
+            }
+        )
+        decision_rows.append(decision)
+        if accepted:
+            accepted_ids.add(sample_id)
+        else:
+            rejected_rows.append(decision)
+
+    corrected_master: list[dict[str, Any]] = []
+    for row in master_rows:
+        sample_id = str(row["id"])
+        if sample_id not in accepted_ids:
+            continue
+        response = responses[sample_id]
+        task = tasks[sample_id]
+        corrected = dict(row)
+        metadata = dict(require_mapping(row.get("metadata"), location=sample_id))
+        metadata["orientation"] = response["actual_orientation"]
+        metadata["orientation_audit"] = _orientation_provenance(
+            task=task, response=response
+        )
+        corrected["metadata"] = metadata
+        corrected_master.append(corrected)
+    corrected_master_payload = jsonl_bytes(corrected_master)
+    corrected_master_sha = sha256_bytes(corrected_master_payload)
+
+    corrected_inventory: list[dict[str, Any]] = []
+    for row in inventory_rows:
+        sample_id = str(row["sample_id"])
+        if sample_id not in accepted_ids:
+            continue
+        response = responses[sample_id]
+        task = tasks[sample_id]
+        corrected = dict(row)
+        corrected["orientation"] = response["actual_orientation"]
+        corrected["master_manifest_sha256"] = corrected_master_sha
+        provenance = dict(
+            require_mapping(row.get("provenance"), location=f"{sample_id}.provenance")
+        )
+        provenance["orientation_audit"] = _orientation_provenance(
+            task=task, response=response
+        )
+        corrected["provenance"] = provenance
+        corrected_inventory.append(corrected)
+    corrected_inventory_payload = jsonl_bytes(corrected_inventory)
+    decisions_payload = jsonl_bytes(decision_rows)
+    rejected_payload = jsonl_bytes(rejected_rows)
+
+    declared_mismatches = sum(row["orientation_changed"] for row in decision_rows)
+    report_core = {
+        "schema_version": SCHEMA_VERSION,
+        "record_type": APPLY_REPORT_TYPE,
+        "complete": True,
+        "counts": {
+            "tasks": len(tasks),
+            "accepted": len(accepted_ids),
+            "rejected": len(rejected_rows),
+            "declared_mismatches": declared_mismatches,
+            "accepted_orientation": dict(
+                sorted(
+                    Counter(
+                        responses[sample_id]["actual_orientation"]
+                        for sample_id in accepted_ids
+                    ).items()
+                )
+            ),
+            "rejected_crop_status": dict(
+                sorted(
+                    Counter(
+                        row["audit"]["crop_status"] for row in rejected_rows
+                    ).items()
+                )
+            ),
+        },
+        "hashes": {
+            "source_inventory_sha256": sha256_file(inventory_path),
+            "source_master_sha256": sha256_file(master_path),
+            "tasks_sha256": sha256_file(workspace / "tasks.jsonl"),
+            "corrected_inventory_sha256": sha256_bytes(corrected_inventory_payload),
+            "corrected_master_sha256": corrected_master_sha,
+            "decisions_sha256": sha256_bytes(decisions_payload),
+            "rejected_sha256": sha256_bytes(rejected_payload),
+        },
+        "safety": {
+            "source_files_modified": False,
+            "qa_overlay_promoted": 0,
+            "synthetic_promoted": 0,
+            "mixed_or_unknown_promoted": 0,
+            "unusable_promoted": 0,
+        },
+    }
+    report = _seal(report_core)
+    _atomic_write(output_dir / "master.jsonl", corrected_master_payload)
+    _atomic_write(output_dir / "inventory.jsonl", corrected_inventory_payload)
+    _atomic_write(output_dir / "decisions.jsonl", decisions_payload)
+    _atomic_write(output_dir / "rejected.jsonl", rejected_payload)
+    _atomic_write(output_dir / "report.json", json_bytes(report, pretty=True))
+    return report
+
+
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -501,6 +724,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     validate.add_argument("--responses", type=Path, action="append", required=True)
     validate.add_argument("--allow-partial", action="store_true")
     validate.add_argument("--output", type=Path)
+    apply = subparsers.add_parser("apply")
+    apply.add_argument("--workspace", type=Path, required=True)
+    apply.add_argument("--responses", type=Path, action="append", required=True)
+    apply.add_argument("--inventory", type=Path, required=True)
+    apply.add_argument("--master", type=Path, required=True)
+    apply.add_argument("--output-dir", type=Path, required=True)
     return parser.parse_args(argv)
 
 
@@ -518,7 +747,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 seed=args.seed,
                 expected_samples=args.expected_samples,
             )
-        else:
+        elif args.command == "validate":
             report = validate_responses(
                 workspace=args.workspace.resolve(),
                 response_paths=[path.resolve() for path in args.responses],
@@ -526,6 +755,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             if args.output:
                 _atomic_write(args.output.resolve(), json_bytes(report, pretty=True))
+        else:
+            report = apply_orientation_decisions(
+                workspace=args.workspace.resolve(),
+                response_paths=[path.resolve() for path in args.responses],
+                inventory_path=args.inventory.resolve(),
+                master_path=args.master.resolve(),
+                output_dir=args.output_dir.resolve(),
+            )
     except OrientationAuditError as error:
         print(f"error: {error}")
         return 2

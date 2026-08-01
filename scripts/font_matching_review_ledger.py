@@ -367,6 +367,7 @@ class CardBinding:
     candidate_aliases: tuple[str, ...]
     card_path: str
     review_card_sha256: str
+    work_reference_count: int = 0
 
 
 def _master_view_hash(row: Mapping[str, Any], name: str) -> str | None:
@@ -547,6 +548,64 @@ def _parse_public_card_views(
     return display, source
 
 
+def _parse_work_reference_evidence(value: Any, *, location: str) -> int:
+    evidence = require_mapping(value, location=location)
+    require_exact_keys(
+        evidence,
+        {
+            "anonymous",
+            "count",
+            "evidence_policy",
+            "items",
+            "reference_set_sha256",
+        },
+        location=location,
+    )
+    if evidence.get("anonymous") is not True:
+        raise ReviewLedgerError(f"{location}: references must be anonymous")
+    if evidence.get("evidence_policy") != "high-confidence-finalized-ordinary-dialogue":
+        raise ReviewLedgerError(f"{location}: unsupported evidence policy")
+    require_sha(
+        evidence.get("reference_set_sha256"),
+        location=f"{location}.reference_set_sha256",
+    )
+    count = evidence.get("count")
+    items = evidence.get("items")
+    if (
+        isinstance(count, bool)
+        or not isinstance(count, int)
+        or count < 3
+        or not isinstance(items, list)
+        or len(items) != count
+    ):
+        raise ReviewLedgerError(f"{location}: expected at least three references")
+    aliases: set[str] = set()
+    for index, raw in enumerate(items):
+        item_location = f"{location}.items[{index}]"
+        item = require_mapping(raw, location=item_location)
+        require_exact_keys(
+            item,
+            {"blind_alias", "orientation", "role", "sample_crop_sha256", "views"},
+            location=item_location,
+        )
+        alias = require_id(
+            item.get("blind_alias"), location=f"{item_location}.blind_alias"
+        )
+        if alias in aliases:
+            raise ReviewLedgerError(f"{item_location}: duplicate blind alias")
+        aliases.add(alias)
+        if item.get("role") != "dialogue":
+            raise ReviewLedgerError(f"{item_location}: reference role must be dialogue")
+        if item.get("orientation") not in {"horizontal", "vertical"}:
+            raise ReviewLedgerError(f"{item_location}: invalid orientation")
+        require_sha(
+            item.get("sample_crop_sha256"),
+            location=f"{item_location}.sample_crop_sha256",
+        )
+        _parse_public_card_views(item.get("views"), location=f"{item_location}.views")
+    return count
+
+
 def parse_card_binding(value: Mapping[str, Any], *, location: str) -> CardBinding:
     required = {
         "artifact",
@@ -556,7 +615,11 @@ def parse_card_binding(value: Mapping[str, Any], *, location: str) -> CardBindin
         "schema_version",
         "source",
     }
-    require_exact_keys(value, required, location=location)
+    allowed = required | {"work_references"}
+    if not required.issubset(value) or set(value) - allowed:
+        raise ReviewLedgerError(
+            f"{location}: keys differ: {sorted((required - set(value)) | (set(value) - allowed))}"
+        )
     if value.get("schema_version") != CARD_SCHEMA_VERSION:
         raise ReviewLedgerError(f"{location}.schema_version is invalid")
     require_id(value.get("card_id"), location=f"{location}.card_id")
@@ -652,6 +715,11 @@ def parse_card_binding(value: Mapping[str, Any], *, location: str) -> CardBindin
     display_views, source_views = _parse_public_card_views(
         source_value.get("views"), location=f"{location}.source.views"
     )
+    work_reference_count = 0
+    if "work_references" in value:
+        work_reference_count = _parse_work_reference_evidence(
+            value.get("work_references"), location=f"{location}.work_references"
+        )
     artifact = require_mapping(value.get("artifact"), location=f"{location}.artifact")
     for key in ("file", "height", "qa_overlay", "sha256", "watermark", "width"):
         if key not in artifact:
@@ -695,6 +763,7 @@ def parse_card_binding(value: Mapping[str, Any], *, location: str) -> CardBindin
         review_card_sha256=require_sha(
             artifact.get("sha256"), location=f"{location}.artifact.sha256"
         ),
+        work_reference_count=work_reference_count,
     )
 
 
@@ -737,6 +806,14 @@ def read_card_manifest(
         output[card.assignment_id] = card
     if not output:
         raise ReviewLedgerError("card manifest is empty")
+    reference_count = sum(card.work_reference_count for card in output.values())
+    if (
+        "work_reference_count" in manifest
+        and manifest.get("work_reference_count") != reference_count
+    ):
+        raise ReviewLedgerError("card manifest work-reference count is invalid")
+    if reference_count and blindness.get("same_work_references_anonymous") is not True:
+        raise ReviewLedgerError("card manifest does not bind anonymous work references")
     input_hashes_value = require_mapping(
         manifest.get("input_hashes"), location="card_manifest.input_hashes"
     )
