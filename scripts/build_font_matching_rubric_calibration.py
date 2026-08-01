@@ -145,6 +145,8 @@ def _row_categories(row: Mapping[str, Any]) -> frozenset[str]:
 
 def _eligible_inventory_rows(
     rows: Sequence[Mapping[str, Any]],
+    *,
+    excluded_sample_ids: frozenset[str] = frozenset(),
 ) -> tuple[list[dict[str, Any]], Counter[str]]:
     eligible: list[dict[str, Any]] = []
     excluded: Counter[str] = Counter()
@@ -157,6 +159,9 @@ def _eligible_inventory_rows(
             raise CalibrationSelectionError(f"duplicate inventory sample: {sample_id}")
         seen.add(sample_id)
         _validate_provenance(row, location=location)
+        if sample_id in excluded_sample_ids:
+            excluded["explicit_visual_audit_reject"] += 1
+            continue
         split = require_text(row.get("split"), location=f"{location}.split")
         batches = require_mapping(row.get("batches"), location=f"{location}.batches")
         if split not in DEVELOPMENT_SPLITS:
@@ -238,11 +243,17 @@ def _select_work_rows(
 
 
 def select_rows(
-    inventory_rows: Sequence[Mapping[str, Any]], *, per_work: int, seed: str
+    inventory_rows: Sequence[Mapping[str, Any]],
+    *,
+    per_work: int,
+    seed: str,
+    excluded_sample_ids: frozenset[str] = frozenset(),
 ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     if per_work < 1:
         raise CalibrationSelectionError("per_work must be positive")
-    eligible, excluded = _eligible_inventory_rows(inventory_rows)
+    eligible, excluded = _eligible_inventory_rows(
+        inventory_rows, excluded_sample_ids=excluded_sample_ids
+    )
     by_work: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in eligible:
         by_work[str(row["work_id"])].append(row)
@@ -317,6 +328,7 @@ def build_calibration(
     per_work: int = DEFAULT_PER_WORK,
     expected_works: int | None = DEFAULT_EXPECTED_WORKS,
     expected_total: int | None = DEFAULT_EXPECTED_TOTAL,
+    exclude_samples: Path | None = None,
 ) -> dict[str, Any]:
     for path, name in (
         (master_manifest, "master manifest"),
@@ -327,7 +339,23 @@ def build_calibration(
             raise CalibrationSelectionError(f"missing {name}: {path}")
     master_rows = read_jsonl(master_manifest, location="master manifest")
     inventory_rows = read_jsonl(inventory, location="inventory")
-    selected, diagnostics = select_rows(inventory_rows, per_work=per_work, seed=seed)
+    excluded_sample_ids = frozenset(
+        require_text(
+            row.get("sample_id"), location=f"exclude_samples[{index}].sample_id"
+        )
+        for index, row in enumerate(
+            read_jsonl(exclude_samples, location="exclude samples")
+            if exclude_samples is not None
+            else [],
+            1,
+        )
+    )
+    selected, diagnostics = select_rows(
+        inventory_rows,
+        per_work=per_work,
+        seed=seed,
+        excluded_sample_ids=excluded_sample_ids,
+    )
     selected_ids = {str(row["sample_id"]) for row in selected}
     if len(selected_ids) != len(selected):
         raise CalibrationSelectionError("selection contains duplicate sample IDs")
@@ -395,12 +423,16 @@ def build_calibration(
             "rubric_sha256": sha256_file(rubric),
             "subset_master_manifest_sha256": subset_sha,
             "selected_inventory_sha256": sha256_bytes(inventory_payload),
+            "exclude_samples_sha256": (
+                sha256_file(exclude_samples) if exclude_samples is not None else None
+            ),
         },
         "safety": {
             "frozen_test_selected": 0,
             "pilot_overlap_selected": 0,
             "qa_overlay_selected": 0,
             "synthetic_selected": 0,
+            "explicit_visual_audit_reject_selected": 0,
         },
     }
     report = {
@@ -423,6 +455,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--per-work", type=int, default=DEFAULT_PER_WORK)
     parser.add_argument("--expected-works", type=int, default=DEFAULT_EXPECTED_WORKS)
     parser.add_argument("--expected-total", type=int, default=DEFAULT_EXPECTED_TOTAL)
+    parser.add_argument("--exclude-samples", type=Path)
     return parser.parse_args(argv)
 
 
@@ -438,6 +471,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             per_work=args.per_work,
             expected_works=args.expected_works,
             expected_total=args.expected_total,
+            exclude_samples=(
+                args.exclude_samples.resolve() if args.exclude_samples else None
+            ),
         )
     except CalibrationSelectionError as error:
         print(f"error: {error}")

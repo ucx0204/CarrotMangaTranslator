@@ -104,6 +104,25 @@ class RubricCalibrationSelectionTests(unittest.TestCase):
         )
         self.assertEqual({"ordinary", "sfx"}, {row["sample_id"] for row in first})
 
+    def test_explicit_visual_reject_is_replaced_deterministically(self) -> None:
+        rows = [
+            inventory_row("first", "work-a", cohorts=["hard_page_sound"]),
+            inventory_row("replacement", "work-a", cohorts=["hard_page_sound"]),
+        ]
+        baseline, _ = CALIBRATION.select_rows(rows, per_work=1, seed="fixture")
+        rejected_id = baseline[0]["sample_id"]
+
+        selected, diagnostics = CALIBRATION.select_rows(
+            rows,
+            per_work=1,
+            seed="fixture",
+            excluded_sample_ids=frozenset({rejected_id}),
+        )
+
+        self.assertEqual(1, len(selected))
+        self.assertNotEqual(rejected_id, selected[0]["sample_id"])
+        self.assertEqual(1, diagnostics["excluded"]["explicit_visual_audit_reject"])
+
     def test_build_writes_zero_copy_subset_and_hash_bound_inventory(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
