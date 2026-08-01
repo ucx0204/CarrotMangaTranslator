@@ -630,6 +630,49 @@ class ReviewCardBuilderTest(unittest.TestCase):
             )
             self.assertFalse((fixture.output / CARDS.REVEAL_FILE).exists())
 
+    def test_builds_and_reveals_a_blind_subset_from_a_larger_bank(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = Fixture(Path(temporary))
+            subset = FONT_IDS[-7:]
+            assignments = [
+                json.loads(line)
+                for line in fixture.assignments.read_text(
+                    encoding="utf-8"
+                ).splitlines()
+            ]
+            for assignment in assignments:
+                assignment["candidate_order"] = CARDS.expected_candidate_order(
+                    subset, assignment["candidate_order_seed"]
+                )
+                assignment["assignment_id"] = CARDS.expected_assignment_id(
+                    assignment
+                )
+            write_jsonl(fixture.assignments, assignments)
+
+            CARDS.build_output(
+                **fixture.kwargs(), config=CARDS.RunConfig(stage="primary")
+            )
+            manifest = json.loads(
+                (fixture.output / CARDS.MANIFEST_FILE).read_text(encoding="utf-8")
+            )
+            self.assertTrue(
+                all(len(card["candidates"]) == 7 for card in manifest["cards"])
+            )
+
+            result = CARDS.build_reveal_map(
+                render_bank_manifest=fixture.bank_manifest,
+                review_cards_dir=fixture.output,
+                output_dir=fixture.reveal,
+                acknowledgement=CARDS.UNBLIND_ACKNOWLEDGEMENT,
+            )
+            self.assertEqual(7, result["mapping_count"])
+            reveal = json.loads(
+                (fixture.reveal / CARDS.REVEAL_FILE).read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                set(subset), {row["font_id"] for row in reveal["mappings"]}
+            )
+
     def test_embeds_three_anonymous_same_work_dialogue_references(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture = Fixture(Path(temporary))

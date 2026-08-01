@@ -61,7 +61,7 @@ BLACK = (12, 16, 21)
 # Three deliberately different strings are required by the frozen review
 # plan: a neutral body voice, a longer prose rhythm, and a short dense SFX.
 PROBE_IDS = ("dialogue-body", "narration", "sfx-impact")
-EXPECTED_FAMILY_COUNT = 15
+MAX_CARD_CANDIDATES = 15
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 SAFE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$")
 
@@ -393,9 +393,12 @@ def validate_assignment(row: dict[str, Any], location: str) -> dict[str, Any]:
     ):
         raise ReviewCardError(f"{location}: assignment is not a blind first pass")
     order = row.get("candidate_order")
-    if not isinstance(order, list) or len(order) != EXPECTED_FAMILY_COUNT:
+    if (
+        not isinstance(order, list)
+        or not 1 <= len(order) <= MAX_CARD_CANDIDATES
+    ):
         raise ReviewCardError(
-            f"{location}.candidate_order: expected {EXPECTED_FAMILY_COUNT} families"
+            f"{location}.candidate_order: expected 1-{MAX_CARD_CANDIDATES} families"
         )
     if any(not isinstance(value, str) for value in order) or len(set(order)) != len(
         order
@@ -566,8 +569,13 @@ def load_inputs(
     bank = read_json(render_bank_manifest, "render bank manifest")
     if bank.get("schema_version") != "font-render-bank-v1":
         raise ReviewCardError("render bank manifest schema is unsupported")
-    if bank.get("family_count") != EXPECTED_FAMILY_COUNT:
-        raise ReviewCardError("render bank must contain exactly 15 families")
+    family_count = bank.get("family_count")
+    if (
+        isinstance(family_count, bool)
+        or not isinstance(family_count, int)
+        or family_count < 1
+    ):
+        raise ReviewCardError("render bank family_count is invalid")
     candidates = bank.get("candidates")
     renders = bank.get("renders")
     if not isinstance(candidates, list) or not isinstance(renders, list):
@@ -602,9 +610,10 @@ def load_inputs(
                     f"candidate:{index}: canonical face is not 400 normal"
                 )
             canonical_by_font_id[font_id] = candidate
-    if len(canonical_by_font_id) != EXPECTED_FAMILY_COUNT:
+    if len(canonical_by_font_id) != family_count:
         raise ReviewCardError(
-            "render bank must explicitly mark exactly 15 production 400/normal canonical candidates"
+            "render bank must explicitly mark one production 400/normal "
+            "canonical candidate per family"
         )
 
     render_by_key: dict[tuple[str, str, str], dict[str, Any]] = {}
@@ -1077,9 +1086,9 @@ def build_card(
     candidate_panels: list[dict[str, Any]] = []
     candidate_images: list[list[tuple[Image.Image, dict[str, Any]]]] = []
     order = assignment["candidate_order"]
-    if set(order) != set(inputs.canonical_by_font_id):
+    if not set(order).issubset(inputs.canonical_by_font_id):
         raise ReviewCardError(
-            "assignment candidates differ from canonical render families"
+            "assignment contains a non-canonical render family"
         )
     for position, font_id in enumerate(order, 1):
         candidate = inputs.canonical_by_font_id[font_id]
@@ -1231,7 +1240,7 @@ def build_card(
             "FONT NAMES: HIDDEN",
             "MODEL PROPOSALS: HIDDEN",
             "CHECK ROLE / STYLE / TREATMENT",
-            "TIER ALL 15; none_acceptable IS VALID",
+            f"TIER ALL {len(order)}; none_acceptable IS VALID",
             "CONFIDENCE < 0.75 => low_confidence",
             "BAD SOURCE => crop_needs_review",
             "BROKEN RENDER => rendering_issue",
@@ -1243,7 +1252,8 @@ def build_card(
             _draw_wrapped(draw, (1818, y, 2340, y + 48), line, size=21, fill=DARK)
             y += 50
 
-    # Fifteen opaque candidates, exactly in the assignment's seeded order.
+    # Opaque candidates, exactly in the assignment's seeded order. The fixed
+    # card geometry intentionally caps one card at MAX_CARD_CANDIDATES.
     grid_top = 1150
     cell_width = 770
     cell_height = 424
@@ -1709,16 +1719,50 @@ def build_reveal_map(
     _assert_safe_output_target(output_dir)
     _assert_disjoint_output(output_dir, (review_cards_dir, render_bank_manifest.parent))
     bank = read_json(render_bank_manifest, "render bank manifest")
+    card_manifest = read_json(review_cards_dir / MANIFEST_FILE, "review cards")
+    input_hashes = require_mapping(
+        card_manifest.get("input_hashes"), "review cards.input_hashes"
+    )
+    if input_hashes.get("render_bank_manifest_sha256") != sha256_file(
+        render_bank_manifest
+    ):
+        raise ReviewCardError("reveal render bank differs from the reviewed bank")
+    cards = card_manifest.get("cards")
+    if not isinstance(cards, list) or not cards:
+        raise ReviewCardError("review cards contain no candidate evidence")
+    reviewed_aliases: set[str] = set()
+    for card_index, card_value in enumerate(cards, 1):
+        card = require_mapping(card_value, f"review cards.cards[{card_index}]")
+        card_candidates = card.get("candidates")
+        if not isinstance(card_candidates, list) or not card_candidates:
+            raise ReviewCardError(
+                f"review cards.cards[{card_index}].candidates is invalid"
+            )
+        for candidate_index, candidate_value in enumerate(card_candidates, 1):
+            candidate = require_mapping(
+                candidate_value,
+                f"review cards.cards[{card_index}].candidates[{candidate_index}]",
+            )
+            reviewed_aliases.add(
+                require_id(candidate.get("blind_alias"), "reviewed blind_alias")
+            )
     candidates = bank.get("candidates")
     if not isinstance(candidates, list):
         raise ReviewCardError("render bank candidates are invalid")
     canonical = [
         dict(require_mapping(value, "render bank candidate"))
         for value in candidates
-        if isinstance(value, Mapping) and _candidate_is_canonical(value)
+        if (
+            isinstance(value, Mapping)
+            and _candidate_is_canonical(value)
+            and value.get("blind_alias") in reviewed_aliases
+        )
     ]
-    if len(canonical) != EXPECTED_FAMILY_COUNT:
-        raise ReviewCardError("reveal requires exactly 15 canonical candidates")
+    if {
+        require_id(value.get("blind_alias"), "canonical blind_alias")
+        for value in canonical
+    } != reviewed_aliases:
+        raise ReviewCardError("review cards reference a non-canonical blind alias")
     payload = {
         "authorization": "explicit-post-review-unblind",
         "mappings": [
