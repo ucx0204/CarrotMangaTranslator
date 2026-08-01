@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import importlib.util
+import io
 import json
 import sys
 import tempfile
@@ -41,6 +43,18 @@ FONT_IDS = (
     "gaegu",
 )
 FIXTURE_UNRENDERABLE_FONT_ID = FONT_IDS[0]
+PROBE_SPECS = {
+    "aside-whisper": ("저기, 잠깐만.", 36, 0.04),
+    "dialogue-body": ("지금 가는 거야?", 44, 0.0),
+    "emphasis-shout": ("포기 안 해!", 52, 0.02),
+    "narration": ("그날 밤의 기록.", 40, 0.02),
+    "sfx-ambient": ("스산...", 48, 0.08),
+    "sfx-comic-reaction": ("삐질...", 54, 0.0),
+    "sfx-emotion": ("두근 두근", 48, 0.03),
+    "sfx-impact": ("쾅!!", 64, -0.03),
+    "sfx-motion": ("휘익-", 58, 0.04),
+    "thought-monologue": ("설마, 기다릴까?", 42, 0.01),
+}
 
 
 def sha(path: Path) -> str:
@@ -93,7 +107,7 @@ def write_image(
 
 
 class Fixture:
-    def __init__(self, root: Path) -> None:
+    def __init__(self, root: Path, *, include_delta: bool = False) -> None:
         self.root = root
         self.master_dir = root / "master-input"
         self.inventory_dir = root / "inventory-input"
@@ -101,6 +115,7 @@ class Fixture:
         self.bank = root / "render-bank-input"
         self.base = root / "base-catalog"
         self.hard = root / "hard-catalog"
+        self.delta = root / "delta-hard-catalog"
         self.library = root / "library-input"
         self.output = root / "review-cards-output"
         self.reveal = root / "reveal-output"
@@ -109,8 +124,12 @@ class Fixture:
         self.assignments = self.assignment_dir / "assignments.jsonl"
         self.bank_manifest = self.bank / "manifest.json"
         self.work_references = root / "work-reference-input" / "manifest.json"
+        self.catalog_registry = root / "catalog-registry-input" / "registry.json"
+        self.frozen_split_map = self.catalog_registry.parent / "frozen-split-map.json"
+        self.source_seal = root / "source-seal-input" / "manifest.json"
         self.master_rows: list[dict] = []
         self.page_hashes: dict[str, str] = {}
+        self.include_delta = include_delta
         self._build_sources()
         self._build_bank()
         self._write_master_inventory_assignments()
@@ -175,8 +194,110 @@ class Fixture:
         )
         return self.work_references
 
+    def write_catalog_registry(self) -> Path:
+        catalogs = [
+            ("fontclip-accepted-v1", "base", self.base),
+            ("fontclip-hard-accepted-v2", "hard", self.hard),
+        ]
+        if self.include_delta:
+            catalogs.append(("fontclip-recrop-accepted-v1", "hard", self.delta))
+        registry_catalogs = []
+        for catalog_id, source_kind, catalog_root in catalogs:
+            source = next(
+                row
+                for row in self.master_rows
+                if row["provenance"]["source_catalog_id"] == catalog_id
+            )
+            manifest = catalog_root / "manifest.jsonl"
+            write_jsonl(manifest, [{"id": source["id"]}])
+            registry_catalogs.append(
+                {
+                    "catalog_id": catalog_id,
+                    "source_kind": source_kind,
+                    "root": str(catalog_root),
+                    "manifest_name": manifest.name,
+                    "manifest_sha256": sha(manifest),
+                    "expected_physical_rows": 1,
+                    "expected_included_rows": 1,
+                }
+            )
+        write_json(
+            self.frozen_split_map,
+            {
+                "schema_version": 1,
+                "work_assignments": {
+                    row["work"]["id"]: row["split"] for row in self.master_rows
+                },
+            },
+        )
+        core = {
+            "schema_version": "font-matching-catalog-registry-v1",
+            "record_type": "font_matching_catalog_registry",
+            "catalogs": registry_catalogs,
+            "exclusion_ledgers": [],
+            "frozen_split_map": {
+                "path": str(self.frozen_split_map),
+                "sha256": sha(self.frozen_split_map),
+            },
+        }
+        write_json(
+            self.catalog_registry,
+            {**core, "record_sha256": CARDS.sha256_json(core)},
+        )
+        return self.catalog_registry
+
+    def write_v4_source_seal(self) -> Path:
+        roles = ("sfx_motion", "other", "sign_ui_title", "aside_balloon_edge")
+        rows = []
+        for index, sample in enumerate(
+            sorted(self.master_rows, key=lambda row: row["id"])
+        ):
+            core = {
+                "prior_final_record_sha256": stable_hash("prior-final", sample["id"]),
+                "sample_id": sample["id"],
+                "sealed_role": roles[index % len(roles)],
+                "treatment": {
+                    "distortion": False,
+                    "inverse": index % 2 == 1,
+                    "outline": True,
+                    "shadow": index % 2 == 0,
+                    "texture": False,
+                },
+            }
+            rows.append({**core, "record_sha256": CARDS.sha256_json(core)})
+        core = {
+            "development_only": True,
+            "inputs": {
+                "inventory_sha256": sha(self.inventory),
+                "master_manifest_sha256": sha(self.master),
+                "rubric_sha256": stable_hash("v4-rubric"),
+            },
+            "record_type": CARDS.V4_SOURCE_SEAL_RECORD_TYPE,
+            "samples": rows,
+            "schema_version": CARDS.V4_SOURCE_SEAL_SCHEMA_VERSION,
+        }
+        write_json(
+            self.source_seal,
+            {**core, "record_sha256": CARDS.sha256_json(core)},
+        )
+        return self.source_seal
+
+    def use_seven_candidate_subset(self) -> tuple[str, ...]:
+        subset = (FONT_IDS[0], *FONT_IDS[-(CARDS.V4_CANDIDATE_COUNT - 1) :])
+        assignments = [
+            json.loads(line)
+            for line in self.assignments.read_text(encoding="utf-8").splitlines()
+        ]
+        for assignment in assignments:
+            assignment["candidate_order"] = CARDS.expected_candidate_order(
+                subset, assignment["candidate_order_seed"]
+            )
+            assignment["assignment_id"] = CARDS.expected_assignment_id(assignment)
+        write_jsonl(self.assignments, assignments)
+        return subset
+
     def _build_sources(self) -> None:
-        specs = (
+        specs = [
             (
                 "sample-base",
                 "work-base",
@@ -191,7 +312,17 @@ class Fixture:
                 "fontclip-hard-accepted-v2",
                 self.hard,
             ),
-        )
+        ]
+        if self.include_delta:
+            specs.append(
+                (
+                    "sample-delta",
+                    "work-delta",
+                    "horizontal",
+                    "fontclip-recrop-accepted-v1",
+                    self.delta,
+                )
+            )
         for serial, (
             sample_id,
             work_id,
@@ -212,8 +343,8 @@ class Fixture:
             for view_index, view_name in enumerate(
                 ("raw_224", "context_224", "glyph_224")
             ):
-                if sample_id == "sample-hard" and view_name == "raw_224":
-                    native_relative = "images/raw/sample-hard.png"
+                if catalog_id != "fontclip-accepted-v1" and view_name == "raw_224":
+                    native_relative = f"images/raw/{sample_id}.png"
                     native_path = catalog_root / Path(*Path(native_relative).parts)
                     native_sha = write_image(
                         native_path, (180, 96), (170, 175, 180), mark="RAW"
@@ -358,7 +489,10 @@ class Fixture:
             if not compatible:
                 continue
             for mode in ("horizontal", "vertical"):
-                for probe_id in CARDS.PROBE_IDS:
+                for probe_id in sorted(
+                    set(CARDS.PROBE_IDS) | set(CARDS.V4_REQUIRED_PROBE_IDS)
+                ):
+                    text, font_size, tracking = PROBE_SPECS[probe_id]
                     suffix = "h" if mode == "horizontal" else "v"
                     relative = f"images/{alias}/{probe_id}-{suffix}.png"
                     path = self.bank / Path(*Path(relative).parts)
@@ -381,11 +515,19 @@ class Fixture:
                                 "width": size[0],
                             },
                             "blind_alias": alias,
+                            "canvas": {"height": size[1], "width": size[0]},
                             "candidate_display_id": display_id,
                             "fallback_detection": {"status": "passed"},
+                            "font_size_px": font_size,
+                            "letter_spacing_em": tracking,
+                            "letter_spacing_px": 0,
                             "probe_id": probe_id,
-                            "readiness": {"document_fonts_ready": True},
+                            "readiness": {
+                                "content_fits": True,
+                                "document_fonts_ready": True,
+                            },
                             "render_id": render_id,
+                            "text": text,
                             "writing_mode": mode,
                         }
                     )
@@ -636,17 +778,13 @@ class ReviewCardBuilderTest(unittest.TestCase):
             subset = FONT_IDS[-7:]
             assignments = [
                 json.loads(line)
-                for line in fixture.assignments.read_text(
-                    encoding="utf-8"
-                ).splitlines()
+                for line in fixture.assignments.read_text(encoding="utf-8").splitlines()
             ]
             for assignment in assignments:
                 assignment["candidate_order"] = CARDS.expected_candidate_order(
                     subset, assignment["candidate_order_seed"]
                 )
-                assignment["assignment_id"] = CARDS.expected_assignment_id(
-                    assignment
-                )
+                assignment["assignment_id"] = CARDS.expected_assignment_id(assignment)
             write_jsonl(fixture.assignments, assignments)
 
             CARDS.build_output(
@@ -673,6 +811,193 @@ class ReviewCardBuilderTest(unittest.TestCase):
                 set(subset), {row["font_id"] for row in reveal["mappings"]}
             )
 
+    def test_v4_builds_sealed_two_stage_uniform_role_conditioned_cards(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = Fixture(Path(temporary))
+            subset = fixture.use_seven_candidate_subset()
+            source_seal = fixture.write_v4_source_seal()
+            bank = json.loads(fixture.bank_manifest.read_text(encoding="utf-8"))
+            rendered_ids = [font_id for font_id in subset if font_id != FONT_IDS[0]]
+            displays = {
+                candidate["font_id"]: candidate["display_id"]
+                for candidate in bank["candidates"]
+            }
+            fallback_display = displays[rendered_ids[0]]
+            clipped_display = displays[rendered_ids[1]]
+            for render in bank["renders"]:
+                key = (
+                    render["candidate_display_id"],
+                    render["probe_id"],
+                    render["writing_mode"],
+                )
+                if key == (fallback_display, "dialogue-body", "horizontal"):
+                    render["fallback_detection"]["status"] = "failed"
+                if key == (clipped_display, "sfx-motion", "horizontal"):
+                    render["readiness"]["content_fits"] = False
+            write_json(fixture.bank_manifest, bank)
+
+            config = CARDS.RunConfig(
+                stage="primary", limit=1, probe_profile=CARDS.V4_PROBE_PROFILE
+            )
+            report = CARDS.build_output(
+                **fixture.kwargs(),
+                config=config,
+                source_seal_manifest=source_seal,
+            )
+            self.assertEqual(1, report["summary"]["card_count"])
+            manifest_path = fixture.output / CARDS.MANIFEST_FILE
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual("v4", manifest["configuration"]["probe_profile"])
+            self.assertEqual(
+                [CARDS.CARD_WIDTH, CARDS.V4_CARD_HEIGHT],
+                manifest["card_render_contract"]["canvas_px"],
+            )
+            self.assertTrue(
+                manifest["card_render_contract"]["source_stage_visually_separated"]
+            )
+            self.assertFalse(manifest["blindness_contract"]["prior_role_visible"])
+            self.assertFalse(manifest["blindness_contract"]["prior_tiers_visible"])
+            self.assertFalse(manifest["blindness_contract"]["split_visible"])
+            card = manifest["cards"][0]
+            self.assertEqual(7, len(card["candidates"]))
+            self.assertTrue(card["probe_contract"]["source_stage_visually_separated"])
+            self.assertFalse(
+                card["probe_contract"]["candidate_specific_phrase_or_tracking"]
+            )
+            self.assertEqual(
+                [1.0, 0.5], card["probe_contract"]["native_small_scale_factors"]
+            )
+            self.assertEqual(
+                "skeleton_only", card["probe_contract"]["treatment_ab"]["a"]
+            )
+            self.assertFalse(
+                card["probe_contract"]["role_conditioned"][
+                    "private_sealed_role_visible"
+                ]
+            )
+            failures = {
+                candidate["status_code"]
+                for candidate in card["candidates"]
+                if candidate["status"] == "mandatory_unrenderable"
+            }
+            self.assertEqual(
+                {
+                    "fixture-unrenderable",
+                    "font-fallback-detected",
+                    "content-clipping-or-fit-failure",
+                },
+                failures,
+            )
+            rendered = [
+                candidate
+                for candidate in card["candidates"]
+                if candidate["status"] == "rendered"
+            ]
+            self.assertTrue(rendered)
+            self.assertTrue(
+                all(len(candidate["probes"]) == 3 for candidate in rendered)
+            )
+            for probe_index in range(3):
+                self.assertEqual(
+                    1,
+                    len(
+                        {
+                            candidate["probes"][probe_index]["contract_sha256"]
+                            for candidate in rendered
+                        }
+                    ),
+                )
+            public_text = manifest_path.read_text(encoding="utf-8")
+            self.assertNotIn("sfx_motion", public_text)
+            self.assertNotIn('"split"', public_text)
+            self.assertNotIn('"model_score"', public_text)
+            self.assertNotIn('"model_proposals"', public_text)
+            for font_id in FONT_IDS:
+                self.assertNotIn(font_id, public_text)
+            card_path = fixture.output / card["artifact"]["file"]
+            with Image.open(card_path) as image:
+                self.assertEqual((CARDS.CARD_WIDTH, CARDS.V4_CARD_HEIGHT), image.size)
+                rgb = image.convert("RGB")
+                self.assertEqual(CARDS.CYAN, rgb.getpixel((2, 2)))
+                self.assertEqual(CARDS.DARK, rgb.getpixel((2, 1420)))
+            result = CARDS.validate_output(
+                **fixture.kwargs(),
+                expected_config=config,
+                source_seal_manifest=source_seal,
+            )
+            self.assertEqual("valid", result["status"])
+
+    def test_v4_rejects_candidate_specific_phrase_or_tracking(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = Fixture(Path(temporary))
+            subset = fixture.use_seven_candidate_subset()
+            source_seal = fixture.write_v4_source_seal()
+            bank = json.loads(fixture.bank_manifest.read_text(encoding="utf-8"))
+            candidate = next(
+                value for value in bank["candidates"] if value["font_id"] == subset[1]
+            )
+            render = next(
+                value
+                for value in bank["renders"]
+                if value["candidate_display_id"] == candidate["display_id"]
+                and value["probe_id"] == "sfx-motion"
+                and value["writing_mode"] == "horizontal"
+            )
+            render["letter_spacing_em"] = 0.125
+            write_json(fixture.bank_manifest, bank)
+            with self.assertRaisesRegex(
+                CARDS.ReviewCardError, "candidate-specific phrase/tracking"
+            ):
+                CARDS.build_output(
+                    **fixture.kwargs(),
+                    config=CARDS.RunConfig(
+                        stage="primary",
+                        limit=1,
+                        probe_profile=CARDS.V4_PROBE_PROFILE,
+                    ),
+                    source_seal_manifest=source_seal,
+                )
+
+    def test_v4_source_seal_is_explicit_and_profile_scoped(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = Fixture(Path(temporary))
+            fixture.use_seven_candidate_subset()
+            source_seal = fixture.write_v4_source_seal()
+            with self.assertRaisesRegex(CARDS.ReviewCardError, "requires"):
+                CARDS.build_output(
+                    **fixture.kwargs(),
+                    config=CARDS.RunConfig(
+                        stage="primary",
+                        limit=1,
+                        probe_profile=CARDS.V4_PROBE_PROFILE,
+                    ),
+                )
+            with self.assertRaisesRegex(CARDS.ReviewCardError, "only valid"):
+                CARDS.build_output(
+                    **fixture.kwargs(),
+                    config=CARDS.RunConfig(stage="primary", limit=1),
+                    source_seal_manifest=source_seal,
+                )
+            seal_value = json.loads(source_seal.read_text(encoding="utf-8"))
+            seal_value["inputs"]["inventory_sha256"] = stable_hash("stale-inventory")
+            seal_core = {
+                key: value
+                for key, value in seal_value.items()
+                if key != "record_sha256"
+            }
+            seal_value["record_sha256"] = CARDS.sha256_json(seal_core)
+            write_json(source_seal, seal_value)
+            with self.assertRaisesRegex(CARDS.ReviewCardError, "binding is stale"):
+                CARDS.build_output(
+                    **fixture.kwargs(),
+                    config=CARDS.RunConfig(
+                        stage="primary",
+                        limit=1,
+                        probe_profile=CARDS.V4_PROBE_PROFILE,
+                    ),
+                    source_seal_manifest=source_seal,
+                )
+
     def test_embeds_three_anonymous_same_work_dialogue_references(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture = Fixture(Path(temporary))
@@ -698,6 +1023,116 @@ class ReviewCardBuilderTest(unittest.TestCase):
                 **fixture.kwargs(),
                 work_reference_manifest=references,
             )
+
+    def test_registry_resolves_third_hard_catalog_views_and_work_references(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = Fixture(Path(temporary), include_delta=True)
+            registry = fixture.write_catalog_registry()
+            references = fixture.write_work_reference_manifest()
+            kwargs = fixture.kwargs()
+            del kwargs["base_root"]
+            del kwargs["hard_root"]
+            kwargs["catalog_registry"] = registry
+            config = CARDS.RunConfig(stage="primary")
+
+            report = CARDS.build_output(
+                **kwargs,
+                config=config,
+                work_reference_manifest=references,
+            )
+            self.assertEqual(3, report["summary"]["card_count"])
+            self.assertEqual(9, report["summary"]["work_reference_count"])
+            manifest = json.loads(
+                (fixture.output / CARDS.MANIFEST_FILE).read_text(encoding="utf-8")
+            )
+            delta_card = next(
+                card
+                for card in manifest["cards"]
+                if card["assignment"]["sample_id"] == "sample-delta"
+            )
+            self.assertEqual(
+                "derived_for_review",
+                delta_card["source"]["views"]["raw_224"]["status"],
+            )
+            self.assertTrue((fixture.output / delta_card["artifact"]["file"]).is_file())
+
+            delta_source = next(
+                row for row in fixture.master_rows if row["id"] == "sample-delta"
+            )
+            delta_glyph_sha = delta_source["views"]["glyph_224"]["file_sha256"]
+            base_card = next(
+                card
+                for card in manifest["cards"]
+                if card["assignment"]["sample_id"] == "sample-base"
+            )
+            reference_glyph_hashes = {
+                reference["views"]["glyph_224"]["source_sha256"]
+                for reference in base_card["work_references"]["items"]
+            }
+            self.assertIn(delta_glyph_sha, reference_glyph_hashes)
+            result = CARDS.validate_output(
+                **kwargs,
+                expected_config=config,
+                work_reference_manifest=references,
+            )
+            self.assertEqual("valid", result["status"])
+
+            cli_args = [
+                "validate",
+                "--output-dir",
+                str(fixture.output),
+                "--master-manifest",
+                str(fixture.master),
+                "--inventory",
+                str(fixture.inventory),
+                "--assignments",
+                str(fixture.assignments),
+                "--render-bank-manifest",
+                str(fixture.bank_manifest),
+                "--catalog-registry",
+                str(registry),
+                "--library-root",
+                str(fixture.library),
+                "--work-reference-manifest",
+                str(references),
+            ]
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(0, CARDS.main(cli_args))
+            stderr = io.StringIO()
+            with (
+                contextlib.redirect_stdout(io.StringIO()),
+                contextlib.redirect_stderr(stderr),
+            ):
+                self.assertEqual(
+                    2,
+                    CARDS.main(
+                        [
+                            *cli_args,
+                            "--base-root",
+                            str(fixture.base),
+                            "--hard-root",
+                            str(fixture.hard),
+                        ]
+                    ),
+                )
+            self.assertIn("cannot be mixed", stderr.getvalue())
+
+            registry_bytes = registry.read_bytes()
+            registry_value = json.loads(registry_bytes)
+            registry_value["catalogs"][2]["root"] = str(fixture.base)
+            write_json(registry, registry_value)
+            with self.assertRaisesRegex(CARDS.ReviewCardError, "record seal mismatch"):
+                CARDS.resolve_catalog_roots(catalog_registry=registry)
+            registry.write_bytes(registry_bytes)
+
+            delta_manifest = fixture.delta / "manifest.jsonl"
+            delta_manifest.write_bytes(delta_manifest.read_bytes() + b"{}\n")
+            with self.assertRaisesRegex(
+                CARDS.ReviewCardError, "catalog manifest changed"
+            ):
+                CARDS.resolve_catalog_roots(catalog_registry=registry)
 
 
 if __name__ == "__main__":

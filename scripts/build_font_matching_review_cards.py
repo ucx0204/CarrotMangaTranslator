@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import io
 import json
 import os
@@ -27,12 +28,15 @@ import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
+from types import ModuleType
 from typing import Any, Iterable, Mapping, Sequence
 
 from PIL import (
     Image,
     ImageDraw,
+    ImageFilter,
     ImageFont,
+    ImageOps,
     UnidentifiedImageError,
     __version__ as PILLOW_VERSION,
 )
@@ -64,6 +68,49 @@ PROBE_IDS = ("dialogue-body", "narration", "sfx-impact")
 MAX_CARD_CANDIDATES = 15
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 SAFE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$")
+LEGACY_BASE_CATALOG_ID = "fontclip-accepted-v1"
+LEGACY_HARD_CATALOG_ID = "fontclip-hard-accepted-v2"
+
+LEGACY_PROBE_PROFILE = "v3"
+V4_PROBE_PROFILE = "v4"
+PROBE_PROFILES = (LEGACY_PROBE_PROFILE, V4_PROBE_PROFILE)
+V4_SOURCE_SEAL_SCHEMA_VERSION = "font-matching-review-source-seal-v4"
+V4_SOURCE_SEAL_RECORD_TYPE = "font_matching_review_source_seal"
+V4_CARD_HEIGHT = 5840
+V4_CANDIDATE_COUNT = 7
+V4_CANONICAL_PROBE_ID = "dialogue-body"
+V4_ROLE_TO_PROBE = {
+    "dialogue": "dialogue-body",
+    "narration": "narration",
+    "thought": "thought-monologue",
+    "whisper": "aside-whisper",
+    "aside_balloon_edge": "aside-whisper",
+    "emphasis_dialogue": "emphasis-shout",
+    "shout": "emphasis-shout",
+    "sfx_impact": "sfx-impact",
+    "sfx_motion": "sfx-motion",
+    "sfx_ambient": "sfx-ambient",
+    "sfx_emotion": "sfx-emotion",
+    "sfx_comic": "sfx-comic-reaction",
+    # The current render bank has no identity-safe sign-specific asset.  Its
+    # title-like narration phrase is the sealed, shared fallback for this role.
+    "sign_ui_title": "narration",
+    # ``other`` is present in the review-ready inventory.  Keep it reviewable
+    # with a neutral body phrase without guessing a more specific private role.
+    "other": "dialogue-body",
+}
+V4_REQUIRED_PROBE_IDS = frozenset({V4_CANONICAL_PROBE_ID, *V4_ROLE_TO_PROBE.values()})
+V4_TREATMENT_FIELDS = (
+    "outline",
+    "shadow",
+    "inverse",
+    "distortion",
+    "texture",
+)
+V4_APP_SUPPORTED_TREATMENTS = frozenset({"outline", "shadow", "inverse"})
+
+
+_MASTER_BUILDER_MODULE: ModuleType | None = None
 
 
 class ReviewCardError(ValueError):
@@ -75,9 +122,15 @@ class RunConfig:
     stage: str = "primary"
     batch: str = "all"
     limit: int | None = None
+    probe_profile: str = LEGACY_PROBE_PROFILE
 
     def as_dict(self) -> dict[str, Any]:
-        return {"batch": self.batch, "limit": self.limit, "stage": self.stage}
+        value = {"batch": self.batch, "limit": self.limit, "stage": self.stage}
+        # Preserve the byte-level v3 configuration contract.  v4 is opt-in and
+        # therefore carries an explicit profile field in every sealed output.
+        if self.probe_profile != LEGACY_PROBE_PROFILE:
+            value["probe_profile"] = self.probe_profile
+        return value
 
 
 @dataclass
@@ -92,6 +145,7 @@ class LoadedInputs:
     renderer_hash: str
     identity_terms: tuple[str, ...]
     work_references_by_target: dict[str, dict[str, Any]]
+    source_seals_by_sample: dict[str, dict[str, Any]]
 
 
 def canonical_json(value: Any) -> str:
@@ -215,6 +269,78 @@ def read_jsonl(path: Path, location: str) -> list[dict[str, Any]]:
     return rows
 
 
+def _master_builder_module() -> ModuleType:
+    global _MASTER_BUILDER_MODULE
+    if _MASTER_BUILDER_MODULE is not None:
+        return _MASTER_BUILDER_MODULE
+    script = Path(__file__).resolve().with_name("build_font_matching_master.py")
+    module_name = "_font_matching_master_for_review_cards"
+    spec = importlib.util.spec_from_file_location(module_name, script)
+    if spec is None or spec.loader is None:
+        raise ReviewCardError(f"could not import catalog registry loader: {script}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    _MASTER_BUILDER_MODULE = module
+    return module
+
+
+def _catalog_roots_from_registry(path: Path) -> dict[str, Path]:
+    module = _master_builder_module()
+    try:
+        configuration = module.load_catalog_registry(path)
+    except module.MasterManifestError as error:
+        raise ReviewCardError(f"catalog registry: {error}") from error
+    return {
+        str(catalog.catalog_id): Path(catalog.root).resolve()
+        for catalog in configuration.catalogs
+    }
+
+
+def resolve_catalog_roots(
+    *,
+    catalog_registry: Path | None = None,
+    base_root: Path | None = None,
+    hard_root: Path | None = None,
+) -> dict[str, Path]:
+    legacy_supplied = base_root is not None or hard_root is not None
+    if catalog_registry is not None:
+        if legacy_supplied:
+            raise ReviewCardError(
+                "--catalog-registry cannot be mixed with legacy --base-root/--hard-root"
+            )
+        raw_roots: Mapping[str, Path] = _catalog_roots_from_registry(
+            catalog_registry.expanduser().resolve()
+        )
+    else:
+        if base_root is None or hard_root is None:
+            raise ReviewCardError(
+                "legacy catalog mode requires both --base-root and --hard-root"
+            )
+        raw_roots = {
+            LEGACY_BASE_CATALOG_ID: base_root,
+            LEGACY_HARD_CATALOG_ID: hard_root,
+        }
+
+    if not raw_roots:
+        raise ReviewCardError("at least one source catalog root is required")
+    resolved: dict[str, Path] = {}
+    for raw_catalog_id, raw_root in raw_roots.items():
+        catalog_id = require_id(raw_catalog_id, "catalog root id")
+        if catalog_id in resolved:
+            raise ReviewCardError(f"duplicate catalog root {catalog_id!r}")
+        try:
+            root = Path(raw_root).expanduser().resolve()
+        except TypeError as error:
+            raise ReviewCardError(
+                f"catalog root {catalog_id!r}: expected a filesystem path"
+            ) from error
+        if not root.is_dir():
+            raise ReviewCardError(f"catalog root {catalog_id!r} does not exist: {root}")
+        resolved[catalog_id] = root
+    return dict(sorted(resolved.items()))
+
+
 def _stable_hash(*parts: str) -> str:
     return hashlib.sha256("\0".join(parts).encode("utf-8")).hexdigest()
 
@@ -226,9 +352,115 @@ def _validate_record_seal(value: Mapping[str, Any], location: str) -> None:
         raise ReviewCardError(f"{location}: record seal mismatch")
 
 
+def _load_v4_source_seals(
+    path: Path | None,
+    *,
+    inventory_ids: set[str],
+    master_manifest_sha256: str,
+    inventory_sha256: str,
+) -> dict[str, dict[str, Any]]:
+    if path is None:
+        return {}
+    manifest = read_json(path, "v4 source seal manifest")
+    expected_keys = {
+        "development_only",
+        "inputs",
+        "record_sha256",
+        "record_type",
+        "samples",
+        "schema_version",
+    }
+    if set(manifest) != expected_keys:
+        raise ReviewCardError("v4 source seal manifest: unexpected fields")
+    if (
+        manifest.get("schema_version") != V4_SOURCE_SEAL_SCHEMA_VERSION
+        or manifest.get("record_type") != V4_SOURCE_SEAL_RECORD_TYPE
+        or manifest.get("development_only") is not True
+    ):
+        raise ReviewCardError("v4 source seal manifest: unsupported contract")
+    _validate_record_seal(manifest, "v4 source seal manifest")
+    inputs = require_mapping(manifest.get("inputs"), "v4 source seal manifest.inputs")
+    if set(inputs) != {
+        "inventory_sha256",
+        "master_manifest_sha256",
+        "rubric_sha256",
+    }:
+        raise ReviewCardError("v4 source seal manifest.inputs: unexpected fields")
+    sealed_inventory_sha = require_sha(
+        inputs.get("inventory_sha256"),
+        "v4 source seal manifest.inputs.inventory_sha256",
+    )
+    sealed_master_sha = require_sha(
+        inputs.get("master_manifest_sha256"),
+        "v4 source seal manifest.inputs.master_manifest_sha256",
+    )
+    require_sha(
+        inputs.get("rubric_sha256"), "v4 source seal manifest.inputs.rubric_sha256"
+    )
+    if sealed_inventory_sha != inventory_sha256:
+        raise ReviewCardError("v4 source seal inventory binding is stale")
+    if sealed_master_sha != master_manifest_sha256:
+        raise ReviewCardError("v4 source seal master manifest binding is stale")
+    samples = manifest.get("samples")
+    if not isinstance(samples, list):
+        raise ReviewCardError("v4 source seal manifest.samples must be a list")
+    output: dict[str, dict[str, Any]] = {}
+    previous_sample_id: str | None = None
+    for index, value in enumerate(samples, 1):
+        location = f"v4 source seal manifest.samples[{index}]"
+        row = dict(require_mapping(value, location))
+        if set(row) != {
+            "prior_final_record_sha256",
+            "record_sha256",
+            "sample_id",
+            "sealed_role",
+            "treatment",
+        }:
+            raise ReviewCardError(f"{location}: unexpected fields")
+        _validate_record_seal(row, location)
+        sample_id = require_id(row.get("sample_id"), f"{location}.sample_id")
+        if previous_sample_id is not None and sample_id <= previous_sample_id:
+            raise ReviewCardError(
+                "v4 source seal samples must be unique and sorted by sample_id"
+            )
+        previous_sample_id = sample_id
+        role = require_id(row.get("sealed_role"), f"{location}.sealed_role")
+        if role not in V4_ROLE_TO_PROBE:
+            raise ReviewCardError(f"{location}.sealed_role is unsupported for v4")
+        treatment_value = require_mapping(row.get("treatment"), f"{location}.treatment")
+        if set(treatment_value) != set(V4_TREATMENT_FIELDS):
+            raise ReviewCardError(f"{location}.treatment: unexpected fields")
+        treatment: dict[str, bool] = {}
+        for field in V4_TREATMENT_FIELDS:
+            enabled = treatment_value.get(field)
+            if not isinstance(enabled, bool):
+                raise ReviewCardError(f"{location}.treatment.{field} must be a boolean")
+            treatment[field] = enabled
+        output[sample_id] = {
+            "prior_final_record_sha256": require_sha(
+                row.get("prior_final_record_sha256"),
+                f"{location}.prior_final_record_sha256",
+            ),
+            "record_sha256": require_sha(
+                row.get("record_sha256"), f"{location}.record_sha256"
+            ),
+            "sealed_role": role,
+            "treatment": treatment,
+        }
+    if set(output) != inventory_ids:
+        missing = sorted(inventory_ids - set(output))
+        extra = sorted(set(output) - inventory_ids)
+        raise ReviewCardError(
+            "v4 source seal must cover the inventory exactly; "
+            f"missing={missing[:8]} extra={extra[:8]}"
+        )
+    return output
+
+
 def _load_work_references(
     path: Path | None,
     *,
+    catalog_ids: frozenset[str],
     inventory_ids: set[str],
     master_by_id: Mapping[str, Mapping[str, Any]],
 ) -> dict[str, dict[str, Any]]:
@@ -333,10 +565,11 @@ def _load_work_references(
                 reference.get("sample_crop_sha256"),
                 f"{location}.sample_crop_sha256",
             )
-            if reference.get("source_catalog_id") not in {
-                "fontclip-accepted-v1",
-                "fontclip-hard-accepted-v2",
-            }:
+            source_catalog_id = require_id(
+                reference.get("source_catalog_id"),
+                f"{location}.source_catalog_id",
+            )
+            if source_catalog_id not in catalog_ids:
                 raise ReviewCardError(f"{location}: unsupported source catalog")
             views = require_mapping(reference.get("views"), f"{location}.views")
             if set(views) != {"raw_224", "context_224", "glyph_224"}:
@@ -393,10 +626,7 @@ def validate_assignment(row: dict[str, Any], location: str) -> dict[str, Any]:
     ):
         raise ReviewCardError(f"{location}: assignment is not a blind first pass")
     order = row.get("candidate_order")
-    if (
-        not isinstance(order, list)
-        or not 1 <= len(order) <= MAX_CARD_CANDIDATES
-    ):
+    if not isinstance(order, list) or not 1 <= len(order) <= MAX_CARD_CANDIDATES:
         raise ReviewCardError(
             f"{location}.candidate_order: expected 1-{MAX_CARD_CANDIDATES} families"
         )
@@ -439,14 +669,26 @@ def load_inputs(
     inventory: Path,
     assignments: Path,
     render_bank_manifest: Path,
+    catalog_ids: frozenset[str],
+    catalog_registry: Path | None = None,
     work_reference_manifest: Path | None = None,
+    source_seal_manifest: Path | None = None,
 ) -> LoadedInputs:
+    if not catalog_ids:
+        raise ReviewCardError("at least one source catalog id is required")
+    for catalog_id in catalog_ids:
+        require_id(catalog_id, "source catalog id")
     paths = {
         "master_manifest_sha256": master_manifest,
         "inventory_sha256": inventory,
         "assignments_sha256": assignments,
         "render_bank_manifest_sha256": render_bank_manifest,
     }
+    if catalog_registry is not None:
+        paths["catalog_registry_sha256"] = catalog_registry
+        paths["catalog_registry_loader_source_sha256"] = (
+            Path(__file__).resolve().with_name("build_font_matching_master.py")
+        )
     for label, path in paths.items():
         if not path.is_file():
             raise ReviewCardError(f"{label}: input does not exist: {path}")
@@ -459,6 +701,13 @@ def load_inputs(
         input_hashes["work_reference_manifest_sha256"] = sha256_file(
             work_reference_manifest
         )
+    if source_seal_manifest is not None:
+        if not source_seal_manifest.is_file():
+            raise ReviewCardError(
+                "source_seal_manifest_sha256: input does not exist: "
+                f"{source_seal_manifest}"
+            )
+        input_hashes["source_seal_manifest_sha256"] = sha256_file(source_seal_manifest)
     input_hashes["card_builder_source_sha256"] = sha256_file(Path(__file__).resolve())
 
     inventory_rows = read_jsonl(inventory, "review inventory")
@@ -505,6 +754,15 @@ def load_inputs(
                 provenance = require_mapping(
                     row.get("provenance"), f"master:{line_number}.provenance"
                 )
+                source_catalog_id = require_id(
+                    provenance.get("source_catalog_id"),
+                    f"master:{line_number}.provenance.source_catalog_id",
+                )
+                if source_catalog_id not in catalog_ids:
+                    raise ReviewCardError(
+                        f"master:{line_number}: unsupported source catalog "
+                        f"{source_catalog_id!r}"
+                    )
                 if (
                     provenance.get("qa_overlay") is not False
                     or provenance.get("synthetic") is not False
@@ -527,8 +785,16 @@ def load_inputs(
             f"inventory samples are absent from master: {missing_master_ids[:8]}"
         )
 
+    source_seals_by_sample = _load_v4_source_seals(
+        source_seal_manifest,
+        inventory_ids=inventory_ids,
+        master_manifest_sha256=input_hashes["master_manifest_sha256"],
+        inventory_sha256=input_hashes["inventory_sha256"],
+    )
+
     work_references_by_target = _load_work_references(
         work_reference_manifest,
+        catalog_ids=catalog_ids,
         inventory_ids=inventory_ids,
         master_by_id=master_by_id,
     )
@@ -658,6 +924,7 @@ def load_inputs(
         renderer_hash=renderer_hash,
         identity_terms=tuple(sorted(set(identity_terms))),
         work_references_by_target=work_references_by_target,
+        source_seals_by_sample=source_seals_by_sample,
     )
 
 
@@ -687,6 +954,10 @@ def ordered_inventory(
 
 
 def select_assignments(inputs: LoadedInputs, config: RunConfig) -> list[dict[str, Any]]:
+    if config.probe_profile not in PROBE_PROFILES:
+        raise ReviewCardError(
+            f"probe_profile must be one of {', '.join(PROBE_PROFILES)}"
+        )
     if config.stage not in {"primary", "secondary", "all"}:
         raise ReviewCardError("stage must be primary, secondary, or all")
     if config.batch not in {"all", "pilot", "calibration"}:
@@ -711,6 +982,17 @@ def select_assignments(inputs: LoadedInputs, config: RunConfig) -> list[dict[str
         raise ReviewCardError("selection produced no review assignments")
     if config.limit is not None:
         selected = selected[: config.limit]
+    if config.probe_profile == V4_PROBE_PROFILE:
+        invalid = [
+            str(row["assignment_id"])
+            for row in selected
+            if len(row["candidate_order"]) != V4_CANDIDATE_COUNT
+        ]
+        if invalid:
+            raise ReviewCardError(
+                "v4 review cards require exactly seven blind aliases; "
+                f"assignments={invalid[:8]}"
+            )
     return selected
 
 
@@ -977,9 +1259,698 @@ def _assert_no_identity_leak(value: str, terms: Sequence[str], location: str) ->
             raise ReviewCardError(f"{location}: font identity leaked into blind output")
 
 
-def _card_id(assignment_id: str, renderer_hash: str) -> str:
-    digest = _stable_hash("manga-font-review-card-v1", assignment_id, renderer_hash)
+def _v4_render_signature(render: Mapping[str, Any], *, location: str) -> dict[str, Any]:
+    text = require_text(render.get("text"), f"{location}.text")
+    font_size = render.get("font_size_px")
+    if (
+        isinstance(font_size, bool)
+        or not isinstance(font_size, (int, float))
+        or font_size <= 0
+    ):
+        raise ReviewCardError(f"{location}.font_size_px is invalid")
+    tracking: dict[str, int | float] = {}
+    for field in ("letter_spacing_em", "letter_spacing_px"):
+        value = render.get(field)
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ReviewCardError(f"{location}.{field} is invalid")
+        tracking[field] = value
+    canvas = require_mapping(render.get("canvas"), f"{location}.canvas")
+    canvas_size: list[int] = []
+    for field in ("width", "height"):
+        value = canvas.get(field)
+        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+            raise ReviewCardError(f"{location}.canvas.{field} is invalid")
+        canvas_size.append(value)
+    return {
+        "canvas_px": canvas_size,
+        "font_size_px": font_size,
+        "letter_spacing_em": tracking["letter_spacing_em"],
+        "letter_spacing_px": tracking["letter_spacing_px"],
+        "text": text,
+        "writing_mode": require_text(
+            render.get("writing_mode"), f"{location}.writing_mode"
+        ),
+    }
+
+
+def _v4_public_signature(signature: Mapping[str, Any]) -> dict[str, Any]:
+    # Bind the phrase without placing the private source-stage role or the text
+    # itself in the public review manifest.
+    text_value = require_text(signature.get("text"), "v4 signature.text")
+    return {
+        "canvas_px": list(signature["canvas_px"]),
+        "font_size_px": signature["font_size_px"],
+        "letter_spacing_em": signature["letter_spacing_em"],
+        "letter_spacing_px": signature["letter_spacing_px"],
+        "phrase_sha256": sha256_bytes(text_value.encode("utf-8")),
+        "writing_mode": signature["writing_mode"],
+    }
+
+
+def _v4_render_failure(render: Mapping[str, Any], *, location: str) -> str | None:
+    readiness = require_mapping(render.get("readiness"), f"{location}.readiness")
+    if readiness.get("document_fonts_ready") is not True:
+        return "document-fonts-not-ready"
+    if readiness.get("content_fits") is not True:
+        return "content-clipping-or-fit-failure"
+    fallback = require_mapping(
+        render.get("fallback_detection"), f"{location}.fallback_detection"
+    )
+    if fallback.get("status") != "passed":
+        return "font-fallback-detected"
+    artifact = require_mapping(render.get("artifact"), f"{location}.artifact")
+    if artifact.get("qa_overlay") is not False:
+        return "render-contains-qa-overlay"
+    return None
+
+
+def _prepare_v4_candidates(
+    *,
+    assignment: Mapping[str, Any],
+    orientation: str,
+    source_seal: Mapping[str, Any],
+    inputs: LoadedInputs,
+    render_bank_root: Path,
+) -> tuple[
+    list[dict[str, Any]],
+    list[dict[str, Image.Image] | None],
+    dict[str, dict[str, Any]],
+]:
+    role = require_id(source_seal.get("sealed_role"), "v4 source seal role")
+    role_probe_id = V4_ROLE_TO_PROBE.get(role)
+    if role_probe_id is None:
+        raise ReviewCardError("v4 source seal role has no role-conditioned probe")
+    required_assets = (
+        ("canonical_structure_horizontal", V4_CANONICAL_PROBE_ID, "horizontal"),
+        ("canonical_structure_vertical", V4_CANONICAL_PROBE_ID, "vertical"),
+        ("sealed_role_phrase", role_probe_id, orientation),
+    )
+    order = assignment["candidate_order"]
+    if len(order) != V4_CANDIDATE_COUNT:
+        raise ReviewCardError("v4 candidate preparation requires seven aliases")
+    panels: list[dict[str, Any]] = []
+    private_renders: list[dict[str, Mapping[str, Any]] | None] = []
+    signatures_by_view: dict[str, list[dict[str, Any]]] = {
+        name: [] for name, _, _ in required_assets
+    }
+    for position, font_id in enumerate(order, 1):
+        candidate = inputs.canonical_by_font_id[font_id]
+        alias = require_id(candidate.get("blind_alias"), "canonical blind_alias")
+        failures: list[str] = []
+        status_value = require_mapping(
+            candidate.get("production_asset_status"),
+            "canonical production_asset_status",
+        )
+        if status_value.get("chromium_ots_compatible") is not True:
+            failures.append(
+                require_text(status_value.get("code"), "canonical status code")
+            )
+        allowed_modes = candidate.get("allowed_writing_modes")
+        if not isinstance(allowed_modes, list) or not {
+            "horizontal",
+            "vertical",
+        }.issubset(set(allowed_modes)):
+            failures.append("canonical-structure-writing-mode-not-supported")
+        if candidate.get("probe_coverage_complete") is not True or candidate.get(
+            "missing_probe_codepoints"
+        ) not in ([], None):
+            failures.append("missing-required-glyph")
+        display_id = require_text(candidate.get("display_id"), "canonical display_id")
+        renders_for_candidate: dict[str, Mapping[str, Any]] = {}
+        for view_name, probe_id, writing_mode in required_assets:
+            render = inputs.render_by_key.get((display_id, probe_id, writing_mode))
+            if render is None:
+                failures.append(f"missing-{view_name}")
+                continue
+            renders_for_candidate[view_name] = render
+            failure = _v4_render_failure(
+                render, location=f"v4 candidate[{position}].{view_name}"
+            )
+            if failure is not None:
+                failures.append(failure)
+        failures = list(dict.fromkeys(failures))
+        if failures:
+            private_renders.append(None)
+            panels.append(
+                {
+                    "blind_alias": alias,
+                    "position": position,
+                    "probes": [],
+                    "status": "mandatory_unrenderable",
+                    "status_code": failures[0],
+                    "technical_failures": failures,
+                }
+            )
+            continue
+        private_renders.append(renders_for_candidate)
+        panels.append(
+            {
+                "blind_alias": alias,
+                "position": position,
+                "probes": [],
+                "status": "rendered",
+                "status_code": None,
+                "technical_failures": [],
+            }
+        )
+        for view_name, _, _ in required_assets:
+            signatures_by_view[view_name].append(
+                _v4_render_signature(
+                    renders_for_candidate[view_name],
+                    location=f"v4 candidate[{position}].{view_name}",
+                )
+            )
+
+    public_signatures: dict[str, dict[str, Any]] = {}
+    for view_name, signatures in signatures_by_view.items():
+        if not signatures:
+            raise ReviewCardError(f"v4 {view_name}: no renderable comparison anchor")
+        serialized = {canonical_json(signature) for signature in signatures}
+        if len(serialized) != 1:
+            raise ReviewCardError(
+                f"v4 {view_name}: candidate-specific phrase/tracking is forbidden"
+            )
+        public_signatures[view_name] = _v4_public_signature(signatures[0])
+
+    candidate_images: list[dict[str, Image.Image] | None] = []
+    for panel, renders_for_candidate in zip(panels, private_renders):
+        if renders_for_candidate is None:
+            candidate_images.append(None)
+            continue
+        loaded: dict[str, Image.Image] = {}
+        public_probes: list[dict[str, Any]] = []
+        for view_name, _, _ in required_assets:
+            image, metadata = load_render(
+                renders_for_candidate[view_name],
+                render_bank_root=render_bank_root,
+                identity_terms=inputs.identity_terms,
+            )
+            loaded[view_name] = image
+            public_probes.append(
+                {
+                    "artifact_sha256": metadata["artifact_sha256"],
+                    "contract_sha256": sha256_json(public_signatures[view_name]),
+                    "view": view_name,
+                    "writing_mode": metadata["writing_mode"],
+                }
+            )
+        panel["probes"] = public_probes
+        candidate_images.append(loaded)
+    return panels, candidate_images, public_signatures
+
+
+def _apply_v4_supported_treatment(
+    image: Image.Image, treatment: Mapping[str, Any]
+) -> Image.Image:
+    source = image.convert("RGB")
+    gray = ImageOps.grayscale(source)
+    ink = ImageOps.invert(gray)
+    inverse = treatment.get("inverse") is True
+    background = (22, 26, 32) if inverse else WHITE
+    foreground = WHITE if inverse else BLACK
+    output = Image.new("RGB", source.size, background)
+    if treatment.get("shadow") is True:
+        shadow_mask = Image.new("L", source.size, 0)
+        shadow_mask.paste(
+            ink, (max(2, source.width // 80), max(2, source.height // 80))
+        )
+        shadow_color = (120, 126, 134) if not inverse else (74, 82, 92)
+        output.paste(shadow_color, mask=shadow_mask)
+    if treatment.get("outline") is True:
+        expanded = ink.filter(ImageFilter.MaxFilter(7))
+        outline_color = (250, 250, 250) if not inverse else (5, 8, 12)
+        if not inverse:
+            output = Image.new("RGB", source.size, (215, 220, 226))
+        output.paste(outline_color, mask=expanded)
+    output.paste(foreground, mask=ink)
+    return output
+
+
+def _card_id(
+    assignment_id: str,
+    renderer_hash: str,
+    probe_profile: str = LEGACY_PROBE_PROFILE,
+    source_seal_record_sha256: str | None = None,
+) -> str:
+    namespace = (
+        "manga-font-review-card-v1"
+        if probe_profile == LEGACY_PROBE_PROFILE
+        else "manga-font-review-card-v4"
+    )
+    parts = [namespace, assignment_id, renderer_hash]
+    if probe_profile == V4_PROBE_PROFILE:
+        parts.append(
+            require_sha(
+                source_seal_record_sha256,
+                "v4 card id source_seal_record_sha256",
+            )
+        )
+    digest = _stable_hash(*parts)
     return f"fmrc-{digest[:32]}"
+
+
+def _draw_v4_geometry_preview(
+    card: Image.Image,
+    draw: ImageDraw.ImageDraw,
+    image: Image.Image,
+    box: tuple[int, int, int, int],
+    *,
+    bbox: tuple[int, int, int, int],
+) -> None:
+    left, top, right, bottom = box
+    width = bbox[2] - bbox[0]
+    height = bbox[3] - bbox[1]
+    available_width = right - left
+    available_height = bottom - top
+    scale = min(available_width / width, available_height / height)
+    target_width = max(8, round(width * scale))
+    target_height = max(8, round(height * scale))
+    target_left = left + (available_width - target_width) // 2
+    target_top = top + (available_height - target_height) // 2
+    target = (
+        target_left,
+        target_top,
+        target_left + target_width,
+        target_top + target_height,
+    )
+    draw.rectangle(target, fill=WHITE, outline=CYAN, width=4)
+    inset = 8
+    _fit_image(
+        card,
+        image,
+        (
+            target[0] + inset,
+            target[1] + inset,
+            target[2] - inset,
+            target[3] - inset,
+        ),
+    )
+
+
+def _render_v4_card(
+    *,
+    assignment: Mapping[str, Any],
+    master: Mapping[str, Any],
+    inputs: LoadedInputs,
+    sample_id: str,
+    orientation: str,
+    page_sha: str,
+    page_image: Image.Image,
+    bbox: tuple[int, int, int, int],
+    views: Mapping[str, Image.Image | None],
+    public_views: Mapping[str, Mapping[str, Any]],
+    reference_images: Sequence[Mapping[str, Any]],
+    public_work_references: Mapping[str, Any] | None,
+    candidate_panels: list[dict[str, Any]],
+    candidate_images: Sequence[dict[str, Image.Image] | None],
+    public_signatures: Mapping[str, Mapping[str, Any]],
+    source_seal: Mapping[str, Any],
+) -> tuple[bytes, dict[str, Any]]:
+    card = Image.new("RGB", (CARD_WIDTH, V4_CARD_HEIGHT), PALE)
+    draw = ImageDraw.Draw(card)
+    draw.rectangle((0, 0, CARD_WIDTH, 118), fill=CYAN)
+    draw.text((48, 22), "REVIEW-ONLY / V4 BLIND QA", font=_font(50), fill=BLACK)
+    draw.text(
+        (1330, 34),
+        f"{assignment['stage'].upper()}  |  {orientation.upper()}  |  {sample_id}",
+        font=_font(28),
+        fill=BLACK,
+    )
+
+    # STEP A is deliberately source-only.  No candidate, prior role, source
+    # style answer, tier, split, or model proposal is rendered above the gate.
+    draw.rectangle((34, 144, 826, 1032), fill=WHITE, outline=MID, width=3)
+    _draw_label(draw, (52, 154), "STEP A / SOURCE PAGE + CYAN BBOX", 27)
+    page_fit = _fit_image(card, page_image, (52, 198, 808, 1012))
+    _draw_bbox_on_fitted(draw, page_fit, page_image.size, bbox, width=8)
+
+    local, local_bbox = _local_context(page_image, bbox)
+    draw.rectangle((850, 144, 1506, 622), fill=WHITE, outline=MID, width=3)
+    _draw_label(draw, (868, 154), "SOURCE-ONLY LOCAL CONTEXT", 27)
+    local_fit = _fit_image(card, local, (868, 198, 1488, 604))
+    _draw_bbox_on_fitted(draw, local_fit, local.size, local_bbox, width=8)
+
+    view_boxes = {
+        "raw_224": (850, 650, 1138, 1032),
+        "context_224": (1166, 650, 1454, 1032),
+        "glyph_224": (1482, 650, 1770, 1032),
+    }
+    for view_name, box in view_boxes.items():
+        draw.rectangle(box, fill=WHITE, outline=MID, width=3)
+        _draw_label(draw, (box[0] + 12, box[1] + 10), view_name.upper(), 24)
+        image = views[view_name]
+        if image is None:
+            _draw_wrapped(
+                draw,
+                (box[0] + 22, box[1] + 130, box[2] - 22, box[3] - 22),
+                "UNAVAILABLE",
+                size=28,
+            )
+        else:
+            _fit_image(
+                card, image, (box[0] + 18, box[1] + 58, box[2] - 18, box[3] - 18)
+            )
+
+    draw.rectangle((1796, 144, 2366, 1032), fill=WHITE, outline=MID, width=3)
+    _draw_label(draw, (1818, 162), "SOURCE-ONLY DECISION FORM", 27)
+    source_form_lines = (
+        "1. ELIGIBILITY / complete text object?",
+        "2. ROLE / write scene function first",
+        "   speech / inner / label / SFX event",
+        "3. FAMILY / serif / sans / hand / display / mixed",
+        "4. STYLE 0-4 / weight / width / roundness",
+        "   handwritten / angularity / energy",
+        "5. HARD AXES / choose at most three",
+        "6. TREATMENT / outline / shadow / inverse",
+        "   distortion / texture",
+        f"7. WRITING MODE / {orientation.upper()}",
+        f"8. NATIVE BBOX / {bbox[2] - bbox[0]} x {bbox[3] - bbox[1]} px",
+        "ROLE + FAMILY CONFIDENCE < .75 => ADJUDICATE",
+        "DO NOT LOOK BELOW UNTIL STEP A IS SEALED",
+        "NO PRIOR ANSWER IS SHOWN IN THIS REGION",
+    )
+    y = 210
+    for line in source_form_lines:
+        _draw_wrapped(draw, (1818, y, 2340, y + 48), line, size=19, fill=DARK)
+        y += 55
+
+    draw.rectangle((34, 1054, 2366, 1392), fill=WHITE, outline=MID, width=3)
+    _draw_label(
+        draw, (54, 1072), "SOURCE SIGNATURE CHECKLIST / WRITE BEFORE COMPARISON", 27
+    )
+    checklist_columns = (
+        (
+            "ROLE EVIDENCE",
+            "speaker/container/event function",
+            "whole utterance vs local emphasis",
+            "bounded label vs narration/thought",
+        ),
+        (
+            "SKELETON (0-4, unknown allowed)",
+            "weight  __   width  __   roundness  __",
+            "hand  __   angularity  __   energy  __",
+            "family  __   hard axes (max 3)  __",
+        ),
+        (
+            "TREATMENT (separate from skeleton)",
+            "outline  __  shadow  __  inverse  __",
+            "distortion  __  texture  __",
+            "text-object complete?  __  confidence  __",
+        ),
+    )
+    for column, lines in enumerate(checklist_columns):
+        left = 54 + column * 770
+        draw.rectangle((left, 1120, left + 744, 1368), fill=PALE, outline=MID, width=2)
+        row_y = 1138
+        for line_index, line in enumerate(lines):
+            draw.text(
+                (left + 18, row_y),
+                line,
+                font=_font(21 if line_index == 0 else 18),
+                fill=DARK if line_index == 0 else MID,
+            )
+            row_y += 52
+
+    draw.rectangle((0, 1412, CARD_WIDTH, 1504), fill=DARK)
+    draw.text(
+        (48, 1436),
+        "STOP / SEAL STEP A.  STEP B BELOW USES ONE PRIVATE SEALED ROLE PHRASE FOR ALL 7 ALIASES.",
+        font=_font(28),
+        fill=CYAN,
+    )
+
+    draw.rectangle((34, 1524, 2366, 1738), fill=WHITE, outline=MID, width=3)
+    _draw_label(draw, (54, 1540), "STEP B / CANDIDATE COMPARISON", 27)
+    draw.text(
+        (54, 1582),
+        "Same canonical strings, tracking, geometry operation, scale pair, and treatment operation for every alias.",
+        font=_font(19),
+        fill=MID,
+    )
+    if reference_images:
+        draw.text(
+            (54, 1618),
+            "CHAPTER BODY REFERENCES: tie-break only after local hard axes pass; never promote an unsafe override.",
+            font=_font(18),
+            fill=DARK,
+        )
+        for index, reference in enumerate(reference_images[:3]):
+            left = 1080 + index * 410
+            draw.text((left, 1546), f"BODY REF {index + 1}", font=_font(17), fill=MID)
+            image = reference["images"].get("glyph_224")
+            if image is not None:
+                _fit_image(card, image, (left, 1580, left + 380, 1722))
+    else:
+        draw.text(
+            (54, 1630),
+            "No chapter anchor is shown. Judge local source fit first.",
+            font=_font(21),
+            fill=DARK,
+        )
+
+    treatment = require_mapping(source_seal.get("treatment"), "v4 treatment")
+    grid_top = 1760
+    cell_width = 1159
+    cell_height = 960
+    gap_x = 18
+    gap_y = 16
+    for index, (panel, evidence) in enumerate(zip(candidate_panels, candidate_images)):
+        row = index // 2
+        column = index % 2
+        left = 32 + column * (cell_width + gap_x)
+        top = grid_top + row * (cell_height + gap_y)
+        right = left + cell_width
+        bottom = top + cell_height
+        draw.rectangle((left, top, right, bottom), fill=WHITE, outline=MID, width=3)
+        draw.rectangle((left, top, right, top + 62), fill=(226, 239, 245))
+        draw.text(
+            (left + 18, top + 14),
+            f"{panel['position']:02d}  {panel['blind_alias']}",
+            font=_font(28),
+            fill=DARK,
+        )
+        if evidence is None:
+            draw.rectangle(
+                (left + 24, top + 92, right - 24, bottom - 28),
+                outline=CYAN,
+                width=5,
+            )
+            _draw_wrapped(
+                draw,
+                (left + 58, top + 160, right - 58, bottom - 60),
+                "MANDATORY UNRENDERABLE / " + " / ".join(panel["technical_failures"]),
+                size=30,
+                fill=DARK,
+            )
+            continue
+
+        draw.text(
+            (left + 18, top + 76),
+            "CANONICAL STRUCTURE / H + V",
+            font=_font(19),
+            fill=DARK,
+        )
+        _fit_image(
+            card,
+            evidence["canonical_structure_horizontal"],
+            (left + 18, top + 108, left + 704, top + 282),
+        )
+        _fit_image(
+            card,
+            evidence["canonical_structure_vertical"],
+            (left + 724, top + 108, right - 18, top + 282),
+        )
+
+        draw.text(
+            (left + 18, top + 300),
+            f"SEALED ROLE PHRASE / {orientation.upper()} SOURCE GEOMETRY FIT",
+            font=_font(19),
+            fill=DARK,
+        )
+        _draw_v4_geometry_preview(
+            card,
+            draw,
+            evidence["sealed_role_phrase"],
+            (left + 18, top + 334, right - 18, top + 494),
+            bbox=bbox,
+        )
+
+        draw.text(
+            (left + 18, top + 516), "NATIVE + 50% SMALL PAIR", font=_font(19), fill=DARK
+        )
+        _fit_image(
+            card,
+            evidence["sealed_role_phrase"],
+            (left + 18, top + 550, left + 724, top + 696),
+        )
+        half = evidence["sealed_role_phrase"].resize(
+            (
+                max(1, evidence["sealed_role_phrase"].width // 2),
+                max(1, evidence["sealed_role_phrase"].height // 2),
+            ),
+            Image.Resampling.LANCZOS,
+        )
+        _fit_image(card, half, (left + 744, top + 570, right - 18, top + 676))
+
+        draw.text(
+            (left + 18, top + 716),
+            "TREATMENT A/B / SKELETON-ONLY vs APP-SUPPORTED REAPPLY",
+            font=_font(19),
+            fill=DARK,
+        )
+        _fit_image(
+            card,
+            evidence["sealed_role_phrase"],
+            (left + 18, top + 752, left + 562, bottom - 20),
+        )
+        treated = _apply_v4_supported_treatment(
+            evidence["sealed_role_phrase"], treatment
+        )
+        _fit_image(card, treated, (left + 590, top + 752, right - 18, bottom - 20))
+
+    # Seven aliases leave one grid cell.  Use it for the deterministic v4
+    # decision boundary rather than wasting the review surface or introducing
+    # an eighth visual candidate.
+    guide_left = 32 + cell_width + gap_x
+    guide_top = grid_top + 3 * (cell_height + gap_y)
+    guide_right = guide_left + cell_width
+    guide_bottom = guide_top + cell_height
+    draw.rectangle(
+        (guide_left, guide_top, guide_right, guide_bottom),
+        fill=WHITE,
+        outline=MID,
+        width=3,
+    )
+    draw.rectangle(
+        (guide_left, guide_top, guide_right, guide_top + 62),
+        fill=(226, 239, 245),
+    )
+    draw.text(
+        (guide_left + 18, guide_top + 14),
+        "V4 CANDIDATE JUDGMENT CHECKLIST",
+        font=_font(28),
+        fill=DARK,
+    )
+    guide_lines = (
+        "FOR EACH OF ALL 7 ALIASES",
+        "[ ] family gate: pass / conditional / fail",
+        "[ ] critical-axis largest gap",
+        "[ ] deployment: writing mode / native / 50%",
+        "[ ] skeleton vs supported treatment A/B",
+        "[ ] D_style using the sealed role weights",
+        "",
+        "SAFE BOUNDARY",
+        "preferred: all hard gates pass, D <= .16",
+        "acceptable: all hard gates pass, D <= .28",
+        "marginal: D <= .45 or one conditional gate",
+        "unacceptable: hard fail or D > .45",
+        "unrenderable: only the mandatory technical cases",
+        "",
+        "SAFE SET <= 2 (third requires adjudicator proof)",
+        "none_acceptable is derived only after all 7 checks",
+        "chapter anchor may break a safe tie, never override local fit",
+        "record matched hard axes + largest gap for every safe alias",
+    )
+    guide_y = guide_top + 92
+    for line in guide_lines:
+        draw.text(
+            (guide_left + 34, guide_y),
+            line,
+            font=_font(
+                21 if line in {"FOR EACH OF ALL 7 ALIASES", "SAFE BOUNDARY"} else 19
+            ),
+            fill=DARK if line else MID,
+        )
+        guide_y += 43
+
+    draw.rectangle((0, V4_CARD_HEIGHT - 110, CARD_WIDTH, V4_CARD_HEIGHT), fill=DARK)
+    draw.text(
+        (42, V4_CARD_HEIGHT - 83),
+        "REVIEW-ONLY | qa_overlay=true | prior role/tier/split/model/font identity withheld | not training data",
+        font=_font(28),
+        fill=CYAN,
+    )
+    payload = _png_bytes(card)
+    source_seal_sha = require_sha(
+        source_seal.get("record_sha256"), "v4 source seal record_sha256"
+    )
+    card_id = _card_id(
+        str(assignment["assignment_id"]),
+        inputs.renderer_hash,
+        V4_PROBE_PROFILE,
+        source_seal_sha,
+    )
+    relative = f"cards/{assignment['assignment_id']}.png"
+    _assert_no_identity_leak(relative, inputs.identity_terms, "card path")
+    bbox_width = bbox[2] - bbox[0]
+    bbox_height = bbox[3] - bbox[1]
+    treatment_selection_sha = sha256_json(
+        {field: treatment[field] for field in V4_TREATMENT_FIELDS}
+    )
+    record: dict[str, Any] = {
+        "artifact": {
+            "file": relative,
+            "height": V4_CARD_HEIGHT,
+            "qa_overlay": True,
+            "sha256": sha256_bytes(payload),
+            "watermark": "REVIEW-ONLY",
+            "width": CARD_WIDTH,
+        },
+        "assignment": {
+            "assignment_id": assignment["assignment_id"],
+            "blind_candidate_order": [
+                panel["blind_alias"] for panel in candidate_panels
+            ],
+            "candidate_order_seed": assignment["candidate_order_seed"],
+            "catalog_version": assignment["catalog_version"],
+            "sample_id": sample_id,
+            "stage": assignment["stage"],
+        },
+        "candidates": candidate_panels,
+        "card_id": card_id,
+        "probe_contract": {
+            "candidate_specific_phrase_or_tracking": False,
+            "canonical_structure": {
+                "horizontal": dict(public_signatures["canonical_structure_horizontal"]),
+                "vertical": dict(public_signatures["canonical_structure_vertical"]),
+            },
+            "native_small_scale_factors": [1.0, 0.5],
+            "profile": V4_PROBE_PROFILE,
+            "role_conditioned": {
+                "private_sealed_role_visible": False,
+                "signature": dict(public_signatures["sealed_role_phrase"]),
+                "source_writing_mode": orientation,
+            },
+            "source_geometry_fit": {
+                "bbox_aspect_ratio": round(bbox_width / bbox_height, 8),
+                "bbox_px": [bbox_width, bbox_height],
+                "operation": "aspect_preserving_contain_in_source_bbox",
+                "writing_mode": orientation,
+            },
+            "source_seal_record_sha256": source_seal_sha,
+            "source_stage_visually_separated": True,
+            "treatment_ab": {
+                "a": "skeleton_only",
+                "b": "app_supported_source_treatment_only",
+                "selection_sha256": treatment_selection_sha,
+                "source_selection_visible": False,
+                "unsupported_effects_not_simulated": True,
+            },
+        },
+        "schema_version": SCHEMA_VERSION,
+        "source": {
+            "bbox_px": list(bbox),
+            "orientation": orientation,
+            "sample_crop_sha256": require_sha(
+                master.get("sample_crop_sha256"), "sample crop hash"
+            ),
+            "source_page_sha256": page_sha,
+            "views": dict(public_views),
+        },
+    }
+    if public_work_references is not None:
+        record["work_references"] = dict(public_work_references)
+    return payload, record
 
 
 def build_card(
@@ -987,10 +1958,10 @@ def build_card(
     master: Mapping[str, Any],
     inputs: LoadedInputs,
     *,
-    base_root: Path,
-    hard_root: Path,
+    catalog_roots: Mapping[str, Path],
     library_root: Path,
     render_bank_root: Path,
+    probe_profile: str = LEGACY_PROBE_PROFILE,
 ) -> tuple[bytes, dict[str, Any]]:
     sample_id = str(assignment["sample_id"])
     page_record = require_mapping(master.get("page"), f"master[{sample_id}].page")
@@ -1021,10 +1992,6 @@ def build_card(
         ).get("source_catalog_id"),
         f"master[{sample_id}].provenance.source_catalog_id",
     )
-    catalog_roots = {
-        "fontclip-accepted-v1": base_root,
-        "fontclip-hard-accepted-v2": hard_root,
-    }
     if catalog_id not in catalog_roots:
         raise ReviewCardError(f"master[{sample_id}]: unsupported source catalog")
     views_value = require_mapping(master.get("views"), f"master[{sample_id}].views")
@@ -1083,13 +2050,43 @@ def build_card(
             "items": public_reference_items,
         }
 
+    if probe_profile == V4_PROBE_PROFILE:
+        source_seal = inputs.source_seals_by_sample.get(sample_id)
+        if source_seal is None:
+            raise ReviewCardError(f"v4 source seal is missing for {sample_id}")
+        candidate_panels, candidate_images, public_signatures = _prepare_v4_candidates(
+            assignment=assignment,
+            orientation=orientation,
+            source_seal=source_seal,
+            inputs=inputs,
+            render_bank_root=render_bank_root,
+        )
+        return _render_v4_card(
+            assignment=assignment,
+            master=master,
+            inputs=inputs,
+            sample_id=sample_id,
+            orientation=orientation,
+            page_sha=page_sha,
+            page_image=page_image,
+            bbox=bbox,
+            views=views,
+            public_views=public_views,
+            reference_images=reference_images,
+            public_work_references=public_work_references,
+            candidate_panels=candidate_panels,
+            candidate_images=candidate_images,
+            public_signatures=public_signatures,
+            source_seal=source_seal,
+        )
+    if probe_profile != LEGACY_PROBE_PROFILE:
+        raise ReviewCardError(f"unsupported probe profile {probe_profile!r}")
+
     candidate_panels: list[dict[str, Any]] = []
     candidate_images: list[list[tuple[Image.Image, dict[str, Any]]]] = []
     order = assignment["candidate_order"]
     if not set(order).issubset(inputs.canonical_by_font_id):
-        raise ReviewCardError(
-            "assignment contains a non-canonical render family"
-        )
+        raise ReviewCardError("assignment contains a non-canonical render family")
     for position, font_id in enumerate(order, 1):
         candidate = inputs.canonical_by_font_id[font_id]
         alias = require_id(candidate.get("blind_alias"), "canonical blind_alias")
@@ -1350,7 +2347,7 @@ def _public_manifest(
     reference_count = sum(
         int(card.get("work_references", {}).get("count", 0)) for card in cards
     )
-    return {
+    manifest = {
         "blindness_contract": {
             "candidate_identity_fields_present": False,
             "font_names_visible": False,
@@ -1378,6 +2375,35 @@ def _public_manifest(
         "training_asset": False,
         "work_reference_count": reference_count,
     }
+    if config.probe_profile == V4_PROBE_PROFILE:
+        manifest["blindness_contract"].update(
+            {
+                "prior_role_visible": False,
+                "prior_tiers_visible": False,
+                "source_treatment_answers_visible": False,
+                "split_visible": False,
+            }
+        )
+        manifest["card_render_contract"] = {
+            "candidate_count": V4_CANDIDATE_COUNT,
+            "candidate_specific_phrase_or_tracking": False,
+            "canvas_px": [CARD_WIDTH, V4_CARD_HEIGHT],
+            "cyan_bbox_rgb": list(CYAN),
+            "engine": "Pillow",
+            "native_small_scale_factors": [1.0, 0.5],
+            "pillow_version": PILLOW_VERSION,
+            "probe_profile": V4_PROBE_PROFILE,
+            "probe_views": [
+                "canonical_structure_horizontal",
+                "canonical_structure_vertical",
+                "sealed_role_phrase_source_geometry",
+                "native_small_pair",
+                "treatment_skeleton_supported_ab",
+            ],
+            "source_stage_visually_separated": True,
+            "watermark": "REVIEW-ONLY",
+        }
+    return manifest
 
 
 def _public_report(manifest: Mapping[str, Any], manifest_sha256: str) -> dict[str, Any]:
@@ -1489,6 +2515,24 @@ def _list_files(root: Path) -> set[str]:
     }
 
 
+def _validate_probe_profile_contract(
+    config: RunConfig, source_seal_manifest: Path | None
+) -> None:
+    if config.probe_profile not in PROBE_PROFILES:
+        raise ReviewCardError(
+            f"probe_profile must be one of {', '.join(PROBE_PROFILES)}"
+        )
+    if config.probe_profile == V4_PROBE_PROFILE and source_seal_manifest is None:
+        raise ReviewCardError("v4 probe profile requires --source-seal-manifest")
+    if (
+        config.probe_profile == LEGACY_PROBE_PROFILE
+        and source_seal_manifest is not None
+    ):
+        raise ReviewCardError(
+            "--source-seal-manifest is only valid with --probe-profile v4"
+        )
+
+
 def build_output(
     *,
     output_dir: Path,
@@ -1496,22 +2540,36 @@ def build_output(
     inventory: Path,
     assignments: Path,
     render_bank_manifest: Path,
-    base_root: Path,
-    hard_root: Path,
     library_root: Path,
     config: RunConfig,
+    base_root: Path | None = None,
+    hard_root: Path | None = None,
+    catalog_registry: Path | None = None,
     work_reference_manifest: Path | None = None,
+    source_seal_manifest: Path | None = None,
 ) -> dict[str, Any]:
+    _validate_probe_profile_contract(config, source_seal_manifest)
+    resolved_registry = (
+        catalog_registry.expanduser().resolve()
+        if catalog_registry is not None
+        else None
+    )
+    catalog_roots = resolve_catalog_roots(
+        catalog_registry=resolved_registry,
+        base_root=base_root,
+        hard_root=hard_root,
+    )
     render_bank_root = render_bank_manifest.parent
     protected = (
         master_manifest.parent,
         inventory.parent,
         assignments.parent,
         render_bank_root,
-        base_root,
-        hard_root,
+        *catalog_roots.values(),
         library_root,
+        *((resolved_registry,) if resolved_registry else ()),
         *((work_reference_manifest,) if work_reference_manifest else ()),
+        *((source_seal_manifest,) if source_seal_manifest else ()),
     )
     _assert_disjoint_output(output_dir, protected)
     _assert_replaceable(output_dir)
@@ -1520,7 +2578,10 @@ def build_output(
         inventory=inventory,
         assignments=assignments,
         render_bank_manifest=render_bank_manifest,
+        catalog_ids=frozenset(catalog_roots),
+        catalog_registry=resolved_registry,
         work_reference_manifest=work_reference_manifest,
+        source_seal_manifest=source_seal_manifest,
     )
     selected = select_assignments(inputs, config)
     output_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -1536,10 +2597,10 @@ def build_output(
                 assignment,
                 inputs.master_by_id[str(assignment["sample_id"])],
                 inputs,
-                base_root=base_root,
-                hard_root=hard_root,
+                catalog_roots=catalog_roots,
                 library_root=library_root,
                 render_bank_root=render_bank_root,
+                probe_profile=config.probe_profile,
             )
             relative = record["artifact"]["file"]
             destination = staging.joinpath(*PurePosixPath(relative).parts)
@@ -1568,9 +2629,11 @@ def build_output(
             render_bank_manifest=render_bank_manifest,
             base_root=base_root,
             hard_root=hard_root,
+            catalog_registry=resolved_registry,
             library_root=library_root,
             expected_config=config,
             work_reference_manifest=work_reference_manifest,
+            source_seal_manifest=source_seal_manifest,
         )
         _atomic_replace_directory(output_dir, staging)
         completed = True
@@ -1593,10 +2656,14 @@ def config_from_manifest(manifest: Mapping[str, Any]) -> RunConfig:
         not isinstance(limit, int) or isinstance(limit, bool) or limit <= 0
     ):
         raise ReviewCardError("manifest.configuration.limit is invalid")
+    probe_profile = value.get("probe_profile", LEGACY_PROBE_PROFILE)
+    if probe_profile not in PROBE_PROFILES:
+        raise ReviewCardError("manifest.configuration.probe_profile is invalid")
     return RunConfig(
         stage=require_text(value.get("stage"), "manifest.configuration.stage"),
         batch=require_text(value.get("batch"), "manifest.configuration.batch"),
         limit=limit,
+        probe_profile=str(probe_profile),
     )
 
 
@@ -1607,11 +2674,13 @@ def validate_output(
     inventory: Path,
     assignments: Path,
     render_bank_manifest: Path,
-    base_root: Path,
-    hard_root: Path,
     library_root: Path,
+    base_root: Path | None = None,
+    hard_root: Path | None = None,
+    catalog_registry: Path | None = None,
     expected_config: RunConfig | None = None,
     work_reference_manifest: Path | None = None,
+    source_seal_manifest: Path | None = None,
 ) -> dict[str, Any]:
     _assert_owned_output(output_dir)
     manifest_path = output_dir / MANIFEST_FILE
@@ -1635,13 +2704,27 @@ def validate_output(
     config = config_from_manifest(manifest)
     if expected_config is not None and config != expected_config:
         raise ReviewCardError("review-card configuration differs from requested check")
+    _validate_probe_profile_contract(config, source_seal_manifest)
 
+    resolved_registry = (
+        catalog_registry.expanduser().resolve()
+        if catalog_registry is not None
+        else None
+    )
+    catalog_roots = resolve_catalog_roots(
+        catalog_registry=resolved_registry,
+        base_root=base_root,
+        hard_root=hard_root,
+    )
     inputs = load_inputs(
         master_manifest=master_manifest,
         inventory=inventory,
         assignments=assignments,
         render_bank_manifest=render_bank_manifest,
+        catalog_ids=frozenset(catalog_roots),
+        catalog_registry=resolved_registry,
         work_reference_manifest=work_reference_manifest,
+        source_seal_manifest=source_seal_manifest,
     )
     if manifest.get("input_hashes") != dict(sorted(inputs.input_hashes.items())):
         raise ReviewCardError("review-card input hashes are stale")
@@ -1673,10 +2756,10 @@ def validate_output(
             assignment,
             inputs.master_by_id[str(assignment["sample_id"])],
             inputs,
-            base_root=base_root,
-            hard_root=hard_root,
+            catalog_roots=catalog_roots,
             library_root=library_root,
             render_bank_root=render_bank_manifest.parent,
+            probe_profile=config.probe_profile,
         )
         if rebuilt != recorded:
             raise ReviewCardError(
@@ -1838,10 +2921,12 @@ def add_input_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--inventory", type=Path, required=True)
     parser.add_argument("--assignments", type=Path, required=True)
     parser.add_argument("--render-bank-manifest", type=Path, required=True)
-    parser.add_argument("--base-root", type=Path, required=True)
-    parser.add_argument("--hard-root", type=Path, required=True)
+    parser.add_argument("--catalog-registry", type=Path)
+    parser.add_argument("--base-root", type=Path)
+    parser.add_argument("--hard-root", type=Path)
     parser.add_argument("--library-root", type=Path, required=True)
     parser.add_argument("--work-reference-manifest", type=Path)
+    parser.add_argument("--source-seal-manifest", type=Path)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1857,6 +2942,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--batch", choices=("all", "pilot", "calibration"), default="all"
     )
     build.add_argument("--limit", type=positive_int)
+    build.add_argument(
+        "--probe-profile", choices=PROBE_PROFILES, default=LEGACY_PROBE_PROFILE
+    )
     build.add_argument("--check", action="store_true")
 
     validate = subparsers.add_parser("validate")
@@ -1877,12 +2965,25 @@ def _resolved_input_kwargs(args: argparse.Namespace) -> dict[str, Path]:
         "inventory": args.inventory.resolve(),
         "assignments": args.assignments.resolve(),
         "render_bank_manifest": args.render_bank_manifest.resolve(),
-        "base_root": args.base_root.resolve(),
-        "hard_root": args.hard_root.resolve(),
         "library_root": args.library_root.resolve(),
     }
+    if args.catalog_registry is not None:
+        if args.base_root is not None or args.hard_root is not None:
+            raise ReviewCardError(
+                "--catalog-registry cannot be mixed with --base-root/--hard-root"
+            )
+        values["catalog_registry"] = args.catalog_registry.resolve()
+    else:
+        if args.base_root is None or args.hard_root is None:
+            raise ReviewCardError(
+                "provide --catalog-registry or both --base-root and --hard-root"
+            )
+        values["base_root"] = args.base_root.resolve()
+        values["hard_root"] = args.hard_root.resolve()
     if args.work_reference_manifest is not None:
         values["work_reference_manifest"] = args.work_reference_manifest.resolve()
+    if args.source_seal_manifest is not None:
+        values["source_seal_manifest"] = args.source_seal_manifest.resolve()
     return values
 
 
@@ -1902,7 +3003,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                 **_resolved_input_kwargs(args),
             )
         else:
-            config = RunConfig(stage=args.stage, batch=args.batch, limit=args.limit)
+            config = RunConfig(
+                stage=args.stage,
+                batch=args.batch,
+                limit=args.limit,
+                probe_profile=args.probe_profile,
+            )
             kwargs = {
                 "output_dir": args.output_dir.resolve(),
                 **_resolved_input_kwargs(args),
