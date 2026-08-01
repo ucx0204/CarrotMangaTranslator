@@ -35,14 +35,26 @@ import font_matching_labels as labels
 
 
 SCHEMA_VERSION = "font-matching-recrop-repair-v1"
-PROPOSAL_SCHEMA_VERSION = "font-matching-orientation-recrop-proposal-v1"
-PROPOSAL_RECORD_TYPE = "font_matching_orientation_recrop_proposal"
+ORIENTATION_PROPOSAL_CONTRACT = (
+    "font-matching-orientation-recrop-proposal-v1",
+    "font_matching_orientation_recrop_proposal",
+)
+RESCUE_PROPOSAL_CONTRACT = (
+    "font-matching-rescue-recrop-proposal-v1",
+    "font_matching_rescue_recrop_proposal",
+)
+PROPOSAL_CONTRACTS = frozenset(
+    {ORIENTATION_PROPOSAL_CONTRACT, RESCUE_PROPOSAL_CONTRACT}
+)
 ORIENTATION_SCHEMA_VERSION = "font-matching-orientation-audit-v1"
 OWNER = "carrot-manga-translator/font-matching-recrop-repair"
 MARKER_FILE = ".font-matching-recrop-repair-owned.json"
 INTAKE_FILE = "intake.jsonl"
 SUPERSESSION_FILE = "supersession.jsonl"
 REPLACEMENTS_FILE = "replacement-required.jsonl"
+DEFECT_EVIDENCE_FILE = "defect-evidence.jsonl"
+PROPOSAL_RECORDS_FILE = "proposal-records.jsonl"
+PARENT_RECORDS_FILE = "parent-records.jsonl"
 REPORT_FILE = "report.json"
 QUEUE_DIR = "repair-queue"
 SHA_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -195,6 +207,7 @@ def _orientation_targets(path: Path, expected: int) -> dict[str, dict[str, Any]]
             "audited_orientation": row.get("orientation"),
             "orientation_task_record_sha256": audit.get("task_record_sha256"),
             "orientation_card_sha256": audit.get("card_sha256"),
+            "_evidence_record": copy.deepcopy(row),
         }
     if len(output) != expected:
         raise RecropRepairError(
@@ -245,6 +258,7 @@ def _rescue_targets(path: Path, expected: int) -> dict[str, dict[str, Any]]:
             ),
             "prior_final_orientation": orientation,
             "prior_final_must_be_invalidated": True,
+            "_evidence_record": copy.deepcopy(row),
         }
     if len(output) != expected:
         raise RecropRepairError(
@@ -279,10 +293,8 @@ def _load_proposals(
         for index, row in enumerate(read_jsonl(path, f"proposal {path.name}"), 1):
             location = f"proposal {path.name}:{index}"
             validate_seal(row, location)
-            if (
-                row.get("schema_version") != PROPOSAL_SCHEMA_VERSION
-                or row.get("record_type") != PROPOSAL_RECORD_TYPE
-            ):
+            proposal_contract = (row.get("schema_version"), row.get("record_type"))
+            if proposal_contract not in PROPOSAL_CONTRACTS:
                 raise RecropRepairError(f"{location}: unsupported proposal contract")
             sample_id = require_text(row.get("sample_id"), f"{location}.sample_id")
             if sample_id in output:
@@ -475,8 +487,8 @@ def _resolve_page(
         parent.get("geometry"), f"master[{sample_id}].geometry"
     )
     current_bbox = require_bbox(
-        geometry.get("final_bbox_px") or geometry.get("bbox_px"),
-        f"master[{sample_id}].geometry.final_bbox_px",
+        geometry.get("bbox_px"),
+        f"master[{sample_id}].geometry.bbox_px",
     )
     if tuple(proposal["current_bbox_px"]) != current_bbox:
         decoded.close()
@@ -577,7 +589,7 @@ def _source_record(
         "split": parent["split"],
         "orientation": proposal["actual_orientation"],
         "bbox_px": geometry.get("bbox_px") or geometry["final_bbox_px"],
-        "source_crop_bbox_px": geometry.get("final_bbox_px") or geometry["crop_bbox_px"],
+        "source_crop_bbox_px": geometry.get("crop_bbox_px") or geometry["bbox_px"],
         "candidate_metadata": candidate_metadata,
         "ocr_hints_sha256": None,
         "ocr_metadata_skip_reasons": {},
@@ -625,6 +637,21 @@ def _write_tree(
     proposals, proposal_signatures = _load_proposals(
         proposal_paths, set(targets)
     )
+    for sample_id, target in targets.items():
+        expected_contract = (
+            ORIENTATION_PROPOSAL_CONTRACT
+            if target["defect_source"] == "orientation_visual_audit"
+            else RESCUE_PROPOSAL_CONTRACT
+        )
+        proposal = proposals[sample_id]
+        actual_contract = (
+            proposal.get("schema_version"),
+            proposal.get("record_type"),
+        )
+        if actual_contract != expected_contract:
+            raise RecropRepairError(
+                f"proposal[{sample_id}]: contract does not match its defect source"
+            )
     masters = _load_master(master_manifest, set(targets))
     master_sha256 = sha256_file(master_manifest)
     orientation_sha256 = sha256_file(orientation_rejected)
@@ -647,6 +674,11 @@ def _write_tree(
         parent = masters[sample_id]
         proposal = proposals[sample_id]
         target = targets[sample_id]
+        public_target = {
+            key: copy.deepcopy(value)
+            for key, value in target.items()
+            if not key.startswith("_")
+        }
         if target["defect_source"] == "none_acceptable_non_single_orientation":
             parent_work_id = require_text(
                 require_mapping(parent.get("work"), f"master[{sample_id}].work").get("id"),
@@ -755,7 +787,7 @@ def _write_tree(
                 ).get("path"),
                 "source_page_sha256": sha256_bytes(page_bytes),
                 "decoded_page_size_px": [decoded.width, decoded.height],
-                "defect": target,
+                "defect": public_target,
                 "proposal_record_sha256": proposal["record_sha256"],
                 "action": action,
                 "recrop_bbox_px": proposal.get("recrop_bbox_px"),
@@ -805,6 +837,28 @@ def _write_tree(
     (physical_root / SUPERSESSION_FILE).write_bytes(jsonl_bytes(supersession_rows))
     (physical_root / REPLACEMENTS_FILE).write_bytes(jsonl_bytes(replacement_rows))
     (physical_root / "recrop-lineage.jsonl").write_bytes(jsonl_bytes(lineages))
+    defect_evidence_rows = [
+        copy.deepcopy(targets[sample_id]["_evidence_record"])
+        for sample_id in sorted(targets)
+    ]
+    proposal_record_rows = [
+        {
+            key: copy.deepcopy(value)
+            for key, value in proposals[sample_id].items()
+            if not key.startswith("_")
+        }
+        for sample_id in sorted(proposals)
+    ]
+    parent_record_rows = [copy.deepcopy(masters[sample_id]) for sample_id in sorted(masters)]
+    (physical_root / DEFECT_EVIDENCE_FILE).write_bytes(
+        jsonl_bytes(defect_evidence_rows)
+    )
+    (physical_root / PROPOSAL_RECORDS_FILE).write_bytes(
+        jsonl_bytes(proposal_record_rows)
+    )
+    (physical_root / PARENT_RECORDS_FILE).write_bytes(
+        jsonl_bytes(parent_record_rows)
+    )
     by_catalog = Counter(
         str(row["parent_source_catalog_id"]) for row in intake_rows
     )
@@ -818,6 +872,7 @@ def _write_tree(
                 "final_labels_sha256": finals_sha256,
                 "proposal_files": proposal_signatures,
                 "preparation_signature_sha256": preparation_signature,
+                "current_bbox_semantics": "master.geometry.bbox_px",
             },
             "counts": {
                 "targets": len(targets),
@@ -841,6 +896,15 @@ def _write_tree(
                 ),
                 "lineage_sha256": sha256_file(
                     physical_root / "recrop-lineage.jsonl"
+                ),
+                "defect_evidence_sha256": sha256_file(
+                    physical_root / DEFECT_EVIDENCE_FILE
+                ),
+                "proposal_records_sha256": sha256_file(
+                    physical_root / PROPOSAL_RECORDS_FILE
+                ),
+                "parent_records_sha256": sha256_file(
+                    physical_root / PARENT_RECORDS_FILE
                 ),
             },
             "postprocess_command": [
@@ -867,6 +931,8 @@ def _write_tree(
                 "synthetic_assets_written": 0,
                 "new_identity_per_recrop": True,
                 "prior_finals_carried_to_children": 0,
+                "evidence_snapshots_training_eligible": False,
+                "only_repair_queue_manifest_is_postprocess_eligible": True,
             },
         }
     )

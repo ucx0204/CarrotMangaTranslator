@@ -276,7 +276,7 @@ class Fixture:
         bbox: list[int] | None,
         orientation: str | None,
     ) -> dict[str, Any]:
-        current = [18, 16, 43, 74]
+        current = [20, 18, 40, 64]
         preview_bbox = bbox if bbox is not None else current
         with Image.open(self.page_paths[sample_id]) as opened:
             preview = opened.convert("RGB").crop(tuple(preview_bbox))
@@ -284,10 +284,19 @@ class Fixture:
             preview_sha = REPAIR.sha256_bytes(REPAIR.hard_audit.encode_png(preview))
         finally:
             preview.close()
+        is_rescue = sample_id == self.rescue_id
         return REPAIR.seal(
             {
-                "schema_version": "font-matching-orientation-recrop-proposal-v1",
-                "record_type": "font_matching_orientation_recrop_proposal",
+                "schema_version": (
+                    "font-matching-rescue-recrop-proposal-v1"
+                    if is_rescue
+                    else "font-matching-orientation-recrop-proposal-v1"
+                ),
+                "record_type": (
+                    "font_matching_rescue_recrop_proposal"
+                    if is_rescue
+                    else "font_matching_orientation_recrop_proposal"
+                ),
                 "sample_id": sample_id,
                 "action": action,
                 "recrop_bbox_px": bbox,
@@ -344,6 +353,10 @@ class RecropRepairTests(unittest.TestCase):
             self.assertEqual(1, report["counts"]["recrops"])
             self.assertEqual(1, report["counts"]["replacements"])
             self.assertEqual(1, report["counts"]["invalidated_prior_finals"])
+            self.assertEqual(
+                "master.geometry.bbox_px",
+                report["inputs"]["current_bbox_semantics"],
+            )
             command = report["postprocess_command"]
             manifest_pin = command[command.index("--expected-input-manifest-sha256") + 1]
             self.assertEqual(
@@ -371,6 +384,27 @@ class RecropRepairTests(unittest.TestCase):
             self.assertTrue(
                 all(row["parent_excluded_from_training"] for row in supersession)
             )
+            for name in (
+                REPAIR.DEFECT_EVIDENCE_FILE,
+                REPAIR.PROPOSAL_RECORDS_FILE,
+                REPAIR.PARENT_RECORDS_FILE,
+            ):
+                rows = [
+                    json.loads(line)
+                    for line in (fixture.output / name)
+                    .read_text(encoding="utf-8")
+                    .splitlines()
+                ]
+                self.assertEqual(2, len(rows))
+            proposal_snapshots = [
+                json.loads(line)
+                for line in (fixture.output / REPAIR.PROPOSAL_RECORDS_FILE)
+                .read_text(encoding="utf-8")
+                .splitlines()
+            ]
+            self.assertTrue(
+                all(not any(key.startswith("_") for key in row) for row in proposal_snapshots)
+            )
 
     def test_validation_detects_tampered_queue_assets(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -397,7 +431,7 @@ class RecropRepairTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             fixture = Fixture(Path(directory))
             changed = copy.deepcopy(fixture.proposal_rows)
-            current = [18, 16, 43, 74]
+            current = [20, 18, 40, 64]
             changed[0] = fixture._proposal(
                 fixture.orientation_id,
                 action="recrop",
@@ -422,6 +456,29 @@ class RecropRepairTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             fixture = Fixture(Path(directory))
             write_jsonl(fixture.proposals, fixture.proposal_rows[:1])
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(2, REPAIR.main(fixture.argv("build")))
+            self.assertFalse(fixture.output.exists())
+
+    def test_rejects_unknown_proposal_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Fixture(Path(directory))
+            changed = copy.deepcopy(fixture.proposal_rows)
+            changed[0]["schema_version"] = "unknown-proposal-v1"
+            changed[0] = REPAIR.seal(changed[0])
+            write_jsonl(fixture.proposals, changed)
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(2, REPAIR.main(fixture.argv("build")))
+            self.assertFalse(fixture.output.exists())
+
+    def test_rejects_valid_contract_bound_to_the_wrong_defect_source(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Fixture(Path(directory))
+            changed = copy.deepcopy(fixture.proposal_rows)
+            changed[1]["schema_version"] = REPAIR.ORIENTATION_PROPOSAL_CONTRACT[0]
+            changed[1]["record_type"] = REPAIR.ORIENTATION_PROPOSAL_CONTRACT[1]
+            changed[1] = REPAIR.seal(changed[1])
+            write_jsonl(fixture.proposals, changed)
             with redirect_stdout(io.StringIO()):
                 self.assertEqual(2, REPAIR.main(fixture.argv("build")))
             self.assertFalse(fixture.output.exists())
