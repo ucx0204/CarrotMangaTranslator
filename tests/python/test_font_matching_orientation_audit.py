@@ -339,6 +339,74 @@ class OrientationAuditTests(unittest.TestCase):
                     output_dir=root / "corrected",
                 )
 
+    def test_carries_only_tasks_with_identical_card_bindings(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            inventory, assignments, manifest, cards_root = self.fixture(root)
+            source_workspace = root / "source-workspace"
+            AUDIT.build_workspace(
+                inventory_path=inventory,
+                assignments_path=assignments,
+                card_manifest_path=manifest,
+                cards_root=cards_root,
+                output_dir=source_workspace,
+                shards=1,
+                expected_samples=2,
+            )
+            source_tasks = AUDIT.read_jsonl(
+                source_workspace / "tasks.jsonl", location="source tasks"
+            )
+            responses = [
+                {
+                    "schema_version": AUDIT.SCHEMA_VERSION,
+                    "record_type": AUDIT.RESPONSE_TYPE,
+                    "sample_id": task["sample_id"],
+                    "primary_assignment_id": task["primary_assignment_id"],
+                    "card_sha256": task["card_sha256"],
+                    "reviewer": "reviewer-a",
+                    "viewed_original": True,
+                    "actual_orientation": task["declared_orientation"],
+                    "confidence": 0.95,
+                    "crop_status": "usable",
+                    "notes": "원문의 실제 글자 흐름을 확인함",
+                }
+                for task in source_tasks
+            ]
+            responses_path = root / "responses.jsonl"
+            write_jsonl(responses_path, responses)
+
+            target_inventory = root / "target-inventory.jsonl"
+            write_jsonl(target_inventory, [inventory_row("a", "horizontal")])
+            target_workspace = root / "target-workspace"
+            AUDIT.build_workspace(
+                inventory_path=target_inventory,
+                assignments_path=assignments,
+                card_manifest_path=manifest,
+                cards_root=cards_root,
+                output_dir=target_workspace,
+                shards=1,
+                expected_samples=1,
+            )
+            carried_path = root / "carried.jsonl"
+            report_path = root / "carry-report.json"
+
+            report = AUDIT.carry_responses(
+                source_workspace=source_workspace,
+                target_workspace=target_workspace,
+                response_paths=[responses_path],
+                output=carried_path,
+                report_output=report_path,
+            )
+
+            self.assertEqual(1, report["counts"]["carried"])
+            self.assertEqual(1, report["counts"]["removed"])
+            self.assertTrue(report["complete"])
+            validation = AUDIT.validate_responses(
+                workspace=target_workspace,
+                response_paths=[carried_path],
+            )
+            self.assertTrue(validation["complete"])
+
 
 if __name__ == "__main__":
     unittest.main()

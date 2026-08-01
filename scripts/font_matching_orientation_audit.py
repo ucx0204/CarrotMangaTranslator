@@ -25,6 +25,7 @@ RESPONSE_TYPE = "font_matching_orientation_response"
 REPORT_TYPE = "font_matching_orientation_audit_report"
 APPLY_REPORT_TYPE = "font_matching_orientation_apply_report"
 DECISION_TYPE = "font_matching_orientation_applied_decision"
+CARRY_REPORT_TYPE = "font_matching_orientation_carry_report"
 DEFAULT_SEED = "font-matching-orientation-audit-v1"
 ORIENTATIONS = frozenset({"horizontal", "vertical", "mixed", "unknown"})
 CROP_STATUSES = frozenset({"usable", "needs_recrop", "mixed_hierarchy", "unusable"})
@@ -707,6 +708,82 @@ def apply_orientation_decisions(
     return report
 
 
+def carry_responses(
+    *,
+    source_workspace: Path,
+    target_workspace: Path,
+    response_paths: Sequence[Path],
+    output: Path,
+    report_output: Path,
+) -> dict[str, Any]:
+    """Carry only byte-identical reviewed cards into a replacement audit.
+
+    A rejected calibration sample may be replaced by a fresh sample.  Existing
+    visual work is reusable only when the target task still binds the exact same
+    primary assignment and PNG SHA.  Changed or removed tasks are dropped, and
+    fresh replacements remain explicitly missing for another original-detail
+    review.
+    """
+
+    source_tasks = _load_tasks(source_workspace)
+    source_responses = _load_validated_responses(
+        tasks=source_tasks,
+        response_paths=response_paths,
+    )
+    source_missing = sorted(set(source_tasks) - set(source_responses))
+    if source_missing:
+        raise OrientationAuditError(
+            f"cannot carry incomplete source audit; missing: {source_missing[:8]}"
+        )
+    target_tasks = _load_tasks(target_workspace)
+    carried: list[dict[str, Any]] = []
+    removed: list[str] = []
+    binding_changed: list[str] = []
+    for sample_id, response in source_responses.items():
+        target = target_tasks.get(sample_id)
+        if target is None:
+            removed.append(sample_id)
+            continue
+        if (
+            response["primary_assignment_id"] != target["primary_assignment_id"]
+            or response["card_sha256"] != target["card_sha256"]
+        ):
+            binding_changed.append(sample_id)
+            continue
+        carried.append(response)
+    carried.sort(key=lambda row: str(row["sample_id"]))
+    carried_ids = {str(row["sample_id"]) for row in carried}
+    missing_target = sorted(set(target_tasks) - carried_ids)
+    payload = jsonl_bytes(carried)
+    report = _seal(
+        {
+            "schema_version": SCHEMA_VERSION,
+            "record_type": CARRY_REPORT_TYPE,
+            "complete": not missing_target,
+            "counts": {
+                "source_tasks": len(source_tasks),
+                "source_responses": len(source_responses),
+                "target_tasks": len(target_tasks),
+                "carried": len(carried),
+                "removed": len(removed),
+                "binding_changed": len(binding_changed),
+                "target_missing": len(missing_target),
+            },
+            "removed_sample_ids": sorted(removed),
+            "binding_changed_sample_ids": sorted(binding_changed),
+            "target_missing_sample_ids": missing_target,
+            "hashes": {
+                "source_tasks_sha256": sha256_file(source_workspace / "tasks.jsonl"),
+                "target_tasks_sha256": sha256_file(target_workspace / "tasks.jsonl"),
+                "carried_responses_sha256": sha256_bytes(payload),
+            },
+        }
+    )
+    _atomic_write(output, payload)
+    _atomic_write(report_output, json_bytes(report, pretty=True))
+    return report
+
+
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -730,6 +807,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     apply.add_argument("--inventory", type=Path, required=True)
     apply.add_argument("--master", type=Path, required=True)
     apply.add_argument("--output-dir", type=Path, required=True)
+    carry = subparsers.add_parser("carry")
+    carry.add_argument("--source-workspace", type=Path, required=True)
+    carry.add_argument("--target-workspace", type=Path, required=True)
+    carry.add_argument("--responses", type=Path, action="append", required=True)
+    carry.add_argument("--output", type=Path, required=True)
+    carry.add_argument("--report-output", type=Path, required=True)
     return parser.parse_args(argv)
 
 
@@ -755,13 +838,21 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             if args.output:
                 _atomic_write(args.output.resolve(), json_bytes(report, pretty=True))
-        else:
+        elif args.command == "apply":
             report = apply_orientation_decisions(
                 workspace=args.workspace.resolve(),
                 response_paths=[path.resolve() for path in args.responses],
                 inventory_path=args.inventory.resolve(),
                 master_path=args.master.resolve(),
                 output_dir=args.output_dir.resolve(),
+            )
+        else:
+            report = carry_responses(
+                source_workspace=args.source_workspace.resolve(),
+                target_workspace=args.target_workspace.resolve(),
+                response_paths=[path.resolve() for path in args.responses],
+                output=args.output.resolve(),
+                report_output=args.report_output.resolve(),
             )
     except OrientationAuditError as error:
         print(f"error: {error}")
