@@ -51,6 +51,7 @@ const { prepareRuntimeAssets } = require("../scripts/prepare-runtime.cjs") as {
   prepareRuntimeAssets: (options: {
     root: string;
     outputDir: string;
+    runtimeModulesOnly?: boolean;
   }) => string;
 };
 const electronBuilderConfig: unknown = require("../electron-builder.config.cjs");
@@ -75,11 +76,15 @@ describe("Windows installer clean uninstall option", () => {
       ],
       files: expect.arrayContaining([
         "!dist{,/**/*}",
+        "!artifacts{,/**/*}",
+        "!datasets{,/**/*}",
+        "!coverage{,/**/*}",
         "!ocr-runtime{,/**/*}",
         "!hf-cache{,/**/*}",
         "!llama.cpp{,/**/*}",
         "!runtime{,/**/*}",
         "!tmp{,/**/*}",
+        "!.tmp-*{,/**/*}",
         "!fonts{,/**/*}",
         "!panel-window-bounds.json",
         "!recent-dialog-paths.json",
@@ -91,6 +96,10 @@ describe("Windows installer clean uninstall option", () => {
         "!node_modules/@protobufjs{,/**/*}",
       ]),
       extraResources: expect.arrayContaining([
+        {
+          from: "out/app-runtime",
+          to: "app-runtime",
+        },
         {
           from: "node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs",
           to: "app-runtime/onnxruntime-web/1.27.0/ort-wasm-simd-threaded.mjs",
@@ -150,6 +159,25 @@ describe("Windows installer clean uninstall option", () => {
       expect(packageJson.dependencies).toHaveProperty(runtimePackage);
     }
     expect(packageJson.dependencies["onnxruntime-web"]).toBe("1.27.0");
+  });
+
+  it("budgets the sealed font runtime without allowing training data into the package", () => {
+    const packagedRuntimeVerifier = readFileSync(
+      join(repoRoot, "scripts", "verify-packaged-runtime.cjs"),
+      "utf8",
+    );
+
+    expect(packagedRuntimeVerifier).toContain(
+      "const MAX_PACKAGED_BYTES = 1280 * 1024 * 1024;",
+    );
+    expect((electronBuilderConfig as { files: string[] }).files).toEqual(
+      expect.arrayContaining([
+        "!artifacts{,/**/*}",
+        "!datasets{,/**/*}",
+        "!coverage{,/**/*}",
+        "!.tmp-*{,/**/*}",
+      ]),
+    );
   });
 
   it("refuses mismatched release metadata and publishes notes with the policy link", () => {
@@ -360,7 +388,19 @@ describe("Windows installer clean uninstall option", () => {
       prepareRuntimeAssets({
         root: temporaryRoot,
         outputDir: join(appOutDir, "resources", "app-runtime"),
+        runtimeModulesOnly: true,
       });
+      const fontMatchingDir = join(
+        appOutDir,
+        "resources",
+        "app-runtime",
+        "font-matching",
+      );
+      mkdirSync(fontMatchingDir, { recursive: true });
+      writeFileSync(
+        join(fontMatchingDir, "selection-calibration.json"),
+        "fixture",
+      );
       writeFileSync(join(appOutDir, WINDOWS_EXECUTABLE_FILENAME), "executable");
 
       expect(

@@ -76,6 +76,13 @@ V4_PROBE_PROFILE = "v4"
 PROBE_PROFILES = (LEGACY_PROBE_PROFILE, V4_PROBE_PROFILE)
 V4_SOURCE_SEAL_SCHEMA_VERSION = "font-matching-review-source-seal-v4"
 V4_SOURCE_SEAL_RECORD_TYPE = "font_matching_review_source_seal"
+CALIBRATION_ONLY_SOURCE_SEAL_SCHEMA_VERSION = (
+    "font-matching-review-source-seal-v5-calibration-only"
+)
+CALIBRATION_ONLY_SOURCE_SEAL_RECORD_TYPE = (
+    "font_matching_calibration_only_source_seal"
+)
+CALIBRATION_ONLY_TRAINING_DISPOSITION = "permanent_quarantine_closure"
 V4_CARD_HEIGHT = 5840
 V4_CANDIDATE_COUNT = 7
 V4_CANONICAL_PROBE_ID = "dialogue-body"
@@ -362,7 +369,7 @@ def _load_v4_source_seals(
     if path is None:
         return {}
     manifest = read_json(path, "v4 source seal manifest")
-    expected_keys = {
+    legacy_expected_keys = {
         "development_only",
         "inputs",
         "record_sha256",
@@ -370,21 +377,51 @@ def _load_v4_source_seals(
         "samples",
         "schema_version",
     }
+    calibration_only_expected_keys = legacy_expected_keys | {
+        "baseline_label_fields_present",
+        "candidate_score_or_rank_fields_present",
+        "training_disposition",
+    }
+    is_legacy = (
+        manifest.get("schema_version") == V4_SOURCE_SEAL_SCHEMA_VERSION
+        and manifest.get("record_type") == V4_SOURCE_SEAL_RECORD_TYPE
+    )
+    is_calibration_only = (
+        manifest.get("schema_version")
+        == CALIBRATION_ONLY_SOURCE_SEAL_SCHEMA_VERSION
+        and manifest.get("record_type")
+        == CALIBRATION_ONLY_SOURCE_SEAL_RECORD_TYPE
+    )
+    expected_keys = (
+        calibration_only_expected_keys if is_calibration_only else legacy_expected_keys
+    )
     if set(manifest) != expected_keys:
         raise ReviewCardError("v4 source seal manifest: unexpected fields")
     if (
-        manifest.get("schema_version") != V4_SOURCE_SEAL_SCHEMA_VERSION
-        or manifest.get("record_type") != V4_SOURCE_SEAL_RECORD_TYPE
+        not (is_legacy or is_calibration_only)
         or manifest.get("development_only") is not True
     ):
         raise ReviewCardError("v4 source seal manifest: unsupported contract")
+    if is_calibration_only and (
+        manifest.get("baseline_label_fields_present") is not False
+        or manifest.get("candidate_score_or_rank_fields_present") is not False
+        or manifest.get("training_disposition")
+        != CALIBRATION_ONLY_TRAINING_DISPOSITION
+    ):
+        raise ReviewCardError(
+            "calibration-only source seal may contain no baseline/candidate answers "
+            "and must be permanently quarantined"
+        )
     _validate_record_seal(manifest, "v4 source seal manifest")
     inputs = require_mapping(manifest.get("inputs"), "v4 source seal manifest.inputs")
-    if set(inputs) != {
+    expected_input_keys = {
         "inventory_sha256",
         "master_manifest_sha256",
         "rubric_sha256",
-    }:
+    }
+    if is_calibration_only:
+        expected_input_keys.add("fresh_source_observations_sha256")
+    if set(inputs) != expected_input_keys:
         raise ReviewCardError("v4 source seal manifest.inputs: unexpected fields")
     sealed_inventory_sha = require_sha(
         inputs.get("inventory_sha256"),
@@ -397,6 +434,11 @@ def _load_v4_source_seals(
     require_sha(
         inputs.get("rubric_sha256"), "v4 source seal manifest.inputs.rubric_sha256"
     )
+    if is_calibration_only:
+        require_sha(
+            inputs.get("fresh_source_observations_sha256"),
+            "v4 source seal manifest.inputs.fresh_source_observations_sha256",
+        )
     if sealed_inventory_sha != inventory_sha256:
         raise ReviewCardError("v4 source seal inventory binding is stale")
     if sealed_master_sha != master_manifest_sha256:
@@ -409,8 +451,13 @@ def _load_v4_source_seals(
     for index, value in enumerate(samples, 1):
         location = f"v4 source seal manifest.samples[{index}]"
         row = dict(require_mapping(value, location))
+        authority_key = (
+            "fresh_source_observation_record_sha256"
+            if is_calibration_only
+            else "prior_final_record_sha256"
+        )
         if set(row) != {
-            "prior_final_record_sha256",
+            authority_key,
             "record_sha256",
             "sample_id",
             "sealed_role",
@@ -437,9 +484,14 @@ def _load_v4_source_seals(
                 raise ReviewCardError(f"{location}.treatment.{field} must be a boolean")
             treatment[field] = enabled
         output[sample_id] = {
-            "prior_final_record_sha256": require_sha(
-                row.get("prior_final_record_sha256"),
-                f"{location}.prior_final_record_sha256",
+            "source_authority_record_sha256": require_sha(
+                row.get(authority_key),
+                f"{location}.{authority_key}",
+            ),
+            "source_authority": (
+                "fresh_calibration_source_observation"
+                if is_calibration_only
+                else "prior_final_record"
             ),
             "record_sha256": require_sha(
                 row.get("record_sha256"), f"{location}.record_sha256"

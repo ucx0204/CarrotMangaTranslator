@@ -73,14 +73,14 @@ role 또는 hard-family confidence가 0.75 미만이면 억지 확정하지 않�
 
 6축은 0–4, 0.5 단위로 기록한다. 보이지 않는 축은 `unknown`이며 0으로 대체하지 않는다.
 
-| 축 | 0 | 4 |
-|---|---|---|
-| weight | hairline | ultra-black |
-| width | 매우 협폭 | 매우 확장 |
-| roundness | 직선·각 중심 | 곡선·둥근 접합 중심 |
-| handwritten | 기계적 인쇄 | 명백한 손글씨 |
-| angularity | 유순한 곡선 | 날카로운 각·대각선 |
-| energy | 정적인 본문 | 강한 display·충격 |
+| 축          | 0            | 4                   |
+| ----------- | ------------ | ------------------- |
+| weight      | hairline     | ultra-black         |
+| width       | 매우 협폭    | 매우 확장           |
+| roundness   | 직선·각 중심 | 곡선·둥근 접합 중심 |
+| handwritten | 기계적 인쇄  | 명백한 손글씨       |
+| angularity  | 유순한 곡선  | 날카로운 각·대각선  |
+| energy      | 정적인 본문  | 강한 display·충격   |
 
 family gate는 `serif_printed`, `sans_printed`, `handwritten`, `display`,
 `mixed_or_unknown` 중 하나다. 각 sample은 목소리를 결정하는 hard axis를 최대 3개
@@ -94,15 +94,15 @@ outline, shadow, inverse fill, texture, distortion, rotation은 treatment다. ou
 
 이 표는 font metadata나 identity가 아니라 동일 blind render의 운용상 관찰값이다.
 
-| alias | weight | width | round | hand | angular | energy | 핵심 |
-|---|---:|---:|---:|---:|---:|---:|---|
-| `ko-candidate-2a5d12c7e8f32c30` | 1.5 | 2.0 | 1.5 | 3.0 | 3.0 | 2.5 | 가볍고 거친 각형 hand |
-| `ko-candidate-a0144e95710224a2` | 3.5 | 2.0 | 1.0 | 0.0 | 3.0 | 3.5 | 굵고 정방형인 mechanical display |
-| `ko-candidate-9ee53bb2477d92a2` | 1.5 | 2.0 | 3.0 | 2.5 | 1.5 | 1.5 | 가늘고 둥근 casual hand |
-| `ko-candidate-e7b4692fa6ce4ebc` | 4.0 | 1.5 | 0.5 | 0.0 | 4.0 | 4.0 | 초굵고 압축된 각형 display |
-| `ko-candidate-cd8774e1d647c522` | 2.0 | 1.5 | 1.5 | 0.0 | 2.0 | 1.0 | 협폭·절제된 printed sans |
-| `ko-candidate-f11ed4e82c1eacf1` | 0.5 | 2.5 | 2.5 | 4.0 | 2.0 | 2.0 | 초세필의 유기적 hand |
-| `ko-candidate-4cc309d56243eb25` | 2.5 | 2.0 | 2.0 | 0.0 | 1.5 | 1.5 | 중굵고 안정적인 printed sans |
+| alias                           | weight | width | round | hand | angular | energy | 핵심                             |
+| ------------------------------- | -----: | ----: | ----: | ---: | ------: | -----: | -------------------------------- |
+| `ko-candidate-2a5d12c7e8f32c30` |    1.5 |   2.0 |   1.5 |  3.0 |     3.0 |    2.5 | 가볍고 거친 각형 hand            |
+| `ko-candidate-a0144e95710224a2` |    3.5 |   2.0 |   1.0 |  0.0 |     3.0 |    3.5 | 굵고 정방형인 mechanical display |
+| `ko-candidate-9ee53bb2477d92a2` |    1.5 |   2.0 |   3.0 |  2.5 |     1.5 |    1.5 | 가늘고 둥근 casual hand          |
+| `ko-candidate-e7b4692fa6ce4ebc` |    4.0 |   1.5 |   0.5 |  0.0 |     4.0 |    4.0 | 초굵고 압축된 각형 display       |
+| `ko-candidate-cd8774e1d647c522` |    2.0 |   1.5 |   1.5 |  0.0 |     2.0 |    1.0 | 협폭·절제된 printed sans         |
+| `ko-candidate-f11ed4e82c1eacf1` |    0.5 |   2.5 |   2.5 |  4.0 |     2.0 |    2.0 | 초세필의 유기적 hand             |
+| `ko-candidate-4cc309d56243eb25` |    2.5 |   2.0 |   2.0 |  0.0 |     1.5 |    1.5 | 중굵고 안정적인 printed sans     |
 
 7개 중 안정적인 serif/Mincho prototype은 없다. source가 명확한 serif라면 가장 덜
 나쁜 sans를 자동 승격하지 않는다.
@@ -112,17 +112,17 @@ outline, shadow, inverse fill, texture, distortion, rotation은 treatment다. ou
 `D = Σ w(role, axis) × |source - candidate| / 4`로 계산한다. unknown 축은 제외하고
 나머지 weight를 합 1로 다시 정규화한다. critical axis가 unknown이면 low-confidence다.
 
-| role group | weight | width | round | hand | angular | energy |
-|---|---:|---:|---:|---:|---:|---:|
-| dialogue/narration/thought | .20 | .20 | .15 | .20 | .10 | .15 |
-| aside/whisper | .10 | .10 | .15 | .30 | .15 | .20 |
-| emphasis/shout | .25 | .10 | .10 | .10 | .20 | .25 |
-| impact | .25 | .10 | .05 | .10 | .25 | .25 |
-| motion | .10 | .15 | .10 | .25 | .20 | .20 |
-| ambient | .15 | .15 | .20 | .20 | .10 | .20 |
-| emotion | .10 | .10 | .20 | .30 | .10 | .20 |
-| comic | .20 | .10 | .20 | .15 | .10 | .25 |
-| sign/UI/title | .20 | .20 | .15 | .05 | .20 | .20 |
+| role group                 | weight | width | round | hand | angular | energy |
+| -------------------------- | -----: | ----: | ----: | ---: | ------: | -----: |
+| dialogue/narration/thought |    .20 |   .20 |   .15 |  .20 |     .10 |    .15 |
+| aside/whisper              |    .10 |   .10 |   .15 |  .30 |     .15 |    .20 |
+| emphasis/shout             |    .25 |   .10 |   .10 |  .10 |     .20 |    .25 |
+| impact                     |    .25 |   .10 |   .05 |  .10 |     .25 |    .25 |
+| motion                     |    .10 |   .15 |   .10 |  .25 |     .20 |    .20 |
+| ambient                    |    .15 |   .15 |   .20 |  .20 |     .10 |    .20 |
+| emotion                    |    .10 |   .10 |   .20 |  .30 |     .10 |    .20 |
+| comic                      |    .20 |   .10 |   .20 |  .15 |     .10 |    .25 |
+| sign/UI/title              |    .20 |   .20 |   .15 |  .05 |     .20 |    .20 |
 
 명조↔고딕, printed↔handwritten, weight 2 bin 이상, quiet body↔aggressive display,
 극단 width·regularity 역전은 hard veto다. treatment, 장르, chapter anchor가 hard veto를

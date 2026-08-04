@@ -83,7 +83,7 @@ export function rankedEligibleCandidates(
   return [...state.candidates.keys()]
     .map((fontId) => evaluateCandidate(state, fontId))
     .filter(isEligibleScoredCandidate)
-    .sort(compareCandidateScores);
+    .sort((left, right) => compareCandidateScores(state, left, right));
 }
 
 export function firstEligibleCandidate(
@@ -259,9 +259,16 @@ function isEligibleScoredCandidate(candidate: CandidateEvaluation): boolean {
 }
 
 function compareCandidateScores(
+  state: DecisionState,
   left: CandidateEvaluation,
   right: CandidateEvaluation,
 ): number {
+  if (state.input.localEvidence.supervisedSelectionAccepted === true) {
+    const confidenceOrder =
+      (right.calibratedCandidateConfidence ?? Number.NEGATIVE_INFINITY) -
+      (left.calibratedCandidateConfidence ?? Number.NEGATIVE_INFINITY);
+    if (confidenceOrder !== 0) return confidenceOrder;
+  }
   return (
     (right.effectiveScore ?? Number.NEGATIVE_INFINITY) -
       (left.effectiveScore ?? Number.NEGATIVE_INFINITY) ||

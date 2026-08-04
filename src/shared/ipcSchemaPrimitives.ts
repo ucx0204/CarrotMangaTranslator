@@ -283,6 +283,31 @@ export const BubbleLayoutSchema = z
     }
   });
 
+const AutomaticFontMatchRecordSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    selectedFontId: z.string().min(1).max(120),
+    role: z.enum(FONT_MATCHING_SEMANTIC_ROLES),
+    confidence: finiteNumber.min(0).max(1),
+    source: z.enum([
+      "episode_consistency",
+      "local_visual",
+      "work_profile",
+      "user_lock",
+    ]),
+    previousStyle: z
+      .object({
+        fontFamily: z.string().max(120).nullable(),
+        bold: z.boolean().nullable(),
+        italic: z.boolean().nullable(),
+        outlineWidthScale: finiteNumber.min(0).max(8).nullable(),
+        textColor: hexColor.optional(),
+        outlineColor: hexColor.nullable().optional(),
+      })
+      .strict(),
+  })
+  .strict();
+
 export const TranslationBlockSchema = z
   .object({
     id: z.string().min(1).max(200),
@@ -305,6 +330,7 @@ export const TranslationBlockSchema = z
     perspectiveTransform: PerspectiveTransformSchema.optional(),
     curveLayout: CurveLayoutSchema.optional(),
     fontFamily: z.string().max(120).optional(),
+    automaticFontMatch: AutomaticFontMatchRecordSchema.optional(),
     fontSizePx: finiteNumber.min(1).max(512),
     lineHeight: finiteNumber.min(0.5).max(4),
     letterSpacing: finiteNumber.min(-0.5).max(2).optional(),

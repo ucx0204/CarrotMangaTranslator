@@ -4,6 +4,11 @@ import type {
   TranslationBlock,
 } from "../../../shared/textTypes";
 import {
+  resolveEffectiveTextColor,
+  resolveEffectiveTextOutlineColor,
+  resolveEffectiveTextOutlineWidthPx,
+} from "../../../shared/textOutline";
+import {
   resolveBlockTextWordBreak,
   type TextWordBreak,
 } from "../../../shared/textWrapping";
@@ -18,7 +23,7 @@ export function resolveOverlayTextWrapStyle(
 ): React.CSSProperties {
   return {
     bottom: "auto",
-    color: block.textColor,
+    color: resolveEffectiveTextColor(block),
     fontFamily: resolveBlockFontFamily(block.fontFamily, fontCatalog),
     fontSize: `${layout.fontSizePx}px`,
     height: `${layout.layoutHeight}px`,
@@ -129,20 +134,7 @@ export function resolveBlockTextOutlinePx(
   block: TranslationBlock,
   fontSizePx: number,
 ): number {
-  const scale = block.outlineWidthScale ?? 1;
-  if (scale <= 0) return 0;
-  return (
-    (Math.round(Math.min(4, Math.max(0.35, fontSizePx * 0.055)) * 10) / 10) *
-    scale
-  );
-}
-
-export function resolveCssColor(
-  value: string | undefined,
-  fallback: string,
-): string {
-  const text = String(value ?? "").trim();
-  return /^#[0-9a-f]{6}$/i.test(text) ? text : fallback;
+  return resolveEffectiveTextOutlineWidthPx(block, fontSizePx);
 }
 
 function resolveBlockTextOutlineShadow(
@@ -153,7 +145,7 @@ function resolveBlockTextOutlineShadow(
   if (radius <= 0) return "none";
   return resolveTextOutlineShadow(
     radius,
-    resolveCssColor(block.outlineColor, "#ffffff"),
+    resolveEffectiveTextOutlineColor(block),
   );
 }
 

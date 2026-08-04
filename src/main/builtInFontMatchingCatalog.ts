@@ -1,6 +1,9 @@
 import { readFileSync, readdirSync, statSync, type Stats } from "node:fs";
 import { basename, extname, join, resolve } from "node:path";
-import { BUILT_IN_BLOCK_FONTS } from "../shared/blockFontCatalog";
+import {
+  BUILT_IN_BLOCK_FONTS,
+  isRetiredBuiltInBlockFontId,
+} from "../shared/blockFontCatalog";
 import type { AutomaticFontCandidate } from "../shared/fontMatchingTypes";
 import type { UiLocale } from "../shared/uiLocales";
 import {
@@ -52,7 +55,6 @@ const BUILT_IN_FONT_ASSETS = [
   },
   { id: "black-han-sans", relativePath: "ko/black-han-sans.ttf" },
   { id: "gasoek-one", relativePath: "ko/gasoek-one.ttf" },
-  { id: "gugi", relativePath: "ko/gugi.ttf" },
   { id: "kirang-haerang", relativePath: "ko/kirang-haerang.ttf" },
   {
     id: "nanum-brush-script",
@@ -133,7 +135,7 @@ const productionDependencies: Omit<
   BuiltInFontMatchingCatalogDependencies,
   "reportWarning"
 > = {
-  assetRoots: resolveProductionAssetRoots(),
+  assetRoots: resolveBuiltInFontMatchingAssetRoots(),
   inspectFontBuffer: inspectCustomFontBuffer,
   readDirectory: (path) => readdirSync(path),
   readFontFile: (path) => readFileSync(path),
@@ -156,7 +158,7 @@ export function loadBuiltInFontMatchingCandidatesWith(
 ): AutomaticFontCandidate[] {
   const directoryEntries = new Map<string, readonly string[] | null>();
   const definitions = BUILT_IN_BLOCK_FONTS.filter(
-    (font) => font.locale === locale,
+    (font) => font.locale === locale && !isRetiredBuiltInBlockFontId(font.id),
   );
   const candidates: AutomaticFontCandidate[] = [];
 
@@ -322,7 +324,7 @@ function isHashedAssetName(sourceName: string, candidateName: string): boolean {
   return expression.test(candidateName);
 }
 
-function resolveProductionAssetRoots(): string[] {
+export function resolveBuiltInFontMatchingAssetRoots(): string[] {
   const roots = [
     resolve(__dirname, "../renderer/src/assets/fonts"),
     resolve(__dirname, "../../src/renderer/src/assets/fonts"),

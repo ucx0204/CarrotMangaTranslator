@@ -8,6 +8,10 @@ ocr-runtime
 data
 .tmp
 coverage
+artifacts
+datasets
+.tmp-*
+.pytest_cache
 *.log
 *.zip
 *.7z

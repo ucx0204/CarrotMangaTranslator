@@ -19,8 +19,8 @@ import {
 } from "node:path";
 import { randomUUID } from "node:crypto";
 import {
-  BUILT_IN_BLOCK_FONTS,
   DEFAULT_BLOCK_FONT_ID,
+  getPrioritizedBuiltInBlockFonts,
 } from "../shared/blockFontCatalog";
 import type {
   CustomFont,
@@ -217,7 +217,7 @@ function saveIndex(
 function knownFontIds(customFonts: readonly CustomFont[]): Set<string> {
   return new Set([
     DEFAULT_BLOCK_FONT_ID,
-    ...BUILT_IN_BLOCK_FONTS.map((font) => font.id),
+    ...getPrioritizedBuiltInBlockFonts("ko").map((font) => font.id),
     ...customFonts.map((font) => font.id),
   ]);
 }

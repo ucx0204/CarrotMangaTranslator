@@ -389,8 +389,7 @@ function buildReport(manifest, manifestSha256) {
               code: "PRODUCTION_FONT_REJECTED_BY_CHROMIUM_OTS",
               severity: "error",
               count: unrenderableFaces.length,
-              detail:
-                `The original production assets are omitted, not silently normalized: Chromium reports \`OTS parsing error: TSI3: zero-length table\`. Replace or explicitly exclude these exact source faces before a ${manifest.face_count}-face bank can be complete.`,
+              detail: `The original production assets are omitted, not silently normalized: Chromium reports \`OTS parsing error: TSI3: zero-length table\`. Replace or explicitly exclude these exact source faces before a ${manifest.face_count}-face bank can be complete.`,
             },
           ]
         : []),

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { isGeneratedBubbleLayout } from "../../shared/bubbleLayout";
 import type { BubbleLayoutPolicy } from "../../shared/inpaintingTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
+import { resolveEffectiveTextOutlineWidthPx } from "../../shared/textOutline";
 import type { BBox, TranslationBlock } from "../../shared/textTypes";
 import type { BubbleLayoutBlockPatch } from "../inpainting/bubbleLayoutRunnerPatches";
 import { associateComicDetections } from "./association";
@@ -99,7 +100,7 @@ function processBlock(
     imageWidth: options.imageWidth,
     imageHeight: options.imageHeight,
     policy: options.policy,
-    outlineWidthPx: resolveOutlineWidthPx(block),
+    outlineWidthPx: resolveBubbleLayoutOutlineWidthPx(block),
     repairOriginalTextInk: options.repairOriginalTextInk,
   });
   if (fragmentRepair === null) {
@@ -167,7 +168,7 @@ function refineCandidateRegions(
   candidate: BlockBubbleCandidate,
   options: Parameters<typeof processDetectedBubbleLayouts>[0],
 ): ScoredRegion[] {
-  const outlineWidthPx = resolveOutlineWidthPx(block);
+  const outlineWidthPx = resolveBubbleLayoutOutlineWidthPx(block);
   const refined = refineBubbleSafeMask({
     bitmap: options.bitmap,
     imageWidth: options.imageWidth,
@@ -297,14 +298,10 @@ function blockBboxToPixels(
   };
 }
 
-function resolveOutlineWidthPx(block: TranslationBlock): number {
-  const scale = block.outlineWidthScale ?? 1;
-  if (scale <= 0) return 0;
-  return (
-    (Math.round(Math.min(4, Math.max(0.35, block.fontSizePx * 0.055)) * 10) /
-      10) *
-    scale
-  );
+export function resolveBubbleLayoutOutlineWidthPx(
+  block: TranslationBlock,
+): number {
+  return resolveEffectiveTextOutlineWidthPx(block, block.fontSizePx);
 }
 
 function deduplicateRegions(regions: ScoredRegion[]): ScoredRegion[] {

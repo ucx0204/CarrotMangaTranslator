@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   processDetectedBubbleLayouts,
+  resolveBubbleLayoutOutlineWidthPx,
   resolveBubbleLayoutBlockRevision,
 } from "../src/main/bubbleLayout/bubbleLayoutPageProcessor";
 import { isUsableAutomaticBubbleRegionSet } from "../src/main/bubbleLayout/bubbleFragmentRepair";
@@ -13,11 +14,43 @@ import type {
   ComicPageDetection,
 } from "../src/main/bubbleLayout/contracts";
 import type { TranslationBlock } from "../src/shared/textTypes";
+import { resolveBlockTextOutlinePx } from "../src/renderer/src/components/overlayTextStyles";
 
 const WIDTH = 120;
 const HEIGHT = 80;
 
 describe("bubble layout page processor", () => {
+  it("budgets the same visible outline as rendering for a legacy automatic scale zero", () => {
+    const block: TranslationBlock = {
+      ...createPage().blocks[0],
+      outlineWidthScale: 0,
+      automaticFontMatch: {
+        schemaVersion: 1,
+        selectedFontId: "dohyeon",
+        role: "dialogue",
+        confidence: 0.9,
+        source: "local_visual",
+        previousStyle: {
+          fontFamily: null,
+          bold: null,
+          italic: null,
+          outlineWidthScale: 0,
+        },
+      },
+    };
+
+    expect(resolveBubbleLayoutOutlineWidthPx(block)).toBe(
+      resolveBlockTextOutlinePx(block, block.fontSizePx),
+    );
+    expect(resolveBubbleLayoutOutlineWidthPx(block)).toBe(0.5);
+    expect(
+      resolveBubbleLayoutOutlineWidthPx({
+        ...block,
+        automaticFontMatch: undefined,
+      }),
+    ).toBe(0);
+  });
+
   it("creates two shape regions without ever patching the OCR bbox", () => {
     const bitmap = createBitmap(25);
     paintCircle(bitmap, 32, 40, 24, 245);

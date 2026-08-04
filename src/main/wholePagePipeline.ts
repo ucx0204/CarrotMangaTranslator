@@ -27,6 +27,7 @@ import {
   type WholePagePipelineDependencies,
 } from "./pipeline/wholePagePipelinePorts";
 import { configureWholePageOutputOptions } from "./pipeline/wholePageOutputOptions";
+import { createAutomaticFontChapterCoordinatorV2 } from "./pipeline/automaticFontMatchingV2PageCoordinator";
 
 export async function runWholePagePipeline(
   options: PipelineOptions,
@@ -314,6 +315,7 @@ async function startWholePageEndpoint({
   });
 }
 
+// eslint-disable-next-line max-lines-per-function -- page sequencing owns one shared endpoint session
 async function translatePages({
   endpoint,
   filtered,
@@ -351,6 +353,9 @@ async function translatePages({
   canonicalPageIndexById?: PipelineOptions["canonicalPageIndexById"];
   dependencies: WholePagePipelineDependencies;
 }): Promise<void> {
+  const fontMatchingChapterCoordinator = run.baseOptions.autoFontMatching
+    ? createAutomaticFontChapterCoordinatorV2()
+    : undefined;
   for (const page of filtered.pagesToTranslate) {
     const progressPageIndex = filtered.pageIndexById.get(page.id) ?? 0;
     const pageIndex = canonicalPageIndexById?.get(page.id) ?? progressPageIndex;
@@ -377,6 +382,8 @@ async function translatePages({
       regionContext,
       collectPageContext,
       diagnostics: dependencies.diagnostics,
+      fontMatchingPageInference: dependencies.fontMatching.pageInference,
+      fontMatchingChapterCoordinator,
     });
     if (writeStoryMemory && translated.approved) {
       await persistPageContextAfterSuccess(

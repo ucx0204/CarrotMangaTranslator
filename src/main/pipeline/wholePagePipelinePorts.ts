@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import type { AppSettings } from "../../shared/settingsTypes";
 import { getAppPaths, type AppPaths } from "../appPaths";
 import {
@@ -13,9 +14,19 @@ import type { PipelineDiagnostics } from "./translationAttemptLogging";
 import type { TranslationRuntimePort } from "./translationRuntimePort";
 import type { AutomaticFontCandidate } from "../../shared/fontMatchingTypes";
 import type { WorkTypographyProfileV2 } from "../../shared/fontMatchingProfileTypes";
-import { resolveUiLocale } from "../../shared/uiLocales";
-import { loadBuiltInFontMatchingCandidates } from "../builtInFontMatchingCatalog";
-import { loadCustomFontMatchingCandidates } from "../customFontMatchingCatalog";
+import { resolveUiLocale, type UiLocale } from "../../shared/uiLocales";
+import {
+  loadBuiltInFontMatchingCandidates,
+  resolveBuiltInFontMatchingAssetRoots,
+} from "../builtInFontMatchingCatalog";
+import { loadAutoMatchActiveCandidateSelection } from "./autoMatchActiveCatalog";
+import type { AutoMatchActiveCandidateSelection } from "./autoMatchActiveCatalogTypes";
+import {
+  FONT_MATCHING_ACTIVE_CATALOG_FILE,
+  FONT_MATCHING_RUNTIME_BUNDLE_DIRECTORY,
+} from "./fontMatchingRuntimeArtifactContract";
+import { createDefaultFontMatchingPageInferencePort } from "./fontMatchingPagePixelInference";
+import type { FontMatchingPageInferencePort } from "./fontMatchingPagePixelInferenceTypes";
 
 type PipelineSettingsRepository = {
   getAppSettings: (paths: AppPaths) => Promise<AppSettings>;
@@ -29,6 +40,7 @@ export type WholePagePipelineDependencies = {
       targetLanguage?: string,
     ) => readonly AutomaticFontCandidate[];
     loadProfile?: (workId: string) => Promise<WorkTypographyProfileV2 | null>;
+    pageInference?: FontMatchingPageInferencePort;
   };
   pageContext: PageContextPersistenceRepository;
   diagnostics: PipelineDiagnostics;
@@ -46,19 +58,54 @@ export type FontMatchingOutputDependencies = Pick<
 >;
 
 export function createDefaultWholePagePipelineDependencies(): WholePagePipelineDependencies {
+  const paths = getAppPaths();
+  const selectionByLocale = new Map<
+    string,
+    AutoMatchActiveCandidateSelection
+  >();
+  const loadSelection = (
+    locale: UiLocale,
+  ): AutoMatchActiveCandidateSelection => {
+    if (locale !== "ko") {
+      throw new Error(
+        "The sealed font matching runtime catalog is Korean-only.",
+      );
+    }
+    const cached = selectionByLocale.get(locale);
+    if (cached) return cached;
+    const builtInCandidates = loadBuiltInFontMatchingCandidates(
+      locale,
+      logWarn,
+    );
+    const selection = loadAutoMatchActiveCandidateSelection({
+      activeCatalogPath: join(
+        paths.runtimeDir,
+        FONT_MATCHING_RUNTIME_BUNDLE_DIRECTORY,
+        FONT_MATCHING_ACTIVE_CATALOG_FILE,
+      ),
+      assetRoots: resolveBuiltInFontMatchingAssetRoots(),
+      builtInCandidates,
+      targetLocale: locale,
+    });
+    selectionByLocale.set(locale, selection);
+    return selection;
+  };
   return {
-    paths: getAppPaths(),
+    paths,
     settings: { getAppSettings },
     fontMatching: {
       loadCandidates: (targetLanguage) => {
         const locale = resolveUiLocale(targetLanguage);
         if (!locale) return [];
-        return [
-          ...loadBuiltInFontMatchingCandidates(locale, logWarn),
-          ...loadCustomFontMatchingCandidates(logWarn),
-        ];
+        if (locale !== "ko") return [];
+        return loadSelection(locale).candidates;
       },
       loadProfile: readWorkTypographyProfile,
+      pageInference: createDefaultFontMatchingPageInferencePort({
+        paths,
+        loadSelection,
+        reportWarning: logWarn,
+      }),
     },
     pageContext: { saveChapterStoryMemory, saveWorkStyleGuide },
     diagnostics: {

@@ -3,6 +3,9 @@ import {
   BUILT_IN_BLOCK_FONTS,
   DEFAULT_BLOCK_FONT_ID,
   DEFAULT_BLOCK_FONT_STACK,
+  getPrioritizedBuiltInBlockFonts,
+  isBuiltInBlockFontId,
+  isRetiredBuiltInBlockFontId,
 } from "../src/shared/blockFontCatalog";
 import type { UiLocale } from "../src/shared/uiLocales";
 import {
@@ -33,7 +36,6 @@ const EXPECTED_IDS_BY_LOCALE = {
     "black-and-white-picture",
     "black-han-sans",
     "gasoek-one",
-    "gugi",
     "kirang-haerang",
     "nanum-brush-script",
     "single-day",
@@ -91,7 +93,6 @@ const SFX_KOREAN_FONT_ADDITION_IDS = [
   "black-and-white-picture",
   "black-han-sans",
   "gasoek-one",
-  "gugi",
   "kirang-haerang",
   "nanum-brush-script",
   "single-day",
@@ -103,7 +104,7 @@ const ADDED_KOREAN_FONT_IDS = [
 
 describe("built-in block font catalog", () => {
   it("contains the expected stable kebab-case IDs for every locale", () => {
-    expect(BUILT_IN_BLOCK_FONTS).toHaveLength(46);
+    expect(BUILT_IN_BLOCK_FONTS).toHaveLength(45);
     const ids = BUILT_IN_BLOCK_FONTS.map((font) => font.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids.every((id) => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id))).toBe(true);
@@ -115,6 +116,15 @@ describe("built-in block font catalog", () => {
         ),
       ).toEqual(EXPECTED_IDS_BY_LOCALE[locale]);
     }
+  });
+
+  it("keeps retired Gugi migration support outside the production catalog", () => {
+    expect(BUILT_IN_BLOCK_FONTS.map((font) => font.id)).not.toContain("gugi");
+    expect(isRetiredBuiltInBlockFontId("gugi")).toBe(true);
+    expect(isBuiltInBlockFontId("gugi")).toBe(false);
+    expect(
+      getPrioritizedBuiltInBlockFonts("ko").some((font) => font.id === "gugi"),
+    ).toBe(false);
   });
 
   it.each(BASE_LOCALE_ORDER)(
@@ -138,10 +148,12 @@ describe("built-in block font catalog", () => {
       );
       expect(actualLocaleOrder).toEqual(expectedLocaleOrder);
 
+      const expectedIds = EXPECTED_IDS_BY_LOCALE[locale];
       const firstGroupIds = options
-        .slice(1, 1 + EXPECTED_IDS_BY_LOCALE[locale].length)
+        .slice(1, 1 + expectedIds.length)
         .map((option) => option.id);
-      expect(firstGroupIds).toEqual(EXPECTED_IDS_BY_LOCALE[locale]);
+      expect(firstGroupIds).toEqual(expectedIds);
+      expect(options.some((option) => option.id === "gugi")).toBe(false);
     },
   );
 
@@ -217,9 +229,7 @@ describe("built-in block font catalog", () => {
           DEFAULT_BLOCK_FONT_ID,
           ...BUILT_IN_BLOCK_FONTS.filter(
             (font) =>
-              !SFX_KOREAN_FONT_ADDITION_IDS.some(
-                (newId) => newId === font.id,
-              ),
+              !SFX_KOREAN_FONT_ADDITION_IDS.some((newId) => newId === font.id),
           ).map((font) => font.id),
           customId,
         ],
@@ -245,6 +255,9 @@ describe("built-in block font catalog", () => {
         normalizeBlockFontFamily(font.id, DEFAULT_BLOCK_FONT_CATALOG),
       ).toBe(font.id);
     }
+    expect(
+      normalizeBlockFontFamily("gugi", DEFAULT_BLOCK_FONT_CATALOG),
+    ).toBeUndefined();
 
     const customId = "7432f752-8615-4708-a3d6-57bbcb05bdda";
     const catalog = createBlockFontCatalog(
@@ -263,6 +276,26 @@ describe("built-in block font catalog", () => {
       normalizeBlockFontFamily(DEFAULT_BLOCK_FONT_ID, catalog),
     ).toBeUndefined();
     expect(normalizeBlockFontFamily("unknown-font", catalog)).toBeUndefined();
+  });
+
+  it("removes retired Gugi preferences and resolves legacy blocks through the default", () => {
+    const catalog = createBlockFontCatalog([], {
+      favoriteIds: ["gugi", "kalam"],
+      orderedIds: ["gugi", "kalam"],
+      defaultFontId: "gugi",
+    });
+
+    expect(catalog.preferences).toEqual({
+      favoriteIds: ["kalam"],
+      orderedIds: ["kalam"],
+      defaultFontId: DEFAULT_BLOCK_FONT_ID,
+    });
+    expect(
+      getBlockFontOptions(catalog).some((font) => font.id === "gugi"),
+    ).toBe(false);
+    expect(resolveBlockFontFamily("gugi", catalog)).toBe(
+      DEFAULT_BLOCK_FONT_STACK,
+    );
   });
 
   it("uses script-appropriate fallback stacks", () => {

@@ -1,25 +1,21 @@
-import {
-  bboxOverlapRatio,
-  bboxToPixels,
-  clamp,
-  normalizeBboxTo1000,
-} from "../../shared/geometry";
+import { bboxToPixels, clamp } from "../../shared/geometry";
 import type { TranslationBlock } from "../../shared/textTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
 import { applyNaturalTextLayout } from "../../shared/naturalTextLayout";
 import type { PreviousOverlayBlockForPrompt } from "../appSettings";
 import { tMain } from "./localization";
+import { buildPageWarnings } from "./overlayItems";
+import { resolveAutomaticFontDecisionV2 } from "./automaticFontMatchingV2";
+import { applyAutomaticFontDecisionV2 } from "./automaticFontMatchingV2Apply";
 import {
-  buildPageWarnings,
-  type OverlayAutomaticFontOptions,
-} from "./overlayItems";
-import {
-  applyAutomaticFontDecisionV2,
-  resolveAutomaticFontDecisionV2,
-} from "./automaticFontMatchingV2";
+  createAutomaticFontPageCoordinatorV2,
+  orderAutomaticFontMatchingPageItemIndexes,
+} from "./automaticFontMatchingV2PageCoordinator";
+import { resolveVerifiedPixelInferenceForBlockId } from "./automaticFontMatchingV2RuntimeGate";
+import { assignItemsToExistingBlocks } from "./keepBlocksAssignment";
+import type { KeepBlocksAutomaticFontOptions } from "./keepBlocksAutomaticFont";
+import type { VerifiedAutomaticFontPixelInferenceV2 } from "./fontMatchingPagePixelInferenceTypes";
 import type { OcrBboxResult, OverlayItem } from "./types";
-
-const FALLBACK_MATCH_MIN_OVERLAP = 0.3;
 
 export type KeepBlocksMappingResult = {
   blocks: TranslationBlock[];
@@ -91,7 +87,7 @@ export function buildKeepBlocksCompletedPage({
   previousBlocks: PreviousOverlayBlockForPrompt[];
   soundDroppedCount: number;
   naturalLayout?: KeepBlocksNaturalLayoutOptions;
-  automaticFont?: OverlayAutomaticFontOptions;
+  automaticFont?: KeepBlocksAutomaticFontOptions;
 }): { page: MangaPage; warnings: string[]; detail: string } {
   const mapping = applyOverlayItemsToExistingBlocks({
     page,
@@ -158,52 +154,128 @@ export function applyOverlayItemsToExistingBlocks({
   items: OverlayItem[];
   previousBlocks: PreviousOverlayBlockForPrompt[];
   naturalLayout?: KeepBlocksNaturalLayoutOptions;
-  automaticFont?: OverlayAutomaticFontOptions;
+  automaticFont?: KeepBlocksAutomaticFontOptions;
 }): KeepBlocksMappingResult {
-  const blockIndexByCandidateId = buildBlockIndexByCandidateId(
+  const itemByBlockIndex = assignItemsToExistingBlocks({
+    items,
     page,
     previousBlocks,
-  );
-  const itemByBlockIndex = new Map<number, OverlayItem>();
-  const unmatchedItems: OverlayItem[] = [];
+  });
   const textRoleByBlockId = new Map(
     previousBlocks.map((block) => [block.previousId, block.textRole] as const),
   );
-
-  for (const item of items) {
-    const blockIndex = blockIndexByCandidateId.get(item.id);
-    if (blockIndex !== undefined && !itemByBlockIndex.has(blockIndex)) {
-      itemByBlockIndex.set(blockIndex, item);
-    } else {
-      unmatchedItems.push(item);
-    }
-  }
-  matchRemainingItemsByOverlap(page, unmatchedItems, itemByBlockIndex);
-  const blocks = page.blocks.map((block, index) => {
-    const item = itemByBlockIndex.get(index);
+  const assignments = [...itemByBlockIndex.entries()]
+    .map(([blockIndex, indexed]) => ({ blockIndex, ...indexed }))
+    .sort((left, right) => left.itemIndex - right.itemIndex);
+  const verifiedPixelInferences = collectVerifiedKeepBlocksPixelInferences({
+    assignments,
+    automaticFont,
+    page,
+  });
+  const pageAutomaticFont = resolveKeepBlocksPageAutomaticFont({
+    automaticFont,
+    items: assignments.map(({ item }) => item),
+    verifiedPixelInferences,
+  });
+  const processingOrder = automaticFont?.enabled
+    ? orderAutomaticFontMatchingPageItemIndexes(
+        assignments.map(({ item }) => item),
+        verifiedPixelInferences,
+      )
+    : assignments.map((_assignment, index) => index);
+  const blocks = [...page.blocks];
+  for (const assignmentIndex of processingOrder) {
+    const { blockIndex, item } = assignments[assignmentIndex];
+    const block = page.blocks[blockIndex];
+    if (!block) continue;
     const previousTextRole = block.textRole ?? textRoleByBlockId.get(block.id);
     const effectiveTextRole =
-      normalizePersistentTextRole(item?.textRole) ??
+      normalizePersistentTextRole(item.textRole) ??
       normalizePersistentTextRole(previousTextRole);
-    return item
-      ? applyOverlayItemToExistingBlock({
-          automaticFont,
-          block,
-          item,
-          naturalLayout,
-          page,
-          effectiveTextRole,
-          skipNaturalLayout:
-            Boolean(block.curveLayout) || effectiveTextRole === "sound",
-        })
-      : block;
-  });
+    blocks[blockIndex] = applyOverlayItemToExistingBlock({
+      automaticFont: pageAutomaticFont,
+      block,
+      item,
+      naturalLayout,
+      page,
+      effectiveTextRole,
+      skipNaturalLayout:
+        Boolean(block.curveLayout) || effectiveTextRole === "sound",
+    });
+  }
 
   return {
     blocks,
     updatedCount: itemByBlockIndex.size,
     keptCount: page.blocks.length - itemByBlockIndex.size,
     droppedItemCount: items.length - itemByBlockIndex.size,
+  };
+}
+
+type KeepBlocksAssignment = Readonly<{
+  blockIndex: number;
+  item: OverlayItem;
+  itemIndex: number;
+}>;
+
+function collectVerifiedKeepBlocksPixelInferences({
+  assignments,
+  automaticFont,
+  page,
+}: {
+  assignments: readonly KeepBlocksAssignment[];
+  automaticFont?: KeepBlocksAutomaticFontOptions;
+  page: MangaPage;
+}): Array<VerifiedAutomaticFontPixelInferenceV2 | undefined> {
+  if (!automaticFont?.enabled) return [];
+  const candidates = automaticFont.candidates ?? [];
+  return assignments.map(({ blockIndex }) => {
+    const blockId = page.blocks[blockIndex]?.id;
+    if (!blockId) return undefined;
+    return (
+      resolveVerifiedPixelInferenceForBlockId({
+        blockId,
+        candidates,
+        inference:
+          automaticFont.pageInference?.pixelInferenceByBlockId.get(blockId),
+        page,
+        status: automaticFont.pageInference?.runtimeArtifactStatus,
+      }) ?? undefined
+    );
+  });
+}
+
+function resolveKeepBlocksPageAutomaticFont({
+  automaticFont,
+  items,
+  verifiedPixelInferences,
+}: {
+  automaticFont?: KeepBlocksAutomaticFontOptions;
+  items: readonly OverlayItem[];
+  verifiedPixelInferences: readonly (
+    | VerifiedAutomaticFontPixelInferenceV2
+    | undefined
+  )[];
+}): KeepBlocksAutomaticFontOptions | undefined {
+  if (!automaticFont?.enabled) return automaticFont;
+  const verifiedByBlockId = new Map(
+    verifiedPixelInferences.flatMap((inference) =>
+      inference ? [[inference.blockId, inference] as const] : [],
+    ),
+  );
+  return {
+    ...automaticFont,
+    pageCoordinator: createAutomaticFontPageCoordinatorV2({
+      ...(automaticFont.pageCoordinator
+        ? { chapterCoordinator: automaticFont.pageCoordinator }
+        : {}),
+      items,
+      pixelInferences: verifiedPixelInferences,
+    }),
+    pageInference: {
+      runtimeArtifactStatus: automaticFont.pageInference?.runtimeArtifactStatus,
+      pixelInferenceByBlockId: verifiedByBlockId,
+    },
   };
 }
 
@@ -216,7 +288,7 @@ function applyOverlayItemToExistingBlock({
   effectiveTextRole,
   skipNaturalLayout,
 }: {
-  automaticFont?: OverlayAutomaticFontOptions;
+  automaticFont?: KeepBlocksAutomaticFontOptions;
   block: TranslationBlock;
   item: OverlayItem;
   naturalLayout?: KeepBlocksNaturalLayoutOptions;
@@ -281,7 +353,7 @@ function resolveKeepBlocksFontDecision({
   item,
   page,
 }: {
-  automaticFont?: OverlayAutomaticFontOptions;
+  automaticFont?: KeepBlocksAutomaticFontOptions;
   block: TranslationBlock;
   item: OverlayItem;
   page: MangaPage;
@@ -291,8 +363,14 @@ function resolveKeepBlocksFontDecision({
         block,
         item,
         page,
-        options: automaticFont,
-        preserveExistingFont: true,
+        options: {
+          ...automaticFont,
+          pageCoordinator: automaticFont.pageCoordinator,
+          runtimeArtifactStatus:
+            automaticFont.pageInference?.runtimeArtifactStatus,
+          pixelInference:
+            automaticFont.pageInference?.pixelInferenceByBlockId.get(block.id),
+        },
       })
     : undefined;
 }
@@ -302,56 +380,6 @@ function normalizePersistentTextRole(
 ): TranslationBlock["textRole"] {
   if (value === "ordinary" || value === "sound") return value;
   return undefined;
-}
-
-function buildBlockIndexByCandidateId(
-  page: MangaPage,
-  previousBlocks: PreviousOverlayBlockForPrompt[],
-): Map<number, number> {
-  const blockIndexById = new Map(
-    page.blocks.map((block, index) => [block.id, index]),
-  );
-  const mapping = new Map<number, number>();
-  for (const previous of previousBlocks) {
-    const blockIndex = blockIndexById.get(previous.previousId);
-    if (
-      previous.candidateId !== undefined &&
-      blockIndex !== undefined &&
-      !mapping.has(previous.candidateId)
-    ) {
-      mapping.set(previous.candidateId, blockIndex);
-    }
-  }
-  return mapping;
-}
-
-function matchRemainingItemsByOverlap(
-  page: MangaPage,
-  unmatchedItems: OverlayItem[],
-  itemByBlockIndex: Map<number, OverlayItem>,
-): void {
-  for (const item of unmatchedItems) {
-    let bestIndex = -1;
-    let bestScore = FALLBACK_MATCH_MIN_OVERLAP;
-    for (const [index, block] of page.blocks.entries()) {
-      if (itemByBlockIndex.has(index)) {
-        continue;
-      }
-      const blockBbox = normalizeBboxTo1000(
-        block.bbox,
-        { width: page.width, height: page.height },
-        block.bboxSpace,
-      );
-      const score = bboxOverlapRatio(item.bbox, blockBbox);
-      if (score > bestScore) {
-        bestScore = score;
-        bestIndex = index;
-      }
-    }
-    if (bestIndex >= 0) {
-      itemByBlockIndex.set(bestIndex, item);
-    }
-  }
 }
 
 function normalizeItemConfidence(value: unknown, fallback: number): number {

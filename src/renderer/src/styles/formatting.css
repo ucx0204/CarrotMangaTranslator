@@ -4,6 +4,63 @@
   font-size: var(--font-sm);
 }
 
+.automatic-font-match-notice {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--accent-bd) 72%, transparent);
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--accent-soft) 70%, var(--bg-sunken));
+}
+
+.automatic-font-match-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.automatic-font-match-summary strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-head);
+  font-size: var(--font-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.automatic-font-match-summary > span:last-child {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.automatic-font-match-badge {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.automatic-font-match-notice p {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.automatic-font-match-notice button {
+  justify-self: start;
+  min-width: 0;
+}
+
 .editor-panel.has-block .editor-word-break-field {
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;

@@ -9,7 +9,11 @@ const {
   writeFileSync,
 } = require("node:fs");
 const { dirname, isAbsolute, join, relative, resolve } = require("node:path");
-const { isDevelopmentRuntimePath } = require("./prepare-runtime.cjs");
+const {
+  FONT_MATCHING_BUNDLE_DIRECTORY,
+  isDevelopmentRuntimePath,
+  resolveDefaultFontMatchingRuntimeBundleDir,
+} = require("./prepare-runtime.cjs");
 
 const CACHE_SCHEMA_VERSION = 1;
 
@@ -208,16 +212,23 @@ function createElectronCompileCacheStep(root) {
 /**
  * @param {string} root
  * @param {string} outputDir
+ * @param {{ runtimeModulesOnly?: boolean }} [options]
  * @returns {CachedBuildStep}
  */
-function createRuntimeAssetsCacheStep(root, outputDir) {
+function createRuntimeAssetsCacheStep(root, outputDir, options = {}) {
   const sourceDir = join(root, "src", "main", "runtime");
+  const fontMatchingBundleDir =
+    resolveDefaultFontMatchingRuntimeBundleDir(root);
   const sourceFiles = () =>
     listTreeFiles(
       sourceDir,
       (sourcePath) =>
         !isDevelopmentRuntimePath(relative(sourceDir, sourcePath)),
     );
+  const fontMatchingBundleFiles = () =>
+    options.runtimeModulesOnly
+      ? []
+      : listTreeFiles(fontMatchingBundleDir, undefined, true);
   return {
     root,
     cacheFile: join(root, ".tmp", "dev-build-cache", "runtime-assets.json"),
@@ -227,12 +238,21 @@ function createRuntimeAssetsCacheStep(root, outputDir) {
       join(root, "scripts", "prepare-runtime.cjs"),
       join(root, "scripts", "dev-build-cache.cjs"),
       ...sourceFiles(),
+      ...fontMatchingBundleFiles(),
     ],
     getOutputFiles: () => listTreeFiles(outputDir, undefined, true),
-    getRequiredOutputFiles: () =>
-      sourceFiles().map((sourcePath) =>
+    getRequiredOutputFiles: () => [
+      ...sourceFiles().map((sourcePath) =>
         join(outputDir, relative(sourceDir, sourcePath)),
       ),
+      ...fontMatchingBundleFiles().map((sourcePath) =>
+        join(
+          outputDir,
+          FONT_MATCHING_BUNDLE_DIRECTORY,
+          relative(fontMatchingBundleDir, sourcePath),
+        ),
+      ),
+    ],
   };
 }
 

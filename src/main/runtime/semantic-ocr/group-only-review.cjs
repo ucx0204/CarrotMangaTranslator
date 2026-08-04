@@ -4,6 +4,9 @@ const { semanticContractError } = require("./values.cjs");
 const {
   applyReviewedGroupsToHints,
 } = require("./group-only-review-application.cjs");
+const {
+  mergeAdjacentVerticalRubyColumns,
+} = require("./group-only-review-adjacent-columns.cjs");
 const { buildGroupOnlyReviewPlan } = require("./group-only-review-plan.cjs");
 const {
   GROUP_ONLY_PROMPT_CONTRACT_VERSION,
@@ -16,6 +19,9 @@ const {
   attachMostlyContainedRubyLabels,
   separateWeakDiagonalFragmentMerges,
 } = require("./group-only-review-stabilization.cjs");
+const {
+  mergeStrongLineageFragmentSplits,
+} = require("./group-only-review-lineage-stabilization.cjs");
 const {
   orderReviewCandidatesByGeometry,
 } = require("./group-only-review-reading-order.cjs");
@@ -91,9 +97,15 @@ function parseGroupOnlyReviewResponse(rawText, plan) {
     return { group, role: /** @type {ReviewRole} */ (label.role) };
   });
   validateLabels(plan, labels);
-  const stabilized = attachMostlyContainedRubyLabels(
+  const stabilized = mergeAdjacentVerticalRubyColumns(
     plan,
-    separateWeakDiagonalFragmentMerges(plan, labels),
+    attachMostlyContainedRubyLabels(
+      plan,
+      mergeStrongLineageFragmentSplits(
+        plan,
+        separateWeakDiagonalFragmentMerges(plan, labels),
+      ),
+    ),
   );
   validateLabels(plan, stabilized);
   return projectGroupOnlyReviewLabels(plan, stabilized, "model");
@@ -110,7 +122,13 @@ function buildGroupOnlyReviewFallback(plan) {
     group: Number(groupById.get(item.id)),
     role: /** @type {"body"} */ ("body"),
   }));
-  const attached = attachMostlyContainedRubyLabels(plan, labels);
+  const attached = mergeAdjacentVerticalRubyColumns(
+    plan,
+    attachMostlyContainedRubyLabels(
+      plan,
+      mergeStrongLineageFragmentSplits(plan, labels),
+    ),
+  );
   validateLabels(plan, attached);
   return projectGroupOnlyReviewLabels(plan, attached, "upstream-fallback");
 }

@@ -199,18 +199,6 @@ export function resolveAutomaticFontDecision({
   );
 }
 
-export function buildAutomaticBodyTextCorpus(
-  items: readonly OverlayItem[],
-): string {
-  return items
-    .filter((item) => !isSoundItem(item))
-    .map((item) =>
-      stripRichTextMarkup(String(item.translatedText ?? item.ko ?? "")).trim(),
-    )
-    .filter(Boolean)
-    .join("\n");
-}
-
 function resolveCustomFontCandidate({
   candidates,
   locale,

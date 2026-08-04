@@ -1,6 +1,5 @@
 import type { CustomFont } from "../../../shared/libraryTypes";
 import {
-  BUILT_IN_BLOCK_FONTS,
   DEFAULT_BLOCK_FONT_ID,
   DEFAULT_BLOCK_FONT_STACK,
   getPrioritizedBuiltInBlockFonts,
@@ -59,16 +58,18 @@ const SFX_KOREAN_FONT_ADDITION_IDS = [
   "black-and-white-picture",
   "black-han-sans",
   "gasoek-one",
-  "gugi",
   "kirang-haerang",
   "nanum-brush-script",
   "single-day",
 ] as const;
 
+const ACTIVE_BUILT_IN_BLOCK_FONTS =
+  getPrioritizedBuiltInBlockFonts(DEFAULT_UI_LOCALE);
+
 const KOREAN_FONT_ADDITION_MIGRATIONS = [
   {
     addedIds: FIRST_KOREAN_FONT_ADDITION_IDS,
-    requiredIds: BUILT_IN_BLOCK_FONTS.filter(
+    requiredIds: ACTIVE_BUILT_IN_BLOCK_FONTS.filter(
       (font) =>
         !FIRST_KOREAN_FONT_ADDITION_IDS.some((id) => id === font.id) &&
         !SFX_KOREAN_FONT_ADDITION_IDS.some((id) => id === font.id),
@@ -77,7 +78,7 @@ const KOREAN_FONT_ADDITION_MIGRATIONS = [
   },
   {
     addedIds: SFX_KOREAN_FONT_ADDITION_IDS,
-    requiredIds: BUILT_IN_BLOCK_FONTS.filter(
+    requiredIds: ACTIVE_BUILT_IN_BLOCK_FONTS.filter(
       (font) => !SFX_KOREAN_FONT_ADDITION_IDS.some((id) => id === font.id),
     ).map((font) => font.id),
     anchorId: "gaegu",

@@ -8,6 +8,24 @@ export type RenderTextDirection = "horizontal" | "vertical";
 export type ReviewStatus = "draft" | "needs_review" | "reviewed";
 export type TextWordBreak = "normal" | "break-all" | "keep-all" | "break-word";
 
+type AutomaticFontMatchRecord = {
+  schemaVersion: 1;
+  selectedFontId: string;
+  role: FontMatchingSemanticRole;
+  confidence: number;
+  source: "episode_consistency" | "local_visual" | "work_profile" | "user_lock";
+  previousStyle: {
+    fontFamily: string | null;
+    bold: boolean | null;
+    italic: boolean | null;
+    outlineWidthScale: number | null;
+    /** Optional for backward compatibility with pre-polarity provenance. */
+    textColor?: string;
+    /** Null restores the absence of an outline color. */
+    outlineColor?: string | null;
+  };
+};
+
 export type BBox = {
   x: number;
   y: number;
@@ -73,6 +91,8 @@ export type TranslationBlock = {
   perspectiveTransform?: PerspectiveTransform;
   curveLayout?: CurveLayout;
   fontFamily?: string;
+  /** Provenance plus an exact one-click rollback for an automatic V2 choice. */
+  automaticFontMatch?: AutomaticFontMatchRecord;
   fontSizePx: number;
   lineHeight: number;
   letterSpacing?: number;

@@ -3,13 +3,19 @@ import type {
   FontMatchingSemanticRole,
   WorkTypographyProfileV2,
 } from "../../shared/fontMatchingProfileTypes";
-import { FONT_MATCHING_SEMANTIC_ROLES } from "../../shared/fontMatchingProfileTypes";
 import type {
   FontMatchingDecisionResultV2,
   FontMatchingWorkStateV2,
 } from "./fontMatchingDecisionV2";
 import type { OverlayItem } from "./types";
-import { normalizeVisualClusterId } from "../../shared/visualClusterId";
+import type { VerifiedAutomaticFontPixelInferenceV2 } from "./fontMatchingPagePixelInferenceTypes";
+import { createAutomaticFontChapterBodyPriorV2 } from "./automaticFontMatchingV2ChapterPrior";
+import type { FontMatchingRuntimePolicy } from "./fontMatchingRuntimePolicyContract";
+import {
+  buildAutomaticFontPageConsistencyPlan,
+  mergeAutomaticFontPageConsistencyState,
+} from "./automaticFontMatchingV2PageConsistency";
+import type { AutomaticFontPageConsistencyState } from "./automaticFontMatchingV2PageConsistencyShared";
 
 const BODY_ANCHOR_ROLES = new Set<FontMatchingSemanticRole>([
   "dialogue",
@@ -17,67 +23,49 @@ const BODY_ANCHOR_ROLES = new Set<FontMatchingSemanticRole>([
   "thought",
 ]);
 
-const ACCENT_PAGE_ROLES = new Set<FontMatchingSemanticRole>([
-  "whisper",
-  "aside_balloon_edge",
-  "emphasis_dialogue",
-  "shout",
-  "sfx_impact",
-  "sfx_motion",
-  "sfx_ambient",
-  "sfx_emotion",
-  "sfx_comic",
-]);
-
-const DERIVED_VISUAL_CLUSTER_ROLES = new Set<FontMatchingSemanticRole>([
-  "emphasis_dialogue",
-  "shout",
-  "sfx_impact",
-  "sfx_motion",
-  "sfx_ambient",
-  "sfx_emotion",
-  "sfx_comic",
-]);
-
 export type AutomaticFontPageCoordinatorV2 = Readonly<{
   prepareWorkState: (
     item: OverlayItem,
     role: FontMatchingSemanticRole,
+    pixelInference?: VerifiedAutomaticFontPixelInferenceV2 | null,
+    runtimePolicy?: FontMatchingRuntimePolicy,
   ) => FontMatchingWorkStateV2 | undefined;
   recordDecision: (
     role: FontMatchingSemanticRole,
     workState: FontMatchingWorkStateV2 | undefined,
     result: FontMatchingDecisionResultV2,
     profile: WorkTypographyProfileV2 | null,
+    pixelInference?: VerifiedAutomaticFontPixelInferenceV2 | null,
+    runtimePolicy?: FontMatchingRuntimePolicy,
   ) => void;
 }>;
 
-/** Carry successful palette choices between block-local decisions on one page. */
-export function createAutomaticFontPageCoordinatorV2(): AutomaticFontPageCoordinatorV2 {
-  const fontByVisualCluster = new Map<string, string>();
+/** Carry high-confidence choices between block-local decisions in one chapter. */
+export function createAutomaticFontChapterCoordinatorV2(): AutomaticFontPageCoordinatorV2 {
   const usedFontIdsByRole = new Map<FontMatchingPaletteRole, Set<string>>();
+  const bodyPrior = createAutomaticFontChapterBodyPriorV2();
 
   return {
-    prepareWorkState(item, role) {
-      if (BODY_ANCHOR_ROLES.has(role)) return undefined;
-      const visualClusterId = resolveVisualClusterId(item, role);
-      const usedFontIds = usedFontIdsByRole.get(
-        role as FontMatchingPaletteRole,
-      );
-      if (!visualClusterId && !usedFontIds?.size) return undefined;
-      const visualClusterFontId = visualClusterId
-        ? (fontByVisualCluster.get(clusterStateKey(role, visualClusterId)) ??
-          null)
-        : null;
-      return {
-        ...(visualClusterId ? { visualClusterId } : {}),
-        ...(visualClusterFontId ? { visualClusterFontId } : {}),
-        ...(usedFontIds?.size
-          ? { rolePaletteUsedFontIds: [...usedFontIds].sort(compareStrings) }
-          : {}),
-      };
+    prepareWorkState(_item, role, pixelInference, runtimePolicy) {
+      if (BODY_ANCHOR_ROLES.has(role)) {
+        return pixelInference
+          ? bodyPrior.prepare(role, pixelInference, runtimePolicy)
+          : undefined;
+      }
+      return prepareAccentWorkState({
+        pixelInference,
+        role,
+        usedFontIdsByRole,
+      });
     },
-    recordDecision(role, workState, result, profile) {
+    recordDecision(
+      role,
+      _workState,
+      result,
+      profile,
+      pixelInference,
+      runtimePolicy,
+    ) {
       const selectedFontId = result.selectedStyle?.fontId;
       if (
         !selectedFontId ||
@@ -85,6 +73,16 @@ export function createAutomaticFontPageCoordinatorV2(): AutomaticFontPageCoordin
         result.decision.resolvedBy === "block_user_lock" ||
         result.decision.resolvedBy === "work_role_user_lock"
       ) {
+        return;
+      }
+      if (BODY_ANCHOR_ROLES.has(role)) {
+        bodyPrior.record(
+          role,
+          result,
+          selectedFontId,
+          pixelInference,
+          runtimePolicy,
+        );
         return;
       }
       const palette = profile?.rolePalettes.find(
@@ -98,24 +96,115 @@ export function createAutomaticFontPageCoordinatorV2(): AutomaticFontPageCoordin
         usedFontIdsByRole.set(palette.role, usedFontIds);
       }
       usedFontIds.add(selectedFontId);
-      cacheVisualClusterSelection(
-        fontByVisualCluster,
+    },
+  };
+}
+
+type AutomaticFontPageCoordinatorOptions = Readonly<{
+  chapterCoordinator?: AutomaticFontPageCoordinatorV2;
+  items?: readonly OverlayItem[];
+  pixelInferences?: readonly (
+    | VerifiedAutomaticFontPixelInferenceV2
+    | null
+    | undefined
+  )[];
+}>;
+
+/** Compose page-local balloon consistency with the longer-lived chapter prior. */
+export function createAutomaticFontPageCoordinatorV2(
+  options: AutomaticFontPageCoordinatorOptions = {},
+): AutomaticFontPageCoordinatorV2 {
+  const chapterCoordinator =
+    options.chapterCoordinator ?? createAutomaticFontChapterCoordinatorV2();
+  const pagePlan = buildAutomaticFontPageConsistencyPlan(
+    options.pixelInferences ?? [],
+    options.items ?? [],
+  );
+  return {
+    prepareWorkState(item, role, pixelInference, runtimePolicy) {
+      const chapterState = chapterCoordinator.prepareWorkState(
+        item,
+        role,
+        pixelInference,
+        runtimePolicy,
+      );
+      return mergeAutomaticFontPageConsistencyState(
+        chapterState,
+        pixelInference ? pagePlan.get(pixelInference.blockId) : undefined,
+        runtimePolicy?.chapterPrior.localOverrideMinimumScoreMargin,
+      );
+    },
+    recordDecision(
+      role,
+      workState,
+      result,
+      profile,
+      pixelInference,
+      runtimePolicy,
+    ) {
+      // Neutral role heads may call every block "dialogue". Never let a
+      // pixel-classified display/SFX winner become the chapter body prior.
+      if (
+        workState?.pageBalloonConsistencyMode === "local_visual_variant" ||
+        workState?.pageBalloonEmphasisMorphologyConsensus === true
+      ) {
+        return;
+      }
+      chapterCoordinator.recordDecision(
         role,
         workState,
         result,
-        selectedFontId,
-        palette.reuseVisualClusterFont,
+        profile,
+        pixelInference,
+        runtimePolicy,
       );
     },
+  };
+}
+
+function prepareAccentWorkState({
+  pixelInference,
+  role,
+  usedFontIdsByRole,
+}: {
+  pixelInference?: VerifiedAutomaticFontPixelInferenceV2 | null;
+  role: FontMatchingSemanticRole;
+  usedFontIdsByRole: ReadonlyMap<FontMatchingPaletteRole, Set<string>>;
+}): FontMatchingWorkStateV2 | undefined {
+  const usedFontIds = usedFontIdsByRole.get(role as FontMatchingPaletteRole);
+  if (!usedFontIds?.size && !pixelInference) return undefined;
+  return {
+    ...(pixelInference
+      ? { automaticStrategy: "local_visual_first" as const }
+      : {}),
+    ...(usedFontIds?.size
+      ? { rolePaletteUsedFontIds: [...usedFontIds].sort(compareStrings) }
+      : {}),
   };
 }
 
 /** Resolve body anchors before page-local accent palettes, preserving source order. */
 export function orderAutomaticFontMatchingPageItemIndexes(
   items: readonly OverlayItem[],
+  pixelInferences: readonly (
+    | VerifiedAutomaticFontPixelInferenceV2
+    | null
+    | undefined
+  )[] = [],
 ): number[] {
+  const pagePlan = buildAutomaticFontPageConsistencyPlan(
+    pixelInferences,
+    items,
+  );
   return items
-    .map((item, index) => ({ index, priority: resolvePageItemPriority(item) }))
+    .map((_item, index) => ({
+      index,
+      priority: resolvePageItemPriority(
+        pixelInferences[index]
+          ? pagePlan.get(pixelInferences[index]?.blockId ?? "")
+          : undefined,
+      ),
+    }))
     .sort((left, right) =>
       left.priority === right.priority
         ? left.index - right.index
@@ -124,96 +213,12 @@ export function orderAutomaticFontMatchingPageItemIndexes(
     .map(({ index }) => index);
 }
 
-function resolvePageItemPriority(item: OverlayItem): number {
-  const role = resolveItemRole(item);
-  if (BODY_ANCHOR_ROLES.has(role)) return 0;
-  if (ACCENT_PAGE_ROLES.has(role)) return 1;
-  return 2;
-}
-
-function resolveItemRole(item: OverlayItem): FontMatchingSemanticRole {
-  const role = String(item.fontRole ?? "").trim();
-  return (FONT_MATCHING_SEMANTIC_ROLES as readonly string[]).includes(role)
-    ? (role as FontMatchingSemanticRole)
-    : "unknown_needs_review";
-}
-
-function resolveVisualClusterId(
-  item: OverlayItem,
-  role: FontMatchingSemanticRole,
-): string | null {
-  if (BODY_ANCHOR_ROLES.has(role)) return null;
-  const explicit = readExplicitVisualClusterId(item);
-  if (explicit) return explicit;
-  if (!DERIVED_VISUAL_CLUSTER_ROLES.has(role)) return null;
-  const normalizedSourceText = normalizeSourceTextForVisualCluster(item);
-  return normalizedSourceText
-    ? `page-auto-${role}-${stableTextHash(normalizedSourceText)}`
-    : null;
-}
-
-function readExplicitVisualClusterId(item: OverlayItem): string | null {
-  return normalizeVisualClusterId(item.visualClusterId) ?? null;
-}
-
-function normalizeSourceTextForVisualCluster(item: OverlayItem): string {
-  const sourceText = String(item.sourceText ?? "").trim() || item.jp || "";
-  return String(sourceText)
-    .normalize("NFKC")
-    .toLocaleLowerCase("ja")
-    .replace(/[\p{White_Space}\p{Punctuation}]+/gu, "");
-}
-
-function isIntentionalOverrideSelection(
-  result: FontMatchingDecisionResultV2,
-): boolean {
-  return result.audit.priorityTrace.some(
-    (entry) =>
-      entry.priority === "work_profile" &&
-      entry.status === "selected" &&
-      entry.reasonCodes.includes("intentional_override_margin_passed"),
-  );
-}
-
-function cacheVisualClusterSelection(
-  fontByVisualCluster: Map<string, string>,
-  role: FontMatchingSemanticRole,
-  workState: FontMatchingWorkStateV2 | undefined,
-  result: FontMatchingDecisionResultV2,
-  selectedFontId: string,
-  reuseVisualClusterFont: boolean,
-): void {
-  const visualClusterId = workState?.visualClusterId;
-  // An intentional override already carries its own block/cluster scope.
-  // Caching it as the cluster baseline would broaden a block-scoped override
-  // to unrelated members of the cluster.
-  if (
-    !visualClusterId ||
-    !reuseVisualClusterFont ||
-    isIntentionalOverrideSelection(result)
-  ) {
-    return;
-  }
-  fontByVisualCluster.set(
-    clusterStateKey(role, visualClusterId),
-    selectedFontId,
-  );
-}
-
-function stableTextHash(value: string): string {
-  let hash = 0x811c9dc5;
-  for (const character of value) {
-    hash ^= character.codePointAt(0) ?? 0;
-    hash = Math.imul(hash, 0x01000193) >>> 0;
-  }
-  return `${hash.toString(16).padStart(8, "0")}-${[...value].length}`;
-}
-
-function clusterStateKey(
-  role: FontMatchingSemanticRole,
-  visualClusterId: string,
-): string {
-  return `${role}\u0000${visualClusterId}`;
+function resolvePageItemPriority(
+  pageState?: AutomaticFontPageConsistencyState,
+): number {
+  const mode = pageState?.mode;
+  if (mode === "stable_body" || mode === "page_anchor") return 0;
+  return mode === "local_visual_variant" ? 1 : 2;
 }
 
 function compareStrings(left: string, right: string): number {

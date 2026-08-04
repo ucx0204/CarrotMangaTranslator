@@ -12,6 +12,7 @@ import {
   buildKeepBlocksCompletedPage,
   shouldKeepExistingBlocks,
 } from "./keepBlocksResult";
+import { buildKeepBlocksFontInferenceBlocks } from "./keepBlocksAssignment";
 import { buildPreviousBlocksForPrompt } from "./previousBlocksForPrompt";
 import { filterRejectedOrUncertainSoundItems } from "./overlayItems";
 import { applyOcrCandidateGeometryLocks } from "./overlayOcrGeometryLocks";
@@ -39,6 +40,10 @@ import type { ProgressContext } from "./progressEvents";
 import type { TranslationRuntimePort } from "./translationRuntimePort";
 import { parsePageResponse } from "./pageResponseParser";
 import { buildTranslatedPageResult } from "./translatedPageResult";
+import { runAutomaticFontMatchingV2PageStage } from "./automaticFontMatchingV2PageStage";
+import type { FontMatchingPageInferencePort } from "./fontMatchingPagePixelInferenceTypes";
+import type { AutomaticFontPageCoordinatorV2 } from "./automaticFontMatchingV2PageCoordinator";
+import { resolveKeepBlocksAutomaticFont } from "./keepBlocksAutomaticFont";
 
 export type PageBuildResult =
   | CompletedPageBuildResult
@@ -184,18 +189,23 @@ export async function requestPageTranslation({
   return result;
 }
 
+// eslint-disable-next-line max-lines-per-function -- response validation and final page assembly are one transaction
 export async function buildPageResult({
   jobId,
   page,
   pageOptions,
   result,
   runtime,
+  fontMatchingPageInference,
+  fontMatchingChapterCoordinator,
 }: {
   jobId: string;
   page: MangaPage;
   pageOptions: TranslationOptions;
   result: TranslationResult;
   runtime: TranslationRuntimePort;
+  fontMatchingPageInference?: FontMatchingPageInferencePort;
+  fontMatchingChapterCoordinator?: AutomaticFontPageCoordinatorV2;
 }): Promise<PageBuildResult> {
   const parsed = parsePageResponse({
     runtime,
@@ -236,6 +246,21 @@ export async function buildPageResult({
   const soundFiltered = filterRejectedOrUncertainSoundItems(validated.items, {
     dropUncertainSound: !pageOptions.regionCropMode,
   });
+  const keepBlocksInferenceBlocks = pageOptions.keepBlocksMode
+    ? buildKeepBlocksFontInferenceBlocks({
+        page,
+        items: soundFiltered.items,
+        previousBlocks: pageOptions.previousBlocksForPrompt ?? [],
+      })
+    : undefined;
+  const pixelInference = await runAutomaticFontMatchingV2PageStage({
+    jobId,
+    page,
+    pageOptions,
+    items: soundFiltered.items,
+    inferenceBlocks: keepBlocksInferenceBlocks,
+    port: fontMatchingPageInference,
+  });
   if (pageOptions.keepBlocksMode) {
     const kept = buildKeepBlocksCompletedPage({
       page,
@@ -243,7 +268,11 @@ export async function buildPageResult({
       previousBlocks: pageOptions.previousBlocksForPrompt ?? [],
       soundDroppedCount: soundFiltered.droppedCount,
       naturalLayout: resolveKeepBlocksNaturalLayout(pageOptions),
-      automaticFont: resolveKeepBlocksAutomaticFont(pageOptions),
+      automaticFont: resolveKeepBlocksAutomaticFont(
+        pageOptions,
+        pixelInference,
+        fontMatchingChapterCoordinator,
+      ),
     });
     return {
       kind: "completed",
@@ -262,6 +291,8 @@ export async function buildPageResult({
     validationReasons: validated.reasons,
     contextWarnings: parsed.warnings,
     pageContext: parsed.pageContext,
+    fontMatchingPageInference: pixelInference,
+    fontMatchingChapterCoordinator,
   });
 }
 
@@ -272,17 +303,6 @@ function resolveKeepBlocksNaturalLayout(pageOptions: TranslationOptions): {
   return {
     enabled: pageOptions.naturalTextLayout,
     locale: pageOptions.targetLanguage,
-  };
-}
-
-function resolveKeepBlocksAutomaticFont(pageOptions: TranslationOptions) {
-  return {
-    enabled: pageOptions.autoFontMatching,
-    targetLanguage: pageOptions.targetLanguage,
-    workId: pageOptions.fontMatchingWorkId,
-    chapterId: pageOptions.fontMatchingChapterId,
-    profile: pageOptions.fontMatchingProfile,
-    candidates: pageOptions.fontMatchingCandidates,
   };
 }
 

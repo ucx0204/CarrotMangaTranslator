@@ -342,9 +342,11 @@ function resolveAutoFitUpperBound(
     normalizeRenderDirection(block.renderDirection, "horizontal") === "vertical"
       ? Math.floor(innerWidth / (1.15 * scaleX))
       : MAX_AUTOFIT_FONT_SIZE_PX;
-  return clamp(
+  const genericUpperBound = clamp(
     Math.max(MIN_FONT_SIZE_PX, heightBound, widthBound),
     MIN_FONT_SIZE_PX,
     MAX_AUTOFIT_FONT_SIZE_PX,
   );
+  if (block.fontRole !== "sign_ui_title") return genericUpperBound;
+  return Math.min(genericUpperBound, preferredFontSize * 2);
 }

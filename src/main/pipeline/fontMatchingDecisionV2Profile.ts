@@ -38,6 +38,13 @@ export function resolveProfileSelection(
     BODY_ANCHOR_KEYS[state.input.role.primary as keyof typeof BODY_ANCHOR_KEYS];
   const anchor = anchorKey ? profile[anchorKey] : null;
   if (anchor) {
+    if (state.input.workState?.automaticStrategy) {
+      return {
+        selection: null,
+        constrained: false,
+        reasonCodes: ["runtime_visual_evidence_precedes_body_anchor"],
+      };
+    }
     const failure = resolveAnchorEvidenceFailure(state, anchor);
     return failure
       ? constrainedFailure(failure)
@@ -48,6 +55,13 @@ export function resolveProfileSelection(
     (entry) => entry.role === state.input.role.primary,
   );
   if (palette) {
+    if (state.input.workState?.automaticStrategy === "local_visual_first") {
+      return {
+        selection: null,
+        constrained: false,
+        reasonCodes: ["runtime_visual_evidence_precedes_role_palette"],
+      };
+    }
     const failure = resolvePaletteEvidenceFailure(state, palette);
     return failure
       ? constrainedFailure(failure)

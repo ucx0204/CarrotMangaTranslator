@@ -9,6 +9,7 @@ import {
   utimesSync,
   writeFileSync,
 } from "node:fs";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -168,13 +169,94 @@ function createRuntimeAssetsCacheFixture() {
   writeFileSync(join(transportDir, "stale.pyo"), "bytecode");
   const pycacheFile = join(pycacheDir, "runtime.cpython-312.pyc");
   writeFileSync(pycacheFile, "bytecode");
+  const fontMatchingBundleDir = addFontMatchingBundle(root);
 
   const step = cache.createRuntimeAssetsCacheStep(root, outputDir);
   const rebuild = () => {
     prepareRuntimeAssets({ root, outputDir });
   };
 
-  return { outputDir, pycacheFile, sourceDir, step, rebuild };
+  return {
+    outputDir,
+    pycacheFile,
+    sourceDir,
+    step,
+    rebuild,
+    fontMatchingBundleDir,
+  };
+}
+
+function addFontMatchingBundle(root: string): string {
+  const bundleDir = join(
+    root,
+    "artifacts",
+    "font-matching-runtime-active21-r5-e1-release-v1",
+  );
+  mkdirSync(bundleDir, { recursive: true });
+  const artifacts: Record<string, string> = {};
+  for (const fileName of [
+    "auto-match-active-catalog.json",
+    "encoder.onnx",
+    "prototype-features.f32",
+    "ranker.onnx",
+    "selection-calibration.json",
+  ]) {
+    const bytes = Buffer.from(`sealed:${fileName}`);
+    writeFileSync(join(bundleDir, fileName), bytes);
+    artifacts[fileName] = createHash("sha256").update(bytes).digest("hex");
+  }
+  const runtimeContract = Buffer.from(
+    JSON.stringify({
+      record_type: "font_matching_runtime_artifact",
+      schema_version: "font-matching-runtime-artifact-v2",
+      hybrid_score_routing: {
+        schema_version: "font-matching-hybrid-score-routing-v1",
+        candidate_scores_compatibility_alias: "body_candidate_scores",
+        body_candidate_output: "body_candidate_scores",
+        variant_candidate_output: "variant_candidate_scores",
+        body_roles: ["dialogue", "narration", "thought"],
+        variant_roles: [
+          "whisper",
+          "aside_balloon_edge",
+          "emphasis_dialogue",
+          "shout",
+          "sfx_impact",
+          "sfx_motion",
+          "sfx_ambient",
+          "sfx_emotion",
+          "sfx_comic",
+          "sign_ui_title",
+          "other",
+        ],
+        unknown_role_fallback: "variant_candidate_scores",
+        role_source:
+          "resolveCombinedAutomaticFontRole(item.fontRole,pixelRole)",
+        selection_feature_source:
+          "selected_candidate_scores_with_legacy256_visual_features",
+        selection_feature_dim: 256,
+        row_specific_rules: false,
+      },
+      runtime_batching: {
+        encoder_batch_size: 2,
+        ranker_batch_size: 16,
+        parity_qualified: true,
+      },
+    }),
+  );
+  writeFileSync(join(bundleDir, "runtime-contract.json"), runtimeContract);
+  artifacts["runtime-contract.json"] = createHash("sha256")
+    .update(runtimeContract)
+    .digest("hex");
+  writeFileSync(
+    join(bundleDir, ".font-matching-runtime-artifact-owned.json"),
+    JSON.stringify({
+      owner: "carrot-manga-translator/font-matching-runtime-artifact-v2",
+      schema_version: "font-matching-runtime-artifact-v2",
+      safe_replace: true,
+      artifacts,
+    }),
+  );
+  return bundleDir;
 }
 
 describe("dev content build cache", () => {
@@ -346,5 +428,42 @@ describe("dev content build cache", () => {
     expect(readFileSync(join(fixture.outputDir, "root.cjs"), "utf8")).toBe(
       "changed root",
     );
+  });
+
+  it("rebuilds and stages the schema-v2 release-v1 bundle when it changes", () => {
+    const fixture = createRuntimeAssetsCacheFixture();
+    cache.runCachedBuildStep(fixture.step, fixture.rebuild);
+    expect(cache.planCachedBuildStep(fixture.step).decision).toBe("skip");
+
+    const bundleDir = fixture.fontMatchingBundleDir;
+    const rankerPath = join(bundleDir, "ranker.onnx");
+    const rankerBytes = Buffer.from("sealed-updated:ranker.onnx");
+    writeFileSync(rankerPath, rankerBytes);
+    const markerPath = join(
+      bundleDir,
+      ".font-matching-runtime-artifact-owned.json",
+    );
+    const marker = JSON.parse(readFileSync(markerPath, "utf8")) as {
+      artifacts: Record<string, string>;
+    };
+    marker.artifacts["ranker.onnx"] = createHash("sha256")
+      .update(rankerBytes)
+      .digest("hex");
+    writeFileSync(markerPath, JSON.stringify(marker));
+    expect(cache.planCachedBuildStep(fixture.step)).toMatchObject({
+      decision: "build",
+      reason: "input content changed",
+    });
+
+    expect(
+      cache.runCachedBuildStep(fixture.step, fixture.rebuild),
+    ).toMatchObject({ status: "built" });
+    expect(
+      readFileSync(
+        join(fixture.outputDir, "font-matching", "ranker.onnx"),
+        "utf8",
+      ),
+    ).toBe(readFileSync(join(bundleDir, "ranker.onnx"), "utf8"));
+    expect(cache.planCachedBuildStep(fixture.step).decision).toBe("skip");
   });
 });

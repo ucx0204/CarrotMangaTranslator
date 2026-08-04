@@ -474,23 +474,23 @@ chapter consistency를 추가해도 누출은 생기지 않는다. 한 작품의
 
 ## 파일별 최소 변경 목록
 
-| 파일 | 필수 변경 |
-| --- | --- |
-| `docs/font-matching-v2-review-rubric.md` | local fit과 chapter consistency 분리, P0/P1 전수 secondary 명시, work hard anchor 문구 제거 |
-| `scripts/build_font_matching_catalog_rescue_inputs.py` | `priority_rank <= 1` mandatory secondary, 누락 hard invariant |
-| `scripts/font_matching_catalog_delta_ledger.py` | P0/P1 semantic correction 및 consistency action schema/gate 추가 |
-| `scripts/build_font_matching_review_cards.py` | semantic/font-fit 2단계 카드, sealed role별 probe 사용 |
-| `scripts/build_font_matching_work_references.py` | same-chapter 우선 reference, fallback scope 기록 |
-| `scripts/build_font_matching_master.py` | canonical `page_index` 보존 |
-| `scripts/export_font_matching_training_examples.py` | sample v2 + quality/variant/consistency + sealed chapter pair artifact |
-| `scripts/train_font_matching_siglip_baseline.py` | chapter fields 보존, priority sampler/weight, consistency/override loss, variant-first checkpoint |
-| `scripts/evaluate_font_matching_v2.py` | chapter/page 보존, variant macro와 chapter policy metric/gate |
-| `scripts/build_font_matching_work_profiles.py` | training sample binding을 받아 chapter evidence를 구분하고 work anchor는 초기 prior로만 생성 |
-| `src/shared/fontMatchingProfileTypes.ts` / `fontMatchingProfileSchemas.ts` | work prior와 ephemeral/persisted chapter state를 분리한 V3 contract |
-| `src/main/pipeline/automaticFontMatchingV2.ts` | 실제 model evidence adapter 사용, `calibratedConfidence: 0` bootstrap 제거 |
-| `src/main/pipeline/fontMatchingDecisionV2Profile.ts` | body hard allowlist 제거, soft switch penalty와 local override gate |
-| `src/main/pipeline/automaticFontMatchingV2PageCoordinator.ts` | chapter-scope transactional coordinator로 승격 |
-| 관련 Python/TS tests | priority coverage, pair leakage, chapter reset/commit, real override, false switch, frozen test 보호 회귀 |
+| 파일                                                                       | 필수 변경                                                                                                 |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `docs/font-matching-v2-review-rubric.md`                                   | local fit과 chapter consistency 분리, P0/P1 전수 secondary 명시, work hard anchor 문구 제거               |
+| `scripts/build_font_matching_catalog_rescue_inputs.py`                     | `priority_rank <= 1` mandatory secondary, 누락 hard invariant                                             |
+| `scripts/font_matching_catalog_delta_ledger.py`                            | P0/P1 semantic correction 및 consistency action schema/gate 추가                                          |
+| `scripts/build_font_matching_review_cards.py`                              | semantic/font-fit 2단계 카드, sealed role별 probe 사용                                                    |
+| `scripts/build_font_matching_work_references.py`                           | same-chapter 우선 reference, fallback scope 기록                                                          |
+| `scripts/build_font_matching_master.py`                                    | canonical `page_index` 보존                                                                               |
+| `scripts/export_font_matching_training_examples.py`                        | sample v2 + quality/variant/consistency + sealed chapter pair artifact                                    |
+| `scripts/train_font_matching_siglip_baseline.py`                           | chapter fields 보존, priority sampler/weight, consistency/override loss, variant-first checkpoint         |
+| `scripts/evaluate_font_matching_v2.py`                                     | chapter/page 보존, variant macro와 chapter policy metric/gate                                             |
+| `scripts/build_font_matching_work_profiles.py`                             | training sample binding을 받아 chapter evidence를 구분하고 work anchor는 초기 prior로만 생성              |
+| `src/shared/fontMatchingProfileTypes.ts` / `fontMatchingProfileSchemas.ts` | work prior와 ephemeral/persisted chapter state를 분리한 V3 contract                                       |
+| `src/main/pipeline/automaticFontMatchingV2.ts`                             | 실제 model evidence adapter 사용, `calibratedConfidence: 0` bootstrap 제거                                |
+| `src/main/pipeline/fontMatchingDecisionV2Profile.ts`                       | body hard allowlist 제거, soft switch penalty와 local override gate                                       |
+| `src/main/pipeline/automaticFontMatchingV2PageCoordinator.ts`              | chapter-scope transactional coordinator로 승격                                                            |
+| 관련 Python/TS tests                                                       | priority coverage, pair leakage, chapter reset/commit, real override, false switch, frozen test 보호 회귀 |
 
 ## 실행 순서와 go/no-go
 

@@ -15,6 +15,12 @@ eligibility, role evidence, family, 6축, hard axis, treatment를 먼저 봉인�
 prototype으로 계산한 7행 gate/D matrix에서 결정한다. 실패한 이전 round의 답과
 identity는 A, B 어느 쪽에도 노출하지 않는다.
 
+여기서 "봉인"은 한 번의 최종 제출 안에 A와 B를 같이 넣는다는 뜻이 아니다. A 전체
+batch를 append-only 원장에 먼저 commit하고, 그 원장의 record SHA와 전체 task-set SHA를
+검증한 별도 `B release` artifact가 생성돼야 candidate-only 파일을 열 수 있다. B release
+이후 A 수정·교체·재봉인은 금지하며, 오류가 있으면 그 batch 전체를 폐기하고 새 task ID와
+fresh lineage로 다시 시작한다.
+
 ## 1. 판정 순서
 
 아래 순서를 건너뛰거나 뒤집지 않는다.
@@ -209,6 +215,11 @@ full/source/candidate card SHA를 모두 결박한다.
 경계가 잘못됐다고 판단되면 tier 한 칸만 고치지 않고 A의 observable family/axis evidence를
 다시 독립 검수해 새 sealed annotation을 만든다.
 
+`unrenderable` 후보는 배포 가능한 후보의 최저 D, preferred 기준점, safe 수, none 증명에
+절대 포함하지 않는다. 기술 실패는 deployment failure 사유로만 기록한다. 그렇지 않으면
+가장 가까운 후보가 렌더 실패했다는 이유만으로 실제 배포 가능한 차선 후보까지 marginal로
+내려가 safe 0을 만드는 오류가 생긴다.
+
 ### 6.2 safe-set 상한
 
 - 기본 `preferred + acceptable` 상한은 2개다.
@@ -250,10 +261,23 @@ primary와 필요한 secondary/adjudication이 끝난 뒤 아래 순서로 판�
 5. ordinary body에서만 드물게 선택되고 chapter anchor를 불필요하게 분산시키는 폰트는
    사용 횟수가 0이 아니어도 유지 근거가 아니다.
 
+삭제·교체 판정은 별도 후처리 메모가 아니라 같은 원장의 catalog transition으로 봉인한다.
+`retained`, `deleted_safe_zero`, `deleted_redundant`, `replacement_pending`,
+`replacement_admitted` 상태와 전·후 catalog SHA를 모두 저장하며, 삭제된 후보를 포함한
+고정 22종을 final이라고 주장해서는 안 된다. 기술적으로 렌더되지 않은 표본은 해당 폰트의
+safe 0 효용 분모에서 제외하고 deployment failure로 별도 집계한다.
+
 교체 폰트는 현재 배포 가능한 한글 glyph 범위와 라이선스를 공식 출처에서 다시 확인하고,
 폰트 파일·라이선스·출처 URL·SHA를 함께 봉인한다. 기존 실패 카드나 답을 재사용하지 않고
 fresh blind calibration 두 회를 같은 gate로 통과해야 catalog에 들어간다. 후보 수를 맞추기
 위해 품질이 낮은 폰트를 남기지 않으며, 삭제 후 최종 catalog가 22종보다 적어도 허용한다.
+
+교체 후보는 현대 한글 완성형 11,172자 전부를 지원하는 family를 우선한다. 부분 glyph
+family는 짧은 효과음·강조에서 완전 지원 후보가 대체하지 못하는 독자적 P1 효용이 fresh
+blind review로 확인될 때만 예외적으로 허용한다. 이 경우 실제 번역 문자열의 모든 code
+point를 지원하지 않으면 runtime 후보에서 hard-exclude하고, glyph 미지원 표본은 해당
+family의 스타일 효용 분모가 아니라 별도 deployment-coverage 분모로 보고한다. full-coverage
+대체 후보가 같은 효용을 내면 부분 glyph family를 유지하지 않는다.
 
 ## 7. 화 일관성과 실제 font override
 
@@ -306,11 +330,22 @@ glyph art contamination, event/container 문맥이 잘린 SFX·thought 카드는
 
 failed round의 답과 identity는 다음 reviewer에게 공개하지 않는다. 선택 표본과 동일
 page, crop SHA, root/variant/normalized glyph, source lineage closure는 합격 여부와 무관하게
-영구 development-only train quarantine에 넣는다. test pixel·label은 0회 읽는다.
+영구 development-only train quarantine에 넣는다. public task ID, assignment ID, seed도 새
+round와 production에서 재사용하지 않아 과거 답과 join할 수 없게 한다. split 판정은 asset
+경로의 `train` 문자열이나 legacy split이 아니라 master의 권위 `split_map`만 사용한다.
+canonical val/test가 legacy 경로상 train이어도 즉시 제외한다. test pixel·label은 0회 읽는다.
 
-scored round는 변칙 우선 60개를 기본으로 한다. 현재 corpus가 24작품이므로 작품당
-2개 원칙을 적용하되 60개를 채우는 최소 예외로 서로 다른 화·role branch일 때만 최대
-3개를 허용한다. 같은 page와 visual cluster는 scored 1개다.
+v1-v3 calibration은 이 canonical 규칙을 만족하지 않은 표본이 확인됐으므로 metric, 답안,
+identity를 모두 폐기한다. 그중 canonical train lineage도 fresh evidence로 재사용하지 않고
+영구 train quarantine에 남기며, canonical val/test lineage는 어떤 development pool에도
+들어오지 않는다.
+
+scored round는 변칙 우선 60개를 기본으로 한다. hidden reserve 72개는 canonical train
+작품만 사용하고, 현재 15개 train 작품을 모두 포함해 작품당 최소 4개를 요구한다. 가장
+작은 균형 상한인 작품당 5개로 exact quota가 성립할 때만 진행한다. 이론상 구성은 12작품
+5개와 3작품 4개이며 특정 작품 쏠림이 아니다. role quota 때문에 상한 5에서 불가능하면
+val/test를 끌어오거나 split을 재배정하지 않고 fresh train lineage를 보충한다. 같은 page와
+visual cluster는 scored 1개다.
 
 각 scored reviewer는 60개의 source-only A를 모두 제출·봉인한 뒤 candidate B를 받는다.
 A에는 후보 alias, font 이름, prior role/style/tier, model score가 0개다. B에는 source

@@ -9,15 +9,55 @@ import {
   createAutomaticFontPageCoordinatorV2,
   orderAutomaticFontMatchingPageItemIndexes,
 } from "../src/main/pipeline/automaticFontMatchingV2PageCoordinator";
+import { applyAutomaticFontChapterBodyPrior } from "../src/main/pipeline/automaticFontMatchingV2ChapterPrior";
+import { resolveCombinedAutomaticFontRole } from "../src/main/pipeline/automaticFontMatchingV2Role";
 import type { FontMatchingDecisionResultV2 } from "../src/main/pipeline/fontMatchingDecisionV2";
+import type { VerifiedAutomaticFontPixelInferenceV2 } from "../src/main/pipeline/fontMatchingPagePixelInferenceTypes";
+import type { FontMatchingRuntimeArtifactStatus } from "../src/main/pipeline/fontMatchingRuntimeArtifactStatus";
 import type { OverlayItem } from "../src/main/pipeline/types";
-import type { WorkTypographyProfileV2 } from "../src/shared/fontMatchingProfileTypes";
+import type {
+  FontMatchingSourceStyleV2,
+  RankedFontCandidateV2,
+  WorkTypographyProfileV2,
+} from "../src/shared/fontMatchingProfileTypes";
 import type { MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
 import { makeAutomaticFontCandidate } from "./helpers/automaticFontCandidate";
 
 describe("automatic font matching V2 adapter", () => {
-  it("keeps the semantic bootstrap in shadow mode without pixel evidence", () => {
+  it("uses verified pixel role evidence unchanged when the LLM role conflicts", () => {
+    const pixelRole = {
+      primary: "dialogue" as const,
+      confidence: 0.61,
+      alternatives: [
+        { role: "narration" as const, confidence: 0.27 },
+        { role: "thought" as const, confidence: 0.12 },
+      ],
+    };
+
+    const resolved = resolveCombinedAutomaticFontRole(
+      makeItem("sfx_impact", 1),
+      pixelRole,
+    );
+
+    expect(resolved).toBe(pixelRole);
+    expect(resolved).toEqual(pixelRole);
+  });
+
+  it("does not use an LLM role when verified pixel role evidence is absent", () => {
+    const resolved = resolveCombinedAutomaticFontRole(
+      makeItem("sfx_impact", 1),
+      null,
+    );
+
+    expect(resolved).toEqual({
+      primary: "unknown_needs_review",
+      confidence: 0,
+      alternatives: [],
+    });
+  });
+
+  it("fails closed without pixel evidence even when the LLM supplies a role", () => {
     const decision = resolveAutomaticFontDecisionV2({
       block: makeBlock({ autoFitText: false }),
       item: makeItem("sfx_impact", 0.98),
@@ -32,7 +72,7 @@ describe("automatic font matching V2 adapter", () => {
     expect(decision?.result.decision).toMatchObject({
       mode: "abstain",
       selectedFontId: null,
-      abstainReason: "low_confidence",
+      abstainReason: "role_unknown",
     });
     expect(decision?.result.decision.topCandidateFontIds).toContain("dohyeon");
   });
@@ -58,7 +98,7 @@ describe("automatic font matching V2 adapter", () => {
     expect(decision?.result.decision).toMatchObject({
       mode: "abstain",
       selectedFontId: null,
-      abstainReason: "low_confidence",
+      abstainReason: "role_unknown",
     });
   });
 
@@ -83,7 +123,7 @@ describe("automatic font matching V2 adapter", () => {
     expect(decision?.result.decision).toMatchObject({
       mode: "abstain",
       selectedFontId: null,
-      abstainReason: "low_confidence",
+      abstainReason: "role_unknown",
     });
   });
 
@@ -108,7 +148,7 @@ describe("automatic font matching V2 adapter", () => {
     expect(decision?.result.decision).toMatchObject({
       mode: "abstain",
       selectedFontId: null,
-      abstainReason: "low_confidence",
+      abstainReason: "role_unknown",
     });
   });
 
@@ -131,7 +171,7 @@ describe("automatic font matching V2 adapter", () => {
     expect(decision?.result.decision).toMatchObject({
       mode: "abstain",
       selectedFontId: null,
-      abstainReason: "low_confidence",
+      abstainReason: "role_unknown",
     });
   });
 
@@ -175,26 +215,40 @@ describe("automatic font matching V2 adapter", () => {
     });
   });
 
-  it("does not reinterpret keep-mode formatting as a user lock", () => {
-    const candidates = [builtIn("ridi-batang"), builtIn("jua")];
+  it("does not reinterpret an existing block font as a user lock", () => {
+    const candidates = [builtIn("jua"), builtIn("dohyeon")];
+    const catalogVersion = resolveFontMatchingV2CatalogVersion(candidates);
+    const block = makeBlock({ fontFamily: "ridi-batang" });
+    const page = makePage();
     const decision = resolveAutomaticFontDecisionV2({
-      block: makeBlock(),
+      block,
       item: makeItem("dialogue", 0.95),
-      page: makePage(),
-      preserveExistingFont: true,
+      page,
       options: {
         enabled: true,
         targetLanguage: "ko",
         workId: "work-1",
         chapterId: "chapter-1",
         candidates,
-        profile: makeProfile({
-          catalogVersion: resolveFontMatchingV2CatalogVersion(candidates),
+        pixelInference: makePixelInference({
+          blockId: block.id,
+          catalogVersion,
+          pageId: page.id,
+          scores: [0.7, 0.96],
+          sourceStyle: makeSourceStyle(),
         }),
+        runtimeArtifactStatus: makeReadyRuntimeStatus(
+          candidates,
+          catalogVersion,
+        ),
       },
     });
 
-    expect(decision).toBeUndefined();
+    expect(decision?.result.decision).toMatchObject({
+      mode: "apply",
+      selectedFontId: "dohyeon",
+      resolvedBy: "v2_automatic",
+    });
   });
 
   it("derives profile compatibility from the actual candidate manifest", () => {
@@ -221,74 +275,190 @@ describe("automatic font matching V2 adapter", () => {
     );
   });
 
-  it("orders body anchors before accents while preserving source order", () => {
+  it("honors the supervised operating point instead of reapplying the legacy confidence gate", () => {
+    const candidates = [builtIn("jua"), builtIn("dohyeon")];
+    const catalogVersion = resolveFontMatchingV2CatalogVersion(candidates);
+    const ready = makeReadyRuntimeStatus(candidates, catalogVersion);
+    if (ready.state !== "ready") throw new Error("expected ready fixture");
+    const status = {
+      ...ready,
+      policy: {
+        ...ready.policy,
+        automaticMutation: {
+          ...ready.policy.automaticMutation,
+          minimumAutomaticConfidence: 0.98,
+        },
+      },
+    } as const;
+    const block = makeBlock();
+    const page = makePage();
+    const pixelInference = makePixelInference({
+      blockId: block.id,
+      catalogVersion,
+      pageId: page.id,
+      scores: [0.94, 0.72],
+      sourceStyle: makeSourceStyle(),
+    });
+
+    const decision = resolveAutomaticFontDecisionV2({
+      block,
+      item: makeItem("dialogue", 0.99),
+      page,
+      options: {
+        enabled: true,
+        targetLanguage: "ko",
+        candidates,
+        pixelInference,
+        runtimeArtifactStatus: status,
+      },
+    });
+
+    expect(decision?.result.decision).toMatchObject({
+      mode: "apply",
+      selectedFontId: "jua",
+      abstainReason: null,
+    });
+  });
+
+  it("fails closed when the supervised selector misses its operating point", () => {
+    const candidates = [builtIn("jua"), builtIn("dohyeon")];
+    const catalogVersion = resolveFontMatchingV2CatalogVersion(candidates);
+    const status = makeReadyRuntimeStatus(candidates, catalogVersion);
+    const block = makeBlock();
+    const page = makePage();
+    const pixelInference = makePixelInference({
+      blockId: block.id,
+      catalogVersion,
+      pageId: page.id,
+      scores: [0.97, 0.72],
+      sourceStyle: makeSourceStyle(),
+      selectionCalibration: {
+        applied: false,
+        fallbackReason: "score_below_operating_point",
+        operatingFamily: null,
+        selectionScore: 0.4,
+        globalRiskLowerConfidenceBound: 0.9,
+      },
+    });
+
+    const decision = resolveAutomaticFontDecisionV2({
+      block,
+      item: makeItem("dialogue", 0.99),
+      page,
+      options: {
+        enabled: true,
+        targetLanguage: "ko",
+        candidates,
+        pixelInference,
+        runtimeArtifactStatus: status,
+      },
+    });
+
+    expect(decision?.result.decision).toMatchObject({
+      mode: "abstain",
+      selectedFontId: null,
+      abstainReason: "low_confidence",
+    });
+  });
+
+  it("rejects forged chapter-prior authority outside the sealed pixel top three", () => {
+    const candidates = [builtIn("jua"), builtIn("dohyeon")];
+    const catalogVersion = resolveFontMatchingV2CatalogVersion(candidates);
+    const status = makeReadyRuntimeStatus(candidates, catalogVersion);
+    const block = makeBlock();
+    const page = makePage();
+    const inference = makePixelInference({
+      blockId: block.id,
+      catalogVersion,
+      pageId: page.id,
+      scores: [0.94, 0.72],
+      sourceStyle: makeSourceStyle(),
+    });
+    const forged = {
+      ...inference,
+      localEvidence: {
+        ...inference.localEvidence,
+        rankedCandidates: inference.localEvidence.rankedCandidates.map(
+          (candidate, index) =>
+            index === 0
+              ? {
+                  ...candidate,
+                  rawPixelRank: 4,
+                  reasonCodes: [
+                    ...candidate.reasonCodes,
+                    "episode_body_consistency_prior",
+                  ],
+                }
+              : candidate,
+        ),
+      },
+    } satisfies VerifiedAutomaticFontPixelInferenceV2;
+
+    const decision = resolveAutomaticFontDecisionV2({
+      block,
+      item: makeItem("dialogue", 0.99),
+      page,
+      options: {
+        enabled: true,
+        targetLanguage: "ko",
+        candidates,
+        pixelInference: forged,
+        runtimeArtifactStatus: status,
+      },
+    });
+
+    expect(decision?.result.decision).toMatchObject({
+      mode: "abstain",
+      selectedFontId: null,
+      abstainReason: "low_confidence",
+    });
+  });
+
+  it("orders calibrated body winners before local variants with neutral heads", () => {
     const items = [
       makeItem("sfx_impact", 1),
       makeItem("dialogue", 1),
       makeItem("thought", 1),
       makeItem("aside_balloon_edge", 1),
       makeItem("sign_ui_title", 1),
+    ].map((item, index) => ({
+      ...item,
+      bbox: { ...item.bbox, x: 50 + index * 220 },
+    }));
+    const pixelInferences = [
+      makePixelWinnerInference("dohyeon", "order-block-1"),
+      makePixelWinnerInference("ridi-batang", "order-block-2"),
+      makePixelWinnerInference("nanum-gothic", "order-block-3"),
+      makePixelWinnerInference("griun-pol-sensibility", "order-block-4"),
+      undefined,
+    ];
+
+    expect(
+      orderAutomaticFontMatchingPageItemIndexes(items, pixelInferences),
+    ).toEqual([1, 2, 0, 3, 4]);
+  });
+
+  it("does not let LLM roles reorder a page when pixel roles are absent", () => {
+    const items = [
+      makeItem("sfx_impact", 1),
+      makeItem("dialogue", 1),
+      makeItem("thought", 1),
+      makeItem("aside_balloon_edge", 1),
     ];
 
     expect(orderAutomaticFontMatchingPageItemIndexes(items)).toEqual([
-      1, 2, 0, 3, 4,
+      0, 1, 2, 3,
     ]);
   });
 
-  it("never assigns a visual cluster to ordinary body roles", () => {
+  it("ignores LLM visual clusters and source text in accent reuse state", () => {
     const coordinator = createAutomaticFontPageCoordinatorV2();
-    const item = Object.assign(makeItem("dialogue", 1), {
-      visualClusterId: "explicit-body-cluster",
-    });
-
-    expect(coordinator.prepareWorkState(item, "dialogue")).toBeUndefined();
-  });
-
-  it("uses explicit clusters for accents but does not derive them for asides", () => {
-    const coordinator = createAutomaticFontPageCoordinatorV2();
-    const aside = makeItem("aside_balloon_edge", 1);
-    const explicitAside = Object.assign(
-      { ...aside },
-      {
-        visualClusterId: "aside-cluster-1",
-      },
-    );
-
-    expect(
-      coordinator.prepareWorkState(aside, "aside_balloon_edge"),
-    ).toBeUndefined();
-    expect(
-      coordinator.prepareWorkState(explicitAside, "aside_balloon_edge"),
-    ).toMatchObject({ visualClusterId: "aside-cluster-1" });
-  });
-
-  it("keeps meaningful Japanese symbols distinct in derived clusters", () => {
-    const coordinator = createAutomaticFontPageCoordinatorV2();
-    const plain = {
-      ...makeItem("sfx_emotion", 1),
-      jp: "ドキ",
-      sourceText: "ドキ",
-    };
-    const decorated = {
-      ...makeItem("sfx_emotion", 1),
-      jp: "ドキ♡",
+    const item = {
+      ...makeItem("sfx_impact", 1),
+      visualClusterId: "llm-cluster",
       sourceText: "ドキ♡",
     };
-
-    const plainState = coordinator.prepareWorkState(plain, "sfx_emotion");
-    const decoratedState = coordinator.prepareWorkState(
-      decorated,
-      "sfx_emotion",
-    );
-
-    expect(plainState?.visualClusterId).not.toBe(
-      decoratedState?.visualClusterId,
-    );
-  });
-
-  it("does not cache intentional overrides as cluster defaults", () => {
-    const coordinator = createAutomaticFontPageCoordinatorV2();
-    const item = makeItem("sfx_impact", 1);
+    const firstPixel = makePixelRoleInference("sfx_impact", "accent-block-1");
     const profile = makeProfile({
       dialogueAnchor: null,
       rolePalettes: [
@@ -302,65 +472,391 @@ describe("automatic font matching V2 adapter", () => {
         },
       ],
     });
-    const initialState = coordinator.prepareWorkState(item, "sfx_impact");
+    const initialState = coordinator.prepareWorkState(
+      item,
+      "sfx_impact",
+      firstPixel,
+    );
+    expect(initialState).toMatchObject({
+      automaticStrategy: "local_visual_first",
+    });
+    expect(initialState).not.toHaveProperty("visualClusterId");
+    expect(initialState).not.toHaveProperty("visualClusterFontId");
     coordinator.recordDecision(
       "sfx_impact",
       initialState,
       makeCoordinatorResult("jua"),
       profile,
+      firstPixel,
     );
-    const clusteredState = coordinator.prepareWorkState(item, "sfx_impact");
-    expect(clusteredState?.visualClusterFontId).toBe("jua");
-
-    coordinator.recordDecision(
+    const repeatedState = coordinator.prepareWorkState(
+      { ...item, sourceText: "ドキ" },
       "sfx_impact",
-      clusteredState,
-      makeCoordinatorResult("dohyeon", [
-        "intentional_override_margin_passed",
-        "role_palette",
-      ]),
-      profile,
+      makePixelRoleInference("sfx_impact", "accent-block-2"),
     );
 
-    expect(
-      coordinator.prepareWorkState(item, "sfx_impact")?.visualClusterFontId,
-    ).toBe("jua");
+    expect(repeatedState).toMatchObject({
+      automaticStrategy: "local_visual_first",
+      rolePaletteUsedFontIds: ["jua"],
+    });
+    expect(repeatedState).not.toHaveProperty("visualClusterId");
+    expect(repeatedState).not.toHaveProperty("visualClusterFontId");
   });
 
-  it("does not cache a manual role lock as automatic page state", () => {
+  it("uses a same-chapter body prior softly without mistaking emphasis for a family change", () => {
+    const candidates = [builtIn("jua"), builtIn("dohyeon")];
+    const catalogVersion = resolveFontMatchingV2CatalogVersion(candidates);
     const coordinator = createAutomaticFontPageCoordinatorV2();
-    const item = makeItem("sfx_impact", 1);
-    const profile = makeProfile({
-      dialogueAnchor: null,
-      rolePalettes: [
-        {
-          role: "sfx_impact",
-          allowedFontIds: ["jua"],
-          maxDistinctFonts: 1,
-          reuseVisualClusterFont: true,
-          evidenceCount: 20,
-          confidence: 1,
-        },
-      ],
-    });
-    const initialState = coordinator.prepareWorkState(item, "sfx_impact");
-    coordinator.recordDecision(
-      "sfx_impact",
-      initialState,
-      makeCoordinatorResult("jua", ["role_palette"], "work_role_user_lock"),
-      profile,
-    );
+    const status = makeReadyRuntimeStatus(candidates, catalogVersion);
+    const regularStyle = makeSourceStyle();
 
+    for (const index of [1, 2]) {
+      const page = { ...makePage(), id: `page-${index}` };
+      const block = makeBlock({ id: `block-${index}` });
+      const pixelInference = makePixelInference({
+        blockId: block.id,
+        catalogVersion,
+        pageId: page.id,
+        sourceStyle: regularStyle,
+        scores: [0.94, 0.72],
+      });
+      const decision = resolveAutomaticFontDecisionV2({
+        block,
+        item: makeItem("dialogue", 0.99),
+        page,
+        options: {
+          enabled: true,
+          targetLanguage: "ko",
+          candidates,
+          pageCoordinator: coordinator,
+          pixelInference,
+          runtimeArtifactStatus: status,
+        },
+      });
+      expect(decision?.result.decision.selectedFontId).toBe("jua");
+    }
+
+    const thirdPage = { ...makePage(), id: "page-3" };
+    const thirdBlock = makeBlock({ id: "block-3" });
+    const closeLocalAlternative = makePixelInference({
+      blockId: thirdBlock.id,
+      catalogVersion,
+      pageId: thirdPage.id,
+      sourceStyle: regularStyle,
+      scores: [0.89, 0.91],
+    });
     expect(
-      coordinator.prepareWorkState(item, "sfx_impact")?.visualClusterFontId,
+      closeLocalAlternative.localEvidence.rankedCandidates.map(
+        (candidate) => candidate.confidence,
+      ),
+    ).toEqual([0.97, 0]);
+    const consistent = resolveAutomaticFontDecisionV2({
+      block: thirdBlock,
+      item: makeItem("dialogue", 0.99),
+      page: thirdPage,
+      options: {
+        enabled: true,
+        targetLanguage: "ko",
+        candidates,
+        pageCoordinator: coordinator,
+        pixelInference: closeLocalAlternative,
+        runtimeArtifactStatus: status,
+      },
+    });
+    expect(consistent?.result.decision.selectedFontId).toBe("jua");
+    expect(
+      consistent?.result.audit.priorityTrace.find(
+        (entry) => entry.priority === "v2_automatic",
+      )?.reasonCodes,
+    ).toContain("episode_body_consistency_prior");
+
+    const emphasizedSameFamily = makePixelInference({
+      blockId: "block-5",
+      catalogVersion,
+      pageId: "page-5",
+      sourceStyle: makeSourceStyle({ weight: 0.94, energy: 0.96 }),
+      scores: [0.89, 0.91],
+    });
+    expect(
+      coordinator.prepareWorkState(
+        makeItem("dialogue", 0.99),
+        "dialogue",
+        emphasizedSameFamily,
+      ),
+    ).toMatchObject({
+      automaticStrategy: "body_consistency_soft",
+      bodyConsistencyFontId: "jua",
+    });
+
+    const strongLocalAlternative = makePixelInference({
+      blockId: "block-4",
+      catalogVersion,
+      pageId: "page-4",
+      sourceStyle: regularStyle,
+      scores: [0.68, 0.94],
+    });
+    const localWins = resolveAutomaticFontDecisionV2({
+      block: makeBlock({ id: "block-4" }),
+      item: makeItem("dialogue", 0.99),
+      page: { ...makePage(), id: "page-4" },
+      options: {
+        enabled: true,
+        targetLanguage: "ko",
+        candidates,
+        pageCoordinator: coordinator,
+        pixelInference: strongLocalAlternative,
+        runtimeArtifactStatus: status,
+      },
+    });
+    expect(localWins?.result.decision.selectedFontId).toBe("dohyeon");
+
+    const differentSourceStyle = makePixelInference({
+      blockId: "block-6",
+      catalogVersion,
+      pageId: "page-6",
+      sourceStyle: makeSourceStyle({ serifness: 0.92 }),
+      scores: [0.74, 0.93],
+    });
+    expect(
+      coordinator.prepareWorkState(
+        makeItem("dialogue", 0.99),
+        "dialogue",
+        differentSourceStyle,
+      )?.bodyConsistencyFontId,
     ).toBeUndefined();
+
+    const handwritten = makePixelInference({
+      blockId: "block-7",
+      catalogVersion,
+      pageId: "page-7",
+      sourceStyle: makeSourceStyle({ handwritten: 0.91, irregularity: 0.8 }),
+      scores: [0.9, 0.88],
+    });
+    expect(
+      coordinator.prepareWorkState(
+        makeItem("dialogue", 0.99),
+        "dialogue",
+        handwritten,
+      ),
+    ).toEqual({ automaticStrategy: "local_visual_first" });
+    expect(
+      coordinator.prepareWorkState(
+        makeItem("sfx_impact", 0.99),
+        "sfx_impact",
+        closeLocalAlternative,
+      )?.automaticStrategy,
+    ).toBe("local_visual_first");
+  });
+
+  it("never lets a chapter prior resurrect a candidate outside the pixel top three", () => {
+    const ranked = [
+      {
+        ...makeRankedCandidate("local-top", 0.9, 1),
+        rawPixelRank: 1,
+        confidence: 0.9,
+      },
+      { ...makeRankedCandidate("local-2", 0.88, 2), rawPixelRank: 2 },
+      { ...makeRankedCandidate("local-3", 0.87, 3), rawPixelRank: 3 },
+      { ...makeRankedCandidate("chapter-font", 0.85, 4), rawPixelRank: 4 },
+    ];
+
+    const adjusted = applyAutomaticFontChapterBodyPrior(ranked, {
+      automaticStrategy: "body_consistency_soft",
+      bodyConsistencyFontId: "chapter-font",
+      bodyConsistencyScoreBoost: 0.06,
+    });
+
+    expect(adjusted[0]?.fontId).toBe("local-top");
+    expect(
+      adjusted.find((candidate) => candidate.fontId === "chapter-font")
+        ?.reasonCodes,
+    ).not.toContain("episode_body_consistency_prior");
+  });
+
+  it("lets the verified local-override margin defeat a chapter prior", () => {
+    const candidates = [builtIn("jua"), builtIn("dohyeon")];
+    const catalogVersion = resolveFontMatchingV2CatalogVersion(candidates);
+    const ready = makeReadyRuntimeStatus(candidates, catalogVersion);
+    if (ready.state !== "ready") throw new Error("expected ready fixture");
+    const status = {
+      ...ready,
+      policy: {
+        ...ready.policy,
+        chapterPrior: {
+          ...ready.policy.chapterPrior,
+          localOverrideMinimumScoreMargin: 0.01,
+        },
+      },
+    } as const;
+    const coordinator = createAutomaticFontPageCoordinatorV2();
+    const sourceStyle = makeSourceStyle();
+
+    for (const index of [1, 2]) {
+      const page = { ...makePage(), id: `policy-page-${index}` };
+      const block = makeBlock({ id: `policy-block-${index}` });
+      resolveAutomaticFontDecisionV2({
+        block,
+        item: makeItem("dialogue", 0.99),
+        page,
+        options: {
+          enabled: true,
+          targetLanguage: "ko",
+          candidates,
+          pageCoordinator: coordinator,
+          pixelInference: makePixelInference({
+            blockId: block.id,
+            catalogVersion,
+            pageId: page.id,
+            scores: [0.94, 0.72],
+            sourceStyle,
+          }),
+          runtimeArtifactStatus: status,
+        },
+      });
+    }
+
+    const page = { ...makePage(), id: "policy-page-3" };
+    const block = makeBlock({ id: "policy-block-3" });
+    const decision = resolveAutomaticFontDecisionV2({
+      block,
+      item: makeItem("dialogue", 0.99),
+      page,
+      options: {
+        enabled: true,
+        targetLanguage: "ko",
+        candidates,
+        pageCoordinator: coordinator,
+        pixelInference: makePixelInference({
+          blockId: block.id,
+          catalogVersion,
+          pageId: page.id,
+          scores: [0.89, 0.91],
+          sourceStyle,
+        }),
+        runtimeArtifactStatus: status,
+      },
+    });
+
+    expect(decision?.result.decision.selectedFontId).toBe("dohyeon");
+    expect(
+      decision?.result.audit.priorityTrace.find(
+        (entry) => entry.priority === "v2_automatic",
+      )?.reasonCodes,
+    ).not.toContain("episode_body_consistency_prior");
+  });
+
+  it("honors the verified chapter anchor minimum and score cap", () => {
+    const candidates = [builtIn("jua"), builtIn("dohyeon")];
+    const catalogVersion = resolveFontMatchingV2CatalogVersion(candidates);
+    const ready = makeReadyRuntimeStatus(candidates, catalogVersion);
+    if (ready.state !== "ready") throw new Error("expected ready fixture");
+    const status = {
+      ...ready,
+      policy: {
+        ...ready.policy,
+        chapterPrior: {
+          ...ready.policy.chapterPrior,
+          maximumScoreContribution: 0.01,
+          minimumAnchorEvidenceCount: 3,
+        },
+      },
+    } as const;
+    const coordinator = createAutomaticFontPageCoordinatorV2();
+    const sourceStyle = makeSourceStyle();
+
+    for (const index of [1, 2]) {
+      resolveBodyAnchor({
+        candidates,
+        catalogVersion,
+        coordinator,
+        index,
+        sourceStyle,
+        status,
+      });
+    }
+    const probe = makePixelInference({
+      blockId: "cap-probe-block",
+      catalogVersion,
+      pageId: "cap-probe-page",
+      scores: [0.89, 0.91],
+      sourceStyle,
+    });
+    expect(
+      coordinator.prepareWorkState(
+        makeItem("dialogue", 0.99),
+        "dialogue",
+        probe,
+        status.policy,
+      )?.bodyConsistencyFontId,
+    ).toBeUndefined();
+
+    resolveBodyAnchor({
+      candidates,
+      catalogVersion,
+      coordinator,
+      index: 3,
+      sourceStyle,
+      status,
+    });
+    expect(
+      coordinator.prepareWorkState(
+        makeItem("dialogue", 0.99),
+        "dialogue",
+        probe,
+        status.policy,
+      ),
+    ).toMatchObject({
+      bodyConsistencyFontId: "jua",
+      bodyConsistencyScoreBoost: 0.01,
+    });
   });
 });
+
+function resolveBodyAnchor({
+  candidates,
+  catalogVersion,
+  coordinator,
+  index,
+  sourceStyle,
+  status,
+}: {
+  candidates: ReturnType<typeof builtIn>[];
+  catalogVersion: string;
+  coordinator: ReturnType<typeof createAutomaticFontPageCoordinatorV2>;
+  index: number;
+  sourceStyle: FontMatchingSourceStyleV2;
+  status: Extract<FontMatchingRuntimeArtifactStatus, { state: "ready" }>;
+}): void {
+  const page = { ...makePage(), id: `cap-anchor-page-${index}` };
+  const block = makeBlock({ id: `cap-anchor-block-${index}` });
+  resolveAutomaticFontDecisionV2({
+    block,
+    item: makeItem("dialogue", 0.99),
+    page,
+    options: {
+      enabled: true,
+      targetLanguage: "ko",
+      candidates,
+      pageCoordinator: coordinator,
+      pixelInference: makePixelInference({
+        blockId: block.id,
+        catalogVersion,
+        pageId: page.id,
+        scores: [0.94, 0.72],
+        sourceStyle,
+      }),
+      runtimeArtifactStatus: status,
+    },
+  });
+}
 
 function makeCoordinatorResult(
   fontId: string,
   reasonCodes: string[] = ["role_palette"],
-  resolvedBy: "work_profile" | "work_role_user_lock" = "work_profile",
+  resolvedBy:
+    | "work_profile"
+    | "work_role_user_lock"
+    | "v2_automatic" = "work_profile",
 ): FontMatchingDecisionResultV2 {
   return {
     decision: {
@@ -390,6 +886,209 @@ function makeCoordinatorResult(
         },
       ],
     },
+  };
+}
+
+function makeReadyRuntimeStatus(
+  candidates: ReturnType<typeof builtIn>[],
+  catalogVersion: string,
+): FontMatchingRuntimeArtifactStatus {
+  return {
+    state: "ready",
+    automaticMutationAllowed: true,
+    semanticBootstrapAllowed: false,
+    modelVersion: "runtime-model-v1",
+    catalogVersion,
+    candidateIds: candidates.map((candidate) => candidate.fontId),
+    candidateOrderSha256: "candidate-order-v1",
+    calibration: { temperature: 1, noneThreshold: 0.5 },
+    policy: {
+      automaticMutation: {
+        minimumAutomaticConfidence: 0.86,
+        minimumRoleConfidence: 0.82,
+        minimumIntentionalOverrideConfidence: 0.86,
+        intentionalOverrideMinimumScoreMargin: 0.1,
+      },
+      chapterPrior: {
+        maximumScoreContribution: 0.06,
+        minimumAnchorEvidenceCount: 2,
+        localOverrideMinimumScoreMargin: 0.1,
+      },
+    },
+  };
+}
+
+function makePixelInference({
+  blockId,
+  catalogVersion,
+  pageId,
+  scores,
+  selectionCalibration,
+  sourceStyle,
+}: {
+  blockId: string;
+  catalogVersion: string;
+  pageId: string;
+  scores: [number, number];
+  selectionCalibration?: VerifiedAutomaticFontPixelInferenceV2["selectionCalibration"];
+  sourceStyle: FontMatchingSourceStyleV2;
+}): VerifiedAutomaticFontPixelInferenceV2 {
+  const fontIds = ["jua", "dohyeon"];
+  const rankedCandidates = fontIds
+    .map((fontId, index) =>
+      makeRankedCandidate(fontId, scores[index] ?? 0, index + 1),
+    )
+    .sort((left, right) => right.totalScore - left.totalScore)
+    .map((candidate, index) => ({
+      ...candidate,
+      rank: index + 1,
+      rawPixelRank: index + 1,
+      // Production rank-preserving calibration reserves authority for the
+      // local pixel winner; chapter-prior tests must exercise that real shape.
+      confidence: index === 0 ? 0.97 : 0,
+    }));
+  return {
+    kind: "verified_pixel_inference",
+    pageId,
+    blockId,
+    modelVersion: "runtime-model-v1",
+    candidateOrderSha256: "candidate-order-v1",
+    inputBoundary: {
+      source: "user_page",
+      datasetSplit: null,
+      qaOverlay: false,
+    },
+    rolePrediction: {
+      primary: "dialogue",
+      confidence: 0.99,
+      alternatives: [],
+    },
+    sourceStyle,
+    treatment: {
+      orientation: "horizontal",
+      outline: "none",
+      shadow: "none",
+      fill: "solid",
+      distortion: "none",
+      polarity: "normal",
+      colorMode: "monochrome",
+    },
+    selectionCalibration: selectionCalibration ?? {
+      applied: true,
+      fallbackReason: null,
+      operatingFamily: "body",
+      selectionScore: 0.97,
+      globalRiskLowerConfidenceBound: 0.9,
+    },
+    localEvidence: {
+      rankedCandidates,
+      calibratedConfidence: 0.97,
+      noneAcceptable: false,
+      catalogVersion,
+      modelVersion: "runtime-model-v1",
+      rendererHash: FONT_MATCHING_V2_RENDERER_HASH,
+    },
+  };
+}
+
+function makePixelWinnerInference(
+  winnerFontId: string,
+  blockId: string,
+): VerifiedAutomaticFontPixelInferenceV2 {
+  const inference = makePixelInference({
+    blockId,
+    catalogVersion: "pixel-only-order-catalog",
+    pageId: "pixel-only-order-page",
+    scores: [0.94, 0.72],
+    sourceStyle: makeSourceStyle({
+      serifness: 0.5,
+      weight: 0.5,
+      width: 0.5,
+      roundness: 0.5,
+      strokeContrast: 0.5,
+      handwritten: 0.5,
+      angularity: 0.5,
+      irregularity: 0.5,
+      slant: 0.5,
+      energy: 0.5,
+    }),
+  });
+  return {
+    ...inference,
+    rolePrediction: {
+      primary: "dialogue",
+      confidence: 1 / 14,
+      alternatives: [],
+    },
+    localEvidence: {
+      ...inference.localEvidence,
+      rankedCandidates: inference.localEvidence.rankedCandidates.map(
+        (candidate, index) => ({
+          ...candidate,
+          fontId:
+            index === 0
+              ? winnerFontId
+              : winnerFontId === "dohyeon" ||
+                  winnerFontId === "griun-pol-sensibility"
+                ? "jua"
+                : "dohyeon",
+          rawPixelScore: candidate.totalScore,
+        }),
+      ),
+    },
+  };
+}
+
+function makePixelRoleInference(
+  primary: VerifiedAutomaticFontPixelInferenceV2["rolePrediction"]["primary"],
+  blockId: string,
+): VerifiedAutomaticFontPixelInferenceV2 {
+  return {
+    ...makePixelWinnerInference("dohyeon", blockId),
+    rolePrediction: { primary, confidence: 1, alternatives: [] },
+  };
+}
+
+function makeRankedCandidate(
+  fontId: string,
+  score: number,
+  rank: number,
+): RankedFontCandidateV2 {
+  return {
+    rank,
+    fontId,
+    renderStatus: "rendered",
+    unrenderableReason: null,
+    styleFit: score,
+    roleFit: score,
+    layoutFit: 0,
+    glyphCoverage: 1,
+    workProfileFit: 0,
+    userPreferenceFit: 0,
+    genrePriorContribution: 0,
+    switchPenalty: 0,
+    totalScore: score,
+    confidence: 0,
+    reasonCodes: ["pixel_model"],
+  };
+}
+
+function makeSourceStyle(
+  overrides: Partial<FontMatchingSourceStyleV2> = {},
+): FontMatchingSourceStyleV2 {
+  return {
+    serifness: 0.12,
+    weight: 0.48,
+    width: 0.5,
+    roundness: 0.42,
+    strokeContrast: 0.35,
+    handwritten: 0.08,
+    angularity: 0.22,
+    irregularity: 0.12,
+    slant: 0.08,
+    energy: 0.2,
+    unknownFields: [],
+    ...overrides,
   };
 }
 

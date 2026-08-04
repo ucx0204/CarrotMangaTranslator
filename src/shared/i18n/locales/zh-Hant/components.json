@@ -108,6 +108,24 @@
     "title": "格式",
     "batchApply": "批次套用",
     "batchApplyTitle": "將此文字區塊的格式批次套用到其他文字區塊",
+    "autoFont": {
+      "badge": "自動配對",
+      "rollback": "還原自動選擇",
+      "sources": {
+        "episode_consistency": "弱參考了本話中相似對白的字體；原文字形不同時仍以目前文字的視覺判斷為先。",
+        "local_visual": "優先依據目前文字的形狀、粗細與手寫感進行選擇。",
+        "work_profile": "同時參考作品字體策略與目前文字的視覺特徵。",
+        "user_lock": "已套用使用者明確鎖定的字體。"
+      },
+      "roles": {
+        "dialogue": "一般對白",
+        "narration": "旁白",
+        "thought": "內心獨白",
+        "aside": "對話框邊註",
+        "expressive": "音效·強調",
+        "other": "個別文字"
+      }
+    },
     "bold": "粗體",
     "italic": "斜體",
     "italicShort": "斜體",
@@ -417,7 +435,7 @@
       "on": "依文字區塊大小整理譯文換行。"
     },
     "autoFontMatching": "自動配對字型",
-    "autoFontMatchingSummary": "維持每部作品的對白字型，只調整高信心的擬聲詞或強調；不確定時保留目前字型。",
+    "autoFontMatchingSummary": "依照原文字形，為對白、旁白、強調與擬聲詞逐區塊自動配對合適字型。同一話的正文字型一致性只作為弱提示，未通過驗證品質門檻的結果不會套用。",
     "completionMode": "完成方式",
     "completionModeTranslate": "僅翻譯",
     "completionModeErase": "清除原文",

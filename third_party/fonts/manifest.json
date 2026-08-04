@@ -386,23 +386,6 @@
       ]
     },
     {
-      "id": "gugi",
-      "family": "Gugi",
-      "locale": "ko",
-      "source": "https://github.com/google/fonts/tree/2796410152d4f9524b68ed46e69c1b60f8e0f7c3/ofl/gugi",
-      "license": "OFL-1.1",
-      "licenseSource": "https://github.com/google/fonts/blob/2796410152d4f9524b68ed46e69c1b60f8e0f7c3/ofl/gugi/OFL.txt",
-      "faces": [
-        {
-          "file": "src/renderer/src/assets/fonts/ko/gugi.ttf",
-          "sourceFile": "Gugi-Regular.ttf",
-          "sha256": "c0b1f979979cfc309fb2438fa9464f96173353e0c4842cc7a5919658184ed9d3",
-          "format": "ttf",
-          "weight": 400
-        }
-      ]
-    },
-    {
       "id": "kirang-haerang",
       "family": "Kirang Haerang",
       "locale": "ko",

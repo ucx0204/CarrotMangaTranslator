@@ -30,6 +30,10 @@ const SIMPLIFIED_CHINESE_FALLBACK =
 const TRADITIONAL_CHINESE_FALLBACK =
   '"Microsoft JhengHei", "PingFang TC", PMingLiU, sans-serif';
 
+// Keep legacy IDs outside the production catalog so saved blocks and font
+// preferences can still be migrated without exposing a renderable entry.
+const RETIRED_BUILT_IN_BLOCK_FONT_IDS = new Set(["gugi"]);
+
 function fontFamily(family: string, fallback: string): string {
   return `"${family}", ${fallback}`;
 }
@@ -145,10 +149,7 @@ export const BUILT_IN_BLOCK_FONTS = [
     id: "black-and-white-picture",
     locale: "ko",
     label: "Black And White Picture",
-    cssFamily: fontFamily(
-      "MGT Black And White Picture",
-      KOREAN_SANS_FALLBACK,
-    ),
+    cssFamily: fontFamily("MGT Black And White Picture", KOREAN_SANS_FALLBACK),
     sample: "거친 효과음 쾅!",
   },
   {
@@ -164,13 +165,6 @@ export const BUILT_IN_BLOCK_FONTS = [
     label: "Gasoek One",
     cssFamily: fontFamily("MGT Gasoek One", KOREAN_SANS_FALLBACK),
     sample: "압축 충격음 콰앙!",
-  },
-  {
-    id: "gugi",
-    locale: "ko",
-    label: "Gugi",
-    cssFamily: fontFamily("MGT Gugi", KOREAN_SANS_FALLBACK),
-    sample: "각진 효과음 휙!",
   },
   {
     id: "kirang-haerang",
@@ -383,6 +377,10 @@ const BUILT_IN_BLOCK_FONT_BY_ID = new Map<string, BuiltInBlockFontDefinition>(
 
 export function isBuiltInBlockFontId(value: string): boolean {
   return BUILT_IN_BLOCK_FONT_BY_ID.has(value);
+}
+
+export function isRetiredBuiltInBlockFontId(value: string): boolean {
+  return RETIRED_BUILT_IN_BLOCK_FONT_IDS.has(value);
 }
 
 export function getPrioritizedBuiltInBlockFonts(

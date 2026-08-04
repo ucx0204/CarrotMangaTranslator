@@ -3,16 +3,22 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import type { InstalledAutoMatchCandidate } from "../src/main/pipeline/autoMatchActiveCatalogTypes";
 import {
+  FONT_MATCHING_ACTIVE_CATALOG_FILE,
+  FONT_MATCHING_ACTIVE_CATALOG_RECORD,
+  FONT_MATCHING_ACTIVE_CATALOG_SCHEMA,
   FONT_MATCHING_RUNTIME_ARTIFACT_RECORD,
   FONT_MATCHING_RUNTIME_ARTIFACT_SCHEMA,
-  FONT_MATCHING_RUNTIME_CANDIDATE_IDS,
-  FONT_MATCHING_RUNTIME_CANDIDATE_ORDER_SHA256,
+  FONT_MATCHING_RUNTIME_ARTIFACT_SCHEMA_V2,
   FONT_MATCHING_RUNTIME_ORT_VERSION,
+  FONT_MATCHING_SELECTION_CALIBRATION_FILE,
 } from "../src/main/pipeline/fontMatchingRuntimeArtifactContract";
+import { readVerifiedRuntimeArtifactBundle } from "../src/main/pipeline/fontMatchingRuntimeArtifactBundleLoader";
 import { loadFontMatchingRuntimeArtifactStatus } from "../src/main/pipeline/fontMatchingRuntimeArtifactStatus";
 
 const tempDirs: string[] = [];
+const candidateIds = ["font-a", "font-b"] as const;
 
 afterEach(async () => {
   await Promise.all(
@@ -23,19 +29,144 @@ afterEach(async () => {
 });
 
 describe("font matching runtime artifact status", () => {
-  it("keeps a fully verified bundle disabled until Electron pixel inference exists", async () => {
+  it("returns calibrated ready status for a fully verified dynamic bundle", async () => {
     const bundle = await writeBundle();
 
-    await expect(
-      loadFontMatchingRuntimeArtifactStatus({
-        artifactDir: bundle.root,
-        installedCandidateIds: FONT_MATCHING_RUNTIME_CANDIDATE_IDS,
-      }),
-    ).resolves.toEqual({
-      state: "disabled",
-      automaticMutationAllowed: false,
+    await expect(statusFor(bundle)).resolves.toEqual({
+      state: "ready",
+      automaticMutationAllowed: true,
       semanticBootstrapAllowed: false,
-      reason: "runtime_inference_unavailable",
+      modelVersion: "font-matching-runtime-v1-test",
+      catalogVersion: "font-face-manifest-pruned-v5-test",
+      candidateIds: [...candidateIds],
+      candidateOrderSha256: candidateOrderSha256(candidateIds),
+      calibration: { temperature: 0.75, noneThreshold: 0.2 },
+      policy: {
+        automaticMutation: {
+          minimumAutomaticConfidence: 0.86,
+          minimumRoleConfidence: 0.82,
+          minimumIntentionalOverrideConfidence: 0.86,
+          intentionalOverrideMinimumScoreMargin: 0.1,
+        },
+        chapterPrior: {
+          maximumScoreContribution: 0.08,
+          minimumAnchorEvidenceCount: 20,
+          localOverrideMinimumScoreMargin: 0.1,
+        },
+      },
+    });
+  });
+
+  it("accepts the sealed v2 hybrid owner and exact score-routing contract", async () => {
+    const bundle = await writeBundle();
+    bundle.contract.schema_version = FONT_MATCHING_RUNTIME_ARTIFACT_SCHEMA_V2;
+    (bundle.contract as Record<string, unknown>).hybrid_score_routing =
+      makeHybridScoreRouting();
+    (bundle.contract as Record<string, unknown>).runtime_batching =
+      makeHybridRuntimeBatching();
+    await rewriteContract(bundle.root, sealRecord(bundle.contract));
+
+    await expect(statusFor(bundle)).resolves.toMatchObject({
+      state: "ready",
+      automaticMutationAllowed: true,
+      modelVersion: "font-matching-runtime-v1-test",
+    });
+    const verified = await readVerifiedRuntimeArtifactBundle(bundle.root);
+    expect(verified.schemaVersion).toBe(
+      FONT_MATCHING_RUNTIME_ARTIFACT_SCHEMA_V2,
+    );
+  });
+
+  it("requires an explicit flag for an exactly marked QA-only runtime", async () => {
+    const bundle = await writeBundle();
+    await rewriteMarker(bundle.root, {
+      qa_only: true,
+      release_approved: false,
+    });
+
+    await expect(statusFor(bundle)).resolves.toMatchObject({
+      state: "disabled",
+      reason: "artifact_verification_failed",
+    });
+    await expect(
+      readVerifiedRuntimeArtifactBundle(bundle.root),
+    ).rejects.toMatchObject({ reason: "artifact_verification_failed" });
+    await expect(statusFor(bundle, true)).resolves.toMatchObject({
+      state: "ready",
+      automaticMutationAllowed: true,
+    });
+    const verified = await readVerifiedRuntimeArtifactBundle(bundle.root, {
+      allowQaOnlyRuntime: true,
+    });
+    expect(verified.qaOnly).toBe(true);
+  });
+
+  it("rejects ambiguous QA-only marker flags even with permission", async () => {
+    const bundle = await writeBundle();
+    await rewriteMarker(bundle.root, {
+      qa_only: true,
+      release_approved: true,
+    });
+
+    await expect(statusFor(bundle, true)).resolves.toMatchObject({
+      state: "disabled",
+      reason: "artifact_verification_failed",
+    });
+  });
+
+  it("recognizes an exactly sealed external release acceptance", async () => {
+    const bundle = await writeBundle();
+    (bundle.contract as Record<string, unknown>).release_acceptance =
+      makeReleaseAcceptance();
+    await rewriteContract(bundle.root, sealRecord(bundle.contract));
+
+    const verified = await readVerifiedRuntimeArtifactBundle(bundle.root);
+
+    expect(verified.qaOnly).toBe(false);
+    expect(verified.releaseAccepted).toBe(true);
+  });
+
+  it("fails closed when the nested release acceptance seal is tampered", async () => {
+    const bundle = await writeBundle();
+    const acceptance = makeReleaseAcceptance();
+    (acceptance as Record<string, unknown>).record_sha256 = "0".repeat(64);
+    (bundle.contract as Record<string, unknown>).release_acceptance =
+      acceptance;
+    await rewriteContract(bundle.root, sealRecord(bundle.contract));
+
+    await expect(
+      readVerifiedRuntimeArtifactBundle(bundle.root),
+    ).rejects.toMatchObject({ reason: "artifact_verification_failed" });
+  });
+
+  it("fails closed when a resealed release acceptance misses the 80-page gate", async () => {
+    const bundle = await writeBundle();
+    const acceptance = makeReleaseAcceptance();
+    const qualityGate = acceptance.quality_gate as Record<string, unknown>;
+    qualityGate.manual_page_verdicts = { accepted: 79, total: 80 };
+    (bundle.contract as Record<string, unknown>).release_acceptance =
+      sealRecord(acceptance);
+    await rewriteContract(bundle.root, sealRecord(bundle.contract));
+
+    await expect(
+      readVerifiedRuntimeArtifactBundle(bundle.root),
+    ).rejects.toMatchObject({ reason: "artifact_verification_failed" });
+  });
+
+  it("rejects v2 hybrid routing vocabulary drift", async () => {
+    const bundle = await writeBundle();
+    bundle.contract.schema_version = FONT_MATCHING_RUNTIME_ARTIFACT_SCHEMA_V2;
+    (bundle.contract as Record<string, unknown>).hybrid_score_routing = {
+      ...makeHybridScoreRouting(),
+      unknown_role_fallback: "body_candidate_scores",
+    };
+    (bundle.contract as Record<string, unknown>).runtime_batching =
+      makeHybridRuntimeBatching();
+    await rewriteContract(bundle.root, sealRecord(bundle.contract));
+
+    await expect(statusFor(bundle)).resolves.toMatchObject({
+      state: "disabled",
+      reason: "invalid_contract",
     });
   });
 
@@ -43,7 +174,7 @@ describe("font matching runtime artifact status", () => {
     await expect(
       loadFontMatchingRuntimeArtifactStatus({
         artifactDir: null,
-        installedCandidateIds: [],
+        installedCandidates: [],
       }),
     ).resolves.toEqual({
       state: "disabled",
@@ -53,25 +184,122 @@ describe("font matching runtime artifact status", () => {
     });
   });
 
-  it("hashes every bundle file instead of trusting a caller boolean", async () => {
+  it("hashes every bundle file instead of trusting the marker", async () => {
     const bundle = await writeBundle();
     await writeFile(join(bundle.root, "prototype-features.f32"), "tampered");
 
-    await expect(statusFor(bundle.root)).resolves.toMatchObject({
+    await expect(statusFor(bundle)).resolves.toMatchObject({
       state: "disabled",
       reason: "artifact_verification_failed",
     });
   });
 
-  it("recomputes the canonical contract record seal", async () => {
+  it("returns the marker-verified selection calibration bytes", async () => {
+    const bundle = await writeBundle();
+
+    const verified = await readVerifiedRuntimeArtifactBundle(bundle.root);
+
+    expect(
+      Buffer.from(
+        verified.assetBytes[FONT_MATCHING_SELECTION_CALIBRATION_FILE] ?? [],
+      ),
+    ).toEqual(bundle.selectionCalibrationBytes);
+  });
+
+  it("fails closed when the selection calibration bytes are tampered", async () => {
+    const bundle = await writeBundle();
+    await writeFile(
+      join(bundle.root, FONT_MATCHING_SELECTION_CALIBRATION_FILE),
+      "tampered",
+    );
+
+    await expect(statusFor(bundle)).resolves.toMatchObject({
+      state: "disabled",
+      reason: "artifact_verification_failed",
+    });
+  });
+
+  it("requires the selection calibration contract descriptor", async () => {
+    const bundle = await writeBundle();
+    delete (bundle.contract.artifacts as Record<string, unknown>)[
+      FONT_MATCHING_SELECTION_CALIBRATION_FILE
+    ];
+    await rewriteContract(bundle.root, sealRecord(bundle.contract));
+
+    await expect(statusFor(bundle)).resolves.toMatchObject({
+      state: "disabled",
+      reason: "invalid_contract",
+    });
+  });
+
+  it("verifies the active catalog seal and its marker binding", async () => {
+    const bundle = await writeBundle();
+    const activePath = join(bundle.root, FONT_MATCHING_ACTIVE_CATALOG_FILE);
+    const active = JSON.parse(await readFile(activePath, "utf8")) as Record<
+      string,
+      unknown
+    >;
+    active.record_sha256 = "a".repeat(64);
+    await writeFile(activePath, `${JSON.stringify(active, null, 2)}\n`);
+    await rewriteMarker(bundle.root);
+
+    await expect(statusFor(bundle)).resolves.toMatchObject({
+      state: "disabled",
+      reason: "artifact_verification_failed",
+    });
+  });
+
+  it("recomputes the canonical runtime contract seal", async () => {
     const bundle = await writeBundle();
     bundle.contract.record_sha256 = "a".repeat(64);
     await rewriteContract(bundle.root, bundle.contract);
 
-    await expect(statusFor(bundle.root)).resolves.toMatchObject({
+    await expect(statusFor(bundle)).resolves.toMatchObject({
       state: "disabled",
       reason: "artifact_verification_failed",
     });
+  });
+
+  it("verifies Python float lexemes in the sealed runtime contract", async () => {
+    const bundle = await writeBundle();
+    bundle.contract.calibration.temperature = 1;
+    bundle.contract.policy.chapter_prior.local_override_minimum_score_margin = 1.266e-6;
+    const pythonJson = pythonStyleRuntimeContractJson(bundle.contract);
+    expect(pythonJson).toContain('"temperature": 1.0');
+    expect(pythonJson).toContain(
+      '"local_override_minimum_score_margin": 1.266e-06',
+    );
+    await writeFile(join(bundle.root, "runtime-contract.json"), pythonJson);
+    await rewriteMarker(bundle.root);
+
+    const verified = await readVerifiedRuntimeArtifactBundle(bundle.root);
+
+    expect(
+      (verified.contract.calibration as Record<string, unknown>).temperature,
+    ).toBe(1);
+    expect(
+      (
+        (verified.contract.policy as Record<string, unknown>)[
+          "chapter_prior"
+        ] as Record<string, unknown>
+      ).local_override_minimum_score_margin,
+    ).toBe(1.266e-6);
+  });
+
+  it("rejects a Python-number spelling change without a new record seal", async () => {
+    const bundle = await writeBundle();
+    bundle.contract.calibration.temperature = 1;
+    bundle.contract.policy.chapter_prior.local_override_minimum_score_margin = 1.266e-6;
+    const pythonJson = pythonStyleRuntimeContractJson(bundle.contract);
+    await writeFile(
+      join(bundle.root, "runtime-contract.json"),
+      pythonJson.replace('"temperature": 1.0', '"temperature": 1.00'),
+    );
+    await rewriteMarker(bundle.root);
+
+    await expect(
+      readVerifiedRuntimeArtifactBundle(bundle.root),
+    ).rejects.toMatchObject({ reason: "artifact_verification_failed" });
   });
 
   it("rejects a policy that permits semantic bootstrap", async () => {
@@ -79,23 +307,98 @@ describe("font matching runtime artifact status", () => {
     bundle.contract.deployment.fallback_policy.semantic_bootstrap = "shadow";
     await rewriteContract(bundle.root, sealRecord(bundle.contract));
 
-    await expect(statusFor(bundle.root)).resolves.toMatchObject({
+    await expect(statusFor(bundle)).resolves.toMatchObject({
       state: "disabled",
       reason: "invalid_contract",
     });
   });
 
-  it("requires the authoritative installed candidate order", async () => {
+  it("rejects missing automatic-mutation policy instead of using app defaults", async () => {
+    const bundle = await writeBundle();
+    delete (bundle.contract.policy as Record<string, unknown>)
+      .automatic_mutation;
+    await rewriteContract(bundle.root, sealRecord(bundle.contract));
+
+    await expect(statusFor(bundle)).resolves.toMatchObject({
+      state: "disabled",
+      reason: "invalid_contract",
+    });
+  });
+
+  it("rejects policy vocabulary drift and unsafe requirement changes", async () => {
+    const bundle = await writeBundle();
+    const automatic = bundle.contract.policy.automatic_mutation as Record<
+      string,
+      unknown
+    >;
+    automatic.require_runtime_artifact_ready = false;
+    automatic.silent_fallback = true;
+    await rewriteContract(bundle.root, sealRecord(bundle.contract));
+
+    await expect(statusFor(bundle)).resolves.toMatchObject({
+      state: "disabled",
+      reason: "invalid_contract",
+    });
+  });
+
+  it("requires the sealed lowercase policy SHA-256 field", async () => {
+    const bundle = await writeBundle();
+    bundle.contract.policy.policy_sha256 = "A".repeat(64);
+    await rewriteContract(bundle.root, sealRecord(bundle.contract));
+
+    await expect(statusFor(bundle)).resolves.toMatchObject({
+      state: "disabled",
+      reason: "invalid_contract",
+    });
+  });
+
+  it("requires the exact installed active-candidate order", async () => {
     const bundle = await writeBundle();
 
     await expect(
       loadFontMatchingRuntimeArtifactStatus({
         artifactDir: bundle.root,
-        installedCandidateIds: [
-          ...FONT_MATCHING_RUNTIME_CANDIDATE_IDS,
-        ].reverse(),
+        installedCandidates: [...bundle.installedCandidates].reverse(),
       }),
     ).resolves.toMatchObject({ state: "disabled", reason: "catalog_mismatch" });
+  });
+
+  it("hashes each installed candidate asset from its actual file", async () => {
+    const bundle = await writeBundle();
+    await writeFile(
+      bundle.installedCandidates[1].assets[0].resolvedFile,
+      "same-descriptor-but-tampered-bytes",
+    );
+
+    await expect(statusFor(bundle)).resolves.toMatchObject({
+      state: "disabled",
+      reason: "catalog_mismatch",
+    });
+  });
+
+  it("rejects contract vocabulary drift from the bundled active catalog", async () => {
+    const bundle = await writeBundle();
+    bundle.contract.catalog.candidate_ids = [...candidateIds].reverse();
+    bundle.contract.catalog.candidate_order_sha256 = candidateOrderSha256(
+      bundle.contract.catalog.candidate_ids,
+    );
+    await rewriteContract(bundle.root, sealRecord(bundle.contract));
+
+    await expect(statusFor(bundle)).resolves.toMatchObject({
+      state: "disabled",
+      reason: "invalid_contract",
+    });
+  });
+
+  it("rejects a contract catalog version that differs from the active catalog", async () => {
+    const bundle = await writeBundle();
+    bundle.contract.catalog.catalog_version = "stale-active-catalog";
+    await rewriteContract(bundle.root, sealRecord(bundle.contract));
+
+    await expect(statusFor(bundle)).resolves.toMatchObject({
+      state: "disabled",
+      reason: "invalid_contract",
+    });
   });
 
   it("rejects runtime version drift", async () => {
@@ -104,7 +407,7 @@ describe("font matching runtime artifact status", () => {
     await expect(
       loadFontMatchingRuntimeArtifactStatus({
         artifactDir: bundle.root,
-        installedCandidateIds: FONT_MATCHING_RUNTIME_CANDIDATE_IDS,
+        installedCandidates: bundle.installedCandidates,
         onnxRuntimeVersion: "1.28.0",
       }),
     ).resolves.toMatchObject({
@@ -114,32 +417,122 @@ describe("font matching runtime artifact status", () => {
   });
 });
 
-async function statusFor(root: string) {
+async function statusFor(
+  bundle: Awaited<ReturnType<typeof writeBundle>>,
+  allowQaOnlyRuntime = false,
+) {
   return loadFontMatchingRuntimeArtifactStatus({
-    artifactDir: root,
-    installedCandidateIds: FONT_MATCHING_RUNTIME_CANDIDATE_IDS,
+    artifactDir: bundle.root,
+    installedCandidates: bundle.installedCandidates,
+    allowQaOnlyRuntime,
   });
 }
 
 async function writeBundle() {
   const root = await mkdtemp(join(tmpdir(), "font-runtime-status-"));
   tempDirs.push(root);
-  await mkdir(root, { recursive: true });
+  const installedRoot = await mkdtemp(join(tmpdir(), "font-runtime-fonts-"));
+  tempDirs.push(installedRoot);
+  await Promise.all([
+    mkdir(root, { recursive: true }),
+    mkdir(installedRoot, { recursive: true }),
+  ]);
+
+  const installedCandidates: InstalledAutoMatchCandidate[] = [];
+  const activeCandidates = [];
+  for (const [index, candidateId] of candidateIds.entries()) {
+    const bytes = Buffer.from(`installed-${candidateId}`);
+    const sourceFile = `src/renderer/src/assets/fonts/ko/${candidateId}.ttf`;
+    const resolvedFile = join(installedRoot, `${candidateId}.ttf`);
+    await writeFile(resolvedFile, bytes);
+    const asset = {
+      byte_size: bytes.byteLength,
+      face_id: `${candidateId}:1:test`,
+      file: sourceFile,
+      sha256: sha256(bytes),
+    };
+    activeCandidates.push({
+      assets: [asset],
+      candidate_id: candidateId,
+      disposition:
+        index === 0
+          ? {
+              action: "prior_production_catalog",
+              active_release_eligible: true,
+              all_unrenderable: false,
+              deployable_opportunity_count: null,
+              evidence_source: "prior_production_catalog",
+              safe_count: null,
+              terminal: true,
+            }
+          : {
+              action: "retained_unique_p1",
+              active_release_eligible: true,
+              all_unrenderable: false,
+              deployable_opportunity_count: 3,
+              evidence_source: "v5_catalog_disposition",
+              safe_count: 1,
+              terminal: true,
+            },
+    });
+    installedCandidates.push({
+      candidateId,
+      assets: [
+        {
+          byteSize: bytes.byteLength,
+          faceId: asset.face_id,
+          file: sourceFile,
+          resolvedFile,
+          sha256: asset.sha256,
+        },
+      ],
+    });
+  }
+  const activeCatalog = sealRecord({
+    candidate_count: candidateIds.length,
+    candidate_ids: [...candidateIds],
+    candidate_order_sha256: candidateOrderSha256(candidateIds),
+    candidates: activeCandidates,
+    catalog_version: "font-face-manifest-pruned-v5-test",
+    excluded_candidates: [],
+    locale: "ko",
+    record_type: FONT_MATCHING_ACTIVE_CATALOG_RECORD,
+    schema_version: FONT_MATCHING_ACTIVE_CATALOG_SCHEMA,
+    source_records: {
+      catalog_disposition_record_sha256: "b".repeat(64),
+      deployment_font_face_manifest_sha256: "d".repeat(64),
+      deployment_render_bank_manifest_sha256: "e".repeat(64),
+      evidence_font_face_manifest_sha256: "1".repeat(64),
+      evidence_render_bank_manifest_sha256: "2".repeat(64),
+      final_catalog_record_sha256: "c".repeat(64),
+    },
+  });
+  const activeBytes = Buffer.from(
+    `${JSON.stringify(activeCatalog, null, 2)}\n`,
+  );
+  const selectionCalibrationBytes = Buffer.from(
+    '{"schema_version":"font-matching-selection-calibration-v1"}\n',
+  );
+  await writeFile(join(root, FONT_MATCHING_ACTIVE_CATALOG_FILE), activeBytes);
   const fileBytes = {
+    [FONT_MATCHING_ACTIVE_CATALOG_FILE]: activeBytes,
+    [FONT_MATCHING_SELECTION_CALIBRATION_FILE]: selectionCalibrationBytes,
     "encoder.onnx": Buffer.from("encoder"),
     "ranker.onnx": Buffer.from("ranker"),
     "prototype-features.f32": Buffer.from("prototypes"),
   };
   for (const [file, bytes] of Object.entries(fileBytes)) {
-    await writeFile(join(root, file), bytes);
+    if (file !== FONT_MATCHING_ACTIVE_CATALOG_FILE) {
+      await writeFile(join(root, file), bytes);
+    }
   }
-  const contract = sealRecord(makeContract(fileBytes));
+  const contract = sealRecord(makeContract(fileBytes, activeCatalog));
   await writeFile(
     join(root, "runtime-contract.json"),
     `${JSON.stringify(contract, null, 2)}\n`,
   );
-  await writeMarker(root);
-  return { root, contract };
+  await rewriteMarker(root);
+  return { root, contract, installedCandidates, selectionCalibrationBytes };
 }
 
 async function rewriteContract(
@@ -150,11 +543,16 @@ async function rewriteContract(
     join(root, "runtime-contract.json"),
     `${JSON.stringify(contract, null, 2)}\n`,
   );
-  await writeMarker(root);
+  await rewriteMarker(root);
 }
 
-async function writeMarker(root: string) {
+async function rewriteMarker(
+  root: string,
+  markerOverrides: Record<string, unknown> = {},
+) {
   const files = [
+    FONT_MATCHING_ACTIVE_CATALOG_FILE,
+    FONT_MATCHING_SELECTION_CALIBRATION_FILE,
     "encoder.onnx",
     "ranker.onnx",
     "prototype-features.f32",
@@ -168,47 +566,101 @@ async function writeMarker(root: string) {
       ]),
     ),
   );
+  const contract = JSON.parse(
+    await readFile(join(root, "runtime-contract.json"), "utf8"),
+  ) as Record<string, unknown>;
+  const schemaVersion = contract.schema_version;
+  const owner =
+    schemaVersion === FONT_MATCHING_RUNTIME_ARTIFACT_SCHEMA_V2
+      ? "carrot-manga-translator/font-matching-runtime-artifact-v2"
+      : "carrot-manga-translator/font-matching-runtime-artifact";
   await writeFile(
     join(root, ".font-matching-runtime-artifact-owned.json"),
     `${JSON.stringify({
       artifacts,
-      owner: "carrot-manga-translator/font-matching-runtime-artifact",
+      owner,
       safe_replace: true,
-      schema_version: FONT_MATCHING_RUNTIME_ARTIFACT_SCHEMA,
+      schema_version: schemaVersion,
+      ...markerOverrides,
     })}\n`,
   );
 }
 
-function makeContract(fileBytes: Record<string, Buffer>) {
+function makeHybridScoreRouting() {
+  return {
+    schema_version: "font-matching-hybrid-score-routing-v1",
+    candidate_scores_compatibility_alias: "body_candidate_scores",
+    body_candidate_output: "body_candidate_scores",
+    variant_candidate_output: "variant_candidate_scores",
+    body_roles: ["dialogue", "narration", "thought"],
+    variant_roles: [
+      "whisper",
+      "aside_balloon_edge",
+      "emphasis_dialogue",
+      "shout",
+      "sfx_impact",
+      "sfx_motion",
+      "sfx_ambient",
+      "sfx_emotion",
+      "sfx_comic",
+      "sign_ui_title",
+      "other",
+    ],
+    unknown_role_fallback: "variant_candidate_scores",
+    role_source: "resolveCombinedAutomaticFontRole(item.fontRole,pixelRole)",
+    selection_feature_source:
+      "selected_candidate_scores_with_legacy256_visual_features",
+    selection_feature_dim: 256,
+    row_specific_rules: false,
+  };
+}
+
+function makeHybridRuntimeBatching() {
+  return {
+    encoder_batch_size: 2,
+    ranker_batch_size: 16,
+    parity_qualified: true,
+  };
+}
+
+function makeContract(
+  fileBytes: Record<string, Buffer>,
+  activeCatalog: Record<string, unknown>,
+) {
   const descriptor = (file: keyof typeof fileBytes) => ({
     byte_size: fileBytes[file].byteLength,
     file,
     sha256: sha256(fileBytes[file]),
   });
+  const sourceRecords = activeCatalog.source_records as Record<string, string>;
   return {
     schema_version: FONT_MATCHING_RUNTIME_ARTIFACT_SCHEMA,
     record_type: FONT_MATCHING_RUNTIME_ARTIFACT_RECORD,
     record_sha256: "",
     model_version: "font-matching-runtime-v1-test",
-    artifacts: {
-      "encoder.onnx": descriptor("encoder.onnx"),
-      "ranker.onnx": descriptor("ranker.onnx"),
-      "prototype-features.f32": descriptor("prototype-features.f32"),
-    },
+    artifacts: Object.fromEntries(
+      Object.keys(fileBytes).map((file) => [file, descriptor(file)]),
+    ),
     calibration: {
       calibration_split: "val",
       temperature: 0.75,
       none_threshold: 0.2,
     },
     catalog: {
-      candidate_count: FONT_MATCHING_RUNTIME_CANDIDATE_IDS.length,
-      candidate_ids: [...FONT_MATCHING_RUNTIME_CANDIDATE_IDS],
-      candidate_order_sha256: FONT_MATCHING_RUNTIME_CANDIDATE_ORDER_SHA256,
+      active_catalog_record_sha256: activeCatalog.record_sha256,
+      candidate_count: candidateIds.length,
+      candidate_ids: [...candidateIds],
+      candidate_order_sha256: candidateOrderSha256(candidateIds),
       candidate_parameterization: "prototype-bag-only-no-id-embedding-or-bias",
-      catalog_registry_sha256: "b".repeat(64),
-      font_catalog_sha256: "c".repeat(64),
-      font_prototypes_sha256: "d".repeat(64),
-      render_bank_manifest_sha256: "e".repeat(64),
+      catalog_disposition_record_sha256:
+        sourceRecords.catalog_disposition_record_sha256,
+      catalog_registry_sha256: "a".repeat(64),
+      catalog_version: activeCatalog.catalog_version,
+      final_catalog_record_sha256: sourceRecords.final_catalog_record_sha256,
+      font_catalog_sha256: sourceRecords.deployment_font_face_manifest_sha256,
+      font_prototypes_sha256: "f".repeat(64),
+      render_bank_manifest_sha256:
+        sourceRecords.deployment_render_bank_manifest_sha256,
     },
     deployment: {
       state: "ready",
@@ -223,6 +675,16 @@ function makeContract(fileBytes: Record<string, Buffer>) {
       },
     },
     policy: {
+      policy_sha256: "9".repeat(64),
+      automatic_mutation: {
+        intentional_override_minimum_score_margin: 0.1,
+        minimum_calibrated_confidence: 0.86,
+        minimum_intentional_override_confidence: 0.86,
+        minimum_role_confidence: 0.82,
+        require_none_acceptable_false: true,
+        require_runtime_artifact_ready: true,
+        require_translation_glyph_coverage: true,
+      },
       chapter_prior: {
         mode: "weak_prior_never_hard_constraint",
         scope: "chapter",
@@ -252,6 +714,48 @@ function sealRecord<T extends Record<string, unknown>>(record: T): T {
     Object.entries(record).filter(([key]) => key !== "record_sha256"),
   );
   return { ...record, record_sha256: sha256(canonicalJson(core)) };
+}
+
+function makeReleaseAcceptance() {
+  return sealRecord({
+    schema_version: "font-matching-runtime-release-acceptance-v1",
+    record_type: "font_matching_runtime_release_acceptance",
+    status: "accepted",
+    external_release_quality_gate_passed: true,
+    automatic_visual_judgment: false,
+    quality_gate: {
+      structural_error_count: 0,
+      manual_page_verdicts: { accepted: 80, total: 80 },
+    },
+  });
+}
+
+function pythonStyleRuntimeContractJson(
+  record: ReturnType<typeof makeContract>,
+): string {
+  const core = Object.fromEntries(
+    Object.entries(record).filter(([key]) => key !== "record_sha256"),
+  );
+  const recordSha256 = sha256(withPythonFloatLexemes(canonicalJson(core)));
+  return `${withPythonFloatLexemes(
+    JSON.stringify({ ...core, record_sha256: recordSha256 }, null, 2),
+  )}\n`;
+}
+
+function withPythonFloatLexemes(value: string): string {
+  return value
+    .replace(
+      /("temperature":\s*)1(?=\s*[,}])/u,
+      (_match, prefix: string) => `${prefix}1.0`,
+    )
+    .replace(
+      /("local_override_minimum_score_margin":\s*)(?:0\.000001266|1\.266e-6)/u,
+      (_match, prefix: string) => `${prefix}1.266e-06`,
+    );
+}
+
+function candidateOrderSha256(ids: readonly string[]): string {
+  return sha256(`${ids.join("\n")}\n`);
 }
 
 function canonicalJson(value: unknown): string {

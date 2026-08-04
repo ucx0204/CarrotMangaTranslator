@@ -1,6 +1,10 @@
 import React from "react";
 import type { CurveLayout, TranslationBlock } from "../../../shared/textTypes";
 import {
+  resolveEffectiveTextColor,
+  resolveEffectiveTextOutlineColor,
+} from "../../../shared/textOutline";
+import {
   parseRichText,
   type TextStyleRun,
 } from "../../../shared/richTextMarkup";
@@ -15,7 +19,6 @@ import type { BlockTextLayout } from "../lib/overlayLayout";
 import {
   normalizeTextOpacity,
   resolveBlockTextOutlinePx,
-  resolveCssColor,
 } from "./overlayTextStyles";
 
 let measureCanvas: HTMLCanvasElement | null = null;
@@ -71,14 +74,14 @@ export function CurveText({
       {positioned.map((glyph, index) => (
         <text
           dominantBaseline="central"
-          fill={resolveCssColor(block.textColor, "#111111")}
+          fill={resolveEffectiveTextColor(block)}
           fontFamily={fontFamily}
           fontSize={layout.fontSizePx}
           fontStyle={glyph.italic ? "italic" : "normal"}
           fontWeight={glyph.bold ? 800 : 400}
           key={`${index}-${glyph.char}`}
           paintOrder="stroke fill"
-          stroke={resolveCssColor(block.outlineColor, "#ffffff")}
+          stroke={resolveEffectiveTextOutlineColor(block)}
           strokeLinejoin="round"
           strokeWidth={outlineWidth * 2}
           textAnchor="middle"

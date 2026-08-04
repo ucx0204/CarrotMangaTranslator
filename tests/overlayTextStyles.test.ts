@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { TranslationBlock } from "../src/shared/textTypes";
-import { resolveOverlayTextContentStyle } from "../src/renderer/src/components/overlayTextStyles";
+import {
+  resolveBlockTextOutlinePx,
+  resolveOverlayTextContentStyle,
+} from "../src/renderer/src/components/overlayTextStyles";
 import type { BlockTextLayout } from "../src/renderer/src/lib/overlayLayout";
 
 describe("overlay text word-break styles", () => {
@@ -90,7 +93,67 @@ describe("overlay text word-break styles", () => {
     expect(style.maxWidth).toBe("none");
     expect(style.transform).toBe("scaleX(0.8)");
   });
+
+  it("keeps a contrasting minimum outline on automatic dark text", () => {
+    const block = makeAutomaticBlock({
+      textColor: "#111111",
+      outlineColor: "#111111",
+      outlineWidthScale: 0,
+    });
+    const style = resolveOverlayTextContentStyle(block, LAYOUT, "horizontal");
+
+    expect(style.textShadow).not.toBe("none");
+    expect(style.textShadow).toContain("#ffffff");
+    expect(resolveBlockTextOutlinePx(block, 10)).toBeGreaterThanOrEqual(0.5);
+  });
+
+  it("keeps inverse automatic text white with a contrasting dark outline", () => {
+    const style = resolveOverlayTextContentStyle(
+      makeAutomaticBlock({
+        textColor: "#f7f7f2",
+        outlineColor: "#f7f7f2",
+        outlineWidthScale: 0,
+      }),
+      LAYOUT,
+      "horizontal",
+    );
+
+    expect(style.textShadow).not.toBe("none");
+    expect(style.textShadow).toContain("#111111");
+  });
+
+  it("preserves the explicit no-outline contract for non-automatic blocks", () => {
+    const style = resolveOverlayTextContentStyle(
+      { ...BLOCK, outlineWidthScale: 0 },
+      LAYOUT,
+      "horizontal",
+    );
+
+    expect(style.textShadow).toBe("none");
+  });
 });
+
+function makeAutomaticBlock(
+  overrides: Partial<TranslationBlock>,
+): TranslationBlock {
+  return {
+    ...BLOCK,
+    automaticFontMatch: {
+      schemaVersion: 1,
+      selectedFontId: "dohyeon",
+      role: "dialogue",
+      confidence: 0.9,
+      source: "local_visual",
+      previousStyle: {
+        fontFamily: null,
+        bold: null,
+        italic: null,
+        outlineWidthScale: 0,
+      },
+    },
+    ...overrides,
+  };
+}
 
 const BLOCK: TranslationBlock = {
   id: "block-style",

@@ -50,7 +50,6 @@ const NEW_KOREAN_FONT_IDS = [
   "black-and-white-picture",
   "black-han-sans",
   "gasoek-one",
-  "gugi",
   "kirang-haerang",
   "nanum-brush-script",
   "single-day",

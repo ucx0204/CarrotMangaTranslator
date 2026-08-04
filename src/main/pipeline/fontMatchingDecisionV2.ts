@@ -111,7 +111,10 @@ function resolveRoleLockWithConfidenceGate(
 }
 
 function resolveAfterLocks(state: DecisionState): FontMatchingDecisionResultV2 {
-  if (state.input.role.primary === "unknown_needs_review") {
+  if (
+    state.input.role.primary === "unknown_needs_review" &&
+    state.input.localEvidence.supervisedSelectionAccepted !== true
+  ) {
     recordDecisionTrace(state, "work_profile", "skipped", null, [
       "role_unknown",
     ]);
@@ -185,6 +188,12 @@ function resolveAutomaticOrAbstain(
   }
   recordDecisionTrace(state, "v2_automatic", "selected", best.fontId, [
     "calibrated_threshold_passed",
+    ...(state.input.workState?.bodyConsistencyFontId === best.fontId &&
+    state.candidates
+      .get(best.fontId)
+      ?.reasonCodes.includes("episode_body_consistency_prior")
+      ? ["episode_body_consistency_prior"]
+      : []),
   ]);
   return finishApplied(state, { fontId: best.fontId }, "v2_automatic");
 }
@@ -269,11 +278,50 @@ function passesAutomaticConfidence(
   state: DecisionState,
   best: CandidateEvaluation,
 ): boolean {
+  if (state.input.localEvidence.supervisedSelectionAccepted === true) {
+    const supervisedWinner = [...state.candidates.values()].sort(
+      (left, right) =>
+        right.confidence - left.confidence ||
+        left.rank - right.rank ||
+        compareStrings(left.fontId, right.fontId),
+    )[0];
+    if (
+      !supervisedWinner ||
+      supervisedWinner.fontId !== best.fontId ||
+      (best.calibratedCandidateConfidence ?? 0) <= 0
+    ) {
+      return false;
+    }
+    return passesTransferredChapterPriorGate(state, best.fontId);
+  }
   const threshold = state.input.calibration.minimumAutomaticConfidence;
   return (
-    state.input.localEvidence.calibratedConfidence >= threshold &&
+    // Translation/layout hard gates and the weak chapter prior can change the
+    // final winner. Gate the candidate that would actually be applied; the
+    // original local top is retained in the audit but must not be checked a
+    // second time as though it were the same decision.
     (best.calibratedCandidateConfidence ?? 0) >= threshold &&
     state.input.role.confidence >= state.input.calibration.minimumRoleConfidence
+  );
+}
+
+function passesTransferredChapterPriorGate(
+  state: DecisionState,
+  fontId: string,
+): boolean {
+  const candidate = state.candidates.get(fontId);
+  if (!candidate?.reasonCodes.includes("episode_body_consistency_prior")) {
+    return true;
+  }
+  // A chapter prior may inherit the calibrated local winner's authority only
+  // when it stayed inside the sealed pixel top three. This mirrors the prior
+  // application boundary and fails closed if a forged/stale inference carries
+  // the reason code without the original pixel rank.
+  return Boolean(
+    candidate.renderStatus === "rendered" &&
+    Number.isInteger(candidate.rawPixelRank) &&
+    Number(candidate.rawPixelRank) >= 1 &&
+    Number(candidate.rawPixelRank) <= 3,
   );
 }
 
@@ -330,4 +378,9 @@ function validateCalibration(input: FontMatchingDecisionInputV2): void {
       throw new RangeError(`${key} must be between zero and one`);
     }
   }
+}
+
+function compareStrings(left: string, right: string): number {
+  if (left === right) return 0;
+  return left < right ? -1 : 1;
 }

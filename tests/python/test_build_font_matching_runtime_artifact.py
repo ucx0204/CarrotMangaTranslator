@@ -56,6 +56,149 @@ def parity_metrics() -> dict[str, Any]:
     }
 
 
+def write_active_catalog_sources(root: Path) -> dict[str, Path]:
+    asset_root = root / "repository"
+    assets: dict[str, bytes] = {
+        "font-a": b"font-a-bytes",
+        "font-b": b"font-b-bytes",
+    }
+    families = []
+    for candidate_id, payload in assets.items():
+        asset_path = asset_root / "assets" / f"{candidate_id}.ttf"
+        asset_path.parent.mkdir(parents=True, exist_ok=True)
+        asset_path.write_bytes(payload)
+        families.append(
+            {
+                "font_id": candidate_id,
+                "faces": [
+                    {
+                        "byte_size": len(payload),
+                        "face_id": f"{candidate_id}:1:test",
+                        "file": f"assets/{candidate_id}.ttf",
+                        "sha256": hashlib.sha256(payload).hexdigest(),
+                    }
+                ],
+            }
+        )
+    manifest_path = root / "font-face-manifest.json"
+    write_json(
+        manifest_path,
+        {
+            "schema_version": "font-face-manifest-v1",
+            "family_count": len(families),
+            "face_count": len(families),
+            "families": families,
+        },
+    )
+    render_path = root / "render-bank-manifest.json"
+    render_candidates = []
+    renders = []
+    for candidate_id in assets:
+        display_id = f"{candidate_id}/face/normal"
+        render_candidates.append(
+            {
+                "display_id": display_id,
+                "face_id": f"{candidate_id}:1:test",
+                "font_id": candidate_id,
+            }
+        )
+        image_path = root / "images" / f"{candidate_id}.png"
+        image_path.parent.mkdir(parents=True, exist_ok=True)
+        image_bytes = f"render-{candidate_id}".encode("utf-8")
+        image_path.write_bytes(image_bytes)
+        renders.append(
+            {
+                "candidate_display_id": display_id,
+                "artifact": {
+                    "byte_size": len(image_bytes),
+                    "file": f"images/{candidate_id}.png",
+                    "sha256": hashlib.sha256(image_bytes).hexdigest(),
+                },
+            }
+        )
+    write_json(
+        render_path,
+        {
+            "schema_version": "font-render-bank-v1",
+            "source_contract": {"manifest_sha256": digest(manifest_path)},
+            "family_count": len(assets),
+            "face_count": len(assets),
+            "candidate_count": len(render_candidates),
+            "candidates": render_candidates,
+            "generation": {
+                "complete_against_production_assets": True,
+                "partial": False,
+                "rendered_count": len(renders),
+            },
+            "renders": renders,
+        },
+    )
+    disposition_path = root / "catalog-disposition.json"
+    disposition = RUNTIME.seal_record(
+        {
+            "candidate_count": 2,
+            "entries": [
+                {
+                    "action": "retained_unique_p1",
+                    "active_release_eligible": True,
+                    "all_unrenderable": False,
+                    "candidate_id": "font-b",
+                    "deployable_opportunity_count": 4,
+                    "safe_count": 2,
+                    "terminal": True,
+                },
+                {
+                    "action": "deleted_safe_zero",
+                    "active_release_eligible": False,
+                    "all_unrenderable": False,
+                    "candidate_id": "font-c",
+                    "deployable_opportunity_count": 4,
+                    "safe_count": 0,
+                    "terminal": True,
+                },
+            ],
+            "final_release_allowed": True,
+            "record_type": RUNTIME.CATALOG_DISPOSITION_RECORD_TYPE,
+            "release_state": "final_released",
+            "schema_version": RUNTIME.CATALOG_DISPOSITION_SCHEMA,
+            "source_catalog_sha256": "9" * 64,
+            "source_render_bank_sha256": "8" * 64,
+            "workspace_contract_record_sha256": "a" * 64,
+        }
+    )
+    write_json(disposition_path, disposition)
+    final_catalog_path = root / "final-catalog.json"
+    candidate_ids = ["font-a", "font-b"]
+    final_catalog = RUNTIME.seal_record(
+        {
+            "candidate_count": len(candidate_ids),
+            "candidate_ids": candidate_ids,
+            "candidate_set_sha256": RUNTIME._candidate_set_sha256(candidate_ids),
+            "catalog_disposition_record_sha256": disposition["record_sha256"],
+            "catalog_version": "font-face-manifest-pruned-v5",
+            "included_delta_candidate_count": 1,
+            "included_delta_candidates": [{"candidate_id": "font-b"}],
+            "prior_candidate_count": 1,
+            "prior_candidate_ids": ["font-a"],
+            "record_type": RUNTIME.FINAL_CATALOG_RECORD_TYPE,
+            "removed_delta_candidate_count": 1,
+            "removed_delta_candidates": [{"candidate_id": "font-c"}],
+            "schema_version": RUNTIME.FINAL_CATALOG_SCHEMA,
+            "source_catalog_sha256": "9" * 64,
+            "workspace_contract_record_sha256": "a" * 64,
+        }
+    )
+    write_json(final_catalog_path, final_catalog)
+    return {
+        "asset_root": asset_root,
+        "disposition": disposition_path,
+        "final_catalog": final_catalog_path,
+        "font_manifest": manifest_path,
+        "render_manifest": render_path,
+        "output": root / RUNTIME.ACTIVE_CATALOG_FILE,
+    }
+
+
 class RuntimeFixture:
     def __init__(self, root: Path) -> None:
         self.root = root
@@ -68,15 +211,70 @@ class RuntimeFixture:
         self.parity = root / "inputs" / "parity.json"
         self.release = root / "inputs" / "release.json"
         self.policy = root / "inputs" / "policy.json"
+        self.active_catalog = root / "inputs" / RUNTIME.ACTIVE_CATALOG_FILE
         self.candidate_ids = ("font-a", "font-b")
+        self.font_catalog_sha = hashlib.sha256(b"fixture-font-catalog").hexdigest()
+        self.render_bank_sha = hashlib.sha256(b"fixture-render-bank").hexdigest()
         self.frozen_test_manifest_sha = hashlib.sha256(
             b"fixture-frozen-test-manifest"
         ).hexdigest()
         self.feature_dim = 4
         self.hidden_dim = 3
         self.prototype_count = 3
+        self._write_active_catalog()
         self._write_trainer()
         self._write_runtime_inputs()
+
+    def _write_active_catalog(self) -> None:
+        candidates = []
+        for candidate_id in self.candidate_ids:
+            payload = f"asset-{candidate_id}".encode("utf-8")
+            candidates.append(
+                {
+                    "assets": [
+                        {
+                            "byte_size": len(payload),
+                            "face_id": f"{candidate_id}:1:test",
+                            "file": f"fonts/{candidate_id}.ttf",
+                            "sha256": hashlib.sha256(payload).hexdigest(),
+                        }
+                    ],
+                    "candidate_id": candidate_id,
+                    "disposition": {
+                        "action": "prior_production_catalog",
+                        "active_release_eligible": True,
+                        "all_unrenderable": False,
+                        "deployable_opportunity_count": None,
+                        "evidence_source": "prior_production_catalog",
+                        "safe_count": None,
+                        "terminal": True,
+                    },
+                }
+            )
+        record = RUNTIME.seal_record(
+            {
+                "candidate_count": len(self.candidate_ids),
+                "candidate_ids": list(self.candidate_ids),
+                "candidate_order_sha256": RUNTIME._ordered_values_sha256(
+                    self.candidate_ids
+                ),
+                "candidates": candidates,
+                "catalog_version": "fixture-active-v1",
+                "excluded_candidates": [],
+                "locale": "ko",
+                "record_type": RUNTIME.ACTIVE_CATALOG_RECORD_TYPE,
+                "schema_version": RUNTIME.ACTIVE_CATALOG_SCHEMA,
+                "source_records": {
+                    "catalog_disposition_record_sha256": "d" * 64,
+                    "deployment_font_face_manifest_sha256": self.font_catalog_sha,
+                    "deployment_render_bank_manifest_sha256": self.render_bank_sha,
+                    "evidence_font_face_manifest_sha256": "1" * 64,
+                    "evidence_render_bank_manifest_sha256": "2" * 64,
+                    "final_catalog_record_sha256": "e" * 64,
+                },
+            }
+        )
+        write_json(self.active_catalog, record)
 
     def _state_shapes(self) -> dict[str, list[int]]:
         shapes = {
@@ -143,6 +341,8 @@ class RuntimeFixture:
             )
         }
         inputs["frozen_test_manifest_sha256"] = self.frozen_test_manifest_sha
+        inputs["font_catalog_sha256"] = self.font_catalog_sha
+        inputs["render_bank_manifest_sha256"] = self.render_bank_sha
         contract = RUNTIME.seal_record(
             {
                 "architecture": {
@@ -369,6 +569,7 @@ class RuntimeFixture:
             side_effect=lambda path: self.io_contract[path.name],
         ):
             return RUNTIME._build_runtime_artifact(
+                active_catalog_path=self.active_catalog,
                 trainer_output=self.trainer,
                 encoder_onnx=self.encoder,
                 ranker_onnx=self.ranker,
@@ -378,7 +579,6 @@ class RuntimeFixture:
                 release_evaluation=self.release,
                 policy_path=self.policy,
                 output_dir=self.output,
-                expected_candidate_ids=self.candidate_ids,
             )
 
     def reseal(self, path: Path, mutation: Any) -> None:
@@ -396,6 +596,124 @@ class RuntimeArtifactTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temp.cleanup()
 
+    def build_active_catalog(self, sources: Mapping[str, Path]) -> Mapping[str, Any]:
+        return RUNTIME.build_active_catalog(
+            final_catalog_path=sources["final_catalog"],
+            catalog_disposition_path=sources["disposition"],
+            deployment_font_face_manifest_path=sources["font_manifest"],
+            deployment_render_bank_manifest_path=sources["render_manifest"],
+            asset_root=sources["asset_root"],
+            output_path=sources["output"],
+        )
+
+    def test_builds_terminal_active_catalog_and_keeps_deleted_font_as_evidence(
+        self,
+    ) -> None:
+        sources = write_active_catalog_sources(self.fixture.root / "active-sources")
+        result = self.build_active_catalog(sources)
+        record = RUNTIME.load_active_catalog(sources["output"])
+
+        self.assertEqual(result["candidate_count"], 2)
+        self.assertEqual(record["candidate_ids"], ("font-a", "font-b"))
+        self.assertEqual(
+            [entry["candidate_id"] for entry in record["excluded_candidates"]],
+            ["font-c"],
+        )
+        self.assertEqual(
+            record["excluded_candidates"][0]["disposition"]["action"],
+            "deleted_safe_zero",
+        )
+        self.assertEqual(record["excluded_candidates"][0]["assets"], [])
+        self.assertFalse(
+            (sources["asset_root"] / "assets" / "font-c.ttf").exists()
+        )
+        self.assertNotEqual(
+            record["source_records"]["evidence_font_face_manifest_sha256"],
+            record["source_records"]["deployment_font_face_manifest_sha256"],
+        )
+
+    def test_explicit_deployment_order_preserves_model_tensor_alignment(self) -> None:
+        sources = write_active_catalog_sources(self.fixture.root / "active-order")
+        RUNTIME.build_active_catalog(
+            final_catalog_path=sources["final_catalog"],
+            catalog_disposition_path=sources["disposition"],
+            deployment_font_face_manifest_path=sources["font_manifest"],
+            deployment_render_bank_manifest_path=sources["render_manifest"],
+            asset_root=sources["asset_root"],
+            output_path=sources["output"],
+            deployment_candidate_order=("font-b", "font-a"),
+        )
+        record = RUNTIME.load_active_catalog(sources["output"])
+        final_catalog = json.loads(
+            sources["final_catalog"].read_text(encoding="utf-8")
+        )
+
+        self.assertEqual(final_catalog["candidate_ids"], ["font-a", "font-b"])
+        self.assertEqual(record["candidate_ids"], ("font-b", "font-a"))
+        self.assertEqual(
+            [candidate["candidate_id"] for candidate in record["candidates"]],
+            ["font-b", "font-a"],
+        )
+
+    def test_explicit_deployment_order_must_be_exact_catalog_permutation(self) -> None:
+        sources = write_active_catalog_sources(self.fixture.root / "bad-active-order")
+        with self.assertRaisesRegex(
+            RUNTIME.RuntimeArtifactError, "exact final-catalog permutation"
+        ):
+            RUNTIME.build_active_catalog(
+                final_catalog_path=sources["final_catalog"],
+                catalog_disposition_path=sources["disposition"],
+                deployment_font_face_manifest_path=sources["font_manifest"],
+                deployment_render_bank_manifest_path=sources["render_manifest"],
+                asset_root=sources["asset_root"],
+                output_path=sources["output"],
+                deployment_candidate_order=("font-b", "font-b"),
+            )
+
+    def test_active_catalog_rejects_pending_or_deployment_failure(self) -> None:
+        for action in ("pending_full22_utility_audit", "deployment_failure"):
+            with self.subTest(action=action):
+                sources = write_active_catalog_sources(
+                    self.fixture.root / f"active-{action}"
+                )
+                disposition = json.loads(
+                    sources["disposition"].read_text(encoding="utf-8")
+                )
+                disposition.pop("record_sha256")
+                disposition["entries"][0].update(
+                    {
+                        "action": action,
+                        "active_release_eligible": False,
+                        "all_unrenderable": action == "deployment_failure",
+                        "terminal": False,
+                    }
+                )
+                disposition = RUNTIME.seal_record(disposition)
+                write_json(sources["disposition"], disposition)
+                final_catalog = json.loads(
+                    sources["final_catalog"].read_text(encoding="utf-8")
+                )
+                final_catalog.pop("record_sha256")
+                final_catalog["catalog_disposition_record_sha256"] = disposition[
+                    "record_sha256"
+                ]
+                write_json(sources["final_catalog"], RUNTIME.seal_record(final_catalog))
+
+                with self.assertRaisesRegex(
+                    RUNTIME.RuntimeArtifactError,
+                    "pending, failed, or not release-eligible",
+                ):
+                    self.build_active_catalog(sources)
+
+    def test_active_catalog_generation_hashes_actual_font_asset_bytes(self) -> None:
+        sources = write_active_catalog_sources(self.fixture.root / "active-tamper")
+        (sources["asset_root"] / "assets" / "font-b.ttf").write_bytes(b"tampered")
+
+        with self.assertRaisesRegex(
+            RUNTIME.RuntimeArtifactError, "font face asset hash/size mismatch"
+        ):
+            self.build_active_catalog(sources)
+
     def test_builds_minimal_ready_bundle_without_row_level_data(self) -> None:
         result = self.fixture.build()
         self.assertEqual(result["status"], "ready")
@@ -404,6 +722,7 @@ class RuntimeArtifactTests(unittest.TestCase):
             {path.name for path in self.fixture.output.iterdir()},
             {
                 RUNTIME.MARKER_FILE,
+                RUNTIME.ACTIVE_CATALOG_FILE,
                 RUNTIME.CONTRACT_FILE,
                 RUNTIME.ENCODER_FILE,
                 RUNTIME.RANKER_FILE,
@@ -412,6 +731,13 @@ class RuntimeArtifactTests(unittest.TestCase):
         )
         contract = json.loads(
             (self.fixture.output / RUNTIME.CONTRACT_FILE).read_text(encoding="utf-8")
+        )
+        active_catalog = json.loads(
+            self.fixture.active_catalog.read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            contract["catalog"]["catalog_version"],
+            active_catalog["catalog_version"],
         )
         self.assertEqual(
             contract["deployment"]["fallback_policy"]["semantic_bootstrap"],
@@ -428,6 +754,23 @@ class RuntimeArtifactTests(unittest.TestCase):
             RUNTIME.validate_runtime_artifact(
                 output_dir=self.fixture.output,
             )
+
+    def test_runtime_catalog_version_mismatch_fails_closed(self) -> None:
+        self.fixture.build()
+        contract_path = self.fixture.output / RUNTIME.CONTRACT_FILE
+        contract = json.loads(contract_path.read_text(encoding="utf-8"))
+        contract.pop("record_sha256")
+        contract["catalog"]["catalog_version"] = "stale-active-catalog"
+        write_json(contract_path, RUNTIME.seal_record(contract))
+        marker_path = self.fixture.output / RUNTIME.MARKER_FILE
+        marker = json.loads(marker_path.read_text(encoding="utf-8"))
+        marker["artifacts"][RUNTIME.CONTRACT_FILE] = digest(contract_path)
+        write_json(marker_path, marker)
+
+        with self.assertRaisesRegex(
+            RUNTIME.RuntimeArtifactError, "active-catalog binding"
+        ):
+            RUNTIME.validate_runtime_artifact(output_dir=self.fixture.output)
 
     def test_candidate_reordering_is_rejected(self) -> None:
         self.fixture.reseal(
@@ -519,14 +862,9 @@ class RuntimeArtifactTests(unittest.TestCase):
             previous_contract,
         )
 
-    def test_production_candidate_order_is_fixed_and_cli_cannot_override_it(
+    def test_active_catalog_is_required_and_cli_cannot_override_its_count(
         self,
     ) -> None:
-        self.assertEqual(len(RUNTIME.PRODUCTION_CANDIDATE_IDS), 22)
-        self.assertEqual(
-            RUNTIME._ordered_values_sha256(RUNTIME.PRODUCTION_CANDIDATE_IDS),
-            RUNTIME.PRODUCTION_CANDIDATE_ORDER_SHA256,
-        )
         parser = RUNTIME.build_parser()
         with contextlib.redirect_stderr(io.StringIO()):
             with self.assertRaises(SystemExit):
@@ -540,11 +878,32 @@ class RuntimeArtifactTests(unittest.TestCase):
                     ]
                 )
 
-    def test_nonproduction_or_wrong_candidate_trainer_is_not_deployable(self) -> None:
-        with self.assertRaisesRegex(RUNTIME.RuntimeArtifactError, "authoritative"):
+    def test_active_catalog_exact_order_is_the_trainer_authority(self) -> None:
+        active = json.loads(self.fixture.active_catalog.read_text(encoding="utf-8"))
+        active.pop("record_sha256")
+        active["candidate_ids"].reverse()
+        active["candidates"].reverse()
+        active["candidate_order_sha256"] = RUNTIME._ordered_values_sha256(
+            active["candidate_ids"]
+        )
+        write_json(self.fixture.active_catalog, RUNTIME.seal_record(active))
+
+        with self.assertRaisesRegex(
+            RUNTIME.RuntimeArtifactError, "candidate ids/order"
+        ):
             RUNTIME.preflight_trainer_output(
                 trainer_output=self.fixture.trainer,
+                active_catalog_path=self.fixture.active_catalog,
             )
+
+    def test_nonproduction_trainer_is_not_deployable(self) -> None:
+        self.assertEqual(
+            RUNTIME.preflight_trainer_output(
+                trainer_output=self.fixture.trainer,
+                active_catalog_path=self.fixture.active_catalog,
+            )["candidate_count"],
+            2,
+        )
         contract_path = self.fixture.trainer / "model-contract.json"
         contract = json.loads(contract_path.read_text(encoding="utf-8"))
         contract.pop("record_sha256")

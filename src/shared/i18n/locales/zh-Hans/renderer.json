@@ -196,6 +196,7 @@
   },
   "workspaceHistory": {
     "blockEdit": "编辑文本块",
+    "autoFontRollback": "撤销自动字体选择",
     "blockBackgroundOpacity": "更改文本块背景不透明度",
     "exclusion": "更改自动清除排除设置",
     "format": "设置文本块格式",

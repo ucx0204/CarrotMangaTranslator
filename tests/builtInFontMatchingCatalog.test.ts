@@ -18,7 +18,10 @@ import {
 import { type CustomFontInspection } from "../src/main/customFontInspection";
 import { fontCandidateSupportsText } from "../src/main/fontCoverage";
 import { fontCandidateSupportsBodyLocale } from "../src/main/pipeline/automaticFontBodyCoverage";
-import { BUILT_IN_BLOCK_FONTS } from "../src/shared/blockFontCatalog";
+import {
+  BUILT_IN_BLOCK_FONTS,
+  isRetiredBuiltInBlockFontId,
+} from "../src/shared/blockFontCatalog";
 import type { UiLocale } from "../src/shared/uiLocales";
 
 const tempDirs: string[] = [];
@@ -122,7 +125,9 @@ describe("built-in font matching catalog", () => {
     );
 
     expect(candidates.map((candidate) => candidate.fontId)).toEqual(
-      BUILT_IN_BLOCK_FONTS.map((font) => font.id),
+      BUILT_IN_BLOCK_FONTS.filter(
+        (font) => !isRetiredBuiltInBlockFontId(font.id),
+      ).map((font) => font.id),
     );
     expect(dependencies.reportWarning).not.toHaveBeenCalled();
   });
@@ -195,7 +200,7 @@ describe("built-in font matching catalog", () => {
       (candidate) => candidate.fontId === "ridi-batang",
     );
 
-    expect(candidates).toHaveLength(22);
+    expect(candidates).toHaveLength(21);
     expect(reportWarning).not.toHaveBeenCalled();
     expect(startOver && fontCandidateSupportsText(startOver, "슥…")).toBe(
       false,
@@ -297,7 +302,6 @@ function resolveTestRelativePath(fontId: string): string {
       "black-and-white-picture",
       "black-han-sans",
       "gasoek-one",
-      "gugi",
       "kirang-haerang",
       "nanum-brush-script",
       "single-day",

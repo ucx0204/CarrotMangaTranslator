@@ -20,10 +20,10 @@ import { applyFormatDefaultsToBlock } from "../../shared/blockFormat";
 import { applyNaturalTextLayout } from "../../shared/naturalTextLayout";
 import { normalizeVisualClusterId } from "../../shared/visualClusterId";
 import {
-  applyAutomaticFontDecisionV2,
   resolveAutomaticFontDecisionV2,
   type AutomaticFontOptionsV2,
 } from "./automaticFontMatchingV2";
+import { applyAutomaticFontDecisionV2 } from "./automaticFontMatchingV2Apply";
 import { tMain } from "./localization";
 import type { OverlayItem } from "./types";
 
@@ -82,7 +82,7 @@ export function overlayItemToBlock(
   );
   const visualStyle = resolveBlockVisualStyle(type);
   const block: TranslationBlock = {
-    id: `${page.id}-${normalizeBlockRunId(runId)}-block-${index + 1}`,
+    id: buildOverlayBlockId(page.id, runId, index),
     type,
     bbox,
     bboxSpace: "normalized_1000",
@@ -195,6 +195,14 @@ function applyNaturalLayoutToOverlayBlock(
     translatedText: layout.translatedText,
     renderDirection: layout.renderDirection,
   };
+}
+
+export function buildOverlayBlockId(
+  pageId: string,
+  runId: string | undefined,
+  zeroBasedIndex: number,
+): string {
+  return `${pageId}-${normalizeBlockRunId(runId)}-block-${zeroBasedIndex + 1}`;
 }
 
 function normalizeBlockRunId(runId: string | undefined): string {

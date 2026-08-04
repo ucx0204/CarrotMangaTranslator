@@ -99,6 +99,90 @@ describe("page artwork renderer parity", () => {
       "max-content",
     );
   });
+
+  it("keeps automatic outlines visible and contrasting in editor and export", () => {
+    const blocks = [
+      makeBlock("automatic-dark", {
+        translatedText: "자동 검정",
+        textColor: "#111111",
+        outlineColor: "#111111",
+        outlineWidthScale: 0,
+        automaticFontMatch: makeAutomaticFontMatch(),
+      }),
+      makeBlock("automatic-inverse-curve", {
+        bbox: { x: 100, y: 350, w: 500, h: 180 },
+        translatedText: "자동 흰색",
+        textColor: "#f7f7f2",
+        outlineColor: "#f7f7f2",
+        outlineWidthScale: 0,
+        curveLayout: {
+          version: 1,
+          alignment: "center",
+          offsetEm: 0,
+          orientation: "tangent",
+          path: {
+            type: "quadratic",
+            start: { x: 0.05, y: 0.7 },
+            control: { x: 0.5, y: 0.05 },
+            end: { x: 0.95, y: 0.7 },
+          },
+        },
+        automaticFontMatch: makeAutomaticFontMatch(),
+      }),
+    ];
+    const page = {
+      id: "outline-parity",
+      name: "outline.png",
+      width: 1000,
+      height: 800,
+      blocks,
+    };
+    const visualSize = { width: 1000, height: 800 };
+    const exported = render(
+      <PageArtwork
+        fontCatalog={DEFAULT_BLOCK_FONT_CATALOG}
+        imageSrc="data:image/png;base64,"
+        page={page}
+        visualSize={visualSize}
+      />,
+    );
+    const panel = render(
+      withFonts(
+        <>
+          {blocks.map((block) => (
+            <OverlayBlock
+              block={block}
+              interactionPreviewStore={createWorkspaceInteractionPreviewStore()}
+              key={block.id}
+              onPointerDown={() => undefined}
+              onResizePointerDown={() => undefined}
+              pageSize={{ width: page.width, height: page.height }}
+              pointerDisabled
+              selected={false}
+              showChrome={false}
+              stageSize={visualSize}
+              textLayoutStageSize={visualSize}
+            />
+          ))}
+        </>,
+      ),
+    );
+
+    for (const container of [exported.container, panel.container]) {
+      const normal = Array.from(
+        container.querySelectorAll<HTMLElement>(".overlay-text-content"),
+      ).find((element) => element.textContent === "자동 검정");
+      expect(normal?.style.textShadow).toContain("#ffffff");
+      const curveGlyph = container.querySelector<SVGTextElement>(
+        'svg[aria-label="자동 흰색"] text',
+      );
+      expect(curveGlyph?.getAttribute("fill")).toBe("#f7f7f2");
+      expect(curveGlyph?.getAttribute("stroke")).toBe("#111111");
+      expect(Number(curveGlyph?.getAttribute("stroke-width"))).toBeGreaterThan(
+        0,
+      );
+    }
+  });
 });
 
 function withFonts(children: React.ReactNode): React.JSX.Element {
@@ -267,5 +351,23 @@ function makeBlock(
     translatedText: "텍스트",
     type: "nonsolid",
     ...overrides,
+  };
+}
+
+function makeAutomaticFontMatch(): NonNullable<
+  TranslationBlock["automaticFontMatch"]
+> {
+  return {
+    schemaVersion: 1,
+    selectedFontId: "dohyeon",
+    role: "dialogue",
+    confidence: 0.9,
+    source: "local_visual",
+    previousStyle: {
+      fontFamily: null,
+      bold: null,
+      italic: null,
+      outlineWidthScale: 0,
+    },
   };
 }

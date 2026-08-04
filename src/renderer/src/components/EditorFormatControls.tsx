@@ -21,6 +21,7 @@ import {
   ItalicIcon,
 } from "./ui/icons";
 import { clampFontSize, type EditorPanelModel } from "./editorPanelUtils";
+import { AutomaticFontMatchNotice } from "./AutomaticFontMatchNotice";
 
 type BlockPatchHandler = (patch: Partial<TranslationBlock>) => void;
 type ApplyFormatHandler = (
@@ -87,6 +88,7 @@ export function FormatEditorGroup({
         onFontFamilyDraftChange={onFontFamilyDraftChange}
         onUpdate={onUpdate}
       />
+      <AutomaticFontMatchNotice {...{ block, disabled, onUpdate }} />
       <TextWrappingField {...{ block, disabled, onUpdate }} />
       <FieldSliderGroup>
         <FontSizeRow

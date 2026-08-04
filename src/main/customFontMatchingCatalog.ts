@@ -7,7 +7,6 @@ import {
   writeFileSync,
 } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
-import { join } from "node:path";
 import type {
   AutomaticFontCandidate,
   AutomaticFontUnicodeRange,
@@ -16,18 +15,12 @@ import type { CustomFont, FontLibrarySnapshot } from "../shared/libraryTypes";
 import type { UiLocale } from "../shared/uiLocales";
 import { SUPPORTED_UI_LOCALES } from "../shared/uiLocales";
 import {
-  getFontLibrarySnapshot,
-  resolveCustomFontFilePath,
-} from "./customFonts";
-import {
   inspectCustomFontBuffer,
   type CustomFontInspection,
 } from "./customFontInspection";
-import { getAppPaths } from "./appPaths";
 
 const CACHE_SCHEMA_VERSION = 1;
 const ANALYZER_VERSION = 1;
-const CACHE_FILE_NAME = "automatic-font-matching.json";
 const MAX_INSPECTABLE_FONT_BYTES = 32 * 1024 * 1024;
 
 type CachedInspection = {
@@ -51,24 +44,6 @@ export type CustomFontMatchingCatalogDependencies = {
   getCachePath: () => string;
   reportWarning: (message: string, detail: unknown) => void;
 };
-
-const productionDependencies: Omit<
-  CustomFontMatchingCatalogDependencies,
-  "reportWarning"
-> = {
-  getFontLibrarySnapshot,
-  resolveCustomFontFilePath,
-  getCachePath: () => join(getAppPaths().fontsDir, CACHE_FILE_NAME),
-};
-
-export function loadCustomFontMatchingCandidates(
-  reportWarning: CustomFontMatchingCatalogDependencies["reportWarning"],
-): AutomaticFontCandidate[] {
-  return loadCustomFontMatchingCandidatesWith({
-    ...productionDependencies,
-    reportWarning,
-  });
-}
 
 export function loadCustomFontMatchingCandidatesWith(
   dependencies: CustomFontMatchingCatalogDependencies,

@@ -37,34 +37,18 @@ CONTRACT_FILE = "runtime-contract.json"
 ENCODER_FILE = "encoder.onnx"
 RANKER_FILE = "ranker.onnx"
 PROTOTYPE_FILE = "prototype-features.f32"
-
-PRODUCTION_CANDIDATE_IDS = (
-    "black-and-white-picture",
-    "black-han-sans",
-    "cafe24-gowoonbam",
-    "chosun-gungseo",
-    "dohyeon",
-    "gaegu",
-    "gasoek-one",
-    "griun-pol-sensibility",
-    "gugi",
-    "jua",
-    "kirang-haerang",
-    "mongtori",
-    "nanum-barun-gothic",
-    "nanum-brush-script",
-    "nanum-gothic",
-    "nanum-myeongjo",
-    "ridi-batang",
-    "seoul-hangang",
-    "seoul-namsan",
-    "seoul-namsan-vertical",
-    "single-day",
-    "start-over",
-)
-PRODUCTION_CANDIDATE_ORDER_SHA256 = (
-    "98100cbcdf9745a15504262d9da32284381bc072d1328320725bd5d1a283608f"
-)
+ACTIVE_CATALOG_FILE = "auto-match-active-catalog.json"
+ACTIVE_CATALOG_SCHEMA = "font-matching-auto-match-active-catalog-v1"
+ACTIVE_CATALOG_RECORD_TYPE = "font_matching_auto_match_active_catalog"
+FINAL_CATALOG_SCHEMA = "font-matching-final-catalog-v5"
+FINAL_CATALOG_RECORD_TYPE = "font_matching_final_catalog"
+CATALOG_DISPOSITION_SCHEMA = "font-matching-catalog-disposition-v5"
+CATALOG_DISPOSITION_RECORD_TYPE = "font_matching_catalog_disposition"
+TERMINAL_CATALOG_ACTIONS = {
+    "retained_unique_p1",
+    "deleted_redundant",
+    "deleted_safe_zero",
+}
 
 TRAINER_SCHEMA_VERSION = "font-matching-siglip-baseline-v1"
 TRAINER_OWNER = "carrot-manga-translator/font-matching-siglip-baseline"
@@ -256,11 +240,716 @@ def _ordered_values_sha256(values: Sequence[str]) -> str:
     return sha256_bytes(("\n".join(values) + "\n").encode("utf-8"))
 
 
-if (
-    _ordered_values_sha256(PRODUCTION_CANDIDATE_IDS)
-    != PRODUCTION_CANDIDATE_ORDER_SHA256
-):
-    raise RuntimeError("authoritative production candidate order SHA drifted")
+def _candidate_set_sha256(values: Sequence[str]) -> str:
+    return sha256_bytes(canonical_json(list(values)).encode("utf-8"))
+
+
+def _validate_active_asset(value: Any, *, location: str) -> dict[str, Any]:
+    asset = _require_mapping(value, location)
+    face_id = _require_text(asset.get("face_id"), f"{location}.face_id")
+    file_name = _require_text(asset.get("file"), f"{location}.file")
+    file_path = Path(file_name)
+    if file_path.is_absolute() or ".." in file_path.parts:
+        raise RuntimeArtifactError(f"{location}.file must be repository-relative")
+    byte_size = _require_integer(
+        asset.get("byte_size"), f"{location}.byte_size", minimum=1
+    )
+    return {
+        "face_id": face_id,
+        "file": file_name.replace("\\", "/"),
+        "byte_size": byte_size,
+        "sha256": _require_sha(asset.get("sha256"), f"{location}.sha256"),
+    }
+
+
+def _validate_active_disposition(
+    value: Any, *, location: str, active: bool
+) -> dict[str, Any]:
+    disposition = _require_mapping(value, location)
+    expected_keys = {
+        "action",
+        "active_release_eligible",
+        "all_unrenderable",
+        "deployable_opportunity_count",
+        "evidence_source",
+        "safe_count",
+        "terminal",
+    }
+    if (
+        set(disposition) != expected_keys
+        or disposition.get("active_release_eligible") is not active
+        or disposition.get("terminal") is not True
+        or disposition.get("all_unrenderable") is not False
+    ):
+        raise RuntimeArtifactError(f"{location}: invalid active disposition envelope")
+    action = _require_text(disposition.get("action"), f"{location}.action")
+    evidence_source = _require_text(
+        disposition.get("evidence_source"), f"{location}.evidence_source"
+    )
+    raw_safe_count = disposition.get("safe_count")
+    safe_count = (
+        None
+        if raw_safe_count is None
+        else _require_integer(raw_safe_count, f"{location}.safe_count")
+    )
+    raw_opportunity_count = disposition.get("deployable_opportunity_count")
+    opportunity_count = (
+        None
+        if raw_opportunity_count is None
+        else _require_integer(
+            raw_opportunity_count,
+            f"{location}.deployable_opportunity_count",
+            minimum=1,
+        )
+    )
+    if evidence_source == "prior_production_catalog":
+        if (
+            not active
+            or action != "prior_production_catalog"
+            or safe_count is not None
+            or opportunity_count is not None
+        ):
+            raise RuntimeArtifactError(f"{location}: prior catalog disposition drifted")
+    elif evidence_source == "v5_catalog_disposition":
+        if (
+            action not in TERMINAL_CATALOG_ACTIONS
+            or safe_count is None
+            or opportunity_count is None
+            or active != (action == "retained_unique_p1")
+            or (action == "deleted_safe_zero" and safe_count != 0)
+            or (action != "deleted_safe_zero" and safe_count <= 0)
+        ):
+            raise RuntimeArtifactError(
+                f"{location}: v5 disposition is not terminal release evidence"
+            )
+    else:
+        raise RuntimeArtifactError(f"{location}: disposition evidence source drifted")
+    return {
+        "action": action,
+        "active_release_eligible": active,
+        "all_unrenderable": False,
+        "deployable_opportunity_count": opportunity_count,
+        "evidence_source": evidence_source,
+        "safe_count": safe_count,
+        "terminal": True,
+    }
+
+
+def _validate_active_candidate(
+    value: Any, *, location: str, active: bool
+) -> dict[str, Any]:
+    candidate = _require_mapping(value, location)
+    expected_keys = (
+        {"assets", "candidate_id", "disposition"}
+        if active
+        else {"candidate_id", "disposition"}
+    )
+    if set(candidate) != expected_keys:
+        raise RuntimeArtifactError(f"{location}: candidate fields drifted")
+    candidate_id = _require_text(
+        candidate.get("candidate_id"), f"{location}.candidate_id"
+    )
+    raw_assets = (
+        _require_list(candidate.get("assets"), f"{location}.assets") if active else []
+    )
+    if active and not raw_assets:
+        raise RuntimeArtifactError(f"{location}: candidate has no installed assets")
+    assets = [
+        _validate_active_asset(asset, location=f"{location}.assets[{index}]")
+        for index, asset in enumerate(raw_assets)
+    ]
+    face_ids = [asset["face_id"] for asset in assets]
+    files = [asset["file"] for asset in assets]
+    if len(set(face_ids)) != len(face_ids) or len(set(files)) != len(files):
+        raise RuntimeArtifactError(f"{location}: duplicate active candidate assets")
+    disposition = _validate_active_disposition(
+        candidate.get("disposition"),
+        location=f"{location}.disposition",
+        active=active,
+    )
+    return {
+        "candidate_id": candidate_id,
+        "assets": assets,
+        "disposition": disposition,
+    }
+
+
+def validate_active_catalog_record(
+    record: Mapping[str, Any], *, location: str
+) -> dict[str, Any]:
+    validate_record_seal(record, location=location)
+    if (
+        record.get("schema_version") != ACTIVE_CATALOG_SCHEMA
+        or record.get("record_type") != ACTIVE_CATALOG_RECORD_TYPE
+    ):
+        raise RuntimeArtifactError(f"{location}: active catalog schema is unsupported")
+    catalog_version = _require_text(
+        record.get("catalog_version"), f"{location}.catalog_version"
+    )
+    if record.get("locale") != "ko":
+        raise RuntimeArtifactError(f"{location}: only the sealed Korean catalog is supported")
+    candidate_ids = tuple(
+        _require_text(value, f"{location}.candidate_ids[{index}]")
+        for index, value in enumerate(
+            _require_list(record.get("candidate_ids"), f"{location}.candidate_ids")
+        )
+    )
+    if not candidate_ids or len(set(candidate_ids)) != len(candidate_ids):
+        raise RuntimeArtifactError(
+            f"{location}: candidate ids must be non-empty and unique"
+        )
+    if record.get("candidate_count") != len(candidate_ids):
+        raise RuntimeArtifactError(f"{location}: candidate count drifted")
+    if record.get("candidate_order_sha256") != _ordered_values_sha256(candidate_ids):
+        raise RuntimeArtifactError(f"{location}: candidate order SHA drifted")
+    candidates = [
+        _validate_active_candidate(
+            value, location=f"{location}.candidates[{index}]", active=True
+        )
+        for index, value in enumerate(
+            _require_list(record.get("candidates"), f"{location}.candidates")
+        )
+    ]
+    if tuple(candidate["candidate_id"] for candidate in candidates) != candidate_ids:
+        raise RuntimeArtifactError(f"{location}: candidate records are out of order")
+    excluded_candidates = [
+        _validate_active_candidate(
+            value,
+            location=f"{location}.excluded_candidates[{index}]",
+            active=False,
+        )
+        for index, value in enumerate(
+            _require_list(
+                record.get("excluded_candidates"),
+                f"{location}.excluded_candidates",
+            )
+        )
+    ]
+    excluded_ids = [candidate["candidate_id"] for candidate in excluded_candidates]
+    if len(set(excluded_ids)) != len(excluded_ids) or set(candidate_ids) & set(
+        excluded_ids
+    ):
+        raise RuntimeArtifactError(f"{location}: excluded candidate inventory drifted")
+    source_records = _require_mapping(
+        record.get("source_records"), f"{location}.source_records"
+    )
+    expected_source_keys = {
+        "catalog_disposition_record_sha256",
+        "deployment_font_face_manifest_sha256",
+        "deployment_render_bank_manifest_sha256",
+        "evidence_font_face_manifest_sha256",
+        "evidence_render_bank_manifest_sha256",
+        "final_catalog_record_sha256",
+    }
+    if set(source_records) != expected_source_keys:
+        raise RuntimeArtifactError(f"{location}: source record fields drifted")
+    normalized_sources = {
+        key: _require_sha(source_records.get(key), f"{location}.source_records.{key}")
+        for key in sorted(expected_source_keys)
+    }
+    return {
+        "record": dict(record),
+        "record_sha256": _require_sha(
+            record.get("record_sha256"), f"{location}.record_sha256"
+        ),
+        "catalog_version": catalog_version,
+        "locale": "ko",
+        "candidate_ids": candidate_ids,
+        "candidate_order_sha256": _ordered_values_sha256(candidate_ids),
+        "candidates": candidates,
+        "excluded_candidates": excluded_candidates,
+        "source_records": normalized_sources,
+    }
+
+
+def load_active_catalog(
+    path: Path, *, location: str = "active catalog"
+) -> dict[str, Any]:
+    return validate_active_catalog_record(
+        _read_json(path, location=location), location=location
+    )
+
+
+def _assert_asset_path(asset_root: Path, relative_file: str) -> Path:
+    raw_path = Path(relative_file)
+    if raw_path.is_absolute() or ".." in raw_path.parts:
+        raise RuntimeArtifactError(
+            f"font face asset must be repository-relative: {relative_file}"
+        )
+    root = asset_root.resolve()
+    path = (root / raw_path).resolve()
+    try:
+        path.relative_to(root)
+    except ValueError as error:
+        raise RuntimeArtifactError(
+            f"font face asset escapes the asset root: {relative_file}"
+        ) from error
+    cursor = path
+    while cursor != root:
+        if cursor.is_symlink():
+            raise RuntimeArtifactError(
+                f"font face asset path is linked: {relative_file}"
+            )
+        cursor = cursor.parent
+    if not path.is_file():
+        raise RuntimeArtifactError(f"font face asset is missing: {relative_file}")
+    return path
+
+
+def _font_face_inventory(
+    manifest: Mapping[str, Any],
+    *,
+    asset_root: Path,
+    expected_candidate_ids: Sequence[str],
+) -> dict[str, list[dict[str, Any]]]:
+    if manifest.get("schema_version") != "font-face-manifest-v1":
+        raise RuntimeArtifactError("font face manifest schema is unsupported")
+    raw_families = _require_list(manifest.get("families"), "font face families")
+    if manifest.get("family_count") != len(raw_families):
+        raise RuntimeArtifactError("font face manifest family count drifted")
+    inventory: dict[str, list[dict[str, Any]]] = {}
+    face_count = 0
+    for family_index, raw_family in enumerate(raw_families):
+        family = _require_mapping(raw_family, f"font face families[{family_index}]")
+        candidate_id = _require_text(
+            family.get("font_id"), f"font face families[{family_index}].font_id"
+        )
+        if candidate_id in inventory:
+            raise RuntimeArtifactError(f"duplicate font face family: {candidate_id}")
+        raw_faces = _require_list(
+            family.get("faces"), f"font face families[{family_index}].faces"
+        )
+        if not raw_faces:
+            raise RuntimeArtifactError(f"font face family has no faces: {candidate_id}")
+        assets: list[dict[str, Any]] = []
+        for face_index, raw_face in enumerate(raw_faces):
+            location = f"font face families[{family_index}].faces[{face_index}]"
+            face = _require_mapping(raw_face, location)
+            asset = _validate_active_asset(face, location=location)
+            path = _assert_asset_path(asset_root, asset["file"])
+            if (
+                path.stat().st_size != asset["byte_size"]
+                or sha256_file(path) != asset["sha256"]
+            ):
+                raise RuntimeArtifactError(
+                    f"font face asset hash/size mismatch: {asset['file']}"
+                )
+            assets.append(asset)
+        inventory[candidate_id] = assets
+        face_count += len(assets)
+    if manifest.get("face_count") != face_count:
+        raise RuntimeArtifactError("font face manifest face count drifted")
+    if set(inventory) != set(expected_candidate_ids):
+        raise RuntimeArtifactError(
+            "deployment font face manifest is not the exact active vocabulary"
+        )
+    return inventory
+
+
+def _source_disposition(
+    entry: Mapping[str, Any] | None, *, active: bool
+) -> dict[str, Any]:
+    if entry is None:
+        if not active:
+            raise RuntimeArtifactError(
+                "prior catalog candidate cannot be excluded implicitly"
+            )
+        return {
+            "action": "prior_production_catalog",
+            "active_release_eligible": True,
+            "all_unrenderable": False,
+            "deployable_opportunity_count": None,
+            "evidence_source": "prior_production_catalog",
+            "safe_count": None,
+            "terminal": True,
+        }
+    safe_count = _require_integer(
+        entry.get("safe_count"), "catalog disposition.safe_count"
+    )
+    opportunity_count = _require_integer(
+        entry.get("deployable_opportunity_count"),
+        "catalog disposition.deployable_opportunity_count",
+        minimum=1,
+    )
+    action = _require_text(entry.get("action"), "catalog disposition.action")
+    if (
+        entry.get("terminal") is not True
+        or entry.get("active_release_eligible") is not active
+        or entry.get("all_unrenderable") is not False
+        or action not in TERMINAL_CATALOG_ACTIONS
+        or active != (action == "retained_unique_p1")
+        or (action == "deleted_safe_zero" and safe_count != 0)
+        or (action != "deleted_safe_zero" and safe_count <= 0)
+    ):
+        raise RuntimeArtifactError(
+            "catalog disposition is pending, failed, or not release-eligible"
+        )
+    return {
+        "action": action,
+        "active_release_eligible": active,
+        "all_unrenderable": False,
+        "deployable_opportunity_count": opportunity_count,
+        "evidence_source": "v5_catalog_disposition",
+        "safe_count": safe_count,
+        "terminal": True,
+    }
+
+
+def _validate_deployment_render_bank(
+    manifest: Mapping[str, Any],
+    *,
+    manifest_path: Path,
+    font_face_manifest_sha256: str,
+    expected_candidate_ids: Sequence[str],
+) -> None:
+    if manifest.get("schema_version") != "font-render-bank-v1":
+        raise RuntimeArtifactError("deployment render bank schema is unsupported")
+    source_contract = _require_mapping(
+        manifest.get("source_contract"), "deployment render bank.source_contract"
+    )
+    if source_contract.get("manifest_sha256") != font_face_manifest_sha256:
+        raise RuntimeArtifactError(
+            "deployment render bank is not bound to the deployment font catalog"
+        )
+    raw_candidates = _require_list(
+        manifest.get("candidates"), "deployment render bank.candidates"
+    )
+    if not raw_candidates or manifest.get("candidate_count") != len(raw_candidates):
+        raise RuntimeArtifactError("deployment render bank candidate count drifted")
+    display_to_font: dict[str, str] = {}
+    face_ids: set[str] = set()
+    for index, raw_candidate in enumerate(raw_candidates):
+        candidate = _require_mapping(
+            raw_candidate, f"deployment render bank.candidates[{index}]"
+        )
+        display_id = _require_text(
+            candidate.get("display_id"),
+            f"deployment render bank.candidates[{index}].display_id",
+        )
+        font_id = _require_text(
+            candidate.get("font_id"),
+            f"deployment render bank.candidates[{index}].font_id",
+        )
+        face_id = _require_text(
+            candidate.get("face_id"),
+            f"deployment render bank.candidates[{index}].face_id",
+        )
+        if display_id in display_to_font:
+            raise RuntimeArtifactError("duplicate deployment render candidate")
+        display_to_font[display_id] = font_id
+        face_ids.add(face_id)
+    expected_ids = set(expected_candidate_ids)
+    if (
+        set(display_to_font.values()) != expected_ids
+        or manifest.get("family_count") != len(expected_ids)
+        or manifest.get("face_count") != len(face_ids)
+    ):
+        raise RuntimeArtifactError(
+            "deployment render bank is not the exact active vocabulary"
+        )
+    raw_renders = _require_list(
+        manifest.get("renders"), "deployment render bank.renders"
+    )
+    generation = _require_mapping(
+        manifest.get("generation"), "deployment render bank.generation"
+    )
+    if (
+        not raw_renders
+        or generation.get("partial") is not False
+        or generation.get("complete_against_production_assets") is not True
+        or generation.get("rendered_count") != len(raw_renders)
+    ):
+        raise RuntimeArtifactError("deployment render bank is incomplete")
+    rendered_font_ids: set[str] = set()
+    for index, raw_render in enumerate(raw_renders):
+        render = _require_mapping(raw_render, f"deployment render bank.renders[{index}]")
+        display_id = _require_text(
+            render.get("candidate_display_id"),
+            f"deployment render bank.renders[{index}].candidate_display_id",
+        )
+        font_id = display_to_font.get(display_id)
+        if font_id is None:
+            raise RuntimeArtifactError(
+                "deployment render references a candidate outside the active catalog"
+            )
+        artifact = _require_mapping(
+            render.get("artifact"),
+            f"deployment render bank.renders[{index}].artifact",
+        )
+        relative_file = _require_text(
+            artifact.get("file"),
+            f"deployment render bank.renders[{index}].artifact.file",
+        )
+        path = _assert_asset_path(manifest_path.parent, relative_file)
+        expected_size = _require_integer(
+            artifact.get("byte_size"),
+            f"deployment render bank.renders[{index}].artifact.byte_size",
+            minimum=1,
+        )
+        expected_sha = _require_sha(
+            artifact.get("sha256"),
+            f"deployment render bank.renders[{index}].artifact.sha256",
+        )
+        if path.stat().st_size != expected_size or sha256_file(path) != expected_sha:
+            raise RuntimeArtifactError(
+                f"deployment render asset hash/size mismatch: {relative_file}"
+            )
+        rendered_font_ids.add(font_id)
+    if rendered_font_ids != expected_ids:
+        raise RuntimeArtifactError("deployment render bank does not cover every active font")
+
+
+def build_active_catalog(
+    *,
+    final_catalog_path: Path,
+    catalog_disposition_path: Path,
+    deployment_font_face_manifest_path: Path,
+    deployment_render_bank_manifest_path: Path,
+    asset_root: Path,
+    output_path: Path,
+    deployment_candidate_order: Sequence[str] | None = None,
+    replace_existing: bool = False,
+) -> Mapping[str, Any]:
+    final_catalog = _read_json(final_catalog_path, location="v5 final catalog")
+    disposition = _read_json(
+        catalog_disposition_path, location="v5 catalog disposition"
+    )
+    validate_record_seal(final_catalog, location="v5 final catalog")
+    validate_record_seal(disposition, location="v5 catalog disposition")
+    if (
+        final_catalog.get("schema_version") != FINAL_CATALOG_SCHEMA
+        or final_catalog.get("record_type") != FINAL_CATALOG_RECORD_TYPE
+        or disposition.get("schema_version") != CATALOG_DISPOSITION_SCHEMA
+        or disposition.get("record_type") != CATALOG_DISPOSITION_RECORD_TYPE
+    ):
+        raise RuntimeArtifactError("active catalog requires finalized v5 records")
+    if (
+        disposition.get("release_state") != "final_released"
+        or disposition.get("final_release_allowed") is not True
+    ):
+        raise RuntimeArtifactError(
+            "catalog disposition is provisional and cannot enter deployment"
+        )
+    disposition_sha = _require_sha(
+        disposition.get("record_sha256"), "catalog disposition.record_sha256"
+    )
+    if final_catalog.get("catalog_disposition_record_sha256") != disposition_sha:
+        raise RuntimeArtifactError("final catalog/disposition binding failed")
+    if final_catalog.get("workspace_contract_record_sha256") != disposition.get(
+        "workspace_contract_record_sha256"
+    ):
+        raise RuntimeArtifactError("v5 workspace binding failed")
+    source_catalog_sha = _require_sha(
+        final_catalog.get("source_catalog_sha256"),
+        "final catalog.source_catalog_sha256",
+    )
+    if disposition.get("source_catalog_sha256") != source_catalog_sha:
+        raise RuntimeArtifactError("v5 source catalog binding failed")
+    evidence_render_sha = _require_sha(
+        disposition.get("source_render_bank_sha256"),
+        "catalog disposition.source_render_bank_sha256",
+    )
+
+    candidate_ids = tuple(
+        _require_text(value, f"final catalog.candidate_ids[{index}]")
+        for index, value in enumerate(
+            _require_list(
+                final_catalog.get("candidate_ids"), "final catalog.candidate_ids"
+            )
+        )
+    )
+    if (
+        not candidate_ids
+        or len(set(candidate_ids)) != len(candidate_ids)
+        or list(candidate_ids) != sorted(candidate_ids)
+        or final_catalog.get("candidate_count") != len(candidate_ids)
+        or final_catalog.get("candidate_set_sha256")
+        != _candidate_set_sha256(candidate_ids)
+    ):
+        raise RuntimeArtifactError("final v5 candidate inventory drifted")
+    active_candidate_ids = candidate_ids
+    if deployment_candidate_order is not None:
+        active_candidate_ids = tuple(
+            _require_text(value, f"deployment candidate order[{index}]")
+            for index, value in enumerate(deployment_candidate_order)
+        )
+        if (
+            len(active_candidate_ids) != len(candidate_ids)
+            or len(set(active_candidate_ids)) != len(active_candidate_ids)
+            or set(active_candidate_ids) != set(candidate_ids)
+        ):
+            raise RuntimeArtifactError(
+                "deployment candidate order is not an exact final-catalog permutation"
+            )
+    manifest = _read_json(
+        deployment_font_face_manifest_path,
+        location="deployment font face manifest",
+    )
+    deployment_font_sha = sha256_file(deployment_font_face_manifest_path)
+    inventory = _font_face_inventory(
+        manifest,
+        asset_root=asset_root,
+        expected_candidate_ids=candidate_ids,
+    )
+    render_manifest = _read_json(
+        deployment_render_bank_manifest_path,
+        location="deployment render bank manifest",
+    )
+    deployment_render_sha = sha256_file(deployment_render_bank_manifest_path)
+    _validate_deployment_render_bank(
+        render_manifest,
+        manifest_path=deployment_render_bank_manifest_path,
+        font_face_manifest_sha256=deployment_font_sha,
+        expected_candidate_ids=candidate_ids,
+    )
+    prior_ids = tuple(
+        _require_text(value, f"final catalog.prior_candidate_ids[{index}]")
+        for index, value in enumerate(
+            _require_list(
+                final_catalog.get("prior_candidate_ids"),
+                "final catalog.prior_candidate_ids",
+            )
+        )
+    )
+    if len(set(prior_ids)) != len(prior_ids) or final_catalog.get(
+        "prior_candidate_count"
+    ) != len(prior_ids):
+        raise RuntimeArtifactError("final v5 prior candidate inventory drifted")
+    raw_entries = _require_list(
+        disposition.get("entries"), "catalog disposition.entries"
+    )
+    entries_by_id: dict[str, Mapping[str, Any]] = {}
+    for index, raw_entry in enumerate(raw_entries):
+        entry = _require_mapping(raw_entry, f"catalog disposition.entries[{index}]")
+        candidate_id = _require_text(
+            entry.get("candidate_id"),
+            f"catalog disposition.entries[{index}].candidate_id",
+        )
+        if candidate_id in entries_by_id:
+            raise RuntimeArtifactError(f"duplicate v5 disposition: {candidate_id}")
+        entries_by_id[candidate_id] = entry
+    if disposition.get("candidate_count") != len(entries_by_id):
+        raise RuntimeArtifactError("catalog disposition candidate count drifted")
+
+    included_delta_ids = {
+        _require_text(
+            _require_mapping(value, f"included delta[{index}]").get("candidate_id"),
+            f"included delta[{index}].candidate_id",
+        )
+        for index, value in enumerate(
+            _require_list(
+                final_catalog.get("included_delta_candidates"),
+                "final catalog.included_delta_candidates",
+            )
+        )
+    }
+    removed_delta_ids = {
+        _require_text(
+            _require_mapping(value, f"removed delta[{index}]").get("candidate_id"),
+            f"removed delta[{index}].candidate_id",
+        )
+        for index, value in enumerate(
+            _require_list(
+                final_catalog.get("removed_delta_candidates"),
+                "final catalog.removed_delta_candidates",
+            )
+        )
+    }
+    if (
+        included_delta_ids & removed_delta_ids
+        or set(entries_by_id) != included_delta_ids | removed_delta_ids
+        or set(candidate_ids) != set(prior_ids) | included_delta_ids
+        or final_catalog.get("included_delta_candidate_count")
+        != len(included_delta_ids)
+        or final_catalog.get("removed_delta_candidate_count") != len(removed_delta_ids)
+    ):
+        raise RuntimeArtifactError("final v5 delta disposition inventory drifted")
+
+    def candidate_record(candidate_id: str, *, active: bool) -> dict[str, Any]:
+        assets = inventory.get(candidate_id)
+        if active and not assets:
+            raise RuntimeArtifactError(
+                f"finalized candidate has no installed font asset: {candidate_id}"
+            )
+        entry = entries_by_id.get(candidate_id)
+        if candidate_id in prior_ids and entry is not None:
+            raise RuntimeArtifactError(
+                f"prior and delta candidate identities overlap: {candidate_id}"
+            )
+        return {
+            **({"assets": copy.deepcopy(assets)} if active else {}),
+            "candidate_id": candidate_id,
+            "disposition": _source_disposition(entry, active=active),
+        }
+
+    candidates = [
+        candidate_record(candidate_id, active=True)
+        for candidate_id in active_candidate_ids
+    ]
+    excluded_candidates = [
+        candidate_record(candidate_id, active=False)
+        for candidate_id in sorted(removed_delta_ids)
+    ]
+    record = seal_record(
+        {
+            "candidate_count": len(active_candidate_ids),
+            "candidate_ids": list(active_candidate_ids),
+            "candidate_order_sha256": _ordered_values_sha256(active_candidate_ids),
+            "candidates": candidates,
+            "catalog_version": _require_text(
+                final_catalog.get("catalog_version"), "final catalog.catalog_version"
+            ),
+            "excluded_candidates": excluded_candidates,
+            "locale": "ko",
+            "record_type": ACTIVE_CATALOG_RECORD_TYPE,
+            "schema_version": ACTIVE_CATALOG_SCHEMA,
+            "source_records": {
+                "catalog_disposition_record_sha256": disposition_sha,
+                "deployment_font_face_manifest_sha256": deployment_font_sha,
+                "deployment_render_bank_manifest_sha256": deployment_render_sha,
+                "evidence_font_face_manifest_sha256": source_catalog_sha,
+                "evidence_render_bank_manifest_sha256": evidence_render_sha,
+                "final_catalog_record_sha256": _require_sha(
+                    final_catalog.get("record_sha256"),
+                    "final catalog.record_sha256",
+                ),
+            },
+        }
+    )
+    validated = validate_active_catalog_record(
+        record, location="generated active catalog"
+    )
+    payload = json_bytes(record, pretty=True)
+    output = output_path.resolve()
+    if output.exists():
+        if output.is_symlink() or not output.is_file():
+            raise RuntimeArtifactError("active catalog output is not a regular file")
+        if output.read_bytes() == payload:
+            return {
+                "candidate_count": len(candidate_ids),
+                "output_path": str(output),
+                "record_sha256": validated["record_sha256"],
+                "status": "unchanged",
+            }
+        if not replace_existing:
+            raise RuntimeArtifactError(
+                "active catalog output exists; pass --replace-existing after validation"
+            )
+    output.parent.mkdir(parents=True, exist_ok=True)
+    temporary = output.with_name(f".{output.name}.staging-{uuid.uuid4().hex}")
+    try:
+        temporary.write_bytes(payload)
+        os.replace(temporary, output)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+    return {
+        "candidate_count": len(candidate_ids),
+        "excluded_candidate_count": len(excluded_candidates),
+        "output_path": str(output),
+        "record_sha256": validated["record_sha256"],
+        "status": "ready",
+    }
 
 
 def _artifact_descriptor(path: Path, *, file_name: str | None = None) -> dict[str, Any]:
@@ -989,6 +1678,7 @@ def _commit_managed_directory(
 
 def build_runtime_artifact(
     *,
+    active_catalog_path: Path,
     trainer_output: Path,
     encoder_onnx: Path,
     ranker_onnx: Path,
@@ -1010,13 +1700,14 @@ def build_runtime_artifact(
         release_evaluation=release_evaluation,
         policy_path=policy_path,
         output_dir=output_dir,
-        expected_candidate_ids=PRODUCTION_CANDIDATE_IDS,
+        active_catalog_path=active_catalog_path,
         replace_owned_output=replace_owned_output,
     )
 
 
 def _build_runtime_artifact(
     *,
+    active_catalog_path: Path,
     trainer_output: Path,
     encoder_onnx: Path,
     ranker_onnx: Path,
@@ -1026,19 +1717,30 @@ def _build_runtime_artifact(
     release_evaluation: Path,
     policy_path: Path,
     output_dir: Path,
-    expected_candidate_ids: Sequence[str],
     replace_owned_output: bool = False,
 ) -> Mapping[str, Any]:
-    expected_candidate_ids = tuple(expected_candidate_ids)
-    if not expected_candidate_ids or len(set(expected_candidate_ids)) != len(
-        expected_candidate_ids
-    ):
-        raise RuntimeArtifactError(
-            "expected candidate ids must be non-empty and unique"
-        )
+    active_catalog = load_active_catalog(
+        active_catalog_path.resolve(), location="deployment active catalog"
+    )
+    expected_candidate_ids = tuple(active_catalog["candidate_ids"])
     training = _load_training_bundle(
         trainer_output.resolve(), expected_candidate_ids=expected_candidate_ids
     )
+    training_inputs = _require_mapping(
+        _require_mapping(training["contract"], "training contract").get("inputs"),
+        "training inputs",
+    )
+    active_sources = _require_mapping(
+        active_catalog["source_records"], "active catalog source records"
+    )
+    if training_inputs.get("font_catalog_sha256") != active_sources.get(
+        "deployment_font_face_manifest_sha256"
+    ) or training_inputs.get("render_bank_manifest_sha256") != active_sources.get(
+        "deployment_render_bank_manifest_sha256"
+    ):
+        raise RuntimeArtifactError(
+            "trainer catalog/render-bank hashes do not match the active catalog"
+        )
     for path, label in (
         (encoder_onnx, "encoder ONNX"),
         (ranker_onnx, "ranker ONNX"),
@@ -1068,6 +1770,7 @@ def _build_runtime_artifact(
     staging = Path(tempfile.mkdtemp(prefix=f".{root.name}.staging-", dir=root.parent))
     try:
         copies = {
+            ACTIVE_CATALOG_FILE: active_catalog_path,
             ENCODER_FILE: encoder_onnx,
             RANKER_FILE: ranker_onnx,
             PROTOTYPE_FILE: prototype_features,
@@ -1105,6 +1808,7 @@ def _build_runtime_artifact(
                 "artifacts": artifact_descriptors,
                 "calibration": copy.deepcopy(dict(calibration)),
                 "catalog": {
+                    "active_catalog_record_sha256": active_catalog["record_sha256"],
                     "candidate_count": len(candidate_ids),
                     "candidate_ids": list(candidate_ids),
                     "candidate_order_sha256": candidate_order_sha,
@@ -1112,6 +1816,13 @@ def _build_runtime_artifact(
                         "prototype-bag-only-no-id-embedding-or-bias"
                     ),
                     "catalog_registry_sha256": inputs["catalog_registry_sha256"],
+                    "catalog_disposition_record_sha256": active_sources[
+                        "catalog_disposition_record_sha256"
+                    ],
+                    "catalog_version": active_catalog["catalog_version"],
+                    "final_catalog_record_sha256": active_sources[
+                        "final_catalog_record_sha256"
+                    ],
                     "font_catalog_sha256": inputs["font_catalog_sha256"],
                     "font_prototypes_sha256": inputs["font_prototypes_sha256"],
                     "prototype_bags": list(conversion["candidate_bags"]),
@@ -1193,7 +1904,6 @@ def _build_runtime_artifact(
         (staging / MARKER_FILE).write_bytes(json_bytes(marker, pretty=True))
         _validate_runtime_artifact(
             output_dir=staging,
-            expected_candidate_ids=expected_candidate_ids,
             inspect_onnx=True,
         )
         result = _commit_managed_directory(
@@ -1201,7 +1911,6 @@ def _build_runtime_artifact(
             root,
             validate_published=lambda published: _validate_runtime_artifact(
                 output_dir=published,
-                expected_candidate_ids=expected_candidate_ids,
                 inspect_onnx=True,
             ),
         )
@@ -1215,7 +1924,6 @@ def _build_runtime_artifact(
 def validate_runtime_artifact(*, output_dir: Path) -> Mapping[str, Any]:
     return _validate_runtime_artifact(
         output_dir=output_dir,
-        expected_candidate_ids=PRODUCTION_CANDIDATE_IDS,
         inspect_onnx=True,
     )
 
@@ -1223,12 +1931,12 @@ def validate_runtime_artifact(*, output_dir: Path) -> Mapping[str, Any]:
 def _validate_runtime_artifact(
     *,
     output_dir: Path,
-    expected_candidate_ids: Sequence[str],
     inspect_onnx: bool = True,
 ) -> Mapping[str, Any]:
     root = _assert_safe_output_target(output_dir)
     expected_files = {
         MARKER_FILE,
+        ACTIVE_CATALOG_FILE,
         CONTRACT_FILE,
         ENCODER_FILE,
         RANKER_FILE,
@@ -1241,6 +1949,13 @@ def _validate_runtime_artifact(
         if artifacts.get(file_name) != sha256_file(root / file_name):
             raise RuntimeArtifactError(f"runtime artifact hash mismatch: {file_name}")
     contract_path = root / CONTRACT_FILE
+    active_catalog = load_active_catalog(
+        root / ACTIVE_CATALOG_FILE, location="runtime active catalog"
+    )
+    expected_candidate_ids = tuple(active_catalog["candidate_ids"])
+    active_sources = _require_mapping(
+        active_catalog["source_records"], "runtime active catalog source records"
+    )
     contract = _read_json(contract_path, location="runtime contract")
     validate_record_seal(contract, location="runtime contract")
     if (
@@ -1273,12 +1988,26 @@ def _validate_runtime_artifact(
             _require_list(catalog.get("candidate_ids"), "runtime candidate ids")
         )
     )
-    if candidate_ids != tuple(expected_candidate_ids):
+    if candidate_ids != expected_candidate_ids:
         raise RuntimeArtifactError("runtime candidate vocabulary/order failed")
     if catalog.get("candidate_count") != len(expected_candidate_ids):
         raise RuntimeArtifactError("runtime candidate count failed")
     if catalog.get("candidate_order_sha256") != _ordered_values_sha256(candidate_ids):
         raise RuntimeArtifactError("runtime candidate-order seal failed")
+    if (
+        catalog.get("catalog_version") != active_catalog["catalog_version"]
+        or catalog.get("active_catalog_record_sha256")
+        != active_catalog["record_sha256"]
+        or catalog.get("catalog_disposition_record_sha256")
+        != active_sources.get("catalog_disposition_record_sha256")
+        or catalog.get("final_catalog_record_sha256")
+        != active_sources.get("final_catalog_record_sha256")
+        or catalog.get("font_catalog_sha256")
+        != active_sources.get("deployment_font_face_manifest_sha256")
+        or catalog.get("render_bank_manifest_sha256")
+        != active_sources.get("deployment_render_bank_manifest_sha256")
+    ):
+        raise RuntimeArtifactError("runtime active-catalog binding failed")
     bags = _validate_candidate_bags(
         catalog.get("prototype_bags"), candidate_ids=candidate_ids
     )
@@ -1288,7 +2017,12 @@ def _validate_runtime_artifact(
     contract_artifacts = _require_mapping(
         contract.get("artifacts"), "contract artifacts"
     )
-    for file_name in (ENCODER_FILE, RANKER_FILE, PROTOTYPE_FILE):
+    for file_name in (
+        ACTIVE_CATALOG_FILE,
+        ENCODER_FILE,
+        RANKER_FILE,
+        PROTOTYPE_FILE,
+    ):
         descriptor = _require_mapping(
             contract_artifacts.get(file_name), f"artifacts.{file_name}"
         )
@@ -1335,10 +2069,31 @@ def _validate_runtime_artifact(
     }
 
 
-def preflight_trainer_output(*, trainer_output: Path) -> Mapping[str, Any]:
-    training = _load_training_bundle(
-        trainer_output.resolve(), expected_candidate_ids=PRODUCTION_CANDIDATE_IDS
+def preflight_trainer_output(
+    *, trainer_output: Path, active_catalog_path: Path
+) -> Mapping[str, Any]:
+    active_catalog = load_active_catalog(
+        active_catalog_path.resolve(), location="deployment active catalog"
     )
+    training = _load_training_bundle(
+        trainer_output.resolve(),
+        expected_candidate_ids=active_catalog["candidate_ids"],
+    )
+    inputs = _require_mapping(
+        _require_mapping(training["contract"], "training contract").get("inputs"),
+        "training inputs",
+    )
+    sources = _require_mapping(
+        active_catalog["source_records"], "active catalog source records"
+    )
+    if inputs.get("font_catalog_sha256") != sources.get(
+        "deployment_font_face_manifest_sha256"
+    ) or inputs.get("render_bank_manifest_sha256") != sources.get(
+        "deployment_render_bank_manifest_sha256"
+    ):
+        raise RuntimeArtifactError(
+            "trainer catalog/render-bank hashes do not match the active catalog"
+        )
     return {
         "candidate_count": len(training["candidate_ids"]),
         "checkpoint_sha256": training["checkpoint_sha256"],
@@ -1358,9 +2113,23 @@ def preflight_trainer_output(*, trainer_output: Path) -> Mapping[str, Any]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
+    active_catalog = subparsers.add_parser("active-catalog")
+    active_catalog.add_argument("--final-catalog", type=Path, required=True)
+    active_catalog.add_argument("--catalog-disposition", type=Path, required=True)
+    active_catalog.add_argument(
+        "--deployment-font-face-manifest", type=Path, required=True
+    )
+    active_catalog.add_argument(
+        "--deployment-render-bank-manifest", type=Path, required=True
+    )
+    active_catalog.add_argument("--asset-root", type=Path, required=True)
+    active_catalog.add_argument("--output", type=Path, required=True)
+    active_catalog.add_argument("--replace-existing", action="store_true")
     preflight = subparsers.add_parser("preflight")
     preflight.add_argument("--trainer-output", type=Path, required=True)
+    preflight.add_argument("--active-catalog", type=Path, required=True)
     build = subparsers.add_parser("build")
+    build.add_argument("--active-catalog", type=Path, required=True)
     build.add_argument("--trainer-output", type=Path, required=True)
     build.add_argument("--encoder-onnx", type=Path, required=True)
     build.add_argument("--ranker-onnx", type=Path, required=True)
@@ -1379,12 +2148,28 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
-        if args.command == "preflight":
+        if args.command == "active-catalog":
+            result = build_active_catalog(
+                final_catalog_path=args.final_catalog,
+                catalog_disposition_path=args.catalog_disposition,
+                deployment_font_face_manifest_path=(
+                    args.deployment_font_face_manifest
+                ),
+                deployment_render_bank_manifest_path=(
+                    args.deployment_render_bank_manifest
+                ),
+                asset_root=args.asset_root,
+                output_path=args.output,
+                replace_existing=args.replace_existing,
+            )
+        elif args.command == "preflight":
             result = preflight_trainer_output(
                 trainer_output=args.trainer_output,
+                active_catalog_path=args.active_catalog,
             )
         elif args.command == "build":
             result = build_runtime_artifact(
+                active_catalog_path=args.active_catalog,
                 trainer_output=args.trainer_output,
                 encoder_onnx=args.encoder_onnx,
                 ranker_onnx=args.ranker_onnx,

@@ -9,6 +9,9 @@ const {
   WINDOWS_EXECUTABLE_FILENAME,
   assertFastZipPayload,
 } = require("./installer-zip-safety.cjs");
+const {
+  validatePackagedFontMatchingRuntimeBundle,
+} = require("./prepare-runtime.cjs");
 
 const root = join(__dirname, "..");
 const unpackedDir = join(root, "dist", "win-unpacked");
@@ -22,6 +25,11 @@ const oauthLicensesPath = join(
   resourcesDir,
   "app-runtime",
   OPENAI_OAUTH_LICENSES_FILENAME,
+);
+const fontMatchingRuntimePath = join(
+  resourcesDir,
+  "app-runtime",
+  "font-matching",
 );
 const asarUnpackedNodeModules = join(
   resourcesDir,
@@ -71,7 +79,10 @@ const allowedElectronLocales = new Set([
 // The clean v1.7.0 thin payload is 217 files after development-only runtime
 // artifacts are omitted. Keep roughly the same regression headroom as v1.6.5.
 const MAX_PACKAGED_FILES = 240;
-const MAX_PACKAGED_BYTES = 700 * 1024 * 1024;
+// The sealed Font Matching encoder adds 466.5 MiB to the thin package. Keep
+// enough headroom for small renderer/runtime growth without allowing training
+// datasets or QA artifacts back into the installer.
+const MAX_PACKAGED_BYTES = 1280 * 1024 * 1024;
 
 if (!existsSync(oauthRuntimePath)) {
   throw new Error(`Packaged OAuth runtime is missing: ${oauthRuntimePath}`);
@@ -81,6 +92,7 @@ if (!existsSync(oauthLicensesPath)) {
     `Packaged OAuth third-party licenses are missing: ${oauthLicensesPath}`,
   );
 }
+validatePackagedFontMatchingRuntimeBundle(fontMatchingRuntimePath);
 if (existsSync(asarUnpackedNodeModules)) {
   throw new Error(
     `Production node_modules must remain inside app.asar: ${asarUnpackedNodeModules}`,

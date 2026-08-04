@@ -88,6 +88,10 @@ export type FontMatchRolePredictionV2 = {
 
 export type RankedFontCandidateV2 = {
   rank: number;
+  /** Pixel-model order before supervised top3 calibration mutates scores. */
+  rawPixelRank?: number;
+  /** Pixel-model probability before supervised top3 calibration. */
+  rawPixelScore?: number;
   fontId: string;
   renderStatus: "rendered" | "unrenderable";
   unrenderableReason: string | null;

@@ -9,6 +9,7 @@ import {
   normalizeRotationDeg,
 } from "../lib/blockFormatGeometry";
 import type { UpdateCurrentChapter } from "./useCurrentChapterUpdater";
+import { clearAutomaticFontMatchForManualStylePatch } from "../lib/automaticFontMatchProvenance";
 
 type UpdateSelectedBlockOptions = {
   selectedBlock: TranslationBlock | null;
@@ -40,6 +41,7 @@ export function useUpdateSelectedBlockAction({
       }
 
       const mergeKey = resolveBlockEditMergeKey(selectedBlock.id, patch);
+      const automaticFontRollback = isAutomaticFontRollbackPatch(patch);
       updateCurrentChapter(
         selectedPage.id,
         (current) =>
@@ -49,7 +51,14 @@ export function useUpdateSelectedBlockAction({
             selectedBlock.id,
             patch,
           ),
-        { label: t("workspaceHistory.blockEdit"), mergeKey },
+        {
+          label: automaticFontRollback
+            ? t("workspaceHistory.autoFontRollback")
+            : t("workspaceHistory.blockEdit"),
+          mergeKey: automaticFontRollback
+            ? `automatic-font-rollback:${selectedBlock.id}`
+            : mergeKey,
+        },
       );
     },
     [
@@ -88,29 +97,41 @@ function normalizeBlockPatch(
   block: TranslationBlock,
   patch: Partial<TranslationBlock>,
 ): TranslationBlock {
+  const normalizedPatch = clearAutomaticFontMatchForManualStylePatch(
+    block,
+    patch,
+  );
   const next: TranslationBlock = {
     ...block,
-    ...patch,
-    type: normalizeBlockType(patch.type ?? block.type),
+    ...normalizedPatch,
+    type: normalizeBlockType(normalizedPatch.type ?? block.type),
     renderDirection: normalizeRenderDirection(
-      patch.renderDirection ?? block.renderDirection,
+      normalizedPatch.renderDirection ?? block.renderDirection,
       block.renderDirection,
     ),
     rotationDeg: normalizeRotationDeg(
-      patch.rotationDeg ?? block.rotationDeg ?? 0,
+      normalizedPatch.rotationDeg ?? block.rotationDeg ?? 0,
     ),
-    backgroundColor: patch.backgroundColor ?? block.backgroundColor,
-    opacity: patch.opacity ?? block.opacity,
-    bbox: patch.bbox ? clampBbox(patch.bbox) : block.bbox,
-    bboxSpace: patch.bbox ? "normalized_1000" : block.bboxSpace,
-    renderBbox: patch.renderBbox
-      ? clampBbox(patch.renderBbox)
+    backgroundColor: normalizedPatch.backgroundColor ?? block.backgroundColor,
+    opacity: normalizedPatch.opacity ?? block.opacity,
+    bbox: normalizedPatch.bbox ? clampBbox(normalizedPatch.bbox) : block.bbox,
+    bboxSpace: normalizedPatch.bbox ? "normalized_1000" : block.bboxSpace,
+    renderBbox: normalizedPatch.renderBbox
+      ? clampBbox(normalizedPatch.renderBbox)
       : block.renderBbox,
-    renderBboxSpace: patch.renderBbox
+    renderBboxSpace: normalizedPatch.renderBbox
       ? "normalized_1000"
       : block.renderBboxSpace,
   };
-  return hasBlockChanged(block, next, patch) ? next : block;
+  return hasBlockChanged(block, next, normalizedPatch) ? next : block;
+}
+
+function isAutomaticFontRollbackPatch(
+  patch: Partial<TranslationBlock>,
+): boolean {
+  return (
+    "automaticFontMatch" in patch && patch.automaticFontMatch === undefined
+  );
 }
 
 function hasBlockChanged(

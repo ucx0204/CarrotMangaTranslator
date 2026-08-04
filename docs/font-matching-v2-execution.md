@@ -249,3 +249,27 @@ YYYY-MM-DD / 단계
 - artifact: `C:\tmp\font-matching-orientation-audit-v2`, `C:\tmp\font-matching-rubric-calibration-orientation-applied-v2`
 - SHA-256: complete validation `a796e56713052338437127e901ddb3fcbfcb2a60bfe64bbd8294128f28787a81`, corrected master `50172149c98635f2bace30d0ba6a19264e20594add970aafe5502a406aa16fe4`, rejected ledger `390106aa2fc0613df6ecc81263ab89e86f61530fbad1ce5479a8831a4e1fb4ce`
 - 남은 실패/예외: 격리 60건을 원본 페이지 좌표에서 직접 재크롭하거나 대체하고, 생성된 실제 crop을 다시 전수감사한 뒤에만 282건 최종 calibration 카드를 봉인한다.
+
+2026-08-02 / P0 신규 7종 provisional-only 처분 gate
+
+- 명령: `python -m unittest tests.python.test_derive_font_matching_delta_decisions -v`, `python -m unittest tests.python.test_font_matching_catalog_delta_ledger -v`, `python -m py_compile scripts/font_matching_catalog_delta_ledger.py scripts/derive_font_matching_delta_decisions.py`
+- 결과: 신규 7종의 production 판정이 끝나도 즉시 활성 카탈로그를 만들지 않는다. 정상 렌더 기회가 있었지만 safe 판정이 0인 후보는 `deleted_safe_zero`, 모든 관측에서 렌더 불가였던 후보는 품질 열세로 오판하지 않고 `deployment_failure`, safe 관측이 있는 후보는 `pending_full22_utility_audit`로 봉인한다. 세 상태 모두 provisional 단계에서는 `terminal=false`, `active_release_eligible=false`이며, `final-catalog.json`, `final-labels-catalog.jsonl`, `merge-report.json`은 생성하지 않는다. 이 파일을 위조해 주입하면 검증이 거부된다. Python 회귀는 deriver 18/18, ledger 27/27 통과했다.
+- artifact: `scripts/font_matching_catalog_delta_ledger.py`, `scripts/derive_font_matching_delta_decisions.py`, `tests/python/test_font_matching_catalog_delta_ledger.py`, `tests/python/test_derive_font_matching_delta_decisions.py`
+- SHA-256 또는 commit: 커밋 전 작업트리
+- 남은 실패/예외: 22종 전체의 효용·중복 검사가 아직 없으므로 최종 유지 후보(`retained_unique_p1`)나 최종 삭제 후보를 활성 runtime 카탈로그로 승격할 수 없다. `deployment_failure` 후보는 렌더 경로를 고친 새 blind round가 필요하다.
+
+2026-08-02 / P0 formal utility → terminal catalog 전환 gate
+
+- 명령: `python scripts/finalize_font_matching_catalog_transition_v5.py build --provisional-workspace <production-v5> --utility-audit <formal-utility.json> --source-font-face-manifest datasets/fontclip-font-catalog-v2/manifest.json --source-render-bank-manifest datasets/fontclip-font-render-bank-v2/manifest.json --asset-root . --output-dir <transition-output>` 후 같은 인수로 `validate`를 실행한다.
+- 결과: provisional 작업공간은 수정하지 않고, 통과한 정식 calibration과 22종 효용평가를 해시로 결속한 별도 최종 트랜잭션을 만든다. P1에서 신규 후보만 제공하는 safe 효용 또는 기존 15종이 모두 놓친 P1 구조의 rescue 효용이 실제로 있어야 자동 유지한다. 정상 렌더 기회가 있는데 safe 0이면 삭제하고, safe는 있으나 P1 고유 효용이 입증되지 않으면 별도의 봉인된 사람 판단 없이는 유지·삭제 어느 쪽도 허용하지 않는다. 렌더 기회 0은 품질 열세로 바꾸지 않고 즉시 중단한다. 최종 카탈로그에 맞춰 폰트 face와 820개 prototype 중 필요한 것만 복사한 배포 manifest를 함께 만들고, runtime active-catalog 생성기를 다시 호출해 실제 호환성도 검증한다.
+- artifact: `scripts/finalize_font_matching_catalog_transition_v5.py`, `tests/python/test_finalize_font_matching_catalog_transition_v5.py`
+- 검증: transition·formal utility·runtime artifact 회귀 31/31 통과, `py_compile` 및 `git diff --check` 통과
+- 남은 실패/예외: 아직 두 개의 독립 fresh calibration round와 실제 fresh-init 학습이 완료되지 않았으므로 formal utility 및 terminal catalog 산출물 자체는 생성하지 않는다.
+
+2026-08-02 / P1 double-clean → exact60 결정론적 선택 gate
+
+- 명령: `python scripts/select_font_matching_successor_authority_v5.py build --round-id <fresh-round> --selection-seed <sealed-seed> --precheck-summary <reviewer-a-summary> --precheck-summary <reviewer-b-summary> --output-dir <selection-output>` 후 같은 입력으로 `validate`를 실행한다.
+- 결과: 서로 다른 두 검수자가 source-only 4면을 모두 clean으로 판정한 표본만 복원한 뒤, double-clean 최소 72개·정확히 15작품·작품당 최소 4개를 먼저 강제한다. 이어서 MILP optimality proof로 exact60을 고르며 9개 변칙/일반 stratum 고정 수량, 15작품 각 4개, 페이지·visual lineage 최대 1개를 동시에 만족하지 못하면 결과를 만들지 않는다. 이전 round의 `samples.jsonl` 또는 전체 precheck authority를 금지 입력으로 결속해 라운드 간 sample/lineage 재사용도 차단한다.
+- artifact: `scripts/select_font_matching_successor_authority_v5.py`, `tests/python/test_select_font_matching_successor_authority_v5.py`
+- 검증: focused Python 6/6, Ruff, Black, `py_compile`, `git diff --check` 통과. 기존 successor-intake와 delta-ledger가 요구하는 exact selection schema를 그대로 재검증한다.
+- 남은 실패/예외: 실제 r003/r004 A/B source-precheck가 끝난 뒤에만 실 selection을 봉인한다. 한 작품이라도 double-clean 4개 미만이면 임의로 작품 수를 줄이지 않고 fresh lineage를 추가한다.

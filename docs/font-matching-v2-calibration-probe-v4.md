@@ -39,13 +39,13 @@ decision은 변경하지 않았다.
 
 ### 2.1 공식 결과와 추가 진단
 
-| 항목 | 결과 | 판정 |
-|---|---:|---|
-| role macro-F1 | 0.578 | 기준 0.85 미달 |
-| tier pairwise agreement | 0.560 | 기준 0.80 미달 |
-| safe-set Jaccard | 0.525 | 기준 0.70 미달 |
-| `none_acceptable` agreement | 0.900 | 기준 0.90 통과 |
-| eligibility exception | 0/40 | crop eligibility 문제는 아님 |
+| 항목                        |  결과 | 판정                         |
+| --------------------------- | ----: | ---------------------------- |
+| role macro-F1               | 0.578 | 기준 0.85 미달               |
+| tier pairwise agreement     | 0.560 | 기준 0.80 미달               |
+| safe-set Jaccard            | 0.525 | 기준 0.70 미달               |
+| `none_acceptable` agreement | 0.900 | 기준 0.90 통과               |
+| eligibility exception       |  0/40 | crop eligibility 문제는 아님 |
 
 공개 review 80개를 alias 기준으로 다시 집계하면 다음이 더 분명하다.
 
@@ -70,14 +70,14 @@ decision은 변경하지 않았다.
 `safe = preferred ∪ acceptable`로 두 검수자의 선택을 비교했다.
 
 | alias 축약 | 양쪽 safe | Primary만 safe | Secondary만 safe | 양쪽 비-safe |
-|---|---:|---:|---:|---:|
-| `2a5d…` | 1 | 15 | 5 | 19 |
-| `a014…` | 3 | 6 | 3 | 28 |
-| `9ee5…` | 7 | 2 | 3 | 28 |
-| `e7b4…` | 1 | 3 | 0 | 36 |
-| `cd87…` | 6 | 1 | 6 | 27 |
-| `f11e…` | 5 | 4 | 1 | 30 |
-| `4cc3…` | 6 | 4 | 1 | 29 |
+| ---------- | --------: | -------------: | ---------------: | -----------: |
+| `2a5d…`    |         1 |             15 |                5 |           19 |
+| `a014…`    |         3 |              6 |                3 |           28 |
+| `9ee5…`    |         7 |              2 |                3 |           28 |
+| `e7b4…`    |         1 |              3 |                0 |           36 |
+| `cd87…`    |         6 |              1 |                6 |           27 |
+| `f11e…`    |         5 |              4 |                1 |           30 |
+| `4cc3…`    |         6 |              4 |                1 |           29 |
 
 가장 큰 기준점 붕괴는 `2a5d…`다. Primary는 이 alias를 safe 16회,
 `marginal` 22회, `unacceptable` 2회로 보았지만 Secondary는 safe 6회,
@@ -91,14 +91,14 @@ decision은 변경하지 않았다.
 다음 calibration부터는 모든 reviewer가 동일한 정의를 사용한다. 각 축은 0–4,
 0.5 단위다. 보이지 않는 축을 0으로 넣지 않고 `unknown`으로 둔다.
 
-| 축 | 0 | 4 | 관찰 기준 |
-|---|---|---|---|
-| weight | hairline | ultra-black | 같은 높이에서 glyph ink coverage와 주획 두께 |
-| width | 매우 협폭 | 매우 확장 | 같은 probe·크기에서 median glyph advance/em |
-| roundness | 직선·각 위주 | 곡선·둥근 접합 위주 | 외곽 곡률, 접합부와 종단의 둥근 비율 |
-| handwritten | 기계적 인쇄 | 명백한 손글씨 | baseline/획 종단/자소 반복의 의도적 변동 |
-| angularity | 유순한 곡선 | 날카로운 각·대각선 | corner density, 대각 주획, 뾰족한 종단 |
-| energy | 정적인 본문 | 강한 display/충격 | 질량, 대비, 기울기, 리듬, 문장부호 압력의 합성 인상 |
+| 축          | 0            | 4                   | 관찰 기준                                           |
+| ----------- | ------------ | ------------------- | --------------------------------------------------- |
+| weight      | hairline     | ultra-black         | 같은 높이에서 glyph ink coverage와 주획 두께        |
+| width       | 매우 협폭    | 매우 확장           | 같은 probe·크기에서 median glyph advance/em         |
+| roundness   | 직선·각 위주 | 곡선·둥근 접합 위주 | 외곽 곡률, 접합부와 종단의 둥근 비율                |
+| handwritten | 기계적 인쇄  | 명백한 손글씨       | baseline/획 종단/자소 반복의 의도적 변동            |
+| angularity  | 유순한 곡선  | 날카로운 각·대각선  | corner density, 대각 주획, 뾰족한 종단              |
+| energy      | 정적인 본문  | 강한 display/충격   | 질량, 대비, 기울기, 리듬, 문장부호 압력의 합성 인상 |
 
 `energy`는 role이 아니다. `sfx`라서 4를 주거나 `dialogue`라서 0을 주지 않는다.
 오직 glyph 자체의 시각적 압력만 기록한다.
@@ -109,15 +109,15 @@ decision은 변경하지 않았다.
 **v4 reviewer reference**다. font metadata가 아니라 blind render의 관찰값이며,
 다음 fresh round 전에 canonical probe asset의 hash와 함께 고정해야 한다.
 
-| blind alias | weight | width | round | hand | angular | energy | 운용상 핵심 모양 |
-|---|---:|---:|---:|---:|---:|---:|---|
-| `ko-candidate-2a5d12c7e8f32c30` | 1.5 | 2.0 | 1.5 | 3.0 | 3.0 | 2.5 | 가볍지만 거칠고 끊기는 각형 hand; 작은 변칙음과 dry motion 쪽 |
-| `ko-candidate-a0144e95710224a2` | 3.5 | 2.0 | 1.0 | 0.0 | 3.0 | 3.5 | 굵고 정방형인 mechanical display; 깨끗한 shout/강조 쪽 |
-| `ko-candidate-9ee53bb2477d92a2` | 1.5 | 2.0 | 3.0 | 2.5 | 1.5 | 1.5 | 가늘고 둥근 casual hand; 낮은 압력의 감정·ambient 쪽 |
-| `ko-candidate-e7b4692fa6ce4ebc` | 4.0 | 1.5 | 0.5 | 0.0 | 4.0 | 4.0 | 초굵고 압축된 각형 display; impact와 극단 강조 쪽 |
-| `ko-candidate-cd8774e1d647c522` | 2.0 | 1.5 | 1.5 | 0.0 | 2.0 | 1.0 | 협폭·중간 굵기의 얌전한 printed sans; compact body 쪽 |
-| `ko-candidate-f11ed4e82c1eacf1` | 0.5 | 2.5 | 2.5 | 4.0 | 2.0 | 2.0 | 초세필의 유기적 hand; whisper, 섬세한 aside, 미세 motion 쪽 |
-| `ko-candidate-4cc309d56243eb25` | 2.5 | 2.0 | 2.0 | 0.0 | 1.5 | 1.5 | 중굵고 안정적인 neutral printed sans; body/narration 쪽 |
+| blind alias                     | weight | width | round | hand | angular | energy | 운용상 핵심 모양                                              |
+| ------------------------------- | -----: | ----: | ----: | ---: | ------: | -----: | ------------------------------------------------------------- |
+| `ko-candidate-2a5d12c7e8f32c30` |    1.5 |   2.0 |   1.5 |  3.0 |     3.0 |    2.5 | 가볍지만 거칠고 끊기는 각형 hand; 작은 변칙음과 dry motion 쪽 |
+| `ko-candidate-a0144e95710224a2` |    3.5 |   2.0 |   1.0 |  0.0 |     3.0 |    3.5 | 굵고 정방형인 mechanical display; 깨끗한 shout/강조 쪽        |
+| `ko-candidate-9ee53bb2477d92a2` |    1.5 |   2.0 |   3.0 |  2.5 |     1.5 |    1.5 | 가늘고 둥근 casual hand; 낮은 압력의 감정·ambient 쪽          |
+| `ko-candidate-e7b4692fa6ce4ebc` |    4.0 |   1.5 |   0.5 |  0.0 |     4.0 |    4.0 | 초굵고 압축된 각형 display; impact와 극단 강조 쪽             |
+| `ko-candidate-cd8774e1d647c522` |    2.0 |   1.5 |   1.5 |  0.0 |     2.0 |    1.0 | 협폭·중간 굵기의 얌전한 printed sans; compact body 쪽         |
+| `ko-candidate-f11ed4e82c1eacf1` |    0.5 |   2.5 |   2.5 |  4.0 |     2.0 |    2.0 | 초세필의 유기적 hand; whisper, 섬세한 aside, 미세 motion 쪽   |
+| `ko-candidate-4cc309d56243eb25` |    2.5 |   2.0 |   2.0 |  0.0 |     1.5 |    1.5 | 중굵고 안정적인 neutral printed sans; body/narration 쪽       |
 
 세 가지 혼동군을 먼저 기억해야 한다.
 
@@ -137,18 +137,18 @@ decision은 변경하지 않았다.
 
 ### 4.1 Jaccard 0인 10개 대표군 전수 비교
 
-| sample | role P → S | Primary safe | Secondary safe | 경계가 갈라진 직접 원인 |
-|---|---|---|---|---|
-| `fm_0875a5921f9903a2017b9338` | emotion → emotion | `2a5d, cd87` | `f11e, 9ee5` | 억눌린 신음을 “캐주얼 중간”과 “저에너지 세필 hand”로 다르게 읽음 |
-| `fm_234f813fe9466cc8aa5befd3` | emotion → motion | `2a5d` | `4cc3, cd87` | 사건 기능부터 갈렸고 outline을 skeleton과 분리한 정도도 다름 |
-| `fm_3a528e799884f555a9b1e672` | shout → shout | `a014, 4cc3` | 없음 | 같은 source를 굵은 Gothic과 printed Mincho로 반대로 판정 |
-| `fm_475eece7c15d9ebdbe17fbc6` | ambient → ambient | `e7b4, a014` | `9ee5, 2a5d` | 반복 ambient의 outline/면적을 weight로 읽을지, 내부의 둥근 irregular hand를 읽을지 갈림 |
-| `fm_66e90f6f5fee836f4ed429d1` | motion → motion | `f11e, 9ee5` | `2a5d` | 빠른 시선 효과를 세필·유기성으로 볼지, dry angular snap으로 볼지 갈림 |
-| `fm_95063d4e33698771f5a8fb2d` | emotion → emotion | `f11e` | `2a5d` | 한 글자 긴장을 세필 sharpness와 거친 compactness 중 어디에 고정할지 갈림 |
-| `fm_9779f656923f774d27a6c79d` | emotion → emotion | 없음 | `2a5d` | “거친 손글씨와 정확히 같지 않음”과 “거친 각형 hand로 unchanged-safe”의 none 기준 차이 |
-| `fm_a86c8743326649c8eab142db` | comic → aside | `e7b4, a014` | 없음 | punchline SFX와 editorial aside가 갈렸고, heavy energy와 serif family 중 우선축도 갈림 |
-| `fm_ad95aca8951b194a2974653e` | motion → motion | `f11e, 9ee5` | `2a5d` | 반복 흔들림을 가는 리듬과 거친 마찰 리듬으로 다르게 해석 |
-| `fm_b66c441f9338a42187ceb005` | dialogue → dialogue | 없음 | `cd87, a014` | 명조를 hard family로 볼지, 굵은 printed voice를 sans로 근사 가능하다고 볼지 갈림 |
+| sample                        | role P → S          | Primary safe | Secondary safe | 경계가 갈라진 직접 원인                                                                 |
+| ----------------------------- | ------------------- | ------------ | -------------- | --------------------------------------------------------------------------------------- |
+| `fm_0875a5921f9903a2017b9338` | emotion → emotion   | `2a5d, cd87` | `f11e, 9ee5`   | 억눌린 신음을 “캐주얼 중간”과 “저에너지 세필 hand”로 다르게 읽음                        |
+| `fm_234f813fe9466cc8aa5befd3` | emotion → motion    | `2a5d`       | `4cc3, cd87`   | 사건 기능부터 갈렸고 outline을 skeleton과 분리한 정도도 다름                            |
+| `fm_3a528e799884f555a9b1e672` | shout → shout       | `a014, 4cc3` | 없음           | 같은 source를 굵은 Gothic과 printed Mincho로 반대로 판정                                |
+| `fm_475eece7c15d9ebdbe17fbc6` | ambient → ambient   | `e7b4, a014` | `9ee5, 2a5d`   | 반복 ambient의 outline/면적을 weight로 읽을지, 내부의 둥근 irregular hand를 읽을지 갈림 |
+| `fm_66e90f6f5fee836f4ed429d1` | motion → motion     | `f11e, 9ee5` | `2a5d`         | 빠른 시선 효과를 세필·유기성으로 볼지, dry angular snap으로 볼지 갈림                   |
+| `fm_95063d4e33698771f5a8fb2d` | emotion → emotion   | `f11e`       | `2a5d`         | 한 글자 긴장을 세필 sharpness와 거친 compactness 중 어디에 고정할지 갈림                |
+| `fm_9779f656923f774d27a6c79d` | emotion → emotion   | 없음         | `2a5d`         | “거친 손글씨와 정확히 같지 않음”과 “거친 각형 hand로 unchanged-safe”의 none 기준 차이   |
+| `fm_a86c8743326649c8eab142db` | comic → aside       | `e7b4, a014` | 없음           | punchline SFX와 editorial aside가 갈렸고, heavy energy와 serif family 중 우선축도 갈림  |
+| `fm_ad95aca8951b194a2974653e` | motion → motion     | `f11e, 9ee5` | `2a5d`         | 반복 흔들림을 가는 리듬과 거친 마찰 리듬으로 다르게 해석                                |
+| `fm_b66c441f9338a42187ceb005` | dialogue → dialogue | 없음         | `cd87, a014`   | 명조를 hard family로 볼지, 굵은 printed voice를 sans로 근사 가능하다고 볼지 갈림        |
 
 이 표에서 중요한 점은 어느 reviewer가 항상 옳았다는 결론이 아니다. 둘 다 rationale은
 그럴듯하지만 **같은 축을 측정한 숫자와 candidate별 최대 오차가 없다**. 그래서
@@ -220,13 +220,13 @@ role 또는 hard family confidence가 0.75 미만이면 candidate tier 단계로
 단계 A의 봉인값과 role만 가져오고 source 판단은 수정할 수 없게 한다. 7개 alias
 순서는 계속 독립 randomize하되 다음 probe를 각 alias에 같은 조건으로 보여 준다.
 
-| probe | 목적 | 고정 조건 |
-|---|---|---|
-| canonical structure strip | alias signature 기억 안정화 | 같은 12자, 같은 em, treatment 없음, horizontal+vertical |
-| role-conditioned phrase | source 역할의 리듬 비교 | sealed role별 같은 한국어 문구, 글자 수 4/8/14 중 source에 가장 가까운 것 |
-| source-geometry fit | 실제 배포 폭·높이 확인 | source bbox aspect ratio, 같은 writing mode, 동일 line budget |
-| native/small pair | 축소 시 획과 개성 보존 확인 | 예상 native 크기와 50% 크기를 나란히 표시 |
-| treatment A/B | family와 효과 분리 | 왼쪽 skeleton-only, 오른쪽 앱이 실제 지원하는 source treatment 재적용 |
+| probe                     | 목적                        | 고정 조건                                                                 |
+| ------------------------- | --------------------------- | ------------------------------------------------------------------------- |
+| canonical structure strip | alias signature 기억 안정화 | 같은 12자, 같은 em, treatment 없음, horizontal+vertical                   |
+| role-conditioned phrase   | source 역할의 리듬 비교     | sealed role별 같은 한국어 문구, 글자 수 4/8/14 중 source에 가장 가까운 것 |
+| source-geometry fit       | 실제 배포 폭·높이 확인      | source bbox aspect ratio, 같은 writing mode, 동일 line budget             |
+| native/small pair         | 축소 시 획과 개성 보존 확인 | 예상 native 크기와 50% 크기를 나란히 표시                                 |
+| treatment A/B             | family와 효과 분리          | 왼쪽 skeleton-only, 오른쪽 앱이 실제 지원하는 source treatment 재적용     |
 
 SFX에는 하나의 `쾅!!`만 재사용하지 않는다. sealed role에 따라 최소 다음 문구군을
 따로 둔다.
@@ -268,29 +268,29 @@ critical axis가 unknown이면 거리 계산으로 억지 확정하지 않고 lo
 
 ### 6.2 role별 고정 weight
 
-| role group | weight | width | round | hand | angular | energy | critical axes |
-|---|---:|---:|---:|---:|---:|---:|---|
-| dialogue/narration/thought | .20 | .20 | .15 | .20 | .10 | .15 | family, weight, width, hand |
-| aside/whisper | .10 | .10 | .15 | .30 | .15 | .20 | hand, energy, weight |
-| emphasis/shout | .25 | .10 | .10 | .10 | .20 | .25 | weight, angular, energy |
-| sfx_impact | .25 | .10 | .05 | .10 | .25 | .25 | weight, angular, energy |
-| sfx_motion | .10 | .15 | .10 | .25 | .20 | .20 | hand, angular, energy |
-| sfx_ambient | .15 | .15 | .20 | .20 | .10 | .20 | round, hand, energy |
-| sfx_emotion | .10 | .10 | .20 | .30 | .10 | .20 | hand, round, energy |
-| sfx_comic | .20 | .10 | .20 | .15 | .10 | .25 | weight, round, energy |
-| sign/UI/title | .20 | .20 | .15 | .05 | .20 | .20 | family, width, angular |
+| role group                 | weight | width | round | hand | angular | energy | critical axes               |
+| -------------------------- | -----: | ----: | ----: | ---: | ------: | -----: | --------------------------- |
+| dialogue/narration/thought |    .20 |   .20 |   .15 |  .20 |     .10 |    .15 | family, weight, width, hand |
+| aside/whisper              |    .10 |   .10 |   .15 |  .30 |     .15 |    .20 | hand, energy, weight        |
+| emphasis/shout             |    .25 |   .10 |   .10 |  .10 |     .20 |    .25 | weight, angular, energy     |
+| sfx_impact                 |    .25 |   .10 |   .05 |  .10 |     .25 |    .25 | weight, angular, energy     |
+| sfx_motion                 |    .10 |   .15 |   .10 |  .25 |     .20 |    .20 | hand, angular, energy       |
+| sfx_ambient                |    .15 |   .15 |   .20 |  .20 |     .10 |    .20 | round, hand, energy         |
+| sfx_emotion                |    .10 |   .10 |   .20 |  .30 |     .10 |    .20 | hand, round, energy         |
+| sfx_comic                  |    .20 |   .10 |   .20 |  .15 |     .10 |    .25 | weight, round, energy       |
+| sign/UI/title              |    .20 |   .20 |   .15 |  .05 |     .20 |    .20 | family, width, angular      |
 
 이 weight는 Round 2 정답을 맞추도록 sample별로 바꾸는 값이 아니다. 별도 calibration
 anchor deck에서 먼저 확인하고 fresh gate를 열기 전에 hash와 함께 동결한다.
 
 ### 6.3 distance 외 hard gate
 
-| gate | pass | conditional/marginal | fail/unacceptable |
-|---|---|---|---|
-| family | source와 같은 printed/hand/display 골격 | 경계가 불명확하거나 한 단계 차이 | clear serif↔sans, hand↔mechanical, body↔extreme display 역전 |
-| critical gap | 모든 critical axis 차이 ≤ 1.0 | 한 축 차이 1.5–2.0 | 한 축 ≥ 2.5 또는 두 축 ≥ 2.0 |
-| treatment | 앱이 같은 효과를 재적용 가능 | 일부만 가능해 수동 보정 필요 | 효과 제거 시 역할 목소리가 사라지거나 지원 불가 |
-| deployment | native/small과 writing mode 모두 정상 | 한 크기에서 개성 또는 fit 저하 | clipping, fallback, unreadable |
+| gate         | pass                                    | conditional/marginal             | fail/unacceptable                                            |
+| ------------ | --------------------------------------- | -------------------------------- | ------------------------------------------------------------ |
+| family       | source와 같은 printed/hand/display 골격 | 경계가 불명확하거나 한 단계 차이 | clear serif↔sans, hand↔mechanical, body↔extreme display 역전 |
+| critical gap | 모든 critical axis 차이 ≤ 1.0           | 한 축 차이 1.5–2.0               | 한 축 ≥ 2.5 또는 두 축 ≥ 2.0                                 |
+| treatment    | 앱이 같은 효과를 재적용 가능            | 일부만 가능해 수동 보정 필요     | 효과 제거 시 역할 목소리가 사라지거나 지원 불가              |
+| deployment   | native/small과 writing mode 모두 정상   | 한 크기에서 개성 또는 fit 저하   | clipping, fallback, unreadable                               |
 
 family gate는 장르 prior가 아니다. 영애물/액션물이라는 이유로 serif/sans를 정하지
 않고 source glyph에서 보이는 획 대비와 종단으로만 정한다.
@@ -388,13 +388,13 @@ aside, 끄적인 문장, 부분 강조, shout, SFX의 실제 source 변화보다
 
 ### 8.2 60건 variant-priority 층화
 
-| 층 | 수량 | 목적 |
-|---|---:|---|
-| ordinary dialogue/narration/thought | 8 | chapter consistency와 serif/sans 경계만 검증 |
-| aside/whisper/handwritten | 12 | 작은 글씨와 손글씨 변칙 |
-| emphasis/shout | 12 | utterance 내부 변화와 전체 고함 분리 |
-| SFX 5종 | 20 | impact/motion/ambient/emotion/comic 각 4건 |
-| sign/UI/title | 8 | bounded label과 SFX/대사 경계 |
+| 층                                  | 수량 | 목적                                         |
+| ----------------------------------- | ---: | -------------------------------------------- |
+| ordinary dialogue/narration/thought |    8 | chapter consistency와 serif/sans 경계만 검증 |
+| aside/whisper/handwritten           |   12 | 작은 글씨와 손글씨 변칙                      |
+| emphasis/shout                      |   12 | utterance 내부 변화와 전체 고함 분리         |
+| SFX 5종                             |   20 | impact/motion/ambient/emotion/comic 각 4건   |
+| sign/UI/title                       |    8 | bounded label과 SFX/대사 경계                |
 
 한 작품의 반복 visual cluster가 gate를 채우지 못하게 work당 최대 2건, 같은 page당
 1건을 기본으로 한다. 동일 cluster 반복은 metric weight 0의 consistency audit로만 둔다.

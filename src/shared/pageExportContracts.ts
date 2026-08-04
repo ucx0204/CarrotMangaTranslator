@@ -62,7 +62,9 @@ export const PageExportDocumentDataSchema = z
       .refine(
         (value) =>
           value.startsWith("mgt-image://") ||
-          value.startsWith("data:image/png;base64,"),
+          value.startsWith("data:image/png;base64,") ||
+          value.startsWith("data:image/jpeg;base64,") ||
+          value.startsWith("data:image/webp;base64,"),
         "Unsupported page export image source.",
       ),
     page: PageArtworkSnapshotSchema,

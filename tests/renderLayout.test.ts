@@ -152,6 +152,108 @@ describe("render layout padding", () => {
     expect(layout.overflow).toBe(false);
   });
 
+  it("caps sign and title auto-fit growth at twice the preferred size", () => {
+    installCanvasMeasureMock();
+
+    const block: TranslationBlock = {
+      id: "title-block",
+      type: "nonsolid",
+      bbox: { x: 0, y: 0, w: 400, h: 400 },
+      sourceText: "題",
+      translatedText: "제목",
+      fontRole: "sign_ui_title",
+      fontRoleConfidence: 0.96,
+      confidence: 1,
+      sourceDirection: "horizontal",
+      renderDirection: "horizontal",
+      fontSizePx: 20,
+      lineHeight: 1.18,
+      textAlign: "center",
+      textColor: "#111111",
+      backgroundColor: "#fffdf5",
+      opacity: 1,
+      autoFitText: true,
+    };
+
+    const layout = resolveBlockTextLayout(
+      block,
+      block.translatedText,
+      { width: 1000, height: 1000 },
+      { width: 1000, height: 1000 },
+    );
+
+    expect(layout.fontSizePx).toBe(40);
+    expect(layout.overflow).toBe(false);
+  });
+
+  it("keeps the generic dialogue growth path unchanged", () => {
+    installCanvasMeasureMock();
+
+    const block: TranslationBlock = {
+      id: "dialogue-block",
+      type: "nonsolid",
+      bbox: { x: 0, y: 0, w: 400, h: 400 },
+      sourceText: "話",
+      translatedText: "대화",
+      fontRole: "dialogue",
+      fontRoleConfidence: 0.96,
+      confidence: 1,
+      sourceDirection: "horizontal",
+      renderDirection: "horizontal",
+      fontSizePx: 20,
+      lineHeight: 1.18,
+      textAlign: "center",
+      textColor: "#111111",
+      backgroundColor: "#fffdf5",
+      opacity: 1,
+      autoFitText: true,
+    };
+
+    const layout = resolveBlockTextLayout(
+      block,
+      block.translatedText,
+      { width: 1000, height: 1000 },
+      { width: 1000, height: 1000 },
+    );
+
+    expect(layout.fontSizePx).toBeGreaterThan(40);
+    expect(layout.overflow).toBe(false);
+  });
+
+  it("still shrinks sign and title text below the preferred size when needed", () => {
+    installCanvasMeasureMock();
+
+    const block: TranslationBlock = {
+      id: "small-title-block",
+      type: "nonsolid",
+      bbox: { x: 0, y: 0, w: 20, h: 20 },
+      sourceText: "題",
+      translatedText: "제목",
+      fontRole: "sign_ui_title",
+      fontRoleConfidence: 0.96,
+      confidence: 1,
+      sourceDirection: "horizontal",
+      renderDirection: "horizontal",
+      fontSizePx: 40,
+      lineHeight: 1.18,
+      textAlign: "center",
+      textColor: "#111111",
+      backgroundColor: "#fffdf5",
+      opacity: 1,
+      autoFitText: true,
+    };
+
+    const layout = resolveBlockTextLayout(
+      block,
+      block.translatedText,
+      { width: 1000, height: 1000 },
+      { width: 1000, height: 1000 },
+    );
+
+    expect(layout.fontSizePx).toBeLessThan(40);
+    expect(layout.overflow).toBe(false);
+  });
+
   it("keeps manual font size when auto-fit is disabled", () => {
     installCanvasMeasureMock();
 

@@ -7,6 +7,9 @@ import {
 } from "../src/main/pipeline/automaticFontMatchingV2";
 import { overlayItemToBlock } from "../src/main/pipeline/overlayItems";
 import { buildTranslatedPageResult } from "../src/main/pipeline/translatedPageResult";
+import type { AutomaticFontPageCoordinatorV2 } from "../src/main/pipeline/automaticFontMatchingV2PageCoordinator";
+import type { VerifiedAutomaticFontPixelInferenceV2 } from "../src/main/pipeline/fontMatchingPagePixelInferenceTypes";
+import type { FontMatchingRuntimeArtifactStatus } from "../src/main/pipeline/fontMatchingRuntimeArtifactStatus";
 import type { OverlayItem } from "../src/main/pipeline/types";
 import type { AutomaticFontCandidate } from "../src/shared/fontMatchingTypes";
 import type { WorkTypographyProfileV2 } from "../src/shared/fontMatchingProfileTypes";
@@ -152,6 +155,80 @@ describe("translated page Font Matching V2 coordination", () => {
       undefined,
       undefined,
       undefined,
+    ]);
+  });
+
+  it("preserves a pixel display winner while coordinating neutral-head body text", () => {
+    const page = makePage();
+    const candidates = [
+      builtIn("nanum-barun-gothic", [[0xac00, 0xd7a3]]),
+      builtIn("dohyeon", [[0xac00, 0xd7a3]]),
+    ];
+    const catalogVersion = resolveFontMatchingV2CatalogVersion(candidates);
+    const status = makeReadyRuntimeStatus(candidates, catalogVersion);
+    const variantBlockId = `${page.id}-run-1-block-1`;
+    const bodyBlockId = `${page.id}-run-1-block-2`;
+    const variant = makeNeutralPixelInference({
+      blockId: variantBlockId,
+      candidates,
+      catalogVersion,
+      pageId: page.id,
+      winnerFontId: "dohyeon",
+    });
+    const body = makeNeutralPixelInference({
+      blockId: bodyBlockId,
+      candidates,
+      catalogVersion,
+      pageId: page.id,
+      winnerFontId: "nanum-barun-gothic",
+    });
+    const preparationOrder: string[] = [];
+    const recordedBlockIds: string[] = [];
+    const chapterCoordinator = {
+      prepareWorkState(_item, _role, inference) {
+        if (inference) preparationOrder.push(inference.blockId);
+        return undefined;
+      },
+      recordDecision(_role, _workState, _result, _profile, inference) {
+        if (inference) recordedBlockIds.push(inference.blockId);
+      },
+    } satisfies AutomaticFontPageCoordinatorV2;
+
+    const result = buildTranslatedPageResult({
+      jobId: "run-1",
+      page,
+      pageOptions: makeTranslationOptions({
+        targetLanguage: "ko",
+        autoFontMatching: true,
+        fontMatchingCandidates: candidates,
+      }),
+      items: [
+        makeSfxItem(1, "ドン", "쾅"),
+        makeSfxItem(2, "ありがとう", "고마워"),
+      ],
+      soundDroppedCount: 0,
+      validationDroppedCount: 0,
+      validationReasons: {},
+      contextWarnings: [],
+      fontMatchingPageInference: {
+        runtimeArtifactStatus: status,
+        pixelInferenceByBlockId: new Map([
+          [variantBlockId, variant],
+          [bodyBlockId, body],
+        ]),
+      },
+      fontMatchingChapterCoordinator: chapterCoordinator,
+    });
+
+    expect(preparationOrder).toEqual([bodyBlockId, variantBlockId]);
+    expect(recordedBlockIds).toEqual([bodyBlockId]);
+    expect(result.page.blocks.map((block) => block.id)).toEqual([
+      variantBlockId,
+      bodyBlockId,
+    ]);
+    expect(result.page.blocks.map((block) => block.fontFamily)).toEqual([
+      "dohyeon",
+      "nanum-barun-gothic",
     ]);
   });
 
@@ -331,4 +408,143 @@ function makeTranslationOptions(
   overrides: Partial<TranslationOptions>,
 ): TranslationOptions {
   return overrides as TranslationOptions;
+}
+
+function makeReadyRuntimeStatus(
+  candidates: readonly AutomaticFontCandidate[],
+  catalogVersion: string,
+): FontMatchingRuntimeArtifactStatus {
+  return {
+    state: "ready",
+    automaticMutationAllowed: true,
+    semanticBootstrapAllowed: false,
+    modelVersion: "neutral-head-runtime-v1",
+    catalogVersion,
+    candidateIds: candidates.map(({ fontId }) => fontId),
+    candidateOrderSha256: "neutral-head-order-v1",
+    calibration: { temperature: 1, noneThreshold: 0.5 },
+    policy: {
+      automaticMutation: {
+        minimumAutomaticConfidence: 0.82,
+        minimumRoleConfidence: 0.75,
+        minimumIntentionalOverrideConfidence: 0.88,
+        intentionalOverrideMinimumScoreMargin: 0.12,
+      },
+      chapterPrior: {
+        maximumScoreContribution: 0.08,
+        minimumAnchorEvidenceCount: 3,
+        localOverrideMinimumScoreMargin: 0.12,
+      },
+    },
+  };
+}
+
+function makeNeutralPixelInference({
+  blockId,
+  candidates,
+  catalogVersion,
+  pageId,
+  winnerFontId,
+}: {
+  blockId: string;
+  candidates: readonly AutomaticFontCandidate[];
+  catalogVersion: string;
+  pageId: string;
+  winnerFontId: string;
+}): VerifiedAutomaticFontPixelInferenceV2 {
+  const ordered = [
+    winnerFontId,
+    ...candidates
+      .map(({ fontId }) => fontId)
+      .filter((fontId) => fontId !== winnerFontId),
+  ];
+  return {
+    kind: "verified_pixel_inference",
+    pageId,
+    blockId,
+    modelVersion: "neutral-head-runtime-v1",
+    candidateOrderSha256: "neutral-head-order-v1",
+    inputBoundary: {
+      source: "user_page",
+      datasetSplit: null,
+      qaOverlay: false,
+    },
+    rolePrediction: {
+      primary: "dialogue",
+      confidence: 1 / 14,
+      alternatives: [],
+    },
+    sourceStyle: {
+      serifness: 0.5,
+      weight: 0.5,
+      width: 0.5,
+      roundness: 0.5,
+      strokeContrast: 0.5,
+      handwritten: 0.5,
+      angularity: 0.5,
+      irregularity: 0.5,
+      slant: 0.5,
+      energy: 0.5,
+      unknownFields: [],
+    },
+    treatment: {
+      orientation: "horizontal",
+      outline: "none",
+      shadow: "none",
+      fill: "solid",
+      distortion: "none",
+      polarity: "unknown",
+      colorMode: "unknown",
+    },
+    selectionCalibration: {
+      applied: true,
+      fallbackReason: null,
+      operatingFamily: winnerFontId === "dohyeon" ? "variant" : "body",
+      selectionScore: 0.96,
+      globalRiskLowerConfidenceBound: 0.9,
+    },
+    glyphMorphology: {
+      contractVersion: "font-matching-glyph-morphology-v1",
+      maskSource: "raw_grayscale_otsu_minority_area3",
+      distanceTransform: "opencv_dist_l2_mask5",
+      connectivity: 8,
+      maskWidth: 80,
+      maskHeight: 40,
+      otsuThreshold: 100,
+      foregroundPolarity: "dark",
+      foregroundPixelCount: 240,
+      connectedComponentCount: 3,
+      globalForegroundDistanceMean: 1.8,
+      medianComponentDistanceMean: 1.8,
+      medianComponentFill: 0.62,
+      foregroundMeanLuma: 30,
+      backgroundMeanLuma: 230,
+    },
+    localEvidence: {
+      rankedCandidates: ordered.map((fontId, index) => ({
+        rank: index + 1,
+        fontId,
+        renderStatus: "rendered",
+        unrenderableReason: null,
+        styleFit: index === 0 ? 0.96 : 0.32,
+        roleFit: 1 / 14,
+        layoutFit: 0,
+        glyphCoverage: 1,
+        workProfileFit: 0,
+        userPreferenceFit: 0,
+        genrePriorContribution: 0,
+        switchPenalty: 0,
+        totalScore: index === 0 ? 0.96 : 0.32,
+        confidence: index === 0 ? 0.9 : 0,
+        rawPixelRank: index + 1,
+        rawPixelScore: index === 0 ? 0.96 : 0.32,
+        reasonCodes: ["pixel_model"],
+      })),
+      calibratedConfidence: 0.9,
+      noneAcceptable: false,
+      catalogVersion,
+      modelVersion: "neutral-head-runtime-v1",
+      rendererHash: FONT_MATCHING_V2_RENDERER_HASH,
+    },
+  };
 }

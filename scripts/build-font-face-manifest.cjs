@@ -185,9 +185,9 @@ function buildArtifacts(root) {
     face_count: families.reduce((sum, family) => sum + family.faces.length, 0),
     families,
   };
-  if (manifest.family_count !== 22 || manifest.face_count !== 38) {
+  if (manifest.family_count !== 21 || manifest.face_count !== 37) {
     throw new Error(
-      `Expected 22 Korean families and 38 faces, found ${manifest.family_count}/${manifest.face_count}.`,
+      `Expected 21 Korean families and 37 faces, found ${manifest.family_count}/${manifest.face_count}.`,
     );
   }
   const serializedManifest = serializeJson(manifest);

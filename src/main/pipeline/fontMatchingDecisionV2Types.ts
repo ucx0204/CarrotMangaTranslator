@@ -11,6 +11,8 @@ import type {
 export type BlockLocalFontEvidenceV2 = Readonly<{
   rankedCandidates: readonly RankedFontCandidateV2[];
   calibratedConfidence: number;
+  /** The sealed supervised selector, including its cohort operating point, accepted this row. */
+  supervisedSelectionAccepted?: boolean;
   noneAcceptable: boolean;
   catalogVersion: string;
   modelVersion: string;
@@ -37,6 +39,51 @@ export type FontMatchingWorkStateV2 = Readonly<{
   visualClusterId?: string | null;
   visualClusterFontId?: string | null;
   rolePaletteUsedFontIds?: readonly string[];
+  /** Runtime policy chosen from verified page pixels, never title/genre text. */
+  automaticStrategy?: "body_consistency_soft" | "local_visual_first";
+  /** Same-chapter, same-role and visually-similar body-font prior. */
+  bodyConsistencyFontId?: string | null;
+  /** Small score contribution; local visual evidence can always beat it. */
+  bodyConsistencyScoreBoost?: number;
+  /** Pixel-only page policy for speech-balloon typography. */
+  pageBalloonConsistencyMode?:
+    | "stable_body"
+    | "page_anchor"
+    | "local_visual_variant";
+  /** Shared font for visually ordinary balloons on the same page. */
+  pageBalloonAnchorFontId?: string | null;
+  /** Number of independent page rows supporting the selected anchor. */
+  pageBalloonAnchorEvidenceCount?: number;
+  /** Share of page-cluster rows supporting the selected anchor. */
+  pageBalloonAnchorSupportShare?: number | null;
+  /** Pixel-only coarse printed family used to reject decorative body faces. */
+  pageBalloonPrintedFamily?: "sans" | "serif" | null;
+  /** A weak non-body pixel winner was recovered through page/geometry evidence. */
+  pageBalloonRecoveredBody?: boolean;
+  /** Strict OCR split-component evidence overrides the local variant winner. */
+  pageBalloonGeometryComponentForced?: boolean;
+  /** Neutral-head, page-relative glyph evidence identified an ordinary balloon. */
+  pageBalloonOrdinaryMorphologyConsensus?: boolean;
+  /** Neutral-head, pixel-only evidence identified one repeated heavy emphasis face. */
+  pageBalloonEmphasisMorphologyConsensus?: boolean;
+  /** A strong Dohyeon winner failed the sealed raw-glyph morphology gate. */
+  pageBalloonDohyeonMorphologyVeto?: boolean;
+  /** A same-page raw-top5 pixel cluster corroborated a dominant Dohyeon winner. */
+  pageBalloonDohyeonDominanceClusterRescue?: boolean;
+  /** Pixel-only replacement target for a vetoed Dohyeon winner. */
+  pageBalloonDohyeonMorphologyRecoveryFontId?: string | null;
+  /** Evidence route that authorized the veto replacement. */
+  pageBalloonDohyeonMorphologyRecoveryRoute?:
+    | "inverse_page_anchor"
+    | "strong_page_anchor"
+    | "residual_stable_body"
+    | "non_dohyeon_top3"
+    | null;
+  /** Runtime policy margin required to retain a different local body winner. */
+  pageBalloonLocalOverrideMinimumScoreMargin?: number;
+  /** Page-relative source weight baseline used only for emphasis styling. */
+  pageBalloonWeightBaseline?: number | null;
+  pageBalloonWeightBaselineSampleCount?: number;
 }>;
 
 export type FontMatchingDecisionInputV2 = Readonly<{

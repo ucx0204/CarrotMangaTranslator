@@ -6,6 +6,15 @@ const {
   boxIntersectionArea,
   unionBoxes,
 } = require("./group-only-review-values.cjs");
+const {
+  attachDominantVerticalRubyClusterLabels,
+} = require("./group-only-review-ruby-dominant.cjs");
+const {
+  attachStrictLineageRubyLabels,
+} = require("./group-only-review-lineage-stabilization.cjs");
+const {
+  attachDeferredRubyLabels,
+} = require("./group-only-review-ruby-deferred.cjs");
 
 /** @typedef {import("./group-only-review-types").ReviewLabel} ReviewLabel */
 /** @typedef {import("./group-only-review-types").ReviewCandidate} ReviewCandidate */
@@ -328,7 +337,14 @@ function attachMostlyContainedRubyLabels(plan, labels) {
       role: "ruby",
     };
   }
-  return result;
+  attachDominantVerticalRubyClusterLabels(
+    plan,
+    result,
+    candidateIndexById,
+    fragmentMembers,
+  );
+  attachStrictLineageRubyLabels(plan, result, candidateIndexById);
+  return attachDeferredRubyLabels(plan, result, candidateIndexById);
 }
 
 /**

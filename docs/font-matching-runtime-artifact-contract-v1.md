@@ -54,21 +54,58 @@ its score contribution at `0.1`, requires multiple anchor observations, and says
 that real local typography evidence wins. This keeps ordinary dialogue stable
 without suppressing handwritten lines, emphasis, shouts, signs, or sound effects.
 
-## ONNX feasibility and current blocker
+## Offline ONNX conversion and parity
 
-Full vision inference is technically feasible, but it is not yet release-ready:
+`scripts/export_font_matching_runtime_onnx.py` is the production conversion
+boundary. It accepts only a deployment active catalog, its exact safely owned
+trainer output, the hash-bound train/validation feature cache, and an explicit
+local encoder snapshot whose directory name is the immutable encoder revision.
+Transformers offline mode and `local_files_only=True` are both mandatory; there
+is no model-ID network fallback.
 
-- The pinned SigLIP vision tower has 92,884,224 parameters, about 372 MB in fp32
-  or 186 MB in fp16 before ONNX graph overhead.
-- The installed Transformers legacy ONNX feature registry does not expose a
-  built-in `siglip` export configuration. A custom eager-attention wrapper or a
-  verified Optimum custom configuration is therefore required.
-- `onnxruntime-web` supports Electron and WASM, while WebGPU supports only a
-  subset of operators. The exact exported graph must be tested on the app's
-  pinned `onnxruntime-web@1.27.0`; Python ONNX Runtime success is not sufficient.
-- The current repository has Python ONNX Runtime but not the `onnx` or
-  `optimum-onnx` exporter packages. No unverified graph was generated or wired
-  into production.
+The converter:
+
+- exports the frozen SigLIP vision tower through a custom eager-attention
+  wrapper and L2-normalizes `pooler_output`;
+- reconstructs the ranker from the sealed safetensors checkpoint and bakes only
+  the ordered prototype-bag indices into its graph;
+- keeps `views` batch size dynamic while keeping the sealed prototype count and
+  candidate order static;
+- writes the cache prototype bank as little-endian float32;
+- checks the standard-domain opset-17 graphs with ONNX and Python CPU ORT;
+- runs the same graphs inside Electron with the repository's exact
+  `onnxruntime-web@1.27.0` WASM module and binary; and
+- requires at least 32 synthetic-plus-validation cases, two dynamic batch
+  sizes, finite outputs, the numeric thresholds above, and 100% candidate,
+  none-decision, and role top-1 agreement.
+
+The parity record hashes the trainer checkpoint/contract, local encoder source
+weights, feature-cache manifest and prototype NPY, both ONNX graphs, the raw
+prototype bank, parity inputs, reference/CPU/WASM output sets, converter, WASM
+runner, and WASM binary. Raw parity inputs and outputs are temporary and are not
+published. Frozen-test rows and pixels are never opened.
+
+The full SigLIP vision graph is large: the vision tower has 92,884,224
+parameters, about 372 MB in fp32 before ONNX graph overhead. The conversion is
+therefore deliberately an offline release operation, not an app startup task.
+Python `onnx==1.17.0` is required only in that conversion environment.
+
+For the pending strict full-catalog result, the exact planned conversion command
+is:
+
+```powershell
+python scripts/export_font_matching_runtime_onnx.py build `
+  --active-catalog artifacts/font-matching-runtime-active-catalog-v1/auto-match-active-catalog.json `
+  --trainer-output artifacts/font-matching-siglip-full22-strict-v1 `
+  --feature-cache artifacts/font-matching-siglip-full22-strict-v1-feature-cache `
+  --encoder-source-dir "<HUGGINGFACE_HUB_CACHE>\models--google--siglip2-base-patch16-224\snapshots\<snapshot-id>" `
+  --output-dir artifacts/font-matching-runtime-onnx-full22-strict-v1
+```
+
+Run the same arguments with `preflight` first (omitting `--output-dir`), then
+run `validate` after conversion. The converter will refuse the provisional
+15-font checkpoint and will remain blocked until the strict trainer output and
+the terminal active catalog exist.
 
 Relevant primary references:
 
@@ -77,10 +114,9 @@ Relevant primary references:
 - <https://onnxruntime.ai/docs/tutorials/web/>
 - <https://onnxruntime.ai/docs/tutorials/web/ep-webgpu.html>
 
-The next safe implementation step is a separate ONNX converter that exports the
-vision-only tower and ranker, runs at least 32 synthetic-plus-validation parity
-cases in both Python ORT and the pinned Electron WASM runtime, benchmarks memory
-and latency, and emits the sealed conversion report consumed by this builder.
+The conversion report is consumed unchanged by the runtime artifact builder;
+aggregate frozen-test release evaluation and the runtime policy remain separate
+release authorities and cannot be invented by the converter.
 
 ## App status boundary
 
@@ -95,13 +131,11 @@ runtime contract before producing one of these explicit states:
 - `invalid_contract`
 - `catalog_mismatch`
 - `runtime_version_mismatch`
-- `runtime_inference_unavailable`
 
 Every disabled state has `automaticMutationAllowed: false` and
-`semanticBootstrapAllowed: false`. Because no real Electron ONNX/WASM session is
-yet connected, even a completely verified bundle currently resolves to
-`runtime_inference_unavailable`, never `ready`. The page pipeline additionally
-requires block-bound verified pixel inference before it may apply a work profile,
-palette, intentional override, or page-local coordinator state. Persisted manual
-block/role locks are the only mutation path that remains available while the
-runtime is disabled.
+`semanticBootstrapAllowed: false`. A completely verified bundle resolves to
+`ready` with its sealed calibration and canonical active-catalog version. This
+status alone cannot mutate a block: the page pipeline additionally requires
+matching block-bound pixel inference before it may apply a work profile, palette,
+intentional override, or page-local coordinator state. Persisted manual
+block/role locks remain the only mutation path while that inference is absent.

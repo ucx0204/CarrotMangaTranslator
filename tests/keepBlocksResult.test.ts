@@ -1,14 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { joinCropOcrTexts } from "../src/main/pipeline/keepBlocksOcr";
 import {
+  FONT_MATCHING_V2_MODEL_VERSION,
+  FONT_MATCHING_V2_RENDERER_HASH,
+  resolveFontMatchingV2CatalogVersion,
+} from "../src/main/pipeline/automaticFontMatchingV2";
+import type { AutomaticFontPageCoordinatorV2 } from "../src/main/pipeline/automaticFontMatchingV2PageCoordinator";
+import type { VerifiedAutomaticFontPixelInferenceV2 } from "../src/main/pipeline/fontMatchingPagePixelInferenceTypes";
+import type { FontMatchingRuntimeArtifactStatus } from "../src/main/pipeline/fontMatchingRuntimeArtifactStatus";
+import {
   applyOverlayItemsToExistingBlocks,
   buildKeepBlocksOcrResult,
   shouldKeepExistingBlocks,
 } from "../src/main/pipeline/keepBlocksResult";
+import { buildKeepBlocksFontInferenceBlocks } from "../src/main/pipeline/keepBlocksAssignment";
 import { buildPreviousBlocksForPrompt } from "../src/main/pipeline/previousBlocksForPrompt";
 import type { MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
 import type { OverlayItem } from "../src/main/pipeline/types";
+import type { WorkTypographyProfileV2 } from "../src/shared/fontMatchingProfileTypes";
 import { makeAutomaticFontCandidate } from "./helpers/automaticFontCandidate";
 
 describe("keep-blocks translation mode", () => {
@@ -168,6 +178,337 @@ describe("keep-blocks translation mode", () => {
     });
   });
 
+  it("binds keep-mode inference crops to persistent ids in item order", () => {
+    const page = makePage([
+      makeBlock("b-1", { x: 100, y: 100, w: 200, h: 100 }),
+      makeBlock("b-2", { x: 500, y: 500, w: 100, h: 100 }),
+    ]);
+    const previousBlocks = buildPreviousBlocksForPrompt(page, [], {
+      assignSequentialCandidateIds: true,
+    });
+    const second = makeItem(
+      2,
+      { x: 510, y: 505, w: 90, h: 90 },
+      "こんにちは",
+      "안녕하세요",
+    );
+    const first = makeItem(
+      1,
+      { x: 105, y: 100, w: 195, h: 95 },
+      "ありがとう",
+      "고마워",
+    );
+
+    expect(
+      buildKeepBlocksFontInferenceBlocks({
+        page,
+        items: [second, first],
+        previousBlocks,
+      }),
+    ).toEqual([
+      { blockId: "b-2", item: second },
+      { blockId: "b-1", item: first },
+    ]);
+  });
+
+  it("replaces an existing keep-mode font when verified pixels select another", () => {
+    const candidate = makeAutomaticFontCandidate({
+      source: "built-in",
+      fontId: "nanum-barun-gothic",
+    });
+    const page = makePage([
+      {
+        ...makeBlock("b-1", { x: 100, y: 100, w: 200, h: 100 }),
+        fontFamily: "legacy-current-font",
+      },
+    ]);
+    const previousBlocks = buildPreviousBlocksForPrompt(page, [], {
+      assignSequentialCandidateIds: true,
+    });
+    const catalogVersion = resolveFontMatchingV2CatalogVersion([candidate]);
+    const status = makeReadyRuntimeStatus(candidate.fontId, catalogVersion);
+    const inference = makeVerifiedKeepInference(
+      page.id,
+      page.blocks[0].id,
+      candidate.fontId,
+      catalogVersion,
+    );
+
+    const mapping = applyOverlayItemsToExistingBlocks({
+      page,
+      items: [makeItem(1, page.blocks[0].bbox, "ありがとう", "고마워")],
+      previousBlocks,
+      automaticFont: {
+        enabled: true,
+        targetLanguage: "ko",
+        candidates: [candidate],
+        pageInference: {
+          runtimeArtifactStatus: status,
+          pixelInferenceByBlockId: new Map([[page.blocks[0].id, inference]]),
+        },
+      },
+    });
+
+    expect(mapping.blocks[0]).toMatchObject({
+      fontFamily: "nanum-barun-gothic",
+      automaticFontMatch: {
+        selectedFontId: "nanum-barun-gothic",
+        source: "local_visual",
+        previousStyle: { fontFamily: "legacy-current-font" },
+      },
+    });
+  });
+
+  it("processes verified keep blocks body-first without reordering stored blocks", () => {
+    const bodyCandidate = makeAutomaticFontCandidate({
+      source: "built-in",
+      fontId: "nanum-barun-gothic",
+    });
+    const variantCandidate = makeAutomaticFontCandidate({
+      source: "built-in",
+      fontId: "dohyeon",
+    });
+    const candidates = [bodyCandidate, variantCandidate];
+    const page = makePage([
+      makeBlock("b-accent", { x: 100, y: 100, w: 200, h: 100 }),
+      makeBlock("b-body", { x: 100, y: 300, w: 200, h: 100 }),
+    ]);
+    const previousBlocks = buildPreviousBlocksForPrompt(page, [], {
+      assignSequentialCandidateIds: true,
+    });
+    const catalogVersion = resolveFontMatchingV2CatalogVersion(candidates);
+    const status = makeReadyRuntimeStatus(
+      candidates.map(({ fontId }) => fontId),
+      catalogVersion,
+    );
+    const accentInference = {
+      ...makeVerifiedKeepInference(
+        page.id,
+        "b-accent",
+        variantCandidate.fontId,
+        catalogVersion,
+        candidates.map(({ fontId }) => fontId),
+      ),
+      rolePrediction: {
+        primary: "dialogue" as const,
+        confidence: 1 / 14,
+        alternatives: [],
+      },
+      sourceStyle: makeNeutralKeepSourceStyle(),
+      selectionCalibration: {
+        applied: true,
+        fallbackReason: null,
+        operatingFamily: "variant" as const,
+        selectionScore: 0.97,
+        globalRiskLowerConfidenceBound: 0.9,
+      },
+    };
+    const bodyInference = makeVerifiedKeepInference(
+      page.id,
+      "b-body",
+      bodyCandidate.fontId,
+      catalogVersion,
+      candidates.map(({ fontId }) => fontId),
+    );
+    const neutralBodyInference = {
+      ...bodyInference,
+      rolePrediction: {
+        primary: "dialogue" as const,
+        confidence: 1 / 14,
+        alternatives: [],
+      },
+      sourceStyle: makeNeutralKeepSourceStyle(),
+    };
+    const preparationOrder: string[] = [];
+    const chapterCoordinator = {
+      prepareWorkState(_item, _role, inference) {
+        if (inference) preparationOrder.push(inference.blockId);
+        return undefined;
+      },
+      recordDecision() {},
+    } satisfies AutomaticFontPageCoordinatorV2;
+
+    const mapping = applyOverlayItemsToExistingBlocks({
+      page,
+      items: [
+        makeItem(1, page.blocks[0].bbox, "ドン", "쾅"),
+        makeItem(2, page.blocks[1].bbox, "ありがとう", "고마워"),
+      ],
+      previousBlocks,
+      automaticFont: {
+        enabled: true,
+        targetLanguage: "ko",
+        candidates,
+        pageCoordinator: chapterCoordinator,
+        pageInference: {
+          runtimeArtifactStatus: status,
+          pixelInferenceByBlockId: new Map([
+            ["b-accent", accentInference],
+            ["b-body", neutralBodyInference],
+          ]),
+        },
+      },
+    });
+
+    expect(preparationOrder).toEqual(["b-body", "b-accent"]);
+    expect(mapping.blocks.map((block) => block.id)).toEqual([
+      "b-accent",
+      "b-body",
+    ]);
+    expect(mapping.blocks.map((block) => block.fontFamily)).toEqual([
+      variantCandidate.fontId,
+      bodyCandidate.fontId,
+    ]);
+  });
+
+  it("excludes cross-page and cross-catalog keep inference from page state", () => {
+    const candidate = makeAutomaticFontCandidate({
+      source: "built-in",
+      fontId: "nanum-barun-gothic",
+    });
+    const page = makePage([
+      {
+        ...makeBlock("b-valid", { x: 100, y: 100, w: 200, h: 100 }),
+        fontFamily: "legacy-valid",
+      },
+      {
+        ...makeBlock("b-cross-page", { x: 100, y: 300, w: 200, h: 100 }),
+        fontFamily: "legacy-cross-page",
+      },
+      {
+        ...makeBlock("b-cross-catalog", { x: 100, y: 500, w: 200, h: 100 }),
+        fontFamily: "legacy-cross-catalog",
+      },
+    ]);
+    const previousBlocks = buildPreviousBlocksForPrompt(page, [], {
+      assignSequentialCandidateIds: true,
+    });
+    const items = page.blocks.map((block, index) =>
+      makeItem(index + 1, block.bbox, `原文${index}`, `번역${index}`),
+    );
+    const catalogVersion = resolveFontMatchingV2CatalogVersion([candidate]);
+    const status = makeReadyRuntimeStatus(candidate.fontId, catalogVersion);
+    const valid = makeVerifiedKeepInference(
+      page.id,
+      "b-valid",
+      candidate.fontId,
+      catalogVersion,
+    );
+    const crossPage = {
+      ...makeVerifiedKeepInference(
+        page.id,
+        "b-cross-page",
+        candidate.fontId,
+        catalogVersion,
+      ),
+      pageId: "another-page",
+    };
+    const catalogBase = makeVerifiedKeepInference(
+      page.id,
+      "b-cross-catalog",
+      candidate.fontId,
+      catalogVersion,
+    );
+    const crossCatalog = {
+      ...catalogBase,
+      localEvidence: {
+        ...catalogBase.localEvidence,
+        catalogVersion: "wrong-catalog",
+      },
+    };
+    const clean = applyOverlayItemsToExistingBlocks({
+      page,
+      items,
+      previousBlocks,
+      automaticFont: {
+        enabled: true,
+        targetLanguage: "ko",
+        candidates: [candidate],
+        pageInference: {
+          runtimeArtifactStatus: status,
+          pixelInferenceByBlockId: new Map([["b-valid", valid]]),
+        },
+      },
+    });
+    const preparationOrder: string[] = [];
+    const chapterCoordinator = {
+      prepareWorkState(_item, _role, inference) {
+        if (inference) preparationOrder.push(inference.blockId);
+        return undefined;
+      },
+      recordDecision() {},
+    } satisfies AutomaticFontPageCoordinatorV2;
+
+    const mixed = applyOverlayItemsToExistingBlocks({
+      page,
+      items,
+      previousBlocks,
+      automaticFont: {
+        enabled: true,
+        targetLanguage: "ko",
+        candidates: [candidate],
+        pageCoordinator: chapterCoordinator,
+        pageInference: {
+          runtimeArtifactStatus: status,
+          pixelInferenceByBlockId: new Map([
+            ["b-valid", valid],
+            ["b-cross-page", crossPage],
+            ["b-cross-catalog", crossCatalog],
+          ]),
+        },
+      },
+    });
+
+    expect(preparationOrder).toEqual(["b-valid"]);
+    expect(mixed.blocks[0].fontFamily).toBe(clean.blocks[0].fontFamily);
+    expect(mixed.blocks[0].automaticFontMatch).toEqual(
+      clean.blocks[0].automaticFontMatch,
+    );
+    expect(mixed.blocks[1].fontFamily).toBe("legacy-cross-page");
+    expect(mixed.blocks[2].fontFamily).toBe("legacy-cross-catalog");
+    expect(mixed.blocks[1].automaticFontMatch).toBeUndefined();
+    expect(mixed.blocks[2].automaticFontMatch).toBeUndefined();
+  });
+
+  it("preserves a manual block font lock without pixel inference", () => {
+    const candidate = makeAutomaticFontCandidate({
+      source: "built-in",
+      fontId: "jua",
+    });
+    const page = makePage([
+      {
+        ...makeBlock("b-1", { x: 100, y: 100, w: 200, h: 100 }),
+        fontFamily: "legacy-current-font",
+      },
+    ]);
+    const previousBlocks = buildPreviousBlocksForPrompt(page, [], {
+      assignSequentialCandidateIds: true,
+    });
+
+    const mapping = applyOverlayItemsToExistingBlocks({
+      page,
+      items: [makeItem(1, page.blocks[0].bbox, "ありがとう", "고마워")],
+      previousBlocks,
+      automaticFont: {
+        enabled: true,
+        targetLanguage: "ko",
+        workId: "work-1",
+        chapterId: "chapter-1",
+        candidates: [candidate],
+        profile: makeKeepProfile([candidate], candidate.fontId),
+      },
+    });
+
+    expect(mapping.blocks[0]).toMatchObject({
+      fontFamily: candidate.fontId,
+      automaticFontMatch: {
+        selectedFontId: candidate.fontId,
+        source: "user_lock",
+        previousStyle: { fontFamily: "legacy-current-font" },
+      },
+    });
+  });
+
   it("keeps unmatched blocks untouched and drops out-of-block items", () => {
     const page = makePage([
       makeBlock("b-1", { x: 100, y: 100, w: 200, h: 100 }, "기존 유지"),
@@ -245,7 +586,7 @@ describe("keep-blocks translation mode", () => {
     });
   });
 
-  it("preserves an explicit keep-mode block font without treating it as a lock", () => {
+  it("leaves a keep-mode block unchanged when verified evidence is absent", () => {
     const candidate = makeAutomaticFontCandidate();
     const page = makePage([
       {
@@ -274,7 +615,7 @@ describe("keep-blocks translation mode", () => {
     expect(mapping.blocks[0]).not.toHaveProperty("fontMetricWidthScale");
   });
 
-  it("preserves an implicit renderer-default font in keep mode", () => {
+  it("leaves the renderer default unchanged when verified evidence is absent", () => {
     const page = makePage([
       makeBlock("b-1", { x: 100, y: 100, w: 120, h: 180 }),
     ]);
@@ -519,5 +860,201 @@ function makeItem(
     jp,
     ko,
     confidence: 0.95,
+  };
+}
+
+function makeReadyRuntimeStatus(
+  fontId: string | readonly string[],
+  catalogVersion: string,
+): FontMatchingRuntimeArtifactStatus {
+  const candidateIds = typeof fontId === "string" ? [fontId] : [...fontId];
+  return {
+    state: "ready",
+    automaticMutationAllowed: true,
+    semanticBootstrapAllowed: false,
+    modelVersion: "keep-runtime-v1",
+    catalogVersion,
+    candidateIds,
+    candidateOrderSha256: "keep-candidate-order-v1",
+    calibration: { temperature: 1, noneThreshold: 0.5 },
+    policy: {
+      automaticMutation: {
+        minimumAutomaticConfidence: 0.86,
+        minimumRoleConfidence: 0.82,
+        minimumIntentionalOverrideConfidence: 0.86,
+        intentionalOverrideMinimumScoreMargin: 0.1,
+      },
+      chapterPrior: {
+        maximumScoreContribution: 0.06,
+        minimumAnchorEvidenceCount: 2,
+        localOverrideMinimumScoreMargin: 0.1,
+      },
+    },
+  };
+}
+
+function makeVerifiedKeepInference(
+  pageId: string,
+  blockId: string,
+  fontId: string,
+  catalogVersion: string,
+  candidateIds: readonly string[] = [fontId],
+): VerifiedAutomaticFontPixelInferenceV2 {
+  const orderedFontIds = [
+    fontId,
+    ...candidateIds.filter((candidateId) => candidateId !== fontId),
+  ];
+  return {
+    kind: "verified_pixel_inference",
+    pageId,
+    blockId,
+    modelVersion: "keep-runtime-v1",
+    candidateOrderSha256: "keep-candidate-order-v1",
+    inputBoundary: {
+      source: "user_page",
+      datasetSplit: null,
+      qaOverlay: false,
+    },
+    rolePrediction: { primary: "dialogue", confidence: 0.99, alternatives: [] },
+    sourceStyle: {
+      serifness: 0.2,
+      weight: 0.5,
+      width: 0.5,
+      roundness: 0.5,
+      strokeContrast: 0.3,
+      handwritten: 0.1,
+      angularity: 0.2,
+      irregularity: 0.1,
+      slant: 0.1,
+      energy: 0.2,
+      unknownFields: [],
+    },
+    treatment: {
+      orientation: "horizontal",
+      outline: "none",
+      shadow: "none",
+      fill: "solid",
+      distortion: "none",
+      polarity: "normal",
+      colorMode: "monochrome",
+    },
+    selectionCalibration: {
+      applied: true,
+      fallbackReason: null,
+      operatingFamily: "body",
+      selectionScore: 0.97,
+      globalRiskLowerConfidenceBound: 0.9,
+    },
+    glyphMorphology: {
+      contractVersion: "font-matching-glyph-morphology-v1",
+      maskSource: "raw_grayscale_otsu_minority_area3",
+      distanceTransform: "opencv_dist_l2_mask5",
+      connectivity: 8,
+      maskWidth: 80,
+      maskHeight: 40,
+      otsuThreshold: 100,
+      foregroundPolarity: "dark",
+      foregroundPixelCount: 240,
+      connectedComponentCount: 3,
+      globalForegroundDistanceMean: 1.8,
+      medianComponentDistanceMean: 1.8,
+      medianComponentFill: 0.62,
+      foregroundMeanLuma: 30,
+      backgroundMeanLuma: 230,
+    },
+    localEvidence: {
+      rankedCandidates: orderedFontIds.map(
+        (candidateId, index) =>
+          ({
+            rank: index + 1,
+            fontId: candidateId,
+            renderStatus: "rendered",
+            unrenderableReason: null,
+            styleFit: index === 0 ? 0.97 : 0.4,
+            roleFit: index === 0 ? 0.97 : 0.4,
+            layoutFit: 0,
+            glyphCoverage: 1,
+            workProfileFit: 0,
+            userPreferenceFit: 0,
+            genrePriorContribution: 0,
+            switchPenalty: 0,
+            totalScore: index === 0 ? 0.97 : 0.4,
+            confidence: index === 0 ? 0.97 : 0,
+            rawPixelRank: index + 1,
+            rawPixelScore: index === 0 ? 0.97 : 0.4,
+            reasonCodes: ["pixel_model"],
+          }) satisfies VerifiedAutomaticFontPixelInferenceV2["localEvidence"]["rankedCandidates"][number],
+      ),
+      calibratedConfidence: 0.97,
+      noneAcceptable: false,
+      catalogVersion,
+      modelVersion: "keep-runtime-v1",
+      rendererHash: FONT_MATCHING_V2_RENDERER_HASH,
+    },
+  };
+}
+
+function makeNeutralKeepSourceStyle(): VerifiedAutomaticFontPixelInferenceV2["sourceStyle"] {
+  return {
+    serifness: 0.5,
+    weight: 0.5,
+    width: 0.5,
+    roundness: 0.5,
+    strokeContrast: 0.5,
+    handwritten: 0.5,
+    angularity: 0.5,
+    irregularity: 0.5,
+    slant: 0.5,
+    energy: 0.5,
+    unknownFields: [],
+  };
+}
+
+function makeKeepProfile(
+  candidates: readonly ReturnType<typeof makeAutomaticFontCandidate>[],
+  lockedFontId: string,
+): WorkTypographyProfileV2 {
+  const now = "2026-08-01T00:00:00.000Z";
+  return {
+    schemaVersion: 2,
+    workId: "work-1",
+    dialogueAnchor: null,
+    narrationAnchor: null,
+    thoughtAnchor: null,
+    rolePalettes: [],
+    intentionalOverrides: [],
+    userLocks: [
+      {
+        id: "keep-block-lock",
+        scope: {
+          type: "block",
+          chapterId: "chapter-1",
+          pageId: "page-1",
+          blockId: "b-1",
+        },
+        selection: { fontId: lockedFontId },
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+    orientationPolicy: {
+      horizontalAllowedFontIds: null,
+      verticalAllowedFontIds: null,
+      verticalOnlyFontIds: [],
+    },
+    consistencyPolicy: {
+      reuseBodyAnchors: true,
+      requireIntentionalOverrideForBodySwitch: true,
+      reuseVisualClusterFont: true,
+      maxAccentFontsPerRole: 4,
+    },
+    genrePrior: null,
+    evidenceCount: 1,
+    confidence: 1,
+    catalogVersion: resolveFontMatchingV2CatalogVersion(candidates),
+    modelVersion: FONT_MATCHING_V2_MODEL_VERSION,
+    rendererHash: FONT_MATCHING_V2_RENDERER_HASH,
+    createdAt: now,
+    updatedAt: now,
   };
 }

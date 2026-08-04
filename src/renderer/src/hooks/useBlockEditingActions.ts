@@ -24,6 +24,7 @@ import {
   type BlockBackgroundApplyScope,
 } from "./useApplyBlockBackgroundOpacityAction";
 import { useNudgeSelectedBlocksAction } from "./useNudgeSelectedBlocksAction";
+import { clearAutomaticFontMatchForManualStylePatch } from "../lib/automaticFontMatchProvenance";
 
 type UseBlockEditingActionsOptions = {
   currentChapter: ChapterSnapshot | null;
@@ -279,15 +280,19 @@ function applyFormatPatchToBlock(
   block: TranslationBlock,
   patch: Partial<TranslationBlock>,
 ): TranslationBlock {
-  const next = { ...block, ...patch };
-  if (patch.renderDirection !== undefined) {
+  const provenanceSafePatch = clearAutomaticFontMatchForManualStylePatch(
+    block,
+    patch,
+  );
+  const next = { ...block, ...provenanceSafePatch };
+  if (provenanceSafePatch.renderDirection !== undefined) {
     next.renderDirection = normalizeRenderDirection(
-      patch.renderDirection,
+      provenanceSafePatch.renderDirection,
       block.renderDirection,
     );
   }
-  if (patch.rotationDeg !== undefined) {
-    next.rotationDeg = normalizeRotationDeg(patch.rotationDeg);
+  if (provenanceSafePatch.rotationDeg !== undefined) {
+    next.rotationDeg = normalizeRotationDeg(provenanceSafePatch.rotationDeg);
   }
   return next;
 }

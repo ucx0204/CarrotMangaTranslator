@@ -73,6 +73,34 @@ FONT_SIGNAL_AUDIT_REVIEW_READY_ASSIGNMENTS = "review-ready-assignments.jsonl"
 FONT_SIGNAL_AUDIT_REVIEW_READY_INVENTORY = "review-ready-inventory.jsonl"
 FONT_SIGNAL_AUDIT_REPORT = "report.json"
 FONT_SIGNAL_AUDIT_EXPECTED_COUNT = 62
+FROZEN_TEST_MANIFEST_SCHEMA_VERSION = "font-matching-frozen-test-manifest-v1"
+FULL22_AUTHORITY_SCHEMA_VERSION = "font-matching-provisional-full22-export-v1"
+FONT_SIGNAL_SUCCESSOR_SCHEMA_VERSION = "font-matching-font-signal-audit-successor-v1"
+FONT_SIGNAL_SUCCESSOR_RELATIONSHIP = "label_only_full22_successor"
+FONT_SIGNAL_AUDIT_PROJECTION_SCHEMA_VERSION = (
+    "font-matching-font-signal-audit-projection-v1"
+)
+FONT_SIGNAL_AUDIT_PROJECTION_RECONCILIATION = (
+    "parent_equals_review_ready_union_audit_excluded"
+)
+FULL22_AUTHORITY_KEYS = frozenset(
+    {
+        "all_22_candidates_retained_for_utility_audit",
+        "candidate_count",
+        "catalog_disposition_record_sha256",
+        "eligibility_exceptions_excluded",
+        "formal_calibration_gate_passed",
+        "old_tier_mutation_allowed",
+        "provisional_catalog_record_sha256",
+        "resolved_label_file",
+        "schema_version",
+        "selection_mode",
+        "tier_merge",
+        "top1_synthesis_allowed",
+        "training_only",
+        "training_quarantine_excluded",
+    }
+)
 FONT_SIGNAL_AUDIT_OUTCOMES = frozenset(
     {"font_signal_present", "font_signal_absent", "needs_recrop", "uncertain"}
 )
@@ -156,6 +184,7 @@ VARIANT_ROLES = frozenset(
 HIGH_VARIANT_STYLE_THRESHOLD = 0.5
 MAX_TRAINING_EXAMPLE_WEIGHT = 3.0
 ORDINARY_TOP1_REGRESSION_LIMIT = 0.03
+ORDINARY_REGRESSION_MINIMUM_PRIORITY2_SAMPLE_COUNT = 20
 CHAPTER_PAIR_KINDS = frozenset(
     {"ordinary_consistency_positive", "local_override_margin"}
 )
@@ -1126,6 +1155,246 @@ def _sample_label_record_sha256(sample: Mapping[str, Any], *, location: str) -> 
     )
 
 
+def _validate_full22_training_only_authority(
+    export: catalog_assets.TrainingExportSnapshot,
+    *,
+    location: str,
+) -> Mapping[str, Any]:
+    contracts = require_mapping(
+        export.manifest.get("contracts"), location="training export.contracts"
+    )
+    authority = require_mapping(
+        contracts.get("provisional_full22"),
+        location="training export.contracts.provisional_full22",
+    )
+    _require_exact_keys(authority, FULL22_AUTHORITY_KEYS, location=location)
+    formal = authority.get("formal_calibration_gate_passed")
+    if not isinstance(formal, bool):
+        raise TrainerError(f"{location}: formal calibration state must be boolean")
+    if (
+        authority.get("schema_version") != FULL22_AUTHORITY_SCHEMA_VERSION
+        or authority.get("training_only") is not True
+        or authority.get("candidate_count") != 22
+        or getattr(export, "candidate_count", None) != 22
+        or export.manifest.get("candidate_count") != 22
+        or authority.get("all_22_candidates_retained_for_utility_audit") is not True
+        or authority.get("eligibility_exceptions_excluded") is not True
+        or authority.get("old_tier_mutation_allowed") is not False
+        or authority.get("top1_synthesis_allowed") is not False
+        or authority.get("training_quarantine_excluded") is not True
+        or authority.get("resolved_label_file") != "resolved-labels-full22.jsonl"
+        or authority.get("tier_merge") != "immutable_prior15_plus_exact_resolved_delta7"
+    ):
+        raise TrainerError(f"{location}: full-22 training-only authority is invalid")
+    if formal:
+        if authority.get("selection_mode") != "formal_finalized_all_resolved":
+            raise TrainerError(f"{location}: finalized full-22 authority drifted")
+        _require_audit_sha(
+            authority.get("catalog_disposition_record_sha256"),
+            location=f"{location}.catalog_disposition_record_sha256",
+        )
+        _require_audit_sha(
+            authority.get("provisional_catalog_record_sha256"),
+            location=f"{location}.provisional_catalog_record_sha256",
+        )
+    elif (
+        authority.get("selection_mode")
+        != "unfinalized_exact_independent_consensus_only"
+        or authority.get("catalog_disposition_record_sha256") is not None
+        or authority.get("provisional_catalog_record_sha256") is not None
+    ):
+        raise TrainerError(f"{location}: staging full-22 authority drifted")
+    return authority
+
+
+def _validate_font_signal_training_sample_binding(
+    *,
+    export: catalog_assets.TrainingExportSnapshot,
+    sample: Mapping[str, Any],
+    audited: FontSignalAuditRecord,
+    location: str,
+) -> None:
+    """Accept an exact audited record or its explicitly sealed full-22 successor."""
+
+    source = require_mapping(sample.get("source"), location=f"{location}.source")
+    current_identity = {
+        "chapter_id": sample.get("chapter_id"),
+        "page_id": sample.get("page_id"),
+        "sample_id": sample.get("sample_id"),
+        "source_page_sha256": source.get("source_page_sha256"),
+        "work_id": sample.get("work_id"),
+    }
+    audited_identity = {
+        "chapter_id": audited.chapter_id,
+        "page_id": audited.page_id,
+        "sample_id": audited.sample_id,
+        "source_page_sha256": audited.source_page_sha256,
+        "work_id": audited.work_id,
+    }
+    if current_identity != audited_identity:
+        raise TrainerError(
+            f"{audited.sample_id}: font-signal audit/training sample binding mismatch"
+        )
+    current_record_sha = _require_audit_sha(
+        sample.get("record_sha256"), location=f"{location}.record_sha256"
+    )
+    if audited.training_sample_record_sha256 == current_record_sha:
+        return
+
+    mismatch = (
+        f"{audited.sample_id}: font-signal audit/training sample binding mismatch"
+    )
+    try:
+        authority_contract = _validate_full22_training_only_authority(
+            export, location=f"{location}.full22_authority"
+        )
+        provenance = require_mapping(
+            sample.get("provenance"), location=f"{location}.provenance"
+        )
+        review = require_mapping(
+            sample.get("review_provenance"),
+            location=f"{location}.review_provenance",
+        )
+        review_authority = require_mapping(
+            review.get("authority"),
+            location=f"{location}.review_provenance.authority",
+        )
+        provenance_binding = require_mapping(
+            provenance.get("font_signal_audit_successor"),
+            location=f"{location}.provenance.font_signal_audit_successor",
+        )
+        review_binding = require_mapping(
+            review_authority.get("font_signal_audit_successor"),
+            location=(
+                f"{location}.review_provenance.authority." "font_signal_audit_successor"
+            ),
+        )
+        authority_without_binding = dict(review_authority)
+        authority_without_binding.pop("font_signal_audit_successor", None)
+        if (
+            provenance.get("full22_release_state") != "provisional_training_only"
+            or authority_without_binding != dict(authority_contract)
+            or provenance_binding != review_binding
+        ):
+            raise TrainerError(f"{location}: successor authority is inconsistent")
+        _require_exact_keys(
+            review_binding,
+            {
+                "parent_identity",
+                "parent_training_sample_record_sha256",
+                "relationship",
+                "schema_version",
+            },
+            location=f"{location}.font_signal_audit_successor",
+        )
+        parent_identity = require_mapping(
+            review_binding.get("parent_identity"),
+            location=f"{location}.font_signal_audit_successor.parent_identity",
+        )
+        _require_exact_keys(
+            parent_identity,
+            {"chapter_id", "page_id", "sample_id", "source_page_sha256", "work_id"},
+            location=f"{location}.font_signal_audit_successor.parent_identity",
+        )
+        if (
+            review_binding.get("schema_version") != FONT_SIGNAL_SUCCESSOR_SCHEMA_VERSION
+            or review_binding.get("relationship") != FONT_SIGNAL_SUCCESSOR_RELATIONSHIP
+            or _require_audit_sha(
+                review_binding.get("parent_training_sample_record_sha256"),
+                location=(
+                    f"{location}.font_signal_audit_successor."
+                    "parent_training_sample_record_sha256"
+                ),
+            )
+            != audited.training_sample_record_sha256
+            or dict(parent_identity) != audited_identity
+            or dict(parent_identity) != current_identity
+        ):
+            raise TrainerError(f"{location}: successor parent binding drifted")
+    except TrainerError as error:
+        raise TrainerError(mismatch) from error
+
+
+def _validate_full22_font_signal_audit_projection(
+    *,
+    export: catalog_assets.TrainingExportSnapshot,
+    font_signal_audit: FontSignalAuditSnapshot,
+    selected_sample_ids: set[str],
+) -> None:
+    """Reconcile a strict full-22 subset with its complete audited parent export."""
+
+    authority = _validate_full22_training_only_authority(
+        export, location="training export.full22_authority"
+    )
+    contracts = require_mapping(
+        export.manifest.get("contracts"), location="training export.contracts"
+    )
+    projection = require_mapping(
+        contracts.get("font_signal_audit_projection"),
+        location="training export.contracts.font_signal_audit_projection",
+    )
+    expected_keys = {
+        "audit_inventory_reconciliation",
+        "excluded_audit_outcomes_must_be_absent",
+        "omitted_parent_sample_count",
+        "omitted_parent_sample_ids_sha256",
+        "parent_training_sample_count",
+        "parent_training_sample_ids_sha256",
+        "review_ready_subset_required",
+        "schema_version",
+        "selected_training_sample_count",
+        "selected_training_sample_ids_sha256",
+        "selection_authority_schema_version",
+        "selection_mode",
+    }
+    _require_exact_keys(
+        projection,
+        expected_keys,
+        location="training export.contracts.font_signal_audit_projection",
+    )
+    if (
+        projection.get("schema_version") != FONT_SIGNAL_AUDIT_PROJECTION_SCHEMA_VERSION
+        or projection.get("audit_inventory_reconciliation")
+        != FONT_SIGNAL_AUDIT_PROJECTION_RECONCILIATION
+        or projection.get("excluded_audit_outcomes_must_be_absent") is not True
+        or projection.get("review_ready_subset_required") is not True
+        or projection.get("selection_authority_schema_version")
+        != FULL22_AUTHORITY_SCHEMA_VERSION
+        or projection.get("selection_mode") != authority.get("selection_mode")
+    ):
+        raise TrainerError("full-22 font-signal audit projection authority drifted")
+
+    review_ready_ids = set(font_signal_audit.review_ready_sample_ids)
+    excluded_ids = set(font_signal_audit.excluded_sample_ids)
+    if review_ready_ids.intersection(excluded_ids):
+        raise TrainerError("font-signal audit ready/excluded inventories overlap")
+    parent_ids = review_ready_ids | excluded_ids
+    omitted_parent_ids = parent_ids - selected_sample_ids
+    if (
+        projection.get("parent_training_sample_count") != len(parent_ids)
+        or projection.get("parent_training_sample_ids_sha256")
+        != _sorted_ids_sha256(parent_ids)
+        or projection.get("selected_training_sample_count") != len(selected_sample_ids)
+        or projection.get("selected_training_sample_ids_sha256")
+        != _sorted_ids_sha256(selected_sample_ids)
+        or projection.get("omitted_parent_sample_count") != len(omitted_parent_ids)
+        or projection.get("omitted_parent_sample_ids_sha256")
+        != _sorted_ids_sha256(omitted_parent_ids)
+    ):
+        raise TrainerError("full-22 font-signal audit projection digest mismatch")
+    if not selected_sample_ids.issubset(review_ready_ids):
+        raise TrainerError(
+            "full-22 export is not an exact subset of the review-ready inventory"
+        )
+    if selected_sample_ids.intersection(excluded_ids):
+        raise TrainerError("full-22 export includes a blocked font-signal sample")
+    review_scope = require_mapping(
+        export.manifest.get("review_scope"), location="training export.review_scope"
+    )
+    if review_scope.get("source_selected_count") != len(parent_ids):
+        raise TrainerError("full-22 parent review-scope count drifted")
+
+
 def _load_chapter_pairs(
     *,
     export: catalog_assets.TrainingExportSnapshot,
@@ -1340,16 +1609,12 @@ def load_training_corpus(
         source = require_mapping(sample.get("source"), location=f"{location}.source")
         audited = font_signal_audit.records_by_sample_id.get(sample_id)
         if audited is not None:
-            if (
-                audited.training_sample_record_sha256 != sample.get("record_sha256")
-                or audited.work_id != work_id
-                or audited.chapter_id != sample.get("chapter_id")
-                or audited.page_id != sample.get("page_id")
-                or audited.source_page_sha256 != source.get("source_page_sha256")
-            ):
-                raise TrainerError(
-                    f"{sample_id}: font-signal audit/training sample binding mismatch"
-                )
+            _validate_font_signal_training_sample_binding(
+                export=export,
+                sample=sample,
+                audited=audited,
+                location=location,
+            )
         if sample_id in excluded_sample_ids:
             continue
         catalog_assets.assert_no_forbidden_flags(sample, location=location)
@@ -1380,14 +1645,28 @@ def load_training_corpus(
             raise TrainerError(f"{sample_id}: exact three-view contract required")
         samples_by_id[sample_id] = sample
 
-    if set(font_signal_audit.records_by_sample_id) - all_sample_ids:
-        raise TrainerError(
-            "font-signal audit targets samples absent from training export"
+    contracts = require_mapping(
+        export.manifest.get("contracts"), location="training export.contracts"
+    )
+    if "provisional_full22" in contracts:
+        _validate_full22_font_signal_audit_projection(
+            export=export,
+            font_signal_audit=font_signal_audit,
+            selected_sample_ids=all_sample_ids,
         )
-    if set(samples_by_id) != set(font_signal_audit.review_ready_sample_ids):
-        raise TrainerError(
-            "font-signal review-ready inventory is not the exact eligible export projection"
-        )
+        if set(samples_by_id) != all_sample_ids:
+            raise TrainerError(
+                "full-22 audit projection unexpectedly removed selected samples"
+            )
+    else:
+        if set(font_signal_audit.records_by_sample_id) - all_sample_ids:
+            raise TrainerError(
+                "font-signal audit targets samples absent from training export"
+            )
+        if set(samples_by_id) != set(font_signal_audit.review_ready_sample_ids):
+            raise TrainerError(
+                "font-signal review-ready inventory is not the exact eligible export projection"
+            )
     declared_work_splits = require_mapping(
         export.manifest.get("work_split"), location="training export.work_split"
     )
@@ -1818,6 +2097,103 @@ def _records_digest(records: Iterable[Mapping[str, Any]]) -> str:
     return sha256_bytes(payload.encode("utf-8"))
 
 
+def build_frozen_test_manifest(corpus: TrainingCorpus) -> dict[str, Any]:
+    """Commit the trainer to the sealed test inventory without opening pixels.
+
+    The returned record is intentionally not written beside the checkpoint.  Its
+    seal is the public commitment carried by the cache and model contracts; the
+    evaluator independently rebuilds it from the current training export.
+    """
+
+    candidate_ids = tuple(corpus.candidate_ids)
+    if not candidate_ids or len(candidate_ids) != len(set(candidate_ids)):
+        raise TrainerError("frozen test manifest requires a unique candidate vocabulary")
+    if candidate_ids != tuple(sorted(candidate_ids)):
+        raise TrainerError("frozen test manifest candidate vocabulary is not canonical")
+
+    split_work_ids: dict[str, set[str]] = {
+        split: {
+            example.work_id
+            for example in corpus.examples_by_id.values()
+            if example.split == split
+        }
+        for split in ("train", "val", "test")
+    }
+    test_examples = tuple(
+        sorted(corpus.examples_for_split("test"), key=lambda item: item.sample_id)
+    )
+    if not test_examples:
+        raise TrainerError("frozen test manifest requires at least one test example")
+    if split_work_ids["test"] & (split_work_ids["train"] | split_work_ids["val"]):
+        raise TrainerError("frozen test manifest detected work leakage")
+
+    row_bindings: list[dict[str, Any]] = []
+    for example in test_examples:
+        catalog_assets.require_id(
+            example.sample_id, location="frozen test manifest.sample_id"
+        )
+        catalog_assets.require_id(
+            example.work_id, location="frozen test manifest.work_id"
+        )
+        catalog_assets.require_id(
+            example.chapter_id, location="frozen test manifest.chapter_id"
+        )
+        catalog_assets.require_id(
+            example.page_id, location="frozen test manifest.page_id"
+        )
+        catalog_assets.require_sha256(
+            example.sample_record_sha256,
+            location="frozen test manifest.sample_record_sha256",
+        )
+        catalog_assets.require_sha256(
+            example.listwise_record_sha256,
+            location="frozen test manifest.listwise_record_sha256",
+        )
+        row_bindings.append(
+            {
+                "chapter_id": example.chapter_id,
+                "listwise_record_sha256": example.listwise_record_sha256,
+                "page_id": example.page_id,
+                "sample_id": example.sample_id,
+                "sample_record_sha256": example.sample_record_sha256,
+                "work_id": example.work_id,
+            }
+        )
+
+    return seal_record(
+        {
+            "boundary": {
+                "frozen_before_training": True,
+                "pixels_opened": 0,
+                "rows_used_for_optimizer_calibration_prototypes_or_hard_negatives": 0,
+                "split": "test",
+                "work_disjoint": True,
+            },
+            "candidate_count": len(candidate_ids),
+            "candidate_ids_sha256": _ordered_hashes_sha256(candidate_ids),
+            "record_type": "font_matching_frozen_test_manifest",
+            "schema_version": FROZEN_TEST_MANIFEST_SCHEMA_VERSION,
+            "source": {
+                "font_catalog_sha256": corpus.font_catalog_sha256,
+                "listwise_sha256": corpus.listwise_sha256,
+                "samples_sha256": corpus.export.samples_sha256,
+                "training_export_manifest_sha256": corpus.export.manifest_sha256,
+            },
+            "test_row_bindings_sha256": _records_digest(row_bindings),
+            "test_row_count": len(row_bindings),
+            "test_sample_ids_sha256": _sorted_ids_sha256(
+                row["sample_id"] for row in row_bindings
+            ),
+            "test_work_count": len(split_work_ids["test"]),
+            "test_work_ids_sha256": _sorted_ids_sha256(split_work_ids["test"]),
+        }
+    )
+
+
+def frozen_test_manifest_sha256(corpus: TrainingCorpus) -> str:
+    return str(build_frozen_test_manifest(corpus)["record_sha256"])
+
+
 def _cache_sample_index(scan: AssetScan) -> list[dict[str, Any]]:
     return [
         {
@@ -1993,6 +2369,7 @@ def build_cache_contract(
             "asset_validation_report_sha256": asset_validation_report_sha256,
             "catalog_registry_sha256": resolver.registry_sha256,
             "font_signal_audit": corpus.font_signal_audit.input_binding(),
+            "frozen_test_manifest_sha256": frozen_test_manifest_sha256(corpus),
             "font_prototypes_sha256": corpus.prototype_sha256,
             "listwise_sha256": corpus.listwise_sha256,
             "pairwise_sha256": corpus.pairwise_sha256,
@@ -3600,7 +3977,10 @@ def checkpoint_selection_key(
 
 
 def ordinary_regression_gate(
-    *, metrics: Mapping[str, Any], baseline_metrics: Mapping[str, Any]
+    *,
+    metrics: Mapping[str, Any],
+    baseline_metrics: Mapping[str, Any],
+    production_reference_required: bool = False,
 ) -> Mapping[str, Any]:
     current = require_mapping(
         metrics.get("priority"), location="validation.priority"
@@ -3610,14 +3990,33 @@ def ordinary_regression_gate(
     ).get("2")
     current_row = require_mapping(current, location="validation.priority.2")
     baseline_row = require_mapping(baseline, location="baseline.priority.2")
+    current_count = _ordinary_metric_sample_count(
+        current_row, location="validation.priority.2.sample_count"
+    )
+    baseline_count = _ordinary_metric_sample_count(
+        baseline_row, location="baseline.priority.2.sample_count"
+    )
+    if current_count != baseline_count:
+        raise TrainerError("ordinary regression priority-2 sample_count drifted")
     current_top1 = current_row.get("acceptable_at_1")
     baseline_top1 = baseline_row.get("acceptable_at_1")
+    count_requirement_met = (
+        current_count >= ORDINARY_REGRESSION_MINIMUM_PRIORITY2_SAMPLE_COUNT
+    )
+    common = {
+        "baseline_sample_count": baseline_count,
+        "current_sample_count": current_count,
+        "minimum_sample_count": (ORDINARY_REGRESSION_MINIMUM_PRIORITY2_SAMPLE_COUNT),
+        "production_reference_required": production_reference_required,
+        "sample_count_requirement_met": count_requirement_met,
+    }
     if baseline_top1 is None or current_top1 is None:
         return {
             "applicable": False,
             "baseline_acceptable_at_1": baseline_top1,
             "current_acceptable_at_1": current_top1,
-            "passed": True,
+            **common,
+            "passed": not production_reference_required,
             "regression_limit": ORDINARY_TOP1_REGRESSION_LIMIT,
         }
     floor = float(baseline_top1) - ORDINARY_TOP1_REGRESSION_LIMIT
@@ -3625,10 +4024,21 @@ def ordinary_regression_gate(
         "applicable": True,
         "baseline_acceptable_at_1": float(baseline_top1),
         "current_acceptable_at_1": float(current_top1),
+        **common,
         "floor": floor,
-        "passed": float(current_top1) + 1e-12 >= floor,
+        "passed": (
+            float(current_top1) + 1e-12 >= floor
+            and (not production_reference_required or count_requirement_met)
+        ),
         "regression_limit": ORDINARY_TOP1_REGRESSION_LIMIT,
     }
+
+
+def _ordinary_metric_sample_count(value: Mapping[str, Any], *, location: str) -> int:
+    count = value.get("sample_count")
+    if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+        raise TrainerError(f"{location}: expected a non-negative integer")
+    return count
 
 
 def train_ranker(
@@ -3755,6 +4165,17 @@ def train_ranker(
         reference_binding = copy.deepcopy(dict(ordinary_reference.binding))
         safety_baseline_source = "validated_owned_prior_checkpoint_evaluation_only"
         safety_baseline_status = "production_reference"
+        initial_reference_gate = ordinary_regression_gate(
+            metrics=initial_val_metrics,
+            baseline_metrics=safety_baseline_val_metrics,
+            production_reference_required=True,
+        )
+        if initial_reference_gate["sample_count_requirement_met"] is not True:
+            raise TrainerError(
+                "production ordinary reference requires at least "
+                f"{ORDINARY_REGRESSION_MINIMUM_PRIORITY2_SAMPLE_COUNT} priority-2 "
+                "validation samples"
+            )
     else:
         safety_baseline_val_loss = initial_val_loss
         safety_baseline_val_components = initial_val_components
@@ -3871,6 +4292,7 @@ def train_ranker(
         ordinary_gate = ordinary_regression_gate(
             metrics=validation_metrics,
             baseline_metrics=safety_baseline_val_metrics,
+            production_reference_required=ordinary_reference is not None,
         )
         selection_key = checkpoint_selection_key(
             metrics=validation_metrics, val_loss=val_loss
@@ -3927,6 +4349,7 @@ def train_ranker(
             "best_ordinary_regression_gate": ordinary_regression_gate(
                 metrics=best_metrics,
                 baseline_metrics=safety_baseline_val_metrics,
+                production_reference_required=ordinary_reference is not None,
             ),
             "best_key": list(best_key),
             "initial_ranker_val_components": initial_val_components,
@@ -4150,8 +4573,9 @@ def build_prediction_rows(
     catalog_assets.require_sha256(
         checkpoint_sha256, location="prediction.checkpoint_sha256"
     )
-    if any(binding.split != "val" for binding in bindings):
-        raise TrainerError("first-run prediction output is validation-only")
+    prediction_splits = {binding.split for binding in bindings}
+    if len(prediction_splits) != 1 or not prediction_splits <= {"val", "test"}:
+        raise TrainerError("prediction output must contain exactly one val or test split")
     count = len(bindings)
     if (
         not math.isfinite(float(calibration.temperature))
@@ -4665,6 +5089,7 @@ def _input_contract(
         "font_signal_audit": corpus.font_signal_audit.input_binding(),
         "font_catalog_sha256": corpus.font_catalog_sha256,
         "font_prototypes_sha256": corpus.prototype_sha256,
+        "frozen_test_manifest_sha256": frozen_test_manifest_sha256(corpus),
         "listwise_sha256": corpus.listwise_sha256,
         "pairwise_sha256": corpus.pairwise_sha256,
         "render_bank_manifest_sha256": render_bank.manifest_sha256,
@@ -4919,11 +5344,15 @@ def write_training_output(
     )
 
 
-def _validate_ordinary_regression_safety(value: Any) -> None:
+def _validate_ordinary_regression_safety(
+    value: Any, *, expected_priority2_sample_count: int | None = None
+) -> None:
     if value is None:
-        # Kept only for direct legacy writer fixtures. The train CLI always emits
-        # a complete checkpoint-selection safety contract.
-        return
+        # Direct legacy helper fixtures may still exercise the old writer shape,
+        # but a corpus-bound output validation must never approve a missing gate.
+        if expected_priority2_sample_count is None:
+            return
+        raise TrainerError("ordinary regression safety contract is missing")
     safety = require_mapping(value, location="ordinary regression safety")
     status = require_text(
         safety.get("baseline_status"),
@@ -4947,7 +5376,106 @@ def _validate_ordinary_regression_safety(value: Any) -> None:
         safety.get("best_ordinary_regression_gate"),
         location="ordinary regression safety.best_ordinary_regression_gate",
     )
-    if gate.get("passed") is not True:
+    applicable = gate.get("applicable")
+    production_reference_required = gate.get("production_reference_required")
+    if not isinstance(applicable, bool) or not isinstance(
+        production_reference_required, bool
+    ):
+        raise TrainerError("ordinary regression safety gate booleans drifted")
+    expected_gate_keys = {
+        "applicable",
+        "baseline_acceptable_at_1",
+        "baseline_sample_count",
+        "current_acceptable_at_1",
+        "current_sample_count",
+        "minimum_sample_count",
+        "passed",
+        "production_reference_required",
+        "regression_limit",
+        "sample_count_requirement_met",
+    }
+    if applicable:
+        expected_gate_keys.add("floor")
+    _require_exact_keys(
+        gate,
+        expected_gate_keys,
+        location="ordinary regression safety.best_ordinary_regression_gate",
+    )
+    baseline_count_value = gate.get("baseline_sample_count")
+    if (
+        isinstance(baseline_count_value, bool)
+        or not isinstance(baseline_count_value, int)
+        or baseline_count_value < 0
+    ):
+        raise TrainerError(
+            "ordinary regression safety.baseline_sample_count must be a "
+            "non-negative integer"
+        )
+    baseline_count = baseline_count_value
+    current_count_value = gate.get("current_sample_count")
+    if (
+        isinstance(current_count_value, bool)
+        or not isinstance(current_count_value, int)
+        or current_count_value < 0
+    ):
+        raise TrainerError(
+            "ordinary regression safety.current_sample_count must be a "
+            "non-negative integer"
+        )
+    current_count = current_count_value
+    minimum_count = gate.get("minimum_sample_count")
+    if (
+        baseline_count != current_count
+        or isinstance(minimum_count, bool)
+        or not isinstance(minimum_count, int)
+        or minimum_count != ORDINARY_REGRESSION_MINIMUM_PRIORITY2_SAMPLE_COUNT
+        or gate.get("sample_count_requirement_met")
+        is not (current_count >= minimum_count)
+        or (
+            expected_priority2_sample_count is not None
+            and current_count != expected_priority2_sample_count
+        )
+    ):
+        raise TrainerError("ordinary regression safety sample_count contract drifted")
+    if gate.get("regression_limit") != ORDINARY_TOP1_REGRESSION_LIMIT:
+        raise TrainerError("ordinary regression safety gate limit drifted")
+    if applicable:
+        baseline_top1 = require_probability(
+            gate.get("baseline_acceptable_at_1"),
+            location="ordinary regression safety.baseline_acceptable_at_1",
+        )
+        current_top1 = require_probability(
+            gate.get("current_acceptable_at_1"),
+            location="ordinary regression safety.current_acceptable_at_1",
+        )
+        floor = gate.get("floor")
+        if (
+            isinstance(floor, bool)
+            or not isinstance(floor, (int, float))
+            or not math.isfinite(float(floor))
+            or not math.isclose(
+                float(floor),
+                baseline_top1 - ORDINARY_TOP1_REGRESSION_LIMIT,
+                abs_tol=1e-12,
+            )
+        ):
+            raise TrainerError("ordinary regression safety floor drifted")
+        metric_passed = current_top1 + 1e-12 >= float(floor)
+    else:
+        if (
+            gate.get("baseline_acceptable_at_1") is not None
+            or gate.get("current_acceptable_at_1") is not None
+        ):
+            raise TrainerError("inapplicable ordinary regression metrics drifted")
+        metric_passed = True
+    expected_passed = metric_passed and (
+        not production_reference_required
+        or (
+            applicable
+            and current_count >= ORDINARY_REGRESSION_MINIMUM_PRIORITY2_SAMPLE_COUNT
+        )
+    )
+    if gate.get("passed") is not expected_passed or gate.get("passed") is not True:
         raise TrainerError("sealed checkpoint did not pass its ordinary safety gate")
     reference = safety.get("reference")
     if status == "production_reference":
@@ -4975,9 +5503,21 @@ def _validate_ordinary_regression_safety(value: Any) -> None:
             raise TrainerError("ordinary reference safety binding is unsafe")
         if gate.get("applicable") is not True:
             raise TrainerError("ordinary reference safety gate was not applicable")
+        if production_reference_required is not True:
+            raise TrainerError(
+                "ordinary reference did not require the production sample floor"
+            )
+        if current_count < ORDINARY_REGRESSION_MINIMUM_PRIORITY2_SAMPLE_COUNT:
+            raise TrainerError(
+                "ordinary reference priority-2 validation sample floor was not met"
+            )
     elif reference is not None:
         raise TrainerError(
             "non-reference ordinary baseline unexpectedly binds a source"
+        )
+    elif production_reference_required is not False:
+        raise TrainerError(
+            "non-reference ordinary baseline enabled the production sample floor"
         )
 
 
@@ -5083,7 +5623,32 @@ def validate_training_output(
         "checkpoint_selection"
     ):
         raise TrainerError("ordinary regression safety report binding drifted")
-    _validate_ordinary_regression_safety(contract.get("ordinary_regression_safety"))
+    ordinary_safety = contract.get("ordinary_regression_safety")
+    expected_priority2_sample_count = sum(
+        item.split == "val" and item.priority == 2
+        for item in corpus.examples_by_id.values()
+    )
+    _validate_ordinary_regression_safety(
+        ordinary_safety,
+        expected_priority2_sample_count=expected_priority2_sample_count,
+    )
+    if (
+        isinstance(ordinary_safety, Mapping)
+        and ordinary_safety.get("baseline_status") == "production_reference"
+    ):
+        expected_gate = ordinary_regression_gate(
+            metrics=require_mapping(
+                report_training.get("best_validation_metrics"),
+                location="training report.best_validation_metrics",
+            ),
+            baseline_metrics=require_mapping(
+                ordinary_safety.get("baseline_validation_metrics"),
+                location="ordinary regression safety.baseline_validation_metrics",
+            ),
+            production_reference_required=True,
+        )
+        if ordinary_safety.get("best_ordinary_regression_gate") != expected_gate:
+            raise TrainerError("ordinary regression safety metrics/gate drifted")
     report_artifacts = require_mapping(
         report.get("artifacts"), location="training report.artifacts"
     )

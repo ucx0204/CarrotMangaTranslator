@@ -998,6 +998,84 @@ class ReviewCardBuilderTest(unittest.TestCase):
                     source_seal_manifest=source_seal,
                 )
 
+    def test_calibration_source_seal_uses_fresh_authority_without_prior_answer(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = Fixture(Path(temporary))
+            rows = []
+            for sample in sorted(fixture.master_rows, key=lambda row: row["id"]):
+                core = {
+                    "fresh_source_observation_record_sha256": stable_hash(
+                        "fresh-source", sample["id"]
+                    ),
+                    "sample_id": sample["id"],
+                    "sealed_role": "sfx_motion",
+                    "treatment": {
+                        "distortion": False,
+                        "inverse": False,
+                        "outline": True,
+                        "shadow": False,
+                        "texture": True,
+                    },
+                }
+                rows.append({**core, "record_sha256": CARDS.sha256_json(core)})
+            core = {
+                "baseline_label_fields_present": False,
+                "candidate_score_or_rank_fields_present": False,
+                "development_only": True,
+                "inputs": {
+                    "fresh_source_observations_sha256": stable_hash(
+                        "fresh-source-observations"
+                    ),
+                    "inventory_sha256": sha(fixture.inventory),
+                    "master_manifest_sha256": sha(fixture.master),
+                    "rubric_sha256": stable_hash("v5-rubric"),
+                },
+                "record_type": CARDS.CALIBRATION_ONLY_SOURCE_SEAL_RECORD_TYPE,
+                "samples": rows,
+                "schema_version": CARDS.CALIBRATION_ONLY_SOURCE_SEAL_SCHEMA_VERSION,
+                "training_disposition": CARDS.CALIBRATION_ONLY_TRAINING_DISPOSITION,
+            }
+            value = {**core, "record_sha256": CARDS.sha256_json(core)}
+            write_json(fixture.source_seal, value)
+            loaded = CARDS._load_v4_source_seals(
+                fixture.source_seal,
+                inventory_ids={row["id"] for row in fixture.master_rows},
+                master_manifest_sha256=sha(fixture.master),
+                inventory_sha256=sha(fixture.inventory),
+            )
+            self.assertTrue(loaded)
+            self.assertEqual(
+                {"fresh_calibration_source_observation"},
+                {row["source_authority"] for row in loaded.values()},
+            )
+            self.assertTrue(
+                all("prior_final_record_sha256" not in row for row in loaded.values())
+            )
+
+            value["samples"][0]["prior_final_record_sha256"] = stable_hash(
+                "forbidden-prior"
+            )
+            row_core = {
+                key: item
+                for key, item in value["samples"][0].items()
+                if key != "record_sha256"
+            }
+            value["samples"][0]["record_sha256"] = CARDS.sha256_json(row_core)
+            manifest_core = {
+                key: item for key, item in value.items() if key != "record_sha256"
+            }
+            value["record_sha256"] = CARDS.sha256_json(manifest_core)
+            write_json(fixture.source_seal, value)
+            with self.assertRaisesRegex(CARDS.ReviewCardError, "unexpected fields"):
+                CARDS._load_v4_source_seals(
+                    fixture.source_seal,
+                    inventory_ids={row["id"] for row in fixture.master_rows},
+                    master_manifest_sha256=sha(fixture.master),
+                    inventory_sha256=sha(fixture.inventory),
+                )
+
     def test_embeds_three_anonymous_same_work_dialogue_references(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             fixture = Fixture(Path(temporary))

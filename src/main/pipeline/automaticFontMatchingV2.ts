@@ -4,12 +4,9 @@ import type {
   FontMatchRolePredictionV2,
   WorkTypographyProfileV2,
 } from "../../shared/fontMatchingProfileTypes";
-import { FONT_MATCHING_SEMANTIC_ROLES } from "../../shared/fontMatchingProfileTypes";
 import type { AutomaticFontCandidate } from "../../shared/fontMatchingTypes";
-import { stripRichTextMarkup } from "../../shared/richTextMarkup";
 import type { TranslationBlock } from "../../shared/textTypes";
 import { resolveUiLocale } from "../../shared/uiLocales";
-import { fontCandidateSupportsText } from "../fontCoverage";
 import {
   resolveFontMatchingDecisionV2,
   type BlockLocalFontEvidenceV2,
@@ -20,16 +17,24 @@ import type { OverlayItem } from "./types";
 import {
   FONT_MATCHING_V2_MODEL_VERSION,
   FONT_MATCHING_V2_RENDERER_HASH,
-  resolveFontMatchingV2CatalogVersion,
 } from "./automaticFontMatchingV2Catalog";
-import { rankFontMatchingV2Candidates } from "./automaticFontMatchingV2Ranking";
 import type { AutomaticFontPageCoordinatorV2 } from "./automaticFontMatchingV2PageCoordinator";
 import type { FontMatchingRuntimeArtifactStatus } from "./fontMatchingRuntimeArtifactStatus";
+import type { FontMatchingRuntimePolicy } from "./fontMatchingRuntimePolicyContract";
 import {
   resolveManualUserLocks,
   resolveVerifiedPixelInference,
-  type VerifiedAutomaticFontPixelInferenceV2,
 } from "./automaticFontMatchingV2RuntimeGate";
+import type { VerifiedAutomaticFontPixelInferenceV2 } from "./fontMatchingPagePixelInferenceTypes";
+import { resolveCombinedAutomaticFontRole } from "./automaticFontMatchingV2Role";
+import { resolveAutomaticFontCandidateWidthScale } from "./automaticFontMatchingV2CandidateAssessment";
+import { resolveAutomaticDecisionCalibration } from "./automaticFontMatchingV2DecisionCalibration";
+import { applyAutomaticPixelStyle } from "./automaticFontMatchingV2Style";
+import { prepareAutomaticFontEvidence } from "./automaticFontMatchingV2Evidence";
+import {
+  resolveAutomaticInverseTextStyle,
+  type AutomaticInverseTextStyleV1,
+} from "./automaticFontMatchingV2Polarity";
 
 export {
   FONT_MATCHING_V2_MODEL_VERSION,
@@ -41,20 +46,6 @@ export {
  * the first V2 prototype bank. A profile from a different bank must abstain
  * instead of silently applying stale font ids.
  */
-const AUTOMATIC_CONFIDENCE_THRESHOLD = 0.86;
-
-const WIDTH_CLASS_SCALE: Readonly<Record<number, number>> = {
-  1: 0.5,
-  2: 0.625,
-  3: 0.75,
-  4: 0.875,
-  5: 1,
-  6: 1.125,
-  7: 1.25,
-  8: 1.5,
-  9: 2,
-};
-
 export type AutomaticFontOptionsV2 = Readonly<{
   enabled?: boolean;
   targetLanguage?: string;
@@ -71,6 +62,7 @@ export type AutomaticFontDecisionV2 = Readonly<{
   result: FontMatchingDecisionResultV2;
   role: FontMatchRolePredictionV2;
   fontMetricWidthScale?: number;
+  inverseTextStyle?: AutomaticInverseTextStyleV1;
 }>;
 
 export function resolveAutomaticFontDecisionV2({
@@ -78,15 +70,13 @@ export function resolveAutomaticFontDecisionV2({
   item,
   page,
   options,
-  preserveExistingFont = false,
 }: {
   block: TranslationBlock;
   item: OverlayItem;
   page: MangaPage;
   options: AutomaticFontOptionsV2;
-  preserveExistingFont?: boolean;
 }): AutomaticFontDecisionV2 | undefined {
-  const runtime = resolveAutomaticFontRuntime(options, preserveExistingFont);
+  const runtime = resolveAutomaticFontRuntime(options);
   if (!runtime) return undefined;
   return resolveAutomaticFontRuntimeDecision({
     block,
@@ -112,7 +102,6 @@ function resolveAutomaticFontRuntimeDecision({
 }): AutomaticFontDecisionV2 {
   const { candidates, chapterId, locale, profile, workId } = runtime;
 
-  const role = resolveRolePrediction(item);
   const pixelInference = resolveVerifiedPixelInference({
     block,
     candidates,
@@ -120,10 +109,21 @@ function resolveAutomaticFontRuntimeDecision({
     page,
     status: options.runtimeArtifactStatus,
   });
-  const automaticMutationReady = Boolean(pixelInference);
-  const workState = automaticMutationReady
-    ? options.pageCoordinator?.prepareWorkState(item, role.primary)
-    : undefined;
+  const role = resolveCombinedAutomaticFontRole(
+    item,
+    pixelInference?.rolePrediction ?? null,
+  );
+  const runtimePolicy = resolveReadyRuntimePolicy(
+    options.runtimeArtifactStatus,
+  );
+  const automaticMutationReady = Boolean(pixelInference && runtimePolicy);
+  const workState = prepareAutomaticFontWorkState(
+    options,
+    item,
+    role,
+    pixelInference,
+    runtimePolicy,
+  );
   const manualLocks = resolveManualUserLocks(
     profile,
     workId,
@@ -132,34 +132,67 @@ function resolveAutomaticFontRuntimeDecision({
     block.id,
     role.primary,
   );
-  const translatedText = stripRichTextMarkup(block.translatedText).trim();
-  const rankedCandidates =
-    pixelInference?.localEvidence.rankedCandidates ??
-    rankFontMatchingV2Candidates({
-      candidates,
-      locale,
-      profile: null,
-      role,
-      userDefaultFontId: block.fontFamily,
-    });
-  const translationAssessments = candidates.map((candidate) =>
-    assessTranslation(candidate, translatedText),
-  );
-  const catalogVersion = resolveFontMatchingV2CatalogVersion(candidates);
-  const result = resolveAutomaticPolicyDecision({
+  const evidence = prepareAutomaticFontEvidence({
+    block,
+    candidates,
+    locale,
+    pixelInference,
+    role,
+    runtimePolicy,
+    workState,
+  });
+  const baseResult = resolveAutomaticPolicyDecision({
     automaticMutationReady,
     block,
     candidates,
-    catalogVersion,
     chapterId,
+    ...evidence,
     manualLocks,
     page,
     pixelInference,
     profile,
-    rankedCandidates,
     role,
-    translationAssessments,
+    runtimePolicy,
     workId,
+    workState,
+  });
+  return finalizeAutomaticFontDecision({
+    automaticMutationReady,
+    baseResult,
+    candidates,
+    options,
+    pixelInference,
+    profile,
+    role,
+    runtimePolicy,
+    workState,
+  });
+}
+
+function finalizeAutomaticFontDecision({
+  automaticMutationReady,
+  baseResult,
+  candidates,
+  options,
+  pixelInference,
+  profile,
+  role,
+  runtimePolicy,
+  workState,
+}: {
+  automaticMutationReady: boolean;
+  baseResult: FontMatchingDecisionResultV2;
+  candidates: readonly AutomaticFontCandidate[];
+  options: AutomaticFontOptionsV2;
+  pixelInference: VerifiedAutomaticFontPixelInferenceV2 | null;
+  profile: WorkTypographyProfileV2 | null;
+  role: FontMatchRolePredictionV2;
+  runtimePolicy: FontMatchingRuntimePolicy | null;
+  workState: ReturnType<AutomaticFontPageCoordinatorV2["prepareWorkState"]>;
+}): AutomaticFontDecisionV2 {
+  const result = applyAutomaticPixelStyle({
+    pixelInference,
+    result: baseResult,
     workState,
   });
   recordAutomaticDecision({
@@ -168,9 +201,27 @@ function resolveAutomaticFontRuntimeDecision({
     profile,
     result,
     role: role.primary,
+    runtimePolicy,
     workState,
   });
-  return buildAutomaticFontDecision(result, role, candidates);
+  return buildAutomaticFontDecision(result, role, candidates, pixelInference);
+}
+
+function prepareAutomaticFontWorkState(
+  options: AutomaticFontOptionsV2,
+  item: OverlayItem,
+  role: FontMatchRolePredictionV2,
+  pixelInference: VerifiedAutomaticFontPixelInferenceV2 | null,
+  runtimePolicy: FontMatchingRuntimePolicy | null,
+) {
+  return pixelInference
+    ? options.pageCoordinator?.prepareWorkState(
+        item,
+        role.primary,
+        pixelInference,
+        runtimePolicy ?? undefined,
+      )
+    : undefined;
 }
 
 function resolveAutomaticPolicyDecision({
@@ -185,6 +236,7 @@ function resolveAutomaticPolicyDecision({
   profile,
   rankedCandidates,
   role,
+  runtimePolicy,
   translationAssessments,
   workId,
   workState,
@@ -200,6 +252,7 @@ function resolveAutomaticPolicyDecision({
   profile: WorkTypographyProfileV2 | null;
   rankedCandidates: BlockLocalFontEvidenceV2["rankedCandidates"];
   role: FontMatchRolePredictionV2;
+  runtimePolicy: FontMatchingRuntimePolicy | null;
   translationAssessments: readonly TranslationFontAssessmentV2[];
   workId: string;
   workState: ReturnType<AutomaticFontPageCoordinatorV2["prepareWorkState"]>;
@@ -210,28 +263,37 @@ function resolveAutomaticPolicyDecision({
     pageId: page.id,
     blockId: block.id,
     role,
-    treatment: { orientation: block.renderDirection },
-    localEvidence: pixelInference?.localEvidence ?? {
-      rankedCandidates,
-      // Semantic ranking is audit-only and cannot unlock profiles or mutation.
-      calibratedConfidence: 0,
-      noneAcceptable: false,
-      catalogVersion,
-      modelVersion: FONT_MATCHING_V2_MODEL_VERSION,
-      rendererHash: FONT_MATCHING_V2_RENDERER_HASH,
+    treatment: {
+      orientation:
+        pixelInference?.treatment.orientation ?? block.renderDirection,
     },
+    localEvidence: pixelInference
+      ? {
+          ...pixelInference.localEvidence,
+          rankedCandidates,
+          supervisedSelectionAccepted:
+            pixelInference.selectionCalibration.applied,
+        }
+      : {
+          rankedCandidates,
+          // Semantic ranking is audit-only and cannot unlock profiles or mutation.
+          calibratedConfidence: 0,
+          supervisedSelectionAccepted: false,
+          noneAcceptable: false,
+          catalogVersion,
+          modelVersion: FONT_MATCHING_V2_MODEL_VERSION,
+          rendererHash: FONT_MATCHING_V2_RENDERER_HASH,
+        },
     translationAssessments,
     profile: automaticMutationReady ? profile : null,
     blockUserLock: manualLocks.block,
     workRoleUserLock: manualLocks.role,
     ...(workState ? { workState } : {}),
     userDefaultCandidate: resolveUserDefaultCandidate(block, candidates),
-    calibration: {
-      minimumAutomaticConfidence: AUTOMATIC_CONFIDENCE_THRESHOLD,
-      minimumRoleConfidence: 0.82,
-      minimumIntentionalOverrideConfidence: 0.86,
-      intentionalOverrideMinimumScoreMargin: 0.1,
-    },
+    calibration: resolveAutomaticDecisionCalibration(
+      runtimePolicy,
+      pixelInference,
+    ),
   });
 }
 
@@ -241,6 +303,7 @@ function recordAutomaticDecision({
   profile,
   result,
   role,
+  runtimePolicy,
   workState,
 }: {
   automaticMutationReady: boolean;
@@ -248,20 +311,28 @@ function recordAutomaticDecision({
   profile: WorkTypographyProfileV2 | null;
   result: FontMatchingDecisionResultV2;
   role: FontMatchingSemanticRole;
+  runtimePolicy: FontMatchingRuntimePolicy | null;
   workState: ReturnType<AutomaticFontPageCoordinatorV2["prepareWorkState"]>;
 }): void {
   if (!automaticMutationReady) return;
-  options.pageCoordinator?.recordDecision(role, workState, result, profile);
+  options.pageCoordinator?.recordDecision(
+    role,
+    workState,
+    result,
+    profile,
+    options.pixelInference,
+    runtimePolicy ?? undefined,
+  );
 }
 
-function resolveAutomaticFontRuntime(
-  options: AutomaticFontOptionsV2,
-  preserveExistingFont: boolean,
-) {
-  // Keep mode owns the complete existing format, including an implicit
-  // renderer default when fontFamily is absent. Existing formatting is not a
-  // user-lock signal and must never be rewritten by automatic matching.
-  if (!options.enabled || preserveExistingFont) return null;
+function resolveReadyRuntimePolicy(
+  status: FontMatchingRuntimeArtifactStatus | undefined,
+): FontMatchingRuntimePolicy | null {
+  return status?.state === "ready" ? status.policy : null;
+}
+
+function resolveAutomaticFontRuntime(options: AutomaticFontOptionsV2) {
+  if (!options.enabled) return null;
   const locale = resolveUiLocale(options.targetLanguage);
   const candidates = options.candidates ?? [];
   if (!locale || candidates.length === 0) return null;
@@ -287,84 +358,25 @@ function buildAutomaticFontDecision(
   result: FontMatchingDecisionResultV2,
   role: FontMatchRolePredictionV2,
   candidates: readonly AutomaticFontCandidate[],
+  pixelInference: VerifiedAutomaticFontPixelInferenceV2 | null,
 ): AutomaticFontDecisionV2 {
   const selected = result.selectedStyle?.fontId;
   const candidate = selected
     ? candidates.find((entry) => entry.fontId === selected)
     : undefined;
+  const inverseTextStyle = resolveAutomaticInverseTextStyle(
+    pixelInference?.glyphMorphology,
+  );
   return {
     result,
     role,
     ...(candidate
-      ? { fontMetricWidthScale: resolveCandidateWidthScale(candidate) }
+      ? {
+          fontMetricWidthScale:
+            resolveAutomaticFontCandidateWidthScale(candidate),
+        }
       : {}),
-  };
-}
-
-export function applyAutomaticFontDecisionV2(
-  block: TranslationBlock,
-  decision: AutomaticFontDecisionV2 | undefined,
-): TranslationBlock {
-  const selection = decision?.result.selectedStyle;
-  if (!selection || decision?.result.decision.mode !== "apply") return block;
-  return {
-    ...block,
-    fontFamily: selection.fontId,
-    ...(selection.fontWeight === undefined
-      ? {}
-      : { bold: selection.fontWeight >= 600 }),
-    ...(selection.italic === undefined ? {} : { italic: selection.italic }),
-    ...(selection.outlineWidthScale === undefined
-      ? {}
-      : { outlineWidthScale: selection.outlineWidthScale }),
-  };
-}
-
-function resolveRolePrediction(item: OverlayItem): FontMatchRolePredictionV2 {
-  const rawRole = String(item.fontRole ?? "").trim();
-  const primary = isSemanticRole(rawRole) ? rawRole : "unknown_needs_review";
-  return {
-    primary,
-    confidence:
-      primary === "unknown_needs_review"
-        ? 0
-        : clampProbability(item.fontRoleConfidence ?? 0),
-    alternatives: [],
-  };
-}
-
-function isSemanticRole(value: string): value is FontMatchingSemanticRole {
-  return (FONT_MATCHING_SEMANTIC_ROLES as readonly string[]).includes(value);
-}
-
-function assessTranslation(
-  candidate: AutomaticFontCandidate,
-  translatedText: string,
-): TranslationFontAssessmentV2 {
-  const visibleCharacters = [...translatedText].filter(
-    (character) => !/^\s$/u.test(character),
-  );
-  const missingGlyphCount = visibleCharacters.filter(
-    (character) => !fontCandidateSupportsText(candidate, character),
-  ).length;
-  const glyphCoverage =
-    visibleCharacters.length === 0
-      ? 1
-      : (visibleCharacters.length - missingGlyphCount) /
-        visibleCharacters.length;
-  const widthScale = resolveCandidateWidthScale(candidate);
-  const layoutScore = clampScore(0.08 - Math.abs(widthScale - 1) * 0.12);
-  const glyphsRenderable = missingGlyphCount === 0;
-  return {
-    fontId: candidate.fontId,
-    glyphCoverage,
-    glyphsRenderable,
-    missingGlyphCount,
-    layoutScore,
-    // `autoFitText` is a user layout preference, not evidence that a font is
-    // impossible to lay out. Treating `false` as infeasible made V2 abstain on
-    // every manually-sized block.
-    layoutFeasible: glyphsRenderable,
+    ...(inverseTextStyle ? { inverseTextStyle } : {}),
   };
 }
 
@@ -377,18 +389,6 @@ function resolveCatalogDefault(candidates: readonly AutomaticFontCandidate[]) {
         compareStrings(left.fontId, right.fontId),
     )[0];
   return candidate ? { fontId: candidate.fontId } : null;
-}
-
-function resolveCandidateWidthScale(candidate: AutomaticFontCandidate): number {
-  return WIDTH_CLASS_SCALE[Math.round(candidate.width)] ?? 1;
-}
-
-function clampProbability(value: number): number {
-  return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
-}
-
-function clampScore(value: number): number {
-  return Number.isFinite(value) ? Math.max(-1, Math.min(1, value)) : 0;
 }
 
 function compareStrings(left: string, right: string): number {

@@ -40,6 +40,9 @@ logs/*
 logs/app.log
 /library/
 /fonts/
+/artifacts/
+/datasets/
+/.tmp-*/
 /datasets/fontclip-source-*/
 /datasets/fontclip-accepted-*/
 /datasets/fontclip-hard-*/

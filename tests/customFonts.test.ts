@@ -167,6 +167,41 @@ describe("custom font index validation", () => {
     ).toBe(false);
   });
 
+  it("normalizes retired Gugi preferences out of loaded and saved values", async () => {
+    const rootDir = await createTempRoot();
+    const fontsDir = join(rootDir, "fonts");
+    await mkdir(fontsDir, { recursive: true });
+    await writeFile(
+      join(fontsDir, "preferences.json"),
+      JSON.stringify({
+        favoriteIds: ["gugi", "kalam"],
+        orderedIds: ["gugi", "kalam"],
+        defaultFontId: "gugi",
+      }),
+      "utf8",
+    );
+    const customFonts = await loadCustomFonts(rootDir);
+
+    expect(customFonts.readFontPreferences()).toEqual({
+      favoriteIds: ["kalam"],
+      orderedIds: ["kalam"],
+      defaultFontId: "default",
+    });
+
+    customFonts.saveFontPreferences({
+      favoriteIds: ["gugi", "kalam"],
+      orderedIds: ["gugi", "kalam"],
+      defaultFontId: "gugi",
+    });
+    expect(
+      JSON.parse(await readFile(join(fontsDir, "preferences.json"), "utf8")),
+    ).toEqual({
+      favoriteIds: ["kalam"],
+      orderedIds: ["kalam"],
+      defaultFontId: "default",
+    });
+  });
+
   it("removes a deleted custom font from favorites, ordering, and the global default", async () => {
     const rootDir = await createTempRoot();
     const fontsDir = join(rootDir, "fonts");

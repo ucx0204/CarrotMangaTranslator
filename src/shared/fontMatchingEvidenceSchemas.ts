@@ -106,6 +106,8 @@ const rolePredictionSchema = z
 const RankedFontCandidateV2Schema = z
   .object({
     rank: z.number().int().min(1).max(1000),
+    rawPixelRank: z.number().int().min(1).max(1000).optional(),
+    rawPixelScore: probability.optional(),
     fontId,
     renderStatus: z.enum(["rendered", "unrenderable"]),
     unrenderableReason: z.string().trim().min(1).max(1000).nullable(),

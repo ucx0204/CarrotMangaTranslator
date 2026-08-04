@@ -7,6 +7,9 @@ const {
   positive,
   record,
 } = require("./group-only-review-values.cjs");
+const {
+  stabilizeDeferredRubyAcrossCropAssignments,
+} = require("./group-only-review-global-stabilization.cjs");
 
 /** @typedef {import("./group-only-review-types").ReviewProjection} ReviewProjection */
 /** @typedef {import("./group-only-review-types").HintAssignment} HintAssignment */
@@ -22,7 +25,17 @@ function applyReviewedGroupsToHints(pageHints, cropResults, options = {}) {
   if (!Array.isArray(pageHints) || !Array.isArray(cropResults))
     fail("apply-input", "Hints and crop results must be arrays.");
   const hintById = indexPageHints(pageHints);
-  const { assignment, groupCount } = collectAssignments(cropResults, hintById);
+  const initial = collectAssignments(cropResults, hintById);
+  if (initial.assignment.size !== hintById.size)
+    fail(
+      "apply-coverage",
+      "Crop results must cover every page hint exactly once.",
+    );
+  const { assignment, groupCount } = stabilizeDeferredRubyAcrossCropAssignments(
+    pageHints,
+    initial.assignment,
+    initial.groupCount,
+  );
   if (assignment.size !== hintById.size)
     fail(
       "apply-coverage",

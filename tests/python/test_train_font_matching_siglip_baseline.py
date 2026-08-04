@@ -307,6 +307,338 @@ class FrozenSiglipBaselineTests(unittest.TestCase):
             "font-matching-train-only-augmentation-v1",
         )
 
+    def test_frozen_test_manifest_is_deterministic_and_binds_every_authority(
+        self,
+    ) -> None:
+        corpus = fake_corpus()
+        first = TRAINER.build_frozen_test_manifest(corpus)
+        second = TRAINER.build_frozen_test_manifest(corpus)
+        self.assertEqual(first, second)
+        self.assertEqual(first["boundary"]["split"], "test")
+        self.assertEqual(first["test_row_count"], 1)
+        self.assertEqual(
+            TRAINER.frozen_test_manifest_sha256(corpus), first["record_sha256"]
+        )
+
+        test_example = corpus.examples_by_id["sample-test"]
+        mutations = (
+            TRAINER.replace(
+                corpus,
+                examples_by_id={
+                    **corpus.examples_by_id,
+                    "sample-test": TRAINER.replace(
+                        test_example, listwise_record_sha256="d" * 64
+                    ),
+                },
+            ),
+            TRAINER.replace(corpus, candidate_ids=("font-a", "font-c")),
+            TRAINER.replace(corpus, font_catalog_sha256="d" * 64),
+            TRAINER.replace(
+                corpus,
+                export=SimpleNamespace(
+                    samples_sha256=SHA_A,
+                    manifest_sha256="d" * 64,
+                ),
+            ),
+        )
+        for mutated in mutations:
+            self.assertNotEqual(
+                TRAINER.frozen_test_manifest_sha256(mutated),
+                first["record_sha256"],
+            )
+
+        resolver = SimpleNamespace(registry_sha256=SHA_A)
+        render_bank = SimpleNamespace(
+            manifest_sha256=SHA_B, specification_sha256=SHA_C
+        )
+        contract = TRAINER._input_contract(
+            resolver=resolver,
+            render_bank=render_bank,
+            corpus=corpus,
+            asset_validation_report_sha256=None,
+        )
+        self.assertEqual(
+            contract["frozen_test_manifest_sha256"], first["record_sha256"]
+        )
+
+    def test_frozen_test_manifest_rejects_missing_or_leaking_test_split(self) -> None:
+        corpus = fake_corpus()
+        without_test = TRAINER.replace(
+            corpus,
+            examples_by_id={
+                key: value
+                for key, value in corpus.examples_by_id.items()
+                if value.split != "test"
+            },
+        )
+        with self.assertRaisesRegex(TRAINER.TrainerError, "at least one test"):
+            TRAINER.build_frozen_test_manifest(without_test)
+        leaking = TRAINER.replace(
+            corpus,
+            examples_by_id={
+                **corpus.examples_by_id,
+                "sample-test": TRAINER.replace(
+                    corpus.examples_by_id["sample-test"],
+                    work_id=corpus.examples_by_id["sample-val"].work_id,
+                ),
+            },
+        )
+        with self.assertRaisesRegex(TRAINER.TrainerError, "work leakage"):
+            TRAINER.build_frozen_test_manifest(leaking)
+
+    def _full22_successor_fixture(self) -> tuple[Any, dict, Any]:
+        parent_sha = "d" * 64
+        identity = {
+            "chapter_id": "chapter-a",
+            "page_id": "page-a",
+            "sample_id": "sample-a",
+            "source_page_sha256": "e" * 64,
+            "work_id": "work-a",
+        }
+        successor = {
+            "parent_identity": copy.deepcopy(identity),
+            "parent_training_sample_record_sha256": parent_sha,
+            "relationship": TRAINER.FONT_SIGNAL_SUCCESSOR_RELATIONSHIP,
+            "schema_version": TRAINER.FONT_SIGNAL_SUCCESSOR_SCHEMA_VERSION,
+        }
+        authority = {
+            "all_22_candidates_retained_for_utility_audit": True,
+            "candidate_count": 22,
+            "catalog_disposition_record_sha256": None,
+            "eligibility_exceptions_excluded": True,
+            "formal_calibration_gate_passed": False,
+            "old_tier_mutation_allowed": False,
+            "provisional_catalog_record_sha256": None,
+            "resolved_label_file": "resolved-labels-full22.jsonl",
+            "schema_version": TRAINER.FULL22_AUTHORITY_SCHEMA_VERSION,
+            "selection_mode": "unfinalized_exact_independent_consensus_only",
+            "tier_merge": "immutable_prior15_plus_exact_resolved_delta7",
+            "top1_synthesis_allowed": False,
+            "training_only": True,
+            "training_quarantine_excluded": True,
+        }
+        sample = TRAINER.seal_record(
+            {
+                "chapter_id": identity["chapter_id"],
+                "page_id": identity["page_id"],
+                "provenance": {
+                    "font_signal_audit_successor": copy.deepcopy(successor),
+                    "full22_release_state": "provisional_training_only",
+                    "qa_overlay": False,
+                    "synthetic": False,
+                },
+                "review_provenance": {
+                    "authority": {
+                        **copy.deepcopy(authority),
+                        "font_signal_audit_successor": copy.deepcopy(successor),
+                    }
+                },
+                "sample_id": identity["sample_id"],
+                "source": {"source_page_sha256": identity["source_page_sha256"]},
+                "work_id": identity["work_id"],
+            }
+        )
+        export = SimpleNamespace(
+            candidate_count=22,
+            manifest={
+                "candidate_count": 22,
+                "contracts": {"provisional_full22": copy.deepcopy(authority)},
+            },
+        )
+        audited = TRAINER.FontSignalAuditRecord(
+            sample_id=identity["sample_id"],
+            work_id=identity["work_id"],
+            chapter_id=identity["chapter_id"],
+            page_id=identity["page_id"],
+            source_page_sha256=identity["source_page_sha256"],
+            training_sample_record_sha256=parent_sha,
+            outcome="font_signal_present",
+        )
+        return export, sample, audited
+
+    def test_font_signal_binding_accepts_direct_sha_or_exact_full22_successor(
+        self,
+    ) -> None:
+        export, successor, audited = self._full22_successor_fixture()
+        TRAINER._validate_font_signal_training_sample_binding(
+            export=export,
+            sample=successor,
+            audited=audited,
+            location="samples[0]",
+        )
+        direct_audit = TRAINER.replace(
+            audited,
+            training_sample_record_sha256=successor["record_sha256"],
+        )
+        ordinary_export = SimpleNamespace(manifest={"contracts": {}})
+        TRAINER._validate_font_signal_training_sample_binding(
+            export=ordinary_export,
+            sample=successor,
+            audited=direct_audit,
+            location="samples[0]",
+        )
+
+    def test_font_signal_successor_rejects_missing_or_tampered_parent_binding(
+        self,
+    ) -> None:
+        export, sample, audited = self._full22_successor_fixture()
+        missing = copy.deepcopy(sample)
+        missing["provenance"].pop("font_signal_audit_successor")
+        missing = TRAINER.seal_record(missing)
+        tampered = copy.deepcopy(sample)
+        tampered_binding = tampered["provenance"]["font_signal_audit_successor"]
+        tampered_binding["parent_training_sample_record_sha256"] = "f" * 64
+        tampered["review_provenance"]["authority"]["font_signal_audit_successor"] = (
+            copy.deepcopy(tampered_binding)
+        )
+        tampered = TRAINER.seal_record(tampered)
+        identity_tampered = copy.deepcopy(sample)
+        for binding in (
+            identity_tampered["provenance"]["font_signal_audit_successor"],
+            identity_tampered["review_provenance"]["authority"][
+                "font_signal_audit_successor"
+            ],
+        ):
+            binding["parent_identity"]["page_id"] = "page-tampered"
+        identity_tampered = TRAINER.seal_record(identity_tampered)
+
+        for changed in (missing, tampered, identity_tampered):
+            with (
+                self.subTest(changed=changed),
+                self.assertRaisesRegex(
+                    TRAINER.TrainerError,
+                    "font-signal audit/training sample binding mismatch",
+                ),
+            ):
+                TRAINER._validate_font_signal_training_sample_binding(
+                    export=export,
+                    sample=changed,
+                    audited=audited,
+                    location="samples[0]",
+                )
+
+    def test_general_export_cannot_claim_successor_sha_bypass(self) -> None:
+        _export, sample, audited = self._full22_successor_fixture()
+        ordinary_export = SimpleNamespace(
+            candidate_count=22,
+            manifest={"candidate_count": 22, "contracts": {}},
+        )
+        with self.assertRaisesRegex(
+            TRAINER.TrainerError, "font-signal audit/training sample binding mismatch"
+        ):
+            TRAINER._validate_font_signal_training_sample_binding(
+                export=ordinary_export,
+                sample=sample,
+                audited=audited,
+                location="samples[0]",
+            )
+
+    def _full22_projection_fixture(self) -> tuple[Any, Any, set[str]]:
+        authority_export, _sample, present_record = self._full22_successor_fixture()
+        selected_ids = {present_record.sample_id}
+        omitted_ready_id = "sample-ready-omitted"
+        excluded_record = TRAINER.FontSignalAuditRecord(
+            sample_id="sample-blocked",
+            work_id="work-blocked",
+            chapter_id="chapter-blocked",
+            page_id="page-blocked",
+            source_page_sha256="f" * 64,
+            training_sample_record_sha256="1" * 64,
+            outcome="font_signal_absent",
+        )
+        audit = fake_font_signal_audit(
+            records={
+                present_record.sample_id: present_record,
+                excluded_record.sample_id: excluded_record,
+            },
+            review_ready_sample_ids=frozenset(
+                {present_record.sample_id, omitted_ready_id}
+            ),
+        )
+        parent_ids = set(audit.review_ready_sample_ids) | set(audit.excluded_sample_ids)
+        projection = {
+            "audit_inventory_reconciliation": (
+                TRAINER.FONT_SIGNAL_AUDIT_PROJECTION_RECONCILIATION
+            ),
+            "excluded_audit_outcomes_must_be_absent": True,
+            "omitted_parent_sample_count": len(parent_ids - selected_ids),
+            "omitted_parent_sample_ids_sha256": TRAINER._sorted_ids_sha256(
+                parent_ids - selected_ids
+            ),
+            "parent_training_sample_count": len(parent_ids),
+            "parent_training_sample_ids_sha256": TRAINER._sorted_ids_sha256(parent_ids),
+            "review_ready_subset_required": True,
+            "schema_version": TRAINER.FONT_SIGNAL_AUDIT_PROJECTION_SCHEMA_VERSION,
+            "selected_training_sample_count": len(selected_ids),
+            "selected_training_sample_ids_sha256": TRAINER._sorted_ids_sha256(
+                selected_ids
+            ),
+            "selection_authority_schema_version": (
+                TRAINER.FULL22_AUTHORITY_SCHEMA_VERSION
+            ),
+            "selection_mode": "unfinalized_exact_independent_consensus_only",
+        }
+        export = SimpleNamespace(
+            candidate_count=22,
+            manifest={
+                **copy.deepcopy(authority_export.manifest),
+                "review_scope": {"source_selected_count": len(parent_ids)},
+            },
+        )
+        export.manifest["contracts"]["font_signal_audit_projection"] = projection
+        return export, audit, selected_ids
+
+    def test_full22_projection_accepts_exact_review_ready_subset(self) -> None:
+        export, audit, selected_ids = self._full22_projection_fixture()
+        TRAINER._validate_full22_font_signal_audit_projection(
+            export=export,
+            font_signal_audit=audit,
+            selected_sample_ids=selected_ids,
+        )
+
+    def test_full22_projection_rejects_blocked_or_tampered_subset(self) -> None:
+        export, audit, selected_ids = self._full22_projection_fixture()
+        blocked_ids = {"sample-blocked"}
+        with self.assertRaisesRegex(TRAINER.TrainerError, "digest mismatch"):
+            TRAINER._validate_full22_font_signal_audit_projection(
+                export=export,
+                font_signal_audit=audit,
+                selected_sample_ids=blocked_ids,
+            )
+
+        chain_valid_blocked = copy.deepcopy(export)
+        parent_ids = set(audit.review_ready_sample_ids) | set(audit.excluded_sample_ids)
+        projection = chain_valid_blocked.manifest["contracts"][
+            "font_signal_audit_projection"
+        ]
+        projection["selected_training_sample_count"] = len(blocked_ids)
+        projection["selected_training_sample_ids_sha256"] = TRAINER._sorted_ids_sha256(
+            blocked_ids
+        )
+        projection["omitted_parent_sample_count"] = len(parent_ids - blocked_ids)
+        projection["omitted_parent_sample_ids_sha256"] = TRAINER._sorted_ids_sha256(
+            parent_ids - blocked_ids
+        )
+        with self.assertRaisesRegex(
+            TRAINER.TrainerError, "not an exact subset of the review-ready inventory"
+        ):
+            TRAINER._validate_full22_font_signal_audit_projection(
+                export=chain_valid_blocked,
+                font_signal_audit=audit,
+                selected_sample_ids=blocked_ids,
+            )
+
+        changed = copy.deepcopy(export)
+        changed.manifest["contracts"]["font_signal_audit_projection"][
+            "parent_training_sample_ids_sha256"
+        ] = ("0" * 64)
+        with self.assertRaisesRegex(TRAINER.TrainerError, "digest mismatch"):
+            TRAINER._validate_full22_font_signal_audit_projection(
+                export=changed,
+                font_signal_audit=audit,
+                selected_sample_ids=selected_ids,
+            )
+
     def test_required_font_signal_audit_loader_accepts_only_sealed_projection(
         self,
     ) -> None:
@@ -608,6 +940,78 @@ class FrozenSiglipBaselineTests(unittest.TestCase):
             TRAINER.checkpoint_selection_key(metrics=regressed, val_loss=2.0),
             TRAINER.checkpoint_selection_key(metrics=baseline, val_loss=1.0),
         )
+
+    def test_production_ordinary_gate_requires_twenty_priority2_samples(
+        self,
+    ) -> None:
+        def metrics(count: int) -> dict[str, Any]:
+            return {"priority": {"2": {"acceptable_at_1": 1.0, "sample_count": count}}}
+
+        nineteen = TRAINER.ordinary_regression_gate(
+            metrics=metrics(19),
+            baseline_metrics=metrics(19),
+            production_reference_required=True,
+        )
+        self.assertFalse(nineteen["passed"])
+        self.assertFalse(nineteen["sample_count_requirement_met"])
+        self.assertEqual(nineteen["minimum_sample_count"], 20)
+        diagnostic_nineteen = TRAINER.ordinary_regression_gate(
+            metrics=metrics(19), baseline_metrics=metrics(19)
+        )
+        self.assertTrue(diagnostic_nineteen["passed"])
+        self.assertFalse(diagnostic_nineteen["production_reference_required"])
+
+        twenty = TRAINER.ordinary_regression_gate(
+            metrics=metrics(20),
+            baseline_metrics=metrics(20),
+            production_reference_required=True,
+        )
+        self.assertTrue(twenty["passed"])
+        self.assertTrue(twenty["sample_count_requirement_met"])
+        self.assertEqual(twenty["baseline_sample_count"], 20)
+        self.assertEqual(twenty["current_sample_count"], 20)
+
+        with self.assertRaisesRegex(TRAINER.TrainerError, "sample_count drifted"):
+            TRAINER.ordinary_regression_gate(
+                metrics=metrics(20),
+                baseline_metrics=metrics(21),
+                production_reference_required=True,
+            )
+
+        safety = {
+            "baseline_status": "production_reference",
+            "best_ordinary_regression_gate": twenty,
+            "optimizer_seeded_from_ordinary_reference": False,
+            "ordinary_acceptable_at_1_regression_limit": (
+                TRAINER.ORDINARY_TOP1_REGRESSION_LIMIT
+            ),
+            "ordinary_reference_argument_seeded_optimizer": False,
+            "reference": {
+                "checkpoint_sha256": SHA_A,
+                "model_contract_sha256": SHA_B,
+                "optimizer_seed_allowed": False,
+                "output_marker_sha256": SHA_C,
+                "report_sha256": SHA_A,
+                "source_code_sha256": SHA_B,
+                "source_inputs_sha256": SHA_C,
+                "test_pixels_opened_from_reference": 0,
+                "usage": "evaluation_only_ordinary_regression_baseline",
+            },
+            "resume_requires_separate_resume_from_argument": True,
+        }
+        TRAINER._validate_ordinary_regression_safety(
+            safety, expected_priority2_sample_count=20
+        )
+        tampered = copy.deepcopy(safety)
+        tampered["best_ordinary_regression_gate"]["current_sample_count"] = 19
+        with self.assertRaisesRegex(TRAINER.TrainerError, "sample_count contract"):
+            TRAINER._validate_ordinary_regression_safety(
+                tampered, expected_priority2_sample_count=20
+            )
+        with self.assertRaisesRegex(TRAINER.TrainerError, "contract is missing"):
+            TRAINER._validate_ordinary_regression_safety(
+                None, expected_priority2_sample_count=20
+            )
 
     def test_missing_chapter_pair_artifact_is_explicitly_disabled(self) -> None:
         corpus = fake_corpus()
@@ -1118,8 +1522,9 @@ class FrozenSiglipBaselineTests(unittest.TestCase):
             self.assertEqual(rebuilt.manifest["contract"], new_contract)
 
     def test_fake_embedding_training_is_byte_deterministic(self) -> None:
-        sample_ids = ("train-a", "train-b", "val-a", "val-b")
-        splits = ("train", "train", "val", "val")
+        validation_ids = tuple(f"val-{index:02d}" for index in range(20))
+        sample_ids = ("train-a", "train-b", *validation_ids)
+        splits = ("train", "train", *("val" for _ in validation_ids))
         examples = {
             sample_id: make_example(
                 sample_id,
@@ -1157,8 +1562,8 @@ class FrozenSiglipBaselineTests(unittest.TestCase):
                     split="val",
                     chapter_id="chapter-a",
                     role="dialogue",
-                    anchor_sample_id="val-a",
-                    target_sample_id="val-b",
+                    anchor_sample_id=validation_ids[0],
+                    target_sample_id=validation_ids[1],
                     record_sha256=SHA_C,
                 ),
             ),
@@ -1192,7 +1597,9 @@ class FrozenSiglipBaselineTests(unittest.TestCase):
                 ],
             },
             manifest_sha256=SHA_A,
-            sample_features=generator.normal(size=(4, 3, 8)).astype(np.float32),
+            sample_features=generator.normal(size=(len(sample_ids), 3, 8)).astype(
+                np.float32
+            ),
             prototype_features=generator.normal(size=(3, 8)).astype(np.float32),
         )
         hyperparameters = TRAINER.TrainingHyperparameters(
@@ -1339,11 +1746,35 @@ class FrozenSiglipBaselineTests(unittest.TestCase):
             self.assertEqual(row["variants"]["no_genre"], decision)
             self.assertEqual(row["variants"]["swapped_genre"], decision)
 
+            test_rows = TRAINER.build_prediction_rows(
+                bindings=(
+                    TRAINER.PredictionBinding(
+                        sample_id=sample["sample_id"],
+                        work_id=sample["work_id"],
+                        split="test",
+                        sample_record_sha256=sample["record_sha256"],
+                        listwise_record_sha256=listwise["record_sha256"],
+                    ),
+                ),
+                inference=inference,
+                candidate_ids=EVALUATOR_FIXTURE.CANDIDATES,
+                font_catalog_sha256=EVALUATOR_FIXTURE.FONT_CATALOG_SHA,
+                training_export_manifest_sha256=EVALUATOR_FIXTURE.EVAL.sha256_file(
+                    fixture.manifest
+                ),
+                checkpoint_sha256=EVALUATOR_FIXTURE.MODEL_SHA,
+                calibration=TRAINER.Calibration(temperature=1.0, none_threshold=0.5),
+            )
+            self.assertEqual(test_rows[0]["split"], "test")
+
     def test_output_bundle_is_sealed_and_rejects_cache_binding_drift(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             fixture = EVALUATOR_FIXTURE.Fixture(root)
             sample = next(row for row in fixture.sample_rows if row["split"] == "val")
+            test_sample = next(
+                row for row in fixture.sample_rows if row["split"] == "test"
+            )
             listwise = next(
                 row
                 for row in fixture.listwise_rows
@@ -1356,14 +1787,23 @@ class FrozenSiglipBaselineTests(unittest.TestCase):
                     manifest_sha256=manifest_sha,
                     samples_sha256=EVALUATOR_FIXTURE.EVAL.sha256_file(fixture.samples),
                 ),
-                samples_by_id={sample["sample_id"]: sample},
+                samples_by_id={
+                    sample["sample_id"]: sample,
+                    test_sample["sample_id"]: test_sample,
+                },
                 examples_by_id={
                     sample["sample_id"]: make_example(
                         sample["sample_id"],
                         split="val",
                         work_id=sample["work_id"],
                         candidate_count=len(EVALUATOR_FIXTURE.CANDIDATES),
-                    )
+                    ),
+                    test_sample["sample_id"]: make_example(
+                        test_sample["sample_id"],
+                        split="test",
+                        work_id=test_sample["work_id"],
+                        candidate_count=len(EVALUATOR_FIXTURE.CANDIDATES),
+                    ),
                 },
                 candidate_ids=EVALUATOR_FIXTURE.CANDIDATES,
                 font_catalog_sha256=EVALUATOR_FIXTURE.FONT_CATALOG_SHA,
@@ -1416,12 +1856,17 @@ class FrozenSiglipBaselineTests(unittest.TestCase):
                 head_dropout=0.0,
             )
             output = root / "baseline-output"
+            non_production_gate = TRAINER.ordinary_regression_gate(
+                metrics={
+                    "priority": {"2": {"acceptable_at_1": None, "sample_count": 1}}
+                },
+                baseline_metrics={
+                    "priority": {"2": {"acceptable_at_1": None, "sample_count": 1}}
+                },
+            )
             checkpoint_selection = {
                 "baseline_status": "non_production_safety_baseline",
-                "best_ordinary_regression_gate": {
-                    "applicable": False,
-                    "passed": True,
-                },
+                "best_ordinary_regression_gate": non_production_gate,
                 "optimizer_seeded_from_ordinary_reference": False,
                 "ordinary_acceptable_at_1_regression_limit": (
                     TRAINER.ORDINARY_TOP1_REGRESSION_LIMIT
@@ -1461,6 +1906,27 @@ class FrozenSiglipBaselineTests(unittest.TestCase):
                     "report.json",
                 },
             )
+            changed_test = TRAINER.replace(
+                corpus,
+                examples_by_id={
+                    **corpus.examples_by_id,
+                    test_sample["sample_id"]: TRAINER.replace(
+                        corpus.examples_by_id[test_sample["sample_id"]],
+                        listwise_record_sha256="d" * 64,
+                    ),
+                },
+            )
+            with self.assertRaisesRegex(
+                TRAINER.TrainerError, "stale or different inputs"
+            ):
+                TRAINER.validate_training_output(
+                    output_dir=output,
+                    corpus=changed_test,
+                    resolver=resolver,
+                    render_bank=render_bank,
+                    cache=cache,
+                    asset_validation_report_sha256=None,
+                )
             stale_cache = TRAINER.FeatureCache(
                 root=cache.root,
                 manifest=cache.manifest,

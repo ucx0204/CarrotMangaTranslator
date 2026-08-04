@@ -152,6 +152,11 @@ describe("TranslationOptionsModal", () => {
         .getAttribute("aria-pressed"),
     ).toBe("false");
     expect(
+      screen.getByText(
+        /원문 글자 모양을 보고 대사·나레이션·강조·효과음에 어울리는 한글 폰트/,
+      ),
+    ).toBeTruthy();
+    expect(
       screen
         .getByRole("button", { name: "번역만" })
         .getAttribute("aria-pressed"),
@@ -229,7 +234,7 @@ describe("TranslationOptionsModal", () => {
     ).toBeTruthy();
     expect(
       screen.getByText(
-        "작품별 대사 폰트는 유지하고, 확실한 효과음·강조만 바꿉니다. 애매하면 현재 폰트를 유지합니다.",
+        /원문 글자 모양을 보고 대사·나레이션·강조·효과음에 어울리는 한글 폰트/,
       ),
     ).toBeTruthy();
     expect(

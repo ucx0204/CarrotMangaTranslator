@@ -1,4 +1,4 @@
-export const MAX_VISUAL_CLUSTER_ID_LENGTH = 200;
+const MAX_VISUAL_CLUSTER_ID_LENGTH = 200;
 
 const UNSAFE_VISUAL_CLUSTER_ID_CHARACTERS =
   /[\\/\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}]/u;

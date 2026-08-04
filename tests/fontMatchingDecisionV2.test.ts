@@ -473,7 +473,14 @@ describe("font matching V2 decision policy", () => {
   it("abstains on low confidence with user default followed by deterministic Top-3", () => {
     const result = resolveFontMatchingDecisionV2(
       makeInput({
-        localEvidence: evidence(undefined, { calibratedConfidence: 0.4 }),
+        localEvidence: evidence(
+          [
+            candidate("font-a", 1, 1, { confidence: 0.4 }),
+            candidate("font-b", 2, 0.8, { confidence: 0.35 }),
+            candidate("font-c", 3, 0.6, { confidence: 0.3 }),
+          ],
+          { calibratedConfidence: 0.4 },
+        ),
         userDefaultCandidate: { fontId: "font-d" },
         translationAssessments: [
           assessment("font-a"),
@@ -491,6 +498,118 @@ describe("font matching V2 decision policy", () => {
       resolvedBy: "user_default_or_top3",
     });
     expect(result.audit.legacyTitleOrRegexFallbackUsed).toBe(false);
+  });
+
+  it("honors a supervised cohort decision without comparing its risk bound to a different gate", () => {
+    const result = resolveFontMatchingDecisionV2(
+      makeInput({
+        role: rolePrediction("shout", 0.2),
+        localEvidence: evidence(
+          [
+            candidate("font-b", 1, 0.91, { confidence: 0.702 }),
+            candidate("font-a", 2, 0.9, { confidence: 0 }),
+            candidate("font-c", 3, 0.8, { confidence: 0 }),
+          ],
+          {
+            calibratedConfidence: 0.702,
+            supervisedSelectionAccepted: true,
+          },
+        ),
+        calibration: {
+          minimumAutomaticConfidence: 0.802,
+          minimumRoleConfidence: 0.82,
+          minimumIntentionalOverrideConfidence: 0.86,
+          intentionalOverrideMinimumScoreMargin: 0.1,
+        },
+      }),
+    );
+
+    expect(result.decision).toMatchObject({
+      mode: "apply",
+      selectedFontId: "font-b",
+      abstainReason: null,
+      resolvedBy: "v2_automatic",
+    });
+  });
+
+  it("lets a supervised global-cohort winner proceed when the role head is unknown", () => {
+    const result = resolveFontMatchingDecisionV2(
+      makeInput({
+        role: rolePrediction("unknown_needs_review", 0.01),
+        localEvidence: evidence(
+          [
+            candidate("font-c", 1, 0.81, { confidence: 0.7 }),
+            candidate("font-a", 2, 0.8, { confidence: 0 }),
+            candidate("font-b", 3, 0.7, { confidence: 0 }),
+          ],
+          {
+            calibratedConfidence: 0.7,
+            supervisedSelectionAccepted: true,
+          },
+        ),
+      }),
+    );
+
+    expect(result.decision).toMatchObject({
+      mode: "apply",
+      selectedFontId: "font-c",
+      abstainReason: null,
+      resolvedBy: "v2_automatic",
+    });
+  });
+
+  it("does not replace a hard-rejected supervised winner with an unvalidated runner-up", () => {
+    const result = resolveFontMatchingDecisionV2(
+      makeInput({
+        profile: makeProfile({
+          orientationPolicy: {
+            horizontalAllowedFontIds: null,
+            verticalAllowedFontIds: null,
+            verticalOnlyFontIds: ["font-a"],
+          },
+        }),
+        localEvidence: evidence(
+          [
+            candidate("font-a", 1, 0.9, {
+              confidence: 0.7,
+              renderStatus: "unrenderable",
+              unrenderableReason: "font_load_failed",
+            }),
+            candidate("font-b", 2, 0.8, { confidence: 0 }),
+            candidate("font-c", 3, 0.7, { confidence: 0 }),
+          ],
+          {
+            calibratedConfidence: 0.7,
+            supervisedSelectionAccepted: true,
+          },
+        ),
+        translationAssessments: [
+          assessment("font-a", {
+            glyphsRenderable: false,
+            glyphCoverage: 0.5,
+            missingGlyphCount: 1,
+            layoutFeasible: false,
+          }),
+          assessment("font-b"),
+          assessment("font-c"),
+        ],
+      }),
+    );
+
+    expect(result.decision).toMatchObject({
+      mode: "abstain",
+      selectedFontId: null,
+      abstainReason: "low_confidence",
+    });
+    expect(rejectionReasons(result, "font-a", "hard")).toEqual(
+      expect.arrayContaining([
+        "render_unavailable",
+        "glyph_render_failure",
+        "glyph_coverage_incomplete",
+        "layout_infeasible",
+        "horizontal_orientation_forbidden",
+      ]),
+    );
   });
 
   it("honors the independent none-acceptable head without forcing a font", () => {

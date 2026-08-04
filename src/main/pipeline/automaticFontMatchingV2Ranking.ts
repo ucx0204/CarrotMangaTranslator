@@ -7,6 +7,7 @@ import type {
 } from "../../shared/fontMatchingProfileTypes";
 import type { AutomaticFontCandidate } from "../../shared/fontMatchingTypes";
 import type { UiLocale } from "../../shared/uiLocales";
+import { markRetiredAutomaticFontCandidates } from "./automaticFontMatchingRetiredFonts";
 
 /**
  * Weak semantic priors for shadow-mode ranking and explicit profile choices.
@@ -78,8 +79,10 @@ export function rankFontMatchingV2Candidates({
       left.candidate.preferenceRank - right.candidate.preferenceRank ||
       compareStrings(left.candidate.fontId, right.candidate.fontId),
   );
-  return scored.map((entry, index) =>
-    buildRankedCandidate(entry, index, role, rolePriors ?? []),
+  return markRetiredAutomaticFontCandidates(
+    scored.map((entry, index) =>
+      buildRankedCandidate(entry, index, role, rolePriors ?? []),
+    ),
   );
 }
 

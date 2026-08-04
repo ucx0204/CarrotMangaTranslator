@@ -11,11 +11,34 @@ describe("page export document boundary", () => {
     expect(parsePageExportData(element)).toEqual(makeDocument());
   });
 
-  it("rejects unsupported image sources and malformed blocks", () => {
+  it.each(["data:image/jpeg;base64,", "data:image/webp;base64,"])(
+    "accepts supported raster data URLs (%s)",
+    (imageSrc) => {
+      const element = document.createElement("script");
+      const documentData = { ...makeDocument(), imageSrc };
+      element.textContent = JSON.stringify(documentData);
+
+      expect(parsePageExportData(element)).toEqual(documentData);
+    },
+  );
+
+  it.each([
+    "https://example.test/page.png",
+    "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=",
+    "data:text/html;base64,PGgxPnRlc3Q8L2gxPg==",
+  ])("rejects unsupported image sources (%s)", (imageSrc) => {
+    const element = document.createElement("script");
+    element.textContent = JSON.stringify({ ...makeDocument(), imageSrc });
+
+    expect(() => parsePageExportData(element)).toThrow(
+      "Page export data has an invalid shape.",
+    );
+  });
+
+  it("rejects malformed blocks", () => {
     const element = document.createElement("script");
     element.textContent = JSON.stringify({
       ...makeDocument(),
-      imageSrc: "https://example.test/page.png",
       page: {
         ...makeDocument().page,
         blocks: [{ id: "missing-render-contract" }],

@@ -13,6 +13,8 @@ import type {
 } from "./types";
 import type { TranslationRuntimePort } from "./translationRuntimePort";
 import type { WarningCollector } from "./warningCollector";
+import type { FontMatchingPageInferencePort } from "./fontMatchingPagePixelInferenceTypes";
+import type { AutomaticFontPageCoordinatorV2 } from "./automaticFontMatchingV2PageCoordinator";
 
 export async function translatePageAttempt({
   context,
@@ -24,6 +26,8 @@ export async function translatePageAttempt({
   runtime,
   server,
   warningCollector,
+  fontMatchingPageInference,
+  fontMatchingChapterCoordinator,
 }: {
   context: ProgressContext;
   jobId: string;
@@ -34,6 +38,8 @@ export async function translatePageAttempt({
   runtime: TranslationRuntimePort;
   server: ModelEndpointHandle;
   warningCollector: WarningCollector;
+  fontMatchingPageInference?: FontMatchingPageInferencePort;
+  fontMatchingChapterCoordinator?: AutomaticFontPageCoordinatorV2;
 }): Promise<{
   page: MangaPage;
   pageContext?: PageContextPayload;
@@ -46,6 +52,8 @@ export async function translatePageAttempt({
     pageOptions,
     result,
     runtime,
+    fontMatchingPageInference,
+    fontMatchingChapterCoordinator,
   });
 
   warningCollector.add(...pageResult.warnings);

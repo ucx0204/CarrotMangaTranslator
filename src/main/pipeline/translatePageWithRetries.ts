@@ -26,6 +26,8 @@ import type { ChapterRunPaths } from "../library";
 import { logAttemptFailure, logSkippedPage } from "./translationAttemptLogging";
 import type { PipelineDiagnostics } from "./translationAttemptLogging";
 import { translatePageAttempt } from "./pageTranslationAttempt";
+import type { FontMatchingPageInferencePort } from "./fontMatchingPagePixelInferenceTypes";
+import type { AutomaticFontPageCoordinatorV2 } from "./automaticFontMatchingV2PageCoordinator";
 
 type TranslatePageWithRetriesOptions = {
   baseOptions: TranslationOptions;
@@ -49,6 +51,8 @@ type TranslatePageWithRetriesOptions = {
   regionContext?: PipelineRegionContext;
   collectPageContext?: boolean;
   diagnostics: PipelineDiagnostics;
+  fontMatchingPageInference?: FontMatchingPageInferencePort;
+  fontMatchingChapterCoordinator?: AutomaticFontPageCoordinatorV2;
 };
 
 type PageTranslationAttemptResult = {
@@ -87,6 +91,8 @@ export async function translatePageWithRetries({
   regionContext,
   collectPageContext,
   diagnostics,
+  fontMatchingPageInference,
+  fontMatchingChapterCoordinator,
 }: TranslatePageWithRetriesOptions): Promise<{
   pageContext?: PageContextPayload;
   approved: boolean;
@@ -111,6 +117,8 @@ export async function translatePageWithRetries({
     regionContext,
     collectPageContext,
     diagnostics,
+    fontMatchingPageInference,
+    fontMatchingChapterCoordinator,
   });
   if (result.successPage) {
     completedPagesById.set(page.id, result.successPage);
@@ -135,6 +143,7 @@ export async function translatePageWithRetries({
   return { approved: false };
 }
 
+// eslint-disable-next-line max-lines-per-function -- retry state must remain within one attempt loop
 async function runPageTranslationAttempts({
   baseOptions,
   context,
@@ -155,6 +164,8 @@ async function runPageTranslationAttempts({
   regionContext,
   collectPageContext,
   diagnostics,
+  fontMatchingPageInference,
+  fontMatchingChapterCoordinator,
 }: Omit<
   TranslatePageWithRetriesOptions,
   "completedPagesById" | "onPageFailed"
@@ -202,6 +213,8 @@ async function runPageTranslationAttempts({
       state,
       warningCollector,
       diagnostics,
+      fontMatchingPageInference,
+      fontMatchingChapterCoordinator,
     });
     if (success) {
       successPage = success.page;
@@ -233,6 +246,8 @@ async function tryPageTranslationAttempt({
   state,
   warningCollector,
   diagnostics,
+  fontMatchingPageInference,
+  fontMatchingChapterCoordinator,
 }: {
   attempt: number;
   context: ProgressContext;
@@ -247,6 +262,8 @@ async function tryPageTranslationAttempt({
   state: PageTranslationAttemptState;
   warningCollector: WarningCollector;
   diagnostics: PipelineDiagnostics;
+  fontMatchingPageInference?: FontMatchingPageInferencePort;
+  fontMatchingChapterCoordinator?: AutomaticFontPageCoordinatorV2;
 }): Promise<{
   page: MangaPage;
   pageContext?: PageContextPayload;
@@ -263,6 +280,8 @@ async function tryPageTranslationAttempt({
       runtime,
       server,
       warningCollector,
+      fontMatchingPageInference,
+      fontMatchingChapterCoordinator,
     });
   } catch (error) {
     if (isAbortErrorLike(error) || isNonRetriableRuntimeError(error)) {
