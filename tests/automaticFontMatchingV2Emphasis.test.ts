@@ -88,25 +88,19 @@ describe("automatic font emphasis policy", () => {
     expect(resolution.style.fontWeight).toBe(400);
   });
 
-  it.each([
-    ["none", 0.5],
-    ["single", 1],
-    ["multiple", 1.75],
-  ] as const)(
-    "maps %s source outlines without changing family",
-    (outline, expectedScale) => {
+  it.each(["none", "single", "multiple", "unknown"] as const)(
+    "ignores %s source outlines when deciding emphasis",
+    (outline) => {
       const resolution = resolveAutomaticFontEmphasisStyle({
         sourceStyle: makeSourceStyle({ weight: 0.58 }),
         treatment: { outline },
         pageBaselineWeight: 0.58,
       });
 
-      expect(resolution.style.outlineWidthScale).toBe(expectedScale);
-      if (outline === "none") {
-        expect(resolution.reasonCodes).toContain(
-          "automatic_minimum_outline_preserved",
-        );
-      }
+      expect(resolution.style).toEqual({ fontWeight: 400 });
+      expect(resolution.reasonCodes).not.toContain(
+        "automatic_minimum_outline_preserved",
+      );
     },
   );
 

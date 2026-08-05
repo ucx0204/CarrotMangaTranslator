@@ -94,11 +94,11 @@ describe("overlay text word-break styles", () => {
     expect(style.transform).toBe("scaleX(0.8)");
   });
 
-  it("keeps a contrasting minimum outline on automatic dark text", () => {
+  it("keeps a contrasting outline on automatic dark text", () => {
     const block = makeAutomaticBlock({
       textColor: "#111111",
       outlineColor: "#111111",
-      outlineWidthScale: 0,
+      outlineWidthScale: 1,
     });
     const style = resolveOverlayTextContentStyle(block, LAYOUT, "horizontal");
 
@@ -112,7 +112,7 @@ describe("overlay text word-break styles", () => {
       makeAutomaticBlock({
         textColor: "#f7f7f2",
         outlineColor: "#f7f7f2",
-        outlineWidthScale: 0,
+        outlineWidthScale: 1,
       }),
       LAYOUT,
       "horizontal",
@@ -120,6 +120,18 @@ describe("overlay text word-break styles", () => {
 
     expect(style.textShadow).not.toBe("none");
     expect(style.textShadow).toContain("#111111");
+  });
+
+  it("preserves a zero-width outline on automatic blocks without a minimum", () => {
+    const block = makeAutomaticBlock({
+      textColor: "#111111",
+      outlineColor: "#111111",
+      outlineWidthScale: 0,
+    });
+    const style = resolveOverlayTextContentStyle(block, LAYOUT, "horizontal");
+
+    expect(style.textShadow).toBe("none");
+    expect(resolveBlockTextOutlinePx(block, 10)).toBe(0);
   });
 
   it("preserves the explicit no-outline contract for non-automatic blocks", () => {

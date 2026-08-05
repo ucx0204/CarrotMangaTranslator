@@ -110,7 +110,7 @@ describe("automatic inverse text polarity", () => {
     });
   });
 
-  it("repairs a zero-width automatic outline without changing polarity colors", () => {
+  it("preserves a zero-width automatic outline without forcing a minimum", () => {
     const applied = applyAutomaticFontDecisionV2(
       { ...makeBlock(), outlineWidthScale: 0 },
       makeDecision(
@@ -122,7 +122,7 @@ describe("automatic inverse text polarity", () => {
 
     expect(applied).toMatchObject({
       fontFamily: "dohyeon",
-      outlineWidthScale: 0.5,
+      outlineWidthScale: 0,
       textColor: "#f7f7f2",
       outlineColor: "#141414",
     });

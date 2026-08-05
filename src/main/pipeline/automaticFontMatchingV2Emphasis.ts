@@ -3,7 +3,6 @@ import type {
   FontMatchingTreatmentV2,
   FontStyleSelectionV2,
 } from "../../shared/fontMatchingProfileTypes";
-import { resolveAutomaticTextOutlineWidthScale } from "../../shared/textOutline";
 
 const MINIMUM_BASELINE_SAMPLES = 2;
 const MINIMUM_RELATIVE_BASELINE_SAMPLES = 3;
@@ -13,7 +12,7 @@ const ABSOLUTE_BOLD_WEIGHT = 0.78;
 const ABSOLUTE_EXTRA_BOLD_WEIGHT = 0.9;
 
 type AutomaticFontEmphasisStyle = Readonly<
-  Partial<Pick<FontStyleSelectionV2, "fontWeight" | "outlineWidthScale">>
+  Partial<Pick<FontStyleSelectionV2, "fontWeight">>
 >;
 
 export interface AutomaticFontEmphasisInput {
@@ -72,9 +71,7 @@ export function resolveAutomaticFontEmphasisStyle(
   const extraBoldThreshold = usesRelativeBaseline
     ? pageBaselineWeight + RELATIVE_EXTRA_BOLD_DELTA
     : ABSOLUTE_EXTRA_BOLD_WEIGHT;
-  const style: Partial<
-    Pick<FontStyleSelectionV2, "fontWeight" | "outlineWidthScale">
-  > = {};
+  const style: Partial<Pick<FontStyleSelectionV2, "fontWeight">> = {};
   const reasonCodes: string[] = [];
 
   if (weightSignal !== null) {
@@ -92,18 +89,6 @@ export function resolveAutomaticFontEmphasisStyle(
       style.fontWeight = 400;
       reasonCodes.push("source_weight_normal");
     }
-  }
-
-  if (input.treatment.outline === "none") {
-    style.outlineWidthScale = resolveAutomaticTextOutlineWidthScale(0);
-    reasonCodes.push("source_outline_none");
-    reasonCodes.push("automatic_minimum_outline_preserved");
-  } else if (input.treatment.outline === "single") {
-    style.outlineWidthScale = 1;
-    reasonCodes.push("source_outline_single");
-  } else if (input.treatment.outline === "multiple") {
-    style.outlineWidthScale = 1.75;
-    reasonCodes.push("source_outline_multiple");
   }
 
   return {

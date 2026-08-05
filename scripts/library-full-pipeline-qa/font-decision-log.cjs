@@ -79,11 +79,10 @@ function buildFontDecisionLog(page, trace, outlinePolicy) {
 /** @param {any} decision @param {{ MIN_AUTOMATIC_TEXT_OUTLINE_CONTRAST_RATIO: number }} outlinePolicy */
 function assertAutomaticFontOutline(decision, outlinePolicy) {
   if (!decision.applied) return;
-  if (!(decision.effectiveOutlineWidthScale > 0)) {
-    throw new Error(
-      `Applied automatic font has no visible outline width: ${decision.blockId}`,
-    );
-  }
+  // An intentionally outline-free automatic block (outlineWidthScale 0) is a
+  // valid state — auto-matching no longer forces a minimum outline width, so
+  // neither the width nor the contrast assertion applies.
+  if (decision.effectiveOutlineWidthScale <= 0) return;
   if (
     !Number.isFinite(decision.effectiveOutlineContrastRatio) ||
     decision.effectiveOutlineContrastRatio <

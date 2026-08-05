@@ -42,7 +42,7 @@ describe("bubble layout page processor", () => {
     expect(resolveBubbleLayoutOutlineWidthPx(block)).toBe(
       resolveBlockTextOutlinePx(block, block.fontSizePx),
     );
-    expect(resolveBubbleLayoutOutlineWidthPx(block)).toBe(0.5);
+    expect(resolveBubbleLayoutOutlineWidthPx(block)).toBe(0);
     expect(
       resolveBubbleLayoutOutlineWidthPx({
         ...block,

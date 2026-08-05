@@ -1,5 +1,3 @@
-export const MIN_AUTOMATIC_TEXT_OUTLINE_WIDTH_SCALE = 0.5;
-export const MIN_AUTOMATIC_TEXT_OUTLINE_WIDTH_PX = 0.5;
 export const MIN_AUTOMATIC_TEXT_OUTLINE_CONTRAST_RATIO = 3;
 
 const DEFAULT_TEXT_COLOR = "#111111";
@@ -14,22 +12,10 @@ type TextOutlineStyle = Readonly<{
   textColor?: string;
 }>;
 
-export function resolveAutomaticTextOutlineWidthScale(
-  value: number | undefined,
-): number {
-  return Math.max(
-    MIN_AUTOMATIC_TEXT_OUTLINE_WIDTH_SCALE,
-    normalizeOutlineWidthScale(value),
-  );
-}
-
 export function resolveEffectiveTextOutlineWidthScale(
   style: TextOutlineStyle,
 ): number {
-  const scale = normalizeOutlineWidthScale(style.outlineWidthScale);
-  return style.automaticFontMatch
-    ? resolveAutomaticTextOutlineWidthScale(scale)
-    : scale;
+  return normalizeOutlineWidthScale(style.outlineWidthScale);
 }
 
 export function resolveEffectiveTextOutlineWidthPx(
@@ -38,12 +24,10 @@ export function resolveEffectiveTextOutlineWidthPx(
 ): number {
   const scale = resolveEffectiveTextOutlineWidthScale(style);
   if (scale <= 0) return 0;
-  const width =
+  return (
     (Math.round(Math.min(4, Math.max(0.35, fontSizePx * 0.055)) * 10) / 10) *
-    scale;
-  return style.automaticFontMatch
-    ? Math.max(MIN_AUTOMATIC_TEXT_OUTLINE_WIDTH_PX, width)
-    : width;
+    scale
+  );
 }
 
 export function resolveEffectiveTextColor(style: TextOutlineStyle): string {

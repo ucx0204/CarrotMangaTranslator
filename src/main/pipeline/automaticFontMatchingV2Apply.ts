@@ -1,5 +1,4 @@
 import type { TranslationBlock } from "../../shared/textTypes";
-import { resolveAutomaticTextOutlineWidthScale } from "../../shared/textOutline";
 import type { AutomaticFontDecisionV2 } from "./automaticFontMatchingV2";
 
 export function applyAutomaticFontDecisionV2(
@@ -22,9 +21,9 @@ export function applyAutomaticFontDecisionV2(
       ? {}
       : { bold: selection.fontWeight >= 600 }),
     ...(selection.italic === undefined ? {} : { italic: selection.italic }),
-    outlineWidthScale: resolveAutomaticTextOutlineWidthScale(
-      selection.outlineWidthScale ?? block.outlineWidthScale,
-    ),
+    ...(selection.outlineWidthScale === undefined
+      ? {}
+      : { outlineWidthScale: selection.outlineWidthScale }),
     ...(inverseTextStyle
       ? {
           textColor: inverseTextStyle.textColor,

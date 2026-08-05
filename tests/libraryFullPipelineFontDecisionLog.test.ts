@@ -42,7 +42,7 @@ describe("library font QA effective outline log", () => {
     expect(decision).toMatchObject({
       applied: true,
       effectiveFontFamily: "dohyeon",
-      effectiveOutlineWidthScale: 0.5,
+      effectiveOutlineWidthScale: 0,
       effectiveTextColor: "#f7f7f2",
       effectiveOutlineColor: "#111111",
     });

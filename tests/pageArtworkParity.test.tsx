@@ -106,7 +106,7 @@ describe("page artwork renderer parity", () => {
         translatedText: "자동 검정",
         textColor: "#111111",
         outlineColor: "#111111",
-        outlineWidthScale: 0,
+        outlineWidthScale: 1,
         automaticFontMatch: makeAutomaticFontMatch(),
       }),
       makeBlock("automatic-inverse-curve", {
@@ -114,7 +114,7 @@ describe("page artwork renderer parity", () => {
         translatedText: "자동 흰색",
         textColor: "#f7f7f2",
         outlineColor: "#f7f7f2",
-        outlineWidthScale: 0,
+        outlineWidthScale: 1,
         curveLayout: {
           version: 1,
           alignment: "center",
