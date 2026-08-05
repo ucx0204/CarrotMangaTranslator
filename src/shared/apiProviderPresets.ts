@@ -4,6 +4,7 @@ export const API_PROVIDER_PRESET_IDS = [
   "google-ai-studio",
   "google-vertex",
   "openrouter",
+  "ollama",
 ] as const;
 
 export type ApiProviderPresetId = (typeof API_PROVIDER_PRESET_IDS)[number];
@@ -33,6 +34,7 @@ export const NVIDIA_NIM_BASE_URL = "https://integrate.api.nvidia.com/v1";
 export const GOOGLE_AI_STUDIO_BASE_URL =
   "https://generativelanguage.googleapis.com/v1beta/openai";
 export const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+export const OLLAMA_BASE_URL = "http://localhost:11434/v1";
 const DEFAULT_VERTEX_LOCATION = "global";
 
 export function buildVertexOpenAiBaseUrl(
@@ -75,6 +77,9 @@ export function resolveApiProviderBaseUrl({
   if (provider === "openrouter") {
     return OPENROUTER_BASE_URL;
   }
+  if (provider === "ollama") {
+    return OLLAMA_BASE_URL;
+  }
   return null;
 }
 
@@ -99,6 +104,10 @@ export function inferApiProviderPreset(baseUrl: string): ApiProviderPresetId {
   }
   if (url.hostname === "openrouter.ai") {
     return "openrouter";
+  }
+  // Ollama 기본 포트. localhost/127.0.0.1/LAN 호스트 모두 포괄.
+  if (url.port === "11434") {
+    return "ollama";
   }
   return "custom";
 }

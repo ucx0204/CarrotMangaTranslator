@@ -1,5 +1,6 @@
 import {
   NVIDIA_NIM_BASE_URL,
+  OLLAMA_BASE_URL,
   OPENROUTER_BASE_URL,
   type ApiModelDiscoveryRequest,
   type ApiModelDiscoveryResult,
@@ -65,6 +66,30 @@ export async function discoverOpenRouterModels(
     entries.length,
     entries.length - models.length,
   );
+}
+
+/**
+ * Ollama는 로컬 OpenAI 호환 엔드포인트(`/v1/models`)를 제공한다. API 키 없이
+ * 동작하며, 응답은 OpenAI와 동일한 `{ data: [{ id }] }` 형태. `/v1/models`는
+ * 모달리티(비전 여부)를 노출하지 않아 비전 필터링은 하지 않고 전체 모델을
+ * 반환 — 사용자가 llava/minicpm-v 등 비전 모델을 직접 선택한다.
+ */
+export async function discoverOllamaModels(
+  request: ApiModelDiscoveryRequest,
+  fetchImpl: FetchLike,
+): Promise<ApiModelDiscoveryResult> {
+  const payload = await fetchJsonWithKeys(
+    `${OLLAMA_BASE_URL}/models`,
+    request.apiKey,
+    bearerHeaders,
+    fetchImpl,
+    true,
+  );
+  const liveIds = readArray(payload.data)
+    .map((entry) => readString(readRecord(entry)?.id))
+    .filter((id): id is string => Boolean(id));
+  const models = liveIds.map((id) => modelOption(id, id, OLLAMA_BASE_URL));
+  return discoveryResult("ollama", models, liveIds.length, 0);
 }
 
 async function readNvidiaImageToTextCatalog(

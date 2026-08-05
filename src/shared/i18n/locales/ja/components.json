@@ -1286,7 +1286,8 @@
         "nvidiaNim": "NVIDIA NIM",
         "googleAiStudio": "Google AI Studio",
         "googleVertex": "Google Vertex AI",
-        "openRouter": "OpenRouter"
+        "openRouter": "OpenRouter",
+        "ollama": "Ollama（ローカル）"
       },
       "providerHintCustom": "下のBase URLとモデルIDを直接入力できます。プライベートまたはセルフホストのOpenAI互換APIにも対応します。",
       "providerHintVerified": "現在の一覧から画像入力対応を確認できたモデルだけを読み込みます。一覧にないモデルIDも下で直接入力できます。",
@@ -1308,6 +1309,7 @@
       "hideKey": "APIキーを隠す",
       "openKeyPage": "APIキー発行ページを開く",
       "openVertexAuth": "Vertex認証設定ガイドを開く",
+      "openOllamaLibrary": "Ollama モデルライブラリを開く",
       "keyMaxAttempts": "キーごとの最大試行回数",
       "retryDelaySeconds": "再試行の待機時間（秒）",
       "retryDescription": "再試行可能な失敗時は次の行のキーへ切り替えます。すべてのキーを順番に使ってから先頭へ戻り、1回のリクエストで各キーを設定回数以上は試しません。",

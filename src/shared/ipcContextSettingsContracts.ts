@@ -309,6 +309,7 @@ const discoverableApiProviderSchema = z.enum([
   "google-ai-studio",
   "google-vertex",
   "openrouter",
+  "ollama",
 ]);
 const apiModelDiscoveryRequestSchema = z
   .object({

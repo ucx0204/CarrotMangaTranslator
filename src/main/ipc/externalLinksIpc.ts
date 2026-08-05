@@ -15,6 +15,7 @@ const API_PROVIDER_URLS = {
   "google-vertex":
     "https://docs.cloud.google.com/vertex-ai/generative-ai/docs/start/quickstart",
   openrouter: "https://openrouter.ai/keys",
+  ollama: "https://ollama.com/library",
 } as const;
 
 export function registerExternalLinksIpc(context: IpcContext): void {

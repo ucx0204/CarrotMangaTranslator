@@ -5,6 +5,7 @@ import {
   GOOGLE_AI_STUDIO_BASE_URL,
   inferApiProviderPreset,
   NVIDIA_NIM_BASE_URL,
+  OLLAMA_BASE_URL,
   OPENROUTER_BASE_URL,
 } from "../src/shared/apiProviderPresets";
 
@@ -29,6 +30,10 @@ describe("API provider presets", () => {
     );
     expect(inferApiProviderPreset(vertex ?? "")).toBe("google-vertex");
     expect(inferApiProviderPreset(OPENROUTER_BASE_URL)).toBe("openrouter");
+    expect(inferApiProviderPreset(OLLAMA_BASE_URL)).toBe("ollama");
+    expect(inferApiProviderPreset("http://192.168.1.5:11434/v1")).toBe(
+      "ollama",
+    );
     expect(inferApiProviderPreset("https://my-api.example/v1")).toBe("custom");
   });
 });
@@ -248,6 +253,39 @@ describe("API image-model discovery", () => {
       "Bearer oauth-token",
       "Bearer oauth-token",
     ]);
+  });
+
+  it("lists Ollama models from /v1/models without auth", async () => {
+    const authorizationHeaders: string[] = [];
+    const fetchMock = vi.fn(
+      async (input: string | URL | Request, init?: RequestInit) => {
+        expect(String(input)).toBe(`${OLLAMA_BASE_URL}/models`);
+        const headers = new Headers(init?.headers);
+        authorizationHeaders.push(headers.get("Authorization") ?? "");
+        return jsonResponse({
+          data: [
+            { id: "llava:latest" },
+            { id: "qwen2.5:7b" },
+            { id: "" },
+            { notId: "broken-entry" },
+          ],
+        });
+      },
+    );
+
+    const result = await discoverApiModels(
+      { provider: "ollama", apiKey: "" },
+      fetchMock as typeof fetch,
+    );
+
+    expect(result.models).toEqual([
+      { id: "llava:latest", label: "llava:latest", baseUrl: OLLAMA_BASE_URL },
+      { id: "qwen2.5:7b", label: "qwen2.5:7b", baseUrl: OLLAMA_BASE_URL },
+    ]);
+    expect(result.checkedCount).toBe(2);
+    expect(result.unverifiedCount).toBe(0);
+    // 빈 키면 Bearer Authorization 헤더를 보내지 않는다.
+    expect(authorizationHeaders[0] ?? "").not.toMatch(/^Bearer /);
   });
 
   it("does not spend additional keys on a non-retryable discovery error", async () => {

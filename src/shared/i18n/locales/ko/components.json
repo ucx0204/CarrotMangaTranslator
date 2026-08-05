@@ -1280,7 +1280,8 @@
         "nvidiaNim": "NVIDIA NIM",
         "googleAiStudio": "Google AI Studio",
         "googleVertex": "Google Vertex AI",
-        "openRouter": "OpenRouter"
+        "openRouter": "OpenRouter",
+        "ollama": "Ollama (로컬)"
       },
       "providerHintCustom": "아래 Base URL과 모델 ID를 직접 입력할 수 있습니다. 사설·셀프호스트 OpenAI 호환 API도 사용할 수 있습니다.",
       "providerHintVerified": "제공자의 현재 목록에서 이미지 입력 지원을 확인할 수 있는 모델만 불러옵니다. 목록에 없어도 아래 모델 ID를 직접 입력할 수 있습니다.",
@@ -1302,6 +1303,7 @@
       "hideKey": "API 키 숨기기",
       "openKeyPage": "API 키 발급 페이지 열기",
       "openVertexAuth": "Vertex 인증 설정 안내 열기",
+      "openOllamaLibrary": "Ollama 모델 라이브러리 열기",
       "keyMaxAttempts": "키별 최대 시도 횟수",
       "retryDelaySeconds": "재시도 대기 시간 (초)",
       "retryDescription": "실패하면 다음 줄의 키로 순환합니다. 모든 키를 한 번씩 사용한 뒤 다시 첫 키로 돌아가며, 각 키는 요청당 설정한 횟수까지만 시도합니다.",

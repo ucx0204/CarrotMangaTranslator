@@ -1255,7 +1255,8 @@
         "nvidiaNim": "NVIDIA NIM",
         "googleAiStudio": "Google AI Studio",
         "googleVertex": "Google Vertex AI",
-        "openRouter": "OpenRouter"
+        "openRouter": "OpenRouter",
+        "ollama": "Ollama（本地）"
       },
       "providerHintCustom": "可在下方直接輸入 Base URL 和模型 ID，也支援私有或自行託管的 OpenAI 相容 API。",
       "providerHintVerified": "只載入目前可驗證支援圖片輸入的模型。清單中沒有的模型 ID 仍可在下方手動輸入。",
@@ -1277,6 +1278,7 @@
       "hideKey": "隱藏 API 金鑰",
       "openKeyPage": "開啟 API 金鑰頁面",
       "openVertexAuth": "開啟 Vertex 驗證指南",
+      "openOllamaLibrary": "開啟 Ollama 模型庫",
       "keyMaxAttempts": "每個金鑰的最大嘗試次數",
       "retryDelaySeconds": "重試等待時間（秒）",
       "retryDescription": "發生可重試失敗時會切換到下一行金鑰。應用程式會依序使用所有金鑰後再回到第一個，而且單次請求不會超過每個金鑰的設定次數。",

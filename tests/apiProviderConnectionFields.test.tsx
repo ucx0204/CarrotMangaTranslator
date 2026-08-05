@@ -9,7 +9,10 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { OPENROUTER_BASE_URL } from "../src/shared/apiProviderPresets";
+import {
+  OLLAMA_BASE_URL,
+  OPENROUTER_BASE_URL,
+} from "../src/shared/apiProviderPresets";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import { appI18n, initializeAppI18n } from "../src/renderer/src/appI18n";
 import { ApiProviderConnectionFields } from "../src/renderer/src/components/settingsModal/ApiProviderConnectionFields";
@@ -95,6 +98,47 @@ describe("API provider connection fields", () => {
       ),
     );
     expect(screen.queryByLabelText("Verified image-input model")).toBeNull();
+  });
+
+  it("fills the Ollama base URL, loads models without a key, and opens the library", async () => {
+    const discoverApiModels = vi.fn().mockResolvedValue({
+      provider: "ollama",
+      models: [
+        { id: "llava:latest", label: "llava:latest", baseUrl: OLLAMA_BASE_URL },
+      ],
+      checkedCount: 1,
+      unverifiedCount: 0,
+    });
+    const openApiProviderPage = vi.fn().mockResolvedValue(undefined);
+    window.mangaApi = createTestMangaGatewayStub({
+      discoverApiModels,
+      openApiProviderPage,
+      onUiLocaleChanged: () => () => undefined,
+    });
+
+    render(
+      <AppI18nProvider>
+        <Harness />
+      </AppI18nProvider>,
+    );
+
+    const baseUrl = screen.getByLabelText("API base URL");
+    fireEvent.change(screen.getByLabelText("Quick API provider setup"), {
+      target: { value: "ollama" },
+    });
+    expect(readValue(baseUrl)).toBe(OLLAMA_BASE_URL);
+
+    fireEvent.click(screen.getByRole("button", { name: "Load models" }));
+    await waitFor(() => expect(discoverApiModels).toHaveBeenCalledTimes(1));
+    expect(discoverApiModels).toHaveBeenCalledWith({
+      provider: "ollama",
+      apiKey: "",
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open Ollama model library" }),
+    );
+    expect(openApiProviderPage).toHaveBeenCalledWith("ollama");
   });
 
   it("invalidates an in-flight model discovery when the fields unmount", async () => {

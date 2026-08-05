@@ -96,6 +96,7 @@ const discoverableApiProviderSchema = z.enum([
   "google-ai-studio",
   "google-vertex",
   "openrouter",
+  "ollama",
 ]);
 
 export const externalIpcContracts = {

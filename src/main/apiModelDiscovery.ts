@@ -4,6 +4,7 @@ import type {
 } from "../shared/apiProviderPresets";
 import {
   discoverNvidiaNimModels,
+  discoverOllamaModels,
   discoverOpenRouterModels,
 } from "./apiModelDiscoveryCatalogs";
 import type { FetchLike } from "./apiModelDiscoveryCommon";
@@ -53,5 +54,7 @@ function dispatchApiModelDiscovery(
       return discoverGoogleVertexModels(request, fetchImpl);
     case "openrouter":
       return discoverOpenRouterModels(request, fetchImpl);
+    case "ollama":
+      return discoverOllamaModels(request, fetchImpl);
   }
 }

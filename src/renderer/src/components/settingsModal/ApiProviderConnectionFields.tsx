@@ -27,6 +27,7 @@ const PROVIDER_LABEL_KEYS: Record<ApiProviderPresetId, string> = {
   "google-ai-studio": "settings.api.providers.googleAiStudio",
   "google-vertex": "settings.api.providers.googleVertex",
   openrouter: "settings.api.providers.openRouter",
+  ollama: "settings.api.providers.ollama",
 };
 
 export function ApiProviderConnectionFields(
@@ -204,7 +205,9 @@ function CredentialFields({
   const linkLabel =
     connection.provider === "google-vertex"
       ? "settings.api.openVertexAuth"
-      : "settings.api.openKeyPage";
+      : connection.provider === "ollama"
+        ? "settings.api.openOllamaLibrary"
+        : "settings.api.openKeyPage";
   return (
     <>
       <label>
