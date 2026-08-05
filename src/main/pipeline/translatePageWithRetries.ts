@@ -1,6 +1,8 @@
+/* eslint-disable max-lines -- retry state and escalation stay co-located for auditability */
 import type { TranslationOptions } from "../appSettings";
 import type { MangaPage } from "../../shared/libraryTypes";
 import {
+  classifyFailure,
   isAbortErrorLike,
   isNonRetriableRuntimeError,
   throwIfAborted,
@@ -67,7 +69,9 @@ type PageTranslationAttemptResult = {
 type PageTranslationAttemptState = Pick<
   PageTranslationAttemptResult,
   "lastError" | "lastErrorMessage" | "lastPageOptions"
->;
+> & {
+  lastFailureCategory?: string;
+};
 
 export async function translatePageWithRetries({
   baseOptions,
@@ -196,6 +200,18 @@ async function runPageTranslationAttempts({
       regionContext,
       collectPageContext,
     });
+    // empty-overlay-items로 실패한 페이지는 모델이 bbox를 아예 만들지 못한
+    // 것이다. 재시도가 동일 요청을 반복하면 결과도 동일하므로(021.jpg 5회 동일
+    // 실패), 2회차+는 요청 단위로 대비 강화 변형을 추가해 모델이 텍스트를
+    // 검출할 기회를 늘린다. includeEnhancedVariant/enhancedContrast는 서버
+    // 재시작 없이 요청마다 바꿀 수 있는 유일한 르버다.
+    if (attempt > 1 && state.lastFailureCategory === "empty-overlay-items") {
+      pageOptions.includeEnhancedVariant = true;
+      pageOptions.enhancedContrast = Math.max(
+        pageOptions.enhancedContrast ?? 1.35,
+        1.6,
+      );
+    }
     state.lastPageOptions = pageOptions;
     emitPageRunning(context, page, progressPageIndex, attempt, maxAttempts);
 
@@ -330,6 +346,7 @@ function handlePageAttemptFailure({
   diagnostics: PipelineDiagnostics;
 }): void {
   state.lastError = error;
+  state.lastFailureCategory = classifyFailure(error);
   state.lastErrorMessage =
     error instanceof Error ? error.message : String(error);
   warningCollector.addAttemptFailure({
