@@ -132,7 +132,11 @@ function registerHandler(dependencies: ImageProtocolDependencies): void {
       if (!contentType) {
         return protocolErrorResponse("Font not found", 404);
       }
-      return await dependencies.serveFile(fontPath, { contentType });
+      // 커스텀 폰트는 file:// origin에서 교차 출처로 fetch되므로 CORS 헤더 필요.
+      return await dependencies.serveFile(fontPath, {
+        contentType,
+        corsEnabled: true,
+      });
     } catch (error) {
       if (dependencies.isUnavailableError(error)) {
         return protocolErrorResponse("Font not found", 404);

@@ -363,6 +363,13 @@ describe("image protocol integration", () => {
       expect(fontResponse.status).toBe(200);
       expect(fontResponse.headers.get("Content-Type")).toBe("font/ttf");
       expect(await fontResponse.text()).toBe("font");
+      // 커스텀 폰트는 file:// origin에서 교차 출처로 fetch되므로 CORS 헤더가
+      // 있어야 차단되지 않는다(#52).
+      expect(fontResponse.headers.get("Access-Control-Allow-Origin")).toBe("*");
+      // 이미지는 <img>로 불러 CORS 헤더가 없어야 한다.
+      expect(imageResponse.headers.get("Access-Control-Allow-Origin")).toBe(
+        null,
+      );
 
       writeFileSync(imagePath, "replacement");
       const replacementUrl = controller.createLibraryImageUrl(imagePath);

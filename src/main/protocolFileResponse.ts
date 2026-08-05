@@ -19,6 +19,13 @@ type ProtocolFileVersion = {
 
 type ProtocolFileResponseOptions = {
   contentType: string;
+  /**
+   * true면 응답에 Access-Control-Allow-Origin: * 를 추가한다. mgt-font:// 커스텀
+   * 폰트는 file:// origin 페이지에서 교차 출처로 fetch되므로(corsEnabled 스킴)
+   * CORS 헤더가 없으면 브라우저가 차단하고 빈 바디를 디코드하려다 OTS 에러가
+   * 난다. mgt-image는 <img>로 불러 CORS가 필요 없으므로 false를 유지한다.
+   */
+  corsEnabled?: boolean;
   expectedVersion?: ProtocolFileVersion;
 };
 
@@ -52,6 +59,7 @@ export async function createProtocolFileResponse(
         "Content-Length": stats.size.toString(),
         "Content-Type": options.contentType,
         "X-Content-Type-Options": "nosniff",
+        ...(options.corsEnabled ? { "Access-Control-Allow-Origin": "*" } : {}),
       },
     });
   } catch (error) {
