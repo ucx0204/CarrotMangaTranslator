@@ -267,4 +267,69 @@ describe("chapter sync helpers", () => {
       "수정된 번역문",
     );
   });
+
+  it("preserves object identity for unchanged non-dirty pages to avoid re-layout storms", () => {
+    const local = makeChapter();
+    const live = makeChapter(); // same content, fresh objects from IPC
+
+    const merged = mergeLiveChapterPreservingDirtyPages(live, local, [
+      "page-1",
+    ]);
+
+    // page-1 is dirty → fresh merged object (local edits + live status).
+    expect(merged.chapter.pages[0]).not.toBe(local.pages[0]);
+    expect(merged.chapter.pages[0]).not.toBe(live.pages[0]);
+    // page-2 is non-dirty and content-equal → local object reused → downstream
+    // memoization (OverlayBlockView / layout / font revision) stays effective.
+    expect(merged.chapter.pages[1]).toBe(local.pages[1]);
+    expect(merged.preservedDirtyPageIds).toEqual(["page-1"]);
+  });
+
+  it("uses the fresh live page when a non-dirty page changed server-side", () => {
+    const local = makeChapter();
+    const live = makeChapter();
+    live.pages[1] = {
+      ...live.pages[1],
+      updatedAt: "2026-04-19T00:02:00.000Z",
+      analysisStatus: "completed",
+      blocks: [
+        {
+          id: "block-2",
+          type: "nonsolid",
+          bbox: { x: 10, y: 20, w: 30, h: 40 },
+          sourceText: "JP2",
+          translatedText: "새 번역",
+          confidence: 0.8,
+          sourceDirection: "vertical",
+          renderDirection: "horizontal",
+          fontSizePx: 20,
+          lineHeight: 1.2,
+          textAlign: "center",
+          textColor: "#111111",
+          backgroundColor: "#fffdf5",
+          opacity: 1,
+        },
+      ],
+    };
+
+    const merged = mergeLiveChapterPreservingDirtyPages(live, local, [
+      "page-1",
+    ]);
+
+    // updatedAt + analysisStatus + blocks differ → cannot reuse local.
+    expect(merged.chapter.pages[1]).toBe(live.pages[1]);
+    expect(merged.chapter.pages[1]?.analysisStatus).toBe("completed");
+  });
+
+  it("still merges page-by-page when no page is dirty (no early return)", () => {
+    const local = makeChapter();
+    const live = makeChapter();
+
+    const merged = mergeLiveChapterPreservingDirtyPages(live, local, []);
+
+    expect(merged.preservedDirtyPageIds).toEqual([]);
+    // Every page is content-equal → local objects reused (identity preserved).
+    expect(merged.chapter.pages[0]).toBe(local.pages[0]);
+    expect(merged.chapter.pages[1]).toBe(local.pages[1]);
+  });
 });

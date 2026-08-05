@@ -493,14 +493,27 @@ export async function inferFontMatchingPagePixels({
   if (raster.width !== page.width || raster.height !== page.height) {
     throw new Error("Original-page dimensions drifted before font inference.");
   }
-  const prepared = blocks.flatMap((block) => {
+  // 전체 페이지 디코드 직후 한 번 양보해 메인 이벤트 루프가 IPC/취소를 서비스.
+  await yieldToEventLoop();
+  // 블록별 픽셀 전처리(crop/Otsu/flood-fill/CC/chamfer/Lanczos)는 동기 heavy
+  // 작업이다. 매 블록마다 양보하지 않으면 페이지 폰트매칭 중 메인 스레드가
+  // IPC를 서비스하지 못해 앱이 멈춘다. 한 블록 단위로 양보해 응답성을 유지.
+  const prepared: {
+    block: (typeof blocks)[number];
+    views: NonNullable<ReturnType<typeof prepareFontMatchingBlockViews>>;
+  }[] = [];
+  for (const block of blocks) {
+    throwIfAborted(signal);
     const views = prepareFontMatchingBlockViews(
       raster,
       block.item.bbox,
       signal,
     );
-    return views ? [{ block, views }] : [];
-  });
+    if (views) {
+      prepared.push({ block, views });
+    }
+    await yieldToEventLoop();
+  }
   if (prepared.length === 0) return new Map();
   const features = await encodeBlockViews(model, prepared, signal);
   const outputs = await runRanker(model, features, prepared.length, signal);
@@ -518,6 +531,16 @@ export async function inferFontMatchingPagePixels({
   } finally {
     disposeOutputs(outputs);
   }
+}
+
+/**
+ * 메인 프로세스의 동기 heavy 작업 사이에 이벤트 루프로 양보한다. 폰트매칭 픽셀
+ * 전처리는 메인 스레드에서 동기로 실행되므로, 블록 사이에 양보하지 않으면
+ * 페이지 추론 중 IPC(취소/진행/탐색)가 막혀 앱이 멈춘다. setImmediate는
+ * I/O/타이머 콜백을 먼저 drain시키므로 IPC 응답성을 유지한다.
+ */
+function yieldToEventLoop(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
 }
 
 async function encodeBlockViews(

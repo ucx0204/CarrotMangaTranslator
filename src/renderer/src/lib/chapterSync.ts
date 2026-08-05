@@ -1,3 +1,4 @@
+import { hashTranslationBlocks } from "../../../shared/blockFingerprint";
 import type {
   ChapterSnapshot,
   MangaPage,
@@ -64,13 +65,6 @@ export function mergeLiveChapterPreservingDirtyPages(
   }
 
   const dirtyPageIdSet = new Set(dirtyPageIds);
-  if (dirtyPageIdSet.size === 0) {
-    return {
-      chapter: liveChapter,
-      preservedDirtyPageIds: [],
-    };
-  }
-
   const localPages = new Map(localChapter.pages.map((page) => [page.id, page]));
   const preservedDirtyPageIds: string[] = [];
 
@@ -79,22 +73,45 @@ export function mergeLiveChapterPreservingDirtyPages(
       ...liveChapter,
       pages: liveChapter.pages.map((page) => {
         const localPage = localPages.get(page.id);
-        if (!localPage || !dirtyPageIdSet.has(page.id)) {
+        // 라이브에만 존재하는 신규 페이지는 그대로 사용한다.
+        if (!localPage) {
           return page;
         }
-
-        preservedDirtyPageIds.push(page.id);
-        return {
-          ...localPage,
-          blocks: mergeAppendedLiveBlocks(localPage, page, options),
-          inpaintedImagePath: page.inpaintedImagePath,
-          analysisStatus: page.analysisStatus,
-          lastError: page.lastError,
-        };
+        // dirty 페이지는 로컬 편집을 보존하면서 라이브 상태만 반영한다.
+        if (dirtyPageIdSet.has(page.id)) {
+          preservedDirtyPageIds.push(page.id);
+          return {
+            ...localPage,
+            blocks: mergeAppendedLiveBlocks(localPage, page, options),
+            inpaintedImagePath: page.inpaintedImagePath,
+            analysisStatus: page.analysisStatus,
+            lastError: page.lastError,
+          };
+        }
+        // 비-dirty 페이지는 내용이 동일하면 로컬 객체를 재사용해 객체 식별을
+        // 보존한다. 매 page_done마다 IPC가 새로 만든 fresh 객체를 그대로 쓰면
+        // 렌더 memo가 전부 miss하며 canvas measureText 재레이아웃 폭풍이 발생해
+        // 보이는 페이지가 멈춘다. 스칼라 필드로 먼저 거르고 통과 시에만 양쪽
+        // 블록 해시를 비교한다.
+        return isPageContentEqual(localPage, page) ? localPage : page;
       }),
     },
     preservedDirtyPageIds,
   };
+}
+
+function isPageContentEqual(
+  localPage: MangaPage,
+  livePage: MangaPage,
+): boolean {
+  return (
+    localPage.updatedAt === livePage.updatedAt &&
+    localPage.analysisStatus === livePage.analysisStatus &&
+    localPage.inpaintedImagePath === livePage.inpaintedImagePath &&
+    localPage.lastError === livePage.lastError &&
+    hashTranslationBlocks(localPage.blocks) ===
+      hashTranslationBlocks(livePage.blocks)
+  );
 }
 
 function mergeAppendedLiveBlocks(
