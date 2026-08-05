@@ -40,7 +40,9 @@ input.on("line", (line) => {
     return;
   }
   if (mode === "malformed") {
-    process.stdout.write("not-json\n");
+    // { 로 시작하지만 파싱 불가능한 진짜 손상 응답. 비-JSON 노이즈(CUDA 경고)는
+    // 이제 스킵되므로, 프로토콜 오류 경로를 검증하려면 { 로 시작해야 한다.
+    process.stdout.write('{"id": "broken\n');
     return;
   }
   if (mode === "missing-id") {

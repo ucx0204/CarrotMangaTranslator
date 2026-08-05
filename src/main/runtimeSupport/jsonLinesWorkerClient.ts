@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- worker protocol, spawn diagnostics, and stderr tail stay co-located for auditability */
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 
 const DEFAULT_WORKER_REQUEST_TIMEOUT_MS = 30 * 60 * 1000;
@@ -62,7 +63,9 @@ export class JsonLinesWorkerClient<
     this.child.stderr.on("data", (chunk: Buffer) =>
       this.rememberStderr(chunk.toString("utf8")),
     );
-    this.child.on("error", (error) => this.failPermanently(error));
+    this.child.on("error", (error) =>
+      this.failPermanently(this.enrichSpawnError(error)),
+    );
     this.child.on("exit", (code) => this.handleExit(code));
   }
 
@@ -241,7 +244,16 @@ export class JsonLinesWorkerClient<
   }
 
   private handleResponseLine(line: string): boolean {
-    const parsed = parseResponseLine(line);
+    // Flux/Koharu/anime-text 런타임이 CUDA/드라이버 경고(ANSI 이스케이프 포함)를
+    // stdout에 섞어 내보낼 수 있다. 이전에는 비-JSON 라인 한 줄이 프로토콜
+    // 오류로 워커를 kill했는데, 노이즈는 스킵하고 진단용 stderr tail에만
+    // 보관한다. { 로 시작하는 라인만 응답 후보로 파싱한다.
+    const stripped = stripAnsiEscapes(line);
+    if (!stripped.startsWith("{")) {
+      this.rememberStderr(`${line}\n`);
+      return true;
+    }
+    const parsed = parseResponseLine(stripped);
     if (!parsed.ok) {
       this.failProtocol(parsed.detail);
       return false;
@@ -287,6 +299,25 @@ export class JsonLinesWorkerClient<
       this.killChild();
     }
     this.rejectAll(error);
+  }
+
+  /**
+   * spawn UNKNOWN 등 child "error" 이벤트는 buildExitError(큐레이션된 백엔드별
+   * 메시지)를 거치지 않고 Node의 raw Error를 그대로 reject한다. 실행 파일 경로와
+   * 인자, 조치 힌트를 덧붙여 사용자가 백신 차단/누락된 DLL/PATH 문제를 진단할
+   * 수 있게 한다. code/errno는 보존한다.
+   */
+  private enrichSpawnError(error: Error): Error {
+    const code = (error as { code?: unknown }).code;
+    const detail =
+      typeof code === "string" ? code : error.message || "spawn error";
+    const enriched = new Error(
+      `${this.options.workerName} 실행 파일을 시작하지 못했습니다 (${detail}): ${this.options.executable} ${this.options.args.join(" ")}. 백신 차단, 누락된 DLL, 또는 PATH를 확인하세요. ${this.getStderr()}`.trim(),
+    );
+    return Object.assign(enriched, {
+      code: (error as { code?: unknown }).code,
+      errno: (error as { errno?: unknown }).errno,
+    });
   }
 
   private assertRunning(): void {
@@ -355,6 +386,10 @@ export class JsonLinesWorkerClient<
 type ParsedResponse =
   | { ok: true; response: JsonLinesWorkerResponse }
   | { ok: false; detail: string };
+
+function stripAnsiEscapes(line: string): string {
+  return line.replace(/\x1b\[[0-9;]*[A-Za-z]/g, "");
+}
 
 function parseResponseLine(line: string): ParsedResponse {
   let value: unknown;
