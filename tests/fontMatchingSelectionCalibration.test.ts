@@ -124,6 +124,60 @@ describe("font matching selection calibration contract", () => {
     ).toBe(createHash("sha256").update(sourceJson).digest("hex"));
   });
 
+  it("excludes release_acceptance when reconstructing a release contract binding", () => {
+    const descriptor = (file: string, index: number) => ({
+      byte_size: index + 1,
+      file,
+      sha256: `${index + 1}`.repeat(64),
+    });
+    const baseFiles = [
+      "auto-match-active-catalog.json",
+      "encoder.onnx",
+      "prototype-features.f32",
+      "ranker.onnx",
+    ];
+    const sourceCore = {
+      artifacts: Object.fromEntries(
+        baseFiles.map((file, index) => [file, descriptor(file, index)]),
+      ),
+      calibration: { temperature: 1, none_threshold: 0.5 },
+      model_version: "fixture-runtime-v1",
+      record_type: "font_matching_runtime_artifact",
+      // release_evaluation is part of the pre-calibration source contract; the
+      // Python sealer does not pop it, so the binding hash includes it.
+      release_evaluation: { status: "source_quality_gate_passed" },
+      schema_version: "font-matching-runtime-artifact-v2",
+    };
+    const attachedCore = {
+      ...sourceCore,
+      artifacts: {
+        ...sourceCore.artifacts,
+        "selection-calibration.json": descriptor(
+          "selection-calibration.json",
+          4,
+        ),
+      },
+      // A promoted release contract carries release evidence that the Python
+      // calibration sealer pops before resealing; it must not change the binding.
+      release_acceptance: {
+        qa_runs: [{ cohort: "baseline40", verdict: "accepted" }],
+        r5_snapshot_evaluations: ["e", "f"],
+      },
+      release_evaluation: { status: "source_quality_gate_passed" },
+    };
+    const sourceJson = pythonRuntimeContractJson(sourceCore);
+    const attachedJson = pythonRuntimeContractJson(attachedCore);
+    const attached = JSON.parse(attachedJson) as Record<string, unknown>;
+
+    expect("release_acceptance" in attached).toBe(true);
+    expect(
+      reconstructFontMatchingSourceRuntimeContractSha256(
+        attached,
+        attachedJson,
+      ),
+    ).toBe(createHash("sha256").update(sourceJson).digest("hex"));
+  });
+
   it("parses the sealed legacy 45+15 feature contract and exact bindings", () => {
     const parsed = parseFixture();
 

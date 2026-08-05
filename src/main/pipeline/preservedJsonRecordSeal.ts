@@ -58,6 +58,7 @@ export function reconstructPythonSealedJsonWithoutNestedKey(
   containerKey: string,
   removedKey: string,
   sealKey = "record_sha256",
+  removedTopLevelKeys: readonly string[] = [],
 ): string | null {
   try {
     const root = new PreservedJsonParser(text).parse();
@@ -67,6 +68,11 @@ export function reconstructPythonSealedJsonWithoutNestedKey(
     const container = containerEntry[1];
     if (!container.entries.some(([key]) => key === removedKey)) return null;
     if (!root.entries.some(([key]) => key === sealKey)) return null;
+    // A release contract carries a `release_acceptance` block that the Python
+    // calibration sealer pops before resealing (attach_font_matching_selection_
+    // calibration.py). It is not part of the pre-calibration source contract and
+    // must not alter the reconstructed binding hash; drop it alongside the seal.
+    const topLevelDrop = new Set([sealKey, ...removedTopLevelKeys]);
 
     const sourceContainer: PreservedJsonNode = {
       type: "object",
@@ -75,7 +81,7 @@ export function reconstructPythonSealedJsonWithoutNestedKey(
     const sourceCore: PreservedJsonNode = {
       type: "object",
       entries: root.entries
-        .filter(([key]) => key !== sealKey)
+        .filter(([key]) => !topLevelDrop.has(key))
         .map(([key, value]) =>
           key === containerKey
             ? ([key, sourceContainer] as const)

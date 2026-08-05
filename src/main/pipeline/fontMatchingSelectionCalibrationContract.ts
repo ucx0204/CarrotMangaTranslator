@@ -899,6 +899,8 @@ export function reconstructFontMatchingSourceRuntimeContractSha256(
       attachedContractJson,
       "artifacts",
       "selection-calibration.json",
+      "record_sha256",
+      ["release_acceptance"],
     );
     if (!reconstructed) return null;
     try {
@@ -924,7 +926,9 @@ export function reconstructFontMatchingSourceRuntimeContractSha256(
   );
   const sourceCore = Object.fromEntries(
     Object.entries(attachedContract)
-      .filter(([key]) => key !== "record_sha256")
+      .filter(
+        ([key]) => key !== "record_sha256" && key !== "release_acceptance",
+      )
       .map(([key, value]) => [
         key,
         key === "artifacts" ? sourceArtifacts : value,
