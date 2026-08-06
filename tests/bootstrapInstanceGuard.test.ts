@@ -191,7 +191,7 @@ describe("instance guard source invariants", () => {
       "utf8",
     );
     const cleanupStart = mainSource.indexOf(
-      "async function finishAppQuitCleanup()",
+      "async function finishAppQuitCleanup(",
     );
     const cleanupEnd = mainSource.indexOf(
       "function openMainWindow()",
@@ -202,7 +202,6 @@ describe("instance guard source invariants", () => {
     const revisionRelease = cleanupSource.indexOf(
       "inpaintingRevisionStore.releaseAll()",
     );
-    const quit = cleanupSource.lastIndexOf("app.quit()");
     const stateSource = readFileSync(
       join(repoRoot, "src", "main", "dataRootInstanceLockState.ts"),
       "utf8",
@@ -210,10 +209,31 @@ describe("instance guard source invariants", () => {
 
     expect(dispose).toBeGreaterThanOrEqual(0);
     expect(revisionRelease).toBeGreaterThan(dispose);
-    expect(quit).toBeGreaterThan(revisionRelease);
+    expect(cleanupSource).not.toContain("app.quit(");
+    expect(cleanupSource).not.toContain("app.exit(");
     expect(cleanupSource).not.toContain("releaseDataRootInstanceLockLease");
     expect(mainSource).not.toContain("releaseDataRootInstanceLockLease");
+    expect(mainSource).toContain("beginBoundedAppQuit");
     expect(stateSource).toContain('process.once("exit", releaseAtProcessExit)');
+  });
+
+  it("arms a pure app-quit coordinator before cleanup and keeps force-exit ownership there", () => {
+    const coordinatorSource = readFileSync(
+      join(repoRoot, "src", "main", "appQuitCoordinator.ts"),
+      "utf8",
+    );
+    const schedule = coordinatorSource.indexOf("runtime.schedule(");
+    const cleanup = coordinatorSource.indexOf("runCleanup(updateProgress)");
+
+    expect(coordinatorSource).toContain("APP_QUIT_HARD_DEADLINE_MS");
+    expect(coordinatorSource).toContain("forceExitTriggered");
+    expect(schedule).toBeGreaterThanOrEqual(0);
+    expect(cleanup).toBeGreaterThan(schedule);
+    expect(coordinatorSource).not.toContain('from "electron"');
+    expect(coordinatorSource).not.toContain("app.quit(");
+    expect(coordinatorSource).not.toContain("app.exit(");
+    expect(coordinatorSource).not.toContain("clearTimeout(");
+    expect(coordinatorSource).not.toContain(".unref(");
   });
 
   it("registers early second-instance handling with pending startup focus", () => {

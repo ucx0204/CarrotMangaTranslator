@@ -199,13 +199,13 @@ describe("before-quit cleanup", () => {
     ).toBe(true);
   });
 
-  it("aborts, completes cleanup, clears the job, then quits", async () => {
+  it("aborts, completes cleanup, cancels the timeout, then clears the job", async () => {
     const events: string[] = [];
     const job = makeActiveJob();
     job.abortController.signal.addEventListener("abort", () => {
       events.push("abort");
     });
-    const neverTimesOut = createDeferred<void>();
+    const timer = {} as ReturnType<typeof setTimeout>;
     const jobs = {
       clearIfCurrent: vi.fn((jobId: string) => {
         events.push(`clear:${jobId}`);
@@ -214,33 +214,42 @@ describe("before-quit cleanup", () => {
         events.push(`cleanup:${reason}`);
       }),
     };
-    const quit = vi.fn(() => events.push("quit"));
     const warnTimedOut = vi.fn();
-    const wait = vi.fn(async (timeoutMs: number) => {
-      events.push(`wait:${timeoutMs}`);
-      await neverTimesOut.promise;
-    });
+    const scheduleTimeout = vi.fn(
+      (_callback: () => void, timeoutMs: number) => {
+        events.push(`schedule:${timeoutMs}`);
+        return timer;
+      },
+    );
+    const clearScheduledTimeout = vi.fn(
+      (scheduledTimer: ReturnType<typeof setTimeout>) => {
+        expect(scheduledTimer).toBe(timer);
+        events.push("clear-timeout");
+      },
+    );
 
     const result = await finishBeforeQuitCleanup({
       job,
       jobs,
-      quit,
-      wait,
       warnTimedOut,
+      scheduleTimeout,
+      clearScheduledTimeout,
     });
 
     expect(events).toEqual([
       "abort",
       "cleanup:before-quit",
-      `wait:${BEFORE_QUIT_CLEANUP_TIMEOUT_MS}`,
+      `schedule:${BEFORE_QUIT_CLEANUP_TIMEOUT_MS}`,
+      "clear-timeout",
       `clear:${job.id}`,
-      "quit",
     ]);
+    expect(scheduleTimeout).toHaveBeenCalledTimes(1);
+    expect(clearScheduledTimeout).toHaveBeenCalledTimes(1);
     expect(warnTimedOut).not.toHaveBeenCalled();
     expect(result).toEqual({ timedOut: false });
   });
 
-  it("warns and quits after the timeout without waiting for cleanup", async () => {
+  it("keeps the active job until timed-out cleanup actually settles", async () => {
     const events: string[] = [];
     const job = makeActiveJob();
     job.abortController.signal.addEventListener("abort", () => {
@@ -248,6 +257,7 @@ describe("before-quit cleanup", () => {
     });
     const cleanupGate = createDeferred<void>();
     const cleanupFinished = createDeferred<void>();
+    const timer = {} as ReturnType<typeof setTimeout>;
     const jobs = {
       clearIfCurrent: vi.fn((jobId: string) => {
         events.push(`clear:${jobId}`);
@@ -259,35 +269,77 @@ describe("before-quit cleanup", () => {
         cleanupFinished.resolve(undefined);
       }),
     };
-    const quit = vi.fn(() => events.push("quit"));
     const warnTimedOut = vi.fn((jobId: string, timeoutMs: number) => {
       events.push(`timeout:${jobId}:${timeoutMs}`);
     });
-    const wait = vi.fn(async (timeoutMs: number) => {
-      events.push(`wait:${timeoutMs}`);
+    const scheduleTimeout = vi.fn((callback: () => void, timeoutMs: number) => {
+      events.push(`schedule:${timeoutMs}`);
+      callback();
+      return timer;
     });
+    const clearScheduledTimeout = vi.fn();
 
     const result = await finishBeforeQuitCleanup({
       job,
       jobs,
-      quit,
-      wait,
       warnTimedOut,
+      scheduleTimeout,
+      clearScheduledTimeout,
     });
 
     expect(events).toEqual([
       "abort",
       "cleanup:start",
-      `wait:${BEFORE_QUIT_CLEANUP_TIMEOUT_MS}`,
+      `schedule:${BEFORE_QUIT_CLEANUP_TIMEOUT_MS}`,
       `timeout:${job.id}:${BEFORE_QUIT_CLEANUP_TIMEOUT_MS}`,
-      `clear:${job.id}`,
-      "quit",
     ]);
+    expect(jobs.clearIfCurrent).not.toHaveBeenCalled();
+    expect(clearScheduledTimeout).not.toHaveBeenCalled();
+    expect(result).toEqual({ timedOut: true });
+
     cleanupGate.resolve(undefined);
     await cleanupFinished.promise;
-    expect(events.at(-1)).toBe("cleanup:end");
-    expect(quit).toHaveBeenCalledTimes(1);
+    await Promise.resolve();
+
+    expect(events).toEqual([
+      "abort",
+      "cleanup:start",
+      `schedule:${BEFORE_QUIT_CLEANUP_TIMEOUT_MS}`,
+      `timeout:${job.id}:${BEFORE_QUIT_CLEANUP_TIMEOUT_MS}`,
+      "cleanup:end",
+      `clear:${job.id}`,
+    ]);
+    expect(jobs.clearIfCurrent).toHaveBeenCalledTimes(1);
+  });
+
+  it("late-clears a timed-out job even when generic cleanup rejects", async () => {
+    const failure = new Error("late cleanup failed");
+    const job = makeActiveJob();
+    const cleanupGate = createDeferred<void>();
+    const timer = {} as ReturnType<typeof setTimeout>;
+    const jobs = {
+      clearIfCurrent: vi.fn(),
+      runCleanup: vi.fn(() => cleanupGate.promise),
+    };
+    const result = await finishBeforeQuitCleanup({
+      job,
+      jobs,
+      warnTimedOut: vi.fn(),
+      scheduleTimeout: (callback) => {
+        callback();
+        return timer;
+      },
+      clearScheduledTimeout: vi.fn(),
+    });
+
     expect(result).toEqual({ timedOut: true });
+    expect(jobs.clearIfCurrent).not.toHaveBeenCalled();
+
+    cleanupGate.reject(failure);
+    await Promise.resolve();
+
+    expect(jobs.clearIfCurrent).toHaveBeenCalledTimes(1);
+    expect(jobs.clearIfCurrent).toHaveBeenCalledWith(job.id);
   });
 });
 
@@ -303,13 +355,16 @@ function makeActiveJob(cleanup?: () => Promise<void>): ActiveJob {
 function createDeferred<T>(): {
   promise: Promise<T>;
   resolve: (value: T | PromiseLike<T>) => void;
+  reject: (reason?: unknown) => void;
 } {
   let resolvePromise: ((value: T | PromiseLike<T>) => void) | undefined;
-  const promise = new Promise<T>((resolve) => {
+  let rejectPromise: ((reason?: unknown) => void) | undefined;
+  const promise = new Promise<T>((resolve, reject) => {
     resolvePromise = resolve;
+    rejectPromise = reject;
   });
-  if (!resolvePromise) {
+  if (!resolvePromise || !rejectPromise) {
     throw new Error("Failed to initialize deferred promise.");
   }
-  return { promise, resolve: resolvePromise };
+  return { promise, resolve: resolvePromise, reject: rejectPromise };
 }

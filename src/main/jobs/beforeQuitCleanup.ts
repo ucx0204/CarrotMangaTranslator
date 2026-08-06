@@ -5,10 +5,13 @@ export const BEFORE_QUIT_CLEANUP_TIMEOUT_MS = 5000;
 type BeforeQuitCleanupOptions = {
   job: ActiveJob;
   jobs: Pick<ActiveJobStore, "clearIfCurrent" | "runCleanup">;
-  quit: () => void;
   warnTimedOut: (jobId: string, timeoutMs: number) => void;
   timeoutMs?: number;
-  wait?: (timeoutMs: number) => Promise<void>;
+  scheduleTimeout?: (
+    callback: () => void,
+    timeoutMs: number,
+  ) => ReturnType<typeof setTimeout>;
+  clearScheduledTimeout?: (timer: ReturnType<typeof setTimeout>) => void;
 };
 
 export type BeforeQuitCleanupResult = {
@@ -25,26 +28,74 @@ export function canReleaseInpaintingHistoryAfterQuitCleanup(
 export async function finishBeforeQuitCleanup({
   job,
   jobs,
-  quit,
   warnTimedOut,
   timeoutMs = BEFORE_QUIT_CLEANUP_TIMEOUT_MS,
-  wait = delay,
+  scheduleTimeout = setTimeout,
+  clearScheduledTimeout = clearTimeout,
 }: BeforeQuitCleanupOptions): Promise<BeforeQuitCleanupResult> {
   job.abortController.abort();
-  const timedOut = await Promise.race([
-    jobs.runCleanup(job, "before-quit").then(() => false),
-    wait(timeoutMs).then(() => true),
-  ]);
-  if (timedOut) {
-    warnTimedOut(job.id, timeoutMs);
+
+  const cleanup = jobs.runCleanup(job, "before-quit");
+  const timedOut = await waitForCleanupDeadline(
+    cleanup,
+    timeoutMs,
+    scheduleTimeout,
+    clearScheduledTimeout,
+  );
+
+  if (!timedOut) {
+    jobs.clearIfCurrent(job.id);
+    return { timedOut: false };
   }
-  jobs.clearIfCurrent(job.id);
-  quit();
-  return { timedOut };
+
+  warnTimedOut(job.id, timeoutMs);
+
+  const clearAfterSettlement = () => {
+    jobs.clearIfCurrent(job.id);
+  };
+
+  void cleanup.then(clearAfterSettlement, clearAfterSettlement);
+
+  return { timedOut: true };
 }
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
+function waitForCleanupDeadline(
+  cleanup: Promise<void>,
+  timeoutMs: number,
+  scheduleTimeout: (
+    callback: () => void,
+    timeoutMs: number,
+  ) => ReturnType<typeof setTimeout>,
+  clearScheduledTimeout: (timer: ReturnType<typeof setTimeout>) => void,
+): Promise<boolean> {
+  return new Promise<boolean>((resolve, reject) => {
+    let settled = false;
+
+    const timer = scheduleTimeout(() => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      resolve(true);
+    }, timeoutMs);
+
+    cleanup.then(
+      () => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        clearScheduledTimeout(timer);
+        resolve(false);
+      },
+      (error) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        clearScheduledTimeout(timer);
+        reject(error);
+      },
+    );
   });
 }

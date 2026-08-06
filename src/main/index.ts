@@ -3,15 +3,16 @@ import { dirname } from "node:path";
 import { ensureWritableAppDirectories, getAppPaths } from "./appPaths";
 import { cleanupLegacyLogs } from "./appMaintenance";
 import {
+  beginBoundedAppQuit,
+  type AppQuitCleanupProgress,
+} from "./appQuitCoordinator";
+import { runAppQuitCleanup } from "./appQuitCleanup";
+import {
   registerImageProtocolHandler,
   registerImageProtocolScheme,
 } from "./imageProtocol";
 import { registerIpc } from "./ipc/registerIpc";
 import { ActiveJobStore } from "./jobs/activeJob";
-import {
-  canReleaseInpaintingHistoryAfterQuitCleanup,
-  finishBeforeQuitCleanup,
-} from "./jobs/beforeQuitCleanup";
 import { disposeCachedInpaintingEngines } from "./inpainting/inpaintingEnginePool";
 import { InpaintingRevisionStore } from "./inpainting/inpaintingRevisionStore";
 import { cleanupLibraryOrphans, getLibraryRoot } from "./library";
@@ -168,9 +169,30 @@ app.on("before-quit", (event) => {
   }
   event.preventDefault();
   quitCleanupStarted = true;
-  cancelStartupMaintenance?.();
-  cancelStartupMaintenance = null;
-  void finishAppQuitCleanup();
+
+  const attempt = beginBoundedAppQuit({
+    runCleanup: finishAppQuitCleanup,
+    runtime: {
+      now: () => Date.now(),
+      schedule: (callback, delayMs) => setTimeout(callback, delayMs),
+      gracefulQuit: () => app.quit(),
+      forceExit: (code) => app.exit(code),
+      reportCleanupFailure: (error, progress) => {
+        logError("Failed to clean up before app quit", {
+          ...progress,
+          error,
+        });
+      },
+      reportForcedExit: (detail) => {
+        logError(
+          "App quit hard deadline reached; forcing process exit",
+          detail,
+        );
+      },
+    },
+  });
+
+  void attempt.completion;
 });
 
 async function runStartupMaintenance(): Promise<void> {
@@ -187,43 +209,25 @@ async function runStartupMaintenance(): Promise<void> {
   logInfo("Library orphan cleanup finished", cleanupResult);
 }
 
-async function finishAppQuitCleanup(): Promise<void> {
-  let inpaintingHistoryReleaseSafe = true;
-  try {
-    const job = jobs.current;
-    if (job) {
-      const cleanup = await finishBeforeQuitCleanup({
-        job,
-        jobs,
-        quit: () => undefined,
-        warnTimedOut: (jobId, timeoutMs) => {
-          logWarn("Timed out waiting for active job cleanup during app quit", {
-            jobId,
-            timeoutMs,
-          });
-        },
-      });
-      inpaintingHistoryReleaseSafe =
-        canReleaseInpaintingHistoryAfterQuitCleanup(job.kind, cleanup);
-      if (!inpaintingHistoryReleaseSafe) {
-        logWarn(
-          "Skipping inpainting history release because the active job did not settle before quit",
-          { jobId: job.id },
-        );
+async function finishAppQuitCleanup(
+  updateProgress: (progress: AppQuitCleanupProgress) => void,
+): Promise<void> {
+  await runAppQuitCleanup({
+    jobs,
+    cancelStartupMaintenance: () => {
+      try {
+        cancelStartupMaintenance?.();
+      } finally {
+        cancelStartupMaintenance = null;
       }
-    }
-    await Promise.all([
-      disposeCachedInpaintingEngines("app-quit"),
-      disposeTranslationRuntimeResources("app-quit"),
-    ]);
-    if (inpaintingHistoryReleaseSafe) {
-      await inpaintingRevisionStore.releaseAll();
-    }
-  } catch (error) {
-    logError("Failed to clean up before app quit", error);
-  } finally {
-    app.quit();
-  }
+    },
+    disposeInpainting: () => disposeCachedInpaintingEngines("app-quit"),
+    disposeTranslation: () => disposeTranslationRuntimeResources("app-quit"),
+    releaseInpaintingHistory: () => inpaintingRevisionStore.releaseAll(),
+    updateProgress,
+    logError,
+    logWarn,
+  });
 }
 
 function openMainWindow(): void {
