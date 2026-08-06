@@ -25,7 +25,7 @@ import {
   FONT_MATCHING_ACTIVE_CATALOG_FILE,
   FONT_MATCHING_RUNTIME_BUNDLE_DIRECTORY,
 } from "./fontMatchingRuntimeArtifactContract";
-import { createDefaultFontMatchingPageInferencePort } from "./fontMatchingPagePixelInference";
+import { createWorkerFontMatchingPageInferencePort } from "./fontMatchingInferenceWorkerClient";
 import type { FontMatchingPageInferencePort } from "./fontMatchingPagePixelInferenceTypes";
 
 type PipelineSettingsRepository = {
@@ -101,7 +101,7 @@ export function createDefaultWholePagePipelineDependencies(): WholePagePipelineD
         return loadSelection(locale).candidates;
       },
       loadProfile: readWorkTypographyProfile,
-      pageInference: createDefaultFontMatchingPageInferencePort({
+      pageInference: createWorkerFontMatchingPageInferencePort({
         paths,
         loadSelection,
         reportWarning: logWarn,

@@ -308,7 +308,13 @@ describe("image protocol integration", () => {
           files: createNodeLibraryImageUrlFiles(libraryRoot),
         }),
         resolveLibraryImagePath: (path) => path,
-        resolveFontFilePath: () => fontPath,
+        resolveFontFilePath: (id) =>
+          id === "font-id" ||
+          id === "font.ttf" ||
+          id === "ko/dohyeon.ttf" ||
+          id === "zh-hant/lxgw-wenkai-tc.ttf"
+            ? fontPath
+            : null,
         serveFile: (path, options) => serveFile(path, options),
         isUnavailableError: isProtocolFileUnavailableError,
         reportError: logError,
@@ -370,6 +376,67 @@ describe("image protocol integration", () => {
       expect(imageResponse.headers.get("Access-Control-Allow-Origin")).toBe(
         null,
       );
+
+      // 빌트인 폰트는 mgt-font:///<rel> 삼중 슬래시(hostname 빈 → pathname)로
+      // 요청되며, resolveFontFilePath가 <rel>을 빌트인 경로로 해석한다(#53).
+      const builtInFontResponse = await fontHandler({
+        url: "mgt-font:///font.ttf",
+      });
+      expect(builtInFontResponse.status).toBe(200);
+      expect(builtInFontResponse.headers.get("Content-Type")).toBe("font/ttf");
+      expect(
+        builtInFontResponse.headers.get("Access-Control-Allow-Origin"),
+      ).toBe("*");
+      expect(await builtInFontResponse.text()).toBe("font");
+      const unknownRelResponse = await fontHandler({
+        url: "mgt-font:///missing.ttf",
+      });
+      expect(unknownRelResponse.status).toBe(404);
+
+      // Chromium canonicalizes mgt-font:///<subdir>/<file> (scheme registered
+      // standard) to mgt-font://<first-segment>/<rest>, moving the first path
+      // segment into `hostname` and the rest into `pathname`. The handler must
+      // reconstruct the full relative path (ko/dohyeon.ttf) from hostname +
+      // pathname; the old `url.hostname || pathname` logic kept only "ko" and
+      // 404'd every subdir built-in font (#53). Both the canonicalized
+      // (host=first-segment) and plain (host empty) forms must resolve.
+      const subdirCanonicalized = await fontHandler({
+        url: "mgt-font://ko/dohyeon.ttf",
+      });
+      expect(subdirCanonicalized.status).toBe(200);
+      expect(subdirCanonicalized.headers.get("Content-Type")).toBe("font/ttf");
+      expect(await subdirCanonicalized.text()).toBe("font");
+      const subdirPlain = await fontHandler({
+        url: "mgt-font:///ko/dohyeon.ttf",
+      });
+      expect(subdirPlain.status).toBe(200);
+      expect(await subdirPlain.text()).toBe("font");
+      // Top-level built-in font: Chromium sends mgt-font://<file>/ (hostname is
+      // the filename, pathname "/"). Must collapse to the bare filename.
+      const topLevelCanonicalized = await fontHandler({
+        url: "mgt-font://font.ttf/",
+      });
+      expect(topLevelCanonicalized.status).toBe(200);
+      expect(await topLevelCanonicalized.text()).toBe("font");
+      // Custom UUID font (hostname is the UUID, pathname "/"). Must collapse to
+      // the bare UUID so resolveCustomFontFilePath resolves it.
+      const customCanonicalized = await fontHandler({
+        url: "mgt-font://font-id/",
+      });
+      expect(customCanonicalized.status).toBe(200);
+      expect(await customCanonicalized.text()).toBe("font");
+      // Nested subdir (zh-hant/...) must preserve the inner slash.
+      const nestedSubdir = await fontHandler({
+        url: "mgt-font://zh-hant/lxgw-wenkai-tc.ttf",
+      });
+      expect(nestedSubdir.status).toBe(200);
+      expect(await nestedSubdir.text()).toBe("font");
+      // A subdir whose first segment alone is not a font id must still 404 when
+      // the full path is unknown (guards against regressing to host-only logic).
+      const unknownSubdir = await fontHandler({
+        url: "mgt-font://ko/missing.ttf",
+      });
+      expect(unknownSubdir.status).toBe(404);
 
       writeFileSync(imagePath, "replacement");
       const replacementUrl = controller.createLibraryImageUrl(imagePath);

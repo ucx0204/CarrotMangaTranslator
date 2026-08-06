@@ -33,6 +33,7 @@ const macRuntimeRoot =
 const stagedMacTools = join(macRuntimeRoot, "tools");
 const onnxRuntimeWebVersion = "1.27.0";
 const onnxWasmModuleFile = "ort-wasm-simd-threaded.mjs";
+const onnxWasmBinaryFile = "ort-wasm-simd-threaded.wasm";
 const extraResources = [
   {
     from: "out/app-runtime",
@@ -42,6 +43,16 @@ const extraResources = [
     from: `node_modules/onnxruntime-web/dist/${onnxWasmModuleFile}`,
     to: `app-runtime/onnxruntime-web/${onnxRuntimeWebVersion}/${onnxWasmModuleFile}`,
   },
+  // The 13 MiB ort-wasm-simd-threaded.wasm binary must be packaged alongside
+  // the .mjs glue so font matching pixel inference (resolveFontMatchingOrtWasm
+  // Assets) can resolve it from runtimeRoot without depending on a prior
+  // bubble-detection download into the persistent data root. Without this,
+  // font matching silently no-ops (disabled("artifact_verification_failed"))
+  // on a fresh install where bubble detection has not yet downloaded the WASM.
+  {
+    from: `node_modules/onnxruntime-web/dist/${onnxWasmBinaryFile}`,
+    to: `app-runtime/onnxruntime-web/${onnxRuntimeWebVersion}/${onnxWasmBinaryFile}`,
+  },
 ];
 const windowsExtraResources = [];
 const macExtraResources = [];
@@ -50,6 +61,36 @@ if (!thinInstaller && existsSync(join(__dirname, "tools", "python"))) {
   windowsExtraResources.push({
     from: "tools/python",
     to: "tools/python",
+    // Exclude regenerable Python bytecode caches. Running tools/python at
+    // runtime (OCR/translation) writes __pycache__/*.cpython-3XY.pyc into the
+    // source tree; packaging them both bloats the installer and can exceed the
+    // NSIS Fast ZIP 79-char path budget (e.g. packaging/__pycache__/…cpython-312
+    // .pyc is 85 chars). extraResources does not apply the default __pycache__
+    // / .pyc ignores, so they must be excluded explicitly. Python regenerates
+    // the caches on first use, matching the pre-existing installed layout.
+    // Also exclude the Python packaging toolchain (pip, setuptools, wheel,
+    // packaging + dist-info + the setuptools distutils shim). These are package
+    // *installers*, not runtime dependencies — OCR/translation uses torch/cv2/
+    // numpy, never pip — and their deep site-packages paths (pip/_internal/
+    // metadata/importlib/__init__.py is 85 chars) exceed the Fast ZIP 79-char
+    // budget. The previously-installed app carried none of these; excluding
+    // them reproduces that known-good payload and unblocks the build.
+    filter: [
+      "**/*",
+      "!**/__pycache__/**",
+      "!**/*.pyc",
+      "!**/*.pyo",
+      "!**/site-packages/pip/**",
+      "!**/site-packages/pip-*.dist-info/**",
+      "!**/site-packages/setuptools/**",
+      "!**/site-packages/setuptools-*.dist-info/**",
+      "!**/site-packages/wheel/**",
+      "!**/site-packages/wheel-*.dist-info/**",
+      "!**/site-packages/packaging/**",
+      "!**/site-packages/packaging-*.dist-info/**",
+      "!**/site-packages/_distutils_hack/**",
+      "!**/site-packages/distutils-precedence.pth",
+    ],
   });
 }
 

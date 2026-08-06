@@ -47,8 +47,19 @@ Function MgtValidateInstallDirectory
   StrLen $0 $INSTDIR
   ${If} $0 > ${MGT_MAX_FAST_ZIP_INSTALL_DIR_LENGTH}
     MessageBox MB_ICONSTOP "설치 경로가 너무 깁니다.$\r$\n${MGT_MAX_FAST_ZIP_INSTALL_DIR_LENGTH}자 이하의 더 짧은 폴더를 선택해 주세요.$\r$\n예: D:\CarrotMangaTranslator"
-    Quit
+    Abort
   ${EndIf}
+FunctionEnd
+
+; Wire the install-directory length check into the MUI directory page so the
+; 160-char $INSTDIR budget the NSIS Fast ZIP extraction (nsisunz, MAX_PATH
+; buffers) relies on is actually enforced. Without this the function was dead
+; code — NSIS warning 6010 (treated as error) — and a user picking an
+; over-long install path would hit nsisunz extraction failures. .onVerifyInstDir
+; is the standard NSIS directory-page verify callback; Abort rejects the
+; directory and keeps the installer open so the user can pick a shorter folder.
+Function .onVerifyInstDir
+  Call MgtValidateInstallDirectory
 FunctionEnd
 
 Function MgtResolveInitialDataRoot

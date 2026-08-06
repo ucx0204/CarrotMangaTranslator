@@ -230,7 +230,9 @@
       "kept": "Results kept: {{count}}",
       "outsideDropped": "Results outside blocks excluded: {{count}}",
       "soundDropped": "Uncertain sound effects excluded: {{count}}",
-      "noiseDropped": "Noise/duplicates excluded: {{count}} ({{reasons}})"
+      "noiseDropped": "Noise/duplicates excluded: {{count}} ({{reasons}})",
+      "remappedId": "Candidate id remapped: {{count}}",
+      "modelOmitted": "Model missed {{count}} candidates"
     },
     "errors": {
       "bboxMissing": "{{page}}: Could not produce bounding-box results.",

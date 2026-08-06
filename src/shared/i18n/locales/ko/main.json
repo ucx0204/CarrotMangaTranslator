@@ -230,7 +230,9 @@
       "kept": "{{count}}개 유지",
       "outsideDropped": "블록 밖 결과 {{count}}개 제외",
       "soundDropped": "불확실한 효과음 {{count}}개 제외",
-      "noiseDropped": "잡음/중복 {{count}}개 제외({{reasons}})"
+      "noiseDropped": "잡음/중복 {{count}}개 제외({{reasons}})",
+      "remappedId": "후보 id 재매핑 {{count}}개",
+      "modelOmitted": "모델이 후보 {{count}}개를 놓침"
     },
     "errors": {
       "bboxMissing": "{{page}}: bbox 결과를 만들지 못했습니다.",

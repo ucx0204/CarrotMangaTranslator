@@ -83,7 +83,7 @@ function buildPageExportHtmlWith(
 <html>
 <head>
 <meta charset="utf-8" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: mgt-image:; font-src data: file:; style-src 'unsafe-inline' file:; script-src file:; base-uri 'none'; form-action 'none';" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: mgt-image:; font-src data: mgt-font: file:; style-src 'unsafe-inline' file:; script-src file:; base-uri 'none'; form-action 'none';" />
 <link rel="stylesheet" href="${escapeHtml(rendererStylesheet)}" />
 <link rel="stylesheet" href="${escapeHtml(assets.stylesHref)}" />
 <style>${customFontFaces}</style>

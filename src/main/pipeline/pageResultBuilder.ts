@@ -289,6 +289,8 @@ export async function buildPageResult({
     soundDroppedCount: soundFiltered.droppedCount,
     validationDroppedCount: validated.droppedCount,
     validationReasons: validated.reasons,
+    omittedCandidateIds: validated.omittedCandidateIds,
+    remappedCount: validated.remappedCount,
     contextWarnings: parsed.warnings,
     pageContext: parsed.pageContext,
     fontMatchingPageInference: pixelInference,

@@ -1,6 +1,7 @@
 import { protocol } from "electron";
 import { randomBytes } from "node:crypto";
 import { extname } from "node:path";
+import { resolveBundledFontFilePath } from "./bundledFontResolver";
 import { resolveCustomFontFilePath } from "./customFonts";
 import {
   createProtocolFileResponse,
@@ -123,7 +124,17 @@ function registerHandler(dependencies: ImageProtocolDependencies): void {
   dependencies.protocol.handle(FONT_PROTOCOL, async (request) => {
     try {
       const url = new URL(request.url);
-      const id = url.hostname || url.pathname.replace(/^\/+/, "");
+      // Chromium canonicalizes mgt-font:///ko/dohyeon.ttf to mgt-font://ko/dohyeon.ttf
+      // when the scheme is registered standard: the first path segment is moved into
+      // `hostname` ("ko") and the rest lands in `pathname` ("/dohyeon.ttf"). The old
+      // `url.hostname || pathname` logic kept only "ko" and discarded the filename, so
+      // every built-in font under ko/ en/ ja/ zh-hans/ zh-hant/ 404'd and fell back to
+      // the default font (only top-level fonts worked, by coincidence — the filename
+      // itself became the host). Reconstruct the id from hostname + pathname and trim
+      // leading/trailing slashes so both the canonicalized (host=first-segment) and the
+      // plain (host empty) parse forms resolve to the full relative path. Custom UUID
+      // fonts (mgt-font://<uuid>, pathname "/") collapse back to the bare UUID.
+      const id = `${url.hostname}${url.pathname}`.replace(/^\/+|\/+$/g, "");
       const fontPath = dependencies.resolveFontFilePath(id);
       if (!fontPath) {
         return protocolErrorResponse("Font not found", 404);
@@ -162,7 +173,8 @@ function getProductionController(): ImageProtocolController {
       files: createNodeLibraryImageUrlFiles(getLibraryRoot()),
     }),
     resolveLibraryImagePath: assertLibraryImagePath,
-    resolveFontFilePath: resolveCustomFontFilePath,
+    resolveFontFilePath: (id) =>
+      resolveCustomFontFilePath(id) ?? resolveBundledFontFilePath(id),
     serveFile: createProtocolFileResponse,
     isUnavailableError: isProtocolFileUnavailableError,
     reportError: logError,

@@ -31,6 +31,8 @@ export function buildTranslatedPageResult({
   soundDroppedCount,
   validationDroppedCount,
   validationReasons,
+  omittedCandidateIds,
+  remappedCount,
   contextWarnings,
   pageContext,
   fontMatchingPageInference,
@@ -43,6 +45,8 @@ export function buildTranslatedPageResult({
   soundDroppedCount: number;
   validationDroppedCount: number;
   validationReasons: Record<string, number>;
+  omittedCandidateIds?: number[];
+  remappedCount?: number;
   contextWarnings: string[];
   pageContext?: PageContextPayload;
   fontMatchingPageInference?: FontMatchingPageInferenceResult;
@@ -90,6 +94,8 @@ export function buildTranslatedPageResult({
       validationDroppedCount,
       soundDroppedCount,
       validationReasons,
+      omittedCandidateIds ?? [],
+      remappedCount ?? 0,
     ),
     pageContext,
   };
@@ -198,8 +204,15 @@ function buildPageResultDetail(
   validationDroppedCount: number,
   soundDroppedCount: number,
   validationReasons: Record<string, number>,
+  omittedCandidateIds: number[],
+  remappedCount: number,
 ): string {
   const details = [tMain("units.blocks", { count: blockCount })];
+  if (remappedCount > 0) {
+    details.push(
+      tMain("translation.result.remappedId", { count: remappedCount }),
+    );
+  }
   if (validationDroppedCount > 0) {
     details.push(
       tMain("translation.result.noiseDropped", {
@@ -211,6 +224,13 @@ function buildPageResultDetail(
   if (soundDroppedCount > 0) {
     details.push(
       tMain("translation.result.soundDropped", { count: soundDroppedCount }),
+    );
+  }
+  if (omittedCandidateIds.length > 0) {
+    details.push(
+      tMain("translation.result.modelOmitted", {
+        count: omittedCandidateIds.length,
+      }),
     );
   }
   return details.join(", ");

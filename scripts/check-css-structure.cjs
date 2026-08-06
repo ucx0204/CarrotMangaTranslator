@@ -171,8 +171,11 @@ function inspectAssetReferences(source, filePath, violations) {
     if (
       reference.startsWith("data:") ||
       reference.startsWith("http:") ||
-      reference.startsWith("https:")
+      reference.startsWith("https:") ||
+      reference.startsWith("mgt-font:")
     ) {
+      // mgt-font:///<rel> 빌트인 폰트는 mgt-font 핸들이 Node fs로 서빙한다(#53).
+      // 존재 검증은 tests/bundledFontAssets.test.ts가 담당한다.
       continue;
     }
     const assetPath = resolve(dirname(filePath), reference);

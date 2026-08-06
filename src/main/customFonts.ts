@@ -31,7 +31,7 @@ import { getAppPaths } from "./appPaths";
 import { assertFontFileLooksValid } from "./customFontFileValidation";
 import { logError } from "./logger";
 
-const ALLOWED_EXTENSIONS = new Set([".ttf", ".otf"]);
+export const ALLOWED_EXTENSIONS = new Set([".ttf", ".otf"]);
 const MAX_FONTS = 200;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -89,7 +89,7 @@ const DEFAULT_FONT_PREFERENCES: FontPreferences = {
   defaultFontId: DEFAULT_BLOCK_FONT_ID,
 };
 
-function isPathInside(rootPath: string, targetPath: string): boolean {
+export function isPathInside(rootPath: string, targetPath: string): boolean {
   const child = relative(rootPath, targetPath);
   return (
     child === "" || (!!child && !child.startsWith("..") && !isAbsolute(child))

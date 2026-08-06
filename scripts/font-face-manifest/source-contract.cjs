@@ -88,9 +88,21 @@ function readCssFontFaces(cssPath) {
     ).trim();
     const style = requireMatch(block, /font-style:\s*([^;]+);/, "style").trim();
     const weight = parseCssWeight(rawWeight);
+    // fonts.css는 빌트인 폰트를 mgt-font:///<rel> 커스텀 스킴으로 참조한다(#53).
+    // 이 절대 URL은 CSS 디렉토리 기준 상대 경로가 아니므로, 스킴 접두어를 떼고
+    // 원본 자산 디렉토리(../assets/fonts)로 해석한다.
+    const resolvedSourcePath = sourcePath.startsWith("mgt-font:///")
+      ? resolve(
+          dirname(cssPath),
+          "..",
+          "assets",
+          "fonts",
+          sourcePath.replace(/^mgt-font:\/\/\//, ""),
+        )
+      : resolve(dirname(cssPath), sourcePath);
     faces.push({
       cssFamily: family,
-      sourcePath: resolve(dirname(cssPath), sourcePath),
+      sourcePath: resolvedSourcePath,
       format: formatMatch?.[2] ?? "unknown",
       weight,
       style,

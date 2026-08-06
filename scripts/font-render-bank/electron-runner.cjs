@@ -300,11 +300,15 @@ async function startAssetServer(html) {
         return;
       }
       if (pathname === "/styles/fonts.css") {
+        // fonts.css는 빌트인 폰트를 mgt-font:///<rel> 커스텀 스킴으로 참조한다(#53).
+        // 이 HTTP 하니스는 mgt-font: 프로토콜을 등록하지 않으므로, 서빙 시 접두어를
+        // ../assets/fonts/<rel> 로 치환해 자산 서버 라우트로 되돌린다(source-contract.cjs
+        // 와 동일 변환).
         writeHttpResponse(
           response,
           200,
           "text/css; charset=utf-8",
-          readFileSync(productionStylesheetPath),
+          rewriteBundledFontCssForHttp(readFileSync(productionStylesheetPath)),
         );
         return;
       }
@@ -371,6 +375,19 @@ function writeHttpResponse(response, status, contentType, bytes) {
 function resolveFontMimeType(path) {
   if (path.toLowerCase().endsWith(".otf")) return "font/otf";
   return "font/ttf";
+}
+
+/**
+ * 프로덕션 fonts.css 의 mgt-font:///<rel> 참조를 HTTP 자산 라우트로 치환한다.
+ * CSS 는 /styles/fonts.css 로 서빙되므로 ../assets/fonts/<rel> 은 /assets/fonts/<rel>
+ * 로 해석되어 startAssetServer 의 자산 브랜치로 라우팅된다(#53).
+ * @param {Buffer} cssBytes
+ */
+function rewriteBundledFontCssForHttp(cssBytes) {
+  return Buffer.from(
+    cssBytes.toString("utf8").replace(/mgt-font:\/\/\//g, "../assets/fonts/"),
+    "utf8",
+  );
 }
 
 /** @param {BrowserWindow} win */

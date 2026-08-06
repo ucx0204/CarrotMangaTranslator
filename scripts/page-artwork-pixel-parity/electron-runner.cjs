@@ -1,8 +1,13 @@
 // @ts-check
-const { app, BrowserWindow, nativeImage } = require("electron");
-const { appendFileSync, mkdirSync, writeFileSync } = require("node:fs");
+const { app, BrowserWindow, nativeImage, protocol } = require("electron");
+const {
+  appendFileSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} = require("node:fs");
 const { mkdir, writeFile } = require("node:fs/promises");
-const { join, resolve } = require("node:path");
+const { extname, join, resolve } = require("node:path");
 const { pathToFileURL } = require("node:url");
 
 const root = resolve(__dirname, "..", "..");
@@ -23,11 +28,27 @@ if (process.env.MGT_PIXEL_PARITY_HARDWARE !== "1") {
 app.commandLine.appendSwitch("force-device-scale-factor", "1");
 app.setPath("userData", userDataDir);
 
+// 패널과 export 모두 빌트인 폰트를 mgt-font:// 커스텀 스킴으로 로드한다(본
+// 앱의 imageProtocol 과 동일). 표준 특권 스킴은 app ready 이전에 등록해야 한다.
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "mgt-font",
+    privileges: {
+      standard: true,
+      secure: true,
+      stream: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+    },
+  },
+]);
+
 /** @type {Array<PixelParityResult>} */
 const caseResults = [];
 
 void app
   .whenReady()
+  .then(registerBundledFontProtocol)
   .then(run)
   .then(() => {
     writeResult({
@@ -42,6 +63,35 @@ void app
     writeResult({ cases: caseResults, error: message, ok: false });
     app.exit(1);
   });
+
+/**
+ * 본 앱의 mgt-font 핸들러(imageProtocol.ts)를 최소 복제해 패널/export 가
+ * 동일한 폰트 바이트를 로드하도록 한다. 핸들은 resolveBundledFontFilePath
+ * (dev: 소스 자산, 패키짭: out/renderer/assets/fonts)로 파일을 해석해
+ * file:// origin에서 교차 출처 fetch되므로 CORS 헤더를 포함해 응답한다.
+ */
+function registerBundledFontProtocol() {
+  const { resolveBundledFontFilePath } = require(
+    join(root, "out", "main", "bundledFontResolver.js"),
+  );
+  protocol.handle("mgt-font", async (request) => {
+    const url = new URL(request.url);
+    const id = url.hostname || url.pathname.replace(/^\/+/, "");
+    const fontPath = resolveBundledFontFilePath(id);
+    if (!fontPath) {
+      return new Response("Font not found", { status: 404 });
+    }
+    const contentType =
+      extname(fontPath).toLowerCase() === ".otf" ? "font/otf" : "font/ttf";
+    return new Response(readFileSync(fontPath), {
+      status: 200,
+      headers: {
+        "content-type": contentType,
+        "access-control-allow-origin": "*",
+      },
+    });
+  });
+}
 
 async function run() {
   reportStatus("preparing fixture");
@@ -322,7 +372,7 @@ function buildPanelHtml(input) {
 <html>
 <head>
 <meta charset="utf-8" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; font-src data: file:; style-src 'unsafe-inline' file:; script-src file:; base-uri 'none';" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; font-src data: mgt-font: file:; style-src 'unsafe-inline' file:; script-src file:; base-uri 'none';" />
 <link rel="stylesheet" href="${escapeHtml(rendererStylesheet)}" />
 <link rel="stylesheet" href="${escapeHtml(panelStyles)}" />
 <style>

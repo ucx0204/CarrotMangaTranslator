@@ -17,17 +17,26 @@ import {
   hasPixelCoordinateEvidence,
   inferDetectedBboxSpace,
 } from "./overlayBboxSpace";
+import { computeOmittedCandidateIds } from "./overlayCompletenessGap";
 
 export type OverlayValidationResult = {
   items: OverlayItem[];
   droppedCount: number;
   reasons: Record<string, number>;
+  remappedCount: number;
+  omittedCandidateIds: number[];
 };
 
 export type OverlayValidationOptions = {
   regionCropMode?: boolean;
   sourceLanguage?: string;
 };
+
+// normalized_1000 bbox 공간(검증 시점) 기준 면적 임계값. 대사 버블은 ~100x200=20,000,
+// 루비/작은 인접 중복은 ~20x20=400 부근. "큰 덩어리는 살리고 루비는 중복 제거"를 위한 값.
+const LARGE_ORDINARY_AREA = 12000;
+const SMALL_DUPLICATE_AREA = 4000;
+const STRONG_OVERLAP_CONTAINMENT = 0.8;
 
 export function validateOverlayItemsAgainstReferences(
   items: OverlayItem[],
@@ -40,10 +49,11 @@ export function validateOverlayItemsAgainstReferences(
   const candidateIds = new Set(candidateBoxes.map((candidate) => candidate.id));
   const accepted: OverlayItem[] = [];
   const reasons: Record<string, number> = {};
+  let remappedCount = 0;
 
   for (const item of items) {
-    const reason = options.regionCropMode
-      ? resolveRegionCropDropReason(item)
+    const decision = options.regionCropMode
+      ? { reason: resolveRegionCropDropReason(item), item }
       : resolveOverlayDropReason(
           item,
           accepted,
@@ -51,17 +61,28 @@ export function validateOverlayItemsAgainstReferences(
           candidateIds,
           options,
         );
-    if (reason) {
-      reasons[reason] = (reasons[reason] ?? 0) + 1;
+    if (decision.reason) {
+      reasons[decision.reason] = (reasons[decision.reason] ?? 0) + 1;
       continue;
     }
-    accepted.push(item);
+    if (decision.remapped) {
+      remappedCount += 1;
+    }
+    accepted.push(decision.item ?? item);
   }
+
+  const omittedCandidateIds = computeOmittedCandidateIds(
+    hints,
+    accepted,
+    candidateIds,
+  );
 
   return {
     items: accepted,
     droppedCount: items.length - accepted.length,
     reasons,
+    remappedCount,
+    omittedCandidateIds,
   };
 }
 
@@ -152,33 +173,52 @@ function resolveRegionCropDropReason(item: OverlayItem): string | null {
   return item.jp.replace(/\s+/g, "") ? null : "empty_source";
 }
 
+type OverlayDropDecision = {
+  reason: string | null;
+  item?: OverlayItem;
+  remapped?: boolean;
+};
+
 function resolveOverlayDropReason(
   item: OverlayItem,
   accepted: OverlayItem[],
   candidateBoxes: CandidateReferenceBox[],
   candidateIds: Set<number>,
   options: OverlayValidationOptions,
-): string | null {
-  if (isFragmentNoise(item.jp, item.ko, options.sourceLanguage)) {
-    return "fragment_noise";
+): OverlayDropDecision {
+  if (isFragmentNoise(item, options.sourceLanguage)) {
+    return { reason: "fragment_noise" };
   }
   if (isMergedUiListBlock(item)) {
-    return "merged_ui_list";
+    return { reason: "merged_ui_list" };
   }
   if (accepted.some((candidate) => candidate.id === item.id)) {
-    return "duplicate_id";
+    return { reason: "duplicate_id" };
   }
   if (
     candidateIds.size > 0 &&
     !candidateIds.has(item.id) &&
     isNewIdOverlappingCandidate(item, candidateBoxes)
   ) {
-    return "new_id_overlaps_ocr_candidate";
+    // 큰 일반 블록이 단일 후보와 강하게 겹칠 때 모델이 id를 살짝 틀린 경우,
+    // 드롭 대신 해당 후보 id로 재매핑해 살린다. 작거나 다중 겹침(루비형)은 drop.
+    const remappedId = resolveIdRemapForLargeBlock(item, candidateBoxes);
+    if (
+      remappedId !== null &&
+      !accepted.some((candidate) => candidate.id === remappedId)
+    ) {
+      return {
+        reason: null,
+        item: { ...item, id: remappedId },
+        remapped: true,
+      };
+    }
+    return { reason: "new_id_overlaps_ocr_candidate" };
   }
   if (accepted.some((candidate) => isDuplicatePhysicalText(item, candidate))) {
-    return "duplicate_physical_text";
+    return { reason: "duplicate_physical_text" };
   }
-  return null;
+  return { reason: null, item };
 }
 
 function buildCandidateReferenceBoxes(
@@ -226,13 +266,9 @@ function normalizeReferenceText(value: unknown): string {
     .replace(/[^a-z0-9_-]+/g, "_");
 }
 
-function isFragmentNoise(
-  jp: string,
-  ko: string,
-  sourceLanguage?: string,
-): boolean {
-  const source = jp.replace(/\s+/g, "");
-  const target = ko.replace(/\s+/g, "");
+function isFragmentNoise(item: OverlayItem, sourceLanguage?: string): boolean {
+  const source = item.jp.replace(/\s+/g, "");
+  const target = item.ko.replace(/\s+/g, "");
 
   if (!source) {
     return true;
@@ -244,6 +280,11 @@ function isFragmentNoise(
   const hasJapanese = /[぀-ヿ㐀-䶿一-鿿豈-﫿々ー]/.test(source);
   const usesJapaneseFragmentHeuristic = isJapaneseLanguageCode(sourceLanguage);
   if (usesJapaneseFragmentHeuristic && !hasJapanese && source.length <= 3) {
+    // 큰 블록에 달린 짧은 비일본어 텍스트(간판/효과/루비 외 짧은 단어)는
+    // 노이즈가 아니다. 작은 루비형 파편만 제거한다.
+    if (itemArea(item) >= LARGE_ORDINARY_AREA) {
+      return false;
+    }
     return true;
   }
   return /^[.。．・…⋯･\-‐‑–—―~〜～_＿]+$/.test(target);
@@ -285,6 +326,11 @@ function isDuplicatePhysicalText(
   if (!areBboxesNear(item.bbox, accepted.bbox)) {
     return false;
   }
+  // 큰 블록은 인접 수락항과 텍스트가 같아도 보존한다("큰 덩어리는 살린다").
+  // 루비급 작은 파편만 중복 제거 대상으로 둔다.
+  if (itemArea(item) >= SMALL_DUPLICATE_AREA) {
+    return false;
+  }
   const source = normalizeComparableText(item.jp);
   const acceptedSource = normalizeComparableText(accepted.jp);
   if (source && acceptedSource && source === acceptedSource) {
@@ -293,6 +339,59 @@ function isDuplicatePhysicalText(
   const target = normalizeComparableText(item.ko);
   const acceptedTarget = normalizeComparableText(accepted.ko);
   return Boolean(target && acceptedTarget && target === acceptedTarget);
+}
+
+function itemArea(item: OverlayItem): number {
+  return Math.max(0, item.bbox.w) * Math.max(0, item.bbox.h);
+}
+
+/**
+ * 큰 일반 블록이 모델이 준 id와 다른 단일 OCR 후보와 강하게 겹칠 때,
+ * 해당 후보 id로 재매핑하기 위한 후보 id를 반환. 조건이 안 맞으면 null.
+ * - 항목 면적 ≥ LARGE_ORDINARY_AREA
+ * - 효과음이 아닐 것(일반 텍스트)
+ * - 정확히 한 개 후보와 강 containment(centerInside 양방향 또는 containment ≥ 0.8)
+ */
+function resolveIdRemapForLargeBlock(
+  item: OverlayItem,
+  candidateBoxes: CandidateReferenceBox[],
+): number | null {
+  if (itemArea(item) < LARGE_ORDINARY_AREA) {
+    return null;
+  }
+  if (normalizeTextRoleForGate(item.textRole) === "sound") {
+    return null;
+  }
+  const strongMatches: CandidateReferenceBox[] = [];
+  for (const candidate of candidateBoxes) {
+    if (
+      centerInsideBbox(item.bbox, candidate.bbox) ||
+      centerInsideBbox(candidate.bbox, item.bbox) ||
+      bboxContainmentRatio(item.bbox, candidate.bbox) >=
+        STRONG_OVERLAP_CONTAINMENT ||
+      bboxContainmentRatio(candidate.bbox, item.bbox) >=
+        STRONG_OVERLAP_CONTAINMENT
+    ) {
+      strongMatches.push(candidate);
+    }
+  }
+  if (strongMatches.length !== 1) {
+    return null;
+  }
+  return strongMatches[0].id;
+}
+
+function normalizeTextRoleForGate(value: unknown): string {
+  const text = String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s-]+/g, "");
+  if (
+    ["sound", "sfx", "soundeffect", "effect", "onomatopoeia"].includes(text)
+  ) {
+    return "sound";
+  }
+  return "ordinary";
 }
 
 function normalizeComparableText(value: string): string {

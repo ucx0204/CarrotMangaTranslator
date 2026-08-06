@@ -61,6 +61,13 @@ const onnxWasmModulePath = join(
   "1.27.0",
   "ort-wasm-simd-threaded.mjs",
 );
+const onnxWasmBinaryPath = join(
+  resourcesDir,
+  "app-runtime",
+  "onnxruntime-web",
+  "1.27.0",
+  "ort-wasm-simd-threaded.wasm",
+);
 const onnxWasmBinaryFixturePath = join(
   root,
   "node_modules",
@@ -68,6 +75,8 @@ const onnxWasmBinaryFixturePath = join(
   "dist",
   "ort-wasm-simd-threaded.wasm",
 );
+// Must match ONNXRUNTIME_WEB_WASM_BINARY_BYTES in bubbleLayout/constants.ts.
+const expectedOnnxWasmBinaryBytes = 13_479_978;
 const allowedElectronLocales = new Set([
   "en-GB.pak",
   "en-US.pak",
@@ -104,6 +113,17 @@ if (!existsSync(appExecutable)) {
 if (!existsSync(onnxWasmModulePath)) {
   throw new Error(
     `Packaged ONNX module glue is missing: ${onnxWasmModulePath}`,
+  );
+}
+if (!existsSync(onnxWasmBinaryPath)) {
+  throw new Error(
+    `Packaged ONNX WASM binary is missing: ${onnxWasmBinaryPath}. Font matching pixel inference cannot load without it.`,
+  );
+}
+const packagedOnnxWasmBinaryBytes = statSync(onnxWasmBinaryPath).size;
+if (packagedOnnxWasmBinaryBytes !== expectedOnnxWasmBinaryBytes) {
+  throw new Error(
+    `Packaged ONNX WASM binary size mismatch: ${packagedOnnxWasmBinaryBytes} bytes (expected ${expectedOnnxWasmBinaryBytes}).`,
   );
 }
 if (!existsSync(onnxWasmBinaryFixturePath)) {

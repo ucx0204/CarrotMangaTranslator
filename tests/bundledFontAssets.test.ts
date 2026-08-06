@@ -78,8 +78,19 @@ function readBundledFontFaces() {
       const weight = /font-weight:\s*([^;]+);/.exec(match[1])?.[1]?.trim();
       if (family && url && weight) {
         const familyFaces = faces.get(family) ?? [];
+        // fonts.css는 빌트인 폰트를 mgt-font:///<rel> 로 참조한다(#53). 스킴
+        // 접두어를 떼고 원본 자산 디렉토리(../assets/fonts)로 해석한다.
+        const resolvedPath = url.startsWith("mgt-font:///")
+          ? resolve(
+              dirname(stylesheet.path),
+              "..",
+              "assets",
+              "fonts",
+              url.replace(/^mgt-font:\/\/\//, ""),
+            )
+          : resolve(dirname(stylesheet.path), url);
         familyFaces.push({
-          path: resolve(dirname(stylesheet.path), url),
+          path: resolvedPath,
           weight,
         });
         faces.set(family, familyFaces);

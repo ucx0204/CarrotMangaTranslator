@@ -14,6 +14,17 @@ import {
   createCustomFontLibrary,
   type CustomFontLibrary,
 } from "../src/main/customFonts";
+import { resolveBundledFontFilePath } from "../src/main/bundledFontResolver";
+
+// resolveBundledFontFilePath는 getAppPaths()를 통해 isPackaged/repoRoot를 읽는다.
+// vitest 환경은 패키짭이 아니므로 isPackaged:false로 두면 dev 자산 경로(소스
+// 트리 내 assets/fonts)로 해석된다(#53).
+vi.mock("electron", () => ({
+  app: {
+    isPackaged: false,
+    getPath: () => "C:\\unused-app-data",
+  },
+}));
 
 const tempDirs: string[] = [];
 
@@ -278,3 +289,41 @@ function createTestCustomFonts(
 function makeTinyTtfBytes(): Buffer {
   return Buffer.from([0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
 }
+
+describe("resolveBundledFontFilePath", () => {
+  const repoRoot = resolve(__dirname, "..");
+  const fontsDir = join(repoRoot, "src", "renderer", "src", "assets", "fonts");
+
+  it("resolves an existing built-in font at the assets root", () => {
+    expect(resolveBundledFontFilePath("mongtori.ttf")).toBe(
+      join(fontsDir, "mongtori.ttf"),
+    );
+  });
+
+  it("resolves built-in fonts nested under a locale subdirectory", () => {
+    expect(resolveBundledFontFilePath("ko/dohyeon.ttf")).toBe(
+      join(fontsDir, "ko", "dohyeon.ttf"),
+    );
+    expect(resolveBundledFontFilePath("zh-hant/cubic-11.ttf")).toBe(
+      join(fontsDir, "zh-hant", "cubic-11.ttf"),
+    );
+  });
+
+  it("returns null for a missing font", () => {
+    expect(resolveBundledFontFilePath("does-not-exist.ttf")).toBeNull();
+  });
+
+  it("returns null for path traversal escapes", () => {
+    expect(resolveBundledFontFilePath("../package.json")).toBeNull();
+    expect(resolveBundledFontFilePath("../../package.json")).toBeNull();
+  });
+
+  it("returns null for an unsupported extension", () => {
+    expect(resolveBundledFontFilePath("mongtori.txt")).toBeNull();
+  });
+
+  it("returns null for a nul-byte or empty rel", () => {
+    expect(resolveBundledFontFilePath("")).toBeNull();
+    expect(resolveBundledFontFilePath("mo\0ngtori.ttf")).toBeNull();
+  });
+});

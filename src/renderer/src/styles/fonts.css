@@ -1,6 +1,6 @@
 @font-face {
   font-family: "MGT Mongtori";
-  src: url("../assets/fonts/mongtori.ttf") format("truetype");
+  src: url("mgt-font:///mongtori.ttf") format("truetype");
   font-weight: 400 800;
   font-style: normal;
   font-display: swap;
@@ -8,7 +8,7 @@
 
 @font-face {
   font-family: "MGT Chosun Gungseo";
-  src: url("../assets/fonts/chosun-gungseo.ttf") format("truetype");
+  src: url("mgt-font:///chosun-gungseo.ttf") format("truetype");
   font-weight: 400 800;
   font-style: normal;
   font-display: swap;
@@ -16,7 +16,7 @@
 
 @font-face {
   font-family: "MGT Griun Pol Sensibility";
-  src: url("../assets/fonts/griun-pol-sensibility.ttf") format("truetype");
+  src: url("mgt-font:///griun-pol-sensibility.ttf") format("truetype");
   font-weight: 400 800;
   font-style: normal;
   font-display: swap;
@@ -24,7 +24,7 @@
 
 @font-face {
   font-family: "MGT Nanum Gothic";
-  src: url("../assets/fonts/nanum-gothic-light.ttf") format("truetype");
+  src: url("mgt-font:///nanum-gothic-light.ttf") format("truetype");
   font-weight: 300;
   font-style: normal;
   font-display: swap;
@@ -32,7 +32,7 @@
 
 @font-face {
   font-family: "MGT Nanum Gothic";
-  src: url("../assets/fonts/nanum-gothic-regular.ttf") format("truetype");
+  src: url("mgt-font:///nanum-gothic-regular.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -40,7 +40,7 @@
 
 @font-face {
   font-family: "MGT Nanum Gothic";
-  src: url("../assets/fonts/nanum-gothic-bold.ttf") format("truetype");
+  src: url("mgt-font:///nanum-gothic-bold.ttf") format("truetype");
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -48,7 +48,7 @@
 
 @font-face {
   font-family: "MGT Nanum Gothic";
-  src: url("../assets/fonts/nanum-gothic-extra-bold.ttf") format("truetype");
+  src: url("mgt-font:///nanum-gothic-extra-bold.ttf") format("truetype");
   font-weight: 800;
   font-style: normal;
   font-display: swap;
@@ -56,7 +56,7 @@
 
 @font-face {
   font-family: "MGT Nanum Myeongjo";
-  src: url("../assets/fonts/nanum-myeongjo-regular.ttf") format("truetype");
+  src: url("mgt-font:///nanum-myeongjo-regular.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -64,7 +64,7 @@
 
 @font-face {
   font-family: "MGT Nanum Myeongjo";
-  src: url("../assets/fonts/nanum-myeongjo-bold.ttf") format("truetype");
+  src: url("mgt-font:///nanum-myeongjo-bold.ttf") format("truetype");
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -72,7 +72,7 @@
 
 @font-face {
   font-family: "MGT Nanum Myeongjo";
-  src: url("../assets/fonts/nanum-myeongjo-extra-bold.ttf") format("truetype");
+  src: url("mgt-font:///nanum-myeongjo-extra-bold.ttf") format("truetype");
   font-weight: 800;
   font-style: normal;
   font-display: swap;
@@ -80,8 +80,7 @@
 
 @font-face {
   font-family: "MGT Nanum Barun Gothic";
-  src: url("../assets/fonts/nanum-barun-gothic-ultra-light.ttf")
-    format("truetype");
+  src: url("mgt-font:///nanum-barun-gothic-ultra-light.ttf") format("truetype");
   font-weight: 200;
   font-style: normal;
   font-display: swap;
@@ -89,7 +88,7 @@
 
 @font-face {
   font-family: "MGT Nanum Barun Gothic";
-  src: url("../assets/fonts/nanum-barun-gothic-light.ttf") format("truetype");
+  src: url("mgt-font:///nanum-barun-gothic-light.ttf") format("truetype");
   font-weight: 300;
   font-style: normal;
   font-display: swap;
@@ -97,7 +96,7 @@
 
 @font-face {
   font-family: "MGT Nanum Barun Gothic";
-  src: url("../assets/fonts/nanum-barun-gothic-regular.ttf") format("truetype");
+  src: url("mgt-font:///nanum-barun-gothic-regular.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -105,7 +104,7 @@
 
 @font-face {
   font-family: "MGT Nanum Barun Gothic";
-  src: url("../assets/fonts/nanum-barun-gothic-bold.ttf") format("truetype");
+  src: url("mgt-font:///nanum-barun-gothic-bold.ttf") format("truetype");
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -113,7 +112,7 @@
 
 @font-face {
   font-family: "MGT Seoul Namsan";
-  src: url("../assets/fonts/seoul-namsan-light.ttf") format("truetype");
+  src: url("mgt-font:///seoul-namsan-light.ttf") format("truetype");
   font-weight: 300;
   font-style: normal;
   font-display: swap;
@@ -121,7 +120,7 @@
 
 @font-face {
   font-family: "MGT Seoul Namsan";
-  src: url("../assets/fonts/seoul-namsan-regular.ttf") format("truetype");
+  src: url("mgt-font:///seoul-namsan-regular.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -129,7 +128,7 @@
 
 @font-face {
   font-family: "MGT Seoul Namsan";
-  src: url("../assets/fonts/seoul-namsan-bold.ttf") format("truetype");
+  src: url("mgt-font:///seoul-namsan-bold.ttf") format("truetype");
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -137,7 +136,7 @@
 
 @font-face {
   font-family: "MGT Seoul Namsan";
-  src: url("../assets/fonts/seoul-namsan-extra-bold.ttf") format("truetype");
+  src: url("mgt-font:///seoul-namsan-extra-bold.ttf") format("truetype");
   font-weight: 800;
   font-style: normal;
   font-display: swap;
@@ -145,7 +144,7 @@
 
 @font-face {
   font-family: "MGT Seoul Namsan Vertical";
-  src: url("../assets/fonts/seoul-namsan-vertical.ttf") format("truetype");
+  src: url("mgt-font:///seoul-namsan-vertical.ttf") format("truetype");
   font-weight: 400 800;
   font-style: normal;
   font-display: swap;
@@ -153,7 +152,7 @@
 
 @font-face {
   font-family: "MGT Seoul Hangang";
-  src: url("../assets/fonts/seoul-hangang-light.ttf") format("truetype");
+  src: url("mgt-font:///seoul-hangang-light.ttf") format("truetype");
   font-weight: 300;
   font-style: normal;
   font-display: swap;
@@ -161,7 +160,7 @@
 
 @font-face {
   font-family: "MGT Seoul Hangang";
-  src: url("../assets/fonts/seoul-hangang-regular.ttf") format("truetype");
+  src: url("mgt-font:///seoul-hangang-regular.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -169,7 +168,7 @@
 
 @font-face {
   font-family: "MGT Seoul Hangang";
-  src: url("../assets/fonts/seoul-hangang-bold.ttf") format("truetype");
+  src: url("mgt-font:///seoul-hangang-bold.ttf") format("truetype");
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -177,7 +176,7 @@
 
 @font-face {
   font-family: "MGT Seoul Hangang";
-  src: url("../assets/fonts/seoul-hangang-extra-bold.ttf") format("truetype");
+  src: url("mgt-font:///seoul-hangang-extra-bold.ttf") format("truetype");
   font-weight: 800;
   font-style: normal;
   font-display: swap;
@@ -185,7 +184,7 @@
 
 @font-face {
   font-family: "MGT Dohyeon";
-  src: url("../assets/fonts/ko/dohyeon.ttf") format("truetype");
+  src: url("mgt-font:///ko/dohyeon.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -193,7 +192,7 @@
 
 @font-face {
   font-family: "MGT Ridi Batang";
-  src: url("../assets/fonts/ko/ridi-batang.otf") format("opentype");
+  src: url("mgt-font:///ko/ridi-batang.otf") format("opentype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -201,7 +200,7 @@
 
 @font-face {
   font-family: "MGT Cafe24 Gowoonbam";
-  src: url("../assets/fonts/ko/cafe24-gowoonbam.ttf") format("truetype");
+  src: url("mgt-font:///ko/cafe24-gowoonbam.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -209,7 +208,7 @@
 
 @font-face {
   font-family: "MGT Start Over";
-  src: url("../assets/fonts/ko/start-over.ttf") format("truetype");
+  src: url("mgt-font:///ko/start-over.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -217,7 +216,7 @@
 
 @font-face {
   font-family: "MGT Jua";
-  src: url("../assets/fonts/ko/jua.ttf") format("truetype");
+  src: url("mgt-font:///ko/jua.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -225,7 +224,7 @@
 
 @font-face {
   font-family: "MGT Gaegu";
-  src: url("../assets/fonts/ko/gaegu-light.ttf") format("truetype");
+  src: url("mgt-font:///ko/gaegu-light.ttf") format("truetype");
   font-weight: 300;
   font-style: normal;
   font-display: swap;
@@ -233,7 +232,7 @@
 
 @font-face {
   font-family: "MGT Gaegu";
-  src: url("../assets/fonts/ko/gaegu-regular.ttf") format("truetype");
+  src: url("mgt-font:///ko/gaegu-regular.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -241,7 +240,7 @@
 
 @font-face {
   font-family: "MGT Gaegu";
-  src: url("../assets/fonts/ko/gaegu-bold.ttf") format("truetype");
+  src: url("mgt-font:///ko/gaegu-bold.ttf") format("truetype");
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -250,7 +249,7 @@
 /* Korean display, sound-effect, and handwriting expansion. */
 @font-face {
   font-family: "MGT Black And White Picture";
-  src: url("../assets/fonts/ko/black-and-white-picture.ttf") format("truetype");
+  src: url("mgt-font:///ko/black-and-white-picture.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -258,7 +257,7 @@
 
 @font-face {
   font-family: "MGT Black Han Sans";
-  src: url("../assets/fonts/ko/black-han-sans.ttf") format("truetype");
+  src: url("mgt-font:///ko/black-han-sans.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -266,7 +265,7 @@
 
 @font-face {
   font-family: "MGT Gasoek One";
-  src: url("../assets/fonts/ko/gasoek-one.ttf") format("truetype");
+  src: url("mgt-font:///ko/gasoek-one.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -274,7 +273,7 @@
 
 @font-face {
   font-family: "MGT Kirang Haerang";
-  src: url("../assets/fonts/ko/kirang-haerang.ttf") format("truetype");
+  src: url("mgt-font:///ko/kirang-haerang.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -282,7 +281,7 @@
 
 @font-face {
   font-family: "MGT Nanum Brush Script";
-  src: url("../assets/fonts/ko/nanum-brush-script.ttf") format("truetype");
+  src: url("mgt-font:///ko/nanum-brush-script.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -290,7 +289,7 @@
 
 @font-face {
   font-family: "MGT Single Day";
-  src: url("../assets/fonts/ko/single-day.ttf") format("truetype");
+  src: url("mgt-font:///ko/single-day.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -299,7 +298,7 @@
 /* English comic and handwriting fonts. */
 @font-face {
   font-family: "MGT Comic Neue";
-  src: url("../assets/fonts/en/comic-neue.ttf") format("truetype");
+  src: url("mgt-font:///en/comic-neue.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -307,7 +306,7 @@
 
 @font-face {
   font-family: "MGT Kalam";
-  src: url("../assets/fonts/en/kalam.ttf") format("truetype");
+  src: url("mgt-font:///en/kalam.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -315,7 +314,7 @@
 
 @font-face {
   font-family: "MGT Bangers";
-  src: url("../assets/fonts/en/bangers.ttf") format("truetype");
+  src: url("mgt-font:///en/bangers.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -323,7 +322,7 @@
 
 @font-face {
   font-family: "MGT Luckiest Guy";
-  src: url("../assets/fonts/en/luckiest-guy.ttf") format("truetype");
+  src: url("mgt-font:///en/luckiest-guy.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -331,7 +330,7 @@
 
 @font-face {
   font-family: "MGT Permanent Marker";
-  src: url("../assets/fonts/en/permanent-marker.ttf") format("truetype");
+  src: url("mgt-font:///en/permanent-marker.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -339,7 +338,7 @@
 
 @font-face {
   font-family: "MGT Freckle Face";
-  src: url("../assets/fonts/en/freckle-face.ttf") format("truetype");
+  src: url("mgt-font:///en/freckle-face.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -348,7 +347,7 @@
 /* Japanese dialogue, display, and sound-effect fonts. */
 @font-face {
   font-family: "MGT Yusei Magic";
-  src: url("../assets/fonts/ja/yusei-magic.ttf") format("truetype");
+  src: url("mgt-font:///ja/yusei-magic.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -356,7 +355,7 @@
 
 @font-face {
   font-family: "MGT Mochiy Pop One";
-  src: url("../assets/fonts/ja/mochiy-pop-one.ttf") format("truetype");
+  src: url("mgt-font:///ja/mochiy-pop-one.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -364,7 +363,7 @@
 
 @font-face {
   font-family: "MGT Hachi Maru Pop";
-  src: url("../assets/fonts/ja/hachi-maru-pop.ttf") format("truetype");
+  src: url("mgt-font:///ja/hachi-maru-pop.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -372,7 +371,7 @@
 
 @font-face {
   font-family: "MGT Dela Gothic One";
-  src: url("../assets/fonts/ja/dela-gothic-one.ttf") format("truetype");
+  src: url("mgt-font:///ja/dela-gothic-one.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -380,7 +379,7 @@
 
 @font-face {
   font-family: "MGT Reggae One";
-  src: url("../assets/fonts/ja/reggae-one.ttf") format("truetype");
+  src: url("mgt-font:///ja/reggae-one.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -388,7 +387,7 @@
 
 @font-face {
   font-family: "MGT DotGothic16";
-  src: url("../assets/fonts/ja/dot-gothic-16.ttf") format("truetype");
+  src: url("mgt-font:///ja/dot-gothic-16.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -397,7 +396,7 @@
 /* Simplified Chinese comic and brush fonts. */
 @font-face {
   font-family: "MGT ZCOOL KuaiLe";
-  src: url("../assets/fonts/zh-hans/zcool-kuaile.ttf") format("truetype");
+  src: url("mgt-font:///zh-hans/zcool-kuaile.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -405,8 +404,7 @@
 
 @font-face {
   font-family: "MGT ZCOOL QingKe HuangYou";
-  src: url("../assets/fonts/zh-hans/zcool-qingke-huangyou.ttf")
-    format("truetype");
+  src: url("mgt-font:///zh-hans/zcool-qingke-huangyou.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -414,7 +412,7 @@
 
 @font-face {
   font-family: "MGT ZCOOL XiaoWei";
-  src: url("../assets/fonts/zh-hans/zcool-xiaowei.ttf") format("truetype");
+  src: url("mgt-font:///zh-hans/zcool-xiaowei.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -422,7 +420,7 @@
 
 @font-face {
   font-family: "MGT Ma Shan Zheng";
-  src: url("../assets/fonts/zh-hans/ma-shan-zheng.ttf") format("truetype");
+  src: url("mgt-font:///zh-hans/ma-shan-zheng.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -430,7 +428,7 @@
 
 @font-face {
   font-family: "MGT Long Cang";
-  src: url("../assets/fonts/zh-hans/long-cang.ttf") format("truetype");
+  src: url("mgt-font:///zh-hans/long-cang.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -438,7 +436,7 @@
 
 @font-face {
   font-family: "MGT Liu Jian Mao Cao";
-  src: url("../assets/fonts/zh-hans/liu-jian-mao-cao.ttf") format("truetype");
+  src: url("mgt-font:///zh-hans/liu-jian-mao-cao.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -447,7 +445,7 @@
 /* Traditional Chinese dialogue, handwriting, marker, and pixel fonts. */
 @font-face {
   font-family: "MGT Huninn";
-  src: url("../assets/fonts/zh-hant/huninn.ttf") format("truetype");
+  src: url("mgt-font:///zh-hant/huninn.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -455,7 +453,7 @@
 
 @font-face {
   font-family: "MGT Iansui";
-  src: url("../assets/fonts/zh-hant/iansui.ttf") format("truetype");
+  src: url("mgt-font:///zh-hant/iansui.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -463,7 +461,7 @@
 
 @font-face {
   font-family: "MGT LXGW WenKai TC";
-  src: url("../assets/fonts/zh-hant/lxgw-wenkai-tc.ttf") format("truetype");
+  src: url("mgt-font:///zh-hant/lxgw-wenkai-tc.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -471,7 +469,7 @@
 
 @font-face {
   font-family: "MGT LXGW Marker Gothic";
-  src: url("../assets/fonts/zh-hant/lxgw-marker-gothic.ttf") format("truetype");
+  src: url("mgt-font:///zh-hant/lxgw-marker-gothic.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -479,7 +477,7 @@
 
 @font-face {
   font-family: "MGT ChenYuluoyan";
-  src: url("../assets/fonts/zh-hant/chenyu-luoyan.ttf") format("truetype");
+  src: url("mgt-font:///zh-hant/chenyu-luoyan.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -487,7 +485,7 @@
 
 @font-face {
   font-family: "MGT Cubic 11";
-  src: url("../assets/fonts/zh-hant/cubic-11.ttf") format("truetype");
+  src: url("mgt-font:///zh-hant/cubic-11.ttf") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;

@@ -230,7 +230,9 @@
       "kept": "{{count}}個を保持",
       "outsideDropped": "ブロック外の結果{{count}}個を除外",
       "soundDropped": "不確かな効果音{{count}}個を除外",
-      "noiseDropped": "ノイズ／重複{{count}}個を除外（{{reasons}}）"
+      "noiseDropped": "ノイズ／重複{{count}}個を除外（{{reasons}}）",
+      "remappedId": "候補id再マップ{{count}}個",
+      "modelOmitted": "モデルが候補{{count}}個を見落とし"
     },
     "errors": {
       "bboxMissing": "{{page}}：バウンディングボックス結果を作成できませんでした。",

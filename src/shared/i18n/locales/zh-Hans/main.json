@@ -230,7 +230,9 @@
       "kept": "保留 {{count}} 个",
       "outsideDropped": "排除文本块外结果 {{count}} 个",
       "soundDropped": "排除不确定音效 {{count}} 个",
-      "noiseDropped": "排除噪声/重复项 {{count}} 个（{{reasons}}）"
+      "noiseDropped": "排除噪声/重复项 {{count}} 个（{{reasons}}）",
+      "remappedId": "候选 id 重映射 {{count}} 个",
+      "modelOmitted": "模型漏掉 {{count}} 个候选"
     },
     "errors": {
       "bboxMissing": "{{page}}：无法生成边界框结果。",

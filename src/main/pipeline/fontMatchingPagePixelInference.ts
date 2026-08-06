@@ -216,7 +216,7 @@ type RuntimeLoadResult =
       model: null;
     }>;
 
-type OrtWasmAssets = Readonly<{
+export type OrtWasmAssets = Readonly<{
   wasmBinaryPath: string;
   wasmModulePath: string;
 }>;
@@ -1774,7 +1774,7 @@ function assertInferenceCatalog(
   }
 }
 
-function sameCandidateSnapshot(
+export function sameCandidateSnapshot(
   left: readonly AutomaticFontCandidate[],
   right: readonly AutomaticFontCandidate[],
 ): boolean {
@@ -1788,7 +1788,7 @@ function sameCandidateSnapshot(
   );
 }
 
-function assertUserPageBoundary(
+export function assertUserPageBoundary(
   boundary: FontMatchingInferenceInputBoundary,
 ): void {
   if (
@@ -1850,7 +1850,7 @@ function requiredBytes(
   return value;
 }
 
-function emptyResult(
+export function emptyResult(
   status?: FontMatchingRuntimeArtifactStatus,
 ): FontMatchingPageInferenceResult {
   return {
@@ -1859,7 +1859,7 @@ function emptyResult(
   };
 }
 
-function disabled(
+export function disabled(
   reason: Extract<
     FontMatchingRuntimeArtifactStatus,
     { state: "disabled" }

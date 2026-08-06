@@ -333,9 +333,17 @@ export function resolveBuiltInFontMatchingAssetRoots(): string[] {
   const resourcesPath = (process as NodeJS.Process & { resourcesPath?: string })
     .resourcesPath;
   if (resourcesPath) {
+    // The built-in font files are staged at out/renderer/assets/fonts (see
+    // scripts/build.cjs copyFontAssets and bundledFontResolver.resolveBundled
+    // FontFilePath). The roots must point at the fonts/ subdirectory so that
+    // join(root, "mongtori.ttf") and join(root, "ko/dohyeon.ttf") resolve to the
+    // real files inside app.asar. Without the /fonts suffix every built-in
+    // candidate fails to resolve in the packaged app and the active catalog
+    // throws "Active candidate is not installed" — silently disabling font
+    // matching.
     roots.push(
-      resolve(resourcesPath, "app.asar/out/renderer/assets"),
-      resolve(resourcesPath, "app/out/renderer/assets"),
+      resolve(resourcesPath, "app.asar/out/renderer/assets/fonts"),
+      resolve(resourcesPath, "app/out/renderer/assets/fonts"),
     );
   }
   roots.push(resolve(process.cwd(), "src/renderer/src/assets/fonts"));
