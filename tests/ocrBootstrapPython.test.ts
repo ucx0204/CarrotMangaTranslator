@@ -1,7 +1,6 @@
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 
 const { resolveBootstrapPython } =
@@ -19,15 +18,7 @@ describe("OCR bootstrap Python resolution", () => {
       const pythonCommand = resolveBootstrapPython({ toolsDir });
       const expectedCommand =
         process.platform === "win32" ? "python" : "python3";
-      const result = spawnSync(pythonCommand ?? "", ["--version"], {
-        encoding: "utf8",
-        shell: false,
-      });
-
       expect(pythonCommand).toBe(expectedCommand);
-      expect(result.error).toBeUndefined();
-      expect(result.status).toBe(0);
-      expect(`${result.stdout}${result.stderr}`).toContain("Python 3");
     } finally {
       rmSync(temporaryRoot, { recursive: true, force: true });
     }

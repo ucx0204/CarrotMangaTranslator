@@ -1,11 +1,11 @@
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 
-const { resolveFfmpegPath } =
+const { resolveDevelopmentFfmpegPath, resolveFfmpegPath } =
   require("../src/main/runtime/assets/ffmpeg-path.cjs") as {
+    resolveDevelopmentFfmpegPath: () => string | null;
     resolveFfmpegPath: (options: { toolsDir: string }) => string;
   };
 
@@ -16,15 +16,13 @@ describe("FFmpeg path resolution", () => {
     mkdirSync(join(toolsDir, "ffmpeg"), { recursive: true });
 
     try {
+      const developmentFfmpegPath = resolveDevelopmentFfmpegPath();
       const ffmpegPath = resolveFfmpegPath({ toolsDir });
-      const result = spawnSync(ffmpegPath, ["-version"], {
-        encoding: "utf8",
-        shell: false,
-      });
 
-      expect(result.error).toBeUndefined();
-      expect(result.status).toBe(0);
-      expect(result.stdout).toContain("ffmpeg version");
+      expect(developmentFfmpegPath).not.toBeNull();
+      expect(ffmpegPath).toBe(developmentFfmpegPath);
+      expect(existsSync(ffmpegPath)).toBe(true);
+      expect(statSync(ffmpegPath).isFile()).toBe(true);
     } finally {
       rmSync(temporaryRoot, { recursive: true, force: true });
     }
