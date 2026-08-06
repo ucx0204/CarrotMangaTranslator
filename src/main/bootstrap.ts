@@ -221,13 +221,13 @@ function isPackagedBootstrap(): boolean {
   return app.isPackaged || __dirname.includes("app.asar");
 }
 
-const logBootstrapUncaughtException = (error: Error): void => {
+function logBootstrapUncaughtException(error: Error): void {
   writeBootstrapLog("uncaughtException", error);
-};
+}
 
-const logBootstrapUnhandledRejection = (reason: unknown): void => {
+function logBootstrapUnhandledRejection(reason: unknown): void {
   writeBootstrapLog("unhandledRejection", reason);
-};
+}
 
 function installBootstrapErrorListeners(): void {
   process.on("uncaughtException", logBootstrapUncaughtException);

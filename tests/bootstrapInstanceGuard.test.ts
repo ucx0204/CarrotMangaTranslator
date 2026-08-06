@@ -154,6 +154,26 @@ describe("instance guard source invariants", () => {
     expect(mainImport).toBeGreaterThan(bootstrapLog);
   });
 
+  it("uses hoisted bootstrap error handlers before the eager bootstrap call", () => {
+    const bootstrapSource = readFileSync(
+      join(repoRoot, "src", "main", "bootstrap.ts"),
+      "utf8",
+    );
+
+    expect(bootstrapSource).toContain(
+      "function logBootstrapUncaughtException(error: Error): void",
+    );
+    expect(bootstrapSource).toContain(
+      "function logBootstrapUnhandledRejection(reason: unknown): void",
+    );
+    expect(bootstrapSource).not.toContain(
+      "const logBootstrapUncaughtException",
+    );
+    expect(bootstrapSource).not.toContain(
+      "const logBootstrapUnhandledRejection",
+    );
+  });
+
   it("asserts the bootstrap lease before writable main initialization", () => {
     const mainSource = readFileSync(
       join(repoRoot, "src", "main", "index.ts"),
