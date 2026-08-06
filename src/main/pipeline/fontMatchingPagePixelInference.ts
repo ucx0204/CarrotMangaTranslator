@@ -40,7 +40,7 @@ import {
   FONT_MATCHING_RUNTIME_ARTIFACT_SCHEMA_V2,
   FONT_MATCHING_SELECTION_CALIBRATION_FILE,
 } from "./fontMatchingRuntimeArtifactContract";
-import { resolveFontMatchingArtifactDirSync } from "./fontMatchingRuntimeAssets";
+import { resolveFontMatchingArtifactDirSync } from "./fontMatchingRuntimePaths";
 import {
   loadFontMatchingRuntimeArtifactStatus,
   type FontMatchingRuntimeArtifactStatus,

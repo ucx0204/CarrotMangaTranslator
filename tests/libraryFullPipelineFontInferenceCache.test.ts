@@ -1,3 +1,4 @@
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 type CacheModule = {
@@ -75,7 +76,7 @@ describe("font replay verified inference cache", () => {
         { selectionIndex: 8 },
         { selectionIndex: 8 },
       ),
-    ).toBe("C:\\cache-run\\pages\\09\\font-inference.json");
+    ).toBe(path.join("C:\\cache-run", "pages", "09", "font-inference.json"));
   });
 
   it("allows a legacy cache without morphology and leaves fail-closed policy to runtime", () => {

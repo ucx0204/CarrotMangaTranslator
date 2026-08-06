@@ -22,7 +22,7 @@ import {
 import { loadAutoMatchActiveCandidateSelection } from "./autoMatchActiveCatalog";
 import type { AutoMatchActiveCandidateSelection } from "./autoMatchActiveCatalogTypes";
 import { FONT_MATCHING_ACTIVE_CATALOG_FILE } from "./fontMatchingRuntimeArtifactContract";
-import { resolveFontMatchingArtifactDirSync } from "./fontMatchingRuntimeAssets";
+import { resolveFontMatchingArtifactDirSync } from "./fontMatchingRuntimePaths";
 import { createWorkerFontMatchingPageInferencePort } from "./fontMatchingInferenceWorkerClient";
 import type { FontMatchingPageInferencePort } from "./fontMatchingPagePixelInferenceTypes";
 

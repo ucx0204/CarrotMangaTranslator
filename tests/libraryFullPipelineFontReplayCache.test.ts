@@ -1,3 +1,4 @@
+import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 type FontReplayCacheModule = {
@@ -89,7 +90,7 @@ describe("font replay cached input resolution", () => {
         { selectionIndex: 35 },
         { selectionIndex: 35 },
       ),
-    ).toBe("C:\\cache-run\\pages\\36\\font-input.json");
+    ).toBe(path.join("C:\\cache-run", "pages", "36", "font-input.json"));
   });
 
   it("keeps an explicit report path", () => {

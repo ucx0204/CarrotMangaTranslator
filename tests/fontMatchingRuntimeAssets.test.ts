@@ -4,10 +4,13 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   FONT_MATCHING_RUNTIME_BASE_URL,
-  FONT_MATCHING_RUNTIME_BUNDLE_VERSION,
   FONT_MATCHING_RUNTIME_FILES,
-  FONT_MATCHING_RUNTIME_MARKER_FILE,
 } from "../src/main/pipeline/fontMatchingRuntimeAssets";
+import {
+  FONT_MATCHING_RUNTIME_BUNDLE_VERSION,
+  FONT_MATCHING_RUNTIME_MARKER_FILE,
+  resolveFontMatchingArtifactDirSync,
+} from "../src/main/pipeline/fontMatchingRuntimePaths";
 
 const modelDownloadsMocks = vi.hoisted(() => ({
   ensureRemoteFile: vi.fn(),
@@ -41,7 +44,7 @@ function createTempDir(prefix: string): string {
 }
 
 describe("resolveFontMatchingArtifactDirSync", () => {
-  it("prefers the staged bundle in runtimeDir when the marker file is present (dev)", async () => {
+  it("prefers the staged bundle in runtimeDir when the marker file is present (dev)", () => {
     const runtimeDir = createTempDir("runtime-staged");
     mkdirSync(join(runtimeDir, "font-matching"), { recursive: true });
     writeFileSync(
@@ -49,8 +52,6 @@ describe("resolveFontMatchingArtifactDirSync", () => {
       "{}",
     );
     const dataRoot = createTempDir("data");
-    const { resolveFontMatchingArtifactDirSync } =
-      await import("../src/main/pipeline/fontMatchingRuntimeAssets");
 
     const dir = resolveFontMatchingArtifactDirSync({ runtimeDir, dataRoot });
 
@@ -60,11 +61,9 @@ describe("resolveFontMatchingArtifactDirSync", () => {
     rmSync(dataRoot, { recursive: true, force: true });
   });
 
-  it("falls back to the data-root cache when the marker is absent (packaged)", async () => {
+  it("falls back to the data-root cache when the marker is absent (packaged)", () => {
     const runtimeDir = createTempDir("runtime-empty");
     const dataRoot = createTempDir("data");
-    const { resolveFontMatchingArtifactDirSync } =
-      await import("../src/main/pipeline/fontMatchingRuntimeAssets");
 
     const dir = resolveFontMatchingArtifactDirSync({ runtimeDir, dataRoot });
 

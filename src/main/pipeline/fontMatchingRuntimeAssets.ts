@@ -28,6 +28,10 @@ import {
   type RuntimeAssetProgress,
 } from "../runtimeSupport/modelDownloads";
 import type { PipelineOptions } from "./types";
+import {
+  FONT_MATCHING_RUNTIME_BUNDLE_VERSION,
+  FONT_MATCHING_RUNTIME_MARKER_FILE,
+} from "./fontMatchingRuntimePaths";
 
 /**
  * Dedicated, app-version-independent GitHub Release tag hosting the runtime
@@ -37,16 +41,6 @@ import type { PipelineOptions } from "./types";
  */
 const FONT_MATCHING_RUNTIME_RELEASE_TAG = "font-matching-runtime-v1";
 export const FONT_MATCHING_RUNTIME_BASE_URL = `https://github.com/ucx0204/CarrotMangaTranslator/releases/download/${FONT_MATCHING_RUNTIME_RELEASE_TAG}`;
-
-/**
- * Cache directory segment under `dataRoot/models/font-matching/`. Matches the
- * source artifact directory suffix in `scripts/prepare-runtime.cjs` so a future
- * bundle revision coexists without invalidating this cache.
- */
-export const FONT_MATCHING_RUNTIME_BUNDLE_VERSION = "active21-r5-e1-release-v1";
-
-export const FONT_MATCHING_RUNTIME_MARKER_FILE =
-  ".font-matching-runtime-artifact-owned.json";
 
 /** Ordered small-first so the encoder dominates the download timeline. */
 type FontMatchingRuntimeFile = {
@@ -102,29 +96,6 @@ export const FONT_MATCHING_RUNTIME_FILES: readonly FontMatchingRuntimeFile[] = [
     bytes: 487_357_925,
   },
 ];
-
-/**
- * Resolve the directory the font matching runtime bundle lives in, WITHOUT
- * downloading. In dev the staged `runtimeDir/font-matching` bundle (marker
- * present) is preferred; in packaged mode the bundle is excluded from the
- * installer so the marker is absent and the cache directory under the writable
- * data root is returned. Callers must run `prepareFontMatchingRuntime` (or rely
- * on the fail-closed stack) before reading the bundle from the cache path.
- */
-export function resolveFontMatchingArtifactDirSync(
-  paths: Pick<AppPaths, "dataRoot" | "runtimeDir">,
-): string {
-  const bundledDir = join(paths.runtimeDir, "font-matching");
-  if (existsSync(join(bundledDir, FONT_MATCHING_RUNTIME_MARKER_FILE))) {
-    return bundledDir;
-  }
-  return join(
-    paths.dataRoot,
-    "models",
-    "font-matching",
-    FONT_MATCHING_RUNTIME_BUNDLE_VERSION,
-  );
-}
 
 /**
  * Download all 7 bundle files into the cache directory under `dataRoot`, each

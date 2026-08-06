@@ -41,7 +41,7 @@ import {
 import { loadFontMatchingPageRaster } from "../fontMatchingPageImage";
 import type { FontMatchingRasterPage } from "./fontMatchingPagePixelPreprocessing";
 import type { MangaPage } from "../../shared/libraryTypes";
-import { resolveFontMatchingArtifactDirSync } from "./fontMatchingRuntimeAssets";
+import { resolveFontMatchingArtifactDirSync } from "./fontMatchingRuntimePaths";
 
 type WorkerClientDependencies = Readonly<{
   paths: Pick<AppPaths, "dataRoot" | "runtimeDir">;
