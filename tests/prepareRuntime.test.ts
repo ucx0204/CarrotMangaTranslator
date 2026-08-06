@@ -242,7 +242,7 @@ describe("prepareRuntimeAssets", () => {
     expect(readFileSync(outputFile, "utf8")).toBe("keep-me");
   });
 
-  it("fails closed before the default release-v1 bundle is generated", () => {
+  it("skips staging the externalized bundle when the default source is absent", () => {
     const { root } = createRuntimeFixture({ withDefaultBundle: false });
     const outputDir = join(root, "out", "app-runtime");
 
@@ -253,9 +253,11 @@ describe("prepareRuntimeAssets", () => {
         "font-matching-runtime-active21-r5-e1-release-v1",
       ),
     );
-    expect(() => prepareRuntimeAssets({ root, outputDir })).toThrow(
-      /runtime bundle is missing/,
-    );
+    // The bundle is externalized out of the installer (downloaded on first
+    // use, excluded via the `!font-matching/**` extraResources filter), so a
+    // fresh CI runner without the staged source must still build successfully.
+    expect(() => prepareRuntimeAssets({ root, outputDir })).not.toThrow();
+    expect(readFileSync(join(outputDir, "root.cjs"), "utf8")).toBe("root");
     expect(existsSync(join(outputDir, "font-matching"))).toBe(false);
   });
 

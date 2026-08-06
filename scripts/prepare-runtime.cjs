@@ -91,12 +91,21 @@ function prepareRuntimeAssets(options = {}) {
   mkdirSync(outputDir, { recursive: true });
   copyDirectoryContents(sourceDir, outputDir);
   if (!options.runtimeModulesOnly) {
+    const fontMatchingBundleDir =
+      options.fontMatchingBundleDir ??
+      resolveDefaultFontMatchingRuntimeBundleDir(root);
     stageFontMatchingRuntimeBundle({
       root,
       outputDir,
-      bundleDir:
-        options.fontMatchingBundleDir ??
-        resolveDefaultFontMatchingRuntimeBundleDir(root),
+      bundleDir: fontMatchingBundleDir,
+      // An explicitly selected bundle must exist (the operator asked for it).
+      // The default bundle dir is only present on machines that have staged the
+      // trained runtime locally; on a fresh CI runner it is absent. The bundle
+      // is externalized out of the installer (downloaded on first use via
+      // src/main/pipeline/fontMatchingRuntimeAssets.ts and excluded from the
+      // installer by the `!font-matching/**` extraResources filter), so a
+      // missing default source is not a build error — staging is skipped.
+      required: Boolean(options.fontMatchingBundleDir),
     });
   }
 
@@ -113,12 +122,19 @@ function resolveDefaultFontMatchingRuntimeBundleDir(root) {
  *   root: string;
  *   outputDir: string;
  *   bundleDir: string;
+ *   required?: boolean;
  * }} options
  */
 function stageFontMatchingRuntimeBundle(options) {
   const bundleDir = resolve(options.bundleDir);
   if (!existsSync(bundleDir)) {
-    throw new Error(`Font matching runtime bundle is missing: ${bundleDir}`);
+    if (options.required) {
+      throw new Error(`Font matching runtime bundle is missing: ${bundleDir}`);
+    }
+    console.log(
+      `[prepare-runtime] Font matching runtime bundle source is absent at ${bundleDir}; skipping staging (bundle is externalized, downloaded on first use).`,
+    );
+    return;
   }
   assertSafeBundleSource(options.root, options.outputDir, bundleDir);
   validateFontMatchingRuntimeBundle(bundleDir);
