@@ -1,6 +1,7 @@
 {
   "$schema": "./node_modules/knip/schema.json",
   "entry": [
+    "src/main/bootstrap.ts",
     "src/main/index.ts",
     "src/preload/index.ts",
     "src/renderer/src/main.tsx",

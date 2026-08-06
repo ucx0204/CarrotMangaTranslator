@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, shell } from "electron";
 import { dirname } from "node:path";
-import { ensureWritableAppDirectories } from "./appPaths";
+import { ensureWritableAppDirectories, getAppPaths } from "./appPaths";
 import { cleanupLegacyLogs } from "./appMaintenance";
 import {
   registerImageProtocolHandler,
@@ -36,7 +36,14 @@ import {
 import { runMacPackageSmokeExit } from "./macPackageSmoke";
 import { scheduleStartupMaintenance } from "./startupMaintenance";
 import { disposeTranslationRuntimeResources } from "./translationRuntime";
+import {
+  assertDataRootInstanceLockHeld,
+  releaseDataRootInstanceLockLease,
+} from "./dataRootInstanceLockState";
+import { focusExistingMainWindow } from "./singleInstanceWindow";
 
+const resolvedAppPaths = getAppPaths();
+assertDataRootInstanceLockHeld(resolvedAppPaths.dataRoot);
 const appPaths = ensureWritableAppDirectories();
 const jobs = new ActiveJobStore();
 const inpaintingRevisionStore = new InpaintingRevisionStore();
@@ -49,9 +56,35 @@ const errorReportWindows = new ErrorReportWindowRegistry();
 let quitCleanupStarted = false;
 let rendererLoadFailureDialogOpen = false;
 let cancelStartupMaintenance: (() => void) | null = null;
+let mainStartupCompleted = false;
+let secondInstanceFocusPending = false;
 
 registerImageProtocolScheme();
 resetAppLog();
+
+app.on(
+  "second-instance",
+  (_event, _argv, _workingDirectory, additionalData) => {
+    secondInstanceFocusPending = true;
+    const sanitizedData = sanitizeSecondInstanceData(additionalData);
+    logInfo("Secondary application instance redirected", {
+      additionalData: sanitizedData,
+    });
+    if (
+      sanitizedData.schemaVersion === 1 &&
+      sanitizedData.dataRoot &&
+      sanitizedData.dataRoot !== appPaths.dataRoot
+    ) {
+      logWarn("Secondary instance reported a different data root", {
+        currentDataRoot: appPaths.dataRoot,
+        secondaryDataRoot: sanitizedData.dataRoot,
+      });
+    }
+    if (mainStartupCompleted) {
+      restoreOrCreateMainWindowAfterSecondInstance();
+    }
+  },
+);
 
 logInfo("Application process starting", {
   cwd: process.cwd(),
@@ -103,6 +136,10 @@ void app
     });
     reactivateDock();
     openMainWindow();
+    mainStartupCompleted = true;
+    if (secondInstanceFocusPending) {
+      restoreOrCreateMainWindowAfterSecondInstance();
+    }
     cancelStartupMaintenance = scheduleStartupMaintenance({
       isBusy: () => jobs.hasActive,
       run: runStartupMaintenance,
@@ -113,9 +150,7 @@ void app
 
     app.on("activate", () => {
       reactivateDock();
-      if (!mainWindow || mainWindow.isDestroyed()) {
-        openMainWindow();
-      }
+      showOrCreateMainWindow();
     });
   })
   .catch((error) => {
@@ -190,11 +225,19 @@ async function finishAppQuitCleanup(): Promise<void> {
   } catch (error) {
     logError("Failed to clean up before app quit", error);
   } finally {
+    try {
+      releaseDataRootInstanceLockLease();
+    } catch (error) {
+      logError("Failed to release data-root instance lock", error);
+    }
     app.quit();
   }
 }
 
 function openMainWindow(): void {
+  if (focusExistingMainWindow(mainWindow)) {
+    return;
+  }
   mainWindow = createMainWindow({
     onRendererIncident: (context) => {
       if (!quitCleanupStarted) {
@@ -215,6 +258,39 @@ function openMainWindow(): void {
       disposeTranslationRuntimeResources("main-window-closed"),
     ]);
   });
+}
+
+function showOrCreateMainWindow(): void {
+  if (quitCleanupStarted || focusExistingMainWindow(mainWindow)) {
+    return;
+  }
+  openMainWindow();
+}
+
+function restoreOrCreateMainWindowAfterSecondInstance(): void {
+  if (!mainStartupCompleted || quitCleanupStarted) {
+    return;
+  }
+  secondInstanceFocusPending = false;
+  showOrCreateMainWindow();
+}
+
+function sanitizeSecondInstanceData(value: unknown): {
+  schemaVersion: 1 | null;
+  dataRoot: string | null;
+} {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { schemaVersion: null, dataRoot: null };
+  }
+  const candidate = value as Record<string, unknown>;
+  return {
+    schemaVersion: candidate.schemaVersion === 1 ? 1 : null,
+    dataRoot:
+      typeof candidate.dataRoot === "string" &&
+      candidate.dataRoot.length <= 4096
+        ? candidate.dataRoot
+        : null,
+  };
 }
 
 function notifyMainProcessIncident(summary: string, reason: unknown): void {

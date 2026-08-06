@@ -25,10 +25,10 @@ const electronMock = vi.hoisted(() => {
 
 vi.mock("electron", () => ({
   app: {
-    exit: vi.fn(),
     getLocale: () => "en",
     getVersion: () => "0.0.0-test",
     isPackaged: false,
+    quit: vi.fn(),
     relaunch: vi.fn(),
   },
   BrowserWindow: class {},
@@ -161,9 +161,9 @@ describe("error report IPC", () => {
         body: "diagnostic",
       }),
     ).resolves.toEqual({ opened: true, mode: "prefilled" });
-    await expect(
-      requiredHandler("error-report:restart-app")(mainEvent),
-    ).resolves.toEqual({ restarting: true });
+    const restart = requiredHandler("error-report:restart-app");
+    await expect(restart(mainEvent)).resolves.toEqual({ restarting: true });
+    await expect(restart(mainEvent)).resolves.toEqual({ restarting: true });
 
     expect(runtime.prepareDraft).toHaveBeenCalledWith(
       { source: "manual" },
@@ -172,11 +172,12 @@ describe("error report IPC", () => {
     expect(runtime.writeClipboard).toHaveBeenCalledWith("diagnostic");
     expect(runtime.openExternal).toHaveBeenCalledOnce();
     expect(runtime.relaunch).toHaveBeenCalledOnce();
+    expect(runtime.schedule).toHaveBeenCalledOnce();
     expect(runtime.schedule).toHaveBeenCalledWith(expect.any(Function), 100);
-    expect(runtime.exit).not.toHaveBeenCalled();
+    expect(runtime.quit).not.toHaveBeenCalled();
 
     scheduled[0]?.();
-    expect(runtime.exit).toHaveBeenCalledWith(0);
+    expect(runtime.quit).toHaveBeenCalledOnce();
   });
 
   it("runs log path, folder, and write handlers through injected ports", async () => {
@@ -336,8 +337,8 @@ function makeErrorReportRuntime(
   overrides: Partial<ErrorReportIpcRuntime> = {},
 ): ErrorReportIpcRuntime {
   return {
-    exit: vi.fn(),
     isAllowedNavigation: sameOrigin,
+    quit: vi.fn(),
     openExternal: vi.fn(async () => undefined),
     prepareDraft: vi.fn(async () => PREPARED_DRAFT),
     relaunch: vi.fn(),

@@ -56,3 +56,7 @@ logs/app.log
 settings.json
 panel-window-bounds.json
 recent-dialog-paths.json
+/.mgt-instance-lock/
+/.mgt-instance-candidate-*/
+/.mgt-instance-stale-*/
+/.mgt-instance-release-*/

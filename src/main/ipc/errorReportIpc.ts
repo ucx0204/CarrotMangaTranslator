@@ -37,7 +37,7 @@ export type ErrorReportIpcRuntime = TrustedIpcRuntime & {
   writeClipboard: (text: string) => void;
   openExternal: (url: string) => Promise<void>;
   relaunch: () => void;
-  exit: (code: number) => void;
+  quit: () => void;
   schedule: (callback: () => void, delayMs: number) => void;
 };
 
@@ -46,7 +46,7 @@ const productionErrorReportIpcRuntime: ErrorReportIpcRuntime = {
   writeClipboard: (text) => clipboard.writeText(text),
   openExternal: (url) => shell.openExternal(url),
   relaunch: () => app.relaunch(),
-  exit: (code) => app.exit(code),
+  quit: () => app.quit(),
   schedule: (callback, delayMs) => {
     setTimeout(callback, delayMs);
   },
@@ -57,6 +57,8 @@ export function registerErrorReportIpc(
   context: ErrorReportIpcContext,
   runtime: ErrorReportIpcRuntime = productionErrorReportIpcRuntime,
 ): void {
+  let restartScheduled = false;
+
   registeredRendererHandleContract(
     context,
     errorReportIpcContracts.prepareErrorReport,
@@ -86,8 +88,11 @@ export function registerErrorReportIpc(
     context,
     errorReportIpcContracts.restartApp,
     () => {
-      runtime.relaunch();
-      runtime.schedule(() => runtime.exit(0), 100);
+      if (!restartScheduled) {
+        restartScheduled = true;
+        runtime.relaunch();
+        runtime.schedule(() => runtime.quit(), 100);
+      }
       return { restarting: true };
     },
     runtime,

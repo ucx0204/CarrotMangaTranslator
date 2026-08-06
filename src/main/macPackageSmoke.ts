@@ -12,6 +12,8 @@ import {
   savePageBlocks,
 } from "./library";
 import { renderPageWithTranslationBlocksForExport } from "./pageExport";
+import { releaseDataRootInstanceLockLease } from "./dataRootInstanceLockState";
+import { exitMacPackageSmoke } from "./macPackageSmokeExit";
 
 const MAC_PACKAGE_SMOKE_MARKER = "mac-package-smoke.json";
 const MAC_PACKAGE_SMOKE_DIR = "mac-package-smoke";
@@ -57,7 +59,7 @@ export async function runMacPackageSmokeExit(
     } else {
       throw new Error(`Unknown Mac package smoke stage: ${stage ?? ""}`);
     }
-    app.exit(0);
+    exitMacPackageSmokeProcess(0);
   } catch (error) {
     const message =
       error instanceof Error ? error.stack || error.message : String(error);
@@ -68,9 +70,22 @@ export async function runMacPackageSmokeExit(
       error: message,
     });
     console.error("Mac package application smoke failed", error);
-    app.exit(1);
+    exitMacPackageSmokeProcess(1);
   }
   return true;
+}
+
+function exitMacPackageSmokeProcess(code: number): void {
+  exitMacPackageSmoke(code, {
+    releaseDataRootLock: releaseDataRootInstanceLockLease,
+    exit: (exitCode) => app.exit(exitCode),
+    reportReleaseFailure: (error) => {
+      console.error(
+        "Failed to release data-root lock before mac package smoke exit",
+        error,
+      );
+    },
+  });
 }
 
 function shouldRunMacPackageSmoke(): boolean {
