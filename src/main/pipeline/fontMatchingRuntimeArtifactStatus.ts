@@ -11,7 +11,9 @@ import {
 } from "./fontMatchingRuntimeArtifactContract";
 import type {
   AutoMatchActiveCatalog,
+  AutoMatchFontAssetDescriptor,
   InstalledAutoMatchCandidate,
+  InstalledAutoMatchFontAsset,
 } from "./autoMatchActiveCatalogTypes";
 import { candidateOrderSha256 } from "./autoMatchActiveCatalogContract";
 import {
@@ -75,11 +77,23 @@ export async function loadFontMatchingRuntimeArtifactStatus({
   installedCandidates,
   onnxRuntimeVersion = FONT_MATCHING_RUNTIME_ORT_VERSION,
   allowQaOnlyRuntime = false,
+  reverifyInstalledAssetBytes = true,
 }: {
   artifactDir: string | null | undefined;
   installedCandidates: readonly InstalledAutoMatchCandidate[];
   onnxRuntimeVersion?: string;
   allowQaOnlyRuntime?: boolean;
+  /**
+   * Re-read and re-hash each installed font asset from disk to confirm it has
+   * not changed since the candidate snapshot was built. The main process
+   * (Electron asar `fs` patches active) can read built-in fonts living inside
+   * `app.asar`; a `worker_threads` worker cannot, so it passes `false` and
+   * trusts the snapshot the main process already verified via
+   * `resolveAndVerifyActiveFontAsset` (which itself reads + hashes each file
+   * and throws on mismatch). The structural catalog check (candidate ids,
+   * order, per-asset file/byteSize/sha256 fields) always runs.
+   */
+  reverifyInstalledAssetBytes?: boolean;
 }): Promise<FontMatchingRuntimeArtifactStatus> {
   if (!artifactDir) return disabled("missing_artifact");
   let bundle;
@@ -104,7 +118,11 @@ export async function loadFontMatchingRuntimeArtifactStatus({
     return disabled("runtime_version_mismatch");
   }
   if (
-    !(await verifyInstalledCatalog(bundle.activeCatalog, installedCandidates))
+    !(await verifyInstalledCatalog(
+      bundle.activeCatalog,
+      installedCandidates,
+      reverifyInstalledAssetBytes,
+    ))
   ) {
     return disabled("catalog_mismatch");
   }
@@ -312,6 +330,7 @@ function validRuntimeArtifacts(
 async function verifyInstalledCatalog(
   activeCatalog: AutoMatchActiveCatalog,
   installedCandidates: readonly InstalledAutoMatchCandidate[],
+  reverifyInstalledAssetBytes: boolean,
 ): Promise<boolean> {
   if (
     !sameCandidateOrder(
@@ -334,22 +353,44 @@ async function verifyInstalledCatalog(
     ) {
       return false;
     }
-    for (
-      let assetIndex = 0;
-      assetIndex < expected.assets.length;
-      assetIndex += 1
+    if (
+      !(await installedCandidateAssetsMatch(
+        expected.assets,
+        installed.assets,
+        reverifyInstalledAssetBytes,
+      ))
     ) {
-      const expectedAsset = expected.assets[assetIndex];
-      const installedAsset = installed.assets[assetIndex];
-      if (
-        !installedAsset ||
-        installedAsset.file !== expectedAsset.file ||
-        installedAsset.byteSize !== expectedAsset.byteSize ||
-        installedAsset.sha256 !== expectedAsset.sha256 ||
-        !(await verifyInstalledAssetBytes(installedAsset))
-      ) {
-        return false;
-      }
+      return false;
+    }
+  }
+  return true;
+}
+
+async function installedCandidateAssetsMatch(
+  expectedAssets: readonly AutoMatchFontAssetDescriptor[],
+  installedAssets: readonly InstalledAutoMatchFontAsset[],
+  reverifyInstalledAssetBytes: boolean,
+): Promise<boolean> {
+  for (
+    let assetIndex = 0;
+    assetIndex < expectedAssets.length;
+    assetIndex += 1
+  ) {
+    const expectedAsset = expectedAssets[assetIndex];
+    const installedAsset = installedAssets[assetIndex];
+    if (
+      !installedAsset ||
+      installedAsset.file !== expectedAsset.file ||
+      installedAsset.byteSize !== expectedAsset.byteSize ||
+      installedAsset.sha256 !== expectedAsset.sha256
+    ) {
+      return false;
+    }
+    if (
+      reverifyInstalledAssetBytes &&
+      !(await verifyInstalledAssetBytes(installedAsset))
+    ) {
+      return false;
     }
   }
   return true;

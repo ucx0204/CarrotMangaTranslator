@@ -29,6 +29,12 @@ const { FakeWorker } = vi.hoisted(() => {
     static failSpawn = false;
     /** 다음 init 을 init-error 로 응답(init 실패 폴백 검증). */
     static failNextInit = false;
+    /**
+     * 다음 init에서 ready/init-error 대신 error 또는 exit 이벤트로 워커가
+     * 죽는다(runInit error/exit 미처리 시 Promise 영원히 pending → 90초 타임아웃
+     * 조용히 삼켜짐 회귀 검증).
+     */
+    static crashBeforeInit: "error" | "exit" | null = null;
     /** infer 에 자동 응답하지 않음(abort 검증용 대기). */
     static holdInfer = false;
     public posted: FontMatchingWorkerInboundMessage[] = [];
@@ -67,9 +73,15 @@ const { FakeWorker } = vi.hoisted(() => {
       if (data.type === "init") {
         const id = data.id;
         const fail = FakeWorker.failNextInit;
+        const crash = FakeWorker.crashBeforeInit;
         FakeWorker.failNextInit = false;
+        FakeWorker.crashBeforeInit = null;
         queueMicrotask(() => {
-          if (fail) {
+          if (crash === "error") {
+            this.emit("error", new Error("worker died before ready"));
+          } else if (crash === "exit") {
+            this.emit("exit", 1);
+          } else if (fail) {
             this.emit("message", {
               type: "init-error",
               id,
@@ -132,6 +144,7 @@ afterEach(() => {
   FakeWorker.instances.length = 0;
   FakeWorker.failSpawn = false;
   FakeWorker.failNextInit = false;
+  FakeWorker.crashBeforeInit = null;
   FakeWorker.holdInfer = false;
 });
 
@@ -361,6 +374,36 @@ describe("font matching worker client protocol", () => {
     expect(fallbackInfer).toHaveBeenCalledTimes(2);
     expect(FakeWorker.instances.length).toBe(1);
   });
+
+  it.each(["error", "exit"] as const)(
+    "falls back to the in-process port when the worker %ss before init completes (no 90s hang)",
+    async (crash) => {
+      FakeWorker.crashBeforeInit = crash;
+      const fallbackInfer = vi.fn(
+        async (request: FontMatchingPageInferenceRequest) => ({
+          pixelInferenceByBlockId: new Map([
+            [request.blocks[0]?.blockId ?? "x", {} as never],
+          ]),
+        }),
+      );
+      const fallback = vi.fn(
+        (): FontMatchingPageInferencePort => ({
+          inferPage: fallbackInfer,
+        }),
+      );
+      const reportWarning = vi.fn();
+      const port = makePort({ createFallbackPort: fallback, reportWarning });
+
+      // runInit 가 error/exit 를 reject 로 처리하지 않으면 이 await 는
+      // 영원히 pending → 페이지 단계 90초 타임아웃까지 걸리고 그 에러마저
+      // 조용히 삼켜져 "폰트 맞춤 조용히 미적용" 증상이 된다.
+      const result = await port.inferPage(makeRequest());
+
+      expect(fallback).toHaveBeenCalledTimes(1);
+      expect(result.pixelInferenceByBlockId.size).toBe(1);
+      expect(reportWarning).toHaveBeenCalled();
+    },
+  );
 
   it("reports a catalog mismatch as a disabled empty result", async () => {
     const port = makePort();

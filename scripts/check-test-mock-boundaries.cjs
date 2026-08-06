@@ -18,6 +18,7 @@ const ALLOWED_INTERNAL_BOUNDARY_MOCKS = new Set([
   "tests/bubbleLayoutFacade.test.ts::../src/main/bubbleLayout/assets",
   "tests/bubbleLayoutFacade.test.ts::../src/main/bubbleLayout/detector",
   "tests/bubbleLayoutFacade.test.ts::../src/main/logger",
+  "tests/fontMatchingPagePixelInference.test.ts::../src/main/logger",
   "tests/inpaintingArtifactCleanup.test.ts::../src/main/appPaths",
   "tests/inpaintingRevisionStore.test.ts::../src/main/appPaths",
   "tests/libraryImportLimits.test.ts::../src/main/appPaths",

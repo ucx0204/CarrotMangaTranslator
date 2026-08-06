@@ -134,6 +134,14 @@ async function handleInit(
       installedCandidates: message.installedCandidates,
       wasmAssets: message.wasmAssets,
       allowQaOnlyRuntime: message.allowQaOnlyRuntime ?? false,
+      // Built-in font files live inside app.asar, which a worker_threads
+      // worker cannot read (Electron's asar `fs` patches are main-process
+      // only). The main process already verified each installed asset's
+      // hash/size against the catalog via resolveAndVerifyActiveFontAsset when
+      // building the candidate snapshot, so trust that here and only run the
+      // structural catalog check. Re-hashing would silently fail with
+      // catalog_mismatch and disable auto font matching in the packaged app.
+      reverifyInstalledAssetBytes: false,
     });
     runtimeModel = result.model;
     post({

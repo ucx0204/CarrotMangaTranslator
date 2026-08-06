@@ -31,6 +31,21 @@ import type { MangaPage } from "../src/shared/libraryTypes";
 import type { AutomaticFontCandidate } from "../src/shared/fontMatchingTypes";
 import { makeAutomaticFontCandidate } from "./helpers/automaticFontCandidate";
 
+// automaticFontMatchingV2PageStage now logs the 90s inference-deadline timeout
+// via logWarn; in the test env electron's `app` is unavailable so logger would
+// crash resolving the log path. Stub the logger surface used by the page stage
+// (and any transitively-reached helpers) to no-ops.
+vi.mock("../src/main/logger", () => ({
+  logInfo: vi.fn(),
+  logWarn: vi.fn(),
+  logError: vi.fn(),
+  writeLog: vi.fn(),
+  resetAppLog: vi.fn(),
+  getLogPath: vi.fn(() => ""),
+  getPreviousLogPath: vi.fn(() => ""),
+  serializeLogDetail: vi.fn(() => ""),
+}));
+
 describe("whole-page Font Matching pixel inference", () => {
   it("keeps the compiled QA runtime bridge helpers public", () => {
     expect([

@@ -14,6 +14,7 @@ import type {
 } from "../../shared/fontMatchingProfileTypes";
 import type { AutomaticFontCandidate } from "../../shared/fontMatchingTypes";
 import type { UiLocale } from "../../shared/uiLocales";
+import { isKoreanLanguageCode } from "../../shared/translationLanguages";
 import type { AppPaths } from "../appPaths";
 import { loadFontMatchingPageRaster } from "../fontMatchingPageImage";
 import {
@@ -226,6 +227,7 @@ type RuntimeModelLoadOptions = Readonly<{
   installedCandidates: readonly InstalledAutoMatchCandidate[];
   wasmAssets: OrtWasmAssets;
   allowQaOnlyRuntime?: boolean;
+  reverifyInstalledAssetBytes?: boolean;
 }>;
 
 type RuntimeContract = Readonly<{
@@ -273,7 +275,7 @@ export function createFontMatchingPageInferencePort(
     async inferPage(request) {
       assertUserPageBoundary(request.boundary);
       throwIfAborted(request.signal);
-      if (request.targetLanguage !== "ko") return emptyResult();
+      if (!isKoreanLanguageCode(request.targetLanguage)) return emptyResult();
       let pending = preparedByLocale.get("ko");
       if (!pending) {
         pending = prepareRuntimeForPort(dependencies, "ko");
@@ -352,78 +354,94 @@ export async function loadFontMatchingRuntimeModel({
   installedCandidates,
   wasmAssets,
   allowQaOnlyRuntime = false,
+  reverifyInstalledAssetBytes = true,
 }: RuntimeModelLoadOptions): Promise<RuntimeLoadResult> {
   const status = await loadFontMatchingRuntimeArtifactStatus({
     artifactDir,
     installedCandidates,
     allowQaOnlyRuntime,
+    reverifyInstalledAssetBytes,
   });
   if (status.state !== "ready") return { status, model: null };
   try {
-    const bundle = await readRuntimeBundle(artifactDir, allowQaOnlyRuntime);
-    const prototypeBytes = requiredBytes(bundle.assetBytes, PROTOTYPE_FILE);
-    const contract = parseRuntimeInferenceContract(
-      bundle.contract,
-      status,
-      bundle.activeCatalog.sourceRecords.deploymentRenderBankManifestSha256,
-      prototypeBytes.byteLength,
-    );
-    if (!contract) return { status: disabled("invalid_contract"), model: null };
-    const selectionCalibration = parseVerifiedSelectionCalibration(
-      bundle,
-      status,
-      contract,
-    );
-    if (!selectionCalibration) return invalidRuntimeLoad();
-    const prototypeFeatures = readPrototypeFeatures(
-      prototypeBytes,
-      contract,
-      bundle.assets[PROTOTYPE_FILE]?.sha256 ?? "",
-    );
-    const sessions = await getOrCreateSessions({
-      encoderBytes: requiredBytes(bundle.assetBytes, ENCODER_FILE),
-      encoderSha256: bundle.assets[ENCODER_FILE]?.sha256 ?? "",
-      rankerBytes: requiredBytes(bundle.assetBytes, RANKER_FILE),
-      rankerSha256: bundle.assets[RANKER_FILE]?.sha256 ?? "",
+    return await buildFontMatchingRuntimeModel(
+      artifactDir,
       wasmAssets,
-    });
-    assertSessionNames(sessions.encoder, ["pixel_values"], ["image_features"]);
-    assertSessionNames(
-      sessions.ranker,
-      ["views", "prototype_features"],
-      contract.rankerOutputNames,
-    );
-    const selectionPrototypeFeatures = selectFeaturePrefixRows(
-      prototypeFeatures,
-      contract.prototypeCount,
-      contract.featureDim,
-      contract.selectionFeatureDim,
-    );
-    const model: FontMatchingRuntimeModel = {
       status,
-      ...sessions,
-      createFloatTensor: (data, dims) =>
-        new ort.Tensor("float32", data, [...dims]),
-      candidateIds: [...status.candidateIds],
-      encoderBatchSize: contract.encoderBatchSize,
-      featureDim: contract.featureDim,
-      selectionFeatureDim: contract.selectionFeatureDim,
-      prototypeCount: contract.prototypeCount,
-      prototypeFeatures,
-      selectionPrototypeFeatures,
-      prototypeBags: contract.prototypeBags,
-      rankerOutputNames: contract.rankerOutputNames,
-      rankerBatchSize: contract.rankerBatchSize,
-      scoreRouting: contract.scoreRouting,
-      rendererHash: contract.rendererHash,
-      selectionCalibration,
-      qaOnlyRuntime: bundle.qaOnly,
-      releaseAccepted: bundle.releaseAccepted,
-    };
-    return { status, model };
+      allowQaOnlyRuntime,
+    );
   } catch (_error) {
     return { status: disabled("artifact_verification_failed"), model: null };
   }
+}
+
+async function buildFontMatchingRuntimeModel(
+  artifactDir: string,
+  wasmAssets: OrtWasmAssets,
+  status: Extract<FontMatchingRuntimeArtifactStatus, { state: "ready" }>,
+  allowQaOnlyRuntime: boolean,
+): Promise<RuntimeLoadResult> {
+  const bundle = await readRuntimeBundle(artifactDir, allowQaOnlyRuntime);
+  const prototypeBytes = requiredBytes(bundle.assetBytes, PROTOTYPE_FILE);
+  const contract = parseRuntimeInferenceContract(
+    bundle.contract,
+    status,
+    bundle.activeCatalog.sourceRecords.deploymentRenderBankManifestSha256,
+    prototypeBytes.byteLength,
+  );
+  if (!contract) return { status: disabled("invalid_contract"), model: null };
+  const selectionCalibration = parseVerifiedSelectionCalibration(
+    bundle,
+    status,
+    contract,
+  );
+  if (!selectionCalibration) return invalidRuntimeLoad();
+  const prototypeFeatures = readPrototypeFeatures(
+    prototypeBytes,
+    contract,
+    bundle.assets[PROTOTYPE_FILE]?.sha256 ?? "",
+  );
+  const sessions = await getOrCreateSessions({
+    encoderBytes: requiredBytes(bundle.assetBytes, ENCODER_FILE),
+    encoderSha256: bundle.assets[ENCODER_FILE]?.sha256 ?? "",
+    rankerBytes: requiredBytes(bundle.assetBytes, RANKER_FILE),
+    rankerSha256: bundle.assets[RANKER_FILE]?.sha256 ?? "",
+    wasmAssets,
+  });
+  assertSessionNames(sessions.encoder, ["pixel_values"], ["image_features"]);
+  assertSessionNames(
+    sessions.ranker,
+    ["views", "prototype_features"],
+    contract.rankerOutputNames,
+  );
+  const selectionPrototypeFeatures = selectFeaturePrefixRows(
+    prototypeFeatures,
+    contract.prototypeCount,
+    contract.featureDim,
+    contract.selectionFeatureDim,
+  );
+  const model: FontMatchingRuntimeModel = {
+    status,
+    ...sessions,
+    createFloatTensor: (data, dims) =>
+      new ort.Tensor("float32", data, [...dims]),
+    candidateIds: [...status.candidateIds],
+    encoderBatchSize: contract.encoderBatchSize,
+    featureDim: contract.featureDim,
+    selectionFeatureDim: contract.selectionFeatureDim,
+    prototypeCount: contract.prototypeCount,
+    prototypeFeatures,
+    selectionPrototypeFeatures,
+    prototypeBags: contract.prototypeBags,
+    rankerOutputNames: contract.rankerOutputNames,
+    rankerBatchSize: contract.rankerBatchSize,
+    scoreRouting: contract.scoreRouting,
+    rendererHash: contract.rendererHash,
+    selectionCalibration,
+    qaOnlyRuntime: bundle.qaOnly,
+    releaseAccepted: bundle.releaseAccepted,
+  };
+  return { status, model };
 }
 
 function invalidRuntimeLoad(): RuntimeLoadResult {

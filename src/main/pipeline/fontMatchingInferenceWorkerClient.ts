@@ -42,6 +42,7 @@ import { loadFontMatchingPageRaster } from "../fontMatchingPageImage";
 import type { FontMatchingRasterPage } from "./fontMatchingPagePixelPreprocessing";
 import type { MangaPage } from "../../shared/libraryTypes";
 import { resolveFontMatchingArtifactDirSync } from "./fontMatchingRuntimePaths";
+import { isKoreanLanguageCode } from "../../shared/translationLanguages";
 
 type WorkerClientDependencies = Readonly<{
   paths: Pick<AppPaths, "dataRoot" | "runtimeDir">;
@@ -97,7 +98,7 @@ class FontMatchingInferenceWorkerClient implements FontMatchingPageInferencePort
     assertUserPageBoundary(request.boundary);
     if (request.signal?.aborted)
       throw new DOMException("Aborted", "AbortError");
-    if (request.targetLanguage !== "ko") return emptyResult();
+    if (!isKoreanLanguageCode(request.targetLanguage)) return emptyResult();
     const ready = await this.ensureWorkerReady();
     if (!ready) return this.getFallback().inferPage(request);
     const preflight = this.preflight(request);
@@ -235,16 +236,39 @@ class FontMatchingInferenceWorkerClient implements FontMatchingPageInferencePort
     const installedCandidates =
       this.deps.loadSelection("ko").installedCandidates;
     return new Promise<FontMatchingRuntimeArtifactStatus>((resolve, reject) => {
+      const cleanup = (): void => {
+        target.off("message", onMessage);
+        target.off("error", onError);
+        target.off("exit", onExit);
+      };
       const onMessage = (message: FontMatchingWorkerOutboundMessage) => {
         if (message.type === "ready" && message.id === id) {
-          target.off("message", onMessage);
+          cleanup();
           resolve(message.status);
         } else if (message.type === "init-error" && message.id === id) {
-          target.off("message", onMessage);
+          cleanup();
           reject(deserializeError(message.error));
         }
       };
+      // 워커가 ready/init-error를 보내기 전에 error/exit로 죽으면 Promise가
+      // 영원히 pending으로 남아 ensureWorkerReady가 90초 페이지 타임아웃까지
+      // 걸리고 그 에러마저 조용히 삼켜지므로, 여기서 즉시 reject해
+      // ensureWorkerReady의 catch → in-process 폴백으로 빠진다.
+      const onError = (error: Error): void => {
+        cleanup();
+        reject(error);
+      };
+      const onExit = (code: number): void => {
+        cleanup();
+        reject(
+          new Error(
+            `Font matching worker exited before initialization completed: ${code}`,
+          ),
+        );
+      };
       target.on("message", onMessage);
+      target.on("error", onError);
+      target.on("exit", onExit);
       target.postMessage({
         type: "init",
         id,
@@ -266,6 +290,16 @@ class FontMatchingInferenceWorkerClient implements FontMatchingPageInferencePort
       this.attachWorkerHandlers(spawned);
       this.worker = spawned;
       this.initStatus = await this.runInit(spawned);
+      if (this.initStatus.state !== "ready") {
+        // 런타임이 disabled(missing_artifact/catalog_mismatch/...)면 추론은
+        // 조용히 빈 결과로 빠지므로, 원인을 최초 1회 기록해 사용자가 "왜 안
+        // 적용되나"를 로그에서 추적할 수 있게 한다. ensureWorkerReady는 한 번만
+        // init하므로 중복 경고 없음.
+        this.deps.reportWarning?.(
+          "Font matching runtime is disabled; auto font matching will not apply.",
+          this.initStatus,
+        );
+      }
       this.mode = "worker";
       if (!this.exitHandlerRegistered) {
         this.exitHandlerRegistered = true;

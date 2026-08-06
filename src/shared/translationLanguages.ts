@@ -205,7 +205,7 @@ export function isJapaneseLanguageCode(code: unknown): boolean {
   return getBaseLanguageCode(code) === "ja";
 }
 
-function isKoreanLanguageCode(code: unknown): boolean {
+export function isKoreanLanguageCode(code: unknown): boolean {
   return getBaseLanguageCode(code) === "ko";
 }
 

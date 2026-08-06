@@ -376,6 +376,40 @@ describe("font matching runtime artifact status", () => {
     });
   });
 
+  it("trusts the preverified snapshot when on-disk asset reverification is skipped (worker_threads path)", async () => {
+    const bundle = await writeBundle();
+    // Built-in font files live inside app.asar, which a worker_threads worker
+    // cannot read (Electron's asar `fs` patches are main-process only). The
+    // worker passes reverifyInstalledAssetBytes:false and trusts the snapshot
+    // the main process already verified, so unreadable/tampered bytes on disk
+    // must NOT disable matching — only the structural catalog check runs.
+    await writeFile(
+      bundle.installedCandidates[1].assets[0].resolvedFile,
+      "same-descriptor-but-tampered-bytes",
+    );
+
+    await expect(
+      loadFontMatchingRuntimeArtifactStatus({
+        artifactDir: bundle.root,
+        installedCandidates: bundle.installedCandidates,
+        reverifyInstalledAssetBytes: false,
+      }),
+    ).resolves.toMatchObject({ state: "ready" });
+
+    // The structural check still runs: a reordered candidate snapshot still
+    // fails closed even with on-disk reverification skipped.
+    await expect(
+      loadFontMatchingRuntimeArtifactStatus({
+        artifactDir: bundle.root,
+        installedCandidates: [...bundle.installedCandidates].reverse(),
+        reverifyInstalledAssetBytes: false,
+      }),
+    ).resolves.toMatchObject({
+      state: "disabled",
+      reason: "catalog_mismatch",
+    });
+  });
+
   it("rejects contract vocabulary drift from the bundled active catalog", async () => {
     const bundle = await writeBundle();
     bundle.contract.catalog.candidate_ids = [...candidateIds].reverse();
