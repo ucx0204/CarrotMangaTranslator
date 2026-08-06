@@ -1,4 +1,5 @@
 // @ts-check
+/** @typedef {import("../runtime-jsdoc-types").CommandSpec} CommandSpec */
 
 /** @param {unknown} value @param {number} [maxLength] */
 function truncateText(value, maxLength = 8000) {
@@ -21,18 +22,54 @@ function shrinkBuffer(current, chunk, maxLength = 12000) {
   return next.length > maxLength ? next.slice(next.length - maxLength) : next;
 }
 
-/** @param {string} template @param {Record<string, string>} replacements */
-function renderCommandTemplate(template, replacements) {
-  let rendered = template;
-  for (const [key, value] of Object.entries(replacements)) {
-    rendered = rendered.replaceAll(`{${key}}`, value);
+/** @param {unknown} value @returns {CommandSpec} */
+function normalizeCommandSpec(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new TypeError("Command spec must be an object.");
   }
-  return rendered;
+
+  const candidate = /** @type {{ executable?: unknown; args?: unknown }} */ (
+    value
+  );
+
+  if (
+    typeof candidate.executable !== "string" ||
+    !candidate.executable.trim()
+  ) {
+    throw new TypeError("Command executable must be a non-empty string.");
+  }
+  if (candidate.executable.includes("\0")) {
+    throw new TypeError("Command executable must not contain NUL bytes.");
+  }
+  if (!Array.isArray(candidate.args)) {
+    throw new TypeError("Command args must be an array of strings.");
+  }
+
+  for (const [index, arg] of candidate.args.entries()) {
+    if (typeof arg !== "string") {
+      throw new TypeError(`Command arg ${index} must be a string.`);
+    }
+    if (arg.includes("\0")) {
+      throw new TypeError(`Command arg ${index} must not contain NUL bytes.`);
+    }
+  }
+
+  return {
+    executable: candidate.executable,
+    args: [...candidate.args],
+  };
 }
 
-/** @param {unknown} value */
-function quoteCommandArg(value) {
-  return `"${String(value ?? "").replace(/"/g, '\\"')}"`;
+/**
+ * Logs and diagnostics only. Never pass this string to a process execution API.
+ * @param {CommandSpec} command
+ * @returns {string}
+ */
+function formatCommandForLog(command) {
+  const normalized = normalizeCommandSpec(command);
+  return [normalized.executable, ...normalized.args]
+    .map((part) => JSON.stringify(part))
+    .join(" ");
 }
 
 /** @returns {Error | DOMException} */
@@ -48,8 +85,8 @@ function createAbortError() {
 module.exports = {
   createAbortError,
   createDetailedError,
-  quoteCommandArg,
-  renderCommandTemplate,
+  formatCommandForLog,
+  normalizeCommandSpec,
   shrinkBuffer,
   truncateText,
 };

@@ -109,9 +109,12 @@ describeWindows(
           },
           buildOcrBboxBatchCommand() {
             commandIndex += 1;
-            return `ocr-gpu-strict-${commandIndex}`;
+            return {
+              executable: process.execPath,
+              args: [`ocr-gpu-strict-${commandIndex}`],
+            };
           },
-          async runShellCommand() {
+          async runCommand() {
             throw new Error("hipErrorOutOfMemory: HIP out of memory");
           },
         },
@@ -143,13 +146,23 @@ describeWindows(
     it("prepares build tooling before OCR package installs", () => {
       const command = buildOcrPipBuildToolUpgradeCommand(
         "C:/Python/python.exe",
-        '--cache-dir "C:/ocr/pip-cache" --progress-bar raw',
+        ["--cache-dir", "C:/ocr/pip-cache", "--progress-bar", "raw"],
       );
 
-      expect(command).toContain("-m pip install --upgrade");
-      expect(command).toContain("pip");
-      expect(command).toContain("setuptools");
-      expect(command).toContain("wheel");
+      expect(command.executable).toBe("C:/Python/python.exe");
+      expect(command.args).toEqual([
+        "-m",
+        "pip",
+        "install",
+        "--upgrade",
+        "--cache-dir",
+        "C:/ocr/pip-cache",
+        "--progress-bar",
+        "raw",
+        "pip",
+        "setuptools",
+        "wheel",
+      ]);
     });
 
     it("uses no build isolation for ROCm meta packages and no deps for ROCm resolver traps", () => {
@@ -195,14 +208,14 @@ describeWindows(
         rocmMetaPackage,
         "C:/ocr/p",
         options,
-        '--cache-dir "C:/ocr/c" --progress-bar raw',
+        ["--cache-dir", "C:/ocr/c", "--progress-bar", "raw"],
       );
       const rocmTorchCommand = buildOcrPipInstallCommand(
         "C:/Python/python.exe",
         rocmTorchWheels,
         "C:/ocr/p",
         options,
-        '--cache-dir "C:/ocr/c" --progress-bar raw',
+        ["--cache-dir", "C:/ocr/c", "--progress-bar", "raw"],
       );
 
       expect(rocmMetaExtraArgs).toContain("--no-build-isolation");
@@ -215,11 +228,12 @@ describeWindows(
       expect(resolveOcrPipInstallExtraArgs(paddleOcrPackages, options)).toEqual(
         [],
       );
-      expect(rocmMetaCommand).toContain('"--no-build-isolation"');
-      expect(rocmMetaCommand).toContain('"--no-deps"');
-      expect(rocmMetaCommand).toContain('--target "C:/ocr/p"');
-      expect(rocmTorchCommand).toContain('"--no-deps"');
-      expect(rocmTorchCommand).not.toContain('"--no-build-isolation"');
+      expect(rocmMetaCommand.args).toContain("--no-build-isolation");
+      expect(rocmMetaCommand.args).toContain("--no-deps");
+      expect(rocmMetaCommand.args).toContain("--target");
+      expect(rocmMetaCommand.args).toContain("C:/ocr/p");
+      expect(rocmTorchCommand.args).toContain("--no-deps");
+      expect(rocmTorchCommand.args).not.toContain("--no-build-isolation");
     });
 
     it("labels AMD ROCm URL-only install batches", () => {
@@ -378,7 +392,7 @@ describeWindows(
         resolveOcrPipInstallBatches(options)[0],
         packageDir,
         options,
-        `--cache-dir ${join(runtimeDir, "c")} --progress-bar raw`,
+        ["--cache-dir", join(runtimeDir, "c"), "--progress-bar", "raw"],
       );
 
       expect(env.TMP).toBe(join(runtimeDir, "t"));
@@ -386,9 +400,12 @@ describeWindows(
       expect(env.PIP_CACHE_DIR).toBe(join(runtimeDir, "c"));
       expect(env.PYTHONUSERBASE).toBe(join(runtimeDir, "u"));
       expect(env.PYTHONPATH).toBe(packageDir);
-      expect(command).toContain(`--target "${packageDir}"`);
-      expect(command).not.toContain("data\\ocr-runtime");
-      expect(command).not.toContain("python-packages-gpu-rocm-transformers");
+      expect(command.args).toContain("--target");
+      expect(command.args).toContain(packageDir);
+      expect(command.args.join(" ")).not.toContain("data\\ocr-runtime");
+      expect(command.args.join(" ")).not.toContain(
+        "python-packages-gpu-rocm-transformers",
+      );
     });
 
     it("allows explicit AMD ROCm OCR runtime directory overrides", () => {

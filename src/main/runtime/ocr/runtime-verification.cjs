@@ -18,10 +18,7 @@ const {
   resolvePaddleOcrImportCheckTimeoutMs,
 } = require("../simple-page-ocr-runtime-config.cjs");
 const { createDetailedError } = require("./host-services.cjs");
-const {
-  quoteCommandArg,
-  runShellCommand,
-} = require("../simple-page-shell-utils.cjs");
+const { runCommand } = require("../simple-page-shell-utils.cjs");
 const { isTruthy } = require("./config-values.cjs");
 
 /** @param {string} pythonPath @param {RuntimeOptions} [options] @returns {Promise<boolean>} */
@@ -32,8 +29,11 @@ async function canImportPaddleOcr(pythonPath, options = {}) {
 /** @param {string} pythonPath @param {RuntimeOptions} [options] @param {OcrRuntimeLayout | null} [runtime] @returns {Promise<ImportCheckResult>} */
 async function checkPaddleOcrImport(pythonPath, options = {}, runtime = null) {
   try {
-    await runShellCommand(
-      `${quoteCommandArg(pythonPath)} -c ${quoteCommandArg(buildPaddleOcrImportCheckScript(options))}`,
+    await runCommand(
+      {
+        executable: pythonPath,
+        args: ["-c", buildPaddleOcrImportCheckScript(options)],
+      },
       {
         timeoutMs: resolvePaddleOcrImportCheckTimeoutMs(options),
         env: buildOcrRuntimeEnv(options, {

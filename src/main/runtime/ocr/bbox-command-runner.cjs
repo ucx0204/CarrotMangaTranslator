@@ -1,15 +1,16 @@
 // @ts-check
+/** @typedef {import("../runtime-jsdoc-types").CommandSpec} CommandSpec */
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
 /** @typedef {import("../runtime-jsdoc-types").OcrRuntimeLayout} OcrRuntimeLayout */
 /** @typedef {RuntimeOptions & { outputDir?: string | null }} OcrBboxOptions */
-/** @typedef {{ timeoutMs?: number; onOutput?: ((line: string) => void) | null }} OcrShellRunOptions */
-/** @typedef {{ existsSync: (path: string) => boolean; mkdir: (path: string, options: { recursive: true }) => Promise<unknown>; readFile: (path: string, encoding: "utf8") => Promise<string>; path: typeof import("node:path"); extractJsonText: (text: unknown) => string; ensurePaddleOcrRuntime: (options: OcrBboxOptions) => Promise<OcrRuntimeLayout>; buildOcrBboxCommand: (options: OcrBboxOptions, provider: string, outputPath: string, runtime: OcrRuntimeLayout | null) => string; emitRuntimeProgress: (options: object | undefined, phase: string, progressText: string, detail?: string, progress?: Record<string, unknown>) => void; resolveOcrDeviceLabel: (options: OcrBboxOptions) => string; createOcrCommandProgressHandler: (options: OcrBboxOptions, context: Record<string, unknown>) => (line: string) => void; resolveOcrBboxTimeoutMs: (count: number) => number; createDetailedError: (message: string, details: Record<string, unknown>) => Error; truncateText: (value: unknown, limit: number) => string; runShellCommand: (command: string, options: Record<string, unknown>) => Promise<{ stdout: string; stderr: string }>; buildOcrRuntimeEnv: (options: OcrBboxOptions, runtime: OcrRuntimeLayout | null) => NodeJS.ProcessEnv; isPaddleOcrModelAssetLoadFailure: (error: unknown) => boolean; repairPaddleOcrModelAssetsCache: (options: OcrBboxOptions, runtime: OcrRuntimeLayout | null, error: unknown) => Promise<unknown> }} Dependencies */
+/** @typedef {{ timeoutMs?: number; onOutput?: ((line: string) => void) | null }} OcrCommandRunOptions */
+/** @typedef {{ existsSync: (path: string) => boolean; mkdir: (path: string, options: { recursive: true }) => Promise<unknown>; readFile: (path: string, encoding: "utf8") => Promise<string>; path: typeof import("node:path"); extractJsonText: (text: unknown) => string; ensurePaddleOcrRuntime: (options: OcrBboxOptions) => Promise<OcrRuntimeLayout>; buildOcrBboxCommand: (options: OcrBboxOptions, provider: string, outputPath: string, runtime: OcrRuntimeLayout | null) => CommandSpec; formatCommandForLog: (command: CommandSpec) => string; emitRuntimeProgress: (options: object | undefined, phase: string, progressText: string, detail?: string, progress?: Record<string, unknown>) => void; resolveOcrDeviceLabel: (options: OcrBboxOptions) => string; createOcrCommandProgressHandler: (options: OcrBboxOptions, context: Record<string, unknown>) => (line: string) => void; resolveOcrBboxTimeoutMs: (count: number) => number; createDetailedError: (message: string, details: Record<string, unknown>) => Error; truncateText: (value: unknown, limit: number) => string; runCommand: (command: CommandSpec, options: Record<string, unknown>) => Promise<{ stdout: string; stderr: string }>; buildOcrRuntimeEnv: (options: OcrBboxOptions, runtime: OcrRuntimeLayout | null) => NodeJS.ProcessEnv; isPaddleOcrModelAssetLoadFailure: (error: unknown) => boolean; repairPaddleOcrModelAssetsCache: (options: OcrBboxOptions, runtime: OcrRuntimeLayout | null, error: unknown) => Promise<unknown> }} Dependencies */
 
 /** @param {Dependencies} dependencies */
 function createOcrCommandRunner(dependencies) {
   return {
     runOcrBboxCommand: runOcrBboxCommand.bind(null, dependencies),
-    runOcrShellCommandWithModelRepair: runOcrShellCommandWithModelRepair.bind(
+    runOcrCommandWithModelRepair: runOcrCommandWithModelRepair.bind(
       null,
       dependencies,
     ),
@@ -26,19 +27,20 @@ async function runOcrBboxCommand(
   await dependencies.mkdir(outputDir, { recursive: true });
   const outputPath = dependencies.path.join(outputDir, "ocr-bbox-hints.json");
   const runtime = await resolveRuntime(dependencies, provider, options);
-  const command = dependencies.buildOcrBboxCommand(
+  const commandSpec = dependencies.buildOcrBboxCommand(
     options,
     provider,
     outputPath,
     runtime,
   );
+  const command = dependencies.formatCommandForLog(commandSpec);
   emitCommandStarted(dependencies, options);
   const onOutput = dependencies.createOcrCommandProgressHandler(options, {
     progressText: "Paddle OCR 모델 다운로드/위치 분석 중",
   });
-  const output = await runOcrShellCommandWithModelRepair(
+  const output = await runOcrCommandWithModelRepair(
     dependencies,
-    command,
+    commandSpec,
     options,
     runtime,
     { timeoutMs: dependencies.resolveOcrBboxTimeoutMs(1), onOutput },
@@ -119,8 +121,8 @@ function buildCommandResult(context) {
   };
 }
 
-/** @param {Dependencies} dependencies @param {string} command @param {OcrBboxOptions} options @param {OcrRuntimeLayout | null} runtime @param {OcrShellRunOptions} [runOptions] */
-async function runOcrShellCommandWithModelRepair(
+/** @param {Dependencies} dependencies @param {CommandSpec} command @param {OcrBboxOptions} options @param {OcrRuntimeLayout | null} runtime @param {OcrCommandRunOptions} [runOptions] */
+async function runOcrCommandWithModelRepair(
   dependencies,
   command,
   options = {},
@@ -128,20 +130,32 @@ async function runOcrShellCommandWithModelRepair(
   runOptions = {},
 ) {
   try {
-    return await runShell(dependencies, command, options, runtime, runOptions);
+    return await runCommandSpec(
+      dependencies,
+      command,
+      options,
+      runtime,
+      runOptions,
+    );
   } catch (error) {
     if (!dependencies.isPaddleOcrModelAssetLoadFailure(error)) {
       throw error;
     }
     emitModelRepairProgress(dependencies, options);
     await dependencies.repairPaddleOcrModelAssetsCache(options, runtime, error);
-    return await runShell(dependencies, command, options, runtime, runOptions);
+    return await runCommandSpec(
+      dependencies,
+      command,
+      options,
+      runtime,
+      runOptions,
+    );
   }
 }
 
-/** @param {Dependencies} dependencies @param {string} command @param {OcrBboxOptions} options @param {OcrRuntimeLayout | null} runtime @param {OcrShellRunOptions} runOptions */
-function runShell(dependencies, command, options, runtime, runOptions) {
-  return dependencies.runShellCommand(command, {
+/** @param {Dependencies} dependencies @param {CommandSpec} command @param {OcrBboxOptions} options @param {OcrRuntimeLayout | null} runtime @param {OcrCommandRunOptions} runOptions */
+function runCommandSpec(dependencies, command, options, runtime, runOptions) {
+  return dependencies.runCommand(command, {
     timeoutMs: runOptions.timeoutMs,
     env: dependencies.buildOcrRuntimeEnv(options, runtime),
     signal: options.abortSignal,

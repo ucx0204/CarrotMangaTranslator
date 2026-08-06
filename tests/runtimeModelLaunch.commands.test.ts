@@ -46,20 +46,23 @@ describeWindows(
         runtime,
       );
 
-      expect(cpuCommand).not.toContain("--bbox-mode");
-      expect(cpuCommand).not.toContain("--engine");
-      expect(cudaCommand).not.toContain("--bbox-mode");
-      expect(cudaCommand).not.toContain("--engine");
-      expect(amdCommand).toContain("--bbox-mode");
-      expect(amdCommand).toContain("ocr");
-      expect(amdCommand).toContain("--engine");
-      expect(amdCommand).toContain("transformers");
-      expect(amdCommand).toContain("--dtype");
-      expect(amdCommand).toContain("float32");
-      expect(amdCommand).toContain("--ocr-version");
-      expect(amdCommand).toContain("PP-OCRv6");
-      expect(amdCommand).toContain("--merge-mode");
-      expect(amdCommand).toContain("semantic");
+      expect(cpuCommand.executable).toBe("python");
+      expect(cudaCommand.executable).toBe("python");
+      expect(amdCommand.executable).toBe("python");
+      expect(cpuCommand.args).not.toContain("--bbox-mode");
+      expect(cpuCommand.args).not.toContain("--engine");
+      expect(cudaCommand.args).not.toContain("--bbox-mode");
+      expect(cudaCommand.args).not.toContain("--engine");
+      expect(amdCommand.args).toContain("--bbox-mode");
+      expect(amdCommand.args).toContain("ocr");
+      expect(amdCommand.args).toContain("--engine");
+      expect(amdCommand.args).toContain("transformers");
+      expect(amdCommand.args).toContain("--dtype");
+      expect(amdCommand.args).toContain("float32");
+      expect(amdCommand.args).toContain("--ocr-version");
+      expect(amdCommand.args).toContain("PP-OCRv6");
+      expect(amdCommand.args).toContain("--merge-mode");
+      expect(amdCommand.args).toContain("semantic");
     });
 
     it("passes smoke OCR presets for economy and CUDA legacy full modes", () => {
@@ -108,16 +111,16 @@ describeWindows(
         ocrMergeMode: "semantic",
       });
 
-      expect(economyCommand).toContain("--bbox-mode");
-      expect(economyCommand).toContain("ocr");
-      expect(economyCommand).toContain("--engine");
-      expect(economyCommand).toContain("paddle_static");
-      expect(economyCommand).toContain("--text-detection-model-name");
-      expect(economyCommand).toContain("PP-OCRv6_small_det");
-      expect(economyCommand).toContain("--text-recognition-model-name");
-      expect(economyCommand).toContain("PP-OCRv6_small_rec");
-      expect(economyCommand).toContain("--merge-mode");
-      expect(economyCommand).toContain("semantic");
+      expect(economyCommand.args).toContain("--bbox-mode");
+      expect(economyCommand.args).toContain("ocr");
+      expect(economyCommand.args).toContain("--engine");
+      expect(economyCommand.args).toContain("paddle_static");
+      expect(economyCommand.args).toContain("--text-detection-model-name");
+      expect(economyCommand.args).toContain("PP-OCRv6_small_det");
+      expect(economyCommand.args).toContain("--text-recognition-model-name");
+      expect(economyCommand.args).toContain("PP-OCRv6_small_rec");
+      expect(economyCommand.args).toContain("--merge-mode");
+      expect(economyCommand.args).toContain("semantic");
       expect(env.MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE).toBe("ocr");
       expect(env.MANGA_TRANSLATOR_PADDLEOCR_ENGINE).toBe("paddle_static");
       expect(env.MANGA_TRANSLATOR_PADDLEOCR_TEXT_DETECTION_MODEL_NAME).toBe(
@@ -126,15 +129,15 @@ describeWindows(
       expect(env.MANGA_TRANSLATOR_PADDLEOCR_TEXT_RECOGNITION_MODEL_NAME).toBe(
         "PP-OCRv6_small_rec",
       );
-      expect(fullCommand).toContain("--bbox-mode");
-      expect(fullCommand).toContain("vl");
-      expect(fullCommand).toContain("--ocr-version");
-      expect(fullCommand).toContain("PP-OCRv6");
-      expect(fullCommand).toContain("--merge-mode");
-      expect(fullCommand).toContain("legacy");
-      expect(fullCommand).not.toContain("--engine");
-      expect(fullCommand).not.toContain("--text-detection-model-name");
-      expect(fullCommand).not.toContain("--text-recognition-model-name");
+      expect(fullCommand.args).toContain("--bbox-mode");
+      expect(fullCommand.args).toContain("vl");
+      expect(fullCommand.args).toContain("--ocr-version");
+      expect(fullCommand.args).toContain("PP-OCRv6");
+      expect(fullCommand.args).toContain("--merge-mode");
+      expect(fullCommand.args).toContain("legacy");
+      expect(fullCommand.args).not.toContain("--engine");
+      expect(fullCommand.args).not.toContain("--text-detection-model-name");
+      expect(fullCommand.args).not.toContain("--text-recognition-model-name");
     });
 
     it("adds Paddle native DLL directories for isolated Windows OCR runtimes", () => {

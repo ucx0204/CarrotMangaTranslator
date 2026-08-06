@@ -1,3 +1,8 @@
+export type CommandSpec = {
+  executable: string;
+  args: string[];
+};
+
 export type RuntimeOptions = {
   abortSignal?: AbortSignal | null;
   apiKey?: string | null;

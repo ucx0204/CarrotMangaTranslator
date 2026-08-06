@@ -1,4 +1,5 @@
 // @ts-check
+/** @typedef {import("../runtime-jsdoc-types").CommandSpec} CommandSpec */
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
 /** @typedef {import("../runtime-jsdoc-types").OcrRuntimeLayout} OcrRuntimeLayout */
 /** @typedef {RuntimeOptions & { outputDir?: string | null; ocrBatchCompletedBefore?: unknown; ocrBatchTotal?: unknown; ocrWorkerThreads?: unknown }} OcrBboxOptions */
@@ -23,8 +24,9 @@
  *   createProgressLineHandler: (options: ProgressHandlerOptions) => (line: string) => void;
  *   createOcrCommandProgressHandler: (options: OcrBboxOptions, context: Record<string, unknown>) => (line: string) => void;
  *   createOcrBatchProgressFilePoller: (path: string, handler: (line: string) => void) => { start: () => void; stop: () => void };
- *   buildOcrBboxBatchCommand: (options: OcrBboxOptions, batchPath: string, runtime: OcrRuntimeLayout | null, progressPath: string) => string;
- *   runOcrShellCommandWithModelRepair: (command: string, options: OcrBboxOptions, runtime: OcrRuntimeLayout | null, runOptions: Record<string, unknown>) => Promise<{ stdout: string; stderr: string }>;
+ *   buildOcrBboxBatchCommand: (options: OcrBboxOptions, batchPath: string, runtime: OcrRuntimeLayout | null, progressPath: string) => CommandSpec;
+ *   formatCommandForLog: (command: CommandSpec) => string;
+ *   runOcrCommandWithModelRepair: (command: CommandSpec, options: OcrBboxOptions, runtime: OcrRuntimeLayout | null, runOptions: Record<string, unknown>) => Promise<{ stdout: string; stderr: string }>;
  *   resolveOcrBboxTimeoutMs: (count: number) => number;
  *   cleanupOcrBatchControlFiles: (batchPath: string, progressPath: string, options?: OcrBboxOptions) => Promise<unknown>;
  *   readOcrBatchOutputPayload: (path: string) => unknown;
@@ -225,12 +227,13 @@ async function runOcrBboxBatchChunk(dependencies, context) {
       context.batchOptions,
     ),
   };
-  const command = dependencies.buildOcrBboxBatchCommand(
+  const commandSpec = dependencies.buildOcrBboxBatchCommand(
     workerOptions,
     paths.batchPath,
     context.runtime,
     paths.progressPath,
   );
+  const command = dependencies.formatCommandForLog(commandSpec);
   const handleProgressLine = buildChunkProgressHandler(dependencies, context);
   const poller = dependencies.createOcrBatchProgressFilePoller(
     paths.progressPath,
@@ -238,8 +241,8 @@ async function runOcrBboxBatchChunk(dependencies, context) {
   );
   try {
     poller.start();
-    const output = await dependencies.runOcrShellCommandWithModelRepair(
-      command,
+    const output = await dependencies.runOcrCommandWithModelRepair(
+      commandSpec,
       workerOptions,
       context.runtime,
       {

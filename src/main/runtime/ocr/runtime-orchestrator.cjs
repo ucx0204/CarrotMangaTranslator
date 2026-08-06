@@ -39,10 +39,7 @@ const {
   resolveVenvPythonPath,
   shouldUseWindowsShortRocmOcrLayout,
 } = require("../simple-page-ocr-runtime-config.cjs");
-const {
-  quoteCommandArg,
-  runShellCommand,
-} = require("../simple-page-shell-utils.cjs");
+const { runCommand } = require("../simple-page-shell-utils.cjs");
 const { ensureManagedBootstrapPython } = require("./managed-python.cjs");
 const { installAndFinalizeRuntime } = require("./runtime-install-flow.cjs");
 const { buildRuntimeLayout } = require("./runtime-layout-result.cjs");
@@ -407,8 +404,11 @@ async function tryCreateVenv(options, state) {
   }
   try {
     emitVenvCreation(options, state.runtimeDir);
-    await runShellCommand(
-      `${quoteCommandArg(state.bootstrapPython)} -m venv ${quoteCommandArg(state.venvDir)}`,
+    await runCommand(
+      {
+        executable: state.bootstrapPython,
+        args: ["-m", "venv", state.venvDir],
+      },
       {
         timeoutMs: 180000,
         env: buildOcrRuntimeEnv(options, {

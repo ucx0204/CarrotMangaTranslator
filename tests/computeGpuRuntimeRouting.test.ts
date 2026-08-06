@@ -12,13 +12,18 @@ const { buildLaunchArgs } =
   require("../src/main/runtime/simple-page-launch-args.cjs") as {
     buildLaunchArgs: (options: Record<string, unknown>) => string[];
   };
+type CommandSpec = {
+  executable: string;
+  args: string[];
+};
+
 const { buildOcrBboxBatchCommand } =
   require("../src/main/runtime/simple-page-ocr-commands.cjs") as {
     buildOcrBboxBatchCommand: (
       options: Record<string, unknown>,
       batchPath: string,
       runtime: { pythonPath: string },
-    ) => string;
+    ) => CommandSpec;
   };
 const { buildOcrRuntimeEnv } =
   require("../src/main/runtime/simple-page-ocr-runtime-config.cjs") as {
@@ -129,7 +134,7 @@ describe("compute GPU runtime routing", () => {
     expect(env.HIP_VISIBLE_DEVICES).toBeUndefined();
     expect(env.ROCR_VISIBLE_DEVICES).toBeUndefined();
     expect(env.GPU_DEVICE_ORDINAL).toBeUndefined();
-    expect(command).toContain("gpu:0");
+    expect(command.args).toContain("gpu:0");
 
     const cpuEnv = buildOcrRuntimeEnv({
       ...options,

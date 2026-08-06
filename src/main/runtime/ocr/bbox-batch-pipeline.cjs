@@ -1,4 +1,5 @@
 // @ts-check
+/** @typedef {import("../runtime-jsdoc-types").CommandSpec} CommandSpec */
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
 /** @typedef {import("../runtime-jsdoc-types").OcrRuntimeLayout} OcrRuntimeLayout */
 /** @typedef {RuntimeOptions & { outputDir?: string | null; imagePath?: unknown; ocrBatchCompletedBefore?: unknown; ocrBatchTotal?: unknown }} OcrBboxOptions */
@@ -22,7 +23,8 @@
  *   isExplicitCpuOcrDevice: (options?: OcrBboxOptions) => boolean;
  *   resolveOcrDevice: (options?: OcrBboxOptions) => string;
  *   collectOcrBboxHintsBatchInCpuWorkers: (context: OcrBatchContext & { workerCount: number }) => Promise<OcrBboxResult[]>;
- *   buildOcrBboxBatchCommand: (options: OcrBboxOptions, batchPath: string, runtime: OcrRuntimeLayout | null, progressPath: string) => string;
+ *   buildOcrBboxBatchCommand: (options: OcrBboxOptions, batchPath: string, runtime: OcrRuntimeLayout | null, progressPath: string) => CommandSpec;
+ *   formatCommandForLog: (command: CommandSpec) => string;
  *   emitRuntimeProgress: (options: object | undefined, phase: string, progressText: string, detail?: string, progress?: Record<string, unknown>) => void;
  *   resolveOcrDeviceLabel: (options?: OcrBboxOptions) => string;
  *   readPositiveInteger: (value: unknown) => number | null;
@@ -30,7 +32,7 @@
  *   createOcrBatchProgressEmitter: (batchOptions: OcrBboxOptions, firstOptions: OcrBboxOptions, normalizedOptions: OcrBboxOptions[]) => (progress: { itemIndex: number; phase: string; count: number }) => void;
  *   createProgressLineHandler: (options: ProgressHandlerOptions) => (line: string) => void;
  *   createOcrBatchProgressFilePoller: (path: string, handler: (line: string) => void) => { start: () => void; stop: () => void };
- *   runOcrShellCommandWithModelRepair: (command: string, options: OcrBboxOptions, runtime: OcrRuntimeLayout | null, runOptions: Record<string, unknown>) => Promise<{ stdout: string; stderr: string }>;
+ *   runOcrCommandWithModelRepair: (command: CommandSpec, options: OcrBboxOptions, runtime: OcrRuntimeLayout | null, runOptions: Record<string, unknown>) => Promise<{ stdout: string; stderr: string }>;
  *   resolveOcrBboxTimeoutMs: (count: number) => number;
  *   cleanupOcrBatchControlFiles: (batchPath: string, progressPath: string, options?: OcrBboxOptions) => Promise<unknown>;
  *   readOcrBatchOutputPayload: (path: string) => unknown;
@@ -145,12 +147,13 @@ function buildBatchItem(dependencies, options, firstOptions, index) {
 /** @param {Dependencies} dependencies @param {OcrBatchContext} context */
 async function runSingleProcessBatch(dependencies, context) {
   await writeBatchControlFiles(dependencies, context);
-  const command = dependencies.buildOcrBboxBatchCommand(
+  const commandSpec = dependencies.buildOcrBboxBatchCommand(
     context.batchOptions,
     context.batchPath,
     context.runtime,
     context.progressPath,
   );
+  const command = dependencies.formatCommandForLog(commandSpec);
   emitBatchStarted(dependencies, context);
   const handleProgressLine = buildBatchProgressHandler(dependencies, context);
   const poller = dependencies.createOcrBatchProgressFilePoller(
@@ -159,8 +162,8 @@ async function runSingleProcessBatch(dependencies, context) {
   );
   try {
     poller.start();
-    const output = await dependencies.runOcrShellCommandWithModelRepair(
-      command,
+    const output = await dependencies.runOcrCommandWithModelRepair(
+      commandSpec,
       context.batchOptions,
       context.runtime,
       {

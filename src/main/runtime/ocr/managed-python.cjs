@@ -36,10 +36,7 @@ const {
   downloadHfFileWithProgress,
   probeContentLength,
 } = require("../simple-page-download-utils.cjs");
-const {
-  quoteCommandArg,
-  runShellCommand,
-} = require("../simple-page-shell-utils.cjs");
+const { runCommand } = require("../simple-page-shell-utils.cjs");
 const { isManagedOcrPackagePathLine } = require("./runtime-preparation.cjs");
 const { createOcrRuntimeError } = require("./runtime-verification.cjs");
 
@@ -194,8 +191,11 @@ async function installManagedPythonPip(options, context) {
       installLogLine: "OCR용 Python에 pip를 설치합니다.",
     },
   );
-  await runShellCommand(
-    `${quoteCommandArg(context.pythonExe)} ${quoteCommandArg(context.getPipPath)} --no-warn-script-location`,
+  await runCommand(
+    {
+      executable: context.pythonExe,
+      args: [context.getPipPath, "--no-warn-script-location"],
+    },
     {
       timeoutMs: 300000,
       env: buildBootstrapPythonEnv(context.runtimeDir, options),
@@ -290,29 +290,31 @@ async function extractZipWithPowerShell(zipPath, destinationDir, options = {}) {
       "ZIP extraction for managed OCR Python is currently supported on Windows only.",
     );
   }
-  const command = [
-    "powershell.exe",
-    "-NoProfile",
-    "-ExecutionPolicy",
-    "Bypass",
-    "-Command",
-    quoteCommandArg(
-      `Expand-Archive -LiteralPath '${escapePowerShellSingleQuoted(zipPath)}' -DestinationPath '${escapePowerShellSingleQuoted(destinationDir)}' -Force`,
-    ),
-  ].join(" ");
-  await runShellCommand(command, {
-    timeoutMs: 300000,
-    env: buildBootstrapPythonEnv(
-      path.dirname(path.dirname(destinationDir)),
-      options,
-    ),
-    signal: options.abortSignal,
-  });
-}
-
-/** @param {unknown} value @returns {string} */
-function escapePowerShellSingleQuoted(value) {
-  return String(value).replace(/'/g, "''");
+  const psScript =
+    "& { param($zip, $dest) $ErrorActionPreference = 'Stop'; Expand-Archive -LiteralPath $zip -DestinationPath $dest -Force -ErrorAction Stop }";
+  await runCommand(
+    {
+      executable: "powershell.exe",
+      args: [
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        psScript,
+        zipPath,
+        destinationDir,
+      ],
+    },
+    {
+      timeoutMs: 300000,
+      env: buildBootstrapPythonEnv(
+        path.dirname(path.dirname(destinationDir)),
+        options,
+      ),
+      signal: options.abortSignal,
+    },
+  );
 }
 
 /** @param {string} runtimeDir @param {RuntimeOptions} [options] @returns {NodeJS.ProcessEnv} */

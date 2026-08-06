@@ -19,6 +19,11 @@ import {
   GEMMA_26B_MODEL_REPO,
 } from "../../src/shared/modelPresets";
 
+export type CommandSpec = {
+  executable: string;
+  args: string[];
+};
+
 type RuntimeImageVariant = {
   role: string;
   dataUrl?: string;
@@ -49,15 +54,15 @@ const runtimeHelpers = {
 } as {
   buildOcrPipBuildToolUpgradeCommand: (
     pythonPath: string,
-    pipProgressArgs?: string,
-  ) => string;
+    pipProgressArgs?: string[],
+  ) => CommandSpec;
   buildOcrPipInstallCommand: (
     pythonPath: string,
     packages: string[],
     targetDir: string | null,
     options?: { [key: string]: unknown },
-    pipProgressArgs?: string,
-  ) => string;
+    pipProgressArgs?: string[],
+  ) => CommandSpec;
   buildLaunchArgs: (options: { [key: string]: unknown }) => string[];
   buildMessages: (
     options: { [key: string]: unknown },
@@ -125,13 +130,13 @@ const runtimeHelpers = {
     provider: string,
     outputPath: string,
     runtime?: { pythonPath?: string } | null,
-  ) => string;
+  ) => CommandSpec;
   buildOcrBboxBatchCommand: (
     options: { [key: string]: unknown },
     batchPath: string,
     runtime?: { pythonPath?: string } | null,
     progressPath?: string | null,
-  ) => string;
+  ) => CommandSpec;
   buildPaddleOcrImportFailureMessage: (
     message: string,
     options?: { [key: string]: unknown },
@@ -509,8 +514,8 @@ function setModuleExports(modulePath: string, exports: unknown): void {
 export async function withOcrBatchPipelineStubs<T>(
   stubs: {
     ensurePaddleOcrRuntime: (options: Record<string, unknown>) => unknown;
-    runShellCommand: (
-      command: string,
+    runCommand: (
+      command: CommandSpec,
       options: {
         env?: Record<string, string>;
         onOutput?: (line: string) => void;
@@ -519,7 +524,7 @@ export async function withOcrBatchPipelineStubs<T>(
     buildOcrBboxBatchCommand: (
       options: Record<string, unknown>,
       batchPath: string,
-    ) => string;
+    ) => CommandSpec;
   },
   run: (pipeline: OcrBatchPipelineModule) => Promise<T>,
 ): Promise<T> {
@@ -555,7 +560,7 @@ export async function withOcrBatchPipelineStubs<T>(
     });
     setModuleExports(shellUtilsPath, {
       ...actualShellUtils,
-      runShellCommand: stubs.runShellCommand,
+      runCommand: stubs.runCommand,
     });
     setModuleExports(commandsPath, {
       ...actualCommands,

@@ -57,6 +57,39 @@ describe("font matching runtime artifact status", () => {
     });
   });
 
+  it("accepts downloader cache sidecars for verified bundle files", async () => {
+    const bundle = await writeBundle();
+    const bundleFiles = [
+      ".font-matching-runtime-artifact-owned.json",
+      "runtime-contract.json",
+      FONT_MATCHING_ACTIVE_CATALOG_FILE,
+      FONT_MATCHING_SELECTION_CALIBRATION_FILE,
+      "encoder.onnx",
+      "ranker.onnx",
+      "prototype-features.f32",
+    ];
+    await Promise.all(
+      bundleFiles.flatMap((fileName) => [
+        writeFile(join(bundle.root, `${fileName}.mgtmeta.json`), "{}"),
+        writeFile(join(bundle.root, `${fileName}.mgt-sha256.json`), "{}"),
+      ]),
+    );
+
+    await expect(statusFor(bundle)).resolves.toMatchObject({
+      state: "ready",
+      automaticMutationAllowed: true,
+    });
+  });
+
+  it("still rejects unrelated downloader-like sidecars", async () => {
+    const bundle = await writeBundle();
+    await writeFile(join(bundle.root, "unrelated.mgtmeta.json"), "{}");
+
+    await expect(
+      readVerifiedRuntimeArtifactBundle(bundle.root),
+    ).rejects.toMatchObject({ reason: "artifact_verification_failed" });
+  });
+
   it("accepts the sealed v2 hybrid owner and exact score-routing contract", async () => {
     const bundle = await writeBundle();
     bundle.contract.schema_version = FONT_MATCHING_RUNTIME_ARTIFACT_SCHEMA_V2;

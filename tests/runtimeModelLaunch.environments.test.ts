@@ -523,7 +523,8 @@ describeWindows(
         "C:/batch.json",
         runtime,
       );
-      expect(gpuCommand).toContain('--device "gpu:0"');
+      expect(gpuCommand.args).toContain("--device");
+      expect(gpuCommand.args).toContain("gpu:0");
     });
   },
 );

@@ -39,6 +39,7 @@ const HYBRID_BASE_BUNDLE_FILES = [
   "ranker.onnx",
   "prototype-features.f32",
 ].sort();
+const CACHE_SIDECAR_SUFFIXES = [".mgtmeta.json", ".mgt-sha256.json"] as const;
 
 export type ArtifactDescriptor = Readonly<{
   file: string;
@@ -173,15 +174,24 @@ async function assertExactInventory(
   hasCalibration: boolean,
 ): Promise<void> {
   const entries = await readdir(root, { withFileTypes: true });
-  const names = entries.map((entry) => entry.name).sort();
+  const names = entries.map((entry) => entry.name);
   const expected =
     schemaVersion === FONT_MATCHING_RUNTIME_ARTIFACT_SCHEMA_V2 &&
     !hasCalibration
       ? HYBRID_BASE_BUNDLE_FILES
       : CALIBRATED_BUNDLE_FILES;
+  const allowed = new Set([
+    ...expected,
+    ...expected.flatMap((fileName) =>
+      CACHE_SIDECAR_SUFFIXES.map((suffix) => `${fileName}${suffix}`),
+    ),
+  ]);
   if (
-    entries.some((entry) => !entry.isFile() || entry.isSymbolicLink()) ||
-    !sameOrder(names, expected)
+    entries.some(
+      (entry) =>
+        !entry.isFile() || entry.isSymbolicLink() || !allowed.has(entry.name),
+    ) ||
+    expected.some((fileName) => !names.includes(fileName))
   ) {
     throw new BundleVerificationError("artifact_verification_failed");
   }

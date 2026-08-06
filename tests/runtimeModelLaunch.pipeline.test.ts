@@ -58,9 +58,12 @@ describeWindows("runtime model support helpers: OCR pipeline execution", () => {
         },
         buildOcrBboxBatchCommand(_options, batchPath) {
           observedBatchPath = batchPath;
-          return "ocr-batch-command";
+          return {
+            executable: process.execPath,
+            args: ["ocr-batch-command"],
+          };
         },
-        async runShellCommand(_command, options) {
+        async runCommand(_command, options) {
           options.onOutput?.(
             JSON.stringify({ phase: "start", index: 1, total: 2, count: 0 }),
           );
@@ -171,15 +174,19 @@ describeWindows("runtime model support helpers: OCR pipeline execution", () => {
           };
         },
         buildOcrBboxBatchCommand(_options, batchPath) {
-          const command = `ocr-cpu-batch-${++commandIndex}`;
-          commandBatchPaths.set(command, batchPath);
-          return command;
+          const commandId = `ocr-cpu-batch-${++commandIndex}`;
+          commandBatchPaths.set(commandId, batchPath);
+          return {
+            executable: process.execPath,
+            args: [commandId],
+          };
         },
-        async runShellCommand(command, options) {
+        async runCommand(command, options) {
           commandEnvs.push(options.env);
-          const batchPath = commandBatchPaths.get(command);
+          const commandId = command.args[0] || "";
+          const batchPath = commandBatchPaths.get(commandId);
           if (!batchPath) {
-            throw new Error(`Missing batch path for ${command}`);
+            throw new Error(`Missing batch path for ${commandId}`);
           }
           const batch = JSON.parse(readFileSync(batchPath, "utf8")) as {
             items: Array<{ output: string }>;

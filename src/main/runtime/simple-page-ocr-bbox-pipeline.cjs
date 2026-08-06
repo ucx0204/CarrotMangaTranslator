@@ -48,7 +48,10 @@ const {
   isPaddleOcrModelAssetLoadFailure,
   repairPaddleOcrModelAssetsCache,
 } = require("./simple-page-model-assets.cjs");
-const { runShellCommand } = require("./simple-page-shell-utils.cjs");
+const {
+  formatCommandForLog,
+  runCommand,
+} = require("./simple-page-shell-utils.cjs");
 const { createOcrBatchConfig } = require("./ocr/bbox-batch-config.cjs");
 const { createOcrBatchFiles } = require("./ocr/bbox-batch-files.cjs");
 const { createOcrBatchPipeline } = require("./ocr/bbox-batch-pipeline.cjs");
@@ -84,8 +87,9 @@ const commandRunner = createOcrCommandRunner({
   readFile,
   repairPaddleOcrModelAssetsCache,
   resolveOcrBboxTimeoutMs,
+  formatCommandForLog,
   resolveOcrDeviceLabel,
-  runShellCommand,
+  runCommand,
   truncateText,
 });
 
@@ -134,6 +138,7 @@ const cpuWorkers = createOcrCpuWorkers({
   ...commandRunner,
   buildOcrBboxBatchCommand,
   createDetailedError,
+  formatCommandForLog,
   createOcrBatchProgressFilePoller,
   createOcrCommandProgressHandler,
   emitRuntimeProgress,
@@ -157,6 +162,7 @@ const batchPipeline = createOcrBatchPipeline({
   ...cpuWorkers,
   buildOcrBboxBatchCommand,
   buildPaddleOcrGpuFailureMessage,
+  formatCommandForLog,
   createDetailedError,
   createOcrRuntimeError,
   createOcrBatchProgressFilePoller,

@@ -28,12 +28,12 @@ const languageProfile =
   };
 const ocrCommands =
   require("../src/main/runtime/simple-page-ocr-commands.cjs") as {
-    buildOcrSourceLanguageArg: (options?: Record<string, unknown>) => string;
+    buildOcrSourceLanguageArgs: (options?: Record<string, unknown>) => string[];
     buildOcrBboxCommand: (
       options?: Record<string, unknown>,
       provider?: string,
       outputPath?: string,
-    ) => string;
+    ) => { executable: string; args: string[] };
   };
 const ocrRuntimeConfig =
   require("../src/main/runtime/simple-page-ocr-runtime-config.cjs") as {
@@ -203,22 +203,22 @@ describe("runtime prompt language profile", () => {
 
 describe("OCR source language plumbing", () => {
   it("omits the --source-language argument for the default Japanese source", () => {
-    expect(ocrCommands.buildOcrSourceLanguageArg({})).toBe("");
+    expect(ocrCommands.buildOcrSourceLanguageArgs({})).toEqual([]);
     expect(
-      ocrCommands.buildOcrSourceLanguageArg({ sourceLanguage: "ja" }),
-    ).toBe("");
+      ocrCommands.buildOcrSourceLanguageArgs({ sourceLanguage: "ja" }),
+    ).toEqual([]);
     expect(
-      ocrCommands.buildOcrSourceLanguageArg({ sourceLanguage: "ja-JP" }),
-    ).toBe("");
+      ocrCommands.buildOcrSourceLanguageArgs({ sourceLanguage: "ja-JP" }),
+    ).toEqual([]);
   });
 
   it("passes non-default source languages to the Python adapter", () => {
     expect(
-      ocrCommands.buildOcrSourceLanguageArg({ sourceLanguage: "en" }),
-    ).toContain("--source-language");
+      ocrCommands.buildOcrSourceLanguageArgs({ sourceLanguage: "en" }),
+    ).toEqual(["--source-language", "en"]);
     expect(
-      ocrCommands.buildOcrSourceLanguageArg({ sourceLanguage: "zh-Hans" }),
-    ).toContain("zh-Hans");
+      ocrCommands.buildOcrSourceLanguageArgs({ sourceLanguage: "zh-Hans" }),
+    ).toEqual(["--source-language", "zh-Hans"]);
   });
 
   it("passes source language to external OCR templates and child env", () => {
@@ -226,8 +226,17 @@ describe("OCR source language plumbing", () => {
       {
         imagePath: "C:/manga/page.png",
         sourceLanguage: "en-US",
-        ocrBboxCommand:
-          "custom-ocr --lang {sourceLanguage} --image {image} --output {output}",
+        ocrBboxCommand: JSON.stringify({
+          executable: "custom-ocr",
+          args: [
+            "--lang",
+            "{sourceLanguage}",
+            "--image",
+            "{image}",
+            "--output",
+            "{output}",
+          ],
+        }),
       },
       "custom",
       "C:/out/result.json",
@@ -244,8 +253,17 @@ describe("OCR source language plumbing", () => {
       },
     );
 
-    expect(command).toContain("en-US");
-    expect(command).not.toContain("{sourceLanguage}");
+    expect(command).toEqual({
+      executable: "custom-ocr",
+      args: [
+        "--lang",
+        "en-US",
+        "--image",
+        "C:/manga/page.png",
+        "--output",
+        "C:/out/result.json",
+      ],
+    });
     expect(env.MANGA_TRANSLATOR_OCR_SOURCE_LANGUAGE).toBe("ar-SA");
   });
 

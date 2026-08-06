@@ -1,4 +1,5 @@
 // @ts-check
+/** @typedef {import("../runtime-jsdoc-types").CommandSpec} CommandSpec */
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
 /** @typedef {{ start: number; end: number }} ProgressRange */
 
@@ -17,16 +18,13 @@ const {
 const {
   startTaskProgressMonitor,
 } = require("../simple-page-ocr-progress-handlers.cjs");
-const {
-  quoteCommandArg,
-  runShellCommand,
-} = require("../simple-page-shell-utils.cjs");
+const { runCommand } = require("../simple-page-shell-utils.cjs");
 const { readPositiveInteger } = require("../simple-page-prompts.cjs");
 
 /**
  * @typedef {{
  *   runtimeRoot: string;
- *   pipProgressArgs: string;
+ *   pipProgressArgs: string[];
  *   pipBuildEnv: NodeJS.ProcessEnv;
  *   pipInstallEnv: NodeJS.ProcessEnv;
  *   monitor: ReturnType<typeof startTaskProgressMonitor>;
@@ -78,7 +76,7 @@ async function createInstallContext(
   }
   return {
     runtimeRoot,
-    pipProgressArgs: `--cache-dir ${quoteCommandArg(pipCacheDir)} --progress-bar raw`,
+    pipProgressArgs: ["--cache-dir", pipCacheDir, "--progress-bar", "raw"],
     pipBuildEnv: buildOcrRuntimeEnv(options, {
       runtimeDir: runtimeRoot,
       includePackageDir: false,
@@ -101,7 +99,7 @@ async function createInstallContext(
 /** @param {string} pythonPath @param {RuntimeOptions} options @param {InstallContext} context @returns {Promise<void>} */
 async function upgradeOcrBuildTools(pythonPath, options, context) {
   context.monitor.setStep("pip/build 도구 업데이트", 0.04, 0.1);
-  await runShellCommand(
+  await runCommand(
     buildOcrPipBuildToolUpgradeCommand(pythonPath, context.pipProgressArgs),
     {
       timeoutMs: 300000,
@@ -110,7 +108,7 @@ async function upgradeOcrBuildTools(pythonPath, options, context) {
       onOutput: (line) => context.monitor.log(line),
     },
   );
-  await runShellCommand(buildOcrPythonBuildToolCheckCommand(pythonPath), {
+  await runCommand(buildOcrPythonBuildToolCheckCommand(pythonPath), {
     timeoutMs: 60000,
     env: context.pipBuildEnv,
     signal: options.abortSignal,
@@ -164,7 +162,7 @@ async function installOcrPackageBatch(
     .filter(Boolean)
     .join(": ");
   context.monitor.setStep(stepLabel, range.start, range.end);
-  await runShellCommand(
+  await runCommand(
     buildOcrPipInstallCommand(
       pythonPath,
       packages,
@@ -191,46 +189,55 @@ function resolvePipInstallTimeout(options) {
   );
 }
 
-/** @param {string} pythonPath @param {string} [pipProgressArgs] @returns {string} */
-function buildOcrPipBuildToolUpgradeCommand(pythonPath, pipProgressArgs = "") {
-  return [
-    quoteCommandArg(pythonPath),
-    "-m pip install --upgrade",
-    pipProgressArgs,
-    "pip",
-    "setuptools",
-    "wheel",
-  ]
-    .filter(Boolean)
-    .join(" ");
+/** @param {string} pythonPath @param {string[]} [pipProgressArgs] @returns {CommandSpec} */
+function buildOcrPipBuildToolUpgradeCommand(pythonPath, pipProgressArgs = []) {
+  return {
+    executable: pythonPath,
+    args: [
+      "-m",
+      "pip",
+      "install",
+      "--upgrade",
+      ...pipProgressArgs,
+      "pip",
+      "setuptools",
+      "wheel",
+    ],
+  };
 }
 
-/** @param {string} pythonPath @returns {string} */
+/** @param {string} pythonPath @returns {CommandSpec} */
 function buildOcrPythonBuildToolCheckCommand(pythonPath) {
-  return `${quoteCommandArg(pythonPath)} -c ${quoteCommandArg("import pip, setuptools, wheel; import setuptools.build_meta; print('python build tooling ok')")}`;
+  return {
+    executable: pythonPath,
+    args: [
+      "-c",
+      "import pip, setuptools, wheel; import setuptools.build_meta; print('python build tooling ok')",
+    ],
+  };
 }
 
-/** @param {string} pythonPath @param {string[]} packages @param {string | null} targetDir @param {RuntimeOptions} [options] @param {string} [pipProgressArgs] @returns {string} */
+/** @param {string} pythonPath @param {string[]} packages @param {string | null} targetDir @param {RuntimeOptions} [options] @param {string[]} [pipProgressArgs] @returns {CommandSpec} */
 function buildOcrPipInstallCommand(
   pythonPath,
   packages,
   targetDir,
   options = {},
-  pipProgressArgs = "",
+  pipProgressArgs = [],
 ) {
-  const extraPipArgs = resolveOcrPipInstallExtraArgs(packages, options)
-    .map(quoteCommandArg)
-    .join(" ");
-  return [
-    quoteCommandArg(pythonPath),
-    "-m pip install --upgrade",
-    pipProgressArgs,
-    extraPipArgs,
-    targetDir ? `--target ${quoteCommandArg(targetDir)}` : "",
-    (Array.isArray(packages) ? packages : []).map(quoteCommandArg).join(" "),
-  ]
-    .filter(Boolean)
-    .join(" ");
+  return {
+    executable: pythonPath,
+    args: [
+      "-m",
+      "pip",
+      "install",
+      "--upgrade",
+      ...pipProgressArgs,
+      ...resolveOcrPipInstallExtraArgs(packages, options),
+      ...(targetDir ? ["--target", targetDir] : []),
+      ...(Array.isArray(packages) ? packages.map(String) : []),
+    ],
+  };
 }
 
 /** @param {string[]} packages @param {RuntimeOptions} [options] @returns {string[]} */

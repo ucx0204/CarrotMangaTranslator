@@ -3,6 +3,11 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
+type CommandSpec = {
+  executable: string;
+  args: string[];
+};
+
 const progress = require("../src/main/runtime/simple-page-progress.cjs") as {
   parseOcrBatchProgressLine: (line: unknown) => unknown;
 };
@@ -12,7 +17,7 @@ const commands =
       options: Record<string, unknown>,
       batchPath: string,
       runtime: { pythonPath: string },
-    ) => string;
+    ) => CommandSpec;
   };
 const config =
   require("../src/main/runtime/simple-page-ocr-runtime-config.cjs") as {
@@ -137,10 +142,15 @@ describeWindows("OCR runtime boundary behavior", () => {
       { pythonPath: "python.exe" },
     );
 
-    expect(command).toContain('--engine "transformers"');
-    expect(command).toContain('--dtype "float32"');
-    expect(command).toContain('--bbox-mode "ocr"');
-    expect(command).toContain('--text-detection-model-name "custom-det"');
+    expect(command.executable).toBe("python.exe");
+    expect(command.args).toContain("--engine");
+    expect(command.args).toContain("transformers");
+    expect(command.args).toContain("--dtype");
+    expect(command.args).toContain("float32");
+    expect(command.args).toContain("--bbox-mode");
+    expect(command.args).toContain("ocr");
+    expect(command.args).toContain("--text-detection-model-name");
+    expect(command.args).toContain("custom-det");
   });
 
   it("classifies nested OOM failures without masking unrelated failures", () => {
@@ -203,7 +213,7 @@ describeWindows("OCR runtime boundary behavior", () => {
       url: string;
       progressTitle?: string;
     }> = [];
-    const commands: string[] = [];
+    const commands: CommandSpec[] = [];
     const progressEvents: Array<{ title: string; detail: string }> = [];
     const platformDescriptor = Object.getOwnPropertyDescriptor(
       process,
@@ -249,9 +259,9 @@ describeWindows("OCR runtime boundary behavior", () => {
       });
       replaceCachedExports(shellPath, {
         ...actualShell,
-        async runShellCommand(command: string) {
+        async runCommand(command: CommandSpec) {
           commands.push(command);
-          if (command.includes("Expand-Archive")) {
+          if (command.args.some((arg) => arg.includes("Expand-Archive"))) {
             mkdirSync(pythonDir, { recursive: true });
             writeFileSync(join(pythonDir, "python.exe"), "python");
           }
@@ -280,12 +290,23 @@ describeWindows("OCR runtime boundary behavior", () => {
           progressTitle: "Paddle OCR pip 다운로드 중",
         },
       ]);
-      expect(
-        commands.some((command) => command.includes("Expand-Archive")),
-      ).toBe(true);
-      expect(commands.some((command) => command.includes("get-pip.py"))).toBe(
-        true,
+      const powerShellCommand = commands.find((command) =>
+        command.executable.toLowerCase().includes("powershell"),
       );
+      expect(
+        powerShellCommand?.args.some((arg) => arg.includes("Expand-Archive")),
+      ).toBe(true);
+      expect(powerShellCommand?.args).toContain(
+        join(root, ".downloads", "python", "python-3.12.7-embed-amd64.zip"),
+      );
+      expect(powerShellCommand?.args).toContain(pythonDir);
+      expect(commands).toContainEqual({
+        executable: join(pythonDir, "python.exe"),
+        args: [
+          join(root, ".downloads", "python", "get-pip.py"),
+          "--no-warn-script-location",
+        ],
+      });
       expect(progressEvents.map((event) => event.title)).toEqual(
         expect.arrayContaining([
           "Paddle OCR Python 준비 중",

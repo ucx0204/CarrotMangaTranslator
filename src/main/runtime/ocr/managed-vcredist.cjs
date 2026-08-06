@@ -13,10 +13,7 @@ const {
   downloadHfFileWithProgress,
   probeContentLength,
 } = require("../simple-page-download-utils.cjs");
-const {
-  quoteCommandArg,
-  runShellCommand,
-} = require("../simple-page-shell-utils.cjs");
+const { runCommand } = require("../simple-page-shell-utils.cjs");
 const { isTruthy } = require("./config-values.cjs");
 
 const DEFAULT_VCREDIST_X64_URL =
@@ -122,8 +119,11 @@ function emitVcredistInstalling(options) {
 /** @param {RuntimeOptions} options @param {string} runtimeDir @param {string} redistPath @returns {Promise<void>} */
 async function runVcredistInstaller(options, runtimeDir, redistPath) {
   try {
-    await runShellCommand(
-      `${quoteCommandArg(redistPath)} /install /quiet /norestart`,
+    await runCommand(
+      {
+        executable: redistPath,
+        args: ["/install", "/quiet", "/norestart"],
+      },
       {
         timeoutMs: 600000,
         env: buildOcrRuntimeEnv(options, {

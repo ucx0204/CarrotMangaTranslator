@@ -1,12 +1,10 @@
 // @ts-check
+/** @typedef {import("./runtime-jsdoc-types").CommandSpec} CommandSpec */
 /** @typedef {import("./runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
 /** @typedef {import("./runtime-jsdoc-types").OcrRuntimeLayout} OcrRuntimeLayout */
 const path = require("node:path");
 
-const {
-  quoteCommandArg,
-  renderCommandTemplate,
-} = require("./simple-page-shell-utils.cjs");
+const { normalizeCommandSpec } = require("./transport/shell-text.cjs");
 const {
   resolveBootstrapPython,
   resolveEffectiveOcrDevice,
@@ -18,12 +16,44 @@ const {
   isJapaneseLanguageCode,
 } = require("./simple-page-language-profile.cjs");
 
+const EXTERNAL_COMMAND_ENV = "MANGA_TRANSLATOR_OCR_BBOX_CMD";
+const ALLOWED_EXTERNAL_COMMAND_KEYS = new Set(["executable", "args"]);
+const ALLOWED_EXTERNAL_PLACEHOLDERS = new Set([
+  "{image}",
+  "{output}",
+  "{sourceLanguage}",
+  "{source_language}",
+]);
+const FORBIDDEN_EXTERNAL_SHELLS = new Set([
+  "cmd",
+  "cmd.exe",
+  "command.com",
+  "powershell",
+  "powershell.exe",
+  "pwsh",
+  "pwsh.exe",
+  "sh",
+  "bash",
+  "dash",
+  "zsh",
+  "fish",
+  "ksh",
+  "csh",
+  "tcsh",
+  "wscript",
+  "wscript.exe",
+  "cscript",
+  "cscript.exe",
+  "mshta",
+  "mshta.exe",
+]);
+
 /**
  * @param {RuntimeOptions} [options]
  * @param {string} provider
  * @param {string} outputPath
  * @param {OcrRuntimeLayout | null} [runtime]
- * @returns {string}
+ * @returns {CommandSpec}
  */
 function buildOcrBboxCommand(
   options = {},
@@ -33,32 +63,42 @@ function buildOcrBboxCommand(
 ) {
   const template = String(
     options.ocrBboxCommand ??
-      runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_BBOX_CMD", options) ??
+      runtimeOverrideEnv(EXTERNAL_COMMAND_ENV, options) ??
       "",
   ).trim();
-  const image = options.imagePath;
-  const replacements = {
-    image: quoteCommandArg(image),
-    output: quoteCommandArg(outputPath),
-    sourceLanguage: quoteCommandArg(resolveOcrSourceLanguage(options)),
-    source_language: quoteCommandArg(resolveOcrSourceLanguage(options)),
-  };
+  const imagePath = requireNonEmptyPath(options.imagePath, "OCR image path");
+  const normalizedOutputPath = requireNonEmptyPath(
+    outputPath,
+    "OCR output path",
+  );
 
   if (template) {
-    return renderCommandTemplate(template, replacements);
+    return buildExternalOcrCommand(template, {
+      image: imagePath,
+      output: normalizedOutputPath,
+      sourceLanguage: resolveOcrSourceLanguage(options),
+    });
   }
 
   if (provider === "paddleocr-vl") {
-    const python = quoteCommandArg(
-      resolveOcrRuntimePythonPath(runtime, options),
-    );
-    const scriptPath = quoteCommandArg(
-      path.join(__dirname, "paddleocr-vl-bboxes.py"),
-    );
-    return `${python} -u ${scriptPath} --image ${quoteCommandArg(image)} --output ${quoteCommandArg(outputPath)} --device ${quoteCommandArg(resolveEffectiveOcrDevice(options))}${buildOcrSourceLanguageArg(options)}${buildPaddleOcrBboxModeArgs(options)}`;
+    return {
+      executable: resolveOcrRuntimePythonPath(runtime, options),
+      args: [
+        "-u",
+        path.join(__dirname, "paddleocr-vl-bboxes.py"),
+        "--image",
+        imagePath,
+        "--output",
+        normalizedOutputPath,
+        "--device",
+        resolveEffectiveOcrDevice(options),
+        ...buildOcrSourceLanguageArgs(options),
+        ...buildPaddleOcrBboxModeArgs(options),
+      ],
+    };
   }
 
-  throw new Error("OCR bbox provider requires MANGA_TRANSLATOR_OCR_BBOX_CMD.");
+  throw new Error(`OCR bbox provider requires ${EXTERNAL_COMMAND_ENV}.`);
 }
 
 /**
@@ -66,7 +106,7 @@ function buildOcrBboxCommand(
  * @param {string} batchPath
  * @param {OcrRuntimeLayout | null} [runtime]
  * @param {string | null} [progressPath]
- * @returns {string}
+ * @returns {CommandSpec}
  */
 function buildOcrBboxBatchCommand(
   options = {},
@@ -74,29 +114,164 @@ function buildOcrBboxBatchCommand(
   runtime = null,
   progressPath = null,
 ) {
-  const python = quoteCommandArg(resolveOcrRuntimePythonPath(runtime, options));
-  const scriptPath = quoteCommandArg(
+  const args = [
+    "-u",
     path.join(__dirname, "paddleocr-vl-bboxes.py"),
+    "--batch",
+    requireNonEmptyPath(batchPath, "OCR batch path"),
+  ];
+
+  if (progressPath) {
+    args.push(
+      "--progress",
+      requireNonEmptyPath(progressPath, "OCR progress path"),
+    );
+  }
+
+  args.push(
+    "--device",
+    resolveEffectiveOcrDevice(options),
+    ...buildOcrSourceLanguageArgs(options),
+    ...buildPaddleOcrBboxModeArgs(options),
   );
-  const progressArg = progressPath
-    ? ` --progress ${quoteCommandArg(progressPath)}`
-    : "";
-  return `${python} -u ${scriptPath} --batch ${quoteCommandArg(batchPath)}${progressArg} --device ${quoteCommandArg(resolveEffectiveOcrDevice(options))}${buildOcrSourceLanguageArg(options)}${buildPaddleOcrBboxModeArgs(options)}`;
+
+  return {
+    executable: resolveOcrRuntimePythonPath(runtime, options),
+    args,
+  };
 }
 
 /**
- * OCR 원문 언어 인자. PaddleOCR 전용 lang 문자열 매핑은 Python 어댑터
- * (paddleocr-vl-bboxes.py) 내부에만 있고, 여기서는 언어 코드만 넘긴다.
- * 기본값(ja)은 기존 명령과 동일하게 인자를 생략한다.
- * @param {RuntimeOptions} [options]
- * @returns {string}
+ * @param {string} template
+ * @param {{ image: string; output: string; sourceLanguage: string }} replacements
+ * @returns {CommandSpec}
  */
-function buildOcrSourceLanguageArg(options = {}) {
-  const sourceLanguage = resolveOcrSourceLanguage(options);
-  if (!sourceLanguage || isJapaneseLanguageCode(sourceLanguage)) {
-    return "";
+function buildExternalOcrCommand(template, replacements) {
+  const parsed = parseExternalCommandJson(template);
+  const normalized = normalizeCommandSpec(parsed);
+  assertAllowedExternalExecutable(normalized.executable);
+  assertNoExecutablePlaceholder(normalized.executable);
+  return {
+    executable: normalized.executable,
+    args: normalized.args.map((arg) =>
+      replaceExternalCommandPlaceholder(arg, replacements),
+    ),
+  };
+}
+
+/** @param {string} template @returns {unknown} */
+function parseExternalCommandJson(template) {
+  try {
+    const parsed = JSON.parse(template);
+    assertPlainCommandObject(parsed);
+    return parsed;
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw error;
+    }
+    throw createLegacyExternalCommandError(error);
   }
-  return ` --source-language ${quoteCommandArg(sourceLanguage)}`;
+}
+
+/** @param {unknown} value */
+function assertPlainCommandObject(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new TypeError("External OCR command spec must be a JSON object.");
+  }
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new TypeError("External OCR command spec must be a plain object.");
+  }
+  for (const key of Object.keys(value)) {
+    if (!ALLOWED_EXTERNAL_COMMAND_KEYS.has(key)) {
+      throw new TypeError(`External OCR command spec has unknown key: ${key}.`);
+    }
+  }
+}
+
+/** @param {unknown} cause */
+function createLegacyExternalCommandError(cause) {
+  const error = new Error(
+    `${EXTERNAL_COMMAND_ENV} no longer accepts a shell command string. ` +
+      'Use a JSON object { "executable": string, "args": string[] }, and place each placeholder in its own argv element.',
+  );
+  error.cause = cause;
+  return error;
+}
+
+/** @param {string} executable */
+function assertAllowedExternalExecutable(executable) {
+  const basename = crossPlatformBasename(executable).toLowerCase();
+  if (FORBIDDEN_EXTERNAL_SHELLS.has(basename)) {
+    throw new TypeError(
+      `External OCR command executable must not be a shell: ${basename}.`,
+    );
+  }
+}
+
+/** @param {string} executable */
+function assertNoExecutablePlaceholder(executable) {
+  if (containsPlaceholderSyntax(executable)) {
+    throw new TypeError(
+      "External OCR command executable must not contain placeholders.",
+    );
+  }
+}
+
+/**
+ * @param {string} arg
+ * @param {{ image: string; output: string; sourceLanguage: string }} replacements
+ */
+function replaceExternalCommandPlaceholder(arg, replacements) {
+  if (arg === "{image}") return replacements.image;
+  if (arg === "{output}") return replacements.output;
+  if (arg === "{sourceLanguage}" || arg === "{source_language}") {
+    return replacements.sourceLanguage;
+  }
+
+  const placeholders = arg.match(/\{[^{}]*\}/g) || [];
+  if (placeholders.length > 0) {
+    const unknown = placeholders.find(
+      (placeholder) => !ALLOWED_EXTERNAL_PLACEHOLDERS.has(placeholder),
+    );
+    if (unknown) {
+      throw new TypeError(
+        `Unknown external OCR command placeholder: ${unknown}.`,
+      );
+    }
+    throw new TypeError(
+      `External OCR command placeholder must be a separate argv element: ${arg}.`,
+    );
+  }
+  if (containsPlaceholderSyntax(arg)) {
+    throw new TypeError(
+      `Invalid external OCR command placeholder syntax: ${arg}.`,
+    );
+  }
+  return arg;
+}
+
+/** @param {string} value */
+function containsPlaceholderSyntax(value) {
+  return value.includes("{") || value.includes("}");
+}
+
+/** @param {unknown} value */
+function crossPlatformBasename(value) {
+  return String(value).replace(/\\/g, "/").split("/").at(-1) || "";
+}
+
+/**
+ * OCR source language argv. PaddleOCR-specific language mapping remains in the
+ * Python adapter; this layer only forwards the language code.
+ * @param {RuntimeOptions} [options]
+ * @returns {string[]}
+ */
+function buildOcrSourceLanguageArgs(options = {}) {
+  const sourceLanguage = resolveOcrSourceLanguage(options);
+  return !sourceLanguage || isJapaneseLanguageCode(sourceLanguage)
+    ? []
+    : ["--source-language", sourceLanguage];
 }
 
 /** @param {RuntimeOptions} [options] @returns {string} */
@@ -110,7 +285,7 @@ function resolveOcrSourceLanguage(options = {}) {
 
 /**
  * @param {RuntimeOptions} [options]
- * @returns {string}
+ * @returns {string[]}
  */
 function buildPaddleOcrBboxModeArgs(options = {}) {
   const device = resolveOcrDevice(options);
@@ -128,49 +303,49 @@ function buildPaddleOcrBboxModeArgs(options = {}) {
     : {};
   return renderPaddleOcrModeArgs([
     resolvePaddleOcrModeArg(
-      " --bbox-mode ",
+      "--bbox-mode",
       "MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE",
       options.ocrBboxMode,
       rocmDefaults.bboxMode,
       options,
     ),
     resolvePaddleOcrModeArg(
-      " --engine ",
+      "--engine",
       "MANGA_TRANSLATOR_PADDLEOCR_ENGINE",
       options.ocrEngine,
       rocmDefaults.engine,
       options,
     ),
     resolvePaddleOcrModeArg(
-      " --dtype ",
+      "--dtype",
       "MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE",
       options.ocrEngineDtype,
       rocmDefaults.dtype,
       options,
     ),
     resolvePaddleOcrModeArg(
-      " --ocr-version ",
+      "--ocr-version",
       "MANGA_TRANSLATOR_PADDLEOCR_VERSION",
       options.ocrVersion,
       rocmDefaults.ocrVersion,
       options,
     ),
     resolvePaddleOcrModeArg(
-      " --text-detection-model-name ",
+      "--text-detection-model-name",
       "MANGA_TRANSLATOR_PADDLEOCR_TEXT_DETECTION_MODEL_NAME",
       options.ocrTextDetectionModelName,
       "",
       options,
     ),
     resolvePaddleOcrModeArg(
-      " --text-recognition-model-name ",
+      "--text-recognition-model-name",
       "MANGA_TRANSLATOR_PADDLEOCR_TEXT_RECOGNITION_MODEL_NAME",
       options.ocrTextRecognitionModelName,
       "",
       options,
     ),
     resolvePaddleOcrModeArg(
-      " --merge-mode ",
+      "--merge-mode",
       "MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE",
       options.ocrMergeMode,
       rocmDefaults.mergeMode,
@@ -180,36 +355,38 @@ function buildPaddleOcrBboxModeArgs(options = {}) {
 }
 
 /**
- * @param {string} prefix
+ * @param {string} flag
  * @param {string} envKey
  * @param {unknown} optionValue
  * @param {unknown} fallback
  * @param {RuntimeOptions} options
  * @returns {[string, string]}
  */
-function resolvePaddleOcrModeArg(
-  prefix,
-  envKey,
-  optionValue,
-  fallback,
-  options,
-) {
+function resolvePaddleOcrModeArg(flag, envKey, optionValue, fallback, options) {
   const value =
     runtimeOverrideEnv(envKey, options) ||
     readOptionString(optionValue) ||
     readOptionString(fallback);
-  return [prefix, value];
+  return [flag, value];
 }
 
 /**
  * @param {Array<[string, string]>} entries
- * @returns {string}
+ * @returns {string[]}
  */
 function renderPaddleOcrModeArgs(entries) {
-  return entries
-    .filter((entry) => Boolean(entry[1]))
-    .map(([prefix, value]) => `${prefix}${quoteCommandArg(value)}`)
-    .join("");
+  return entries.flatMap(([flag, value]) => (value ? [flag, value] : []));
+}
+
+/** @param {unknown} value @param {string} label */
+function requireNonEmptyPath(value, label) {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new TypeError(`${label} must be a non-empty string.`);
+  }
+  if (value.includes("\0")) {
+    throw new TypeError(`${label} must not contain NUL bytes.`);
+  }
+  return value;
 }
 
 /**
@@ -239,7 +416,7 @@ function resolveOcrRuntimePythonPath(runtime = null, options = {}) {
 }
 
 module.exports = {
-  buildOcrSourceLanguageArg,
+  buildOcrSourceLanguageArgs,
   buildPaddleOcrBboxModeArgs,
   buildOcrBboxBatchCommand,
   buildOcrBboxCommand,
