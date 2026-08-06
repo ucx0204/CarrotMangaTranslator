@@ -5,11 +5,12 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { hostname, tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   DATA_ROOT_INSTANCE_LOCK_DIRECTORY,
@@ -72,6 +73,16 @@ describe("data-root instance lock process integration", () => {
     expect(await waitForExit(third.child)).toBe(0);
     expect(existsSync(lockDirectory(root))).toBe(false);
   }, 30_000);
+
+  it("writes canonical data-root metadata for stale-owner fixtures", () => {
+    const root = makeRoot();
+
+    writeDeadCanonicalOwner(root);
+
+    expect(readCanonicalOwner(root).dataRoot).toBe(
+      canonicalizeTestDataRoot(root),
+    );
+  });
 
   it("serializes two processes racing to reclaim the same stale owner", async () => {
     const root = makeRoot();
@@ -168,6 +179,10 @@ function makeRoot(): string {
   return root;
 }
 
+function canonicalizeTestDataRoot(root: string): string {
+  return realpathSync.native(resolve(root));
+}
+
 function startWorker(root: string, name: string): WorkerHandle {
   const resultPath = join(root, `${name}-result.json`);
   const releaseSignalPath = join(root, `${name}-release.signal`);
@@ -235,6 +250,7 @@ async function waitForExit(child: ChildProcess): Promise<number | null> {
 }
 
 function writeDeadCanonicalOwner(root: string): void {
+  const canonicalRoot = canonicalizeTestDataRoot(root);
   const directory = lockDirectory(root);
   mkdirSync(directory);
   const owner: DataRootInstanceLockOwner = {
@@ -245,7 +261,7 @@ function writeDeadCanonicalOwner(root: string): void {
     startedAt: "2026-08-06T12:00:00.000Z",
     executablePath: process.execPath,
     appVersion: "process-test",
-    dataRoot: root,
+    dataRoot: canonicalRoot,
   };
   writeFileSync(
     join(directory, DATA_ROOT_INSTANCE_LOCK_OWNER_FILE),

@@ -25,6 +25,11 @@ export function installDataRootInstanceLockLease(
 
   installedLease = lease;
   processExitListener = releaseAtProcessExit;
+  // Keep the lease through the full Electron shutdown sequence. app.quit() can
+  // still be cancelled by a BrowserWindow beforeunload handler, and Electron
+  // storage under dataRoot may remain active until process termination.
+  // The Node "exit" event is the authoritative normal-shutdown release boundary;
+  // this callback must remain synchronous.
   process.once("exit", releaseAtProcessExit);
 }
 

@@ -42,6 +42,23 @@ describe("data-root instance lock state", () => {
     expect(process.listenerCount("exit")).toBe(initialExitListeners);
   });
 
+  it("releases the lease synchronously from the process exit listener", () => {
+    const root = makeRoot();
+    const lease = makeLease(root);
+    const initialExitListeners = new Set(process.rawListeners("exit"));
+
+    installDataRootInstanceLockLease(lease);
+
+    const addedExitListeners = process
+      .rawListeners("exit")
+      .filter((listener) => !initialExitListeners.has(listener));
+    expect(addedExitListeners).toHaveLength(1);
+
+    addedExitListeners[0]?.call(process, 0);
+
+    expect(lease.release).toHaveBeenCalledOnce();
+  });
+
   it("rejects a second installed lease", () => {
     const root = makeRoot();
     installDataRootInstanceLockLease(makeLease(root));

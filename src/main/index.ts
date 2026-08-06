@@ -36,10 +36,7 @@ import {
 import { runMacPackageSmokeExit } from "./macPackageSmoke";
 import { scheduleStartupMaintenance } from "./startupMaintenance";
 import { disposeTranslationRuntimeResources } from "./translationRuntime";
-import {
-  assertDataRootInstanceLockHeld,
-  releaseDataRootInstanceLockLease,
-} from "./dataRootInstanceLockState";
+import { assertDataRootInstanceLockHeld } from "./dataRootInstanceLockState";
 import { focusExistingMainWindow } from "./singleInstanceWindow";
 
 const resolvedAppPaths = getAppPaths();
@@ -225,11 +222,6 @@ async function finishAppQuitCleanup(): Promise<void> {
   } catch (error) {
     logError("Failed to clean up before app quit", error);
   } finally {
-    try {
-      releaseDataRootInstanceLockLease();
-    } catch (error) {
-      logError("Failed to release data-root instance lock", error);
-    }
     app.quit();
   }
 }

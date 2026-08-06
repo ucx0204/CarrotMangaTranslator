@@ -165,7 +165,7 @@ describe("instance guard source invariants", () => {
     expect(mainSource).not.toContain("releaseSingleInstanceLock");
   });
 
-  it("releases the data-root lease after runtime cleanup and immediately before quit", () => {
+  it("keeps the data-root lease through app quit and releases it at process exit", () => {
     const mainSource = readFileSync(
       join(repoRoot, "src", "main", "index.ts"),
       "utf8",
@@ -182,15 +182,18 @@ describe("instance guard source invariants", () => {
     const revisionRelease = cleanupSource.indexOf(
       "inpaintingRevisionStore.releaseAll()",
     );
-    const dataRootRelease = cleanupSource.indexOf(
-      "releaseDataRootInstanceLockLease()",
-    );
     const quit = cleanupSource.lastIndexOf("app.quit()");
+    const stateSource = readFileSync(
+      join(repoRoot, "src", "main", "dataRootInstanceLockState.ts"),
+      "utf8",
+    );
 
     expect(dispose).toBeGreaterThanOrEqual(0);
     expect(revisionRelease).toBeGreaterThan(dispose);
-    expect(dataRootRelease).toBeGreaterThan(revisionRelease);
-    expect(quit).toBeGreaterThan(dataRootRelease);
+    expect(quit).toBeGreaterThan(revisionRelease);
+    expect(cleanupSource).not.toContain("releaseDataRootInstanceLockLease");
+    expect(mainSource).not.toContain("releaseDataRootInstanceLockLease");
+    expect(stateSource).toContain('process.once("exit", releaseAtProcessExit)');
   });
 
   it("registers early second-instance handling with pending startup focus", () => {
