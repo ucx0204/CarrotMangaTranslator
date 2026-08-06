@@ -24,6 +24,7 @@ export const JobStatusSchema = z.enum(JOB_STATUS_VALUES);
 const JOB_PHASE_VALUES = [
   "booting",
   "model_downloading",
+  "font_matching_downloading",
   "ocr_preparing",
   "ocr_downloading",
   "ocr_running",

@@ -21,10 +21,8 @@ import {
 } from "../builtInFontMatchingCatalog";
 import { loadAutoMatchActiveCandidateSelection } from "./autoMatchActiveCatalog";
 import type { AutoMatchActiveCandidateSelection } from "./autoMatchActiveCatalogTypes";
-import {
-  FONT_MATCHING_ACTIVE_CATALOG_FILE,
-  FONT_MATCHING_RUNTIME_BUNDLE_DIRECTORY,
-} from "./fontMatchingRuntimeArtifactContract";
+import { FONT_MATCHING_ACTIVE_CATALOG_FILE } from "./fontMatchingRuntimeArtifactContract";
+import { resolveFontMatchingArtifactDirSync } from "./fontMatchingRuntimeAssets";
 import { createWorkerFontMatchingPageInferencePort } from "./fontMatchingInferenceWorkerClient";
 import type { FontMatchingPageInferencePort } from "./fontMatchingPagePixelInferenceTypes";
 
@@ -79,8 +77,7 @@ export function createDefaultWholePagePipelineDependencies(): WholePagePipelineD
     );
     const selection = loadAutoMatchActiveCandidateSelection({
       activeCatalogPath: join(
-        paths.runtimeDir,
-        FONT_MATCHING_RUNTIME_BUNDLE_DIRECTORY,
+        resolveFontMatchingArtifactDirSync(paths),
         FONT_MATCHING_ACTIVE_CATALOG_FILE,
       ),
       assetRoots: resolveBuiltInFontMatchingAssetRoots(),

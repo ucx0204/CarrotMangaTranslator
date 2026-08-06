@@ -20,4 +20,3 @@ export const FONT_MATCHING_ACTIVE_CATALOG_SCHEMA =
   "font-matching-auto-match-active-catalog-v1";
 export const FONT_MATCHING_ACTIVE_CATALOG_RECORD =
   "font_matching_auto_match_active_catalog";
-export const FONT_MATCHING_RUNTIME_BUNDLE_DIRECTORY = "font-matching";

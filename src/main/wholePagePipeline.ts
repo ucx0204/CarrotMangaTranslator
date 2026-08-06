@@ -13,6 +13,7 @@ import {
 } from "./pipeline/pageFiltering";
 import { formatGemmaVramMode } from "./pipeline/options";
 import { prepareAnalysisRun } from "./pipeline/prepareAnalysisRun";
+import { prepareFontMatchingRuntimeForRun } from "./pipeline/fontMatchingRuntimeAssets";
 import { emitFinalizing } from "./pipeline/progressEvents";
 import { translatePageWithRetries } from "./pipeline/translatePageWithRetries";
 import type { OcrBboxResult, PipelineOptions } from "./pipeline/types";
@@ -58,6 +59,7 @@ export async function runWholePagePipeline(
   const { ocrHintsByPageId, run } = await prepareWholePageRun(
     options,
     dependencies,
+    Boolean(injectedDependencies),
   );
   await configureWholePageOutputOptions({
     autoFontMatching,
@@ -255,10 +257,17 @@ function buildPipelineResult(
 async function prepareWholePageRun(
   options: PipelineOptions,
   dependencies: WholePagePipelineDependencies,
+  injected: boolean,
 ): Promise<{
   ocrHintsByPageId: Map<string, OcrBboxResult>;
   run: Awaited<ReturnType<typeof prepareAnalysisRun>>;
 }> {
+  // Download the externalized font matching runtime bundle (excluded from the
+  // installer; see electron-builder.config.cjs `font-matching/**` filter) into
+  // the writable data-root cache before configureWholePageOutputOptions (the
+  // first loadCandidates call). No-op for injected deps (tests) and when auto
+  // font matching is off; non-abort failures degrade fail-closed.
+  await prepareFontMatchingRuntimeForRun(options, dependencies.paths, injected);
   const {
     blockMode,
     decodeImage,

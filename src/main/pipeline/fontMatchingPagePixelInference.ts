@@ -38,9 +38,9 @@ import {
 import {
   FONT_MATCHING_RUNTIME_ARTIFACT_SCHEMA,
   FONT_MATCHING_RUNTIME_ARTIFACT_SCHEMA_V2,
-  FONT_MATCHING_RUNTIME_BUNDLE_DIRECTORY,
   FONT_MATCHING_SELECTION_CALIBRATION_FILE,
 } from "./fontMatchingRuntimeArtifactContract";
+import { resolveFontMatchingArtifactDirSync } from "./fontMatchingRuntimeAssets";
 import {
   loadFontMatchingRuntimeArtifactStatus,
   type FontMatchingRuntimeArtifactStatus,
@@ -318,7 +318,7 @@ export function createDefaultFontMatchingPageInferencePort({
   reportWarning?: (message: string, detail: unknown) => void;
 }): FontMatchingPageInferencePort {
   return createFontMatchingPageInferencePort({
-    artifactDir: join(paths.runtimeDir, FONT_MATCHING_RUNTIME_BUNDLE_DIRECTORY),
+    artifactDir: resolveFontMatchingArtifactDirSync(paths),
     loadSelection,
     resolveWasmAssets: () => resolveFontMatchingOrtWasmAssets(paths),
     loadRaster: loadFontMatchingPageRaster,

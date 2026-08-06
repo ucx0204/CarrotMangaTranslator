@@ -3,7 +3,7 @@
   "defaultMaxImportedBy": 25,
   "allow": {
     "src/main/logger.ts": {
-      "maxImportedBy": 27
+      "maxImportedBy": 28
     },
     "src/shared/geometry.ts": {
       "maxImportedBy": 30

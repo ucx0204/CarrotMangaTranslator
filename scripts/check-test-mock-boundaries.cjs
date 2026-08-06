@@ -14,6 +14,7 @@ const TEST_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx"]);
  */
 const ALLOWED_INTERNAL_BOUNDARY_MOCKS = new Set([
   "tests/bubbleOnnxRuntime.test.ts::../src/main/runtimeSupport/modelDownloads",
+  "tests/fontMatchingRuntimeAssets.test.ts::../src/main/runtimeSupport/modelDownloads",
   "tests/bubbleLayoutFacade.test.ts::../src/main/bubbleLayout/assets",
   "tests/bubbleLayoutFacade.test.ts::../src/main/bubbleLayout/detector",
   "tests/bubbleLayoutFacade.test.ts::../src/main/logger",

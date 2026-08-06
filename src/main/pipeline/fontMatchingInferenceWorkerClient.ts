@@ -15,7 +15,6 @@
  * in-process 포트)로 폴백 — 테스트/이상 환경 견고성 + in-process 경로 유지.
  */
 import { Worker } from "node:worker_threads";
-import { join } from "node:path";
 import type { AppPaths } from "../appPaths";
 import type { UiLocale } from "../../shared/uiLocales";
 import type {
@@ -42,7 +41,7 @@ import {
 import { loadFontMatchingPageRaster } from "../fontMatchingPageImage";
 import type { FontMatchingRasterPage } from "./fontMatchingPagePixelPreprocessing";
 import type { MangaPage } from "../../shared/libraryTypes";
-import { FONT_MATCHING_RUNTIME_BUNDLE_DIRECTORY } from "./fontMatchingRuntimeArtifactContract";
+import { resolveFontMatchingArtifactDirSync } from "./fontMatchingRuntimeAssets";
 
 type WorkerClientDependencies = Readonly<{
   paths: Pick<AppPaths, "dataRoot" | "runtimeDir">;
@@ -89,10 +88,7 @@ class FontMatchingInferenceWorkerClient implements FontMatchingPageInferencePort
   private readonly artifactDir: string;
 
   constructor(private readonly deps: WorkerClientDependencies) {
-    this.artifactDir = join(
-      deps.paths.runtimeDir,
-      FONT_MATCHING_RUNTIME_BUNDLE_DIRECTORY,
-    );
+    this.artifactDir = resolveFontMatchingArtifactDirSync(deps.paths);
   }
 
   async inferPage(

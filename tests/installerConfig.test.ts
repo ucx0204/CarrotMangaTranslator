@@ -99,6 +99,9 @@ describe("Windows installer clean uninstall option", () => {
         {
           from: "out/app-runtime",
           to: "app-runtime",
+          // The trained font matching runtime bundle (~467 MiB) is
+          // externalized out of the installer and downloaded on first use.
+          filter: ["**/*", "!font-matching/**"],
         },
         {
           from: "node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs",
@@ -161,14 +164,18 @@ describe("Windows installer clean uninstall option", () => {
     expect(packageJson.dependencies["onnxruntime-web"]).toBe("1.27.0");
   });
 
-  it("budgets the sealed font runtime without allowing training data into the package", () => {
+  it("budgets the externalized font runtime without allowing training data into the package", () => {
     const packagedRuntimeVerifier = readFileSync(
       join(repoRoot, "scripts", "verify-packaged-runtime.cjs"),
       "utf8",
     );
 
+    // The trained font matching runtime bundle is externalized out of the
+    // installer (downloaded on first use), so the unpacked size budget guards
+    // the ~745 MiB floor without the bundle and rejects the 467 MiB bundle
+    // returning (~1212 MiB).
     expect(packagedRuntimeVerifier).toContain(
-      "const MAX_PACKAGED_BYTES = 1280 * 1024 * 1024;",
+      "const MAX_PACKAGED_BYTES = 1000 * 1024 * 1024;",
     );
     expect((electronBuilderConfig as { files: string[] }).files).toEqual(
       expect.arrayContaining([

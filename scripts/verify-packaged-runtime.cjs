@@ -9,9 +9,6 @@ const {
   WINDOWS_EXECUTABLE_FILENAME,
   assertFastZipPayload,
 } = require("./installer-zip-safety.cjs");
-const {
-  validatePackagedFontMatchingRuntimeBundle,
-} = require("./prepare-runtime.cjs");
 
 const root = join(__dirname, "..");
 const unpackedDir = join(root, "dist", "win-unpacked");
@@ -25,11 +22,6 @@ const oauthLicensesPath = join(
   resourcesDir,
   "app-runtime",
   OPENAI_OAUTH_LICENSES_FILENAME,
-);
-const fontMatchingRuntimePath = join(
-  resourcesDir,
-  "app-runtime",
-  "font-matching",
 );
 const asarUnpackedNodeModules = join(
   resourcesDir,
@@ -88,10 +80,14 @@ const allowedElectronLocales = new Set([
 // The clean v1.7.0 thin payload is 217 files after development-only runtime
 // artifacts are omitted. Keep roughly the same regression headroom as v1.6.5.
 const MAX_PACKAGED_FILES = 240;
-// The sealed Font Matching encoder adds 466.5 MiB to the thin package. Keep
-// enough headroom for small renderer/runtime growth without allowing training
-// datasets or QA artifacts back into the installer.
-const MAX_PACKAGED_BYTES = 1280 * 1024 * 1024;
+// The trained font matching runtime bundle (~467 MiB) is externalized out of
+// the installer and downloaded into the data-root cache on first use, so the
+// unpacked payload is ~745 MiB (Electron + app.asar + tools, no bundle) and the
+// NSIS installer shrinks to ~333 MiB. The budget guards the UNPACKED size: it
+// passes the legit ~745 MiB floor with headroom for renderer/runtime growth
+// while rejecting the 467 MiB bundle returning (~1212 MiB) or large training
+// datasets / QA artifacts sneaking back in.
+const MAX_PACKAGED_BYTES = 1000 * 1024 * 1024;
 
 if (!existsSync(oauthRuntimePath)) {
   throw new Error(`Packaged OAuth runtime is missing: ${oauthRuntimePath}`);
@@ -101,7 +97,6 @@ if (!existsSync(oauthLicensesPath)) {
     `Packaged OAuth third-party licenses are missing: ${oauthLicensesPath}`,
   );
 }
-validatePackagedFontMatchingRuntimeBundle(fontMatchingRuntimePath);
 if (existsSync(asarUnpackedNodeModules)) {
   throw new Error(
     `Production node_modules must remain inside app.asar: ${asarUnpackedNodeModules}`,
