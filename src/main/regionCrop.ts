@@ -1,6 +1,6 @@
 import { nativeImage } from "electron";
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import type { BBox, TranslationBlock } from "../shared/textTypes";
 import type { MangaPage } from "../shared/libraryTypes";
@@ -10,7 +10,8 @@ import {
   normalizedRegionToPixelRect,
   type PixelRect,
 } from "../shared/region";
-import { logInfo } from "./logger";
+import { logInfo, logWarn } from "./logger";
+import { throwIfAborted } from "./pipeline/failure";
 
 export type ImageDecodeFallback = (
   filePath: string,
@@ -23,15 +24,22 @@ export async function createRegionCropPage(
   jobId: string,
   runDir: string,
   decodeFallback: ImageDecodeFallback,
+  signal?: AbortSignal,
 ): Promise<{
   cropPage: MangaPage;
   cropRect: PixelRect;
 }> {
+  assertNotAborted(signal);
   if (!isUsableRegionBbox(bbox)) {
     throw new Error("번역할 영역이 너무 작습니다.");
   }
 
-  const source = await loadImageForRegionCrop(page.imagePath, decodeFallback);
+  const source = await loadImageForRegionCrop(
+    page.imagePath,
+    decodeFallback,
+    signal,
+  );
+  assertNotAborted(signal);
 
   const cropRect = normalizedRegionToPixelRect(
     bbox,
@@ -48,10 +56,28 @@ export async function createRegionCropPage(
     throw new Error("선택 영역 이미지를 만들지 못했습니다.");
   }
 
+  assertNotAborted(signal);
+  const png = crop.toPNG();
+  assertNotAborted(signal);
+
   const cropDir = join(runDir, "region-crops");
+  assertNotAborted(signal);
   await mkdir(cropDir, { recursive: true });
+  assertNotAborted(signal);
   const cropPath = join(cropDir, `${page.id}-${jobId}.png`);
-  await writeFile(cropPath, crop.toPNG());
+  try {
+    assertNotAborted(signal);
+    await writeFile(cropPath, png, { signal });
+    assertNotAborted(signal);
+  } catch (error) {
+    await rm(cropPath, { force: true }).catch((cleanupError) => {
+      logWarn("Failed to remove incomplete region crop", {
+        cropPath,
+        cleanupError,
+      });
+    });
+    throw error;
+  }
 
   return {
     cropRect,
@@ -94,9 +120,12 @@ export function mapRegionBlocksToPageBlocks(
 export async function loadImageForRegionCrop(
   imagePath: string,
   decodeFallback: ImageDecodeFallback,
+  signal?: AbortSignal,
 ): Promise<Electron.NativeImage> {
+  assertNotAborted(signal);
   if (extname(imagePath).toLowerCase() === ".webp") {
-    const pngBuffer = await decodeFallback(imagePath);
+    const pngBuffer = await decodeFallback(imagePath, signal);
+    assertNotAborted(signal);
     if (pngBuffer) {
       const converted = nativeImage.createFromBuffer(pngBuffer);
       if (!converted.isEmpty()) {
@@ -110,9 +139,16 @@ export async function loadImageForRegionCrop(
   }
 
   const direct = nativeImage.createFromPath(imagePath);
+  assertNotAborted(signal);
   if (!direct.isEmpty()) {
     return direct;
   }
 
   throw new Error("선택한 페이지 이미지를 읽지 못했습니다.");
+}
+
+function assertNotAborted(signal?: AbortSignal): void {
+  if (signal) {
+    throwIfAborted(signal);
+  }
 }

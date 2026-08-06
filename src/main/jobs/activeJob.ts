@@ -48,12 +48,6 @@ export class ActiveJobStore {
     }
   }
 
-  setCleanup(jobId: string, cleanup: () => Promise<void>): void {
-    if (this.activeJob?.id === jobId) {
-      this.activeJob.cleanup = cleanup;
-    }
-  }
-
   clearIfCurrent(jobId: string): void {
     if (this.activeJob?.id === jobId) {
       this.activeJob = null;

@@ -46,22 +46,36 @@ export async function startAnalysisEndpointSession({
 
   const endpointSession = await runtime.startEndpointSession(baseOptions);
   const server = endpointSession.handle;
-  let endpointDisposed = false;
-  const disposeEndpointSession = async () => {
-    if (endpointDisposed) {
-      return;
-    }
-    endpointDisposed = true;
-    await endpointSession.dispose();
+  let disposePromise: Promise<void> | null = null;
+  const disposeEndpointSession = (): Promise<void> => {
+    disposePromise ??= Promise.resolve().then(() => endpointSession.dispose());
+    return disposePromise;
   };
-  onCleanupReady?.(disposeEndpointSession);
 
-  emitEndpointReady(progressContext, {
-    server,
-    apiSelected,
-    baseOptions,
-    codexSelected,
-  });
+  try {
+    onCleanupReady?.(disposeEndpointSession);
+    if (baseOptions.abortSignal?.aborted) {
+      throw new DOMException("Aborted", "AbortError");
+    }
+
+    emitEndpointReady(progressContext, {
+      server,
+      apiSelected,
+      baseOptions,
+      codexSelected,
+    });
+  } catch (error) {
+    try {
+      await disposeEndpointSession();
+    } catch (disposeError) {
+      throw new AggregateError(
+        [error, disposeError],
+        "Endpoint setup and disposal both failed.",
+        { cause: disposeError },
+      );
+    }
+    throw error;
+  }
 
   return {
     server,

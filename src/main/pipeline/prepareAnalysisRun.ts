@@ -12,6 +12,7 @@ import type { TranslationRuntimePort } from "./translationRuntimePort";
 import type { ChapterRunPaths } from "../library";
 import type { PipelineOptions } from "./types";
 import type { WholePagePipelineDependencies } from "./wholePagePipelinePorts";
+import { throwIfAborted } from "./failure";
 
 export type AnalysisRun = {
   paths: AppPaths;
@@ -47,8 +48,10 @@ export async function prepareAnalysisRun({
     "diagnostics" | "paths" | "settings"
   >;
 }): Promise<AnalysisRun> {
+  throwIfAborted(signal);
   const paths = dependencies.paths;
   const appSettings = await dependencies.settings.getAppSettings(paths);
+  throwIfAborted(signal);
   const baseOptions = buildBaseOptions(
     jobId,
     runPaths.runDir,

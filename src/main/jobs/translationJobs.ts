@@ -8,8 +8,10 @@ import type {
 import type { JobEvent } from "../../shared/jobTypes";
 import { MAX_ID_LIST_LENGTH } from "../../shared/ipcSchemaPrimitives";
 import { resolvePagesForRun } from "../library";
+import { throwIfAborted } from "../pipeline/failure";
 import { tMain } from "./localization";
 import { emitJobEvent } from "./jobEvents";
+import { createJobLifetimeCleanupBoundary } from "./jobLifetimeCleanup";
 import {
   type AnalysisJobState,
   handleAnalysisJobError,
@@ -46,6 +48,7 @@ const productionRegionJobRuntime: RegionJobRuntime = {
   handleRegionJobError,
 };
 
+// eslint-disable-next-line max-lines-per-function -- lifetime registration and terminal/finally ordering stay co-located for auditability
 export async function startAnalysisJob(
   context: TranslationJobContext,
   request: StartAnalysisRequest,
@@ -62,7 +65,13 @@ export async function startAnalysisJob(
     pageIds: [],
     runPaths: null,
   };
-  context.jobs.start({ id, kind: "gemma-analysis", abortController });
+  const lifetime = createJobLifetimeCleanupBoundary();
+  context.jobs.start({
+    id,
+    kind: "gemma-analysis",
+    abortController,
+    cleanup: lifetime.cleanup,
+  });
   const emit = (event: JobEvent) =>
     emitJobEvent(context.jobs, context.getMainWindow(), event);
 
@@ -72,14 +81,17 @@ export async function startAnalysisJob(
     const requestedPageIds =
       request.runMode === "page-set" ? request.pageIds : undefined;
     assertValidRequestedPageIds(request);
+    throwIfAborted(abortController.signal);
     state.resolved = await runtime.resolvePagesForRun(
       request.chapterId,
       request.runMode,
       requestedPageId,
       requestedPageIds,
     );
+    throwIfAborted(abortController.signal);
     assertResolvedRequestedPages(request, state.resolved);
     if (state.resolved.pages.length === 0) {
+      throwIfAborted(abortController.signal);
       emit({
         id,
         kind: "gemma-analysis",
@@ -104,6 +116,7 @@ export async function startAnalysisJob(
       emit,
       resolved: state.resolved,
       state,
+      registerResourceCleanup: lifetime.registerResourceCleanup,
     });
   } catch (error) {
     return await runtime.handleAnalysisJobError({
@@ -116,10 +129,10 @@ export async function startAnalysisJob(
       context,
     });
   } finally {
-    const job = context.jobs.current;
-    if (job?.id === id) {
-      await context.jobs.runCleanup(job, "job-finished");
+    try {
       context.jobs.clearIfCurrent(id);
+    } finally {
+      lifetime.finish();
     }
   }
 }
@@ -184,7 +197,13 @@ export async function translateRegionJob(
   const id = randomUUID();
   const abortController = new AbortController();
   const state: RegionJobState = { chapter: null, runPaths: null };
-  context.jobs.start({ id, kind: "gemma-analysis", abortController });
+  const lifetime = createJobLifetimeCleanupBoundary();
+  context.jobs.start({
+    id,
+    kind: "gemma-analysis",
+    abortController,
+    cleanup: lifetime.cleanup,
+  });
   const emit = (event: JobEvent) =>
     emitJobEvent(context.jobs, context.getMainWindow(), event);
 
@@ -196,6 +215,7 @@ export async function translateRegionJob(
       abortController,
       emit,
       state,
+      registerResourceCleanup: lifetime.registerResourceCleanup,
     });
   } catch (error) {
     return await runtime.handleRegionJobError({
@@ -208,10 +228,10 @@ export async function translateRegionJob(
       context,
     });
   } finally {
-    const job = context.jobs.current;
-    if (job?.id === id) {
-      await context.jobs.runCleanup(job, "region-job-finished");
+    try {
       context.jobs.clearIfCurrent(id);
+    } finally {
+      lifetime.finish();
     }
   }
 }

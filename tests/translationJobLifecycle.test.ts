@@ -128,6 +128,34 @@ describe("translation job lifecycle", () => {
     expect(emit).not.toHaveBeenCalled();
   });
 
+  it("does not emit completed when cancellation arrives during persisted chapter read", async () => {
+    const page = { ...makePage(), analysisStatus: "completed" as const };
+    const chapter = makeChapter([page]);
+    const emit = vi.fn();
+    const controller = new AbortController();
+    let resolveChapter!: (value: ChapterSnapshot) => void;
+    const chapterRead = new Promise<ChapterSnapshot>((resolve) => {
+      resolveChapter = resolve;
+    });
+
+    const promise = completeAnalysisJob(
+      "job-cancelled-read",
+      emit,
+      { chapterId: chapter.id, runMode: "all" },
+      { chapter, pages: chapter.pages },
+      { pages: chapter.pages, warnings: [] } as Parameters<
+        typeof completeAnalysisJob
+      >[4],
+      vi.fn(() => chapterRead),
+      controller.signal,
+    );
+    controller.abort();
+    resolveChapter(chapter);
+
+    await expect(promise).rejects.toMatchObject({ name: "AbortError" });
+    expect(emit).not.toHaveBeenCalled();
+  });
+
   it("fails a combined workflow when its pending completion receipt was not persisted", async () => {
     const page = { ...makePage(), analysisStatus: "completed" as const };
     const chapter = makeChapter([page]);

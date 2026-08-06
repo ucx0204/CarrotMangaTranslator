@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- analysis checkpoints and terminal recovery stay co-located for cancellation auditability */
 import type {
   StartAnalysisRequest,
   StartAnalysisResult,
@@ -18,7 +19,9 @@ import { tMain } from "./localization";
 import type { PipelineOptions } from "../pipeline/types";
 import type { MangaPage } from "../../shared/libraryTypes";
 import { runWholePagePipeline } from "../wholePagePipeline";
+import { throwIfAborted } from "../pipeline/failure";
 import { isAbortError } from "./jobEvents";
+import type { JobResourceCleanup } from "./jobLifetimeCleanup";
 import type { TranslationJobContext } from "./translationJobTypes";
 import { resolvePreviousChapterStoryPages } from "../previousChapterContext";
 
@@ -33,41 +36,69 @@ export type AnalysisJobState = {
   runPaths: ChapterRunPaths | null;
 };
 
-export async function runResolvedAnalysisJob({
-  context,
-  request,
-  id,
-  abortController,
-  emit,
-  resolved,
-  state,
-}: {
-  context: TranslationJobContext;
-  request: StartAnalysisRequest;
-  id: string;
-  abortController: AbortController;
-  emit: EmitJobEvent;
-  resolved: ResolvedRunPages;
-  state: AnalysisJobState;
-}): Promise<StartAnalysisResult> {
+export type AnalysisJobRunnerDependencies = {
+  resolveWorkContextForChapter: typeof resolveWorkContextForChapter;
+  resolvePreviousChapterStoryPages: typeof resolvePreviousChapterStoryPages;
+  markChapterPagesRunning: typeof markChapterPagesRunning;
+  getRunPaths: typeof getRunPaths;
+  runWholePagePipeline: typeof runWholePagePipeline;
+};
+
+const productionAnalysisJobRunnerDependencies: AnalysisJobRunnerDependencies = {
+  resolveWorkContextForChapter,
+  resolvePreviousChapterStoryPages,
+  markChapterPagesRunning,
+  getRunPaths,
+  runWholePagePipeline,
+};
+
+export async function runResolvedAnalysisJob(
+  {
+    context,
+    request,
+    id,
+    abortController,
+    emit,
+    resolved,
+    state,
+    registerResourceCleanup,
+  }: {
+    context: TranslationJobContext;
+    request: StartAnalysisRequest;
+    id: string;
+    abortController: AbortController;
+    emit: EmitJobEvent;
+    resolved: ResolvedRunPages;
+    state: AnalysisJobState;
+    registerResourceCleanup: (cleanup: JobResourceCleanup) => void;
+  },
+  dependencies: AnalysisJobRunnerDependencies = productionAnalysisJobRunnerDependencies,
+): Promise<StartAnalysisResult> {
+  throwIfAborted(abortController.signal);
   state.pageIds = resolved.pages.map((page) => page.id);
-  const workContext = await resolveWorkContextForChapter(request.chapterId);
+  const workContext = await dependencies.resolveWorkContextForChapter(
+    request.chapterId,
+  );
+  throwIfAborted(abortController.signal);
   const previousStoryPages = request.collectPageContext
-    ? await resolvePreviousChapterStoryPages(resolved.chapter)
+    ? await dependencies.resolvePreviousChapterStoryPages(resolved.chapter)
     : [];
+  throwIfAborted(abortController.signal);
   const expectedUpdatedAtByPageId = await prepareRunningAnalysisPages(
     request.chapterId,
     state.pageIds,
+    dependencies.markChapterPagesRunning,
   );
-  state.runPaths = await getRunPaths(request.chapterId, id);
-  const result = await runWholePagePipeline({
+  throwIfAborted(abortController.signal);
+  state.runPaths = await dependencies.getRunPaths(request.chapterId, id);
+  throwIfAborted(abortController.signal);
+  const result = await dependencies.runWholePagePipeline({
     jobId: id,
     emit,
     ...buildAnalysisPipelineCallbacks({
-      context,
       expectedUpdatedAtByPageId,
-      id,
       request,
+      registerResourceCleanup,
     }),
     pages: resolved.pages,
     runPaths: state.runPaths,
@@ -88,10 +119,16 @@ export async function runResolvedAnalysisJob({
     ),
   });
 
-  if (abortController.signal.aborted) {
-    throw new DOMException("Aborted", "AbortError");
-  }
-  return completeAnalysisJob(id, emit, request, resolved, result);
+  throwIfAborted(abortController.signal);
+  return completeAnalysisJob(
+    id,
+    emit,
+    request,
+    resolved,
+    result,
+    openChapter,
+    abortController.signal,
+  );
 }
 
 export async function handleAnalysisJobError({
@@ -121,8 +158,9 @@ export async function handleAnalysisJobError({
 async function prepareRunningAnalysisPages(
   chapterId: string,
   pageIds: string[],
+  markPagesRunning: typeof markChapterPagesRunning,
 ): Promise<Map<string, string>> {
-  const runningChapter = await markChapterPagesRunning(chapterId, pageIds);
+  const runningChapter = await markPagesRunning(chapterId, pageIds);
   return new Map(
     runningChapter.pages
       .filter((page) => pageIds.includes(page.id))
@@ -131,23 +169,19 @@ async function prepareRunningAnalysisPages(
 }
 
 function buildAnalysisPipelineCallbacks({
-  context,
   expectedUpdatedAtByPageId,
-  id,
   request,
+  registerResourceCleanup,
 }: {
-  context: TranslationJobContext;
   expectedUpdatedAtByPageId: Map<string, string>;
-  id: string;
   request: StartAnalysisRequest;
+  registerResourceCleanup: (cleanup: JobResourceCleanup) => void;
 }): Pick<
   PipelineOptions,
   "onCleanupReady" | "onPageComplete" | "onPagesComplete" | "onPageFailed"
 > {
   return {
-    onCleanupReady: (cleanup) => {
-      context.jobs.setCleanup(id, cleanup);
-    },
+    onCleanupReady: registerResourceCleanup,
     onPageComplete: async (page) => {
       return updatePageAfterAnalysis(
         request.chapterId,
@@ -199,12 +233,16 @@ export async function completeAnalysisJob(
   resolved: ResolvedRunPages,
   result: PipelineResult,
   openPersistedChapter: typeof openChapter = openChapter,
+  signal?: AbortSignal,
 ): Promise<StartAnalysisResult> {
   // The pipeline result can still look completed when persisting a page loses
   // an optimistic-concurrency race. Re-open the chapter before emitting a
   // terminal event and treat anything other than a persisted completed target
   // as an incomplete job.
   const chapter = await openPersistedChapter(request.chapterId);
+  if (signal) {
+    throwIfAborted(signal);
+  }
   const persistedPagesById = new Map(
     chapter.pages.map((page) => [page.id, page]),
   );

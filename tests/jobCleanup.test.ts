@@ -6,6 +6,7 @@ import {
 } from "../src/shared/ipcContracts";
 import type { ActiveJob } from "../src/main/jobs/activeJob";
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
+import { createJobLifetimeCleanupBoundary } from "../src/main/jobs/jobLifetimeCleanup";
 import {
   BEFORE_QUIT_CLEANUP_TIMEOUT_MS,
   canReleaseInpaintingHistoryAfterQuitCleanup,
@@ -75,6 +76,34 @@ describe("ActiveJobStore cleanup", () => {
     await expect(jobs.runCleanup(job, "later")).resolves.toBeUndefined();
 
     expect(cleanup).toHaveBeenCalledTimes(1);
+    expect(loggerMock.logInfo).toHaveBeenCalledTimes(1);
+  });
+
+  it("shares a job-lifetime cleanup across concurrent cancel and quit callers", async () => {
+    const resourceGate = createDeferred<void>();
+    const lifetime = createJobLifetimeCleanupBoundary();
+    const resourceCleanup = vi.fn(() => resourceGate.promise);
+    lifetime.registerResourceCleanup(resourceCleanup);
+    const job = makeActiveJob(lifetime.cleanup);
+    const jobs = new ActiveJobStore({
+      error: loggerMock.logError,
+      info: loggerMock.logInfo,
+    });
+    jobs.start(job);
+
+    const cancelCleanup = jobs.runCleanup(job, "cancel");
+    const quitCleanup = jobs.runCleanup(job, "before-quit");
+    await Promise.resolve();
+    expect(resourceCleanup).toHaveBeenCalledTimes(1);
+
+    lifetime.finish();
+    resourceGate.resolve(undefined);
+    await expect(Promise.all([cancelCleanup, quitCleanup])).resolves.toEqual([
+      undefined,
+      undefined,
+    ]);
+
+    expect(resourceCleanup).toHaveBeenCalledTimes(1);
     expect(loggerMock.logInfo).toHaveBeenCalledTimes(1);
   });
 

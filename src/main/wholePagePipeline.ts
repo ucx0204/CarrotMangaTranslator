@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- pipeline cancellation boundaries and endpoint ownership stay co-located for auditability */
 import type { MangaPage } from "../shared/libraryTypes";
 import { isJapaneseLanguageCode } from "../shared/translationLanguages";
 import { tMain } from "./i18n";
@@ -30,6 +31,7 @@ import {
 import { configureWholePageOutputOptions } from "./pipeline/wholePageOutputOptions";
 import { createAutomaticFontChapterCoordinatorV2 } from "./pipeline/automaticFontMatchingV2PageCoordinator";
 
+// eslint-disable-next-line max-lines-per-function -- major await-boundary abort checks stay with the pipeline transaction
 export async function runWholePagePipeline(
   options: PipelineOptions,
   injectedDependencies?: WholePagePipelineDependencies,
@@ -61,6 +63,7 @@ export async function runWholePagePipeline(
     dependencies,
     Boolean(injectedDependencies),
   );
+  throwIfAborted(signal);
   await configureWholePageOutputOptions({
     autoFontMatching,
     chapterId: workContext?.chapterId,
@@ -69,17 +72,20 @@ export async function runWholePagePipeline(
     run,
     workId: workContext?.workId,
   });
+  throwIfAborted(signal);
   const warningCollector = createPipelineWarnings(signal);
 
   const filtered = filterPagesByOcrText(pages, ocrHintsByPageId, {
     allowNoTextSkip: !collectPageContext && allowOcrNoTextSkip(run.baseOptions),
   });
+  throwIfAborted(signal);
   const approvedPrepassPageIds = await completePrepassNoTextPages({
     context: run.progressContext,
     onPageComplete,
     onPagesComplete,
     prepassNoTextPages: filtered.prepassNoTextPages,
   });
+  throwIfAborted(signal);
   await persistPrepassPageContexts({
     approvedPrepassPageIds,
     canonicalPageIndexById,
@@ -89,7 +95,9 @@ export async function runWholePagePipeline(
     warningCollector,
     workContext,
     writeStoryMemory,
+    signal,
   });
+  throwIfAborted(signal);
 
   return completeWholePageRun({
     blockMode,
@@ -122,6 +130,7 @@ async function persistPrepassPageContexts({
   warningCollector,
   workContext,
   writeStoryMemory,
+  signal,
 }: {
   approvedPrepassPageIds: ReadonlySet<string>;
   canonicalPageIndexById?: PipelineOptions["canonicalPageIndexById"];
@@ -131,9 +140,11 @@ async function persistPrepassPageContexts({
   warningCollector: ReturnType<typeof createWarningCollector>;
   workContext?: PipelineOptions["workContext"];
   writeStoryMemory: boolean;
+  signal: AbortSignal;
 }): Promise<void> {
   if (!writeStoryMemory || !workContext) return;
   for (const entry of filtered.prepassNoTextPages) {
+    throwIfAborted(signal);
     if (!approvedPrepassPageIds.has(entry.page.id)) continue;
     await persistPageContextAfterSuccess(
       {
@@ -147,6 +158,7 @@ async function persistPrepassPageContexts({
       },
       pageContextDependencies(dependencies),
     );
+    throwIfAborted(signal);
   }
 }
 
@@ -191,6 +203,7 @@ async function completeWholePageRun({
   warningCollector: ReturnType<typeof createWarningCollector>;
   dependencies: WholePagePipelineDependencies;
 }): Promise<{ pages: MangaPage[]; warnings: string[] }> {
+  throwIfAborted(signal);
   if (filtered.pagesToTranslate.length === 0) {
     emitPagesReadyWithoutModel(run.progressContext, pages.length);
     return buildPipelineResult(pages, filtered, warningCollector);
@@ -268,6 +281,7 @@ async function prepareWholePageRun(
   // first loadCandidates call). No-op for injected deps (tests) and when auto
   // font matching is off; non-abort failures degrade fail-closed.
   await prepareFontMatchingRuntimeForRun(options, dependencies.paths, injected);
+  throwIfAborted(options.signal);
   const {
     blockMode,
     decodeImage,
@@ -289,6 +303,7 @@ async function prepareWholePageRun(
     skipOcrPrepass,
     dependencies,
   });
+  throwIfAborted(signal);
   const ocrHintsByPageId = await preparePageOcrHints({
     jobId,
     pages,
@@ -301,6 +316,7 @@ async function prepareWholePageRun(
     regionContext,
     diagnostics: dependencies.diagnostics,
   });
+  throwIfAborted(signal);
   return { ocrHintsByPageId, run };
 }
 
