@@ -24,6 +24,8 @@ import {
   type ZipEntryLike,
 } from "./zipSafety";
 
+type ShareArchiveReader = Pick<ZipArchiveReader, "readEntry">;
+
 export async function materializeSharedChapter({
   workId,
   packageChapter,
@@ -34,8 +36,8 @@ export async function materializeSharedChapter({
 }: {
   workId: string;
   packageChapter: ChapterFile;
-  entries: Map<string, ZipEntryLike>;
-  archiveReader: ZipArchiveReader;
+  entries: ReadonlyMap<string, ZipEntryLike>;
+  archiveReader: ShareArchiveReader;
   requestedTitle: string;
   signal?: AbortSignal;
 }): Promise<ChapterFile> {
@@ -85,8 +87,8 @@ async function materializeSharedPages({
   signal,
 }: {
   packageChapter: ChapterFile;
-  entries: Map<string, ZipEntryLike>;
-  archiveReader: ZipArchiveReader;
+  entries: ReadonlyMap<string, ZipEntryLike>;
+  archiveReader: ShareArchiveReader;
   pagesDir: string;
   inpaintedDir: string;
   now: string;
@@ -125,8 +127,8 @@ async function materializeSharedPage({
   now,
   signal,
 }: {
-  entries: Map<string, ZipEntryLike>;
-  archiveReader: ZipArchiveReader;
+  entries: ReadonlyMap<string, ZipEntryLike>;
+  archiveReader: ShareArchiveReader;
   packagePage: LibraryPageRecord;
   index: number;
   pagesDir: string;
@@ -241,8 +243,8 @@ async function materializeSharedInpaintedImage({
   inpaintedDir,
   signal,
 }: {
-  entries: Map<string, ZipEntryLike>;
-  archiveReader: ZipArchiveReader;
+  entries: ReadonlyMap<string, ZipEntryLike>;
+  archiveReader: ShareArchiveReader;
   packagePage: LibraryPageRecord;
   pageId: string;
   index: number;
@@ -307,8 +309,8 @@ async function writePackageImageEntry({
   missingMessage,
   signal,
 }: {
-  entries: Map<string, ZipEntryLike>;
-  archiveReader: ZipArchiveReader;
+  entries: ReadonlyMap<string, ZipEntryLike>;
+  archiveReader: ShareArchiveReader;
   packageImagePath: string;
   outputPath: string;
   displayName: string;

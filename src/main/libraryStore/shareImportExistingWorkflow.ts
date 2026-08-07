@@ -23,12 +23,10 @@ import {
   restoreTrashedChapterDirectories,
   type TrashedChapterDirectory,
 } from "./shareImportTrash";
-import type { SharePackage } from "./sharePackage";
+import type { SharePackageSession } from "./sharePackage";
 import { makeUniqueTitleInList, sanitizeTitle } from "./titles";
-import type { ZipArchiveReader } from "./zipSafety";
 
 type ExistingShareImportPlan = {
-  chapterByPackageId: Map<string, ChapterFile>;
   currentChapters: Map<string, ChapterFile>;
   usedTitles: Set<string>;
   usedExistingIds: Set<string>;
@@ -47,8 +45,7 @@ type ExistingChapterEntry = Extract<
 type PackageChapterEntry = Extract<WorkShareImportEntry, { source: "package" }>;
 
 export async function importWorkShareIntoExistingWork(
-  sharePackage: SharePackage,
-  archiveReader: ZipArchiveReader,
+  session: SharePackageSession,
   request: WorkShareImportFromPackageRequest,
   signal?: AbortSignal,
 ): Promise<WorkShareImportResult> {
@@ -62,7 +59,7 @@ export async function importWorkShareIntoExistingWork(
   const originalWork = cloneWorkForRollback(work);
   const currentChapters = await readCurrentChapters(work, signal);
   throwIfAborted(signal);
-  const plan = createExistingShareImportPlan(sharePackage, currentChapters);
+  const plan = createExistingShareImportPlan(currentChapters);
   const trashedExistingChapters: TrashedChapterDirectory[] = [];
 
   try {
@@ -70,8 +67,7 @@ export async function importWorkShareIntoExistingWork(
       entries: request.entries,
       plan,
       workId: work.id,
-      sharePackage,
-      archiveReader,
+      session,
       signal,
     });
     throwIfAborted(signal);
@@ -117,16 +113,9 @@ async function readCurrentChapters(
 }
 
 function createExistingShareImportPlan(
-  sharePackage: SharePackage,
   currentChapters: Map<string, ChapterFile>,
 ): ExistingShareImportPlan {
   return {
-    chapterByPackageId: new Map(
-      sharePackage.chapters.map((item) => [
-        item.packageChapterId,
-        item.chapter,
-      ]),
-    ),
     currentChapters,
     usedTitles: new Set<string>(),
     usedExistingIds: new Set<string>(),
@@ -142,15 +131,13 @@ async function populateExistingShareImportPlan({
   entries,
   plan,
   workId,
-  sharePackage,
-  archiveReader,
+  session,
   signal,
 }: {
   entries: WorkShareImportEntry[];
   plan: ExistingShareImportPlan;
   workId: string;
-  sharePackage: SharePackage;
-  archiveReader: ZipArchiveReader;
+  session: SharePackageSession;
   signal?: AbortSignal;
 }): Promise<void> {
   for (const entry of entries) {
@@ -159,8 +146,7 @@ async function populateExistingShareImportPlan({
       entry,
       plan,
       workId,
-      sharePackage,
-      archiveReader,
+      session,
       signal,
     });
     throwIfAborted(signal);
@@ -171,15 +157,13 @@ async function applyExistingShareEntry({
   entry,
   plan,
   workId,
-  sharePackage,
-  archiveReader,
+  session,
   signal,
 }: {
   entry: WorkShareImportEntry;
   plan: ExistingShareImportPlan;
   workId: string;
-  sharePackage: SharePackage;
-  archiveReader: ZipArchiveReader;
+  session: SharePackageSession;
   signal?: AbortSignal;
 }): Promise<void> {
   throwIfAborted(signal);
@@ -192,8 +176,7 @@ async function applyExistingShareEntry({
     entry,
     plan,
     workId,
-    sharePackage,
-    archiveReader,
+    session,
     signal,
   });
 }
@@ -228,31 +211,29 @@ async function addPackageChapterToPlan({
   entry,
   plan,
   workId,
-  sharePackage,
-  archiveReader,
+  session,
   signal,
 }: {
   entry: PackageChapterEntry;
   plan: ExistingShareImportPlan;
   workId: string;
-  sharePackage: SharePackage;
-  archiveReader: ZipArchiveReader;
+  session: SharePackageSession;
   signal?: AbortSignal;
 }): Promise<void> {
   throwIfAborted(signal);
   if (plan.usedPackageIds.has(entry.packageChapterId)) {
     throw new Error(tMain("share.errors.duplicateSharedChapter"));
   }
-  const packageChapter = plan.chapterByPackageId.get(entry.packageChapterId);
-  if (!packageChapter) {
-    throw new Error(tMain("share.errors.chapterNotFound"));
-  }
+  const packageChapter = await session.readChapter(
+    entry.packageChapterId,
+    signal,
+  );
 
   const chapter = await materializeSharedChapter({
     workId,
     packageChapter,
-    entries: sharePackage.entries,
-    archiveReader,
+    entries: session.entries,
+    archiveReader: session.archiveReader,
     requestedTitle: makePlannedChapterTitle(
       entry.title,
       packageChapter.title,

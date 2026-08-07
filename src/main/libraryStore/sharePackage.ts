@@ -1,7 +1,9 @@
 import type { LibraryChapter } from "../../shared/libraryTypes";
+import { MAX_ID_LIST_LENGTH } from "../../shared/ipcSchemaPrimitives";
 import type { WorkShareImportEntry } from "../../shared/shareTypes";
 import type { WorkStyleGuide } from "../../shared/workContextTypes";
 import { z } from "zod";
+import { throwIfAborted } from "../abortSignal";
 import { tMain } from "./localization";
 import {
   LibraryChapterFileSchema,
@@ -15,13 +17,14 @@ import {
   buildSafeShareEntryMap,
   normalizeSharePathSegment,
   normalizeShareRelativePath,
-  readZipEntries,
-  readZipEntryDataFromFile,
+  openZipArchiveReader,
+  type ZipArchiveReader,
   type ZipEntryLike,
 } from "./zipSafety";
 
 export const SHARE_FORMAT = "manga-gemma-translator-share";
 export const SHARE_VERSION = 1;
+export const MAX_SHARE_CHAPTERS = MAX_ID_LIST_LENGTH;
 
 export type ShareManifest = {
   format: string;
@@ -34,15 +37,25 @@ export type ShareManifest = {
   chapterOrder: string[];
 };
 
-export type SharePackage = {
-  packagePath: string;
-  entries: Map<string, ZipEntryLike>;
-  manifest: ShareManifest;
-  styleGuide?: WorkStyleGuide;
-  chapters: Array<{
-    packageChapterId: string;
-    chapter: LibraryChapter;
-  }>;
+export type SharePackageSession = {
+  readonly packagePath: string;
+  readonly entries: ReadonlyMap<string, ZipEntryLike>;
+  readonly manifest: ShareManifest;
+  readonly styleGuide?: WorkStyleGuide;
+  readonly archiveReader: Pick<ZipArchiveReader, "readEntry">;
+  readChapter: (
+    packageChapterId: string,
+    signal?: AbortSignal,
+  ) => Promise<LibraryChapter>;
+  close: () => void;
+};
+
+export type SharePackageReaderRuntime = {
+  openArchive: typeof openZipArchiveReader;
+};
+
+const productionSharePackageReaderRuntime: SharePackageReaderRuntime = {
+  openArchive: openZipArchiveReader,
 };
 
 const ShareManifestSchema = z
@@ -56,59 +69,69 @@ const ShareManifestSchema = z
         title: z.string().max(240),
       })
       .strict(),
-    chapterOrder: z.array(z.string().min(1).max(200)).min(1).max(2000),
+    chapterOrder: z
+      .array(z.string().min(1).max(200))
+      .min(1)
+      .max(MAX_SHARE_CHAPTERS)
+      .refine((ids) => new Set(ids).size === ids.length, {
+        message: "duplicate chapter id",
+      }),
   })
   .strict();
 
-export async function readSharePackage(
+export async function openSharePackageSession(
   packagePath: string,
-): Promise<SharePackage> {
-  const entries = buildSafeShareEntryMap(
-    await readZipEntries(packagePath, tMain("share.fileLabel")),
-  );
-  const manifest = await readRequiredShareJson(
+  {
+    signal,
+    runtime = productionSharePackageReaderRuntime,
+  }: {
+    signal?: AbortSignal;
+    runtime?: SharePackageReaderRuntime;
+  } = {},
+): Promise<SharePackageSession> {
+  throwIfAborted(signal);
+  const archiveReader = await runtime.openArchive(
     packagePath,
-    entries,
-    "manifest.json",
-    ShareManifestSchema,
+    tMain("share.fileLabel"),
   );
-  const styleGuide = await readOptionalShareJson(
-    packagePath,
-    entries,
-    "style-guide.json",
-    WorkStyleGuideSchema,
-  );
+  let sessionReturned = false;
 
-  const chapters = await Promise.all(
-    manifest.chapterOrder.map(async (packageChapterId) => {
-      const safeChapterId = normalizeSharePathSegment(
-        packageChapterId,
-        tMain("share.errors.invalidChapterId"),
-      );
-      const chapter = await readRequiredShareJson(
-        packagePath,
-        entries,
-        `chapters/${safeChapterId}/chapter.json`,
-        LibraryChapterFileSchema,
-      );
-      validateShareChapter(chapter, safeChapterId, entries);
-      return {
-        packageChapterId: safeChapterId,
-        chapter,
-      };
-    }),
-  );
-
-  return {
-    packagePath,
-    entries,
-    manifest: {
-      ...manifest,
-      chapterOrder: chapters.map((chapter) => chapter.packageChapterId),
-    },
-    styleGuide,
-    chapters,
-  };
+  try {
+    throwIfAborted(signal);
+    const entries = buildSafeShareEntryMap(archiveReader.entries);
+    const manifest = await readRequiredShareJson(
+      archiveReader,
+      entries,
+      "manifest.json",
+      ShareManifestSchema,
+      signal,
+    );
+    const { normalizedManifest, chapterEntryById } = validateManifestChapters(
+      manifest,
+      entries,
+    );
+    const styleGuide = await readOptionalShareJson(
+      archiveReader,
+      entries,
+      "style-guide.json",
+      WorkStyleGuideSchema,
+      signal,
+    );
+    const session = createSharePackageSession({
+      packagePath,
+      archiveReader,
+      entries,
+      manifest: normalizedManifest,
+      styleGuide,
+      chapterEntryById,
+    });
+    sessionReturned = true;
+    return session;
+  } finally {
+    if (!sessionReturned) {
+      archiveReader.close();
+    }
+  }
 }
 
 export function assertPackageOnlyEntries(
@@ -122,34 +145,37 @@ export function assertPackageOnlyEntries(
 }
 
 async function readRequiredShareJson<TSchema extends z.ZodTypeAny>(
-  packagePath: string,
-  entries: Map<string, ZipEntryLike>,
+  reader: Pick<ZipArchiveReader, "readEntry">,
+  entries: ReadonlyMap<string, ZipEntryLike>,
   path: string,
   schema: TSchema,
+  signal?: AbortSignal,
 ): Promise<z.output<TSchema>> {
+  throwIfAborted(signal);
   const entry = entries.get(path);
   if (!entry) {
     throw new Error(tMain("share.errors.requiredInfoMissing", { path }));
   }
+  assertZipEntrySize(entry, MAX_SHARE_JSON_BYTES, path);
+  const data = await reader.readEntry(
+    entry.entryName,
+    MAX_SHARE_JSON_BYTES,
+    path,
+  );
+  throwIfAborted(signal);
+
   let parsedJson: unknown;
   try {
-    parsedJson = JSON.parse(
-      (
-        await readZipEntryDataFromFile(
-          packagePath,
-          entry.entryName,
-          MAX_SHARE_JSON_BYTES,
-          path,
-        )
-      ).toString("utf8"),
-    );
+    parsedJson = JSON.parse(data.toString("utf8"));
   } catch (error) {
     throw new Error(tMain("share.errors.jsonRead", { path }), {
       cause: error,
     });
   }
 
+  throwIfAborted(signal);
   const result = schema.safeParse(parsedJson);
+  throwIfAborted(signal);
   if (result.success) {
     return result.data;
   }
@@ -163,21 +189,138 @@ async function readRequiredShareJson<TSchema extends z.ZodTypeAny>(
 }
 
 async function readOptionalShareJson<TSchema extends z.ZodTypeAny>(
-  packagePath: string,
-  entries: Map<string, ZipEntryLike>,
+  reader: Pick<ZipArchiveReader, "readEntry">,
+  entries: ReadonlyMap<string, ZipEntryLike>,
   path: string,
   schema: TSchema,
+  signal?: AbortSignal,
 ): Promise<z.output<TSchema> | undefined> {
   if (!entries.has(path)) {
     return undefined;
   }
-  return readRequiredShareJson(packagePath, entries, path, schema);
+  return readRequiredShareJson(reader, entries, path, schema, signal);
+}
+
+function validateManifestChapters(
+  manifest: ShareManifest,
+  entries: ReadonlyMap<string, ZipEntryLike>,
+): {
+  normalizedManifest: ShareManifest;
+  chapterEntryById: ReadonlyMap<string, ZipEntryLike>;
+} {
+  const normalizedIds: string[] = [];
+  const seen = new Set<string>();
+  const chapterEntryById = new Map<string, ZipEntryLike>();
+
+  for (const rawId of manifest.chapterOrder) {
+    const id = normalizeSharePathSegment(
+      rawId,
+      tMain("share.errors.invalidChapterId"),
+    );
+    if (seen.has(id)) {
+      throw new Error(tMain("share.errors.duplicateSharedChapter"));
+    }
+    seen.add(id);
+
+    const path = `chapters/${id}/chapter.json`;
+    const entry = entries.get(path);
+    if (!entry) {
+      throw new Error(tMain("share.errors.requiredInfoMissing", { path }));
+    }
+    assertZipEntrySize(entry, MAX_SHARE_JSON_BYTES, path);
+    normalizedIds.push(id);
+    chapterEntryById.set(id, entry);
+  }
+
+  return {
+    normalizedManifest: {
+      ...manifest,
+      chapterOrder: normalizedIds,
+    },
+    chapterEntryById,
+  };
+}
+
+function createSharePackageSession({
+  packagePath,
+  archiveReader,
+  entries,
+  manifest,
+  styleGuide,
+  chapterEntryById,
+}: {
+  packagePath: string;
+  archiveReader: ZipArchiveReader;
+  entries: ReadonlyMap<string, ZipEntryLike>;
+  manifest: ShareManifest;
+  styleGuide?: WorkStyleGuide;
+  chapterEntryById: ReadonlyMap<string, ZipEntryLike>;
+}): SharePackageSession {
+  let closed = false;
+  let chapterReadTail: Promise<void> = Promise.resolve();
+
+  const readChapterNow = async (
+    packageChapterId: string,
+    signal?: AbortSignal,
+  ): Promise<LibraryChapter> => {
+    if (closed) {
+      throw new Error("Share package reader is closed.");
+    }
+    throwIfAborted(signal);
+    const safeId = normalizeSharePathSegment(
+      packageChapterId,
+      tMain("share.errors.invalidChapterId"),
+    );
+    if (!chapterEntryById.has(safeId)) {
+      throw new Error(tMain("share.errors.chapterNotFound"));
+    }
+    const chapter = await readRequiredShareJson(
+      archiveReader,
+      entries,
+      `chapters/${safeId}/chapter.json`,
+      LibraryChapterFileSchema,
+      signal,
+    );
+    throwIfAborted(signal);
+    validateShareChapter(chapter, safeId, entries);
+    return chapter;
+  };
+
+  const readChapter = (
+    packageChapterId: string,
+    signal?: AbortSignal,
+  ): Promise<LibraryChapter> => {
+    const task = chapterReadTail.then(() =>
+      readChapterNow(packageChapterId, signal),
+    );
+    chapterReadTail = task.then(
+      () => undefined,
+      () => undefined,
+    );
+    return task;
+  };
+
+  return {
+    packagePath,
+    entries,
+    manifest,
+    styleGuide,
+    archiveReader,
+    readChapter,
+    close: () => {
+      if (closed) {
+        return;
+      }
+      closed = true;
+      archiveReader.close();
+    },
+  };
 }
 
 function validateShareChapter(
   chapter: LibraryChapter,
   packageChapterId: string,
-  entries: Map<string, ZipEntryLike>,
+  entries: ReadonlyMap<string, ZipEntryLike>,
 ): void {
   if (
     chapter.id !== packageChapterId ||
@@ -201,7 +344,7 @@ function validateShareChapter(
 function validateSharePageImage(
   page: LibraryChapter["pages"][number],
   packageChapterId: string,
-  entries: Map<string, ZipEntryLike>,
+  entries: ReadonlyMap<string, ZipEntryLike>,
 ): void {
   const imagePath = normalizeShareRelativePath(
     page.imagePath,
@@ -225,7 +368,7 @@ function validateSharePageImage(
 function validateSharePageInpaintedImage(
   page: LibraryChapter["pages"][number],
   packageChapterId: string,
-  entries: Map<string, ZipEntryLike>,
+  entries: ReadonlyMap<string, ZipEntryLike>,
 ): void {
   if (!page.inpaintedImagePath) {
     return;
@@ -255,7 +398,7 @@ function assertSupportedShareImageEntry({
   path,
   unsupportedMessage,
 }: {
-  entries: Map<string, ZipEntryLike>;
+  entries: ReadonlyMap<string, ZipEntryLike>;
   missingMessage: string;
   path: string;
   unsupportedMessage: string;

@@ -19,37 +19,61 @@ import { materializeSharedChapter } from "./shareImportMaterialize";
 import { writeWorkStyleGuide } from "./workContextFiles";
 import {
   assertPackageOnlyEntries,
-  readSharePackage,
-  type SharePackage,
+  openSharePackageSession,
+  type SharePackageReaderRuntime,
+  type SharePackageSession,
 } from "./sharePackage";
 import { makeUniqueTitleInList, sanitizeTitle } from "./titles";
-import { openZipArchiveReader, type ZipArchiveReader } from "./zipSafety";
+
+export type ShareWorkflowRuntime = {
+  openPackage: typeof openSharePackageSession;
+};
+
+const productionShareWorkflowRuntime: ShareWorkflowRuntime = {
+  openPackage: openSharePackageSession,
+};
 
 export async function previewWorkShareImport(
   packagePath: string,
+  options: {
+    signal?: AbortSignal;
+    readerRuntime?: SharePackageReaderRuntime;
+  } = {},
 ): Promise<WorkShareImportPreviewView> {
-  const sharePackage = await readSharePackage(packagePath);
-  return {
-    workTitle: sharePackage.manifest.work.title,
-    chapters: sharePackage.chapters.map(({ packageChapterId, chapter }) => ({
-      packageChapterId,
-      title: chapter.title,
-      pageCount: chapter.pages.length,
-    })),
-  };
+  const session = await openSharePackageSession(packagePath, {
+    signal: options.signal,
+    runtime: options.readerRuntime,
+  });
+  try {
+    const chapters: WorkShareImportPreviewView["chapters"] = [];
+    for (const packageChapterId of session.manifest.chapterOrder) {
+      throwIfAborted(options.signal);
+      const chapter = await session.readChapter(
+        packageChapterId,
+        options.signal,
+      );
+      chapters.push({
+        packageChapterId,
+        title: chapter.title,
+        pageCount: chapter.pages.length,
+      });
+    }
+    return {
+      workTitle: session.manifest.work.title,
+      chapters,
+    };
+  } finally {
+    session.close();
+  }
 }
 
 export async function importWorkShareUnlocked(
   request: WorkShareImportFromPackageRequest,
   signal?: AbortSignal,
+  runtime: ShareWorkflowRuntime = productionShareWorkflowRuntime,
 ): Promise<WorkShareImportResult> {
   throwIfAborted(signal);
-  const sharePackage = await readSharePackage(request.packagePath);
-  throwIfAborted(signal);
-  const archiveReader = await openZipArchiveReader(
-    request.packagePath,
-    tMain("share.fileLabel"),
-  );
+  const session = await runtime.openPackage(request.packagePath, { signal });
 
   try {
     throwIfAborted(signal);
@@ -57,30 +81,18 @@ export async function importWorkShareUnlocked(
       throw new Error(tMain("share.errors.noChapters"));
     }
 
-    throwIfAborted(signal);
     if (request.target.mode === "new") {
-      return await importWorkShareAsNewWork(
-        sharePackage,
-        archiveReader,
-        request,
-        signal,
-      );
+      return await importWorkShareAsNewWork(session, request, signal);
     }
 
-    return await importWorkShareIntoExistingWork(
-      sharePackage,
-      archiveReader,
-      request,
-      signal,
-    );
+    return await importWorkShareIntoExistingWork(session, request, signal);
   } finally {
-    archiveReader.close();
+    session.close();
   }
 }
 
 async function importWorkShareAsNewWork(
-  sharePackage: SharePackage,
-  archiveReader: ZipArchiveReader,
+  session: SharePackageSession,
   request: WorkShareImportFromPackageRequest,
   signal?: AbortSignal,
 ): Promise<WorkShareImportResult> {
@@ -90,25 +102,22 @@ async function importWorkShareAsNewWork(
   assertPackageOnlyEntries(request.entries);
 
   let work: WorkFile | null = null;
-  const chapterByPackageId = new Map(
-    sharePackage.chapters.map((item) => [item.packageChapterId, item.chapter]),
-  );
   const usedTitles = new Set<string>();
   const createdChapters: ChapterFile[] = [];
 
   try {
     throwIfAborted(signal);
     work = await createWork(
-      request.target.title || sharePackage.manifest.work.title,
+      request.target.title || session.manifest.work.title,
     );
     throwIfAborted(signal);
 
     for (const entry of request.entries) {
       throwIfAborted(signal);
-      const packageChapter = chapterByPackageId.get(entry.packageChapterId);
-      if (!packageChapter) {
-        throw new Error(tMain("share.errors.chapterNotFound"));
-      }
+      const packageChapter = await session.readChapter(
+        entry.packageChapterId,
+        signal,
+      );
       const title = makeUniqueTitleInList(
         sanitizeTitle(
           entry.title || packageChapter.title,
@@ -119,8 +128,8 @@ async function importWorkShareAsNewWork(
       const chapter = await materializeSharedChapter({
         workId: work.id,
         packageChapter,
-        entries: sharePackage.entries,
-        archiveReader,
+        entries: session.entries,
+        archiveReader: session.archiveReader,
         requestedTitle: title,
         signal,
       });
@@ -137,10 +146,10 @@ async function importWorkShareAsNewWork(
     work.updatedAt = new Date().toISOString();
     throwIfAborted(signal);
     await writeWorkFile(work);
-    if (sharePackage.styleGuide) {
+    if (session.styleGuide) {
       throwIfAborted(signal);
       await writeWorkStyleGuide({
-        ...sharePackage.styleGuide,
+        ...session.styleGuide,
         workId: work.id,
       });
     }
