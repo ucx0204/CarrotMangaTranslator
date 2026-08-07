@@ -300,7 +300,9 @@ async function getCachedZipReader(
     return cached;
   }
   const reader = await openZipArchiveReader(zipPath, tMain("import.zipFile"));
-  throwIfAborted(signal);
+  // Register first so the caller's existing finally block owns close(), even
+  // when cancellation happened while the archive was opening.
   cache.set(zipPath, reader);
+  throwIfAborted(signal);
   return reader;
 }

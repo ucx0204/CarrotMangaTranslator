@@ -260,8 +260,10 @@ async function addPackageChapterToPlan({
     ),
     signal,
   });
-  throwIfAborted(signal);
+  // The directory and chapter file already exist. Register the resource in the
+  // rollback journal before observing cancellation.
   plan.createdPackageChapters.push(chapter);
+  throwIfAborted(signal);
   plan.usedPackageIds.add(entry.packageChapterId);
   plan.finalChapterIds.push(chapter.id);
 }

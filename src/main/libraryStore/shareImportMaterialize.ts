@@ -67,6 +67,7 @@ export async function materializeSharedChapter({
     });
     throwIfAborted(signal);
     await writeChapterFile(chapter);
+    throwIfAborted(signal);
     return chapter;
   } catch (error) {
     await removeChapterDirectory(workId, chapterId);

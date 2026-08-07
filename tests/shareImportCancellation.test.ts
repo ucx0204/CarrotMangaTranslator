@@ -12,6 +12,7 @@ describe("share import cancellation boundaries", () => {
     vi.resetModules();
     vi.clearAllMocks();
     vi.doUnmock("node:fs/promises");
+    vi.doUnmock("../src/main/libraryStore/shareImportMaterialize");
     for (const dir of tempDirs.splice(0)) {
       await rm(dir, { recursive: true, force: true });
     }
@@ -123,6 +124,63 @@ describe("share import cancellation boundaries", () => {
     expect(
       existsSync(join(rootDir, "works", "work-1", "chapters", "chapter-a")),
     ).toBe(false);
+  });
+
+  it("rolls back a materialized package chapter when cancellation arrives before caller tracking", async () => {
+    const rootDir = await createTempLibrary();
+    const sharePath = join(rootDir, "abort-after-materialize.mgtshare");
+    const controller = new AbortController();
+    let materializedChapterId: string | null = null;
+
+    vi.doMock("../src/main/libraryStore/shareImportMaterialize", async () => {
+      const actual = await vi.importActual<
+        typeof import("../src/main/libraryStore/shareImportMaterialize")
+      >("../src/main/libraryStore/shareImportMaterialize");
+      return {
+        ...actual,
+        materializeSharedChapter: async (
+          options: Parameters<typeof actual.materializeSharedChapter>[0],
+        ) => {
+          const chapter = await actual.materializeSharedChapter(options);
+          materializedChapterId = chapter.id;
+          controller.abort(
+            new DOMException("cancel after materialization", "AbortError"),
+          );
+          return chapter;
+        },
+      };
+    });
+
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir);
+    await exportChapterA(library, sharePath);
+
+    await expect(
+      library.importWorkShare(mergeRequest(sharePath), controller.signal),
+    ).rejects.toMatchObject({ name: "AbortError" });
+
+    expect(materializedChapterId).not.toBeNull();
+    const work = (await library.listLibrary()).works.find(
+      (candidate) => candidate.id === "work-1",
+    );
+    expect(work?.chapterOrder).toEqual(["chapter-a", "chapter-b"]);
+    expect(work?.chapters.map((chapter) => chapter.title)).toEqual([
+      "1화",
+      "2화",
+    ]);
+    if (!materializedChapterId) {
+      throw new Error("Expected a materialized chapter id");
+    }
+    expect(
+      existsSync(
+        join(rootDir, "works", "work-1", "chapters", materializedChapterId),
+      ),
+    ).toBe(false);
+    const chapterDirs = await readdir(
+      join(rootDir, "works", "work-1", "chapters"),
+    );
+    expect(chapterDirs.sort()).toEqual(["chapter-a", "chapter-b"]);
+    expect(chapterDirs).not.toContain(".trash");
   });
 });
 

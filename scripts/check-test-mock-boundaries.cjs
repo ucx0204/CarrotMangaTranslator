@@ -9,8 +9,10 @@ const TEST_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx"]);
 
 /**
  * These adapters are the actual process/environment boundaries exercised by
- * the listed tests. Keep entries file-specific so feature modules cannot start
- * mocking the same internal adapter by convention.
+ * the listed tests. A narrow async race seam may also be listed when the test
+ * must interpose between a successful internal return and caller cancellation
+ * observation. Keep entries file-specific so feature modules cannot start
+ * mocking the same internal dependency by convention.
  */
 const ALLOWED_INTERNAL_BOUNDARY_MOCKS = new Set([
   "tests/bubbleOnnxRuntime.test.ts::../src/main/runtimeSupport/modelDownloads",
@@ -27,6 +29,7 @@ const ALLOWED_INTERNAL_BOUNDARY_MOCKS = new Set([
   "tests/libraryStartupLoad.test.ts::../src/main/appPaths",
   "tests/reviewTable.test.ts::../src/main/appPaths",
   "tests/shareImportCancellation.test.ts::../src/main/appPaths",
+  "tests/shareImportCancellation.test.ts::../src/main/libraryStore/shareImportMaterialize",
   "tests/workContextFiles.test.ts::../src/main/appPaths",
   "tests/workShare.test.ts::../src/main/appPaths",
   "tests/workTypographyProfile.test.ts::../src/main/appPaths",
