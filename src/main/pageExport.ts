@@ -1,10 +1,15 @@
-import { BrowserWindow, nativeImage } from "electron";
+import { BrowserWindow } from "electron";
 import { randomUUID } from "node:crypto";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { MangaPage } from "../shared/libraryTypes";
+import {
+  pageExportRasterSizesEqual,
+  type PageExportRasterSize,
+} from "../shared/pageExportLimits";
 import { createLibraryImageUrl } from "./imageProtocol";
+import { tMain } from "./i18n";
 import {
   buildPageExportHtml,
   type PageExportHtmlSource,
@@ -15,6 +20,12 @@ import {
   withAbortableTimeout,
   withTimeout,
 } from "./pageExportLifecycle";
+import {
+  assertPageExportRasterBudget,
+  buildBoundedPageExportDataUrl,
+  decodeBoundedPageExportScreenshot,
+  probePageExportSourceImage,
+} from "./pageExportRasterSafety";
 import type { ImageDecodeFallback } from "./regionCrop";
 
 const MAX_EXPORT_VIEWPORT_SIDE_PX = 4096;
@@ -33,11 +44,22 @@ export type PageExportRenderSession = {
   close: () => void;
 };
 
+export type PageExportImageProbe = (
+  imagePath: string,
+  signal: AbortSignal,
+) => Promise<PageExportRasterSize>;
+
 type PageExportRenderOptions = {
   dataRoot: string;
   decodeFallback: ImageDecodeFallback;
   htmlSource?: PageExportHtmlSource;
   resolveImageUrl?: (path: string) => string;
+  probeImageSize?: PageExportImageProbe;
+};
+
+type ResolvedPageExportImage = {
+  src: string;
+  size: PageExportRasterSize;
 };
 
 export async function createPageExportRenderSession(
@@ -147,17 +169,21 @@ async function renderPageInSession(
   renderDir: string,
   windowState: ReturnType<typeof createExportWindow>,
 ): Promise<Buffer> {
-  const imageSrc = await withAbortableTimeout(
+  const image = await withAbortableTimeout(
     (signal) => resolveExportImageSource(page, options, signal),
     IMAGE_SOURCE_TIMEOUT_MS,
-    "PNG export image decode timeout",
+    "PNG export image preflight timeout",
   );
+  assertPageExportRasterBudget(image.size, page.name);
   const html = options.htmlSource
-    ? options.htmlSource.buildHtml(page, imageSrc)
-    : buildPageExportHtml(page, imageSrc);
+    ? options.htmlSource.buildHtml(page, image.src, image.size)
+    : buildPageExportHtml(page, image.src, image.size);
   const htmlPath = join(renderDir, `${page.id}-${randomUUID()}.html`);
   const htmlUrl = pathToFileURL(htmlPath).toString();
-  const viewport = resolveExportViewportSize(page.width, page.height);
+  const viewport = resolveExportViewportSize(
+    image.size.width,
+    image.size.height,
+  );
   windowState.win.setContentSize(viewport.width, viewport.height);
   windowState.setAllowedHtmlUrl(htmlUrl);
   try {
@@ -172,14 +198,16 @@ async function renderPageInSession(
       RENDER_READY_TIMEOUT_MS,
       "PNG export renderer readiness timeout",
     );
+    assertPageExportRasterBudget(outputSize, page.name);
+    if (!pageExportRasterSizesEqual(outputSize, image.size)) {
+      throw new Error(
+        tMain("export.errors.imageDimensionsChanged", {
+          name: page.name,
+        }),
+      );
+    }
     await ensureExportDebugger(windowState.win);
-    const png = await captureExportPagePng(
-      windowState.win,
-      outputSize.width,
-      outputSize.height,
-    );
-    assertPngDimensions(png, outputSize, page.name);
-    return png;
+    return await captureExportPagePng(windowState.win, image.size, page.name);
   } finally {
     windowState.setAllowedHtmlUrl(null);
     await rm(htmlPath, { force: true });
@@ -190,7 +218,7 @@ async function resolveExportImageSource(
   page: MangaPage,
   options: PageExportRenderOptions,
   signal: AbortSignal,
-): Promise<string> {
+): Promise<ResolvedPageExportImage> {
   const paths = [page.inpaintedImagePath, page.imagePath].filter(
     (path, index, candidates): path is string =>
       Boolean(path) && candidates.indexOf(path) === index,
@@ -198,18 +226,34 @@ async function resolveExportImageSource(
   const failures: unknown[] = [];
   for (const imagePath of paths) {
     throwIfAborted(signal);
+    let size: PageExportRasterSize;
     try {
-      return (options.resolveImageUrl ?? createLibraryImageUrl)(imagePath);
+      size = await resolvePageExportSourceSize(imagePath, options, signal);
+    } catch (error) {
+      if (signal.aborted) throw error;
+      failures.push(error);
+      if (imagePath === paths.at(-1)) throw error;
+      continue;
+    }
+    try {
+      const src = (options.resolveImageUrl ?? createLibraryImageUrl)(imagePath);
+      return { src, size };
     } catch (error) {
       failures.push(error);
     }
     try {
-      const fallbackUrl = await decodeExportImageFallback(
-        imagePath,
-        options.decodeFallback,
-        signal,
-      );
-      if (fallbackUrl) return fallbackUrl;
+      const fallback = await options.decodeFallback(imagePath, signal);
+      throwIfAborted(signal);
+      if (fallback) {
+        return {
+          src: buildBoundedPageExportDataUrl(
+            fallback,
+            size,
+            basename(imagePath),
+          ),
+          size,
+        };
+      }
     } catch (error) {
       if (signal.aborted) throw error;
       failures.push(error);
@@ -217,21 +261,23 @@ async function resolveExportImageSource(
   }
   throw new AggregateError(
     failures,
-    `출력할 이미지를 읽지 못했습니다: ${paths.at(-1) ?? ""}`,
+    `출력할 이미지를 읽지 못했습니다: ${basename(paths.at(-1) ?? "")}`,
   );
 }
 
-async function decodeExportImageFallback(
+async function resolvePageExportSourceSize(
   imagePath: string,
-  decodeFallback: ImageDecodeFallback,
+  options: PageExportRenderOptions,
   signal: AbortSignal,
-): Promise<string | null> {
-  const fallback = await decodeFallback(imagePath, signal);
-  if (!fallback) return null;
-  const image = nativeImage.createFromBuffer(fallback);
-  return image.isEmpty()
-    ? null
-    : `data:image/png;base64,${image.toPNG().toString("base64")}`;
+): Promise<PageExportRasterSize> {
+  const probe =
+    options.probeImageSize ??
+    ((path: string, probeSignal: AbortSignal) =>
+      probePageExportSourceImage(path, probeSignal));
+  const size = await probe(imagePath, signal);
+  throwIfAborted(signal);
+  assertPageExportRasterBudget(size, basename(imagePath));
+  return size;
 }
 
 function resolveExportViewportSize(
@@ -246,23 +292,30 @@ function resolveExportViewportSize(
 
 async function captureExportPagePng(
   win: BrowserWindow,
-  width: number,
-  height: number,
+  expected: PageExportRasterSize,
+  pageName: string,
 ): Promise<Buffer> {
+  assertPageExportRasterBudget(expected, pageName);
   const result = (await withTimeout(
     win.webContents.debugger.sendCommand("Page.captureScreenshot", {
       format: "png",
       fromSurface: true,
       captureBeyondViewport: true,
-      clip: { x: 0, y: 0, width, height, scale: 1 },
+      clip: {
+        x: 0,
+        y: 0,
+        width: expected.width,
+        height: expected.height,
+        scale: 1,
+      },
     }),
     SCREENSHOT_CAPTURE_TIMEOUT_MS,
     "PNG export screenshot capture timeout",
   )) as DevToolsScreenshotResult;
-  if (typeof result.data !== "string" || result.data.length === 0) {
-    throw new Error("DevTools returned an empty page export screenshot.");
+  if (typeof result.data !== "string") {
+    throw new Error("DevTools returned an invalid page export screenshot.");
   }
-  return Buffer.from(result.data, "base64");
+  return decodeBoundedPageExportScreenshot(result.data, expected, pageName);
 }
 
 async function waitForExportRenderReady(
@@ -294,56 +347,23 @@ async function waitForExportRenderReady(
       tick();
     })
   `);
-  if (!isValidOutputSize(value)) {
+  if (!isPageExportRasterSizeShape(value)) {
     throw new Error("PNG export renderer returned an invalid output size.");
   }
   return value;
 }
 
-function isValidOutputSize(
+function isPageExportRasterSizeShape(
   value: unknown,
-): value is { width: number; height: number } {
+): value is PageExportRasterSize {
   return (
     typeof value === "object" &&
     value !== null &&
     "width" in value &&
     typeof value.width === "number" &&
-    Number.isInteger(value.width) &&
-    value.width > 0 &&
-    value.width <= 100000 &&
     "height" in value &&
-    typeof value.height === "number" &&
-    Number.isInteger(value.height) &&
-    value.height > 0 &&
-    value.height <= 100000
+    typeof value.height === "number"
   );
-}
-
-function assertPngDimensions(
-  png: Buffer,
-  expected: { width: number; height: number },
-  pageName: string,
-): void {
-  const actual = readPngDimensions(png);
-  if (actual.width !== expected.width || actual.height !== expected.height) {
-    throw new Error(
-      `출력 PNG 크기가 일치하지 않습니다: ${pageName} (${actual.width}x${actual.height}, expected ${expected.width}x${expected.height})`,
-    );
-  }
-}
-
-function readPngDimensions(png: Buffer): {
-  width: number;
-  height: number;
-} {
-  if (
-    png.length < 24 ||
-    png.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a" ||
-    png.subarray(12, 16).toString("ascii") !== "IHDR"
-  ) {
-    throw new Error("Page export capture is not a valid PNG.");
-  }
-  return { width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
 }
 
 export function sanitizeOutputBaseName(value: string): string {

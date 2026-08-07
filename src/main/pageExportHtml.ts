@@ -12,6 +12,7 @@ import {
   PAGE_EXPORT_RUNTIME_FILE,
   PAGE_EXPORT_STYLES_FILE,
 } from "../shared/pageExportContracts";
+import type { PageExportRasterSize } from "../shared/pageExportLimits";
 import { getAppPaths } from "./appPaths";
 import {
   listCustomFonts,
@@ -20,7 +21,11 @@ import {
 } from "./customFonts";
 
 export type PageExportHtmlSource = {
-  buildHtml: (page: MangaPage, imageSrc: string) => string;
+  buildHtml: (
+    page: MangaPage,
+    imageSrc: string,
+    outputSize: PageExportRasterSize,
+  ) => string;
 };
 
 export type PageExportHtmlDependencies = {
@@ -37,16 +42,21 @@ export function createPageExportHtmlSource(
   dependencies: PageExportHtmlDependencies,
 ): PageExportHtmlSource {
   return {
-    buildHtml: (page, imageSrc) =>
-      buildPageExportHtmlWith(dependencies, page, imageSrc),
+    buildHtml: (page, imageSrc, outputSize) =>
+      buildPageExportHtmlWith(dependencies, page, imageSrc, outputSize),
   };
 }
 
-export function buildPageExportHtml(page: MangaPage, imageSrc: string): string {
+export function buildPageExportHtml(
+  page: MangaPage,
+  imageSrc: string,
+  outputSize: PageExportRasterSize,
+): string {
   return buildPageExportHtmlWith(
     createProductionPageExportHtmlDependencies(),
     page,
     imageSrc,
+    outputSize,
   );
 }
 
@@ -54,6 +64,7 @@ function buildPageExportHtmlWith(
   dependencies: PageExportHtmlDependencies,
   page: MangaPage,
   imageSrc: string,
+  outputSize: PageExportRasterSize,
 ): string {
   const assets = findPageExportAssets(dependencies.assetDirectories());
   const rendererStylesheet = dependencies.rendererStylesheet();
@@ -71,6 +82,7 @@ function buildPageExportHtmlWith(
       preferences: dependencies.fonts.readPreferences(customFonts),
     },
     imageSrc,
+    outputSize,
     page: {
       id: page.id,
       name: page.name,

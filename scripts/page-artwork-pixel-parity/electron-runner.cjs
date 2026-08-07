@@ -106,6 +106,7 @@ async function run() {
     decodeFallback: async () => null,
     htmlSource,
     resolveImageUrl: () => imageDataUrl,
+    probeImageSize: async () => ({ width: 836, height: 1200 }),
   });
   try {
     for (const testCase of createCases()) {
@@ -360,6 +361,10 @@ function buildPanelHtml(input) {
       },
     },
     imageSrc: input.imageDataUrl,
+    outputSize: {
+      width: input.panelSize.width,
+      height: input.panelSize.height,
+    },
     page: {
       blocks: input.page.blocks,
       height: input.page.height,

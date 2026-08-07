@@ -8,6 +8,8 @@ import {
 } from "../lib/blockFontLoading";
 import { createBlockFontCatalog } from "../lib/fonts";
 import { parsePageExportData } from "./documentData";
+import { assertDecodedPageExportImageSize } from "./rasterValidation";
+import type { PageExportRasterSize } from "../../../shared/pageExportLimits";
 import "./styles.css";
 
 function bootPageExport(): void {
@@ -34,7 +36,7 @@ async function startPageExport(): Promise<void> {
     data.fontLibrary.preferences,
   );
   const [imageSize, fontReport] = await Promise.all([
-    decodeExportImage(data.imageSrc),
+    decodeExportImage(data.imageSrc, data.outputSize),
     loadBlockFonts(document, data.page.blocks, catalog),
   ]);
   assertFontsLoaded(fontReport);
@@ -51,23 +53,22 @@ async function startPageExport(): Promise<void> {
   });
   await waitForRenderedImage(stage);
   await waitForTwoAnimationFrames();
-  document.body.dataset.outputWidth = String(imageSize.width);
-  document.body.dataset.outputHeight = String(imageSize.height);
+  document.body.dataset.outputWidth = String(data.outputSize.width);
+  document.body.dataset.outputHeight = String(data.outputSize.height);
   document.body.dataset.ready = "1";
 }
 
-async function decodeExportImage(src: string): Promise<{
-  width: number;
-  height: number;
-}> {
+async function decodeExportImage(
+  src: string,
+  expected: PageExportRasterSize,
+): Promise<PageExportRasterSize> {
   const image = new Image();
   image.decoding = "sync";
   image.src = src;
   await image.decode();
-  if (image.naturalWidth < 1 || image.naturalHeight < 1) {
-    throw new Error("Page export image has invalid dimensions.");
-  }
-  return { width: image.naturalWidth, height: image.naturalHeight };
+  const actual = { width: image.naturalWidth, height: image.naturalHeight };
+  assertDecodedPageExportImageSize(actual, expected);
+  return actual;
 }
 
 async function waitForRenderedImage(stage: HTMLElement): Promise<void> {

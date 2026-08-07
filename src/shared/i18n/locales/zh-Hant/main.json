@@ -338,7 +338,12 @@
       "duplicateChapter": "不能重複選擇同一章節。",
       "pageNotFound": "所選頁面不屬於該章節。",
       "duplicatePage": "不能重複選擇同一頁面。",
-      "outputDirectory": "無法建立 PNG 匯出資料夾。"
+      "outputDirectory": "無法建立 PNG 匯出資料夾。",
+      "rasterTooLarge": "{{name}} 頁面超過 PNG 匯出的安全解析度限制。（{{width}}×{{height}}，最多 {{maxPixels}} 像素）",
+      "screenshotTooLarge": "{{name}} 頁面的 PNG 結果超過安全檔案大小限制。",
+      "invalidScreenshot": "PNG 匯出結果不是有效的 base64 或 PNG 資料。",
+      "imageDimensionsChanged": "{{name}} 頁面影像的尺寸在驗證後發生了變化。",
+      "outputDimensionsMismatch": "{{name}} 頁面的輸出 PNG 尺寸不相符。（{{actual}}，預期 {{expected}}）"
     }
   },
   "modelTest": {

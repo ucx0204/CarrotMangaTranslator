@@ -31,7 +31,8 @@ type ExportOutcome =
 const tempDirs: string[] = [];
 const realSetTimeout = globalThis.setTimeout.bind(globalThis);
 let latestWindow: FakeExportWindow | null = null;
-let sourceImageSize = { width: 16, height: 16 };
+let probedImageSize = { width: 16, height: 16 };
+let rendererImageSize = { width: 16, height: 16 };
 let devToolsScreenshotResult: DevToolsScreenshotResponse | Error = {
   data: fakePng(16, 16).toString("base64"),
 };
@@ -64,7 +65,7 @@ class FakeExportWindow {
         return pendingForever();
       }
       recordExportEvent("render-readiness:done");
-      return sourceImageSize;
+      return rendererImageSize;
     }),
     capturePage: vi.fn(async () => ({
       toPNG: () => Buffer.from("fallback"),
@@ -135,7 +136,8 @@ describe("page export BrowserWindow security", () => {
     vi.clearAllMocks();
     vi.restoreAllMocks();
     latestWindow = null;
-    sourceImageSize = { width: 16, height: 16 };
+    probedImageSize = { width: 16, height: 16 };
+    rendererImageSize = { width: 16, height: 16 };
     devToolsScreenshotResult = {
       data: fakePng(16, 16).toString("base64"),
     };
@@ -256,7 +258,7 @@ describe("page export BrowserWindow security", () => {
 
     expect(outcome).toEqual({
       status: "rejected",
-      message: "PNG export image decode timeout",
+      message: "PNG export image preflight timeout",
     });
     expect(decodeSignal?.aborted).toBe(true);
     expect(latestWindow?.destroy).toHaveBeenCalledOnce();
@@ -370,7 +372,10 @@ describe("page export BrowserWindow security", () => {
       },
     });
 
-    const html = source.buildHtml(makePage(rootDir), "data:image/png;base64,");
+    const html = source.buildHtml(makePage(rootDir), "data:image/png;base64,", {
+      width: 16,
+      height: 16,
+    });
 
     expect(html).not.toContain("@font-face");
     expect(html).not.toContain(`url("file:`);
@@ -430,21 +435,88 @@ describe("page export BrowserWindow security", () => {
     );
   });
 
-  it("keeps the hidden export window bounded but captures the full page clip", async () => {
-    sourceImageSize = { width: 5000, height: 12000 };
+  it("rejects an oversized source before page load or debugger attach", async () => {
+    probedImageSize = { width: 5000, height: 12000 };
     const rootDir = await createTempRoot();
     const { renderPageWithTranslationBlocksForExport } = await loadPageExport();
+
+    await expect(
+      renderPageWithTranslationBlocksForExport(
+        makePage(rootDir),
+        createRenderOptions(rootDir),
+      ),
+    ).rejects.toThrow(/안전 해상도|raster safety/i);
+
+    expect(latestWindow?.loadedHtml).toBe("");
+    expect(latestWindow?.webContents.executeJavaScript).not.toHaveBeenCalled();
+    expect(latestWindow?.webContents.debugger.attach).not.toHaveBeenCalled();
+    expect(
+      latestWindow?.webContents.debugger.sendCommand,
+    ).not.toHaveBeenCalled();
+    expect(latestWindow?.destroy).toHaveBeenCalledOnce();
+  });
+
+  it("skips an oversized inpainted source and safely falls back to the original", async () => {
+    const rootDir = await createTempRoot();
     const page = makePage(rootDir);
-    page.width = sourceImageSize.width;
-    page.height = sourceImageSize.height;
+    const inpaintedPath = join(rootDir, "001-inpainted.png");
+    page.inpaintedImagePath = inpaintedPath;
+    const options = createRenderOptions(rootDir);
+    const probeImageSize = vi.fn(async (imagePath: string) =>
+      imagePath === inpaintedPath
+        ? { width: 5000, height: 12000 }
+        : { width: 2000, height: 3000 },
+    );
+    const resolveImageUrl = vi.fn(
+      (_imagePath: string) => "data:image/png;base64,",
+    );
+    const decodeFallback = vi.fn(async () => null);
+    options.probeImageSize = probeImageSize;
+    options.resolveImageUrl = resolveImageUrl;
+    options.decodeFallback = decodeFallback;
+    rendererImageSize = { width: 2000, height: 3000 };
+    const { renderPageWithTranslationBlocksForExport } = await loadPageExport();
+
+    const png = await renderPageWithTranslationBlocksForExport(page, options);
+
+    expect(readFakePngSize(png)).toEqual({ width: 2000, height: 3000 });
+    expect(probeImageSize.mock.calls.map(([imagePath]) => imagePath)).toEqual([
+      inpaintedPath,
+      page.imagePath,
+    ]);
+    expect(resolveImageUrl).toHaveBeenCalledTimes(1);
+    expect(resolveImageUrl).toHaveBeenCalledWith(page.imagePath);
+    expect(decodeFallback).not.toHaveBeenCalled();
+  });
+
+  it("captures an exact-boundary 4096x4096 page at its original size", async () => {
+    probedImageSize = { width: 4096, height: 4096 };
+    rendererImageSize = probedImageSize;
+    const rootDir = await createTempRoot();
+    const { renderPageWithTranslationBlocksForExport } = await loadPageExport();
 
     const png = await renderPageWithTranslationBlocksForExport(
-      page,
+      makePage(rootDir),
       createRenderOptions(rootDir),
     );
 
-    expect(readFakePngSize(png)).toEqual(sourceImageSize);
+    expect(readFakePngSize(png)).toEqual(probedImageSize);
     expect(latestWindow?.setContentSize).toHaveBeenCalledWith(4096, 4096);
+  });
+
+  it("keeps a safe long image full-size beyond the bounded viewport", async () => {
+    probedImageSize = { width: 2048, height: 8192 };
+    rendererImageSize = probedImageSize;
+    const rootDir = await createTempRoot();
+    const { renderPageWithTranslationBlocksForExport } = await loadPageExport();
+
+    const png = await renderPageWithTranslationBlocksForExport(
+      makePage(rootDir),
+      createRenderOptions(rootDir),
+    );
+
+    expect(readFakePngSize(png)).toEqual(probedImageSize);
+    expect(latestWindow?.setContentSize).toHaveBeenCalledWith(2048, 4096);
     expect(latestWindow?.webContents.debugger.sendCommand).toHaveBeenCalledWith(
       "Page.captureScreenshot",
       expect.objectContaining({
@@ -452,12 +524,50 @@ describe("page export BrowserWindow security", () => {
         clip: {
           x: 0,
           y: 0,
-          width: 5000,
-          height: 12000,
+          width: 2048,
+          height: 8192,
           scale: 1,
         },
       }),
     );
+  });
+
+  it("rejects a renderer dimension mismatch before debugger attach", async () => {
+    probedImageSize = { width: 1000, height: 2000 };
+    rendererImageSize = { width: 1000, height: 1999 };
+    const rootDir = await createTempRoot();
+    const { renderPageWithTranslationBlocksForExport } = await loadPageExport();
+
+    await expect(
+      renderPageWithTranslationBlocksForExport(
+        makePage(rootDir),
+        createRenderOptions(rootDir),
+      ),
+    ).rejects.toThrow(/검사 후 변경|dimensions changed/i);
+
+    expect(latestWindow?.webContents.debugger.attach).not.toHaveBeenCalled();
+    expect(
+      latestWindow?.webContents.debugger.sendCommand,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unsafe renderer-reported size before debugger attach", async () => {
+    probedImageSize = { width: 1000, height: 2000 };
+    rendererImageSize = { width: 5000, height: 12000 };
+    const rootDir = await createTempRoot();
+    const { renderPageWithTranslationBlocksForExport } = await loadPageExport();
+
+    await expect(
+      renderPageWithTranslationBlocksForExport(
+        makePage(rootDir),
+        createRenderOptions(rootDir),
+      ),
+    ).rejects.toThrow(/안전 해상도|raster safety/i);
+
+    expect(latestWindow?.webContents.debugger.attach).not.toHaveBeenCalled();
+    expect(
+      latestWindow?.webContents.debugger.sendCommand,
+    ).not.toHaveBeenCalled();
   });
 
   it("fails explicitly instead of changing raster paths when DevTools capture is unavailable", async () => {
@@ -631,12 +741,17 @@ function createRenderOptions(rootDir: string): {
     signal?: AbortSignal,
   ) => Promise<Buffer | null>;
   htmlSource: PageExportHtmlSource;
-  resolveImageUrl: () => string;
+  resolveImageUrl: (path: string) => string;
+  probeImageSize: (
+    path: string,
+    signal: AbortSignal,
+  ) => Promise<{ width: number; height: number }>;
 } {
   return {
     dataRoot: rootDir,
     decodeFallback: async () => null,
     resolveImageUrl: () => "data:image/png;base64,",
+    probeImageSize: async () => probedImageSize,
     htmlSource: createPageExportHtmlSource({
       assetDirectories: () => [join(rootDir, "out", "page-export")],
       rendererStylesheet: () =>
@@ -659,6 +774,7 @@ function createRenderOptions(rootDir: string): {
 function fakePng(width: number, height: number): Buffer {
   const png = Buffer.alloc(24);
   Buffer.from("89504e470d0a1a0a", "hex").copy(png, 0);
+  png.writeUInt32BE(13, 8);
   Buffer.from("IHDR", "ascii").copy(png, 12);
   png.writeUInt32BE(width, 16);
   png.writeUInt32BE(height, 20);

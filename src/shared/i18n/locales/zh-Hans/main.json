@@ -338,7 +338,12 @@
       "duplicateChapter": "不能重复选择同一章节。",
       "pageNotFound": "所选页面不属于该章节。",
       "duplicatePage": "不能重复选择同一页面。",
-      "outputDirectory": "无法创建 PNG 导出文件夹。"
+      "outputDirectory": "无法创建 PNG 导出文件夹。",
+      "rasterTooLarge": "{{name}} 页面超过 PNG 导出的安全分辨率限制。（{{width}}×{{height}}，最多 {{maxPixels}} 像素）",
+      "screenshotTooLarge": "{{name}} 页面的 PNG 结果超过安全文件大小限制。",
+      "invalidScreenshot": "PNG 导出结果不是有效的 base64 或 PNG 数据。",
+      "imageDimensionsChanged": "{{name}} 页面图像的尺寸在验证后发生了变化。",
+      "outputDimensionsMismatch": "{{name}} 页面的输出 PNG 尺寸不匹配。（{{actual}}，预期 {{expected}}）"
     }
   },
   "modelTest": {

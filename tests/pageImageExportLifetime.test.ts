@@ -125,6 +125,16 @@ describe("page image export lifetime cleanup", () => {
   });
 });
 
+function fakePng(width: number, height: number): Buffer {
+  const png = Buffer.alloc(24);
+  Buffer.from("89504e470d0a1a0a", "hex").copy(png, 0);
+  png.writeUInt32BE(13, 8);
+  Buffer.from("IHDR", "ascii").copy(png, 12);
+  png.writeUInt32BE(width, 16);
+  png.writeUInt32BE(height, 20);
+  return png;
+}
+
 function makeContext(): InpaintingJobContext {
   const activityGate = new AppActivityGate();
   return {
@@ -162,7 +172,7 @@ function makeDependencies(
 ): PageImageExportDependencies {
   const library = makeLibrary(chapter);
   const renderPage = vi.fn(
-    overrides.renderPage ?? (async (page: MangaPage) => Buffer.from(page.id)),
+    overrides.renderPage ?? (async (_page: MangaPage) => fakePng(10, 10)),
   );
   const close = vi.fn(overrides.close ?? (() => undefined));
   return {

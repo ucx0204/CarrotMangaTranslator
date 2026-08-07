@@ -338,7 +338,12 @@
       "duplicateChapter": "같은 화를 두 번 선택할 수 없습니다.",
       "pageNotFound": "선택한 페이지가 해당 화에 없습니다.",
       "duplicatePage": "같은 페이지를 두 번 선택할 수 없습니다.",
-      "outputDirectory": "PNG 출력 폴더를 만들지 못했습니다."
+      "outputDirectory": "PNG 출력 폴더를 만들지 못했습니다.",
+      "rasterTooLarge": "{{name}} 페이지는 PNG 내보내기 안전 해상도를 초과합니다. ({{width}}×{{height}}, 최대 {{maxPixels}} 픽셀)",
+      "screenshotTooLarge": "{{name}} 페이지의 PNG 결과가 안전한 파일 크기를 초과합니다.",
+      "invalidScreenshot": "PNG 내보내기 결과가 올바른 base64 또는 PNG 데이터가 아닙니다.",
+      "imageDimensionsChanged": "{{name}} 페이지 이미지의 크기가 검사 후 변경되었습니다.",
+      "outputDimensionsMismatch": "{{name}} 페이지의 출력 PNG 크기가 일치하지 않습니다. ({{actual}}, 예상 {{expected}})"
     }
   },
   "modelTest": {

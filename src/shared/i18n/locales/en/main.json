@@ -338,7 +338,12 @@
       "duplicateChapter": "The same chapter cannot be selected twice.",
       "pageNotFound": "The selected page does not belong to that chapter.",
       "duplicatePage": "The same page cannot be selected twice.",
-      "outputDirectory": "The PNG export folder could not be created."
+      "outputDirectory": "The PNG export folder could not be created.",
+      "rasterTooLarge": "{{name}} exceeds the PNG export raster safety limit. ({{width}}×{{height}}, maximum {{maxPixels}} pixels)",
+      "screenshotTooLarge": "The PNG result for {{name}} exceeds the safe file size.",
+      "invalidScreenshot": "The PNG export result is not valid base64 or PNG data.",
+      "imageDimensionsChanged": "The image dimensions for {{name}} changed after validation.",
+      "outputDimensionsMismatch": "The output PNG dimensions for {{name}} do not match. ({{actual}}, expected {{expected}})"
     }
   },
   "modelTest": {

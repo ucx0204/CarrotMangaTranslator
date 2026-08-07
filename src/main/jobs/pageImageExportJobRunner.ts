@@ -10,6 +10,7 @@ import {
   sanitizeOutputBaseName,
   sanitizeOutputPathSegment,
 } from "../pageExport";
+import { assertPageExportPngBuffer } from "../pageExportRasterSafety";
 import { isAbortError } from "./jobEvents";
 import type { InpaintingJobContext } from "./inpaintingJobTypes";
 import { tMain } from "./localization";
@@ -318,6 +319,7 @@ async function writePageImageExportPage({
   const outputName = `${formatOrder(pageIndex)}-${sanitizeOutputBaseName(page.name)}.png`;
   const png = await renderSession.renderPage(page);
   throwIfAborted(abortController, completedPages, totalPages);
+  assertPageExportPngBuffer(png, undefined, page.name);
   await dependencies.runtime.writePng(join(outputDir, outputName), png);
   throwIfAborted(abortController, completedPages + 1, totalPages);
 }

@@ -338,7 +338,12 @@
       "duplicateChapter": "同じ話を2回選択できません。",
       "pageNotFound": "選択したページはその話にありません。",
       "duplicatePage": "同じページを2回選択できません。",
-      "outputDirectory": "PNG出力フォルダーを作成できませんでした。"
+      "outputDirectory": "PNG出力フォルダーを作成できませんでした。",
+      "rasterTooLarge": "{{name}}ページはPNG出力の安全な解像度上限を超えています。（{{width}}×{{height}}、最大{{maxPixels}}ピクセル）",
+      "screenshotTooLarge": "{{name}}ページのPNG結果が安全なファイルサイズ上限を超えています。",
+      "invalidScreenshot": "PNG出力結果が有効なbase64またはPNGデータではありません。",
+      "imageDimensionsChanged": "{{name}}ページの画像サイズが検証後に変更されました。",
+      "outputDimensionsMismatch": "{{name}}ページの出力PNGサイズが一致しません。（{{actual}}、期待値{{expected}}）"
     }
   },
   "modelTest": {

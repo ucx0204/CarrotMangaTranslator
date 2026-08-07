@@ -1,13 +1,6 @@
 import { BrowserWindow } from "electron";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  mkdir,
-  mkdtemp,
-  readdir,
-  readFile,
-  rm,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AppActivityGate } from "../src/main/appActivityGate";
@@ -133,12 +126,6 @@ describe("page image export behavior", () => {
     expect(await readdir(join(result.outputDir, "002-Second"))).toEqual([
       "001-a.png",
     ]);
-    expect(
-      await readFile(
-        join(result.outputDir, "001-Chapter_ One", "003-003.png"),
-        "utf8",
-      ),
-    ).toBe("page-3");
     expect(harness.renderPage.mock.calls.map(([page]) => page.id)).toEqual([
       "page-1",
       "page-3",
@@ -315,6 +302,49 @@ describe("page image export behavior", () => {
       status: "failed",
       detail: "renderer crashed",
     });
+  });
+
+  it("rejects an oversized renderer PNG before writing and removes partial output", async () => {
+    const outputParentDir = await makeTempDir();
+    const chapter = makeChapter("chapter-1", "One", [
+      makePage("page-1", "001.png"),
+    ]);
+    const request = {
+      workId: "work-1",
+      selections: [{ chapterId: chapter.id, mode: "all" as const }],
+    };
+    const harness = makeDependencies(makeLibrary([chapter]), [chapter], {
+      renderPage: async () => fakePng(5000, 12000),
+    });
+    const events: JobEvent[] = [];
+    const abortController = new AbortController();
+
+    await expect(
+      runPageImageExportJob({
+        context: makeContext(outputParentDir),
+        request,
+        outputParentDir,
+        id: "oversized-export",
+        abortController,
+        emit: (event) => events.push(event),
+        dependencies: harness.dependencies,
+      }).catch((error: unknown) =>
+        handlePageImageExportError({
+          abortController,
+          emit: (event) => events.push(event),
+          error,
+          id: "oversized-export",
+          request,
+          dependencies: harness.dependencies,
+        }),
+      ),
+    ).rejects.toThrow(/안전 해상도|raster safety/i);
+
+    expect(await readdir(outputParentDir)).toEqual([]);
+    expect(harness.writePng).not.toHaveBeenCalled();
+    expect(harness.openDirectory).not.toHaveBeenCalled();
+    expect(events.some((event) => event.status === "completed")).toBe(false);
+    expect(events.at(-1)).toMatchObject({ status: "failed" });
   });
 
   it("surfaces cleanup failure and records both error paths", async () => {
@@ -524,7 +554,7 @@ function makeDependencies(
 ) {
   const chapterById = new Map(chapters.map((chapter) => [chapter.id, chapter]));
   const renderPage = vi.fn(
-    overrides.renderPage ?? (async (page: MangaPage) => Buffer.from(page.id)),
+    overrides.renderPage ?? (async (_page: MangaPage) => fakePng(10, 10)),
   );
   const closeSession = vi.fn();
   const createSession = vi.fn(async () => ({
@@ -533,6 +563,9 @@ function makeDependencies(
   }));
   const openDirectory = vi.fn(overrides.openDirectory ?? (async () => ""));
   const logError = vi.fn<PageImageExportDependencies["logger"]["error"]>();
+  const writePng = vi.fn(async (path: string, content: Buffer) => {
+    await writeFile(path, content);
+  });
   const runtime: PageImageExportRuntimePort = {
     async createDirectory(path, recursive = false) {
       await mkdir(path, recursive ? { recursive: true } : undefined);
@@ -542,9 +575,7 @@ function makeDependencies(
       (async (path) => {
         await rm(path, { recursive: true, force: true });
       }),
-    async writePng(path, content) {
-      await writeFile(path, content);
-    },
+    writePng,
     openDirectory,
     createTimestamp: () => "2026-01-02T03-04-05-000Z",
   };
@@ -570,6 +601,7 @@ function makeDependencies(
     logError,
     openDirectory,
     renderPage,
+    writePng,
   };
 }
 
@@ -622,6 +654,16 @@ function makeChapter(
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
   };
+}
+
+function fakePng(width: number, height: number): Buffer {
+  const png = Buffer.alloc(24);
+  Buffer.from("89504e470d0a1a0a", "hex").copy(png, 0);
+  png.writeUInt32BE(13, 8);
+  Buffer.from("IHDR", "ascii").copy(png, 12);
+  png.writeUInt32BE(width, 16);
+  png.writeUInt32BE(height, 20);
+  return png;
 }
 
 function makePage(
