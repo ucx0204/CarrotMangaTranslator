@@ -32,8 +32,8 @@ export type ZipArchiveReader = {
   close: () => void;
 };
 
-const MAX_ZIP_ENTRY_COUNT = 10000;
-const MAX_ZIP_TOTAL_UNCOMPRESSED_BYTES = 4 * 1024 * 1024 * 1024;
+export const MAX_ZIP_ENTRY_COUNT = 10_000;
+export const MAX_ZIP_TOTAL_UNCOMPRESSED_BYTES = 4 * 1024 * 1024 * 1024;
 export const MAX_SHARE_JSON_BYTES = 20 * 1024 * 1024;
 export const MAX_SHARE_IMAGE_BYTES = 128 * 1024 * 1024;
 export const MAX_IMPORT_IMAGE_BYTES = 256 * 1024 * 1024;
@@ -182,25 +182,61 @@ export function normalizeSharePathSegment(
   return value;
 }
 
+export type ZipEntryBudgetTracker = {
+  readonly entryCount: number;
+  readonly totalUncompressedBytes: number;
+  addEntry: (size: number, label: string) => void;
+};
+
+export function createZipEntryBudgetTracker(
+  archiveLabel: string,
+): ZipEntryBudgetTracker {
+  let entryCount = 0;
+  let totalUncompressedBytes = 0;
+
+  return {
+    get entryCount() {
+      return entryCount;
+    },
+    get totalUncompressedBytes() {
+      return totalUncompressedBytes;
+    },
+    addEntry(size: number, label: string): void {
+      if (!Number.isSafeInteger(size) || size < 0) {
+        throw new Error(`${label} 크기가 올바르지 않습니다.`);
+      }
+
+      const nextEntryCount = entryCount + 1;
+      if (nextEntryCount > MAX_ZIP_ENTRY_COUNT) {
+        throw new Error(`${archiveLabel} 항목이 너무 많습니다.`);
+      }
+
+      const nextTotal = totalUncompressedBytes + size;
+      if (
+        !Number.isSafeInteger(nextTotal) ||
+        nextTotal > MAX_ZIP_TOTAL_UNCOMPRESSED_BYTES
+      ) {
+        throw new Error(`${archiveLabel} 압축 해제 크기가 너무 큽니다.`);
+      }
+
+      entryCount = nextEntryCount;
+      totalUncompressedBytes = nextTotal;
+    },
+  };
+}
+
 export function assertZipEntryBudget(
   entries: ZipEntryLike[],
   label: string,
 ): void {
-  if (entries.length > MAX_ZIP_ENTRY_COUNT) {
-    throw new Error(`${label} 항목이 너무 많습니다.`);
-  }
-
-  let totalBytes = 0;
+  const budget = createZipEntryBudgetTracker(label);
   for (const entry of entries) {
     if (entry.isDirectory) {
       continue;
     }
     const size = getRequiredZipEntrySize(entry, entry.entryName);
     assertZipCompressionRatio(entry, size, entry.entryName);
-    totalBytes += size;
-    if (totalBytes > MAX_ZIP_TOTAL_UNCOMPRESSED_BYTES) {
-      throw new Error(`${label} 압축 해제 크기가 너무 큽니다.`);
-    }
+    budget.addEntry(size, entry.entryName);
   }
 }
 

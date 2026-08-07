@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { throwIfAborted } from "../abortSignal";
 import {
   basename,
   dirname,
@@ -53,12 +54,14 @@ export async function writeJsonFile(
   }
 }
 
-async function renameWithTransientRetry(
+export async function renameWithTransientRetry(
   sourcePath: string,
   destPath: string,
+  signal?: AbortSignal,
 ): Promise<void> {
   let delayMs = RENAME_INITIAL_DELAY_MS;
   for (let attempt = 1; attempt <= RENAME_MAX_ATTEMPTS; attempt += 1) {
+    throwIfAborted(signal);
     try {
       await rename(sourcePath, destPath);
       return;
@@ -66,7 +69,9 @@ async function renameWithTransientRetry(
       if (attempt >= RENAME_MAX_ATTEMPTS || !isTransientRenameError(error)) {
         throw error;
       }
+      throwIfAborted(signal);
       await sleep(delayMs);
+      throwIfAborted(signal);
       delayMs = Math.min(RENAME_MAX_DELAY_MS, delayMs * 2);
     }
   }

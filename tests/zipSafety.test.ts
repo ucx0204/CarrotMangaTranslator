@@ -13,6 +13,9 @@ import { SUPPORTED_ARCHIVE_EXTENSIONS } from "../src/shared/archive";
 import {
   assertZipEntryBudget,
   assertZipEntrySize,
+  createZipEntryBudgetTracker,
+  MAX_ZIP_ENTRY_COUNT,
+  MAX_ZIP_TOTAL_UNCOMPRESSED_BYTES,
   readZipEntryData,
   readZipEntryDataFromFile,
   type ZipEntryLike,
@@ -54,6 +57,36 @@ describe("zip safety", () => {
     });
     expect(() => assertZipEntryBudget([suspicious], "ZIP 파일")).toThrow(
       /압축률/,
+    );
+  });
+
+  it("shares the 10000-entry budget with incremental export tracking", () => {
+    const tracker = createZipEntryBudgetTracker("공유 파일");
+    for (let index = 0; index < MAX_ZIP_ENTRY_COUNT; index += 1) {
+      tracker.addEntry(0, `entry-${index}`);
+    }
+    expect(tracker.entryCount).toBe(MAX_ZIP_ENTRY_COUNT);
+    expect(() => tracker.addEntry(0, "overflow")).toThrow(/항목이 너무 많/);
+  });
+
+  it("shares the 4 GiB uncompressed budget with incremental export tracking", () => {
+    const tracker = createZipEntryBudgetTracker("공유 파일");
+    tracker.addEntry(MAX_ZIP_TOTAL_UNCOMPRESSED_BYTES, "full.bin");
+    expect(tracker.totalUncompressedBytes).toBe(
+      MAX_ZIP_TOTAL_UNCOMPRESSED_BYTES,
+    );
+    expect(() => tracker.addEntry(1, "overflow.bin")).toThrow(
+      /압축 해제 크기가 너무 큽니다/,
+    );
+  });
+
+  it("rejects invalid incremental entry sizes", () => {
+    const tracker = createZipEntryBudgetTracker("공유 파일");
+    expect(() => tracker.addEntry(-1, "negative.bin")).toThrow(
+      /크기가 올바르지/,
+    );
+    expect(() => tracker.addEntry(Number.NaN, "nan.bin")).toThrow(
+      /크기가 올바르지/,
     );
   });
 
