@@ -8,7 +8,13 @@ async function isReachable(baseUrl) {
     const response = await fetch(`${baseUrl}/models`, {
       signal: AbortSignal.timeout(2500),
     });
-    return response.ok;
+    const reachable = response.ok;
+    try {
+      await response.body?.cancel();
+    } catch (_error) {
+      // error-policy-allow: readiness only needs the status; unused body cancellation is best effort.
+    }
+    return reachable;
   } catch (_error) {
     return false;
   }

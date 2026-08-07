@@ -11,6 +11,7 @@ const { downloadHfFileWithProgress, resolveDownloadRetryDelayMs } =
         file: string;
         url: string;
         destination: string;
+        maximumBytes: number;
         progressPhase?: string;
       },
       options?: {
@@ -522,6 +523,7 @@ async function createTask(file: string) {
     file,
     url: `https://huggingface.co/example/repo/resolve/main/${file}`,
     destination: join(dir, file),
+    maximumBytes: 64 * 1024 * 1024,
   };
 }
 

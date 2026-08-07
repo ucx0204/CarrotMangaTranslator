@@ -17,6 +17,8 @@ const {
   createEmptyOutputError,
   createModelTransportError,
 } = require("./model-http-errors.cjs");
+const { readBoundedResponseText } = require("./bounded-response-body.cjs");
+const { MAX_MODEL_HTTP_RESPONSE_BYTES } = require("./network-budgets.cjs");
 
 /**
  * @param {Response} response
@@ -25,7 +27,11 @@ const {
  */
 async function readResponseText(response, requestSummary, options) {
   try {
-    return await response.text();
+    return await readBoundedResponseText(response, {
+      label: `${resolveProviderDisplayName(options)} response`,
+      maximumBytes: MAX_MODEL_HTTP_RESPONSE_BYTES,
+      signal: options.abortSignal,
+    });
   } catch (error) {
     throw createModelTransportError(
       `Failed to read ${resolveProviderDisplayName(options)} response body.`,

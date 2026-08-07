@@ -38,6 +38,9 @@ const {
 } = require("./hf-model-download-tasks.cjs");
 const { inspectModelLaunch } = require("./model-launch-target.cjs");
 const { resolveLlamaRuntimeProfile } = require("./runtime-profile.cjs");
+const {
+  MAX_MODEL_DOWNLOAD_AGGREGATE_BYTES,
+} = require("../transport/download-budgets.cjs");
 
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions & { useDraft?: boolean | null }} ModelAssetOptions */
 /** @typedef {ReturnType<typeof inspectModelLaunch>} ModelLaunchTarget */
@@ -170,7 +173,7 @@ function assertSafeDestinations(tasks) {
   );
 }
 
-/** @param {Array<{ url: string; destination: string }>} tasks @param {AbortSignal | null | undefined} signal */
+/** @param {Array<{ url: string; destination: string; maximumBytes: number }>} tasks @param {AbortSignal | null | undefined} signal */
 async function collectDownloadTotals(tasks, signal) {
   const totals = new Map();
   const probes = await mapWithConcurrency(
@@ -178,7 +181,7 @@ async function collectDownloadTotals(tasks, signal) {
     resolveDownloadRangeConcurrency(),
     async (task) => ({
       task,
-      totalBytes: await probeContentLength(task.url, signal),
+      totalBytes: await probeContentLength(task.url, signal, task.maximumBytes),
     }),
   );
   for (const { task, totalBytes } of probes) {
@@ -190,10 +193,24 @@ async function collectDownloadTotals(tasks, signal) {
 
 /** @param {Map<string, number>} totals @param {number} taskCount */
 function buildAggregate(totals, taskCount) {
-  const knownTotalBytes = [...totals.values()].reduce(
-    (sum, value) => sum + value,
-    0,
-  );
+  let knownTotalBytes = 0;
+  for (const value of totals.values()) {
+    if (
+      !Number.isSafeInteger(value) ||
+      value < 1 ||
+      knownTotalBytes > MAX_MODEL_DOWNLOAD_AGGREGATE_BYTES - value
+    ) {
+      throw createDetailedError(
+        "Gemma 모델 다운로드 총 크기가 허용 한도를 초과했습니다.",
+        {
+          maximumBytes: MAX_MODEL_DOWNLOAD_AGGREGATE_BYTES,
+          downloadBudgetExceeded: true,
+          nonRetriable: true,
+        },
+      );
+    }
+    knownTotalBytes += value;
+  }
   return {
     knownTotalBytes,
     known: knownTotalBytes > 0 && totals.size === taskCount,

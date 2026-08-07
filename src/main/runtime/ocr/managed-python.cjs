@@ -2,7 +2,7 @@
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
 /** @typedef {{ ok: boolean; message: string; error?: unknown }} ImportCheckResult */
 /** @typedef {{ version: string; pythonUrl: string; getPipUrl: string }} ManagedPythonMarker */
-/** @typedef {{ label: string; file: string; url: string; destination: string; progressTitle?: string; completeTitle?: string; [key: string]: unknown }} RuntimeDownloadTask */
+/** @typedef {{ label: string; file: string; url: string; destination: string; maximumBytes: number; progressTitle?: string; completeTitle?: string; [key: string]: unknown }} RuntimeDownloadTask */
 /**
  * @typedef {ManagedPythonMarker & {
  *   runtimeDir: string;
@@ -39,6 +39,10 @@ const {
 const { runCommand } = require("../simple-page-shell-utils.cjs");
 const { isManagedOcrPackagePathLine } = require("./runtime-preparation.cjs");
 const { createOcrRuntimeError } = require("./runtime-verification.cjs");
+const {
+  MAX_REMOTE_RUNTIME_ARCHIVE_BYTES,
+  MAX_REMOTE_SUPPORT_ASSET_BYTES,
+} = require("../transport/download-budgets.cjs");
 
 const DEFAULT_EMBED_PYTHON_VERSION = "3.12.7";
 const DEFAULT_GET_PIP_URL = "https://bootstrap.pypa.io/get-pip.py";
@@ -143,6 +147,7 @@ async function downloadAndExtractManagedPython(options, context) {
       file: context.zipName,
       url: context.pythonUrl,
       destination: context.zipPath,
+      maximumBytes: MAX_REMOTE_RUNTIME_ARCHIVE_BYTES,
       progressTitle: "Paddle OCR Python 다운로드 중",
       completeTitle: "Paddle OCR Python 다운로드 완료",
     },
@@ -176,6 +181,7 @@ async function installManagedPythonPip(options, context) {
       file: "get-pip.py",
       url: context.getPipUrl,
       destination: context.getPipPath,
+      maximumBytes: MAX_REMOTE_SUPPORT_ASSET_BYTES,
       progressTitle: "Paddle OCR pip 다운로드 중",
       completeTitle: "Paddle OCR pip 다운로드 완료",
     },
@@ -275,7 +281,11 @@ function isCurrentManagedBootstrapPython(pythonExe, markerPath, expected) {
 
 /** @param {RuntimeDownloadTask} task @param {RuntimeOptions} [options] @returns {Promise<void>} */
 async function downloadGenericFileWithRuntimeProgress(task, options = {}) {
-  const totalBytes = await probeContentLength(task.url, options.abortSignal);
+  const totalBytes = await probeContentLength(
+    task.url,
+    options.abortSignal,
+    task.maximumBytes,
+  );
   await downloadHfFileWithProgress(
     { ...task, kind: "runtime", progressPhase: "ocr_downloading" },
     options,

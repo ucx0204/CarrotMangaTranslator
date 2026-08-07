@@ -10,6 +10,7 @@ import {
 } from "../src/main/runtimeSupport/modelDownloads";
 
 const tempDirs: string[] = [];
+const TEST_MAXIMUM_BYTES = 1024 * 1024;
 
 describe("Flux asset downloads", () => {
   afterEach(async () => {
@@ -49,6 +50,7 @@ describe("Flux asset downloads", () => {
       outputPath,
       progressText: "다운로드 중",
       label: "Flux test asset",
+      maximumBytes: TEST_MAXIMUM_BYTES,
     });
 
     expect(await readFile(outputPath)).toEqual(body);
@@ -88,6 +90,7 @@ describe("Flux asset downloads", () => {
       url,
       expectedSha256,
       minimumBytes: 1,
+      maximumBytes: TEST_MAXIMUM_BYTES,
     });
     const metadataPath = `${verifiedPath}.mgtmeta.json`;
     const metadata = JSON.parse(await readFile(metadataPath, "utf8"));
@@ -109,6 +112,7 @@ describe("Flux asset downloads", () => {
       url,
       expectedSha256,
       minimumBytes: 1,
+      maximumBytes: TEST_MAXIMUM_BYTES,
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(JSON.parse(await readFile(metadataPath, "utf8")).mtimeMs).not.toBe(
@@ -123,6 +127,7 @@ describe("Flux asset downloads", () => {
       url,
       expectedSha256,
       minimumBytes: 1,
+      maximumBytes: TEST_MAXIMUM_BYTES,
     });
     expect(await readFile(restoredPath)).toEqual(body);
     expect(fetchMock).toHaveBeenCalledTimes(4);
@@ -135,6 +140,7 @@ describe("Flux asset downloads", () => {
         url,
         expectedSha256: "0".repeat(64),
         minimumBytes: 1,
+        maximumBytes: TEST_MAXIMUM_BYTES,
       }),
     ).rejects.toThrow(/체크섬|SHA-256/);
     await expect(readFile(join(dir, "invalid.gguf"))).rejects.toThrow();
@@ -176,6 +182,7 @@ describe("Flux asset downloads", () => {
         url,
         expectedSha256,
         minimumBytes: 1,
+        maximumBytes: TEST_MAXIMUM_BYTES,
       });
 
       expect(fetchMock).not.toHaveBeenCalled();
@@ -231,6 +238,7 @@ describe("Flux asset downloads", () => {
         url,
         expectedSha256,
         minimumBytes: 1,
+        maximumBytes: TEST_MAXIMUM_BYTES,
         signal: abortController.signal,
       }),
     ).rejects.toMatchObject({ name: "AbortError" });

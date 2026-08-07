@@ -1,5 +1,5 @@
 // @ts-check
-/** @typedef {{ url: string; file: string; destination: string; label: string; [key: string]: unknown }} HfDownloadTask */
+/** @typedef {{ url: string; file: string; destination: string; label: string; maximumBytes: number; [key: string]: unknown }} HfDownloadTask */
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions & { abortSignal?: AbortSignal | null; [key: string]: unknown }} DownloadOptions */
 /** @typedef {{ header: "etag" | "last-modified"; value: string }} RangeValidator */
 
@@ -9,6 +9,7 @@ const {
   resolveDownloadStallTimeoutMs,
   withDownloadRequestSlot,
 } = require("./download-primitives.cjs");
+const { readExactRangeBuffer } = require("./download-range-body.cjs");
 
 /** @param {string} message @param {Record<string, unknown>} [detail] @param {unknown} [cause] */
 function createDetailedError(message, detail = {}, cause) {
@@ -70,8 +71,15 @@ async function performRangeRequest(
       totalBytes,
       validator,
     );
+    const expectedLength = end - start + 1;
+    const buffer = await readExactRangeBuffer(
+      response,
+      expectedLength,
+      linked.controller.signal,
+      task,
+    );
     return {
-      buffer: Buffer.from(await response.arrayBuffer()),
+      buffer,
       validator: validator || readRangeValidator(response),
     };
   } catch (error) {

@@ -14,6 +14,9 @@ const {
   isOcrTransformersRuntime,
   resolveOcrRuntimeDir,
 } = require("./simple-page-ocr-runtime-config.cjs");
+const {
+  MAX_REMOTE_SUPPORT_ASSET_BYTES,
+} = require("./transport/download-budgets.cjs");
 
 const PADDLE_OCR_TEXTLINE_MODEL_FILES = [
   ".gitattributes",
@@ -67,6 +70,7 @@ function collectRequiredPaddleOcrModelDownloads(options = {}, runtime = null) {
         file,
         url: buildHfResolveUrl(endpoint, model.repo, file, model.revision),
         destination: path.join(modelDir, safeHfRelativePath(file)),
+        maximumBytes: MAX_REMOTE_SUPPORT_ASSET_BYTES,
         revision: model.revision,
         expectedSha256:
           file === model.weightsFile ? model.weightsSha256 : undefined,

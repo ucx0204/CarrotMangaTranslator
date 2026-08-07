@@ -26,6 +26,8 @@ type DownloadRuntime = {
       file: string;
       destination: string;
       label: string;
+      maximumBytes: number;
+      expectedTotalBytes?: number;
       expectedSha256?: string;
       progressPhase?: string;
       progressTitle?: string;
@@ -40,7 +42,11 @@ type DownloadRuntime = {
       onComplete?: (receivedBytes: number) => void;
     },
   ) => Promise<void>;
-  probeContentLength: (url: string, signal?: AbortSignal) => Promise<number>;
+  probeContentLength: (
+    url: string,
+    signal: AbortSignal | undefined,
+    maximumBytes: number,
+  ) => Promise<number>;
 };
 
 export function hfResolveUrl(
@@ -58,16 +64,20 @@ export async function ensureRemoteFile(options: {
   label: string;
   expectedSha256?: string;
   minimumBytes?: number;
+  maximumBytes: number;
+  expectedTotalBytes?: number;
   progressPhase?: string;
   signal?: AbortSignal;
   onProgress?: (progress: RuntimeAssetProgress) => void;
 }): Promise<string> {
+  assertDownloadOptions(options.maximumBytes, options.expectedTotalBytes);
   const filePath = path.join(options.modelDir, options.fileName);
   if (
-    await isUsableRemoteFile(filePath, options.url, {
+    (await isFileWithinMaximum(filePath, options.maximumBytes)) &&
+    (await isUsableRemoteFile(filePath, options.url, {
       expectedSha256: options.expectedSha256,
       minimumBytes: options.minimumBytes,
-    })
+    }))
   ) {
     reportVerifiedCacheHit(options);
     return filePath;
@@ -85,6 +95,8 @@ export async function ensureRemoteFile(options: {
     label: options.fileName,
     expectedSha256: options.expectedSha256,
     minimumBytes: options.minimumBytes,
+    maximumBytes: options.maximumBytes,
+    expectedTotalBytes: options.expectedTotalBytes,
     onProgress: options.onProgress,
   });
   if (!options.expectedSha256) {
@@ -118,14 +130,17 @@ export async function downloadToFile(options: {
   label: string;
   expectedSha256?: string;
   minimumBytes?: number;
+  maximumBytes: number;
   expectedTotalBytes?: number;
   onProgress?: (progress: RuntimeAssetProgress) => void;
 }): Promise<void> {
+  assertDownloadOptions(options.maximumBytes, options.expectedTotalBytes);
   if (
-    await isUsableRemoteFile(options.outputPath, options.url, {
+    (await isFileWithinMaximum(options.outputPath, options.maximumBytes)) &&
+    (await isUsableRemoteFile(options.outputPath, options.url, {
       expectedSha256: options.expectedSha256,
       minimumBytes: options.minimumBytes,
-    })
+    }))
   ) {
     reportDownloadCacheHit(options);
     return;
@@ -136,7 +151,11 @@ export async function downloadToFile(options: {
   const totalBytes =
     Number.isFinite(expectedTotalBytes) && expectedTotalBytes > 0
       ? expectedTotalBytes
-      : await probeContentLength(options.url, options.signal);
+      : await probeContentLength(
+          options.url,
+          options.signal,
+          options.maximumBytes,
+        );
   let receivedBytes = 0;
   await downloadHfFileWithProgress(
     {
@@ -144,6 +163,8 @@ export async function downloadToFile(options: {
       file: path.basename(options.outputPath),
       destination: options.outputPath,
       label: options.label,
+      maximumBytes: options.maximumBytes,
+      expectedTotalBytes: options.expectedTotalBytes,
       expectedSha256: options.expectedSha256,
       progressPhase: options.progressPhase ?? "inpainting_downloading",
       progressTitle: options.progressText,
@@ -241,6 +262,38 @@ function reportDownloadCacheHit(options: {
     progressMode: "log-only",
     installLogLine: tMain("downloads.cachedLog", { label: options.label }),
   });
+}
+
+function assertDownloadOptions(
+  maximumBytes: number,
+  expectedTotalBytes?: number,
+): void {
+  if (!Number.isSafeInteger(maximumBytes) || maximumBytes < 1) {
+    throw new TypeError("maximumBytes must be a positive safe integer.");
+  }
+  if (expectedTotalBytes === undefined) {
+    return;
+  }
+  if (
+    !Number.isSafeInteger(expectedTotalBytes) ||
+    expectedTotalBytes < 1 ||
+    expectedTotalBytes > maximumBytes
+  ) {
+    throw new TypeError(
+      "expectedTotalBytes must be a positive safe integer within maximumBytes.",
+    );
+  }
+}
+
+async function isFileWithinMaximum(
+  filePath: string,
+  maximumBytes: number,
+): Promise<boolean> {
+  try {
+    return (await stat(filePath)).size <= maximumBytes;
+  } catch (_error) {
+    return true;
+  }
 }
 
 function throwIfAborted(signal?: AbortSignal): void {

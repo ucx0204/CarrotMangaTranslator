@@ -7,6 +7,16 @@ const {
   DEFAULT_DOWNLOAD_STALL_TIMEOUT_MS,
   HF_DOWNLOAD_CHUNK_SIZE,
 } = require("../simple-page-defaults.cjs");
+const {
+  assertDownloadMaximumBytes,
+  assertDownloadSizeWithinBudget,
+  createDownloadBudgetError,
+  createDownloadDeadline,
+  createDownloadDeadlineError,
+  isDownloadBudgetError,
+  isDownloadDeadlineError,
+  resolveDownloadAbsoluteTimeoutMs,
+} = require("./download-budget-utils.cjs");
 
 const MAX_DOWNLOAD_RANGE_CONCURRENCY = 8;
 const MIN_DOWNLOAD_CHUNK_SIZE = 1024 * 1024;
@@ -33,7 +43,7 @@ const pendingDownloadRequests = [];
 /** @param {unknown} value */
 function readPositiveInteger(value) {
   const number = Number(value);
-  return Number.isInteger(number) && number > 0 ? number : 0;
+  return Number.isSafeInteger(number) && number > 0 ? number : 0;
 }
 
 function createAbortError() {
@@ -73,9 +83,14 @@ function isUsableFile(filePath) {
   }
 }
 
-/** @param {string} url @param {AbortSignal | null | undefined} signal */
-async function probeContentLength(url, signal) {
-  if (signal?.aborted) throw createAbortError();
+/** @param {string} url @param {AbortSignal | null | undefined} signal @param {number} maximumBytes */
+async function probeContentLength(url, signal, maximumBytes) {
+  assertDownloadMaximumBytes({
+    label: "Remote file",
+    file: "remote asset",
+    maximumBytes,
+  });
+  if (signal?.aborted) throw readAbortReason(signal);
   return await withDownloadRequestSlot(signal, async () => {
     const timeoutMs =
       readPositiveInteger(
@@ -96,9 +111,21 @@ async function probeContentLength(url, signal) {
         },
         signal: linked.controller.signal,
       });
-      return response.ok ? readContentLength(response) : 0;
-    } catch (_error) {
-      if (signal?.aborted) throw createAbortError();
+      const contentLength = response.ok ? readContentLength(response) : 0;
+      await cancelResponseBodySafely(response);
+      if (contentLength > maximumBytes) {
+        throw createDownloadBudgetError(
+          { label: "Remote file", file: "remote asset" },
+          maximumBytes,
+          contentLength,
+        );
+      }
+      return contentLength;
+    } catch (error) {
+      if (signal?.aborted) throw readAbortReason(signal);
+      if (isDownloadBudgetError(error) || isDownloadDeadlineError(error)) {
+        throw error;
+      }
       return 0;
     } finally {
       clearTimeout(timeout);
@@ -281,10 +308,10 @@ function resolveDownloadStallTimeoutMs() {
 function createLinkedAbortController(parentSignal) {
   const controller = new AbortController();
   if (parentSignal?.aborted) {
-    controller.abort();
+    controller.abort(readAbortReason(parentSignal));
     return { controller, cleanup: () => {} };
   }
-  const onAbort = () => controller.abort();
+  const onAbort = () => controller.abort(readAbortReason(parentSignal));
   parentSignal?.addEventListener?.("abort", onAbort, { once: true });
   return {
     controller,
@@ -310,7 +337,7 @@ function readContentLength(response) {
     .toLowerCase();
   if (contentEncoding && contentEncoding !== "identity") return 0;
   const value = Number(response.headers?.get?.("content-length"));
-  return Number.isFinite(value) && value > 0 ? value : 0;
+  return Number.isSafeInteger(value) && value > 0 ? value : 0;
 }
 
 /** @param {Response} response */
@@ -323,12 +350,33 @@ function readRetryAfterMs(response) {
   return Number.isFinite(timestamp) ? Math.max(0, timestamp - Date.now()) : 0;
 }
 
+/** @param {AbortSignal | null | undefined} signal */
+function readAbortReason(signal) {
+  return signal?.reason instanceof Error ? signal.reason : createAbortError();
+}
+
+/** @param {Response} response */
+async function cancelResponseBodySafely(response) {
+  try {
+    await response.body?.cancel();
+  } catch (_error) {
+    // error-policy-allow: metadata body cancellation is best effort.
+  }
+}
+
 module.exports = {
+  assertDownloadMaximumBytes,
+  assertDownloadSizeWithinBudget,
   buildHfResolveUrl,
   createAbortError,
+  createDownloadBudgetError,
+  createDownloadDeadline,
+  createDownloadDeadlineError,
   createLinkedAbortController,
   getFileSize,
   isAbortError,
+  isDownloadBudgetError,
+  isDownloadDeadlineError,
   isNonRetryableDownloadHttpError,
   isNonRetryableDownloadFileError,
   isUsableFile,
@@ -336,6 +384,7 @@ module.exports = {
   probeContentLength,
   readContentLength,
   readRetryAfterMs,
+  resolveDownloadAbsoluteTimeoutMs,
   resolveDownloadRetryCount,
   resolveDownloadRetryDelayMs,
   resolveDownloadRangeConcurrency,

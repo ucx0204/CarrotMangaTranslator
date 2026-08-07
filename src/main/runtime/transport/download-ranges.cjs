@@ -1,6 +1,6 @@
 // @ts-check
 /** @typedef {import("../runtime-jsdoc-types").DetailedError} DetailedError */
-/** @typedef {{ url: string; file: string; destination: string; label: string; [key: string]: unknown }} HfDownloadTask */
+/** @typedef {{ url: string; file: string; destination: string; label: string; maximumBytes: number; [key: string]: unknown }} HfDownloadTask */
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions & { abortSignal?: AbortSignal | null; [key: string]: unknown }} DownloadOptions */
 /** @typedef {{ knownAggregateBytes?: number; totalBytes?: number; completedBytes?: number }} DownloadProgress */
 /** @typedef {{ header: "etag" | "last-modified"; value: string }} RangeValidator */
@@ -11,8 +11,11 @@ const {
   safeCleanup,
 } = require("../simple-page-runtime-common.cjs");
 const {
+  assertDownloadSizeWithinBudget,
   createLinkedAbortController,
   isAbortError,
+  isDownloadBudgetError,
+  isDownloadDeadlineError,
   isNonRetryableDownloadHttpError,
   resolveDownloadChunkSize,
   resolveDownloadRangeConcurrency,
@@ -37,6 +40,7 @@ async function downloadHfFileByRanges(
   startedAt,
   fallbackState,
 ) {
+  assertDownloadSizeWithinBudget(task, totalBytes);
   /** @type {import("node:fs/promises").FileHandle | null} */
   let file = await fsOpen(partPath, "w");
   try {
@@ -272,6 +276,8 @@ function shouldFallback(error, options, state) {
     !state.used &&
     !options.abortSignal?.aborted &&
     !isAbortError(error) &&
+    !isDownloadBudgetError(error) &&
+    !isDownloadDeadlineError(error) &&
     isRangeFallbackCandidate(error),
   );
 }
@@ -367,13 +373,7 @@ async function fetchRangeBufferWithRetry(
         validator,
       );
     } catch (error) {
-      if (
-        options.abortSignal?.aborted ||
-        isAbortError(error) ||
-        isNonRetryableDownloadHttpError(error) ||
-        hasRangeProtocolError(error)
-      )
-        throw error;
+      if (isNonRetryableRangeFailure(options, error)) throw error;
       lastError = error;
       if (attempt >= maxAttempts) break;
       emitDownloadRetryProgress(
@@ -390,6 +390,18 @@ async function fetchRangeBufferWithRetry(
     }
   }
   throw lastError || createRangeError(task, start, end);
+}
+
+/** @param {DownloadOptions} options @param {unknown} error */
+function isNonRetryableRangeFailure(options, error) {
+  return Boolean(
+    options.abortSignal?.aborted ||
+    isAbortError(error) ||
+    isDownloadBudgetError(error) ||
+    isDownloadDeadlineError(error) ||
+    isNonRetryableDownloadHttpError(error) ||
+    hasRangeProtocolError(error),
+  );
 }
 
 /** @param {unknown} error */

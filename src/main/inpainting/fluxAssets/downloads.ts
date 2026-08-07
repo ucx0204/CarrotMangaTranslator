@@ -5,6 +5,12 @@ import { throwIfAborted, runCommand } from "./errors";
 import { tMain } from "../localization";
 import { isPathInside } from "../../runtimeSupport/fileProbe";
 import { downloadToFile } from "../../runtimeSupport/modelDownloads";
+import { MAX_REMOTE_RUNTIME_ARCHIVE_BYTES } from "../../runtimeSupport/downloadBudgets";
+import {
+  createLinkedDeadlineController,
+  readBoundedResponseText,
+} from "../../httpResponseBudget";
+import { MAX_RUNTIME_MANIFEST_BYTES } from "../../networkBudgets";
 
 const AdmZip = require("adm-zip");
 
@@ -19,6 +25,14 @@ export async function downloadRuntimeArchive(options: {
   const url = `${options.baseUrl}/${options.entry.relative_path}`;
   const fileName = path.basename(options.entry.relative_path);
   const outputPath = path.join(options.downloadsDir, fileName);
+  if (
+    options.entry.size !== undefined &&
+    options.entry.size > MAX_REMOTE_RUNTIME_ARCHIVE_BYTES
+  ) {
+    throw new Error(
+      `${fileName} 다운로드 크기가 허용 한도 ${MAX_REMOTE_RUNTIME_ARCHIVE_BYTES} bytes를 초과했습니다.`,
+    );
+  }
   await downloadToFile({
     url,
     outputPath,
@@ -26,6 +40,7 @@ export async function downloadRuntimeArchive(options: {
     progressText: tMain("downloads.downloading", { label: options.label }),
     label: fileName,
     expectedTotalBytes: options.entry.size,
+    maximumBytes: MAX_REMOTE_RUNTIME_ARCHIVE_BYTES,
     onProgress: options.onProgress,
   });
   return outputPath;
@@ -36,16 +51,30 @@ export async function readJsonUrl(
   signal?: AbortSignal,
 ): Promise<unknown> {
   throwIfAborted(signal);
-  const response = await fetch(url, {
+  const deadline = createLinkedDeadlineController(
     signal,
-    headers: { "User-Agent": "carrot-manga-translator" },
-  });
-  if (!response.ok) {
-    throw new Error(
-      tMain("downloads.requestFailed", { url, status: response.status }),
-    );
+    30000,
+    "Runtime manifest",
+  );
+  try {
+    const response = await fetch(url, {
+      signal: deadline.signal,
+      headers: { "User-Agent": "carrot-manga-translator" },
+    });
+    const rawText = await readBoundedResponseText(response, {
+      label: "Runtime manifest",
+      maximumBytes: MAX_RUNTIME_MANIFEST_BYTES,
+      signal: deadline.signal,
+    });
+    if (!response.ok) {
+      throw new Error(
+        tMain("downloads.requestFailed", { url, status: response.status }),
+      );
+    }
+    return JSON.parse(rawText) as unknown;
+  } finally {
+    deadline.cleanup();
   }
-  return response.json();
 }
 
 export function readNvidiaRedistPackage(
@@ -63,12 +92,21 @@ export function readNvidiaRedistPackage(
   if (!relativePath) {
     return null;
   }
-  const rawSize = record.size;
-  const size = Number.isFinite(rawSize) ? (rawSize as number) : undefined;
+  const size = readManifestFileSize(record.size);
   return {
     relative_path: relativePath,
     ...(size === undefined ? {} : { size }),
   };
+}
+
+function readManifestFileSize(value: unknown): number | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (!Number.isSafeInteger(value) || Number(value) <= 0) {
+    throw new Error("NVIDIA runtime manifest에 잘못된 파일 크기가 있습니다.");
+  }
+  return Number(value);
 }
 
 function asJsonRecord(value: unknown): Record<string, unknown> {

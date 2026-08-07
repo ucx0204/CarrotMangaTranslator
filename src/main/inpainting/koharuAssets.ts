@@ -11,6 +11,7 @@ import {
   hfResolveUrl,
 } from "../runtimeSupport/modelDownloads";
 import { createCombinedDownloadProgress } from "./fluxAssets/progress";
+import { MAX_REMOTE_SUPPORT_ASSET_BYTES } from "../runtimeSupport/downloadBudgets";
 import { ensureFluxZludaSupportRuntime } from "./fluxAssets/zludaRuntime";
 import { tMain } from "./localization";
 import { logInpaintingRuntimeInfo } from "./inpaintingRuntimeLogger";
@@ -92,6 +93,7 @@ export async function ensureKoharuModelAssets(options: {
         label: "LaMa Manga",
         url: hfResolveUrl(modelFiles.repo, fileName, LAMA_MODEL_REVISION),
         expectedSha256: LAMA_MODEL_SHA256,
+        maximumBytes: MAX_REMOTE_SUPPORT_ASSET_BYTES,
         signal: options.signal,
         onProgress: options.onProgress,
       }),
@@ -110,6 +112,7 @@ export async function ensureKoharuModelAssets(options: {
       label: "AOT Inpainting config",
       url: hfResolveUrl(modelFiles.repo, configFile, AOT_MODEL_REVISION),
       minimumBytes: 1,
+      maximumBytes: MAX_REMOTE_SUPPORT_ASSET_BYTES,
       signal: options.signal,
       onProgress: download.forFile(),
     }),
@@ -119,6 +122,7 @@ export async function ensureKoharuModelAssets(options: {
       label: "AOT Inpainting",
       url: hfResolveUrl(modelFiles.repo, weightsFile, AOT_MODEL_REVISION),
       expectedSha256: AOT_MODEL_SHA256,
+      maximumBytes: MAX_REMOTE_SUPPORT_ASSET_BYTES,
       signal: options.signal,
       onProgress: download.forFile(),
     }),

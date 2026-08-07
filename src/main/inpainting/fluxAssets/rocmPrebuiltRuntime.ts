@@ -15,6 +15,7 @@ import type {
 } from "./types";
 import { extractLargeZipSafely } from "./downloads";
 import { downloadToFile } from "../../runtimeSupport/modelDownloads";
+import { MAX_REMOTE_RUNTIME_ARCHIVE_BYTES } from "../../runtimeSupport/downloadBudgets";
 import { isExecutableFile, isUsableFile } from "../../runtimeSupport/fileProbe";
 import {
   resolveFluxRocmPrebuiltRuntimeUrl,
@@ -195,6 +196,7 @@ async function ensurePrebuiltFluxRocmRuntimeArchive(options: {
       signal: options.signal,
       progressText: "Flux ROCm prebuilt 런타임 다운로드 중",
       label: options.label,
+      maximumBytes: MAX_REMOTE_RUNTIME_ARCHIVE_BYTES,
       onProgress: options.onProgress,
     });
     return options.outputPath;

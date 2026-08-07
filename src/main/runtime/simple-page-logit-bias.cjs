@@ -1,6 +1,12 @@
 // @ts-check
 const { DEFAULT_API_KEY } = require("./simple-page-defaults.cjs");
 const { truncateText } = require("./simple-page-runtime-common.cjs");
+const {
+  readBoundedResponseText,
+} = require("./transport/bounded-response-body.cjs");
+const {
+  MAX_TOKENIZE_RESPONSE_BYTES,
+} = require("./transport/network-budgets.cjs");
 
 const DEFAULT_FORBIDDEN_TOKEN_TEXTS = ["<unused49>", "unused49"];
 const DEFAULT_FORBIDDEN_TOKEN_BIAS = -100;
@@ -191,6 +197,7 @@ async function tokenizeText(baseUrl, tokenText, options = {}) {
  * @returns {Promise<TokenizeResult>}
  */
 async function requestTokenization(endpoint, body, options) {
+  const requestSignal = createTokenizeSignal(options);
   try {
     const response = await fetch(endpoint, {
       method: "POST",
@@ -199,9 +206,13 @@ async function requestTokenization(endpoint, body, options) {
         Authorization: `Bearer ${DEFAULT_API_KEY}`,
       },
       body: JSON.stringify(body),
-      signal: createTokenizeSignal(options),
+      signal: requestSignal,
     });
-    const rawText = await response.text();
+    const rawText = await readBoundedResponseText(response, {
+      label: "Local tokenize response",
+      maximumBytes: MAX_TOKENIZE_RESPONSE_BYTES,
+      signal: requestSignal,
+    });
     return response.ok
       ? tokenizationFromSuccess(endpoint, rawText)
       : tokenizationFailure(

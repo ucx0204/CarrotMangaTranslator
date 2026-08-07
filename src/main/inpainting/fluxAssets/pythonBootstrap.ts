@@ -10,6 +10,10 @@ import {
 import type { FluxAssetProgress, PythonCommand } from "./types";
 import { extractZipSafely } from "./downloads";
 import { downloadToFile } from "../../runtimeSupport/modelDownloads";
+import {
+  MAX_REMOTE_RUNTIME_ARCHIVE_BYTES,
+  MAX_REMOTE_SUPPORT_ASSET_BYTES,
+} from "../../runtimeSupport/downloadBudgets";
 import { runCommand } from "./errors";
 import { emitPythonInstallLog } from "./progress";
 import { isExecutableFile } from "../../runtimeSupport/fileProbe";
@@ -156,6 +160,7 @@ async function installBootstrapPythonArchive(
     signal: options.signal,
     progressText: "Flux Python 다운로드 중",
     label: zipName,
+    maximumBytes: MAX_REMOTE_RUNTIME_ARCHIVE_BYTES,
     onProgress: options.onProgress,
   });
   options.onProgress?.({
@@ -185,6 +190,7 @@ async function installBootstrapPythonPip(
     signal: options.signal,
     progressText: "Flux pip 다운로드 중",
     label: "get-pip.py",
+    maximumBytes: MAX_REMOTE_SUPPORT_ASSET_BYTES,
     onProgress: options.onProgress,
   });
   options.onProgress?.({

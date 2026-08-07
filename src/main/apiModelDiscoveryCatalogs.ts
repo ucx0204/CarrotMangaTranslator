@@ -17,6 +17,7 @@ import {
   readStringArray,
 } from "./apiModelDiscoveryCommon";
 import { fetchJsonWithKeys, fetchText } from "./apiModelDiscoveryHttp";
+import { MAX_MODEL_DISCOVERY_HTML_BYTES } from "./networkBudgets";
 
 const NVIDIA_IMAGE_TO_TEXT_CATALOG_URL =
   "https://build.nvidia.com/models?filters=nimType%3Anim_type_preview%2Cusecase%3Ausecase_image_to_text&orderBy=weightPopular%3ADESC";
@@ -97,7 +98,10 @@ async function readNvidiaImageToTextCatalog(
 ): Promise<Set<string>> {
   try {
     return parseNvidiaCatalog(
-      await fetchText(NVIDIA_IMAGE_TO_TEXT_CATALOG_URL, fetchImpl),
+      await fetchText(NVIDIA_IMAGE_TO_TEXT_CATALOG_URL, fetchImpl, {
+        maximumBytes: MAX_MODEL_DISCOVERY_HTML_BYTES,
+        label: "NVIDIA model catalog",
+      }),
     );
   } catch (error) {
     throw new Error(

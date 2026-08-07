@@ -31,6 +31,9 @@ const {
   emitRuntimeProgress,
   safeCleanup,
 } = require("../simple-page-runtime-common.cjs");
+const {
+  MAX_REMOTE_RUNTIME_ARCHIVE_BYTES,
+} = require("../transport/download-budgets.cjs");
 
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} ModelAssetOptions */
 /** @typedef {{ archive: string; url: string; sha256?: string; type?: "zip" | "tar.gz"; stripComponents?: number }} LlamaRuntimeArchive */
@@ -104,7 +107,11 @@ async function collectArchiveTotals(archives, signal) {
     resolveDownloadRangeConcurrency(),
     async (archive) => ({
       archive,
-      totalBytes: await probeContentLength(archive.url, signal),
+      totalBytes: await probeContentLength(
+        archive.url,
+        signal,
+        MAX_REMOTE_RUNTIME_ARCHIVE_BYTES,
+      ),
     }),
   );
   for (const { archive, totalBytes } of probes) {
@@ -162,6 +169,7 @@ function buildRuntimeDownloadTask(runtime, archive, destination) {
     file: archive.archive,
     url: archive.url,
     destination,
+    maximumBytes: MAX_REMOTE_RUNTIME_ARCHIVE_BYTES,
     progressPhase: "model_downloading",
     progressTitle: "Gemma 실행 런타임 다운로드 중",
     completeTitle: "Gemma 실행 런타임 다운로드 완료",

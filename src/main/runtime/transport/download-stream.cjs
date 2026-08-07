@@ -1,11 +1,13 @@
 // @ts-check
-/** @typedef {{ url: string; file: string; destination: string; label: string; [key: string]: unknown }} HfDownloadTask */
+/** @typedef {{ url: string; file: string; destination: string; label: string; maximumBytes: number; expectedTotalBytes?: number; [key: string]: unknown }} HfDownloadTask */
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions & { abortSignal?: AbortSignal | null; [key: string]: unknown }} DownloadOptions */
 /** @typedef {{ knownAggregateBytes?: number; totalBytes?: number; completedBytes?: number }} DownloadProgress */
 const { open: fsOpen } = require("node:fs/promises");
 const { createDetailedError } = require("../simple-page-runtime-common.cjs");
 const {
+  assertDownloadSizeWithinBudget,
   createAbortError,
+  createDownloadBudgetError,
   createLinkedAbortController,
   readContentLength,
   readRetryAfterMs,
@@ -94,21 +96,44 @@ async function performStreamDownload(
     signal,
   });
   const body = await requireDownloadBody(task, response);
-  // Keep the earlier HEAD size authoritative when available. This prevents a
-  // proxy from replacing a large asset with a short HTTP 200 error document.
-  const totalBytes = progress.totalBytes || readContentLength(response);
+  const responseLength = readContentLength(response);
+  if (responseLength > 0) {
+    await assertResponseLengthWithinBudget(task, response, responseLength);
+  }
+  // Keep the earlier HEAD or exact task size authoritative when available. This
+  // prevents a proxy from replacing a large asset with a short HTTP 200 error document.
+  const totalBytes =
+    progress.totalBytes || task.expectedTotalBytes || responseLength;
+  if (totalBytes > 0) {
+    assertDownloadSizeWithinBudget(task, totalBytes);
+  }
   const receivedBytes = await copyResponseBody(
     task,
     options,
     progress,
     body,
     file,
+    signal,
     watchdog,
     totalBytes,
     startedAt,
   );
   assertCompleteStream(task, receivedBytes, totalBytes);
   return receivedBytes;
+}
+
+/** @param {HfDownloadTask} task @param {Response} response @param {number} responseLength */
+async function assertResponseLengthWithinBudget(
+  task,
+  response,
+  responseLength,
+) {
+  try {
+    assertDownloadSizeWithinBudget(task, responseLength);
+  } catch (error) {
+    await cancelResponseBodySafely(response, error);
+    throw error;
+  }
 }
 
 /** @param {HfDownloadTask} task @param {number} receivedBytes @param {number} totalBytes */
@@ -145,13 +170,14 @@ async function requireDownloadBody(task, response) {
   );
 }
 
-/** @param {HfDownloadTask} task @param {DownloadOptions} options @param {DownloadProgress} progress @param {ReadableStream<Uint8Array>} body @param {import("node:fs/promises").FileHandle} file @param {ReturnType<typeof createStallWatchdog>} watchdog @param {number} totalBytes @param {number} startedAt */
+/** @param {HfDownloadTask} task @param {DownloadOptions} options @param {DownloadProgress} progress @param {ReadableStream<Uint8Array>} body @param {import("node:fs/promises").FileHandle} file @param {AbortSignal} signal @param {ReturnType<typeof createStallWatchdog>} watchdog @param {number} totalBytes @param {number} startedAt */
 async function copyResponseBody(
   task,
   options,
   progress,
   body,
   file,
+  signal,
   watchdog,
   totalBytes,
   startedAt,
@@ -159,26 +185,87 @@ async function copyResponseBody(
   const reader = body.getReader();
   let receivedBytes = 0;
   let lastEmitAt = 0;
-  while (true) {
-    if (options.abortSignal?.aborted) throw createAbortError();
-    watchdog.reset();
-    const { done, value } = await reader.read();
-    if (done) return receivedBytes;
-    watchdog.reset();
-    await writeFileChunk(task, file, Buffer.from(value));
-    receivedBytes += value.byteLength;
-    const now = Date.now();
-    if (now - lastEmitAt > 500) {
-      lastEmitAt = now;
-      emitChunkProgress(
-        options,
-        task,
-        progress,
-        receivedBytes,
-        totalBytes,
-        startedAt,
-      );
+  /** @type {Promise<void> | null} */
+  let abortCancel = null;
+  const onAbort = () => {
+    abortCancel = cancelReaderSafely(reader, signal.reason);
+  };
+  signal.addEventListener("abort", onAbort, { once: true });
+  try {
+    while (true) {
+      throwIfDownloadAborted(signal);
+      watchdog.reset();
+      const { done, value } = await reader.read();
+      throwIfDownloadAborted(signal);
+      if (done) return receivedBytes;
+      watchdog.reset();
+      const nextBytes = receivedBytes + value.byteLength;
+      if (!Number.isSafeInteger(nextBytes) || nextBytes > task.maximumBytes) {
+        const error = createDownloadBudgetError(
+          task,
+          task.maximumBytes,
+          nextBytes,
+        );
+        await cancelReaderSafely(reader, error);
+        throw error;
+      }
+      if (totalBytes > 0 && nextBytes > totalBytes) {
+        const error = createDetailedError(
+          `${task.label} 다운로드 본문이 예상 크기를 초과했습니다.`,
+          {
+            file: task.file,
+            expectedLength: totalBytes,
+            receivedLength: nextBytes,
+            downloadBudgetExceeded: true,
+            nonRetriable: true,
+          },
+        );
+        await cancelReaderSafely(reader, error);
+        throw error;
+      }
+      await writeFileChunk(task, file, Buffer.from(value));
+      receivedBytes = nextBytes;
+      const now = Date.now();
+      if (now - lastEmitAt > 500) {
+        lastEmitAt = now;
+        emitChunkProgress(
+          options,
+          task,
+          progress,
+          receivedBytes,
+          totalBytes,
+          startedAt,
+        );
+      }
     }
+  } finally {
+    signal.removeEventListener("abort", onAbort);
+    if (abortCancel) await abortCancel;
+    reader.releaseLock();
+  }
+}
+
+/** @param {AbortSignal} signal */
+function throwIfDownloadAborted(signal) {
+  if (!signal.aborted) return;
+  throw signal.reason instanceof Error ? signal.reason : createAbortError();
+}
+
+/** @param {Response} response @param {unknown} reason */
+async function cancelResponseBodySafely(response, reason) {
+  try {
+    await response.body?.cancel(reason);
+  } catch (_error) {
+    // error-policy-allow: response cancellation is cleanup and must preserve the primary download budget error.
+  }
+}
+
+/** @param {ReadableStreamDefaultReader<Uint8Array>} reader @param {unknown} reason */
+async function cancelReaderSafely(reader, reason) {
+  try {
+    await reader.cancel(reason);
+  } catch (_error) {
+    // error-policy-allow: reader cancellation is cleanup and must preserve the primary abort/download error.
   }
 }
 

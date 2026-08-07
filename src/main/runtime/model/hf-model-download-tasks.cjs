@@ -9,9 +9,14 @@ const {
   resolveConfiguredMmprojRepo,
 } = require("../simple-page-model-config.cjs");
 const { inspectModelLaunch } = require("./model-launch-target.cjs");
+const {
+  MAX_REMOTE_DRAFT_MODEL_FILE_BYTES,
+  MAX_REMOTE_MMPROJ_FILE_BYTES,
+  MAX_REMOTE_MODEL_FILE_BYTES,
+} = require("../transport/download-budgets.cjs");
 
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions & { useDraft?: boolean | null }} ModelAssetOptions */
-/** @typedef {{ kind: string; label: string; repo?: string; file: string; url: string; destination: string; expectedSha256?: string; revision?: string; progressPhase?: string; progressTitle?: string; completeTitle?: string }} DownloadTask */
+/** @typedef {{ kind: string; label: string; repo?: string; file: string; url: string; destination: string; maximumBytes: number; expectedSha256?: string; revision?: string; progressPhase?: string; progressTitle?: string; completeTitle?: string }} DownloadTask */
 /** @typedef {ReturnType<typeof inspectModelLaunch>} ModelLaunchTarget */
 
 const PINNED_BUILT_IN_GEMMA_ASSETS = new Map(
@@ -136,9 +141,24 @@ function buildTask(kind, label, repo, file, url, options) {
         file,
         url: pin ? hfUrl(repo, file, pin.revision) : url,
         destination,
+        maximumBytes: resolveTaskMaximumBytes(kind),
         ...(pin || {}),
       }
     : null;
+}
+
+/** @param {string} kind */
+function resolveTaskMaximumBytes(kind) {
+  switch (kind) {
+    case "model":
+      return MAX_REMOTE_MODEL_FILE_BYTES;
+    case "draft":
+      return MAX_REMOTE_DRAFT_MODEL_FILE_BYTES;
+    case "mmproj":
+      return MAX_REMOTE_MMPROJ_FILE_BYTES;
+    default:
+      throw new Error(`알 수 없는 모델 다운로드 종류입니다: ${kind}`);
+  }
 }
 
 /** @param {string} repo @param {string} file @param {string} [revision] */

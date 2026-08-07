@@ -20,6 +20,7 @@ import {
   hfResolveUrl,
 } from "../../runtimeSupport/modelDownloads";
 import { resolveFluxPythonMode } from "./manifests";
+import { MAX_REMOTE_SUPPORT_ASSET_BYTES } from "../../runtimeSupport/downloadBudgets";
 import {
   buildFluxPythonHuggingFaceEnv,
   ensureFluxPythonModelCache,
@@ -109,6 +110,7 @@ async function ensureRocmFluxModels({
     label: "Flux Klein 4B GGUF",
     url: hfResolveUrl(FLUX_MODEL_REPO, FLUX_MODEL_FILE, FLUX_MODEL_REVISION),
     expectedSha256: FLUX_MODEL_SHA256,
+    maximumBytes: MAX_REMOTE_SUPPORT_ASSET_BYTES,
     signal,
     onProgress,
   });
@@ -117,6 +119,7 @@ async function ensureRocmFluxModels({
     fileName: FLUX_SDCPP_VAE_FILE,
     label: "Flux small decoder",
     url: hfResolveUrl(FLUX_VAE_REPO, FLUX_SDCPP_VAE_FILE),
+    maximumBytes: MAX_REMOTE_SUPPORT_ASSET_BYTES,
     signal,
     onProgress,
   });
@@ -125,6 +128,7 @@ async function ensureRocmFluxModels({
     fileName: FLUX_SDCPP_LLM_FILE,
     label: "Flux text encoder GGUF",
     url: hfResolveUrl(FLUX_SDCPP_LLM_REPO, FLUX_SDCPP_LLM_FILE),
+    maximumBytes: MAX_REMOTE_SUPPORT_ASSET_BYTES,
     signal,
     onProgress,
   });

@@ -211,7 +211,12 @@ function isRetryableApiKeyHttpStatus(status) {
 
 /** @param {unknown} error */
 function isRetryableApiKeyError(error) {
-  if (!error || typeof error !== "object" || findAbortError(error)) {
+  if (
+    !error ||
+    typeof error !== "object" ||
+    findAbortError(error) ||
+    isNetworkBudgetError(error)
+  ) {
     return false;
   }
   const record = /** @type {Record<string, unknown>} */ (error);
@@ -262,6 +267,9 @@ function createModelTransportError(message, detail, cause) {
   if (abortError) {
     return abortError;
   }
+  if (isNetworkBudgetError(cause)) {
+    return /** @type {Error} */ (cause);
+  }
   return createDetailedError(
     message,
     {
@@ -270,6 +278,16 @@ function createModelTransportError(message, detail, cause) {
       modelTransportError: true,
     },
     cause,
+  );
+}
+
+/** @param {unknown} error */
+function isNetworkBudgetError(error) {
+  if (!error || typeof error !== "object") return false;
+  const record = /** @type {Record<string, unknown>} */ (error);
+  return (
+    record.responseBudgetExceeded === true ||
+    record.requestDeadlineExceeded === true
   );
 }
 
@@ -475,6 +493,7 @@ module.exports = {
   createHttpFailureError,
   createModelTransportError,
   findAbortError,
+  isNetworkBudgetError,
   isRetryableApiKeyError,
   isRetryableApiKeyHttpStatus,
   markApiKeyRetriesExhausted,

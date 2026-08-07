@@ -2,6 +2,14 @@ import type { TranslationOptions } from "./appSettings";
 import type { ModelEndpointHandle } from "./pipeline/types";
 import { tMain } from "./i18n";
 import {
+  createLinkedDeadlineController,
+  readBoundedResponseText,
+} from "./httpResponseBudget";
+import {
+  MAX_MODEL_HTTP_RESPONSE_BYTES,
+  MODEL_HTTP_REQUEST_DEADLINE_MS,
+} from "./networkBudgets";
+import {
   createWorkContextRequestRuntime,
   type WorkContextChatMessage,
   type WorkContextRequestRuntime,
@@ -22,23 +30,36 @@ export async function requestWorkContextAnalysisText({
   maxOutputTokens: number;
   runtime?: WorkContextRequestRuntime;
 }): Promise<string> {
-  return options.modelProvider === "openai-codex"
-    ? requestCodexText(
-        endpoint,
-        options,
-        systemPrompt,
-        userPrompt,
-        maxOutputTokens,
-        runtime,
-      )
-    : requestChatText(
-        endpoint,
-        options,
-        systemPrompt,
-        userPrompt,
-        maxOutputTokens,
-        runtime,
-      );
+  const deadline = createLinkedDeadlineController(
+    options.abortSignal,
+    MODEL_HTTP_REQUEST_DEADLINE_MS,
+    "Work context model request",
+  );
+  const boundedOptions: TranslationOptions = {
+    ...options,
+    abortSignal: deadline.signal,
+  };
+  try {
+    return boundedOptions.modelProvider === "openai-codex"
+      ? await requestCodexText(
+          endpoint,
+          boundedOptions,
+          systemPrompt,
+          userPrompt,
+          maxOutputTokens,
+          runtime,
+        )
+      : await requestChatText(
+          endpoint,
+          boundedOptions,
+          systemPrompt,
+          userPrompt,
+          maxOutputTokens,
+          runtime,
+        );
+  } finally {
+    deadline.cleanup();
+  }
 }
 
 function buildMessages(
@@ -91,6 +112,7 @@ async function requestChatText(
     const rawText = await readWorkContextResponseText(
       response,
       runtime.modelHttpErrors,
+      options.abortSignal,
     );
     if (!response.ok) {
       throw runtime.modelHttpErrors.createHttpFailureError(
@@ -138,6 +160,7 @@ async function requestCodexText(
   const rawText = await readWorkContextResponseText(
     response,
     runtime.modelHttpErrors,
+    options.abortSignal,
   );
   if (!response.ok) {
     throw runtime.modelHttpErrors.createHttpFailureError(
@@ -209,9 +232,14 @@ async function sendWorkContextRequest(
 async function readWorkContextResponseText(
   response: Response,
   errors: WorkContextRequestRuntime["modelHttpErrors"],
+  signal?: AbortSignal | null,
 ): Promise<string> {
   try {
-    return await response.text();
+    return await readBoundedResponseText(response, {
+      label: "Work context model response",
+      maximumBytes: MAX_MODEL_HTTP_RESPONSE_BYTES,
+      signal,
+    });
   } catch (error) {
     throw errors.createModelTransportError(
       tMain("workContext.errors.requestFailed"),

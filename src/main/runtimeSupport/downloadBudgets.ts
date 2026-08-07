@@ -1,0 +1,10 @@
+const KiB = 1024;
+const MiB = KiB * 1024;
+const GiB = MiB * 1024;
+
+export const MAX_REMOTE_MODEL_FILE_BYTES = 96 * GiB;
+export const MAX_REMOTE_DRAFT_MODEL_FILE_BYTES = 48 * GiB;
+export const MAX_REMOTE_MMPROJ_FILE_BYTES = 16 * GiB;
+export const MAX_REMOTE_RUNTIME_ARCHIVE_BYTES = 16 * GiB;
+export const MAX_REMOTE_SUPPORT_ASSET_BYTES = 8 * GiB;
+export const MAX_MODEL_DOWNLOAD_AGGREGATE_BYTES = 160 * GiB;

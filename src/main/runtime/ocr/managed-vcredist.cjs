@@ -15,6 +15,9 @@ const {
 } = require("../simple-page-download-utils.cjs");
 const { runCommand } = require("../simple-page-shell-utils.cjs");
 const { isTruthy } = require("./config-values.cjs");
+const {
+  MAX_REMOTE_SUPPORT_ASSET_BYTES,
+} = require("../transport/download-budgets.cjs");
 
 const DEFAULT_VCREDIST_X64_URL =
   "https://aka.ms/vs/17/release/vc_redist.x64.exe";
@@ -83,6 +86,7 @@ async function downloadVcredistInstaller(options, url, redistPath) {
       file: "vc_redist.x64.exe",
       url,
       destination: redistPath,
+      maximumBytes: MAX_REMOTE_SUPPORT_ASSET_BYTES,
       progressPhase: "ocr_downloading",
       progressTitle: "Microsoft Visual C++ 런타임 다운로드 중",
       completeTitle: "Microsoft Visual C++ 런타임 다운로드 완료",
@@ -94,11 +98,11 @@ async function downloadVcredistInstaller(options, url, redistPath) {
 
 /** @param {string} url @param {RuntimeOptions} options @returns {Promise<number>} */
 async function probeOptionalContentLength(url, options) {
-  try {
-    return await probeContentLength(url, options.abortSignal);
-  } catch (_error) {
-    return 0;
-  }
+  return await probeContentLength(
+    url,
+    options.abortSignal,
+    MAX_REMOTE_SUPPORT_ASSET_BYTES,
+  );
 }
 
 /** @param {RuntimeOptions} options */

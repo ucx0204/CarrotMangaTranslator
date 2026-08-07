@@ -1,5 +1,5 @@
 // @ts-check
-/** @typedef {{ url: string; file: string; destination: string; label: string; expectedSha256?: string; progressPhase?: string; progressTitle?: string; completeTitle?: string; [key: string]: unknown }} HfDownloadTask */
+/** @typedef {{ url: string; file: string; destination: string; label: string; maximumBytes: number; expectedTotalBytes?: number; expectedSha256?: string; progressPhase?: string; progressTitle?: string; completeTitle?: string; [key: string]: unknown }} HfDownloadTask */
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions & { abortSignal?: AbortSignal | null; [key: string]: unknown }} DownloadOptions */
 /** @typedef {{ knownAggregateBytes?: number; totalBytes?: number; completedBytes?: number; onComplete?: (receivedBytes: number) => void }} DownloadProgress */
 const { mkdir, rename, rm } = require("node:fs/promises");
@@ -11,10 +11,16 @@ const {
   safeCleanup,
 } = require("../simple-page-runtime-common.cjs");
 const {
+  assertDownloadMaximumBytes,
+  assertDownloadSizeWithinBudget,
   createAbortError,
+  createDownloadDeadline,
   isAbortError,
+  isDownloadBudgetError,
+  isDownloadDeadlineError,
   isNonRetryableDownloadFileError,
   isNonRetryableDownloadHttpError,
+  resolveDownloadAbsoluteTimeoutMs,
   resolveDownloadRetryCount,
   resolveDownloadRetryDelayMs,
 } = require("./download-primitives.cjs");
@@ -31,13 +37,14 @@ const {
   writeIntegrityMarker,
 } = require("./download-integrity.cjs");
 
-/** @type {Map<string, { url: string; promise: Promise<number> }>} */
+/** @type {Map<string, { url: string; maximumBytes: number; promise: Promise<number> }>} */
 const activeDownloads = new Map();
 const COMMIT_RETRY_COUNT = 6;
 const RETRYABLE_COMMIT_CODES = new Set(["EACCES", "EBUSY", "EPERM"]);
 
 /** @param {HfDownloadTask} task @param {DownloadOptions} [options] @param {DownloadProgress} [progress] */
 async function downloadHfFileWithProgress(task, options = {}, progress = {}) {
+  assertTaskBudgets(task, progress);
   const key = downloadKey(task.destination);
   const active = activeDownloads.get(key);
   if (active) {
@@ -51,16 +58,33 @@ async function downloadHfFileWithProgress(task, options = {}, progress = {}) {
         },
       );
     }
+    if (active.maximumBytes > task.maximumBytes) {
+      throw createDetailedError(
+        "더 엄격한 다운로드 크기 제한으로 진행 중인 다운로드에 연결할 수 없습니다.",
+        {
+          destination: task.destination,
+          activeMaximumBytes: active.maximumBytes,
+          requestedMaximumBytes: task.maximumBytes,
+          downloadBudgetMismatch: true,
+          nonRetriable: true,
+        },
+      );
+    }
     const startedAt = Date.now();
     const receivedBytes = await waitForActiveDownload(
       active.promise,
       options.abortSignal,
     );
+    assertDownloadSizeWithinBudget(task, receivedBytes);
     completeDownload(task, options, progress, receivedBytes, startedAt);
     return;
   }
   const download = performDownloadWithProgress(task, options, progress);
-  const activeEntry = { url: task.url, promise: download };
+  const activeEntry = {
+    url: task.url,
+    maximumBytes: task.maximumBytes,
+    promise: download,
+  };
   activeDownloads.set(key, activeEntry);
   try {
     await download;
@@ -69,8 +93,46 @@ async function downloadHfFileWithProgress(task, options = {}, progress = {}) {
   }
 }
 
+/** @param {HfDownloadTask} task @param {DownloadProgress} progress */
+function assertTaskBudgets(task, progress) {
+  assertDownloadMaximumBytes(task);
+  if (task.expectedTotalBytes !== undefined) {
+    assertDownloadSizeWithinBudget(task, task.expectedTotalBytes);
+    if (task.expectedTotalBytes < 1) {
+      throw createDetailedError(
+        `${task.label} 예상 다운로드 크기가 올바르지 않습니다.`,
+        {
+          file: task.file,
+          downloadBudgetInvalid: true,
+          nonRetriable: true,
+        },
+      );
+    }
+  }
+  if (progress.totalBytes !== undefined && progress.totalBytes > 0) {
+    assertDownloadSizeWithinBudget(task, progress.totalBytes);
+  }
+}
+
 /** @param {HfDownloadTask} task @param {DownloadOptions} options @param {DownloadProgress} progress @returns {Promise<number>} */
 async function performDownloadWithProgress(task, options, progress) {
+  const timeoutMs = resolveDownloadAbsoluteTimeoutMs(options);
+  const deadline = createDownloadDeadline(options.abortSignal, timeoutMs, task);
+  const boundedOptions = { ...options, abortSignal: deadline.signal };
+  try {
+    return await performDownloadRetries(task, boundedOptions, progress);
+  } catch (error) {
+    if (deadline.didTimeOut() && deadline.signal.reason instanceof Error) {
+      throw deadline.signal.reason;
+    }
+    throw error;
+  } finally {
+    deadline.cleanup();
+  }
+}
+
+/** @param {HfDownloadTask} task @param {DownloadOptions} options @param {DownloadProgress} progress @returns {Promise<number>} */
+async function performDownloadRetries(task, options, progress) {
   const maxAttempts = resolveDownloadRetryCount();
   const fallbackState = { used: false };
   let lastError = null;
@@ -88,6 +150,8 @@ async function performDownloadWithProgress(task, options, progress) {
       if (
         options.abortSignal?.aborted ||
         isAbortError(error) ||
+        isDownloadBudgetError(error) ||
+        isDownloadDeadlineError(error) ||
         isNonRetryableDownloadFileError(error) ||
         isNonRetryableDownloadHttpError(error)
       )
@@ -101,7 +165,6 @@ async function performDownloadWithProgress(task, options, progress) {
   throw (
     lastError ||
     createDetailedError(`${task.label} 다운로드에 실패했습니다.`, {
-      url: task.url,
       file: task.file,
     })
   );
@@ -263,7 +326,7 @@ function transferFile(
   startedAt,
   fallbackState,
 ) {
-  const totalBytes = progress.totalBytes || 0;
+  const totalBytes = progress.totalBytes || task.expectedTotalBytes || 0;
   return totalBytes > 0 && !fallbackState.used
     ? downloadHfFileByRanges(
         task,

@@ -124,6 +124,8 @@ export async function ensureFontMatchingRuntimeAssets(options: {
       label: `font-matching-runtime/${file.fileName}`,
       expectedSha256: file.sha256,
       minimumBytes: file.bytes,
+      expectedTotalBytes: file.bytes,
+      maximumBytes: file.bytes,
       progressPhase: "font_matching_downloading",
       signal: options.signal,
       onProgress: options.onProgress,

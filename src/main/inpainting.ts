@@ -21,6 +21,7 @@ import {
   hfResolveUrl,
 } from "./runtimeSupport/modelDownloads";
 import { createCombinedDownloadProgress } from "./inpainting/fluxAssets/progress";
+import { MAX_REMOTE_SUPPORT_ASSET_BYTES } from "./runtimeSupport/downloadBudgets";
 import { ensureFluxWorkerLaunch } from "./inpainting/fluxAssets/workerLaunch";
 import {
   createFluxEngine,
@@ -72,11 +73,7 @@ export async function prepareFluxInpaintingEngine(options: {
   launch.computeGpuIndex = normalizeComputeGpuIndex(options.computeGpuIndex);
   let modelPath: string | undefined;
   let vaePath: string | undefined;
-  if (
-    launch.backend === "cuda-native" ||
-    launch.backend === "zluda-native" ||
-    launch.backend === "metal-native"
-  ) {
+  if (usesManagedFluxModelAssets(launch.backend)) {
     const download = createCombinedDownloadProgress(
       options.onProgress,
       tMain("inpainting.assets.fluxModel"),
@@ -93,6 +90,7 @@ export async function prepareFluxInpaintingEngine(options: {
           FLUX_MODEL_REVISION,
         ),
         expectedSha256: FLUX_MODEL_SHA256,
+        maximumBytes: MAX_REMOTE_SUPPORT_ASSET_BYTES,
       }),
       ensureRemoteFile({
         ...options,
@@ -101,6 +99,7 @@ export async function prepareFluxInpaintingEngine(options: {
         label: "Flux small decoder",
         url: hfResolveUrl(FLUX_VAE_REPO, FLUX_VAE_FILE, FLUX_VAE_REVISION),
         expectedSha256: FLUX_VAE_SHA256,
+        maximumBytes: MAX_REMOTE_SUPPORT_ASSET_BYTES,
       }),
     ]);
     launch.args = [
@@ -132,6 +131,10 @@ export async function prepareFluxInpaintingEngine(options: {
     runRootDir:
       options.runRootDir ?? resolveDefaultFluxRunRootDir(options.runtimeDir),
   });
+}
+
+function usesManagedFluxModelAssets(backend: string): boolean {
+  return ["cuda-native", "zluda-native", "metal-native"].includes(backend);
 }
 
 export async function applyInpaintingRetouch(

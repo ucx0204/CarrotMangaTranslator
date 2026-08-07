@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { TranslationOptions } from "./appSettings";
 import { logInfo, logWarn } from "./logger";
+import { readBoundedResponseText } from "./httpResponseBudget";
+import { MAX_OAUTH_MODEL_LIST_BYTES } from "./networkBudgets";
 import {
   importNativeEsm,
   OPENAI_OAUTH_RUNTIME_RELATIVE_PATH,
@@ -207,9 +209,10 @@ async function verifyEndpoint(
   options: TranslationOptions,
 ): Promise<void> {
   let response: Response;
+  const signal = AbortSignal.timeout(30000);
   try {
     response = await fetch(`${baseUrl}/models`, {
-      signal: AbortSignal.timeout(30000),
+      signal,
     });
   } catch (error) {
     throw createDetailedError(
@@ -219,7 +222,11 @@ async function verifyEndpoint(
     );
   }
 
-  const rawText = await response.text();
+  const rawText = await readBoundedResponseText(response, {
+    label: "openai-oauth model list",
+    maximumBytes: MAX_OAUTH_MODEL_LIST_BYTES,
+    signal,
+  });
   if (!response.ok) {
     throw createDetailedError(
       "openai-oauth 모델 목록을 확인하지 못했습니다. Codex 로그인이 필요할 수 있습니다.",

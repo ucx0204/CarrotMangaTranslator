@@ -17,6 +17,7 @@ import {
 } from "./constants";
 import { extractZipSafely } from "./downloads";
 import { downloadToFile } from "../../runtimeSupport/modelDownloads";
+import { MAX_REMOTE_RUNTIME_ARCHIVE_BYTES } from "../../runtimeSupport/downloadBudgets";
 import { throwIfAborted } from "./errors";
 import {
   isExecutableFile,
@@ -244,6 +245,7 @@ async function ensureDownloadedFluxRunner(options: {
     signal: options.signal,
     progressText: "Flux 실행 파일 다운로드 중",
     label: options.source.fileName,
+    maximumBytes: MAX_REMOTE_RUNTIME_ARCHIVE_BYTES,
     onProgress: options.onProgress,
   });
   await verifyFluxRunnerArchiveHash(archivePath, options.source);

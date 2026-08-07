@@ -1,4 +1,6 @@
 import { MAX_API_KEYS, parseApiKeys } from "../shared/apiKeySettings";
+import { readBoundedResponseText } from "./httpResponseBudget";
+import { MAX_MODEL_DISCOVERY_JSON_BYTES } from "./networkBudgets";
 import {
   DISCOVERY_TIMEOUT_MS,
   type FetchLike,
@@ -50,7 +52,11 @@ export async function fetchJsonUsingParsedKeys(
       promoteWorkingKey(keys, index);
       return result;
     } catch (error) {
-      if (isDiscoveryNonRetriable(error) || error instanceof SyntaxError) {
+      if (
+        isDiscoveryNonRetriable(error) ||
+        isResponseBudgetError(error) ||
+        error instanceof SyntaxError
+      ) {
         throw error;
       }
       lastError = error;
@@ -76,13 +82,21 @@ function promoteWorkingKey(keys: string[], index: number): void {
 export async function fetchText(
   url: string,
   fetchImpl: FetchLike,
+  options: { maximumBytes: number; label: string },
 ): Promise<string> {
   return withTimeout(async (signal) => {
     const response = await fetchImpl(url, { signal });
+    const rawText = await readBoundedResponseText(response, {
+      label: options.label,
+      maximumBytes: options.maximumBytes,
+      signal,
+    });
     if (!response.ok) {
-      throw new Error(`요청 실패 (${response.status} ${response.statusText})`);
+      throw new Error(
+        `요청 실패 (${response.status} ${response.statusText}) ${safePreview(rawText, [])}`,
+      );
     }
-    return response.text();
+    return rawText;
   });
 }
 
@@ -100,7 +114,11 @@ async function fetchJsonOnce(
       headers: mergeHeaders(init.headers, buildHeaders(key)),
       signal,
     });
-    const rawText = await response.text();
+    const rawText = await readBoundedResponseText(response, {
+      label: "Model discovery JSON",
+      maximumBytes: MAX_MODEL_DISCOVERY_JSON_BYTES,
+      signal,
+    });
     assertResponseOk(response, rawText, allKeys);
     return parseJsonRecord(rawText);
   });
@@ -199,5 +217,15 @@ function isDiscoveryNonRetriable(error: unknown): boolean {
     typeof error === "object" &&
     "discoveryNonRetriable" in error &&
     (error as DiscoveryError).discoveryNonRetriable,
+  );
+}
+
+function isResponseBudgetError(error: unknown): boolean {
+  return Boolean(
+    error &&
+    typeof error === "object" &&
+    "responseBudgetExceeded" in error &&
+    (error as { responseBudgetExceeded?: unknown }).responseBudgetExceeded ===
+      true,
   );
 }

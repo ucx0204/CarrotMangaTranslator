@@ -27,7 +27,7 @@ const {
 
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} ModelAssetOptions */
 /** @typedef {import("../runtime-jsdoc-types").OcrRuntimeLayout} OcrRuntimeLayout */
-/** @typedef {{ kind: string; label: string; repo?: string; file: string; url: string; destination: string; revision?: string; expectedSha256?: string; progressPhase?: string; progressTitle?: string; completeTitle?: string }} DownloadTask */
+/** @typedef {{ kind: string; label: string; repo?: string; file: string; url: string; destination: string; maximumBytes: number; revision?: string; expectedSha256?: string; progressPhase?: string; progressTitle?: string; completeTitle?: string }} DownloadTask */
 
 /** @param {ModelAssetOptions} [options] @param {OcrRuntimeLayout | null} [runtime] */
 async function ensurePaddleOcrModelAssetsDownloaded(
@@ -77,7 +77,11 @@ async function buildPaddleDownloadPlan(options, runtime) {
 
 /** @param {ModelAssetOptions} options @param {DownloadTask} task */
 async function inspectDownloadTask(options, task) {
-  const totalBytes = await probeContentLength(task.url, options.abortSignal);
+  const totalBytes = await probeContentLength(
+    task.url,
+    options.abortSignal,
+    task.maximumBytes,
+  );
   const existingSize = getFileSize(task.destination);
   const problem = inspectPaddleOcrAssetFile(task.destination, task.file);
   if (problem) {

@@ -42,6 +42,8 @@ export async function prepareAnimeTextWorkerLaunch(options: {
       label: "anime-text-yolo",
       expectedSha256: ANIME_TEXT_MODEL_SHA256,
       minimumBytes: ANIME_TEXT_MODEL_BYTES,
+      expectedTotalBytes: ANIME_TEXT_MODEL_BYTES,
+      maximumBytes: ANIME_TEXT_MODEL_BYTES,
       progressPhase: "ocr_preparing",
       signal: options.signal,
       onProgress: options.onProgress,

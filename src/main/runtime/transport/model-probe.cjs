@@ -33,6 +33,7 @@ const {
   readResponseText,
 } = require("./model-response-readers.cjs");
 const { buildChatRequestBody } = require("./request-bodies.cjs");
+const { createLinkedDeadlineController } = require("./http-deadline.cjs");
 
 const VISION_PROBE_DATA_URL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
@@ -43,34 +44,51 @@ const VISION_PROBE_DATA_URL =
  * @returns {Promise<Record<string, unknown>>}
  */
 async function testModelReply(server, options) {
-  if (isOpenAICodexProvider(options)) {
-    return testCodexResponsesReply(server, options);
-  }
+  const deadline = createLinkedDeadlineController(
+    options.abortSignal,
+    30000,
+    "Model probe",
+  );
+  const boundedOptions = { ...options, abortSignal: deadline.signal };
+  try {
+    if (isOpenAICodexProvider(boundedOptions)) {
+      return await testCodexResponsesReply(server, boundedOptions);
+    }
 
-  const requestBody = buildChatRequestBody(options, buildProbeMessages(), 48);
-  if (!isOpenAIApiProvider(options)) {
-    await applyLocalForbiddenTokenBias(server, options, requestBody);
-  }
-  const outputText = await runWithApiKeyRetry(options, async (apiKey) => {
-    const response = await sendProbeRequest(
-      server,
-      options,
-      requestBody,
-      apiKey,
+    const requestBody = buildChatRequestBody(
+      boundedOptions,
+      buildProbeMessages(),
+      48,
     );
-    const rawText = await readResponseText(response, {}, options);
-    if (!response.ok) {
-      throw createHttpFailureError(options, {}, response, rawText);
+    if (!isOpenAIApiProvider(boundedOptions)) {
+      await applyLocalForbiddenTokenBias(server, boundedOptions, requestBody);
     }
+    const outputText = await runWithApiKeyRetry(
+      boundedOptions,
+      async (apiKey) => {
+        const response = await sendProbeRequest(
+          server,
+          boundedOptions,
+          requestBody,
+          apiKey,
+        );
+        const rawText = await readResponseText(response, {}, boundedOptions);
+        if (!response.ok) {
+          throw createHttpFailureError(boundedOptions, {}, response, rawText);
+        }
 
-    const parsed = parseProbeResponse(rawText, options);
-    const output = extractProbeOutput(parsed);
-    if (!output) {
-      throw createEmptyOutputError(parsed, rawText, {}, options);
-    }
-    return output;
-  });
-  return { outputText, launchTarget: inspectModelLaunch(options) };
+        const parsed = parseProbeResponse(rawText, boundedOptions);
+        const output = extractProbeOutput(parsed);
+        if (!output) {
+          throw createEmptyOutputError(parsed, rawText, {}, boundedOptions);
+        }
+        return output;
+      },
+    );
+    return { outputText, launchTarget: inspectModelLaunch(boundedOptions) };
+  } finally {
+    deadline.cleanup();
+  }
 }
 
 function buildProbeMessages() {
@@ -112,7 +130,7 @@ async function sendProbeRequest(server, options, requestBody, apiKey) {
       method: "POST",
       headers: buildChatRequestHeaders(options, apiKey),
       body: JSON.stringify(requestBody),
-      signal: createProbeAbortSignal(options.abortSignal),
+      signal: options.abortSignal,
     });
   } catch (error) {
     throw createModelTransportError(
@@ -211,7 +229,7 @@ async function sendCodexProbeRequest(server, options, requestBody) {
       method: "POST",
       headers: buildChatRequestHeaders(options),
       body: JSON.stringify(requestBody),
-      signal: createProbeAbortSignal(options.abortSignal),
+      signal: options.abortSignal,
     });
   } catch (error) {
     throw createModelTransportError(
@@ -220,12 +238,6 @@ async function sendCodexProbeRequest(server, options, requestBody) {
       error,
     );
   }
-}
-
-/** @param {AbortSignal | null | undefined} signal */
-function createProbeAbortSignal(signal) {
-  const timeoutSignal = AbortSignal.timeout(30000);
-  return signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
 }
 
 module.exports = {

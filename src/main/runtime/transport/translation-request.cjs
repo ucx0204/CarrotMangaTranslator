@@ -33,6 +33,8 @@ const {
   buildMessages,
 } = require("../simple-page-request-builders.cjs");
 const { emitRuntimeProgress, nowMs } = require("./model-runtime-services.cjs");
+const { createLinkedDeadlineController } = require("./http-deadline.cjs");
+const { MODEL_HTTP_REQUEST_DEADLINE_MS } = require("./network-budgets.cjs");
 const {
   createEmptyOutputError,
   createHttpFailureError,
@@ -81,42 +83,69 @@ async function requestTranslation(server, options) {
     return createNoTextResult(server, promptOptions, ocrBboxResult);
   }
 
-  const groupReviewSelected =
-    isGroupOnlyReviewEligible(promptOptions) &&
-    hasHeuristicReviewFragments(promptOptions);
-  const groupReviewOutcome = groupReviewSelected
-    ? await requestGroupOnlyPageReview(server, promptOptions, ocrBboxResult)
-    : null;
-  const finalPromptOptions = /** @type {PromptRequestOptions} */ (
-    groupReviewOutcome && "promptOptions" in groupReviewOutcome
-      ? groupReviewOutcome.promptOptions
-      : promptOptions
+  const deadline = createLinkedDeadlineController(
+    promptOptions.abortSignal,
+    MODEL_HTTP_REQUEST_DEADLINE_MS,
+    "Model response",
   );
+  const boundedPromptOptions = /** @type {PromptRequestOptions} */ ({
+    ...promptOptions,
+    abortSignal: deadline.signal,
+  });
+  try {
+    const groupReviewSelected =
+      isGroupOnlyReviewEligible(boundedPromptOptions) &&
+      hasHeuristicReviewFragments(boundedPromptOptions);
+    const groupReviewOutcome = groupReviewSelected
+      ? await requestGroupOnlyPageReview(
+          server,
+          boundedPromptOptions,
+          ocrBboxResult,
+        )
+      : null;
+    const reviewedPromptOptions = /** @type {PromptRequestOptions} */ (
+      groupReviewOutcome && "promptOptions" in groupReviewOutcome
+        ? groupReviewOutcome.promptOptions
+        : boundedPromptOptions
+    );
+    const finalPromptOptions = /** @type {PromptRequestOptions} */ ({
+      ...reviewedPromptOptions,
+      abortSignal: deadline.signal,
+    });
 
-  if (shouldUseFixedBlockTranslation(finalPromptOptions)) {
-    const translated = await requestFixedBlockTranslation(
+    if (shouldUseFixedBlockTranslation(finalPromptOptions)) {
+      const translated = await requestFixedBlockTranslation(
+        server,
+        finalPromptOptions,
+        ocrBboxResult,
+        requestStartedAt,
+      );
+      assignSemanticGroupReviewSummary(
+        translated.requestBody,
+        groupReviewOutcome,
+      );
+      return attachSemanticGroupReviewRawResponse(
+        translated,
+        groupReviewOutcome,
+      );
+    }
+
+    const prepared = await prepareTranslationRequest(
       server,
       finalPromptOptions,
       ocrBboxResult,
-      requestStartedAt,
     );
     assignSemanticGroupReviewSummary(
-      translated.requestBody,
+      prepared.requestSummary,
       groupReviewOutcome,
     );
+    const translated = isOpenAICodexProvider(finalPromptOptions)
+      ? await requestCodexTranslation(server, prepared)
+      : await requestChatTranslation(server, prepared, requestStartedAt);
     return attachSemanticGroupReviewRawResponse(translated, groupReviewOutcome);
+  } finally {
+    deadline.cleanup();
   }
-
-  const prepared = await prepareTranslationRequest(
-    server,
-    finalPromptOptions,
-    ocrBboxResult,
-  );
-  assignSemanticGroupReviewSummary(prepared.requestSummary, groupReviewOutcome);
-  const translated = isOpenAICodexProvider(options)
-    ? await requestCodexTranslation(server, prepared)
-    : await requestChatTranslation(server, prepared, requestStartedAt);
-  return attachSemanticGroupReviewRawResponse(translated, groupReviewOutcome);
 }
 
 /** @param {RequestSummary} summary @param {Record<string,unknown> | null} outcome */
