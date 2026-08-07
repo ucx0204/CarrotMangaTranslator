@@ -1,5 +1,8 @@
 import { Readable } from "node:stream";
 import * as yauzl from "yauzl";
+import { MAX_IMPORT_IMAGE_PIXELS as IMPORT_IMAGE_PIXEL_LIMIT } from "./imageDecodeLimits";
+
+export const MAX_IMPORT_IMAGE_PIXELS = IMPORT_IMAGE_PIXEL_LIMIT;
 
 export type ZipEntryLike = {
   entryName: string;
@@ -37,7 +40,6 @@ export const MAX_ZIP_TOTAL_UNCOMPRESSED_BYTES = 4 * 1024 * 1024 * 1024;
 export const MAX_SHARE_JSON_BYTES = 20 * 1024 * 1024;
 export const MAX_SHARE_IMAGE_BYTES = 128 * 1024 * 1024;
 export const MAX_IMPORT_IMAGE_BYTES = 256 * 1024 * 1024;
-export const MAX_IMPORT_IMAGE_PIXELS = 120_000_000;
 const MAX_ZIP_COMPRESSION_RATIO = 100;
 
 export const AdmZip = require("adm-zip") as {

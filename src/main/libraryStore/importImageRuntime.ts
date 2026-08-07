@@ -1,34 +1,48 @@
-import { nativeImage } from "electron";
 import { getAppPaths } from "../appPaths";
-import { decodeImageThroughRuntime } from "../simplePageRuntime";
+import {
+  convertImageToPngFileThroughRuntime,
+  validateImageThroughRuntime,
+  type RuntimeImageConversionOptions,
+  type RuntimeImageValidationOptions,
+} from "../simplePageRuntime";
 
-type ImportImageMetadata = {
-  width: number;
-  height: number;
-  isEmpty: boolean;
+export type ImportImageValidationOptions = Omit<
+  RuntimeImageValidationOptions,
+  "abortSignal"
+> & {
+  signal?: AbortSignal;
+};
+
+export type ImportImageConversionOptions = Omit<
+  RuntimeImageConversionOptions,
+  "abortSignal"
+> & {
+  signal?: AbortSignal;
 };
 
 export type ImportImageRuntime = {
-  decodeToPng: (
+  validateImageFile: (
+    imagePath: string,
+    options: ImportImageValidationOptions,
+  ) => Promise<void>;
+  convertWebpToPngFile: (
     sourcePath: string,
-    signal?: AbortSignal,
-  ) => Promise<Buffer | null>;
-  inspectImage: (imagePath: string) => ImportImageMetadata;
+    outputPath: string,
+    options: ImportImageConversionOptions,
+  ) => Promise<void>;
 };
 
 function createProductionImportImageRuntime(): ImportImageRuntime {
   return {
-    decodeToPng: (sourcePath, signal) =>
-      decodeImageThroughRuntime(getAppPaths().runtimeDir, sourcePath, signal),
-    inspectImage: (imagePath) => {
-      const image = nativeImage.createFromPath(imagePath);
-      const size = image.getSize();
-      return {
-        width: size.width,
-        height: size.height,
-        isEmpty: typeof image.isEmpty === "function" ? image.isEmpty() : false,
-      };
-    },
+    validateImageFile: (imagePath, options) =>
+      validateImageThroughRuntime(getAppPaths().runtimeDir, imagePath, options),
+    convertWebpToPngFile: (sourcePath, outputPath, options) =>
+      convertImageToPngFileThroughRuntime(
+        getAppPaths().runtimeDir,
+        sourcePath,
+        outputPath,
+        options,
+      ),
   };
 }
 

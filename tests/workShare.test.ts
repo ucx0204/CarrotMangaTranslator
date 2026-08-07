@@ -14,6 +14,7 @@ import { join } from "node:path";
 import type { LibraryChapter, LibraryWork } from "../src/shared/libraryTypes";
 import { hashTranslationBlocks } from "../src/shared/blockFingerprint";
 import { MAX_SHARE_IMAGE_BYTES } from "../src/main/libraryStore/zipSafety";
+import { makePngImage as makePngHeader } from "./helpers/imageFixtures";
 
 type AdmZipInstance = {
   addFile: (entryName: string, content: Buffer | string) => void;
@@ -213,8 +214,8 @@ describe("work share packages", () => {
     expect(importedInpaintedPath).toBeTruthy();
     expect(importedInpaintedPath).not.toMatch(/^chapters\//);
     expect(existsSync(importedInpaintedPath ?? "")).toBe(true);
-    await expect(readFile(importedInpaintedPath ?? "", "utf8")).resolves.toBe(
-      "inpainted-a",
+    await expect(readFile(importedInpaintedPath ?? "")).resolves.toEqual(
+      makePngHeader(100, 120),
     );
   });
 
@@ -558,7 +559,7 @@ describe("work share packages", () => {
     const rootDir = await createTempLibrary();
     const library = await loadLibrary(rootDir);
     const goodImagePath = join(rootDir, "001.png");
-    await writeFile(goodImagePath, "image");
+    await writeFile(goodImagePath, makePngHeader(100, 120));
 
     await expect(
       library.createImport({
@@ -610,7 +611,7 @@ describe("work share packages", () => {
     const library = await loadLibrary(rootDir);
     await seedLibrary(rootDir);
     const goodImagePath = join(rootDir, "001.png");
-    await writeFile(goodImagePath, "image");
+    await writeFile(goodImagePath, makePngHeader(100, 120));
 
     await expect(
       library.createImport({
@@ -1014,7 +1015,7 @@ async function loadLibrary(
       libraryDir: rootDir,
       logsDir: join(rootDir, "logs"),
       logFile: join(rootDir, "logs", "app.log"),
-      runtimeDir: join(rootDir, "runtime"),
+      runtimeDir: join(process.cwd(), "src", "main", "runtime"),
       toolsDir: join(rootDir, "tools"),
       llamaRuntimeDir: join(rootDir, "tools", "llama"),
       llamaServerPath: join(rootDir, "tools", "llama", "llama-server.exe"),
@@ -1055,7 +1056,7 @@ async function seedLibrary(rootDir: string): Promise<void> {
       "pages",
       "001-page-a.png",
     ),
-    "image-a",
+    makePngHeader(100, 120),
   );
   await writeFile(
     join(
@@ -1067,7 +1068,7 @@ async function seedLibrary(rootDir: string): Promise<void> {
       "pages",
       "001-page-b.png",
     ),
-    "image-b",
+    makePngHeader(100, 120),
   );
   await writeJson(
     join(rootDir, "works", work.id, "chapters", "chapter-a", "chapter.json"),
@@ -1155,7 +1156,7 @@ async function attachInpaintedImage(
   rootDir: string,
   chapterId: string,
   pageId: string,
-  content: string,
+  _content: string,
 ): Promise<void> {
   const inpaintedDir = join(
     rootDir,
@@ -1167,7 +1168,7 @@ async function attachInpaintedImage(
   );
   const inpaintedPath = join(inpaintedDir, `001-${pageId}-inpainted.png`);
   await mkdir(inpaintedDir, { recursive: true });
-  await writeFile(inpaintedPath, content, "utf8");
+  await writeFile(inpaintedPath, makePngHeader(100, 120));
 
   const chapterPath = join(
     rootDir,

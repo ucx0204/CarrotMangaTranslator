@@ -419,6 +419,8 @@ function createRuntime({
   const pendingStartErrors = [...startErrors];
   return {
     isModelCached: vi.fn(() => cached),
+    validateImageFileWithFfmpeg: vi.fn(async () => undefined),
+    convertImageToPngFileWithFfmpeg: vi.fn(async () => undefined),
     ensurePaddleOcrRuntime: vi.fn(async () => ({
       runtimeVariant: "cpu",
       pythonPath: "C:\\python\\python.exe",

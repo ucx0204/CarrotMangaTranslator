@@ -137,6 +137,10 @@
       "fileTooLarge": "{{file}} is too large.",
       "webpConvert": "Could not convert the WEBP image to PNG: {{file}}",
       "resolutionTooLarge": "The image resolution is too large: {{file}}",
+      "invalidImageHeader": "The image header is invalid: {{file}}",
+      "imageDimensionsChanged": "The stored image dimensions differ from the source: {{file}}",
+      "normalizedImageTooLarge": "The normalized image file is too large: {{file}}",
+      "imageDecodeTimedOut": "Image decoding timed out: {{file}}",
       "tooManySources": "Too many folders or images were selected for import.",
       "zipEntryMissing": "ZIP entry not found: {{entry}}",
       "noChapterToCreate": "There are no chapters to create.",
@@ -176,6 +180,8 @@
       "invalidInpaintingLocation": "The inpainting image location in the shared file is invalid.",
       "packageInpaintingMissing": "The shared file does not contain an inpainting image for: {{page}}",
       "unsupportedInpaintingImage": "Unsupported inpainting image format: {{page}}",
+      "inpaintingDimensionsMismatch": "The inpainting image dimensions do not match the original image for {{page}}.",
+      "invalidImageDimensions": "The actual image dimensions are invalid for {{page}}.",
       "invalidTrashLocation": "The temporary shared-import storage location is invalid.",
       "invalidChapterLocation": "The chapter's library location is invalid."
     }

@@ -2,6 +2,8 @@
 
 const {
   convertImageToPngBufferWithFfmpeg,
+  convertImageToPngFileWithFfmpeg,
+  validateImageFileWithFfmpeg,
 } = require("./simple-page-image-variants.cjs");
 const { isModelCached } = require("./simple-page-model-assets.cjs");
 const {
@@ -26,6 +28,8 @@ const {
  * @property {typeof collectOcrBboxHints} collectOcrBboxHints
  * @property {typeof collectOcrBboxHintsBatch} collectOcrBboxHintsBatch
  * @property {typeof convertImageToPngBufferWithFfmpeg} convertImageToPngBufferWithFfmpeg
+ * @property {typeof convertImageToPngFileWithFfmpeg} convertImageToPngFileWithFfmpeg
+ * @property {typeof validateImageFileWithFfmpeg} validateImageFileWithFfmpeg
  * @property {typeof ensurePaddleOcrRuntime} ensurePaddleOcrRuntime
  * @property {typeof isModelCached} isModelCached
  * @property {typeof requestTranslation} requestTranslation
@@ -40,6 +44,8 @@ module.exports = {
   collectOcrBboxHints,
   collectOcrBboxHintsBatch,
   convertImageToPngBufferWithFfmpeg,
+  convertImageToPngFileWithFfmpeg,
+  validateImageFileWithFfmpeg,
   ensurePaddleOcrRuntime,
   isModelCached,
   requestTranslation,

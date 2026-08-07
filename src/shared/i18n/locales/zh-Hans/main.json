@@ -137,6 +137,10 @@
       "fileTooLarge": "{{file}} 文件过大。",
       "webpConvert": "无法将 WEBP 图片转换为 PNG：{{file}}",
       "resolutionTooLarge": "图片分辨率过高：{{file}}",
+      "invalidImageHeader": "图片头无效：{{file}}",
+      "imageDimensionsChanged": "保存后的图片尺寸与源图片不一致：{{file}}",
+      "normalizedImageTooLarge": "规范化后的图片文件过大：{{file}}",
+      "imageDecodeTimedOut": "图片解码超时：{{file}}",
       "tooManySources": "要导入的文件夹或图片过多。",
       "zipEntryMissing": "找不到 ZIP 条目：{{entry}}",
       "noChapterToCreate": "没有可创建的章节。",
@@ -176,6 +180,8 @@
       "invalidInpaintingLocation": "共享文件中的修复图片位置无效。",
       "packageInpaintingMissing": "共享文件中没有修复图片：{{page}}",
       "unsupportedInpaintingImage": "不支持的修复图片格式：{{page}}",
+      "inpaintingDimensionsMismatch": "{{page}} 的修复图片尺寸与原图不一致。",
+      "invalidImageDimensions": "{{page}} 的实际图片尺寸无效。",
       "invalidTrashLocation": "共享导入临时存储位置无效。",
       "invalidChapterLocation": "章节在资料库中的位置无效。"
     }

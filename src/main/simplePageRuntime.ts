@@ -7,6 +7,16 @@ import {
   resolveAppRuntimeModulePath,
 } from "./runtimeModuleLoader";
 
+export type RuntimeImageValidationOptions = {
+  abortSignal?: AbortSignal | null;
+  maxPixels: number;
+  timeoutMs: number;
+};
+
+export type RuntimeImageConversionOptions = RuntimeImageValidationOptions & {
+  maxOutputBytes: number;
+};
+
 export type SimplePageRuntime = {
   startServer: (
     options: Record<string, unknown>,
@@ -24,6 +34,15 @@ export type SimplePageRuntime = {
     filePath: string,
     options?: { abortSignal?: AbortSignal | null },
   ) => Promise<Buffer>;
+  validateImageFileWithFfmpeg: (
+    filePath: string,
+    options: RuntimeImageValidationOptions,
+  ) => Promise<void>;
+  convertImageToPngFileWithFfmpeg: (
+    filePath: string,
+    outputPath: string,
+    options: RuntimeImageConversionOptions,
+  ) => Promise<void>;
   testModelReply: (
     server: { baseUrl: string },
     options: Record<string, unknown>,
@@ -72,6 +91,14 @@ function assertSimplePageRuntime(
     value.convertImageToPngBufferWithFfmpeg,
     `${runtimePath} convertImageToPngBufferWithFfmpeg`,
   );
+  assertFunction(
+    value.validateImageFileWithFfmpeg,
+    `${runtimePath} validateImageFileWithFfmpeg`,
+  );
+  assertFunction(
+    value.convertImageToPngFileWithFfmpeg,
+    `${runtimePath} convertImageToPngFileWithFfmpeg`,
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -102,6 +129,44 @@ export async function decodeImageThroughRuntime(
   return runtime.convertImageToPngBufferWithFfmpeg(filePath, {
     abortSignal: signal,
   });
+}
+
+export function validateImageThroughRuntime(
+  runtimeDir: string,
+  filePath: string,
+  options: { maxPixels: number; timeoutMs: number; signal?: AbortSignal },
+): Promise<void> {
+  return loadSimplePageRuntime(runtimeDir).validateImageFileWithFfmpeg(
+    filePath,
+    {
+      abortSignal: options.signal,
+      maxPixels: options.maxPixels,
+      timeoutMs: options.timeoutMs,
+    },
+  );
+}
+
+export function convertImageToPngFileThroughRuntime(
+  runtimeDir: string,
+  sourcePath: string,
+  outputPath: string,
+  options: {
+    maxPixels: number;
+    maxOutputBytes: number;
+    timeoutMs: number;
+    signal?: AbortSignal;
+  },
+): Promise<void> {
+  return loadSimplePageRuntime(runtimeDir).convertImageToPngFileWithFfmpeg(
+    sourcePath,
+    outputPath,
+    {
+      abortSignal: options.signal,
+      maxPixels: options.maxPixels,
+      maxOutputBytes: options.maxOutputBytes,
+      timeoutMs: options.timeoutMs,
+    },
+  );
 }
 
 export function isOpenAIOAuthEndpoint(

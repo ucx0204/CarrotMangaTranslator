@@ -137,6 +137,10 @@
       "fileTooLarge": "{{file}} 파일이 너무 큽니다.",
       "webpConvert": "WEBP 이미지를 PNG로 변환하지 못했습니다: {{file}}",
       "resolutionTooLarge": "{{file}} 이미지 해상도가 너무 큽니다.",
+      "invalidImageHeader": "이미지 헤더가 올바르지 않습니다: {{file}}",
+      "imageDimensionsChanged": "저장된 이미지 치수가 원본과 다릅니다: {{file}}",
+      "normalizedImageTooLarge": "정규화된 이미지 파일이 너무 큽니다: {{file}}",
+      "imageDecodeTimedOut": "이미지 디코드 시간이 초과되었습니다: {{file}}",
       "tooManySources": "가져올 폴더 또는 이미지가 너무 많습니다.",
       "zipEntryMissing": "ZIP 항목을 찾지 못했습니다: {{entry}}",
       "noChapterToCreate": "생성할 화가 없습니다.",
@@ -176,6 +180,8 @@
       "invalidInpaintingLocation": "공유 파일의 인페인팅 이미지 위치가 올바르지 않습니다.",
       "packageInpaintingMissing": "공유 파일에 인페인팅 이미지가 없습니다: {{page}}",
       "unsupportedInpaintingImage": "지원하지 않는 인페인팅 이미지 형식입니다: {{page}}",
+      "inpaintingDimensionsMismatch": "{{page}} 페이지의 인페인팅 이미지 치수가 원본 이미지와 다릅니다.",
+      "invalidImageDimensions": "{{page}} 페이지의 실제 이미지 치수가 올바르지 않습니다.",
       "invalidTrashLocation": "공유 가져오기 임시 보관 위치가 올바르지 않습니다.",
       "invalidChapterLocation": "화 정보의 보관함 위치가 올바르지 않습니다."
     }

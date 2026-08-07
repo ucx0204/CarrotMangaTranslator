@@ -42,7 +42,7 @@ describe("library import resource limits", () => {
   it("rejects image files that cannot be decoded and rolls back the new work", async () => {
     const rootDir = await createTempLibrary();
     const imagePath = join(rootDir, "bad.png");
-    await writeFile(imagePath, "not an image");
+    await writeFile(imagePath, makePngHeader(1, 1));
     const library = await loadLibrary(rootDir, { decodeEmpty: true });
 
     await expect(
@@ -80,12 +80,8 @@ describe("library import resource limits", () => {
   it("rejects decoded images with an excessive pixel count", async () => {
     const rootDir = await createTempLibrary();
     const imagePath = join(rootDir, "huge-pixels.png");
-    await writeFile(imagePath, "small compressed image");
-    const library = await loadLibrary(rootDir, {
-      decodeEmpty: false,
-      width: 20000,
-      height: 8000,
-    });
+    await writeFile(imagePath, makePngHeader(20_000, 8_000));
+    const library = await loadLibrary(rootDir, { decodeEmpty: false });
 
     await expect(
       library.createImport({
@@ -159,7 +155,7 @@ describe("library import resource limits", () => {
       throw new Error("Expected imported page image path");
     }
     expect(storedPath && existsSync(storedPath)).toBe(true);
-    expect(await readFile(storedPath)).toEqual(Buffer.from("converted png"));
+    expect(await readFile(storedPath)).toEqual(makePngHeader(1, 1));
     expect(library.decodedSources).toEqual([imagePath]);
   });
 
@@ -201,7 +197,7 @@ describe("library import resource limits", () => {
     if (!storedPath) {
       throw new Error("Expected imported page image path");
     }
-    expect(await readFile(storedPath)).toEqual(Buffer.from("converted png"));
+    expect(await readFile(storedPath)).toEqual(makePngHeader(1, 1));
     expect(library.decodedSources).toEqual([imagePath]);
   });
 
@@ -236,7 +232,7 @@ describe("library import resource limits", () => {
     if (!storedPath) {
       throw new Error("Expected imported page image path");
     }
-    expect(await readFile(storedPath)).toEqual(Buffer.from("converted png"));
+    expect(await readFile(storedPath)).toEqual(makePngHeader(1, 1));
     expect(library.decodedSources).toHaveLength(1);
     expect(library.decodedSources[0]).toMatch(/\.import-source\.webp$/);
     expect(existsSync(library.decodedSources[0] ?? "")).toBe(false);
@@ -250,6 +246,16 @@ function makeWebpBytes(): Buffer {
   );
 }
 
+function makePngHeader(width: number, height: number): Buffer {
+  const bytes = Buffer.alloc(24);
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(bytes, 0);
+  bytes.writeUInt32BE(13, 8);
+  bytes.write("IHDR", 12, "ascii");
+  bytes.writeUInt32BE(width, 16);
+  bytes.writeUInt32BE(height, 20);
+  return bytes;
+}
+
 async function createTempLibrary(): Promise<string> {
   const rootDir = await mkdtemp(join(tmpdir(), "manga-import-limits-"));
   tempDirs.push(rootDir);
@@ -258,7 +264,7 @@ async function createTempLibrary(): Promise<string> {
 
 async function loadLibrary(
   rootDir: string,
-  options: { decodeEmpty: boolean; width?: number; height?: number },
+  options: { decodeEmpty: boolean },
 ): Promise<
   ReturnType<
     (typeof import("../src/main/library"))["createLibraryImportService"]
@@ -289,14 +295,14 @@ async function loadLibrary(
   }));
   const decodedSources: string[] = [];
   const imageRuntime: ImportImageRuntime = {
-    decodeToPng: async (sourcePath) => {
+    validateImageFile: vi.fn(async () => {
+      if (options.decodeEmpty) {
+        throw new Error("이미지 파일 디코드 실패");
+      }
+    }),
+    convertWebpToPngFile: vi.fn(async (sourcePath, outputPath) => {
       decodedSources.push(sourcePath);
-      return Buffer.from("converted png");
-    },
-    inspectImage: () => ({
-      width: options.decodeEmpty ? 0 : (options.width ?? 64),
-      height: options.decodeEmpty ? 0 : (options.height ?? 96),
-      isEmpty: options.decodeEmpty,
+      await writeFile(outputPath, makePngHeader(1, 1));
     }),
   };
   const library = await import("../src/main/library");

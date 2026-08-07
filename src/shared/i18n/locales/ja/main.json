@@ -137,6 +137,10 @@
       "fileTooLarge": "{{file}}は大きすぎます。",
       "webpConvert": "WEBP画像をPNGに変換できませんでした：{{file}}",
       "resolutionTooLarge": "画像の解像度が大きすぎます：{{file}}",
+      "invalidImageHeader": "画像ヘッダーが無効です：{{file}}",
+      "imageDimensionsChanged": "保存された画像の寸法が元画像と一致しません：{{file}}",
+      "normalizedImageTooLarge": "正規化された画像ファイルが大きすぎます：{{file}}",
+      "imageDecodeTimedOut": "画像のデコードがタイムアウトしました：{{file}}",
       "tooManySources": "インポートするフォルダーまたは画像が多すぎます。",
       "zipEntryMissing": "ZIP内の項目が見つかりません：{{entry}}",
       "noChapterToCreate": "作成する話がありません。",
@@ -176,6 +180,8 @@
       "invalidInpaintingLocation": "共有ファイルのインペインティング画像位置が無効です。",
       "packageInpaintingMissing": "共有ファイルにインペインティング画像がありません：{{page}}",
       "unsupportedInpaintingImage": "未対応のインペインティング画像形式です：{{page}}",
+      "inpaintingDimensionsMismatch": "{{page}}のインペインティング画像の寸法が元画像と一致しません。",
+      "invalidImageDimensions": "{{page}}の実際の画像寸法が無効です。",
       "invalidTrashLocation": "共有インポートの一時保管場所が無効です。",
       "invalidChapterLocation": "話情報のライブラリ位置が無効です。"
     }

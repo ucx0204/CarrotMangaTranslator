@@ -30,6 +30,7 @@ const MAX_TEXT_LENGTH = 20000;
 const MAX_PATH_LENGTH = 4096;
 export const MAX_ID_LIST_LENGTH = 2000;
 export const MAX_PAGES_PER_REQUEST = 2000;
+export const MAX_IMAGE_DIMENSION = 100_000;
 export const MAX_BLOCKS_PER_PAGE = 500;
 export const MAX_MASK_STROKES = 200;
 export const MAX_STROKE_POINTS = 1200;

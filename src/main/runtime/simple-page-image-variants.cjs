@@ -1,5 +1,6 @@
 // @ts-check
 const sourceAssets = require("./assets/image-source-assets.cjs");
+const fileValidation = require("./assets/image-file-validation.cjs");
 const {
   buildOpenAIVisionVariant,
 } = require("./assets/openai-vision-variant.cjs");
@@ -10,6 +11,7 @@ const { prepareImageVariants } = require("./assets/image-variants.cjs");
 
 module.exports = {
   ...sourceAssets,
+  ...fileValidation,
   buildOpenAIVisionVariant,
   ...electronEnhancement,
   ...powershellEnhancement,

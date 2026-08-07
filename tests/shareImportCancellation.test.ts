@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LibraryChapter, LibraryWork } from "../src/shared/libraryTypes";
+import { makePngImage as makePngHeader } from "./helpers/imageFixtures";
 
 const tempDirs: string[] = [];
 
@@ -244,7 +245,7 @@ async function loadLibrary(
       fontsDir: join(rootDir, "fonts"),
       logsDir: join(rootDir, "logs"),
       logFile: join(rootDir, "logs", "app.log"),
-      runtimeDir: join(rootDir, "runtime"),
+      runtimeDir: join(process.cwd(), "src", "main", "runtime"),
       toolsDir: join(rootDir, "tools"),
       ocrRuntimeDir: join(rootDir, "ocr-runtime"),
       llamaRuntimeDir: join(rootDir, "tools", "llama"),
@@ -281,7 +282,7 @@ async function seedChapter(
   pageId: string,
 ): Promise<void> {
   const chapter = makeChapter(rootDir, chapterId, title, pageId);
-  await writeFile(chapter.pages[0]?.imagePath ?? "", `image-${pageId}`);
+  await writeFile(chapter.pages[0]?.imagePath ?? "", makePngHeader(100, 120));
   await writeJson(
     join(rootDir, "works", "work-1", "chapters", chapterId, "chapter.json"),
     chapter,

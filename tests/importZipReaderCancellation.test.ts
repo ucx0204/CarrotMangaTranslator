@@ -49,8 +49,8 @@ describe("ZIP reader cancellation ownership", () => {
       await import("../src/main/libraryStore/importPageMaterialize");
     const zipReaderCache = new Map<string, ZipArchiveReader>();
     const imageRuntime: ImportImageRuntime = {
-      decodeToPng: vi.fn(async () => Buffer.from("png")),
-      inspectImage: vi.fn(() => ({ width: 64, height: 96, isEmpty: false })),
+      validateImageFile: vi.fn(async () => undefined),
+      convertWebpToPngFile: vi.fn(async () => undefined),
     };
 
     try {

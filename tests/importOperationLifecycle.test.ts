@@ -178,17 +178,19 @@ describe("library import managed operation lifecycle", () => {
     const controller = new AbortController();
     let decodeCount = 0;
     const imageRuntime: ImportImageRuntime = {
-      decodeToPng: vi.fn(async () => {
+      validateImageFile: vi.fn(async () => undefined),
+      convertWebpToPngFile: vi.fn(async (_sourcePath, outputPath) => {
+        await writeFile(
+          outputPath,
+          Buffer.from(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZQmcAAAAASUVORK5CYII=",
+            "base64",
+          ),
+        );
         decodeCount += 1;
         if (decodeCount === 2) {
           controller.abort(new DOMException("cancel import", "AbortError"));
         }
-        return Buffer.from("png");
-      }),
-      inspectImage: () => ({
-        width: 64,
-        height: 96,
-        isEmpty: false,
       }),
     };
     const library = await import("../src/main/library");

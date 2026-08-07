@@ -3,8 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  convertImageToPngFileThroughRuntime,
   decodeImageThroughRuntime,
   loadSimplePageRuntime,
+  validateImageThroughRuntime,
 } from "../src/main/simplePageRuntime";
 
 const tempDirs: string[] = [];
@@ -26,6 +28,8 @@ module.exports = {
   startServer: async () => ({ baseUrl: "http://127.0.0.1", child: null, startedByScript: false }),
   stopServer: async () => {},
   isModelCached: () => true,
+  validateImageFileWithFfmpeg: async () => {},
+  convertImageToPngFileWithFfmpeg: async () => {},
   testModelReply: async () => ({ outputText: ${JSON.stringify(label)}, launchTarget: { launchMode: "unknown" } })
 };
 `,
@@ -53,6 +57,7 @@ describe("simple page runtime loader", () => {
       "collectOcrBboxHints",
       "collectOcrBboxHintsBatch",
       "convertImageToPngBufferWithFfmpeg",
+      "convertImageToPngFileWithFfmpeg",
       "ensurePaddleOcrRuntime",
       "isModelCached",
       "requestTranslation",
@@ -60,6 +65,7 @@ describe("simple page runtime loader", () => {
       "startServer",
       "stopServer",
       "testModelReply",
+      "validateImageFileWithFfmpeg",
     ]);
   });
 
@@ -100,6 +106,8 @@ module.exports = {
   startServer: async () => ({ baseUrl: "http://127.0.0.1", child: null, startedByScript: false }),
   stopServer: async () => {},
   isModelCached: () => true,
+  validateImageFileWithFfmpeg: async () => {},
+  convertImageToPngFileWithFfmpeg: async () => {},
   testModelReply: async () => ({ outputText: "", launchTarget: { launchMode: "unknown" } }),
   convertImageToPngBufferWithFfmpeg: async (_filePath, options) =>
     Buffer.from(options.abortSignal && options.abortSignal.aborted ? "aborted" : "active")
@@ -115,6 +123,49 @@ module.exports = {
     );
 
     expect(result?.toString()).toBe("aborted");
+  });
+
+  it("forwards file image validation and conversion limits", async () => {
+    const runtimeDir = writeRuntimeModule(`
+module.exports = {
+  startServer: async () => ({ baseUrl: "http://127.0.0.1", child: null, startedByScript: false }),
+  stopServer: async () => {},
+  isModelCached: () => true,
+  testModelReply: async () => ({ outputText: "", launchTarget: { launchMode: "unknown" } }),
+  validateImageFileWithFfmpeg: async (filePath, options) => {
+    if (filePath !== "input.png" || options.maxPixels !== 123 || options.timeoutMs !== 456 || !options.abortSignal) {
+      throw new Error("invalid validation options");
+    }
+  },
+  convertImageToPngFileWithFfmpeg: async (sourcePath, outputPath, options) => {
+    if (sourcePath !== "input.webp" || outputPath !== "output.png" || options.maxPixels !== 789 || options.maxOutputBytes !== 1011 || options.timeoutMs !== 1213 || !options.abortSignal) {
+      throw new Error("invalid conversion options");
+    }
+  }
+};
+`);
+    const controller = new AbortController();
+
+    await expect(
+      validateImageThroughRuntime(runtimeDir, "input.png", {
+        maxPixels: 123,
+        timeoutMs: 456,
+        signal: controller.signal,
+      }),
+    ).resolves.toBeUndefined();
+    await expect(
+      convertImageToPngFileThroughRuntime(
+        runtimeDir,
+        "input.webp",
+        "output.png",
+        {
+          maxPixels: 789,
+          maxOutputBytes: 1011,
+          timeoutMs: 1213,
+          signal: controller.signal,
+        },
+      ),
+    ).resolves.toBeUndefined();
   });
 
   it("closes the abort race immediately after the FFmpeg process starts", async () => {

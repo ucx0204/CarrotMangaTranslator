@@ -137,6 +137,10 @@
       "fileTooLarge": "{{file}} 檔案過大。",
       "webpConvert": "無法將 WEBP 圖片轉換為 PNG：{{file}}",
       "resolutionTooLarge": "圖片解析度過高：{{file}}",
+      "invalidImageHeader": "圖片標頭無效：{{file}}",
+      "imageDimensionsChanged": "儲存後的圖片尺寸與來源圖片不一致：{{file}}",
+      "normalizedImageTooLarge": "正規化後的圖片檔案過大：{{file}}",
+      "imageDecodeTimedOut": "圖片解碼逾時：{{file}}",
       "tooManySources": "要匯入的資料夾或圖片過多。",
       "zipEntryMissing": "找不到 ZIP 項目：{{entry}}",
       "noChapterToCreate": "沒有可建立的章節。",
@@ -176,6 +180,8 @@
       "invalidInpaintingLocation": "共享檔案中的修補圖片位置無效。",
       "packageInpaintingMissing": "共享檔案中沒有修補圖片：{{page}}",
       "unsupportedInpaintingImage": "不支援的修補圖片格式：{{page}}",
+      "inpaintingDimensionsMismatch": "{{page}} 的修補圖片尺寸與原圖不一致。",
+      "invalidImageDimensions": "{{page}} 的實際圖片尺寸無效。",
       "invalidTrashLocation": "共享匯入暫存位置無效。",
       "invalidChapterLocation": "章節資訊的媒體庫位置無效。"
     }

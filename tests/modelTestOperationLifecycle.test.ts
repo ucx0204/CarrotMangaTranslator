@@ -230,6 +230,8 @@ function createEvent(): Parameters<typeof handleModelSettingsTest>[1] {
 function createRuntime(): SimplePageRuntime {
   return {
     isModelCached: vi.fn(() => true),
+    validateImageFileWithFfmpeg: vi.fn(async () => undefined),
+    convertImageToPngFileWithFfmpeg: vi.fn(async () => undefined),
     ensurePaddleOcrRuntime: vi.fn(async () => ({
       runtimeVariant: "cpu",
       pythonPath: "C:\\python\\python.exe",
