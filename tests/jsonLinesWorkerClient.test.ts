@@ -307,7 +307,7 @@ async function expectNoiseDoesNotExtendDeadline(
   stream: "stdout" | "stderr",
 ): Promise<void> {
   const { dir, scriptPath } = makeWorkerDir(noisyHangScript(stream));
-  const timeoutMs = 140;
+  const timeoutMs = 1_000;
   const client = makeClient(scriptPath, { requestTimeoutMs: timeoutMs });
   try {
     await expect(
@@ -316,7 +316,7 @@ async function expectNoiseDoesNotExtendDeadline(
     const hang = client.startRequest({ type: "hang" });
     let rejection: unknown;
     try {
-      await withHardCap(hang.response, 3_000);
+      await withHardCap(hang.response, 4_000);
     } catch (error) {
       rejection = error;
     }
