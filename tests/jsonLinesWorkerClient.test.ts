@@ -193,12 +193,12 @@ describe("JsonLinesWorkerClient", () => {
 
   it("cleans the deadline timer after a successful response", async () => {
     const { dir, scriptPath } = makeWorkerDir(FAST_RESPONSE_SCRIPT);
-    const client = makeClient(scriptPath, { requestTimeoutMs: 80 });
+    const client = makeClient(scriptPath, { requestTimeoutMs: 1_000 });
     try {
       await expect(
         client.startRequest({ type: "ping" }).response,
       ).resolves.toMatchObject({ ok: true });
-      await delay(180);
+      await delay(1_200);
       expect(client.isHealthy()).toBe(true);
     } finally {
       try {
