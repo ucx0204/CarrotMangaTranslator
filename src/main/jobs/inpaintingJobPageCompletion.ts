@@ -1,5 +1,6 @@
 import type { MangaPage } from "../../shared/libraryTypes";
 import { isBubbleLayoutBlockEligible } from "../bubbleLayout/bubbleLayoutBlockEligibility";
+import { normalizeTranslationCompletionReferences } from "../translationCompletionReferences";
 import { translationCompletionsEqual } from "../inpainting/inpaintingRevisionHelpers";
 import {
   countEligiblePatternBlocks,
@@ -170,7 +171,10 @@ export function resolvePreviouslyErasedBlockIds(
   ) {
     return undefined;
   }
-  const completion = page.translationCompletion;
+  const completion = normalizeTranslationCompletionReferences(
+    page.translationCompletion,
+    page.blocks,
+  );
   if (
     !completion ||
     completion.workflow !==
@@ -199,7 +203,10 @@ function resolveNextTranslationCompletion(
   target: InpaintingTarget,
 ): MangaPage["translationCompletion"] {
   if (!ownsFullPageTranslationCompletion(target)) return undefined;
-  const current = result.page.translationCompletion;
+  const current = normalizeTranslationCompletionReferences(
+    result.page.translationCompletion,
+    result.page.blocks,
+  );
   const expectedWorkflow = resolveExpectedTranslationCompletionWorkflow(
     state,
     target,

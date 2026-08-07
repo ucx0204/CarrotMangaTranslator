@@ -159,6 +159,7 @@
       "duplicateExistingChapter": "The same existing chapter was included twice.",
       "existingChapterNotFound": "The chapter to apply was not found in the existing work.",
       "duplicateSharedChapter": "The same shared chapter was included twice.",
+      "duplicateBlockId": "A page in the shared file contains a duplicate text block ID: {{page}}",
       "noChaptersToApply": "There are no chapters to apply.",
       "selectChapter": "Select a chapter to share.",
       "exportChapterNotFound": "The chapter to share was not found.",

@@ -159,6 +159,7 @@
       "duplicateExistingChapter": "같은 기존 화가 두 번 포함되어 있습니다.",
       "existingChapterNotFound": "기존 작품에서 적용할 화를 찾지 못했습니다.",
       "duplicateSharedChapter": "같은 공유 화가 두 번 포함되어 있습니다.",
+      "duplicateBlockId": "공유 파일의 한 페이지에 중복된 텍스트 블록 ID가 있습니다: {{page}}",
       "noChaptersToApply": "적용할 화가 없습니다.",
       "selectChapter": "공유할 화를 선택해 주세요.",
       "exportChapterNotFound": "공유할 화를 찾지 못했습니다.",

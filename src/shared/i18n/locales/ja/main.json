@@ -159,6 +159,7 @@
       "duplicateExistingChapter": "同じ既存の話が重複しています。",
       "existingChapterNotFound": "既存作品に適用する話が見つかりません。",
       "duplicateSharedChapter": "同じ共有の話が重複しています。",
+      "duplicateBlockId": "共有ファイルの1ページに重複したテキストブロックIDがあります: {{page}}",
       "noChaptersToApply": "適用する話がありません。",
       "selectChapter": "共有する話を選択してください。",
       "exportChapterNotFound": "共有する話が見つかりません。",

@@ -4,6 +4,7 @@ import type { WorkShareImportEntry } from "../../shared/shareTypes";
 import type { WorkStyleGuide } from "../../shared/workContextTypes";
 import { z } from "zod";
 import { throwIfAborted } from "../abortSignal";
+import { assertUniqueTranslationBlockIds } from "../translationCompletionReferences";
 import { tMain } from "./localization";
 import {
   LibraryChapterFileSchema,
@@ -336,6 +337,10 @@ function validateShareChapter(
     }
   }
   for (const page of chapter.pages) {
+    assertUniqueTranslationBlockIds(
+      page.blocks,
+      tMain("share.errors.duplicateBlockId", { page: page.name }),
+    );
     validateSharePageImage(page, packageChapterId, entries);
     validateSharePageInpaintedImage(page, packageChapterId, entries);
   }

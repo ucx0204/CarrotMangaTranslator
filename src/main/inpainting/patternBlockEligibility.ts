@@ -1,5 +1,6 @@
 import type { MangaPage } from "../../shared/libraryTypes";
 import type { TranslationBlock } from "../../shared/textTypes";
+import { normalizeTranslationCompletionReferences } from "../translationCompletionReferences";
 import { hasUsableBbox } from "./maskGeometry";
 
 export function isPatternInpaintingBlockEligible(
@@ -42,11 +43,18 @@ export function hasInvalidRequiredPatternBlock(
 }
 
 export function shouldUseOriginalPatternImage(
-  page: Pick<MangaPage, "inpaintedImagePath" | "translationCompletion">,
+  page: Pick<
+    MangaPage,
+    "blocks" | "inpaintedImagePath" | "translationCompletion"
+  >,
 ): boolean {
+  const completion = normalizeTranslationCompletionReferences(
+    page.translationCompletion,
+    page.blocks,
+  );
   return Boolean(
     page.inpaintedImagePath &&
-    page.translationCompletion?.status === "pending" &&
-    !page.translationCompletion.erasedBlockIds?.length,
+    completion?.status === "pending" &&
+    !completion.erasedBlockIds?.length,
   );
 }

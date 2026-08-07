@@ -118,6 +118,29 @@ describe("share package session", () => {
     expect(fake.stats.closeCount).toBe(1);
   });
 
+  it("rejects duplicate page block ids before any image entry can be read", async () => {
+    const fake = createFakePackage(["chapter-a"], {
+      chapterBuffers: new Map([
+        ["chapter-a", makeDuplicateBlockChapterBuffer("chapter-a")],
+      ]),
+    });
+
+    await expect(
+      previewWorkShareImport("duplicate-blocks.mgtshare", {
+        readerRuntime: fake.runtime,
+      }),
+    ).rejects.toThrow(/블록 ID|block ID/i);
+
+    expect(fake.stats.openCount).toBe(1);
+    expect(fake.stats.closeCount).toBe(1);
+    expect(chapterReadNames(fake.stats)).toEqual([
+      "chapters/chapter-a/chapter.json",
+    ]);
+    expect(
+      fake.stats.readEntryNames.some((name) => name.includes("/pages/")),
+    ).toBe(false);
+  });
+
   it("closes the reader when abort happens immediately after open", async () => {
     const controller = new AbortController();
     const fake = createFakePackage(["chapter-a"], {
@@ -243,6 +266,48 @@ function makeChapterBuffer(id: string, index: number): Buffer {
     status: "idle",
     pageOrder: [],
     pages: [],
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  });
+}
+
+function makeDuplicateBlockChapterBuffer(id: string): Buffer {
+  const block = {
+    id: "duplicate",
+    type: "nonsolid",
+    bbox: { x: 0, y: 0, w: 100, h: 100 },
+    sourceText: "source",
+    translatedText: "translated",
+    confidence: 1,
+    sourceDirection: "horizontal",
+    renderDirection: "horizontal",
+    fontSizePx: 16,
+    lineHeight: 1.2,
+    textAlign: "left",
+    textColor: "#000000",
+    backgroundColor: "#ffffff",
+    opacity: 1,
+  };
+  return jsonBuffer({
+    id,
+    workId: "fake-work",
+    title: "Duplicate Blocks",
+    sourceKind: "folder",
+    status: "idle",
+    pageOrder: ["page-a"],
+    pages: [
+      {
+        id: "page-a",
+        name: "page.png",
+        imagePath: `chapters/${id}/pages/page.png`,
+        width: 100,
+        height: 100,
+        blocks: [block, { ...block }],
+        analysisStatus: "completed",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+    ],
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
   });

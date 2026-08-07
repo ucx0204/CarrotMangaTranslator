@@ -2,6 +2,10 @@ import { stat } from "node:fs/promises";
 import { extname } from "node:path";
 import type { LibraryPageRecord } from "../../shared/libraryTypes";
 import { throwIfAborted } from "../abortSignal";
+import {
+  assertUniqueTranslationBlockIds,
+  normalizeTranslationCompletionReferences,
+} from "../translationCompletionReferences";
 import type {
   WorkShareExportRequest,
   WorkShareExportResult,
@@ -133,6 +137,14 @@ async function addPageToShare(
   signal?: AbortSignal,
 ): Promise<LibraryPageRecord> {
   throwIfAborted(signal);
+  assertUniqueTranslationBlockIds(
+    page.blocks,
+    tMain("share.errors.duplicateBlockId", { page: page.name }),
+  );
+  const translationCompletion = normalizeTranslationCompletionReferences(
+    page.translationCompletion,
+    page.blocks,
+  );
   const imageExt = extname(page.imagePath).toLowerCase() || ".png";
   const packageImagePath = `chapters/${chapterId}/pages/${String(pageIndex + 1).padStart(3, "0")}-${page.id}${imageExt}`;
   await addImageFileToShare({
@@ -155,6 +167,7 @@ async function addPageToShare(
       pageIndex,
       signal,
     ),
+    translationCompletion,
   };
 }
 

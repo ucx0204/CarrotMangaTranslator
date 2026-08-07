@@ -159,6 +159,7 @@
       "duplicateExistingChapter": "同一現有章節被重複包含。",
       "existingChapterNotFound": "現有作品中找不到要套用的章節。",
       "duplicateSharedChapter": "同一共享章節被重複包含。",
+      "duplicateBlockId": "共享檔案的某一頁包含重複的文字區塊 ID：{{page}}",
       "noChaptersToApply": "沒有可套用的章節。",
       "selectChapter": "請選擇要共享的章節。",
       "exportChapterNotFound": "找不到要共享的章節。",

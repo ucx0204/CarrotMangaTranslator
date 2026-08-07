@@ -25,6 +25,7 @@ import {
 import { getWorksRoot } from "./libraryPaths";
 import { tMain } from "./localization";
 import { buildMaterializedSharedChapter } from "./shareImportChapterRecord";
+import { buildMaterializedSharedPage } from "./shareImportPageRecord";
 import {
   resolveSharedInpaintedOutputPath,
   resolveSharedPageOutputPath,
@@ -215,20 +216,15 @@ async function materializeSharedPage({
     signal,
   });
   throwIfAborted(signal);
-  return {
-    ...packagePage,
-    id: pageId,
+  return buildMaterializedSharedPage({
+    packagePage,
+    pageId,
     imagePath: outputPath,
     inpaintedImagePath: inpainted?.path,
     width: originalMetadata.width,
     height: originalMetadata.height,
-    blocks: packagePage.blocks.map((block, blockIndex) => ({
-      ...block,
-      id: `${pageId}-block-${blockIndex + 1}`,
-    })),
-    createdAt: now,
-    updatedAt: now,
-  };
+    now,
+  });
 }
 
 async function materializeSharedInpaintedImage({
