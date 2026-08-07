@@ -61,6 +61,15 @@ export class KoharuWorker {
       sanitizeStderr: sanitizeKoharuRuntimeStderr,
       onStderr: (text) => logKoharuRuntimeStderr(text, launch),
       onSpawn: (pid) => this.logProcessStarting(pid),
+      onTerminationError: (error) =>
+        logInpaintingRuntimeWarn(
+          "Koharu worker process-tree termination failed",
+          {
+            backend: launch.backend,
+            label: launch.label,
+            error,
+          },
+        ),
     });
   }
 

@@ -79,6 +79,12 @@ export class FluxWorker {
       sanitizeStderr: sanitizeFluxRuntimeStderr,
       onStderr: (text) => logFluxRuntimeStderr(text, launch, this.diagnostics),
       onSpawn: (pid) => this.logProcessStarting(pid),
+      onTerminationError: (error) =>
+        this.diagnostics.warn("Flux worker process-tree termination failed", {
+          backend: this.launch.backend,
+          label: this.launch.label,
+          error,
+        }),
     });
   }
 

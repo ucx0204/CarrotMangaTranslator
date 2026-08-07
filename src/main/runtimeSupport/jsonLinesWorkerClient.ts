@@ -1,7 +1,14 @@
-/* eslint-disable max-lines -- worker protocol, spawn diagnostics, and stderr tail stay co-located for auditability */
+/* eslint-disable max-lines -- worker protocol, lifecycle state, spawn diagnostics, and stderr tail stay co-located for auditability */
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import {
+  createChildExitReceipt,
+  forceTerminateChildProcessTree,
+  shouldSpawnInOwnProcessGroup,
+  type ChildExitResult,
+} from "./processTreeTermination";
 
 const DEFAULT_WORKER_REQUEST_TIMEOUT_MS = 30 * 60 * 1000;
+export const JSON_WORKER_SHUTDOWN_GRACE_MS = 1_500;
 const MAX_RESPONSE_LINE_LENGTH = 1024 * 1024;
 const MAX_STDERR_CHUNK_LENGTH = 16_000;
 
@@ -23,12 +30,16 @@ type JsonLinesWorkerClientOptions = {
   sanitizeStderr: (text: string) => string;
   onStderr: (text: string) => void;
   onSpawn?: (pid: number | null) => void;
+  onTerminationError: (error: Error) => void;
 };
 
 type PendingRequest<TResponse extends JsonLinesWorkerResponse> = {
+  id: string;
+  startedAt: number;
+  deadlineTimer: ReturnType<typeof setTimeout>;
+  removeAbortListener: () => void;
   resolve: (response: TResponse) => void;
   reject: (error: Error) => void;
-  refreshTimeout: () => void;
 };
 
 type JsonLinesRequestHandle<TResponse extends JsonLinesWorkerResponse> = {
@@ -36,18 +47,54 @@ type JsonLinesRequestHandle<TResponse extends JsonLinesWorkerResponse> = {
   response: Promise<TResponse>;
 };
 
+type WorkerClientState =
+  | "running"
+  | "closing"
+  | "closed"
+  | "termination-failed";
+
+type PermanentFailurePlan = {
+  primaryRequestId: string | null;
+  primaryError: Error;
+  otherError: Error;
+};
+
+type GracefulShutdownOutcome =
+  | { kind: "exited" }
+  | { kind: "write-error"; error: Error }
+  | { kind: "timeout" };
+
+export class JsonWorkerRequestTimeoutError extends Error {
+  readonly code = "JSON_WORKER_REQUEST_TIMEOUT";
+
+  constructor(
+    readonly workerName: string,
+    readonly requestId: string,
+    readonly timeoutMs: number,
+    readonly elapsedMs: number,
+  ) {
+    super(
+      `${workerName} 요청 ${requestId}의 절대 응답 제한 ${timeoutMs}ms를 초과했습니다.`,
+    );
+    this.name = "JsonWorkerRequestTimeoutError";
+  }
+}
+
 export class JsonLinesWorkerClient<
   TRequest extends object,
   TResponse extends JsonLinesWorkerResponse = JsonLinesWorkerResponse,
 > {
   private readonly child: ChildProcessWithoutNullStreams;
+  private readonly childExitReceipt: ReturnType<typeof createChildExitReceipt>;
   private readonly pending = new Map<string, PendingRequest<TResponse>>();
   private readonly stderrTail: string[] = [];
   private readonly requestTimeoutMs: number;
   private nextId = 1;
   private stdoutBuffer = "";
   private writeQueue: Promise<void> = Promise.resolve();
-  private closed = false;
+  private state: WorkerClientState = "running";
+  private terminationPromise: Promise<void> | null = null;
+  private disposePromise: Promise<void> | null = null;
 
   constructor(private readonly options: JsonLinesWorkerClientOptions) {
     this.requestTimeoutMs = normalizeRequestTimeout(
@@ -57,15 +104,15 @@ export class JsonLinesWorkerClient<
       windowsHide: true,
       stdio: ["pipe", "pipe", "pipe"],
       env: options.env,
+      detached: shouldSpawnInOwnProcessGroup(),
     });
+    this.childExitReceipt = createChildExitReceipt(this.child);
     options.onSpawn?.(this.child.pid ?? null);
     this.child.stdout.on("data", (chunk: Buffer) => this.handleStdout(chunk));
     this.child.stderr.on("data", (chunk: Buffer) =>
       this.rememberStderr(chunk.toString("utf8")),
     );
-    this.child.on("error", (error) =>
-      this.failPermanently(this.enrichSpawnError(error)),
-    );
+    this.child.on("error", (error) => this.handleChildError(error));
     this.child.on("exit", (code) => this.handleExit(code));
   }
 
@@ -83,46 +130,14 @@ export class JsonLinesWorkerClient<
     return { id, response };
   }
 
-  async dispose(): Promise<void> {
-    if (this.closed) {
-      return;
-    }
-    if (this.pending.size > 0) {
-      this.failPermanently(
-        new Error(`${this.options.workerName} 워커가 종료되었습니다.`),
-      );
-      return;
-    }
-    try {
-      if (this.child.stdin.writable) {
-        this.child.stdin.write(
-          `${JSON.stringify({ type: "shutdown" })}\n`,
-          "utf8",
-          (error) => {
-            if (error) {
-              this.failPermanently(error);
-            }
-          },
-        );
-        this.child.stdin.end();
-      }
-      await this.waitForExit(1500);
-    } catch (error) {
-      this.failPermanently(toError(error));
-    } finally {
-      if (!this.closed) {
-        this.killChild();
-        this.closed = true;
-        this.rejectAll(
-          new Error(`${this.options.workerName} 워커가 종료되었습니다.`),
-        );
-      }
-    }
+  dispose(): Promise<void> {
+    this.disposePromise ??= this.disposeInternal();
+    return this.disposePromise;
   }
 
   isHealthy(): boolean {
     return (
-      !this.closed &&
+      this.state === "running" &&
       this.child.exitCode === null &&
       this.child.signalCode === null &&
       this.child.stdin.writable
@@ -133,37 +148,82 @@ export class JsonLinesWorkerClient<
     return this.stderrTail.join("");
   }
 
+  private async disposeInternal(): Promise<void> {
+    if (this.terminationPromise) {
+      await this.terminationPromise;
+      return;
+    }
+    if (this.state === "closed") {
+      return;
+    }
+    if (this.state === "termination-failed") {
+      throw new Error(
+        `${this.options.workerName} 워커 종료가 이미 실패했습니다.`,
+      );
+    }
+    if (this.pending.size > 0) {
+      const error = new Error(
+        `${this.options.workerName} 워커가 종료되었습니다.`,
+      );
+      await this.beginPermanentFailure({
+        primaryRequestId: null,
+        primaryError: error,
+        otherError: error,
+      });
+      return;
+    }
+
+    this.state = "closing";
+    if (this.childExitReceipt.hasExited()) {
+      this.state = "closed";
+      return;
+    }
+
+    const shutdownWrite = this.beginGracefulShutdown();
+    const outcome = await waitForGracefulShutdown(
+      this.childExitReceipt.promise,
+      shutdownWrite,
+      JSON_WORKER_SHUTDOWN_GRACE_MS,
+    );
+    if (outcome.kind === "exited") {
+      this.state = "closed";
+      return;
+    }
+
+    try {
+      await forceTerminateChildProcessTree(this.child);
+      this.state = "closed";
+    } catch (error) {
+      const terminationError = toError(error);
+      this.state = "termination-failed";
+      this.options.onTerminationError(terminationError);
+      throw terminationError;
+    }
+  }
+
   private registerPendingRequest(
     id: string,
     signal: AbortSignal | undefined,
     resolve: (response: TResponse) => void,
     reject: (error: Error) => void,
   ): void {
+    const startedAt = Date.now();
     const onAbort = () => this.abortRequest(id);
-    let timeout: ReturnType<typeof setTimeout>;
-    const refreshTimeout = () => {
-      clearTimeout(timeout);
-      timeout = setTimeout(
-        () => this.handleRequestTimeout(id),
-        this.requestTimeoutMs,
-      );
-    };
     const removeAbortListener = () =>
       signal?.removeEventListener("abort", onAbort);
+    const deadlineTimer = setTimeout(
+      () => this.handleRequestTimeout(id, startedAt),
+      this.requestTimeoutMs,
+    );
+
     this.pending.set(id, {
-      resolve: (response) => {
-        clearTimeout(timeout);
-        removeAbortListener();
-        resolve(response);
-      },
-      reject: (error) => {
-        clearTimeout(timeout);
-        removeAbortListener();
-        reject(error);
-      },
-      refreshTimeout,
+      id,
+      startedAt,
+      deadlineTimer,
+      removeAbortListener,
+      resolve,
+      reject,
     });
-    refreshTimeout();
     signal?.addEventListener("abort", onAbort, { once: true });
     if (signal?.aborted) {
       onAbort();
@@ -171,34 +231,36 @@ export class JsonLinesWorkerClient<
   }
 
   private abortRequest(id: string): void {
-    const aborted = this.pending.get(id);
-    if (!aborted) {
+    if (!this.pending.has(id)) {
       return;
     }
-    if (!this.closed) {
-      this.closed = true;
-      this.killChild();
-    }
-    this.pending.delete(id);
-    aborted.reject(createAbortError());
-    this.rejectAll(
-      new Error(
+    void this.beginPermanentFailure({
+      primaryRequestId: id,
+      primaryError: createAbortError(),
+      otherError: new Error(
         `${this.options.workerName} 워커가 다른 요청의 취소로 종료되었습니다.`,
       ),
-    );
+    });
   }
 
   private enqueueWrite(line: string): void {
     const write = this.writeQueue.then(() => this.writeLine(line));
     this.writeQueue = write.then(
       () => undefined,
-      (error) => this.failPermanently(toError(error)),
+      (error) => {
+        const failure = toError(error);
+        void this.beginPermanentFailure({
+          primaryRequestId: null,
+          primaryError: failure,
+          otherError: failure,
+        });
+      },
     );
   }
 
   private writeLine(line: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      if (this.closed || !this.child.stdin.writable) {
+      if (this.state !== "running" || !this.child.stdin.writable) {
         reject(this.options.buildNotRunningError(this.getStderr()));
         return;
       }
@@ -216,10 +278,37 @@ export class JsonLinesWorkerClient<
     });
   }
 
+  private beginGracefulShutdown(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.child.stdin.writable) {
+        resolve();
+        return;
+      }
+      try {
+        this.child.stdin.write(
+          `${JSON.stringify({ type: "shutdown" })}\n`,
+          "utf8",
+          (error) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve();
+            }
+          },
+        );
+        this.child.stdin.end();
+      } catch (error) {
+        reject(toError(error));
+      }
+    });
+  }
+
   private handleStdout(chunk: Buffer): void {
-    this.refreshPendingRequestTimeouts();
+    if (this.state !== "running") {
+      return;
+    }
     this.stdoutBuffer += chunk.toString("utf8");
-    while (!this.closed) {
+    while (this.state === "running") {
       const newlineIndex = this.stdoutBuffer.indexOf("\n");
       if (newlineIndex < 0) {
         if (this.stdoutBuffer.length > MAX_RESPONSE_LINE_LENGTH) {
@@ -244,10 +333,6 @@ export class JsonLinesWorkerClient<
   }
 
   private handleResponseLine(line: string): boolean {
-    // Flux/Koharu/anime-text 런타임이 CUDA/드라이버 경고(ANSI 이스케이프 포함)를
-    // stdout에 섞어 내보낼 수 있다. 이전에는 비-JSON 라인 한 줄이 프로토콜
-    // 오류로 워커를 kill했는데, 노이즈는 스킵하고 진단용 stderr tail에만
-    // 보관한다. { 로 시작하는 라인만 응답 후보로 파싱한다.
     const stripped = stripAnsiEscapes(line);
     if (!stripped.startsWith("{")) {
       this.rememberStderr(`${line}\n`);
@@ -259,46 +344,146 @@ export class JsonLinesWorkerClient<
       return false;
     }
     const response = parsed.response;
-    const pending = this.pending.get(response.id);
+    const pending = this.takePending(response.id);
     if (!pending) {
       this.failProtocol(`알 수 없는 요청 ID를 받았습니다: ${response.id}`);
       return false;
     }
-    this.pending.delete(response.id);
     pending.resolve(response as TResponse);
     return true;
   }
 
   private handleExit(code: number | null): void {
-    this.closed = true;
-    if (this.pending.size > 0) {
-      this.rejectAll(this.options.buildExitError(code, this.getStderr()));
+    if (this.terminationPromise) {
+      return;
+    }
+    if (this.state === "running") {
+      this.state = "closed";
+      this.rejectAllNow(this.options.buildExitError(code, this.getStderr()));
+      return;
+    }
+    if (this.state === "closing") {
+      this.state = "closed";
     }
   }
 
-  private handleRequestTimeout(id: string): void {
+  private handleChildError(error: Error): void {
+    if (this.state !== "running") {
+      return;
+    }
+    const failure = this.enrichSpawnError(error);
+    void this.beginPermanentFailure({
+      primaryRequestId: null,
+      primaryError: failure,
+      otherError: failure,
+    });
+  }
+
+  private handleRequestTimeout(id: string, startedAt: number): void {
     if (!this.pending.has(id)) {
       return;
     }
-    this.failPermanently(
-      new Error(
-        `${this.options.workerName} 요청 ${id}의 응답 시간이 ${this.requestTimeoutMs}ms를 초과했습니다.`,
-      ),
+    const timeoutError = new JsonWorkerRequestTimeoutError(
+      this.options.workerName,
+      id,
+      this.requestTimeoutMs,
+      Math.max(0, Date.now() - startedAt),
     );
+    void this.beginPermanentFailure({
+      primaryRequestId: id,
+      primaryError: timeoutError,
+      otherError: new Error(
+        `${this.options.workerName} 워커가 요청 ${id} timeout 때문에 종료되었습니다.`,
+      ),
+    });
   }
 
   private failProtocol(detail: string): void {
-    this.failPermanently(
-      new Error(`${this.options.workerName} 응답 프로토콜 오류: ${detail}`),
+    const error = new Error(
+      `${this.options.workerName} 응답 프로토콜 오류: ${detail}`,
     );
+    void this.beginPermanentFailure({
+      primaryRequestId: null,
+      primaryError: error,
+      otherError: error,
+    });
   }
 
-  private failPermanently(error: Error): void {
-    if (!this.closed) {
-      this.closed = true;
-      this.killChild();
+  private beginPermanentFailure(plan: PermanentFailurePlan): Promise<void> {
+    if (this.terminationPromise) {
+      return this.terminationPromise;
     }
-    this.rejectAll(error);
+    if (this.state === "closed") {
+      this.rejectPendingFromPlan(plan, null);
+      return Promise.resolve();
+    }
+
+    this.state = "closing";
+    this.cancelAllPendingWatchdogs();
+    this.terminationPromise = this.terminateAndReject(plan);
+    void this.terminationPromise.catch((error) =>
+      this.options.onTerminationError(toError(error)),
+    );
+    return this.terminationPromise;
+  }
+
+  private async terminateAndReject(plan: PermanentFailurePlan): Promise<void> {
+    let terminationError: Error | null = null;
+    try {
+      await forceTerminateChildProcessTree(this.child);
+      this.state = "closed";
+    } catch (error) {
+      terminationError = toError(error);
+      this.state = "termination-failed";
+    } finally {
+      this.rejectPendingFromPlan(plan, terminationError);
+    }
+
+    if (terminationError) {
+      throw terminationError;
+    }
+  }
+
+  private rejectPendingFromPlan(
+    plan: PermanentFailurePlan,
+    terminationError: Error | null,
+  ): void {
+    for (const id of [...this.pending.keys()]) {
+      const pending = this.takePending(id);
+      if (!pending) {
+        continue;
+      }
+      const error =
+        id === plan.primaryRequestId ? plan.primaryError : plan.otherError;
+      if (terminationError) {
+        Object.assign(error, { terminationError });
+      }
+      pending.reject(error);
+    }
+  }
+
+  private takePending(id: string): PendingRequest<TResponse> | null {
+    const pending = this.pending.get(id);
+    if (!pending) {
+      return null;
+    }
+    this.pending.delete(id);
+    clearTimeout(pending.deadlineTimer);
+    pending.removeAbortListener();
+    return pending;
+  }
+
+  private cancelAllPendingWatchdogs(): void {
+    for (const pending of this.pending.values()) {
+      clearTimeout(pending.deadlineTimer);
+      pending.removeAbortListener();
+    }
+  }
+
+  private rejectAllNow(error: Error): void {
+    for (const id of [...this.pending.keys()]) {
+      this.takePending(id)?.reject(error);
+    }
   }
 
   /**
@@ -326,39 +511,7 @@ export class JsonLinesWorkerClient<
     }
   }
 
-  private killChild(): void {
-    if (
-      this.child.pid !== undefined &&
-      this.child.exitCode === null &&
-      this.child.signalCode === null
-    ) {
-      this.child.kill("SIGTERM");
-    }
-  }
-
-  private waitForExit(timeoutMs: number): Promise<void> {
-    if (
-      this.child.exitCode !== null ||
-      this.child.signalCode !== null ||
-      this.closed
-    ) {
-      return Promise.resolve();
-    }
-    return new Promise((resolve) => {
-      const finish = () => {
-        clearTimeout(timeout);
-        this.child.removeListener("exit", finish);
-        this.child.removeListener("error", finish);
-        resolve();
-      };
-      const timeout = setTimeout(finish, timeoutMs);
-      this.child.once("exit", finish);
-      this.child.once("error", finish);
-    });
-  }
-
   private rememberStderr(text: string): void {
-    this.refreshPendingRequestTimeouts();
     const sanitized = this.options
       .sanitizeStderr(text)
       .slice(-MAX_STDERR_CHUNK_LENGTH);
@@ -368,19 +521,29 @@ export class JsonLinesWorkerClient<
     }
     this.options.onStderr(sanitized);
   }
+}
 
-  private refreshPendingRequestTimeouts(): void {
-    for (const pending of this.pending.values()) {
-      pending.refreshTimeout();
-    }
-  }
-
-  private rejectAll(error: Error): void {
-    for (const pending of this.pending.values()) {
-      pending.reject(error);
-    }
-    this.pending.clear();
-  }
+async function waitForGracefulShutdown(
+  exitPromise: Promise<ChildExitResult>,
+  shutdownWrite: Promise<void>,
+  timeoutMs: number,
+): Promise<GracefulShutdownOutcome> {
+  return await new Promise((resolve) => {
+    let settled = false;
+    const finish = (outcome: GracefulShutdownOutcome) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(timeout);
+      resolve(outcome);
+    };
+    const timeout = setTimeout(() => finish({ kind: "timeout" }), timeoutMs);
+    void exitPromise.then(() => finish({ kind: "exited" }));
+    void shutdownWrite.catch((error) =>
+      finish({ kind: "write-error", error: toError(error) }),
+    );
+  });
 }
 
 type ParsedResponse =

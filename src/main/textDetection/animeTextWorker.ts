@@ -57,6 +57,10 @@ export class AnimeTextWorker {
           executable: launch.executable,
           args: launch.args,
         }),
+      onTerminationError: (error) =>
+        logAnimeTextWarning("anime-text-yolo process-tree termination failed", {
+          error,
+        }),
     });
   }
 

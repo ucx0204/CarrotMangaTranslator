@@ -242,20 +242,22 @@ describe("inpainting worker JSON-lines protocol", () => {
     expect(worker.isHealthy()).toBe(false);
   });
 
-  it("times out a missing response and terminates the worker", async () => {
+  it("times out a missing response at the absolute deadline and terminates the worker", async () => {
     const worker = createFluxWorker("idle", 100);
 
     await expect(worker.inpaint(FLUX_REQUEST)).rejects.toThrow(
-      /응답 시간이 100ms를 초과했습니다/,
+      /절대 응답 제한 100ms를 초과했습니다/,
     );
     expect(worker.isHealthy()).toBe(false);
   });
 
-  it("treats worker progress as activity instead of a wall-clock timeout", async () => {
+  it("does not let worker progress extend the absolute request deadline", async () => {
     const worker = createFluxWorker("active", 500);
 
-    await expect(worker.inpaint(FLUX_REQUEST)).resolves.toBeUndefined();
-    expect(worker.isHealthy()).toBe(true);
+    await expect(worker.inpaint(FLUX_REQUEST)).rejects.toThrow(
+      /절대 응답 제한 500ms를 초과했습니다/,
+    );
+    expect(worker.isHealthy()).toBe(false);
   });
 
   it("aborts the request and all work in the process", async () => {
