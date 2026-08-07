@@ -9,8 +9,14 @@ export type SendModelTestProgress = (
   progress: Omit<ModelTestProgressEvent, "id">,
 ) => void;
 
+export type ModelTestProgressEventSource = {
+  sender: {
+    send: (channel: string, payload: unknown) => void;
+  };
+};
+
 export function createModelTestProgressSender(
-  event: Electron.IpcMainInvokeEvent,
+  event: ModelTestProgressEventSource,
   testId: string,
 ): SendModelTestProgress {
   return (progress) => {

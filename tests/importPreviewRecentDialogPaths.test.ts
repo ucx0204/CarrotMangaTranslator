@@ -3,6 +3,8 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AppActivityGate } from "../src/main/appActivityGate";
+import { AppOperationRegistry } from "../src/main/appOperationRegistry";
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
 import type { IpcContext } from "../src/main/ipc/context";
 import {
@@ -316,6 +318,7 @@ async function makeTempDir(): Promise<string> {
 
 function makeContext(dataRoot: string): IpcContext {
   const mainWindow = new BrowserWindow();
+  const activityGate = new AppActivityGate();
   return {
     appPaths: {
       isPackaged: false,
@@ -334,7 +337,8 @@ function makeContext(dataRoot: string): IpcContext {
       llamaRuntimeDir: join(dataRoot, "tools"),
       llamaServerPath: join(dataRoot, "tools", "llama-server"),
     },
-    jobs: new ActiveJobStore(),
+    jobs: new ActiveJobStore(undefined, activityGate),
+    operations: new AppOperationRegistry(activityGate),
     getMainWindow: () => mainWindow,
     panelWindows: {
       close: () => false,

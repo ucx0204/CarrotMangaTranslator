@@ -1,3 +1,4 @@
+import { throwIfAborted } from "../abortSignal";
 import type {
   WorkShareExportRequest,
   WorkShareExportResult,
@@ -26,8 +27,12 @@ const productionWorkShareExportRuntime: WorkShareExportRuntime = {
 export function createWorkShareExport(runtime: WorkShareExportRuntime) {
   return (
     request: WorkShareExportRequest & { outputPath: string },
+    signal?: AbortSignal,
   ): Promise<WorkShareExportResult> =>
-    runtime.runRead(() => runtime.exportWorkShare(request));
+    runtime.runRead(() => {
+      throwIfAborted(signal);
+      return runtime.exportWorkShare(request, signal);
+    });
 }
 
 export const exportWorkShareToFile = createWorkShareExport(
@@ -36,6 +41,10 @@ export const exportWorkShareToFile = createWorkShareExport(
 
 export async function importWorkShare(
   request: WorkShareImportFromPackageRequest,
+  signal?: AbortSignal,
 ): Promise<WorkShareImportResult> {
-  return withLibraryMutation(() => importWorkShareUnlocked(request));
+  return withLibraryMutation(() => {
+    throwIfAborted(signal);
+    return importWorkShareUnlocked(request, signal);
+  });
 }

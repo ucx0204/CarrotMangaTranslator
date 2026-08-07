@@ -15,6 +15,7 @@ import {
 } from "./pageImageExportPorts";
 import type { InpaintingJobContext } from "./inpaintingJobTypes";
 import { emitJobEvent } from "./jobEvents";
+import { createJobLifetimeCleanupBoundary } from "./jobLifetimeCleanup";
 
 export async function exportPageImages(
   context: InpaintingJobContext,
@@ -26,7 +27,13 @@ export async function exportPageImages(
 
   const id = randomUUID();
   const abortController = new AbortController();
-  context.jobs.start({ id, kind: "page-export", abortController });
+  const lifetime = createJobLifetimeCleanupBoundary();
+  context.jobs.start({
+    id,
+    kind: "page-export",
+    abortController,
+    cleanup: lifetime.cleanup,
+  });
   const emit = (event: JobEvent) =>
     emitJobEvent(context.jobs, context.getMainWindow(), event);
 
@@ -50,7 +57,11 @@ export async function exportPageImages(
       dependencies,
     });
   } finally {
-    context.jobs.clearIfCurrent(id);
+    try {
+      context.jobs.clearIfCurrent(id);
+    } finally {
+      lifetime.finish();
+    }
   }
 }
 

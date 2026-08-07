@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, stat } from "node:fs/promises";
 import { dirname, extname } from "node:path";
 import type { LibraryPageRecord } from "../../shared/libraryTypes";
+import { throwIfAborted } from "../abortSignal";
 import type {
   WorkShareExportRequest,
   WorkShareExportResult,
@@ -24,8 +25,11 @@ import { AdmZip, MAX_SHARE_IMAGE_BYTES } from "./zipSafety";
 
 export async function exportWorkShareToFile(
   request: WorkShareExportRequest & { outputPath: string },
+  signal?: AbortSignal,
 ): Promise<WorkShareExportResult> {
+  throwIfAborted(signal);
   const work = await ensureExistingWork(request.workId);
+  throwIfAborted(signal);
   const requestedIds = new Set(request.chapterIds);
   const chapterIds = work.chapterOrder.filter((chapterId) =>
     requestedIds.has(chapterId),
@@ -50,21 +54,26 @@ export async function exportWorkShareToFile(
     "manifest.json",
     Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`, "utf8"),
   );
+  throwIfAborted(signal);
+  const styleGuide = await readWorkStyleGuide(work.id);
+  throwIfAborted(signal);
   zip.addFile(
     "style-guide.json",
-    Buffer.from(
-      `${JSON.stringify(await readWorkStyleGuide(work.id), null, 2)}\n`,
-      "utf8",
-    ),
+    Buffer.from(`${JSON.stringify(styleGuide, null, 2)}\n`, "utf8"),
   );
 
   let pageCount = 0;
   for (const chapterId of chapterIds) {
-    pageCount += await addChapterToShare(zip, work.id, chapterId);
+    throwIfAborted(signal);
+    pageCount += await addChapterToShare(zip, work.id, chapterId, signal);
+    throwIfAborted(signal);
   }
 
+  throwIfAborted(signal);
   await mkdir(dirname(request.outputPath), { recursive: true });
+  throwIfAborted(signal);
   zip.writeZip(request.outputPath);
+  throwIfAborted(signal);
 
   return {
     filePath: request.outputPath,
@@ -78,8 +87,11 @@ async function addChapterToShare(
   zip: { addFile: (entryName: string, content: Buffer | string) => void },
   workId: string,
   chapterId: string,
+  signal?: AbortSignal,
 ): Promise<number> {
+  throwIfAborted(signal);
   const chapter = await readChapterFile(workId, chapterId);
+  throwIfAborted(signal);
   if (!chapter) {
     throw new Error(tMain("share.errors.exportChapterNotFound"));
   }
@@ -87,7 +99,11 @@ async function addChapterToShare(
   const packagePages: LibraryPageRecord[] = [];
   const orderedPages = reorderRecords(chapter.pages, chapter.pageOrder);
   for (const [pageIndex, page] of orderedPages.entries()) {
-    packagePages.push(await addPageToShare(zip, chapter.id, page, pageIndex));
+    throwIfAborted(signal);
+    packagePages.push(
+      await addPageToShare(zip, chapter.id, page, pageIndex, signal),
+    );
+    throwIfAborted(signal);
   }
 
   const packageChapter: ChapterFile = {
@@ -107,7 +123,9 @@ async function addPageToShare(
   chapterId: string,
   page: LibraryPageRecord,
   pageIndex: number,
+  signal?: AbortSignal,
 ): Promise<LibraryPageRecord> {
+  throwIfAborted(signal);
   const imageExt = extname(page.imagePath).toLowerCase() || ".png";
   const packageImagePath = `chapters/${chapterId}/pages/${String(pageIndex + 1).padStart(3, "0")}-${page.id}${imageExt}`;
   await addImageFileToShare({
@@ -118,6 +136,7 @@ async function addPageToShare(
     missingMessage: tMain("share.errors.sourceImageMissing", {
       page: page.name,
     }),
+    signal,
   });
   return {
     ...page,
@@ -127,6 +146,7 @@ async function addPageToShare(
       chapterId,
       page,
       pageIndex,
+      signal,
     ),
   };
 }
@@ -136,7 +156,9 @@ async function addInpaintedPageToShare(
   chapterId: string,
   page: LibraryPageRecord,
   pageIndex: number,
+  signal?: AbortSignal,
 ): Promise<string | undefined> {
+  throwIfAborted(signal);
   if (!page.inpaintedImagePath) {
     return undefined;
   }
@@ -150,6 +172,7 @@ async function addInpaintedPageToShare(
     missingMessage: tMain("share.errors.inpaintingImageMissing", {
       page: page.name,
     }),
+    signal,
   });
   return packagePath;
 }
@@ -160,13 +183,16 @@ async function addImageFileToShare({
   packagePath,
   displayName,
   missingMessage,
+  signal,
 }: {
   zip: { addFile: (entryName: string, content: Buffer | string) => void };
   sourcePath: string;
   packagePath: string;
   displayName: string;
   missingMessage: string;
+  signal?: AbortSignal;
 }): Promise<void> {
+  throwIfAborted(signal);
   if (!existsSync(sourcePath)) {
     throw new Error(missingMessage);
   }
@@ -175,9 +201,14 @@ async function addImageFileToShare({
       tMain("share.errors.unsupportedImage", { name: displayName }),
     );
   }
+  throwIfAborted(signal);
   const sourceStat = await stat(sourcePath);
+  throwIfAborted(signal);
   if (sourceStat.size > MAX_SHARE_IMAGE_BYTES) {
     throw new Error(tMain("share.errors.fileTooLarge", { name: displayName }));
   }
-  zip.addFile(packagePath, await readFile(sourcePath));
+  throwIfAborted(signal);
+  const sourceBytes = await readFile(sourcePath, { signal });
+  throwIfAborted(signal);
+  zip.addFile(packagePath, sourceBytes);
 }

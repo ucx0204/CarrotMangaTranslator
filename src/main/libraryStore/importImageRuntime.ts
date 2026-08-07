@@ -9,14 +9,17 @@ type ImportImageMetadata = {
 };
 
 export type ImportImageRuntime = {
-  decodeToPng: (sourcePath: string) => Promise<Buffer | null>;
+  decodeToPng: (
+    sourcePath: string,
+    signal?: AbortSignal,
+  ) => Promise<Buffer | null>;
   inspectImage: (imagePath: string) => ImportImageMetadata;
 };
 
 function createProductionImportImageRuntime(): ImportImageRuntime {
   return {
-    decodeToPng: (sourcePath) =>
-      decodeImageThroughRuntime(getAppPaths().runtimeDir, sourcePath),
+    decodeToPng: (sourcePath, signal) =>
+      decodeImageThroughRuntime(getAppPaths().runtimeDir, sourcePath, signal),
     inspectImage: (imagePath) => {
       const image = nativeImage.createFromPath(imagePath);
       const size = image.getSize();

@@ -3,6 +3,8 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AppActivityGate } from "../src/main/appActivityGate";
+import { AppOperationRegistry } from "../src/main/appOperationRegistry";
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
 import type { IpcContext } from "../src/main/ipc/context";
 import {
@@ -158,6 +160,7 @@ function makeFontRegistrationService() {
 
 function makeContext(dataRoot: string): IpcContext {
   const mainWindow = new BrowserWindow();
+  const activityGate = new AppActivityGate();
   return {
     appPaths: {
       isPackaged: false,
@@ -176,7 +179,8 @@ function makeContext(dataRoot: string): IpcContext {
       llamaRuntimeDir: join(dataRoot, "llama"),
       llamaServerPath: join(dataRoot, "llama", "server.exe"),
     },
-    jobs: new ActiveJobStore(),
+    jobs: new ActiveJobStore(undefined, activityGate),
+    operations: new AppOperationRegistry(activityGate),
     getMainWindow: () => mainWindow,
     panelWindows: {
       close: () => false,

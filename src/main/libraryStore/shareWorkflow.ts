@@ -1,3 +1,4 @@
+import { throwIfAborted } from "../abortSignal";
 import type {
   WorkShareImportFromPackageRequest,
   WorkShareImportPreviewView,
@@ -11,6 +12,7 @@ import {
   removeWorkFromIndexAndDisk,
   writeWorkFile,
   type ChapterFile,
+  type WorkFile,
 } from "./libraryFiles";
 import { importWorkShareIntoExistingWork } from "./shareImportExistingWorkflow";
 import { materializeSharedChapter } from "./shareImportMaterialize";
@@ -39,23 +41,29 @@ export async function previewWorkShareImport(
 
 export async function importWorkShareUnlocked(
   request: WorkShareImportFromPackageRequest,
+  signal?: AbortSignal,
 ): Promise<WorkShareImportResult> {
+  throwIfAborted(signal);
   const sharePackage = await readSharePackage(request.packagePath);
+  throwIfAborted(signal);
   const archiveReader = await openZipArchiveReader(
     request.packagePath,
     tMain("share.fileLabel"),
   );
-  if (request.entries.length === 0) {
-    archiveReader.close();
-    throw new Error(tMain("share.errors.noChapters"));
-  }
 
   try {
+    throwIfAborted(signal);
+    if (request.entries.length === 0) {
+      throw new Error(tMain("share.errors.noChapters"));
+    }
+
+    throwIfAborted(signal);
     if (request.target.mode === "new") {
       return await importWorkShareAsNewWork(
         sharePackage,
         archiveReader,
         request,
+        signal,
       );
     }
 
@@ -63,6 +71,7 @@ export async function importWorkShareUnlocked(
       sharePackage,
       archiveReader,
       request,
+      signal,
     );
   } finally {
     archiveReader.close();
@@ -73,15 +82,14 @@ async function importWorkShareAsNewWork(
   sharePackage: SharePackage,
   archiveReader: ZipArchiveReader,
   request: WorkShareImportFromPackageRequest,
+  signal?: AbortSignal,
 ): Promise<WorkShareImportResult> {
   if (request.target.mode !== "new") {
     throw new Error(tMain("share.errors.notNewWorkRequest"));
   }
   assertPackageOnlyEntries(request.entries);
 
-  const work = await createWork(
-    request.target.title || sharePackage.manifest.work.title,
-  );
+  let work: WorkFile | null = null;
   const chapterByPackageId = new Map(
     sharePackage.chapters.map((item) => [item.packageChapterId, item.chapter]),
   );
@@ -89,7 +97,14 @@ async function importWorkShareAsNewWork(
   const createdChapters: ChapterFile[] = [];
 
   try {
+    throwIfAborted(signal);
+    work = await createWork(
+      request.target.title || sharePackage.manifest.work.title,
+    );
+    throwIfAborted(signal);
+
     for (const entry of request.entries) {
+      throwIfAborted(signal);
       const packageChapter = chapterByPackageId.get(entry.packageChapterId);
       if (!packageChapter) {
         throw new Error(tMain("share.errors.chapterNotFound"));
@@ -107,8 +122,10 @@ async function importWorkShareAsNewWork(
         entries: sharePackage.entries,
         archiveReader,
         requestedTitle: title,
+        signal,
       });
       createdChapters.push(chapter);
+      throwIfAborted(signal);
     }
 
     if (createdChapters.length === 0) {
@@ -118,8 +135,10 @@ async function importWorkShareAsNewWork(
     const chapterIds = createdChapters.map((chapter) => chapter.id);
     work.chapterOrder = chapterIds;
     work.updatedAt = new Date().toISOString();
+    throwIfAborted(signal);
     await writeWorkFile(work);
     if (sharePackage.styleGuide) {
+      throwIfAborted(signal);
       await writeWorkStyleGuide({
         ...sharePackage.styleGuide,
         workId: work.id,
@@ -140,7 +159,9 @@ async function importWorkShareAsNewWork(
     for (const chapter of createdChapters) {
       await removeChapterDirectory(chapter.workId, chapter.id);
     }
-    await removeWorkFromIndexAndDisk(work.id);
+    if (work) {
+      await removeWorkFromIndexAndDisk(work.id);
+    }
     throw error;
   }
 }

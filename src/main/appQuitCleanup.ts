@@ -1,3 +1,4 @@
+import type { AppOperationRegistry } from "./appOperationRegistry";
 import type { AppQuitCleanupProgress } from "./appQuitCoordinator";
 import type { ActiveJobStore } from "./jobs/activeJob";
 import {
@@ -10,10 +11,16 @@ type AppQuitCleanupJobs = Pick<
   "current" | "clearIfCurrent" | "runCleanup"
 >;
 
+type AppQuitCleanupOperations = Pick<
+  AppOperationRegistry,
+  "current" | "abortCurrentAndWait"
+>;
+
 type AppQuitCleanupLogger = (message: string, detail?: unknown) => void;
 
 export async function runAppQuitCleanup({
   jobs,
+  operations,
   cancelStartupMaintenance,
   disposeInpainting,
   disposeTranslation,
@@ -23,6 +30,7 @@ export async function runAppQuitCleanup({
   logWarn,
 }: {
   jobs: AppQuitCleanupJobs;
+  operations: AppQuitCleanupOperations;
   cancelStartupMaintenance: () => void;
   disposeInpainting: () => Promise<unknown>;
   disposeTranslation: () => Promise<unknown>;
@@ -32,11 +40,7 @@ export async function runAppQuitCleanup({
   logWarn: AppQuitCleanupLogger;
 }): Promise<void> {
   updateProgress({ stage: "startup-maintenance-cancel" });
-  try {
-    cancelStartupMaintenance();
-  } catch (error) {
-    logError("Failed to cancel startup maintenance during app quit", error);
-  }
+  cancelStartupMaintenanceSafely(cancelStartupMaintenance, logError);
 
   let inpaintingHistoryReleaseSafe = true;
   const job = jobs.current;
@@ -69,6 +73,8 @@ export async function runAppQuitCleanup({
     }
   }
 
+  await cleanupManagedOperation(operations, updateProgress);
+
   updateProgress({
     stage: "runtime-resource-disposal",
     ...(job ? { jobId: job.id, jobKind: job.kind } : {}),
@@ -93,6 +99,33 @@ export async function runAppQuitCleanup({
       );
     }
   }
+}
+
+function cancelStartupMaintenanceSafely(
+  cancelStartupMaintenance: () => void,
+  logError: AppQuitCleanupLogger,
+): void {
+  try {
+    cancelStartupMaintenance();
+  } catch (error) {
+    logError("Failed to cancel startup maintenance during app quit", error);
+  }
+}
+
+async function cleanupManagedOperation(
+  operations: AppQuitCleanupOperations,
+  updateProgress: (progress: AppQuitCleanupProgress) => void,
+): Promise<void> {
+  const operation = operations.current;
+  if (!operation?.blocksQuit) {
+    return;
+  }
+  updateProgress({
+    stage: "managed-operation-cleanup",
+    operationId: operation.id,
+    operationKind: operation.kind,
+  });
+  await operations.abortCurrentAndWait("app-quit");
 }
 
 async function disposeRuntimeResources({

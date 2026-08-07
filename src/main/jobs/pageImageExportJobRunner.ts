@@ -58,12 +58,15 @@ export async function runPageImageExportJob({
   emit,
   dependencies = productionPageImageExportDependencies,
 }: RunPageImageExportJobOptions): Promise<PageImageExportCompletedResult> {
+  throwIfAborted(abortController, 0, 0);
   const resolved = await resolvePageImageExportSelection(
     request,
     dependencies.repository,
   );
+  throwIfAborted(abortController, 0, resolved.pageCount);
   emitExportStarting(id, emit, resolved.pageCount, resolved.chapters.length);
 
+  throwIfAborted(abortController, 0, resolved.pageCount);
   const outputDir = await createPageImageExportOutputDir(
     outputParentDir,
     resolved.workTitle,
@@ -71,10 +74,12 @@ export async function runPageImageExportJob({
   );
   let renderSession: PageExportRenderSession | null = null;
   try {
+    throwIfAborted(abortController, 0, resolved.pageCount);
     renderSession = await dependencies.renderer.createSession({
       dataRoot: context.appPaths.dataRoot,
       decodeFallback: context.decodeImage,
     });
+    throwIfAborted(abortController, 0, resolved.pageCount);
     await writePageImageExportChapters({
       abortController,
       dependencies,
@@ -92,6 +97,7 @@ export async function runPageImageExportJob({
   }
   emitExportCompleted(id, emit, resolved.pageCount, resolved.chapters.length);
 
+  throwIfAborted(abortController, resolved.pageCount, resolved.pageCount);
   const openError = await openExportOutputDirectory(outputDir, dependencies);
   return {
     status: "completed",

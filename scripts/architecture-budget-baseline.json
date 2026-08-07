@@ -2,6 +2,9 @@
   "defaultMaxImports": 25,
   "defaultMaxImportedBy": 25,
   "allow": {
+    "src/main/index.ts": {
+      "maxImports": 27
+    },
     "src/main/logger.ts": {
       "maxImportedBy": 29
     },

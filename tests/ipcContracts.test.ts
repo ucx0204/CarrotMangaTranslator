@@ -1,6 +1,8 @@
 import type { IpcMainInvokeEvent } from "electron";
 import { z } from "zod";
 import { beforeEach, expect, it, vi } from "vitest";
+import { AppActivityGate } from "../src/main/appActivityGate";
+import { AppOperationRegistry } from "../src/main/appOperationRegistry";
 import type { AppPaths } from "../src/main/appPaths";
 import type { IpcContext } from "../src/main/ipc/context";
 import {
@@ -317,6 +319,7 @@ function createIpcContext(
   return {
     appPaths: createAppPaths(),
     jobs,
+    operations: new AppOperationRegistry(new AppActivityGate()),
     getMainWindow: () => null,
     panelWindows: {
       close: () => false,

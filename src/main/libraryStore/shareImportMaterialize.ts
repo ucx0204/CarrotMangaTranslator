@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import type { LibraryPageRecord } from "../../shared/libraryTypes";
+import { throwIfAborted } from "../abortSignal";
 import { tMain } from "./localization";
 import { reorderRecords, resolveChapterStatus } from "./chapterRecords";
 import {
@@ -29,12 +30,14 @@ export async function materializeSharedChapter({
   entries,
   archiveReader,
   requestedTitle,
+  signal,
 }: {
   workId: string;
   packageChapter: ChapterFile;
   entries: Map<string, ZipEntryLike>;
   archiveReader: ZipArchiveReader;
   requestedTitle: string;
+  signal?: AbortSignal;
 }): Promise<ChapterFile> {
   const now = new Date().toISOString();
   const chapterId = randomUUID();
@@ -42,7 +45,9 @@ export async function materializeSharedChapter({
   const pagesDir = join(chapterDir, "pages");
   const inpaintedDir = join(chapterDir, "inpainted");
   try {
+    throwIfAborted(signal);
     await mkdir(pagesDir, { recursive: true });
+    throwIfAborted(signal);
     const pages = await materializeSharedPages({
       packageChapter,
       entries,
@@ -50,6 +55,7 @@ export async function materializeSharedChapter({
       pagesDir,
       inpaintedDir,
       now,
+      signal,
     });
     const chapter = buildMaterializedChapter({
       packageChapter,
@@ -59,6 +65,7 @@ export async function materializeSharedChapter({
       pages,
       now,
     });
+    throwIfAborted(signal);
     await writeChapterFile(chapter);
     return chapter;
   } catch (error) {
@@ -74,6 +81,7 @@ async function materializeSharedPages({
   pagesDir,
   inpaintedDir,
   now,
+  signal,
 }: {
   packageChapter: ChapterFile;
   entries: Map<string, ZipEntryLike>;
@@ -81,12 +89,14 @@ async function materializeSharedPages({
   pagesDir: string;
   inpaintedDir: string;
   now: string;
+  signal?: AbortSignal;
 }): Promise<LibraryPageRecord[]> {
   const pages: LibraryPageRecord[] = [];
   for (const [index, packagePage] of reorderRecords(
     packageChapter.pages,
     packageChapter.pageOrder,
   ).entries()) {
+    throwIfAborted(signal);
     pages.push(
       await materializeSharedPage({
         entries,
@@ -96,8 +106,10 @@ async function materializeSharedPages({
         pagesDir,
         inpaintedDir,
         now,
+        signal,
       }),
     );
+    throwIfAborted(signal);
   }
   return pages;
 }
@@ -110,6 +122,7 @@ async function materializeSharedPage({
   pagesDir,
   inpaintedDir,
   now,
+  signal,
 }: {
   entries: Map<string, ZipEntryLike>;
   archiveReader: ZipArchiveReader;
@@ -118,7 +131,9 @@ async function materializeSharedPage({
   pagesDir: string;
   inpaintedDir: string;
   now: string;
+  signal?: AbortSignal;
 }): Promise<LibraryPageRecord> {
+  throwIfAborted(signal);
   const packageImagePath = normalizeShareRelativePath(
     packagePage.imagePath,
     tMain("share.errors.invalidImagePath"),
@@ -140,7 +155,9 @@ async function materializeSharedPage({
     missingMessage: tMain("share.errors.packageImageMissing", {
       page: packagePage.name,
     }),
+    signal,
   });
+  throwIfAborted(signal);
 
   const inpaintedImagePath = await materializeSharedInpaintedImage({
     entries,
@@ -149,8 +166,11 @@ async function materializeSharedPage({
     pageId,
     index,
     inpaintedDir,
+    signal,
   });
+  throwIfAborted(signal);
   const size = await readDecodedImportImageSize(outputPath, packagePage.name);
+  throwIfAborted(signal);
   return {
     ...packagePage,
     id: pageId,
@@ -218,6 +238,7 @@ async function materializeSharedInpaintedImage({
   pageId,
   index,
   inpaintedDir,
+  signal,
 }: {
   entries: Map<string, ZipEntryLike>;
   archiveReader: ZipArchiveReader;
@@ -225,7 +246,9 @@ async function materializeSharedInpaintedImage({
   pageId: string;
   index: number;
   inpaintedDir: string;
+  signal?: AbortSignal;
 }): Promise<string | undefined> {
+  throwIfAborted(signal);
   if (!packagePage.inpaintedImagePath) {
     return undefined;
   }
@@ -241,7 +264,9 @@ async function materializeSharedInpaintedImage({
     index,
   );
 
+  throwIfAborted(signal);
   await mkdir(inpaintedDir, { recursive: true });
+  throwIfAborted(signal);
   await writePackageImageEntry({
     entries,
     archiveReader,
@@ -251,6 +276,7 @@ async function materializeSharedInpaintedImage({
     missingMessage: tMain("share.errors.packageInpaintingMissing", {
       page: packagePage.name,
     }),
+    signal,
   });
   return outputPath;
 }
@@ -278,6 +304,7 @@ async function writePackageImageEntry({
   outputPath,
   displayName,
   missingMessage,
+  signal,
 }: {
   entries: Map<string, ZipEntryLike>;
   archiveReader: ZipArchiveReader;
@@ -285,7 +312,9 @@ async function writePackageImageEntry({
   outputPath: string;
   displayName: string;
   missingMessage: string;
+  signal?: AbortSignal;
 }): Promise<void> {
+  throwIfAborted(signal);
   if (!isSupportedImagePath(packageImagePath)) {
     throw new Error(
       tMain("share.errors.unsupportedImage", { name: displayName }),
@@ -297,24 +326,31 @@ async function writePackageImageEntry({
     throw new Error(missingMessage);
   }
 
+  throwIfAborted(signal);
   await mkdir(dirname(outputPath), { recursive: true });
+  throwIfAborted(signal);
   const sourceExt = extname(packageImagePath).toLowerCase() || ".png";
   const sourceBytes = await archiveReader.readEntry(
     entry.entryName,
     MAX_SHARE_IMAGE_BYTES,
     packageImagePath,
   );
+  throwIfAborted(signal);
   if (shouldNormalizeImportImageToPng(sourceExt)) {
     const tempSourcePath = join(
       dirname(outputPath),
       `.${randomUUID()}.share-source${sourceExt}`,
     );
     try {
-      await writeFile(tempSourcePath, sourceBytes);
+      throwIfAborted(signal);
+      await writeFile(tempSourcePath, sourceBytes, { signal });
+      throwIfAborted(signal);
       await writeNormalizedWebpImportImage(
         tempSourcePath,
         outputPath,
         displayName,
+        undefined,
+        signal,
       );
     } finally {
       await unlinkIfExists(tempSourcePath);
@@ -322,5 +358,7 @@ async function writePackageImageEntry({
     return;
   }
 
-  await writeFile(outputPath, sourceBytes);
+  throwIfAborted(signal);
+  await writeFile(outputPath, sourceBytes, { signal });
+  throwIfAborted(signal);
 }

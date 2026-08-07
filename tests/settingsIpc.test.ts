@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { AppActivityGate } from "../src/main/appActivityGate";
+import { AppOperationRegistry } from "../src/main/appOperationRegistry";
 import type { AppSettings } from "../src/shared/settingsTypes";
 import type { ModelTestProgressEvent } from "../src/shared/jobTypes";
 import type { IpcContext, PanelWindowPort } from "../src/main/ipc/context";
@@ -363,6 +365,7 @@ function createContext(
   dataRoot: string,
   runtime: SimplePageRuntime,
 ): IpcContext {
+  const activityGate = new AppActivityGate();
   return {
     appPaths: {
       isPackaged: false,
@@ -384,6 +387,7 @@ function createContext(
     jobs: {
       hasActive: false,
     } as IpcContext["jobs"],
+    operations: new AppOperationRegistry(activityGate),
     getMainWindow: () =>
       ({
         isDestroyed: () => false,

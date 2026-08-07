@@ -1,7 +1,8 @@
 import { app, BrowserWindow, dialog, shell } from "electron";
-import { dirname } from "node:path";
 import { ensureWritableAppDirectories, getAppPaths } from "./appPaths";
+import { AppActivityGate } from "./appActivityGate";
 import { cleanupLegacyLogs } from "./appMaintenance";
+import { AppOperationRegistry } from "./appOperationRegistry";
 import {
   beginBoundedAppQuit,
   type AppQuitCleanupProgress,
@@ -16,12 +17,18 @@ import { ActiveJobStore } from "./jobs/activeJob";
 import { disposeCachedInpaintingEngines } from "./inpainting/inpaintingEnginePool";
 import { InpaintingRevisionStore } from "./inpainting/inpaintingRevisionStore";
 import { cleanupLibraryOrphans, getLibraryRoot } from "./library";
-import { getLogPath, logError, logInfo, logWarn, resetAppLog } from "./logger";
+import {
+  getLogDirectory,
+  getLogPath,
+  logError,
+  logInfo,
+  logWarn,
+  resetAppLog,
+} from "./logger";
 import { createMainWindow } from "./mainWindow";
 import { PanelWindowRegistry } from "./panelWindows";
 import { ErrorReportWindowRegistry } from "./errorReportWindow";
-import { initializeMainLocaleFromSettings } from "./i18n";
-import { tMain } from "./i18n";
+import { initializeMainLocaleFromSettings, tMain } from "./i18n";
 import { ipcEventContracts } from "../shared/ipcContracts";
 import type { ErrorReportContext } from "../shared/errorReportTypes";
 import { APP_ISSUES_URL } from "../shared/appRelease";
@@ -43,7 +50,9 @@ import { focusExistingMainWindow } from "./singleInstanceWindow";
 const resolvedAppPaths = getAppPaths();
 assertDataRootInstanceLockHeld(resolvedAppPaths.dataRoot);
 const appPaths = ensureWritableAppDirectories();
-const jobs = new ActiveJobStore();
+const appActivityGate = new AppActivityGate();
+const jobs = new ActiveJobStore(undefined, appActivityGate);
+const operations = new AppOperationRegistry(appActivityGate);
 const inpaintingRevisionStore = new InpaintingRevisionStore();
 let mainWindow: BrowserWindow | null = null;
 const panelWindows = new PanelWindowRegistry(
@@ -124,6 +133,7 @@ void app
     registerIpc({
       appPaths,
       jobs,
+      operations,
       getMainWindow: () => mainWindow,
       panelWindows,
       errorReportWindows,
@@ -169,6 +179,7 @@ app.on("before-quit", (event) => {
   }
   event.preventDefault();
   quitCleanupStarted = true;
+  appActivityGate.closeToNewActivities();
 
   const attempt = beginBoundedAppQuit({
     runCleanup: finishAppQuitCleanup,
@@ -214,6 +225,7 @@ async function finishAppQuitCleanup(
 ): Promise<void> {
   await runAppQuitCleanup({
     jobs,
+    operations,
     cancelStartupMaintenance: () => {
       try {
         cancelStartupMaintenance?.();
@@ -398,7 +410,7 @@ async function showStartupFailureDialog(detail: string): Promise<void> {
     if (result.response === 0) {
       await shell.openExternal(APP_ISSUES_URL);
     } else if (result.response === 1) {
-      await shell.openPath(dirname(getLogPath()));
+      await shell.openPath(getLogDirectory());
     } else {
       app.quit();
     }

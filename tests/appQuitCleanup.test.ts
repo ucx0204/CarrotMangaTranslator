@@ -26,6 +26,7 @@ describe("app quit cleanup orchestration", () => {
         clearIfCurrent: vi.fn(),
         runCleanup: vi.fn(async () => undefined),
       },
+      operations: createIdleOperations(),
       cancelStartupMaintenance: () => {
         throw cancelFailure;
       },
@@ -77,6 +78,7 @@ describe("app quit cleanup orchestration", () => {
         clearIfCurrent,
         runCleanup: vi.fn(() => cleanupGate.promise),
       },
+      operations: createIdleOperations(),
       cancelStartupMaintenance: vi.fn(),
       disposeInpainting: vi.fn(async () => undefined),
       disposeTranslation: vi.fn(async () => undefined),
@@ -124,6 +126,13 @@ describe("app quit cleanup orchestration", () => {
     expect(clearIfCurrent).toHaveBeenCalledWith(job.id);
   });
 });
+
+function createIdleOperations() {
+  return {
+    current: null,
+    abortCurrentAndWait: vi.fn(async () => null),
+  };
+}
 
 function createDeferred<T>(): {
   promise: Promise<T>;

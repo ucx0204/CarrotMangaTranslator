@@ -5,6 +5,7 @@ type AppQuitCleanupStage =
   | "starting"
   | "startup-maintenance-cancel"
   | "active-job-cleanup"
+  | "managed-operation-cleanup"
   | "runtime-resource-disposal"
   | "inpainting-history-release"
   | "electron-quit";
@@ -13,6 +14,8 @@ export type AppQuitCleanupProgress = {
   stage: AppQuitCleanupStage;
   jobId?: string;
   jobKind?: string;
+  operationId?: string;
+  operationKind?: string;
 };
 
 type AppQuitForcedExitReason =
@@ -27,6 +30,8 @@ type AppQuitForcedExitDetail = {
   stage: AppQuitCleanupStage;
   jobId?: string;
   jobKind?: string;
+  operationId?: string;
+  operationKind?: string;
 };
 
 export type AppQuitCoordinatorRuntime = {
@@ -143,5 +148,11 @@ function sanitizeProgress(
     stage: progress.stage,
     ...(progress.jobId === undefined ? {} : { jobId: progress.jobId }),
     ...(progress.jobKind === undefined ? {} : { jobKind: progress.jobKind }),
+    ...(progress.operationId === undefined
+      ? {}
+      : { operationId: progress.operationId }),
+    ...(progress.operationKind === undefined
+      ? {}
+      : { operationKind: progress.operationKind }),
   };
 }

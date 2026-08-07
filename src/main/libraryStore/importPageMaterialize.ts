@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { copyFile, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import type { ImportPageDraft } from "../../shared/importTypes";
+import { throwIfAborted } from "../abortSignal";
 import type { LibraryPageRecord } from "../../shared/libraryTypes";
 import type { ImportImageRuntime } from "./importImageRuntime";
 import { tMain } from "./localization";
@@ -40,12 +41,16 @@ export async function materializePageRecord(
   index: number,
   zipReaderCache: Map<string, ZipArchiveReader>,
   imageRuntime: ImportImageRuntime,
+  signal?: AbortSignal,
 ): Promise<LibraryPageRecord> {
   const pageId = randomUUID();
+  throwIfAborted(signal);
   const preparedImage = await prepareImportedPageImage(
     pageDraft,
     zipReaderCache,
+    signal,
   );
+  throwIfAborted(signal);
   const outputPath = resolveImportOutputPath(
     pagesDir,
     index,
@@ -56,6 +61,7 @@ export async function materializePageRecord(
     ),
   );
 
+  throwIfAborted(signal);
   await writeImportedPageImage(
     pageDraft,
     pagesDir,
@@ -63,15 +69,19 @@ export async function materializePageRecord(
     preparedImage,
     outputPath,
     imageRuntime,
+    signal,
   );
+  throwIfAborted(signal);
 
   const size = await readDecodedImportImageSize(
     outputPath,
     pageDraft.name,
     imageRuntime,
   );
+  throwIfAborted(signal);
   const now = new Date().toISOString();
 
+  throwIfAborted(signal);
   return {
     id: pageId,
     name: pageDraft.name,
@@ -92,7 +102,9 @@ async function writeImportedPageImage(
   preparedImage: PreparedImportPageImage,
   outputPath: string,
   imageRuntime: ImportImageRuntime,
+  signal?: AbortSignal,
 ): Promise<void> {
+  throwIfAborted(signal);
   if (preparedImage.kind === "zip-entry") {
     await writeZipImportedPageImage(
       pageDraft,
@@ -101,6 +113,7 @@ async function writeImportedPageImage(
       preparedImage,
       outputPath,
       imageRuntime,
+      signal,
     );
     return;
   }
@@ -109,6 +122,7 @@ async function writeImportedPageImage(
     preparedImage,
     outputPath,
     imageRuntime,
+    signal,
   );
 }
 
@@ -119,9 +133,12 @@ async function writeZipImportedPageImage(
   preparedImage: Extract<PreparedImportPageImage, { kind: "zip-entry" }>,
   outputPath: string,
   imageRuntime: ImportImageRuntime,
+  signal?: AbortSignal,
 ): Promise<void> {
+  throwIfAborted(signal);
   if (!shouldNormalizePreparedImage(preparedImage)) {
-    await writeFile(outputPath, preparedImage.sourceBytes);
+    await writeFile(outputPath, preparedImage.sourceBytes, { signal });
+    throwIfAborted(signal);
     return;
   }
   await writeNormalizedZipImportImage(
@@ -131,6 +148,7 @@ async function writeZipImportedPageImage(
     outputPath,
     preparedImage.sourceBytes,
     imageRuntime,
+    signal,
   );
 }
 
@@ -141,15 +159,19 @@ async function writeNormalizedZipImportImage(
   outputPath: string,
   sourceBytes: Buffer,
   imageRuntime: ImportImageRuntime,
+  signal?: AbortSignal,
 ): Promise<void> {
   const tempSourcePath = join(pagesDir, `.${pageId}.import-source.webp`);
   try {
-    await writeFile(tempSourcePath, sourceBytes);
+    throwIfAborted(signal);
+    await writeFile(tempSourcePath, sourceBytes, { signal });
+    throwIfAborted(signal);
     await writeNormalizedWebpImportImage(
       tempSourcePath,
       outputPath,
       pageDraft.name,
       imageRuntime,
+      signal,
     );
   } finally {
     await unlinkIfExists(tempSourcePath);
@@ -161,36 +183,50 @@ async function writeFileImportedPageImage(
   preparedImage: Extract<PreparedImportPageImage, { kind: "file" }>,
   outputPath: string,
   imageRuntime: ImportImageRuntime,
+  signal?: AbortSignal,
 ): Promise<void> {
+  throwIfAborted(signal);
   if (shouldNormalizePreparedImage(preparedImage)) {
     await writeNormalizedWebpImportImage(
       pageDraft.sourcePath,
       outputPath,
       pageDraft.name,
       imageRuntime,
+      signal,
     );
     return;
   }
   await copyFile(pageDraft.sourcePath, outputPath);
+  throwIfAborted(signal);
 }
 
 async function prepareImportedPageImage(
   pageDraft: ImportPageDraft,
   zipReaderCache: Map<string, ZipArchiveReader>,
+  signal?: AbortSignal,
 ): Promise<PreparedImportPageImage> {
+  throwIfAborted(signal);
   const sourceExt = resolveImportSourceExt(pageDraft);
   if (pageDraft.sourceKind !== "zip-entry") {
     await assertImportImageFileBudget(pageDraft.sourcePath);
+    throwIfAborted(signal);
+    const detectedFormat = await detectImportImageFormatFromFile(
+      pageDraft.sourcePath,
+    );
+    throwIfAborted(signal);
     return {
       kind: "file",
       sourceExt,
-      detectedFormat: await detectImportImageFormatFromFile(
-        pageDraft.sourcePath,
-      ),
+      detectedFormat,
     };
   }
 
-  const reader = await getCachedZipReader(pageDraft.sourcePath, zipReaderCache);
+  const reader = await getCachedZipReader(
+    pageDraft.sourcePath,
+    zipReaderCache,
+    signal,
+  );
+  throwIfAborted(signal);
   const entry = reader.entryMap.get(pageDraft.zipEntryName ?? "");
   if (!entry) {
     throw new Error(
@@ -199,11 +235,13 @@ async function prepareImportedPageImage(
       }),
     );
   }
+  throwIfAborted(signal);
   const sourceBytes = await reader.readEntry(
     entry.entryName,
     MAX_IMPORT_IMAGE_BYTES,
     pageDraft.zipEntryName ?? pageDraft.sourcePath,
   );
+  throwIfAborted(signal);
   return {
     kind: "zip-entry",
     sourceExt,
@@ -254,12 +292,15 @@ function resolveImportOutputPath(
 async function getCachedZipReader(
   zipPath: string,
   cache: Map<string, ZipArchiveReader>,
+  signal?: AbortSignal,
 ): Promise<ZipArchiveReader> {
+  throwIfAborted(signal);
   const cached = cache.get(zipPath);
   if (cached) {
     return cached;
   }
   const reader = await openZipArchiveReader(zipPath, tMain("import.zipFile"));
+  throwIfAborted(signal);
   cache.set(zipPath, reader);
   return reader;
 }

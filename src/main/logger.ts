@@ -22,6 +22,10 @@ export function getLogPath(): string {
   return configured || getAppPaths().logFile;
 }
 
+export function getLogDirectory(): string {
+  return dirname(getLogPath());
+}
+
 export function logInfo(message: string, detail?: unknown): void {
   writeLog("info", message, detail);
 }

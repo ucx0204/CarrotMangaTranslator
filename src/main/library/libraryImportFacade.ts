@@ -1,3 +1,4 @@
+import { throwIfAborted } from "../abortSignal";
 import type {
   CreateImportFromPreviewRequest,
   CreateImportResult,
@@ -25,6 +26,7 @@ export type LibraryImportRuntime = {
 export type LibraryImportService = {
   createImport: (
     request: CreateImportFromPreviewRequest,
+    signal?: AbortSignal,
   ) => Promise<CreateImportResult>;
   previewFolder: typeof previewFolder;
   previewImages: typeof previewImages;
@@ -41,10 +43,11 @@ export function createLibraryImportService(
   runtime: LibraryImportRuntime,
 ): LibraryImportService {
   return {
-    createImport: (request) =>
-      runtime.runMutation(() =>
-        createImportFromPreviewUnlocked(request, runtime.image),
-      ),
+    createImport: (request, signal) =>
+      runtime.runMutation(() => {
+        throwIfAborted(signal);
+        return createImportFromPreviewUnlocked(request, runtime.image, signal);
+      }),
     previewFolder,
     previewImages,
     previewZip,

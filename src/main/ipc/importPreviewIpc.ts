@@ -6,6 +6,7 @@ import {
 } from "../../shared/ipcSchemas";
 import { importShareIpcContracts } from "../../shared/ipcContracts";
 import { SUPPORTED_ARCHIVE_EXTENSIONS } from "../../shared/archive";
+import { runManagedAppOperation } from "../appOperationRegistry";
 import type {
   ImportPreviewResult,
   ImportPreviewSession,
@@ -234,11 +235,23 @@ function registerCreateImportIpc(
         tMain("ipc.labels.importApply"),
       );
       const session = getImportPreviewSession(command.previewId);
-      const result = await service.createImport({
-        preview: session.preview,
-        target: command.target,
-        selections: command.selections,
-      });
+      const result = await runManagedAppOperation(
+        context.operations,
+        {
+          id: `library-import-${command.previewId}`,
+          kind: "library-import",
+          mutatesLibrary: true,
+        },
+        (signal) =>
+          service.createImport(
+            {
+              preview: session.preview,
+              target: command.target,
+              selections: command.selections,
+            },
+            signal,
+          ),
+      );
       rememberRecentDialogLocation(
         context.appPaths.dataRoot,
         session.recentLocation,

@@ -1,3 +1,4 @@
+import { throwIfAborted } from "../abortSignal";
 import type {
   WorkShareImportEntry,
   WorkShareImportFromPackageRequest,
@@ -49,14 +50,18 @@ export async function importWorkShareIntoExistingWork(
   sharePackage: SharePackage,
   archiveReader: ZipArchiveReader,
   request: WorkShareImportFromPackageRequest,
+  signal?: AbortSignal,
 ): Promise<WorkShareImportResult> {
   if (request.target.mode !== "existing") {
     throw new Error(tMain("share.errors.notExistingWorkRequest"));
   }
 
+  throwIfAborted(signal);
   const work = await ensureExistingWork(request.target.workId);
+  throwIfAborted(signal);
   const originalWork = cloneWorkForRollback(work);
-  const currentChapters = await readCurrentChapters(work);
+  const currentChapters = await readCurrentChapters(work, signal);
+  throwIfAborted(signal);
   const plan = createExistingShareImportPlan(sharePackage, currentChapters);
   const trashedExistingChapters: TrashedChapterDirectory[] = [];
 
@@ -67,11 +72,14 @@ export async function importWorkShareIntoExistingWork(
       workId: work.id,
       sharePackage,
       archiveReader,
+      signal,
     });
+    throwIfAborted(signal);
     return await commitExistingShareImport({
       work,
       plan,
       trashedExistingChapters,
+      signal,
     });
   } catch (error) {
     await rollbackExistingShareImport({
@@ -94,10 +102,13 @@ function cloneWorkForRollback(work: WorkFile): WorkFile {
 
 async function readCurrentChapters(
   work: WorkFile,
+  signal?: AbortSignal,
 ): Promise<Map<string, ChapterFile>> {
   const currentChapters = new Map<string, ChapterFile>();
   for (const chapterId of work.chapterOrder) {
+    throwIfAborted(signal);
     const chapter = await readChapterFile(work.id, chapterId);
+    throwIfAborted(signal);
     if (chapter) {
       currentChapters.set(chapterId, chapter);
     }
@@ -133,21 +144,26 @@ async function populateExistingShareImportPlan({
   workId,
   sharePackage,
   archiveReader,
+  signal,
 }: {
   entries: WorkShareImportEntry[];
   plan: ExistingShareImportPlan;
   workId: string;
   sharePackage: SharePackage;
   archiveReader: ZipArchiveReader;
+  signal?: AbortSignal;
 }): Promise<void> {
   for (const entry of entries) {
+    throwIfAborted(signal);
     await applyExistingShareEntry({
       entry,
       plan,
       workId,
       sharePackage,
       archiveReader,
+      signal,
     });
+    throwIfAborted(signal);
   }
 }
 
@@ -157,13 +173,16 @@ async function applyExistingShareEntry({
   workId,
   sharePackage,
   archiveReader,
+  signal,
 }: {
   entry: WorkShareImportEntry;
   plan: ExistingShareImportPlan;
   workId: string;
   sharePackage: SharePackage;
   archiveReader: ZipArchiveReader;
+  signal?: AbortSignal;
 }): Promise<void> {
+  throwIfAborted(signal);
   if (entry.source === "existing") {
     addExistingChapterToPlan(entry, plan);
     return;
@@ -175,6 +194,7 @@ async function applyExistingShareEntry({
     workId,
     sharePackage,
     archiveReader,
+    signal,
   });
 }
 
@@ -210,13 +230,16 @@ async function addPackageChapterToPlan({
   workId,
   sharePackage,
   archiveReader,
+  signal,
 }: {
   entry: PackageChapterEntry;
   plan: ExistingShareImportPlan;
   workId: string;
   sharePackage: SharePackage;
   archiveReader: ZipArchiveReader;
+  signal?: AbortSignal;
 }): Promise<void> {
+  throwIfAborted(signal);
   if (plan.usedPackageIds.has(entry.packageChapterId)) {
     throw new Error(tMain("share.errors.duplicateSharedChapter"));
   }
@@ -235,7 +258,9 @@ async function addPackageChapterToPlan({
       packageChapter.title,
       plan.usedTitles,
     ),
+    signal,
   });
+  throwIfAborted(signal);
   plan.createdPackageChapters.push(chapter);
   plan.usedPackageIds.add(entry.packageChapterId);
   plan.finalChapterIds.push(chapter.id);
@@ -256,22 +281,27 @@ async function commitExistingShareImport({
   work,
   plan,
   trashedExistingChapters,
+  signal,
 }: {
   work: WorkFile;
   plan: ExistingShareImportPlan;
   trashedExistingChapters: TrashedChapterDirectory[];
+  signal?: AbortSignal;
 }): Promise<WorkShareImportResult> {
   if (plan.finalChapterIds.length === 0) {
     throw new Error(tMain("share.errors.noChaptersToApply"));
   }
 
   const previousChapterIds = [...work.chapterOrder];
-  await writeUpdatedExistingChapters(plan.updatedExistingChapters);
+  throwIfAborted(signal);
+  await writeUpdatedExistingChapters(plan.updatedExistingChapters, signal);
+  throwIfAborted(signal);
   await writeWorkFile({
     ...work,
     chapterOrder: plan.finalChapterIds,
     updatedAt: plan.now,
   });
+  throwIfAborted(signal);
 
   trashedExistingChapters.push(
     ...(await moveOmittedExistingChaptersToTrash(
@@ -280,11 +310,14 @@ async function commitExistingShareImport({
       plan.finalChapterIds,
     )),
   );
+  throwIfAborted(signal);
 
   const openedChapter = await readOpenedImportedChapter(
     work.id,
     plan.finalChapterIds,
+    signal,
   );
+  throwIfAborted(signal);
   await discardTrashedChapterDirectories(work.id, trashedExistingChapters);
   return {
     workId: work.id,
@@ -295,21 +328,27 @@ async function commitExistingShareImport({
 
 async function writeUpdatedExistingChapters(
   chapters: ChapterFile[],
+  signal?: AbortSignal,
 ): Promise<void> {
   for (const chapter of chapters) {
+    throwIfAborted(signal);
     await writeChapterFile(chapter);
+    throwIfAborted(signal);
   }
 }
 
 async function readOpenedImportedChapter(
   workId: string,
   finalChapterIds: string[],
+  signal?: AbortSignal,
 ): Promise<ChapterFile> {
   const firstChapterId = finalChapterIds[0];
   if (!firstChapterId) {
     throw new Error(tMain("share.errors.importedChapterOpen"));
   }
+  throwIfAborted(signal);
   const openedChapter = await readChapterFile(workId, firstChapterId);
+  throwIfAborted(signal);
   if (!openedChapter) {
     throw new Error(tMain("share.errors.importedChapterOpen"));
   }

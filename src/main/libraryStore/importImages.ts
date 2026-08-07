@@ -1,5 +1,6 @@
 import { open, stat, writeFile } from "node:fs/promises";
 import { basename } from "node:path";
+import { throwIfAborted } from "../abortSignal";
 import { tMain } from "./localization";
 import {
   productionImportImageRuntime,
@@ -101,13 +102,18 @@ export async function writeNormalizedWebpImportImage(
   outputPath: string,
   label: string,
   runtime: ImportImageRuntime = productionImportImageRuntime,
+  signal?: AbortSignal,
 ): Promise<void> {
-  const converted = await runtime.decodeToPng(sourcePath);
+  throwIfAborted(signal);
+  const converted = await runtime.decodeToPng(sourcePath, signal);
+  throwIfAborted(signal);
   if (!converted?.length) {
     throw new Error(tMain("import.errors.webpConvert", { file: label }));
   }
 
-  await writeFile(outputPath, converted);
+  throwIfAborted(signal);
+  await writeFile(outputPath, converted, { signal });
+  throwIfAborted(signal);
 }
 
 export async function readDecodedImportImageSize(

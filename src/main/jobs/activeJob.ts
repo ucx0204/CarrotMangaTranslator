@@ -1,4 +1,9 @@
 import type { JobEvent } from "../../shared/jobTypes";
+import {
+  AppActivityGate,
+  isAppActivityUnavailableError,
+  type AppActivityLease,
+} from "../appActivityGate";
 import { logError, logInfo } from "../logger";
 
 export type JobCleanupDiagnostics = {
@@ -21,10 +26,12 @@ export type ActiveJob = {
 
 export class ActiveJobStore {
   private activeJob: ActiveJob | null = null;
+  private activeActivityLease: AppActivityLease | null = null;
   private readonly cleanupPromises = new WeakMap<ActiveJob, Promise<void>>();
 
   constructor(
     private readonly diagnostics: JobCleanupDiagnostics = productionDiagnostics,
+    private readonly activityGate: AppActivityGate = new AppActivityGate(),
   ) {}
 
   get current(): ActiveJob | null {
@@ -32,14 +39,32 @@ export class ActiveJobStore {
   }
 
   get hasActive(): boolean {
-    return Boolean(this.activeJob);
+    return this.activityGate.isUnavailable;
   }
 
   start(job: ActiveJob): void {
     if (this.activeJob) {
       throw new Error("이미 실행 중인 작업이 있습니다.");
     }
+
+    let lease: AppActivityLease;
+    try {
+      lease = this.activityGate.acquire({
+        id: job.id,
+        category: "job",
+        kind: job.kind,
+        mutatesLibrary: job.kind !== "page-export",
+        blocksQuit: true,
+      });
+    } catch (error) {
+      if (isAppActivityUnavailableError(error)) {
+        throw new Error("이미 실행 중인 작업이 있습니다.", { cause: error });
+      }
+      throw error;
+    }
+
     this.activeJob = job;
+    this.activeActivityLease = lease;
   }
 
   updateLastEvent(jobId: string, event: JobEvent): void {
@@ -49,9 +74,14 @@ export class ActiveJobStore {
   }
 
   clearIfCurrent(jobId: string): void {
-    if (this.activeJob?.id === jobId) {
-      this.activeJob = null;
+    if (this.activeJob?.id !== jobId) {
+      return;
     }
+
+    const lease = this.activeActivityLease;
+    this.activeJob = null;
+    this.activeActivityLease = null;
+    lease?.release();
   }
 
   async runCleanup(job: ActiveJob, reason: string): Promise<void> {

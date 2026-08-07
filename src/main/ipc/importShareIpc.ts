@@ -6,6 +6,7 @@ import {
   parseIpcPayload,
 } from "../../shared/ipcSchemas";
 import { importShareIpcContracts } from "../../shared/ipcContracts";
+import { runManagedAppOperation } from "../appOperationRegistry";
 import type {
   WorkShareExportResult,
   WorkShareImportPreview,
@@ -30,6 +31,20 @@ import { tMain } from "./localization";
 import { prunePreviewSessions } from "./previewSessions";
 import { trustedHandleContract } from "./trustedIpc";
 
+export type ImportShareIpcService = {
+  exportWorkShareToFile: typeof exportWorkShareToFile;
+  importWorkShare: typeof importWorkShare;
+  listLibrary: typeof listLibrary;
+  previewWorkShareImport: typeof previewWorkShareImport;
+};
+
+const productionImportShareIpcService: ImportShareIpcService = {
+  exportWorkShareToFile,
+  importWorkShare,
+  listLibrary,
+  previewWorkShareImport,
+};
+
 const workSharePreviewSessions = new Map<
   string,
   {
@@ -39,14 +54,20 @@ const workSharePreviewSessions = new Map<
   }
 >();
 
-export function registerImportShareIpc(context: IpcContext): void {
+export function registerImportShareIpc(
+  context: IpcContext,
+  service: ImportShareIpcService = productionImportShareIpcService,
+): void {
   registerImportPreviewIpc(context);
-  registerExportWorkShareIpc(context);
-  registerPreviewWorkShareIpc(context);
-  registerImportWorkShareIpc(context);
+  registerExportWorkShareIpc(context, service);
+  registerPreviewWorkShareIpc(context, service);
+  registerImportWorkShareIpc(context, service);
 }
 
-function registerExportWorkShareIpc(context: IpcContext): void {
+function registerExportWorkShareIpc(
+  context: IpcContext,
+  service: ImportShareIpcService,
+): void {
   trustedHandleContract(
     context,
     importShareIpcContracts.exportWorkShare,
@@ -59,7 +80,7 @@ function registerExportWorkShareIpc(context: IpcContext): void {
         rawRequest,
         tMain("ipc.labels.shareSave"),
       );
-      const library = await listLibrary();
+      const library = await service.listLibrary();
       const work = library.works.find(
         (candidate) => candidate.id === request.workId,
       );
@@ -80,12 +101,25 @@ function registerExportWorkShareIpc(context: IpcContext): void {
       if (result.canceled || !result.filePath) {
         return null;
       }
-      const exported = await exportWorkShareToFile({
-        ...request,
-        outputPath: result.filePath.toLowerCase().endsWith(".mgtshare")
-          ? result.filePath
-          : `${result.filePath}.mgtshare`,
-      });
+      const outputPath = result.filePath.toLowerCase().endsWith(".mgtshare")
+        ? result.filePath
+        : `${result.filePath}.mgtshare`;
+      const exported = await runManagedAppOperation(
+        context.operations,
+        {
+          id: `work-share-export-${randomUUID()}`,
+          kind: "work-share-export",
+          mutatesLibrary: false,
+        },
+        (signal) =>
+          service.exportWorkShareToFile(
+            {
+              ...request,
+              outputPath,
+            },
+            signal,
+          ),
+      );
       rememberRecentDialogFile(
         context.appPaths.dataRoot,
         recentDialogPathKeys.workShareExport,
@@ -96,7 +130,10 @@ function registerExportWorkShareIpc(context: IpcContext): void {
   );
 }
 
-function registerPreviewWorkShareIpc(context: IpcContext): void {
+function registerPreviewWorkShareIpc(
+  context: IpcContext,
+  service: ImportShareIpcService,
+): void {
   trustedHandleContract(
     context,
     importShareIpcContracts.previewWorkShareImport,
@@ -117,13 +154,16 @@ function registerPreviewWorkShareIpc(context: IpcContext): void {
       if (result.canceled || !result.filePaths[0]) {
         return null;
       }
-      const preview = await previewWorkShareImport(result.filePaths[0]);
+      const preview = await service.previewWorkShareImport(result.filePaths[0]);
       return createWorkSharePreviewSession(result.filePaths[0], preview);
     },
   );
 }
 
-function registerImportWorkShareIpc(context: IpcContext): void {
+function registerImportWorkShareIpc(
+  context: IpcContext,
+  service: ImportShareIpcService,
+): void {
   trustedHandleContract(
     context,
     importShareIpcContracts.importWorkShare,
@@ -133,12 +173,25 @@ function registerImportWorkShareIpc(context: IpcContext): void {
         request,
         tMain("ipc.labels.shareImport"),
       );
-      const session = consumeWorkSharePreviewSession(command.previewId);
-      const imported = await importWorkShare({
-        packagePath: session.packagePath,
-        target: command.target,
-        entries: command.entries,
-      });
+      const session = getWorkSharePreviewSession(command.previewId);
+      const imported = await runManagedAppOperation(
+        context.operations,
+        {
+          id: `work-share-import-${command.previewId}`,
+          kind: "work-share-import",
+          mutatesLibrary: true,
+        },
+        (signal) =>
+          service.importWorkShare(
+            {
+              packagePath: session.packagePath,
+              target: command.target,
+              entries: command.entries,
+            },
+            signal,
+          ),
+      );
+      deleteWorkSharePreviewSession(command.previewId);
       rememberRecentDialogFile(
         context.appPaths.dataRoot,
         recentDialogPathKeys.workShareImport,
@@ -168,7 +221,7 @@ function createWorkSharePreviewSession(
   return { previewId, ...preview };
 }
 
-function consumeWorkSharePreviewSession(previewId: string): {
+function getWorkSharePreviewSession(previewId: string): {
   packagePath: string;
   preview: WorkShareImportPreviewView;
 } {
@@ -177,6 +230,9 @@ function consumeWorkSharePreviewSession(previewId: string): {
   if (!session) {
     throw new Error(tMain("ipc.errors.invalidSharePreview"));
   }
-  workSharePreviewSessions.delete(previewId);
   return session;
+}
+
+function deleteWorkSharePreviewSession(previewId: string): void {
+  workSharePreviewSessions.delete(previewId);
 }

@@ -10,6 +10,8 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { AppActivityGate } from "../src/main/appActivityGate";
+import { AppOperationRegistry } from "../src/main/appOperationRegistry";
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
 import {
   handlePageImageExportError,
@@ -644,6 +646,7 @@ function makePage(
 
 function makeContext(dataRoot: string): IpcContext {
   const mainWindow = new BrowserWindow();
+  const activityGate = new AppActivityGate();
   return {
     appPaths: {
       isPackaged: false,
@@ -662,7 +665,8 @@ function makeContext(dataRoot: string): IpcContext {
       llamaRuntimeDir: join(dataRoot, "tools"),
       llamaServerPath: join(dataRoot, "tools", "llama-server"),
     },
-    jobs: new ActiveJobStore(),
+    jobs: new ActiveJobStore(undefined, activityGate),
+    operations: new AppOperationRegistry(activityGate),
     getMainWindow: () => mainWindow,
     panelWindows: {
       close: () => false,

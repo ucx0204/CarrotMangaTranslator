@@ -1,4 +1,5 @@
 import type { BrowserWindow } from "electron";
+import type { AppOperationRegistry } from "../appOperationRegistry";
 import type { AppPaths } from "../appPaths";
 import type { ActiveJobStore } from "../jobs/activeJob";
 import type { PanelWindowRegistry } from "../panelWindows";
@@ -20,6 +21,7 @@ export type PanelWindowPort = Pick<
 export type IpcContext = {
   appPaths: AppPaths;
   jobs: ActiveJobStore;
+  operations: AppOperationRegistry;
   getMainWindow: () => BrowserWindow | null;
   panelWindows: PanelWindowPort;
   errorReportWindows?: {
