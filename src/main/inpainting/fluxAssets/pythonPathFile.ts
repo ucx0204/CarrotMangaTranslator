@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { isPathInside } from "../../runtimeSupport/fileProbe";
 
 export function ensureEmbeddedPythonPackagePath(
@@ -130,9 +130,18 @@ function shouldDropEmbeddedPythonPathLine(
   return (
     trimmed === "#import site" ||
     trimmed === "import site" ||
+    pathIsAbsolute(trimmed) ||
     isManagedFluxPackagePathLine(trimmed, outputDir) ||
     (!trimmed && sanitized[sanitized.length - 1] === "")
   );
+}
+
+function pathIsAbsolute(value: string): boolean {
+  try {
+    return value ? isAbsolute(value) : false;
+  } catch (_error) {
+    return false;
+  }
 }
 
 function buildStandaloneEmbeddedPythonPathText(

@@ -3,6 +3,7 @@ import {
   createWriteStream,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -64,6 +65,10 @@ async function writeManagedPythonFixtureZip(
 ): Promise<void> {
   const zip = new yazl.ZipFile();
   zip.addBuffer(Buffer.from("python"), "python.exe");
+  zip.addBuffer(
+    Buffer.from("python312.zip\n.\n#import site\n"),
+    "python312._pth",
+  );
   zip.end();
   await pipeline(zip.outputStream, createWriteStream(destination));
 }
@@ -295,6 +300,30 @@ describeWindows("OCR runtime boundary behavior", () => {
       await expect(
         managed.ensureManagedBootstrapPython({}, root),
       ).resolves.toBe(join(pythonDir, "python.exe"));
+      const packageDir = join(root, "python-packages-cpu");
+      const preparation =
+        require("../src/main/runtime/ocr/runtime-preparation.cjs") as {
+          ensureEmbeddedPythonPackagePath: (
+            pythonPath: string,
+            packageDir: string,
+            runtimeDir: string,
+          ) => void;
+        };
+      preparation.ensureEmbeddedPythonPackagePath(
+        join(pythonDir, "python.exe"),
+        packageDir,
+        root,
+      );
+      expect(readFileSync(join(pythonDir, "python312._pth"), "utf8")).toContain(
+        packageDir,
+      );
+
+      await expect(
+        managed.ensureManagedBootstrapPython({}, root),
+      ).resolves.toBe(join(pythonDir, "python.exe"));
+      expect(
+        readFileSync(join(pythonDir, "python312._pth"), "utf8"),
+      ).not.toContain(packageDir);
       expect(downloads).toEqual([
         {
           file: "python-3.12.7-embed-amd64.zip",

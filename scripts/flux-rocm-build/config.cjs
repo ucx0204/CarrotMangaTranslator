@@ -35,6 +35,9 @@ const windowsMsvcCompilerTarget = "x86_64-pc-windows-msvc";
 const recommendedBuildFreeBytes = 80 * 1024 * 1024 * 1024;
 const minimumBuildFreeBytes = 35 * 1024 * 1024 * 1024;
 const minimumOutputFreeBytes = 8 * 1024 * 1024 * 1024;
+// GitHub release assets must be under 2 GiB. Keep enough margin for service
+// metadata and reassemble the exact ZIP in the app before verifying its hash.
+const releasePartBytes = 1_900_000_000;
 const defaultAmdGpuTargets = [
   "gfx908",
   "gfx90a",
@@ -69,6 +72,7 @@ module.exports = {
   pythonUrl,
   pythonVersion,
   recommendedBuildFreeBytes,
+  releasePartBytes,
   rocmPackageUrls,
   rocmVersion,
   rootDir,

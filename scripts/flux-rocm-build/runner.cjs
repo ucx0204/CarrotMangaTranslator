@@ -13,6 +13,7 @@ const {
   fluxPackages,
   outputFileName,
   pythonVersion,
+  releasePartBytes,
   rocmPackageUrls,
   rocmVersion,
   rootDir,
@@ -30,6 +31,7 @@ const {
   createRuntimeZip,
   initializeRocmSdk,
   prepareEmbeddedPython,
+  splitRuntimeArchiveForRelease,
   verifyRuntime,
   writeRuntimeManifest,
 } = require("./runtime-builder.cjs");
@@ -282,11 +284,16 @@ async function packageRuntime(context, prepared) {
     outputPath: context.outputPath,
     logger: context.logger,
   });
-  await writeRuntimeSidecars(context, prepared.gpuTargets);
+  const parts = await splitRuntimeArchiveForRelease({
+    archivePath: context.outputPath,
+    partBytes: releasePartBytes,
+    logger: context.logger,
+  });
+  await writeRuntimeSidecars(context, prepared.gpuTargets, parts);
 }
 
-/** @param {BuildContext} context @param {string} gpuTargets */
-async function writeRuntimeSidecars(context, gpuTargets) {
+/** @param {BuildContext} context @param {string} gpuTargets @param {Array<{ file: string; bytes: number; sha256: string }>} parts */
+async function writeRuntimeSidecars(context, gpuTargets, parts) {
   const sha256 = await sha256File(context.outputPath);
   const sidecar = {
     file: basename(context.outputPath),
@@ -296,6 +303,7 @@ async function writeRuntimeSidecars(context, gpuTargets) {
     rocmVersion,
     pythonVersion,
     gpuTargets: gpuTargets ? gpuTargets.split(";") : [],
+    parts,
   };
   await writeFile(
     `${context.outputPath}.sha256`,

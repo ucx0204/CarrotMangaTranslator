@@ -16,12 +16,7 @@
  * }} ManagedPythonContext
  */
 
-const {
-  existsSync,
-  readFileSync,
-  readdirSync,
-  writeFileSync,
-} = require("node:fs");
+const { existsSync, readFileSync } = require("node:fs");
 const { mkdir, rm, writeFile } = require("node:fs/promises");
 const path = require("node:path");
 const {
@@ -41,7 +36,9 @@ const { extractSelectedZipEntries } = require("../simple-page-zip-utils.cjs");
 const {
   replaceDirectoryWithRollback,
 } = require("../runtime-directory-publish.cjs");
-const { isManagedOcrPackagePathLine } = require("./runtime-preparation.cjs");
+const {
+  sanitizeStandaloneEmbeddedPythonPathFile,
+} = require("./managed-python-path.cjs");
 const { createOcrRuntimeError } = require("./runtime-verification.cjs");
 const {
   MAX_REMOTE_RUNTIME_ARCHIVE_BYTES,
@@ -66,6 +63,15 @@ const PYTHON_RUNTIME_MARKER_FILE = ".mgt-bootstrap-python.json";
 async function ensureManagedBootstrapPython(options = {}, runtimeDir) {
   assertManagedPythonPlatform();
   const context = resolveManagedPythonContext(options, runtimeDir);
+  // The managed package directory is intentionally injected into the
+  // embeddable Python ._pth file while OCR is running. Restore that mutable
+  // line to the canonical bootstrap state before comparing the installation
+  // hashes, otherwise every subsequent OCR job mistakes the expected path
+  // update for tampering and reinstalls Python and pip.
+  sanitizeStandaloneEmbeddedPythonPathFile(
+    context.pythonDir,
+    context.runtimeDir,
+  );
   if (
     isCurrentManagedBootstrapPython(
       context.pythonExe,
@@ -73,7 +79,6 @@ async function ensureManagedBootstrapPython(options = {}, runtimeDir) {
       context,
     )
   ) {
-    sanitizeStandaloneEmbeddedPythonPathFile(context.pythonDir);
     return context.pythonExe;
   }
   emitManagedPythonPreparation(options, context.version);
@@ -230,7 +235,7 @@ async function downloadAndExtractManagedPython(options, context) {
     await rm(stagingDir, { recursive: true, force: true });
     throw error;
   }
-  sanitizeStandaloneEmbeddedPythonPathFile(stagingDir);
+  sanitizeStandaloneEmbeddedPythonPathFile(stagingDir, context.runtimeDir);
   return stagedContext;
 }
 
@@ -384,73 +389,6 @@ function buildBootstrapPythonEnv(runtimeDir, options = {}) {
   delete env.PYTHONPATH;
   delete env.PYTHONUSERBASE;
   return env;
-}
-
-/** @param {string} outputDir */
-function sanitizeStandaloneEmbeddedPythonPathFile(outputDir) {
-  const pthName = findEmbeddedPythonPathFile(outputDir);
-  if (!pthName) {
-    return;
-  }
-  const pthPath = path.join(outputDir, pthName);
-  try {
-    const text = readFileSync(pthPath, "utf8");
-    const nextText = buildSanitizedEmbeddedPythonPathText(text, outputDir);
-    if (nextText !== text) {
-      writeFileSync(pthPath, nextText, "utf8");
-    }
-  } catch (_error) {
-    // error-policy-allow: installation continues through the explicit venv/target strategy.
-  }
-}
-
-/** @param {string} outputDir @returns {string} */
-function findEmbeddedPythonPathFile(outputDir) {
-  try {
-    return (
-      readdirSync(outputDir).find((name) => /^python\d+._pth$/i.test(name)) ||
-      ""
-    );
-  } catch (_error) {
-    return "";
-  }
-}
-
-/** @param {string} text @param {string} outputDir @returns {string} */
-function buildSanitizedEmbeddedPythonPathText(text, outputDir) {
-  /** @type {string[]} */
-  const sanitized = [];
-  for (const line of text.split(/\r?\n/)) {
-    appendSanitizedPathLine(sanitized, line, outputDir);
-  }
-  trimTrailingBlankLines(sanitized);
-  if (sanitized.length > 0) {
-    sanitized.push("");
-  }
-  sanitized.push("import site");
-  return `${sanitized.join("\n")}\n`;
-}
-
-/** @param {string[]} sanitized @param {string} line @param {string} outputDir */
-function appendSanitizedPathLine(sanitized, line, outputDir) {
-  const trimmed = line.trim();
-  if (trimmed === "#import site" || trimmed === "import site") {
-    return;
-  }
-  if (isManagedOcrPackagePathLine(trimmed, outputDir, "")) {
-    return;
-  }
-  if (!trimmed && sanitized[sanitized.length - 1] === "") {
-    return;
-  }
-  sanitized.push(line);
-}
-
-/** @param {string[]} lines */
-function trimTrailingBlankLines(lines) {
-  while (lines.length > 0 && lines[lines.length - 1] === "") {
-    lines.pop();
-  }
 }
 
 module.exports = {

@@ -1,6 +1,7 @@
 import {
   FLUX_CPU_TORCH_INDEX_URL,
   FLUX_PYTHON_DEFAULT_MODE,
+  FLUX_ROCM_PREBUILT_RUNTIME_SHA256,
   FLUX_ROCM_PREBUILT_RUNTIME_URL,
   FLUX_ROCM_WINDOWS_VERSION,
 } from "./constants";
@@ -79,16 +80,31 @@ export function resolveFluxRocmPrebuiltRuntimeSha256(
   const value =
     process.env.MANGA_TRANSLATOR_FLUX_ROCM_RUNTIME_ARCHIVE_SHA256 ??
     process.env.MGT_FLUX_ROCM_RUNTIME_ARCHIVE_SHA256;
-  const sha256 = String(value ?? "")
+  const sha256 = String(
+    value ??
+      (archiveUrl === FLUX_ROCM_PREBUILT_RUNTIME_URL
+        ? FLUX_ROCM_PREBUILT_RUNTIME_SHA256
+        : ""),
+  )
     .trim()
     .toLowerCase();
   if (!/^[a-f0-9]{64}$/.test(sha256)) {
     throw new Error(
-      `Flux ROCm prebuilt runtime requires an explicit SHA-256 digest: ${archiveUrl}. ` +
+      `Custom Flux ROCm prebuilt runtime requires an explicit SHA-256 digest: ${archiveUrl}. ` +
         "Set MGT_FLUX_ROCM_RUNTIME_ARCHIVE_SHA256 to the trusted release digest.",
     );
   }
   return sha256;
+}
+
+export function isPinnedDefaultFluxRocmPrebuiltRuntime(
+  archiveUrl: string,
+  archiveSha256: string,
+): boolean {
+  return (
+    archiveUrl === FLUX_ROCM_PREBUILT_RUNTIME_URL &&
+    archiveSha256 === FLUX_ROCM_PREBUILT_RUNTIME_SHA256
+  );
 }
 
 export function shouldUsePrebuiltFluxRocmRuntime(): boolean {

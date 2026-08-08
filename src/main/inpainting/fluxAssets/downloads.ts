@@ -14,6 +14,13 @@ import {
   loadAppRuntimeModule,
 } from "../../runtimeModuleLoader";
 
+export type ArchiveExtractionLimitOverrides = {
+  maximumEntries?: number;
+  maximumEntryBytes?: number;
+  maximumExpandedBytes?: number;
+  maximumCompressionRatio?: number;
+};
+
 type RuntimeZipModule = {
   extractSelectedZipEntries: (
     archivePath: string,
@@ -21,6 +28,8 @@ type RuntimeZipModule = {
     shouldExtract: (fileName: string, relativePath: string) => boolean,
     options?: {
       abortSignal?: AbortSignal;
+      deadlineMs?: number;
+      limits?: ArchiveExtractionLimitOverrides;
       preserveRelativePaths?: boolean;
       replaceOutputDir?: boolean;
     },
@@ -197,8 +206,23 @@ export async function extractLargeZipSafely(
   archivePath: string,
   outputDir: string,
   signal?: AbortSignal,
+  options?: {
+    deadlineMs?: number;
+    limits?: ArchiveExtractionLimitOverrides;
+  },
 ): Promise<void> {
-  await extractZipSafely(archivePath, outputDir, signal);
+  await loadRuntimeZipModule().extractSelectedZipEntries(
+    archivePath,
+    outputDir,
+    () => true,
+    {
+      abortSignal: signal,
+      deadlineMs: options?.deadlineMs,
+      limits: options?.limits,
+      preserveRelativePaths: true,
+      replaceOutputDir: true,
+    },
+  );
 }
 
 function loadRuntimeZipModule(): RuntimeZipModule {

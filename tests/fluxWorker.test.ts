@@ -17,7 +17,11 @@ import {
   FLUX_CUDA_RUNTIME_DIR,
   FLUX_CUDA_RUNTIME_MARKER,
   FLUX_CUDNN_DLLS,
+  FLUX_ROCM_PREBUILT_EXTRACTION_LIMITS,
+  FLUX_ROCM_PREBUILT_RUNTIME_BYTES,
   FLUX_ROCM_PREBUILT_RUNTIME_MANIFEST,
+  FLUX_ROCM_PREBUILT_RUNTIME_PARTS,
+  FLUX_ROCM_PREBUILT_RUNTIME_SHA256,
   FLUX_SDCPP_WORKER,
   FLUX_ZLUDA_SUPPORT_RUNTIME_DIR,
 } from "../src/main/inpainting/fluxAssets/constants";
@@ -29,6 +33,10 @@ import {
   resolveFluxPythonWorkerFile,
   ensureFluxPythonWorker,
 } from "../src/main/inpainting/fluxAssets/pythonRuntimeLayout";
+import {
+  ensureEmbeddedPythonPackagePath,
+  sanitizeStandaloneEmbeddedPythonPathFile,
+} from "../src/main/inpainting/fluxAssets/pythonPathFile";
 import {
   resolveFluxRocmPrebuiltRuntimeUrl,
   resolveFluxRocmPrebuiltRuntimeSha256,
@@ -43,6 +51,7 @@ import {
   sanitizeFluxRuntimeStderr,
 } from "../src/main/inpainting/fluxWorkerErrors";
 import { buildRuntimePathEnv } from "../src/main/inpainting/fluxWorkerEnv";
+import { assembleFluxRocmRuntimeArchiveParts } from "../src/main/inpainting/fluxAssets/rocmPrebuiltArchive";
 
 const tempDirs: string[] = [];
 const repoRoot = join(__dirname, "..");
@@ -550,6 +559,27 @@ describeWindows("Flux worker runtime helpers", () => {
     expect(FLUX_ROCM_PREBUILT_RUNTIME_MANIFEST).toBe(
       "mgt-flux-rocm-runtime.json",
     );
+    expect(
+      resolveFluxRocmPrebuiltRuntimeSha256(resolveFluxRocmPrebuiltRuntimeUrl()),
+    ).toBe(FLUX_ROCM_PREBUILT_RUNTIME_SHA256);
+    expect(
+      FLUX_ROCM_PREBUILT_RUNTIME_PARTS.reduce(
+        (total, part) => total + part.bytes,
+        0,
+      ),
+    ).toBe(FLUX_ROCM_PREBUILT_RUNTIME_BYTES);
+    expect(
+      FLUX_ROCM_PREBUILT_RUNTIME_PARTS.every(
+        (part) => part.bytes < 2 * 1024 * 1024 * 1024,
+      ),
+    ).toBe(true);
+    expect(FLUX_ROCM_PREBUILT_EXTRACTION_LIMITS).toMatchObject({
+      maximumEntries: 20_336,
+      maximumExpandedBytes: 10_679_266_773,
+    });
+
+    process.env.MGT_FLUX_ROCM_RUNTIME_ARCHIVE_URL =
+      "file:///C:/runtime/custom-flux-rocm.zip";
     expect(() =>
       resolveFluxRocmPrebuiltRuntimeSha256(resolveFluxRocmPrebuiltRuntimeUrl()),
     ).toThrow("requires an explicit SHA-256");
@@ -558,15 +588,64 @@ describeWindows("Flux worker runtime helpers", () => {
     expect(
       resolveFluxRocmPrebuiltRuntimeSha256(resolveFluxRocmPrebuiltRuntimeUrl()),
     ).toBe("a".repeat(64));
-
-    process.env.MGT_FLUX_ROCM_RUNTIME_ARCHIVE_URL =
-      "file:///C:/runtime/custom-flux-rocm.zip";
     process.env.MGT_FLUX_ROCM_USE_PREBUILT = "0";
 
     expect(resolveFluxRocmPrebuiltRuntimeUrl()).toBe(
       "file:///C:/runtime/custom-flux-rocm.zip",
     );
     expect(shouldUsePrebuiltFluxRocmRuntime()).toBe(false);
+  });
+
+  it("reassembles pinned Flux ROCm release parts without replacing a known-good archive on failure", async () => {
+    const root = createTempDir("mgt-flux-rocm-parts-");
+    const partOne = join(root, "runtime.zip.part-001");
+    const partTwo = join(root, "runtime.zip.part-002");
+    const outputPath = join(root, "runtime.zip");
+    const expected = Buffer.from("legacy-rocm-runtime-archive");
+    writeFileSync(partOne, expected.subarray(0, 11));
+    writeFileSync(partTwo, expected.subarray(11));
+    writeFileSync(outputPath, "previous-known-good");
+
+    await assembleFluxRocmRuntimeArchiveParts({
+      partPaths: [partOne, partTwo],
+      outputPath,
+      expectedBytes: expected.length,
+      expectedSha256: createHash("sha256").update(expected).digest("hex"),
+    });
+    expect(readFileSync(outputPath)).toEqual(expected);
+
+    writeFileSync(outputPath, "previous-known-good");
+    await expect(
+      assembleFluxRocmRuntimeArchiveParts({
+        partPaths: [partOne, partTwo],
+        outputPath,
+        expectedBytes: expected.length,
+        expectedSha256: "0".repeat(64),
+      }),
+    ).rejects.toThrow("release parts SHA-256 mismatch");
+    expect(readFileSync(outputPath, "utf8")).toBe("previous-known-good");
+  });
+
+  it("removes the legacy ROCm build path before injecting the installed package directory", () => {
+    const root = createTempDir("mgt-flux-rocm-python-path-");
+    const pythonDir = join(root, "bootstrap-python", "python-3.12.7");
+    const packageDir = join(root, "p");
+    mkdirSync(pythonDir, { recursive: true });
+    mkdirSync(packageDir, { recursive: true });
+    writeFileSync(join(pythonDir, "python312.zip"), "stdlib");
+    writeFileSync(
+      join(pythonDir, "python312._pth"),
+      "python312.zip\n.\nC:\\old-build\\runtime\\p\nimport site\n",
+    );
+
+    sanitizeStandaloneEmbeddedPythonPathFile(pythonDir);
+    ensureEmbeddedPythonPackagePath(join(pythonDir, "python.exe"), packageDir);
+
+    const pth = readFileSync(join(pythonDir, "python312._pth"), "utf8");
+    expect(pth).not.toContain("old-build");
+    expect(pth).toContain(packageDir);
+    expect(pth).toContain("python312.zip");
+    expect(pth.trimEnd().endsWith("import site")).toBe(true);
   });
 
   it("builds a reproducible Flux ROCm runtime context from explicit inputs", () => {
@@ -577,6 +656,7 @@ describeWindows("Flux worker runtime helpers", () => {
       buildPackages: string[];
       fluxPackages: string[];
       defaultAmdGpuTargets: string[];
+      releasePartBytes: number;
       windowsMsvcCompilerTarget: string;
     };
     const { createBuildContext } =
@@ -628,7 +708,45 @@ describeWindows("Flux worker runtime helpers", () => {
     );
     expect(config.windowsMsvcCompilerTarget).toBe("x86_64-pc-windows-msvc");
     expect(config.defaultAmdGpuTargets).toEqual(DEFAULT_AMD_GPU_TARGETS);
+    expect(config.releasePartBytes).toBe(1_900_000_000);
+    expect(config.releasePartBytes).toBeLessThan(2 * 1024 * 1024 * 1024);
   });
+
+  it("splits a Flux ROCm runtime into GitHub-sized release assets", async () => {
+    const root = createTempDir("mgt-rocm-release-parts-");
+    const archivePath = join(root, "runtime.zip");
+    const archive = Buffer.from("0123456789abcdefghijklmnop");
+    writeFileSync(archivePath, archive);
+    const lines: string[] = [];
+    const { splitRuntimeArchiveForRelease } =
+      require("../scripts/flux-rocm-build/runtime-package.cjs") as {
+        splitRuntimeArchiveForRelease: (options: {
+          archivePath: string;
+          partBytes: number;
+          logger: { line: (line: string) => void };
+        }) => Promise<Array<{ file: string; bytes: number; sha256: string }>>;
+      };
+
+    const parts = await splitRuntimeArchiveForRelease({
+      archivePath,
+      partBytes: 10,
+      logger: { line: (line) => lines.push(line) },
+    });
+
+    expect(parts.map((part) => part.bytes)).toEqual([10, 10, 6]);
+    expect(
+      Buffer.concat(parts.map((part) => readFileSync(join(root, part.file)))),
+    ).toEqual(archive);
+    expect(parts.map((part) => part.sha256)).toEqual(
+      parts.map((part) =>
+        createHash("sha256")
+          .update(readFileSync(join(root, part.file)))
+          .digest("hex"),
+      ),
+    );
+    expect(lines).toHaveLength(3);
+  });
+
   it("builds Flux Klein CUDA runners with explicit compute-capability variants", () => {
     const {
       createCudaRootCandidates,

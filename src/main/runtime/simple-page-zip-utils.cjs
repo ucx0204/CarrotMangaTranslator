@@ -50,6 +50,7 @@ const yauzl = /** @type {typeof import("yauzl")} */ (loadYauzlRuntime());
 const {
   addArchiveEntryToBudget,
   createArchiveExtractionDeadline,
+  resolveArchiveExtractionLimits,
   throwIfArchiveExtractionAborted,
 } = require("./archive-extraction-policy.cjs");
 const { safeCleanup } = require("./simple-page-runtime-common.cjs");
@@ -64,7 +65,8 @@ const {
  * @typedef {{ command: string, args: string[], code: number | null, stdout: string, stderr: string, error?: string }} ArchiveCommandAttempt
  * @typedef {{ method: "powershell" | "tar" | "yauzl", stdout: string, stderr: string, attempts: ArchiveCommandAttempt[] }} ArchiveExtractionResult
  * @typedef {(archivePath: string, outputDir: string) => Promise<ArchiveExtractionResult>} ArchiveExtractor
- * @typedef {{ extractArchive?: ArchiveExtractor; abortSignal?: AbortSignal | null; deadlineMs?: number; preserveRelativePaths?: boolean; replaceOutputDir?: boolean }} ExtractSelectedZipOptions
+ * @typedef {{ maximumEntries?: number; maximumEntryBytes?: number; maximumExpandedBytes?: number; maximumCompressionRatio?: number }} ArchiveExtractionLimitOverrides
+ * @typedef {{ extractArchive?: ArchiveExtractor; abortSignal?: AbortSignal | null; deadlineMs?: number; limits?: ArchiveExtractionLimitOverrides; preserveRelativePaths?: boolean; replaceOutputDir?: boolean }} ExtractSelectedZipOptions
  */
 
 /**
@@ -105,6 +107,7 @@ async function extractSelectedZipEntries(
       options.abortSignal,
       options.deadlineMs,
     );
+    const limits = resolveArchiveExtractionLimits(options.limits);
     try {
       const selectedFiles = await extractSelectedZipStreams(
         archivePath,
@@ -112,6 +115,7 @@ async function extractSelectedZipEntries(
         shouldExtract,
         deadline.signal,
         options.preserveRelativePaths === true,
+        limits,
       );
       if (options.replaceOutputDir) {
         await replaceDirectoryWithRollback(extractDir, outputDir);
@@ -169,13 +173,14 @@ async function publishSelectedFiles(selectedFiles, outputDir) {
   }
 }
 
-/** @param {string} archivePath @param {string} extractDir @param {RuntimeEntryFilter} shouldExtract @param {AbortSignal} signal @param {boolean} preserveRelativePaths */
+/** @param {string} archivePath @param {string} extractDir @param {RuntimeEntryFilter} shouldExtract @param {AbortSignal} signal @param {boolean} preserveRelativePaths @param {{ maximumEntries: number; maximumEntryBytes: number; maximumExpandedBytes: number; maximumCompressionRatio: number }} limits */
 async function extractSelectedZipStreams(
   archivePath,
   extractDir,
   shouldExtract,
   signal,
   preserveRelativePaths,
+  limits,
 ) {
   throwIfArchiveExtractionAborted(signal);
   const zipFile = await yauzl.openPromise(archivePath, {
@@ -191,6 +196,7 @@ async function extractSelectedZipStreams(
       shouldExtract,
       signal,
       preserveRelativePaths,
+      limits,
     );
     if (selected.length === 0) {
       throw createDetailedError(`No runtime files matched in ${archivePath}.`, {
@@ -209,13 +215,14 @@ async function extractSelectedZipStreams(
   }
 }
 
-/** @param {any} zipFile @param {string} archivePath @param {RuntimeEntryFilter} shouldExtract @param {AbortSignal} signal @param {boolean} preserveRelativePaths @returns {Promise<InspectedZipEntry[]>} */
+/** @param {any} zipFile @param {string} archivePath @param {RuntimeEntryFilter} shouldExtract @param {AbortSignal} signal @param {boolean} preserveRelativePaths @param {{ maximumEntries: number; maximumEntryBytes: number; maximumExpandedBytes: number; maximumCompressionRatio: number }} limits @returns {Promise<InspectedZipEntry[]>} */
 async function inspectZipEntries(
   zipFile,
   archivePath,
   shouldExtract,
   signal,
   preserveRelativePaths,
+  limits,
 ) {
   const budget = { entryCount: 0, expandedBytes: 0 };
   const outputNames = new Set();
@@ -235,6 +242,7 @@ async function inspectZipEntries(
         directory,
       },
       path.basename(archivePath),
+      limits,
     );
     if (directory) continue;
     const fileName = path.posix.basename(relativePath);

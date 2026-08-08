@@ -146,7 +146,42 @@ export const FLUX_EMBED_PYTHON_VERSION = "3.12.7";
 
 export const FLUX_ROCM_PREBUILT_RUNTIME_FILE = `mgt-flux-rocm-win-x64-rocm${FLUX_ROCM_WINDOWS_VERSION}-py${FLUX_EMBED_PYTHON_VERSION}-sdcpp.zip`;
 
-export const FLUX_ROCM_PREBUILT_RUNTIME_URL = `https://github.com/ucx0204/CarrotMangaTranslator/releases/download/flux-runtime/${FLUX_ROCM_PREBUILT_RUNTIME_FILE}`;
+const FLUX_ROCM_PREBUILT_RUNTIME_RELEASE_TAG = "flux-runtime-rocm7.2.1-r1";
+
+export const FLUX_ROCM_PREBUILT_RUNTIME_URL = `https://github.com/ucx0204/CarrotMangaTranslator/releases/download/${FLUX_ROCM_PREBUILT_RUNTIME_RELEASE_TAG}/${FLUX_ROCM_PREBUILT_RUNTIME_FILE}`;
+
+// This is the original 2026-06-11 stable-diffusion.cpp ROCm runtime. Keep the
+// complete archive digest as the trust anchor even though GitHub must host it
+// in sub-2-GiB release parts.
+export const FLUX_ROCM_PREBUILT_RUNTIME_SHA256 =
+  "dc789faf12c2983c8aec3a14bb0b2735d8b79748472c1215e1e06bb1d5b94cb2";
+
+export const FLUX_ROCM_PREBUILT_RUNTIME_BYTES = 3_054_206_837;
+
+export const FLUX_ROCM_PREBUILT_RUNTIME_PARTS = [
+  {
+    fileName: `${FLUX_ROCM_PREBUILT_RUNTIME_FILE}.part-001`,
+    bytes: 1_900_000_000,
+    sha256: "a5e73ab2cf38ffdeb865fd45c221fc799e10fb136a71f0d541b0fb52a082e954",
+  },
+  {
+    fileName: `${FLUX_ROCM_PREBUILT_RUNTIME_FILE}.part-002`,
+    bytes: 1_154_206_837,
+    sha256: "8116ae4899ecf59f66b359446703447b96bae4e0e5f8c028faeb3217c7918606",
+  },
+] as const;
+
+// The pinned legacy runtime is larger than the generic archive policy because
+// it contains the ROCm SDK layout used by the known-working build. These exact
+// limits are only selected after the complete archive SHA-256 matches above.
+export const FLUX_ROCM_PREBUILT_EXTRACTION_LIMITS = {
+  maximumEntries: 20_336,
+  maximumEntryBytes: 997_573_120,
+  maximumExpandedBytes: 10_679_266_773,
+  maximumCompressionRatio: 60,
+} as const;
+
+export const FLUX_ROCM_PREBUILT_EXTRACTION_DEADLINE_MS = 30 * 60 * 1000;
 
 export const FLUX_GET_PIP_URL = "https://bootstrap.pypa.io/get-pip.py";
 

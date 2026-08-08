@@ -16,6 +16,7 @@ const {
   MAX_RUNTIME_ARCHIVE_ENTRY_COUNT,
   addArchiveEntryToBudget,
   createArchiveExtractionDeadline,
+  resolveArchiveExtractionLimits,
 } = require("../src/main/runtime/archive-extraction-policy.cjs") as {
   MAX_RUNTIME_ARCHIVE_ENTRY_COUNT: number;
   addArchiveEntryToBudget: (
@@ -27,11 +28,28 @@ const {
       directory?: boolean;
     },
     archiveLabel: string,
+    limits?: {
+      maximumEntries: number;
+      maximumEntryBytes: number;
+      maximumExpandedBytes: number;
+      maximumCompressionRatio: number;
+    },
   ) => void;
   createArchiveExtractionDeadline: (
     signal?: AbortSignal,
     deadlineMs?: number,
   ) => { signal: AbortSignal; cleanup: () => void };
+  resolveArchiveExtractionLimits: (overrides?: {
+    maximumEntries?: number;
+    maximumEntryBytes?: number;
+    maximumExpandedBytes?: number;
+    maximumCompressionRatio?: number;
+  }) => {
+    maximumEntries: number;
+    maximumEntryBytes: number;
+    maximumExpandedBytes: number;
+    maximumCompressionRatio: number;
+  };
 };
 const { normalizeSafeZipPath } =
   require("../src/main/runtime/simple-page-zip-utils.cjs") as {
@@ -66,6 +84,34 @@ describe("runtime archive extraction policy", () => {
         "runtime.zip",
       ),
     ).toThrow(/compression ratio/);
+  });
+
+  it("supports a caller-pinned larger archive budget without changing defaults", () => {
+    const limits = resolveArchiveExtractionLimits({
+      maximumEntries: MAX_RUNTIME_ARCHIVE_ENTRY_COUNT + 1,
+      maximumExpandedBytes: 5 * 1024 * 1024 * 1024,
+    });
+    const budget = {
+      entryCount: MAX_RUNTIME_ARCHIVE_ENTRY_COUNT,
+      expandedBytes: 4 * 1024 * 1024 * 1024,
+    };
+
+    expect(() =>
+      addArchiveEntryToBudget(
+        budget,
+        { name: "pinned-runtime.dll", size: 1, compressedSize: 1 },
+        "pinned-runtime.zip",
+        limits,
+      ),
+    ).not.toThrow();
+    expect(budget).toEqual({
+      entryCount: MAX_RUNTIME_ARCHIVE_ENTRY_COUNT + 1,
+      expandedBytes: 4 * 1024 * 1024 * 1024 + 1,
+    });
+
+    expect(() => resolveArchiveExtractionLimits({ maximumEntries: 0 })).toThrow(
+      "maximumEntries",
+    );
   });
 
   it("rejects absolute, traversal, and NUL entry paths", () => {
