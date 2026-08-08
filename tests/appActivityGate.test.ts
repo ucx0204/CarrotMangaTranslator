@@ -126,6 +126,73 @@ describe("AppActivityGate", () => {
     expect(gate.isUnavailable).toBe(true);
   });
 
+  it("temporarily suspends intake while allowing the current lease to release", () => {
+    const gate = new AppActivityGate();
+    const current = gate.acquire({
+      id: "active",
+      category: "job",
+      kind: "translation",
+      mutatesLibrary: true,
+      blocksQuit: true,
+    });
+    const suspension = gate.suspendNewActivities();
+
+    current.release();
+    expect(gate.current).toBeNull();
+    expect(gate.isUnavailable).toBe(true);
+    expect(() =>
+      gate.acquire({
+        id: "suspended",
+        category: "operation",
+        kind: "model-test",
+        mutatesLibrary: false,
+        blocksQuit: true,
+      }),
+    ).toThrow(AppActivityClosedError);
+
+    suspension.release();
+    const next = gate.acquire({
+      id: "next",
+      category: "operation",
+      kind: "model-test",
+      mutatesLibrary: false,
+      blocksQuit: true,
+    });
+    next.release();
+    expect(gate.isUnavailable).toBe(false);
+  });
+
+  it("requires every suspension lease to release and ignores duplicate release", () => {
+    const gate = new AppActivityGate();
+    const first = gate.suspendNewActivities();
+    const second = gate.suspendNewActivities();
+
+    first.release();
+    first.release();
+    expect(gate.isUnavailable).toBe(true);
+
+    second.release();
+    expect(gate.isUnavailable).toBe(false);
+  });
+
+  it("does not reopen permanently closed intake when a suspension releases", () => {
+    const gate = new AppActivityGate();
+    const suspension = gate.suspendNewActivities();
+    gate.closeToNewActivities();
+
+    suspension.release();
+    expect(gate.isUnavailable).toBe(true);
+    expect(() =>
+      gate.acquire({
+        id: "late",
+        category: "job",
+        kind: "translation",
+        mutatesLibrary: true,
+        blocksQuit: true,
+      }),
+    ).toThrow(AppActivityClosedError);
+  });
+
   it("returns descriptor copies instead of exposing internal metadata", () => {
     const gate = new AppActivityGate();
     const lease = gate.acquire({

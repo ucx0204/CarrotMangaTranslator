@@ -2,9 +2,15 @@ import type { ActiveJob, ActiveJobStore } from "./activeJob";
 
 export const BEFORE_QUIT_CLEANUP_TIMEOUT_MS = 5000;
 
-type BeforeQuitCleanupOptions = {
+export type ActiveJobCleanupReason =
+  | "before-quit"
+  | "fatal-incident"
+  | "main-window-closed";
+
+type ActiveJobCleanupOptions = {
   job: ActiveJob;
   jobs: Pick<ActiveJobStore, "clearIfCurrent" | "runCleanup">;
+  reason: ActiveJobCleanupReason;
   warnTimedOut: (jobId: string, timeoutMs: number) => void;
   timeoutMs?: number;
   scheduleTimeout?: (
@@ -25,17 +31,18 @@ export function canReleaseInpaintingHistoryAfterQuitCleanup(
   return jobKind !== "inpainting" || !result.timedOut;
 }
 
-export async function finishBeforeQuitCleanup({
+export async function finishActiveJobCleanup({
   job,
   jobs,
+  reason,
   warnTimedOut,
   timeoutMs = BEFORE_QUIT_CLEANUP_TIMEOUT_MS,
   scheduleTimeout = setTimeout,
   clearScheduledTimeout = clearTimeout,
-}: BeforeQuitCleanupOptions): Promise<BeforeQuitCleanupResult> {
+}: ActiveJobCleanupOptions): Promise<BeforeQuitCleanupResult> {
   job.abortController.abort();
 
-  const cleanup = jobs.runCleanup(job, "before-quit");
+  const cleanup = jobs.runCleanup(job, reason);
   const timedOut = await waitForCleanupDeadline(
     cleanup,
     timeoutMs,
@@ -57,6 +64,15 @@ export async function finishBeforeQuitCleanup({
   void cleanup.then(clearAfterSettlement, clearAfterSettlement);
 
   return { timedOut: true };
+}
+
+export function finishBeforeQuitCleanup(
+  options: Omit<ActiveJobCleanupOptions, "reason">,
+): Promise<BeforeQuitCleanupResult> {
+  return finishActiveJobCleanup({
+    ...options,
+    reason: "before-quit",
+  });
 }
 
 function waitForCleanupDeadline(

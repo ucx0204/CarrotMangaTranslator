@@ -9,7 +9,9 @@ import { ActiveJobStore } from "../src/main/jobs/activeJob";
 import { createJobLifetimeCleanupBoundary } from "../src/main/jobs/jobLifetimeCleanup";
 import {
   BEFORE_QUIT_CLEANUP_TIMEOUT_MS,
+  type ActiveJobCleanupReason,
   canReleaseInpaintingHistoryAfterQuitCleanup,
+  finishActiveJobCleanup,
   finishBeforeQuitCleanup,
 } from "../src/main/jobs/beforeQuitCleanup";
 import { registerJobControlIpc } from "../src/main/ipc/jobControlIpc";
@@ -276,6 +278,26 @@ describe("before-quit cleanup", () => {
     expect(clearScheduledTimeout).toHaveBeenCalledTimes(1);
     expect(warnTimedOut).not.toHaveBeenCalled();
     expect(result).toEqual({ timedOut: false });
+  });
+
+  it("passes an explicit lifecycle reason through generic active-job cleanup", async () => {
+    const job = makeActiveJob();
+    const reason: ActiveJobCleanupReason = "main-window-closed";
+    const jobs = {
+      clearIfCurrent: vi.fn(),
+      runCleanup: vi.fn(async () => undefined),
+    };
+
+    await finishActiveJobCleanup({
+      job,
+      jobs,
+      reason,
+      warnTimedOut: vi.fn(),
+    });
+
+    expect(job.abortController.signal.aborted).toBe(true);
+    expect(jobs.runCleanup).toHaveBeenCalledWith(job, "main-window-closed");
+    expect(jobs.clearIfCurrent).toHaveBeenCalledWith(job.id);
   });
 
   it("keeps the active job until timed-out cleanup actually settles", async () => {

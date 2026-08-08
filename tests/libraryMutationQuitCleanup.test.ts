@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { LibraryMutationSuspensionLease } from "../src/main/libraryStore/libraryMutationCoordinator";
 
 afterEach(() => {
   vi.resetModules();
@@ -67,6 +68,61 @@ describe("library mutation quit coordination", () => {
       /transaction 복구가 필요합니다/,
     );
     expect(() => lock.withLibraryMutation(async () => "write")).toThrow(
+      /transaction 복구가 필요합니다/,
+    );
+  });
+
+  it("temporarily suspends new mutations while admitted leases can finish", async () => {
+    const { coordinator } = await loadModules();
+    const admitted = coordinator.libraryMutationCoordinator.begin();
+    const suspension: LibraryMutationSuspensionLease =
+      coordinator.libraryMutationCoordinator.suspendNewMutations();
+
+    expect(() => coordinator.libraryMutationCoordinator.begin()).toThrow(
+      /일시적으로 중지/,
+    );
+    admitted.finish();
+    await expect(
+      coordinator.libraryMutationCoordinator.waitForIdle(),
+    ).resolves.toBeUndefined();
+
+    suspension.release();
+    const next = coordinator.libraryMutationCoordinator.begin();
+    next.finish();
+  });
+
+  it("reference-counts suspension leases and ignores duplicate release", async () => {
+    const { coordinator } = await loadModules();
+    const first = coordinator.libraryMutationCoordinator.suspendNewMutations();
+    const second = coordinator.libraryMutationCoordinator.suspendNewMutations();
+
+    first.release();
+    first.release();
+    expect(() => coordinator.libraryMutationCoordinator.begin()).toThrow(
+      /일시적으로 중지/,
+    );
+
+    second.release();
+    const lease = coordinator.libraryMutationCoordinator.begin();
+    lease.finish();
+  });
+
+  it("does not reopen permanent closing or recovery-required state", async () => {
+    const closing = (await loadModules()).coordinator;
+    const closingSuspension =
+      closing.libraryMutationCoordinator.suspendNewMutations();
+    closing.libraryMutationCoordinator.closeToNewMutations();
+    closingSuspension.release();
+    expect(() => closing.libraryMutationCoordinator.begin()).toThrow(/종료 중/);
+
+    const recovery = (await loadModules()).coordinator;
+    const recoverySuspension =
+      recovery.libraryMutationCoordinator.suspendNewMutations();
+    recovery.libraryMutationCoordinator.markRecoveryRequired(
+      new Error("rollback failed"),
+    );
+    recoverySuspension.release();
+    expect(() => recovery.libraryMutationCoordinator.begin()).toThrow(
       /transaction 복구가 필요합니다/,
     );
   });

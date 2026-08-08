@@ -14,6 +14,10 @@ export type AppActivityLease = {
   release: () => void;
 };
 
+export type AppActivitySuspensionLease = {
+  release: () => void;
+};
+
 export class AppActivityBusyError extends Error {
   readonly code = "APP_ACTIVITY_BUSY";
   readonly current: Readonly<AppActivityDescriptor>;
@@ -47,20 +51,25 @@ export class AppActivityGate {
     descriptor: AppActivityDescriptor;
   } | null = null;
 
-  private acceptingNewActivities = true;
+  private permanentlyClosed = false;
+  private readonly suspensionTokens = new Set<symbol>();
 
   get current(): Readonly<AppActivityDescriptor> | null {
     return this.currentEntry ? { ...this.currentEntry.descriptor } : null;
   }
 
   get isUnavailable(): boolean {
-    return !this.acceptingNewActivities || this.currentEntry !== null;
+    return (
+      this.permanentlyClosed ||
+      this.suspensionTokens.size > 0 ||
+      this.currentEntry !== null
+    );
   }
 
   acquire(
     input: Omit<AppActivityDescriptor, "startedAt"> & { startedAt?: number },
   ): AppActivityLease {
-    if (!this.acceptingNewActivities) {
+    if (this.permanentlyClosed || this.suspensionTokens.size > 0) {
       throw new AppActivityClosedError();
     }
 
@@ -88,7 +97,23 @@ export class AppActivityGate {
   }
 
   closeToNewActivities(): void {
-    this.acceptingNewActivities = false;
+    this.permanentlyClosed = true;
+  }
+
+  suspendNewActivities(): AppActivitySuspensionLease {
+    const token = Symbol("app-activity-suspension");
+    this.suspensionTokens.add(token);
+
+    let released = false;
+    return {
+      release: () => {
+        if (released) {
+          return;
+        }
+        released = true;
+        this.suspensionTokens.delete(token);
+      },
+    };
   }
 }
 

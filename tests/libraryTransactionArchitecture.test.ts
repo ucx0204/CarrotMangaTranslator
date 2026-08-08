@@ -14,7 +14,7 @@ describe("library transaction architecture", () => {
       "await recoverLegacyShareImportTrash()",
     );
     const registerIpc = source.indexOf("registerIpc({");
-    const openMainWindow = source.indexOf("openMainWindow();", registerIpc);
+    const openMainWindow = source.indexOf("openMainWindowNow();", registerIpc);
     const scheduleMaintenance = source.indexOf(
       "cancelStartupMaintenance = scheduleStartupMaintenance",
       openMainWindow,

@@ -191,10 +191,10 @@ describe("instance guard source invariants", () => {
       "utf8",
     );
     const cleanupStart = mainSource.indexOf(
-      "async function finishAppQuitCleanup(",
+      "async function finishTerminalCleanup(",
     );
     const cleanupEnd = mainSource.indexOf(
-      "function openMainWindow()",
+      "function openMainWindowNow()",
       cleanupStart,
     );
     const cleanupSource = mainSource.slice(cleanupStart, cleanupEnd);

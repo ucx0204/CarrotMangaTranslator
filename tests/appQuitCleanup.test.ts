@@ -133,6 +133,74 @@ describe("app quit cleanup orchestration", () => {
     expect(clearIfCurrent).toHaveBeenCalledTimes(1);
     expect(clearIfCurrent).toHaveBeenCalledWith(job.id);
   });
+
+  it("uses fatal cleanup reasons and aborts non-blocking operations", async () => {
+    const job: ActiveJob = {
+      id: "fatal-job",
+      kind: "gemma-analysis",
+      abortController: new AbortController(),
+    };
+    const runCleanup = vi.fn(async () => undefined);
+    const abortCurrentAndWait = vi.fn(async () => null);
+
+    await runAppQuitCleanup({
+      jobs: {
+        current: job,
+        clearIfCurrent: vi.fn(),
+        runCleanup,
+      },
+      operations: {
+        current: {
+          id: "non-blocking-operation",
+          kind: "model-test",
+          mutatesLibrary: false,
+          blocksQuit: false,
+          startedAt: 1,
+        },
+        abortCurrentAndWait,
+      },
+      cancelStartupMaintenance: vi.fn(),
+      disposeInpainting: vi.fn(async () => undefined),
+      disposeTranslation: vi.fn(async () => undefined),
+      waitForLibraryMutations: vi.fn(async () => undefined),
+      releaseInpaintingHistory: vi.fn(async () => 0),
+      updateProgress: vi.fn(),
+      logError: vi.fn(),
+      logWarn: vi.fn(),
+      cleanupReason: "fatal-incident",
+    });
+
+    expect(runCleanup).toHaveBeenCalledWith(job, "fatal-incident");
+    expect(abortCurrentAndWait).toHaveBeenCalledWith("fatal-incident");
+  });
+
+  it("keeps before-quit as the default active-job cleanup reason", async () => {
+    const job: ActiveJob = {
+      id: "normal-quit-job",
+      kind: "gemma-analysis",
+      abortController: new AbortController(),
+    };
+    const runCleanup = vi.fn(async () => undefined);
+
+    await runAppQuitCleanup({
+      jobs: {
+        current: job,
+        clearIfCurrent: vi.fn(),
+        runCleanup,
+      },
+      operations: createIdleOperations(),
+      cancelStartupMaintenance: vi.fn(),
+      disposeInpainting: vi.fn(async () => undefined),
+      disposeTranslation: vi.fn(async () => undefined),
+      waitForLibraryMutations: vi.fn(async () => undefined),
+      releaseInpaintingHistory: vi.fn(async () => 0),
+      updateProgress: vi.fn(),
+      logError: vi.fn(),
+      logWarn: vi.fn(),
+    });
+
+    expect(runCleanup).toHaveBeenCalledWith(job, "before-quit");
+  });
 });
 
 function createIdleOperations() {

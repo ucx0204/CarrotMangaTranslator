@@ -4,8 +4,10 @@ import type { AppQuitCleanupProgress } from "./appQuitCoordinator";
 import type { ActiveJobStore } from "./jobs/activeJob";
 import {
   canReleaseInpaintingHistoryAfterQuitCleanup,
-  finishBeforeQuitCleanup,
+  finishActiveJobCleanup,
 } from "./jobs/beforeQuitCleanup";
+
+export type AppTerminalCleanupReason = "app-quit" | "fatal-incident";
 
 type AppQuitCleanupJobs = Pick<
   ActiveJobStore,
@@ -30,6 +32,7 @@ export async function runAppQuitCleanup({
   updateProgress,
   logError,
   logWarn,
+  cleanupReason = "app-quit",
 }: {
   jobs: AppQuitCleanupJobs;
   operations: AppQuitCleanupOperations;
@@ -41,9 +44,14 @@ export async function runAppQuitCleanup({
   updateProgress: (progress: AppQuitCleanupProgress) => void;
   logError: AppQuitCleanupLogger;
   logWarn: AppQuitCleanupLogger;
+  cleanupReason?: AppTerminalCleanupReason;
 }): Promise<void> {
   updateProgress({ stage: "startup-maintenance-cancel" });
-  cancelStartupMaintenanceSafely(cancelStartupMaintenance, logError);
+  cancelStartupMaintenanceSafely(
+    cancelStartupMaintenance,
+    logError,
+    cleanupReason,
+  );
 
   let inpaintingHistoryReleaseSafe = true;
   const job = jobs.current;
@@ -54,14 +62,18 @@ export async function runAppQuitCleanup({
       jobId: job.id,
       jobKind: job.kind,
     });
-    const cleanup = await finishBeforeQuitCleanup({
+    const cleanup = await finishActiveJobCleanup({
       job,
       jobs,
+      reason:
+        cleanupReason === "fatal-incident" ? "fatal-incident" : "before-quit",
       warnTimedOut: (jobId, timeoutMs) => {
-        logWarn("Timed out waiting for active job cleanup during app quit", {
-          jobId,
-          timeoutMs,
-        });
+        logWarn(
+          cleanupReason === "fatal-incident"
+            ? "Timed out waiting for active job cleanup during fatal shutdown"
+            : "Timed out waiting for active job cleanup during app quit",
+          { jobId, timeoutMs },
+        );
       },
     });
     inpaintingHistoryReleaseSafe = canReleaseInpaintingHistoryAfterQuitCleanup(
@@ -70,13 +82,15 @@ export async function runAppQuitCleanup({
     );
     if (!inpaintingHistoryReleaseSafe) {
       logWarn(
-        "Skipping inpainting history release because the active job did not settle before quit",
+        cleanupReason === "fatal-incident"
+          ? "Skipping inpainting history release because the active job did not settle during fatal shutdown"
+          : "Skipping inpainting history release because the active job did not settle before quit",
         { jobId: job.id },
       );
     }
   }
 
-  await cleanupManagedOperation(operations, updateProgress);
+  await cleanupManagedOperation(operations, updateProgress, cleanupReason);
 
   updateProgress({
     stage: "library-mutation-cleanup",
@@ -92,6 +106,7 @@ export async function runAppQuitCleanup({
     disposeInpainting,
     disposeTranslation,
     logError,
+    cleanupReason,
   });
 
   if (inpaintingHistoryReleaseSafe) {
@@ -103,7 +118,9 @@ export async function runAppQuitCleanup({
       await releaseInpaintingHistory();
     } catch (error) {
       logError(
-        "Failed to release inpainting revision history during app quit",
+        cleanupReason === "fatal-incident"
+          ? "Failed to release inpainting revision history during fatal shutdown"
+          : "Failed to release inpainting revision history during app quit",
         error,
       );
     }
@@ -113,20 +130,30 @@ export async function runAppQuitCleanup({
 function cancelStartupMaintenanceSafely(
   cancelStartupMaintenance: () => void,
   logError: AppQuitCleanupLogger,
+  cleanupReason: AppTerminalCleanupReason,
 ): void {
   try {
     cancelStartupMaintenance();
   } catch (error) {
-    logError("Failed to cancel startup maintenance during app quit", error);
+    logError(
+      cleanupReason === "fatal-incident"
+        ? "Failed to cancel startup maintenance during fatal shutdown"
+        : "Failed to cancel startup maintenance during app quit",
+      error,
+    );
   }
 }
 
 async function cleanupManagedOperation(
   operations: AppQuitCleanupOperations,
   updateProgress: (progress: AppQuitCleanupProgress) => void,
+  cleanupReason: AppTerminalCleanupReason,
 ): Promise<void> {
   const operation = operations.current;
-  if (!operation?.blocksQuit) {
+  if (!operation) {
+    return;
+  }
+  if (cleanupReason === "app-quit" && !operation.blocksQuit) {
     return;
   }
   updateProgress({
@@ -134,17 +161,19 @@ async function cleanupManagedOperation(
     operationId: operation.id,
     operationKind: operation.kind,
   });
-  await operations.abortCurrentAndWait("app-quit");
+  await operations.abortCurrentAndWait(cleanupReason);
 }
 
 async function disposeRuntimeResources({
   disposeInpainting,
   disposeTranslation,
   logError,
+  cleanupReason,
 }: {
   disposeInpainting: () => Promise<unknown>;
   disposeTranslation: () => Promise<unknown>;
   logError: AppQuitCleanupLogger;
+  cleanupReason: AppTerminalCleanupReason;
 }): Promise<void> {
   const disposalResults = await Promise.allSettled([
     Promise.resolve().then(disposeInpainting),
@@ -152,10 +181,15 @@ async function disposeRuntimeResources({
   ]);
   for (const [index, result] of disposalResults.entries()) {
     if (result.status === "rejected") {
-      logError("Runtime resource disposal failed during app quit", {
-        resource: index === 0 ? "inpainting-engines" : "translation-runtime",
-        error: result.reason,
-      });
+      logError(
+        cleanupReason === "fatal-incident"
+          ? "Runtime resource disposal failed during fatal shutdown"
+          : "Runtime resource disposal failed during app quit",
+        {
+          resource: index === 0 ? "inpainting-engines" : "translation-runtime",
+          error: result.reason,
+        },
+      );
     }
   }
 }

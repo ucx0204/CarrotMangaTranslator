@@ -8,7 +8,15 @@ import {
   beginBoundedAppQuit,
   type AppQuitCleanupProgress,
 } from "./appQuitCoordinator";
-import { runAppQuitCleanup } from "./appQuitCleanup";
+import {
+  runAppQuitCleanup,
+  type AppTerminalCleanupReason,
+} from "./appQuitCleanup";
+import {
+  FatalMainProcessIncidentCoordinator,
+  type FatalMainProcessIncidentRuntime,
+  type FatalMainProcessIncidentSource,
+} from "./fatalMainProcessIncident";
 import {
   registerImageProtocolHandler,
   registerImageProtocolScheme,
@@ -53,6 +61,8 @@ import { scheduleStartupMaintenance } from "./startupMaintenance";
 import { disposeTranslationRuntimeResources } from "./translationRuntime";
 import { assertDataRootInstanceLockHeld } from "./dataRootInstanceLockState";
 import { focusExistingMainWindow } from "./singleInstanceWindow";
+import { runMainWindowCloseCleanup } from "./mainWindowCloseCleanup";
+import { MainWindowSessionLifecycle } from "./mainWindowSessionLifecycle";
 
 const resolvedAppPaths = getAppPaths();
 assertDataRootInstanceLockHeld(resolvedAppPaths.dataRoot);
@@ -67,11 +77,46 @@ const panelWindows = new PanelWindowRegistry(
   appPaths.dataRoot,
 );
 const errorReportWindows = new ErrorReportWindowRegistry();
+const fatalCoordinator = new FatalMainProcessIncidentCoordinator();
+const mainWindowSessionLifecycle = new MainWindowSessionLifecycle({
+  suspendActivities: () => appActivityGate.suspendNewActivities(),
+  suspendMutations: () => libraryMutationCoordinator.suspendNewMutations(),
+  runCleanup: () =>
+    runMainWindowCloseCleanup({
+      jobs,
+      operations,
+      waitForLibraryMutations: () => libraryMutationCoordinator.waitForIdle(),
+      disposeInpainting: () =>
+        disposeCachedInpaintingEngines("main-window-closed"),
+      disposeTranslation: () =>
+        disposeTranslationRuntimeResources("main-window-closed"),
+      logError,
+      logWarn,
+    }),
+  openWindow: () => openMainWindowNow(),
+  runtime: {
+    platform: process.platform,
+    now: () => Date.now(),
+    schedule: (callback, delayMs) => setTimeout(callback, delayMs),
+    clearScheduled: (handle) =>
+      clearTimeout(handle as ReturnType<typeof setTimeout>),
+    forceExit: (code) => app.exit(code),
+    emergencyExit: (code) => process.exit(code),
+    reportCleanupFailure: (error) =>
+      logError("Main-window close cleanup failed", error),
+    reportForcedExit: (detail) =>
+      logError(
+        "Main-window close cleanup could not finish safely; forcing process exit",
+        detail,
+      ),
+  },
+});
 let quitCleanupStarted = false;
 let rendererLoadFailureDialogOpen = false;
 let cancelStartupMaintenance: (() => void) | null = null;
 let mainStartupCompleted = false;
 let secondInstanceFocusPending = false;
+let terminalCleanupPromise: Promise<void> | null = null;
 
 registerImageProtocolScheme();
 resetAppLog();
@@ -79,6 +124,9 @@ resetAppLog();
 app.on(
   "second-instance",
   (_event, _argv, _workingDirectory, additionalData) => {
+    if (fatalCoordinator.isHandling || quitCleanupStarted) {
+      return;
+    }
     secondInstanceFocusPending = true;
     const sanitizedData = sanitizeSecondInstanceData(additionalData);
     logInfo("Secondary application instance redirected", {
@@ -115,13 +163,19 @@ logInfo("Application process starting", {
 });
 
 process.on("uncaughtException", (error) => {
-  logError("Uncaught exception", error);
-  safelyNotifyMainProcessIncident("Uncaught exception", error);
+  handleFatalMainProcessIncident(
+    "uncaught-exception",
+    "Uncaught exception",
+    error,
+  );
 });
 
 process.on("unhandledRejection", (reason) => {
-  logError("Unhandled rejection", reason);
-  safelyNotifyMainProcessIncident("Unhandled promise rejection", reason);
+  handleFatalMainProcessIncident(
+    "unhandled-rejection",
+    "Unhandled promise rejection",
+    reason,
+  );
 });
 
 void app
@@ -151,6 +205,9 @@ void app
         legacyTrashRecovery,
       );
     }
+    if (fatalCoordinator.isHandling) {
+      return;
+    }
     registerImageProtocolHandler();
     if (await runMacPackageSmokeExit(appPaths)) {
       return;
@@ -169,7 +226,7 @@ void app
       inpaintingRevisionStore,
     });
     reactivateDock();
-    openMainWindow();
+    openMainWindowNow();
     mainStartupCompleted = true;
     if (secondInstanceFocusPending) {
       restoreOrCreateMainWindowAfterSecondInstance();
@@ -183,33 +240,58 @@ void app
     void showMacAlphaFirstRunNotice(appPaths.dataRoot, mainWindow, logWarn);
 
     app.on("activate", () => {
+      if (fatalCoordinator.isHandling || quitCleanupStarted) {
+        return;
+      }
       reactivateDock();
-      showOrCreateMainWindow();
+      requestMainWindowOpen();
     });
   })
   .catch((error) => {
+    if (fatalCoordinator.isHandling) {
+      return;
+    }
     logError("Application startup failed", error);
     const normalized = normalizeIncidentReason(error);
     void showStartupFailureDialog(normalized.stack ?? normalized.message);
   });
 
 app.on("window-all-closed", () => {
+  if (fatalCoordinator.isHandling) {
+    return;
+  }
   if (process.platform !== "darwin") {
     app.quit();
   }
 });
 
+function closeTerminalIntake(): void {
+  try {
+    appActivityGate.closeToNewActivities();
+  } finally {
+    try {
+      libraryMutationCoordinator.closeToNewMutations();
+    } finally {
+      mainWindowSessionLifecycle.enterTerminalMode();
+    }
+  }
+}
+
 app.on("before-quit", (event) => {
+  if (fatalCoordinator.isHandling) {
+    event.preventDefault();
+    return;
+  }
   if (quitCleanupStarted) {
     return;
   }
   event.preventDefault();
   quitCleanupStarted = true;
-  appActivityGate.closeToNewActivities();
-  libraryMutationCoordinator.closeToNewMutations();
+  closeTerminalIntake();
 
   const attempt = beginBoundedAppQuit({
-    runCleanup: finishAppQuitCleanup,
+    runCleanup: (updateProgress) =>
+      getOrStartTerminalCleanup("app-quit", updateProgress),
     runtime: {
       now: () => Date.now(),
       schedule: (callback, delayMs) => setTimeout(callback, delayMs),
@@ -233,6 +315,58 @@ app.on("before-quit", (event) => {
   void attempt.completion;
 });
 
+function handleFatalMainProcessIncident(
+  source: FatalMainProcessIncidentSource,
+  summary: string,
+  reason: unknown,
+): void {
+  const attempt = fatalCoordinator.begin({
+    source,
+    reason,
+    closeIntake: closeTerminalIntake,
+    notifyIncident: () => {
+      logError(summary, reason);
+      safelyNotifyMainProcessIncident(summary, reason);
+    },
+    isolateNormalWindows,
+    runCleanup: () => getOrStartTerminalCleanup("fatal-incident"),
+    runtime: createFatalIncidentRuntime(),
+  });
+  void attempt.completion;
+}
+
+function isolateNormalWindows(): void {
+  panelWindows.closeAll();
+  const window = mainWindow;
+  if (window && !window.isDestroyed()) {
+    window.destroy();
+  }
+}
+
+function createFatalIncidentRuntime(): FatalMainProcessIncidentRuntime {
+  return {
+    now: () => Date.now(),
+    schedule: (callback, delayMs) => setTimeout(callback, delayMs),
+    clearScheduled: (handle) =>
+      clearTimeout(handle as ReturnType<typeof setTimeout>),
+    setExitCode: (code) => {
+      process.exitCode = code;
+    },
+    forceExit: (code) => app.exit(code),
+    emergencyExit: (code) => process.exit(code),
+    reportCleanupFailure: (error) =>
+      logError("Fatal main-process cleanup failed", error),
+    reportForcedExit: (detail) =>
+      logError("Fatal main-process incident is forcing process exit", detail),
+    reportSecondaryIncident: (nextSource, nextReason) =>
+      console.error(
+        "A secondary fatal main-process incident occurred during shutdown",
+        nextSource,
+        nextReason,
+      ),
+  };
+}
+
 async function runStartupMaintenance(): Promise<void> {
   await cleanupLegacyLogs();
   const cleanupResult = await cleanupLibraryOrphans();
@@ -247,9 +381,19 @@ async function runStartupMaintenance(): Promise<void> {
   logInfo("Library orphan cleanup finished", cleanupResult);
 }
 
-async function finishAppQuitCleanup(
+function getOrStartTerminalCleanup(
+  reason: AppTerminalCleanupReason,
+  updateProgress: (progress: AppQuitCleanupProgress) => void = () => {},
+): Promise<void> {
+  terminalCleanupPromise ??= finishTerminalCleanup(reason, updateProgress);
+  return terminalCleanupPromise;
+}
+
+async function finishTerminalCleanup(
+  reason: AppTerminalCleanupReason,
   updateProgress: (progress: AppQuitCleanupProgress) => void,
 ): Promise<void> {
+  await mainWindowSessionLifecycle.waitForCleanup();
   await runAppQuitCleanup({
     jobs,
     operations,
@@ -260,28 +404,33 @@ async function finishAppQuitCleanup(
         cancelStartupMaintenance = null;
       }
     },
-    disposeInpainting: () => disposeCachedInpaintingEngines("app-quit"),
-    disposeTranslation: () => disposeTranslationRuntimeResources("app-quit"),
+    disposeInpainting: () => disposeCachedInpaintingEngines(reason),
+    disposeTranslation: () => disposeTranslationRuntimeResources(reason),
     waitForLibraryMutations: () => libraryMutationCoordinator.waitForIdle(),
     releaseInpaintingHistory: () => inpaintingRevisionStore.releaseAll(),
     updateProgress,
     logError,
     logWarn,
+    cleanupReason: reason,
   });
 }
 
-function openMainWindow(): void {
-  if (focusExistingMainWindow(mainWindow)) {
+function openMainWindowNow(): void {
+  if (
+    quitCleanupStarted ||
+    fatalCoordinator.isHandling ||
+    focusExistingMainWindow(mainWindow)
+  ) {
     return;
   }
   mainWindow = createMainWindow({
     onRendererIncident: (context) => {
-      if (!quitCleanupStarted) {
+      if (!quitCleanupStarted && !fatalCoordinator.isHandling) {
         openIsolatedErrorReport(context);
       }
     },
     onRendererLoadFailure: (failure) => {
-      if (!quitCleanupStarted) {
+      if (!quitCleanupStarted && !fatalCoordinator.isHandling) {
         void showRendererLoadFailureDialog(failure);
       }
     },
@@ -289,26 +438,30 @@ function openMainWindow(): void {
   mainWindow.on("closed", () => {
     mainWindow = null;
     panelWindows.closeAll();
-    void Promise.all([
-      disposeCachedInpaintingEngines("main-window-closed"),
-      disposeTranslationRuntimeResources("main-window-closed"),
-    ]);
+    if (quitCleanupStarted || fatalCoordinator.isHandling) {
+      return;
+    }
+    mainWindowSessionLifecycle.handleMainWindowClosed();
   });
 }
 
-function showOrCreateMainWindow(): void {
-  if (quitCleanupStarted || focusExistingMainWindow(mainWindow)) {
+function requestMainWindowOpen(): void {
+  if (quitCleanupStarted || fatalCoordinator.isHandling) {
     return;
   }
-  openMainWindow();
+  mainWindowSessionLifecycle.requestWindowOpen();
 }
 
 function restoreOrCreateMainWindowAfterSecondInstance(): void {
-  if (!mainStartupCompleted || quitCleanupStarted) {
+  if (
+    !mainStartupCompleted ||
+    quitCleanupStarted ||
+    fatalCoordinator.isHandling
+  ) {
     return;
   }
   secondInstanceFocusPending = false;
-  showOrCreateMainWindow();
+  requestMainWindowOpen();
 }
 
 function sanitizeSecondInstanceData(value: unknown): {

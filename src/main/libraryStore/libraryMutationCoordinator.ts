@@ -4,15 +4,22 @@ type LibraryMutationLease = {
   finish: () => void;
 };
 
+export type LibraryMutationSuspensionLease = {
+  release: () => void;
+};
+
 const RECOVERY_REQUIRED_MESSAGE =
   "보관함 transaction 복구가 필요합니다. 앱을 종료하고 다시 실행하세요.";
 const CLOSING_MESSAGE = "앱이 종료 중이라 새 보관함 작업을 시작할 수 없습니다.";
+const SUSPENDED_MESSAGE =
+  "보관함 작업이 일시적으로 중지되어 새 작업을 시작할 수 없습니다.";
 
 class LibraryMutationCoordinator {
   private state: LibraryMutationCoordinatorState = "open";
   private activeCount = 0;
   private idleWaiters = new Set<() => void>();
   private recoveryError: unknown = null;
+  private readonly suspensionTokens = new Set<symbol>();
 
   begin(): LibraryMutationLease {
     if (this.state === "closing") {
@@ -20,6 +27,9 @@ class LibraryMutationCoordinator {
     }
     if (this.state === "recovery-required") {
       throw this.createRecoveryRequiredError();
+    }
+    if (this.suspensionTokens.size > 0) {
+      throw new Error(SUSPENDED_MESSAGE);
     }
     this.activeCount += 1;
     let finished = false;
@@ -44,6 +54,22 @@ class LibraryMutationCoordinator {
     if (this.state === "open") {
       this.state = "closing";
     }
+  }
+
+  suspendNewMutations(): LibraryMutationSuspensionLease {
+    const token = Symbol("library-mutation-suspension");
+    this.suspensionTokens.add(token);
+
+    let released = false;
+    return {
+      release: () => {
+        if (released) {
+          return;
+        }
+        released = true;
+        this.suspensionTokens.delete(token);
+      },
+    };
   }
 
   waitForIdle(): Promise<void> {
