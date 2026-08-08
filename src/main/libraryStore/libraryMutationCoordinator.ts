@@ -56,7 +56,9 @@ class LibraryMutationCoordinator {
   }
 
   markRecoveryRequired(error: unknown): void {
-    this.recoveryError = error;
+    if (this.state !== "recovery-required") {
+      this.recoveryError = error;
+    }
     this.state = "recovery-required";
   }
 
@@ -65,10 +67,22 @@ class LibraryMutationCoordinator {
     this.state = "open";
   }
 
-  assertReadable(): void {
+  /**
+   * Re-checks a callback admitted before it waited on a lock.
+   *
+   * `closing` is intentionally allowed here: mutations admitted before
+   * `before-quit` remain tracked and must finish or roll back.
+   * `recovery-required` is never allowed because the library may already be
+   * inconsistent after a failed rollback.
+   */
+  assertExecutionAllowed(): void {
     if (this.state === "recovery-required") {
       throw this.createRecoveryRequiredError();
     }
+  }
+
+  assertReadable(): void {
+    this.assertExecutionAllowed();
   }
 
   getStateForTests(): LibraryMutationCoordinatorState {

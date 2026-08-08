@@ -11,12 +11,20 @@ export function withLibraryMutation<T>(
   operation: () => Promise<T>,
 ): Promise<T> {
   const lease = libraryMutationCoordinator.begin();
-  return libraryLock.runWrite(operation).finally(lease.finish);
+  return libraryLock
+    .runWrite(async () => {
+      libraryMutationCoordinator.assertExecutionAllowed();
+      return operation();
+    })
+    .finally(lease.finish);
 }
 
 export function withLibraryRead<T>(operation: () => Promise<T>): Promise<T> {
   assertLibraryReadable();
-  return libraryLock.runRead(operation);
+  return libraryLock.runRead(async () => {
+    assertLibraryReadable();
+    return operation();
+  });
 }
 
 /**
@@ -32,5 +40,8 @@ export function withLibraryNavigationRead<T>(
   operation: () => Promise<T>,
 ): Promise<T> {
   assertLibraryReadable();
-  return withLibraryPublicationRead(operation);
+  return withLibraryPublicationRead(async () => {
+    assertLibraryReadable();
+    return operation();
+  });
 }
