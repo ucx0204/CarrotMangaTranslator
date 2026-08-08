@@ -38,6 +38,13 @@ const packagedNativeImportModule = join(
 );
 const oauthSmokeScript = join(__dirname, "smoke-openai-oauth-runtime.cjs");
 const onnxSmokeScript = join(__dirname, "smoke-packaged-onnx-runtime.cjs");
+const imageSmokeScript = join(__dirname, "smoke-packaged-image-runtime.cjs");
+const imageRuntimePath = join(
+  resourcesDir,
+  "app-runtime",
+  "simple-page-translate.cjs",
+);
+const ffmpegPath = join(resourcesDir, "tools", "ffmpeg", "ffmpeg.exe");
 const onnxRuntimeEntryPath = join(
   resourcesDir,
   "app.asar",
@@ -176,6 +183,20 @@ const onnxResult = spawnSync(
   },
 );
 assertSmokeSucceeded(onnxResult, "Packaged ONNX runtime");
+const imageResult = spawnSync(
+  appExecutable,
+  [imageSmokeScript, imageRuntimePath, ffmpegPath],
+  {
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      ELECTRON_RUN_AS_NODE: "1",
+    },
+    timeout: 60_000,
+    windowsHide: true,
+  },
+);
+assertSmokeSucceeded(imageResult, "Packaged WebP runtime");
 
 const packageStats = countFiles(unpackedDir);
 if (packageStats.files > MAX_PACKAGED_FILES) {
@@ -194,6 +215,7 @@ if (packageStats.bytes > MAX_PACKAGED_BYTES) {
 }
 console.log(oauthResult.stdout.trim());
 console.log(onnxResult.stdout.trim());
+console.log(imageResult.stdout.trim());
 console.log(
   `[package] ${packageStats.files} files, ${(
     packageStats.bytes /

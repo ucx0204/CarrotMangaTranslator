@@ -1,10 +1,51 @@
 // @ts-check
 const { createWriteStream, readdirSync } = require("node:fs");
 const { copyFile, mkdir, rm } = require("node:fs/promises");
+const { createRequire } = require("node:module");
 const path = require("node:path");
 const { Transform } = require("node:stream");
 const { pipeline } = require("node:stream/promises");
-const yauzl = require("yauzl");
+
+/**
+ * app-runtime is copied outside app.asar, so ordinary CommonJS lookup cannot
+ * see production dependencies stored inside the archive. Development uses the
+ * repository node_modules directly; packaged apps retry from the ASAR root.
+ *
+ * @typedef {(specifier: string) => unknown} RuntimeRequire
+ * @typedef {(filename: string) => RuntimeRequire} PackagedRequireFactory
+ *
+ * @param {{ moduleRequire?: RuntimeRequire; resourcesPath?: string; createPackagedRequire?: PackagedRequireFactory }} [options]
+ */
+function loadYauzlRuntime(options = {}) {
+  const moduleRequire = options.moduleRequire ?? require;
+  try {
+    return moduleRequire("yauzl");
+  } catch (error) {
+    const resourcesPath =
+      options.resourcesPath ??
+      /** @type {NodeJS.Process & { resourcesPath?: string }} */ (process)
+        .resourcesPath;
+    if (!isMissingDirectYauzlModule(error) || !resourcesPath) {
+      throw error;
+    }
+    const packagedRequire = (options.createPackagedRequire ?? createRequire)(
+      path.join(resourcesPath, "app.asar", "package.json"),
+    );
+    return packagedRequire("yauzl");
+  }
+}
+
+/** @param {unknown} error */
+function isMissingDirectYauzlModule(error) {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    error.code === "MODULE_NOT_FOUND" &&
+    /Cannot find module ['"]yauzl['"]/.test(error.message)
+  );
+}
+
+const yauzl = /** @type {typeof import("yauzl")} */ (loadYauzlRuntime());
 
 const {
   addArchiveEntryToBudget,
@@ -375,5 +416,6 @@ function isPathInside(childPath, parentPath) {
 module.exports = {
   collectSelectedFiles,
   extractSelectedZipEntries,
+  loadYauzlRuntime,
   normalizeSafeZipPath,
 };
