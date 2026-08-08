@@ -1,7 +1,7 @@
 import type { FluxBackend } from "./inpaintingSettingsTypes";
 
-export const FLUX_SM75_COMPUTE_CAPABILITY = 7.5;
-export const FLUX_SM75_RTX_GENERATION = 20;
+const FLUX_SM75_COMPUTE_CAPABILITY = 7.5;
+const FLUX_SM75_RTX_GENERATION = 20;
 
 export function isFluxSm75ComputeCapability(value: unknown): boolean {
   return (
