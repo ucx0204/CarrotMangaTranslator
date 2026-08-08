@@ -11,6 +11,7 @@ const APP_RUNTIME_MODULE_FILES = {
   requestSummary: "simple-page-request-summary.cjs",
   responseText: "simple-page-response-text.cjs",
   simplePage: "simple-page-translate.cjs",
+  zipExtractor: "simple-page-zip-utils.cjs",
 } as const;
 
 export type AppRuntimeModuleId = keyof typeof APP_RUNTIME_MODULE_FILES;
@@ -24,8 +25,29 @@ export function resolveAppRuntimeModulePath(
 
 export function loadAppRuntimeModule(moduleId: AppRuntimeModuleId): unknown {
   return loadRuntimeModuleAtPath(
-    resolveAppRuntimeModulePath(getAppPaths().runtimeDir, moduleId),
+    resolveAppRuntimeModulePath(resolveAppRuntimeDirectory(), moduleId),
   );
+}
+
+function resolveAppRuntimeDirectory(): string {
+  return selectAppRuntimeDirectory({
+    isVitest: Boolean(process.env.VITEST),
+    resourcesPath: process.resourcesPath,
+    testRuntimeDir: join(__dirname, "runtime"),
+    resolveInstalledRuntimeDir: () => getAppPaths().runtimeDir,
+  });
+}
+
+export function selectAppRuntimeDirectory(options: {
+  isVitest: boolean;
+  resourcesPath: string | undefined;
+  testRuntimeDir: string;
+  resolveInstalledRuntimeDir: () => string;
+}): string {
+  if (options.isVitest && typeof options.resourcesPath !== "string") {
+    return options.testRuntimeDir;
+  }
+  return options.resolveInstalledRuntimeDir();
 }
 
 export function loadRuntimeModuleFromDirectory(

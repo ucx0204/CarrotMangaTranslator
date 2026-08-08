@@ -11,16 +11,20 @@ import type {
 } from "./types";
 import { runCommand } from "./errors";
 import { emitPythonInstallLog } from "./progress";
-import { shouldAllowFluxRocmSourceBuildFallback } from "./manifests";
 import { ensurePrebuiltFluxRocmPythonRuntime } from "./rocmPrebuiltRuntime";
 import { findPythonCommand } from "./pythonBootstrap";
 import { ensureEmbeddedPythonPackagePath } from "./pythonPathFile";
 import { initializeWindowsRocmSdk, buildTargetPythonEnv } from "./rocmRuntime";
 import { verifyFluxPythonRuntime } from "./pythonRuntimePackages";
 import { ensureFluxPythonWorker } from "./pythonRuntimeLayout";
+import {
+  resolveFluxCpuRequirementsLockPath,
+  resolvePythonBuildToolsLockPath,
+} from "./pythonIntegrity";
 
 export type FluxPythonExpectedMarker = {
   backend: FluxPythonBackend;
+  integrityId: string;
   buildPackages: string[];
   packages: string[];
   runtimeInstallBatches: Array<{ id: string; pipArgs: string[] }>;
@@ -66,14 +70,10 @@ async function tryEnsurePrebuiltRocmRuntime(
 }
 
 function assertRocmSourceBuildAllowed(backend: FluxPythonBackend): void {
-  if (
-    backend === "python-rocm" &&
-    process.platform === "win32" &&
-    !shouldAllowFluxRocmSourceBuildFallback()
-  ) {
+  if (backend === "python-rocm" && process.platform === "win32") {
     throw new Error(
       "Flux ROCm prebuilt 런타임을 준비하지 못했습니다. 사용자 PC에서 C++/ROCm 소스 빌드는 비활성화되어 있습니다. " +
-        "GitHub Release의 mgt-flux-rocm 런타임 ZIP을 확인하거나 MGT_FLUX_ROCM_ALLOW_SOURCE_BUILD=1로 개발용 소스 빌드를 명시적으로 허용하세요.",
+        "해시가 고정된 GitHub Release의 mgt-flux-rocm 런타임 ZIP을 확인하세요. 개발용 소스 빌드는 npm run build:flux-rocm-runtime으로 별도 수행해야 합니다.",
     );
   }
 }
@@ -81,11 +81,14 @@ function assertRocmSourceBuildAllowed(backend: FluxPythonBackend): void {
 async function installTargetFluxPythonRuntime(
   options: EnsureTargetFluxPythonRuntimeOptions,
 ): Promise<FluxPythonRuntime> {
-  const { packageDir, runtimeDir } = options.layout;
   await resetTargetRuntimeDir(options);
   const installPython = await prepareTargetPython(options);
   let installEnv = buildInstallEnv(options, false);
   await installPipBootstrap(options, installPython, installEnv);
+  if (options.backend === "python-cpu" && process.platform === "win32") {
+    await installPinnedFluxCpuPackages(options, installPython, installEnv);
+    return finalizeTargetFluxPythonRuntime(options, installPython, installEnv);
+  }
   await installBuildPackages(options, installPython, installEnv);
   await installRuntimeBatches(options, installPython, installEnv);
   installEnv = await maybeInitializeWindowsRocmSdk(
@@ -94,17 +97,24 @@ async function installTargetFluxPythonRuntime(
     installEnv,
   );
   await installFluxPackages(options, installPython, installEnv);
+  return finalizeTargetFluxPythonRuntime(options, installPython, installEnv);
+}
+
+async function finalizeTargetFluxPythonRuntime(
+  options: EnsureTargetFluxPythonRuntimeOptions,
+  installPython: PythonCommand,
+  installEnv: NodeJS.ProcessEnv,
+): Promise<FluxPythonRuntime> {
   const pythonRuntime = {
     mode: "target" as const,
     command: installPython.command,
     executable: installPython.command,
     args: installPython.args,
     env: installEnv,
-    packageDir,
+    packageDir: options.layout.packageDir,
   };
   await verifyFluxPythonRuntime(pythonRuntime, options.backend, options.signal);
   await writeTargetRuntimeMarker(options, pythonRuntime);
-  void runtimeDir;
   return pythonRuntime;
 }
 
@@ -165,10 +175,32 @@ async function installPipBootstrap(
   env: NodeJS.ProcessEnv,
 ): Promise<void> {
   await runPipInstall(options, python, env, [
-    "--upgrade",
-    "pip",
-    "setuptools",
-    "wheel",
+    "--require-hashes",
+    "--only-binary=:all:",
+    "--no-deps",
+    "--requirement",
+    resolvePythonBuildToolsLockPath(),
+  ]);
+}
+
+async function installPinnedFluxCpuPackages(
+  options: EnsureTargetFluxPythonRuntimeOptions,
+  python: PythonCommand,
+  env: NodeJS.ProcessEnv,
+): Promise<void> {
+  options.onProgress?.({
+    progressText: "Flux Python 패키지 설치 중",
+    detail: "SHA-256 locked Windows CPU runtime",
+    progressMode: "indeterminate",
+    installLogLine: "해시가 고정된 Flux CPU Python 패키지를 설치합니다.",
+  });
+  await runPipInstall(options, python, env, [
+    "--target",
+    options.layout.packageDir,
+    "--require-hashes",
+    "--only-binary=:all:",
+    "--requirement",
+    resolveFluxCpuRequirementsLockPath(),
   ]);
 }
 

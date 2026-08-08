@@ -18,6 +18,10 @@ import { runCommand } from "./errors";
 import { emitPythonInstallLog } from "./progress";
 import { isExecutableFile } from "../../runtimeSupport/fileProbe";
 import { sanitizeStandaloneEmbeddedPythonPathFile } from "./pythonPathFile";
+import {
+  RUNTIME_INTEGRITY_MANIFEST,
+  resolvePinnedRemoteAsset,
+} from "../../runtimeSupport/runtimeIntegrity";
 
 type PythonBootstrapOptions = {
   runtimeDir: string;
@@ -28,7 +32,9 @@ type PythonBootstrapOptions = {
 type ManagedBootstrapPythonConfig = {
   version: string;
   pythonUrl: string;
+  pythonSha256: string;
   getPipUrl: string;
+  getPipSha256: string;
 };
 
 export async function findPythonCommand(options: {
@@ -113,16 +119,38 @@ function resolveManagedBootstrapPythonConfig(): ManagedBootstrapPythonConfig {
     process.env.MANGA_TRANSLATOR_FLUX_PYTHON_VERSION ??
     process.env.MGT_FLUX_PYTHON_VERSION ??
     FLUX_EMBED_PYTHON_VERSION;
+  const pythonUrl =
+    process.env.MANGA_TRANSLATOR_FLUX_PYTHON_URL ??
+    process.env.MGT_FLUX_PYTHON_URL ??
+    `https://www.python.org/ftp/python/${version}/python-${version}-embed-amd64.zip`;
+  const getPipUrl =
+    process.env.MANGA_TRANSLATOR_FLUX_GET_PIP_URL ??
+    process.env.MGT_FLUX_GET_PIP_URL ??
+    FLUX_GET_PIP_URL;
+  const pythonAsset = resolvePinnedRemoteAsset({
+    defaultUrl: RUNTIME_INTEGRITY_MANIFEST.managedPython.archive.url,
+    defaultSha256: RUNTIME_INTEGRITY_MANIFEST.managedPython.archive.sha256,
+    url: pythonUrl,
+    overrideSha256:
+      process.env.MANGA_TRANSLATOR_FLUX_PYTHON_SHA256 ??
+      process.env.MGT_FLUX_PYTHON_SHA256,
+    label: "Flux managed Python archive",
+  });
+  const getPipAsset = resolvePinnedRemoteAsset({
+    defaultUrl: RUNTIME_INTEGRITY_MANIFEST.managedPython.getPip.url,
+    defaultSha256: RUNTIME_INTEGRITY_MANIFEST.managedPython.getPip.sha256,
+    url: getPipUrl,
+    overrideSha256:
+      process.env.MANGA_TRANSLATOR_FLUX_GET_PIP_SHA256 ??
+      process.env.MGT_FLUX_GET_PIP_SHA256,
+    label: "Flux managed Python get-pip.py",
+  });
   return {
     version,
-    pythonUrl:
-      process.env.MANGA_TRANSLATOR_FLUX_PYTHON_URL ??
-      process.env.MGT_FLUX_PYTHON_URL ??
-      `https://www.python.org/ftp/python/${version}/python-${version}-embed-amd64.zip`,
-    getPipUrl:
-      process.env.MANGA_TRANSLATOR_FLUX_GET_PIP_URL ??
-      process.env.MGT_FLUX_GET_PIP_URL ??
-      FLUX_GET_PIP_URL,
+    pythonUrl: pythonAsset.url,
+    pythonSha256: pythonAsset.sha256,
+    getPipUrl: getPipAsset.url,
+    getPipSha256: getPipAsset.sha256,
   };
 }
 
@@ -161,6 +189,7 @@ async function installBootstrapPythonArchive(
     progressText: "Flux Python 다운로드 중",
     label: zipName,
     maximumBytes: MAX_REMOTE_RUNTIME_ARCHIVE_BYTES,
+    expectedSha256: config.pythonSha256,
     onProgress: options.onProgress,
   });
   options.onProgress?.({
@@ -169,7 +198,7 @@ async function installBootstrapPythonArchive(
     progressMode: "indeterminate",
     installLogLine: "Flux 런타임용 Python을 앱 데이터 폴더에 풀고 있습니다.",
   });
-  extractZipSafely(zipPath, pythonDir);
+  await extractZipSafely(zipPath, pythonDir, options.signal);
   if (!isExecutableFile(pythonExe)) {
     throw new Error(
       "Flux 런타임용 Python 압축을 풀었지만 python.exe를 찾지 못했습니다.",
@@ -191,6 +220,7 @@ async function installBootstrapPythonPip(
     progressText: "Flux pip 다운로드 중",
     label: "get-pip.py",
     maximumBytes: MAX_REMOTE_SUPPORT_ASSET_BYTES,
+    expectedSha256: config.getPipSha256,
     onProgress: options.onProgress,
   });
   options.onProgress?.({
@@ -199,11 +229,15 @@ async function installBootstrapPythonPip(
     progressMode: "indeterminate",
     installLogLine: "Flux 런타임용 Python에 pip를 설치합니다.",
   });
-  await runCommand(pythonExe, [getPipPath, "--no-warn-script-location"], {
-    signal: options.signal,
-    env: buildBootstrapPythonEnv(options.runtimeDir),
-    onLine: (line) => emitPythonInstallLog(options, line),
-  });
+  await runCommand(
+    pythonExe,
+    [getPipPath, "--no-warn-script-location", "--no-setuptools", "--no-wheel"],
+    {
+      signal: options.signal,
+      env: buildBootstrapPythonEnv(options.runtimeDir),
+      onLine: (line) => emitPythonInstallLog(options, line),
+    },
+  );
 }
 
 async function writeBootstrapPythonMarker(
@@ -231,7 +265,7 @@ export function managedFluxBootstrapPythonPath(runtimeDir: string): string {
 function isCurrentManagedFluxBootstrapPython(
   pythonExe: string,
   markerPath: string,
-  expected: { version: string; pythonUrl: string; getPipUrl: string },
+  expected: ManagedBootstrapPythonConfig,
 ): boolean {
   try {
     if (!isExecutableFile(pythonExe)) {
@@ -243,7 +277,9 @@ function isCurrentManagedFluxBootstrapPython(
     return (
       marker.version === expected.version &&
       marker.pythonUrl === expected.pythonUrl &&
-      marker.getPipUrl === expected.getPipUrl
+      marker.pythonSha256 === expected.pythonSha256 &&
+      marker.getPipUrl === expected.getPipUrl &&
+      marker.getPipSha256 === expected.getPipSha256
     );
   } catch (_error) {
     return false;

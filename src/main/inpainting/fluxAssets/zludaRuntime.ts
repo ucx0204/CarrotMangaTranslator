@@ -58,8 +58,12 @@ export async function ensureFluxZludaSupportRuntime(options: {
     baseUrl: CUDA_REDIST_BASE_URL,
     label: "Flux ZLUDA cuRAND 보조 런타임",
   });
-  extractSelectedZipEntries(archivePath, supportDir, (fileName) =>
-    FLUX_ZLUDA_SUPPORT_DLLS.has(fileName),
+  await extractSelectedZipEntries(
+    archivePath,
+    supportDir,
+    (fileName) => FLUX_ZLUDA_SUPPORT_DLLS.has(fileName),
+    options.signal,
+    true,
   );
   if (!(await hasFluxZludaSupportRuntimeFiles(supportDir))) {
     throw new Error(

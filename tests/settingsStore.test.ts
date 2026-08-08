@@ -6,11 +6,23 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppPaths } from "../src/main/appPaths";
 import {
   getAppSettings,
+  maskAppSettingsSecrets,
   saveAppSettings,
   type SettingsStoreDiagnostics,
 } from "../src/main/settingsStore";
 import { resolveDefaultAppSettings } from "../src/main/appSettings";
 import { CURRENT_GENERATION_LIMITS_VERSION } from "../src/main/settings/appSettingsGenerationLimitMigration";
+import { SETTINGS_SECRET_PRESERVE_SENTINEL } from "../src/shared/settingsSecrets";
+import { settingsSecretVaultPath } from "../src/main/settingsSecretStore";
+
+vi.mock("electron", () => ({
+  safeStorage: {
+    isEncryptionAvailable: () => true,
+    encryptString: (value: string) => Buffer.from(`encrypted:${value}`),
+    decryptString: (value: Buffer) =>
+      value.toString("utf8").replace(/^encrypted:/, ""),
+  },
+}));
 
 const tempDirs: string[] = [];
 
@@ -27,7 +39,11 @@ describe("settings store", () => {
   it("backs up malformed settings and returns defaults", async () => {
     const rootDir = await createTempDir();
     const settingsPath = join(rootDir, "settings.json");
-    await writeFile(settingsPath, "{ malformed", "utf8");
+    await writeFile(
+      settingsPath,
+      '{"apiKey":"must-not-survive", malformed',
+      "utf8",
+    );
 
     const diagnostics: SettingsStoreDiagnostics = {
       error: vi.fn(),
@@ -46,8 +62,75 @@ describe("settings store", () => {
       files.some((name) => /^settings\.json\.corrupt-.*\.bak$/.test(name)),
     ).toBe(true);
     expect(existsSync(settingsPath)).toBe(true);
+    const backupName = files.find((name) =>
+      /^settings\.json\.corrupt-.*\.bak$/.test(name),
+    );
+    expect(backupName).toBeTruthy();
+    if (!backupName) throw new Error("Expected corrupt settings backup");
+    expect(await readFile(join(rootDir, backupName), "utf8")).not.toContain(
+      "must-not-survive",
+    );
     expect(diagnostics.warn).toHaveBeenCalledOnce();
     expect(diagnostics.error).not.toHaveBeenCalled();
+  });
+
+  it("migrates API credentials out of plaintext settings and preserves masked saves", async () => {
+    const rootDir = await createTempDir();
+    const paths = makeAppPaths(rootDir);
+    const defaults = resolveDefaultAppSettings({
+      MANGA_TRANSLATOR_MODEL_PROVIDER: "openai-api",
+    });
+    await writeFile(
+      paths.settingsPath,
+      `${JSON.stringify({
+        ...defaults,
+        api: {
+          ...defaults.api,
+          apiKey: "sk-private-value",
+          customHeadersJson: JSON.stringify({
+            Authorization: "Bearer private-header",
+            "X-Trace": "public-value",
+          }),
+        },
+      })}\n`,
+      "utf8",
+    );
+
+    const loaded = await getAppSettings(paths, {}, async () => null);
+    expect(loaded.api.apiKey).toBe("sk-private-value");
+    expect(loaded.api.customHeadersJson).toContain("private-header");
+
+    const persisted = await readFile(paths.settingsPath, "utf8");
+    const vault = await readFile(settingsSecretVaultPath(paths), "utf8");
+    expect(persisted).not.toContain("sk-private-value");
+    expect(persisted).not.toContain("private-header");
+    expect(persisted).toContain("public-value");
+    expect(vault).not.toContain("sk-private-value");
+    expect(vault).not.toContain("private-header");
+
+    const masked = maskAppSettingsSecrets(loaded);
+    expect(masked.api.apiKey).toBe(SETTINGS_SECRET_PRESERVE_SENTINEL);
+    expect(masked.api.customHeadersJson).not.toContain("private-header");
+    const saved = await saveAppSettings(masked, paths, {}, async () => null);
+    expect(saved.api.apiKey).toBe("sk-private-value");
+    expect(saved.api.customHeadersJson).toContain("private-header");
+
+    const caseChanged = await saveAppSettings(
+      {
+        ...masked,
+        api: {
+          ...masked.api,
+          customHeadersJson: (masked.api.customHeadersJson ?? "").replace(
+            "Authorization",
+            "authorization",
+          ),
+        },
+      },
+      paths,
+      {},
+      async () => null,
+    );
+    expect(caseChanged.api.customHeadersJson).toContain("private-header");
   });
 
   it("marks newly saved limits so an intentional legacy-sized pair is preserved", async () => {

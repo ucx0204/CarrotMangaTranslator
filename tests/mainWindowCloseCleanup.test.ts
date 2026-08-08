@@ -72,22 +72,29 @@ describe("main-window close cleanup", () => {
     expect(abortCurrentAndWait).toHaveBeenCalledWith("main-window-closed");
   });
 
-  it("runs both disposals and logs individual failures", async () => {
+  it("runs both disposals, logs individual failures, and rejects cleanup", async () => {
     const failure = new Error("inpainting disposal failed");
     const disposeTranslation = vi.fn(async () => undefined);
     const logError = vi.fn();
 
-    await runMainWindowCloseCleanup({
-      jobs: idleJobs(),
-      operations: idleOperations(),
-      waitForLibraryMutations: vi.fn(async () => undefined),
-      disposeInpainting: vi.fn(async () => {
-        throw failure;
+    await expect(
+      runMainWindowCloseCleanup({
+        jobs: idleJobs(),
+        operations: idleOperations(),
+        waitForLibraryMutations: vi.fn(async () => undefined),
+        disposeInpainting: vi.fn(async () => {
+          throw failure;
+        }),
+        disposeTranslation,
+        logError,
+        logWarn: vi.fn(),
       }),
-      disposeTranslation,
-      logError,
-      logWarn: vi.fn(),
-    });
+    ).rejects.toEqual(
+      expect.objectContaining({
+        name: "AggregateError",
+        errors: [failure],
+      }),
+    );
 
     expect(disposeTranslation).toHaveBeenCalledTimes(1);
     expect(logError).toHaveBeenCalledWith(
@@ -119,8 +126,12 @@ describe("main-window close cleanup", () => {
       logWarn,
     });
 
+    let closed = false;
+    void closing.then(() => {
+      closed = true;
+    });
     await vi.advanceTimersByTimeAsync(BEFORE_QUIT_CLEANUP_TIMEOUT_MS);
-    await closing;
+    expect(closed).toBe(false);
     expect(clearIfCurrent).not.toHaveBeenCalled();
     expect(logWarn).toHaveBeenCalledWith(
       "Timed out waiting for active job cleanup after the main window closed",
@@ -131,7 +142,8 @@ describe("main-window close cleanup", () => {
     );
 
     cleanup.resolve(undefined);
-    await Promise.resolve();
+    await closing;
+    expect(closed).toBe(true);
     expect(clearIfCurrent).toHaveBeenCalledWith(job.id);
   });
 });

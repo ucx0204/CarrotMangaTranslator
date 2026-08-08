@@ -259,6 +259,10 @@ const runtimeHelpers = {
   resolveOcrPipInstallBatches: (options?: {
     [key: string]: unknown;
   }) => string[][];
+  resolveIntegrityPinnedOcrInstallBatches: (
+    batches: string[][],
+    options?: { [key: string]: unknown },
+  ) => string[][];
   resolveOcrPipCacheDir: (
     runtimeDir: string,
     options?: { [key: string]: unknown },
@@ -391,6 +395,7 @@ export const {
   resolveOcrInstallBatchLabel,
   isWindowsRocmOcrRuntimePathShortEnough,
   resolveOcrPipInstallBatches,
+  resolveIntegrityPinnedOcrInstallBatches,
   resolveOcrPipCacheDir,
   resolveOcrPipInstallExtraArgs,
   resolveOcrPythonPackageDir,

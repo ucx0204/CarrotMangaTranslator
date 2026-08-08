@@ -16,9 +16,14 @@ import type {
 import { extractLargeZipSafely } from "./downloads";
 import { downloadToFile } from "../../runtimeSupport/modelDownloads";
 import { MAX_REMOTE_RUNTIME_ARCHIVE_BYTES } from "../../runtimeSupport/downloadBudgets";
-import { isExecutableFile, isUsableFile } from "../../runtimeSupport/fileProbe";
+import {
+  isExecutableFile,
+  isUsableFile,
+  sha256FileSync,
+} from "../../runtimeSupport/fileProbe";
 import {
   resolveFluxRocmPrebuiltRuntimeUrl,
+  resolveFluxRocmPrebuiltRuntimeSha256,
   shouldUsePrebuiltFluxRocmRuntime,
 } from "./manifests";
 import { managedFluxBootstrapPythonPath } from "./pythonBootstrap";
@@ -29,11 +34,13 @@ import {
   hasUsablePackageDir,
   verifyFluxPythonRuntime,
 } from "./pythonRuntimePackages";
+import { replaceDirectoryWithRollback } from "../../runtimeSupport/runtimeDirectoryPublish";
 
 type PrebuiltFluxRocmRuntimeOptions = {
   layout: FluxPythonRuntimeLayout;
   expectedMarker: {
     backend: FluxPythonBackend;
+    integrityId: string;
     runtimeInstallBatches: Array<{ id: string; pipArgs: string[] }>;
     buildPackages: string[];
     packages: string[];
@@ -47,6 +54,7 @@ type PrebuiltFluxRocmRuntimeOptions = {
 type PrebuiltArchiveInfo = {
   archiveName: string;
   archivePath: string;
+  archiveSha256: string;
   archiveUrl: string;
 };
 
@@ -75,6 +83,7 @@ async function resolvePrebuiltFluxRocmArchive(
     archiveUrl,
     FLUX_ROCM_PREBUILT_RUNTIME_FILE,
   );
+  const archiveSha256 = resolveFluxRocmPrebuiltRuntimeSha256(archiveUrl);
   options.onProgress?.({
     progressText: "Flux ROCm prebuilt 런타임 준비 중",
     detail: archiveName,
@@ -90,23 +99,27 @@ async function resolvePrebuiltFluxRocmArchive(
     ),
     signal: options.signal,
     label: archiveName,
+    expectedSha256: archiveSha256,
     onProgress: options.onProgress,
   });
-  return { archiveName, archivePath, archiveUrl };
+  return { archiveName, archivePath, archiveSha256, archiveUrl };
 }
 
 async function extractPrebuiltFluxRocmRuntime(
   options: PrebuiltFluxRocmRuntimeOptions,
   archivePath: string,
 ): Promise<void> {
-  await rm(options.layout.runtimeDir, { recursive: true, force: true });
-  await mkdir(options.layout.runtimeDir, { recursive: true });
-  await extractLargeZipSafely(archivePath, options.layout.runtimeDir);
-  await ensureFluxPythonWorker(
-    options.layout.runtimeDir,
-    options.expectedMarker.worker,
-  );
-  await validatePrebuiltFluxRocmRuntime(options.layout.runtimeDir);
+  const stagingDir = `${options.layout.runtimeDir}.staging-${process.pid}-${Date.now()}`;
+  await rm(stagingDir, { recursive: true, force: true });
+  try {
+    await extractLargeZipSafely(archivePath, stagingDir, options.signal);
+    await ensureFluxPythonWorker(stagingDir, options.expectedMarker.worker);
+    await validatePrebuiltFluxRocmRuntime(stagingDir);
+    await replaceDirectoryWithRollback(stagingDir, options.layout.runtimeDir);
+  } catch (error) {
+    await rm(stagingDir, { recursive: true, force: true });
+    throw error;
+  }
 }
 
 function buildPrebuiltFluxRocmPythonRuntime(
@@ -160,6 +173,7 @@ async function writePrebuiltFluxRocmMarker(
         packageDir: pythonRuntime.packageDir,
         prebuiltRuntimeUrl: archiveInfo.archiveUrl,
         prebuiltRuntimeFile: archiveInfo.archiveName,
+        prebuiltRuntimeSha256: archiveInfo.archiveSha256,
         installedAt: new Date().toISOString(),
       },
       null,
@@ -186,6 +200,7 @@ async function ensurePrebuiltFluxRocmRuntimeArchive(options: {
   outputPath: string;
   signal?: AbortSignal;
   label: string;
+  expectedSha256: string;
   onProgress?: (progress: FluxAssetProgress) => void;
 }): Promise<string> {
   const parsed = parseMaybeUrl(options.urlOrPath);
@@ -196,9 +211,11 @@ async function ensurePrebuiltFluxRocmRuntimeArchive(options: {
       signal: options.signal,
       progressText: "Flux ROCm prebuilt 런타임 다운로드 중",
       label: options.label,
+      expectedSha256: options.expectedSha256,
       maximumBytes: MAX_REMOTE_RUNTIME_ARCHIVE_BYTES,
       onProgress: options.onProgress,
     });
+    assertPrebuiltArchiveSha256(options.outputPath, options.expectedSha256);
     return options.outputPath;
   }
 
@@ -219,6 +236,7 @@ async function ensurePrebuiltFluxRocmRuntimeArchive(options: {
   }
   await mkdir(dirname(options.outputPath), { recursive: true });
   await copyFile(normalizedSourcePath, options.outputPath);
+  assertPrebuiltArchiveSha256(options.outputPath, options.expectedSha256);
   options.onProgress?.({
     progressText: "Flux ROCm prebuilt 런타임 파일 복사 완료",
     detail: basename(normalizedSourcePath),
@@ -226,6 +244,18 @@ async function ensurePrebuiltFluxRocmRuntimeArchive(options: {
     installLogLine: `로컬 Flux ROCm prebuilt 런타임을 사용합니다: ${normalizedSourcePath}`,
   });
   return options.outputPath;
+}
+
+function assertPrebuiltArchiveSha256(
+  archivePath: string,
+  expectedSha256: string,
+): void {
+  const actualSha256 = sha256FileSync(archivePath).toLowerCase();
+  if (actualSha256 !== expectedSha256) {
+    throw new Error(
+      `Flux ROCm prebuilt runtime SHA-256 mismatch. expected=${expectedSha256}, actual=${actualSha256}`,
+    );
+  }
 }
 
 function resolveArchiveFileName(urlOrPath: string, fallback: string): string {

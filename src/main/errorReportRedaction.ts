@@ -33,16 +33,22 @@ export function redactDiagnosticText(
     replace(pathReplacement.pattern, pathReplacement.placeholder);
   }
 
-  replace(/(?:file:\/\/\/)?[a-z]:[\\/]+users[\\/]+[^\\/\s"'<>]+/gi, "<home>");
-  replace(/[a-z]%3a(?:%5c|%2f)+(?:users)(?:%5c|%2f)+[^%/?&#\s]+/gi, "<home>");
+  replace(
+    /(?<![a-z])(?:file:\/\/\/)?[a-z]:[\\/]+users[\\/]+[^\\/\s"'<>]+/gi,
+    "<home>",
+  );
+  replace(
+    /(?<![a-z])[a-z]%3a(?:%5c|%2f)+(?:users)(?:%5c|%2f)+[^%/?&#\s]+/gi,
+    "<home>",
+  );
   replace(/\/(?:users|home)\/[^/\s"'<>]+/gi, "<home>");
   replace(
     /(?:file%3a(?:%2f){2,3})?%2f(?:users|home)%2f[^%/?&#\s]+/gi,
     "<home>",
   );
   replace(/"(?:file:\/\/\/)?[a-z]:[\\/]+(?:\\.|[^"\\])*"/gi, '"<local-path>"');
-  replace(/(?:file:\/\/\/)?[a-z]:[\\/]+[^\s"'<>]+/gi, "<local-path>");
-  replace(/[a-z]%3a(?:%5c|%2f)+[^&#\s"']+/gi, "<local-path>");
+  replace(/(?<![a-z])(?:file:\/\/\/)?[a-z]:[\\/]+[^\s"'<>]+/gi, "<local-path>");
+  replace(/(?<![a-z])[a-z]%3a(?:%5c|%2f)+[^&#\s"']+/gi, "<local-path>");
 
   replace(
     /("(?:apiKey|authorization|proxyAuthorization|accessToken|refreshToken|token|secret|password|cookie|setCookie|customHeadersJson|extraBodyJson|promptOverrideText|promptOverrideTextPreview|sourceText|translatedText|ocrText|outputPreview|repairedOutputPreview|story|glossary|characters|imagePath|sourcePath|outputPath|outputDir|workName|chapterName|pageName|fileName|page)"\s*:\s*)("(?:\\.|[^"\\])*"|[^,\s}\]]+)/gi,

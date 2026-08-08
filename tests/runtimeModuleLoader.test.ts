@@ -1,10 +1,11 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   assertRuntimeFunctions,
   resolveAppRuntimeModulePath,
+  selectAppRuntimeDirectory,
 } from "../src/main/runtimeModuleLoader";
 
 describe("runtime module boundary", () => {
@@ -14,6 +15,9 @@ describe("runtime module boundary", () => {
     );
     expect(resolveAppRuntimeModulePath("/runtime", "apiKeyRetry")).toBe(
       join("/runtime", "transport/api-key-retry.cjs"),
+    );
+    expect(resolveAppRuntimeModulePath("/runtime", "zipExtractor")).toBe(
+      join("/runtime", "simple-page-zip-utils.cjs"),
     );
   });
 
@@ -38,6 +42,39 @@ describe("runtime module boundary", () => {
     assertRuntimeFunctions(runtime, "test-runtime.cjs", ["request", "parse"]);
 
     expect(runtime.request()).toBe("ok");
+  });
+
+  it("uses source runtime modules only in a non-Electron Vitest process", () => {
+    const resolveInstalledRuntimeDir = vi.fn(() => "C:\\installed-runtime");
+    const baseOptions = {
+      testRuntimeDir: "C:\\source-runtime",
+      resolveInstalledRuntimeDir,
+    };
+
+    expect(
+      selectAppRuntimeDirectory({
+        ...baseOptions,
+        isVitest: true,
+        resourcesPath: undefined,
+      }),
+    ).toBe("C:\\source-runtime");
+    expect(resolveInstalledRuntimeDir).not.toHaveBeenCalled();
+
+    expect(
+      selectAppRuntimeDirectory({
+        ...baseOptions,
+        isVitest: false,
+        resourcesPath: undefined,
+      }),
+    ).toBe("C:\\installed-runtime");
+    expect(
+      selectAppRuntimeDirectory({
+        ...baseOptions,
+        isVitest: true,
+        resourcesPath: "C:\\electron-resources",
+      }),
+    ).toBe("C:\\installed-runtime");
+    expect(resolveInstalledRuntimeDir).toHaveBeenCalledTimes(2);
   });
 
   it("keeps computed require calls inside the validated runtime boundary", () => {

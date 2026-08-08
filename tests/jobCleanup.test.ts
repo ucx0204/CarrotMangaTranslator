@@ -263,6 +263,7 @@ describe("before-quit cleanup", () => {
       job,
       jobs,
       warnTimedOut,
+      reportLateFailure: vi.fn(),
       scheduleTimeout,
       clearScheduledTimeout,
     });
@@ -277,7 +278,11 @@ describe("before-quit cleanup", () => {
     expect(scheduleTimeout).toHaveBeenCalledTimes(1);
     expect(clearScheduledTimeout).toHaveBeenCalledTimes(1);
     expect(warnTimedOut).not.toHaveBeenCalled();
-    expect(result).toEqual({ timedOut: false });
+    expect(result).toEqual({
+      timedOut: false,
+      settlement: expect.any(Promise),
+    });
+    await result.settlement;
   });
 
   it("passes an explicit lifecycle reason through generic active-job cleanup", async () => {
@@ -293,6 +298,7 @@ describe("before-quit cleanup", () => {
       jobs,
       reason,
       warnTimedOut: vi.fn(),
+      reportLateFailure: vi.fn(),
     });
 
     expect(job.abortController.signal.aborted).toBe(true);
@@ -334,6 +340,7 @@ describe("before-quit cleanup", () => {
       job,
       jobs,
       warnTimedOut,
+      reportLateFailure: vi.fn(),
       scheduleTimeout,
       clearScheduledTimeout,
     });
@@ -346,11 +353,14 @@ describe("before-quit cleanup", () => {
     ]);
     expect(jobs.clearIfCurrent).not.toHaveBeenCalled();
     expect(clearScheduledTimeout).not.toHaveBeenCalled();
-    expect(result).toEqual({ timedOut: true });
+    expect(result).toEqual({
+      timedOut: true,
+      settlement: expect.any(Promise),
+    });
 
     cleanupGate.resolve(undefined);
     await cleanupFinished.promise;
-    await Promise.resolve();
+    await result.settlement;
 
     expect(events).toEqual([
       "abort",
@@ -372,10 +382,12 @@ describe("before-quit cleanup", () => {
       clearIfCurrent: vi.fn(),
       runCleanup: vi.fn(() => cleanupGate.promise),
     };
+    const reportLateFailure = vi.fn();
     const result = await finishBeforeQuitCleanup({
       job,
       jobs,
       warnTimedOut: vi.fn(),
+      reportLateFailure,
       scheduleTimeout: (callback) => {
         callback();
         return timer;
@@ -383,12 +395,16 @@ describe("before-quit cleanup", () => {
       clearScheduledTimeout: vi.fn(),
     });
 
-    expect(result).toEqual({ timedOut: true });
+    expect(result).toEqual({
+      timedOut: true,
+      settlement: expect.any(Promise),
+    });
     expect(jobs.clearIfCurrent).not.toHaveBeenCalled();
 
     cleanupGate.reject(failure);
-    await Promise.resolve();
+    await expect(result.settlement).rejects.toBe(failure);
 
+    expect(reportLateFailure).toHaveBeenCalledWith(job.id, failure);
     expect(jobs.clearIfCurrent).toHaveBeenCalledTimes(1);
     expect(jobs.clearIfCurrent).toHaveBeenCalledWith(job.id);
   });

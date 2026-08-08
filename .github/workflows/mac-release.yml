@@ -9,24 +9,30 @@ on:
         type: string
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: mac-release-${{ inputs.tag_name }}
   cancel-in-progress: false
 
 jobs:
-  build-verify-upload:
+  build_verify:
     runs-on: macos-15
     timeout-minutes: 360
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.release_meta.outputs.tag }}
+      version: ${{ steps.release_meta.outputs.version }}
     env:
       MGT_MAC_CLEAN_CARGO_TARGET: "1"
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Confirm Apple Silicon runner
         shell: bash
@@ -37,7 +43,7 @@ jobs:
           sysctl -n hw.memsize
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: npm
@@ -144,8 +150,17 @@ jobs:
           test ! -e dist/mac-alpha-hosted-app-smoke-waiver.json
           (cd dist && shasum -a 256 -c SHA256SUMS-macOS-arm64.txt)
 
+      - name: Generate macOS provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ steps.release_meta.outputs.version }}"
+          dmg_sha="$(shasum -a 256 "dist/CarrotMangaTranslator-${version}-macOS-arm64.dmg" | awk '{print $1}')"
+          zip_sha="$(shasum -a 256 "dist/CarrotMangaTranslator-${version}-macOS-arm64.zip" | awk '{print $1}')"
+          node -e 'const fs=require("fs"); fs.writeFileSync("dist/macOS-arm64-provenance.json", JSON.stringify({schemaVersion:1,repository:process.env.GITHUB_REPOSITORY,commit:process.env.GITHUB_SHA,ref:process.env.GITHUB_REF,runId:process.env.GITHUB_RUN_ID,runAttempt:process.env.GITHUB_RUN_ATTEMPT,artifacts:{dmg:process.argv[1],zip:process.argv[2]}},null,2)+"\n")' "$dmg_sha" "$zip_sha"
+
       - name: Upload verified macOS build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ steps.release_meta.outputs.tag }}-macOS-arm64
           if-no-files-found: error
@@ -154,21 +169,9 @@ jobs:
             dist/CarrotMangaTranslator-${{ steps.release_meta.outputs.version }}-macOS-arm64.dmg
             dist/CarrotMangaTranslator-${{ steps.release_meta.outputs.version }}-macOS-arm64.zip
             dist/SHA256SUMS-macOS-arm64.txt
+            dist/macOS-arm64-provenance.json
             ${{ runner.temp }}/mac-release-ui-1440x900.png
             ${{ runner.temp }}/mac-release-ui-1240x760.png
-
-      - name: Upload macOS assets to existing stable release
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
-        run: |
-          set -euo pipefail
-          gh release upload "$RELEASE_TAG" \
-            "dist/CarrotMangaTranslator-${{ steps.release_meta.outputs.version }}-macOS-arm64.dmg" \
-            "dist/CarrotMangaTranslator-${{ steps.release_meta.outputs.version }}-macOS-arm64.zip" \
-            dist/SHA256SUMS-macOS-arm64.txt \
-            --clobber
 
       - name: Summarize verified macOS release
         shell: bash
@@ -179,3 +182,33 @@ jobs:
             echo "- Signing: $SIGNING_LABEL"
             echo "- Packaged GUI lifecycle: passed without an Alpha waiver"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    needs: build_verify
+    if: ${{ needs.build_verify.result == 'success' }}
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - name: Download verified macOS artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ${{ needs.build_verify.outputs.tag }}-macOS-arm64
+          path: release-artifact
+
+      - name: Verify and publish macOS assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.build_verify.outputs.tag }}
+          VERSION: ${{ needs.build_verify.outputs.version }}
+        run: |
+          set -euo pipefail
+          (cd release-artifact && shasum -a 256 -c SHA256SUMS-macOS-arm64.txt)
+          gh release upload "$RELEASE_TAG" \
+            "release-artifact/CarrotMangaTranslator-${VERSION}-macOS-arm64.dmg" \
+            "release-artifact/CarrotMangaTranslator-${VERSION}-macOS-arm64.zip" \
+            release-artifact/SHA256SUMS-macOS-arm64.txt \
+            release-artifact/macOS-arm64-provenance.json \
+            --clobber

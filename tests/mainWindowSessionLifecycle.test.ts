@@ -9,6 +9,9 @@ import {
   MainWindowSessionLifecycle,
   type MainWindowSessionLifecycleRuntime,
 } from "../src/main/mainWindowSessionLifecycle";
+import type { ActiveJob } from "../src/main/jobs/activeJob";
+import { BEFORE_QUIT_CLEANUP_TIMEOUT_MS } from "../src/main/jobs/beforeQuitCleanup";
+import { runMainWindowCloseCleanup } from "../src/main/mainWindowCloseCleanup";
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -177,11 +180,73 @@ describe("main-window session lifecycle", () => {
     expect(mutationRelease).not.toHaveBeenCalled();
   });
 
+  it("keeps the hard watchdog armed after the job soft deadline", async () => {
+    const activityRelease = vi.fn();
+    const mutationRelease = vi.fn();
+    const openWindow = vi.fn();
+    const runtime = makeRuntime();
+    const job: ActiveJob = {
+      id: "stuck-job",
+      kind: "gemma-analysis",
+      abortController: new AbortController(),
+    };
+    const lifecycle = makeLifecycle({
+      suspendActivities: () => ({ release: activityRelease }),
+      suspendMutations: () => ({ release: mutationRelease }),
+      runCleanup: () =>
+        runMainWindowCloseCleanup({
+          jobs: {
+            current: job,
+            runCleanup: vi.fn(() => new Promise<void>(() => {})),
+            clearIfCurrent: vi.fn(),
+          },
+          operations: {
+            current: null,
+            abortCurrentAndWait: vi.fn(async () => null),
+          },
+          waitForLibraryMutations: vi.fn(async () => undefined),
+          disposeInpainting: vi.fn(async () => undefined),
+          disposeTranslation: vi.fn(async () => undefined),
+          logError: vi.fn(),
+          logWarn: vi.fn(),
+        }),
+      openWindow,
+      runtime,
+    });
+
+    lifecycle.handleMainWindowClosed();
+    const waiting = lifecycle.waitForCleanup();
+    lifecycle.requestWindowOpen();
+
+    await vi.advanceTimersByTimeAsync(BEFORE_QUIT_CLEANUP_TIMEOUT_MS);
+    expect(runtime.forceExit).not.toHaveBeenCalled();
+    expect(activityRelease).not.toHaveBeenCalled();
+    expect(mutationRelease).not.toHaveBeenCalled();
+    expect(openWindow).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(
+      MAIN_WINDOW_CLOSE_CLEANUP_HARD_DEADLINE_MS -
+        BEFORE_QUIT_CLEANUP_TIMEOUT_MS,
+    );
+    await waiting;
+
+    expect(runtime.forceExit).toHaveBeenCalledWith(
+      MAIN_WINDOW_CLOSE_FAILURE_EXIT_CODE,
+    );
+    expect(activityRelease).not.toHaveBeenCalled();
+    expect(mutationRelease).not.toHaveBeenCalled();
+    expect(openWindow).not.toHaveBeenCalled();
+  });
+
   it("forces abnormal exit when cleanup rejects", async () => {
     const failure = new Error("cleanup failed");
     const openWindow = vi.fn();
+    const activityRelease = vi.fn();
+    const mutationRelease = vi.fn();
     const runtime = makeRuntime();
     const lifecycle = makeLifecycle({
+      suspendActivities: () => ({ release: activityRelease }),
+      suspendMutations: () => ({ release: mutationRelease }),
       runCleanup: async () => {
         throw failure;
       },
@@ -200,6 +265,8 @@ describe("main-window session lifecycle", () => {
       MAIN_WINDOW_CLOSE_FAILURE_EXIT_CODE,
     );
     expect(openWindow).not.toHaveBeenCalled();
+    expect(activityRelease).not.toHaveBeenCalled();
+    expect(mutationRelease).not.toHaveBeenCalled();
   });
 
   it("exits immediately without cleanup when watchdog scheduling fails", async () => {

@@ -31,10 +31,10 @@ import {
 } from "../src/main/inpainting/fluxAssets/pythonRuntimeLayout";
 import {
   resolveFluxRocmPrebuiltRuntimeUrl,
+  resolveFluxRocmPrebuiltRuntimeSha256,
   resolvePythonBuildPackages,
   resolvePythonFluxPackages,
   resolvePythonRuntimeInstallBatches,
-  shouldAllowFluxRocmSourceBuildFallback,
   shouldUsePrebuiltFluxRocmRuntime,
 } from "../src/main/inpainting/fluxAssets/manifests";
 import { resolveDefaultFluxRunRootDir } from "../src/main/inpainting/fluxEngine";
@@ -67,10 +67,10 @@ afterEach(() => {
   delete process.env.MGT_FLUX_ROCM_RUNTIME_DIR;
   delete process.env.MANGA_TRANSLATOR_FLUX_ROCM_RUNTIME_ARCHIVE_URL;
   delete process.env.MGT_FLUX_ROCM_RUNTIME_ARCHIVE_URL;
+  delete process.env.MANGA_TRANSLATOR_FLUX_ROCM_RUNTIME_ARCHIVE_SHA256;
+  delete process.env.MGT_FLUX_ROCM_RUNTIME_ARCHIVE_SHA256;
   delete process.env.MANGA_TRANSLATOR_FLUX_ROCM_USE_PREBUILT;
   delete process.env.MGT_FLUX_ROCM_USE_PREBUILT;
-  delete process.env.MANGA_TRANSLATOR_FLUX_ROCM_ALLOW_SOURCE_BUILD;
-  delete process.env.MGT_FLUX_ROCM_ALLOW_SOURCE_BUILD;
   delete process.env.MANGA_TRANSLATOR_WINDOWS_KITS_ROOT;
   delete process.env.MGT_WINDOWS_KITS_ROOT;
   delete process.env.MANGA_TRANSLATOR_MSVC_TOOLS_ROOT;
@@ -547,21 +547,26 @@ describeWindows("Flux worker runtime helpers", () => {
       "mgt-flux-rocm-win-x64-rocm7.2.1-py3.12.7-sdcpp.zip",
     );
     expect(shouldUsePrebuiltFluxRocmRuntime()).toBe(true);
-    expect(shouldAllowFluxRocmSourceBuildFallback()).toBe(false);
     expect(FLUX_ROCM_PREBUILT_RUNTIME_MANIFEST).toBe(
       "mgt-flux-rocm-runtime.json",
     );
+    expect(() =>
+      resolveFluxRocmPrebuiltRuntimeSha256(resolveFluxRocmPrebuiltRuntimeUrl()),
+    ).toThrow("requires an explicit SHA-256");
+
+    process.env.MGT_FLUX_ROCM_RUNTIME_ARCHIVE_SHA256 = "a".repeat(64);
+    expect(
+      resolveFluxRocmPrebuiltRuntimeSha256(resolveFluxRocmPrebuiltRuntimeUrl()),
+    ).toBe("a".repeat(64));
 
     process.env.MGT_FLUX_ROCM_RUNTIME_ARCHIVE_URL =
       "file:///C:/runtime/custom-flux-rocm.zip";
     process.env.MGT_FLUX_ROCM_USE_PREBUILT = "0";
-    process.env.MGT_FLUX_ROCM_ALLOW_SOURCE_BUILD = "1";
 
     expect(resolveFluxRocmPrebuiltRuntimeUrl()).toBe(
       "file:///C:/runtime/custom-flux-rocm.zip",
     );
     expect(shouldUsePrebuiltFluxRocmRuntime()).toBe(false);
-    expect(shouldAllowFluxRocmSourceBuildFallback()).toBe(true);
   });
 
   it("builds a reproducible Flux ROCm runtime context from explicit inputs", () => {

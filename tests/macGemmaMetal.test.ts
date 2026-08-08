@@ -103,14 +103,20 @@ const { extractSelectedTarEntries, validateSymlinkTarget, validateTarEntries } =
     ) => void;
   };
 
-const { calculateFileSha256, verifyRuntimeArchiveChecksums } =
-  require("../src/main/runtime/model/llama-runtime-download.cjs") as {
-    calculateFileSha256: (filePath: string) => Promise<string>;
-    verifyRuntimeArchiveChecksums: (
-      paths: string[],
-      archives: Array<{ archive: string; url: string; sha256?: string }>,
-    ) => Promise<void>;
-  };
+const {
+  assertRuntimeArchiveChecksumsPresent,
+  calculateFileSha256,
+  verifyRuntimeArchiveChecksums,
+} = require("../src/main/runtime/model/llama-runtime-download.cjs") as {
+  assertRuntimeArchiveChecksumsPresent: (
+    archives: Array<{ archive: string; url: string; sha256?: string }>,
+  ) => void;
+  calculateFileSha256: (filePath: string) => Promise<string>;
+  verifyRuntimeArchiveChecksums: (
+    paths: string[],
+    archives: Array<{ archive: string; url: string; sha256?: string }>,
+  ) => Promise<void>;
+};
 const { shouldExtractLlamaRuntimeFile } =
   require("../src/main/runtime/simple-page-llama-runtimes.cjs") as {
     shouldExtractLlamaRuntimeFile: (
@@ -290,6 +296,17 @@ describe("Apple unified-memory policy", () => {
 });
 
 describe("Metal runtime archive integrity", () => {
+  it("fails closed when a runtime descriptor omits its digest", () => {
+    expect(() =>
+      assertRuntimeArchiveChecksumsPresent([
+        {
+          archive: "runtime.zip",
+          url: "https://example.invalid/runtime.zip",
+        },
+      ]),
+    ).toThrow(/SHA-256/);
+  });
+
   it("rejects path traversal, hard links, and escaping symlinks", () => {
     expect(() =>
       validateTarEntries([{ path: "root/../escape", type: "File" }], 1),

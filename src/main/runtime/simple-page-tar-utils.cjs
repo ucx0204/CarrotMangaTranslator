@@ -5,9 +5,14 @@ const {
   readlinkSync,
   realpathSync,
 } = require("node:fs");
-const { chmod, mkdir, rm, symlink } = require("node:fs/promises");
+const { chmod, copyFile, mkdir, rm } = require("node:fs/promises");
 const { createRequire } = require("node:module");
 const path = require("node:path");
+const {
+  addArchiveEntryToBudget,
+  createArchiveExtractionDeadline,
+  throwIfArchiveExtractionAborted,
+} = require("./archive-extraction-policy.cjs");
 
 /**
  * app-runtime is copied outside app.asar, so its ordinary CommonJS lookup
@@ -61,7 +66,7 @@ const tar = loadTarRuntime();
  * @param {string} archivePath
  * @param {string} outputDir
  * @param {RuntimeEntryFilter} shouldExtract
- * @param {{ stripComponents?: number }} [options]
+ * @param {{ stripComponents?: number; abortSignal?: AbortSignal | null; deadlineMs?: number }} [options]
  */
 async function extractSelectedTarEntries(
   archivePath,
@@ -70,55 +75,68 @@ async function extractSelectedTarEntries(
   options = {},
 ) {
   const stripComponents = normalizeStripComponents(options.stripComponents);
-  const entries = await inspectTarEntries(archivePath);
-  validateTarEntries(entries, stripComponents);
-  await mkdir(outputDir, { recursive: true });
-  await tar.x({
-    file: archivePath,
-    cwd: outputDir,
-    strip: stripComponents,
-    preservePaths: false,
-    preserveOwner: false,
-    strict: true,
-    unlink: true,
-    /** @param {string} entryPath @param {any} entry */
-    filter: (entryPath, entry) => {
-      const tarEntry = /** @type {any} */ (entry);
-      const entryInfo = {
-        path: entryPath,
-        type: tarEntry.type,
-        linkpath: tarEntry.linkpath,
-        size: tarEntry.size,
-        mode: tarEntry.mode,
-      };
-      return (
-        !isSymbolicLinkType(entryInfo.type) &&
-        shouldExtractTarEntry(entryInfo, stripComponents, shouldExtract)
-      );
-    },
-  });
-  await createSelectedTarSymlinks(
-    entries,
-    outputDir,
-    stripComponents,
-    shouldExtract,
+  const deadline = createArchiveExtractionDeadline(
+    options.abortSignal,
+    options.deadlineMs,
   );
-  assertExtractedSymlinksStayInside(outputDir);
-  const serverPath = path.join(outputDir, "llama-server");
   try {
-    await chmod(serverPath, 0o755);
-  } catch (_error) {
-    // error-policy-allow: the caller validates and reports a missing server.
-    // The caller reports the missing required binary with runtime details.
+    const entries = await inspectTarEntries(archivePath, deadline.signal);
+    validateTarEntries(entries, stripComponents);
+    throwIfArchiveExtractionAborted(deadline.signal);
+    await mkdir(outputDir, { recursive: true });
+    await tar.x({
+      file: archivePath,
+      cwd: outputDir,
+      strip: stripComponents,
+      preservePaths: false,
+      preserveOwner: false,
+      strict: true,
+      unlink: true,
+      signal: deadline.signal,
+      /** @param {string} entryPath @param {any} entry */
+      filter: (entryPath, entry) => {
+        throwIfArchiveExtractionAborted(deadline.signal);
+        const tarEntry = /** @type {any} */ (entry);
+        const entryInfo = {
+          path: entryPath,
+          type: tarEntry.type,
+          linkpath: tarEntry.linkpath,
+          size: tarEntry.size,
+          mode: tarEntry.mode,
+        };
+        return (
+          !isSymbolicLinkType(entryInfo.type) &&
+          shouldExtractTarEntry(entryInfo, stripComponents, shouldExtract)
+        );
+      },
+    });
+    await materializeSelectedTarLinks(
+      entries,
+      outputDir,
+      stripComponents,
+      shouldExtract,
+      deadline.signal,
+    );
+    assertExtractedSymlinksStayInside(outputDir);
+    const serverPath = path.join(outputDir, "llama-server");
+    try {
+      await chmod(serverPath, 0o755);
+    } catch (_error) {
+      // error-policy-allow: the caller validates and reports a missing server.
+      // The caller reports the missing required binary with runtime details.
+    }
+  } finally {
+    deadline.cleanup();
   }
 }
 
-/** @param {TarEntryInfo[]} entries @param {string} outputDir @param {number} stripComponents @param {RuntimeEntryFilter} shouldExtract */
-async function createSelectedTarSymlinks(
+/** @param {TarEntryInfo[]} entries @param {string} outputDir @param {number} stripComponents @param {RuntimeEntryFilter} shouldExtract @param {AbortSignal} signal */
+async function materializeSelectedTarLinks(
   entries,
   outputDir,
   stripComponents,
   shouldExtract,
+  signal,
 ) {
   for (const entry of entries) {
     if (
@@ -127,31 +145,54 @@ async function createSelectedTarSymlinks(
     ) {
       continue;
     }
+    throwIfArchiveExtractionAborted(signal);
     const safePath = normalizeSafeArchivePath(entry.path);
     const outputPath = stripArchivePath(safePath, stripComponents);
     const linkPath = path.join(outputDir, outputPath);
+    const targetPath = path.resolve(
+      path.dirname(linkPath),
+      String(entry.linkpath),
+    );
+    if (!isPathInside(targetPath, path.resolve(outputDir))) {
+      throw new Error(
+        `Runtime tar archive symlink escapes extraction root: ${outputPath}`,
+      );
+    }
     await mkdir(path.dirname(linkPath), { recursive: true });
     await rm(linkPath, { force: true });
-    await symlink(String(entry.linkpath), linkPath);
+    await copyFile(targetPath, linkPath);
   }
 }
 
-/** @param {string} archivePath @returns {Promise<TarEntryInfo[]>} */
-async function inspectTarEntries(archivePath) {
+/** @param {string} archivePath @param {AbortSignal} signal @returns {Promise<TarEntryInfo[]>} */
+async function inspectTarEntries(archivePath, signal) {
   /** @type {TarEntryInfo[]} */
   const entries = [];
+  const budget = { entryCount: 0, expandedBytes: 0 };
   await tar.t({
     file: archivePath,
     strict: true,
+    signal,
     /** @param {any} entry */
     onentry: (entry) => {
-      entries.push({
+      throwIfArchiveExtractionAborted(signal);
+      const entryInfo = {
         path: entry.path,
         type: entry.type,
         linkpath: entry.linkpath,
         size: entry.size,
         mode: entry.mode,
-      });
+      };
+      addArchiveEntryToBudget(
+        budget,
+        {
+          name: entryInfo.path,
+          size: isDirectoryType(entryInfo.type) ? 0 : entryInfo.size,
+          directory: isDirectoryType(entryInfo.type),
+        },
+        path.basename(archivePath),
+      );
+      entries.push(entryInfo);
     },
   });
   if (entries.length === 0) {

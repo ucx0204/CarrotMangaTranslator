@@ -18,6 +18,7 @@ import {
   readJsonUrl,
   readNvidiaRedistPackage,
 } from "./downloads";
+import { replaceDirectoryWithRollback } from "../../runtimeSupport/runtimeDirectoryPublish";
 
 type EnsureFluxCudaRuntimeOptions = {
   runtimeDir: string;
@@ -34,23 +35,30 @@ export async function ensureFluxCudaRuntime(
     return;
   }
 
-  const downloadsDir = await prepareFluxCudaRuntimeDirs(options, cudaDir);
-  await installFluxCudaPackages(
-    options,
-    downloadsDir,
-    cudaDir,
-    await resolveCudaRedistPackages(options.signal),
-  );
-  await installFluxCudnnPackage(
-    options,
-    downloadsDir,
-    cudaDir,
-    await resolveCudnnRedistPackage(options.signal),
-  );
-  if (!(await hasFluxCudaRuntimeFiles(cudaDir))) {
-    throw new Error("Flux CUDA/cuDNN 런타임 설치가 완료되지 않았습니다.");
+  const stagingDir = `${cudaDir}.staging-${process.pid}-${Date.now()}`;
+  const downloadsDir = await prepareFluxCudaRuntimeDirs(options, stagingDir);
+  try {
+    await installFluxCudaPackages(
+      options,
+      downloadsDir,
+      stagingDir,
+      await resolveCudaRedistPackages(options.signal),
+    );
+    await installFluxCudnnPackage(
+      options,
+      downloadsDir,
+      stagingDir,
+      await resolveCudnnRedistPackage(options.signal),
+    );
+    if (!(await hasFluxCudaRuntimeFiles(stagingDir))) {
+      throw new Error("Flux CUDA/cuDNN 런타임 설치가 완료되지 않았습니다.");
+    }
+    await writeFluxCudaRuntimeMarker(stagingDir);
+    await replaceDirectoryWithRollback(stagingDir, cudaDir);
+  } catch (error) {
+    await rm(stagingDir, { recursive: true, force: true });
+    throw error;
   }
-  await writeFluxCudaRuntimeMarker(cudaDir);
   reportInstalledFluxCudaRuntime(options);
 }
 
@@ -67,10 +75,10 @@ function reportCachedFluxCudaRuntime(
 
 async function prepareFluxCudaRuntimeDirs(
   options: EnsureFluxCudaRuntimeOptions,
-  cudaDir: string,
+  stagingDir: string,
 ): Promise<string> {
-  await rm(cudaDir, { recursive: true, force: true });
-  await mkdir(cudaDir, { recursive: true });
+  await rm(stagingDir, { recursive: true, force: true });
+  await mkdir(stagingDir, { recursive: true });
   const downloadsDir = join(options.runtimeDir, ".downloads");
   await mkdir(downloadsDir, { recursive: true });
   return downloadsDir;
@@ -125,8 +133,11 @@ async function installFluxCudaPackages(
       baseUrl: CUDA_REDIST_BASE_URL,
       label: "Flux CUDA 런타임",
     });
-    extractSelectedZipEntries(archivePath, cudaDir, (fileName) =>
-      FLUX_CUDA_DLLS.has(fileName),
+    await extractSelectedZipEntries(
+      archivePath,
+      cudaDir,
+      (fileName) => FLUX_CUDA_DLLS.has(fileName),
+      options.signal,
     );
   }
 }
@@ -144,8 +155,11 @@ async function installFluxCudnnPackage(
     baseUrl: CUDNN_REDIST_BASE_URL,
     label: "Flux cuDNN 런타임",
   });
-  extractSelectedZipEntries(cudnnArchivePath, cudaDir, (fileName) =>
-    FLUX_CUDNN_DLLS.has(fileName),
+  await extractSelectedZipEntries(
+    cudnnArchivePath,
+    cudaDir,
+    (fileName) => FLUX_CUDNN_DLLS.has(fileName),
+    options.signal,
   );
 }
 

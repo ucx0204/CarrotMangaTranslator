@@ -16,5 +16,7 @@ module.exports = {
   ensurePaddleOcrRuntime: orchestrator.ensurePaddleOcrRuntime,
   resolveOcrInstallBatchProgressRanges:
     installer.resolveOcrInstallBatchProgressRanges,
+  resolveIntegrityPinnedOcrInstallBatches:
+    installer.resolveIntegrityPinnedOcrInstallBatches,
   resolveOcrPipInstallExtraArgs: installer.resolveOcrPipInstallExtraArgs,
 };

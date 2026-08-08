@@ -75,6 +75,13 @@ export async function runAppQuitCleanup({
           { jobId, timeoutMs },
         );
       },
+      reportLateFailure: (jobId, error) => {
+        logError("Active job cleanup failed after the shutdown soft deadline", {
+          jobId,
+          cleanupReason,
+          error,
+        });
+      },
     });
     inpaintingHistoryReleaseSafe = canReleaseInpaintingHistoryAfterQuitCleanup(
       job.kind,

@@ -58,7 +58,10 @@ export async function startOpenAIOAuthEndpoint(
     host: "127.0.0.1",
     port: options.codexOauthPort,
     requestLogger: (event) => {
-      logInfo("openai-oauth request", { label: options.label, event });
+      logInfo("openai-oauth request", {
+        label: options.label,
+        event: whitelistOauthRequestEvent(event),
+      });
     },
   });
 
@@ -87,6 +90,34 @@ export async function startOpenAIOAuthEndpoint(
     provider: "openai-codex",
     oauthServer,
   };
+}
+
+function whitelistOauthRequestEvent(event: unknown): Record<string, unknown> {
+  if (!event || typeof event !== "object" || Array.isArray(event)) {
+    return { type: typeof event };
+  }
+  const source = event as Record<string, unknown>;
+  const result: Record<string, unknown> = {};
+  for (const key of [
+    "type",
+    "event",
+    "phase",
+    "method",
+    "pathname",
+    "status",
+    "statusCode",
+    "durationMs",
+  ]) {
+    const value = source[key];
+    if (
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean"
+    ) {
+      result[key] = value;
+    }
+  }
+  return result;
 }
 
 export async function stopOpenAIOAuthEndpoint(

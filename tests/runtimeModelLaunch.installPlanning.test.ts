@@ -11,6 +11,7 @@ import {
   resolveOcrPipInstallExtraArgs,
   buildOcrPipInstallCommand,
   resolveOcrPipInstallBatches,
+  resolveIntegrityPinnedOcrInstallBatches,
   summarizeOcrInstallBatches,
   resolveOcrInstallBatchLabel,
   resolveOcrRuntimeDir,
@@ -154,15 +155,51 @@ describeWindows(
         "-m",
         "pip",
         "install",
-        "--upgrade",
         "--cache-dir",
         "C:/ocr/pip-cache",
         "--progress-bar",
         "raw",
-        "pip",
-        "setuptools",
-        "wheel",
+        "--require-hashes",
+        "--only-binary=:all:",
+        "--no-deps",
+        "--requirement",
+        expect.stringMatching(/requirements-build-tools\.lock$/),
       ]);
+    });
+
+    it("installs built-in Windows OCR runtimes from hash-complete locks", () => {
+      const cpuBatches = resolveIntegrityPinnedOcrInstallBatches(
+        resolveOcrPipInstallBatches({ ocrDevice: "cpu" }),
+        { ocrDevice: "cpu" },
+      );
+      expect(cpuBatches).toHaveLength(2);
+      expect(cpuBatches[0]).toEqual(
+        expect.arrayContaining([
+          "--require-hashes",
+          "--only-binary=:all:",
+          "--requirement",
+          expect.stringMatching(/requirements-ocr-cpu-win-py312\.lock$/),
+        ]),
+      );
+      expect(cpuBatches[1]).toEqual(
+        expect.arrayContaining([
+          "--require-hashes",
+          "--no-deps",
+          expect.stringMatching(/requirements-ocr-safetensors-win\.lock$/),
+        ]),
+      );
+
+      const original = process.env.MANGA_TRANSLATOR_OCR_CPU_PIP_PACKAGES;
+      process.env.MANGA_TRANSLATOR_OCR_CPU_PIP_PACKAGES = "paddlepaddle";
+      try {
+        expect(() =>
+          resolveIntegrityPinnedOcrInstallBatches([["paddlepaddle"]], {
+            ocrDevice: "cpu",
+          }),
+        ).toThrow("requires MGT_OCR_REQUIREMENTS_LOCK");
+      } finally {
+        restoreEnv("MANGA_TRANSLATOR_OCR_CPU_PIP_PACKAGES", original);
+      }
     });
 
     it("uses no build isolation for ROCm meta packages and no deps for ROCm resolver traps", () => {

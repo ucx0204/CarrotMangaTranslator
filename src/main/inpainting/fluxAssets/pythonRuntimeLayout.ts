@@ -27,6 +27,7 @@ import {
 
 type FluxPythonRuntimeMarker = {
   backend: FluxPythonBackend;
+  integrityId: string;
   runtimeInstallBatches: Array<{ id: string; pipArgs: string[] }>;
   buildPackages: string[];
   packages: string[];
@@ -221,6 +222,7 @@ function matchesCurrentFluxPythonRuntimeMarker(
   return (
     marker.runtimeMode === "target" &&
     marker.backend === expected.backend &&
+    marker.integrityId === expected.integrityId &&
     marker.worker === expected.worker &&
     marker.workerHash === expected.workerHash &&
     sameJson(

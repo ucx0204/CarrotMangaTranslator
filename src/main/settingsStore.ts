@@ -15,6 +15,15 @@ import {
 } from "./gpuInfo";
 import { writeJsonFile } from "./libraryStore/storage";
 import { logError, writeLog } from "./logger";
+import { redactDiagnosticText } from "./errorReportRedaction";
+import {
+  attachSettingsSecrets,
+  loadSettingsSecrets,
+  maskSettingsSecrets,
+  resolveSubmittedSettingsSecrets,
+  saveSettingsSecrets,
+  separateSettingsSecrets,
+} from "./settingsSecretStore";
 
 export type GpuInfoProvider = () => Promise<DetectedGpuInfo | null>;
 
@@ -39,13 +48,25 @@ export async function getAppSettings(
 
   try {
     const rawText = await readFile(paths.settingsPath, "utf8");
+    const stored = parseStoredAppSettings(rawText, defaults);
+    const plaintext = separateSettingsSecrets(stored);
+    const encryptedSecrets = await loadSettingsSecrets(paths);
+    const secrets = mergeSettingsSecrets(plaintext.secrets, encryptedSecrets);
+    if (hasSettingsSecrets(plaintext.secrets)) {
+      await saveSettingsSecrets(paths, secrets);
+      await persistAppSettings(plaintext.persistentSettings, paths);
+    }
     return attachRuntimeHardware(
-      parseStoredAppSettings(rawText, defaults),
+      attachSettingsSecrets(plaintext.persistentSettings, secrets),
       detectedGpu,
     );
   } catch (error) {
     if (isMissingFileError(error)) {
-      return attachRuntimeHardware(defaults, detectedGpu);
+      const secrets = await loadSettingsSecrets(paths);
+      return attachRuntimeHardware(
+        attachSettingsSecrets(defaults, secrets),
+        detectedGpu,
+      );
     }
     if (isJsonParseError(error)) {
       await backupCorruptSettings(paths, error, diagnostics);
@@ -66,8 +87,17 @@ export async function saveAppSettings(
     settings,
     resolveDefaultAppSettings(env, detectedGpu),
   );
-  await persistAppSettings(stripRuntimeHardware(normalized), paths);
-  return attachRuntimeHardware(normalized, detectedGpu);
+  const existingSecrets = await loadSettingsSecrets(paths);
+  const submitted = resolveSubmittedSettingsSecrets(
+    stripRuntimeHardware(normalized),
+    existingSecrets,
+  );
+  await saveSettingsSecrets(paths, submitted.secrets);
+  await persistAppSettings(submitted.settings, paths);
+  return attachRuntimeHardware(
+    attachSettingsSecrets(submitted.settings, submitted.secrets),
+    detectedGpu,
+  );
 }
 
 export async function resetAppSettings(
@@ -77,8 +107,27 @@ export async function resetAppSettings(
 ): Promise<AppSettings> {
   const detectedGpu = await detectGpu();
   const defaults = resolveDefaultAppSettings(env, detectedGpu);
-  await persistAppSettings(stripRuntimeHardware(defaults), paths);
+  await saveSettingsSecrets(paths, {});
+  await persistAppSettings(
+    separateSettingsSecrets(stripRuntimeHardware(defaults)).persistentSettings,
+    paths,
+  );
   return attachRuntimeHardware(defaults, detectedGpu);
+}
+
+export function maskAppSettingsSecrets(settings: AppSettings): AppSettings {
+  return maskSettingsSecrets(settings);
+}
+
+export async function hydrateAppSettingsSecretSentinels(
+  settings: AppSettings,
+  paths = getAppPaths(),
+): Promise<AppSettings> {
+  const submitted = resolveSubmittedSettingsSecrets(
+    settings,
+    await loadSettingsSecrets(paths),
+  );
+  return attachSettingsSecrets(submitted.settings, submitted.secrets);
 }
 
 async function persistAppSettings(
@@ -148,7 +197,8 @@ async function backupCorruptSettings(
       `${basename(paths.settingsPath)}.corrupt-${timestamp}.bak`,
     );
     await mkdir(dirname(backupPath), { recursive: true });
-    await writeFile(backupPath, rawText, "utf8");
+    const redacted = redactDiagnosticText(rawText, { appPaths: paths }).text;
+    await writeFile(backupPath, redacted, { encoding: "utf8", mode: 0o600 });
     diagnostics.warn(
       "Settings file is corrupt; backed it up and restored defaults",
       { settingsPath: paths.settingsPath, backupPath },
@@ -160,4 +210,31 @@ async function backupCorruptSettings(
       backupError,
     });
   }
+}
+
+function mergeSettingsSecrets(
+  plaintext: ReturnType<typeof separateSettingsSecrets>["secrets"],
+  encrypted: Awaited<ReturnType<typeof loadSettingsSecrets>>,
+): ReturnType<typeof separateSettingsSecrets>["secrets"] {
+  return {
+    ...(plaintext.apiKey || encrypted.apiKey
+      ? { apiKey: encrypted.apiKey ?? plaintext.apiKey }
+      : {}),
+    ...((plaintext.credentialHeaders || encrypted.credentialHeaders) && {
+      credentialHeaders: {
+        ...(plaintext.credentialHeaders ?? {}),
+        ...(encrypted.credentialHeaders ?? {}),
+      },
+    }),
+  };
+}
+
+function hasSettingsSecrets(
+  secrets: ReturnType<typeof separateSettingsSecrets>["secrets"],
+): boolean {
+  return Boolean(
+    secrets.apiKey ||
+    (secrets.credentialHeaders &&
+      Object.keys(secrets.credentialHeaders).length > 0),
+  );
 }

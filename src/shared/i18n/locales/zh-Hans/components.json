@@ -1270,7 +1270,7 @@
       "model": "API模型",
       "key": "API密钥",
       "keyPlaceholder": "每行输入一个API密钥",
-      "keyDescription": "空行和重复密钥会被忽略。当前已配置{{count}}个，密钥会以明文保存在此电脑的settings.json中。",
+      "keyDescription": "空行和重复密钥会被忽略。当前已配置{{count}}个，密钥会保存在此电脑的操作系统加密存储中。",
       "showKey": "显示API密钥",
       "hideKey": "隐藏API密钥",
       "openKeyPage": "打开API密钥页面",

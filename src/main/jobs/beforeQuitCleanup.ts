@@ -12,6 +12,7 @@ type ActiveJobCleanupOptions = {
   jobs: Pick<ActiveJobStore, "clearIfCurrent" | "runCleanup">;
   reason: ActiveJobCleanupReason;
   warnTimedOut: (jobId: string, timeoutMs: number) => void;
+  reportLateFailure: (jobId: string, error: unknown) => void;
   timeoutMs?: number;
   scheduleTimeout?: (
     callback: () => void,
@@ -22,11 +23,12 @@ type ActiveJobCleanupOptions = {
 
 export type BeforeQuitCleanupResult = {
   timedOut: boolean;
+  settlement: Promise<void>;
 };
 
 export function canReleaseInpaintingHistoryAfterQuitCleanup(
   jobKind: ActiveJob["kind"],
-  result: BeforeQuitCleanupResult,
+  result: Pick<BeforeQuitCleanupResult, "timedOut">,
 ): boolean {
   return jobKind !== "inpainting" || !result.timedOut;
 }
@@ -36,6 +38,7 @@ export async function finishActiveJobCleanup({
   jobs,
   reason,
   warnTimedOut,
+  reportLateFailure,
   timeoutMs = BEFORE_QUIT_CLEANUP_TIMEOUT_MS,
   scheduleTimeout = setTimeout,
   clearScheduledTimeout = clearTimeout,
@@ -52,7 +55,7 @@ export async function finishActiveJobCleanup({
 
   if (!timedOut) {
     jobs.clearIfCurrent(job.id);
-    return { timedOut: false };
+    return { timedOut: false, settlement: cleanup };
   }
 
   warnTimedOut(job.id, timeoutMs);
@@ -61,9 +64,14 @@ export async function finishActiveJobCleanup({
     jobs.clearIfCurrent(job.id);
   };
 
-  void cleanup.then(clearAfterSettlement, clearAfterSettlement);
+  const settlement = cleanup.finally(clearAfterSettlement);
+  // before-quit callers may intentionally leave after the soft deadline. Report
+  // a late rejection while still exposing it to lifecycle callers.
+  void settlement.then(undefined, (error) => {
+    reportLateFailure(job.id, error);
+  });
 
-  return { timedOut: true };
+  return { timedOut: true, settlement };
 }
 
 export function finishBeforeQuitCleanup(

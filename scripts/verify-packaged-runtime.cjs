@@ -77,9 +77,11 @@ const allowedElectronLocales = new Set([
   "zh-CN.pak",
   "zh-TW.pak",
 ]);
-// The clean v1.7.0 thin payload is 217 files after development-only runtime
-// artifacts are omitted. Keep roughly the same regression headroom as v1.6.5.
-const MAX_PACKAGED_FILES = 240;
+// The clean v1.7.0 thin payload was 217 files after development-only runtime
+// artifacts were omitted. v1.10.1 intentionally adds 14 runtime integrity
+// manifests and hash-complete dependency locks; keep the resulting audited
+// payload ceiling exact so unrelated packaging growth still fails closed.
+const MAX_PACKAGED_FILES = 254;
 // The trained font matching runtime bundle (~467 MiB) is externalized out of
 // the installer and downloaded into the data-root cache on first use, so the
 // unpacked payload is ~745 MiB (Electron + app.asar + tools, no bundle) and the

@@ -33,7 +33,7 @@ export async function runMainWindowCloseCleanup({
 }): Promise<void> {
   const job = jobs.current;
   if (job) {
-    await finishActiveJobCleanup({
+    const cleanupResult = await finishActiveJobCleanup({
       job,
       jobs,
       reason: "main-window-closed",
@@ -43,7 +43,16 @@ export async function runMainWindowCloseCleanup({
           { jobId, timeoutMs },
         );
       },
+      reportLateFailure: (jobId, error) => {
+        logError(
+          "Active job cleanup failed after the main-window close soft deadline",
+          { jobId, error },
+        );
+      },
     });
+    if (cleanupResult.timedOut) {
+      await cleanupResult.settlement;
+    }
   }
 
   if (operations.current) {
@@ -71,12 +80,20 @@ async function disposeRuntimeResources({
     Promise.resolve().then(disposeInpainting),
     Promise.resolve().then(disposeTranslation),
   ]);
+  const failures: unknown[] = [];
   for (const [index, result] of results.entries()) {
     if (result.status === "rejected") {
+      failures.push(result.reason);
       logError("Runtime resource disposal failed after main window close", {
         resource: index === 0 ? "inpainting-engines" : "translation-runtime",
         error: result.reason,
       });
     }
+  }
+  if (failures.length > 0) {
+    throw new AggregateError(
+      failures,
+      "Runtime resource disposal failed after main window close",
+    );
   }
 }

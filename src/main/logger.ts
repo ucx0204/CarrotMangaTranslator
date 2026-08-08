@@ -1,14 +1,18 @@
 import { dirname } from "node:path";
 import { join } from "node:path";
-import { inspect } from "node:util";
 import { getAppPaths } from "./appPaths";
 import { createLoggerRuntime } from "./loggerRuntime";
+import { redactDiagnosticText } from "./errorReportRedaction";
 
 const MAX_SERIALIZED_STRING_LENGTH = 16000;
 const MAX_SERIALIZED_STACK_LENGTH = 32000;
 const MAX_SERIALIZED_ARRAY_ITEMS = 40;
 const MAX_SERIALIZED_OBJECT_KEYS = 60;
 const MAX_SERIALIZATION_DEPTH = 8;
+const SENSITIVE_LOG_KEY =
+  /^(?:api[-_]?key|authorization|proxy[-_]?authorization|access[-_]?token|refresh[-_]?token|token|secret|password|cookie|set[-_]?cookie|customHeadersJson|extraBodyJson|promptOverrideText(?:Preview)?|sourceText|translatedText|ocrText|outputPreview|repairedOutputPreview|story|glossary|characters|imagePath|sourcePath|outputPath|outputDir|fileName|filePath|workName|chapterName|pageName)$/i;
+const SENSITIVE_LOG_KEY_SUFFIX =
+  /(?:^|[-_])(?:api[-_]?key|access[-_]?token|refresh[-_]?token|auth[-_]?token|token|secret|password|cookie)$/i;
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 type NormalizedLogValueResult =
@@ -56,18 +60,19 @@ export function getPreviousLogPath(logPath = getLogPath()): string {
 
 export function serializeLogDetail(detail: unknown): string {
   if (typeof detail === "string") {
-    return limitString(detail).replace(/\r?\n/g, "\\n");
+    return sanitizeLogString(detail).replace(/\r?\n/g, "\\n");
   }
 
   try {
     return JSON.stringify(normalizeLogValue(detail, new WeakSet<object>(), 0));
-  } catch (_error) {
-    return inspect(detail, {
-      depth: 5,
-      breakLength: Infinity,
-      maxArrayLength: MAX_SERIALIZED_ARRAY_ITEMS,
-      maxStringLength: MAX_SERIALIZED_STRING_LENGTH,
-    }).replace(/\r?\n/g, "\\n");
+  } catch (error) {
+    return JSON.stringify({
+      type: describeUnknown(detail),
+      serializationError:
+        error instanceof Error
+          ? sanitizeLogString(error.message)
+          : "unknown serialization failure",
+    });
   }
 }
 
@@ -99,7 +104,7 @@ function normalizePrimitiveLogValue(detail: unknown): NormalizedLogValueResult {
   }
 
   if (typeof detail === "string") {
-    return { handled: true, value: limitString(detail) };
+    return { handled: true, value: sanitizeLogString(detail) };
   }
 
   if (typeof detail === "number" || typeof detail === "boolean") {
@@ -134,7 +139,7 @@ function normalizeKnownObjectLogValue(
   }
 
   if (detail instanceof URL) {
-    return { handled: true, value: detail.toString() };
+    return { handled: true, value: sanitizeLogString(detail.toString()) };
   }
 
   if (Buffer.isBuffer(detail)) {
@@ -143,7 +148,6 @@ function normalizeKnownObjectLogValue(
       value: {
         type: "Buffer",
         length: detail.length,
-        utf8Preview: limitString(detail.toString("utf8"), 4000),
       },
     };
   }
@@ -191,10 +195,15 @@ function normalizeMap(
     size: detail.size,
     entries: Array.from(detail.entries())
       .slice(0, MAX_SERIALIZED_ARRAY_ITEMS)
-      .map(([key, value]) => [
-        normalizeLogValue(key, seen, depth + 1),
-        normalizeLogValue(value, seen, depth + 1),
-      ]),
+      .map(([key, value]) => {
+        const normalizedKey = normalizeLogValue(key, seen, depth + 1);
+        return [
+          normalizedKey,
+          typeof key === "string" && isSensitiveLogKey(key)
+            ? "<redacted>"
+            : normalizeLogValue(value, seen, depth + 1),
+        ];
+      }),
     truncatedEntries: Math.max(detail.size - MAX_SERIALIZED_ARRAY_ITEMS, 0),
   };
 }
@@ -260,7 +269,9 @@ function normalizeObject(
     }
 
     for (const key of limitedKeys) {
-      result[key] = normalizeLogValue(source[key], seen, depth + 1);
+      result[key] = isSensitiveLogKey(key)
+        ? "<redacted>"
+        : normalizeLogValue(source[key], seen, depth + 1);
     }
 
     if (keys.length > limitedKeys.length) {
@@ -286,10 +297,10 @@ function normalizeError(
   try {
     const error = detail as Error & { cause?: unknown };
     const result: Record<string, unknown> = {
-      name: error.name,
-      message: limitString(error.message),
+      name: sanitizeLogString(error.name),
+      message: sanitizeLogString(error.message),
       stack: error.stack
-        ? limitString(error.stack, MAX_SERIALIZED_STACK_LENGTH)
+        ? sanitizeLogString(error.stack, MAX_SERIALIZED_STACK_LENGTH)
         : undefined,
     };
 
@@ -307,7 +318,9 @@ function normalizeError(
       ) {
         continue;
       }
-      result[key] = normalizeLogValue(Reflect.get(error, key), seen, depth + 1);
+      result[key] = isSensitiveLogKey(key)
+        ? "<redacted>"
+        : normalizeLogValue(Reflect.get(error, key), seen, depth + 1);
     }
 
     return stripUndefined(result);
@@ -328,6 +341,16 @@ function describeObject(detail: object): string {
   return Object.prototype.toString.call(detail).slice(8, -1) || "Object";
 }
 
+function describeUnknown(detail: unknown): string {
+  return detail && typeof detail === "object"
+    ? describeObject(detail)
+    : typeof detail;
+}
+
+function isSensitiveLogKey(key: string): boolean {
+  return SENSITIVE_LOG_KEY.test(key) || SENSITIVE_LOG_KEY_SUFFIX.test(key);
+}
+
 function limitString(
   value: string,
   maxLength = MAX_SERIALIZED_STRING_LENGTH,
@@ -337,6 +360,13 @@ function limitString(
   }
 
   return `${value.slice(0, maxLength)}… [truncated ${value.length - maxLength} chars]`;
+}
+
+function sanitizeLogString(
+  value: string,
+  maxLength = MAX_SERIALIZED_STRING_LENGTH,
+): string {
+  return redactDiagnosticText(limitString(value, maxLength)).text;
 }
 
 const loggerRuntime = createLoggerRuntime({

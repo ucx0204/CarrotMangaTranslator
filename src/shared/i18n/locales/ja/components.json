@@ -1304,7 +1304,7 @@
       "model": "APIモデル",
       "key": "APIキー",
       "keyPlaceholder": "1行にAPIキーを1つ入力",
-      "keyDescription": "空行と重複キーは無視します。現在{{count}}個が設定され、キーはこのPCのsettings.jsonに平文で保存されます。",
+      "keyDescription": "空行と重複キーは無視します。現在{{count}}個が設定され、キーはこのPCのOS暗号化ストレージに保存されます。",
       "showKey": "APIキーを表示",
       "hideKey": "APIキーを隠す",
       "openKeyPage": "APIキー発行ページを開く",

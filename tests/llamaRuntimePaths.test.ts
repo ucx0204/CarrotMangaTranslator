@@ -65,6 +65,7 @@ const {
     archive: string;
     url: string;
     backend: string;
+    archives: Array<{ sha256?: string }>;
   };
 };
 const { resolveLlamaRuntimePreflightTimeoutMs } =
@@ -100,6 +101,7 @@ describe("llama runtime path selection", () => {
     expect(runtime.url).toContain(
       "lemonade-sdk/llamacpp-rocm/releases/download/b1291/",
     );
+    expect(runtime.archives[0]?.sha256).toMatch(/^[a-f0-9]{64}$/);
   });
 
   it("selects BeeLlama HIP Radeon for the 31B ROCm DFlash preset", () => {
@@ -117,6 +119,7 @@ describe("llama runtime path selection", () => {
     expect(runtime.url).toBe(
       "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.3.1/beellama-v0.3.1-bin-win-hip-radeon-x64.zip",
     );
+    expect(runtime.archives[0]?.sha256).toMatch(/^[a-f0-9]{64}$/);
   });
 
   it("does not require a target-specific Lemonade archive for 31B ROCm DFlash", () => {

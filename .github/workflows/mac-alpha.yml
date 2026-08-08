@@ -14,16 +14,21 @@ on:
         default: true
         type: boolean
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: mac-alpha-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  build-verify-release:
+  build_verify:
     runs-on: macos-15
     timeout-minutes: 360
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.release_meta.outputs.tag }}
+      title: ${{ steps.release_meta.outputs.title }}
     env:
       CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
       CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
@@ -34,9 +39,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Confirm Apple Silicon runner
         shell: bash
@@ -47,7 +53,7 @@ jobs:
           sysctl -n hw.memsize
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: npm
@@ -137,11 +143,25 @@ jobs:
         shell: bash
         env:
           MGT_MAC_ALPHA_TAG: ${{ steps.release_meta.outputs.tag }}
-          MGT_MAC_RELEASE_NOTES_PATH: ${{ runner.temp }}/mac-alpha-release-notes.md
+          MGT_MAC_RELEASE_NOTES_PATH: dist/mac-alpha-release-notes.md
         run: node scripts/generate-mac-alpha-release-notes.cjs
 
+      - name: Stage Alpha support files
+        shell: bash
+        run: cp docs/MAC_ALPHA_TEST_CHECKLIST.md dist/MAC_ALPHA_TEST_CHECKLIST.md
+
+      - name: Generate Alpha provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          dmg="$(find dist -maxdepth 1 -name '*-macOS-arm64-alpha.dmg' -print -quit)"
+          zip="$(find dist -maxdepth 1 -name '*-macOS-arm64-alpha.zip' -print -quit)"
+          dmg_sha="$(shasum -a 256 "$dmg" | awk '{print $1}')"
+          zip_sha="$(shasum -a 256 "$zip" | awk '{print $1}')"
+          node -e 'const fs=require("fs"); fs.writeFileSync("dist/mac-alpha-provenance.json", JSON.stringify({schemaVersion:1,repository:process.env.GITHUB_REPOSITORY,commit:process.env.GITHUB_SHA,ref:process.env.GITHUB_REF,runId:process.env.GITHUB_RUN_ID,runAttempt:process.env.GITHUB_RUN_ATTEMPT,artifacts:{dmg:process.argv[1],zip:process.argv[2]}},null,2)+"\n")' "$dmg_sha" "$zip_sha"
+
       - name: Upload Alpha build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ steps.release_meta.outputs.tag }}
           if-no-files-found: error
@@ -151,32 +171,11 @@ jobs:
             dist/*-macOS-arm64-alpha.zip
             dist/SHA256SUMS-mac-alpha.txt
             dist/mac-alpha-hosted-app-smoke-waiver.json
-            docs/MAC_ALPHA_TEST_CHECKLIST.md
-            ${{ runner.temp }}/mac-alpha-release-notes.md
+            dist/mac-alpha-provenance.json
+            dist/MAC_ALPHA_TEST_CHECKLIST.md
+            dist/mac-alpha-release-notes.md
             ${{ runner.temp }}/mac-alpha-ui-1440x900.png
             ${{ runner.temp }}/mac-alpha-ui-1240x760.png
-
-      - name: Publish GitHub pre-release
-        if: ${{ inputs.publish_release }}
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
-          RELEASE_TITLE: ${{ steps.release_meta.outputs.title }}
-          NOTES_PATH: ${{ runner.temp }}/mac-alpha-release-notes.md
-        run: |
-          set -euo pipefail
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release edit "$RELEASE_TAG" --title "$RELEASE_TITLE" --notes-file "$NOTES_PATH" --prerelease
-          else
-            gh release create "$RELEASE_TAG" --target "$GITHUB_SHA" --title "$RELEASE_TITLE" --notes-file "$NOTES_PATH" --prerelease
-          fi
-          gh release upload "$RELEASE_TAG" \
-            dist/*-macOS-arm64-alpha.dmg \
-            dist/*-macOS-arm64-alpha.zip \
-            dist/SHA256SUMS-mac-alpha.txt \
-            docs/MAC_ALPHA_TEST_CHECKLIST.md \
-            --clobber
 
       - name: Summarize Alpha build
         shell: bash
@@ -192,3 +191,39 @@ jobs:
             fi
             echo "- Gemma memory tiers remain unverified until tester checklists are received."
           } >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    needs: build_verify
+    if: ${{ inputs.publish_release && needs.build_verify.result == 'success' }}
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - name: Download verified Alpha artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ${{ needs.build_verify.outputs.tag }}
+          path: release-artifact
+
+      - name: Verify and publish GitHub pre-release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.build_verify.outputs.tag }}
+          RELEASE_TITLE: ${{ needs.build_verify.outputs.title }}
+        run: |
+          set -euo pipefail
+          (cd release-artifact && shasum -a 256 -c SHA256SUMS-mac-alpha.txt)
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" --title "$RELEASE_TITLE" --notes-file release-artifact/mac-alpha-release-notes.md --prerelease
+          else
+            gh release create "$RELEASE_TAG" --target "$GITHUB_SHA" --title "$RELEASE_TITLE" --notes-file release-artifact/mac-alpha-release-notes.md --prerelease
+          fi
+          gh release upload "$RELEASE_TAG" \
+            release-artifact/*-macOS-arm64-alpha.dmg \
+            release-artifact/*-macOS-arm64-alpha.zip \
+            release-artifact/SHA256SUMS-mac-alpha.txt \
+            release-artifact/mac-alpha-provenance.json \
+            release-artifact/MAC_ALPHA_TEST_CHECKLIST.md \
+            --clobber

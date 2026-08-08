@@ -1,8 +1,8 @@
 // @ts-check
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
 /** @typedef {{ ok: boolean; message: string; error?: unknown }} ImportCheckResult */
-/** @typedef {{ version: string; pythonUrl: string; getPipUrl: string }} ManagedPythonMarker */
-/** @typedef {{ label: string; file: string; url: string; destination: string; maximumBytes: number; progressTitle?: string; completeTitle?: string; [key: string]: unknown }} RuntimeDownloadTask */
+/** @typedef {{ version: string; pythonUrl: string; pythonSha256: string; getPipUrl: string; getPipSha256: string; installedFileSha256?: Record<string, string> }} ManagedPythonMarker */
+/** @typedef {{ label: string; file: string; url: string; destination: string; maximumBytes: number; expectedSha256: string; progressTitle?: string; completeTitle?: string; [key: string]: unknown }} RuntimeDownloadTask */
 /**
  * @typedef {ManagedPythonMarker & {
  *   runtimeDir: string;
@@ -37,15 +37,29 @@ const {
   probeContentLength,
 } = require("../simple-page-download-utils.cjs");
 const { runCommand } = require("../simple-page-shell-utils.cjs");
+const { extractSelectedZipEntries } = require("../simple-page-zip-utils.cjs");
+const {
+  replaceDirectoryWithRollback,
+} = require("../runtime-directory-publish.cjs");
 const { isManagedOcrPackagePathLine } = require("./runtime-preparation.cjs");
 const { createOcrRuntimeError } = require("./runtime-verification.cjs");
 const {
   MAX_REMOTE_RUNTIME_ARCHIVE_BYTES,
   MAX_REMOTE_SUPPORT_ASSET_BYTES,
 } = require("../transport/download-budgets.cjs");
+const {
+  RUNTIME_INTEGRITY_MANIFEST,
+  resolvePinnedRemoteAsset,
+} = require("../runtime-integrity.cjs");
+const {
+  collectManagedPythonExecutableHashes,
+  installedManagedPythonHashesMatch,
+  managedPythonMarkerMatches,
+} = require("./managed-python-integrity.cjs");
 
-const DEFAULT_EMBED_PYTHON_VERSION = "3.12.7";
-const DEFAULT_GET_PIP_URL = "https://bootstrap.pypa.io/get-pip.py";
+const DEFAULT_MANAGED_PYTHON = RUNTIME_INTEGRITY_MANIFEST.managedPython;
+const DEFAULT_EMBED_PYTHON_VERSION = DEFAULT_MANAGED_PYTHON.version;
+const DEFAULT_GET_PIP_URL = DEFAULT_MANAGED_PYTHON.getPip.url;
 const PYTHON_RUNTIME_MARKER_FILE = ".mgt-bootstrap-python.json";
 
 /** @param {RuntimeOptions} options @param {string} runtimeDir @returns {Promise<string>} */
@@ -63,10 +77,19 @@ async function ensureManagedBootstrapPython(options = {}, runtimeDir) {
     return context.pythonExe;
   }
   emitManagedPythonPreparation(options, context.version);
-  await resetManagedPythonDirectories(context);
-  await downloadAndExtractManagedPython(options, context);
-  await installManagedPythonPip(options, context);
-  await writeManagedPythonMarker(context);
+  await prepareManagedPythonDownloads(context);
+  const stagedContext = await downloadAndExtractManagedPython(options, context);
+  try {
+    await installManagedPythonPip(options, stagedContext);
+    await writeManagedPythonMarker(stagedContext);
+    await replaceDirectoryWithRollback(
+      stagedContext.pythonDir,
+      context.pythonDir,
+    );
+  } catch (error) {
+    await rm(stagedContext.pythonDir, { recursive: true, force: true });
+    throw error;
+  }
   emitManagedPythonReady(options, context.version);
   return context.pythonExe;
 }
@@ -93,6 +116,26 @@ function resolveManagedPythonContext(options, runtimeDir) {
     runtimeOverrideEnv("MANGA_TRANSLATOR_GET_PIP_URL", options) ||
       DEFAULT_GET_PIP_URL,
   ).trim();
+  const pythonAsset = resolvePinnedRemoteAsset({
+    defaultUrl: DEFAULT_MANAGED_PYTHON.archive.url,
+    defaultSha256: DEFAULT_MANAGED_PYTHON.archive.sha256,
+    url: pythonUrl,
+    overrideSha256: runtimeOverrideEnv(
+      "MANGA_TRANSLATOR_EMBED_PYTHON_SHA256",
+      options,
+    ),
+    label: "Managed Python archive",
+  });
+  const getPipAsset = resolvePinnedRemoteAsset({
+    defaultUrl: DEFAULT_MANAGED_PYTHON.getPip.url,
+    defaultSha256: DEFAULT_MANAGED_PYTHON.getPip.sha256,
+    url: getPipUrl,
+    overrideSha256: runtimeOverrideEnv(
+      "MANGA_TRANSLATOR_GET_PIP_SHA256",
+      options,
+    ),
+    label: "Managed Python get-pip.py",
+  });
   const pythonDir = path.join(
     runtimeDir,
     "bootstrap-python",
@@ -104,8 +147,10 @@ function resolveManagedPythonContext(options, runtimeDir) {
     `python-${version}-embed-amd64.zip`;
   return {
     version,
-    pythonUrl,
-    getPipUrl,
+    pythonUrl: pythonAsset.url,
+    pythonSha256: pythonAsset.sha256,
+    getPipUrl: getPipAsset.url,
+    getPipSha256: getPipAsset.sha256,
     runtimeDir,
     pythonDir,
     pythonExe: path.join(pythonDir, "python.exe"),
@@ -133,13 +178,11 @@ function emitManagedPythonPreparation(options, version) {
 }
 
 /** @param {ManagedPythonContext} context @returns {Promise<void>} */
-async function resetManagedPythonDirectories(context) {
-  await rm(context.pythonDir, { recursive: true, force: true });
-  await mkdir(context.pythonDir, { recursive: true });
+async function prepareManagedPythonDownloads(context) {
   await mkdir(context.downloadsDir, { recursive: true });
 }
 
-/** @param {RuntimeOptions} options @param {ManagedPythonContext} context @returns {Promise<void>} */
+/** @param {RuntimeOptions} options @param {ManagedPythonContext} context @returns {Promise<ManagedPythonContext>} */
 async function downloadAndExtractManagedPython(options, context) {
   await downloadGenericFileWithRuntimeProgress(
     {
@@ -148,6 +191,7 @@ async function downloadAndExtractManagedPython(options, context) {
       url: context.pythonUrl,
       destination: context.zipPath,
       maximumBytes: MAX_REMOTE_RUNTIME_ARCHIVE_BYTES,
+      expectedSha256: context.pythonSha256,
       progressTitle: "Paddle OCR Python 다운로드 중",
       completeTitle: "Paddle OCR Python 다운로드 완료",
     },
@@ -163,14 +207,31 @@ async function downloadAndExtractManagedPython(options, context) {
       installLogLine: "OCR용 Python 압축을 앱 데이터 폴더에 풀고 있습니다.",
     },
   );
-  await extractZipWithPowerShell(context.zipPath, context.pythonDir, options);
-  if (!existsSync(context.pythonExe)) {
-    throw createOcrRuntimeError(
-      "OCR용 Python 압축을 풀었지만 python.exe를 찾지 못했습니다.",
-      { pythonDir: context.pythonDir, pythonUrl: context.pythonUrl },
-    );
+  const stagingDir = `${context.pythonDir}.staging-${process.pid}-${Date.now()}`;
+  const stagedContext = {
+    ...context,
+    pythonDir: stagingDir,
+    pythonExe: path.join(stagingDir, "python.exe"),
+    markerPath: path.join(stagingDir, PYTHON_RUNTIME_MARKER_FILE),
+  };
+  await rm(stagingDir, { recursive: true, force: true });
+  try {
+    await extractSelectedZipEntries(context.zipPath, stagingDir, () => true, {
+      abortSignal: options.abortSignal,
+      preserveRelativePaths: true,
+    });
+    if (!existsSync(path.join(stagingDir, "python.exe"))) {
+      throw createOcrRuntimeError(
+        "OCR용 Python 압축을 풀었지만 python.exe를 찾지 못했습니다.",
+        { pythonDir: context.pythonDir, pythonUrl: context.pythonUrl },
+      );
+    }
+  } catch (error) {
+    await rm(stagingDir, { recursive: true, force: true });
+    throw error;
   }
-  sanitizeStandaloneEmbeddedPythonPathFile(context.pythonDir);
+  sanitizeStandaloneEmbeddedPythonPathFile(stagingDir);
+  return stagedContext;
 }
 
 /** @param {RuntimeOptions} options @param {ManagedPythonContext} context @returns {Promise<void>} */
@@ -182,6 +243,7 @@ async function installManagedPythonPip(options, context) {
       url: context.getPipUrl,
       destination: context.getPipPath,
       maximumBytes: MAX_REMOTE_SUPPORT_ASSET_BYTES,
+      expectedSha256: context.getPipSha256,
       progressTitle: "Paddle OCR pip 다운로드 중",
       completeTitle: "Paddle OCR pip 다운로드 완료",
     },
@@ -200,7 +262,12 @@ async function installManagedPythonPip(options, context) {
   await runCommand(
     {
       executable: context.pythonExe,
-      args: [context.getPipPath, "--no-warn-script-location"],
+      args: [
+        context.getPipPath,
+        "--no-warn-script-location",
+        "--no-setuptools",
+        "--no-wheel",
+      ],
     },
     {
       timeoutMs: 300000,
@@ -230,7 +297,12 @@ async function writeManagedPythonMarker(context) {
       {
         version: context.version,
         pythonUrl: context.pythonUrl,
+        pythonSha256: context.pythonSha256,
         getPipUrl: context.getPipUrl,
+        getPipSha256: context.getPipSha256,
+        installedFileSha256: collectManagedPythonExecutableHashes(
+          context.pythonDir,
+        ),
         installedAt: new Date().toISOString(),
       },
       null,
@@ -270,9 +342,11 @@ function isCurrentManagedBootstrapPython(pythonExe, markerPath, expected) {
     }
     const marker = JSON.parse(readFileSync(markerPath, "utf8"));
     return (
-      marker?.version === expected.version &&
-      marker?.pythonUrl === expected.pythonUrl &&
-      marker?.getPipUrl === expected.getPipUrl
+      managedPythonMarkerMatches(marker, expected) &&
+      installedManagedPythonHashesMatch(
+        path.dirname(markerPath),
+        marker?.installedFileSha256,
+      )
     );
   } catch (_error) {
     return false;
@@ -290,40 +364,6 @@ async function downloadGenericFileWithRuntimeProgress(task, options = {}) {
     { ...task, kind: "runtime", progressPhase: "ocr_downloading" },
     options,
     { totalBytes, knownAggregateBytes: 0, completedBytes: 0 },
-  );
-}
-
-/** @param {string} zipPath @param {string} destinationDir @param {RuntimeOptions} [options] @returns {Promise<void>} */
-async function extractZipWithPowerShell(zipPath, destinationDir, options = {}) {
-  if (process.platform !== "win32") {
-    throw new Error(
-      "ZIP extraction for managed OCR Python is currently supported on Windows only.",
-    );
-  }
-  const psScript =
-    "& { param($zip, $dest) $ErrorActionPreference = 'Stop'; Expand-Archive -LiteralPath $zip -DestinationPath $dest -Force -ErrorAction Stop }";
-  await runCommand(
-    {
-      executable: "powershell.exe",
-      args: [
-        "-NoProfile",
-        "-NonInteractive",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-Command",
-        psScript,
-        zipPath,
-        destinationDir,
-      ],
-    },
-    {
-      timeoutMs: 300000,
-      env: buildBootstrapPythonEnv(
-        path.dirname(path.dirname(destinationDir)),
-        options,
-      ),
-      signal: options.abortSignal,
-    },
   );
 }
 

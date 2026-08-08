@@ -1317,7 +1317,7 @@
       "model": "API model",
       "key": "API key",
       "keyPlaceholder": "Enter one API key per line",
-      "keyDescription": "Blank and duplicate keys are ignored. {{count}} keys are configured and stored as plain text in this PC's settings.json.",
+      "keyDescription": "Blank and duplicate keys are ignored. {{count}} keys are configured and kept in this PC's OS-encrypted storage.",
       "showKey": "Show API key",
       "hideKey": "Hide API key",
       "openKeyPage": "Open API key page",

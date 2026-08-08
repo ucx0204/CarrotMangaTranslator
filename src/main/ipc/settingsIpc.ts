@@ -8,8 +8,12 @@ import {
   settingsIpcContracts,
 } from "../../shared/ipcContracts";
 import type { LocalModelPickResult } from "../../shared/jobTypes";
+import type { ApiModelDiscoveryRequest } from "../../shared/apiProviderPresets";
+import { SETTINGS_SECRET_PRESERVE_SENTINEL } from "../../shared/settingsSecrets";
 import {
   getAppSettings,
+  hydrateAppSettingsSecretSentinels,
+  maskAppSettingsSecrets,
   resetAppSettings,
   saveAppSettings,
 } from "../settingsStore";
@@ -45,7 +49,7 @@ export function registerSettingsIpc(
     async () => getMainLocale(),
   );
   trustedHandleContract(context, settingsIpcContracts.getSettings, async () =>
-    getAppSettings(),
+    maskAppSettingsSecrets(await getAppSettings()),
   );
   trustedHandleContract(
     context,
@@ -55,7 +59,7 @@ export function registerSettingsIpc(
         parseIpcPayload(AppSettingsSchema, settings, "설정 저장"),
       );
       broadcastUiLocale(setMainLocale(saved.ui?.locale));
-      return saved;
+      return maskAppSettingsSecrets(saved);
     },
   );
   trustedHandleContract(
@@ -64,7 +68,7 @@ export function registerSettingsIpc(
     async () => {
       const reset = await resetAppSettings();
       broadcastUiLocale(setMainLocale(reset.ui?.locale));
-      return reset;
+      return maskAppSettingsSecrets(reset);
     },
   );
   trustedHandleContract(
@@ -87,10 +91,15 @@ export function registerSettingsIpc(
     settingsIpcContracts.testModelSettings,
     async (event, rawSettings: unknown, providedTestId?: unknown) => {
       void ipcEventContracts.modelTestProgress.channel;
+      const parsedSettings = parseIpcPayload(
+        AppSettingsSchema,
+        rawSettings,
+        "설정 테스트",
+      );
       return handleModelSettingsTest(
         context,
         event,
-        rawSettings,
+        await hydrateAppSettingsSecretSentinels(parsedSettings),
         providedTestId,
         dependencies.modelTestEndpointRuntime,
       );
@@ -99,8 +108,21 @@ export function registerSettingsIpc(
   trustedHandleContract(
     context,
     settingsIpcContracts.discoverApiModels,
-    async (_event, request) => discoverApiModels(request),
+    async (_event, request) => discoverApiModelsWithStoredSecret(request),
   );
+}
+
+async function discoverApiModelsWithStoredSecret(
+  request: ApiModelDiscoveryRequest,
+) {
+  if (request.apiKey !== SETTINGS_SECRET_PRESERVE_SENTINEL) {
+    return discoverApiModels(request);
+  }
+  const settings = await getAppSettings();
+  return discoverApiModels({
+    ...request,
+    apiKey: settings.api.apiKey ?? "",
+  });
 }
 
 async function pickLocalModelFile(

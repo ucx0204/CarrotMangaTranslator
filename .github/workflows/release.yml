@@ -9,26 +9,35 @@ on:
         type: string
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  build-and-release:
+  build:
     runs-on: windows-latest
+    permissions:
+      contents: read
+    outputs:
+      tag: ${{ steps.release_meta.outputs.tag }}
+      target: ${{ steps.release_meta.outputs.target }}
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Run checks
+        run: npm run check
 
       - name: Resolve and verify release metadata
         id: release_meta
@@ -78,13 +87,73 @@ jobs:
       - name: Smoke test fresh install and upgrade
         run: node scripts/smoke-windows-installer.cjs
 
+      - name: Seal Windows release artifact
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
+          RELEASE_NOTES_PATH: ${{ steps.release_meta.outputs.notes_path }}
+        run: |
+          $files = @(Get-ChildItem -Path "dist" -Filter "* Setup *.exe")
+          if ($files.Count -ne 1) {
+            throw "Expected exactly one Windows installer, found $($files.Count)."
+          }
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $files[0].FullName).Hash.ToLowerInvariant()
+          "$hash  $($files[0].Name)" | Set-Content -Encoding ascii dist/SHA256SUMS-windows.txt
+          Copy-Item -LiteralPath $env:RELEASE_NOTES_PATH -Destination dist/release-notes.md
+          @{
+            schemaVersion = 1
+            repository = "${{ github.repository }}"
+            commit = "${{ github.sha }}"
+            ref = "${{ github.ref }}"
+            runId = "${{ github.run_id }}"
+            runAttempt = "${{ github.run_attempt }}"
+            artifact = $files[0].Name
+            sha256 = $hash
+          } | ConvertTo-Json | Set-Content -Encoding utf8 dist/windows-provenance.json
+
+      - name: Upload sealed Windows artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-release-${{ steps.release_meta.outputs.tag }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            dist/* Setup *.exe
+            dist/SHA256SUMS-windows.txt
+            dist/windows-provenance.json
+            dist/release-notes.md
+
+  publish:
+    needs: build
+    if: ${{ needs.build.result == 'success' }}
+    runs-on: windows-latest
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - name: Download sealed Windows artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: windows-release-${{ needs.build.outputs.tag }}
+          path: release-artifact
+
+      - name: Verify sealed Windows artifact
+        shell: pwsh
+        run: |
+          $line = (Get-Content -LiteralPath release-artifact/SHA256SUMS-windows.txt -Raw).Trim()
+          if ($line -notmatch '^([a-f0-9]{64})  (.+\.exe)$') { throw "Invalid Windows checksum manifest." }
+          $expected = $Matches[1]
+          $fileName = $Matches[2]
+          $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path release-artifact $fileName)).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) { throw "Windows release artifact checksum mismatch." }
+
       - name: Publish GitHub release assets
         shell: pwsh
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
-          RELEASE_TARGET: ${{ steps.release_meta.outputs.target }}
-          RELEASE_NOTES_PATH: ${{ steps.release_meta.outputs.notes_path }}
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+          RELEASE_TARGET: ${{ needs.build.outputs.target }}
+          RELEASE_NOTES_PATH: release-artifact/release-notes.md
         run: |
           $headers = @{
             Authorization = "Bearer $env:GITHUB_TOKEN"
@@ -126,14 +195,19 @@ jobs:
             $release = Invoke-RestMethod -Method Post -Uri "https://api.github.com/repos/$owner/$repo/releases" -Headers $headers -Body $releaseBody -ContentType "application/json"
           }
 
-          $files = @(Get-ChildItem -Path "dist" -Filter "* Setup *.exe")
+          $files = @(Get-ChildItem -Path "release-artifact" -Filter "* Setup *.exe")
           if ($files.Count -ne 1) {
             throw "Expected exactly one Windows installer matching dist/* Setup *.exe, found $($files.Count)."
           }
 
           $release = Invoke-RestMethod -Method Patch -Uri "https://api.github.com/repos/$owner/$repo/releases/$($release.id)" -Headers $headers -Body $releaseUpdateBody -ContentType "application/json"
+          $replaceAssetNames = @(
+            "CarrotMangaTranslator-Setup-$env:RELEASE_TAG.exe",
+            "SHA256SUMS-windows.txt",
+            "windows-provenance.json"
+          )
           foreach ($asset in $release.assets) {
-            if ($asset.name -like "*.exe") {
+            if ($replaceAssetNames -contains $asset.name) {
               Invoke-RestMethod -Method Delete -Uri "https://api.github.com/repos/$owner/$repo/releases/assets/$($asset.id)" -Headers $headers
               Write-Host "Deleted existing asset $($asset.name)"
             }
@@ -152,4 +226,9 @@ jobs:
               -InFile $file.FullName `
               -TimeoutSec 3600
             Write-Host "Uploaded $assetName from $($file.Name)"
+          }
+          foreach ($supportFile in @("SHA256SUMS-windows.txt", "windows-provenance.json")) {
+            $supportPath = Join-Path "release-artifact" $supportFile
+            $encodedName = [uri]::EscapeDataString($supportFile)
+            Invoke-RestMethod -Method Post -Uri "$($uploadUrl)?name=$encodedName" -Headers $headers -ContentType "application/octet-stream" -InFile $supportPath -TimeoutSec 3600
           }

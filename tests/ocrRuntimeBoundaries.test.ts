@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  createWriteStream,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { pipeline } from "node:stream/promises";
+import * as yazl from "yazl";
 
 type CommandSpec = {
   executable: string;
@@ -49,6 +57,15 @@ function replaceCachedExports(modulePath: string, exports: unknown): void {
     throw new Error(`Expected a cached CommonJS module: ${modulePath}`);
   }
   require.cache[modulePath] = { ...cached, exports } as NodeJS.Module;
+}
+
+async function writeManagedPythonFixtureZip(
+  destination: string,
+): Promise<void> {
+  const zip = new yazl.ZipFile();
+  zip.addBuffer(Buffer.from("python"), "python.exe");
+  zip.end();
+  await pipeline(zip.outputStream, createWriteStream(destination));
 }
 
 const describeWindows = process.platform === "win32" ? describe : describe.skip;
@@ -254,17 +271,17 @@ describeWindows("OCR runtime boundary behavior", () => {
             progressTitle: task.progressTitle,
           });
           mkdirSync(dirname(task.destination), { recursive: true });
-          writeFileSync(task.destination, task.file);
+          if (task.file.endsWith(".zip")) {
+            await writeManagedPythonFixtureZip(task.destination);
+          } else {
+            writeFileSync(task.destination, task.file);
+          }
         },
       });
       replaceCachedExports(shellPath, {
         ...actualShell,
         async runCommand(command: CommandSpec) {
           commands.push(command);
-          if (command.args.some((arg) => arg.includes("Expand-Archive"))) {
-            mkdirSync(pythonDir, { recursive: true });
-            writeFileSync(join(pythonDir, "python.exe"), "python");
-          }
         },
       });
       delete require.cache[managedPath];
@@ -290,23 +307,16 @@ describeWindows("OCR runtime boundary behavior", () => {
           progressTitle: "Paddle OCR pip 다운로드 중",
         },
       ]);
-      const powerShellCommand = commands.find((command) =>
-        command.executable.toLowerCase().includes("powershell"),
+      expect(commands).toHaveLength(1);
+      expect(commands[0]?.executable).toMatch(
+        /python-3\.12\.7\.staging-\d+-\d+[\\/]python\.exe$/,
       );
-      expect(
-        powerShellCommand?.args.some((arg) => arg.includes("Expand-Archive")),
-      ).toBe(true);
-      expect(powerShellCommand?.args).toContain(
-        join(root, ".downloads", "python", "python-3.12.7-embed-amd64.zip"),
-      );
-      expect(powerShellCommand?.args).toContain(pythonDir);
-      expect(commands).toContainEqual({
-        executable: join(pythonDir, "python.exe"),
-        args: [
-          join(root, ".downloads", "python", "get-pip.py"),
-          "--no-warn-script-location",
-        ],
-      });
+      expect(commands[0]?.args).toEqual([
+        join(root, ".downloads", "python", "get-pip.py"),
+        "--no-warn-script-location",
+        "--no-setuptools",
+        "--no-wheel",
+      ]);
       expect(progressEvents.map((event) => event.title)).toEqual(
         expect.arrayContaining([
           "Paddle OCR Python 준비 중",

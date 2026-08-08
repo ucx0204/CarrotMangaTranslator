@@ -12,6 +12,7 @@ export type WindowsNativeBuildEnv = {
 
 export type NvidiaRedistPackage = {
   relative_path: string;
+  sha256: string;
   size?: number;
 };
 

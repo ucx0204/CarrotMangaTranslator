@@ -19,6 +19,7 @@ import {
   type FluxPythonExpectedMarker,
 } from "./pythonRuntimeInstaller";
 import { buildFluxPythonLaunchSpec } from "./pythonRuntimeLaunchSpec";
+import { resolveFluxPythonIntegrityId } from "./pythonIntegrity";
 
 export async function ensureFluxPythonRuntime(options: {
   runtimeDir: string;
@@ -44,6 +45,7 @@ export async function ensureFluxPythonRuntime(options: {
   const workerHash = workerSource ? sha256FileSync(workerSource) : "missing";
   const expectedMarker: FluxPythonExpectedMarker = {
     backend: options.backend,
+    integrityId: resolveFluxPythonIntegrityId(options.backend),
     runtimeInstallBatches: runtimeInstallBatches.map((batch) => ({
       id: batch.id,
       pipArgs: batch.pipArgs,

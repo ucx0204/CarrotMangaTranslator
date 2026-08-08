@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "managedPython": {
+    "version": "3.12.7",
+    "archive": {
+      "url": "https://www.python.org/ftp/python/3.12.7/python-3.12.7-embed-amd64.zip",
+      "sha256": "0d57bb6cb078b74d23dbfe91f77d6780d45bed328911609f1f7ee2ba1606bf44"
+    },
+    "getPip": {
+      "url": "https://bootstrap.pypa.io/get-pip.py",
+      "sha256": "fb24e693bab954209a063d90953621412ccad4a500905a726286e038f508ddf6"
+    }
+  },
+  "pythonBuildTools": {
+    "pip": {
+      "version": "25.3",
+      "sha256": "9655943313a94722b7774661c21049070f6bbb0a1516bf02f7c8d5d9201514cd"
+    },
+    "setuptools": {
+      "version": "80.9.0",
+      "sha256": "062d34222ad13e0cc312a4c02d73f059e86a4acbfbdea8f8f76b28c99f306922"
+    },
+    "wheel": {
+      "version": "0.45.1",
+      "sha256": "708e7481cc80179af0e556bbf0cc00b8444c7321e2700b8d8580231d13017248"
+    }
+  }
+}

@@ -1273,7 +1273,7 @@
       "model": "API 模型",
       "key": "API金鑰",
       "keyPlaceholder": "每行輸入一個 API 金鑰",
-      "keyDescription": "空白行與重複金鑰會被忽略。目前已設定 {{count}} 個，金鑰會以純文字儲存在此電腦的 settings.json。",
+      "keyDescription": "空白行與重複金鑰會被忽略。目前已設定 {{count}} 個，金鑰會儲存在此電腦的作業系統加密儲存區。",
       "showKey": "顯示 API 金鑰",
       "hideKey": "隱藏 API 金鑰",
       "openKeyPage": "開啟 API 金鑰頁面",

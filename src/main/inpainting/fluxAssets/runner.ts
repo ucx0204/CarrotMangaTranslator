@@ -251,7 +251,7 @@ async function ensureDownloadedFluxRunner(options: {
   await verifyFluxRunnerArchiveHash(archivePath, options.source);
   await rm(options.managedDir, { recursive: true, force: true });
   await mkdir(options.managedDir, { recursive: true });
-  extractZipSafely(archivePath, options.managedDir);
+  await extractZipSafely(archivePath, options.managedDir, options.signal);
   if (!isExecutableFile(options.managedPath)) {
     throw new Error(
       `${options.source.fileName}에서 ${FLUX_RUNTIME_EXECUTABLE}를 찾지 못했습니다.`,

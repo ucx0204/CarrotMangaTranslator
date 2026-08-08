@@ -73,6 +73,24 @@ export function resolveFluxRocmPrebuiltRuntimeUrl(): string {
   );
 }
 
+export function resolveFluxRocmPrebuiltRuntimeSha256(
+  archiveUrl: string,
+): string {
+  const value =
+    process.env.MANGA_TRANSLATOR_FLUX_ROCM_RUNTIME_ARCHIVE_SHA256 ??
+    process.env.MGT_FLUX_ROCM_RUNTIME_ARCHIVE_SHA256;
+  const sha256 = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (!/^[a-f0-9]{64}$/.test(sha256)) {
+    throw new Error(
+      `Flux ROCm prebuilt runtime requires an explicit SHA-256 digest: ${archiveUrl}. ` +
+        "Set MGT_FLUX_ROCM_RUNTIME_ARCHIVE_SHA256 to the trusted release digest.",
+    );
+  }
+  return sha256;
+}
+
 export function shouldUsePrebuiltFluxRocmRuntime(): boolean {
   const value =
     process.env.MANGA_TRANSLATOR_FLUX_ROCM_USE_PREBUILT ??
@@ -82,17 +100,6 @@ export function shouldUsePrebuiltFluxRocmRuntime(): boolean {
   }
   return !["0", "false", "no", "n", "off"].includes(
     String(value).trim().toLowerCase(),
-  );
-}
-
-export function shouldAllowFluxRocmSourceBuildFallback(): boolean {
-  const value =
-    process.env.MANGA_TRANSLATOR_FLUX_ROCM_ALLOW_SOURCE_BUILD ??
-    process.env.MGT_FLUX_ROCM_ALLOW_SOURCE_BUILD;
-  return ["1", "true", "yes", "y", "on"].includes(
-    String(value ?? "")
-      .trim()
-      .toLowerCase(),
   );
 }
 

@@ -73,6 +73,56 @@ describe("logger serialization", () => {
     expect(serialized.nested.parent).toBe("[Circular]");
   });
 
+  it("redacts credential keys, URL secrets, user paths, and buffer previews", () => {
+    const serialized = serializeLogDetail({
+      apiKey: "sk-private-secret-value",
+      nested: {
+        Authorization: "Bearer private-token-value",
+        url: "https://example.test/run?token=private-query&ok=1",
+        sourcePath: "C:\\Users\\private-user\\chapter\\1.png",
+      },
+      payload: Buffer.from("Bearer buffer-secret-value"),
+    });
+
+    expect(serialized).not.toContain("private-secret-value");
+    expect(serialized).not.toContain("private-token-value");
+    expect(serialized).not.toContain("private-query");
+    expect(serialized).not.toContain("private-user");
+    expect(serialized).not.toContain("buffer-secret-value");
+    expect(serialized).toContain("<redacted>");
+    expect(serialized).toContain("https://example.test/run");
+
+    expect(
+      serializeLogDetail(
+        new Map<string, string>([["custom-auth-token", "map-secret"]]),
+      ),
+    ).not.toContain("map-secret");
+
+    const throwingGetter = Object.defineProperty({}, "sourceText", {
+      enumerable: true,
+      get() {
+        throw new Error("serialization failed");
+      },
+    });
+    expect(serializeLogDetail(throwingGetter)).toBe(
+      '{"sourceText":"<redacted>"}',
+    );
+
+    const throwingNonSensitiveGetter = Object.defineProperty(
+      {},
+      "displayValue",
+      {
+        enumerable: true,
+        get() {
+          throw new Error("serialization failed");
+        },
+      },
+    );
+    const serializationFailure = serializeLogDetail(throwingNonSensitiveGetter);
+    expect(serializationFailure).not.toContain("displayValue");
+    expect(serializationFailure).toContain("serializationError");
+  });
+
   it("rotates the current app log before starting a new session", () => {
     const dir = mkdtempSync(join(tmpdir(), "manga-logger-"));
     tempDirs.push(dir);

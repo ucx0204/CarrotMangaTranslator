@@ -1298,7 +1298,7 @@
       "model": "API 모델",
       "key": "API 키",
       "keyPlaceholder": "한 줄에 API 키 하나씩 입력",
-      "keyDescription": "빈 줄과 중복 키는 무시합니다. 현재 {{count}}개가 설정되어 있으며 키는 이 PC의 settings.json에 평문으로 저장됩니다.",
+      "keyDescription": "빈 줄과 중복 키는 무시합니다. 현재 {{count}}개가 설정되어 있으며 키는 이 PC의 OS 암호화 저장소에 보관됩니다.",
       "showKey": "API 키 표시",
       "hideKey": "API 키 숨기기",
       "openKeyPage": "API 키 발급 페이지 열기",

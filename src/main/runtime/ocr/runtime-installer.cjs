@@ -4,6 +4,7 @@
 /** @typedef {{ start: number; end: number }} ProgressRange */
 
 const { mkdir } = require("node:fs/promises");
+const path = require("node:path");
 const { runtimeOverrideEnv } = require("./host-services.cjs");
 const { clampProgressRatio } = require("../simple-page-progress.cjs");
 const {
@@ -20,6 +21,9 @@ const {
 } = require("../simple-page-ocr-progress-handlers.cjs");
 const { runCommand } = require("../simple-page-shell-utils.cjs");
 const { readPositiveInteger } = require("../simple-page-prompts.cjs");
+const {
+  resolveIntegrityPinnedOcrInstallBatches,
+} = require("./requirements-integrity.cjs");
 
 /**
  * @typedef {{
@@ -127,20 +131,24 @@ async function installOcrPackageBatches(
   options,
   context,
 ) {
-  const ranges = resolveOcrInstallBatchProgressRanges(
+  const effectiveBatches = resolveIntegrityPinnedOcrInstallBatches(
     installBatches,
+    options,
+  );
+  const ranges = resolveOcrInstallBatchProgressRanges(
+    effectiveBatches,
     0.1,
     0.86,
   );
-  for (let index = 0; index < installBatches.length; index += 1) {
+  for (let index = 0; index < effectiveBatches.length; index += 1) {
     await installOcrPackageBatch(
       pythonPath,
-      installBatches[index],
+      effectiveBatches[index],
       targetDir,
       options,
       context,
       index,
-      installBatches.length,
+      effectiveBatches.length,
       ranges[index] || { start: 0.1, end: 0.86 },
     );
   }
@@ -197,11 +205,12 @@ function buildOcrPipBuildToolUpgradeCommand(pythonPath, pipProgressArgs = []) {
       "-m",
       "pip",
       "install",
-      "--upgrade",
       ...pipProgressArgs,
-      "pip",
-      "setuptools",
-      "wheel",
+      "--require-hashes",
+      "--only-binary=:all:",
+      "--no-deps",
+      "--requirement",
+      path.join(__dirname, "requirements-build-tools.lock"),
     ],
   };
 }
@@ -334,6 +343,7 @@ module.exports = {
   buildOcrPipInstallCommand,
   buildOcrPythonBuildToolCheckCommand,
   installOcrPythonPackages,
+  resolveIntegrityPinnedOcrInstallBatches,
   resolveOcrInstallBatchProgressRanges,
   resolveOcrPipInstallExtraArgs,
 };
