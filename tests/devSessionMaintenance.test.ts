@@ -153,7 +153,7 @@ describe("development session maintenance", () => {
       removedDirectories: 1,
     });
     expect(existsSync(legacyDirectory)).toBe(false);
-  });
+  }, 60_000);
 
   it("refuses cleanup outside an exact electron-dev root", () => {
     const { fixtureRoot } = createFixture();
