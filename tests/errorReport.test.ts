@@ -37,6 +37,11 @@ describe("error report diagnostics", () => {
       "F%3A%5Cscans%5Csecret%5C002.png",
       "/Users/alice/Library/Application Support/private/page.png",
       "file%3A%2F%2F%2FUsers%2Falice%2Fprivate%2Fpage.png",
+      "/Volumes/External Manga/chapter 1/001.webp",
+      "/private/var/folders/ab/codex-temp/source.webp",
+      "/tmp/manga-smoke/private-page.png",
+      "%2FVolumes%2FExternal%20Manga%2Fsecret%2F003.webp",
+      "https://example.test/Volumes/public-reference",
       "Authorization: Bearer abcdefghijklmnopqrstuvwxyz",
       "https://example.test/v1?api_key=very-secret-value",
       '{"apiKey":"sk-proj-abcdefghijklmnop","sourceText":"秘密","outputPreview":"translated page"}',
@@ -56,10 +61,17 @@ describe("error report diagnostics", () => {
     expect(first.text).not.toContain("external-manga");
     expect(first.text).not.toContain("private-app");
     expect(first.text).not.toContain("alice");
+    expect(first.text).not.toContain("External Manga");
+    expect(first.text).not.toContain("codex-temp");
+    expect(first.text).not.toContain("manga-smoke");
+    expect(first.text).not.toContain("External%20Manga");
     expect(first.text).not.toContain("very-secret-value");
     expect(first.text).not.toContain("秘密");
     expect(first.text).not.toContain("translated page");
     expect(first.text).toContain("<local-path>");
+    expect(first.text).toContain(
+      "https://example.test/Volumes/public-reference",
+    );
     expect(first.text).toContain("<redacted>");
     expect(second).toEqual({ text: first.text, redactionCount: 0 });
   });

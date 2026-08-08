@@ -371,5 +371,6 @@ function sanitizeLogString(
 
 const loggerRuntime = createLoggerRuntime({
   resolveLogPath: getLogPath,
+  sanitizeMessage: sanitizeLogString,
   serializeDetail: serializeLogDetail,
 });

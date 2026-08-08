@@ -88,20 +88,29 @@ const { evaluateGemmaUnifiedMemoryPolicy } =
     };
   };
 
-const { extractSelectedTarEntries, validateSymlinkTarget, validateTarEntries } =
-  require("../src/main/runtime/simple-page-tar-utils.cjs") as {
-    extractSelectedTarEntries: (
-      archivePath: string,
-      outputDir: string,
-      filter: (name: string, relativePath: string) => boolean,
-      options: { stripComponents: number },
-    ) => Promise<void>;
-    validateSymlinkTarget: (outputPath: string, target: string) => void;
-    validateTarEntries: (
-      entries: Array<Record<string, unknown>>,
-      stripComponents?: number,
-    ) => void;
-  };
+const {
+  extractSelectedTarEntries,
+  validateSelectedTarLinks,
+  validateSymlinkTarget,
+  validateTarEntries,
+} = require("../src/main/runtime/simple-page-tar-utils.cjs") as {
+  extractSelectedTarEntries: (
+    archivePath: string,
+    outputDir: string,
+    filter: (name: string, relativePath: string) => boolean,
+    options: { stripComponents: number },
+  ) => Promise<void>;
+  validateSelectedTarLinks: (
+    entries: Array<Record<string, unknown>>,
+    stripComponents: number,
+    filter: (name: string, relativePath: string) => boolean,
+  ) => void;
+  validateSymlinkTarget: (outputPath: string, target: string) => void;
+  validateTarEntries: (
+    entries: Array<Record<string, unknown>>,
+    stripComponents?: number,
+  ) => void;
+};
 
 const {
   assertRuntimeArchiveChecksumsPresent,
@@ -334,6 +343,51 @@ describe("Metal runtime archive integrity", () => {
     ).not.toThrow();
   });
 
+  it("resolves multi-hop dylib aliases and rejects incomplete or cyclic chains", () => {
+    const regular = {
+      path: "root/libggml.0.13.1.dylib",
+      type: "File",
+    };
+    const intermediate = {
+      path: "root/libggml.0.dylib",
+      type: "SymbolicLink",
+      linkpath: "libggml.0.13.1.dylib",
+    };
+    const alias = {
+      path: "root/libggml.dylib",
+      type: "SymbolicLink",
+      linkpath: "libggml.0.dylib",
+    };
+
+    expect(() =>
+      validateSelectedTarLinks(
+        [alias, intermediate, regular],
+        1,
+        shouldExtractLlamaRuntimeFile,
+      ),
+    ).not.toThrow();
+    expect(() =>
+      validateSelectedTarLinks(
+        [alias, intermediate],
+        1,
+        shouldExtractLlamaRuntimeFile,
+      ),
+    ).toThrow(/missing or excluded/);
+    expect(() =>
+      validateSelectedTarLinks(
+        [
+          alias,
+          {
+            ...intermediate,
+            linkpath: "libggml.dylib",
+          },
+        ],
+        1,
+        shouldExtractLlamaRuntimeFile,
+      ),
+    ).toThrow(/symlink cycle/);
+  });
+
   it("calculates SHA-256 before runtime extraction", async () => {
     const dir = mkdtempSync(join(tmpdir(), "mgt-mac-runtime-hash-"));
     try {
@@ -401,7 +455,7 @@ describe("Metal runtime archive integrity", () => {
   });
 
   it.skipIf(process.platform === "win32")(
-    "extracts runtime symlinks after their target files",
+    "extracts multi-hop runtime symlinks before their target files",
     async () => {
       const dir = mkdtempSync(join(tmpdir(), "mgt-mac-runtime-symlink-"));
       try {
@@ -411,12 +465,14 @@ describe("Metal runtime archive integrity", () => {
         const output = join(dir, "output");
         const archive = join(dir, "runtime.tar.gz");
         mkdirSync(release, { recursive: true });
-        writeFileSync(join(release, "libmtmd.0.dylib"), "metal");
+        writeFileSync(join(release, "libmtmd.0.13.1.dylib"), "metal");
         writeFileSync(join(release, "llama-server"), "mach-o");
+        symlinkSync("libmtmd.0.13.1.dylib", join(release, "libmtmd.0.dylib"));
         symlinkSync("libmtmd.0.dylib", join(release, "libmtmd.dylib"));
         await tar.c({ cwd: source, file: archive, gzip: true }, [
           `${releaseName}/libmtmd.dylib`,
           `${releaseName}/libmtmd.0.dylib`,
+          `${releaseName}/libmtmd.0.13.1.dylib`,
           `${releaseName}/llama-server`,
         ]);
 
@@ -428,6 +484,9 @@ describe("Metal runtime archive integrity", () => {
         );
 
         expect(readFileSync(join(output, "libmtmd.dylib"), "utf8")).toBe(
+          "metal",
+        );
+        expect(readFileSync(join(output, "libmtmd.0.dylib"), "utf8")).toBe(
           "metal",
         );
       } finally {

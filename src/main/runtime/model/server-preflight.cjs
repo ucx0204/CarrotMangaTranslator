@@ -4,10 +4,14 @@ const path = require("node:path");
 const { runtimeOverrideEnv } = require("../simple-page-child-env.cjs");
 const { resolveWorkingDir } = require("../simple-page-cache-paths.cjs");
 const {
+  LLAMA_RUNTIME_MARKER_FILE,
+} = require("../simple-page-llama-runtimes.cjs");
+const {
   hasRequiredLlamaRuntimeFiles,
   isBuiltInGemmaRuntimeModel,
   isGemma31BModel,
   missingRequiredLlamaRuntimeFiles,
+  resolveManagedToolsDir,
   resolvePreferredLlamaRuntime,
 } = require("../simple-page-runtime-paths.cjs");
 const { looksLikeGemma4Model } = require("../simple-page-launch-args.cjs");
@@ -20,6 +24,9 @@ const {
   truncateText,
 } = require("../simple-page-runtime-common.cjs");
 const { buildLlamaServerEnv } = require("./server-environment.cjs");
+const {
+  installedRuntimeMarkerMatches,
+} = require("./llama-runtime-installed-integrity.cjs");
 
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
 /** @typedef {import("../runtime-jsdoc-types").LlamaRuntimeDescriptor} LlamaRuntimeDescriptor */
@@ -31,9 +38,15 @@ function isIncompleteManagedLlamaRuntime(serverPath, options = {}) {
   const runtime = resolvePreferredLlamaRuntime(options);
   assertMetalDflashConfiguration(serverPath, runtime, options);
   const runtimeDir = path.dirname(serverPath);
-  if (path.basename(runtimeDir).toLowerCase() !== runtime.dir.toLowerCase())
-    return false;
-  return !hasRequiredLlamaRuntimeFiles(runtimeDir, runtime);
+  if (!isManagedRuntimeDirectory(runtimeDir, runtime, options)) return false;
+  return (
+    !hasRequiredLlamaRuntimeFiles(runtimeDir, runtime) ||
+    !installedRuntimeMarkerMatches(
+      runtimeDir,
+      runtime,
+      LLAMA_RUNTIME_MARKER_FILE,
+    )
+  );
 }
 
 /** @param {string} serverPath @param {LlamaRuntimeDescriptor & { dflashRing?: unknown }} runtime @param {RuntimeOptions & { useDraft?: unknown }} options */
@@ -71,7 +84,7 @@ function assertMetalDflashConfiguration(serverPath, runtime, options) {
 async function verifyLlamaRuntimePreflight(serverPath, options = {}) {
   if (!looksLikeGemma4Model(options)) return;
   const runtime = resolvePreferredLlamaRuntime(options);
-  assertManagedRuntimeComplete(serverPath, runtime);
+  assertManagedRuntimeComplete(serverPath, runtime, options);
   if (!shouldProbeRuntime(runtime, options)) return;
   const result = await runLlamaRuntimeProbe(
     serverPath,
@@ -81,24 +94,55 @@ async function verifyLlamaRuntimePreflight(serverPath, options = {}) {
   );
   assertSuccessfulProbe(serverPath, runtime, result);
   assertGpuBackedProbe(serverPath, runtime, result);
+  // The probe itself executes llama-server. Re-hash after it finishes so a
+  // process or updater cannot replace a managed binary between the probe and
+  // the real server spawn.
+  assertManagedRuntimeComplete(serverPath, runtime, options);
 }
 
-/** @param {string} serverPath @param {LlamaRuntimeDescriptor} runtime */
-function assertManagedRuntimeComplete(serverPath, runtime) {
+/** @param {string} serverPath @param {LlamaRuntimeDescriptor} runtime @param {RuntimeOptions} options */
+function assertManagedRuntimeComplete(serverPath, runtime, options) {
   const runtimeDir = path.dirname(serverPath);
-  if (path.basename(runtimeDir).toLowerCase() !== runtime.dir.toLowerCase())
-    return;
+  if (!isManagedRuntimeDirectory(runtimeDir, runtime, options)) return;
   const missingFiles = missingRequiredLlamaRuntimeFiles(runtimeDir, runtime);
-  if (missingFiles.length === 0) return;
+  if (missingFiles.length > 0) {
+    throw createDetailedError(
+      "Gemma 실행 런타임이 불완전합니다. GPU 런타임 파일을 포함해 다시 설치해야 합니다.",
+      {
+        serverPath,
+        runtimeDir,
+        runtime: runtime.id,
+        missingFiles,
+      },
+    );
+  }
+  if (
+    installedRuntimeMarkerMatches(
+      runtimeDir,
+      runtime,
+      LLAMA_RUNTIME_MARKER_FILE,
+    )
+  ) {
+    return;
+  }
   throw createDetailedError(
-    "Gemma 실행 런타임이 불완전합니다. GPU 런타임 파일을 포함해 다시 설치해야 합니다.",
+    "Gemma 실행 런타임 무결성 검증에 실패했습니다. 실행 파일과 라이브러리를 다시 설치해야 합니다.",
     {
       serverPath,
       runtimeDir,
       runtime: runtime.id,
-      missingFiles,
+      markerFile: LLAMA_RUNTIME_MARKER_FILE,
     },
   );
+}
+
+/** @param {string} runtimeDir @param {LlamaRuntimeDescriptor} runtime @param {RuntimeOptions} options */
+function isManagedRuntimeDirectory(runtimeDir, runtime, options) {
+  const expected = path.resolve(resolveManagedToolsDir(options), runtime.dir);
+  const actual = path.resolve(runtimeDir);
+  return process.platform === "win32"
+    ? actual.toLowerCase() === expected.toLowerCase()
+    : actual === expected;
 }
 
 /** @param {LlamaRuntimeDescriptor} runtime @param {RuntimeOptions} options */

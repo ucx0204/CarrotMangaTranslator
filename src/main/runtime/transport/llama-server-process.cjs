@@ -72,8 +72,8 @@ async function startServer(options) {
   if (await canReuseServer(baseUrl, options))
     return { baseUrl, child: null, startedByScript: false };
   const serverPath = await resolveServerPath(baseUrl, options);
-  await verifyLlamaRuntimePreflight(serverPath, options);
   await ensureHfModelAssetsDownloaded(options, inspectModelLaunch(options));
+  await verifyLlamaRuntimePreflight(serverPath, options);
   const launchArgs = buildLaunchArgs({ ...options, serverPath });
   emitServerStarting(options);
   const running = spawnServer(serverPath, launchArgs, options);

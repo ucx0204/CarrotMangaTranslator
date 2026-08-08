@@ -82,6 +82,7 @@ async function extractSelectedTarEntries(
   try {
     const entries = await inspectTarEntries(archivePath, deadline.signal);
     validateTarEntries(entries, stripComponents);
+    validateSelectedTarLinks(entries, stripComponents, shouldExtract);
     throwIfArchiveExtractionAborted(deadline.signal);
     await mkdir(outputDir, { recursive: true });
     await tar.x({
@@ -138,6 +139,11 @@ async function materializeSelectedTarLinks(
   shouldExtract,
   signal,
 ) {
+  const selectedEntries = collectSelectedTarEntries(
+    entries,
+    stripComponents,
+    shouldExtract,
+  );
   for (const entry of entries) {
     if (
       !isSymbolicLinkType(entry.type) ||
@@ -148,12 +154,15 @@ async function materializeSelectedTarLinks(
     throwIfArchiveExtractionAborted(signal);
     const safePath = normalizeSafeArchivePath(entry.path);
     const outputPath = stripArchivePath(safePath, stripComponents);
-    const linkPath = path.join(outputDir, outputPath);
-    const targetPath = path.resolve(
-      path.dirname(linkPath),
-      String(entry.linkpath),
+    const resolvedOutputDir = path.resolve(outputDir);
+    const linkPath = path.resolve(resolvedOutputDir, outputPath);
+    const targetOutputPath = resolveSelectedTarLinkTarget(
+      entry,
+      outputPath,
+      selectedEntries,
     );
-    if (!isPathInside(targetPath, path.resolve(outputDir))) {
+    const targetPath = path.resolve(resolvedOutputDir, targetOutputPath);
+    if (!isPathInside(targetPath, resolvedOutputDir)) {
       throw new Error(
         `Runtime tar archive symlink escapes extraction root: ${outputPath}`,
       );
@@ -162,6 +171,103 @@ async function materializeSelectedTarLinks(
     await rm(linkPath, { force: true });
     await copyFile(targetPath, linkPath);
   }
+}
+
+/** @typedef {{ entry: TarEntryInfo; outputPath: string }} SelectedTarEntry */
+
+/**
+ * Validate the entire selected symlink graph before extraction writes any
+ * files. Runtime releases commonly use versioned multi-hop dylib aliases, so
+ * each alias is resolved to a selected regular archive entry instead of
+ * depending on archive order or an intermediate filesystem link.
+ *
+ * @param {TarEntryInfo[]} entries
+ * @param {number} stripComponents
+ * @param {RuntimeEntryFilter} shouldExtract
+ */
+function validateSelectedTarLinks(entries, stripComponents, shouldExtract) {
+  const selectedEntries = collectSelectedTarEntries(
+    entries,
+    stripComponents,
+    shouldExtract,
+  );
+  for (const selected of selectedEntries.values()) {
+    if (isSymbolicLinkType(selected.entry.type)) {
+      resolveSelectedTarLinkTarget(
+        selected.entry,
+        selected.outputPath,
+        selectedEntries,
+      );
+    }
+  }
+}
+
+/**
+ * @param {TarEntryInfo[]} entries
+ * @param {number} stripComponents
+ * @param {RuntimeEntryFilter} shouldExtract
+ * @returns {Map<string, SelectedTarEntry>}
+ */
+function collectSelectedTarEntries(entries, stripComponents, shouldExtract) {
+  /** @type {Map<string, SelectedTarEntry>} */
+  const selected = new Map();
+  for (const entry of entries) {
+    if (!shouldExtractTarEntry(entry, stripComponents, shouldExtract)) {
+      continue;
+    }
+    const safePath = normalizeSafeArchivePath(entry.path);
+    const outputPath = stripArchivePath(safePath, stripComponents);
+    if (!outputPath || isDirectoryType(entry.type)) {
+      continue;
+    }
+    selected.set(outputPath.toLowerCase(), { entry, outputPath });
+  }
+  return selected;
+}
+
+/**
+ * @param {TarEntryInfo} linkEntry
+ * @param {string} linkOutputPath
+ * @param {Map<string, SelectedTarEntry>} selectedEntries
+ * @returns {string}
+ */
+function resolveSelectedTarLinkTarget(
+  linkEntry,
+  linkOutputPath,
+  selectedEntries,
+) {
+  /** @type {SelectedTarEntry} */
+  let current = { entry: linkEntry, outputPath: linkOutputPath };
+  const visited = new Set();
+  while (isSymbolicLinkType(current.entry.type)) {
+    const foldedPath = current.outputPath.toLowerCase();
+    if (visited.has(foldedPath)) {
+      throw new Error(
+        `Runtime tar archive contains a symlink cycle: ${linkOutputPath}`,
+      );
+    }
+    visited.add(foldedPath);
+    validateSymlinkTarget(current.outputPath, current.entry.linkpath);
+    const targetOutputPath = path.posix.normalize(
+      path.posix.join(
+        path.posix.dirname(current.outputPath),
+        String(current.entry.linkpath).replace(/\\/g, "/"),
+      ),
+    );
+    const target = selectedEntries.get(targetOutputPath.toLowerCase());
+    if (!target) {
+      throw new Error(
+        `Runtime tar archive symlink target is missing or excluded: ${current.outputPath} -> ${targetOutputPath}`,
+      );
+    }
+    current = target;
+  }
+  if (!isRegularOrSymbolicLink(current.entry.type)) {
+    throw new Error(
+      `Runtime tar archive symlink target is not a regular file: ${linkOutputPath}`,
+    );
+  }
+  return current.outputPath;
 }
 
 /** @param {string} archivePath @param {AbortSignal} signal @returns {Promise<TarEntryInfo[]>} */
@@ -375,6 +481,7 @@ module.exports = {
   extractSelectedTarEntries,
   loadTarRuntime,
   normalizeSafeArchivePath,
+  validateSelectedTarLinks,
   validateSymlinkTarget,
   validateTarEntries,
 };

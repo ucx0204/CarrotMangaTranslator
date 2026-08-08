@@ -9,6 +9,7 @@ const {
   cp,
   lstat,
   mkdir,
+  readFile,
   readlink,
   readdir,
   realpath,
@@ -419,6 +420,7 @@ async function stagePythonAndPaddle() {
   const installRoot = path.dirname(path.dirname(extractedPython));
   await chmod(extractedPython, 0o755);
   assertArm64MachO(extractedPython);
+  const requirementsPath = await verifyOcrRequirementsLock();
   run(
     extractedPython,
     [
@@ -427,7 +429,11 @@ async function stagePythonAndPaddle() {
       "install",
       "--disable-pip-version-check",
       "--no-cache-dir",
-      ...MAC_RUNTIME_MANIFEST.ocrPackages,
+      "--require-hashes",
+      "--only-binary=:all:",
+      "--no-deps",
+      "--requirement",
+      requirementsPath,
     ],
     {
       PYTHONNOUSERSITE: "1",
@@ -457,6 +463,40 @@ async function stagePythonAndPaddle() {
   console.log(
     `[mac-runtime] staged CPython ${asset.version} with ${MAC_RUNTIME_MANIFEST.ocrPackages.join(", ")}`,
   );
+}
+
+async function verifyOcrRequirementsLock() {
+  const descriptor = MAC_RUNTIME_MANIFEST.ocrRequirements;
+  const requirementsPath = path.resolve(root, "scripts", descriptor.file);
+  if (
+    path.dirname(requirementsPath) !== path.resolve(root, "scripts") ||
+    !existsSync(requirementsPath)
+  ) {
+    throw new Error(`Invalid macOS OCR requirements path: ${descriptor.file}`);
+  }
+  const actualSha256 = await sha256File(requirementsPath);
+  if (actualSha256 !== descriptor.sha256) {
+    throw new Error(
+      `SHA-256 mismatch for ${descriptor.file}: expected ${descriptor.sha256}, got ${actualSha256}`,
+    );
+  }
+  const entries = (await readFile(requirementsPath, "utf8"))
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#"));
+  if (entries.length !== descriptor.packageCount) {
+    throw new Error(
+      `${descriptor.file} contains ${entries.length} packages; expected ${descriptor.packageCount}`,
+    );
+  }
+  const invalid = entries.find(
+    (line) =>
+      !/^[A-Za-z0-9_.-]+==[^\s]+\s+--hash=sha256:[a-f0-9]{64}$/.test(line),
+  );
+  if (invalid) {
+    throw new Error(`Unpinned macOS OCR requirement: ${invalid}`);
+  }
+  return requirementsPath;
 }
 
 /** @param {string} currentDir @returns {Promise<string[]>} */
@@ -579,6 +619,10 @@ async function main() {
     path.join(root, "scripts", "mac-runtime-manifest.cjs"),
     path.join(stagingTools, "mac-runtime-manifest.cjs"),
   );
+  await cp(
+    path.join(root, "scripts", MAC_RUNTIME_MANIFEST.ocrRequirements.file),
+    path.join(stagingTools, MAC_RUNTIME_MANIFEST.ocrRequirements.file),
+  );
   await assertNoSymlinks(stagingTools);
   await rm(extractionRoot, { recursive: true, force: true });
   console.log(`[mac-runtime] complete: ${stagingRoot}`);
@@ -593,6 +637,7 @@ module.exports = {
   removeWindowsRuntimeFiles,
   sha256File,
   thinUniversalMachOFiles,
+  verifyOcrRequirementsLock,
 };
 
 if (require.main === module) {

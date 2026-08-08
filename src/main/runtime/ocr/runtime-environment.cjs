@@ -237,6 +237,7 @@ function buildPythonRuntimeEnv(options, runtime, context) {
       runtimeOverrideEnv("PIP_DISABLE_PIP_VERSION_CHECK", options) || "1",
     TMP: tempDir,
     TEMP: tempDir,
+    TMPDIR: tempDir,
     PYTHONUTF8: "1",
     PYTHONUNBUFFERED: "1",
   };

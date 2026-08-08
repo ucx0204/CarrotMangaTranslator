@@ -15,9 +15,10 @@ const {
   verifyFinalDiskImage,
   verifyFinalZipArchive,
   verifyNativePayload,
+  verifyPackagedArchiveRuntimes,
   verifyPackagedBuildChannel,
+  verifyPackagedImageRuntime,
   verifyPackagedOnnxRuntime,
-  verifyPackagedTarRuntime,
   verifyRequiredRuntimes,
   verifySigning,
 } = require("./artifacts.cjs");
@@ -45,7 +46,8 @@ async function sha256(filePath) {
  *   verifyChannel: (appPath: string) => void;
  *   verifySignature: (appPath: string) => void;
  *   verifyOnnx: (appPath: string) => void;
- *   verifyTar: (appPath: string) => void;
+ *   verifyArchives: (appPath: string) => void;
+ *   verifyImage: (appPath: string) => void;
  *   verifyApplicationSmoke: (appPath: string) => void;
  *   verifyRuntimes: (appPath: string) => void;
  *   verifyRuntimeSmokes: (options: { appPath: string }) => Promise<void>;
@@ -65,7 +67,8 @@ async function verifyUnpackedApplication(
     verifyChannel: verifyPackagedBuildChannel,
     verifySignature: verifySigning,
     verifyOnnx: verifyPackagedOnnxRuntime,
-    verifyTar: verifyPackagedTarRuntime,
+    verifyArchives: verifyPackagedArchiveRuntimes,
+    verifyImage: verifyPackagedImageRuntime,
     verifyApplicationSmoke: verifyApplicationDirectorySmoke,
     verifyRuntimes: verifyRequiredRuntimes,
     verifyRuntimeSmokes: verifyMacRuntimeSmokes,
@@ -77,7 +80,8 @@ async function verifyUnpackedApplication(
   verification.verifyChannel(appPath);
   verification.verifySignature(appPath);
   verification.verifyOnnx(appPath);
-  verification.verifyTar(appPath);
+  verification.verifyArchives(appPath);
+  verification.verifyImage(appPath);
   verification.verifyApplicationSmoke(appPath);
   verification.verifyRuntimes(appPath);
   await verification.verifyRuntimeSmokes({ appPath });

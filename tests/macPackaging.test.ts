@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import { createHash } from "node:crypto";
 import {
   existsSync,
   lstatSync,
@@ -23,6 +24,13 @@ const { MAC_RUNTIME_MANIFEST } =
       minimumSystemVersion: string;
       python: { version: string; url: string; sha256: string };
       ocrPackages: readonly string[];
+      ocrRequirements: {
+        file: string;
+        sha256: string;
+        packageCount: number;
+        pythonVersion: string;
+        platform: string;
+      };
       llamaRuntimes: ReadonlyArray<{
         id: string;
         url: string;
@@ -35,6 +43,7 @@ const {
   classifyMachODescription,
   copyMacRuntimePayload,
   removeWindowsRuntimeFiles,
+  verifyOcrRequirementsLock,
 } = require("../scripts/prepare-mac-runtime.cjs") as {
   assertSafeArchiveEntry: (entryPath: string, linkPath?: string) => void;
   classifyMachODescription: (
@@ -45,12 +54,14 @@ const {
     runtimeTarget: string,
   ) => Promise<void>;
   removeWindowsRuntimeFiles: (currentDir: string) => Promise<string[]>;
+  verifyOcrRequirementsLock: () => Promise<string>;
 };
 const {
   configureElectronBuilderSigningEnvironment,
   configureMacBuildChannel,
   resolveMacBuildChannel,
   runMacBuildCli,
+  stripSigningSecrets,
 } = require("../scripts/dist-mac-alpha.cjs") as {
   configureElectronBuilderSigningEnvironment: (
     environment: NodeJS.ProcessEnv,
@@ -67,6 +78,7 @@ const {
       exit: (code: number) => void;
     },
   ) => Promise<void>;
+  stripSigningSecrets: (environment: NodeJS.ProcessEnv) => NodeJS.ProcessEnv;
 };
 const {
   assertElectronFrameworkExecutable,
@@ -183,7 +195,8 @@ const { resolveMacArtifactSet, verifyUnpackedApplication } =
         verifyChannel: (appPath: string) => void;
         verifySignature: (appPath: string) => void;
         verifyOnnx: (appPath: string) => void;
-        verifyTar: (appPath: string) => void;
+        verifyArchives: (appPath: string) => void;
+        verifyImage: (appPath: string) => void;
         verifyApplicationSmoke: (appPath: string) => void;
         verifyRuntimes: (appPath: string) => void;
         verifyRuntimeSmokes: (options: { appPath: string }) => Promise<void>;
@@ -240,7 +253,7 @@ describe("Apple Silicon Alpha packaging", () => {
       scripts: Record<string, string>;
     };
 
-    expect(packageJson.devDependencies.electron).toBe("43.1.1");
+    expect(packageJson.devDependencies.electron).toBe("43.3.0");
     expect(packageJson.devDependencies["ffmpeg-static"]).toBe("5.3.0");
     expect(packageJson.dependencies.tar).toBe("^7.5.7");
     expect(packageJson.scripts["dist:mac:alpha"]).toBe(
@@ -259,6 +272,14 @@ describe("Apple Silicon Alpha packaging", () => {
           "5a30271f8d345a5b02b0c9e4e31e0f1e1455a8e4a04fba95cd9762472abc3b17",
       },
       ocrPackages: ["paddlepaddle==3.3.1", "paddleocr[doc-parser]==3.7.0"],
+      ocrRequirements: {
+        file: "requirements-mac-arm64.lock",
+        sha256:
+          "125dfc5b881bab917b926d2f72a66a01fdf8e8f87870deff14e1dfe407bb2f85",
+        packageCount: 95,
+        pythonVersion: "3.12",
+        platform: "macosx_14_0_arm64",
+      },
     });
     expect(MAC_RUNTIME_MANIFEST.llamaRuntimes).toEqual([
       expect.objectContaining({
@@ -280,6 +301,40 @@ describe("Apple Silicon Alpha packaging", () => {
         'rev = "0d640615d435a399bc195c892de8f5d17efb68f8"',
       );
     }
+  });
+
+  it("pins every transitive macOS OCR wheel by version and SHA-256", async () => {
+    const requirementsPath = join(
+      repoRoot,
+      "scripts",
+      MAC_RUNTIME_MANIFEST.ocrRequirements.file,
+    );
+    const contents = readFileSync(requirementsPath, "utf8");
+    const entries = contents
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith("#"));
+
+    expect(entries).toHaveLength(
+      MAC_RUNTIME_MANIFEST.ocrRequirements.packageCount,
+    );
+    expect(
+      entries.every((line) =>
+        /^[A-Za-z0-9_.-]+==[^\s]+\s+--hash=sha256:[a-f0-9]{64}$/.test(line),
+      ),
+    ).toBe(true);
+    expect(createHash("sha256").update(contents).digest("hex")).toBe(
+      MAC_RUNTIME_MANIFEST.ocrRequirements.sha256,
+    );
+    await expect(verifyOcrRequirementsLock()).resolves.toBe(requirementsPath);
+
+    const preparer = readFileSync(
+      join(repoRoot, "scripts", "prepare-mac-runtime.cjs"),
+      "utf8",
+    );
+    expect(preparer).toContain('"--require-hashes"');
+    expect(preparer).toContain('"--only-binary=:all:"');
+    expect(preparer).toContain('"--no-deps"');
   });
 
   it("rejects archive traversal and escaping symlinks", () => {
@@ -395,6 +450,25 @@ describe("Apple Silicon Alpha packaging", () => {
     expect(environment.CSC_LINK).toBe("developer-id-certificate");
     expect(environment.CSC_KEY_PASSWORD).toBe("certificate-password");
     expect(environment.CSC_IDENTITY_AUTO_DISCOVERY).toBe("true");
+  });
+
+  it("removes signing credentials from preparation and verification environments", () => {
+    const environment: NodeJS.ProcessEnv = {
+      CSC_LINK: "certificate",
+      CSC_KEY_PASSWORD: "password",
+      APPLE_API_KEY: "/tmp/AuthKey.p8",
+      APPLE_API_KEY_ID: "KEYID",
+      APPLE_API_ISSUER: "ISSUER",
+      APPLE_API_KEY_P8_B64: "private-key",
+      APPLE_ID: "developer@example.test",
+      APPLE_APP_SPECIFIC_PASSWORD: "app-password",
+      APPLE_TEAM_ID: "TEAMID",
+      MAC_CSC_LINK: "workflow-certificate",
+      MAC_CSC_KEY_PASSWORD: "workflow-password",
+      KEEP_ME: "safe",
+    };
+
+    expect(stripSigningSecrets(environment)).toEqual({ KEEP_ME: "safe" });
   });
 
   it("selects stable packaging only with the explicit flag and bakes both channel variables", () => {
@@ -752,7 +826,8 @@ describe("Apple Silicon Alpha packaging", () => {
       verifyChannel: record("channel"),
       verifySignature: record("signature"),
       verifyOnnx: record("onnx"),
-      verifyTar: record("tar"),
+      verifyArchives: record("archives"),
+      verifyImage: record("image"),
       verifyApplicationSmoke: record("application-smoke"),
       verifyRuntimes: record("runtimes"),
       verifyRuntimeSmokes: async ({ appPath }) => {
@@ -768,7 +843,8 @@ describe("Apple Silicon Alpha packaging", () => {
       "channel",
       "signature",
       "onnx",
-      "tar",
+      "archives",
+      "image",
       "application-smoke",
       "runtimes",
       "runtime-smokes",
@@ -783,6 +859,46 @@ describe("Apple Silicon Alpha packaging", () => {
     expect(() => resolveMacArtifactSet(["one.dmg", "two.dmg"])).toThrow(
       "Expected one arm64 DMG and ZIP",
     );
+  });
+
+  it("runs real WebP, yauzl ZIP, and multi-hop TAR smokes for every macOS artifact", () => {
+    const artifacts = readFileSync(
+      join(repoRoot, "scripts", "mac-package-verification", "artifacts.cjs"),
+      "utf8",
+    );
+    const runner = readFileSync(
+      join(repoRoot, "scripts", "mac-package-verification", "runner.cjs"),
+      "utf8",
+    );
+    const runtimeSmokes = readFileSync(
+      join(
+        repoRoot,
+        "scripts",
+        "mac-package-verification",
+        "packaged-runtime-smokes.cjs",
+      ),
+      "utf8",
+    );
+    const archiveSmoke = readFileSync(
+      join(repoRoot, "scripts", "smoke-packaged-archive-runtimes.cjs"),
+      "utf8",
+    );
+
+    expect(runtimeSmokes).toContain("smoke-packaged-image-runtime.cjs");
+    expect(runtimeSmokes).toContain("smoke-packaged-archive-runtimes.cjs");
+    expect(
+      artifacts.match(/verifyPackagedImageRuntime\(appPath\);/g),
+    ).toHaveLength(2);
+    expect(
+      artifacts.match(/verifyPackagedArchiveRuntimes\(appPath\);/g),
+    ).toHaveLength(2);
+    expect(runner).toContain("verifyImage: verifyPackagedImageRuntime");
+    expect(runner).toContain("verifyArchives: verifyPackagedArchiveRuntimes");
+    expect(archiveSmoke).toContain("extractSelectedZipEntries");
+    expect(archiveSmoke).toContain("extractSelectedTarEntries");
+    expect(archiveSmoke).toContain('"payload/libggml.dylib"');
+    expect(archiveSmoke).toContain('"payload/libggml.0.dylib"');
+    expect(archiveSmoke).toContain('"payload/libggml.0.13.1.dylib"');
   });
 
   it("validates marker results and final archive command plans", () => {
@@ -865,6 +981,16 @@ describe("Apple Silicon Alpha packaging", () => {
     expect(workflow).toContain("MAC_ALPHA_TEST_CHECKLIST.md");
     expect(workflow).toContain("mac-alpha-ui-1440x900.png");
     expect(workflow).toContain("mac-alpha-ui-1240x760.png");
+    const prepareIndex = workflow.indexOf(
+      "Prepare unsigned macOS build inputs",
+    );
+    const signingIndex = workflow.indexOf("Select signing mode");
+    expect(prepareIndex).toBeGreaterThanOrEqual(0);
+    expect(signingIndex).toBeGreaterThan(prepareIndex);
+    expect(workflow.slice(0, signingIndex)).not.toContain("${{ secrets.");
+    expect(workflow).toContain('MGT_MAC_BUILD_INPUTS_PREPARED: "1"');
+    expect(workflow).not.toContain('echo "CSC_LINK=$CSC_LINK"');
+    expect(workflow).not.toContain('echo "CSC_KEY_PASSWORD=$CSC_KEY_PASSWORD"');
     expect(checks).toContain("macos-arm64-check:");
     expect(checks).toContain("runs-on: macos-15");
   });
@@ -881,6 +1007,15 @@ describe("Apple Silicon Alpha packaging", () => {
     expect(workflow).toContain("npm run dist:mac");
     expect(workflow).toContain("MGT_MAC_SIGNING_MODE=adhoc");
     expect(workflow).toContain("MGT_MAC_SIGNING_MODE=developer-id");
+    const prepareIndex = workflow.indexOf(
+      "Prepare unsigned macOS build inputs",
+    );
+    const signingIndex = workflow.indexOf("Select signing mode");
+    expect(prepareIndex).toBeGreaterThanOrEqual(0);
+    expect(signingIndex).toBeGreaterThan(prepareIndex);
+    expect(workflow.slice(0, signingIndex)).not.toContain("${{ secrets.");
+    expect(workflow).toContain('MGT_MAC_BUILD_INPUTS_PREPARED: "1"');
+    expect(workflow).not.toContain('echo "CSC_LINK=$CSC_LINK"');
     expect(workflow).toContain(
       "CarrotMangaTranslator-${version}-macOS-arm64.dmg",
     );

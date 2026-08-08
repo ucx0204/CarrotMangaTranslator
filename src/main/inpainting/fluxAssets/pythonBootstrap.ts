@@ -316,6 +316,7 @@ export function buildBootstrapPythonEnv(runtimeDir: string): NodeJS.ProcessEnv {
     PYTHONUNBUFFERED: "1",
     TMP: tmpDir,
     TEMP: tmpDir,
+    TMPDIR: tmpDir,
   };
   delete env.PYTHONHOME;
   delete env.PYTHONPATH;

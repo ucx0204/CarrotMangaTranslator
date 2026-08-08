@@ -1,28 +1,42 @@
 import { randomUUID } from "node:crypto";
-import {
-  chmod,
-  mkdir,
-  readFile,
-  rename,
-  rm,
-  writeFile,
-} from "node:fs/promises";
-import { basename, dirname, join } from "node:path";
+import { readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { safeStorage } from "electron";
 import type { AppSettings } from "../shared/settingsTypes";
 import { SETTINGS_SECRET_PRESERVE_SENTINEL } from "../shared/settingsSecrets";
 import type { AppPaths } from "./appPaths";
+import {
+  commitSettingsPairFiles,
+  loadCommittedSettingsPairFiles,
+  type SettingsPairFiles,
+} from "./settingsPairStorage";
 
-type SettingsSecrets = {
+export type SettingsSecrets = {
   apiKey?: string;
   credentialHeaders?: Record<string, unknown>;
 };
 
-type EncryptedSecretVault = {
+type LegacyEncryptedSecretVault = {
   version: 1;
   apiKey?: string;
   credentialHeaders?: string;
 };
+
+type EncryptedSecretVault = {
+  version: 2;
+  generation: string;
+  apiKey?: string;
+  credentialHeaders?: string;
+};
+
+export type CommittedSettingsPair = {
+  generation: string;
+  rawSettingsText: string;
+  secrets: SettingsSecrets;
+};
+
+const GENERATION_PATTERN =
+  /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 
 const CREDENTIAL_HEADER_NAMES = new Set([
   "authorization",
@@ -37,46 +51,67 @@ const CREDENTIAL_HEADER_NAMES = new Set([
 export async function loadSettingsSecrets(
   paths: AppPaths,
 ): Promise<SettingsSecrets> {
-  let vault: EncryptedSecretVault;
+  const committed = await loadCommittedSettingsPair(paths);
+  if (committed) return committed.secrets;
+
+  let publicSettings: Record<string, unknown>;
   try {
-    vault = JSON.parse(
+    publicSettings = parseJsonRecord(
+      await readFile(paths.settingsPath, "utf8"),
+      "Public settings file",
+    );
+  } catch (error) {
+    if (isMissingFileError(error)) return {};
+    throw error;
+  }
+
+  let vault: LegacyEncryptedSecretVault | EncryptedSecretVault;
+  try {
+    vault = parseEncryptedVault(
       await readFile(settingsSecretVaultPath(paths), "utf8"),
-    ) as EncryptedSecretVault;
+    );
   } catch (error) {
     if (isMissingFileError(error)) return {};
     throw new Error("Encrypted settings secret vault is unreadable.", {
       cause: error,
     });
   }
-  if (vault.version !== 1) {
-    throw new Error("Encrypted settings secret vault version is unsupported.");
+
+  if (vault.version === 1) {
+    // A v1 vault predates endpoint/credential generation binding. There is no
+    // cryptographic or transactional evidence that it belongs to this public
+    // settings file, so fail closed and require the user to enter credentials
+    // again instead of risking delivery to an older endpoint.
+    return {};
   }
-  const secrets: SettingsSecrets = {};
-  if (vault.apiKey) secrets.apiKey = decryptSecret(vault.apiKey);
-  if (vault.credentialHeaders) {
-    const parsed = JSON.parse(
-      decryptSecret(vault.credentialHeaders),
-    ) as unknown;
-    if (!isRecord(parsed)) {
-      throw new Error("Encrypted credential headers are invalid.");
-    }
-    secrets.credentialHeaders = parsed;
+  if (publicSettings.secretGeneration !== vault.generation) {
+    throw new Error(
+      "Public settings and encrypted secrets belong to different generations.",
+    );
   }
-  return secrets;
+  return decryptVault(vault);
 }
 
-export async function saveSettingsSecrets(
+export async function loadCommittedSettingsPair(
   paths: AppPaths,
+): Promise<CommittedSettingsPair | null> {
+  return loadCommittedSettingsPairFiles(paths, decodeCommittedSettingsPair);
+}
+
+export function commitSettingsPair(
+  paths: AppPaths,
+  publicSettings: Record<string, unknown>,
   secrets: SettingsSecrets,
-): Promise<void> {
+): Promise<string> {
+  const generation = randomUUID();
   const normalized = normalizeSecrets(secrets);
-  const vaultPath = settingsSecretVaultPath(paths);
-  if (!normalized.apiKey && !normalized.credentialHeaders) {
-    await rm(vaultPath, { force: true });
-    return;
-  }
+  const publicPayload = {
+    ...publicSettings,
+    secretGeneration: generation,
+  };
   const vault: EncryptedSecretVault = {
-    version: 1,
+    version: 2,
+    generation,
     ...(normalized.apiKey ? { apiKey: encryptSecret(normalized.apiKey) } : {}),
     ...(normalized.credentialHeaders
       ? {
@@ -86,7 +121,19 @@ export async function saveSettingsSecrets(
         }
       : {}),
   };
-  await writeRestrictedJsonFile(vaultPath, vault);
+  const publicText = serializeJson(publicPayload);
+  const vaultText = serializeJson(vault);
+  // Validate the codec and OS decryption path before publishing the pair.
+  decodeCommittedSettingsPair({
+    generation,
+    rawSettingsText: publicText,
+    vaultText,
+  });
+  return commitSettingsPairFiles(paths, {
+    generation,
+    rawSettingsText: publicText,
+    vaultText,
+  });
 }
 
 export function separateSettingsSecrets(settings: AppSettings): {
@@ -176,6 +223,109 @@ export function settingsSecretVaultPath(paths: AppPaths): string {
   return join(dirname(paths.settingsPath), "settings.secrets.json");
 }
 
+function decodeCommittedSettingsPair(
+  files: SettingsPairFiles,
+): CommittedSettingsPair {
+  const publicSettings = parseJsonRecord(
+    files.rawSettingsText,
+    "Committed public settings",
+  );
+  const vault = parseEncryptedVault(files.vaultText);
+  if (
+    vault.version !== 2 ||
+    publicSettings.secretGeneration !== files.generation ||
+    vault.generation !== files.generation
+  ) {
+    throw new Error("Committed settings pair generation verification failed.");
+  }
+  return {
+    generation: files.generation,
+    rawSettingsText: files.rawSettingsText,
+    secrets: decryptVault(vault),
+  };
+}
+
+function parseEncryptedVault(
+  rawText: string,
+): LegacyEncryptedSecretVault | EncryptedSecretVault {
+  const value = parseJsonRecord(rawText, "Encrypted settings secret vault");
+  if (value.version !== 1 && value.version !== 2) {
+    throw new Error("Encrypted settings secret vault version is unsupported.");
+  }
+  const fields = parseEncryptedVaultFields(value);
+  if (value.version === 1) {
+    return { version: 1, ...fields };
+  }
+  const generation = String(value.generation ?? "");
+  assertSettingsGeneration(generation);
+  return { version: 2, generation, ...fields };
+}
+
+function parseEncryptedVaultFields(value: Record<string, unknown>): {
+  apiKey?: string;
+  credentialHeaders?: string;
+} {
+  const apiKey = parseOptionalEncryptedField(value.apiKey);
+  const credentialHeaders = parseOptionalEncryptedField(
+    value.credentialHeaders,
+  );
+  return {
+    ...(apiKey ? { apiKey } : {}),
+    ...(credentialHeaders ? { credentialHeaders } : {}),
+  };
+}
+
+function parseOptionalEncryptedField(value: unknown): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") {
+    throw new Error("Encrypted settings secret vault fields are invalid.");
+  }
+  return value || undefined;
+}
+
+function decryptVault(
+  vault: LegacyEncryptedSecretVault | EncryptedSecretVault,
+): SettingsSecrets {
+  const secrets: SettingsSecrets = {};
+  if (vault.apiKey) secrets.apiKey = decryptSecret(vault.apiKey);
+  if (vault.credentialHeaders) {
+    const parsed = JSON.parse(
+      decryptSecret(vault.credentialHeaders),
+    ) as unknown;
+    if (!isRecord(parsed)) {
+      throw new Error("Encrypted credential headers are invalid.");
+    }
+    secrets.credentialHeaders = parsed;
+  }
+  return secrets;
+}
+
+function assertSettingsGeneration(generation: string): void {
+  if (!GENERATION_PATTERN.test(generation)) {
+    throw new Error("Settings generation identifier is invalid.");
+  }
+}
+
+function parseJsonRecord(
+  rawText: string,
+  label: string,
+): Record<string, unknown> {
+  let value: unknown;
+  try {
+    value = JSON.parse(rawText) as unknown;
+  } catch (error) {
+    throw new SyntaxError(`${label} is not valid JSON.`, { cause: error });
+  }
+  if (!isRecord(value)) {
+    throw new Error(`${label} must contain a JSON object.`);
+  }
+  return value;
+}
+
+function serializeJson(payload: unknown): string {
+  return `${JSON.stringify(payload, null, 2)}\n`;
+}
+
 function splitCredentialHeaders(value: string | undefined): {
   publicHeadersJson: string;
   credentialHeaders?: Record<string, unknown>;
@@ -245,29 +395,6 @@ function decryptSecret(value: string): string {
     throw new Error("OS-backed settings encryption is unavailable.");
   }
   return safeStorage.decryptString(Buffer.from(value, "base64"));
-}
-
-async function writeRestrictedJsonFile(
-  filePath: string,
-  payload: unknown,
-): Promise<void> {
-  await mkdir(dirname(filePath), { recursive: true });
-  const tmpPath = join(
-    dirname(filePath),
-    `.${basename(filePath)}.${process.pid}.${randomUUID()}.tmp`,
-  );
-  try {
-    await writeFile(tmpPath, `${JSON.stringify(payload, null, 2)}\n`, {
-      encoding: "utf8",
-      mode: 0o600,
-      flag: "wx",
-    });
-    await rename(tmpPath, filePath);
-    await chmod(filePath, 0o600);
-  } catch (error) {
-    await rm(tmpPath, { force: true });
-    throw error;
-  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

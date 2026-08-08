@@ -172,6 +172,24 @@ describe("compute GPU runtime routing", () => {
     });
   });
 
+  it("forwards the host TMPDIR to Flux child processes", () => {
+    const previous = process.env.TMPDIR;
+    process.env.TMPDIR = "/private/var/folders/mgt-runtime-temp";
+    try {
+      const env = buildFluxWorkerEnv({
+        backend: "python-cpu",
+        executable: process.execPath,
+        args: [],
+        runtimePath: process.execPath,
+        label: "Flux temp test",
+      });
+      expect(env.TMPDIR).toBe("/private/var/folders/mgt-runtime-temp");
+    } finally {
+      if (previous === undefined) delete process.env.TMPDIR;
+      else process.env.TMPDIR = previous;
+    }
+  });
+
   it("uses one platform-appropriate ROCm isolation variable", () => {
     const windowsEnv: NodeJS.ProcessEnv = makeConflictingGpuEnv();
     applyComputeGpuVisibilityEnv(windowsEnv, 2, "python-rocm", "win32");

@@ -161,6 +161,7 @@ const HOST_RUNTIME_ENV_KEYS = [
   "WINDIR",
   "TEMP",
   "TMP",
+  "TMPDIR",
   "USERPROFILE",
   "LOCALAPPDATA",
   "APPDATA",

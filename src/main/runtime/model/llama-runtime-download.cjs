@@ -1,5 +1,5 @@
 // @ts-check
-const { createReadStream, readFileSync } = require("node:fs");
+const { createReadStream } = require("node:fs");
 const { createHash } = require("node:crypto");
 const { mkdir, rm, writeFile } = require("node:fs/promises");
 const path = require("node:path");
@@ -28,7 +28,7 @@ const { extractSelectedZipEntries } = require("../simple-page-zip-utils.cjs");
 const { extractSelectedTarEntries } = require("../simple-page-tar-utils.cjs");
 const {
   collectInstalledRuntimeFileHashes,
-  installedRuntimeHashesMatch,
+  installedRuntimeMarkerMatches,
 } = require("./llama-runtime-installed-integrity.cjs");
 const {
   createDetailedError,
@@ -45,7 +45,6 @@ const {
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} ModelAssetOptions */
 /** @typedef {{ archive: string; url: string; sha256?: string; type?: "zip" | "tar.gz"; stripComponents?: number }} LlamaRuntimeArchive */
 /** @typedef {{ archive?: string; archives?: LlamaRuntimeArchive[]; backend?: string; platform?: string; arch?: string; dir: string; id?: string; kind?: string; requiredFiles?: Array<string | string[]>; url?: string }} LlamaRuntimeDescriptor */
-/** @typedef {{ archive?: unknown; url?: unknown; sha256?: unknown }} MarkerArchive */
 
 /** @param {ModelAssetOptions} [options] */
 async function ensureDefaultLlamaRuntimeDownloaded(options = {}) {
@@ -381,42 +380,10 @@ function formatLlamaRuntimeBackend(runtime = {}) {
 
 /** @param {string} runtimeDir @param {LlamaRuntimeDescriptor} runtime */
 function isCurrentLlamaRuntime(runtimeDir, runtime) {
-  try {
-    const marker =
-      /** @type {{ id?: unknown; kind?: unknown; dir?: unknown; archives?: MarkerArchive[]; installedFileSha256?: unknown }} */ (
-        JSON.parse(
-          readFileSync(
-            path.join(runtimeDir, LLAMA_RUNTIME_MARKER_FILE),
-            "utf8",
-          ),
-        )
-      );
-    return markerMatchesRuntime(marker, runtime, runtimeDir);
-  } catch (_error) {
-    return false;
-  }
-}
-
-/** @param {{ id?: unknown; kind?: unknown; dir?: unknown; archives?: MarkerArchive[]; installedFileSha256?: unknown }} marker @param {LlamaRuntimeDescriptor} runtime @param {string} runtimeDir */
-function markerMatchesRuntime(marker, runtime, runtimeDir) {
-  if (
-    marker.id !== runtime.id ||
-    marker.kind !== runtime.kind ||
-    marker.dir !== runtime.dir
-  )
-    return false;
-  const markerArchives = Array.isArray(marker.archives) ? marker.archives : [];
-  const archivesMatch = getLlamaRuntimeArchives(runtime).every((archive) =>
-    markerArchives.some(
-      (candidate) =>
-        candidate.archive === archive.archive &&
-        candidate.url === archive.url &&
-        candidate.sha256 === archive.sha256,
-    ),
-  );
-  return (
-    archivesMatch &&
-    installedRuntimeHashesMatch(runtimeDir, marker.installedFileSha256)
+  return installedRuntimeMarkerMatches(
+    runtimeDir,
+    runtime,
+    LLAMA_RUNTIME_MARKER_FILE,
   );
 }
 

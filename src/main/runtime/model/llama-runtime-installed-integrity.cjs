@@ -3,6 +3,10 @@ const { createHash } = require("node:crypto");
 const { readFileSync, readdirSync } = require("node:fs");
 const path = require("node:path");
 
+/** @typedef {{ archive?: unknown; url?: unknown; sha256?: unknown }} MarkerArchive */
+/** @typedef {{ id?: unknown; kind?: unknown; dir?: unknown; archives?: MarkerArchive[]; installedFileSha256?: unknown }} InstalledRuntimeMarker */
+/** @typedef {{ id?: unknown; kind?: unknown; dir?: unknown; archive?: unknown; url?: unknown; sha256?: unknown; archives?: MarkerArchive[] }} RuntimeDescriptor */
+
 /** @param {string} runtimeDir */
 function collectInstalledRuntimeFileHashes(runtimeDir) {
   /** @type {Record<string, string>} */
@@ -60,6 +64,75 @@ function installedRuntimeHashesMatch(runtimeDir, expectedValue) {
   }
 }
 
+/**
+ * Validates both the trusted runtime descriptor binding and every executable
+ * file hash. Callers use this immediately before a managed runtime is spawned,
+ * not only while deciding whether an existing installation can be reused.
+ *
+ * @param {string} runtimeDir
+ * @param {RuntimeDescriptor} runtime
+ * @param {string} markerFileName
+ */
+function installedRuntimeMarkerMatches(
+  runtimeDir,
+  runtime,
+  markerFileName = ".mgt-runtime.json",
+) {
+  try {
+    const marker = /** @type {InstalledRuntimeMarker} */ (
+      JSON.parse(readFileSync(path.join(runtimeDir, markerFileName), "utf8"))
+    );
+    if (
+      marker.id !== runtime.id ||
+      marker.kind !== runtime.kind ||
+      marker.dir !== runtime.dir
+    ) {
+      return false;
+    }
+    const expectedArchives = runtimeArchives(runtime);
+    const markerArchives = Array.isArray(marker.archives)
+      ? marker.archives
+      : [];
+    if (
+      markerArchives.length !== expectedArchives.length ||
+      !expectedArchives.every((archive, index) =>
+        archiveDescriptorsMatch(markerArchives[index], archive),
+      )
+    ) {
+      return false;
+    }
+    return installedRuntimeHashesMatch(runtimeDir, marker.installedFileSha256);
+  } catch (_error) {
+    return false;
+  }
+}
+
+/** @param {MarkerArchive | undefined} left @param {MarkerArchive} right */
+function archiveDescriptorsMatch(left, right) {
+  return (
+    left?.archive === right.archive &&
+    left?.url === right.url &&
+    left?.sha256 === right.sha256 &&
+    /^[a-f0-9]{64}$/.test(String(right.sha256 || ""))
+  );
+}
+
+/** @param {RuntimeDescriptor} runtime @returns {MarkerArchive[]} */
+function runtimeArchives(runtime) {
+  if (Array.isArray(runtime.archives) && runtime.archives.length > 0) {
+    return runtime.archives;
+  }
+  return runtime.archive && runtime.url
+    ? [
+        {
+          archive: runtime.archive,
+          url: runtime.url,
+          sha256: runtime.sha256,
+        },
+      ]
+    : [];
+}
+
 /** @param {string} runtimeDir @param {Record<string, string>} actual @param {string} relativePath @param {unknown} digest */
 function validInstalledFile(runtimeDir, actual, relativePath, digest) {
   if (!/^[a-f0-9]{64}$/.test(String(digest))) return false;
@@ -90,4 +163,5 @@ function hashFile(filePath) {
 module.exports = {
   collectInstalledRuntimeFileHashes,
   installedRuntimeHashesMatch,
+  installedRuntimeMarkerMatches,
 };

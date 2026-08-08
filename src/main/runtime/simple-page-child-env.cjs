@@ -10,6 +10,7 @@ const BASE_CHILD_ENV_KEYS = [
   "ComSpec",
   "TEMP",
   "TMP",
+  "TMPDIR",
   "USERPROFILE",
   "LOCALAPPDATA",
   "APPDATA",

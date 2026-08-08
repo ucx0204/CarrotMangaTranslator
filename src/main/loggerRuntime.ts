@@ -29,6 +29,7 @@ export type LogOutputStream = {
 
 type LoggerRuntimeOptions = {
   resolveLogPath: () => string;
+  sanitizeMessage?: (message: string) => string;
   serializeDetail: (detail: unknown) => string;
   stdout?: LogOutputStream;
   stderr?: LogOutputStream;
@@ -77,6 +78,7 @@ export function createLoggerRuntime(
 ): LoggerRuntime {
   const now = options.now ?? (() => new Date());
   const destination = new LogFileDestination();
+  const sanitizeMessage = options.sanitizeMessage ?? ((message) => message);
   const formatLogLine = (
     level: RuntimeLogLevel,
     message: string,
@@ -84,7 +86,7 @@ export function createLoggerRuntime(
   ): string => {
     const suffix =
       detail === undefined ? "" : ` ${options.serializeDetail(detail)}`;
-    return `[${now().toISOString()}] [${level.toUpperCase()}] ${message}${suffix}\n`;
+    return `[${now().toISOString()}] [${level.toUpperCase()}] ${sanitizeMessage(message)}${suffix}\n`;
   };
   const consoleTransport = createConsoleTransport(
     options.stdout ?? process.stdout,

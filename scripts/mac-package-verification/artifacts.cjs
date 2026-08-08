@@ -5,6 +5,10 @@ const { MAC_RUNTIME_MANIFEST } = require("../mac-runtime-manifest.cjs");
 const root = join(__dirname, "..", "..");
 const { verifyApplicationDirectorySmoke } = require("./app-smoke.cjs");
 const {
+  verifyPackagedArchiveRuntimes,
+  verifyPackagedImageRuntime,
+} = require("./packaged-runtime-smokes.cjs");
+const {
   assertElectronFrameworkExecutable,
   findSingleAppBundle,
   listFiles,
@@ -147,35 +151,6 @@ function hasRequiredKoharuCapabilities(capabilityText) {
 }
 
 /** @param {string} appPath */
-function verifyPackagedTarRuntime(appPath) {
-  const appExecutable = join(
-    appPath,
-    "Contents",
-    "MacOS",
-    "CarrotMangaTranslator",
-  );
-  const tarRuntimePath = join(
-    appPath,
-    "Contents",
-    "Resources",
-    "app-runtime",
-    "simple-page-tar-utils.cjs",
-  );
-  if (!existsSync(tarRuntimePath)) {
-    throw new Error(`Packaged tar runtime is missing: ${tarRuntimePath}`);
-  }
-  const smokeScript = [
-    `const runtime = require(${JSON.stringify(tarRuntimePath)});`,
-    "if (typeof runtime.extractSelectedTarEntries !== 'function') throw new Error('Packaged tar runtime did not load');",
-    "console.log('packaged-tar-runtime-ok');",
-  ].join("\n");
-  run(appExecutable, ["-e", smokeScript], {
-    env: { ELECTRON_RUN_AS_NODE: "1" },
-    timeout: 30_000,
-  });
-}
-
-/** @param {string} appPath */
 function verifyPackagedOnnxRuntime(appPath) {
   const appExecutable = join(
     appPath,
@@ -302,7 +277,8 @@ function verifyFinalDiskImage(diskImagePath) {
     const appPath = findSingleAppBundle(mountRoot, "final DMG");
     assertElectronFrameworkExecutable(appPath);
     verifySigning(appPath);
-    verifyPackagedTarRuntime(appPath);
+    verifyPackagedArchiveRuntimes(appPath);
+    verifyPackagedImageRuntime(appPath);
     verifyApplicationDirectorySmoke(appPath);
     console.log(
       `[mac-verify] mounted, signed, copied, and launched final DMG app ${relative(root, appPath)}`,
@@ -327,7 +303,8 @@ function verifyFinalZipArchive(zipPath) {
     const appPath = findSingleAppBundle(extractRoot, "final ZIP");
     assertElectronFrameworkExecutable(appPath);
     verifySigning(appPath);
-    verifyPackagedTarRuntime(appPath);
+    verifyPackagedArchiveRuntimes(appPath);
+    verifyPackagedImageRuntime(appPath);
     console.log(
       `[mac-verify] extracted and verified final ZIP app ${relative(root, appPath)}`,
     );
@@ -368,9 +345,10 @@ module.exports = {
   verifyFinalDiskImage,
   verifyFinalZipArchive,
   verifyNativePayload,
+  verifyPackagedArchiveRuntimes,
   verifyPackagedBuildChannel,
+  verifyPackagedImageRuntime,
   verifyPackagedOnnxRuntime,
-  verifyPackagedTarRuntime,
   verifyRequiredRuntimes,
   verifySigning,
 };

@@ -2,10 +2,23 @@
 // @ts-check
 
 const { spawnSync } = require("node:child_process");
-const { readdirSync } = require("node:fs");
+const { existsSync, readdirSync } = require("node:fs");
 const { join } = require("node:path");
 
 const root = join(__dirname, "..");
+const SIGNING_SECRET_ENV_KEYS = [
+  "CSC_LINK",
+  "CSC_KEY_PASSWORD",
+  "APPLE_API_KEY",
+  "APPLE_API_KEY_ID",
+  "APPLE_API_ISSUER",
+  "APPLE_API_KEY_P8_B64",
+  "APPLE_ID",
+  "APPLE_APP_SPECIFIC_PASSWORD",
+  "APPLE_TEAM_ID",
+  "MAC_CSC_LINK",
+  "MAC_CSC_KEY_PASSWORD",
+];
 
 /**
  * @param {string[]} [args]
@@ -31,10 +44,12 @@ function configureMacBuildChannel(channel, environment = process.env) {
 }
 
 /** @param {string} command @param {string[]} args @param {NodeJS.ProcessEnv} [extraEnv] */
-function run(command, args, extraEnv = {}) {
+function run(command, args, extraEnv = {}, includeSigningSecrets = true) {
+  const environment = { ...process.env, ...extraEnv };
+  if (!includeSigningSecrets) stripSigningSecrets(environment);
   const result = spawnSync(command, args, {
     cwd: root,
-    env: { ...process.env, ...extraEnv },
+    env: environment,
     stdio: "inherit",
     shell: false,
   });
@@ -46,6 +61,12 @@ function run(command, args, extraEnv = {}) {
       `${command} failed with exit code ${result.status ?? "null"}`,
     );
   }
+}
+
+/** @param {NodeJS.ProcessEnv} environment */
+function stripSigningSecrets(environment) {
+  for (const key of SIGNING_SECRET_ENV_KEYS) delete environment[key];
+  return environment;
 }
 
 function assertSigningConfiguration() {
@@ -138,6 +159,36 @@ function assertMacReleaseArtifacts(artifactPaths) {
   }
 }
 
+/** @param {NodeJS.ProcessEnv} buildEnv */
+function prepareMacBuildInputs(buildEnv) {
+  if (process.env.MGT_MAC_BUILD_INPUTS_PREPARED === "1") {
+    assertPreparedMacBuildInputs();
+    return;
+  }
+  run(process.execPath, ["scripts/prepare-mac-icon.cjs"], buildEnv, false);
+  run("npm", ["run", "build:mac:runners"], buildEnv, false);
+  run("npm", ["run", "prepare:mac:runtime"], buildEnv, false);
+  run("npm", ["run", "build"], buildEnv, false);
+  assertPreparedMacBuildInputs();
+}
+
+function assertPreparedMacBuildInputs() {
+  const required = [
+    join(root, "build", "icon.icns"),
+    join(root, "out", "main", "bootstrap.js"),
+    join(root, "out", "preload", "index.js"),
+    join(root, "out", "renderer", "index.html"),
+    join(root, ".tmp", "mac-runtime", "tools", "mac-runtime-manifest.cjs"),
+    join(root, ".tmp", "mac-runtime", "tools", "python", "bin", "python3"),
+  ];
+  const missing = required.filter((filePath) => !existsSync(filePath));
+  if (missing.length > 0) {
+    throw new Error(
+      `Prebuilt macOS packaging inputs are missing: ${missing.join(", ")}`,
+    );
+  }
+}
+
 async function main() {
   if (process.platform !== "darwin" || process.arch !== "arm64") {
     throw new Error("Apple Silicon packages must be built on macOS arm64.");
@@ -154,20 +205,21 @@ async function main() {
     CSC_IDENTITY_AUTO_DISCOVERY: process.env.CSC_IDENTITY_AUTO_DISCOVERY,
   };
 
-  run(process.execPath, ["scripts/prepare-mac-icon.cjs"], buildEnv);
-  run("npm", ["run", "build:mac:runners"], buildEnv);
-  run("npm", ["run", "prepare:mac:runtime"], buildEnv);
-  run("npm", ["run", "build"], buildEnv);
+  prepareMacBuildInputs(buildEnv);
 
-  const { Arch, Platform, build } = require("electron-builder");
-  const artifactPaths = await build({
-    targets: Platform.MAC.createTarget(["dmg", "zip"], Arch.arm64),
-    config: "electron-builder.config.cjs",
-    publish: "never",
-  });
-  assertMacReleaseArtifacts(artifactPaths);
-  notarizeAndStapleDiskImage();
-  run(process.execPath, ["scripts/verify-mac-package.cjs"], buildEnv);
+  try {
+    const { Arch, Platform, build } = require("electron-builder");
+    const artifactPaths = await build({
+      targets: Platform.MAC.createTarget(["dmg", "zip"], Arch.arm64),
+      config: "electron-builder.config.cjs",
+      publish: "never",
+    });
+    assertMacReleaseArtifacts(artifactPaths);
+    notarizeAndStapleDiskImage();
+  } finally {
+    stripSigningSecrets(process.env);
+  }
+  run(process.execPath, ["scripts/verify-mac-package.cjs"], buildEnv, false);
 }
 
 /**
@@ -196,6 +248,8 @@ if (require.main === module) {
 module.exports = {
   configureElectronBuilderSigningEnvironment,
   configureMacBuildChannel,
+  prepareMacBuildInputs,
   resolveMacBuildChannel,
   runMacBuildCli,
+  stripSigningSecrets,
 };

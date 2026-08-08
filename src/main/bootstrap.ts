@@ -174,6 +174,7 @@ function configurePackagedElectronStorage(dataRoot: string | null): void {
   app.commandLine.appendSwitch("disable-gpu-shader-disk-cache");
   process.env.TEMP = tempDir;
   process.env.TMP = tempDir;
+  process.env.TMPDIR = tempDir;
 }
 
 function writeBootstrapLog(message: string, detail?: unknown): void {

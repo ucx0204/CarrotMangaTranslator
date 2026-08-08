@@ -378,6 +378,7 @@ function buildBootstrapPythonEnv(runtimeDir, options = {}) {
     PYTHONUNBUFFERED: "1",
     TMP: tempDir,
     TEMP: tempDir,
+    TMPDIR: tempDir,
   };
   delete env.PYTHONHOME;
   delete env.PYTHONPATH;

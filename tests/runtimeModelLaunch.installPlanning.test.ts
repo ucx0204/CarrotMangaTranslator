@@ -434,6 +434,7 @@ describeWindows(
 
       expect(env.TMP).toBe(join(runtimeDir, "t"));
       expect(env.TEMP).toBe(join(runtimeDir, "t"));
+      expect(env.TMPDIR).toBe(join(runtimeDir, "t"));
       expect(env.PIP_CACHE_DIR).toBe(join(runtimeDir, "c"));
       expect(env.PYTHONUSERBASE).toBe(join(runtimeDir, "u"));
       expect(env.PYTHONPATH).toBe(packageDir);
@@ -475,3 +476,18 @@ describeWindows(
     });
   },
 );
+
+describe("runtime model support helpers: portable temporary directories", () => {
+  it("sets TMPDIR together with TEMP and TMP for OCR child processes", () => {
+    const runtimeDir = createTempDir("ocr-portable-temp-");
+    const expected = resolveOcrTempDir(runtimeDir, { ocrDevice: "cpu" });
+    const env = buildOcrRuntimeEnv(
+      { ocrDevice: "cpu", ocrRuntimeDir: runtimeDir },
+      { runtimeDir, includePackageDir: false },
+    );
+
+    expect(env.TEMP).toBe(expected);
+    expect(env.TMP).toBe(expected);
+    expect(env.TMPDIR).toBe(expected);
+  });
+});

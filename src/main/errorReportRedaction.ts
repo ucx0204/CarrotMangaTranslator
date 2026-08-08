@@ -41,10 +41,17 @@ export function redactDiagnosticText(
     /(?<![a-z])[a-z]%3a(?:%5c|%2f)+(?:users)(?:%5c|%2f)+[^%/?&#\s]+/gi,
     "<home>",
   );
-  replace(/\/(?:users|home)\/[^/\s"'<>]+/gi, "<home>");
+  replace(
+    /(?<![a-z0-9+.-])(?:file:\/\/)?\/(?:users|home|volumes|private|var|tmp)(?:\/[^\r\n"'<>]*)?/gi,
+    "<local-path>",
+  );
   replace(
     /(?:file%3a(?:%2f){2,3})?%2f(?:users|home)%2f[^%/?&#\s]+/gi,
     "<home>",
+  );
+  replace(
+    /(?<![a-z0-9])(?:file%3a(?:%2f){2})?%2f(?:users|home|volumes|private|var|tmp)(?:(?:%2f|%5c)[^&#\s"']*)?/gi,
+    "<local-path>",
   );
   replace(/"(?:file:\/\/\/)?[a-z]:[\\/]+(?:\\.|[^"\\])*"/gi, '"<local-path>"');
   replace(/(?<![a-z])(?:file:\/\/\/)?[a-z]:[\\/]+[^\s"'<>]+/gi, "<local-path>");
@@ -58,7 +65,7 @@ export function redactDiagnosticText(
         : `${prefix}"<redacted>"`,
   );
   replace(
-    /\b(authorization|proxy-authorization|x-api-key|api[_-]?key|access[_-]?token|refresh[_-]?token|password|secret|cookie)\b(\s*[:=]\s*)(?!<redacted>)([^\s,;]+)/gi,
+    /\b(authorization|proxy-authorization|x-api-key|api[_-]?key|access[_-]?token|refresh[_-]?token|password|secret|cookie)\b(\s*[:=]\s*)(?!<redacted>)(?:(?:bearer|basic)\s+)?[^\s,;]+/gi,
     (_match, key, separator) => `${key}${separator}<redacted>`,
   );
   replace(

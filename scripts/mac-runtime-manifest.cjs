@@ -16,6 +16,13 @@ const MAC_RUNTIME_MANIFEST = Object.freeze({
     "paddlepaddle==3.3.1",
     "paddleocr[doc-parser]==3.7.0",
   ]),
+  ocrRequirements: Object.freeze({
+    file: "requirements-mac-arm64.lock",
+    sha256: "125dfc5b881bab917b926d2f72a66a01fdf8e8f87870deff14e1dfe407bb2f85",
+    packageCount: 95,
+    pythonVersion: "3.12",
+    platform: "macosx_14_0_arm64",
+  }),
   llamaRuntimes: Object.freeze([
     Object.freeze({
       id: "llama-b9547-metal-arm64",

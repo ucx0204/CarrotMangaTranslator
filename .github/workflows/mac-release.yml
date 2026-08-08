@@ -102,6 +102,18 @@ jobs:
       - name: Verify pinned model metadata
         run: npm run verify:hf-assets
 
+      - name: Prepare unsigned macOS build inputs
+        env:
+          MGT_RELEASE_CHANNEL: stable
+          MANGA_TRANSLATOR_BUILD_CHANNEL: stable
+          MGT_TARGET_PLATFORM: darwin
+          MGT_MAC_RUNTIME_ROOT: ${{ github.workspace }}/.tmp/mac-runtime
+        run: |
+          node scripts/prepare-mac-icon.cjs
+          npm run build:mac:runners
+          npm run prepare:mac:runtime
+          npm run build
+
       - name: Select signing mode
         shell: bash
         env:
@@ -124,20 +136,27 @@ jobs:
             echo "Developer ID signing secrets are only partially configured." >&2
             exit 1
           else
-            key_path="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
+            key_path="$RUNNER_TEMP/AuthKey.p8"
             printf '%s' "$APPLE_API_KEY_P8_B64" | /usr/bin/base64 -D > "$key_path"
             chmod 600 "$key_path"
-            echo "APPLE_API_KEY=$key_path" >> "$GITHUB_ENV"
-            echo "APPLE_API_KEY_ID=$APPLE_API_KEY_ID" >> "$GITHUB_ENV"
-            echo "APPLE_API_ISSUER=$APPLE_API_ISSUER" >> "$GITHUB_ENV"
-            echo "CSC_LINK=$CSC_LINK" >> "$GITHUB_ENV"
-            echo "CSC_KEY_PASSWORD=$CSC_KEY_PASSWORD" >> "$GITHUB_ENV"
             echo "MGT_MAC_SIGNING_MODE=developer-id" >> "$GITHUB_ENV"
             echo "SIGNING_LABEL=Developer ID + notarized" >> "$GITHUB_ENV"
           fi
 
       - name: Build and strictly verify stable arm64 DMG and ZIP
+        env:
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_API_KEY: ${{ runner.temp }}/AuthKey.p8
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          MGT_MAC_BUILD_INPUTS_PREPARED: "1"
         run: npm run dist:mac
+
+      - name: Remove notarization key
+        if: always()
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/AuthKey.p8"
 
       - name: Confirm stable release artifacts
         shell: bash

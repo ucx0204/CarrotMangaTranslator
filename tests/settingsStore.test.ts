@@ -14,6 +14,10 @@ import { resolveDefaultAppSettings } from "../src/main/appSettings";
 import { CURRENT_GENERATION_LIMITS_VERSION } from "../src/main/settings/appSettingsGenerationLimitMigration";
 import { SETTINGS_SECRET_PRESERVE_SENTINEL } from "../src/shared/settingsSecrets";
 import { settingsSecretVaultPath } from "../src/main/settingsSecretStore";
+import {
+  settingsCommitPath,
+  settingsPairDirectory,
+} from "../src/main/settingsPairStorage";
 
 vi.mock("electron", () => ({
   safeStorage: {
@@ -102,11 +106,24 @@ describe("settings store", () => {
 
     const persisted = await readFile(paths.settingsPath, "utf8");
     const vault = await readFile(settingsSecretVaultPath(paths), "utf8");
+    const publicPayload = JSON.parse(persisted) as {
+      secretGeneration?: string;
+    };
+    const vaultPayload = JSON.parse(vault) as {
+      generation?: string;
+      version?: number;
+    };
+    const commit = JSON.parse(
+      await readFile(settingsCommitPath(paths), "utf8"),
+    ) as { generation?: string };
     expect(persisted).not.toContain("sk-private-value");
     expect(persisted).not.toContain("private-header");
     expect(persisted).toContain("public-value");
     expect(vault).not.toContain("sk-private-value");
     expect(vault).not.toContain("private-header");
+    expect(vaultPayload.version).toBe(2);
+    expect(publicPayload.secretGeneration).toBe(vaultPayload.generation);
+    expect(commit.generation).toBe(vaultPayload.generation);
 
     const masked = maskAppSettingsSecrets(loaded);
     expect(masked.api.apiKey).toBe(SETTINGS_SECRET_PRESERVE_SENTINEL);
@@ -131,6 +148,157 @@ describe("settings store", () => {
       async () => null,
     );
     expect(caseChanged.api.customHeadersJson).toContain("private-header");
+  });
+
+  it("never combines canonical mirrors from different credential generations", async () => {
+    const rootDir = await createTempDir();
+    const paths = makeAppPaths(rootDir);
+    const defaults = resolveDefaultAppSettings({
+      MANGA_TRANSLATOR_MODEL_PROVIDER: "openai-api",
+    });
+    await saveAppSettings(
+      {
+        ...defaults,
+        api: {
+          ...defaults.api,
+          baseUrl: "https://old.example.test/v1",
+          apiKey: "OLD_KEY",
+        },
+      },
+      paths,
+      {},
+      async () => null,
+    );
+
+    const mismatchedPublic = JSON.parse(
+      await readFile(paths.settingsPath, "utf8"),
+    ) as { api: { baseUrl: string } };
+    mismatchedPublic.api.baseUrl = "https://new.example.test/v1";
+    await writeFile(
+      paths.settingsPath,
+      `${JSON.stringify(mismatchedPublic, null, 2)}\n`,
+      "utf8",
+    );
+
+    const loaded = await getAppSettings(paths, {}, async () => null);
+    expect(loaded.api.baseUrl).toBe("https://old.example.test/v1");
+    expect(loaded.api.apiKey).toBe("OLD_KEY");
+  });
+
+  it("fails closed for legacy vaults that cannot be bound to an endpoint generation", async () => {
+    const rootDir = await createTempDir();
+    const paths = makeAppPaths(rootDir);
+    const defaults = resolveDefaultAppSettings({
+      MANGA_TRANSLATOR_MODEL_PROVIDER: "openai-api",
+    });
+    await writeFile(
+      paths.settingsPath,
+      `${JSON.stringify({
+        ...defaults,
+        api: {
+          ...defaults.api,
+          baseUrl: "https://legacy.example.test/v1",
+        },
+      })}\n`,
+      "utf8",
+    );
+    await writeFile(
+      settingsSecretVaultPath(paths),
+      `${JSON.stringify({
+        version: 1,
+        apiKey: Buffer.from("encrypted:UNBOUND_LEGACY_KEY").toString("base64"),
+      })}\n`,
+      "utf8",
+    );
+
+    const loaded = await getAppSettings(paths, {}, async () => null);
+    expect(loaded.api.baseUrl).toBe("https://legacy.example.test/v1");
+    expect(loaded.api.apiKey).toBeUndefined();
+    expect(await readFile(paths.settingsPath, "utf8")).not.toContain(
+      "UNBOUND_LEGACY_KEY",
+    );
+    const migratedVault = JSON.parse(
+      await readFile(settingsSecretVaultPath(paths), "utf8"),
+    ) as { version: number; generation: string; apiKey?: string };
+    expect(migratedVault).toMatchObject({ version: 2 });
+    expect(migratedVault.apiKey).toBeUndefined();
+  });
+
+  it("serializes concurrent saves so the endpoint and key always share one generation", async () => {
+    const rootDir = await createTempDir();
+    const paths = makeAppPaths(rootDir);
+    const defaults = resolveDefaultAppSettings({
+      MANGA_TRANSLATOR_MODEL_PROVIDER: "openai-api",
+    });
+    const pairs = [
+      ["https://first.example.test/v1", "FIRST_KEY"],
+      ["https://second.example.test/v1", "SECOND_KEY"],
+      ["https://third.example.test/v1", "THIRD_KEY"],
+    ] as const;
+
+    await Promise.all(
+      pairs.map(([baseUrl, apiKey]) =>
+        saveAppSettings(
+          { ...defaults, api: { ...defaults.api, baseUrl, apiKey } },
+          paths,
+          {},
+          async () => null,
+        ),
+      ),
+    );
+
+    const loaded = await getAppSettings(paths, {}, async () => null);
+    expect(pairs).toContainEqual([loaded.api.baseUrl, loaded.api.apiKey]);
+    const pointer = JSON.parse(
+      await readFile(settingsCommitPath(paths), "utf8"),
+    ) as { generation: string; previous?: { generation: string } };
+    const pairDirectories = await readdir(join(rootDir, ".settings-pairs"));
+    expect(pairDirectories.sort()).toEqual(
+      [pointer.generation, pointer.previous?.generation]
+        .filter((value): value is string => Boolean(value))
+        .sort(),
+    );
+  });
+
+  it("restores the previous complete pair when the current pair is corrupted", async () => {
+    const rootDir = await createTempDir();
+    const paths = makeAppPaths(rootDir);
+    const defaults = resolveDefaultAppSettings({
+      MANGA_TRANSLATOR_MODEL_PROVIDER: "openai-api",
+    });
+    const makeSettings = (baseUrl: string, apiKey: string) => ({
+      ...defaults,
+      api: { ...defaults.api, baseUrl, apiKey },
+    });
+    await saveAppSettings(
+      makeSettings("https://old.example.test/v1", "OLD_KEY"),
+      paths,
+      {},
+      async () => null,
+    );
+    await saveAppSettings(
+      makeSettings("https://new.example.test/v1", "NEW_KEY"),
+      paths,
+      {},
+      async () => null,
+    );
+    const pointer = JSON.parse(
+      await readFile(settingsCommitPath(paths), "utf8"),
+    ) as { generation: string; previous?: { generation: string } };
+    expect(pointer.previous?.generation).toBeTruthy();
+    await writeFile(
+      join(settingsPairDirectory(paths, pointer.generation), "settings.json"),
+      "corrupted",
+      "utf8",
+    );
+
+    const recovered = await getAppSettings(paths, {}, async () => null);
+    expect(recovered.api.baseUrl).toBe("https://old.example.test/v1");
+    expect(recovered.api.apiKey).toBe("OLD_KEY");
+    const repairedPointer = JSON.parse(
+      await readFile(settingsCommitPath(paths), "utf8"),
+    ) as { generation: string };
+    expect(repairedPointer.generation).toBe(pointer.previous?.generation);
   });
 
   it("marks newly saved limits so an intentional legacy-sized pair is preserved", async () => {

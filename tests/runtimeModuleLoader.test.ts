@@ -4,6 +4,7 @@ import ts from "typescript";
 import { describe, expect, it, vi } from "vitest";
 import {
   assertRuntimeFunctions,
+  loadAppRuntimeModule,
   resolveAppRuntimeModulePath,
   selectAppRuntimeDirectory,
 } from "../src/main/runtimeModuleLoader";
@@ -75,6 +76,14 @@ describe("runtime module boundary", () => {
       }),
     ).toBe("C:\\installed-runtime");
     expect(resolveInstalledRuntimeDir).toHaveBeenCalledTimes(2);
+  });
+
+  it("loads a manifest-owned source runtime through the application boundary", () => {
+    const runtime = loadAppRuntimeModule("apiKeyRetry");
+
+    assertRuntimeFunctions(runtime, "api-key-retry.cjs", [
+      "runWithApiKeyRetry",
+    ]);
   });
 
   it("keeps computed require calls inside the validated runtime boundary", () => {

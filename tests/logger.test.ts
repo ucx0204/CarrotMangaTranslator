@@ -19,6 +19,7 @@ import {
   getPreviousLogPath,
   resetAppLog,
   serializeLogDetail,
+  writeLog,
 } from "../src/main/logger";
 
 const tempDirs: string[] = [];
@@ -137,6 +138,26 @@ describe("logger serialization", () => {
       "previous crash details\n",
     );
     expect(readFileSync(logPath, "utf8")).toBe("");
+  });
+
+  it("redacts renderer-style message strings at the final log boundary", () => {
+    const dir = mkdtempSync(join(tmpdir(), "manga-logger-redaction-"));
+    tempDirs.push(dir);
+    const logPath = join(dir, "logs", "app.log");
+    process.env.MANGA_TRANSLATOR_LOG_PATH = logPath;
+    resetAppLog();
+
+    writeLog(
+      "error",
+      "renderer: Authorization: Bearer renderer-secret-token at /Volumes/Private Manga/001.webp?api_key=query-secret",
+    );
+
+    const log = readFileSync(logPath, "utf8");
+    expect(log).not.toContain("renderer-secret-token");
+    expect(log).not.toContain("Private Manga");
+    expect(log).not.toContain("query-secret");
+    expect(log).toContain("renderer:");
+    expect(log).toContain("<local-path>");
   });
 
   it("does not throw when the log location cannot be created", () => {

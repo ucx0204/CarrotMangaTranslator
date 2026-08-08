@@ -13,15 +13,15 @@ import {
   resolveAmdRocmTargetFromInfo,
   type DetectedGpuInfo,
 } from "./gpuInfo";
-import { writeJsonFile } from "./libraryStore/storage";
 import { logError, writeLog } from "./logger";
 import { redactDiagnosticText } from "./errorReportRedaction";
 import {
   attachSettingsSecrets,
+  commitSettingsPair,
+  loadCommittedSettingsPair,
   loadSettingsSecrets,
   maskSettingsSecrets,
   resolveSubmittedSettingsSecrets,
-  saveSettingsSecrets,
   separateSettingsSecrets,
 } from "./settingsSecretStore";
 
@@ -47,14 +47,22 @@ export async function getAppSettings(
   const defaults = resolveDefaultAppSettings(env, detectedGpu);
 
   try {
-    const rawText = await readFile(paths.settingsPath, "utf8");
+    const committed = await loadCommittedSettingsPair(paths);
+    const rawText = committed
+      ? committed.rawSettingsText
+      : await readFile(paths.settingsPath, "utf8");
     const stored = parseStoredAppSettings(rawText, defaults);
     const plaintext = separateSettingsSecrets(stored);
-    const encryptedSecrets = await loadSettingsSecrets(paths);
+    const encryptedSecrets = committed
+      ? committed.secrets
+      : await loadSettingsSecrets(paths);
     const secrets = mergeSettingsSecrets(plaintext.secrets, encryptedSecrets);
-    if (hasSettingsSecrets(plaintext.secrets)) {
-      await saveSettingsSecrets(paths, secrets);
-      await persistAppSettings(plaintext.persistentSettings, paths);
+    if (!committed || hasSettingsSecrets(plaintext.secrets)) {
+      await persistAppSettingsPair(
+        plaintext.persistentSettings,
+        secrets,
+        paths,
+      );
     }
     return attachRuntimeHardware(
       attachSettingsSecrets(plaintext.persistentSettings, secrets),
@@ -92,8 +100,7 @@ export async function saveAppSettings(
     stripRuntimeHardware(normalized),
     existingSecrets,
   );
-  await saveSettingsSecrets(paths, submitted.secrets);
-  await persistAppSettings(submitted.settings, paths);
+  await persistAppSettingsPair(submitted.settings, submitted.secrets, paths);
   return attachRuntimeHardware(
     attachSettingsSecrets(submitted.settings, submitted.secrets),
     detectedGpu,
@@ -107,9 +114,9 @@ export async function resetAppSettings(
 ): Promise<AppSettings> {
   const detectedGpu = await detectGpu();
   const defaults = resolveDefaultAppSettings(env, detectedGpu);
-  await saveSettingsSecrets(paths, {});
-  await persistAppSettings(
+  await persistAppSettingsPair(
     separateSettingsSecrets(stripRuntimeHardware(defaults)).persistentSettings,
+    {},
     paths,
   );
   return attachRuntimeHardware(defaults, detectedGpu);
@@ -130,14 +137,19 @@ export async function hydrateAppSettingsSecretSentinels(
   return attachSettingsSecrets(submitted.settings, submitted.secrets);
 }
 
-async function persistAppSettings(
+async function persistAppSettingsPair(
   settings: AppSettings,
+  secrets: Parameters<typeof commitSettingsPair>[2],
   paths: AppPaths,
 ): Promise<void> {
-  await writeJsonFile(paths.settingsPath, {
-    generationLimitsVersion: CURRENT_GENERATION_LIMITS_VERSION,
-    ...settings,
-  });
+  await commitSettingsPair(
+    paths,
+    {
+      generationLimitsVersion: CURRENT_GENERATION_LIMITS_VERSION,
+      ...settings,
+    },
+    secrets,
+  );
 }
 
 function attachRuntimeHardware(

@@ -61,19 +61,33 @@ const {
   ) => string[];
   resolvePreferredLlamaRuntime: (options?: Record<string, unknown>) => {
     id: string;
+    kind: string;
     dir: string;
     archive: string;
     url: string;
     backend: string;
-    archives: Array<{ sha256?: string }>;
+    archives: Array<{ archive: string; url: string; sha256?: string }>;
+    requiredFiles: Array<string | string[]>;
   };
 };
-const { resolveLlamaRuntimePreflightTimeoutMs } =
-  require("../src/main/runtime/simple-page-server-lifecycle.cjs") as {
-    resolveLlamaRuntimePreflightTimeoutMs: (
-      runtime?: Record<string, unknown>,
-      options?: Record<string, unknown>,
-    ) => number;
+const {
+  isIncompleteManagedLlamaRuntime,
+  resolveLlamaRuntimePreflightTimeoutMs,
+} = require("../src/main/runtime/model/server-preflight.cjs") as {
+  isIncompleteManagedLlamaRuntime: (
+    serverPath: string,
+    options?: Record<string, unknown>,
+  ) => boolean;
+  resolveLlamaRuntimePreflightTimeoutMs: (
+    runtime?: Record<string, unknown>,
+    options?: Record<string, unknown>,
+  ) => number;
+};
+const { collectInstalledRuntimeFileHashes } =
+  require("../src/main/runtime/model/llama-runtime-installed-integrity.cjs") as {
+    collectInstalledRuntimeFileHashes: (
+      runtimeDir: string,
+    ) => Record<string, string>;
   };
 
 describe("llama runtime path selection", () => {
@@ -267,6 +281,50 @@ describe("llama runtime path selection", () => {
       ]);
     } finally {
       rmSync(runtimeDir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a managed runtime whose executable changed after installation", () => {
+    const managedToolsDir = mkdtempSync(
+      join(tmpdir(), "mgt-managed-runtime-integrity-"),
+    );
+    const options = {
+      managedToolsDir,
+      llamaRuntimeProfile: "cuda12",
+      modelSource: "huggingface",
+      modelRepo: GEMMA_26B_MODEL_REPO,
+      modelFile: GEMMA_26B_MODEL_FILE_IQ3_S,
+    };
+    const runtime = resolvePreferredLlamaRuntime(options);
+    const runtimeDir = join(managedToolsDir, runtime.dir);
+    mkdirSync(runtimeDir, { recursive: true });
+    try {
+      for (const requirement of runtime.requiredFiles) {
+        const fileName = Array.isArray(requirement)
+          ? requirement[0]
+          : requirement;
+        writeFileSync(join(runtimeDir, fileName), `trusted:${fileName}`);
+      }
+      const serverName = Array.isArray(runtime.requiredFiles[0])
+        ? runtime.requiredFiles[0][0]
+        : runtime.requiredFiles[0];
+      const serverPath = join(runtimeDir, serverName);
+      writeFileSync(
+        join(runtimeDir, ".mgt-runtime.json"),
+        JSON.stringify({
+          id: runtime.id,
+          kind: runtime.kind,
+          dir: runtime.dir,
+          archives: runtime.archives,
+          installedFileSha256: collectInstalledRuntimeFileHashes(runtimeDir),
+        }),
+      );
+
+      expect(isIncompleteManagedLlamaRuntime(serverPath, options)).toBe(false);
+      writeFileSync(serverPath, "tampered after installation");
+      expect(isIncompleteManagedLlamaRuntime(serverPath, options)).toBe(true);
+    } finally {
+      rmSync(managedToolsDir, { recursive: true, force: true });
     }
   });
 
