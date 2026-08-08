@@ -11,10 +11,11 @@ import { resolveChapterStatus } from "./chapterRecords";
 import {
   findChapterLocation,
   readChapterFile,
-  touchWork,
-  writeChapterFile,
+  readWorkFile,
   type ChapterFile,
 } from "./libraryFiles";
+import { runLibraryTransaction } from "./libraryTransaction";
+import { stageChapterFile, stageWorkFile } from "./libraryTransactionFiles";
 import { resolveCompletionAfterBlockMutation } from "./translationCompletionInvalidation";
 
 const VALID_REVIEW_STATUSES = new Set<ReviewStatus>([
@@ -344,7 +345,13 @@ async function saveChangedReviewPages({
     status: resolveChapterStatus(pages),
     updatedAt: now,
   };
-  await writeChapterFile(nextChapter);
-  await touchWork(nextChapter.workId, now);
+  const work = await readWorkFile(nextChapter.workId);
+  if (!work) {
+    throw new Error("작품을 찾지 못했습니다.");
+  }
+  await runLibraryTransaction("review-import", async (transaction) => {
+    await stageChapterFile(transaction, nextChapter);
+    await stageWorkFile(transaction, { ...work, updatedAt: now });
+  });
   return hydrateChapter(nextChapter);
 }

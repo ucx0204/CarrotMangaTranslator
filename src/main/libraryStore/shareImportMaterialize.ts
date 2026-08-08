@@ -1,3 +1,4 @@
+/* eslint-disable max-lines, max-lines-per-function -- shared image staging, final-path metadata, and validation stay co-located for transaction auditability */
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
@@ -19,6 +20,7 @@ import {
 } from "./importImageRuntime";
 import {
   removeChapterDirectory,
+  validateChapterFilePaths,
   writeChapterFile,
   type ChapterFile,
 } from "./libraryFiles";
@@ -30,7 +32,7 @@ import {
   resolveSharedInpaintedOutputPath,
   resolveSharedPageOutputPath,
 } from "./shareImportImagePaths";
-import { isSupportedImagePath, unlinkIfExists } from "./storage";
+import { isSupportedImagePath, unlinkIfExists, writeJsonFile } from "./storage";
 import {
   MAX_SHARE_IMAGE_BYTES,
   normalizeShareRelativePath,
@@ -57,6 +59,9 @@ export async function materializeSharedChapter({
   imageRuntime = productionImportImageRuntime,
   writeChapter = writeChapterFile,
   removeChapter = removeChapterDirectory,
+  chapterId = randomUUID(),
+  writeChapterDirectory,
+  publishedChapterDirectory,
 }: {
   workId: string;
   packageChapter: ChapterFile;
@@ -68,12 +73,26 @@ export async function materializeSharedChapter({
   imageRuntime?: ImportImageRuntime;
   writeChapter?: typeof writeChapterFile;
   removeChapter?: typeof removeChapterDirectory;
+  chapterId?: string;
+  writeChapterDirectory?: string;
+  publishedChapterDirectory?: string;
 }): Promise<ChapterFile> {
   const now = new Date().toISOString();
-  const chapterId = randomUUID();
-  const chapterDir = join(worksRoot, workId, "chapters", chapterId);
-  const pagesDir = join(chapterDir, "pages");
-  const inpaintedDir = join(chapterDir, "inpainted");
+  const defaultChapterDir = join(worksRoot, workId, "chapters", chapterId);
+  const writeChapterDir = writeChapterDirectory ?? defaultChapterDir;
+  const publishedChapterDir = publishedChapterDirectory ?? defaultChapterDir;
+  if (
+    (writeChapterDirectory === undefined) !==
+    (publishedChapterDirectory === undefined)
+  ) {
+    throw new Error(
+      "공유 import staging/published chapter 경로를 함께 지정해야 합니다.",
+    );
+  }
+  const pagesDir = join(writeChapterDir, "pages");
+  const publishedPagesDir = join(publishedChapterDir, "pages");
+  const inpaintedDir = join(writeChapterDir, "inpainted");
+  const publishedInpaintedDir = join(publishedChapterDir, "inpainted");
   try {
     throwIfAborted(signal);
     await mkdir(pagesDir, { recursive: true });
@@ -83,7 +102,9 @@ export async function materializeSharedChapter({
       entries,
       archiveReader,
       pagesDir,
+      publishedPagesDir,
       inpaintedDir,
+      publishedInpaintedDir,
       now,
       imageRuntime,
       signal,
@@ -97,11 +118,20 @@ export async function materializeSharedChapter({
       now,
     });
     throwIfAborted(signal);
-    await writeChapter(chapter);
+    if (writeChapterDirectory) {
+      await writeJsonFile(
+        join(writeChapterDir, "chapter.json"),
+        validateChapterFilePaths(workId, chapterId, chapter),
+      );
+    } else {
+      await writeChapter(chapter);
+    }
     throwIfAborted(signal);
     return chapter;
   } catch (error) {
-    await removeChapter(workId, chapterId);
+    if (!writeChapterDirectory) {
+      await removeChapter(workId, chapterId);
+    }
     throw error;
   }
 }
@@ -111,7 +141,9 @@ async function materializeSharedPages({
   entries,
   archiveReader,
   pagesDir,
+  publishedPagesDir,
   inpaintedDir,
+  publishedInpaintedDir,
   now,
   imageRuntime,
   signal,
@@ -120,7 +152,9 @@ async function materializeSharedPages({
   entries: ReadonlyMap<string, ZipEntryLike>;
   archiveReader: ShareArchiveReader;
   pagesDir: string;
+  publishedPagesDir: string;
   inpaintedDir: string;
+  publishedInpaintedDir: string;
   now: string;
   imageRuntime: ImportImageRuntime;
   signal?: AbortSignal;
@@ -138,7 +172,9 @@ async function materializeSharedPages({
         packagePage,
         index,
         pagesDir,
+        publishedPagesDir,
         inpaintedDir,
+        publishedInpaintedDir,
         now,
         imageRuntime,
         signal,
@@ -155,7 +191,9 @@ async function materializeSharedPage({
   packagePage,
   index,
   pagesDir,
+  publishedPagesDir,
   inpaintedDir,
+  publishedInpaintedDir,
   now,
   imageRuntime,
   signal,
@@ -165,7 +203,9 @@ async function materializeSharedPage({
   packagePage: LibraryPageRecord;
   index: number;
   pagesDir: string;
+  publishedPagesDir: string;
   inpaintedDir: string;
+  publishedInpaintedDir: string;
   now: string;
   imageRuntime: ImportImageRuntime;
   signal?: AbortSignal;
@@ -195,6 +235,13 @@ async function materializeSharedPage({
     pageId,
     index,
   );
+  const publishedOutputPath = resolveSharedPageOutputPath(
+    publishedPagesDir,
+    originalPrepared.sourceExt,
+    originalPrepared.metadata.format,
+    pageId,
+    index,
+  );
   const originalMetadata = await writePackageImageEntry({
     prepared: originalPrepared,
     outputPath,
@@ -211,6 +258,7 @@ async function materializeSharedPage({
     pageId,
     index,
     inpaintedDir,
+    publishedInpaintedDir,
     expectedDimensions: originalMetadata,
     imageRuntime,
     signal,
@@ -219,8 +267,8 @@ async function materializeSharedPage({
   return buildMaterializedSharedPage({
     packagePage,
     pageId,
-    imagePath: outputPath,
-    inpaintedImagePath: inpainted?.path,
+    imagePath: publishedOutputPath,
+    inpaintedImagePath: inpainted?.publishedPath,
     width: originalMetadata.width,
     height: originalMetadata.height,
     now,
@@ -234,6 +282,7 @@ async function materializeSharedInpaintedImage({
   pageId,
   index,
   inpaintedDir,
+  publishedInpaintedDir,
   expectedDimensions,
   imageRuntime,
   signal,
@@ -244,10 +293,14 @@ async function materializeSharedInpaintedImage({
   pageId: string;
   index: number;
   inpaintedDir: string;
+  publishedInpaintedDir: string;
   expectedDimensions: Pick<ImageHeaderMetadata, "width" | "height">;
   imageRuntime: ImportImageRuntime;
   signal?: AbortSignal;
-}): Promise<{ path: string; metadata: ImageHeaderMetadata } | undefined> {
+}): Promise<
+  | { path: string; publishedPath: string; metadata: ImageHeaderMetadata }
+  | undefined
+> {
   throwIfAborted(signal);
   if (!packagePage.inpaintedImagePath) {
     return undefined;
@@ -278,6 +331,13 @@ async function materializeSharedInpaintedImage({
     pageId,
     index,
   );
+  const publishedOutputPath = resolveSharedInpaintedOutputPath(
+    publishedInpaintedDir,
+    prepared.sourceExt,
+    prepared.metadata.format,
+    pageId,
+    index,
+  );
 
   await mkdir(inpaintedDir, { recursive: true });
   throwIfAborted(signal);
@@ -295,7 +355,7 @@ async function materializeSharedInpaintedImage({
       page: packagePage.name,
     }),
   );
-  return { path: outputPath, metadata };
+  return { path: outputPath, publishedPath: publishedOutputPath, metadata };
 }
 
 async function preparePackageImageEntry({

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines-per-function -- inpainting metadata commit and post-commit cleanup ordering stay co-located for auditability */
 import { join, resolve } from "node:path";
 import type { ChapterSnapshot, MangaPage } from "../../shared/libraryTypes";
 import { hydrateChapter } from "./chapterSnapshots";
@@ -11,9 +12,10 @@ import {
   assertChapterImagePath,
   findChapterLocation,
   readChapterFile,
-  touchWork,
-  writeChapterFile,
+  readWorkFile,
 } from "./libraryFiles";
+import { runLibraryTransaction } from "./libraryTransaction";
+import { stageChapterFile, stageWorkFile } from "./libraryTransactionFiles";
 import { getWorksRoot } from "./libraryPaths";
 import { logLibraryWarning } from "./libraryLogger";
 import {
@@ -35,14 +37,12 @@ export type InpaintingArtifactCleanupOptions = {
 export type InpaintingMutationMaintenance = {
   collectManagedArtifacts: typeof collectManagedInpaintedArtifacts;
   removeUnreferencedArtifacts: typeof removeUnreferencedInpaintedArtifacts;
-  touchWork: typeof touchWork;
   warn: typeof logLibraryWarning;
 };
 
 const productionMaintenance: InpaintingMutationMaintenance = {
   collectManagedArtifacts: collectManagedInpaintedArtifacts,
   removeUnreferencedArtifacts: removeUnreferencedInpaintedArtifacts,
-  touchWork,
   warn: logLibraryWarning,
 };
 
@@ -151,14 +151,23 @@ async function updatePagesAfterInpaintingWithMaintenance(
   chapter.status = resolveChapterStatus(chapter.pages);
   chapter.updatedAt = now;
   const savedChapter = hydrateChapter(chapter);
-  await writeChapterFile(chapter);
+  const work = await readWorkFile(locator.workId);
+  if (!work) {
+    throw new Error("작품을 찾지 못했습니다.");
+  }
+  await runLibraryTransaction(
+    "update-pages-after-inpainting",
+    async (transaction) => {
+      await stageChapterFile(transaction, chapter);
+      await stageWorkFile(transaction, { ...work, updatedAt: now });
+    },
+  );
   await finishCommittedInpaintingMutation({
     chapterDir,
     chapterId,
     cleanupOptions,
     pages: chapter.pages,
     replacedInpaintedPaths,
-    touch: () => maintenance.touchWork(locator.workId, now),
     maintenance,
   });
   return savedChapter;
@@ -263,7 +272,17 @@ async function setPageInpaintingResultWithMaintenance(
   );
   chapter.updatedAt = now;
   const savedChapter = hydrateChapter(chapter);
-  await writeChapterFile(chapter);
+  const work = await readWorkFile(locator.workId);
+  if (!work) {
+    throw new Error("작품을 찾지 못했습니다.");
+  }
+  await runLibraryTransaction(
+    "set-page-inpainting-result",
+    async (transaction) => {
+      await stageChapterFile(transaction, chapter);
+      await stageWorkFile(transaction, { ...work, updatedAt: now });
+    },
+  );
   await finishCommittedInpaintingMutation({
     chapterDir: resolve(
       join(getWorksRoot(), locator.workId, "chapters", locator.chapterId),
@@ -272,17 +291,16 @@ async function setPageInpaintingResultWithMaintenance(
     cleanupOptions,
     pages: chapter.pages,
     replacedInpaintedPaths,
-    touch: () => maintenance.touchWork(locator.workId, now),
     maintenance,
   });
   return savedChapter;
 }
 
 /**
- * The chapter file is the commit point for an inpainting image mutation.
- * Metadata touching and artifact GC happen afterwards and must never turn an
- * already committed image path into an apparent failure: callers would then
- * discard the exact history transaction needed to undo that committed path.
+ * Chapter/work metadata are committed together by the durable library
+ * transaction. Artifact GC happens afterwards and must never turn an already
+ * committed image path into an apparent failure: callers would then discard
+ * the exact history transaction needed to undo that committed path.
  */
 async function finishCommittedInpaintingMutation({
   chapterDir,
@@ -290,7 +308,6 @@ async function finishCommittedInpaintingMutation({
   cleanupOptions,
   pages,
   replacedInpaintedPaths,
-  touch,
   maintenance,
 }: {
   chapterDir: string;
@@ -298,18 +315,8 @@ async function finishCommittedInpaintingMutation({
   cleanupOptions: InpaintingArtifactCleanupOptions;
   pages: Array<{ inpaintedImagePath?: string }>;
   replacedInpaintedPaths: string[];
-  touch: () => Promise<void>;
   maintenance: InpaintingMutationMaintenance;
 }): Promise<void> {
-  try {
-    await touch();
-  } catch (error) {
-    maintenance.warn("Failed to touch work after committing inpainting paths", {
-      chapterId,
-      error,
-    });
-  }
-
   try {
     await cleanupInpaintedArtifacts(
       chapterDir,

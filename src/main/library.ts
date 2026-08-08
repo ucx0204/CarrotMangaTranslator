@@ -1,5 +1,8 @@
 export { assertLibraryImagePath } from "./libraryStore/libraryFiles";
 export { getLibraryRoot } from "./libraryStore/libraryPaths";
+export { libraryMutationCoordinator } from "./libraryStore/libraryMutationCoordinator";
+export { recoverLibraryTransactions } from "./libraryStore/libraryTransactionRecovery";
+export { recoverLegacyShareImportTrash } from "./libraryStore/legacyShareTrashRecovery";
 export type { ChapterRunPaths } from "./libraryStore/libraryFiles";
 export type { LibraryCleanupResult } from "./libraryStore/libraryCleanup";
 export {

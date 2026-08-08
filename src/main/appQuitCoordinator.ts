@@ -6,6 +6,7 @@ type AppQuitCleanupStage =
   | "startup-maintenance-cancel"
   | "active-job-cleanup"
   | "managed-operation-cleanup"
+  | "library-mutation-cleanup"
   | "runtime-resource-disposal"
   | "inpainting-history-release"
   | "electron-quit";

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines-per-function -- quit cleanup stage ordering and release gates stay co-located for auditability */
 import type { AppOperationRegistry } from "./appOperationRegistry";
 import type { AppQuitCleanupProgress } from "./appQuitCoordinator";
 import type { ActiveJobStore } from "./jobs/activeJob";
@@ -24,6 +25,7 @@ export async function runAppQuitCleanup({
   cancelStartupMaintenance,
   disposeInpainting,
   disposeTranslation,
+  waitForLibraryMutations,
   releaseInpaintingHistory,
   updateProgress,
   logError,
@@ -34,6 +36,7 @@ export async function runAppQuitCleanup({
   cancelStartupMaintenance: () => void;
   disposeInpainting: () => Promise<unknown>;
   disposeTranslation: () => Promise<unknown>;
+  waitForLibraryMutations: () => Promise<void>;
   releaseInpaintingHistory: () => Promise<unknown>;
   updateProgress: (progress: AppQuitCleanupProgress) => void;
   logError: AppQuitCleanupLogger;
@@ -74,6 +77,12 @@ export async function runAppQuitCleanup({
   }
 
   await cleanupManagedOperation(operations, updateProgress);
+
+  updateProgress({
+    stage: "library-mutation-cleanup",
+    ...(job ? { jobId: job.id, jobKind: job.kind } : {}),
+  });
+  await waitForLibraryMutations();
 
   updateProgress({
     stage: "runtime-resource-disposal",

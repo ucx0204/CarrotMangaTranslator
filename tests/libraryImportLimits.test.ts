@@ -73,7 +73,7 @@ describe("library import resource limits", () => {
       }),
     ).rejects.toThrow(/이미지 파일/);
 
-    expect(existsSync(join(rootDir, "index.json"))).toBe(true);
+    expect(existsSync(join(rootDir, "index.json"))).toBe(false);
     expect((await library.listLibrary()).works).toHaveLength(0);
   });
 

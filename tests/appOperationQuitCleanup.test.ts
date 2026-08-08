@@ -32,6 +32,7 @@ describe("managed operation app quit cleanup", () => {
       cancelStartupMaintenance: vi.fn(),
       disposeInpainting,
       disposeTranslation,
+      waitForLibraryMutations: vi.fn(async () => undefined),
       releaseInpaintingHistory,
       updateProgress: (next) => progress.push(next),
       logError: vi.fn(),
@@ -53,6 +54,7 @@ describe("managed operation app quit cleanup", () => {
         operationId: "library-import-preview-id",
         operationKind: "library-import",
       },
+      { stage: "library-mutation-cleanup" },
       { stage: "runtime-resource-disposal" },
       { stage: "inpainting-history-release" },
     ]);

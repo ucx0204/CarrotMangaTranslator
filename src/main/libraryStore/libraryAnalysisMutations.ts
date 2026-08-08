@@ -3,10 +3,11 @@ import { resolveChapterStatus } from "./chapterRecords";
 import {
   findChapterLocation,
   readChapterFile,
-  touchWork,
-  writeChapterFile,
+  readWorkFile,
   type ChapterFile,
 } from "./libraryFiles";
+import { runLibraryTransaction } from "./libraryTransaction";
+import { stageChapterFile, stageWorkFile } from "./libraryTransactionFiles";
 import { resolveCompletionAfterBlockMutation } from "./translationCompletionInvalidation";
 
 type PageBlocks = ChapterFile["pages"][number]["blocks"];
@@ -53,7 +54,16 @@ export async function appendAnalyzedPageBlocksUnlocked(
     status: resolveChapterStatus(pages),
     updatedAt: now,
   };
-  await writeChapterFile(nextChapter);
-  await touchWork(locator.workId, now);
+  const work = await readWorkFile(locator.workId);
+  if (!work) {
+    throw new Error("작품을 찾지 못했습니다.");
+  }
+  await runLibraryTransaction(
+    "append-analyzed-page-blocks",
+    async (transaction) => {
+      await stageChapterFile(transaction, nextChapter);
+      await stageWorkFile(transaction, { ...work, updatedAt: now });
+    },
+  );
   return hydrateChapter(nextChapter);
 }

@@ -386,7 +386,7 @@ describe("work share packages", () => {
     expect(chapterDirs).not.toContain(".trash");
   });
 
-  it("restores omitted existing chapter directories if a share merge fails after trashing them", async () => {
+  it("does not route new share merges through the legacy chapter trash path", async () => {
     const rootDir = await createTempLibrary();
     const sharePath = join(rootDir, "merge-rollback.mgtshare");
     let corruptedAfterTrash = false;
@@ -444,43 +444,30 @@ describe("work share packages", () => {
       outputPath: sharePath,
     });
 
-    await expect(
-      library.importWorkShare({
-        packagePath: sharePath,
-        target: { mode: "existing", workId: "work-1" },
-        entries: [
-          { source: "existing", chapterId: "chapter-b", title: "기존 유지" },
-          { source: "package", packageChapterId: "chapter-a", title: "교체본" },
-        ],
-      }),
-    ).rejects.toThrow(/페이지 이미지 경로/);
+    const result = await library.importWorkShare({
+      packagePath: sharePath,
+      target: { mode: "existing", workId: "work-1" },
+      entries: [
+        { source: "existing", chapterId: "chapter-b", title: "기존 유지" },
+        { source: "package", packageChapterId: "chapter-a", title: "교체본" },
+      ],
+    });
 
-    expect(corruptedAfterTrash).toBe(true);
+    expect(corruptedAfterTrash).toBe(false);
     const index = await library.listLibrary();
     const work = index.works.find((candidate) => candidate.id === "work-1");
-    expect(work?.chapterOrder).toEqual(["chapter-a", "chapter-b"]);
+    expect(work?.chapterOrder).toEqual(result.chapterIds);
     expect(work?.chapters.map((chapter) => chapter.title)).toEqual([
-      "1화",
-      "2화",
+      "기존 유지",
+      "교체본",
     ]);
 
     const chapterDirs = await readdir(
       join(rootDir, "works", "work-1", "chapters"),
     );
-    expect(chapterDirs.sort()).toEqual(["chapter-a", "chapter-b"]);
-    expect(
-      existsSync(
-        join(
-          rootDir,
-          "works",
-          "work-1",
-          "chapters",
-          "chapter-a",
-          "pages",
-          "001-page-a.png",
-        ),
-      ),
-    ).toBe(true);
+    expect(chapterDirs).not.toContain(".trash");
+    expect(chapterDirs).not.toContain("chapter-a");
+    expect(chapterDirs.sort()).toEqual([...result.chapterIds].sort());
   });
 
   it("rejects traversal paths in share zips", async () => {

@@ -23,6 +23,11 @@ import {
   type ZipArchiveReader,
 } from "./zipSafety";
 
+export type ImportPageMaterializationTarget = {
+  writePagesDirectory: string;
+  publishedPagesDirectory: string;
+};
+
 type PreparedImportPageImage =
   | {
       kind: "file";
@@ -38,13 +43,20 @@ type PreparedImportPageImage =
 
 export async function materializePageRecord(
   pageDraft: ImportPageDraft,
-  pagesDir: string,
+  target: ImportPageMaterializationTarget | string,
   index: number,
   zipReaderCache: Map<string, ZipArchiveReader>,
   imageRuntime: ImportImageRuntime,
   signal?: AbortSignal,
 ): Promise<LibraryPageRecord> {
   const pageId = randomUUID();
+  const resolvedTarget: ImportPageMaterializationTarget =
+    typeof target === "string"
+      ? {
+          writePagesDirectory: target,
+          publishedPagesDirectory: target,
+        }
+      : target;
   throwIfAborted(signal);
   const preparedImage = await prepareImportedPageImage(
     pageDraft,
@@ -52,20 +64,27 @@ export async function materializePageRecord(
     signal,
   );
   throwIfAborted(signal);
+  const targetExt = resolveImportOutputExt(
+    preparedImage.sourceExt,
+    preparedImage.metadata.format,
+  );
   const outputPath = resolveImportOutputPath(
-    pagesDir,
+    resolvedTarget.writePagesDirectory,
     index,
     pageId,
-    resolveImportOutputExt(
-      preparedImage.sourceExt,
-      preparedImage.metadata.format,
-    ),
+    targetExt,
+  );
+  const publishedPath = resolveImportOutputPath(
+    resolvedTarget.publishedPagesDirectory,
+    index,
+    pageId,
+    targetExt,
   );
 
   try {
     const finalMetadata = await writeImportedPageImage(
       pageDraft,
-      pagesDir,
+      resolvedTarget.writePagesDirectory,
       pageId,
       preparedImage,
       outputPath,
@@ -77,7 +96,7 @@ export async function materializePageRecord(
     return {
       id: pageId,
       name: pageDraft.name,
-      imagePath: outputPath,
+      imagePath: publishedPath,
       width: finalMetadata.width,
       height: finalMetadata.height,
       blocks: [],

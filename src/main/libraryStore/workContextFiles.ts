@@ -16,6 +16,11 @@ import {
 } from "./libraryFiles";
 import { getWorksRoot } from "./libraryPaths";
 import { readJsonFile, writeJsonFile } from "./storage";
+import { runLibraryTransaction } from "./libraryTransaction";
+import {
+  stageStoryMemoryFile,
+  stageStyleGuideFile,
+} from "./libraryTransactionFiles";
 import { reconcilePageStoryMemories } from "./storyMemoryReconcile";
 import { reorderRecords } from "./chapterRecords";
 
@@ -156,21 +161,30 @@ export async function resetWorkContextForChapter(
   }
 
   const currentGuide = await readWorkStyleGuide(locator.workId);
-  const styleGuide = await writeWorkStyleGuide({
-    ...currentGuide,
-    glossary: [],
-    characters: [],
-  });
+  const now = new Date().toISOString();
+  const styleGuide = parseStoredContext(
+    WorkStyleGuideSchema,
+    {
+      ...currentGuide,
+      glossary: [],
+      characters: [],
+      updatedAt: now,
+    },
+    "style-guide.json",
+  );
 
-  let requestedStoryMemory: ChapterStoryMemory | null = null;
-  for (const workChapterId of work.chapterOrder) {
-    const storyMemory = await writeChapterStoryMemory(
-      createDefaultChapterStoryMemory(locator.workId, workChapterId),
-    );
-    if (workChapterId === chapterId) {
-      requestedStoryMemory = storyMemory;
+  const resetMemories = work.chapterOrder.map((workChapterId) => ({
+    ...createDefaultChapterStoryMemory(locator.workId, workChapterId),
+    updatedAt: now,
+  }));
+  const requestedStoryMemory =
+    resetMemories.find((memory) => memory.chapterId === chapterId) ?? null;
+  await runLibraryTransaction("reset-work-context", async (transaction) => {
+    await stageStyleGuideFile(transaction, styleGuide);
+    for (const storyMemory of resetMemories) {
+      await stageStoryMemoryFile(transaction, storyMemory);
     }
-  }
+  });
   if (!requestedStoryMemory) {
     throw new Error("현재 화의 스토리 메모리를 초기화하지 못했습니다.");
   }
@@ -181,19 +195,19 @@ export async function resetWorkContextForChapter(
   };
 }
 
-export async function syncChapterStoryMemoryPages(
-  chapterId: string,
+export function resolveReconciledStoryMemory(
+  memory: ChapterStoryMemory,
   pages: Array<{ id: string; name: string }>,
-): Promise<void> {
-  const memory = await readChapterStoryMemory(chapterId);
+  updatedAt = new Date().toISOString(),
+): ChapterStoryMemory {
   const reconciledPages = reconcilePageStoryMemories(memory.pages, pages);
   if (
     reconciledPages.length === memory.pages.length &&
     reconciledPages.every((page, index) => page === memory.pages[index])
   ) {
-    return;
+    return memory;
   }
-  await writeChapterStoryMemory({ ...memory, pages: reconciledPages });
+  return { ...memory, pages: reconciledPages, updatedAt };
 }
 
 export async function resolveWorkContextForChapter(chapterId: string): Promise<{

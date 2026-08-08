@@ -36,8 +36,7 @@ describe("batch page block saves", () => {
     expect(lockCalls).toBe(1);
     expect(storage.findChapterLocation).toHaveBeenCalledOnce();
     expect(storage.readChapterFile).toHaveBeenCalledOnce();
-    expect(storage.writeChapterFile).toHaveBeenCalledOnce();
-    expect(storage.touchWork).toHaveBeenCalledOnce();
+    expect(storage.commitChapterAndWork).toHaveBeenCalledOnce();
     expect(saved.pages.map(firstTranslatedText)).toEqual([
       "첫 페이지 수정",
       "둘째 페이지 수정",
@@ -71,26 +70,24 @@ describe("batch page block saves", () => {
       ),
     ).rejects.toThrow(/다른 작업으로 갱신/);
 
-    expect(storage.writeChapterFile).not.toHaveBeenCalled();
-    expect(storage.touchWork).not.toHaveBeenCalled();
+    expect(storage.commitChapterAndWork).not.toHaveBeenCalled();
     expect(storage.readStoredChapter()).toEqual(before);
     expect(storage.logWarning).toHaveBeenCalledOnce();
   });
 
-  it("does not touch work metadata when the single chapter write fails", async () => {
+  it("keeps the stored chapter unchanged when the transactional chapter/work commit fails", async () => {
     const chapter = makeChapter();
     const before = structuredClone(chapter);
     const storage = createStorageRuntime(chapter);
     const failure = new Error("disk full");
-    storage.writeChapterFile.mockRejectedValueOnce(failure);
+    storage.commitChapterAndWork.mockRejectedValueOnce(failure);
     const savePagesBlocks = createSavePagesBlocksMutation(storage.runtime);
 
     await expect(
       savePagesBlocks(makeRequest([updateFor("page-a", "unsaved")])),
     ).rejects.toBe(failure);
 
-    expect(storage.writeChapterFile).toHaveBeenCalledOnce();
-    expect(storage.touchWork).not.toHaveBeenCalled();
+    expect(storage.commitChapterAndWork).toHaveBeenCalledOnce();
     expect(storage.readStoredChapter()).toEqual(before);
   });
 
@@ -133,14 +130,11 @@ function createStorageRuntime(initialChapter: LibraryChapter) {
   const readChapterFile = vi.fn<
     SavePagesBlocksMutationRuntime["readChapterFile"]
   >(async () => storedChapter);
-  const writeChapterFile = vi.fn<
-    SavePagesBlocksMutationRuntime["writeChapterFile"]
+  const commitChapterAndWork = vi.fn<
+    SavePagesBlocksMutationRuntime["commitChapterAndWork"]
   >(async (chapter) => {
     storedChapter = chapter;
   });
-  const touchWork = vi.fn<SavePagesBlocksMutationRuntime["touchWork"]>(
-    async () => undefined,
-  );
   const logWarning = vi.fn<SavePagesBlocksMutationRuntime["logWarning"]>();
   return {
     runtime: {
@@ -148,15 +142,13 @@ function createStorageRuntime(initialChapter: LibraryChapter) {
       logWarning,
       now: () => SAVE_TIME,
       readChapterFile,
-      touchWork,
-      writeChapterFile,
+      commitChapterAndWork,
     },
     findChapterLocation,
     logWarning,
     readChapterFile,
     readStoredChapter: () => storedChapter,
-    touchWork,
-    writeChapterFile,
+    commitChapterAndWork,
   };
 }
 

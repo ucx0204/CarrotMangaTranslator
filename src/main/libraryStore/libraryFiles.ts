@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdir, readdir, rm } from "node:fs/promises";
+import { mkdir, rm } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import {
   LibraryChapterFileSchema,
@@ -140,18 +140,6 @@ export async function writeWorkFile(work: WorkFile): Promise<void> {
   await writeJsonFile(getWorkFilePath(checkedWork.id), checkedWork);
 }
 
-export async function touchWork(
-  workId: string,
-  updatedAt: string,
-): Promise<void> {
-  const work = await readWorkFile(workId);
-  if (!work) {
-    return;
-  }
-  work.updatedAt = updatedAt;
-  await writeWorkFile(work);
-}
-
 export async function readChapterFile(
   workId: string,
   chapterId: string,
@@ -212,24 +200,15 @@ export async function ensureLibraryStructure(): Promise<void> {
   await mkdir(getWorksRoot(), { recursive: true });
 }
 
-export async function createWork(title: string): Promise<LibraryWork> {
+export function createUnpublishedWork(title: string): LibraryWork {
   const now = new Date().toISOString();
-  const work: LibraryWork = {
+  return {
     id: randomUUID(),
     title: sanitizeTitle(title, getDefaultWorkTitle()),
     chapterOrder: [],
     createdAt: now,
     updatedAt: now,
   };
-  const index = await readIndexFile();
-  await writeWorkFile(work);
-  try {
-    await writeIndexFile({ workOrder: [...index.workOrder, work.id] });
-  } catch (error) {
-    await removeWorkDirectory(work.id);
-    throw error;
-  }
-  return work;
 }
 
 export async function ensureExistingWork(workId: string): Promise<LibraryWork> {
@@ -267,18 +246,6 @@ export async function makeUniqueChapterTitle(
   return makeUniqueTitleInList(desired, used);
 }
 
-export async function removeWorkFromIndexAndDisk(
-  workId: string,
-): Promise<void> {
-  const index = await readIndexFile();
-  if (index.workOrder.includes(workId)) {
-    await writeIndexFile({
-      workOrder: index.workOrder.filter((id) => id !== workId),
-    });
-  }
-  await removeWorkDirectory(workId);
-}
-
 export async function removeWorkDirectory(workId: string): Promise<void> {
   const worksRoot = resolve(getWorksRoot());
   const workDir = resolve(join(worksRoot, workId));
@@ -304,30 +271,7 @@ export async function removeChapterDirectory(
   }
 }
 
-export async function removePageArtifacts(
-  workId: string,
-  chapterId: string,
-  pageId: string,
-): Promise<void> {
-  const runsRoot = join(getWorksRoot(), workId, "chapters", chapterId, "runs");
-  if (!existsSync(runsRoot)) {
-    return;
-  }
-
-  const runs = await readdir(runsRoot, { withFileTypes: true });
-  for (const run of runs) {
-    if (!run.isDirectory()) {
-      continue;
-    }
-    const target = join(runsRoot, run.name, "pages", pageId);
-    if (!existsSync(target)) {
-      continue;
-    }
-    await rm(target, { recursive: true, force: true });
-  }
-}
-
-function validateChapterFilePaths(
+export function validateChapterFilePaths(
   workId: string,
   chapterId: string,
   chapter: ChapterFile,
@@ -379,12 +323,12 @@ function validateChapterFilePaths(
   };
 }
 
-function validateIndexFile(index: StoredIndexFile): StoredIndexFile {
+export function validateIndexFile(index: StoredIndexFile): StoredIndexFile {
   assertUniqueIds(index.workOrder, "작품 순서에 중복된 작품 ID가 있습니다.");
   return index;
 }
 
-function validateWorkFile(workId: string, work: WorkFile): WorkFile {
+export function validateWorkFile(workId: string, work: WorkFile): WorkFile {
   assertSafeStoreId(workId, "작품 ID가 올바르지 않습니다.");
   if (work.id !== workId) {
     throw new Error("작품 정보의 보관함 위치가 올바르지 않습니다.");

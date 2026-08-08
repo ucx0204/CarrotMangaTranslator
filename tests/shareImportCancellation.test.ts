@@ -19,7 +19,7 @@ describe("share import cancellation boundaries", () => {
     }
   });
 
-  it("rolls back when cancellation arrives after an omitted chapter moves to trash", async () => {
+  it("lets the commit win when cancellation arrives after an omitted chapter enters transaction trash", async () => {
     const rootDir = await createTempLibrary();
     const sharePath = join(rootDir, "abort-rollback.mgtshare");
     const controller = new AbortController();
@@ -36,11 +36,13 @@ describe("share import cancellation boundaries", () => {
           newPath: Parameters<typeof actual.rename>[1],
         ) => {
           await actual.rename(oldPath, newPath);
+          const sourcePath = String(oldPath).replace(/\\/g, "/");
           const targetPath = String(newPath).replace(/\\/g, "/");
           if (
             !abortedAfterTrashMove &&
-            targetPath.includes("/chapters/.trash/") &&
-            targetPath.endsWith("/chapter-a")
+            sourcePath.endsWith("/chapters/chapter-a") &&
+            targetPath.includes("/.transactions/active/") &&
+            targetPath.includes("/trash/")
           ) {
             abortedAfterTrashMove = true;
             controller.abort(
@@ -54,23 +56,24 @@ describe("share import cancellation boundaries", () => {
     await seedLibrary(rootDir);
     await exportChapterA(library, sharePath);
 
-    await expect(
-      library.importWorkShare(mergeRequest(sharePath), controller.signal),
-    ).rejects.toMatchObject({ name: "AbortError" });
+    const result = await library.importWorkShare(
+      mergeRequest(sharePath),
+      controller.signal,
+    );
 
     expect(abortedAfterTrashMove).toBe(true);
+    expect(controller.signal.aborted).toBe(true);
     const work = (await library.listLibrary()).works.find(
       (candidate) => candidate.id === "work-1",
     );
-    expect(work?.chapterOrder).toEqual(["chapter-a", "chapter-b"]);
+    expect(work?.chapterOrder).toEqual(result.chapterIds);
     expect(work?.chapters.map((chapter) => chapter.title)).toEqual([
-      "1화",
-      "2화",
+      "기존 유지",
+      "교체본",
     ]);
-    const chapterDirs = await readdir(
-      join(rootDir, "works", "work-1", "chapters"),
-    );
-    expect(chapterDirs.sort()).toEqual(["chapter-a", "chapter-b"]);
+    expect(
+      existsSync(join(rootDir, "works", "work-1", "chapters", "chapter-a")),
+    ).toBe(false);
   });
 
   it("lets the commit win when cancellation arrives during irreversible discard", async () => {
@@ -92,7 +95,7 @@ describe("share import cancellation boundaries", () => {
           const targetPath = String(path).replace(/\\/g, "/");
           if (
             !abortedDuringDiscard &&
-            targetPath.includes("/chapters/.trash/")
+            targetPath.includes("/.transactions/committed/")
           ) {
             abortedDuringDiscard = true;
             controller.abort(

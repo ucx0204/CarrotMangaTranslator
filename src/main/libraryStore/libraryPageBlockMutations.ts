@@ -14,9 +14,10 @@ import { hydrateChapter } from "./chapterSnapshots";
 import {
   findChapterLocation,
   readChapterFile,
-  touchWork,
-  writeChapterFile,
+  readWorkFile,
 } from "./libraryFiles";
+import { runLibraryTransaction } from "./libraryTransaction";
+import { stageChapterFile, stageWorkFile } from "./libraryTransactionFiles";
 import { logLibraryWarning } from "./libraryLogger";
 import { resolveCompletionAfterBlockMutation } from "./translationCompletionInvalidation";
 
@@ -25,8 +26,10 @@ export type SavePagesBlocksMutationRuntime = {
   logWarning: typeof logLibraryWarning;
   now: () => string;
   readChapterFile: typeof readChapterFile;
-  touchWork: typeof touchWork;
-  writeChapterFile: typeof writeChapterFile;
+  commitChapterAndWork: (
+    chapter: LibraryChapter,
+    updatedAt: string,
+  ) => Promise<void>;
 };
 
 const productionRuntime: SavePagesBlocksMutationRuntime = {
@@ -34,8 +37,16 @@ const productionRuntime: SavePagesBlocksMutationRuntime = {
   logWarning: logLibraryWarning,
   now: () => new Date().toISOString(),
   readChapterFile,
-  touchWork,
-  writeChapterFile,
+  commitChapterAndWork: async (chapter, updatedAt) => {
+    const work = await readWorkFile(chapter.workId);
+    if (!work) {
+      throw new Error("작품을 찾지 못했습니다.");
+    }
+    await runLibraryTransaction("save-page-blocks", async (transaction) => {
+      await stageChapterFile(transaction, chapter);
+      await stageWorkFile(transaction, { ...work, updatedAt });
+    });
+  },
 };
 
 export function createSavePagesBlocksMutation(
@@ -60,8 +71,7 @@ export function createSavePagesBlocksMutation(
     const updates = resolvePageUpdates(chapter, request, runtime.logWarning);
     const now = runtime.now();
     const nextChapter = applyPageUpdates(chapter, updates, now);
-    await runtime.writeChapterFile(nextChapter);
-    await runtime.touchWork(locator.workId, now);
+    await runtime.commitChapterAndWork(nextChapter, now);
     return hydrateChapter(nextChapter);
   };
 }

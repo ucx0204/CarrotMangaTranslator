@@ -1,14 +1,21 @@
 import { AsyncReaderWriterLock } from "../libraryStore/mutex";
+import {
+  assertLibraryReadable,
+  libraryMutationCoordinator,
+} from "../libraryStore/libraryMutationCoordinator";
+import { withLibraryPublicationRead } from "../libraryStore/libraryPublicationLock";
 
 const libraryLock = new AsyncReaderWriterLock();
 
 export function withLibraryMutation<T>(
   operation: () => Promise<T>,
 ): Promise<T> {
-  return libraryLock.runWrite(operation);
+  const lease = libraryMutationCoordinator.begin();
+  return libraryLock.runWrite(operation).finally(lease.finish);
 }
 
 export function withLibraryRead<T>(operation: () => Promise<T>): Promise<T> {
+  assertLibraryReadable();
   return libraryLock.runRead(operation);
 }
 
@@ -24,5 +31,6 @@ export function withLibraryRead<T>(operation: () => Promise<T>): Promise<T> {
 export function withLibraryNavigationRead<T>(
   operation: () => Promise<T>,
 ): Promise<T> {
-  return operation();
+  assertLibraryReadable();
+  return withLibraryPublicationRead(operation);
 }

@@ -963,7 +963,6 @@ describe("InpaintingRevisionStore", () => {
       await loadModules(rootDir, {
         collectManagedArtifacts: vi.fn(async () => [paths.beforeA]),
         removeUnreferencedArtifacts: removeArtifacts,
-        touchWork: vi.fn(async () => {}),
         warn,
       });
     const store = new InpaintingRevisionStore();

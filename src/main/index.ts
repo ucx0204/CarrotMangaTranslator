@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- startup recovery, IPC publication, window creation, and quit ordering stay co-located for auditability */
 import { app, BrowserWindow, dialog, shell } from "electron";
 import { ensureWritableAppDirectories, getAppPaths } from "./appPaths";
 import { AppActivityGate } from "./appActivityGate";
@@ -16,7 +17,13 @@ import { registerIpc } from "./ipc/registerIpc";
 import { ActiveJobStore } from "./jobs/activeJob";
 import { disposeCachedInpaintingEngines } from "./inpainting/inpaintingEnginePool";
 import { InpaintingRevisionStore } from "./inpainting/inpaintingRevisionStore";
-import { cleanupLibraryOrphans, getLibraryRoot } from "./library";
+import {
+  cleanupLibraryOrphans,
+  getLibraryRoot,
+  libraryMutationCoordinator,
+  recoverLegacyShareImportTrash,
+  recoverLibraryTransactions,
+} from "./library";
 import {
   getLogDirectory,
   getLogPath,
@@ -125,6 +132,25 @@ void app
       appPaths.settingsPath,
       process.env.MANGA_TRANSLATOR_UI_LOCALE,
     );
+    const transactionRecovery = await recoverLibraryTransactions();
+    if (
+      transactionRecovery.creatingRemoved > 0 ||
+      transactionRecovery.activeRolledBack > 0 ||
+      transactionRecovery.committedCleaned > 0 ||
+      transactionRecovery.committedCleanupWarnings > 0
+    ) {
+      logInfo("Library transaction recovery finished", transactionRecovery);
+    }
+    const legacyTrashRecovery = await recoverLegacyShareImportTrash();
+    if (
+      legacyTrashRecovery.chaptersRestored > 0 ||
+      legacyTrashRecovery.chaptersDiscarded > 0
+    ) {
+      logInfo(
+        "Legacy share import trash recovery finished",
+        legacyTrashRecovery,
+      );
+    }
     registerImageProtocolHandler();
     if (await runMacPackageSmokeExit(appPaths)) {
       return;
@@ -180,6 +206,7 @@ app.on("before-quit", (event) => {
   event.preventDefault();
   quitCleanupStarted = true;
   appActivityGate.closeToNewActivities();
+  libraryMutationCoordinator.closeToNewMutations();
 
   const attempt = beginBoundedAppQuit({
     runCleanup: finishAppQuitCleanup,
@@ -235,6 +262,7 @@ async function finishAppQuitCleanup(
     },
     disposeInpainting: () => disposeCachedInpaintingEngines("app-quit"),
     disposeTranslation: () => disposeTranslationRuntimeResources("app-quit"),
+    waitForLibraryMutations: () => libraryMutationCoordinator.waitForIdle(),
     releaseInpaintingHistory: () => inpaintingRevisionStore.releaseAll(),
     updateProgress,
     logError,

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- import staging and publication sequencing stay co-located for transaction auditability */
 import { randomUUID } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import { basename, extname, join, relative } from "node:path";
@@ -27,15 +28,20 @@ import {
 } from "./importSources";
 import {
   collectUsedChapterTitles,
-  createWork,
+  createUnpublishedWork,
   ensureExistingWork,
-  removeChapterDirectory,
-  removeWorkFromIndexAndDisk,
-  writeChapterFile,
-  writeWorkFile,
+  readIndexFile,
+  validateChapterFilePaths,
+  validateWorkFile,
   type WorkFile,
 } from "./libraryFiles";
 import { getWorksRoot } from "./libraryPaths";
+import {
+  runLibraryTransaction,
+  type LibraryTransaction,
+} from "./libraryTransaction";
+import { stageIndexFile, stageWorkFile } from "./libraryTransactionFiles";
+import { writeJsonFile } from "./storage";
 import { makeUniqueTitleInList, sanitizeTitle } from "./titles";
 import type { ZipArchiveReader } from "./zipSafety";
 import { hydrateChapter } from "./chapterSnapshots";
@@ -188,83 +194,187 @@ export async function createImportFromPreviewUnlocked(
     throw new Error(tMain("import.errors.noChapterToCreate"));
   }
 
-  let target: WorkFile;
-  let createdWorkId: string | null = null;
-  const createdChapters: LibraryChapter[] = [];
-
-  try {
+  throwIfAborted(signal);
+  return runLibraryTransaction("import", async (transaction) => {
     throwIfAborted(signal);
-    target =
-      request.target.mode === "new"
-        ? await createWork(
-            request.target.title || request.preview.suggestedWorkTitle,
-          )
-        : await ensureExistingWork(request.target.workId);
-    if (request.target.mode === "new") {
-      createdWorkId = target.id;
-    }
-    throwIfAborted(signal);
-
-    await materializeSelectedDrafts(
-      target.id,
-      selectedDrafts,
-      request.selections,
-      createdChapters,
-      imageRuntime,
-      signal,
-    );
-    throwIfAborted(signal);
-    if (createdChapters.length === 0) {
-      throw new Error(tMain("import.errors.noChapterToCreate"));
-    }
-
-    const latestWork = await ensureExistingWork(target.id);
-    throwIfAborted(signal);
-    latestWork.chapterOrder = [
-      ...latestWork.chapterOrder,
-      ...createdChapters.map((chapter) => chapter.id),
-    ];
-    latestWork.updatedAt = new Date().toISOString();
-    throwIfAborted(signal);
-    await writeWorkFile(latestWork);
-
-    const openedChapter = createdChapters[0];
-    if (!openedChapter) {
-      throw new Error(tMain("import.errors.createdChapterOpen"));
-    }
-
-    return {
-      workId: target.id,
-      chapterIds: createdChapters.map((chapter) => chapter.id),
-      openedChapter: hydrateChapter(openedChapter),
-    };
-  } catch (error) {
-    for (const chapter of createdChapters) {
-      await removeChapterDirectory(chapter.workId, chapter.id);
-    }
-    if (createdWorkId) {
-      await removeWorkFromIndexAndDisk(createdWorkId);
-    }
-    throw error;
-  }
+    return request.target.mode === "new"
+      ? importIntoNewWork(
+          transaction,
+          request,
+          selectedDrafts,
+          imageRuntime,
+          signal,
+        )
+      : importIntoExistingWork(
+          transaction,
+          request.target.workId,
+          request,
+          selectedDrafts,
+          imageRuntime,
+          signal,
+        );
+  });
 }
 
-async function materializeSelectedDrafts(
-  workId: string,
+async function importIntoNewWork(
+  transaction: LibraryTransaction,
+  request: CreateImportFromPreviewRequest,
   selectedDrafts: ImportChapterDraft[],
-  requestSelections: CreateImportFromPreviewRequest["selections"],
-  createdChapters: LibraryChapter[],
   imageRuntime: ImportImageRuntime,
   signal?: AbortSignal,
-): Promise<void> {
+): Promise<CreateImportResult> {
+  if (request.target.mode !== "new") {
+    throw new Error("새 작품 import target이 아닙니다.");
+  }
+  const target = createUnpublishedWork(
+    request.target.title || request.preview.suggestedWorkTitle,
+  );
+  const index = await readIndexFile();
+  const finalWorkDirectory = join(getWorksRoot(), target.id);
+  const published =
+    await transaction.createPublishedDirectory(finalWorkDirectory);
+  throwIfAborted(signal);
+
+  const createdChapters = await materializeSelectedDrafts({
+    workId: target.id,
+    selectedDrafts,
+    requestSelections: request.selections,
+    imageRuntime,
+    signal,
+    usedTitles: new Set<string>(),
+    prepareChapterDirectories: async (chapterId) => {
+      const writeChapterDirectory = join(
+        published.stagingDirectory,
+        "chapters",
+        chapterId,
+      );
+      const publishedChapterDirectory = join(
+        published.finalDirectory,
+        "chapters",
+        chapterId,
+      );
+      await mkdir(writeChapterDirectory, { recursive: true });
+      return { writeChapterDirectory, publishedChapterDirectory };
+    },
+  });
+  if (createdChapters.length === 0) {
+    throw new Error(tMain("import.errors.noChapterToCreate"));
+  }
+
+  const now = new Date().toISOString();
+  const nextWork: WorkFile = {
+    ...target,
+    chapterOrder: createdChapters.map((chapter) => chapter.id),
+    updatedAt: now,
+  };
+  await writeJsonFile(
+    join(published.stagingDirectory, "work.json"),
+    validateWorkFile(nextWork.id, nextWork),
+  );
+  await stageIndexFile(transaction, {
+    workOrder: [...index.workOrder, target.id],
+  });
+  throwIfAborted(signal);
+
+  const openedChapter = createdChapters[0];
+  if (!openedChapter) {
+    throw new Error(tMain("import.errors.createdChapterOpen"));
+  }
+  return {
+    workId: target.id,
+    chapterIds: createdChapters.map((chapter) => chapter.id),
+    openedChapter: hydrateChapter(openedChapter),
+  };
+}
+
+async function importIntoExistingWork(
+  transaction: LibraryTransaction,
+  workId: string,
+  request: CreateImportFromPreviewRequest,
+  selectedDrafts: ImportChapterDraft[],
+  imageRuntime: ImportImageRuntime,
+  signal?: AbortSignal,
+): Promise<CreateImportResult> {
+  const target = await ensureExistingWork(workId);
+  const usedTitles = await collectUsedChapterTitles(workId);
+  throwIfAborted(signal);
+  const createdChapters = await materializeSelectedDrafts({
+    workId,
+    selectedDrafts,
+    requestSelections: request.selections,
+    imageRuntime,
+    signal,
+    usedTitles,
+    prepareChapterDirectories: async (chapterId) => {
+      const finalDirectory = join(
+        getWorksRoot(),
+        workId,
+        "chapters",
+        chapterId,
+      );
+      const published =
+        await transaction.createPublishedDirectory(finalDirectory);
+      return {
+        writeChapterDirectory: published.stagingDirectory,
+        publishedChapterDirectory: published.finalDirectory,
+      };
+    },
+  });
+  if (createdChapters.length === 0) {
+    throw new Error(tMain("import.errors.noChapterToCreate"));
+  }
+
+  const nextWork: WorkFile = {
+    ...target,
+    chapterOrder: [
+      ...target.chapterOrder,
+      ...createdChapters.map((chapter) => chapter.id),
+    ],
+    updatedAt: new Date().toISOString(),
+  };
+  await stageWorkFile(transaction, nextWork);
+  throwIfAborted(signal);
+
+  const openedChapter = createdChapters[0];
+  if (!openedChapter) {
+    throw new Error(tMain("import.errors.createdChapterOpen"));
+  }
+  return {
+    workId,
+    chapterIds: createdChapters.map((chapter) => chapter.id),
+    openedChapter: hydrateChapter(openedChapter),
+  };
+}
+
+type ChapterDirectoryTarget = {
+  writeChapterDirectory: string;
+  publishedChapterDirectory: string;
+};
+
+async function materializeSelectedDrafts({
+  workId,
+  selectedDrafts,
+  requestSelections,
+  imageRuntime,
+  signal,
+  usedTitles,
+  prepareChapterDirectories,
+}: {
+  workId: string;
+  selectedDrafts: ImportChapterDraft[];
+  requestSelections: CreateImportFromPreviewRequest["selections"];
+  imageRuntime: ImportImageRuntime;
+  signal?: AbortSignal;
+  usedTitles: Set<string>;
+  prepareChapterDirectories: (
+    chapterId: string,
+  ) => Promise<ChapterDirectoryTarget>;
+}): Promise<LibraryChapter[]> {
   const selections = new Map(
     requestSelections.map((selection) => [selection.draftId, selection]),
   );
-  throwIfAborted(signal);
-  const usedTitles = await collectUsedChapterTitles(workId);
-  throwIfAborted(signal);
   const zipReaderCache = new Map<string, ZipArchiveReader>();
-
+  const createdChapters: LibraryChapter[] = [];
   try {
     for (const draft of selectedDrafts) {
       throwIfAborted(signal);
@@ -277,18 +387,22 @@ async function materializeSelectedDrafts(
         usedTitles,
       );
       usedTitles.add(title);
+      const chapterId = randomUUID();
+      const directories = await prepareChapterDirectories(chapterId);
       createdChapters.push(
-        await materializeChapterFromDraft(
+        await materializeChapterFromDraft({
           workId,
+          chapterId,
           draft,
-          title,
+          requestedTitle: title,
+          directories,
           zipReaderCache,
           imageRuntime,
           signal,
-        ),
+        }),
       );
-      throwIfAborted(signal);
     }
+    return createdChapters;
   } finally {
     for (const reader of zipReaderCache.values()) {
       reader.close();
@@ -296,64 +410,68 @@ async function materializeSelectedDrafts(
   }
 }
 
-async function materializeChapterFromDraft(
-  workId: string,
-  draft: ImportChapterDraft,
-  requestedTitle: string,
-  zipReaderCache: Map<string, ZipArchiveReader>,
-  imageRuntime: ImportImageRuntime,
-  signal?: AbortSignal,
-): Promise<LibraryChapter> {
-  throwIfAborted(signal);
-  await ensureExistingWork(workId);
+async function materializeChapterFromDraft({
+  workId,
+  chapterId,
+  draft,
+  requestedTitle,
+  directories,
+  zipReaderCache,
+  imageRuntime,
+  signal,
+}: {
+  workId: string;
+  chapterId: string;
+  draft: ImportChapterDraft;
+  requestedTitle: string;
+  directories: ChapterDirectoryTarget;
+  zipReaderCache: Map<string, ZipArchiveReader>;
+  imageRuntime: ImportImageRuntime;
+  signal?: AbortSignal;
+}): Promise<LibraryChapter> {
   throwIfAborted(signal);
   const now = new Date().toISOString();
-  const chapterId = randomUUID();
   const title = sanitizeTitle(
     requestedTitle || draft.title,
     tMain("import.untitled"),
   );
-  const chapterDir = join(getWorksRoot(), workId, "chapters", chapterId);
-  const pagesDir = join(chapterDir, "pages");
+  const writePagesDirectory = join(directories.writeChapterDirectory, "pages");
+  const publishedPagesDirectory = join(
+    directories.publishedChapterDirectory,
+    "pages",
+  );
+  await mkdir(writePagesDirectory, { recursive: true });
 
-  try {
+  const pages: LibraryPageRecord[] = [];
+  for (const [index, pageDraft] of draft.pages.entries()) {
     throwIfAborted(signal);
-    await mkdir(pagesDir, { recursive: true });
-    throwIfAborted(signal);
-
-    const pages: LibraryPageRecord[] = [];
-    for (const [index, pageDraft] of draft.pages.entries()) {
-      throwIfAborted(signal);
-      pages.push(
-        await materializePageRecord(
-          pageDraft,
-          pagesDir,
-          index,
-          zipReaderCache,
-          imageRuntime,
-          signal,
-        ),
-      );
-      throwIfAborted(signal);
-    }
-
-    const chapter: LibraryChapter = {
-      id: chapterId,
-      workId,
-      title,
-      sourceKind: draft.sourceKind,
-      status: resolveChapterStatus(pages),
-      pageOrder: pages.map((page) => page.id),
-      pages,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    throwIfAborted(signal);
-    await writeChapterFile(chapter);
-    return chapter;
-  } catch (error) {
-    await removeChapterDirectory(workId, chapterId);
-    throw error;
+    pages.push(
+      await materializePageRecord(
+        pageDraft,
+        { writePagesDirectory, publishedPagesDirectory },
+        index,
+        zipReaderCache,
+        imageRuntime,
+        signal,
+      ),
+    );
   }
+
+  const chapter: LibraryChapter = {
+    id: chapterId,
+    workId,
+    title,
+    sourceKind: draft.sourceKind,
+    status: resolveChapterStatus(pages),
+    pageOrder: pages.map((page) => page.id),
+    pages,
+    createdAt: now,
+    updatedAt: now,
+  };
+  throwIfAborted(signal);
+  await writeJsonFile(
+    join(directories.writeChapterDirectory, "chapter.json"),
+    validateChapterFilePaths(workId, chapterId, chapter),
+  );
+  return chapter;
 }

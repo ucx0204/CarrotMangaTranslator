@@ -32,6 +32,7 @@ describe("app quit cleanup orchestration", () => {
       },
       disposeInpainting,
       disposeTranslation,
+      waitForLibraryMutations: vi.fn(async () => undefined),
       releaseInpaintingHistory,
       updateProgress: (next) => progress.push(next),
       logError,
@@ -40,6 +41,7 @@ describe("app quit cleanup orchestration", () => {
 
     expect(progress).toEqual([
       { stage: "startup-maintenance-cancel" },
+      { stage: "library-mutation-cleanup" },
       { stage: "runtime-resource-disposal" },
       { stage: "inpainting-history-release" },
     ]);
@@ -82,6 +84,7 @@ describe("app quit cleanup orchestration", () => {
       cancelStartupMaintenance: vi.fn(),
       disposeInpainting: vi.fn(async () => undefined),
       disposeTranslation: vi.fn(async () => undefined),
+      waitForLibraryMutations: vi.fn(async () => undefined),
       releaseInpaintingHistory,
       updateProgress: (next) => progress.push(next),
       logError: vi.fn(),
@@ -98,6 +101,11 @@ describe("app quit cleanup orchestration", () => {
       { stage: "startup-maintenance-cancel" },
       {
         stage: "active-job-cleanup",
+        jobId: job.id,
+        jobKind: job.kind,
+      },
+      {
+        stage: "library-mutation-cleanup",
         jobId: job.id,
         jobKind: job.kind,
       },
