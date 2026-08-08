@@ -536,6 +536,60 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
     expect(nvidiaNormalized.inpainting?.fluxBackend).toBe("cuda-native");
   });
 
+  it("locks SM75 and newer NVIDIA GPUs to their compatible Flux CUDA backend", () => {
+    const sm75Defaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "NVIDIA GeForce RTX 2070 SUPER",
+        memoryMb: 8192,
+        rtxGeneration: 20,
+        computeCapability: 7.5,
+        vendor: "nvidia",
+      },
+    );
+    const modernNvidiaDefaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "NVIDIA GeForce RTX 4090",
+        memoryMb: 24576,
+        rtxGeneration: 40,
+        computeCapability: 8.9,
+        vendor: "nvidia",
+      },
+    );
+    const amdDefaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "AMD Radeon RX 7900 XTX",
+        memoryMb: 24576,
+        rtxGeneration: null,
+        computeCapability: null,
+        vendor: "amd",
+        supportsRocm: true,
+        supportsVulkan: true,
+      },
+    );
+    const experimentalRaw = JSON.stringify({
+      inpainting: { fluxBackend: "cuda-sm75-experimental" },
+    });
+    const standardRaw = JSON.stringify({
+      inpainting: { fluxBackend: "cuda-native" },
+    });
+
+    expect(sm75Defaults.inpainting?.fluxBackend).toBe("cuda-sm75-experimental");
+    expect(
+      parseStoredAppSettings(standardRaw, sm75Defaults).inpainting?.fluxBackend,
+    ).toBe("cuda-sm75-experimental");
+    expect(
+      parseStoredAppSettings(experimentalRaw, modernNvidiaDefaults).inpainting
+        ?.fluxBackend,
+    ).toBe("cuda-native");
+    expect(
+      parseStoredAppSettings(experimentalRaw, amdDefaults).inpainting
+        ?.fluxBackend,
+    ).toBe(amdDefaults.inpainting?.fluxBackend);
+  });
+
   it("does not replace an explicitly selected OCR GPU with CPU", () => {
     const defaults = resolveDefaultAppSettings();
     const settings: AppSettings = {

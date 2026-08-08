@@ -154,7 +154,7 @@ function resolveAmdStoredFluxBackend(
   requested: FluxBackend,
   defaults: AppSettings,
 ): FluxBackend {
-  if (requested !== "cuda-native") {
+  if (requested !== "cuda-native" && requested !== "cuda-sm75-experimental") {
     return requested;
   }
   const defaultBackend = defaults.inpainting?.fluxBackend;
@@ -166,8 +166,15 @@ function resolveNvidiaStoredFluxBackend(
   requested: FluxBackend,
   defaults: AppSettings,
 ): FluxBackend {
+  const hardwareBackend =
+    defaults.inpainting?.fluxBackend === "cuda-sm75-experimental"
+      ? "cuda-sm75-experimental"
+      : "cuda-native";
   if (NVIDIA_INCOMPATIBLE_FLUX_BACKENDS.has(rawRequested)) {
-    return defaults.inpainting?.fluxBackend ?? "cuda-native";
+    return hardwareBackend;
+  }
+  if (requested === "cuda-native" || requested === "cuda-sm75-experimental") {
+    return hardwareBackend;
   }
   return requested;
 }

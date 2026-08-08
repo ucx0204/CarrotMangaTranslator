@@ -101,6 +101,13 @@ export const FluxBackendSchema = z.preprocess(
     if (["cuda-native", "cuda", "native", "nvidia"].includes(normalized)) {
       return "cuda-native";
     }
+    if (
+      ["cuda-sm75-experimental", "cuda-sm75", "sm75-cuda", "sm75"].includes(
+        normalized,
+      )
+    ) {
+      return "cuda-sm75-experimental";
+    }
     if (["zluda-native", "zluda"].includes(normalized)) {
       return "zluda-native";
     }
@@ -119,7 +126,13 @@ export const FluxBackendSchema = z.preprocess(
     }
     return value;
   },
-  z.enum(["cuda-native", "zluda-native", "metal-native", "python-cpu"]),
+  z.enum([
+    "cuda-native",
+    "cuda-sm75-experimental",
+    "zluda-native",
+    "metal-native",
+    "python-cpu",
+  ]),
 );
 
 export const InpaintingModelSchema = z.preprocess(

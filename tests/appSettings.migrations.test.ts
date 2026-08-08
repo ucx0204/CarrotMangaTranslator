@@ -242,7 +242,7 @@ describeWindows("app settings helpers: UI settings and migrations", () => {
       ocrQualityMode: "minimum",
       ocrGpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
       ocrGpuBackend: "cuda",
-      fluxBackend: "cuda-native",
+      fluxBackend: "cuda-sm75-experimental",
       llamaRuntimeProfile: "cuda12",
     });
     expect(

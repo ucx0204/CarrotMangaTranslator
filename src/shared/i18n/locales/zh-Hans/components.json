@@ -1162,6 +1162,10 @@
           "label": "NVIDIA CUDA",
           "description": "RTX GPU上最快的Flux原生运行时。"
         },
+        "sm75": {
+          "label": "SM75 CUDA",
+          "description": "面向 RTX 20 系列（SM 7.5）的 FP16 CUDA 兼容路径。"
+        },
         "zluda": {
           "label": "AMD ZLUDA",
           "description": "在AMD GPU上通过ZLUDA运行Flux，需要AMD HIP SDK。"
@@ -1317,6 +1321,8 @@
       "fluxOnlyNote": "此后端设置仅适用于Flux Klein模型。",
       "fluxLowMemoryConfirm": "统一内存{{available}}低于Flux建议的16GB。是否允许风险运行？",
       "fluxLowMemoryOverride": "允许在{{available}}统一内存下风险运行Flux",
+      "sm75FluxWarningTitle": "仅限 RTX 20 系列",
+      "sm75FluxWarningDetail": "其行为或结果可能与标准 NVIDIA CUDA 略有不同。",
       "downloadHipSdk": "下载AMD HIP SDK（ROCm 7.1.1）"
     },
     "format": {

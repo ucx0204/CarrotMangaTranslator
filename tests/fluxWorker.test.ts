@@ -293,6 +293,27 @@ describeWindows("Flux worker runtime helpers", () => {
     expect(launch.args).toEqual(["--cuda-runtime-dir", cudaDir]);
   });
 
+  it("maps the experimental SM75 backend to CUDA and enables the FP16 worker path", async () => {
+    const runtimeDir = createTempDir("mgt-flux-sm75-");
+    const modelDir = createTempDir("mgt-flux-model-");
+    const cudaDir = writeCachedFluxCudaRuntime(runtimeDir);
+    const { exe } = createTempToolsLayout();
+    process.env.MGT_FLUX_KLEIN_EXE = exe;
+    process.env.MANGA_TRANSLATOR_LOG_PATH = join(runtimeDir, "app.log");
+
+    const launch = await ensureFluxWorkerLaunch({
+      runtimeDir,
+      modelDir,
+      backend: "cuda-sm75-experimental",
+      nvidiaComputeCapability: 7.5,
+      sm75Fp16Enabled: true,
+    });
+
+    expect(launch.backend).toBe("cuda-native");
+    expect(launch.args).toEqual(["--cuda-runtime-dir", cudaDir]);
+    expect(launch.env).toEqual({ MGT_FLUX_SM75_FP16: "1" });
+  });
+
   it("keeps NVIDIA CUDA support DLLs out of the ZLUDA PATH and passes them explicitly", () => {
     const { exe, cuda129 } = createTempToolsLayout();
     const pathParts = buildRuntimePathEnv(exe, "zluda-native").split(delimiter);
@@ -361,6 +382,29 @@ describeWindows("Flux worker runtime helpers", () => {
           "Flux 실행 파일을 앱 데이터 캐시에 갱신했습니다: mgt-flux-klein-sm86/mgt-flux-klein.exe",
       }),
     );
+  });
+
+  it("uses the bundled SM75 generic alias before the legacy remote runner", async () => {
+    const runtimeDir = createTempDir("mgt-flux-runner-sm75-runtime-");
+    const toolsDir = createTempDir("mgt-flux-runner-sm75-tools-");
+    const genericDir = join(toolsDir, "mgt-flux-klein");
+    mkdirSync(genericDir, { recursive: true });
+    writeFileSync(
+      join(genericDir, "mgt-flux-klein.exe"),
+      "patched-sm75-runner",
+    );
+    process.env.MGT_FLUX_KLEIN_TOOLS_DIR = toolsDir;
+    process.env.MGT_FLUX_DISABLE_REMOTE_RUNNER_DOWNLOAD = "1";
+
+    const managedPath = await ensureManagedFluxRunner({
+      runtimeDir,
+      nvidiaComputeCapability: 7.5,
+    });
+
+    expect(managedPath).toBe(
+      join(runtimeDir, "mgt-flux-klein-sm75", "mgt-flux-klein.exe"),
+    );
+    expect(readFileSync(managedPath, "utf8")).toBe("patched-sm75-runner");
   });
 
   it("does not use lower or generic Flux runners for a detected NVIDIA GPU", async () => {

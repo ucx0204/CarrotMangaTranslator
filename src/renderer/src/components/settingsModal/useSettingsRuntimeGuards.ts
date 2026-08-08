@@ -4,6 +4,7 @@ import type {
   FluxBackend,
   LlamaRuntimeProfile,
 } from "../../../../shared/settingsTypes";
+import { isFluxRtx20Sm75Hardware } from "../../../../shared/fluxSm75";
 import {
   isAmdLlamaRuntimeProfile,
   isAppleLlamaRuntimeProfile,
@@ -19,6 +20,7 @@ import type { SettingsFormValues } from "./settingsModalFormValues";
 export type SettingsRuntimeGuards = {
   usesAmdHardware: boolean;
   usesNvidiaHardware: boolean;
+  usesSm75Hardware: boolean;
   usesAppleHardware: boolean;
   unifiedMemoryMb: number | null;
   usesAmdOcrContext: boolean;
@@ -48,6 +50,8 @@ export function useSettingsRuntimeGuards({
     values,
     hardwareRuntimeLock,
     initialSettings.runtimeHardware?.unifiedMemoryMb ?? null,
+    initialSettings.runtimeHardware?.computeCapability ?? null,
+    initialSettings.runtimeHardware?.rtxGeneration ?? null,
   );
 
   useSettingsFocusEffect(values, refs);
@@ -75,18 +79,8 @@ export function useSettingsRuntimeGuards({
     ),
     isFluxBackendOptionDisabled: React.useCallback(
       (backend: FluxBackend) =>
-        controlsBusy ||
-        (runtime.usesAppleHardware && backend !== "metal-native") ||
-        ((runtime.usesAmdHardware || runtime.usesNvidiaHardware) &&
-          backend === "metal-native") ||
-        (runtime.usesAmdHardware && backend === "cuda-native") ||
-        (runtime.usesNvidiaHardware && backend === "zluda-native"),
-      [
-        controlsBusy,
-        runtime.usesAmdHardware,
-        runtime.usesAppleHardware,
-        runtime.usesNvidiaHardware,
-      ],
+        controlsBusy || isFluxBackendIncompatible(backend, runtime),
+      [controlsBusy, runtime],
     ),
   };
 }
@@ -95,10 +89,15 @@ function resolveRuntimeContext(
   values: SettingsFormValues,
   hardwareRuntimeLock: "amd" | "nvidia" | "apple" | "unknown",
   unifiedMemoryMb: number | null,
+  computeCapability: number | null,
+  rtxGeneration: number | null,
 ) {
   const usesAmdHardware = hardwareRuntimeLock === "amd";
   const usesNvidiaHardware = hardwareRuntimeLock === "nvidia";
   const usesAppleHardware = hardwareRuntimeLock === "apple";
+  const usesSm75Hardware =
+    usesNvidiaHardware &&
+    isFluxRtx20Sm75Hardware({ computeCapability, rtxGeneration });
   const usesAmdGemmaRuntime =
     values.modelProvider === "gemma" &&
     isAmdLlamaRuntimeProfile(values.llamaRuntimeProfile);
@@ -110,6 +109,7 @@ function resolveRuntimeContext(
     usesAmdHardware,
     usesAppleHardware,
     usesNvidiaHardware,
+    usesSm75Hardware,
     unifiedMemoryMb,
     usesAmdOcrContext,
     usesNvidiaOcrContext:
@@ -252,6 +252,7 @@ function useFluxBackendGuard(
       runtime.usesAmdHardware,
       runtime.usesAppleHardware,
       runtime.usesNvidiaHardware,
+      runtime.usesSm75Hardware,
     );
     if (corrected !== values.fluxBackend) {
       setters.setFluxBackend(corrected);
@@ -261,27 +262,52 @@ function useFluxBackendGuard(
     runtime.usesAmdHardware,
     runtime.usesAppleHardware,
     runtime.usesNvidiaHardware,
+    runtime.usesSm75Hardware,
     setters,
     values.fluxBackend,
   ]);
 }
 
-function resolveCompatibleFluxBackend(
+export function resolveCompatibleFluxBackend(
   backend: FluxBackend,
   initialBackend: FluxBackend | undefined,
   usesAmdHardware: boolean,
   usesAppleHardware: boolean,
   usesNvidiaHardware: boolean,
+  usesSm75Hardware: boolean,
 ): FluxBackend {
   if (usesAppleHardware) return "metal-native";
   if (usesNvidiaHardware) {
-    return backend === "zluda-native" || backend === "metal-native"
-      ? "cuda-native"
-      : backend;
+    if (backend === "python-cpu") return backend;
+    return usesSm75Hardware ? "cuda-sm75-experimental" : "cuda-native";
   }
   if (!usesAmdHardware) return backend;
   if (backend === "python-cpu" || backend === "zluda-native") return backend;
   return initialBackend === "python-cpu" ? "python-cpu" : "zluda-native";
+}
+
+function isNvidiaCudaFluxBackend(backend: FluxBackend): boolean {
+  return backend === "cuda-native" || backend === "cuda-sm75-experimental";
+}
+
+export function isFluxBackendIncompatible(
+  backend: FluxBackend,
+  runtime: ReturnType<typeof resolveRuntimeContext>,
+): boolean {
+  if (runtime.usesAppleHardware) return backend !== "metal-native";
+  if (backend === "metal-native") {
+    return runtime.usesAmdHardware || runtime.usesNvidiaHardware;
+  }
+  if (runtime.usesAmdHardware) return isNvidiaCudaFluxBackend(backend);
+  if (runtime.usesNvidiaHardware) {
+    if (backend === "zluda-native") return true;
+    if (backend === "cuda-native") return runtime.usesSm75Hardware;
+    if (backend === "cuda-sm75-experimental") {
+      return !runtime.usesSm75Hardware;
+    }
+    return false;
+  }
+  return backend === "cuda-sm75-experimental";
 }
 
 function resolvePreferredAmdLlamaRuntime(

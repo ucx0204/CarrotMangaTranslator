@@ -128,6 +128,9 @@ async fn main() -> Result<()> {
         }
         CudaRuntimeProbe::Disabled => {}
     }
+    if sm75_fp16_requested() {
+        eprintln!("mgt-flux-klein: experimental SM75 mode enabled dtype=fp16 attention=chunked");
+    }
 
     let load_started = Instant::now();
     let model = Flux2Klein::load_from_paths(Flux2KleinPaths {
@@ -575,6 +578,17 @@ fn run_image_to_image(
 fn init_logging() {
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn"));
     let _ = fmt().with_env_filter(filter).with_target(false).try_init();
+}
+
+fn sm75_fp16_requested() -> bool {
+    std::env::var("MGT_FLUX_SM75_FP16")
+        .map(|value| {
+            matches!(
+                value.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
+        .unwrap_or(false)
 }
 
 #[cfg(feature = "cuda")]

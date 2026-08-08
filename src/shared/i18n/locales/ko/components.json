@@ -439,7 +439,7 @@
       "on": "블록 크기에 맞춰 번역문의 줄바꿈을 정돈합니다."
     },
     "autoFontMatching": "폰트 자동 맞춤",
-    "autoFontMatchingSummary": "원문 글자 모양을 보고 대사·나레이션·강조·효과음에 어울리는 한글 폰트를 블록마다 자동 적용합니다. 같은 화의 본문 일관성은 약하게 참고하며, 검증 기준을 통과하지 못한 결과는 적용하지 않습니다.",
+    "autoFontMatchingSummary": "원문 분위기에 어울리는 한글 폰트를 블록마다 자동 적용합니다.",
     "completionMode": "완료 방식",
     "completionModeTranslate": "번역만",
     "completionModeErase": "원문 지우기",
@@ -1190,6 +1190,10 @@
           "label": "NVIDIA CUDA",
           "description": "RTX 계열에서 가장 빠른 Flux 네이티브 런타임입니다."
         },
+        "sm75": {
+          "label": "SM75 CUDA",
+          "description": "RTX 20 시리즈(SM 7.5)를 위한 FP16 CUDA 호환 경로입니다."
+        },
         "zluda": {
           "label": "AMD ZLUDA",
           "description": "AMD GPU에서 Flux 실행기를 ZLUDA로 실행합니다. AMD HIP SDK가 필요합니다."
@@ -1345,6 +1349,8 @@
       "fluxOnlyNote": "이 백엔드 설정은 Flux Klein 모델에서만 적용됩니다.",
       "fluxLowMemoryConfirm": "통합 메모리가 {{available}}로 Flux 권장량 16GB보다 적습니다. 앱이 종료되거나 시스템이 매우 느려질 수 있습니다. 위험 실행을 허용할까요?",
       "fluxLowMemoryOverride": "통합 메모리 {{available}}에서 Flux 위험 실행 허용",
+      "sm75FluxWarningTitle": "RTX 20 시리즈 전용",
+      "sm75FluxWarningDetail": "기존 NVIDIA CUDA와 동작이나 결과가 조금 다를 수 있습니다.",
       "downloadHipSdk": "AMD HIP SDK 다운로드 (ROCm 7.1.1)"
     },
     "format": {

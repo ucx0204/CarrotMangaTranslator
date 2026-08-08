@@ -78,6 +78,28 @@ describe("settings store", () => {
     expect(diagnostics.error).not.toHaveBeenCalled();
   });
 
+  it("exposes CUDA capability at runtime without persisting it", async () => {
+    const rootDir = await createTempDir();
+    const paths = makeAppPaths(rootDir);
+    const defaults = resolveDefaultAppSettings();
+    const saved = await saveAppSettings(defaults, paths, {}, async () => ({
+      name: "NVIDIA GeForce RTX 2070 SUPER",
+      memoryMb: 8192,
+      rtxGeneration: 20,
+      computeCapability: 7.5,
+      vendor: "nvidia",
+    }));
+
+    expect(saved.runtimeHardware?.computeCapability).toBe(7.5);
+    expect(saved.runtimeHardware?.rtxGeneration).toBe(20);
+    const persisted = JSON.parse(
+      await readFile(paths.settingsPath, "utf8"),
+    ) as {
+      runtimeHardware?: unknown;
+    };
+    expect(persisted.runtimeHardware).toBeUndefined();
+  });
+
   it("migrates API credentials out of plaintext settings and preserves masked saves", async () => {
     const rootDir = await createTempDir();
     const paths = makeAppPaths(rootDir);

@@ -13,6 +13,7 @@ import type {
   OcrQualityMode,
 } from "../../shared/settingsTypes";
 import type { DetectedGpuInfo } from "../gpuInfo";
+import { isFluxRtx20Sm75Hardware } from "../../shared/fluxSm75";
 import {
   normalizeAmdRocmTarget,
   resolveAmdRocmTargetFromInfo,
@@ -242,7 +243,12 @@ function resolveHardwareFluxBackend(info: DetectedGpuInfo | null): FluxBackend {
     return "metal-native";
   }
   if (info?.vendor !== "amd") {
-    return "cuda-native";
+    return isFluxRtx20Sm75Hardware({
+      computeCapability: info?.computeCapability,
+      rtxGeneration: info?.rtxGeneration,
+    })
+      ? "cuda-sm75-experimental"
+      : "cuda-native";
   }
   return "zluda-native";
 }

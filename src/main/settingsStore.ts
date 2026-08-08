@@ -161,6 +161,8 @@ function attachRuntimeHardware(
     runtimeHardware: {
       gpuVendor: normalizeRuntimeGpuVendor(detectedGpu?.vendor),
       gpuName: detectedGpu?.name ?? null,
+      computeCapability: resolveRuntimeComputeCapability(detectedGpu),
+      rtxGeneration: resolveRuntimeRtxGeneration(detectedGpu),
       llamaRocmTarget: resolveAmdRocmTargetFromInfo(detectedGpu),
       supportsRocm: detectedGpu?.supportsRocm ?? false,
       supportsVulkan: detectedGpu?.supportsVulkan ?? false,
@@ -168,6 +170,18 @@ function attachRuntimeHardware(
       unifiedMemoryMb: detectedGpu?.unifiedMemoryMb ?? null,
     },
   };
+}
+
+function resolveRuntimeComputeCapability(
+  detectedGpu: DetectedGpuInfo | null,
+): number | null {
+  return detectedGpu?.computeCapability ?? null;
+}
+
+function resolveRuntimeRtxGeneration(
+  detectedGpu: DetectedGpuInfo | null,
+): number | null {
+  return detectedGpu?.rtxGeneration ?? null;
 }
 
 function normalizeRuntimeGpuVendor(

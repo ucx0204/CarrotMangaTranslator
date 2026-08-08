@@ -24,6 +24,10 @@ import {
   sha256FileSync,
 } from "../../runtimeSupport/fileProbe";
 import type { FluxAssetProgress } from "./types";
+import {
+  isTruthyEnv,
+  resolveBundledSm75AliasSource,
+} from "./runnerSourceHelpers";
 
 type LocalFluxRunnerSource = {
   kind: "local";
@@ -123,6 +127,14 @@ function resolveFluxRunnerSource(
     const localSource = findLocalFluxRunnerSource(dirName);
     if (localSource) {
       return localSource;
+    }
+    const sm75AliasSource = resolveBundledSm75AliasSource(
+      normalized,
+      dirName,
+      findLocalFluxRunnerSource(FLUX_RUNNER_DIR),
+    );
+    if (sm75AliasSource) {
+      return sm75AliasSource;
     }
     return resolveRemoteFluxRunnerSource(normalized, dirName);
   }
@@ -397,12 +409,6 @@ function uniqueStrings(values: Array<string | null | undefined>): string[] {
     result.push(value);
   }
   return result;
-}
-
-function isTruthyEnv(value?: string): boolean {
-  return ["1", "true", "yes", "on"].includes(
-    (value || "").trim().toLowerCase(),
-  );
 }
 
 function resolveRunnerAssetSha256(

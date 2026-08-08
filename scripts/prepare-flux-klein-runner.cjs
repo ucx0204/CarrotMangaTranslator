@@ -215,26 +215,75 @@ function patchKoharuFluxSources() {
   }
 
   const koharuMlDir = koharuMl.manifest_path.replace(/[\\/]Cargo\.toml$/, "");
-  patchFile(
-    join(koharuMlDir, "src", "flux2_klein", "mod.rs"),
+  const fluxModPath = join(koharuMlDir, "src", "flux2_klein", "mod.rs");
+  const fp16DtypePatch = `fn sm75_fp16_enabled() -> bool {\n    std::env::var("MGT_FLUX_SM75_FP16")\n        .map(|value| {\n            matches!(\n                value.trim().to_ascii_lowercase().as_str(),\n                "1" | "true" | "yes" | "on"\n            )\n        })\n        .unwrap_or(false)\n}\n\nfn flux_model_device() -> Result<Device> {\n    #[cfg(feature = "cuda")]\n    if sm75_fp16_enabled() {\n        let model_device = Device::new_cuda(0)?;\n        let (major, minor) = {\n            let cuda_device = model_device.as_cuda_device()?;\n            cuda_device\n                .cuda_stream()\n                .context()\n                .compute_capability()?\n        };\n        if (major, minor) != (7, 5) {\n            bail!(\n                "MGT_FLUX_SM75_FP16 requires CUDA compute capability 7.5, got {major}.{minor}"\n            );\n        }\n        tracing::info!("Flux SM75 FP16 CUDA device enabled");\n        return Ok(model_device);\n    }\n\n    device(false)\n}\n\nfn transformer_dtype(device: &Device) -> DType {\n    if device.is_cuda() && !koharu_runtime::zluda_active() {\n        return if sm75_fp16_enabled() {\n            DType::F16\n        } else {\n            DType::BF16\n        };\n    }\n\n    DType::F32\n}\n\nfn vae_dtype(device: &Device) -> DType {\n    if device.is_cuda() && !koharu_runtime::zluda_active() {\n        return if sm75_fp16_enabled() {\n            DType::F16\n        } else {\n            DType::BF16\n        };\n    }\n\n    DType::F32\n}`;
+  const testableFp16DtypePatch = fp16DtypePatch
+    .replace(
+      "if (major, minor) != (7, 5) {",
+      "if major < 7 || (major == 7 && minor < 5) {",
+    )
+    .replace(
+      "requires CUDA compute capability 7.5, got",
+      "requires CUDA compute capability 7.5 or newer, got",
+    )
+    .replace(
+      'tracing::info!("Flux SM75 FP16 CUDA device enabled");',
+      'tracing::info!("Flux SM75-compatible FP16 CUDA device enabled on {major}.{minor}");',
+    );
+  patchFileVariant(
+    fluxModPath,
     [
-      [
-        `fn transformer_dtype(device: &Device) -> DType {\n    if device.is_cuda() {\n        return DType::BF16;\n    }\n\n    DType::F32\n}\n\nfn vae_dtype(device: &Device) -> DType {\n    if device.is_cuda() {\n        return DType::BF16;\n    }\n\n    DType::F32\n}`,
-        `fn transformer_dtype(device: &Device) -> DType {\n    if device.is_cuda() && !koharu_runtime::zluda_active() {\n        return DType::BF16;\n    }\n\n    DType::F32\n}\n\nfn vae_dtype(device: &Device) -> DType {\n    if device.is_cuda() && !koharu_runtime::zluda_active() {\n        return DType::BF16;\n    }\n\n    DType::F32\n}`,
-      ],
+      testableFp16DtypePatch,
+      `fn transformer_dtype(device: &Device) -> DType {\n    if device.is_cuda() {\n        return DType::BF16;\n    }\n\n    DType::F32\n}\n\nfn vae_dtype(device: &Device) -> DType {\n    if device.is_cuda() {\n        return DType::BF16;\n    }\n\n    DType::F32\n}`,
+      `fn transformer_dtype(device: &Device) -> DType {\n    if device.is_cuda() && !koharu_runtime::zluda_active() {\n        return DType::BF16;\n    }\n\n    DType::F32\n}\n\nfn vae_dtype(device: &Device) -> DType {\n    if device.is_cuda() && !koharu_runtime::zluda_active() {\n        return DType::BF16;\n    }\n\n    DType::F32\n}`,
     ],
-    "ZLUDA Flux dtype",
+    fp16DtypePatch,
+    "SM75 FP16 Flux device and dtype",
   );
   patchFile(
+    fluxModPath,
+    [
+      [
+        `        let model_device = device(false)?;`,
+        `        let model_device = flux_model_device()?;`,
+      ],
+    ],
+    "SM75 FP16 Flux device selection",
+  );
+  patchFileVariant(
     join(koharuMlDir, "src", "flux2_klein", "transformer.rs"),
     [
-      [
-        `    #[cfg(feature = "cuda")]\n    if q.device().is_cuda() {\n`,
-        `    #[cfg(feature = "cuda")]\n    if q.device().is_cuda() && !koharu_runtime::zluda_active() {\n`,
-      ],
+      `    #[cfg(feature = "cuda")]\n    if q.device().is_cuda() {\n`,
+      `    #[cfg(feature = "cuda")]\n    if q.device().is_cuda() && !koharu_runtime::zluda_active() {\n`,
     ],
-    "ZLUDA Flux attention",
+    `    #[cfg(feature = "cuda")]\n    if q.device().is_cuda()\n        && !koharu_runtime::zluda_active()\n        && !super::sm75_fp16_enabled()\n    {\n`,
+    "SM75 compatible Flux attention",
   );
+}
+
+/**
+ * @param {string} path
+ * @param {string[]} variants
+ * @param {string} replacement
+ * @param {string} label
+ */
+function patchFileVariant(path, variants, replacement, label) {
+  let text = readFileSync(path, "utf8");
+  const newline = text.includes("\r\n") ? "\r\n" : "\n";
+  const replacementText = replacement.replace(/\n/g, newline);
+  if (text.includes(replacementText)) {
+    console.log(`${label} patch already applied: ${path}`);
+    return;
+  }
+  const source = variants
+    .map((variant) => variant.replace(/\n/g, newline))
+    .find((variant) => text.includes(variant));
+  if (!source) {
+    throw new Error(`Could not apply ${label} patch to ${path}`);
+  }
+  text = text.replace(source, replacementText);
+  writeFileSync(path, text);
+  console.log(`Applied ${label} patch: ${path}`);
 }
 
 /** @returns {CargoMetadata} */

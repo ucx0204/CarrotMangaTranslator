@@ -1206,6 +1206,10 @@
           "label": "NVIDIA CUDA",
           "description": "The fastest native Flux runtime on RTX GPUs."
         },
+        "sm75": {
+          "label": "SM75 CUDA",
+          "description": "An FP16 CUDA compatibility path for RTX 20-series GPUs (SM 7.5)."
+        },
         "zluda": {
           "label": "AMD ZLUDA",
           "description": "Runs Flux through ZLUDA on AMD GPUs. Requires the AMD HIP SDK."
@@ -1364,6 +1368,8 @@
       "fluxOnlyNote": "This backend setting applies only to the Flux Klein model.",
       "fluxLowMemoryConfirm": "This Mac has {{available}} unified memory, below Flux's 16 GB recommendation. The app may terminate or make the system extremely slow. Allow this risky run?",
       "fluxLowMemoryOverride": "Allow risky Flux runs with {{available}} unified memory",
+      "sm75FluxWarningTitle": "RTX 20-series only",
+      "sm75FluxWarningDetail": "Behavior or output may differ slightly from the standard NVIDIA CUDA backend.",
       "downloadHipSdk": "Download AMD HIP SDK (ROCm 7.1.1)"
     },
     "format": {

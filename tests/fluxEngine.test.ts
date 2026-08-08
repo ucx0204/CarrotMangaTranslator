@@ -59,6 +59,33 @@ describe("Flux inpainting engine change detection", () => {
     expect(runFluxInpaint.mock.calls[1]?.[0].runOptions.contextPx).toBe(200);
   });
 
+  it("uses conservative crop tiling for the SM75 FP16 CUDA path", async () => {
+    const runFluxInpaint = vi.fn().mockResolvedValue(undefined);
+    vi.doMock("electron", () => ({ nativeImage: createFakeNativeImage() }));
+    const { createFluxEngine } =
+      await import("../src/main/inpainting/fluxEngine");
+    const engine = createFluxEngine(
+      {
+        launch: {
+          backend: "cuda-native",
+          executable: process.execPath,
+          args: [],
+          runtimePath: "/tmp/runtime",
+          label: "test Flux SM75 worker",
+        },
+        runRootDir: "/tmp/run",
+        sm75Fp16Enabled: true,
+      },
+      { runInpaint: runFluxInpaint },
+    );
+
+    await engine.inpaint(Buffer.alloc(4), 1, 1, new Uint8Array(1).fill(1), [
+      { x: 0, y: 0, w: 1, h: 1 },
+    ]);
+
+    expect(runFluxInpaint.mock.calls[0]?.[0].tileLargeCrops).toBe(true);
+  });
+
   it("keeps small crops at their native aligned size", () => {
     const size = resolveFluxProcessSize(320, 160, 1024 * 1024, 16);
 

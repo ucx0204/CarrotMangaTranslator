@@ -165,6 +165,13 @@ export function resolveFluxBackend(
   if (["cuda-native", "cuda", "native", "nvidia"].includes(normalized)) {
     return "cuda-native";
   }
+  if (
+    ["cuda-sm75-experimental", "cuda-sm75", "sm75-cuda", "sm75"].includes(
+      normalized,
+    )
+  ) {
+    return "cuda-sm75-experimental";
+  }
   if (["zluda-native", "zluda"].includes(normalized)) {
     return "zluda-native";
   }

@@ -386,6 +386,23 @@
   color: #f4bd86;
 }
 
+.sm75-flux-warning {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, #d18c55 65%, var(--border-soft));
+  border-radius: 10px;
+  background: color-mix(in srgb, #4a2b18 48%, var(--bg-sunken));
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  line-height: 1.5;
+}
+
+.sm75-flux-warning strong {
+  color: #f4bd86;
+  font-weight: 750;
+}
+
 .format-defaults-editor {
   display: flex;
   min-height: 0;

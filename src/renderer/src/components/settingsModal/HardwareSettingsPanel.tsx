@@ -8,19 +8,12 @@ import type {
   OcrQualityMode,
 } from "../../../../shared/settingsTypes";
 import type { GraphicsGpuPreference } from "../../../../shared/gpuSettings";
-import {
-  FLUX_BACKEND_OPTIONS,
-  OCR_DEVICE_OPTIONS,
-  OCR_QUALITY_OPTIONS,
-} from "../settingsOptions";
-import {
-  AmdHipSdkDownloadButton,
-  FluxHardwareContextNote,
-  OcrHardwareContextNote,
-} from "./HardwareContextNotes";
+import { OCR_DEVICE_OPTIONS, OCR_QUALITY_OPTIONS } from "../settingsOptions";
+import { OcrHardwareContextNote } from "./HardwareContextNotes";
 import { SettingsSection } from "./SettingsSection";
 import { InpaintingModelSettings } from "./InpaintingModelSettings";
 import { GpuAssignmentSettings } from "./GpuAssignmentSettings";
+import { FluxBackendSettings } from "./FluxBackendSettings";
 
 type HardwareSettingsPanelProps = {
   allowUnsafeLowMemoryFlux: boolean;
@@ -315,78 +308,6 @@ function OcrDeviceSettings({
         usesAmdOcrContext={usesAmdOcrContext}
         usesAppleHardware={usesAppleHardware}
         usesNvidiaOcrContext={usesNvidiaOcrContext}
-      />
-    </div>
-  );
-}
-
-function FluxBackendSettings({
-  clearTestState,
-  controlsBusy,
-  fluxBackend,
-  inpaintingModel,
-  isFluxBackendOptionDisabled,
-  setFluxBackend,
-  usesAmdHardware,
-  usesAppleHardware,
-  usesNvidiaHardware,
-}: Pick<
-  HardwareSettingsPanelProps,
-  | "clearTestState"
-  | "controlsBusy"
-  | "fluxBackend"
-  | "inpaintingModel"
-  | "isFluxBackendOptionDisabled"
-  | "setFluxBackend"
-  | "usesAmdHardware"
-  | "usesAppleHardware"
-  | "usesNvidiaHardware"
->): React.JSX.Element {
-  const { t } = useTranslation("components");
-  const activeFluxBackend = FLUX_BACKEND_OPTIONS.find(
-    (option) => option.id === fluxBackend,
-  );
-  const visibleFluxBackends = usesAppleHardware
-    ? FLUX_BACKEND_OPTIONS.filter((option) => option.id === "metal-native")
-    : FLUX_BACKEND_OPTIONS.filter((option) => option.id !== "metal-native");
-  return (
-    <div className="settings-field-stack">
-      <span>{t("settings.hardware.fluxBackend")}</span>
-      <div
-        className="settings-preset-group"
-        role="group"
-        aria-label={t("settings.hardware.fluxBackend")}
-      >
-        {visibleFluxBackends.map((option) => (
-          <button
-            key={option.id}
-            type="button"
-            className={`settings-preset-button ${fluxBackend === option.id ? "active" : ""}`}
-            onClick={() => {
-              clearTestState();
-              setFluxBackend(option.id);
-            }}
-            disabled={controlsBusy || isFluxBackendOptionDisabled(option.id)}
-            aria-pressed={fluxBackend === option.id}
-          >
-            {t(option.labelKey)}
-          </button>
-        ))}
-      </div>
-      <p className="muted-line modal-note">
-        {inpaintingModel === "flux-klein"
-          ? activeFluxBackend
-            ? t(activeFluxBackend.descriptionKey)
-            : null
-          : t("settings.hardware.fluxOnlyNote")}
-      </p>
-      {inpaintingModel === "flux-klein" && fluxBackend === "zluda-native" ? (
-        <AmdHipSdkDownloadButton />
-      ) : null}
-      <FluxHardwareContextNote
-        usesAmdHardware={usesAmdHardware}
-        usesAppleHardware={usesAppleHardware}
-        usesNvidiaHardware={usesNvidiaHardware}
       />
     </div>
   );

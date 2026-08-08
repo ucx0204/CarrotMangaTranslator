@@ -1,5 +1,6 @@
 export type FluxBackend =
   | "cuda-native"
+  | "cuda-sm75-experimental"
   | "zluda-native"
   | "metal-native"
   | "python-cpu";

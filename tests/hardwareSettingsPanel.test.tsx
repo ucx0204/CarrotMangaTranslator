@@ -166,4 +166,93 @@ describe("HardwareSettingsPanel", () => {
       screen.queryByRole("button", { name: "CUDA 레거시 풀로드" }),
     ).toBeNull();
   });
+
+  it("allows SM75 instead of standard CUDA on RTX 20 and keeps it visible elsewhere", () => {
+    const setFluxBackend = vi.fn();
+    const props: React.ComponentProps<typeof HardwareSettingsPanel> = {
+      allowUnsafeLowMemoryFlux: false,
+      clearTestState: vi.fn(),
+      computeGpuIndex: null,
+      controlsBusy: false,
+      fluxBackend: "cuda-native",
+      graphicsGpuPreference: "auto",
+      inpaintingModel: "flux-klein",
+      isFluxBackendOptionDisabled: (backend) => backend === "cuda-native",
+      ocrDevice: "gpu",
+      ocrGpuBackend: "cuda",
+      ocrQualityMode: "minimum",
+      setAllowUnsafeLowMemoryFlux: vi.fn(),
+      setComputeGpuIndex: vi.fn(),
+      setFluxBackend,
+      setGraphicsGpuPreference: vi.fn(),
+      setInpaintingModel: vi.fn(),
+      setOcrDevice: vi.fn(),
+      setOcrGpuBackend: vi.fn(),
+      setOcrQualityMode: vi.fn(),
+      unifiedMemoryMb: null,
+      usesAmdHardware: false,
+      usesAmdOcrContext: false,
+      usesAppleHardware: false,
+      usesNvidiaHardware: true,
+      usesNvidiaOcrContext: true,
+    };
+    const { rerender } = render(<HardwareSettingsPanel {...props} />);
+    const fluxGroup = screen.getByRole("group", {
+      name: "Flux 인페인팅 백엔드",
+    });
+
+    expect(
+      (
+        within(fluxGroup).getByRole("button", {
+          name: "NVIDIA CUDA",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    const sm75Button = within(fluxGroup).getByRole("button", {
+      name: "SM75 CUDA",
+    }) as HTMLButtonElement;
+    expect(sm75Button.disabled).toBe(false);
+    fireEvent.click(sm75Button);
+    expect(setFluxBackend).toHaveBeenCalledWith("cuda-sm75-experimental");
+
+    rerender(
+      <HardwareSettingsPanel {...props} fluxBackend="cuda-sm75-experimental" />,
+    );
+    expect(screen.getByRole("note").textContent).toContain(
+      "RTX 20 시리즈 전용",
+    );
+
+    rerender(
+      <HardwareSettingsPanel
+        {...props}
+        isFluxBackendOptionDisabled={(backend) =>
+          backend === "cuda-sm75-experimental"
+        }
+      />,
+    );
+    expect(
+      (
+        within(fluxGroup).getByRole("button", {
+          name: "NVIDIA CUDA",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false);
+    expect(
+      (
+        within(fluxGroup).getByRole("button", {
+          name: "SM75 CUDA",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+
+    rerender(
+      <HardwareSettingsPanel
+        {...props}
+        fluxBackend="metal-native"
+        usesAppleHardware
+        usesNvidiaHardware={false}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "SM75 CUDA" })).toBeNull();
+  });
 });

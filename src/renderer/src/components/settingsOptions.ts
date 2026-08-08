@@ -302,6 +302,11 @@ export const FLUX_BACKEND_OPTIONS: FluxBackendOption[] = [
     descriptionKey: "settings.options.fluxBackends.cuda.description",
   },
   {
+    id: "cuda-sm75-experimental",
+    labelKey: "settings.options.fluxBackends.sm75.label",
+    descriptionKey: "settings.options.fluxBackends.sm75.description",
+  },
+  {
     id: "zluda-native",
     labelKey: "settings.options.fluxBackends.zluda.label",
     descriptionKey: "settings.options.fluxBackends.zluda.description",

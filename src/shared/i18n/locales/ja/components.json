@@ -1196,6 +1196,10 @@
           "label": "NVIDIA CUDA",
           "description": "RTX GPUで最速のFluxネイティブランタイムです。"
         },
+        "sm75": {
+          "label": "SM75 CUDA",
+          "description": "RTX 20シリーズ（SM 7.5）向けのFP16 CUDA互換パスです。"
+        },
         "zluda": {
           "label": "AMD ZLUDA",
           "description": "AMD GPUでFluxをZLUDA経由で実行します。AMD HIP SDKが必要です。"
@@ -1351,6 +1355,8 @@
       "fluxOnlyNote": "この設定はFlux Kleinモデルにのみ適用されます。",
       "fluxLowMemoryConfirm": "ユニファイドメモリ{{available}}はFlux推奨の16GB未満です。危険な実行を許可しますか？",
       "fluxLowMemoryOverride": "ユニファイドメモリ{{available}}で危険なFlux実行を許可",
+      "sm75FluxWarningTitle": "RTX 20シリーズ専用",
+      "sm75FluxWarningDetail": "通常のNVIDIA CUDAとは動作や結果が少し異なる場合があります。",
       "downloadHipSdk": "AMD HIP SDKをダウンロード（ROCm 7.1.1）"
     },
     "format": {

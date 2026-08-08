@@ -58,6 +58,7 @@ export async function prepareFluxInpaintingEngine(options: {
   fluxBackend?: FluxBackend;
   computeGpuIndex?: number;
   nvidiaComputeCapability?: number | null;
+  sm75Fp16Enabled?: boolean;
   runRootDir?: string;
   signal?: AbortSignal;
   onProgress?: (progress: InpaintingRuntimeProgress) => void;
@@ -67,6 +68,7 @@ export async function prepareFluxInpaintingEngine(options: {
     modelDir: options.modelDir,
     backend: options.fluxBackend ?? "cuda-native",
     nvidiaComputeCapability: options.nvidiaComputeCapability,
+    sm75Fp16Enabled: options.sm75Fp16Enabled,
     signal: options.signal,
     onProgress: options.onProgress,
   });
@@ -116,20 +118,27 @@ export async function prepareFluxInpaintingEngine(options: {
       String(FLUX_INPAINT_MASK_PADDING_PX),
     ];
   }
-
-  options.onProgress?.({
-    progressText: tMain("inpainting.runtime.fluxReady"),
-    detail: launch.label,
-    progressMode: "log-only",
-    installLogLine: tMain("inpainting.runtime.fluxReadyLog"),
-  });
+  reportFluxEngineReady(options.onProgress, launch.label);
 
   return createFluxEngine({
     launch,
     modelPath,
     vaePath,
+    sm75Fp16Enabled: options.sm75Fp16Enabled === true,
     runRootDir:
       options.runRootDir ?? resolveDefaultFluxRunRootDir(options.runtimeDir),
+  });
+}
+
+function reportFluxEngineReady(
+  onProgress: ((progress: InpaintingRuntimeProgress) => void) | undefined,
+  detail: string,
+): void {
+  onProgress?.({
+    progressText: tMain("inpainting.runtime.fluxReady"),
+    detail,
+    progressMode: "log-only",
+    installLogLine: tMain("inpainting.runtime.fluxReadyLog"),
   });
 }
 

@@ -60,6 +60,8 @@ type RuntimeGpuVendor = "nvidia" | "amd" | "apple" | "unknown";
 type RuntimeHardwareInfo = {
   gpuVendor: RuntimeGpuVendor;
   gpuName?: string | null;
+  computeCapability?: number | null;
+  rtxGeneration?: number | null;
   llamaRocmTarget?: AmdRocmTarget | null;
   supportsRocm?: boolean;
   supportsVulkan?: boolean;

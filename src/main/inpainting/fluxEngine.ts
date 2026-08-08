@@ -34,6 +34,7 @@ export function createFluxEngine(
     launch: FluxWorkerLaunchSpec;
     modelPath?: string;
     vaePath?: string;
+    sm75Fp16Enabled?: boolean;
     runRootDir: string;
   },
   runtime: FluxEngineRuntime = productionRuntime,
@@ -78,7 +79,9 @@ export function createFluxEngine(
           getWorker,
           height,
           isolateWindowMasks: options.launch.backend === "metal-native",
-          tileLargeCrops: options.launch.backend === "metal-native",
+          tileLargeCrops:
+            options.launch.backend === "metal-native" ||
+            options.sm75Fp16Enabled === true,
           mask,
           runOptions: resolvedRunOptions,
           runRootDir: options.runRootDir,

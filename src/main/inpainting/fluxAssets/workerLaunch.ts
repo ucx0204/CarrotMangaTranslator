@@ -17,6 +17,7 @@ type EnsureFluxWorkerLaunchOptions = {
   modelDir: string;
   backend: FluxRuntimeBackend;
   nvidiaComputeCapability?: number | null;
+  sm75Fp16Enabled?: boolean;
   signal?: AbortSignal;
   onProgress?: (progress: FluxAssetProgress) => void;
 };
@@ -53,6 +54,7 @@ export async function ensureFluxWorkerLaunch(
     logFluxRuntimeSelected({
       backend,
       nvidiaComputeCapability: options.nvidiaComputeCapability,
+      sm75Fp16Enabled: options.sm75Fp16Enabled === true,
       runtimePath,
       cudaRuntimeDir,
     });
@@ -62,6 +64,7 @@ export async function ensureFluxWorkerLaunch(
       runtimePath,
       label: "Flux Klein CUDA",
       args: ["--cuda-runtime-dir", cudaRuntimeDir],
+      ...(options.sm75Fp16Enabled ? { env: { MGT_FLUX_SM75_FP16: "1" } } : {}),
     };
   }
   if (backend === "zluda-native") {
@@ -142,6 +145,7 @@ function logFluxRuntimeSelected(detail: {
   cudaRuntimeDir?: string;
   executable?: string;
   nvidiaComputeCapability?: number | null;
+  sm75Fp16Enabled?: boolean;
   runtimePath: string;
   zludaRuntimeRoot?: string;
 }): void {

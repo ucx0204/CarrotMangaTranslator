@@ -1165,6 +1165,10 @@
           "label": "NVIDIA CUDA",
           "description": "RTX GPU 上最快的 Flux 原生執行階段。"
         },
+        "sm75": {
+          "label": "SM75 CUDA",
+          "description": "適用於 RTX 20 系列（SM 7.5）的 FP16 CUDA 相容路徑。"
+        },
         "zluda": {
           "label": "AMD ZLUDA",
           "description": "在 AMD GPU 上透過 ZLUDA 執行 Flux，需要 AMD HIP SDK。"
@@ -1320,6 +1324,8 @@
       "fluxOnlyNote": "此後端設定僅適用於 Flux Klein 模型。",
       "fluxLowMemoryConfirm": "統一記憶體 {{available}} 低於 Flux 建議的 16GB。是否允許風險執行？",
       "fluxLowMemoryOverride": "允許在 {{available}} 統一記憶體下風險執行 Flux",
+      "sm75FluxWarningTitle": "僅限 RTX 20 系列",
+      "sm75FluxWarningDetail": "其行為或結果可能與標準 NVIDIA CUDA 略有不同。",
       "downloadHipSdk": "下載 AMD HIP SDK（ROCm 7.1.1）"
     },
     "format": {

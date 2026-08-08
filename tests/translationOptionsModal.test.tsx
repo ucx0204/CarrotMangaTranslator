@@ -153,7 +153,7 @@ describe("TranslationOptionsModal", () => {
     ).toBe("false");
     expect(
       screen.getByText(
-        /원문 글자 모양을 보고 대사·나레이션·강조·효과음에 어울리는 한글 폰트/,
+        /원문 분위기에 어울리는 한글 폰트를 블록마다 자동 적용합니다/,
       ),
     ).toBeTruthy();
     expect(
@@ -234,7 +234,7 @@ describe("TranslationOptionsModal", () => {
     ).toBeTruthy();
     expect(
       screen.getByText(
-        /원문 글자 모양을 보고 대사·나레이션·강조·효과음에 어울리는 한글 폰트/,
+        /원문 분위기에 어울리는 한글 폰트를 블록마다 자동 적용합니다/,
       ),
     ).toBeTruthy();
     expect(

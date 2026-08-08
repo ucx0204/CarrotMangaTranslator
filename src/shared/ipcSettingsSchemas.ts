@@ -190,6 +190,8 @@ export const AppSettingsSchema = z
       .object({
         gpuVendor: z.enum(["nvidia", "amd", "apple", "unknown"]),
         gpuName: z.string().max(300).nullable().optional(),
+        computeCapability: z.number().positive().nullable().optional(),
+        rtxGeneration: z.number().int().positive().nullable().optional(),
         llamaRocmTarget: AmdRocmTargetSchema.nullable().optional(),
         supportsRocm: z.boolean().optional(),
         supportsVulkan: z.boolean().optional(),

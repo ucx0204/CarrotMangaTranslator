@@ -15,6 +15,7 @@ import {
   logInpaintingRuntimeInfo,
 } from "./inpaintingRuntimeLogger";
 import { normalizeComputeGpuIndex } from "../../shared/gpuSettings";
+import { shouldEnableExperimentalSm75Flux } from "../../shared/fluxSm75";
 
 // Apple Silicon shares RAM between the CPU and GPU. Releasing the worker soon
 // after a job prevents Flux from competing with local Gemma for unified memory.
@@ -61,10 +62,20 @@ export async function acquireFluxInpaintingEngine(options: {
     (process.platform === "darwin" ? "metal-native" : "cuda-native");
   const computeGpuIndex = normalizeComputeGpuIndex(options.computeGpuIndex);
   const nvidiaComputeCapability =
-    fluxBackend === "cuda-native"
+    fluxBackend === "cuda-native" || fluxBackend === "cuda-sm75-experimental"
       ? await detectNvidiaComputeCapability(computeGpuIndex)
       : null;
-  const key = `${fluxBackend}\n${computeGpuIndex ?? "auto"}\n${nvidiaComputeCapability ?? "generic"}\n${runtimeDir}\n${modelDir}\n${runRootDir}`;
+  const sm75Fp16Enabled = shouldEnableExperimentalSm75Flux({
+    backend: fluxBackend,
+    computeCapability: nvidiaComputeCapability,
+  });
+  if (fluxBackend === "cuda-sm75-experimental" && !sm75Fp16Enabled) {
+    const detected = nvidiaComputeCapability ?? "알 수 없음";
+    throw new Error(
+      `SM75 CUDA 경로에는 NVIDIA CUDA compute capability 7.5가 필요합니다. 감지값: ${detected}`,
+    );
+  }
+  const key = `${fluxBackend}\n${computeGpuIndex ?? "auto"}\n${nvidiaComputeCapability ?? "generic"}\nsm75-fp16=${sm75Fp16Enabled}\n${runtimeDir}\n${modelDir}\n${runRootDir}`;
 
   const lease = await fluxEnginePool.acquire(key, () =>
     prepareFluxInpaintingEngine({
@@ -73,6 +84,7 @@ export async function acquireFluxInpaintingEngine(options: {
       fluxBackend,
       computeGpuIndex,
       nvidiaComputeCapability,
+      sm75Fp16Enabled,
       runRootDir,
       signal: options.signal,
       onProgress: options.onProgress,
