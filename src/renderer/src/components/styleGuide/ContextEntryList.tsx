@@ -5,6 +5,7 @@ import { Button } from "../ui/Button";
 import { ControlTooltip } from "../ui/ControlTooltip";
 import { IconButton } from "../ui/IconButton";
 import { TrashIcon } from "../ui/icons";
+import { Select } from "../ui/Select";
 import type {
   ContextEntryFilter,
   ContextEntrySort,
@@ -44,40 +45,32 @@ export function ContextEntryToolbar({
         placeholder={t("styleGuide.usage.search")}
         onChange={(event) => onQueryChange(event.target.value)}
       />
-      <select
+      <Select
         value={sort}
-        aria-label={t("styleGuide.usage.sortLabel")}
-        onChange={(event) =>
-          onSortChange(event.target.value as ContextEntrySort)
+        ariaLabel={t("styleGuide.usage.sortLabel")}
+        options={(["usage", "recent", "name", "stored"] as const).map((id) => ({
+          value: id,
+          label: t(`styleGuide.usage.sort.${id}`),
+          disabled: !usageAvailable && (id === "usage" || id === "recent"),
+        }))}
+        onValueChange={(nextValue) =>
+          onSortChange(nextValue as ContextEntrySort)
         }
-      >
-        {(["usage", "recent", "name", "stored"] as const).map((id) => (
-          <option
-            key={id}
-            value={id}
-            disabled={!usageAvailable && (id === "usage" || id === "recent")}
-          >
-            {t(`styleGuide.usage.sort.${id}`)}
-          </option>
-        ))}
-      </select>
-      <select
+      />
+      <Select
         value={filter}
-        aria-label={t("styleGuide.usage.filterLabel")}
-        onChange={(event) =>
-          onFilterChange(event.target.value as ContextEntryFilter)
+        ariaLabel={t("styleGuide.usage.filterLabel")}
+        options={(["all", "ai", "unused", "low-use", "disabled"] as const).map(
+          (id) => ({
+            value: id,
+            label: t(`styleGuide.usage.filter.${id}`),
+            disabled: !usageAvailable && (id === "unused" || id === "low-use"),
+          }),
+        )}
+        onValueChange={(nextValue) =>
+          onFilterChange(nextValue as ContextEntryFilter)
         }
-      >
-        {(["all", "ai", "unused", "low-use", "disabled"] as const).map((id) => (
-          <option
-            key={id}
-            value={id}
-            disabled={!usageAvailable && (id === "unused" || id === "low-use")}
-          >
-            {t(`styleGuide.usage.filter.${id}`)}
-          </option>
-        ))}
-      </select>
+      />
       <Button
         size="sm"
         variant="danger"

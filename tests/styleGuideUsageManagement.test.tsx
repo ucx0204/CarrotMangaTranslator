@@ -9,6 +9,10 @@ import {
   within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  chooseCustomSelectOption,
+  openCustomSelect,
+} from "./testUtils/customSelect";
 import { CharactersTab } from "../src/renderer/src/components/styleGuide/CharactersTab";
 import { GlossaryTab } from "../src/renderer/src/components/styleGuide/GlossaryTab";
 import { StyleGuideTabContent } from "../src/renderer/src/components/styleGuide/StyleGuideChrome";
@@ -36,14 +40,10 @@ describe("style guide usage management", () => {
 
     expect(glossarySourceOrder()).toEqual(["Beta", "Alpha"]);
 
-    fireEvent.change(screen.getByLabelText("정렬"), {
-      target: { value: "name" },
-    });
+    chooseCustomSelectOption("정렬", "이름");
     expect(glossarySourceOrder()).toEqual(["Alpha", "Beta"]);
 
-    fireEvent.change(screen.getByLabelText("필터"), {
-      target: { value: "ai" },
-    });
+    chooseCustomSelectOption("필터", "AI 생성");
     expect(glossarySourceOrder()).toEqual(["Beta"]);
 
     fireEvent.change(screen.getByPlaceholderText("원문"), {
@@ -62,9 +62,7 @@ describe("style guide usage management", () => {
       }),
     );
 
-    fireEvent.change(screen.getByLabelText("필터"), {
-      target: { value: "all" },
-    });
+    chooseCustomSelectOption("필터", "전체");
     fireEvent.click(screen.getByLabelText("Alpha 선택"));
     fireEvent.click(screen.getByLabelText("Beta 선택"));
     vi.spyOn(window, "confirm").mockReturnValue(true);
@@ -193,9 +191,7 @@ describe("style guide usage management", () => {
       <GlossaryTab guide={guide} onGuideChange={vi.fn()} usage={makeUsage()} />,
     );
 
-    fireEvent.change(screen.getByLabelText("정렬"), {
-      target: { value: "stored" },
-    });
+    chooseCustomSelectOption("정렬", "저장 순서");
     expect(glossarySourceOrder()).toEqual(["Alpha", "Beta", "Gamma"]);
 
     fireEvent.change(screen.getByLabelText("이름·번역·별칭 검색"), {
@@ -206,17 +202,11 @@ describe("style guide usage management", () => {
       target: { value: "" },
     });
 
-    fireEvent.change(screen.getByLabelText("필터"), {
-      target: { value: "unused" },
-    });
+    chooseCustomSelectOption("필터", "사용 안 함");
     expect(glossarySourceOrder()).toEqual(["Gamma"]);
-    fireEvent.change(screen.getByLabelText("필터"), {
-      target: { value: "low-use" },
-    });
+    chooseCustomSelectOption("필터", "0~1쪽 등장");
     expect(glossarySourceOrder()).toEqual(["Alpha", "Gamma"]);
-    fireEvent.change(screen.getByLabelText("필터"), {
-      target: { value: "disabled" },
-    });
+    chooseCustomSelectOption("필터", "비활성");
     expect(glossarySourceOrder()).toEqual(["Gamma"]);
   });
 
@@ -233,10 +223,12 @@ describe("style guide usage management", () => {
     expect(
       screen.getAllByText("사용 통계를 불러오지 못했습니다.").length,
     ).toBeGreaterThan(0);
-    const filter = screen.getByLabelText("필터") as HTMLSelectElement;
+    const filterOptions = openCustomSelect("필터");
     expect(
-      [...filter.options].find((option) => option.value === "unused")?.disabled,
-    ).toBe(true);
+      within(filterOptions)
+        .getByRole("option", { name: "사용 안 함" })
+        .getAttribute("aria-disabled"),
+    ).toBe("true");
   });
 
   it("keeps selected entries when bulk deletion is cancelled", () => {

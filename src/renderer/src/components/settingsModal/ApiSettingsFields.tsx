@@ -4,6 +4,7 @@ import type { ApiReasoningEffort } from "../../../../shared/settingsTypes";
 import { API_REASONING_OPTIONS } from "../settingsOptions";
 import type { EngineSettingsPanelProps } from "./EngineSettingsPanelTypes";
 import { ApiProviderConnectionFields } from "./ApiProviderConnectionFields";
+import { Select } from "../ui/Select";
 
 export type ApiSettingsFieldsProps = Pick<
   EngineSettingsPanelProps,
@@ -147,20 +148,19 @@ function ApiReasoningEffortField({
   return (
     <label>
       {t("settings.api.advanced.reasoningEffort")}
-      <select
+      <Select
+        ariaLabel={t("settings.api.advanced.reasoningEffort")}
         value={apiReasoningEffort}
         disabled={controlsBusy}
-        onChange={(event) => {
+        options={API_REASONING_OPTIONS.map((option) => ({
+          value: option.id,
+          label: t(option.labelKey),
+        }))}
+        onValueChange={(nextValue) => {
           clearTestState();
-          setApiReasoningEffort(event.target.value as ApiReasoningEffort | "");
+          setApiReasoningEffort(nextValue as ApiReasoningEffort | "");
         }}
-      >
-        {API_REASONING_OPTIONS.map((option) => (
-          <option key={option.id || "omit"} value={option.id}>
-            {t(option.labelKey)}
-          </option>
-        ))}
-      </select>
+      />
     </label>
   );
 }

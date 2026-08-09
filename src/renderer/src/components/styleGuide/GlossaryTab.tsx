@@ -7,6 +7,7 @@ import type {
 import type { WorkContextUsageMetric } from "../../../../shared/workContextUsageTypes";
 import { Button } from "../ui/Button";
 import { CheckboxField } from "../ui/CheckboxField";
+import { Select } from "../ui/Select";
 import type { StyleGuideEditorProps } from "./styleGuideTypes";
 import {
   ContextEntryDeleteButton,
@@ -245,21 +246,19 @@ function GlossaryRow({
         placeholder={t("styleGuide.glossary.translation")}
         onChange={(event) => onUpdate({ target: event.target.value })}
       />
-      <select
+      <Select
         value={entry.category}
-        aria-label={t("styleGuide.usage.categoryItem", {
+        ariaLabel={t("styleGuide.usage.categoryItem", {
           name: entryName,
         })}
-        onChange={(event) =>
-          onUpdate({ category: event.target.value as GlossaryEntryCategory })
+        options={CATEGORY_IDS.map((id) => ({
+          value: id,
+          label: t(`styleGuide.glossary.categories.${id}`),
+        }))}
+        onValueChange={(nextValue) =>
+          onUpdate({ category: nextValue as GlossaryEntryCategory })
         }
-      >
-        {CATEGORY_IDS.map((id) => (
-          <option key={id} value={id}>
-            {t(`styleGuide.glossary.categories.${id}`)}
-          </option>
-        ))}
-      </select>
+      />
       <input
         value={(entry.aliases ?? []).join(", ")}
         placeholder={t("styleGuide.glossary.aliases")}

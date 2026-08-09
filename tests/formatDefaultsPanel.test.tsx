@@ -8,6 +8,7 @@ import type { BlockFormatDefaults } from "../src/shared/settingsTypes";
 import { FormatDefaultsPanel } from "../src/renderer/src/components/settingsModal/FormatDefaultsPanel";
 import { FontsContext } from "../src/renderer/src/fonts/fontsContextValue";
 import { createBlockFontCatalog } from "../src/renderer/src/lib/fonts";
+import { chooseCustomSelectOption } from "./testUtils/customSelect";
 
 afterEach(cleanup);
 
@@ -32,7 +33,7 @@ describe("FormatDefaultsPanel", () => {
       (
         screen.getByRole("combobox", {
           name: "줄바꿈 방식",
-        }) as HTMLSelectElement
+        }) as HTMLButtonElement
       ).value,
     ).toBe("break-word");
   });
@@ -113,9 +114,7 @@ describe("FormatDefaultsPanel", () => {
     const onChange = vi.fn();
     const { container } = renderPanel(onChange);
 
-    fireEvent.change(screen.getByRole("combobox", { name: "줄바꿈 방식" }), {
-      target: { value: "keep-all" },
-    });
+    chooseCustomSelectOption("줄바꿈 방식", "단어 단위");
 
     expect(onChange).toHaveBeenLastCalledWith({ wordBreak: "keep-all" });
     expect(

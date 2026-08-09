@@ -328,6 +328,8 @@
 
 .settings-tabs {
   gap: 5px;
+  align-self: start;
+  height: max-content;
   padding: 7px;
   border: 1px solid var(--border-soft);
   border-radius: var(--r-lg);
@@ -647,7 +649,7 @@
   input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not(
     .gather-direct-size-input
   ),
-.settings-tabpanel select,
+.settings-tabpanel [data-ui-select-trigger],
 .settings-tabpanel textarea {
   border-color: color-mix(in srgb, var(--border-strong) 82%, transparent);
   background: color-mix(in srgb, var(--bg-sunken) 88%, #0d0f12);
@@ -657,7 +659,7 @@
   input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not(
     .gather-direct-size-input
   ):focus,
-.settings-tabpanel select:focus,
+.settings-tabpanel [data-ui-select-trigger]:focus-visible,
 .settings-tabpanel textarea:focus {
   border-color: var(--accent-bd);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);

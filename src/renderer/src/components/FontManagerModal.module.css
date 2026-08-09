@@ -25,7 +25,7 @@
   white-space: nowrap;
 }
 
-.defaultControl select,
+.defaultSelect,
 .search {
   width: 100%;
   min-width: 0;
@@ -35,6 +35,13 @@
   border-radius: var(--r-sm);
   background: var(--bg-sunken);
   color: var(--text);
+  font-size: var(--font-sm);
+}
+
+.defaultSelect [data-ui-select-trigger] {
+  min-height: 32px;
+  padding: 4px var(--sp-2);
+  border-radius: var(--r-sm);
   font-size: var(--font-sm);
 }
 

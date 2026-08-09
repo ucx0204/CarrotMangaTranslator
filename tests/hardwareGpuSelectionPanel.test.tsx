@@ -1,9 +1,10 @@
 /** @vitest-environment jsdom */
 
 import React from "react";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HardwareSettingsPanel } from "../src/renderer/src/components/settingsModal/HardwareSettingsPanel";
+import { chooseCustomSelectOption } from "./testUtils/customSelect";
 
 afterEach(cleanup);
 
@@ -19,7 +20,7 @@ describe("HardwareSettingsPanel GPU selection", () => {
       setComputeGpuIndex,
     });
 
-    const selects = screen.getAllByRole<HTMLSelectElement>("combobox");
+    const selects = screen.getAllByRole<HTMLButtonElement>("combobox");
     expect(selects).toHaveLength(2);
     const graphicsSelect = selects.find((select) => select.value === "auto");
     const computeSelect = selects.find((select) => select.value === "");
@@ -27,22 +28,33 @@ describe("HardwareSettingsPanel GPU selection", () => {
       throw new Error("Expected graphics and compute GPU selects");
     }
 
-    fireEvent.change(graphicsSelect, {
-      target: { value: "high-performance" },
-    });
-    fireEvent.change(computeSelect, { target: { value: "1" } });
-    fireEvent.change(computeSelect, { target: { value: "" } });
+    chooseCustomSelectOption("앱 그래픽 GPU", "고성능 GPU 우선 (RTX/외장)");
+    chooseCustomSelectOption(
+      "로컬 AI 연산 GPU",
+      "연산 장치 1 (CUDA/HIP/Vulkan)",
+    );
 
     expect(setGraphicsGpuPreference).toHaveBeenCalledWith("high-performance");
     expect(setComputeGpuIndex).toHaveBeenNthCalledWith(1, 1);
-    expect(setComputeGpuIndex).toHaveBeenNthCalledWith(2, null);
-    expect(clearTestState).toHaveBeenCalledTimes(3);
+    expect(clearTestState).toHaveBeenCalledTimes(2);
+
+    cleanup();
+    const clearAutomaticTestState = vi.fn();
+    const setAutomaticComputeGpuIndex = vi.fn();
+    renderPanel({
+      clearTestState: clearAutomaticTestState,
+      computeGpuIndex: 1,
+      setComputeGpuIndex: setAutomaticComputeGpuIndex,
+    });
+    chooseCustomSelectOption("로컬 AI 연산 GPU", "자동 (권장)");
+    expect(setAutomaticComputeGpuIndex).toHaveBeenCalledWith(null);
+    expect(clearAutomaticTestState).toHaveBeenCalledOnce();
   });
 
   it("disables both GPU selects while settings controls are busy", () => {
     renderPanel({ controlsBusy: true });
 
-    const selects = screen.getAllByRole<HTMLSelectElement>("combobox");
+    const selects = screen.getAllByRole<HTMLButtonElement>("combobox");
     expect(selects).toHaveLength(2);
     expect(selects.every((select) => select.disabled)).toBe(true);
   });

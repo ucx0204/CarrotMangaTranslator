@@ -220,7 +220,7 @@
 }
 
 .style-guide-list-toolbar > input,
-.style-guide-list-toolbar > select {
+.style-guide-list-toolbar > [data-ui-select] {
   width: 100%;
   min-width: 0;
 }

@@ -8,6 +8,8 @@ import {
   type ResolvedLanguage,
 } from "../../../../shared/translationLanguages";
 import type { EngineSettingsPanelProps } from "./EngineSettingsPanelTypes";
+import { Select } from "../ui/Select";
+import type { SelectOption } from "../ui/selectTypes";
 
 type TranslationLanguageFieldsProps = Pick<
   EngineSettingsPanelProps,
@@ -133,6 +135,7 @@ function LanguageField({
       <label>
         {label}
         <LanguageSelect
+          ariaLabel={label}
           displayNames={displayNames}
           disabled={disabled}
           onCustomPick={() => setCustomPicked(true)}
@@ -173,6 +176,7 @@ function LanguageField({
 }
 
 function LanguageSelect({
+  ariaLabel,
   displayNames,
   disabled,
   onCustomPick,
@@ -180,6 +184,7 @@ function LanguageSelect({
   otherLanguages,
   value,
 }: {
+  ariaLabel: string;
   displayNames: Intl.DisplayNames | null;
   disabled: boolean;
   onCustomPick: () => void;
@@ -188,36 +193,37 @@ function LanguageSelect({
   value: string;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
+  const options: SelectOption[] = [
+    ...PRIMARY_LANGUAGES.map((language) => ({
+      value: language.code,
+      label: getLanguageDisplayName(displayNames, language),
+      group: t("settings.translation.primaryLanguages"),
+    })),
+    ...otherLanguages.map((language) => ({
+      value: language.code,
+      label: getLanguageDisplayName(displayNames, language),
+      group: t("settings.translation.otherLanguages"),
+    })),
+    {
+      value: CUSTOM_LANGUAGE_OPTION,
+      label: t("settings.translation.custom"),
+    },
+  ];
   return (
-    <select
+    <Select
+      ariaLabel={ariaLabel}
       value={value}
       disabled={disabled}
-      onChange={(event) => {
-        if (event.target.value === CUSTOM_LANGUAGE_OPTION) {
+      options={options}
+      searchable
+      onValueChange={(nextValue) => {
+        if (nextValue === CUSTOM_LANGUAGE_OPTION) {
           onCustomPick();
           return;
         }
-        onPresetPick(event.target.value);
+        onPresetPick(nextValue);
       }}
-    >
-      <optgroup label={t("settings.translation.primaryLanguages")}>
-        {PRIMARY_LANGUAGES.map((language) => (
-          <option key={language.code} value={language.code}>
-            {getLanguageDisplayName(displayNames, language)}
-          </option>
-        ))}
-      </optgroup>
-      <optgroup label={t("settings.translation.otherLanguages")}>
-        {otherLanguages.map((language) => (
-          <option key={language.code} value={language.code}>
-            {getLanguageDisplayName(displayNames, language)}
-          </option>
-        ))}
-      </optgroup>
-      <option value={CUSTOM_LANGUAGE_OPTION}>
-        {t("settings.translation.custom")}
-      </option>
-    </select>
+    />
   );
 }
 

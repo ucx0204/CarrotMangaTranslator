@@ -9,6 +9,7 @@ import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
 import { ModalActionBar } from "./ui/ModalActionBar";
 import { SelectionCard } from "./ui/SelectionCard";
+import { WorkSelect } from "./WorkSelect";
 
 type ShareExportModalProps = {
   library: LibraryIndex;
@@ -144,17 +145,13 @@ function ShareExportWorkSection({
     <section className="modal-section share-target-section">
       <label>
         {t("shareExport.targetWork")}
-        <select
+        <WorkSelect
+          ariaLabel={t("shareExport.targetWork")}
+          library={library}
           value={workId}
           disabled={busy || library.works.length === 0}
-          onChange={(event) => setWorkId(event.target.value)}
-        >
-          {library.works.map((work) => (
-            <option key={work.id} value={work.id}>
-              {work.title}
-            </option>
-          ))}
-        </select>
+          onValueChange={setWorkId}
+        />
       </label>
     </section>
   );

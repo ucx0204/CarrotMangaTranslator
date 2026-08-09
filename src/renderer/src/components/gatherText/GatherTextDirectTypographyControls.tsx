@@ -26,6 +26,8 @@ import {
   resolvePreviewValue,
   type DirectChangeHandler,
 } from "./gatherTextDirectFormatUi";
+import { Select } from "../ui/Select";
+import type { SelectOption } from "../ui/selectTypes";
 
 const MIXED_FONT_VALUE = "__gather_mixed_font__";
 const DEFAULT_FONT_VALUE = "__gather_default_font__";
@@ -104,6 +106,24 @@ function FontPicker({
   const defaultOption = options.find(
     (option) => option.id === DEFAULT_BLOCK_FONT_ID,
   );
+  const selectOptions: SelectOption[] = [
+    ...(state.kind === "mixed"
+      ? [
+          {
+            value: MIXED_FONT_VALUE,
+            label: t("gatherText.mixedValue"),
+            disabled: true,
+          },
+        ]
+      : []),
+    {
+      value: DEFAULT_FONT_VALUE,
+      label: defaultOption?.label ?? t("gatherText.defaultFont"),
+    },
+    ...options
+      .filter((option) => option.id !== DEFAULT_BLOCK_FONT_ID)
+      .map((option) => ({ value: option.id, label: option.label })),
+  ];
   return (
     <label
       className="gather-direct-font-picker"
@@ -114,35 +134,19 @@ function FontPicker({
         mixed={state.kind === "mixed"}
         touched={touched}
       />
-      <select
-        aria-label={t("formatBatch.groups.font")}
+      <Select
+        ariaLabel={t("formatBatch.groups.font")}
         value={value}
         disabled={disabled}
-        onChange={(event) =>
+        options={selectOptions}
+        searchable="auto"
+        onValueChange={(nextValue) =>
           onChange(
             "fontFamily",
-            event.target.value === DEFAULT_FONT_VALUE
-              ? undefined
-              : event.target.value,
+            nextValue === DEFAULT_FONT_VALUE ? undefined : nextValue,
           )
         }
-      >
-        {state.kind === "mixed" ? (
-          <option value={MIXED_FONT_VALUE} disabled>
-            {t("gatherText.mixedValue")}
-          </option>
-        ) : null}
-        <option value={DEFAULT_FONT_VALUE}>
-          {defaultOption?.label ?? t("gatherText.defaultFont")}
-        </option>
-        {options
-          .filter((option) => option.id !== DEFAULT_BLOCK_FONT_ID)
-          .map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-      </select>
+      />
     </label>
   );
 }

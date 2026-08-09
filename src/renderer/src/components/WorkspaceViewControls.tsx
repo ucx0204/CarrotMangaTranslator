@@ -13,6 +13,7 @@ import {
   type WorkspaceFitMode,
 } from "../lib/workspaceZoom";
 import { ControlTooltip } from "./ui/ControlTooltip";
+import { Select } from "./ui/Select";
 
 type WorkspaceViewControlsProps = {
   fitMode: WorkspaceFitMode;
@@ -283,19 +284,18 @@ function WorkspaceFitModeSelect({
       <span className="workspace-fit-picker-face" aria-hidden="true">
         <IconAspectRatio size={19} stroke={2} />
       </span>
-      <select
-        aria-label={labels.fitMode}
+      <Select
+        ariaLabel={labels.fitMode}
+        className="workspace-fit-select"
         value={fitMode}
-        onChange={(event) =>
-          onChangeFitMode(event.target.value as WorkspaceFitMode)
+        options={FIT_MODES.map((mode) => ({
+          value: mode,
+          label: labels.fitModes[mode],
+        }))}
+        onValueChange={(nextValue) =>
+          onChangeFitMode(nextValue as WorkspaceFitMode)
         }
-      >
-        {FIT_MODES.map((mode) => (
-          <option key={mode} value={mode}>
-            {labels.fitModes[mode]}
-          </option>
-        ))}
-      </select>
+      />
     </ControlTooltip>
   );
 }

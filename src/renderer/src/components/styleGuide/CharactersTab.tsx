@@ -7,6 +7,7 @@ import type {
 import type { WorkContextUsageMetric } from "../../../../shared/workContextUsageTypes";
 import { Button } from "../ui/Button";
 import { CheckboxField } from "../ui/CheckboxField";
+import { Select } from "../ui/Select";
 import type { StyleGuideEditorProps } from "./styleGuideTypes";
 import {
   ContextEntryDeleteButton,
@@ -263,19 +264,17 @@ function CharacterRow({
         placeholder={t("styleGuide.characters.translatedName")}
         onChange={(event) => onUpdate({ targetName: event.target.value })}
       />
-      <select
+      <Select
         value={character.speechStyle}
-        aria-label={t("styleGuide.usage.speechStyleItem", { name })}
-        onChange={(event) =>
-          onUpdate({ speechStyle: event.target.value as CharacterSpeechStyle })
+        ariaLabel={t("styleGuide.usage.speechStyleItem", { name })}
+        options={SPEECH_STYLE_IDS.map((id) => ({
+          value: id,
+          label: t(`styleGuide.characters.speechStyles.${id}`),
+        }))}
+        onValueChange={(nextValue) =>
+          onUpdate({ speechStyle: nextValue as CharacterSpeechStyle })
         }
-      >
-        {SPEECH_STYLE_IDS.map((id) => (
-          <option key={id} value={id}>
-            {t(`styleGuide.characters.speechStyles.${id}`)}
-          </option>
-        ))}
-      </select>
+      />
       <input
         value={character.customSpeechStyle ?? ""}
         placeholder={t("styleGuide.characters.customSpeechStyle")}

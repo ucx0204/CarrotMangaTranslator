@@ -12,6 +12,10 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  chooseCustomSelectOption,
+  openCustomSelect,
+} from "./testUtils/customSelect";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
 import { PanelCommandSchema } from "../src/shared/panelBridgeSchemas";
@@ -584,14 +588,15 @@ describe("selected block font-size adjustment", () => {
 
     selectEditorTab("서식");
     const select = screen.getByRole("combobox", { name: "줄바꿈 방식" });
-    expect((select as HTMLSelectElement).value).toBe("break-all");
+    expect((select as HTMLButtonElement).value).toBe("break-all");
+    openCustomSelect("줄바꿈 방식");
     expect(screen.getByRole("option", { name: "글자 단위" })).toBeTruthy();
     expect(
       screen.getByText("단어 중간이라도 글자 단위로 줄을 바꿉니다."),
     ).toBeTruthy();
     expect(screen.queryByText("break-word")).toBeNull();
 
-    fireEvent.change(select, { target: { value: "break-word" } });
+    chooseCustomSelectOption("줄바꿈 방식", "긴 문자열 넘침 방지");
     expect(onUpdate).toHaveBeenCalledWith({ wordBreak: "break-word" });
   });
 
@@ -614,7 +619,7 @@ describe("selected block font-size adjustment", () => {
       (
         screen.getByRole("combobox", {
           name: "줄바꿈 방식",
-        }) as HTMLSelectElement
+        }) as HTMLButtonElement
       ).value,
     ).toBe("break-word");
   });

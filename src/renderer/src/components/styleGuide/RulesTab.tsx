@@ -2,6 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import type { WorkStyleGuide } from "../../../../shared/workContextTypes";
 import type { StyleGuideEditorProps } from "./styleGuideTypes";
+import { Select } from "../ui/Select";
 
 type Rules = WorkStyleGuide["rules"];
 
@@ -46,18 +47,27 @@ function HonorificRule({
   return (
     <label>
       {t("styleGuide.rules.honorifics.label")}
-      <select
+      <Select
+        ariaLabel={t("styleGuide.rules.honorifics.label")}
         value={value}
-        onChange={(event) =>
-          onChange(event.target.value as Rules["honorifics"])
+        options={[
+          {
+            value: "preserve",
+            label: t("styleGuide.rules.honorifics.preserve"),
+          },
+          {
+            value: "adapt",
+            label: t("styleGuide.rules.honorifics.adapt"),
+          },
+          {
+            value: "drop",
+            label: t("styleGuide.rules.honorifics.drop"),
+          },
+        ]}
+        onValueChange={(nextValue) =>
+          onChange(nextValue as Rules["honorifics"])
         }
-      >
-        <option value="preserve">
-          {t("styleGuide.rules.honorifics.preserve")}
-        </option>
-        <option value="adapt">{t("styleGuide.rules.honorifics.adapt")}</option>
-        <option value="drop">{t("styleGuide.rules.honorifics.drop")}</option>
-      </select>
+      />
     </label>
   );
 }
@@ -73,14 +83,16 @@ function SfxRule({
   return (
     <label>
       {t("styleGuide.rules.sfx.label")}
-      <select
+      <Select
+        ariaLabel={t("styleGuide.rules.sfx.label")}
         value={value}
-        onChange={(event) => onChange(event.target.value as Rules["sfxMode"])}
-      >
-        <option value="preserve">{t("styleGuide.rules.sfx.preserve")}</option>
-        <option value="translate">{t("styleGuide.rules.sfx.translate")}</option>
-        <option value="note">{t("styleGuide.rules.sfx.note")}</option>
-      </select>
+        options={[
+          { value: "preserve", label: t("styleGuide.rules.sfx.preserve") },
+          { value: "translate", label: t("styleGuide.rules.sfx.translate") },
+          { value: "note", label: t("styleGuide.rules.sfx.note") },
+        ]}
+        onValueChange={(nextValue) => onChange(nextValue as Rules["sfxMode"])}
+      />
     </label>
   );
 }
@@ -96,17 +108,20 @@ function ToneRule({
   return (
     <label>
       {t("styleGuide.rules.tone.label")}
-      <select
+      <Select
+        ariaLabel={t("styleGuide.rules.tone.label")}
         value={value}
-        onChange={(event) =>
-          onChange(event.target.value as Rules["defaultTone"])
+        options={[
+          {
+            value: "natural_korean",
+            label: t("styleGuide.rules.tone.natural"),
+          },
+          { value: "literal", label: t("styleGuide.rules.tone.literal") },
+        ]}
+        onValueChange={(nextValue) =>
+          onChange(nextValue as Rules["defaultTone"])
         }
-      >
-        <option value="natural_korean">
-          {t("styleGuide.rules.tone.natural")}
-        </option>
-        <option value="literal">{t("styleGuide.rules.tone.literal")}</option>
-      </select>
+      />
     </label>
   );
 }

@@ -31,6 +31,7 @@ import {
 } from "./FormatDefaultsDetailSections";
 import type { BlockStylePreset } from "../../../../shared/blockStylePresets";
 import { BlockStylePresetManager } from "./BlockStylePresetManager";
+import { Select } from "../ui/Select";
 
 export type FormatDefaultsPanelProps = {
   bubbleLayoutPaddingRatio: number;
@@ -172,29 +173,26 @@ function DefaultFontPicker({
         mixed={false}
         touched={false}
       />
-      <select
-        aria-label={t("formatBatch.groups.font")}
+      <Select
+        ariaLabel={t("formatBatch.groups.font")}
         value={value ?? DEFAULT_FONT_VALUE}
-        onChange={(event) =>
+        options={[
+          {
+            value: DEFAULT_FONT_VALUE,
+            label: defaultOption?.label ?? t("gatherText.defaultFont"),
+          },
+          ...options
+            .filter((option) => option.id !== DEFAULT_BLOCK_FONT_ID)
+            .map((option) => ({ value: option.id, label: option.label })),
+        ]}
+        searchable="auto"
+        onValueChange={(nextValue) =>
           onChange({
             fontFamily:
-              event.target.value === DEFAULT_FONT_VALUE
-                ? undefined
-                : event.target.value,
+              nextValue === DEFAULT_FONT_VALUE ? undefined : nextValue,
           })
         }
-      >
-        <option value={DEFAULT_FONT_VALUE}>
-          {defaultOption?.label ?? t("gatherText.defaultFont")}
-        </option>
-        {options
-          .filter((option) => option.id !== DEFAULT_BLOCK_FONT_ID)
-          .map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-      </select>
+      />
     </label>
   );
 }

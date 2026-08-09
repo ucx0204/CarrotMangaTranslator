@@ -725,7 +725,7 @@
   min-width: 0;
 }
 
-.transform-select-row select {
+.transform-select-row [data-ui-select-trigger] {
   min-width: 0;
   height: 30px;
   padding-block: 3px;
@@ -820,7 +820,7 @@
 }
 
 .editor-panel.has-block textarea,
-.editor-panel.has-block select,
+.editor-panel.has-block [data-ui-select-trigger],
 .editor-panel.has-block input {
   font-size: var(--font-md);
   color: #f5f0e8;

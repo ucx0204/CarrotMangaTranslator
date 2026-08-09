@@ -30,6 +30,21 @@
     "thisPage": "本頁",
     "workTitle": "作品標題"
   },
+  "select": {
+    "placeholder": "請選擇",
+    "search": "搜尋選項",
+    "noResults": "沒有符合的選項。"
+  },
+  "workSelect": {
+    "search": "搜尋作品",
+    "chapterCount": "{{count}}話",
+    "sort": {
+      "label": "排序",
+      "library": "收藏庫順序",
+      "title": "名稱",
+      "recent": "最近更新"
+    }
+  },
   "sidebar": {
     "exitInpainting": "結束影像修補",
     "noCurrentChapter": "尚未開啟章節",

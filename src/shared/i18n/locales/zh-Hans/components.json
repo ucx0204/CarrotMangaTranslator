@@ -30,6 +30,21 @@
     "thisPage": "本页",
     "workTitle": "作品标题"
   },
+  "select": {
+    "placeholder": "请选择",
+    "search": "搜索选项",
+    "noResults": "没有匹配的选项。"
+  },
+  "workSelect": {
+    "search": "搜索作品",
+    "chapterCount": "{{count}}话",
+    "sort": {
+      "label": "排序",
+      "library": "书库顺序",
+      "title": "名称",
+      "recent": "最近更新"
+    }
+  },
   "sidebar": {
     "exitInpainting": "退出图像修复",
     "noCurrentChapter": "未打开章节",

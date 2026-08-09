@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import exampleSettings from "../settings.example.json";
 import { SettingsModal } from "../src/renderer/src/components/SettingsModal";
 import type { AppSettings } from "../src/shared/settingsTypes";
+import { chooseCustomSelectOption } from "./testUtils/customSelect";
 
 const initialSettings = structuredClone(exampleSettings) as AppSettings;
 
@@ -29,9 +30,7 @@ describe("settings draft safety", () => {
     const save = screen.getByRole("button", { name: "저장" });
     expect(save).toHaveProperty("disabled", true);
 
-    fireEvent.change(screen.getByRole("combobox", { name: "앱 언어" }), {
-      target: { value: "en" },
-    });
+    chooseCustomSelectOption("앱 언어", "English");
     expect(save).toHaveProperty("disabled", false);
 
     fireEvent.click(screen.getByRole("button", { name: "취소" }));

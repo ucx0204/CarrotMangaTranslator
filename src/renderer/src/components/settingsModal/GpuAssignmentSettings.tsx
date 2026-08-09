@@ -5,6 +5,7 @@ import {
   type GraphicsGpuPreference,
 } from "../../../../shared/gpuSettings";
 import { SettingsSection } from "./SettingsSection";
+import { Select } from "../ui/Select";
 
 export type GpuAssignmentSettingsProps = {
   clearTestState: () => void;
@@ -39,45 +40,44 @@ export function GpuAssignmentSettings({
       <div className="settings-subsection-stack">
         <label className="settings-field-stack">
           <span>{t("settings.hardware.graphicsGpu")}</span>
-          <select
-            aria-label={t("settings.hardware.graphicsGpu")}
+          <Select
+            ariaLabel={t("settings.hardware.graphicsGpu")}
             value={graphicsGpuPreference}
             disabled={controlsBusy}
-            onChange={(event) => {
+            options={[
+              {
+                value: "auto",
+                label: t("settings.hardware.graphicsGpuAuto"),
+              },
+              {
+                value: "high-performance",
+                label: t("settings.hardware.graphicsGpuHighPerformance"),
+              },
+            ]}
+            onValueChange={(nextValue) => {
               clearTestState();
-              setGraphicsGpuPreference(
-                event.target.value as GraphicsGpuPreference,
-              );
+              setGraphicsGpuPreference(nextValue as GraphicsGpuPreference);
             }}
-          >
-            <option value="auto">
-              {t("settings.hardware.graphicsGpuAuto")}
-            </option>
-            <option value="high-performance">
-              {t("settings.hardware.graphicsGpuHighPerformance")}
-            </option>
-          </select>
+          />
         </label>
         <label className="settings-field-stack">
           <span>{t("settings.hardware.computeGpu")}</span>
-          <select
-            aria-label={t("settings.hardware.computeGpu")}
-            value={computeGpuIndex ?? ""}
+          <Select
+            ariaLabel={t("settings.hardware.computeGpu")}
+            value={computeGpuIndex === null ? "" : String(computeGpuIndex)}
             disabled={controlsBusy}
-            onChange={(event) => {
+            options={[
+              { value: "", label: t("settings.hardware.computeGpuAuto") },
+              ...COMPUTE_GPU_INDEX_OPTIONS.map((index) => ({
+                value: String(index),
+                label: t("settings.hardware.computeGpuOption", { index }),
+              })),
+            ]}
+            onValueChange={(nextValue) => {
               clearTestState();
-              setComputeGpuIndex(
-                event.target.value === "" ? null : Number(event.target.value),
-              );
+              setComputeGpuIndex(nextValue === "" ? null : Number(nextValue));
             }}
-          >
-            <option value="">{t("settings.hardware.computeGpuAuto")}</option>
-            {COMPUTE_GPU_INDEX_OPTIONS.map((index) => (
-              <option key={index} value={index}>
-                {t("settings.hardware.computeGpuOption", { index })}
-              </option>
-            ))}
-          </select>
+          />
         </label>
         <p className="muted-line modal-note">
           {t("settings.hardware.gpuNumberingNote")}

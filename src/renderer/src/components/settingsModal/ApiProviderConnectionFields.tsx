@@ -13,6 +13,7 @@ import {
 } from "../../../../shared/apiProviderPresets";
 import { IconButton } from "../ui/IconButton";
 import { EyeIcon, EyeOffIcon } from "../ui/icons";
+import { Select } from "../ui/Select";
 import { ApiProviderModelFields } from "./ApiProviderModelFields";
 import {
   useApiProviderConnection,
@@ -82,21 +83,18 @@ function ProviderTemplateFields({
       <div className="settings-api-template">
         <label>
           {t("settings.api.providerTemplate")}
-          <select
+          <Select
+            ariaLabel={t("settings.api.providerTemplate")}
             value={connection.provider}
             disabled={busy}
-            onChange={(event) =>
-              connection.applyProvider(
-                event.target.value as ApiProviderPresetId,
-              )
+            options={API_PROVIDER_PRESET_IDS.map((id) => ({
+              value: id,
+              label: t(PROVIDER_LABEL_KEYS[id]),
+            }))}
+            onValueChange={(nextValue) =>
+              connection.applyProvider(nextValue as ApiProviderPresetId)
             }
-          >
-            {API_PROVIDER_PRESET_IDS.map((id) => (
-              <option key={id} value={id}>
-                {t(PROVIDER_LABEL_KEYS[id])}
-              </option>
-            ))}
-          </select>
+          />
         </label>
         <p className="muted-line modal-note">
           {t(

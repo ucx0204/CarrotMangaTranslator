@@ -526,14 +526,26 @@
   pointer-events: none;
 }
 
-.workspace-fit-picker > select {
+.workspace-fit-picker > .workspace-fit-select {
   position: absolute;
   inset: 0;
   width: 40px;
   height: 38px;
+}
+
+.workspace-fit-select [data-ui-select-trigger] {
+  width: 40px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
   border: 0;
-  opacity: 0;
-  cursor: pointer;
+  background: transparent;
+  color: transparent;
+}
+
+.workspace-fit-select [data-ui-select-trigger] > span,
+.workspace-fit-select [data-ui-select-trigger] > svg {
+  visibility: hidden;
 }
 
 .workspace-view-reveal-slot {

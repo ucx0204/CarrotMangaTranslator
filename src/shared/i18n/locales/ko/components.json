@@ -30,6 +30,21 @@
     "thisPage": "이 페이지",
     "workTitle": "작품 제목"
   },
+  "select": {
+    "placeholder": "항목을 선택하세요",
+    "search": "항목 검색",
+    "noResults": "일치하는 항목이 없습니다."
+  },
+  "workSelect": {
+    "search": "작품 검색",
+    "chapterCount": "{{count}}개 화",
+    "sort": {
+      "label": "정렬",
+      "library": "보관함 순서",
+      "title": "이름순",
+      "recent": "최근 수정"
+    }
+  },
   "sidebar": {
     "exitInpainting": "인페인팅 나가기",
     "noCurrentChapter": "현재 화 없음",

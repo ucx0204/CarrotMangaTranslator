@@ -4,6 +4,10 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GeneralSettingsPanel } from "../src/renderer/src/components/settingsModal/GeneralSettingsPanel";
 import { appI18n } from "../src/renderer/src/appI18n";
+import {
+  chooseCustomSelectOption,
+  customSelectOptionValues,
+} from "./testUtils/customSelect";
 
 afterEach(() => cleanup());
 
@@ -17,11 +21,17 @@ describe("GeneralSettingsPanel", () => {
         onLocaleChange={onLocaleChange}
       />,
     );
-    const select = screen.getByRole("combobox", { name: "앱 언어" });
-    expect(
-      [...(select as HTMLSelectElement).options].map((option) => option.text),
-    ).toEqual(["한국어", "日本語", "English", "简体中文", "繁體中文"]);
-    fireEvent.change(select, { target: { value: "zh-Hant" } });
+    expect(customSelectOptionValues("앱 언어")).toEqual([
+      "ko",
+      "ja",
+      "en",
+      "zh-Hans",
+      "zh-Hant",
+    ]);
+    fireEvent.keyDown(screen.getByRole("combobox", { name: "앱 언어" }), {
+      key: "Escape",
+    });
+    chooseCustomSelectOption("앱 언어", "繁體中文");
     expect(onLocaleChange).toHaveBeenCalledWith("zh-Hant");
   });
 

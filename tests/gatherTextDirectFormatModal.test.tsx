@@ -3,6 +3,10 @@
 import React from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  chooseCustomSelectOption,
+  openCustomSelect,
+} from "./testUtils/customSelect";
 import type { TranslationBlock } from "../src/shared/textTypes";
 import { FontsContext } from "../src/renderer/src/fonts/fontsContextValue";
 import { GatherTextDirectFormatModal } from "../src/renderer/src/components/gatherText/GatherTextDirectFormatModal";
@@ -133,10 +137,9 @@ describe("GatherTextDirectFormatModal", () => {
     const selection = makeSelection();
     const { container } = renderModal(selection);
 
-    fireEvent.change(screen.getByRole("combobox", { name: "줄바꿈 방식" }), {
-      target: { value: "break-word" },
-    });
+    chooseCustomSelectOption("줄바꿈 방식", "긴 문자열 넘침 방지");
 
+    openCustomSelect("줄바꿈 방식");
     expect(
       screen.getByRole("option", { name: "긴 문자열 넘침 방지" }),
     ).toBeTruthy();
@@ -157,11 +160,9 @@ describe("GatherTextDirectFormatModal", () => {
     renderModal(selection);
 
     const select = screen.getByRole("combobox", { name: "줄바꿈 방식" });
-    expect((select as HTMLSelectElement).selectedOptions[0]?.textContent).toBe(
-      "혼합",
-    );
+    expect(select.textContent).toContain("혼합");
 
-    fireEvent.change(select, { target: { value: "keep-all" } });
+    chooseCustomSelectOption("줄바꿈 방식", "단어 단위");
     fireEvent.click(screen.getByRole("button", { name: "적용" }));
     expect(selection.apply).toHaveBeenCalledWith({ wordBreak: "keep-all" });
   });
@@ -170,9 +171,7 @@ describe("GatherTextDirectFormatModal", () => {
     const selection = makeSelection();
     renderModal(selection);
 
-    fireEvent.change(screen.getByRole("combobox", { name: "글꼴" }), {
-      target: { value: "__gather_default_font__" },
-    });
+    chooseCustomSelectOption("글꼴", "기본 폰트");
     fireEvent.click(screen.getByRole("button", { name: "적용" }));
 
     const patch = vi.mocked(selection.apply).mock.calls[0][0];

@@ -7,6 +7,7 @@ import {
   supportsCodexReasoningEffort,
 } from "../settingsOptions";
 import type { EngineSettingsPanelProps } from "./EngineSettingsPanelTypes";
+import { Select } from "../ui/Select";
 
 const CUSTOM_CODEX_MODEL_OPTION = "__custom__";
 
@@ -58,16 +59,27 @@ function CodexModelField({
     <div className="settings-field-stack">
       <label>
         {t("settings.codex.model")}
-        <select
+        <Select
+          ariaLabel={t("settings.codex.model")}
           value={showCustomInput ? CUSTOM_CODEX_MODEL_OPTION : codexModel}
           disabled={controlsBusy}
-          onChange={(event) => {
-            if (event.target.value === CUSTOM_CODEX_MODEL_OPTION) {
+          options={[
+            ...CODEX_MODEL_OPTIONS.map((option) => ({
+              value: option.id,
+              label: option.label,
+            })),
+            {
+              value: CUSTOM_CODEX_MODEL_OPTION,
+              label: t("settings.codex.customModel"),
+            },
+          ]}
+          onValueChange={(nextValue) => {
+            if (nextValue === CUSTOM_CODEX_MODEL_OPTION) {
               setCustomPicked(true);
               return;
             }
 
-            const nextModel = findCodexModelOption(event.target.value);
+            const nextModel = findCodexModelOption(nextValue);
             if (!nextModel) {
               return;
             }
@@ -81,16 +93,7 @@ function CodexModelField({
               setCodexReasoningEffort(nextModel.defaultReasoningEffort);
             }
           }}
-        >
-          {CODEX_MODEL_OPTIONS.map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-          <option value={CUSTOM_CODEX_MODEL_OPTION}>
-            {t("settings.codex.customModel")}
-          </option>
-        </select>
+        />
       </label>
       {showCustomInput ? (
         <input

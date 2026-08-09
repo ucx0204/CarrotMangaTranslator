@@ -14,6 +14,7 @@ import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
 import { ModalActionBar } from "./ui/ModalActionBar";
 import { FontManagerGroup } from "./FontManagerList";
+import { Select } from "./ui/Select";
 import styles from "./FontManagerModal.module.css";
 
 export function FontManagerModal({
@@ -271,17 +272,18 @@ function FontManagerControls({
     <div className={styles.controls}>
       <label className={styles.defaultControl}>
         <span>{t("fontManager.defaultBadge")}</span>
-        <select
+        <Select
+          ariaLabel={t("fontManager.defaultBadge")}
+          className={styles.defaultSelect}
           value={model.draft.defaultFontId}
           disabled={model.disabled}
-          onChange={(event) => model.setDefault(event.target.value)}
-        >
-          {model.orderedOptions.map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          options={model.orderedOptions.map((option) => ({
+            value: option.id,
+            label: option.label,
+          }))}
+          searchable="auto"
+          onValueChange={model.setDefault}
+        />
       </label>
       <input
         className={styles.search}

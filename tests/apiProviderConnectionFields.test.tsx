@@ -17,6 +17,10 @@ import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway
 import { appI18n, initializeAppI18n } from "../src/renderer/src/appI18n";
 import { ApiProviderConnectionFields } from "../src/renderer/src/components/settingsModal/ApiProviderConnectionFields";
 import { AppI18nProvider } from "../src/renderer/src/i18n";
+import {
+  chooseCustomSelectOption,
+  openCustomSelect,
+} from "./testUtils/customSelect";
 
 beforeEach(async () => {
   await initializeAppI18n("en");
@@ -60,9 +64,7 @@ describe("API provider connection fields", () => {
     expect(readValue(baseUrl)).toBe("https://private.example/v1");
     expect(readValue(manualModel)).toBe("manual-vision-model");
 
-    fireEvent.change(screen.getByLabelText("Quick API provider setup"), {
-      target: { value: "openrouter" },
-    });
+    chooseCustomSelectOption("Quick API provider setup", "OpenRouter");
     expect(readValue(baseUrl)).toBe(OPENROUTER_BASE_URL);
 
     const keyInput = screen.getByLabelText("API key");
@@ -77,11 +79,13 @@ describe("API provider connection fields", () => {
     });
 
     await waitFor(() =>
-      expect(screen.getByRole("option", { name: /Vision Model/ })).toBeTruthy(),
+      expect(
+        screen.getByRole("combobox", { name: "Verified image-input model" }),
+      ).toBeTruthy(),
     );
-    fireEvent.change(screen.getByLabelText("Verified image-input model"), {
-      target: { value: "vendor/vision-model" },
-    });
+    openCustomSelect("Verified image-input model");
+    expect(screen.getByRole("option", { name: /Vision Model/ })).toBeTruthy();
+    chooseCustomSelectOption("Verified image-input model", /Vision Model/);
     expect(readValue(baseUrl)).toBe(OPENROUTER_BASE_URL);
     expect(readValue(manualModel)).toBe("vendor/vision-model");
 
@@ -123,9 +127,7 @@ describe("API provider connection fields", () => {
     );
 
     const baseUrl = screen.getByLabelText("API base URL");
-    fireEvent.change(screen.getByLabelText("Quick API provider setup"), {
-      target: { value: "ollama" },
-    });
+    chooseCustomSelectOption("Quick API provider setup", "Ollama (local)");
     expect(readValue(baseUrl)).toBe(OLLAMA_BASE_URL);
 
     fireEvent.click(screen.getByRole("button", { name: "Load models" }));
@@ -156,9 +158,7 @@ describe("API provider connection fields", () => {
         <Harness />
       </AppI18nProvider>,
     );
-    fireEvent.change(screen.getByLabelText("Quick API provider setup"), {
-      target: { value: "openrouter" },
-    });
+    chooseCustomSelectOption("Quick API provider setup", "OpenRouter");
     fireEvent.click(screen.getByRole("button", { name: "Load models" }));
     await waitFor(() => expect(discoverApiModels).toHaveBeenCalledOnce());
     view.unmount();

@@ -30,6 +30,21 @@
     "thisPage": "このページ",
     "workTitle": "作品タイトル"
   },
+  "select": {
+    "placeholder": "項目を選択",
+    "search": "項目を検索",
+    "noResults": "一致する項目がありません。"
+  },
+  "workSelect": {
+    "search": "作品を検索",
+    "chapterCount": "{{count}}話",
+    "sort": {
+      "label": "並び順",
+      "library": "ライブラリ順",
+      "title": "名前順",
+      "recent": "更新順"
+    }
+  },
   "sidebar": {
     "exitInpainting": "インペインティングを終了",
     "noCurrentChapter": "話が開かれていません",

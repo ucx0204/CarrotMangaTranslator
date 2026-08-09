@@ -6,6 +6,7 @@ import type {
   ApiProviderConnectionState,
   DiscoveryState,
 } from "./useApiProviderConnection";
+import { Select } from "../ui/Select";
 
 type ModelFieldProps = Pick<
   ApiProviderConnectionProps,
@@ -85,22 +86,25 @@ function ModelDiscoveryFields({
     <div className="settings-model-discovery-row">
       <label>
         {t("settings.api.discoveredModel")}
-        <select
+        <Select
+          ariaLabel={t("settings.api.discoveredModel")}
           value={selected}
           disabled={
             controlsBusy ||
             connection.discovery.status === "loading" ||
             !connection.models.length
           }
-          onChange={(event) => selectModel(event.target.value)}
-        >
-          <option value="">{t("settings.api.chooseModel")}</option>
-          {connection.models.map((model) => (
-            <option key={model.id} value={model.id}>
-              {model.label} · {model.id}
-            </option>
-          ))}
-        </select>
+          options={[
+            { value: "", label: t("settings.api.chooseModel") },
+            ...connection.models.map((model) => ({
+              value: model.id,
+              label: `${model.label} · ${model.id}`,
+              searchText: `${model.label} ${model.id}`,
+            })),
+          ]}
+          searchable="auto"
+          onValueChange={selectModel}
+        />
       </label>
       <button
         type="button"

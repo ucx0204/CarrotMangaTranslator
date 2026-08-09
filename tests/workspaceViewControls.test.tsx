@@ -4,6 +4,10 @@ import React from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WorkspaceViewControls } from "../src/renderer/src/components/WorkspaceViewControls";
+import {
+  chooseCustomSelectOption,
+  customSelectOptionValues,
+} from "./testUtils/customSelect";
 
 afterEach(cleanup);
 
@@ -22,14 +26,17 @@ describe("WorkspaceViewControls", () => {
     );
     expandViewControls();
 
-    const select = screen.getByLabelText("이미지 맞춤 방식");
-    expect(
-      Array.from((select as HTMLSelectElement).options).map(
-        (option) => option.text,
-      ),
-    ).toEqual(["화면 맞춤", "가로 맞춤", "세로 맞춤", "100%"]);
-
-    fireEvent.change(select, { target: { value: "width" } });
+    expect(customSelectOptionValues("이미지 맞춤 방식")).toEqual([
+      "contain",
+      "width",
+      "height",
+      "actual",
+    ]);
+    fireEvent.keyDown(
+      screen.getByRole("combobox", { name: "이미지 맞춤 방식" }),
+      { key: "Escape" },
+    );
+    chooseCustomSelectOption("이미지 맞춤 방식", "가로 맞춤");
     expect(onChangeFitMode).toHaveBeenCalledWith("width");
   });
 
@@ -117,7 +124,7 @@ describe("WorkspaceViewControls", () => {
       screen.getByRole("button", { name: "배율 초기화" }).textContent,
     ).toBe("100%");
     expect(
-      (screen.getByLabelText("이미지 맞춤 방식") as HTMLSelectElement).value,
+      (screen.getByLabelText("이미지 맞춤 방식") as HTMLButtonElement).value,
     ).toBe("contain");
   });
 });

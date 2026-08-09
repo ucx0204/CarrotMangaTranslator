@@ -4,6 +4,8 @@ import {
   TEXT_WORD_BREAK_VALUES,
   type TextWordBreak,
 } from "../../../shared/textWrapping";
+import { Select } from "./ui/Select";
+import type { SelectOption } from "./ui/selectTypes";
 
 const MIXED_TEXT_WRAPPING_VALUE = "__mixed_text_wrapping__";
 
@@ -28,30 +30,35 @@ export function TextWrappingSelect({
   const description = mixed
     ? t("gatherText.mixedValue")
     : t(`format.wordBreak.descriptions.${value}`);
+  const options: SelectOption[] = [
+    ...(mixed
+      ? [
+          {
+            value: MIXED_TEXT_WRAPPING_VALUE,
+            label: t("gatherText.mixedValue"),
+            disabled: true,
+          },
+        ]
+      : []),
+    ...TEXT_WORD_BREAK_VALUES.map((option) => ({
+      value: option,
+      label: t(`format.wordBreak.options.${option}`),
+    })),
+  ];
   return (
     <span className="text-wrapping-select-control">
-      <select
+      <Select
         className={className}
-        aria-label={ariaLabel}
-        aria-describedby={descriptionId}
+        ariaLabel={ariaLabel}
+        ariaDescribedBy={descriptionId}
         value={selectValue}
         disabled={disabled}
-        onChange={(event) => {
-          if (event.target.value === MIXED_TEXT_WRAPPING_VALUE) return;
-          onChange(event.target.value as TextWordBreak);
+        options={options}
+        onValueChange={(nextValue) => {
+          if (nextValue === MIXED_TEXT_WRAPPING_VALUE) return;
+          onChange(nextValue as TextWordBreak);
         }}
-      >
-        {mixed ? (
-          <option value={MIXED_TEXT_WRAPPING_VALUE} disabled>
-            {t("gatherText.mixedValue")}
-          </option>
-        ) : null}
-        {TEXT_WORD_BREAK_VALUES.map((option) => (
-          <option key={option} value={option}>
-            {t(`format.wordBreak.options.${option}`)}
-          </option>
-        ))}
-      </select>
+      />
       <small id={descriptionId} className="text-wrapping-select-description">
         {description}
       </small>

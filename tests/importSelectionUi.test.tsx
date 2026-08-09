@@ -72,7 +72,7 @@ describe("ImportModal selection surfaces", () => {
       ).checked,
     ).toBe(false);
     expect(screen.getByText(/새 화로 추가됩니다/)).not.toBeNull();
-    expect((screen.getByRole("combobox") as HTMLSelectElement).value).toBe(
+    expect((screen.getByRole("combobox") as HTMLButtonElement).value).toBe(
       "work-1",
     );
   });

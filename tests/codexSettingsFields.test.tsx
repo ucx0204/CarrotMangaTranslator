@@ -6,6 +6,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CodexReasoningEffort } from "../src/shared/settingsTypes";
 import { CodexSettingsFields } from "../src/renderer/src/components/settingsModal/CodexSettingsFields";
 import { resolveCodexReasoningEffortForModel } from "../src/renderer/src/components/settingsOptions";
+import {
+  chooseCustomSelectOption,
+  customSelectOptionValues,
+} from "./testUtils/customSelect";
 
 afterEach(() => cleanup());
 
@@ -13,12 +17,7 @@ describe("CodexSettingsFields", () => {
   it("lists the current visible Codex catalog with Custom last", () => {
     renderHarness("gpt-5.6-sol", "ultra");
 
-    const select = screen.getByRole("combobox", { name: "Codex 모델" });
-    expect(
-      Array.from((select as HTMLSelectElement).options).map(
-        (option) => option.value,
-      ),
-    ).toEqual([
+    expect(customSelectOptionValues("Codex 모델")).toEqual([
       "gpt-5.6-sol",
       "gpt-5.6-terra",
       "gpt-5.6-luna",
@@ -35,9 +34,7 @@ describe("CodexSettingsFields", () => {
   it("reveals a free-form input when Custom is selected", () => {
     renderHarness("gpt-5.6-sol", "low");
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Codex 모델" }), {
-      target: { value: "__custom__" },
-    });
+    chooseCustomSelectOption("Codex 모델", "직접 입력");
     const input = screen.getByLabelText("Codex 모델 직접 입력");
     fireEvent.change(input, { target: { value: "future-codex-model" } });
 
@@ -51,9 +48,7 @@ describe("CodexSettingsFields", () => {
   it("uses only the selected model's supported reasoning levels", () => {
     renderHarness("gpt-5.6-sol", "ultra");
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Codex 모델" }), {
-      target: { value: "gpt-5.5" },
-    });
+    chooseCustomSelectOption("Codex 모델", "GPT-5.5");
 
     expect(screen.queryByRole("button", { name: "Ultra" })).toBeNull();
     expect(screen.queryByRole("button", { name: "최대" })).toBeNull();
@@ -72,9 +67,7 @@ describe("CodexSettingsFields", () => {
   it("keeps token values unchanged when the selected model changes", () => {
     renderHarness("gpt-5.6-sol", "low");
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Codex 모델" }), {
-      target: { value: "gpt-5.3-codex-spark" },
-    });
+    chooseCustomSelectOption("Codex 모델", "GPT-5.3-Codex-Spark");
 
     expect(screen.getByTestId("max-tokens").textContent).toBe("32768");
     expect(screen.getByTestId("context-tokens").textContent).toBe("65536");
@@ -83,9 +76,7 @@ describe("CodexSettingsFields", () => {
   it("preserves a manually edited token value when the model changes", () => {
     renderHarness("gpt-5.6-sol", "low", "20000");
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Codex 모델" }), {
-      target: { value: "gpt-5.3-codex-spark" },
-    });
+    chooseCustomSelectOption("Codex 모델", "GPT-5.3-Codex-Spark");
 
     expect(screen.getByTestId("max-tokens").textContent).toBe("20000");
     expect(screen.getByTestId("context-tokens").textContent).toBe("65536");
@@ -94,11 +85,8 @@ describe("CodexSettingsFields", () => {
   it("does not mistake a manual value for a recommendation after a model round trip", () => {
     renderHarness("gpt-5.6-sol", "low", "24576");
 
-    const select = screen.getByRole("combobox", { name: "Codex 모델" });
-    fireEvent.change(select, {
-      target: { value: "gpt-5.3-codex-spark" },
-    });
-    fireEvent.change(select, { target: { value: "gpt-5.6-sol" } });
+    chooseCustomSelectOption("Codex 모델", "GPT-5.3-Codex-Spark");
+    chooseCustomSelectOption("Codex 모델", "GPT-5.6-Sol");
 
     expect(screen.getByTestId("max-tokens").textContent).toBe("24576");
     expect(screen.getByTestId("context-tokens").textContent).toBe("65536");

@@ -4,6 +4,7 @@ import type { LibraryIndex } from "../../../../shared/libraryTypes";
 import type { WorkShareImportPreview } from "../../../../shared/shareTypes";
 import { TextField } from "../ui/Field";
 import { SelectionCard } from "../ui/SelectionCard";
+import { WorkSelect } from "../WorkSelect";
 
 type ShareImportTargetSectionProps = {
   busy: boolean;
@@ -69,17 +70,13 @@ export function ShareImportTargetSection({
       ) : (
         <label>
           {t("shareImport.existingWork")}
-          <select
+          <WorkSelect
+            ariaLabel={t("shareImport.existingWork")}
+            library={library}
             value={existingWorkId}
             disabled={busy || library.works.length === 0}
-            onChange={(event) => setExistingWorkId(event.target.value)}
-          >
-            {library.works.map((work) => (
-              <option key={work.id} value={work.id}>
-                {work.title}
-              </option>
-            ))}
-          </select>
+            onValueChange={setExistingWorkId}
+          />
         </label>
       )}
     </section>

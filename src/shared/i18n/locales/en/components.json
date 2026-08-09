@@ -30,6 +30,21 @@
     "thisPage": "This page",
     "workTitle": "Work title"
   },
+  "select": {
+    "placeholder": "Choose an option",
+    "search": "Search options",
+    "noResults": "No matching options."
+  },
+  "workSelect": {
+    "search": "Search works",
+    "chapterCount": "{{count}} chapters",
+    "sort": {
+      "label": "Sort",
+      "library": "Library order",
+      "title": "Title",
+      "recent": "Recently updated"
+    }
+  },
   "sidebar": {
     "exitInpainting": "Exit inpainting",
     "noCurrentChapter": "No chapter open",

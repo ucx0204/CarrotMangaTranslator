@@ -16,6 +16,7 @@ import {
 } from "../lib/transformEditorModel";
 import { Button } from "./ui/Button";
 import { TransformNumberField } from "./TransformNumberField";
+import { Select } from "./ui/Select";
 
 type PerspectiveEditorControlsProps = {
   block: TranslationBlock;
@@ -140,21 +141,22 @@ function PerspectivePresetSelect({
   return (
     <label className="transform-select-row">
       <span>{t("transform.perspective.quickShape")}</span>
-      <select
+      <Select
+        ariaLabel={t("transform.perspective.quickShape")}
         value=""
         disabled={disabled}
-        onChange={(event) => {
-          const preset = event.target.value as PerspectivePresetName;
+        options={[
+          { value: "", label: t("transform.perspective.custom") },
+          ...PRESETS.map((preset) => ({
+            value: preset,
+            label: t(`transform.perspective.presets.${preset}`),
+          })),
+        ]}
+        onValueChange={(nextValue) => {
+          const preset = nextValue as PerspectivePresetName;
           if (preset) onApply(createPerspectivePreset(preset));
         }}
-      >
-        <option value="">{t("transform.perspective.custom")}</option>
-        {PRESETS.map((preset) => (
-          <option key={preset} value={preset}>
-            {t(`transform.perspective.presets.${preset}`)}
-          </option>
-        ))}
-      </select>
+      />
     </label>
   );
 }
