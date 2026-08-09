@@ -26,6 +26,10 @@ import {
 import { useSettingsTestState } from "./useSettingsTestState";
 import type { SettingsModalViewProps } from "./SettingsModalView";
 import type { SettingsTabId } from "../settingsModalTypes";
+import {
+  cloneBlockStylePresets,
+  type BlockStylePreset,
+} from "../../../../shared/blockStylePresets";
 
 export type SettingsModalControllerInput = {
   initialSettings: AppSettings;
@@ -51,6 +55,8 @@ export function useSettingsModalController({
   const [keybindings, setKeybindings] = useKeybindingsDraft(initialSettings);
   const [blockFormatDefaults, updateBlockFormatDefaults] =
     useBlockFormatDefaultsDraft(initialSettings);
+  const [blockStylePresets, setBlockStylePresets] =
+    useBlockStylePresetsDraft(initialSettings);
   const form = useSettingsFormState(initialSettings);
   const test = useSettingsTestState(initialSettings, form.refs.testLogRef);
   const localActions = useSettingsLocalModelActions({
@@ -68,6 +74,7 @@ export function useSettingsModalController({
   });
   const { draft, canSubmit, buildSettings, submit } = useSettingsSubmission({
     blockFormatDefaults,
+    blockStylePresets,
     form,
     initialSettings,
     keybindings,
@@ -91,9 +98,11 @@ export function useSettingsModalController({
     formatPanelProps: {
       bubbleLayoutPaddingRatio: form.values.bubbleLayoutPaddingRatio,
       value: blockFormatDefaults,
+      stylePresets: blockStylePresets,
       onBubbleLayoutPaddingRatioChange:
         form.setters.setBubbleLayoutPaddingRatio,
       onChange: updateBlockFormatDefaults,
+      onStylePresetsChange: setBlockStylePresets,
     },
     jobActive,
     keybindings,
@@ -113,12 +122,14 @@ export function useSettingsModalController({
 
 function useSettingsSubmission({
   blockFormatDefaults,
+  blockStylePresets,
   form,
   initialSettings,
   keybindings,
   onSubmit,
 }: {
   blockFormatDefaults: BlockFormatDefaults;
+  blockStylePresets: BlockStylePreset[];
   form: ReturnType<typeof useSettingsFormState>;
   initialSettings: AppSettings;
   keybindings: KeybindingOverrides;
@@ -145,11 +156,13 @@ function useSettingsSubmission({
             initialSettings,
             keybindings,
             blockFormatDefaults,
+            blockStylePresets,
             values: form.values,
           })
         : null,
     [
       blockFormatDefaults,
+      blockStylePresets,
       canSubmit,
       draft,
       form.values,
@@ -164,6 +177,21 @@ function useSettingsSubmission({
     }
   }, [buildSettings, canSubmit, onSubmit]);
   return { draft, canSubmit, buildSettings, submit };
+}
+
+function useBlockStylePresetsDraft(
+  initialSettings: AppSettings,
+): [
+  BlockStylePreset[],
+  React.Dispatch<React.SetStateAction<BlockStylePreset[]>>,
+] {
+  const [presets, setPresets] = React.useState<BlockStylePreset[]>(() =>
+    cloneBlockStylePresets(initialSettings.blockStylePresets ?? []),
+  );
+  React.useEffect(() => {
+    setPresets(cloneBlockStylePresets(initialSettings.blockStylePresets ?? []));
+  }, [initialSettings]);
+  return [presets, setPresets];
 }
 
 function useBlockFormatDefaultsDraft(

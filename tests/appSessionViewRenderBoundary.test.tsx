@@ -18,6 +18,8 @@ import {
 
 afterEach(cleanup);
 
+const EMPTY_STYLE_PRESETS: PanelSessionValue["blockStylePresets"] = [];
+
 describe("AppSessionView render boundaries", () => {
   it("does not republish equivalent panel data and invokes the latest callback", () => {
     const onCommit = vi.fn();
@@ -292,9 +294,14 @@ function makePanelSessionValue(
     editorDisabled: false,
     editorFloating: false,
     editorPoppedOut: false,
+    blockStylePresets: EMPTY_STYLE_PRESETS,
+    canCreateStylePreset: true,
     onAdjustFontSize: vi.fn(),
     onApplyBlockBackgroundOpacity: vi.fn(),
     onApplyFormat: vi.fn(),
+    onApplyStylePreset: vi.fn(),
+    onBackToPageBlocks: vi.fn(),
+    onCreateStylePreset: vi.fn(async () => true),
     onDeleteBlock: vi.fn(),
     onDockEditorWindow: vi.fn(),
     onDuplicateBlock: vi.fn(),

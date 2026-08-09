@@ -8,6 +8,11 @@ import type { InpaintingController } from "./useInpaintingController";
 import type { TranslationController } from "./useTranslationController";
 import { useSelectedBlockKeyboardNudge } from "../../hooks/useSelectedBlockKeyboardNudge";
 import { isBlockEditingTool } from "../../lib/stageTool";
+import {
+  resolveAdjacentBlockId,
+  type BlockNavigationDirection,
+} from "../../lib/blockNavigation";
+import { resolveSourceReadingDirection } from "../../../../shared/translationLanguages";
 
 type AppSessionShortcutsArgs = {
   chapter: ChapterSessionController;
@@ -32,20 +37,11 @@ export function useAppSessionShortcuts({
     core.setRegionSelection(null);
     uiState.selectWorkspaceTool(tool);
   };
-  const jobActive =
-    inpainting.inpaintingBridge.contextValue.jobActive ||
-    uiState.translationFlowActive ||
-    workspaceHistory.busy;
-
-  const context: ShortcutContext = {
-    blockingModalOpen: chapter.overlayModalsOpen,
-    paletteOpen: uiState.commandPaletteOpen,
-    helpOpen: uiState.shortcutHelpOpen,
-    chapterOpen: Boolean(core.currentChapter),
-    jobActive,
-    retouchToolActive: derivedState.inpaintingToolActive,
-    blockSelected: Boolean(derivedState.selectedBlock),
-  };
+  const { context, jobActive } = resolveShortcutRuntime(
+    chapter,
+    translation,
+    inpainting,
+  );
 
   useSelectedBlockKeyboardNudge({
     blocked: chapter.modalOpen,
@@ -67,6 +63,12 @@ export function useAppSessionShortcuts({
     "zoom-in": () => uiState.zoomInWorkspace(),
     "zoom-out": () => uiState.zoomOutWorkspace(),
     "zoom-reset": () => uiState.resetWorkspaceZoom(),
+    "page-previous": () =>
+      inpainting.pageNavigationHandlers.selectAdjacentPageForReading(
+        "previous",
+      ),
+    "page-next": () =>
+      inpainting.pageNavigationHandlers.selectAdjacentPageForReading("next"),
     "stage-tool-select": () => selectStageTool("select"),
     "stage-tool-block": () => selectStageTool("block"),
     "stage-tool-hand": () => selectStageTool("hand"),
@@ -78,6 +80,8 @@ export function useAppSessionShortcuts({
     "gather-text": () => uiState.setTextViewOpen(true),
     "cancel-job": () => chapter.bridgeActions.cancelJob(),
     "toggle-inpainting": () => openCurrentPageEraseOptions(chapter),
+    "block-previous": () => navigateBlock(chapter, "previous"),
+    "block-next": () => navigateBlock(chapter, "next"),
     "history-undo": () => void workspaceHistory.undo(),
     "history-redo": () => void workspaceHistory.redo(),
     "delete-block": () => blockEditingActions.deleteSelectedBlock(),
@@ -99,6 +103,86 @@ export function useAppSessionShortcuts({
     handlers,
     overrides: chapter.settingsDialog.settings?.keybindings ?? {},
   });
+}
+
+function resolveShortcutRuntime(
+  chapter: ChapterSessionController,
+  translation: TranslationController,
+  inpainting: InpaintingController,
+): { context: ShortcutContext; jobActive: boolean } {
+  const jobActive =
+    inpainting.inpaintingBridge.contextValue.jobActive ||
+    chapter.uiState.translationFlowActive ||
+    translation.workspaceHistory.busy;
+  return {
+    jobActive,
+    context: {
+      blockingModalOpen: chapter.overlayModalsOpen,
+      paletteOpen: chapter.uiState.commandPaletteOpen,
+      helpOpen: chapter.uiState.shortcutHelpOpen,
+      chapterOpen: Boolean(chapter.core.currentChapter),
+      jobActive,
+      retouchToolActive: chapter.derivedState.inpaintingToolActive,
+      blockSelected: Boolean(chapter.derivedState.selectedBlock),
+    },
+  };
+}
+
+function navigateBlock(
+  chapter: ChapterSessionController,
+  direction: BlockNavigationDirection,
+): void {
+  const { core, derivedState, uiState } = chapter;
+  const targetId = resolveAdjacentBlockId(
+    derivedState.selectedPage?.blocks ?? [],
+    core.selectedBlockId,
+    direction,
+    resolveSourceReadingDirection(
+      chapter.settingsDialog.settings?.translation?.sourceLanguage,
+    ),
+  );
+  if (!targetId) {
+    return;
+  }
+
+  const moveTextareaFocus = isPageBlockTranslationTarget(
+    typeof document === "undefined" ? null : document.activeElement,
+  );
+  core.selectedBlockIdRef.current = targetId;
+  core.setSelectedBlockId(targetId);
+  core.setSelectedBlockIds([targetId]);
+
+  if (uiState.rightRailMode === "page-blocks") {
+    revealPageBlockRow(targetId, moveTextareaFocus);
+  }
+}
+
+function isPageBlockTranslationTarget(target: Element | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    target.dataset.pageBlockTranslation === "true"
+  );
+}
+
+function revealPageBlockRow(blockId: string, focusTranslation: boolean): void {
+  const reveal = (): void => {
+    const row = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-page-block-id]"),
+    ).find((node) => node.dataset.pageBlockId === blockId);
+    row?.scrollIntoView({ block: "nearest" });
+    if (focusTranslation) {
+      row
+        ?.querySelector<HTMLTextAreaElement>(
+          'textarea[data-page-block-translation="true"]',
+        )
+        ?.focus();
+    }
+  };
+  if (typeof requestAnimationFrame === "function") {
+    requestAnimationFrame(reveal);
+  } else {
+    window.setTimeout(reveal, 0);
+  }
 }
 
 function openCurrentPageEraseOptions(chapter: ChapterSessionController): void {

@@ -56,11 +56,12 @@
 
 .right-quick-rail {
   display: flex;
+  flex-direction: column;
   align-items: flex-start;
-  justify-content: center;
+  justify-content: space-between;
   min-width: 0;
   min-height: 0;
-  padding-top: 12px;
+  padding: 12px 0;
   background: #0c0d10;
 }
 
@@ -71,6 +72,143 @@
   background: #14161b;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
   overflow: visible;
+}
+
+.status-dock {
+  position: relative;
+  width: 42px;
+  height: 42px;
+}
+
+.status-dock-button {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  background: #14161b;
+  color: #aeb8c5;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+
+.status-dock-button:hover,
+.status-dock-button:focus-visible,
+.status-dock-button[aria-expanded="true"] {
+  background: #20242b;
+  color: #f4f6f8;
+}
+
+.status-dock-indicator {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 7px;
+  height: 7px;
+  border: 1px solid #14161b;
+  border-radius: 50%;
+  opacity: 0;
+}
+
+.status-dock-button.unread .status-dock-indicator,
+.status-dock-button.running .status-dock-indicator,
+.status-dock-button.partial .status-dock-indicator,
+.status-dock-button.failed .status-dock-indicator {
+  opacity: 1;
+}
+
+.status-dock-button.unread .status-dock-indicator {
+  background: #8da9ff;
+}
+
+.status-dock-button.running .status-dock-indicator {
+  border: 2px solid rgba(126, 170, 255, 0.35);
+  border-top-color: #7eaaff;
+  background: transparent;
+  animation: status-dock-spin 0.8s linear infinite;
+}
+
+.status-dock-button.partial .status-dock-indicator {
+  background: #e8b34f;
+}
+
+.status-dock-button.failed .status-dock-indicator {
+  background: #ef6f6c;
+}
+
+.status-popover {
+  position: absolute;
+  z-index: 92;
+  right: calc(100% + 8px);
+  bottom: 0;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: var(--sp-3);
+  width: 344px;
+  max-width: calc(100vw - 72px);
+  max-height: 50vh;
+  padding: var(--sp-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  background: rgba(20, 22, 27, 0.98);
+  box-shadow: var(--shadow-overlay);
+  backdrop-filter: blur(12px);
+}
+
+.status-popover > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.status-popover > header > div:first-child {
+  min-width: 0;
+}
+
+.status-popover h2 {
+  margin: 0;
+  color: var(--text-head);
+  font-size: var(--font-md);
+}
+
+.status-popover header span {
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+}
+
+.status-popover-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: var(--sp-1);
+}
+
+.status-popover-log {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: var(--sp-1);
+}
+
+.status-popover-log p {
+  margin: 0;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--text-dim);
+  font-size: var(--font-sm);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+@keyframes status-dock-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-dock-button.running .status-dock-indicator {
+    animation: none;
+    background: #7eaaff;
+  }
 }
 
 .chapter-quick-controls {

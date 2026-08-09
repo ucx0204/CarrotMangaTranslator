@@ -11,9 +11,13 @@ type SelectTransformCommand = Extract<
   PanelCommand,
   { type: "selectTransformMode" }
 >;
+type ApplyStylePresetCommand = Extract<
+  PanelCommand,
+  { type: "applyStylePreset" }
+>;
 
 export type PanelCommandTarget = {
-  updateSelectedBlock: (patch: UpdateBlockCommand["patch"]) => void;
+  updateBlock: (blockId: string, patch: UpdateBlockCommand["patch"]) => void;
   adjustSelectedBlockFontSize: (
     adjustment: AdjustFontSizeCommand["adjustment"],
   ) => void;
@@ -26,6 +30,7 @@ export type PanelCommandTarget = {
     scope: ApplyFormatCommand["scope"],
     groupIds: ApplyFormatCommand["groupIds"],
   ) => void;
+  applyStylePreset: (presetId: ApplyStylePresetCommand["presetId"]) => void;
   applyBlockBackgroundOpacityToScope: (
     scope: ApplyBackgroundCommand["scope"],
   ) => void;
@@ -47,17 +52,21 @@ export function dispatchPanelCommand({
   if (busy || isStaleBlockCommand(command, selectedBlockId)) {
     return false;
   }
-  applyPanelCommand(actions, command);
+  if (command.type === "applyStylePreset") {
+    actions.applyStylePreset(command.presetId);
+  } else {
+    applyPanelCommand(actions, command);
+  }
   return true;
 }
 
 function applyPanelCommand(
   actions: PanelCommandTarget,
-  command: PanelCommand,
+  command: Exclude<PanelCommand, ApplyStylePresetCommand>,
 ): void {
   switch (command.type) {
     case "updateBlock":
-      actions.updateSelectedBlock(command.patch);
+      actions.updateBlock(command.blockId, command.patch);
       return;
     case "adjustFontSize":
       actions.adjustSelectedBlockFontSize(command.adjustment);
@@ -101,7 +110,8 @@ function isStaleBlockCommand(
     command.type === "duplicateBlock" ||
     command.type === "eraseBlockOriginal" ||
     command.type === "fitBlockBubble" ||
-    command.type === "removeBubbleLayout"
+    command.type === "removeBubbleLayout" ||
+    command.type === "applyStylePreset"
     ? command.blockId !== selectedBlockId
     : false;
 }

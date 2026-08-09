@@ -2,7 +2,6 @@ import React from "react";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import type { BlockFormatGroupId } from "../../../shared/blockFormat";
 import type { TransformEditorMode } from "../../../shared/panelBridgeTypes";
-import { normalizeRenderDirection } from "../../../shared/geometry";
 import type { FormatApplyScope } from "../hooks/blockEditingStatus";
 import type { BlockBackgroundApplyScope } from "../hooks/useApplyBlockBackgroundOpacityAction";
 import {
@@ -14,14 +13,12 @@ import {
   type EditorTabId,
 } from "./EditorPanelChrome";
 import { BubbleLayoutOption, TextEditorGroup } from "./EditorPanelSections";
-import { BlockDisplayGroup, EditorColorGroup } from "./EditorColorGroup";
-import { FormatEditorGroup } from "./EditorFormatControls";
-import {
-  clampFontSize,
-  resolveColor,
-  type EditorPanelModel,
-} from "./editorPanelUtils";
 import { TransformEditorGroup } from "./TransformEditorGroup";
+import type {
+  BlockStylePresetSummary,
+  CreateBlockStylePresetInput,
+} from "../../../shared/blockStylePresets";
+import { EditorFormatGroups } from "./EditorFormatGroups";
 
 type EditorPanelProps = {
   block: TranslationBlock | null;
@@ -32,6 +29,8 @@ type EditorPanelProps = {
   selectedBlockCount?: number;
   pageSize?: { width: number; height: number } | null;
   transformMode?: TransformEditorMode;
+  canCreateStylePreset?: boolean;
+  stylePresets?: readonly BlockStylePresetSummary[];
   /** Optional actions (e.g. float/dock toggle) rendered in the panel header. */
   headerActions?: React.ReactNode;
   onStartAreaTranslate?: () => void;
@@ -39,6 +38,10 @@ type EditorPanelProps = {
     scope: FormatApplyScope,
     groupIds: BlockFormatGroupId[],
   ) => void;
+  onApplyStylePreset?: (presetId: string) => void;
+  onCreateStylePreset?: (
+    input: CreateBlockStylePresetInput,
+  ) => boolean | Promise<boolean>;
   onApplyBlockBackgroundOpacity?: (scope: BlockBackgroundApplyScope) => void;
   onAdjustFontSize: (adjustment: -1 | 1) => void;
   onUpdate: (patch: Partial<TranslationBlock>) => void;
@@ -52,19 +55,39 @@ type EditorPanelProps = {
 
 const EDITOR_TABS: EditorTabId[] = ["text", "layout", "format"];
 const EDITOR_TAB_STORAGE_KEY = "editor.activeTab.v1";
+const EMPTY_STYLE_PRESETS: readonly BlockStylePresetSummary[] = [];
+const NOOP_STYLE_PRESET_APPLY = (): void => undefined;
+const NOOP_STYLE_PRESET_CREATE = (): boolean => false;
+const NOOP_REMOVE_BUBBLE_LAYOUT = (): void => undefined;
 
-export function EditorPanel({
+export function EditorPanel(props: EditorPanelProps): React.JSX.Element {
+  if (props.block) {
+    return <SelectedEditorPanel {...props} block={props.block} />;
+  }
+  return (
+    <EmptyEditorPanel
+      areaTranslateAvailable={props.areaTranslateAvailable ?? false}
+      areaTranslateSelecting={props.areaTranslateSelecting ?? false}
+      disabled={props.disabled}
+      headerActions={props.headerActions}
+      onStartAreaTranslate={props.onStartAreaTranslate}
+    />
+  );
+}
+
+function SelectedEditorPanel({
   block,
   disabled,
-  areaTranslateAvailable = false,
-  areaTranslateSelecting = false,
-  disableChapterApply = false,
-  selectedBlockCount = 0,
-  pageSize = null,
-  transformMode = "select",
+  disableChapterApply,
+  selectedBlockCount,
+  pageSize,
+  transformMode,
+  canCreateStylePreset,
+  stylePresets,
   headerActions,
-  onStartAreaTranslate,
   onApplyFormat,
+  onApplyStylePreset,
+  onCreateStylePreset,
   onApplyBlockBackgroundOpacity,
   onAdjustFontSize,
   onUpdate,
@@ -72,29 +95,18 @@ export function EditorPanel({
   onDuplicate,
   onEraseOriginal,
   onFitBubble,
-  onRemoveBubbleLayout = () => undefined,
+  onRemoveBubbleLayout,
   onSelectTransformMode,
-}: EditorPanelProps): React.JSX.Element {
-  const fontFamilyDraftState = React.useState(block?.fontFamily);
+}: EditorPanelProps & { block: TranslationBlock }): React.JSX.Element {
+  const fontFamilyDraftState = React.useState(block.fontFamily);
   const [fontFamilyDraft, setFontFamilyDraft] = fontFamilyDraftState;
-  const [activeTab, setActiveTab] = useEditorTab(transformMode);
+  const resolvedTransformMode = transformMode ?? "select";
+  const [activeTab, setActiveTab] = useEditorTab(resolvedTransformMode);
   const panelIdBase = React.useId();
 
   React.useEffect(() => {
-    setFontFamilyDraft(block?.fontFamily);
-  }, [block?.id, block?.fontFamily, setFontFamilyDraft]);
-
-  if (!block) {
-    return (
-      <EmptyEditorPanel
-        areaTranslateAvailable={areaTranslateAvailable}
-        areaTranslateSelecting={areaTranslateSelecting}
-        disabled={disabled}
-        headerActions={headerActions}
-        onStartAreaTranslate={onStartAreaTranslate}
-      />
-    );
-  }
+    setFontFamilyDraft(block.fontFamily);
+  }, [block.id, block.fontFamily, setFontFamilyDraft]);
 
   return (
     <section className="editor-panel has-block">
@@ -107,7 +119,8 @@ export function EditorPanel({
           headerActions,
           onDelete,
           onDuplicate,
-          onRemoveBubbleLayout,
+          onRemoveBubbleLayout:
+            onRemoveBubbleLayout ?? NOOP_REMOVE_BUBBLE_LAYOUT,
           onSelect: setActiveTab,
           onUpdate,
         }}
@@ -117,20 +130,24 @@ export function EditorPanel({
           activeTab,
           baseId: panelIdBase,
           block,
+          canCreateStylePreset: canCreateStylePreset ?? false,
           disabled,
-          disableChapterApply,
+          disableChapterApply: disableChapterApply ?? false,
           fontFamilyDraft,
           onAdjustFontSize,
           onApplyBlockBackgroundOpacity,
           onApplyFormat,
+          onApplyStylePreset: onApplyStylePreset ?? NOOP_STYLE_PRESET_APPLY,
+          onCreateStylePreset: onCreateStylePreset ?? NOOP_STYLE_PRESET_CREATE,
           onEraseOriginal,
           onFitBubble,
           onSelectTransformMode,
           onUpdate,
-          pageSize,
-          selectedBlockCount,
+          pageSize: pageSize ?? null,
+          selectedBlockCount: selectedBlockCount ?? 0,
+          stylePresets: stylePresets ?? EMPTY_STYLE_PRESETS,
           setFontFamilyDraft,
-          transformMode,
+          transformMode: resolvedTransformMode,
         }}
       />
     </section>
@@ -198,16 +215,20 @@ type EditorBlockGroupsProps = {
   block: TranslationBlock;
   disabled: boolean;
   disableChapterApply: boolean;
+  canCreateStylePreset: boolean;
   fontFamilyDraft: string | undefined;
   onAdjustFontSize: EditorPanelProps["onAdjustFontSize"];
   onApplyBlockBackgroundOpacity?: EditorPanelProps["onApplyBlockBackgroundOpacity"];
   onApplyFormat: EditorPanelProps["onApplyFormat"];
+  onApplyStylePreset: NonNullable<EditorPanelProps["onApplyStylePreset"]>;
+  onCreateStylePreset: NonNullable<EditorPanelProps["onCreateStylePreset"]>;
   onEraseOriginal?: EditorPanelProps["onEraseOriginal"];
   onFitBubble?: EditorPanelProps["onFitBubble"];
   onSelectTransformMode?: EditorPanelProps["onSelectTransformMode"];
   onUpdate: EditorPanelProps["onUpdate"];
   pageSize: NonNullable<EditorPanelProps["pageSize"]> | null;
   selectedBlockCount: number;
+  stylePresets: readonly BlockStylePresetSummary[];
   setFontFamilyDraft: React.Dispatch<React.SetStateAction<string | undefined>>;
   transformMode: TransformEditorMode;
 };
@@ -218,20 +239,14 @@ function EditorBlockGroups({
   block,
   disabled,
   disableChapterApply,
-  fontFamilyDraft,
-  onAdjustFontSize,
-  onApplyBlockBackgroundOpacity,
-  onApplyFormat,
   onEraseOriginal,
   onFitBubble,
   onSelectTransformMode,
   onUpdate,
   pageSize,
-  selectedBlockCount,
-  setFontFamilyDraft,
   transformMode,
+  ...formatProps
 }: EditorBlockGroupsProps): React.JSX.Element {
-  const model = resolveEditorPanelModel(block);
   return (
     <>
       <EditorTabPanel activeTab={activeTab} baseId={baseId} tab="text">
@@ -257,29 +272,11 @@ function EditorBlockGroups({
         />
       </EditorTabPanel>
       <EditorTabPanel activeTab={activeTab} baseId={baseId} tab="format">
-        <FormatEditorGroup
+        <EditorFormatGroups
+          {...formatProps}
           block={block}
           disabled={disabled}
           disableChapterApply={disableChapterApply}
-          fontFamilyDraft={fontFamilyDraft}
-          model={model}
-          onApplyFormat={onApplyFormat}
-          onAdjustFontSize={onAdjustFontSize}
-          onFontFamilyDraftChange={setFontFamilyDraft}
-          onUpdate={onUpdate}
-          selectedBlockCount={selectedBlockCount}
-        />
-        <EditorColorGroup
-          block={block}
-          disabled={disabled}
-          model={model}
-          onUpdate={onUpdate}
-        />
-        <BlockDisplayGroup
-          block={block}
-          disabled={disabled}
-          disableChapterApply={disableChapterApply}
-          onApply={onApplyBlockBackgroundOpacity}
           onUpdate={onUpdate}
         />
       </EditorTabPanel>
@@ -345,16 +342,4 @@ function readStoredEditorTab(): EditorTabId {
     console.warn("Editor tab state read failed", error);
     return "text";
   }
-}
-
-function resolveEditorPanelModel(block: TranslationBlock): EditorPanelModel {
-  return {
-    autoFitText: block.autoFitText ?? true,
-    fontSizePx: clampFontSize(block.fontSizePx),
-    outlineColor: resolveColor(block.outlineColor, "#ffffff"),
-    renderDirection: normalizeRenderDirection(
-      block.renderDirection,
-      "horizontal",
-    ),
-  };
 }

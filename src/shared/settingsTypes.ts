@@ -9,6 +9,7 @@ import type { TranslationLanguageSettings } from "./translationLanguages";
 import type { UiLocale } from "./uiLocales";
 import type { KeybindingOverrides } from "./shortcutSettings";
 import type { HardwareGpuSettings } from "./gpuSettings";
+import type { BlockStylePreset } from "./blockStylePresets";
 
 export type {
   FluxBackend,
@@ -166,6 +167,8 @@ export type AppSettings = {
   inpainting?: InpaintingSettings;
   /** Default text-block formatting applied to newly created blocks. */
   blockFormatDefaults?: BlockFormatDefaults;
+  /** Named, formatting-only presets shared across works. */
+  blockStylePresets?: BlockStylePreset[];
   keybindings?: KeybindingOverrides;
   runtimeHardware?: RuntimeHardwareInfo;
   maxTokens: number;

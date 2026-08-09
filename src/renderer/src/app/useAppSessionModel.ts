@@ -48,6 +48,7 @@ export function useAppSessionModel(): AppSessionViewProps {
 
   const panelBridge = usePanelBridgeHost({
     syncState: buildPanelSyncState({
+      blockEditingActions: translation.blockEditingActions,
       core: chapter.core,
       derivedState: chapter.derivedState,
       inpaintingBridge: inpainting.inpaintingBridge,

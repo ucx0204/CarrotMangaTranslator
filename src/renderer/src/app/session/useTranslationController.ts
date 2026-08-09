@@ -6,11 +6,18 @@ import { useRegionTranslationPreparation } from "../../hooks/useRegionTranslatio
 import { useTranslationActions } from "../../hooks/useTranslationActions";
 import type { ChapterSessionController } from "./useChapterSessionController";
 import { useAppSessionWorkspaceHistory } from "./useAppSessionWorkspaceHistory";
+import { useFonts } from "../../fonts/useFonts";
+import { useMemo } from "react";
 
 export function useTranslationController(
   chapter: ChapterSessionController,
   clearRetouchHistory: () => void,
 ) {
+  const { options: fontOptions } = useFonts();
+  const availableFontIds = useMemo(
+    () => new Set(fontOptions.map((font) => font.id)),
+    [fontOptions],
+  );
   const workspaceHistory = useAppSessionWorkspaceHistory(chapter);
   const importShareActions = useImportShareController(
     chapter,
@@ -39,6 +46,8 @@ export function useTranslationController(
     runAnalysis: translationActions.runAnalysis,
   });
   const blockEditingActions = useBlockEditingActions({
+    availableFontIds,
+    blockStylePresets: chapter.settingsDialog.settings?.blockStylePresets,
     currentChapter: chapter.core.currentChapter,
     jobActive:
       chapter.derivedState.jobActive ||

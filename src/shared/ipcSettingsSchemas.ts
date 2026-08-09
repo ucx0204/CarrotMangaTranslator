@@ -39,6 +39,12 @@ import {
   SHORTCUT_ACTION_IDS,
 } from "./shortcutSettings";
 import { MAX_COMPUTE_GPU_INDEX, MIN_COMPUTE_GPU_INDEX } from "./gpuSettings";
+import {
+  BLOCK_STYLE_PRESET_VERSION,
+  MAX_BLOCK_STYLE_PRESET_ID_LENGTH,
+  MAX_BLOCK_STYLE_PRESET_NAME_LENGTH,
+  MAX_BLOCK_STYLE_PRESETS,
+} from "./blockStylePresets";
 
 const LanguageCodeSchema = z
   .string()
@@ -52,6 +58,59 @@ const KeybindingOverridesSchema = z.record(
     .max(MAX_KEYBINDING_COMBO_LENGTH)
     .refine(isCanonicalKeybindingCombo, "Invalid keyboard shortcut combo"),
 );
+
+const BlockFormatGroupIdSchema = z.enum([
+  "font",
+  "size",
+  "align",
+  "wordBreak",
+  "direction",
+  "emphasis",
+  "lineSpacing",
+  "letterSpacing",
+  "fontWidth",
+  "color",
+  "outline",
+  "transform",
+]);
+
+const BlockStylePresetSchema = z
+  .object({
+    version: z.literal(BLOCK_STYLE_PRESET_VERSION),
+    id: z
+      .string()
+      .min(1)
+      .max(MAX_BLOCK_STYLE_PRESET_ID_LENGTH)
+      .regex(/^[a-zA-Z0-9._:-]+$/),
+    name: z.string().trim().min(1).max(MAX_BLOCK_STYLE_PRESET_NAME_LENGTH),
+    pinned: z.boolean(),
+    groupIds: z
+      .array(BlockFormatGroupIdSchema)
+      .min(1)
+      .max(12)
+      .refine((items) => new Set(items).size === items.length),
+    format: z
+      .object({
+        fontFamily: z.string().max(120).optional(),
+        fontSizePx: z.number().min(1).max(512).optional(),
+        autoFitText: z.boolean().optional(),
+        textAlign: z.enum(["left", "center", "right"]).optional(),
+        wordBreak: z.enum(TEXT_WORD_BREAK_VALUES).optional(),
+        renderDirection: z.enum(["horizontal", "vertical"]).optional(),
+        bold: z.boolean().optional(),
+        italic: z.boolean().optional(),
+        lineHeight: z.number().min(0.5).max(4).optional(),
+        letterSpacing: z.number().min(-0.5).max(2).optional(),
+        fontWidthScale: z.number().min(0.5).max(1.5).optional(),
+        textColor: hexColor.optional(),
+        textOpacity: z.number().min(0).max(1).optional(),
+        outlineColor: hexColor.optional(),
+        outlineWidthScale: z.number().min(0).max(8).optional(),
+        rotationDeg: z.number().min(-180).max(180).optional(),
+      })
+      .strict(),
+  })
+  .strict();
 
 export const AppSettingsSchema = z
   .object({
@@ -172,6 +231,13 @@ export const AppSettingsSchema = z
         italic: z.boolean(),
       })
       .strict()
+      .optional(),
+    blockStylePresets: z
+      .array(BlockStylePresetSchema)
+      .max(MAX_BLOCK_STYLE_PRESETS)
+      .refine(
+        (items) => new Set(items.map((item) => item.id)).size === items.length,
+      )
       .optional(),
     keybindings: KeybindingOverridesSchema.optional(),
     hardware: z

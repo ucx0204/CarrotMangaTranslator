@@ -54,37 +54,6 @@ function isCompleteProgressSnapshot(
   );
 }
 
-export function StatusPanel({
-  jobState,
-  statusLines,
-}: {
-  jobState: JobState;
-  statusLines: string[];
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <section className="status-panel">
-      <h2>{t("status.title")}</h2>
-      <div
-        className={`job-pill ${jobState.status}`}
-        role="status"
-        aria-live="polite"
-      >
-        {jobState.progressText}
-      </div>
-      <div className="status-log-scroll">
-        {statusLines.length ? (
-          statusLines.map((line, index) => (
-            <p key={`${line}-${index}`}>{line}</p>
-          ))
-        ) : (
-          <p className="muted-line">{t("status.empty")}</p>
-        )}
-      </div>
-    </section>
-  );
-}
-
 function ProgressCard({
   jobState,
   progressSnapshot,

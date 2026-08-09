@@ -4,6 +4,10 @@ import type { BlockFormatGroupId } from "../../../shared/blockFormat";
 import type { FormatApplyScope } from "../hooks/blockEditingStatus";
 import type { BlockBackgroundApplyScope } from "../hooks/useApplyBlockBackgroundOpacityAction";
 import type { TransformEditorMode } from "../../../shared/panelBridgeTypes";
+import type {
+  BlockStylePresetSummary,
+  CreateBlockStylePresetInput,
+} from "../../../shared/blockStylePresets";
 
 /**
  * The slice of session state + actions that dockable/poppable panels consume.
@@ -31,6 +35,8 @@ export type PanelSessionValue = {
   onToggleEditorFloat: () => void;
   /** Opens the block editor in its own OS window. */
   onPopOutEditor: () => void;
+  /** Returns the docked inspector to the current page's block list. */
+  onBackToPageBlocks: () => void;
   /** Closes the block editor OS window, docking it back into the rail. */
   onDockEditorWindow: () => void;
   /** True when "이 화 전체" format apply is unavailable (job running). */
@@ -43,6 +49,8 @@ export type PanelSessionValue = {
   transformMode: TransformEditorMode;
   /** Source-page dimensions used for human-readable pixel values. */
   selectedPageSize: { width: number; height: number } | null;
+  blockStylePresets: BlockStylePresetSummary[];
+  canCreateStylePreset: boolean;
   /** Adjusts only the active block's font size by one pixel. */
   onAdjustFontSize: (adjustment: -1 | 1) => void;
   onUpdateBlock: (patch: Partial<TranslationBlock>) => void;
@@ -56,6 +64,8 @@ export type PanelSessionValue = {
     scope: FormatApplyScope,
     groupIds: BlockFormatGroupId[],
   ) => void;
+  onApplyStylePreset: (presetId: string) => void;
+  onCreateStylePreset: (input: CreateBlockStylePresetInput) => Promise<boolean>;
   onApplyBlockBackgroundOpacity: (scope: BlockBackgroundApplyScope) => void;
   onStartAreaTranslate: () => void;
 };

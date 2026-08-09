@@ -1490,5 +1490,48 @@
       "customHeaderValue": "Custom headerの値には文字列、数値、booleanのみ使用できます。",
       "apiKeyCount": "APIキーは最大{{max}}個まで入力できます。"
     }
+  },
+  "pageBlocks": {
+    "title": "現在のページのブロック",
+    "count": "{{count}}個",
+    "needsReview": "要確認",
+    "soundEffect": "効果音",
+    "inpaintExcluded": "消去対象外",
+    "openDetails": "詳細編集",
+    "source": "原文",
+    "translation": "翻訳",
+    "emptySource": "原文なし",
+    "translationPlaceholder": "翻訳文を入力",
+    "empty": "このページにはテキストブロックがありません。",
+    "backToList": "ページのブロック一覧へ"
+  },
+  "statusDock": {
+    "title": "最近の処理通知",
+    "recentCount": "最近の{{count}}件",
+    "clear": "状態履歴を消去",
+    "close": "閉じる",
+    "open": "最近の処理通知を開く",
+    "latest": "最新の状態: {{line}}"
+  },
+  "stylePresets": {
+    "title": "書式プリセット",
+    "quickFormats": "クイック書式",
+    "createFromCurrent": "現在の書式から作成",
+    "createFromDefaults": "現在の既定書式から作成",
+    "createTitle": "新しい書式プリセット",
+    "all": "すべてのプリセット",
+    "empty": "保存された書式プリセットはありません。",
+    "emptyManager": "プリセットを作成すると、ページ一覧やエディターから適用できます。",
+    "name": "プリセット名",
+    "groups": "含める書式グループ",
+    "pinQuick": "クイックプリセットとして固定",
+    "pinned": "クイック固定",
+    "missingFontShort": "保存されたフォントが見つかりません",
+    "managerTitle": "ブロック書式プリセット",
+    "managerDescription": "名前、順序、クイック固定を管理します。プリセットはすべての作品で共有されます。",
+    "duplicateName": "{{name}} のコピー",
+    "groupCount": "書式グループ {{count}}個",
+    "moveUp": "上へ移動",
+    "moveDown": "下へ移動"
   }
 }

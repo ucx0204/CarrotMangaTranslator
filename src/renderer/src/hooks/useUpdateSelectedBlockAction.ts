@@ -11,11 +11,14 @@ import {
 import type { UpdateCurrentChapter } from "./useCurrentChapterUpdater";
 import { clearAutomaticFontMatchForManualStylePatch } from "../lib/automaticFontMatchProvenance";
 
-type UpdateSelectedBlockOptions = {
-  selectedBlock: TranslationBlock | null;
+type UpdateBlockOptions = {
   selectedPage: MangaPage | null;
   selectedPageEditLocked: boolean;
   updateCurrentChapter: UpdateCurrentChapter;
+};
+
+type UpdateSelectedBlockOptions = UpdateBlockOptions & {
+  selectedBlock: TranslationBlock | null;
 };
 
 /** Text edits coalesce per block; style edits coalesce separately per block. */
@@ -27,47 +30,52 @@ function resolveBlockEditMergeKey(
   return `${isTextEdit ? "text" : "style"}:${blockId}`;
 }
 
-export function useUpdateSelectedBlockAction({
-  selectedBlock,
+export function useUpdateBlockAction({
   selectedPage,
   selectedPageEditLocked,
   updateCurrentChapter,
-}: UpdateSelectedBlockOptions): (patch: Partial<TranslationBlock>) => void {
+}: UpdateBlockOptions): (
+  blockId: string,
+  patch: Partial<TranslationBlock>,
+) => void {
   const { t } = useTranslation("renderer");
   return useCallback(
-    (patch: Partial<TranslationBlock>) => {
-      if (!selectedPage || !selectedBlock || selectedPageEditLocked) {
+    (blockId: string, patch: Partial<TranslationBlock>) => {
+      if (!selectedPage || selectedPageEditLocked) {
         return;
       }
 
-      const mergeKey = resolveBlockEditMergeKey(selectedBlock.id, patch);
+      const mergeKey = resolveBlockEditMergeKey(blockId, patch);
       const automaticFontRollback = isAutomaticFontRollbackPatch(patch);
       updateCurrentChapter(
         selectedPage.id,
         (current) =>
-          applySelectedBlockPatch(
-            current,
-            selectedPage.id,
-            selectedBlock.id,
-            patch,
-          ),
+          applySelectedBlockPatch(current, selectedPage.id, blockId, patch),
         {
           label: automaticFontRollback
             ? t("workspaceHistory.autoFontRollback")
             : t("workspaceHistory.blockEdit"),
           mergeKey: automaticFontRollback
-            ? `automatic-font-rollback:${selectedBlock.id}`
+            ? `automatic-font-rollback:${blockId}`
             : mergeKey,
         },
       );
     },
-    [
-      selectedBlock,
-      selectedPage,
-      selectedPageEditLocked,
-      t,
-      updateCurrentChapter,
-    ],
+    [selectedPage, selectedPageEditLocked, t, updateCurrentChapter],
+  );
+}
+
+/** Compatibility wrapper for callers that edit only the active block. */
+export function useUpdateSelectedBlockAction({
+  selectedBlock,
+  ...options
+}: UpdateSelectedBlockOptions): (patch: Partial<TranslationBlock>) => void {
+  const updateBlock = useUpdateBlockAction(options);
+  return useCallback(
+    (patch: Partial<TranslationBlock>) => {
+      if (selectedBlock) updateBlock(selectedBlock.id, patch);
+    },
+    [selectedBlock, updateBlock],
   );
 }
 

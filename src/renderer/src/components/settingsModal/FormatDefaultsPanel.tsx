@@ -29,12 +29,18 @@ import {
   FormatDefaultsColorSection,
   FormatDefaultsFineTuningSection,
 } from "./FormatDefaultsDetailSections";
+import type { BlockStylePreset } from "../../../../shared/blockStylePresets";
+import { BlockStylePresetManager } from "./BlockStylePresetManager";
 
 export type FormatDefaultsPanelProps = {
   bubbleLayoutPaddingRatio: number;
   value: BlockFormatDefaults;
+  stylePresets?: BlockStylePreset[];
   onBubbleLayoutPaddingRatioChange: (value: number) => void;
   onChange: (patch: Partial<BlockFormatDefaults>) => void;
+  onStylePresetsChange?: React.Dispatch<
+    React.SetStateAction<BlockStylePreset[]>
+  >;
 };
 
 type SectionProps = Pick<FormatDefaultsPanelProps, "value" | "onChange">;
@@ -53,8 +59,10 @@ const DIRECTION_OPTIONS: {
 export function FormatDefaultsPanel({
   bubbleLayoutPaddingRatio,
   value,
+  stylePresets = [],
   onBubbleLayoutPaddingRatioChange,
   onChange,
+  onStylePresetsChange = () => undefined,
 }: FormatDefaultsPanelProps): React.JSX.Element {
   const { t } = useTranslation("components");
   const [exampleText, setExampleText] = React.useState(() =>
@@ -66,26 +74,33 @@ export function FormatDefaultsPanel({
   );
 
   return (
-    <div className="format-defaults format-defaults-editor">
-      <BlockFormatPreview
-        exampleText={exampleText}
-        values={previewValues}
-        title={t("gatherText.previewTitle")}
-        description={t("settings.format.description")}
-        exampleLabel={t("gatherText.previewTextLabel")}
-        placeholder={t("gatherText.previewTextPlaceholder")}
-        autoFitLabel={t("gatherText.autoFitBadge")}
-        onExampleTextChange={setExampleText}
-      />
-      <div className="format-defaults-editor-controls">
-        <TypographySection value={value} onChange={onChange} />
-        <FormatDefaultsColorSection value={value} onChange={onChange} />
-        <FormatDefaultsFineTuningSection value={value} onChange={onChange} />
-        <BubbleLayoutPaddingSection
-          value={bubbleLayoutPaddingRatio}
-          onChange={onBubbleLayoutPaddingRatioChange}
+    <div className="format-settings-stack">
+      <div className="format-defaults format-defaults-editor">
+        <BlockFormatPreview
+          exampleText={exampleText}
+          values={previewValues}
+          title={t("gatherText.previewTitle")}
+          description={t("settings.format.description")}
+          exampleLabel={t("gatherText.previewTextLabel")}
+          placeholder={t("gatherText.previewTextPlaceholder")}
+          autoFitLabel={t("gatherText.autoFitBadge")}
+          onExampleTextChange={setExampleText}
         />
+        <div className="format-defaults-editor-controls">
+          <TypographySection value={value} onChange={onChange} />
+          <FormatDefaultsColorSection value={value} onChange={onChange} />
+          <FormatDefaultsFineTuningSection value={value} onChange={onChange} />
+          <BubbleLayoutPaddingSection
+            value={bubbleLayoutPaddingRatio}
+            onChange={onBubbleLayoutPaddingRatioChange}
+          />
+        </div>
       </div>
+      <BlockStylePresetManager
+        defaults={value}
+        presets={stylePresets}
+        onChange={onStylePresetsChange}
+      />
     </div>
   );
 }

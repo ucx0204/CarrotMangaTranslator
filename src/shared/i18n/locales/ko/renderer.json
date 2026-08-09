@@ -180,6 +180,8 @@
       "zoom-in": "이미지 확대",
       "zoom-out": "이미지 축소",
       "zoom-reset": "확대 초기화",
+      "page-previous": "이전 페이지",
+      "page-next": "다음 페이지",
       "stage-tool-select": "선택 도구",
       "stage-tool-block": "블록 도구 (드래그로 블록 추가)",
       "stage-tool-hand": "손바닥 도구 (드래그로 이동)",
@@ -190,6 +192,8 @@
       "gather-text": "텍스트 모아보기",
       "cancel-job": "작업 취소",
       "toggle-inpainting": "현재 페이지 지우기",
+      "block-previous": "이전 블록",
+      "block-next": "다음 블록",
       "history-undo": "실행 취소",
       "history-redo": "다시 실행",
       "delete-block": "선택한 블록 삭제",
@@ -206,6 +210,7 @@
     "blockBackgroundOpacity": "블록 배경 투명도 변경",
     "exclusion": "자동 지우기 제외 설정 변경",
     "format": "블록 서식 변경",
+    "stylePreset": "서식 프리셋 적용",
     "deleteBlock": "블록 삭제",
     "duplicateBlock": "블록 복제",
     "createBlock": "블록 추가",
@@ -446,5 +451,12 @@
       "blockMismatch_one": "{{page}}쪽: 텍스트 줄 구성과 번역 블록 {{count}}개가 맞지 않아 건너뜁니다.",
       "blockMismatch_other": "{{page}}쪽: 텍스트 줄 구성과 번역 블록 {{count}}개가 맞지 않아 건너뜁니다."
     }
+  },
+  "stylePresets": {
+    "applied": "‘{{name}}’ 서식을 {{count}}개 블록에 적용했습니다.",
+    "missingFont": "저장된 글꼴 ‘{{font}}’을 찾을 수 없어 글꼴을 제외한 서식만 적용했습니다.",
+    "limitReached": "서식 프리셋은 최대 100개까지 저장할 수 있습니다.",
+    "saveFailed": "서식 프리셋을 저장하지 못했습니다.",
+    "saved": "서식 프리셋 ‘{{name}}’을 저장했습니다."
   }
 }

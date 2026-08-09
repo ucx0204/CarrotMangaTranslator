@@ -59,11 +59,15 @@ function buildRemotePanelSessionValue(
     editorFloating: false,
     editorPoppedOut: false,
     showDetachControls: false,
+    canCreateStylePreset: false,
     onToggleEditorFloat: noop,
+    onBackToPageBlocks: noop,
     onPopOutEditor: noop,
     onDockEditorWindow: noop,
     onApplyFormat: (scope, groupIds) =>
       dispatchCommand({ type: "applyFormat", scope, groupIds }),
+    onApplyStylePreset: createRemoteStylePresetApply(selectedBlockId),
+    onCreateStylePreset: async () => false,
     onApplyBlockBackgroundOpacity: (scope) =>
       dispatchCommand({ type: "applyBlockBackgroundOpacity", scope }),
     onAdjustFontSize: (adjustment) => {
@@ -118,5 +122,19 @@ function buildRemotePanelSessionValue(
         });
       }
     },
+  };
+}
+
+function createRemoteStylePresetApply(
+  selectedBlockId: string | undefined,
+): PanelSessionValue["onApplyStylePreset"] {
+  return (presetId) => {
+    if (selectedBlockId) {
+      dispatchCommand({
+        type: "applyStylePreset",
+        blockId: selectedBlockId,
+        presetId,
+      });
+    }
   };
 }

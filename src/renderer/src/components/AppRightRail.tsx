@@ -26,7 +26,10 @@ function useStableRightRailActions(
   | "onBrushColorChange"
   | "onBrushRadiusChange"
   | "onCancelJob"
+  | "onClearStatusLines"
   | "onClearPatternMask"
+  | "onApplyStylePreset"
+  | "onOpenBlockEditor"
   | "onOpenAutoInpaintingOptions"
   | "onOpenExport"
   | "onOpenStyleGuide"
@@ -38,15 +41,20 @@ function useStableRightRailActions(
   | "onRunCurrentPageInpainting"
   | "onRunBubbleLayout"
   | "onRunDrawnPattern"
+  | "onSelectBlock"
   | "onToggleBlocks"
   | "onToggleChrome"
   | "onUndo"
+  | "onUpdateBlock"
 > {
   return {
     onBrushColorChange: useEventCallback(props.onBrushColorChange),
     onBrushRadiusChange: useEventCallback(props.onBrushRadiusChange),
     onCancelJob: useEventCallback(props.onCancelJob),
+    onClearStatusLines: useEventCallback(props.onClearStatusLines),
     onClearPatternMask: useEventCallback(props.onClearPatternMask),
+    onApplyStylePreset: useEventCallback(props.onApplyStylePreset),
+    onOpenBlockEditor: useEventCallback(props.onOpenBlockEditor),
     onOpenAutoInpaintingOptions: useEventCallback(
       props.onOpenAutoInpaintingOptions,
     ),
@@ -62,8 +70,10 @@ function useStableRightRailActions(
     ),
     onRunBubbleLayout: useEventCallback(props.onRunBubbleLayout),
     onRunDrawnPattern: useEventCallback(props.onRunDrawnPattern),
+    onSelectBlock: useEventCallback(props.onSelectBlock),
     onToggleBlocks: useEventCallback(props.onToggleBlocks),
     onToggleChrome: useEventCallback(props.onToggleChrome),
     onUndo: useEventCallback(props.onUndo),
+    onUpdateBlock: useEventCallback(props.onUpdateBlock),
   };
 }

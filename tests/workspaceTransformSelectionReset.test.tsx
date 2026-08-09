@@ -99,6 +99,9 @@ describe("workspace transform mode selection changes", () => {
     });
 
     expect(screen.getByTestId("stage-tool").textContent).toBe("curve");
+    expect(screen.getByTestId("right-rail-mode").textContent).toBe(
+      "block-editor",
+    );
     expect(container.querySelector(".curve-controls")).not.toBeNull();
   });
 
@@ -140,6 +143,7 @@ function WorkspaceSelectionHarness({
   return (
     <FontsContext.Provider value={fontsContext}>
       <output data-testid="stage-tool">{model.stageTool}</output>
+      <output data-testid="right-rail-mode">{model.rightRailMode}</output>
       <output data-testid="selected-block-ids">
         {model.selectedBlockIds.join(",")}
       </output>
@@ -180,6 +184,7 @@ function useSelectionHarnessModel(
   );
   const [selectedBlockIds, setSelectedBlockIds] = useState(["block-a"]);
   const [stageTool, setStageTool] = useState<StageTool>(initialTool);
+  const [rightRailMode, setRightRailMode] = useState("page-blocks");
   const updateCurrentChapter = useCallback<UpdateCurrentChapter>(
     () => undefined,
     [],
@@ -203,6 +208,7 @@ function useSelectionHarnessModel(
     jobActive: false,
     lastInpaintingRetouchPointRef: refs.lastInpaintingRetouchPointRef,
     onPatternMaskChange: () => undefined,
+    onBlockActivated: () => setRightRailMode("block-editor"),
     onSelectedBlockChange: resetTransformMode,
     patternMaskStrokesByPage: {},
     pushStatus: () => undefined,
@@ -230,6 +236,7 @@ function useSelectionHarnessModel(
     refs,
     selectedBlockId,
     selectedBlockIds,
+    rightRailMode,
     stageTool,
   };
 }

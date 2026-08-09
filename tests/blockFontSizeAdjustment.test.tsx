@@ -777,6 +777,7 @@ describe("font-size panel bridge", () => {
     { type: "eraseBlockOriginal" },
     { type: "fitBlockBubble" },
     { type: "removeBubbleLayout" },
+    { type: "applyStylePreset", presetId: "style-preset:dialogue" },
   ])("requires a block id for $type commands", (command) => {
     expect(() => PanelCommandSchema.parse(command)).toThrow();
   });
@@ -802,6 +803,14 @@ describe("font-size panel bridge", () => {
     const state = {
       areaTranslateAvailable: false,
       areaTranslateSelecting: false,
+      blockStylePresets: [
+        {
+          id: "style-preset:dialogue",
+          name: "대사",
+          pinned: true,
+          missingFont: false,
+        },
+      ],
       disableChapterApply: false,
       editorDisabled: false,
       selectedBlock: block,
@@ -827,6 +836,7 @@ describe("font-size panel bridge", () => {
     act(() => result.current?.onEraseBlockOriginal());
     act(() => result.current?.onFitBlockBubble());
     act(() => result.current?.onRemoveBubbleLayout());
+    act(() => result.current?.onApplyStylePreset("style-preset:dialogue"));
     act(() => result.current?.onApplyBlockBackgroundOpacity("chapter"));
 
     expect(sendPanelCommand).toHaveBeenCalledWith({
@@ -838,6 +848,11 @@ describe("font-size panel bridge", () => {
       type: "updateBlock",
       blockId: block.id,
       patch: { translatedText: "수정" },
+    });
+    expect(sendPanelCommand).toHaveBeenCalledWith({
+      type: "applyStylePreset",
+      blockId: block.id,
+      presetId: "style-preset:dialogue",
     });
     expect(sendPanelCommand).toHaveBeenCalledWith({
       type: "deleteBlock",

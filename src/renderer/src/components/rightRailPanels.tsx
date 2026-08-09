@@ -8,7 +8,10 @@ import { isRetouchTool, type WorkspaceTool } from "../lib/stageTool";
 import { EditorPanelSlot } from "../panels/EditorPanelSlot";
 import { InpaintingControlPanel } from "./InpaintingControlPanel";
 import { ChapterTaskHub } from "./RunStatusPanels";
-import { StatusPanel } from "./RunStatusFeedback";
+import { PageBlockListPanel } from "./PageBlockListPanel";
+import type { BlockStylePresetSummary } from "../../../shared/blockStylePresets";
+import type { RightRailMode } from "../app/session/useAppSessionUiState";
+import type { BlockReadingDirection } from "../../../shared/blockReadingOrder";
 
 export type UnifiedRightRailProps = {
   brushColor: string;
@@ -18,6 +21,7 @@ export type UnifiedRightRailProps = {
   compareAvailable: boolean;
   currentChapter: ChapterSnapshot | null;
   flowActive: boolean;
+  editorDisabled: boolean;
   jobActive: boolean;
   jobState: JobState;
   maskStrokeCount: number;
@@ -26,7 +30,11 @@ export type UnifiedRightRailProps = {
   redoLabel?: string | null;
   resetAvailable: boolean;
   selectedBlock: TranslationBlock | null;
+  selectedBlockId: string | null;
   selectedPage: MangaPage | null;
+  rightRailMode: RightRailMode;
+  blockStylePresets: BlockStylePresetSummary[];
+  blockReadingDirection: BlockReadingDirection;
   canRunBubbleLayout: boolean;
   showBlockChrome: boolean;
   showProgressBar: boolean;
@@ -37,11 +45,14 @@ export type UnifiedRightRailProps = {
   onBrushColorChange: (value: string) => void;
   onBrushRadiusChange: (value: number) => void;
   onCancelJob: () => void;
+  onClearStatusLines: () => void;
   onClearPatternMask: () => void;
   onOpenExport: () => void;
   onOpenStyleGuide: () => void;
   onOpenTextView: () => void;
   onOpenTranslateOptions: () => void;
+  onApplyStylePreset: (presetId: string) => void;
+  onOpenBlockEditor: (blockId: string) => void;
   onPeekToggle: () => void;
   onRedo: () => void;
   onResetPage: () => void;
@@ -51,6 +62,8 @@ export type UnifiedRightRailProps = {
   onToggleBlocks: () => void;
   onToggleChrome: () => void;
   onUndo: () => void;
+  onSelectBlock: (blockId: string) => void;
+  onUpdateBlock: (blockId: string, patch: Partial<TranslationBlock>) => void;
   onOpenAutoInpaintingOptions: (scope: AutoInpaintingEntryScope) => void;
 };
 
@@ -103,13 +116,23 @@ function ContextualRightRailPanel(
       />
     );
   }
-  if (props.selectedBlock) {
+  if (props.rightRailMode === "block-editor" && props.selectedBlock) {
     return <EditorPanelSlot />;
   }
-  if (props.statusLines.length === 0) {
-    return null;
+  if (props.selectedPage) {
+    return (
+      <PageBlockListPanel
+        disabled={props.editorDisabled}
+        page={props.selectedPage}
+        presets={props.blockStylePresets}
+        readingDirection={props.blockReadingDirection}
+        selectedBlockId={props.selectedBlockId}
+        onApplyStylePreset={props.onApplyStylePreset}
+        onOpenEditor={props.onOpenBlockEditor}
+        onSelectBlock={props.onSelectBlock}
+        onUpdateBlock={props.onUpdateBlock}
+      />
+    );
   }
-  return (
-    <StatusPanel jobState={props.jobState} statusLines={props.statusLines} />
-  );
+  return null;
 }

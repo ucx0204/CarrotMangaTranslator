@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { ALL_BLOCK_FORMAT_GROUP_IDS } from "./blockFormat";
+import {
+  MAX_BLOCK_STYLE_PRESETS,
+  MAX_BLOCK_STYLE_PRESET_ID_LENGTH,
+  MAX_BLOCK_STYLE_PRESET_NAME_LENGTH,
+} from "./blockStylePresets";
 import { TranslationBlockSchema } from "./ipcSchemaPrimitives";
 
 const MAX_SELECTED_BLOCK_COUNT = 100000;
@@ -9,6 +14,15 @@ export const PanelIdSchema = z.enum(["editor"]);
 const BlockFormatGroupIdSchema = z.enum(
   ALL_BLOCK_FORMAT_GROUP_IDS as [string, ...string[]],
 );
+
+const BlockStylePresetSummarySchema = z
+  .object({
+    id: z.string().min(1).max(MAX_BLOCK_STYLE_PRESET_ID_LENGTH),
+    name: z.string().min(1).max(MAX_BLOCK_STYLE_PRESET_NAME_LENGTH),
+    pinned: z.boolean(),
+    missingFont: z.boolean(),
+  })
+  .strict();
 
 export const PanelSyncStateSchema = z
   .object({
@@ -26,6 +40,9 @@ export const PanelSyncStateSchema = z
       })
       .strict()
       .nullable(),
+    blockStylePresets: z
+      .array(BlockStylePresetSummarySchema)
+      .max(MAX_BLOCK_STYLE_PRESETS),
   })
   .strict();
 
@@ -85,6 +102,13 @@ export const PanelCommandSchema = z.discriminatedUnion("type", [
       type: z.literal("applyFormat"),
       scope: z.enum(["selection", "page", "chapter"]),
       groupIds: z.array(BlockFormatGroupIdSchema).max(20),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("applyStylePreset"),
+      blockId: TranslationBlockSchema.shape.id,
+      presetId: z.string().min(1).max(MAX_BLOCK_STYLE_PRESET_ID_LENGTH),
     })
     .strict(),
   z
