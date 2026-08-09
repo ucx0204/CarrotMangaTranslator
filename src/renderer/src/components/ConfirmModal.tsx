@@ -1,8 +1,8 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "./ui/Button";
+import type { ButtonProps } from "./ui/Button";
 import { Modal } from "./ui/Modal";
-import { ModalActionBar } from "./ui/ModalActionBar";
+import { ModalActionBar, ModalActionButtons } from "./ui/ModalActionBar";
 import { WarnIcon } from "./ui/icons";
 
 export function ConfirmModal({
@@ -18,7 +18,7 @@ export function ConfirmModal({
   message: string;
   detail?: string;
   confirmLabel?: string;
-  confirmVariant?: React.ComponentProps<typeof Button>["variant"];
+  confirmVariant?: ButtonProps["variant"];
   onConfirm: () => void;
   onCancel: () => void;
 }): React.JSX.Element {
@@ -39,14 +39,14 @@ export function ConfirmModal({
       footer={
         <ModalActionBar
           actions={
-            <>
-              <Button variant="ghost" onClick={onCancel}>
-                {t("common.cancel")}
-              </Button>
-              <Button variant={confirmVariant} onClick={onConfirm}>
-                {confirmLabel ?? t("common.confirm")}
-              </Button>
-            </>
+            <ModalActionButtons
+              cancel={{ label: t("common.cancel"), onClick: onCancel }}
+              confirm={{
+                label: confirmLabel ?? t("common.confirm"),
+                onClick: onConfirm,
+                variant: confirmVariant,
+              }}
+            />
           }
         />
       }

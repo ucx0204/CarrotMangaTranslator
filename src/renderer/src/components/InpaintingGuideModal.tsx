@@ -2,10 +2,9 @@ import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import inpaintingGuideImage from "../assets/images/inpainting-guide.png";
 import styles from "./InpaintingGuideModal.module.css";
-import { Button } from "./ui/Button";
 import { CheckboxField } from "./ui/CheckboxField";
 import { Modal } from "./ui/Modal";
-import { ModalActionBar } from "./ui/ModalActionBar";
+import { ModalActionBar, ModalActionButtons } from "./ui/ModalActionBar";
 
 export function InpaintingGuideModal({
   onClose,
@@ -32,9 +31,12 @@ export function InpaintingGuideModal({
             />
           }
           actions={
-            <Button variant="primary" onClick={() => onClose(hideNextTime)}>
-              {t("common.confirm")}
-            </Button>
+            <ModalActionButtons
+              confirm={{
+                label: t("common.confirm"),
+                onClick: () => onClose(hideNextTime),
+              }}
+            />
           }
         />
       }

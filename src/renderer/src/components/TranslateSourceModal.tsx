@@ -7,9 +7,8 @@ import {
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { TranslateSourceMode } from "../lib/importFlowTypes";
-import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
-import { ModalActionBar } from "./ui/ModalActionBar";
+import { ModalActionBar, ModalActionButtons } from "./ui/ModalActionBar";
 
 type TranslateSourceModalProps = {
   busy: boolean;
@@ -33,9 +32,13 @@ export function TranslateSourceModal({
       footer={
         <ModalActionBar
           actions={
-            <Button variant="ghost" onClick={onCancel} disabled={busy}>
-              {t("common.cancel")}
-            </Button>
+            <ModalActionButtons
+              cancel={{
+                label: t("common.cancel"),
+                onClick: onCancel,
+                disabled: busy,
+              }}
+            />
           }
         />
       }
