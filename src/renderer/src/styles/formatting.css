@@ -825,12 +825,6 @@
   animation: chapter-save-pulse 1s ease-in-out infinite;
 }
 
-.chapter-save-status.saved {
-  border-color: color-mix(in srgb, #65c9a9 46%, var(--border-soft));
-  background: color-mix(in srgb, #65c9a9 10%, var(--bg-sunken));
-  color: #7ed6ba;
-}
-
 .chapter-save-status.error,
 .chapter-save-status.conflict {
   border-color: color-mix(in srgb, #ef6f6c 50%, var(--border-soft));

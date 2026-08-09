@@ -46,6 +46,38 @@
   min-width: 0;
 }
 
+.chapter-task-title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.chapter-task-title h2 {
+  flex: 0 1 auto;
+}
+
+.chapter-saved-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  color: #7ed6ba;
+  font-size: var(--font-xs);
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.chapter-saved-badge::before {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+}
+
 .chapter-task-header h2,
 .chapter-task-header small {
   min-width: 0;
