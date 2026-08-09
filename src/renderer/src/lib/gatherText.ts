@@ -1,10 +1,13 @@
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
-import type { TranslationBlock } from "../../../shared/textTypes";
+import {
+  sortBlocksForReading,
+  type BlockReadingDirection,
+} from "../../../shared/blockReadingOrder";
 import type { TFunction } from "i18next";
 
 export type GatherScope = "page" | "chapter";
 export type GatherField = "both" | "translated" | "source";
-export type ReadingDirection = "rtl" | "ltr";
+export type ReadingDirection = BlockReadingDirection;
 
 export type GatheredBlock = {
   id: string;
@@ -19,45 +22,6 @@ export type GatheredPage = {
   index: number;
   blocks: GatheredBlock[];
 };
-
-/**
- * Orders blocks for natural reading. Blocks are grouped into rows top-to-bottom
- * (by vertical overlap), then sorted within each row horizontally. Default is
- * `rtl` (right-to-left) to match Japanese manga; pass `ltr` to flip it.
- */
-function sortBlocksForReading(
-  blocks: TranslationBlock[],
-  direction: ReadingDirection = "rtl",
-): TranslationBlock[] {
-  const items = [...blocks];
-  if (items.length <= 1) {
-    return items;
-  }
-  items.sort((a, b) => a.bbox.y - b.bbox.y);
-
-  const rows: TranslationBlock[][] = [];
-  for (const block of items) {
-    const row = rows[rows.length - 1];
-    if (row) {
-      const ref = row[0];
-      const refCenter = ref.bbox.y + ref.bbox.h / 2;
-      const blockCenter = block.bbox.y + block.bbox.h / 2;
-      const threshold = Math.max(ref.bbox.h, block.bbox.h) * 0.5;
-      if (Math.abs(blockCenter - refCenter) <= threshold) {
-        row.push(block);
-        continue;
-      }
-    }
-    rows.push([block]);
-  }
-
-  for (const row of rows) {
-    row.sort((a, b) =>
-      direction === "rtl" ? b.bbox.x - a.bbox.x : a.bbox.x - b.bbox.x,
-    );
-  }
-  return rows.flat();
-}
 
 /**
  * Collects the (reading-ordered, non-empty) text of either the current page or

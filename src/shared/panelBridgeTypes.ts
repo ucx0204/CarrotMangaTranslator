@@ -1,5 +1,6 @@
 import type { TranslationBlock } from "./textTypes";
 import type { BlockFormatGroupId } from "./blockFormat";
+import type { BlockStylePresetSummary } from "./blockStylePresets";
 
 /**
  * Panels that can be popped out into their own OS window. Kept as a closed
@@ -28,6 +29,7 @@ export type PanelSyncState = {
   areaTranslateSelecting: boolean;
   transformMode: TransformEditorMode;
   selectedPageSize: { width: number; height: number } | null;
+  blockStylePresets: BlockStylePresetSummary[];
 };
 
 /**
@@ -52,6 +54,7 @@ export type PanelCommand =
       scope: PanelFormatScope;
       groupIds: BlockFormatGroupId[];
     }
+  | { type: "applyStylePreset"; blockId: string; presetId: string }
   | {
       type: "applyBlockBackgroundOpacity";
       scope: Exclude<PanelFormatScope, "selection">;

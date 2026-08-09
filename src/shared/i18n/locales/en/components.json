@@ -1509,5 +1509,48 @@
       "customHeaderValue": "Custom header values may only be strings, numbers, or booleans.",
       "apiKeyCount": "You can enter up to {{max}} API keys."
     }
+  },
+  "pageBlocks": {
+    "title": "Current page blocks",
+    "count": "{{count}} blocks",
+    "needsReview": "Needs review",
+    "soundEffect": "Sound effect",
+    "inpaintExcluded": "Erase excluded",
+    "openDetails": "Detailed editing",
+    "source": "Source",
+    "translation": "Translation",
+    "emptySource": "No source text",
+    "translationPlaceholder": "Enter a translation",
+    "empty": "This page has no text blocks.",
+    "backToList": "Back to page blocks"
+  },
+  "statusDock": {
+    "title": "Recent job notifications",
+    "recentCount": "{{count}} recent",
+    "clear": "Clear status history",
+    "close": "Close",
+    "open": "Open recent job notifications",
+    "latest": "Latest status: {{line}}"
+  },
+  "stylePresets": {
+    "title": "Style presets",
+    "quickFormats": "Quick styles",
+    "createFromCurrent": "Create from current style",
+    "createFromDefaults": "Create from current defaults",
+    "createTitle": "New style preset",
+    "all": "All presets",
+    "empty": "No style presets have been saved.",
+    "emptyManager": "Create a preset to apply it from the page list or editor.",
+    "name": "Preset name",
+    "groups": "Formatting groups to include",
+    "pinQuick": "Pin as a quick preset",
+    "pinned": "Quick pin",
+    "missingFontShort": "The saved font could not be found",
+    "managerTitle": "Block style presets",
+    "managerDescription": "Manage names, order, and quick pins. Presets are shared across all works.",
+    "duplicateName": "{{name}} copy",
+    "groupCount": "{{count}} format groups",
+    "moveUp": "Move up",
+    "moveDown": "Move down"
   }
 }

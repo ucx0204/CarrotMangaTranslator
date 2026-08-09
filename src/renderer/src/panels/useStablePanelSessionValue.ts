@@ -7,6 +7,9 @@ type PanelSessionCallbacks = Pick<
   | "onAdjustFontSize"
   | "onApplyBlockBackgroundOpacity"
   | "onApplyFormat"
+  | "onApplyStylePreset"
+  | "onBackToPageBlocks"
+  | "onCreateStylePreset"
   | "onDeleteBlock"
   | "onDockEditorWindow"
   | "onDuplicateBlock"
@@ -39,6 +42,8 @@ export function useStablePanelSessionValue(
       ...callbacks,
       areaTranslateAvailable: value.areaTranslateAvailable,
       areaTranslateSelecting: value.areaTranslateSelecting,
+      blockStylePresets: value.blockStylePresets,
+      canCreateStylePreset: value.canCreateStylePreset,
       disableChapterApply: value.disableChapterApply,
       editorDisabled: value.editorDisabled,
       editorFloating: value.editorFloating,
@@ -54,6 +59,8 @@ export function useStablePanelSessionValue(
       selectedPageSize,
       value.areaTranslateAvailable,
       value.areaTranslateSelecting,
+      value.blockStylePresets,
+      value.canCreateStylePreset,
       value.disableChapterApply,
       value.editorDisabled,
       value.editorFloating,
@@ -74,6 +81,9 @@ function useStablePanelSessionCallbacks(
     value.onApplyBlockBackgroundOpacity,
   );
   const onApplyFormat = useEventCallback(value.onApplyFormat);
+  const onApplyStylePreset = useEventCallback(value.onApplyStylePreset);
+  const onBackToPageBlocks = useEventCallback(value.onBackToPageBlocks);
+  const onCreateStylePreset = useEventCallback(value.onCreateStylePreset);
   const onDeleteBlock = useEventCallback(value.onDeleteBlock);
   const onDockEditorWindow = useEventCallback(value.onDockEditorWindow);
   const onDuplicateBlock = useEventCallback(value.onDuplicateBlock);
@@ -91,6 +101,9 @@ function useStablePanelSessionCallbacks(
       onAdjustFontSize,
       onApplyBlockBackgroundOpacity,
       onApplyFormat,
+      onApplyStylePreset,
+      onBackToPageBlocks,
+      onCreateStylePreset,
       onDeleteBlock,
       onDockEditorWindow,
       onDuplicateBlock,
@@ -107,6 +120,9 @@ function useStablePanelSessionCallbacks(
       onAdjustFontSize,
       onApplyBlockBackgroundOpacity,
       onApplyFormat,
+      onApplyStylePreset,
+      onBackToPageBlocks,
+      onCreateStylePreset,
       onDeleteBlock,
       onDockEditorWindow,
       onDuplicateBlock,

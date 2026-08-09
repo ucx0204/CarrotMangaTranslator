@@ -266,14 +266,17 @@ function useChapterRuntimeEffects({
   | "statusLog"
   | "uiState"
 >): void {
-  const { selectWorkspaceTool, setPeekOriginal } = uiState;
+  const { selectWorkspaceTool, setPeekOriginal, setRightRailMode } = uiState;
+  const { setSelectedBlockIds } = core;
   const handleJobStart = useCallback(
     () => selectWorkspaceTool("select"),
     [selectWorkspaceTool],
   );
   const handlePageChange = useCallback(() => {
     setPeekOriginal(false);
-  }, [setPeekOriginal]);
+    setRightRailMode("page-blocks");
+    setSelectedBlockIds([]);
+  }, [setPeekOriginal, setRightRailMode, setSelectedBlockIds]);
   useAppSessionLifecycleEffects({
     currentChapter: core.currentChapter,
     jobState: core.jobState,

@@ -2,6 +2,7 @@
 @import "./styles/foundations.css";
 @import "./styles/shell-workspace.css";
 @import "./styles/panels.css";
+@import "./styles/page-review.css";
 @import "./styles/library-inpainting.css";
 @import "./styles/formatting.css";
 @import "./styles/stage-overlay.css";

@@ -21,6 +21,7 @@ import {
   DEFAULT_GEMMA_MODEL_REPO,
 } from "../../../shared/modelPresets";
 import { resolveTranslationLanguageSettings } from "../../../shared/translationLanguages";
+import type { BlockStylePreset } from "../../../shared/blockStylePresets";
 
 type BuildSettingsFromFormInput = {
   initialSettings: AppSettings;
@@ -63,6 +64,7 @@ type BuildSettingsFromFormInput = {
   bubbleLayoutPaddingRatio: number;
   keybindings: KeybindingOverrides;
   blockFormatDefaults: BlockFormatDefaults;
+  blockStylePresets: BlockStylePreset[];
   maxTokens: number;
   ctx: number;
 };
@@ -107,6 +109,7 @@ export function buildSettingsFromForm(
     },
     keybindings: input.keybindings,
     blockFormatDefaults: input.blockFormatDefaults,
+    blockStylePresets: input.blockStylePresets,
     maxTokens: input.maxTokens,
     ctx: input.ctx,
   };

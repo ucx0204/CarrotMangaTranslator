@@ -548,7 +548,7 @@ describe("unified right rail", () => {
     expect(props.onRunCurrentPageInpainting).not.toHaveBeenCalled();
   });
 
-  it("uses manual tool, editor, then status priority without an auto mode", () => {
+  it("uses manual tool, editor, then the page block list", () => {
     const view = renderRightRail(
       makeRightRailProps({
         selectedBlock: makeBlock(),
@@ -581,7 +581,10 @@ describe("unified right rail", () => {
         })}
       />,
     );
-    expect(screen.getByRole("heading", { name: "상태" })).not.toBeNull();
+    expect(screen.queryByRole("heading", { name: "상태" })).toBeNull();
+    expect(
+      screen.getByRole("heading", { name: "현재 페이지 블록" }),
+    ).not.toBeNull();
   });
 
   it("does not keep completed work in the right rail", () => {
@@ -803,9 +806,14 @@ function RightRailTestProviders({
     editorDisabled: false,
     editorFloating: false,
     editorPoppedOut: false,
+    blockStylePresets: [],
+    canCreateStylePreset: true,
     onAdjustFontSize: () => undefined,
     onApplyBlockBackgroundOpacity: () => undefined,
     onApplyFormat: () => undefined,
+    onApplyStylePreset: () => undefined,
+    onBackToPageBlocks: () => undefined,
+    onCreateStylePreset: async () => true,
     onDeleteBlock: () => undefined,
     onDockEditorWindow: () => undefined,
     onDuplicateBlock: () => undefined,
@@ -846,6 +854,8 @@ function makeRightRailProps(
   overrides: Partial<RightRailProps> = {},
 ): RightRailProps {
   return {
+    blockReadingDirection: "rtl",
+    blockStylePresets: [],
     brushColor: "#ffffff",
     brushRadius: 28,
     canRedo: true,
@@ -853,6 +863,7 @@ function makeRightRailProps(
     canRunBubbleLayout: false,
     compareAvailable: true,
     currentChapter: makeChapter(),
+    editorDisabled: false,
     flowActive: false,
     jobActive: false,
     jobState: {
@@ -865,6 +876,7 @@ function makeRightRailProps(
     onBrushColorChange: vi.fn(),
     onBrushRadiusChange: vi.fn(),
     onCancelJob: vi.fn(),
+    onClearStatusLines: vi.fn(),
     onClearPatternMask: vi.fn(),
     onOpenExport: vi.fn(),
     onOpenStyleGuide: vi.fn(),
@@ -877,12 +889,17 @@ function makeRightRailProps(
     onRunBubbleLayout: vi.fn(),
     onRunCurrentPageInpainting: vi.fn(),
     onOpenAutoInpaintingOptions: vi.fn(),
+    onApplyStylePreset: vi.fn(),
+    onOpenBlockEditor: vi.fn(),
+    onSelectBlock: vi.fn(),
     onToggleBlocks: vi.fn(),
     onToggleChrome: vi.fn(),
     onUndo: vi.fn(),
+    onUpdateBlock: vi.fn(),
     peeking: false,
     progressSnapshot: null,
     selectedBlock: null,
+    selectedBlockId: null,
     selectedPage: makePage(),
     resetAvailable: true,
     showBlockChrome: true,
@@ -890,6 +907,7 @@ function makeRightRailProps(
     showTextBlocks: true,
     stageTool: "select",
     statusLines: [],
+    rightRailMode: "block-editor",
     ...overrides,
   };
 }

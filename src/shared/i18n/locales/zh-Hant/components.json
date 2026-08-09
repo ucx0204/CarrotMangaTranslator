@@ -1465,5 +1465,48 @@
       "customHeaderValue": "Custom header 值只能是字串、數字或布林值。",
       "apiKeyCount": "最多可輸入 {{max}} 個 API 金鑰。"
     }
+  },
+  "pageBlocks": {
+    "title": "目前頁面文字區塊",
+    "count": "{{count}}個",
+    "needsReview": "需要檢查",
+    "soundEffect": "音效",
+    "inpaintExcluded": "排除清除",
+    "openDetails": "詳細編輯",
+    "source": "原文",
+    "translation": "譯文",
+    "emptySource": "無原文",
+    "translationPlaceholder": "輸入譯文",
+    "empty": "此頁面沒有文字區塊。",
+    "backToList": "返回頁面文字區塊"
+  },
+  "statusDock": {
+    "title": "最近工作通知",
+    "recentCount": "最近{{count}}筆",
+    "clear": "清除狀態記錄",
+    "close": "關閉",
+    "open": "開啟最近工作通知",
+    "latest": "最新狀態：{{line}}"
+  },
+  "stylePresets": {
+    "title": "格式預設",
+    "quickFormats": "快速格式",
+    "createFromCurrent": "從目前格式建立",
+    "createFromDefaults": "從目前預設格式建立",
+    "createTitle": "新增格式預設",
+    "all": "全部預設",
+    "empty": "尚未儲存格式預設。",
+    "emptyManager": "建立預設後可從頁面清單或編輯器直接套用。",
+    "name": "預設名稱",
+    "groups": "包含的格式群組",
+    "pinQuick": "固定為快速預設",
+    "pinned": "快速固定",
+    "missingFontShort": "找不到已儲存的字體",
+    "managerTitle": "文字區塊格式預設",
+    "managerDescription": "管理名稱、順序和快速固定。預設會在所有作品中共用。",
+    "duplicateName": "{{name}} 副本",
+    "groupCount": "{{count}}個格式群組",
+    "moveUp": "上移",
+    "moveDown": "下移"
   }
 }

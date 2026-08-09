@@ -3,6 +3,7 @@ import type { AppSessionViewModel } from "./appSessionViewModel";
 import { isWorkspaceImageReadyForSelectedPage } from "./appSessionSelectors";
 
 export function buildPanelSyncState({
+  blockEditingActions,
   core,
   derivedState,
   inpaintingBridge,
@@ -10,7 +11,12 @@ export function buildPanelSyncState({
   workspaceHistory,
 }: Pick<
   AppSessionViewModel,
-  "core" | "derivedState" | "inpaintingBridge" | "uiState" | "workspaceHistory"
+  | "blockEditingActions"
+  | "core"
+  | "derivedState"
+  | "inpaintingBridge"
+  | "uiState"
+  | "workspaceHistory"
 >): PanelSyncState {
   const interactionBusy =
     inpaintingBridge.contextValue.jobActive ||
@@ -26,6 +32,7 @@ export function buildPanelSyncState({
     areaTranslateSelecting: Boolean(core.regionSelection?.active),
     disableChapterApply: interactionBusy,
     editorDisabled: derivedState.selectedPageEditLocked || interactionBusy,
+    blockStylePresets: blockEditingActions.stylePresetSummaries,
     selectedBlock: derivedState.selectedBlock,
     selectedBlockCount: derivedState.selectedBlockIds.length,
     transformMode:

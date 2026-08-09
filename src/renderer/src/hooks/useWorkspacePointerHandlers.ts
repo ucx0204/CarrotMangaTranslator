@@ -56,6 +56,7 @@ type UseWorkspacePointerHandlersOptions = {
   jobActive: boolean;
   onEscapeTool?: () => void;
   onBubbleLayoutApplied?: () => void;
+  onBlockActivated?: (blockId: string) => void;
   onSelectedBlockChange?: (blockId: string) => void;
   lastInpaintingRetouchPointRef: MutableRefObject<{
     x: number;
@@ -255,13 +256,19 @@ function useBlockDragHandlersForWorkspace(
 function useNotifyingBlockSelectionSetter(
   options: Pick<
     UseWorkspacePointerHandlersOptions,
-    "onSelectedBlockChange" | "selectedBlockId" | "setSelectedBlockId"
+    | "onBlockActivated"
+    | "onSelectedBlockChange"
+    | "selectedBlockId"
+    | "setSelectedBlockId"
   >,
 ): (blockId: string | null) => void {
   return useCallback(
     (blockId) => {
-      if (blockId !== null && blockId !== options.selectedBlockId) {
-        options.onSelectedBlockChange?.(blockId);
+      if (blockId !== null) {
+        options.onBlockActivated?.(blockId);
+        if (blockId !== options.selectedBlockId) {
+          options.onSelectedBlockChange?.(blockId);
+        }
       }
       options.setSelectedBlockId(blockId);
     },

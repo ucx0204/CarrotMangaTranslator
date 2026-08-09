@@ -124,6 +124,7 @@ function installPanelBridge(
 
 function makePanelState(selectedBlockCount: number): PanelSyncState {
   return {
+    blockStylePresets: [],
     areaTranslateAvailable: true,
     areaTranslateSelecting: false,
     disableChapterApply: false,

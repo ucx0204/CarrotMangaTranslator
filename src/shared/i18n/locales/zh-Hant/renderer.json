@@ -174,6 +174,8 @@
       "zoom-in": "放大圖像",
       "zoom-out": "縮小圖像",
       "zoom-reset": "重設縮放",
+      "page-previous": "上一頁",
+      "page-next": "下一頁",
       "stage-tool-select": "選取工具",
       "stage-tool-block": "文字區塊工具（拖曳新增）",
       "stage-tool-hand": "手掌工具（拖曳平移）",
@@ -184,6 +186,8 @@
       "gather-text": "彙整文字",
       "cancel-job": "取消工作",
       "toggle-inpainting": "清除目前頁面",
+      "block-previous": "上一個文字區塊",
+      "block-next": "下一個文字區塊",
       "history-undo": "復原",
       "history-redo": "重做",
       "delete-block": "刪除所選文字區塊",
@@ -200,6 +204,7 @@
     "blockBackgroundOpacity": "變更文字區塊背景不透明度",
     "exclusion": "變更自動清除排除設定",
     "format": "設定文字區塊格式",
+    "stylePreset": "套用格式預設",
     "deleteBlock": "刪除文字區塊",
     "duplicateBlock": "複製文字區塊",
     "createBlock": "新增文字區塊",
@@ -437,5 +442,12 @@
       "blockMismatch_one": "第{{page}}頁：文字行結構與 {{count}} 個翻譯文字區塊不相符，已略過。",
       "blockMismatch_other": "第{{page}}頁：文字行結構與 {{count}} 個翻譯文字區塊不相符，已略過。"
     }
+  },
+  "stylePresets": {
+    "applied": "已將「{{name}}」套用到 {{count}} 個文字區塊。",
+    "missingFont": "找不到已儲存的字體「{{font}}」，已套用其餘格式。",
+    "limitReached": "最多可儲存100個格式預設。",
+    "saveFailed": "無法儲存格式預設。",
+    "saved": "已儲存格式預設「{{name}}」。"
   }
 }

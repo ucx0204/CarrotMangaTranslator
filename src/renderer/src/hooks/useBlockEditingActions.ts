@@ -1,12 +1,13 @@
-import { useCallback, type Dispatch, type SetStateAction } from "react";
+import {
+  useCallback,
+  useMemo,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { useTranslation } from "react-i18next";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
-import {
-  normalizeRenderDirection,
-  normalizeRotationDeg,
-  offsetBlockBboxes,
-} from "../../../shared/geometry";
+import { offsetBlockBboxes } from "../../../shared/geometry";
 import {
   pickBlockFormat,
   type BlockFormatGroupId,
@@ -18,15 +19,23 @@ import {
 } from "./blockEditingStatus";
 import type { FontSizeAdjustment } from "../lib/blockFontSizeAdjustment";
 import { useAdjustSelectedBlockFontSizeAction } from "./useAdjustSelectedBlockFontSizeAction";
-import { useUpdateSelectedBlockAction } from "./useUpdateSelectedBlockAction";
+import { useUpdateBlockAction } from "./useUpdateSelectedBlockAction";
 import {
   useApplyBlockBackgroundOpacityAction,
   type BlockBackgroundApplyScope,
 } from "./useApplyBlockBackgroundOpacityAction";
 import { useNudgeSelectedBlocksAction } from "./useNudgeSelectedBlocksAction";
-import { clearAutomaticFontMatchForManualStylePatch } from "../lib/automaticFontMatchProvenance";
+import type { BlockStylePreset } from "../../../shared/blockStylePresets";
+import { summarizeBlockStylePresets } from "../../../shared/blockStylePresets";
+import { useApplyStylePresetAction } from "./useApplyStylePresetAction";
+import { applyFormatToChapterPages } from "../lib/blockFormatApply";
+
+const EMPTY_FONT_IDS: ReadonlySet<string> = new Set();
+const EMPTY_STYLE_PRESETS: readonly BlockStylePreset[] = [];
 
 type UseBlockEditingActionsOptions = {
+  availableFontIds?: ReadonlySet<string>;
+  blockStylePresets?: readonly BlockStylePreset[];
   currentChapter: ChapterSnapshot | null;
   jobActive: boolean;
   pushStatus: (line: string) => void;
@@ -48,12 +57,15 @@ type BlockEditingActions = {
     scope: FormatApplyScope,
     groupIds: BlockFormatGroupId[],
   ) => void;
+  applyStylePreset: (presetId: string) => void;
   deleteSelectedBlock: () => void;
   duplicateSelectedBlock: () => void;
   nudgeSelectedBlocks: (deltaPx: { x: number; y: number }) => void;
   removeSelectedBlockBubbleLayout: () => void;
   toggleBlockInpaintExcluded: (blockId: string) => void;
+  updateBlock: (blockId: string, patch: Partial<TranslationBlock>) => void;
   updateSelectedBlock: (patch: Partial<TranslationBlock>) => void;
+  stylePresetSummaries: ReturnType<typeof summarizeBlockStylePresets>;
 };
 
 export function useBlockEditingActions(
@@ -61,28 +73,48 @@ export function useBlockEditingActions(
 ): BlockEditingActions {
   const adjustSelectedBlockFontSize =
     useAdjustSelectedBlockFontSizeAction(options);
-  const updateSelectedBlock = useUpdateSelectedBlockAction(options);
+  const updateBlock = useUpdateBlockAction(options);
+  const updateSelectedBlock = useCallback(
+    (patch: Partial<TranslationBlock>) => {
+      if (options.selectedBlock) {
+        updateBlock(options.selectedBlock.id, patch);
+      }
+    },
+    [options.selectedBlock, updateBlock],
+  );
   const toggleBlockInpaintExcluded =
     useToggleBlockInpaintExcludedAction(options);
   const applyBlockBackgroundOpacityToScope =
     useApplyBlockBackgroundOpacityAction(options);
   const applyFormatToScope = useApplyFormatToScopeAction(options);
+  const applyStylePreset = useApplyStylePresetAction(options);
   const deleteSelectedBlock = useDeleteSelectedBlockAction(options);
   const duplicateSelectedBlock = useDuplicateSelectedBlockAction(options);
   const removeSelectedBlockBubbleLayout =
     useRemoveSelectedBlockBubbleLayoutAction(options);
   const nudgeSelectedBlocks = useNudgeSelectedBlocksAction(options);
+  const stylePresetSummaries = useMemo(
+    () =>
+      summarizeBlockStylePresets(
+        options.blockStylePresets ?? EMPTY_STYLE_PRESETS,
+        options.availableFontIds ?? EMPTY_FONT_IDS,
+      ),
+    [options.availableFontIds, options.blockStylePresets],
+  );
 
   return {
     adjustSelectedBlockFontSize,
     applyBlockBackgroundOpacityToScope,
     applyFormatToScope,
+    applyStylePreset,
     deleteSelectedBlock,
     duplicateSelectedBlock,
     nudgeSelectedBlocks,
     removeSelectedBlockBubbleLayout,
     toggleBlockInpaintExcluded,
+    updateBlock,
     updateSelectedBlock,
+    stylePresetSummaries,
   };
 }
 
@@ -249,52 +281,6 @@ function resolveFormatTargetPageIds(
     return currentChapter.pages.map((page) => page.id);
   }
   return selectedPage ? [selectedPage.id] : [];
-}
-
-function applyFormatToChapterPages(
-  currentChapter: ChapterSnapshot,
-  targetPageIds: Set<string>,
-  blockIdFilter: Set<string> | null,
-  patch: Partial<TranslationBlock>,
-): ChapterSnapshot {
-  const stamp = new Date().toISOString();
-  return {
-    ...currentChapter,
-    pages: currentChapter.pages.map((page) =>
-      targetPageIds.has(page.id)
-        ? {
-            ...page,
-            updatedAt: stamp,
-            blocks: page.blocks.map((block) =>
-              blockIdFilter && !blockIdFilter.has(block.id)
-                ? block
-                : applyFormatPatchToBlock(block, patch),
-            ),
-          }
-        : page,
-    ),
-  };
-}
-
-function applyFormatPatchToBlock(
-  block: TranslationBlock,
-  patch: Partial<TranslationBlock>,
-): TranslationBlock {
-  const provenanceSafePatch = clearAutomaticFontMatchForManualStylePatch(
-    block,
-    patch,
-  );
-  const next = { ...block, ...provenanceSafePatch };
-  if (provenanceSafePatch.renderDirection !== undefined) {
-    next.renderDirection = normalizeRenderDirection(
-      provenanceSafePatch.renderDirection,
-      block.renderDirection,
-    );
-  }
-  if (provenanceSafePatch.rotationDeg !== undefined) {
-    next.rotationDeg = normalizeRotationDeg(provenanceSafePatch.rotationDeg);
-  }
-  return next;
 }
 
 function useDeleteSelectedBlockAction({

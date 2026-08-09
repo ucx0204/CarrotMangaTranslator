@@ -168,9 +168,13 @@ describe("workspace navigation performance", () => {
 
     expect(zoomIn).toHaveBeenCalledOnce();
     expect(screen.getByTestId("selected-page").textContent).toBe("page-2");
+    expect(screen.getByTestId("selected-block-ids").textContent).toBe(
+      "block-a,block-b",
+    );
 
     fireEvent.wheel(panel, { deltaY: 80 });
     expect(screen.getByTestId("selected-page").textContent).toBe("page-3");
+    expect(screen.getByTestId("selected-block-ids").textContent).toBe("");
     now.mockRestore();
   });
 });
@@ -229,15 +233,20 @@ function WheelAndPageHarness({
     makeNavigationChapter(),
   );
   const selectedPageIdRef = useRef<string | null>("page-2");
-  const selectedBlockIdRef = useRef<string | null>(null);
+  const selectedBlockIdRef = useRef<string | null>("block-a");
   const [selectedPageId, setSelectedPageId] = useState<string | null>("page-2");
-  const [, setSelectedBlockId] = useState<string | null>(null);
+  const [, setSelectedBlockId] = useState<string | null>("block-a");
+  const [selectedBlockIds, setSelectedBlockIds] = useState([
+    "block-a",
+    "block-b",
+  ]);
   usePageNavigationHandlers({
     currentChapterRef,
     modalOpen: false,
     selectedBlockIdRef,
     selectedPageIdRef,
     setSelectedBlockId,
+    setSelectedBlockIds,
     setSelectedPageId,
     workspacePanelRef,
   });
@@ -250,6 +259,7 @@ function WheelAndPageHarness({
   return (
     <section data-testid="wheel-page-panel" ref={workspacePanelRef}>
       <span data-testid="selected-page">{selectedPageId}</span>
+      <span data-testid="selected-block-ids">{selectedBlockIds.join(",")}</span>
     </section>
   );
 }

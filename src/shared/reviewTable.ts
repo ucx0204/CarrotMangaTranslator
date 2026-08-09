@@ -1,5 +1,5 @@
 import type { ChapterSnapshot } from "./libraryTypes";
-import type { TranslationBlock } from "./textTypes";
+import { sortBlocksForReading } from "./blockReadingOrder";
 
 const REVIEW_COLUMNS = [
   "chapter_id",
@@ -26,7 +26,7 @@ export function buildReviewRows(
 ): ReviewRow[] {
   const rows: ReviewRow[] = [];
   for (const [pageIndex, page] of chapter.pages.entries()) {
-    const orderedBlocks = sortBlocksForReview(page.blocks, direction);
+    const orderedBlocks = sortBlocksForReading(page.blocks, direction);
     for (const [blockIndex, block] of orderedBlocks.entries()) {
       rows.push({
         chapter_id: chapter.id,
@@ -91,23 +91,6 @@ export function parseReviewTable(
       ]),
     );
     return [row as ReviewRow];
-  });
-}
-
-function sortBlocksForReview(
-  blocks: TranslationBlock[],
-  direction: "ltr" | "rtl",
-): TranslationBlock[] {
-  return [...blocks].sort((left, right) => {
-    const leftRow = left.bbox.y + left.bbox.h / 2;
-    const rightRow = right.bbox.y + right.bbox.h / 2;
-    const threshold = Math.max(left.bbox.h, right.bbox.h) * 0.5;
-    if (Math.abs(leftRow - rightRow) > threshold) {
-      return left.bbox.y - right.bbox.y;
-    }
-    return direction === "rtl"
-      ? right.bbox.x - left.bbox.x
-      : left.bbox.x - right.bbox.x;
   });
 }
 

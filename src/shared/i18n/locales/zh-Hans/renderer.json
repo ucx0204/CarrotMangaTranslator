@@ -174,6 +174,8 @@
       "zoom-in": "放大图像",
       "zoom-out": "缩小图像",
       "zoom-reset": "重置缩放",
+      "page-previous": "上一页",
+      "page-next": "下一页",
       "stage-tool-select": "选择工具",
       "stage-tool-block": "文本块工具（拖动添加）",
       "stage-tool-hand": "抓手工具（拖动平移）",
@@ -184,6 +186,8 @@
       "gather-text": "汇总文本",
       "cancel-job": "取消任务",
       "toggle-inpainting": "清除当前页",
+      "block-previous": "上一个文本块",
+      "block-next": "下一个文本块",
       "history-undo": "撤销",
       "history-redo": "重做",
       "delete-block": "删除所选文本块",
@@ -200,6 +204,7 @@
     "blockBackgroundOpacity": "更改文本块背景不透明度",
     "exclusion": "更改自动清除排除设置",
     "format": "设置文本块格式",
+    "stylePreset": "应用格式预设",
     "deleteBlock": "删除文本块",
     "duplicateBlock": "复制文本块",
     "createBlock": "新建文本块",
@@ -437,5 +442,12 @@
       "blockMismatch_one": "第{{page}}页：文本行结构与 {{count}} 个翻译文本块不匹配，已跳过。",
       "blockMismatch_other": "第{{page}}页：文本行结构与 {{count}} 个翻译文本块不匹配，已跳过。"
     }
+  },
+  "stylePresets": {
+    "applied": "已将“{{name}}”应用到 {{count}} 个文本块。",
+    "missingFont": "找不到已保存的字体“{{font}}”，已应用其余格式。",
+    "limitReached": "最多可保存100个格式预设。",
+    "saveFailed": "无法保存格式预设。",
+    "saved": "已保存格式预设“{{name}}”。"
   }
 }

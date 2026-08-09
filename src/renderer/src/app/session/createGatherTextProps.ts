@@ -44,6 +44,7 @@ export function createGatherTextProps({
           core.selectedBlockIdRef.current = blockId;
           core.setSelectedBlockId(blockId);
           core.setSelectedBlockIds([blockId]);
+          uiState.setRightRailMode("block-editor");
           uiState.setTextViewOpen(false);
         },
         page: derivedState.selectedPage,

@@ -1462,5 +1462,48 @@
       "customHeaderValue": "Custom header值只能是字符串、数字或布尔值。",
       "apiKeyCount": "最多可输入{{max}}个API密钥。"
     }
+  },
+  "pageBlocks": {
+    "title": "当前页面文本块",
+    "count": "{{count}}个",
+    "needsReview": "需要检查",
+    "soundEffect": "音效",
+    "inpaintExcluded": "排除清除",
+    "openDetails": "详细编辑",
+    "source": "原文",
+    "translation": "译文",
+    "emptySource": "无原文",
+    "translationPlaceholder": "输入译文",
+    "empty": "此页面没有文本块。",
+    "backToList": "返回页面文本块"
+  },
+  "statusDock": {
+    "title": "最近任务通知",
+    "recentCount": "最近{{count}}条",
+    "clear": "清除状态记录",
+    "close": "关闭",
+    "open": "打开最近任务通知",
+    "latest": "最新状态：{{line}}"
+  },
+  "stylePresets": {
+    "title": "格式预设",
+    "quickFormats": "快速格式",
+    "createFromCurrent": "从当前格式创建",
+    "createFromDefaults": "从当前默认格式创建",
+    "createTitle": "新建格式预设",
+    "all": "全部预设",
+    "empty": "尚未保存格式预设。",
+    "emptyManager": "创建预设后可从页面列表或编辑器直接应用。",
+    "name": "预设名称",
+    "groups": "包含的格式组",
+    "pinQuick": "固定为快速预设",
+    "pinned": "快速固定",
+    "missingFontShort": "找不到已保存的字体",
+    "managerTitle": "文本块格式预设",
+    "managerDescription": "管理名称、顺序和快速固定。预设在所有作品中共享。",
+    "duplicateName": "{{name}} 副本",
+    "groupCount": "{{count}}个格式组",
+    "moveUp": "上移",
+    "moveDown": "下移"
   }
 }

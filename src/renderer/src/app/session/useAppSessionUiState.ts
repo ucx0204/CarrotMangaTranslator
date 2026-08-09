@@ -17,6 +17,8 @@ import {
   type WorkspaceFitMode,
 } from "../../lib/workspaceZoom";
 
+export type RightRailMode = "page-blocks" | "block-editor";
+
 export function useAppSessionUiState() {
   const inpaintingUi = useInpaintingUiState();
   const { resetInpaintingUi } = inpaintingUi;
@@ -39,6 +41,8 @@ export function useAppSessionUiState() {
     if (jobFlowActiveRef.current) jobFlowCancellationRef.current = true;
   }, []);
   const [editorFloating, setEditorFloating] = useState(false);
+  const [rightRailMode, setRightRailMode] =
+    useState<RightRailMode>("page-blocks");
   const [stageToolbarHidden, setStageToolbarHidden] = useState(false);
   const zoom = useWorkspaceZoomControls();
 
@@ -50,6 +54,7 @@ export function useAppSessionUiState() {
   const resetChapterScopedUi = useCallback(() => {
     resetInpaintingUi();
     setStyleGuideOpen(false);
+    setRightRailMode("page-blocks");
     translateModals.resetTranslateModals();
     zoom.resetWorkspaceZoom();
   }, [resetInpaintingUi, translateModals, zoom]);
@@ -60,9 +65,11 @@ export function useAppSessionUiState() {
     ...inpaintingUi,
     commandPaletteOpen,
     editorFloating,
+    rightRailMode,
     resetChapterScopedUi,
     setCommandPaletteOpen,
     setEditorFloating,
+    setRightRailMode,
     toggleEditorFloat,
     setShortcutHelpOpen,
     setShowBlockChrome,

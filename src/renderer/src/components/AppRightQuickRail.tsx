@@ -1,6 +1,7 @@
 import React from "react";
 import type { UnifiedRightRailProps } from "./rightRailPanels";
 import { ChapterQuickControls } from "./ChapterQuickControls";
+import { StatusDockButton } from "./StatusDockButton";
 
 export type AppRightQuickRailProps = Pick<
   UnifiedRightRailProps,
@@ -10,8 +11,10 @@ export type AppRightQuickRailProps = Pick<
   | "currentChapter"
   | "flowActive"
   | "jobActive"
+  | "jobState"
   | "onOpenStyleGuide"
   | "onOpenTextView"
+  | "onClearStatusLines"
   | "onPeekToggle"
   | "onRedo"
   | "onResetPage"
@@ -23,6 +26,7 @@ export type AppRightQuickRailProps = Pick<
   | "resetAvailable"
   | "showBlockChrome"
   | "showTextBlocks"
+  | "statusLines"
   | "undoLabel"
 >;
 
@@ -63,6 +67,11 @@ export function AppRightQuickRail(
           onUndo={props.onUndo}
         />
       </div>
+      <StatusDockButton
+        jobState={props.jobState}
+        statusLines={props.statusLines}
+        onClear={props.onClearStatusLines}
+      />
     </aside>
   );
 }

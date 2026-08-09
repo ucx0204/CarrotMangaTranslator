@@ -10,6 +10,8 @@ import { createGatherTextProps } from "./createGatherTextProps";
 import { createPanelBlockActions } from "./createPanelBlockActions";
 import { isWorkspaceImageReadyForSelectedPage } from "./appSessionSelectors";
 import { createWorkspaceViewProps } from "./createWorkspaceViewProps";
+import { createRightRailProps } from "./createRightRailProps";
+import { createStylePresetSaveAction } from "./createStylePresetSaveAction";
 
 export function createAppSessionViewProps(
   model: AppSessionViewModel,
@@ -158,18 +160,28 @@ function createModalsProps({
 function createPanelSessionValue(
   model: AppSessionViewModel,
 ): PanelSessionValue {
-  const { blockEditingActions, panelBridge, pointerHandlers, uiState } = model;
+  const {
+    blockEditingActions,
+    panelBridge,
+    pointerHandlers,
+    settingsDialog,
+    uiState,
+  } = model;
   return {
     ...buildPanelSyncState(model),
     ...createPanelBlockActions(model),
     editorFloating: uiState.editorFloating,
     editorPoppedOut: panelBridge.openPanelIds.includes("editor"),
+    canCreateStylePreset: Boolean(settingsDialog.settings),
     showDetachControls: true,
     onAdjustFontSize: blockEditingActions.adjustSelectedBlockFontSize,
     onApplyFormat: blockEditingActions.applyFormatToScope,
+    onApplyStylePreset: blockEditingActions.applyStylePreset,
+    onCreateStylePreset: createStylePresetSaveAction(model),
     onApplyBlockBackgroundOpacity:
       blockEditingActions.applyBlockBackgroundOpacityToScope,
     onToggleEditorFloat: uiState.toggleEditorFloat,
+    onBackToPageBlocks: () => uiState.setRightRailMode("page-blocks"),
     onPopOutEditor: panelBridge.openEditorWindow,
     onDockEditorWindow: panelBridge.closeEditorWindow,
     onDeleteBlock: blockEditingActions.deleteSelectedBlock,
@@ -180,83 +192,6 @@ function createPanelSessionValue(
     },
     onStartAreaTranslate: pointerHandlers.startRegionTranslationSelection,
     onUpdateBlock: blockEditingActions.updateSelectedBlock,
-  };
-}
-
-function createRightRailProps({
-  bridgeActions,
-  core,
-  derivedState,
-  inpaintingActions,
-  inpaintingBridge,
-  statusLog,
-  uiState,
-  workspaceHistory,
-}: AppSessionViewModel): AppSessionViewProps["rightRailProps"] {
-  const inpainting = inpaintingBridge.contextValue;
-  return {
-    brushColor: inpainting.brushColor,
-    brushRadius: inpainting.brushRadius,
-    canRedo: workspaceHistory.canRedo,
-    canUndo: workspaceHistory.canUndo,
-    canRunBubbleLayout: Boolean(
-      derivedState.selectedPage?.inpaintedImagePath &&
-      derivedState.selectedPage.blocks.length,
-    ),
-    compareAvailable: derivedState.peekAvailable,
-    currentChapter: core.currentChapter,
-    flowActive: uiState.translationFlowActive,
-    jobActive:
-      inpainting.jobActive ||
-      uiState.translationFlowActive ||
-      workspaceHistory.busy,
-    jobState: core.jobState,
-    maskStrokeCount: inpainting.maskStrokeCount,
-    onCancelJob: bridgeActions.cancelJob,
-    onBrushColorChange: inpainting.onBrushColorChange,
-    onBrushRadiusChange: inpainting.onBrushRadiusChange,
-    onClearPatternMask: inpainting.onClearPatternMask,
-    onOpenExport: () => uiState.setExportOptionsOpen(true),
-    onOpenStyleGuide: () => uiState.setStyleGuideOpen(true),
-    onOpenTextView: () => uiState.setTextViewOpen(true),
-    onOpenTranslateOptions: () => uiState.openTranslateOptions(),
-    onPeekToggle: inpainting.onPeekToggle,
-    onRedo: () => void workspaceHistory.redo(),
-    onResetPage: () => {
-      uiState.setPeekOriginal(false);
-      void inpaintingActions.revertInpainting("page");
-    },
-    onRunDrawnPattern: inpainting.onRunDrawnPattern,
-    onRunBubbleLayout: () => void inpaintingActions.runBubbleLayout(),
-    onRunCurrentPageInpainting: () => {
-      core.setRegionSelection(null);
-      uiState.selectWorkspaceTool("select");
-      uiState.setPeekOriginal(false);
-      uiState.setAutoInpaintingEntryScope("current");
-      uiState.setAutoInpaintingOptionsOpen(true);
-    },
-    onOpenAutoInpaintingOptions: (scope) => {
-      core.setRegionSelection(null);
-      uiState.selectWorkspaceTool("select");
-      uiState.setPeekOriginal(false);
-      uiState.setAutoInpaintingEntryScope(scope);
-      uiState.setAutoInpaintingOptionsOpen(true);
-    },
-    onUndo: () => void workspaceHistory.undo(),
-    peeking: derivedState.showingOriginalPeek,
-    progressSnapshot: derivedState.progressSnapshot,
-    redoLabel: workspaceHistory.redoLabel,
-    resetAvailable: Boolean(derivedState.selectedPage?.inpaintedImagePath),
-    selectedBlock: derivedState.selectedBlock,
-    selectedPage: derivedState.selectedPage,
-    showBlockChrome: uiState.showBlockChrome,
-    showProgressBar: derivedState.showProgressBar,
-    showTextBlocks: uiState.showTextBlocks,
-    stageTool: uiState.stageTool,
-    statusLines: statusLog.statusLines,
-    undoLabel: workspaceHistory.undoLabel,
-    onToggleBlocks: () => uiState.setShowTextBlocks((visible) => !visible),
-    onToggleChrome: () => uiState.setShowBlockChrome((visible) => !visible),
   };
 }
 

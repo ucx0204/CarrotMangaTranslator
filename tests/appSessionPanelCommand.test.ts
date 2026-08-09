@@ -10,6 +10,7 @@ function createTarget(): PanelCommandTarget {
     adjustSelectedBlockFontSize: vi.fn(),
     applyBlockBackgroundOpacityToScope: vi.fn(),
     applyFormatToScope: vi.fn(),
+    applyStylePreset: vi.fn(),
     deleteSelectedBlock: vi.fn(),
     duplicateSelectedBlock: vi.fn(),
     eraseBlockOriginal: vi.fn(),
@@ -17,7 +18,7 @@ function createTarget(): PanelCommandTarget {
     removeSelectedBlockBubbleLayout: vi.fn(),
     selectWorkspaceTool: vi.fn(),
     startAreaTranslate: vi.fn(),
-    updateSelectedBlock: vi.fn(),
+    updateBlock: vi.fn(),
   };
 }
 
@@ -34,6 +35,11 @@ describe("panel command dispatch", () => {
     { type: "eraseBlockOriginal", blockId: "stale-block" },
     { type: "fitBlockBubble", blockId: "stale-block" },
     { type: "removeBubbleLayout", blockId: "stale-block" },
+    {
+      type: "applyStylePreset",
+      blockId: "stale-block",
+      presetId: "style-preset:dialogue",
+    },
   ] satisfies PanelCommand[])("rejects a stale $type command", (command) => {
     const actions = createTarget();
 
@@ -68,6 +74,11 @@ describe("panel command dispatch", () => {
       { type: "removeBubbleLayout", blockId: "current-block" },
       { type: "selectTransformMode", mode: "curve" },
       { type: "applyFormat", scope: "selection", groupIds: ["font"] },
+      {
+        type: "applyStylePreset",
+        blockId: "current-block",
+        presetId: "style-preset:dialogue",
+      },
       { type: "applyBlockBackgroundOpacity", scope: "page" },
       { type: "startAreaTranslate" },
     ] satisfies PanelCommand[];
@@ -83,7 +94,7 @@ describe("panel command dispatch", () => {
       ).toBe(true);
     }
 
-    expect(actions.updateSelectedBlock).toHaveBeenCalledWith({
+    expect(actions.updateBlock).toHaveBeenCalledWith("current-block", {
       translatedText: "current update",
     });
     expect(actions.adjustSelectedBlockFontSize).toHaveBeenCalledWith(-1);
@@ -96,6 +107,9 @@ describe("panel command dispatch", () => {
     expect(actions.applyFormatToScope).toHaveBeenCalledWith("selection", [
       "font",
     ]);
+    expect(actions.applyStylePreset).toHaveBeenCalledWith(
+      "style-preset:dialogue",
+    );
     expect(actions.applyBlockBackgroundOpacityToScope).toHaveBeenCalledWith(
       "page",
     );

@@ -154,6 +154,7 @@ function useInpaintingRunController(
 function useNavigationController({
   core,
   modalOpen,
+  uiState,
 }: AppSessionInpaintingControllerArgs): ReturnType<
   typeof usePageNavigationHandlers
 > {
@@ -163,8 +164,10 @@ function useNavigationController({
     selectedBlockIdRef: core.selectedBlockIdRef,
     workspacePanelRef: core.workspacePanelRef,
     modalOpen,
+    onPageChange: () => uiState.setRightRailMode("page-blocks"),
     setSelectedPageId: core.setSelectedPageId,
     setSelectedBlockId: core.setSelectedBlockId,
+    setSelectedBlockIds: core.setSelectedBlockIds,
   });
 }
 
@@ -253,11 +256,15 @@ function createBlockSelectionPointerOptions(
   core: AppSessionInpaintingControllerArgs["core"],
   uiState: AppSessionInpaintingControllerArgs["uiState"],
 ): {
+  onBlockActivated: () => void;
   onSelectedBlockChange: () => void;
   selectedBlockId: string | null;
 } {
   return {
-    onSelectedBlockChange: () => resetBlockTransformTool(uiState),
+    onBlockActivated: () => uiState.setRightRailMode("block-editor"),
+    onSelectedBlockChange: () => {
+      resetBlockTransformTool(uiState);
+    },
     selectedBlockId: core.selectedBlockId,
   };
 }

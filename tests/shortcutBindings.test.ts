@@ -236,6 +236,28 @@ describe("shortcut binding resolution", () => {
     expect(bindings.get("ctrl+0")).toBe("zoom-reset");
   });
 
+  it("binds page and block navigation defaults and aliases", () => {
+    const bindings = resolveBindings({});
+    expect(bindings.get("pageup")).toBe("page-previous");
+    expect(bindings.get("a")).toBe("page-previous");
+    expect(bindings.get("arrowleft")).toBe("page-previous");
+    expect(bindings.get("pagedown")).toBe("page-next");
+    expect(bindings.get("d")).toBe("page-next");
+    expect(bindings.get("arrowright")).toBe("page-next");
+    expect(bindings.get("ctrl+shift+tab")).toBe("block-previous");
+    expect(bindings.get("alt+arrowup")).toBe("block-previous");
+    expect(bindings.get("ctrl+tab")).toBe("block-next");
+    expect(bindings.get("alt+arrowdown")).toBe("block-next");
+  });
+
+  it("drops built-in page aliases after a user selects a different binding", () => {
+    const bindings = resolveBindings({ "page-next": "n" });
+    expect(bindings.get("n")).toBe("page-next");
+    expect(bindings.has("pagedown")).toBe(false);
+    expect(bindings.has("d")).toBe(false);
+    expect(bindings.has("arrowright")).toBe(false);
+  });
+
   it("keeps zoom-in numpad plus when the saved override matches its default", () => {
     const bindings = resolveBindings({ "zoom-in": "ctrl+=" });
     expect(bindings.get("ctrl+=")).toBe("zoom-in");

@@ -11,7 +11,6 @@ import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import { isEditableTarget } from "../lib/appHelpers";
 import {
   resolveAdjacentPageId,
-  resolveKeyboardPageNavigation,
   resolveWheelPageNavigation,
 } from "../lib/pageNavigation";
 import { useEventCallback } from "./useEventCallback";
@@ -25,6 +24,7 @@ type UsePageNavigationHandlersOptions = {
   onPageChange?: () => void;
   setSelectedPageId: Dispatch<SetStateAction<string | null>>;
   setSelectedBlockId: Dispatch<SetStateAction<string | null>>;
+  setSelectedBlockIds: Dispatch<SetStateAction<string[]>>;
 };
 
 type SelectPageForReading = (pageId: string | null) => void;
@@ -34,6 +34,7 @@ export function usePageNavigationHandlers(
   options: UsePageNavigationHandlersOptions,
 ): {
   selectPageForReading: SelectPageForReading;
+  selectAdjacentPageForReading: SelectAdjacentPageForReading;
 } {
   const lastWheelNavigationAtRef = useRef(0);
   const selectPageForReading = useSelectPageForReading(options);
@@ -41,7 +42,6 @@ export function usePageNavigationHandlers(
     options,
     selectPageForReading,
   );
-  useKeyboardPageNavigationEffect(options, selectAdjacentPageForReading);
   const handleWorkspaceWheel = useWorkspaceWheelHandler(
     options,
     selectAdjacentPageForReading,
@@ -51,6 +51,7 @@ export function usePageNavigationHandlers(
 
   return {
     selectPageForReading,
+    selectAdjacentPageForReading,
   };
 }
 
@@ -59,6 +60,7 @@ function useSelectPageForReading({
   selectedBlockIdRef,
   selectedPageIdRef,
   setSelectedBlockId,
+  setSelectedBlockIds,
   setSelectedPageId,
 }: UsePageNavigationHandlersOptions): SelectPageForReading {
   const notifyPageChange = useEventCallback(() => {
@@ -74,12 +76,14 @@ function useSelectPageForReading({
       selectedBlockIdRef.current = null;
       setSelectedPageId(pageId);
       setSelectedBlockId(null);
+      setSelectedBlockIds([]);
     },
     [
       notifyPageChange,
       selectedBlockIdRef,
       selectedPageIdRef,
       setSelectedBlockId,
+      setSelectedBlockIds,
       setSelectedPageId,
     ],
   );
@@ -106,47 +110,6 @@ function useSelectAdjacentPageForReading(
     },
     [currentChapterRef, selectPageForReading, selectedPageIdRef],
   );
-}
-
-function useKeyboardPageNavigationEffect(
-  {
-    currentChapterRef,
-    modalOpen,
-    workspacePanelRef,
-  }: Pick<
-    UsePageNavigationHandlersOptions,
-    "currentChapterRef" | "modalOpen" | "workspacePanelRef"
-  >,
-  selectAdjacentPageForReading: SelectAdjacentPageForReading,
-): void {
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const navigation = resolveKeyboardNavigationForEvent(event, {
-        currentChapterRef,
-        modalOpen,
-        workspacePanelRef,
-      });
-      if (!navigation) {
-        return;
-      }
-      if (!selectAdjacentPageForReading(navigation.direction)) {
-        return;
-      }
-      if (navigation.preventDefault) {
-        event.preventDefault();
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [
-    currentChapterRef,
-    modalOpen,
-    selectAdjacentPageForReading,
-    workspacePanelRef,
-  ]);
 }
 
 function useWorkspaceWheelHandler(
@@ -236,33 +199,6 @@ function useWorkspaceWheelEffect(
       panel.removeEventListener("wheel", handleWorkspaceWheel);
     };
   }, [handleWorkspaceWheel, workspacePanelRef]);
-}
-
-function resolveKeyboardNavigationForEvent(
-  event: KeyboardEvent,
-  {
-    currentChapterRef,
-    modalOpen,
-    workspacePanelRef,
-  }: Pick<
-    UsePageNavigationHandlersOptions,
-    "currentChapterRef" | "modalOpen" | "workspacePanelRef"
-  >,
-): ReturnType<typeof resolveKeyboardPageNavigation> {
-  const activeElement =
-    typeof document !== "undefined" ? document.activeElement : null;
-  const pageIds = currentChapterRef.current?.pages.map((page) => page.id) ?? [];
-  return resolveKeyboardPageNavigation({
-    key: event.key,
-    hasPages: pageIds.length > 0,
-    modalOpen,
-    editableTarget: isEditableTarget(event.target),
-    centerPanelFocused: Boolean(
-      workspacePanelRef.current &&
-      activeElement &&
-      workspacePanelRef.current.contains(activeElement),
-    ),
-  });
 }
 
 function resolveWheelThrottle(

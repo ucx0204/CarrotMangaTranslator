@@ -324,6 +324,131 @@
   grid-template-rows: auto minmax(0, 1fr);
 }
 
+.format-settings-stack {
+  display: grid;
+  gap: var(--sp-5);
+  min-width: 0;
+}
+
+.style-preset-manager {
+  display: grid;
+  gap: var(--sp-3);
+  min-width: 0;
+  padding: var(--sp-4);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-lg);
+  background: var(--bg-sunken);
+}
+
+.style-preset-manager > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.style-preset-manager h3,
+.style-preset-manager p {
+  margin: 0;
+}
+
+.style-preset-manager h3 {
+  color: var(--text-head);
+  font-size: var(--font-md);
+}
+
+.style-preset-manager p {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  line-height: 1.4;
+}
+
+.style-preset-manager > header > button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+}
+
+.style-preset-manager-list {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.style-preset-manager-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) auto auto;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+  padding: var(--sp-3);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  background: var(--bg-panel);
+}
+
+.style-preset-manager-name {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 3px var(--sp-2);
+  min-width: 0;
+}
+
+.style-preset-manager-name input {
+  min-width: 0;
+}
+
+.style-preset-manager-name > span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.style-preset-manager-name .style-preset-font-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #e6b774;
+}
+
+.style-preset-manager-pin {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-dim);
+  font-size: var(--font-xs);
+  white-space: nowrap;
+}
+
+.style-preset-manager-pin input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.style-preset-manager-actions {
+  display: flex;
+  gap: 3px;
+}
+
+@media (max-width: 760px) {
+  .style-preset-manager > header,
+  .style-preset-manager-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .style-preset-manager > header {
+    flex-direction: column;
+  }
+
+  .style-preset-manager-pin,
+  .style-preset-manager-actions {
+    justify-self: start;
+  }
+}
+
 .settings-panel-header {
   display: flex;
   align-items: center;

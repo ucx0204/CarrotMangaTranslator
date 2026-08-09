@@ -96,6 +96,7 @@ export function resolveDefaultAppSettings(
     ui: resolveDefaultUiSettings(env),
     inpainting: resolveDefaultInpaintingSettings(env, hardwareDefaults),
     blockFormatDefaults: { ...DEFAULT_BLOCK_FORMAT_DEFAULTS },
+    blockStylePresets: [],
     keybindings: {},
     maxTokens: resolveMaxTokens(
       env.MANGA_TRANSLATOR_MAX_TOKENS,

@@ -177,6 +177,8 @@
       "zoom-in": "画像を拡大",
       "zoom-out": "画像を縮小",
       "zoom-reset": "ズームをリセット",
+      "page-previous": "前のページ",
+      "page-next": "次のページ",
       "stage-tool-select": "選択ツール",
       "stage-tool-block": "ブロックツール（ドラッグで追加）",
       "stage-tool-hand": "手のひらツール（ドラッグで移動）",
@@ -187,6 +189,8 @@
       "gather-text": "テキストをまとめて表示",
       "cancel-job": "処理をキャンセル",
       "toggle-inpainting": "現在のページを消去",
+      "block-previous": "前のブロック",
+      "block-next": "次のブロック",
       "history-undo": "元に戻す",
       "history-redo": "やり直す",
       "delete-block": "選択したブロックを削除",
@@ -203,6 +207,7 @@
     "blockBackgroundOpacity": "ブロック背景の不透明度を変更",
     "exclusion": "自動消去の除外設定を変更",
     "format": "ブロックの書式を変更",
+    "stylePreset": "書式プリセットを適用",
     "deleteBlock": "ブロックを削除",
     "duplicateBlock": "ブロックを複製",
     "createBlock": "ブロックを追加",
@@ -440,5 +445,12 @@
       "blockMismatch_one": "{{page}}ページ: テキスト行の構成が{{count}}個の翻訳ブロックと一致しないためスキップしました。",
       "blockMismatch_other": "{{page}}ページ: テキスト行の構成が{{count}}個の翻訳ブロックと一致しないためスキップしました。"
     }
+  },
+  "stylePresets": {
+    "applied": "「{{name}}」を{{count}}個のブロックに適用しました。",
+    "missingFont": "保存されたフォント「{{font}}」が見つからないため、フォント以外の書式を適用しました。",
+    "limitReached": "書式プリセットは最大100件まで保存できます。",
+    "saveFailed": "書式プリセットを保存できませんでした。",
+    "saved": "書式プリセット「{{name}}」を保存しました。"
   }
 }

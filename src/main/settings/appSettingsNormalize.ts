@@ -59,6 +59,7 @@ import {
   normalizeGraphicsGpuPreference,
 } from "../../shared/gpuSettings";
 import { migrateLegacyRemoteGenerationLimits } from "./appSettingsGenerationLimitMigration";
+import { normalizeBlockStylePresets } from "../../shared/blockStylePresets";
 
 export function normalizeAppSettings(
   raw: unknown,
@@ -97,6 +98,11 @@ export function normalizeAppSettings(
     blockFormatDefaults: normalizeBlockFormatDefaults(
       asRecord(record.blockFormatDefaults),
       defaults,
+    ),
+    blockStylePresets: normalizeBlockStylePresets(
+      Array.isArray(record.blockStylePresets)
+        ? record.blockStylePresets
+        : defaults.blockStylePresets,
     ),
     keybindings: normalizeKeybindings(record.keybindings, defaults),
     maxTokens: resolveMaxTokens(record.maxTokens, limitFallbacks.maxTokens),

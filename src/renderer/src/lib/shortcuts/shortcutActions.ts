@@ -12,8 +12,8 @@ import type {
  * means the action is intentionally unbound. The combo string format is the one
  * produced by `comboFromEvent` (e.g. "ctrl+shift+b", "delete", "1", "?").
  *
- * Page navigation (arrows / wheel) and the in-modal Escape key are intentionally
- * NOT registered here — they keep their dedicated handlers and stay fixed.
+ * Wheel page navigation remains a gesture handler. Keyboard page navigation
+ * and block navigation are regular actions so users can customize them.
  */
 
 export type ShortcutCategory =
@@ -132,6 +132,22 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
     enabled: (c) => c.chapterOpen,
   },
   {
+    id: "page-previous",
+    label: "이전 페이지",
+    category: "view",
+    defaultCombo: "pageup",
+    defaultAlternateCombos: ["a", "arrowleft"],
+    enabled: (c) => c.chapterOpen,
+  },
+  {
+    id: "page-next",
+    label: "다음 페이지",
+    category: "view",
+    defaultCombo: "pagedown",
+    defaultAlternateCombos: ["d", "arrowright"],
+    enabled: (c) => c.chapterOpen,
+  },
+  {
     id: "stage-tool-select",
     label: "선택 도구",
     category: "tool",
@@ -200,6 +216,24 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
     category: "inpaint",
     defaultCombo: "i",
     enabled: (c) => c.chapterOpen && !c.jobActive,
+  },
+  {
+    id: "block-previous",
+    label: "이전 블록",
+    category: "edit",
+    defaultCombo: "ctrl+shift+tab",
+    defaultAlternateCombos: ["alt+arrowup"],
+    allowInEditable: true,
+    enabled: (c) => c.chapterOpen,
+  },
+  {
+    id: "block-next",
+    label: "다음 블록",
+    category: "edit",
+    defaultCombo: "ctrl+tab",
+    defaultAlternateCombos: ["alt+arrowdown"],
+    allowInEditable: true,
+    enabled: (c) => c.chapterOpen,
   },
   {
     id: "history-undo",

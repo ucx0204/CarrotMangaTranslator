@@ -177,6 +177,8 @@
       "zoom-in": "Zoom in",
       "zoom-out": "Zoom out",
       "zoom-reset": "Reset zoom",
+      "page-previous": "Previous page",
+      "page-next": "Next page",
       "stage-tool-select": "Select tool",
       "stage-tool-block": "Block tool (drag to add a block)",
       "stage-tool-hand": "Hand tool (drag to pan)",
@@ -187,6 +189,8 @@
       "gather-text": "Gather text",
       "cancel-job": "Cancel job",
       "toggle-inpainting": "Erase current page",
+      "block-previous": "Previous block",
+      "block-next": "Next block",
       "history-undo": "Undo",
       "history-redo": "Redo",
       "delete-block": "Delete selected block",
@@ -203,6 +207,7 @@
     "blockBackgroundOpacity": "Change block background opacity",
     "exclusion": "Change auto-erase exclusion",
     "format": "Format block",
+    "stylePreset": "Apply style preset",
     "deleteBlock": "Delete block",
     "duplicateBlock": "Duplicate block",
     "createBlock": "Create block",
@@ -443,5 +448,12 @@
       "blockMismatch_one": "Page {{page}}: text lines do not match the {{count}} translation block; skipped.",
       "blockMismatch_other": "Page {{page}}: text lines do not match the {{count}} translation blocks; skipped."
     }
+  },
+  "stylePresets": {
+    "applied": "Applied “{{name}}” to {{count}} blocks.",
+    "missingFont": "The saved font “{{font}}” was not found. The remaining formatting was applied.",
+    "limitReached": "You can save up to 100 style presets.",
+    "saveFailed": "Could not save the style preset.",
+    "saved": "Saved style preset “{{name}}”."
   }
 }

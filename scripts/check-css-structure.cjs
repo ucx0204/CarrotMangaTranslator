@@ -16,6 +16,7 @@ const expectedImports = [
   "foundations.css",
   "shell-workspace.css",
   "panels.css",
+  "page-review.css",
   "library-inpainting.css",
   "formatting.css",
   "stage-overlay.css",
