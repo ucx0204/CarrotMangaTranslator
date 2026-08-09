@@ -1,8 +1,15 @@
 import React from "react";
+import {
+  IconFiles,
+  IconFolderOpen,
+  IconPhoto,
+  IconZip,
+} from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { TranslateSourceMode } from "../lib/importFlowTypes";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
+import { ModalActionBar } from "./ui/ModalActionBar";
 
 type TranslateSourceModalProps = {
   busy: boolean;
@@ -23,18 +30,85 @@ export function TranslateSourceModal({
       title={t("translateSource.title")}
       onClose={onCancel}
       closeDisabled={busy}
+      footer={
+        <ModalActionBar
+          actions={
+            <Button variant="ghost" onClick={onCancel} disabled={busy}>
+              {t("common.cancel")}
+            </Button>
+          }
+        />
+      }
     >
-      <div className="source-choice-grid">
-        <Button onClick={() => onSelect("images")} disabled={busy}>
-          {t("translateSource.openImages")}
-        </Button>
-        <Button onClick={() => onSelect("folder")} disabled={busy}>
-          {t("translateSource.openFolder")}
-        </Button>
-        <Button onClick={() => onSelect("zip")} disabled={busy}>
-          {t("translateSource.openArchive")}
-        </Button>
+      <div className="source-choice-intro">
+        <span className="source-choice-intro-icon" aria-hidden="true">
+          <IconFiles size={22} stroke={1.9} />
+        </span>
+        <div>
+          <strong>{t("translateSource.prompt")}</strong>
+          <span>{t("translateSource.supportedFormats")}</span>
+        </div>
       </div>
+      <div className="source-choice-grid">
+        <SourceChoice
+          className="primary"
+          description={t("translateSource.imagesHint")}
+          disabled={busy}
+          icon={<IconPhoto size={23} stroke={1.8} />}
+          label={t("translateSource.openImages")}
+          onClick={() => onSelect("images")}
+        />
+        <SourceChoice
+          description={t("translateSource.folderHint")}
+          disabled={busy}
+          icon={<IconFolderOpen size={22} stroke={1.8} />}
+          label={t("translateSource.openFolder")}
+          onClick={() => onSelect("folder")}
+        />
+        <SourceChoice
+          description={t("translateSource.archiveHint")}
+          disabled={busy}
+          icon={<IconZip size={22} stroke={1.8} />}
+          label={t("translateSource.openArchive")}
+          onClick={() => onSelect("zip")}
+        />
+      </div>
+      <p className="source-choice-order-note">
+        {t("translateSource.orderHint")}
+      </p>
     </Modal>
+  );
+}
+
+function SourceChoice({
+  className,
+  description,
+  disabled,
+  icon,
+  label,
+  onClick,
+}: {
+  className?: string;
+  description: string;
+  disabled: boolean;
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      className={["source-choice", className ?? ""].filter(Boolean).join(" ")}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      <span className="source-choice-icon" aria-hidden="true">
+        {icon}
+      </span>
+      <span className="source-choice-copy">
+        <strong>{label}</strong>
+        <small>{description}</small>
+      </span>
+    </button>
   );
 }

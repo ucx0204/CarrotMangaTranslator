@@ -7,6 +7,7 @@ import type {
 import type { WorkShareExportRequest } from "../../../shared/shareTypes";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
+import { ModalActionBar } from "./ui/ModalActionBar";
 import { SelectionCard } from "./ui/SelectionCard";
 
 type ShareExportModalProps = {
@@ -108,18 +109,22 @@ function ShareExportFooter({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <>
-      <Button variant="ghost" onClick={onCancel} disabled={busy}>
-        {t("common.cancel")}
-      </Button>
-      <Button
-        variant="primary"
-        disabled={busy || !selectedWork || selectedChapterCount === 0}
-        onClick={onSubmit}
-      >
-        {t("shareExport.saveFile")}
-      </Button>
-    </>
+    <ModalActionBar
+      actions={
+        <>
+          <Button variant="ghost" onClick={onCancel} disabled={busy}>
+            {t("common.cancel")}
+          </Button>
+          <Button
+            variant="primary"
+            disabled={busy || !selectedWork || selectedChapterCount === 0}
+            onClick={onSubmit}
+          >
+            {t("shareExport.saveFile")}
+          </Button>
+        </>
+      }
+    />
   );
 }
 

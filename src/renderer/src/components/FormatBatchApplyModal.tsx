@@ -9,6 +9,7 @@ import type { FormatApplyScope } from "../hooks/blockEditingStatus";
 import { formatShortcutTextForPlatform } from "../lib/shortcuts/comboFromEvent";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
+import { ModalActionBar } from "./ui/ModalActionBar";
 import { SelectionCard, SelectionSurface } from "./ui/SelectionCard";
 
 type FormatBatchApplyModalProps = {
@@ -50,14 +51,22 @@ export function FormatBatchApplyModal({
       size="sm"
       ariaLabel={t("formatBatch.title")}
       footer={
-        <>
-          <Button variant="ghost" onClick={onClose}>
-            {t("common.cancel")}
-          </Button>
-          <Button variant="primary" onClick={handleApply} disabled={!canApply}>
-            {t("common.apply")}
-          </Button>
-        </>
+        <ModalActionBar
+          actions={
+            <>
+              <Button variant="ghost" onClick={onClose}>
+                {t("common.cancel")}
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleApply}
+                disabled={!canApply}
+              >
+                {t("common.apply")}
+              </Button>
+            </>
+          }
+        />
       }
     >
       <p className="muted-line modal-note">{t("formatBatch.description")}</p>

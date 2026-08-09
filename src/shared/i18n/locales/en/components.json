@@ -495,9 +495,15 @@
   },
   "translateSource": {
     "title": "Add new source",
+    "prompt": "What kind of source do you want to add?",
+    "supportedFormats": "PNG, JPG, JPEG, WEBP · ZIP/CBZ",
     "openImages": "Open images",
+    "imagesHint": "Select multiple image files at once.",
     "openFolder": "Open folder",
-    "openArchive": "Open archive"
+    "folderHint": "Load images in the folder in filename order.",
+    "openArchive": "Open archive",
+    "archiveHint": "Load one ZIP or CBZ as a chapter.",
+    "orderHint": "Pages are sorted naturally using numbers in filenames. Folder structures inside archives are detected automatically."
   },
   "import": {
     "batchTitle": "Add multiple chapters",
@@ -505,6 +511,8 @@
     "createAndTranslate": "Add and translate",
     "createNewWork": "Create new work",
     "addToExistingWork": "Add to existing work",
+    "addToCurrentWork": "Add chapter to current work",
+    "currentWorkDefault": "The open work is selected by default. This source will be added as a new chapter in that work.",
     "selectWork": "Select work",
     "chaptersToCreate": "Chapters to create",
     "chapterTitle": "Chapter title"
@@ -573,6 +581,22 @@
   },
   "pageList": {
     "empty": "No pages loaded.",
+    "noFilterResults": "No pages match this filter.",
+    "selectedHidden": "The selected page is hidden by the current filter.",
+    "filterLabel": "Page status filter",
+    "visibleCount": "{{visible}} / {{total}}",
+    "blockCount": "{{count}} blocks",
+    "thumbnailLoadFailed": "Preview failed",
+    "more": "More page actions",
+    "moreActions": "More actions for {{name}}",
+    "actionsLabel": "Actions for page {{name}}",
+    "filters": {
+      "all": "All",
+      "running": "Running",
+      "failed": "Failed",
+      "pending": "Waiting",
+      "completed": "Done"
+    },
     "moveItem": "Move {{name}}",
     "retranslate": "Retranslate",
     "retranslateItem": "Retranslate {{name}}",
@@ -582,6 +606,7 @@
     "title": "Status",
     "empty": "No status to display yet.",
     "completed": "Complete",
+    "translationCompleted": "Translation complete",
     "failed": "Failed",
     "partiallyCompleted": "Partially complete",
     "waiting": "Waiting",
@@ -766,6 +791,8 @@
     "saveSuccess": "Text file saved.",
     "saveFailed": "Could not save the text file.",
     "searchPlaceholder": "Search, then press Enter",
+    "searchLabel": "Search text",
+    "exchangeMenu": "Import · Export",
     "excludePageHeaders": "Exclude page headers",
     "saveTxt": "Save .txt",
     "empty": "No text to display.",
@@ -816,6 +843,7 @@
       "updated": "Updated blocks: {{count}}.",
       "warnings": "Review-table warnings: {{count}}.",
       "importFailed": "Could not import the review table.",
+      "import": "Import review table",
       "exportCsv": "Export CSV review table",
       "exportTsv": "Export TSV review table"
     }
@@ -1559,6 +1587,11 @@
     "cancelling": "Requesting cancellation…",
     "completedTitle": "Job completed",
     "completedPages": "{{count}} pages processed",
+    "openLogs": "Open log folder",
+    "failedPages": "Failed pages",
+    "retryPage": "Retry",
+    "recentJobs": "Recent jobs",
+    "statusHistory": "Status history",
     "reviewResults": "Review results",
     "exportResults": "Export"
   },

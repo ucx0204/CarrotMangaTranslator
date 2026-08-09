@@ -22,6 +22,7 @@ import {
 import { Button } from "./ui/Button";
 import { WarnIcon } from "./ui/icons";
 import { Modal } from "./ui/Modal";
+import { ModalActionBar } from "./ui/ModalActionBar";
 import { ConfirmModal } from "./ConfirmModal";
 import {
   type TranslationOptionsFormProps,
@@ -215,24 +216,30 @@ function TranslationOptionsFooter({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <>
-      <label className="translation-save-defaults">
-        <input
-          type="checkbox"
-          checked={saveAsDefault}
-          onChange={(event) => onSaveAsDefaultChange(event.target.checked)}
-        />
-        <span>{t("translationOptions.saveAsDefault")}</span>
-      </label>
-      <Button onClick={onCancel}>{t("common.cancel")}</Button>
-      <Button variant="primary" onClick={onStart} disabled={startDisabled}>
-        {t(
-          overwriteRisk
-            ? "translationOptions.retranslateSelection"
-            : "translationOptions.startSelection",
-        )}
-      </Button>
-    </>
+    <ModalActionBar
+      leading={
+        <label className="translation-save-defaults">
+          <input
+            type="checkbox"
+            checked={saveAsDefault}
+            onChange={(event) => onSaveAsDefaultChange(event.target.checked)}
+          />
+          <span>{t("translationOptions.saveAsDefault")}</span>
+        </label>
+      }
+      actions={
+        <>
+          <Button onClick={onCancel}>{t("common.cancel")}</Button>
+          <Button variant="primary" onClick={onStart} disabled={startDisabled}>
+            {t(
+              overwriteRisk
+                ? "translationOptions.retranslateSelection"
+                : "translationOptions.startSelection",
+            )}
+          </Button>
+        </>
+      }
+    />
   );
 }
 

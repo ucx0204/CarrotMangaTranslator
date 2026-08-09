@@ -16,10 +16,12 @@ import {
 import { Button } from "./ui/Button";
 import { TextField } from "./ui/Field";
 import { Modal } from "./ui/Modal";
+import { ModalActionBar } from "./ui/ModalActionBar";
 import { SelectionCard, SelectionSurface } from "./ui/SelectionCard";
 
 type ImportModalProps = {
   library: LibraryIndex;
+  currentWorkId?: string | null;
   preview: ImportPreviewResult;
   busy: boolean;
   onCancel: () => void;
@@ -28,20 +30,24 @@ type ImportModalProps = {
 
 export function ImportModal({
   library,
+  currentWorkId = null,
   preview,
   busy,
   onCancel,
   onSubmit,
 }: ImportModalProps): React.JSX.Element {
   const { t } = useTranslation("components");
+  const currentWorkAvailable = Boolean(
+    currentWorkId && library.works.some((work) => work.id === currentWorkId),
+  );
   const [targetMode, setTargetMode] = React.useState<"new" | "existing">(
-    library.works.length ? "new" : "new",
+    currentWorkAvailable ? "existing" : "new",
   );
   const [newWorkTitle, setNewWorkTitle] = React.useState(
     preview.suggestedWorkTitle,
   );
   const [existingWorkId, setExistingWorkId] = React.useState(
-    library.works[0]?.id ?? "",
+    currentWorkAvailable ? (currentWorkId ?? "") : (library.works[0]?.id ?? ""),
   );
   const [selections, setSelections] = React.useState<ImportCreateSelection[]>(
     preview.chapters.map((chapter) => ({
@@ -60,6 +66,12 @@ export function ImportModal({
     existingWorkId,
     selections,
   );
+  const submitPayload = buildImportSubmitPayload(
+    targetMode,
+    newWorkTitle,
+    existingWorkId,
+    selections,
+  );
 
   return (
     <Modal
@@ -71,16 +83,7 @@ export function ImportModal({
         <ImportModalFooter
           busy={busy}
           onCancel={onCancel}
-          onSubmit={() =>
-            onSubmit(
-              buildImportSubmitPayload(
-                targetMode,
-                newWorkTitle,
-                existingWorkId,
-                selections,
-              ),
-            )
-          }
+          onSubmit={() => onSubmit(submitPayload)}
           previewMode={preview.mode}
           submittable={submittable}
         />
@@ -89,6 +92,7 @@ export function ImportModal({
       <ImportTargetSection
         busy={busy}
         existingWorkId={existingWorkId}
+        currentWorkId={currentWorkAvailable ? currentWorkId : null}
         library={library}
         newWorkTitle={newWorkTitle}
         setExistingWorkId={setExistingWorkId}
@@ -121,27 +125,32 @@ function ImportModalFooter({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <>
-      <Button variant="ghost" onClick={onCancel} disabled={busy}>
-        {t("common.cancel")}
-      </Button>
-      <Button
-        variant="primary"
-        disabled={busy || !submittable}
-        onClick={onSubmit}
-      >
-        {t(
-          previewMode === "batch"
-            ? "import.createAndTranslate"
-            : "import.addToLibrary",
-        )}
-      </Button>
-    </>
+    <ModalActionBar
+      actions={
+        <>
+          <Button variant="ghost" onClick={onCancel} disabled={busy}>
+            {t("common.cancel")}
+          </Button>
+          <Button
+            variant="primary"
+            disabled={busy || !submittable}
+            onClick={onSubmit}
+          >
+            {t(
+              previewMode === "batch"
+                ? "import.createAndTranslate"
+                : "import.addToLibrary",
+            )}
+          </Button>
+        </>
+      }
+    />
   );
 }
 
 function ImportTargetSection({
   busy,
+  currentWorkId,
   existingWorkId,
   library,
   newWorkTitle,
@@ -151,6 +160,7 @@ function ImportTargetSection({
   targetMode,
 }: {
   busy: boolean;
+  currentWorkId: string | null;
   existingWorkId: string;
   library: LibraryIndex;
   newWorkTitle: string;
@@ -173,7 +183,11 @@ function ImportTargetSection({
         <ImportTargetModeCard
           active={targetMode === "existing"}
           disabled={busy || library.works.length === 0}
-          label={t("import.addToExistingWork")}
+          label={
+            currentWorkId
+              ? t("import.addToCurrentWork")
+              : t("import.addToExistingWork")
+          }
           mode="existing"
           onChange={setTargetMode}
         />
@@ -186,12 +200,19 @@ function ImportTargetSection({
           onChange={(event) => setNewWorkTitle(event.target.value)}
         />
       ) : (
-        <ImportExistingWorkSelect
-          busy={busy}
-          existingWorkId={existingWorkId}
-          library={library}
-          setExistingWorkId={setExistingWorkId}
-        />
+        <>
+          {currentWorkId && existingWorkId === currentWorkId ? (
+            <p className="import-current-target-note" role="status">
+              {t("import.currentWorkDefault")}
+            </p>
+          ) : null}
+          <ImportExistingWorkSelect
+            busy={busy}
+            existingWorkId={existingWorkId}
+            library={library}
+            setExistingWorkId={setExistingWorkId}
+          />
+        </>
       )}
     </section>
   );

@@ -10,6 +10,7 @@ import {
 } from "../../lib/gatherTextDirectFormatModel";
 import { Button } from "../ui/Button";
 import { Modal } from "../ui/Modal";
+import { ModalActionBar } from "../ui/ModalActionBar";
 import { GatherTextDirectDetailControls } from "./GatherTextDirectDetailControls";
 import { GatherTextDirectFormatPreview } from "./GatherTextDirectFormatPreview";
 import { GatherTextDirectTypographyControls } from "./GatherTextDirectTypographyControls";
@@ -84,22 +85,28 @@ function DirectFormatFooter({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <>
-      <Button
-        className="gather-direct-editor-reset"
-        variant="ghost"
-        disabled={emptyPatch}
-        onClick={onReset}
-      >
-        {t("gatherText.resetChanges")}
-      </Button>
-      <Button variant="ghost" onClick={onCancel}>
-        {t("common.cancel")}
-      </Button>
-      <Button variant="primary" disabled={!canApply} onClick={onApply}>
-        {t("common.apply")}
-      </Button>
-    </>
+    <ModalActionBar
+      leading={
+        <Button
+          className="gather-direct-editor-reset"
+          variant="ghost"
+          disabled={emptyPatch}
+          onClick={onReset}
+        >
+          {t("gatherText.resetChanges")}
+        </Button>
+      }
+      actions={
+        <>
+          <Button variant="ghost" onClick={onCancel}>
+            {t("common.cancel")}
+          </Button>
+          <Button variant="primary" disabled={!canApply} onClick={onApply}>
+            {t("common.apply")}
+          </Button>
+        </>
+      }
+    />
   );
 }
 

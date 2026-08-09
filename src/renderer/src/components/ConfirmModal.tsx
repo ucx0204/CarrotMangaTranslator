@@ -2,6 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
+import { ModalActionBar } from "./ui/ModalActionBar";
 import { WarnIcon } from "./ui/icons";
 
 export function ConfirmModal({
@@ -36,14 +37,18 @@ export function ConfirmModal({
         </span>
       }
       footer={
-        <>
-          <Button variant="ghost" onClick={onCancel}>
-            {t("common.cancel")}
-          </Button>
-          <Button variant={confirmVariant} onClick={onConfirm}>
-            {confirmLabel ?? t("common.confirm")}
-          </Button>
-        </>
+        <ModalActionBar
+          actions={
+            <>
+              <Button variant="ghost" onClick={onCancel}>
+                {t("common.cancel")}
+              </Button>
+              <Button variant={confirmVariant} onClick={onConfirm}>
+                {confirmLabel ?? t("common.confirm")}
+              </Button>
+            </>
+          }
+        />
       }
     >
       <div className="confirm-body">

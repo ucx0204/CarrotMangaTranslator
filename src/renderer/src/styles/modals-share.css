@@ -595,8 +595,100 @@
 
 .source-choice-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+
+.source-choice-intro {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+}
+
+.source-choice-intro-icon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: var(--r-md);
+  background: var(--accent-soft);
+  color: var(--accent-hi);
+}
+
+.source-choice-intro > div,
+.source-choice-copy {
+  display: grid;
+  min-width: 0;
+  gap: var(--sp-1);
+}
+
+.source-choice-intro span:last-child,
+.source-choice-copy small {
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  line-height: 1.45;
+}
+
+.source-choice {
+  display: flex;
+  min-width: 0;
+  min-height: 78px;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+  color: var(--text);
+  text-align: left;
+}
+
+.source-choice.primary {
+  grid-column: 1 / -1;
+  min-height: 94px;
+  border-color: var(--accent-bd);
+  background: color-mix(in srgb, var(--accent-soft) 42%, var(--bg-sunken));
+}
+
+.source-choice:hover:not(:disabled),
+.source-choice:focus-visible {
+  border-color: var(--accent-bd);
+  background: color-mix(in srgb, var(--accent-soft) 64%, var(--bg-sunken));
+}
+
+.source-choice-icon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: var(--r-md);
+  background: var(--bg-panel);
+  color: var(--accent-hi);
+}
+
+.source-choice-order-note,
+.import-current-target-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  line-height: 1.5;
+}
+
+.source-choice-order-note {
+  padding-left: var(--sp-1);
+}
+
+.import-current-target-note {
+  padding: var(--sp-2) var(--sp-3);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--accent-soft) 34%, transparent);
 }
 
 .share-target-section {

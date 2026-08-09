@@ -12,6 +12,7 @@ import { orderBlockFontOptions, type BlockFontOption } from "../lib/fonts";
 import { toast } from "../lib/toastStore";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
+import { ModalActionBar } from "./ui/ModalActionBar";
 import { FontManagerGroup } from "./FontManagerList";
 import styles from "./FontManagerModal.module.css";
 
@@ -227,22 +228,36 @@ function FontManagerFooter({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <>
-      <Button
-        variant="ghost"
-        className={styles.resetOrder}
-        disabled={model.disabled}
-        onClick={model.resetOrder}
-      >
-        {t("fontManager.resetOrder")}
-      </Button>
-      <Button variant="secondary" disabled={model.disabled} onClick={onClose}>
-        {t("common.cancel")}
-      </Button>
-      <Button variant="primary" disabled={model.disabled} onClick={model.save}>
-        {t("common.save")}
-      </Button>
-    </>
+    <ModalActionBar
+      leading={
+        <Button
+          variant="ghost"
+          className={styles.resetOrder}
+          disabled={model.disabled}
+          onClick={model.resetOrder}
+        >
+          {t("fontManager.resetOrder")}
+        </Button>
+      }
+      actions={
+        <>
+          <Button
+            variant="secondary"
+            disabled={model.disabled}
+            onClick={onClose}
+          >
+            {t("common.cancel")}
+          </Button>
+          <Button
+            variant="primary"
+            disabled={model.disabled}
+            onClick={model.save}
+          >
+            {t("common.save")}
+          </Button>
+        </>
+      }
+    />
   );
 }
 

@@ -5,6 +5,7 @@ import styles from "./ErrorReportDialog.module.css";
 import { Button } from "./ui/Button";
 import { TextField } from "./ui/Field";
 import { Modal } from "./ui/Modal";
+import { ModalActionBar } from "./ui/ModalActionBar";
 import {
   useErrorReportDialogModel,
   type ReportAction,
@@ -198,49 +199,58 @@ function ErrorReportFooter({
   const { t } = useTranslation("components");
   const busy = activeAction !== null;
   return (
-    <div className={styles.footerActions}>
-      <Button className={styles.footerButton} onClick={onClose} disabled={busy}>
-        {t("common.close")}
-      </Button>
-      <Button
-        className={styles.footerButton}
-        onClick={onOpenLogs}
-        disabled={busy}
-      >
-        {activeAction === "logs"
-          ? t("errorReport.openingLogs")
-          : t("errorReport.openLogs")}
-      </Button>
-      <Button
-        className={styles.footerButton}
-        onClick={onCopy}
-        disabled={!canShare}
-      >
-        {activeAction === "copy"
-          ? t("errorReport.copying")
-          : t("errorReport.copy")}
-      </Button>
-      {fatal && hasRestart ? (
-        <Button
-          className={styles.footerButton}
-          onClick={onRestart}
-          disabled={busy}
-        >
-          {activeAction === "restart"
-            ? t("errorReport.restarting")
-            : t("errorReport.restart")}
-        </Button>
-      ) : null}
-      <Button
-        className={styles.footerButton}
-        variant="primary"
-        onClick={onGitHub}
-        disabled={!canShare}
-      >
-        {activeAction === "github"
-          ? t("errorReport.openingGitHub")
-          : t("errorReport.openGitHub")}
-      </Button>
-    </div>
+    <ModalActionBar
+      className={styles.footerActions}
+      actions={
+        <>
+          <Button
+            className={styles.footerButton}
+            onClick={onClose}
+            disabled={busy}
+          >
+            {t("common.close")}
+          </Button>
+          <Button
+            className={styles.footerButton}
+            onClick={onOpenLogs}
+            disabled={busy}
+          >
+            {activeAction === "logs"
+              ? t("errorReport.openingLogs")
+              : t("errorReport.openLogs")}
+          </Button>
+          <Button
+            className={styles.footerButton}
+            onClick={onCopy}
+            disabled={!canShare}
+          >
+            {activeAction === "copy"
+              ? t("errorReport.copying")
+              : t("errorReport.copy")}
+          </Button>
+          {fatal && hasRestart ? (
+            <Button
+              className={styles.footerButton}
+              onClick={onRestart}
+              disabled={busy}
+            >
+              {activeAction === "restart"
+                ? t("errorReport.restarting")
+                : t("errorReport.restart")}
+            </Button>
+          ) : null}
+          <Button
+            className={styles.footerButton}
+            variant="primary"
+            onClick={onGitHub}
+            disabled={!canShare}
+          >
+            {activeAction === "github"
+              ? t("errorReport.openingGitHub")
+              : t("errorReport.openGitHub")}
+          </Button>
+        </>
+      }
+    />
   );
 }

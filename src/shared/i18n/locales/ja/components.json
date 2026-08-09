@@ -488,9 +488,15 @@
   },
   "translateSource": {
     "title": "新しい原稿を追加",
+    "prompt": "どの原稿を追加しますか？",
+    "supportedFormats": "PNG, JPG, JPEG, WEBP · ZIP/CBZ",
     "openImages": "画像を開く",
+    "imagesHint": "複数の画像をまとめて選択します。",
     "openFolder": "フォルダーを開く",
-    "openArchive": "圧縮ファイルを開く"
+    "folderHint": "フォルダー内の画像をファイル名順に読み込みます。",
+    "openArchive": "圧縮ファイルを開く",
+    "archiveHint": "1つのZIP・CBZを1話として読み込みます。",
+    "orderHint": "ファイル名の数字を認識して自然な順序に並べます。圧縮ファイル内のフォルダー構造も自動認識します。"
   },
   "import": {
     "batchTitle": "複数話を追加",
@@ -498,6 +504,8 @@
     "createAndTranslate": "追加して翻訳",
     "createNewWork": "新しい作品を作成",
     "addToExistingWork": "既存の作品に追加",
+    "addToCurrentWork": "現在の作品に新しい話を追加",
+    "currentWorkDefault": "開いている作品を既定の追加先に選択しました。この原稿は新しい話として追加されます。",
     "selectWork": "作品を選択",
     "chaptersToCreate": "作成する話",
     "chapterTitle": "話のタイトル"
@@ -566,6 +574,22 @@
   },
   "pageList": {
     "empty": "読み込まれたページがありません。",
+    "noFilterResults": "このフィルターに該当するページはありません。",
+    "selectedHidden": "選択中のページは現在のフィルターで非表示になっています。",
+    "filterLabel": "ページ状態フィルター",
+    "visibleCount": "{{visible}} / {{total}}",
+    "blockCount": "{{count}}ブロック",
+    "thumbnailLoadFailed": "プレビュー失敗",
+    "more": "ページ操作をさらに表示",
+    "moreActions": "{{name}}の操作をさらに表示",
+    "actionsLabel": "{{name}}のページ操作",
+    "filters": {
+      "all": "すべて",
+      "running": "進行",
+      "failed": "失敗",
+      "pending": "待機",
+      "completed": "完了"
+    },
     "moveItem": "{{name}}を移動",
     "retranslate": "再翻訳",
     "retranslateItem": "{{name}}を再翻訳",
@@ -575,6 +599,7 @@
     "title": "状態",
     "empty": "表示する状態はまだありません。",
     "completed": "完了",
+    "translationCompleted": "翻訳完了",
     "failed": "失敗",
     "partiallyCompleted": "一部完了",
     "waiting": "待機",
@@ -756,6 +781,8 @@
     "saveSuccess": "テキストファイルを保存しました。",
     "saveFailed": "テキストファイルを保存できませんでした。",
     "searchPlaceholder": "検索してEnter",
+    "searchLabel": "テキスト検索",
+    "exchangeMenu": "読み込み・書き出し",
     "excludePageHeaders": "ページ見出しを除外",
     "saveTxt": ".txtを保存",
     "empty": "表示するテキストがありません。",
@@ -806,6 +833,7 @@
       "updated": "{{count}}ブロックを更新しました。",
       "warnings": "校正表に{{count}}件の警告があります。",
       "importFailed": "校正表を読み込めませんでした。",
+      "import": "校正表を読み込む",
       "exportCsv": "CSV校正表を書き出す",
       "exportTsv": "TSV校正表を書き出す"
     }
@@ -1546,6 +1574,11 @@
     "cancelling": "キャンセルを要求中…",
     "completedTitle": "処理が完了しました",
     "completedPages": "{{count}}ページを処理済み",
+    "openLogs": "ログフォルダーを開く",
+    "failedPages": "失敗したページ",
+    "retryPage": "再試行",
+    "recentJobs": "最近の処理",
+    "statusHistory": "状態履歴",
     "reviewResults": "結果を確認",
     "exportResults": "書き出す"
   },

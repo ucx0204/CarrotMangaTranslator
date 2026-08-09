@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { ModelProvider } from "../../../../shared/settingsTypes";
 import { Button } from "../ui/Button";
 import { Modal } from "../ui/Modal";
+import { ModalActionBar } from "../ui/ModalActionBar";
 import { EngineSettingsPanel } from "./EngineSettingsPanel";
 import { FormatDefaultsPanel } from "./FormatDefaultsPanel";
 import { HardwareSettingsPanel } from "./HardwareSettingsPanel";
@@ -126,29 +127,34 @@ function SettingsModalFooter({
 >): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <>
-      <Button
-        variant="ghost"
-        style={{ marginRight: "auto" }}
-        onClick={onOpenLogFolder}
-        disabled={controlsBusy}
-      >
-        {t("settings.footer.openLogs")}
-      </Button>
-      <Button onClick={onReset} disabled={controlsBusy}>
-        {t("settings.footer.restoreDefaults")}
-      </Button>
-      <Button variant="ghost" onClick={onCancel} disabled={controlsBusy}>
-        {t("settings.footer.cancel")}
-      </Button>
-      <Button
-        variant="primary"
-        onClick={submit}
-        disabled={controlsBusy || !canSubmit}
-      >
-        {t("settings.footer.save")}
-      </Button>
-    </>
+    <ModalActionBar
+      leading={
+        <Button
+          variant="ghost"
+          onClick={onOpenLogFolder}
+          disabled={controlsBusy}
+        >
+          {t("settings.footer.openLogs")}
+        </Button>
+      }
+      actions={
+        <>
+          <Button onClick={onReset} disabled={controlsBusy}>
+            {t("settings.footer.restoreDefaults")}
+          </Button>
+          <Button variant="ghost" onClick={onCancel} disabled={controlsBusy}>
+            {t("settings.footer.cancel")}
+          </Button>
+          <Button
+            variant="primary"
+            onClick={submit}
+            disabled={controlsBusy || !canSubmit}
+          >
+            {t("settings.footer.save")}
+          </Button>
+        </>
+      }
+    />
   );
 }
 

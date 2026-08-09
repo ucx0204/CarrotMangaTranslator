@@ -1,10 +1,29 @@
 import React from "react";
 import { IconBell } from "@tabler/icons-react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { JobState } from "../../../shared/jobTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
 import { IconButton } from "./ui/IconButton";
-import { StatusPopover } from "./StatusPopover";
+import {
+  StatusPopover,
+  type StatusFailedPage,
+  type StatusJobHistoryEntry,
+} from "./StatusPopover";
+
+type StatusDockButtonProps = {
+  jobState: JobState;
+  progressSnapshot: ProgressSnapshot | null;
+  showProgressBar: boolean;
+  statusLines: string[];
+  onCancelJob: () => void;
+  onClear: () => void;
+  onOpenExport?: () => void;
+  onOpenLogFolder?: () => void;
+  onRetryPage?: (pageId: string) => void;
+  onReviewResults?: () => void;
+  failedPages?: StatusFailedPage[];
+};
 
 export function StatusDockButton({
   jobState,
@@ -14,17 +33,11 @@ export function StatusDockButton({
   onCancelJob,
   onClear,
   onOpenExport,
+  onOpenLogFolder,
+  onRetryPage,
   onReviewResults,
-}: {
-  jobState: JobState;
-  progressSnapshot: ProgressSnapshot | null;
-  showProgressBar: boolean;
-  statusLines: string[];
-  onCancelJob: () => void;
-  onClear: () => void;
-  onOpenExport?: () => void;
-  onReviewResults?: () => void;
-}): React.JSX.Element {
+  failedPages = [],
+}: StatusDockButtonProps): React.JSX.Element {
   const { t } = useTranslation("components");
   const popoverId = React.useId();
   const latest = statusLines[0];
@@ -37,16 +50,16 @@ export function StatusDockButton({
     triggerRef,
     unread,
   } = useStatusDockController(latest);
+  const jobHistory = useStatusJobHistory(jobState);
   const resultActions = createStatusResultActions({
     onOpenExport,
     onReviewResults,
+    onRetryPage,
     setOpen,
   });
 
   const indicator = resolveStatusIndicator(jobState, unread);
-  const tooltip = latest
-    ? t("statusDock.latest", { line: latest })
-    : t("statusDock.open");
+  const tooltip = resolveStatusTooltip(latest, t);
   return (
     <div className="status-dock" ref={rootRef}>
       <IconButton
@@ -58,7 +71,9 @@ export function StatusDockButton({
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
       >
-        <IconBell size={18} aria-hidden="true" />
+        <span className="status-dock-bell" aria-hidden="true">
+          <IconBell size={18} />
+        </span>
         <span className="status-dock-indicator" aria-hidden="true" />
       </IconButton>
       <span className="visually-hidden" role="status" aria-live="polite">
@@ -71,13 +86,18 @@ export function StatusDockButton({
           progressSnapshot={progressSnapshot}
           showProgressBar={showProgressBar}
           statusLines={statusLines}
+          failedPages={failedPages}
+          jobHistory={jobHistory.entries}
           onCancelJob={onCancelJob}
           onClear={() => {
             onClear();
+            jobHistory.clear();
             setUnread(false);
           }}
           onClose={() => closePopover(true)}
           onOpenExport={resultActions.onOpenExport}
+          onOpenLogFolder={onOpenLogFolder}
+          onRetryPage={resultActions.onRetryPage}
           onReviewResults={resultActions.onReviewResults}
         />
       ) : null}
@@ -85,17 +105,29 @@ export function StatusDockButton({
   );
 }
 
+function resolveStatusTooltip(
+  latest: string | undefined,
+  t: TFunction<"components">,
+): string {
+  return latest
+    ? t("statusDock.latest", { line: latest })
+    : t("statusDock.open");
+}
+
 function createStatusResultActions({
   onOpenExport,
   onReviewResults,
+  onRetryPage,
   setOpen,
 }: {
   onOpenExport?: () => void;
   onReviewResults?: () => void;
+  onRetryPage?: (pageId: string) => void;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }): {
   onOpenExport?: () => void;
   onReviewResults?: () => void;
+  onRetryPage?: (pageId: string) => void;
 } {
   const closeAfter = (action?: () => void): (() => void) | undefined =>
     action
@@ -107,6 +139,55 @@ function createStatusResultActions({
   return {
     onOpenExport: closeAfter(onOpenExport),
     onReviewResults: closeAfter(onReviewResults),
+    onRetryPage: onRetryPage
+      ? (pageId) => {
+          onRetryPage(pageId);
+          setOpen(false);
+        }
+      : undefined,
+  };
+}
+
+function useStatusJobHistory(jobState: JobState): {
+  clear: () => void;
+  entries: StatusJobHistoryEntry[];
+} {
+  const previousRef = React.useRef<JobState | null>(null);
+  const [entries, setEntries] = React.useState<StatusJobHistoryEntry[]>([]);
+  React.useEffect(() => {
+    const previous = previousRef.current;
+    if (
+      previous &&
+      isTerminalJob(previous) &&
+      (previous.id !== jobState.id || !isTerminalJob(jobState))
+    ) {
+      setEntries((current) => {
+        if (current.some((entry) => entry.id === previous.id)) return current;
+        return [toHistoryEntry(previous), ...current].slice(0, 5);
+      });
+    }
+    previousRef.current = jobState;
+  }, [jobState]);
+  return {
+    clear: React.useCallback(() => setEntries([]), []),
+    entries,
+  };
+}
+
+function isTerminalJob(jobState: JobState): boolean {
+  return ["completed", "partial", "failed", "cancelled"].includes(
+    jobState.status,
+  );
+}
+
+function toHistoryEntry(jobState: JobState): StatusJobHistoryEntry {
+  return {
+    id: jobState.id,
+    kind: jobState.kind,
+    status: jobState.status,
+    progressText: jobState.progressText,
+    detail: jobState.detail,
+    pageTotal: jobState.pageTotal ?? jobState.progressTotal,
   };
 }
 

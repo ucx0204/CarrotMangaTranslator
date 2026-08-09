@@ -481,9 +481,15 @@
   },
   "translateSource": {
     "title": "新增原稿",
+    "prompt": "要新增哪種原稿？",
+    "supportedFormats": "PNG、JPG、JPEG、WEBP · ZIP/CBZ",
     "openImages": "開啟圖片",
+    "imagesHint": "一次選取多張圖片。",
     "openFolder": "開啟資料夾",
-    "openArchive": "開啟壓縮檔案"
+    "folderHint": "依檔名順序讀取資料夾中的圖片。",
+    "openArchive": "開啟壓縮檔案",
+    "archiveHint": "將一個 ZIP 或 CBZ 作為一話匯入。",
+    "orderHint": "頁面會辨識檔名中的數字並自然排序，也會自動辨識壓縮檔內的資料夾結構。"
   },
   "import": {
     "batchTitle": "新增多個章節",
@@ -491,6 +497,8 @@
     "createAndTranslate": "新增並翻譯",
     "createNewWork": "建立新作品",
     "addToExistingWork": "新增到現有作品",
+    "addToCurrentWork": "在目前作品新增一話",
+    "currentWorkDefault": "已預設選取目前開啟的作品。此原稿將作為該作品的新一話加入。",
     "selectWork": "選擇作品",
     "chaptersToCreate": "要建立的章節",
     "chapterTitle": "章節標題"
@@ -559,6 +567,22 @@
   },
   "pageList": {
     "empty": "沒有已載入的頁面。",
+    "noFilterResults": "沒有符合此篩選條件的頁面。",
+    "selectedHidden": "目前選取的頁面已被篩選條件隱藏。",
+    "filterLabel": "頁面狀態篩選",
+    "visibleCount": "{{visible}} / {{total}}",
+    "blockCount": "{{count}} 個文字區塊",
+    "thumbnailLoadFailed": "預覽失敗",
+    "more": "更多頁面操作",
+    "moreActions": "{{name}} 的更多操作",
+    "actionsLabel": "頁面 {{name}} 的操作",
+    "filters": {
+      "all": "全部",
+      "running": "進行中",
+      "failed": "失敗",
+      "pending": "等待",
+      "completed": "完成"
+    },
     "moveItem": "移動{{name}}",
     "retranslate": "重新翻譯",
     "retranslateItem": "重新翻譯{{name}}",
@@ -568,6 +592,7 @@
     "title": "狀態",
     "empty": "目前沒有可顯示的狀態。",
     "completed": "完成",
+    "translationCompleted": "翻譯完成",
     "failed": "失敗",
     "partiallyCompleted": "部分完成",
     "waiting": "等待",
@@ -743,6 +768,8 @@
     "saveSuccess": "文字檔案已儲存。",
     "saveFailed": "無法儲存文字檔案。",
     "searchPlaceholder": "搜尋後按 Enter",
+    "searchLabel": "搜尋文字",
+    "exchangeMenu": "匯入 · 匯出",
     "excludePageHeaders": "排除頁面標題",
     "saveTxt": "儲存 .txt",
     "empty": "沒有可顯示的文字。",
@@ -793,6 +820,7 @@
       "updated": "已更新{{count}}個文字區塊。",
       "warnings": "校對表有{{count}}則警告。",
       "importFailed": "無法匯入校對表。",
+      "import": "匯入校對表",
       "exportCsv": "匯出 CSV 校對表",
       "exportTsv": "匯出 TSV 校對表"
     }
@@ -1515,6 +1543,11 @@
     "cancelling": "正在要求取消…",
     "completedTitle": "工作已完成",
     "completedPages": "已處理{{count}}頁",
+    "openLogs": "開啟記錄資料夾",
+    "failedPages": "失敗頁面",
+    "retryPage": "重試",
+    "recentJobs": "最近工作",
+    "statusHistory": "狀態記錄",
     "reviewResults": "檢查結果",
     "exportResults": "匯出"
   },

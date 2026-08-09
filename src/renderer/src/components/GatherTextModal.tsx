@@ -6,7 +6,10 @@ import {
   ReviewWarnings,
 } from "./gatherText/GatherTextControls";
 import { GatherTextFileInputs } from "./gatherText/GatherTextFileInputs";
-import { GatherTextFooter } from "./gatherText/GatherTextFooter";
+import {
+  GatherTextFooter,
+  GatherTextSearchBar,
+} from "./gatherText/GatherTextFooter";
 import { GatheredPageList } from "./gatherText/GatheredPageList";
 import type { GatherTextModalProps } from "./gatherText/gatherTextTypes";
 import { useGatherTextModalModel } from "./gatherText/useGatherTextModalModel";
@@ -42,7 +45,6 @@ export function GatherTextModal({
       bodyClassName="gather-text-body"
       footer={
         <GatherTextFooter
-          search={model.search}
           excludeHeaders={model.excludeHeaders}
           onToggleExcludeHeaders={model.setExcludeHeaders}
           hasContent={model.hasContent}
@@ -63,6 +65,7 @@ export function GatherTextModal({
         onReviewFile={model.handleImportReviewFile}
         onTextFile={model.handleImportTxtFile}
       />
+      <GatherTextSearchBar search={model.search} />
       <GatherTextControls
         scope={model.scope}
         field={model.field}

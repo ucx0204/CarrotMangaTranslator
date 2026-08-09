@@ -14,6 +14,7 @@ import {
 import { PageSelectionPicker } from "./ExportPagePicker";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
+import { ModalActionBar } from "./ui/ModalActionBar";
 
 export type AutoInpaintingOptionsModalProps = {
   chapter: ChapterSnapshot;
@@ -55,16 +56,20 @@ export function AutoInpaintingOptionsModal({
       onClose={onClose}
       closeOnBackdrop
       footer={
-        <>
-          <Button onClick={onClose}>{t("common.cancel")}</Button>
-          <Button
-            variant="primary"
-            onClick={handleStart}
-            disabled={state.runSelection.length === 0}
-          >
-            {t("autoInpaintingOptions.start")}
-          </Button>
-        </>
+        <ModalActionBar
+          actions={
+            <>
+              <Button onClick={onClose}>{t("common.cancel")}</Button>
+              <Button
+                variant="primary"
+                onClick={handleStart}
+                disabled={state.runSelection.length === 0}
+              >
+                {t("autoInpaintingOptions.start")}
+              </Button>
+            </>
+          }
+        />
       }
     >
       <AutoInpaintingScopeBody

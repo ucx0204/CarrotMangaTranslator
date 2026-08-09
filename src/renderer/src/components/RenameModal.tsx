@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "./ui/Button";
 import { TextField } from "./ui/Field";
 import { Modal } from "./ui/Modal";
+import { ModalActionBar } from "./ui/ModalActionBar";
 
 type RenameModalProps = {
   kind: "work" | "chapter";
@@ -50,26 +51,27 @@ export function RenameModal({
       onClose={onCancel}
       closeDisabled={busy}
       footer={
-        <>
-          <Button
-            variant="danger"
-            className="modal-danger"
-            onClick={onDelete}
-            disabled={busy}
-          >
-            {deleteLabel}
-          </Button>
-          <Button variant="ghost" onClick={onCancel} disabled={busy}>
-            {t("common.cancel")}
-          </Button>
-          <Button
-            variant="primary"
-            onClick={() => onSubmit(trimmed)}
-            disabled={busy || !trimmed}
-          >
-            {t("common.save")}
-          </Button>
-        </>
+        <ModalActionBar
+          leading={
+            <Button variant="danger" onClick={onDelete} disabled={busy}>
+              {deleteLabel}
+            </Button>
+          }
+          actions={
+            <>
+              <Button variant="ghost" onClick={onCancel} disabled={busy}>
+                {t("common.cancel")}
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => onSubmit(trimmed)}
+                disabled={busy || !trimmed}
+              >
+                {t("common.save")}
+              </Button>
+            </>
+          }
+        />
       }
     >
       <TextField

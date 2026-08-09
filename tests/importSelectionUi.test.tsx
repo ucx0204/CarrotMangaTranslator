@@ -44,6 +44,38 @@ describe("ImportModal selection surfaces", () => {
     expect(chapterRow?.dataset.selected).toBe("false");
     expect((titleInput as HTMLInputElement).disabled).toBe(true);
   });
+
+  it("defaults to adding a chapter to the currently open work", () => {
+    render(
+      <ImportModal
+        library={LIBRARY}
+        currentWorkId="work-1"
+        preview={PREVIEW}
+        busy={false}
+        onCancel={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(
+      (
+        screen.getByRole("radio", {
+          name: /현재 작품에 새 화 추가/,
+        }) as HTMLInputElement
+      ).checked,
+    ).toBe(true);
+    expect(
+      (
+        screen.getByRole("radio", {
+          name: "새 작품 만들기",
+        }) as HTMLInputElement
+      ).checked,
+    ).toBe(false);
+    expect(screen.getByText(/새 화로 추가됩니다/)).not.toBeNull();
+    expect((screen.getByRole("combobox") as HTMLSelectElement).value).toBe(
+      "work-1",
+    );
+  });
 });
 
 const LIBRARY: LibraryIndex = {

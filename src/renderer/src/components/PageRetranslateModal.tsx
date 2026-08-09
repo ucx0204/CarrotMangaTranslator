@@ -6,6 +6,7 @@ import { getBlockModeOptions } from "../lib/blockModeOptions";
 import { OptionRow, ToggleOptionRow } from "./TranslationOptionControls";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
+import { ModalActionBar } from "./ui/ModalActionBar";
 import { WarnIcon } from "./ui/icons";
 
 type PageRetranslateModalProps = {
@@ -69,20 +70,26 @@ export function PageRetranslateModal({
       closeOnBackdrop
       cardClassName="translation-options-modal"
       footer={
-        <>
-          <label className="translation-save-defaults">
-            <input
-              type="checkbox"
-              checked={saveAsDefault}
-              onChange={(event) => setSaveAsDefault(event.target.checked)}
-            />
-            <span>{t("translationOptions.saveAsDefault")}</span>
-          </label>
-          <Button onClick={onClose}>{t("common.cancel")}</Button>
-          <Button variant="primary" onClick={handleStart}>
-            {t("retranslate.start")}
-          </Button>
-        </>
+        <ModalActionBar
+          leading={
+            <label className="translation-save-defaults">
+              <input
+                type="checkbox"
+                checked={saveAsDefault}
+                onChange={(event) => setSaveAsDefault(event.target.checked)}
+              />
+              <span>{t("translationOptions.saveAsDefault")}</span>
+            </label>
+          }
+          actions={
+            <>
+              <Button onClick={onClose}>{t("common.cancel")}</Button>
+              <Button variant="primary" onClick={handleStart}>
+                {t("retranslate.start")}
+              </Button>
+            </>
+          }
+        />
       }
     >
       <PageRetranslateOptions

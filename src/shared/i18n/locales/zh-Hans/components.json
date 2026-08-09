@@ -481,9 +481,15 @@
   },
   "translateSource": {
     "title": "添加新原稿",
+    "prompt": "要添加哪种原稿？",
+    "supportedFormats": "PNG、JPG、JPEG、WEBP · ZIP/CBZ",
     "openImages": "打开图片",
+    "imagesHint": "一次选择多张图片。",
     "openFolder": "打开文件夹",
-    "openArchive": "打开压缩文件"
+    "folderHint": "按文件名顺序读取文件夹中的图片。",
+    "openArchive": "打开压缩文件",
+    "archiveHint": "将一个 ZIP 或 CBZ 作为一话导入。",
+    "orderHint": "页面会识别文件名中的数字并自然排序，也会自动识别压缩包内的文件夹结构。"
   },
   "import": {
     "batchTitle": "添加多个章节",
@@ -491,6 +497,8 @@
     "createAndTranslate": "添加并翻译",
     "createNewWork": "创建新作品",
     "addToExistingWork": "添加到现有作品",
+    "addToCurrentWork": "向当前作品添加新话",
+    "currentWorkDefault": "已默认选择当前打开的作品。此原稿将作为该作品的新话添加。",
     "selectWork": "选择作品",
     "chaptersToCreate": "要创建的章节",
     "chapterTitle": "章节标题"
@@ -559,6 +567,22 @@
   },
   "pageList": {
     "empty": "没有已加载的页面。",
+    "noFilterResults": "没有符合此筛选条件的页面。",
+    "selectedHidden": "当前选中的页面已被筛选条件隐藏。",
+    "filterLabel": "页面状态筛选",
+    "visibleCount": "{{visible}} / {{total}}",
+    "blockCount": "{{count}} 个文本块",
+    "thumbnailLoadFailed": "预览失败",
+    "more": "更多页面操作",
+    "moreActions": "{{name}} 的更多操作",
+    "actionsLabel": "页面 {{name}} 的操作",
+    "filters": {
+      "all": "全部",
+      "running": "进行中",
+      "failed": "失败",
+      "pending": "等待",
+      "completed": "完成"
+    },
     "moveItem": "移动{{name}}",
     "retranslate": "重新翻译",
     "retranslateItem": "重新翻译{{name}}",
@@ -568,6 +592,7 @@
     "title": "状态",
     "empty": "暂无可显示的状态。",
     "completed": "完成",
+    "translationCompleted": "翻译完成",
     "failed": "失败",
     "partiallyCompleted": "部分完成",
     "waiting": "等待",
@@ -743,6 +768,8 @@
     "saveSuccess": "文本文件已保存。",
     "saveFailed": "无法保存文本文件。",
     "searchPlaceholder": "搜索后按Enter",
+    "searchLabel": "搜索文本",
+    "exchangeMenu": "导入 · 导出",
     "excludePageHeaders": "排除页面标题",
     "saveTxt": "保存.txt",
     "empty": "没有可显示的文本。",
@@ -793,6 +820,7 @@
       "updated": "已更新{{count}}个文本块。",
       "warnings": "校对表有{{count}}条警告。",
       "importFailed": "无法导入校对表。",
+      "import": "导入校对表",
       "exportCsv": "导出CSV校对表",
       "exportTsv": "导出TSV校对表"
     }
@@ -1512,6 +1540,11 @@
     "cancelling": "正在请求取消…",
     "completedTitle": "任务已完成",
     "completedPages": "已处理{{count}}页",
+    "openLogs": "打开日志文件夹",
+    "failedPages": "失败页面",
+    "retryPage": "重试",
+    "recentJobs": "最近任务",
+    "statusHistory": "状态记录",
     "reviewResults": "检查结果",
     "exportResults": "导出"
   },

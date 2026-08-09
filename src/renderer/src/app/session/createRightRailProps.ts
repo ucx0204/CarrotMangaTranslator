@@ -64,6 +64,7 @@ export function createRightRailProps(
     undoLabel: workspaceHistory.undoLabel,
     onCancelJob: bridgeActions.cancelJob,
     onClearStatusLines: statusLog.clearStatusLines,
+    onOpenLogFolder: bridgeActions.openLogFolder,
   };
 }
 
@@ -73,6 +74,7 @@ function createRightRailActions({
   inpaintingActions,
   inpaintingBridge,
   persistence,
+  retranslatePage,
   uiState,
   workspaceHistory,
 }: AppSessionViewModel) {
@@ -95,6 +97,7 @@ function createRightRailActions({
     },
     onOpenExport: () => uiState.setExportOptionsOpen(true),
     onReviewResults: () => uiState.setRightRailMode("page-blocks"),
+    onRetryPage: (pageId: string) => void retranslatePage(pageId),
     onOpenStyleGuide: () => uiState.setStyleGuideOpen(true),
     onOpenTextView: () => uiState.setTextViewOpen(true),
     onOpenTranslateOptions: () => uiState.openTranslateOptions(),

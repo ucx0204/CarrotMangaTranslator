@@ -12,6 +12,7 @@ import {
 import { ExportPagePicker } from "./ExportPagePicker";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
+import { ModalActionBar } from "./ui/ModalActionBar";
 
 export type ExportOptionsModalProps = {
   chapter: ChapterSnapshot;
@@ -134,17 +135,23 @@ function ExportOptionsFooter({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <>
-      <Button onClick={onCancel} disabled={isStarting}>
-        {t("common.cancel")}
-      </Button>
-      <Button
-        variant="primary"
-        onClick={onStart}
-        disabled={isStarting || startDisabled}
-      >
-        {isStarting ? t("exportOptions.starting") : t("exportOptions.start")}
-      </Button>
-    </>
+    <ModalActionBar
+      actions={
+        <>
+          <Button onClick={onCancel} disabled={isStarting}>
+            {t("common.cancel")}
+          </Button>
+          <Button
+            variant="primary"
+            onClick={onStart}
+            disabled={isStarting || startDisabled}
+          >
+            {isStarting
+              ? t("exportOptions.starting")
+              : t("exportOptions.start")}
+          </Button>
+        </>
+      }
+    />
   );
 }

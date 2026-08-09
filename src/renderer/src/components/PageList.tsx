@@ -1,14 +1,7 @@
 import React from "react";
-import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
-import {
-  closestCenter,
-  DndContext,
-  DragOverlay,
-  type DragEndEvent,
-  type DragStartEvent,
-} from "@dnd-kit/core";
+import { closestCenter, DndContext, DragOverlay } from "@dnd-kit/core";
 import {
   SortableContext,
   useSortable,
@@ -16,11 +9,18 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { MangaPage } from "../../../shared/libraryTypes";
-import { useStandardDndSensors } from "../lib/dnd";
-import { IconButton } from "./ui/IconButton";
-import { CloseIcon, RefreshIcon } from "./ui/icons";
-
-type PageStatusMode = "translation" | "inpainting";
+import {
+  PageDragPreview,
+  PageItemMenu,
+  PageListThumbnail,
+  PageStatus,
+} from "./pageList/PageListRowChrome";
+import {
+  matchesPageFilter,
+  type PageListFilter,
+  type PageStatusMode,
+} from "./pageList/pageListStatus";
+import { usePageListState } from "./pageList/usePageListState";
 
 type PageListProps = {
   pages: MangaPage[];
@@ -43,47 +43,35 @@ function PageListView({
   onRemove,
   onReorder,
 }: PageListProps): React.JSX.Element {
-  const { t } = useTranslation("components");
-  const sensors = useStandardDndSensors();
-  const [activePageId, setActivePageId] = React.useState<string | null>(null);
-  const pageItemRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
-  const registerPageItemRef = React.useCallback(
-    (pageId: string, element: HTMLDivElement | null) => {
-      pageItemRefs.current[pageId] = element;
-    },
-    [],
-  );
-  const activePage = pages.find((page) => page.id === activePageId) ?? null;
-
-  React.useEffect(() => {
-    if (!selectedPageId) {
-      return;
-    }
-    pageItemRefs.current[selectedPageId]?.scrollIntoView({
-      block: "nearest",
-    });
-  }, [selectedPageId]);
-
-  const handleDragStart = React.useCallback((event: DragStartEvent) => {
-    setActivePageId(String(event.active.id));
-  }, []);
-
-  const handleDragEnd = React.useCallback(
-    (event: DragEndEvent) => {
-      setActivePageId(null);
-      if (!event.over || event.active.id === event.over.id || jobActive) {
-        return;
-      }
-      onReorder(String(event.active.id), String(event.over.id));
-    },
-    [jobActive, onReorder],
-  );
+  const {
+    activePage,
+    activePageId,
+    filter,
+    handleDragEnd,
+    handleDragStart,
+    registerPageItemRef,
+    selectedPageHidden,
+    sensors,
+    setActivePageId,
+    setFilter,
+    visiblePages,
+  } = usePageListState({
+    jobActive,
+    onReorder,
+    pages,
+    selectedPageId,
+    statusMode,
+  });
 
   return (
     <section className={`page-list ${pages.length ? "" : "empty"}`.trim()}>
-      <div className="panel-header">
-        <h2>{t("common.pages")}</h2>
-      </div>
+      <PageListHeader
+        filter={filter}
+        pages={pages}
+        statusMode={statusMode}
+        visibleCount={visiblePages.length}
+        onFilterChange={setFilter}
+      />
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -94,17 +82,102 @@ function PageListView({
         <PageSortableContent
           activePage={activePage}
           activePageId={activePageId}
+          allPageCount={pages.length}
           disabled={jobActive}
           onRemove={onRemove}
           onRetranslate={onRetranslate}
           onSelect={onSelect}
-          pages={pages}
+          pages={visiblePages}
           registerPageItemRef={registerPageItemRef}
           selectedPageId={selectedPageId}
           statusMode={statusMode}
+          selectedPageHidden={selectedPageHidden}
         />
       </DndContext>
     </section>
+  );
+}
+
+function PageListHeader({
+  filter,
+  onFilterChange,
+  pages,
+  statusMode,
+  visibleCount,
+}: {
+  filter: PageListFilter;
+  onFilterChange: (filter: PageListFilter) => void;
+  pages: MangaPage[];
+  statusMode: PageStatusMode;
+  visibleCount: number;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <div className="page-list-header">
+      <div className="panel-header page-list-title-row">
+        <h2>{t("common.pages")}</h2>
+        {pages.length ? (
+          <span className="page-list-visible-count">
+            {t("pageList.visibleCount", {
+              visible: visibleCount,
+              total: pages.length,
+            })}
+          </span>
+        ) : null}
+      </div>
+      {pages.length ? (
+        <PageListFilters
+          filter={filter}
+          pages={pages}
+          statusMode={statusMode}
+          onChange={onFilterChange}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function PageListFilters({
+  filter,
+  onChange,
+  pages,
+  statusMode,
+}: {
+  filter: PageListFilter;
+  onChange: (filter: PageListFilter) => void;
+  pages: MangaPage[];
+  statusMode: PageStatusMode;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const options: PageListFilter[] =
+    statusMode === "inpainting"
+      ? ["all", "pending", "completed"]
+      : ["all", "running", "failed", "pending", "completed"];
+  return (
+    <div
+      className="page-list-filters"
+      role="tablist"
+      aria-label={t("pageList.filterLabel")}
+    >
+      {options.map((option) => {
+        const count = pages.filter((page) =>
+          matchesPageFilter(page, option, statusMode),
+        ).length;
+        return (
+          <button
+            key={option}
+            type="button"
+            role="tab"
+            aria-selected={filter === option}
+            className={filter === option ? "active" : ""}
+            onClick={() => onChange(option)}
+          >
+            <span>{t(`pageList.filters.${option}`)}</span>
+            <small>{count}</small>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -113,6 +186,7 @@ export const PageList = React.memo(PageListView);
 function PageSortableContent({
   activePage,
   activePageId,
+  allPageCount,
   disabled,
   onRemove,
   onRetranslate,
@@ -120,10 +194,12 @@ function PageSortableContent({
   pages,
   registerPageItemRef,
   selectedPageId,
+  selectedPageHidden,
   statusMode,
 }: {
   activePage: MangaPage | null;
   activePageId: string | null;
+  allPageCount: number;
   disabled: boolean;
   onRemove: (pageId: string) => void;
   onRetranslate: (pageId: string) => void;
@@ -131,6 +207,7 @@ function PageSortableContent({
   pages: MangaPage[];
   registerPageItemRef: (pageId: string, element: HTMLDivElement | null) => void;
   selectedPageId: string | null;
+  selectedPageHidden: boolean;
   statusMode: PageStatusMode;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
@@ -158,10 +235,17 @@ function PageSortableContent({
               />
             ))
           ) : (
-            <p className="panel-empty">{t("pageList.empty")}</p>
+            <p className="panel-empty page-list-filter-empty">
+              {t(allPageCount ? "pageList.noFilterResults" : "pageList.empty")}
+            </p>
           )}
         </div>
       </SortableContext>
+      {selectedPageHidden ? (
+        <p className="page-list-filter-notice" role="status">
+          {t("pageList.selectedHidden")}
+        </p>
+      ) : null}
       {createPortal(
         <DragOverlay>
           {activePage ? (
@@ -242,22 +326,44 @@ const SortablePageItem = React.memo(function SortablePageItem({
         className="page-select"
         onClick={() => onSelect(page.id)}
         title={page.name}
+        aria-current={selected ? "page" : undefined}
       >
-        <span>{page.name}</span>
+        <PageListThumbnail page={page} />
+        <span className="page-row-copy">
+          <strong>{page.name}</strong>
+          <span className="page-row-meta">
+            <PageStatus page={page} statusMode={statusMode} />
+            {page.blocks.length ? (
+              <span>
+                {t("pageList.blockCount", { count: page.blocks.length })}
+              </span>
+            ) : null}
+          </span>
+        </span>
       </button>
-      <PageItemSide
-        disabled={disabled}
-        onRemove={onRemove}
-        onRetranslate={onRetranslate}
-        page={page}
-        selected={selected}
-        statusMode={statusMode}
-      />
+      {statusMode === "translation" ? (
+        <PageItemMenu
+          disabled={disabled}
+          onRemove={() => onRemove(page.id)}
+          onRetranslate={() => onRetranslate(page.id)}
+          pageName={page.name}
+        />
+      ) : null}
     </div>
   );
 }, areSortablePageItemPropsEqual);
 
 function areSortablePageItemPropsEqual(
+  previous: SortablePageItemProps,
+  next: SortablePageItemProps,
+): boolean {
+  return (
+    arePageItemBindingsEqual(previous, next) &&
+    arePageRowValuesEqual(previous.page, next.page)
+  );
+}
+
+function arePageItemBindingsEqual(
   previous: SortablePageItemProps,
   next: SortablePageItemProps,
 ): boolean {
@@ -268,110 +374,18 @@ function areSortablePageItemPropsEqual(
     previous.onSelect === next.onSelect &&
     previous.registerRef === next.registerRef &&
     previous.selected === next.selected &&
-    previous.statusMode === next.statusMode &&
-    previous.page.id === next.page.id &&
-    previous.page.name === next.page.name &&
-    previous.page.analysisStatus === next.page.analysisStatus &&
-    previous.page.inpaintedImagePath === next.page.inpaintedImagePath
+    previous.statusMode === next.statusMode
   );
 }
 
-function PageItemSide({
-  disabled,
-  onRemove,
-  onRetranslate,
-  page,
-  selected,
-  statusMode,
-}: {
-  disabled: boolean;
-  onRemove: (pageId: string) => void;
-  onRetranslate: (pageId: string) => void;
-  page: MangaPage;
-  selected: boolean;
-  statusMode: PageStatusMode;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  if (selected && statusMode === "translation") {
-    return (
-      <div className="page-side">
-        <div className="page-actions">
-          <IconButton
-            size="sm"
-            label={t("pageList.retranslateItem", { name: page.name })}
-            title={t("pageList.retranslate")}
-            onClick={() => onRetranslate(page.id)}
-            disabled={disabled}
-          >
-            <RefreshIcon size={15} />
-          </IconButton>
-          <IconButton
-            size="sm"
-            variant="danger"
-            label={t("pageList.deleteItem", { name: page.name })}
-            title={t("common.delete")}
-            onClick={() => onRemove(page.id)}
-            disabled={disabled}
-          >
-            <CloseIcon size={15} />
-          </IconButton>
-        </div>
-      </div>
-    );
-  }
+function arePageRowValuesEqual(previous: MangaPage, next: MangaPage): boolean {
   return (
-    <div className="page-side">
-      <span className="page-status-badge">
-        {resolveStatusLabel(page, statusMode, t)}
-      </span>
-    </div>
+    previous.id === next.id &&
+    previous.name === next.name &&
+    previous.analysisStatus === next.analysisStatus &&
+    previous.blocks === next.blocks &&
+    previous.translationCompletion === next.translationCompletion &&
+    previous.imagePath === next.imagePath &&
+    previous.inpaintedImagePath === next.inpaintedImagePath
   );
-}
-
-function PageDragPreview({
-  page,
-  selected,
-  statusMode,
-}: {
-  page: MangaPage;
-  selected: boolean;
-  statusMode: PageStatusMode;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <div
-      className={`page-item sortable-item drag-preview ${selected ? "active" : ""}`}
-    >
-      <span className="drag-handle compact preview-handle">
-        <span className="drag-grip" aria-hidden="true" />
-      </span>
-      <div className="page-select preview-select" title={page.name}>
-        <span>{page.name}</span>
-      </div>
-      <span className="page-status-badge">
-        {resolveStatusLabel(page, statusMode, t)}
-      </span>
-    </div>
-  );
-}
-
-function resolveStatusLabel(
-  page: MangaPage,
-  statusMode: PageStatusMode,
-  t: TFunction<"components">,
-): string {
-  if (statusMode === "inpainting") {
-    return t(page.inpaintedImagePath ? "status.erased" : "status.waiting");
-  }
-
-  switch (page.analysisStatus) {
-    case "completed":
-      return t("status.completed");
-    case "running":
-      return t("status.inProgressShort");
-    case "failed":
-      return t("status.failed");
-    default:
-      return t("status.waiting");
-  }
 }

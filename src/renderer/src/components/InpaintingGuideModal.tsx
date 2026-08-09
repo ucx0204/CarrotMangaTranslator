@@ -4,6 +4,7 @@ import inpaintingGuideImage from "../assets/images/inpainting-guide.png";
 import styles from "./InpaintingGuideModal.module.css";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
+import { ModalActionBar } from "./ui/ModalActionBar";
 
 export function InpaintingGuideModal({
   onClose,
@@ -20,19 +21,23 @@ export function InpaintingGuideModal({
       width="min(1360px, calc(100vw - 24px))"
       bodyClassName={styles.body}
       footer={
-        <>
-          <label className="guide-hide-check" style={{ marginRight: "auto" }}>
-            <input
-              type="checkbox"
-              checked={hideNextTime}
-              onChange={(event) => setHideNextTime(event.target.checked)}
-            />
-            <span>{t("inpainting.guide.hideNextTime")}</span>
-          </label>
-          <Button variant="primary" onClick={() => onClose(hideNextTime)}>
-            {t("common.confirm")}
-          </Button>
-        </>
+        <ModalActionBar
+          leading={
+            <label className="guide-hide-check">
+              <input
+                type="checkbox"
+                checked={hideNextTime}
+                onChange={(event) => setHideNextTime(event.target.checked)}
+              />
+              <span>{t("inpainting.guide.hideNextTime")}</span>
+            </label>
+          }
+          actions={
+            <Button variant="primary" onClick={() => onClose(hideNextTime)}>
+              {t("common.confirm")}
+            </Button>
+          }
+        />
       }
     >
       <div className={styles.content}>

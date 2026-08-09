@@ -5,6 +5,7 @@ import type { WorkShareImportPreview } from "../../../shared/shareTypes";
 import type { ShareImportModalSubmit } from "../lib/shareImportTypes";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
+import { ModalActionBar } from "./ui/ModalActionBar";
 import { ShareImportExistingMergeSection } from "./shareImport/ShareImportExistingMergeSection";
 import { ShareImportNewWorkSection } from "./shareImport/ShareImportNewWorkSection";
 import { ShareImportTargetSection } from "./shareImport/ShareImportTargetSection";
@@ -39,18 +40,22 @@ export function ShareImportModal({
         state.targetMode === "existing" ? "share-import-modal-body" : undefined
       }
       footer={
-        <>
-          <Button variant="ghost" onClick={onCancel} disabled={busy}>
-            {t("common.cancel")}
-          </Button>
-          <Button
-            variant="primary"
-            disabled={busy || !state.canSubmit}
-            onClick={() => onSubmit(state.buildSubmitPayload())}
-          >
-            {t("shareImport.applyImport")}
-          </Button>
-        </>
+        <ModalActionBar
+          actions={
+            <>
+              <Button variant="ghost" onClick={onCancel} disabled={busy}>
+                {t("common.cancel")}
+              </Button>
+              <Button
+                variant="primary"
+                disabled={busy || !state.canSubmit}
+                onClick={() => onSubmit(state.buildSubmitPayload())}
+              >
+                {t("shareImport.applyImport")}
+              </Button>
+            </>
+          }
+        />
       }
     >
       <ShareImportTargetSection

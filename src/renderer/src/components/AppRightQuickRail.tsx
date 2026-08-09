@@ -14,6 +14,7 @@ export type AppRightQuickRailProps = Pick<
   | "jobState"
   | "onCancelJob"
   | "onOpenExport"
+  | "onOpenLogFolder"
   | "onOpenStyleGuide"
   | "onOpenTextView"
   | "onClearStatusLines"
@@ -21,6 +22,7 @@ export type AppRightQuickRailProps = Pick<
   | "onRedo"
   | "onResetPage"
   | "onReviewResults"
+  | "onRetryPage"
   | "onToggleBlocks"
   | "onToggleChrome"
   | "onUndo"
@@ -77,10 +79,21 @@ export function AppRightQuickRail(
         progressSnapshot={props.progressSnapshot}
         showProgressBar={props.showProgressBar}
         statusLines={props.statusLines}
+        failedPages={
+          props.currentChapter?.pages
+            .filter((page) => page.analysisStatus === "failed")
+            .map((page) => ({
+              id: page.id,
+              name: page.name,
+              error: page.lastError,
+            })) ?? []
+        }
         onCancelJob={props.onCancelJob}
         onClear={props.onClearStatusLines}
         onOpenExport={props.onOpenExport}
+        onOpenLogFolder={props.onOpenLogFolder}
         onReviewResults={props.onReviewResults}
+        onRetryPage={props.onRetryPage}
       />
     </aside>
   );

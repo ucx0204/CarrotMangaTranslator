@@ -7,6 +7,7 @@ import {
 import { MAX_BLOCK_STYLE_PRESET_NAME_LENGTH } from "../../../shared/blockStylePresets";
 import type { CreateBlockStylePresetInput } from "../../../shared/blockStylePresets";
 import { Modal } from "./ui/Modal";
+import { ModalActionBar } from "./ui/ModalActionBar";
 
 export type StylePresetDraft = CreateBlockStylePresetInput;
 
@@ -96,24 +97,28 @@ function StylePresetEditorFooter({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <>
-      <button
-        type="button"
-        className="style-preset-action ghost"
-        disabled={saving}
-        onClick={onClose}
-      >
-        {t("common.cancel")}
-      </button>
-      <button
-        type="button"
-        className="style-preset-action primary"
-        disabled={!valid || saving}
-        onClick={onSave}
-      >
-        {t("common.save")}
-      </button>
-    </>
+    <ModalActionBar
+      actions={
+        <>
+          <button
+            type="button"
+            className="style-preset-action ghost"
+            disabled={saving}
+            onClick={onClose}
+          >
+            {t("common.cancel")}
+          </button>
+          <button
+            type="button"
+            className="style-preset-action primary"
+            disabled={!valid || saving}
+            onClick={onSave}
+          >
+            {t("common.save")}
+          </button>
+        </>
+      }
+    />
   );
 }
 

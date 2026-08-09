@@ -104,7 +104,11 @@ describe("status dock", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "작업 센터 열기" }));
+    const dockButton = screen.getByRole("button", { name: "작업 센터 열기" });
+    expect(dockButton.classList.contains("running")).toBe(true);
+    expect(dockButton.querySelector(".status-dock-indicator")).not.toBeNull();
+    expect(dockButton.querySelector(".status-dock-bell")).not.toBeNull();
+    fireEvent.click(dockButton);
     expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe(
       "2",
     );
@@ -149,6 +153,97 @@ describe("status dock", () => {
     fireEvent.click(screen.getByRole("button", { name: "작업 센터 열기" }));
     fireEvent.click(screen.getByRole("button", { name: "내보내기" }));
     expect(onOpenExport).toHaveBeenCalledOnce();
+  });
+
+  it("shows at most five status rows before forcing a scroll container", () => {
+    const statusLines = Array.from(
+      { length: 8 },
+      (_, index) => `상태 기록 ${index + 1}`,
+    );
+    render(
+      <StatusDockButton
+        jobState={makeJobState()}
+        progressSnapshot={null}
+        showProgressBar={false}
+        statusLines={statusLines}
+        onCancelJob={vi.fn()}
+        onClear={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "작업 센터 열기" }));
+    const log = screen.getByRole("log");
+    expect(log.classList.contains("scrollable")).toBe(true);
+    expect(log.dataset.visibleLimit).toBe("5");
+    expect(log.childElementCount).toBe(8);
+    expect(screen.queryByText("스크롤해서 더 보기")).toBeNull();
+  });
+
+  it("offers page-level retry and the log folder for failed work", () => {
+    const onRetryPage = vi.fn();
+    const onOpenLogFolder = vi.fn();
+    render(
+      <StatusDockButton
+        jobState={makeJobState({
+          status: "failed",
+          progressText: "일부 페이지 실패",
+        })}
+        progressSnapshot={null}
+        showProgressBar={false}
+        statusLines={["003.jpg 실패"]}
+        failedPages={[
+          { id: "page-3", name: "003.jpg", error: "OCR 시간 초과" },
+        ]}
+        onRetryPage={onRetryPage}
+        onOpenLogFolder={onOpenLogFolder}
+        onCancelJob={vi.fn()}
+        onClear={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "작업 센터 열기" }));
+    fireEvent.click(screen.getByRole("button", { name: "로그 폴더 열기" }));
+    expect(onOpenLogFolder).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole("button", { name: "다시 시도" }));
+    expect(onRetryPage).toHaveBeenCalledWith("page-3");
+    expect(screen.queryByRole("region", { name: "작업 센터" })).toBeNull();
+  });
+
+  it("keeps the previous terminal job in recent history", async () => {
+    const commonProps = {
+      progressSnapshot: null,
+      showProgressBar: false,
+      statusLines: ["새 작업 시작"],
+      onCancelJob: vi.fn(),
+      onClear: vi.fn(),
+    };
+    const view = render(
+      <StatusDockButton
+        {...commonProps}
+        jobState={makeJobState({
+          id: "job-completed",
+          status: "completed",
+          progressText: "이전 작업 완료",
+          pageTotal: 9,
+        })}
+      />,
+    );
+    view.rerender(
+      <StatusDockButton
+        {...commonProps}
+        jobState={makeJobState({
+          id: "job-running",
+          status: "running",
+          progressText: "새 작업 진행 중",
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "작업 센터 열기" }));
+    await waitFor(() =>
+      expect(screen.getByText("이전 작업 완료")).not.toBeNull(),
+    );
+    expect(screen.getByText("9페이지 처리 완료")).not.toBeNull();
   });
 });
 

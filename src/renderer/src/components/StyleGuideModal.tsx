@@ -4,6 +4,7 @@ import type { AppSettings } from "../../../shared/settingsTypes";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
+import { ModalActionBar } from "./ui/ModalActionBar";
 import { ConfirmModal } from "./ConfirmModal";
 import { useConfirmDialog } from "../hooks/useConfirmDialog";
 import {
@@ -104,29 +105,34 @@ function StyleGuideFooter({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <div className="style-guide-footer">
-      <StyleGuideBudgetSummary budget={model.budget} locale={model.locale} />
-      <div className="style-guide-footer-actions">
-        <Button
-          variant="danger"
-          onClick={() => void onReset()}
-          disabled={!model.guide || model.working || jobActive}
-          aria-busy={model.resetting}
-        >
-          {t(
-            model.resetting
-              ? "styleGuide.reset.running"
-              : "styleGuide.reset.button",
-          )}
-        </Button>
-        <Button
-          variant="primary"
-          onClick={() => void model.saveGuide()}
-          disabled={!model.guide || model.working}
-        >
-          {t("common.save")}
-        </Button>
-      </div>
-    </div>
+    <ModalActionBar
+      className="style-guide-footer"
+      leading={
+        <StyleGuideBudgetSummary budget={model.budget} locale={model.locale} />
+      }
+      actions={
+        <>
+          <Button
+            variant="danger"
+            onClick={() => void onReset()}
+            disabled={!model.guide || model.working || jobActive}
+            aria-busy={model.resetting}
+          >
+            {t(
+              model.resetting
+                ? "styleGuide.reset.running"
+                : "styleGuide.reset.button",
+            )}
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => void model.saveGuide()}
+            disabled={!model.guide || model.working}
+          >
+            {t("common.save")}
+          </Button>
+        </>
+      }
+    />
   );
 }

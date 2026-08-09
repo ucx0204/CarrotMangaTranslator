@@ -98,6 +98,15 @@
   color: #f4f6f8;
 }
 
+.status-dock-bell {
+  display: grid;
+  place-items: center;
+  transition:
+    top 140ms ease,
+    right 140ms ease,
+    transform 140ms ease;
+}
+
 .status-dock-indicator {
   position: absolute;
   top: 7px;
@@ -121,10 +130,34 @@
 }
 
 .status-dock-button.running .status-dock-indicator {
-  border: 2px solid rgba(126, 170, 255, 0.35);
+  top: 8px;
+  right: auto;
+  left: 8px;
+  width: 26px;
+  height: 26px;
+  border: 3px solid rgba(126, 170, 255, 0.28);
   border-top-color: #7eaaff;
   background: transparent;
   animation: status-dock-spin 0.8s linear infinite;
+}
+
+.status-dock-button.running .status-dock-bell {
+  position: absolute;
+  z-index: 1;
+  top: 4px;
+  right: 3px;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 50%;
+  background: #14161b;
+  color: #c8d1dd;
+}
+
+.status-dock-button.running .status-dock-bell svg {
+  width: 10px;
+  height: 10px;
+  stroke-width: 2.3;
 }
 
 .status-dock-button.partial .status-dock-indicator {
@@ -141,17 +174,18 @@
   right: calc(100% + 8px);
   bottom: 0;
   display: grid;
-  grid-template-rows: repeat(4, auto) minmax(0, 1fr);
+  grid-auto-rows: max-content;
   gap: var(--sp-3);
-  width: 344px;
+  width: 380px;
   max-width: calc(100vw - 72px);
-  max-height: 50vh;
+  max-height: min(720px, calc(100vh - 32px));
   padding: var(--sp-4);
   border: 1px solid var(--border-strong);
   border-radius: var(--r-lg);
   background: rgba(20, 22, 27, 0.98);
   box-shadow: var(--shadow-overlay);
   backdrop-filter: blur(12px);
+  overflow-y: auto;
 }
 
 .status-popover > header {
@@ -171,6 +205,13 @@
   font-size: var(--font-md);
 }
 
+.status-popover h3 {
+  margin: 0;
+  color: var(--text-head);
+  font-size: var(--font-xs);
+  font-weight: 700;
+}
+
 .status-popover header span {
   color: var(--text-muted);
   font-size: var(--font-xs);
@@ -183,12 +224,24 @@
 }
 
 .status-popover-log {
+  --status-log-row-height: 40px;
   min-height: 0;
-  overflow-y: auto;
+  overflow-y: visible;
   padding-right: var(--sp-1);
 }
 
+.status-popover-log.scrollable {
+  max-height: calc(var(--status-log-row-height) * 5);
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+
 .status-popover-log p {
+  display: flex;
+  min-height: var(--status-log-row-height);
+  align-items: center;
+  box-sizing: border-box;
   margin: 0;
   padding: 8px 0;
   border-bottom: 1px solid var(--border-soft);
@@ -196,6 +249,110 @@
   font-size: var(--font-sm);
   line-height: 1.45;
   overflow-wrap: anywhere;
+}
+
+.status-log-section,
+.status-failed-pages,
+.status-job-history {
+  display: grid;
+  min-width: 0;
+  gap: var(--sp-2);
+  padding-top: var(--sp-1);
+  border-top: 1px solid var(--border-soft);
+}
+
+.status-log-section-heading,
+.status-failed-pages > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.status-failed-pages > header > span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.status-failed-pages ul,
+.status-job-history ul {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.status-failed-pages ul {
+  max-height: 184px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.status-failed-pages li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--danger-bd) 54%, var(--border-soft));
+  border-radius: var(--r-md);
+  background: var(--danger-soft);
+}
+
+.status-failed-pages li > div,
+.status-job-history li > span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.status-failed-pages strong,
+.status-job-history strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--font-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-failed-pages small,
+.status-job-history small {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-job-history li {
+  display: grid;
+  grid-template-columns: 9px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 7px 8px;
+  border-radius: var(--r-sm);
+  background: var(--bg-sunken);
+}
+
+.status-history-mark {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.status-history-mark.completed {
+  background: var(--success);
+}
+
+.status-history-mark.partial {
+  background: var(--warn);
+}
+
+.status-history-mark.failed,
+.status-history-mark.cancelled {
+  background: var(--danger-bd);
 }
 
 @keyframes status-dock-spin {
@@ -207,7 +364,8 @@
 @media (prefers-reduced-motion: reduce) {
   .status-dock-button.running .status-dock-indicator {
     animation: none;
-    background: #7eaaff;
+    border-color: rgba(126, 170, 255, 0.42);
+    border-top-color: #7eaaff;
   }
 }
 

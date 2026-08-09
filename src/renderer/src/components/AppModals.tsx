@@ -71,6 +71,7 @@ export function AppModals(props: AppModalsProps): React.JSX.Element {
 }
 
 function ImportFlowModals({
+  currentWorkId,
   importBusy,
   importPreview,
   library,
@@ -84,6 +85,7 @@ function ImportFlowModals({
   | "importBusy"
   | "importPreview"
   | "library"
+  | "currentWorkId"
   | "onCancelImport"
   | "onCancelTranslationSource"
   | "onSelectTranslationSource"
@@ -102,6 +104,7 @@ function ImportFlowModals({
       {importPreview ? (
         <ImportModal
           library={library}
+          currentWorkId={currentWorkId}
           preview={importPreview}
           busy={importBusy}
           onCancel={onCancelImport}

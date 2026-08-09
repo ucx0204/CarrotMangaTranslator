@@ -485,9 +485,15 @@
   },
   "translateSource": {
     "title": "새 원본 추가",
+    "prompt": "어떤 원본을 추가할까요?",
+    "supportedFormats": "PNG, JPG, JPEG, WEBP · ZIP/CBZ",
     "openImages": "이미지 열기",
+    "imagesHint": "여러 이미지를 한 번에 선택합니다.",
     "openFolder": "폴더 열기",
-    "openArchive": "압축파일 열기"
+    "folderHint": "폴더 안 이미지를 이름 순서대로 불러옵니다.",
+    "openArchive": "압축파일 열기",
+    "archiveHint": "ZIP·CBZ 한 개를 하나의 화로 불러옵니다.",
+    "orderHint": "페이지는 파일명의 숫자를 인식해 자연스러운 순서로 정렬합니다. ZIP 안 폴더 구조도 자동으로 읽습니다."
   },
   "import": {
     "batchTitle": "여러 화 추가 준비",
@@ -495,6 +501,8 @@
     "createAndTranslate": "추가 후 번역",
     "createNewWork": "새 작품 만들기",
     "addToExistingWork": "기존 작품에 추가",
+    "addToCurrentWork": "현재 작품에 새 화 추가",
+    "currentWorkDefault": "열어 둔 작품을 기본 대상으로 선택했습니다. 새 원본은 이 작품의 새 화로 추가됩니다.",
     "selectWork": "작품 선택",
     "chaptersToCreate": "생성할 화",
     "chapterTitle": "화 제목"
@@ -563,6 +571,22 @@
   },
   "pageList": {
     "empty": "불러온 페이지가 없습니다.",
+    "noFilterResults": "이 필터에 해당하는 페이지가 없습니다.",
+    "selectedHidden": "현재 선택한 페이지가 필터에 가려져 있습니다.",
+    "filterLabel": "페이지 상태 필터",
+    "visibleCount": "{{visible}} / {{total}}",
+    "blockCount": "블록 {{count}}개",
+    "thumbnailLoadFailed": "미리보기 실패",
+    "more": "페이지 작업 더 보기",
+    "moreActions": "{{name}} 작업 더 보기",
+    "actionsLabel": "{{name}} 페이지 작업",
+    "filters": {
+      "all": "전체",
+      "running": "진행",
+      "failed": "실패",
+      "pending": "대기",
+      "completed": "완료"
+    },
     "moveItem": "{{name}} 순서 이동",
     "retranslate": "재번역",
     "retranslateItem": "{{name}} 재번역",
@@ -572,6 +596,7 @@
     "title": "상태",
     "empty": "아직 표시할 상태가 없습니다.",
     "completed": "완료",
+    "translationCompleted": "번역 완료",
     "failed": "실패",
     "partiallyCompleted": "부분 완료",
     "waiting": "대기",
@@ -750,6 +775,8 @@
     "saveSuccess": "텍스트 파일을 저장했습니다.",
     "saveFailed": "텍스트 파일 저장에 실패했습니다.",
     "searchPlaceholder": "검색 후 Enter",
+    "searchLabel": "텍스트 검색",
+    "exchangeMenu": "가져오기 · 내보내기",
     "excludePageHeaders": "페이지 머리말 제외",
     "saveTxt": ".txt 저장",
     "empty": "표시할 텍스트가 없습니다.",
@@ -800,6 +827,7 @@
       "updated": "{{count}}개 블록을 업데이트했습니다.",
       "warnings": "검수표 경고 {{count}}개가 있습니다.",
       "importFailed": "검수표 가져오기에 실패했습니다.",
+      "import": "검수표 가져오기",
       "exportCsv": "CSV 검수표 내보내기",
       "exportTsv": "TSV 검수표 내보내기"
     }
@@ -1540,6 +1568,11 @@
     "cancelling": "취소 요청 중…",
     "completedTitle": "작업이 완료됐습니다",
     "completedPages": "{{count}}페이지 처리 완료",
+    "openLogs": "로그 폴더 열기",
+    "failedPages": "실패한 페이지",
+    "retryPage": "다시 시도",
+    "recentJobs": "최근 작업",
+    "statusHistory": "상태 기록",
     "reviewResults": "결과 검토",
     "exportResults": "내보내기"
   },

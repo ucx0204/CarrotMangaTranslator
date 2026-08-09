@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { BlockBackgroundApplyScope } from "../hooks/useApplyBlockBackgroundOpacityAction";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
+import { ModalActionBar } from "./ui/ModalActionBar";
 import { SelectionSurface } from "./ui/SelectionCard";
 
 type BlockBackgroundApplyModalProps = {
@@ -30,14 +31,18 @@ export function BlockBackgroundApplyModal({
       onClose={onClose}
       size="sm"
       footer={
-        <>
-          <Button variant="ghost" onClick={onClose}>
-            {t("common.cancel")}
-          </Button>
-          <Button variant="primary" onClick={apply}>
-            {t("common.apply")}
-          </Button>
-        </>
+        <ModalActionBar
+          actions={
+            <>
+              <Button variant="ghost" onClick={onClose}>
+                {t("common.cancel")}
+              </Button>
+              <Button variant="primary" onClick={apply}>
+                {t("common.apply")}
+              </Button>
+            </>
+          }
+        />
       }
     >
       <p className="muted-line modal-note">
