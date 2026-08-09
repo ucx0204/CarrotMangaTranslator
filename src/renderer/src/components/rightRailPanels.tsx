@@ -11,6 +11,7 @@ import { ChapterTaskHub } from "./RunStatusPanels";
 import { PageBlockListPanel } from "./PageBlockListPanel";
 import type { RightRailMode } from "../app/session/useAppSessionUiState";
 import type { BlockReadingDirection } from "../../../shared/blockReadingOrder";
+import type { ChapterSaveStatus } from "../hooks/chapterPersistenceTypes";
 
 export type UnifiedRightRailProps = {
   brushColor: string;
@@ -32,6 +33,7 @@ export type UnifiedRightRailProps = {
   selectedBlockId: string | null;
   selectedPage: MangaPage | null;
   rightRailMode: RightRailMode;
+  saveStatus: ChapterSaveStatus;
   blockReadingDirection: BlockReadingDirection;
   canRunBubbleLayout: boolean;
   showBlockChrome: boolean;
@@ -46,6 +48,7 @@ export type UnifiedRightRailProps = {
   onClearStatusLines: () => void;
   onClearPatternMask: () => void;
   onOpenExport: () => void;
+  onReviewResults: () => void;
   onOpenStyleGuide: () => void;
   onOpenTextView: () => void;
   onOpenTranslateOptions: () => void;
@@ -56,6 +59,7 @@ export type UnifiedRightRailProps = {
   onRunDrawnPattern: () => void;
   onRunBubbleLayout: () => void;
   onRunCurrentPageInpainting: () => void;
+  onRetrySave: () => void;
   onToggleBlocks: () => void;
   onToggleChrome: () => void;
   onUndo: () => void;
@@ -76,11 +80,13 @@ export function UnifiedRightRail(
           hasSelectedPage={Boolean(props.selectedPage)}
           flowActive={props.flowActive}
           jobActive={props.jobActive}
+          saveStatus={props.saveStatus}
           onOpenExport={props.onOpenExport}
           onOpenTranslateOptions={props.onOpenTranslateOptions}
           onOpenAutoInpaintingOptions={props.onOpenAutoInpaintingOptions}
           onRunCurrentPageInpainting={props.onRunCurrentPageInpainting}
           onRunBubbleLayout={props.onRunBubbleLayout}
+          onRetrySave={props.onRetrySave}
         />
       ) : null}
       <ContextualRightRailPanel {...props} />

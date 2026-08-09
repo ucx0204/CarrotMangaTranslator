@@ -74,6 +74,7 @@ export function PageBlockListRow({
           value={block.translatedText}
           placeholder={t("pageBlocks.translationPlaceholder")}
           onClick={(event) => event.stopPropagation()}
+          onFocus={() => onSelect(block.id)}
           onChange={(event) =>
             onUpdate(block.id, { translatedText: event.target.value })
           }

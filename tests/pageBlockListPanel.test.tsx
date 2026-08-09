@@ -43,7 +43,8 @@ describe("page block list", () => {
     expect(screen.getByText("지우기 제외")).not.toBeNull();
 
     fireEvent.focus(translations[1] as HTMLTextAreaElement);
-    expect(onSelectBlock).not.toHaveBeenCalled();
+    expect(onSelectBlock).toHaveBeenCalledWith("left");
+    onSelectBlock.mockClear();
     fireEvent.change(translations[1] as HTMLTextAreaElement, {
       target: { value: "직접 수정" },
     });

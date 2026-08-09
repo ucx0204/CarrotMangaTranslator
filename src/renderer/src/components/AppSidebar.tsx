@@ -170,7 +170,7 @@ function SidebarToolbar({
         {t("sidebar.share")}
       </Button>
       <Button fullWidth onClick={onOpenShareImport} disabled={jobActive}>
-        {t("common.import")}
+        {t("sidebar.importWork")}
       </Button>
     </section>
   );

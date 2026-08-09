@@ -1,5 +1,6 @@
 import type { useBlockEditingActions } from "../../hooks/useBlockEditingActions";
 import type { useConfirmDialog } from "../../hooks/useConfirmDialog";
+import type { useChapterPersistence } from "../../hooks/useChapterPersistence";
 import type { UpdateCurrentChapter } from "../../hooks/useCurrentChapterUpdater";
 import type { useImportShareActions } from "../../hooks/useImportShareActions";
 import type { useImportShareModalController } from "../../hooks/useImportShareModalController";
@@ -35,6 +36,7 @@ export type AppSessionViewModel = {
   inpaintingBridge: ReturnType<typeof useInpaintingContextBridge>;
   libraryActions: ReturnType<typeof useLibraryActions>;
   panelBridge: ReturnType<typeof usePanelBridgeHost>;
+  persistence: ReturnType<typeof useChapterPersistence>;
   pageNavigationHandlers: ReturnType<typeof usePageNavigationHandlers>;
   pointerHandlers: ReturnType<typeof useWorkspacePointerHandlers>;
   retranslatePage: ReturnType<typeof usePageRetranslationAction>;

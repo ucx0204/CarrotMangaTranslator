@@ -130,21 +130,21 @@
       "keywords": "text copy gather moaboki 복사 모아보기"
     },
     "importSource": {
-      "label": "번역 소스 가져오기",
+      "label": "새 원본 추가",
       "hint": "이미지·폴더·ZIP",
-      "keywords": "import source 번역 소스 가져오기"
+      "keywords": "import source 새 원본 추가 번역 소스"
     },
     "batchTranslate": {
-      "label": "작품 일괄 번역",
-      "keywords": "batch import 작품 일괄 번역"
+      "label": "여러 화 추가",
+      "keywords": "batch import 여러 화 추가 일괄"
     },
     "importShare": {
-      "label": "공유본 가져오기",
-      "keywords": "share import 공유본 가져오기"
+      "label": "작업 가져오기",
+      "keywords": "share import 작업 가져오기 공유본"
     },
     "exportShare": {
-      "label": "공유로 내보내기",
-      "keywords": "share export 공유 내보내기"
+      "label": "작업 내보내기",
+      "keywords": "share export 작업 내보내기 공유"
     },
     "openSettings": { "label": "설정 열기", "keywords": "settings 설정" },
     "openLibrary": {

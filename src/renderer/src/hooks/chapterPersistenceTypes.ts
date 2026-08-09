@@ -3,6 +3,14 @@ import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 
 export type SaveReason = "autosave" | "manual";
 
+export type ChapterSaveStatus =
+  | "idle"
+  | "dirty"
+  | "saving"
+  | "saved"
+  | "error"
+  | "conflict";
+
 export type UseChapterPersistenceOptions = {
   currentChapter: ChapterSnapshot | null;
   currentChapterRef: React.MutableRefObject<ChapterSnapshot | null>;
@@ -25,6 +33,7 @@ export type ChapterPersistenceResult = {
   markDirty: (pageId?: string) => void;
   replaceDirtyPageIds: (pageIds: string[]) => void;
   saveNow: () => Promise<void>;
+  saveStatus: ChapterSaveStatus;
   syncSavedPageVersion: (chapter: ChapterSnapshot, pageId: string) => void;
 };
 

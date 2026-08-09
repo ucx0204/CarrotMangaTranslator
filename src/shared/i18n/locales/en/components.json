@@ -33,10 +33,11 @@
   "sidebar": {
     "exitInpainting": "Exit inpainting",
     "noCurrentChapter": "No chapter open",
-    "translate": "Translate",
-    "batchTranslate": "Batch translate work",
+    "translate": "Add new source",
+    "batchTranslate": "Add multiple chapters",
     "libraryFolder": "Library folder",
-    "share": "Share"
+    "share": "Export work",
+    "importWork": "Import work"
   },
   "workspace": {
     "readingArea": "Reading area",
@@ -56,8 +57,8 @@
     "empty": {
       "title": "Start translating manga",
       "description": "Import images, folders, or ZIP files, organize them by work and chapter, then translate, inpaint, and edit each page.",
-      "startTranslation": "Start translation",
-      "importSharedCopy": "Import shared copy",
+      "startTranslation": "Add new source",
+      "importSharedCopy": "Import work",
       "openSettings": "Open settings",
       "hints": {
         "pageNavigation": "Navigate pages",
@@ -493,15 +494,15 @@
     "overwriteWarning": "Existing translations and manual edits will be replaced and cannot be restored with workspace undo."
   },
   "translateSource": {
-    "title": "Choose source to translate",
+    "title": "Add new source",
     "openImages": "Open images",
     "openFolder": "Open folder",
     "openArchive": "Open archive"
   },
   "import": {
-    "batchTitle": "Prepare batch translation",
+    "batchTitle": "Add multiple chapters",
     "addToLibrary": "Add to library",
-    "createAndTranslate": "Translate",
+    "createAndTranslate": "Add and translate",
     "createNewWork": "Create new work",
     "addToExistingWork": "Add to existing work",
     "selectWork": "Select work",
@@ -518,11 +519,11 @@
     "deleteChapterWarning": "Deleting this chapter also removes all of its pages and translation results."
   },
   "shareExport": {
-    "title": "Share",
-    "saveFile": "Save shared file",
-    "targetWork": "Work to share",
-    "chapters": "Chapters to share",
-    "noWork": "No work is available to share.",
+    "title": "Export work",
+    "saveFile": "Save work file",
+    "targetWork": "Work to export",
+    "chapters": "Chapters to export",
+    "noWork": "No work is available to export.",
     "summary": "Chapters: {{chapterCount}} · Pages: {{pageCount}}"
   },
   "shareImport": {
@@ -1555,7 +1556,19 @@
     "open": "Open activity center",
     "latest": "Latest status: {{line}}",
     "cancelJob": "Cancel current job",
-    "cancelling": "Requesting cancellation…"
+    "cancelling": "Requesting cancellation…",
+    "completedTitle": "Job completed",
+    "completedPages": "{{count}} pages processed",
+    "reviewResults": "Review results",
+    "exportResults": "Export"
+  },
+  "chapterSave": {
+    "dirty": "Changes waiting to save",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "error": "Save failed",
+    "conflict": "Save conflict · review latest changes",
+    "retry": "Try again"
   },
   "stylePresets": {
     "title": "Style presets",

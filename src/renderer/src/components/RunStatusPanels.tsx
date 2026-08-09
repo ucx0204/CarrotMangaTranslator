@@ -33,7 +33,11 @@ export const ChapterTaskHub = React.memo(function ChapterTaskHub(
     !props.currentChapter || props.jobActive || props.flowActive;
   return (
     <section className="run-panel chapter-task-hub">
-      <ChapterTaskHeader currentChapter={props.currentChapter} />
+      <ChapterTaskHeader
+        currentChapter={props.currentChapter}
+        saveStatus={props.saveStatus}
+        onRetrySave={props.onRetrySave}
+      />
       <div className="run-primary-actions">
         <Button
           variant="primary"

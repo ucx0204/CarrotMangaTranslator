@@ -111,6 +111,45 @@ describe("status dock", () => {
     fireEvent.click(screen.getByRole("button", { name: "현재 작업 취소" }));
     expect(onCancelJob).toHaveBeenCalledOnce();
   });
+
+  it("turns a completed translation into a result card with next actions", () => {
+    const onReviewResults = vi.fn();
+    const onOpenExport = vi.fn();
+    render(
+      <StatusDockButton
+        jobState={makeJobState({
+          kind: "gemma-analysis",
+          status: "completed",
+          progressText: "3페이지 번역 완료",
+          detail: "검토가 필요한 블록 1개가 있습니다.",
+          pageTotal: 3,
+        })}
+        progressSnapshot={{
+          current: 3,
+          mode: "determinate",
+          ratio: 1,
+          total: 3,
+        }}
+        showProgressBar={false}
+        statusLines={["3페이지 번역을 완료했습니다."]}
+        onCancelJob={vi.fn()}
+        onClear={vi.fn()}
+        onOpenExport={onOpenExport}
+        onReviewResults={onReviewResults}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "작업 센터 열기" }));
+    expect(screen.getByText("작업이 완료됐습니다")).not.toBeNull();
+    expect(screen.getByText("3페이지 처리 완료")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "결과 검토" }));
+    expect(onReviewResults).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("region", { name: "작업 센터" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "작업 센터 열기" }));
+    fireEvent.click(screen.getByRole("button", { name: "내보내기" }));
+    expect(onOpenExport).toHaveBeenCalledOnce();
+  });
 });
 
 function makeJobState(overrides: Partial<JobState> = {}): JobState {

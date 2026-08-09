@@ -879,6 +879,7 @@ function makeRightRailProps(
     onClearStatusLines: vi.fn(),
     onClearPatternMask: vi.fn(),
     onOpenExport: vi.fn(),
+    onReviewResults: vi.fn(),
     onOpenStyleGuide: vi.fn(),
     onOpenTextView: vi.fn(),
     onOpenTranslateOptions: vi.fn(),
@@ -888,6 +889,7 @@ function makeRightRailProps(
     onRunDrawnPattern: vi.fn(),
     onRunBubbleLayout: vi.fn(),
     onRunCurrentPageInpainting: vi.fn(),
+    onRetrySave: vi.fn(),
     onOpenAutoInpaintingOptions: vi.fn(),
     onOpenBlockEditor: vi.fn(),
     onSelectBlock: vi.fn(),
@@ -907,6 +909,7 @@ function makeRightRailProps(
     stageTool: "select",
     statusLines: [],
     rightRailMode: "block-editor",
+    saveStatus: "idle",
     ...overrides,
   };
 }

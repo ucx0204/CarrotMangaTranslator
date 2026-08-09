@@ -124,21 +124,21 @@
       "keywords": "text copy gather 文本 复制 汇总"
     },
     "importSource": {
-      "label": "导入翻译源",
+      "label": "添加新原稿",
       "hint": "图像 · 文件夹 · ZIP",
-      "keywords": "import source 导入 翻译源"
+      "keywords": "import source 添加 新原稿 翻译源"
     },
     "batchTranslate": {
-      "label": "批量翻译作品",
-      "keywords": "batch import 批量 翻译"
+      "label": "添加多个章节",
+      "keywords": "batch import 添加 多个章节 批量 翻译"
     },
     "importShare": {
-      "label": "导入共享副本",
-      "keywords": "share import 共享 导入"
+      "label": "导入项目",
+      "keywords": "work share import 项目 共享 导入"
     },
     "exportShare": {
-      "label": "导出共享文件",
-      "keywords": "share export 共享 导出"
+      "label": "导出项目",
+      "keywords": "work share export 项目 共享 导出"
     },
     "openSettings": { "label": "打开设置", "keywords": "settings 设置" },
     "openLibrary": {

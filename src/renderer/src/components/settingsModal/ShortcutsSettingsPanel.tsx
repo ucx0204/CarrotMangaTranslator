@@ -29,13 +29,14 @@ export function ShortcutsSettingsPanel({
   onChange,
 }: ShortcutsSettingsPanelProps): React.JSX.Element {
   const { t } = useTranslation("components");
+  const { t: tRenderer } = useTranslation("renderer");
   const [capturingId, setCapturingId] = React.useState<ShortcutActionId | null>(
     null,
   );
   const [note, setNote] = React.useState<string | null>(null);
   const translateActionLabel = React.useCallback(
-    (actionId: ShortcutActionId) => t(`settings.shortcuts.actions.${actionId}`),
-    [t],
+    (actionId: ShortcutActionId) => tRenderer(`shortcuts.actions.${actionId}`),
+    [tRenderer],
   );
 
   useCaptureListener({
@@ -63,7 +64,7 @@ export function ShortcutsSettingsPanel({
             label: translateActionLabel(action.id),
           }))}
           capturingId={capturingId}
-          label={t(`settings.shortcuts.categories.${category}`)}
+          label={tRenderer(`shortcuts.categories.${category}`)}
           onChange={onChange}
           overrides={overrides}
           setCapturingId={setCapturingId}

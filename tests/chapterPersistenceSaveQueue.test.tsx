@@ -61,6 +61,7 @@ describe("chapter persistence save queue", () => {
     });
 
     expect(cleanBlockReads).toBe(0);
+    expect(api.current.getPersistence().saveStatus).toBe("dirty");
 
     await act(async () => {
       await api.current.saveNow();
@@ -80,6 +81,7 @@ describe("chapter persistence save queue", () => {
       "latest local edit",
     );
     expect(api.current.getDirty()).toBe(false);
+    expect(api.current.getPersistence().saveStatus).toBe("saved");
   });
 
   it("serializes overlapping manual saves and resaves the latest chapter state", async () => {
@@ -199,6 +201,7 @@ describe("chapter persistence save queue", () => {
     });
     expect(savePagesBlocksMock).toHaveBeenCalledOnce();
     expect(api.current.getDirty()).toBe(true);
+    expect(api.current.getPersistence().saveStatus).toBe("error");
     expect(api.current.getChapter()?.pages[0].blocks[0].translatedText).toBe(
       "retry draft",
     );
@@ -219,6 +222,7 @@ describe("chapter persistence save queue", () => {
       saveReason: "manual",
     });
     expect(api.current.getDirty()).toBe(false);
+    expect(api.current.getPersistence().saveStatus).toBe("saved");
   });
 
   it("persists every dirty page in one batch request", async () => {
@@ -283,6 +287,7 @@ describe("chapter persistence save queue", () => {
 
     expect(savePagesBlocksMock).toHaveBeenCalledOnce();
     expect(api.current.getDirty()).toBe(true);
+    expect(api.current.getPersistence().saveStatus).toBe("conflict");
     expect(api.current.getChapter()?.pages[0].blocks[0].translatedText).toBe(
       "unsaved conflict draft",
     );
@@ -547,6 +552,7 @@ function ChapterPersistenceHarness({
     onReady,
     persistence.dirty,
     persistence.saveNow,
+    persistence.saveStatus,
     updateText,
     updateTwoPages,
   ]);

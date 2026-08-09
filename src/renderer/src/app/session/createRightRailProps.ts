@@ -13,6 +13,7 @@ export function createRightRailProps(
     core,
     derivedState,
     inpaintingBridge,
+    persistence,
     settingsDialog,
     statusLog,
     uiState,
@@ -54,6 +55,7 @@ export function createRightRailProps(
     selectedBlock: derivedState.selectedBlock,
     selectedBlockId: core.selectedBlockId,
     selectedPage: derivedState.selectedPage,
+    saveStatus: persistence.saveStatus,
     showBlockChrome: uiState.showBlockChrome,
     showProgressBar: derivedState.showProgressBar,
     showTextBlocks: uiState.showTextBlocks,
@@ -70,6 +72,7 @@ function createRightRailActions({
   core,
   inpaintingActions,
   inpaintingBridge,
+  persistence,
   uiState,
   workspaceHistory,
 }: AppSessionViewModel) {
@@ -91,6 +94,7 @@ function createRightRailActions({
       uiState.setRightRailMode("block-editor");
     },
     onOpenExport: () => uiState.setExportOptionsOpen(true),
+    onReviewResults: () => uiState.setRightRailMode("page-blocks"),
     onOpenStyleGuide: () => uiState.setStyleGuideOpen(true),
     onOpenTextView: () => uiState.setTextViewOpen(true),
     onOpenTranslateOptions: () => uiState.openTranslateOptions(),
@@ -105,6 +109,7 @@ function createRightRailActions({
       prepareAutoInpainting(core, uiState, "current");
     },
     onRunDrawnPattern: inpainting.onRunDrawnPattern,
+    onRetrySave: () => void persistence.saveNow(),
     onSelectBlock: selectBlock,
     onToggleBlocks: () => uiState.setShowTextBlocks((visible) => !visible),
     onToggleChrome: () => uiState.setShowBlockChrome((visible) => !visible),

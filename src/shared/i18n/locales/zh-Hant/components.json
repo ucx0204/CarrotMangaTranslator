@@ -33,10 +33,11 @@
   "sidebar": {
     "exitInpainting": "結束影像修補",
     "noCurrentChapter": "尚未開啟章節",
-    "translate": "翻譯",
-    "batchTranslate": "批次翻譯作品",
+    "translate": "新增原稿",
+    "batchTranslate": "新增多個章節",
     "libraryFolder": "資料庫資料夾",
-    "share": "分享"
+    "share": "匯出專案",
+    "importWork": "匯入專案"
   },
   "workspace": {
     "readingArea": "閱讀區域",
@@ -56,8 +57,8 @@
     "empty": {
       "title": "開始翻譯漫畫",
       "description": "匯入圖片、資料夾或 ZIP 檔案，依作品和章節儲存，接著逐頁進行翻譯、影像修補和編輯。",
-      "startTranslation": "開始翻譯",
-      "importSharedCopy": "匯入分享副本",
+      "startTranslation": "新增原稿",
+      "importSharedCopy": "匯入專案",
       "openSettings": "開啟設定",
       "hints": {
         "pageNavigation": "切換頁面",
@@ -479,15 +480,15 @@
     "overwriteWarning": "既有譯文與手動修改將被新結果取代，且無法透過工作區復原恢復。"
   },
   "translateSource": {
-    "title": "選擇翻譯原稿",
+    "title": "新增原稿",
     "openImages": "開啟圖片",
     "openFolder": "開啟資料夾",
     "openArchive": "開啟壓縮檔案"
   },
   "import": {
-    "batchTitle": "準備批次翻譯作品",
+    "batchTitle": "新增多個章節",
     "addToLibrary": "新增到資料庫",
-    "createAndTranslate": "翻譯",
+    "createAndTranslate": "新增並翻譯",
     "createNewWork": "建立新作品",
     "addToExistingWork": "新增到現有作品",
     "selectWork": "選擇作品",
@@ -504,11 +505,11 @@
     "deleteChapterWarning": "刪除章節時，其中所有頁面和翻譯結果也會一併刪除。"
   },
   "shareExport": {
-    "title": "分享",
-    "saveFile": "儲存分享檔案",
-    "targetWork": "分享作品",
-    "chapters": "分享章節",
-    "noWork": "沒有可分享的作品。",
+    "title": "匯出專案",
+    "saveFile": "儲存專案檔案",
+    "targetWork": "要匯出的作品",
+    "chapters": "要匯出的章節",
+    "noWork": "沒有可匯出的作品。",
     "summary": "{{chapterCount}}話 · {{pageCount}}頁"
   },
   "shareImport": {
@@ -1511,7 +1512,19 @@
     "open": "開啟工作中心",
     "latest": "最新狀態：{{line}}",
     "cancelJob": "取消目前工作",
-    "cancelling": "正在要求取消…"
+    "cancelling": "正在要求取消…",
+    "completedTitle": "工作已完成",
+    "completedPages": "已處理{{count}}頁",
+    "reviewResults": "檢查結果",
+    "exportResults": "匯出"
+  },
+  "chapterSave": {
+    "dirty": "變更等待儲存",
+    "saving": "正在儲存…",
+    "saved": "已儲存",
+    "error": "儲存失敗",
+    "conflict": "儲存衝突 · 請檢查最新內容",
+    "retry": "重新儲存"
   },
   "stylePresets": {
     "title": "格式預設",

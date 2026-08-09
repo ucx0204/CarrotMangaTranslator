@@ -13,6 +13,8 @@ export function StatusDockButton({
   statusLines,
   onCancelJob,
   onClear,
+  onOpenExport,
+  onReviewResults,
 }: {
   jobState: JobState;
   progressSnapshot: ProgressSnapshot | null;
@@ -20,32 +22,26 @@ export function StatusDockButton({
   statusLines: string[];
   onCancelJob: () => void;
   onClear: () => void;
+  onOpenExport?: () => void;
+  onReviewResults?: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   const popoverId = React.useId();
-  const rootRef = React.useRef<HTMLDivElement | null>(null);
-  const triggerRef = React.useRef<HTMLButtonElement | null>(null);
-  const previousLatestRef = React.useRef<string | undefined>(undefined);
-  const [open, setOpen] = React.useState(false);
-  const [unread, setUnread] = React.useState(false);
   const latest = statusLines[0];
-  const closePopover = React.useCallback((restoreFocus = false) => {
-    setOpen(false);
-    if (restoreFocus) {
-      window.requestAnimationFrame(() => triggerRef.current?.focus());
-    }
-  }, []);
-
-  React.useEffect(() => {
-    if (latest && latest !== previousLatestRef.current && !open) {
-      setUnread(true);
-    }
-    previousLatestRef.current = latest;
-  }, [latest, open]);
-  React.useEffect(() => {
-    if (open) setUnread(false);
-  }, [open]);
-  useStatusPopoverDismiss(open, rootRef, closePopover);
+  const {
+    closePopover,
+    open,
+    rootRef,
+    setOpen,
+    setUnread,
+    triggerRef,
+    unread,
+  } = useStatusDockController(latest);
+  const resultActions = createStatusResultActions({
+    onOpenExport,
+    onReviewResults,
+    setOpen,
+  });
 
   const indicator = resolveStatusIndicator(jobState, unread);
   const tooltip = latest
@@ -81,10 +77,71 @@ export function StatusDockButton({
             setUnread(false);
           }}
           onClose={() => closePopover(true)}
+          onOpenExport={resultActions.onOpenExport}
+          onReviewResults={resultActions.onReviewResults}
         />
       ) : null}
     </div>
   );
+}
+
+function createStatusResultActions({
+  onOpenExport,
+  onReviewResults,
+  setOpen,
+}: {
+  onOpenExport?: () => void;
+  onReviewResults?: () => void;
+  setOpen: React.Dispatch<React.SetStateAction<boolean>>;
+}): {
+  onOpenExport?: () => void;
+  onReviewResults?: () => void;
+} {
+  const closeAfter = (action?: () => void): (() => void) | undefined =>
+    action
+      ? () => {
+          action();
+          setOpen(false);
+        }
+      : undefined;
+  return {
+    onOpenExport: closeAfter(onOpenExport),
+    onReviewResults: closeAfter(onReviewResults),
+  };
+}
+
+function useStatusDockController(latest: string | undefined) {
+  const rootRef = React.useRef<HTMLDivElement | null>(null);
+  const triggerRef = React.useRef<HTMLButtonElement | null>(null);
+  const previousLatestRef = React.useRef<string | undefined>(undefined);
+  const [open, setOpen] = React.useState(false);
+  const [unread, setUnread] = React.useState(false);
+  const closePopover = React.useCallback((restoreFocus = false) => {
+    setOpen(false);
+    if (restoreFocus) {
+      window.requestAnimationFrame(() => triggerRef.current?.focus());
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (latest && latest !== previousLatestRef.current && !open) {
+      setUnread(true);
+    }
+    previousLatestRef.current = latest;
+  }, [latest, open]);
+  React.useEffect(() => {
+    if (open) setUnread(false);
+  }, [open]);
+  useStatusPopoverDismiss(open, rootRef, closePopover);
+  return {
+    closePopover,
+    open,
+    rootRef,
+    setOpen,
+    setUnread,
+    triggerRef,
+    unread,
+  };
 }
 
 function resolveStatusIndicator(jobState: JobState, unread: boolean): string {

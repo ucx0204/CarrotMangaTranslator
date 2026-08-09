@@ -13,12 +13,14 @@ export type AppRightQuickRailProps = Pick<
   | "jobActive"
   | "jobState"
   | "onCancelJob"
+  | "onOpenExport"
   | "onOpenStyleGuide"
   | "onOpenTextView"
   | "onClearStatusLines"
   | "onPeekToggle"
   | "onRedo"
   | "onResetPage"
+  | "onReviewResults"
   | "onToggleBlocks"
   | "onToggleChrome"
   | "onUndo"
@@ -77,6 +79,8 @@ export function AppRightQuickRail(
         statusLines={props.statusLines}
         onCancelJob={props.onCancelJob}
         onClear={props.onClearStatusLines}
+        onOpenExport={props.onOpenExport}
+        onReviewResults={props.onReviewResults}
       />
     </aside>
   );

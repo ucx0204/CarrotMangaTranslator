@@ -33,10 +33,11 @@
   "sidebar": {
     "exitInpainting": "退出图像修复",
     "noCurrentChapter": "未打开章节",
-    "translate": "翻译",
-    "batchTranslate": "批量翻译作品",
+    "translate": "添加新原稿",
+    "batchTranslate": "添加多个章节",
     "libraryFolder": "资料库文件夹",
-    "share": "分享"
+    "share": "导出项目",
+    "importWork": "导入项目"
   },
   "workspace": {
     "readingArea": "阅读区域",
@@ -56,8 +57,8 @@
     "empty": {
       "title": "开始翻译漫画",
       "description": "导入图片、文件夹或ZIP文件，按作品和章节保存，然后逐页进行翻译、图像修复和编辑。",
-      "startTranslation": "开始翻译",
-      "importSharedCopy": "导入共享副本",
+      "startTranslation": "添加新原稿",
+      "importSharedCopy": "导入项目",
       "openSettings": "打开设置",
       "hints": {
         "pageNavigation": "切换页面",
@@ -479,15 +480,15 @@
     "overwriteWarning": "现有译文和手动修改将被新结果替换，且无法通过工作区撤销恢复。"
   },
   "translateSource": {
-    "title": "选择翻译原稿",
+    "title": "添加新原稿",
     "openImages": "打开图片",
     "openFolder": "打开文件夹",
     "openArchive": "打开压缩文件"
   },
   "import": {
-    "batchTitle": "准备批量翻译作品",
+    "batchTitle": "添加多个章节",
     "addToLibrary": "添加到资料库",
-    "createAndTranslate": "翻译",
+    "createAndTranslate": "添加并翻译",
     "createNewWork": "创建新作品",
     "addToExistingWork": "添加到现有作品",
     "selectWork": "选择作品",
@@ -504,11 +505,11 @@
     "deleteChapterWarning": "删除章节时，其中所有页面和翻译结果也会一并删除。"
   },
   "shareExport": {
-    "title": "分享",
-    "saveFile": "保存共享文件",
-    "targetWork": "要分享的作品",
-    "chapters": "要分享的章节",
-    "noWork": "没有可分享的作品。",
+    "title": "导出项目",
+    "saveFile": "保存项目文件",
+    "targetWork": "要导出的作品",
+    "chapters": "要导出的章节",
+    "noWork": "没有可导出的作品。",
     "summary": "{{chapterCount}}话 · {{pageCount}}页"
   },
   "shareImport": {
@@ -1508,7 +1509,19 @@
     "open": "打开任务中心",
     "latest": "最新状态：{{line}}",
     "cancelJob": "取消当前任务",
-    "cancelling": "正在请求取消…"
+    "cancelling": "正在请求取消…",
+    "completedTitle": "任务已完成",
+    "completedPages": "已处理{{count}}页",
+    "reviewResults": "检查结果",
+    "exportResults": "导出"
+  },
+  "chapterSave": {
+    "dirty": "更改等待保存",
+    "saving": "正在保存…",
+    "saved": "已保存",
+    "error": "保存失败",
+    "conflict": "保存冲突 · 请检查最新内容",
+    "retry": "重新保存"
   },
   "stylePresets": {
     "title": "格式预设",

@@ -127,21 +127,21 @@
       "keywords": "text copy gather テキスト コピー"
     },
     "importSource": {
-      "label": "翻訳元を読み込む",
+      "label": "新しい原稿を追加",
       "hint": "画像・フォルダー・ZIP",
-      "keywords": "import source 翻訳元 読み込み"
+      "keywords": "import source 新しい原稿 追加 翻訳元"
     },
     "batchTranslate": {
-      "label": "作品を一括翻訳",
-      "keywords": "batch import 一括 翻訳"
+      "label": "複数話を追加",
+      "keywords": "batch import 複数話 追加 一括 翻訳"
     },
     "importShare": {
-      "label": "共有データを読み込む",
-      "keywords": "share import 共有 読み込み"
+      "label": "作業を読み込む",
+      "keywords": "work share import 作業 共有 読み込み"
     },
     "exportShare": {
-      "label": "共有用に書き出す",
-      "keywords": "share export 共有 書き出し"
+      "label": "作業を書き出す",
+      "keywords": "work share export 作業 共有 書き出し"
     },
     "openSettings": { "label": "設定を開く", "keywords": "settings 設定" },
     "openLibrary": {

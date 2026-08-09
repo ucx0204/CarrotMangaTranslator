@@ -73,6 +73,7 @@ export function useAppSessionModel(): AppSessionViewProps {
     inpaintingBridge: inpainting.inpaintingBridge,
     libraryActions: chapter.libraryActions,
     panelBridge,
+    persistence: chapter.persistence,
     pageNavigationHandlers: inpainting.pageNavigationHandlers,
     pointerHandlers: inpainting.pointerHandlers,
     retranslatePage: translation.retranslatePage,

@@ -127,21 +127,21 @@
       "keywords": "text copy gather"
     },
     "importSource": {
-      "label": "Import translation source",
+      "label": "Add new source",
       "hint": "Images · folder · ZIP",
       "keywords": "import source images folder zip"
     },
     "batchTranslate": {
-      "label": "Batch translate work",
-      "keywords": "batch import translate work"
+      "label": "Add multiple chapters",
+      "keywords": "batch import add multiple chapters translate work"
     },
     "importShare": {
-      "label": "Import shared copy",
-      "keywords": "share import"
+      "label": "Import work",
+      "keywords": "work share import"
     },
     "exportShare": {
-      "label": "Export for sharing",
-      "keywords": "share export"
+      "label": "Export work",
+      "keywords": "work share export"
     },
     "openSettings": {
       "label": "Open settings",

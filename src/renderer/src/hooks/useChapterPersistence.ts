@@ -4,12 +4,18 @@ import type { TFunction } from "i18next";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import { hashTranslationBlocks } from "../../../shared/blockFingerprint";
 import { libraryGateway as mangaGateway } from "../api/libraryGateway";
+import { notifySaveErrorDeduped } from "./chapterSaveErrorNotification";
 import { collectPageBlockUpdates } from "./chapterPersistencePayload";
 import { useDirtyTrackingActions } from "./useChapterPersistenceActions";
 import { useEventCallback } from "./useEventCallback";
 import { useChapterPersistenceRefs } from "./useChapterPersistenceRefs";
+import {
+  useChapterSaveStatusActions,
+  useChapterSaveStatusRunner,
+} from "./useChapterSaveStatus";
 import { useQueuedChapterSave } from "./useQueuedChapterSave";
 import type {
+  ChapterSaveStatus,
   ChapterPersistenceRefs,
   ChapterPersistenceResult,
   PersistChapter,
@@ -20,7 +26,6 @@ import type {
   UseChapterPersistenceOptions,
 } from "./chapterPersistenceTypes";
 
-const SAVE_ERROR_DEDUPE_MS = 5000;
 const STALE_PAGE_SAVE_ERROR_CODE = "STALE_PAGE_SAVE";
 const PAGE_SAVE_CONFLICT_ERROR_CODE = "PAGE_SAVE_CONFLICT";
 
@@ -98,6 +103,7 @@ export function useChapterPersistence({
 }: UseChapterPersistenceOptions): ChapterPersistenceResult {
   const [dirty, setDirty] = useState(false);
   const [dirtyVersion, setDirtyVersion] = useState(0);
+  const [saveStatus, setSaveStatus] = useState<ChapterSaveStatus>("idle");
   const refs = useChapterPersistenceRefs();
   const notifySaveError = useEventCallback((message: string) => {
     onSaveError?.(message);
@@ -118,7 +124,7 @@ export function useChapterPersistence({
     refs,
     setCurrentChapter,
   });
-  const runQueuedSave = useQueuedChapterSave({
+  const baseRunQueuedSave = useQueuedChapterSave({
     currentChapterRef,
     persistChapter,
     refs,
@@ -126,6 +132,17 @@ export function useChapterPersistence({
     setDirty,
     syncServerPageVersions,
   });
+  const runQueuedSave = useChapterSaveStatusRunner({
+    baseRunQueuedSave,
+    isConflictError: isPageSaveConflictError,
+    refs,
+    setSaveStatus,
+  });
+
+  const chapterId = currentChapter?.id ?? null;
+  React.useEffect(() => {
+    setSaveStatus("idle");
+  }, [chapterId]);
 
   useAutosaveEffect({
     currentChapter,
@@ -136,7 +153,7 @@ export function useChapterPersistence({
     runQueuedSave,
   });
 
-  const actions = useDirtyTrackingActions({
+  const baseActions = useDirtyTrackingActions({
     currentChapterRef,
     refs,
     runQueuedSave,
@@ -144,15 +161,17 @@ export function useChapterPersistence({
     setDirtyVersion,
     syncServerPageVersions,
   });
+  const actions = useChapterSaveStatusActions(baseActions, setSaveStatus);
 
   return useMemo(
     () => ({
       ...actions,
       dirty,
       dirtyPageIdsRef,
+      saveStatus,
       syncSavedPageVersion,
     }),
-    [actions, dirty, dirtyPageIdsRef, syncSavedPageVersion],
+    [actions, dirty, dirtyPageIdsRef, saveStatus, syncSavedPageVersion],
   );
 }
 
@@ -392,22 +411,4 @@ function useAutosaveEffect({
     runQueuedSave,
     saveTimerRef,
   ]);
-}
-
-function notifySaveErrorDeduped(
-  lastSaveErrorRef: ChapterPersistenceRefs["lastSaveErrorRef"],
-  onSaveError: UseChapterPersistenceOptions["onSaveError"],
-  message: string,
-): void {
-  const now = Date.now();
-  const last = lastSaveErrorRef.current;
-  if (
-    last &&
-    last.message === message &&
-    now - last.shownAt < SAVE_ERROR_DEDUPE_MS
-  ) {
-    return;
-  }
-  lastSaveErrorRef.current = { message, shownAt: now };
-  onSaveError?.(message);
 }

@@ -124,21 +124,21 @@
       "keywords": "text copy gather 文字 複製 彙整"
     },
     "importSource": {
-      "label": "匯入翻譯來源",
+      "label": "新增原稿",
       "hint": "圖像 · 資料夾 · ZIP",
-      "keywords": "import source 匯入 翻譯來源"
+      "keywords": "import source 新增 原稿 翻譯來源"
     },
     "batchTranslate": {
-      "label": "批次翻譯作品",
-      "keywords": "batch import 批次 翻譯"
+      "label": "新增多個章節",
+      "keywords": "batch import 新增 多個章節 批次 翻譯"
     },
     "importShare": {
-      "label": "匯入共享副本",
-      "keywords": "share import 共享 匯入"
+      "label": "匯入專案",
+      "keywords": "work share import 專案 共享 匯入"
     },
     "exportShare": {
-      "label": "匯出共享檔案",
-      "keywords": "share export 共享 匯出"
+      "label": "匯出專案",
+      "keywords": "work share export 專案 共享 匯出"
     },
     "openSettings": { "label": "開啟設定", "keywords": "settings 設定" },
     "openLibrary": {

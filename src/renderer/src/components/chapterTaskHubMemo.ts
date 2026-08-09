@@ -37,7 +37,8 @@ function isSamePageTaskState(
     previous.canRunBubbleLayout === next.canRunBubbleLayout &&
     previous.flowActive === next.flowActive &&
     previous.hasSelectedPage === next.hasSelectedPage &&
-    previous.jobActive === next.jobActive
+    previous.jobActive === next.jobActive &&
+    previous.saveStatus === next.saveStatus
   );
 }
 
@@ -50,6 +51,7 @@ function isSameRunActions(
     previous.onOpenExport === next.onOpenExport &&
     previous.onOpenTranslateOptions === next.onOpenTranslateOptions &&
     previous.onRunBubbleLayout === next.onRunBubbleLayout &&
-    previous.onRunCurrentPageInpainting === next.onRunCurrentPageInpainting
+    previous.onRunCurrentPageInpainting === next.onRunCurrentPageInpainting &&
+    previous.onRetrySave === next.onRetrySave
   );
 }

@@ -31,8 +31,8 @@ export function ShareImportModal({
   return (
     <Modal
       size="xl"
-      ariaLabel={t("common.import")}
-      title={t("common.import")}
+      ariaLabel={t("sidebar.importWork")}
+      title={t("sidebar.importWork")}
       onClose={onCancel}
       closeDisabled={busy}
       bodyClassName={

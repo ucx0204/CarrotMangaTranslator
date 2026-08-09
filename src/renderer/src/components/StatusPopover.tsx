@@ -16,6 +16,8 @@ export function StatusPopover({
   onCancelJob,
   onClear,
   onClose,
+  onOpenExport,
+  onReviewResults,
 }: {
   id: string;
   jobState: JobState;
@@ -25,6 +27,8 @@ export function StatusPopover({
   onCancelJob: () => void;
   onClear: () => void;
   onClose: () => void;
+  onOpenExport?: () => void;
+  onReviewResults?: () => void;
 }): React.JSX.Element {
   const titleId = React.useId();
   const jobActive =
@@ -51,6 +55,8 @@ export function StatusPopover({
         jobState={jobState}
         progressSnapshot={progressSnapshot}
         showProgressBar={showProgressBar}
+        onOpenExport={onOpenExport}
+        onReviewResults={onReviewResults}
       />
       {jobActive ? (
         <JobCancelButton

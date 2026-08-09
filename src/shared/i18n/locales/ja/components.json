@@ -33,10 +33,11 @@
   "sidebar": {
     "exitInpainting": "インペインティングを終了",
     "noCurrentChapter": "話が開かれていません",
-    "translate": "翻訳",
-    "batchTranslate": "作品を一括翻訳",
+    "translate": "新しい原稿を追加",
+    "batchTranslate": "複数話を追加",
     "libraryFolder": "ライブラリフォルダー",
-    "share": "共有"
+    "share": "作業を書き出す",
+    "importWork": "作業を読み込む"
   },
   "workspace": {
     "readingArea": "閲覧エリア",
@@ -56,8 +57,8 @@
     "empty": {
       "title": "マンガ翻訳を始めましょう",
       "description": "画像・フォルダー・ZIPを取り込み、作品と話ごとに保存して、ページ単位で翻訳・インペインティング・編集できます。",
-      "startTranslation": "翻訳を開始",
-      "importSharedCopy": "共有データを取り込む",
+      "startTranslation": "新しい原稿を追加",
+      "importSharedCopy": "作業を読み込む",
       "openSettings": "設定を開く",
       "hints": {
         "pageNavigation": "ページ移動",
@@ -486,15 +487,15 @@
     "overwriteWarning": "既存の翻訳結果と手動編集は新しい結果に置き換わり、ワークスペースの元に戻す操作では復元できません。"
   },
   "translateSource": {
-    "title": "翻訳する原稿を選択",
+    "title": "新しい原稿を追加",
     "openImages": "画像を開く",
     "openFolder": "フォルダーを開く",
     "openArchive": "圧縮ファイルを開く"
   },
   "import": {
-    "batchTitle": "作品の一括翻訳を準備",
+    "batchTitle": "複数話を追加",
     "addToLibrary": "ライブラリに追加",
-    "createAndTranslate": "翻訳",
+    "createAndTranslate": "追加して翻訳",
     "createNewWork": "新しい作品を作成",
     "addToExistingWork": "既存の作品に追加",
     "selectWork": "作品を選択",
@@ -511,11 +512,11 @@
     "deleteChapterWarning": "話を削除すると、含まれるページと翻訳結果も削除されます。"
   },
   "shareExport": {
-    "title": "共有",
-    "saveFile": "共有ファイルを保存",
-    "targetWork": "共有する作品",
-    "chapters": "共有する話",
-    "noWork": "共有できる作品がありません。",
+    "title": "作業を書き出す",
+    "saveFile": "作業ファイルを保存",
+    "targetWork": "書き出す作品",
+    "chapters": "書き出す話",
+    "noWork": "書き出せる作品がありません。",
     "summary": "{{chapterCount}}話・{{pageCount}}ページ"
   },
   "shareImport": {
@@ -1542,7 +1543,19 @@
     "open": "アクティビティセンターを開く",
     "latest": "最新の状態: {{line}}",
     "cancelJob": "現在の処理をキャンセル",
-    "cancelling": "キャンセルを要求中…"
+    "cancelling": "キャンセルを要求中…",
+    "completedTitle": "処理が完了しました",
+    "completedPages": "{{count}}ページを処理済み",
+    "reviewResults": "結果を確認",
+    "exportResults": "書き出す"
+  },
+  "chapterSave": {
+    "dirty": "変更を保存待ち",
+    "saving": "保存中…",
+    "saved": "保存済み",
+    "error": "保存に失敗",
+    "conflict": "保存の競合 · 最新内容を確認してください",
+    "retry": "再保存"
   },
   "stylePresets": {
     "title": "書式プリセット",

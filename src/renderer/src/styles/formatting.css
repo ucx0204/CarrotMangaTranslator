@@ -778,6 +778,153 @@
   overflow-wrap: anywhere;
 }
 
+.job-completed-card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, #65c9a9 54%, #2d333b);
+  border-radius: 8px;
+  background: color-mix(in srgb, #2b6f60 24%, #15181d);
+  color: #e2f8f0;
+}
+
+.job-completed-heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.job-completed-heading > svg {
+  flex: 0 0 auto;
+  color: #7ed6ba;
+}
+
+.job-completed-heading > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.job-completed-heading strong {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.job-completed-heading span {
+  color: #adddce;
+  font-size: 12px;
+}
+
+.job-completed-card p {
+  margin: 0;
+  color: #c4e8dd;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.job-completed-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.job-completed-actions button {
+  min-width: 0;
+}
+
+.chapter-save-status {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+  min-height: 30px;
+  padding: 5px 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+  color: var(--text-dim);
+  font-size: var(--font-xs);
+  font-weight: 650;
+}
+
+.chapter-save-status::before {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+}
+
+.chapter-save-status span {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.chapter-save-status.dirty {
+  border-color: color-mix(in srgb, #e8b34f 46%, var(--border-soft));
+  background: color-mix(in srgb, #e8b34f 10%, var(--bg-sunken));
+  color: #f0c36c;
+}
+
+.chapter-save-status.saving {
+  border-color: color-mix(in srgb, #7eaaff 46%, var(--border-soft));
+  background: color-mix(in srgb, #7eaaff 10%, var(--bg-sunken));
+  color: #9dbbff;
+}
+
+.chapter-save-status.saving::before {
+  animation: chapter-save-pulse 1s ease-in-out infinite;
+}
+
+.chapter-save-status.saved {
+  border-color: color-mix(in srgb, #65c9a9 46%, var(--border-soft));
+  background: color-mix(in srgb, #65c9a9 10%, var(--bg-sunken));
+  color: #7ed6ba;
+}
+
+.chapter-save-status.error,
+.chapter-save-status.conflict {
+  border-color: color-mix(in srgb, #ef6f6c 50%, var(--border-soft));
+  background: color-mix(in srgb, #ef6f6c 11%, var(--bg-sunken));
+  color: #f3918f;
+}
+
+.chapter-save-status button {
+  flex: 0 0 auto;
+  min-height: 24px;
+  padding: 2px 7px;
+  border: 1px solid currentColor;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.chapter-save-status button:hover {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+@keyframes chapter-save-pulse {
+  50% {
+    opacity: 0.35;
+    transform: scale(0.75);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chapter-save-status.saving::before {
+    animation: none;
+  }
+}
+
 .progress-meta {
   display: flex;
   align-items: center;

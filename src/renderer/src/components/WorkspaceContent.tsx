@@ -201,7 +201,7 @@ function EmptyWorkspaceSteps({
           <span>{t("workspace.empty.steps.import.description")}</span>
         </div>
         <Button size="sm" onClick={onOpenTranslationSource}>
-          {t("common.import")}
+          {t("sidebar.translate")}
         </Button>
       </li>
       <li>
