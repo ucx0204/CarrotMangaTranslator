@@ -355,6 +355,84 @@ describe("pattern page text masks", () => {
     expect(context.pageMask[40 * width + 80]).toBe(1);
   });
 
+  it("erases detected source glyphs across a shared bubble split without filling unrelated space", () => {
+    const width = 120;
+    const height = 100;
+    const makeSplitBlock = (
+      id: string,
+      bbox: TranslationBlock["bbox"],
+      renderBbox: NonNullable<TranslationBlock["renderBbox"]>,
+    ): TranslationBlock => ({
+      ...createBlock(id, bbox.x, bbox),
+      fontSizePx: 18,
+      renderBbox,
+      renderBboxSpace: "normalized_1000",
+      bubbleLayout: {
+        version: 1,
+        direction: "horizontal",
+        confidence: 1,
+        origin: "detected",
+        modelId: "comic-rtdetr-test",
+        sourceImageRevision: `revision-${id}`,
+        insetRatio: 0,
+        regions: [
+          {
+            spans: [
+              {
+                blockStart: 0,
+                blockEnd: 1,
+                inlineStart: 0,
+                inlineEnd: 1,
+              },
+            ],
+          },
+        ],
+      },
+    });
+    const left = makeSplitBlock(
+      "left",
+      { x: 180, y: 260, w: 320, h: 480 },
+      { x: 100, y: 180, w: 350, h: 640 },
+    );
+    const right = makeSplitBlock(
+      "right",
+      { x: 500, y: 260, w: 320, h: 480 },
+      { x: 500, y: 180, w: 350, h: 640 },
+    );
+    const page = createPage(width, height, [left, right]);
+    const bitmap = Buffer.alloc(width * height * 4, 255);
+    fillRect(bitmap, width, { x: 54, y: 34, w: 8, h: 34 }, 8);
+    fillRect(bitmap, width, { x: 111, y: 34, w: 3, h: 34 }, 8);
+
+    const ungrouped = buildPatternPageMask({
+      page,
+      bitmap,
+      width,
+      height,
+      mode: "flux-region",
+      bubbleLayoutConstraintBlockIds: [left.id, right.id],
+    });
+    const grouped = buildPatternPageMask({
+      page,
+      bitmap,
+      width,
+      height,
+      mode: "flux-region",
+      bubbleLayoutConstraintBlockIds: [left.id, right.id],
+      sharedInpaintGroupIdsByBlock: {
+        [left.id]: ["shared-split"],
+        [right.id]: ["shared-split"],
+      },
+    });
+
+    expect(ungrouped.pageMask[50 * width + 57]).toBe(0);
+    expect(grouped.pageMask[50 * width + 57]).toBe(1);
+    expect(grouped.inpaintWindows).toHaveLength(1);
+    expect(grouped.inpaintWindowMasks).toHaveLength(1);
+    expect(grouped.inpaintWindowConstraints).toHaveLength(1);
+    expect(grouped.pageMask[50 * width + 112]).toBe(0);
+  });
+
   it("ignores persisted green geometry unless a zero-padding prepass enables it", () => {
     const width = 100;
     const height = 100;
