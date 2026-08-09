@@ -448,6 +448,8 @@
     "missingFont": "找不到已保存的字体“{{font}}”，已应用其余格式。",
     "limitReached": "最多可保存100个格式预设。",
     "saveFailed": "无法保存格式预设。",
-    "saved": "已保存格式预设“{{name}}”。"
+    "saved": "已保存格式预设“{{name}}”。",
+    "deleted": "已删除格式预设“{{name}}”。",
+    "deleteFailed": "无法删除格式预设。"
   }
 }

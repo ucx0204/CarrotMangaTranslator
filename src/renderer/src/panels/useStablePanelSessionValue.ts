@@ -10,6 +10,7 @@ type PanelSessionCallbacks = Pick<
   | "onApplyStylePreset"
   | "onBackToPageBlocks"
   | "onCreateStylePreset"
+  | "onDeleteStylePreset"
   | "onDeleteBlock"
   | "onDockEditorWindow"
   | "onDuplicateBlock"
@@ -84,6 +85,7 @@ function useStablePanelSessionCallbacks(
   const onApplyStylePreset = useEventCallback(value.onApplyStylePreset);
   const onBackToPageBlocks = useEventCallback(value.onBackToPageBlocks);
   const onCreateStylePreset = useEventCallback(value.onCreateStylePreset);
+  const onDeleteStylePreset = useEventCallback(value.onDeleteStylePreset);
   const onDeleteBlock = useEventCallback(value.onDeleteBlock);
   const onDockEditorWindow = useEventCallback(value.onDockEditorWindow);
   const onDuplicateBlock = useEventCallback(value.onDuplicateBlock);
@@ -104,6 +106,7 @@ function useStablePanelSessionCallbacks(
       onApplyStylePreset,
       onBackToPageBlocks,
       onCreateStylePreset,
+      onDeleteStylePreset,
       onDeleteBlock,
       onDockEditorWindow,
       onDuplicateBlock,
@@ -123,6 +126,7 @@ function useStablePanelSessionCallbacks(
       onApplyStylePreset,
       onBackToPageBlocks,
       onCreateStylePreset,
+      onDeleteStylePreset,
       onDeleteBlock,
       onDockEditorWindow,
       onDuplicateBlock,

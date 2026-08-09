@@ -814,6 +814,7 @@ function RightRailTestProviders({
     onApplyStylePreset: () => undefined,
     onBackToPageBlocks: () => undefined,
     onCreateStylePreset: async () => true,
+    onDeleteStylePreset: async () => true,
     onDeleteBlock: () => undefined,
     onDockEditorWindow: () => undefined,
     onDuplicateBlock: () => undefined,
@@ -855,7 +856,6 @@ function makeRightRailProps(
 ): RightRailProps {
   return {
     blockReadingDirection: "rtl",
-    blockStylePresets: [],
     brushColor: "#ffffff",
     brushRadius: 28,
     canRedo: true,
@@ -889,7 +889,6 @@ function makeRightRailProps(
     onRunBubbleLayout: vi.fn(),
     onRunCurrentPageInpainting: vi.fn(),
     onOpenAutoInpaintingOptions: vi.fn(),
-    onApplyStylePreset: vi.fn(),
     onOpenBlockEditor: vi.fn(),
     onSelectBlock: vi.fn(),
     onToggleBlocks: vi.fn(),

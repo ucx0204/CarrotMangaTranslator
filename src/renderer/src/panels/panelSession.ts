@@ -66,6 +66,7 @@ export type PanelSessionValue = {
   ) => void;
   onApplyStylePreset: (presetId: string) => void;
   onCreateStylePreset: (input: CreateBlockStylePresetInput) => Promise<boolean>;
+  onDeleteStylePreset: (presetId: string) => Promise<boolean>;
   onApplyBlockBackgroundOpacity: (scope: BlockBackgroundApplyScope) => void;
   onStartAreaTranslate: () => void;
 };

@@ -9,7 +9,6 @@ import { EditorPanelSlot } from "../panels/EditorPanelSlot";
 import { InpaintingControlPanel } from "./InpaintingControlPanel";
 import { ChapterTaskHub } from "./RunStatusPanels";
 import { PageBlockListPanel } from "./PageBlockListPanel";
-import type { BlockStylePresetSummary } from "../../../shared/blockStylePresets";
 import type { RightRailMode } from "../app/session/useAppSessionUiState";
 import type { BlockReadingDirection } from "../../../shared/blockReadingOrder";
 
@@ -33,7 +32,6 @@ export type UnifiedRightRailProps = {
   selectedBlockId: string | null;
   selectedPage: MangaPage | null;
   rightRailMode: RightRailMode;
-  blockStylePresets: BlockStylePresetSummary[];
   blockReadingDirection: BlockReadingDirection;
   canRunBubbleLayout: boolean;
   showBlockChrome: boolean;
@@ -51,7 +49,6 @@ export type UnifiedRightRailProps = {
   onOpenStyleGuide: () => void;
   onOpenTextView: () => void;
   onOpenTranslateOptions: () => void;
-  onApplyStylePreset: (presetId: string) => void;
   onOpenBlockEditor: (blockId: string) => void;
   onPeekToggle: () => void;
   onRedo: () => void;
@@ -124,10 +121,8 @@ function ContextualRightRailPanel(
       <PageBlockListPanel
         disabled={props.editorDisabled}
         page={props.selectedPage}
-        presets={props.blockStylePresets}
         readingDirection={props.blockReadingDirection}
         selectedBlockId={props.selectedBlockId}
-        onApplyStylePreset={props.onApplyStylePreset}
         onOpenEditor={props.onOpenBlockEditor}
         onSelectBlock={props.onSelectBlock}
         onUpdateBlock={props.onUpdateBlock}

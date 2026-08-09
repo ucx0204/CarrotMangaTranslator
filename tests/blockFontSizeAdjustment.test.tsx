@@ -407,6 +407,73 @@ describe("selected block font-size adjustment", () => {
     ).toBe("true");
   });
 
+  it("keeps the editor header outside the scrolling tab body", () => {
+    const view = render(
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock()}
+          disabled={false}
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onUpdate={vi.fn()}
+        />
+      </FontsTestProvider>,
+    );
+
+    const panel = view.container.querySelector(".editor-panel.has-block");
+    const header = panel?.querySelector(":scope > .editor-panel-sticky");
+    const body = panel?.querySelector(":scope > .editor-panel-body");
+
+    expect(panel).not.toBeNull();
+    expect(header).not.toBeNull();
+    expect(body).not.toBeNull();
+    expect(header?.contains(screen.getByRole("tab", { name: "텍스트" }))).toBe(
+      true,
+    );
+    expect(
+      body?.contains(screen.getByRole("tabpanel", { name: "텍스트" })),
+    ).toBe(true);
+  });
+
+  it("keeps the applied preset visible until direct formatting overrides it", () => {
+    const onApplyStylePreset = vi.fn();
+    render(
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock()}
+          disabled={false}
+          stylePresets={[
+            {
+              id: "style-preset:dialogue",
+              name: "기본 대사",
+              pinned: true,
+              missingFont: false,
+            },
+          ]}
+          onAdjustFontSize={vi.fn()}
+          onApplyStylePreset={onApplyStylePreset}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onUpdate={vi.fn()}
+        />
+      </FontsTestProvider>,
+    );
+
+    selectEditorTab("서식");
+    const presetTrigger = screen.getByRole("button", {
+      name: "프리셋 선택",
+    });
+    fireEvent.click(presetTrigger);
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "기본 대사" }));
+
+    expect(onApplyStylePreset).toHaveBeenCalledWith("style-preset:dialogue");
+    expect(presetTrigger.textContent).toContain("기본 대사");
+
+    fireEvent.click(screen.getByRole("button", { name: "블록 전체 굵게" }));
+    expect(presetTrigger.textContent).toContain("프리셋 선택");
+  });
+
   it("reveals layout for a newly entered transform mode without trapping tabs", () => {
     const props = {
       block: makeBlock(),

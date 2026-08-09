@@ -28,7 +28,6 @@ function useStableRightRailActions(
   | "onCancelJob"
   | "onClearStatusLines"
   | "onClearPatternMask"
-  | "onApplyStylePreset"
   | "onOpenBlockEditor"
   | "onOpenAutoInpaintingOptions"
   | "onOpenExport"
@@ -53,7 +52,6 @@ function useStableRightRailActions(
     onCancelJob: useEventCallback(props.onCancelJob),
     onClearStatusLines: useEventCallback(props.onClearStatusLines),
     onClearPatternMask: useEventCallback(props.onClearPatternMask),
-    onApplyStylePreset: useEventCallback(props.onApplyStylePreset),
     onOpenBlockEditor: useEventCallback(props.onOpenBlockEditor),
     onOpenAutoInpaintingOptions: useEventCallback(
       props.onOpenAutoInpaintingOptions,

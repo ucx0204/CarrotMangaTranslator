@@ -55,6 +55,7 @@ export type PanelCommand =
       groupIds: BlockFormatGroupId[];
     }
   | { type: "applyStylePreset"; blockId: string; presetId: string }
+  | { type: "deleteStylePreset"; presetId: string }
   | {
       type: "applyBlockBackgroundOpacity";
       scope: Exclude<PanelFormatScope, "selection">;

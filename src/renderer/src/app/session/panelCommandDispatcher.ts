@@ -15,6 +15,10 @@ type ApplyStylePresetCommand = Extract<
   PanelCommand,
   { type: "applyStylePreset" }
 >;
+type DeleteStylePresetCommand = Extract<
+  PanelCommand,
+  { type: "deleteStylePreset" }
+>;
 
 export type PanelCommandTarget = {
   updateBlock: (blockId: string, patch: UpdateBlockCommand["patch"]) => void;
@@ -31,6 +35,7 @@ export type PanelCommandTarget = {
     groupIds: ApplyFormatCommand["groupIds"],
   ) => void;
   applyStylePreset: (presetId: ApplyStylePresetCommand["presetId"]) => void;
+  deleteStylePreset: (presetId: ApplyStylePresetCommand["presetId"]) => void;
   applyBlockBackgroundOpacityToScope: (
     scope: ApplyBackgroundCommand["scope"],
   ) => void;
@@ -54,6 +59,8 @@ export function dispatchPanelCommand({
   }
   if (command.type === "applyStylePreset") {
     actions.applyStylePreset(command.presetId);
+  } else if (command.type === "deleteStylePreset") {
+    actions.deleteStylePreset(command.presetId);
   } else {
     applyPanelCommand(actions, command);
   }
@@ -62,7 +69,10 @@ export function dispatchPanelCommand({
 
 function applyPanelCommand(
   actions: PanelCommandTarget,
-  command: Exclude<PanelCommand, ApplyStylePresetCommand>,
+  command: Exclude<
+    PanelCommand,
+    ApplyStylePresetCommand | DeleteStylePresetCommand
+  >,
 ): void {
   switch (command.type) {
     case "updateBlock":

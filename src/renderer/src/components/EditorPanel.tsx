@@ -42,6 +42,7 @@ type EditorPanelProps = {
   onCreateStylePreset?: (
     input: CreateBlockStylePresetInput,
   ) => boolean | Promise<boolean>;
+  onDeleteStylePreset?: (presetId: string) => boolean | Promise<boolean>;
   onApplyBlockBackgroundOpacity?: (scope: BlockBackgroundApplyScope) => void;
   onAdjustFontSize: (adjustment: -1 | 1) => void;
   onUpdate: (patch: Partial<TranslationBlock>) => void;
@@ -58,6 +59,7 @@ const EDITOR_TAB_STORAGE_KEY = "editor.activeTab.v1";
 const EMPTY_STYLE_PRESETS: readonly BlockStylePresetSummary[] = [];
 const NOOP_STYLE_PRESET_APPLY = (): void => undefined;
 const NOOP_STYLE_PRESET_CREATE = (): boolean => false;
+const NOOP_STYLE_PRESET_DELETE = (): boolean => false;
 const NOOP_REMOVE_BUBBLE_LAYOUT = (): void => undefined;
 
 export function EditorPanel(props: EditorPanelProps): React.JSX.Element {
@@ -75,83 +77,125 @@ export function EditorPanel(props: EditorPanelProps): React.JSX.Element {
   );
 }
 
-function SelectedEditorPanel({
-  block,
-  disabled,
-  disableChapterApply,
-  selectedBlockCount,
-  pageSize,
-  transformMode,
-  canCreateStylePreset,
-  stylePresets,
-  headerActions,
-  onApplyFormat,
-  onApplyStylePreset,
-  onCreateStylePreset,
-  onApplyBlockBackgroundOpacity,
-  onAdjustFontSize,
-  onUpdate,
-  onDelete,
-  onDuplicate,
-  onEraseOriginal,
-  onFitBubble,
-  onRemoveBubbleLayout,
-  onSelectTransformMode,
-}: EditorPanelProps & { block: TranslationBlock }): React.JSX.Element {
-  const fontFamilyDraftState = React.useState(block.fontFamily);
-  const [fontFamilyDraft, setFontFamilyDraft] = fontFamilyDraftState;
-  const resolvedTransformMode = transformMode ?? "select";
+type SelectedEditorPanelProps = EditorPanelProps & { block: TranslationBlock };
+
+function SelectedEditorPanel(
+  props: SelectedEditorPanelProps,
+): React.JSX.Element {
+  const resolvedTransformMode = props.transformMode ?? "select";
   const [activeTab, setActiveTab] = useEditorTab(resolvedTransformMode);
   const panelIdBase = React.useId();
-
-  React.useEffect(() => {
-    setFontFamilyDraft(block.fontFamily);
-  }, [block.id, block.fontFamily, setFontFamilyDraft]);
+  const presetSelection = useAppliedStylePreset(props);
 
   return (
     <section className="editor-panel has-block">
       <SelectedBlockHeader
-        {...{
-          activeTab,
-          baseId: panelIdBase,
-          block,
-          disabled,
-          headerActions,
-          onDelete,
-          onDuplicate,
-          onRemoveBubbleLayout:
-            onRemoveBubbleLayout ?? NOOP_REMOVE_BUBBLE_LAYOUT,
-          onSelect: setActiveTab,
-          onUpdate,
-        }}
+        activeTab={activeTab}
+        baseId={panelIdBase}
+        block={props.block}
+        disabled={props.disabled}
+        headerActions={props.headerActions}
+        onDelete={props.onDelete}
+        onDuplicate={props.onDuplicate}
+        onRemoveBubbleLayout={
+          props.onRemoveBubbleLayout ?? NOOP_REMOVE_BUBBLE_LAYOUT
+        }
+        onSelect={setActiveTab}
+        onUpdate={props.onUpdate}
       />
-      <EditorBlockGroups
-        {...{
-          activeTab,
-          baseId: panelIdBase,
-          block,
-          canCreateStylePreset: canCreateStylePreset ?? false,
-          disabled,
-          disableChapterApply: disableChapterApply ?? false,
-          fontFamilyDraft,
-          onAdjustFontSize,
-          onApplyBlockBackgroundOpacity,
-          onApplyFormat,
-          onApplyStylePreset: onApplyStylePreset ?? NOOP_STYLE_PRESET_APPLY,
-          onCreateStylePreset: onCreateStylePreset ?? NOOP_STYLE_PRESET_CREATE,
-          onEraseOriginal,
-          onFitBubble,
-          onSelectTransformMode,
-          onUpdate,
-          pageSize: pageSize ?? null,
-          selectedBlockCount: selectedBlockCount ?? 0,
-          stylePresets: stylePresets ?? EMPTY_STYLE_PRESETS,
-          setFontFamilyDraft,
-          transformMode: resolvedTransformMode,
-        }}
+      <SelectedEditorPanelBody
+        {...props}
+        activeTab={activeTab}
+        baseId={panelIdBase}
+        presetSelection={presetSelection}
+        transformMode={resolvedTransformMode}
       />
     </section>
   );
+}
+
+function SelectedEditorPanelBody({
+  activeTab,
+  baseId,
+  block,
+  presetSelection,
+  transformMode,
+  ...props
+}: SelectedEditorPanelProps & {
+  activeTab: EditorTabId;
+  baseId: string;
+  presetSelection: AppliedStylePresetSelection;
+  transformMode: TransformEditorMode;
+}): React.JSX.Element {
+  const [fontFamilyDraft, setFontFamilyDraft] = React.useState(
+    block.fontFamily,
+  );
+  React.useEffect(() => {
+    setFontFamilyDraft(block.fontFamily);
+  }, [block.id, block.fontFamily]);
+  return (
+    <div className="editor-panel-body">
+      <EditorBlockGroups
+        activeTab={activeTab}
+        activeStylePresetId={presetSelection.activePresetId}
+        baseId={baseId}
+        block={block}
+        canCreateStylePreset={props.canCreateStylePreset ?? false}
+        disabled={props.disabled}
+        disableChapterApply={props.disableChapterApply ?? false}
+        fontFamilyDraft={fontFamilyDraft}
+        onAdjustFontSize={props.onAdjustFontSize}
+        onApplyBlockBackgroundOpacity={props.onApplyBlockBackgroundOpacity}
+        onApplyFormat={props.onApplyFormat}
+        onApplyStylePreset={presetSelection.apply}
+        onClearStylePreset={presetSelection.clear}
+        onCreateStylePreset={
+          props.onCreateStylePreset ?? NOOP_STYLE_PRESET_CREATE
+        }
+        onDeleteStylePreset={presetSelection.delete}
+        onEraseOriginal={props.onEraseOriginal}
+        onFitBubble={props.onFitBubble}
+        onSelectTransformMode={props.onSelectTransformMode}
+        onUpdate={props.onUpdate}
+        pageSize={props.pageSize ?? null}
+        selectedBlockCount={props.selectedBlockCount ?? 0}
+        stylePresets={props.stylePresets ?? EMPTY_STYLE_PRESETS}
+        setFontFamilyDraft={setFontFamilyDraft}
+        transformMode={transformMode}
+      />
+    </div>
+  );
+}
+
+type AppliedStylePresetSelection = {
+  activePresetId: string;
+  apply: (presetId: string) => void;
+  clear: () => void;
+  delete: (presetId: string) => Promise<boolean>;
+};
+
+function useAppliedStylePreset({
+  block,
+  onApplyStylePreset = NOOP_STYLE_PRESET_APPLY,
+  onDeleteStylePreset = NOOP_STYLE_PRESET_DELETE,
+}: SelectedEditorPanelProps): AppliedStylePresetSelection {
+  const [applied, setApplied] = React.useState<{
+    blockId: string;
+    presetId: string;
+  } | null>(null);
+  return {
+    activePresetId: applied?.blockId === block.id ? applied.presetId : "",
+    apply: (presetId) => {
+      setApplied({ blockId: block.id, presetId });
+      onApplyStylePreset(presetId);
+    },
+    clear: () => setApplied(null),
+    delete: async (presetId) => {
+      const deleted = await onDeleteStylePreset(presetId);
+      if (deleted && applied?.presetId === presetId) setApplied(null);
+      return deleted;
+    },
+  };
 }
 
 function SelectedBlockHeader({
@@ -211,6 +255,7 @@ function SelectedBlockHeader({
 
 type EditorBlockGroupsProps = {
   activeTab: EditorTabId;
+  activeStylePresetId: string;
   baseId: string;
   block: TranslationBlock;
   disabled: boolean;
@@ -221,7 +266,9 @@ type EditorBlockGroupsProps = {
   onApplyBlockBackgroundOpacity?: EditorPanelProps["onApplyBlockBackgroundOpacity"];
   onApplyFormat: EditorPanelProps["onApplyFormat"];
   onApplyStylePreset: NonNullable<EditorPanelProps["onApplyStylePreset"]>;
+  onClearStylePreset: () => void;
   onCreateStylePreset: NonNullable<EditorPanelProps["onCreateStylePreset"]>;
+  onDeleteStylePreset: NonNullable<EditorPanelProps["onDeleteStylePreset"]>;
   onEraseOriginal?: EditorPanelProps["onEraseOriginal"];
   onFitBubble?: EditorPanelProps["onFitBubble"];
   onSelectTransformMode?: EditorPanelProps["onSelectTransformMode"];
@@ -235,12 +282,14 @@ type EditorBlockGroupsProps = {
 
 function EditorBlockGroups({
   activeTab,
+  activeStylePresetId,
   baseId,
   block,
   disabled,
   disableChapterApply,
   onEraseOriginal,
   onFitBubble,
+  onClearStylePreset,
   onSelectTransformMode,
   onUpdate,
   pageSize,
@@ -274,10 +323,14 @@ function EditorBlockGroups({
       <EditorTabPanel activeTab={activeTab} baseId={baseId} tab="format">
         <EditorFormatGroups
           {...formatProps}
+          activeStylePresetId={activeStylePresetId}
           block={block}
           disabled={disabled}
           disableChapterApply={disableChapterApply}
-          onUpdate={onUpdate}
+          onUpdate={(patch) => {
+            onClearStylePreset();
+            onUpdate(patch);
+          }}
         />
       </EditorTabPanel>
     </>

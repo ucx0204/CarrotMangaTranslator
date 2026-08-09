@@ -454,6 +454,8 @@
     "missingFont": "The saved font “{{font}}” was not found. The remaining formatting was applied.",
     "limitReached": "You can save up to 100 style presets.",
     "saveFailed": "Could not save the style preset.",
-    "saved": "Saved style preset “{{name}}”."
+    "saved": "Saved style preset “{{name}}”.",
+    "deleted": "Deleted style preset “{{name}}”.",
+    "deleteFailed": "Could not delete the style preset."
   }
 }

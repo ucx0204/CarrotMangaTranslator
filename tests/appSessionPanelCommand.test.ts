@@ -11,6 +11,7 @@ function createTarget(): PanelCommandTarget {
     applyBlockBackgroundOpacityToScope: vi.fn(),
     applyFormatToScope: vi.fn(),
     applyStylePreset: vi.fn(),
+    deleteStylePreset: vi.fn(),
     deleteSelectedBlock: vi.fn(),
     duplicateSelectedBlock: vi.fn(),
     eraseBlockOriginal: vi.fn(),
@@ -79,6 +80,7 @@ describe("panel command dispatch", () => {
         blockId: "current-block",
         presetId: "style-preset:dialogue",
       },
+      { type: "deleteStylePreset", presetId: "style-preset:dialogue" },
       { type: "applyBlockBackgroundOpacity", scope: "page" },
       { type: "startAreaTranslate" },
     ] satisfies PanelCommand[];
@@ -108,6 +110,9 @@ describe("panel command dispatch", () => {
       "font",
     ]);
     expect(actions.applyStylePreset).toHaveBeenCalledWith(
+      "style-preset:dialogue",
+    );
+    expect(actions.deleteStylePreset).toHaveBeenCalledWith(
       "style-preset:dialogue",
     );
     expect(actions.applyBlockBackgroundOpacityToScope).toHaveBeenCalledWith(

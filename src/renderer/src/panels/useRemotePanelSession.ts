@@ -68,6 +68,10 @@ function buildRemotePanelSessionValue(
       dispatchCommand({ type: "applyFormat", scope, groupIds }),
     onApplyStylePreset: createRemoteStylePresetApply(selectedBlockId),
     onCreateStylePreset: async () => false,
+    onDeleteStylePreset: async (presetId) => {
+      dispatchCommand({ type: "deleteStylePreset", presetId });
+      return true;
+    },
     onApplyBlockBackgroundOpacity: (scope) =>
       dispatchCommand({ type: "applyBlockBackgroundOpacity", scope }),
     onAdjustFontSize: (adjustment) => {

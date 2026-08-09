@@ -19,6 +19,7 @@ import {
   type TranslationController,
 } from "./session/useTranslationController";
 import { dispatchPanelCommand } from "./session/panelCommandDispatcher";
+import { createStylePresetDeleteAction } from "./session/createStylePresetDeleteAction";
 
 export function useAppSessionModel(): AppSessionViewProps {
   const chapter = useChapterSessionController();
@@ -100,6 +101,10 @@ function usePanelCommandHandler(
     inpainting.pointerHandlers.startRegionTranslationSelection;
   const runInpainting = inpainting.inpaintingActions.runInpainting;
   const runBubbleLayout = inpainting.inpaintingActions.runBubbleLayout;
+  const deleteStylePreset = createStylePresetDeleteAction({
+    settingsDialog: chapter.settingsDialog,
+    statusLog: chapter.statusLog,
+  });
   return useCallback(
     (command: PanelCommand) => {
       dispatchPanelCommand({
@@ -107,6 +112,7 @@ function usePanelCommandHandler(
           ...actions,
           eraseBlockOriginal: (blockId) => void runInpainting("page", blockId),
           fitBlockBubble: (blockId) => void runBubbleLayout(blockId),
+          deleteStylePreset: (presetId) => void deleteStylePreset(presetId),
           selectWorkspaceTool,
           startAreaTranslate,
         },
@@ -118,6 +124,7 @@ function usePanelCommandHandler(
     [
       actions,
       busy,
+      deleteStylePreset,
       runBubbleLayout,
       runInpainting,
       selectedBlockId,

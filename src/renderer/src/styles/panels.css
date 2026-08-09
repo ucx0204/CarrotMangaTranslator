@@ -208,26 +208,27 @@
 }
 
 .editor-panel.has-block {
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: stretch;
   flex: 0 1 auto;
   max-height: 100%;
-  overflow-x: hidden;
-  overflow-y: auto;
-  padding-right: var(--sp-3);
+  overflow: hidden;
 }
 
 .editor-panel-sticky {
-  position: sticky;
-  z-index: 35;
-  top: 0;
   display: grid;
   gap: var(--sp-2);
   padding-bottom: var(--sp-2);
   border-bottom: 1px solid var(--border-soft);
-  background: linear-gradient(
-    to bottom,
-    var(--glass-panel) 82%,
-    color-mix(in srgb, var(--glass-panel) 88%, transparent)
-  );
+}
+
+.editor-panel-body {
+  min-height: 0;
+  padding-right: var(--sp-1);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .editor-panel-header {

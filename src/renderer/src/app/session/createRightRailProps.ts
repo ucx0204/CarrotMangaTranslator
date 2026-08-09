@@ -9,7 +9,6 @@ export function createRightRailProps(
   model: AppSessionViewModel,
 ): RightRailProps {
   const {
-    blockEditingActions,
     bridgeActions,
     core,
     derivedState,
@@ -25,7 +24,6 @@ export function createRightRailProps(
     blockReadingDirection: resolveSourceReadingDirection(
       settingsDialog.settings?.translation?.sourceLanguage,
     ),
-    blockStylePresets: blockEditingActions.stylePresetSummaries,
     brushColor: inpainting.brushColor,
     brushRadius: inpainting.brushRadius,
     canRedo: workspaceHistory.canRedo,
@@ -82,7 +80,6 @@ function createRightRailActions({
     core.setSelectedBlockIds([blockId]);
   };
   return {
-    onApplyStylePreset: blockEditingActions.applyStylePreset,
     onBrushColorChange: inpainting.onBrushColorChange,
     onBrushRadiusChange: inpainting.onBrushRadiusChange,
     onClearPatternMask: inpainting.onClearPatternMask,

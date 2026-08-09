@@ -24,10 +24,8 @@ describe("page block list", () => {
       <PageBlockListPanel
         disabled={false}
         page={makePage()}
-        presets={[]}
         readingDirection="rtl"
         selectedBlockId="right"
-        onApplyStylePreset={vi.fn()}
         onOpenEditor={onOpenEditor}
         onSelectBlock={onSelectBlock}
         onUpdateBlock={onUpdateBlock}
@@ -67,28 +65,21 @@ describe("page block list", () => {
     expect(onOpenEditor).toHaveBeenCalledWith("left");
   });
 
-  it("applies only pinned quick presets to the active block", () => {
-    const onApplyStylePreset = vi.fn();
+  it("keeps formatting controls out of the page block list", () => {
     render(
       <PageBlockListPanel
         disabled={false}
         page={makePage()}
-        presets={[
-          { id: "dialogue", name: "대사", pinned: false, missingFont: false },
-          { id: "sfx", name: "효과음 서식", pinned: true, missingFont: true },
-        ]}
         readingDirection="ltr"
         selectedBlockId="left"
-        onApplyStylePreset={onApplyStylePreset}
         onOpenEditor={vi.fn()}
         onSelectBlock={vi.fn()}
         onUpdateBlock={vi.fn()}
       />,
     );
 
-    expect(screen.queryByRole("button", { name: "대사" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "효과음 서식" }));
-    expect(onApplyStylePreset).toHaveBeenCalledWith("sfx");
+    expect(screen.queryByText("빠른 서식")).toBeNull();
+    expect(screen.queryByLabelText("빠른 서식")).toBeNull();
   });
 });
 

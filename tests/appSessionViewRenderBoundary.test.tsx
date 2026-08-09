@@ -302,6 +302,7 @@ function makePanelSessionValue(
     onApplyStylePreset: vi.fn(),
     onBackToPageBlocks: vi.fn(),
     onCreateStylePreset: vi.fn(async () => true),
+    onDeleteStylePreset: vi.fn(async () => true),
     onDeleteBlock: vi.fn(),
     onDockEditorWindow: vi.fn(),
     onDuplicateBlock: vi.fn(),

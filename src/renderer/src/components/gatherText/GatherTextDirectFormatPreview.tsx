@@ -58,13 +58,6 @@ export function BlockFormatPreview({
   values: GatherTextDirectFormatValues;
   onExampleTextChange: (value: string) => void;
 }): React.JSX.Element {
-  const { catalog } = useFonts();
-  const textShadow = resolvePreviewOutline(
-    values.fontSizePx,
-    values.outlineColor ?? "#ffffff",
-    values.outlineWidthScale,
-  );
-  const vertical = values.renderDirection === "vertical";
   const previewText = exampleText || placeholder;
   return (
     <section className="gather-direct-preview">
@@ -75,48 +68,76 @@ export function BlockFormatPreview({
         title={title}
         onExampleTextChange={onExampleTextChange}
       />
+      <BlockFormatPreviewStage
+        autoFitLabel={autoFitLabel}
+        previewText={previewText}
+        values={values}
+      />
+    </section>
+  );
+}
+
+export function BlockFormatPreviewStage({
+  autoFitLabel,
+  compact = false,
+  previewText,
+  values,
+}: {
+  autoFitLabel: string;
+  compact?: boolean;
+  previewText: string;
+  values: GatherTextDirectFormatValues;
+}): React.JSX.Element {
+  const { catalog } = useFonts();
+  const textShadow = resolvePreviewOutline(
+    values.fontSizePx,
+    values.outlineColor ?? "#ffffff",
+    values.outlineWidthScale,
+  );
+  const vertical = values.renderDirection === "vertical";
+  return (
+    <div
+      className="gather-direct-preview-stage"
+      data-compact={compact}
+      data-direction={values.renderDirection}
+    >
       <div
-        className="gather-direct-preview-stage"
-        data-direction={values.renderDirection}
+        className="gather-direct-preview-rotation"
+        style={{
+          opacity: values.textOpacity,
+          transform: `rotate(${values.rotationDeg}deg)`,
+        }}
       >
         <div
-          className="gather-direct-preview-rotation"
-          style={{
-            opacity: values.textOpacity,
-            transform: `rotate(${values.rotationDeg}deg)`,
-          }}
+          className="gather-direct-preview-text"
+          style={
+            {
+              "--gather-preview-font-size": `${values.fontSizePx}px`,
+              color: values.textColor,
+              fontFamily: resolveBlockFontFamily(values.fontFamily, catalog),
+              fontSize: `${values.fontSizePx}px`,
+              fontStyle: values.italic ? "italic" : "normal",
+              fontSynthesis: "weight style",
+              fontWeight: values.bold ? 700 : 400,
+              letterSpacing: values.letterSpacing
+                ? `${values.letterSpacing}em`
+                : undefined,
+              lineHeight: values.lineHeight,
+              textAlign: values.textAlign,
+              textShadow,
+              transform: `scaleX(${values.fontWidthScale})`,
+              ...resolvePreviewWrappingStyle(values.wordBreak),
+              writingMode: vertical ? "vertical-rl" : "horizontal-tb",
+            } as React.CSSProperties
+          }
         >
-          <div
-            className="gather-direct-preview-text"
-            style={
-              {
-                "--gather-preview-font-size": `${values.fontSizePx}px`,
-                color: values.textColor,
-                fontFamily: resolveBlockFontFamily(values.fontFamily, catalog),
-                fontSize: `${values.fontSizePx}px`,
-                fontStyle: values.italic ? "italic" : "normal",
-                fontSynthesis: "weight style",
-                fontWeight: values.bold ? 700 : 400,
-                letterSpacing: values.letterSpacing
-                  ? `${values.letterSpacing}em`
-                  : undefined,
-                lineHeight: values.lineHeight,
-                textAlign: values.textAlign,
-                textShadow,
-                transform: `scaleX(${values.fontWidthScale})`,
-                ...resolvePreviewWrappingStyle(values.wordBreak),
-                writingMode: vertical ? "vertical-rl" : "horizontal-tb",
-              } as React.CSSProperties
-            }
-          >
-            {previewText}
-          </div>
+          {previewText}
         </div>
-        {values.autoFitText ? (
-          <span className="gather-direct-preview-badge">{autoFitLabel}</span>
-        ) : null}
       </div>
-    </section>
+      {values.autoFitText ? (
+        <span className="gather-direct-preview-badge">{autoFitLabel}</span>
+      ) : null}
+    </div>
   );
 }
 

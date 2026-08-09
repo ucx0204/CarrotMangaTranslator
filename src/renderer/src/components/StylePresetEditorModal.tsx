@@ -11,22 +11,30 @@ import { Modal } from "./ui/Modal";
 export type StylePresetDraft = CreateBlockStylePresetInput;
 
 type StylePresetEditorModalProps = {
+  initialDraft?: StylePresetDraft;
   initialName?: string;
+  title?: string;
   onClose: () => void;
   onSave: (draft: StylePresetDraft) => boolean | Promise<boolean>;
 };
 
 export function StylePresetEditorModal({
+  initialDraft,
   initialName = "",
+  title,
   onClose,
   onSave,
 }: StylePresetEditorModalProps): React.JSX.Element {
   const { t } = useTranslation("components");
-  const [name, setName] = React.useState(initialName);
-  const [pinned, setPinned] = React.useState(true);
-  const [groupIds, setGroupIds] = React.useState<BlockFormatGroupId[]>(() => [
-    ...ALL_BLOCK_FORMAT_GROUP_IDS,
-  ]);
+  const [name, setName] = React.useState(
+    () => initialDraft?.name ?? initialName,
+  );
+  const [pinned, setPinned] = React.useState(
+    () => initialDraft?.pinned ?? true,
+  );
+  const [groupIds, setGroupIds] = React.useState<BlockFormatGroupId[]>(() =>
+    initialDraft ? [...initialDraft.groupIds] : [...ALL_BLOCK_FORMAT_GROUP_IDS],
+  );
   const [saving, setSaving] = React.useState(false);
   const valid = Boolean(name.trim() && groupIds.length > 0);
   const save = async (): Promise<void> => {
@@ -49,8 +57,8 @@ export function StylePresetEditorModal({
   return (
     <Modal
       width="min(560px, 100%)"
-      ariaLabel={t("stylePresets.createTitle")}
-      title={t("stylePresets.createTitle")}
+      ariaLabel={title ?? t("stylePresets.createTitle")}
+      title={title ?? t("stylePresets.createTitle")}
       closeDisabled={saving}
       onClose={onClose}
       footer={

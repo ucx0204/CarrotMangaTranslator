@@ -12,6 +12,7 @@ import { isWorkspaceImageReadyForSelectedPage } from "./appSessionSelectors";
 import { createWorkspaceViewProps } from "./createWorkspaceViewProps";
 import { createRightRailProps } from "./createRightRailProps";
 import { createStylePresetSaveAction } from "./createStylePresetSaveAction";
+import { createStylePresetDeleteAction } from "./createStylePresetDeleteAction";
 
 export function createAppSessionViewProps(
   model: AppSessionViewModel,
@@ -178,6 +179,7 @@ function createPanelSessionValue(
     onApplyFormat: blockEditingActions.applyFormatToScope,
     onApplyStylePreset: blockEditingActions.applyStylePreset,
     onCreateStylePreset: createStylePresetSaveAction(model),
+    onDeleteStylePreset: createStylePresetDeleteAction(model),
     onApplyBlockBackgroundOpacity:
       blockEditingActions.applyBlockBackgroundOpacityToScope,
     onToggleEditorFloat: uiState.toggleEditorFloat,

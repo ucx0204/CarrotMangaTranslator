@@ -113,6 +113,12 @@ export const PanelCommandSchema = z.discriminatedUnion("type", [
     .strict(),
   z
     .object({
+      type: z.literal("deleteStylePreset"),
+      presetId: z.string().min(1).max(MAX_BLOCK_STYLE_PRESET_ID_LENGTH),
+    })
+    .strict(),
+  z
+    .object({
       type: z.literal("applyBlockBackgroundOpacity"),
       scope: z.enum(["page", "chapter"]),
     })

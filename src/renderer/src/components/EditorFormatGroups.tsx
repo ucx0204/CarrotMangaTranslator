@@ -18,6 +18,7 @@ import {
 } from "./editorPanelUtils";
 
 type EditorFormatGroupsProps = {
+  activeStylePresetId: string;
   block: TranslationBlock;
   canCreateStylePreset: boolean;
   disabled: boolean;
@@ -33,6 +34,7 @@ type EditorFormatGroupsProps = {
   onCreateStylePreset: (
     input: CreateBlockStylePresetInput,
   ) => boolean | Promise<boolean>;
+  onDeleteStylePreset: (presetId: string) => boolean | Promise<boolean>;
   onUpdate: (patch: Partial<TranslationBlock>) => void;
   selectedBlockCount: number;
   setFontFamilyDraft: React.Dispatch<React.SetStateAction<string | undefined>>;
@@ -40,6 +42,7 @@ type EditorFormatGroupsProps = {
 };
 
 export function EditorFormatGroups({
+  activeStylePresetId,
   block,
   canCreateStylePreset,
   disabled,
@@ -50,6 +53,7 @@ export function EditorFormatGroups({
   onApplyFormat,
   onApplyStylePreset,
   onCreateStylePreset,
+  onDeleteStylePreset,
   onUpdate,
   selectedBlockCount,
   setFontFamilyDraft,
@@ -59,11 +63,13 @@ export function EditorFormatGroups({
   return (
     <>
       <BlockStylePresetControls
+        activePresetId={activeStylePresetId}
         canCreate={canCreateStylePreset}
         disabled={disabled}
         presets={stylePresets}
         onApply={onApplyStylePreset}
         onCreate={onCreateStylePreset}
+        onDelete={onDeleteStylePreset}
       />
       <FormatEditorGroup
         block={block}
