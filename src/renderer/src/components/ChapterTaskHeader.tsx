@@ -23,7 +23,7 @@ export function ChapterTaskHeader({
     <div className="chapter-task-header">
       <div className="chapter-task-title">
         <h2 title={title}>{title}</h2>
-        {saveStatus === "saved" ? <ChapterSavedBadge /> : null}
+        <ChapterInlineSaveStatus saveStatus={saveStatus} />
       </div>
       <small title={summary}>{summary}</small>
       <ChapterSaveStatusIndicator
@@ -35,6 +35,25 @@ export function ChapterTaskHeader({
 }
 
 const SAVED_BADGE_DURATION_MS = 3_000;
+
+function ChapterInlineSaveStatus({
+  saveStatus,
+}: {
+  saveStatus: ChapterSaveStatus;
+}): React.JSX.Element | null {
+  const { t } = useTranslation("components");
+  if (saveStatus === "saved") return <ChapterSavedBadge />;
+  if (saveStatus !== "dirty" && saveStatus !== "saving") return null;
+  return (
+    <span
+      className={`chapter-save-badge ${saveStatus}`}
+      role="status"
+      aria-live="polite"
+    >
+      {t(`chapterSave.${saveStatus}`)}
+    </span>
+  );
+}
 
 function ChapterSavedBadge(): React.JSX.Element | null {
   const { t } = useTranslation("components");
@@ -50,7 +69,11 @@ function ChapterSavedBadge(): React.JSX.Element | null {
 
   if (!visible) return null;
   return (
-    <span className="chapter-saved-badge" role="status" aria-live="polite">
+    <span
+      className="chapter-save-badge saved"
+      role="status"
+      aria-live="polite"
+    >
       {t("chapterSave.saved")}
     </span>
   );
@@ -64,7 +87,7 @@ function ChapterSaveStatusIndicator({
   onRetrySave: () => void;
 }): React.JSX.Element | null {
   const { t } = useTranslation("components");
-  if (saveStatus === "idle" || saveStatus === "saved") return null;
+  if (saveStatus !== "error" && saveStatus !== "conflict") return null;
   return (
     <div
       className={`chapter-save-status ${saveStatus}`}

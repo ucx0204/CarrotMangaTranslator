@@ -1576,7 +1576,7 @@
     "exportResults": "내보내기"
   },
   "chapterSave": {
-    "dirty": "변경 사항 저장 대기 중",
+    "dirty": "저장 대기 중",
     "saving": "저장 중…",
     "saved": "저장됨",
     "error": "저장 실패",

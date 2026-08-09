@@ -43,6 +43,26 @@ describe("ChapterTaskHeader", () => {
     expect(screen.queryByText("저장됨")).toBeNull();
   });
 
+  it.each([
+    ["dirty", "저장 대기 중"],
+    ["saving", "저장 중…"],
+  ] as const)("shows %s beside the title", (saveStatus, label) => {
+    const { container } = render(
+      <ChapterTaskHeader
+        currentChapter={chapter}
+        saveStatus={saveStatus}
+        onRetrySave={vi.fn()}
+      />,
+    );
+
+    const titleGroup = container.querySelector(".chapter-task-title");
+    expect(titleGroup?.contains(screen.getByText(label))).toBe(true);
+    expect(container.querySelector(".chapter-save-status")).toBeNull();
+    expect(
+      container.querySelector(`.chapter-save-badge.${saveStatus}`),
+    ).not.toBeNull();
+  });
+
   it("keeps actionable save errors in the full-width feedback row", () => {
     const onRetrySave = vi.fn();
     const { container } = render(

@@ -809,22 +809,6 @@
   flex: 1 1 auto;
 }
 
-.chapter-save-status.dirty {
-  border-color: color-mix(in srgb, #e8b34f 46%, var(--border-soft));
-  background: color-mix(in srgb, #e8b34f 10%, var(--bg-sunken));
-  color: #f0c36c;
-}
-
-.chapter-save-status.saving {
-  border-color: color-mix(in srgb, #7eaaff 46%, var(--border-soft));
-  background: color-mix(in srgb, #7eaaff 10%, var(--bg-sunken));
-  color: #9dbbff;
-}
-
-.chapter-save-status.saving::before {
-  animation: chapter-save-pulse 1s ease-in-out infinite;
-}
-
 .chapter-save-status.error,
 .chapter-save-status.conflict {
   border-color: color-mix(in srgb, #ef6f6c 50%, var(--border-soft));
@@ -846,19 +830,6 @@
 
 .chapter-save-status button:hover {
   background: color-mix(in srgb, currentColor 12%, transparent);
-}
-
-@keyframes chapter-save-pulse {
-  50% {
-    opacity: 0.35;
-    transform: scale(0.75);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .chapter-save-status.saving::before {
-    animation: none;
-  }
 }
 
 .progress-meta {

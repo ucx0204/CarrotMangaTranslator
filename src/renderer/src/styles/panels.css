@@ -57,25 +57,53 @@
   flex: 0 1 auto;
 }
 
-.chapter-saved-badge {
+.chapter-save-badge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   flex: 0 0 auto;
-  color: #7ed6ba;
   font-size: var(--font-xs);
   font-weight: 650;
   line-height: 1;
   white-space: nowrap;
 }
 
-.chapter-saved-badge::before {
+.chapter-save-badge::before {
   width: 6px;
   height: 6px;
   flex: 0 0 auto;
   border-radius: 50%;
   background: currentColor;
   content: "";
+}
+
+.chapter-save-badge.dirty {
+  color: #f0c36c;
+}
+
+.chapter-save-badge.saving {
+  color: #9dbbff;
+}
+
+.chapter-save-badge.saving::before {
+  animation: chapter-save-pulse 1s ease-in-out infinite;
+}
+
+.chapter-save-badge.saved {
+  color: #7ed6ba;
+}
+
+@keyframes chapter-save-pulse {
+  50% {
+    opacity: 0.35;
+    transform: scale(0.75);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chapter-save-badge.saving::before {
+    animation: none;
+  }
 }
 
 .chapter-task-header h2,
