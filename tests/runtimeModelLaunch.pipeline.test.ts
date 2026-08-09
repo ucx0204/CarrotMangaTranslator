@@ -96,7 +96,7 @@ describeWindows("runtime model support helpers: OCR pipeline execution", () => {
             outputDir,
             imageWidth: 100,
             imageHeight: 100,
-            ocrBboxProvider: "paddleocr-vl",
+            ocrBboxProvider: "paddleocr",
             ocrPageIndex: 7,
             ocrPageTotal: 9,
             ocrBatchCompletedBefore: 6,
@@ -110,7 +110,7 @@ describeWindows("runtime model support helpers: OCR pipeline execution", () => {
             outputDir,
             imageWidth: 100,
             imageHeight: 100,
-            ocrBboxProvider: "paddleocr-vl",
+            ocrBboxProvider: "paddleocr",
             ocrPageIndex: 8,
             ocrPageTotal: 9,
             onProgress: (event: Record<string, unknown>) => {
@@ -214,7 +214,7 @@ describeWindows("runtime model support helpers: OCR pipeline execution", () => {
           outputDir: join(outputDir, `page-${index + 1}`),
           imageWidth: 100,
           imageHeight: 100,
-          ocrBboxProvider: "paddleocr-vl",
+          ocrBboxProvider: "paddleocr",
           ocrDevice: "cpu",
           ocrCpuWorkers: 2,
           ocrCpuWorkerMinFreeRamPercent: 0,
@@ -311,7 +311,7 @@ describeWindows("runtime model support helpers: OCR pipeline execution", () => {
       ocrBboxResult: {
         hints: [],
         diagnostics: [
-          { provider: "paddleocr-vl", reason: "uncertain-empty-result" },
+          { provider: "paddleocr", reason: "uncertain-empty-result" },
         ],
         noTextDetected: false,
         textEvidenceCount: 0,
@@ -322,7 +322,7 @@ describeWindows("runtime model support helpers: OCR pipeline execution", () => {
     expect(result).toMatchObject({
       hints: [],
       diagnostics: [
-        { provider: "paddleocr-vl", reason: "uncertain-empty-result" },
+        { provider: "paddleocr", reason: "uncertain-empty-result" },
       ],
       noTextDetected: false,
       textEvidenceCount: 0,

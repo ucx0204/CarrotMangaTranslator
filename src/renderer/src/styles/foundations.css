@@ -16,7 +16,7 @@
   --border-soft: #2e3137;
   --border-hover: #474d57;
   /* accents — muted terracotta ink (toned down from vermilion) */
-  --accent: #c15f41;
+  --accent: #a64e36;
   --accent-bd: #cf7152;
   --accent-hi: #e7b39e;
   --danger: #7c3030;
@@ -52,9 +52,9 @@
   --r-pill: 999px;
   /* interaction states */
   --bg-hover: #262a31;
-  --accent-hover: #cf6d4d;
+  --accent-hover: #b05239;
   --danger-hover: #8f4141;
-  --accent-soft: rgba(193, 95, 65, 0.15);
+  --accent-soft: rgba(166, 78, 54, 0.17);
   --accent-text: #fbf3ef;
   --danger-soft: rgba(124, 48, 48, 0.2);
   /* panel surfaces (opaque — glassmorphism removed for clarity + dnd stability) */
@@ -82,6 +82,18 @@
   box-sizing: border-box;
   scrollbar-color: #536174 #0a0f16;
   scrollbar-width: thin;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
 }
 
 *::-webkit-scrollbar {

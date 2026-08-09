@@ -12,6 +12,7 @@ export type AppRightQuickRailProps = Pick<
   | "flowActive"
   | "jobActive"
   | "jobState"
+  | "onCancelJob"
   | "onOpenStyleGuide"
   | "onOpenTextView"
   | "onClearStatusLines"
@@ -22,10 +23,12 @@ export type AppRightQuickRailProps = Pick<
   | "onToggleChrome"
   | "onUndo"
   | "peeking"
+  | "progressSnapshot"
   | "redoLabel"
   | "resetAvailable"
   | "showBlockChrome"
   | "showTextBlocks"
+  | "showProgressBar"
   | "statusLines"
   | "undoLabel"
 >;
@@ -69,7 +72,10 @@ export function AppRightQuickRail(
       </div>
       <StatusDockButton
         jobState={props.jobState}
+        progressSnapshot={props.progressSnapshot}
+        showProgressBar={props.showProgressBar}
         statusLines={props.statusLines}
+        onCancelJob={props.onCancelJob}
         onClear={props.onClearStatusLines}
       />
     </aside>

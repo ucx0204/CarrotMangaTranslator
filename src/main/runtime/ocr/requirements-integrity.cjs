@@ -75,24 +75,13 @@ function readFirstRuntimeOverride(names, options) {
 /** @param {string} variant @returns {string[][]} */
 function buildBuiltinIntegrityBatches(variant) {
   const lockFile = resolveBuiltinOcrRequirementsLock(variant);
-  const batches = [
+  return [
     buildHashedRequirementsBatch(
       path.join(__dirname, lockFile),
       variant !== "gpu-rocm-transformers",
       variant === "gpu-rocm-transformers",
     ),
   ];
-  if (variant === "cpu" || /^gpu-cu(?:126|129)$/.test(variant)) {
-    batches.push([
-      "--force-reinstall",
-      "--no-deps",
-      ...buildHashedRequirementsBatch(
-        path.join(__dirname, "requirements-ocr-safetensors-win.lock"),
-        true,
-      ),
-    ]);
-  }
-  return batches;
 }
 
 /** @param {string} variant @returns {string} */

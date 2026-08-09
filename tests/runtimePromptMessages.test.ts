@@ -75,7 +75,7 @@ describe("runtime prompt message contracts", () => {
     writeFileSync(
       hintPath,
       JSON.stringify({
-        source: "paddleocr-vl",
+        source: "paddleocr",
         coordinateSpace: "pixels",
         width: 1200,
         height: 1600,
@@ -157,7 +157,7 @@ describe("runtime prompt message contracts", () => {
     writeFileSync(
       hintPath,
       JSON.stringify({
-        source: "paddleocr-vl",
+        source: "paddleocr",
         coordinateSpace: "pixels",
         width: 844,
         height: 1200,
@@ -418,7 +418,7 @@ describe("runtime prompt message contracts", () => {
     writeFileSync(
       hintPath,
       JSON.stringify({
-        source: "paddleocr-vl",
+        source: "paddleocr",
         coordinateSpace: "pixels",
         width: 836,
         height: 1188,

@@ -102,7 +102,7 @@ async function ensureManagedBootstrapPython(options = {}, runtimeDir) {
 function assertManagedPythonPlatform() {
   if (process.platform !== "win32") {
     throw new Error(
-      "PaddleOCR-VL bbox provider needs Python. Install Python 3 or set MANGA_TRANSLATOR_OCR_PYTHON.",
+      "Paddle OCR bbox provider needs Python. Install Python 3 or set MANGA_TRANSLATOR_OCR_PYTHON.",
     );
   }
 }

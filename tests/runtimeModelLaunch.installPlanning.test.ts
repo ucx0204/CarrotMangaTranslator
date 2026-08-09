@@ -131,7 +131,7 @@ describeWindows(
                 outputDir: join(outputDir, "page-1"),
                 imageWidth: 100,
                 imageHeight: 100,
-                ocrBboxProvider: "paddleocr-vl",
+                ocrBboxProvider: "paddleocr",
                 ocrDevice: "gpu",
                 ocrGpuBackend: "rocm-transformers",
                 ocrCpuWorkers: 1,
@@ -172,20 +172,13 @@ describeWindows(
         resolveOcrPipInstallBatches({ ocrDevice: "cpu" }),
         { ocrDevice: "cpu" },
       );
-      expect(cpuBatches).toHaveLength(2);
+      expect(cpuBatches).toHaveLength(1);
       expect(cpuBatches[0]).toEqual(
         expect.arrayContaining([
           "--require-hashes",
           "--only-binary=:all:",
           "--requirement",
           expect.stringMatching(/requirements-ocr-cpu-win-py312\.lock$/),
-        ]),
-      );
-      expect(cpuBatches[1]).toEqual(
-        expect.arrayContaining([
-          "--require-hashes",
-          "--no-deps",
-          expect.stringMatching(/requirements-ocr-safetensors-win\.lock$/),
         ]),
       );
 

@@ -260,7 +260,7 @@ function createOcrSmokeRequest(imagePath, toolsDir, workRoot) {
     workingDir: workRoot,
     ocrRuntimeDir: join(workRoot, "ocr-runtime"),
     ocrDevice: "cpu",
-    ocrBboxProvider: "paddleocr-vl",
+    ocrBboxProvider: "paddleocr",
     ocrBboxMode: "ocr",
     ocrEngine: "paddle_static",
     ocrVersion: "PP-OCRv6",

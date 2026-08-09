@@ -411,6 +411,7 @@
     "saved": "Settings saved. They will apply from the next translation run.",
     "saveFailed": "Could not save settings.",
     "reset": "Settings restored to defaults. They will apply from the next translation run.",
+    "defaultsLoaded": "Defaults loaded into the draft. Save to apply them.",
     "resetFailed": "Could not restore default settings."
   },
   "import": {

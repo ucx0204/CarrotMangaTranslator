@@ -6,7 +6,7 @@ const pythonProcessTimeoutMs =
   process.platform === "win32" && process.env.CI ? 90_000 : 30_000;
 const testTimeoutMs = pythonProcessTimeoutMs + 30_000;
 
-describe("PaddleOCR-VL bbox script", () => {
+describe("Paddle OCR bbox script", () => {
   it(
     "passes its dependency-free Python behavior suite",
     () => {
@@ -14,7 +14,7 @@ describe("PaddleOCR-VL bbox script", () => {
         process.cwd(),
         "tests",
         "python",
-        "test_paddleocr_vl_bboxes.py",
+        "test_paddleocr_bboxes.py",
       );
       const defaultPython = process.platform === "win32" ? "python" : "python3";
       const result = spawnSync(

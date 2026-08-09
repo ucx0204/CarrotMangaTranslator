@@ -408,7 +408,7 @@ describe("unified right rail", () => {
     renderRightRail(props);
 
     expect(
-      (screen.getByRole("button", { name: "번역" }) as HTMLButtonElement)
+      (screen.getByRole("button", { name: "번역 실행" }) as HTMLButtonElement)
         .disabled,
     ).toBe(false);
     expect(
@@ -679,7 +679,7 @@ describe("unified right rail", () => {
     }
   });
 
-  it("keeps the raw job failure visible while the block editor replaces status", () => {
+  it("keeps the raw job failure visible in the activity center while the block editor replaces status", () => {
     const rawFailure =
       "HIP runtime initialization failed: GPU architecture gfx1201 is unsupported";
     const props = makeRightRailProps({
@@ -698,11 +698,12 @@ describe("unified right rail", () => {
       selectedBlock: makeBlock(),
       showProgressBar: true,
     });
-    const view = renderRightRail(props);
+    const view = renderQuickRail(props);
 
+    fireEvent.click(screen.getByRole("button", { name: "작업 센터 열기" }));
     expect(document.querySelector(".progress-card")).not.toBeNull();
     view.rerender(
-      <AppRightRail
+      <AppRightQuickRail
         {...props}
         jobState={{
           id: "job-ocr-failed",
@@ -714,7 +715,6 @@ describe("unified right rail", () => {
       />,
     );
 
-    expect(document.querySelector(".editor-panel.has-block")).not.toBeNull();
     expect(screen.queryByRole("heading", { name: "상태" })).toBeNull();
     expect(screen.getByRole("alert").textContent).toContain(
       "OCR GPU 실행 실패",
@@ -723,9 +723,9 @@ describe("unified right rail", () => {
     expect(document.querySelector(".progress-card")).toBeNull();
   });
 
-  it("keeps the raw job failure visible without a progress snapshot", () => {
+  it("keeps the raw job failure visible in the activity center without a progress snapshot", () => {
     const rawFailure = "Paddle OCR process exited with code 3221225781";
-    renderRightRail(
+    renderQuickRail(
       makeRightRailProps({
         jobState: {
           id: "job-ocr-failed-no-progress",
@@ -740,7 +740,7 @@ describe("unified right rail", () => {
       }),
     );
 
-    expect(document.querySelector(".editor-panel.has-block")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "작업 센터 열기" }));
     expect(screen.getByRole("alert").textContent).toContain(rawFailure);
   });
 });

@@ -388,7 +388,7 @@ function assertAutomaticInstallEnabled(options) {
   );
   if (!enabled) {
     throw new Error(
-      "PaddleOCR-VL runtime is not installed and automatic installation is disabled.",
+      "Paddle OCR runtime is not installed and automatic installation is disabled.",
     );
   }
 }

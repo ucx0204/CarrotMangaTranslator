@@ -1085,7 +1085,6 @@ describe("fixed-block translation contract", () => {
     ).toBe(false);
     for (const excluded of [
       { modelProvider: "openai" },
-      { ocrQualityMode: "cuda-legacy-full" },
       { regionCropMode: true },
       { keepBlocksMode: true },
       { promptOverrideText: "custom" },

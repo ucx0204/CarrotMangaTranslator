@@ -35,6 +35,98 @@
   line-height: 1.4;
 }
 
+.translation-legacy-warning {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--sp-2);
+  align-items: start;
+  padding: var(--sp-3);
+  border: 1px solid color-mix(in srgb, var(--warn) 42%, var(--border-soft));
+  border-radius: var(--r-md);
+  color: var(--text);
+  background: color-mix(in srgb, var(--warn) 10%, var(--bg-sunken));
+}
+
+.translation-overwrite-warning {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--sp-3);
+  padding: var(--sp-6);
+  border: 1px solid rgba(239, 111, 108, 0.48);
+  border-radius: var(--r-md);
+  background: rgba(124, 48, 48, 0.16);
+  color: #f1aaa7;
+}
+
+.translation-options-modal-body .translation-overwrite-warning {
+  margin: 0 var(--sp-6) var(--sp-6);
+}
+
+.page-retranslate-options .translation-overwrite-warning {
+  margin-top: var(--sp-6);
+}
+
+.translation-overwrite-warning > svg {
+  margin-top: 1px;
+}
+
+.translation-overwrite-warning > div {
+  display: grid;
+  gap: 3px;
+}
+
+.translation-overwrite-warning strong {
+  color: #ffd0cd;
+  font-size: var(--font-sm);
+}
+
+.translation-overwrite-warning span {
+  color: #dca8a5;
+  font-size: var(--font-sm);
+  line-height: 1.45;
+}
+
+.translation-legacy-warning > svg {
+  margin-top: 1px;
+  color: var(--warn);
+}
+
+.translation-legacy-warning > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.translation-legacy-warning strong {
+  color: var(--text-head);
+  font-size: var(--font-sm);
+}
+
+.translation-legacy-warning span {
+  color: var(--text-dim);
+  font-size: var(--font-xs);
+  line-height: 1.5;
+}
+
+.translation-save-defaults {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 36px;
+  margin-right: auto;
+  color: var(--text-dim);
+  font-size: var(--font-sm);
+  cursor: pointer;
+}
+
+.translation-save-defaults input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
 .translate-options-twopass {
   display: grid;
   gap: var(--sp-2);
@@ -272,6 +364,11 @@
   .translate-options-sections {
     padding-right: var(--sp-4);
     padding-left: var(--sp-4);
+  }
+
+  .translation-options-modal-body .translation-overwrite-warning {
+    margin-right: var(--sp-4);
+    margin-left: var(--sp-4);
   }
 
   .translation-options-modal .settings-mode-group {

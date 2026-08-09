@@ -258,7 +258,7 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
     );
   });
 
-  it("keeps CUDA legacy full on PaddleOCR-VL when env requests the semantic OCR path", () => {
+  it("migrates removed CUDA legacy quality values onto semantic full OCR", () => {
     const defaults = resolveDefaultAppSettings(
       {},
       {
@@ -269,8 +269,8 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
       },
     );
     const options = buildBaseTranslationOptions({
-      jobId: "job-cuda-legacy-full",
-      runDir: "C:/runs/job-cuda-legacy-full",
+      jobId: "job-legacy-quality-migration",
+      runDir: "C:/runs/job-legacy-quality-migration",
       paths: {
         dataRoot: "C:/app-data",
         toolsDir: "C:/tools",
@@ -278,24 +278,19 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
         hfHomeDir: "C:/hf-home",
         hfHubCacheDir: "C:/hf-home/hub",
       },
-      settings: {
-        ...defaults,
-        ocr: {
-          ...defaults.ocr,
-          qualityMode: "cuda-legacy-full",
-        },
-      },
+      settings: defaults,
       env: {
-        MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE: "ocr",
-        MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE: "semantic",
+        MANGA_TRANSLATOR_OCR_QUALITY_MODE: "cuda-legacy-full",
+        MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE: "vl",
+        MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE: "legacy",
       },
     });
 
-    expect(options.ocrQualityMode).toBe("cuda-legacy-full");
-    expect(options.ocrBboxMode).toBe("vl");
-    expect(options.ocrEngine).toBeUndefined();
+    expect(options.ocrQualityMode).toBe("full");
+    expect(options.ocrBboxMode).toBe("ocr");
+    expect(options.ocrEngine).toBe("transformers");
     expect(options.ocrVersion).toBe("PP-OCRv6");
-    expect(options.ocrMergeMode).toBe("legacy");
+    expect(options.ocrMergeMode).toBe("semantic");
     expect(options.ocrTextDetectionModelName).toBeUndefined();
     expect(options.ocrTextRecognitionModelName).toBeUndefined();
   });
@@ -344,12 +339,12 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
         expectedRecognitionModel: "PP-OCRv6_small_rec",
       },
       {
-        label: "ROCm CUDA legacy converted to common full",
+        label: "ROCm full",
         ocr: {
           ...defaults.ocr,
           device: "gpu",
           gpuBackend: "rocm-transformers",
-          qualityMode: "cuda-legacy-full",
+          qualityMode: "full",
         },
         expectedQuality: "full",
         expectedEngine: "transformers",

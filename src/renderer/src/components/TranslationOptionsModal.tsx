@@ -1,10 +1,8 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import type { AnalysisBlockMode } from "../../../shared/analysisTypes";
 import type {
   ChapterSnapshot,
   LibraryIndex,
-  LibraryWorkSummary,
 } from "../../../shared/libraryTypes";
 import type {
   TranslationWorkflowMode,
@@ -13,11 +11,7 @@ import type {
 import type { WorkContextAnalysisScope } from "../../../shared/workContextAnalysisTypes";
 import type { TranslationFlowOptions } from "../hooks/useTranslationActions";
 import { getBlockModeOptions } from "../lib/blockModeOptions";
-import {
-  buildRunSelection,
-  type ChapterSelectionMap,
-  type TranslationOptionsInitialScope,
-} from "../lib/translationSelection";
+import type { TranslationOptionsInitialScope } from "../lib/translationSelection";
 import { ChapterPagePicker } from "./ChapterPagePicker";
 import {
   OptionRow,
@@ -26,7 +20,13 @@ import {
   TranslationOptionSection,
 } from "./TranslationOptionControls";
 import { Button } from "./ui/Button";
+import { WarnIcon } from "./ui/icons";
 import { Modal } from "./ui/Modal";
+import { ConfirmModal } from "./ConfirmModal";
+import {
+  type TranslationOptionsFormProps,
+  useTranslationOptionsModalState,
+} from "./translationOptionsState";
 
 const ANALYSIS_OPTION_IDS: WorkContextAnalysisScope[] = [
   "work",
@@ -39,24 +39,24 @@ const WORKFLOW_OPTION_IDS: TranslationWorkflowMode[] = [
   "two-pass",
 ];
 
+type TranslationDefaultsPatch = Pick<
+  UiSettings,
+  | "translationWorkflowDefault"
+  | "analysisScopeDefault"
+  | "blockModeDefault"
+  | "autoFontMatchingDefault"
+  | "naturalTextLayoutDefault"
+  | "eraseOriginalWorkflowDefault"
+  | "bubbleLayoutWorkflowDefault"
+>;
+
 type TranslationOptionsModalProps = {
   chapter: ChapterSnapshot;
   initialScope?: TranslationOptionsInitialScope;
   library: LibraryIndex;
   uiSettings: UiSettings | undefined;
   onStart: (options: TranslationFlowOptions) => void;
-  onPersistDefaults: (
-    patch: Pick<
-      UiSettings,
-      | "translationWorkflowDefault"
-      | "analysisScopeDefault"
-      | "blockModeDefault"
-      | "autoFontMatchingDefault"
-      | "naturalTextLayoutDefault"
-      | "eraseOriginalWorkflowDefault"
-      | "bubbleLayoutWorkflowDefault"
-    >,
-  ) => void;
+  onPersistDefaults: (patch: TranslationDefaultsPatch) => void;
   onClose: () => void;
 };
 
@@ -76,190 +76,164 @@ export function TranslationOptionsModal({
     library,
     uiSettings,
   );
-  const handleStart = (): void => {
-    if (state.runSelection.length === 0) return;
-    onPersistDefaults({
-      translationWorkflowDefault: state.formProps.workflowMode,
-      analysisScopeDefault: state.formProps.analysisScope,
-      blockModeDefault: state.formProps.blockMode,
-      autoFontMatchingDefault: state.formProps.autoFontMatching,
-      naturalTextLayoutDefault: state.formProps.naturalTextLayout,
-      eraseOriginalWorkflowDefault: state.formProps.eraseOriginalWorkflow,
-      bubbleLayoutWorkflowDefault: state.formProps.bubbleLayoutWorkflow,
-    });
-    onStart({
-      selection: state.runSelection,
-      workflowMode: state.formProps.workflowMode,
-      analysisScope: state.formProps.analysisScope,
-      blockMode: state.formProps.blockMode,
-      autoFontMatching: state.formProps.autoFontMatching,
-      naturalTextLayout: state.formProps.naturalTextLayout,
-      eraseOriginalWorkflow: state.formProps.eraseOriginalWorkflow,
-      bubbleLayoutWorkflow: state.formProps.bubbleLayoutWorkflow,
-    });
+  const actions = useTranslationStartActions({
+    formProps: state.formProps,
+    onClose,
+    onPersistDefaults,
+    onStart,
+    overwriteRisk: state.overwriteRisk,
+    runSelection: state.runSelection,
+  });
+  return (
+    <>
+      <Modal
+        title={t("translationOptions.title")}
+        size="lg"
+        onClose={onClose}
+        closeOnBackdrop
+        cardClassName="translation-options-modal"
+        bodyClassName="translation-options-modal-body"
+        footer={
+          <TranslationOptionsFooter
+            onCancel={onClose}
+            onStart={actions.handleStart}
+            overwriteRisk={state.overwriteRisk}
+            saveAsDefault={actions.saveAsDefault}
+            onSaveAsDefaultChange={actions.setSaveAsDefault}
+            startDisabled={state.runSelection.length === 0}
+          />
+        }
+      >
+        <TranslationOptionsForm
+          {...state.formProps}
+          overwriteRisk={state.overwriteRisk}
+        />
+      </Modal>
+      {actions.overwriteConfirmOpen ? (
+        <ConfirmModal
+          title={t("translationOptions.overwriteConfirm.title")}
+          message={t("translationOptions.overwriteConfirm.message")}
+          detail={t("translationOptions.overwriteConfirm.detail")}
+          confirmLabel={t("translationOptions.overwriteConfirm.action")}
+          confirmVariant="danger"
+          onCancel={() => actions.setOverwriteConfirmOpen(false)}
+          onConfirm={actions.confirmOverwrite}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function useTranslationStartActions({
+  formProps,
+  onClose,
+  onPersistDefaults,
+  onStart,
+  overwriteRisk,
+  runSelection,
+}: {
+  formProps: TranslationOptionsFormProps;
+  onClose: () => void;
+  onPersistDefaults: (patch: TranslationDefaultsPatch) => void;
+  onStart: (options: TranslationFlowOptions) => void;
+  overwriteRisk: boolean;
+  runSelection: TranslationFlowOptions["selection"];
+}) {
+  const [saveAsDefault, setSaveAsDefault] = React.useState(false);
+  const [overwriteConfirmOpen, setOverwriteConfirmOpen] = React.useState(false);
+  const performStart = (): void => {
+    if (runSelection.length === 0) return;
+    if (saveAsDefault) onPersistDefaults(buildDefaultsPatch(formProps));
+    onStart(buildTranslationFlowOptions(formProps, runSelection));
     onClose();
   };
-  return (
-    <Modal
-      title={t("sidebar.translate")}
-      size="lg"
-      onClose={onClose}
-      closeOnBackdrop
-      cardClassName="translation-options-modal"
-      bodyClassName="translation-options-modal-body"
-      footer={
-        <TranslationOptionsFooter
-          onCancel={onClose}
-          onStart={handleStart}
-          startDisabled={state.runSelection.length === 0}
-        />
-      }
-    >
-      <TranslationOptionsForm {...state.formProps} />
-    </Modal>
-  );
+  const handleStart = (): void => {
+    if (overwriteRisk) {
+      setOverwriteConfirmOpen(true);
+      return;
+    }
+    performStart();
+  };
+  const confirmOverwrite = (): void => {
+    setOverwriteConfirmOpen(false);
+    performStart();
+  };
+  return {
+    confirmOverwrite,
+    handleStart,
+    overwriteConfirmOpen,
+    saveAsDefault,
+    setOverwriteConfirmOpen,
+    setSaveAsDefault,
+  };
+}
+
+function buildDefaultsPatch(
+  form: TranslationOptionsFormProps,
+): TranslationDefaultsPatch {
+  return {
+    translationWorkflowDefault: form.workflowMode,
+    analysisScopeDefault: form.analysisScope,
+    blockModeDefault: form.blockMode,
+    autoFontMatchingDefault: form.autoFontMatching,
+    naturalTextLayoutDefault: form.naturalTextLayout,
+    eraseOriginalWorkflowDefault: form.eraseOriginalWorkflow,
+    bubbleLayoutWorkflowDefault: form.bubbleLayoutWorkflow,
+  };
+}
+
+function buildTranslationFlowOptions(
+  form: TranslationOptionsFormProps,
+  selection: TranslationFlowOptions["selection"],
+): TranslationFlowOptions {
+  return {
+    selection,
+    workflowMode: form.workflowMode,
+    analysisScope: form.analysisScope,
+    blockMode: form.blockMode,
+    autoFontMatching: form.autoFontMatching,
+    naturalTextLayout: form.naturalTextLayout,
+    eraseOriginalWorkflow: form.eraseOriginalWorkflow,
+    bubbleLayoutWorkflow: form.bubbleLayoutWorkflow,
+  };
 }
 
 function TranslationOptionsFooter({
   onCancel,
   onStart,
+  overwriteRisk,
+  saveAsDefault,
+  onSaveAsDefaultChange,
   startDisabled,
 }: {
   onCancel: () => void;
   onStart: () => void;
+  overwriteRisk: boolean;
+  saveAsDefault: boolean;
+  onSaveAsDefaultChange: (value: boolean) => void;
   startDisabled: boolean;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
     <>
+      <label className="translation-save-defaults">
+        <input
+          type="checkbox"
+          checked={saveAsDefault}
+          onChange={(event) => onSaveAsDefaultChange(event.target.checked)}
+        />
+        <span>{t("translationOptions.saveAsDefault")}</span>
+      </label>
       <Button onClick={onCancel}>{t("common.cancel")}</Button>
       <Button variant="primary" onClick={onStart} disabled={startDisabled}>
-        {t("translationOptions.start")}
+        {t(
+          overwriteRisk
+            ? "translationOptions.retranslateSelection"
+            : "translationOptions.startSelection",
+        )}
       </Button>
     </>
   );
-}
-
-type TranslationOptionsFormProps = {
-  chapter: ChapterSnapshot;
-  work: LibraryWorkSummary | null;
-  selection: ChapterSelectionMap;
-  onSelectionChange: (selection: ChapterSelectionMap) => void;
-  workflowMode: TranslationWorkflowMode;
-  onWorkflowModeChange: (mode: TranslationWorkflowMode) => void;
-  analysisScope: WorkContextAnalysisScope;
-  onAnalysisScopeChange: (scope: WorkContextAnalysisScope) => void;
-  blockMode: AnalysisBlockMode;
-  onBlockModeChange: (mode: AnalysisBlockMode) => void;
-  autoFontMatching: boolean;
-  onAutoFontMatchingChange: (enabled: boolean) => void;
-  naturalTextLayout: boolean;
-  onNaturalTextLayoutChange: (enabled: boolean) => void;
-  eraseOriginalWorkflow: boolean;
-  onEraseOriginalWorkflowChange: (enabled: boolean) => void;
-  bubbleLayoutWorkflow: boolean;
-  onBubbleLayoutWorkflowChange: (enabled: boolean) => void;
-};
-
-function useTranslationOptionsModalState(
-  chapter: ChapterSnapshot,
-  initialScope: TranslationOptionsInitialScope,
-  library: LibraryIndex,
-  uiSettings: UiSettings | undefined,
-): {
-  formProps: TranslationOptionsFormProps;
-  runSelection: TranslationFlowOptions["selection"];
-} {
-  const work = React.useMemo(
-    () => library.works.find((item) => item.id === chapter.workId) ?? null,
-    [chapter.workId, library.works],
-  );
-  const [selection, setSelection] = React.useState<ChapterSelectionMap>(() =>
-    createInitialSelection(chapter, work, initialScope),
-  );
-  const [workflowMode, setWorkflowMode] = React.useState(
-    uiSettings?.translationWorkflowDefault ?? "cumulative",
-  );
-  const [analysisScope, setAnalysisScope] =
-    React.useState<WorkContextAnalysisScope>(
-      uiSettings?.analysisScopeDefault ?? "missing",
-    );
-  const [blockMode, setBlockMode] = React.useState<AnalysisBlockMode>(
-    uiSettings?.blockModeDefault ?? "auto",
-  );
-  const [autoFontMatching, setAutoFontMatching] = React.useState(
-    uiSettings?.autoFontMatchingDefault ?? false,
-  );
-  const [naturalTextLayout, setNaturalTextLayout] = React.useState(
-    uiSettings?.naturalTextLayoutDefault ?? true,
-  );
-  const completionDefaults = resolveInitialCompletionDefaults(uiSettings);
-  const [eraseOriginalWorkflow, setEraseOriginalWorkflow] = React.useState(
-    completionDefaults.eraseOriginal,
-  );
-  const [bubbleLayoutWorkflow, setBubbleLayoutWorkflow] = React.useState(
-    completionDefaults.bubbleLayout,
-  );
-  const chapterOrder = React.useMemo(
-    () => (work ? work.chapters.map((item) => item.id) : [chapter.id]),
-    [chapter.id, work],
-  );
-  const runSelection = React.useMemo(
-    () => buildRunSelection(chapterOrder, selection),
-    [chapterOrder, selection],
-  );
-  return {
-    formProps: {
-      analysisScope,
-      autoFontMatching,
-      blockMode,
-      bubbleLayoutWorkflow,
-      chapter,
-      eraseOriginalWorkflow,
-      naturalTextLayout,
-      onAnalysisScopeChange: setAnalysisScope,
-      onAutoFontMatchingChange: setAutoFontMatching,
-      onBlockModeChange: setBlockMode,
-      onBubbleLayoutWorkflowChange: setBubbleLayoutWorkflow,
-      onEraseOriginalWorkflowChange: setEraseOriginalWorkflow,
-      onNaturalTextLayoutChange: setNaturalTextLayout,
-      onSelectionChange: setSelection,
-      onWorkflowModeChange: setWorkflowMode,
-      selection,
-      work,
-      workflowMode,
-    },
-    runSelection,
-  };
-}
-
-function createInitialSelection(
-  chapter: ChapterSnapshot,
-  work: LibraryWorkSummary | null,
-  initialScope: TranslationOptionsInitialScope,
-): ChapterSelectionMap {
-  if (initialScope === "work-all" && work) {
-    return new Map(
-      work.chapters.map((item) => [item.id, { kind: "all" }] as const),
-    );
-  }
-  return new Map([[chapter.id, { kind: "pending" }]]);
-}
-
-function resolveInitialCompletionDefaults(uiSettings: UiSettings | undefined): {
-  eraseOriginal: boolean;
-  bubbleLayout: boolean;
-} {
-  if (uiSettings?.eraseOriginalWorkflowDefault === undefined) {
-    return {
-      eraseOriginal: uiSettings?.bubbleLayoutWorkflowDefault ?? false,
-      bubbleLayout: true,
-    };
-  }
-  return {
-    eraseOriginal: uiSettings.eraseOriginalWorkflowDefault,
-    bubbleLayout: uiSettings.bubbleLayoutWorkflowDefault ?? true,
-  };
 }
 
 function TranslationOptionsForm(
@@ -313,6 +287,15 @@ function TranslationOptionsForm(
           <TranslationCompletionOptions {...props} />
         </TranslationOptionSection>
       </div>
+      {props.overwriteRisk ? (
+        <div className="translation-overwrite-warning" role="note">
+          <WarnIcon size={18} aria-hidden="true" />
+          <div>
+            <strong>{t("translationOptions.overwriteWarning.title")}</strong>
+            <span>{t("translationOptions.overwriteWarning.description")}</span>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -339,15 +322,30 @@ function TranslationWorkflowOptions(
         showLabel={false}
       />
       {props.workflowMode === "two-pass" ? (
-        <OptionRow
-          label={t("translationOptions.analysisScope")}
-          options={ANALYSIS_OPTION_IDS.map((id) => ({
-            id,
-            label: t(`translationOptions.analysisOptions.${id}`),
-          }))}
-          value={props.analysisScope}
-          onChange={props.onAnalysisScopeChange}
-        />
+        <>
+          <div className="translation-legacy-warning" role="note">
+            <WarnIcon size={18} aria-hidden="true" />
+            <div>
+              <strong>
+                {t("translationOptions.workflowOptions.twoPass.warningTitle")}
+              </strong>
+              <span>
+                {t(
+                  "translationOptions.workflowOptions.twoPass.warningDescription",
+                )}
+              </span>
+            </div>
+          </div>
+          <OptionRow
+            label={t("translationOptions.analysisScope")}
+            options={ANALYSIS_OPTION_IDS.map((id) => ({
+              id,
+              label: t(`translationOptions.analysisOptions.${id}`),
+            }))}
+            value={props.analysisScope}
+            onChange={props.onAnalysisScopeChange}
+          />
+        </>
       ) : null}
     </>
   );

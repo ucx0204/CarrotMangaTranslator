@@ -406,7 +406,21 @@
     "bubbleLayoutHint": "Detects bubble interiors in the erased image and automatically fits translated text."
   },
   "translationOptions": {
+    "title": "Run translation",
     "start": "Start translation",
+    "startSelection": "Translate selection",
+    "retranslateSelection": "Retranslate selection",
+    "overwriteWarning": {
+      "title": "This selection includes existing results",
+      "description": "Completed pages or edited blocks are selected. Their translations and manual edits may be replaced by the new result."
+    },
+    "overwriteConfirm": {
+      "title": "Retranslate the selected scope?",
+      "message": "Pages containing completed results or manual edits will be processed again.",
+      "detail": "Translation runs are not added to workspace undo history. Export a work copy first if you need to preserve these results.",
+      "action": "Retranslate selection"
+    },
+    "saveAsDefault": "Save as the default for future translations",
     "workUnavailable": "Could not load work information. Only the current chapter will be translated.",
     "sections": {
       "quality": "Translation quality",
@@ -424,8 +438,10 @@
         "description": "Builds page summaries, terms, and character memory while translating, then uses them from the next page onward."
       },
       "twoPass": {
-        "label": "Precision two-pass",
-        "description": "Analyzes the selected context after the first pass, then translates again. This is the slowest but highest-quality option."
+        "label": "Precision two-pass (Legacy)",
+        "description": "Translates the selected pages twice. It takes substantially longer and usually provides limited quality improvement.",
+        "warningTitle": "Legacy feature · Scheduled for removal",
+        "warningDescription": "Precision two-pass is planned for removal in a future update because it is slow and offers limited quality improvement. Use Cumulative context for new work."
       }
     },
     "secondPass": "Second pass (better quality)",
@@ -469,11 +485,12 @@
   },
   "retranslate": {
     "title": "Retranslate page",
-    "start": "Start retranslation",
+    "start": "Retranslate this page",
     "context": "Page: {{pageName}} (Blocks: {{count}})",
     "keepBlocksHint": "Keep the current block regions and formatting, and refill only the text in each region.",
     "autoBlocksHint": "Remove all existing blocks and detect new ones automatically.",
-    "overwriteWarning": "Existing translations and edits on this page will be overwritten."
+    "overwriteTitle": "Existing results on this page will change",
+    "overwriteWarning": "Existing translations and manual edits will be replaced and cannot be restored with workspace undo."
   },
   "translateSource": {
     "title": "Choose source to translate",
@@ -1047,6 +1064,16 @@
       "cancel": "Cancel",
       "save": "Save"
     },
+    "unsavedChanges": {
+      "title": "Unsaved changes",
+      "message": "Discard your settings changes and close?",
+      "detail": "Unsaved changes and any loaded defaults draft will not be applied.",
+      "discard": "Discard changes"
+    },
+    "defaultsPreview": {
+      "title": "Defaults loaded as a draft",
+      "description": "Nothing has been applied yet. Save to apply these values, or cancel to keep your existing settings."
+    },
     "engine": {
       "limits": {
         "title": "Generation limits",
@@ -1172,10 +1199,6 @@
         "full": {
           "label": "Full",
           "description": "Gemma 4 groups high-quality OCR fragments and coordinates into semantic units."
-        },
-        "cudaLegacyFull": {
-          "label": "CUDA legacy full",
-          "description": "Uses the previous PaddleOCR-VL layout path on NVIDIA CUDA."
         }
       },
       "llamaRuntimes": {
@@ -1525,12 +1548,14 @@
     "backToList": "Back to page blocks"
   },
   "statusDock": {
-    "title": "Recent job notifications",
+    "title": "Activity center",
     "recentCount": "{{count}} recent",
     "clear": "Clear status history",
     "close": "Close",
-    "open": "Open recent job notifications",
-    "latest": "Latest status: {{line}}"
+    "open": "Open activity center",
+    "latest": "Latest status: {{line}}",
+    "cancelJob": "Cancel current job",
+    "cancelling": "Requesting cancellation…"
   },
   "stylePresets": {
     "title": "Style presets",

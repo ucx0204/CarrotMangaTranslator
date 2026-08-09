@@ -12,7 +12,7 @@ type UseSettingsDialogResult = {
   openSettings: () => Promise<void>;
   closeSettings: () => void;
   submitSettings: (nextSettings: AppSettings) => Promise<void>;
-  resetSettings: () => Promise<void>;
+  resetSettings: () => Promise<AppSettings | null>;
   saveSettingsQuietly: (
     nextSettings: AppSettings,
   ) => Promise<AppSettings | null>;
@@ -42,7 +42,6 @@ export function useSettingsDialog(
   const saveSettingsQuietly = useQuietSettingsSaveAction(setSettings);
   const resetSettings = useResetSettingsAction({
     pushStatus,
-    setSettings,
     setSettingsBusy,
   });
 
@@ -181,24 +180,26 @@ function useQuietSettingsSaveAction(
 
 function useResetSettingsAction({
   pushStatus,
-  setSettings,
   setSettingsBusy,
-}: SettingsMutationOptions): () => Promise<void> {
+}: Pick<
+  SettingsMutationOptions,
+  "pushStatus" | "setSettingsBusy"
+>): () => Promise<AppSettings | null> {
   const { t } = useTranslation("renderer");
   return React.useCallback(async () => {
     setSettingsBusy(true);
     try {
-      const reset = await mangaGateway.resetSettings();
-      setSettings(reset);
-      await applySettingsLocale(reset);
-      pushStatus(appI18n.t("settings.reset", { ns: "renderer" }));
+      const defaults = await mangaGateway.getDefaultSettings();
+      pushStatus(t("settings.defaultsLoaded"));
+      return defaults;
     } catch (error) {
       console.error(error);
       pushStatus(t("settings.resetFailed"));
+      return null;
     } finally {
       setSettingsBusy(false);
     }
-  }, [pushStatus, setSettings, setSettingsBusy, t]);
+  }, [pushStatus, setSettingsBusy, t]);
 }
 
 async function applySettingsLocale(settings: AppSettings): Promise<void> {

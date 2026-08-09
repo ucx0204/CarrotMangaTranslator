@@ -354,6 +354,12 @@ export const settingsIpcContracts = {
     args: z.tuple([]),
     result: AppSettingsSchema,
   }),
+  getDefaultSettings: defineIpcContract<[], AppSettings>({
+    apiKey: "getDefaultSettings",
+    channel: "settings:get-defaults",
+    args: z.tuple([]),
+    result: AppSettingsSchema,
+  }),
   saveSettings: defineIpcContract<[AppSettings], AppSettings>({
     apiKey: "saveSettings",
     channel: "settings:save",

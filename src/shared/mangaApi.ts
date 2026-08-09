@@ -151,6 +151,7 @@ export type MangaApi = {
   removeCustomFont: (id: string) => Promise<CustomFont[]>;
   getUiLocale: () => Promise<UiLocale>;
   getSettings: () => Promise<AppSettings>;
+  getDefaultSettings: () => Promise<AppSettings>;
   saveSettings: (settings: AppSettings) => Promise<AppSettings>;
   resetSettings: () => Promise<AppSettings>;
   pickLocalModelFile: () => Promise<LocalModelPickResult | null>;

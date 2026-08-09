@@ -180,7 +180,7 @@ As a general guide, try the Gemma presets in this order:
 - 24 GB VRAM or more: `31B Full`
 - Specialized configurations: `Custom`
 
-OCR quality options are `Minimal`, `Efficient`, and `Full`. On a CPU, starting with `Efficient` is generally stable. `Full` PaddleOCR-VL is recommended for use with a supported GPU.
+OCR quality options are `Minimal`, `Efficient`, and `Full`. `Full` uses the PP-OCRv6 Transformers semantic pipeline and requires a supported GPU; on CPU, start with `Efficient`.
 
 <details>
 <summary><strong>Setting Up the OpenAI Codex Engine</strong></summary>

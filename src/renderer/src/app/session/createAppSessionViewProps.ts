@@ -133,7 +133,7 @@ function createModalsProps({
     onCloseInpaintingGuide: guidePreference.closeInpaintingGuide,
     onDeleteRename: () => void libraryActions.deleteRenameTarget(),
     onOpenLogFolder: bridgeActions.openLogFolder,
-    onResetSettings: () => void settingsDialog.resetSettings(),
+    onResetSettings: settingsDialog.resetSettings,
     onResolveConfirm: confirmController.resolveConfirmDialog,
     onSelectTranslationSource: (mode) =>
       void importShareActions.selectTranslateSource(mode),

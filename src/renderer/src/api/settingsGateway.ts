@@ -5,6 +5,7 @@ export const settingsGateway = createMangaDomainGateway("Settings", [
   "getAppUpdateInfo",
   "getRuntimeCapabilities",
   "getSettings",
+  "getDefaultSettings",
   "getUiLocale",
   "onModelTestEvent",
   "onUiLocaleChanged",

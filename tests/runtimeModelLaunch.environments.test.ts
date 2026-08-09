@@ -65,7 +65,7 @@ describeWindows(
       }
     });
 
-    it("uses official cu129 Paddle OCR packages and Windows safetensors for RTX 50 GPU OCR runtimes", () => {
+    it("uses official Paddle OCR packages without the removed legacy safetensors sidecar", () => {
       const cu129Batches = resolveOcrPipInstallBatches({
         ocrDevice: "gpu",
         ocrGpuCudaTag: "cu129",
@@ -82,30 +82,20 @@ describeWindows(
         "https://www.paddlepaddle.org.cn/packages/stable/cu129/",
       ]);
       expect(cu129Batches[1]).toEqual(["paddleocr[doc-parser]==3.7.0"]);
-      if (process.platform === "win32") {
-        expect(cu129Batches[2][0]).toBe("--no-deps");
-        expect(cu129Batches[2][1]).toBe("--force-reinstall");
-        expect(cu129Batches[2][2]).toContain("safetensors-0.6.2.dev0");
-      }
+      expect(cu129Batches).toHaveLength(2);
       expect(cu126Batches[0]).toEqual([
         "paddlepaddle-gpu==3.3.1",
         "--index-url",
         "https://www.paddlepaddle.org.cn/packages/stable/cu126/",
       ]);
       expect(cu126Batches[1]).toEqual(["paddleocr[doc-parser]==3.7.0"]);
+      expect(cu126Batches).toHaveLength(2);
       expect(cpuBatches[0][0]).toBe("paddlepaddle==3.3.1");
       expect(cpuBatches[0][1]).toBe("paddleocr[doc-parser]==3.7.0");
-      if (process.platform === "win32") {
-        expect(cu126Batches[2][0]).toBe("--no-deps");
-        expect(cu126Batches[2][1]).toBe("--force-reinstall");
-        expect(cu126Batches[2][2]).toContain("safetensors-0.6.2.dev0");
-        expect(cpuBatches[1][0]).toBe("--no-deps");
-        expect(cpuBatches[1][1]).toBe("--force-reinstall");
-        expect(cpuBatches[1][2]).toContain("safetensors-0.6.2.dev0");
-      }
+      expect(cpuBatches).toHaveLength(1);
     });
 
-    it("isolates NVIDIA Transformers OCR from the CUDA legacy Paddle runtime", () => {
+    it("isolates NVIDIA Transformers OCR from the standard CUDA Paddle runtime", () => {
       const runtimeDir = createTempDir("ocr-runtime-");
       const cuda126Options = {
         ocrDevice: "gpu",
@@ -338,7 +328,7 @@ describeWindows(
         expect(
           buildOcrRuntimeEnv({ ocrDevice: "cpu" })
             .MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE,
-        ).toBeUndefined();
+        ).toBe("ocr");
         expect(
           buildOcrRuntimeEnv({ ocrDevice: "cpu" })
             .MANGA_TRANSLATOR_PADDLEOCR_ENGINE,
@@ -362,12 +352,12 @@ describeWindows(
           ocrGpuBackend: "cuda",
         });
         expect(cudaEnv.MANGA_TRANSLATOR_PADDLEOCR_ATTN).toBeUndefined();
-        expect(cudaEnv.MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE).toBeUndefined();
+        expect(cudaEnv.MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE).toBe("ocr");
         expect(cudaEnv.MANGA_TRANSLATOR_PADDLEOCR_ENGINE).toBeUndefined();
         expect(cudaEnv.MANGA_TRANSLATOR_PADDLEOCR_ENGINE_DTYPE).toBeUndefined();
         expect(cudaEnv.MANGA_TRANSLATOR_PADDLEOCR_VERSION).toBeUndefined();
         expect(cudaEnv.OMP_NUM_THREADS).toBeUndefined();
-        expect(cudaEnv.MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE).toBeUndefined();
+        expect(cudaEnv.MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE).toBe("semantic");
         expect(
           cudaEnv.MANGA_TRANSLATOR_PADDLEOCR_DISABLE_MIOPEN,
         ).toBeUndefined();
@@ -387,7 +377,7 @@ describeWindows(
         );
         expect(overriddenRocmEnv.MANGA_TRANSLATOR_PADDLEOCR_ATTN).toBe("sdpa");
         expect(overriddenRocmEnv.MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE).toBe(
-          "none",
+          "semantic",
         );
         expect(
           overriddenRocmEnv.MANGA_TRANSLATOR_PADDLEOCR_DISABLE_MIOPEN,

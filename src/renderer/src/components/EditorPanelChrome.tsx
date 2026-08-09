@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import { IconButton } from "./ui/IconButton";
 import { CopyIcon, TrashIcon } from "./ui/icons";
+import { handleMenuKeyboardNavigation } from "./ui/menuKeyboard";
+import { Tabs } from "./ui/Tabs";
 
 const EDITOR_TABS = ["text", "layout", "format"] as const;
 export type EditorTabId = (typeof EDITOR_TABS)[number];
@@ -131,29 +133,20 @@ export function EditorPanelTabs({
     format: t("editor.tabs.format", { defaultValue: "서식" }),
   };
   return (
-    <div
+    <Tabs
       className="editor-panel-tabs"
-      role="tablist"
-      aria-label={t("editor.tabs.label", {
+      ariaLabel={t("editor.tabs.label", {
         defaultValue: "블록 편집 영역",
       })}
-    >
-      {EDITOR_TABS.map((tab, index) => (
-        <button
-          id={`${baseId}-tab-${tab}`}
-          key={tab}
-          aria-controls={`${baseId}-panel-${tab}`}
-          aria-selected={activeTab === tab}
-          role="tab"
-          tabIndex={activeTab === tab ? 0 : -1}
-          type="button"
-          onClick={() => onSelect(tab)}
-          onKeyDown={(event) => handleEditorTabKeyDown(event, index, onSelect)}
-        >
-          {labels[tab]}
-        </button>
-      ))}
-    </div>
+      items={EDITOR_TABS.map((tab) => ({
+        value: tab,
+        label: labels[tab],
+        id: `${baseId}-tab-${tab}`,
+        panelId: `${baseId}-panel-${tab}`,
+      }))}
+      value={activeTab}
+      onChange={onSelect}
+    />
   );
 }
 
@@ -213,30 +206,6 @@ export function EmptyEditorPanel({
   );
 }
 
-function handleEditorTabKeyDown(
-  event: React.KeyboardEvent<HTMLButtonElement>,
-  index: number,
-  onSelect: (tab: EditorTabId) => void,
-): void {
-  let nextIndex: number | null = null;
-  if (event.key === "ArrowRight") nextIndex = (index + 1) % EDITOR_TABS.length;
-  if (event.key === "ArrowLeft") {
-    nextIndex = (index - 1 + EDITOR_TABS.length) % EDITOR_TABS.length;
-  }
-  if (event.key === "Home") nextIndex = 0;
-  if (event.key === "End") nextIndex = EDITOR_TABS.length - 1;
-  if (nextIndex === null) return;
-  event.preventDefault();
-  const nextTab = EDITOR_TABS[nextIndex];
-  if (!nextTab) return;
-  onSelect(nextTab);
-  const tabs =
-    event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>(
-      '[role="tab"]',
-    );
-  tabs?.[nextIndex]?.focus();
-}
-
 type OverflowMenuState = [
   boolean,
   React.Dispatch<React.SetStateAction<boolean>>,
@@ -279,19 +248,8 @@ function handleMenuKeyDown(
   event: React.KeyboardEvent<HTMLDivElement>,
   close: (restoreFocus: boolean) => void,
 ): void {
-  if (event.key === "Escape") {
-    event.preventDefault();
-    close(true);
-    return;
-  }
-  if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
-  event.preventDefault();
-  const items = Array.from(
-    event.currentTarget.querySelectorAll<HTMLButtonElement>(
-      '[role^="menuitem"]',
-    ),
-  );
-  const current = items.indexOf(document.activeElement as HTMLButtonElement);
-  const delta = event.key === "ArrowDown" ? 1 : -1;
-  items[(current + delta + items.length) % items.length]?.focus();
+  handleMenuKeyboardNavigation(event, {
+    onEscape: () => close(true),
+    onTab: () => close(false),
+  });
 }

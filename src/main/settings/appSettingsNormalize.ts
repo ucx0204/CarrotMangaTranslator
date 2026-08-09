@@ -361,9 +361,7 @@ function normalizeOcrSettings(
     device,
     // GPU 전용 고품질 모드는 CPU에서 못 쓸 만큼 느리므로 절약 품질로 강제한다.
     qualityMode:
-      device === "cpu" &&
-      (normalizedQualityMode === "full" ||
-        normalizedQualityMode === "cuda-legacy-full")
+      device === "cpu" && normalizedQualityMode === "full"
         ? "economy"
         : normalizedQualityMode,
     gpuBackend,

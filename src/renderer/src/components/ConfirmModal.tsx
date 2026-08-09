@@ -8,12 +8,16 @@ export function ConfirmModal({
   title,
   message,
   detail,
+  confirmLabel,
+  confirmVariant = "primary",
   onConfirm,
   onCancel,
 }: {
   title: string;
   message: string;
   detail?: string;
+  confirmLabel?: string;
+  confirmVariant?: React.ComponentProps<typeof Button>["variant"];
   onConfirm: () => void;
   onCancel: () => void;
 }): React.JSX.Element {
@@ -36,8 +40,8 @@ export function ConfirmModal({
           <Button variant="ghost" onClick={onCancel}>
             {t("common.cancel")}
           </Button>
-          <Button variant="primary" onClick={onConfirm}>
-            {t("common.confirm")}
+          <Button variant={confirmVariant} onClick={onConfirm}>
+            {confirmLabel ?? t("common.confirm")}
           </Button>
         </>
       }

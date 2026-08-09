@@ -218,19 +218,11 @@ export function resolveStoredOcrModeSettings(
     ocr?.qualityMode,
     defaults.ocr.qualityMode,
   );
-  const rejectsCudaLegacy =
-    gpuBackend !== "cuda" ||
-    hardwareVendor === "amd" ||
-    hardwareVendor === "apple";
   return {
-    // The packaged Apple Silicon OCR runtime is PaddlePaddle CPU-only. An old
-    // GPU/VL preference must not bypass the current PP-OCRv6 CPU route.
+    // The packaged Apple Silicon OCR runtime is PaddlePaddle CPU-only.
     device: hardwareVendor === "apple" ? "cpu" : requestedDevice,
     gpuBackend,
-    qualityMode:
-      requestedQuality === "cuda-legacy-full" && rejectsCudaLegacy
-        ? "full"
-        : requestedQuality,
+    qualityMode: requestedQuality,
   };
 }
 

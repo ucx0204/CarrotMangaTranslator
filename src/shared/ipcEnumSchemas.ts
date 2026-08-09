@@ -254,9 +254,11 @@ export const OcrQualityModeSchema = z.preprocess(
         "cuda 레거시 풀로드",
       ].includes(normalized)
     ) {
-      return "cuda-legacy-full";
+      // Removed in 2026-08. Keep a one-way read migration so old settings and
+      // environment values land on the supported semantic full preset.
+      return "full";
     }
     return value;
   },
-  z.enum(["minimum", "economy", "full", "cuda-legacy-full"]),
+  z.enum(["minimum", "economy", "full"]),
 );

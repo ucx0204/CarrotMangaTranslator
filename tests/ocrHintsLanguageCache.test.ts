@@ -90,7 +90,7 @@ describe("OCR hint language cache", () => {
       ocrGpuBackend: "cuda",
       ocrGpuCudaTag: "cu126",
       ocrQualityMode: "minimum",
-      ocrBboxProvider: "paddleocr-vl",
+      ocrBboxProvider: "paddleocr",
       ocrBboxMode: "ocr",
       ocrEngine: "paddle_static",
       ocrEngineDtype: "float32",

@@ -61,7 +61,7 @@ async function collectOcrBboxHintsBatch(dependencies, pageOptionsList = []) {
   const normalizedOptions = validOptions;
   const firstOptions = normalizedOptions[0] || {};
   const provider = dependencies.resolveOcrBboxProvider(firstOptions);
-  if (provider !== "paddleocr-vl") {
+  if (provider !== "paddleocr") {
     return await collectSequentially(dependencies, normalizedOptions);
   }
   const batchOptions = dependencies.withoutPageProgressOptions(firstOptions);

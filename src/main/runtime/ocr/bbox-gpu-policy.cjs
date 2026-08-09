@@ -23,9 +23,6 @@ function resolveOcrBboxProvider(context, options = {}) {
   ) {
     return "none";
   }
-  if (isEnvironmentEnabled(context, "MANGA_TRANSLATOR_PADDLEOCR_VL", options)) {
-    return "paddleocr-vl";
-  }
   if (hasEnvironmentValue(context, "MANGA_TRANSLATOR_OCR_BBOX_CMD", options)) {
     return "external-command";
   }
@@ -35,12 +32,12 @@ function resolveOcrBboxProvider(context, options = {}) {
     options,
   )
     ? "json-file"
-    : "paddleocr-vl";
+    : "paddleocr";
 }
 
 /** @param {PolicyContext} context @param {OcrBboxOptions} options */
 function readExplicitProvider(context, options) {
-  return String(
+  const provider = String(
     options.ocrBboxProvider ??
       context.dependencies.runtimeOverrideEnv(
         "MANGA_TRANSLATOR_OCR_BBOX_PROVIDER",
@@ -48,6 +45,9 @@ function readExplicitProvider(context, options) {
       ) ??
       "",
   ).trim();
+  // Compatibility-only alias: the former provider name now resolves to the
+  // supported PP-OCRv6 implementation and cannot select the removed VL path.
+  return provider === "paddleocr-vl" ? "paddleocr" : provider;
 }
 
 /** @param {PolicyContext} context @param {string} name @param {OcrBboxOptions} options */

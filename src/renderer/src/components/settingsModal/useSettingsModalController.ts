@@ -1,35 +1,21 @@
 import React from "react";
-import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
-import type {
-  AppSettings,
-  BlockFormatDefaults,
-} from "../../../../shared/settingsTypes";
-import type { KeybindingOverrides } from "../../../../shared/shortcutSettings";
-import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../../../../shared/blockFormat";
-import { buildSettingsFromDraft } from "./settingsModalBuildSettings";
-import {
-  getApiAdvancedSettingsMessage,
-  isSettingsFormSubmittable,
-  resolveSettingsDraft,
-  type SettingsDraft,
-} from "./settingsModalFormUtils";
-import type { SettingsFormValues } from "./settingsModalFormValues";
-import type { SettingsFormSetters } from "./useSettingsFormState";
-import { useSettingsFormState } from "./useSettingsFormState";
-import { useSettingsLocalModelActions } from "./useSettingsLocalModelActions";
-import { useSettingsModelTest } from "./useSettingsModelTest";
-import {
-  type SettingsRuntimeGuards,
-  useSettingsRuntimeGuards,
-} from "./useSettingsRuntimeGuards";
-import { useSettingsTestState } from "./useSettingsTestState";
+import type { AppSettings } from "../../../../shared/settingsTypes";
 import type { SettingsModalViewProps } from "./SettingsModalView";
 import type { SettingsTabId } from "../settingsModalTypes";
 import {
-  cloneBlockStylePresets,
-  type BlockStylePreset,
-} from "../../../../shared/blockStylePresets";
+  useBlockFormatDefaultsDraft,
+  useBlockStylePresetsDraft,
+  useKeybindingsDraft,
+  useSettingsDraftDirty,
+  useSettingsSubmission,
+} from "./settingsModalDraft";
+import { buildSettingsModalViewProps } from "./settingsModalViewPropsBuilder";
+import { useSettingsFormState } from "./useSettingsFormState";
+import { useSettingsLocalModelActions } from "./useSettingsLocalModelActions";
+import { useSettingsModelTest } from "./useSettingsModelTest";
+import { useSettingsRuntimeGuards } from "./useSettingsRuntimeGuards";
+import { useSettingsTestState } from "./useSettingsTestState";
 
 export type SettingsModalControllerInput = {
   initialSettings: AppSettings;
@@ -37,7 +23,8 @@ export type SettingsModalControllerInput = {
   jobActive: boolean;
   onCancel: () => void;
   onOpenLogFolder: () => void;
-  onReset: () => void;
+  onReset: () => Promise<AppSettings | null>;
+  onDirtyChange?: (isDirty: boolean) => void;
   onSubmit: (settings: AppSettings) => void;
 };
 
@@ -48,17 +35,87 @@ export function useSettingsModalController({
   onCancel,
   onOpenLogFolder,
   onReset,
+  onDirtyChange,
   onSubmit,
 }: SettingsModalControllerInput): SettingsModalViewProps {
   const { t } = useTranslation("components");
+  const state = useSettingsControllerState({
+    busy,
+    initialSettings,
+    onDirtyChange,
+    onReset,
+  });
+  const submission = useSettingsSubmission({
+    blockFormatDefaults: state.blockFormatDefaults,
+    blockStylePresets: state.blockStylePresets,
+    form: state.form,
+    initialSettings: state.draftSettings,
+    isDirty: state.isDirty,
+    keybindings: state.keybindings,
+    onSubmit,
+  });
+  const runModelTest = useSettingsModelTest({
+    appendTestLogLine: state.test.appendTestLogLine,
+    buildSettings: submission.buildSettings,
+    canSubmit: submission.formValid,
+    jobActive,
+    modelProvider: state.form.values.modelProvider,
+    setTestState: state.test.setTestState,
+  });
+  return buildSettingsModalViewProps({
+    activeTab: state.activeTab,
+    canSubmit: submission.canSubmit,
+    controlsBusy: state.controlsBusy,
+    defaultsPreviewActive: state.defaultsPreviewActive,
+    draft: submission.draft,
+    form: state.form,
+    formatPanelProps: {
+      bubbleLayoutPaddingRatio: state.form.values.bubbleLayoutPaddingRatio,
+      value: state.blockFormatDefaults,
+      stylePresets: state.blockStylePresets,
+      onBubbleLayoutPaddingRatioChange:
+        state.form.setters.setBubbleLayoutPaddingRatio,
+      onChange: state.updateBlockFormatDefaults,
+      onStylePresetsChange: state.setBlockStylePresets,
+    },
+    jobActive,
+    keybindings: state.keybindings,
+    localActions: state.localActions,
+    onCancel,
+    onOpenLogFolder,
+    onReset: state.resetDraft,
+    runModelTest,
+    runtime: state.runtime,
+    setActiveTab: state.setActiveTab,
+    setKeybindings: state.setKeybindings,
+    submit: submission.submit,
+    test: state.test,
+    t,
+    formValid: submission.formValid,
+  });
+}
+
+function useSettingsControllerState({
+  busy,
+  initialSettings,
+  onDirtyChange,
+  onReset,
+}: Pick<
+  SettingsModalControllerInput,
+  "busy" | "initialSettings" | "onDirtyChange" | "onReset"
+>) {
   const [activeTab, setActiveTab] = React.useState<SettingsTabId>("general");
-  const [keybindings, setKeybindings] = useKeybindingsDraft(initialSettings);
+  const [defaultsPreviewActive, setDefaultsPreviewActive] =
+    React.useState(false);
+  const [draftSettings, setDraftSettings] = React.useState(initialSettings);
+  React.useEffect(() => setDraftSettings(initialSettings), [initialSettings]);
+  const [keybindings, setKeybindings] = useKeybindingsDraft(draftSettings);
   const [blockFormatDefaults, updateBlockFormatDefaults] =
-    useBlockFormatDefaultsDraft(initialSettings);
+    useBlockFormatDefaultsDraft(draftSettings);
   const [blockStylePresets, setBlockStylePresets] =
-    useBlockStylePresetsDraft(initialSettings);
-  const form = useSettingsFormState(initialSettings);
-  const test = useSettingsTestState(initialSettings, form.refs.testLogRef);
+    useBlockStylePresetsDraft(draftSettings);
+  const form = useSettingsFormState(draftSettings);
+  const test = useSettingsTestState(draftSettings, form.refs.testLogRef);
   const localActions = useSettingsLocalModelActions({
     clearTestState: test.clearTestState,
     setters: form.setters,
@@ -67,344 +124,43 @@ export function useSettingsModalController({
     busy || localActions.localActionBusy || test.testState.status === "running";
   const runtime = useSettingsRuntimeGuards({
     controlsBusy,
-    initialSettings,
+    initialSettings: draftSettings,
     refs: form.refs,
     setters: form.setters,
     values: form.values,
   });
-  const { draft, canSubmit, buildSettings, submit } = useSettingsSubmission({
+  const isDirty = useSettingsDraftDirty({
     blockFormatDefaults,
     blockStylePresets,
-    form,
+    formValues: form.values,
     initialSettings,
     keybindings,
-    onSubmit,
   });
-  const runModelTest = useSettingsModelTest({
-    appendTestLogLine: test.appendTestLogLine,
-    buildSettings,
-    canSubmit,
-    jobActive,
-    modelProvider: form.values.modelProvider,
-    setTestState: test.setTestState,
-  });
-
-  return buildSettingsModalViewProps({
+  React.useEffect(() => onDirtyChange?.(isDirty), [isDirty, onDirtyChange]);
+  const resetDraft = React.useCallback(async () => {
+    const defaults = await onReset();
+    if (defaults) {
+      setDraftSettings(defaults);
+      setDefaultsPreviewActive(true);
+    }
+  }, [onReset]);
+  return {
     activeTab,
-    canSubmit,
+    blockFormatDefaults,
+    blockStylePresets,
     controlsBusy,
-    draft,
+    defaultsPreviewActive,
+    draftSettings,
     form,
-    formatPanelProps: {
-      bubbleLayoutPaddingRatio: form.values.bubbleLayoutPaddingRatio,
-      value: blockFormatDefaults,
-      stylePresets: blockStylePresets,
-      onBubbleLayoutPaddingRatioChange:
-        form.setters.setBubbleLayoutPaddingRatio,
-      onChange: updateBlockFormatDefaults,
-      onStylePresetsChange: setBlockStylePresets,
-    },
-    jobActive,
+    isDirty,
     keybindings,
     localActions,
-    onCancel,
-    onOpenLogFolder,
-    onReset,
-    runModelTest,
+    resetDraft,
     runtime,
     setActiveTab,
+    setBlockStylePresets,
     setKeybindings,
-    submit,
     test,
-    t,
-  });
-}
-
-function useSettingsSubmission({
-  blockFormatDefaults,
-  blockStylePresets,
-  form,
-  initialSettings,
-  keybindings,
-  onSubmit,
-}: {
-  blockFormatDefaults: BlockFormatDefaults;
-  blockStylePresets: BlockStylePreset[];
-  form: ReturnType<typeof useSettingsFormState>;
-  initialSettings: AppSettings;
-  keybindings: KeybindingOverrides;
-  onSubmit: (settings: AppSettings) => void;
-}): {
-  draft: SettingsDraft;
-  canSubmit: boolean;
-  buildSettings: () => AppSettings | null;
-  submit: () => void;
-} {
-  const draft = React.useMemo(
-    () => resolveSettingsDraft(form.values),
-    [form.values],
-  );
-  const canSubmit = React.useMemo(
-    () => isSettingsFormSubmittable(form.values, draft),
-    [draft, form.values],
-  );
-  const buildSettings = React.useCallback(
-    () =>
-      canSubmit
-        ? buildSettingsFromDraft({
-            draft,
-            initialSettings,
-            keybindings,
-            blockFormatDefaults,
-            blockStylePresets,
-            values: form.values,
-          })
-        : null,
-    [
-      blockFormatDefaults,
-      blockStylePresets,
-      canSubmit,
-      draft,
-      form.values,
-      initialSettings,
-      keybindings,
-    ],
-  );
-  const submit = React.useCallback(() => {
-    const nextSettings = buildSettings();
-    if (nextSettings && canSubmit) {
-      onSubmit(nextSettings);
-    }
-  }, [buildSettings, canSubmit, onSubmit]);
-  return { draft, canSubmit, buildSettings, submit };
-}
-
-function useBlockStylePresetsDraft(
-  initialSettings: AppSettings,
-): [
-  BlockStylePreset[],
-  React.Dispatch<React.SetStateAction<BlockStylePreset[]>>,
-] {
-  const [presets, setPresets] = React.useState<BlockStylePreset[]>(() =>
-    cloneBlockStylePresets(initialSettings.blockStylePresets ?? []),
-  );
-  React.useEffect(() => {
-    setPresets(cloneBlockStylePresets(initialSettings.blockStylePresets ?? []));
-  }, [initialSettings]);
-  return [presets, setPresets];
-}
-
-function useBlockFormatDefaultsDraft(
-  initialSettings: AppSettings,
-): [BlockFormatDefaults, (patch: Partial<BlockFormatDefaults>) => void] {
-  const [draft, setDraft] = React.useState<BlockFormatDefaults>(
-    () => initialSettings.blockFormatDefaults ?? DEFAULT_BLOCK_FORMAT_DEFAULTS,
-  );
-  React.useEffect(() => {
-    setDraft(
-      initialSettings.blockFormatDefaults ?? DEFAULT_BLOCK_FORMAT_DEFAULTS,
-    );
-  }, [initialSettings]);
-  const update = React.useCallback(
-    (patch: Partial<BlockFormatDefaults>) =>
-      setDraft((current) => ({ ...current, ...patch })),
-    [],
-  );
-  return [draft, update];
-}
-
-function useKeybindingsDraft(
-  initialSettings: AppSettings,
-): [
-  KeybindingOverrides,
-  React.Dispatch<React.SetStateAction<KeybindingOverrides>>,
-] {
-  const [keybindings, setKeybindings] = React.useState<KeybindingOverrides>(
-    () => initialSettings.keybindings ?? {},
-  );
-  React.useEffect(() => {
-    setKeybindings(initialSettings.keybindings ?? {});
-  }, [initialSettings]);
-  return [keybindings, setKeybindings];
-}
-
-type SettingsModalViewPropsInput = {
-  activeTab: SettingsTabId;
-  canSubmit: boolean;
-  controlsBusy: boolean;
-  draft: SettingsDraft;
-  form: ReturnType<typeof useSettingsFormState>;
-  formatPanelProps: SettingsModalViewProps["formatPanelProps"];
-  jobActive: boolean;
-  keybindings: KeybindingOverrides;
-  localActions: ReturnType<typeof useSettingsLocalModelActions>;
-  onCancel: () => void;
-  onOpenLogFolder: () => void;
-  onReset: () => void;
-  runModelTest: () => Promise<void>;
-  runtime: SettingsRuntimeGuards;
-  setActiveTab: React.Dispatch<React.SetStateAction<SettingsTabId>>;
-  setKeybindings: React.Dispatch<React.SetStateAction<KeybindingOverrides>>;
-  submit: () => void;
-  test: ReturnType<typeof useSettingsTestState>;
-  t: TFunction<"components">;
-};
-
-function buildSettingsModalViewProps({
-  activeTab,
-  canSubmit,
-  controlsBusy,
-  draft,
-  form,
-  formatPanelProps,
-  jobActive,
-  keybindings,
-  localActions,
-  onCancel,
-  onOpenLogFolder,
-  onReset,
-  runModelTest,
-  runtime,
-  setActiveTab,
-  setKeybindings,
-  submit,
-  test,
-  t,
-}: SettingsModalViewPropsInput): SettingsModalViewProps {
-  return {
-    activeTab,
-    canSubmit,
-    controlsBusy,
-    generalPanelProps: {
-      disabled: controlsBusy,
-      locale: form.values.uiLocale,
-      onLocaleChange: form.setters.setUiLocale,
-    },
-    enginePanelProps: buildEnginePanelProps({
-      controlsBusy,
-      form,
-      localActions,
-      runtime,
-      submit,
-      test,
-    }),
-    hardwarePanelProps: buildHardwarePanelProps({
-      controlsBusy,
-      form,
-      runtime,
-      test,
-    }),
-    formatPanelProps,
-    onCancel,
-    onOpenLogFolder,
-    onReset,
-    setActiveTab,
-    shortcutsPanelProps: {
-      onChange: setKeybindings,
-      overrides: keybindings,
-    },
-    submit,
-    testPanelProps: {
-      canSubmit,
-      controlsBusy,
-      jobActive,
-      runModelTest,
-      testLogLines: test.testLogLines,
-      testLogRef: test.testLogRef,
-      testState: test.testState,
-    },
-    validationProps: buildValidationProps(form.values, draft, t),
-  };
-}
-
-function buildEnginePanelProps({
-  controlsBusy,
-  form,
-  localActions,
-  runtime,
-  submit,
-  test,
-}: {
-  controlsBusy: boolean;
-  form: ReturnType<typeof useSettingsFormState>;
-  localActions: ReturnType<typeof useSettingsLocalModelActions>;
-  runtime: SettingsRuntimeGuards;
-  submit: () => void;
-  test: ReturnType<typeof useSettingsTestState>;
-}): SettingsModalViewProps["enginePanelProps"] {
-  const { refs, setters, values } = form;
-  return {
-    clearTestState: test.clearTestState,
-    controlsBusy,
-    isLlamaRuntimeOptionDisabled: runtime.isLlamaRuntimeOptionDisabled,
-    localModelInputRef: refs.localModelInputRef,
-    modelRepoInputRef: refs.modelRepoInputRef,
-    pickLocalMmprojFile: localActions.pickLocalMmprojFile,
-    pickLocalModelFile: localActions.pickLocalModelFile,
-    submit,
-    usesAmdHardware: runtime.usesAmdHardware,
-    usesAppleHardware: runtime.usesAppleHardware,
-    usesNvidiaHardware: runtime.usesNvidiaHardware,
-    unifiedMemoryMb: runtime.unifiedMemoryMb,
-    ...values,
-    ...setters,
-  };
-}
-
-function buildHardwarePanelProps({
-  controlsBusy,
-  form,
-  runtime,
-  test,
-}: {
-  controlsBusy: boolean;
-  form: { setters: SettingsFormSetters; values: SettingsFormValues };
-  runtime: SettingsRuntimeGuards;
-  test: ReturnType<typeof useSettingsTestState>;
-}): SettingsModalViewProps["hardwarePanelProps"] {
-  return {
-    clearTestState: test.clearTestState,
-    computeGpuIndex: form.values.computeGpuIndex,
-    controlsBusy,
-    fluxBackend: form.values.fluxBackend,
-    graphicsGpuPreference: form.values.graphicsGpuPreference,
-    allowUnsafeLowMemoryFlux: form.values.allowUnsafeLowMemoryFlux,
-    inpaintingModel: form.values.inpaintingModel,
-    isFluxBackendOptionDisabled: runtime.isFluxBackendOptionDisabled,
-    ocrDevice: form.values.ocrDevice,
-    ocrGpuBackend: form.values.ocrGpuBackend,
-    ocrQualityMode: form.values.ocrQualityMode,
-    setFluxBackend: form.setters.setFluxBackend,
-    setGraphicsGpuPreference: form.setters.setGraphicsGpuPreference,
-    setComputeGpuIndex: form.setters.setComputeGpuIndex,
-    setAllowUnsafeLowMemoryFlux: form.setters.setAllowUnsafeLowMemoryFlux,
-    setInpaintingModel: form.setters.setInpaintingModel,
-    setOcrDevice: form.setters.setOcrDevice,
-    setOcrGpuBackend: form.setters.setOcrGpuBackend,
-    setOcrQualityMode: form.setters.setOcrQualityMode,
-    usesAmdHardware: runtime.usesAmdHardware,
-    usesAppleHardware: runtime.usesAppleHardware,
-    usesAmdOcrContext: runtime.usesAmdOcrContext,
-    usesNvidiaHardware: runtime.usesNvidiaHardware,
-    usesNvidiaOcrContext: runtime.usesNvidiaOcrContext,
-    unifiedMemoryMb: runtime.unifiedMemoryMb,
-  };
-}
-
-function buildValidationProps(
-  values: SettingsFormValues,
-  draft: SettingsDraft,
-  t: TFunction<"components">,
-): SettingsModalViewProps["validationProps"] {
-  return {
-    apiAdvancedSettingsMessage: getApiAdvancedSettingsMessage(draft, t),
-    apiAdvancedSettingsValid: draft.apiAdvancedSettingsValid,
-    apiBaseUrlValid: draft.apiBaseUrlValid,
-    codexOauthPortValid: draft.codexOauthPortValid,
-    contextTokensValid: draft.contextTokensValid,
-    maxTokensValid: draft.maxTokensValid,
-    modelProvider: values.modelProvider,
-    sourceLanguageValid: draft.sourceLanguageValid,
-    targetLanguageValid: draft.targetLanguageValid,
+    updateBlockFormatDefaults,
   };
 }

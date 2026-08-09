@@ -28,12 +28,6 @@ function buildPaddleOcrImportFailureMessage(importMessage, options = {}) {
   if (isPaddleSm120UnsupportedText(importMessage)) {
     return buildPaddleOcrSm120FailureMessage(importMessage, options);
   }
-  if (isPaddleBfloat16SafetensorsText(importMessage)) {
-    return buildPaddleOcrBfloat16SafetensorsFailureMessage(
-      importMessage,
-      options,
-    );
-  }
   if (isPaddleNativeDllLoadFailureText(importMessage)) {
     return buildPaddleOcrNativeDllFailureMessage(importMessage, options);
   }
@@ -51,7 +45,7 @@ function buildCudaTransformersImportFailureMessage(importMessage, options) {
   if (isPaddleOcrVerificationTimeoutText(importMessage)) {
     return `Paddle OCR 런타임 설치 후 NVIDIA CUDA/PyTorch 검증이 시간 초과되었습니다. 첫 PyTorch CUDA import는 오래 걸릴 수 있습니다.${detail}`;
   }
-  return `NVIDIA OCR GPU 실행에 실패했습니다. 이 OCR 경로는 PaddlePaddle CUDA가 아니라 PyTorch CUDA + PaddleOCR Transformers engine을 사용합니다. NVIDIA 드라이버와 ${resolveOcrGpuCudaTag(options)} GPU 설정을 확인하세요. 기존 PaddleOCR-VL CUDA 방식은 CUDA 레거시 풀로드에서 사용할 수 있습니다.${detail}`;
+  return `NVIDIA OCR GPU 실행에 실패했습니다. 이 OCR 경로는 PyTorch CUDA + PaddleOCR Transformers engine을 사용합니다. NVIDIA 드라이버와 ${resolveOcrGpuCudaTag(options)} GPU 설정을 확인하세요.${detail}`;
 }
 
 /** @param {RuntimeOptions} options @returns {boolean} */
@@ -81,7 +75,7 @@ function buildGenericImportFailureMessage(importMessage, options) {
   const detail = importMessage
     ? ` detail=${truncateText(importMessage, 1200)}`
     : "";
-  return `PaddleOCR-VL runtime was installed but paddleocr/paddlex/paddle imports still fail.${suffix}${detail}`;
+  return `Paddle OCR runtime was installed but paddleocr/paddlex/paddle imports still fail.${suffix}${detail}`;
 }
 
 /** @param {RuntimeOptions} options @returns {string} */
@@ -117,13 +111,10 @@ function buildPaddleOcrGpuFailureMessage(error, options = {}) {
     return buildRocmGpuFailureMessage(text);
   }
   if (isOcrCudaTransformersRuntime(options)) {
-    return `NVIDIA OCR GPU 실행에 실패했습니다. PyTorch CUDA + PaddleOCR Transformers 런타임과 NVIDIA 드라이버를 확인하세요. 기존 PaddleOCR-VL CUDA 방식은 CUDA 레거시 풀로드에서 사용할 수 있습니다. detail=${truncateText(text, 1200)}`;
+    return `NVIDIA OCR GPU 실행에 실패했습니다. PyTorch CUDA + PaddleOCR Transformers 런타임과 NVIDIA 드라이버를 확인하세요. detail=${truncateText(text, 1200)}`;
   }
   if (isPaddleSm120UnsupportedText(text)) {
     return buildPaddleOcrSm120FailureMessage(text, options);
-  }
-  if (isPaddleBfloat16SafetensorsText(text)) {
-    return buildPaddleOcrBfloat16SafetensorsFailureMessage(text, options);
   }
   return `Paddle OCR GPU 실행에 실패했습니다. GPU 설정을 쓰려면 CUDA가 보이는 NVIDIA GPU Paddle 런타임이 필요합니다. CPU로 처리하려면 설정에서 OCR 장치를 CPU로 직접 바꾸거나, GPU를 계속 쓰려면 NVIDIA 드라이버/CUDA용 Paddle 런타임을 확인하세요. detail=${truncateText(text, 1200)}`;
 }
@@ -142,11 +133,6 @@ function buildPaddleOcrSm120FailureMessage(detail, options = {}) {
 }
 
 /** @param {unknown} detail @param {RuntimeOptions} [options] @returns {string} */
-function buildPaddleOcrBfloat16SafetensorsFailureMessage(detail, options = {}) {
-  return `PaddleOCR-VL 모델 가중치(bfloat16)를 현재 OCR 런타임이 읽지 못했습니다. Windows에서는 PaddleOCR-VL용 special safetensors 휠과 공식 ${resolveOcrGpuCudaTag(options)} Paddle 런타임이 같이 필요합니다. OCR 런타임 패키지가 다시 설치되도록 앱을 업데이트한 뒤 재시도하세요. detail=${truncateText(detail, 1200)}`;
-}
-
-/** @param {unknown} detail @param {RuntimeOptions} [options] @returns {string} */
 function buildPaddleOcrNativeDllFailureMessage(detail, options = {}) {
   if (isRocmGpu(options)) {
     return `AMD OCR GPU 런타임의 Windows ROCm PyTorch DLL을 불러오지 못했습니다. 자동 복구 후에도 반복되면 Microsoft Visual C++ 2015-2022 재배포 패키지, Windows ROCm PyTorch 2.9.1/ROCm 7.2.1 지원 GPU/드라이버와 OCR 런타임 설치 상태를 확인하세요. detail=${truncateText(detail, 1200)}`;
@@ -161,13 +147,6 @@ function buildPaddleOcrNativeDllFailureMessage(detail, options = {}) {
 /** @param {unknown} value @returns {boolean} */
 function isPaddleSm120UnsupportedText(value) {
   return /not compiled for\s+SM\s*120|sm[_\s-]*120|compute capability:\s*12(?:\.0)?|mismatched gpu architecture/i.test(
-    String(value ?? ""),
-  );
-}
-
-/** @param {unknown} value @returns {boolean} */
-function isPaddleBfloat16SafetensorsText(value) {
-  return /data type ['"]?bfloat16['"]? not understood|_load_part_state_dict_from_safetensors/i.test(
     String(value ?? ""),
   );
 }
@@ -322,7 +301,7 @@ function buildPaddleImportCheckScript(device) {
     "missing = [name for name in ('paddle', 'paddlex', 'paddleocr') if importlib.util.find_spec(name) is None]",
     "assert not missing, 'Missing Paddle OCR package(s): ' + ', '.join(missing)",
     "import paddle",
-    "from paddleocr import PaddleOCRVL, PaddleOCR",
+    "from paddleocr import PaddleOCR",
   ];
   if (device.startsWith("gpu")) {
     lines.push(
@@ -341,7 +320,6 @@ module.exports = {
   buildPaddleOcrImportFailureMessage,
   isGpuDeviceLostOrTdrText,
   isGpuOutOfMemoryText,
-  isPaddleBfloat16SafetensorsText,
   isPaddleNativeDllLoadFailureText,
   isPaddleSm120UnsupportedText,
   isRocmHipAccessViolationText,

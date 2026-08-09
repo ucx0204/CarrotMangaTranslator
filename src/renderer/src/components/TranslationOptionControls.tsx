@@ -1,5 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { SegmentedControl } from "./ui/SegmentedControl";
 
 export function TranslationOptionSection({
   className,
@@ -149,25 +150,16 @@ export function OptionRow<T extends string>({
       {showLabel ? (
         <span className="translate-options-label">{label}</span>
       ) : null}
-      <div
+      <SegmentedControl
         className="settings-mode-group"
-        role="group"
-        aria-label={label}
-        aria-describedby={description ? descriptionId : undefined}
-      >
-        {options.map((option) => (
-          <button
-            key={option.id}
-            type="button"
-            className={`settings-preset-button ${value === option.id ? "active" : ""}`}
-            aria-pressed={value === option.id}
-            disabled={disabled}
-            onClick={() => onChange(option.id)}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
+        buttonClassName="settings-preset-button"
+        ariaLabel={label}
+        ariaDescribedBy={description ? descriptionId : undefined}
+        disabled={disabled}
+        options={options}
+        value={value}
+        onChange={onChange}
+      />
       {description ? (
         <p
           id={descriptionId}

@@ -26,9 +26,7 @@ function isSameRunState(
   previous: ChapterTaskHubProps,
   next: ChapterTaskHubProps,
 ): boolean {
-  return (
-    isSamePageTaskState(previous, next) && isSameProgressState(previous, next)
-  );
+  return isSamePageTaskState(previous, next);
 }
 
 function isSamePageTaskState(
@@ -43,23 +41,11 @@ function isSamePageTaskState(
   );
 }
 
-function isSameProgressState(
-  previous: ChapterTaskHubProps,
-  next: ChapterTaskHubProps,
-): boolean {
-  return (
-    previous.jobState === next.jobState &&
-    previous.progressSnapshot === next.progressSnapshot &&
-    previous.showProgressBar === next.showProgressBar
-  );
-}
-
 function isSameRunActions(
   previous: ChapterTaskHubProps,
   next: ChapterTaskHubProps,
 ): boolean {
   return (
-    previous.onCancelJob === next.onCancelJob &&
     previous.onOpenAutoInpaintingOptions === next.onOpenAutoInpaintingOptions &&
     previous.onOpenExport === next.onOpenExport &&
     previous.onOpenTranslateOptions === next.onOpenTranslateOptions &&

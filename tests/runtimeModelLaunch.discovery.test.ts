@@ -117,7 +117,7 @@ describeWindows(
       });
       expect(
         parsePaddleModelFetchProgress(
-          "Creating model: ('PaddleOCR-VL-1.6-0.9B', None, None)",
+          "Creating model: ('PP-OCRv6_medium_det', None, None)",
         ),
       ).toBeNull();
     });
@@ -145,31 +145,9 @@ describeWindows(
       const runtimeDir = createTempDir("ocr-runtime-");
       const tasks = collectRequiredPaddleOcrModelDownloads({}, { runtimeDir });
 
-      expect(tasks).toHaveLength(34);
+      expect(tasks).toHaveLength(10);
       expect(tasks).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({
-            repo: "PaddlePaddle/PP-DocLayoutV3",
-            file: "inference.pdiparams",
-            destination: join(
-              runtimeDir,
-              "paddlex-cache",
-              "official_models",
-              "PP-DocLayoutV3",
-              "inference.pdiparams",
-            ),
-          }),
-          expect.objectContaining({
-            repo: "PaddlePaddle/PaddleOCR-VL-1.6",
-            file: "model.safetensors",
-            destination: join(
-              runtimeDir,
-              "paddlex-cache",
-              "official_models",
-              "PaddleOCR-VL-1.6",
-              "model.safetensors",
-            ),
-          }),
           expect.objectContaining({
             repo: "PaddlePaddle/PP-OCRv6_medium_det",
             file: "inference.pdiparams",
@@ -245,7 +223,7 @@ describeWindows(
       ).toBe(true);
     });
 
-    it("does not predownload PaddleOCRVL model assets for AMD ROCm Transformers OCR", () => {
+    it("does not predownload native Paddle models for AMD ROCm Transformers OCR", () => {
       const runtimeDir = createTempDir("ocr-runtime-");
       const tasks = collectRequiredPaddleOcrModelDownloads(
         { ocrDevice: "gpu", ocrGpuBackend: "rocm-transformers" },
@@ -277,9 +255,6 @@ describeWindows(
           "PaddlePaddle/PP-OCRv6_small_det",
           "PaddlePaddle/PP-OCRv6_small_rec",
         ]),
-      );
-      expect(economyTasks.map((task) => task.repo)).not.toContain(
-        "PaddlePaddle/PaddleOCR-VL-1.6",
       );
       expect(minimumTasks.map((task) => task.repo)).toEqual(
         expect.arrayContaining([

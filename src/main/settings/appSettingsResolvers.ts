@@ -150,7 +150,9 @@ export function resolveOcrQualityMode(
       "cuda 레거시 풀로드",
     ].includes(normalized)
   ) {
-    return "cuda-legacy-full";
+    // CUDA legacy full was removed. Migrate persisted aliases to the current
+    // semantic full-quality path instead of exposing the old runtime mode.
+    return "full";
   }
   return fallback;
 }

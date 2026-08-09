@@ -9,7 +9,7 @@
 - `openai-oauth`와 해당 런타임 의존성. 설치판에서는 하나의 ESM 파일로 묶으며, 정확히 포함된 패키지의 라이선스 원문을 `resources/app-runtime/openai-oauth-runtime-LICENSES.txt`에 함께 제공합니다.
 - ffmpeg
 - llama.cpp, beellama, Lemonade ROCm runtime
-- PaddleOCR, PaddleOCR-VL, PaddlePaddle, Python runtime
+- PaddleOCR, PaddlePaddle, Python runtime
 - Flux/Koharu 기반 인페인팅 runner와 관련 모델/런타임
 - Gemma 4 GGUF 모델, mmproj, Flux Klein, Flux small decoder, LaMa Manga, AOT Inpainting 등 Hugging Face에서 내려받는 모델 파일
 - `mayocream/anime-text-yolo`의 GPL-3.0 `yolo12n_animetext.safetensors`. 앱은 고정 revision과 SHA-256을 검증해 내려받으며, OCR 그룹을 직접 결정하지 않는 보조 텍스트 영역 신호로만 사용합니다.

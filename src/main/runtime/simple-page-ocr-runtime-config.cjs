@@ -27,7 +27,6 @@ module.exports = {
   isOcrGpuRequested: device.isOcrGpuRequested,
   isOcrTransformersEngine: device.isOcrTransformersEngine,
   isOcrTransformersRuntime: device.isOcrTransformersRuntime,
-  isPaddleBfloat16SafetensorsText: errors.isPaddleBfloat16SafetensorsText,
   isPaddleNativeDllLoadFailureText: errors.isPaddleNativeDllLoadFailureText,
   isPaddleSm120UnsupportedText: errors.isPaddleSm120UnsupportedText,
   isRocmHipAccessViolationText: errors.isRocmHipAccessViolationText,

@@ -392,7 +392,21 @@
     "bubbleLayoutHint": "從清除後的圖片偵測對話框區域，並自動調整譯文排版。"
   },
   "translationOptions": {
+    "title": "執行翻譯",
     "start": "開始翻譯",
+    "startSelection": "翻譯所選範圍",
+    "retranslateSelection": "重新翻譯所選範圍",
+    "overwriteWarning": {
+      "title": "所選範圍包含既有結果",
+      "description": "已選取完成的頁面或編輯過的文字區塊，其譯文與手動修改可能會被新結果取代。"
+    },
+    "overwriteConfirm": {
+      "title": "重新翻譯所選範圍？",
+      "message": "將再次處理包含完成結果或手動修改的頁面。",
+      "detail": "翻譯工作不會加入工作區復原記錄。如需保留目前結果，請先匯出工作副本。",
+      "action": "重新翻譯所選範圍"
+    },
+    "saveAsDefault": "儲存為今後翻譯的預設設定",
     "workUnavailable": "無法載入作品資訊。將只翻譯目前章節。",
     "sections": {
       "quality": "翻譯品質",
@@ -410,8 +424,10 @@
         "description": "翻譯時逐頁累積場景摘要、術語和角色資訊，並從下一頁起用於參考。"
       },
       "twoPass": {
-        "label": "精細二次翻譯",
-        "description": "第一次翻譯後分析所選範圍的前後文，再根據分析結果重新翻譯。速度最慢，但品質最高。"
+        "label": "精細二次翻譯（舊版）",
+        "description": "所選頁面會翻譯兩次。處理時間較長，通常帶來的品質提升有限。",
+        "warningTitle": "舊版功能 · 預計移除",
+        "warningDescription": "精細二次翻譯耗時較長且品質提升有限，預計在後續更新中移除。新工作建議使用累積前後文。"
       }
     },
     "secondPass": "二次翻譯（提升品質）",
@@ -455,11 +471,12 @@
   },
   "retranslate": {
     "title": "重新翻譯頁面",
-    "start": "開始重新翻譯",
+    "start": "重新翻譯此頁",
     "context": "頁面：{{pageName}}（{{count}}個文字區塊）",
     "keepBlocksHint": "保留目前文字區塊的區域和格式，只重新填入各區域的文字。",
     "autoBlocksHint": "刪除所有現有文字區塊並自動偵測新文字區塊。",
-    "overwriteWarning": "本頁現有的翻譯結果和編輯內容將被覆蓋。"
+    "overwriteTitle": "此頁的既有結果將會變更",
+    "overwriteWarning": "既有譯文與手動修改將被新結果取代，且無法透過工作區復原恢復。"
   },
   "translateSource": {
     "title": "選擇翻譯原稿",
@@ -1024,6 +1041,16 @@
       "cancel": "取消",
       "save": "儲存"
     },
+    "unsavedChanges": {
+      "title": "未儲存的變更",
+      "message": "要放棄設定變更並關閉嗎？",
+      "detail": "未儲存的變更與已載入的預設值草稿都不會套用。",
+      "discard": "放棄變更"
+    },
+    "defaultsPreview": {
+      "title": "已將預設值載入為草稿",
+      "description": "尚未套用任何變更。儲存後才會套用，取消則保留現有設定。"
+    },
     "engine": {
       "limits": {
         "title": "生成限制",
@@ -1131,10 +1158,6 @@
         "full": {
           "label": "完整",
           "description": "由 Gemma 4 根據座標將高品質 OCR 片段合併為語意單元。"
-        },
-        "cudaLegacyFull": {
-          "label": "CUDA 舊版完整",
-          "description": "在 NVIDIA CUDA 上使用原有 PaddleOCR-VL 版面路徑。"
         }
       },
       "llamaRuntimes": {
@@ -1481,12 +1504,14 @@
     "backToList": "返回頁面文字區塊"
   },
   "statusDock": {
-    "title": "最近工作通知",
+    "title": "工作中心",
     "recentCount": "最近{{count}}筆",
     "clear": "清除狀態記錄",
     "close": "關閉",
-    "open": "開啟最近工作通知",
-    "latest": "最新狀態：{{line}}"
+    "open": "開啟工作中心",
+    "latest": "最新狀態：{{line}}",
+    "cancelJob": "取消目前工作",
+    "cancelling": "正在要求取消…"
   },
   "stylePresets": {
     "title": "格式預設",

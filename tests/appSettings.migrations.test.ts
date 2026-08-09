@@ -119,10 +119,8 @@ describeWindows("app settings helpers: UI settings and migrations", () => {
     expect(resolveOcrQualityMode("tiny", "full")).toBe("minimum");
     expect(resolveOcrQualityMode("small", "full")).toBe("economy");
     expect(resolveOcrQualityMode("full", "minimum")).toBe("full");
-    expect(resolveOcrQualityMode("vl", "minimum")).toBe("cuda-legacy-full");
-    expect(resolveOcrQualityMode("cuda-legacy", "minimum")).toBe(
-      "cuda-legacy-full",
-    );
+    expect(resolveOcrQualityMode("vl", "minimum")).toBe("full");
+    expect(resolveOcrQualityMode("cuda-legacy", "minimum")).toBe("full");
     expect(resolveOcrQualityMode("unknown", "economy")).toBe("economy");
   });
 

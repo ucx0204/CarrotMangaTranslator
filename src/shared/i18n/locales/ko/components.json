@@ -396,7 +396,21 @@
     "bubbleLayoutHint": "지운 이미지에서 말풍선 영역을 찾아 번역문 배치까지 자동으로 맞춥니다."
   },
   "translationOptions": {
+    "title": "번역 실행",
     "start": "번역 시작",
+    "startSelection": "선택 범위 번역",
+    "retranslateSelection": "선택 범위 다시 번역",
+    "overwriteWarning": {
+      "title": "기존 결과가 바뀌는 페이지가 포함됨",
+      "description": "완료된 페이지나 수정한 블록이 선택되어 있습니다. 해당 페이지의 번역 결과와 수동 수정은 새 결과로 교체될 수 있습니다."
+    },
+    "overwriteConfirm": {
+      "title": "선택 범위를 다시 번역할까요?",
+      "message": "완료된 결과 또는 수동 수정이 포함된 페이지를 다시 처리합니다.",
+      "detail": "번역 실행은 작업 공간의 실행 취소 기록에 남지 않습니다. 필요한 결과는 먼저 작업 내보내기로 보관해 주세요.",
+      "action": "선택 범위 다시 번역"
+    },
+    "saveAsDefault": "다음 번역의 기본값으로 저장",
     "workUnavailable": "작품 정보를 불러오지 못했습니다. 현재 화만 번역합니다.",
     "sections": {
       "quality": "번역 품질",
@@ -414,8 +428,10 @@
         "description": "번역하면서 페이지의 장면 요약·용어·캐릭터 정보를 쌓아 다음 페이지부터 참고합니다."
       },
       "twoPass": {
-        "label": "정밀 2차",
-        "description": "1차 번역 후 선택한 범위의 맥락을 분석해 다시 번역합니다. 가장 느리지만 품질이 높습니다."
+        "label": "정밀 2차 (레거시)",
+        "description": "선택한 페이지를 두 번 번역합니다. 처리 시간이 길고 일반적인 품질 향상 효과는 제한적입니다.",
+        "warningTitle": "레거시 기능 · 제거 예정",
+        "warningDescription": "정밀 2차는 처리 시간이 길고 품질 향상 효과가 제한적이어서 추후 업데이트에서 제거될 예정입니다. 새 작업에는 누적 컨텍스트를 권장합니다."
       }
     },
     "secondPass": "2차 번역 (품질 향상)",
@@ -459,11 +475,12 @@
   },
   "retranslate": {
     "title": "페이지 재번역",
-    "start": "재번역 시작",
+    "start": "이 페이지 다시 번역",
     "context": "페이지: {{pageName}} (블록 {{count}}개)",
     "keepBlocksHint": "현재 블록들의 영역·서식을 그대로 두고 각 영역의 텍스트만 다시 채웁니다.",
     "autoBlocksHint": "기존 블록을 모두 지우고 자동 감지로 새 블록을 만듭니다.",
-    "overwriteWarning": "기존 번역 결과와 수정 내용이 이 페이지에서 덮어써집니다."
+    "overwriteTitle": "이 페이지의 기존 결과가 바뀝니다",
+    "overwriteWarning": "기존 번역 결과와 수동 수정이 새 결과로 교체되며 작업 공간 실행 취소로 되돌릴 수 없습니다."
   },
   "translateSource": {
     "title": "번역할 원본 선택",
@@ -1031,6 +1048,16 @@
       "cancel": "취소",
       "save": "저장"
     },
+    "unsavedChanges": {
+      "title": "저장하지 않은 변경",
+      "message": "변경한 설정을 버리고 닫을까요?",
+      "detail": "저장하지 않은 변경과 불러온 기본값 초안은 적용되지 않습니다.",
+      "discard": "변경 사항 버리기"
+    },
+    "defaultsPreview": {
+      "title": "기본값을 임시로 불러왔습니다",
+      "description": "아직 적용되지 않았습니다. 저장을 누르면 적용되고, 취소하면 기존 설정이 유지됩니다."
+    },
     "engine": {
       "limits": {
         "title": "생성 한도",
@@ -1153,10 +1180,6 @@
         "full": {
           "label": "풀로드",
           "description": "고품질 OCR 조각과 좌표를 Gemma 4가 의미 단위로 묶습니다."
-        },
-        "cudaLegacyFull": {
-          "label": "CUDA 레거시 풀로드",
-          "description": "NVIDIA CUDA에서 기존 PaddleOCR-VL 레이아웃 경로를 사용합니다."
         }
       },
       "llamaRuntimes": {
@@ -1506,12 +1529,14 @@
     "backToList": "페이지 블록 목록으로"
   },
   "statusDock": {
-    "title": "최근 작업 알림",
+    "title": "작업 센터",
     "recentCount": "최근 {{count}}개",
     "clear": "상태 기록 지우기",
     "close": "닫기",
-    "open": "최근 작업 알림 열기",
-    "latest": "최근 상태: {{line}}"
+    "open": "작업 센터 열기",
+    "latest": "최근 상태: {{line}}",
+    "cancelJob": "현재 작업 취소",
+    "cancelling": "취소 요청 중…"
   },
   "stylePresets": {
     "title": "서식 프리셋",

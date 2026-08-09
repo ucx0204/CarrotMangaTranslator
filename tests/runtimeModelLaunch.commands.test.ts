@@ -25,7 +25,7 @@ describeWindows(
       const runtime = { pythonPath: "python" };
       const cpuCommand = buildOcrBboxCommand(
         { imagePath: "page.png", ocrDevice: "cpu" },
-        "paddleocr-vl",
+        "paddleocr",
         "out.json",
         runtime,
       );
@@ -41,7 +41,7 @@ describeWindows(
           ocrDevice: "gpu",
           ocrGpuBackend: "rocm-transformers",
         },
-        "paddleocr-vl",
+        "paddleocr",
         "out.json",
         runtime,
       );
@@ -49,9 +49,11 @@ describeWindows(
       expect(cpuCommand.executable).toBe("python");
       expect(cudaCommand.executable).toBe("python");
       expect(amdCommand.executable).toBe("python");
-      expect(cpuCommand.args).not.toContain("--bbox-mode");
+      expect(cpuCommand.args).toContain("--bbox-mode");
+      expect(cpuCommand.args).toContain("ocr");
       expect(cpuCommand.args).not.toContain("--engine");
-      expect(cudaCommand.args).not.toContain("--bbox-mode");
+      expect(cudaCommand.args).toContain("--bbox-mode");
+      expect(cudaCommand.args).toContain("ocr");
       expect(cudaCommand.args).not.toContain("--engine");
       expect(amdCommand.args).toContain("--bbox-mode");
       expect(amdCommand.args).toContain("ocr");
@@ -65,7 +67,7 @@ describeWindows(
       expect(amdCommand.args).toContain("semantic");
     });
 
-    it("passes smoke OCR presets for economy and CUDA legacy full modes", () => {
+    it("keeps economy and full presets on the supported semantic OCR path", () => {
       const runtime = { pythonPath: "python" };
       const economyCommand = buildOcrBboxCommand(
         {
@@ -82,7 +84,7 @@ describeWindows(
           ocrDetLimit: "1600",
           ocrRecBatch: "1",
         },
-        "paddleocr-vl",
+        "paddleocr",
         "out.json",
         runtime,
       );
@@ -91,13 +93,14 @@ describeWindows(
           imagePath: "page.png",
           ocrDevice: "gpu",
           ocrGpuBackend: "cuda",
+          ocrEngine: "transformers",
           ocrBboxMode: "vl",
           ocrVersion: "PP-OCRv6",
           ocrMergeMode: "legacy",
           ocrDetLimit: "1600",
           ocrRecBatch: "1",
         },
-        "paddleocr-vl",
+        "paddleocr",
         "out.json",
         runtime,
       );
@@ -130,12 +133,13 @@ describeWindows(
         "PP-OCRv6_small_rec",
       );
       expect(fullCommand.args).toContain("--bbox-mode");
-      expect(fullCommand.args).toContain("vl");
+      expect(fullCommand.args).toContain("ocr");
       expect(fullCommand.args).toContain("--ocr-version");
       expect(fullCommand.args).toContain("PP-OCRv6");
       expect(fullCommand.args).toContain("--merge-mode");
-      expect(fullCommand.args).toContain("legacy");
-      expect(fullCommand.args).not.toContain("--engine");
+      expect(fullCommand.args).toContain("semantic");
+      expect(fullCommand.args).toContain("--engine");
+      expect(fullCommand.args).toContain("transformers");
       expect(fullCommand.args).not.toContain("--text-detection-model-name");
       expect(fullCommand.args).not.toContain("--text-recognition-model-name");
     });
@@ -160,7 +164,8 @@ describeWindows(
       expect(dllParts).toContain(paddleBaseDir);
       expect(script).toContain("os.add_dll_directory");
       expect(script).toContain("import paddle");
-      expect(script).toContain("from paddleocr import PaddleOCRVL, PaddleOCR");
+      expect(script).toContain("from paddleocr import PaddleOCR");
+      expect(script).not.toContain("PaddleOCRVL");
       expect(script).not.toContain("import torch");
       expect(script).not.toContain("torch.version");
     });
@@ -290,31 +295,20 @@ describeWindows(
       expect(gemma26B).toEqual(gemma31B);
     });
 
-    it("always installs Windows PaddleOCR-VL safetensors in a separate no-deps batch", () => {
+    it("does not install the removed PaddleOCR-VL safetensors overlay", () => {
       const previousGeneric = process.env.MANGA_TRANSLATOR_OCR_PIP_PACKAGES;
       const previousGpu = process.env.MANGA_TRANSLATOR_OCR_GPU_PIP_PACKAGES;
       try {
         delete process.env.MANGA_TRANSLATOR_OCR_PIP_PACKAGES;
-        process.env.MANGA_TRANSLATOR_OCR_GPU_PIP_PACKAGES =
-          "paddleocr[doc-parser]==3.7.0 https://xly-devops.cdn.bcebos.com/safetensors-nightly/safetensors-0.6.2.dev0-cp38-abi3-win_amd64.whl";
+        delete process.env.MANGA_TRANSLATOR_OCR_GPU_PIP_PACKAGES;
 
         const batches = resolveOcrPipInstallBatches({
           ocrDevice: "gpu",
           ocrGpuCudaTag: "cu129",
         });
 
-        if (process.platform === "win32") {
-          expect(batches).toEqual([
-            ["paddleocr[doc-parser]==3.7.0"],
-            [
-              "--no-deps",
-              "--force-reinstall",
-              "https://xly-devops.cdn.bcebos.com/safetensors-nightly/safetensors-0.6.2.dev0-cp38-abi3-win_amd64.whl",
-            ],
-          ]);
-        } else {
-          expect(batches[0]).toContain("paddleocr[doc-parser]==3.7.0");
-        }
+        expect(batches.flat().join(" ")).not.toContain("safetensors-nightly");
+        expect(batches.flat()).not.toContain("--force-reinstall");
       } finally {
         restoreEnv("MANGA_TRANSLATOR_OCR_PIP_PACKAGES", previousGeneric);
         restoreEnv("MANGA_TRANSLATOR_OCR_GPU_PIP_PACKAGES", previousGpu);
@@ -397,9 +391,8 @@ describeWindows(
         });
         expect(script).toContain("importlib.util.find_spec");
         expect(script).toContain("import paddle");
-        expect(script).toContain(
-          "from paddleocr import PaddleOCRVL, PaddleOCR",
-        );
+        expect(script).toContain("from paddleocr import PaddleOCR");
+        expect(script).not.toContain("PaddleOCRVL");
         expect(script).not.toContain("import paddle, paddlex, paddleocr");
         expect(script).not.toContain("torch.version");
         expect(script).toContain("paddle.set_device");

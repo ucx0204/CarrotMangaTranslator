@@ -141,7 +141,7 @@
   right: calc(100% + 8px);
   bottom: 0;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: repeat(4, auto) minmax(0, 1fr);
   gap: var(--sp-3);
   width: 344px;
   max-width: calc(100vw - 72px);

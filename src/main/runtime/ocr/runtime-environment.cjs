@@ -287,18 +287,14 @@ function buildPaddleOcrModeEnv(
     ? {
         engine: "transformers",
         dtype: "float32",
-        bboxMode: "ocr",
         version: "PP-OCRv6",
-        mergeMode: "semantic",
         detLimit: "1600",
         recBatch: "1",
       }
     : {
         engine: "",
         dtype: "",
-        bboxMode: "",
         version: "",
-        mergeMode: "",
         detLimit: "",
         recBatch: "",
       };
@@ -321,12 +317,7 @@ function resolvePaddleOcrModeEntries(options, defaults) {
       defaults.dtype,
       options,
     ),
-    modeEntry(
-      "MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE",
-      options.ocrBboxMode,
-      defaults.bboxMode,
-      options,
-    ),
+    ["MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE", "ocr"],
     modeEntry(
       "MANGA_TRANSLATOR_PADDLEOCR_VERSION",
       options.ocrVersion,
@@ -345,12 +336,7 @@ function resolvePaddleOcrModeEntries(options, defaults) {
       "",
       options,
     ),
-    modeEntry(
-      "MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE",
-      options.ocrMergeMode,
-      defaults.mergeMode,
-      options,
-    ),
+    ["MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE", "semantic"],
     modeEntry(
       "MANGA_TRANSLATOR_PADDLEOCR_DET_LIMIT",
       options.ocrDetLimit,

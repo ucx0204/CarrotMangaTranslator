@@ -6,6 +6,7 @@ import { getBlockModeOptions } from "../lib/blockModeOptions";
 import { OptionRow, ToggleOptionRow } from "./TranslationOptionControls";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
+import { WarnIcon } from "./ui/icons";
 
 type PageRetranslateModalProps = {
   pageName: string;
@@ -46,13 +47,16 @@ export function PageRetranslateModal({
   const [autoFontMatching, setAutoFontMatching] = React.useState(
     uiSettings?.autoFontMatchingDefault ?? false,
   );
+  const [saveAsDefault, setSaveAsDefault] = React.useState(false);
 
   const handleStart = (): void => {
-    onPersistDefaults({
-      blockModeDefault: blockMode,
-      naturalTextLayoutDefault: naturalTextLayout,
-      autoFontMatchingDefault: autoFontMatching,
-    });
+    if (saveAsDefault) {
+      onPersistDefaults({
+        blockModeDefault: blockMode,
+        naturalTextLayoutDefault: naturalTextLayout,
+        autoFontMatchingDefault: autoFontMatching,
+      });
+    }
     onStart(blockMode, naturalTextLayout, autoFontMatching);
     onClose();
   };
@@ -66,6 +70,14 @@ export function PageRetranslateModal({
       cardClassName="translation-options-modal"
       footer={
         <>
+          <label className="translation-save-defaults">
+            <input
+              type="checkbox"
+              checked={saveAsDefault}
+              onChange={(event) => setSaveAsDefault(event.target.checked)}
+            />
+            <span>{t("translationOptions.saveAsDefault")}</span>
+          </label>
           <Button onClick={onClose}>{t("common.cancel")}</Button>
           <Button variant="primary" onClick={handleStart}>
             {t("retranslate.start")}
@@ -113,7 +125,7 @@ function PageRetranslateOptions({
   tRenderer: ReturnType<typeof useTranslation>["t"];
 }): React.JSX.Element {
   return (
-    <div className="translate-options">
+    <div className="translate-options page-retranslate-options">
       <p className="translate-options-context">
         {t("retranslate.context", { pageName, count: blockCount })}
       </p>
@@ -142,9 +154,13 @@ function PageRetranslateOptions({
           onChange={onAutoFontMatchingChange}
         />
       </div>
-      <p className="translate-options-hint">
-        {t("retranslate.overwriteWarning")}
-      </p>
+      <div className="translation-overwrite-warning" role="note">
+        <WarnIcon size={18} aria-hidden="true" />
+        <div>
+          <strong>{t("retranslate.overwriteTitle")}</strong>
+          <span>{t("retranslate.overwriteWarning")}</span>
+        </div>
+      </div>
     </div>
   );
 }

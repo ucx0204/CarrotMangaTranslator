@@ -179,21 +179,10 @@ function useOcrQualityDeviceGuard(
 ): void {
   React.useEffect(() => {
     // GPU 전용 고품질 모드는 CPU 장치와 조합되지 않도록 절약 품질로 강제한다.
-    if (
-      values.ocrDevice === "cpu" &&
-      (values.ocrQualityMode === "full" ||
-        values.ocrQualityMode === "cuda-legacy-full")
-    ) {
+    if (values.ocrDevice === "cpu" && values.ocrQualityMode === "full") {
       setters.setOcrQualityMode("economy");
-      return;
     }
-    if (
-      values.ocrQualityMode === "cuda-legacy-full" &&
-      values.ocrGpuBackend !== "cuda"
-    ) {
-      setters.setOcrQualityMode("full");
-    }
-  }, [setters, values.ocrDevice, values.ocrGpuBackend, values.ocrQualityMode]);
+  }, [setters, values.ocrDevice, values.ocrQualityMode]);
 }
 
 function useLlamaRuntimeGuard(

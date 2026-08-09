@@ -194,7 +194,7 @@ function resolveHardwareOcrQualityMode(
   ocrDevice: OcrDevice,
 ): OcrQualityMode {
   if (gemmaVramMode === "full31b") {
-    // 풀로드(PaddleOCR-VL) 품질은 CPU에서 못 쓸 만큼 느리다.
+    // 풀로드 품질은 CPU에서 못 쓸 만큼 느리다.
     return ocrDevice === "gpu" ? "full" : "economy";
   }
   if (gemmaVramMode === "economy26b") {

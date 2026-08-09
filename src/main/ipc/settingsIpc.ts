@@ -12,6 +12,7 @@ import type { ApiModelDiscoveryRequest } from "../../shared/apiProviderPresets";
 import { SETTINGS_SECRET_PRESERVE_SENTINEL } from "../../shared/settingsSecrets";
 import {
   getAppSettings,
+  getDefaultAppSettings,
   hydrateAppSettingsSecretSentinels,
   maskAppSettingsSecrets,
   resetAppSettings,
@@ -50,6 +51,11 @@ export function registerSettingsIpc(
   );
   trustedHandleContract(context, settingsIpcContracts.getSettings, async () =>
     maskAppSettingsSecrets(await getAppSettings()),
+  );
+  trustedHandleContract(
+    context,
+    settingsIpcContracts.getDefaultSettings,
+    async () => maskAppSettingsSecrets(await getDefaultAppSettings()),
   );
   trustedHandleContract(
     context,

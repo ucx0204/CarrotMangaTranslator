@@ -1,6 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { SETTINGS_TABS, type SettingsTabId } from "../settingsModalTypes";
+import { Tabs } from "../ui/Tabs";
 
 type SettingsTabsProps = {
   activeTab: SettingsTabId;
@@ -12,26 +13,20 @@ export function SettingsTabs({
   onChange,
 }: SettingsTabsProps): React.JSX.Element {
   const { t } = useTranslation("components");
+  const items = SETTINGS_TABS.map((tab) => ({
+    value: tab.id,
+    label: t(tab.labelKey),
+    id: `settings-tab-${tab.id}`,
+    panelId: `settings-panel-${tab.id}`,
+  }));
   return (
-    <nav
+    <Tabs
       className="settings-tabs"
-      role="tablist"
-      aria-label={t("settings.tabs.ariaLabel")}
-    >
-      {SETTINGS_TABS.map((tab) => (
-        <button
-          key={tab.id}
-          type="button"
-          role="tab"
-          id={`settings-tab-${tab.id}`}
-          aria-selected={activeTab === tab.id}
-          aria-controls={`settings-panel-${tab.id}`}
-          className={`settings-tab ${activeTab === tab.id ? "active" : ""}`}
-          onClick={() => onChange(tab.id)}
-        >
-          {t(tab.labelKey)}
-        </button>
-      ))}
-    </nav>
+      tabClassName="settings-tab"
+      ariaLabel={t("settings.tabs.ariaLabel")}
+      items={items}
+      value={activeTab}
+      onChange={onChange}
+    />
   );
 }

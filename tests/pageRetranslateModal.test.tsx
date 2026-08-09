@@ -41,14 +41,12 @@ describe("PageRetranslateModal", () => {
         .getByRole("button", { name: "폰트 자동 맞춤" })
         .getAttribute("aria-pressed"),
     ).toBe("false");
-    fireEvent.click(screen.getByRole("button", { name: "재번역 시작" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "이 페이지 다시 번역" }),
+    );
 
     expect(onStart).toHaveBeenCalledWith("auto", true, false);
-    expect(onPersistDefaults).toHaveBeenCalledWith({
-      autoFontMatchingDefault: false,
-      blockModeDefault: "auto",
-      naturalTextLayoutDefault: true,
-    });
+    expect(onPersistDefaults).not.toHaveBeenCalled();
   });
 
   it("preserves an explicitly saved natural line layout off setting", () => {
@@ -61,7 +59,14 @@ describe("PageRetranslateModal", () => {
         .getByRole("button", { name: "자연스러운 줄 나눔" })
         .getAttribute("aria-pressed"),
     ).toBe("false");
-    fireEvent.click(screen.getByRole("button", { name: "재번역 시작" }));
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: "다음 번역의 기본값으로 저장",
+      }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "이 페이지 다시 번역" }),
+    );
 
     expect(onStart).toHaveBeenCalledWith("auto", false, false);
     expect(onPersistDefaults).toHaveBeenCalledWith({
@@ -81,7 +86,14 @@ describe("PageRetranslateModal", () => {
         .getByRole("button", { name: "폰트 자동 맞춤" })
         .getAttribute("aria-pressed"),
     ).toBe("true");
-    fireEvent.click(screen.getByRole("button", { name: "재번역 시작" }));
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: "다음 번역의 기본값으로 저장",
+      }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "이 페이지 다시 번역" }),
+    );
 
     expect(onStart).toHaveBeenCalledWith("auto", true, true);
     expect(onPersistDefaults).toHaveBeenCalledWith(

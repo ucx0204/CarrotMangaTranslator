@@ -13,11 +13,13 @@ import { TestSettingsPanel } from "./TestSettingsPanel";
 import { GeneralSettingsPanel } from "./GeneralSettingsPanel";
 import type { SettingsTabId } from "../settingsModalTypes";
 import { SETTINGS_TABS } from "../settingsModalTypes";
+import { InfoIcon } from "../ui/icons";
 
 export type SettingsModalViewProps = {
   activeTab: SettingsTabId;
   canSubmit: boolean;
   controlsBusy: boolean;
+  defaultsPreviewActive: boolean;
   generalPanelProps: React.ComponentProps<typeof GeneralSettingsPanel>;
   enginePanelProps: React.ComponentProps<typeof EngineSettingsPanel>;
   hardwarePanelProps: React.ComponentProps<typeof HardwareSettingsPanel>;
@@ -46,6 +48,7 @@ export function SettingsModalView({
   activeTab,
   canSubmit,
   controlsBusy,
+  defaultsPreviewActive,
   generalPanelProps,
   enginePanelProps,
   hardwarePanelProps,
@@ -80,6 +83,15 @@ export function SettingsModalView({
       }
     >
       <div className="settings-layout">
+        {defaultsPreviewActive ? (
+          <div className="settings-draft-notice" role="status">
+            <InfoIcon size={18} />
+            <div>
+              <strong>{t("settings.defaultsPreview.title")}</strong>
+              <span>{t("settings.defaultsPreview.description")}</span>
+            </div>
+          </div>
+        ) : null}
         <SettingsTabs activeTab={activeTab} onChange={setActiveTab} />
         <SettingsModalTabPanel
           activeTab={activeTab}

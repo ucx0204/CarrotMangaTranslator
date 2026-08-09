@@ -25,15 +25,13 @@ function createPromptOptions(options, result) {
   const transcriptEvidenceCount = hints.filter((hint) =>
     /[\p{L}\p{N}]/u.test(readOcrCandidateText(hint)),
   ).length;
-  // Strip lexical seeds from unverified detector-only boxes. CUDA legacy is
-  // explicitly excluded so its original prompt behavior remains untouched.
+  // Strip lexical seeds from unverified detector-only boxes.
   const ocrGeometryOnlyMode =
     hints.length > 0 &&
     Number.isFinite(textEvidenceCount) &&
     textEvidenceCount === 0 &&
     transcriptEvidenceCount === 0 &&
     !options.regionCropMode &&
-    !isCudaLegacyOcrMode(options) &&
     isJapaneseLanguageCode(options.sourceLanguage);
   return /** @type {PromptRequestOptions} */ ({
     ...options,
@@ -65,22 +63,6 @@ function shouldSkipModelRequest(result, options) {
       result.noTextDetected &&
       (!Array.isArray(result.hints) || result.hints.length === 0) &&
       allowOcrNoTextDetectedSkip(options))
-  );
-}
-
-/** @param {TranslationRequestOptions} options */
-function isCudaLegacyOcrMode(options) {
-  const quality = String(options.ocrQualityMode ?? "")
-    .trim()
-    .toLowerCase();
-  if (quality === "cuda-legacy-full") return true;
-  if (quality === "minimum" || quality === "economy" || quality === "full") {
-    return false;
-  }
-  return (
-    String(options.ocrMergeMode ?? "")
-      .trim()
-      .toLowerCase() === "legacy"
   );
 }
 

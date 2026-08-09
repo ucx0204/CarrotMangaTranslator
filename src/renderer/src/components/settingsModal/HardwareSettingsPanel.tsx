@@ -182,13 +182,7 @@ function OcrQualitySettings({
     (option) => option.id === ocrQualityMode,
   );
   const visibleQualityOptions = OCR_QUALITY_OPTIONS.filter((option) => {
-    if (
-      usesAppleHardware &&
-      (option.id === "full" || option.id === "cuda-legacy-full")
-    ) {
-      return false;
-    }
-    if (option.id === "cuda-legacy-full" && !usesNvidiaOcrContext) {
+    if (usesAppleHardware && option.id === "full") {
       return false;
     }
     return true;
@@ -208,11 +202,9 @@ function OcrQualitySettings({
             className={`settings-preset-button ${ocrQualityMode === option.id ? "active" : ""}`}
             onClick={() => {
               clearTestState();
-              if (option.id === "full" || option.id === "cuda-legacy-full") {
+              if (option.id === "full") {
                 setOcrDevice("gpu");
-                if (option.id === "cuda-legacy-full") {
-                  setOcrGpuBackend("cuda");
-                } else if (usesAmdOcrContext) {
+                if (usesAmdOcrContext) {
                   setOcrGpuBackend("rocm-transformers");
                 } else if (usesNvidiaOcrContext) {
                   setOcrGpuBackend("cuda");

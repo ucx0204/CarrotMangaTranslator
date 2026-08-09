@@ -126,7 +126,7 @@ describe("runtime command security", () => {
     const outputPath = "out & whoami | literal.json";
     const command = buildOcrBboxCommand(
       { imagePath, ocrDevice: "cpu" },
-      "paddleocr-vl",
+      "paddleocr",
       outputPath,
       { pythonPath },
     );

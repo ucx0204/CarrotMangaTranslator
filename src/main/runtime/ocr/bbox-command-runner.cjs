@@ -66,7 +66,7 @@ async function runOcrBboxCommand(
 
 /** @param {Dependencies} dependencies @param {string} provider @param {OcrBboxOptions} options */
 function resolveRuntime(dependencies, provider, options) {
-  return provider === "paddleocr-vl"
+  return provider === "paddleocr"
     ? dependencies.ensurePaddleOcrRuntime(options)
     : Promise.resolve(null);
 }

@@ -80,12 +80,12 @@ function buildOcrBboxCommand(
     });
   }
 
-  if (provider === "paddleocr-vl") {
+  if (provider === "paddleocr") {
     return {
       executable: resolveOcrRuntimePythonPath(runtime, options),
       args: [
         "-u",
-        path.join(__dirname, "paddleocr-vl-bboxes.py"),
+        path.join(__dirname, "paddleocr-bboxes.py"),
         "--image",
         imagePath,
         "--output",
@@ -116,7 +116,7 @@ function buildOcrBboxBatchCommand(
 ) {
   const args = [
     "-u",
-    path.join(__dirname, "paddleocr-vl-bboxes.py"),
+    path.join(__dirname, "paddleocr-bboxes.py"),
     "--batch",
     requireNonEmptyPath(batchPath, "OCR batch path"),
   ];
@@ -294,21 +294,13 @@ function buildPaddleOcrBboxModeArgs(options = {}) {
     resolveOcrGpuBackend(options) === "rocm-transformers";
   const rocmDefaults = rocmTransformers
     ? {
-        bboxMode: "ocr",
         engine: "transformers",
         dtype: "float32",
         ocrVersion: "PP-OCRv6",
-        mergeMode: "semantic",
       }
     : {};
   return renderPaddleOcrModeArgs([
-    resolvePaddleOcrModeArg(
-      "--bbox-mode",
-      "MANGA_TRANSLATOR_PADDLEOCR_BBOX_MODE",
-      options.ocrBboxMode,
-      rocmDefaults.bboxMode,
-      options,
-    ),
+    ["--bbox-mode", "ocr"],
     resolvePaddleOcrModeArg(
       "--engine",
       "MANGA_TRANSLATOR_PADDLEOCR_ENGINE",
@@ -344,13 +336,7 @@ function buildPaddleOcrBboxModeArgs(options = {}) {
       "",
       options,
     ),
-    resolvePaddleOcrModeArg(
-      "--merge-mode",
-      "MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE",
-      options.ocrMergeMode,
-      rocmDefaults.mergeMode,
-      options,
-    ),
+    ["--merge-mode", "semantic"],
   ]);
 }
 
@@ -410,9 +396,7 @@ function resolveOcrRuntimePythonPath(runtime = null, options = {}) {
   if (pythonPath) {
     return pythonPath;
   }
-  throw new Error(
-    "PaddleOCR-VL bbox provider needs an isolated Python runtime.",
-  );
+  throw new Error("Paddle OCR bbox provider needs an isolated Python runtime.");
 }
 
 module.exports = {

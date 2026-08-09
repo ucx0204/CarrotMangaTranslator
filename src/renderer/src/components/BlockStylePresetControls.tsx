@@ -12,6 +12,7 @@ import {
   StylePresetEditorModal,
   type StylePresetDraft,
 } from "./StylePresetEditorModal";
+import { handleMenuKeyboardNavigation } from "./ui/menuKeyboard";
 
 type BlockStylePresetControlsProps = {
   activePresetId: string;
@@ -293,18 +294,5 @@ function usePresetMenuDismiss(
 function handlePresetMenuKeyDown(
   event: React.KeyboardEvent<HTMLDivElement>,
 ): void {
-  if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
-  event.preventDefault();
-  const items = Array.from(
-    event.currentTarget.querySelectorAll<HTMLButtonElement>(
-      '[role^="menuitem"]:not([disabled])',
-    ),
-  );
-  if (items.length === 0) return;
-  const currentIndex = items.indexOf(
-    document.activeElement as HTMLButtonElement,
-  );
-  const offset = event.key === "ArrowDown" ? 1 : -1;
-  const nextIndex = (currentIndex + offset + items.length) % items.length;
-  items[nextIndex]?.focus();
+  handleMenuKeyboardNavigation(event);
 }

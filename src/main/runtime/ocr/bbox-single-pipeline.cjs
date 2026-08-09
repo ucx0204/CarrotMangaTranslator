@@ -145,7 +145,7 @@ async function runProviderWithFailureHandling(
 /** @param {Dependencies} dependencies @param {string} provider @param {OcrBboxOptions} options */
 function isGpuExecutionFailure(dependencies, provider, options) {
   return (
-    provider === "paddleocr-vl" &&
+    provider === "paddleocr" &&
     dependencies.isOcrGpuRequested(options) &&
     dependencies.resolveEffectiveOcrDevice(options) !== "cpu"
   );

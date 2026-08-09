@@ -81,7 +81,24 @@ function ProgressCard({
       {etaText ? <small className="progress-eta">{etaText}</small> : null}
       <div
         className={`progress-track ${progressSnapshot.mode === "indeterminate" ? "indeterminate" : ""}`}
-        aria-hidden="true"
+        role="progressbar"
+        aria-label={jobState.progressText}
+        aria-valuemin={0}
+        aria-valuemax={
+          progressSnapshot.mode === "determinate"
+            ? progressSnapshot.total
+            : undefined
+        }
+        aria-valuenow={
+          progressSnapshot.mode === "determinate"
+            ? progressSnapshot.current
+            : undefined
+        }
+        aria-valuetext={
+          progressSnapshot.mode === "determinate"
+            ? `${progressSnapshot.current} / ${progressSnapshot.total}`
+            : t("common.preparing")
+        }
       >
         <div
           className={`progress-fill ${progressSnapshot.mode === "indeterminate" ? "indeterminate" : ""}`}

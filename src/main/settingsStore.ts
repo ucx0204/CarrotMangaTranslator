@@ -107,6 +107,21 @@ export async function saveAppSettings(
   );
 }
 
+/**
+ * Resolve hardware-aware defaults without writing them. The settings dialog
+ * uses this as a draft source; persistence still happens only through Save.
+ */
+export async function getDefaultAppSettings(
+  env: NodeJS.ProcessEnv = process.env,
+  detectGpu: GpuInfoProvider = detectBestGpuInfo,
+): Promise<AppSettings> {
+  const detectedGpu = await detectGpu();
+  return attachRuntimeHardware(
+    resolveDefaultAppSettings(env, detectedGpu),
+    detectedGpu,
+  );
+}
+
 export async function resetAppSettings(
   paths = getAppPaths(),
   env: NodeJS.ProcessEnv = process.env,

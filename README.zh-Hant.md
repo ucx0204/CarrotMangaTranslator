@@ -180,7 +180,7 @@ Apple Silicon 正式版內建 arm64 FFmpeg、用於在 CPU 上執行 Paddle OCR 
 - 24 GB 或更多 VRAM：`31B 完整載入`
 - 特殊設定：`自訂`
 
-OCR 品質分為 `最小`、`省資源` 和 `完整載入`。使用 CPU 時，從 `省資源` 開始通常較穩定；建議搭配支援的 GPU 使用 `完整載入` PaddleOCR-VL。
+OCR 品質分為 `最小`、`省資源` 和 `完整載入`。`完整載入`使用 PP-OCRv6 Transformers 語意路徑並需要支援的 GPU；使用 CPU 時請從`省資源`開始。
 
 <details>
 <summary><strong>準備 OpenAI Codex 引擎</strong></summary>

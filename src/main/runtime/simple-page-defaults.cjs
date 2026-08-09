@@ -60,8 +60,6 @@ const DEFAULT_OCR_AMD_TRANSFORMERS_PACKAGES = [
   "transformers==5.13.1",
   "safetensors>=0.6.2",
 ];
-const PADDLEOCR_VL_WINDOWS_SAFETENSORS_WHEEL =
-  "https://xly-devops.cdn.bcebos.com/safetensors-nightly/safetensors-0.6.2.dev0-cp38-abi3-win_amd64.whl";
 const OCR_INSTALL_MARKER_FILE = "install-complete.json";
 const MAX_LOG_PREVIEW_LENGTH = 8000;
 const MM_PROJ_CANDIDATE_NAMES = [
@@ -85,11 +83,6 @@ const PADDLE_OCR_MODEL_PINS = Object.freeze({
     revision: "7b48a7566925fa464281f930c58eee04fe2c862a",
     weightsSha256:
       "70bd316b0582769ec968829fd1feb1a6a58b7c941b938327e551b6b12b45c137",
-  }),
-  "PaddleOCR-VL-1.6": Object.freeze({
-    revision: "66317acc4c9fc17bd154591ce650735cd2855f3e",
-    weightsSha256:
-      "85a479d506a11e724e7285d395c551be69f41dbc16b6342d3cacfb189aed71db",
   }),
   "PP-OCRv6_medium_det": Object.freeze({
     revision: "8e0f56fb2ef86b461d99cfc7ac5c137738985f61",
@@ -123,46 +116,6 @@ const PADDLE_OCR_MODEL_PINS = Object.freeze({
   }),
 });
 const PADDLE_OCR_MODEL_DOWNLOADS = [
-  {
-    name: "PP-DocLayoutV3",
-    repo: "PaddlePaddle/PP-DocLayoutV3",
-    ...PADDLE_OCR_MODEL_PINS["PP-DocLayoutV3"],
-    weightsFile: "inference.pdiparams",
-    files: [
-      ".gitattributes",
-      "README.md",
-      "inference.json",
-      "inference.pdiparams",
-      "inference.yml",
-    ],
-  },
-  {
-    name: "PaddleOCR-VL-1.6",
-    repo: "PaddlePaddle/PaddleOCR-VL-1.6",
-    ...PADDLE_OCR_MODEL_PINS["PaddleOCR-VL-1.6"],
-    weightsFile: "model.safetensors",
-    files: [
-      ".gitattributes",
-      "LICENSE",
-      "README.md",
-      "added_tokens.json",
-      "chat_template.jinja",
-      "config.json",
-      "configuration_paddleocr_vl.py",
-      "generation_config.json",
-      "image_processing_paddleocr_vl.py",
-      "inference.yml",
-      "model.safetensors",
-      "modeling_paddleocr_vl.py",
-      "preprocessor_config.json",
-      "processing_paddleocr_vl.py",
-      "processor_config.json",
-      "special_tokens_map.json",
-      "tokenizer.json",
-      "tokenizer.model",
-      "tokenizer_config.json",
-    ],
-  },
   {
     name: "PP-OCRv6_medium_det",
     repo: "PaddlePaddle/PP-OCRv6_medium_det",
@@ -279,7 +232,6 @@ module.exports = {
   OCR_INSTALL_MARKER_FILE,
   PADDLE_OCR_MODEL_DOWNLOADS,
   PADDLE_OCR_MODEL_PINS,
-  PADDLEOCR_VL_WINDOWS_SAFETENSORS_WHEEL,
   resolveAmdRocmMetaPackage,
   resolveAmdRocmSdkPackages,
   resolveAmdRocmSdkWheelPackages,

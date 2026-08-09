@@ -5,10 +5,25 @@ import type { AutoInpaintingEntryScope } from "../lib/autoInpaintingSelection";
 import { Button } from "./ui/Button";
 import { ChevronDownIcon } from "./ui/icons";
 import { ControlTooltip } from "./ui/ControlTooltip";
-import { RunJobFeedback } from "./RunStatusFeedback";
 import { ChapterTaskHeader } from "./ChapterTaskHeader";
 import { areChapterTaskHubPropsEqual } from "./chapterTaskHubMemo";
 import type { ChapterTaskHubProps } from "./chapterTaskHubTypes";
+import { handleMenuKeyboardNavigation } from "./ui/menuKeyboard";
+
+export function JobCancelButton({
+  cancelling,
+  onCancel,
+}: {
+  cancelling: boolean;
+  onCancel: () => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <Button variant="danger" fullWidth disabled={cancelling} onClick={onCancel}>
+      {cancelling ? t("statusDock.cancelling") : t("statusDock.cancelJob")}
+    </Button>
+  );
+}
 
 export const ChapterTaskHub = React.memo(function ChapterTaskHub(
   props: ChapterTaskHubProps,
@@ -26,7 +41,7 @@ export const ChapterTaskHub = React.memo(function ChapterTaskHub(
           onClick={props.onOpenTranslateOptions}
           disabled={actionsDisabled}
         >
-          {t("sidebar.translate")}
+          {t("translationOptions.title")}
         </Button>
         {props.currentChapter && props.hasSelectedPage ? (
           <CurrentPageActionsSection
@@ -40,16 +55,6 @@ export const ChapterTaskHub = React.memo(function ChapterTaskHub(
           />
         ) : null}
       </div>
-      {props.jobActive ? (
-        <Button variant="danger" fullWidth onClick={props.onCancelJob}>
-          {t("common.cancel")}
-        </Button>
-      ) : null}
-      <RunJobFeedback
-        jobState={props.jobState}
-        progressSnapshot={props.progressSnapshot}
-        showProgressBar={props.showProgressBar}
-      />
     </section>
   );
 }, areChapterTaskHubPropsEqual);
@@ -226,10 +231,10 @@ function AutomaticEraseMenu({
       role="menu"
       aria-label={t("inpainting.auto.moreActions")}
       onKeyDown={(event) => {
-        if (event.key === "Escape") {
-          event.preventDefault();
-          onClose();
-        }
+        handleMenuKeyboardNavigation(event, {
+          onEscape: onClose,
+          onTab: onClose,
+        });
       }}
     >
       <button

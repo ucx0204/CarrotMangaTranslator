@@ -9,7 +9,6 @@ const {
   DEFAULT_OCR_CPU_PIP_PACKAGES,
   DEFAULT_OCR_GPU_EXTRA_PACKAGES,
   DEFAULT_OCR_GPU_PADDLE_PACKAGE,
-  PADDLEOCR_VL_WINDOWS_SAFETENSORS_WHEEL,
   resolveAmdRocmMetaPackage,
   resolveAmdRocmSdkWheelPackages,
 } = require("../simple-page-defaults.cjs");
@@ -17,7 +16,6 @@ const { runtimeOverrideEnv } = require("./host-services.cjs");
 const {
   isOcrCudaTransformersRuntime,
   isOcrGpuRequested,
-  isOcrTransformersRuntime,
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
   resolveOcrGpuPackageIndexUrl,
@@ -32,7 +30,7 @@ function resolveOcrPipInstallBatches(options = {}) {
     runtimeOverrideEnv("MANGA_TRANSLATOR_OCR_PIP_PACKAGES", options),
   );
   if (explicit.length > 0) {
-    return wrapExplicitInstallBatch(explicit, options);
+    return wrapExplicitInstallBatch(explicit);
   }
   if (!isOcrGpuRequested(options)) {
     return resolveCpuInstallBatches(options);
@@ -46,11 +44,9 @@ function resolveOcrPipInstallBatches(options = {}) {
   return resolveCudaInstallBatches(options);
 }
 
-/** @param {string[]} batch @param {RuntimeOptions} options @returns {string[][]} */
-function wrapExplicitInstallBatch(batch, options) {
-  return isOcrTransformersRuntime(options)
-    ? [batch]
-    : withPaddleOcrVlSafetensorsBatch([batch]);
+/** @param {string[]} batch @returns {string[][]} */
+function wrapExplicitInstallBatch(batch) {
+  return [batch];
 }
 
 /** @param {RuntimeOptions} options @returns {string[][]} */
@@ -60,7 +56,7 @@ function resolveCpuInstallBatches(options) {
   );
   const packages =
     explicit.length > 0 ? explicit : DEFAULT_OCR_CPU_PIP_PACKAGES;
-  return withPaddleOcrVlSafetensorsBatch([packages]);
+  return [packages];
 }
 
 /** @param {RuntimeOptions} options @returns {string[][]} */
@@ -142,7 +138,7 @@ function resolveCudaInstallBatches(options) {
           resolveOcrGpuPaddleInstallBatch(options),
           DEFAULT_OCR_GPU_EXTRA_PACKAGES,
         ];
-  return withPaddleOcrVlSafetensorsBatch(batches);
+  return batches;
 }
 
 /** @param {RuntimeOptions} options @returns {string[]} */
@@ -159,53 +155,6 @@ function resolveOcrGpuPaddleInstallBatch(options) {
     "--index-url",
     resolveOcrGpuPackageIndexUrl(options),
   ];
-}
-
-/** @param {unknown} installBatches @returns {string[][]} */
-function withPaddleOcrVlSafetensorsBatch(installBatches) {
-  const batches = Array.isArray(installBatches)
-    ? installBatches.map((batch) => (Array.isArray(batch) ? [...batch] : []))
-    : [];
-  if (process.platform !== "win32") {
-    return batches;
-  }
-  const { packages, batches: normalizedBatches } = separateSafetensors(batches);
-  const safetensorsBatch = [
-    "--no-deps",
-    "--force-reinstall",
-    ...(packages.length > 0
-      ? packages
-      : [PADDLEOCR_VL_WINDOWS_SAFETENSORS_WHEEL]),
-  ];
-  return [...normalizedBatches, safetensorsBatch];
-}
-
-/** @param {string[][]} batches @returns {{ packages: string[]; batches: string[][] }} */
-function separateSafetensors(batches) {
-  /** @type {string[]} */
-  const packages = [];
-  const normalizedBatches = batches
-    .map((batch) => separateSafetensorsBatch(batch, packages))
-    .filter((batch) => batch.length > 0);
-  return { packages, batches: normalizedBatches };
-}
-
-/** @param {string[]} batch @param {string[]} safetensors @returns {string[]} */
-function separateSafetensorsBatch(batch, safetensors) {
-  /** @type {string[]} */
-  const normalPackages = [];
-  for (const item of batch) {
-    const text = String(item ?? "").trim();
-    if (!text) {
-      continue;
-    }
-    if (/safetensors/i.test(text)) {
-      safetensors.push(text);
-    } else {
-      normalPackages.push(text);
-    }
-  }
-  return normalPackages;
 }
 
 /** @typedef {{ current: string; quote: string; escaped: boolean }} ShellTokenState */

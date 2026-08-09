@@ -4,7 +4,7 @@
  * The language pair (source -> target) is translation-domain context and must
  * stay independent from the model provider (Gemma / Codex / API). PaddleOCR
  * specific `lang` strings are intentionally NOT defined here; only the OCR
- * adapter (paddleocr-vl-bboxes.py) maps language codes to Paddle models.
+ * adapter maps language codes to Paddle OCR models.
  */
 
 export type LanguageCode = string;

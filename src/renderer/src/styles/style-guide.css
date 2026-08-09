@@ -84,6 +84,17 @@
   font-weight: 600;
 }
 
+.style-guide-tabpanel {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+.style-guide-tabpanel > .style-guide-content {
+  flex: 1 1 auto;
+}
+
 /* Single scroll area shared by every tab. */
 .style-guide-content {
   flex: 1 1 auto;

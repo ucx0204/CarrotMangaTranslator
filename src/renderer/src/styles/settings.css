@@ -23,6 +23,40 @@
   align-items: start;
 }
 
+.settings-draft-notice {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--sp-3);
+  margin: var(--sp-4) var(--sp-4) 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(126, 170, 255, 0.42);
+  border-radius: var(--r-md);
+  background: rgba(61, 92, 148, 0.16);
+  color: #a9c5ff;
+}
+
+.settings-draft-notice > svg {
+  margin-top: 1px;
+}
+
+.settings-draft-notice > div {
+  display: grid;
+  gap: 3px;
+}
+
+.settings-draft-notice strong {
+  color: #d6e4ff;
+  font-size: var(--font-sm);
+}
+
+.settings-draft-notice span {
+  color: #aebbd0;
+  font-size: var(--font-sm);
+  line-height: 1.4;
+}
+
 .settings-tabs {
   display: flex;
   flex-direction: column;

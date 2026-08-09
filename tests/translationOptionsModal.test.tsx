@@ -7,6 +7,7 @@ import {
   fireEvent,
   render,
   screen,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
@@ -138,8 +139,8 @@ describe("TranslationOptionsModal", () => {
     expect(screen.getByText("p1.png")).toBeTruthy();
     expect(
       screen
-        .getByRole("button", { name: "누적 컨텍스트 (권장)" })
-        .getAttribute("aria-pressed"),
+        .getByRole("radio", { name: "누적 컨텍스트 (권장)" })
+        .getAttribute("aria-checked"),
     ).toBe("true");
     expect(
       screen
@@ -158,13 +159,13 @@ describe("TranslationOptionsModal", () => {
     ).toBeTruthy();
     expect(
       screen
-        .getByRole("button", { name: "번역만" })
-        .getAttribute("aria-pressed"),
+        .getByRole("radio", { name: "번역만" })
+        .getAttribute("aria-checked"),
     ).toBe("true");
     expect(screen.queryByRole("button", { name: "말풍선 맞춤" })).toBeNull();
     expect(screen.queryByText("자동 분석 범위")).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "번역 시작" }));
+    fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
 
     expect(onStart).toHaveBeenCalledWith({
       selection: [{ chapterId: CHAPTER_ID, mode: "pending" }],
@@ -176,26 +177,22 @@ describe("TranslationOptionsModal", () => {
       eraseOriginalWorkflow: false,
       bubbleLayoutWorkflow: true,
     });
-    expect(onPersistDefaults).toHaveBeenCalledWith({
-      translationWorkflowDefault: "cumulative",
-      analysisScopeDefault: "missing",
-      blockModeDefault: "auto",
-      autoFontMatchingDefault: false,
-      naturalTextLayoutDefault: true,
-      eraseOriginalWorkflowDefault: false,
-      bubbleLayoutWorkflowDefault: true,
-    });
+    expect(onPersistDefaults).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
   });
 
   it("shows analysis scope only for the precision two-pass workflow", async () => {
     const { onStart } = await renderModal();
 
-    fireEvent.click(screen.getByRole("button", { name: "정밀 2차" }));
+    fireEvent.click(screen.getByRole("radio", { name: "정밀 2차 (레거시)" }));
 
     expect(screen.getByText("자동 분석 범위")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "현재 화만" }));
-    fireEvent.click(screen.getByRole("button", { name: "번역 시작" }));
+    expect(screen.getByText("레거시 기능 · 제거 예정")).toBeTruthy();
+    expect(
+      screen.getByText(/추후 업데이트에서 제거될 예정입니다/),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("radio", { name: "현재 화만" }));
+    fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
 
     expect(onStart).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -210,8 +207,8 @@ describe("TranslationOptionsModal", () => {
 
     expect(
       screen
-        .getByRole("button", { name: "빠른 1회" })
-        .getAttribute("aria-pressed"),
+        .getByRole("radio", { name: "빠른 1회" })
+        .getAttribute("aria-checked"),
     ).toBe("true");
     expect(screen.queryByText("자동 분석 범위")).toBeNull();
   });
@@ -243,7 +240,7 @@ describe("TranslationOptionsModal", () => {
       ),
     ).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "빠른 1회" }));
+    fireEvent.click(screen.getByRole("radio", { name: "빠른 1회" }));
     expect(
       screen.getByText(
         "각 페이지를 한 번만 번역하고 간단한 최근 문맥만 참고합니다. 가장 빠릅니다.",
@@ -266,7 +263,12 @@ describe("TranslationOptionsModal", () => {
         .getByRole("button", { name: "자연스러운 줄 나눔" })
         .getAttribute("aria-pressed"),
     ).toBe("false");
-    fireEvent.click(screen.getByRole("button", { name: "번역 시작" }));
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: "다음 번역의 기본값으로 저장",
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
 
     expect(onStart).toHaveBeenCalledWith(
       expect.objectContaining({ naturalTextLayout: false }),
@@ -283,7 +285,12 @@ describe("TranslationOptionsModal", () => {
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
     fireEvent.click(toggle);
     expect(toggle.getAttribute("aria-pressed")).toBe("true");
-    fireEvent.click(screen.getByRole("button", { name: "번역 시작" }));
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: "다음 번역의 기본값으로 저장",
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
 
     expect(onStart).toHaveBeenCalledWith(
       expect.objectContaining({ autoFontMatching: true }),
@@ -296,12 +303,17 @@ describe("TranslationOptionsModal", () => {
   it("persists and starts the combined bubble layout workflow when enabled", async () => {
     const { onStart, onPersistDefaults } = await renderModal();
 
-    fireEvent.click(screen.getByRole("button", { name: "원문 지우기" }));
+    fireEvent.click(screen.getByRole("radio", { name: "원문 지우기" }));
     const bubbleOptions = screen.getByRole("button", {
       name: "말풍선 맞춤",
     });
     expect(bubbleOptions.getAttribute("aria-pressed")).toBe("true");
-    fireEvent.click(screen.getByRole("button", { name: "번역 시작" }));
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: "다음 번역의 기본값으로 저장",
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
 
     expect(onStart).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -320,12 +332,17 @@ describe("TranslationOptionsModal", () => {
   it("can erase source text without running bubble fitting", async () => {
     const { onStart, onPersistDefaults } = await renderModal();
 
-    fireEvent.click(screen.getByRole("button", { name: "원문 지우기" }));
+    fireEvent.click(screen.getByRole("radio", { name: "원문 지우기" }));
     const bubbleOptions = screen.getByRole("button", {
       name: "말풍선 맞춤",
     });
     fireEvent.click(bubbleOptions);
-    fireEvent.click(screen.getByRole("button", { name: "번역 시작" }));
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: "다음 번역의 기본값으로 저장",
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
 
     expect(onStart).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -349,8 +366,8 @@ describe("TranslationOptionsModal", () => {
 
     expect(
       screen
-        .getByRole("button", { name: "원문 지우기" })
-        .getAttribute("aria-pressed"),
+        .getByRole("radio", { name: "원문 지우기" })
+        .getAttribute("aria-checked"),
     ).toBe("true");
     const bubbleOptions = screen.getByRole("button", {
       name: "말풍선 맞춤",
@@ -362,7 +379,16 @@ describe("TranslationOptionsModal", () => {
     const { onStart } = await renderModal();
 
     fireEvent.click(screen.getByRole("button", { name: "전체 선택" }));
-    fireEvent.click(screen.getByRole("button", { name: "번역 시작" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "선택 범위 다시 번역" }),
+    );
+    const confirmDialog = screen.getAllByRole("dialog").at(-1);
+    if (!confirmDialog) throw new Error("overwrite confirmation not found");
+    fireEvent.click(
+      within(confirmDialog).getByRole("button", {
+        name: "선택 범위 다시 번역",
+      }),
+    );
 
     expect(onStart).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -378,7 +404,16 @@ describe("TranslationOptionsModal", () => {
     const { onStart } = await renderModal(undefined, "work-all");
 
     expect(screen.getByRole("button", { name: "전체 해제" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "번역 시작" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "선택 범위 다시 번역" }),
+    );
+    const confirmDialog = screen.getAllByRole("dialog").at(-1);
+    if (!confirmDialog) throw new Error("overwrite confirmation not found");
+    fireEvent.click(
+      within(confirmDialog).getByRole("button", {
+        name: "선택 범위 다시 번역",
+      }),
+    );
 
     expect(onStart).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -390,12 +425,14 @@ describe("TranslationOptionsModal", () => {
     );
   });
 
-  it("disables 번역 시작 when nothing is selected", async () => {
+  it("disables selection translation when nothing is selected", async () => {
     const { onStart } = await renderModal();
 
     fireEvent.click(screen.getByRole("button", { name: "전체 해제" }));
 
-    const startButton = screen.getByRole("button", { name: "번역 시작" });
+    const startButton = screen.getByRole("button", {
+      name: "선택 범위 번역",
+    });
     expect(startButton).toHaveProperty("disabled", true);
 
     fireEvent.click(startButton);

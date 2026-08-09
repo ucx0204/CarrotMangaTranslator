@@ -69,22 +69,20 @@ export function UnifiedRightRail(
 ): React.JSX.Element {
   return (
     <>
-      <ChapterTaskHub
-        currentChapter={props.currentChapter}
-        canRunBubbleLayout={props.canRunBubbleLayout}
-        hasSelectedPage={Boolean(props.selectedPage)}
-        flowActive={props.flowActive}
-        jobActive={props.jobActive}
-        jobState={props.jobState}
-        onCancelJob={props.onCancelJob}
-        onOpenExport={props.onOpenExport}
-        onOpenTranslateOptions={props.onOpenTranslateOptions}
-        onOpenAutoInpaintingOptions={props.onOpenAutoInpaintingOptions}
-        onRunCurrentPageInpainting={props.onRunCurrentPageInpainting}
-        onRunBubbleLayout={props.onRunBubbleLayout}
-        progressSnapshot={props.progressSnapshot}
-        showProgressBar={props.showProgressBar}
-      />
+      {props.currentChapter ? (
+        <ChapterTaskHub
+          currentChapter={props.currentChapter}
+          canRunBubbleLayout={props.canRunBubbleLayout}
+          hasSelectedPage={Boolean(props.selectedPage)}
+          flowActive={props.flowActive}
+          jobActive={props.jobActive}
+          onOpenExport={props.onOpenExport}
+          onOpenTranslateOptions={props.onOpenTranslateOptions}
+          onOpenAutoInpaintingOptions={props.onOpenAutoInpaintingOptions}
+          onRunCurrentPageInpainting={props.onRunCurrentPageInpainting}
+          onRunBubbleLayout={props.onRunBubbleLayout}
+        />
+      ) : null}
       <ContextualRightRailPanel {...props} />
     </>
   );

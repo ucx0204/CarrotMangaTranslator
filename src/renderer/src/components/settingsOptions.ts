@@ -255,11 +255,6 @@ export const OCR_QUALITY_OPTIONS: OcrQualityOption[] = [
     labelKey: "settings.options.ocrQuality.full.label",
     descriptionKey: "settings.options.ocrQuality.full.description",
   },
-  {
-    id: "cuda-legacy-full",
-    labelKey: "settings.options.ocrQuality.cudaLegacyFull.label",
-    descriptionKey: "settings.options.ocrQuality.cudaLegacyFull.description",
-  },
 ];
 
 export const LLAMA_RUNTIME_PROFILE_OPTIONS: LlamaRuntimeProfileOption[] = [

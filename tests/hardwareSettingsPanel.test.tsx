@@ -94,11 +94,11 @@ describe("HardwareSettingsPanel", () => {
     expect(setOcrDevice).not.toHaveBeenCalled();
   });
 
-  it("shows CUDA legacy full only for NVIDIA OCR and selects the legacy path", () => {
+  it("removes CUDA legacy full and keeps the supported full preset", () => {
     const setOcrDevice = vi.fn();
     const setOcrGpuBackend = vi.fn();
     const setOcrQualityMode = vi.fn();
-    const { rerender } = render(
+    render(
       <HardwareSettingsPanel
         allowUnsafeLowMemoryFlux={false}
         clearTestState={vi.fn()}
@@ -110,7 +110,7 @@ describe("HardwareSettingsPanel", () => {
         isFluxBackendOptionDisabled={() => false}
         ocrDevice="gpu"
         ocrGpuBackend="cuda"
-        ocrQualityMode="full"
+        ocrQualityMode="economy"
         setFluxBackend={vi.fn()}
         setAllowUnsafeLowMemoryFlux={vi.fn()}
         setComputeGpuIndex={vi.fn()}
@@ -128,43 +128,13 @@ describe("HardwareSettingsPanel", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "CUDA 레거시 풀로드" }));
-    expect(setOcrDevice).toHaveBeenCalledWith("gpu");
-    expect(setOcrGpuBackend).toHaveBeenCalledWith("cuda");
-    expect(setOcrQualityMode).toHaveBeenCalledWith("cuda-legacy-full");
-
-    rerender(
-      <HardwareSettingsPanel
-        allowUnsafeLowMemoryFlux={false}
-        clearTestState={vi.fn()}
-        computeGpuIndex={null}
-        controlsBusy={false}
-        fluxBackend="zluda-native"
-        graphicsGpuPreference="auto"
-        inpaintingModel="flux-klein"
-        isFluxBackendOptionDisabled={() => false}
-        ocrDevice="gpu"
-        ocrGpuBackend="rocm-transformers"
-        ocrQualityMode="full"
-        setFluxBackend={vi.fn()}
-        setAllowUnsafeLowMemoryFlux={vi.fn()}
-        setComputeGpuIndex={vi.fn()}
-        setGraphicsGpuPreference={vi.fn()}
-        setInpaintingModel={vi.fn()}
-        setOcrDevice={vi.fn()}
-        setOcrGpuBackend={vi.fn()}
-        setOcrQualityMode={vi.fn()}
-        usesAmdHardware
-        usesAppleHardware={false}
-        usesAmdOcrContext
-        usesNvidiaHardware={false}
-        usesNvidiaOcrContext={false}
-        unifiedMemoryMb={null}
-      />,
-    );
     expect(
       screen.queryByRole("button", { name: "CUDA 레거시 풀로드" }),
     ).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "풀로드" }));
+    expect(setOcrDevice).toHaveBeenCalledWith("gpu");
+    expect(setOcrGpuBackend).toHaveBeenCalledWith("cuda");
+    expect(setOcrQualityMode).toHaveBeenCalledWith("full");
   });
 
   it("allows SM75 instead of standard CUDA on RTX 20 and keeps it visible elsewhere", () => {

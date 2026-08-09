@@ -427,11 +427,13 @@
 }
 
 .empty-state h2 {
-  font-size: 30px;
+  margin: 0;
+  color: var(--text-head);
+  font-size: 28px;
 }
 
 .empty-state p {
-  color: #b8b1a6;
+  color: var(--text-dim);
 }
 
 .empty-actions {
@@ -439,6 +441,10 @@
   flex-wrap: wrap;
   justify-content: center;
   gap: 10px;
+}
+
+.empty-actions > button {
+  min-width: 164px;
 }
 
 .inpainting-guide-content {

@@ -28,26 +28,13 @@ export type ModelProvider = "gemma" | "openai-codex" | "openai-api";
 export type ModelSource = "huggingface" | "local";
 export type GemmaVramMode = "minimum12b" | "economy26b" | "full31b";
 export type ApiReasoningEffort =
-  | "none"
-  | "minimal"
-  | "low"
-  | "medium"
-  | "high"
-  | "xhigh";
+  "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
 export type OcrDevice = "cpu" | "gpu";
 export type OcrGpuBackend = "cuda" | "rocm-transformers";
-export type OcrQualityMode =
-  | "minimum"
-  | "economy"
-  | "full"
-  | "cuda-legacy-full";
+export type OcrQualityMode = "minimum" | "economy" | "full";
 export type TranslationWorkflowMode = "standard" | "cumulative" | "two-pass";
 export type LlamaRuntimeProfile =
-  | "cuda12"
-  | "rtx50"
-  | "rocm"
-  | "vulkan"
-  | "metal";
+  "cuda12" | "rtx50" | "rocm" | "vulkan" | "metal";
 export type AmdRocmTarget =
   | "gfx908"
   | "gfx90a"

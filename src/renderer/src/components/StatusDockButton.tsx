@@ -2,26 +2,39 @@ import React from "react";
 import { IconBell } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { JobState } from "../../../shared/jobTypes";
+import type { ProgressSnapshot } from "../lib/jobProgress";
 import { IconButton } from "./ui/IconButton";
 import { StatusPopover } from "./StatusPopover";
 
 export function StatusDockButton({
   jobState,
+  progressSnapshot,
+  showProgressBar,
   statusLines,
+  onCancelJob,
   onClear,
 }: {
   jobState: JobState;
+  progressSnapshot: ProgressSnapshot | null;
+  showProgressBar: boolean;
   statusLines: string[];
+  onCancelJob: () => void;
   onClear: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   const popoverId = React.useId();
   const rootRef = React.useRef<HTMLDivElement | null>(null);
+  const triggerRef = React.useRef<HTMLButtonElement | null>(null);
   const previousLatestRef = React.useRef<string | undefined>(undefined);
   const [open, setOpen] = React.useState(false);
   const [unread, setUnread] = React.useState(false);
   const latest = statusLines[0];
-  const closePopover = React.useCallback(() => setOpen(false), []);
+  const closePopover = React.useCallback((restoreFocus = false) => {
+    setOpen(false);
+    if (restoreFocus) {
+      window.requestAnimationFrame(() => triggerRef.current?.focus());
+    }
+  }, []);
 
   React.useEffect(() => {
     if (latest && latest !== previousLatestRef.current && !open) {
@@ -41,6 +54,7 @@ export function StatusDockButton({
   return (
     <div className="status-dock" ref={rootRef}>
       <IconButton
+        ref={triggerRef}
         className={`status-dock-button ${indicator}`}
         label={t("statusDock.open")}
         title={tooltip}
@@ -51,16 +65,22 @@ export function StatusDockButton({
         <IconBell size={18} aria-hidden="true" />
         <span className="status-dock-indicator" aria-hidden="true" />
       </IconButton>
+      <span className="visually-hidden" role="status" aria-live="polite">
+        {latest ?? jobState.progressText}
+      </span>
       {open ? (
         <StatusPopover
           id={popoverId}
           jobState={jobState}
+          progressSnapshot={progressSnapshot}
+          showProgressBar={showProgressBar}
           statusLines={statusLines}
+          onCancelJob={onCancelJob}
           onClear={() => {
             onClear();
             setUnread(false);
           }}
-          onClose={closePopover}
+          onClose={() => closePopover(true)}
         />
       ) : null}
     </div>
@@ -83,17 +103,17 @@ function resolveStatusIndicator(jobState: JobState, unread: boolean): string {
 function useStatusPopoverDismiss(
   open: boolean,
   rootRef: React.RefObject<HTMLDivElement | null>,
-  close: () => void,
+  close: (restoreFocus?: boolean) => void,
 ): void {
   React.useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: PointerEvent): void => {
-      if (!rootRef.current?.contains(event.target as Node)) close();
+      if (!rootRef.current?.contains(event.target as Node)) close(false);
     };
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key === "Escape") {
         event.preventDefault();
-        close();
+        close(true);
       }
     };
     document.addEventListener("pointerdown", onPointerDown, true);

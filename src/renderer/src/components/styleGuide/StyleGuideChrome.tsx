@@ -9,6 +9,7 @@ import type { WorkContextBudgetPlan } from "../../../../shared/workContextBudget
 import type { WorkContextUsage } from "../../../../shared/workContextUsageTypes";
 import type { WorkContextUsageStatus } from "./useStyleGuideModalModel";
 import { Button } from "../ui/Button";
+import { Tabs } from "../ui/Tabs";
 import { CharactersTab } from "./CharactersTab";
 import { GlossaryTab } from "./GlossaryTab";
 import { MemoryTab } from "./MemoryTab";
@@ -36,9 +37,18 @@ export function StyleGuideTabContent({
   usageStatus?: WorkContextUsageStatus;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
+  const panelId = `style-guide-panel-${tab}`;
+  const tabId = `style-guide-tab-${tab}`;
   if (busy || !guide) {
     return (
-      <p className="muted-line style-guide-empty">{t("common.loading")}</p>
+      <div
+        className="style-guide-tabpanel"
+        id={panelId}
+        role="tabpanel"
+        aria-labelledby={tabId}
+      >
+        <p className="muted-line style-guide-empty">{t("common.loading")}</p>
+      </div>
     );
   }
   const editors = {
@@ -61,7 +71,16 @@ export function StyleGuideTabContent({
     rules: <RulesTab guide={guide} onGuideChange={onGuideChange} />,
     memory: <MemoryTab memory={memory} onMemoryChange={onMemoryChange} />,
   } satisfies Record<StyleGuideTab, React.JSX.Element>;
-  return editors[tab];
+  return (
+    <div
+      className="style-guide-tabpanel"
+      id={panelId}
+      role="tabpanel"
+      aria-labelledby={tabId}
+    >
+      {editors[tab]}
+    </div>
+  );
 }
 
 export function StyleGuideBudgetSummary({
@@ -194,23 +213,17 @@ export function StyleGuideTabs({
     { id: "memory", label: t("styleGuide.tabs.memory") },
   ];
   return (
-    <div
+    <Tabs
       className="style-guide-tabs"
-      role="tablist"
-      aria-label={t("styleGuide.tabs.ariaLabel")}
-    >
-      {tabs.map((item) => (
-        <button
-          key={item.id}
-          type="button"
-          role="tab"
-          aria-selected={item.id === active}
-          className={item.id === active ? "active" : ""}
-          onClick={() => onChange(item.id)}
-        >
-          {item.label}
-        </button>
-      ))}
-    </div>
+      ariaLabel={t("styleGuide.tabs.ariaLabel")}
+      items={tabs.map((item) => ({
+        value: item.id,
+        label: item.label,
+        id: `style-guide-tab-${item.id}`,
+        panelId: `style-guide-panel-${item.id}`,
+      }))}
+      value={active}
+      onChange={onChange}
+    />
   );
 }

@@ -399,7 +399,21 @@
     "bubbleLayoutHint": "消去後の画像から吹き出し領域を検出し、翻訳文の配置も自動調整します。"
   },
   "translationOptions": {
+    "title": "翻訳を実行",
     "start": "翻訳を開始",
+    "startSelection": "選択範囲を翻訳",
+    "retranslateSelection": "選択範囲を再翻訳",
+    "overwriteWarning": {
+      "title": "既存の結果を変更するページが含まれます",
+      "description": "完了済みページまたは編集済みブロックが選択されています。翻訳結果と手動編集が新しい結果に置き換わる可能性があります。"
+    },
+    "overwriteConfirm": {
+      "title": "選択範囲を再翻訳しますか？",
+      "message": "完了済みの結果または手動編集を含むページを再処理します。",
+      "detail": "翻訳の実行はワークスペースの元に戻す履歴に追加されません。必要な結果は先に作業を書き出して保存してください。",
+      "action": "選択範囲を再翻訳"
+    },
+    "saveAsDefault": "今後の翻訳の既定値として保存",
     "workUnavailable": "作品情報を読み込めませんでした。現在の話だけを翻訳します。",
     "sections": {
       "quality": "翻訳品質",
@@ -417,8 +431,10 @@
         "description": "翻訳しながらページの場面要約・用語・キャラクター情報を蓄積し、次のページから参照します。"
       },
       "twoPass": {
-        "label": "高精度2回翻訳",
-        "description": "1回目の翻訳後に選択した範囲の文脈を分析し、その結果を使って再翻訳します。最も時間がかかりますが、高品質です。"
+        "label": "高精度2回翻訳（レガシー）",
+        "description": "選択したページを2回翻訳します。処理時間が長く、通常の品質向上効果は限定的です。",
+        "warningTitle": "レガシー機能・削除予定",
+        "warningDescription": "高精度2回翻訳は処理時間が長く品質向上効果が限定的なため、今後のアップデートで削除される予定です。新しい作業には累積コンテキストを推奨します。"
       }
     },
     "secondPass": "2回目の翻訳（品質向上）",
@@ -462,11 +478,12 @@
   },
   "retranslate": {
     "title": "ページを再翻訳",
-    "start": "再翻訳を開始",
+    "start": "このページを再翻訳",
     "context": "ページ: {{pageName}}（{{count}}ブロック）",
     "keepBlocksHint": "現在のブロック領域と書式を保ち、各領域のテキストだけを入れ直します。",
     "autoBlocksHint": "既存のブロックをすべて削除し、自動検出で新しいブロックを作成します。",
-    "overwriteWarning": "このページの既存の翻訳結果と編集内容は上書きされます。"
+    "overwriteTitle": "このページの既存結果が変更されます",
+    "overwriteWarning": "既存の翻訳結果と手動編集は新しい結果に置き換わり、ワークスペースの元に戻す操作では復元できません。"
   },
   "translateSource": {
     "title": "翻訳する原稿を選択",
@@ -1037,6 +1054,16 @@
       "cancel": "キャンセル",
       "save": "保存"
     },
+    "unsavedChanges": {
+      "title": "未保存の変更",
+      "message": "設定の変更を破棄して閉じますか？",
+      "detail": "未保存の変更と読み込んだデフォルト値の下書きは適用されません。",
+      "discard": "変更を破棄"
+    },
+    "defaultsPreview": {
+      "title": "デフォルト値を下書きとして読み込みました",
+      "description": "まだ適用されていません。保存すると適用され、キャンセルすると現在の設定が維持されます。"
+    },
     "engine": {
       "limits": {
         "title": "生成上限",
@@ -1159,10 +1186,6 @@
         "full": {
           "label": "フル",
           "description": "高品質OCRの断片と座標をGemma 4が意味単位にまとめます。"
-        },
-        "cudaLegacyFull": {
-          "label": "CUDAレガシーフル",
-          "description": "NVIDIA CUDAで従来のPaddleOCR-VLレイアウト経路を使用します。"
         }
       },
       "llamaRuntimes": {
@@ -1512,12 +1535,14 @@
     "backToList": "ページのブロック一覧へ"
   },
   "statusDock": {
-    "title": "最近の処理通知",
+    "title": "アクティビティセンター",
     "recentCount": "最近の{{count}}件",
     "clear": "状態履歴を消去",
     "close": "閉じる",
-    "open": "最近の処理通知を開く",
-    "latest": "最新の状態: {{line}}"
+    "open": "アクティビティセンターを開く",
+    "latest": "最新の状態: {{line}}",
+    "cancelJob": "現在の処理をキャンセル",
+    "cancelling": "キャンセルを要求中…"
   },
   "stylePresets": {
     "title": "書式プリセット",

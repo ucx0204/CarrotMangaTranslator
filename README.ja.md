@@ -180,7 +180,7 @@ Gemmaのプリセットは、おおよそ次の順で試せます。
 - VRAM 24GB以上：`31B フル`
 - 特殊な構成：`カスタム`
 
-OCR品質は`最小`、`省メモリ`、`フル`の3種類です。CPUでは`省メモリ`から始めると安定しやすく、`フル`のPaddleOCR-VLは対応GPUとの併用を推奨します。
+OCR品質は`最小`、`省メモリ`、`フル`の3種類です。`フル`はPP-OCRv6 Transformersのセマンティック経路を使用し、対応GPUが必要です。CPUでは`省メモリ`から始めてください。
 
 <details>
 <summary><strong>OpenAI Codexエンジンの準備</strong></summary>

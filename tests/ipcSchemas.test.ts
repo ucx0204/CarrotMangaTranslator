@@ -809,7 +809,7 @@ describe("IPC schemas", () => {
         },
         "설정 저장",
       ).ocr.qualityMode,
-    ).toBe("cuda-legacy-full");
+    ).toBe("full");
     expect(parsed.inpainting?.model).toBe("lama-manga");
     expect(parsed.inpainting?.fluxBackend).toBe("zluda-native");
     expect(parsed.inpainting?.koharuBackend).toBe("zluda-native");

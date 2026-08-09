@@ -94,7 +94,6 @@ function isCommonSemanticOcrMode(options = {}) {
     .trim()
     .toLowerCase();
   if (COMMON_SEMANTIC_OCR_QUALITY_MODES.has(quality)) return true;
-  if (quality === "cuda-legacy-full") return false;
   return (
     String(options.ocrMergeMode ?? "")
       .trim()

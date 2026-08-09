@@ -16,8 +16,8 @@ from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[2]
-SCRIPT_PATH = ROOT / "src" / "main" / "runtime" / "paddleocr-vl-bboxes.py"
-SPEC = importlib.util.spec_from_file_location("paddleocr_vl_bboxes", SCRIPT_PATH)
+SCRIPT_PATH = ROOT / "src" / "main" / "runtime" / "paddleocr-bboxes.py"
+SPEC = importlib.util.spec_from_file_location("paddleocr_bboxes", SCRIPT_PATH)
 if SPEC is None or SPEC.loader is None:
     raise RuntimeError(f"Could not load OCR script: {SCRIPT_PATH}")
 OCR = importlib.util.module_from_spec(SPEC)
@@ -96,13 +96,13 @@ class AmbiguousTruthSequence:
 
 
 class CommandLineBehaviorTests(unittest.TestCase):
-    def test_default_arguments_keep_the_vl_paddle_contract(self) -> None:
+    def test_default_arguments_use_the_supported_semantic_ocr_contract(self) -> None:
         with patch.dict(os.environ, {}, clear=True):
             args = OCR.build_argument_parser().parse_args([])
 
-        self.assertEqual(args.pipeline_version, "v1.5")
         self.assertEqual(args.source_language, "ja")
-        self.assertEqual(args.bbox_mode, "vl")
+        self.assertEqual(args.bbox_mode, "ocr")
+        self.assertEqual(args.merge_mode, "semantic")
         self.assertEqual(args.engine, "paddle")
         self.assertEqual(args.dtype, "float32")
         self.assertEqual(args.ocr_version, "PP-OCRv6")
@@ -117,7 +117,7 @@ class CommandLineBehaviorTests(unittest.TestCase):
         )
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("--bbox-mode {vl,ocr}", result.stdout)
+        self.assertIn("--bbox-mode {ocr}", result.stdout)
         self.assertIn("--engine ENGINE", result.stdout)
         self.assertIn("--progress PROGRESS", result.stdout)
 
@@ -224,73 +224,6 @@ class RecognitionResultAlignmentTests(unittest.TestCase):
 
         self.assertEqual([entry[1] for entry in entries], ["first", "second"])
         self.assertEqual([entry[2] for entry in entries], [0.9, 0.8])
-
-    def test_legacy_vl_auxiliary_results_preserve_index_pairing(self) -> None:
-        detected = [
-            rectangle_poly(10, 10, 30, 80),
-            rectangle_poly(40, 10, 60, 80),
-        ]
-        aligned = OCR.collect_legacy_indexed_ocr_entries(
-            {
-                "dt_polys": detected,
-                "texts": ["A", "B"],
-                "scores": [0.9, 0.8],
-            }
-        )
-        mismatched = OCR.collect_legacy_indexed_ocr_entries(
-            {"dt_polys": detected, "texts": ["shifted"], "scores": [0.9]}
-        )
-        score_mismatched = OCR.collect_legacy_indexed_ocr_entries(
-            {"dt_polys": detected, "texts": ["A", "B"], "scores": [0.9]}
-        )
-
-        self.assertEqual([entry[1] for entry in aligned], ["A", "B"])
-        self.assertEqual([entry[1] for entry in mismatched], ["shifted", ""])
-        self.assertEqual([entry[1] for entry in score_mismatched], ["A", "B"])
-        self.assertEqual([entry[2] for entry in score_mismatched], [0.9, None])
-
-    def test_vl_auxiliary_detector_keeps_legacy_index_pairing(self) -> None:
-        detected = [
-            rectangle_poly(10, 10, 50, 110),
-            rectangle_poly(300, 10, 340, 110),
-            rectangle_poly(600, 10, 640, 110),
-        ]
-
-        class FakeLegacyAuxiliaryOcr:
-            def predict(self, _image_path: str) -> list[dict]:
-                return [
-                    {
-                        "dt_polys": detected,
-                        "rec_polys": [detected[0], detected[2]],
-                        "rec_texts": ["右", "左"],
-                        "rec_scores": [0.9, 0.8],
-                    }
-                ]
-
-        with patch.dict(
-            os.environ,
-            {
-                "MANGA_TRANSLATOR_PADDLEOCR_ENGINE": "paddle",
-                "MANGA_TRANSLATOR_PADDLEOCR_MERGE_MODE": "legacy",
-            },
-        ):
-            items = OCR.collect_textline_candidates(
-                image_path=Path("unused.png"),
-                existing_items=[],
-                width=1000,
-                height=1000,
-                ocr=FakeLegacyAuxiliaryOcr(),
-                args=argparse.Namespace(
-                    source_language="ja",
-                    text_recognition_model_name="PP-OCRv6_small_rec",
-                ),
-            )
-
-        items_by_x1 = {item["x1"]: item for item in items}
-        self.assertEqual(items_by_x1[10]["ocrText"], "右")
-        self.assertEqual(items_by_x1[300]["ocrText"], "左")
-        self.assertNotIn("ocrText", items_by_x1[600])
-
 
 class TextlineReadingOrderTests(unittest.TestCase):
     def semantic_texts(
