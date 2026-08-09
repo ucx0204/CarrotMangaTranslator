@@ -1,5 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { OverflowTooltipText } from "./OverflowTooltipText";
 import { SelectMenu } from "./SelectMenu";
 import type { SelectProps } from "./selectTypes";
 import { useSelectController } from "./useSelectController";
@@ -45,6 +46,7 @@ export function Select(props: SelectProps): React.JSX.Element {
         displayValue={
           selected?.label ?? props.placeholder ?? t("select.placeholder")
         }
+        displayTooltip={selected?.tooltip}
         hasSearch={hasSearch}
         id={props.id}
         listboxId={listboxId}
@@ -86,6 +88,7 @@ type SelectTriggerProps = {
   ariaLabel: string;
   disabled: boolean | undefined;
   displayValue: React.ReactNode;
+  displayTooltip: string | undefined;
   hasSearch: boolean;
   id: string | undefined;
   listboxId: string;
@@ -105,6 +108,7 @@ const SelectTrigger = React.forwardRef<HTMLButtonElement, SelectTriggerProps>(
       ariaLabel,
       disabled,
       displayValue,
+      displayTooltip,
       hasSearch,
       id,
       listboxId,
@@ -137,7 +141,9 @@ const SelectTrigger = React.forwardRef<HTMLButtonElement, SelectTriggerProps>(
         onClick={() => (open ? onClose(false) : onOpen())}
         onKeyDown={onKeyDown}
       >
-        <span className={styles.value}>{displayValue}</span>
+        <OverflowTooltipText className={styles.value} content={displayTooltip}>
+          {displayValue}
+        </OverflowTooltipText>
         <ChevronDownIcon
           size={16}
           className={[styles.chevron, open ? styles.chevronOpen : ""]

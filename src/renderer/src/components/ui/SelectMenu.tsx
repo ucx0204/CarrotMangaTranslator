@@ -1,5 +1,6 @@
 import React from "react";
 import { createPortal } from "react-dom";
+import { OverflowTooltipText } from "./OverflowTooltipText";
 import type { MenuPosition, SelectOption } from "./selectTypes";
 import { menuPositionStyle, reactNodeText, safeDomId } from "./selectUtilities";
 import styles from "./Select.module.css";
@@ -196,7 +197,12 @@ function SelectOptionRow({
       onClick={() => onCommit(option.value)}
     >
       <span className={styles.optionText}>
-        <span className={styles.optionLabel}>{option.label}</span>
+        <OverflowTooltipText
+          className={styles.optionLabel}
+          content={option.tooltip}
+        >
+          {option.label}
+        </OverflowTooltipText>
         {option.description ? (
           <span className={styles.optionDescription}>{option.description}</span>
         ) : null}

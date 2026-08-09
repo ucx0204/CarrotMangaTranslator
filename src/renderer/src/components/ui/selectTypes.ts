@@ -3,6 +3,7 @@ import type React from "react";
 export type SelectOption = {
   value: string;
   label: React.ReactNode;
+  tooltip?: string;
   group?: string;
   searchText?: string;
   disabled?: boolean;

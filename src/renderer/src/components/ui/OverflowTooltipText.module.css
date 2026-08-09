@@ -1,0 +1,38 @@
+.tooltip {
+  position: fixed;
+  z-index: calc(var(--layer-select-menu, 10000) + 1);
+  width: max-content;
+  max-width: min(420px, calc(100vw - 24px));
+  padding: 8px 10px;
+  border: 1px solid #3a4351;
+  border-radius: var(--r-md);
+  background: rgba(25, 29, 36, 0.98);
+  color: #f4f6fa;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.42);
+  font-size: var(--font-sm);
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  animation: overflow-tooltip-in 110ms 260ms both ease-out;
+}
+
+.tooltip[data-placement="top"] {
+  transform: translateY(-100%);
+}
+
+@keyframes overflow-tooltip-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tooltip {
+    animation-duration: 1ms;
+  }
+}

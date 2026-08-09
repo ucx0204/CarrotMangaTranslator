@@ -38,6 +38,49 @@ describe("WorkSelect", () => {
         .value,
     ).toBe("charlie");
   });
+
+  it("shows the full work title when its visible label is truncated", () => {
+    const longTitle =
+      "그냥 마을 사람인 내가, 삼백 년 전의 폭군 황자로 환생해 버렸습니다";
+    render(
+      <WorkSelect
+        ariaLabel="작품 선택"
+        library={{
+          workOrder: ["long"],
+          works: [makeWork("long", longTitle, "2026-01-01T00:00:00.000Z")],
+        }}
+        value="long"
+        onValueChange={() => undefined}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("combobox", { name: "작품 선택" }));
+    const option = screen.getByRole("option", { name: longTitle });
+    const title = within(option).getByText(longTitle);
+    Object.defineProperties(title, {
+      clientWidth: { configurable: true, value: 180 },
+      scrollWidth: { configurable: true, value: 520 },
+    });
+    Object.defineProperty(title, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({
+        bottom: 280,
+        height: 24,
+        left: 100,
+        right: 280,
+        top: 256,
+        width: 180,
+        x: 100,
+        y: 256,
+        toJSON: () => undefined,
+      }),
+    });
+
+    fireEvent.pointerEnter(title);
+    expect(screen.getByRole("tooltip").textContent).toBe(longTitle);
+    fireEvent.pointerLeave(title);
+    expect(screen.queryByRole("tooltip")).toBeNull();
+  });
 });
 
 function Harness(): React.JSX.Element {

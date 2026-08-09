@@ -39,6 +39,7 @@ export function WorkSelect({
       works.map((work) => ({
         value: work.id,
         label: work.title,
+        tooltip: work.title,
         searchText: work.title,
         description: t("workSelect.chapterCount", {
           count: work.chapters.length,
