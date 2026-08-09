@@ -14,6 +14,7 @@ import {
   updateSelectionTitle,
 } from "./importModalHelpers";
 import { Button } from "./ui/Button";
+import { CheckboxField } from "./ui/CheckboxField";
 import { TextField } from "./ui/Field";
 import { Modal } from "./ui/Modal";
 import { ModalActionBar } from "./ui/ModalActionBar";
@@ -378,21 +379,15 @@ function ImportDraftBatchToggle({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <label className="checkbox-row">
-      <input
-        type="checkbox"
-        aria-label={`${selection.title} · ${t("common.pageCount", { count: chapter.pages.length })}`}
-        checked={selection.enabled}
-        disabled={busy}
-        onChange={(event) =>
-          updateSelectionEnabled(
-            setSelections,
-            chapter.draftId,
-            event.target.checked,
-          )
-        }
-      />
-      <span>{t("common.pageCount", { count: chapter.pages.length })}</span>
-    </label>
+    <CheckboxField
+      className="checkbox-row"
+      ariaLabel={`${selection.title} · ${t("common.pageCount", { count: chapter.pages.length })}`}
+      label={t("common.pageCount", { count: chapter.pages.length })}
+      checked={selection.enabled}
+      disabled={busy}
+      onCheckedChange={(checked) =>
+        updateSelectionEnabled(setSelections, chapter.draftId, checked)
+      }
+    />
   );
 }

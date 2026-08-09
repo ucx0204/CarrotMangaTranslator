@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import type { MangaPage } from "../../../../shared/libraryTypes";
 import { libraryGateway as mangaGateway } from "../../api/libraryGateway";
 import { IconButton } from "../ui/IconButton";
+import { MenuSurface } from "../ui/MenuSurface";
+import { usePopupController } from "../ui/usePopupController";
 import { CloseIcon, RefreshIcon } from "../ui/icons";
 import {
   resolvePageDisplayStatus,
@@ -23,8 +25,14 @@ export function PageItemMenu({
   pageName: string;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
-  const { close, menuRef, open, rootRef, setOpen, triggerRef } =
-    usePageItemMenu();
+  const [open, setOpen] = React.useState(false);
+  const { close, contentRef, rootRef, toggle, triggerRef } = usePopupController(
+    {
+      initialFocus: '[role="menuitem"]:not(:disabled)',
+      open,
+      onOpenChange: setOpen,
+    },
+  );
   const runAction = (action: () => void): void => {
     action();
     close(false);
@@ -38,17 +46,16 @@ export function PageItemMenu({
         title={t("pageList.more")}
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
+        onClick={toggle}
       >
         <IconDotsVertical size={16} aria-hidden="true" />
       </IconButton>
       {open ? (
-        <div
-          ref={menuRef}
+        <MenuSurface
+          ref={contentRef}
           className="page-actions-menu"
-          role="menu"
-          aria-label={t("pageList.actionsLabel", { name: pageName })}
-          onKeyDown={(event) => handlePageMenuKeyDown(event, close)}
+          ariaLabel={t("pageList.actionsLabel", { name: pageName })}
+          onClose={close}
         >
           <button
             type="button"
@@ -69,45 +76,10 @@ export function PageItemMenu({
             <CloseIcon size={15} />
             <span>{t("common.delete")}</span>
           </button>
-        </div>
+        </MenuSurface>
       ) : null}
     </div>
   );
-}
-
-function usePageItemMenu() {
-  const [open, setOpen] = React.useState(false);
-  const rootRef = React.useRef<HTMLDivElement | null>(null);
-  const triggerRef = React.useRef<HTMLButtonElement | null>(null);
-  const menuRef = React.useRef<HTMLDivElement | null>(null);
-  const close = React.useCallback((restoreFocus = false) => {
-    setOpen(false);
-    if (restoreFocus) {
-      window.requestAnimationFrame(() => triggerRef.current?.focus());
-    }
-  }, []);
-  React.useEffect(() => {
-    if (!open) return;
-    menuRef.current
-      ?.querySelector<HTMLButtonElement>("[role='menuitem']")
-      ?.focus();
-    const onPointerDown = (event: PointerEvent): void => {
-      if (!rootRef.current?.contains(event.target as Node)) close(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown, true);
-    return () =>
-      document.removeEventListener("pointerdown", onPointerDown, true);
-  }, [close, open]);
-  return { close, menuRef, open, rootRef, setOpen, triggerRef };
-}
-
-function handlePageMenuKeyDown(
-  event: React.KeyboardEvent<HTMLDivElement>,
-  close: (restoreFocus?: boolean) => void,
-): void {
-  if (event.key !== "Escape" && event.key !== "Tab") return;
-  if (event.key === "Escape") event.preventDefault();
-  close(event.key === "Escape");
 }
 
 export function PageDragPreview({

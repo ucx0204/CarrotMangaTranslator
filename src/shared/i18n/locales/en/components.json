@@ -502,8 +502,7 @@
     "openFolder": "Open folder",
     "folderHint": "Load images in the folder in filename order.",
     "openArchive": "Open archive",
-    "archiveHint": "Load one ZIP or CBZ as a chapter.",
-    "orderHint": "Pages are sorted naturally using numbers in filenames. Folder structures inside archives are detected automatically."
+    "archiveHint": "Load one ZIP or CBZ as a chapter."
   },
   "import": {
     "batchTitle": "Add multiple chapters",

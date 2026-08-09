@@ -1,0 +1,57 @@
+.message {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 10px;
+  border: 1px solid var(--message-border);
+  border-radius: 8px;
+  background: var(--message-background);
+  color: var(--message-text);
+}
+
+.message strong {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.message p {
+  margin: 0;
+  color: var(--message-detail);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.danger {
+  --message-border: #9a4a4a;
+  --message-background: #351f21;
+  --message-text: #f7dddd;
+  --message-detail: #efcaca;
+}
+
+.warning {
+  --message-border: #a7772e;
+  --message-background: #352a1c;
+  --message-text: #ffe8b0;
+  --message-detail: #f2d59b;
+}
+
+.info {
+  --message-border: color-mix(
+    in srgb,
+    var(--accent-hi) 52%,
+    var(--border-soft)
+  );
+  --message-background: color-mix(in srgb, var(--accent) 14%, var(--bg-sunken));
+  --message-text: var(--text);
+  --message-detail: var(--text-dim);
+}
+
+.success {
+  --message-border: color-mix(in srgb, #65c9a9 54%, var(--border-soft));
+  --message-background: color-mix(in srgb, #2b6f60 24%, var(--bg-sunken));
+  --message-text: #e2f8f0;
+  --message-detail: #c4e8dd;
+}

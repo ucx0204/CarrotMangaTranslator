@@ -4,7 +4,10 @@ import { useTranslation } from "react-i18next";
 import type { ReviewExportFormat } from "../../../../shared/reviewTypes";
 import type { GatherTextSearch } from "../../hooks/useGatherTextSearch";
 import { Button } from "../ui/Button";
+import { CheckboxField } from "../ui/CheckboxField";
+import { MenuSurface } from "../ui/MenuSurface";
 import { ModalActionBar } from "../ui/ModalActionBar";
+import { usePopupController } from "../ui/usePopupController";
 
 type GatherTextFooterProps = {
   excludeHeaders: boolean;
@@ -38,14 +41,12 @@ export function GatherTextFooter({
     <ModalActionBar
       className="gather-text-footer"
       leading={
-        <label className="inline-toggle">
-          <input
-            type="checkbox"
-            checked={excludeHeaders}
-            onChange={(event) => onToggleExcludeHeaders(event.target.checked)}
-          />
-          {t("gatherText.excludePageHeaders")}
-        </label>
+        <CheckboxField
+          className="inline-toggle"
+          label={t("gatherText.excludePageHeaders")}
+          checked={excludeHeaders}
+          onCheckedChange={onToggleExcludeHeaders}
+        />
       }
       actions={
         <>
@@ -122,8 +123,14 @@ function GatherTextExchangeMenu({
   onImportTxt,
 }: GatherTextExchangeMenuProps): React.JSX.Element {
   const { t } = useTranslation("components");
-  const { close, menuRef, open, rootRef, setOpen, triggerRef } =
-    useGatherTextExchangeMenu();
+  const [open, setOpen] = React.useState(false);
+  const { close, contentRef, rootRef, toggle, triggerRef } = usePopupController(
+    {
+      initialFocus: '[role="menuitem"]:not(:disabled)',
+      open,
+      onOpenChange: setOpen,
+    },
+  );
   return (
     <div className="gather-text-exchange" ref={rootRef}>
       <Button
@@ -131,7 +138,7 @@ function GatherTextExchangeMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         iconRight={<IconChevronDown size={15} aria-hidden="true" />}
-        onClick={() => setOpen((current) => !current)}
+        onClick={toggle}
       >
         {t("gatherText.exchangeMenu")}
       </Button>
@@ -140,7 +147,7 @@ function GatherTextExchangeMenu({
           canImportTxt={canImportTxt}
           hasChapter={hasChapter}
           hasContent={hasContent}
-          menuRef={menuRef}
+          menuRef={contentRef}
           reviewBusy={reviewBusy}
           onClose={close}
           onExportReview={onExportReview}
@@ -151,32 +158,6 @@ function GatherTextExchangeMenu({
       ) : null}
     </div>
   );
-}
-
-function useGatherTextExchangeMenu() {
-  const [open, setOpen] = React.useState(false);
-  const rootRef = React.useRef<HTMLDivElement | null>(null);
-  const triggerRef = React.useRef<HTMLButtonElement | null>(null);
-  const menuRef = React.useRef<HTMLDivElement | null>(null);
-  const close = React.useCallback((restoreFocus = false) => {
-    setOpen(false);
-    if (restoreFocus) {
-      window.requestAnimationFrame(() => triggerRef.current?.focus());
-    }
-  }, []);
-  React.useEffect(() => {
-    if (!open) return;
-    menuRef.current
-      ?.querySelector<HTMLButtonElement>("[role='menuitem']:not(:disabled)")
-      ?.focus();
-    const handlePointerDown = (event: PointerEvent): void => {
-      if (!rootRef.current?.contains(event.target as Node)) close(false);
-    };
-    document.addEventListener("pointerdown", handlePointerDown, true);
-    return () =>
-      document.removeEventListener("pointerdown", handlePointerDown, true);
-  }, [close, open]);
-  return { close, menuRef, open, rootRef, setOpen, triggerRef };
 }
 
 type ExchangeMenuAction = {
@@ -231,12 +212,11 @@ function GatherTextExchangeMenuItems({
     },
   ];
   return (
-    <div
+    <MenuSurface
       ref={menuRef}
       className="gather-text-exchange-menu"
-      role="menu"
-      aria-label={t("gatherText.exchangeMenu")}
-      onKeyDown={(event) => handleExchangeMenuKeyDown(event, onClose)}
+      ariaLabel={t("gatherText.exchangeMenu")}
+      onClose={onClose}
     >
       {actions.map((action, index) => (
         <React.Fragment key={action.id}>
@@ -257,16 +237,6 @@ function GatherTextExchangeMenuItems({
           </button>
         </React.Fragment>
       ))}
-    </div>
+    </MenuSurface>
   );
-}
-
-function handleExchangeMenuKeyDown(
-  event: React.KeyboardEvent<HTMLDivElement>,
-  close: (restoreFocus?: boolean) => void,
-): void {
-  if (event.key !== "Escape") return;
-  event.preventDefault();
-  event.stopPropagation();
-  close(true);
 }

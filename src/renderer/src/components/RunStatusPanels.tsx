@@ -8,7 +8,8 @@ import { ControlTooltip } from "./ui/ControlTooltip";
 import { ChapterTaskHeader } from "./ChapterTaskHeader";
 import { areChapterTaskHubPropsEqual } from "./chapterTaskHubMemo";
 import type { ChapterTaskHubProps } from "./chapterTaskHubTypes";
-import { handleMenuKeyboardNavigation } from "./ui/menuKeyboard";
+import { MenuSurface } from "./ui/MenuSurface";
+import { usePopupController } from "./ui/usePopupController";
 
 export function JobCancelButton({
   cancelling,
@@ -154,36 +155,14 @@ function AutomaticEraseActions({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   const [menuOpen, setMenuOpen] = React.useState(false);
-  const rootRef = React.useRef<HTMLDivElement | null>(null);
-  const triggerRef = React.useRef<HTMLButtonElement | null>(null);
-
-  React.useEffect(() => {
-    if (!menuOpen) return;
-    const closeOutside = (event: PointerEvent): void => {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setMenuOpen(false);
-      }
-    };
-    document.addEventListener("pointerdown", closeOutside, true);
-    return () =>
-      document.removeEventListener("pointerdown", closeOutside, true);
-  }, [menuOpen]);
-
-  React.useEffect(() => {
-    if (disabled) setMenuOpen(false);
-  }, [disabled]);
-
-  React.useEffect(() => {
-    if (!menuOpen) return;
-    rootRef.current
-      ?.querySelector<HTMLButtonElement>('[role="menuitem"]')
-      ?.focus();
-  }, [menuOpen]);
-
-  const closeMenuAndRestoreFocus = (): void => {
-    setMenuOpen(false);
-    triggerRef.current?.focus();
-  };
+  const { close, contentRef, rootRef, toggle, triggerRef } = usePopupController(
+    {
+      disabled,
+      initialFocus: '[role="menuitem"]:not(:disabled)',
+      open: menuOpen,
+      onOpenChange: setMenuOpen,
+    },
+  );
 
   return (
     <div className="auto-inpainting-action" ref={rootRef}>
@@ -203,13 +182,14 @@ function AutomaticEraseActions({
         aria-haspopup="menu"
         aria-expanded={menuOpen}
         disabled={disabled}
-        onClick={() => setMenuOpen((open) => !open)}
+        onClick={toggle}
       >
         <ChevronDownIcon size={16} />
       </Button>
       {menuOpen && !disabled ? (
         <AutomaticEraseMenu
-          onClose={closeMenuAndRestoreFocus}
+          menuRef={contentRef}
+          onClose={close}
           onOpenScope={onOpenScope}
         />
       ) : null}
@@ -218,28 +198,25 @@ function AutomaticEraseActions({
 }
 
 function AutomaticEraseMenu({
+  menuRef,
   onClose,
   onOpenScope,
 }: {
-  onClose: () => void;
+  menuRef: React.RefObject<HTMLDivElement | null>;
+  onClose: (restoreFocus?: boolean) => void;
   onOpenScope: (scope: AutoInpaintingEntryScope) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   const runAndClose = (action: () => void): void => {
-    onClose();
+    onClose(true);
     action();
   };
   return (
-    <div
+    <MenuSurface
+      ref={menuRef}
       className="auto-inpainting-menu"
-      role="menu"
-      aria-label={t("inpainting.auto.moreActions")}
-      onKeyDown={(event) => {
-        handleMenuKeyboardNavigation(event, {
-          onEscape: onClose,
-          onTab: onClose,
-        });
-      }}
+      ariaLabel={t("inpainting.auto.moreActions")}
+      onClose={onClose}
     >
       <button
         type="button"
@@ -255,6 +232,6 @@ function AutomaticEraseMenu({
       >
         <span>{t("inpainting.auto.selectPagesErase")}</span>
       </button>
-    </div>
+    </MenuSurface>
   );
 }

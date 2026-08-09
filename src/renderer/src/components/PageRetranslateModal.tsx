@@ -5,6 +5,7 @@ import type { UiSettings } from "../../../shared/settingsTypes";
 import { getBlockModeOptions } from "../lib/blockModeOptions";
 import { OptionRow, ToggleOptionRow } from "./TranslationOptionControls";
 import { Button } from "./ui/Button";
+import { CheckboxField } from "./ui/CheckboxField";
 import { Modal } from "./ui/Modal";
 import { ModalActionBar } from "./ui/ModalActionBar";
 import { WarnIcon } from "./ui/icons";
@@ -72,14 +73,12 @@ export function PageRetranslateModal({
       footer={
         <ModalActionBar
           leading={
-            <label className="translation-save-defaults">
-              <input
-                type="checkbox"
-                checked={saveAsDefault}
-                onChange={(event) => setSaveAsDefault(event.target.checked)}
-              />
-              <span>{t("translationOptions.saveAsDefault")}</span>
-            </label>
+            <CheckboxField
+              className="translation-save-defaults"
+              label={t("translationOptions.saveAsDefault")}
+              checked={saveAsDefault}
+              onCheckedChange={setSaveAsDefault}
+            />
           }
           actions={
             <>

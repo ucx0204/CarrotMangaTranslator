@@ -979,8 +979,7 @@
   color: var(--text);
 }
 
-.radio-row input,
-.checkbox-row input {
+.radio-row input {
   width: auto;
 }
 

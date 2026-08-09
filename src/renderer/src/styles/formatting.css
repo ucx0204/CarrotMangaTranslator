@@ -512,12 +512,6 @@
   white-space: nowrap;
 }
 
-.inline-toggle input {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-}
-
 .font-size-row {
   display: grid;
   grid-template-columns: 52px minmax(0, 1fr) 56px auto;
@@ -726,58 +720,6 @@
   max-width: 100%;
 }
 
-.job-failure-card {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-  max-width: 100%;
-  padding: 10px;
-  border: 1px solid #9a4a4a;
-  border-radius: 8px;
-  background: #351f21;
-  color: #f7dddd;
-}
-
-.job-failure-card strong {
-  font-size: 13px;
-  line-height: 1.35;
-}
-
-.job-failure-card p {
-  margin: 0;
-  color: #efcaca;
-  font-size: 12px;
-  line-height: 1.45;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.job-partial-card {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-  max-width: 100%;
-  padding: 10px;
-  border: 1px solid #a7772e;
-  border-radius: 8px;
-  background: #352a1c;
-  color: #ffe8b0;
-}
-
-.job-partial-card strong {
-  font-size: 13px;
-  line-height: 1.35;
-}
-
-.job-partial-card p {
-  margin: 0;
-  color: #f2d59b;
-  font-size: 12px;
-  line-height: 1.45;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
 .job-completed-card {
   display: grid;
   gap: 10px;
@@ -964,42 +906,6 @@
   color: var(--accent-hi);
   font-size: var(--font-sm);
   font-weight: 600;
-}
-
-.progress-track {
-  position: relative;
-  width: 100%;
-  height: 10px;
-  border-radius: 999px;
-  overflow: hidden;
-  background: #0f1216;
-  border: 1px solid #2d333b;
-}
-
-.progress-fill {
-  height: 100%;
-  border-radius: inherit;
-  background: var(--accent);
-}
-
-.progress-track.indeterminate {
-  background: var(--bg-sunken);
-}
-
-.progress-fill.indeterminate {
-  width: 38%;
-  background: var(--accent);
-  animation: progress-slide 1.4s ease-in-out infinite;
-}
-
-@keyframes progress-slide {
-  0% {
-    transform: translateX(-120%);
-  }
-
-  100% {
-    transform: translateX(280%);
-  }
 }
 
 .job-pill {

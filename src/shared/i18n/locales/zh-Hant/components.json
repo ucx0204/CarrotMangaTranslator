@@ -488,8 +488,7 @@
     "openFolder": "開啟資料夾",
     "folderHint": "依檔名順序讀取資料夾中的圖片。",
     "openArchive": "開啟壓縮檔案",
-    "archiveHint": "將一個 ZIP 或 CBZ 作為一話匯入。",
-    "orderHint": "頁面會辨識檔名中的數字並自然排序，也會自動辨識壓縮檔內的資料夾結構。"
+    "archiveHint": "將一個 ZIP 或 CBZ 作為一話匯入。"
   },
   "import": {
     "batchTitle": "新增多個章節",

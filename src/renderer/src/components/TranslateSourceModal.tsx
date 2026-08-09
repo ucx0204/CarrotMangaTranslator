@@ -73,9 +73,6 @@ export function TranslateSourceModal({
           onClick={() => onSelect("zip")}
         />
       </div>
-      <p className="source-choice-order-note">
-        {t("translateSource.orderHint")}
-      </p>
     </Modal>
   );
 }

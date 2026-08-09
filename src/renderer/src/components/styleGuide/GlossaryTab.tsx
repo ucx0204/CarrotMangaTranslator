@@ -6,6 +6,7 @@ import type {
 } from "../../../../shared/workContextTypes";
 import type { WorkContextUsageMetric } from "../../../../shared/workContextUsageTypes";
 import { Button } from "../ui/Button";
+import { CheckboxField } from "../ui/CheckboxField";
 import type { StyleGuideEditorProps } from "./styleGuideTypes";
 import {
   ContextEntryDeleteButton,
@@ -170,14 +171,12 @@ function GlossaryTable({
   return (
     <div className="style-guide-table">
       <div className="style-guide-row glossary head">
-        <label className="inline-toggle">
-          <input
-            type="checkbox"
-            checked={allVisibleSelected}
-            aria-label={t("styleGuide.usage.selectAll")}
-            onChange={onToggleAll}
-          />
-        </label>
+        <CheckboxField
+          className="inline-toggle"
+          checked={allVisibleSelected}
+          ariaLabel={t("styleGuide.usage.selectAll")}
+          onCheckedChange={() => onToggleAll()}
+        />
         <span>{t("styleGuide.glossary.source")}</span>
         <span>{t("styleGuide.glossary.translation")}</span>
         <span>{t("styleGuide.glossary.category")}</span>
@@ -230,16 +229,12 @@ function GlossaryRow({
   const entryName = entry.source || entry.target;
   return (
     <div className="style-guide-row glossary">
-      <label className="inline-toggle">
-        <input
-          type="checkbox"
-          checked={selected}
-          aria-label={t("styleGuide.usage.selectItem", {
-            name: entryName,
-          })}
-          onChange={onToggleSelected}
-        />
-      </label>
+      <CheckboxField
+        className="inline-toggle"
+        checked={selected}
+        ariaLabel={t("styleGuide.usage.selectItem", { name: entryName })}
+        onCheckedChange={() => onToggleSelected()}
+      />
       <input
         value={entry.source}
         placeholder={t("styleGuide.glossary.source")}

@@ -495,8 +495,7 @@
     "openFolder": "フォルダーを開く",
     "folderHint": "フォルダー内の画像をファイル名順に読み込みます。",
     "openArchive": "圧縮ファイルを開く",
-    "archiveHint": "1つのZIP・CBZを1話として読み込みます。",
-    "orderHint": "ファイル名の数字を認識して自然な順序に並べます。圧縮ファイル内のフォルダー構造も自動認識します。"
+    "archiveHint": "1つのZIP・CBZを1話として読み込みます。"
   },
   "import": {
     "batchTitle": "複数話を追加",

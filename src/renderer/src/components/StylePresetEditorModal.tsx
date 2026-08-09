@@ -8,6 +8,7 @@ import { MAX_BLOCK_STYLE_PRESET_NAME_LENGTH } from "../../../shared/blockStylePr
 import type { CreateBlockStylePresetInput } from "../../../shared/blockStylePresets";
 import { Modal } from "./ui/Modal";
 import { ModalActionBar } from "./ui/ModalActionBar";
+import { CheckboxField } from "./ui/CheckboxField";
 
 export type StylePresetDraft = CreateBlockStylePresetInput;
 
@@ -158,14 +159,12 @@ function StylePresetEditorForm({
         />
       </label>
       <StylePresetGroupFields groupIds={groupIds} onChange={onGroupIdsChange} />
-      <label className="style-preset-pin-toggle">
-        <input
-          type="checkbox"
-          checked={pinned}
-          onChange={(event) => onPinnedChange(event.target.checked)}
-        />
-        <span>{t("stylePresets.pinQuick")}</span>
-      </label>
+      <CheckboxField
+        className="style-preset-pin-toggle"
+        label={t("stylePresets.pinQuick")}
+        checked={pinned}
+        onCheckedChange={onPinnedChange}
+      />
     </div>
   );
 }

@@ -1,0 +1,31 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2, 8px);
+  min-width: 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.root:has(.input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.input {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: inherit;
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.label {
+  min-width: 0;
+}

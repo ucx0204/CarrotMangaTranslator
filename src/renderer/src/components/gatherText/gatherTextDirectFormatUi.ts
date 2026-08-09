@@ -70,27 +70,6 @@ export function resolvePreviewValue<Field extends GatherTextDirectFormatField>(
     PREVIEW_DEFAULTS[field]) as GatherTextDirectFormatValues[Field];
 }
 
-export function resolvePreviewOutline(
-  fontSizePx: number,
-  color: string,
-  scale: number,
-): string {
-  if (scale <= 0) return "none";
-  const width = Math.max(0.6, fontSizePx * 0.032 * scale);
-  return [
-    [-width, 0],
-    [width, 0],
-    [0, -width],
-    [0, width],
-    [-width, -width],
-    [width, -width],
-    [-width, width],
-    [width, width],
-  ]
-    .map(([x, y]) => `${x}px ${y}px 0 ${color}`)
-    .join(", ");
-}
-
 export function hasDirectFormatField(
   patch: GatherTextDirectFormatPatch,
   field: GatherTextDirectFormatField,

@@ -2,6 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import type { WorkShareImportPreview } from "../../../../shared/shareTypes";
 import { Button } from "../ui/Button";
+import { CheckboxField } from "../ui/CheckboxField";
 import { SelectionSurface } from "../ui/SelectionCard";
 import type { NewSelection } from "./shareImportTypes";
 
@@ -84,24 +85,18 @@ function ShareImportNewWorkItem({
       selected={selection.enabled}
       disabled={busy}
     >
-      <label className="checkbox-row">
-        <input
-          type="checkbox"
-          aria-label={`${selection.title} · ${t("common.pageCount", { count: pageCount })}`}
-          checked={selection.enabled}
-          disabled={busy}
-          onChange={(event) => {
-            setNewSelections((current) =>
-              updateSelectionEnabled(
-                current,
-                packageChapterId,
-                event.target.checked,
-              ),
-            );
-          }}
-        />
-        <span>{t("common.pageCount", { count: pageCount })}</span>
-      </label>
+      <CheckboxField
+        className="checkbox-row"
+        ariaLabel={`${selection.title} · ${t("common.pageCount", { count: pageCount })}`}
+        label={t("common.pageCount", { count: pageCount })}
+        checked={selection.enabled}
+        disabled={busy}
+        onCheckedChange={(checked) => {
+          setNewSelections((current) =>
+            updateSelectionEnabled(current, packageChapterId, checked),
+          );
+        }}
+      />
       <input
         value={selection.title}
         disabled={busy || !selection.enabled}

@@ -9,6 +9,7 @@ import {
 } from "../lib/librarySort";
 import { IconButton } from "./ui/IconButton";
 import { SortIcon } from "./ui/icons";
+import { usePopupController } from "./ui/usePopupController";
 
 type LibrarySortMenuProps = {
   value: LibrarySort;
@@ -29,23 +30,12 @@ export function LibrarySortMenu({
   const { t } = useTranslation("components");
   const { t: tRenderer } = useTranslation("renderer");
   const [open, setOpen] = React.useState(false);
-  const rootRef = React.useRef<HTMLDivElement | null>(null);
-  const triggerRef = React.useRef<HTMLButtonElement | null>(null);
-  const close = React.useCallback(() => setOpen(false), []);
-
-  React.useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const onPointerDown = (event: PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
-        close();
-      }
-    };
-    document.addEventListener("pointerdown", onPointerDown, true);
-    return () =>
-      document.removeEventListener("pointerdown", onPointerDown, true);
-  }, [open, close]);
+  const { close, contentRef, openPopup, rootRef, toggle, triggerRef } =
+    usePopupController({
+      initialFocus: "content",
+      open,
+      onOpenChange: setOpen,
+    });
 
   const onTriggerKeyDown = (event: React.KeyboardEvent) => {
     if (
@@ -55,7 +45,7 @@ export function LibrarySortMenu({
       event.key === " "
     ) {
       event.preventDefault();
-      setOpen(true);
+      openPopup();
     }
   };
 
@@ -74,19 +64,17 @@ export function LibrarySortMenu({
         })}
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
+        onClick={toggle}
         onKeyDown={onTriggerKeyDown}
       >
         <SortIcon size={16} />
       </IconButton>
       {open ? (
         <SortPopover
+          menuRef={contentRef}
           value={value}
           onChange={onChange}
-          onDismiss={() => {
-            close();
-            triggerRef.current?.focus();
-          }}
+          onDismiss={close}
         />
       ) : null}
     </div>
@@ -94,12 +82,14 @@ export function LibrarySortMenu({
 }
 
 type SortPopoverProps = {
+  menuRef: React.RefObject<HTMLDivElement | null>;
   value: LibrarySort;
   onChange: (sort: LibrarySort) => void;
-  onDismiss: () => void;
+  onDismiss: (restoreFocus?: boolean) => void;
 };
 
 function SortPopover({
+  menuRef,
   value,
   onChange,
   onDismiss,
@@ -108,11 +98,6 @@ function SortPopover({
   const [activeIndex, setActiveIndex] = React.useState(() =>
     findIndexByKey(value.key),
   );
-  const menuRef = React.useRef<HTMLDivElement | null>(null);
-
-  React.useEffect(() => {
-    menuRef.current?.focus();
-  }, []);
 
   const selectKey = (key: LibrarySortKey) =>
     onChange({ key, direction: value.direction });
@@ -152,7 +137,7 @@ type MenuKeyDownDeps = {
   setActiveIndex: React.Dispatch<React.SetStateAction<number>>;
   selectKey: (key: LibrarySortKey) => void;
   selectDirection: (direction: LibrarySortDirection) => void;
-  onDismiss: () => void;
+  onDismiss: (restoreFocus?: boolean) => void;
 };
 
 function handleMenuKeyDown(
@@ -164,9 +149,11 @@ function handleMenuKeyDown(
   const last = LIBRARY_SORT_OPTIONS.length - 1;
   switch (event.key) {
     case "Escape":
-    case "Tab":
       event.preventDefault();
-      onDismiss();
+      onDismiss(true);
+      return;
+    case "Tab":
+      window.setTimeout(() => onDismiss(false), 0);
       return;
     case "ArrowDown":
       event.preventDefault();

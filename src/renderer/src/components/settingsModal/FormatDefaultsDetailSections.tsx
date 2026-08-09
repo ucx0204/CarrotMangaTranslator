@@ -6,10 +6,10 @@ import {
 } from "../../lib/blockFormatGeometry";
 import type { BlockFormatDefaults } from "../../../../shared/settingsTypes";
 import {
-  DirectControlCaption,
-  DirectSectionHeading,
+  BlockFormatControlCaption as DirectControlCaption,
+  BlockFormatSectionHeading as DirectSectionHeading,
   FormatSliderControl,
-} from "../gatherText/GatherTextDirectFormatPrimitives";
+} from "../blockFormat/BlockFormatPrimitives";
 import { TextWrappingSelect } from "../TextWrappingSelect";
 
 type DetailSectionProps = {

@@ -1,4 +1,5 @@
 import React from "react";
+import { NumberField } from "./ui/NumberField";
 
 export function FontSizeNumberInput({
   ariaLabel,
@@ -19,64 +20,22 @@ export function FontSizeNumberInput({
   value: number;
   onValueChange: (value: number) => void;
 }): React.JSX.Element {
-  const inputRef = React.useRef<HTMLInputElement | null>(null);
-  const [focused, setFocused] = React.useState(false);
-  const [draft, setDraft] = React.useState(() =>
-    mixed ? "" : String(Math.round(value)),
-  );
-
-  React.useEffect(() => {
-    if (!focused) {
-      setDraft(mixed ? "" : String(Math.round(value)));
-    }
-  }, [focused, mixed, value]);
-
-  const applyIfValid = (raw: string): boolean => {
-    const parsed = Number(raw);
-    if (
-      !raw.trim() ||
-      !Number.isFinite(parsed) ||
-      parsed < min ||
-      parsed > max
-    ) {
-      return false;
-    }
-    onValueChange(Math.round(parsed));
-    return true;
-  };
-
   return (
-    <input
-      ref={inputRef}
+    <NumberField
       className={["font-size-number-input", className]
         .filter(Boolean)
         .join(" ")}
-      type="number"
       inputMode="numeric"
-      aria-label={ariaLabel}
+      ariaLabel={ariaLabel}
       min={min}
       max={max}
       step={1}
-      value={draft}
-      placeholder={mixed ? "—" : undefined}
+      precision={0}
+      value={value}
+      mixed={mixed}
       disabled={disabled}
-      onFocus={() => setFocused(true)}
-      onChange={(event) => {
-        const next = event.target.value;
-        setDraft(next);
-        applyIfValid(next);
-      }}
-      onBlur={() => {
-        setFocused(false);
-        if (!applyIfValid(draft)) {
-          setDraft(mixed ? "" : String(Math.round(value)));
-        }
-      }}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") {
-          inputRef.current?.blur();
-        }
-      }}
+      commitMode="change"
+      onValueChange={onValueChange}
     />
   );
 }

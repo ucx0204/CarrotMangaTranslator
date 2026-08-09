@@ -20,6 +20,7 @@ import {
   TranslationOptionSection,
 } from "./TranslationOptionControls";
 import { Button } from "./ui/Button";
+import { CheckboxField } from "./ui/CheckboxField";
 import { WarnIcon } from "./ui/icons";
 import { Modal } from "./ui/Modal";
 import { ModalActionBar } from "./ui/ModalActionBar";
@@ -218,14 +219,12 @@ function TranslationOptionsFooter({
   return (
     <ModalActionBar
       leading={
-        <label className="translation-save-defaults">
-          <input
-            type="checkbox"
-            checked={saveAsDefault}
-            onChange={(event) => onSaveAsDefaultChange(event.target.checked)}
-          />
-          <span>{t("translationOptions.saveAsDefault")}</span>
-        </label>
+        <CheckboxField
+          className="translation-save-defaults"
+          label={t("translationOptions.saveAsDefault")}
+          checked={saveAsDefault}
+          onCheckedChange={onSaveAsDefaultChange}
+        />
       }
       actions={
         <>

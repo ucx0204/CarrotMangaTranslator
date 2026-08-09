@@ -4,8 +4,9 @@ import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import { IconButton } from "./ui/IconButton";
 import { CopyIcon, TrashIcon } from "./ui/icons";
-import { handleMenuKeyboardNavigation } from "./ui/menuKeyboard";
+import { MenuSurface } from "./ui/MenuSurface";
 import { Tabs } from "./ui/Tabs";
+import { usePopupController } from "./ui/usePopupController";
 
 const EDITOR_TABS = ["text", "layout", "format"] as const;
 export type EditorTabId = (typeof EDITOR_TABS)[number];
@@ -26,10 +27,16 @@ export function BlockOverflowMenu({
   onUpdate,
 }: BlockOverflowMenuProps): React.JSX.Element {
   const { t } = useTranslation("components");
-  const [open, setOpen, rootRef, triggerRef, close] = useOverflowMenu(
-    block.id,
-    disabled,
+  const [open, setOpen] = React.useState(false);
+  const { close, contentRef, rootRef, toggle, triggerRef } = usePopupController(
+    {
+      disabled,
+      initialFocus: '[role^="menuitem"]:not(:disabled)',
+      open,
+      onOpenChange: setOpen,
+    },
   );
+  React.useEffect(() => setOpen(false), [block.id]);
   const run = (action: () => void): void => {
     close(true);
     action();
@@ -44,16 +51,16 @@ export function BlockOverflowMenu({
         aria-expanded={open}
         aria-haspopup="menu"
         disabled={disabled}
-        onClick={() => setOpen((current) => !current)}
+        onClick={toggle}
       >
         <IconDotsVertical size={17} stroke={2.1} aria-hidden="true" />
       </IconButton>
       {open && !disabled ? (
-        <div
+        <MenuSurface
+          ref={contentRef}
           className="editor-overflow-menu"
-          role="menu"
-          aria-label={label}
-          onKeyDown={(event) => handleMenuKeyDown(event, close)}
+          ariaLabel={label}
+          onClose={close}
         >
           <button
             aria-checked={Boolean(block.inpaintExcluded)}
@@ -86,7 +93,7 @@ export function BlockOverflowMenu({
             <TrashIcon size={16} />
             <span>{t("common.delete")}</span>
           </button>
-        </div>
+        </MenuSurface>
       ) : null}
     </div>
   );
@@ -204,52 +211,4 @@ export function EmptyEditorPanel({
       </button>
     </section>
   );
-}
-
-type OverflowMenuState = [
-  boolean,
-  React.Dispatch<React.SetStateAction<boolean>>,
-  React.RefObject<HTMLDivElement | null>,
-  React.RefObject<HTMLButtonElement | null>,
-  (restoreFocus: boolean) => void,
-];
-
-function useOverflowMenu(
-  blockId: string,
-  disabled: boolean,
-): OverflowMenuState {
-  const [open, setOpen] = React.useState(false);
-  const rootRef = React.useRef<HTMLDivElement | null>(null);
-  const triggerRef = React.useRef<HTMLButtonElement | null>(null);
-  React.useEffect(() => setOpen(false), [blockId, disabled]);
-  React.useEffect(() => {
-    if (!open) return;
-    const closeOutside = (event: PointerEvent): void => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
-    };
-    document.addEventListener("pointerdown", closeOutside, true);
-    return () =>
-      document.removeEventListener("pointerdown", closeOutside, true);
-  }, [open]);
-  React.useEffect(() => {
-    if (!open) return;
-    rootRef.current
-      ?.querySelector<HTMLButtonElement>('[role^="menuitem"]')
-      ?.focus();
-  }, [open]);
-  const close = React.useCallback((restoreFocus: boolean) => {
-    setOpen(false);
-    if (restoreFocus) triggerRef.current?.focus();
-  }, []);
-  return [open, setOpen, rootRef, triggerRef, close];
-}
-
-function handleMenuKeyDown(
-  event: React.KeyboardEvent<HTMLDivElement>,
-  close: (restoreFocus: boolean) => void,
-): void {
-  handleMenuKeyboardNavigation(event, {
-    onEscape: () => close(true),
-    onTab: () => close(false),
-  });
 }

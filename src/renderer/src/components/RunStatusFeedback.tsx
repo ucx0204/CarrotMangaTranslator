@@ -5,6 +5,8 @@ import type { JobState } from "../../../shared/jobTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
 import { useEtaText } from "../hooks/useEtaText";
 import { Button } from "./ui/Button";
+import { InlineMessage } from "./ui/InlineMessage";
+import { ProgressBar } from "./ui/ProgressBar";
 
 export function RunJobFeedback({
   jobState,
@@ -21,21 +23,25 @@ export function RunJobFeedback({
 }): React.JSX.Element | null {
   if (jobState.status === "failed") {
     return (
-      <div className="job-failure-card" role="alert">
-        <strong>{jobState.progressText}</strong>
-        {jobState.detail?.trim() ? <p>{jobState.detail}</p> : null}
-      </div>
+      <InlineMessage
+        title={jobState.progressText}
+        detail={jobState.detail?.trim() || undefined}
+        variant="danger"
+      />
     );
   }
   if (jobState.status === "partial") {
     return (
-      <div className="job-partial-card" role="status">
-        <strong>{jobState.progressText}</strong>
-        {jobState.detail?.trim() &&
-        jobState.detail.trim() !== jobState.progressText.trim() ? (
-          <p>{jobState.detail}</p>
-        ) : null}
-      </div>
+      <InlineMessage
+        title={jobState.progressText}
+        detail={
+          jobState.detail?.trim() &&
+          jobState.detail.trim() !== jobState.progressText.trim()
+            ? jobState.detail
+            : undefined
+        }
+        variant="warning"
+      />
     );
   }
   if (jobState.status === "completed") {
@@ -147,36 +153,29 @@ function ProgressCard({
         <small className="progress-detail">{jobState.detail}</small>
       ) : null}
       {etaText ? <small className="progress-eta">{etaText}</small> : null}
-      <div
-        className={`progress-track ${progressSnapshot.mode === "indeterminate" ? "indeterminate" : ""}`}
-        role="progressbar"
-        aria-label={jobState.progressText}
-        aria-valuemin={0}
-        aria-valuemax={
+      <ProgressBar
+        label={jobState.progressText}
+        mode={
           progressSnapshot.mode === "determinate"
-            ? progressSnapshot.total
-            : undefined
+            ? "determinate"
+            : "indeterminate"
         }
-        aria-valuenow={
+        value={
           progressSnapshot.mode === "determinate"
             ? progressSnapshot.current
             : undefined
         }
-        aria-valuetext={
+        max={
+          progressSnapshot.mode === "determinate"
+            ? progressSnapshot.total
+            : undefined
+        }
+        valueText={
           progressSnapshot.mode === "determinate"
             ? `${progressSnapshot.current} / ${progressSnapshot.total}`
             : t("common.preparing")
         }
-      >
-        <div
-          className={`progress-fill ${progressSnapshot.mode === "indeterminate" ? "indeterminate" : ""}`}
-          style={
-            progressSnapshot.mode === "determinate"
-              ? { width: `${Math.round(progressSnapshot.ratio * 100)}%` }
-              : undefined
-          }
-        />
-      </div>
+      />
     </div>
   );
 }

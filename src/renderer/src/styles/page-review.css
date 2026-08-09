@@ -271,8 +271,7 @@
   font-size: var(--font-sm);
 }
 
-.style-preset-group-grid input,
-.style-preset-pin-toggle input {
+.style-preset-group-grid input {
   width: 15px;
   height: 15px;
   margin: 0;
@@ -715,8 +714,7 @@
   opacity: 0.58;
 }
 
-.style-preset-property input,
-.style-preset-pin-toggle input {
+.style-preset-property input {
   width: 15px;
   height: 15px;
   margin: 0;

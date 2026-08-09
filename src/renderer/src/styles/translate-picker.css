@@ -120,13 +120,6 @@
   cursor: pointer;
 }
 
-.translation-save-defaults input {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  accent-color: var(--accent);
-}
-
 .translate-options-twopass {
   display: grid;
   gap: var(--sp-2);

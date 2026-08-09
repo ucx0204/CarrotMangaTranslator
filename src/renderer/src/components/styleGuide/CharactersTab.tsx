@@ -6,6 +6,7 @@ import type {
 } from "../../../../shared/workContextTypes";
 import type { WorkContextUsageMetric } from "../../../../shared/workContextUsageTypes";
 import { Button } from "../ui/Button";
+import { CheckboxField } from "../ui/CheckboxField";
 import type { StyleGuideEditorProps } from "./styleGuideTypes";
 import {
   ContextEntryDeleteButton,
@@ -182,14 +183,12 @@ function CharactersTable({
   return (
     <div className="style-guide-table">
       <div className="style-guide-row character head">
-        <label className="inline-toggle">
-          <input
-            type="checkbox"
-            checked={allVisibleSelected}
-            aria-label={t("styleGuide.usage.selectAll")}
-            onChange={onToggleAll}
-          />
-        </label>
+        <CheckboxField
+          className="inline-toggle"
+          checked={allVisibleSelected}
+          ariaLabel={t("styleGuide.usage.selectAll")}
+          onCheckedChange={() => onToggleAll()}
+        />
         <span>{t("styleGuide.characters.displayName")}</span>
         <span>{t("styleGuide.characters.sourceNames")}</span>
         <span>{t("styleGuide.characters.translatedName")}</span>
@@ -316,14 +315,12 @@ function CharacterPrimaryFields({
   const { t } = useTranslation("components");
   return (
     <>
-      <label className="inline-toggle">
-        <input
-          type="checkbox"
-          checked={selected}
-          aria-label={t("styleGuide.usage.selectItem", { name })}
-          onChange={onToggleSelected}
-        />
-      </label>
+      <CheckboxField
+        className="inline-toggle"
+        checked={selected}
+        ariaLabel={t("styleGuide.usage.selectItem", { name })}
+        onCheckedChange={() => onToggleSelected()}
+      />
       <input
         value={character.displayName}
         placeholder={t("styleGuide.characters.displayName")}

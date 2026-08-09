@@ -9,6 +9,7 @@ import { FontSelect } from "./FontSelect";
 import { FormatBatchApplyModal } from "./FormatBatchApplyModal";
 import type { FormatApplyScope } from "../hooks/blockEditingStatus";
 import { Button } from "./ui/Button";
+import { CheckboxField } from "./ui/CheckboxField";
 import { FieldSlider, FieldSliderGroup } from "./ui/FieldSlider";
 import { IconButton } from "./ui/IconButton";
 import { RangeInput } from "./ui/Field";
@@ -343,15 +344,14 @@ function FontSizeRow({
           <span aria-hidden="true">+</span>
         </IconButton>
       </div>
-      <label className="inline-toggle" title={t("format.autoFitTitle")}>
-        <input
-          type="checkbox"
-          checked={autoFitText}
-          disabled={disabled}
-          onChange={(event) => onUpdate({ autoFitText: event.target.checked })}
-        />
-        {t("format.auto")}
-      </label>
+      <CheckboxField
+        className="inline-toggle"
+        title={t("format.autoFitTitle")}
+        label={t("format.auto")}
+        checked={autoFitText}
+        disabled={disabled}
+        onCheckedChange={(checked) => onUpdate({ autoFitText: checked })}
+      />
       <RangeInput
         className="font-size-slider"
         aria-label={t("format.fontSize")}

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import inpaintingGuideImage from "../assets/images/inpainting-guide.png";
 import styles from "./InpaintingGuideModal.module.css";
 import { Button } from "./ui/Button";
+import { CheckboxField } from "./ui/CheckboxField";
 import { Modal } from "./ui/Modal";
 import { ModalActionBar } from "./ui/ModalActionBar";
 
@@ -23,14 +24,12 @@ export function InpaintingGuideModal({
       footer={
         <ModalActionBar
           leading={
-            <label className="guide-hide-check">
-              <input
-                type="checkbox"
-                checked={hideNextTime}
-                onChange={(event) => setHideNextTime(event.target.checked)}
-              />
-              <span>{t("inpainting.guide.hideNextTime")}</span>
-            </label>
+            <CheckboxField
+              className="guide-hide-check"
+              label={t("inpainting.guide.hideNextTime")}
+              checked={hideNextTime}
+              onCheckedChange={setHideNextTime}
+            />
           }
           actions={
             <Button variant="primary" onClick={() => onClose(hideNextTime)}>

@@ -488,8 +488,7 @@
     "openFolder": "打开文件夹",
     "folderHint": "按文件名顺序读取文件夹中的图片。",
     "openArchive": "打开压缩文件",
-    "archiveHint": "将一个 ZIP 或 CBZ 作为一话导入。",
-    "orderHint": "页面会识别文件名中的数字并自然排序，也会自动识别压缩包内的文件夹结构。"
+    "archiveHint": "将一个 ZIP 或 CBZ 作为一话导入。"
   },
   "import": {
     "batchTitle": "添加多个章节",

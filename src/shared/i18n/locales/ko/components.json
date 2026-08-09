@@ -492,8 +492,7 @@
     "openFolder": "폴더 열기",
     "folderHint": "폴더 안 이미지를 이름 순서대로 불러옵니다.",
     "openArchive": "압축파일 열기",
-    "archiveHint": "ZIP·CBZ 한 개를 하나의 화로 불러옵니다.",
-    "orderHint": "페이지는 파일명의 숫자를 인식해 자연스러운 순서로 정렬합니다. ZIP 안 폴더 구조도 자동으로 읽습니다."
+    "archiveHint": "ZIP·CBZ 한 개를 하나의 화로 불러옵니다."
   },
   "import": {
     "batchTitle": "여러 화 추가 준비",

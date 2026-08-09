@@ -5,6 +5,7 @@ import type { JobState } from "../../../../shared/jobTypes";
 import type { ProgressSnapshot } from "../../lib/jobProgress";
 import { useEtaText } from "../../hooks/useEtaText";
 import { Button } from "../ui/Button";
+import { ProgressBar } from "../ui/ProgressBar";
 
 type InpaintingProgressCardProps = {
   jobState: JobState;
@@ -24,14 +25,14 @@ export function InpaintingProgressCard({
   );
   const detail = resolveProgressCardDetail(jobState, t);
   const etaText = useEtaText(progressSnapshot);
+  const hasKnownProgress =
+    Number.isFinite(current) && Number.isFinite(total) && (total ?? 0) > 0;
 
   return (
     <div className={`inpainting-progress-card ${jobState.status}`}>
       <div className="progress-meta">
         <span>{jobState.progressText}</span>
-        {Number.isFinite(current) &&
-        Number.isFinite(total) &&
-        (total ?? 0) > 0 ? (
+        {hasKnownProgress ? (
           <strong>
             {current} / {total}
           </strong>
@@ -41,12 +42,14 @@ export function InpaintingProgressCard({
       </div>
       <small>{detail}</small>
       {etaText ? <small className="progress-eta">{etaText}</small> : null}
-      <div className="progress-track" aria-hidden="true">
-        <div
-          className="progress-fill"
-          style={{ width: `${Math.round(ratio * 100)}%` }}
-        />
-      </div>
+      <ProgressBar
+        label={jobState.progressText}
+        mode={hasKnownProgress ? "determinate" : "indeterminate"}
+        value={ratio}
+        valueText={
+          hasKnownProgress ? `${current} / ${total}` : t("common.inProgress")
+        }
+      />
       {isCancellableInpaintingJob(jobState) ? (
         <Button variant="danger" size="sm" onClick={onCancel}>
           {t("common.cancel")}

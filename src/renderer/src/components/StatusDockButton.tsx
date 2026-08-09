@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import type { JobState } from "../../../shared/jobTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
 import { IconButton } from "./ui/IconButton";
+import { usePopupController } from "./ui/usePopupController";
 import {
   StatusPopover,
   type StatusFailedPage,
@@ -192,17 +193,18 @@ function toHistoryEntry(jobState: JobState): StatusJobHistoryEntry {
 }
 
 function useStatusDockController(latest: string | undefined) {
-  const rootRef = React.useRef<HTMLDivElement | null>(null);
-  const triggerRef = React.useRef<HTMLButtonElement | null>(null);
   const previousLatestRef = React.useRef<string | undefined>(undefined);
   const [open, setOpen] = React.useState(false);
   const [unread, setUnread] = React.useState(false);
-  const closePopover = React.useCallback((restoreFocus = false) => {
-    setOpen(false);
-    if (restoreFocus) {
-      window.requestAnimationFrame(() => triggerRef.current?.focus());
-    }
-  }, []);
+  const {
+    close: closePopover,
+    rootRef,
+    triggerRef,
+  } = usePopupController({
+    initialFocus: false,
+    open,
+    onOpenChange: setOpen,
+  });
 
   React.useEffect(() => {
     if (latest && latest !== previousLatestRef.current && !open) {
@@ -213,7 +215,6 @@ function useStatusDockController(latest: string | undefined) {
   React.useEffect(() => {
     if (open) setUnread(false);
   }, [open]);
-  useStatusPopoverDismiss(open, rootRef, closePopover);
   return {
     closePopover,
     open,
@@ -236,29 +237,4 @@ function resolveStatusIndicator(jobState: JobState, unread: boolean): string {
     return "running";
   }
   return unread ? "unread" : "idle";
-}
-
-function useStatusPopoverDismiss(
-  open: boolean,
-  rootRef: React.RefObject<HTMLDivElement | null>,
-  close: (restoreFocus?: boolean) => void,
-): void {
-  React.useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (event: PointerEvent): void => {
-      if (!rootRef.current?.contains(event.target as Node)) close(false);
-    };
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        close(true);
-      }
-    };
-    document.addEventListener("pointerdown", onPointerDown, true);
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown, true);
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [close, open, rootRef]);
 }

@@ -12,7 +12,8 @@ import {
   StylePresetEditorModal,
   type StylePresetDraft,
 } from "./StylePresetEditorModal";
-import { handleMenuKeyboardNavigation } from "./ui/menuKeyboard";
+import { MenuSurface } from "./ui/MenuSurface";
+import { usePopupController } from "./ui/usePopupController";
 
 type BlockStylePresetControlsProps = {
   activePresetId: string;
@@ -37,18 +38,23 @@ export function BlockStylePresetControls({
   const [open, setOpen] = React.useState(false);
   const [createOpen, setCreateOpen] = React.useState(false);
   const [deletingPresetId, setDeletingPresetId] = React.useState("");
-  const rootRef = React.useRef<HTMLDivElement | null>(null);
-  const triggerRef = React.useRef<HTMLButtonElement | null>(null);
   const activePreset = presets.find((preset) => preset.id === activePresetId);
   const pickerDisabled = disabled || (presets.length === 0 && !canCreate);
+  const { close, contentRef, rootRef, triggerRef } = usePopupController({
+    disabled: pickerDisabled,
+    initialFocus: [
+      '[role="menuitemradio"][aria-checked="true"]',
+      '[role^="menuitem"]:not(:disabled)',
+    ],
+    open,
+    onOpenChange: setOpen,
+  });
   const deletePreset = usePresetDeleteAction({
     onDelete,
     rootRef,
     setDeletingPresetId,
     triggerRef,
   });
-
-  usePresetMenuDismiss(open, rootRef, triggerRef, () => setOpen(false));
 
   return (
     <section className="block-style-preset-controls">
@@ -66,17 +72,18 @@ export function BlockStylePresetControls({
             canCreate={canCreate}
             deletingPresetId={deletingPresetId}
             disabled={disabled}
+            menuRef={contentRef}
             presets={presets}
             onApply={(presetId) => {
               onApply(presetId);
-              setOpen(false);
-              triggerRef.current?.focus();
+              close(true);
             }}
             onCreate={() => {
-              setOpen(false);
+              close(false);
               setCreateOpen(true);
             }}
             onDelete={deletePreset}
+            onClose={close}
           />
         ) : null}
       </div>
@@ -134,24 +141,28 @@ function PresetPickerMenu({
   canCreate,
   deletingPresetId,
   disabled,
+  menuRef,
   presets,
   onApply,
   onCreate,
   onDelete,
+  onClose,
 }: Pick<BlockStylePresetControlsProps, "canCreate" | "disabled" | "presets"> & {
   activePresetId: string;
   deletingPresetId: string;
+  menuRef: React.RefObject<HTMLDivElement | null>;
   onApply: (presetId: string) => void;
   onCreate: () => void;
   onDelete: (presetId: string) => void;
+  onClose: (restoreFocus?: boolean) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <div
+    <MenuSurface
+      ref={menuRef}
       className="block-style-preset-menu"
-      role="menu"
-      aria-label={t("stylePresets.title")}
-      onKeyDown={handlePresetMenuKeyDown}
+      ariaLabel={t("stylePresets.title")}
+      onClose={onClose}
     >
       {presets.map((preset) => (
         <PresetMenuRow
@@ -176,7 +187,7 @@ function PresetPickerMenu({
           <span>{t("stylePresets.createFromCurrent")}</span>
         </button>
       ) : null}
-    </div>
+    </MenuSurface>
   );
 }
 
@@ -256,43 +267,4 @@ function usePresetDeleteAction({
       });
     });
   };
-}
-
-function usePresetMenuDismiss(
-  open: boolean,
-  rootRef: React.RefObject<HTMLDivElement | null>,
-  triggerRef: React.RefObject<HTMLButtonElement | null>,
-  close: () => void,
-): void {
-  React.useEffect(() => {
-    if (!open) return;
-    const root = rootRef.current;
-    const selected = root?.querySelector<HTMLElement>(
-      '[role="menuitemradio"][aria-checked="true"]',
-    );
-    const first = root?.querySelector<HTMLElement>(
-      '[role^="menuitem"]:not([disabled])',
-    );
-    window.requestAnimationFrame(() => (selected ?? first)?.focus());
-    const handlePointerDown = (event: PointerEvent): void => {
-      if (!rootRef.current?.contains(event.target as Node)) close();
-    };
-    const handleEscape = (event: KeyboardEvent): void => {
-      if (event.key !== "Escape") return;
-      close();
-      triggerRef.current?.focus();
-    };
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleEscape);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [close, open, rootRef, triggerRef]);
-}
-
-function handlePresetMenuKeyDown(
-  event: React.KeyboardEvent<HTMLDivElement>,
-): void {
-  handleMenuKeyboardNavigation(event);
 }

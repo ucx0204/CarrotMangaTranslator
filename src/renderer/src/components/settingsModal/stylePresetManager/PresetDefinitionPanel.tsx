@@ -10,7 +10,8 @@ import {
   type BlockStylePreset,
 } from "../../../../../shared/blockStylePresets";
 import type { GatherTextDirectFormatValues } from "../../../lib/gatherTextDirectFormatModel";
-import { BlockFormatPreviewStage } from "../../gatherText/GatherTextDirectFormatPreview";
+import { BlockFormatPreviewStage } from "../../blockFormat/BlockFormatPreview";
+import { CheckboxField } from "../../ui/CheckboxField";
 
 export type PresetFontDetail = { cssFamily: string; label: string };
 
@@ -51,14 +52,12 @@ export function PresetDefinitionPanel({
           />
         ))}
       </div>
-      <label className="style-preset-pin-toggle">
-        <input
-          type="checkbox"
-          checked={preset.pinned}
-          onChange={(event) => onPatch({ pinned: event.target.checked })}
-        />
-        <span>{t("stylePresets.pinQuick")}</span>
-      </label>
+      <CheckboxField
+        className="style-preset-pin-toggle"
+        label={t("stylePresets.pinQuick")}
+        checked={preset.pinned}
+        onCheckedChange={(checked) => onPatch({ pinned: checked })}
+      />
     </section>
   );
 }

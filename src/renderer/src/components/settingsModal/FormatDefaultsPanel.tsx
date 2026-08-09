@@ -12,11 +12,11 @@ import type {
 import { useFonts } from "../../fonts/useFonts";
 import type { GatherTextDirectFormatValues } from "../../lib/gatherTextDirectFormatModel";
 import { FontSizeNumberInput } from "../FontSizeNumberInput";
-import { BlockFormatPreview } from "../gatherText/GatherTextDirectFormatPreview";
+import { BlockFormatPreview } from "../blockFormat/BlockFormatPreview";
 import {
-  DirectControlCaption,
-  DirectSectionHeading,
-} from "../gatherText/GatherTextDirectFormatPrimitives";
+  BlockFormatControlCaption as DirectControlCaption,
+  BlockFormatSectionHeading as DirectSectionHeading,
+} from "../blockFormat/BlockFormatPrimitives";
 import {
   AlignCenterIcon,
   AlignLeftIcon,

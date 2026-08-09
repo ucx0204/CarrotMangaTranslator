@@ -3,6 +3,7 @@ import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { InpaintingModel } from "../../../../shared/settingsTypes";
 import { INPAINTING_MODEL_OPTIONS } from "../settingsOptions";
+import { CheckboxField } from "../ui/CheckboxField";
 
 export type InpaintingModelSettingsProps = {
   allowUnsafeLowMemoryFlux: boolean;
@@ -93,24 +94,17 @@ function FluxMemoryWarning(
     return null;
   }
   return (
-    <label className="inline-toggle mac-alpha-memory-warning">
-      <input
-        type="checkbox"
-        checked={props.allowUnsafeLowMemoryFlux}
-        onChange={(event) => {
-          if (
-            event.target.checked &&
-            !confirmFluxRisk(t, props.unifiedMemoryMb)
-          ) {
-            return;
-          }
-          props.setAllowUnsafeLowMemoryFlux(event.target.checked);
-        }}
-      />
-      {t("settings.hardware.fluxLowMemoryOverride", {
+    <CheckboxField
+      className="inline-toggle mac-alpha-memory-warning"
+      checked={props.allowUnsafeLowMemoryFlux}
+      label={t("settings.hardware.fluxLowMemoryOverride", {
         available: formatMemoryGb(props.unifiedMemoryMb ?? 0),
       })}
-    </label>
+      onCheckedChange={(checked) => {
+        if (checked && !confirmFluxRisk(t, props.unifiedMemoryMb)) return;
+        props.setAllowUnsafeLowMemoryFlux(checked);
+      }}
+    />
   );
 }
 
