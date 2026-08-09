@@ -54,6 +54,9 @@ logs/app.log
 /datasets/font-matching-master-*/
 /datasets/font-matching-training-*/
 settings.json
+/.settings-pairs/
+/settings.commit.json
+/settings.secrets.json
 panel-window-bounds.json
 recent-dialog-paths.json
 /.mgt-instance-lock/
