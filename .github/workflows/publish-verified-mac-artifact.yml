@@ -1,0 +1,125 @@
+name: Publish Verified macOS Artifact
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Existing stable release tag to receive verified macOS assets"
+        required: true
+        type: string
+      source_run_id:
+        description: "macOS Release run whose build_verify job succeeded"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Verify source run and stable release
+        id: verify_source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag_name }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid stable release tag: $RELEASE_TAG" >&2
+            exit 1
+          fi
+          if [[ ! "$SOURCE_RUN_ID" =~ ^[0-9]+$ ]]; then
+            echo "Invalid source run id: $SOURCE_RUN_ID" >&2
+            exit 1
+          fi
+
+          source_json="$(gh run view "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --json event,headSha,jobs,workflowName)"
+          if [[ "$(jq -r '.workflowName' <<<"$source_json")" != "macOS Release" ]]; then
+            echo "Source run is not a macOS Release workflow run." >&2
+            exit 1
+          fi
+          if [[ "$(jq -r '.event' <<<"$source_json")" != "workflow_dispatch" ]]; then
+            echo "Source run was not manually dispatched." >&2
+            exit 1
+          fi
+          if [[ "$(jq '[.jobs[] | select(.name == "build_verify" and .conclusion == "success")] | length' <<<"$source_json")" -ne 1 ]]; then
+            echo "Source run does not contain one successful build_verify job." >&2
+            exit 1
+          fi
+
+          source_sha="$(jq -r '.headSha' <<<"$source_json")"
+          tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/$RELEASE_TAG" --jq '.sha')"
+          if [[ "$source_sha" != "$tag_sha" ]]; then
+            echo "Source run commit $source_sha does not match tag commit $tag_sha." >&2
+            exit 1
+          fi
+
+          release_json="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease,targetCommitish)"
+          if [[ "$(jq -r '.isDraft' <<<"$release_json")" != "false" || "$(jq -r '.isPrerelease' <<<"$release_json")" != "false" ]]; then
+            echo "Release must be a published stable release." >&2
+            exit 1
+          fi
+          if [[ "$(jq -r '.targetCommitish' <<<"$release_json")" != "$tag_sha" ]]; then
+            echo "Release target does not match the tag commit." >&2
+            exit 1
+          fi
+
+          echo "version=${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "tag_sha=$tag_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Download verified macOS artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ${{ inputs.tag_name }}-macOS-arm64
+          path: release-artifact
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.source_run_id }}
+
+      - name: Verify and publish recovered macOS assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag_name }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          TAG_SHA: ${{ steps.verify_source.outputs.tag_sha }}
+          VERSION: ${{ steps.verify_source.outputs.version }}
+        run: |
+          set -euo pipefail
+          mapfile -t checksum_paths < <(find release-artifact -type f -name SHA256SUMS-macOS-arm64.txt -print)
+          if [[ "${#checksum_paths[@]}" -ne 1 ]]; then
+            echo "Expected exactly one macOS checksum manifest, found ${#checksum_paths[@]}." >&2
+            exit 1
+          fi
+          artifact_dir="$(dirname "${checksum_paths[0]}")"
+          dmg_path="$artifact_dir/CarrotMangaTranslator-${VERSION}-macOS-arm64.dmg"
+          zip_path="$artifact_dir/CarrotMangaTranslator-${VERSION}-macOS-arm64.zip"
+          provenance_path="$artifact_dir/macOS-arm64-provenance.json"
+          test -s "$dmg_path"
+          test -s "$zip_path"
+          test -s "$provenance_path"
+
+          (cd "$artifact_dir" && shasum -a 256 -c SHA256SUMS-macOS-arm64.txt)
+          dmg_sha="$(shasum -a 256 "$dmg_path" | awk '{print $1}')"
+          zip_sha="$(shasum -a 256 "$zip_path" | awk '{print $1}')"
+          jq -e \
+            --arg commit "$TAG_SHA" \
+            --arg run_id "$SOURCE_RUN_ID" \
+            --arg dmg "$dmg_sha" \
+            --arg zip "$zip_sha" \
+            '.commit == $commit and (.runId | tostring) == $run_id and .artifacts.dmg == $dmg and .artifacts.zip == $zip' \
+            "$provenance_path" >/dev/null
+
+          gh release upload "$RELEASE_TAG" \
+            "$dmg_path" \
+            "$zip_path" \
+            "${checksum_paths[0]}" \
+            "$provenance_path" \
+            --clobber
