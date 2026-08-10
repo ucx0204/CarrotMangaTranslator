@@ -224,10 +224,22 @@ jobs:
           VERSION: ${{ needs.build_verify.outputs.version }}
         run: |
           set -euo pipefail
-          (cd release-artifact && shasum -a 256 -c SHA256SUMS-macOS-arm64.txt)
+          mapfile -t checksum_paths < <(find release-artifact -type f -name SHA256SUMS-macOS-arm64.txt -print)
+          if [[ "${#checksum_paths[@]}" -ne 1 ]]; then
+            echo "Expected exactly one macOS checksum manifest, found ${#checksum_paths[@]}." >&2
+            exit 1
+          fi
+          artifact_dir="$(dirname "${checksum_paths[0]}")"
+          dmg_path="$artifact_dir/CarrotMangaTranslator-${VERSION}-macOS-arm64.dmg"
+          zip_path="$artifact_dir/CarrotMangaTranslator-${VERSION}-macOS-arm64.zip"
+          provenance_path="$artifact_dir/macOS-arm64-provenance.json"
+          test -s "$dmg_path"
+          test -s "$zip_path"
+          test -s "$provenance_path"
+          (cd "$artifact_dir" && shasum -a 256 -c SHA256SUMS-macOS-arm64.txt)
           gh release upload "$RELEASE_TAG" \
-            "release-artifact/CarrotMangaTranslator-${VERSION}-macOS-arm64.dmg" \
-            "release-artifact/CarrotMangaTranslator-${VERSION}-macOS-arm64.zip" \
-            release-artifact/SHA256SUMS-macOS-arm64.txt \
-            release-artifact/macOS-arm64-provenance.json \
+            "$dmg_path" \
+            "$zip_path" \
+            "${checksum_paths[0]}" \
+            "$provenance_path" \
             --clobber
