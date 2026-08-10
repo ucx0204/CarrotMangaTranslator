@@ -19,6 +19,7 @@ const {
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
   resolveOcrGpuPackageIndexUrl,
+  resolveOcrTorchCudaTag,
   resolveOcrTorchPackageIndexUrl,
 } = require("./runtime-device.cjs");
 
@@ -103,16 +104,17 @@ function resolveCudaTransformersInstallBatches(options) {
 
 /** @param {RuntimeOptions} options @returns {string[]} */
 function resolveCudaTransformersTorchPackages(options) {
+  const cudaTag = resolveOcrTorchCudaTag(options);
   return [
-    `torch==${resolveRocmTorchWheelVersion("torch")}`,
-    `torchvision==${resolveRocmTorchWheelVersion("torchvision")}`,
+    `torch==${resolvePinnedTorchBaseVersion("torch")}+${cudaTag}`,
+    `torchvision==${resolvePinnedTorchBaseVersion("torchvision")}+${cudaTag}`,
     "--index-url",
     resolveOcrTorchPackageIndexUrl(options),
   ];
 }
 
 /** @param {"torch" | "torchvision"} packageName @returns {string} */
-function resolveRocmTorchWheelVersion(packageName) {
+function resolvePinnedTorchBaseVersion(packageName) {
   const pattern = new RegExp(
     `(?:^|/)${packageName}-([^/+]+)(?:%2B|\\+)rocm`,
     "i",

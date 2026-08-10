@@ -41,7 +41,10 @@ const {
 } = require("../simple-page-ocr-runtime-config.cjs");
 const { runCommand } = require("../simple-page-shell-utils.cjs");
 const { ensureManagedBootstrapPython } = require("./managed-python.cjs");
-const { installAndFinalizeRuntime } = require("./runtime-install-flow.cjs");
+const {
+  discardExistingBackendMismatchedVenv,
+  installAndFinalizeRuntime,
+} = require("./runtime-install-flow.cjs");
 const { buildRuntimeLayout } = require("./runtime-layout-result.cjs");
 const {
   ensureEmbeddedPythonPackagePath,
@@ -357,6 +360,7 @@ async function reuseTargetRuntime(options, state) {
 
 /** @param {RuntimeOptions} options @param {RuntimeState} state */
 async function removeBrokenTargetRuntime(options, state) {
+  await discardExistingBackendMismatchedVenv(state);
   const looksInstalled =
     hasOcrInstallMarker(state.packageDir, state.runtimeVariant, options) ||
     hasExpectedOcrPackages(state.packageDir, options);

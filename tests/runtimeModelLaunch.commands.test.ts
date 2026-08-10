@@ -342,7 +342,7 @@ describeWindows(
         expect(transformersBatches.flat()).not.toContain(
           "legacy-paddle-package==1.2.3",
         );
-        expect(transformersBatches[1]).toContain("torch==2.9.1");
+        expect(transformersBatches[1]).toContain("torch==2.9.1+cu126");
         expect(transformersBatches[2]).toContain("transformers==5.13.1");
       } finally {
         restoreEnv("MANGA_TRANSLATOR_OCR_PIP_PACKAGES", previousGeneric);

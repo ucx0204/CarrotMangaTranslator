@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createWriteStream,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -485,6 +486,7 @@ describeWindows("OCR runtime boundary behavior", () => {
           expect.objectContaining({ step: "pip-installed" }),
         ]),
       );
+
       expect(markerPayload).toEqual(
         expect.objectContaining({
           targetDir: packageDir,
@@ -504,6 +506,133 @@ describeWindows("OCR runtime boundary behavior", () => {
         } else {
           delete require.cache[modulePath];
         }
+      }
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("discards a runtime whose installed package backend is wrong", async () => {
+    const flowPath =
+      require.resolve("../src/main/runtime/ocr/runtime-install-flow.cjs");
+    const installerPath =
+      require.resolve("../src/main/runtime/ocr/runtime-installer.cjs");
+    const verificationPath =
+      require.resolve("../src/main/runtime/ocr/runtime-verification.cjs");
+    const affectedPaths = [flowPath, installerPath, verificationPath];
+    for (const modulePath of affectedPaths) require(modulePath);
+    const originalEntries = new Map(
+      affectedPaths.map((modulePath) => [
+        modulePath,
+        require.cache[modulePath],
+      ]),
+    );
+    const actualInstaller = require(installerPath) as Record<string, unknown>;
+    const actualVerification = require(verificationPath) as Record<
+      string,
+      unknown
+    >;
+    const root = mkdtempSync(join(tmpdir(), "ocr-backend-mismatch-"));
+    const venvDir = join(root, "venv");
+    const venvPython = join(venvDir, "Scripts", "python.exe");
+    const packageDir = join(root, "packages");
+    mkdirSync(dirname(venvPython), { recursive: true });
+    mkdirSync(join(packageDir, "torch"), { recursive: true });
+    writeFileSync(venvPython, "");
+    writeFileSync(join(packageDir, "torch", "version.py"), "cuda = None");
+
+    try {
+      replaceCachedExports(installerPath, {
+        ...actualInstaller,
+        async installOcrPythonPackages() {},
+      });
+      replaceCachedExports(verificationPath, {
+        ...actualVerification,
+        async checkPaddleOcrImport() {
+          return {
+            ok: false,
+            message:
+              "AssertionError: Unexpected NVIDIA CUDA PyTorch build: expected +cu126, got 2.9.1+cpu",
+          };
+        },
+      });
+      delete require.cache[flowPath];
+      const flow = require(flowPath) as {
+        discardExistingBackendMismatchedVenv: (
+          state: Record<string, unknown>,
+        ) => Promise<boolean>;
+        installAndFinalizeRuntime: (
+          options: Record<string, unknown>,
+          state: Record<string, unknown>,
+        ) => Promise<Record<string, unknown>>;
+      };
+      const diagnostics: unknown[] = [];
+
+      await expect(
+        flow.installAndFinalizeRuntime(
+          {
+            ocrDevice: "gpu",
+            ocrGpuBackend: "cuda",
+            ocrGpuCudaTag: "cu126",
+            ocrEngine: "transformers",
+          },
+          {
+            runtimeDir: root,
+            runtimeVariant: "gpu-cuda-transformers-cu126",
+            venvDir,
+            venvPython,
+            packageDir,
+            cachePaths: {},
+            diagnostics,
+            bootstrapPython: join(root, "bootstrap", "python.exe"),
+          },
+        ),
+      ).rejects.toMatchObject({
+        runtimeDiscarded: true,
+        failureCategory: "ocr-runtime",
+      });
+
+      expect(existsSync(venvDir)).toBe(false);
+      expect(existsSync(packageDir)).toBe(false);
+      expect(diagnostics).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            step: "ocr-backend-package-mismatch-discarded",
+          }),
+        ]),
+      );
+
+      mkdirSync(dirname(venvPython), { recursive: true });
+      writeFileSync(venvPython, "");
+      const recoveryDiagnostics: unknown[] = [];
+      await expect(
+        flow.discardExistingBackendMismatchedVenv({
+          runtimeDir: root,
+          runtimeVariant: "gpu-cuda-transformers-cu126",
+          venvDir,
+          venvPython,
+          packageDir,
+          cachePaths: {},
+          diagnostics: recoveryDiagnostics,
+          bootstrapPython: "",
+          importCheck: {
+            ok: false,
+            message:
+              "Unexpected NVIDIA CUDA PyTorch build: expected +cu126, got 2.9.1+cpu",
+          },
+        }),
+      ).resolves.toBe(true);
+      expect(existsSync(venvDir)).toBe(false);
+      expect(recoveryDiagnostics).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            step: "broken-venv-backend-mismatch-discarded",
+          }),
+        ]),
+      );
+    } finally {
+      for (const [modulePath, entry] of originalEntries) {
+        if (entry) require.cache[modulePath] = entry;
+        else delete require.cache[modulePath];
       }
       rmSync(root, { recursive: true, force: true });
     }

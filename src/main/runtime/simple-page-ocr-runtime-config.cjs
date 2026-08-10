@@ -23,6 +23,8 @@ module.exports = {
   hasNonAsciiPath: layout.hasNonAsciiPath,
   isGpuDeviceLostOrTdrText: errors.isGpuDeviceLostOrTdrText,
   isGpuOutOfMemoryText: errors.isGpuOutOfMemoryText,
+  isOcrBackendPackageIdentityFailureText:
+    errors.isOcrBackendPackageIdentityFailureText,
   isOcrCudaTransformersRuntime: device.isOcrCudaTransformersRuntime,
   isOcrGpuRequested: device.isOcrGpuRequested,
   isOcrTransformersEngine: device.isOcrTransformersEngine,

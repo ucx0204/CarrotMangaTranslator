@@ -6,6 +6,7 @@
  * @typedef {{
  *   runtimeDir: string;
  *   runtimeVariant: string;
+ *   venvDir: string;
  *   venvPython: string;
  *   packageDir: string;
  *   cachePaths: OcrRuntimeLayout;
@@ -16,8 +17,10 @@
 /** @typedef {{ installPython: string; targetDir: string | null; installBatches: string[][]; packageSummary: string }} InstalledRuntime */
 
 const { existsSync } = require("node:fs");
+const { rm } = require("node:fs/promises");
 const {
   buildPaddleOcrImportFailureMessage,
+  isOcrBackendPackageIdentityFailureText,
   isPaddleNativeDllLoadFailureText,
   resolveOcrInstallSignature,
   resolveOcrPipInstallBatches,
@@ -139,8 +142,86 @@ async function verifyInstalledRuntime(options, state, installed) {
     importCheck = await checkInstalledRuntime(options, state, installed);
   }
   if (!importCheck.ok) {
-    throwPostInstallVerificationError(options, state, installed, importCheck);
+    const runtimeDiscarded = await discardBackendMismatchedRuntime(
+      options,
+      state,
+      installed,
+      importCheck,
+    );
+    throwPostInstallVerificationError(
+      options,
+      state,
+      installed,
+      importCheck,
+      runtimeDiscarded,
+    );
   }
+}
+
+/** @param {RuntimeOptions} options @param {RuntimeState} state @param {InstalledRuntime} installed @param {ImportCheckResult} importCheck @returns {Promise<boolean>} */
+async function discardBackendMismatchedRuntime(
+  options,
+  state,
+  installed,
+  importCheck,
+) {
+  const importError = summarizeImportCheckFailure(importCheck);
+  if (!isOcrBackendPackageIdentityFailureText(importError)) {
+    return false;
+  }
+  const discardPaths = installed.targetDir
+    ? [state.packageDir]
+    : [state.venvDir, state.packageDir];
+  try {
+    for (const discardPath of discardPaths) {
+      await rm(discardPath, { recursive: true, force: true });
+    }
+    state.diagnostics.push({
+      step: "ocr-backend-package-mismatch-discarded",
+      runtimeVariant: state.runtimeVariant,
+      discardPaths,
+      importError,
+    });
+    emitRuntimeProgress(
+      options,
+      "ocr_downloading",
+      "잘못된 OCR 런타임 폐기",
+      "선택한 장치와 다른 패키지를 제거했습니다. 다음 실행에서 올바른 런타임을 다시 설치합니다.",
+      {
+        progressMode: "log-only",
+        installLogLine: `OCR backend mismatch discarded: ${discardPaths.join(", ")}`,
+      },
+    );
+    return true;
+  } catch (error) {
+    state.diagnostics.push({
+      step: "ocr-backend-package-mismatch-discard-failed",
+      runtimeVariant: state.runtimeVariant,
+      discardPaths,
+      importError,
+      message: error instanceof Error ? error.message : String(error),
+    });
+    return false;
+  }
+}
+
+/** @param {RuntimeState & { importCheck: ImportCheckResult }} state @returns {Promise<boolean>} */
+async function discardExistingBackendMismatchedVenv(state) {
+  if (
+    !existsSync(state.venvPython) ||
+    !isOcrBackendPackageIdentityFailureText(state.importCheck.message)
+  ) {
+    return false;
+  }
+  state.diagnostics.push({
+    step: "broken-venv-backend-mismatch-discarded",
+    runtimeDir: state.runtimeDir,
+    runtimeVariant: state.runtimeVariant,
+    venvDir: state.venvDir,
+    importError: state.importCheck.message,
+  });
+  await rm(state.venvDir, { recursive: true, force: true });
+  return true;
 }
 
 /** @param {RuntimeOptions} options @param {RuntimeState} state @param {InstalledRuntime} installed @returns {Promise<ImportCheckResult>} */
@@ -189,12 +270,13 @@ function emitInstallVerification(options, packageSummary, retry) {
   );
 }
 
-/** @param {RuntimeOptions} options @param {RuntimeState} state @param {InstalledRuntime} installed @param {ImportCheckResult} importCheck */
+/** @param {RuntimeOptions} options @param {RuntimeState} state @param {InstalledRuntime} installed @param {ImportCheckResult} importCheck @param {boolean} runtimeDiscarded */
 function throwPostInstallVerificationError(
   options,
   state,
   installed,
   importCheck,
+  runtimeDiscarded,
 ) {
   const importError = summarizeImportCheckFailure(importCheck);
   throw createOcrRuntimeError(
@@ -206,6 +288,7 @@ function throwPostInstallVerificationError(
       packageDir: state.packageDir,
       pythonPath: installed.installPython,
       importError,
+      runtimeDiscarded,
     },
     importCheck.error,
   );
@@ -234,4 +317,7 @@ async function persistInstalledRuntime(options, state, installed) {
   );
 }
 
-module.exports = { installAndFinalizeRuntime };
+module.exports = {
+  discardExistingBackendMismatchedVenv,
+  installAndFinalizeRuntime,
+};

@@ -9,10 +9,14 @@ const {
   resolveOcrDevice,
   resolveOcrGpuBackend,
   resolveOcrGpuCudaTag,
+  resolveOcrTorchCudaTag,
 } = require("./runtime-device.cjs");
 
 /** @param {unknown} importMessage @param {RuntimeOptions} [options] @returns {string} */
 function buildPaddleOcrImportFailureMessage(importMessage, options = {}) {
+  if (isOcrBackendPackageIdentityFailureText(importMessage)) {
+    return buildOcrBackendPackageIdentityFailureMessage(importMessage, options);
+  }
   if (
     isOcrTransformersRuntime(options) &&
     isPaddleNativeDllLoadFailureText(importMessage)
@@ -35,6 +39,18 @@ function buildPaddleOcrImportFailureMessage(importMessage, options = {}) {
     return `Paddle OCR 런타임 설치 후 검증이 시간 초과되었습니다.${resolvePaddleOcrTimeoutSuffix(options)} detail=${truncateText(importMessage, 1200)}`;
   }
   return buildGenericImportFailureMessage(importMessage, options);
+}
+
+/** @param {unknown} importMessage @param {RuntimeOptions} options @returns {string} */
+function buildOcrBackendPackageIdentityFailureMessage(importMessage, options) {
+  const expected = !isOcrGpuRequested(options)
+    ? "CPU PaddlePaddle"
+    : isRocmGpu(options)
+      ? "PyTorch 2.9.1+rocm7.2.1"
+      : isOcrCudaTransformersRuntime(options)
+        ? `PyTorch 2.9.1+${resolveOcrTorchCudaTag(options)}`
+        : `CUDA ${resolveOcrGpuCudaTag(options)} PaddlePaddle GPU`;
+  return `OCR 장치와 다른 백엔드 패키지가 설치되어 실행을 중단했습니다. 필요 패키지: ${expected}. 잘못된 런타임은 재사용하지 않고 자동 재설치 대상으로 처리합니다. detail=${truncateText(importMessage, 1200)}`;
 }
 
 /** @param {unknown} importMessage @param {RuntimeOptions} options @returns {string} */
@@ -95,6 +111,9 @@ function resolvePaddleOcrTimeoutSuffix(options) {
 /** @param {unknown} error @param {RuntimeOptions} [options] @returns {string} */
 function buildPaddleOcrGpuFailureMessage(error, options = {}) {
   const text = summarizeOcrErrorMessage(error);
+  if (isOcrBackendPackageIdentityFailureText(text)) {
+    return buildOcrBackendPackageIdentityFailureMessage(text, options);
+  }
   if (isGpuOutOfMemoryText(text)) {
     return `GPU 메모리(VRAM) 부족으로 OCR이 실패했습니다. 큰 페이지가 이어지거나 인페인팅 등 다른 GPU 작업과 겹치면 발생할 수 있습니다. GPU를 쓰는 다른 앱을 닫거나 설정에서 OCR 장치를 CPU로 직접 바꾸면 안정적입니다. detail=${truncateText(text, 1200)}`;
   }
@@ -176,6 +195,13 @@ function isPaddleNativeDllLoadFailureText(value) {
 }
 
 /** @param {unknown} value @returns {boolean} */
+function isOcrBackendPackageIdentityFailureText(value) {
+  return /Unexpected (?:NVIDIA CUDA|AMD ROCm|CPU) (?:PyTorch|TorchVision|PaddlePaddle) build|PyTorch is not a (?:CUDA|ROCm\/HIP) build|PaddlePaddle is not compiled with CUDA/i.test(
+    String(value ?? ""),
+  );
+}
+
+/** @param {unknown} value @returns {boolean} */
 function isGpuOutOfMemoryText(value) {
   return /out of memory|hipErrorOutOfMemory|OutOfMemoryError|CUDA error: out of memory|ResourceExhausted/i.test(
     String(value ?? ""),
@@ -229,7 +255,7 @@ function buildPaddleOcrImportCheckScript(options = {}) {
   if (isOcrTransformersRuntime(options)) {
     return resolveOcrGpuBackend(options) === "rocm-transformers"
       ? buildRocmImportCheckScript()
-      : buildCudaTransformersImportCheckScript();
+      : buildCudaTransformersImportCheckScript(options);
   }
   return buildPaddleImportCheckScript(device);
 }
@@ -240,11 +266,16 @@ function buildRocmImportCheckScript() {
     ...buildTransformersImportPrelude(),
     "assert not missing, 'Missing AMD ROCm OCR package(s): ' + ', '.join(missing)",
     "import torch",
-    "assert torch.cuda.is_available(), 'AMD ROCm PyTorch GPU is not available'",
+    "_expected_rocm_tag = '+rocm7.2.1'",
+    "_torch_version = str(torch.__version__).lower()",
+    "assert _torch_version.endswith(_expected_rocm_tag), 'Unexpected AMD ROCm PyTorch build: expected ' + _expected_rocm_tag + ', got ' + _torch_version",
     "assert getattr(torch.version, 'hip', None), 'PyTorch is not a ROCm/HIP build'",
+    "import torchvision",
+    "_torchvision_version = str(torchvision.__version__).lower()",
+    "assert _torchvision_version.endswith(_expected_rocm_tag), 'Unexpected AMD ROCm TorchVision build: expected ' + _expected_rocm_tag + ', got ' + _torchvision_version",
+    "assert torch.cuda.is_available(), 'AMD ROCm PyTorch GPU is not available'",
     "x = torch.ones((1,), device='cuda')",
     "torch.cuda.synchronize()",
-    "import torchvision",
     "import tokenizers",
     "assert tokenizers.__version__.replace('-', '') == '0.23.0rc0', 'Unsupported tokenizers version: ' + tokenizers.__version__",
     "import transformers",
@@ -257,17 +288,23 @@ function buildRocmImportCheckScript() {
   ].join("; ");
 }
 
-/** @returns {string} */
-function buildCudaTransformersImportCheckScript() {
+/** @param {RuntimeOptions} options @returns {string} */
+function buildCudaTransformersImportCheckScript(options) {
+  const expectedCudaTag = `+${resolveOcrTorchCudaTag(options)}`;
   return [
     ...buildTransformersImportPrelude(),
     "assert not missing, 'Missing NVIDIA CUDA Transformers OCR package(s): ' + ', '.join(missing)",
     "import torch",
-    "assert torch.cuda.is_available(), 'NVIDIA CUDA PyTorch GPU is not available'",
+    `_expected_cuda_tag = ${JSON.stringify(expectedCudaTag)}`,
+    "_torch_version = str(torch.__version__).lower()",
+    "assert _torch_version.endswith(_expected_cuda_tag), 'Unexpected NVIDIA CUDA PyTorch build: expected ' + _expected_cuda_tag + ', got ' + _torch_version",
     "assert getattr(torch.version, 'cuda', None), 'PyTorch is not a CUDA build'",
+    "import torchvision",
+    "_torchvision_version = str(torchvision.__version__).lower()",
+    "assert _torchvision_version.endswith(_expected_cuda_tag), 'Unexpected NVIDIA CUDA TorchVision build: expected ' + _expected_cuda_tag + ', got ' + _torchvision_version",
+    "assert torch.cuda.is_available(), 'NVIDIA CUDA PyTorch GPU is not available'",
     "x = torch.ones((1,), device='cuda')",
     "torch.cuda.synchronize()",
-    "import torchvision",
     "import tokenizers",
     "assert tokenizers.__version__.replace('-', '') == '0.23.0rc0', 'Unsupported tokenizers version: ' + tokenizers.__version__",
     "import transformers",
@@ -310,6 +347,10 @@ function buildPaddleImportCheckScript(device) {
       "assert count > 0, 'No CUDA device is visible to PaddlePaddle'",
       `paddle.set_device(${JSON.stringify(device)})`,
     );
+  } else {
+    lines.push(
+      "assert not paddle.device.is_compiled_with_cuda(), 'Unexpected CPU PaddlePaddle build: CUDA-enabled package installed'",
+    );
   }
   return lines.join("; ");
 }
@@ -320,6 +361,7 @@ module.exports = {
   buildPaddleOcrImportFailureMessage,
   isGpuDeviceLostOrTdrText,
   isGpuOutOfMemoryText,
+  isOcrBackendPackageIdentityFailureText,
   isPaddleNativeDllLoadFailureText,
   isPaddleSm120UnsupportedText,
   isRocmHipAccessViolationText,

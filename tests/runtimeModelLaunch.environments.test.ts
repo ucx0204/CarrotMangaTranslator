@@ -120,14 +120,14 @@ describeWindows(
         expect.arrayContaining(["filelock", "numpy", "pillow"]),
       );
       expect(cu126Batches[1]).toEqual([
-        "torch==2.9.1",
-        "torchvision==0.24.1",
+        "torch==2.9.1+cu126",
+        "torchvision==0.24.1+cu126",
         "--index-url",
         "https://download.pytorch.org/whl/cu126",
       ]);
       expect(cu129Batches[1]).toEqual([
-        "torch==2.9.1",
-        "torchvision==0.24.1",
+        "torch==2.9.1+cu130",
+        "torchvision==0.24.1+cu130",
         "--index-url",
         "https://download.pytorch.org/whl/cu130",
       ]);
@@ -166,6 +166,9 @@ describeWindows(
       expect(script).toContain("import torchvision");
       expect(script).toContain("import tokenizers");
       expect(script).toContain("torch.version.cuda");
+      expect(script).toContain('_expected_cuda_tag = "+cu130"');
+      expect(script).toContain("Unexpected NVIDIA CUDA PyTorch build");
+      expect(script).toContain("Unexpected NVIDIA CUDA TorchVision build");
       expect(script).toContain("transformers.AutoModelForObjectDetection");
       expect(script).toContain("from paddleocr import PaddleOCR");
       expect(script).not.toContain("import paddle");
@@ -255,6 +258,9 @@ describeWindows(
       expect(script).toContain("transformers.AutoModelForObjectDetection");
       expect(script).toContain("torch.cuda.is_available()");
       expect(script).toContain("torch.version");
+      expect(script).toContain("_expected_rocm_tag = '+rocm7.2.1'");
+      expect(script).toContain("Unexpected AMD ROCm PyTorch build");
+      expect(script).toContain("Unexpected AMD ROCm TorchVision build");
       expect(script).toContain("from paddleocr import PaddleOCR");
       expect(script).not.toContain("import paddle");
       expect(script).not.toContain("PaddleOCRVL");
@@ -293,6 +299,7 @@ describeWindows(
       expect(batches.flat().join(" ")).not.toContain("torch");
       expect(env.MANGA_TRANSLATOR_PADDLEOCR_ENGINE).toBe("paddle_static");
       expect(script).toContain("import paddle");
+      expect(script).toContain("Unexpected CPU PaddlePaddle build");
       expect(script).not.toContain("import torch");
       expect(collectRequiredPaddleOcrModelDownloads(options)).not.toEqual([]);
     });

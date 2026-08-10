@@ -1,7 +1,7 @@
 // @ts-check
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
 
-const { existsSync } = require("node:fs");
+const { existsSync, readFileSync } = require("node:fs");
 const path = require("node:path");
 const { runtimeOverrideEnv } = require("./host-services.cjs");
 const {
@@ -25,6 +25,93 @@ const OCR_PACKAGE_OVERRIDE_NAMES = [
   "MANGA_TRANSLATOR_PADDLEOCR_GPU_INDEX_URL",
   "MANGA_TRANSLATOR_OCR_TORCH_INDEX_URL",
 ];
+
+const CUDA_126_TORCH_HASH =
+  "sha256:f2f1c68c7957ed8b6b56fc450482eb3fa53947fb74838b03834a1760451cf60f";
+const CUDA_126_TORCHVISION_HASH =
+  "sha256:54c1902bad62bd113f66dd3cc0368aa4d0005837100d3ab9dc823aebf945ead0";
+const CUDA_130_TORCH_HASH =
+  "sha256:cd3232a562ad2a2699d48130255e1b24c07dfe694a40dcd24fad683c752de121";
+const CUDA_130_TORCHVISION_HASH =
+  "sha256:d31ceaded0d9b737471fa680ccd9e1acb6d5f0f70f03ef3a8d786a99c79da7cf";
+
+/** @type {Record<string, { required: string[]; forbidden: string[] }>} */
+const OCR_BUILTIN_LOCK_CONTRACTS = {
+  cpu: {
+    required: ["paddlepaddle==3.3.1", "paddleocr==3.7.0"],
+    forbidden: [
+      "paddlepaddle-gpu @",
+      "download.pytorch.org/whl/cu",
+      "repo.radeon.com/rocm",
+    ],
+  },
+  "gpu-cu126": {
+    required: [
+      "paddlepaddle-gpu @ https://paddle-whl.bj.bcebos.com/stable/cu126/paddlepaddle-gpu/paddlepaddle_gpu-3.3.1-cp312-cp312-win_amd64.whl",
+      "paddleocr==3.7.0",
+    ],
+    forbidden: [
+      "paddlepaddle==3.3.1 \\",
+      "/stable/cu129/",
+      "download.pytorch.org/whl/",
+      "repo.radeon.com/rocm",
+    ],
+  },
+  "gpu-cu129": {
+    required: [
+      "paddlepaddle-gpu @ https://paddle-whl.bj.bcebos.com/stable/cu129/paddlepaddle-gpu/paddlepaddle_gpu-3.3.1-cp312-cp312-win_amd64.whl",
+      "paddleocr==3.7.0",
+    ],
+    forbidden: [
+      "paddlepaddle==3.3.1 \\",
+      "/stable/cu126/",
+      "download.pytorch.org/whl/",
+      "repo.radeon.com/rocm",
+    ],
+  },
+  "gpu-cuda-transformers-cu126": {
+    required: [
+      "--index-url https://download.pytorch.org/whl/cu126",
+      "torch==2.9.1+cu126",
+      CUDA_126_TORCH_HASH,
+      "torchvision==0.24.1+cu126",
+      CUDA_126_TORCHVISION_HASH,
+    ],
+    forbidden: [
+      "torch==2.9.1 \\",
+      "+cu130",
+      "paddlepaddle-gpu @",
+      "repo.radeon.com/rocm",
+    ],
+  },
+  "gpu-cuda-transformers-cu130": {
+    required: [
+      "--index-url https://download.pytorch.org/whl/cu130",
+      "torch==2.9.1+cu130",
+      CUDA_130_TORCH_HASH,
+      "torchvision==0.24.1+cu130",
+      CUDA_130_TORCHVISION_HASH,
+    ],
+    forbidden: [
+      "torch==2.9.1 \\",
+      "+cu126",
+      "paddlepaddle-gpu @",
+      "repo.radeon.com/rocm",
+    ],
+  },
+  "gpu-rocm-transformers": {
+    required: [
+      "torch @ https://repo.radeon.com/rocm/windows/rocm-rel-7.2.1/torch-2.9.1%2Brocm7.2.1-cp312-cp312-win_amd64.whl",
+      "torchvision @ https://repo.radeon.com/rocm/windows/rocm-rel-7.2.1/torchvision-0.24.1%2Brocm7.2.1-cp312-cp312-win_amd64.whl",
+      "paddleocr==3.7.0",
+    ],
+    forbidden: [
+      "torch==2.9.1",
+      "download.pytorch.org/whl/cu",
+      "paddlepaddle-gpu @",
+    ],
+  },
+};
 
 /**
  * Windows managed Python executes downloaded package code, so every built-in
@@ -75,13 +162,50 @@ function readFirstRuntimeOverride(names, options) {
 /** @param {string} variant @returns {string[][]} */
 function buildBuiltinIntegrityBatches(variant) {
   const lockFile = resolveBuiltinOcrRequirementsLock(variant);
+  const lockPath = path.join(__dirname, lockFile);
+  validateBuiltinOcrRequirementsLock(lockPath, variant);
   return [
     buildHashedRequirementsBatch(
-      path.join(__dirname, lockFile),
+      lockPath,
       variant !== "gpu-rocm-transformers",
       variant === "gpu-rocm-transformers",
     ),
   ];
+}
+
+/** @param {string} lockPath @param {string} variant */
+function validateBuiltinOcrRequirementsLock(lockPath, variant) {
+  const contract = OCR_BUILTIN_LOCK_CONTRACTS[variant];
+  if (!contract) {
+    throw new Error(`OCR requirements lock contract is missing: ${variant}`);
+  }
+  let contents = "";
+  try {
+    contents = readFileSync(lockPath, "utf8");
+  } catch (error) {
+    throw new Error(`OCR requirements lock을 읽지 못했습니다: ${lockPath}`, {
+      cause: error,
+    });
+  }
+  const missing = contract.required.filter(
+    (marker) => !contents.includes(marker),
+  );
+  const forbidden = contract.forbidden.filter((marker) =>
+    contents.includes(marker),
+  );
+  if (missing.length === 0 && forbidden.length === 0) {
+    return;
+  }
+  throw new Error(
+    [
+      `OCR requirements lock backend contract mismatch (${variant}).`,
+      missing.length > 0 ? `missing=${missing.join(", ")}` : "",
+      forbidden.length > 0 ? `forbidden=${forbidden.join(", ")}` : "",
+      `lock=${lockPath}`,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  );
 }
 
 /** @param {string} variant @returns {string} */
@@ -118,4 +242,7 @@ function buildHashedRequirementsBatch(
   ];
 }
 
-module.exports = { resolveIntegrityPinnedOcrInstallBatches };
+module.exports = {
+  resolveIntegrityPinnedOcrInstallBatches,
+  validateBuiltinOcrRequirementsLock,
+};
