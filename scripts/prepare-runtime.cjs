@@ -424,8 +424,8 @@ function copyDirectoryContents(sourceDir, outputDir) {
 }
 
 /**
- * Type declarations and Python bytecode caches support development but are
- * never read by the packaged runtime.
+ * Type declarations, requirements compiler inputs, and Python bytecode caches
+ * support development but are never read by the packaged runtime.
  *
  * @param {import("node:fs").Dirent} entry
  */
@@ -447,6 +447,7 @@ function isDevelopmentRuntimePath(relativePath, leafIsDirectory = false) {
     pathParts.includes("__pycache__") ||
     (!leafIsDirectory &&
       (name.endsWith(".d.ts") ||
+        /^requirements-.*\.in$/.test(name) ||
         name.endsWith(".pyc") ||
         name.endsWith(".pyo")))
   );

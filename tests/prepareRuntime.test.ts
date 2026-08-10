@@ -97,6 +97,10 @@ function createRuntimeFixture(options: { withDefaultBundle?: boolean } = {}) {
   writeFileSync(join(sourceDir, "root.cjs"), "root");
   writeFileSync(join(sourceDir, "runtime-jsdoc-types.d.ts"), "types");
   writeFileSync(
+    join(sourceDir, "requirements-runtime.in"),
+    "build-only lock input",
+  );
+  writeFileSync(
     join(sourceDir, "paddleocr_review_contexts.py"),
     "def build_textline_review_context_ids(partition): return {}",
   );
@@ -199,17 +203,19 @@ describe("prepareRuntimeAssets", () => {
     ).toBe("jinja");
   });
 
-  it("omits development declarations and Python bytecode caches", () => {
+  it("omits development declarations, lock inputs, and Python bytecode caches", () => {
     const { root, sourceDir } = createRuntimeFixture();
     const outputDir = join(root, "out", "app-runtime");
 
     prepareRuntimeAssets({ root, outputDir });
 
     expect(existsSync(join(outputDir, "runtime-jsdoc-types.d.ts"))).toBe(false);
+    expect(existsSync(join(outputDir, "requirements-runtime.in"))).toBe(false);
     expect(existsSync(join(outputDir, "transport", "stale.pyc"))).toBe(false);
     expect(existsSync(join(outputDir, "transport", "stale.pyo"))).toBe(false);
     expect(existsSync(join(outputDir, "__pycache__"))).toBe(false);
     expect(existsSync(join(sourceDir, "runtime-jsdoc-types.d.ts"))).toBe(true);
+    expect(existsSync(join(sourceDir, "requirements-runtime.in"))).toBe(true);
     expect(existsSync(join(sourceDir, "transport", "stale.pyc"))).toBe(true);
     expect(existsSync(join(sourceDir, "transport", "stale.pyo"))).toBe(true);
     expect(existsSync(join(sourceDir, "__pycache__"))).toBe(true);
