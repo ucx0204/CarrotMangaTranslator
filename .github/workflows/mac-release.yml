@@ -237,7 +237,7 @@ jobs:
           test -s "$zip_path"
           test -s "$provenance_path"
           (cd "$artifact_dir" && shasum -a 256 -c SHA256SUMS-macOS-arm64.txt)
-          gh release upload "$RELEASE_TAG" \
+          gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
             "$dmg_path" \
             "$zip_path" \
             "${checksum_paths[0]}" \

@@ -117,7 +117,7 @@ jobs:
             '.commit == $commit and (.runId | tostring) == $run_id and .artifacts.dmg == $dmg and .artifacts.zip == $zip' \
             "$provenance_path" >/dev/null
 
-          gh release upload "$RELEASE_TAG" \
+          gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
             "$dmg_path" \
             "$zip_path" \
             "${checksum_paths[0]}" \
