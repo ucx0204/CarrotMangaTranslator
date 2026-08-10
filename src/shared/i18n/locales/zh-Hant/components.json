@@ -14,6 +14,8 @@
     "delete": "刪除",
     "dragToMove": "拖曳以移動",
     "duplicate": "複製",
+    "collapseSection": "收合{{title}}",
+    "expandSection": "展開{{title}}",
     "import": "匯入",
     "inpainting": "影像修補",
     "inProgress": "進行中",
@@ -390,6 +392,31 @@
     "selectionSummary": "{{chapterCount}}話 · {{pageCount}}頁",
     "start": "匯出 PNG",
     "starting": "正在準備匯出…",
+    "omitText": "無文字匯出",
+    "omitTextHint": "不合成翻譯文字，只匯出修復後的背景 PNG。",
+    "preflight": {
+      "title": "匯出前檢查",
+      "nextStep": "確認後選擇儲存資料夾。",
+      "checking": "正在檢查所選頁面…",
+      "failed": "預先檢查失敗，請重新選擇範圍。",
+      "ready": "可以匯出",
+      "warningCount": "{{count}}個警告",
+      "chapterCount": "{{count}}話",
+      "pageCount": "{{count}}頁",
+      "noOverwrite": "不覆寫現有檔案",
+      "sample": "檔名範例",
+      "noIssues": "未發現未完成或處理中的頁面。",
+      "openPage": "檢視頁面",
+      "moreIssues": "另有{{count}}個問題",
+      "issues": {
+        "job-running": "此頁面正在處理中。",
+        "translation-failed": "翻譯或後處理失敗。",
+        "translation-pending": "翻譯尚未完成。",
+        "postprocess-pending": "翻譯已完成，但擦除或後處理尚未完成。",
+        "inpainted-image-missing": "沒有修復結果，無法匯出無文字 PNG。",
+        "empty-translation": "有翻譯內容為空的文字區塊。"
+      }
+    },
     "workUnavailable": "無法載入作品資訊。將只匯出目前頁面。",
     "startFailed": "無法開始匯出，請再試一次。"
   },
@@ -491,8 +518,8 @@
     "context": "頁面：{{pageName}}（{{count}}個文字區塊）",
     "keepBlocksHint": "保留目前文字區塊的區域和格式，只重新填入各區域的文字。",
     "autoBlocksHint": "刪除所有現有文字區塊並自動偵測新文字區塊。",
-    "overwriteTitle": "此頁的既有結果將會變更",
-    "overwriteWarning": "既有譯文與手動修改將被新結果取代，且無法透過工作區復原恢復。"
+    "overwriteTitle": "既有結果將儲存為檢查點",
+    "overwriteWarning": "重新翻譯後，在工作區復原一次即可還原先前的譯文與手動修改。"
   },
   "translateSource": {
     "title": "新增原稿",
@@ -611,6 +638,7 @@
     "partiallyCompleted": "部分完成",
     "waiting": "等待",
     "inProgressShort": "進行",
+    "editLocked": "處理中 · 編輯已鎖定",
     "erased": "已擦除"
   },
   "runPanel": {
@@ -987,6 +1015,24 @@
       "retouchTitle": "修整設定",
       "autoAction": "自動清除"
     },
+    "preview": {
+      "title": "檢查修復結果",
+      "pendingBadge": "套用前預覽",
+      "safeOriginal": "套用此結果之前，已儲存的頁面不會改變。",
+      "discard": "捨棄結果",
+      "applying": "正在套用…",
+      "apply": "套用此結果",
+      "description": "比較修改前頁面與產生結果，再決定是否套用。",
+      "pagesChanged": "{{count}} 頁",
+      "blocksErased": "已清除 {{count}} 個區域",
+      "before": "修改前",
+      "after": "產生結果",
+      "beforeAlt": "{{page}} 修復前",
+      "afterAlt": "{{page}} 修復產生結果",
+      "incomplete": "有 {{count}} 個區域未處理。請檢查結果後再套用。",
+      "imageFailed": "無法載入比較圖像。可以捨棄結果後重試。",
+      "loading": "正在載入比較圖像…"
+    },
     "counts": {
       "thisPage": "本頁 {{count}}",
       "remaining": "剩餘 {{count}}",
@@ -1196,7 +1242,10 @@
         }
       },
       "ocrQuality": {
-        "minimum": { "label": "最小", "description": "輕量快速的 OCR 模型。" },
+        "minimum": {
+          "label": "最小（舊版）",
+          "description": "用於舊版相容的 OCR 模式，將在後續更新中移除。"
+        },
         "economy": { "label": "節省", "description": "平衡速度和準確度。" },
         "full": {
           "label": "完整",
@@ -1364,6 +1413,18 @@
       }
     },
     "hardware": {
+      "summaryTitle": "偵測到的硬體與目前路徑",
+      "detectedTitle": "偵測到的硬體",
+      "detectedUnknown": "無法取得GPU資訊",
+      "memoryValue": "統一記憶體 {{memory}}",
+      "ocrRoute": "目前OCR",
+      "inpaintingRoute": "目前影像修補",
+      "recommendedMatch": "正在使用此硬體的建議設定。",
+      "recommendedDifferent": "部分進階設定與建議值不同。",
+      "applyRecommended": "套用建議值",
+      "gpuAdvanced": "GPU分配進階設定",
+      "ocrAdvanced": "OCR裝置進階設定",
+      "inpaintingBackendAdvanced": "影像修補後端進階設定",
       "gpuSection": "GPU 分配",
       "gpuSectionDescription": "分別指定應用程式畫面與本機 AI 工作使用的 GPU。",
       "graphicsGpu": "應用程式圖形 GPU",
@@ -1395,7 +1456,6 @@
       "downloadHipSdk": "下載 AMD HIP SDK（ROCm 7.1.1）"
     },
     "format": {
-      "description": "新文字區塊使用的預設格式。",
       "alignment": {
         "title": "對齊與強調",
         "left": "靠左對齊",
@@ -1588,12 +1648,26 @@
     "empty": "尚未儲存格式預設。",
     "name": "預設名稱",
     "groups": "包含的格式群組",
-    "pinQuick": "固定為快速預設",
-    "pinned": "快速固定",
+    "pinQuick": "顯示在快速樣式中",
+    "pinned": "快速樣式",
     "missingFontShort": "找不到已儲存的字體",
     "duplicateName": "{{name}} 副本",
     "groupCount": "{{count}}個格式群組",
     "moveUp": "上移",
-    "moveDown": "下移"
+    "moveDown": "下移",
+    "editorTitle": "預設 · {{name}}",
+    "includedGroups": "預設套用項目",
+    "includedGroupsHint": "目前啟用 {{count}} 項",
+    "disabledGroupTooltip": "此項未包含在預設中。請向下捲動，在「預設套用項目」中啟用。",
+    "minimumGroupRequired": "預設必須至少套用一個格式項目。",
+    "createQuick": "新增預設",
+    "backToEditor": "返回編輯",
+    "untitledGroup": "新群組",
+    "addGroup": "新增群組",
+    "group": "預設群組",
+    "groupName": "群組名稱",
+    "ungrouped": "無群組",
+    "releaseGroup": "解除群組",
+    "emptyGroup": "此群組中沒有預設。"
   }
 }

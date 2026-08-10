@@ -15,6 +15,7 @@ type AppSidebarProps = {
   selectedPageId: string | null;
   library: LibraryIndex;
   jobActive: boolean;
+  lockedPageIds?: ReadonlySet<string>;
   settingsBusy: boolean;
   settingsOpen: boolean;
   onOpenTranslationSource: () => void;
@@ -50,6 +51,7 @@ function LibrarySidebarContent({
   currentChapter,
   jobActive,
   library,
+  lockedPageIds = EMPTY_PAGE_IDS,
   onOpenBatchImport,
   onOpenChapter,
   onOpenLibraryFolder,
@@ -105,6 +107,7 @@ function LibrarySidebarContent({
         pages={currentChapter?.pages ?? []}
         selectedPageId={selectedPageId}
         jobActive={jobActive}
+        lockedPageIds={lockedPageIds}
         onSelect={stableOnSelectPage}
         onRetranslate={stableOnRetranslatePage}
         onRemove={stableOnRemovePage}
@@ -113,6 +116,8 @@ function LibrarySidebarContent({
     </>
   );
 }
+
+const EMPTY_PAGE_IDS: ReadonlySet<string> = new Set();
 
 function SidebarToolbar({
   jobActive,

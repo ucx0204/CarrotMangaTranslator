@@ -1,7 +1,11 @@
 import type { TranslationBlock } from "./textTypes";
 
 export function hashTranslationBlocks(blocks: TranslationBlock[]): string {
-  return hashText(stableStringify(blocks));
+  return hashStableValue(blocks);
+}
+
+export function hashStableValue(value: unknown): string {
+  return hashText(stableStringify(value));
 }
 
 function stableStringify(value: unknown): string {

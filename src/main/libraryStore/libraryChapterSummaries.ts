@@ -5,6 +5,17 @@ import type { LibraryChapterSummary } from "../../shared/libraryTypes";
 import { assertUniqueIds, readLibraryJsonFile } from "./libraryJsonValidation";
 import { getChapterFilePath } from "./libraryPaths";
 import { readJsonFile } from "./storage";
+import { resolveChapterStatus } from "./chapterRecords";
+
+const ChapterSummaryPageStateSchema = z.object({
+  analysisStatus: z.enum(["idle", "running", "completed", "failed"]),
+  translationCompletion: z
+    .object({
+      status: z.enum(["pending", "completed", "failed"]),
+      workflow: z.enum(["erase-original", "bubble-layout"]).optional(),
+    })
+    .optional(),
+});
 
 const LibraryChapterSummarySourceSchema = LibraryChapterFileSchema.pick({
   id: true,
@@ -40,11 +51,19 @@ export async function readChapterSummaryFile(
     id: chapter.id,
     workId: chapter.workId,
     title: chapter.title,
-    status: chapter.status,
+    status: resolveStoredChapterSummaryStatus(chapter.pages, chapter.status),
     createdAt: chapter.createdAt,
     updatedAt: chapter.updatedAt,
     pageCount: chapter.pages.length,
   };
+}
+
+function resolveStoredChapterSummaryStatus(
+  pages: unknown[],
+  storedStatus: LibraryChapterSummary["status"],
+): LibraryChapterSummary["status"] {
+  const parsed = z.array(ChapterSummaryPageStateSchema).safeParse(pages);
+  return parsed.success ? resolveChapterStatus(parsed.data) : storedStatus;
 }
 
 function assertChapterSummaryIdentity(

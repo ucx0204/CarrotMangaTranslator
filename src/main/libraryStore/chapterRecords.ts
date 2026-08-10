@@ -1,7 +1,8 @@
-import type {
-  LibraryChapter,
-  LibraryPageRecord,
-} from "../../shared/libraryTypes";
+import type { LibraryChapter } from "../../shared/libraryTypes";
+import {
+  isPageFullyCompleted,
+  type PageCompletionState,
+} from "../../shared/pageCompletion";
 
 export function reorderIds(
   currentOrder: string[],
@@ -30,18 +31,16 @@ export function reorderRecords<T extends { id: string }>(
 }
 
 export function resolveChapterStatus(
-  pages: Array<
-    Pick<LibraryPageRecord, "analysisStatus" | "translationCompletion">
-  >,
+  pages: PageCompletionState[],
 ): LibraryChapter["status"] {
   if (pages.length === 0) {
     return "idle";
   }
   const statuses = pages.map((page) => {
+    if (isPageFullyCompleted(page)) return "completed";
     if (page.analysisStatus !== "completed") return page.analysisStatus;
     if (page.translationCompletion?.status === "failed") return "failed";
-    if (page.translationCompletion?.status === "pending") return "partial";
-    return "completed";
+    return "partial";
   });
   if (statuses.every((status) => status === "completed")) {
     return "completed";

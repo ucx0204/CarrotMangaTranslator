@@ -7,6 +7,10 @@ import type {
   LibraryIndex,
   MangaPage,
 } from "../../shared/libraryTypes";
+import {
+  createPageRevision,
+  type PageRevision,
+} from "../../shared/pageRevision";
 import { hydrateChapter } from "./chapterSnapshots";
 import {
   reorderIds,
@@ -43,6 +47,7 @@ import {
 } from "./workContextFiles";
 
 export type PageAnalysisUpdate = {
+  expectedRevision?: PageRevision;
   expectedUpdatedAt?: string;
   page: MangaPage;
   warnings: string[];
@@ -308,8 +313,11 @@ export async function updatePagesAfterAnalysisUnlocked(
       return record;
     }
     if (
-      update.expectedUpdatedAt &&
-      record.updatedAt !== update.expectedUpdatedAt
+      (update.expectedRevision &&
+        createPageRevision(record) !== update.expectedRevision) ||
+      (!update.expectedRevision &&
+        update.expectedUpdatedAt &&
+        record.updatedAt !== update.expectedUpdatedAt)
     ) {
       return {
         ...record,
@@ -351,9 +359,10 @@ export async function updatePageAfterAnalysisUnlocked(
   warnings: string[],
   status: "completed" | "failed",
   expectedUpdatedAt?: string,
+  expectedRevision?: PageRevision,
 ): Promise<boolean> {
   const appliedPageIds = await updatePagesAfterAnalysisUnlocked(chapterId, [
-    { page, warnings, status, expectedUpdatedAt },
+    { page, warnings, status, expectedUpdatedAt, expectedRevision },
   ]);
   return appliedPageIds.has(page.id);
 }

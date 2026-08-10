@@ -219,6 +219,8 @@
     "bubbleLayoutManual": "吹き出し形状を編集",
     "removeBubbleLayout": "吹き出しフィットを解除",
     "drawnInpainting": "描画範囲を消去",
+    "translationCheckpoint": "翻訳結果のチェックポイント",
+    "retranslationCheckpoint": "再翻訳前のチェックポイント",
     "retouch": "手動補正",
     "resetOriginal": "原画像に戻す"
   },
@@ -265,7 +267,7 @@
     "retranslate": {
       "title": "ページを再翻訳",
       "confirm": "本当に再翻訳しますか？",
-      "detail": "このページの既存の翻訳結果と編集内容は上書きされます。"
+      "detail": "既存結果はチェックポイントとして保存され、ワークスペースの元に戻す操作で復元できます。"
     },
     "removePage": {
       "title": "ページを削除",
@@ -303,6 +305,15 @@
       "startFailed": "描画範囲の消去を開始できませんでした。",
       "failed": "描画範囲の消去に失敗しました。",
       "success": "描画範囲の消去完了: {{pages}}ページ、{{regions}}範囲"
+    },
+    "preview": {
+      "ready": "インペイント結果のプレビューを用意しました。",
+      "prepareConflict": "結果の生成中にページが変更されたため、プレビューを準備できませんでした。",
+      "applyConflict": "プレビュー後にページが変更されたため、結果を適用しませんでした。",
+      "applied": "確認したインペイント結果を適用しました。",
+      "applyFailed": "インペイントプレビューを適用できませんでした。",
+      "discarded": "インペイントプレビューを破棄しました。元のページは維持されます。",
+      "discardFailed": "インペイントプレビューを整理できませんでした。"
     },
     "erase": {
       "title": "原文を消去",

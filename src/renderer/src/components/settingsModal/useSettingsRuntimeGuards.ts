@@ -18,6 +18,8 @@ import type {
 import type { SettingsFormValues } from "./settingsModalFormValues";
 
 export type SettingsRuntimeGuards = {
+  gpuName: string | null;
+  gpuMemoryMb: number | null;
   usesAmdHardware: boolean;
   usesNvidiaHardware: boolean;
   usesSm75Hardware: boolean;
@@ -61,6 +63,8 @@ export function useSettingsRuntimeGuards({
   useFluxBackendGuard(values, setters, initialSettings, runtime);
 
   return {
+    gpuName: initialSettings.runtimeHardware?.gpuName ?? null,
+    gpuMemoryMb: initialSettings.runtimeHardware?.gpuMemoryMb ?? null,
     ...runtime,
     isLlamaRuntimeOptionDisabled: React.useCallback(
       (profile: LlamaRuntimeProfile) =>

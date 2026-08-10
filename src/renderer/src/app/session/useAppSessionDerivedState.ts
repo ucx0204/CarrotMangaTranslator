@@ -5,6 +5,7 @@ import type {
   MangaPage,
 } from "../../../../shared/libraryTypes";
 import type { JobState } from "../../../../shared/jobTypes";
+import { isPageFullyCompleted } from "../../../../shared/pageCompletion";
 import { usePageImageDataUrls } from "../../hooks/usePageImageDataUrls";
 import { useStageSize } from "../../hooks/useStageSize";
 import type { InpaintingTool } from "../../inpainting/inpaintingTypes";
@@ -29,6 +30,7 @@ type UseAppSessionDerivedStateArgs = {
   currentChapter: ChapterSnapshot | null;
   imageRef: RefObject<HTMLImageElement | null>;
   inpaintingTool: InpaintingTool;
+  jobFlowActive: boolean;
   jobState: JobState;
   patternMaskStrokesByPage: Record<string, InpaintingMaskStroke[]>;
   peekOriginal: boolean;
@@ -42,6 +44,7 @@ export function useAppSessionDerivedState({
   currentChapter,
   imageRef,
   inpaintingTool,
+  jobFlowActive,
   jobState,
   patternMaskStrokesByPage,
   peekOriginal,
@@ -82,7 +85,11 @@ export function useAppSessionDerivedState({
     selectedPageOriginalImageDataUrlPageId,
     selectedPageOriginalImageLoading,
   });
-  const progressState = useProgressState(jobState);
+  const progressState = useProgressState(
+    jobState,
+    currentChapter,
+    jobFlowActive,
+  );
   const regionSelectionRect = useMemo(
     () => resolveRegionSelectionRect(regionSelection),
     [regionSelection],
@@ -96,8 +103,10 @@ export function useAppSessionDerivedState({
     inpaintingToolActive: inpaintingTool !== "none",
     regionSelectionRect,
     selectedPageEditLocked: resolveSelectedPageEditLocked(
-      progressState.jobActive,
+      progressState.pageLockActive,
+      progressState.jobTargetPageIds,
       pageState.selectedPage,
+      jobState.kind,
     ),
     selectedPageImageDataUrl,
     selectedPageOriginalImageDataUrl,
@@ -282,16 +291,56 @@ function useWorkspaceImageState({
   };
 }
 
-function useProgressState(jobState: JobState) {
+function useProgressState(
+  jobState: JobState,
+  currentChapter: ChapterSnapshot | null,
+  jobFlowActive: boolean,
+) {
   const progressSnapshot = useMemo(
     () => resolveProgressSnapshot(jobState),
     [jobState],
   );
+  const { kind: jobKind, status: jobStatus, targets: jobTargets } = jobState;
+  const jobActive = resolveJobActive(jobStatus);
+  const pageLockActive = jobActive || jobFlowActive;
+  const jobTargetPageIds = useMemo(
+    () =>
+      resolveLockedJobTargetPageIds(
+        { kind: jobKind, status: jobStatus, targets: jobTargets },
+        currentChapter,
+        pageLockActive,
+      ),
+    [currentChapter, jobKind, jobStatus, jobTargets, pageLockActive],
+  );
 
   return {
-    jobActive: resolveJobActive(jobState.status),
+    jobTargetPageIds,
+    jobActive,
+    pageLockActive,
     progressSnapshot,
   };
+}
+
+export function resolveLockedJobTargetPageIds(
+  jobState: Pick<JobState, "kind" | "status" | "targets">,
+  currentChapter: ChapterSnapshot | null,
+  pageLockActive = resolveJobActive(jobState.status),
+): ReadonlySet<string> {
+  if (!pageLockActive || !currentChapter) return new Set();
+  const pagesById = new Map(
+    currentChapter.pages.map((page) => [page.id, page]),
+  );
+  return new Set(
+    (jobState.targets ?? []).flatMap((target) => {
+      if (target.chapterId !== currentChapter.id) return [];
+      const page = pagesById.get(target.pageId);
+      if (!page) return [];
+      if (jobState.kind === "gemma-analysis" && isPageFullyCompleted(page)) {
+        return [];
+      }
+      return [target.pageId];
+    }),
+  );
 }
 
 function resolveRegionSelectionRect(
@@ -301,12 +350,15 @@ function resolveRegionSelectionRect(
 }
 
 function resolveSelectedPageEditLocked(
-  jobActive: boolean,
+  pageLockActive: boolean,
+  targetPageIds: ReadonlySet<string>,
   selectedPage: MangaPage | null,
+  jobKind: JobState["kind"],
 ): boolean {
-  return Boolean(
-    jobActive && selectedPage && selectedPage.analysisStatus !== "completed",
-  );
+  if (!pageLockActive || !selectedPage) return false;
+  if (targetPageIds.size > 0) return targetPageIds.has(selectedPage.id);
+  if (jobKind === "inpainting") return true;
+  return selectedPage.analysisStatus === "running";
 }
 
 function resolveSelectedPageSize(

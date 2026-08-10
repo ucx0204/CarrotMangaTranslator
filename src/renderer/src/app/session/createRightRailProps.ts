@@ -4,9 +4,90 @@ import type { AppSessionViewProps } from "./AppSessionView";
 import type { AppSessionViewModel } from "./appSessionViewModel";
 
 type RightRailProps = AppSessionViewProps["rightRailProps"];
+type RightRailViewModel = {
+  blockEditingActions: Pick<
+    AppSessionViewModel["blockEditingActions"],
+    "updateBlock"
+  >;
+  bridgeActions: Pick<
+    AppSessionViewModel["bridgeActions"],
+    "cancelJob" | "openLogFolder"
+  >;
+  core: Pick<
+    AppSessionViewModel["core"],
+    | "currentChapter"
+    | "jobState"
+    | "selectedBlockId"
+    | "selectedBlockIdRef"
+    | "setRegionSelection"
+    | "setSelectedBlockId"
+    | "setSelectedBlockIds"
+  >;
+  derivedState: Pick<
+    AppSessionViewModel["derivedState"],
+    | "peekAvailable"
+    | "progressSnapshot"
+    | "selectedBlock"
+    | "selectedPage"
+    | "selectedPageEditLocked"
+    | "showingOriginalPeek"
+    | "showProgressBar"
+  >;
+  inpaintingActions: Pick<
+    AppSessionViewModel["inpaintingActions"],
+    "revertInpainting" | "runBubbleLayout"
+  >;
+  inpaintingBridge: {
+    contextValue: Pick<
+      AppSessionViewModel["inpaintingBridge"]["contextValue"],
+      | "brushColor"
+      | "brushRadius"
+      | "jobActive"
+      | "maskStrokeCount"
+      | "onBrushColorChange"
+      | "onBrushRadiusChange"
+      | "onClearPatternMask"
+      | "onPeekToggle"
+      | "onRunDrawnPattern"
+    >;
+  };
+  persistence: Pick<
+    AppSessionViewModel["persistence"],
+    "saveNow" | "saveStatus"
+  >;
+  retranslatePage: AppSessionViewModel["retranslatePage"];
+  settingsDialog: Pick<AppSessionViewModel["settingsDialog"], "settings">;
+  statusLog: Pick<
+    AppSessionViewModel["statusLog"],
+    "clearStatusLines" | "statusLines"
+  >;
+  uiState: Pick<
+    AppSessionViewModel["uiState"],
+    | "openTranslateOptions"
+    | "rightRailMode"
+    | "selectWorkspaceTool"
+    | "setAutoInpaintingEntryScope"
+    | "setAutoInpaintingOptionsOpen"
+    | "setExportOptionsOpen"
+    | "setPeekOriginal"
+    | "setRightRailMode"
+    | "setShowBlockChrome"
+    | "setShowTextBlocks"
+    | "setStyleGuideOpen"
+    | "setTextViewOpen"
+    | "showBlockChrome"
+    | "showTextBlocks"
+    | "stageTool"
+    | "translationFlowActive"
+  >;
+  workspaceHistory: Pick<
+    AppSessionViewModel["workspaceHistory"],
+    "busy" | "canRedo" | "canUndo" | "redo" | "redoLabel" | "undo" | "undoLabel"
+  >;
+};
 
 export function createRightRailProps(
-  model: AppSessionViewModel,
+  model: RightRailViewModel,
 ): RightRailProps {
   const {
     bridgeActions,
@@ -36,10 +117,7 @@ export function createRightRailProps(
     compareAvailable: derivedState.peekAvailable,
     currentChapter: core.currentChapter,
     editorDisabled:
-      derivedState.selectedPageEditLocked ||
-      inpainting.jobActive ||
-      uiState.translationFlowActive ||
-      workspaceHistory.busy,
+      derivedState.selectedPageEditLocked || workspaceHistory.busy,
     flowActive: uiState.translationFlowActive,
     jobActive:
       inpainting.jobActive ||
@@ -77,7 +155,7 @@ function createRightRailActions({
   retranslatePage,
   uiState,
   workspaceHistory,
-}: AppSessionViewModel) {
+}: RightRailViewModel) {
   const inpainting = inpaintingBridge.contextValue;
   const selectBlock = (blockId: string): void => {
     core.selectedBlockIdRef.current = blockId;
@@ -113,7 +191,10 @@ function createRightRailActions({
     },
     onRunDrawnPattern: inpainting.onRunDrawnPattern,
     onRetrySave: () => void persistence.saveNow(),
-    onSelectBlock: selectBlock,
+    onSelectBlock: (blockId: string) => {
+      selectBlock(blockId);
+      uiState.setRightRailMode("page-blocks");
+    },
     onToggleBlocks: () => uiState.setShowTextBlocks((visible) => !visible),
     onToggleChrome: () => uiState.setShowBlockChrome((visible) => !visible),
     onUndo: () => void workspaceHistory.undo(),
@@ -122,8 +203,8 @@ function createRightRailActions({
 }
 
 function prepareAutoInpainting(
-  core: AppSessionViewModel["core"],
-  uiState: AppSessionViewModel["uiState"],
+  core: RightRailViewModel["core"],
+  uiState: RightRailViewModel["uiState"],
   scope: AutoInpaintingEntryScope,
 ): void {
   core.setRegionSelection(null);

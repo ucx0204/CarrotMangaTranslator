@@ -1,5 +1,9 @@
 import type { MangaPage } from "../../shared/libraryTypes";
 import {
+  createPageJobTargetSnapshot,
+  createPageRevision,
+} from "../../shared/pageRevision";
+import {
   pageMatchesInpaintingLayoutStates,
   type InpaintingBlockLayoutState,
 } from "../inpainting/inpaintingLayoutState";
@@ -77,6 +81,8 @@ async function saveInpaintingPageResult({
     revisionStore.addChange(transactionId, {
       chapterId: targetPage.chapterId,
       pageId: targetPage.page.id,
+      beforeRevision: createPageRevision(targetPage.page),
+      afterRevision: createPageRevision(result.page),
       beforePath: targetPage.page.inpaintedImagePath,
       afterPath: result.page.inpaintedImagePath,
       beforeLayout: result.beforeLayout,
@@ -95,6 +101,7 @@ async function saveInpaintingPageResult({
         chapterId: targetPage.chapterId,
         pageId: targetPage.page.id,
         revisionStore,
+        targetPage,
       }),
     );
     assertInpaintingResultWasSaved(savedChapter.pages, result);
@@ -144,18 +151,20 @@ function buildInpaintingSaveOptions({
   chapterId,
   pageId,
   revisionStore,
+  targetPage,
 }: {
   afterLayout?: InpaintingBlockLayoutState[];
   beforeLayout?: InpaintingBlockLayoutState[];
   chapterId: string;
   pageId: string;
   revisionStore: InpaintingJobContext["inpaintingRevisionStore"];
+  targetPage: { chapterId: string; page: MangaPage };
 }): Parameters<InpaintingJobRuntime["savePages"]>[2] {
   const hasLayout = Boolean(afterLayout?.length);
-  if (!revisionStore && !hasLayout) {
-    return undefined;
-  }
   return {
+    expectedTargets: [
+      createPageJobTargetSnapshot(targetPage.chapterId, targetPage.page),
+    ],
     ...(hasLayout
       ? {
           layoutPatches: [

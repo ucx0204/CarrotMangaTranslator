@@ -14,6 +14,8 @@
     "delete": "删除",
     "dragToMove": "拖动以移动",
     "duplicate": "创建副本",
+    "collapseSection": "收起{{title}}",
+    "expandSection": "展开{{title}}",
     "import": "导入",
     "inpainting": "图像修复",
     "inProgress": "进行中",
@@ -390,6 +392,31 @@
     "selectionSummary": "{{chapterCount}}话 · {{pageCount}}页",
     "start": "导出 PNG",
     "starting": "正在准备导出…",
+    "omitText": "无文字导出",
+    "omitTextHint": "不合成翻译文字，仅导出修复后的背景 PNG。",
+    "preflight": {
+      "title": "导出前检查",
+      "nextStep": "确认后选择保存文件夹。",
+      "checking": "正在检查所选页面…",
+      "failed": "预检查失败，请重新选择范围。",
+      "ready": "可以导出",
+      "warningCount": "{{count}}个警告",
+      "chapterCount": "{{count}}章",
+      "pageCount": "{{count}}页",
+      "noOverwrite": "不覆盖现有文件",
+      "sample": "文件名示例",
+      "noIssues": "未发现未完成或正在处理的页面。",
+      "openPage": "查看页面",
+      "moreIssues": "另有{{count}}个问题",
+      "issues": {
+        "job-running": "此页面正在处理中。",
+        "translation-failed": "翻译或后处理失败。",
+        "translation-pending": "翻译尚未完成。",
+        "postprocess-pending": "翻译已完成，但擦除或后处理尚未完成。",
+        "inpainted-image-missing": "没有修复结果，无法导出无文字 PNG。",
+        "empty-translation": "存在翻译内容为空的文本块。"
+      }
+    },
     "workUnavailable": "无法加载作品信息。将只导出当前页面。",
     "startFailed": "无法开始导出，请重试。"
   },
@@ -491,8 +518,8 @@
     "context": "页面：{{pageName}}（{{count}}个文本块）",
     "keepBlocksHint": "保留当前文本块的区域和格式，只重新填入各区域的文本。",
     "autoBlocksHint": "删除所有现有文本块并自动检测新文本块。",
-    "overwriteTitle": "此页的现有结果将会改变",
-    "overwriteWarning": "现有译文和手动修改将被新结果替换，且无法通过工作区撤销恢复。"
+    "overwriteTitle": "现有结果将保存为检查点",
+    "overwriteWarning": "重新翻译后，在工作区撤销一次即可恢复之前的译文和手动修改。"
   },
   "translateSource": {
     "title": "添加新原稿",
@@ -611,6 +638,7 @@
     "partiallyCompleted": "部分完成",
     "waiting": "等待",
     "inProgressShort": "进行中",
+    "editLocked": "处理中 · 编辑已锁定",
     "erased": "已擦除"
   },
   "runPanel": {
@@ -987,6 +1015,24 @@
       "retouchTitle": "修整设置",
       "autoAction": "自动清除"
     },
+    "preview": {
+      "title": "检查修复结果",
+      "pendingBadge": "应用前预览",
+      "safeOriginal": "应用此结果之前，已保存的页面不会改变。",
+      "discard": "丢弃结果",
+      "applying": "正在应用…",
+      "apply": "应用此结果",
+      "description": "比较修改前页面与生成结果，再决定是否应用。",
+      "pagesChanged": "{{count}} 页",
+      "blocksErased": "已擦除 {{count}} 个区域",
+      "before": "修改前",
+      "after": "生成结果",
+      "beforeAlt": "{{page}} 修复前",
+      "afterAlt": "{{page}} 修复生成结果",
+      "incomplete": "有 {{count}} 个区域未处理。请检查结果后再应用。",
+      "imageFailed": "无法加载比较图像。可以丢弃结果后重试。",
+      "loading": "正在加载比较图像…"
+    },
     "counts": {
       "thisPage": "本页 {{count}}",
       "remaining": "剩余 {{count}}",
@@ -1193,7 +1239,10 @@
         "cpu": { "label": "CPU", "description": "不使用GPU，在CPU上运行OCR。" }
       },
       "ocrQuality": {
-        "minimum": { "label": "最低", "description": "轻量快速的OCR模型。" },
+        "minimum": {
+          "label": "最低（旧版）",
+          "description": "用于旧版兼容的OCR模式，将在后续更新中移除。"
+        },
         "economy": { "label": "经济", "description": "平衡速度和准确度。" },
         "full": {
           "label": "完整",
@@ -1361,6 +1410,18 @@
       }
     },
     "hardware": {
+      "summaryTitle": "检测到的硬件和当前路径",
+      "detectedTitle": "检测到的硬件",
+      "detectedUnknown": "无法获取GPU信息",
+      "memoryValue": "统一内存 {{memory}}",
+      "ocrRoute": "当前OCR",
+      "inpaintingRoute": "当前图像修复",
+      "recommendedMatch": "正在使用此硬件的推荐设置。",
+      "recommendedDifferent": "部分高级设置与推荐值不同。",
+      "applyRecommended": "应用推荐值",
+      "gpuAdvanced": "GPU分配高级设置",
+      "ocrAdvanced": "OCR设备高级设置",
+      "inpaintingBackendAdvanced": "图像修复后端高级设置",
       "gpuSection": "GPU 分配",
       "gpuSectionDescription": "分别指定应用界面和本地 AI 任务使用的 GPU。",
       "graphicsGpu": "应用图形 GPU",
@@ -1392,7 +1453,6 @@
       "downloadHipSdk": "下载AMD HIP SDK（ROCm 7.1.1）"
     },
     "format": {
-      "description": "新建文本块使用的默认格式。",
       "alignment": {
         "title": "对齐与强调",
         "left": "左对齐",
@@ -1585,12 +1645,26 @@
     "empty": "尚未保存格式预设。",
     "name": "预设名称",
     "groups": "包含的格式组",
-    "pinQuick": "固定为快速预设",
-    "pinned": "快速固定",
+    "pinQuick": "显示在快速样式中",
+    "pinned": "快速样式",
     "missingFontShort": "找不到已保存的字体",
     "duplicateName": "{{name}} 副本",
     "groupCount": "{{count}}个格式组",
     "moveUp": "上移",
-    "moveDown": "下移"
+    "moveDown": "下移",
+    "editorTitle": "预设 · {{name}}",
+    "includedGroups": "预设应用项",
+    "includedGroupsHint": "当前启用 {{count}} 项",
+    "disabledGroupTooltip": "此项未包含在预设中。请向下滚动，在“预设应用项”中启用。",
+    "minimumGroupRequired": "预设必须至少应用一个格式项。",
+    "createQuick": "添加预设",
+    "backToEditor": "返回编辑",
+    "untitledGroup": "新分组",
+    "addGroup": "添加分组",
+    "group": "预设分组",
+    "groupName": "分组名称",
+    "ungrouped": "无分组",
+    "releaseGroup": "解除分组",
+    "emptyGroup": "此分组中没有预设。"
   }
 }

@@ -246,4 +246,34 @@ describe("unified workspace interaction state", () => {
 
     expect(refreshLibrary).toHaveBeenCalledOnce();
   });
+
+  it("refreshes the library summary when the aggregate job finishes", () => {
+    const refreshLibrary = vi.fn();
+    const { rerender } = renderHook(
+      ({ status }: { status: "running" | "completed" }) =>
+        useAppSessionLifecycleEffects({
+          currentChapter: null,
+          jobState: {
+            id: "job-1",
+            kind: "gemma-analysis",
+            status,
+            progressText: status,
+          },
+          onJobStart: () => undefined,
+          onPageChange: () => undefined,
+          openErrorReport: () => undefined,
+          refreshLibrary,
+          resetChapterScopedUi: () => undefined,
+          selectedPageId: null,
+          setRegionSelection: () => undefined,
+          translationFlowActive: false,
+        }),
+      { initialProps: { status: "running" } },
+    );
+    expect(refreshLibrary).toHaveBeenCalledOnce();
+
+    rerender({ status: "completed" });
+
+    expect(refreshLibrary).toHaveBeenCalledTimes(2);
+  });
 });

@@ -16,10 +16,10 @@
   display: grid;
   gap: var(--sp-3);
   padding: var(--sp-4);
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--surface-border);
   border-radius: var(--r-lg);
-  background: var(--glass-panel);
-  box-shadow: var(--shadow-sm), var(--glass-highlight);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-sm), var(--surface-highlight);
   min-width: 0;
 }
 
@@ -383,9 +383,9 @@
   justify-items: start;
   gap: var(--sp-3);
   padding: var(--sp-5);
-  border: 1px dashed var(--glass-border);
+  border: 1px dashed var(--surface-border);
   border-radius: 10px;
-  background: var(--glass-rail);
+  background: var(--surface-rail);
   color: var(--text-muted);
 }
 
@@ -393,7 +393,7 @@
   height: 100vh;
   overflow-y: auto;
   padding: var(--sp-5);
-  background: var(--glass-rail);
+  background: var(--surface-rail);
 }
 
 .panel-window-loading {
@@ -409,8 +409,8 @@
   flex-direction: column;
   min-width: 320px;
   min-height: 280px;
-  background: var(--glass-panel);
-  border: 1px solid var(--glass-border);
+  background: var(--surface-panel);
+  border: 1px solid var(--surface-border);
   border-radius: 12px;
   box-shadow: var(--shadow-overlay);
   overflow: hidden;
@@ -422,8 +422,8 @@
   justify-content: space-between;
   gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-4);
-  border-bottom: 1px solid var(--glass-border);
-  background: var(--glass-rail);
+  border-bottom: 1px solid var(--surface-border);
+  background: var(--surface-rail);
   cursor: move;
   touch-action: none;
   user-select: none;
@@ -908,10 +908,10 @@
   align-items: center;
   gap: 10px;
   padding: 0 12px;
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--surface-border);
   border-radius: var(--r-pill);
   background: var(--bg-sunken);
-  box-shadow: var(--glass-highlight);
+  box-shadow: var(--surface-highlight);
   transition:
     border-color 140ms ease,
     box-shadow 140ms ease,
@@ -923,7 +923,7 @@
   background: var(--bg-sunken);
   box-shadow:
     0 0 0 1px var(--accent-soft),
-    var(--glass-highlight);
+    var(--surface-highlight);
 }
 
 .library-search-icon {
@@ -937,6 +937,8 @@
   max-width: none;
   border: 0;
   background: transparent;
+  color: var(--text);
+  caret-color: var(--accent-hi);
   padding: 10px 0;
   box-shadow: none;
 }

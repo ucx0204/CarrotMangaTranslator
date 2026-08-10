@@ -7,9 +7,10 @@ import type {
 import type { ChapterSnapshot, MangaPage } from "../../shared/libraryTypes";
 import type { PageExportRenderSession } from "../pageExport";
 import {
+  formatPageImageExportOrder,
   sanitizeOutputBaseName,
   sanitizeOutputPathSegment,
-} from "../pageExport";
+} from "./pageImageExportNaming";
 import { assertPageExportPngBuffer } from "../pageExportRasterSafety";
 import { isAbortError } from "./jobEvents";
 import type { InpaintingJobContext } from "./inpaintingJobTypes";
@@ -64,6 +65,7 @@ export async function runPageImageExportJob({
     request,
     dependencies.repository,
   );
+  assertTextlessExportReady(request, resolved);
   throwIfAborted(abortController, 0, resolved.pageCount);
   emitExportStarting(id, emit, resolved.pageCount, resolved.chapters.length);
 
@@ -89,6 +91,7 @@ export async function runPageImageExportJob({
       outputDir,
       renderSession,
       resolved,
+      omitText: request.omitText === true,
     });
     throwIfAborted(abortController, resolved.pageCount, resolved.pageCount);
   } catch (error) {
@@ -207,6 +210,7 @@ async function writePageImageExportChapters({
   outputDir,
   renderSession,
   resolved,
+  omitText,
 }: {
   abortController: AbortController;
   dependencies: PageImageExportDependencies;
@@ -215,12 +219,13 @@ async function writePageImageExportChapters({
   outputDir: string;
   renderSession: PageExportRenderSession;
   resolved: ResolvedPageImageExport;
+  omitText: boolean;
 }): Promise<void> {
   let completedPages = 0;
   for (const entry of resolved.chapters) {
     const chapterDir = join(
       outputDir,
-      `${formatOrder(entry.chapterIndex)}-${sanitizeOutputPathSegment(entry.chapter.title, "chapter")}`,
+      `${formatPageImageExportOrder(entry.chapterIndex)}-${sanitizeOutputPathSegment(entry.chapter.title, "chapter")}`,
     );
     await dependencies.runtime.createDirectory(chapterDir, true);
     completedPages = await writeChapterPages({
@@ -234,6 +239,7 @@ async function writePageImageExportChapters({
       pages: entry.pages,
       renderSession,
       totalPages: resolved.pageCount,
+      omitText,
     });
   }
 }
@@ -249,6 +255,7 @@ async function writeChapterPages({
   pages,
   renderSession,
   totalPages,
+  omitText,
 }: {
   abortController: AbortController;
   chapter: ChapterSnapshot;
@@ -260,6 +267,7 @@ async function writeChapterPages({
   pages: ResolvedPageImageExport["chapters"][number]["pages"];
   renderSession: PageExportRenderSession;
   totalPages: number;
+  omitText: boolean;
 }): Promise<number> {
   let completedPages = initialCompletedPages;
   for (const pageEntry of pages) {
@@ -282,6 +290,7 @@ async function writeChapterPages({
       pageIndex: pageEntry.pageIndex,
       renderSession,
       totalPages,
+      omitText,
     });
     completedPages += 1;
     emitExportPageProgress({
@@ -306,6 +315,7 @@ async function writePageImageExportPage({
   pageIndex,
   renderSession,
   totalPages,
+  omitText,
 }: {
   abortController: AbortController;
   completedPages: number;
@@ -315,13 +325,31 @@ async function writePageImageExportPage({
   pageIndex: number;
   renderSession: PageExportRenderSession;
   totalPages: number;
+  omitText: boolean;
 }): Promise<void> {
-  const outputName = `${formatOrder(pageIndex)}-${sanitizeOutputBaseName(page.name)}.png`;
-  const png = await renderSession.renderPage(page);
+  const outputName = `${formatPageImageExportOrder(pageIndex)}-${sanitizeOutputBaseName(page.name)}.png`;
+  const png = await renderSession.renderPage(
+    omitText ? { ...page, blocks: [] } : page,
+  );
   throwIfAborted(abortController, completedPages, totalPages);
   assertPageExportPngBuffer(png, undefined, page.name);
   await dependencies.runtime.writePng(join(outputDir, outputName), png);
   throwIfAborted(abortController, completedPages + 1, totalPages);
+}
+
+function assertTextlessExportReady(
+  request: PageImageExportRequest,
+  resolved: ResolvedPageImageExport,
+): void {
+  if (!request.omitText) return;
+  const missing = resolved.chapters
+    .flatMap((entry) => entry.pages.map(({ page }) => page))
+    .find((page) => !page.inpaintedImagePath);
+  if (missing) {
+    throw new Error(
+      tMain("export.errors.inpaintedImageMissing", { name: missing.name }),
+    );
+  }
 }
 
 async function removeFailedOutput(
@@ -344,10 +372,6 @@ async function removeFailedOutput(
     );
   }
   throw operationError;
-}
-
-function formatOrder(index: number): string {
-  return String(index + 1).padStart(3, "0");
 }
 
 function throwIfAborted(

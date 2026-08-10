@@ -115,6 +115,63 @@ afterEach(() => {
 });
 
 describe("translation workflow modes", () => {
+  it("records one recoverable checkpoint around a page retranslation", async () => {
+    const options = makeOptions();
+    const originalBlock = {
+      id: "block-1",
+      type: "nonsolid" as const,
+      bbox: { x: 1, y: 2, w: 30, h: 20 },
+      sourceText: "original",
+      translatedText: "manual edit",
+      confidence: 1,
+      sourceDirection: "horizontal" as const,
+      renderDirection: "horizontal" as const,
+      fontSizePx: 16,
+      lineHeight: 1.2,
+      textAlign: "center" as const,
+      textColor: "#000000",
+      backgroundColor: "#ffffff",
+      opacity: 1,
+    };
+    const before = {
+      ...makeChapter(),
+      pages: [{ ...makePage(), blocks: [originalBlock] }],
+    };
+    const beforePage = before.pages[0];
+    if (!beforePage) throw new Error("test page is missing");
+    const after = {
+      ...before,
+      pages: [
+        {
+          ...beforePage,
+          blocks: [{ ...originalBlock, translatedText: "new translation" }],
+          analysisStatus: "completed" as const,
+        },
+      ],
+    };
+    options.currentChapter = before;
+    options.currentChapterRef.current = before;
+    options.recordTranslationCheckpoint = vi.fn();
+    options.mergeLiveChapter = vi.fn((chapter) => {
+      options.currentChapterRef.current = chapter;
+    });
+    startAnalysis.mockResolvedValue({ status: "completed", chapter: after });
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
+
+    await act(async () => {
+      await result.current.runAnalysis("single-page", "page-1");
+    });
+
+    expect(options.recordTranslationCheckpoint).toHaveBeenCalledWith({
+      before,
+      after,
+      pageIds: ["page-1"],
+      label: "재번역 전 체크포인트",
+    });
+  });
+
   it("snapshots pending pages, then translates, inpaints, and lays them out", async () => {
     const options = makeOptions();
     const pendingSnapshot = {

@@ -1,6 +1,10 @@
 /* eslint-disable max-lines-per-function -- inpainting metadata commit and post-commit cleanup ordering stay co-located for auditability */
 import { join, resolve } from "node:path";
 import type { ChapterSnapshot, MangaPage } from "../../shared/libraryTypes";
+import {
+  createPageRevision,
+  type PageJobTargetSnapshot,
+} from "../../shared/pageRevision";
 import { hydrateChapter } from "./chapterSnapshots";
 import { resolveChapterStatus } from "./chapterRecords";
 import {
@@ -25,6 +29,7 @@ import {
 } from "../inpainting/inpaintingLayoutState";
 
 export type InpaintingArtifactCleanupOptions = {
+  expectedTargets?: PageJobTargetSnapshot[];
   retainedInpaintedArtifactPaths?: string[];
   /**
    * Explicit render-only block updates committed with the image path.
@@ -107,6 +112,11 @@ async function updatePagesAfterInpaintingWithMaintenance(
   const replacedInpaintedPaths: string[] = [];
   assertRequestedInpaintingPagesExist(chapter.pages, pages);
   const pageMap = new Map(pages.map((page) => [page.id, page]));
+  const expectedRevisionMap = resolveExpectedRevisionMap(
+    chapterId,
+    cleanupOptions.expectedTargets,
+    [...pageMap.keys()],
+  );
   const layoutPatchMap = resolveLayoutPatchMap(cleanupOptions.layoutPatches, [
     ...pageMap.keys(),
   ]);
@@ -115,6 +125,12 @@ async function updatePagesAfterInpaintingWithMaintenance(
     const next = pageMap.get(record.id);
     if (!next) {
       return record;
+    }
+    const expectedRevision = expectedRevisionMap.get(record.id);
+    if (expectedRevision && createPageRevision(record) !== expectedRevision) {
+      throw new Error(
+        "페이지가 편집되어 오래된 인페인팅 결과를 적용하지 않았습니다.",
+      );
     }
     const resolvedInpaintedPath = next.inpaintedImagePath
       ? assertChapterImagePath(
@@ -146,6 +162,7 @@ async function updatePagesAfterInpaintingWithMaintenance(
       ...withLayout,
       inpaintedImagePath: resolvedInpaintedPath,
       ...copyTranslationCompletionProperty(next),
+      updatedAt: now,
     };
   });
   chapter.status = resolveChapterStatus(chapter.pages);
@@ -171,6 +188,25 @@ async function updatePagesAfterInpaintingWithMaintenance(
     maintenance,
   });
   return savedChapter;
+}
+
+function resolveExpectedRevisionMap(
+  chapterId: string,
+  targets: readonly PageJobTargetSnapshot[] | undefined,
+  knownPageIds: readonly string[],
+): Map<string, PageJobTargetSnapshot["revision"]> {
+  const known = new Set(knownPageIds);
+  const revisions = new Map<string, PageJobTargetSnapshot["revision"]>();
+  for (const target of targets ?? []) {
+    if (target.chapterId !== chapterId || !known.has(target.pageId)) {
+      throw new Error("인페인팅 작업 대상이 현재 화와 일치하지 않습니다.");
+    }
+    if (revisions.has(target.pageId)) {
+      throw new Error("인페인팅 작업 대상이 중복되었습니다.");
+    }
+    revisions.set(target.pageId, target.revision);
+  }
+  return revisions;
 }
 
 function copyTranslationCompletionProperty(
@@ -267,6 +303,7 @@ async function setPageInpaintingResultWithMaintenance(
       ? {
           ...page,
           inpaintedImagePath: resolvedInpaintedPath,
+          updatedAt: now,
         }
       : page,
   );

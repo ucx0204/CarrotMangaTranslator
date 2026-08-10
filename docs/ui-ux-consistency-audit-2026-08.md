@@ -73,19 +73,19 @@
 
 감사 시점의 렌더러에서 확인된 수치다. 숫자는 “곧바로 결함 수”가 아니라 통합 범위를 가늠하는 지표다.
 
-| 항목 | 수치 | 해석 |
-|---|---:|---|
-| `.tsx` 파일 | 160 | 렌더러 표면적이 이미 작지 않다. |
-| 원시 `<button>` 태그 | 105개 / 52파일 | 툴바·메뉴 같은 정당한 예외와 단순 중복이 혼재한다. |
-| 원시 `<input>` 태그 | 69개 / 39파일 | 설정·숫자·색상·검색 필드의 로컬 구현이 많다. |
-| 원시 `<select>` 태그 | 24개 / 20파일 | 레이블·오류·도움말·높이 규칙이 쉽게 갈라진다. |
-| 원시 `<textarea>` 태그 | 9개 | 텍스트 편집 역할과 접근성 규칙을 별도로 정의할 필요가 있다. |
-| `Button`을 import한 파일 | 44 | 공통화가 시작되었지만 완료되지 않았다. |
-| `IconButton`을 import한 파일 | 15 | 아이콘 전용 도구의 상당수가 로컬 버튼이다. |
-| `Modal`을 import한 파일 | 22 | 모달 기반은 비교적 잘 통일된 편이다. |
-| CSS의 `z-index` 선언 | 37 | 레이어 계층 토큰 없이 로컬 경쟁이 생길 위험이 높다. |
-| 미디어 쿼리 | 21 | 반응형 규칙이 있으나 고정 4열 셸과 함께 운용된다. |
-| `!important` | 8 | 전역 요소 스타일과 로컬 스타일 충돌의 흔적이다. |
+| 항목                         |           수치 | 해석                                                        |
+| ---------------------------- | -------------: | ----------------------------------------------------------- |
+| `.tsx` 파일                  |            160 | 렌더러 표면적이 이미 작지 않다.                             |
+| 원시 `<button>` 태그         | 105개 / 52파일 | 툴바·메뉴 같은 정당한 예외와 단순 중복이 혼재한다.          |
+| 원시 `<input>` 태그          |  69개 / 39파일 | 설정·숫자·색상·검색 필드의 로컬 구현이 많다.                |
+| 원시 `<select>` 태그         |  24개 / 20파일 | 레이블·오류·도움말·높이 규칙이 쉽게 갈라진다.               |
+| 원시 `<textarea>` 태그       |            9개 | 텍스트 편집 역할과 접근성 규칙을 별도로 정의할 필요가 있다. |
+| `Button`을 import한 파일     |             44 | 공통화가 시작되었지만 완료되지 않았다.                      |
+| `IconButton`을 import한 파일 |             15 | 아이콘 전용 도구의 상당수가 로컬 버튼이다.                  |
+| `Modal`을 import한 파일      |             22 | 모달 기반은 비교적 잘 통일된 편이다.                        |
+| CSS의 `z-index` 선언         |             37 | 레이어 계층 토큰 없이 로컬 경쟁이 생길 위험이 높다.         |
+| 미디어 쿼리                  |             21 | 반응형 규칙이 있으나 고정 4열 셸과 함께 운용된다.           |
+| `!important`                 |              8 | 전역 요소 스타일과 로컬 스타일 충돌의 흔적이다.             |
 
 `foundations.css`와 폰트 선언을 제외한 CSS에는 하드코딩된 인터페이스 색상이 다수 남아 있다. 캔버스의 블록·마스크·가이드처럼 의미가 있는 작업 오버레이 색상은 일반 UI 색상과 분리해 유지해야 하지만, 버튼·패널·상태·테두리 색상은 의미 토큰으로 흡수해야 한다.
 
@@ -150,41 +150,41 @@
 
 ## 3. 심각도 기준
 
-| 등급 | 의미 | 처리 시점 |
-|---|---|---|
-| P0 | 잘못된 범위 실행, 데이터 손실, 대표 명령·상태의 구조적 혼란, 핵심 편집 공간 침해 | 다음 UI 개편의 선행 조건 |
-| P1 | 반복 작업 효율, 접근성, 학습성, 일관성에 큰 영향을 주는 문제 | P0 구조 위에서 즉시 진행 |
-| P2 | 고급 사용자 생산성, 개인화, 세부 미감과 확장성 | P0/P1 안정화 후 |
-| Keep | 현재 좋은 기반. 제거 대신 표준으로 승격 | 마이그레이션 중 보호 |
+| 등급 | 의미                                                                             | 처리 시점                |
+| ---- | -------------------------------------------------------------------------------- | ------------------------ |
+| P0   | 잘못된 범위 실행, 데이터 손실, 대표 명령·상태의 구조적 혼란, 핵심 편집 공간 침해 | 다음 UI 개편의 선행 조건 |
+| P1   | 반복 작업 효율, 접근성, 학습성, 일관성에 큰 영향을 주는 문제                     | P0 구조 위에서 즉시 진행 |
+| P2   | 고급 사용자 생산성, 개인화, 세부 미감과 확장성                                   | P0/P1 안정화 후          |
+| Keep | 현재 좋은 기반. 제거 대신 표준으로 승격                                          | 마이그레이션 중 보호     |
 
 ---
 
 ## 4. 핵심 발견 요약
 
-| ID | 우선순위 | 발견 | 직접 영향 | 권장 방향 |
-|---|---|---|---|---|
-| IA-01 | P0 | 좌 400 + 빠른 레일 44 + 우 340의 고정 4열 | 최소 창에서 중앙 캔버스가 456px 안팎까지 줄어듦 | 좌우 패널 접기·크기 조절·상태 복원 |
-| IA-02 | P0 | 번역 진입점과 범위가 여러 곳에 중복 | 잘못된 범위 실행, 학습 비용 | 하나의 `번역 실행` + 범위 선택 |
-| IA-03 | P0 | 작업 상태가 페이지 행·우측 카드·도크·로그에 반복 | 무엇이 최신/정확한지 불분명 | 페이지 상태와 전체 작업 센터 분리 |
-| SAFE-01 | P0 | 재번역·일괄 적용의 영향과 복구 경로가 약함 | 수동 교정 손실 위험 | 체크포인트, 미리보기, 프로젝트 단위 Undo |
-| SAFE-02 | P0 | 설정 `기본값 복원`이 draft가 아니라 실제 설정을 즉시 바꿈 | 엔진·언어·경로 설정의 의도치 않은 손실 | draft에만 반영 후 저장, 또는 구체적 확인+Undo |
-| SAFE-03 | P0 | 번역 실행의 일회성 옵션이 고지 없이 다음 기본값으로 저장됨 | 다음 작품의 비용·시간·결과가 예상과 달라짐 | `이번만` 기본, 명시적 `기본값으로 저장` |
-| IA-04 | P0 | 빈 상태에서도 좌우 패널과 중복 CTA를 모두 유지 | 첫 행동이 불명확하고 화면이 비어 보임 | 단일 Primary CTA와 설정 점검 |
-| CMP-01 | P1 | 공통 프리미티브와 원시 요소가 병존 | 상태·높이·포커스·비활성화가 갈라짐 | 역할별 프리미티브/레시피와 점진 이관 |
-| CMP-02 | P1 | 선택기·페이지 범위 UI가 화면별로 재구성됨 | 같은 개념이 다른 조작법을 가짐 | 공통 ScopePicker·PagePicker |
-| CMP-03 | P1 | 메뉴·팝오버·플라이아웃이 각자 구현됨 | 키보드·Esc·충돌 처리 불일치 | FloatingLayer + Menu/Popover 표준 |
-| CMP-04 | P1 | 설정·편집 필드가 로컬 숫자/선택/색상 컨트롤을 가짐 | 단위·범위·오류 표현 불일치 | FieldShell 계열과 schema 기반 폼 |
-| UX-01 | P1 | 페이지 목록 행이 입력 상자처럼 보이고 동작이 밀집 | 스캔성·선택성·편집 가능성 혼란 | 썸네일·2줄 정보·상태·오버플로 행 |
-| UX-02 | P1 | 실행 중 `jobActive`가 광범위한 상호작용을 막음 | 번역을 기다리는 동안 검수 불가 | 백그라운드 큐와 페이지 단위 잠금 |
-| UX-03 | P1 | 단순 뒤로/닫기와 실제 위험 동작의 색 의미가 섞임 | 위험 신호의 신뢰도 하락 | neutral/warning/danger 역할 엄격 분리 |
-| UX-04 | P1 | 카드·테두리·강조색 사용량이 많음 | 정보 계층이 평평하고 피로감 증가 | 면·간격 우선, 테두리는 상태에 집중 |
-| REV-01 | P1 | 텍스트 모아보기가 전문 검수 흐름으로 연결되지 않음 | 오류 찾기와 승인 반복이 느림 | 캔버스 연동 CAT형 Review Table |
-| A11Y-01 | P1 | 아이콘 도구와 로컬 툴바의 키보드 규칙이 통일되지 않음 | 키보드/보조기술 접근성 저하 | ARIA toolbar, roving tabindex, 공통 tooltip |
-| A11Y-02 | P1 | Primary 버튼의 현재 색 대비가 일반 텍스트 기준에 못 미침 | 버튼 레이블 가독성 저하 | token 단위 대비 수정과 자동 검사 |
-| VIS-01 | P1 | 하드코딩 색·z-index·로컬 상태 스타일이 많음 | 새 화면마다 다른 시각 언어 | semantic tokens + layer scale |
-| BUG-01 | P1 | 단축키 화면에 번역 key가 그대로 노출되는 locale 누락 | 제품 완성도와 이해도 저하 | action ID 전체 locale coverage 검사 |
-| ADV-01 | P2 | 작업공간 프리셋·레이아웃 초기화가 없음 | 고급 작업 간 전환 비용 | 번역/검수/인페인트 작업공간 |
-| ADV-02 | P2 | 히스토리·스냅샷이 사용자의 작업 모델로 보이지 않음 | 실험과 일괄 수정이 불안함 | 명시적 체크포인트/버전 패널 |
+| ID      | 우선순위 | 발견                                                       | 직접 영향                                       | 권장 방향                                     |
+| ------- | -------- | ---------------------------------------------------------- | ----------------------------------------------- | --------------------------------------------- |
+| IA-01   | P0       | 좌 400 + 빠른 레일 44 + 우 340의 고정 4열                  | 최소 창에서 중앙 캔버스가 456px 안팎까지 줄어듦 | 좌우 패널 접기·크기 조절·상태 복원            |
+| IA-02   | P0       | 번역 진입점과 범위가 여러 곳에 중복                        | 잘못된 범위 실행, 학습 비용                     | 하나의 `번역 실행` + 범위 선택                |
+| IA-03   | P0       | 작업 상태가 페이지 행·우측 카드·도크·로그에 반복           | 무엇이 최신/정확한지 불분명                     | 페이지 상태와 전체 작업 센터 분리             |
+| SAFE-01 | P0       | 재번역·일괄 적용의 영향과 복구 경로가 약함                 | 수동 교정 손실 위험                             | 체크포인트, 미리보기, 프로젝트 단위 Undo      |
+| SAFE-02 | P0       | 설정 `기본값 복원`이 draft가 아니라 실제 설정을 즉시 바꿈  | 엔진·언어·경로 설정의 의도치 않은 손실          | draft에만 반영 후 저장, 또는 구체적 확인+Undo |
+| SAFE-03 | P0       | 번역 실행의 일회성 옵션이 고지 없이 다음 기본값으로 저장됨 | 다음 작품의 비용·시간·결과가 예상과 달라짐      | `이번만` 기본, 명시적 `기본값으로 저장`       |
+| IA-04   | P0       | 빈 상태에서도 좌우 패널과 중복 CTA를 모두 유지             | 첫 행동이 불명확하고 화면이 비어 보임           | 단일 Primary CTA와 설정 점검                  |
+| CMP-01  | P1       | 공통 프리미티브와 원시 요소가 병존                         | 상태·높이·포커스·비활성화가 갈라짐              | 역할별 프리미티브/레시피와 점진 이관          |
+| CMP-02  | P1       | 선택기·페이지 범위 UI가 화면별로 재구성됨                  | 같은 개념이 다른 조작법을 가짐                  | 공통 ScopePicker·PagePicker                   |
+| CMP-03  | P1       | 메뉴·팝오버·플라이아웃이 각자 구현됨                       | 키보드·Esc·충돌 처리 불일치                     | FloatingLayer + Menu/Popover 표준             |
+| CMP-04  | P1       | 설정·편집 필드가 로컬 숫자/선택/색상 컨트롤을 가짐         | 단위·범위·오류 표현 불일치                      | FieldShell 계열과 schema 기반 폼              |
+| UX-01   | P1       | 페이지 목록 행이 입력 상자처럼 보이고 동작이 밀집          | 스캔성·선택성·편집 가능성 혼란                  | 썸네일·2줄 정보·상태·오버플로 행              |
+| UX-02   | P1       | 실행 중 `jobActive`가 광범위한 상호작용을 막음             | 번역을 기다리는 동안 검수 불가                  | 백그라운드 큐와 페이지 단위 잠금              |
+| UX-03   | P1       | 단순 뒤로/닫기와 실제 위험 동작의 색 의미가 섞임           | 위험 신호의 신뢰도 하락                         | neutral/warning/danger 역할 엄격 분리         |
+| UX-04   | P1       | 카드·테두리·강조색 사용량이 많음                           | 정보 계층이 평평하고 피로감 증가                | 면·간격 우선, 테두리는 상태에 집중            |
+| REV-01  | P1       | 텍스트 모아보기가 전문 검수 흐름으로 연결되지 않음         | 오류 찾기와 승인 반복이 느림                    | 캔버스 연동 CAT형 Review Table                |
+| A11Y-01 | P1       | 아이콘 도구와 로컬 툴바의 키보드 규칙이 통일되지 않음      | 키보드/보조기술 접근성 저하                     | ARIA toolbar, roving tabindex, 공통 tooltip   |
+| A11Y-02 | P1       | Primary 버튼의 현재 색 대비가 일반 텍스트 기준에 못 미침   | 버튼 레이블 가독성 저하                         | token 단위 대비 수정과 자동 검사              |
+| VIS-01  | P1       | 하드코딩 색·z-index·로컬 상태 스타일이 많음                | 새 화면마다 다른 시각 언어                      | semantic tokens + layer scale                 |
+| BUG-01  | P1       | 단축키 화면에 번역 key가 그대로 노출되는 locale 누락       | 제품 완성도와 이해도 저하                       | action ID 전체 locale coverage 검사           |
+| ADV-01  | P2       | 작업공간 프리셋·레이아웃 초기화가 없음                     | 고급 작업 간 전환 비용                          | 번역/검수/인페인트 작업공간                   |
+| ADV-02  | P2       | 히스토리·스냅샷이 사용자의 작업 모델로 보이지 않음         | 실험과 일괄 수정이 불안함                       | 명시적 체크포인트/버전 패널                   |
 
 ---
 
@@ -286,14 +286,14 @@ UI 문구 예:
 
 권위 있는 위치를 다음처럼 정한다.
 
-| 질문 | 한 곳의 대표 위치 | 표현 |
-|---|---|---|
-| 이 페이지 상태는? | 좌측 페이지 행 | `대기`, `진행`, `검토 필요`, `완료`, `오류` 한 줄 |
-| 전체 작업이 얼마나 남았나? | 상단 작업 큐 버튼 + 작업 센터 | 진행률, 완료/전체, ETA |
-| 무엇이 실패했나? | 작업 센터의 오류 탭 | 실패 페이지, 단계, 재시도 |
-| 지금 엔진이 무슨 단계인가? | 작업 센터의 선택 작업 상세 | 검출/OCR/번역/인페인트/식자 |
-| 개발 진단 로그는? | 작업 센터의 접힌 상세 로그 | 복사/저장 가능, 기본 접힘 |
-| 저장되었나? | 상단 문서 상태 | 저장 중/저장됨/저장 오류 |
+| 질문                       | 한 곳의 대표 위치             | 표현                                              |
+| -------------------------- | ----------------------------- | ------------------------------------------------- |
+| 이 페이지 상태는?          | 좌측 페이지 행                | `대기`, `진행`, `검토 필요`, `완료`, `오류` 한 줄 |
+| 전체 작업이 얼마나 남았나? | 상단 작업 큐 버튼 + 작업 센터 | 진행률, 완료/전체, ETA                            |
+| 무엇이 실패했나?           | 작업 센터의 오류 탭           | 실패 페이지, 단계, 재시도                         |
+| 지금 엔진이 무슨 단계인가? | 작업 센터의 선택 작업 상세    | 검출/OCR/번역/인페인트/식자                       |
+| 개발 진단 로그는?          | 작업 센터의 접힌 상세 로그    | 복사/저장 가능, 기본 접힘                         |
+| 저장되었나?                | 상단 문서 상태                | 저장 중/저장됨/저장 오류                          |
 
 상태 모델은 자유 문자열 배열이 아니라 식별 가능한 구조여야 한다.
 
@@ -306,12 +306,7 @@ type PageWorkflowState =
   | "failed"
   | "skipped";
 
-type PipelineStage =
-  | "detect"
-  | "ocr"
-  | "translate"
-  | "inpaint"
-  | "typeset";
+type PipelineStage = "detect" | "ocr" | "translate" | "inpaint" | "typeset";
 ```
 
 색만으로 상태를 구분하지 말고 아이콘과 텍스트를 함께 사용한다. 상태 갱신은 포커스를 빼앗지 않는 live region을 통해 알리되, 매 단계의 로그를 모두 읽어 주지 않는다.
@@ -342,14 +337,14 @@ type PipelineStage =
 
 Inspector 상태:
 
-| 선택/모드 | 우측 내용 |
-|---|---|
-| 아무것도 없음 | 작품/챕터 요약, 다음 검수 항목 |
-| 페이지 | 페이지 크기, 상태, 비교, 페이지 작업 |
-| 단일 블록 | OCR 원문, 번역, 식자, 레이아웃, QA |
-| 다중 블록 | 공통 속성, 혼합값 표시, 정렬·분배 |
-| 인페인트 | 마스크 더하기/빼기, 브러시, 미리보기, 적용 |
-| 영역 선택 | 영역 OCR/재번역/텍스트 블록 만들기 |
+| 선택/모드     | 우측 내용                                  |
+| ------------- | ------------------------------------------ |
+| 아무것도 없음 | 작품/챕터 요약, 다음 검수 항목             |
+| 페이지        | 페이지 크기, 상태, 비교, 페이지 작업       |
+| 단일 블록     | OCR 원문, 번역, 식자, 레이아웃, QA         |
+| 다중 블록     | 공통 속성, 혼합값 표시, 정렬·분배          |
+| 인페인트      | 마스크 더하기/빼기, 브러시, 미리보기, 적용 |
+| 영역 선택     | 영역 OCR/재번역/텍스트 블록 만들기         |
 
 ### 5.7 페이지 목록: 행을 입력 필드처럼 보이게 하지 않는다
 
@@ -398,14 +393,14 @@ Inspector 상태:
 
 권장 열:
 
-| 열 | 내용 |
-|---|---|
-| 위치 | 페이지 썸네일, 페이지 번호, 블록 번호 |
-| 원문 | OCR 원문, 언어, 신뢰도 |
-| 번역 | 직접 편집 가능한 번역문 |
-| QA | 넘침, 미번역, 폰트 대체, 마스크, 용어 충돌 |
-| 상태 | 검토 필요/완료/보류 |
-| 메모 | 인물명·문맥·협업 메모 |
+| 열   | 내용                                       |
+| ---- | ------------------------------------------ |
+| 위치 | 페이지 썸네일, 페이지 번호, 블록 번호      |
+| 원문 | OCR 원문, 언어, 신뢰도                     |
+| 번역 | 직접 편집 가능한 번역문                    |
+| QA   | 넘침, 미번역, 폰트 대체, 마스크, 용어 충돌 |
+| 상태 | 검토 필요/완료/보류                        |
+| 메모 | 인물명·문맥·협업 메모                      |
 
 상호작용:
 
@@ -453,14 +448,14 @@ Inspector 상태:
 
 ### 6.2 액션 컴포넌트
 
-| 현재 | 판단 | 목표 | 비고 |
-|---|---|---|---|
-| `ui/Button` | Keep/확장 | Text action 표준 | loading, leading/trailing icon, destructive confirmation 문구 계약 추가 |
-| `ui/IconButton` | Keep/확장 | Icon-only 표준 | tooltip 연결, pressed 상태, badge 지원 |
-| 여러 `.stage-toolbar-button` | 통합 | `ToolbarButton` | `aria-pressed`, shortcut, roving focus 포함 |
-| 로컬 chip/toggle 버튼 | 통합 | `ToggleButton`/`SegmentedControl` | 선택과 실행을 시각적으로 분리 |
-| raw 메뉴 버튼 | 통합 | `MenuItem` | 역할, disabled reason, shortcut, destructive variant |
-| 카드 전체 클릭 버튼 | 유지하되 표준화 | `SelectionSurface` | CTA 버튼 스타일을 물려받지 않음 |
+| 현재                         | 판단            | 목표                              | 비고                                                                    |
+| ---------------------------- | --------------- | --------------------------------- | ----------------------------------------------------------------------- |
+| `ui/Button`                  | Keep/확장       | Text action 표준                  | loading, leading/trailing icon, destructive confirmation 문구 계약 추가 |
+| `ui/IconButton`              | Keep/확장       | Icon-only 표준                    | tooltip 연결, pressed 상태, badge 지원                                  |
+| 여러 `.stage-toolbar-button` | 통합            | `ToolbarButton`                   | `aria-pressed`, shortcut, roving focus 포함                             |
+| 로컬 chip/toggle 버튼        | 통합            | `ToggleButton`/`SegmentedControl` | 선택과 실행을 시각적으로 분리                                           |
+| raw 메뉴 버튼                | 통합            | `MenuItem`                        | 역할, disabled reason, shortcut, destructive variant                    |
+| 카드 전체 클릭 버튼          | 유지하되 표준화 | `SelectionSurface`                | CTA 버튼 스타일을 물려받지 않음                                         |
 
 `Button`을 도입한 파일이 44개인데도 원시 `<button>`이 52개 파일에 남아 있다. 다음 파일군을 우선 분류한다.
 
@@ -580,16 +575,16 @@ Tooltip
 
 현재 `RunJobFeedback`, `StatusPopover`, `InstallProgressOverlay`, 인페인트 진행 카드, 페이지 상태, toast가 서로 다른 상태 표현을 가진다. 화면을 하나로 합칠 필요는 없지만 같은 상태 모델과 시각 primitive를 써야 한다.
 
-| Primitive/Pattern | 용도 |
-|---|---|
-| `StatusBadge` | 행·카드 안의 짧은 상태 |
-| `ProgressBar` | determinate 진행률, label/value 필수 |
-| `ProgressSpinner` | 총량을 모를 때만 사용 |
-| `InlineMessage` | 현재 폼/패널 안에서 해결할 문제 |
-| `Toast` | 작업을 막지 않는 짧은 결과, 자동 사라짐 제한 |
-| `ProgressCard` | 취소/재시도가 가능한 한 작업 |
-| `ActivityCenter` | 여러 작업의 큐·기록·오류 |
-| `AlertDialog` | 복구 불가능한 결과를 만드는 최종 확인만 |
+| Primitive/Pattern | 용도                                         |
+| ----------------- | -------------------------------------------- |
+| `StatusBadge`     | 행·카드 안의 짧은 상태                       |
+| `ProgressBar`     | determinate 진행률, label/value 필수         |
+| `ProgressSpinner` | 총량을 모를 때만 사용                        |
+| `InlineMessage`   | 현재 폼/패널 안에서 해결할 문제              |
+| `Toast`           | 작업을 막지 않는 짧은 결과, 자동 사라짐 제한 |
+| `ProgressCard`    | 취소/재시도가 가능한 한 작업                 |
+| `ActivityCenter`  | 여러 작업의 큐·기록·오류                     |
+| `AlertDialog`     | 복구 불가능한 결과를 만드는 최종 확인만      |
 
 상태 문자열과 색상은 공통 enum/mapping 한 곳에서 관리한다. “실패”를 화면마다 빨강·주황·회색으로 바꾸지 않는다.
 
@@ -663,24 +658,24 @@ Tabler 아이콘과 [`ui/icons.tsx`](../src/renderer/src/components/ui/icons.tsx
 
 ## 7. 삭제·통합 후보의 의사결정표
 
-| 대상 | 지금 삭제? | 선행 조건 | 최종 판단 |
-|---|---:|---|---|
-| `AppRightQuickRail` 컨테이너 | 아니오 | 명령·상태를 상단/도구/작업 센터로 이관 | 비면 삭제 |
-| 좌측 6개 대형 Toolbar 버튼 | 일부 | 빈 상태·상단 메뉴·번역 범위 재설계 | 대표 CTA만 남기고 나머지 이관 |
-| 중복 번역 CTA | 예 | `TranslationScope`와 단일 실행 진입점 | 로컬 진입 버튼 삭제/컨텍스트 액션화 |
-| 원시 단순 버튼 CSS | 예 | Button/IconButton 마이그레이션과 screenshot/test | 삭제 |
-| 툴바 raw 버튼 | 바로는 아니오 | ToolbarButton + keyboard pattern | 로컬 마크업/CSS 삭제 |
-| 모달별 backdrop/focus 코드 | 발견 시 예 | 공통 Modal 적용 | 삭제 |
-| 모달별 폭·body 레이아웃 | 일부 | modal recipe 정의 | 예외만 유지 |
-| 페이지 선택기별 선택 집계 | 예 | ScopePicker/PagePicker 공통 모델 | 삭제 |
-| 메뉴별 outside-click/Esc/z-index | 예 | FloatingLayer/Menu 도입 | 삭제 |
-| 설정별 필드 chrome | 예 | FieldShell 계열 도입 | 삭제 |
-| 도메인 validation/state hook | 아니오 | 없음 | feature에 유지 |
-| Canvas block/mask 색 | 아니오 | semantic canvas token으로 명명 | 유지·토큰화 |
-| `SelectionSurface/Card` | 아니오 | 선택기 표준에 채택 | 확장/유지 |
-| `Modal` | 아니오 | 회귀 테스트 보강 | 표준으로 유지 |
-| `Button/IconButton` | 아니오 | 역할별 pattern 추가 | 표준으로 유지 |
-| 인페인트 3단계 모델 | 아니오 | 명칭·안전성 개선 | 재사용 |
+| 대상                             |    지금 삭제? | 선행 조건                                        | 최종 판단                           |
+| -------------------------------- | ------------: | ------------------------------------------------ | ----------------------------------- |
+| `AppRightQuickRail` 컨테이너     |        아니오 | 명령·상태를 상단/도구/작업 센터로 이관           | 비면 삭제                           |
+| 좌측 6개 대형 Toolbar 버튼       |          일부 | 빈 상태·상단 메뉴·번역 범위 재설계               | 대표 CTA만 남기고 나머지 이관       |
+| 중복 번역 CTA                    |            예 | `TranslationScope`와 단일 실행 진입점            | 로컬 진입 버튼 삭제/컨텍스트 액션화 |
+| 원시 단순 버튼 CSS               |            예 | Button/IconButton 마이그레이션과 screenshot/test | 삭제                                |
+| 툴바 raw 버튼                    | 바로는 아니오 | ToolbarButton + keyboard pattern                 | 로컬 마크업/CSS 삭제                |
+| 모달별 backdrop/focus 코드       |    발견 시 예 | 공통 Modal 적용                                  | 삭제                                |
+| 모달별 폭·body 레이아웃          |          일부 | modal recipe 정의                                | 예외만 유지                         |
+| 페이지 선택기별 선택 집계        |            예 | ScopePicker/PagePicker 공통 모델                 | 삭제                                |
+| 메뉴별 outside-click/Esc/z-index |            예 | FloatingLayer/Menu 도입                          | 삭제                                |
+| 설정별 필드 chrome               |            예 | FieldShell 계열 도입                             | 삭제                                |
+| 도메인 validation/state hook     |        아니오 | 없음                                             | feature에 유지                      |
+| Canvas block/mask 색             |        아니오 | semantic canvas token으로 명명                   | 유지·토큰화                         |
+| `SelectionSurface/Card`          |        아니오 | 선택기 표준에 채택                               | 확장/유지                           |
+| `Modal`                          |        아니오 | 회귀 테스트 보강                                 | 표준으로 유지                       |
+| `Button/IconButton`              |        아니오 | 역할별 pattern 추가                              | 표준으로 유지                       |
+| 인페인트 3단계 모델              |        아니오 | 명칭·안전성 개선                                 | 재사용                              |
 
 ---
 
@@ -748,16 +743,16 @@ patterns/
 
 ### 9.2 만화·이미지 번역 프로젝트
 
-| 제품 | 관찰한 강점 | 이 프로젝트에 적용 | 그대로 가져오면 안 되는 점 |
-|---|---|---|---|
-| [BallonsTranslator](https://github.com/dmMaze/BallonsTranslator/blob/dev/doc/README_KO.md) | 검출→OCR→제거→번역→식자의 완결 흐름, 텍스트·이미지 편집 모드, 페이지/블록 단축키, 용어집과 찾기/바꾸기 | 도구 모드와 반복 검수 단축키, 자동 후 수동 보정 | 전문가 기능을 첫 화면에 모두 노출하는 밀도, 페이지 이동으로 Undo가 끊기는 제약 |
-| [manga-image-translator](https://github.com/zyddnys/manga-image-translator/blob/main/README.md) | 폭넓은 검출·OCR·번역·인페인트·렌더링 파이프라인, 다양한 입출력 | 엔진 능력의 기준, 고급 설정·CLI와 UI의 동일한 capability model | 모듈명·임계값을 기본 UX로 사용 |
-| [manga-translator-ui](https://github.com/hgmzhn/manga-translator-ui/blob/main/README_EN.md) | 풍선 레이아웃, 의미 줄바꿈, 리치 텍스트, 프리셋, 마스크, 원본 비교, 다중 선택, 정렬, 전역 Undo, 배치 미리보기·백업 | 블록 Inspector, 다중 편집, 영향 미리보기, 원본 비교, 체크포인트 | 모든 고급 속성을 동시에 펼쳐 두는 밀도 |
-| [Comic Translate](https://github.com/ogkalu2/comic-translate) | Auto/Manual 연결, 완료된 페이지부터 보기, 실패 영역 수동 보정 | 백그라운드 처리와 완료 페이지 즉시 검수 | Auto와 Manual을 데이터가 분리된 별도 모드로 만드는 것 |
-| [Scan Translator](https://scan-translator.com/manga-translator-extension) | 낮은 진입 비용, 자동 처리 중 놓친 영역만 다시 번역, 긴 이미지, 원본/결과 비교 | 단일 시작 CTA, 영역 재번역, 긴 웹툰 연속 보기, 비용/실패 투명성 | 독자용 단순 결과 화면으로 전문 보정을 제한 |
-| [ImageTrans](https://www.basiccat.org/imagetrans/) / [BasicCAT](https://docs.basiccat.org/en/latest/gettingstarted.html) | 여러 MT 후보, TM·용어집·문맥, 승인 후 다음 세그먼트, 프로젝트 진행률 | 캔버스 연동 Review Table, 다음 오류/승인 단축키, 용어 충돌 QA | CAT 표와 캔버스를 서로 다른 문서로 분리 |
-| [Clip Studio Story Editor](https://help.clip-studio.com/en-us/manual_en/570_pages/Use_Story_Editor.htm) | 페이지별 텍스트 목록, 분할·병합·이동, 다중 스타일, 찾기/바꾸기, 캔버스 연동 | 장편 텍스트 검수와 일괄 편집 | Story Editor 진입으로 히스토리가 사라지는 제약 |
-| [Koharu](https://github.com/mayocream/koharu) | 로컬 실행, 여러 장치 backend, PSD 출력 | 장치 capability·성능·메모리·모델 설치 사전 점검 | 하드웨어/backend 이름을 메인 화면의 선택 부담으로 노출 |
+| 제품                                                                                                                     | 관찰한 강점                                                                                                        | 이 프로젝트에 적용                                              | 그대로 가져오면 안 되는 점                                                     |
+| ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| [BallonsTranslator](https://github.com/dmMaze/BallonsTranslator/blob/dev/doc/README_KO.md)                               | 검출→OCR→제거→번역→식자의 완결 흐름, 텍스트·이미지 편집 모드, 페이지/블록 단축키, 용어집과 찾기/바꾸기             | 도구 모드와 반복 검수 단축키, 자동 후 수동 보정                 | 전문가 기능을 첫 화면에 모두 노출하는 밀도, 페이지 이동으로 Undo가 끊기는 제약 |
+| [manga-image-translator](https://github.com/zyddnys/manga-image-translator/blob/main/README.md)                          | 폭넓은 검출·OCR·번역·인페인트·렌더링 파이프라인, 다양한 입출력                                                     | 엔진 능력의 기준, 고급 설정·CLI와 UI의 동일한 capability model  | 모듈명·임계값을 기본 UX로 사용                                                 |
+| [manga-translator-ui](https://github.com/hgmzhn/manga-translator-ui/blob/main/README_EN.md)                              | 풍선 레이아웃, 의미 줄바꿈, 리치 텍스트, 프리셋, 마스크, 원본 비교, 다중 선택, 정렬, 전역 Undo, 배치 미리보기·백업 | 블록 Inspector, 다중 편집, 영향 미리보기, 원본 비교, 체크포인트 | 모든 고급 속성을 동시에 펼쳐 두는 밀도                                         |
+| [Comic Translate](https://github.com/ogkalu2/comic-translate)                                                            | Auto/Manual 연결, 완료된 페이지부터 보기, 실패 영역 수동 보정                                                      | 백그라운드 처리와 완료 페이지 즉시 검수                         | Auto와 Manual을 데이터가 분리된 별도 모드로 만드는 것                          |
+| [Scan Translator](https://scan-translator.com/manga-translator-extension)                                                | 낮은 진입 비용, 자동 처리 중 놓친 영역만 다시 번역, 긴 이미지, 원본/결과 비교                                      | 단일 시작 CTA, 영역 재번역, 긴 웹툰 연속 보기, 비용/실패 투명성 | 독자용 단순 결과 화면으로 전문 보정을 제한                                     |
+| [ImageTrans](https://www.basiccat.org/imagetrans/) / [BasicCAT](https://docs.basiccat.org/en/latest/gettingstarted.html) | 여러 MT 후보, TM·용어집·문맥, 승인 후 다음 세그먼트, 프로젝트 진행률                                               | 캔버스 연동 Review Table, 다음 오류/승인 단축키, 용어 충돌 QA   | CAT 표와 캔버스를 서로 다른 문서로 분리                                        |
+| [Clip Studio Story Editor](https://help.clip-studio.com/en-us/manual_en/570_pages/Use_Story_Editor.htm)                  | 페이지별 텍스트 목록, 분할·병합·이동, 다중 스타일, 찾기/바꾸기, 캔버스 연동                                        | 장편 텍스트 검수와 일괄 편집                                    | Story Editor 진입으로 히스토리가 사라지는 제약                                 |
+| [Koharu](https://github.com/mayocream/koharu)                                                                            | 로컬 실행, 여러 장치 backend, PSD 출력                                                                             | 장치 capability·성능·메모리·모델 설치 사전 점검                 | 하드웨어/backend 이름을 메인 화면의 선택 부담으로 노출                         |
 
 #### 특히 직접 적용할 세 가지
 
@@ -882,16 +877,16 @@ patterns/
 
 권장 기본 키:
 
-| 행동 | 키 |
-|---|---|
-| 도구 취소/영역 선택 취소/팝오버 닫기 | `Esc` 단계적 처리 |
-| 페이지 이동 | `←` / `→` 또는 기존 충돌 없는 조합 |
-| 다음/이전 블록 | 앱 단축키 표준으로 고정 |
-| 승인 후 다음 | `Enter` |
-| 다음 문제 | 별도 단축키, 도움말·메뉴에 표시 |
-| 임시 Hand | `Space` |
-| Undo/Redo | 플랫폼 표준 |
-| 명령 검색 | 기존 Command Palette 유지 |
+| 행동                                 | 키                                 |
+| ------------------------------------ | ---------------------------------- |
+| 도구 취소/영역 선택 취소/팝오버 닫기 | `Esc` 단계적 처리                  |
+| 페이지 이동                          | `←` / `→` 또는 기존 충돌 없는 조합 |
+| 다음/이전 블록                       | 앱 단축키 표준으로 고정            |
+| 승인 후 다음                         | `Enter`                            |
+| 다음 문제                            | 별도 단축키, 도움말·메뉴에 표시    |
+| 임시 Hand                            | `Space`                            |
+| Undo/Redo                            | 플랫폼 표준                        |
+| 명령 검색                            | 기존 Command Palette 유지          |
 
 단축키는 tooltip, 메뉴 항목, 명령 팔레트, 도움말에서 같은 표기를 사용한다.
 
@@ -980,34 +975,34 @@ patterns/
 
 ### 13.1 코드베이스 지도
 
-| 항목 | 감사 결과 | 의미 |
-|---|---:|---|
-| `components` 아래 TSX | 148 | feature UI가 많은 편이다. |
-| `components/ui` primitive | 9 | 반복 역할을 감당하기에는 기반 API가 아직 작다. |
-| CSS Module 사용 TSX | 10 | 대부분 전역 class 이름과 DOM 구조에 결합되어 있다. |
-| 전역 CSS entry | [`styles.css`](../src/renderer/src/styles.css#L1) | 기능별 CSS 13개를 전역 import한다. |
-| CSS `px` occurrence | 1,631 | geometry도 포함하므로 모두 토큰화 대상은 아니지만 interface literal 분류가 필요하다. |
-| hex occurrence | 316 | canvas annotation과 UI 색 분리가 필요하다. |
-| rgb/rgba occurrence | 147 | overlay/alpha 색도 의미 토큰 후보가 많다. |
+| 항목                      |                                         감사 결과 | 의미                                                                                 |
+| ------------------------- | ------------------------------------------------: | ------------------------------------------------------------------------------------ |
+| `components` 아래 TSX     |                                               148 | feature UI가 많은 편이다.                                                            |
+| `components/ui` primitive |                                                 9 | 반복 역할을 감당하기에는 기반 API가 아직 작다.                                       |
+| CSS Module 사용 TSX       |                                                10 | 대부분 전역 class 이름과 DOM 구조에 결합되어 있다.                                   |
+| 전역 CSS entry            | [`styles.css`](../src/renderer/src/styles.css#L1) | 기능별 CSS 13개를 전역 import한다.                                                   |
+| CSS `px` occurrence       |                                             1,631 | geometry도 포함하므로 모두 토큰화 대상은 아니지만 interface literal 분류가 필요하다. |
+| hex occurrence            |                                               316 | canvas annotation과 UI 색 분리가 필요하다.                                           |
+| rgb/rgba occurrence       |                                               147 | overlay/alpha 색도 의미 토큰 후보가 많다.                                            |
 
 큰 CSS 파일은 `gather-selection.css` 1,171줄, `panels.css` 1,125줄, `settings.css` 1,080줄, `modals-share.css` 1,060줄, `stage-overlay.css` 883줄, `formatting.css` 882줄, `library-inpainting.css` 833줄, `page-review.css` 814줄이다. 파일이 크다는 사실만으로 분리할 필요는 없지만, 실제로 settings가 gather DOM class를 참조하고 share class가 여러 파일에 흩어져 있어 feature 경계가 깨져 있다.
 
 큰 TSX도 역할 분리를 검토해야 한다.
 
-| 파일 | 감사 시점 줄 수 | 주된 위험 |
-|---|---:|---|
-| `StageToolbar.tsx` | 414 | 도구 렌더링과 hover flyout/controller 결합 |
-| `GatherTextDirectTypographyControls.tsx` | 404 | 작은 field·stepper·toggle이 한 feature 안에서 재구현 |
-| `EditorPanel.tsx` | 398 | selection/format/section orchestration 비대화 |
-| `GemmaSettingsFields.tsx` | 396 | settings field chrome 반복 |
-| `PresetManagerScreen.tsx` | 394 | 목록·편집·action 상태 혼합 |
-| `WorkPagePicker.tsx` | 392 | 크지만 공통 본체 역할이 있으므로 단순 분해보다 API 보호가 우선 |
-| `FormatDefaultsPanel.tsx` | 392 | Gather typography와 중복 |
-| `TranslationOptionsModal.tsx` | 390 | modal orchestration과 옵션 surface 혼합 |
-| `EditorFormatControls.tsx` | 389 | 공통 typography descriptor 후보 |
-| `LibraryTree.tsx` | 379 | tree interaction과 row action 결합 |
-| `PageList.tsx` | 377 | drag, selection, status, row action 결합 |
-| `ImportModal.tsx` | 377 | import workflow를 단계/pattern으로 분리할 후보 |
+| 파일                                     | 감사 시점 줄 수 | 주된 위험                                                      |
+| ---------------------------------------- | --------------: | -------------------------------------------------------------- |
+| `StageToolbar.tsx`                       |             414 | 도구 렌더링과 hover flyout/controller 결합                     |
+| `GatherTextDirectTypographyControls.tsx` |             404 | 작은 field·stepper·toggle이 한 feature 안에서 재구현           |
+| `EditorPanel.tsx`                        |             398 | selection/format/section orchestration 비대화                  |
+| `GemmaSettingsFields.tsx`                |             396 | settings field chrome 반복                                     |
+| `PresetManagerScreen.tsx`                |             394 | 목록·편집·action 상태 혼합                                     |
+| `WorkPagePicker.tsx`                     |             392 | 크지만 공통 본체 역할이 있으므로 단순 분해보다 API 보호가 우선 |
+| `FormatDefaultsPanel.tsx`                |             392 | Gather typography와 중복                                       |
+| `TranslationOptionsModal.tsx`            |             390 | modal orchestration과 옵션 surface 혼합                        |
+| `EditorFormatControls.tsx`               |             389 | 공통 typography descriptor 후보                                |
+| `LibraryTree.tsx`                        |             379 | tree interaction과 row action 결합                             |
+| `PageList.tsx`                           |             377 | drag, selection, status, row action 결합                       |
+| `ImportModal.tsx`                        |             377 | import workflow를 단계/pattern으로 분리할 후보                 |
 
 줄 수 기준으로 무작정 쪼개지 말고, **controller/state, accessible primitive, domain rendering** 사이 경계를 기준으로 분리한다.
 
@@ -1015,15 +1010,15 @@ patterns/
 
 최소 다음 구현이 `open state + trigger/content ref + outside pointerdown + Escape + focus + keyboard`를 각자 가진다.
 
-| 표면 | 근거 | 특수 요구 |
-|---|---|---|
-| Library sort menu | [`LibrarySortMenu.tsx`](../src/renderer/src/components/LibrarySortMenu.tsx#L25), [keyboard](../src/renderer/src/components/LibrarySortMenu.tsx#L66) | 정렬 option, shortcut 가능 |
-| Font listbox | [`FontSelect.tsx`](../src/renderer/src/components/FontSelect.tsx#L55), [`fontSelectModel.ts`](../src/renderer/src/components/fontSelectModel.ts#L52) | 검색/listbox + 즐겨찾기/삭제 action |
-| Block preset picker | [`BlockStylePresetControls.tsx`](../src/renderer/src/components/BlockStylePresetControls.tsx#L26) | preset preview/action |
-| Editor overflow | [`EditorPanelChrome.tsx`](../src/renderer/src/components/EditorPanelChrome.tsx#L19) | panel commands |
-| Auto-inpaint split menu | [`RunStatusPanels.tsx`](../src/renderer/src/components/RunStatusPanels.tsx#L137) | primary + 범위 submenu |
-| Status popover | [`StatusDockButton.tsx`](../src/renderer/src/components/StatusDockButton.tsx#L8), [`StatusPopover.tsx`](../src/renderer/src/components/StatusPopover.tsx#L22) | 비차단 activity detail |
-| Stage toolbar flyout | [`StageToolbar.tsx`](../src/renderer/src/components/StageToolbar.tsx#L246), [`useStageToolbarFlyout.ts`](../src/renderer/src/components/useStageToolbarFlyout.ts#L26) | pointer hover delay, 도구 선택 |
+| 표면                    | 근거                                                                                                                                                                  | 특수 요구                           |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| Library sort menu       | [`LibrarySortMenu.tsx`](../src/renderer/src/components/LibrarySortMenu.tsx#L25), [keyboard](../src/renderer/src/components/LibrarySortMenu.tsx#L66)                   | 정렬 option, shortcut 가능          |
+| Font listbox            | [`FontSelect.tsx`](../src/renderer/src/components/FontSelect.tsx#L55), [`fontSelectModel.ts`](../src/renderer/src/components/fontSelectModel.ts#L52)                  | 검색/listbox + 즐겨찾기/삭제 action |
+| Block preset picker     | [`BlockStylePresetControls.tsx`](../src/renderer/src/components/BlockStylePresetControls.tsx#L26)                                                                     | preset preview/action               |
+| Editor overflow         | [`EditorPanelChrome.tsx`](../src/renderer/src/components/EditorPanelChrome.tsx#L19)                                                                                   | panel commands                      |
+| Auto-inpaint split menu | [`RunStatusPanels.tsx`](../src/renderer/src/components/RunStatusPanels.tsx#L137)                                                                                      | primary + 범위 submenu              |
+| Status popover          | [`StatusDockButton.tsx`](../src/renderer/src/components/StatusDockButton.tsx#L8), [`StatusPopover.tsx`](../src/renderer/src/components/StatusPopover.tsx#L22)         | 비차단 activity detail              |
+| Stage toolbar flyout    | [`StageToolbar.tsx`](../src/renderer/src/components/StageToolbar.tsx#L246), [`useStageToolbarFlyout.ts`](../src/renderer/src/components/useStageToolbarFlyout.ts#L26) | pointer hover delay, 도구 선택      |
 
 일관성 문제:
 
@@ -1055,14 +1050,14 @@ usePopupController({
 
 ### 13.3 P0: Tabs, segmented, toggle의 의미 혼용
 
-| 구현 | 현재 상태 | 조치 |
-|---|---|---|
-| [`SettingsTabs.tsx`](../src/renderer/src/components/settingsModal/SettingsTabs.tsx#L10) | `tablist/tab`은 있으나 roving tabindex와 Arrow/Home/End 없음 | 공통 `Tabs`로 이관 |
-| [`StyleGuideChrome.tsx`](../src/renderer/src/components/styleGuide/StyleGuideChrome.tsx#L182) | 같은 접근성 누락 | 공통 `Tabs`로 이관 |
-| [`EditorPanelChrome.tsx`](../src/renderer/src/components/EditorPanelChrome.tsx#L118) | 비교적 완전한 keyboard/roving 구현 | 공통 Tabs 동작의 기준으로 추출 |
-| [`GatherTextControls.tsx`](../src/renderer/src/components/gatherText/GatherTextControls.tsx#L59) | wrapper는 `tablist`, 자식은 `aria-pressed` | 실제 역할이 값 선택이면 radiogroup/segmented로 수정 |
-| [`TranslationOptionControls.tsx`](../src/renderer/src/components/TranslationOptionControls.tsx#L121) | 값 선택 버튼 | `SegmentedControl` 후보 |
-| [`TransformEditorGroup.tsx`](../src/renderer/src/components/TransformEditorGroup.tsx#L91) | 도구/모드 선택 | toolbar 또는 radiogroup 의미 재판정 |
+| 구현                                                                                                 | 현재 상태                                                    | 조치                                                |
+| ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------- |
+| [`SettingsTabs.tsx`](../src/renderer/src/components/settingsModal/SettingsTabs.tsx#L10)              | `tablist/tab`은 있으나 roving tabindex와 Arrow/Home/End 없음 | 공통 `Tabs`로 이관                                  |
+| [`StyleGuideChrome.tsx`](../src/renderer/src/components/styleGuide/StyleGuideChrome.tsx#L182)        | 같은 접근성 누락                                             | 공통 `Tabs`로 이관                                  |
+| [`EditorPanelChrome.tsx`](../src/renderer/src/components/EditorPanelChrome.tsx#L118)                 | 비교적 완전한 keyboard/roving 구현                           | 공통 Tabs 동작의 기준으로 추출                      |
+| [`GatherTextControls.tsx`](../src/renderer/src/components/gatherText/GatherTextControls.tsx#L59)     | wrapper는 `tablist`, 자식은 `aria-pressed`                   | 실제 역할이 값 선택이면 radiogroup/segmented로 수정 |
+| [`TranslationOptionControls.tsx`](../src/renderer/src/components/TranslationOptionControls.tsx#L121) | 값 선택 버튼                                                 | `SegmentedControl` 후보                             |
+| [`TransformEditorGroup.tsx`](../src/renderer/src/components/TransformEditorGroup.tsx#L91)            | 도구/모드 선택                                               | toolbar 또는 radiogroup 의미 재판정                 |
 
 스타일도 Settings active [`settings.css`](../src/renderer/src/styles/settings.css#L55)와 Style Guide active [`style-guide.css`](../src/renderer/src/styles/style-guide.css#L80)가 사실상 같은 블록이다. Editor tab과 transform mode도 비슷한 컨테이너를 별도로 가진다.
 
@@ -1442,17 +1437,17 @@ export 정의만 있고 사용이 전혀 없는 UI 컴포넌트는 확인되지 
 
 ### 15.1 컴포넌트 상호작용 테스트
 
-| 대상 | 필수 테스트 |
-|---|---|
-| Menu | trigger focus, open, Arrow, Home/End, Escape, outside dismiss, disabled item, focus restore |
-| Listbox | 검색, active option, 선택, action이 있는 option, screen reader name |
-| Popover | modal/non-modal, outside click, trigger 재클릭, viewport collision |
-| Tabs | roving tabindex, Arrow/Home/End, panel linkage, disabled tab |
-| Segmented | radiogroup semantics, value change, focus 이동 |
-| NumberField | draft, invalid, min/max, Enter, Escape, blur, change preview, Undo count |
-| Modal | nested stack, first focus, trap, Escape top-only, trigger focus restore |
-| Progress | determinate/indeterminate accessible value, cancel/retry action |
-| PagePicker | filter, all visible/all dataset, mixed, pending, removed page canonicalization |
+| 대상        | 필수 테스트                                                                                 |
+| ----------- | ------------------------------------------------------------------------------------------- |
+| Menu        | trigger focus, open, Arrow, Home/End, Escape, outside dismiss, disabled item, focus restore |
+| Listbox     | 검색, active option, 선택, action이 있는 option, screen reader name                         |
+| Popover     | modal/non-modal, outside click, trigger 재클릭, viewport collision                          |
+| Tabs        | roving tabindex, Arrow/Home/End, panel linkage, disabled tab                                |
+| Segmented   | radiogroup semantics, value change, focus 이동                                              |
+| NumberField | draft, invalid, min/max, Enter, Escape, blur, change preview, Undo count                    |
+| Modal       | nested stack, first focus, trap, Escape top-only, trigger focus restore                     |
+| Progress    | determinate/indeterminate accessible value, cancel/retry action                             |
+| PagePicker  | filter, all visible/all dataset, mixed, pending, removed page canonicalization              |
 
 ### 15.2 사용자 흐름 통합 테스트
 

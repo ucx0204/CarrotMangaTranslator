@@ -73,6 +73,27 @@ describe("useExportPageImagesAction", () => {
     });
     expect(pushStatus).toHaveBeenCalledOnce();
   });
+
+  it("forwards the textless export option to the gateway", async () => {
+    const state = createJobStateHarness();
+    const options = makeOptions(state.setJobState, vi.fn());
+    exportPageImages.mockResolvedValue({ status: "cancelled" });
+    const { result } = renderHook(() => useExportPageImagesAction(options));
+
+    await act(async () => {
+      await result.current(
+        [{ chapterId: "chapter-1", mode: "all" }],
+        undefined,
+        { omitText: true },
+      );
+    });
+
+    expect(exportPageImages).toHaveBeenCalledWith({
+      workId: "work-1",
+      selections: [{ chapterId: "chapter-1", mode: "all" }],
+      omitText: true,
+    });
+  });
 });
 
 function createJobStateHarness() {

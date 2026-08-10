@@ -42,6 +42,8 @@ import { MAX_COMPUTE_GPU_INDEX, MIN_COMPUTE_GPU_INDEX } from "./gpuSettings";
 import {
   BLOCK_STYLE_PRESET_VERSION,
   MAX_BLOCK_STYLE_PRESET_ID_LENGTH,
+  MAX_BLOCK_STYLE_PRESET_GROUP_NAME_LENGTH,
+  MAX_BLOCK_STYLE_PRESET_GROUPS,
   MAX_BLOCK_STYLE_PRESET_NAME_LENGTH,
   MAX_BLOCK_STYLE_PRESETS,
 } from "./blockStylePresets";
@@ -84,6 +86,12 @@ const BlockStylePresetSchema = z
       .regex(/^[a-zA-Z0-9._:-]+$/),
     name: z.string().trim().min(1).max(MAX_BLOCK_STYLE_PRESET_NAME_LENGTH),
     pinned: z.boolean(),
+    groupId: z
+      .string()
+      .min(1)
+      .max(MAX_BLOCK_STYLE_PRESET_ID_LENGTH)
+      .regex(/^[a-zA-Z0-9._:-]+$/)
+      .optional(),
     groupIds: z
       .array(BlockFormatGroupIdSchema)
       .min(1)
@@ -109,6 +117,21 @@ const BlockStylePresetSchema = z
         rotationDeg: z.number().min(-180).max(180).optional(),
       })
       .strict(),
+  })
+  .strict();
+
+const BlockStylePresetGroupSchema = z
+  .object({
+    id: z
+      .string()
+      .min(1)
+      .max(MAX_BLOCK_STYLE_PRESET_ID_LENGTH)
+      .regex(/^[a-zA-Z0-9._:-]+$/),
+    name: z
+      .string()
+      .trim()
+      .min(1)
+      .max(MAX_BLOCK_STYLE_PRESET_GROUP_NAME_LENGTH),
   })
   .strict();
 
@@ -239,6 +262,13 @@ export const AppSettingsSchema = z
         (items) => new Set(items.map((item) => item.id)).size === items.length,
       )
       .optional(),
+    blockStylePresetGroups: z
+      .array(BlockStylePresetGroupSchema)
+      .max(MAX_BLOCK_STYLE_PRESET_GROUPS)
+      .refine(
+        (items) => new Set(items.map((item) => item.id)).size === items.length,
+      )
+      .optional(),
     keybindings: KeybindingOverridesSchema.optional(),
     hardware: z
       .object({
@@ -256,6 +286,7 @@ export const AppSettingsSchema = z
       .object({
         gpuVendor: z.enum(["nvidia", "amd", "apple", "unknown"]),
         gpuName: z.string().max(300).nullable().optional(),
+        gpuMemoryMb: z.number().int().positive().nullable().optional(),
         computeCapability: z.number().positive().nullable().optional(),
         rtxGeneration: z.number().int().positive().nullable().optional(),
         llamaRocmTarget: AmdRocmTargetSchema.nullable().optional(),

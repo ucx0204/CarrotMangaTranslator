@@ -198,7 +198,7 @@ function resolveHardwareFormValues(
   return {
     ocrDevice: settings.ocr.device,
     ocrGpuBackend: settings.ocr.gpuBackend ?? "cuda",
-    ocrQualityMode: settings.ocr.qualityMode ?? "minimum",
+    ocrQualityMode: settings.ocr.qualityMode ?? "economy",
     inpaintingModel: settings.inpainting?.model ?? "flux-klein",
     fluxBackend: settings.inpainting?.fluxBackend ?? "cuda-native",
     allowUnsafeLowMemoryFlux:

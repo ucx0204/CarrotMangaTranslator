@@ -18,7 +18,6 @@ type UseNudgeSelectedBlocksActionOptions = {
 };
 
 export function useNudgeSelectedBlocksAction({
-  jobActive,
   selectedBlock,
   selectedBlockIds,
   selectedPage,
@@ -31,12 +30,7 @@ export function useNudgeSelectedBlocksAction({
   const { t } = useTranslation("renderer");
   return useCallback(
     (deltaPx) => {
-      if (
-        !selectedPage ||
-        !selectedBlock ||
-        jobActive ||
-        selectedPageEditLocked
-      ) {
+      if (!selectedPage || !selectedBlock || selectedPageEditLocked) {
         return;
       }
       const selectedIds = new Set(
@@ -79,7 +73,6 @@ export function useNudgeSelectedBlocksAction({
       );
     },
     [
-      jobActive,
       selectedBlock,
       selectedBlockIds,
       selectedPage,

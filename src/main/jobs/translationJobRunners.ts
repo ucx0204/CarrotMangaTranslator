@@ -18,6 +18,12 @@ import { logError } from "../logger";
 import { tMain } from "./localization";
 import type { PipelineOptions } from "../pipeline/types";
 import type { MangaPage } from "../../shared/libraryTypes";
+import {
+  createPageJobTargetSnapshot,
+  createPageRevision,
+  type PageJobTargetSnapshot,
+  type PageRevision,
+} from "../../shared/pageRevision";
 import { runWholePagePipeline } from "../wholePagePipeline";
 import { throwIfAborted } from "../pipeline/failure";
 import { isAbortError } from "./jobEvents";
@@ -34,6 +40,7 @@ export type AnalysisJobState = {
   resolved: ResolvedRunPages | null;
   pageIds: string[];
   runPaths: ChapterRunPaths | null;
+  targetSnapshots?: PageJobTargetSnapshot[];
 };
 
 export type AnalysisJobRunnerDependencies = {
@@ -76,6 +83,9 @@ export async function runResolvedAnalysisJob(
 ): Promise<StartAnalysisResult> {
   throwIfAborted(abortController.signal);
   state.pageIds = resolved.pages.map((page) => page.id);
+  state.targetSnapshots = resolved.pages.map((page) =>
+    createPageJobTargetSnapshot(request.chapterId, page),
+  );
   const workContext = await dependencies.resolveWorkContextForChapter(
     request.chapterId,
   );
@@ -84,9 +94,9 @@ export async function runResolvedAnalysisJob(
     ? await dependencies.resolvePreviousChapterStoryPages(resolved.chapter)
     : [];
   throwIfAborted(abortController.signal);
-  const expectedUpdatedAtByPageId = await prepareRunningAnalysisPages(
+  const expectedRevisionByPageId = await prepareRunningAnalysisPages(
     request.chapterId,
-    state.pageIds,
+    resolved.pages,
     dependencies.markChapterPagesRunning,
   );
   throwIfAborted(abortController.signal);
@@ -96,7 +106,7 @@ export async function runResolvedAnalysisJob(
     jobId: id,
     emit,
     ...buildAnalysisPipelineCallbacks({
-      expectedUpdatedAtByPageId,
+      expectedRevisionByPageId,
       request,
       registerResourceCleanup,
     }),
@@ -157,23 +167,25 @@ export async function handleAnalysisJobError({
 
 async function prepareRunningAnalysisPages(
   chapterId: string,
-  pageIds: string[],
+  pages: MangaPage[],
   markPagesRunning: typeof markChapterPagesRunning,
-): Promise<Map<string, string>> {
-  const runningChapter = await markPagesRunning(chapterId, pageIds);
-  return new Map(
-    runningChapter.pages
-      .filter((page) => pageIds.includes(page.id))
-      .map((page) => [page.id, page.updatedAt]),
+): Promise<Map<string, PageRevision>> {
+  const revisions = new Map(
+    pages.map((page) => [page.id, createPageRevision(page)]),
   );
+  await markPagesRunning(
+    chapterId,
+    pages.map((page) => page.id),
+  );
+  return revisions;
 }
 
 function buildAnalysisPipelineCallbacks({
-  expectedUpdatedAtByPageId,
+  expectedRevisionByPageId,
   request,
   registerResourceCleanup,
 }: {
-  expectedUpdatedAtByPageId: Map<string, string>;
+  expectedRevisionByPageId: Map<string, PageRevision>;
   request: StartAnalysisRequest;
   registerResourceCleanup: (cleanup: JobResourceCleanup) => void;
 }): Pick<
@@ -188,7 +200,8 @@ function buildAnalysisPipelineCallbacks({
         withTranslationCompletionReceipt(page, request),
         [],
         "completed",
-        expectedUpdatedAtByPageId.get(page.id),
+        undefined,
+        expectedRevisionByPageId.get(page.id),
       );
     },
     onPagesComplete: async (pages) => {
@@ -198,7 +211,7 @@ function buildAnalysisPipelineCallbacks({
           page: withTranslationCompletionReceipt(page, request),
           warnings: [],
           status: "completed" as const,
-          expectedUpdatedAt: expectedUpdatedAtByPageId.get(page.id),
+          expectedRevision: expectedRevisionByPageId.get(page.id),
         })),
       );
     },
@@ -208,7 +221,8 @@ function buildAnalysisPipelineCallbacks({
         page,
         [errorMessage],
         "failed",
-        expectedUpdatedAtByPageId.get(page.id),
+        undefined,
+        expectedRevisionByPageId.get(page.id),
       );
     },
   };

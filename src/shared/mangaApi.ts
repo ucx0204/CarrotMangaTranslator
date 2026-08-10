@@ -19,6 +19,7 @@ import type {
   StartInpaintingResult,
 } from "./inpaintingTypes";
 import type {
+  PageImageExportPreflightResult,
   PageImageExportRequest,
   PageImageExportResult,
 } from "./pageImageExportTypes";
@@ -219,6 +220,9 @@ export type MangaApi = {
   exportPageImages: (
     request: PageImageExportRequest,
   ) => Promise<PageImageExportResult | null>;
+  preflightPageImages: (
+    request: PageImageExportRequest,
+  ) => Promise<PageImageExportPreflightResult>;
   disposeInpaintingEngine: () => Promise<{ disposed: boolean }>;
   cancelJob: () => Promise<unknown>;
   getPanelState: () => Promise<PanelSyncState | null>;

@@ -55,6 +55,12 @@ export type UseTranslationActionsOptions = {
     transactionId: string;
     chapterId?: string;
   }) => void;
+  recordTranslationCheckpoint?: (input: {
+    before: ChapterSnapshot;
+    after: ChapterSnapshot;
+    pageIds: string[];
+    label: string;
+  }) => void;
   setCurrentChapter: Dispatch<SetStateAction<ChapterSnapshot | null>>;
   setFlowActive: (active: boolean) => void;
   setShowBlockChrome: (visible: boolean) => void;

@@ -16,13 +16,31 @@ import type {
   LibraryIndex,
   MangaPage,
 } from "../src/shared/libraryTypes";
+import type {
+  PageImageExportPreflightResult,
+  PageImageExportRequest,
+} from "../src/shared/pageImageExportTypes";
 
 const openChapter = vi.fn<(chapterId: string) => Promise<ChapterSnapshot>>();
+const preflightPageImages =
+  vi.fn<
+    (request: PageImageExportRequest) => Promise<PageImageExportPreflightResult>
+  >();
 
 beforeEach(() => {
+  preflightPageImages.mockResolvedValue({
+    workTitle: "테스트 작품",
+    chapterCount: 1,
+    pageCount: 1,
+    sampleRelativePath: "001-1화\\002-p2.png",
+    outputPolicy: "new-timestamped-folder",
+    issues: [],
+    targets: [],
+  });
   window.mangaApi = createTestMangaGatewayStub({
     getPageImageDataUrl: vi.fn(() => Promise.resolve("mgt-image://token")),
     openChapter: (chapterId: string) => openChapter(chapterId),
+    preflightPageImages,
   });
 });
 
@@ -116,6 +134,7 @@ async function renderModal(startResult: boolean) {
   await act(async () => {
     await Promise.resolve();
   });
+  await screen.findByText("출력 가능");
   return { onStart, onClose };
 }
 
@@ -132,13 +151,22 @@ describe("ExportOptionsModal", () => {
     expect(screen.getByText("테스트 작품")).toBeTruthy();
     expect(screen.getByText("p1.png")).toBeTruthy();
     expect(screen.getByText("p2.png")).toBeTruthy();
+    expect(
+      (
+        screen.getByRole("checkbox", {
+          name: "글자 없이 출력",
+        }) as HTMLInputElement
+      ).checked,
+    ).toBe(false);
 
     fireEvent.click(screen.getByRole("button", { name: "PNG 출력" }));
 
     await waitFor(() =>
-      expect(onStart).toHaveBeenCalledWith([
-        { chapterId: CHAPTER_ID, mode: "page-set", pageIds: ["p2"] },
-      ]),
+      expect(onStart).toHaveBeenCalledWith(
+        [{ chapterId: CHAPTER_ID, mode: "page-set", pageIds: ["p2"] }],
+        [],
+        { omitText: false },
+      ),
     );
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByRole("dialog")).toBeTruthy();
@@ -154,22 +182,31 @@ describe("ExportOptionsModal", () => {
 
   it("supports current chapter, all, and clear quick selections", async () => {
     const { onStart } = await renderModal(false);
+    const exportButton = screen.getByRole("button", { name: "PNG 출력" });
 
     fireEvent.click(screen.getByRole("button", { name: "전체 선택" }));
-    fireEvent.click(screen.getByRole("button", { name: "PNG 출력" }));
+    await waitFor(() => expect(exportButton).toHaveProperty("disabled", false));
+    fireEvent.click(exportButton);
     await waitFor(() =>
-      expect(onStart).toHaveBeenLastCalledWith([
-        { chapterId: CHAPTER_ID, mode: "all" },
-        { chapterId: SECOND_CHAPTER_ID, mode: "all" },
-      ]),
+      expect(onStart).toHaveBeenLastCalledWith(
+        [
+          { chapterId: CHAPTER_ID, mode: "all" },
+          { chapterId: SECOND_CHAPTER_ID, mode: "all" },
+        ],
+        [],
+        { omitText: false },
+      ),
     );
 
     fireEvent.click(screen.getByRole("button", { name: "현재 화" }));
-    fireEvent.click(screen.getByRole("button", { name: "PNG 출력" }));
+    await waitFor(() => expect(exportButton).toHaveProperty("disabled", false));
+    fireEvent.click(exportButton);
     await waitFor(() =>
-      expect(onStart).toHaveBeenLastCalledWith([
-        { chapterId: CHAPTER_ID, mode: "all" },
-      ]),
+      expect(onStart).toHaveBeenLastCalledWith(
+        [{ chapterId: CHAPTER_ID, mode: "all" }],
+        [],
+        { omitText: false },
+      ),
     );
 
     fireEvent.click(screen.getByRole("button", { name: "전체 해제" }));
@@ -192,5 +229,101 @@ describe("ExportOptionsModal", () => {
       expect(openChapter).toHaveBeenCalledWith(SECOND_CHAPTER_ID),
     );
     expect(await screen.findByText("p3.png")).toBeTruthy();
+  });
+
+  it("shows preflight warnings and can navigate to the affected page", async () => {
+    const onNavigateToIssue = vi.fn();
+    preflightPageImages.mockResolvedValueOnce({
+      workTitle: "테스트 작품",
+      chapterCount: 1,
+      pageCount: 1,
+      sampleRelativePath: "001-1화\\002-p2.png",
+      outputPolicy: "new-timestamped-folder",
+      issues: [
+        {
+          code: "postprocess-pending",
+          severity: "warning",
+          chapterId: CHAPTER_ID,
+          chapterTitle: "1화",
+          pageId: "p2",
+          pageName: "p2.png",
+        },
+      ],
+      targets: [],
+    });
+    render(
+      <ExportOptionsModal
+        chapter={makeChapter()}
+        currentPageId="p2"
+        jobActive={false}
+        library={makeLibrary()}
+        onStart={vi.fn().mockResolvedValue(false)}
+        onNavigateToIssue={onNavigateToIssue}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByText("경고 1개")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "페이지 보기" }));
+    expect(onNavigateToIssue).toHaveBeenCalledWith(CHAPTER_ID, "p2");
+  });
+
+  it("exports only the inpainted background when textless output is enabled", async () => {
+    const { onStart } = await renderModal(false);
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "글자 없이 출력" }));
+
+    await waitFor(() =>
+      expect(preflightPageImages).toHaveBeenLastCalledWith(
+        expect.objectContaining({ omitText: true }),
+      ),
+    );
+    const exportButton = screen.getByRole("button", { name: "PNG 출력" });
+    await waitFor(() => expect(exportButton).toHaveProperty("disabled", false));
+    fireEvent.click(exportButton);
+
+    await waitFor(() =>
+      expect(onStart).toHaveBeenCalledWith(
+        [{ chapterId: CHAPTER_ID, mode: "page-set", pageIds: ["p2"] }],
+        [],
+        { omitText: true },
+      ),
+    );
+  });
+
+  it("blocks textless output when an inpainted image is unavailable", async () => {
+    preflightPageImages.mockImplementation(async (request) => ({
+      workTitle: "테스트 작품",
+      chapterCount: 1,
+      pageCount: 1,
+      sampleRelativePath: "001-1화\\002-p2.png",
+      outputPolicy: "new-timestamped-folder",
+      issues: request.omitText
+        ? [
+            {
+              code: "inpainted-image-missing",
+              severity: "warning",
+              chapterId: CHAPTER_ID,
+              chapterTitle: "1화",
+              pageId: "p2",
+              pageName: "p2.png",
+            },
+          ]
+        : [],
+      targets: [],
+    }));
+    await renderModal(false);
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "글자 없이 출력" }));
+
+    expect(
+      await screen.findByText(
+        "인페인팅 결과가 없어 글자 없는 PNG를 출력할 수 없습니다.",
+      ),
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "PNG 출력" })).toHaveProperty(
+      "disabled",
+      true,
+    );
   });
 });

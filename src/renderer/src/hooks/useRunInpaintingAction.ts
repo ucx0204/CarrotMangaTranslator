@@ -8,6 +8,7 @@ import {
   refreshLibraryWithStatus,
   resolveInpaintingTarget,
   saveDirtyChanges,
+  type InpaintingActionTarget,
   type InpaintingScope,
   type UseInpaintingActionsOptions,
 } from "./inpaintingActionTypes";
@@ -35,46 +36,16 @@ async function runPatternInpainting(
     options.selectedPage,
     scope,
   );
-  if (!target || options.jobActive) {
-    return;
-  }
-  if (
-    blockId &&
-    (!target.page || !target.page.blocks.some((block) => block.id === blockId))
-  ) {
-    return;
-  }
+  if (!canRunPatternInpainting(target, blockId, options.jobActive)) return;
   const ready = await preparePatternInpainting(options, scope, blockId, t);
-  if (!ready) {
-    return;
-  }
+  if (!ready) return;
   try {
-    const result = await mangaGateway.startInpainting(
-      target.pageId
-        ? {
-            chapterId: target.chapterId,
-            mode: "page-pattern",
-            pageId: target.pageId,
-            ...(blockId ? { blockId } : {}),
-          }
-        : { chapterId: target.chapterId, mode: "chapter-pattern-pending" },
-    );
-    if (result.chapter) {
-      options.clearRetouchHistory();
-      options.clearPageImageCache();
-      options.mergeLiveChapter(result.chapter);
+    const result = await startPatternInpainting(target, blockId);
+    if (await stagePatternPreview(result, target, scope, options, t)) {
+      options.pushStatus(t("inpainting.preview.ready"));
+      return;
     }
-    if (result.historyTransaction) {
-      options.workspaceHistory.recordImageEdit({
-        label: t("workspaceHistory.autoInpainting"),
-        transactionId: result.historyTransaction.transactionId,
-      });
-    }
-    void refreshLibraryWithStatus(
-      options.refreshLibrary,
-      options.pushStatus,
-      t("library.refreshAfterJobFailed"),
-    );
+    commitPatternInpaintingResult(result, options, t);
     reportPatternInpaintingResult(result, options, t);
   } catch (error) {
     console.error(error);
@@ -85,6 +56,80 @@ async function runPatternInpainting(
       formatErrorMessage(error, t("inpainting.erase.startFailed")),
     );
   }
+}
+
+function canRunPatternInpainting(
+  target: InpaintingActionTarget | null,
+  blockId: string | undefined,
+  jobActive: boolean,
+): target is InpaintingActionTarget {
+  if (!target || jobActive) return false;
+  if (!blockId) return true;
+  return Boolean(target.page?.blocks.some((block) => block.id === blockId));
+}
+
+function startPatternInpainting(
+  target: InpaintingActionTarget,
+  blockId: string | undefined,
+): ReturnType<typeof mangaGateway.startInpainting> {
+  return mangaGateway.startInpainting(
+    target.pageId
+      ? {
+          chapterId: target.chapterId,
+          mode: "page-pattern",
+          pageId: target.pageId,
+          ...(blockId ? { blockId } : {}),
+        }
+      : { chapterId: target.chapterId, mode: "chapter-pattern-pending" },
+  );
+}
+
+async function stagePatternPreview(
+  result: Awaited<ReturnType<typeof mangaGateway.startInpainting>>,
+  target: InpaintingActionTarget,
+  scope: InpaintingScope,
+  options: UseInpaintingActionsOptions,
+  t: TFunction<"renderer">,
+): Promise<boolean> {
+  if (
+    scope !== "page" ||
+    !result.chapter ||
+    !target.pageId ||
+    (result.status !== "completed" && result.status !== "partial")
+  ) {
+    return false;
+  }
+  return (
+    (await options.stageInpaintingPreview?.({
+      result,
+      afterChapter: result.chapter,
+      pageId: target.pageId,
+      label: t("workspaceHistory.autoInpainting"),
+    })) ?? false
+  );
+}
+
+function commitPatternInpaintingResult(
+  result: Awaited<ReturnType<typeof mangaGateway.startInpainting>>,
+  options: UseInpaintingActionsOptions,
+  t: TFunction<"renderer">,
+): void {
+  if (result.chapter) {
+    options.clearRetouchHistory();
+    options.clearPageImageCache();
+    options.mergeLiveChapter(result.chapter);
+  }
+  if (result.historyTransaction) {
+    options.workspaceHistory.recordImageEdit({
+      label: t("workspaceHistory.autoInpainting"),
+      transactionId: result.historyTransaction.transactionId,
+    });
+  }
+  void refreshLibraryWithStatus(
+    options.refreshLibrary,
+    options.pushStatus,
+    t("library.refreshAfterJobFailed"),
+  );
 }
 
 async function preparePatternInpainting(

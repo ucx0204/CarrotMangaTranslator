@@ -14,6 +14,8 @@
     "delete": "삭제",
     "dragToMove": "드래그해서 이동",
     "duplicate": "복제",
+    "collapseSection": "{{title}} 접기",
+    "expandSection": "{{title}} 펼치기",
     "import": "가져오기",
     "inpainting": "인페인팅",
     "inProgress": "진행 중",
@@ -394,6 +396,31 @@
     "selectionSummary": "{{chapterCount}}개 화 · {{pageCount}}페이지",
     "start": "PNG 출력",
     "starting": "출력 준비 중…",
+    "omitText": "글자 없이 출력",
+    "omitTextHint": "번역 글자는 합성하지 않고 인페인팅된 배경만 PNG로 출력합니다.",
+    "preflight": {
+      "title": "출력 전 확인",
+      "nextStep": "확인 후 저장할 폴더를 선택합니다.",
+      "checking": "선택한 페이지 상태를 확인하는 중…",
+      "failed": "사전 점검에 실패했습니다. 범위를 다시 선택해 주세요.",
+      "ready": "출력 가능",
+      "warningCount": "경고 {{count}}개",
+      "chapterCount": "{{count}}개 화",
+      "pageCount": "{{count}}페이지",
+      "noOverwrite": "기존 파일 덮어쓰지 않음",
+      "sample": "파일명 예시",
+      "noIssues": "누락되거나 처리 중인 페이지가 없습니다.",
+      "openPage": "페이지 보기",
+      "moreIssues": "그 외 {{count}}개 문제",
+      "issues": {
+        "job-running": "현재 작업 중인 페이지입니다.",
+        "translation-failed": "번역 또는 후처리가 실패했습니다.",
+        "translation-pending": "번역이 완료되지 않았습니다.",
+        "postprocess-pending": "번역은 끝났지만 지우기·후처리가 남았습니다.",
+        "inpainted-image-missing": "인페인팅 결과가 없어 글자 없는 PNG를 출력할 수 없습니다.",
+        "empty-translation": "번역문이 비어 있는 블록이 있습니다."
+      }
+    },
     "workUnavailable": "작품 정보를 불러오지 못했습니다. 현재 페이지만 출력합니다.",
     "startFailed": "출력을 시작하지 못했습니다. 다시 시도해 주세요."
   },
@@ -495,8 +522,8 @@
     "context": "페이지: {{pageName}} (블록 {{count}}개)",
     "keepBlocksHint": "현재 블록들의 영역·서식을 그대로 두고 각 영역의 텍스트만 다시 채웁니다.",
     "autoBlocksHint": "기존 블록을 모두 지우고 자동 감지로 새 블록을 만듭니다.",
-    "overwriteTitle": "이 페이지의 기존 결과가 바뀝니다",
-    "overwriteWarning": "기존 번역 결과와 수동 수정이 새 결과로 교체되며 작업 공간 실행 취소로 되돌릴 수 없습니다."
+    "overwriteTitle": "기존 결과를 체크포인트로 보관합니다",
+    "overwriteWarning": "재번역이 끝나면 기존 번역과 수동 수정을 한 번의 작업 공간 실행 취소로 복구할 수 있습니다."
   },
   "translateSource": {
     "title": "새 원본 추가",
@@ -615,6 +642,7 @@
     "partiallyCompleted": "부분 완료",
     "waiting": "대기",
     "inProgressShort": "진행",
+    "editLocked": "작업 중 · 편집 잠김",
     "erased": "지움"
   },
   "runPanel": {
@@ -994,6 +1022,24 @@
       "retouchTitle": "보정 설정",
       "autoAction": "자동 지우기"
     },
+    "preview": {
+      "title": "인페인트 결과 확인",
+      "pendingBadge": "적용 전 미리보기",
+      "safeOriginal": "적용하기 전까지 저장된 페이지는 바뀌지 않습니다.",
+      "discard": "결과 버리기",
+      "applying": "적용 중…",
+      "apply": "이 결과 적용",
+      "description": "변경 전과 생성 결과를 비교한 뒤 적용 여부를 선택하세요.",
+      "pagesChanged": "{{count}}페이지",
+      "blocksErased": "{{count}}영역 지움",
+      "before": "변경 전",
+      "after": "생성 결과",
+      "beforeAlt": "{{page}} 인페인트 변경 전",
+      "afterAlt": "{{page}} 인페인트 생성 결과",
+      "incomplete": "{{count}}개 영역은 처리되지 않았습니다. 결과를 확인한 뒤 적용하세요.",
+      "imageFailed": "비교 이미지를 불러오지 못했습니다. 결과를 버린 뒤 다시 시도할 수 있습니다.",
+      "loading": "비교 이미지 불러오는 중…"
+    },
     "counts": {
       "thisPage": "이 페이지 {{count}}",
       "remaining": "남은 {{count}}",
@@ -1213,8 +1259,8 @@
       },
       "ocrQuality": {
         "minimum": {
-          "label": "최소",
-          "description": "가볍고 빠른 OCR 모델입니다."
+          "label": "최소 (레거시)",
+          "description": "레거시 호환용 OCR 모드입니다. 추후 업데이트에서 제거될 예정입니다."
         },
         "economy": {
           "label": "절약",
@@ -1389,6 +1435,18 @@
       }
     },
     "hardware": {
+      "summaryTitle": "감지된 하드웨어와 현재 경로",
+      "detectedTitle": "감지된 하드웨어",
+      "detectedUnknown": "GPU 정보를 확인하지 못함",
+      "memoryValue": "통합 메모리 {{memory}}",
+      "ocrRoute": "현재 OCR",
+      "inpaintingRoute": "현재 인페인팅",
+      "recommendedMatch": "이 하드웨어의 권장 설정을 사용 중입니다.",
+      "recommendedDifferent": "권장값과 다른 고급 설정이 있습니다.",
+      "applyRecommended": "권장값 적용",
+      "gpuAdvanced": "GPU 배정 고급 설정",
+      "ocrAdvanced": "OCR 실행 장치 고급 설정",
+      "inpaintingBackendAdvanced": "인페인팅 백엔드 고급 설정",
       "gpuSection": "GPU 할당",
       "gpuSectionDescription": "앱 화면과 로컬 AI 작업이 사용할 GPU를 각각 지정합니다.",
       "graphicsGpu": "앱 그래픽 GPU",
@@ -1420,7 +1478,6 @@
       "downloadHipSdk": "AMD HIP SDK 다운로드 (ROCm 7.1.1)"
     },
     "format": {
-      "description": "새로 만드는 텍스트 블록에 적용할 기본 서식입니다.",
       "alignment": {
         "title": "정렬 · 강조",
         "left": "왼쪽 정렬",
@@ -1613,12 +1670,26 @@
     "empty": "저장된 서식 프리셋이 없습니다.",
     "name": "프리셋 이름",
     "groups": "포함할 서식 그룹",
-    "pinQuick": "빠른 프리셋으로 고정",
-    "pinned": "빠른 고정",
+    "pinQuick": "빠른 서식에 표시",
+    "pinned": "빠른 서식",
     "missingFontShort": "저장된 글꼴을 찾을 수 없습니다",
     "duplicateName": "{{name}} 복사본",
     "groupCount": "서식 그룹 {{count}}개",
     "moveUp": "위로 이동",
-    "moveDown": "아래로 이동"
+    "moveDown": "아래로 이동",
+    "editorTitle": "프리셋 · {{name}}",
+    "includedGroups": "프리셋 적용 항목",
+    "includedGroupsHint": "현재 {{count}}개 적용",
+    "disabledGroupTooltip": "현재 프리셋에서 제외된 항목입니다. 활성화하려면 아래로 스크롤해 ‘프리셋 적용 항목’에서 켜세요.",
+    "minimumGroupRequired": "프리셋에는 최소 1개 항목을 적용해야 합니다.",
+    "createQuick": "새 프리셋 추가",
+    "backToEditor": "편집 화면으로",
+    "untitledGroup": "새 그룹",
+    "addGroup": "그룹 추가",
+    "group": "프리셋 그룹",
+    "groupName": "그룹 이름",
+    "ungrouped": "그룹 없음",
+    "releaseGroup": "그룹 해제",
+    "emptyGroup": "이 그룹에는 프리셋이 없습니다."
   }
 }

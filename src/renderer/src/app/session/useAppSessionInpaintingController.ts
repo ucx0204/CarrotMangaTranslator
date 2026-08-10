@@ -56,11 +56,7 @@ export function useAppSessionInpaintingController(
   const retouch = useRetouchController(args);
   const inpaintingActions = useInpaintingRunController(args, retouch);
   const pageNavigationHandlers = useNavigationController(args);
-  const pointerHandlers = usePointerController(
-    args,
-    retouch,
-    inpaintingActions,
-  );
+  const pointerHandlers = usePointerController(args, retouch);
   const inpaintingBridge = useInpaintingBridgeController(
     args,
     retouch,
@@ -95,10 +91,7 @@ function useRetouchController({
     dirty,
     inpaintingBrushRadius: uiState.inpaintingBrushRadius,
     inpaintingPaintColor: uiState.inpaintingPaintColor,
-    jobActive:
-      derivedState.jobActive ||
-      uiState.translationFlowActive ||
-      workspaceHistory.busy,
+    jobActive: derivedState.selectedPageEditLocked || workspaceHistory.busy,
     mergeLiveChapter,
     pushStatus,
     saveNow,
@@ -183,7 +176,6 @@ function usePointerController(
     workspaceHistory,
   }: AppSessionInpaintingControllerArgs,
   retouch: ReturnType<typeof useInpaintingRetouch>,
-  inpaintingActions: ReturnType<typeof useInpaintingActions>,
 ): ReturnType<typeof useWorkspacePointerHandlers> {
   const { t } = useTranslation("renderer");
   const onPatternMaskChange = useCallback(
@@ -216,10 +208,8 @@ function usePointerController(
     inpaintingToolActive:
       derivedState.inpaintingToolActive && !derivedState.showingOriginalPeek,
     jobActive:
-      derivedState.jobActive ||
-      inpaintingActions.actionBusy ||
+      derivedState.selectedPageEditLocked ||
       retouch.retouchBusy ||
-      uiState.translationFlowActive ||
       workspaceHistory.busy,
     onPatternMaskChange,
     onBubbleLayoutApplied: () => uiState.selectWorkspaceTool("select"),

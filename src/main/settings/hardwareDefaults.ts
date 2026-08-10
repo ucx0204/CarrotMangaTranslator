@@ -14,6 +14,7 @@ import type {
 } from "../../shared/settingsTypes";
 import type { DetectedGpuInfo } from "../gpuInfo";
 import { isFluxRtx20Sm75Hardware } from "../../shared/fluxSm75";
+import { resolveRecommendedOcrQualityMode } from "../../shared/ocrMemoryPolicy";
 import {
   normalizeAmdRocmTarget,
   resolveAmdRocmTargetFromInfo,
@@ -57,7 +58,8 @@ export function resolveHardwareDefaults(
       baseDefaults,
       "openai-codex",
       "minimum12b",
-      "cpu",
+      resolveHardwareOcrDevice(info, baseDefaults.ocrGpuBackend),
+      info,
     );
   }
 
@@ -66,6 +68,7 @@ export function resolveHardwareDefaults(
     "gemma",
     resolveGemmaDefaultVramMode(info),
     resolveHardwareOcrDevice(info, baseDefaults.ocrGpuBackend),
+    info,
   );
 }
 
@@ -120,9 +123,6 @@ function resolveHardwareOcrDevice(
   info: DetectedGpuInfo | null,
   ocrGpuBackend: OcrGpuBackend,
 ): OcrDevice {
-  if (!hasMinimumGemmaVram(info)) {
-    return "cpu";
-  }
   return supportsHardwareOcrGpu(info, ocrGpuBackend) ? "gpu" : "cpu";
 }
 
@@ -179,28 +179,18 @@ function buildHardwareDefaults(
   modelProvider: ModelProvider,
   gemmaVramMode: GemmaVramMode,
   ocrDevice: OcrDevice,
+  info: DetectedGpuInfo | null,
 ): HardwareDefaults {
   return {
     modelProvider,
     gemmaVramMode,
     ocrDevice,
-    ocrQualityMode: resolveHardwareOcrQualityMode(gemmaVramMode, ocrDevice),
+    ocrQualityMode: resolveRecommendedOcrQualityMode({
+      ocrDevice,
+      gpuMemoryMb: info?.memoryMb,
+    }),
     ...baseDefaults,
   };
-}
-
-function resolveHardwareOcrQualityMode(
-  gemmaVramMode: GemmaVramMode,
-  ocrDevice: OcrDevice,
-): OcrQualityMode {
-  if (gemmaVramMode === "full31b") {
-    // 풀로드 품질은 CPU에서 못 쓸 만큼 느리다.
-    return ocrDevice === "gpu" ? "full" : "economy";
-  }
-  if (gemmaVramMode === "economy26b") {
-    return "economy";
-  }
-  return "minimum";
 }
 
 function resolveHardwareOcrGpuCudaTag(info: DetectedGpuInfo | null): string {

@@ -3,7 +3,7 @@ import type {
   LibraryChapter,
 } from "../../shared/libraryTypes";
 import { normalizeBlockType } from "../../shared/geometry";
-import { reorderRecords } from "./chapterRecords";
+import { reorderRecords, resolveChapterStatus } from "./chapterRecords";
 
 type ChapterFile = LibraryChapter;
 
@@ -21,6 +21,7 @@ export function hydrateChapter(chapter: ChapterFile): ChapterSnapshot {
 
   return {
     ...chapter,
+    status: resolveChapterStatus(pages),
     pageOrder: pages.map((page) => page.id),
     pages,
   };

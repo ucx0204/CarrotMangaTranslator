@@ -24,6 +24,9 @@
   --focus: #d6805f;
   --warn: #f59e0b;
   --success: #4f9468;
+  --warning-text: #f1bd79;
+  --success-text: #91d8c4;
+  --danger-text: #ffb4ab;
   /* spacing scale */
   --sp-1: 4px;
   --sp-2: 6px;
@@ -57,19 +60,28 @@
   --accent-soft: rgba(166, 78, 54, 0.17);
   --accent-text: #fbf3ef;
   --danger-soft: rgba(124, 48, 48, 0.2);
-  /* panel surfaces (opaque — glassmorphism removed for clarity + dnd stability) */
-  --glass-panel: #1b1e24;
-  --glass-rail: #14171c;
-  --glass-border: #2b2f37;
-  --glass-highlight: 0 0 0 transparent;
-  --glass-blur: 0px;
+  /* semantic component surfaces */
+  --surface-panel: #1b1e24;
+  --surface-rail: #14171c;
+  --surface-border: #2b2f37;
+  --surface-highlight: 0 0 0 transparent;
   /* elevation */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.42);
   --shadow-lg: 0 20px 56px rgba(0, 0, 0, 0.5);
   --shadow-overlay: 0 24px 64px rgba(0, 0, 0, 0.55);
   --bg-overlay: rgba(8, 10, 13, 0.62);
+  --layer-content: 1;
+  --layer-floating: 33;
+  --layer-toolbar: 34;
+  --layer-drag: 36;
+  --layer-tooltip: 80;
+  --layer-popover: 82;
+  --layer-status: 92;
   --layer-select-menu: 10000;
+  --motion-fast: 120ms;
+  --motion-normal: 160ms;
+  --ease-standard: cubic-bezier(0.2, 0.75, 0.25, 1);
 
   color: var(--text);
   background: var(--bg-app);
@@ -234,7 +246,7 @@ textarea:focus-visible {
 
 input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
     .gather-direct-size-input
-  ),
+  ):not(.library-search-input),
 textarea {
   width: 100%;
   color: #f5f0e8;
@@ -246,7 +258,7 @@ textarea {
 
 input:not([type="range"]):not([type="color"]):not([type="checkbox"]):not(
     [type="radio"]
-  ):not(.gather-direct-size-input) {
+  ):not(.gather-direct-size-input):not(.library-search-input) {
   min-height: var(--ctl-h);
 }
 
@@ -291,7 +303,7 @@ input[type="radio"] {
   right: 12px;
   left: 12px;
   height: 6px;
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--surface-border);
   border-radius: var(--r-pill);
   background: linear-gradient(
     to right,

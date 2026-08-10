@@ -9,7 +9,10 @@ import type { TranslationLanguageSettings } from "./translationLanguages";
 import type { UiLocale } from "./uiLocales";
 import type { KeybindingOverrides } from "./shortcutSettings";
 import type { HardwareGpuSettings } from "./gpuSettings";
-import type { BlockStylePreset } from "./blockStylePresets";
+import type {
+  BlockStylePreset,
+  BlockStylePresetGroup,
+} from "./blockStylePresets";
 
 export type {
   FluxBackend,
@@ -28,13 +31,22 @@ export type ModelProvider = "gemma" | "openai-codex" | "openai-api";
 export type ModelSource = "huggingface" | "local";
 export type GemmaVramMode = "minimum12b" | "economy26b" | "full31b";
 export type ApiReasoningEffort =
-  "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+  | "none"
+  | "minimal"
+  | "low"
+  | "medium"
+  | "high"
+  | "xhigh";
 export type OcrDevice = "cpu" | "gpu";
 export type OcrGpuBackend = "cuda" | "rocm-transformers";
 export type OcrQualityMode = "minimum" | "economy" | "full";
 export type TranslationWorkflowMode = "standard" | "cumulative" | "two-pass";
 export type LlamaRuntimeProfile =
-  "cuda12" | "rtx50" | "rocm" | "vulkan" | "metal";
+  | "cuda12"
+  | "rtx50"
+  | "rocm"
+  | "vulkan"
+  | "metal";
 export type AmdRocmTarget =
   | "gfx908"
   | "gfx90a"
@@ -48,6 +60,8 @@ type RuntimeGpuVendor = "nvidia" | "amd" | "apple" | "unknown";
 type RuntimeHardwareInfo = {
   gpuVendor: RuntimeGpuVendor;
   gpuName?: string | null;
+  /** Dedicated GPU memory reported by the detected adapter. */
+  gpuMemoryMb?: number | null;
   computeCapability?: number | null;
   rtxGeneration?: number | null;
   llamaRocmTarget?: AmdRocmTarget | null;
@@ -158,6 +172,8 @@ export type AppSettings = {
   blockFormatDefaults?: BlockFormatDefaults;
   /** Named, formatting-only presets shared across works. */
   blockStylePresets?: BlockStylePreset[];
+  /** Optional two-level folders used to organize formatting presets. */
+  blockStylePresetGroups?: BlockStylePresetGroup[];
   keybindings?: KeybindingOverrides;
   runtimeHardware?: RuntimeHardwareInfo;
   maxTokens: number;

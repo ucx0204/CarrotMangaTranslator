@@ -9,8 +9,16 @@ import { FormatDefaultsPanel } from "../src/renderer/src/components/settingsModa
 import { FontsContext } from "../src/renderer/src/fonts/fontsContextValue";
 import { createBlockFontCatalog } from "../src/renderer/src/lib/fonts";
 import { chooseCustomSelectOption } from "./testUtils/customSelect";
+import {
+  createBlockStylePresetFromDefaults,
+  type BlockStylePreset,
+} from "../src/shared/blockStylePresets";
+import { dismissToast, getToasts } from "../src/renderer/src/lib/toastStore";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  getToasts().forEach((item) => dismissToast(item.id));
+});
 
 describe("FormatDefaultsPanel", () => {
   it("uses the same preview and four always-visible editor sections", () => {
@@ -143,6 +151,62 @@ describe("FormatDefaultsPanel", () => {
     expect(onPaddingChange).toHaveBeenLastCalledWith(0.7);
     expect(screen.getByText("70%")).toBeTruthy();
   });
+
+  it("edits a selected preset in the same controls without mutating defaults", () => {
+    const onDefaultChange = vi.fn();
+    render(
+      <FontsContext.Provider value={FONT_CONTEXT_VALUE}>
+        <FormatPresetHarness onDefaultChange={onDefaultChange} />
+      </FontsContext.Provider>,
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "액션 효과음" }));
+    expect(screen.queryByText(/프리셋을 직접 조정합니다/)).toBeNull();
+    expect(
+      screen.queryByText("새로 만드는 텍스트 블록에 적용할 기본 서식입니다."),
+    ).toBeNull();
+    const disabledSize = document.querySelector(
+      '[data-preset-group="size"][aria-disabled="true"]',
+    );
+    expect(disabledSize).toBeTruthy();
+    expect(
+      screen
+        .getByRole("button", { name: "글자 크기" })
+        .getAttribute("aria-pressed"),
+    ).toBe("false");
+    expect(screen.queryByRole("slider", { name: "안쪽 여백" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "글자 크기" }));
+    fireEvent.click(screen.getByRole("button", { name: "글자 크기 늘리기" }));
+
+    expect(onDefaultChange).not.toHaveBeenCalled();
+    expect(screen.getByTestId("default-size").textContent).toBe("24");
+    expect(screen.getByTestId("preset-size").textContent).toBe("25");
+    expect(screen.getByTestId("preset-groups").textContent).toContain("size");
+    expect(
+      screen
+        .getByRole("button", { name: "글자 크기" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+  });
+
+  it("keeps the final preset field enabled and explains why with a toast", () => {
+    render(
+      <FontsContext.Provider value={FONT_CONTEXT_VALUE}>
+        <FormatPresetHarness onDefaultChange={vi.fn()} />
+      </FontsContext.Provider>,
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "액션 효과음" }));
+    fireEvent.click(screen.getByRole("button", { name: "글자색" }));
+
+    expect(screen.getByTestId("preset-groups").textContent).toBe("color");
+    expect(getToasts()).toHaveLength(1);
+    expect(getToasts()[0]).toMatchObject({
+      variant: "warn",
+      message: "프리셋에는 최소 1개 항목을 적용해야 합니다.",
+    });
+  });
 });
 
 function renderPanel(onChange = vi.fn(), onPaddingChange = vi.fn()) {
@@ -181,6 +245,52 @@ function FormatDefaultsHarness({
         setValue((current) => ({ ...current, ...patch }));
       }}
     />
+  );
+}
+
+function FormatPresetHarness({
+  onDefaultChange,
+}: {
+  onDefaultChange: (patch: Partial<BlockFormatDefaults>) => void;
+}): React.JSX.Element {
+  const [defaults, setDefaults] = React.useState<BlockFormatDefaults>({
+    ...DEFAULT_BLOCK_FORMAT_DEFAULTS,
+    fontSizePx: 24,
+  });
+  const [activePresetId, setActivePresetId] = React.useState<string | null>(
+    null,
+  );
+  const [presets, setPresets] = React.useState<BlockStylePreset[]>(() => [
+    createBlockStylePresetFromDefaults({
+      defaults,
+      groupIds: ["color"],
+      id: "style-preset:action",
+      name: "액션 효과음",
+    }),
+  ]);
+  return (
+    <>
+      <FormatDefaultsPanel
+        activePresetId={activePresetId}
+        bubbleLayoutPaddingRatio={0.12}
+        stylePresets={presets}
+        value={defaults}
+        onActivePresetChange={setActivePresetId}
+        onBubbleLayoutPaddingRatioChange={() => undefined}
+        onChange={(patch) => {
+          onDefaultChange(patch);
+          setDefaults((current) => ({ ...current, ...patch }));
+        }}
+        onStylePresetsChange={setPresets}
+      />
+      <output data-testid="default-size">{defaults.fontSizePx}</output>
+      <output data-testid="preset-size">
+        {presets[0]?.format.fontSizePx ?? ""}
+      </output>
+      <output data-testid="preset-groups">
+        {presets[0]?.groupIds.join(",")}
+      </output>
+    </>
   );
 }
 

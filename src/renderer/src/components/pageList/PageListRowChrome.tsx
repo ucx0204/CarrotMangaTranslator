@@ -1,4 +1,5 @@
 import React from "react";
+import { DragOverlay } from "@dnd-kit/core";
 import { IconDotsVertical, IconPhotoOff } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { MangaPage } from "../../../../shared/libraryTypes";
@@ -12,6 +13,28 @@ import {
   resolvePageStatusLabel,
   type PageStatusMode,
 } from "./pageListStatus";
+
+export function PageListDragOverlay({
+  activePage,
+  selectedPageId,
+  statusMode,
+}: {
+  activePage: MangaPage | null;
+  selectedPageId: string | null;
+  statusMode: PageStatusMode;
+}): React.JSX.Element {
+  return (
+    <DragOverlay>
+      {activePage ? (
+        <PageDragPreview
+          page={activePage}
+          selected={activePage.id === selectedPageId}
+          statusMode={statusMode}
+        />
+      ) : null}
+    </DragOverlay>
+  );
+}
 
 export function PageItemMenu({
   disabled,
@@ -82,7 +105,7 @@ export function PageItemMenu({
   );
 }
 
-export function PageDragPreview({
+function PageDragPreview({
   page,
   selected,
   statusMode,
@@ -114,16 +137,22 @@ export function PageDragPreview({
 export function PageStatus({
   page,
   statusMode,
+  locked = false,
 }: {
   page: MangaPage;
   statusMode: PageStatusMode;
+  locked?: boolean;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
-  const status = resolvePageDisplayStatus(page, statusMode);
+  const status = locked
+    ? "running"
+    : resolvePageDisplayStatus(page, statusMode);
   return (
     <span className={`page-row-status ${status}`}>
       <span className="page-row-status-dot" aria-hidden="true" />
-      {resolvePageStatusLabel(page, statusMode, t)}
+      {locked
+        ? t("status.editLocked")
+        : resolvePageStatusLabel(page, statusMode, t)}
     </span>
   );
 }

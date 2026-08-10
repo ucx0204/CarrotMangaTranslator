@@ -219,6 +219,8 @@
     "bubbleLayoutManual": "Edit bubble shape",
     "removeBubbleLayout": "Remove bubble fit",
     "drawnInpainting": "Erase drawn area",
+    "translationCheckpoint": "Translation result checkpoint",
+    "retranslationCheckpoint": "Checkpoint before retranslation",
     "retouch": "Manual retouch",
     "resetOriginal": "Reset to original"
   },
@@ -265,7 +267,7 @@
     "retranslate": {
       "title": "Retranslate page",
       "confirm": "Are you sure you want to retranslate this page?",
-      "detail": "Existing translations and edits on this page will be overwritten."
+      "detail": "Existing results are kept as a checkpoint and can be restored with workspace undo."
     },
     "removePage": {
       "title": "Delete page",
@@ -306,6 +308,15 @@
       "startFailed": "Could not start erasing the painted area.",
       "failed": "Failed to erase the painted area.",
       "success": "Painted area erased · Pages: {{pages}} · Regions: {{regions}}"
+    },
+    "preview": {
+      "ready": "The inpainting preview is ready.",
+      "prepareConflict": "The page changed while the result was generated, so the preview could not be prepared.",
+      "applyConflict": "The page changed after preview; the result was not applied.",
+      "applied": "Applied the reviewed inpainting result.",
+      "applyFailed": "Could not apply the inpainting preview.",
+      "discarded": "Discarded the inpainting preview. The previous page was kept.",
+      "discardFailed": "Could not clean up the inpainting preview."
     },
     "erase": {
       "title": "Erase source text",

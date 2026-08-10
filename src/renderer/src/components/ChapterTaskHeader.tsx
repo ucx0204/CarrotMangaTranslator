@@ -69,11 +69,7 @@ function ChapterSavedBadge(): React.JSX.Element | null {
 
   if (!visible) return null;
   return (
-    <span
-      className="chapter-save-badge saved"
-      role="status"
-      aria-live="polite"
-    >
+    <span className="chapter-save-badge saved" role="status" aria-live="polite">
       {t("chapterSave.saved")}
     </span>
   );

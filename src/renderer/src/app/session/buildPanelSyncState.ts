@@ -31,7 +31,8 @@ export function buildPanelSyncState({
       }) && !interactionBusy,
     areaTranslateSelecting: Boolean(core.regionSelection?.active),
     disableChapterApply: interactionBusy,
-    editorDisabled: derivedState.selectedPageEditLocked || interactionBusy,
+    editorDisabled:
+      derivedState.selectedPageEditLocked || workspaceHistory.busy,
     blockStylePresets: blockEditingActions.stylePresetSummaries,
     selectedBlock: derivedState.selectedBlock,
     selectedBlockCount: derivedState.selectedBlockIds.length,

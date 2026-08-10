@@ -1,7 +1,13 @@
 /** @vitest-environment jsdom */
 
 import React from "react";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ChapterSnapshot } from "../src/shared/libraryTypes";
 import { ChapterTaskHeader } from "../src/renderer/src/components/ChapterTaskHeader";
@@ -73,7 +79,9 @@ describe("ChapterTaskHeader", () => {
       />,
     );
 
-    expect(container.querySelector(".chapter-save-status.error")).not.toBeNull();
+    expect(
+      container.querySelector(".chapter-save-status.error"),
+    ).not.toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "다시 저장" }));
     expect(onRetrySave).toHaveBeenCalledOnce();
   });

@@ -14,6 +14,8 @@
     "delete": "Delete",
     "dragToMove": "Drag to move",
     "duplicate": "Duplicate",
+    "collapseSection": "Collapse {{title}}",
+    "expandSection": "Expand {{title}}",
     "import": "Import",
     "inpainting": "Inpainting",
     "inProgress": "In progress",
@@ -404,6 +406,31 @@
     "selectionSummary": "Chapters: {{chapterCount}} · Pages: {{pageCount}}",
     "start": "Export PNG",
     "starting": "Preparing export…",
+    "omitText": "Export without text",
+    "omitTextHint": "Exports only the inpainted background without compositing translated text.",
+    "preflight": {
+      "title": "Pre-export check",
+      "nextStep": "Choose the destination folder after reviewing this check.",
+      "checking": "Checking the selected pages…",
+      "failed": "The preflight check failed. Select the range again.",
+      "ready": "Ready to export",
+      "warningCount": "{{count}} warnings",
+      "chapterCount": "{{count}} chapters",
+      "pageCount": "{{count}} pages",
+      "noOverwrite": "Never overwrites existing files",
+      "sample": "Filename example",
+      "noIssues": "No incomplete or running pages were found.",
+      "openPage": "View page",
+      "moreIssues": "{{count}} more issues",
+      "issues": {
+        "job-running": "This page is currently being processed.",
+        "translation-failed": "Translation or post-processing failed.",
+        "translation-pending": "Translation is not complete.",
+        "postprocess-pending": "Translation is done, but erase/post-processing remains.",
+        "inpainted-image-missing": "No inpainted result is available for a text-free PNG.",
+        "empty-translation": "One or more translated blocks are empty."
+      }
+    },
     "workUnavailable": "Could not load work information. Only the current page will be exported.",
     "startFailed": "Could not start the export. Please try again."
   },
@@ -505,8 +532,8 @@
     "context": "Page: {{pageName}} (Blocks: {{count}})",
     "keepBlocksHint": "Keep the current block regions and formatting, and refill only the text in each region.",
     "autoBlocksHint": "Remove all existing blocks and detect new ones automatically.",
-    "overwriteTitle": "Existing results on this page will change",
-    "overwriteWarning": "Existing translations and manual edits will be replaced and cannot be restored with workspace undo."
+    "overwriteTitle": "Existing results are saved as a checkpoint",
+    "overwriteWarning": "After retranslation, one workspace undo restores the previous translation and manual edits."
   },
   "translateSource": {
     "title": "Add new source",
@@ -625,6 +652,7 @@
     "partiallyCompleted": "Partially complete",
     "waiting": "Waiting",
     "inProgressShort": "Running",
+    "editLocked": "Running · Editing locked",
     "erased": "Erased"
   },
   "runPanel": {
@@ -1010,6 +1038,24 @@
       "retouchTitle": "Retouch settings",
       "autoAction": "Auto erase"
     },
+    "preview": {
+      "title": "Review inpainting result",
+      "pendingBadge": "Preview before apply",
+      "safeOriginal": "The saved page stays unchanged until you apply this result.",
+      "discard": "Discard result",
+      "applying": "Applying…",
+      "apply": "Apply this result",
+      "description": "Compare the previous page with the generated result, then choose whether to apply it.",
+      "pagesChanged": "{{count}} page",
+      "blocksErased": "{{count}} areas erased",
+      "before": "Before",
+      "after": "Generated result",
+      "beforeAlt": "{{page}} before inpainting",
+      "afterAlt": "{{page}} generated inpainting result",
+      "incomplete": "{{count}} areas could not be processed. Review the result before applying.",
+      "imageFailed": "The comparison images could not be loaded. Discard the result and try again.",
+      "loading": "Loading comparison images…"
+    },
     "counts": {
       "thisPage": "This page {{count}}",
       "remaining": "Remaining {{count}}",
@@ -1232,8 +1278,8 @@
       },
       "ocrQuality": {
         "minimum": {
-          "label": "Minimum",
-          "description": "A lightweight, fast OCR model."
+          "label": "Minimum (Legacy)",
+          "description": "Legacy compatibility mode. It will be removed in a future update."
         },
         "economy": {
           "label": "Economy",
@@ -1408,6 +1454,18 @@
       }
     },
     "hardware": {
+      "summaryTitle": "Detected hardware and active routes",
+      "detectedTitle": "Detected hardware",
+      "detectedUnknown": "GPU information unavailable",
+      "memoryValue": "{{memory}} unified memory",
+      "ocrRoute": "Current OCR",
+      "inpaintingRoute": "Current inpainting",
+      "recommendedMatch": "Using the recommended settings for this hardware.",
+      "recommendedDifferent": "Some advanced settings differ from the recommendation.",
+      "applyRecommended": "Apply recommended",
+      "gpuAdvanced": "Advanced GPU assignment",
+      "ocrAdvanced": "Advanced OCR device",
+      "inpaintingBackendAdvanced": "Advanced inpainting backend",
       "gpuSection": "GPU assignment",
       "gpuSectionDescription": "Choose GPU routing separately for the app window and local AI workloads.",
       "graphicsGpu": "App graphics GPU",
@@ -1439,7 +1497,6 @@
       "downloadHipSdk": "Download AMD HIP SDK (ROCm 7.1.1)"
     },
     "format": {
-      "description": "Default formatting for newly created text blocks.",
       "alignment": {
         "title": "Alignment & emphasis",
         "left": "Align left",
@@ -1632,12 +1689,26 @@
     "empty": "No style presets have been saved.",
     "name": "Preset name",
     "groups": "Formatting groups to include",
-    "pinQuick": "Pin as a quick preset",
-    "pinned": "Quick pin",
+    "pinQuick": "Show in Quick styles",
+    "pinned": "Quick style",
     "missingFontShort": "The saved font could not be found",
     "duplicateName": "{{name}} copy",
     "groupCount": "{{count}} format groups",
     "moveUp": "Move up",
-    "moveDown": "Move down"
+    "moveDown": "Move down",
+    "editorTitle": "Preset · {{name}}",
+    "includedGroups": "Preset fields",
+    "includedGroupsHint": "{{count}} fields enabled",
+    "disabledGroupTooltip": "This field is excluded from the preset. Scroll down and enable it under Preset fields.",
+    "minimumGroupRequired": "A preset must apply at least one formatting field.",
+    "createQuick": "Add preset",
+    "backToEditor": "Back to editor",
+    "untitledGroup": "New group",
+    "addGroup": "Add group",
+    "group": "Preset group",
+    "groupName": "Group name",
+    "ungrouped": "No group",
+    "releaseGroup": "Ungroup presets",
+    "emptyGroup": "This group has no presets."
   }
 }

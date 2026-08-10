@@ -3,6 +3,7 @@ import type {
   ChapterSnapshot,
   TranslationCompletionReceipt,
 } from "../../shared/libraryTypes";
+import type { PageRevision } from "../../shared/pageRevision";
 import type { InpaintingBlockLayoutState } from "./inpaintingLayoutState";
 import { openChapter as openChapterUnlocked } from "../libraryStore/libraryAccess";
 import { assertChapterImagePath } from "../libraryStore/libraryFiles";
@@ -11,6 +12,8 @@ import { logInpaintingRuntimeWarn } from "./inpaintingRuntimeLogger";
 export type InpaintingRevisionChange = {
   chapterId: string;
   pageId: string;
+  beforeRevision?: PageRevision;
+  afterRevision?: PageRevision;
   beforePath?: string;
   afterPath?: string;
   beforeLayout?: InpaintingBlockLayoutState[];
@@ -22,28 +25,42 @@ export type InpaintingRevisionChange = {
 export function assertRevisionLayoutPair(
   change: InpaintingRevisionChange,
 ): void {
-  const hasBefore = change.beforeLayout !== undefined;
-  const hasAfter = change.afterLayout !== undefined;
-  if (hasBefore !== hasAfter) {
+  if (!optionalValuesArePaired(change.beforeRevision, change.afterRevision)) {
+    throw new Error(
+      "인페인팅 페이지 revision은 변경 전후 값이 모두 필요합니다.",
+    );
+  }
+  if (!optionalValuesArePaired(change.beforeLayout, change.afterLayout)) {
     throw new Error(
       "인페인팅 텍스트 배치 기록은 변경 전후 상태가 모두 필요합니다.",
     );
   }
-  if (!hasBefore || !hasAfter) {
+  if (!change.beforeLayout || !change.afterLayout) {
     return;
   }
-  const beforeIds = change.beforeLayout?.map((state) => state.blockId) ?? [];
-  const afterIds = change.afterLayout?.map((state) => state.blockId) ?? [];
-  if (
-    beforeIds.length !== new Set(beforeIds).size ||
-    afterIds.length !== new Set(afterIds).size ||
-    beforeIds.length !== afterIds.length ||
-    beforeIds.some((blockId, index) => afterIds[index] !== blockId)
-  ) {
+  if (!layoutBlockIdsMatch(change.beforeLayout, change.afterLayout)) {
     throw new Error(
       "인페인팅 텍스트 배치 기록의 변경 전후 블록이 일치하지 않습니다.",
     );
   }
+}
+
+function optionalValuesArePaired(left: unknown, right: unknown): boolean {
+  return Boolean(left) === Boolean(right);
+}
+
+function layoutBlockIdsMatch(
+  before: InpaintingBlockLayoutState[],
+  after: InpaintingBlockLayoutState[],
+): boolean {
+  const beforeIds = before.map((state) => state.blockId);
+  const afterIds = after.map((state) => state.blockId);
+  return (
+    beforeIds.length === new Set(beforeIds).size &&
+    afterIds.length === new Set(afterIds).size &&
+    beforeIds.length === afterIds.length &&
+    beforeIds.every((blockId, index) => afterIds[index] === blockId)
+  );
 }
 
 export class InpaintingRevisionRollbackError extends Error {

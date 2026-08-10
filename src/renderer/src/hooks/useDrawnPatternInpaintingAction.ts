@@ -48,6 +48,7 @@ async function runDrawnPatternInpainting(
     selectedPageId: selectedPage.id,
     setJobState: options.setJobState,
     setPatternMaskStrokesByPage: options.setPatternMaskStrokesByPage,
+    stageInpaintingPreview: options.stageInpaintingPreview,
     workspaceHistory: options.workspaceHistory,
     t,
   });
@@ -91,20 +92,7 @@ async function prepareDrawnInpainting(
   return true;
 }
 
-async function runDrawnInpaintingRequest({
-  chapterId,
-  clearPageImageCache,
-  clearRetouchHistory,
-  mergeLiveChapter,
-  patternMaskStrokes,
-  pushStatus,
-  refreshLibrary,
-  selectedPageId,
-  setJobState,
-  setPatternMaskStrokesByPage,
-  workspaceHistory,
-  t,
-}: {
+type DrawnInpaintingRequestContext = {
   chapterId: string;
   clearPageImageCache: () => void;
   clearRetouchHistory: () => void;
@@ -115,59 +103,119 @@ async function runDrawnInpaintingRequest({
   selectedPageId: string;
   setJobState: UseInpaintingActionsOptions["setJobState"];
   setPatternMaskStrokesByPage: UseInpaintingActionsOptions["setPatternMaskStrokesByPage"];
+  stageInpaintingPreview?: UseInpaintingActionsOptions["stageInpaintingPreview"];
   workspaceHistory: UseInpaintingActionsOptions["workspaceHistory"];
   t: TFunction<"renderer">;
-}): Promise<void> {
+};
+
+async function runDrawnInpaintingRequest(
+  context: DrawnInpaintingRequestContext,
+): Promise<void> {
   try {
     const result = await mangaGateway.startInpainting({
-      chapterId,
+      chapterId: context.chapterId,
       mode: "page-pattern-drawn",
-      pageId: selectedPageId,
-      strokes: patternMaskStrokes,
+      pageId: context.selectedPageId,
+      strokes: context.patternMaskStrokes,
       featherPx: 8,
     });
-    if (result.chapter) {
-      clearRetouchHistory();
-      clearPageImageCache();
-      mergeLiveChapter(result.chapter);
-    }
-    if (result.historyTransaction) {
-      workspaceHistory.recordImageEdit({
-        label: t("workspaceHistory.drawnInpainting"),
-        transactionId: result.historyTransaction.transactionId,
-        mask: {
-          before: captureWorkspaceMaskSnapshot(
-            chapterId,
-            selectedPageId,
-            patternMaskStrokes,
-          ),
-          after: captureWorkspaceMaskSnapshot(
-            chapterId,
-            selectedPageId,
-            result.status === "completed" ? [] : patternMaskStrokes,
-          ),
-        },
-      });
-    }
-    void refreshLibraryWithStatus(
-      refreshLibrary,
-      pushStatus,
-      t("library.refreshAfterJobFailed"),
-    );
-    reportDrawnInpaintingResult(result, selectedPageId, t, {
-      pushStatus,
-      setJobState,
-      setPatternMaskStrokesByPage,
-    });
+    await handleDrawnInpaintingResult(result, context);
   } catch (error) {
     console.error(error);
     failInpaintingJob(
-      setJobState,
-      pushStatus,
-      t("inpainting.common.jobFailedTitle"),
-      formatErrorMessage(error, t("inpainting.drawn.startFailed")),
+      context.setJobState,
+      context.pushStatus,
+      context.t("inpainting.common.jobFailedTitle"),
+      formatErrorMessage(error, context.t("inpainting.drawn.startFailed")),
     );
   }
+}
+
+async function handleDrawnInpaintingResult(
+  result: Awaited<ReturnType<typeof mangaGateway.startInpainting>>,
+  context: DrawnInpaintingRequestContext,
+): Promise<void> {
+  const previewStaged = result.chapter
+    ? await stageDrawnPreview({
+        result,
+        selectedPageId: context.selectedPageId,
+        patternMaskStrokes: context.patternMaskStrokes,
+        stageInpaintingPreview: context.stageInpaintingPreview,
+        t: context.t,
+      })
+    : false;
+  if (previewStaged) {
+    context.pushStatus(context.t("inpainting.preview.ready"));
+    return;
+  }
+  if (result.chapter) {
+    context.clearRetouchHistory();
+    context.clearPageImageCache();
+    context.mergeLiveChapter(result.chapter);
+  }
+  recordDrawnInpaintingHistory(result, context);
+  void refreshLibraryWithStatus(
+    context.refreshLibrary,
+    context.pushStatus,
+    context.t("library.refreshAfterJobFailed"),
+  );
+  reportDrawnInpaintingResult(result, context.selectedPageId, context.t, {
+    pushStatus: context.pushStatus,
+    setJobState: context.setJobState,
+    setPatternMaskStrokesByPage: context.setPatternMaskStrokesByPage,
+  });
+}
+
+function recordDrawnInpaintingHistory(
+  result: Awaited<ReturnType<typeof mangaGateway.startInpainting>>,
+  context: DrawnInpaintingRequestContext,
+): void {
+  if (!result.historyTransaction) return;
+  context.workspaceHistory.recordImageEdit({
+    label: context.t("workspaceHistory.drawnInpainting"),
+    transactionId: result.historyTransaction.transactionId,
+    mask: {
+      before: captureWorkspaceMaskSnapshot(
+        context.chapterId,
+        context.selectedPageId,
+        context.patternMaskStrokes,
+      ),
+      after: captureWorkspaceMaskSnapshot(
+        context.chapterId,
+        context.selectedPageId,
+        result.status === "completed" ? [] : context.patternMaskStrokes,
+      ),
+    },
+  });
+}
+
+async function stageDrawnPreview({
+  patternMaskStrokes,
+  result,
+  selectedPageId,
+  stageInpaintingPreview,
+  t,
+}: {
+  patternMaskStrokes: UseInpaintingActionsOptions["patternMaskStrokes"];
+  result: Awaited<ReturnType<typeof mangaGateway.startInpainting>>;
+  selectedPageId: string;
+  stageInpaintingPreview?: UseInpaintingActionsOptions["stageInpaintingPreview"];
+  t: TFunction<"renderer">;
+}): Promise<boolean> {
+  if (
+    !result.chapter ||
+    !stageInpaintingPreview ||
+    (result.status !== "completed" && result.status !== "partial")
+  ) {
+    return false;
+  }
+  return stageInpaintingPreview({
+    result,
+    afterChapter: result.chapter,
+    pageId: selectedPageId,
+    label: t("workspaceHistory.drawnInpainting"),
+    maskBefore: patternMaskStrokes,
+  });
 }
 
 function reportDrawnInpaintingResult(

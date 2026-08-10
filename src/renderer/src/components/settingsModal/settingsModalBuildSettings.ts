@@ -6,13 +6,17 @@ import type { KeybindingOverrides } from "../../../../shared/shortcutSettings";
 import { buildSettingsFromForm } from "../settingsFormBuilder";
 import type { SettingsDraft } from "./settingsModalFormUtils";
 import type { SettingsFormValues } from "./settingsModalFormValues";
-import type { BlockStylePreset } from "../../../../shared/blockStylePresets";
+import type {
+  BlockStylePreset,
+  BlockStylePresetGroup,
+} from "../../../../shared/blockStylePresets";
 
 export function buildSettingsFromDraft({
   draft,
   initialSettings,
   keybindings,
   blockFormatDefaults,
+  blockStylePresetGroups,
   blockStylePresets,
   values,
 }: {
@@ -20,6 +24,7 @@ export function buildSettingsFromDraft({
   initialSettings: AppSettings;
   keybindings: KeybindingOverrides;
   blockFormatDefaults: BlockFormatDefaults;
+  blockStylePresetGroups?: BlockStylePresetGroup[];
   blockStylePresets?: BlockStylePreset[];
   values: SettingsFormValues;
 }): AppSettings {
@@ -30,6 +35,8 @@ export function buildSettingsFromDraft({
     uiLocale: values.uiLocale,
     keybindings,
     blockFormatDefaults,
+    blockStylePresetGroups:
+      blockStylePresetGroups ?? initialSettings.blockStylePresetGroups ?? [],
     blockStylePresets:
       blockStylePresets ?? initialSettings.blockStylePresets ?? [],
     modelProvider: values.modelProvider,

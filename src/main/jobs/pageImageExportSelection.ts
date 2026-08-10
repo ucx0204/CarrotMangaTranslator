@@ -5,6 +5,13 @@ import type {
 import type { ChapterSnapshot, MangaPage } from "../../shared/libraryTypes";
 import type { PageImageExportRepository } from "./pageImageExportPorts";
 import { tMain } from "./localization";
+import {
+  createPageJobTargetSnapshot,
+  createPageRevision,
+} from "../../shared/pageRevision";
+import type { PageImageExportPreflightResult } from "../../shared/pageImageExportTypes";
+import type { PageImageExportPreflightIssue } from "../../shared/pageImageExportTypes";
+import { buildPageImageExportRelativePath } from "./pageImageExportNaming";
 
 type ResolvedExportPage = {
   page: MangaPage;
@@ -56,7 +63,147 @@ export async function resolvePageImageExportSelection(
   if (pageCount === 0) {
     throw new Error(tMain("export.noPages"));
   }
+  assertExpectedExportTargets(request, chapters);
   return { workTitle: work.title, chapters, pageCount };
+}
+
+export async function preflightPageImageExport(
+  request: PageImageExportRequest,
+  repository: PageImageExportRepository,
+): Promise<PageImageExportPreflightResult> {
+  const resolved = await resolvePageImageExportSelection(
+    { ...request, expectedTargets: undefined },
+    repository,
+  );
+  const firstChapter = resolved.chapters[0];
+  const firstPage = firstChapter?.pages[0];
+  if (!firstChapter || !firstPage) {
+    throw new Error(tMain("export.noPages"));
+  }
+  const issues = resolved.chapters.flatMap((chapter) =>
+    chapter.pages.flatMap(({ page }) =>
+      buildPageExportIssues(chapter.chapter, page, request.omitText === true),
+    ),
+  );
+  return {
+    workTitle: resolved.workTitle,
+    chapterCount: resolved.chapters.length,
+    pageCount: resolved.pageCount,
+    sampleRelativePath: buildPageImageExportRelativePath({
+      chapterIndex: firstChapter.chapterIndex,
+      chapterTitle: firstChapter.chapter.title,
+      pageIndex: firstPage.pageIndex,
+      pageName: firstPage.page.name,
+    }),
+    outputPolicy: "new-timestamped-folder",
+    issues,
+    targets: resolved.chapters.flatMap(({ chapter, pages }) =>
+      pages.map(({ page }) => createPageJobTargetSnapshot(chapter.id, page)),
+    ),
+  };
+}
+
+function assertExpectedExportTargets(
+  request: PageImageExportRequest,
+  chapters: ResolvedExportChapter[],
+): void {
+  if (!request.expectedTargets) return;
+  const expected = new Map(
+    request.expectedTargets.map((target) => [
+      `${target.chapterId}:${target.pageId}`,
+      target.revision,
+    ]),
+  );
+  const selectedPages = chapters.flatMap(({ chapter, pages }) =>
+    pages.map(({ page }) => ({ chapterId: chapter.id, page })),
+  );
+  if (expected.size !== selectedPages.length) {
+    throw new Error(
+      "출력 범위가 사전 점검 후 변경되었습니다. 다시 확인해 주세요.",
+    );
+  }
+  for (const { chapterId, page } of selectedPages) {
+    const revision = expected.get(`${chapterId}:${page.id}`);
+    if (!revision || revision !== createPageRevision(page)) {
+      throw new Error(
+        "페이지가 사전 점검 후 변경되었습니다. 출력 전 확인을 다시 실행해 주세요.",
+      );
+    }
+  }
+}
+
+function buildPageExportIssues(
+  chapter: ChapterSnapshot,
+  page: MangaPage,
+  omitText: boolean,
+): PageImageExportPreflightResult["issues"] {
+  const base = {
+    chapterId: chapter.id,
+    chapterTitle: chapter.title,
+    pageId: page.id,
+    pageName: page.name,
+  };
+  const issues: PageImageExportPreflightResult["issues"] = [];
+  const pageIssues = [
+    resolveTranslationIssue(page, omitText),
+    resolvePostprocessIssue(page, omitText),
+    resolveEmptyTranslationIssue(page, omitText),
+  ];
+  for (const issue of pageIssues) {
+    if (issue) issues.push({ ...base, ...issue });
+  }
+  return issues;
+}
+
+type ExportIssueSummary = Pick<
+  PageImageExportPreflightIssue,
+  "code" | "severity"
+>;
+
+function resolveTranslationIssue(
+  page: MangaPage,
+  omitText: boolean,
+): ExportIssueSummary | null {
+  if (page.analysisStatus === "running") {
+    return { code: "job-running", severity: "warning" };
+  }
+  if (omitText) return null;
+  if (
+    page.analysisStatus === "failed" ||
+    page.translationCompletion?.status === "failed"
+  ) {
+    return { code: "translation-failed", severity: "warning" };
+  }
+  return page.analysisStatus === "completed"
+    ? null
+    : { code: "translation-pending", severity: "warning" };
+}
+
+function resolvePostprocessIssue(
+  page: MangaPage,
+  omitText: boolean,
+): ExportIssueSummary | null {
+  if (omitText) {
+    return page.inpaintedImagePath
+      ? null
+      : { code: "inpainted-image-missing", severity: "warning" };
+  }
+  return page.translationCompletion &&
+    page.translationCompletion.status !== "completed"
+    ? { code: "postprocess-pending", severity: "warning" }
+    : null;
+}
+
+function resolveEmptyTranslationIssue(
+  page: MangaPage,
+  omitText: boolean,
+): ExportIssueSummary | null {
+  const isEmpty =
+    page.blocks.length > 0 &&
+    page.blocks.every((block) => block.translatedText.trim().length === 0);
+  return !omitText && isEmpty
+    ? { code: "empty-translation", severity: "info" }
+    : null;
 }
 
 async function resolveSelectedChapters({

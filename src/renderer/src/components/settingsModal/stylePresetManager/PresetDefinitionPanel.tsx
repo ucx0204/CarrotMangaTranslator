@@ -8,19 +8,24 @@ import {
 import {
   MAX_BLOCK_STYLE_PRESET_NAME_LENGTH,
   type BlockStylePreset,
+  type BlockStylePresetGroup,
 } from "../../../../../shared/blockStylePresets";
 import type { GatherTextDirectFormatValues } from "../../../lib/gatherTextDirectFormatModel";
 import { BlockFormatPreviewStage } from "../../blockFormat/BlockFormatPreview";
 import { CheckboxField } from "../../ui/CheckboxField";
+import { Select } from "../../ui/Select";
+import { toast } from "../../../lib/toastStore";
 
 export type PresetFontDetail = { cssFamily: string; label: string };
 
 export function PresetDefinitionPanel({
   fontDetails,
+  groups,
   preset,
   onPatch,
 }: {
   fontDetails: ReadonlyMap<string, PresetFontDetail>;
+  groups: BlockStylePresetGroup[];
   preset: BlockStylePreset;
   onPatch: (patch: Partial<BlockStylePreset>) => void;
 }): React.JSX.Element {
@@ -38,6 +43,25 @@ export function PresetDefinitionPanel({
             const name = event.target.value.trim();
             onPatch({ name: name || t("stylePresets.untitled") });
           }}
+        />
+        <Select
+          ariaLabel={t("stylePresets.group")}
+          value={preset.groupId ?? "__ungrouped__"}
+          options={[
+            {
+              value: "__ungrouped__",
+              label: t("stylePresets.ungrouped"),
+            },
+            ...groups.map((group) => ({
+              value: group.id,
+              label: group.name,
+            })),
+          ]}
+          onValueChange={(groupId) =>
+            onPatch({
+              groupId: groupId === "__ungrouped__" ? undefined : groupId,
+            })
+          }
         />
       </div>
       <PresetAppearancePreview preset={preset} />
@@ -80,15 +104,16 @@ function PresetProperty({
       <input
         type="checkbox"
         checked={enabled}
-        onChange={(event) =>
+        onChange={(event) => {
+          const checked = event.target.checked;
+          if (!checked && preset.groupIds.length === 1) {
+            toast.warn(t("stylePresets.minimumGroupRequired"));
+            return;
+          }
           onPatch({
-            groupIds: updateSelectedGroups(
-              preset.groupIds,
-              groupId,
-              event.target.checked,
-            ),
-          })
-        }
+            groupIds: updateSelectedGroups(preset.groupIds, groupId, checked),
+          });
+        }}
       />
       <span className="style-preset-property-label">
         {t(`formatBatch.groups.${groupId}`)}

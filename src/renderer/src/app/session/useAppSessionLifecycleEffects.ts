@@ -46,7 +46,7 @@ export function useAppSessionLifecycleEffects({
   const reportedJobIdRef = useRef<string | null>(null);
   const previousPageIdRef = useRef(selectedPageId);
   const refreshStartedRef = useRef(false);
-  const runInitialLibraryRefresh = useEventCallback(() => {
+  const refreshLibraryState = useEventCallback(() => {
     void refreshLibrary();
   });
   const notifyPageChange = useEventCallback(onPageChange);
@@ -69,8 +69,8 @@ export function useAppSessionLifecycleEffects({
       return;
     }
     refreshStartedRef.current = true;
-    runInitialLibraryRefresh();
-  }, [runInitialLibraryRefresh]);
+    refreshLibraryState();
+  }, [refreshLibraryState]);
 
   useEffect(() => {
     setRegionSelection(null);
@@ -94,12 +94,24 @@ export function useAppSessionLifecycleEffects({
     const flowJustFinished =
       prevFlowActiveRef.current && !translationFlowActive;
     prevFlowActiveRef.current = translationFlowActive;
+    if (
+      isTerminalStatus(next) &&
+      !translationFlowActive &&
+      (previous !== next || flowJustFinished)
+    ) {
+      refreshLibraryState();
+    }
     if (previous === next && !(flowJustFinished && isTerminalStatus(next))) {
       return;
     }
     prevJobStatusRef.current = next;
     notifyJobStatusChange();
-  }, [jobStatus, notifyJobStatusChange, translationFlowActive]);
+  }, [
+    jobStatus,
+    notifyJobStatusChange,
+    refreshLibraryState,
+    translationFlowActive,
+  ]);
 }
 
 function isTerminalStatus(status: JobState["status"]): boolean {

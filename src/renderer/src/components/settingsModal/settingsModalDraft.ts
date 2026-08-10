@@ -1,8 +1,10 @@
 import React from "react";
 import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../../../../shared/blockFormat";
 import {
+  cloneBlockStylePresetGroups,
   cloneBlockStylePresets,
   type BlockStylePreset,
+  type BlockStylePresetGroup,
 } from "../../../../shared/blockStylePresets";
 import type { KeybindingOverrides } from "../../../../shared/shortcutSettings";
 import type {
@@ -23,6 +25,7 @@ import type { useSettingsFormState } from "./useSettingsFormState";
 
 export function useSettingsSubmission({
   blockFormatDefaults,
+  blockStylePresetGroups,
   blockStylePresets,
   form,
   initialSettings,
@@ -31,6 +34,7 @@ export function useSettingsSubmission({
   onSubmit,
 }: {
   blockFormatDefaults: BlockFormatDefaults;
+  blockStylePresetGroups: BlockStylePresetGroup[];
   blockStylePresets: BlockStylePreset[];
   form: ReturnType<typeof useSettingsFormState>;
   initialSettings: AppSettings;
@@ -61,12 +65,14 @@ export function useSettingsSubmission({
             initialSettings,
             keybindings,
             blockFormatDefaults,
+            blockStylePresetGroups,
             blockStylePresets,
             values: form.values,
           })
         : null,
     [
       blockFormatDefaults,
+      blockStylePresetGroups,
       blockStylePresets,
       draft,
       form.values,
@@ -84,12 +90,14 @@ export function useSettingsSubmission({
 
 export function useSettingsDraftDirty({
   blockFormatDefaults,
+  blockStylePresetGroups,
   blockStylePresets,
   formValues,
   initialSettings,
   keybindings,
 }: {
   blockFormatDefaults: BlockFormatDefaults;
+  blockStylePresetGroups: BlockStylePresetGroup[];
   blockStylePresets: BlockStylePreset[];
   formValues: SettingsFormValues;
   initialSettings: AppSettings;
@@ -99,6 +107,7 @@ export function useSettingsDraftDirty({
     () =>
       JSON.stringify({
         blockFormatDefaults,
+        blockStylePresetGroups,
         blockStylePresets,
         formValues,
         keybindings,
@@ -106,6 +115,9 @@ export function useSettingsDraftDirty({
       JSON.stringify({
         blockFormatDefaults:
           initialSettings.blockFormatDefaults ?? DEFAULT_BLOCK_FORMAT_DEFAULTS,
+        blockStylePresetGroups: cloneBlockStylePresetGroups(
+          initialSettings.blockStylePresetGroups ?? [],
+        ),
         blockStylePresets: cloneBlockStylePresets(
           initialSettings.blockStylePresets ?? [],
         ),
@@ -114,12 +126,30 @@ export function useSettingsDraftDirty({
       }),
     [
       blockFormatDefaults,
+      blockStylePresetGroups,
       blockStylePresets,
       formValues,
       initialSettings,
       keybindings,
     ],
   );
+}
+
+export function useBlockStylePresetGroupsDraft(
+  initialSettings: AppSettings,
+): [
+  BlockStylePresetGroup[],
+  React.Dispatch<React.SetStateAction<BlockStylePresetGroup[]>>,
+] {
+  const [groups, setGroups] = React.useState<BlockStylePresetGroup[]>(() =>
+    cloneBlockStylePresetGroups(initialSettings.blockStylePresetGroups ?? []),
+  );
+  React.useEffect(() => {
+    setGroups(
+      cloneBlockStylePresetGroups(initialSettings.blockStylePresetGroups ?? []),
+    );
+  }, [initialSettings]);
+  return [groups, setGroups];
 }
 
 export function useBlockStylePresetsDraft(

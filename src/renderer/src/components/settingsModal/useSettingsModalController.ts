@@ -5,6 +5,7 @@ import type { SettingsModalViewProps } from "./SettingsModalView";
 import type { SettingsTabId } from "../settingsModalTypes";
 import {
   useBlockFormatDefaultsDraft,
+  useBlockStylePresetGroupsDraft,
   useBlockStylePresetsDraft,
   useKeybindingsDraft,
   useSettingsDraftDirty,
@@ -47,6 +48,7 @@ export function useSettingsModalController({
   });
   const submission = useSettingsSubmission({
     blockFormatDefaults: state.blockFormatDefaults,
+    blockStylePresetGroups: state.blockStylePresetGroups,
     blockStylePresets: state.blockStylePresets,
     form: state.form,
     initialSettings: state.draftSettings,
@@ -62,6 +64,11 @@ export function useSettingsModalController({
     modelProvider: state.form.values.modelProvider,
     setTestState: state.test.setTestState,
   });
+  const activeFormatPreset = state.activeFormatPresetId
+    ? state.blockStylePresets.find(
+        (preset) => preset.id === state.activeFormatPresetId,
+      )
+    : undefined;
   return buildSettingsModalViewProps({
     activeTab: state.activeTab,
     canSubmit: submission.canSubmit,
@@ -69,14 +76,21 @@ export function useSettingsModalController({
     defaultsPreviewActive: state.defaultsPreviewActive,
     draft: submission.draft,
     form: state.form,
+    formatPanelTitle: activeFormatPreset
+      ? t("stylePresets.editorTitle", { name: activeFormatPreset.name })
+      : t("settings.tabs.format"),
     formatPanelProps: {
+      activePresetId: state.activeFormatPresetId,
       bubbleLayoutPaddingRatio: state.form.values.bubbleLayoutPaddingRatio,
       value: state.blockFormatDefaults,
       stylePresets: state.blockStylePresets,
+      stylePresetGroups: state.blockStylePresetGroups,
+      onActivePresetChange: state.setActiveFormatPresetId,
       onBubbleLayoutPaddingRatioChange:
         state.form.setters.setBubbleLayoutPaddingRatio,
       onChange: state.updateBlockFormatDefaults,
       onStylePresetsChange: state.setBlockStylePresets,
+      onStylePresetGroupsChange: state.setBlockStylePresetGroups,
     },
     jobActive,
     keybindings: state.keybindings,
@@ -105,6 +119,9 @@ function useSettingsControllerState({
   "busy" | "initialSettings" | "onDirtyChange" | "onReset"
 >) {
   const [activeTab, setActiveTab] = React.useState<SettingsTabId>("general");
+  const [activeFormatPresetId, setActiveFormatPresetId] = React.useState<
+    string | null
+  >(null);
   const [defaultsPreviewActive, setDefaultsPreviewActive] =
     React.useState(false);
   const [draftSettings, setDraftSettings] = React.useState(initialSettings);
@@ -114,6 +131,9 @@ function useSettingsControllerState({
     useBlockFormatDefaultsDraft(draftSettings);
   const [blockStylePresets, setBlockStylePresets] =
     useBlockStylePresetsDraft(draftSettings);
+  const [blockStylePresetGroups, setBlockStylePresetGroups] =
+    useBlockStylePresetGroupsDraft(draftSettings);
+  useClearMissingActiveFormatPreset(blockStylePresets, setActiveFormatPresetId);
   const form = useSettingsFormState(draftSettings);
   const test = useSettingsTestState(draftSettings, form.refs.testLogRef);
   const localActions = useSettingsLocalModelActions({
@@ -131,22 +151,23 @@ function useSettingsControllerState({
   });
   const isDirty = useSettingsDraftDirty({
     blockFormatDefaults,
+    blockStylePresetGroups,
     blockStylePresets,
     formValues: form.values,
     initialSettings,
     keybindings,
   });
   React.useEffect(() => onDirtyChange?.(isDirty), [isDirty, onDirtyChange]);
-  const resetDraft = React.useCallback(async () => {
-    const defaults = await onReset();
-    if (defaults) {
-      setDraftSettings(defaults);
-      setDefaultsPreviewActive(true);
-    }
-  }, [onReset]);
+  const resetDraft = useSettingsDraftReset(
+    onReset,
+    setDraftSettings,
+    setDefaultsPreviewActive,
+  );
   return {
+    activeFormatPresetId,
     activeTab,
     blockFormatDefaults,
+    blockStylePresetGroups,
     blockStylePresets,
     controlsBusy,
     defaultsPreviewActive,
@@ -158,9 +179,35 @@ function useSettingsControllerState({
     resetDraft,
     runtime,
     setActiveTab,
+    setActiveFormatPresetId,
     setBlockStylePresets,
+    setBlockStylePresetGroups,
     setKeybindings,
     test,
     updateBlockFormatDefaults,
   };
+}
+
+function useClearMissingActiveFormatPreset(
+  presets: ReadonlyArray<{ id: string }>,
+  setActivePresetId: React.Dispatch<React.SetStateAction<string | null>>,
+): void {
+  React.useEffect(() => {
+    setActivePresetId((current) =>
+      current && !presets.some(({ id }) => id === current) ? null : current,
+    );
+  }, [presets, setActivePresetId]);
+}
+
+function useSettingsDraftReset(
+  onReset: SettingsModalControllerInput["onReset"],
+  setDraftSettings: React.Dispatch<React.SetStateAction<AppSettings>>,
+  setDefaultsPreviewActive: React.Dispatch<React.SetStateAction<boolean>>,
+): () => Promise<void> {
+  return React.useCallback(async () => {
+    const defaults = await onReset();
+    if (!defaults) return;
+    setDraftSettings(defaults);
+    setDefaultsPreviewActive(true);
+  }, [onReset, setDefaultsPreviewActive, setDraftSettings]);
 }

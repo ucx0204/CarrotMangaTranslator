@@ -93,8 +93,7 @@ function usePanelCommandHandler(
 ): (command: PanelCommand) => void {
   const actions = translation.blockEditingActions;
   const busy =
-    inpainting.inpaintingBridge.contextValue.jobActive ||
-    chapter.uiState.translationFlowActive ||
+    chapter.derivedState.selectedPageEditLocked ||
     translation.workspaceHistory.busy;
   const selectedBlockId = chapter.derivedState.selectedBlock?.id ?? null;
   const selectWorkspaceTool = chapter.uiState.selectWorkspaceTool;

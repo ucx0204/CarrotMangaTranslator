@@ -5,6 +5,9 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
   createBlockStylePreset,
+  createBlockStylePresetGroup,
+  detachUnknownStylePresetGroups,
+  normalizeBlockStylePresetGroups,
   normalizeBlockStylePresets,
   resolveBlockStylePresetPatch,
   summarizeBlockStylePresets,
@@ -112,6 +115,59 @@ describe("block style preset model", () => {
         ],
       }).success,
     ).toBe(false);
+  });
+
+  it("persists optional two-level groups and safely ungroups orphaned presets", () => {
+    const defaults = resolveDefaultAppSettings();
+    const group = createBlockStylePresetGroup({
+      id: "style-preset-group:action",
+      name: " 액션만화 ",
+    });
+    const preset = createBlockStylePreset({
+      block: makeBlock("block-a"),
+      groupId: group.id,
+      groupIds: ["color"],
+      id: "style-preset:action-sfx",
+      name: "효과음",
+    });
+    const restored = parseStoredAppSettings(
+      JSON.stringify({
+        ...defaults,
+        blockStylePresetGroups: [group],
+        blockStylePresets: [preset],
+      }),
+      defaults,
+    );
+
+    expect(restored.blockStylePresetGroups).toEqual([group]);
+    expect(restored.blockStylePresets).toEqual([preset]);
+    expect(AppSettingsSchema.safeParse(restored).success).toBe(true);
+
+    const [orphan] = detachUnknownStylePresetGroups([preset], []);
+    expect(orphan).not.toHaveProperty("groupId");
+    expect(orphan?.id).toBe(preset.id);
+  });
+
+  it("normalizes preset groups independently and leaves legacy presets ungrouped", () => {
+    expect(
+      normalizeBlockStylePresetGroups([
+        { id: "style-preset-group:romance", name: " 순정만화 " },
+        { id: "style-preset-group:romance", name: "중복" },
+        { id: "invalid group id", name: "무효" },
+      ]),
+    ).toEqual([{ id: "style-preset-group:romance", name: "순정만화" }]);
+
+    const [legacyPreset] = normalizeBlockStylePresets([
+      {
+        version: 1,
+        id: "style-preset:legacy",
+        name: "기존 프리셋",
+        pinned: false,
+        groupIds: ["color"],
+        format: { textColor: "#123456" },
+      },
+    ]);
+    expect(legacyPreset).not.toHaveProperty("groupId");
   });
 
   it("validates pop-out summaries and apply commands", () => {

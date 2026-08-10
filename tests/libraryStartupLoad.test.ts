@@ -105,6 +105,69 @@ describe("library startup load", () => {
       /보관함 파일 형식이 올바르지 않습니다/,
     );
   });
+
+  it("derives a completed summary from pages instead of trusting a stale partial flag", async () => {
+    const fixture = await createLibraryFixture(1);
+    const workId = fixture.workIds[0];
+    const chapterId = fixture.chapterIds[0];
+    if (!workId || !chapterId) {
+      throw new Error("Expected a fixture chapter");
+    }
+    const pageId = randomUUID();
+    const timestamp = "2026-01-01T00:00:00.000Z";
+    await writeJson(
+      join(
+        fixture.libraryDir,
+        "works",
+        workId,
+        "chapters",
+        chapterId,
+        "chapter.json",
+      ),
+      {
+        id: chapterId,
+        workId,
+        title: "Stale partial chapter",
+        sourceKind: "images",
+        status: "partial",
+        pageOrder: [pageId],
+        pages: [
+          {
+            id: pageId,
+            name: "001.png",
+            imagePath: join(
+              fixture.libraryDir,
+              "works",
+              workId,
+              "chapters",
+              chapterId,
+              "images",
+              "001.png",
+            ),
+            width: 1200,
+            height: 1800,
+            blocks: [],
+            analysisStatus: "completed",
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          },
+        ],
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      },
+    );
+    vi.doMock("../src/main/appPaths", () => ({
+      getAppPaths: () => ({ libraryDir: fixture.libraryDir }),
+    }));
+    const { listLibrary, openChapter } =
+      await import("../src/main/library/libraryReadFacade");
+
+    const library = await listLibrary();
+    const chapter = await openChapter(chapterId);
+
+    expect(library.works[0]?.chapters[0]?.status).toBe("completed");
+    expect(chapter.status).toBe("completed");
+  });
 });
 
 type LibraryFixture = {

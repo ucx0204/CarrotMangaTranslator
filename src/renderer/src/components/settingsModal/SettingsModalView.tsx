@@ -24,6 +24,7 @@ export type SettingsModalViewProps = {
   generalPanelProps: React.ComponentProps<typeof GeneralSettingsPanel>;
   enginePanelProps: React.ComponentProps<typeof EngineSettingsPanel>;
   hardwarePanelProps: React.ComponentProps<typeof HardwareSettingsPanel>;
+  formatPanelTitle: string;
   formatPanelProps: React.ComponentProps<typeof FormatDefaultsPanel>;
   onCancel: () => void;
   onOpenLogFolder: () => void;
@@ -53,6 +54,7 @@ export function SettingsModalView({
   generalPanelProps,
   enginePanelProps,
   hardwarePanelProps,
+  formatPanelTitle,
   formatPanelProps,
   onCancel,
   onOpenLogFolder,
@@ -99,6 +101,7 @@ export function SettingsModalView({
           generalPanelProps={generalPanelProps}
           enginePanelProps={enginePanelProps}
           hardwarePanelProps={hardwarePanelProps}
+          formatPanelTitle={formatPanelTitle}
           formatPanelProps={formatPanelProps}
           shortcutsPanelProps={shortcutsPanelProps}
           testPanelProps={testPanelProps}
@@ -163,6 +166,7 @@ function SettingsModalTabPanel({
   generalPanelProps,
   enginePanelProps,
   hardwarePanelProps,
+  formatPanelTitle,
   formatPanelProps,
   shortcutsPanelProps,
   testPanelProps,
@@ -173,6 +177,7 @@ function SettingsModalTabPanel({
   | "generalPanelProps"
   | "enginePanelProps"
   | "hardwarePanelProps"
+  | "formatPanelTitle"
   | "formatPanelProps"
   | "shortcutsPanelProps"
   | "testPanelProps"
@@ -195,7 +200,13 @@ function SettingsModalTabPanel({
       aria-labelledby={`settings-tab-${activeTab}`}
     >
       <header className="settings-panel-header">
-        <h2>{activeTabOption ? t(activeTabOption.labelKey) : null}</h2>
+        <h2>
+          {activeTab === "format"
+            ? formatPanelTitle
+            : activeTabOption
+              ? t(activeTabOption.labelKey)
+              : null}
+        </h2>
         {showApplyNote ? (
           <span className="settings-apply-badge">
             {t("settings.applyNextRun")}

@@ -70,13 +70,35 @@ describe("customizable page and block shortcut dispatch", () => {
     fireEvent.keyDown(window, { key: "n" });
     expect(pageNext).toHaveBeenCalledOnce();
   });
+
+  it("allows editing a completed page while another page job is active", () => {
+    const deleteBlock = vi.fn();
+    const translatePending = vi.fn();
+    render(
+      <ShortcutHarness
+        jobActive
+        handlers={{
+          "delete-block": deleteBlock,
+          "translate-pending": translatePending,
+        }}
+      />,
+    );
+
+    fireEvent.keyDown(window, { key: "Delete" });
+    fireEvent.keyDown(window, { key: "T", shiftKey: true });
+
+    expect(deleteBlock).toHaveBeenCalledOnce();
+    expect(translatePending).not.toHaveBeenCalled();
+  });
 });
 
 function ShortcutHarness({
   handlers,
+  jobActive = false,
   overrides = {},
 }: {
   handlers: ShortcutHandlers;
+  jobActive?: boolean;
   overrides?: KeybindingOverrides;
 }): React.JSX.Element {
   useShortcutDispatcher({
@@ -85,7 +107,8 @@ function ShortcutHarness({
       paletteOpen: false,
       helpOpen: false,
       chapterOpen: true,
-      jobActive: false,
+      editLocked: false,
+      jobActive,
       retouchToolActive: false,
       blockSelected: true,
     },

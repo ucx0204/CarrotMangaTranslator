@@ -32,6 +32,7 @@ import {
 import type { IpcContext } from "./context";
 import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
+import { createPageRevision } from "../../shared/pageRevision";
 
 function assertNoActiveJob(context: IpcContext): void {
   if (context.jobs.hasActive) {
@@ -108,6 +109,8 @@ function registerInpaintingRetouchIpc(context: IpcContext): void {
       const changeAdded = revisionStore.addChange(transactionId, {
         chapterId: request.chapterId,
         pageId: request.pageId,
+        beforeRevision: createPageRevision(page),
+        afterRevision: createPageRevision(nextPage),
         beforePath: page.inpaintedImagePath,
         afterPath: nextPage.inpaintedImagePath,
         beforeTranslationCompletion: page.translationCompletion,

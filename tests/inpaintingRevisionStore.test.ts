@@ -10,6 +10,7 @@ import type {
   TranslationCompletionReceipt,
 } from "../src/shared/libraryTypes";
 import type { InpaintingMutationMaintenance } from "../src/main/libraryStore/libraryInpaintingMutations";
+import { createPageRevision } from "../src/shared/pageRevision";
 
 const tempDirs: string[] = [];
 
@@ -76,6 +77,45 @@ describe("InpaintingRevisionStore", () => {
     expect(existsSync(paths.beforeA)).toBe(true);
     expect(existsSync(paths.afterA)).toBe(true);
     expect(existsSync(paths.afterB)).toBe(true);
+  });
+
+  it("rejects a preview redo when the page revision changed after preview", async () => {
+    const rootDir = await createTempLibrary();
+    const paths = await seedLibrary(rootDir);
+    const { InpaintingRevisionStore, library } = await loadModules(rootDir);
+    const store = new InpaintingRevisionStore();
+    const afterPage = firstPage(await library.openChapter(CHAPTER_A_ID));
+    const beforePage = {
+      ...afterPage,
+      inpaintedImagePath: paths.beforeA,
+    };
+    const transactionId = store.beginTransaction();
+    store.addChange(transactionId, {
+      chapterId: CHAPTER_A_ID,
+      pageId: PAGE_A_ID,
+      beforePath: paths.beforeA,
+      afterPath: paths.afterA,
+      beforeRevision: createPageRevision(beforePage),
+      afterRevision: createPageRevision(afterPage),
+    });
+
+    await store.applyTransaction({ transactionId, direction: "undo" });
+    const restored = firstPage(await library.openChapter(CHAPTER_A_ID));
+    await library.savePageBlocks({
+      chapterId: CHAPTER_A_ID,
+      pageId: PAGE_A_ID,
+      blocks: restored.blocks.map((block) => ({
+        ...block,
+        translatedText: "user edit after preview",
+      })),
+    });
+
+    await expect(
+      store.applyTransaction({ transactionId, direction: "redo" }),
+    ).rejects.toThrow("미리보기 생성 후 변경");
+    const current = firstPage(await library.openChapter(CHAPTER_A_ID));
+    expect(current.inpaintedImagePath).toBe(paths.beforeA);
+    expect(current.blocks[0]?.translatedText).toBe("user edit after preview");
   });
 
   it.each([

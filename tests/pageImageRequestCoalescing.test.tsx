@@ -330,6 +330,7 @@ describe("page image request coalescing", () => {
           currentChapter: chapter,
           imageRef,
           inpaintingTool: "none",
+          jobFlowActive: false,
           jobState: IDLE_JOB,
           patternMaskStrokesByPage: {},
           peekOriginal: false,

@@ -343,6 +343,7 @@
       "screenshotTooLarge": "{{name}} 页面的 PNG 结果超过安全文件大小限制。",
       "invalidScreenshot": "PNG 导出结果不是有效的 base64 或 PNG 数据。",
       "imageDimensionsChanged": "{{name}} 页面图像的尺寸在验证后发生了变化。",
+      "inpaintedImageMissing": "{{name}} 页面没有修复结果，无法无文字导出。",
       "outputDimensionsMismatch": "{{name}} 页面的输出 PNG 尺寸不匹配。（{{actual}}，预期 {{expected}}）"
     }
   },

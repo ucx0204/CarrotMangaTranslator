@@ -37,7 +37,7 @@ export function useAppSessionShortcuts({
     core.setRegionSelection(null);
     uiState.selectWorkspaceTool(tool);
   };
-  const { context, jobActive } = resolveShortcutRuntime(
+  const { context, editLocked } = resolveShortcutRuntime(
     chapter,
     translation,
     inpainting,
@@ -47,9 +47,8 @@ export function useAppSessionShortcuts({
     blocked: chapter.modalOpen,
     enabled:
       Boolean(derivedState.selectedBlock) &&
-      !derivedState.selectedPageEditLocked &&
+      !editLocked &&
       !derivedState.showingOriginalPeek &&
-      !jobActive &&
       uiState.showTextBlocks &&
       isBlockEditingTool(uiState.stageTool),
     onNudge: blockEditingActions.nudgeSelectedBlocks,
@@ -109,18 +108,22 @@ function resolveShortcutRuntime(
   chapter: ChapterSessionController,
   translation: TranslationController,
   inpainting: InpaintingController,
-): { context: ShortcutContext; jobActive: boolean } {
+): { context: ShortcutContext; editLocked: boolean } {
   const jobActive =
     inpainting.inpaintingBridge.contextValue.jobActive ||
     chapter.uiState.translationFlowActive ||
     translation.workspaceHistory.busy;
+  const editLocked =
+    chapter.derivedState.selectedPageEditLocked ||
+    translation.workspaceHistory.busy;
   return {
-    jobActive,
+    editLocked,
     context: {
       blockingModalOpen: chapter.overlayModalsOpen,
       paletteOpen: chapter.uiState.commandPaletteOpen,
       helpOpen: chapter.uiState.shortcutHelpOpen,
       chapterOpen: Boolean(chapter.core.currentChapter),
+      editLocked,
       jobActive,
       retouchToolActive: chapter.derivedState.inpaintingToolActive,
       blockSelected: Boolean(chapter.derivedState.selectedBlock),

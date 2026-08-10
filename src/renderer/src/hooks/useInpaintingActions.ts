@@ -4,19 +4,23 @@ import type {
 } from "./inpaintingActionTypes";
 import type { InpaintingPostprocessOptions } from "../../../shared/inpaintingTypes";
 import type { PageImageExportChapterSelection } from "../../../shared/pageImageExportTypes";
+import type { PageJobTargetSnapshot } from "../../../shared/pageRevision";
 import { useDrawnPatternInpaintingAction } from "./useDrawnPatternInpaintingAction";
 import { useExportPageImagesAction } from "./useExportPageImagesAction";
 import { useRevertInpaintingAction } from "./useRevertInpaintingAction";
 import { useRunBubbleLayoutAction } from "./useRunBubbleLayoutAction";
 import { useRunInpaintingAction } from "./useRunInpaintingAction";
 import { useRunInpaintingSelectionAction } from "./useRunInpaintingSelectionAction";
+import { useInpaintingPreview } from "./useInpaintingPreview";
 import type { AutoInpaintingChapterSelection } from "../lib/autoInpaintingSelection";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-type InpaintingActions = {
+export type InpaintingActions = {
   actionBusy: boolean;
   exportPageImages: (
     selections: PageImageExportChapterSelection[],
+    expectedTargets?: PageJobTargetSnapshot[],
+    options?: { omitText?: boolean },
   ) => Promise<boolean>;
   revertInpainting: (scope: InpaintingScope) => Promise<void>;
   runBubbleLayout: (blockId?: string) => Promise<void>;
@@ -26,13 +30,23 @@ type InpaintingActions = {
     selections: AutoInpaintingChapterSelection[],
     postprocess?: InpaintingPostprocessOptions,
   ) => Promise<void>;
+  preview: ReturnType<typeof useInpaintingPreview>["preview"];
+  previewBusy: boolean;
+  previewError: string | null;
+  applyPreview: () => Promise<void>;
+  discardPreview: () => Promise<void>;
 };
 
 export function useInpaintingActions(
   options: UseInpaintingActionsOptions,
 ): InpaintingActions {
   const refreshLibrary = useSerializedLibraryRefresh(options.refreshLibrary);
-  const queuedOptions = { ...options, refreshLibrary };
+  const baseOptions = { ...options, refreshLibrary };
+  const preview = useInpaintingPreview(baseOptions);
+  const queuedOptions = {
+    ...baseOptions,
+    stageInpaintingPreview: preview.stage,
+  };
   const rawActions = {
     runBubbleLayout: useRunBubbleLayoutAction(queuedOptions),
     runInpainting: useRunInpaintingAction(queuedOptions),
@@ -45,6 +59,13 @@ export function useInpaintingActions(
 
   return {
     ...exclusive,
+    actionBusy:
+      exclusive.actionBusy || preview.busy || preview.preview !== null,
+    preview: preview.preview,
+    previewBusy: preview.busy,
+    previewError: preview.error,
+    applyPreview: preview.apply,
+    discardPreview: preview.discard,
     exportPageImages,
   };
 }
@@ -66,8 +87,23 @@ function useSerializedLibraryRefresh(
 }
 
 function useExclusiveImageActions(
-  actions: Omit<InpaintingActions, "actionBusy" | "exportPageImages">,
-): Omit<InpaintingActions, "exportPageImages"> {
+  actions: Pick<
+    InpaintingActions,
+    | "runBubbleLayout"
+    | "runInpainting"
+    | "runDrawnPatternInpainting"
+    | "revertInpainting"
+    | "runInpaintingSelection"
+  >,
+): Pick<
+  InpaintingActions,
+  | "actionBusy"
+  | "runBubbleLayout"
+  | "runInpainting"
+  | "runDrawnPatternInpainting"
+  | "revertInpainting"
+  | "runInpaintingSelection"
+> {
   const busyRef = useRef(false);
   const [actionBusy, setActionBusy] = useState(false);
   const runExclusive = useCallback(async (run: () => Promise<void>) => {

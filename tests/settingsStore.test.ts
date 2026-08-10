@@ -92,6 +92,7 @@ describe("settings store", () => {
 
     expect(saved.runtimeHardware?.computeCapability).toBe(7.5);
     expect(saved.runtimeHardware?.rtxGeneration).toBe(20);
+    expect(saved.runtimeHardware?.gpuMemoryMb).toBe(8192);
     const persisted = JSON.parse(
       await readFile(paths.settingsPath, "utf8"),
     ) as {

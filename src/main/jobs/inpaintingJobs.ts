@@ -6,6 +6,7 @@ import type {
 } from "../../shared/inpaintingTypes";
 import type { JobEvent } from "../../shared/jobTypes";
 import type { ChapterSnapshot } from "../../shared/libraryTypes";
+import { createPageJobTargetSnapshot } from "../../shared/pageRevision";
 import { tMain } from "./localization";
 import {
   type InpaintingJobPage,
@@ -41,7 +42,12 @@ export async function startInpaintingJob(
     cleanup: () => completion.promise,
   });
   const emit = (event: JobEvent) =>
-    runtime.emitEvent(context.jobs, context.getMainWindow(), event);
+    runtime.emitEvent(context.jobs, context.getMainWindow(), {
+      ...event,
+      ...(state.targetSnapshots.length > 0
+        ? { targets: state.targetSnapshots }
+        : {}),
+    });
 
   try {
     const targets = await resolveInpaintingJobPages(request, state, runtime);
@@ -114,6 +120,7 @@ function createInpaintingJobState(
     blocksErased: 0,
     blocksIncomplete: 0,
     targetPageIds: new Map(),
+    targetSnapshots: [],
     ...resolveRequestedCompletionWorkflow(request),
   };
 }
@@ -184,6 +191,9 @@ function recordInpaintingTargetPages(
     const pageIds = state.targetPageIds.get(target.chapterId) ?? new Set();
     pageIds.add(target.page.id);
     state.targetPageIds.set(target.chapterId, pageIds);
+    state.targetSnapshots.push(
+      createPageJobTargetSnapshot(target.chapterId, target.page),
+    );
   }
 }
 

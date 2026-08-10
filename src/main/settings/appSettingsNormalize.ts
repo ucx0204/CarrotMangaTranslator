@@ -54,12 +54,13 @@ import {
   MAX_BUBBLE_LAYOUT_PADDING_RATIO,
   MIN_BUBBLE_LAYOUT_PADDING_RATIO,
 } from "../../shared/bubbleLayoutSettings";
-import {
-  normalizeComputeGpuIndex,
-  normalizeGraphicsGpuPreference,
-} from "../../shared/gpuSettings";
 import { migrateLegacyRemoteGenerationLimits } from "./appSettingsGenerationLimitMigration";
-import { normalizeBlockStylePresets } from "../../shared/blockStylePresets";
+import {
+  detachUnknownStylePresetGroups,
+  normalizeBlockStylePresetGroups,
+  normalizeBlockStylePresets,
+} from "../../shared/blockStylePresets";
+import { normalizeHardwareGpuSettings } from "./appSettingsHardwareNormalize";
 
 export function normalizeAppSettings(
   raw: unknown,
@@ -78,6 +79,19 @@ export function normalizeAppSettings(
     defaults,
     modelProvider,
   });
+  const blockStylePresetGroups = normalizeBlockStylePresetGroups(
+    Array.isArray(record.blockStylePresetGroups)
+      ? record.blockStylePresetGroups
+      : defaults.blockStylePresetGroups,
+  );
+  const blockStylePresets = detachUnknownStylePresetGroups(
+    normalizeBlockStylePresets(
+      Array.isArray(record.blockStylePresets)
+        ? record.blockStylePresets
+        : defaults.blockStylePresets,
+    ),
+    blockStylePresetGroups,
+  );
   return {
     modelProvider,
     hardware: normalizeHardwareGpuSettings(asRecord(record.hardware), defaults),
@@ -99,30 +113,11 @@ export function normalizeAppSettings(
       asRecord(record.blockFormatDefaults),
       defaults,
     ),
-    blockStylePresets: normalizeBlockStylePresets(
-      Array.isArray(record.blockStylePresets)
-        ? record.blockStylePresets
-        : defaults.blockStylePresets,
-    ),
+    blockStylePresets,
+    blockStylePresetGroups,
     keybindings: normalizeKeybindings(record.keybindings, defaults),
     maxTokens: resolveMaxTokens(record.maxTokens, limitFallbacks.maxTokens),
     ctx: resolveContextTokens(record.ctx, limitFallbacks.contextTokens),
-  };
-}
-
-function normalizeHardwareGpuSettings(
-  hardware: Record<string, unknown> | null,
-  defaults: AppSettings,
-): NonNullable<AppSettings["hardware"]> {
-  const computeGpuIndex =
-    normalizeComputeGpuIndex(hardware?.computeGpuIndex) ??
-    normalizeComputeGpuIndex(defaults.hardware?.computeGpuIndex);
-  return {
-    graphicsGpuPreference: normalizeGraphicsGpuPreference(
-      hardware?.graphicsGpuPreference,
-      normalizeGraphicsGpuPreference(defaults.hardware?.graphicsGpuPreference),
-    ),
-    ...(computeGpuIndex === undefined ? {} : { computeGpuIndex }),
   };
 }
 

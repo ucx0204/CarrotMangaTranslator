@@ -343,6 +343,7 @@
       "screenshotTooLarge": "{{name}} 페이지의 PNG 결과가 안전한 파일 크기를 초과합니다.",
       "invalidScreenshot": "PNG 내보내기 결과가 올바른 base64 또는 PNG 데이터가 아닙니다.",
       "imageDimensionsChanged": "{{name}} 페이지 이미지의 크기가 검사 후 변경되었습니다.",
+      "inpaintedImageMissing": "{{name}} 페이지에 인페인팅 결과가 없어 글자 없이 출력할 수 없습니다.",
       "outputDimensionsMismatch": "{{name}} 페이지의 출력 PNG 크기가 일치하지 않습니다. ({{actual}}, 예상 {{expected}})"
     }
   },

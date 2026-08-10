@@ -7,10 +7,9 @@ import { formatErrorMessage } from "../lib/errorPresentation";
 import { markChapterPagesRunning } from "../lib/chapterSync";
 import type { NotificationPort } from "../lib/notificationPort";
 import type { ChapterRunSelection } from "../lib/translationSelection";
-import {
-  runSelectionsSequentially,
-  type ExecuteAnalysisJob,
-  type RunAnalysisOutcome,
+import type {
+  ExecuteAnalysisJob,
+  RunAnalysisOutcome,
 } from "./translationFlowHelpers";
 import type {
   RunAnalysisMode,
@@ -24,16 +23,13 @@ import {
   refreshLibraryWithWarning,
   reportRefreshLibraryFailure,
   resolveStartOutcome,
-  runSecondTranslationPass,
   startingJobState,
 } from "./translationActionUtils";
-import { runWorkContextAnalysis } from "./translationWorkContextFlow";
 import { useRunAnalysisAction } from "./useRunAnalysisAction";
 import { useTranslateSelectedRegionAction } from "./useTranslateSelectedRegionAction";
-import { runTranslationFlowAction } from "./translationBubbleLayoutWorkflow";
-import { resolveTranslationCompletionOptions } from "./translationBubbleLayoutWorkflowSupport";
+import { hashTranslationBlocks } from "../../../shared/blockFingerprint";
+import { useRunTranslationFlowAction } from "./useRunTranslationFlowAction";
 
-type FlowActiveRef = MutableRefObject<boolean>;
 type AnalysisJob = Parameters<ExecuteAnalysisJob>[0];
 type StartResult = Awaited<ReturnType<typeof mangaGateway.startAnalysis>>;
 type AnalysisJobContext = Pick<
@@ -60,18 +56,18 @@ export function useTranslationActionsImpl(
 ): TranslationActions {
   const flowActiveRef = useRef(false);
   const executeAnalysisJob = useExecuteAnalysisJob(options, notificationPort);
-  const runTranslationFlow = useRunTranslationFlowAction({
+  const rawRunTranslationFlow = useRunTranslationFlowAction({
     ...options,
     executeAnalysisJob,
     flowActiveRef,
     notificationPort,
   });
-  const runAnalysis = useRunAnalysisAction({
+  const rawRunAnalysis = useRunAnalysisAction({
     currentChapter: options.currentChapter,
     executeAnalysisJob,
     flowActiveRef,
     jobActive: options.jobActive,
-    runTranslationFlow,
+    runTranslationFlow: rawRunTranslationFlow,
     translationWorkflowDefault:
       options.translationWorkflowDefault ?? "cumulative",
     analysisScopeDefault: options.analysisScopeDefault ?? "missing",
@@ -79,12 +75,141 @@ export function useTranslationActionsImpl(
     autoFontMatchingDefault: options.autoFontMatchingDefault ?? false,
     naturalTextLayoutDefault: options.naturalTextLayoutDefault ?? true,
   });
+  const runAnalysis = useCheckpointedRunAnalysis(rawRunAnalysis, options);
+  const runTranslationFlow = useCheckpointedTranslationFlow(
+    rawRunTranslationFlow,
+    options,
+  );
   const translateSelectedRegion = useTranslateSelectedRegionAction(
     options,
     notificationPort,
   );
 
   return { runAnalysis, runTranslationFlow, translateSelectedRegion };
+}
+
+function useCheckpointedRunAnalysis(
+  runAnalysis: TranslationActions["runAnalysis"],
+  options: UseTranslationActionsOptions,
+): TranslationActions["runAnalysis"] {
+  const { t } = useTranslation("renderer");
+  return useCallback(
+    async (...args: Parameters<TranslationActions["runAnalysis"]>) => {
+      const before = options.currentChapterRef.current;
+      const pageIds = before
+        ? resolveDirectCheckpointPageIds(before, args[0], args[1], args[2])
+        : [];
+      const outcome = await runAnalysis(...args);
+      recordTranslationCheckpoint({ before, pageIds, options, t });
+      return outcome;
+    },
+    [options, runAnalysis, t],
+  );
+}
+
+function useCheckpointedTranslationFlow(
+  runTranslationFlow: TranslationActions["runTranslationFlow"],
+  options: UseTranslationActionsOptions,
+): TranslationActions["runTranslationFlow"] {
+  const { t } = useTranslation("renderer");
+  return useCallback(
+    async (flowOptions: TranslationFlowOptions) => {
+      const before = options.currentChapterRef.current;
+      const pageIds = before
+        ? resolveFlowCheckpointPageIds(before, flowOptions.selection)
+        : [];
+      const outcome = await runTranslationFlow(flowOptions);
+      recordTranslationCheckpoint({ before, pageIds, options, t });
+      return outcome;
+    },
+    [options, runTranslationFlow, t],
+  );
+}
+
+function recordTranslationCheckpoint({
+  before,
+  options,
+  pageIds,
+  t,
+}: {
+  before: ChapterSnapshot | null;
+  options: UseTranslationActionsOptions;
+  pageIds: string[];
+  t: TFunction<"renderer">;
+}): void {
+  const after = options.currentChapterRef.current;
+  if (
+    !before ||
+    !after ||
+    before.id !== after.id ||
+    pageIds.length === 0 ||
+    !options.recordTranslationCheckpoint ||
+    !checkpointBlocksChanged(before, after, pageIds)
+  ) {
+    return;
+  }
+  const retranslation = pageIds.some(
+    (pageId) =>
+      (before.pages.find((page) => page.id === pageId)?.blocks.length ?? 0) > 0,
+  );
+  options.recordTranslationCheckpoint({
+    before,
+    after,
+    pageIds,
+    label: t(
+      retranslation
+        ? "workspaceHistory.retranslationCheckpoint"
+        : "workspaceHistory.translationCheckpoint",
+    ),
+  });
+}
+
+function checkpointBlocksChanged(
+  before: ChapterSnapshot,
+  after: ChapterSnapshot,
+  pageIds: string[],
+): boolean {
+  const afterPages = new Map(after.pages.map((page) => [page.id, page]));
+  return pageIds.some((pageId) => {
+    const beforePage = before.pages.find((page) => page.id === pageId);
+    const afterPage = afterPages.get(pageId);
+    return Boolean(
+      beforePage &&
+      afterPage &&
+      hashTranslationBlocks(beforePage.blocks) !==
+        hashTranslationBlocks(afterPage.blocks),
+    );
+  });
+}
+
+function resolveDirectCheckpointPageIds(
+  chapter: ChapterSnapshot,
+  runMode: RunAnalysisMode,
+  pageId?: string,
+  chapterId?: string,
+): string[] {
+  if (chapterId && chapterId !== chapter.id) return [];
+  if (runMode === "single-page") return pageId ? [pageId] : [];
+  if (runMode === "page-set") return pageId ? [pageId] : [];
+  if (runMode === "all") return [...chapter.pageOrder];
+  return chapter.pages
+    .filter((page) => page.analysisStatus !== "completed")
+    .map((page) => page.id);
+}
+
+function resolveFlowCheckpointPageIds(
+  chapter: ChapterSnapshot,
+  selections: ChapterRunSelection[],
+): string[] {
+  const selection = selections.find(
+    (candidate) => candidate.chapterId === chapter.id,
+  );
+  if (!selection) return [];
+  if (selection.mode === "page-set") return [...selection.pageIds];
+  if (selection.mode === "all") return [...chapter.pageOrder];
+  return chapter.pages
+    .filter((page) => page.analysisStatus !== "completed")
+    .map((page) => page.id);
 }
 
 function useExecuteAnalysisJob(
@@ -247,168 +372,4 @@ function markOpenChapterRunning({
   );
   currentChapterRef.current = optimisticChapter;
   setCurrentChapter(optimisticChapter);
-}
-
-function useRunTranslationFlowAction({
-  clearPageImageCache,
-  clearRetouchHistory,
-  currentChapter,
-  executeAnalysisJob,
-  flowCancellationRef,
-  flowActiveRef,
-  jobActive,
-  mergeLiveChapter,
-  naturalTextLayoutDefault,
-  pushStatus,
-  refreshLibrary,
-  recordImageEdit,
-  saveNow,
-  setFlowActive,
-  setShowBlockChrome,
-  setJobState,
-  notificationPort,
-}: UseTranslationActionsOptions & {
-  executeAnalysisJob: ExecuteAnalysisJob;
-  flowActiveRef: FlowActiveRef;
-  notificationPort: NotificationPort;
-}): TranslationActions["runTranslationFlow"] {
-  const { t } = useTranslation("renderer");
-  return useCallback(
-    (options: TranslationFlowOptions) =>
-      runTranslationFlowAction(options, {
-        clearPageImageCache,
-        clearRetouchHistory,
-        currentChapter,
-        flowCancellationRef,
-        flowActiveRef,
-        jobActive,
-        mergeLiveChapter,
-        naturalTextLayoutDefault,
-        notificationPort,
-        pushStatus,
-        recordImageEdit,
-        refreshLibrary,
-        saveNow,
-        setFlowActive,
-        setShowBlockChrome,
-        setJobState,
-        t,
-        runPasses: (selection, analysisScope) =>
-          runTranslationFlowPasses({
-            selection,
-            executeAnalysisJob,
-            options: { ...options, analysisScope },
-            pushStatus,
-            refreshLibrary,
-            setJobState,
-            t,
-            notificationPort,
-            isCancellationRequested: () =>
-              flowCancellationRef?.current === true,
-          }),
-      }),
-    [
-      currentChapter,
-      clearPageImageCache,
-      clearRetouchHistory,
-      executeAnalysisJob,
-      flowCancellationRef,
-      flowActiveRef,
-      jobActive,
-      mergeLiveChapter,
-      naturalTextLayoutDefault,
-      notificationPort,
-      pushStatus,
-      refreshLibrary,
-      recordImageEdit,
-      saveNow,
-      setFlowActive,
-      setShowBlockChrome,
-      setJobState,
-      t,
-    ],
-  );
-}
-
-async function runTranslationFlowPasses({
-  selection,
-  executeAnalysisJob,
-  options,
-  pushStatus,
-  refreshLibrary,
-  setJobState,
-  t,
-  notificationPort,
-  isCancellationRequested,
-}: {
-  selection: ChapterRunSelection;
-  executeAnalysisJob: ExecuteAnalysisJob;
-  options: TranslationFlowOptions;
-  pushStatus: UseTranslationActionsOptions["pushStatus"];
-  refreshLibrary: UseTranslationActionsOptions["refreshLibrary"];
-  setJobState: UseTranslationActionsOptions["setJobState"];
-  t: TFunction<"renderer">;
-  notificationPort: NotificationPort;
-  isCancellationRequested: () => boolean;
-}): Promise<RunAnalysisOutcome> {
-  // Bubble layout is resolved only after inpainting, against a render region
-  // that can be much larger than the OCR bbox. Baking hard line breaks before
-  // that step would preserve stale narrow-bbox wrapping inside the final
-  // shape-aware layout, so let the Bubble renderer own wrapping in this
-  // combined workflow.
-  const completion = resolveTranslationCompletionOptions(options);
-  const completionWorkflow = completion.eraseOriginal
-    ? completion.bubbleLayout
-      ? ("bubble-layout" as const)
-      : ("erase-original" as const)
-    : undefined;
-  const naturalTextLayout = completion.bubbleLayout
-    ? undefined
-    : options.naturalTextLayout;
-  const pass1 = await runSelectionsSequentially(
-    executeAnalysisJob,
-    [selection],
-    pushStatus,
-    t("translation.flow.firstPass"),
-    options.blockMode,
-    options.workflowMode === "cumulative",
-    naturalTextLayout,
-    options.autoFontMatching,
-    t,
-    completionWorkflow,
-    true,
-  );
-  if (pass1 !== "completed") {
-    return pass1;
-  }
-  if (isCancellationRequested()) return "cancelled";
-  if (options.workflowMode !== "two-pass") {
-    return "completed";
-  }
-  const contextOutcome = await runWorkContextAnalysis({
-    analysisScope: options.analysisScope,
-    chapterId: selection.chapterId,
-    pushStatus,
-    refreshLibrary,
-    setJobState,
-    t,
-    notificationPort,
-    deferTerminalFailure: true,
-    isCancellationRequested,
-  });
-  if (contextOutcome !== "completed") return contextOutcome;
-  if (isCancellationRequested()) return "cancelled";
-  const pass2 = await runSecondTranslationPass(
-    executeAnalysisJob,
-    [selection],
-    pushStatus,
-    options.blockMode,
-    naturalTextLayout,
-    options.autoFontMatching,
-    t,
-    notificationPort,
-    completionWorkflow,
-    true,
-  );
-  return pass2;
 }

@@ -6,7 +6,7 @@ import {
 } from "../src/main/appSettings";
 
 describe("Apple Silicon OCR compatibility", () => {
-  it("keeps the 16 GiB Japanese default off the unsupported tiny recognizer", () => {
+  it("uses economy as the lowest recommended mode for 16 GiB Japanese OCR", () => {
     const settings = resolveDefaultAppSettings(
       {},
       {
@@ -20,12 +20,12 @@ describe("Apple Silicon OCR compatibility", () => {
       },
     );
 
-    const options = buildMacTranslationOptions(settings, "mac-minimum-ocr");
+    const options = buildMacTranslationOptions(settings, "mac-economy-ocr");
 
     expect(options).toMatchObject({
       sourceLanguage: "ja",
       ocrDevice: "cpu",
-      ocrQualityMode: "minimum",
+      ocrQualityMode: "economy",
       ocrBboxMode: "ocr",
       ocrEngine: "paddle_static",
       ocrVersion: "PP-OCRv6",
@@ -34,7 +34,7 @@ describe("Apple Silicon OCR compatibility", () => {
     });
   });
 
-  it("retains the tiny recognizer for a supported non-Japanese language", () => {
+  it("keeps the economy recognizer for a supported non-Japanese language", () => {
     const defaults = resolveDefaultAppSettings(
       {},
       {
@@ -53,10 +53,10 @@ describe("Apple Silicon OCR compatibility", () => {
     );
 
     expect(
-      buildMacTranslationOptions(settings, "mac-minimum-english-ocr"),
+      buildMacTranslationOptions(settings, "mac-economy-english-ocr"),
     ).toMatchObject({
       sourceLanguage: "en",
-      ocrTextRecognitionModelName: "PP-OCRv6_tiny_rec",
+      ocrTextRecognitionModelName: "PP-OCRv6_small_rec",
     });
   });
 

@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import type { PageImageExportChapterSelection } from "../../../shared/pageImageExportTypes";
+import type { PageJobTargetSnapshot } from "../../../shared/pageRevision";
 import { exportGateway as mangaGateway } from "../api/exportGateway";
 import { formatErrorMessage } from "../lib/errorPresentation";
 import {
@@ -18,10 +19,12 @@ export function useExportPageImagesAction({
   setJobState,
 }: UseInpaintingActionsOptions): (
   selections: PageImageExportChapterSelection[],
+  expectedTargets?: PageJobTargetSnapshot[],
+  options?: { omitText?: boolean },
 ) => Promise<boolean> {
   const { t } = useTranslation("renderer");
   return useCallback(
-    async (selections) => {
+    async (selections, expectedTargets, options) => {
       if (!currentChapter || jobActive || selections.length === 0) {
         return false;
       }
@@ -42,6 +45,8 @@ export function useExportPageImagesAction({
         const result = await mangaGateway.exportPageImages({
           workId: currentChapter.workId,
           selections,
+          expectedTargets,
+          ...(options?.omitText ? { omitText: true } : {}),
         });
         if (!result) {
           return false;

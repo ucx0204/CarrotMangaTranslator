@@ -1,5 +1,6 @@
 import type { TFunction } from "i18next";
 import type { MangaPage } from "../../../../shared/libraryTypes";
+import { isPageFullyCompleted } from "../../../../shared/pageCompletion";
 
 export type PageStatusMode = "translation" | "inpainting";
 export type PageListFilter =
@@ -29,15 +30,10 @@ export function resolvePageDisplayStatus(
   ) {
     return "failed";
   }
+  if (isPageFullyCompleted(page)) return "completed";
   if (page.analysisStatus === "running") return "running";
   if (page.analysisStatus !== "completed") return "pending";
-  if (
-    page.translationCompletion &&
-    page.translationCompletion.status !== "completed"
-  ) {
-    return "translation-complete";
-  }
-  return "completed";
+  return "translation-complete";
 }
 
 export function matchesPageFilter(

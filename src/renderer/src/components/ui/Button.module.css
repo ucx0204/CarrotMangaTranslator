@@ -15,9 +15,9 @@
   white-space: nowrap;
   cursor: pointer;
   transition:
-    border-color 120ms ease,
-    background 120ms ease,
-    color 120ms ease;
+    border-color var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard);
 }
 
 .button:hover:not(:disabled) {

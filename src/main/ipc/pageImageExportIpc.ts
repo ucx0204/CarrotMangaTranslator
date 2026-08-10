@@ -4,7 +4,10 @@ import {
   PageImageExportRequestSchema,
   parseIpcPayload,
 } from "../../shared/ipcSchemas";
-import type { PageImageExportResult } from "../../shared/pageImageExportTypes";
+import type {
+  PageImageExportPreflightResult,
+  PageImageExportResult,
+} from "../../shared/pageImageExportTypes";
 import {
   assertNoActivePageImageExportJob,
   exportPageImages,
@@ -18,6 +21,8 @@ import {
 import type { IpcContext } from "./context";
 import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
+import { preflightPageImageExport } from "../jobs/pageImageExportSelection";
+import { productionPageImageExportDependencies } from "../jobs/pageImageExportPorts";
 
 export type PageImageExportService = {
   assertIdle: (context: Pick<InpaintingJobContext, "jobs">) => void;
@@ -26,17 +31,43 @@ export type PageImageExportService = {
     request: Parameters<typeof exportPageImages>[1],
     outputParentDir: string,
   ) => Promise<PageImageExportResult>;
+  preflightImages?: (
+    request: Parameters<typeof preflightPageImageExport>[0],
+  ) => Promise<PageImageExportPreflightResult>;
 };
 
 const productionPageImageExportService: PageImageExportService = {
   assertIdle: assertNoActivePageImageExportJob,
   exportImages: exportPageImages,
+  preflightImages: (request) =>
+    preflightPageImageExport(
+      request,
+      productionPageImageExportDependencies.repository,
+    ),
 };
 
 export function registerPageImageExportIpc(
   context: IpcContext,
   service: PageImageExportService = productionPageImageExportService,
 ): void {
+  trustedHandleContract(
+    context,
+    pageImageExportIpcContracts.preflightPageImages,
+    async (_event, rawRequest: unknown) => {
+      const request = parseIpcPayload(
+        PageImageExportRequestSchema,
+        rawRequest,
+        tMain("ipc.labels.resultExport"),
+      );
+      const preflightImages =
+        service.preflightImages ??
+        productionPageImageExportService.preflightImages;
+      if (!preflightImages) {
+        throw new Error("Page image export preflight is unavailable.");
+      }
+      return preflightImages({ ...request, expectedTargets: undefined });
+    },
+  );
   trustedHandleContract(
     context,
     pageImageExportIpcContracts.exportPageImages,

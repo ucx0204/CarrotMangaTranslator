@@ -173,17 +173,43 @@ function attachRuntimeHardware(
 ): AppSettings {
   return {
     ...settings,
-    runtimeHardware: {
-      gpuVendor: normalizeRuntimeGpuVendor(detectedGpu?.vendor),
-      gpuName: detectedGpu?.name ?? null,
-      computeCapability: resolveRuntimeComputeCapability(detectedGpu),
-      rtxGeneration: resolveRuntimeRtxGeneration(detectedGpu),
-      llamaRocmTarget: resolveAmdRocmTargetFromInfo(detectedGpu),
-      supportsRocm: detectedGpu?.supportsRocm ?? false,
-      supportsVulkan: detectedGpu?.supportsVulkan ?? false,
-      supportsMetal: detectedGpu?.supportsMetal ?? false,
-      unifiedMemoryMb: detectedGpu?.unifiedMemoryMb ?? null,
-    },
+    runtimeHardware: detectedGpu
+      ? createDetectedRuntimeHardware(detectedGpu)
+      : createUnknownRuntimeHardware(),
+  };
+}
+
+function createDetectedRuntimeHardware(
+  detectedGpu: DetectedGpuInfo,
+): NonNullable<AppSettings["runtimeHardware"]> {
+  return {
+    gpuVendor: normalizeRuntimeGpuVendor(detectedGpu.vendor),
+    gpuName: detectedGpu.name,
+    gpuMemoryMb: detectedGpu.memoryMb,
+    computeCapability: resolveRuntimeComputeCapability(detectedGpu),
+    rtxGeneration: resolveRuntimeRtxGeneration(detectedGpu),
+    llamaRocmTarget: resolveAmdRocmTargetFromInfo(detectedGpu),
+    supportsRocm: Boolean(detectedGpu.supportsRocm),
+    supportsVulkan: Boolean(detectedGpu.supportsVulkan),
+    supportsMetal: Boolean(detectedGpu.supportsMetal),
+    unifiedMemoryMb: detectedGpu.unifiedMemoryMb,
+  };
+}
+
+function createUnknownRuntimeHardware(): NonNullable<
+  AppSettings["runtimeHardware"]
+> {
+  return {
+    gpuVendor: "unknown",
+    gpuName: null,
+    gpuMemoryMb: null,
+    computeCapability: null,
+    rtxGeneration: null,
+    llamaRocmTarget: null,
+    supportsRocm: false,
+    supportsVulkan: false,
+    supportsMetal: false,
+    unifiedMemoryMb: null,
   };
 }
 

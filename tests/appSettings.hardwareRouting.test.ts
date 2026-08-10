@@ -12,6 +12,35 @@ import type { AppSettings } from "../src/shared/settingsTypes";
 const describeWindows = process.platform === "win32" ? describe : describe.skip;
 
 describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
+  it("defaults supported 4GB and 8GB NVIDIA GPUs to full OCR", () => {
+    const fourGbDefaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "NVIDIA GeForce RTX 3050",
+        memoryMb: 4096,
+        rtxGeneration: 30,
+        computeCapability: 8.6,
+        vendor: "nvidia",
+      },
+    );
+    const belowFloorDefaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "NVIDIA GPU",
+        memoryMb: 4095,
+        rtxGeneration: 30,
+        computeCapability: 8.6,
+        vendor: "nvidia",
+      },
+    );
+
+    expect(fourGbDefaults.modelProvider).toBe("openai-codex");
+    expect(fourGbDefaults.ocr.device).toBe("gpu");
+    expect(fourGbDefaults.ocr.qualityMode).toBe("full");
+    expect(belowFloorDefaults.ocr.device).toBe("gpu");
+    expect(belowFloorDefaults.ocr.qualityMode).toBe("economy");
+  });
+
   it("routes RTX 50 series Gemma runtimes to CUDA 13 builds", () => {
     const rtx50EconomyDefaults = resolveDefaultAppSettings(
       {},
@@ -577,6 +606,8 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
     });
 
     expect(sm75Defaults.inpainting?.fluxBackend).toBe("cuda-sm75-experimental");
+    expect(sm75Defaults.ocr.device).toBe("gpu");
+    expect(sm75Defaults.ocr.qualityMode).toBe("full");
     expect(
       parseStoredAppSettings(standardRaw, sm75Defaults).inpainting?.fluxBackend,
     ).toBe("cuda-sm75-experimental");

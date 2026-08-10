@@ -64,6 +64,7 @@ export async function startAnalysisJob(
     resolved: null,
     pageIds: [],
     runPaths: null,
+    targetSnapshots: [],
   };
   const lifetime = createJobLifetimeCleanupBoundary();
   context.jobs.start({
@@ -73,7 +74,12 @@ export async function startAnalysisJob(
     cleanup: lifetime.cleanup,
   });
   const emit = (event: JobEvent) =>
-    emitJobEvent(context.jobs, context.getMainWindow(), event);
+    emitJobEvent(context.jobs, context.getMainWindow(), {
+      ...event,
+      ...(state.targetSnapshots && state.targetSnapshots.length > 0
+        ? { targets: state.targetSnapshots }
+        : {}),
+    });
 
   try {
     const requestedPageId =

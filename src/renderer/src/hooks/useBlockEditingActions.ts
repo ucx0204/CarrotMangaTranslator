@@ -170,14 +170,14 @@ function useRemoveSelectedBlockBubbleLayoutAction({
 }
 
 function useToggleBlockInpaintExcludedAction({
-  jobActive,
   selectedPage,
+  selectedPageEditLocked,
   updateCurrentChapter,
 }: UseBlockEditingActionsOptions): BlockEditingActions["toggleBlockInpaintExcluded"] {
   const { t } = useTranslation("renderer");
   return useCallback(
     (blockId: string) => {
-      if (!selectedPage || jobActive) {
+      if (!selectedPage || selectedPageEditLocked) {
         return;
       }
       updateCurrentChapter(
@@ -201,7 +201,7 @@ function useToggleBlockInpaintExcludedAction({
         { label: t("workspaceHistory.exclusion") },
       );
     },
-    [jobActive, selectedPage, t, updateCurrentChapter],
+    [selectedPage, selectedPageEditLocked, t, updateCurrentChapter],
   );
 }
 

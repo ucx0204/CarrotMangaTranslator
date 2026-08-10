@@ -4,6 +4,7 @@ import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { LibraryChapter, LibraryWork } from "../src/shared/libraryTypes";
+import { createPageJobTargetSnapshot } from "../src/shared/pageRevision";
 
 const tempDirs: string[] = [];
 
@@ -63,6 +64,47 @@ describe("inpainting artifact cleanup", () => {
       status: "completed",
     });
     expect(saved.status).toBe("completed");
+  });
+
+  it("rejects a stale inpainting result after the target page changes", async () => {
+    const rootDir = await createTempLibrary();
+    const library = await loadLibrary(rootDir);
+    await seedLibrary(rootDir);
+    const chapter = await library.openChapter("chapter-a");
+    const originalPage = firstPage(chapter);
+    const expectedTarget = createPageJobTargetSnapshot(
+      chapter.id,
+      originalPage,
+    );
+    const inpaintedDir = join(
+      rootDir,
+      "works",
+      "work-1",
+      "chapters",
+      chapter.id,
+      "inpainted",
+    );
+    const interveningPath = join(inpaintedDir, "intervening.png");
+    const staleResultPath = join(inpaintedDir, "stale-result.png");
+    await mkdir(inpaintedDir, { recursive: true });
+    await writeFile(interveningPath, "newer");
+    await writeFile(staleResultPath, "stale");
+    await library.setPageInpaintingResult(
+      chapter.id,
+      originalPage.id,
+      interveningPath,
+    );
+
+    await expect(
+      library.updatePagesAfterInpainting(
+        chapter.id,
+        [{ ...originalPage, inpaintedImagePath: staleResultPath }],
+        { expectedTargets: [expectedTarget] },
+      ),
+    ).rejects.toThrow(/오래된 인페인팅 결과/);
+
+    const reopened = await library.openChapter(chapter.id);
+    expect(firstPage(reopened).inpaintedImagePath).toBe(interveningPath);
   });
 
   it("removes the previous same-page inpainted artifact after replacement", async () => {

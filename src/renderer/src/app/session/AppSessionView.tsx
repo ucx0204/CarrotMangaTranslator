@@ -9,6 +9,7 @@ import { GatherTextModal } from "../../components/GatherTextModal";
 import { ExportOptionsModal } from "../../components/ExportOptionsModal";
 import { AutoInpaintingOptionsModal } from "../../components/AutoInpaintingOptionsModal";
 import { PageRetranslateModal } from "../../components/PageRetranslateModal";
+import { InpaintingPreviewModal } from "../../components/InpaintingPreviewModal";
 import { ShortcutHelp } from "../../components/ShortcutHelp";
 import { StyleGuideModal } from "../../components/StyleGuideModal";
 import { TranslationOptionsModal } from "../../components/TranslationOptionsModal";
@@ -32,6 +33,9 @@ export type AppSessionViewProps = {
   commandPaletteProps: React.ComponentProps<typeof CommandPalette>;
   exportOptionsProps: React.ComponentProps<typeof ExportOptionsModal> | null;
   gatherTextProps: React.ComponentProps<typeof GatherTextModal> | null;
+  inpaintingPreviewProps: React.ComponentProps<
+    typeof InpaintingPreviewModal
+  > | null;
   modalsProps: React.ComponentProps<typeof AppModals>;
   pageRetranslateProps: React.ComponentProps<
     typeof PageRetranslateModal
@@ -52,6 +56,7 @@ export function AppSessionView({
   commandPaletteProps,
   exportOptionsProps,
   gatherTextProps,
+  inpaintingPreviewProps,
   modalsProps,
   pageRetranslateProps,
   panelSessionValue,
@@ -78,6 +83,7 @@ export function AppSessionView({
         commandPaletteProps={commandPaletteProps}
         exportOptionsProps={exportOptionsProps}
         gatherTextProps={gatherTextProps}
+        inpaintingPreviewProps={inpaintingPreviewProps}
         pageRetranslateProps={pageRetranslateProps}
         shortcutHelpProps={shortcutHelpProps}
         styleGuideProps={styleGuideProps}
@@ -92,6 +98,7 @@ function SessionFloatingOverlays({
   commandPaletteProps,
   exportOptionsProps,
   gatherTextProps,
+  inpaintingPreviewProps,
   pageRetranslateProps,
   shortcutHelpProps,
   styleGuideProps,
@@ -102,6 +109,7 @@ function SessionFloatingOverlays({
   | "commandPaletteProps"
   | "exportOptionsProps"
   | "gatherTextProps"
+  | "inpaintingPreviewProps"
   | "pageRetranslateProps"
   | "shortcutHelpProps"
   | "styleGuideProps"
@@ -120,6 +128,9 @@ function SessionFloatingOverlays({
         <ExportOptionsModal {...exportOptionsProps} />
       ) : null}
       {gatherTextProps ? <GatherTextModal {...gatherTextProps} /> : null}
+      {inpaintingPreviewProps ? (
+        <InpaintingPreviewModal {...inpaintingPreviewProps} />
+      ) : null}
       {styleGuideProps ? <StyleGuideModal {...styleGuideProps} /> : null}
       {translationOptionsProps ? (
         <TranslationOptionsModal {...translationOptionsProps} />

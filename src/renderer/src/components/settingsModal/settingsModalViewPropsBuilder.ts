@@ -21,6 +21,7 @@ type SettingsModalViewPropsInput = {
   draft: SettingsDraft;
   form: ReturnType<typeof useSettingsFormState>;
   formValid: boolean;
+  formatPanelTitle: string;
   formatPanelProps: SettingsModalViewProps["formatPanelProps"];
   jobActive: boolean;
   keybindings: KeybindingOverrides;
@@ -45,6 +46,7 @@ export function buildSettingsModalViewProps({
   draft,
   form,
   formValid,
+  formatPanelTitle,
   formatPanelProps,
   jobActive,
   keybindings,
@@ -84,6 +86,7 @@ export function buildSettingsModalViewProps({
       runtime,
       test,
     }),
+    formatPanelTitle,
     formatPanelProps,
     onCancel,
     onOpenLogFolder,
@@ -156,6 +159,8 @@ function buildHardwarePanelProps({
     clearTestState: test.clearTestState,
     computeGpuIndex: form.values.computeGpuIndex,
     controlsBusy,
+    detectedGpuName: runtime.gpuName,
+    gpuMemoryMb: runtime.gpuMemoryMb,
     fluxBackend: form.values.fluxBackend,
     graphicsGpuPreference: form.values.graphicsGpuPreference,
     allowUnsafeLowMemoryFlux: form.values.allowUnsafeLowMemoryFlux,
@@ -178,6 +183,7 @@ function buildHardwarePanelProps({
     usesNvidiaHardware: runtime.usesNvidiaHardware,
     usesNvidiaOcrContext: runtime.usesNvidiaOcrContext,
     unifiedMemoryMb: runtime.unifiedMemoryMb,
+    usesSm75Hardware: runtime.usesSm75Hardware,
   };
 }
 

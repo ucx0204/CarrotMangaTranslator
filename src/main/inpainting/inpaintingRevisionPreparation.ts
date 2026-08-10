@@ -1,4 +1,5 @@
 import type { ChapterSnapshot, MangaPage } from "../../shared/libraryTypes";
+import { createPageRevision } from "../../shared/pageRevision";
 import {
   applyInpaintingLayoutStates,
   cloneInpaintingLayoutStates,
@@ -29,40 +30,21 @@ export function prepareInpaintingPageRevision({
   change: InpaintingRevisionChange;
   direction: "undo" | "redo";
 }): PreparedInpaintingPageRevision {
-  const page = chapter.pages.find(
-    (candidate) => candidate.id === change.pageId,
-  );
-  if (!page) {
-    throw new Error("인페인팅 기록의 페이지를 찾지 못했습니다.");
-  }
+  const page = requireRevisionPage(chapter, change.pageId);
+  const expectedRevision =
+    direction === "undo" ? change.afterRevision : change.beforeRevision;
   const expectedPath =
     direction === "undo" ? change.afterPath : change.beforePath;
-  if (!sameOptionalPath(page.inpaintedImagePath, expectedPath)) {
-    throw new Error(
-      "페이지가 다른 작업으로 변경되어 인페인팅 기록을 적용할 수 없습니다.",
-    );
-  }
   const expectedLayout =
     direction === "undo" ? change.afterLayout : change.beforeLayout;
-  if (!pageMatchesInpaintingLayoutStates(page, expectedLayout)) {
-    throw new Error(
-      "페이지의 텍스트 배치가 다른 작업으로 변경되어 인페인팅 기록을 적용할 수 없습니다.",
-    );
-  }
   const expectedTranslationCompletion =
     direction === "undo"
       ? change.afterTranslationCompletion
       : change.beforeTranslationCompletion;
-  if (
-    !translationCompletionsEqual(
-      page.translationCompletion,
-      expectedTranslationCompletion,
-    )
-  ) {
-    throw new Error(
-      "페이지의 번역 완료 상태가 다른 작업으로 변경되어 인페인팅 기록을 적용할 수 없습니다.",
-    );
-  }
+  assertExpectedRevision(page, expectedRevision);
+  assertExpectedInpaintingPath(page, expectedPath);
+  assertExpectedLayout(page, expectedLayout);
+  assertExpectedCompletion(page, expectedTranslationCompletion);
   const targetPath =
     direction === "undo" ? change.beforePath : change.afterPath;
   const targetLayout =
@@ -94,6 +76,59 @@ export function prepareInpaintingPageRevision({
   };
 }
 
+function requireRevisionPage(
+  chapter: ChapterSnapshot,
+  pageId: string,
+): MangaPage {
+  const page = chapter.pages.find((candidate) => candidate.id === pageId);
+  if (!page) throw new Error("인페인팅 기록의 페이지를 찾지 못했습니다.");
+  return page;
+}
+
+function assertExpectedRevision(
+  page: MangaPage,
+  expectedRevision: InpaintingRevisionChange["beforeRevision"],
+): void {
+  if (expectedRevision && createPageRevision(page) !== expectedRevision) {
+    throw new Error(
+      "페이지가 미리보기 생성 후 변경되어 인페인팅 결과를 적용할 수 없습니다.",
+    );
+  }
+}
+
+function assertExpectedInpaintingPath(
+  page: MangaPage,
+  expectedPath: string | undefined,
+): void {
+  if (!sameOptionalPath(page.inpaintedImagePath, expectedPath)) {
+    throw new Error(
+      "페이지가 다른 작업으로 변경되어 인페인팅 기록을 적용할 수 없습니다.",
+    );
+  }
+}
+
+function assertExpectedLayout(
+  page: MangaPage,
+  expectedLayout: InpaintingBlockLayoutState[] | undefined,
+): void {
+  if (!pageMatchesInpaintingLayoutStates(page, expectedLayout)) {
+    throw new Error(
+      "페이지의 텍스트 배치가 다른 작업으로 변경되어 인페인팅 기록을 적용할 수 없습니다.",
+    );
+  }
+}
+
+function assertExpectedCompletion(
+  page: MangaPage,
+  expected: InpaintingRevisionChange["beforeTranslationCompletion"],
+): void {
+  if (!translationCompletionsEqual(page.translationCompletion, expected)) {
+    throw new Error(
+      "페이지의 번역 완료 상태가 다른 작업으로 변경되어 인페인팅 기록을 적용할 수 없습니다.",
+    );
+  }
+}
+
 export function prepareInpaintingRevertRevision({
   chapterId,
   page,
@@ -112,10 +147,18 @@ export function prepareInpaintingRevertRevision({
         status: "pending" as const,
       }
     : undefined;
+  const revertedPage: MangaPage = {
+    ...page,
+    inpaintedImagePath: undefined,
+    translationCompletion: pendingTranslationCompletion,
+    updatedAt,
+  };
   return {
     change: {
       chapterId,
       pageId: page.id,
+      beforeRevision: createPageRevision(page),
+      afterRevision: createPageRevision(revertedPage),
       beforePath: page.inpaintedImagePath,
       afterPath: undefined,
       beforeTranslationCompletion: cloneTranslationCompletion(
@@ -125,12 +168,7 @@ export function prepareInpaintingRevertRevision({
         pendingTranslationCompletion,
       ),
     },
-    revertedPage: {
-      ...page,
-      inpaintedImagePath: undefined,
-      translationCompletion: pendingTranslationCompletion,
-      updatedAt,
-    },
+    revertedPage,
   };
 }
 

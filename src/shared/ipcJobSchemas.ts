@@ -17,6 +17,7 @@ import {
   hexColor,
   uuid,
 } from "./ipcSchemaPrimitives";
+import type { PageRevision } from "./pageRevision";
 
 const JobProgressFieldsSchema = {
   phase: JobPhaseSchema.optional(),
@@ -27,6 +28,17 @@ const JobProgressFieldsSchema = {
   progressBytesPerSecond: finiteNumber.min(0).optional(),
   installLogLine: z.string().max(4000).optional(),
 };
+
+const PageJobTargetSnapshotSchema = z
+  .object({
+    chapterId: uuid,
+    pageId: uuid,
+    revision: z
+      .string()
+      .regex(/^page-v1:[0-9a-f]{16}$/)
+      .transform((value) => value as PageRevision),
+  })
+  .strict();
 
 export const JobEventSchema = z
   .object({
@@ -43,6 +55,10 @@ export const JobEventSchema = z
     pageTotal: finiteNumber.min(0).optional(),
     attempt: finiteNumber.min(0).optional(),
     attemptTotal: finiteNumber.min(0).optional(),
+    targets: z
+      .array(PageJobTargetSnapshotSchema)
+      .max(MAX_ID_LIST_LENGTH)
+      .optional(),
   })
   .strict();
 
@@ -300,6 +316,12 @@ export const PageImageExportRequestSchema = z
       .array(PageImageExportChapterSelectionSchema)
       .min(1)
       .max(MAX_ID_LIST_LENGTH),
+    expectedTargets: z
+      .array(PageJobTargetSnapshotSchema)
+      .min(1)
+      .max(MAX_ID_LIST_LENGTH)
+      .optional(),
+    omitText: z.boolean().optional(),
   })
   .strict();
 

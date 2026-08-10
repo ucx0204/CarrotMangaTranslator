@@ -23,6 +23,7 @@ import type {
   StartInpaintingResult,
 } from "./inpaintingTypes";
 import type {
+  PageImageExportPreflightResult,
   PageImageExportRequest,
   PageImageExportResult,
 } from "./pageImageExportTypes";
@@ -135,6 +136,46 @@ const pageImageExportResultSchema = z.discriminatedUnion("status", [
     .strict(),
   z.object({ status: z.literal("cancelled") }).strict(),
 ]);
+const pageImageExportPreflightResultSchema = z
+  .object({
+    workTitle: z.string().min(1).max(300),
+    chapterCount: nonNegativeInteger,
+    pageCount: nonNegativeInteger,
+    sampleRelativePath: z.string().min(1).max(800),
+    outputPolicy: z.literal("new-timestamped-folder"),
+    issues: z
+      .array(
+        z
+          .object({
+            code: z.enum([
+              "job-running",
+              "translation-failed",
+              "translation-pending",
+              "postprocess-pending",
+              "empty-translation",
+            ]),
+            severity: z.enum(["warning", "info"]),
+            chapterId: stringArg,
+            chapterTitle: z.string().min(1).max(300),
+            pageId: stringArg,
+            pageName: z.string().min(1).max(300),
+          })
+          .strict(),
+      )
+      .max(MAX_ID_LIST_LENGTH * 4),
+    targets: z
+      .array(
+        z
+          .object({
+            chapterId: stringArg,
+            pageId: stringArg,
+            revision: z.string().regex(/^page-v1:[0-9a-f]{16}$/),
+          })
+          .strict(),
+      )
+      .max(MAX_ID_LIST_LENGTH),
+  })
+  .strict();
 const disposeInpaintingResultSchema = z
   .object({ disposed: z.boolean() })
   .strict();
@@ -233,6 +274,15 @@ export const inpaintingIpcContracts = {
 } as const;
 
 export const pageImageExportIpcContracts = {
+  preflightPageImages: defineIpcContract<
+    [PageImageExportRequest],
+    PageImageExportPreflightResult
+  >({
+    apiKey: "preflightPageImages",
+    channel: "page-images:preflight",
+    args: z.tuple([PageImageExportRequestSchema]),
+    result: pageImageExportPreflightResultSchema,
+  }),
   exportPageImages: defineIpcContract<
     [PageImageExportRequest],
     PageImageExportResult | null

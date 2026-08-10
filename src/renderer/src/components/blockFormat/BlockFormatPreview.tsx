@@ -170,7 +170,7 @@ function BlockFormatPreviewHeader({
     <div className="gather-direct-preview-head">
       <div>
         <strong>{title}</strong>
-        <small>{description}</small>
+        {description ? <small>{description}</small> : null}
       </div>
       <label className="gather-direct-preview-input">
         <span>{exampleLabel}</span>

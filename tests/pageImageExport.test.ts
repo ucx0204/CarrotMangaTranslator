@@ -10,6 +10,10 @@ import {
   handlePageImageExportError,
   runPageImageExportJob,
 } from "../src/main/jobs/pageImageExportJobRunner";
+import {
+  preflightPageImageExport,
+  resolvePageImageExportSelection,
+} from "../src/main/jobs/pageImageExportSelection";
 import type {
   PageImageExportDependencies,
   PageImageExportRuntimePort,
@@ -74,6 +78,133 @@ afterEach(async () => {
 });
 
 describe("page image export behavior", () => {
+  it("rejects a page changed after preflight before export starts", async () => {
+    const chapter = makeChapter("chapter-1", "One", [
+      makePage("page-1", "001.png"),
+    ]);
+    const harness = makeDependencies(makeLibrary([chapter]), [chapter]);
+    const request = {
+      workId: "work-1",
+      selections: [{ chapterId: chapter.id, mode: "all" as const }],
+    };
+    const preflight = await preflightPageImageExport(
+      request,
+      harness.dependencies.repository,
+    );
+
+    const page = chapter.pages[0];
+    if (!page) throw new Error("test page is missing");
+    chapter.pages[0] = {
+      ...page,
+      imagePath: "source-page-1-updated.png",
+    };
+
+    await expect(
+      resolvePageImageExportSelection(
+        { ...request, expectedTargets: preflight.targets },
+        harness.dependencies.repository,
+      ),
+    ).rejects.toThrow("사전 점검 후 변경");
+  });
+
+  it("checks only inpainting readiness for textless export", async () => {
+    const translatedFailure = {
+      ...makePage("page-1", "001.png", "inpainted-page-1.png"),
+      analysisStatus: "failed" as const,
+      blocks: [
+        {
+          id: "block-1",
+          translatedText: "",
+        } as MangaPage["blocks"][number],
+      ],
+    };
+    const missingInpainting = makePage("page-2", "002.png");
+    const chapter = makeChapter("chapter-1", "One", [
+      translatedFailure,
+      missingInpainting,
+    ]);
+    const harness = makeDependencies(makeLibrary([chapter]), [chapter]);
+
+    const preflight = await preflightPageImageExport(
+      {
+        workId: "work-1",
+        selections: [{ chapterId: chapter.id, mode: "all" }],
+        omitText: true,
+      },
+      harness.dependencies.repository,
+    );
+
+    expect(preflight.issues.map((issue) => issue.code)).toEqual([
+      "inpainted-image-missing",
+    ]);
+    expect(preflight.issues[0]).toMatchObject({ pageId: "page-2" });
+  });
+
+  it("rejects textless export before creating output when inpainting is missing", async () => {
+    const outputParentDir = await makeTempDir();
+    const chapter = makeChapter("chapter-1", "One", [
+      makePage("page-1", "001.png"),
+    ]);
+    const harness = makeDependencies(makeLibrary([chapter]), [chapter]);
+
+    await expect(
+      runPageImageExportJob({
+        context: makeContext(outputParentDir),
+        request: {
+          workId: "work-1",
+          selections: [{ chapterId: chapter.id, mode: "all" }],
+          omitText: true,
+        },
+        outputParentDir,
+        id: "textless-export",
+        abortController: new AbortController(),
+        emit: vi.fn(),
+        dependencies: harness.dependencies,
+      }),
+    ).rejects.toThrow(/인페인팅|inpaint/i);
+
+    expect(await readdir(outputParentDir)).toEqual([]);
+    expect(harness.createSession).not.toHaveBeenCalled();
+    expect(harness.renderPage).not.toHaveBeenCalled();
+  });
+
+  it("removes translated blocks only from the textless export render snapshot", async () => {
+    const outputParentDir = await makeTempDir();
+    const page = {
+      ...makePage("page-1", "001.png", "inpainted-page-1.png"),
+      blocks: [
+        {
+          id: "block-1",
+          translatedText: "합성하면 안 되는 번역문",
+        } as MangaPage["blocks"][number],
+      ],
+    };
+    const chapter = makeChapter("chapter-1", "One", [page]);
+    const harness = makeDependencies(makeLibrary([chapter]), [chapter]);
+
+    await runPageImageExportJob({
+      context: makeContext(outputParentDir),
+      request: {
+        workId: "work-1",
+        selections: [{ chapterId: chapter.id, mode: "all" }],
+        omitText: true,
+      },
+      outputParentDir,
+      id: "textless-export",
+      abortController: new AbortController(),
+      emit: vi.fn(),
+      dependencies: harness.dependencies,
+    });
+
+    expect(harness.renderPage).toHaveBeenCalledOnce();
+    expect(harness.renderPage.mock.calls[0]?.[0]).toMatchObject({
+      id: page.id,
+      inpaintedImagePath: "inpainted-page-1.png",
+      blocks: [],
+    });
+    expect(page.blocks).toHaveLength(1);
+  });
+
   it("uses library order and preserves original chapter/page indexes", async () => {
     const outputParentDir = await makeTempDir();
     const chapter1 = makeChapter("chapter-1", "Chapter: One", [

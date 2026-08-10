@@ -22,6 +22,7 @@ export function createAppSessionViewProps(
     commandPaletteProps: createCommandPaletteProps(model),
     exportOptionsProps: createExportOptionsProps(model),
     gatherTextProps: createGatherTextProps(model),
+    inpaintingPreviewProps: createInpaintingPreviewProps(model),
     modalsProps: createModalsProps(model),
     pageRetranslateProps: createPageRetranslateProps(model),
     panelSessionValue: createPanelSessionValue(model),
@@ -32,6 +33,20 @@ export function createAppSessionViewProps(
     translationOptionsProps: createTranslationOptionsProps(model),
     workspaceProps: createWorkspaceProps(model),
   };
+}
+
+function createInpaintingPreviewProps({
+  inpaintingActions,
+}: AppSessionViewModel): AppSessionViewProps["inpaintingPreviewProps"] {
+  return inpaintingActions.preview
+    ? {
+        preview: inpaintingActions.preview,
+        busy: inpaintingActions.previewBusy,
+        error: inpaintingActions.previewError,
+        onApply: () => void inpaintingActions.applyPreview(),
+        onDiscard: () => void inpaintingActions.discardPreview(),
+      }
+    : null;
 }
 
 function createAutoInpaintingOptionsProps({
@@ -64,6 +79,7 @@ function createExportOptionsProps({
   core,
   derivedState,
   inpaintingActions,
+  libraryActions,
   uiState,
 }: AppSessionViewModel): AppSessionViewProps["exportOptionsProps"] {
   return uiState.exportOptionsOpen &&
@@ -75,6 +91,16 @@ function createExportOptionsProps({
         jobActive: derivedState.jobActive,
         library: core.library,
         onClose: () => uiState.setExportOptionsOpen(false),
+        onNavigateToIssue: (chapterId, pageId) => {
+          void (async () => {
+            if (core.currentChapter?.id !== chapterId) {
+              await libraryActions.openChapter(chapterId);
+            }
+            core.setSelectedPageId(pageId);
+            core.setSelectedBlockId(null);
+            uiState.setExportOptionsOpen(false);
+          })();
+        },
         onStart: inpaintingActions.exportPageImages,
       }
     : null;
@@ -229,6 +255,7 @@ function createSidebarProps({
       uiState.translationFlowActive ||
       workspaceHistory.busy,
     library: core.library,
+    lockedPageIds: derivedState.jobTargetPageIds,
     onOpenBatchImport: () =>
       void importShareActions.openImportPreview("zip-folder"),
     onOpenChapter: (chapterId) => void libraryActions.openChapter(chapterId),
@@ -295,10 +322,7 @@ function createWorkspaceProps({
     imageRef: core.imageRef,
     brushColor: uiState.inpaintingPaintColor,
     brushRadius: uiState.inpaintingBrushRadius,
-    jobActive:
-      inpaintingBridge.contextValue.jobActive ||
-      uiState.translationFlowActive ||
-      workspaceHistory.busy,
+    jobActive: derivedState.selectedPageEditLocked || workspaceHistory.busy,
     jobState: core.jobState,
     maskStrokes: derivedState.patternMaskStrokes,
     lastRetouchTool: uiState.lastRetouchTool,

@@ -225,7 +225,7 @@ export const MAX_MAX_TOKENS = 128000;
 export const DEFAULT_CONTEXT_TOKENS = DEFAULT_REMOTE_CONTEXT_TOKENS;
 export const MIN_CONTEXT_TOKENS = 1024;
 export const DEFAULT_OCR_DEVICE: OcrDevice = "cpu";
-export const DEFAULT_OCR_QUALITY_MODE: OcrQualityMode = "minimum";
+export const DEFAULT_OCR_QUALITY_MODE: OcrQualityMode = "economy";
 export const DEFAULT_OCR_GPU_CUDA_TAG = "cu126";
 export const RTX_50_OCR_GPU_CUDA_TAG = "cu129";
 

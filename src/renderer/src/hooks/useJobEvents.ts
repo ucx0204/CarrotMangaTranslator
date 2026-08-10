@@ -349,6 +349,7 @@ function buildNextJobState({
       current.attemptTotal,
       event.attemptTotal,
     ),
+    targets: event.targets ?? (sameJob ? current.targets : undefined),
   };
 }
 

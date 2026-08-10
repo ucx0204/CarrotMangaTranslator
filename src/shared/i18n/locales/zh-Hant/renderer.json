@@ -216,6 +216,8 @@
     "bubbleLayoutManual": "編輯對話框形狀",
     "removeBubbleLayout": "取消對話框適配",
     "drawnInpainting": "清除繪製區域",
+    "translationCheckpoint": "翻譯結果檢查點",
+    "retranslationCheckpoint": "重新翻譯前檢查點",
     "retouch": "手動修補",
     "resetOriginal": "重設為原圖"
   },
@@ -262,7 +264,7 @@
     "retranslate": {
       "title": "重新翻譯頁面",
       "confirm": "確定要重新翻譯嗎？",
-      "detail": "本頁現有翻譯結果和編輯內容將被覆寫。"
+      "detail": "既有結果會儲存為檢查點，並可透過工作區復原還原。"
     },
     "removePage": {
       "title": "刪除頁面",
@@ -300,6 +302,15 @@
       "startFailed": "無法開始清除繪製區域。",
       "failed": "清除繪製區域失敗。",
       "success": "繪製區域清除完成：{{pages}}頁，{{regions}}個區域"
+    },
+    "preview": {
+      "ready": "修復結果預覽已準備好。",
+      "prepareConflict": "產生結果時頁面已變更，無法準備預覽。",
+      "applyConflict": "預覽後頁面已變更，因此未套用結果。",
+      "applied": "已套用確認過的修復結果。",
+      "applyFailed": "無法套用修復預覽。",
+      "discarded": "已捨棄修復預覽，原頁面維持不變。",
+      "discardFailed": "無法清理修復預覽。"
     },
     "erase": {
       "title": "清除原文",

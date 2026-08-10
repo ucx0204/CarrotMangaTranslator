@@ -36,6 +36,7 @@ export function useChapterSessionController() {
     currentChapter: core.currentChapter,
     imageRef: core.imageRef,
     inpaintingTool: uiState.inpaintingTool,
+    jobFlowActive: uiState.jobFlowActive,
     jobState: core.jobState,
     patternMaskStrokesByPage: uiState.patternMaskStrokesByPage,
     peekOriginal: uiState.peekOriginal,

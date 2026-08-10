@@ -3,6 +3,7 @@ import type {
   LibraryIndex,
   MangaPage,
 } from "../../shared/libraryTypes";
+import type { PageRevision } from "../../shared/pageRevision";
 import type {
   SavePageBlocksRequest,
   SavePagesBlocksRequest,
@@ -143,6 +144,7 @@ export async function updatePageAfterAnalysis(
   warnings: string[],
   status: "completed" | "failed",
   expectedUpdatedAt?: string,
+  expectedRevision?: PageRevision,
 ): Promise<boolean> {
   return withLibraryMutation(() =>
     updatePageAfterAnalysisUnlocked(
@@ -151,6 +153,7 @@ export async function updatePageAfterAnalysis(
       warnings,
       status,
       expectedUpdatedAt,
+      expectedRevision,
     ),
   );
 }

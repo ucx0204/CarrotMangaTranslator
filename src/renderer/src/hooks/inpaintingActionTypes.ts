@@ -1,10 +1,21 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
-import type { InpaintingMaskStroke } from "../../../shared/inpaintingTypes";
+import type {
+  InpaintingMaskStroke,
+  StartInpaintingResult,
+} from "../../../shared/inpaintingTypes";
 import type { JobState } from "../../../shared/jobTypes";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { InpaintingTool } from "../inpainting/inpaintingTypes";
 import { formatErrorMessage } from "../lib/errorPresentation";
 import type { WorkspaceHistoryController } from "./useWorkspaceHistory";
+
+export type InpaintingPreviewStageInput = {
+  result: StartInpaintingResult;
+  afterChapter: ChapterSnapshot;
+  pageId: string;
+  label: string;
+  maskBefore?: InpaintingMaskStroke[];
+};
 
 export type InpaintingScope = "page" | "chapter";
 
@@ -41,6 +52,9 @@ export type UseInpaintingActionsOptions = {
   setPeekOriginal: Dispatch<SetStateAction<boolean>>;
   setShowBlockChrome: (visible: boolean) => void;
   workspaceHistory: Pick<WorkspaceHistoryController, "recordImageEdit">;
+  stageInpaintingPreview?: (
+    input: InpaintingPreviewStageInput,
+  ) => Promise<boolean>;
 };
 
 export function failInpaintingJob(

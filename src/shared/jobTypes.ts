@@ -4,6 +4,7 @@ import type {
   JobStatus,
   ProgressMode,
 } from "./jobContracts";
+import type { PageJobTargetSnapshot } from "./pageRevision";
 
 export type { JobPhase } from "./jobContracts";
 
@@ -27,6 +28,7 @@ export type JobState = {
   pageTotal?: number;
   attempt?: number;
   attemptTotal?: number;
+  targets?: PageJobTargetSnapshot[];
 };
 
 export type JobEvent = JobState & {

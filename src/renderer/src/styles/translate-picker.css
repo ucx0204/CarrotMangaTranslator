@@ -521,6 +521,214 @@
   color: var(--text-dim);
 }
 
+.export-options-stack {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.export-render-options {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 11px 13px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--bg-elevated) 68%, transparent);
+}
+
+.export-render-options > span {
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  line-height: 1.45;
+}
+
+.export-preflight {
+  display: grid;
+  gap: 11px;
+  padding: 13px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-lg);
+  background: color-mix(in srgb, var(--bg-sunken) 78%, transparent);
+}
+
+.export-preflight-header {
+  min-width: 0;
+}
+
+.export-preflight-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.export-preflight-header > div {
+  display: grid;
+  gap: 3px;
+}
+
+.export-preflight-header strong {
+  color: var(--text);
+  font-size: var(--font-sm);
+}
+
+.export-preflight-header span,
+.export-preflight-loading,
+.export-preflight-clear,
+.export-preflight-error {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  line-height: 1.45;
+}
+
+.export-preflight-status {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+}
+
+.export-preflight-status.ready,
+.export-preflight-clear {
+  color: var(--success-text);
+}
+
+.export-preflight-status.warning {
+  color: var(--warning-text);
+}
+
+.export-preflight-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.export-preflight-summary > span {
+  padding: 5px 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-pill);
+  background: var(--bg-elevated);
+  color: var(--text-dim);
+  font-size: var(--font-xs);
+}
+
+.export-preflight-sample {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+}
+
+.export-preflight-sample > span {
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+}
+
+.export-preflight-sample > code {
+  min-width: 0;
+  overflow: hidden;
+  padding: 6px 8px;
+  border-radius: var(--r-sm);
+  background: #101217;
+  color: var(--text-dim);
+  font-size: var(--font-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.export-preflight-issues {
+  display: grid;
+  gap: 3px;
+  max-height: 184px;
+  overflow-y: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.export-preflight-issues > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  min-height: 38px;
+  padding: 5px 6px;
+  border-radius: var(--r-sm);
+}
+
+.export-preflight-issues > div:hover {
+  background: var(--bg-hover);
+}
+
+.export-preflight-issues > div > span:nth-child(2) {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.export-preflight-issues strong,
+.export-preflight-issues small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.export-preflight-issues strong {
+  color: var(--text-dim);
+  font-size: var(--font-xs);
+}
+
+.export-preflight-issues small {
+  color: var(--text-muted);
+}
+
+.export-preflight-issues button {
+  padding: 4px 7px;
+  border: 0;
+  background: transparent;
+  color: var(--accent-hi);
+  font-size: var(--font-xs);
+}
+
+.export-preflight-issue-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.export-preflight-issue-dot.warning {
+  background: var(--warning-text);
+}
+
+.export-preflight-error {
+  display: grid;
+  gap: 3px;
+  color: var(--danger-text);
+}
+
+@media (max-width: 640px) {
+  .export-render-options {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .export-preflight-header,
+  .export-preflight-sample {
+    grid-template-columns: 1fr;
+  }
+
+  .export-preflight-header {
+    display: grid;
+  }
+
+  .export-preflight-status {
+    justify-self: start;
+  }
+}
+
 .translate-chapter-row + .translate-chapter-row {
   border-top: 1px solid var(--border-soft);
 }

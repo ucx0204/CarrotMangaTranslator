@@ -222,6 +222,8 @@
     "bubbleLayoutManual": "말풍선 모양 편집",
     "removeBubbleLayout": "말풍선 맞춤 해제",
     "drawnInpainting": "그린 영역 지우기",
+    "translationCheckpoint": "번역 결과 체크포인트",
+    "retranslationCheckpoint": "재번역 전 체크포인트",
     "retouch": "수동 보정",
     "resetOriginal": "원본으로 초기화"
   },
@@ -268,7 +270,7 @@
     "retranslate": {
       "title": "페이지 재번역",
       "confirm": "정말 재번역 하시겠습니까?",
-      "detail": "기존 번역 결과와 수정 내용이 이 페이지에서 덮어써집니다."
+      "detail": "기존 결과가 있으면 체크포인트로 보관하며 작업 공간 실행 취소로 복구할 수 있습니다."
     },
     "removePage": {
       "title": "페이지 삭제",
@@ -309,6 +311,15 @@
       "startFailed": "그린 영역 지우기를 시작하지 못했습니다.",
       "failed": "그린 영역 지우기에 실패했습니다.",
       "success": "그린 영역 지우기 완료: {{pages}}페이지, {{regions}}영역"
+    },
+    "preview": {
+      "ready": "인페인트 결과 미리보기가 준비되었습니다.",
+      "prepareConflict": "페이지가 결과 생성 중 변경되어 미리보기를 준비하지 못했습니다.",
+      "applyConflict": "페이지가 미리보기 뒤 변경되어 결과를 적용하지 않았습니다.",
+      "applied": "확인한 인페인트 결과를 적용했습니다.",
+      "applyFailed": "인페인트 미리보기를 적용하지 못했습니다.",
+      "discarded": "인페인트 미리보기를 버렸습니다. 원래 페이지는 유지됩니다.",
+      "discardFailed": "인페인트 미리보기를 정리하지 못했습니다."
     },
     "erase": {
       "title": "원문 지우기",

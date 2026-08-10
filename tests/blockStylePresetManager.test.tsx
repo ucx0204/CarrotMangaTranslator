@@ -19,7 +19,10 @@ import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../src/shared/blockFormat";
 import {
   createBlockStylePresetFromDefaults,
   type BlockStylePreset,
+  type BlockStylePresetGroup,
 } from "../src/shared/blockStylePresets";
+import { chooseCustomSelectOption } from "./testUtils/customSelect";
+import { dismissToast, getToasts } from "../src/renderer/src/lib/toastStore";
 
 const fontsContext: FontsContextValue = {
   baseOptions: [],
@@ -31,7 +34,10 @@ const fontsContext: FontsContextValue = {
   savePreferences: async () => undefined,
 };
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  getToasts().forEach((item) => dismissToast(item.id));
+});
 
 describe("block style preset manager", () => {
   it("keeps management inside the existing settings surface", () => {
@@ -46,7 +52,9 @@ describe("block style preset manager", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "프리셋 관리" }));
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(screen.getByRole("button", { name: "기본 서식" })).not.toBeNull();
+    expect(
+      screen.getByRole("button", { name: "편집 화면으로" }),
+    ).not.toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "추가" }));
     expect(screen.getByRole("option", { name: /새 프리셋/ })).not.toBeNull();
     expect(
@@ -98,6 +106,124 @@ describe("block style preset manager", () => {
       screen.getByRole("option", { name: /효과음 복사본/ }),
     ).not.toBeNull();
   });
+
+  it("expands grouped presets inline and collapses them back into one folder tab", () => {
+    const group: BlockStylePresetGroup = {
+      id: "style-preset-group:romance",
+      name: "순정만화",
+    };
+    const ungrouped = makePreset("공통 대사", "style-preset:common");
+    const grouped = {
+      ...makePreset("감정 대사", "style-preset:romance"),
+      groupId: group.id,
+    };
+    const { container } = render(
+      <ManagerHarness
+        initialGroups={[group]}
+        initialPresets={[ungrouped, grouped]}
+      />,
+    );
+
+    expect(screen.getByRole("tab", { name: "공통 대사" })).not.toBeNull();
+    expect(screen.queryByRole("tab", { name: "감정 대사" })).toBeNull();
+
+    const groupButton = screen.getByRole("button", { name: /순정만화/ });
+    expect(groupButton.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(groupButton);
+
+    const child = screen.getByRole("tab", { name: "감정 대사" });
+    expect(child.getAttribute("data-grouped")).toBe("true");
+    fireEvent.click(child);
+    expect(child.getAttribute("aria-selected")).toBe("true");
+    expect(groupButton.getAttribute("data-contains-active")).toBe("true");
+
+    fireEvent.click(groupButton);
+    expect(screen.queryByRole("tab", { name: "감정 대사" })).toBeNull();
+    expect(container.querySelector(".style-preset-group-children")).toBeNull();
+  });
+
+  it("creates groups, assigns presets, and releases a group without deleting its presets", () => {
+    render(
+      <ManagerHarness
+        initialPresets={[makePreset("효과음", "style-preset:sfx")]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "프리셋 관리" }));
+    fireEvent.click(screen.getByRole("button", { name: "그룹 추가" }));
+    const groupName = screen.getByRole("textbox", { name: "그룹 이름" });
+    expect((groupName as HTMLInputElement).value).toBe("새 그룹");
+    fireEvent.change(groupName, { target: { value: "액션만화" } });
+
+    chooseCustomSelectOption("프리셋 그룹", "액션만화");
+    fireEvent.click(screen.getByRole("button", { name: "그룹 해제" }));
+
+    expect(screen.getByRole("option", { name: /효과음/ })).not.toBeNull();
+    expect(screen.queryByRole("textbox", { name: "그룹 이름" })).toBeNull();
+    expect(
+      (
+        screen.getByRole("combobox", {
+          name: "프리셋 그룹",
+        }) as HTMLButtonElement
+      ).value,
+    ).toBe("__ungrouped__");
+  });
+
+  it("moves a preset within its visible group instead of across hidden siblings", () => {
+    const group: BlockStylePresetGroup = {
+      id: "style-preset-group:action",
+      name: "액션만화",
+    };
+    render(
+      <ManagerHarness
+        initialGroups={[group]}
+        initialPresets={[
+          {
+            ...makePreset("효과음 A", "style-preset:sfx-a"),
+            groupId: group.id,
+          },
+          makePreset("공통 대사", "style-preset:common"),
+          {
+            ...makePreset("효과음 B", "style-preset:sfx-b"),
+            groupId: group.id,
+          },
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "프리셋 관리" }));
+    fireEvent.click(screen.getByRole("option", { name: /효과음 B/ }));
+    const movePresetUp = screen
+      .getAllByRole("button", { name: "위로 이동" })
+      .find((button) => !button.hasAttribute("aria-label"));
+    expect(movePresetUp).toBeTruthy();
+    fireEvent.click(movePresetUp as HTMLButtonElement);
+
+    expect(
+      screen.getAllByRole("option").map((option) => option.textContent),
+    ).toEqual(["공통 대사", "효과음 B", "효과음 A"]);
+  });
+
+  it("prevents removing the final field in the management screen", () => {
+    const preset = createBlockStylePresetFromDefaults({
+      defaults: DEFAULT_BLOCK_FORMAT_DEFAULTS,
+      groupIds: ["color"],
+      id: "style-preset:single-field",
+      name: "단일 항목",
+      pinned: false,
+    });
+    render(<ManagerHarness initialPresets={[preset]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "프리셋 관리" }));
+    const color = screen.getByRole("checkbox", { name: /글자색/ });
+    fireEvent.click(color);
+
+    expect(color).toHaveProperty("checked", true);
+    expect(getToasts()[0]).toMatchObject({
+      variant: "warn",
+      message: "프리셋에는 최소 1개 항목을 적용해야 합니다.",
+    });
+  });
 });
 
 function makePreset(name: string, id: string): BlockStylePreset {
@@ -110,17 +236,27 @@ function makePreset(name: string, id: string): BlockStylePreset {
 }
 
 function ManagerHarness({
+  initialGroups = [],
   initialPresets,
 }: {
+  initialGroups?: BlockStylePresetGroup[];
   initialPresets: BlockStylePreset[];
 }): React.JSX.Element {
+  const [activePresetId, setActivePresetId] = React.useState<string | null>(
+    null,
+  );
+  const [groups, setGroups] = React.useState(initialGroups);
   const [presets, setPresets] = React.useState(initialPresets);
   return (
     <FontsContext.Provider value={fontsContext}>
       <BlockStylePresetManager
+        activePresetId={activePresetId}
         defaults={DEFAULT_BLOCK_FORMAT_DEFAULTS}
+        groups={groups}
         presets={presets}
+        onActivePresetChange={setActivePresetId}
         onChange={setPresets}
+        onGroupsChange={setGroups}
       />
     </FontsContext.Provider>
   );

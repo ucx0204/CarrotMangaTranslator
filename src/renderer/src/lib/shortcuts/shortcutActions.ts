@@ -56,6 +56,7 @@ export type ShortcutContext = {
   paletteOpen: boolean;
   helpOpen: boolean;
   chapterOpen: boolean;
+  editLocked: boolean;
   jobActive: boolean;
   retouchToolActive: boolean;
   blockSelected: boolean;
@@ -98,7 +99,7 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
     label: "원본 미리보기 전환",
     category: "view",
     defaultCombo: "o",
-    enabled: (c) => c.chapterOpen && !c.jobActive,
+    enabled: (c) => c.chapterOpen && !c.editLocked,
   },
   {
     id: "zoom-in",
@@ -152,28 +153,28 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
     label: "선택 도구",
     category: "tool",
     defaultCombo: "1",
-    enabled: (c) => c.chapterOpen && !c.jobActive,
+    enabled: (c) => c.chapterOpen && !c.editLocked,
   },
   {
     id: "stage-tool-block",
     label: "블록 도구 (드래그로 블록 추가)",
     category: "tool",
     defaultCombo: "2",
-    enabled: (c) => c.chapterOpen && !c.jobActive,
+    enabled: (c) => c.chapterOpen && !c.editLocked,
   },
   {
     id: "stage-tool-hand",
     label: "손바닥 도구 (드래그로 이동)",
     category: "tool",
     defaultCombo: "3",
-    enabled: (c) => c.chapterOpen && !c.jobActive,
+    enabled: (c) => c.chapterOpen,
   },
   {
     id: "toggle-stage-toolbar",
     label: "도구 모음 표시 전환",
     category: "tool",
     defaultCombo: "4",
-    enabled: (c) => c.chapterOpen && !c.jobActive,
+    enabled: (c) => c.chapterOpen,
   },
   {
     id: "open-translate-options",
@@ -257,21 +258,21 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
     label: "선택한 블록 삭제",
     category: "edit",
     defaultCombo: "delete",
-    enabled: (c) => c.blockSelected && !c.jobActive,
+    enabled: (c) => c.blockSelected && !c.editLocked,
   },
   {
     id: "duplicate-block",
     label: "선택한 블록 복제",
     category: "edit",
     defaultCombo: "ctrl+d",
-    enabled: (c) => c.blockSelected && !c.jobActive,
+    enabled: (c) => c.blockSelected && !c.editLocked,
   },
   {
     id: "toggle-block-excluded",
     label: "블록 인페인팅 제외 전환",
     category: "edit",
     defaultCombo: "x",
-    enabled: (c) => c.blockSelected && !c.jobActive,
+    enabled: (c) => c.blockSelected && !c.editLocked,
   },
   {
     id: "toggle-command-palette",

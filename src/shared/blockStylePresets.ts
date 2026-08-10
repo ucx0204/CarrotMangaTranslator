@@ -16,6 +16,8 @@ export const BLOCK_STYLE_PRESET_VERSION = 1 as const;
 export const MAX_BLOCK_STYLE_PRESETS = 100;
 export const MAX_BLOCK_STYLE_PRESET_NAME_LENGTH = 80;
 export const MAX_BLOCK_STYLE_PRESET_ID_LENGTH = 100;
+export const MAX_BLOCK_STYLE_PRESET_GROUPS = 50;
+export const MAX_BLOCK_STYLE_PRESET_GROUP_NAME_LENGTH = 60;
 
 type BlockStylePresetFormat = StoredBlockStylePresetFormat;
 
@@ -24,8 +26,14 @@ export type BlockStylePreset = {
   id: string;
   name: string;
   pinned: boolean;
+  groupId?: string;
   groupIds: BlockFormatGroupId[];
   format: BlockStylePresetFormat;
+};
+
+export type BlockStylePresetGroup = {
+  id: string;
+  name: string;
 };
 
 export type BlockStylePresetSummary = Pick<
@@ -49,6 +57,7 @@ const PRESET_ID_PATTERN = /^[a-zA-Z0-9._:-]+$/;
 export function createBlockStylePreset(input: {
   block: TranslationBlock;
   groupIds: readonly BlockFormatGroupId[];
+  groupId?: string;
   id?: string;
   name: string;
   pinned?: boolean;
@@ -59,6 +68,7 @@ export function createBlockStylePreset(input: {
     id: input.id ?? createBlockStylePresetId(),
     name: normalizePresetName(input.name) || "Preset",
     pinned: input.pinned ?? false,
+    ...(input.groupId ? { groupId: input.groupId } : {}),
     groupIds,
     format: buildBlockStylePresetFormat(input.block, groupIds),
   };
@@ -67,6 +77,7 @@ export function createBlockStylePreset(input: {
 export function createBlockStylePresetFromDefaults(input: {
   defaults: BlockFormatDefaults;
   groupIds?: readonly BlockFormatGroupId[];
+  groupId?: string;
   id?: string;
   name: string;
   pinned?: boolean;
@@ -83,6 +94,7 @@ export function createBlockStylePresetFromDefaults(input: {
     id: input.id ?? createBlockStylePresetId(),
     name: normalizePresetName(input.name) || "Preset",
     pinned: input.pinned ?? false,
+    ...(input.groupId ? { groupId: input.groupId } : {}),
     groupIds,
     format: buildDefaultsPresetFormat(input.defaults, groupIds),
   };
@@ -96,6 +108,71 @@ export function createBlockStylePresetId(): string {
   return `style-preset:${Date.now().toString(36)}:${Math.random()
     .toString(36)
     .slice(2, 10)}`;
+}
+
+export function createBlockStylePresetGroup(input: {
+  id?: string;
+  name: string;
+}): BlockStylePresetGroup {
+  return {
+    id: input.id ?? createBlockStylePresetGroupId(),
+    name:
+      normalizePresetGroupName(input.name).slice(
+        0,
+        MAX_BLOCK_STYLE_PRESET_GROUP_NAME_LENGTH,
+      ) || "Group",
+  };
+}
+
+function createBlockStylePresetGroupId(): string {
+  const randomId = globalThis.crypto?.randomUUID?.();
+  if (randomId) return `style-preset-group:${randomId}`;
+  return `style-preset-group:${Date.now().toString(36)}:${Math.random()
+    .toString(36)
+    .slice(2, 10)}`;
+}
+
+export function normalizeBlockStylePresetGroups(
+  value: unknown,
+): BlockStylePresetGroup[] {
+  if (!Array.isArray(value)) return [];
+  const groups: BlockStylePresetGroup[] = [];
+  const ids = new Set<string>();
+  for (const candidate of value.slice(0, MAX_BLOCK_STYLE_PRESET_GROUPS)) {
+    const record = asRecord(candidate);
+    const id = typeof record?.id === "string" ? record.id.trim() : "";
+    const name = normalizePresetGroupName(record?.name);
+    if (
+      !id ||
+      ids.has(id) ||
+      id.length > MAX_BLOCK_STYLE_PRESET_ID_LENGTH ||
+      !PRESET_ID_PATTERN.test(id) ||
+      !name
+    ) {
+      continue;
+    }
+    ids.add(id);
+    groups.push({ id, name });
+  }
+  return groups;
+}
+
+export function cloneBlockStylePresetGroups(
+  groups: readonly BlockStylePresetGroup[],
+): BlockStylePresetGroup[] {
+  return groups.map((group) => ({ ...group }));
+}
+
+export function detachUnknownStylePresetGroups(
+  presets: readonly BlockStylePreset[],
+  groups: readonly BlockStylePresetGroup[],
+): BlockStylePreset[] {
+  const groupIds = new Set(groups.map((group) => group.id));
+  return presets.map((preset) => {
+    if (!preset.groupId || groupIds.has(preset.groupId)) return preset;
+    const { groupId: _groupId, ...ungrouped } = preset;
+    return ungrouped;
+  });
 }
 
 export function normalizeBlockStylePresets(value: unknown): BlockStylePreset[] {
@@ -190,6 +267,9 @@ function normalizeBlockStylePreset(value: unknown): BlockStylePreset | null {
     id,
     name,
     pinned: record.pinned,
+    ...(normalizePresetGroupId(record.groupId)
+      ? { groupId: normalizePresetGroupId(record.groupId) }
+      : {}),
     groupIds,
     format: normalizePresetFormat(record.format, groupIds),
   };
@@ -198,6 +278,21 @@ function normalizeBlockStylePreset(value: unknown): BlockStylePreset | null {
 function normalizePresetName(value: unknown): string {
   return typeof value === "string"
     ? value.trim().slice(0, MAX_BLOCK_STYLE_PRESET_NAME_LENGTH)
+    : "";
+}
+
+function normalizePresetGroupName(value: unknown): string {
+  return typeof value === "string"
+    ? value.trim().slice(0, MAX_BLOCK_STYLE_PRESET_GROUP_NAME_LENGTH)
+    : "";
+}
+
+function normalizePresetGroupId(value: unknown): string {
+  if (typeof value !== "string") return "";
+  const id = value.trim();
+  return id.length <= MAX_BLOCK_STYLE_PRESET_ID_LENGTH &&
+    PRESET_ID_PATTERN.test(id)
+    ? id
     : "";
 }
 

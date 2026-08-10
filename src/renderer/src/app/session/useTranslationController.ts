@@ -3,11 +3,15 @@ import { useCurrentChapterUpdater } from "../../hooks/useCurrentChapterUpdater";
 import { useImportShareActions } from "../../hooks/useImportShareActions";
 import { usePageRetranslationAction } from "../../hooks/usePageRetranslationAction";
 import { useRegionTranslationPreparation } from "../../hooks/useRegionTranslationPreparation";
-import { useTranslationActions } from "../../hooks/useTranslationActions";
+import {
+  useTranslationActions,
+  type UseTranslationActionsOptions,
+} from "../../hooks/useTranslationActions";
 import type { ChapterSessionController } from "./useChapterSessionController";
 import { useAppSessionWorkspaceHistory } from "./useAppSessionWorkspaceHistory";
 import { useFonts } from "../../fonts/useFonts";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
+import { captureWorkspaceChapterEditSnapshot } from "../../lib/workspaceHistory";
 
 export function useTranslationController(
   chapter: ChapterSessionController,
@@ -58,9 +62,7 @@ export function useTranslationController(
     selectedBlockIds: chapter.derivedState.selectedBlockIds,
     selectedPage: chapter.derivedState.selectedPage,
     selectedPageEditLocked:
-      chapter.derivedState.selectedPageEditLocked ||
-      chapter.uiState.translationFlowActive ||
-      workspaceHistory.busy,
+      chapter.derivedState.selectedPageEditLocked || workspaceHistory.busy,
     setSelectedBlockId: chapter.core.setSelectedBlockId,
     setSelectedBlockIds: chapter.core.setSelectedBlockIds,
     updateCurrentChapter,
@@ -112,10 +114,31 @@ function useTranslationActionController(
     pushStatus: chapter.statusLog.pushStatus,
   });
   const uiDefaults = chapter.settingsDialog.settings?.ui ?? {};
+  const recordTranslationCheckpoint = useCallback<
+    NonNullable<UseTranslationActionsOptions["recordTranslationCheckpoint"]>
+  >(
+    ({ before, after, pageIds, label }) => {
+      const selection = {
+        selectedPageId: chapter.core.selectedPageId,
+        selectedBlockId: chapter.core.selectedBlockId,
+        selectedBlockIds: chapter.core.selectedBlockIds,
+      };
+      workspaceHistory.recordChapterEdit({
+        label,
+        before: captureWorkspaceChapterEditSnapshot(before, selection, pageIds),
+        after: captureWorkspaceChapterEditSnapshot(after, selection, pageIds),
+      });
+    },
+    [
+      chapter.core.selectedBlockId,
+      chapter.core.selectedBlockIds,
+      chapter.core.selectedPageId,
+      workspaceHistory,
+    ],
+  );
 
   return useTranslationActions({
     beforeTranslate: async () => {
-      workspaceHistory.reset();
       await prepareRegionTranslation();
     },
     clearPageImageCache: chapter.derivedState.clearPageImageCache,
@@ -138,6 +161,7 @@ function useTranslationActionController(
     autoFontMatchingDefault: uiDefaults.autoFontMatchingDefault ?? false,
     naturalTextLayoutDefault: uiDefaults.naturalTextLayoutDefault ?? true,
     recordImageEdit: workspaceHistory.recordImageEdit,
+    recordTranslationCheckpoint,
     setCurrentChapter: chapter.core.setCurrentChapter,
     setFlowActive: chapter.uiState.setTranslationFlowActive,
     setShowBlockChrome: chapter.uiState.setShowBlockChrome,

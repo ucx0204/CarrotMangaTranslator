@@ -20,7 +20,7 @@ describe("page block list", () => {
     const onOpenEditor = vi.fn();
     const onSelectBlock = vi.fn();
     const onUpdateBlock = vi.fn();
-    const { container } = render(
+    const { container, rerender } = render(
       <PageBlockListPanel
         disabled={false}
         page={makePage()}
@@ -42,10 +42,23 @@ describe("page block list", () => {
     expect(screen.getByText("효과음")).not.toBeNull();
     expect(screen.getByText("지우기 제외")).not.toBeNull();
 
-    fireEvent.focus(translations[1] as HTMLTextAreaElement);
+    rerender(
+      <PageBlockListPanel
+        disabled={false}
+        page={makePage()}
+        readingDirection="rtl"
+        selectedBlockId={null}
+        onOpenEditor={onOpenEditor}
+        onSelectBlock={onSelectBlock}
+        onUpdateBlock={onUpdateBlock}
+      />,
+    );
+    const unselectedTranslations =
+      screen.getAllByRole<HTMLTextAreaElement>("textbox");
+    fireEvent.focus(unselectedTranslations[1] as HTMLTextAreaElement);
     expect(onSelectBlock).toHaveBeenCalledWith("left");
     onSelectBlock.mockClear();
-    fireEvent.change(translations[1] as HTMLTextAreaElement, {
+    fireEvent.change(unselectedTranslations[1] as HTMLTextAreaElement, {
       target: { value: "직접 수정" },
     });
     expect(onUpdateBlock).toHaveBeenCalledWith("left", {

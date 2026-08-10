@@ -1,5 +1,6 @@
 import type { InpaintingMaskStroke } from "../../shared/inpaintingTypes";
 import type { TranslationCompletionWorkflow } from "../../shared/libraryTypes";
+import type { PageJobTargetSnapshot } from "../../shared/pageRevision";
 import type {
   BubbleLayoutPostprocessConfig,
   BubbleLayoutRunner,
@@ -27,6 +28,7 @@ export type InpaintingJobState = {
   blocksErased: number;
   blocksIncomplete: number;
   targetPageIds: Map<string, Set<string>>;
+  targetSnapshots: PageJobTargetSnapshot[];
   requestedCompletionWorkflow?: TranslationCompletionWorkflow;
 };
 

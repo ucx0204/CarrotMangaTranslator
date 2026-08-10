@@ -10,10 +10,67 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HardwareSettingsPanel } from "../src/renderer/src/components/settingsModal/HardwareSettingsPanel";
+import { resolveHardwareRecommendation } from "../src/renderer/src/components/settingsModal/hardwareRecommendation";
+import { OCR_FULL_RECOMMENDED_GPU_MEMORY_MB } from "../src/shared/ocrMemoryPolicy";
 
 afterEach(cleanup);
 
 describe("HardwareSettingsPanel", () => {
+  it("recommends full OCR when the detected GPU meets the measured memory floor", () => {
+    const base = {
+      unifiedMemoryMb: null,
+      usesAmdHardware: false,
+      usesAppleHardware: false,
+      usesNvidiaHardware: true,
+      usesSm75Hardware: false,
+    };
+
+    expect(
+      resolveHardwareRecommendation({ ...base, gpuMemoryMb: 24_564 })
+        .ocrQualityMode,
+    ).toBe("full");
+    expect(
+      resolveHardwareRecommendation({ ...base, gpuMemoryMb: 16_303 })
+        .ocrQualityMode,
+    ).toBe("full");
+    expect(
+      resolveHardwareRecommendation({ ...base, gpuMemoryMb: 8_192 })
+        .ocrQualityMode,
+    ).toBe("full");
+    expect(
+      resolveHardwareRecommendation({
+        ...base,
+        gpuMemoryMb: OCR_FULL_RECOMMENDED_GPU_MEMORY_MB,
+      }).ocrQualityMode,
+    ).toBe("full");
+    expect(
+      resolveHardwareRecommendation({
+        ...base,
+        gpuMemoryMb: OCR_FULL_RECOMMENDED_GPU_MEMORY_MB - 1,
+      }).ocrQualityMode,
+    ).toBe("economy");
+    expect(
+      resolveHardwareRecommendation({ ...base, gpuMemoryMb: null })
+        .ocrQualityMode,
+    ).toBe("economy");
+    expect(
+      resolveHardwareRecommendation({
+        unifiedMemoryMb: 8 * 1024,
+        usesAmdHardware: false,
+        usesAppleHardware: true,
+        usesNvidiaHardware: false,
+      }).ocrQualityMode,
+    ).toBe("economy");
+    expect(
+      resolveHardwareRecommendation({
+        unifiedMemoryMb: null,
+        usesAmdHardware: false,
+        usesAppleHardware: false,
+        usesNvidiaHardware: false,
+      }).ocrQualityMode,
+    ).toBe("economy");
+  });
+
   it("disables every Flux backend while settings controls are busy", () => {
     render(
       <HardwareSettingsPanel
