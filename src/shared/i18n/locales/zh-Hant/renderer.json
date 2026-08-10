@@ -303,15 +303,6 @@
       "failed": "清除繪製區域失敗。",
       "success": "繪製區域清除完成：{{pages}}頁，{{regions}}個區域"
     },
-    "preview": {
-      "ready": "修復結果預覽已準備好。",
-      "prepareConflict": "產生結果時頁面已變更，無法準備預覽。",
-      "applyConflict": "預覽後頁面已變更，因此未套用結果。",
-      "applied": "已套用確認過的修復結果。",
-      "applyFailed": "無法套用修復預覽。",
-      "discarded": "已捨棄修復預覽，原頁面維持不變。",
-      "discardFailed": "無法清理修復預覽。"
-    },
     "erase": {
       "title": "清除原文",
       "currentPage": "目前頁面",

@@ -1015,24 +1015,6 @@
       "retouchTitle": "修整设置",
       "autoAction": "自动清除"
     },
-    "preview": {
-      "title": "检查修复结果",
-      "pendingBadge": "应用前预览",
-      "safeOriginal": "应用此结果之前，已保存的页面不会改变。",
-      "discard": "丢弃结果",
-      "applying": "正在应用…",
-      "apply": "应用此结果",
-      "description": "比较修改前页面与生成结果，再决定是否应用。",
-      "pagesChanged": "{{count}} 页",
-      "blocksErased": "已擦除 {{count}} 个区域",
-      "before": "修改前",
-      "after": "生成结果",
-      "beforeAlt": "{{page}} 修复前",
-      "afterAlt": "{{page}} 修复生成结果",
-      "incomplete": "有 {{count}} 个区域未处理。请检查结果后再应用。",
-      "imageFailed": "无法加载比较图像。可以丢弃结果后重试。",
-      "loading": "正在加载比较图像…"
-    },
     "counts": {
       "thisPage": "本页 {{count}}",
       "remaining": "剩余 {{count}}",

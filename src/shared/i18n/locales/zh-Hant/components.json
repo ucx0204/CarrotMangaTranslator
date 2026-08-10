@@ -1015,24 +1015,6 @@
       "retouchTitle": "修整設定",
       "autoAction": "自動清除"
     },
-    "preview": {
-      "title": "檢查修復結果",
-      "pendingBadge": "套用前預覽",
-      "safeOriginal": "套用此結果之前，已儲存的頁面不會改變。",
-      "discard": "捨棄結果",
-      "applying": "正在套用…",
-      "apply": "套用此結果",
-      "description": "比較修改前頁面與產生結果，再決定是否套用。",
-      "pagesChanged": "{{count}} 頁",
-      "blocksErased": "已清除 {{count}} 個區域",
-      "before": "修改前",
-      "after": "產生結果",
-      "beforeAlt": "{{page}} 修復前",
-      "afterAlt": "{{page}} 修復產生結果",
-      "incomplete": "有 {{count}} 個區域未處理。請檢查結果後再套用。",
-      "imageFailed": "無法載入比較圖像。可以捨棄結果後重試。",
-      "loading": "正在載入比較圖像…"
-    },
     "counts": {
       "thisPage": "本頁 {{count}}",
       "remaining": "剩餘 {{count}}",

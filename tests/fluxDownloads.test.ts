@@ -8,6 +8,7 @@ import {
   downloadToFile,
   ensureRemoteFile,
 } from "../src/main/runtimeSupport/modelDownloads";
+import { readNvidiaRedistPackage } from "../src/main/inpainting/fluxAssets/downloads";
 
 const tempDirs: string[] = [];
 const TEST_MAXIMUM_BYTES = 1024 * 1024;
@@ -19,6 +20,112 @@ describe("Flux asset downloads", () => {
       const dir = tempDirs.pop();
       if (dir) await rm(dir, { force: true, recursive: true });
     }
+  });
+
+  it("accepts NVIDIA decimal-string sizes and returns pinned metadata", () => {
+    const entry = readNvidiaRedistPackage(
+      {
+        cuda_cudart: {
+          "windows-x86_64": {
+            relative_path:
+              "cuda_cudart/windows-x86_64/cuda_cudart-windows-x86_64-12.9.37-archive.zip",
+            sha256:
+              "f96afe6df898bc8510c48b44668bd9f825731efbf460f3640a922b2b8ae59ccc",
+            size: "3519893",
+          },
+        },
+      },
+      "cuda_cudart",
+      "windows-x86_64",
+    );
+
+    expect(entry).toEqual({
+      relative_path:
+        "cuda_cudart/windows-x86_64/cuda_cudart-windows-x86_64-12.9.37-archive.zip",
+      sha256:
+        "f96afe6df898bc8510c48b44668bd9f825731efbf460f3640a922b2b8ae59ccc",
+      size: 3_519_893,
+    });
+  });
+
+  it.each([676_792_208, undefined, null])(
+    "accepts compatible NVIDIA size value %s",
+    (size) => {
+      const entry = readNvidiaRedistPackage(
+        {
+          cudnn: {
+            "windows-x86_64": {
+              cuda12: {
+                relative_path:
+                  "cudnn/windows-x86_64/cudnn-windows-x86_64-9.21.0.82_cuda12-archive.zip",
+                sha256:
+                  "9c054b33f0e8f074f3b68fd446cdffe2cf875de5f01ed4541fa675e8fdd5ceed",
+                size,
+              },
+            },
+          },
+        },
+        "cudnn",
+        "windows-x86_64",
+        "cuda12",
+      );
+
+      expect(entry?.size).toBe(676_792_208);
+    },
+  );
+
+  it.each([
+    0,
+    -1,
+    1.5,
+    Number.MAX_SAFE_INTEGER + 1,
+    "",
+    "0",
+    "03519893",
+    "3519893.0",
+    "3.519893e6",
+    " 3519893 ",
+    true,
+    {},
+    [],
+  ])("rejects malformed NVIDIA manifest size %o", (size) => {
+    expect(() =>
+      readNvidiaRedistPackage(
+        {
+          cuda_cudart: {
+            "windows-x86_64": {
+              relative_path:
+                "cuda_cudart/windows-x86_64/cuda_cudart-windows-x86_64-12.9.37-archive.zip",
+              sha256:
+                "f96afe6df898bc8510c48b44668bd9f825731efbf460f3640a922b2b8ae59ccc",
+              size,
+            },
+          },
+        },
+        "cuda_cudart",
+        "windows-x86_64",
+      ),
+    ).toThrow("잘못된 파일 크기");
+  });
+
+  it("rejects a valid but unpinned NVIDIA manifest size", () => {
+    expect(() =>
+      readNvidiaRedistPackage(
+        {
+          cuda_cudart: {
+            "windows-x86_64": {
+              relative_path:
+                "cuda_cudart/windows-x86_64/cuda_cudart-windows-x86_64-12.9.37-archive.zip",
+              sha256:
+                "f96afe6df898bc8510c48b44668bd9f825731efbf460f3640a922b2b8ae59ccc",
+              size: "3519894",
+            },
+          },
+        },
+        "cuda_cudart",
+        "windows-x86_64",
+      ),
+    ).toThrow("내장 무결성 정보와 일치하지 않습니다");
   });
 
   it("loads the shared app runtime downloader and records metadata", async () => {

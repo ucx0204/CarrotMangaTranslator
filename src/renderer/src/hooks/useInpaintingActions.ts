@@ -11,7 +11,6 @@ import { useRevertInpaintingAction } from "./useRevertInpaintingAction";
 import { useRunBubbleLayoutAction } from "./useRunBubbleLayoutAction";
 import { useRunInpaintingAction } from "./useRunInpaintingAction";
 import { useRunInpaintingSelectionAction } from "./useRunInpaintingSelectionAction";
-import { useInpaintingPreview } from "./useInpaintingPreview";
 import type { AutoInpaintingChapterSelection } from "../lib/autoInpaintingSelection";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -30,11 +29,6 @@ export type InpaintingActions = {
     selections: AutoInpaintingChapterSelection[],
     postprocess?: InpaintingPostprocessOptions,
   ) => Promise<void>;
-  preview: ReturnType<typeof useInpaintingPreview>["preview"];
-  previewBusy: boolean;
-  previewError: string | null;
-  applyPreview: () => Promise<void>;
-  discardPreview: () => Promise<void>;
 };
 
 export function useInpaintingActions(
@@ -42,30 +36,19 @@ export function useInpaintingActions(
 ): InpaintingActions {
   const refreshLibrary = useSerializedLibraryRefresh(options.refreshLibrary);
   const baseOptions = { ...options, refreshLibrary };
-  const preview = useInpaintingPreview(baseOptions);
-  const queuedOptions = {
-    ...baseOptions,
-    stageInpaintingPreview: preview.stage,
-  };
   const rawActions = {
-    runBubbleLayout: useRunBubbleLayoutAction(queuedOptions),
-    runInpainting: useRunInpaintingAction(queuedOptions),
-    runDrawnPatternInpainting: useDrawnPatternInpaintingAction(queuedOptions),
-    revertInpainting: useRevertInpaintingAction(queuedOptions),
-    runInpaintingSelection: useRunInpaintingSelectionAction(queuedOptions),
+    runBubbleLayout: useRunBubbleLayoutAction(baseOptions),
+    runInpainting: useRunInpaintingAction(baseOptions),
+    runDrawnPatternInpainting: useDrawnPatternInpaintingAction(baseOptions),
+    revertInpainting: useRevertInpaintingAction(baseOptions),
+    runInpaintingSelection: useRunInpaintingSelectionAction(baseOptions),
   };
   const exclusive = useExclusiveImageActions(rawActions);
   const exportPageImages = useExportPageImagesAction(options);
 
   return {
     ...exclusive,
-    actionBusy:
-      exclusive.actionBusy || preview.busy || preview.preview !== null,
-    preview: preview.preview,
-    previewBusy: preview.busy,
-    previewError: preview.error,
-    applyPreview: preview.apply,
-    discardPreview: preview.discard,
+    actionBusy: exclusive.actionBusy,
     exportPageImages,
   };
 }

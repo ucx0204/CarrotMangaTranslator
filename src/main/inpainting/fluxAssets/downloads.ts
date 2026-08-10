@@ -38,17 +38,39 @@ type RuntimeZipModule = {
 
 let runtimeZipModule: RuntimeZipModule | null = null;
 
-const PINNED_NVIDIA_RUNTIME_SHA256: Readonly<Record<string, string>> =
-  Object.freeze({
-    "libcublas/windows-x86_64/libcublas-windows-x86_64-12.9.0.13-archive.zip":
-      "20d9c2cd3810c948b875820917b38053dacf200b23cb3b8b8a14ff3569aa1f31",
-    "cuda_cudart/windows-x86_64/cuda_cudart-windows-x86_64-12.9.37-archive.zip":
-      "f96afe6df898bc8510c48b44668bd9f825731efbf460f3640a922b2b8ae59ccc",
-    "libcurand/windows-x86_64/libcurand-windows-x86_64-10.3.10.19-archive.zip":
-      "d0411f0b8c07e90d0fb6e01bfa7a54c9cb80f2ddf67e4ded2d96a50e19aadad6",
-    "cudnn/windows-x86_64/cudnn-windows-x86_64-9.21.0.82_cuda12-archive.zip":
-      "9c054b33f0e8f074f3b68fd446cdffe2cf875de5f01ed4541fa675e8fdd5ceed",
-  });
+type PinnedNvidiaRuntimeAsset = Readonly<{
+  sha256: string;
+  size: number;
+}>;
+
+const PINNED_NVIDIA_RUNTIME_ASSETS: Readonly<
+  Record<string, PinnedNvidiaRuntimeAsset>
+> = Object.freeze({
+  "libcublas/windows-x86_64/libcublas-windows-x86_64-12.9.0.13-archive.zip":
+    Object.freeze({
+      sha256:
+        "20d9c2cd3810c948b875820917b38053dacf200b23cb3b8b8a14ff3569aa1f31",
+      size: 549_211_990,
+    }),
+  "cuda_cudart/windows-x86_64/cuda_cudart-windows-x86_64-12.9.37-archive.zip":
+    Object.freeze({
+      sha256:
+        "f96afe6df898bc8510c48b44668bd9f825731efbf460f3640a922b2b8ae59ccc",
+      size: 3_519_893,
+    }),
+  "libcurand/windows-x86_64/libcurand-windows-x86_64-10.3.10.19-archive.zip":
+    Object.freeze({
+      sha256:
+        "d0411f0b8c07e90d0fb6e01bfa7a54c9cb80f2ddf67e4ded2d96a50e19aadad6",
+      size: 67_904_600,
+    }),
+  "cudnn/windows-x86_64/cudnn-windows-x86_64-9.21.0.82_cuda12-archive.zip":
+    Object.freeze({
+      sha256:
+        "9c054b33f0e8f074f3b68fd446cdffe2cf875de5f01ed4541fa675e8fdd5ceed",
+      size: 676_792_208,
+    }),
+});
 
 export async function downloadRuntimeArchive(options: {
   downloadsDir: string;
@@ -129,18 +151,23 @@ export function readNvidiaRedistPackage(
   if (!relativePath) {
     return null;
   }
-  const size = readManifestFileSize(record.size);
+  const manifestSize = readManifestFileSize(record.size);
   const manifestSha256 = readMandatorySha256(record.sha256);
-  const pinnedSha256 = PINNED_NVIDIA_RUNTIME_SHA256[relativePath];
-  if (!pinnedSha256 || manifestSha256 !== pinnedSha256) {
+  const pinnedAsset = PINNED_NVIDIA_RUNTIME_ASSETS[relativePath];
+  if (!pinnedAsset || manifestSha256 !== pinnedAsset.sha256) {
     throw new Error(
       `NVIDIA runtime archive is not present in the built-in integrity manifest: ${relativePath}`,
     );
   }
+  if (manifestSize !== undefined && manifestSize !== pinnedAsset.size) {
+    throw new Error(
+      `NVIDIA runtime manifest 파일 크기가 내장 무결성 정보와 일치하지 않습니다: ${relativePath}`,
+    );
+  }
   return {
     relative_path: relativePath,
-    sha256: pinnedSha256,
-    ...(size === undefined ? {} : { size }),
+    sha256: pinnedAsset.sha256,
+    size: pinnedAsset.size,
   };
 }
 
@@ -158,10 +185,16 @@ function readManifestFileSize(value: unknown): number | undefined {
   if (value === undefined || value === null) {
     return undefined;
   }
-  if (!Number.isSafeInteger(value) || Number(value) <= 0) {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && /^[1-9]\d*$/.test(value)
+        ? Number(value)
+        : Number.NaN;
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
     throw new Error("NVIDIA runtime manifest에 잘못된 파일 크기가 있습니다.");
   }
-  return Number(value);
+  return parsed;
 }
 
 function asJsonRecord(value: unknown): Record<string, unknown> {

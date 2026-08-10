@@ -1038,24 +1038,6 @@
       "retouchTitle": "Retouch settings",
       "autoAction": "Auto erase"
     },
-    "preview": {
-      "title": "Review inpainting result",
-      "pendingBadge": "Preview before apply",
-      "safeOriginal": "The saved page stays unchanged until you apply this result.",
-      "discard": "Discard result",
-      "applying": "Applying…",
-      "apply": "Apply this result",
-      "description": "Compare the previous page with the generated result, then choose whether to apply it.",
-      "pagesChanged": "{{count}} page",
-      "blocksErased": "{{count}} areas erased",
-      "before": "Before",
-      "after": "Generated result",
-      "beforeAlt": "{{page}} before inpainting",
-      "afterAlt": "{{page}} generated inpainting result",
-      "incomplete": "{{count}} areas could not be processed. Review the result before applying.",
-      "imageFailed": "The comparison images could not be loaded. Discard the result and try again.",
-      "loading": "Loading comparison images…"
-    },
     "counts": {
       "thisPage": "This page {{count}}",
       "remaining": "Remaining {{count}}",

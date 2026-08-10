@@ -309,15 +309,6 @@
       "failed": "Failed to erase the painted area.",
       "success": "Painted area erased · Pages: {{pages}} · Regions: {{regions}}"
     },
-    "preview": {
-      "ready": "The inpainting preview is ready.",
-      "prepareConflict": "The page changed while the result was generated, so the preview could not be prepared.",
-      "applyConflict": "The page changed after preview; the result was not applied.",
-      "applied": "Applied the reviewed inpainting result.",
-      "applyFailed": "Could not apply the inpainting preview.",
-      "discarded": "Discarded the inpainting preview. The previous page was kept.",
-      "discardFailed": "Could not clean up the inpainting preview."
-    },
     "erase": {
       "title": "Erase source text",
       "currentPage": "current page",

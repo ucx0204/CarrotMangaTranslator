@@ -49,30 +49,14 @@ async function runSelectedInpainting(
       reportSelectionResult(cancelledSelectionResult(), options, t);
       return;
     }
-    let previewStaged = false;
     const outcome = await runInpaintingSelectionsSequentially({
       workId: options.currentChapter.workId,
       selections,
       postprocess,
       shouldCancel: () => options.flowCancellationRef?.current === true,
-      onResult: async (result, selection) => {
-        previewStaged =
-          (await applySelectionResult(result, selection, options, t)) ||
-          previewStaged;
-      },
+      onResult: (result, selection) =>
+        applySelectionResult(result, selection.chapterId, options, t),
     });
-    if (previewStaged) {
-      const message = t("inpainting.preview.ready");
-      options.setJobState({
-        id: "inpainting-preview-ready",
-        kind: "inpainting",
-        status: "completed",
-        progressText: message,
-        phase: "inpainting_done",
-      });
-      options.pushStatus(message);
-      return;
-    }
     hideEditChromeAfterBubbleLayout(outcome.status, postprocess, options);
     void refreshLibraryWithStatus(
       options.refreshLibrary,
@@ -102,33 +86,15 @@ function cancelledSelectionResult(): SequentialInpaintingResult {
   };
 }
 
-async function applySelectionResult(
+function applySelectionResult(
   result: Awaited<ReturnType<typeof mangaGateway.startInpainting>>,
-  selection: AutoInpaintingChapterSelection,
+  chapterId: string,
   options: UseInpaintingActionsOptions,
   t: TFunction<"renderer">,
-): Promise<boolean> {
+): void {
   const currentChapter = result.chapters?.find(
     (chapter) => chapter.id === options.currentChapter?.id,
   );
-  const previewPageId =
-    selection.mode === "page-set" && selection.pageIds.length === 1
-      ? selection.pageIds[0]
-      : undefined;
-  if (
-    currentChapter &&
-    previewPageId &&
-    (result.status === "completed" || result.status === "partial") &&
-    options.stageInpaintingPreview
-  ) {
-    const staged = await options.stageInpaintingPreview({
-      result,
-      afterChapter: currentChapter,
-      pageId: previewPageId,
-      label: t("workspaceHistory.autoInpainting"),
-    });
-    if (staged) return true;
-  }
   if (currentChapter) {
     options.clearRetouchHistory();
     options.clearPageImageCache();
@@ -138,10 +104,9 @@ async function applySelectionResult(
     options.workspaceHistory.recordImageEdit({
       label: t("workspaceHistory.autoInpainting"),
       transactionId: result.historyTransaction.transactionId,
-      chapterId: selection.chapterId,
+      chapterId,
     });
   }
-  return false;
 }
 
 function hideEditChromeAfterBubbleLayout(
