@@ -303,15 +303,6 @@
       "failed": "擦除绘制区域失败。",
       "success": "绘制区域擦除完成：{{pages}}页，{{regions}}个区域"
     },
-    "preview": {
-      "ready": "修复结果预览已准备好。",
-      "prepareConflict": "生成结果时页面已更改，无法准备预览。",
-      "applyConflict": "预览后页面已更改，因此未应用结果。",
-      "applied": "已应用确认过的修复结果。",
-      "applyFailed": "无法应用修复预览。",
-      "discarded": "已丢弃修复预览，原页面保持不变。",
-      "discardFailed": "无法清理修复预览。"
-    },
     "erase": {
       "title": "擦除原文",
       "currentPage": "当前页面",

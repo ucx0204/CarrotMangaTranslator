@@ -37,7 +37,6 @@ export function isFloatingOverlaySubtreeActive(props: {
   commandPaletteProps: { open: boolean };
   exportOptionsProps: unknown;
   gatherTextProps: unknown;
-  inpaintingPreviewProps?: unknown;
   pageRetranslateProps: unknown;
   shortcutHelpProps: { open: boolean };
   styleGuideProps: unknown;
@@ -48,7 +47,6 @@ export function isFloatingOverlaySubtreeActive(props: {
     props.commandPaletteProps.open ||
     props.exportOptionsProps ||
     props.gatherTextProps ||
-    props.inpaintingPreviewProps ||
     props.pageRetranslateProps ||
     props.shortcutHelpProps.open ||
     props.styleGuideProps ||

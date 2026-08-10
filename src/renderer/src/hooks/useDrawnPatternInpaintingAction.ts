@@ -48,7 +48,6 @@ async function runDrawnPatternInpainting(
     selectedPageId: selectedPage.id,
     setJobState: options.setJobState,
     setPatternMaskStrokesByPage: options.setPatternMaskStrokesByPage,
-    stageInpaintingPreview: options.stageInpaintingPreview,
     workspaceHistory: options.workspaceHistory,
     t,
   });
@@ -103,7 +102,6 @@ type DrawnInpaintingRequestContext = {
   selectedPageId: string;
   setJobState: UseInpaintingActionsOptions["setJobState"];
   setPatternMaskStrokesByPage: UseInpaintingActionsOptions["setPatternMaskStrokesByPage"];
-  stageInpaintingPreview?: UseInpaintingActionsOptions["stageInpaintingPreview"];
   workspaceHistory: UseInpaintingActionsOptions["workspaceHistory"];
   t: TFunction<"renderer">;
 };
@@ -135,19 +133,6 @@ async function handleDrawnInpaintingResult(
   result: Awaited<ReturnType<typeof mangaGateway.startInpainting>>,
   context: DrawnInpaintingRequestContext,
 ): Promise<void> {
-  const previewStaged = result.chapter
-    ? await stageDrawnPreview({
-        result,
-        selectedPageId: context.selectedPageId,
-        patternMaskStrokes: context.patternMaskStrokes,
-        stageInpaintingPreview: context.stageInpaintingPreview,
-        t: context.t,
-      })
-    : false;
-  if (previewStaged) {
-    context.pushStatus(context.t("inpainting.preview.ready"));
-    return;
-  }
   if (result.chapter) {
     context.clearRetouchHistory();
     context.clearPageImageCache();
@@ -186,35 +171,6 @@ function recordDrawnInpaintingHistory(
         result.status === "completed" ? [] : context.patternMaskStrokes,
       ),
     },
-  });
-}
-
-async function stageDrawnPreview({
-  patternMaskStrokes,
-  result,
-  selectedPageId,
-  stageInpaintingPreview,
-  t,
-}: {
-  patternMaskStrokes: UseInpaintingActionsOptions["patternMaskStrokes"];
-  result: Awaited<ReturnType<typeof mangaGateway.startInpainting>>;
-  selectedPageId: string;
-  stageInpaintingPreview?: UseInpaintingActionsOptions["stageInpaintingPreview"];
-  t: TFunction<"renderer">;
-}): Promise<boolean> {
-  if (
-    !result.chapter ||
-    !stageInpaintingPreview ||
-    (result.status !== "completed" && result.status !== "partial")
-  ) {
-    return false;
-  }
-  return stageInpaintingPreview({
-    result,
-    afterChapter: result.chapter,
-    pageId: selectedPageId,
-    label: t("workspaceHistory.drawnInpainting"),
-    maskBefore: patternMaskStrokes,
   });
 }
 

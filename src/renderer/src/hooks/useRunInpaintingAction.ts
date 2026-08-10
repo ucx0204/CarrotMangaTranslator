@@ -41,10 +41,6 @@ async function runPatternInpainting(
   if (!ready) return;
   try {
     const result = await startPatternInpainting(target, blockId);
-    if (await stagePatternPreview(result, target, scope, options, t)) {
-      options.pushStatus(t("inpainting.preview.ready"));
-      return;
-    }
     commitPatternInpaintingResult(result, options, t);
     reportPatternInpaintingResult(result, options, t);
   } catch (error) {
@@ -81,31 +77,6 @@ function startPatternInpainting(
           ...(blockId ? { blockId } : {}),
         }
       : { chapterId: target.chapterId, mode: "chapter-pattern-pending" },
-  );
-}
-
-async function stagePatternPreview(
-  result: Awaited<ReturnType<typeof mangaGateway.startInpainting>>,
-  target: InpaintingActionTarget,
-  scope: InpaintingScope,
-  options: UseInpaintingActionsOptions,
-  t: TFunction<"renderer">,
-): Promise<boolean> {
-  if (
-    scope !== "page" ||
-    !result.chapter ||
-    !target.pageId ||
-    (result.status !== "completed" && result.status !== "partial")
-  ) {
-    return false;
-  }
-  return (
-    (await options.stageInpaintingPreview?.({
-      result,
-      afterChapter: result.chapter,
-      pageId: target.pageId,
-      label: t("workspaceHistory.autoInpainting"),
-    })) ?? false
   );
 }
 

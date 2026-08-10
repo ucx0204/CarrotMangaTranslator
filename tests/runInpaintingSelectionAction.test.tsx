@@ -8,9 +8,11 @@ import type { UseInpaintingActionsOptions } from "../src/renderer/src/hooks/inpa
 
 const startInpainting = vi.fn();
 const revertInpainting = vi.fn();
+const applyInpaintingHistoryTransaction = vi.fn();
 
 beforeEach(() => {
   window.mangaApi = createTestMangaGatewayStub({
+    applyInpaintingHistoryTransaction,
     revertInpainting,
     startInpainting,
   });
@@ -86,6 +88,7 @@ afterEach(() => {
   window.mangaApi = createTestMangaGatewayStub();
   startInpainting.mockReset();
   revertInpainting.mockReset();
+  applyInpaintingHistoryTransaction.mockReset();
   vi.clearAllMocks();
 });
 
@@ -274,6 +277,67 @@ describe("useRunInpaintingSelectionAction", () => {
 });
 
 describe("useInpaintingActions refresh queue", () => {
+  it("commits sequential page results immediately without staging a result preview", async () => {
+    const options = makeOptions();
+    const secondChapter = {
+      ...makeChapter(),
+      id: "chapter-2",
+      title: "2화",
+    };
+    applyInpaintingHistoryTransaction.mockResolvedValue({
+      chapters: [makeChapter()],
+      invalidated: false,
+    });
+    startInpainting
+      .mockResolvedValueOnce({
+        status: "completed",
+        chapters: [makeChapter()],
+        pagesChanged: 1,
+        blocksErased: 1,
+        historyTransaction: { transactionId: "tx-page-1" },
+      })
+      .mockResolvedValueOnce({
+        status: "completed",
+        chapters: [secondChapter],
+        pagesChanged: 1,
+        blocksErased: 1,
+        historyTransaction: { transactionId: "tx-page-2" },
+      });
+    const { result } = renderHook(() => useInpaintingActions(options));
+
+    await act(() =>
+      result.current.runInpaintingSelection([
+        { chapterId: "chapter-1", mode: "page-set", pageIds: ["page-1"] },
+        { chapterId: "chapter-2", mode: "page-set", pageIds: ["page-2"] },
+      ]),
+    );
+
+    expect(applyInpaintingHistoryTransaction).not.toHaveBeenCalled();
+    expect(options.mergeLiveChapter).toHaveBeenCalledOnce();
+    expect(options.mergeLiveChapter).toHaveBeenCalledWith(makeChapter());
+    expect(options.workspaceHistory.recordImageEdit).toHaveBeenCalledTimes(2);
+    expect(options.workspaceHistory.recordImageEdit).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        chapterId: "chapter-1",
+        transactionId: "tx-page-1",
+      }),
+    );
+    expect(options.workspaceHistory.recordImageEdit).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        chapterId: "chapter-2",
+        transactionId: "tx-page-2",
+      }),
+    );
+    expect(options.setJobState).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        id: "inpainting-flow-completed",
+        status: "completed",
+      }),
+    );
+  });
+
   it("unlocks actions before refresh completes and serializes later refreshes", async () => {
     const firstRefresh = createVoidDeferred();
     const secondRefresh = createVoidDeferred();

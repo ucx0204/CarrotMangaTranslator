@@ -1028,24 +1028,6 @@
       "retouchTitle": "補正設定",
       "autoAction": "自動消去"
     },
-    "preview": {
-      "title": "インペイント結果を確認",
-      "pendingBadge": "適用前プレビュー",
-      "safeOriginal": "この結果を適用するまで、保存済みページは変更されません。",
-      "discard": "結果を破棄",
-      "applying": "適用中…",
-      "apply": "この結果を適用",
-      "description": "変更前と生成結果を比較してから、適用するか選択してください。",
-      "pagesChanged": "{{count}}ページ",
-      "blocksErased": "{{count}}範囲を消去",
-      "before": "変更前",
-      "after": "生成結果",
-      "beforeAlt": "{{page}}のインペイント前",
-      "afterAlt": "{{page}}のインペイント生成結果",
-      "incomplete": "{{count}}範囲は処理できませんでした。結果を確認してから適用してください。",
-      "imageFailed": "比較画像を読み込めませんでした。結果を破棄して再試行できます。",
-      "loading": "比較画像を読み込み中…"
-    },
     "counts": {
       "thisPage": "このページ {{count}}",
       "remaining": "残り {{count}}",

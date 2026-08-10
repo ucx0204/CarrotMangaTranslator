@@ -22,7 +22,6 @@ export function createAppSessionViewProps(
     commandPaletteProps: createCommandPaletteProps(model),
     exportOptionsProps: createExportOptionsProps(model),
     gatherTextProps: createGatherTextProps(model),
-    inpaintingPreviewProps: createInpaintingPreviewProps(model),
     modalsProps: createModalsProps(model),
     pageRetranslateProps: createPageRetranslateProps(model),
     panelSessionValue: createPanelSessionValue(model),
@@ -33,20 +32,6 @@ export function createAppSessionViewProps(
     translationOptionsProps: createTranslationOptionsProps(model),
     workspaceProps: createWorkspaceProps(model),
   };
-}
-
-function createInpaintingPreviewProps({
-  inpaintingActions,
-}: AppSessionViewModel): AppSessionViewProps["inpaintingPreviewProps"] {
-  return inpaintingActions.preview
-    ? {
-        preview: inpaintingActions.preview,
-        busy: inpaintingActions.previewBusy,
-        error: inpaintingActions.previewError,
-        onApply: () => void inpaintingActions.applyPreview(),
-        onDiscard: () => void inpaintingActions.discardPreview(),
-      }
-    : null;
 }
 
 function createAutoInpaintingOptionsProps({
