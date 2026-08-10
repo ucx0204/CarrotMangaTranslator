@@ -61,9 +61,11 @@ describe("block style preset controls", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "기본 대사 삭제" }));
 
     await waitFor(() => expect(onDelete).toHaveBeenCalledWith("dialogue"));
-    expect(
-      screen.queryByRole("menuitemradio", { name: "기본 대사" }),
-    ).toBeNull();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("menuitemradio", { name: "기본 대사" }),
+      ).toBeNull(),
+    );
   });
 });
 
