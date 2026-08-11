@@ -1,10 +1,22 @@
-import type {
-  BBox,
-  BlockType,
-  RenderTextDirection,
-  TranslationBlock,
-} from "./textTypes";
+import type { BBox, TranslationBlock } from "./textTypes";
 import type { ChapterSnapshot } from "./libraryTypes";
+import { clampTranslationToBboxes, translateBbox } from "./bboxTranslation";
+import {
+  estimateFontSizePx,
+  normalizeRenderDirection,
+} from "./blockGeometryValues";
+
+export {
+  MAX_FONT_WIDTH_SCALE,
+  MIN_FONT_WIDTH_SCALE,
+  enforceRenderDirection,
+  enforceRotationDeg,
+  estimateFontSizePx,
+  normalizeBlockType,
+  normalizeRenderDirection,
+  normalizeRotationDeg,
+  resolveFontWidthScale,
+} from "./blockGeometryValues";
 
 type PageSize = {
   width: number;
@@ -28,11 +40,6 @@ type RenderBboxBlock = Pick<TranslationBlock, "bbox" | "renderBbox"> &
 
 export const MIN_READABLE_FONT_SIZE_PX = 10;
 
-/** 장평 (horizontal glyph scale) bounds, shared by editor preview and export. */
-export const MIN_FONT_WIDTH_SCALE = 0.5;
-export const MAX_FONT_WIDTH_SCALE = 1.5;
-const DEFAULT_FONT_WIDTH_SCALE = 1;
-
 const READABLE_AVERAGE_CHAR_WIDTH_RATIO = 0.95;
 const READABLE_VERTICAL_COLUMN_WIDTH_RATIO = 1.15;
 const READABLE_MAX_VERTICAL_COLUMNS = 2;
@@ -42,17 +49,6 @@ export function clamp(value: number, min: number, max: number): number {
     return min;
   }
   return Math.min(max, Math.max(min, value));
-}
-
-/** Clamp a 장평 value to the supported range; undefined/invalid means 1. */
-export function resolveFontWidthScale(
-  value: number | undefined | null,
-): number {
-  return clamp(
-    Number(value ?? DEFAULT_FONT_WIDTH_SCALE),
-    MIN_FONT_WIDTH_SCALE,
-    MAX_FONT_WIDTH_SCALE,
-  );
 }
 
 export function clampBbox(bbox: BBox): BBox {
@@ -234,6 +230,63 @@ export function applyEditableBlockBbox(
     : { ...block, bbox: clamped, bboxSpace: "normalized_1000" };
 }
 
+/**
+ * Moves the pointer-editable box and its source box by one shared delta.
+ * Sizes and the source/render offset are preserved, including at page edges.
+ */
+export function applyMovedEditableBlockBbox(
+  block: TranslationBlock,
+  nextBbox: BBox,
+  pageSize?: PageSize | null,
+  text = "",
+): TranslationBlock {
+  const target = resolveEditableBlockBbox(block, pageSize, text);
+  const delta = clampTranslationToBboxes(
+    resolveEditableBlockMoveBboxes(block, pageSize, text),
+    {
+      x: nextBbox.x - target.bbox.x,
+      y: nextBbox.y - target.bbox.y,
+    },
+  );
+  if (delta.x === 0 && delta.y === 0) {
+    return block;
+  }
+
+  const bbox = translateBbox(
+    normalizeBboxTo1000(block.bbox, pageSize, block.bboxSpace),
+    delta,
+  );
+  if (target.key === "renderBbox") {
+    return {
+      ...block,
+      bbox,
+      bboxSpace: "normalized_1000",
+      renderBbox: translateBbox(target.bbox, delta),
+      renderBboxSpace: "normalized_1000",
+    };
+  }
+  return { ...block, bbox, bboxSpace: "normalized_1000" };
+}
+
+/**
+ * Restricts a shared interactive move so every source and render box remains
+ * on-page without changing their relative positions.
+ */
+export function resolveSharedEditableBlockMoveDelta(
+  blocks: readonly TranslationBlock[],
+  pageSize: PageSize,
+  requestedDelta: { x: number; y: number },
+): { x: number; y: number } {
+  const bboxes = blocks.flatMap((block) =>
+    resolveEditableBlockMoveBboxes(
+      block,
+      pageSize,
+      block.translatedText || block.sourceText || "...",
+    ),
+  );
+  return clampTranslationToBboxes(bboxes, requestedDelta);
+}
+
 export function offsetBlockBboxes(
   block: TranslationBlock,
   dx: number,
@@ -244,90 +297,28 @@ export function offsetBlockBboxes(
   const renderBbox = block.renderBbox
     ? normalizeBboxTo1000(block.renderBbox, pageSize, block.renderBboxSpace)
     : undefined;
+  const delta = clampTranslationToBboxes(
+    renderBbox ? [bbox, renderBbox] : [bbox],
+    { x: dx, y: dy },
+  );
 
   return {
     ...block,
-    bbox: offsetBbox(bbox, dx, dy),
+    bbox: translateBbox(bbox, delta),
     bboxSpace: "normalized_1000",
-    renderBbox: renderBbox ? offsetBbox(renderBbox, dx, dy) : undefined,
+    renderBbox: renderBbox ? translateBbox(renderBbox, delta) : undefined,
     renderBboxSpace: renderBbox ? "normalized_1000" : undefined,
   };
 }
 
-export function enforceRenderDirection(
-  type: BlockType,
-  direction: unknown,
-): RenderTextDirection {
-  void type;
-  return direction === "vertical" ? "vertical" : "horizontal";
-}
-
-export function enforceRotationDeg(type: BlockType, value: unknown): number {
-  void type;
-  return normalizeRotationDeg(value);
-}
-
-export function normalizeRotationDeg(value: unknown): number {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) {
-    return 0;
-  }
-
-  let normalized = ((((numeric + 180) % 360) + 360) % 360) - 180;
-  if (normalized === -180 && numeric > 0) {
-    normalized = 180;
-  }
-
-  const rounded = Math.round((normalized + Number.EPSILON) * 10) / 10;
-  return Object.is(rounded, -0) ? 0 : rounded;
-}
-
-export function normalizeBlockType(value: unknown): BlockType {
-  void value;
-  return "nonsolid";
-}
-
-export function normalizeRenderDirection(
-  value: unknown,
-  fallback: RenderTextDirection | "rotated" | "hidden",
-): RenderTextDirection {
-  const text = String(value ?? "")
-    .trim()
-    .toLowerCase();
-  if (text === "vertical") {
-    return "vertical";
-  }
-  if (text === "horizontal" || text === "rotated" || text === "hidden") {
-    return "horizontal";
-  }
-  return fallback === "vertical" ? "vertical" : "horizontal";
-}
-
-export function estimateFontSizePx(
-  text: string,
-  bbox: BBox,
-  pageSize: { width: number; height: number },
-): number {
-  const px = bboxToPixels(bbox, pageSize.width, pageSize.height);
-  const compactLength = Math.max(
-    1,
-    [...text.replace(/\r/g, "").replace(/\n/g, " ")].length,
-  );
-  const approxCharsPerLine = Math.max(4, Math.floor(px.w / 20));
-  const lineCount = Math.max(1, Math.ceil(compactLength / approxCharsPerLine));
-  const heightLimited = Math.floor(px.h / (lineCount * 1.2));
-  const widthLimited = Math.floor(
-    px.w / Math.min(12, Math.max(4, compactLength)),
-  );
-  return clamp(Math.min(heightLimited, widthLimited, 40), 12, 72);
-}
-
-function offsetBbox(bbox: BBox, dx: number, dy: number): BBox {
-  return clampBbox({
-    ...bbox,
-    x: bbox.x + dx,
-    y: bbox.y + dy,
-  });
+function resolveEditableBlockMoveBboxes(
+  block: TranslationBlock,
+  pageSize?: PageSize | null,
+  text = "",
+): BBox[] {
+  const sourceBbox = normalizeBboxTo1000(block.bbox, pageSize, block.bboxSpace);
+  const target = resolveEditableBlockBbox(block, pageSize, text);
+  return target.key === "renderBbox" ? [sourceBbox, target.bbox] : [sourceBbox];
 }
 
 function estimateReadableTextBoxSizePx(

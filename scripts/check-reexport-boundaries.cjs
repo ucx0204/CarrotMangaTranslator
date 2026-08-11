@@ -74,6 +74,7 @@ const APPROVED_REEXPORT_BOUNDARIES = new Map([
       "./perspectiveTransformMath",
     ]),
   ],
+  ["src/shared/geometry.ts", new Set(["./blockGeometryValues"])],
   ["src/shared/ipcSchemaPrimitives.ts", new Set(["./ipcEnumSchemas"])],
   [
     "src/shared/ipcSchemas.ts",

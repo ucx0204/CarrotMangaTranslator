@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyEditableBlockBbox,
+  applyMovedEditableBlockBbox,
   bboxOverlapRatio,
   clampBbox,
   enforceRenderDirection,
@@ -256,6 +257,64 @@ describe("geometry helpers", () => {
     expect(next.renderBbox).toEqual({ x: 120, y: 140, w: 240, h: 280 });
   });
 
+  it("moves source and render boxes by the exact same delta", () => {
+    const next = applyMovedEditableBlockBbox(
+      {
+        id: "block-1",
+        type: "nonsolid",
+        bbox: { x: 100, y: 120, w: 80, h: 120 },
+        renderBbox: { x: 80, y: 90, w: 220, h: 260 },
+        sourceText: "원문",
+        translatedText: "번역",
+        confidence: 1,
+        sourceDirection: "vertical",
+        renderDirection: "horizontal",
+        fontSizePx: 24,
+        lineHeight: 1.18,
+        textAlign: "center",
+        textColor: "#111111",
+        backgroundColor: "#fffdf5",
+        opacity: 0.8,
+      },
+      { x: 130, y: 150, w: 220, h: 260 },
+    );
+
+    expect(next.bbox).toEqual({ x: 150, y: 180, w: 80, h: 120 });
+    expect(next.renderBbox).toEqual({ x: 130, y: 150, w: 220, h: 260 });
+    expect((next.bbox.x ?? 0) - (next.renderBbox?.x ?? 0)).toBe(20);
+    expect((next.bbox.y ?? 0) - (next.renderBbox?.y ?? 0)).toBe(30);
+  });
+
+  it("uses the stricter box boundary without desynchronizing source and render positions", () => {
+    const block = {
+      id: "block-1",
+      type: "nonsolid" as const,
+      bbox: { x: 850, y: 100, w: 100, h: 100 },
+      renderBbox: { x: 700, y: 80, w: 100, h: 140 },
+      sourceText: "원문",
+      translatedText: "번역",
+      confidence: 1,
+      sourceDirection: "vertical" as const,
+      renderDirection: "horizontal" as const,
+      fontSizePx: 24,
+      lineHeight: 1.18,
+      textAlign: "center" as const,
+      textColor: "#111111",
+      backgroundColor: "#fffdf5",
+      opacity: 0.8,
+    };
+    const next = applyMovedEditableBlockBbox(block, {
+      x: 800,
+      y: 80,
+      w: 100,
+      h: 140,
+    });
+
+    expect(next.bbox).toEqual({ x: 900, y: 100, w: 100, h: 100 });
+    expect(next.renderBbox).toEqual({ x: 750, y: 80, w: 100, h: 140 });
+    expect((next.bbox.x ?? 0) - (next.renderBbox?.x ?? 0)).toBe(150);
+  });
+
   it("stores a temporary readable render box when dragging a tiny source-only block", () => {
     const block = {
       id: "block-1",
@@ -311,6 +370,38 @@ describe("geometry helpers", () => {
 
     expect(duplicated.bbox).toEqual({ x: 116, y: 116, w: 80, h: 120 });
     expect(duplicated.renderBbox).toEqual({ x: 96, y: 106, w: 220, h: 260 });
+  });
+
+  it("keeps duplicated source and render boxes aligned at a page edge", () => {
+    const duplicated = offsetBlockBboxes(
+      {
+        id: "block-1",
+        type: "nonsolid",
+        bbox: { x: 850, y: 100, w: 100, h: 100 },
+        renderBbox: { x: 700, y: 80, w: 100, h: 140 },
+        sourceText: "원문",
+        translatedText: "번역",
+        confidence: 1,
+        sourceDirection: "vertical",
+        renderDirection: "horizontal",
+        fontSizePx: 24,
+        lineHeight: 1.18,
+        textAlign: "center",
+        textColor: "#111111",
+        backgroundColor: "#fffdf5",
+        opacity: 0.8,
+      },
+      100,
+      0,
+    );
+
+    expect(duplicated.bbox).toEqual({ x: 900, y: 100, w: 100, h: 100 });
+    expect(duplicated.renderBbox).toEqual({
+      x: 750,
+      y: 80,
+      w: 100,
+      h: 140,
+    });
   });
 
   it("normalizes old block kinds into the unified inpainting block type and allows manual direction controls", () => {

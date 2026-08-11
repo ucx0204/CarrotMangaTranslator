@@ -81,7 +81,7 @@ describe("block keyboard nudge model", () => {
     expect(moved.bbox).toEqual({ x: 101, y: 100.5, w: 200, h: 200 });
   });
 
-  it("moves an explicit render box without changing the source box", () => {
+  it("moves an explicit render box and its source box by the same delta", () => {
     const block = makeBlock({
       bbox: { x: 100, y: 100, w: 80, h: 80 },
       renderBbox: { x: 200, y: 250, w: 300, h: 180 },
@@ -92,13 +92,36 @@ describe("block keyboard nudge model", () => {
       { width: 1_000, height: 1_000 },
       { x: -2, y: 4 },
     );
-    expect(moved.bbox).toEqual(block.bbox);
+    expect(moved.bbox).toEqual({ x: 98, y: 104, w: 80, h: 80 });
     expect(moved.renderBbox).toEqual({
       x: 198,
       y: 254,
       w: 300,
       h: 180,
     });
+  });
+
+  it("uses the stricter source boundary without changing the source-render offset", () => {
+    const block = makeBlock({
+      bbox: { x: 850, y: 100, w: 100, h: 100 },
+      renderBbox: { x: 700, y: 80, w: 100, h: 140 },
+      renderBboxSpace: "normalized_1000",
+    });
+    const shared = resolveSharedBlockNudgeDeltaPx(
+      [block],
+      { width: 1_000, height: 1_000 },
+      { x: 100, y: 0 },
+    );
+    const moved = nudgeBlockByImagePixels(
+      block,
+      { width: 1_000, height: 1_000 },
+      shared,
+    );
+
+    expect(shared).toEqual({ x: 50, y: 0 });
+    expect(moved.bbox).toEqual({ x: 900, y: 100, w: 100, h: 100 });
+    expect(moved.renderBbox).toEqual({ x: 750, y: 80, w: 100, h: 140 });
+    expect((moved.bbox.x ?? 0) - (moved.renderBbox?.x ?? 0)).toBe(150);
   });
 
   it("stops at page edges without shrinking the editable box", () => {

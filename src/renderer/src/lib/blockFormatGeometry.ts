@@ -8,6 +8,7 @@ export {
   MAX_FONT_WIDTH_SCALE,
   MIN_FONT_WIDTH_SCALE,
   applyEditableBlockBbox,
+  applyMovedEditableBlockBbox,
   clamp,
   clampBbox,
   normalizeBlockType,
@@ -15,4 +16,5 @@ export {
   normalizeRotationDeg,
   resolveEditableBlockBbox,
   resolveFontWidthScale,
+  resolveSharedEditableBlockMoveDelta,
 } from "../../../shared/geometry";

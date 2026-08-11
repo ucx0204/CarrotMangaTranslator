@@ -56,6 +56,7 @@ describe("workspace block drag model", () => {
     const { chapter, page, drag } = makeFixture("rotate");
     const resolution = {
       label: "30°",
+      mode: "rotate" as const,
       patch: { rotationDeg: 30 },
     };
     const preview = applyBlockDragResolution(drag.startBlock, page, resolution);
@@ -64,6 +65,60 @@ describe("workspace block drag model", () => {
     expect(preview.rotationDeg).toBe(30);
     expect(changed.pages[0].blocks[0].rotationDeg).toBe(30);
     expect(changed.pages[0].blocks[0]).toEqual(preview);
+  });
+
+  it("moves an automatic block's source and render boxes together in preview and commit", () => {
+    const fixture = makeFixture("move");
+    const startBlock: TranslationBlock = {
+      ...fixture.block,
+      bbox: { x: 100, y: 120, w: 200, h: 100 },
+      bboxSpace: "normalized_1000",
+      renderBbox: { x: 80, y: 90, w: 260, h: 140 },
+      renderBboxSpace: "normalized_1000",
+    };
+    const page = { ...fixture.page, blocks: [startBlock] };
+    const chapter = { ...fixture.chapter, pages: [page] };
+    const drag: DragState = {
+      ...fixture.drag,
+      mode: "move",
+      startBbox: startBlock.renderBbox as NonNullable<
+        TranslationBlock["renderBbox"]
+      >,
+      startBlock,
+    };
+    const resolution = resolveBlockDrag(
+      drag,
+      { clientX: 10, clientY: 20 },
+      { left: 0, top: 0, width: 100, height: 100 },
+      page,
+    );
+    if (!resolution) throw new Error("expected a move resolution");
+
+    const preview = applyBlockDragResolution(startBlock, page, resolution);
+    const changed = applyResolvedBlockDrag(chapter, page, drag, resolution);
+
+    expect(preview.bbox).toEqual({ x: 200, y: 320, w: 200, h: 100 });
+    expect(preview.renderBbox).toEqual({ x: 180, y: 290, w: 260, h: 140 });
+    expect(changed.pages[0]?.blocks[0]).toEqual(preview);
+  });
+
+  it("keeps source geometry unchanged when only the render box is resized", () => {
+    const fixture = makeFixture("resize-se");
+    const block: TranslationBlock = {
+      ...fixture.block,
+      bbox: { x: 100, y: 120, w: 200, h: 100 },
+      renderBbox: { x: 80, y: 90, w: 260, h: 140 },
+      renderBboxSpace: "normalized_1000",
+    };
+    const page = { ...fixture.page, blocks: [block] };
+    const changed = applyBlockDragResolution(block, page, {
+      bbox: { x: 80, y: 90, w: 320, h: 200 },
+      label: "320 × 200px",
+      mode: "resize-se",
+    });
+
+    expect(changed.bbox).toEqual(block.bbox);
+    expect(changed.renderBbox).toEqual({ x: 80, y: 90, w: 320, h: 200 });
   });
 });
 

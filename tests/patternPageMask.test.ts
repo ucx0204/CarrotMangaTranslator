@@ -6,10 +6,38 @@ import {
 } from "../src/main/inpainting/maskGeometry";
 import { expandWindowMaskToPage } from "../src/main/inpainting/inpaintingWindowMask";
 import { buildPatternPageMask } from "../src/main/inpainting/patternPageMask";
+import { applyMovedEditableBlockBbox } from "../src/shared/geometry";
 import type { MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
 
 describe("pattern page text masks", () => {
+  it("inpaints an automatic block's moved source location instead of its original location", () => {
+    const width = 100;
+    const height = 100;
+    const block: TranslationBlock = {
+      ...createBlock("block-1", 100, { y: 100, w: 200, h: 200 }),
+      renderBbox: { x: 80, y: 80, w: 240, h: 240 },
+      renderBboxSpace: "normalized_1000",
+    };
+    const moved = applyMovedEditableBlockBbox(
+      block,
+      { x: 580, y: 580, w: 240, h: 240 },
+      { width, height },
+      block.translatedText,
+    );
+    const page = createPage(width, height, [moved]);
+    const context = buildPatternPageMask({
+      page,
+      bitmap: Buffer.alloc(width * height * 4, 255),
+      width,
+      height,
+    });
+
+    expect(moved.bbox).toEqual({ x: 600, y: 600, w: 200, h: 200 });
+    expect(context.pageMask[20 * width + 20]).toBe(0);
+    expect(context.pageMask[70 * width + 70]).toBe(1);
+  });
+
   it("keeps block-owned masks separate for overlapping Metal windows", () => {
     const width = 128;
     const height = 64;

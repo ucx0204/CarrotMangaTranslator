@@ -6,7 +6,11 @@ import {
 } from "../../../shared/blockTransforms";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { BBox, TranslationBlock } from "../../../shared/textTypes";
-import { applyEditableBlockBbox } from "../lib/blockFormatGeometry";
+import {
+  applyEditableBlockBbox,
+  applyMovedEditableBlockBbox,
+  resolveSharedEditableBlockMoveDelta,
+} from "../lib/blockFormatGeometry";
 import { isPerspectiveVisibleOnPage } from "../lib/transformEditorModel";
 import type { DragMode } from "../lib/workspaceInteractionTypes";
 import {
@@ -25,6 +29,7 @@ export type BlockDragResolution = {
   bbox?: BBox;
   patch?: Partial<TranslationBlock>;
   label: string;
+  mode: DragMode;
   invalid?: boolean;
   invalidKind?: "perspective" | "curve" | "outside";
   snapped?: boolean;
@@ -43,14 +48,23 @@ export function resolveBlockDrag(
   page: MangaPage,
 ): BlockDragResolution | null {
   if (drag.mode === "move" || isResizeDragMode(drag.mode)) {
-    const bbox = resolveDraggedBbox(drag, event, rect, page);
-    return { bbox, label: describeDragBbox(drag.mode, bbox, page) };
+    const requestedBbox = resolveDraggedBbox(drag, event, rect, page);
+    const bbox =
+      drag.mode === "move"
+        ? constrainMovedBlockBbox(drag, requestedBbox, page)
+        : requestedBbox;
+    return {
+      bbox,
+      label: describeDragBbox(drag.mode, bbox, page),
+      mode: drag.mode,
+    };
   }
   if (drag.mode === "rotate") {
     const result = resolveDraggedRotationWithSnap(drag, event, rect);
     return {
       patch: { rotationDeg: result.rotationDeg },
       label: `${result.rotationDeg}°`,
+      mode: drag.mode,
       snapped: result.snapped,
     };
   }
@@ -61,6 +75,22 @@ export function resolveBlockDrag(
     return resolveCurveDrag(drag, event, rect);
   }
   return null;
+}
+
+function constrainMovedBlockBbox(
+  drag: DragState,
+  requestedBbox: BBox,
+  page: MangaPage,
+): BBox {
+  const delta = resolveSharedEditableBlockMoveDelta([drag.startBlock], page, {
+    x: requestedBbox.x - drag.startBbox.x,
+    y: requestedBbox.y - drag.startBbox.y,
+  });
+  return {
+    ...drag.startBbox,
+    x: drag.startBbox.x + delta.x,
+    y: drag.startBbox.y + delta.y,
+  };
 }
 
 export function applyResolvedBlockDrag(
@@ -104,16 +134,27 @@ function resolvePerspectiveDrag(
   );
   const point = resolvePerspectiveHudPoint(drag.mode, perspectiveTransform);
   if (!isValidPerspectiveTransform(perspectiveTransform)) {
-    return { label: "", invalid: true, invalidKind: "perspective" };
+    return {
+      label: "",
+      mode: drag.mode,
+      invalid: true,
+      invalidKind: "perspective",
+    };
   }
   if (
     !isPerspectiveVisibleOnPage(drag.startBlock, perspectiveTransform, page)
   ) {
-    return { label: "", invalid: true, invalidKind: "outside" };
+    return {
+      label: "",
+      mode: drag.mode,
+      invalid: true,
+      invalidKind: "outside",
+    };
   }
   return {
     patch: { perspectiveTransform },
     label: describeTransformPoint(point),
+    mode: drag.mode,
   };
 }
 
@@ -127,8 +168,17 @@ function resolveCurveDrag(
   const curveLayout = resolveDraggedCurveLayout(drag, event, start, rect);
   const point = resolveCurveHudPoint(drag.mode, curveLayout);
   return validateQuadraticPath(curveLayout.path).valid
-    ? { patch: { curveLayout }, label: describeTransformPoint(point) }
-    : { label: "", invalid: true, invalidKind: "curve" };
+    ? {
+        patch: { curveLayout },
+        label: describeTransformPoint(point),
+        mode: drag.mode,
+      }
+    : {
+        label: "",
+        mode: drag.mode,
+        invalid: true,
+        invalidKind: "curve",
+      };
 }
 
 function applyResolutionToPage(
@@ -154,14 +204,17 @@ export function applyBlockDragResolution(
   resolution: BlockDragResolution,
 ): TranslationBlock {
   const patched = resolution.patch ? { ...block, ...resolution.patch } : block;
-  return resolution.bbox
-    ? applyEditableBlockBbox(
+  if (!resolution.bbox) return patched;
+  const pageSize = { width: page.width, height: page.height };
+  const displayText = patched.translatedText || patched.sourceText || "...";
+  return resolution.mode === "move"
+    ? applyMovedEditableBlockBbox(
         patched,
         resolution.bbox,
-        { width: page.width, height: page.height },
-        block.translatedText || block.sourceText || "...",
+        pageSize,
+        displayText,
       )
-    : patched;
+    : applyEditableBlockBbox(patched, resolution.bbox, pageSize, displayText);
 }
 
 function resolvePerspectiveHudPoint(

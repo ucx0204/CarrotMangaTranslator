@@ -1,9 +1,10 @@
 import type { MangaPage } from "../../../shared/libraryTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import {
-  applyEditableBlockBbox,
+  applyMovedEditableBlockBbox,
   clamp,
   resolveEditableBlockBbox,
+  resolveSharedEditableBlockMoveDelta,
 } from "./blockFormatGeometry";
 
 export type BlockNudgeDirection = "left" | "right" | "up" | "down";
@@ -104,13 +105,10 @@ export function nudgeBlockByImagePixels(
   const deltaY = (deltaPx.y / pageSize.height) * 1000;
   const nextBbox = {
     ...target.bbox,
-    x: clamp(target.bbox.x + deltaX, 0, 1000 - target.bbox.w),
-    y: clamp(target.bbox.y + deltaY, 0, 1000 - target.bbox.h),
+    x: target.bbox.x + deltaX,
+    y: target.bbox.y + deltaY,
   };
-  if (nextBbox.x === target.bbox.x && nextBbox.y === target.bbox.y) {
-    return block;
-  }
-  return applyEditableBlockBbox(block, nextBbox, pageSize, displayText);
+  return applyMovedEditableBlockBbox(block, nextBbox, pageSize, displayText);
 }
 
 /**
@@ -129,22 +127,14 @@ export function resolveSharedBlockNudgeDeltaPx(
     width: Math.max(1, page.width),
     height: Math.max(1, page.height),
   };
-  const bboxes = blocks.map(
-    (block) =>
-      resolveEditableBlockBbox(
-        block,
-        pageSize,
-        block.translatedText || block.sourceText || "...",
-      ).bbox,
-  );
   const requestedX = (requestedDeltaPx.x / pageSize.width) * 1000;
   const requestedY = (requestedDeltaPx.y / pageSize.height) * 1000;
-  const minimumX = Math.max(...bboxes.map((bbox) => -bbox.x));
-  const maximumX = Math.min(...bboxes.map((bbox) => 1000 - bbox.x - bbox.w));
-  const minimumY = Math.max(...bboxes.map((bbox) => -bbox.y));
-  const maximumY = Math.min(...bboxes.map((bbox) => 1000 - bbox.y - bbox.h));
+  const delta = resolveSharedEditableBlockMoveDelta(blocks, pageSize, {
+    x: requestedX,
+    y: requestedY,
+  });
   return {
-    x: (clamp(requestedX, minimumX, maximumX) / 1000) * pageSize.width,
-    y: (clamp(requestedY, minimumY, maximumY) / 1000) * pageSize.height,
+    x: (delta.x / 1000) * pageSize.width,
+    y: (delta.y / 1000) * pageSize.height,
   };
 }

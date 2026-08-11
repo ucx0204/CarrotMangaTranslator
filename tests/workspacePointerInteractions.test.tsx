@@ -180,6 +180,43 @@ describe("workspace pointer interactions", () => {
     expect(api.current.getBlockPreview()).toBeNull();
   });
 
+  it("moves automatic source and render boxes together through pointer handlers", () => {
+    const api = renderHarness({
+      initialSelectedBlockId: "block-1",
+      withBubbleLayout: true,
+    });
+    const block = screen.getByTestId("block");
+    const stage = screen.getByTestId("stage");
+
+    fireEvent.pointerDown(block, {
+      clientX: 20,
+      clientY: 20,
+      pointerId: 7,
+    });
+    fireEvent.pointerMove(stage, {
+      clientX: 60,
+      clientY: 50,
+      pointerId: 7,
+    });
+    fireEvent.pointerUp(stage, {
+      clientX: 60,
+      clientY: 50,
+      pointerId: 7,
+    });
+
+    expect(api.current.updateCurrentChapter).toHaveBeenCalledTimes(1);
+    const updater = api.current.updateCurrentChapter.mock.calls[0]?.[1];
+    const page = makePage({ withBubbleLayout: true });
+    const moved = updater?.(makeChapter(page)).pages[0]?.blocks[0];
+    expect(moved?.bbox).toEqual({ x: 500, y: 400, w: 200, h: 100 });
+    expect(moved?.renderBbox).toEqual({
+      x: 500,
+      y: 400,
+      w: 200,
+      h: 100,
+    });
+  });
+
   it("keeps region and block-create marquee bursts outside root React state", () => {
     const frames = installAnimationFrameController();
     const regionApi = renderHarness();
