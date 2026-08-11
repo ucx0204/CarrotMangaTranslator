@@ -1,4 +1,5 @@
 import { resolveSourceReadingDirection } from "../../../../shared/translationLanguages";
+import { resolveReadingDirection } from "../../../../shared/blockReadingOrder";
 import { applyTranslatedTextUpdates } from "./applyTranslatedTextUpdates";
 import { applyGatherTextFormatRequest } from "./applyGatherTextFormatRequest";
 import type { AppSessionViewProps } from "./AppSessionView";
@@ -48,8 +49,13 @@ export function createGatherTextProps({
           uiState.setTextViewOpen(false);
         },
         page: derivedState.selectedPage,
-        readingDirection: resolveSourceReadingDirection(
-          settingsDialog.settings?.translation?.sourceLanguage,
+        readingDirection: resolveReadingDirection(
+          core.library.works.find(
+            (work) => work.id === core.currentChapter?.workId,
+          )?.readingDirection,
+          resolveSourceReadingDirection(
+            settingsDialog.settings?.translation?.sourceLanguage,
+          ),
         ),
       }
     : null;

@@ -7,10 +7,12 @@ import {
 import {
   assignBinding,
   effectiveCombo,
+  effectiveCombosForAction,
   resetBinding,
   resolveBindings,
-  SHORTCUT_ACTIONS,
-} from "../src/renderer/src/lib/shortcuts/shortcutActions";
+  sanitizeKeybindingOverrides,
+} from "../src/renderer/src/lib/shortcuts/shortcutBindingResolution";
+import { SHORTCUT_ACTIONS } from "../src/renderer/src/lib/shortcuts/shortcutActions";
 import {
   isCanonicalKeybindingCombo,
   normalizeStoredKeybindingOverrides,
@@ -42,6 +44,14 @@ describe("comboFromEvent", () => {
     expect(comboFromEvent(event({ key: "b" }))).toBe("b");
     expect(comboFromEvent(event({ key: "B" }))).toBe("b");
     expect(comboFromEvent(event({ key: "1" }))).toBe("1");
+  });
+
+  it("uses the physical letter key while a Korean IME is active", () => {
+    expect(comboFromEvent(event({ key: "ㅠ", code: "KeyB" }))).toBe("b");
+    expect(
+      comboFromEvent(event({ key: "ㅠ", code: "KeyB", shiftKey: true })),
+    ).toBe("shift+b");
+    expect(comboFromEvent(event({ key: "ㅍ", code: "KeyV" }))).toBe("v");
   });
 
   it("adds a shift token for shifted alphanumeric keys", () => {
@@ -137,6 +147,9 @@ describe("formatCombo", () => {
     expect(formatCombo("?", "Win32")).toEqual(["?"]);
     expect(formatCombo("ctrl+,", "Win32")).toEqual(["Ctrl", ","]);
     expect(formatCombo("ctrl+numpadadd", "Win32")).toEqual(["Ctrl", "+"]);
+    expect(formatCombo("ctrl+add", "Win32")).toEqual(["Ctrl", "+"]);
+    expect(formatCombo("ctrl++", "Win32")).toEqual(["Ctrl", "+"]);
+    expect(formatCombo("pageup", "Win32")).toEqual(["Page Up"]);
     expect(formatCombo("alt+wheelup", "Win32")).toEqual(["Alt", "Wheel ↑"]);
     expect(formatCombo("shift+wheeldown", "Win32")).toEqual([
       "Shift",
@@ -199,7 +212,27 @@ describe("shortcut binding resolution", () => {
   });
 
   it("falls back to the built-in default combo", () => {
-    expect(effectiveCombo("toggle-block-chrome", {})).toBe("b");
+    expect(effectiveCombo("toggle-block-chrome", {})).toBe("shift+b");
+  });
+
+  it("uses one unified, conflict-free default keymap", () => {
+    expect(effectiveCombo("toggle-block-chrome", {})).toBe("shift+b");
+    expect(effectiveCombo("toggle-text-blocks", {})).toBe("v");
+    expect(effectiveCombo("stage-tool-select", {})).toBe("s");
+    expect(effectiveCombo("stage-tool-block", {})).toBe("w");
+    expect(effectiveCombo("stage-tool-hand", {})).toBe("h");
+    expect(effectiveCombo("retouch-tool-brush", {})).toBe("b");
+    expect(effectiveCombo("zoom-reset", {})).toBe("ctrl+0");
+
+    const owners = new Map<string, string>();
+    for (const action of SHORTCUT_ACTIONS) {
+      for (const combo of effectiveCombosForAction(action.id, {})) {
+        expect(owners.get(combo), `${combo} must have only one owner`).toBe(
+          undefined,
+        );
+        owners.set(combo, action.id);
+      }
+    }
   });
 
   it("honors user overrides including explicit unbinding", () => {
@@ -215,7 +248,9 @@ describe("shortcut binding resolution", () => {
 
   it("builds a combo → action lookup that skips unbound actions", () => {
     const bindings = resolveBindings({ "translate-all": "" });
-    expect(bindings.get("b")).toBe("toggle-block-chrome");
+    expect(bindings.get("shift+b")).toBe("toggle-block-chrome");
+    expect(bindings.get("v")).toBe("toggle-text-blocks");
+    expect(bindings.get("b")).toBe("retouch-tool-brush");
     expect([...bindings.values()]).not.toContain("translate-all");
   });
 
@@ -264,27 +299,49 @@ describe("shortcut binding resolution", () => {
     expect(bindings.get("ctrl+numpadadd")).toBe("zoom-in");
   });
 
-  it("displaces zoom-in when assigning its numpad plus alias elsewhere", () => {
-    const { next, displacedLabel } = assignBinding(
-      {},
+  it("rejects assigning another action's alternate combo without changing either action", () => {
+    const overrides = {};
+    const { next, conflictingActionId, conflictingLabel } = assignBinding(
+      overrides,
       "toggle-text-blocks",
       "ctrl+numpadadd",
     );
 
-    expect(next["toggle-text-blocks"]).toBe("ctrl+numpadadd");
-    expect(next["zoom-in"]).toBe("");
-    expect(displacedLabel).toBe("이미지 확대");
+    expect(next).toBe(overrides);
+    expect(next["toggle-text-blocks"]).toBeUndefined();
+    expect(next["zoom-in"]).toBeUndefined();
+    expect(conflictingActionId).toBe("zoom-in");
+    expect(conflictingLabel).toBe("이미지 확대");
   });
 
-  it("displaces a conflicting action when assigning a combo", () => {
-    const { next, displacedLabel } = assignBinding(
-      {},
+  it("rejects a primary-key conflict instead of silently unbinding its owner", () => {
+    const overrides = {};
+    const { next, conflictingActionId } = assignBinding(
+      overrides,
       "toggle-text-blocks",
       "b",
     );
-    expect(next["toggle-text-blocks"]).toBe("b");
-    expect(next["toggle-block-chrome"]).toBe("");
-    expect(displacedLabel).toBeTruthy();
+    expect(next).toBe(overrides);
+    expect(next["toggle-text-blocks"]).toBeUndefined();
+    expect(next["retouch-tool-brush"]).toBeUndefined();
+    expect(conflictingActionId).toBe("retouch-tool-brush");
+  });
+
+  it("sanitizes legacy conflicts while allowing an explicitly cleared owner", () => {
+    expect(
+      sanitizeKeybindingOverrides({
+        "toggle-text-blocks": "b",
+      }),
+    ).toEqual({});
+    expect(
+      sanitizeKeybindingOverrides({
+        "retouch-tool-brush": "",
+        "toggle-text-blocks": "b",
+      }),
+    ).toEqual({
+      "retouch-tool-brush": "",
+      "toggle-text-blocks": "b",
+    });
   });
 
   it("resets a binding by dropping its override", () => {
@@ -293,6 +350,6 @@ describe("shortcut binding resolution", () => {
       "toggle-block-chrome",
     );
     expect(reset["toggle-block-chrome"]).toBeUndefined();
-    expect(effectiveCombo("toggle-block-chrome", reset)).toBe("b");
+    expect(effectiveCombo("toggle-block-chrome", reset)).toBe("shift+b");
   });
 });

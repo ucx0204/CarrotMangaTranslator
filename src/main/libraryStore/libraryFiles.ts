@@ -206,6 +206,7 @@ export function createUnpublishedWork(title: string): LibraryWork {
     id: randomUUID(),
     title: sanitizeTitle(title, getDefaultWorkTitle()),
     chapterOrder: [],
+    readingDirection: "auto",
     createdAt: now,
     updatedAt: now,
   };

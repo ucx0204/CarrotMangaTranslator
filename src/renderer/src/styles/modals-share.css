@@ -133,6 +133,19 @@
   cursor: pointer;
 }
 
+.shortcut-binding-combos {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.shortcut-binding-alias {
+  color: var(--text-dim);
+  font-size: var(--font-xs);
+}
+
 .shortcut-binding-combo.capturing {
   border-color: var(--accent-bd);
   background: var(--accent-hover);
@@ -154,8 +167,30 @@
   white-space: nowrap;
 }
 
-.shortcut-binding-note {
-  color: var(--accent-text);
+.shortcut-binding-conflict {
+  margin: 0;
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--danger) 58%, var(--border-soft));
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--danger) 12%, var(--bg-sunken));
+  color: var(--danger-text, #ffb5b5);
+  font-size: var(--font-sm);
+  line-height: 1.45;
+}
+
+@media (max-width: 700px) {
+  .shortcut-binding-row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .shortcut-binding-label {
+    grid-column: 1 / -1;
+  }
+
+  .shortcut-binding-combo {
+    width: 100%;
+    min-width: 0;
+  }
 }
 
 .toast-viewport {

@@ -21,6 +21,8 @@ type UseAppCommandsOptions = {
   openShareExport: () => void;
   openShortcutHelp: () => void;
   openTextView: () => void;
+  toggleBlockChrome: () => void;
+  toggleTextBlocks: () => void;
 };
 
 export function useAppCommands({
@@ -40,6 +42,8 @@ export function useAppCommands({
   openShareExport,
   openShortcutHelp,
   openTextView,
+  toggleBlockChrome,
+  toggleTextBlocks,
 }: UseAppCommandsOptions): Command[] {
   const { t } = useTranslation("renderer");
   return useMemo(
@@ -61,6 +65,8 @@ export function useAppCommands({
         openShareExport,
         openShortcutHelp,
         openTextView,
+        toggleBlockChrome,
+        toggleTextBlocks,
         t,
       }),
     [
@@ -80,6 +86,8 @@ export function useAppCommands({
       openShareExport,
       openShortcutHelp,
       openTextView,
+      toggleBlockChrome,
+      toggleTextBlocks,
       t,
     ],
   );
@@ -173,10 +181,24 @@ function buildJobCommands({
 function buildChapterCommands({
   currentChapter,
   openTextView,
+  toggleBlockChrome,
+  toggleTextBlocks,
   t,
 }: LocalizedCommandOptions): Command[] {
   return currentChapter
     ? [
+        {
+          id: "toggle-block-chrome",
+          label: t("commands.toggleBlockChrome.label"),
+          keywords: t("commands.toggleBlockChrome.keywords"),
+          run: toggleBlockChrome,
+        },
+        {
+          id: "toggle-text-blocks",
+          label: t("commands.toggleTextBlocks.label"),
+          keywords: t("commands.toggleTextBlocks.keywords"),
+          run: toggleTextBlocks,
+        },
         {
           id: "gather-text",
           label: t("commands.gatherText.label"),

@@ -24,6 +24,7 @@ type RetouchHarnessApi = {
   appendRetouchPoint: ReturnType<typeof vi.fn>;
   applyRetouchOperation: ReturnType<typeof vi.fn>;
   getBounds: ReturnType<typeof vi.fn>;
+  getPoints: () => Array<{ x: number; y: number }>;
   getRenderCount: () => number;
 };
 
@@ -123,6 +124,55 @@ describe("workspace retouch pointer performance", () => {
     });
     expect(frames.count()).toBe(0);
   });
+
+  it("keeps a shifted brush drag straight while the pointer is still moving", () => {
+    const frames = installAnimationFrameController();
+    const api = renderRetouchHarness();
+    const stage = screen.getByTestId("retouch-stage");
+
+    fireEvent.pointerDown(stage, {
+      clientX: 10,
+      clientY: 10,
+      pointerId: 9,
+      shiftKey: true,
+    });
+    fireEvent.pointerMove(stage, {
+      clientX: 40,
+      clientY: 20,
+      pointerId: 9,
+      shiftKey: true,
+    });
+    fireEvent.pointerMove(stage, {
+      clientX: 70,
+      clientY: 80,
+      pointerId: 9,
+      shiftKey: true,
+    });
+
+    expect(api.current.getPoints()).toEqual([
+      { x: 100, y: 100 },
+      { x: 700, y: 800 },
+    ]);
+
+    fireEvent.pointerUp(stage, {
+      clientX: 70,
+      clientY: 80,
+      pointerId: 9,
+      shiftKey: true,
+    });
+    expect(api.current.applyRetouchOperation).toHaveBeenCalledWith({
+      geometry: {
+        kind: "stroke",
+        points: [
+          { x: 100, y: 100 },
+          { x: 700, y: 800 },
+        ],
+        radiusPx: 28,
+      },
+      mode: "paint",
+    });
+    expect(frames.count()).toBe(0);
+  });
 });
 
 function renderRetouchHarness(
@@ -205,6 +255,7 @@ function RetouchHarness({
       appendRetouchPoint,
       applyRetouchOperation,
       getBounds,
+      getPoints: () => pointsRef.current,
       getRenderCount: () => renderCountRef.current,
     });
   }, [appendRetouchPoint, applyRetouchOperation, getBounds, onReady]);

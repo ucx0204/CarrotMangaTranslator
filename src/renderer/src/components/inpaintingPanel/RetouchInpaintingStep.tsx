@@ -15,6 +15,7 @@ type RetouchInpaintingStepProps = {
   maskStrokeCount: number;
   onBrushColorChange: (value: string) => void;
   onBrushRadiusChange: (value: number) => void;
+  onAdjustPatternMask: (deltaPx: number) => void;
   onClearPatternMask: () => void;
   onRunDrawnPattern: () => void;
   sizableTool: boolean;
@@ -137,15 +138,50 @@ function DrawnMaskActionGroup({
   hasSelectedPage,
   jobActive,
   maskStrokeCount,
+  onAdjustPatternMask,
   onClearPatternMask,
   onRunDrawnPattern,
 }: RetouchInpaintingStepProps): React.JSX.Element {
   const { t } = useTranslation("components");
+  const [adjustmentRadius, setAdjustmentRadius] = React.useState(4);
   return (
     <div className="inpaint-group">
       <div className="inpaint-group-head">
         <h3>{t("inpainting.retouch.eraseDrawn")}</h3>
         <small>{resolveMaskStrokeLabel(maskStrokeCount, t)}</small>
+      </div>
+      <div className="mask-adjust-row">
+        <label className="brush-size-control">
+          <span className="brush-size-label">
+            {t("inpainting.retouch.maskRadius")}
+          </span>
+          <RangeInput
+            min={1}
+            max={32}
+            value={adjustmentRadius}
+            disabled={jobActive || maskStrokeCount === 0}
+            onChange={(event) =>
+              setAdjustmentRadius(Number(event.target.value))
+            }
+          />
+          <strong>{adjustmentRadius}px</strong>
+        </label>
+        <div className="mask-adjust-buttons">
+          <Button
+            size="sm"
+            disabled={jobActive || maskStrokeCount === 0}
+            onClick={() => onAdjustPatternMask(-adjustmentRadius)}
+          >
+            {t("inpainting.retouch.shrinkMask")}
+          </Button>
+          <Button
+            size="sm"
+            disabled={jobActive || maskStrokeCount === 0}
+            onClick={() => onAdjustPatternMask(adjustmentRadius)}
+          >
+            {t("inpainting.retouch.expandMask")}
+          </Button>
+        </div>
       </div>
       <div className="mask-action-row">
         <Button

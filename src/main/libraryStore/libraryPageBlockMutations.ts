@@ -92,6 +92,7 @@ export function savePageBlocksUnlocked(
         baseUpdatedAt: request.baseUpdatedAt,
         baseBlocksHash: request.baseBlocksHash,
         blocks: request.blocks,
+        blockOrder: request.blockOrder,
       },
     ],
   });
@@ -167,6 +168,7 @@ function applyPageUpdates(
     return {
       ...page,
       blocks,
+      blockOrder: normalizeSavedBlockOrder(update.blockOrder, blocks),
       translationCompletion: resolveCompletionAfterBlockMutation(
         page.translationCompletion,
         page.blocks,
@@ -181,4 +183,22 @@ function applyPageUpdates(
     status: resolveChapterStatus(pages),
     updatedAt,
   };
+}
+
+function normalizeSavedBlockOrder(
+  requestedOrder: readonly string[] | undefined,
+  blocks: readonly { id: string }[],
+): string[] | undefined {
+  if (!requestedOrder) return undefined;
+  const knownIds = new Set(blocks.map((block) => block.id));
+  const seen = new Set<string>();
+  const order = requestedOrder.filter((id) => {
+    if (!knownIds.has(id) || seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+  for (const block of blocks) {
+    if (!seen.has(block.id)) order.push(block.id);
+  }
+  return order;
 }

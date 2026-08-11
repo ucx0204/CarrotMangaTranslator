@@ -1,72 +1,37 @@
-import {
-  useCallback,
-  useMemo,
-  type Dispatch,
-  type SetStateAction,
-} from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
-import { offsetBlockBboxes } from "../../../shared/geometry";
 import {
   pickBlockFormat,
   type BlockFormatGroupId,
 } from "../../../shared/blockFormat";
-import type { UpdateCurrentChapter } from "./useCurrentChapterUpdater";
 import {
   resolveFormatApplyStatus,
   type FormatApplyScope,
 } from "./blockEditingStatus";
-import type { FontSizeAdjustment } from "../lib/blockFontSizeAdjustment";
 import { useAdjustSelectedBlockFontSizeAction } from "./useAdjustSelectedBlockFontSizeAction";
 import { useUpdateBlockAction } from "./useUpdateSelectedBlockAction";
-import {
-  useApplyBlockBackgroundOpacityAction,
-  type BlockBackgroundApplyScope,
-} from "./useApplyBlockBackgroundOpacityAction";
+import { useApplyBlockBackgroundOpacityAction } from "./useApplyBlockBackgroundOpacityAction";
 import { useNudgeSelectedBlocksAction } from "./useNudgeSelectedBlocksAction";
 import type { BlockStylePreset } from "../../../shared/blockStylePresets";
 import { summarizeBlockStylePresets } from "../../../shared/blockStylePresets";
 import { useApplyStylePresetAction } from "./useApplyStylePresetAction";
 import { applyFormatToChapterPages } from "../lib/blockFormatApply";
+import type {
+  BlockEditingActions,
+  UseBlockEditingActionsOptions,
+} from "./blockEditingActionTypes";
+import {
+  useDeleteSelectedBlockAction,
+  useDuplicateSelectedBlockAction,
+  useMoveSelectedBlockInReadingOrderAction,
+  useSortPageReadingOrderAction,
+  useUpdateSelectedBlocksAction,
+} from "./useBlockReadingOrderActions";
 
 const EMPTY_FONT_IDS: ReadonlySet<string> = new Set();
 const EMPTY_STYLE_PRESETS: readonly BlockStylePreset[] = [];
-
-type UseBlockEditingActionsOptions = {
-  availableFontIds?: ReadonlySet<string>;
-  blockStylePresets?: readonly BlockStylePreset[];
-  currentChapter: ChapterSnapshot | null;
-  jobActive: boolean;
-  pushStatus: (line: string) => void;
-  selectedBlock: TranslationBlock | null;
-  selectedBlockIds: string[];
-  selectedPage: MangaPage | null;
-  selectedPageEditLocked: boolean;
-  setSelectedBlockId: Dispatch<SetStateAction<string | null>>;
-  setSelectedBlockIds: Dispatch<SetStateAction<string[]>>;
-  updateCurrentChapter: UpdateCurrentChapter;
-};
-
-type BlockEditingActions = {
-  adjustSelectedBlockFontSize: (adjustment: FontSizeAdjustment) => void;
-  applyBlockBackgroundOpacityToScope: (
-    scope: BlockBackgroundApplyScope,
-  ) => void;
-  applyFormatToScope: (
-    scope: FormatApplyScope,
-    groupIds: BlockFormatGroupId[],
-  ) => void;
-  applyStylePreset: (presetId: string) => void;
-  deleteSelectedBlock: () => void;
-  duplicateSelectedBlock: () => void;
-  nudgeSelectedBlocks: (deltaPx: { x: number; y: number }) => void;
-  removeSelectedBlockBubbleLayout: () => void;
-  toggleBlockInpaintExcluded: (blockId: string) => void;
-  updateBlock: (blockId: string, patch: Partial<TranslationBlock>) => void;
-  updateSelectedBlock: (patch: Partial<TranslationBlock>) => void;
-  stylePresetSummaries: ReturnType<typeof summarizeBlockStylePresets>;
-};
 
 export function useBlockEditingActions(
   options: UseBlockEditingActionsOptions,
@@ -82,6 +47,7 @@ export function useBlockEditingActions(
     },
     [options.selectedBlock, updateBlock],
   );
+  const updateSelectedBlocks = useUpdateSelectedBlocksAction(options);
   const toggleBlockInpaintExcluded =
     useToggleBlockInpaintExcludedAction(options);
   const applyBlockBackgroundOpacityToScope =
@@ -90,6 +56,9 @@ export function useBlockEditingActions(
   const applyStylePreset = useApplyStylePresetAction(options);
   const deleteSelectedBlock = useDeleteSelectedBlockAction(options);
   const duplicateSelectedBlock = useDuplicateSelectedBlockAction(options);
+  const moveSelectedBlockInReadingOrder =
+    useMoveSelectedBlockInReadingOrderAction(options);
+  const sortPageReadingOrder = useSortPageReadingOrderAction(options);
   const removeSelectedBlockBubbleLayout =
     useRemoveSelectedBlockBubbleLayoutAction(options);
   const nudgeSelectedBlocks = useNudgeSelectedBlocksAction(options);
@@ -109,12 +78,15 @@ export function useBlockEditingActions(
     applyStylePreset,
     deleteSelectedBlock,
     duplicateSelectedBlock,
+    moveSelectedBlockInReadingOrder,
     nudgeSelectedBlocks,
     removeSelectedBlockBubbleLayout,
     toggleBlockInpaintExcluded,
     updateBlock,
     updateSelectedBlock,
+    updateSelectedBlocks,
     stylePresetSummaries,
+    sortPageReadingOrder,
   };
 }
 
@@ -281,111 +253,4 @@ function resolveFormatTargetPageIds(
     return currentChapter.pages.map((page) => page.id);
   }
   return selectedPage ? [selectedPage.id] : [];
-}
-
-function useDeleteSelectedBlockAction({
-  selectedBlock,
-  selectedPage,
-  selectedPageEditLocked,
-  setSelectedBlockId,
-  setSelectedBlockIds,
-  updateCurrentChapter,
-}: UseBlockEditingActionsOptions): BlockEditingActions["deleteSelectedBlock"] {
-  const { t } = useTranslation("renderer");
-  return useCallback(() => {
-    if (!selectedPage || !selectedBlock || selectedPageEditLocked) {
-      return;
-    }
-    updateCurrentChapter(
-      selectedPage.id,
-      (current) => ({
-        ...current,
-        pages: current.pages.map((page) =>
-          page.id === selectedPage.id
-            ? {
-                ...page,
-                updatedAt: new Date().toISOString(),
-                blocks: page.blocks.filter(
-                  (block) => block.id !== selectedBlock.id,
-                ),
-              }
-            : page,
-        ),
-      }),
-      {
-        label: t("workspaceHistory.deleteBlock"),
-        selectionAfter: {
-          selectedPageId: selectedPage.id,
-          selectedBlockId: null,
-          selectedBlockIds: [],
-        },
-      },
-    );
-    setSelectedBlockId(null);
-    setSelectedBlockIds([]);
-  }, [
-    selectedBlock,
-    selectedPage,
-    selectedPageEditLocked,
-    setSelectedBlockId,
-    setSelectedBlockIds,
-    t,
-    updateCurrentChapter,
-  ]);
-}
-
-function useDuplicateSelectedBlockAction({
-  selectedBlock,
-  selectedPage,
-  selectedPageEditLocked,
-  setSelectedBlockId,
-  setSelectedBlockIds,
-  updateCurrentChapter,
-}: UseBlockEditingActionsOptions): BlockEditingActions["duplicateSelectedBlock"] {
-  const { t } = useTranslation("renderer");
-  return useCallback(() => {
-    if (!selectedPage || !selectedBlock || selectedPageEditLocked) {
-      return;
-    }
-    const copy = {
-      ...offsetBlockBboxes(selectedBlock, 16, 16, {
-        width: selectedPage.width,
-        height: selectedPage.height,
-      }),
-      id: `${selectedBlock.id}-copy-${Date.now()}`,
-    };
-    updateCurrentChapter(
-      selectedPage.id,
-      (current) => ({
-        ...current,
-        pages: current.pages.map((page) =>
-          page.id === selectedPage.id
-            ? {
-                ...page,
-                updatedAt: new Date().toISOString(),
-                blocks: [...page.blocks, copy],
-              }
-            : page,
-        ),
-      }),
-      {
-        label: t("workspaceHistory.duplicateBlock"),
-        selectionAfter: {
-          selectedPageId: selectedPage.id,
-          selectedBlockId: copy.id,
-          selectedBlockIds: [copy.id],
-        },
-      },
-    );
-    setSelectedBlockId(copy.id);
-    setSelectedBlockIds([copy.id]);
-  }, [
-    selectedBlock,
-    selectedPage,
-    selectedPageEditLocked,
-    setSelectedBlockId,
-    setSelectedBlockIds,
-    t,
-    updateCurrentChapter,
-  ]);
 }

@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { MangaPage } from "../src/shared/libraryTypes";
 import {
@@ -31,6 +31,7 @@ type ExportOutcome =
 const tempDirs: string[] = [];
 const realSetTimeout = globalThis.setTimeout.bind(globalThis);
 let latestWindow: FakeExportWindow | null = null;
+let createdWindows: FakeExportWindow[] = [];
 let probedImageSize = { width: 16, height: 16 };
 let rendererImageSize = { width: 16, height: 16 };
 let devToolsScreenshotResult: DevToolsScreenshotResponse | Error = {
@@ -44,6 +45,7 @@ let debuggerDetachError: Error | null = null;
 class FakeExportWindow {
   options: ExportWindowOptions;
   loadedHtml = "";
+  loadedHtmlPath = "";
   debuggerAttached = false;
   listeners = new Map<string, Listener>();
   windowOpenHandler: (() => { action: "deny" | "allow" }) | null = null;
@@ -117,10 +119,12 @@ class FakeExportWindow {
   constructor(options: ExportWindowOptions) {
     this.options = options;
     latestWindow = this;
+    createdWindows.push(this);
   }
 
   async loadFile(htmlPath: string): Promise<void> {
     recordExportEvent("page-load:start");
+    this.loadedHtmlPath = htmlPath;
     this.loadedHtml = readFileSync(htmlPath, "utf8");
     if (stalledExportPhase === "page-load") {
       return pendingForever();
@@ -136,6 +140,7 @@ describe("page export BrowserWindow security", () => {
     vi.clearAllMocks();
     vi.restoreAllMocks();
     latestWindow = null;
+    createdWindows = [];
     probedImageSize = { width: 16, height: 16 };
     rendererImageSize = { width: 16, height: 16 };
     devToolsScreenshotResult = {
@@ -174,6 +179,72 @@ describe("page export BrowserWindow security", () => {
     expectEventBefore("page-load:done", "render-readiness:start");
     expectEventBefore("render-readiness:done", "debugger:attach");
     expectEventBefore("debugger:attach", "cdp:Page.enable:start");
+  });
+
+  it("keeps render HTML on a short session-owned path for deeply nested data roots", async () => {
+    const rootDir = await createTempRoot();
+    const options = createRenderOptions(rootDir);
+    options.dataRoot = join(
+      rootDir,
+      "deep-library-export-root".repeat(6),
+      "nested-run-root".repeat(6),
+    );
+    const { createPageExportRenderSession } = await loadPageExport();
+    const session = await createPageExportRenderSession(options);
+    const exportWindow = latestWindow;
+    if (!exportWindow) throw new Error("Expected an export window.");
+
+    let sessionDir: string | undefined;
+    try {
+      await session.renderPage(makePage(rootDir));
+      sessionDir = dirname(exportWindow.loadedHtmlPath);
+      expect(exportWindow.loadedHtmlPath.length).toBeLessThan(260);
+      expect(exportWindow.loadedHtmlPath).not.toContain(options.dataRoot);
+      expect(existsSync(exportWindow.loadedHtmlPath)).toBe(false);
+      expect(existsSync(sessionDir)).toBe(true);
+    } finally {
+      session.close();
+    }
+    if (!sessionDir) throw new Error("Expected a render session directory.");
+    expect(existsSync(sessionDir)).toBe(false);
+  });
+
+  it("isolates concurrent render sessions and cleans only the owning directory", async () => {
+    const rootDir = await createTempRoot();
+    const { createPageExportRenderSession } = await loadPageExport();
+    const firstSession = await createPageExportRenderSession(
+      createRenderOptions(rootDir),
+    );
+    const secondSession = await createPageExportRenderSession(
+      createRenderOptions(rootDir),
+    );
+    const [firstWindow, secondWindow] = createdWindows;
+    if (!firstWindow || !secondWindow) {
+      throw new Error("Expected two export windows.");
+    }
+
+    let firstDir: string | undefined;
+    let secondDir: string | undefined;
+    try {
+      await Promise.all([
+        firstSession.renderPage(makePage(rootDir)),
+        secondSession.renderPage(makePage(rootDir)),
+      ]);
+      firstDir = dirname(firstWindow.loadedHtmlPath);
+      secondDir = dirname(secondWindow.loadedHtmlPath);
+      expect(firstDir).not.toBe(secondDir);
+      expect(existsSync(firstDir)).toBe(true);
+      expect(existsSync(secondDir)).toBe(true);
+
+      firstSession.close();
+      expect(existsSync(firstDir)).toBe(false);
+      expect(existsSync(secondDir)).toBe(true);
+    } finally {
+      firstSession.close();
+      secondSession.close();
+    }
+    if (!secondDir) throw new Error("Expected a second render directory.");
+    expect(existsSync(secondDir)).toBe(false);
   });
 
   it("destroys the export window even when debugger detachment fails", async () => {
@@ -432,6 +503,29 @@ describe("page export BrowserWindow security", () => {
           scale: 1,
         },
       },
+    );
+  });
+
+  it("renders transparent PSD text layers with an alpha capture background", async () => {
+    const rootDir = await createTempRoot();
+    const { createPageExportRenderSession } = await loadPageExport();
+    const session = await createPageExportRenderSession(
+      createRenderOptions(rootDir),
+    );
+
+    try {
+      await session.renderTransparentPage?.(makePage(rootDir));
+    } finally {
+      session.close();
+    }
+
+    expect(latestWindow?.loadedHtml).toContain('"transparentBackground":true');
+    expect(latestWindow?.webContents.debugger.sendCommand).toHaveBeenCalledWith(
+      "Emulation.setDefaultBackgroundColorOverride",
+      { color: { r: 0, g: 0, b: 0, a: 0 } },
+    );
+    expect(latestWindow?.webContents.debugger.sendCommand).toHaveBeenCalledWith(
+      "Emulation.setDefaultBackgroundColorOverride",
     );
   });
 

@@ -31,6 +31,14 @@ async function startPageExport(): Promise<void> {
   const stage = document.getElementById("stage");
   if (!stage) throw new Error("Page export stage is missing.");
   const data = parsePageExportData(document.getElementById("page-export-data"));
+  const showImage = !data.transparentBackground;
+  if (!showImage) {
+    // The production renderer stylesheet gives :root the dark app surface.
+    // Mark both root and body so the PSD-only text capture stays genuinely
+    // transparent instead of baking a full-canvas #101114 layer.
+    document.documentElement.dataset.transparentBackground = "1";
+    document.body.dataset.transparentBackground = "1";
+  }
   const catalog = createBlockFontCatalog(
     data.fontLibrary.customFonts,
     data.fontLibrary.preferences,
@@ -47,11 +55,12 @@ async function startPageExport(): Promise<void> {
         fontCatalog={catalog}
         imageSrc={data.imageSrc}
         page={data.page}
+        showImage={showImage}
         visualSize={imageSize}
       />,
     );
   });
-  await waitForRenderedImage(stage);
+  await waitForRenderedImage(stage, showImage);
   await waitForTwoAnimationFrames();
   document.body.dataset.outputWidth = String(data.outputSize.width);
   document.body.dataset.outputHeight = String(data.outputSize.height);
@@ -71,7 +80,11 @@ async function decodeExportImage(
   return actual;
 }
 
-async function waitForRenderedImage(stage: HTMLElement): Promise<void> {
+async function waitForRenderedImage(
+  stage: HTMLElement,
+  showImage: boolean,
+): Promise<void> {
+  if (!showImage) return;
   const image = stage.querySelector<HTMLImageElement>(".page-image");
   if (!image) throw new Error("Page export image was not rendered.");
   await image.decode();

@@ -22,6 +22,7 @@ type UseInpaintingContextBridgeOptions = {
   maskStrokes: InpaintingMaskStroke[];
   onCancelJob: () => void;
   onClearPatternMask: () => void;
+  onAdjustPatternMask: (deltaPx: number) => void;
   onShowGuide: () => void;
   peekAvailable: boolean;
   peeking: boolean;
@@ -190,6 +191,7 @@ function useInpaintingContextState({
 function useInpaintingContextActions({
   onCancelJob,
   onClearPatternMask,
+  onAdjustPatternMask,
   onShowGuide,
   redoRetouch,
   revertInpainting,
@@ -216,6 +218,7 @@ function useInpaintingContextActions({
       onRunChapter: () => void runInpainting("chapter"),
       onRunDrawnPattern: () => void runDrawnPatternInpainting(),
       onClearPatternMask,
+      onAdjustPatternMask,
       onShowGuide,
       onPeekToggle: () => setPeeking((value) => !value),
       onToggleChrome: () => setShowBlockChrome((value) => !value),
@@ -225,6 +228,7 @@ function useInpaintingContextActions({
     [
       onCancelJob,
       onClearPatternMask,
+      onAdjustPatternMask,
       onShowGuide,
       redoRetouch,
       revertInpainting,

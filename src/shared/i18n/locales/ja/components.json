@@ -392,15 +392,24 @@
   },
   "exportOptions": {
     "title": "PNG出力",
+    "psdTitle": "PSD出力",
     "prompt": "出力するページを選択してください。",
     "currentChapter": "現在の話",
     "chapterSummary": "{{count}}p",
     "noSelectedPages": "ページが選択されていません。",
     "selectionSummary": "{{chapterCount}}話・{{pageCount}}ページ",
     "start": "PNG出力",
+    "startPsd": "PSD出力",
     "starting": "出力を準備中…",
     "omitText": "文字なしで出力",
     "omitTextHint": "翻訳文字を合成せず、インペイント済みの背景だけをPNGで出力します。",
+    "omitTextHintPsd": "テキストレイヤーを除き、原本と補正済み背景レイヤーのみをPSDで出力します。",
+    "outputFormat": "ファイル形式",
+    "formats": { "png": "完成画像 (PNG)", "psd": "レイヤー文書 (PSD)" },
+    "formatHints": {
+      "png": "そのまま公開できる完成画像を作成します。",
+      "psd": "原本・補正済み背景・各テキストブロックを分離します。複雑な縦書きや曲線文字は正確なラスターレイヤーとして保持されます。"
+    },
     "preflight": {
       "title": "出力前の確認",
       "nextStep": "確認後、保存先フォルダーを選択します。",
@@ -420,7 +429,7 @@
         "translation-failed": "翻訳または後処理に失敗しました。",
         "translation-pending": "翻訳が完了していません。",
         "postprocess-pending": "翻訳は完了しましたが、消去・後処理が残っています。",
-        "inpainted-image-missing": "インペイント結果がないため、文字なしPNGを出力できません。",
+        "inpainted-image-missing": "インペイント結果がないため、文字なし出力を作成できません。",
         "empty-translation": "翻訳文が空のブロックがあります。"
       }
     },
@@ -804,7 +813,11 @@
     "fixed": {
       "previousNextPage": "前 / 次のページ",
       "previousNextPageCenter": "前 / 次のページ（中央パネル）",
-      "escape": "モーダルを閉じる・ドラッグ / 範囲選択をキャンセル"
+      "escape": "モーダルを閉じる・ドラッグ / 範囲選択をキャンセル",
+      "wheelPages": "上下端でページを移動",
+      "fitHeight": "作業領域の高さにページを合わせる",
+      "toggleSelection": "ブロックを選択に追加・解除",
+      "rangeSelection": "連続したブロック範囲を選択"
     }
   },
   "gatherText": {
@@ -1086,6 +1099,9 @@
       "eraseDrawn": "塗って消す",
       "eraseDrawnArea": "塗った範囲を消す",
       "drawnAreas": "塗った範囲 {{count}}件",
+      "maskRadius": "マスク調整半径",
+      "shrinkMask": "縮小",
+      "expandMask": "拡張",
       "soundEffectTouchup": "効果音の補正",
       "backAuto": "← 自動",
       "nextExport": "出力 →"
@@ -1511,13 +1527,13 @@
       }
     },
     "shortcuts": {
-      "description": "項目をクリックして、設定したいキーの組み合わせを押してください。拡大・縮小には修飾キー付きのホイール操作も設定できます。Escでキャンセルし、「クリア」で解除できます。",
+      "description": "項目をクリックして、設定したいキーの組み合わせを押してください。拡大・縮小には修飾キー付きのホイール操作も設定できます。競合するキーは適用されないため、既存の割り当てを先にクリアするか、別のキーを選択してください。Escで入力をキャンセルできます。",
       "changeAria": "{{label}}のショートカットを変更",
       "waiting": "キーまたはホイール入力待ち…",
       "unassigned": "未設定",
       "reset": "既定値",
       "clear": "クリア",
-      "displaced": "「{{label}}」に設定されていたショートカットを解除して移動しました。",
+      "conflict": "{{combo}}はすでに「{{label}}」で使用されています。既存のショートカットは変更されていません。",
       "categories": {
         "view": "表示 / ビュー",
         "tool": "ツール",
@@ -1614,7 +1630,11 @@
     "emptySource": "原文なし",
     "translationPlaceholder": "翻訳文を入力",
     "empty": "このページにはテキストブロックがありません。",
-    "backToList": "ページのブロック一覧へ"
+    "backToList": "ページのブロック一覧へ",
+    "selectedCount": "{{count}}個を選択",
+    "moveEarlier": "読み順を前へ",
+    "moveLater": "読み順を後ろへ",
+    "sortReadingOrder": "位置で並べ替え"
   },
   "statusDock": {
     "title": "アクティビティセンター",
@@ -1643,6 +1663,23 @@
     "conflict": "保存の競合 · 最新内容を確認してください",
     "retry": "再保存"
   },
+  "searchReplace": {
+    "title": "検索と置換",
+    "find": "検索する文字列",
+    "replaceWith": "置換後の文字列",
+    "scope": "範囲",
+    "field": "テキスト欄",
+    "scopes": { "page": "現在のページ", "chapter": "話全体" },
+    "fields": { "translated": "翻訳", "source": "原文", "both": "両方" },
+    "caseSensitive": "大文字と小文字を区別",
+    "regex": "正規表現",
+    "matchCount": "{{count}}件一致",
+    "replaceAll": "すべて置換 ({{count}})",
+    "invalidRegex": "正規表現が正しくありません: {{message}}",
+    "enterQuery": "検索する文字列を入力してください。",
+    "noMatches": "一致する項目はありません。",
+    "emptyText": "空のテキスト"
+  },
   "stylePresets": {
     "title": "書式プリセット",
     "quickFormats": "クイック書式",
@@ -1660,6 +1697,9 @@
     "groups": "含める書式グループ",
     "pinQuick": "クイック書式に表示",
     "pinned": "クイック書式",
+    "shortcutSlot": "キーボードスタイルスロット",
+    "shortcutSlotNone": "ショートカットスロットなし",
+    "shortcutSlotValue": "スロット{{slot}}",
     "missingFontShort": "保存されたフォントが見つかりません",
     "duplicateName": "{{name}} のコピー",
     "groupCount": "書式グループ {{count}}個",

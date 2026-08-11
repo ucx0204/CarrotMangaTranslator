@@ -48,6 +48,7 @@ export type InpaintingContextValue = {
   onRunChapter: () => void;
   onRunDrawnPattern: () => void;
   onClearPatternMask: () => void;
+  onAdjustPatternMask: (deltaPx: number) => void;
   onShowGuide: () => void;
   onPeekToggle: () => void;
   onToggleChrome: () => void;

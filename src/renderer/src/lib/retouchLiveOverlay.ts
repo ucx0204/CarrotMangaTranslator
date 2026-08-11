@@ -35,6 +35,7 @@ type StrokePreviewFrame = {
   geometry: RetouchLiveGeometry;
   lastDrawnPoint: RetouchLivePoint | null;
   pendingPoints: RetouchLivePoint[];
+  resetBeforeDraw: boolean;
   style: RetouchLiveStyle;
 };
 
@@ -88,8 +89,24 @@ export function beginRetouchStroke(
     geometry,
     lastDrawnPoint: null,
     pendingPoints: [point],
+    resetBeforeDraw: false,
     style,
   };
+  scheduleLiveFrame(stage, state);
+}
+
+export function replaceRetouchStrokePreview(
+  stage: HTMLElement,
+  points: readonly RetouchLivePoint[],
+  geometry: RetouchLiveGeometry,
+): void {
+  const state = getLiveState(stage);
+  const preview = state.previewFrame;
+  if (!preview || preview.kind !== "stroke") return;
+  preview.geometry = geometry;
+  preview.lastDrawnPoint = null;
+  preview.pendingPoints = [...points];
+  preview.resetBeforeDraw = true;
   scheduleLiveFrame(stage, state);
 }
 
@@ -231,16 +248,25 @@ function renderPendingPreview(
   const canvas = findCanvas(stage);
   if (!canvas) {
     preview.pendingPoints.length = 0;
+    preview.resetBeforeDraw = false;
     return;
   }
   const context = getCanvasContext(canvas);
   if (!context) {
     preview.pendingPoints.length = 0;
+    preview.resetBeforeDraw = false;
     return;
   }
   const resized = prepareCanvas(canvas, context, preview.geometry);
-  if (resized) {
+  if (resized || preview.resetBeforeDraw) {
+    context.clearRect(
+      0,
+      0,
+      preview.geometry.displayWidth,
+      preview.geometry.displayHeight,
+    );
     preview.lastDrawnPoint = null;
+    preview.resetBeforeDraw = false;
   }
   canvas.hidden = false;
   const points = preview.pendingPoints.splice(0);

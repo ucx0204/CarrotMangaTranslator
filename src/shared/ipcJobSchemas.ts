@@ -322,6 +322,7 @@ export const PageImageExportRequestSchema = z
       .max(MAX_ID_LIST_LENGTH)
       .optional(),
     omitText: z.boolean().optional(),
+    outputFormat: z.enum(["png", "psd"]).optional(),
   })
   .strict();
 

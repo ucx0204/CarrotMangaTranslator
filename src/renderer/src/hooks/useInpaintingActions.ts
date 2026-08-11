@@ -4,6 +4,7 @@ import type {
 } from "./inpaintingActionTypes";
 import type { InpaintingPostprocessOptions } from "../../../shared/inpaintingTypes";
 import type { PageImageExportChapterSelection } from "../../../shared/pageImageExportTypes";
+import type { PageImageExportFormat } from "../../../shared/pageImageExportTypes";
 import type { PageJobTargetSnapshot } from "../../../shared/pageRevision";
 import { useDrawnPatternInpaintingAction } from "./useDrawnPatternInpaintingAction";
 import { useExportPageImagesAction } from "./useExportPageImagesAction";
@@ -19,7 +20,7 @@ export type InpaintingActions = {
   exportPageImages: (
     selections: PageImageExportChapterSelection[],
     expectedTargets?: PageJobTargetSnapshot[],
-    options?: { omitText?: boolean },
+    options?: { omitText?: boolean; outputFormat?: PageImageExportFormat },
   ) => Promise<boolean>;
   revertInpainting: (scope: InpaintingScope) => Promise<void>;
   runBubbleLayout: (blockId?: string) => Promise<void>;

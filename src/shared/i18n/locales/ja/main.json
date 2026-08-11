@@ -323,14 +323,14 @@
   },
   "export": {
     "noPages": "出力するページがありません。",
-    "cancelled": "PNG出力はキャンセルされました。",
-    "failed": "PNG出力に失敗しました",
-    "preparing": "PNG出力を準備中",
-    "completed": "PNG出力完了",
+    "cancelled": "ページ出力はキャンセルされました。",
+    "failed": "ページ出力に失敗しました",
+    "preparing": "ページ出力を準備中",
+    "completed": "ページ出力完了",
     "selection": "{{chapters}}話 · {{pages}}ページ",
     "page": {
-      "running": "{{current}} / {{total}}ページをPNG出力中",
-      "done": "{{current}} / {{total}}ページのPNG出力完了"
+      "running": "{{current}} / {{total}}ページを出力中",
+      "done": "{{current}} / {{total}}ページの出力完了"
     },
     "errors": {
       "workNotFound": "出力する作品が見つかりません。",
@@ -338,7 +338,7 @@
       "duplicateChapter": "同じ話を2回選択できません。",
       "pageNotFound": "選択したページはその話にありません。",
       "duplicatePage": "同じページを2回選択できません。",
-      "outputDirectory": "PNG出力フォルダーを作成できませんでした。",
+      "outputDirectory": "ページ出力フォルダーを作成できませんでした。",
       "rasterTooLarge": "{{name}}ページはPNG出力の安全な解像度上限を超えています。（{{width}}×{{height}}、最大{{maxPixels}}ピクセル）",
       "screenshotTooLarge": "{{name}}ページのPNG結果が安全なファイルサイズ上限を超えています。",
       "invalidScreenshot": "PNG出力結果が有効なbase64またはPNGデータではありません。",

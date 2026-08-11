@@ -1,4 +1,5 @@
 import { resolveSourceReadingDirection } from "../../../../shared/translationLanguages";
+import { resolveReadingDirection } from "../../../../shared/blockReadingOrder";
 import type { AutoInpaintingEntryScope } from "../../lib/autoInpaintingSelection";
 import type { AppSessionViewProps } from "./AppSessionView";
 import type { AppSessionViewModel } from "./appSessionViewModel";
@@ -8,7 +9,13 @@ type RightRailViewModel = {
   blockEditingActions: Pick<
     AppSessionViewModel["blockEditingActions"],
     "updateBlock"
-  >;
+  > &
+    Partial<
+      Pick<
+        AppSessionViewModel["blockEditingActions"],
+        "moveSelectedBlockInReadingOrder" | "sortPageReadingOrder"
+      >
+    >;
   bridgeActions: Pick<
     AppSessionViewModel["bridgeActions"],
     "cancelJob" | "openLogFolder"
@@ -22,7 +29,10 @@ type RightRailViewModel = {
     | "setRegionSelection"
     | "setSelectedBlockId"
     | "setSelectedBlockIds"
-  >;
+  > & {
+    library?: AppSessionViewModel["core"]["library"];
+    selectedBlockIds?: AppSessionViewModel["core"]["selectedBlockIds"];
+  };
   derivedState: Pick<
     AppSessionViewModel["derivedState"],
     | "peekAvailable"
@@ -49,7 +59,13 @@ type RightRailViewModel = {
       | "onClearPatternMask"
       | "onPeekToggle"
       | "onRunDrawnPattern"
-    >;
+    > &
+      Partial<
+        Pick<
+          AppSessionViewModel["inpaintingBridge"]["contextValue"],
+          "onAdjustPatternMask"
+        >
+      >;
   };
   persistence: Pick<
     AppSessionViewModel["persistence"],
@@ -103,8 +119,13 @@ export function createRightRailProps(
   const inpainting = inpaintingBridge.contextValue;
   return {
     ...createRightRailActions(model),
-    blockReadingDirection: resolveSourceReadingDirection(
-      settingsDialog.settings?.translation?.sourceLanguage,
+    blockReadingDirection: resolveReadingDirection(
+      core.library?.works.find(
+        (work) => work.id === core.currentChapter?.workId,
+      )?.readingDirection,
+      resolveSourceReadingDirection(
+        settingsDialog.settings?.translation?.sourceLanguage,
+      ),
     ),
     brushColor: inpainting.brushColor,
     brushRadius: inpainting.brushRadius,
@@ -132,6 +153,7 @@ export function createRightRailProps(
     rightRailMode: uiState.rightRailMode,
     selectedBlock: derivedState.selectedBlock,
     selectedBlockId: core.selectedBlockId,
+    selectedBlockIds: core.selectedBlockIds ?? [],
     selectedPage: derivedState.selectedPage,
     saveStatus: persistence.saveStatus,
     showBlockChrome: uiState.showBlockChrome,
@@ -165,7 +187,16 @@ function createRightRailActions({
   return {
     onBrushColorChange: inpainting.onBrushColorChange,
     onBrushRadiusChange: inpainting.onBrushRadiusChange,
+    onAdjustPatternMask: inpainting.onAdjustPatternMask ?? (() => undefined),
     onClearPatternMask: inpainting.onClearPatternMask,
+    onChangeBlockSelection: (
+      blockIds: string[],
+      primaryBlockId: string | null,
+    ) => {
+      core.selectedBlockIdRef.current = primaryBlockId;
+      core.setSelectedBlockId(primaryBlockId);
+      core.setSelectedBlockIds(blockIds);
+    },
     onOpenAutoInpaintingOptions: (scope: AutoInpaintingEntryScope) => {
       prepareAutoInpainting(core, uiState, scope);
     },
@@ -180,6 +211,10 @@ function createRightRailActions({
     onOpenTextView: () => uiState.setTextViewOpen(true),
     onOpenTranslateOptions: () => uiState.openTranslateOptions(),
     onPeekToggle: inpainting.onPeekToggle,
+    onMoveBlockInReadingOrder: (blockId: string, direction: -1 | 1) => {
+      selectBlock(blockId);
+      blockEditingActions.moveSelectedBlockInReadingOrder?.(direction, blockId);
+    },
     onRedo: () => void workspaceHistory.redo(),
     onResetPage: () => {
       uiState.setPeekOriginal(false);
@@ -195,6 +230,8 @@ function createRightRailActions({
       selectBlock(blockId);
       uiState.setRightRailMode("page-blocks");
     },
+    onSortReadingOrder:
+      blockEditingActions.sortPageReadingOrder ?? (() => undefined),
     onToggleBlocks: () => uiState.setShowTextBlocks((visible) => !visible),
     onToggleChrome: () => uiState.setShowBlockChrome((visible) => !visible),
     onUndo: () => void workspaceHistory.undo(),

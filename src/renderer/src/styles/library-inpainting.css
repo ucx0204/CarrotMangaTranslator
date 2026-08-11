@@ -777,6 +777,25 @@
   gap: var(--sp-2);
 }
 
+.mask-adjust-row {
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+}
+
+.mask-adjust-row .brush-size-control {
+  margin: 0;
+}
+
+.mask-adjust-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-2);
+}
+
 .drawn-mask-panel > button.pattern {
   width: 100%;
   min-height: var(--ctl-h);

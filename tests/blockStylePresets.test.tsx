@@ -170,6 +170,42 @@ describe("block style preset model", () => {
     expect(legacyPreset).not.toHaveProperty("groupId");
   });
 
+  it("keeps one preset per shortcut slot and rejects out-of-range slots", () => {
+    const normalized = normalizeBlockStylePresets([
+      {
+        version: 1,
+        id: "style-preset:first",
+        name: "First",
+        pinned: false,
+        shortcutSlot: 3,
+        groupIds: ["color"],
+        format: { textColor: "#111111" },
+      },
+      {
+        version: 1,
+        id: "style-preset:duplicate",
+        name: "Duplicate",
+        pinned: false,
+        shortcutSlot: 3,
+        groupIds: ["color"],
+        format: { textColor: "#222222" },
+      },
+      {
+        version: 1,
+        id: "style-preset:invalid",
+        name: "Invalid",
+        pinned: false,
+        shortcutSlot: 11,
+        groupIds: ["color"],
+        format: { textColor: "#333333" },
+      },
+    ]);
+
+    expect(normalized[0]?.shortcutSlot).toBe(3);
+    expect(normalized[1]).not.toHaveProperty("shortcutSlot");
+    expect(normalized[2]).not.toHaveProperty("shortcutSlot");
+  });
+
   it("validates pop-out summaries and apply commands", () => {
     expect(
       PanelSyncStateSchema.parse({

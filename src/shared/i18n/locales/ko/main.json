@@ -323,14 +323,14 @@
   },
   "export": {
     "noPages": "출력할 페이지가 없습니다.",
-    "cancelled": "PNG 출력이 취소되었습니다.",
-    "failed": "PNG 출력 실패",
-    "preparing": "PNG 출력 준비 중",
-    "completed": "PNG 출력 완료",
+    "cancelled": "페이지 출력이 취소되었습니다.",
+    "failed": "페이지 출력 실패",
+    "preparing": "페이지 출력 준비 중",
+    "completed": "페이지 출력 완료",
     "selection": "{{chapters}}개 화 · {{pages}}페이지",
     "page": {
-      "running": "{{current}} / {{total}} 페이지 PNG 출력 중",
-      "done": "{{current}} / {{total}} 페이지 PNG 출력 완료"
+      "running": "{{current}} / {{total}} 페이지 출력 중",
+      "done": "{{current}} / {{total}} 페이지 출력 완료"
     },
     "errors": {
       "workNotFound": "출력할 작품을 찾지 못했습니다.",
@@ -338,7 +338,7 @@
       "duplicateChapter": "같은 화를 두 번 선택할 수 없습니다.",
       "pageNotFound": "선택한 페이지가 해당 화에 없습니다.",
       "duplicatePage": "같은 페이지를 두 번 선택할 수 없습니다.",
-      "outputDirectory": "PNG 출력 폴더를 만들지 못했습니다.",
+      "outputDirectory": "페이지 출력 폴더를 만들지 못했습니다.",
       "rasterTooLarge": "{{name}} 페이지는 PNG 내보내기 안전 해상도를 초과합니다. ({{width}}×{{height}}, 최대 {{maxPixels}} 픽셀)",
       "screenshotTooLarge": "{{name}} 페이지의 PNG 결과가 안전한 파일 크기를 초과합니다.",
       "invalidScreenshot": "PNG 내보내기 결과가 올바른 base64 또는 PNG 데이터가 아닙니다.",

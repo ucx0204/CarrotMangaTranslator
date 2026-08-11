@@ -123,6 +123,14 @@
       "hint": "頁面 · 整章",
       "keywords": "text copy gather 文字 複製 彙整"
     },
+    "toggleBlockChrome": {
+      "label": "切換背景與邊框顯示",
+      "keywords": "background border chrome guide 背景 邊框 顯示 隱藏"
+    },
+    "toggleTextBlocks": {
+      "label": "切換文字區塊顯示",
+      "keywords": "block text overlay 文字區塊 顯示 隱藏"
+    },
     "importSource": {
       "label": "新增原稿",
       "hint": "圖像 · 資料夾 · ZIP",
@@ -174,6 +182,10 @@
       "zoom-in": "放大圖像",
       "zoom-out": "縮小圖像",
       "zoom-reset": "重設縮放",
+      "zoom-fit-contain": "符合視窗",
+      "zoom-fit-width": "符合寬度",
+      "zoom-fit-height": "符合高度",
+      "zoom-actual-size": "實際大小",
       "page-previous": "上一頁",
       "page-next": "下一頁",
       "stage-tool-select": "選取工具",
@@ -186,13 +198,38 @@
       "gather-text": "彙整文字",
       "cancel-job": "取消工作",
       "toggle-inpainting": "清除目前頁面",
+      "retouch-tool-mask": "遮罩筆刷",
+      "retouch-tool-brush": "繪製筆刷",
+      "retouch-tool-rectangle": "矩形修補",
+      "retouch-tool-ellipse": "橢圓修補",
+      "retouch-tool-eraser": "修補橡皮擦",
+      "retouch-tool-picker": "色彩擷取",
+      "retouch-apply-mask": "套用遮罩",
+      "retouch-cancel-mask": "取消遮罩",
       "block-previous": "上一個文字區塊",
       "block-next": "下一個文字區塊",
+      "select-all-blocks": "選取本頁所有文字區塊",
+      "move-block-earlier": "閱讀順序前移",
+      "move-block-later": "閱讀順序後移",
+      "sort-reading-order": "依座標排列閱讀順序",
+      "reset-block-rotation": "重設文字區塊旋轉",
+      "open-search-replace": "尋找與取代",
+      "open-export-options": "開啟匯出",
       "history-undo": "復原",
       "history-redo": "重做",
       "delete-block": "刪除所選文字區塊",
       "duplicate-block": "複製所選文字區塊",
       "toggle-block-excluded": "切換文字區塊的圖像修復排除狀態",
+      "apply-style-slot-1": "套用樣式槽位1",
+      "apply-style-slot-2": "套用樣式槽位2",
+      "apply-style-slot-3": "套用樣式槽位3",
+      "apply-style-slot-4": "套用樣式槽位4",
+      "apply-style-slot-5": "套用樣式槽位5",
+      "apply-style-slot-6": "套用樣式槽位6",
+      "apply-style-slot-7": "套用樣式槽位7",
+      "apply-style-slot-8": "套用樣式槽位8",
+      "apply-style-slot-9": "套用樣式槽位9",
+      "apply-style-slot-10": "套用樣式槽位10",
       "toggle-command-palette": "命令選擇區",
       "toggle-shortcut-help": "快速鍵說明",
       "open-settings": "開啟設定"
@@ -207,6 +244,8 @@
     "stylePreset": "套用格式預設",
     "deleteBlock": "刪除文字區塊",
     "duplicateBlock": "複製文字區塊",
+    "readingOrder": "變更文字區塊閱讀順序",
+    "searchReplace": "尋找與取代",
     "createBlock": "新增文字區塊",
     "dragBlock": "移動或調整文字區塊大小",
     "importText": "匯入譯文",
@@ -220,6 +259,9 @@
     "retranslationCheckpoint": "重新翻譯前檢查點",
     "retouch": "手動修補",
     "resetOriginal": "重設為原圖"
+  },
+  "searchReplace": {
+    "replaced": "已取代{{count}}處。"
   },
   "bubbleLayoutEditor": {
     "needsMorePoints": "對話框區域至少需要三個點。",
@@ -334,9 +376,12 @@
       "success": "已將最終圖像匯出為 PNG：{{count}}頁",
       "success_one": "已將最終圖像匯出為 PNG：{{count}}頁",
       "success_other": "已將最終圖像匯出為 PNG：{{count}}頁",
+      "successPsd": "已匯出分層 PSD：{{count}}頁",
+      "successPsd_one": "已匯出分層 PSD：{{count}}頁",
+      "successPsd_other": "已匯出分層 PSD：{{count}}頁",
       "failed": "無法匯出最終圖像。",
-      "failedTitle": "PNG 匯出失敗",
-      "preparing": "正在準備匯出 PNG"
+      "failedTitle": "頁面匯出失敗",
+      "preparing": "正在準備頁面匯出"
     },
     "revert": {
       "pageTitle": "將本頁重設為原圖",
@@ -405,6 +450,7 @@
   "settings": {
     "loadFailed": "無法載入設定。",
     "saved": "設定已儲存，將從下次翻譯工作起生效。",
+    "savedToast": "設定已儲存。",
     "saveFailed": "無法儲存設定。",
     "reset": "設定已恢復為預設值，將從下次翻譯工作起生效。",
     "defaultsLoaded": "預設值已載入草稿，儲存後才會套用。",

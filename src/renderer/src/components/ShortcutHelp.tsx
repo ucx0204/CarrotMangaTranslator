@@ -6,9 +6,11 @@ import { formatCombo } from "../lib/shortcuts/comboFromEvent";
 import {
   effectiveCombo,
   getShortcutActions,
+} from "../lib/shortcuts/shortcutBindingResolution";
+import {
   getShortcutCategoryLabels,
   SHORTCUT_CATEGORY_ORDER,
-} from "../lib/shortcuts/shortcutActions";
+} from "../lib/shortcuts/shortcutActionTypes";
 import { Modal } from "./ui/Modal";
 
 type ShortcutHelpProps = {
@@ -78,6 +80,26 @@ function buildFixedShortcuts(t: TFunction<"components">): ShortcutRow[] {
       id: "nav-vertical",
       keys: ["↑", "↓"],
       desc: t("shortcuts.fixed.previousNextPageCenter"),
+    },
+    {
+      id: "wheel-pages",
+      keys: ["Wheel"],
+      desc: t("shortcuts.fixed.wheelPages"),
+    },
+    {
+      id: "fit-height-gesture",
+      keys: ["Ctrl", "Middle click"],
+      desc: t("shortcuts.fixed.fitHeight"),
+    },
+    {
+      id: "multi-select",
+      keys: ["Ctrl", "Click"],
+      desc: t("shortcuts.fixed.toggleSelection"),
+    },
+    {
+      id: "range-select",
+      keys: ["Shift", "Click"],
+      desc: t("shortcuts.fixed.rangeSelection"),
     },
     {
       id: "esc",

@@ -4,6 +4,7 @@ import type {
   PageImageExportCompletedResult,
   PageImageExportRequest,
 } from "../../shared/pageImageExportTypes";
+import type { PageImageExportFormat } from "../../shared/pageImageExportTypes";
 import type { ChapterSnapshot, MangaPage } from "../../shared/libraryTypes";
 import type { PageExportRenderSession } from "../pageExport";
 import {
@@ -29,6 +30,12 @@ import {
   resolvePageImageExportSelection,
   type ResolvedPageImageExport,
 } from "./pageImageExportSelection";
+import { writePagePsdExport } from "./pagePsdExportRunner";
+import {
+  createPageImageExportOutputDir,
+  openExportOutputDirectory,
+  removeFailedOutput,
+} from "./pageImageExportOutput";
 
 type EmitJobEvent = EmitPageImageExportEvent;
 
@@ -92,6 +99,7 @@ export async function runPageImageExportJob({
       renderSession,
       resolved,
       omitText: request.omitText === true,
+      outputFormat: request.outputFormat ?? "png",
     });
     throwIfAborted(abortController, resolved.pageCount, resolved.pageCount);
   } catch (error) {
@@ -178,30 +186,6 @@ function emitCancelledExport({
   });
 }
 
-async function createPageImageExportOutputDir(
-  parentDir: string,
-  workTitle: string,
-  dependencies: PageImageExportDependencies,
-): Promise<string> {
-  const workName = sanitizeOutputPathSegment(workTitle, "work");
-  const baseName = `${workName}-${dependencies.runtime.createTimestamp()}`;
-  for (let suffix = 1; suffix <= 999; suffix += 1) {
-    const outputDir = join(
-      parentDir,
-      suffix === 1 ? baseName : `${baseName}-${suffix}`,
-    );
-    try {
-      await dependencies.runtime.createDirectory(outputDir);
-      return outputDir;
-    } catch (error) {
-      if (!isAlreadyExistsError(error)) {
-        throw error;
-      }
-    }
-  }
-  throw new Error(tMain("export.errors.outputDirectory"));
-}
-
 async function writePageImageExportChapters({
   abortController,
   dependencies,
@@ -211,6 +195,7 @@ async function writePageImageExportChapters({
   renderSession,
   resolved,
   omitText,
+  outputFormat,
 }: {
   abortController: AbortController;
   dependencies: PageImageExportDependencies;
@@ -220,6 +205,7 @@ async function writePageImageExportChapters({
   renderSession: PageExportRenderSession;
   resolved: ResolvedPageImageExport;
   omitText: boolean;
+  outputFormat: PageImageExportFormat;
 }): Promise<void> {
   let completedPages = 0;
   for (const entry of resolved.chapters) {
@@ -240,6 +226,7 @@ async function writePageImageExportChapters({
       renderSession,
       totalPages: resolved.pageCount,
       omitText,
+      outputFormat,
     });
   }
 }
@@ -256,6 +243,7 @@ async function writeChapterPages({
   renderSession,
   totalPages,
   omitText,
+  outputFormat,
 }: {
   abortController: AbortController;
   chapter: ChapterSnapshot;
@@ -268,6 +256,7 @@ async function writeChapterPages({
   renderSession: PageExportRenderSession;
   totalPages: number;
   omitText: boolean;
+  outputFormat: PageImageExportFormat;
 }): Promise<number> {
   let completedPages = initialCompletedPages;
   for (const pageEntry of pages) {
@@ -291,6 +280,7 @@ async function writeChapterPages({
       renderSession,
       totalPages,
       omitText,
+      outputFormat,
     });
     completedPages += 1;
     emitExportPageProgress({
@@ -316,6 +306,7 @@ async function writePageImageExportPage({
   renderSession,
   totalPages,
   omitText,
+  outputFormat,
 }: {
   abortController: AbortController;
   completedPages: number;
@@ -326,8 +317,23 @@ async function writePageImageExportPage({
   renderSession: PageExportRenderSession;
   totalPages: number;
   omitText: boolean;
+  outputFormat: PageImageExportFormat;
 }): Promise<void> {
-  const outputName = `${formatPageImageExportOrder(pageIndex)}-${sanitizeOutputBaseName(page.name)}.png`;
+  const outputName = `${formatPageImageExportOrder(pageIndex)}-${sanitizeOutputBaseName(page.name)}.${outputFormat}`;
+  if (outputFormat === "psd") {
+    await writePagePsdExport({
+      abortController,
+      completedPages,
+      dependencies,
+      omitText,
+      outputPath: join(outputDir, outputName),
+      page,
+      renderSession,
+      throwIfAborted,
+      totalPages,
+    });
+    return;
+  }
   const png = await renderSession.renderPage(
     omitText ? { ...page, blocks: [] } : page,
   );
@@ -352,28 +358,6 @@ function assertTextlessExportReady(
   }
 }
 
-async function removeFailedOutput(
-  outputDir: string,
-  operationError: unknown,
-  dependencies: PageImageExportDependencies,
-): Promise<never> {
-  try {
-    await dependencies.runtime.removeDirectory(outputDir);
-  } catch (cleanupError) {
-    dependencies.logger.error("Page image export cleanup failed", {
-      outputDir,
-      operationError,
-      cleanupError,
-    });
-    throw new AggregateError(
-      [operationError, cleanupError],
-      "페이지 이미지 출력 정리에 실패했습니다.",
-      { cause: cleanupError },
-    );
-  }
-  throw operationError;
-}
-
 function throwIfAborted(
   abortController: AbortController,
   completedPages: number,
@@ -388,23 +372,4 @@ function resolveAbortProgress(
   error: unknown,
 ): Pick<PageImageExportAbortError, "completedPages" | "totalPages"> | null {
   return error instanceof PageImageExportAbortError ? error : null;
-}
-
-async function openExportOutputDirectory(
-  outputDir: string,
-  dependencies: PageImageExportDependencies,
-): Promise<string> {
-  try {
-    return await dependencies.runtime.openDirectory(outputDir);
-  } catch (error) {
-    return error instanceof Error ? error.message : String(error);
-  }
-}
-
-function isAlreadyExistsError(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    "code" in error &&
-    (error as NodeJS.ErrnoException).code === "EEXIST"
-  );
 }

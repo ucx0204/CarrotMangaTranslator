@@ -5,6 +5,12 @@ body {
   background: #fff;
 }
 
+html[data-transparent-background="1"],
+body[data-transparent-background="1"],
+.page-export-stage .page-artwork[data-transparent-background] {
+  background: transparent;
+}
+
 #stage {
   width: max-content;
   height: max-content;

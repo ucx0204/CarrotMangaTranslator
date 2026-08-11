@@ -7,6 +7,7 @@ import {
   beginRetouchStroke,
   clearRetouchLiveOverlay,
   queueRetouchCursor,
+  replaceRetouchStrokePreview,
   updateRetouchShape,
 } from "../src/renderer/src/lib/retouchLiveOverlay";
 import type { RetouchCanvasContext } from "../src/renderer/src/lib/retouchCanvasContext";
@@ -96,6 +97,56 @@ describe("retouch live overlay", () => {
       0,
       Math.PI * 2,
     );
+    clearRetouchLiveOverlay(stage);
+  });
+
+  it("replaces a shifted brush preview with only the latest straight line", () => {
+    const frames = installAnimationFrameController();
+    const context = makeCanvasContext();
+    const { stage } = makeStage(context);
+    const geometry = {
+      displayHeight: 100,
+      displayWidth: 100,
+      imageHeight: 1000,
+      imageWidth: 1000,
+    };
+
+    beginRetouchStroke(stage, { x: 100, y: 100 }, geometry, {
+      color: "#ffffff",
+      mode: "brush",
+      radiusPx: 20,
+    });
+    appendRetouchStrokePoint(stage, { x: 400, y: 300 }, geometry);
+    frames.flush();
+    context.clearRect.mockClear();
+    context.moveTo.mockClear();
+    context.lineTo.mockClear();
+    context.stroke.mockClear();
+
+    replaceRetouchStrokePreview(
+      stage,
+      [
+        { x: 100, y: 100 },
+        { x: 800, y: 900 },
+      ],
+      geometry,
+    );
+    replaceRetouchStrokePreview(
+      stage,
+      [
+        { x: 100, y: 100 },
+        { x: 700, y: 800 },
+      ],
+      geometry,
+    );
+
+    expect(frames.count()).toBe(1);
+    frames.flush();
+
+    expect(context.clearRect).toHaveBeenCalledOnce();
+    expect(context.moveTo).toHaveBeenLastCalledWith(10, 10);
+    expect(context.lineTo).toHaveBeenLastCalledWith(70, 80);
+    expect(context.stroke).toHaveBeenCalledOnce();
     clearRetouchLiveOverlay(stage);
   });
 });

@@ -23,6 +23,7 @@ export function collectPageBlockUpdates(
         baseBlocksHash:
           baseVersion?.blocksHash ?? hashTranslationBlocks(page.blocks),
         blocks: serializePageBlocks(page),
+        blockOrder: page.blockOrder,
       },
     ];
   });

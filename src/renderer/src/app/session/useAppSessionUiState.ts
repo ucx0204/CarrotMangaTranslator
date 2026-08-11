@@ -28,6 +28,7 @@ export function useAppSessionUiState() {
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
   const [textViewOpen, setTextViewOpen] = useState(false);
   const [styleGuideOpen, setStyleGuideOpen] = useState(false);
+  const [searchReplaceOpen, setSearchReplaceOpen] = useState(false);
   const translateModals = useTranslateModalUiState();
   const [jobFlowActive, setJobFlowActiveState] = useState(false);
   const jobFlowActiveRef = useRef(false);
@@ -54,6 +55,7 @@ export function useAppSessionUiState() {
   const resetChapterScopedUi = useCallback(() => {
     resetInpaintingUi();
     setStyleGuideOpen(false);
+    setSearchReplaceOpen(false);
     setRightRailMode("page-blocks");
     translateModals.resetTranslateModals();
     zoom.resetWorkspaceZoom();
@@ -70,6 +72,7 @@ export function useAppSessionUiState() {
     setCommandPaletteOpen,
     setEditorFloating,
     setRightRailMode,
+    setSearchReplaceOpen,
     toggleEditorFloat,
     setShortcutHelpOpen,
     setShowBlockChrome,
@@ -83,6 +86,7 @@ export function useAppSessionUiState() {
     setJobFlowActive,
     setTranslationFlowActive: setJobFlowActive,
     shortcutHelpOpen,
+    searchReplaceOpen,
     showBlockChrome,
     showTextBlocks,
     stageToolbarHidden,

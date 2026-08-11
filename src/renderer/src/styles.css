@@ -3,11 +3,13 @@
 @import "./styles/shell-workspace.css";
 @import "./styles/panels.css";
 @import "./styles/page-review.css";
+@import "./styles/block-reading-order.css";
 @import "./styles/library-inpainting.css";
 @import "./styles/formatting.css";
 @import "./styles/stage-overlay.css";
 @import "./styles/modals-share.css";
 @import "./styles/settings.css";
 @import "./styles/gather-selection.css";
+@import "./styles/search-replace.css";
 @import "./styles/style-guide.css";
 @import "./styles/translate-picker.css";

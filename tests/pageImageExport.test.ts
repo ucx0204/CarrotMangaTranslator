@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { PNG } from "pngjs";
 import { AppActivityGate } from "../src/main/appActivityGate";
 import { AppOperationRegistry } from "../src/main/appOperationRegistry";
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
@@ -275,6 +276,69 @@ describe("page image export behavior", () => {
       progressCurrent: 3,
       progressTotal: 3,
     });
+  });
+
+  it("exports a layered PSD through the page export job", async () => {
+    const outputParentDir = await makeTempDir();
+    const page = {
+      ...makePage("page-1", "001.png", "inpainted-page-1.png"),
+      blocks: [
+        {
+          id: "block-1",
+          type: "nonsolid",
+          bbox: { x: 100, y: 100, w: 500, h: 300 },
+          sourceText: "source",
+          translatedText: "translated",
+          confidence: 1,
+          sourceDirection: "horizontal",
+          renderDirection: "horizontal",
+          fontSizePx: 24,
+          lineHeight: 1.2,
+          textAlign: "center",
+          textColor: "#111111",
+          outlineColor: "#ffffff",
+          outlineWidthScale: 1,
+          backgroundColor: "#ffffff",
+          opacity: 0,
+        } as MangaPage["blocks"][number],
+      ],
+    };
+    const chapter = makeChapter("chapter-1", "One", [page]);
+    const transparentPng = makeRasterPng(
+      10,
+      10,
+      [0, 0, 0, 0],
+      [2, 3, 17, 34, 51, 255],
+    );
+    const harness = makeDependencies(makeLibrary([chapter]), [chapter], {
+      renderPage: async () => makeRasterPng(10, 10, [255, 255, 255, 255]),
+      renderTransparentPage: async () => transparentPng,
+    });
+
+    const result = await runPageImageExportJob({
+      context: makeContext(outputParentDir),
+      request: {
+        workId: "work-1",
+        selections: [{ chapterId: chapter.id, mode: "all" }],
+        outputFormat: "psd",
+      },
+      outputParentDir,
+      id: "psd-export",
+      abortController: new AbortController(),
+      emit: vi.fn(),
+      dependencies: harness.dependencies,
+    });
+
+    expect(await readdir(join(result.outputDir, "001-One"))).toEqual([
+      "001-001.psd",
+    ]);
+    expect(harness.renderPage).toHaveBeenCalledTimes(3);
+    expect(harness.renderTransparentPage).toHaveBeenCalledOnce();
+    expect(harness.writePsd).toHaveBeenCalledOnce();
+    expect(harness.writePsd.mock.calls[0]?.[1].subarray(0, 4).toString()).toBe(
+      "8BPS",
+    );
+    expect(harness.writePng).not.toHaveBeenCalled();
   });
 
   it("rejects duplicate pages before creating output", async () => {
@@ -674,6 +738,7 @@ describe("page image export IPC boundary", () => {
 
 type DependencyOverrides = {
   renderPage?: (page: MangaPage) => Promise<Buffer>;
+  renderTransparentPage?: (page: MangaPage) => Promise<Buffer>;
   openDirectory?: PageImageExportRuntimePort["openDirectory"];
   removeDirectory?: PageImageExportRuntimePort["removeDirectory"];
 };
@@ -687,14 +752,22 @@ function makeDependencies(
   const renderPage = vi.fn(
     overrides.renderPage ?? (async (_page: MangaPage) => fakePng(10, 10)),
   );
+  const renderTransparentPage = vi.fn(
+    overrides.renderTransparentPage ??
+      (async (_page: MangaPage) => fakePng(10, 10)),
+  );
   const closeSession = vi.fn();
   const createSession = vi.fn(async () => ({
     renderPage,
+    renderTransparentPage,
     close: closeSession,
   }));
   const openDirectory = vi.fn(overrides.openDirectory ?? (async () => ""));
   const logError = vi.fn<PageImageExportDependencies["logger"]["error"]>();
   const writePng = vi.fn(async (path: string, content: Buffer) => {
+    await writeFile(path, content);
+  });
+  const writePsd = vi.fn(async (path: string, content: Buffer) => {
     await writeFile(path, content);
   });
   const runtime: PageImageExportRuntimePort = {
@@ -707,6 +780,7 @@ function makeDependencies(
         await rm(path, { recursive: true, force: true });
       }),
     writePng,
+    writePsd,
     openDirectory,
     createTimestamp: () => "2026-01-02T03-04-05-000Z",
   };
@@ -732,6 +806,8 @@ function makeDependencies(
     logError,
     openDirectory,
     renderPage,
+    renderTransparentPage,
+    writePsd,
     writePng,
   };
 }
@@ -795,6 +871,23 @@ function fakePng(width: number, height: number): Buffer {
   png.writeUInt32BE(width, 16);
   png.writeUInt32BE(height, 20);
   return png;
+}
+
+function makeRasterPng(
+  width: number,
+  height: number,
+  fill: [number, number, number, number],
+  pixel?: [number, number, number, number, number, number],
+): Buffer {
+  const image = new PNG({ width, height });
+  for (let index = 0; index < width * height; index += 1) {
+    image.data.set(fill, index * 4);
+  }
+  if (pixel) {
+    const [x, y, r, g, b, a] = pixel;
+    image.data.set([r, g, b, a], (y * width + x) * 4);
+  }
+  return PNG.sync.write(image);
 }
 
 function makePage(

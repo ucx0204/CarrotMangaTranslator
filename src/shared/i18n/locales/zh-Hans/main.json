@@ -323,14 +323,14 @@
   },
   "export": {
     "noPages": "没有可导出的页面。",
-    "cancelled": "PNG 导出已取消。",
-    "failed": "PNG 导出失败",
-    "preparing": "正在准备 PNG 导出",
-    "completed": "PNG 导出完成",
+    "cancelled": "页面导出已取消。",
+    "failed": "页面导出失败",
+    "preparing": "正在准备页面导出",
+    "completed": "页面导出完成",
     "selection": "{{chapters}} 章 · {{pages}} 页",
     "page": {
-      "running": "正在导出第 {{current}} / {{total}} 页 PNG",
-      "done": "第 {{current}} / {{total}} 页 PNG 导出完成"
+      "running": "正在导出第 {{current}} / {{total}} 页",
+      "done": "第 {{current}} / {{total}} 页导出完成"
     },
     "errors": {
       "workNotFound": "找不到要导出的作品。",
@@ -338,7 +338,7 @@
       "duplicateChapter": "不能重复选择同一章节。",
       "pageNotFound": "所选页面不属于该章节。",
       "duplicatePage": "不能重复选择同一页面。",
-      "outputDirectory": "无法创建 PNG 导出文件夹。",
+      "outputDirectory": "无法创建页面导出文件夹。",
       "rasterTooLarge": "{{name}} 页面超过 PNG 导出的安全分辨率限制。（{{width}}×{{height}}，最多 {{maxPixels}} 像素）",
       "screenshotTooLarge": "{{name}} 页面的 PNG 结果超过安全文件大小限制。",
       "invalidScreenshot": "PNG 导出结果不是有效的 base64 或 PNG 数据。",

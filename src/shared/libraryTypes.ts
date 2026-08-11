@@ -48,6 +48,8 @@ export type MangaPage = {
   width: number;
   height: number;
   blocks: TranslationBlock[];
+  /** Explicit reading order. Missing or stale ids are repaired at read time. */
+  blockOrder?: string[];
   analysisStatus: PageAnalysisStatus;
   /**
    * Present when translation was started as a combined workflow. A translated
@@ -89,6 +91,8 @@ export type LibraryWork = {
   id: string;
   title: string;
   chapterOrder: string[];
+  /** Overrides source-language inference for block reading order. */
+  readingDirection?: "auto" | "rtl" | "ltr";
   createdAt: string;
   updatedAt: string;
 };

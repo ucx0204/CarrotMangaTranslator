@@ -4,6 +4,7 @@ import { normalizeUiLocale } from "../../../shared/uiLocales";
 import { appI18n } from "../appI18n";
 import type { AppSettings } from "../../../shared/settingsTypes";
 import { settingsGateway as mangaGateway } from "../api/settingsGateway";
+import { toast } from "../lib/toastStore";
 
 type UseSettingsDialogResult = {
   settings: AppSettings | null;
@@ -37,7 +38,6 @@ export function useSettingsDialog(
     pushStatus,
     setSettings,
     setSettingsBusy,
-    setSettingsOpen,
   });
   const saveSettingsQuietly = useQuietSettingsSaveAction(setSettings);
   const resetSettings = useResetSettingsAction({
@@ -128,17 +128,13 @@ type SettingsMutationOptions = {
   pushStatus: (line: string) => void;
   setSettings: React.Dispatch<React.SetStateAction<AppSettings | null>>;
   setSettingsBusy: React.Dispatch<React.SetStateAction<boolean>>;
-  setSettingsOpen?: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
 function useSubmitSettingsAction({
   pushStatus,
   setSettings,
   setSettingsBusy,
-  setSettingsOpen,
-}: Required<SettingsMutationOptions>): (
-  nextSettings: AppSettings,
-) => Promise<void> {
+}: SettingsMutationOptions): (nextSettings: AppSettings) => Promise<void> {
   const { t } = useTranslation("renderer");
   return React.useCallback(
     async (nextSettings) => {
@@ -146,9 +142,9 @@ function useSubmitSettingsAction({
       try {
         const saved = await mangaGateway.saveSettings(nextSettings);
         setSettings(saved);
-        setSettingsOpen(false);
         await applySettingsLocale(saved);
         pushStatus(appI18n.t("settings.saved", { ns: "renderer" }));
+        toast.success(appI18n.t("settings.savedToast", { ns: "renderer" }));
       } catch (error) {
         console.error(error);
         pushStatus(t("settings.saveFailed"));
@@ -156,7 +152,7 @@ function useSubmitSettingsAction({
         setSettingsBusy(false);
       }
     },
-    [pushStatus, setSettings, setSettingsBusy, setSettingsOpen, t],
+    [pushStatus, setSettings, setSettingsBusy, t],
   );
 }
 

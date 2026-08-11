@@ -28,4 +28,31 @@ describe("page image export schema", () => {
       ),
     ).toThrow(/요청 형식/);
   });
+
+  it("accepts PNG or PSD as the layered page-export format", () => {
+    expect(
+      PageImageExportRequestSchema.parse({
+        workId: "00000000-0000-4000-8000-000000000001",
+        selections: [
+          {
+            chapterId: "00000000-0000-4000-8000-000000000002",
+            mode: "all",
+          },
+        ],
+        outputFormat: "psd",
+      }).outputFormat,
+    ).toBe("psd");
+    expect(
+      PageImageExportRequestSchema.safeParse({
+        workId: "00000000-0000-4000-8000-000000000001",
+        selections: [
+          {
+            chapterId: "00000000-0000-4000-8000-000000000002",
+            mode: "all",
+          },
+        ],
+        outputFormat: "jpg",
+      }).success,
+    ).toBe(false);
+  });
 });

@@ -5,6 +5,8 @@
  * Conventions:
  * - Ctrl and Meta (Cmd) are unified under the "ctrl" token.
  * - Modifier order is always ctrl, alt, shift, then the main key.
+ * - Letter keys use their physical `KeyA`…`KeyZ` code so shortcuts keep
+ *   working while a Korean or other non-Latin input method is active.
  * - Letters/digits are lowercased and CapsLock-insensitive; Shift adds a
  *   "shift" token (so Shift+T → "shift+t").
  * - Symbol characters that already encode Shift on the layout (e.g. "?", ",")
@@ -110,6 +112,10 @@ function modifierTokens(
 }
 
 function normalizeKeyboardKey(event: ComboEventLike): string {
+  const letter = /^Key([A-Z])$/.exec(event.code ?? "")?.[1];
+  if (letter) {
+    return letter;
+  }
   if (event.code === "NumpadAdd") {
     return "NumpadAdd";
   }
@@ -117,6 +123,7 @@ function normalizeKeyboardKey(event: ComboEventLike): string {
 }
 
 const NAMED_KEY_LABELS: Record<string, string> = {
+  add: "+",
   alt: "Alt",
   shift: "Shift",
   arrowleft: "←",
@@ -128,6 +135,8 @@ const NAMED_KEY_LABELS: Record<string, string> = {
   enter: "Enter",
   escape: "Esc",
   numpadadd: "+",
+  pagedown: "Page Down",
+  pageup: "Page Up",
   tab: "Tab",
   wheeldown: "Wheel ↓",
   wheelup: "Wheel ↑",
@@ -142,7 +151,7 @@ export function formatCombo(
   if (!combo) {
     return [];
   }
-  return combo.split("+").map((token) => {
+  return splitComboTokens(combo).map((token) => {
     if (token === "ctrl") {
       return isMacShortcutPlatform(platform) ? "⌘" : "Ctrl";
     }
@@ -152,6 +161,20 @@ export function formatCombo(
     }
     return token.length === 1 ? token.toUpperCase() : token;
   });
+}
+
+function splitComboTokens(combo: string): string[] {
+  const tokens: string[] = [];
+  let mainKey = combo;
+  for (const modifier of ["ctrl", "alt", "shift"] as const) {
+    const prefix = `${modifier}+`;
+    if (mainKey.startsWith(prefix)) {
+      tokens.push(modifier);
+      mainKey = mainKey.slice(prefix.length);
+    }
+  }
+  if (mainKey) tokens.push(mainKey);
+  return tokens;
 }
 
 export function formatShortcutTextForPlatform(

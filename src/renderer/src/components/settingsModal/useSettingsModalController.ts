@@ -64,11 +64,7 @@ export function useSettingsModalController({
     modelProvider: state.form.values.modelProvider,
     setTestState: state.test.setTestState,
   });
-  const activeFormatPreset = state.activeFormatPresetId
-    ? state.blockStylePresets.find(
-        (preset) => preset.id === state.activeFormatPresetId,
-      )
-    : undefined;
+  const formatPanelTitle = resolveFormatPanelTitle(state, t);
   return buildSettingsModalViewProps({
     activeTab: state.activeTab,
     canSubmit: submission.canSubmit,
@@ -76,9 +72,7 @@ export function useSettingsModalController({
     defaultsPreviewActive: state.defaultsPreviewActive,
     draft: submission.draft,
     form: state.form,
-    formatPanelTitle: activeFormatPreset
-      ? t("stylePresets.editorTitle", { name: activeFormatPreset.name })
-      : t("settings.tabs.format"),
+    formatPanelTitle,
     formatPanelProps: {
       activePresetId: state.activeFormatPresetId,
       bubbleLayoutPaddingRatio: state.form.values.bubbleLayoutPaddingRatio,
@@ -126,13 +120,13 @@ function useSettingsControllerState({
     React.useState(false);
   const [draftSettings, setDraftSettings] = React.useState(initialSettings);
   React.useEffect(() => setDraftSettings(initialSettings), [initialSettings]);
-  const [keybindings, setKeybindings] = useKeybindingsDraft(draftSettings);
-  const [blockFormatDefaults, updateBlockFormatDefaults] =
-    useBlockFormatDefaultsDraft(draftSettings);
-  const [blockStylePresets, setBlockStylePresets] =
-    useBlockStylePresetsDraft(draftSettings);
-  const [blockStylePresetGroups, setBlockStylePresetGroups] =
-    useBlockStylePresetGroupsDraft(draftSettings);
+  const drafts = useSettingsCollectionDrafts(draftSettings);
+  const {
+    blockFormatDefaults,
+    blockStylePresetGroups,
+    blockStylePresets,
+    keybindings,
+  } = drafts;
   useClearMissingActiveFormatPreset(blockStylePresets, setActiveFormatPresetId);
   const form = useSettingsFormState(draftSettings);
   const test = useSettingsTestState(draftSettings, form.refs.testLogRef);
@@ -166,9 +160,7 @@ function useSettingsControllerState({
   return {
     activeFormatPresetId,
     activeTab,
-    blockFormatDefaults,
-    blockStylePresetGroups,
-    blockStylePresets,
+    ...drafts,
     controlsBusy,
     defaultsPreviewActive,
     draftSettings,
@@ -180,12 +172,42 @@ function useSettingsControllerState({
     runtime,
     setActiveTab,
     setActiveFormatPresetId,
-    setBlockStylePresets,
-    setBlockStylePresetGroups,
-    setKeybindings,
     test,
+  };
+}
+
+function useSettingsCollectionDrafts(draftSettings: AppSettings) {
+  const [keybindings, setKeybindings] = useKeybindingsDraft(draftSettings);
+  const [blockFormatDefaults, updateBlockFormatDefaults] =
+    useBlockFormatDefaultsDraft(draftSettings);
+  const [blockStylePresets, setBlockStylePresets] =
+    useBlockStylePresetsDraft(draftSettings);
+  const [blockStylePresetGroups, setBlockStylePresetGroups] =
+    useBlockStylePresetGroupsDraft(draftSettings);
+  return {
+    blockFormatDefaults,
+    blockStylePresetGroups,
+    blockStylePresets,
+    keybindings,
+    setBlockStylePresetGroups,
+    setBlockStylePresets,
+    setKeybindings,
     updateBlockFormatDefaults,
   };
+}
+
+function resolveFormatPanelTitle(
+  state: ReturnType<typeof useSettingsControllerState>,
+  t: ReturnType<typeof useTranslation>["t"],
+): string {
+  const preset = state.activeFormatPresetId
+    ? state.blockStylePresets.find(
+        (candidate) => candidate.id === state.activeFormatPresetId,
+      )
+    : undefined;
+  return preset
+    ? t("stylePresets.editorTitle", { name: preset.name })
+    : t("settings.tabs.format");
 }
 
 function useClearMissingActiveFormatPreset(

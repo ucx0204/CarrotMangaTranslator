@@ -25,6 +25,7 @@ export type PageExportDocumentData = {
   imageSrc: string;
   outputSize: PageExportRasterSize;
   page: PageArtworkSnapshot;
+  transparentBackground?: boolean;
 };
 
 const CustomFontSchema = z
@@ -92,5 +93,6 @@ export const PageExportDocumentDataSchema = z
       ),
     outputSize: PageExportRasterSizeSchema,
     page: PageArtworkSnapshotSchema,
+    transparentBackground: z.boolean().optional(),
   })
   .strict();

@@ -8,7 +8,7 @@ describe("page export raster safety architecture", () => {
       "resolveExportImageSource(page, options, signal)",
     );
     const buildHtmlIndex = source.indexOf(
-      ".buildHtml(page, image.src, image.size)",
+      ".buildHtml(page, image.src, image.size, {",
     );
     const loadIndex = source.indexOf(".loadFile(htmlPath)");
 
@@ -60,5 +60,21 @@ describe("page export raster safety architecture", () => {
 
     expect(assertionIndex).toBeGreaterThanOrEqual(0);
     expect(writeIndex).toBeGreaterThan(assertionIndex);
+  });
+
+  it("clears the production :root background for transparent PSD captures", () => {
+    const entry = readFileSync(
+      "src/renderer/src/pageExport/browserEntry.tsx",
+      "utf8",
+    );
+    const styles = readFileSync(
+      "src/renderer/src/pageExport/styles.css",
+      "utf8",
+    );
+
+    expect(entry).toContain(
+      'document.documentElement.dataset.transparentBackground = "1"',
+    );
+    expect(styles).toContain('html[data-transparent-background="1"]');
   });
 });

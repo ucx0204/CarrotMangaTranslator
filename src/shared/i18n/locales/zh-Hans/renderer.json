@@ -123,6 +123,14 @@
       "hint": "页面 · 整章",
       "keywords": "text copy gather 文本 复制 汇总"
     },
+    "toggleBlockChrome": {
+      "label": "切换背景和边框显示",
+      "keywords": "background border chrome guide 背景 边框 显示 隐藏"
+    },
+    "toggleTextBlocks": {
+      "label": "切换文本块显示",
+      "keywords": "block text overlay 文本块 显示 隐藏"
+    },
     "importSource": {
       "label": "添加新原稿",
       "hint": "图像 · 文件夹 · ZIP",
@@ -174,6 +182,10 @@
       "zoom-in": "放大图像",
       "zoom-out": "缩小图像",
       "zoom-reset": "重置缩放",
+      "zoom-fit-contain": "适合窗口",
+      "zoom-fit-width": "适合宽度",
+      "zoom-fit-height": "适合高度",
+      "zoom-actual-size": "实际大小",
       "page-previous": "上一页",
       "page-next": "下一页",
       "stage-tool-select": "选择工具",
@@ -186,13 +198,38 @@
       "gather-text": "汇总文本",
       "cancel-job": "取消任务",
       "toggle-inpainting": "清除当前页",
+      "retouch-tool-mask": "蒙版画笔",
+      "retouch-tool-brush": "绘制画笔",
+      "retouch-tool-rectangle": "矩形修补",
+      "retouch-tool-ellipse": "椭圆修补",
+      "retouch-tool-eraser": "修补橡皮擦",
+      "retouch-tool-picker": "颜色吸取",
+      "retouch-apply-mask": "应用蒙版",
+      "retouch-cancel-mask": "取消蒙版",
       "block-previous": "上一个文本块",
       "block-next": "下一个文本块",
+      "select-all-blocks": "选择本页所有文本块",
+      "move-block-earlier": "阅读顺序前移",
+      "move-block-later": "阅读顺序后移",
+      "sort-reading-order": "按坐标排列阅读顺序",
+      "reset-block-rotation": "重置文本块旋转",
+      "open-search-replace": "查找和替换",
+      "open-export-options": "打开导出",
       "history-undo": "撤销",
       "history-redo": "重做",
       "delete-block": "删除所选文本块",
       "duplicate-block": "创建所选文本块的副本",
       "toggle-block-excluded": "切换文本块的图像修复排除状态",
+      "apply-style-slot-1": "应用样式槽位1",
+      "apply-style-slot-2": "应用样式槽位2",
+      "apply-style-slot-3": "应用样式槽位3",
+      "apply-style-slot-4": "应用样式槽位4",
+      "apply-style-slot-5": "应用样式槽位5",
+      "apply-style-slot-6": "应用样式槽位6",
+      "apply-style-slot-7": "应用样式槽位7",
+      "apply-style-slot-8": "应用样式槽位8",
+      "apply-style-slot-9": "应用样式槽位9",
+      "apply-style-slot-10": "应用样式槽位10",
       "toggle-command-palette": "命令面板",
       "toggle-shortcut-help": "快捷键帮助",
       "open-settings": "打开设置"
@@ -207,6 +244,8 @@
     "stylePreset": "应用格式预设",
     "deleteBlock": "删除文本块",
     "duplicateBlock": "复制文本块",
+    "readingOrder": "更改文本块阅读顺序",
+    "searchReplace": "查找和替换",
     "createBlock": "新建文本块",
     "dragBlock": "移动或调整文本块大小",
     "importText": "导入译文",
@@ -220,6 +259,9 @@
     "retranslationCheckpoint": "重新翻译前检查点",
     "retouch": "手动修补",
     "resetOriginal": "重置为原图"
+  },
+  "searchReplace": {
+    "replaced": "已替换{{count}}处。"
   },
   "bubbleLayoutEditor": {
     "needsMorePoints": "气泡区域至少需要三个点。",
@@ -334,9 +376,12 @@
       "success": "已将最终图像导出为 PNG：{{count}}页",
       "success_one": "已将最终图像导出为 PNG：{{count}}页",
       "success_other": "已将最终图像导出为 PNG：{{count}}页",
+      "successPsd": "已导出分层 PSD：{{count}}页",
+      "successPsd_one": "已导出分层 PSD：{{count}}页",
+      "successPsd_other": "已导出分层 PSD：{{count}}页",
       "failed": "无法导出最终图像。",
-      "failedTitle": "PNG 导出失败",
-      "preparing": "正在准备导出 PNG"
+      "failedTitle": "页面导出失败",
+      "preparing": "正在准备页面导出"
     },
     "revert": {
       "pageTitle": "将本页重置为原图",
@@ -405,6 +450,7 @@
   "settings": {
     "loadFailed": "无法加载设置。",
     "saved": "设置已保存，将从下次翻译任务起生效。",
+    "savedToast": "设置已保存。",
     "saveFailed": "无法保存设置。",
     "reset": "设置已恢复为默认值，将从下次翻译任务起生效。",
     "defaultsLoaded": "默认值已载入草稿，保存后才会应用。",

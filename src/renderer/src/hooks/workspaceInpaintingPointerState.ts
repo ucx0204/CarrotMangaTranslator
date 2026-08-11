@@ -51,6 +51,38 @@ export function appendMaskStroke(
   };
 }
 
+export function adjustMaskStrokeRadii(
+  strokes: readonly InpaintingMaskStroke[],
+  deltaPx: number,
+): InpaintingMaskStroke[] {
+  if (!Number.isFinite(deltaPx) || deltaPx === 0) return [...strokes];
+  return strokes
+    .map((stroke) => ({
+      ...stroke,
+      radiusPx: Math.max(0, stroke.radiusPx + deltaPx),
+    }))
+    .filter((stroke) => stroke.radiusPx > 0);
+}
+
+export function constrainStrokeToLine(
+  points: readonly ImagePoint[],
+): ImagePoint[] {
+  if (points.length <= 2) return [...points];
+  const first = points[0];
+  const last = points.at(-1);
+  return first && last ? [first, last] : [];
+}
+
+export function resolveDraggedBrushRadius(
+  initialRadius: number,
+  horizontalDelta: number,
+  minRadius = 4,
+  maxRadius = 90,
+): number {
+  const radius = Math.round(initialRadius + horizontalDelta / 2);
+  return Math.max(minRadius, Math.min(maxRadius, radius));
+}
+
 function clampPixel(value: number, extent: number): number {
   return Math.max(0, Math.min(extent - 1, value));
 }

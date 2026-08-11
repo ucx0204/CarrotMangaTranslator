@@ -11,6 +11,7 @@ import type { useWorkspaceBubbleLayoutHandlers } from "./useWorkspaceBubbleLayou
 import type { useWorkspaceInpaintingPointerHandlers } from "./useWorkspaceInpaintingPointerHandlers";
 import type { useWorkspacePanHandlers } from "./useWorkspacePanHandlers";
 import type { useWorkspaceRegionSelectionHandlers } from "./useWorkspaceRegionSelectionHandlers";
+import type { useWorkspaceMarqueeSelectionHandlers } from "./useWorkspaceMarqueeSelectionHandlers";
 
 type StagePointerRouterDeps = {
   blockCreateHandlers: ReturnType<typeof useWorkspaceBlockCreateHandlers>;
@@ -21,6 +22,9 @@ type StagePointerRouterDeps = {
   panHandlers: ReturnType<typeof useWorkspacePanHandlers>;
   regionSelectionHandlers: ReturnType<
     typeof useWorkspaceRegionSelectionHandlers
+  >;
+  marqueeSelectionHandlers: ReturnType<
+    typeof useWorkspaceMarqueeSelectionHandlers
   >;
   setSelectedBlockId: Dispatch<SetStateAction<string | null>>;
   setSelectedBlockIds: Dispatch<SetStateAction<string[]>>;
@@ -52,6 +56,7 @@ function useStagePointerDownRouter({
   jobActive,
   panHandlers,
   regionSelectionHandlers,
+  marqueeSelectionHandlers,
   setSelectedBlockId,
   setSelectedBlockIds,
   stageTool,
@@ -65,7 +70,8 @@ function useStagePointerDownRouter({
         inpaintingHandlers.onPointerDown(event) ||
         regionSelectionHandlers.onRegionPointerDown(event) ||
         bubbleLayoutHandlers.onBubbleLayoutPointerDown(event) ||
-        blockCreateHandlers.onBlockCreatePointerDown(event)
+        blockCreateHandlers.onBlockCreatePointerDown(event) ||
+        marqueeSelectionHandlers.onMarqueePointerDown(event)
       ) {
         return;
       }
@@ -81,6 +87,7 @@ function useStagePointerDownRouter({
       bubbleLayoutHandlers,
       inpaintingHandlers,
       jobActive,
+      marqueeSelectionHandlers,
       panHandlers,
       regionSelectionHandlers,
       setSelectedBlockId,
@@ -97,6 +104,7 @@ function useStagePointerMoveRouter({
   inpaintingHandlers,
   panHandlers,
   regionSelectionHandlers,
+  marqueeSelectionHandlers,
 }: StagePointerRouterDeps): (event: PointerEvent) => void {
   return useCallback(
     (event: PointerEvent) => {
@@ -105,6 +113,7 @@ function useStagePointerMoveRouter({
         regionSelectionHandlers.onRegionPointerMove(event) ||
         bubbleLayoutHandlers.onBubbleLayoutPointerMove(event) ||
         blockCreateHandlers.onBlockCreatePointerMove(event) ||
+        marqueeSelectionHandlers.onMarqueePointerMove(event) ||
         panHandlers.onPanPointerMove(event)
       ) {
         return;
@@ -116,6 +125,7 @@ function useStagePointerMoveRouter({
       blockDrag,
       bubbleLayoutHandlers,
       inpaintingHandlers,
+      marqueeSelectionHandlers,
       panHandlers,
       regionSelectionHandlers,
     ],
@@ -129,6 +139,7 @@ function useStagePointerUpRouter({
   inpaintingHandlers,
   panHandlers,
   regionSelectionHandlers,
+  marqueeSelectionHandlers,
 }: StagePointerRouterDeps): (event: PointerEvent) => void {
   return useCallback(
     (event: PointerEvent) => {
@@ -137,6 +148,7 @@ function useStagePointerUpRouter({
         regionSelectionHandlers.onRegionPointerUp(event) ||
         bubbleLayoutHandlers.onBubbleLayoutPointerUp(event) ||
         blockCreateHandlers.onBlockCreatePointerUp(event) ||
+        marqueeSelectionHandlers.onMarqueePointerUp(event) ||
         panHandlers.onPanPointerUp(event)
       ) {
         return;
@@ -148,6 +160,7 @@ function useStagePointerUpRouter({
       blockDrag,
       bubbleLayoutHandlers,
       inpaintingHandlers,
+      marqueeSelectionHandlers,
       panHandlers,
       regionSelectionHandlers,
     ],

@@ -399,15 +399,27 @@
   },
   "exportOptions": {
     "title": "Export PNG",
+    "psdTitle": "Export PSD",
     "prompt": "Choose the pages to export.",
     "currentChapter": "Current chapter",
     "chapterSummary": "{{count}}p",
     "noSelectedPages": "No pages selected.",
     "selectionSummary": "Chapters: {{chapterCount}} · Pages: {{pageCount}}",
     "start": "Export PNG",
+    "startPsd": "Export PSD",
     "starting": "Preparing export…",
     "omitText": "Export without text",
     "omitTextHint": "Exports only the inpainted background without compositing translated text.",
+    "omitTextHintPsd": "Exports only the original and cleaned background layers without text layers.",
+    "outputFormat": "File format",
+    "formats": {
+      "png": "Finished image (PNG)",
+      "psd": "Layered document (PSD)"
+    },
+    "formatHints": {
+      "png": "Creates a finished image ready to publish.",
+      "psd": "Separates the original, cleaned background, and each text block. Complex vertical or curved text stays pixel-accurate as a raster layer."
+    },
     "preflight": {
       "title": "Pre-export check",
       "nextStep": "Choose the destination folder after reviewing this check.",
@@ -427,7 +439,7 @@
         "translation-failed": "Translation or post-processing failed.",
         "translation-pending": "Translation is not complete.",
         "postprocess-pending": "Translation is done, but erase/post-processing remains.",
-        "inpainted-image-missing": "No inpainted result is available for a text-free PNG.",
+        "inpainted-image-missing": "No inpainted result is available for text-free output.",
         "empty-translation": "One or more translated blocks are empty."
       }
     },
@@ -814,7 +826,11 @@
     "fixed": {
       "previousNextPage": "Previous / next page",
       "previousNextPageCenter": "Previous / next page (center panel)",
-      "escape": "Close modal · cancel drag / region selection"
+      "escape": "Close modal · cancel drag / region selection",
+      "wheelPages": "Change page at the top or bottom edge",
+      "fitHeight": "Fit the page to workspace height",
+      "toggleSelection": "Add or remove a block from selection",
+      "rangeSelection": "Select a contiguous block range"
     }
   },
   "gatherText": {
@@ -1096,6 +1112,9 @@
       "eraseDrawn": "Paint to erase",
       "eraseDrawnArea": "Erase painted area",
       "drawnAreas": "Painted areas: {{count}}",
+      "maskRadius": "Mask adjustment radius",
+      "shrinkMask": "Shrink",
+      "expandMask": "Expand",
       "soundEffectTouchup": "Sound-effect touch-up",
       "backAuto": "← Auto",
       "nextExport": "Export →"
@@ -1524,13 +1543,13 @@
       }
     },
     "shortcuts": {
-      "description": "Click an item, then press the desired key combination. Zoom in/out also accept a wheel gesture with optional modifier keys. Press Esc to cancel or Clear to unassign it.",
+      "description": "Click an item, then press the desired key combination. Zoom in/out also accept a wheel gesture with optional modifier keys. Conflicting shortcuts are not applied; clear the existing binding first or choose another key. Press Esc to cancel.",
       "changeAria": "Change shortcut for {{label}}",
       "waiting": "Waiting for key or wheel input…",
       "unassigned": "Unassigned",
       "reset": "Default",
       "clear": "Clear",
-      "displaced": "Moved the shortcut and unassigned it from ‘{{label}}’.",
+      "conflict": "{{combo}} is already used by ‘{{label}}’. The existing shortcut was not changed.",
       "categories": {
         "view": "Display / View",
         "tool": "Tools",
@@ -1627,7 +1646,11 @@
     "emptySource": "No source text",
     "translationPlaceholder": "Enter a translation",
     "empty": "This page has no text blocks.",
-    "backToList": "Back to page blocks"
+    "backToList": "Back to page blocks",
+    "selectedCount": "{{count}} selected",
+    "moveEarlier": "Move earlier in reading order",
+    "moveLater": "Move later in reading order",
+    "sortReadingOrder": "Sort by position"
   },
   "statusDock": {
     "title": "Activity center",
@@ -1656,6 +1679,27 @@
     "conflict": "Save conflict · review latest changes",
     "retry": "Try again"
   },
+  "searchReplace": {
+    "title": "Search and replace",
+    "find": "Find",
+    "replaceWith": "Replace with",
+    "scope": "Scope",
+    "field": "Text field",
+    "scopes": { "page": "Current page", "chapter": "Entire chapter" },
+    "fields": {
+      "translated": "Translation",
+      "source": "Source",
+      "both": "Both"
+    },
+    "caseSensitive": "Match case",
+    "regex": "Regular expression",
+    "matchCount": "{{count}} matches",
+    "replaceAll": "Replace all ({{count}})",
+    "invalidRegex": "Invalid regular expression: {{message}}",
+    "enterQuery": "Enter text to find.",
+    "noMatches": "No matches found.",
+    "emptyText": "Empty text"
+  },
   "stylePresets": {
     "title": "Style presets",
     "quickFormats": "Quick styles",
@@ -1673,6 +1717,9 @@
     "groups": "Formatting groups to include",
     "pinQuick": "Show in Quick styles",
     "pinned": "Quick style",
+    "shortcutSlot": "Keyboard style slot",
+    "shortcutSlotNone": "No shortcut slot",
+    "shortcutSlotValue": "Slot {{slot}}",
     "missingFontShort": "The saved font could not be found",
     "duplicateName": "{{name}} copy",
     "groupCount": "{{count}} format groups",

@@ -126,6 +126,14 @@
       "hint": "ページ・話全体",
       "keywords": "text copy gather テキスト コピー"
     },
+    "toggleBlockChrome": {
+      "label": "背景・枠線の表示を切り替え",
+      "keywords": "background border chrome guide 背景 枠線 表示 非表示"
+    },
+    "toggleTextBlocks": {
+      "label": "テキストブロックの表示を切り替え",
+      "keywords": "block text overlay ブロック テキスト 表示 非表示"
+    },
     "importSource": {
       "label": "新しい原稿を追加",
       "hint": "画像・フォルダー・ZIP",
@@ -177,6 +185,10 @@
       "zoom-in": "画像を拡大",
       "zoom-out": "画像を縮小",
       "zoom-reset": "ズームをリセット",
+      "zoom-fit-contain": "画面に合わせる",
+      "zoom-fit-width": "幅に合わせる",
+      "zoom-fit-height": "高さに合わせる",
+      "zoom-actual-size": "実際のサイズ",
       "page-previous": "前のページ",
       "page-next": "次のページ",
       "stage-tool-select": "選択ツール",
@@ -189,13 +201,38 @@
       "gather-text": "テキストをまとめて表示",
       "cancel-job": "処理をキャンセル",
       "toggle-inpainting": "現在のページを消去",
+      "retouch-tool-mask": "マスクブラシ",
+      "retouch-tool-brush": "ペイントブラシ",
+      "retouch-tool-rectangle": "長方形補正",
+      "retouch-tool-ellipse": "楕円補正",
+      "retouch-tool-eraser": "補正消しゴム",
+      "retouch-tool-picker": "色を抽出",
+      "retouch-apply-mask": "マスクを適用",
+      "retouch-cancel-mask": "マスクをキャンセル",
       "block-previous": "前のブロック",
       "block-next": "次のブロック",
+      "select-all-blocks": "ページ内のブロックをすべて選択",
+      "move-block-earlier": "読み順を前へ",
+      "move-block-later": "読み順を後ろへ",
+      "sort-reading-order": "座標で読み順を並べ替え",
+      "reset-block-rotation": "ブロックの回転をリセット",
+      "open-search-replace": "検索と置換",
+      "open-export-options": "書き出しを開く",
       "history-undo": "元に戻す",
       "history-redo": "やり直す",
       "delete-block": "選択したブロックを削除",
       "duplicate-block": "選択したブロックを複製",
       "toggle-block-excluded": "ブロックのインペインティング除外を切り替え",
+      "apply-style-slot-1": "スタイルスロット1を適用",
+      "apply-style-slot-2": "スタイルスロット2を適用",
+      "apply-style-slot-3": "スタイルスロット3を適用",
+      "apply-style-slot-4": "スタイルスロット4を適用",
+      "apply-style-slot-5": "スタイルスロット5を適用",
+      "apply-style-slot-6": "スタイルスロット6を適用",
+      "apply-style-slot-7": "スタイルスロット7を適用",
+      "apply-style-slot-8": "スタイルスロット8を適用",
+      "apply-style-slot-9": "スタイルスロット9を適用",
+      "apply-style-slot-10": "スタイルスロット10を適用",
       "toggle-command-palette": "コマンドパレット",
       "toggle-shortcut-help": "ショートカット一覧",
       "open-settings": "設定を開く"
@@ -210,6 +247,8 @@
     "stylePreset": "書式プリセットを適用",
     "deleteBlock": "ブロックを削除",
     "duplicateBlock": "ブロックを複製",
+    "readingOrder": "ブロックの読み順を変更",
+    "searchReplace": "検索と置換",
     "createBlock": "ブロックを追加",
     "dragBlock": "ブロックを移動・サイズ変更",
     "importText": "翻訳文を読み込み",
@@ -223,6 +262,9 @@
     "retranslationCheckpoint": "再翻訳前のチェックポイント",
     "retouch": "手動補正",
     "resetOriginal": "原画像に戻す"
+  },
+  "searchReplace": {
+    "replaced": "{{count}}件を置換しました。"
   },
   "bubbleLayoutEditor": {
     "needsMorePoints": "吹き出し領域には3点以上必要です。",
@@ -337,9 +379,12 @@
       "success": "最終画像をPNGで出力しました: {{count}}ページ",
       "success_one": "最終画像をPNGで出力しました: {{count}}ページ",
       "success_other": "最終画像をPNGで出力しました: {{count}}ページ",
+      "successPsd": "レイヤーPSDを出力しました: {{count}}ページ",
+      "successPsd_one": "レイヤーPSDを出力しました: {{count}}ページ",
+      "successPsd_other": "レイヤーPSDを出力しました: {{count}}ページ",
       "failed": "最終画像を出力できませんでした。",
-      "failedTitle": "PNG出力失敗",
-      "preparing": "PNG出力を準備中"
+      "failedTitle": "ページ出力失敗",
+      "preparing": "ページ出力を準備中"
     },
     "revert": {
       "pageTitle": "このページを元画像に初期化",
@@ -408,6 +453,7 @@
   "settings": {
     "loadFailed": "設定を読み込めませんでした。",
     "saved": "設定を保存しました。次回の翻訳実行から適用されます。",
+    "savedToast": "設定を保存しました。",
     "saveFailed": "設定を保存できませんでした。",
     "reset": "設定をデフォルトに戻しました。次回の翻訳実行から適用されます。",
     "defaultsLoaded": "デフォルト値を下書きに読み込みました。適用するには保存してください。",

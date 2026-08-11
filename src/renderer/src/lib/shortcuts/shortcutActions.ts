@@ -1,8 +1,5 @@
-import type { TFunction } from "i18next";
-import type {
-  KeybindingOverrides,
-  ShortcutActionId,
-} from "../../../../shared/shortcutSettings";
+import type { ShortcutActionId } from "../../../../shared/shortcutSettings";
+import type { ShortcutActionDef, ShortcutContext } from "./shortcutActionTypes";
 
 /**
  * Single source of truth for the app's customizable keyboard shortcuts.
@@ -16,66 +13,6 @@ import type {
  * and block navigation are regular actions so users can customize them.
  */
 
-export type ShortcutCategory =
-  | "view"
-  | "tool"
-  | "translate"
-  | "inpaint"
-  | "edit"
-  | "global";
-
-export function getShortcutCategoryLabels(
-  t: TFunction<"renderer">,
-): Record<ShortcutCategory, string> {
-  return {
-    view: t("shortcuts.categories.view"),
-    tool: t("shortcuts.categories.tool"),
-    translate: t("shortcuts.categories.translate"),
-    inpaint: t("shortcuts.categories.inpaint"),
-    edit: t("shortcuts.categories.edit"),
-    global: t("shortcuts.categories.global"),
-  };
-}
-
-export const SHORTCUT_CATEGORY_ORDER: ShortcutCategory[] = [
-  "view",
-  "tool",
-  "translate",
-  "edit",
-  "inpaint",
-  "global",
-];
-
-/**
- * Runtime context consulted by the dispatcher to decide whether an action may
- * fire. `editableTarget` is intentionally absent — it depends on the event
- * target and is computed per keystroke inside the dispatcher.
- */
-export type ShortcutContext = {
-  blockingModalOpen: boolean;
-  paletteOpen: boolean;
-  helpOpen: boolean;
-  chapterOpen: boolean;
-  editLocked: boolean;
-  jobActive: boolean;
-  retouchToolActive: boolean;
-  blockSelected: boolean;
-};
-
-export type ShortcutActionDef = {
-  id: ShortcutActionId;
-  label: string;
-  category: ShortcutCategory;
-  /** Built-in combo; "" means unbound by default. */
-  defaultCombo: string;
-  /** Extra built-in combos accepted while the action has no user override. */
-  defaultAlternateCombos?: string[];
-  /** When true, the action still fires while a text input is focused. */
-  allowInEditable?: boolean;
-  /** Contextual availability beyond the global guards. */
-  enabled?: (context: ShortcutContext) => boolean;
-};
-
 const canTranslate = (context: ShortcutContext): boolean =>
   context.chapterOpen && !context.jobActive;
 
@@ -84,7 +21,7 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
     id: "toggle-block-chrome",
     label: "배경/테두리 표시 전환",
     category: "view",
-    defaultCombo: "b",
+    defaultCombo: "shift+b",
     enabled: (c) => c.chapterOpen,
   },
   {
@@ -133,6 +70,34 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
     enabled: (c) => c.chapterOpen,
   },
   {
+    id: "zoom-fit-contain",
+    label: "화면에 맞춤",
+    category: "view",
+    defaultCombo: "",
+    enabled: (c) => c.chapterOpen,
+  },
+  {
+    id: "zoom-fit-width",
+    label: "너비에 맞춤",
+    category: "view",
+    defaultCombo: "",
+    enabled: (c) => c.chapterOpen,
+  },
+  {
+    id: "zoom-fit-height",
+    label: "높이에 맞춤",
+    category: "view",
+    defaultCombo: "",
+    enabled: (c) => c.chapterOpen,
+  },
+  {
+    id: "zoom-actual-size",
+    label: "실제 크기",
+    category: "view",
+    defaultCombo: "",
+    enabled: (c) => c.chapterOpen,
+  },
+  {
     id: "page-previous",
     label: "이전 페이지",
     category: "view",
@@ -152,21 +117,24 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
     id: "stage-tool-select",
     label: "선택 도구",
     category: "tool",
-    defaultCombo: "1",
+    defaultCombo: "s",
+    defaultAlternateCombos: ["1"],
     enabled: (c) => c.chapterOpen && !c.editLocked,
   },
   {
     id: "stage-tool-block",
     label: "블록 도구 (드래그로 블록 추가)",
     category: "tool",
-    defaultCombo: "2",
+    defaultCombo: "w",
+    defaultAlternateCombos: ["2"],
     enabled: (c) => c.chapterOpen && !c.editLocked,
   },
   {
     id: "stage-tool-hand",
     label: "손바닥 도구 (드래그로 이동)",
     category: "tool",
-    defaultCombo: "3",
+    defaultCombo: "h",
+    defaultAlternateCombos: ["3"],
     enabled: (c) => c.chapterOpen,
   },
   {
@@ -219,6 +187,62 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
     enabled: (c) => c.chapterOpen && !c.jobActive,
   },
   {
+    id: "retouch-tool-mask",
+    label: "마스크 브러시",
+    category: "inpaint",
+    defaultCombo: "j",
+    enabled: (c) => c.chapterOpen && !c.editLocked,
+  },
+  {
+    id: "retouch-tool-brush",
+    label: "페인트 브러시",
+    category: "inpaint",
+    defaultCombo: "b",
+    enabled: (c) => c.chapterOpen && !c.editLocked,
+  },
+  {
+    id: "retouch-tool-rectangle",
+    label: "사각형 보정",
+    category: "inpaint",
+    defaultCombo: "r",
+    enabled: (c) => c.chapterOpen && !c.editLocked,
+  },
+  {
+    id: "retouch-tool-ellipse",
+    label: "타원 보정",
+    category: "inpaint",
+    defaultCombo: "e",
+    enabled: (c) => c.chapterOpen && !c.editLocked,
+  },
+  {
+    id: "retouch-tool-eraser",
+    label: "보정 지우개",
+    category: "inpaint",
+    defaultCombo: "x",
+    enabled: (c) => c.chapterOpen && !c.editLocked,
+  },
+  {
+    id: "retouch-tool-picker",
+    label: "색상 추출",
+    category: "inpaint",
+    defaultCombo: "p",
+    enabled: (c) => c.chapterOpen && !c.editLocked,
+  },
+  {
+    id: "retouch-apply-mask",
+    label: "마스크 적용",
+    category: "inpaint",
+    defaultCombo: " ",
+    enabled: (c) => c.chapterOpen && c.retouchToolActive && !c.editLocked,
+  },
+  {
+    id: "retouch-cancel-mask",
+    label: "마스크 취소",
+    category: "inpaint",
+    defaultCombo: "",
+    enabled: (c) => c.chapterOpen && c.retouchToolActive && !c.editLocked,
+  },
+  {
     id: "block-previous",
     label: "이전 블록",
     category: "edit",
@@ -235,6 +259,57 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
     defaultAlternateCombos: ["alt+arrowdown"],
     allowInEditable: true,
     enabled: (c) => c.chapterOpen,
+  },
+  {
+    id: "select-all-blocks",
+    label: "페이지 블록 전체 선택",
+    category: "edit",
+    defaultCombo: "ctrl+a",
+    enabled: (c) => c.chapterOpen && !c.editLocked,
+  },
+  {
+    id: "move-block-earlier",
+    label: "읽기 순서 앞으로",
+    category: "edit",
+    defaultCombo: "ctrl+alt+arrowup",
+    enabled: (c) => c.blockSelected && !c.editLocked,
+  },
+  {
+    id: "move-block-later",
+    label: "읽기 순서 뒤로",
+    category: "edit",
+    defaultCombo: "ctrl+alt+arrowdown",
+    enabled: (c) => c.blockSelected && !c.editLocked,
+  },
+  {
+    id: "sort-reading-order",
+    label: "좌표 기준 읽기 순서 정렬",
+    category: "edit",
+    defaultCombo: "ctrl+shift+r",
+    enabled: (c) => c.blockSelected && !c.editLocked,
+  },
+  {
+    id: "reset-block-rotation",
+    label: "블록 회전 초기화",
+    category: "edit",
+    defaultCombo: "ctrl+shift+t",
+    enabled: (c) => c.blockSelected && !c.editLocked,
+  },
+  {
+    id: "open-search-replace",
+    label: "검색 및 치환",
+    category: "edit",
+    defaultCombo: "ctrl+h",
+    allowInEditable: true,
+    enabled: (c) => c.chapterOpen,
+  },
+  {
+    id: "open-export-options",
+    label: "내보내기 열기",
+    category: "edit",
+    defaultCombo: "ctrl+e",
+    allowInEditable: true,
+    enabled: (c) => c.chapterOpen && !c.jobActive,
   },
   {
     id: "history-undo",
@@ -271,9 +346,10 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
     id: "toggle-block-excluded",
     label: "블록 인페인팅 제외 전환",
     category: "edit",
-    defaultCombo: "x",
+    defaultCombo: "shift+x",
     enabled: (c) => c.blockSelected && !c.editLocked,
   },
+  ...createStyleSlotActions(),
   {
     id: "toggle-command-palette",
     label: "명령 팔레트",
@@ -292,116 +368,21 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
     label: "설정 열기",
     category: "global",
     defaultCombo: "ctrl+,",
+    allowInEditable: true,
   },
 ];
 
-export function getShortcutActions(
-  t: TFunction<"renderer">,
-): ShortcutActionDef[] {
-  return SHORTCUT_ACTIONS.map((action) => ({
-    ...action,
-    label: t(`shortcuts.actions.${action.id}`),
-  }));
-}
-
-const ACTION_BY_ID = new Map<string, ShortcutActionDef>(
-  SHORTCUT_ACTIONS.map((action) => [action.id, action]),
-);
-
-export function getShortcutAction(
-  actionId: string,
-): ShortcutActionDef | undefined {
-  return ACTION_BY_ID.get(actionId);
-}
-
-/**
- * Effective combo for an action given the user's overrides. Returns "" when the
- * action is unbound (either by default or via an explicit empty override).
- */
-export function effectiveCombo(
-  actionId: ShortcutActionId,
-  overrides: KeybindingOverrides,
-): string {
-  const override = overrides[actionId];
-  if (override !== undefined) {
-    return override;
-  }
-  return ACTION_BY_ID.get(actionId)?.defaultCombo ?? "";
-}
-
-/** Build a combo → actionId lookup from the user's overrides. */
-export function resolveBindings(
-  overrides: KeybindingOverrides,
-): Map<string, ShortcutActionId> {
-  const bindings = new Map<string, ShortcutActionId>();
-  for (const action of SHORTCUT_ACTIONS) {
-    for (const combo of effectiveCombos(action, overrides)) {
-      bindings.set(combo, action.id);
-    }
-  }
-  return bindings;
-}
-
-/**
- * Assign `combo` to `actionId`, unbinding any other action that currently
- * resolves to the same combo so a binding is never ambiguous.
- */
-export function assignBinding(
-  overrides: KeybindingOverrides,
-  actionId: ShortcutActionId,
-  combo: string,
-  t?: TFunction<"renderer">,
-): {
-  next: KeybindingOverrides;
-  displacedActionId: ShortcutActionId | null;
-  displacedLabel: string | null;
-} {
-  const next: KeybindingOverrides = { ...overrides };
-  let displacedActionId: ShortcutActionId | null = null;
-  let displacedLabel: string | null = null;
-  if (combo) {
-    for (const action of SHORTCUT_ACTIONS) {
-      if (
-        action.id !== actionId &&
-        effectiveCombos(action, next).includes(combo)
-      ) {
-        next[action.id] = "";
-        displacedActionId = action.id;
-        displacedLabel = t ? t(`shortcuts.actions.${action.id}`) : action.label;
-      }
-    }
-  }
-  next[actionId] = combo;
-  return { next, displacedActionId, displacedLabel };
-}
-
-/** Reset an action to its built-in default by dropping any override. */
-export function resetBinding(
-  overrides: KeybindingOverrides,
-  actionId: ShortcutActionId,
-): KeybindingOverrides {
-  const next: KeybindingOverrides = { ...overrides };
-  delete next[actionId];
-  return next;
-}
-
-function effectiveCombos(
-  action: ShortcutActionDef,
-  overrides: KeybindingOverrides,
-): string[] {
-  const override = overrides[action.id];
-  if (override !== undefined) {
-    if (!override) {
-      return [];
-    }
-    if (override === action.defaultCombo) {
-      return [override, ...(action.defaultAlternateCombos ?? [])].filter(
-        Boolean,
-      );
-    }
-    return [override];
-  }
-  return [action.defaultCombo, ...(action.defaultAlternateCombos ?? [])].filter(
-    Boolean,
-  );
+function createStyleSlotActions(): ShortcutActionDef[] {
+  return Array.from({ length: 10 }, (_, index) => {
+    const slot = index + 1;
+    const digit = slot === 10 ? 0 : slot;
+    return {
+      id: `apply-style-slot-${slot}` as ShortcutActionId,
+      label: `스타일 슬롯 ${slot} 적용`,
+      category: "edit" as const,
+      defaultCombo: `alt+${digit}`,
+      enabled: (context: ShortcutContext) =>
+        context.blockSelected && !context.editLocked,
+    };
+  });
 }
