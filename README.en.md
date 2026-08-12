@@ -5,7 +5,7 @@
 # Carrot Manga Translator
 
 <p align="center">
-  Manga import, OCR, AI translation, editing, inpainting, and PNG export in stable releases for Windows and Apple Silicon macOS
+  Manga import, OCR, AI translation, editing, inpainting, and PNG/layered PSD export for Windows and Apple Silicon macOS
 </p>
 
 <p align="center">
@@ -16,10 +16,10 @@
   <a href="README.zh-Hant.md">繁體中文</a>
 </p>
 
-Carrot Manga Translator is a manga production tool that finds dialogue and sound effects in images, creates translation blocks with AI, and lets you refine the wording and layout before exporting finished PNG files. The default translation direction is Japanese → Korean, but you can choose other source and target languages.
+Carrot Manga Translator is a manga production tool that finds dialogue and sound effects in images, creates translation blocks with AI, and lets you refine the wording and layout before exporting a finished PNG or layered PSD. The default translation direction is Japanese → Korean, but you can choose other source and target languages.
 
-- Download the stable v1.9.0 release (Windows EXE · Apple Silicon DMG/ZIP): [GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
-- Current version information: [v1.9.0 release notes](docs/release-notes/v1.9.0.md)
+- Download the stable v1.12.0 release (Windows EXE · Apple Silicon DMG/ZIP): [GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
+- Current version information: [v1.12.0 release notes](docs/release-notes/v1.12.0.md)
 - Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Architecture and quality rules: [docs/architecture.md](docs/architecture.md)
 - Project usage and public references: [docs/reputation.md](docs/reputation.md)
@@ -32,7 +32,7 @@ Carrot Manga Translator is a manga production tool that finds dialogue and sound
 - Choose from 48 presets for manga source and target languages, or enter a BCP 47 language code directly.
 - Edit each translation block's text, position, direction, font, color, outline, and spacing.
 - Apply glossaries, character speech styles, translation rules, and story memory to AI translations.
-- Remove original text with AOT, LaMa, or Flux, make touch-ups with brush tools, and export the result as PNG files.
+- Remove original text with AOT, LaMa, or Flux, make touch-ups with brush tools, and export the result as a finished PNG or layered PSD.
 - Review text externally with TXT and CSV/TSV files, and share editable project data as `*.mgtshare` packages.
 
 ## Before You Install
@@ -42,11 +42,11 @@ Carrot Manga Translator is a manga production tool that finds dialogue and sound
 - Internet connection: Required for installation, the first model download, and Codex/API use. Local models can work offline after setup is complete.
 - Some CPU paths work without a GPU, but OCR, local translation, and Flux inpainting may be much slower.
 
-The stable Apple Silicon build bundles arm64 FFmpeg, a Python runtime for Paddle OCR on the CPU, and Metal executables. Only Gemma, OCR, and inpainting model weights are checksum-verified and downloaded on first use. The v1.9.0 macOS build is ad-hoc signed without a certificate, so Gatekeeper may require manual approval under System Settings → Privacy & Security on first launch. macOS data is stored under `~/Library/Application Support/manga-gemma-translator`.
+The stable Apple Silicon build bundles arm64 FFmpeg, a Python runtime for Paddle OCR on the CPU, and Metal executables. Only Gemma, OCR, and inpainting model weights are checksum-verified and downloaded on first use. The v1.12.0 macOS build is ad-hoc signed unless the release workflow is provided with Developer ID and notarization credentials, so Gatekeeper may require manual approval under System Settings → Privacy & Security on first launch. macOS data is stored under `~/Library/Application Support/manga-gemma-translator`.
 
 ## Quick Start
 
-1. From the [stable v1.9.0 release](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v1.9.0), download `CarrotMangaTranslator-Setup-v1.9.0.exe` for Windows or the arm64 DMG/ZIP for Apple Silicon. If macOS blocks the first launch, approve the app manually under System Settings → Privacy & Security.
+1. From the [stable v1.12.0 release](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v1.12.0), download `CarrotMangaTranslator-Setup-v1.12.0.exe` for Windows or the arm64 DMG/ZIP for Apple Silicon. If macOS blocks the first launch, approve the app manually under System Settings → Privacy & Security.
 2. Check the interface language under `Settings → General`. On first launch, the app automatically selects a supported Windows language. If the Windows language is not supported, the app uses Korean.
 3. Under `Settings → Translation Engine`, choose the source language, target language, and engine.
    - To process everything on your PC, choose `Gemma 4`.
@@ -55,7 +55,7 @@ The stable Apple Silicon build bundles arm64 FFmpeg, a Python runtime for Paddle
 4. Under `Settings → Hardware · OCR`, choose the OCR quality and device. Then go to `Install / Check` and run `Check OCR/Models`. The app automatically prepares the required files the first time.
 5. On the main screen, open `Translate`, select an image, folder, or ZIP/CBZ file, and enter a title and chapter name.
 6. Select `Translate` on the chapter card, then choose the page range. `Untranslated only + Auto-create` is a good starting point. Enable `Second pass` if you want stronger contextual consistency.
-7. Review the generated blocks. If needed, use inpainting to remove the original text and touch up the image, then export the current page or the entire chapter as PNG files.
+7. Review the generated blocks. If needed, use inpainting to remove the original text and touch up the image, then export selected pages as finished PNG files or layered PSD documents.
 
 > The app interface language and the manga translation languages are independent. Changing the interface to English does not change your Japanese → Korean translation settings.
 
@@ -120,7 +120,7 @@ In addition to the existing Korean fonts, the app includes six free fonts each f
 | Simplified Chinese  | ZCOOL KuaiLe, ZCOOL QingKe HuangYou, ZCOOL XiaoWei, Ma Shan Zheng, Long Cang, Liu Jian Mao Cao |
 | Traditional Chinese | Huninn, Iansui, LXGW WenKai TC, LXGW Marker Gothic, ChenYuluoyan, Cubic 11                     |
 
-You can also add or remove other fonts with `+ Add TTF/OTF Font`. User fonts are copied to the `fonts/` directory in the data folder and used for both on-screen previews and PNG exports. Font sources and licenses are documented in [third_party/fonts](third_party/fonts/README.md).
+You can also add or remove other fonts with `+ Add TTF/OTF Font`. User fonts are copied to the `fonts/` directory in the data folder and used for on-screen previews and PNG/PSD exports. Font sources and licenses are documented in [third_party/fonts](third_party/fonts/README.md).
 
 ### Text Overview and External Review
 
@@ -131,7 +131,7 @@ You can also add or remove other fonts with `+ Add TTF/OTF Font`. User fonts are
 - Importing a review sheet applies only the translation, status, and notes for matching `block_id` values, and warns about missing or duplicate IDs and OCR mismatches.
 - Text within a page is sorted according to the reading direction of the source language.
 
-### Inpainting and PNG Export
+### Inpainting and Result Export
 
 - `AOT Minimal`: The lightest path, prioritizing the ability to run
 - `LaMa Efficient`: A lightweight original-text removal path optimized for manga
@@ -139,11 +139,11 @@ You can also add or remove other fonts with `+ Add TTF/OTF Font`. User fonts are
 - Exclude individual translation blocks from inpainting, expand mask borders, and automatically process the current page or all remaining pages.
 - Use the mask brush to mark areas for removal, and use the color brush, color picker, and restore brush to fix small artifacts manually.
 - Touch-up work also supports undo and redo.
-- Export the current page or the entire chapter as PNG files, preserving each block's position, direction, font, color, outline, and rotation.
+- Export selected pages as finished PNG files or layered PSD documents. A PSD separates the original background, cleaned background, and each text block; complex vertical, curved, or perspective text stays pixel-accurate as a raster layer.
 
 ### Sharing and Importing
 
-An `*.mgtshare` file is not a finished PNG. It is an editable project package that can be reopened in the app. It can include the original images, translation blocks, coordinates, formatting, and inpainting results for selected titles and chapters, but does not include settings, login information, models, or logs.
+An `*.mgtshare` file is not a finished PNG or PSD. It is an editable project package that can be reopened in the app. It can include the original images, translation blocks, coordinates, formatting, and inpainting results for selected titles and chapters, but does not include settings, login information, models, or logs.
 
 When importing, you can create a new title or add or replace chapters in an existing title. Before applying the import, you can drag chapters into the desired order on the merge screen. Always confirm that you have distribution rights before sharing copyrighted original images.
 
@@ -295,9 +295,9 @@ Check the AMD HIP SDK for Windows and `HIP_PATH`, then restart the app. To conti
 
 Check that you have the latest NVIDIA driver and the app's OCR runtime for the RTX 50 series. If GPU OCR continues to fail, switch only OCR to CPU `Efficient` and continue translating.
 
-### The Font in the PNG Differs from the Preview
+### The Font in the Export Differs from the Preview
 
-Bundled fonts are included in both the preview and PNG output. If you deleted a user font file or opened the project on another PC, add that font again. Before exporting, also check the writing direction, auto-fit, weight, and batch-applied font settings.
+Bundled fonts are included in both the preview and PNG/PSD output. If you deleted a user font file or opened the project on another PC, add that font again. Before exporting, also check the writing direction, auto-fit, weight, and batch-applied font settings.
 
 ## Reporting an Issue
 

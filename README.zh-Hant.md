@@ -5,7 +5,7 @@
 # 胡蘿蔔漫畫翻譯器
 
 <p align="center">
-  支援 Windows 與 Apple Silicon macOS 穩定版，涵蓋匯入、OCR、AI 翻譯、編輯、圖片修補及 PNG 匯出
+  支援 Windows 與 Apple Silicon macOS 穩定版，涵蓋匯入、OCR、AI 翻譯、編輯、圖片修補以及 PNG／分層 PSD 匯出
 </p>
 
 <p align="center">
@@ -16,10 +16,10 @@
   <strong>繁體中文</strong>
 </p>
 
-胡蘿蔔漫畫翻譯器是一款漫畫製作工具：它可以從圖片中找出對白與狀聲詞，透過 AI 產生翻譯區塊，再由使用者調整文字和排版，最後匯出為完整的 PNG。預設翻譯方向為日文 → 韓文，也可以選擇其他原文與譯文語言。
+胡蘿蔔漫畫翻譯器是一款漫畫製作工具：它可以從圖片中找出對白與狀聲詞，透過 AI 產生翻譯區塊，再由使用者調整文字和排版，最後匯出為完整 PNG 或分層 PSD。預設翻譯方向為日文 → 韓文，也可以選擇其他原文與譯文語言。
 
-- 下載 v1.9.0 正式版（Windows EXE · Apple Silicon DMG/ZIP）：[GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
-- 目前版本說明：[v1.9.0 更新說明](docs/release-notes/v1.9.0.md)
+- 下載 v1.12.0 正式版（Windows EXE · Apple Silicon DMG/ZIP）：[GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
+- 目前版本說明：[v1.12.0 更新說明](docs/release-notes/v1.12.0.md)
 - 貢獻指南：[CONTRIBUTING.md](CONTRIBUTING.md)
 - 程式碼架構與品質規範：[docs/architecture.md](docs/architecture.md)
 - 專案使用情況與公開資料：[docs/reputation.md](docs/reputation.md)
@@ -32,7 +32,7 @@
 - 漫畫的原文與譯文語言支援 48 種預設，也可直接輸入 BCP 47 語言代碼。
 - 可直接編輯翻譯區塊的文字、位置、方向、字型、顏色、外框和間距。
 - 可讓 AI 翻譯參考術語表、角色語氣、翻譯規則和劇情記憶。
-- 可使用 AOT、LaMa、Flux 清除原文，再用筆刷修正並匯出 PNG。
+- 可使用 AOT、LaMa、Flux 清除原文，再用筆刷修正並匯出完整 PNG 或分層 PSD。
 - 可透過 TXT 和 CSV/TSV 進行外部校對，也可用 `*.mgtshare` 分享能繼續編輯的作品資料。
 
 ## 安裝前須知
@@ -42,11 +42,11 @@
 - 網路連線：安裝、第一次下載模型以及使用 Codex/API 時需要連上網路。本機模型準備完成後即可離線使用。
 - 即使沒有 GPU，也能使用部分 CPU 處理方式，但 OCR、本機翻譯和 Flux 圖片修補可能會非常慢。
 
-Apple Silicon 正式版內建 arm64 FFmpeg、用於在 CPU 上執行 Paddle OCR 的 Python 環境，以及 Metal 執行環境。Gemma、OCR 和圖片修補模型權重會在第一次使用時通過檢查碼驗證後下載，之後會直接重複使用快取。v1.9.0 的 macOS 版本採用無憑證的 ad-hoc 簽章，因此如果 Gatekeeper 阻擋第一次啟動，可能需要前往 `系統設定 → 隱私權與安全性` 手動允許。macOS 資料儲存在 `~/Library/Application Support/manga-gemma-translator`。
+Apple Silicon 正式版內建 arm64 FFmpeg、用於在 CPU 上執行 Paddle OCR 的 Python 環境，以及 Metal 執行環境。Gemma、OCR 和圖片修補模型權重會在第一次使用時通過檢查碼驗證後下載，之後會直接重複使用快取。如果 v1.12.0 發布流程未設定 Developer ID 與公證憑證，macOS 版本會採用 ad-hoc 簽章，因此 Gatekeeper 阻擋第一次啟動時可能需要前往 `系統設定 → 隱私權與安全性` 手動允許。macOS 資料儲存在 `~/Library/Application Support/manga-gemma-translator`。
 
 ## 快速開始
 
-1. 前往 [v1.9.0 正式版](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v1.9.0)，Windows 使用者下載 `CarrotMangaTranslator-Setup-v1.9.0.exe`，Apple Silicon 使用者下載 arm64 DMG 或 ZIP。如果 macOS 阻擋第一次啟動，請前往 `系統設定 → 隱私權與安全性` 手動允許此應用程式。
+1. 前往 [v1.12.0 正式版](https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/v1.12.0)，Windows 使用者下載 `CarrotMangaTranslator-Setup-v1.12.0.exe`，Apple Silicon 使用者下載 arm64 DMG 或 ZIP。如果 macOS 阻擋第一次啟動，請前往 `系統設定 → 隱私權與安全性` 手動允許此應用程式。
 2. 在 `設定 → 一般` 中確認應用程式介面語言。第一次啟動時會自動選擇支援的 Windows 語言，其他語言環境則預設使用韓文。
 3. 在 `設定 → 翻譯引擎` 中選擇原文語言、譯文語言和翻譯引擎。
    - 想在自己的電腦上處理時，選擇 `Gemma 4`
@@ -55,7 +55,7 @@ Apple Silicon 正式版內建 arm64 FFmpeg、用於在 CPU 上執行 Paddle OCR 
 4. 在 `設定 → 硬體 · OCR` 中選擇 OCR 品質和裝置，再前往 `安裝 / 檢查` 執行 `檢查 OCR/模型`。第一次使用時，應用程式會自動準備所需檔案。
 5. 在主畫面的 `翻譯` 中選擇圖片、資料夾或 ZIP/CBZ，並設定作品名稱和章節名稱。
 6. 按下章節卡片上的 `翻譯`，選擇頁面範圍。第一次使用時，建議選擇 `僅未翻譯 + 自動產生`；如果更重視上下文一致性，可以開啟 `二次翻譯`。
-7. 檢查產生的區塊。如有需要，可透過圖片修補清除原文並進行修正，再將目前頁面或整個章節匯出為 PNG。
+7. 檢查產生的區塊。如有需要，可透過圖片修補清除原文並進行修正，再將所選頁面匯出為完整 PNG 或分層 PSD。
 
 > 應用程式介面語言與漫畫翻譯語言彼此獨立。即使把介面切換成英文，日文 → 韓文的翻譯設定也會維持不變。
 
@@ -120,7 +120,7 @@ Apple Silicon 正式版內建 arm64 FFmpeg、用於在 CPU 上執行 Paddle OCR 
 | 簡體中文 | ZCOOL KuaiLe, ZCOOL QingKe HuangYou, ZCOOL XiaoWei, Ma Shan Zheng, Long Cang, Liu Jian Mao Cao |
 | 繁體中文 | Huninn, Iansui, LXGW WenKai TC, LXGW Marker Gothic, ChenYuluoyan, Cubic 11                     |
 
-也可以透過 `+ 加入 TTF/OTF 字型` 加入或刪除其他字型。使用者字型會複製到資料夾中的 `fonts/`，並同時用於畫面預覽和 PNG 匯出。內建字型的來源和授權條款請參閱 [third_party/fonts](third_party/fonts/README.md)。
+也可以透過 `+ 加入 TTF/OTF 字型` 加入或刪除其他字型。使用者字型會複製到資料夾中的 `fonts/`，並同時用於畫面預覽和 PNG／PSD 匯出。內建字型的來源和授權條款請參閱 [third_party/fonts](third_party/fonts/README.md)。
 
 ### 彙整文字與外部校對
 
@@ -131,7 +131,7 @@ Apple Silicon 正式版內建 arm64 FFmpeg、用於在 CPU 上執行 Paddle OCR 
 - 匯入校對表時，只會套用相同 `block_id` 對應的譯文、狀態和備註，並針對遺漏、重複及 OCR 不一致顯示警告。
 - 頁面內的文字會依照原文語言的閱讀方向排序。
 
-### 圖片修補與 PNG 匯出
+### 圖片修補與結果匯出
 
 - `AOT 最小`：最輕量，以能夠執行為優先的處理方式
 - `LaMa 省資源`：輕量、針對漫畫最佳化的原文清除方式
@@ -139,11 +139,11 @@ Apple Silicon 正式版內建 arm64 FFmpeg、用於在 CPU 上執行 Paddle OCR 
 - 支援針對個別翻譯區塊排除圖片修補、擴大邊界，以及自動處理目前頁面或剩餘頁面。
 - 可用遮罩筆刷指定需要再次清除的區域，並用顏色筆刷、取色器和還原筆刷手動修正細小痕跡。
 - 修正操作同樣支援復原與重做。
-- 可將目前頁面或整個章節匯出為 PNG，並保留區塊的位置、方向、字型、顏色、外框和傾斜角度。
+- 可將所選頁面匯出為完整 PNG 或分層 PSD。PSD 會分離原始背景、修補背景和各文字區塊；複雜的直排、曲線或透視文字會以保真點陣圖層保存。
 
 ### 分享與匯入
 
-`*.mgtshare` 不是完成的 PNG，而是可在應用程式中繼續編輯的作品套件。它可以包含所選作品和章節的原始圖片、翻譯區塊、座標、格式和圖片修補結果，但不會包含設定、登入資訊、模型或記錄檔。
+`*.mgtshare` 不是完成的 PNG 或 PSD，而是可在應用程式中繼續編輯的作品套件。它可以包含所選作品和章節的原始圖片、翻譯區塊、座標、格式和圖片修補結果，但不會包含設定、登入資訊、模型或記錄檔。
 
 匯入時，可以建立新作品，也可以在現有作品中加入或取代章節；套用前還能在合併畫面中拖曳調整章節順序。分享受著作權保護的原始圖片前，請務必確認自己擁有相應的散布權限。
 
@@ -295,9 +295,9 @@ Windows ROCm 對支援的 GPU 與驅動程式組合較為敏感。即使只把 O
 
 請確認已安裝最新 NVIDIA 驅動程式，並檢查應用程式中的 RTX 50 專用 OCR 執行環境。如果 GPU OCR 仍然失敗，可以只把 OCR 改成 CPU `省資源`，繼續進行翻譯。
 
-### PNG 中的字型與畫面顯示不同
+### 匯出結果中的字型與畫面顯示不同
 
-內建字型會同時用於畫面和 PNG。如果刪除了使用者字型檔，或在另一台電腦上開啟作品，請重新加入該字型。匯出前也請檢查文字方向、自動縮放、粗細以及字型批次套用狀態。
+內建字型會同時用於畫面和 PNG／PSD。如果刪除了使用者字型檔，或在另一台電腦上開啟作品，請重新加入該字型。匯出前也請檢查文字方向、自動縮放、粗細以及字型批次套用狀態。
 
 ## 回報問題時
 

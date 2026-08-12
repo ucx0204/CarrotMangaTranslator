@@ -76,6 +76,56 @@ gh release download $tag --repo $repo --dir <new-empty-verify-dir>
 마지막 두 명령의 결과를 사전 manifest와 코드로 대조하고, 브라우저 화면이나 업로드 성공
 문구만 보고 완료 처리하지 않는다.
 
+## 안정 앱 버전 릴리스 표준
+
+Windows와 Apple Silicon macOS 정식 버전을 게시할 때 적용한다. 저장소의 현재 workflow가
+권위이며 수동으로 installer를 GitHub Release에 바로 올리지 않는다. 시작 전 기본 브랜치가
+깨끗하고 최신인지 확인하고, 기준 태그부터 최종 트리까지의 diff만으로 패치노트를 쓴다.
+개발 중 추가했다가 되돌린 변경이나 출시하지 않은 실험은 릴리스 기능으로 적지 않는다.
+
+1. `package.json`과 lockfile의 버전을 함께 올리고 `docs/release-notes/vX.Y.Z.md`를 만든다.
+   README의 현재 버전과 링크도 맞춘다. 태그와 release가 아직 없는지 확인한다.
+2. `npm run check`, `npm run verify:hf-assets`와 대상 플랫폼의 package/smoke를 로컬 또는
+   CI에서 통과시킨다. UI 변경은 위 `qa:ui` 절차로 넓은 창과 좁은 창을 직접 확인한다.
+3. 버전·문서·코드를 한 커밋으로 기본 브랜치에 push하고 `Check` workflow가 같은 HEAD에서
+   성공할 때까지 기다린다. 실패하면 로그의 실제 원인을 고치고 새 커밋으로 다시 검증한다.
+4. `Release` workflow를 기본 브랜치에서 `tag_name=vX.Y.Z`로 실행한다. 이 workflow가
+   버전/패치노트/태그 target을 검증하고 Windows installer를 빌드·smoke·봉인한 뒤 stable
+   release와 Windows checksum/provenance를 게시한다. 성공 전에는 macOS workflow를 켜지 않는다.
+5. stable release와 Windows asset이 확인된 뒤 `macOS Release`를 같은 태그로 실행한다.
+   workflow가 태그가 현재 HEAD인지, Windows installer가 있는지 확인한 뒤 arm64 DMG/ZIP,
+   checksum과 provenance를 같은 release에 추가한다. signing secret이 없으면 ad-hoc임을
+   패치노트에 정확히 밝힌다.
+6. 두 workflow의 최종 conclusion이 success인지 확인한다. 이어 새 빈 `.tmp/...` 폴더에
+   `gh release download vX.Y.Z`로 모든 자산을 재다운로드해 이름·개수·byte size를 확인하고,
+   Windows/macOS checksum manifest를 실제 파일에 대조한다. provenance의 commit은 태그
+   commit과 같아야 한다. release가 draft/prerelease가 아니고 tag가 같은 commit인지도 확인한다.
+7. 사용자에게 release URL, tag/commit, Windows EXE와 macOS DMG/ZIP, checksum/provenance,
+   workflow URL과 서명 상태를 전달한다. 검증용 다운로드 디렉터리는 제거하되 published
+   release와 태그는 덮어쓰지 않는다.
+
+일반 명령 골격:
+
+```powershell
+$tag = "vX.Y.Z"
+npm version X.Y.Z --no-git-tag-version
+npm run check
+git push origin master
+$checkRun = gh run list --workflow Check --branch master --limit 1 --json databaseId --jq '.[0].databaseId'
+gh run watch $checkRun
+gh workflow run Release --ref master -f tag_name=$tag
+$windowsRun = gh run list --workflow Release --branch master --limit 1 --json databaseId --jq '.[0].databaseId'
+gh run watch $windowsRun
+gh workflow run "macOS Release" --ref master -f tag_name=$tag
+$macRun = gh run list --workflow "macOS Release" --branch master --limit 1 --json databaseId --jq '.[0].databaseId'
+gh run watch $macRun
+gh release view $tag --json url,isDraft,isPrerelease,tagName,targetCommitish,assets
+gh release download $tag --dir <new-empty-verify-dir>
+```
+
+workflow 재실행은 transient runner 실패처럼 소스와 무관한 근거가 분명한 경우에만 하며,
+코드·테스트 실패를 단순 rerun으로 숨기지 않는다.
+
 이 PC에서 `gh` keyring 토큰이 만료됐는데 Git Credential Manager 자격 증명은 유효할 수
 있다. 이때 비밀값을 출력·파일 저장하지 말고 `git credential fill`의 `password`를 현재
 PowerShell 프로세스의 `GH_TOKEN`에만 넣는다. Anaconda의 `SSL_CERT_FILE` 때문에 GitHub
