@@ -46,6 +46,7 @@ import {
   MAX_BLOCK_STYLE_PRESET_GROUPS,
   MAX_BLOCK_STYLE_PRESET_NAME_LENGTH,
   MAX_BLOCK_STYLE_PRESETS,
+  MAX_BLOCK_STYLE_PRESET_SHORTCUT_SLOT,
 } from "./blockStylePresets";
 
 const LanguageCodeSchema = z
@@ -86,6 +87,12 @@ const BlockStylePresetSchema = z
       .regex(/^[a-zA-Z0-9._:-]+$/),
     name: z.string().trim().min(1).max(MAX_BLOCK_STYLE_PRESET_NAME_LENGTH),
     pinned: z.boolean(),
+    shortcutSlot: z
+      .number()
+      .int()
+      .min(1)
+      .max(MAX_BLOCK_STYLE_PRESET_SHORTCUT_SLOT)
+      .optional(),
     groupId: z
       .string()
       .min(1)

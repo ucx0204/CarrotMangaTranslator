@@ -201,6 +201,22 @@ describe("AppSessionView render boundaries", () => {
         settingsOpen: true,
       }),
     ).toBe(true);
+    for (const activeState of [
+      { confirmDialog: {} },
+      { importPreview: {} },
+      { inpaintingGuideOpen: true },
+      { renameTarget: {} },
+      { shareExportOpen: true },
+      { shareImportPreview: {} },
+      { translationSourceOpen: true },
+    ]) {
+      expect(
+        isAppModalSubtreeActive({
+          ...closedAppModalState(),
+          ...activeState,
+        }),
+      ).toBe(true);
+    }
 
     expect(isFloatingOverlaySubtreeActive(closedFloatingOverlayState())).toBe(
       false,
@@ -211,6 +227,23 @@ describe("AppSessionView render boundaries", () => {
         commandPaletteProps: { open: true },
       }),
     ).toBe(true);
+    for (const activeState of [
+      { autoInpaintingOptionsProps: {} },
+      { exportOptionsProps: {} },
+      { gatherTextProps: {} },
+      { pageRetranslateProps: {} },
+      { searchReplaceProps: {} },
+      { shortcutHelpProps: { open: true } },
+      { styleGuideProps: {} },
+      { translationOptionsProps: {} },
+    ]) {
+      expect(
+        isFloatingOverlaySubtreeActive({
+          ...closedFloatingOverlayState(),
+          ...activeState,
+        }),
+      ).toBe(true);
+    }
   });
 });
 
@@ -362,6 +395,7 @@ function closedFloatingOverlayState() {
     exportOptionsProps: null,
     gatherTextProps: null,
     pageRetranslateProps: null,
+    searchReplaceProps: null,
     shortcutHelpProps: { open: false },
     styleGuideProps: null,
     translationOptionsProps: null,

@@ -12,10 +12,13 @@ import {
 } from "../lib/exportSelection";
 import { ExportPagePicker } from "./ExportPagePicker";
 import { Modal } from "./ui/Modal";
-import { ModalActionBar, ModalActionButtons } from "./ui/ModalActionBar";
 import type { PageJobTargetSnapshot } from "../../../shared/pageRevision";
+import type { PageImageExportFormat } from "../../../shared/pageImageExportTypes";
 import { exportGateway } from "../api/exportGateway";
-import { CheckboxField } from "./ui/CheckboxField";
+import {
+  ExportOptionsFooter,
+  ExportRenderOptions,
+} from "./ExportRenderOptions";
 import {
   ExportPreflightPanel,
   type ExportIssueNavigationHandler,
@@ -31,7 +34,7 @@ export type ExportOptionsModalProps = {
   onStart: (
     selection: ExportChapterSelection[],
     expectedTargets?: PageJobTargetSnapshot[],
-    options?: { omitText?: boolean },
+    options?: { omitText?: boolean; outputFormat?: PageImageExportFormat },
   ) => Promise<boolean>;
   onNavigateToIssue?: ExportIssueNavigationHandler;
   onClose: () => void;
@@ -46,12 +49,13 @@ export function ExportOptionsModal({
   onClose,
   onNavigateToIssue,
 }: ExportOptionsModalProps): React.JSX.Element {
-  const { t } = useTranslation("components");
   const work = useExportWork(library, chapter.workId);
   const [selection, setSelection] = React.useState(() =>
     createDefaultExportSelection(chapter.id, currentPageId),
   );
   const [omitText, setOmitText] = React.useState(false);
+  const [outputFormat, setOutputFormat] =
+    React.useState<PageImageExportFormat>("png");
   const chapterOrder = React.useMemo(
     () => work?.chapterOrder ?? [chapter.id],
     [chapter.id, work],
@@ -64,11 +68,13 @@ export function ExportOptionsModal({
     work?.id ?? null,
     exportSelection,
     omitText,
+    outputFormat,
   );
   const start = useExportStart({
     expectedTargets: preflight.result?.targets,
     exportSelection,
     omitText,
+    outputFormat,
     onClose,
     onStart,
   });
@@ -82,8 +88,61 @@ export function ExportOptionsModal({
   });
 
   return (
+    <ExportOptionsModalLayout
+      chapter={chapter}
+      omitText={omitText}
+      onClose={onClose}
+      onNavigateToIssue={onNavigateToIssue}
+      outputFormat={outputFormat}
+      preflight={preflight}
+      selection={selection}
+      setOmitText={setOmitText}
+      setOutputFormat={setOutputFormat}
+      setSelection={setSelection}
+      start={start}
+      startDisabled={startDisabled}
+      work={work}
+    />
+  );
+}
+
+function ExportOptionsModalLayout({
+  chapter,
+  omitText,
+  onClose,
+  onNavigateToIssue,
+  outputFormat,
+  preflight,
+  selection,
+  setOmitText,
+  setOutputFormat,
+  setSelection,
+  start,
+  startDisabled,
+  work,
+}: {
+  chapter: ChapterSnapshot;
+  omitText: boolean;
+  onClose: () => void;
+  onNavigateToIssue?: ExportIssueNavigationHandler;
+  outputFormat: PageImageExportFormat;
+  preflight: ExportPreflightState;
+  selection: ExportSelectionMap;
+  setOmitText: React.Dispatch<React.SetStateAction<boolean>>;
+  setOutputFormat: React.Dispatch<React.SetStateAction<PageImageExportFormat>>;
+  setSelection: React.Dispatch<React.SetStateAction<ExportSelectionMap>>;
+  start: ReturnType<typeof useExportStart>;
+  startDisabled: boolean;
+  work: LibraryIndex["works"][number] | null;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
     <Modal
-      title={t("exportOptions.title")}
+      title={t(
+        outputFormat === "psd"
+          ? "exportOptions.psdTitle"
+          : "exportOptions.title",
+      )}
       size="lg"
       onClose={onClose}
       closeDisabled={start.isStarting}
@@ -94,6 +153,7 @@ export function ExportOptionsModal({
           startDisabled={startDisabled}
           onCancel={onClose}
           onStart={() => void start.run()}
+          outputFormat={outputFormat}
         />
       }
     >
@@ -101,10 +161,12 @@ export function ExportOptionsModal({
         chapter={chapter}
         isStarting={start.isStarting}
         omitText={omitText}
+        outputFormat={outputFormat}
         onNavigateToIssue={onNavigateToIssue}
         preflight={preflight}
         selection={selection}
         setOmitText={setOmitText}
+        setOutputFormat={setOutputFormat}
         setSelection={setSelection}
         work={work}
       />
@@ -144,20 +206,24 @@ function ExportOptionsContent({
   chapter,
   isStarting,
   omitText,
+  outputFormat,
   onNavigateToIssue,
   preflight,
   selection,
   setOmitText,
+  setOutputFormat,
   setSelection,
   work,
 }: {
   chapter: ChapterSnapshot;
   isStarting: boolean;
   omitText: boolean;
+  outputFormat: PageImageExportFormat;
   onNavigateToIssue?: ExportOptionsModalProps["onNavigateToIssue"];
   preflight: ExportPreflightState;
   selection: ExportSelectionMap;
   setOmitText: React.Dispatch<React.SetStateAction<boolean>>;
+  setOutputFormat: React.Dispatch<React.SetStateAction<PageImageExportFormat>>;
   setSelection: React.Dispatch<React.SetStateAction<ExportSelectionMap>>;
   work: LibraryIndex["works"][number] | null;
 }): React.JSX.Element {
@@ -180,7 +246,9 @@ function ExportOptionsContent({
       <ExportRenderOptions
         disabled={isStarting}
         omitText={omitText}
+        outputFormat={outputFormat}
         onOmitTextChange={setOmitText}
+        onOutputFormatChange={setOutputFormat}
       />
       <ExportPreflightPanel
         preflight={preflight}
@@ -194,12 +262,14 @@ function useExportStart({
   expectedTargets,
   exportSelection,
   omitText,
+  outputFormat,
   onClose,
   onStart,
 }: {
   expectedTargets?: PageJobTargetSnapshot[];
   exportSelection: ExportChapterSelection[];
   omitText: boolean;
+  outputFormat: PageImageExportFormat;
   onClose: () => void;
   onStart: ExportOptionsModalProps["onStart"];
 }): { failed: boolean; isStarting: boolean; run: () => Promise<void> } {
@@ -210,7 +280,12 @@ function useExportStart({
     setIsStarting(true);
     setFailed(false);
     try {
-      if (await onStart(exportSelection, expectedTargets, { omitText })) {
+      if (
+        await onStart(exportSelection, expectedTargets, {
+          omitText,
+          ...(outputFormat === "psd" ? { outputFormat } : {}),
+        })
+      ) {
         onClose();
       }
     } catch (error: unknown) {
@@ -224,6 +299,7 @@ function useExportStart({
     exportSelection,
     isStarting,
     omitText,
+    outputFormat,
     onClose,
     onStart,
   ]);
@@ -234,6 +310,7 @@ function useExportPreflight(
   workId: string | null,
   selections: ExportChapterSelection[],
   omitText: boolean,
+  outputFormat: PageImageExportFormat,
 ): ExportPreflightState {
   const [state, setState] = React.useState<ExportPreflightState>({
     status: "idle",
@@ -252,6 +329,7 @@ function useExportPreflight(
         workId,
         selections,
         ...(omitText ? { omitText: true } : {}),
+        ...(outputFormat === "psd" ? { outputFormat } : {}),
       })
       .then((result) => {
         if (active) setState({ status: "ready", result, error: null });
@@ -269,31 +347,8 @@ function useExportPreflight(
     return () => {
       active = false;
     };
-  }, [omitText, selections, workId]);
+  }, [omitText, outputFormat, selections, workId]);
   return state;
-}
-
-function ExportRenderOptions({
-  disabled,
-  omitText,
-  onOmitTextChange,
-}: {
-  disabled: boolean;
-  omitText: boolean;
-  onOmitTextChange: (checked: boolean) => void;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <section className="export-render-options">
-      <CheckboxField
-        checked={omitText}
-        disabled={disabled}
-        label={t("exportOptions.omitText")}
-        onCheckedChange={onOmitTextChange}
-      />
-      <span>{t("exportOptions.omitTextHint")}</span>
-    </section>
-  );
 }
 
 function useExportWork(library: LibraryIndex, workId: string) {
@@ -311,39 +366,4 @@ function useCloseStartedExport(
   React.useEffect(() => {
     if (isStarting && jobActive) onClose();
   }, [isStarting, jobActive, onClose]);
-}
-
-function ExportOptionsFooter({
-  isStarting,
-  startDisabled,
-  onCancel,
-  onStart,
-}: {
-  isStarting: boolean;
-  startDisabled: boolean;
-  onCancel: () => void;
-  onStart: () => void;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <ModalActionBar
-      actions={
-        <ModalActionButtons
-          cancel={{
-            label: t("common.cancel"),
-            onClick: onCancel,
-            disabled: isStarting,
-            variant: "secondary",
-          }}
-          confirm={{
-            label: isStarting
-              ? t("exportOptions.starting")
-              : t("exportOptions.start"),
-            onClick: onStart,
-            disabled: isStarting || startDisabled,
-          }}
-        />
-      }
-    />
-  );
 }

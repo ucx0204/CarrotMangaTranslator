@@ -88,11 +88,13 @@ export function PageArtwork({
   fontCatalog,
   imageSrc,
   page,
+  showImage = true,
   visualSize,
 }: {
   fontCatalog: BlockFontCatalog;
   imageSrc: string;
   page: PageArtworkSnapshot;
+  showImage?: boolean;
   visualSize: ViewportSize;
 }): React.JSX.Element {
   const pageSize = React.useMemo(
@@ -103,16 +105,19 @@ export function PageArtwork({
     <div
       className="image-stage page-artwork"
       data-page-artwork=""
+      data-transparent-background={showImage ? undefined : ""}
       style={{ height: visualSize.height, width: visualSize.width }}
     >
-      <img
-        alt={page.name}
-        className="page-image"
-        draggable={false}
-        height={visualSize.height}
-        src={imageSrc}
-        width={visualSize.width}
-      />
+      {showImage ? (
+        <img
+          alt={page.name}
+          className="page-image"
+          draggable={false}
+          height={visualSize.height}
+          src={imageSrc}
+          width={visualSize.width}
+        />
+      ) : null}
       {page.blocks.map((block) => (
         <PageArtworkBlock
           block={block}

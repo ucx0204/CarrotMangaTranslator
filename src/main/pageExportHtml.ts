@@ -25,6 +25,7 @@ export type PageExportHtmlSource = {
     page: MangaPage,
     imageSrc: string,
     outputSize: PageExportRasterSize,
+    options?: { transparentBackground?: boolean },
   ) => string;
 };
 
@@ -42,8 +43,14 @@ export function createPageExportHtmlSource(
   dependencies: PageExportHtmlDependencies,
 ): PageExportHtmlSource {
   return {
-    buildHtml: (page, imageSrc, outputSize) =>
-      buildPageExportHtmlWith(dependencies, page, imageSrc, outputSize),
+    buildHtml: (page, imageSrc, outputSize, options) =>
+      buildPageExportHtmlWith(
+        dependencies,
+        page,
+        imageSrc,
+        outputSize,
+        options,
+      ),
   };
 }
 
@@ -51,12 +58,14 @@ export function buildPageExportHtml(
   page: MangaPage,
   imageSrc: string,
   outputSize: PageExportRasterSize,
+  options?: { transparentBackground?: boolean },
 ): string {
   return buildPageExportHtmlWith(
     createProductionPageExportHtmlDependencies(),
     page,
     imageSrc,
     outputSize,
+    options,
   );
 }
 
@@ -65,6 +74,7 @@ function buildPageExportHtmlWith(
   page: MangaPage,
   imageSrc: string,
   outputSize: PageExportRasterSize,
+  options?: { transparentBackground?: boolean },
 ): string {
   const assets = findPageExportAssets(dependencies.assetDirectories());
   const rendererStylesheet = dependencies.rendererStylesheet();
@@ -90,6 +100,7 @@ function buildPageExportHtmlWith(
       height: page.height,
       blocks: page.blocks,
     },
+    ...(options?.transparentBackground ? { transparentBackground: true } : {}),
   };
   return `<!doctype html>
 <html>

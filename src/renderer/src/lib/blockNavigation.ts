@@ -1,6 +1,6 @@
 import type { TranslationBlock } from "../../../shared/textTypes";
 import {
-  sortBlocksForReading,
+  resolvePageBlocksForReading,
   type BlockReadingDirection,
 } from "../../../shared/blockReadingOrder";
 
@@ -12,8 +12,12 @@ export function resolveAdjacentBlockId(
   selectedBlockId: string | null,
   direction: BlockNavigationDirection,
   readingDirection: BlockReadingDirection = "rtl",
+  blockOrder?: readonly string[],
 ): string | null {
-  const ordered = sortBlocksForReading(blocks, readingDirection);
+  const ordered = resolvePageBlocksForReading(
+    { blocks, blockOrder },
+    readingDirection,
+  );
   if (ordered.length === 0) {
     return null;
   }

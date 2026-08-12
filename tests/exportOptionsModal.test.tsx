@@ -8,6 +8,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
@@ -180,6 +181,33 @@ describe("ExportOptionsModal", () => {
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
   });
 
+  it("preflights and starts a layered PSD export when selected", async () => {
+    const { onStart } = await renderModal(false);
+
+    fireEvent.click(screen.getByRole("combobox", { name: "파일 형식" }));
+    fireEvent.click(
+      within(screen.getByRole("listbox", { name: "파일 형식" })).getByRole(
+        "option",
+        { name: "레이어 문서 (PSD)" },
+      ),
+    );
+
+    await waitFor(() =>
+      expect(preflightPageImages).toHaveBeenLastCalledWith(
+        expect.objectContaining({ outputFormat: "psd" }),
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "PSD 출력" }));
+
+    await waitFor(() =>
+      expect(onStart).toHaveBeenCalledWith(
+        [{ chapterId: CHAPTER_ID, mode: "page-set", pageIds: ["p2"] }],
+        [],
+        { omitText: false, outputFormat: "psd" },
+      ),
+    );
+  });
+
   it("supports current chapter, all, and clear quick selections", async () => {
     const { onStart } = await renderModal(false);
     const exportButton = screen.getByRole("button", { name: "PNG 출력" });
@@ -318,7 +346,7 @@ describe("ExportOptionsModal", () => {
 
     expect(
       await screen.findByText(
-        "인페인팅 결과가 없어 글자 없는 PNG를 출력할 수 없습니다.",
+        "인페인팅 결과가 없어 글자 없는 출력을 만들 수 없습니다.",
       ),
     ).toBeTruthy();
     expect(screen.getByRole("button", { name: "PNG 출력" })).toHaveProperty(

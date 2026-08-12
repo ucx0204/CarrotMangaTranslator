@@ -18,6 +18,7 @@ export const MAX_BLOCK_STYLE_PRESET_NAME_LENGTH = 80;
 export const MAX_BLOCK_STYLE_PRESET_ID_LENGTH = 100;
 export const MAX_BLOCK_STYLE_PRESET_GROUPS = 50;
 export const MAX_BLOCK_STYLE_PRESET_GROUP_NAME_LENGTH = 60;
+export const MAX_BLOCK_STYLE_PRESET_SHORTCUT_SLOT = 10;
 
 type BlockStylePresetFormat = StoredBlockStylePresetFormat;
 
@@ -26,6 +27,8 @@ export type BlockStylePreset = {
   id: string;
   name: string;
   pinned: boolean;
+  /** Optional 1-based slot used by the configurable style shortcuts. */
+  shortcutSlot?: number;
   groupId?: string;
   groupIds: BlockFormatGroupId[];
   format: BlockStylePresetFormat;
@@ -61,6 +64,7 @@ export function createBlockStylePreset(input: {
   id?: string;
   name: string;
   pinned?: boolean;
+  shortcutSlot?: number;
 }): BlockStylePreset {
   const groupIds = normalizeBlockStylePresetGroupIds(input.groupIds);
   return {
@@ -68,6 +72,9 @@ export function createBlockStylePreset(input: {
     id: input.id ?? createBlockStylePresetId(),
     name: normalizePresetName(input.name) || "Preset",
     pinned: input.pinned ?? false,
+    ...(normalizeShortcutSlot(input.shortcutSlot)
+      ? { shortcutSlot: normalizeShortcutSlot(input.shortcutSlot) }
+      : {}),
     ...(input.groupId ? { groupId: input.groupId } : {}),
     groupIds,
     format: buildBlockStylePresetFormat(input.block, groupIds),
@@ -81,6 +88,7 @@ export function createBlockStylePresetFromDefaults(input: {
   id?: string;
   name: string;
   pinned?: boolean;
+  shortcutSlot?: number;
 }): BlockStylePreset {
   const requestedGroups = normalizeBlockStylePresetGroupIds(
     input.groupIds ?? ALL_BLOCK_FORMAT_GROUP_IDS,
@@ -94,6 +102,9 @@ export function createBlockStylePresetFromDefaults(input: {
     id: input.id ?? createBlockStylePresetId(),
     name: normalizePresetName(input.name) || "Preset",
     pinned: input.pinned ?? false,
+    ...(normalizeShortcutSlot(input.shortcutSlot)
+      ? { shortcutSlot: normalizeShortcutSlot(input.shortcutSlot) }
+      : {}),
     ...(input.groupId ? { groupId: input.groupId } : {}),
     groupIds,
     format: buildDefaultsPresetFormat(input.defaults, groupIds),
@@ -181,12 +192,18 @@ export function normalizeBlockStylePresets(value: unknown): BlockStylePreset[] {
   }
   const presets: BlockStylePreset[] = [];
   const ids = new Set<string>();
+  const shortcutSlots = new Set<number>();
   for (const candidate of value.slice(0, MAX_BLOCK_STYLE_PRESETS)) {
-    const preset = normalizeBlockStylePreset(candidate);
+    let preset = normalizeBlockStylePreset(candidate);
     if (!preset || ids.has(preset.id)) {
       continue;
     }
+    if (preset.shortcutSlot && shortcutSlots.has(preset.shortcutSlot)) {
+      const { shortcutSlot: _shortcutSlot, ...withoutDuplicateSlot } = preset;
+      preset = withoutDuplicateSlot;
+    }
     ids.add(preset.id);
+    if (preset.shortcutSlot) shortcutSlots.add(preset.shortcutSlot);
     presets.push(preset);
   }
   return presets;
@@ -267,12 +284,24 @@ function normalizeBlockStylePreset(value: unknown): BlockStylePreset | null {
     id,
     name,
     pinned: record.pinned,
+    ...(normalizeShortcutSlot(record.shortcutSlot)
+      ? { shortcutSlot: normalizeShortcutSlot(record.shortcutSlot) }
+      : {}),
     ...(normalizePresetGroupId(record.groupId)
       ? { groupId: normalizePresetGroupId(record.groupId) }
       : {}),
     groupIds,
     format: normalizePresetFormat(record.format, groupIds),
   };
+}
+
+function normalizeShortcutSlot(value: unknown): number | undefined {
+  return typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 1 &&
+    value <= MAX_BLOCK_STYLE_PRESET_SHORTCUT_SLOT
+    ? value
+    : undefined;
 }
 
 function normalizePresetName(value: unknown): string {

@@ -323,14 +323,14 @@
   },
   "export": {
     "noPages": "There are no pages to export.",
-    "cancelled": "PNG export was cancelled.",
-    "failed": "PNG export failed",
-    "preparing": "Preparing PNG export",
-    "completed": "PNG export complete",
+    "cancelled": "Page export was cancelled.",
+    "failed": "Page export failed",
+    "preparing": "Preparing page export",
+    "completed": "Page export complete",
     "selection": "{{chapters}} chapters · {{pages}} pages",
     "page": {
-      "running": "Exporting PNG for page {{current}} / {{total}}",
-      "done": "PNG export complete for page {{current}} / {{total}}"
+      "running": "Exporting page {{current}} / {{total}}",
+      "done": "Page export complete for {{current}} / {{total}}"
     },
     "errors": {
       "workNotFound": "The work to export could not be found.",
@@ -338,7 +338,7 @@
       "duplicateChapter": "The same chapter cannot be selected twice.",
       "pageNotFound": "The selected page does not belong to that chapter.",
       "duplicatePage": "The same page cannot be selected twice.",
-      "outputDirectory": "The PNG export folder could not be created.",
+      "outputDirectory": "The page export folder could not be created.",
       "rasterTooLarge": "{{name}} exceeds the PNG export raster safety limit. ({{width}}×{{height}}, maximum {{maxPixels}} pixels)",
       "screenshotTooLarge": "The PNG result for {{name}} exceeds the safe file size.",
       "invalidScreenshot": "The PNG export result is not valid base64 or PNG data.",

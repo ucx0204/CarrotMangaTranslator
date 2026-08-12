@@ -31,6 +31,7 @@ import { useStagePointerRouter } from "./useStagePointerRouter";
 import { useWorkspaceInpaintingPointerHandlers } from "./useWorkspaceInpaintingPointerHandlers";
 import { useWorkspacePanHandlers } from "./useWorkspacePanHandlers";
 import { useWorkspaceRegionSelectionHandlers } from "./useWorkspaceRegionSelectionHandlers";
+import { useWorkspaceMarqueeSelectionHandlers } from "./useWorkspaceMarqueeSelectionHandlers";
 import { type PointerRect } from "./workspacePointerGeometry";
 import type { UpdateCurrentChapter } from "./useCurrentChapterUpdater";
 
@@ -71,11 +72,13 @@ type UseWorkspacePointerHandlersOptions = {
   regionSelection: RegionSelectionState | null;
   selectedPage: MangaPage | null;
   selectedBlockId: string | null;
+  selectedBlockIds?: string[];
   selectedPageEditLocked: boolean;
   selectedPageIdRef: MutableRefObject<string | null>;
   regionTranslationReady: boolean;
   selectedPageImagePath: string | null;
   setInpaintingPaintColor: Dispatch<SetStateAction<string>>;
+  setInpaintingBrushRadius?: Dispatch<SetStateAction<number>>;
   setInpaintingTool: Dispatch<SetStateAction<InpaintingTool>>;
   setPatternMaskStrokesByPage: Dispatch<
     SetStateAction<Record<string, InpaintingMaskStroke[]>>
@@ -129,12 +132,16 @@ export function useWorkspacePointerHandlers(
     options,
     interactionPreviewStore,
   );
-  const { blockCreateHandlers, bubbleLayoutHandlers, regionSelectionHandlers } =
-    useWorkspaceDrawingHandlers(
-      options,
-      getImagePointerRect,
-      interactionPreviewStore,
-    );
+  const {
+    blockCreateHandlers,
+    bubbleLayoutHandlers,
+    marqueeSelectionHandlers,
+    regionSelectionHandlers,
+  } = useWorkspaceDrawingHandlers(
+    options,
+    getImagePointerRect,
+    interactionPreviewStore,
+  );
   const panHandlers = useWorkspacePanHandlers({
     stageRef: options.stageRef,
     workspacePanelRef: options.workspacePanelRef,
@@ -142,6 +149,7 @@ export function useWorkspacePointerHandlers(
   useEscapePointerCancellation(
     blockDrag.cancelActiveDrag,
     regionSelectionHandlers.cancelRegionSelection,
+    marqueeSelectionHandlers.cancelMarqueeSelection,
     blockCreateHandlers.cancelBlockCreate,
     bubbleLayoutHandlers.cancelBubbleLayoutDraft,
     inpaintingHandlers.cancelDrawing,
@@ -155,6 +163,7 @@ export function useWorkspacePointerHandlers(
     jobActive: options.jobActive,
     panHandlers,
     regionSelectionHandlers,
+    marqueeSelectionHandlers,
     setSelectedBlockId: options.setSelectedBlockId,
     setSelectedBlockIds: options.setSelectedBlockIds,
     stageTool: options.stageTool,
@@ -185,6 +194,9 @@ function useWorkspaceDrawingHandlers(
   regionSelectionHandlers: ReturnType<
     typeof useWorkspaceRegionSelectionHandlers
   >;
+  marqueeSelectionHandlers: ReturnType<
+    typeof useWorkspaceMarqueeSelectionHandlers
+  >;
 } {
   const regionSelectionHandlers = useWorkspaceRegionSelectionHandlers({
     getImagePointerRect,
@@ -213,6 +225,22 @@ function useWorkspaceDrawingHandlers(
     stageRef: options.stageRef,
     updateCurrentChapter: options.updateCurrentChapter,
   });
+  const marqueeSelectionHandlers = useWorkspaceMarqueeSelectionHandlers({
+    active:
+      options.stageTool === "select" &&
+      !options.inpaintingToolActive &&
+      !options.jobActive &&
+      !options.selectedPageEditLocked &&
+      !options.regionSelection?.active,
+    getImagePointerRect,
+    interactionPreviewStore,
+    page: options.selectedPage,
+    selectedBlockId: options.selectedBlockId,
+    selectedBlockIds: options.selectedBlockIds ?? [],
+    setSelectedBlockId: options.setSelectedBlockId,
+    setSelectedBlockIds: options.setSelectedBlockIds,
+    stageRef: options.stageRef,
+  });
   const bubbleLayoutHandlers = useWorkspaceBubbleLayoutHandlers({
     active: options.stageTool === "bubble" && !options.inpaintingToolActive,
     getImagePointerRect,
@@ -228,6 +256,7 @@ function useWorkspaceDrawingHandlers(
   return {
     blockCreateHandlers,
     bubbleLayoutHandlers,
+    marqueeSelectionHandlers,
     regionSelectionHandlers,
   };
 }
@@ -328,6 +357,7 @@ function useInpaintingPointerHandlers(
     | "selectedPageIdRef"
     | "selectedPageImagePath"
     | "setInpaintingPaintColor"
+    | "setInpaintingBrushRadius"
     | "setPatternMaskStrokesByPage"
     | "setSelectedBlockId"
     | "stageRef"
@@ -339,6 +369,7 @@ function useInpaintingPointerHandlers(
 function useEscapePointerCancellation(
   cancelActiveDrag: () => boolean,
   cancelRegionSelection: () => boolean,
+  cancelMarqueeSelection: () => boolean,
   cancelBlockCreate: () => boolean,
   cancelBubbleLayoutDraft: () => boolean,
   cancelInpaintingDrawing: () => boolean,
@@ -349,7 +380,8 @@ function useEscapePointerCancellation(
     if (
       !cancelActiveDrag() &&
       !cancelBlockCreate() &&
-      !cancelBubbleLayoutDraft()
+      !cancelBubbleLayoutDraft() &&
+      !cancelMarqueeSelection()
     ) {
       cancelRegionSelection();
     }

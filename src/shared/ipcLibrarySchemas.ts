@@ -52,6 +52,11 @@ const MangaPageSchema = z
     width: z.number().int().min(1).max(MAX_IMAGE_DIMENSION),
     height: z.number().int().min(1).max(MAX_IMAGE_DIMENSION),
     blocks: z.array(TranslationBlockSchema).max(MAX_BLOCKS_PER_PAGE),
+    blockOrder: z
+      .array(z.string().min(1).max(200))
+      .max(MAX_BLOCKS_PER_PAGE)
+      .refine((ids) => new Set(ids).size === ids.length)
+      .optional(),
     analysisStatus: PageAnalysisStatusSchema,
     translationCompletion: TranslationCompletionReceiptSchema.optional(),
     lastError: z.string().max(4000).optional(),
@@ -69,6 +74,11 @@ const LibraryPageRecordSchema = z
     width: z.number().int().min(1).max(MAX_IMAGE_DIMENSION),
     height: z.number().int().min(1).max(MAX_IMAGE_DIMENSION),
     blocks: z.array(TranslationBlockSchema).max(MAX_BLOCKS_PER_PAGE),
+    blockOrder: z
+      .array(z.string().min(1).max(200))
+      .max(MAX_BLOCKS_PER_PAGE)
+      .refine((ids) => new Set(ids).size === ids.length)
+      .optional(),
     analysisStatus: PageAnalysisStatusSchema,
     translationCompletion: TranslationCompletionReceiptSchema.optional(),
     lastError: z.string().max(4000).optional(),
@@ -96,6 +106,7 @@ export const LibraryWorkFileSchema = z
     id: storeId,
     title,
     chapterOrder: z.array(storeId).max(MAX_ID_LIST_LENGTH),
+    readingDirection: z.enum(["auto", "rtl", "ltr"]).optional(),
     createdAt: z.string().max(80),
     updatedAt: z.string().max(80),
   })
@@ -138,6 +149,7 @@ const LibraryWorkSummarySchema = z
     id: storeId,
     title,
     chapterOrder: z.array(storeId).max(MAX_ID_LIST_LENGTH),
+    readingDirection: z.enum(["auto", "rtl", "ltr"]).optional(),
     createdAt: z.string().max(80),
     updatedAt: z.string().max(80),
     chapters: z.array(LibraryChapterSummarySchema).max(MAX_ID_LIST_LENGTH),
@@ -192,6 +204,11 @@ const SavePageBlocksUpdateSchema = z
     baseUpdatedAt: z.string().max(80).optional(),
     baseBlocksHash: z.string().min(1).max(80).optional(),
     blocks: z.array(TranslationBlockSchema).max(MAX_BLOCKS_PER_PAGE),
+    blockOrder: z
+      .array(z.string().min(1).max(200))
+      .max(MAX_BLOCKS_PER_PAGE)
+      .refine((ids) => new Set(ids).size === ids.length)
+      .optional(),
   })
   .strict();
 export const SavePageBlocksRequestSchema = SavePageBlocksUpdateSchema.extend({

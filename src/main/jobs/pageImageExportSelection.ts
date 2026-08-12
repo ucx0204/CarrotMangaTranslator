@@ -94,6 +94,7 @@ export async function preflightPageImageExport(
       chapterTitle: firstChapter.chapter.title,
       pageIndex: firstPage.pageIndex,
       pageName: firstPage.page.name,
+      outputFormat: request.outputFormat ?? "png",
     }),
     outputPolicy: "new-timestamped-folder",
     issues,

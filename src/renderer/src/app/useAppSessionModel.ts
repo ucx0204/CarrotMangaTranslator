@@ -39,6 +39,7 @@ export function useAppSessionModel(): AppSessionViewProps {
     workspacePanelRef: chapter.core.workspacePanelRef,
     zoomIn: chapter.uiState.zoomInWorkspace,
     zoomOut: chapter.uiState.zoomOutWorkspace,
+    fitHeight: () => chapter.uiState.setWorkspaceFitMode("height"),
     overrides: chapter.settingsDialog.settings?.keybindings,
   });
   const applyPanelCommand = usePanelCommandHandler(

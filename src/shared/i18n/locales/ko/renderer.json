@@ -129,6 +129,14 @@
       "hint": "페이지·전체 화",
       "keywords": "text copy gather moaboki 복사 모아보기"
     },
+    "toggleBlockChrome": {
+      "label": "배경/테두리 표시 전환",
+      "keywords": "background border chrome guide 배경 테두리 가이드 표시 숨기기"
+    },
+    "toggleTextBlocks": {
+      "label": "블록 표시 전환",
+      "keywords": "block text overlay 블록 텍스트 표시 숨기기"
+    },
     "importSource": {
       "label": "새 원본 추가",
       "hint": "이미지·폴더·ZIP",
@@ -180,6 +188,10 @@
       "zoom-in": "이미지 확대",
       "zoom-out": "이미지 축소",
       "zoom-reset": "확대 초기화",
+      "zoom-fit-contain": "화면에 맞춤",
+      "zoom-fit-width": "너비에 맞춤",
+      "zoom-fit-height": "높이에 맞춤",
+      "zoom-actual-size": "실제 크기",
       "page-previous": "이전 페이지",
       "page-next": "다음 페이지",
       "stage-tool-select": "선택 도구",
@@ -192,13 +204,38 @@
       "gather-text": "텍스트 모아보기",
       "cancel-job": "작업 취소",
       "toggle-inpainting": "현재 페이지 지우기",
+      "retouch-tool-mask": "마스크 브러시",
+      "retouch-tool-brush": "페인트 브러시",
+      "retouch-tool-rectangle": "사각형 보정",
+      "retouch-tool-ellipse": "타원 보정",
+      "retouch-tool-eraser": "보정 지우개",
+      "retouch-tool-picker": "색상 추출",
+      "retouch-apply-mask": "마스크 적용",
+      "retouch-cancel-mask": "마스크 취소",
       "block-previous": "이전 블록",
       "block-next": "다음 블록",
+      "select-all-blocks": "페이지 블록 전체 선택",
+      "move-block-earlier": "읽기 순서 앞으로",
+      "move-block-later": "읽기 순서 뒤로",
+      "sort-reading-order": "좌표 기준 읽기 순서 정렬",
+      "reset-block-rotation": "블록 회전 초기화",
+      "open-search-replace": "검색 및 치환",
+      "open-export-options": "내보내기 열기",
       "history-undo": "실행 취소",
       "history-redo": "다시 실행",
       "delete-block": "선택한 블록 삭제",
       "duplicate-block": "선택한 블록 복제",
       "toggle-block-excluded": "블록 인페인팅 제외 전환",
+      "apply-style-slot-1": "스타일 슬롯 1 적용",
+      "apply-style-slot-2": "스타일 슬롯 2 적용",
+      "apply-style-slot-3": "스타일 슬롯 3 적용",
+      "apply-style-slot-4": "스타일 슬롯 4 적용",
+      "apply-style-slot-5": "스타일 슬롯 5 적용",
+      "apply-style-slot-6": "스타일 슬롯 6 적용",
+      "apply-style-slot-7": "스타일 슬롯 7 적용",
+      "apply-style-slot-8": "스타일 슬롯 8 적용",
+      "apply-style-slot-9": "스타일 슬롯 9 적용",
+      "apply-style-slot-10": "스타일 슬롯 10 적용",
       "toggle-command-palette": "명령 팔레트",
       "toggle-shortcut-help": "단축키 도움말",
       "open-settings": "설정 열기"
@@ -213,6 +250,8 @@
     "stylePreset": "서식 프리셋 적용",
     "deleteBlock": "블록 삭제",
     "duplicateBlock": "블록 복제",
+    "readingOrder": "블록 읽기 순서 변경",
+    "searchReplace": "검색 및 치환",
     "createBlock": "블록 추가",
     "dragBlock": "블록 이동·크기 조절",
     "importText": "번역문 가져오기",
@@ -226,6 +265,9 @@
     "retranslationCheckpoint": "재번역 전 체크포인트",
     "retouch": "수동 보정",
     "resetOriginal": "원본으로 초기화"
+  },
+  "searchReplace": {
+    "replaced": "{{count}}곳을 치환했습니다."
   },
   "bubbleLayoutEditor": {
     "needsMorePoints": "말풍선 영역에는 점이 3개 이상 필요합니다.",
@@ -343,9 +385,12 @@
       "success": "최종 이미지를 PNG로 출력했습니다: {{count}}페이지",
       "success_one": "최종 이미지를 PNG로 출력했습니다: {{count}}페이지",
       "success_other": "최종 이미지를 PNG로 출력했습니다: {{count}}페이지",
+      "successPsd": "레이어 PSD로 출력했습니다: {{count}}페이지",
+      "successPsd_one": "레이어 PSD로 출력했습니다: {{count}}페이지",
+      "successPsd_other": "레이어 PSD로 출력했습니다: {{count}}페이지",
       "failed": "최종 이미지를 출력하지 못했습니다.",
-      "failedTitle": "PNG 출력 실패",
-      "preparing": "PNG 출력 준비 중"
+      "failedTitle": "페이지 출력 실패",
+      "preparing": "페이지 출력 준비 중"
     },
     "revert": {
       "pageTitle": "이 페이지를 원본으로 초기화",
@@ -414,6 +459,7 @@
   "settings": {
     "loadFailed": "설정을 불러오지 못했습니다.",
     "saved": "설정을 저장했습니다. 다음 번 번역 실행부터 적용됩니다.",
+    "savedToast": "설정을 저장했습니다.",
     "saveFailed": "설정을 저장하지 못했습니다.",
     "reset": "설정을 기본값으로 복원했습니다. 다음 번 번역 실행부터 적용됩니다.",
     "defaultsLoaded": "기본값을 초안에 불러왔습니다. 저장해야 적용됩니다.",

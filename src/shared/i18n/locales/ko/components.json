@@ -389,15 +389,24 @@
   },
   "exportOptions": {
     "title": "PNG 출력",
+    "psdTitle": "PSD 출력",
     "prompt": "출력할 페이지를 선택하세요.",
     "currentChapter": "현재 화",
     "chapterSummary": "{{count}}p",
     "noSelectedPages": "선택된 페이지가 없습니다.",
     "selectionSummary": "{{chapterCount}}개 화 · {{pageCount}}페이지",
     "start": "PNG 출력",
+    "startPsd": "PSD 출력",
     "starting": "출력 준비 중…",
     "omitText": "글자 없이 출력",
     "omitTextHint": "번역 글자는 합성하지 않고 인페인팅된 배경만 PNG로 출력합니다.",
+    "omitTextHintPsd": "대사 레이어 없이 원본과 정리 배경 레이어만 PSD로 출력합니다.",
+    "outputFormat": "파일 형식",
+    "formats": { "png": "완성 이미지 (PNG)", "psd": "레이어 문서 (PSD)" },
+    "formatHints": {
+      "png": "바로 게시할 수 있는 완성 이미지를 만듭니다.",
+      "psd": "원본·정리 배경·블록별 대사를 분리합니다. 복잡한 세로/곡선 대사는 정확한 래스터 레이어로 보존됩니다."
+    },
     "preflight": {
       "title": "출력 전 확인",
       "nextStep": "확인 후 저장할 폴더를 선택합니다.",
@@ -417,7 +426,7 @@
         "translation-failed": "번역 또는 후처리가 실패했습니다.",
         "translation-pending": "번역이 완료되지 않았습니다.",
         "postprocess-pending": "번역은 끝났지만 지우기·후처리가 남았습니다.",
-        "inpainted-image-missing": "인페인팅 결과가 없어 글자 없는 PNG를 출력할 수 없습니다.",
+        "inpainted-image-missing": "인페인팅 결과가 없어 글자 없는 출력을 만들 수 없습니다.",
         "empty-translation": "번역문이 비어 있는 블록이 있습니다."
       }
     },
@@ -798,7 +807,11 @@
     "fixed": {
       "previousNextPage": "이전 / 다음 페이지",
       "previousNextPageCenter": "이전 / 다음 페이지 (중앙 패널)",
-      "escape": "모달 닫기 · 드래그 / 영역 선택 취소"
+      "escape": "모달 닫기 · 드래그 / 영역 선택 취소",
+      "wheelPages": "위·아래 끝에서 페이지 이동",
+      "fitHeight": "작업 영역 높이에 페이지 맞춤",
+      "toggleSelection": "블록을 선택에 추가하거나 제외",
+      "rangeSelection": "연속된 블록 범위 선택"
     }
   },
   "gatherText": {
@@ -1080,6 +1093,9 @@
       "eraseDrawn": "그려서 지우기",
       "eraseDrawnArea": "그린 영역 지우기",
       "drawnAreas": "그린 영역 {{count}}개",
+      "maskRadius": "마스크 조절 반경",
+      "shrinkMask": "축소",
+      "expandMask": "확장",
       "soundEffectTouchup": "효과음 보정",
       "backAuto": "← 자동",
       "nextExport": "출력 →"
@@ -1505,13 +1521,13 @@
       }
     },
     "shortcuts": {
-      "description": "항목을 클릭한 뒤 원하는 키 조합을 누르면 지정됩니다. 이미지 확대·축소는 보조키와 마우스 휠 조합도 지정할 수 있습니다. Esc로 취소하고 ‘비우기’로 해제할 수 있습니다.",
+      "description": "항목을 클릭한 뒤 원하는 키 조합을 누르면 지정됩니다. 이미지 확대·축소는 보조키와 마우스 휠 조합도 지정할 수 있습니다. 충돌한 키는 적용되지 않으므로 기존 항목을 먼저 비우거나 다른 키를 선택하세요. Esc로 입력을 취소할 수 있습니다.",
       "changeAria": "{{label}} 단축키 변경",
       "waiting": "키 또는 휠 입력 대기…",
       "unassigned": "미지정",
       "reset": "기본값",
       "clear": "비우기",
-      "displaced": "‘{{label}}’에 지정돼 있던 단축키를 해제하고 옮겼습니다.",
+      "conflict": "{{combo}}은(는) 이미 ‘{{label}}’에 사용 중입니다. 기존 단축키는 변경하지 않았습니다.",
       "categories": {
         "view": "표시 / 보기",
         "tool": "도구",
@@ -1608,7 +1624,11 @@
     "emptySource": "원문 없음",
     "translationPlaceholder": "번역문을 입력하세요",
     "empty": "이 페이지에는 텍스트 블록이 없습니다.",
-    "backToList": "페이지 블록 목록으로"
+    "backToList": "페이지 블록 목록으로",
+    "selectedCount": "{{count}}개 선택",
+    "moveEarlier": "읽기 순서 앞으로",
+    "moveLater": "읽기 순서 뒤로",
+    "sortReadingOrder": "좌표순 정렬"
   },
   "statusDock": {
     "title": "작업 센터",
@@ -1637,6 +1657,23 @@
     "conflict": "저장 충돌 · 최신 내용 확인 필요",
     "retry": "다시 저장"
   },
+  "searchReplace": {
+    "title": "검색 및 치환",
+    "find": "찾을 내용",
+    "replaceWith": "바꿀 내용",
+    "scope": "범위",
+    "field": "텍스트 필드",
+    "scopes": { "page": "현재 페이지", "chapter": "전체 화" },
+    "fields": { "translated": "번역문", "source": "원문", "both": "둘 다" },
+    "caseSensitive": "대소문자 구분",
+    "regex": "정규식",
+    "matchCount": "{{count}}곳 일치",
+    "replaceAll": "모두 치환 ({{count}})",
+    "invalidRegex": "올바르지 않은 정규식: {{message}}",
+    "enterQuery": "찾을 내용을 입력하세요.",
+    "noMatches": "일치하는 내용이 없습니다.",
+    "emptyText": "빈 텍스트"
+  },
   "stylePresets": {
     "title": "서식 프리셋",
     "quickFormats": "빠른 서식",
@@ -1654,6 +1691,9 @@
     "groups": "포함할 서식 그룹",
     "pinQuick": "빠른 서식에 표시",
     "pinned": "빠른 서식",
+    "shortcutSlot": "키보드 스타일 슬롯",
+    "shortcutSlotNone": "단축키 슬롯 없음",
+    "shortcutSlotValue": "슬롯 {{slot}}",
     "missingFontShort": "저장된 글꼴을 찾을 수 없습니다",
     "duplicateName": "{{name}} 복사본",
     "groupCount": "서식 그룹 {{count}}개",

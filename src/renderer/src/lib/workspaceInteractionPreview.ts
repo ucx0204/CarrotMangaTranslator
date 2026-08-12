@@ -49,6 +49,7 @@ type WorkspaceInteractionPreviewState = {
   bubbleLayoutDraft: BubbleLayoutDraftPreview | null;
   dragHud: DragHud | null;
   regionSelectionRect: BBox | null;
+  selectionMarqueeRect: BBox | null;
 };
 
 type WorkspaceInteractionPreviewPatch =
@@ -62,6 +63,7 @@ export type WorkspaceInteractionPreviewStore = {
   getBubbleLayoutDraft: () => BubbleLayoutDraftPreview | null;
   getDragHud: () => DragHud | null;
   getRegionSelectionRect: () => BBox | null;
+  getSelectionMarqueeRect: () => BBox | null;
   getSnapshot: () => WorkspaceInteractionPreviewState;
   queue: (patch: WorkspaceInteractionPreviewPatch) => void;
   reset: () => void;
@@ -75,6 +77,7 @@ const EMPTY_PREVIEW_STATE: WorkspaceInteractionPreviewState = {
   bubbleLayoutDraft: null,
   dragHud: null,
   regionSelectionRect: null,
+  selectionMarqueeRect: null,
 };
 
 export function createWorkspaceInteractionPreviewStore(): WorkspaceInteractionPreviewStore {
@@ -127,6 +130,7 @@ export function createWorkspaceInteractionPreviewStore(): WorkspaceInteractionPr
     getBubbleLayoutDraft: () => state.bubbleLayoutDraft,
     getDragHud: () => state.dragHud,
     getRegionSelectionRect: () => state.regionSelectionRect,
+    getSelectionMarqueeRect: () => state.selectionMarqueeRect,
     getSnapshot: () => state,
     queue(patch) {
       queuedPatch = queuedPatch ? { ...queuedPatch, ...patch } : patch;
@@ -196,6 +200,16 @@ export function useRegionSelectionRectPreview(
   );
 }
 
+export function useSelectionMarqueeRectPreview(
+  store: WorkspaceInteractionPreviewStore,
+): BBox | null {
+  return useSyncExternalStore(
+    store.subscribe,
+    store.getSelectionMarqueeRect,
+    store.getSelectionMarqueeRect,
+  );
+}
+
 function mergePreviewState(
   current: WorkspaceInteractionPreviewState,
   patch: WorkspaceInteractionPreviewPatch,
@@ -205,7 +219,8 @@ function mergePreviewState(
     next.blockPreview === current.blockPreview &&
     next.bubbleLayoutDraft === current.bubbleLayoutDraft &&
     next.dragHud === current.dragHud &&
-    next.regionSelectionRect === current.regionSelectionRect
+    next.regionSelectionRect === current.regionSelectionRect &&
+    next.selectionMarqueeRect === current.selectionMarqueeRect
     ? current
     : next;
 }

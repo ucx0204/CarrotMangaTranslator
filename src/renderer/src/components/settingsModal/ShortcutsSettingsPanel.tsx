@@ -12,12 +12,14 @@ import {
 } from "../../lib/shortcuts/comboFromEvent";
 import {
   assignBinding,
-  effectiveCombo,
+  effectiveCombosForAction,
   resetBinding,
-  SHORTCUT_ACTIONS,
+} from "../../lib/shortcuts/shortcutBindingResolution";
+import { SHORTCUT_ACTIONS } from "../../lib/shortcuts/shortcutActions";
+import {
   SHORTCUT_CATEGORY_ORDER,
   type ShortcutActionDef,
-} from "../../lib/shortcuts/shortcutActions";
+} from "../../lib/shortcuts/shortcutActionTypes";
 
 export type ShortcutsSettingsPanelProps = {
   overrides: KeybindingOverrides;
@@ -33,7 +35,7 @@ export function ShortcutsSettingsPanel({
   const [capturingId, setCapturingId] = React.useState<ShortcutActionId | null>(
     null,
   );
-  const [note, setNote] = React.useState<string | null>(null);
+  const [conflict, setConflict] = React.useState<string | null>(null);
   const translateActionLabel = React.useCallback(
     (actionId: ShortcutActionId) => tRenderer(`shortcuts.actions.${actionId}`),
     [tRenderer],
@@ -44,7 +46,7 @@ export function ShortcutsSettingsPanel({
     onChange,
     overrides,
     setCapturingId,
-    setNote,
+    setConflict,
     translateActionLabel,
   });
 
@@ -53,7 +55,11 @@ export function ShortcutsSettingsPanel({
       <p className="muted-line modal-note">
         {t("settings.shortcuts.description")}
       </p>
-      {note ? <p className="muted-line shortcut-binding-note">{note}</p> : null}
+      {conflict ? (
+        <p className="shortcut-binding-conflict" role="alert">
+          {conflict}
+        </p>
+      ) : null}
       {SHORTCUT_CATEGORY_ORDER.map((category) => (
         <ShortcutCategorySection
           key={category}
@@ -68,7 +74,7 @@ export function ShortcutsSettingsPanel({
           onChange={onChange}
           overrides={overrides}
           setCapturingId={setCapturingId}
-          setNote={setNote}
+          setConflict={setConflict}
         />
       ))}
     </div>
@@ -82,7 +88,7 @@ type SectionProps = {
   onChange: (next: KeybindingOverrides) => void;
   overrides: KeybindingOverrides;
   setCapturingId: React.Dispatch<React.SetStateAction<ShortcutActionId | null>>;
-  setNote: React.Dispatch<React.SetStateAction<string | null>>;
+  setConflict: React.Dispatch<React.SetStateAction<string | null>>;
 };
 
 function ShortcutCategorySection({
@@ -92,7 +98,7 @@ function ShortcutCategorySection({
   onChange,
   overrides,
   setCapturingId,
-  setNote,
+  setConflict,
 }: SectionProps): React.JSX.Element {
   return (
     <section className="shortcut-binding-group">
@@ -103,20 +109,20 @@ function ShortcutCategorySection({
             key={action.id}
             action={action}
             capturing={capturingId === action.id}
-            combo={effectiveCombo(action.id, overrides)}
+            combos={effectiveCombosForAction(action.id, overrides)}
             onCapture={() => {
-              setNote(null);
+              setConflict(null);
               setCapturingId((current) =>
                 current === action.id ? null : action.id,
               );
             }}
             onClear={() => {
-              setNote(null);
+              setConflict(null);
               setCapturingId(null);
               onChange({ ...overrides, [action.id]: "" });
             }}
             onReset={() => {
-              setNote(null);
+              setConflict(null);
               setCapturingId(null);
               onChange(resetBinding(overrides, action.id));
             }}
@@ -130,7 +136,7 @@ function ShortcutCategorySection({
 type RowProps = {
   action: ShortcutActionDef;
   capturing: boolean;
-  combo: string;
+  combos: string[];
   onCapture: () => void;
   onClear: () => void;
   onReset: () => void;
@@ -139,13 +145,13 @@ type RowProps = {
 function ShortcutBindingRow({
   action,
   capturing,
-  combo,
+  combos,
   onCapture,
   onClear,
   onReset,
 }: RowProps): React.JSX.Element {
   const { t } = useTranslation("components");
-  const tokens = formatCombo(combo);
+  const tokenGroups = deduplicateDisplayedCombos(combos);
   return (
     <div className="shortcut-binding-row">
       <span className="shortcut-binding-label">{action.label}</span>
@@ -161,10 +167,19 @@ function ShortcutBindingRow({
           <span className="shortcut-binding-waiting">
             {t("settings.shortcuts.waiting")}
           </span>
-        ) : tokens.length > 0 ? (
-          <span className="shortcut-keys">
-            {tokens.map((token, index) => (
-              <kbd key={`${token}-${index}`}>{token}</kbd>
+        ) : tokenGroups.length > 0 ? (
+          <span className="shortcut-binding-combos">
+            {tokenGroups.map((tokens, groupIndex) => (
+              <React.Fragment key={tokens.join("+")}>
+                {groupIndex > 0 ? (
+                  <span className="shortcut-binding-alias">/</span>
+                ) : null}
+                <span className="shortcut-keys">
+                  {tokens.map((token, tokenIndex) => (
+                    <kbd key={`${token}-${tokenIndex}`}>{token}</kbd>
+                  ))}
+                </span>
+              </React.Fragment>
             ))}
           </span>
         ) : (
@@ -184,7 +199,7 @@ function ShortcutBindingRow({
         type="button"
         className="shortcut-binding-action"
         onClick={onClear}
-        disabled={combo === ""}
+        disabled={combos.length === 0}
       >
         {t("settings.shortcuts.clear")}
       </button>
@@ -192,85 +207,92 @@ function ShortcutBindingRow({
   );
 }
 
+function deduplicateDisplayedCombos(combos: string[]): string[][] {
+  const unique = new Map<string, string[]>();
+  for (const combo of combos) {
+    const tokens = formatCombo(combo);
+    const displayKey = tokens.join("\u0000");
+    if (!unique.has(displayKey)) unique.set(displayKey, tokens);
+  }
+  return [...unique.values()];
+}
+
 function useCaptureListener({
   capturingId,
   onChange,
   overrides,
   setCapturingId,
-  setNote,
+  setConflict,
   translateActionLabel,
 }: {
   capturingId: ShortcutActionId | null;
   onChange: (next: KeybindingOverrides) => void;
   overrides: KeybindingOverrides;
   setCapturingId: React.Dispatch<React.SetStateAction<ShortcutActionId | null>>;
-  setNote: React.Dispatch<React.SetStateAction<string | null>>;
+  setConflict: React.Dispatch<React.SetStateAction<string | null>>;
   translateActionLabel: (actionId: ShortcutActionId) => string;
 }): void {
   const { t } = useTranslation("components");
   const { t: tRenderer } = useTranslation("renderer");
   React.useEffect(() => {
-    if (!capturingId) {
-      return;
-    }
-    const actionId = capturingId;
-    const commitCombo = (combo: string): void =>
-      commitCapturedCombo(combo, {
-        actionId,
-        displacedNote: (displacedActionId) =>
-          t("settings.shortcuts.displaced", {
-            label: translateActionLabel(displacedActionId),
-          }),
-        onChange,
-        overrides,
-        setCapturingId,
-        setNote,
-        tRenderer,
-      });
-    const onKeyDown = (event: KeyboardEvent): void => {
-      event.preventDefault();
-      event.stopPropagation();
-      if (event.key === "Escape") {
-        setCapturingId(null);
-        return;
-      }
-      const combo = comboFromEvent(event);
-      if (!combo) {
-        return;
-      }
-      commitCombo(combo);
-    };
-    const onWheel = (event: WheelEvent): void => {
-      if (!isWheelBindableAction(actionId)) {
-        return;
-      }
-      const combo = comboFromWheelEvent(event);
-      if (!combo) {
-        return;
-      }
-      event.preventDefault();
-      event.stopPropagation();
-      commitCombo(combo);
-    };
-    window.addEventListener("keydown", onKeyDown, true);
-    window.addEventListener("wheel", onWheel, {
-      capture: true,
-      passive: false,
+    if (!capturingId) return;
+    return registerCaptureListeners({
+      actionId: capturingId,
+      conflictNote: (conflictingActionId, combo) =>
+        t("settings.shortcuts.conflict", {
+          combo: formatCombo(combo).join("+"),
+          label: translateActionLabel(conflictingActionId),
+        }),
+      onChange,
+      overrides,
+      setCapturingId,
+      setConflict,
+      tRenderer,
     });
-    return () => {
-      window.removeEventListener("keydown", onKeyDown, true);
-      window.removeEventListener("wheel", onWheel, true);
-    };
   }, [
     capturingId,
     onChange,
     overrides,
     setCapturingId,
-    setNote,
+    setConflict,
     t,
     tRenderer,
     translateActionLabel,
   ]);
+}
+
+function registerCaptureListeners(
+  options: Parameters<typeof commitCapturedCombo>[1],
+): () => void {
+  const commitCombo = (combo: string): void =>
+    commitCapturedCombo(combo, options);
+  const onKeyDown = (event: KeyboardEvent): void => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.key === "Escape") {
+      options.setCapturingId(null);
+      return;
+    }
+    const combo = comboFromEvent(event);
+    if (combo) commitCombo(combo);
+  };
+  const onWheel = (event: WheelEvent): void => {
+    if (!isWheelBindableAction(options.actionId)) return;
+    const combo = comboFromWheelEvent(event);
+    if (!combo) return;
+    event.preventDefault();
+    event.stopPropagation();
+    commitCombo(combo);
+  };
+  window.addEventListener("keydown", onKeyDown, true);
+  window.addEventListener("wheel", onWheel, {
+    capture: true,
+    passive: false,
+  });
+  return () => {
+    window.removeEventListener("keydown", onKeyDown, true);
+    window.removeEventListener("wheel", onWheel, true);
+  };
 }
 
 function isWheelBindableAction(actionId: ShortcutActionId): boolean {
@@ -281,31 +303,36 @@ function commitCapturedCombo(
   combo: string,
   {
     actionId,
-    displacedNote,
+    conflictNote,
     onChange,
     overrides,
     setCapturingId,
-    setNote,
+    setConflict,
     tRenderer,
   }: {
     actionId: ShortcutActionId;
-    displacedNote: (actionId: ShortcutActionId) => string;
+    conflictNote: (actionId: ShortcutActionId, combo: string) => string;
     onChange: (next: KeybindingOverrides) => void;
     overrides: KeybindingOverrides;
     setCapturingId: React.Dispatch<
       React.SetStateAction<ShortcutActionId | null>
     >;
-    setNote: React.Dispatch<React.SetStateAction<string | null>>;
+    setConflict: React.Dispatch<React.SetStateAction<string | null>>;
     tRenderer: TFunction<"renderer">;
   },
 ): void {
-  const { next, displacedActionId } = assignBinding(
+  const { next, conflictingActionId } = assignBinding(
     overrides,
     actionId,
     combo,
     tRenderer,
   );
+  if (conflictingActionId) {
+    setConflict(conflictNote(conflictingActionId, combo));
+    setCapturingId(null);
+    return;
+  }
   onChange(next);
-  setNote(displacedActionId ? displacedNote(displacedActionId) : null);
+  setConflict(null);
   setCapturingId(null);
 }

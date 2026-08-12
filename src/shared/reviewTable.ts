@@ -1,5 +1,5 @@
 import type { ChapterSnapshot } from "./libraryTypes";
-import { sortBlocksForReading } from "./blockReadingOrder";
+import { resolvePageBlocksForReading } from "./blockReadingOrder";
 
 const REVIEW_COLUMNS = [
   "chapter_id",
@@ -26,7 +26,7 @@ export function buildReviewRows(
 ): ReviewRow[] {
   const rows: ReviewRow[] = [];
   for (const [pageIndex, page] of chapter.pages.entries()) {
-    const orderedBlocks = sortBlocksForReading(page.blocks, direction);
+    const orderedBlocks = resolvePageBlocksForReading(page, direction);
     for (const [blockIndex, block] of orderedBlocks.entries()) {
       rows.push({
         chapter_id: chapter.id,

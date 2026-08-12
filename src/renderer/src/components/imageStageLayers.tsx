@@ -6,6 +6,7 @@ import type { ViewportSize } from "../lib/overlayLayout";
 import {
   useBlockCreateRectPreview,
   useRegionSelectionRectPreview,
+  useSelectionMarqueeRectPreview,
 } from "../lib/workspaceInteractionPreview";
 import { resolveRetouchCanvasBackingSize } from "../lib/retouchLiveGeometry";
 import { CircularBrushCursor } from "./CircularBrushCursor";
@@ -190,6 +191,9 @@ export const StageMarqueeLayers = React.memo(function StageMarqueeLayers({
   const liveRegionSelectionRect = useRegionSelectionRectPreview(
     interactionPreviewStore,
   );
+  const selectionMarqueeRect = useSelectionMarqueeRectPreview(
+    interactionPreviewStore,
+  );
   const resolvedRegionSelectionRect =
     liveRegionSelectionRect ?? regionSelectionRect;
   return (
@@ -198,6 +202,13 @@ export const StageMarqueeLayers = React.memo(function StageMarqueeLayers({
         imageDataUrl={imageDataUrl}
         regionSelectionActive={regionSelectionActive}
         regionSelectionRect={resolvedRegionSelectionRect}
+        stageSize={stageSize}
+      />
+      <RegionSelectionLayer
+        className="block-selection-marquee"
+        imageDataUrl={imageDataUrl}
+        regionSelectionActive={Boolean(selectionMarqueeRect)}
+        regionSelectionRect={selectionMarqueeRect}
         stageSize={stageSize}
       />
       <RegionSelectionLayer
@@ -211,6 +222,7 @@ export const StageMarqueeLayers = React.memo(function StageMarqueeLayers({
 });
 
 function RegionSelectionLayer({
+  className,
   imageDataUrl,
   regionSelectionActive,
   regionSelectionRect,
@@ -218,7 +230,7 @@ function RegionSelectionLayer({
 }: Pick<
   ImageStageProps,
   "imageDataUrl" | "regionSelectionActive" | "regionSelectionRect" | "stageSize"
->): React.JSX.Element | null {
+> & { className?: string }): React.JSX.Element | null {
   if (
     !imageDataUrl ||
     !stageSize ||
@@ -229,7 +241,7 @@ function RegionSelectionLayer({
   }
   return (
     <div
-      className="region-selection-box"
+      className={`region-selection-box ${className ?? ""}`.trim()}
       style={resolveRegionSelectionStyle(regionSelectionRect, stageSize)}
     />
   );

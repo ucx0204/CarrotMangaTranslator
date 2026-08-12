@@ -385,15 +385,24 @@
   },
   "exportOptions": {
     "title": "导出 PNG",
+    "psdTitle": "导出 PSD",
     "prompt": "请选择要导出的页面。",
     "currentChapter": "当前章节",
     "chapterSummary": "{{count}}页",
     "noSelectedPages": "未选择页面。",
     "selectionSummary": "{{chapterCount}}话 · {{pageCount}}页",
     "start": "导出 PNG",
+    "startPsd": "导出 PSD",
     "starting": "正在准备导出…",
     "omitText": "无文字导出",
     "omitTextHint": "不合成翻译文字，仅导出修复后的背景 PNG。",
+    "omitTextHintPsd": "不包含文本图层，仅导出原图和修复背景图层。",
+    "outputFormat": "文件格式",
+    "formats": { "png": "成品图像 (PNG)", "psd": "分层文档 (PSD)" },
+    "formatHints": {
+      "png": "创建可直接发布的成品图像。",
+      "psd": "分离原图、修复背景和各文本块。复杂竖排或曲线文字会以像素准确的栅格图层保留。"
+    },
     "preflight": {
       "title": "导出前检查",
       "nextStep": "确认后选择保存文件夹。",
@@ -413,7 +422,7 @@
         "translation-failed": "翻译或后处理失败。",
         "translation-pending": "翻译尚未完成。",
         "postprocess-pending": "翻译已完成，但擦除或后处理尚未完成。",
-        "inpainted-image-missing": "没有修复结果，无法导出无文字 PNG。",
+        "inpainted-image-missing": "没有修复结果，无法创建无文字输出。",
         "empty-translation": "存在翻译内容为空的文本块。"
       }
     },
@@ -791,7 +800,11 @@
     "fixed": {
       "previousNextPage": "上一页 / 下一页",
       "previousNextPageCenter": "上一页 / 下一页（中央面板）",
-      "escape": "关闭对话框 · 取消拖动 / 区域选择"
+      "escape": "关闭对话框 · 取消拖动 / 区域选择",
+      "wheelPages": "在顶部或底部切换页面",
+      "fitHeight": "使页面适合工作区高度",
+      "toggleSelection": "添加或移除所选文本块",
+      "rangeSelection": "选择连续的文本块范围"
     }
   },
   "gatherText": {
@@ -1073,6 +1086,9 @@
       "eraseDrawn": "涂抹清除",
       "eraseDrawnArea": "清除涂抹区域",
       "drawnAreas": "已涂抹{{count}}个区域",
+      "maskRadius": "蒙版调整半径",
+      "shrinkMask": "收缩",
+      "expandMask": "扩展",
       "soundEffectTouchup": "拟声词修整",
       "backAuto": "← 自动",
       "nextExport": "导出 →"
@@ -1480,13 +1496,13 @@
       }
     },
     "shortcuts": {
-      "description": "单击项目后按下所需的组合键。图像放大和缩小也可绑定带修饰键的滚轮操作。按Esc取消，或用“清空”解除绑定。",
+      "description": "单击项目后按下所需的组合键。图像放大和缩小也可绑定带修饰键的滚轮操作。冲突的按键不会应用；请先清空现有绑定或选择其他按键。按 Esc 可取消输入。",
       "changeAria": "更改{{label}}的快捷键",
       "waiting": "等待按键或滚轮输入…",
       "unassigned": "未指定",
       "reset": "默认值",
       "clear": "清空",
-      "displaced": "已移动快捷键，并解除其在“{{label}}”上的绑定。",
+      "conflict": "{{combo}}已被“{{label}}”使用。现有快捷键未被更改。",
       "categories": {
         "view": "显示 / 查看",
         "tool": "工具",
@@ -1583,7 +1599,11 @@
     "emptySource": "无原文",
     "translationPlaceholder": "输入译文",
     "empty": "此页面没有文本块。",
-    "backToList": "返回页面文本块"
+    "backToList": "返回页面文本块",
+    "selectedCount": "已选择{{count}}个",
+    "moveEarlier": "阅读顺序前移",
+    "moveLater": "阅读顺序后移",
+    "sortReadingOrder": "按位置排序"
   },
   "statusDock": {
     "title": "任务中心",
@@ -1612,6 +1632,23 @@
     "conflict": "保存冲突 · 请检查最新内容",
     "retry": "重新保存"
   },
+  "searchReplace": {
+    "title": "查找和替换",
+    "find": "查找内容",
+    "replaceWith": "替换为",
+    "scope": "范围",
+    "field": "文本字段",
+    "scopes": { "page": "当前页面", "chapter": "整章" },
+    "fields": { "translated": "译文", "source": "原文", "both": "两者" },
+    "caseSensitive": "区分大小写",
+    "regex": "正则表达式",
+    "matchCount": "{{count}}处匹配",
+    "replaceAll": "全部替换（{{count}}）",
+    "invalidRegex": "正则表达式无效：{{message}}",
+    "enterQuery": "请输入查找内容。",
+    "noMatches": "没有找到匹配项。",
+    "emptyText": "空文本"
+  },
   "stylePresets": {
     "title": "格式预设",
     "quickFormats": "快速格式",
@@ -1629,6 +1666,9 @@
     "groups": "包含的格式组",
     "pinQuick": "显示在快速样式中",
     "pinned": "快速样式",
+    "shortcutSlot": "键盘样式槽位",
+    "shortcutSlotNone": "无快捷键槽位",
+    "shortcutSlotValue": "槽位{{slot}}",
     "missingFontShort": "找不到已保存的字体",
     "duplicateName": "{{name}} 副本",
     "groupCount": "{{count}}个格式组",

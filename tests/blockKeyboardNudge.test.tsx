@@ -11,6 +11,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TranslationBlock } from "../src/shared/textTypes";
 import { useSelectedBlockKeyboardNudge } from "../src/renderer/src/hooks/useSelectedBlockKeyboardNudge";
+import { useShortcutDispatcher } from "../src/renderer/src/hooks/useShortcutDispatcher";
 import {
   nudgeBlockByImagePixels,
   resolveBlockNudgeDirection,
@@ -268,6 +269,25 @@ describe("selected block keyboard nudge", () => {
     fireEvent.keyDown(input, { key: "ArrowLeft" });
     expect(onNudge).not.toHaveBeenCalled();
   });
+
+  it("owns workspace arrow keys before page-navigation aliases dispatch", () => {
+    const onNudge = vi.fn();
+    const onNextPage = vi.fn();
+    render(
+      <NudgeAndShortcutHarness onNextPage={onNextPage} onNudge={onNudge} />,
+    );
+    const workspace = screen.getByTestId("workspace");
+    workspace.focus();
+
+    fireEvent.keyDown(workspace, {
+      key: "ArrowRight",
+      code: "ArrowRight",
+    });
+    fireEvent.keyUp(workspace, { key: "ArrowRight", code: "ArrowRight" });
+
+    expect(onNudge).toHaveBeenCalledWith({ x: 1, y: 0 });
+    expect(onNextPage).not.toHaveBeenCalled();
+  });
 });
 
 function NudgeHarness({
@@ -283,6 +303,42 @@ function NudgeHarness({
     enabled: true,
     onNudge,
     workspacePanelRef,
+  });
+  return (
+    <div ref={workspacePanelRef} data-testid="workspace" tabIndex={0}>
+      <input aria-label="editor" />
+    </div>
+  );
+}
+
+function NudgeAndShortcutHarness({
+  onNextPage,
+  onNudge,
+}: {
+  onNextPage: () => void;
+  onNudge: (delta: { x: number; y: number }) => void;
+}): React.JSX.Element {
+  const workspacePanelRef = useRef<HTMLDivElement | null>(null);
+  useSelectedBlockKeyboardNudge({
+    blocked: false,
+    enabled: true,
+    onNudge,
+    workspacePanelRef,
+  });
+  useShortcutDispatcher({
+    context: {
+      activeModalActionId: null,
+      blockingModalOpen: false,
+      paletteOpen: false,
+      helpOpen: false,
+      chapterOpen: true,
+      editLocked: false,
+      jobActive: false,
+      retouchToolActive: false,
+      blockSelected: true,
+    },
+    handlers: { "page-next": onNextPage },
+    overrides: {},
   });
   return (
     <div ref={workspacePanelRef} data-testid="workspace" tabIndex={0}>

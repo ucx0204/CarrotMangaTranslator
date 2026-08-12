@@ -30,16 +30,18 @@ export function buildPageImageExportRelativePath({
   chapterTitle,
   pageIndex,
   pageName,
+  outputFormat = "png",
 }: {
   chapterIndex: number;
   chapterTitle: string;
   pageIndex: number;
   pageName: string;
+  outputFormat?: "png" | "psd";
 }): string {
   return `${formatPageImageExportOrder(chapterIndex)}-${sanitizeOutputPathSegment(
     chapterTitle,
     "chapter",
   )}\\${formatPageImageExportOrder(pageIndex)}-${sanitizeOutputBaseName(
     pageName,
-  )}.png`;
+  )}.${outputFormat}`;
 }

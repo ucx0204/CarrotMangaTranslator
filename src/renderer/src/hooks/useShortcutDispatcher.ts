@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
 import type {
   KeybindingOverrides,
   ShortcutActionId,
@@ -8,9 +8,11 @@ import { comboFromEvent } from "../lib/shortcuts/comboFromEvent";
 import {
   getShortcutAction,
   resolveBindings,
-  type ShortcutActionDef,
-  type ShortcutContext,
-} from "../lib/shortcuts/shortcutActions";
+} from "../lib/shortcuts/shortcutBindingResolution";
+import type {
+  ShortcutActionDef,
+  ShortcutContext,
+} from "../lib/shortcuts/shortcutActionTypes";
 
 export type ShortcutHandlers = Partial<Record<ShortcutActionId, () => void>>;
 
@@ -26,23 +28,25 @@ function isActionAllowed(
   context: ShortcutContext,
   target: EventTarget | null,
 ): boolean {
-  if (context.blockingModalOpen) {
-    return false;
-  }
-  if (context.paletteOpen && actionId !== "toggle-command-palette") {
-    return false;
-  }
-  if (
-    context.helpOpen &&
-    actionId !== "toggle-command-palette" &&
-    actionId !== "toggle-shortcut-help"
-  ) {
-    return false;
-  }
+  if (isBlockedByShortcutOverlay(actionId, context)) return false;
   if (!action.allowInEditable && isEditableTarget(target)) {
     return false;
   }
   return !action.enabled || action.enabled(context);
+}
+
+function isBlockedByShortcutOverlay(
+  actionId: ShortcutActionId,
+  context: ShortcutContext,
+): boolean {
+  if (context.blockingModalOpen) {
+    return actionId !== context.activeModalActionId;
+  }
+  if (context.paletteOpen) return actionId !== "toggle-command-palette";
+  if (!context.helpOpen) return false;
+  return (
+    actionId !== "toggle-command-palette" && actionId !== "toggle-shortcut-help"
+  );
 }
 
 /**
@@ -51,8 +55,11 @@ function isActionAllowed(
  * guards (blocking modal, palette/help overlays, editable targets) plus the
  * action's contextual `enabled` predicate, then runs the mapped handler.
  *
- * Latest props are mirrored into refs (inside an effect) so the listener is
- * attached once and never goes stale.
+ * Latest props are mirrored into refs so the listener is attached once and
+ * never goes stale. The listener runs at document capture: focused controls
+ * may stop bubbling for their own keyboard behavior, while higher-priority
+ * window-capture owners (shortcut recording and block arrow-key nudging) still
+ * get the first and exclusive chance to consume their keys.
  */
 export function useShortcutDispatcher({
   overrides,
@@ -64,13 +71,13 @@ export function useShortcutDispatcher({
   const contextRef = useRef(context);
   const handlersRef = useRef(handlers);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     bindingsRef.current = bindings;
     contextRef.current = context;
     handlersRef.current = handlers;
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
       const combo = comboFromEvent(event);
       if (!combo) {
@@ -92,12 +99,13 @@ export function useShortcutDispatcher({
         return;
       }
       event.preventDefault();
+      event.stopPropagation();
       handler();
     };
 
-    window.addEventListener("keydown", onKeyDown);
+    document.addEventListener("keydown", onKeyDown, true);
     return () => {
-      window.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("keydown", onKeyDown, true);
     };
   }, []);
 }

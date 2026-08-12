@@ -1,8 +1,5 @@
-import {
-  useShortcutDispatcher,
-  type ShortcutHandlers,
-} from "../../hooks/useShortcutDispatcher";
-import type { ShortcutContext } from "../../lib/shortcuts/shortcutActions";
+import { useShortcutDispatcher } from "../../hooks/useShortcutDispatcher";
+import type { ShortcutContext } from "../../lib/shortcuts/shortcutActionTypes";
 import type { ChapterSessionController } from "./useChapterSessionController";
 import type { InpaintingController } from "./useInpaintingController";
 import type { TranslationController } from "./useTranslationController";
@@ -13,12 +10,22 @@ import {
   type BlockNavigationDirection,
 } from "../../lib/blockNavigation";
 import { resolveSourceReadingDirection } from "../../../../shared/translationLanguages";
+import type { ShortcutActionId } from "../../../../shared/shortcutSettings";
+import { resolveReadingDirection } from "../../../../shared/blockReadingOrder";
 
 type AppSessionShortcutsArgs = {
   chapter: ChapterSessionController;
   translation: TranslationController;
   inpainting: InpaintingController;
 };
+
+type StyleSlotActionId = Extract<
+  ShortcutActionId,
+  `apply-style-slot-${number}`
+>;
+type FixedShortcutActionId = Exclude<ShortcutActionId, StyleSlotActionId>;
+type AppShortcutHandlers = Record<ShortcutActionId, () => void>;
+type FixedShortcutHandlers = Record<FixedShortcutActionId, () => void>;
 
 /**
  * Mounts the global customizable-shortcut dispatcher, mapping every registered
@@ -31,12 +38,7 @@ export function useAppSessionShortcuts({
   inpainting,
 }: AppSessionShortcutsArgs): void {
   const { core, derivedState, uiState } = chapter;
-  const { blockEditingActions, translationActions, workspaceHistory } =
-    translation;
-  const selectStageTool = (tool: "select" | "block" | "hand"): void => {
-    core.setRegionSelection(null);
-    uiState.selectWorkspaceTool(tool);
-  };
+  const { blockEditingActions } = translation;
   const { context, editLocked } = resolveShortcutRuntime(
     chapter,
     translation,
@@ -55,13 +57,55 @@ export function useAppSessionShortcuts({
     workspacePanelRef: core.workspacePanelRef,
   });
 
-  const handlers: ShortcutHandlers = {
+  const handlers = createShortcutHandlers({ chapter, inpainting, translation });
+
+  useShortcutDispatcher({
+    context,
+    handlers,
+    overrides: chapter.settingsDialog.settings?.keybindings ?? {},
+  });
+}
+
+export function createShortcutHandlers({
+  chapter,
+  inpainting,
+  translation,
+}: AppSessionShortcutsArgs): AppShortcutHandlers {
+  const handlers = {
+    ...createWorkspaceShortcutHandlers(chapter, inpainting),
+    ...createTranslationAndRetouchShortcutHandlers(
+      chapter,
+      inpainting,
+      translation,
+    ),
+    ...createEditAndGlobalShortcutHandlers(chapter, translation),
+  } satisfies FixedShortcutHandlers;
+  return {
+    ...handlers,
+    ...createStyleSlotHandlers(
+      chapter,
+      translation.blockEditingActions.applyStylePreset,
+    ),
+  };
+}
+
+function createWorkspaceShortcutHandlers(
+  chapter: ChapterSessionController,
+  inpainting: InpaintingController,
+) {
+  const { uiState } = chapter;
+  const selectStageTool = createStageToolSelector(chapter);
+  return {
     "toggle-block-chrome": () => uiState.setShowBlockChrome((value) => !value),
     "toggle-text-blocks": () => uiState.setShowTextBlocks((value) => !value),
     "toggle-peek-original": () => uiState.setPeekOriginal((value) => !value),
     "zoom-in": () => uiState.zoomInWorkspace(),
     "zoom-out": () => uiState.zoomOutWorkspace(),
     "zoom-reset": () => uiState.resetWorkspaceZoom(),
+    "zoom-fit-contain": () => uiState.setWorkspaceFitMode("contain"),
+    "zoom-fit-width": () => uiState.setWorkspaceFitMode("width"),
+    "zoom-fit-height": () => uiState.setWorkspaceFitMode("height"),
+    "zoom-actual-size": () => uiState.setWorkspaceFitMode("actual"),
     "page-previous": () =>
       inpainting.pageNavigationHandlers.selectAdjacentPageForReading(
         "previous",
@@ -73,14 +117,66 @@ export function useAppSessionShortcuts({
     "stage-tool-hand": () => selectStageTool("hand"),
     "toggle-stage-toolbar": () =>
       uiState.setStageToolbarHidden((hidden) => !hidden),
-    "open-translate-options": () => uiState.openTranslateOptions(),
+  };
+}
+
+function createTranslationAndRetouchShortcutHandlers(
+  chapter: ChapterSessionController,
+  inpainting: InpaintingController,
+  translation: TranslationController,
+) {
+  const { uiState } = chapter;
+  const { translationActions } = translation;
+  return {
+    "open-translate-options": () => {
+      if (uiState.translateOptionsOpen) {
+        uiState.closeTranslateOptions();
+      } else {
+        uiState.openTranslateOptions();
+      }
+    },
     "translate-pending": () => void translationActions.runAnalysis("pending"),
     "translate-all": () => void translationActions.runAnalysis("all"),
-    "gather-text": () => uiState.setTextViewOpen(true),
+    "gather-text": () => uiState.setTextViewOpen((open) => !open),
     "cancel-job": () => chapter.bridgeActions.cancelJob(),
-    "toggle-inpainting": () => openCurrentPageEraseOptions(chapter),
+    "toggle-inpainting": () => {
+      if (uiState.autoInpaintingOptionsOpen) {
+        uiState.setAutoInpaintingOptionsOpen(false);
+      } else {
+        openCurrentPageEraseOptions(chapter);
+      }
+    },
+    "retouch-tool-mask": () => selectRetouchTool(chapter, "mask"),
+    "retouch-tool-brush": () => selectRetouchTool(chapter, "brush"),
+    "retouch-tool-rectangle": () => selectRetouchTool(chapter, "rectangle"),
+    "retouch-tool-ellipse": () => selectRetouchTool(chapter, "ellipse"),
+    "retouch-tool-eraser": () => selectRetouchTool(chapter, "eraser"),
+    "retouch-tool-picker": () => selectRetouchTool(chapter, "picker"),
+    "retouch-apply-mask": () =>
+      inpainting.inpaintingBridge.contextValue.onRunDrawnPattern(),
+    "retouch-cancel-mask": () => cancelRetouchMask(chapter, inpainting),
+  };
+}
+
+function createEditAndGlobalShortcutHandlers(
+  chapter: ChapterSessionController,
+  translation: TranslationController,
+) {
+  const { core, uiState } = chapter;
+  const { blockEditingActions, workspaceHistory } = translation;
+  return {
     "block-previous": () => navigateBlock(chapter, "previous"),
     "block-next": () => navigateBlock(chapter, "next"),
+    "select-all-blocks": () => selectAllPageBlocks(chapter),
+    "move-block-earlier": () =>
+      blockEditingActions.moveSelectedBlockInReadingOrder(-1),
+    "move-block-later": () =>
+      blockEditingActions.moveSelectedBlockInReadingOrder(1),
+    "sort-reading-order": () => blockEditingActions.sortPageReadingOrder(),
+    "reset-block-rotation": () =>
+      blockEditingActions.updateSelectedBlocks({ rotationDeg: 0 }),
+    "open-search-replace": () => uiState.setSearchReplaceOpen((open) => !open),
+    "open-export-options": () => uiState.setExportOptionsOpen((open) => !open),
     "history-undo": () => void workspaceHistory.undo(),
     "history-redo": () => void workspaceHistory.redo(),
     "delete-block": () => blockEditingActions.deleteSelectedBlock(),
@@ -94,14 +190,71 @@ export function useAppSessionShortcuts({
     "toggle-command-palette": () =>
       uiState.setCommandPaletteOpen((open) => !open),
     "toggle-shortcut-help": () => uiState.setShortcutHelpOpen((open) => !open),
-    "open-settings": () => void chapter.settingsDialog.openSettings(),
+    "open-settings": () => {
+      if (chapter.settingsDialog.settingsOpen) {
+        chapter.settingsDialog.closeSettings();
+      } else {
+        void chapter.settingsDialog.openSettings();
+      }
+    },
   };
+}
 
-  useShortcutDispatcher({
-    context,
-    handlers,
-    overrides: chapter.settingsDialog.settings?.keybindings ?? {},
-  });
+function createStageToolSelector(
+  chapter: ChapterSessionController,
+): (tool: "select" | "block" | "hand") => void {
+  return (tool) => {
+    chapter.core.setRegionSelection(null);
+    chapter.uiState.selectWorkspaceTool(tool);
+  };
+}
+
+function createStyleSlotHandlers(
+  chapter: ChapterSessionController,
+  applyStylePreset: (presetId: string) => void,
+): Record<StyleSlotActionId, () => void> {
+  const handlers = {} as Record<StyleSlotActionId, () => void>;
+  for (let slot = 1; slot <= 10; slot += 1) {
+    const actionId = `apply-style-slot-${slot}` as StyleSlotActionId;
+    handlers[actionId] = () => {
+      const preset = chapter.settingsDialog.settings?.blockStylePresets?.find(
+        (candidate) => candidate.shortcutSlot === slot,
+      );
+      if (preset) applyStylePreset(preset.id);
+    };
+  }
+  return handlers;
+}
+
+function selectRetouchTool(
+  chapter: ChapterSessionController,
+  tool: "mask" | "brush" | "rectangle" | "ellipse" | "eraser" | "picker",
+): void {
+  chapter.core.setRegionSelection(null);
+  chapter.uiState.selectWorkspaceTool(tool);
+}
+
+function cancelRetouchMask(
+  chapter: ChapterSessionController,
+  inpainting: InpaintingController,
+): void {
+  inpainting.inpaintingBridge.contextValue.onClearPatternMask();
+  chapter.uiState.selectWorkspaceTool("select");
+}
+
+function selectAllPageBlocks(chapter: ChapterSessionController): void {
+  const blockIds = chapter.derivedState.selectedPage?.blocks.map(
+    (block) => block.id,
+  );
+  if (!blockIds?.length) {
+    return;
+  }
+  const primaryId = blockIds.includes(chapter.core.selectedBlockId ?? "")
+    ? chapter.core.selectedBlockId
+    : blockIds[0];
+  chapter.core.selectedBlockIdRef.current = primaryId ?? null;
+  chapter.core.setSelectedBlockId(primaryId ?? null);
+  chapter.core.setSelectedBlockIds(blockIds);
 }
 
 function resolveShortcutRuntime(
@@ -120,6 +273,7 @@ function resolveShortcutRuntime(
     editLocked,
     context: {
       blockingModalOpen: chapter.overlayModalsOpen,
+      activeModalActionId: resolveActiveModalActionId(chapter),
       paletteOpen: chapter.uiState.commandPaletteOpen,
       helpOpen: chapter.uiState.shortcutHelpOpen,
       chapterOpen: Boolean(chapter.core.currentChapter),
@@ -131,6 +285,19 @@ function resolveShortcutRuntime(
   };
 }
 
+export function resolveActiveModalActionId(
+  chapter: ChapterSessionController,
+): ShortcutActionId | null {
+  const { uiState } = chapter;
+  if (chapter.settingsDialog.settingsOpen) return "open-settings";
+  if (uiState.translateOptionsOpen) return "open-translate-options";
+  if (uiState.textViewOpen) return "gather-text";
+  if (uiState.autoInpaintingOptionsOpen) return "toggle-inpainting";
+  if (uiState.exportOptionsOpen) return "open-export-options";
+  if (uiState.searchReplaceOpen) return "open-search-replace";
+  return null;
+}
+
 function navigateBlock(
   chapter: ChapterSessionController,
   direction: BlockNavigationDirection,
@@ -140,9 +307,14 @@ function navigateBlock(
     derivedState.selectedPage?.blocks ?? [],
     core.selectedBlockId,
     direction,
-    resolveSourceReadingDirection(
-      chapter.settingsDialog.settings?.translation?.sourceLanguage,
+    resolveReadingDirection(
+      core.library.works.find((work) => work.id === core.currentChapter?.workId)
+        ?.readingDirection,
+      resolveSourceReadingDirection(
+        chapter.settingsDialog.settings?.translation?.sourceLanguage,
+      ),
     ),
+    derivedState.selectedPage?.blockOrder,
   );
   if (!targetId) {
     return;

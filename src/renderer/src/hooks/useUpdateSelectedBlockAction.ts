@@ -90,7 +90,7 @@ function applySelectedBlockPatch(
     if (page.id !== pageId) return page;
     const blocks = page.blocks.map((block) => {
       if (block.id !== blockId) return block;
-      const next = normalizeBlockPatch(block, patch);
+      const next = normalizeTranslationBlockPatch(block, patch);
       changed ||= next !== block;
       return next;
     });
@@ -101,7 +101,7 @@ function applySelectedBlockPatch(
   return changed ? { ...current, pages } : current;
 }
 
-function normalizeBlockPatch(
+export function normalizeTranslationBlockPatch(
   block: TranslationBlock,
   patch: Partial<TranslationBlock>,
 ): TranslationBlock {

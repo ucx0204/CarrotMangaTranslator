@@ -323,14 +323,14 @@
   },
   "export": {
     "noPages": "沒有可匯出的頁面。",
-    "cancelled": "PNG 匯出已取消。",
-    "failed": "PNG 匯出失敗",
-    "preparing": "正在準備 PNG 匯出",
-    "completed": "PNG 匯出完成",
+    "cancelled": "頁面匯出已取消。",
+    "failed": "頁面匯出失敗",
+    "preparing": "正在準備頁面匯出",
+    "completed": "頁面匯出完成",
     "selection": "{{chapters}} 個章節 · {{pages}} 頁",
     "page": {
-      "running": "正在匯出第 {{current}} / {{total}} 頁 PNG",
-      "done": "第 {{current}} / {{total}} 頁 PNG 匯出完成"
+      "running": "正在匯出第 {{current}} / {{total}} 頁",
+      "done": "第 {{current}} / {{total}} 頁匯出完成"
     },
     "errors": {
       "workNotFound": "找不到要匯出的作品。",
@@ -338,7 +338,7 @@
       "duplicateChapter": "不能重複選擇同一章節。",
       "pageNotFound": "所選頁面不屬於該章節。",
       "duplicatePage": "不能重複選擇同一頁面。",
-      "outputDirectory": "無法建立 PNG 匯出資料夾。",
+      "outputDirectory": "無法建立頁面匯出資料夾。",
       "rasterTooLarge": "{{name}} 頁面超過 PNG 匯出的安全解析度限制。（{{width}}×{{height}}，最多 {{maxPixels}} 像素）",
       "screenshotTooLarge": "{{name}} 頁面的 PNG 結果超過安全檔案大小限制。",
       "invalidScreenshot": "PNG 匯出結果不是有效的 base64 或 PNG 資料。",

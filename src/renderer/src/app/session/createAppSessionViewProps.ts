@@ -13,6 +13,9 @@ import { createWorkspaceViewProps } from "./createWorkspaceViewProps";
 import { createRightRailProps } from "./createRightRailProps";
 import { createStylePresetSaveAction } from "./createStylePresetSaveAction";
 import { createStylePresetDeleteAction } from "./createStylePresetDeleteAction";
+import { applySearchReplace } from "../../lib/searchReplace";
+import { appI18n } from "../../appI18n";
+import { toast } from "../../lib/toastStore";
 
 export function createAppSessionViewProps(
   model: AppSessionViewModel,
@@ -26,11 +29,61 @@ export function createAppSessionViewProps(
     pageRetranslateProps: createPageRetranslateProps(model),
     panelSessionValue: createPanelSessionValue(model),
     rightRailProps: createRightRailProps(model),
+    searchReplaceProps: createSearchReplaceProps(model),
     shortcutHelpProps: createShortcutHelpProps(model),
     sidebarProps: createSidebarProps(model),
     styleGuideProps: createStyleGuideProps(model),
     translationOptionsProps: createTranslationOptionsProps(model),
     workspaceProps: createWorkspaceProps(model),
+  };
+}
+
+function createSearchReplaceProps({
+  core,
+  derivedState,
+  pageNavigationHandlers,
+  statusLog,
+  uiState,
+  updateCurrentChapter,
+  workspaceHistory,
+}: AppSessionViewModel): AppSessionViewProps["searchReplaceProps"] {
+  const chapter = core.currentChapter;
+  if (!uiState.searchReplaceOpen || !chapter) return null;
+  return {
+    chapter,
+    disabled: derivedState.selectedPageEditLocked || workspaceHistory.busy,
+    page: derivedState.selectedPage,
+    onClose: () => uiState.setSearchReplaceOpen(false),
+    onNavigateToBlock: (pageId, blockId) => {
+      pageNavigationHandlers.selectPageForReading(pageId);
+      core.selectedBlockIdRef.current = blockId;
+      core.setSelectedBlockId(blockId);
+      core.setSelectedBlockIds([blockId]);
+      uiState.setSearchReplaceOpen(false);
+      uiState.setRightRailMode("block-editor");
+    },
+    onApply: (request) => {
+      const result = applySearchReplace(
+        chapter,
+        derivedState.selectedPage?.id ?? null,
+        request,
+      );
+      const firstChangedPageId = result.changedPageIds[0];
+      if (!firstChangedPageId) return;
+      updateCurrentChapter(firstChangedPageId, () => result.chapter, {
+        dirtyPageIds: result.changedPageIds,
+        label: appI18n.t("workspaceHistory.searchReplace", {
+          ns: "renderer",
+        }),
+      });
+      const message = appI18n.t("searchReplace.replaced", {
+        ns: "renderer",
+        count: result.replacementCount,
+      });
+      statusLog.pushStatus(message);
+      toast.success(message);
+      uiState.setSearchReplaceOpen(false);
+    },
   };
 }
 

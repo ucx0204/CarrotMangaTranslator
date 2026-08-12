@@ -7,6 +7,7 @@ import {
 } from "../../../../../shared/blockFormat";
 import {
   MAX_BLOCK_STYLE_PRESET_NAME_LENGTH,
+  MAX_BLOCK_STYLE_PRESET_SHORTCUT_SLOT,
   type BlockStylePreset,
   type BlockStylePresetGroup,
 } from "../../../../../shared/blockStylePresets";
@@ -82,7 +83,43 @@ export function PresetDefinitionPanel({
         checked={preset.pinned}
         onCheckedChange={(checked) => onPatch({ pinned: checked })}
       />
+      <PresetShortcutSlotField preset={preset} onPatch={onPatch} />
     </section>
+  );
+}
+
+function PresetShortcutSlotField({
+  preset,
+  onPatch,
+}: {
+  preset: BlockStylePreset;
+  onPatch: (patch: Partial<BlockStylePreset>) => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const slots = Array.from(
+    { length: MAX_BLOCK_STYLE_PRESET_SHORTCUT_SLOT },
+    (_, index) => index + 1,
+  );
+  return (
+    <div className="settings-field style-preset-shortcut-slot">
+      <span>{t("stylePresets.shortcutSlot")}</span>
+      <Select
+        ariaLabel={t("stylePresets.shortcutSlot")}
+        value={preset.shortcutSlot ? String(preset.shortcutSlot) : ""}
+        options={[
+          { value: "", label: t("stylePresets.shortcutSlotNone") },
+          ...slots.map((slot) => ({
+            value: String(slot),
+            label: t("stylePresets.shortcutSlotValue", { slot }),
+          })),
+        ]}
+        onValueChange={(value) =>
+          onPatch({
+            shortcutSlot: value ? Number(value) : undefined,
+          })
+        }
+      />
+    </div>
   );
 }
 

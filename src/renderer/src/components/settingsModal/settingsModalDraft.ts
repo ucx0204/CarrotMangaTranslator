@@ -22,6 +22,7 @@ import {
   type SettingsFormValues,
 } from "./settingsModalFormValues";
 import type { useSettingsFormState } from "./useSettingsFormState";
+import { sanitizeKeybindingOverrides } from "../../lib/shortcuts/shortcutBindingResolution";
 
 export function useSettingsSubmission({
   blockFormatDefaults,
@@ -122,7 +123,9 @@ export function useSettingsDraftDirty({
           initialSettings.blockStylePresets ?? [],
         ),
         formValues: createSettingsFormValues(initialSettings),
-        keybindings: initialSettings.keybindings ?? {},
+        keybindings: sanitizeKeybindingOverrides(
+          initialSettings.keybindings ?? {},
+        ),
       }),
     [
       blockFormatDefaults,
@@ -193,10 +196,12 @@ export function useKeybindingsDraft(
   React.Dispatch<React.SetStateAction<KeybindingOverrides>>,
 ] {
   const [keybindings, setKeybindings] = React.useState<KeybindingOverrides>(
-    () => initialSettings.keybindings ?? {},
+    () => sanitizeKeybindingOverrides(initialSettings.keybindings ?? {}),
   );
   React.useEffect(() => {
-    setKeybindings(initialSettings.keybindings ?? {});
+    setKeybindings(
+      sanitizeKeybindingOverrides(initialSettings.keybindings ?? {}),
+    );
   }, [initialSettings]);
   return [keybindings, setKeybindings];
 }

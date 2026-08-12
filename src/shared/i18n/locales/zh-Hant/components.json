@@ -385,15 +385,24 @@
   },
   "exportOptions": {
     "title": "匯出 PNG",
+    "psdTitle": "匯出 PSD",
     "prompt": "請選擇要匯出的頁面。",
     "currentChapter": "目前章節",
     "chapterSummary": "{{count}}頁",
     "noSelectedPages": "未選擇頁面。",
     "selectionSummary": "{{chapterCount}}話 · {{pageCount}}頁",
     "start": "匯出 PNG",
+    "startPsd": "匯出 PSD",
     "starting": "正在準備匯出…",
     "omitText": "無文字匯出",
     "omitTextHint": "不合成翻譯文字，只匯出修復後的背景 PNG。",
+    "omitTextHintPsd": "不包含文字圖層，只匯出原圖與修補背景圖層。",
+    "outputFormat": "檔案格式",
+    "formats": { "png": "完成影像 (PNG)", "psd": "分層文件 (PSD)" },
+    "formatHints": {
+      "png": "建立可直接發布的完成影像。",
+      "psd": "分離原圖、修補背景與各文字區塊。複雜直排或曲線文字會以像素精確的點陣圖層保留。"
+    },
     "preflight": {
       "title": "匯出前檢查",
       "nextStep": "確認後選擇儲存資料夾。",
@@ -413,7 +422,7 @@
         "translation-failed": "翻譯或後處理失敗。",
         "translation-pending": "翻譯尚未完成。",
         "postprocess-pending": "翻譯已完成，但擦除或後處理尚未完成。",
-        "inpainted-image-missing": "沒有修復結果，無法匯出無文字 PNG。",
+        "inpainted-image-missing": "沒有修復結果，無法建立無文字輸出。",
         "empty-translation": "有翻譯內容為空的文字區塊。"
       }
     },
@@ -791,7 +800,11 @@
     "fixed": {
       "previousNextPage": "上一頁／下一頁",
       "previousNextPageCenter": "上一頁／下一頁（中央面板）",
-      "escape": "關閉對話框 · 取消拖曳／區域選取"
+      "escape": "關閉對話框 · 取消拖曳／區域選取",
+      "wheelPages": "在頂端或底端切換頁面",
+      "fitHeight": "使頁面符合工作區高度",
+      "toggleSelection": "加入或移除所選文字區塊",
+      "rangeSelection": "選取連續的文字區塊範圍"
     }
   },
   "gatherText": {
@@ -1073,6 +1086,9 @@
       "eraseDrawn": "塗抹清除",
       "eraseDrawnArea": "清除塗抹區域",
       "drawnAreas": "已塗抹{{count}}個區域",
+      "maskRadius": "遮罩調整半徑",
+      "shrinkMask": "收縮",
+      "expandMask": "擴張",
       "soundEffectTouchup": "擬聲詞修整",
       "backAuto": "← 自動",
       "nextExport": "匯出 →"
@@ -1483,13 +1499,13 @@
       }
     },
     "shortcuts": {
-      "description": "點按項目後，按下所需的按鍵組合。影像放大與縮小也可綁定搭配修飾鍵的滾輪操作。按 Esc 取消，或用「清空」解除綁定。",
+      "description": "點按項目後，按下所需的按鍵組合。影像放大與縮小也可綁定搭配修飾鍵的滾輪操作。衝突的按鍵不會套用；請先清空現有綁定或選擇其他按鍵。按 Esc 可取消輸入。",
       "changeAria": "變更{{label}}的快速鍵",
       "waiting": "等待按鍵或滾輪輸入…",
       "unassigned": "未指派",
       "reset": "預設值",
       "clear": "清空",
-      "displaced": "已移動快速鍵，並解除其在「{{label}}」上的綁定。",
+      "conflict": "{{combo}}已由「{{label}}」使用。現有快速鍵未被變更。",
       "categories": {
         "view": "顯示／檢視",
         "tool": "工具",
@@ -1586,7 +1602,11 @@
     "emptySource": "無原文",
     "translationPlaceholder": "輸入譯文",
     "empty": "此頁面沒有文字區塊。",
-    "backToList": "返回頁面文字區塊"
+    "backToList": "返回頁面文字區塊",
+    "selectedCount": "已選取{{count}}個",
+    "moveEarlier": "閱讀順序前移",
+    "moveLater": "閱讀順序後移",
+    "sortReadingOrder": "依位置排序"
   },
   "statusDock": {
     "title": "工作中心",
@@ -1615,6 +1635,23 @@
     "conflict": "儲存衝突 · 請檢查最新內容",
     "retry": "重新儲存"
   },
+  "searchReplace": {
+    "title": "尋找與取代",
+    "find": "尋找內容",
+    "replaceWith": "取代為",
+    "scope": "範圍",
+    "field": "文字欄位",
+    "scopes": { "page": "目前頁面", "chapter": "整章" },
+    "fields": { "translated": "譯文", "source": "原文", "both": "兩者" },
+    "caseSensitive": "區分大小寫",
+    "regex": "規則運算式",
+    "matchCount": "{{count}}處符合",
+    "replaceAll": "全部取代（{{count}}）",
+    "invalidRegex": "規則運算式無效：{{message}}",
+    "enterQuery": "請輸入尋找內容。",
+    "noMatches": "找不到符合項目。",
+    "emptyText": "空白文字"
+  },
   "stylePresets": {
     "title": "格式預設",
     "quickFormats": "快速格式",
@@ -1632,6 +1669,9 @@
     "groups": "包含的格式群組",
     "pinQuick": "顯示在快速樣式中",
     "pinned": "快速樣式",
+    "shortcutSlot": "鍵盤樣式槽位",
+    "shortcutSlotNone": "無快速鍵槽位",
+    "shortcutSlotValue": "槽位{{slot}}",
     "missingFontShort": "找不到已儲存的字體",
     "duplicateName": "{{name}} 副本",
     "groupCount": "{{count}}個格式群組",

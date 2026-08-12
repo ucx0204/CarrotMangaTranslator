@@ -149,18 +149,13 @@ function createPresetActions({
       onChange((current) => appendPreset(current, created));
       window.requestAnimationFrame(focusPresetName);
     },
-    delete: () => {
-      if (!selection.selectedPreset) return;
-      const nextId =
-        presets[selection.selectedIndex + 1]?.id ??
-        presets[selection.selectedIndex - 1]?.id ??
-        "";
-      setRequestedId(nextId);
-      onPresetSelected?.(nextId || null);
-      onChange((current) =>
-        current.filter(({ id }) => id !== selection.selectedPreset?.id),
-      );
-    },
+    delete: createDeletePresetAction({
+      onChange,
+      onPresetSelected,
+      presets,
+      selection,
+      setRequestedId,
+    }),
     duplicate: createDuplicatePresetAction({
       duplicateLabel,
       onChange,
@@ -168,28 +163,77 @@ function createPresetActions({
       selectedPreset: selection.selectedPreset,
       select,
     }),
-    move: (direction) => {
-      if (!selection.selectedPreset) return;
-      onChange((current) =>
-        movePresetWithinGroup(
-          current,
-          selection.selectedPreset?.id ?? "",
-          direction,
-        ),
-      );
-    },
-    patch: (patch) => {
-      if (!selection.selectedPreset) return;
-      onChange((current) =>
-        current.map((preset) =>
-          preset.id === selection.selectedPreset?.id
-            ? { ...preset, ...patch }
-            : preset,
-        ),
-      );
-    },
+    move: createMovePresetAction(onChange, selection.selectedPreset),
+    patch: createPatchPresetAction(onChange, selection.selectedPreset),
     select,
   };
+}
+
+function createDeletePresetAction({
+  onChange,
+  onPresetSelected,
+  presets,
+  selection,
+  setRequestedId,
+}: {
+  onChange: PresetDispatch;
+  onPresetSelected?: (presetId: string | null) => void;
+  presets: BlockStylePreset[];
+  selection: PresetSelection;
+  setRequestedId: React.Dispatch<React.SetStateAction<string>>;
+}): () => void {
+  return () => {
+    if (!selection.selectedPreset) return;
+    const nextId =
+      presets[selection.selectedIndex + 1]?.id ??
+      presets[selection.selectedIndex - 1]?.id ??
+      "";
+    setRequestedId(nextId);
+    onPresetSelected?.(nextId || null);
+    onChange((current) =>
+      current.filter(({ id }) => id !== selection.selectedPreset?.id),
+    );
+  };
+}
+
+function createMovePresetAction(
+  onChange: PresetDispatch,
+  selectedPreset: BlockStylePreset | undefined,
+): (direction: -1 | 1) => void {
+  return (direction) => {
+    if (!selectedPreset) return;
+    onChange((current) =>
+      movePresetWithinGroup(current, selectedPreset.id, direction),
+    );
+  };
+}
+
+function createPatchPresetAction(
+  onChange: PresetDispatch,
+  selectedPreset: BlockStylePreset | undefined,
+): (patch: Partial<BlockStylePreset>) => void {
+  return (patch) => {
+    if (!selectedPreset) return;
+    onChange((current) =>
+      current.map((preset) => patchPreset(preset, selectedPreset.id, patch)),
+    );
+  };
+}
+
+function patchPreset(
+  preset: BlockStylePreset,
+  selectedPresetId: string,
+  patch: Partial<BlockStylePreset>,
+): BlockStylePreset {
+  if (preset.id === selectedPresetId) return { ...preset, ...patch };
+  if (
+    patch.shortcutSlot !== undefined &&
+    preset.shortcutSlot === patch.shortcutSlot
+  ) {
+    const { shortcutSlot: _shortcutSlot, ...withoutSlot } = preset;
+    return withoutSlot;
+  }
+  return preset;
 }
 
 function createDuplicatePresetAction({

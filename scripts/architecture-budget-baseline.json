@@ -9,7 +9,7 @@
       "maxImportedBy": 29
     },
     "src/shared/geometry.ts": {
-      "maxImportedBy": 30
+      "maxImportedBy": 31
     },
     "src/renderer/src/components/ui/Button.tsx": {
       "maxImportedBy": 44

@@ -25,6 +25,7 @@ export type PageImageExportRuntimePort = {
   createDirectory: (path: string, recursive?: boolean) => Promise<void>;
   removeDirectory: (path: string) => Promise<void>;
   writePng: (path: string, content: Buffer) => Promise<void>;
+  writePsd?: (path: string, content: Buffer) => Promise<void>;
   openDirectory: (path: string) => Promise<string>;
   createTimestamp: () => string;
 };
@@ -57,6 +58,9 @@ export const productionPageImageExportDependencies: PageImageExportDependencies 
         await rm(path, { recursive: true, force: true });
       },
       async writePng(path, content) {
+        await writeFile(path, content);
+      },
+      async writePsd(path, content) {
         await writeFile(path, content);
       },
       openDirectory: (path) => shell.openPath(path),

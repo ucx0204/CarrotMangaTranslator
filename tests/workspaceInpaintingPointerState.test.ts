@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  adjustMaskStrokeRadii,
   appendMaskStroke,
+  constrainStrokeToLine,
   isRetouchDrawTool,
   isRetouchShapeTool,
   resolveImagePixelPoint,
+  resolveDraggedBrushRadius,
 } from "../src/renderer/src/hooks/workspaceInpaintingPointerState";
 
 describe("workspace inpainting pointer state", () => {
@@ -59,5 +62,34 @@ describe("workspace inpainting pointer state", () => {
       points: [{ x: 300, y: 400 }],
       radiusPx: 12,
     });
+  });
+
+  it("expands and shrinks mask radii without retaining empty strokes", () => {
+    const strokes = [
+      { points: [{ x: 1, y: 2 }], radiusPx: 8 },
+      { points: [{ x: 3, y: 4 }], radiusPx: 3 },
+    ];
+    expect(
+      adjustMaskStrokeRadii(strokes, 4).map((stroke) => stroke.radiusPx),
+    ).toEqual([12, 7]);
+    expect(adjustMaskStrokeRadii(strokes, -4)).toEqual([
+      { points: [{ x: 1, y: 2 }], radiusPx: 4 },
+    ]);
+  });
+
+  it("constrains shifted strokes and resolves horizontal radius drags", () => {
+    expect(
+      constrainStrokeToLine([
+        { x: 1, y: 2 },
+        { x: 3, y: 7 },
+        { x: 9, y: 12 },
+      ]),
+    ).toEqual([
+      { x: 1, y: 2 },
+      { x: 9, y: 12 },
+    ]);
+    expect(resolveDraggedBrushRadius(20, 12)).toBe(26);
+    expect(resolveDraggedBrushRadius(4, -200)).toBe(4);
+    expect(resolveDraggedBrushRadius(90, 200)).toBe(90);
   });
 });

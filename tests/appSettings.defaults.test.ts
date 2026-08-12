@@ -409,6 +409,24 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     );
   });
 
+  it("removes the legacy shortcut profile and repairs bindings it had silently cleared", () => {
+    const defaults = resolveDefaultAppSettings();
+    const migrated = parseStoredAppSettings(
+      JSON.stringify({
+        shortcutProfile: "scanlation",
+        keybindings: {
+          "toggle-block-chrome": "",
+          "toggle-text-blocks": "",
+          "open-settings": "ctrl+p",
+        },
+      }),
+      defaults,
+    );
+
+    expect(migrated).not.toHaveProperty("shortcutProfile");
+    expect(migrated.keybindings).toEqual({ "open-settings": "ctrl+p" });
+  });
+
   it("ignores legacy stored translation mode values", () => {
     const defaults = resolveDefaultAppSettings();
 

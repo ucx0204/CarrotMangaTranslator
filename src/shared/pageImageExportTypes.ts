@@ -15,7 +15,10 @@ export type PageImageExportRequest = {
   expectedTargets?: PageJobTargetSnapshot[];
   /** Export only the cleaned inpainted image and omit translated text blocks. */
   omitText?: boolean;
+  outputFormat?: PageImageExportFormat;
 };
+
+export type PageImageExportFormat = "png" | "psd";
 
 type PageImageExportPreflightIssueCode =
   | "job-running"

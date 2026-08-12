@@ -1,6 +1,6 @@
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import {
-  sortBlocksForReading,
+  resolvePageBlocksForReading,
   type BlockReadingDirection,
 } from "../../../shared/blockReadingOrder";
 import type { TFunction } from "i18next";
@@ -47,7 +47,7 @@ export function gatherText(input: {
   }
 
   return targets.map(({ page, index }) => {
-    const blocks = sortBlocksForReading(page.blocks, direction)
+    const blocks = resolvePageBlocksForReading(page, direction)
       .map((block) => ({
         id: block.id,
         translatedText: block.translatedText.trim(),

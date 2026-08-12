@@ -115,7 +115,13 @@ export function normalizeAppSettings(
     ),
     blockStylePresets,
     blockStylePresetGroups,
-    keybindings: normalizeKeybindings(record.keybindings, defaults),
+    // The removed profile UI could persist an empty override when it silently
+    // moved a conflicting key. Reset those legacy empties to the unified map.
+    keybindings: normalizeKeybindings(
+      record.keybindings,
+      defaults,
+      Object.hasOwn(record, "shortcutProfile"),
+    ),
     maxTokens: resolveMaxTokens(record.maxTokens, limitFallbacks.maxTokens),
     ctx: resolveContextTokens(record.ctx, limitFallbacks.contextTokens),
   };
@@ -166,11 +172,14 @@ function resolveGenerationLimitFallbacks({
 function normalizeKeybindings(
   keybindings: unknown,
   defaults: AppSettings,
+  repairLegacyProfileBindings = false,
 ): NonNullable<AppSettings["keybindings"]> {
-  return (
-    normalizeStoredKeybindingOverrides(keybindings) ?? {
-      ...(defaults.keybindings ?? {}),
-    }
+  const normalized = normalizeStoredKeybindingOverrides(keybindings) ?? {
+    ...(defaults.keybindings ?? {}),
+  };
+  if (!repairLegacyProfileBindings) return normalized;
+  return Object.fromEntries(
+    Object.entries(normalized).filter(([, combo]) => combo !== ""),
   );
 }
 

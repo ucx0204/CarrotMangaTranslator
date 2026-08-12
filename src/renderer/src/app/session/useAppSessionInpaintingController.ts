@@ -15,6 +15,7 @@ import type { useTranslationActions } from "../../hooks/useTranslationActions";
 import type { WorkspaceHistoryController } from "../../hooks/useWorkspaceHistory";
 import { captureWorkspaceMaskSnapshot } from "../../lib/workspaceHistory";
 import { useWorkspacePointerHandlers } from "../../hooks/useWorkspacePointerHandlers";
+import { adjustMaskStrokeRadii } from "../../hooks/workspaceInpaintingPointerState";
 import type { useChapterPersistence } from "../../hooks/useChapterPersistence";
 import type { useAppSessionBridgeActions } from "./useAppSessionBridgeActions";
 import type { AppSessionCoreState } from "./useAppSessionCoreState";
@@ -228,7 +229,9 @@ function usePointerController(
       workspaceImagePageId: derivedState.workspaceImagePageId,
     }),
     selectedPageImagePath: derivedState.selectedPageImagePath,
+    selectedBlockIds: core.selectedBlockIds,
     setInpaintingPaintColor: uiState.setInpaintingPaintColor,
+    setInpaintingBrushRadius: uiState.setInpaintingBrushRadius,
     setInpaintingTool: uiState.setInpaintingTool,
     setPatternMaskStrokesByPage: uiState.setPatternMaskStrokesByPage,
     setRegionSelection: core.setRegionSelection,
@@ -284,6 +287,12 @@ function useInpaintingBridgeController(
     uiState,
     workspaceHistory,
   });
+  const adjustPatternMask = useAdjustSelectedPatternMask({
+    core,
+    derivedState,
+    uiState,
+    workspaceHistory,
+  });
   return useInpaintingContextBridge({
     blockCounts: derivedState.blockCounts,
     brushColor: uiState.inpaintingPaintColor,
@@ -301,6 +310,7 @@ function useInpaintingBridgeController(
     maskStrokes: derivedState.patternMaskStrokes,
     onCancelJob: bridgeActions.cancelJob,
     onClearPatternMask: clearPatternMask,
+    onAdjustPatternMask: adjustPatternMask,
     onShowGuide: () => uiState.setInpaintingGuideOpen(true),
     peekAvailable: derivedState.peekAvailable,
     peeking: derivedState.showingOriginalPeek,
@@ -322,6 +332,49 @@ function useInpaintingBridgeController(
     tool: uiState.inpaintingTool,
     undoRetouch: retouch.undoRetouch,
   });
+}
+
+function useAdjustSelectedPatternMask({
+  core,
+  derivedState,
+  uiState,
+  workspaceHistory,
+}: Pick<
+  AppSessionInpaintingControllerArgs,
+  "core" | "derivedState" | "uiState" | "workspaceHistory"
+>): (deltaPx: number) => void {
+  const { t } = useTranslation("renderer");
+  return useCallback(
+    (deltaPx) => {
+      const selectedPage = derivedState.selectedPage;
+      const chapterId = core.currentChapter?.id;
+      const before = derivedState.patternMaskStrokes;
+      if (!selectedPage || !chapterId || before.length === 0) return;
+      const after = adjustMaskStrokeRadii(before, deltaPx);
+      if (
+        after.length === before.length &&
+        after.every(
+          (stroke, index) => stroke.radiusPx === before[index]?.radiusPx,
+        )
+      ) {
+        return;
+      }
+      const next = { ...uiState.patternMaskStrokesByPage };
+      if (after.length > 0) next[selectedPage.id] = after;
+      else delete next[selectedPage.id];
+      uiState.setPatternMaskStrokesByPage(next);
+      workspaceHistory.recordMaskEdit({
+        label: t("workspaceHistory.maskEdit"),
+        before: captureWorkspaceMaskSnapshot(
+          chapterId,
+          selectedPage.id,
+          before,
+        ),
+        after: captureWorkspaceMaskSnapshot(chapterId, selectedPage.id, after),
+      });
+    },
+    [core.currentChapter?.id, derivedState, t, uiState, workspaceHistory],
+  );
 }
 
 function useClearSelectedPatternMask({

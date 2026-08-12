@@ -126,6 +126,14 @@
       "hint": "Page · whole chapter",
       "keywords": "text copy gather"
     },
+    "toggleBlockChrome": {
+      "label": "Toggle backgrounds/borders",
+      "keywords": "background border chrome guide show hide"
+    },
+    "toggleTextBlocks": {
+      "label": "Toggle text blocks",
+      "keywords": "block text overlay show hide"
+    },
     "importSource": {
       "label": "Add new source",
       "hint": "Images · folder · ZIP",
@@ -177,6 +185,10 @@
       "zoom-in": "Zoom in",
       "zoom-out": "Zoom out",
       "zoom-reset": "Reset zoom",
+      "zoom-fit-contain": "Fit page to view",
+      "zoom-fit-width": "Fit page width",
+      "zoom-fit-height": "Fit page height",
+      "zoom-actual-size": "Actual size",
       "page-previous": "Previous page",
       "page-next": "Next page",
       "stage-tool-select": "Select tool",
@@ -189,13 +201,38 @@
       "gather-text": "Gather text",
       "cancel-job": "Cancel job",
       "toggle-inpainting": "Erase current page",
+      "retouch-tool-mask": "Mask brush",
+      "retouch-tool-brush": "Paint brush",
+      "retouch-tool-rectangle": "Rectangle retouch",
+      "retouch-tool-ellipse": "Ellipse retouch",
+      "retouch-tool-eraser": "Retouch eraser",
+      "retouch-tool-picker": "Color picker",
+      "retouch-apply-mask": "Apply mask",
+      "retouch-cancel-mask": "Cancel mask",
       "block-previous": "Previous block",
       "block-next": "Next block",
+      "select-all-blocks": "Select all page blocks",
+      "move-block-earlier": "Move earlier in reading order",
+      "move-block-later": "Move later in reading order",
+      "sort-reading-order": "Sort by geometric reading order",
+      "reset-block-rotation": "Reset block rotation",
+      "open-search-replace": "Find and replace",
+      "open-export-options": "Open export",
       "history-undo": "Undo",
       "history-redo": "Redo",
       "delete-block": "Delete selected block",
       "duplicate-block": "Duplicate selected block",
       "toggle-block-excluded": "Toggle block inpainting exclusion",
+      "apply-style-slot-1": "Apply style slot 1",
+      "apply-style-slot-2": "Apply style slot 2",
+      "apply-style-slot-3": "Apply style slot 3",
+      "apply-style-slot-4": "Apply style slot 4",
+      "apply-style-slot-5": "Apply style slot 5",
+      "apply-style-slot-6": "Apply style slot 6",
+      "apply-style-slot-7": "Apply style slot 7",
+      "apply-style-slot-8": "Apply style slot 8",
+      "apply-style-slot-9": "Apply style slot 9",
+      "apply-style-slot-10": "Apply style slot 10",
       "toggle-command-palette": "Command palette",
       "toggle-shortcut-help": "Keyboard shortcuts",
       "open-settings": "Open settings"
@@ -210,6 +247,8 @@
     "stylePreset": "Apply style preset",
     "deleteBlock": "Delete block",
     "duplicateBlock": "Duplicate block",
+    "readingOrder": "Change block reading order",
+    "searchReplace": "Search and replace",
     "createBlock": "Create block",
     "dragBlock": "Move or resize block",
     "importText": "Import translated text",
@@ -223,6 +262,9 @@
     "retranslationCheckpoint": "Checkpoint before retranslation",
     "retouch": "Manual retouch",
     "resetOriginal": "Reset to original"
+  },
+  "searchReplace": {
+    "replaced": "Replaced {{count}} matches."
   },
   "bubbleLayoutEditor": {
     "needsMorePoints": "A bubble region needs at least three points.",
@@ -340,9 +382,12 @@
       "success": "Exported final images as PNG: {{count}} pages",
       "success_one": "Exported the final image as PNG: {{count}} page",
       "success_other": "Exported final images as PNG: {{count}} pages",
+      "successPsd": "Exported layered PSD files: {{count}} pages",
+      "successPsd_one": "Exported a layered PSD file: {{count}} page",
+      "successPsd_other": "Exported layered PSD files: {{count}} pages",
       "failed": "Could not export the final images.",
-      "failedTitle": "PNG export failed",
-      "preparing": "Preparing PNG export"
+      "failedTitle": "Page export failed",
+      "preparing": "Preparing page export"
     },
     "revert": {
       "pageTitle": "Reset this page to the original image",
@@ -411,6 +456,7 @@
   "settings": {
     "loadFailed": "Could not load settings.",
     "saved": "Settings saved. They will apply from the next translation run.",
+    "savedToast": "Settings saved.",
     "saveFailed": "Could not save settings.",
     "reset": "Settings restored to defaults. They will apply from the next translation run.",
     "defaultsLoaded": "Defaults loaded into the draft. Save to apply them.",

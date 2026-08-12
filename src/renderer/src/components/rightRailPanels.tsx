@@ -31,6 +31,7 @@ export type UnifiedRightRailProps = {
   resetAvailable: boolean;
   selectedBlock: TranslationBlock | null;
   selectedBlockId: string | null;
+  selectedBlockIds?: string[];
   selectedPage: MangaPage | null;
   rightRailMode: RightRailMode;
   saveStatus: ChapterSaveStatus;
@@ -44,6 +45,7 @@ export type UnifiedRightRailProps = {
   undoLabel?: string | null;
   onBrushColorChange: (value: string) => void;
   onBrushRadiusChange: (value: number) => void;
+  onAdjustPatternMask?: (deltaPx: number) => void;
   onCancelJob: () => void;
   onClearStatusLines: () => void;
   onClearPatternMask: () => void;
@@ -66,6 +68,12 @@ export type UnifiedRightRailProps = {
   onToggleChrome: () => void;
   onUndo: () => void;
   onSelectBlock: (blockId: string) => void;
+  onChangeBlockSelection?: (
+    blockIds: string[],
+    primaryBlockId: string | null,
+  ) => void;
+  onMoveBlockInReadingOrder?: (blockId: string, direction: -1 | 1) => void;
+  onSortReadingOrder?: () => void;
   onUpdateBlock: (blockId: string, patch: Partial<TranslationBlock>) => void;
   onOpenAutoInpaintingOptions: (scope: AutoInpaintingEntryScope) => void;
 };
@@ -111,6 +119,7 @@ function ContextualRightRailPanel(
         mode="retouch"
         onBrushColorChange={props.onBrushColorChange}
         onBrushRadiusChange={props.onBrushRadiusChange}
+        onAdjustPatternMask={props.onAdjustPatternMask ?? NOOP_ADJUST_MASK}
         onCancelJob={props.onCancelJob}
         onClearPatternMask={props.onClearPatternMask}
         onRunDrawnPattern={props.onRunDrawnPattern}
@@ -129,11 +138,17 @@ function ContextualRightRailPanel(
         page={props.selectedPage}
         readingDirection={props.blockReadingDirection}
         selectedBlockId={props.selectedBlockId}
+        selectedBlockIds={props.selectedBlockIds ?? []}
+        onChangeSelection={props.onChangeBlockSelection}
+        onMoveBlock={props.onMoveBlockInReadingOrder}
         onOpenEditor={props.onOpenBlockEditor}
         onSelectBlock={props.onSelectBlock}
+        onSortReadingOrder={props.onSortReadingOrder}
         onUpdateBlock={props.onUpdateBlock}
       />
     );
   }
   return null;
 }
+
+const NOOP_ADJUST_MASK = (): void => undefined;

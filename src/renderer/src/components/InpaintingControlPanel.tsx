@@ -26,6 +26,7 @@ type RetouchInspectorProps = CommonInspectorProps & {
   maskStrokeCount: number;
   onBrushColorChange: (value: string) => void;
   onBrushRadiusChange: (value: number) => void;
+  onAdjustPatternMask: (deltaPx: number) => void;
   onClearPatternMask: () => void;
   onRunDrawnPattern: () => void;
 };
@@ -95,6 +96,7 @@ function RetouchInspectorBody({
       maskStrokeCount={props.maskStrokeCount}
       onBrushColorChange={props.onBrushColorChange}
       onBrushRadiusChange={props.onBrushRadiusChange}
+      onAdjustPatternMask={props.onAdjustPatternMask}
       onClearPatternMask={props.onClearPatternMask}
       onRunDrawnPattern={props.onRunDrawnPattern}
       sizableTool={isSizableRetouchTool(props.tool)}

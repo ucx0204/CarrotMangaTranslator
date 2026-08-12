@@ -11,6 +11,7 @@ import { AutoInpaintingOptionsModal } from "../../components/AutoInpaintingOptio
 import { PageRetranslateModal } from "../../components/PageRetranslateModal";
 import { ShortcutHelp } from "../../components/ShortcutHelp";
 import { StyleGuideModal } from "../../components/StyleGuideModal";
+import { SearchReplaceModal } from "../../components/SearchReplaceModal";
 import { TranslationOptionsModal } from "../../components/TranslationOptionsModal";
 import { ToastViewport } from "../../components/ui/ToastViewport";
 import { EditorFloatingLayer } from "../../panels/EditorFloatingLayer";
@@ -38,6 +39,7 @@ export type AppSessionViewProps = {
   > | null;
   panelSessionValue: PanelSessionValue;
   rightRailProps: React.ComponentProps<typeof AppRightRail>;
+  searchReplaceProps: React.ComponentProps<typeof SearchReplaceModal> | null;
   shortcutHelpProps: React.ComponentProps<typeof ShortcutHelp>;
   sidebarProps: React.ComponentProps<typeof AppSidebar>;
   styleGuideProps: React.ComponentProps<typeof StyleGuideModal> | null;
@@ -56,6 +58,7 @@ export function AppSessionView({
   pageRetranslateProps,
   panelSessionValue,
   rightRailProps,
+  searchReplaceProps,
   shortcutHelpProps,
   sidebarProps,
   styleGuideProps,
@@ -80,6 +83,7 @@ export function AppSessionView({
         gatherTextProps={gatherTextProps}
         pageRetranslateProps={pageRetranslateProps}
         shortcutHelpProps={shortcutHelpProps}
+        searchReplaceProps={searchReplaceProps}
         styleGuideProps={styleGuideProps}
         translationOptionsProps={translationOptionsProps}
       />
@@ -94,6 +98,7 @@ function SessionFloatingOverlays({
   gatherTextProps,
   pageRetranslateProps,
   shortcutHelpProps,
+  searchReplaceProps,
   styleGuideProps,
   translationOptionsProps,
 }: Pick<
@@ -104,6 +109,7 @@ function SessionFloatingOverlays({
   | "gatherTextProps"
   | "pageRetranslateProps"
   | "shortcutHelpProps"
+  | "searchReplaceProps"
   | "styleGuideProps"
   | "translationOptionsProps"
 >): React.JSX.Element {
@@ -116,6 +122,9 @@ function SessionFloatingOverlays({
         <CommandPalette {...commandPaletteProps} />
       ) : null}
       {shortcutHelpProps.open ? <ShortcutHelp {...shortcutHelpProps} /> : null}
+      {searchReplaceProps ? (
+        <SearchReplaceModal {...searchReplaceProps} />
+      ) : null}
       {exportOptionsProps ? (
         <ExportOptionsModal {...exportOptionsProps} />
       ) : null}

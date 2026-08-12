@@ -543,6 +543,19 @@
   line-height: 1.45;
 }
 
+.export-format-field {
+  display: grid;
+  grid-template-columns: max-content minmax(150px, 1fr);
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--text-dim);
+  font-size: var(--font-sm);
+}
+
+.export-format-field [data-ui-select] {
+  min-width: 0;
+}
+
 .export-preflight {
   display: grid;
   gap: 11px;
@@ -713,6 +726,10 @@
   .export-render-options {
     grid-template-columns: 1fr;
     gap: 6px;
+  }
+
+  .export-format-field {
+    grid-template-columns: 1fr;
   }
 
   .export-preflight-header,

@@ -1,6 +1,5 @@
 import { BrowserWindow } from "electron";
-import { randomUUID } from "node:crypto";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { rm, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { MangaPage } from "../shared/libraryTypes";
@@ -10,6 +9,7 @@ import {
 } from "../shared/pageExportLimits";
 import { createLibraryImageUrl } from "./imageProtocol";
 import { tMain } from "./i18n";
+import { captureExportPagePng } from "./pageExportCapture";
 import {
   buildPageExportHtml,
   type PageExportHtmlSource,
@@ -23,24 +23,20 @@ import {
 import {
   assertPageExportRasterBudget,
   buildBoundedPageExportDataUrl,
-  decodeBoundedPageExportScreenshot,
   probePageExportSourceImage,
 } from "./pageExportRasterSafety";
+import { createPageExportTempOwner } from "./pageExportTemp";
 import type { ImageDecodeFallback } from "./regionCrop";
 
 const MAX_EXPORT_VIEWPORT_SIDE_PX = 4096;
 const PAGE_LOAD_TIMEOUT_MS = 15_000;
 const RENDER_READY_TIMEOUT_MS = 20_000;
 const DEBUGGER_SETUP_TIMEOUT_MS = 10_000;
-const SCREENSHOT_CAPTURE_TIMEOUT_MS = 30_000;
 const IMAGE_SOURCE_TIMEOUT_MS = 60_000;
-
-type DevToolsScreenshotResult = {
-  data?: unknown;
-};
 
 export type PageExportRenderSession = {
   renderPage: (page: MangaPage) => Promise<Buffer>;
+  renderTransparentPage?: (page: MangaPage) => Promise<Buffer>;
   close: () => void;
 };
 
@@ -65,9 +61,9 @@ type ResolvedPageExportImage = {
 export async function createPageExportRenderSession(
   options: PageExportRenderOptions,
 ): Promise<PageExportRenderSession> {
-  const renderDir = join(options.dataRoot, "tmp", "png-export-render");
-  await mkdir(renderDir, { recursive: true });
-  const windowState = createExportWindow();
+  const tempOwner = await createPageExportTempOwner(createExportWindow);
+  const renderDir = tempOwner.directory;
+  const windowState = tempOwner.owner;
   let active = false;
   let closed = false;
   let lastRenderFailure: { error: unknown } | null = null;
@@ -87,8 +83,31 @@ export async function createPageExportRenderSession(
         active = false;
       }
     },
+    async renderTransparentPage(page) {
+      if (closed) throw new Error("Page export session is closed.");
+      if (active) throw new Error("Page export session is already rendering.");
+      active = true;
+      lastRenderFailure = null;
+      try {
+        return await renderPageInSession(
+          page,
+          options,
+          renderDir,
+          windowState,
+          true,
+        );
+      } catch (error) {
+        lastRenderFailure = { error };
+        throw error;
+      } finally {
+        active = false;
+      }
+    },
     close() {
       if (closed) return;
+      if (active) {
+        throw new Error("Page export session cannot close while rendering.");
+      }
       closed = true;
       const cleanupErrors: unknown[] = [];
       try {
@@ -100,6 +119,11 @@ export async function createPageExportRenderSession(
       }
       try {
         windowState.win.destroy();
+      } catch (error) {
+        cleanupErrors.push(error);
+      }
+      try {
+        tempOwner.release();
       } catch (error) {
         cleanupErrors.push(error);
       }
@@ -131,6 +155,7 @@ function createExportWindow(): {
     show: false,
     useContentSize: true,
     backgroundColor: "#ffffff",
+    transparent: true,
     webPreferences: {
       offscreen: true,
       backgroundThrottling: false,
@@ -168,6 +193,7 @@ async function renderPageInSession(
   options: PageExportRenderOptions,
   renderDir: string,
   windowState: ReturnType<typeof createExportWindow>,
+  transparentBackground = false,
 ): Promise<Buffer> {
   const image = await withAbortableTimeout(
     (signal) => resolveExportImageSource(page, options, signal),
@@ -176,9 +202,15 @@ async function renderPageInSession(
   );
   assertPageExportRasterBudget(image.size, page.name);
   const html = options.htmlSource
-    ? options.htmlSource.buildHtml(page, image.src, image.size)
-    : buildPageExportHtml(page, image.src, image.size);
-  const htmlPath = join(renderDir, `${page.id}-${randomUUID()}.html`);
+    ? options.htmlSource.buildHtml(page, image.src, image.size, {
+        transparentBackground,
+      })
+    : buildPageExportHtml(page, image.src, image.size, {
+        transparentBackground,
+      });
+  // A session serializes renders, so its private directory needs only one
+  // fixed, maximally short file name.
+  const htmlPath = join(renderDir, "page.html");
   const htmlUrl = pathToFileURL(htmlPath).toString();
   const viewport = resolveExportViewportSize(
     image.size.width,
@@ -207,7 +239,12 @@ async function renderPageInSession(
       );
     }
     await ensureExportDebugger(windowState.win);
-    return await captureExportPagePng(windowState.win, image.size, page.name);
+    return await captureExportPagePng(
+      windowState.win,
+      image.size,
+      page.name,
+      transparentBackground,
+    );
   } finally {
     windowState.setAllowedHtmlUrl(null);
     await rm(htmlPath, { force: true });
@@ -288,34 +325,6 @@ function resolveExportViewportSize(
     width: Math.min(width, MAX_EXPORT_VIEWPORT_SIDE_PX),
     height: Math.min(height, MAX_EXPORT_VIEWPORT_SIDE_PX),
   };
-}
-
-async function captureExportPagePng(
-  win: BrowserWindow,
-  expected: PageExportRasterSize,
-  pageName: string,
-): Promise<Buffer> {
-  assertPageExportRasterBudget(expected, pageName);
-  const result = (await withTimeout(
-    win.webContents.debugger.sendCommand("Page.captureScreenshot", {
-      format: "png",
-      fromSurface: true,
-      captureBeyondViewport: true,
-      clip: {
-        x: 0,
-        y: 0,
-        width: expected.width,
-        height: expected.height,
-        scale: 1,
-      },
-    }),
-    SCREENSHOT_CAPTURE_TIMEOUT_MS,
-    "PNG export screenshot capture timeout",
-  )) as DevToolsScreenshotResult;
-  if (typeof result.data !== "string") {
-    throw new Error("DevTools returned an invalid page export screenshot.");
-  }
-  return decodeBoundedPageExportScreenshot(result.data, expected, pageName);
 }
 
 async function waitForExportRenderReady(

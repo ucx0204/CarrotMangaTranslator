@@ -12,6 +12,8 @@ import { useAppSessionWorkspaceHistory } from "./useAppSessionWorkspaceHistory";
 import { useFonts } from "../../fonts/useFonts";
 import { useCallback, useMemo } from "react";
 import { captureWorkspaceChapterEditSnapshot } from "../../lib/workspaceHistory";
+import { resolveSourceReadingDirection } from "../../../../shared/translationLanguages";
+import { resolveReadingDirection } from "../../../../shared/blockReadingOrder";
 
 export function useTranslationController(
   chapter: ChapterSessionController,
@@ -58,6 +60,14 @@ export function useTranslationController(
       chapter.uiState.translationFlowActive ||
       workspaceHistory.busy,
     pushStatus: chapter.statusLog.pushStatus,
+    readingDirection: resolveReadingDirection(
+      chapter.core.library.works.find(
+        (work) => work.id === chapter.core.currentChapter?.workId,
+      )?.readingDirection,
+      resolveSourceReadingDirection(
+        chapter.settingsDialog.settings?.translation?.sourceLanguage,
+      ),
+    ),
     selectedBlock: chapter.derivedState.selectedBlock,
     selectedBlockIds: chapter.derivedState.selectedBlockIds,
     selectedPage: chapter.derivedState.selectedPage,

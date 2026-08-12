@@ -9,6 +9,7 @@ export type SavePageBlocksRequest = {
   dirtyVersion?: number;
   saveReason?: "autosave" | "manual";
   blocks: TranslationBlock[];
+  blockOrder?: string[];
 };
 
 export type SavePageBlocksUpdate = {
@@ -16,6 +17,7 @@ export type SavePageBlocksUpdate = {
   baseUpdatedAt?: string;
   baseBlocksHash?: string;
   blocks: TranslationBlock[];
+  blockOrder?: string[];
 };
 
 export type SavePagesBlocksRequest = {
