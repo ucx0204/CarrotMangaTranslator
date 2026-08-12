@@ -7,6 +7,10 @@ import {
   shouldEnableExperimentalSm75Flux,
 } from "../src/shared/fluxSm75";
 import { FluxBackendSchema } from "../src/shared/ipcEnumSchemas";
+import {
+  FLUX_NVIDIA_RUNNER_ASSETS,
+  FLUX_NVIDIA_RUNNER_BASE_URL,
+} from "../src/main/inpainting/fluxAssets/constants";
 
 describe("experimental Flux SM75 routing", () => {
   it("builds the SM75 runner with an FP32 transformer and FP16 VAE", () => {
@@ -26,6 +30,15 @@ describe("experimental Flux SM75 routing", () => {
     expect(transformer).not.toContain("DType::F16");
     expect(vae).toContain("if sm75_fp16_enabled()");
     expect(vae).toContain("DType::F16");
+  });
+
+  it("pins the fixed SM75 archive from the immutable r3 asset release", () => {
+    expect(FLUX_NVIDIA_RUNNER_BASE_URL).toMatch(
+      /\/flux-runners-cuda12\.9-r3$/u,
+    );
+    expect(FLUX_NVIDIA_RUNNER_ASSETS["75"].sha256).toBe(
+      "2ea7520e65e165cbc6d1b68f078621cbf850d231ff0295b8355a97c3884d132c",
+    );
   });
 
   it("recognizes compute capability 7.5 and only enables the explicit backend", () => {

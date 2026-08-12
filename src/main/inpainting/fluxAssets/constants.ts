@@ -32,7 +32,7 @@ export const FLUX_NVIDIA_RUNNER_COMPUTE_CAPS = [
   "120",
 ];
 
-const FLUX_NVIDIA_RUNNER_RELEASE_TAG = "flux-runners-cuda12.9-r2";
+const FLUX_NVIDIA_RUNNER_RELEASE_TAG = "flux-runners-cuda12.9-r3";
 
 export const FLUX_NVIDIA_RUNNER_BASE_URL = `https://github.com/ucx0204/CarrotMangaTranslator/releases/download/${FLUX_NVIDIA_RUNNER_RELEASE_TAG}`;
 
@@ -41,7 +41,7 @@ export const FLUX_NVIDIA_RUNNER_MARKER = ".mgt-flux-runner.json";
 export const FLUX_NVIDIA_RUNNER_ASSETS = {
   "75": {
     fileName: "mgt-flux-klein-sm75-cuda12.9-win-x64.zip",
-    sha256: "bbfaff8efff3bd31669a93238b5e0b8e9054fa2020580e6000fddbd1109bf83c",
+    sha256: "2ea7520e65e165cbc6d1b68f078621cbf850d231ff0295b8355a97c3884d132c",
   },
   "80": {
     fileName: "mgt-flux-klein-sm80-cuda12.9-win-x64.zip",

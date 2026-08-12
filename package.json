@@ -1,6 +1,6 @@
 {
   "name": "carrot-manga-translator",
-  "version": "1.12.0",
+  "version": "1.12.1",
   "description": "Open-source desktop OCR, AI translation, editing and inpainting tool for user-provided manga and comic images.",
   "license": "GPL-3.0-only",
   "type": "commonjs",
