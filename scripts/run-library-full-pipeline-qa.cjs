@@ -355,6 +355,16 @@ async function runCommand(options) {
     options,
     cacheFrom,
   );
+  const qaPageRelativeRoleReroute = resolveQaPageRelativeRoleReroute(
+    options,
+    fontInferenceCacheMode,
+  );
+  const cacheFromSeal = resolveCacheFromSeal(
+    options,
+    cacheFrom,
+    fontInferenceCacheMode,
+    qaPageRelativeRoleReroute,
+  );
   const runId = sanitizeId(
     options["run-id"] || new Date().toISOString().replace(/[:.]/g, "-"),
   );
@@ -386,7 +396,9 @@ async function runCommand(options) {
     candidateId,
     runtimeDir,
     cacheFrom,
+    cacheFromSeal,
     fontInferenceCacheMode,
+    qaPageRelativeRoleReroute,
     execute,
     preflightOnly: Boolean(options.preflight),
     allowPaidProvider: Boolean(options["allow-paid-provider"]),
@@ -646,6 +658,46 @@ function resolveFontInferenceCacheMode(options, cacheFrom) {
   return mode;
 }
 
+function resolveQaPageRelativeRoleReroute(options, fontInferenceCacheMode) {
+  const enabled = options["qa-page-relative-role-reroute"] === true;
+  if (enabled && fontInferenceCacheMode !== "off") {
+    throw new Error(
+      "--qa-page-relative-role-reroute requires live font inference; remove --reuse-cached-font-inference.",
+    );
+  }
+  return enabled;
+}
+
+function resolveCacheFromSeal(
+  options,
+  cacheFrom,
+  fontInferenceCacheMode,
+  qaPageRelativeRoleReroute,
+) {
+  const seal = options["cache-from-seal"]
+    ? path.resolve(String(options["cache-from-seal"]))
+    : null;
+  if (seal && !cacheFrom) {
+    throw new Error("--cache-from-seal requires --cache-from.");
+  }
+  if (cacheFrom && fontInferenceCacheMode === "off" && !seal) {
+    throw new Error(
+      "Live font replay requires --cache-from-seal from the fresh-Gemma baseline.",
+    );
+  }
+  if (qaPageRelativeRoleReroute && (!cacheFrom || !seal)) {
+    throw new Error(
+      "--qa-page-relative-role-reroute requires --cache-from and --cache-from-seal.",
+    );
+  }
+  if (qaPageRelativeRoleReroute && options["page-limit"] !== undefined) {
+    throw new Error(
+      "--qa-page-relative-role-reroute requires the complete 40-page cohort; remove --page-limit.",
+    );
+  }
+  return seal;
+}
+
 function printHelp() {
   console.log(
     `Library full-pipeline font QA (no computer-use)\n\n` +
@@ -660,8 +712,9 @@ function printHelp() {
       `  node scripts/run-library-full-pipeline-qa.cjs run --cohort baseline40 --candidate-id v2\n` +
       `  node scripts/run-library-full-pipeline-qa.cjs run --cohort baseline40 --candidate-id v2 --execute\n` +
       `  node scripts/run-library-full-pipeline-qa.cjs run --cohort baseline40 --candidate-id qa-v2 --runtime-dir <qa-runtime> --allow-qa-only-runtime --preflight\n` +
-      `  node scripts/run-library-full-pipeline-qa.cjs run --cohort baseline40 --candidate-id v3 --cache-from <v2-run> --execute\n` +
+      `  node scripts/run-library-full-pipeline-qa.cjs run --cohort baseline40 --candidate-id v3 --cache-from <v2-run> --cache-from-seal <fresh-run-audit.json> --execute\n` +
       `  node scripts/run-library-full-pipeline-qa.cjs run --cohort baseline40 --candidate-id v4 --cache-from <v3-run> --reuse-cached-font-inference required --execute\n` +
+      `  node scripts/run-library-full-pipeline-qa.cjs run --cohort baseline40 --candidate-id page-role-qa --cache-from <fresh-run> --cache-from-seal <fresh-run-audit.json> --qa-page-relative-role-reroute --execute\n` +
       `  node scripts/run-library-full-pipeline-qa.cjs compare --baseline <run> --candidate <run>`,
   );
 }
@@ -671,6 +724,8 @@ module.exports = {
   classifyFontMatchingRuntimeReleaseMarker,
   parseArguments,
   parseFontInferenceCacheMode,
+  resolveCacheFromSeal,
+  resolveQaPageRelativeRoleReroute,
   readFontMatchingRuntimeReleaseMarker,
   sanitizeId,
 };

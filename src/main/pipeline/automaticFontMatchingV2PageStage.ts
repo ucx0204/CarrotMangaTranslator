@@ -8,6 +8,10 @@ import {
   type FontMatchingPageInferenceBlock,
   type FontMatchingPageInferenceResult,
 } from "./fontMatchingPagePixelInferenceTypes";
+import {
+  readFontMatchingOcrGeometryDirection,
+  resolveFontMatchingOcrGeometryDirection,
+} from "./fontMatchingOcrGeometryDirection";
 import type { OverlayItem } from "./types";
 
 const EMPTY_PIXEL_INFERENCE = new Map();
@@ -32,12 +36,39 @@ export async function runAutomaticFontMatchingV2PageStage({
   inferenceBlocks?: readonly FontMatchingPageInferenceBlock[];
   port?: FontMatchingPageInferencePort;
 }): Promise<FontMatchingPageInferenceResult> {
-  const blocks =
+  const rawBlocks: readonly FontMatchingPageInferenceBlock[] =
     inferenceBlocks ??
     items.map((item, index) => ({
       blockId: buildOverlayBlockId(page.id, jobId, index),
       item,
     }));
+  const blocks = rawBlocks.map((block) => {
+    const carriedSourceGeometryDirection = readFontMatchingOcrGeometryDirection(
+      block.sourceGeometryDirection,
+      block.item,
+      block.sourceCandidateMembership,
+    );
+    const sourceGeometryDirection =
+      carriedSourceGeometryDirection ??
+      resolveFontMatchingOcrGeometryDirection(
+        block.item,
+        pageOptions.ocrBboxHints,
+      );
+    const { sourceCandidateMembership: _membership, ...inferenceItem } =
+      block.item;
+    const geometryOwnedBlock = {
+      blockId: block.blockId,
+      item: inferenceItem,
+    };
+    return sourceGeometryDirection
+      ? {
+          ...geometryOwnedBlock,
+          sourceCandidateMembership:
+            sourceGeometryDirection.candidateMembership,
+          sourceGeometryDirection,
+        }
+      : geometryOwnedBlock;
+  });
   if (
     !pageOptions.autoFontMatching ||
     !port ||

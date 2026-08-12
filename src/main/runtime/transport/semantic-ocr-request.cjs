@@ -118,6 +118,9 @@ async function prepareFixedBlockRequest(server, options, ocrBboxResult) {
     fixedBlockCount: plan.blocks.length,
     fixedBlockIds: plan.blocks.map((block) => block.blockId),
     fixedBlockCandidateIds: plan.blocks.map((block) => block.candidateIds),
+    fixedBlockDirectionVoterCandidateIds: plan.blocks.map(
+      (block) => block.directionVoterCandidateIds,
+    ),
     promptText,
     systemPromptText: systemPrompt,
     noTextDetected: plan.blocks.length === 0,

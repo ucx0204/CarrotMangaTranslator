@@ -9,7 +9,11 @@ import type { AutomaticFontCandidate } from "../../shared/fontMatchingTypes";
 import type { BlockLocalFontEvidenceV2 } from "./fontMatchingDecisionV2Types";
 import type { FontMatchingGlyphMorphologyV1 } from "./fontMatchingPagePixelPreprocessing";
 import type { FontMatchingRuntimeArtifactStatus } from "./fontMatchingRuntimeArtifactStatus";
-import type { OverlayItem } from "./types";
+import type { FontMatchingOcrGeometryDirectionV2 } from "./fontMatchingOcrGeometryDirection";
+import type {
+  FontMatchingOcrCandidateMembershipV2,
+  OverlayItem,
+} from "./types";
 
 export type FontMatchingInferenceInputBoundary = Readonly<{
   source: "user_page";
@@ -19,6 +23,26 @@ export type FontMatchingInferenceInputBoundary = Readonly<{
 
 export const USER_PAGE_FONT_MATCHING_BOUNDARY: FontMatchingInferenceInputBoundary =
   Object.freeze({ source: "user_page", datasetSplit: null, qaOverlay: false });
+
+export type FontMatchingPageRelativeBaselineConsistencyState = Readonly<{
+  mode: "stable_body" | "page_anchor" | "local_visual_variant";
+  anchorFontId?: string;
+  anchorEvidenceCount: number;
+  anchorSupportShare?: number;
+  printedFamily?: "sans" | "serif";
+  recoveredBody?: boolean;
+  geometryComponentForced?: boolean;
+  ordinaryMorphologyConsensus?: boolean;
+  emphasisMorphologyConsensus?: boolean;
+  dohyeonMorphologyVeto?: boolean;
+  dohyeonDominanceClusterRescue?: boolean;
+  dohyeonMorphologyRecoveryFontId?: string;
+  dohyeonMorphologyRecoveryRoute?:
+    | "inverse_page_anchor"
+    | "strong_page_anchor"
+    | "residual_stable_body"
+    | "non_dohyeon_top3";
+}>;
 
 type FontMatchingSelectionCalibrationAudit = Readonly<{
   applied: boolean;
@@ -50,6 +74,30 @@ export type VerifiedAutomaticFontPixelInferenceV2 = Readonly<{
     outputName: "body_candidate_scores" | "variant_candidate_scores";
     resolvedRole: FontMatchingSemanticRole;
   }>;
+  /** Explicit QA-only pre-calibration page-relative route audit. */
+  pageRelativeRoleQa?: Readonly<{
+    policyVersion: "font-matching-page-relative-role-qa-v2";
+    status:
+      | "applied"
+      | "unchanged"
+      | "dual_branch_unavailable"
+      | "reverted_apply_rate_guard";
+    originalRole: FontMatchingSemanticRole;
+    projectedRole: FontMatchingSemanticRole;
+    routeFamily: "body" | "variant";
+    /** Code-owned OCR bbox direction; absent evidence is represented as null. */
+    sourceGeometryDirection: FontMatchingOcrGeometryDirectionV2 | null;
+    clusterId: string | null;
+    /** Stable body anchor derived from the sealed dual-head scores for this morphology cluster. */
+    clusterBodyAnchorFontId: string | null;
+    /** Exact pre-reroute page state; unchanged rows restore this downstream. */
+    baselinePageConsistencyState: FontMatchingPageRelativeBaselineConsistencyState | null;
+    preferredPeerFontId: string | null;
+    peerBlockId: string | null;
+    reasonCodes: readonly string[];
+    confidencePolicy: "preserve_original_pixel_primary_confidence";
+    applyRateGuard: "selection_calibration_non_decreasing";
+  }>;
   selectionCalibration: FontMatchingSelectionCalibrationAudit;
   /** Versioned pixel-only glyph geometry used by page-policy audit/vetoes. */
   glyphMorphology?: FontMatchingGlyphMorphologyV1;
@@ -59,6 +107,10 @@ export type VerifiedAutomaticFontPixelInferenceV2 = Readonly<{
 export type FontMatchingPageInferenceBlock = Readonly<{
   blockId: string;
   item: OverlayItem;
+  /** Trusted sibling commitment produced before the worker transport. */
+  sourceCandidateMembership?: FontMatchingOcrCandidateMembershipV2;
+  /** Derived before inference from immutable OCR candidate rectangles only. */
+  sourceGeometryDirection?: FontMatchingOcrGeometryDirectionV2;
 }>;
 
 export type FontMatchingPageInferenceRequest = Readonly<{
@@ -67,6 +119,12 @@ export type FontMatchingPageInferenceRequest = Readonly<{
   candidates: readonly AutomaticFontCandidate[];
   targetLanguage?: string;
   boundary: FontMatchingInferenceInputBoundary;
+  /**
+   * QA runner opt-in only. Default/omitted is false.
+   * TODO(font-matching-qa-capability): move this off the general request and
+   * gate it with a capability injected when the dedicated QA port is created.
+   */
+  qaPageRelativeRoleReroute?: boolean;
   signal?: AbortSignal;
 }>;
 

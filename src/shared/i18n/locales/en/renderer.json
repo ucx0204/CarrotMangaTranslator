@@ -377,8 +377,8 @@
     },
     "export": {
       "noPage": "No page is selected for export.",
-      "saveFailed": "Could not save changes before PNG export.",
-      "openFolderFailed": "PNG export completed, but the folder could not be opened: {{path}}",
+      "saveFailed": "Could not save changes before exporting the results.",
+      "openFolderFailed": "The results were exported, but the folder could not be opened: {{path}}",
       "success": "Exported final images as PNG: {{count}} pages",
       "success_one": "Exported the final image as PNG: {{count}} page",
       "success_other": "Exported final images as PNG: {{count}} pages",

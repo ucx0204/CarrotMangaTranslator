@@ -63,7 +63,7 @@ export function failExportJob(
   setJobState: Dispatch<SetStateAction<JobState>>,
   pushStatus: (line: string) => void,
   message: string,
-  progressText = "PNG 출력 실패",
+  progressText = "결과물 출력 실패",
 ): void {
   setJobState({
     id: "failed-export",

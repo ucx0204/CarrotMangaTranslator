@@ -419,11 +419,14 @@ describe("unified right rail", () => {
       ).disabled,
     ).toBe(false);
     expect(
-      (screen.getByRole("button", { name: "PNG 출력" }) as HTMLButtonElement)
-        .disabled,
+      (
+        screen.getByRole("button", {
+          name: "결과물 출력",
+        }) as HTMLButtonElement
+      ).disabled,
     ).toBe(false);
 
-    fireEvent.click(screen.getByRole("button", { name: "PNG 출력" }));
+    fireEvent.click(screen.getByRole("button", { name: "결과물 출력" }));
     expect(props.onOpenExport).toHaveBeenCalledOnce();
     expect(
       screen.queryByRole("menuitem", { name: "지울 페이지 선택" }),
@@ -469,7 +472,7 @@ describe("unified right rail", () => {
     ).toEqual([
       "현재 페이지 지우기",
       "현재 페이지 말풍선 자동 감지",
-      "PNG 출력",
+      "결과물 출력",
     ]);
 
     view.rerender(<AppRightRail {...props} canRunBubbleLayout={false} />);

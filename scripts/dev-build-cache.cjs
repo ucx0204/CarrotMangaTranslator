@@ -162,12 +162,22 @@ function createElectronCompileCacheStep(root) {
   const sourceRoot = join(root, "src");
   const mainSource = join(sourceRoot, "main");
   const sharedSource = join(sourceRoot, "shared");
+  const fontMatchingRuntimeSource = join(
+    mainSource,
+    "runtime",
+    FONT_MATCHING_BUNDLE_DIRECTORY,
+  );
   const preloadSource = join(sourceRoot, "preload");
   const pageExportSource = join(sourceRoot, "renderer", "src");
   const cacheFile = join(root, ".tmp", "dev-build-cache", "electron.json");
 
   const getTscInputs = () => [
-    ...listTreeFiles(mainSource, isTscInputFile),
+    ...listTreeFiles(
+      mainSource,
+      (sourcePath) =>
+        isTscInputFile(sourcePath) &&
+        !isSameOrDescendant(fontMatchingRuntimeSource, sourcePath),
+    ),
     ...listTreeFiles(sharedSource, isTscInputFile),
   ];
   const getBundledInputs = () => [
@@ -443,6 +453,15 @@ function toRelativePath(root, filePath) {
 
 function platformFingerprintSalt() {
   return `${process.platform}/${process.arch}/node-${process.versions.node}`;
+}
+
+/** @param {string} parent @param {string} candidate */
+function isSameOrDescendant(parent, candidate) {
+  const relativePath = relative(resolve(parent), resolve(candidate));
+  return (
+    relativePath === "" ||
+    (!relativePath.startsWith("..") && !isAbsolute(relativePath))
+  );
 }
 
 /** @param {string} left @param {string} right */

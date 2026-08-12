@@ -126,6 +126,7 @@ describe("axis-v4 group-only review transport", () => {
       semanticGroupReviewRequestCount: 1,
       semanticGroupReviewSingletonSkipCount: 0,
       fixedBlockCandidateIds: [[1, 2, 3, 4]],
+      fixedBlockDirectionVoterCandidateIds: [[1, 2, 3, 4]],
     });
   });
 
@@ -160,6 +161,10 @@ describe("axis-v4 group-only review transport", () => {
         [1, 2],
         [3, 4],
       ],
+      fixedBlockDirectionVoterCandidateIds: [
+        [1, 2],
+        [3, 4],
+      ],
     });
   });
 
@@ -184,6 +189,7 @@ describe("axis-v4 group-only review transport", () => {
       semanticGroupReviewStatus: "upstream-fallback",
       semanticGroupReviewFallbackCount: 1,
       fixedBlockCandidateIds: [[1, 2], [3], [4]],
+      fixedBlockDirectionVoterCandidateIds: [[1, 2], [3], [4]],
     });
   });
 
@@ -228,6 +234,7 @@ describe("axis-v4 group-only review transport", () => {
       semanticGroupReviewFallbackCount: 0,
       semanticGroupReviewCacheHit: false,
       fixedBlockCandidateIds: [[2, 1]],
+      fixedBlockDirectionVoterCandidateIds: [[2, 1]],
     });
     expect(result.requestBody).not.toHaveProperty("semanticSplitAuditStatus");
     expect(result.requestBody).not.toHaveProperty("semanticMergeAuditStatus");
@@ -452,6 +459,7 @@ describe("axis-v4 group-only review transport", () => {
       semanticGroupReviewStatus: "upstream-fallback",
       semanticGroupReviewFallbackCount: 1,
       fixedBlockCandidateIds: [[1], [2]],
+      fixedBlockDirectionVoterCandidateIds: [[1], [2]],
     });
     expect(result.rawResponse).toMatchObject({
       groupingReview: {

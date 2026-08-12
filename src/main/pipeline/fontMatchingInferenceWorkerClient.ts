@@ -366,6 +366,7 @@ class FontMatchingInferenceWorkerClient implements FontMatchingPageInferencePort
           blocks: request.blocks,
           candidates: request.candidates,
           boundary: request.boundary,
+          qaPageRelativeRoleReroute: request.qaPageRelativeRoleReroute === true,
           raster,
         },
         [transferBuffer],

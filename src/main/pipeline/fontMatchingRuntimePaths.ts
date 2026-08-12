@@ -23,10 +23,22 @@ import type { AppPaths } from "../appPaths";
  * source artifact directory suffix in `scripts/prepare-runtime.cjs` so a future
  * bundle revision coexists without invalidating this cache.
  */
-export const FONT_MATCHING_RUNTIME_BUNDLE_VERSION = "active21-r5-e1-release-v1";
+export const FONT_MATCHING_RUNTIME_BUNDLE_VERSION =
+  "active21-v8-r3h-manual-v2-release-v1";
 
 export const FONT_MATCHING_RUNTIME_MARKER_FILE =
   ".font-matching-runtime-artifact-owned.json";
+
+/** Exact inventory required before a staged directory may bypass cache prep. */
+export const FONT_MATCHING_RUNTIME_BUNDLE_FILES = [
+  FONT_MATCHING_RUNTIME_MARKER_FILE,
+  "runtime-contract.json",
+  "auto-match-active-catalog.json",
+  "selection-calibration.json",
+  "ranker.onnx",
+  "prototype-features.f32",
+  "encoder.onnx",
+] as const;
 
 /**
  * Resolve the directory the font matching runtime bundle lives in, WITHOUT
@@ -40,7 +52,11 @@ export function resolveFontMatchingArtifactDirSync(
   paths: Pick<AppPaths, "dataRoot" | "runtimeDir">,
 ): string {
   const bundledDir = join(paths.runtimeDir, "font-matching");
-  if (existsSync(join(bundledDir, FONT_MATCHING_RUNTIME_MARKER_FILE))) {
+  if (
+    FONT_MATCHING_RUNTIME_BUNDLE_FILES.every((fileName) =>
+      existsSync(join(bundledDir, fileName)),
+    )
+  ) {
     return bundledDir;
   }
   return join(

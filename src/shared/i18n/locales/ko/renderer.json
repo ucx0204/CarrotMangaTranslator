@@ -380,8 +380,8 @@
     },
     "export": {
       "noPage": "출력할 페이지가 선택되어 있지 않습니다.",
-      "saveFailed": "PNG 출력 전에 변경사항을 저장하지 못했습니다.",
-      "openFolderFailed": "PNG 출력은 완료됐지만 폴더를 열지 못했습니다: {{path}}",
+      "saveFailed": "결과물 출력 전에 변경사항을 저장하지 못했습니다.",
+      "openFolderFailed": "결과물 출력은 완료됐지만 폴더를 열지 못했습니다: {{path}}",
       "success": "최종 이미지를 PNG로 출력했습니다: {{count}}페이지",
       "success_one": "최종 이미지를 PNG로 출력했습니다: {{count}}페이지",
       "success_other": "최종 이미지를 PNG로 출력했습니다: {{count}}페이지",

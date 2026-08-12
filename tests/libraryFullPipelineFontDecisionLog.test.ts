@@ -25,7 +25,7 @@ describe("library font QA effective outline log", () => {
             fontFamily: "dohyeon",
             textColor: "#f7f7f2",
             outlineColor: "#f7f7f2",
-            outlineWidthScale: 0,
+            outlineWidthScale: 1,
             automaticFontMatch: {
               selectedFontId: "dohyeon",
               role: "dialogue",
@@ -42,11 +42,42 @@ describe("library font QA effective outline log", () => {
     expect(decision).toMatchObject({
       applied: true,
       effectiveFontFamily: "dohyeon",
-      effectiveOutlineWidthScale: 0,
+      effectiveOutlineWidthScale: 1,
       effectiveTextColor: "#f7f7f2",
       effectiveOutlineColor: "#111111",
     });
     expect(decision?.effectiveOutlineContrastRatio).toBeGreaterThanOrEqual(3);
+  });
+
+  it("rejects an automatic block whose required outline was removed", () => {
+    expect(() =>
+      buildFontDecisionLog(
+        {
+          blocks: [
+            {
+              id: "automatic-outline-free",
+              bbox: { x: 0, y: 0, w: 100, h: 50 },
+              sourceText: "白",
+              translatedText: "흰색",
+              fontFamily: "dohyeon",
+              textColor: "#f7f7f2",
+              outlineColor: "#111111",
+              outlineWidthScale: 0,
+              automaticFontMatch: {
+                selectedFontId: "dohyeon",
+                role: "dialogue",
+                confidence: 0.9,
+                source: "local_visual",
+              },
+            },
+          ],
+        },
+        { pixelInference: [] },
+        outlinePolicy,
+      ),
+    ).toThrow(
+      "Applied automatic font removed the required text outline: automatic-outline-free",
+    );
   });
 
   it("does not reject an intentionally outline-free manual block", () => {

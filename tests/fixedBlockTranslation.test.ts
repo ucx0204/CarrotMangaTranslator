@@ -79,6 +79,7 @@ type FixedBlock = {
   blockId: string;
   representativeId: number;
   candidateIds: number[];
+  directionVoterCandidateIds: number[];
   jp: string;
   bbox: { x1: number; y1: number; x2: number; y2: number };
   direction: "horizontal" | "vertical";
@@ -213,6 +214,7 @@ describe("fixed-block translation contract", () => {
     expect(plan.blocks).toHaveLength(1);
     expect(plan.blocks[0]).toMatchObject({
       candidateIds: [1, 2],
+      directionVoterCandidateIds: [1],
       jp: "権限がある",
       bbox: { x1: 100, y1: 100, x2: 190, y2: 320 },
     });

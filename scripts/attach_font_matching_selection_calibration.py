@@ -36,6 +36,18 @@ SELECTION_CALIBRATION_SCHEMA_VERSION_V2 = "font-matching-selection-calibration-v
 SELECTION_CALIBRATION_RECORD_TYPE = "font_matching_selection_calibration"
 RELEASE_ACCEPTANCE_SCHEMA_VERSION = "font-matching-runtime-release-acceptance-v1"
 RELEASE_ACCEPTANCE_RECORD_TYPE = "font_matching_runtime_release_acceptance"
+EVALUATION_ONLY_SCHEMA_VERSION = "font-matching-evaluation-only-runtime-v1"
+EVALUATION_ONLY_CONTRACT_KEY = "evaluation_only_runtime"
+V8_PACKAGING_CONTRACT_KEY = "v8_runtime_packaging"
+EVALUATION_ONLY_PACKAGING_KEYS = frozenset(
+    {
+        "evaluation_only",
+        "loader_opt_in_required",
+        "non_promotable",
+        "qa_only",
+        "release_approved",
+    }
+)
 
 MARKER_FILE = ".font-matching-runtime-artifact-owned.json"
 CONTRACT_FILE = "runtime-contract.json"
@@ -886,6 +898,7 @@ def _validate_training_and_leakage(
     if "hybrid_score_route_source" in audit and audit.get(
         "hybrid_score_route_source"
     ) not in {
+        "predicted_pixel_family_with_single_day_eligibility",
         "sealed_gold_role_family",
         "pixel_shared_scores_role_downstream_only",
     }:
@@ -1392,9 +1405,123 @@ def _validate_base_bundle(
         active_catalog=active_catalog,
         expected_asset_files=BASE_ASSET_FILES,
     )
+    if _evaluation_only_contract_mode(contract):
+        raise SelectionCalibrationAttachError(
+            "evaluation-only annotations are forbidden on a source base bundle"
+        )
     if marker.get("schema_version") != contract.get("schema_version"):
         raise SelectionCalibrationAttachError("runtime marker/contract schema mismatch")
     return {"marker": marker, "active_catalog": active_catalog, "contract": contract}
+
+
+def _evaluation_only_contract_mode(contract: Mapping[str, Any]) -> bool:
+    """Validate and recognize the permanently non-promotable QA boundary."""
+
+    raw_evaluation = contract.get(EVALUATION_ONLY_CONTRACT_KEY)
+    raw_packaging = contract.get(V8_PACKAGING_CONTRACT_KEY)
+    packaging_flags_present = isinstance(raw_packaging, Mapping) and any(
+        key in raw_packaging for key in EVALUATION_ONLY_PACKAGING_KEYS
+    )
+    if raw_evaluation is None and not packaging_flags_present:
+        return False
+    evaluation = _require_mapping(
+        raw_evaluation, f"runtime contract.{EVALUATION_ONLY_CONTRACT_KEY}"
+    )
+    packaging = _require_mapping(
+        raw_packaging, f"runtime contract.{V8_PACKAGING_CONTRACT_KEY}"
+    )
+    expected_evaluation = {
+        "evaluation_only": True,
+        "loader_opt_in_required": "allowQaOnlyRuntime",
+        "non_promotable": True,
+        "quality_gate_bypassed": True,
+        "release_acceptance_forbidden": True,
+        "release_approved": False,
+        "schema_version": EVALUATION_ONLY_SCHEMA_VERSION,
+    }
+    expected_packaging = {
+        "evaluation_only": True,
+        "loader_opt_in_required": "allowQaOnlyRuntime",
+        "non_promotable": True,
+        "qa_only": True,
+        "release_approved": False,
+    }
+    if (
+        dict(evaluation) != expected_evaluation
+        or any(packaging.get(key) != value for key, value in expected_packaging.items())
+        or packaging.get("quality_gate_bypassed") is not True
+        or contract.get("release_acceptance") is not None
+    ):
+        raise SelectionCalibrationAttachError(
+            "evaluation-only runtime boundary drifted"
+        )
+    return True
+
+
+def _annotate_evaluation_only_contract(
+    contract: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Add the exact opt-in-only/non-promotable flags before resealing."""
+
+    if _evaluation_only_contract_mode(contract):
+        raise SelectionCalibrationAttachError(
+            "runtime contract is already evaluation-only"
+        )
+    updated = copy.deepcopy(dict(contract))
+    packaging = dict(
+        _require_mapping(
+            updated.get(V8_PACKAGING_CONTRACT_KEY),
+            f"runtime contract.{V8_PACKAGING_CONTRACT_KEY}",
+        )
+    )
+    if packaging.get("quality_gate_bypassed") is not False:
+        raise SelectionCalibrationAttachError(
+            "source runtime packaging quality gate boundary drifted"
+        )
+    packaging.update(
+        {
+            "evaluation_only": True,
+            "loader_opt_in_required": "allowQaOnlyRuntime",
+            "non_promotable": True,
+            "qa_only": True,
+            "quality_gate_bypassed": True,
+            "release_approved": False,
+        }
+    )
+    updated[V8_PACKAGING_CONTRACT_KEY] = packaging
+    updated[EVALUATION_ONLY_CONTRACT_KEY] = {
+        "evaluation_only": True,
+        "loader_opt_in_required": "allowQaOnlyRuntime",
+        "non_promotable": True,
+        "quality_gate_bypassed": True,
+        "release_acceptance_forbidden": True,
+        "release_approved": False,
+        "schema_version": EVALUATION_ONLY_SCHEMA_VERSION,
+    }
+    _evaluation_only_contract_mode(updated)
+    return updated
+
+
+def _strip_evaluation_only_contract_annotations(
+    contract: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Recover the strict source contract used by calibration hash binding."""
+
+    updated = copy.deepcopy(dict(contract))
+    if not _evaluation_only_contract_mode(updated):
+        return updated
+    updated.pop(EVALUATION_ONLY_CONTRACT_KEY, None)
+    packaging = dict(
+        _require_mapping(
+            updated.get(V8_PACKAGING_CONTRACT_KEY),
+            f"runtime contract.{V8_PACKAGING_CONTRACT_KEY}",
+        )
+    )
+    for key in EVALUATION_ONLY_PACKAGING_KEYS:
+        packaging.pop(key, None)
+    packaging["quality_gate_bypassed"] = False
+    updated[V8_PACKAGING_CONTRACT_KEY] = packaging
+    return updated
 
 
 def _reconstructed_source_contract_sha256(
@@ -1407,7 +1534,7 @@ def _reconstructed_source_contract_sha256(
     exact verified source contract bytes without trusting a redundant hash field.
     """
 
-    source_core = copy.deepcopy(dict(attached_contract))
+    source_core = _strip_evaluation_only_contract_annotations(attached_contract)
     source_core.pop("record_sha256", None)
     # A QA-only bundle may later be promoted by the sealed library-QA release
     # tool.  Its release evidence is not part of the pre-calibration source
@@ -1480,7 +1607,16 @@ def _validate_attached_bundle(
     )
     if marker.get("schema_version") != contract.get("schema_version"):
         raise SelectionCalibrationAttachError("runtime marker/contract schema mismatch")
+    evaluation_only = _evaluation_only_contract_mode(contract)
+    if evaluation_only and not qa_only:
+        raise SelectionCalibrationAttachError(
+            "evaluation-only runtime requires an exact QA-only marker"
+        )
     release_accepted = _has_external_release_acceptance(contract)
+    if evaluation_only and release_accepted:
+        raise SelectionCalibrationAttachError(
+            "evaluation-only runtime cannot carry release acceptance"
+        )
     validate_selection_calibration(
         root / SELECTION_CALIBRATION_FILE,
         contract=contract,
@@ -1498,6 +1634,9 @@ def _validate_attached_bundle(
         "qa_only": qa_only,
         "release_approved": not qa_only,
         "external_release_acceptance": release_accepted,
+        "evaluation_only": evaluation_only,
+        "non_promotable": evaluation_only,
+        "quality_gate_bypassed": evaluation_only,
         "status": "ready",
     }
 

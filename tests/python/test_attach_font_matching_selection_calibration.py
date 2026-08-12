@@ -384,6 +384,26 @@ class AttachSelectionCalibrationTests(unittest.TestCase):
         attached = ATTACH.validate_attached_runtime_bundle(output_dir=fixture.output)
         self.assertEqual(attached["candidate_count"], 21)
 
+    def test_attaches_active21_calibration_with_predicted_pixel_route_audit(
+        self,
+    ) -> None:
+        fixture = Fixture(Path(self.temp.name) / "active21-predicted", candidate_count=21)
+        fixture.mutate_calibration(
+            lambda value: value["leakage_audit"].update(
+                {
+                    "hybrid_score_route_source": (
+                        "predicted_pixel_family_with_single_day_eligibility"
+                    )
+                }
+            )
+        )
+
+        result = fixture.attach()
+
+        self.assertEqual(result["status"], "ready")
+        attached = ATTACH.validate_attached_runtime_bundle(output_dir=fixture.output)
+        self.assertEqual(attached["candidate_count"], 21)
+
     def test_preserves_v2_hybrid_schema_owner_and_routing(self) -> None:
         contract_path = self.fixture.runtime / ATTACH.CONTRACT_FILE
         contract = json.loads(contract_path.read_text(encoding="utf-8"))

@@ -33,7 +33,7 @@
     "registerFont": "註冊字型檔案（TTF/OTF）",
     "saveReview": "儲存校對表",
     "saveText": "儲存文字",
-    "exportPngFolder": "選擇 PNG 匯出資料夾",
+    "exportOutputFolder": "選擇結果匯出資料夾",
     "filters": {
       "images": "影像檔案",
       "font": "字型檔案",

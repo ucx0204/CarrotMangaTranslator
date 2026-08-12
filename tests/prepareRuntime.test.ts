@@ -69,6 +69,38 @@ const VALID_HYBRID_BATCHING = {
   parity_qualified: true,
 };
 
+function sealedLegacyReleaseAcceptance(): Record<string, unknown> {
+  const acceptance: Record<string, unknown> = {
+    record_type: "font_matching_runtime_release_acceptance",
+    schema_version: "font-matching-runtime-release-acceptance-v1",
+    status: "accepted",
+    external_release_quality_gate_passed: true,
+    automatic_visual_judgment: false,
+    quality_gate: {
+      structural_error_count: 0,
+      manual_page_verdicts: { accepted: 80, total: 80 },
+    },
+  };
+  acceptance.record_sha256 = createHash("sha256")
+    .update(canonicalJson(acceptance))
+    .digest("hex");
+  return acceptance;
+}
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => canonicalJson(entry)).join(",")}]`;
+  }
+  if (typeof value === "object" && value !== null) {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
 afterEach(() => {
   for (const directory of temporaryDirectories.splice(0)) {
     removeDirectoryTree(directory);
@@ -133,7 +165,8 @@ function createFontMatchingBundle(
   const bundleDir = join(
     root,
     "artifacts",
-    options.directoryName ?? "font-matching-runtime-active21-r5-e1-release-v1",
+    options.directoryName ??
+      "font-matching-runtime-active21-v8-r3h-manual-v2-release-v1",
   );
   mkdirSync(bundleDir, { recursive: true });
   const runtimeContract: Record<string, unknown> = {
@@ -143,6 +176,7 @@ function createFontMatchingBundle(
       ? {
           hybrid_score_routing: VALID_HYBRID_SCORE_ROUTING,
           runtime_batching: VALID_HYBRID_BATCHING,
+          release_acceptance: sealedLegacyReleaseAcceptance(),
         }
       : {}),
     ...options.contractOverrides,
@@ -248,7 +282,7 @@ describe("prepareRuntimeAssets", () => {
     expect(readFileSync(outputFile, "utf8")).toBe("keep-me");
   });
 
-  it("skips staging the externalized bundle when the default source is absent", () => {
+  it("keeps runtime modules when the optional full bundle source is absent", () => {
     const { root } = createRuntimeFixture({ withDefaultBundle: false });
     const outputDir = join(root, "out", "app-runtime");
 
@@ -256,12 +290,12 @@ describe("prepareRuntimeAssets", () => {
       join(
         root,
         "artifacts",
-        "font-matching-runtime-active21-r5-e1-release-v1",
+        "font-matching-runtime-active21-v8-r3h-manual-v2-release-v1",
       ),
     );
-    // The bundle is externalized out of the installer (downloaded on first
-    // use, excluded via the `!font-matching/**` extraResources filter), so a
-    // fresh CI runner without the staged source must still build successfully.
+    // Real builds already carry the small v2 trust/ranker files inside the
+    // runtime source. This minimal fixture omits them, but the missing optional
+    // full bundle must still not break a fresh CI build.
     expect(() => prepareRuntimeAssets({ root, outputDir })).not.toThrow();
     expect(readFileSync(join(outputDir, "root.cjs"), "utf8")).toBe("root");
     expect(existsSync(join(outputDir, "font-matching"))).toBe(false);
@@ -438,6 +472,23 @@ describe("prepareRuntimeAssets", () => {
         fontMatchingBundleDir: bundleDir,
       }),
     ).toThrow(/runtime batching is invalid/);
+  });
+
+  it("rejects an unaccepted production v2 runtime before staging", () => {
+    const { root } = createRuntimeFixture();
+    const bundleDir = createFontMatchingBundle(root, {
+      schemaVersion: RUNTIME_SCHEMA_V2,
+      directoryName: "font-matching-runtime-unaccepted-v2",
+      contractOverrides: { release_acceptance: undefined },
+    });
+
+    expect(() =>
+      prepareRuntimeAssets({
+        root,
+        outputDir: join(root, "out", "app-runtime"),
+        fontMatchingBundleDir: bundleDir,
+      }),
+    ).toThrow(/release acceptance is invalid/);
   });
 
   it("rejects QA-only runtime markers before packaging", () => {

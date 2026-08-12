@@ -228,6 +228,7 @@ def _runtime_identity(runtime: Path) -> dict[str, Any]:
         raise QaRuntimePromotionError("QA runtime marker flags are not exact")
     contract = _read_json(runtime / attach.CONTRACT_FILE, "QA runtime contract")
     _validate_seal(contract, "QA runtime contract")
+    _reject_evaluation_only_runtime(contract)
     catalog = _mapping(contract.get("catalog"), "QA runtime contract.catalog")
     deployment = _mapping(contract.get("deployment"), "QA runtime contract.deployment")
     if (
@@ -304,6 +305,27 @@ def _runtime_identity(runtime: Path) -> dict[str, Any]:
             runtime / attach.SELECTION_CALIBRATION_FILE
         ),
     }
+
+
+def _reject_evaluation_only_runtime(contract: Mapping[str, Any]) -> None:
+    """Evaluation-only calibration bypasses can never enter promotion."""
+
+    evaluation = contract.get("evaluation_only_runtime")
+    packaging = contract.get("v8_runtime_packaging")
+    packaging_record = packaging if isinstance(packaging, Mapping) else {}
+    non_promotable_signal = any(
+        (
+            evaluation is not None,
+            packaging_record.get("evaluation_only") is True,
+            packaging_record.get("non_promotable") is True,
+            packaging_record.get("quality_gate_bypassed") is True,
+            packaging_record.get("release_approved") is False,
+        )
+    )
+    if non_promotable_signal:
+        raise QaRuntimePromotionError(
+            "evaluation-only runtime is permanently non-promotable"
+        )
 
 
 def _cohort_manifest(

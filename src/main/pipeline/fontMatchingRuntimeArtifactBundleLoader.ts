@@ -12,10 +12,8 @@ import {
 } from "./fontMatchingRuntimeArtifactContract";
 import { parseAutoMatchActiveCatalog } from "./autoMatchActiveCatalogContract";
 import type { AutoMatchActiveCatalog } from "./autoMatchActiveCatalogTypes";
-import {
-  canonicalNestedRecordCoreFromJson,
-  canonicalRecordCoreFromJson,
-} from "./preservedJsonRecordSeal";
+import { canonicalRecordCoreFromJson } from "./preservedJsonRecordSeal";
+import { parseFontMatchingReleaseAcceptance } from "./fontMatchingRuntimeReleaseAcceptance";
 
 const MARKER_FILE = ".font-matching-runtime-artifact-owned.json";
 const CONTRACT_FILE = "runtime-contract.json";
@@ -62,6 +60,7 @@ export type VerifiedRuntimeArtifactBundle = Readonly<{
   schemaVersion: FontMatchingRuntimeArtifactSchema;
   qaOnly: boolean;
   releaseAccepted: boolean;
+  failedCalibrationQualityAccepted: boolean;
 }>;
 
 export class BundleVerificationError extends Error {
@@ -95,7 +94,13 @@ export async function readVerifiedRuntimeArtifactBundle(
   if (contract.schema_version !== marker.schemaVersion) {
     throw new BundleVerificationError("artifact_verification_failed");
   }
-  const releaseAccepted = parseReleaseAcceptance(contract, contractJson);
+  const releaseAcceptance = parseFontMatchingReleaseAcceptance(
+    contract,
+    contractJson,
+  );
+  if (!releaseAcceptance) {
+    throw new BundleVerificationError("artifact_verification_failed");
+  }
   const activeCatalog = parseAutoMatchActiveCatalog(
     await readJsonRecord(join(root, FONT_MATCHING_ACTIVE_CATALOG_FILE)),
   );
@@ -110,48 +115,10 @@ export async function readVerifiedRuntimeArtifactBundle(
     activeCatalog,
     schemaVersion: marker.schemaVersion,
     qaOnly: marker.qaOnly,
-    releaseAccepted,
+    releaseAccepted: releaseAcceptance.accepted,
+    failedCalibrationQualityAccepted:
+      releaseAcceptance.failedCalibrationQualityAccepted,
   };
-}
-
-function parseReleaseAcceptance(
-  contract: Record<string, unknown>,
-  contractJson: string,
-): boolean {
-  const raw = contract.release_acceptance;
-  if (raw === undefined) return false;
-  if (!isRecord(raw)) {
-    throw new BundleVerificationError("artifact_verification_failed");
-  }
-  const acceptance = raw;
-  const qualityGate = recordAt(acceptance, "quality_gate");
-  if (!qualityGate) {
-    throw new BundleVerificationError("artifact_verification_failed");
-  }
-  const manualVerdicts = recordAt(qualityGate, "manual_page_verdicts");
-  const canonicalCore = canonicalNestedRecordCoreFromJson(
-    contractJson,
-    "release_acceptance",
-  );
-  if (!manualVerdicts || !canonicalCore) {
-    throw new BundleVerificationError("artifact_verification_failed");
-  }
-  const accepted = [
-    acceptance.schema_version === "font-matching-runtime-release-acceptance-v1",
-    acceptance.record_type === "font_matching_runtime_release_acceptance",
-    isSha256(acceptance.record_sha256),
-    acceptance.record_sha256 === sha256(canonicalCore),
-    acceptance.status === "accepted",
-    acceptance.external_release_quality_gate_passed === true,
-    acceptance.automatic_visual_judgment === false,
-    qualityGate.structural_error_count === 0,
-    manualVerdicts.accepted === 80,
-    manualVerdicts.total === 80,
-  ].every(Boolean);
-  if (!accepted) {
-    throw new BundleVerificationError("artifact_verification_failed");
-  }
-  return true;
 }
 
 async function assertRootDirectory(root: string): Promise<void> {

@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- page assembly and its fail-closed inference provenance remain auditable together */
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { TranslationOptions } from "../appSettings";
@@ -41,6 +42,7 @@ import type { TranslationRuntimePort } from "./translationRuntimePort";
 import { parsePageResponse } from "./pageResponseParser";
 import { buildTranslatedPageResult } from "./translatedPageResult";
 import { runAutomaticFontMatchingV2PageStage } from "./automaticFontMatchingV2PageStage";
+import { attachFontMatchingFixedBlockCandidateMembership } from "./fontMatchingOcrGeometryDirection";
 import type { FontMatchingPageInferencePort } from "./fontMatchingPagePixelInferenceTypes";
 import type { AutomaticFontPageCoordinatorV2 } from "./automaticFontMatchingV2PageCoordinator";
 import { resolveKeepBlocksAutomaticFont } from "./keepBlocksAutomaticFont";
@@ -246,10 +248,14 @@ export async function buildPageResult({
   const soundFiltered = filterRejectedOrUncertainSoundItems(validated.items, {
     dropUncertainSound: !pageOptions.regionCropMode,
   });
+  const fontInferenceItems = attachFontMatchingFixedBlockCandidateMembership(
+    soundFiltered.items,
+    result.requestBody,
+  );
   const keepBlocksInferenceBlocks = pageOptions.keepBlocksMode
     ? buildKeepBlocksFontInferenceBlocks({
         page,
-        items: soundFiltered.items,
+        items: fontInferenceItems,
         previousBlocks: pageOptions.previousBlocksForPrompt ?? [],
       })
     : undefined;
@@ -257,7 +263,7 @@ export async function buildPageResult({
     jobId,
     page,
     pageOptions,
-    items: soundFiltered.items,
+    items: fontInferenceItems,
     inferenceBlocks: keepBlocksInferenceBlocks,
     port: fontMatchingPageInference,
   });

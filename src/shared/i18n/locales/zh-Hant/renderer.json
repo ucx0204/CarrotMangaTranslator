@@ -371,8 +371,8 @@
     },
     "export": {
       "noPage": "尚未選取要匯出的頁面。",
-      "saveFailed": "匯出 PNG 前無法儲存修改。",
-      "openFolderFailed": "PNG 匯出完成，但無法開啟資料夾：{{path}}",
+      "saveFailed": "匯出結果前無法儲存修改。",
+      "openFolderFailed": "結果已匯出，但無法開啟資料夾：{{path}}",
       "success": "已將最終圖像匯出為 PNG：{{count}}頁",
       "success_one": "已將最終圖像匯出為 PNG：{{count}}頁",
       "success_other": "已將最終圖像匯出為 PNG：{{count}}頁",

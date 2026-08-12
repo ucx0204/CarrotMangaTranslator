@@ -33,7 +33,7 @@
     "registerFont": "フォントファイルを登録（TTF/OTF）",
     "saveReview": "校正表を保存",
     "saveText": "テキストを保存",
-    "exportPngFolder": "PNG出力フォルダーを選択",
+    "exportOutputFolder": "結果の出力フォルダーを選択",
     "filters": {
       "images": "画像ファイル",
       "font": "フォントファイル",

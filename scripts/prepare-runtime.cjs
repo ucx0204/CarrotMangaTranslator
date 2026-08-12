@@ -10,11 +10,14 @@ const {
   unlinkSync,
 } = require("node:fs");
 const { isAbsolute, join, relative, resolve } = require("node:path");
+const {
+  canonicalNestedRecordCoreFromJson,
+} = require("./preserved-json-record-seal.cjs");
 
 const FONT_MATCHING_BUNDLE_DIRECTORY = "font-matching";
 const DEFAULT_FONT_MATCHING_BUNDLE_RELATIVE = join(
   "artifacts",
-  "font-matching-runtime-active21-r5-e1-release-v1",
+  "font-matching-runtime-active21-v8-r3h-manual-v2-release-v1",
 );
 const FONT_MATCHING_BUNDLE_FILES = [
   ".font-matching-runtime-artifact-owned.json",
@@ -34,6 +37,15 @@ const FONT_MATCHING_RUNTIME_OWNER_V1 =
   "carrot-manga-translator/font-matching-runtime-artifact";
 const FONT_MATCHING_RUNTIME_OWNER_V2 =
   "carrot-manga-translator/font-matching-runtime-artifact-v2";
+const MANUAL_V2_ACCEPTANCE_SCHEMA =
+  "font-matching-runtime-release-acceptance-v2";
+const MANUAL_V2_ACCEPTANCE_RECORD_SHA256 =
+  "c2418e72d42d85be87a67973e7bd4af8b3df46c5b16a2d717280496bfec0a7fd";
+const MANUAL_V2_ACCEPTANCE_AUTHORITY =
+  "explicit_user_approved_work_disjoint_fresh_gemma_manual_visual_review";
+const MANUAL_V2_MODEL_VERSION = "manga-font-v8-active21-dfa42ae17f-ffb3285338";
+const MANUAL_V2_RANKER_SHA256 =
+  "dfa42ae17f340768cae30f2219973eae1ff62a4c3c1544496502621e6e710c78";
 const HYBRID_BODY_ROLES = ["dialogue", "narration", "thought"];
 const HYBRID_VARIANT_ROLES = [
   "whisper",
@@ -100,11 +112,10 @@ function prepareRuntimeAssets(options = {}) {
       bundleDir: fontMatchingBundleDir,
       // An explicitly selected bundle must exist (the operator asked for it).
       // The default bundle dir is only present on machines that have staged the
-      // trained runtime locally; on a fresh CI runner it is absent. The bundle
-      // is externalized out of the installer (downloaded on first use via
-      // src/main/pipeline/fontMatchingRuntimeAssets.ts and excluded from the
-      // installer by the `!font-matching/**` extraResources filter), so a
-      // missing default source is not a build error — staging is skipped.
+      // trained runtime locally; on a fresh CI runner it is absent. The four
+      // small v2 trust/ranker files are still copied from src/main/runtime,
+      // while the unchanged large assets are migrated or downloaded on first
+      // use. A missing full source bundle is therefore not a build error.
       required: Boolean(options.fontMatchingBundleDir),
     });
   }
@@ -132,14 +143,16 @@ function stageFontMatchingRuntimeBundle(options) {
       throw new Error(`Font matching runtime bundle is missing: ${bundleDir}`);
     }
     console.log(
-      `[prepare-runtime] Font matching runtime bundle source is absent at ${bundleDir}; skipping staging (bundle is externalized, downloaded on first use).`,
+      `[prepare-runtime] Full font matching runtime source is absent at ${bundleDir}; keeping bundled v2 trust files and resolving shared large assets on first use.`,
     );
     return;
   }
   assertSafeBundleSource(options.root, options.outputDir, bundleDir);
   validateFontMatchingRuntimeBundle(bundleDir);
   const targetDir = join(options.outputDir, FONT_MATCHING_BUNDLE_DIRECTORY);
-  mkdirSync(targetDir, { recursive: false });
+  // The source runtime tree carries the small v2 trust/ranker files so a
+  // packaged app can assemble the cache without a second release endpoint.
+  mkdirSync(targetDir, { recursive: true });
   for (const fileName of FONT_MATCHING_BUNDLE_FILES) {
     copyFileSync(join(bundleDir, fileName), join(targetDir, fileName));
   }
@@ -260,10 +273,9 @@ function fontMatchingRuntimeOwner(schema) {
  * @param {unknown} markerSchema
  */
 function validateFontMatchingRuntimeContract(bundleDir, markerSchema) {
-  const contract = readJsonObject(
-    join(bundleDir, FONT_MATCHING_CONTRACT_FILE),
-    "runtime contract",
-  );
+  const contractPath = join(bundleDir, FONT_MATCHING_CONTRACT_FILE);
+  const contractJson = readFileSync(contractPath, "utf8");
+  const contract = readJsonObject(contractPath, "runtime contract");
   if (
     contract.schema_version !== markerSchema ||
     contract.record_type !== FONT_MATCHING_RUNTIME_RECORD
@@ -294,6 +306,98 @@ function validateFontMatchingRuntimeContract(bundleDir, markerSchema) {
   if (!validHybridRuntimeBatching(contract.runtime_batching)) {
     throw new Error("Font matching v2 runtime batching is invalid.");
   }
+  if (!validReleaseAcceptance(contract, contractJson)) {
+    throw new Error(
+      "Font matching v2 production runtime release acceptance is invalid.",
+    );
+  }
+}
+
+/** @param {Record<string, unknown>} contract @param {string} contractJson */
+function validReleaseAcceptance(contract, contractJson) {
+  const acceptance = contract.release_acceptance;
+  if (
+    !isPlainObject(acceptance) ||
+    !validReleaseAcceptanceSeal(acceptance, contractJson)
+  ) {
+    return false;
+  }
+  if (!validCommonReleaseAcceptance(acceptance)) return false;
+  if (
+    acceptance.schema_version === "font-matching-runtime-release-acceptance-v1"
+  ) {
+    if (!isPlainObject(acceptance.quality_gate)) return false;
+    return validLegacyReleaseAcceptance(acceptance.quality_gate);
+  }
+  return validManualV2ReleaseAcceptance(contract, acceptance);
+}
+
+/** @param {Record<string, unknown>} acceptance */
+function validCommonReleaseAcceptance(acceptance) {
+  return Boolean(
+    acceptance.record_type === "font_matching_runtime_release_acceptance" &&
+    acceptance.status === "accepted" &&
+    acceptance.external_release_quality_gate_passed === true &&
+    acceptance.automatic_visual_judgment === false &&
+    isPlainObject(acceptance.quality_gate),
+  );
+}
+
+/** @param {Record<string, unknown>} qualityGate */
+function validLegacyReleaseAcceptance(qualityGate) {
+  const verdicts = qualityGate.manual_page_verdicts;
+  return Boolean(
+    qualityGate.structural_error_count === 0 &&
+    isPlainObject(verdicts) &&
+    verdicts.accepted === 80 &&
+    verdicts.total === 80,
+  );
+}
+
+/**
+ * @param {Record<string, unknown>} contract
+ * @param {Record<string, unknown>} acceptance
+ */
+function validManualV2ReleaseAcceptance(contract, acceptance) {
+  const qualityGate = acceptance.quality_gate;
+  if (!isPlainObject(qualityGate)) return false;
+  return Boolean(
+    acceptance.schema_version === MANUAL_V2_ACCEPTANCE_SCHEMA &&
+    acceptance.record_sha256 === MANUAL_V2_ACCEPTANCE_RECORD_SHA256 &&
+    acceptance.acceptance_authority === MANUAL_V2_ACCEPTANCE_AUTHORITY &&
+    acceptance.explicit_user_acceptance === true &&
+    contract.model_version === MANUAL_V2_MODEL_VERSION &&
+    isPlainObject(contract.head) &&
+    contract.head.onnx_sha256 === MANUAL_V2_RANKER_SHA256 &&
+    isPlainObject(acceptance.evidence) &&
+    acceptance.evidence.model_version === MANUAL_V2_MODEL_VERSION &&
+    acceptance.evidence.ranker_sha256 === MANUAL_V2_RANKER_SHA256 &&
+    qualityGate.calibration_release_quality_gate_passed === false &&
+    qualityGate.usable_pages === 25 &&
+    qualityGate.judged_content_pages === 30 &&
+    qualityGate.structural_error_count === 0 &&
+    qualityGate.outline_loss_count === 0 &&
+    qualityGate.single_day_body_role_count === 0,
+  );
+}
+
+/** @param {Record<string, unknown>} acceptance @param {string} contractJson */
+function validReleaseAcceptanceSeal(acceptance, contractJson) {
+  if (!/^[a-f0-9]{64}$/u.test(String(acceptance.record_sha256 ?? ""))) {
+    return false;
+  }
+  const canonicalCore = canonicalNestedRecordCoreFromJson(
+    contractJson,
+    "release_acceptance",
+  );
+  return Boolean(
+    canonicalCore && sha256Text(canonicalCore) === acceptance.record_sha256,
+  );
+}
+
+/** @param {string} value */
+function sha256Text(value) {
+  return createHash("sha256").update(value).digest("hex");
 }
 
 /** @param {unknown} value */

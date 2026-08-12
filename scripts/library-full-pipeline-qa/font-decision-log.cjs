@@ -56,6 +56,7 @@ function buildFontDecisionLog(page, trace, outlinePolicy) {
         confidence: automatic?.confidence || null,
         source: automatic?.source || null,
         selectionCalibration: inference?.selectionCalibration || null,
+        pageRelativeRoleQa: inference?.pageRelativeRoleQa || null,
         noneAcceptable: inference?.localEvidence?.noneAcceptable ?? null,
         localConfidence: inference?.localEvidence?.calibratedConfidence ?? null,
         top5: (inference?.localEvidence?.rankedCandidates || [])
@@ -79,10 +80,14 @@ function buildFontDecisionLog(page, trace, outlinePolicy) {
 /** @param {any} decision @param {{ MIN_AUTOMATIC_TEXT_OUTLINE_CONTRAST_RATIO: number }} outlinePolicy */
 function assertAutomaticFontOutline(decision, outlinePolicy) {
   if (!decision.applied) return;
-  // An intentionally outline-free automatic block (outlineWidthScale 0) is a
-  // valid state — auto-matching no longer forces a minimum outline width, so
-  // neither the width nor the contrast assertion applies.
-  if (decision.effectiveOutlineWidthScale <= 0) return;
+  if (
+    !Number.isFinite(decision.effectiveOutlineWidthScale) ||
+    decision.effectiveOutlineWidthScale <= 0
+  ) {
+    throw new Error(
+      `Applied automatic font removed the required text outline: ${decision.blockId}`,
+    );
+  }
   if (
     !Number.isFinite(decision.effectiveOutlineContrastRatio) ||
     decision.effectiveOutlineContrastRatio <

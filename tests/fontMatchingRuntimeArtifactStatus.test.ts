@@ -134,6 +134,43 @@ describe("font matching runtime artifact status", () => {
     expect(verified.qaOnly).toBe(true);
   });
 
+  it("never opens an evaluation-only bypass on the production status path", async () => {
+    const bundle = await writeBundle();
+    delete (bundle.contract as Record<string, unknown>).release_acceptance;
+    (bundle.contract as Record<string, unknown>).evaluation_only_runtime = {
+      schema_version: "font-matching-evaluation-only-runtime-v1",
+      evaluation_only: true,
+      non_promotable: true,
+      quality_gate_bypassed: true,
+      release_acceptance_forbidden: true,
+      release_approved: false,
+      loader_opt_in_required: "allowQaOnlyRuntime",
+    };
+    (bundle.contract as Record<string, unknown>).v8_runtime_packaging = {
+      evaluation_only: true,
+      non_promotable: true,
+      quality_gate_bypassed: true,
+      qa_only: true,
+      release_approved: false,
+      loader_opt_in_required: "allowQaOnlyRuntime",
+    };
+    await rewriteContract(bundle.root, sealRecord(bundle.contract));
+    await rewriteMarker(bundle.root, {
+      qa_only: true,
+      release_approved: false,
+    });
+
+    await expect(statusFor(bundle)).resolves.toMatchObject({
+      state: "disabled",
+      automaticMutationAllowed: false,
+      reason: "artifact_verification_failed",
+    });
+    await expect(statusFor(bundle, true)).resolves.toMatchObject({
+      state: "ready",
+      automaticMutationAllowed: true,
+    });
+  });
+
   it("rejects ambiguous QA-only marker flags even with permission", async () => {
     const bundle = await writeBundle();
     await rewriteMarker(bundle.root, {
@@ -157,6 +194,45 @@ describe("font matching runtime artifact status", () => {
 
     expect(verified.qaOnly).toBe(false);
     expect(verified.releaseAccepted).toBe(true);
+    expect(verified.failedCalibrationQualityAccepted).toBe(false);
+  });
+
+  it("recognizes only the fixed manually accepted r3h v2 envelope", async () => {
+    const bundle = await writeBundle();
+    (bundle.contract as Record<string, unknown>).release_acceptance =
+      makeManualV2ReleaseAcceptance();
+    await rewriteContract(bundle.root, sealRecord(bundle.contract));
+
+    const verified = await readVerifiedRuntimeArtifactBundle(bundle.root);
+
+    expect(verified.releaseAccepted).toBe(true);
+    expect(verified.failedCalibrationQualityAccepted).toBe(true);
+  });
+
+  it("rejects a resealed manual-v2 acceptance with weaker page evidence", async () => {
+    const bundle = await writeBundle();
+    const acceptance = makeManualV2ReleaseAcceptance();
+    const gate = acceptance.quality_gate as Record<string, unknown>;
+    gate.usable_pages = 24;
+    (bundle.contract as Record<string, unknown>).release_acceptance =
+      sealRecord(acceptance);
+    await rewriteContract(bundle.root, sealRecord(bundle.contract));
+
+    await expect(
+      readVerifiedRuntimeArtifactBundle(bundle.root),
+    ).rejects.toMatchObject({ reason: "artifact_verification_failed" });
+  });
+
+  it("keeps an unaccepted production runtime disabled", async () => {
+    const bundle = await writeBundle();
+    delete (bundle.contract as Record<string, unknown>).release_acceptance;
+    await rewriteContract(bundle.root, sealRecord(bundle.contract));
+
+    await expect(statusFor(bundle)).resolves.toMatchObject({
+      state: "disabled",
+      automaticMutationAllowed: false,
+      reason: "release_not_accepted",
+    });
   });
 
   it("fails closed when the nested release acceptance seal is tampered", async () => {
@@ -741,6 +817,7 @@ function makeContract(
         semantic_bootstrap: "forbidden",
       },
     },
+    release_acceptance: makeReleaseAcceptance(),
     policy: {
       policy_sha256: "9".repeat(64),
       automatic_mutation: {
@@ -793,6 +870,81 @@ function makeReleaseAcceptance() {
     quality_gate: {
       structural_error_count: 0,
       manual_page_verdicts: { accepted: 80, total: 80 },
+    },
+  });
+}
+
+function makeManualV2ReleaseAcceptance() {
+  const modelVersion = "manga-font-v8-active21-dfa42ae17f-ffb3285338";
+  return sealRecord({
+    schema_version: "font-matching-runtime-release-acceptance-v2",
+    record_type: "font_matching_runtime_release_acceptance",
+    status: "accepted",
+    acceptance_authority:
+      "explicit_user_approved_work_disjoint_fresh_gemma_manual_visual_review",
+    accepted_at: "2026-08-12T03:00:00Z",
+    automatic_visual_judgment: false,
+    explicit_user_acceptance: true,
+    external_release_quality_gate_passed: true,
+    evidence: {
+      adapter_checkpoint_sha256:
+        "ff580ef87c949d9b5cc8f4552490015cb621814d6cd5c122018def415792f3de",
+      candidate_order_sha256:
+        "17343ec15ee2153e770101d0cbf707600e97a8bc2d490496efaf4da2f638437d",
+      cohort_digest:
+        "9c1ddde045ab0ddbad1e86fa30c20b869a112a9405eddbe404b0d1292686f5d2",
+      manual_review_content_sha256:
+        "39e45f037d15dd42f3aa74ee987a0e272d308c13115036f182fc1a6f0dfe1157",
+      manual_review_file_sha256:
+        "a92a751168d0cbde436371c30e1dcfe613194b80d3eff9787df6b2375f3364eb",
+      model_version: modelVersion,
+      ranker_sha256:
+        "dfa42ae17f340768cae30f2219973eae1ff62a4c3c1544496502621e6e710c78",
+      run_report_sha256:
+        "61570016f17039e982c05afb066c92bf649a5ac837d3e8254b847b96bb2d11cb",
+      source_evaluation_runtime_contract_sha256:
+        "292433b367a7aef5abd8d2b8c3833d521584bc4cb41027924c37774585fdb7f4",
+      source_selection_calibration_sha256:
+        "501c39cd12019e4334336c486a0b8a87699ea6a5e8845232af5537e0929dc3fb",
+      visual_review_index_sha256:
+        "5155436a1bf25e2e5694c4cc88d1f65092245e6bc80743484e604ef7984593ad",
+    },
+    publication: {
+      evaluation_only_annotations_removed: true,
+      release_marker_has_no_qa_flags: true,
+      source_evaluation_runtime_immutable: true,
+      source_model_assets_copied_exactly: true,
+    },
+    quality_gate: {
+      acceptable_pages: 15,
+      bad_pages: 5,
+      calibration_gate_waiver: {
+        approved: true,
+        exact_scope: `${modelVersion}/r3h-manual-v2`,
+        reason:
+          "explicit_user_acceptance_after_fresh_work_disjoint_manual_review",
+        strict_gate_failures: {
+          global_acceptable_at1: 22 / 31,
+          global_precision_target: 0.88,
+          global_preferred_at1: 13 / 31,
+          variant_acceptable_at1: 22 / 30,
+          variant_precision_target: 0.88,
+          variant_preferred_at1: 13 / 30,
+        },
+      },
+      calibration_release_quality_gate_passed: false,
+      distinct_chapters: 40,
+      distinct_works: 10,
+      fresh_work_disjoint_pages: 40,
+      good_pages: 10,
+      judged_content_pages: 30,
+      master_work_overlap: 0,
+      minimum_usable_rate: 0.8,
+      outline_loss_count: 0,
+      single_day_body_role_count: 0,
+      structural_error_count: 0,
+      usable_pages: 25,
+      usable_rate: 25 / 30,
     },
   });
 }

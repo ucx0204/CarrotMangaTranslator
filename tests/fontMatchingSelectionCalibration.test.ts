@@ -124,6 +124,118 @@ describe("font matching selection calibration contract", () => {
     ).toBe(createHash("sha256").update(sourceJson).digest("hex"));
   });
 
+  it("restores the strict source binding from an evaluation-only attachment", () => {
+    const descriptor = (file: string, index: number) => ({
+      byte_size: index + 1,
+      file,
+      sha256: `${index + 1}`.repeat(64),
+    });
+    const baseFiles = [
+      "auto-match-active-catalog.json",
+      "encoder.onnx",
+      "prototype-features.f32",
+      "ranker.onnx",
+    ];
+    const sourceCore = {
+      artifacts: Object.fromEntries(
+        baseFiles.map((file, index) => [file, descriptor(file, index)]),
+      ),
+      calibration: { temperature: 1, tiny: 0.000001266 },
+      model_version: "fixture-runtime-v1",
+      record_type: "font_matching_runtime_artifact",
+      schema_version: "font-matching-runtime-artifact-v2",
+      v8_runtime_packaging: {
+        graph_report_sha256: "a".repeat(64),
+        quality_gate_bypassed: false,
+        selection_calibration_required: true,
+      },
+    };
+    const attachedCore = {
+      ...sourceCore,
+      artifacts: {
+        ...sourceCore.artifacts,
+        "selection-calibration.json": descriptor(
+          "selection-calibration.json",
+          4,
+        ),
+      },
+      evaluation_only_runtime: {
+        evaluation_only: true,
+        loader_opt_in_required: "allowQaOnlyRuntime",
+        non_promotable: true,
+        quality_gate_bypassed: true,
+        release_acceptance_forbidden: true,
+        release_approved: false,
+        schema_version: "font-matching-evaluation-only-runtime-v1",
+      },
+      v8_runtime_packaging: {
+        ...sourceCore.v8_runtime_packaging,
+        evaluation_only: true,
+        loader_opt_in_required: "allowQaOnlyRuntime",
+        non_promotable: true,
+        qa_only: true,
+        quality_gate_bypassed: true,
+        release_approved: false,
+      },
+    };
+    const sourceJson = pythonRuntimeContractJson(sourceCore);
+    const attachedJson = pythonRuntimeContractJson(attachedCore);
+    const attached = JSON.parse(attachedJson) as Record<string, unknown>;
+
+    expect(
+      reconstructFontMatchingSourceRuntimeContractSha256(
+        attached,
+        attachedJson,
+      ),
+    ).toBe(createHash("sha256").update(sourceJson).digest("hex"));
+  });
+
+  it("rejects drifted evaluation-only source-restoration annotations", () => {
+    const files = [
+      "auto-match-active-catalog.json",
+      "encoder.onnx",
+      "prototype-features.f32",
+      "ranker.onnx",
+      "selection-calibration.json",
+    ];
+    const attached = {
+      artifacts: Object.fromEntries(
+        files.map((file, index) => [
+          file,
+          { byte_size: index + 1, file, sha256: `${index + 1}`.repeat(64) },
+        ]),
+      ),
+      evaluation_only_runtime: {
+        evaluation_only: true,
+        loader_opt_in_required: "allowQaOnlyRuntime",
+        non_promotable: true,
+        quality_gate_bypassed: true,
+        release_acceptance_forbidden: true,
+        release_approved: true,
+        schema_version: "font-matching-evaluation-only-runtime-v1",
+      },
+      record_sha256: "f".repeat(64),
+      v8_runtime_packaging: {
+        evaluation_only: true,
+        loader_opt_in_required: "allowQaOnlyRuntime",
+        non_promotable: true,
+        qa_only: true,
+        quality_gate_bypassed: true,
+        release_approved: false,
+      },
+    };
+
+    expect(
+      reconstructFontMatchingSourceRuntimeContractSha256(attached),
+    ).toBeNull();
+    expect(
+      reconstructFontMatchingSourceRuntimeContractSha256(
+        attached,
+        JSON.stringify(attached),
+      ),
+    ).toBeNull();
+  });
+
   it("excludes release_acceptance when reconstructing a release contract binding", () => {
     const descriptor = (file: string, index: number) => ({
       byte_size: index + 1,

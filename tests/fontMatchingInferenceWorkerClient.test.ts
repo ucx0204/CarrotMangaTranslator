@@ -282,7 +282,32 @@ describe("font matching worker client protocol", () => {
     const raster = makeRaster();
     const loadRaster = vi.fn(async () => raster);
     const port = makePort({ loadRaster });
-    await port.inferPage(makeRequest());
+    const sourceGeometryDirection = {
+      contractVersion: "font-matching-ocr-geometry-direction-v2" as const,
+      source: "semantic_ocr_candidate_bbox_majority" as const,
+      direction: "vertical" as const,
+      candidateIds: [1],
+      candidateMembership: {
+        contractVersion: "font-matching-ocr-candidate-membership-v2" as const,
+        source: "sealed_font_input_request_block_v2" as const,
+        bindingId: "block-1",
+        originalCandidateIds: [1],
+        voterCandidateIds: [1],
+      },
+    };
+    await port.inferPage(
+      makeRequest({
+        blocks: [
+          {
+            blockId: "block-1",
+            item: makeItem(),
+            sourceCandidateMembership:
+              sourceGeometryDirection.candidateMembership,
+            sourceGeometryDirection,
+          },
+        ],
+      }),
+    );
 
     const worker = FakeWorker.instances[0];
     const inferMsg = worker.posted.find((msg) => msg.type === "infer");
@@ -293,6 +318,12 @@ describe("font matching worker client protocol", () => {
     expect(inferMsg.raster.height).toBe(100);
     // 메인에서 디코드한 raster 버퍼가 그대로 전달된다.
     expect(inferMsg.raster.bgra).toBe(raster.bgra);
+    expect(inferMsg.blocks[0]?.sourceGeometryDirection).toEqual(
+      sourceGeometryDirection,
+    );
+    expect(inferMsg.blocks[0]?.sourceCandidateMembership).toEqual(
+      sourceGeometryDirection.candidateMembership,
+    );
     expect(loadRaster).toHaveBeenCalledTimes(1);
   });
 

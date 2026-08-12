@@ -870,6 +870,62 @@ const BASE_RUNTIME_ASSET_FILES = [
   "ranker.onnx",
 ] as const;
 
+const EVALUATION_ONLY_CONTRACT_KEY = "evaluation_only_runtime";
+const V8_RUNTIME_PACKAGING_KEY = "v8_runtime_packaging";
+const EVALUATION_ONLY_SCHEMA = "font-matching-evaluation-only-runtime-v1";
+const EVALUATION_ONLY_PACKAGING_KEYS = [
+  "evaluation_only",
+  "loader_opt_in_required",
+  "non_promotable",
+  "qa_only",
+  "release_approved",
+] as const;
+
+function evaluationOnlyContractMode(
+  contract: Record<string, unknown>,
+): boolean | null {
+  const evaluation = contract[EVALUATION_ONLY_CONTRACT_KEY];
+  const packaging = contract[V8_RUNTIME_PACKAGING_KEY];
+  const packagingFlagsPresent =
+    isRecord(packaging) &&
+    EVALUATION_ONLY_PACKAGING_KEYS.some((key) => key in packaging);
+  if (
+    (evaluation === undefined || evaluation === null) &&
+    !packagingFlagsPresent
+  ) {
+    return false;
+  }
+  if (!isRecord(evaluation) || !isRecord(packaging)) return null;
+  const expectedEvaluation: Readonly<Record<string, unknown>> = {
+    evaluation_only: true,
+    loader_opt_in_required: "allowQaOnlyRuntime",
+    non_promotable: true,
+    quality_gate_bypassed: true,
+    release_acceptance_forbidden: true,
+    release_approved: false,
+    schema_version: EVALUATION_ONLY_SCHEMA,
+  };
+  const expectedPackaging: Readonly<Record<string, unknown>> = {
+    evaluation_only: true,
+    loader_opt_in_required: "allowQaOnlyRuntime",
+    non_promotable: true,
+    qa_only: true,
+    release_approved: false,
+  };
+  return hasExactKeys(evaluation, Object.keys(expectedEvaluation)) &&
+    Object.entries(expectedEvaluation).every(
+      ([key, value]) => evaluation[key] === value,
+    ) &&
+    Object.entries(expectedPackaging).every(
+      ([key, value]) => packaging[key] === value,
+    ) &&
+    packaging.quality_gate_bypassed === true &&
+    (contract.release_acceptance === undefined ||
+      contract.release_acceptance === null)
+    ? true
+    : null;
+}
+
 /**
  * Recover the exact pre-attachment runtime-contract file digest used by the
  * Python calibration builder. The attachment step adds one artifact
@@ -894,13 +950,27 @@ export function reconstructFontMatchingSourceRuntimeContractSha256(
   ) {
     return null;
   }
+  const evaluationOnly = evaluationOnlyContractMode(attachedContract);
+  if (evaluationOnly === null) return null;
   if (attachedContractJson !== undefined) {
     const reconstructed = reconstructPythonSealedJsonWithoutNestedKey(
       attachedContractJson,
       "artifacts",
       "selection-calibration.json",
       "record_sha256",
-      ["release_acceptance"],
+      [
+        "release_acceptance",
+        ...(evaluationOnly ? [EVALUATION_ONLY_CONTRACT_KEY] : []),
+      ],
+      evaluationOnly
+        ? [
+            {
+              objectKey: V8_RUNTIME_PACKAGING_KEY,
+              removedKeys: EVALUATION_ONLY_PACKAGING_KEYS,
+              literalOverrides: { quality_gate_bypassed: "false" },
+            },
+          ]
+        : [],
     );
     if (!reconstructed) return null;
     try {
@@ -924,8 +994,33 @@ export function reconstructFontMatchingSourceRuntimeContractSha256(
       ([fileName]) => fileName !== "selection-calibration.json",
     ),
   );
+  const sourceContract = evaluationOnly
+    ? Object.fromEntries(
+        Object.entries(attachedContract)
+          .filter(([key]) => key !== EVALUATION_ONLY_CONTRACT_KEY)
+          .map(([key, value]) => {
+            if (key !== V8_RUNTIME_PACKAGING_KEY || !isRecord(value)) {
+              return [key, value];
+            }
+            return [
+              key,
+              {
+                ...Object.fromEntries(
+                  Object.entries(value).filter(
+                    ([packagingKey]) =>
+                      !EVALUATION_ONLY_PACKAGING_KEYS.includes(
+                        packagingKey as (typeof EVALUATION_ONLY_PACKAGING_KEYS)[number],
+                      ),
+                  ),
+                ),
+                quality_gate_bypassed: false,
+              },
+            ];
+          }),
+      )
+    : attachedContract;
   const sourceCore = Object.fromEntries(
-    Object.entries(attachedContract)
+    Object.entries(sourceContract)
       .filter(
         ([key]) => key !== "record_sha256" && key !== "release_acceptance",
       )

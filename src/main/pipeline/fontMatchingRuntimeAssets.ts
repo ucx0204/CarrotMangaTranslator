@@ -1,12 +1,11 @@
 /**
  * Font matching runtime asset externalization.
  *
- * The trained font matching runtime bundle (7 files, ~467 MiB — dominated by
- * `encoder.onnx` at 465 MiB) is NOT bundled in the installer. Instead it is
- * downloaded on first use into a writable cache under the persistent data root
- * and the existing fail-closed bundle verification (`readVerifiedRuntimeArtifactBundle`)
- * runs on the cached directory. This mirrors the bubble-detection runtime
- * download pattern (`ensureComicBubbleDetectorAssets` / `ensureRemoteFile`).
+ * The v2 trust files and ranker are bundled, while the unchanged large
+ * encoder/prototype/catalog assets are verified and either migrated from the
+ * byte-identical v1 cache or downloaded from the immutable v2 asset release
+ * into a new writable cache. The completed seven-file
+ * cache is then verified as one bundle by `readVerifiedRuntimeArtifactBundle`.
  *
  * Trust root: the 7 hardcoded SHA-256 digests below (protected by asar
  * integrity). `ensureRemoteFile` verifies each downloaded file against its
@@ -14,12 +13,20 @@
  * bundle self-consistently against the downloaded marker. The marker's own
  * digest is the primary anchor — the marker internally pins the other 6.
  *
- * Dev keeps the staged bundle at `out/app-runtime/font-matching` (prepared by
- * `scripts/prepare-runtime.cjs`); `resolveFontMatchingArtifactDirSync` prefers
- * that directory when its marker is present and only falls back to the cache
- * (download) in packaged mode where the bundle is excluded from the installer.
+ * Dev stages the complete bundle at `out/app-runtime/font-matching`. Packaged
+ * builds contain only the four small v2 files there; path resolution therefore
+ * selects the completed data-root cache until all seven files exist.
  */
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
+import {
+  copyFile,
+  lstat,
+  mkdir,
+  readFile,
+  rename,
+  unlink,
+} from "node:fs/promises";
 import { join } from "node:path";
 import type { AppPaths } from "../appPaths";
 import { logWarn } from "../logger";
@@ -30,16 +37,17 @@ import {
 import type { PipelineOptions } from "./types";
 import {
   FONT_MATCHING_RUNTIME_BUNDLE_VERSION,
+  FONT_MATCHING_RUNTIME_BUNDLE_FILES,
   FONT_MATCHING_RUNTIME_MARKER_FILE,
 } from "./fontMatchingRuntimePaths";
 
 /**
- * Dedicated, app-version-independent GitHub Release tag hosting the runtime
- * bundle assets. Mirrors the `flux-runners-cuda12.9` pattern. A future bundle
- * revision ships under a new tag + new digest constants, so the same cached
- * 465 MiB download is reused across app releases that pin this tag.
+ * Immutable asset-only GitHub prerelease hosting the complete seven-file v2
+ * bundle. The installer already carries the four small trust/ranker files;
+ * the three large files use this tag on a fresh install. A byte-identical v1
+ * cache may still be migrated locally to avoid a redundant 467 MiB download.
  */
-const FONT_MATCHING_RUNTIME_RELEASE_TAG = "font-matching-runtime-v1";
+export const FONT_MATCHING_RUNTIME_RELEASE_TAG = "font-matching-runtime-v2";
 export const FONT_MATCHING_RUNTIME_BASE_URL = `https://github.com/ucx0204/CarrotMangaTranslator/releases/download/${FONT_MATCHING_RUNTIME_RELEASE_TAG}`;
 
 /** Ordered small-first so the encoder dominates the download timeline. */
@@ -56,46 +64,56 @@ type FontMatchingRuntimeFile = {
   urlName?: string;
   sha256: string;
   bytes: number;
+  source: "bundled-v2" | "remote-v2-release";
 };
 
 export const FONT_MATCHING_RUNTIME_FILES: readonly FontMatchingRuntimeFile[] = [
   {
     fileName: FONT_MATCHING_RUNTIME_MARKER_FILE,
     urlName: "default.font-matching-runtime-artifact-owned.json",
-    sha256: "e78fdd46cf3715ac985ba04335b1c680d93bb215fd62c2683ccd312c43b53f14",
+    sha256: "fc0e48ac7c02dac8b4da3a4a448fb579a34dbca42bb73ec3df5a248a25d2e55f",
     bytes: 755,
+    source: "bundled-v2",
   },
   {
     fileName: "runtime-contract.json",
-    sha256: "01b245d58a5ad858068726d1875e64add53dc4a084c78be0342dc6858b9ede66",
-    bytes: 27_025,
+    sha256: "11b430ac8782c2060d42592c3da133284ccbd90580c6991f3659c1f8e505b56a",
+    bytes: 21_941,
+    source: "bundled-v2",
   },
   {
     fileName: "auto-match-active-catalog.json",
     sha256: "59f7ed49e2ca75d537a3dd4d91aff6d89175c885c45ca8f06b0b0f754ac45676",
     bytes: 19_942,
+    source: "remote-v2-release",
   },
   {
     fileName: "selection-calibration.json",
-    sha256: "d2e97f6a5dec0bf28f13d8f78cfd70a99bf31bd90ab30d243196b5cba5ce06d3",
-    bytes: 12_912,
+    sha256: "501c39cd12019e4334336c486a0b8a87699ea6a5e8845232af5537e0929dc3fb",
+    bytes: 19_160,
+    source: "bundled-v2",
   },
   {
     fileName: "ranker.onnx",
-    sha256: "340a4aee2d223c8a3d1f7a9725118a81cd43bee745fbae7b50fb7e4ec3f489f5",
-    bytes: 51_490,
+    sha256: "dfa42ae17f340768cae30f2219973eae1ff62a4c3c1544496502621e6e710c78",
+    bytes: 351_127,
+    source: "bundled-v2",
   },
   {
     fileName: "prototype-features.f32",
     sha256: "cb4479cd7a48f052698235fd427c7fd90a91fb4ec47e74316bd574b1ffd7bcd3",
     bytes: 1_720_320,
+    source: "remote-v2-release",
   },
   {
     fileName: "encoder.onnx",
     sha256: "8b9db6bbe272510cedc0f5ce37ce0d1d7f90c146b7c42dd07ca14c26eff4a985",
     bytes: 487_357_925,
+    source: "remote-v2-release",
   },
 ];
+
+const LEGACY_SHARED_CACHE_VERSION = "active21-r5-e1-release-v1";
 
 /**
  * Download all 7 bundle files into the cache directory under `dataRoot`, each
@@ -106,6 +124,7 @@ export const FONT_MATCHING_RUNTIME_FILES: readonly FontMatchingRuntimeFile[] = [
  */
 export async function ensureFontMatchingRuntimeAssets(options: {
   dataRoot: string;
+  bundledDir?: string;
   signal?: AbortSignal;
   onProgress?: (progress: RuntimeAssetProgress) => void;
 }): Promise<string> {
@@ -117,6 +136,34 @@ export async function ensureFontMatchingRuntimeAssets(options: {
   );
   for (const file of FONT_MATCHING_RUNTIME_FILES) {
     throwIfAborted(options.signal);
+    if (file.source === "bundled-v2") {
+      if (!options.bundledDir) {
+        throw new Error(
+          "Bundled font runtime directory is required for v2 trust files",
+        );
+      }
+      await installVerifiedBundledFile({
+        sourcePath: join(options.bundledDir, file.fileName),
+        destinationPath: join(cacheDir, file.fileName),
+        expectedSha256: file.sha256,
+        expectedBytes: file.bytes,
+      });
+      continue;
+    }
+    const migrated = await installVerifiedBundledFile({
+      sourcePath: join(
+        options.dataRoot,
+        "models",
+        "font-matching",
+        LEGACY_SHARED_CACHE_VERSION,
+        file.fileName,
+      ),
+      destinationPath: join(cacheDir, file.fileName),
+      expectedSha256: file.sha256,
+      expectedBytes: file.bytes,
+      optionalSource: true,
+    });
+    if (migrated) continue;
     await ensureRemoteFile({
       modelDir: cacheDir,
       url: `${FONT_MATCHING_RUNTIME_BASE_URL}/${file.urlName ?? file.fileName}`,
@@ -148,14 +195,83 @@ export async function prepareFontMatchingRuntime(options: {
   onProgress?: (progress: RuntimeAssetProgress) => void;
 }): Promise<void> {
   const bundledDir = join(options.paths.runtimeDir, "font-matching");
-  if (existsSync(join(bundledDir, FONT_MATCHING_RUNTIME_MARKER_FILE))) {
+  if (
+    FONT_MATCHING_RUNTIME_BUNDLE_FILES.every((fileName) =>
+      existsSync(join(bundledDir, fileName)),
+    )
+  ) {
     return;
   }
   await ensureFontMatchingRuntimeAssets({
     dataRoot: options.paths.dataRoot,
+    bundledDir,
     signal: options.signal,
     onProgress: options.onProgress,
   });
+}
+
+async function installVerifiedBundledFile(options: {
+  sourcePath: string;
+  destinationPath: string;
+  expectedSha256: string;
+  expectedBytes: number;
+  optionalSource?: boolean;
+}): Promise<boolean> {
+  if (!existsSync(options.sourcePath)) {
+    if (options.optionalSource) return false;
+    throw new Error(
+      `Bundled font runtime file is missing: ${options.sourcePath}`,
+    );
+  }
+  if (await isExactRuntimeFile(options.destinationPath, options)) return true;
+  if (!(await isExactRuntimeFile(options.sourcePath, options))) {
+    if (options.optionalSource) return false;
+    throw new Error(
+      `Bundled font runtime file is invalid: ${options.sourcePath}`,
+    );
+  }
+  await mkdir(join(options.destinationPath, ".."), { recursive: true });
+  const temporary = `${options.destinationPath}.part`;
+  try {
+    await unlinkIfPresent(temporary);
+    await copyFile(options.sourcePath, temporary);
+    if (!(await isExactRuntimeFile(temporary, options))) {
+      throw new Error(`Copied font runtime file is invalid: ${temporary}`);
+    }
+    await unlinkIfPresent(options.destinationPath);
+    await rename(temporary, options.destinationPath);
+    return true;
+  } finally {
+    await unlinkIfPresent(temporary);
+  }
+}
+
+async function unlinkIfPresent(path: string): Promise<void> {
+  try {
+    await unlink(path);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      logWarn("Failed to clean up a font runtime asset file", { path, error });
+    }
+  }
+}
+
+async function isExactRuntimeFile(
+  path: string,
+  expected: { expectedSha256: string; expectedBytes: number },
+): Promise<boolean> {
+  try {
+    const [metadata, bytes] = await Promise.all([lstat(path), readFile(path)]);
+    return (
+      metadata.isFile() &&
+      !metadata.isSymbolicLink() &&
+      metadata.size === expected.expectedBytes &&
+      createHash("sha256").update(bytes).digest("hex") ===
+        expected.expectedSha256
+    );
+  } catch (_error) {
+    return false;
+  }
 }
 
 /**

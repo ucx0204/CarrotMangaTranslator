@@ -138,11 +138,7 @@ function ExportOptionsModalLayout({
   const { t } = useTranslation("components");
   return (
     <Modal
-      title={t(
-        outputFormat === "psd"
-          ? "exportOptions.psdTitle"
-          : "exportOptions.title",
-      )}
+      title={t("exportOptions.title")}
       size="lg"
       onClose={onClose}
       closeDisabled={start.isStarting}

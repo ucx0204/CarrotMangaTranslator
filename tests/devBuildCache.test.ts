@@ -31,6 +31,7 @@ type CachedBuildPlan = {
 };
 
 type DevBuildCacheModule = {
+  createElectronCompileCacheStep: (root: string) => CachedBuildStep;
   createRuntimeAssetsCacheStep: (
     root: string,
     outputDir: string,
@@ -149,6 +150,70 @@ function createTypeScriptCleanupFixture() {
   return { sourceDir, mainOutDir, preloadMarker, step, rebuild };
 }
 
+function createElectronCompileCacheFixture() {
+  const root = mkdtempSync(temporaryPrefix);
+  temporaryRoots.push(root);
+  const requiredInputs = [
+    join(root, "scripts", "compile-electron.cjs"),
+    join(root, "scripts", "dev-build-cache.cjs"),
+    join(root, "tsconfig.json"),
+    join(root, "tsconfig.electron.json"),
+    join(root, "vite.preload.config.ts"),
+    join(root, "vite.page-export.config.ts"),
+    join(root, "package.json"),
+    join(root, "package-lock.json"),
+  ];
+  for (const filePath of requiredInputs) {
+    mkdirSync(join(filePath, ".."), { recursive: true });
+    writeFileSync(filePath, "fixture", "utf8");
+  }
+
+  const regularMainJson = join(
+    root,
+    "src",
+    "main",
+    "runtime",
+    "runtime-integrity-manifest.json",
+  );
+  const fontMatchingMarker = join(
+    root,
+    "src",
+    "main",
+    "runtime",
+    "font-matching",
+    ".font-matching-runtime-artifact-owned.json",
+  );
+  const fontMatchingContract = join(
+    root,
+    "src",
+    "main",
+    "runtime",
+    "font-matching",
+    "runtime-contract.json",
+  );
+  const fixtureFiles: Record<string, string> = {
+    [join(root, "src", "main", "index.ts")]: "export {};",
+    [regularMainJson]: "{}",
+    [fontMatchingMarker]: "{}",
+    [fontMatchingContract]: "{}",
+    [join(root, "src", "shared", "messages.json")]: "{}",
+    [join(root, "src", "preload", "index.ts")]: "export {};",
+    [join(root, "src", "renderer", "src", "page-export.ts")]: "export {};",
+  };
+  for (const [filePath, contents] of Object.entries(fixtureFiles)) {
+    mkdirSync(join(filePath, ".."), { recursive: true });
+    writeFileSync(filePath, contents, "utf8");
+  }
+
+  return {
+    fontMatchingContract,
+    fontMatchingMarker,
+    regularMainJson,
+    root,
+    step: cache.createElectronCompileCacheStep(root),
+  };
+}
+
 function createRuntimeAssetsCacheFixture() {
   const root = mkdtempSync(temporaryPrefix);
   temporaryRoots.push(root);
@@ -190,7 +255,7 @@ function addFontMatchingBundle(root: string): string {
   const bundleDir = join(
     root,
     "artifacts",
-    "font-matching-runtime-active21-r5-e1-release-v1",
+    "font-matching-runtime-active21-v8-r3h-manual-v2-release-v1",
   );
   mkdirSync(bundleDir, { recursive: true });
   const artifacts: Record<string, string> = {};
@@ -205,6 +270,20 @@ function addFontMatchingBundle(root: string): string {
     writeFileSync(join(bundleDir, fileName), bytes);
     artifacts[fileName] = createHash("sha256").update(bytes).digest("hex");
   }
+  const releaseAcceptance: Record<string, unknown> = {
+    record_type: "font_matching_runtime_release_acceptance",
+    schema_version: "font-matching-runtime-release-acceptance-v1",
+    status: "accepted",
+    external_release_quality_gate_passed: true,
+    automatic_visual_judgment: false,
+    quality_gate: {
+      structural_error_count: 0,
+      manual_page_verdicts: { accepted: 80, total: 80 },
+    },
+  };
+  releaseAcceptance.record_sha256 = createHash("sha256")
+    .update(canonicalJson(releaseAcceptance))
+    .digest("hex");
   const runtimeContract = Buffer.from(
     JSON.stringify({
       record_type: "font_matching_runtime_artifact",
@@ -241,6 +320,7 @@ function addFontMatchingBundle(root: string): string {
         ranker_batch_size: 16,
         parity_qualified: true,
       },
+      release_acceptance: releaseAcceptance,
     }),
   );
   writeFileSync(join(bundleDir, "runtime-contract.json"), runtimeContract);
@@ -257,6 +337,20 @@ function addFontMatchingBundle(root: string): string {
     }),
   );
   return bundleDir;
+}
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => canonicalJson(entry)).join(",")}]`;
+  }
+  if (typeof value === "object" && value !== null) {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
 }
 
 describe("dev content build cache", () => {
@@ -382,6 +476,45 @@ describe("dev content build cache", () => {
     expect(existsSync(removedOutput)).toBe(false);
     expect(readFileSync(fixture.preloadMarker, "utf8")).toBe("preload");
     expect(cache.planCachedBuildStep(fixture.step).decision).toBe("skip");
+  });
+
+  it("leaves the font-matching runtime bundle to the runtime-assets cache", () => {
+    const fixture = createElectronCompileCacheFixture();
+    const inputFiles = fixture.step.getInputFiles();
+    const requiredOutputs = fixture.step.getRequiredOutputFiles();
+
+    expect(inputFiles).toContain(fixture.regularMainJson);
+    expect(inputFiles).not.toContain(fixture.fontMatchingMarker);
+    expect(inputFiles).not.toContain(fixture.fontMatchingContract);
+    expect(requiredOutputs).toContain(
+      join(
+        fixture.root,
+        "out",
+        "main",
+        "runtime",
+        "runtime-integrity-manifest.json",
+      ),
+    );
+    expect(requiredOutputs).not.toContain(
+      join(
+        fixture.root,
+        "out",
+        "main",
+        "runtime",
+        "font-matching",
+        ".font-matching-runtime-artifact-owned.json",
+      ),
+    );
+    expect(requiredOutputs).not.toContain(
+      join(
+        fixture.root,
+        "out",
+        "main",
+        "runtime",
+        "font-matching",
+        "runtime-contract.json",
+      ),
+    );
   });
 
   it("uses the runtime preparer's development-file exclusions", () => {

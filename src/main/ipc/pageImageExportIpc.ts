@@ -83,7 +83,7 @@ export function registerPageImageExportIpc(
       service.assertIdle(context);
 
       const options = {
-        title: tMain("dialogs.exportPngFolder"),
+        title: tMain("dialogs.exportOutputFolder"),
         defaultPath: getRecentDialogDirectory(
           context.appPaths.dataRoot,
           recentDialogPathKeys.pageImageExport,

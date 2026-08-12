@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- end-to-end pixel inference contracts share one fixture harness */
 import { describe, expect, it, vi } from "vitest";
 import type { TranslationOptions } from "../src/main/appSettings";
 import {
@@ -208,7 +209,7 @@ describe("whole-page Font Matching pixel inference", () => {
     expect(mixed.page.blocks[2].automaticFontMatch).toBeUndefined();
   });
 
-  it("uses failed release-quality points only for QA or externally accepted release models", async () => {
+  it("uses failed release-quality points only for QA or an explicit manual-v2 acceptance", async () => {
     const candidates = makeCandidates();
     const production = makeToyRuntime(candidates, {
       selectedIndex: 0,
@@ -225,8 +226,11 @@ describe("whole-page Font Matching pixel inference", () => {
       selectedIndex: 0,
       calibratedIndex: 1,
       failedReleaseQuality: true,
-      releaseAccepted: true,
     });
+    const acceptedReleaseModel = {
+      ...acceptedRelease.model,
+      failedCalibrationQualityAccepted: true,
+    };
     const request = {
       page: makePage(),
       blocks: [{ blockId: "quality", item: makeItem() }],
@@ -246,7 +250,7 @@ describe("whole-page Font Matching pixel inference", () => {
     });
     const acceptedReleaseResult = await inferFontMatchingPagePixels({
       ...request,
-      model: acceptedRelease.model,
+      model: acceptedReleaseModel,
     });
 
     expect(productionResult.get("quality")?.selectionCalibration.applied).toBe(
@@ -320,6 +324,62 @@ describe("whole-page Font Matching pixel inference", () => {
     expect(body.get("body")?.localEvidence.rankedCandidates[0]?.fontId).toBe(
       candidates[1]?.fontId,
     );
+  });
+
+  it("masks Single Day for pixel dialogue before both ranking and calibration", async () => {
+    const candidates = makeCandidates();
+    const singleDayIndex = candidates.findIndex(
+      ({ fontId }) => fontId === "single-day",
+    );
+    const dialogueToy = makeToyRuntime(candidates, {
+      selectedIndex: singleDayIndex,
+      calibratedIndex: singleDayIndex,
+      roleIndex: 0,
+    });
+    const dialogue = await inferFontMatchingPagePixels({
+      page: makePage(),
+      blocks: [{ blockId: "dialogue-single-day", item: makeItem() }],
+      candidates,
+      targetLanguage: "ko",
+      boundary: USER_PAGE_FONT_MATCHING_BOUNDARY,
+      model: dialogueToy.model,
+      loadRaster: async () => makeRaster(),
+    });
+    const dialogueInference = dialogue.get("dialogue-single-day");
+    const maskedSingleDay =
+      dialogueInference?.localEvidence.rankedCandidates.find(
+        ({ fontId }) => fontId === "single-day",
+      );
+
+    expect(dialogueInference?.rolePrediction.primary).toBe("dialogue");
+    expect(
+      dialogueInference?.localEvidence.rankedCandidates[0]?.fontId,
+    ).not.toBe("single-day");
+    expect(maskedSingleDay?.rawPixelRank).toBe(candidates.length);
+    expect(dialogueInference?.selectionCalibration.applied).toBe(false);
+
+    const sfxToy = makeToyRuntime(candidates, {
+      selectedIndex: singleDayIndex,
+      calibratedIndex: singleDayIndex,
+      roleIndex: 7,
+    });
+    const sfx = await inferFontMatchingPagePixels({
+      page: makePage(),
+      blocks: [{ blockId: "sfx-single-day", item: makeItem() }],
+      candidates,
+      targetLanguage: "ko",
+      boundary: USER_PAGE_FONT_MATCHING_BOUNDARY,
+      model: sfxToy.model,
+      loadRaster: async () => makeRaster(),
+    });
+
+    expect(sfx.get("sfx-single-day")?.rolePrediction.primary).toBe(
+      "sfx_impact",
+    );
+    expect(
+      sfx.get("sfx-single-day")?.localEvidence.rankedCandidates[0]?.fontId,
+    ).toBe("single-day");
+    expect(sfx.get("sfx-single-day")?.selectionCalibration.applied).toBe(true);
   });
 
   it("keeps hybrid score, ranking, and selected font invariant under conflicting item roles", async () => {
@@ -530,7 +590,16 @@ describe("whole-page Font Matching pixel inference", () => {
   });
 
   it("forwards caller-bound persistent block ids for keep-mode crops", async () => {
-    const item = makeItem();
+    const item = {
+      ...makeItem(),
+      direction: "horizontal" as const,
+      sourceCandidateMembership: sourceMembership([1], "B001"),
+    };
+    const { sourceCandidateMembership: _membership, ...workerItem } = item;
+    const pageOptions = makeOptions(makeCandidates());
+    pageOptions.ocrBboxHints = [
+      { id: item.id, x1: 10, y1: 10, x2: 30, y2: 90 },
+    ];
     let receivedRequest:
       | Parameters<FontMatchingPageInferencePort["inferPage"]>[0]
       | undefined;
@@ -544,16 +613,111 @@ describe("whole-page Font Matching pixel inference", () => {
     await runAutomaticFontMatchingV2PageStage({
       jobId: "keep-run",
       page: makePage(),
-      pageOptions: makeOptions(makeCandidates()),
+      pageOptions,
       items: [item],
       inferenceBlocks: [{ blockId: "persisted-block-7", item }],
       port,
     });
 
     expect(receivedRequest?.blocks).toEqual([
-      { blockId: "persisted-block-7", item },
+      {
+        blockId: "persisted-block-7",
+        item: workerItem,
+        sourceCandidateMembership: item.sourceCandidateMembership,
+        sourceGeometryDirection: {
+          contractVersion: "font-matching-ocr-geometry-direction-v2",
+          source: "semantic_ocr_candidate_bbox_majority",
+          direction: "vertical",
+          candidateIds: [item.id],
+          candidateMembership: item.sourceCandidateMembership,
+        },
+      },
     ]);
     expect(receivedRequest?.boundary).toEqual(USER_PAGE_FONT_MATCHING_BOUNDARY);
+  });
+
+  it("does not derive direction from general fallback candidate ids", async () => {
+    const item = { ...makeItem(), candidateIds: [1] };
+    const pageOptions = makeOptions(makeCandidates());
+    pageOptions.ocrBboxHints = [
+      { id: item.id, x1: 10, y1: 10, x2: 30, y2: 90 },
+    ];
+    let receivedRequest:
+      | Parameters<FontMatchingPageInferencePort["inferPage"]>[0]
+      | undefined;
+    const port: FontMatchingPageInferencePort = {
+      inferPage: async (request) => {
+        receivedRequest = request;
+        return { pixelInferenceByBlockId: new Map() };
+      },
+    };
+
+    await runAutomaticFontMatchingV2PageStage({
+      jobId: "general-fallback-run",
+      page: makePage(),
+      pageOptions,
+      items: [item],
+      port,
+    });
+
+    expect(receivedRequest?.blocks).toEqual([
+      expect.objectContaining({ item }),
+    ]);
+    expect(receivedRequest?.blocks[0]).not.toHaveProperty(
+      "sourceGeometryDirection",
+    );
+  });
+
+  it("transports exact-bound replay direction when page OCR hints are absent", async () => {
+    const item = makeItem();
+    const pageOptions = makeOptions(makeCandidates());
+    pageOptions.ocrBboxHints = [];
+    let receivedRequest:
+      | Parameters<FontMatchingPageInferencePort["inferPage"]>[0]
+      | undefined;
+    const port: FontMatchingPageInferencePort = {
+      inferPage: async (request) => {
+        receivedRequest = request;
+        return { pixelInferenceByBlockId: new Map() };
+      },
+    };
+
+    await runAutomaticFontMatchingV2PageStage({
+      jobId: "missing-geometry-run",
+      page: makePage(),
+      pageOptions,
+      items: [item],
+      inferenceBlocks: [
+        {
+          blockId: "persisted-block-8",
+          item,
+          sourceCandidateMembership: sourceMembership([item.id], "persisted-8"),
+          sourceGeometryDirection: {
+            contractVersion: "font-matching-ocr-geometry-direction-v2",
+            source: "semantic_ocr_candidate_bbox_majority",
+            direction: "horizontal",
+            candidateIds: [item.id],
+            candidateMembership: sourceMembership([item.id], "persisted-8"),
+          },
+        },
+      ],
+      port,
+    });
+
+    expect(receivedRequest?.blocks).toEqual([
+      {
+        blockId: "persisted-block-8",
+        item,
+        sourceCandidateMembership: sourceMembership([item.id], "persisted-8"),
+        sourceGeometryDirection: {
+          contractVersion: "font-matching-ocr-geometry-direction-v2",
+          source: "semantic_ocr_candidate_bbox_majority",
+          direction: "horizontal",
+          candidateIds: [item.id],
+          candidateMembership: sourceMembership([item.id], "persisted-8"),
+        },
+      },
+    ]);
   });
 
   it("abstains instead of hanging the whole translation on stuck inference", async () => {
@@ -703,7 +867,7 @@ function makeToyRuntime(
     corruptCandidateScore?: boolean;
     failedReleaseQuality?: boolean;
     qaOnlyRuntime?: boolean;
-    releaseAccepted?: boolean;
+    roleIndex?: number;
   },
 ) {
   const featureDim = 4;
@@ -727,6 +891,7 @@ function makeToyRuntime(
       candidates.length,
       candidateScores,
       options.noneLogit ?? -9,
+      options.roleIndex,
     );
   });
   const encoder = session(["pixel_values"], ["image_features"], encoderRun);
@@ -790,7 +955,6 @@ function makeToyRuntime(
     rankerBatchSize: 16,
     scoreRouting: null,
     qaOnlyRuntime: options.qaOnlyRuntime ?? false,
-    releaseAccepted: options.releaseAccepted ?? false,
     selectionCalibration: makeSelectionCalibration(
       candidates.map(({ fontId }) => fontId),
       options.calibratedIndex ?? options.selectedIndex,
@@ -1076,6 +1240,16 @@ function makeItem(): OverlayItem {
     jp: "ドン",
     ko: "쾅",
     confidence: 1,
+  };
+}
+
+function sourceMembership(candidateIds: number[], bindingId: string) {
+  return {
+    contractVersion: "font-matching-ocr-candidate-membership-v2" as const,
+    source: "semantic_ocr_fixed_block_request_v5" as const,
+    bindingId,
+    originalCandidateIds: candidateIds,
+    voterCandidateIds: candidateIds,
   };
 }
 

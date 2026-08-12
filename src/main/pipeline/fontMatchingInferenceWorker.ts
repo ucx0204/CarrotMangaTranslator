@@ -56,6 +56,7 @@ export type FontMatchingWorkerInferMessage = Readonly<{
   blocks: readonly FontMatchingPageInferenceBlock[];
   candidates: readonly AutomaticFontCandidate[];
   boundary: FontMatchingInferenceInputBoundary;
+  qaPageRelativeRoleReroute?: boolean;
   raster: FontMatchingRasterPage;
 }>;
 
@@ -176,6 +177,7 @@ async function handleInfer(
       blocks: message.blocks,
       candidates: message.candidates,
       boundary: message.boundary,
+      qaPageRelativeRoleReroute: message.qaPageRelativeRoleReroute === true,
       signal: controller.signal,
       model: runtimeModel,
       loadRaster,

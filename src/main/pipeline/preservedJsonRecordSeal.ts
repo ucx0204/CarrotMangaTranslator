@@ -53,12 +53,14 @@ export function canonicalNestedRecordCoreFromJson(
  * object member, without collapsing float tokens such as `1.0` into `1`.
  * This is used to recover the exact pre-attachment runtime contract bytes.
  */
+// eslint-disable-next-line complexity -- fail-closed preserved-token rewrite validation is intentionally centralized
 export function reconstructPythonSealedJsonWithoutNestedKey(
   text: string,
   containerKey: string,
   removedKey: string,
   sealKey = "record_sha256",
   removedTopLevelKeys: readonly string[] = [],
+  rewrittenTopLevelObjects: readonly PreservedTopLevelObjectRewrite[] = [],
 ): string | null {
   try {
     const root = new PreservedJsonParser(text).parse();
@@ -78,15 +80,46 @@ export function reconstructPythonSealedJsonWithoutNestedKey(
       type: "object",
       entries: container.entries.filter(([key]) => key !== removedKey),
     };
+    const rewrittenObjects = new Map(
+      rewrittenTopLevelObjects.map((rewrite) => [rewrite.objectKey, rewrite]),
+    );
+    if (rewrittenObjects.size !== rewrittenTopLevelObjects.length) return null;
+    for (const rewrite of rewrittenTopLevelObjects) {
+      const entry = root.entries.find(([key]) => key === rewrite.objectKey);
+      if (!entry || entry[1].type !== "object") return null;
+      const entryKeys = new Set(entry[1].entries.map(([key]) => key));
+      if (
+        rewrite.removedKeys.some((key) => !entryKeys.has(key)) ||
+        Object.keys(rewrite.literalOverrides).some((key) => !entryKeys.has(key))
+      ) {
+        return null;
+      }
+    }
     const sourceCore: PreservedJsonNode = {
       type: "object",
       entries: root.entries
         .filter(([key]) => !topLevelDrop.has(key))
-        .map(([key, value]) =>
-          key === containerKey
-            ? ([key, sourceContainer] as const)
-            : ([key, value] as const),
-        ),
+        .map(([key, value]) => {
+          if (key === containerKey) return [key, sourceContainer] as const;
+          const rewrite = rewrittenObjects.get(key);
+          if (!rewrite || value.type !== "object") return [key, value] as const;
+          const removedKeys = new Set(rewrite.removedKeys);
+          const rewrittenValue: PreservedJsonNode = {
+            type: "object",
+            entries: value.entries
+              .filter(([entryKey]) => !removedKeys.has(entryKey))
+              .map(([entryKey, entryValue]) => {
+                const literal = rewrite.literalOverrides[entryKey];
+                return literal === undefined
+                  ? ([entryKey, entryValue] as const)
+                  : ([
+                      entryKey,
+                      { type: "literal", canonical: literal },
+                    ] as const);
+              }),
+          };
+          return [key, rewrittenValue] as const;
+        }),
     };
     const seal = createHash("sha256")
       .update(canonicalPreservedJson(sourceCore))
@@ -103,6 +136,12 @@ export function reconstructPythonSealedJsonWithoutNestedKey(
     return null;
   }
 }
+
+export type PreservedTopLevelObjectRewrite = Readonly<{
+  objectKey: string;
+  removedKeys: readonly string[];
+  literalOverrides: Readonly<Record<string, "false" | "null" | "true">>;
+}>;
 
 function canonicalPreservedJson(
   node: PreservedJsonNode,

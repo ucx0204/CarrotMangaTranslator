@@ -1,10 +1,18 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   FONT_MATCHING_RUNTIME_BASE_URL,
   FONT_MATCHING_RUNTIME_FILES,
+  FONT_MATCHING_RUNTIME_RELEASE_TAG,
 } from "../src/main/pipeline/fontMatchingRuntimeAssets";
 import {
   FONT_MATCHING_RUNTIME_BUNDLE_VERSION,
@@ -15,6 +23,39 @@ import {
 const modelDownloadsMocks = vi.hoisted(() => ({
   ensureRemoteFile: vi.fn(),
 }));
+const bundledV2Dir = join(
+  __dirname,
+  "..",
+  "src",
+  "main",
+  "runtime",
+  "font-matching",
+);
+
+function stageBundledV2Files(runtimeDir: string): void {
+  const destination = join(runtimeDir, "font-matching");
+  mkdirSync(destination, { recursive: true });
+  for (const file of FONT_MATCHING_RUNTIME_FILES.filter(
+    (entry) => entry.source === "bundled-v2",
+  )) {
+    copyFileSync(
+      join(bundledV2Dir, file.fileName),
+      join(destination, file.fileName),
+    );
+  }
+}
+
+function stageCompleteDevBundle(runtimeDir: string): void {
+  stageBundledV2Files(runtimeDir);
+  const destination = join(runtimeDir, "font-matching");
+  for (const file of FONT_MATCHING_RUNTIME_FILES.filter(
+    (entry) => entry.source === "remote-v2-release",
+  )) {
+    // Path resolution only checks the complete seven-file inventory. Avoid
+    // coupling this small unit test to ignored 467 MiB local artifacts.
+    writeFileSync(join(destination, file.fileName), "fixture");
+  }
+}
 
 vi.mock("../src/main/runtimeSupport/modelDownloads", async (importOriginal) => {
   const actual =
@@ -44,13 +85,9 @@ function createTempDir(prefix: string): string {
 }
 
 describe("resolveFontMatchingArtifactDirSync", () => {
-  it("prefers the staged bundle in runtimeDir when the marker file is present (dev)", () => {
+  it("prefers only a complete staged bundle in runtimeDir (dev)", () => {
     const runtimeDir = createTempDir("runtime-staged");
-    mkdirSync(join(runtimeDir, "font-matching"), { recursive: true });
-    writeFileSync(
-      join(runtimeDir, "font-matching", FONT_MATCHING_RUNTIME_MARKER_FILE),
-      "{}",
-    );
+    stageCompleteDevBundle(runtimeDir);
     const dataRoot = createTempDir("data");
 
     const dir = resolveFontMatchingArtifactDirSync({ runtimeDir, dataRoot });
@@ -81,14 +118,24 @@ describe("resolveFontMatchingArtifactDirSync", () => {
 });
 
 describe("ensureFontMatchingRuntimeAssets", () => {
-  it("downloads each of the 7 bundle files with the pinned digest and size into the cache dir", async () => {
+  it("pins every remote asset to the immutable v2 release tag", () => {
+    expect(FONT_MATCHING_RUNTIME_RELEASE_TAG).toBe("font-matching-runtime-v2");
+    expect(FONT_MATCHING_RUNTIME_BASE_URL).toBe(
+      "https://github.com/ucx0204/CarrotMangaTranslator/releases/download/font-matching-runtime-v2",
+    );
+  });
+
+  it("installs bundled v2 trust files and downloads only external large assets", async () => {
     const dataRoot = createTempDir("data");
     const { ensureFontMatchingRuntimeAssets } =
       await import("../src/main/pipeline/fontMatchingRuntimeAssets");
 
-    const cacheDir = await ensureFontMatchingRuntimeAssets({ dataRoot });
+    const cacheDir = await ensureFontMatchingRuntimeAssets({
+      dataRoot,
+      bundledDir: bundledV2Dir,
+    });
 
-    expect(modelDownloadsMocks.ensureRemoteFile).toHaveBeenCalledTimes(7);
+    expect(modelDownloadsMocks.ensureRemoteFile).toHaveBeenCalledTimes(3);
     expect(cacheDir).toBe(
       join(
         dataRoot,
@@ -97,7 +144,9 @@ describe("ensureFontMatchingRuntimeAssets", () => {
         FONT_MATCHING_RUNTIME_BUNDLE_VERSION,
       ),
     );
-    FONT_MATCHING_RUNTIME_FILES.forEach((file, index) => {
+    FONT_MATCHING_RUNTIME_FILES.filter(
+      (file) => file.source === "remote-v2-release",
+    ).forEach((file, index) => {
       expect(modelDownloadsMocks.ensureRemoteFile).toHaveBeenNthCalledWith(
         index + 1,
         expect.objectContaining({
@@ -110,15 +159,8 @@ describe("ensureFontMatchingRuntimeAssets", () => {
         }),
       );
     });
-    // GitHub Releases strips the marker's leading dot and prefixes `default.`,
-    // so it downloads from the renamed asset but caches under the canonical
-    // dot-name that resolveFontMatchingArtifactDirSync checks.
-    expect(modelDownloadsMocks.ensureRemoteFile).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        url: `${FONT_MATCHING_RUNTIME_BASE_URL}/default.font-matching-runtime-artifact-owned.json`,
-        fileName: FONT_MATCHING_RUNTIME_MARKER_FILE,
-      }),
+    expect(existsSync(join(cacheDir, FONT_MATCHING_RUNTIME_MARKER_FILE))).toBe(
+      true,
     );
     rmSync(dataRoot, { recursive: true, force: true });
   });
@@ -132,11 +174,12 @@ describe("ensureFontMatchingRuntimeAssets", () => {
 
     await ensureFontMatchingRuntimeAssets({
       dataRoot,
+      bundledDir: bundledV2Dir,
       signal: controller.signal,
       onProgress,
     });
 
-    for (let i = 1; i <= 7; i += 1) {
+    for (let i = 1; i <= 3; i += 1) {
       expect(modelDownloadsMocks.ensureRemoteFile).toHaveBeenNthCalledWith(
         i,
         expect.objectContaining({ signal: controller.signal, onProgress }),
@@ -149,11 +192,7 @@ describe("ensureFontMatchingRuntimeAssets", () => {
 describe("prepareFontMatchingRuntime", () => {
   it("is a no-op when the staged dev bundle marker is present", async () => {
     const runtimeDir = createTempDir("runtime-staged");
-    mkdirSync(join(runtimeDir, "font-matching"), { recursive: true });
-    writeFileSync(
-      join(runtimeDir, "font-matching", FONT_MATCHING_RUNTIME_MARKER_FILE),
-      "{}",
-    );
+    stageCompleteDevBundle(runtimeDir);
     const dataRoot = createTempDir("data");
     const { prepareFontMatchingRuntime } =
       await import("../src/main/pipeline/fontMatchingRuntimeAssets");
@@ -171,6 +210,7 @@ describe("prepareFontMatchingRuntime", () => {
 
   it("downloads the bundle into the cache when the marker is absent", async () => {
     const runtimeDir = createTempDir("runtime-empty");
+    stageBundledV2Files(runtimeDir);
     const dataRoot = createTempDir("data");
     const { prepareFontMatchingRuntime } =
       await import("../src/main/pipeline/fontMatchingRuntimeAssets");
@@ -181,9 +221,9 @@ describe("prepareFontMatchingRuntime", () => {
       onProgress: vi.fn(),
     });
 
-    expect(modelDownloadsMocks.ensureRemoteFile).toHaveBeenCalledTimes(7);
+    expect(modelDownloadsMocks.ensureRemoteFile).toHaveBeenCalledTimes(3);
     expect(modelDownloadsMocks.ensureRemoteFile).toHaveBeenNthCalledWith(
-      7,
+      3,
       expect.objectContaining({
         url: `${FONT_MATCHING_RUNTIME_BASE_URL}/encoder.onnx`,
         fileName: "encoder.onnx",

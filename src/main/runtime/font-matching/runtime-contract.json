@@ -1,0 +1,669 @@
+{
+  "artifacts": {
+    "auto-match-active-catalog.json": {
+      "byte_size": 19942,
+      "file": "auto-match-active-catalog.json",
+      "sha256": "59f7ed49e2ca75d537a3dd4d91aff6d89175c885c45ca8f06b0b0f754ac45676"
+    },
+    "encoder.onnx": {
+      "byte_size": 487357925,
+      "file": "encoder.onnx",
+      "sha256": "8b9db6bbe272510cedc0f5ce37ce0d1d7f90c146b7c42dd07ca14c26eff4a985"
+    },
+    "prototype-features.f32": {
+      "byte_size": 1720320,
+      "file": "prototype-features.f32",
+      "sha256": "cb4479cd7a48f052698235fd427c7fd90a91fb4ec47e74316bd574b1ffd7bcd3"
+    },
+    "ranker.onnx": {
+      "byte_size": 351127,
+      "file": "ranker.onnx",
+      "sha256": "dfa42ae17f340768cae30f2219973eae1ff62a4c3c1544496502621e6e710c78"
+    },
+    "selection-calibration.json": {
+      "byte_size": 19160,
+      "file": "selection-calibration.json",
+      "sha256": "501c39cd12019e4334336c486a0b8a87699ea6a5e8845232af5537e0929dc3fb"
+    }
+  },
+  "calibration": {
+    "calibration_split": "val",
+    "none_threshold": 0.5,
+    "none_threshold_selection_metric": "neutral_compatibility_output",
+    "temperature": 1.0,
+    "temperature_selection_metric": "requires_v8_role_routed_calibration"
+  },
+  "catalog": {
+    "active_catalog_record_sha256": "d9da4353b52bcd9630a62827b353a624cc4991d27a17fdb46878f4e807df7955",
+    "candidate_count": 21,
+    "candidate_ids": [
+      "mongtori",
+      "chosun-gungseo",
+      "griun-pol-sensibility",
+      "nanum-gothic",
+      "nanum-myeongjo",
+      "nanum-barun-gothic",
+      "seoul-namsan",
+      "seoul-namsan-vertical",
+      "seoul-hangang",
+      "dohyeon",
+      "ridi-batang",
+      "cafe24-gowoonbam",
+      "start-over",
+      "jua",
+      "gaegu",
+      "black-and-white-picture",
+      "black-han-sans",
+      "gasoek-one",
+      "kirang-haerang",
+      "nanum-brush-script",
+      "single-day"
+    ],
+    "candidate_order_sha256": "17343ec15ee2153e770101d0cbf707600e97a8bc2d490496efaf4da2f638437d",
+    "candidate_parameterization": "prototype-bag-only-no-id-embedding-or-bias",
+    "catalog_disposition_record_sha256": "0667c2edfc4855b48550d456e8e83acce7dd900396e7c9593479c86c261de8d6",
+    "catalog_registry_sha256": "bc1c179729682f3b88563a484835e5fdae94a11c0119686b7a31b28357c0bc05",
+    "catalog_version": "fontclip-font-catalog-v2-manga-font21-no-gugi",
+    "final_catalog_record_sha256": "3f3ba8a4629f10a141a00a6d3ca8088c7acbb7df7d8733c85c1127ee1315dfc6",
+    "font_catalog_sha256": "2bd549480b7ccecf2dd31418fcf705c5eda5d0c8787bf86c12803bed77df9d34",
+    "font_prototypes_sha256": "cb4479cd7a48f052698235fd427c7fd90a91fb4ec47e74316bd574b1ffd7bcd3",
+    "prototype_bags": [
+      {
+        "candidate_id": "mongtori",
+        "count": 16,
+        "start": 0
+      },
+      {
+        "candidate_id": "chosun-gungseo",
+        "count": 16,
+        "start": 16
+      },
+      {
+        "candidate_id": "griun-pol-sensibility",
+        "count": 16,
+        "start": 32
+      },
+      {
+        "candidate_id": "nanum-gothic",
+        "count": 16,
+        "start": 48
+      },
+      {
+        "candidate_id": "nanum-myeongjo",
+        "count": 16,
+        "start": 64
+      },
+      {
+        "candidate_id": "nanum-barun-gothic",
+        "count": 16,
+        "start": 80
+      },
+      {
+        "candidate_id": "seoul-namsan",
+        "count": 16,
+        "start": 96
+      },
+      {
+        "candidate_id": "seoul-namsan-vertical",
+        "count": 16,
+        "start": 112
+      },
+      {
+        "candidate_id": "seoul-hangang",
+        "count": 16,
+        "start": 128
+      },
+      {
+        "candidate_id": "dohyeon",
+        "count": 16,
+        "start": 144
+      },
+      {
+        "candidate_id": "ridi-batang",
+        "count": 16,
+        "start": 160
+      },
+      {
+        "candidate_id": "cafe24-gowoonbam",
+        "count": 16,
+        "start": 176
+      },
+      {
+        "candidate_id": "start-over",
+        "count": 16,
+        "start": 192
+      },
+      {
+        "candidate_id": "jua",
+        "count": 16,
+        "start": 208
+      },
+      {
+        "candidate_id": "gaegu",
+        "count": 16,
+        "start": 224
+      },
+      {
+        "candidate_id": "black-and-white-picture",
+        "count": 16,
+        "start": 240
+      },
+      {
+        "candidate_id": "black-han-sans",
+        "count": 16,
+        "start": 256
+      },
+      {
+        "candidate_id": "gasoek-one",
+        "count": 16,
+        "start": 272
+      },
+      {
+        "candidate_id": "kirang-haerang",
+        "count": 16,
+        "start": 288
+      },
+      {
+        "candidate_id": "nanum-brush-script",
+        "count": 16,
+        "start": 304
+      },
+      {
+        "candidate_id": "single-day",
+        "count": 16,
+        "start": 320
+      }
+    ],
+    "prototype_count": 336,
+    "render_bank_manifest_sha256": "e27cf064ae5df0a83146f665387ee1462a286596d06a4f10f02f09585e975577",
+    "variant_prototype_layout": {
+      "aggregation": "mean_each_active_candidate_bag",
+      "candidate_count": 21,
+      "feature_offset": 256,
+      "query_count": 4,
+      "query_dim": 256
+    }
+  },
+  "deployment": {
+    "automatic_mutation_allowed": true,
+    "fail_closed": true,
+    "fallback_policy": {
+      "automatic_profile_without_pixel_model": "forbidden",
+      "invalid_artifact": "explicit_disabled",
+      "manual_user_lock": "allowed",
+      "missing_artifact": "explicit_disabled",
+      "semantic_bootstrap": "forbidden"
+    },
+    "state": "ready"
+  },
+  "encoder": {
+    "branches": {
+      "body": "v2_finetuned_pooler_projection256",
+      "shared_weights_assumed": false,
+      "variant": "pinned_base_patch_tokens_four_query_embeddings1024"
+    },
+    "class": "DualSiglipVisionModel",
+    "fully_frozen": true,
+    "model_id": "google/siglip2-base-patch16-224",
+    "onnx_sha256": "8b9db6bbe272510cedc0f5ce37ce0d1d7f90c146b7c42dd07ca14c26eff4a985",
+    "revision": "75de2d55ec2d0b4efc50b3e9ad70dba96a7b2fa2",
+    "source_weights_sha256": "612923381c76ec5a9bed335d1c48827e3f2e506ac31b044b63b2031fadee6a0b",
+    "version": "dual-siglip-vision-body-pooler-variant-patch-query-onnx-v1"
+  },
+  "head": {
+    "architecture": {
+      "candidate_count": 21,
+      "feature_dim": 1280,
+      "legacy_feature_dim": 256,
+      "role_family_adapter": {
+        "candidate_bias": "bounded_zero_mean_role_family_only",
+        "family_count": 2,
+        "geometry_input": false,
+        "score_branches": "separate_body_variant_query_mixtures",
+        "text_or_font_name_or_gemma_input": false
+      },
+      "variant_feature_dim": 1024,
+      "variant_query_count": 4,
+      "variant_query_dim": 256
+    },
+    "body_checkpoint_sha256": "ff580ef87c949d9b5cc8f4552490015cb621814d6cd5c122018def415792f3de",
+    "family_score_sharing": "separate_body_variant_pixel_scores",
+    "onnx_sha256": "dfa42ae17f340768cae30f2219973eae1ff62a4c3c1544496502621e6e710c78",
+    "variant_checkpoint_sha256": "ff580ef87c949d9b5cc8f4552490015cb621814d6cd5c122018def415792f3de",
+    "version": "manga-font-v8-role-family-adapter-ranker-onnx-v1"
+  },
+  "hybrid_score_routing": {
+    "body_candidate_output": "body_candidate_scores",
+    "body_roles": [
+      "dialogue",
+      "narration",
+      "thought"
+    ],
+    "candidate_scores_compatibility_alias": "body_candidate_scores",
+    "role_source": "resolveCombinedAutomaticFontRole(item.fontRole,pixelRole)",
+    "row_specific_rules": false,
+    "schema_version": "font-matching-hybrid-score-routing-v1",
+    "selection_feature_dim": 256,
+    "selection_feature_source": "selected_candidate_scores_with_legacy256_visual_features",
+    "unknown_role_fallback": "variant_candidate_scores",
+    "variant_candidate_output": "variant_candidate_scores",
+    "variant_roles": [
+      "whisper",
+      "aside_balloon_edge",
+      "emphasis_dialogue",
+      "shout",
+      "sfx_impact",
+      "sfx_motion",
+      "sfx_ambient",
+      "sfx_emotion",
+      "sfx_comic",
+      "sign_ui_title",
+      "other"
+    ]
+  },
+  "model_version": "manga-font-v8-active21-dfa42ae17f-ffb3285338",
+  "onnx_io_contract": {
+    "encoder.onnx": {
+      "inputs": [
+        {
+          "name": "pixel_values",
+          "shape": [
+            null,
+            3,
+            224,
+            224
+          ],
+          "type": "tensor(float)"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "image_features",
+          "shape": [
+            null,
+            1280
+          ],
+          "type": "tensor(float)"
+        }
+      ]
+    },
+    "ranker.onnx": {
+      "inputs": [
+        {
+          "name": "views",
+          "shape": [
+            null,
+            3,
+            1280
+          ],
+          "type": "tensor(float)"
+        },
+        {
+          "name": "prototype_features",
+          "shape": [
+            336,
+            1280
+          ],
+          "type": "tensor(float)"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "candidate_scores",
+          "shape": [
+            null,
+            21
+          ],
+          "type": "tensor(float)"
+        },
+        {
+          "name": "body_candidate_scores",
+          "shape": [
+            null,
+            21
+          ],
+          "type": "tensor(float)"
+        },
+        {
+          "name": "variant_candidate_scores",
+          "shape": [
+            null,
+            21
+          ],
+          "type": "tensor(float)"
+        },
+        {
+          "name": "none_logits",
+          "shape": [
+            null
+          ],
+          "type": "tensor(float)"
+        },
+        {
+          "name": "role_logits",
+          "shape": [
+            null,
+            14
+          ],
+          "type": "tensor(float)"
+        },
+        {
+          "name": "style_logits",
+          "shape": [
+            null,
+            10
+          ],
+          "type": "tensor(float)"
+        },
+        {
+          "name": "treatment_distortion_logits",
+          "shape": [
+            null,
+            8
+          ],
+          "type": "tensor(float)"
+        },
+        {
+          "name": "treatment_fill_logits",
+          "shape": [
+            null,
+            6
+          ],
+          "type": "tensor(float)"
+        },
+        {
+          "name": "treatment_orientation_logits",
+          "shape": [
+            null,
+            4
+          ],
+          "type": "tensor(float)"
+        },
+        {
+          "name": "treatment_outline_logits",
+          "shape": [
+            null,
+            5
+          ],
+          "type": "tensor(float)"
+        },
+        {
+          "name": "treatment_shadow_logits",
+          "shape": [
+            null,
+            5
+          ],
+          "type": "tensor(float)"
+        },
+        {
+          "name": "view_gate_weights",
+          "shape": [
+            null,
+            3
+          ],
+          "type": "tensor(float)"
+        }
+      ]
+    }
+  },
+  "policy": {
+    "automatic_mutation": {
+      "intentional_override_minimum_score_margin": 0.12,
+      "minimum_calibrated_confidence": 0.82,
+      "minimum_intentional_override_confidence": 0.88,
+      "minimum_role_confidence": 0.75,
+      "require_none_acceptable_false": true,
+      "require_runtime_artifact_ready": true,
+      "require_translation_glyph_coverage": true
+    },
+    "chapter_prior": {
+      "local_override_minimum_score_margin": 0.12,
+      "maximum_score_contribution": 0.08,
+      "minimum_anchor_evidence_count": 3,
+      "mode": "weak_prior_never_hard_constraint",
+      "real_local_change_overrides_prior": true,
+      "scope": "chapter"
+    },
+    "policy_sha256": "f558f2c35bc01d5adcc66a6586cef4c7a9387e819a403dc86e7e44c39cab7ddd"
+  },
+  "preprocessing": {
+    "input_mode": "RGB",
+    "input_size_px": [
+      224,
+      224
+    ],
+    "processor": {
+      "class": "AutoImageProcessor",
+      "do_resize": false,
+      "use_fast": false
+    },
+    "prototype_to_encoder_input": {
+      "algorithm": "fontclip-letterbox-rgb-v1",
+      "canvas_color_rgb": [
+        255,
+        255,
+        255
+      ],
+      "convert_mode": "RGB",
+      "operation": "aspect_preserving_letterbox",
+      "placement": "center_floor",
+      "resize_filter": "lanczos",
+      "rounding": "python_round_then_minimum_1px",
+      "target_size_px": [
+        224,
+        224
+      ]
+    },
+    "sample_views": "verified-rgb-224-passthrough-v1"
+  },
+  "provenance": {
+    "base_checkpoint_sha256": "a05d2821cde79b2985ccf63911f117c7273addccf3ecd15569f9a292ee599b50",
+    "base_model_contract_sha256": "1e10a7e0c585f254689dfda92fac7fd1521fbd661fffb95d5ae72e9c9d897741",
+    "export_validation": {
+      "body_compatibility_alias_max_abs_error": 0.0,
+      "body_variant_max_abs_delta": 1.5030670166015625,
+      "cpu": {
+        "dynamic_batch_sizes": [
+          1,
+          3,
+          7,
+          9,
+          11
+        ],
+        "execution_provider": "CPUExecutionProvider",
+        "package": "onnxruntime",
+        "runtime_milliseconds": 2300.544,
+        "version": "1.21.0"
+      },
+      "encoder_max_abs_error": 1.6475096344947815e-06,
+      "ranker_max_abs_error": 1.043081283569336e-06,
+      "role_logit_max_span": 22.395599365234375,
+      "sample_count": 32,
+      "sample_source": "deterministic_synthetic_only"
+    },
+    "exporter_sha256": "dcb17db4d3814c63c8cb8b8161f3465f17983c566ed42e58c2a5fc68f59d6957",
+    "fontquery_fixture_only": false,
+    "fontquery_source_kind": "v7_mass21_r3_teacher_stable",
+    "fontquery_source_manifest_sha256": "5602ed3a5b1b23a3536a40910fe00a3011457e726bccb0d550872d93a6abedba",
+    "fontquery_source_prototypes_sha256": "a1a011342ac8b7fc09436dc236a1bd153b934dba29b20f334cb225f7c879bcab",
+    "fontquery_source_quality_gate_passed": false,
+    "frozen_test_manifest_sha256": "b27880750d7457574713587c780492ed4f3e3ecd2cedc537cf7f74b23e522545",
+    "source_full22_active_catalog_sha256": "1b8ef04962796185b0c66cb8f01f3f8668dd3bc3571c4a241215e4f211decd74",
+    "v7_release_template_contract_sha256": "01b245d58a5ad858068726d1875e64add53dc4a084c78be0342dc6858b9ede66",
+    "v8_adapter_checkpoint_sha256": "ff580ef87c949d9b5cc8f4552490015cb621814d6cd5c122018def415792f3de",
+    "v8_adapter_manifest_sha256": "4512537525d09443d15506af17204aff498a0bab4b803eeff6680acfeeff1bba",
+    "v8_graph_report_sha256": "99987d5fdab778cffb684849dd9312f6f7fe735246035d15937836ec4bc2fb6c",
+    "v8_visual_holdout_evaluation_sha256": "159f01a2d579252d5c577ec7791b8f53a7f3de46b9098c430b05b147146552d7"
+  },
+  "record_sha256": "52aef220bbdc55df77061783d389fdb3c8fda17a1c4463e31c3af3ba6efccf76",
+  "record_type": "font_matching_runtime_artifact",
+  "release_acceptance": {
+    "acceptance_authority": "explicit_user_approved_work_disjoint_fresh_gemma_manual_visual_review",
+    "accepted_at": "2026-08-12T03:23:41Z",
+    "automatic_visual_judgment": false,
+    "evidence": {
+      "adapter_checkpoint_sha256": "ff580ef87c949d9b5cc8f4552490015cb621814d6cd5c122018def415792f3de",
+      "candidate_order_sha256": "17343ec15ee2153e770101d0cbf707600e97a8bc2d490496efaf4da2f638437d",
+      "cohort_digest": "9c1ddde045ab0ddbad1e86fa30c20b869a112a9405eddbe404b0d1292686f5d2",
+      "manual_review_content_sha256": "39e45f037d15dd42f3aa74ee987a0e272d308c13115036f182fc1a6f0dfe1157",
+      "manual_review_file_sha256": "a92a751168d0cbde436371c30e1dcfe613194b80d3eff9787df6b2375f3364eb",
+      "model_version": "manga-font-v8-active21-dfa42ae17f-ffb3285338",
+      "ranker_sha256": "dfa42ae17f340768cae30f2219973eae1ff62a4c3c1544496502621e6e710c78",
+      "run_report_sha256": "61570016f17039e982c05afb066c92bf649a5ac837d3e8254b847b96bb2d11cb",
+      "source_evaluation_runtime_contract_sha256": "292433b367a7aef5abd8d2b8c3833d521584bc4cb41027924c37774585fdb7f4",
+      "source_selection_calibration_sha256": "501c39cd12019e4334336c486a0b8a87699ea6a5e8845232af5537e0929dc3fb",
+      "visual_review_index_sha256": "5155436a1bf25e2e5694c4cc88d1f65092245e6bc80743484e604ef7984593ad"
+    },
+    "explicit_user_acceptance": true,
+    "external_release_quality_gate_passed": true,
+    "publication": {
+      "evaluation_only_annotations_removed": true,
+      "release_marker_has_no_qa_flags": true,
+      "source_evaluation_runtime_immutable": true,
+      "source_model_assets_copied_exactly": true
+    },
+    "quality_gate": {
+      "acceptable_pages": 15,
+      "bad_pages": 5,
+      "calibration_gate_waiver": {
+        "approved": true,
+        "exact_scope": "manga-font-v8-active21-dfa42ae17f-ffb3285338/r3h-manual-v2",
+        "reason": "explicit_user_acceptance_after_fresh_work_disjoint_manual_review",
+        "strict_gate_failures": {
+          "global_acceptable_at1": 0.7096774193548387,
+          "global_precision_target": 0.88,
+          "global_preferred_at1": 0.41935483870967744,
+          "variant_acceptable_at1": 0.7333333333333333,
+          "variant_precision_target": 0.88,
+          "variant_preferred_at1": 0.43333333333333335
+        }
+      },
+      "calibration_release_quality_gate_passed": false,
+      "distinct_chapters": 40,
+      "distinct_works": 10,
+      "fresh_work_disjoint_pages": 40,
+      "good_pages": 10,
+      "judged_content_pages": 30,
+      "master_work_overlap": 0,
+      "minimum_usable_rate": 0.8,
+      "outline_loss_count": 0,
+      "single_day_body_role_count": 0,
+      "structural_error_count": 0,
+      "usable_pages": 25,
+      "usable_rate": 0.8333333333333334
+    },
+    "record_sha256": "c2418e72d42d85be87a67973e7bd4af8b3df46c5b16a2d717280496bfec0a7fd",
+    "record_type": "font_matching_runtime_release_acceptance",
+    "schema_version": "font-matching-runtime-release-acceptance-v2",
+    "status": "accepted"
+  },
+  "release_evaluation": {
+    "authority": "checkpoint_selection_only_not_base_independent",
+    "base_independent_evaluation": false,
+    "evaluated_row_count": 1047,
+    "evaluation_report_sha256": "159f01a2d579252d5c577ec7791b8f53a7f3de46b9098c430b05b147146552d7",
+    "human_gold": false,
+    "independent_test": false,
+    "metrics": {
+      "acceptable_at1": 0.673352435530086,
+      "evaluated_positive_rows": 1047,
+      "family_accuracy": 0.9933142311365807,
+      "oracle_family_acceptable_at1": 0.670487106017192,
+      "oracle_family_preferred_at1": 0.5988538681948424,
+      "preferred_at1": 0.5988538681948424,
+      "routing_authority": "predicted_pixel_family_with_single_day_eligibility",
+      "single_day_all_rows": 9033,
+      "single_day_all_top1_count": 58,
+      "single_day_all_top1_rate": 0.0064209011402634785,
+      "single_day_body_false_top1_count": 0,
+      "single_day_body_false_top1_rate": 0.0,
+      "single_day_body_negative_rows": 290,
+      "single_day_positive_count": 24,
+      "single_day_positive_precision": 0.0,
+      "single_day_positive_recall": 0.0,
+      "single_day_predicted_count": 0,
+      "single_day_raw_all_top1_count": 140,
+      "single_day_variant_gate_allowed_rows": 58,
+      "top1_candidate_distribution": {
+        "black-and-white-picture": 33,
+        "black-han-sans": 6,
+        "chosun-gungseo": 1,
+        "dohyeon": 56,
+        "gaegu": 4,
+        "griun-pol-sensibility": 11,
+        "jua": 7,
+        "kirang-haerang": 1,
+        "mongtori": 108,
+        "nanum-barun-gothic": 20,
+        "nanum-brush-script": 7,
+        "nanum-gothic": 105,
+        "nanum-myeongjo": 131,
+        "ridi-batang": 547,
+        "seoul-hangang": 6,
+        "seoul-namsan": 2,
+        "seoul-namsan-vertical": 1,
+        "start-over": 1
+      },
+      "top1_max_candidate_share": 0.5224450811843362,
+      "top1_outside_reviewed_five_rate": 0.030563514804202482,
+      "top1_unique_candidate_count": 18
+    },
+    "quality_gate_authority": "qa_packaging_only_not_release",
+    "sample_work_order_sha256": "6ac7b08c5fe01f490a9917502d6d8b4b55803248661b81ed7ca9817ea1ebe2ee",
+    "status": "v8_checkpoint_selection_qa_gate_passed_not_base_independent_not_human_gold",
+    "thresholds": {
+      "acceptable_at1": 0.65,
+      "family_accuracy": 0.75,
+      "preferred_at1": 0.5,
+      "single_day_all_top1_rate": 0.01,
+      "single_day_body_false_top1_rate": 0.0025,
+      "single_day_positive_precision": 0.8,
+      "top1_max_candidate_share": 0.65
+    }
+  },
+  "runtime": {
+    "execution_provider": "wasm",
+    "package": "onnxruntime-web",
+    "version": "1.27.0"
+  },
+  "runtime_batching": {
+    "encoder_batch_size": 2,
+    "parity_qualified": true,
+    "ranker_batch_size": 16
+  },
+  "schema_version": "font-matching-runtime-artifact-v2",
+  "test_data_boundary": {
+    "aggregate_metrics_only": true,
+    "fresh64_rows_accessed": 0,
+    "frozen_test_pixels_opened_by_exporter": 0,
+    "library_qa_rows_accessed": 0,
+    "row_level_predictions_packaged": false,
+    "sample_identifiers_packaged": false,
+    "training_or_validation_pixels_packaged": false
+  },
+  "v8_font_family_evidence": {
+    "body_and_variant_share_exact_scores": false,
+    "candidate_scores_compatibility_alias": "body_candidate_scores",
+    "forbidden_model_inputs": [
+      "font_name",
+      "gemma",
+      "genre",
+      "text"
+    ],
+    "role_logits": "pixel_query_role_family_adapter",
+    "schema_version": "manga-font-v8-role-family-pixel-evidence-v1"
+  },
+  "v8_runtime_packaging": {
+    "automatic_mutation_before_selection_calibration": false,
+    "graph_report_record_sha256": "1ef3dd27626ef00b6ea16db96255ef498e509531630a9df2946a002787f701b3",
+    "graph_report_sha256": "99987d5fdab778cffb684849dd9312f6f7fe735246035d15937836ec4bc2fb6c",
+    "quality_gate_bypassed": false,
+    "schema_version": "manga-font-v8-qa-runtime-packaging-v2",
+    "selection_calibration_required": true,
+    "v7_release_contract_sha256": "01b245d58a5ad858068726d1875e64add53dc4a084c78be0342dc6858b9ede66",
+    "v7_release_marker_sha256": "e78fdd46cf3715ac985ba04335b1c680d93bb215fd62c2683ccd312c43b53f14",
+    "visual_holdout_authority": "checkpoint_selection_only_not_base_independent",
+    "visual_holdout_evaluation_record_sha256": "ffb328533863af443fa56c6cc23167617f79588b93b9da01331e63f1f55c3323",
+    "visual_holdout_evaluation_sha256": "159f01a2d579252d5c577ec7791b8f53a7f3de46b9098c430b05b147146552d7"
+  }
+}

@@ -17,6 +17,8 @@ import type { UiLocale } from "../../shared/uiLocales";
 import { isKoreanLanguageCode } from "../../shared/translationLanguages";
 import type { AppPaths } from "../appPaths";
 import { loadFontMatchingPageRaster } from "../fontMatchingPageImage";
+import { buildAutomaticFontPageConsistencyPlan } from "./automaticFontMatchingV2PageConsistency";
+import { resolveAutomaticFontCalibratedPixelWinner } from "./automaticFontMatchingV2PageFamily";
 import {
   ONNXRUNTIME_WEB_WASM_BINARY_BYTES,
   ONNXRUNTIME_WEB_WASM_BINARY_FILE,
@@ -74,6 +76,16 @@ import {
   buildFontMatchingSelectionFeatureSet,
   type FontMatchingPrototypeBag,
 } from "./fontMatchingSelectionCalibrationFeatures";
+import { resolvePixelCandidateEligibility } from "./fontMatchingPixelCandidateEligibility";
+import { readFontMatchingOcrGeometryDirection } from "./fontMatchingOcrGeometryDirection";
+import {
+  applyFontMatchingPageRelativePeerScorePreference,
+  buildFontMatchingPageRelativeRoleQaPlan,
+  FONT_MATCHING_PAGE_RELATIVE_ROLE_QA_POLICY,
+  projectFontMatchingPageRelativeRole,
+  shouldRevertPageRelativeQaForApplyRate,
+  type FontMatchingPageRelativeRoleQaPlanRow,
+} from "./fontMatchingPageRelativeRoleQa";
 
 const ENCODER_FILE = "encoder.onnx";
 const RANKER_FILE = "ranker.onnx";
@@ -204,7 +216,7 @@ export type FontMatchingRuntimeModel = Readonly<{
   rendererHash: string;
   selectionCalibration: FontMatchingSelectionCalibration;
   qaOnlyRuntime: boolean;
-  releaseAccepted?: boolean;
+  failedCalibrationQualityAccepted?: boolean;
 }>;
 
 type RuntimeLoadResult =
@@ -439,7 +451,7 @@ async function buildFontMatchingRuntimeModel(
     rendererHash: contract.rendererHash,
     selectionCalibration,
     qaOnlyRuntime: bundle.qaOnly,
-    releaseAccepted: bundle.releaseAccepted,
+    failedCalibrationQualityAccepted: bundle.failedCalibrationQualityAccepted,
   };
   return { status, model };
 }
@@ -482,7 +494,8 @@ function parseVerifiedSelectionCalibration(
   );
   return calibration &&
     isFontMatchingSelectionCalibrationDeploymentReady(calibration, {
-      allowFailedReleaseQuality: bundle.qaOnly || bundle.releaseAccepted,
+      allowFailedReleaseQuality:
+        bundle.qaOnly || bundle.failedCalibrationQualityAccepted,
     })
     ? calibration
     : null;
@@ -493,6 +506,7 @@ export async function inferFontMatchingPagePixels({
   blocks,
   candidates,
   boundary,
+  qaPageRelativeRoleReroute = false,
   signal,
   model,
   loadRaster,
@@ -545,6 +559,7 @@ export async function inferFontMatchingPagePixels({
       outputs,
       pageId: page.id,
       boundary,
+      qaPageRelativeRoleReroute,
     });
   } finally {
     disposeOutputs(outputs);
@@ -761,7 +776,7 @@ async function runRankerBatch(
   }
 }
 
-// eslint-disable-next-line max-lines-per-function -- output heads are validated and projected together
+// eslint-disable-next-line max-lines-per-function, complexity -- output heads and opt-in QA guard are validated together
 function buildPixelInferenceRows({
   blocks,
   glyphMorphologies,
@@ -771,6 +786,7 @@ function buildPixelInferenceRows({
   outputs,
   pageId,
   boundary,
+  qaPageRelativeRoleReroute,
 }: {
   blocks: readonly FontMatchingPageInferenceBlock[];
   glyphMorphologies: readonly FontMatchingGlyphMorphologyV1[];
@@ -780,6 +796,7 @@ function buildPixelInferenceRows({
   outputs: Readonly<Record<string, FloatTensorLike>>;
   pageId: string;
   boundary: FontMatchingInferenceInputBoundary;
+  qaPageRelativeRoleReroute: boolean;
 }): ReadonlyMap<string, VerifiedAutomaticFontPixelInferenceV2> {
   const count = blocks.length;
   if (
@@ -827,119 +844,528 @@ function buildPixelInferenceRows({
     "ranker.view_gate_weights",
   );
   assertAuxiliaryOutputShapes(outputs, count);
+  const pixelRoles = Array.from({ length: count }, (_unused, row) =>
+    buildRolePrediction(roleLogits, row),
+  );
+  const treatments = Array.from({ length: count }, (_unused, row) =>
+    buildTreatment(outputs, row),
+  );
+  const sourceStyles = Array.from({ length: count }, (_unused, row) =>
+    buildSourceStyle(styleLogits, row),
+  );
+  const baselineRows = blocks.map((block, row) => {
+    const pixelRole = pixelRoles[row];
+    const treatment = treatments[row];
+    const sourceStyle = sourceStyles[row];
+    if (!pixelRole || !treatment || !sourceStyle) {
+      throw new Error("Font matching baseline row inventory drifted.");
+    }
+    return buildPixelInferenceRow({
+      block,
+      boundary,
+      candidates,
+      features,
+      glyphMorphology: glyphMorphologies[row],
+      model,
+      noneLogits,
+      orientationLogits,
+      pageId,
+      plan: undefined,
+      roleLogits,
+      routed: resolveHybridScoreRoute(
+        pixelRole,
+        model.scoreRouting,
+        hybridScores,
+        compatibilityCandidateScores,
+      ),
+      row,
+      sourceStyle,
+      styleLogits,
+      treatment,
+      viewGateWeights,
+    });
+  });
+  if (!qaPageRelativeRoleReroute) {
+    return new Map(
+      baselineRows.map((inference) => [inference.blockId, inference]),
+    );
+  }
+  const baselinePageConsistencyPlan = buildAutomaticFontPageConsistencyPlan(
+    baselineRows,
+    buildQaPageConsistencyGeometryItems(blocks, treatments),
+  );
+  const qaPlan =
+    hybridScores && model.scoreRouting
+      ? buildPageRelativeQaPlan({
+          baselineRows,
+          blocks,
+          candidateIds: model.candidateIds,
+          glyphMorphologies,
+          hybridScores,
+          model,
+          pixelRoles,
+          roleLogits,
+          treatments,
+        })
+      : null;
   const result = new Map<string, VerifiedAutomaticFontPixelInferenceV2>();
   for (let row = 0; row < count; row += 1) {
     const block = blocks[row];
     if (!block) throw new Error("Font matching block output row drifted.");
-    const pixelRolePrediction = buildRolePrediction(roleLogits, row);
-    const routed = resolveHybridScoreRoute(
-      pixelRolePrediction,
+    const baseline = baselineRows[row];
+    const pixelRole = pixelRoles[row];
+    const treatment = treatments[row];
+    const sourceStyle = sourceStyles[row];
+    if (!baseline || !pixelRole || !treatment || !sourceStyle) {
+      throw new Error("Font matching page-relative row inventory drifted.");
+    }
+    const shared = {
+      block,
+      boundary,
+      candidates,
+      features,
+      glyphMorphology: glyphMorphologies[row],
+      model,
+      noneLogits,
+      orientationLogits,
+      pageId,
+      roleLogits,
+      row,
+      sourceStyle,
+      styleLogits,
+      treatment,
+      viewGateWeights,
+    };
+    const plan = qaPlan?.get(block.blockId);
+    if (!hybridScores || !model.scoreRouting) {
+      result.set(
+        block.blockId,
+        attachPageRelativeQaAudit(
+          baseline,
+          pixelRole,
+          undefined,
+          {
+            status: "dual_branch_unavailable",
+            reasonCodes: ["qa_page_relative_dual_branch_unavailable"],
+            baselinePageConsistencyState:
+              baselinePageConsistencyPlan.get(block.blockId) ?? null,
+          },
+          block.sourceGeometryDirection,
+          block.sourceCandidateMembership,
+          block.item,
+        ),
+      );
+      continue;
+    }
+    if (!plan?.applied) {
+      result.set(
+        block.blockId,
+        attachPageRelativeQaAudit(
+          baseline,
+          pixelRole,
+          plan,
+          {
+            status: "unchanged",
+            reasonCodes: plan?.reasonCodes ?? [],
+            baselinePageConsistencyState:
+              baselinePageConsistencyPlan.get(block.blockId) ?? null,
+          },
+          block.sourceGeometryDirection,
+          block.sourceCandidateMembership,
+          block.item,
+        ),
+      );
+      continue;
+    }
+    const selectionRole = projectFontMatchingPageRelativeRole(pixelRole, plan);
+    const qaRoute = resolveHybridScoreRoute(
+      selectionRole,
       model.scoreRouting,
       hybridScores,
       compatibilityCandidateScores,
     );
-    const probabilities = softmaxRow(
-      routed.scores,
-      row,
-      candidates.length,
-      model.status.calibration.temperature,
+    if (qaRoute.audit?.family !== plan.routeFamily) {
+      throw new Error("Page-relative QA route family drifted.");
+    }
+    const candidate = buildPixelInferenceRow({
+      ...shared,
+      plan,
+      routed: qaRoute,
+    });
+    const applyGuardTriggered = shouldRevertPageRelativeQaForApplyRate(
+      baseline.selectionCalibration.applied,
+      candidate.selectionCalibration.applied,
     );
-    const sourceStyle = buildSourceStyle(styleLogits, row);
-    const treatment = buildTreatment(outputs, row);
-    const rawRankedCandidates = markRetiredAutomaticFontCandidates(
-      buildRankedCandidates(
-        candidates,
-        probabilities,
-        sourceStyle,
-        routed.selectionRole,
-        treatment,
+    result.set(
+      block.blockId,
+      attachPageRelativeQaAudit(
+        applyGuardTriggered ? baseline : candidate,
+        pixelRole,
+        plan,
+        {
+          status: applyGuardTriggered ? "reverted_apply_rate_guard" : "applied",
+          reasonCodes: applyGuardTriggered
+            ? [...plan.reasonCodes, "qa_page_relative_apply_rate_guard"]
+            : plan.reasonCodes,
+          baselinePageConsistencyState:
+            baselinePageConsistencyPlan.get(block.blockId) ?? null,
+        },
+        block.sourceGeometryDirection,
+        block.sourceCandidateMembership,
+        block.item,
       ),
     );
-    const noneProbability = sigmoid(noneLogits[row] ?? 0);
-    const noneAcceptable =
-      noneProbability >= model.status.calibration.noneThreshold;
-    const featureSet = buildFontMatchingSelectionFeatureSet(
-      {
-        candidateIds: model.candidateIds,
-        candidateScores: routed.scores.subarray(
-          row * candidates.length,
-          (row + 1) * candidates.length,
-        ),
-        runtimeTemperature: model.status.calibration.temperature,
-        noneLogit: noneLogits[row] ?? 0,
-        roleLogits: roleLogits.subarray(
-          row * RUNTIME_ROLE_VALUES.length,
-          (row + 1) * RUNTIME_ROLE_VALUES.length,
-        ),
-        styleLogits: styleLogits.subarray(
-          row * RUNTIME_STYLE_FIELDS.length,
-          (row + 1) * RUNTIME_STYLE_FIELDS.length,
-        ),
-        orientationLogits: orientationLogits.subarray(
-          row * RUNTIME_TREATMENTS.orientation.length,
-          (row + 1) * RUNTIME_TREATMENTS.orientation.length,
-        ),
-        viewGateWeights: viewGateWeights.subarray(
-          row * FONT_MATCHING_PIXEL_VIEW_COUNT,
-          (row + 1) * FONT_MATCHING_PIXEL_VIEW_COUNT,
-        ),
-        viewFeatures: selectFeaturePrefixRows(
-          features.subarray(
-            row * FONT_MATCHING_PIXEL_VIEW_COUNT * model.featureDim,
-            (row + 1) * FONT_MATCHING_PIXEL_VIEW_COUNT * model.featureDim,
-          ),
-          FONT_MATCHING_PIXEL_VIEW_COUNT,
-          model.featureDim,
-          model.selectionFeatureDim,
-        ),
-        featureDim: model.selectionFeatureDim,
-        prototypeFeatures: model.selectionPrototypeFeatures,
-        prototypeBags: model.prototypeBags,
-      },
-      model.selectionCalibration,
-    );
-    const selection = applySupervisedFontSelectionCalibration({
-      rankedCandidates: rawRankedCandidates,
-      role: routed.selectionRole.primary,
-      calibration: model.selectionCalibration,
-      featureSet,
-      noneAcceptable,
-      allowFailedReleaseQuality:
-        model.qaOnlyRuntime || model.releaseAccepted === true,
-    });
-    const rankedCandidates = selection.rankedCandidates;
-    result.set(block.blockId, {
-      kind: "verified_pixel_inference",
-      pageId,
-      blockId: block.blockId,
-      modelVersion: model.status.modelVersion,
-      candidateOrderSha256: model.status.candidateOrderSha256,
-      inputBoundary: boundary,
-      rolePrediction: pixelRolePrediction,
-      ...(routed.audit ? { scoreRoute: routed.audit } : {}),
-      sourceStyle,
-      treatment,
-      selectionCalibration: {
-        applied: selection.calibrationApplied,
-        fallbackReason: selection.fallbackReason,
-        operatingFamily: selection.operatingFamily,
-        selectionScore: selection.selectionScore,
-        globalRiskLowerConfidenceBound:
-          model.selectionCalibration.operatingPoints.global.risk_lcb,
-      },
-      glyphMorphology: glyphMorphologies[row],
-      localEvidence: {
-        rankedCandidates,
-        calibratedConfidence: rankedCandidates[0]?.confidence ?? 0,
-        noneAcceptable,
-        catalogVersion: model.status.catalogVersion,
-        modelVersion: model.status.modelVersion,
-        rendererHash: model.rendererHash,
-      },
-    });
   }
   return result;
 }
+
+function buildQaPageConsistencyGeometryItems(
+  blocks: readonly FontMatchingPageInferenceBlock[],
+  treatments: readonly FontMatchingTreatmentV2[],
+): FontMatchingPageInferenceBlock["item"][] {
+  return blocks.map((block, row) => {
+    const treatment = treatments[row];
+    if (!treatment) {
+      throw new Error("Page-relative QA treatment inventory drifted.");
+    }
+    const sourceDirection = readFontMatchingOcrGeometryDirection(
+      block.sourceGeometryDirection,
+      block.item,
+      block.sourceCandidateMembership,
+    );
+    return {
+      ...block.item,
+      direction: sourceDirection?.direction ?? treatment.orientation,
+    };
+  });
+}
+
+function buildPageRelativeQaPlan({
+  baselineRows,
+  blocks,
+  candidateIds,
+  glyphMorphologies,
+  hybridScores,
+  model,
+  pixelRoles,
+  roleLogits,
+  treatments,
+}: {
+  baselineRows: readonly VerifiedAutomaticFontPixelInferenceV2[];
+  blocks: readonly FontMatchingPageInferenceBlock[];
+  candidateIds: readonly string[];
+  glyphMorphologies: readonly FontMatchingGlyphMorphologyV1[];
+  hybridScores: NonNullable<HybridCandidateScores>;
+  model: FontMatchingRuntimeModel;
+  pixelRoles: readonly FontMatchRolePredictionV2[];
+  roleLogits: Float32Array;
+  treatments: readonly FontMatchingTreatmentV2[];
+}): ReadonlyMap<string, FontMatchingPageRelativeRoleQaPlanRow> {
+  const candidateCount = candidateIds.length;
+  return buildFontMatchingPageRelativeRoleQaPlan(
+    blocks.map((block, row) => {
+      const baseline = baselineRows[row];
+      const pixelRole = pixelRoles[row];
+      const treatment = treatments[row];
+      if (!baseline || !pixelRole || !treatment) {
+        throw new Error("Page-relative QA input row drifted.");
+      }
+      return {
+        blockId: block.blockId,
+        item: {
+          id: block.item.id,
+          bbox: block.item.bbox,
+          candidateIds: block.item.candidateIds,
+        },
+        pixelRole,
+        dialogueProbability: roleLogitProbability(roleLogits, row, "dialogue"),
+        emphasisProbability: roleLogitProbability(
+          roleLogits,
+          row,
+          "emphasis_dialogue",
+        ),
+        glyphMorphology: glyphMorphologies[row],
+        sourceGeometryDirection: block.sourceGeometryDirection,
+        sourceCandidateMembership: block.sourceCandidateMembership,
+        treatment,
+        candidateIds,
+        bodyScores: hybridScores.body.subarray(
+          row * candidateCount,
+          (row + 1) * candidateCount,
+        ),
+        variantScores: hybridScores.variant.subarray(
+          row * candidateCount,
+          (row + 1) * candidateCount,
+        ),
+        temperature: model.status.calibration.temperature,
+        baselineCalibrationApplied: baseline.selectionCalibration.applied,
+        baselineSelectedFontId:
+          resolveAutomaticFontCalibratedPixelWinner(baseline)?.fontId ?? null,
+      };
+    }),
+  );
+}
+
+function roleLogitProbability(
+  logits: Float32Array,
+  row: number,
+  role: (typeof RUNTIME_ROLE_VALUES)[number],
+): number {
+  const roleIndex = RUNTIME_ROLE_VALUES.indexOf(role);
+  return softmaxRow(logits, row, RUNTIME_ROLE_VALUES.length, 1)[roleIndex] ?? 0;
+}
+
+type PixelInferenceRowInput = Readonly<{
+  block: FontMatchingPageInferenceBlock;
+  boundary: FontMatchingInferenceInputBoundary;
+  candidates: readonly AutomaticFontCandidate[];
+  features: Float32Array;
+  glyphMorphology?: FontMatchingGlyphMorphologyV1;
+  model: FontMatchingRuntimeModel;
+  noneLogits: Float32Array;
+  orientationLogits: Float32Array;
+  pageId: string;
+  plan?: FontMatchingPageRelativeRoleQaPlanRow;
+  roleLogits: Float32Array;
+  routed: ReturnType<typeof resolveHybridScoreRoute>;
+  row: number;
+  sourceStyle: FontMatchingSourceStyleV2;
+  styleLogits: Float32Array;
+  treatment: FontMatchingTreatmentV2;
+  viewGateWeights: Float32Array;
+}>;
+
+// eslint-disable-next-line max-lines-per-function -- one row must use one exact score/calibration transaction
+function buildPixelInferenceRow({
+  block,
+  boundary,
+  candidates,
+  features,
+  glyphMorphology,
+  model,
+  noneLogits,
+  orientationLogits,
+  pageId,
+  plan,
+  roleLogits,
+  routed,
+  row,
+  sourceStyle,
+  styleLogits,
+  treatment,
+  viewGateWeights,
+}: PixelInferenceRowInput): VerifiedAutomaticFontPixelInferenceV2 {
+  const scoreOffset = row * candidates.length;
+  const eligibility = resolvePixelCandidateEligibility(
+    model.candidateIds,
+    routed.scores.subarray(scoreOffset, scoreOffset + candidates.length),
+    routed.selectionRole,
+  );
+  const candidateScores = applyFontMatchingPageRelativePeerScorePreference(
+    model.candidateIds,
+    eligibility.scores,
+    eligibility.eligibleMask,
+    plan,
+  );
+  const probabilities = softmaxRow(
+    candidateScores,
+    0,
+    candidates.length,
+    model.status.calibration.temperature,
+  );
+  const rawRankedCandidates = markRetiredAutomaticFontCandidates(
+    buildRankedCandidates(
+      candidates,
+      probabilities,
+      sourceStyle,
+      routed.selectionRole,
+      treatment,
+    ),
+  );
+  const noneProbability = sigmoid(noneLogits[row] ?? 0);
+  const noneAcceptable =
+    noneProbability >= model.status.calibration.noneThreshold;
+  const featureSet = buildFontMatchingSelectionFeatureSet(
+    {
+      candidateIds: model.candidateIds,
+      candidateScores,
+      runtimeTemperature: model.status.calibration.temperature,
+      noneLogit: noneLogits[row] ?? 0,
+      roleLogits: roleLogits.subarray(
+        row * RUNTIME_ROLE_VALUES.length,
+        (row + 1) * RUNTIME_ROLE_VALUES.length,
+      ),
+      styleLogits: styleLogits.subarray(
+        row * RUNTIME_STYLE_FIELDS.length,
+        (row + 1) * RUNTIME_STYLE_FIELDS.length,
+      ),
+      orientationLogits: orientationLogits.subarray(
+        row * RUNTIME_TREATMENTS.orientation.length,
+        (row + 1) * RUNTIME_TREATMENTS.orientation.length,
+      ),
+      viewGateWeights: viewGateWeights.subarray(
+        row * FONT_MATCHING_PIXEL_VIEW_COUNT,
+        (row + 1) * FONT_MATCHING_PIXEL_VIEW_COUNT,
+      ),
+      viewFeatures: selectFeaturePrefixRows(
+        features.subarray(
+          row * FONT_MATCHING_PIXEL_VIEW_COUNT * model.featureDim,
+          (row + 1) * FONT_MATCHING_PIXEL_VIEW_COUNT * model.featureDim,
+        ),
+        FONT_MATCHING_PIXEL_VIEW_COUNT,
+        model.featureDim,
+        model.selectionFeatureDim,
+      ),
+      featureDim: model.selectionFeatureDim,
+      prototypeFeatures: model.selectionPrototypeFeatures,
+      prototypeBags: model.prototypeBags,
+    },
+    model.selectionCalibration,
+  );
+  const selection = applySupervisedFontSelectionCalibration({
+    rankedCandidates: rawRankedCandidates,
+    role: routed.selectionRole.primary,
+    calibration: model.selectionCalibration,
+    featureSet,
+    noneAcceptable,
+    allowFailedReleaseQuality:
+      model.qaOnlyRuntime || Boolean(model.failedCalibrationQualityAccepted),
+  });
+  const rankedCandidates = selection.rankedCandidates;
+  return {
+    kind: "verified_pixel_inference",
+    pageId,
+    blockId: block.blockId,
+    modelVersion: model.status.modelVersion,
+    candidateOrderSha256: model.status.candidateOrderSha256,
+    inputBoundary: boundary,
+    rolePrediction: routed.selectionRole,
+    ...(routed.audit ? { scoreRoute: routed.audit } : {}),
+    sourceStyle,
+    treatment,
+    selectionCalibration: {
+      applied: selection.calibrationApplied,
+      fallbackReason: selection.fallbackReason,
+      operatingFamily: selection.operatingFamily,
+      selectionScore: selection.selectionScore,
+      globalRiskLowerConfidenceBound:
+        model.selectionCalibration.operatingPoints.global.risk_lcb,
+    },
+    glyphMorphology,
+    localEvidence: {
+      rankedCandidates,
+      calibratedConfidence: rankedCandidates[0]?.confidence ?? 0,
+      noneAcceptable,
+      catalogVersion: model.status.catalogVersion,
+      modelVersion: model.status.modelVersion,
+      rendererHash: model.rendererHash,
+    },
+  };
+}
+
+function attachPageRelativeQaAudit(
+  inference: VerifiedAutomaticFontPixelInferenceV2,
+  pixelRole: FontMatchRolePredictionV2,
+  plan: FontMatchingPageRelativeRoleQaPlanRow | undefined,
+  outcome: Readonly<{
+    status: NonNullable<
+      VerifiedAutomaticFontPixelInferenceV2["pageRelativeRoleQa"]
+    >["status"];
+    reasonCodes: readonly string[];
+    baselinePageConsistencyState: NonNullable<
+      VerifiedAutomaticFontPixelInferenceV2["pageRelativeRoleQa"]
+    >["baselinePageConsistencyState"];
+  }>,
+  sourceGeometryDirection: unknown,
+  sourceCandidateMembership: unknown,
+  item: FontMatchingPageInferenceBlock["item"],
+): VerifiedAutomaticFontPixelInferenceV2 {
+  return {
+    ...inference,
+    pageRelativeRoleQa: {
+      policyVersion: FONT_MATCHING_PAGE_RELATIVE_ROLE_QA_POLICY.version,
+      status: outcome.status,
+      originalRole: pixelRole.primary,
+      ...resolvePageRelativeQaAuditRoleFields(pixelRole, plan),
+      ...resolvePageRelativeQaAuditClusterFields(
+        plan,
+        sourceGeometryDirection,
+        sourceCandidateMembership,
+        item,
+      ),
+      baselinePageConsistencyState: cloneBaselinePageConsistencyState(
+        outcome.baselinePageConsistencyState,
+      ),
+      reasonCodes: [...outcome.reasonCodes],
+      confidencePolicy: "preserve_original_pixel_primary_confidence",
+      applyRateGuard: "selection_calibration_non_decreasing",
+    },
+  };
+}
+
+function resolvePageRelativeQaAuditRoleFields(
+  pixelRole: FontMatchRolePredictionV2,
+  plan: FontMatchingPageRelativeRoleQaPlanRow | undefined,
+): Pick<
+  NonNullable<VerifiedAutomaticFontPixelInferenceV2["pageRelativeRoleQa"]>,
+  "projectedRole" | "routeFamily"
+> {
+  return {
+    projectedRole: plan?.projectedRole ?? pixelRole.primary,
+    routeFamily:
+      plan?.routeFamily ?? resolvePageRelativeQaRouteFamily(pixelRole),
+  };
+}
+
+function resolvePageRelativeQaAuditClusterFields(
+  plan: FontMatchingPageRelativeRoleQaPlanRow | undefined,
+  sourceGeometryDirection: unknown,
+  sourceCandidateMembership: unknown,
+  item: FontMatchingPageInferenceBlock["item"],
+): Pick<
+  NonNullable<VerifiedAutomaticFontPixelInferenceV2["pageRelativeRoleQa"]>,
+  | "clusterId"
+  | "clusterBodyAnchorFontId"
+  | "sourceGeometryDirection"
+  | "preferredPeerFontId"
+  | "peerBlockId"
+> {
+  return {
+    sourceGeometryDirection:
+      plan?.sourceGeometryDirection ??
+      readFontMatchingOcrGeometryDirection(
+        sourceGeometryDirection,
+        item,
+        sourceCandidateMembership,
+      ),
+    clusterId: plan?.clusterId ?? null,
+    clusterBodyAnchorFontId: plan?.clusterBodyAnchorFontId ?? null,
+    preferredPeerFontId: plan?.preferredPeerFontId ?? null,
+    peerBlockId: plan?.peerBlockId ?? null,
+  };
+}
+
+function resolvePageRelativeQaRouteFamily(
+  pixelRole: FontMatchRolePredictionV2,
+): "body" | "variant" {
+  return BODY_ROLES_FOR_QA_AUDIT.has(pixelRole.primary) ? "body" : "variant";
+}
+
+function cloneBaselinePageConsistencyState(
+  state: NonNullable<
+    VerifiedAutomaticFontPixelInferenceV2["pageRelativeRoleQa"]
+  >["baselinePageConsistencyState"],
+): NonNullable<
+  VerifiedAutomaticFontPixelInferenceV2["pageRelativeRoleQa"]
+>["baselinePageConsistencyState"] {
+  return state ? { ...state } : null;
+}
+
+const BODY_ROLES_FOR_QA_AUDIT = new Set<FontMatchingSemanticRole>([
+  "dialogue",
+  "narration",
+  "thought",
+]);
 
 type HybridCandidateScores = Readonly<{
   body: Float32Array;

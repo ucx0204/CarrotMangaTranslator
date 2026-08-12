@@ -384,8 +384,7 @@
     "selectionSummary": "{{chapterCount}}話 · {{approximate}}{{pageCount}}頁"
   },
   "exportOptions": {
-    "title": "匯出 PNG",
-    "psdTitle": "匯出 PSD",
+    "title": "匯出結果",
     "prompt": "請選擇要匯出的頁面。",
     "currentChapter": "目前章節",
     "chapterSummary": "{{count}}頁",
@@ -1094,8 +1093,8 @@
       "nextExport": "匯出 →"
     },
     "export": {
-      "pngAction": "匯出 PNG",
-      "description": "調整文字區塊的字體、顏色和位置，然後匯出疊加譯文的 PNG。",
+      "resultAction": "匯出結果",
+      "description": "調整文字區塊的字體、顏色和位置，然後匯出完成 PNG 或分層 PSD。",
       "result": "匯出結果",
       "pagesSaved": "已儲存{{count}}頁",
       "allPages": "全部頁面",

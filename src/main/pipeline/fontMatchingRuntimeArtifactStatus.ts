@@ -47,7 +47,8 @@ type RuntimeDisabledReason =
   | "artifact_verification_failed"
   | "invalid_contract"
   | "catalog_mismatch"
-  | "runtime_version_mismatch";
+  | "runtime_version_mismatch"
+  | "release_not_accepted";
 
 export type FontMatchingRuntimeArtifactStatus =
   | Readonly<{
@@ -71,7 +72,6 @@ export type FontMatchingRuntimeArtifactStatus =
       reason: RuntimeDisabledReason;
     }>;
 
-/** Release verification only; block-bound pixel inference is a separate gate. */
 export async function loadFontMatchingRuntimeArtifactStatus({
   artifactDir,
   installedCandidates,
@@ -117,14 +117,14 @@ export async function loadFontMatchingRuntimeArtifactStatus({
   if (parsed.runtimeVersion !== onnxRuntimeVersion) {
     return disabled("runtime_version_mismatch");
   }
-  if (
-    !(await verifyInstalledCatalog(
-      bundle.activeCatalog,
-      installedCandidates,
-      reverifyInstalledAssetBytes,
-    ))
-  ) {
-    return disabled("catalog_mismatch");
+  const catalogMatches = await verifyInstalledCatalog(
+    bundle.activeCatalog,
+    installedCandidates,
+    reverifyInstalledAssetBytes,
+  );
+  if (!catalogMatches) return disabled("catalog_mismatch");
+  if (!bundle.qaOnly && !bundle.releaseAccepted) {
+    return disabled("release_not_accepted");
   }
   return {
     state: "ready",
@@ -416,13 +416,11 @@ async function verifyInstalledAssetBytes(
   }
 }
 
-function disabled(
+const disabled = (
   reason: RuntimeDisabledReason,
-): FontMatchingRuntimeArtifactStatus {
-  return {
-    state: "disabled",
-    automaticMutationAllowed: false,
-    semanticBootstrapAllowed: false,
-    reason,
-  };
-}
+): FontMatchingRuntimeArtifactStatus => ({
+  state: "disabled",
+  automaticMutationAllowed: false,
+  semanticBootstrapAllowed: false,
+  reason,
+});

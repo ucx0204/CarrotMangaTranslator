@@ -1,0 +1,13 @@
+{
+  "artifacts": {
+    "auto-match-active-catalog.json": "59f7ed49e2ca75d537a3dd4d91aff6d89175c885c45ca8f06b0b0f754ac45676",
+    "encoder.onnx": "8b9db6bbe272510cedc0f5ce37ce0d1d7f90c146b7c42dd07ca14c26eff4a985",
+    "prototype-features.f32": "cb4479cd7a48f052698235fd427c7fd90a91fb4ec47e74316bd574b1ffd7bcd3",
+    "ranker.onnx": "dfa42ae17f340768cae30f2219973eae1ff62a4c3c1544496502621e6e710c78",
+    "runtime-contract.json": "11b430ac8782c2060d42592c3da133284ccbd90580c6991f3659c1f8e505b56a",
+    "selection-calibration.json": "501c39cd12019e4334336c486a0b8a87699ea6a5e8845232af5537e0929dc3fb"
+  },
+  "owner": "carrot-manga-translator/font-matching-runtime-artifact-v2",
+  "safe_replace": true,
+  "schema_version": "font-matching-runtime-artifact-v2"
+}

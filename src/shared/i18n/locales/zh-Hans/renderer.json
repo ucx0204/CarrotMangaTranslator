@@ -371,8 +371,8 @@
     },
     "export": {
       "noPage": "尚未选择要导出的页面。",
-      "saveFailed": "导出 PNG 前无法保存修改。",
-      "openFolderFailed": "PNG 导出完成，但无法打开文件夹：{{path}}",
+      "saveFailed": "导出结果前无法保存修改。",
+      "openFolderFailed": "结果已导出，但无法打开文件夹：{{path}}",
       "success": "已将最终图像导出为 PNG：{{count}}页",
       "success_one": "已将最终图像导出为 PNG：{{count}}页",
       "success_other": "已将最终图像导出为 PNG：{{count}}页",

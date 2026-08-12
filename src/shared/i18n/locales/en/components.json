@@ -398,8 +398,7 @@
     "selectionSummary": "Chapters: {{chapterCount}} · Pages: {{approximate}}{{pageCount}}"
   },
   "exportOptions": {
-    "title": "Export PNG",
-    "psdTitle": "Export PSD",
+    "title": "Export Results",
     "prompt": "Choose the pages to export.",
     "currentChapter": "Current chapter",
     "chapterSummary": "{{count}}p",
@@ -1120,8 +1119,8 @@
       "nextExport": "Export →"
     },
     "export": {
-      "pngAction": "Export PNG",
-      "description": "Refine block fonts, colors, and positions, then export a PNG with the translation overlaid.",
+      "resultAction": "Export Results",
+      "description": "Refine block fonts, colors, and positions, then export a finished PNG or layered PSD.",
       "result": "Export results",
       "pagesSaved": "Pages saved: {{count}}",
       "allPages": "All pages",

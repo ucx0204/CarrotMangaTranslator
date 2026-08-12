@@ -33,7 +33,7 @@
     "registerFont": "Register Font File (TTF/OTF)",
     "saveReview": "Save Review Sheet",
     "saveText": "Save Text",
-    "exportPngFolder": "Select PNG Export Folder",
+    "exportOutputFolder": "Select Results Folder",
     "filters": {
       "images": "Image files",
       "font": "Font files",

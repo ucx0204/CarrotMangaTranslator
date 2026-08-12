@@ -374,8 +374,8 @@
     },
     "export": {
       "noPage": "出力するページが選択されていません。",
-      "saveFailed": "PNG出力前に変更を保存できませんでした。",
-      "openFolderFailed": "PNG出力は完了しましたが、フォルダーを開けませんでした: {{path}}",
+      "saveFailed": "結果の出力前に変更を保存できませんでした。",
+      "openFolderFailed": "結果の出力は完了しましたが、フォルダーを開けませんでした: {{path}}",
       "success": "最終画像をPNGで出力しました: {{count}}ページ",
       "success_one": "最終画像をPNGで出力しました: {{count}}ページ",
       "success_other": "最終画像をPNGで出力しました: {{count}}ページ",

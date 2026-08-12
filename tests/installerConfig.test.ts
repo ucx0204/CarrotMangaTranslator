@@ -103,9 +103,14 @@ describe("Windows installer clean uninstall option", () => {
         {
           from: "out/app-runtime",
           to: "app-runtime",
-          // The trained font matching runtime bundle (~467 MiB) is
-          // externalized out of the installer and downloaded on first use.
-          filter: ["**/*", "!font-matching/**"],
+          // Small v2 trust/ranker files ship in-app; unchanged large model
+          // assets migrate from v1 cache or download from the v2 asset tag.
+          filter: [
+            "**/*",
+            "!font-matching/encoder.onnx",
+            "!font-matching/prototype-features.f32",
+            "!font-matching/auto-match-active-catalog.json",
+          ],
         },
         {
           from: "node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs",

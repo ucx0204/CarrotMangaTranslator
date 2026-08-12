@@ -38,14 +38,16 @@ const extraResources = [
   {
     from: "out/app-runtime",
     to: "app-runtime",
-    // The trained font matching runtime bundle (7 files, ~467 MiB — dominated
-    // by encoder.onnx at 465 MiB) is externalized: it is NOT packaged and is
-    // instead downloaded into the writable data-root cache on first use (see
-    // prepareFontMatchingRuntime / resolveFontMatchingArtifactDirSync). Excluding
-    // it shrinks the installer back to roughly the v1.9.0 footprint. The ONNX
-    // WASM binaries below stay bundled (font matching pixel inference needs
-    // them at runtimeRoot regardless of the bundle download).
-    filter: ["**/*", "!font-matching/**"],
+    // Keep the small v2 ownership/acceptance/calibration/ranker files in the
+    // app. The unchanged ~467 MiB encoder/prototype/catalog payload remains
+    // external and is copied from a byte-identical verified v1 cache or
+    // downloaded from the immutable font-matching-runtime-v2 prerelease.
+    filter: [
+      "**/*",
+      "!font-matching/encoder.onnx",
+      "!font-matching/prototype-features.f32",
+      "!font-matching/auto-match-active-catalog.json",
+    ],
   },
   {
     from: `node_modules/onnxruntime-web/dist/${onnxWasmModuleFile}`,

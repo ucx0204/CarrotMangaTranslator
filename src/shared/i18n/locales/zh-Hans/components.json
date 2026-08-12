@@ -384,8 +384,7 @@
     "selectionSummary": "{{chapterCount}}话 · {{approximate}}{{pageCount}}页"
   },
   "exportOptions": {
-    "title": "导出 PNG",
-    "psdTitle": "导出 PSD",
+    "title": "导出结果",
     "prompt": "请选择要导出的页面。",
     "currentChapter": "当前章节",
     "chapterSummary": "{{count}}页",
@@ -1094,8 +1093,8 @@
       "nextExport": "导出 →"
     },
     "export": {
-      "pngAction": "导出PNG",
-      "description": "调整文本块的字体、颜色和位置，然后导出叠加译文的PNG。",
+      "resultAction": "导出结果",
+      "description": "调整文本块的字体、颜色和位置，然后导出成品 PNG 或分层 PSD。",
       "result": "导出结果",
       "pagesSaved": "已保存{{count}}页",
       "allPages": "全部页面",

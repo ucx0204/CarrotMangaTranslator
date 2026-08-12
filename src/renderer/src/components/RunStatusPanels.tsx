@@ -99,7 +99,7 @@ function CurrentPageActionsSection({
           onRun={onRunBubbleLayout}
         />
         <Button
-          aria-label={t("inpainting.export.pngAction")}
+          aria-label={t("inpainting.export.resultAction")}
           className="current-page-export-action"
           disabled={actionsDisabled}
           fullWidth
@@ -107,7 +107,7 @@ function CurrentPageActionsSection({
           onClick={onOpenExport}
           size="sm"
         >
-          {t("inpainting.export.pngAction")}
+          {t("inpainting.export.resultAction")}
         </Button>
       </div>
     </div>

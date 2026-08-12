@@ -20,3 +20,5 @@ datasets
 *.safetensors
 panel-window-bounds.json
 recent-dialog-paths.json
+src/main/runtime/font-matching/runtime-contract.json
+src/main/runtime/font-matching/selection-calibration.json

@@ -181,6 +181,27 @@ class QaRuntimeFixture:
         self.root = fixture.output
 
 
+class EvaluationOnlyPromotionGuardTests(unittest.TestCase):
+    def test_promoter_unconditionally_rejects_evaluation_only_contract(self) -> None:
+        contract = {
+            "evaluation_only_runtime": {
+                "evaluation_only": True,
+                "non_promotable": True,
+            },
+            "v8_runtime_packaging": {
+                "evaluation_only": True,
+                "non_promotable": True,
+                "quality_gate_bypassed": True,
+                "release_approved": False,
+            },
+        }
+        with self.assertRaisesRegex(
+            PROMOTE.QaRuntimePromotionError,
+            "permanently non-promotable",
+        ):
+            PROMOTE._reject_evaluation_only_runtime(contract)  # noqa: SLF001
+
+
 class CompletedQaRun:
     def __init__(
         self,

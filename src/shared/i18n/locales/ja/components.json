@@ -391,8 +391,7 @@
     "selectionSummary": "{{chapterCount}}話・{{approximate}}{{pageCount}}ページ"
   },
   "exportOptions": {
-    "title": "PNG出力",
-    "psdTitle": "PSD出力",
+    "title": "結果を出力",
     "prompt": "出力するページを選択してください。",
     "currentChapter": "現在の話",
     "chapterSummary": "{{count}}p",
@@ -1107,8 +1106,8 @@
       "nextExport": "出力 →"
     },
     "export": {
-      "pngAction": "PNG出力",
-      "description": "ブロックのフォント・色・位置を整え、翻訳を重ねたPNGとして書き出します。",
+      "resultAction": "結果を出力",
+      "description": "ブロックのフォント・色・位置を整え、完成PNGまたはレイヤーPSDとして書き出します。",
       "result": "結果を出力",
       "pagesSaved": "{{count}}ページ保存済み",
       "allPages": "全ページ",

@@ -388,8 +388,7 @@
     "selectionSummary": "{{chapterCount}}개 화 · {{approximate}}{{pageCount}}페이지"
   },
   "exportOptions": {
-    "title": "PNG 출력",
-    "psdTitle": "PSD 출력",
+    "title": "결과물 출력",
     "prompt": "출력할 페이지를 선택하세요.",
     "currentChapter": "현재 화",
     "chapterSummary": "{{count}}p",
@@ -1101,9 +1100,9 @@
       "nextExport": "출력 →"
     },
     "export": {
-      "pngAction": "PNG 출력",
-      "description": "블록의 폰트·색·위치를 정리한 뒤, 번역이 얹힌 PNG로 내보냅니다.",
-      "result": "결과 출력",
+      "resultAction": "결과물 출력",
+      "description": "블록의 폰트·색·위치를 정리한 뒤, 완성 PNG 또는 레이어 PSD 결과물로 내보냅니다.",
+      "result": "결과물 출력",
       "pagesSaved": "{{count}}페이지 저장됨",
       "allPages": "전체 페이지",
       "backRetouch": "← 보정"

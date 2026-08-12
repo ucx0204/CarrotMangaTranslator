@@ -136,6 +136,8 @@ export type OverlayItem = {
   id: number;
   /** Raw Paddle OCR candidates assigned to this physical text container. */
   candidateIds?: number[];
+  /** Code-owned membership; the general model-output parser never supplies it. */
+  sourceCandidateMembership?: FontMatchingOcrCandidateMembershipV2;
   type: string;
   textRole?: "sound" | "ordinary" | "nontext" | string;
   /** Fine-grained visual role used only by Font Matching V2. */
@@ -156,6 +158,17 @@ export type OverlayItem = {
   fontSize?: number | null;
   confidence?: number | null;
 };
+
+export type FontMatchingOcrCandidateMembershipV2 = Readonly<{
+  contractVersion: "font-matching-ocr-candidate-membership-v2";
+  source:
+    | "semantic_ocr_fixed_block_request_v5"
+    | "sealed_font_input_request_block_v2";
+  bindingId: string;
+  originalCandidateIds: readonly number[];
+  /** Code-owned non-ruby candidates that are allowed to vote on direction. */
+  voterCandidateIds: readonly number[];
+}>;
 
 export type DetectedBboxSpace = "normalized_1000" | "pixels";
 
@@ -181,6 +194,10 @@ export type RequestSummary = {
     groupSize?: number;
     semanticGroup?: boolean;
   }>;
+  fixedBlockTranslationVersion?: number;
+  fixedBlockIds?: string[];
+  fixedBlockCandidateIds?: number[][];
+  fixedBlockDirectionVoterCandidateIds?: number[][];
   previousBlocksForPrompt?: PreviousOverlayBlockForPrompt[];
   strictRefineMode?: boolean;
   ocrGeometryOnlyMode?: boolean;

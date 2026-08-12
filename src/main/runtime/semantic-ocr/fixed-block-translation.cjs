@@ -42,7 +42,7 @@ const FIXED_BLOCK_TRANSLATION_VERSION = 5;
 
 /**
  * @typedef {{id:number;bbox:[number,number,number,number];text:string;score:number|null;orientation:"horizontal"|"vertical";soundCandidate:boolean}} FixedCandidate
- * @typedef {{blockId:string;representativeId:number;candidateIds:number[];jp:string;direction:"horizontal"|"vertical";bbox:{x1:number;y1:number;x2:number;y2:number};confidence:number;soundCandidate:boolean;fragments:Array<{candidateId:number;text:string;score:number|null;bbox:[number,number,number,number]}>}} FixedBlock
+ * @typedef {{blockId:string;representativeId:number;candidateIds:number[];directionVoterCandidateIds:number[];jp:string;direction:"horizontal"|"vertical";bbox:{x1:number;y1:number;x2:number;y2:number};confidence:number;soundCandidate:boolean;fragments:Array<{candidateId:number;text:string;score:number|null;bbox:[number,number,number,number]}>}} FixedBlock
  * @typedef {{version:5;blocks:FixedBlock[]}} FixedBlockPlan
  * @typedef {{blockId:string;ko:string;textRole?:"ordinary"|"sound";fontRole?:string;fontRoleConfidence?:number;visualClusterId?:string}} FixedBlockTranslation
  * @typedef {{items:FixedBlockTranslation[];pageContext?:Record<string,unknown>}} FixedBlockTranslationResult
@@ -203,6 +203,7 @@ function buildFixedBlock(members, index, sourceTextById, reviewRoleById) {
     blockId: `B${String(index + 1).padStart(3, "0")}`,
     representativeId: Math.min(...members.map((candidate) => candidate.id)),
     candidateIds: members.map((candidate) => candidate.id),
+    directionVoterCandidateIds: lexicalMembers.map((candidate) => candidate.id),
     jp: lexicalMembers
       .map(
         (candidate) =>

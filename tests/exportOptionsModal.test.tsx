@@ -149,6 +149,7 @@ describe("ExportOptionsModal", () => {
   it("defaults to the current page and stays open when folder selection is cancelled", async () => {
     const { onStart, onClose } = await renderModal(false);
 
+    expect(screen.getByRole("dialog", { name: "결과물 출력" })).toBeTruthy();
     expect(screen.getByText("테스트 작품")).toBeTruthy();
     expect(screen.getByText("p1.png")).toBeTruthy();
     expect(screen.getByText("p2.png")).toBeTruthy();
@@ -197,6 +198,7 @@ describe("ExportOptionsModal", () => {
         expect.objectContaining({ outputFormat: "psd" }),
       ),
     );
+    expect(screen.getByRole("dialog", { name: "결과물 출력" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "PSD 출력" }));
 
     await waitFor(() =>

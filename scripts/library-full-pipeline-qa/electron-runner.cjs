@@ -20,10 +20,25 @@ const {
   restoreCachedFontInference,
 } = require("./font-replay-inference-cache.cjs");
 const { buildFontDecisionLog } = require("./font-decision-log.cjs");
+const {
+  summarizePageRelativeRoleQa,
+} = require("./page-relative-role-qa-audit.cjs");
+const {
+  attachFontReplaySourceGeometryDirections,
+  loadFontReplayBaselineSeal,
+  summarizeSourceGeometryDirectionReplay,
+} = require("./source-geometry-direction-replay.cjs");
 
 const execFileAsync = promisify(execFile);
 
 const config = readConfig();
+const imageProtocol = require(
+  path.join(config.root, "out/main/imageProtocol.js"),
+);
+// Built-in renderer fonts are served through mgt-font://. Electron requires a
+// privileged scheme to be declared before app readiness, matching the normal
+// application bootstrap order.
+imageProtocol.registerImageProtocolScheme();
 app.setPath("userData", path.join(config.runDir, "electron-user-data"));
 app.commandLine.appendSwitch("disable-gpu-shader-disk-cache");
 app.commandLine.appendSwitch("disk-cache-size", "0");
@@ -49,6 +64,7 @@ async function run() {
   // The Node launcher already rejects a pre-existing run directory.
   await fsp.mkdir(config.runDir, { recursive: true });
   await app.whenReady();
+  imageProtocol.registerImageProtocolHandler();
   const modules = loadModules(config.root);
   const records = (await readJsonl(config.manifestPath)).slice(
     0,
@@ -116,6 +132,9 @@ function loadModules(root) {
     bubbleRunner: load("out/main/inpainting/bubbleLayoutRunner.js"),
     builtInCatalog: load("out/main/builtInFontMatchingCatalog.js"),
     fontImage: load("out/main/fontMatchingPageImage.js"),
+    fontGeometryDirection: load(
+      "out/main/pipeline/fontMatchingOcrGeometryDirection.js",
+    ),
     fontInference: load("out/main/pipeline/fontMatchingPagePixelInference.js"),
     inpainting: load("out/main/inpainting/patternPage.js"),
     inpaintingLayout: load("out/main/inpainting/inpaintingLayoutState.js"),
@@ -173,12 +192,20 @@ async function createRuntimeContext(modules) {
   const pageInference = {
     async inferPage(request) {
       const startedAt = Date.now();
-      const result = await baseInference.inferPage(request);
+      const qaRequest =
+        config.qaPageRelativeRoleReroute === true
+          ? { ...request, qaPageRelativeRoleReroute: true }
+          : request;
+      const result = await baseInference.inferPage(qaRequest);
       inferenceTraces.set(request.page.id, {
         elapsedMs: Date.now() - startedAt,
+        qaPageRelativeRoleReroute: config.qaPageRelativeRoleReroute === true,
         requestBlocks: request.blocks.map((entry) => ({
           blockId: entry.blockId,
           item: entry.item,
+          ...(entry.sourceGeometryDirection
+            ? { sourceGeometryDirection: entry.sourceGeometryDirection }
+            : {}),
         })),
         runtimeArtifactStatus: result.runtimeArtifactStatus,
         pixelInference: [...result.pixelInferenceByBlockId.entries()].map(
@@ -412,6 +439,14 @@ async function runFullPipeline(records, modules, context, report) {
 
 /** @param {any[]} records @param {ReturnType<typeof loadModules>} modules @param {Awaited<ReturnType<typeof createRuntimeContext>>} context @param {ReturnType<typeof createInitialReport>} report */
 async function runFontReplay(records, modules, context, report) {
+  const baselineSeal =
+    config.fontInferenceCacheMode === "off"
+      ? await loadFontReplayBaselineSeal({
+          auditPath: config.cacheFromSeal,
+          expectedRunDir: config.cacheFrom,
+          expectedPageIds: records.map((record) => record.page.id),
+        })
+      : null;
   const sourceReport = JSON.parse(
     await fsp.readFile(path.join(config.cacheFrom, "run-report.json"), "utf8"),
   );
@@ -475,10 +510,12 @@ async function runFontReplay(records, modules, context, report) {
         cached,
         context,
         fontInput,
+        fontInputPath,
         inferenceCache,
         modules,
         neutralPage,
         record,
+        baselineSeal,
       });
       const inferred = inference.result;
       if (inference.source === "cached") {
@@ -537,6 +574,9 @@ async function runFontReplay(records, modules, context, report) {
   report.cache = {
     sourceRun: config.cacheFrom,
     replayedPageIds: replayed,
+    sourceGeometryDirectionReplay: summarizeSourceGeometryDirectionReplay(
+      report.pages,
+    ),
     fontInference: {
       mode: config.fontInferenceCacheMode || "off",
       validationVersion: CACHE_VALIDATION_VERSION,
@@ -607,7 +647,7 @@ async function loadFontInferenceRuntimeStatusInSubprocess(context) {
 }
 
 /**
- * @param {{ cached: any, context: Awaited<ReturnType<typeof createRuntimeContext>>, fontInput: any, inferenceCache: Awaited<ReturnType<typeof prepareFontInferenceCacheRuntime>>, modules: ReturnType<typeof loadModules>, neutralPage: any, record: any }} options
+ * @param {{ baselineSeal:any, cached: any, context: Awaited<ReturnType<typeof createRuntimeContext>>, fontInput: any, fontInputPath:string, inferenceCache: Awaited<ReturnType<typeof prepareFontInferenceCacheRuntime>>, modules: ReturnType<typeof loadModules>, neutralPage: any, record: any }} options
  */
 async function resolveFontReplayPageInference(options) {
   if (options.inferenceCache.runtime) {
@@ -627,14 +667,23 @@ async function resolveFontReplayPageInference(options) {
     contextTraceFromCache(options.context, options.record, trace, tracePath);
     return { result, source: "cached" };
   }
+  const directionReplay = await attachFontReplaySourceGeometryDirections({
+    baselineSeal: options.baselineSeal,
+    blocks: options.fontInput.requestBlocks,
+    fontInputPath: options.fontInputPath,
+    fontGeometryDirection: options.modules.fontGeometryDirection,
+    pageId: options.record.page.id,
+  });
   const request = {
     page: options.neutralPage,
-    blocks: options.fontInput.requestBlocks,
+    blocks: directionReplay.blocks,
     candidates: options.context.candidates,
     targetLanguage: "ko",
     boundary: { source: "user_page", datasetSplit: null, qaOverlay: false },
   };
   const result = await options.context.pageInference.inferPage(request);
+  const trace = options.context.inferenceTraces.get(options.record.page.id);
+  if (trace) trace.sourceGeometryDirectionReplay = directionReplay.audit;
   return { result, source: "live" };
 }
 
@@ -914,6 +963,7 @@ async function buildCompletedPageReport(
   modules,
 ) {
   const renderedImagePath = processedPage.renderedImagePath;
+  const pageRelativeRoleQa = summarizePageRelativeRoleQa(trace);
   return {
     status: "completed",
     stage: "done",
@@ -934,6 +984,12 @@ async function buildCompletedPageReport(
       trace,
       modules.textOutline,
     ),
+    ...(trace?.sourceGeometryDirectionReplay
+      ? {
+          sourceGeometryDirectionReplay: trace.sourceGeometryDirectionReplay,
+        }
+      : {}),
+    ...(pageRelativeRoleQa ? { pageRelativeRoleQa } : {}),
   };
 }
 
@@ -965,6 +1021,7 @@ function createInitialReport(records, context) {
     cohortDigest: config.cohortDigest,
     candidateId: config.candidateId,
     candidateRuntimeDir: config.runtimeDir,
+    qaPageRelativeRoleReroute: config.qaPageRelativeRoleReroute === true,
     cacheFrom: config.cacheFrom,
     provider: context.appSettings.modelProvider,
     targetLanguage: context.appSettings.translation?.targetLanguage,
@@ -1122,6 +1179,42 @@ function readConfig() {
   const parsed = JSON.parse(raw);
   if (!parsed.execute)
     throw new Error("Electron runner requires execute=true.");
+  if (
+    parsed.fontInferenceCacheMode !== "off" &&
+    parsed.fontInferenceCacheMode !== "required"
+  ) {
+    throw new Error(
+      "Electron runner requires an explicit font inference cache mode.",
+    );
+  }
+  if (
+    parsed.qaPageRelativeRoleReroute === true &&
+    parsed.fontInferenceCacheMode !== "off"
+  ) {
+    throw new Error(
+      "Page-relative role QA requires live font inference, not cached inference.",
+    );
+  }
+  if (
+    parsed.cacheFrom &&
+    parsed.fontInferenceCacheMode === "off" &&
+    typeof parsed.cacheFromSeal !== "string"
+  ) {
+    throw new Error(
+      "Live font replay requires a fresh baseline cacheFromSeal.",
+    );
+  }
+  if (parsed.cacheFromSeal && !parsed.cacheFrom) {
+    throw new Error("cacheFromSeal requires cacheFrom.");
+  }
+  if (
+    parsed.qaPageRelativeRoleReroute === true &&
+    (!parsed.cacheFrom || typeof parsed.cacheFromSeal !== "string")
+  ) {
+    throw new Error(
+      "Page-relative role QA requires a sealed 40-page fresh baseline replay.",
+    );
+  }
   return parsed;
 }
 

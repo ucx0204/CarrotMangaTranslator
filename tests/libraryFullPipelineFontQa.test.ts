@@ -90,13 +90,45 @@ type RunReport = {
 };
 
 type ComparisonModule = {
+  buildComparisonMarkdown: (report: unknown) => string;
   compareRuns: (
     baselineDir: string,
     candidateDir: string,
   ) => Promise<{
     guardrails: { passed: boolean; failures: string[] };
-    deltas: { automaticApplyRate: number };
-    blocks: Array<{ selectedFontChanged: boolean }>;
+    baseline: {
+      emphasisDialogueRate: number;
+      appliedSingleDayBlocks: number;
+      appliedBodyRoleSingleDayBlocks: number;
+      bodyRoleConsistencyEligiblePages: number;
+      bodyRoleDominantFontShare: number;
+      multiFontBodyRolePages: number;
+    };
+    candidate: {
+      emphasisDialogueRate: number;
+      appliedSingleDayBlocks: number;
+      appliedBodyRoleSingleDayBlocks: number;
+      bodyRoleConsistencyEligiblePages: number;
+      bodyRoleDominantFontShare: number;
+      multiFontBodyRolePages: number;
+    };
+    deltas: {
+      automaticApplyRate: number;
+      emphasisDialogueRate: number;
+      appliedSingleDayBlocks: number;
+      appliedBodyRoleSingleDayBlocks: number;
+      bodyRoleDominantFontShare: number;
+      bodyRoleConsistencyEligiblePages: number;
+      multiFontBodyRolePages: number;
+    };
+    roleChangedBlocks: number;
+    selectedFontChangedBlocks: number;
+    diagnosticNote: string;
+    pages: Array<{ roleChanges: number; fontChanges: number }>;
+    blocks: Array<{
+      roleChanged: boolean;
+      selectedFontChanged: boolean;
+    }>;
   }>;
 };
 
@@ -110,6 +142,12 @@ type QaHarnessModule = {
     releaseApproved: boolean;
   };
   parseFontInferenceCacheMode: (value: unknown) => "off" | "required";
+  resolveCacheFromSeal: (
+    options: Record<string, unknown>,
+    cacheFrom: string | null,
+    cacheMode: "off" | "required",
+    qaPageRelativeRoleReroute: boolean,
+  ) => string | null;
 };
 
 const selection =
@@ -416,8 +454,75 @@ describe("library full-pipeline font QA comparison", () => {
       note: expect.any(String),
     });
     expect(result.deltas.automaticApplyRate).toBe(0);
+    expect(result.roleChangedBlocks).toBe(0);
+    expect(result.selectedFontChangedBlocks).toBe(1);
+    expect(result.pages[0]).toMatchObject({ roleChanges: 0, fontChanges: 1 });
     expect(result.blocks).toHaveLength(1);
+    expect(result.blocks[0]?.roleChanged).toBe(false);
     expect(result.blocks[0]?.selectedFontChanged).toBe(true);
+  });
+
+  it("reports role, Single Day, and same-page body-font diagnostics without failing guardrails", async () => {
+    const root = makeTemporaryRoot();
+    const baselineDir = join(root, "baseline");
+    const candidateDir = join(root, "candidate");
+    mkdirSync(baselineDir);
+    mkdirSync(candidateDir);
+    const baseline = buildRunReport("baseline", "nanum-gothic", 0.8);
+    baseline.pages[0].fontDecisions = [
+      buildFontDecision("dialogue", "nanum-gothic"),
+      buildFontDecision("narration", "nanum-gothic"),
+      buildFontDecision("thought", "gugi"),
+      buildFontDecision("emphasis_dialogue", "dohyeon"),
+      buildFontDecision("sfx_impact", "single-day"),
+      buildFontDecision("sfx_impact", "jua"),
+    ];
+    const candidate = buildRunReport("candidate", "nanum-gothic", 0.9);
+    candidate.pages[0].fontDecisions = [
+      buildFontDecision("dialogue", "nanum-gothic"),
+      buildFontDecision("emphasis_dialogue", "nanum-gothic"),
+      buildFontDecision("thought", "single-day"),
+      buildFontDecision("emphasis_dialogue", "dohyeon"),
+      buildFontDecision("sfx_impact", "single-day"),
+      buildFontDecision("emphasis_dialogue", "jua"),
+    ];
+    writeRunReport(baselineDir, baseline);
+    writeRunReport(candidateDir, candidate);
+
+    const result = await comparison.compareRuns(baselineDir, candidateDir);
+
+    expect(result.guardrails.passed).toBe(true);
+    expect(result.guardrails.failures).toEqual([]);
+    expect(result.roleChangedBlocks).toBe(2);
+    expect(result.selectedFontChangedBlocks).toBe(1);
+    expect(result.pages[0]).toMatchObject({ roleChanges: 2, fontChanges: 1 });
+    expect(result.baseline.emphasisDialogueRate).toBeCloseTo(1 / 6);
+    expect(result.candidate.emphasisDialogueRate).toBeCloseTo(3 / 6);
+    expect(result.deltas.emphasisDialogueRate).toBeCloseTo(2 / 6);
+    expect(result.baseline.appliedSingleDayBlocks).toBe(1);
+    expect(result.candidate.appliedSingleDayBlocks).toBe(2);
+    expect(result.deltas.appliedSingleDayBlocks).toBe(1);
+    expect(result.baseline.appliedBodyRoleSingleDayBlocks).toBe(0);
+    expect(result.candidate.appliedBodyRoleSingleDayBlocks).toBe(1);
+    expect(result.deltas.appliedBodyRoleSingleDayBlocks).toBe(1);
+    expect(result.baseline.bodyRoleConsistencyEligiblePages).toBe(1);
+    expect(result.candidate.bodyRoleConsistencyEligiblePages).toBe(1);
+    expect(result.deltas.bodyRoleConsistencyEligiblePages).toBe(0);
+    expect(result.baseline.bodyRoleDominantFontShare).toBeCloseTo(2 / 3);
+    expect(result.candidate.bodyRoleDominantFontShare).toBeCloseTo(1 / 2);
+    expect(result.deltas.bodyRoleDominantFontShare).toBeCloseTo(-1 / 6);
+    expect(result.baseline.multiFontBodyRolePages).toBe(1);
+    expect(result.candidate.multiFontBodyRolePages).toBe(1);
+    expect(result.deltas.multiFontBodyRolePages).toBe(0);
+    expect(result.diagnosticNote).toContain("manual-review diagnostics only");
+
+    const markdown = comparison.buildComparisonMarkdown(result);
+    expect(markdown).toContain("Changed blocks (role / selected font): 2 / 1");
+    expect(markdown).toContain("Emphasis-dialogue rate: 16.67% → 50.00%");
+    expect(markdown).toContain(
+      "Applied Single Day blocks (all / body role): 1 / 0 → 2 / 1 (Δ +1 / +1)",
+    );
+    expect(markdown).toContain("never pass or fail structural guardrails");
   });
 
   it("refuses comparisons across different frozen cohorts", async () => {
@@ -441,6 +546,55 @@ describe("library full-pipeline font QA comparison", () => {
 });
 
 describe("library full-pipeline font QA runtime release guard", () => {
+  it("registers the production font protocol around Electron readiness", () => {
+    const runner = readFileSync(
+      resolve("scripts/library-full-pipeline-qa/electron-runner.cjs"),
+      "utf8",
+    );
+    const schemeRegistration = runner.indexOf(
+      "imageProtocol.registerImageProtocolScheme();",
+    );
+    const appReady = runner.indexOf("await app.whenReady();");
+    const handlerRegistration = runner.indexOf(
+      "imageProtocol.registerImageProtocolHandler();",
+    );
+
+    expect(schemeRegistration).toBeGreaterThan(-1);
+    expect(appReady).toBeGreaterThan(schemeRegistration);
+    expect(handlerRegistration).toBeGreaterThan(appReady);
+  });
+
+  it("seals replay direction provenance from raw OCR artifacts", () => {
+    const runner = readFileSync(
+      resolve("scripts/library-full-pipeline-qa/electron-runner.cjs"),
+      "utf8",
+    );
+    const replay = readFileSync(
+      resolve(
+        "scripts/library-full-pipeline-qa/source-geometry-direction-replay.cjs",
+      ),
+      "utf8",
+    );
+
+    expect(replay).toContain('binding.kind === "raw_ocr_result_json"');
+    expect(replay).toContain("expectedResultPathSuffix");
+    expect(replay).toContain(
+      'contractVersion: "font-matching-ocr-geometry-replay-v1"',
+    );
+    expect(replay).toContain("rawResolvedBlockCount");
+    expect(replay).toContain("missingBlockCount");
+    expect(replay).toContain('createHash("sha256").update(bytes)');
+    expect(replay).toContain("loadFontReplayBaselineSeal");
+    expect(replay).toContain("sealed_font_input_request_block_v2");
+    expect(replay).not.toContain('raw.status === "missing"');
+    expect(runner).toContain(
+      'require("./source-geometry-direction-replay.cjs")',
+    );
+    expect(runner).toContain("loadFontReplayBaselineSeal");
+    expect(runner).toContain("cacheFromSeal");
+    expect(runner).toContain("trace.sourceGeometryDirectionReplay");
+  });
+
   it("stages runtime source additions before a production QA run can start", () => {
     const root = makeTemporaryRoot();
     const scriptsDir = join(root, "scripts");
@@ -517,6 +671,34 @@ describe("library full-pipeline font QA runtime release guard", () => {
     expect(() => qaHarness.parseFontInferenceCacheMode(true)).toThrow(
       /must be required/,
     );
+  });
+
+  it("requires a fresh baseline seal for every live cache replay", () => {
+    const cacheFrom = resolve("fixture-fresh-run");
+    const sealPath = resolve("fixture-fresh-run-audit.json");
+
+    expect(() =>
+      qaHarness.resolveCacheFromSeal({}, cacheFrom, "off", false),
+    ).toThrow(/requires --cache-from-seal/);
+    expect(
+      qaHarness.resolveCacheFromSeal(
+        { "cache-from-seal": sealPath },
+        cacheFrom,
+        "off",
+        true,
+      ),
+    ).toBe(sealPath);
+    expect(
+      qaHarness.resolveCacheFromSeal({}, cacheFrom, "required", false),
+    ).toBeNull();
+    expect(() =>
+      qaHarness.resolveCacheFromSeal(
+        { "cache-from-seal": sealPath, "page-limit": "1" },
+        cacheFrom,
+        "off",
+        true,
+      ),
+    ).toThrow(/complete 40-page cohort/);
   });
 
   it("requires explicit permission for an exact QA-only marker", () => {
@@ -675,6 +857,20 @@ function buildRunReport(
         ],
       },
     ],
+  };
+}
+
+function buildFontDecision(
+  role: string,
+  selectedFontId: string,
+): RunReport["pages"][number]["fontDecisions"][number] {
+  return {
+    sourceText: "source",
+    translatedText: "번역",
+    applied: true,
+    selectedFontId,
+    role,
+    confidence: 0.8,
   };
 }
 

@@ -93,7 +93,60 @@ describe("Dohyeon direct pixel neighborhood rescue", () => {
       );
     }
   });
+
+  it("ignores model item directions after the QA audit binds source geometry", () => {
+    const rows = pageThirtyRows().map((inference, index) => ({
+      ...inference,
+      pageRelativeRoleQa: qaAudit(index + 1),
+    }));
+    const items = rows.map((_row, index) => ({
+      type: "nonsolid" as const,
+      direction: index === 2 ? ("horizontal" as const) : ("vertical" as const),
+      bbox: { x: index * 200, y: 0, w: 100, h: 120 },
+    }));
+
+    const plan = buildAutomaticFontPageConsistencyPlan(rows, items);
+
+    for (const blockId of ["page-30-block-3", "page-30-block-5"]) {
+      expect(plan.get(blockId)).toMatchObject({
+        dohyeonMorphologyVeto: false,
+        dohyeonDominanceClusterRescue: true,
+      });
+    }
+  });
 });
+
+function qaAudit(candidateId: number) {
+  const candidateMembership = {
+    contractVersion: "font-matching-ocr-candidate-membership-v2" as const,
+    source: "sealed_font_input_request_block_v2" as const,
+    bindingId: `block-${candidateId}`,
+    originalCandidateIds: [candidateId],
+    voterCandidateIds: [candidateId],
+  };
+  return {
+    policyVersion: "font-matching-page-relative-role-qa-v2" as const,
+    status: "unchanged" as const,
+    originalRole: "dialogue" as const,
+    projectedRole: "dialogue" as const,
+    routeFamily: "body" as const,
+    sourceGeometryDirection: {
+      contractVersion: "font-matching-ocr-geometry-direction-v2" as const,
+      source: "semantic_ocr_candidate_bbox_majority" as const,
+      direction: "vertical" as const,
+      candidateIds: [candidateId],
+      candidateMembership,
+    },
+    clusterId: null,
+    clusterBodyAnchorFontId: null,
+    baselinePageConsistencyState: null,
+    preferredPeerFontId: null,
+    peerBlockId: null,
+    reasonCodes: [],
+    confidencePolicy: "preserve_original_pixel_primary_confidence" as const,
+    applyRateGuard: "selection_calibration_non_decreasing" as const,
+  };
+}
 
 function pageThirtyRows(): VerifiedAutomaticFontPixelInferenceV2[] {
   return [
