@@ -6,6 +6,10 @@ import { AppSidebar } from "../../components/AppSidebar";
 import { AppWorkspace } from "../../components/AppWorkspace";
 import { CommandPalette } from "../../components/CommandPalette";
 import { GatherTextModal } from "../../components/GatherTextModal";
+import {
+  LibraryDropOverlay,
+  type LibraryDropOverlayProps,
+} from "../../components/LibraryDropOverlay";
 import { ExportOptionsModal } from "../../components/ExportOptionsModal";
 import { AutoInpaintingOptionsModal } from "../../components/AutoInpaintingOptionsModal";
 import { PageRetranslateModal } from "../../components/PageRetranslateModal";
@@ -33,6 +37,7 @@ export type AppSessionViewProps = {
   commandPaletteProps: React.ComponentProps<typeof CommandPalette>;
   exportOptionsProps: React.ComponentProps<typeof ExportOptionsModal> | null;
   gatherTextProps: React.ComponentProps<typeof GatherTextModal> | null;
+  libraryDropOverlayProps: LibraryDropOverlayProps;
   modalsProps: React.ComponentProps<typeof AppModals>;
   pageRetranslateProps: React.ComponentProps<
     typeof PageRetranslateModal
@@ -54,6 +59,7 @@ export function AppSessionView({
   commandPaletteProps,
   exportOptionsProps,
   gatherTextProps,
+  libraryDropOverlayProps,
   modalsProps,
   pageRetranslateProps,
   panelSessionValue,
@@ -87,6 +93,7 @@ export function AppSessionView({
         styleGuideProps={styleGuideProps}
         translationOptionsProps={translationOptionsProps}
       />
+      <LibraryDropOverlay {...libraryDropOverlayProps} />
     </PanelSessionContext.Provider>
   );
 }

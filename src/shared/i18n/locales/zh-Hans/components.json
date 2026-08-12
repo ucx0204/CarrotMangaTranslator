@@ -526,6 +526,12 @@
     "openArchive": "打开压缩文件",
     "archiveHint": "将一个 ZIP 或 CBZ 作为一话导入。"
   },
+  "libraryDrop": {
+    "readyTitle": "拖放以添加到资料库",
+    "readyDescription": "多张图片，或一个图片文件夹、ZIP/CBZ 文件",
+    "blockedTitle": "目前无法添加",
+    "blockedDescription": "请结束打开的窗口或任务后再拖放。"
+  },
   "import": {
     "batchTitle": "添加多个章节",
     "addToLibrary": "添加到资料库",

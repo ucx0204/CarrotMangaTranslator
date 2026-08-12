@@ -12,6 +12,7 @@ import {
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
 import type { ImportImageRuntime } from "../src/main/libraryStore/importImageRuntime";
 import type {
+  DroppedImportPreviewResponse,
   ImportPreviewResult,
   ImportPreviewSession,
 } from "../src/shared/importTypes";
@@ -58,6 +59,123 @@ afterEach(async () => {
 });
 
 describe("library import managed operation lifecycle", () => {
+  it("creates a reusable import preview from dropped image paths", async () => {
+    const dataRoot = await makeTempDir();
+    const { context } = createContext(dataRoot);
+    const service = makeService();
+    const imagePaths = [join(dataRoot, "001.png"), join(dataRoot, "002.jpg")];
+    service.classifyDroppedImportPaths.mockImplementation(async (paths) => {
+      expect(context.operations.current?.kind).toBe("library-import-preview");
+      return { status: "accepted", kind: "images", filePaths: paths };
+    });
+    service.previewImages.mockResolvedValue(makeImagePreview(imagePaths));
+    registerImportPreviewIpc(context, service);
+
+    const response = (await getHandler("import:preview-dropped")(
+      trustedEvent(),
+      imagePaths,
+    )) as DroppedImportPreviewResponse;
+
+    expect(response.status).toBe("ready");
+    if (response.status === "ready") {
+      expect(response.preview.sourceKind).toBe("images");
+      expect(
+        response.preview.chapters[0]?.pages.map((page) => page.sourcePath),
+      ).toEqual(imagePaths);
+    }
+    expect(context.operations.current).toBeNull();
+    if (response.status !== "ready") {
+      throw new Error("Expected a ready dropped import preview");
+    }
+    service.createImport.mockResolvedValue({
+      workId: WORK_ID,
+      chapterIds: [CHAPTER_ID],
+    });
+    await expect(invokeCreateImport(response.preview)).resolves.toEqual({
+      workId: WORK_ID,
+      chapterIds: [CHAPTER_ID],
+    });
+  });
+
+  it("returns a busy rejection before inspecting dropped paths", async () => {
+    const dataRoot = await makeTempDir();
+    const { context } = createContext(dataRoot);
+    const service = makeService();
+    context.jobs.start({
+      id: "translation-active",
+      kind: "gemma-analysis",
+      abortController: new AbortController(),
+    });
+    registerImportPreviewIpc(context, service);
+
+    await expect(
+      getHandler("import:preview-dropped")(trustedEvent(), [
+        join(dataRoot, "001.png"),
+      ]),
+    ).resolves.toEqual({ status: "rejected", reason: "busy" });
+    expect(service.classifyDroppedImportPaths).not.toHaveBeenCalled();
+  });
+
+  it("passes classification rejections through without previewing", async () => {
+    const dataRoot = await makeTempDir();
+    const { context } = createContext(dataRoot);
+    const service = makeService();
+    const rejection = {
+      status: "rejected" as const,
+      reason: "unsupported-files" as const,
+      names: ["notes.txt"],
+      count: 1,
+    };
+    service.classifyDroppedImportPaths.mockResolvedValue(rejection);
+    registerImportPreviewIpc(context, service);
+
+    await expect(
+      getHandler("import:preview-dropped")(trustedEvent(), [
+        join(dataRoot, "notes.txt"),
+      ]),
+    ).resolves.toEqual(rejection);
+    expect(service.previewImages).not.toHaveBeenCalled();
+    expect(service.previewFolder).not.toHaveBeenCalled();
+    expect(service.previewZip).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["folder", "folder-no-images"],
+    ["archive", "archive-no-images"],
+  ] as const)(
+    "returns a friendly rejection when a dropped %s has no images",
+    async (kind, reason) => {
+      const dataRoot = await makeTempDir();
+      const { context } = createContext(dataRoot);
+      const service = makeService();
+      const sourcePath = join(
+        dataRoot,
+        kind === "folder" ? "empty" : "empty.zip",
+      );
+      service.classifyDroppedImportPaths.mockResolvedValue(
+        kind === "folder"
+          ? { status: "accepted", kind, folderPath: sourcePath }
+          : { status: "accepted", kind, archivePath: sourcePath },
+      );
+      const emptyPreview: ImportPreviewResult = {
+        mode: "single",
+        sourceKind: kind === "folder" ? "folder" : "zip",
+        suggestedWorkTitle: "Empty",
+        chapters: [],
+      };
+      if (kind === "folder") {
+        service.previewFolder.mockResolvedValue(emptyPreview);
+      } else {
+        service.previewZip.mockResolvedValue(emptyPreview);
+      }
+      registerImportPreviewIpc(context, service);
+
+      await expect(
+        getHandler("import:preview-dropped")(trustedEvent(), [sourcePath]),
+      ).resolves.toEqual({ status: "rejected", reason });
+    },
+  );
+
   it("registers before service entry and passes the registry signal", async () => {
     const dataRoot = await makeTempDir();
     const { context } = createContext(dataRoot);
@@ -329,8 +447,30 @@ function makePreview(): ImportPreviewResult {
   };
 }
 
+function makeImagePreview(filePaths: string[]): ImportPreviewResult {
+  return {
+    mode: "single",
+    sourceKind: "images",
+    suggestedWorkTitle: "Dropped images",
+    chapters: [
+      {
+        draftId: DRAFT_ID,
+        title: "Chapter 1",
+        sourceKind: "images",
+        pages: filePaths.map((sourcePath) => ({
+          name: sourcePath.split(/[\\/]/).at(-1) ?? sourcePath,
+          sourcePath,
+          sourceKind: "file",
+        })),
+      },
+    ],
+  };
+}
+
 function makeService() {
   return {
+    classifyDroppedImportPaths:
+      vi.fn<ImportPreviewIpcService["classifyDroppedImportPaths"]>(),
     createImport: vi.fn<ImportPreviewIpcService["createImport"]>(),
     previewFolder: vi.fn<ImportPreviewIpcService["previewFolder"]>(),
     previewImages: vi.fn<ImportPreviewIpcService["previewImages"]>(),

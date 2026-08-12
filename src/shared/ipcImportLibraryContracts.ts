@@ -2,6 +2,7 @@ import { z } from "zod";
 import type {
   CreateImportRequest,
   CreateImportResult,
+  DroppedImportPreviewResponse,
   ImportPreviewSession,
 } from "./importTypes";
 import type { ChapterSnapshot, LibraryIndex } from "./libraryTypes";
@@ -68,6 +69,32 @@ const importPreviewSessionSchema = z
     chapters: z.array(importChapterDraftSchema).max(MAX_ID_LIST_LENGTH),
   })
   .strict();
+const droppedImportRejectionReasonSchema = z.enum([
+  "busy",
+  "empty",
+  "too-many-items",
+  "folder-must-be-alone",
+  "archive-must-be-alone",
+  "unsupported-files",
+  "folder-no-images",
+  "archive-no-images",
+]);
+const droppedImportPreviewResponseSchema = z.discriminatedUnion("status", [
+  z
+    .object({
+      status: z.literal("ready"),
+      preview: importPreviewSessionSchema,
+    })
+    .strict(),
+  z
+    .object({
+      status: z.literal("rejected"),
+      reason: droppedImportRejectionReasonSchema,
+      names: z.array(z.string().min(1).max(260)).max(3).optional(),
+      count: nonNegativeInteger.optional(),
+    })
+    .strict(),
+]);
 const createImportResultSchema = z
   .object({
     workId: stringArg,
@@ -129,6 +156,15 @@ export const importShareIpcContracts = {
     channel: "import:preview-zip-folder",
     args: z.tuple([]),
     result: importPreviewSessionSchema.nullable(),
+  }),
+  previewDroppedImport: defineIpcContract<
+    [string[]],
+    DroppedImportPreviewResponse
+  >({
+    apiKey: "previewDroppedImport",
+    channel: "import:preview-dropped",
+    args: z.tuple([stringListArg]),
+    result: droppedImportPreviewResponseSchema,
   }),
   createImport: defineIpcContract<[CreateImportRequest], CreateImportResult>({
     apiKey: "createImport",

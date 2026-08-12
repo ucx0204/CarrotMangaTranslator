@@ -75,6 +75,41 @@ export function resolveModalOpen(
   return modalValues.some(Boolean) || commandPaletteOpen || shortcutHelpOpen;
 }
 
+export function resolveSessionModalState({
+  commandPaletteOpen,
+  overlayModalValues,
+  shortcutHelpOpen,
+  translationSourceOpen,
+}: {
+  commandPaletteOpen: boolean;
+  overlayModalValues: readonly unknown[];
+  shortcutHelpOpen: boolean;
+  translationSourceOpen: boolean;
+}): {
+  dropImportModalBlocked: boolean;
+  modalOpen: boolean;
+  overlayModalsOpen: boolean;
+} {
+  const overlayModalsOpen = resolveModalOpen(
+    [translationSourceOpen, ...overlayModalValues],
+    false,
+    false,
+  );
+  return {
+    dropImportModalBlocked: resolveModalOpen(
+      overlayModalValues,
+      commandPaletteOpen,
+      shortcutHelpOpen,
+    ),
+    modalOpen: resolveModalOpen(
+      [overlayModalsOpen],
+      commandPaletteOpen,
+      shortcutHelpOpen,
+    ),
+    overlayModalsOpen,
+  };
+}
+
 export function resolveJobActive(status: JobState["status"]): boolean {
   return ["starting", "running", "cancelling"].includes(status);
 }

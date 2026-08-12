@@ -456,7 +456,19 @@
     "added": "已將 {{count}} 個章節加入資料庫。",
     "added_one": "已將 {{count}} 個章節加入資料庫。",
     "added_other": "已將 {{count}} 個章節加入資料庫。",
-    "applyFailed": "無法套用匯入內容。"
+    "applyFailed": "無法套用匯入內容。",
+    "drop": {
+      "unavailable": "目前有其他視窗或工作正在進行。請結束後再拖放。",
+      "empty": "找不到可新增的檔案。",
+      "tooManyItems": "一次最多可新增 {{max}} 個項目。",
+      "folderMustBeAlone": "請單獨拖放一個資料夾，不要與其他檔案混合。",
+      "archiveMustBeAlone": "請單獨拖放一個 ZIP/CBZ 檔案，不要與其他檔案混合。",
+      "unsupportedFiles": "因為混有不支援的檔案，未新增任何內容。請僅同時拖放 PNG、JPG、JPEG 或 WEBP 圖片。",
+      "unsupportedFilesNamed": "因為混有 {{names}} 等不支援的檔案，未新增任何內容。請僅同時拖放 PNG、JPG、JPEG 或 WEBP 圖片。",
+      "folderNoImages": "此資料夾中找不到支援的圖片。",
+      "archiveNoImages": "此 ZIP/CBZ 檔案中找不到支援的圖片。",
+      "readFailed": "無法讀取拖放的原稿。"
+    }
   },
   "share": {
     "exportSuccess": "已儲存「{{title}}」的共享檔案：{{chapters}}章，{{pages}}頁",

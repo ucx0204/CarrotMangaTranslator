@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { PanelCommand } from "../../../shared/panelBridgeTypes";
 import { useWorkspaceWheelZoom } from "../hooks/useWorkspaceWheelZoom";
+import { useLibraryDropImport } from "../hooks/useLibraryDropImport";
 import { usePanelBridgeHost } from "../panels/usePanelBridgeHost";
 import { createAppSessionViewProps } from "./session/createAppSessionViewProps";
 import { buildPanelSyncState } from "./session/buildPanelSyncState";
@@ -30,6 +31,16 @@ export function useAppSessionModel(): AppSessionViewProps {
   );
   const translation = useTranslationController(chapter, clearRetouchHistory);
   const inpainting = useInpaintingController(chapter, translation);
+  const libraryDrop = useLibraryDropImport({
+    blocked:
+      chapter.dropImportModalBlocked ||
+      chapter.derivedState.jobActive ||
+      chapter.uiState.translationFlowActive ||
+      translation.workspaceHistory.busy,
+    pushStatus: chapter.statusLog.pushStatus,
+    setImportPreview: chapter.importShareModal.setImportPreview,
+    setTranslationSourceOpen: chapter.importShareModal.setTranslationSourceOpen,
+  });
   useEffect(() => {
     clearRetouchHistoryRef.current = inpainting.clearRetouchHistory;
   }, [inpainting.clearRetouchHistory]);
@@ -73,6 +84,7 @@ export function useAppSessionModel(): AppSessionViewProps {
     inpaintingActions: inpainting.inpaintingActions,
     inpaintingBridge: inpainting.inpaintingBridge,
     libraryActions: chapter.libraryActions,
+    libraryDrop,
     panelBridge,
     persistence: chapter.persistence,
     pageNavigationHandlers: inpainting.pageNavigationHandlers,

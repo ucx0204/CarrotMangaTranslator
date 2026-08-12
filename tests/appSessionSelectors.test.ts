@@ -6,6 +6,7 @@ import {
   resolveModalOpen,
   resolveNeighborImageTargets,
   resolveSelectedPage,
+  resolveSessionModalState,
   resolveWorkspaceImageDataUrl,
 } from "../src/renderer/src/app/session/appSessionSelectors";
 
@@ -99,6 +100,39 @@ describe("AppSession selectors", () => {
     expect(resolveJobActive("cancelling")).toBe(true);
     expect(resolveJobActive("completed")).toBe(false);
     expect(resolveJobActive("idle")).toBe(false);
+  });
+});
+
+describe("AppSession library drop modal selector", () => {
+  it("allows a library drop only through the translation source modal", () => {
+    expect(
+      resolveSessionModalState({
+        commandPaletteOpen: false,
+        overlayModalValues: [],
+        shortcutHelpOpen: false,
+        translationSourceOpen: true,
+      }),
+    ).toEqual({
+      dropImportModalBlocked: false,
+      modalOpen: true,
+      overlayModalsOpen: true,
+    });
+    expect(
+      resolveSessionModalState({
+        commandPaletteOpen: false,
+        overlayModalValues: ["settings"],
+        shortcutHelpOpen: false,
+        translationSourceOpen: false,
+      }).dropImportModalBlocked,
+    ).toBe(true);
+    expect(
+      resolveSessionModalState({
+        commandPaletteOpen: true,
+        overlayModalValues: [],
+        shortcutHelpOpen: false,
+        translationSourceOpen: false,
+      }).dropImportModalBlocked,
+    ).toBe(true);
   });
 });
 

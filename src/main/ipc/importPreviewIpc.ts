@@ -6,8 +6,10 @@ import {
 } from "../../shared/ipcSchemas";
 import { importShareIpcContracts } from "../../shared/ipcContracts";
 import { SUPPORTED_ARCHIVE_EXTENSIONS } from "../../shared/archive";
+import { isAppActivityUnavailableError } from "../appActivityGate";
 import { runManagedAppOperation } from "../appOperationRegistry";
 import type {
+  DroppedImportPreviewResponse,
   ImportPreviewResult,
   ImportPreviewSession,
 } from "../../shared/importTypes";
@@ -18,6 +20,10 @@ import {
   previewZip,
   previewZipFolder,
 } from "../library";
+import {
+  classifyDroppedImportPaths,
+  type DroppedImportSource,
+} from "../library/libraryImportDrop";
 import {
   getRecentDialogDirectory,
   recentDialogPathKeys,
@@ -34,6 +40,7 @@ const SUPPORTED_ARCHIVE_DIALOG_EXTENSIONS = SUPPORTED_ARCHIVE_EXTENSIONS.map(
 );
 
 export type ImportPreviewIpcService = {
+  classifyDroppedImportPaths: typeof classifyDroppedImportPaths;
   createImport: typeof createImport;
   previewFolder: typeof previewFolder;
   previewImages: typeof previewImages;
@@ -42,6 +49,7 @@ export type ImportPreviewIpcService = {
 };
 
 const productionImportPreviewIpcService: ImportPreviewIpcService = {
+  classifyDroppedImportPaths,
   createImport,
   previewFolder,
   previewImages,
@@ -66,6 +74,7 @@ export function registerImportPreviewIpc(
   registerFolderImportPreviewIpc(context, service);
   registerZipImportPreviewIpc(context, service);
   registerZipFolderImportPreviewIpc(context, service);
+  registerDroppedImportPreviewIpc(context, service);
   registerCreateImportIpc(context, service);
 }
 
@@ -219,6 +228,105 @@ function registerZipFolderImportPreviewIpc(
         : null;
     },
   );
+}
+
+function registerDroppedImportPreviewIpc(
+  context: IpcContext,
+  service: ImportPreviewIpcService,
+): void {
+  trustedHandleContract(
+    context,
+    importShareIpcContracts.previewDroppedImport,
+    async (_event, filePaths): Promise<DroppedImportPreviewResponse> => {
+      try {
+        return await runManagedAppOperation(
+          context.operations,
+          {
+            id: `library-import-preview-${randomUUID()}`,
+            kind: "library-import-preview",
+            mutatesLibrary: false,
+          },
+          async () => {
+            const source = await service.classifyDroppedImportPaths(filePaths);
+            if (source.status === "rejected") {
+              return source;
+            }
+            const preview = await previewDroppedSource(source, service);
+            if (!previewHasPages(preview)) {
+              return emptyDroppedSourceRejection(source);
+            }
+            return {
+              status: "ready",
+              preview: createImportPreviewSession(
+                preview,
+                droppedSourceRecentLocation(source),
+              ),
+            };
+          },
+        );
+      } catch (error) {
+        if (isAppActivityUnavailableError(error)) {
+          return { status: "rejected", reason: "busy" };
+        }
+        throw error;
+      }
+    },
+  );
+}
+
+async function previewDroppedSource(
+  source: DroppedImportSource,
+  service: ImportPreviewIpcService,
+): Promise<ImportPreviewResult> {
+  if (source.kind === "images") {
+    return service.previewImages(source.filePaths);
+  }
+  if (source.kind === "folder") {
+    return service.previewFolder(source.folderPath);
+  }
+  return service.previewZip(source.archivePath);
+}
+
+function previewHasPages(preview: ImportPreviewResult): boolean {
+  return preview.chapters.some((chapter) => chapter.pages.length > 0);
+}
+
+function emptyDroppedSourceRejection(
+  source: DroppedImportSource,
+): DroppedImportPreviewResponse {
+  return {
+    status: "rejected",
+    reason:
+      source.kind === "archive"
+        ? "archive-no-images"
+        : source.kind === "folder"
+          ? "folder-no-images"
+          : "empty",
+  };
+}
+
+function droppedSourceRecentLocation(
+  source: DroppedImportSource,
+): RecentDialogLocation {
+  if (source.kind === "images") {
+    return {
+      key: recentDialogPathKeys.imageImport,
+      kind: "file",
+      path: source.filePaths[0],
+    };
+  }
+  if (source.kind === "folder") {
+    return {
+      key: recentDialogPathKeys.imageFolderImport,
+      kind: "directory",
+      path: source.folderPath,
+    };
+  }
+  return {
+    key: recentDialogPathKeys.archiveImport,
+    kind: "file",
+    path: source.archivePath,
+  };
 }
 
 function registerCreateImportIpc(

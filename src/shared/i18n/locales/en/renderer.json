@@ -462,7 +462,19 @@
     "added": "Added {{count}} chapters to the library.",
     "added_one": "Added {{count}} chapter to the library.",
     "added_other": "Added {{count}} chapters to the library.",
-    "applyFailed": "Could not apply the import."
+    "applyFailed": "Could not apply the import.",
+    "drop": {
+      "unavailable": "Another window or task is open. Finish it, then drop the files again.",
+      "empty": "No files were found to add.",
+      "tooManyItems": "You can add up to {{max}} items at once.",
+      "folderMustBeAlone": "Drop one folder by itself, without mixing it with other files.",
+      "archiveMustBeAlone": "Drop one ZIP/CBZ file by itself, without mixing it with other files.",
+      "unsupportedFiles": "Nothing was added because unsupported files were mixed in. Drop only PNG, JPG, JPEG, or WEBP images together.",
+      "unsupportedFilesNamed": "Nothing was added because unsupported files such as {{names}} were mixed in. Drop only PNG, JPG, JPEG, or WEBP images together.",
+      "folderNoImages": "No supported images were found in this folder.",
+      "archiveNoImages": "No supported images were found in this ZIP/CBZ file.",
+      "readFailed": "Could not read the dropped source."
+    }
   },
   "share": {
     "exportSuccess": "Saved the shared file for {{title}} · Chapters: {{chapters}} · Pages: {{pages}}",

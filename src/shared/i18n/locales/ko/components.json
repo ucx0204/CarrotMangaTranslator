@@ -530,6 +530,12 @@
     "openArchive": "압축파일 열기",
     "archiveHint": "ZIP·CBZ 한 개를 하나의 화로 불러옵니다."
   },
+  "libraryDrop": {
+    "readyTitle": "놓아서 보관함에 추가",
+    "readyDescription": "여러 이미지 또는 이미지 폴더·ZIP/CBZ 한 개",
+    "blockedTitle": "지금은 추가할 수 없습니다",
+    "blockedDescription": "열린 창이나 작업을 끝낸 뒤 다시 놓아 주세요."
+  },
   "import": {
     "batchTitle": "여러 화 추가 준비",
     "addToLibrary": "보관함에 추가",

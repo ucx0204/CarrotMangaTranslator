@@ -14,6 +14,7 @@ import { createMangaApi, type IpcEventPort } from "../src/preload/mangaApi";
 import {
   ipcEventContracts,
   inpaintingIpcContracts,
+  importShareIpcContracts,
   ipcInvokeContracts,
   libraryIpcContracts,
   pageImageExportIpcContracts,
@@ -146,6 +147,7 @@ it("binds every preload invoke API to its contract and forwards arguments", () =
   const api = createMangaApi({
     invoke,
     events: createEventBoundary().port,
+    getPathForFile: vi.fn(() => "C:\\fixture\\page.png"),
     warn: vi.fn(),
   });
 
@@ -156,6 +158,39 @@ it("binds every preload invoke API to its contract and forwards arguments", () =
     Reflect.apply(method, api, [marker]);
     expect(calls.at(-1)).toEqual({ contract, args: [marker] });
   }
+});
+
+it("resolves dropped File paths locally without sending File objects over IPC", () => {
+  const invoke = vi.fn(async () => undefined);
+  const getPathForFile = vi.fn(() => "C:\\fixture\\page.png");
+  const api = createMangaApi({
+    invoke: createContractInvoker({ invoke }),
+    events: createEventBoundary().port,
+    getPathForFile,
+    warn: vi.fn(),
+  });
+  const file = { name: "page.png" } as File;
+
+  expect(api.getPathForFile(file)).toBe("C:\\fixture\\page.png");
+  expect(getPathForFile).toHaveBeenCalledWith(file);
+  expect(invoke).not.toHaveBeenCalled();
+});
+
+it("caps dropped path lists at the shared IPC list limit", () => {
+  const paths = Array.from(
+    { length: 2000 },
+    (_, index) => `C:\\fixture\\${index}.png`,
+  );
+
+  expect(
+    importShareIpcContracts.previewDroppedImport.args.safeParse([paths])
+      .success,
+  ).toBe(true);
+  expect(
+    importShareIpcContracts.previewDroppedImport.args.safeParse([
+      [...paths, "C:\\fixture\\overflow.png"],
+    ]).success,
+  ).toBe(false);
 });
 
 it("validates preload arguments before invoking the renderer boundary", async () => {
@@ -186,6 +221,7 @@ it("registers and removes every preload event listener on its contract channel",
   const api = createMangaApi({
     invoke: pendingInvoker,
     events: boundary.port,
+    getPathForFile: vi.fn(() => "C:\\fixture\\page.png"),
     warn: vi.fn(),
   });
   const subscriptions = [
@@ -219,6 +255,7 @@ it("delivers only payloads accepted by the event contract", () => {
   const api = createMangaApi({
     invoke: pendingInvoker,
     events: boundary.port,
+    getPathForFile: vi.fn(() => "C:\\fixture\\page.png"),
     warn,
   });
   api.onUiLocaleChanged(callback);

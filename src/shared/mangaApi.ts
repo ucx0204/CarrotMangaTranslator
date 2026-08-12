@@ -62,6 +62,7 @@ import type {
 import type {
   CreateImportRequest,
   CreateImportResult,
+  DroppedImportPreviewResponse,
   ImportPreviewSession,
 } from "./importTypes";
 import type {
@@ -88,10 +89,14 @@ import type {
 import type { BuildChannel, RuntimeCapabilities } from "./runtimeCapabilities";
 
 export type MangaApi = {
+  getPathForFile: (file: File) => string;
   previewImagesImport: () => Promise<ImportPreviewSession | null>;
   previewFolderImport: () => Promise<ImportPreviewSession | null>;
   previewZipImport: () => Promise<ImportPreviewSession | null>;
   previewZipFolderImport: () => Promise<ImportPreviewSession | null>;
+  previewDroppedImport: (
+    filePaths: string[],
+  ) => Promise<DroppedImportPreviewResponse>;
   createImport: (request: CreateImportRequest) => Promise<CreateImportResult>;
   exportWorkShare: (
     request: WorkShareExportRequest,

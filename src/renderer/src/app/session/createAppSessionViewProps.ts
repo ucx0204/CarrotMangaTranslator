@@ -7,6 +7,10 @@ import {
   createTranslationOptionsProps,
 } from "./createTranslationModalProps";
 import { createGatherTextProps } from "./createGatherTextProps";
+import {
+  createCommandPaletteProps,
+  createShortcutHelpProps,
+} from "./createAppOverlayProps";
 import { createPanelBlockActions } from "./createPanelBlockActions";
 import { isWorkspaceImageReadyForSelectedPage } from "./appSessionSelectors";
 import { createWorkspaceViewProps } from "./createWorkspaceViewProps";
@@ -25,6 +29,7 @@ export function createAppSessionViewProps(
     commandPaletteProps: createCommandPaletteProps(model),
     exportOptionsProps: createExportOptionsProps(model),
     gatherTextProps: createGatherTextProps(model),
+    libraryDropOverlayProps: model.libraryDrop,
     modalsProps: createModalsProps(model),
     pageRetranslateProps: createPageRetranslateProps(model),
     panelSessionValue: createPanelSessionValue(model),
@@ -144,17 +149,6 @@ function createExportOptionsProps({
     : null;
 }
 
-function createCommandPaletteProps({
-  commands,
-  uiState,
-}: AppSessionViewModel): AppSessionViewProps["commandPaletteProps"] {
-  return {
-    commands,
-    onClose: () => uiState.setCommandPaletteOpen(false),
-    open: uiState.commandPaletteOpen,
-  };
-}
-
 function createModalsProps({
   bridgeActions,
   confirmController,
@@ -162,6 +156,7 @@ function createModalsProps({
   guidePreference,
   importShareActions,
   importShareModal,
+  libraryDrop,
   derivedState,
   libraryActions,
   settingsDialog,
@@ -170,7 +165,7 @@ function createModalsProps({
   return {
     confirmDialog: confirmController.confirmDialog,
     currentWorkId: core.currentChapter?.workId ?? null,
-    importBusy: importShareModal.importBusy,
+    importBusy: importShareModal.importBusy || libraryDrop.busy,
     importPreview: importShareModal.importPreview,
     inpaintingGuideOpen: uiState.inpaintingGuideOpen,
     jobActive: derivedState.jobActive,
@@ -261,17 +256,6 @@ function createPanelSessionValue(
   };
 }
 
-function createShortcutHelpProps({
-  settingsDialog,
-  uiState,
-}: AppSessionViewModel): AppSessionViewProps["shortcutHelpProps"] {
-  return {
-    onClose: () => uiState.setShortcutHelpOpen(false),
-    open: uiState.shortcutHelpOpen,
-    overrides: settingsDialog.settings?.keybindings ?? {},
-  };
-}
-
 function createSidebarProps({
   bridgeActions,
   core,
@@ -285,13 +269,15 @@ function createSidebarProps({
   settingsDialog,
   uiState,
   workspaceHistory,
+  libraryDrop,
 }: AppSessionViewModel): AppSessionViewProps["sidebarProps"] {
   return {
     currentChapter: core.currentChapter,
     jobActive:
       inpaintingBridge.contextValue.jobActive ||
       uiState.translationFlowActive ||
-      workspaceHistory.busy,
+      workspaceHistory.busy ||
+      libraryDrop.busy,
     library: core.library,
     lockedPageIds: derivedState.jobTargetPageIds,
     onOpenBatchImport: () =>
@@ -353,6 +339,7 @@ function createWorkspaceProps({
   settingsDialog,
   uiState,
   workspaceHistory,
+  libraryDrop,
 }: AppSessionViewModel): AppSessionViewProps["workspaceProps"] {
   return {
     ...createWorkspaceViewProps(uiState),
@@ -360,7 +347,10 @@ function createWorkspaceProps({
     imageRef: core.imageRef,
     brushColor: uiState.inpaintingPaintColor,
     brushRadius: uiState.inpaintingBrushRadius,
-    jobActive: derivedState.selectedPageEditLocked || workspaceHistory.busy,
+    jobActive:
+      derivedState.selectedPageEditLocked ||
+      workspaceHistory.busy ||
+      libraryDrop.busy,
     jobState: core.jobState,
     maskStrokes: derivedState.patternMaskStrokes,
     lastRetouchTool: uiState.lastRetouchTool,

@@ -459,7 +459,19 @@
     "added": "{{count}}話をライブラリに追加しました。",
     "added_one": "{{count}}話をライブラリに追加しました。",
     "added_other": "{{count}}話をライブラリに追加しました。",
-    "applyFailed": "読み込みを適用できませんでした。"
+    "applyFailed": "読み込みを適用できませんでした。",
+    "drop": {
+      "unavailable": "別の画面または処理が開いています。完了してから、もう一度ドロップしてください。",
+      "empty": "追加するファイルが見つかりませんでした。",
+      "tooManyItems": "一度に追加できるのは{{max}}件までです。",
+      "folderMustBeAlone": "フォルダーは他のファイルと混ぜず、1つだけドロップしてください。",
+      "archiveMustBeAlone": "ZIP/CBZファイルは他のファイルと混ぜず、1つだけドロップしてください。",
+      "unsupportedFiles": "未対応のファイルが含まれているため追加しませんでした。PNG、JPG、JPEG、WEBP画像だけをまとめてドロップしてください。",
+      "unsupportedFilesNamed": "{{names}}など未対応のファイルが含まれているため追加しませんでした。PNG、JPG、JPEG、WEBP画像だけをまとめてドロップしてください。",
+      "folderNoImages": "このフォルダーには対応画像が見つかりませんでした。",
+      "archiveNoImages": "このZIP/CBZファイルには対応画像が見つかりませんでした。",
+      "readFailed": "ドロップした原稿を読み込めませんでした。"
+    }
   },
   "share": {
     "exportSuccess": "「{{title}}」の共有ファイルを保存しました。{{chapters}}話、{{pages}}ページ",

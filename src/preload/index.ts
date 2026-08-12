@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, webUtils } from "electron";
 import { createContractInvoker } from "./ipcContracts";
 import { createMangaApi, type IpcEventPort } from "./mangaApi";
 
@@ -14,6 +14,7 @@ const eventPort: IpcEventPort = {
 const api = createMangaApi({
   invoke: createContractInvoker(ipcRenderer),
   events: eventPort,
+  getPathForFile: (file) => webUtils.getPathForFile(file),
   warn: (message) => console.warn(message),
 });
 

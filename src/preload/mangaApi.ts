@@ -17,6 +17,7 @@ export type IpcEventPort = {
 export type MangaApiRuntime = {
   invoke: ContractInvoker;
   events: IpcEventPort;
+  getPathForFile: (file: File) => string;
   warn: (message: string) => void;
 };
 
@@ -36,6 +37,7 @@ export function createMangaApi(runtime: MangaApiRuntime): MangaApi {
   const invokeApi = bindInvokeContracts(ipcInvokeContracts, runtime.invoke);
   return {
     ...invokeApi,
+    getPathForFile: runtime.getPathForFile,
     onPanelState: (callback) =>
       subscribeToIpcEvent(ipcEventContracts.panelState, callback, runtime),
     onPanelCommand: (callback) =>

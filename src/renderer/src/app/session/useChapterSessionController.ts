@@ -11,7 +11,7 @@ import {
   openErrorReport,
   useErrorReportIncident,
 } from "../../lib/errorReportStore";
-import { resolveModalOpen } from "./appSessionSelectors";
+import { resolveSessionModalState } from "./appSessionSelectors";
 import { useAppSessionBridgeActions } from "./useAppSessionBridgeActions";
 import {
   useAppSessionCoreState,
@@ -140,17 +140,12 @@ function useChapterRuntimeController({
     setSelectedBlockId: core.setSelectedBlockId,
     setSelectedPageId: core.setSelectedPageId,
   });
-  const overlayModalsOpen = resolveOverlayModalsOpen({
+  const modalState = resolveRuntimeModalState({
     errorReportIncident,
     libraryActions,
     modalController,
     uiState,
   });
-  const modalOpen = resolveModalOpen(
-    [overlayModalsOpen],
-    uiState.commandPaletteOpen,
-    uiState.shortcutHelpOpen,
-  );
   const mergeLiveChapter = useLiveChapterSync({
     currentChapter: core.currentChapter,
     currentChapterRef: core.currentChapterRef,
@@ -175,10 +170,11 @@ function useChapterRuntimeController({
 
   return {
     bridgeActions,
+    dropImportModalBlocked: modalState.dropImportModalBlocked,
     libraryActions,
     mergeLiveChapter,
-    modalOpen,
-    overlayModalsOpen,
+    modalOpen: modalState.modalOpen,
+    overlayModalsOpen: modalState.overlayModalsOpen,
     persistence,
   };
 }
@@ -216,21 +212,25 @@ function hasPendingMasks(
   return Object.values(masks).some((strokes) => strokes.length > 0);
 }
 
-function resolveOverlayModalsOpen({
+type RuntimeModalStateArgs = {
+  errorReportIncident: ReturnType<typeof useErrorReportIncident>;
+  libraryActions: ReturnType<typeof useLibraryActions>;
+  modalController: Pick<
+    ReturnType<typeof useModalController>,
+    "confirmController" | "importShareModal" | "settingsDialog"
+  >;
+  uiState: ReturnType<typeof useAppSessionUiState>;
+};
+
+function resolveRuntimeModalState({
   errorReportIncident,
   libraryActions,
   modalController,
   uiState,
-}: Pick<ChapterSessionController, "libraryActions" | "uiState"> & {
-  errorReportIncident: ReturnType<typeof useErrorReportIncident>;
-  modalController: Pick<
-    ChapterSessionController,
-    "confirmController" | "importShareModal" | "settingsDialog"
-  >;
-}): boolean {
-  return resolveModalOpen(
-    [
-      modalController.importShareModal.translationSourceOpen,
+}: RuntimeModalStateArgs): ReturnType<typeof resolveSessionModalState> {
+  return resolveSessionModalState({
+    commandPaletteOpen: uiState.commandPaletteOpen,
+    overlayModalValues: [
       modalController.importShareModal.importPreview,
       modalController.importShareModal.shareExportOpen,
       modalController.importShareModal.shareImportPreview,
@@ -247,9 +247,10 @@ function resolveOverlayModalsOpen({
       uiState.retranslatePageId,
       errorReportIncident,
     ],
-    false,
-    false,
-  );
+    shortcutHelpOpen: uiState.shortcutHelpOpen,
+    translationSourceOpen:
+      modalController.importShareModal.translationSourceOpen,
+  });
 }
 
 function useChapterRuntimeEffects({

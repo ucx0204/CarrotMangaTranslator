@@ -543,6 +543,12 @@
     "openArchive": "Open archive",
     "archiveHint": "Load one ZIP or CBZ as a chapter."
   },
+  "libraryDrop": {
+    "readyTitle": "Drop to add to library",
+    "readyDescription": "Multiple images, or one image folder or ZIP/CBZ file",
+    "blockedTitle": "Cannot add files right now",
+    "blockedDescription": "Finish the open window or task, then drop the files again."
+  },
   "import": {
     "batchTitle": "Add multiple chapters",
     "addToLibrary": "Add to library",

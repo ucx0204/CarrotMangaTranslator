@@ -199,6 +199,8 @@ describe("archive import recent dialog path integration", () => {
 
 function makeService() {
   return {
+    classifyDroppedImportPaths:
+      vi.fn<ImportPreviewIpcService["classifyDroppedImportPaths"]>(),
     createImport: vi.fn<ImportPreviewIpcService["createImport"]>(),
     previewFolder: vi.fn<ImportPreviewIpcService["previewFolder"]>(),
     previewImages: vi.fn<ImportPreviewIpcService["previewImages"]>(),

@@ -533,6 +533,12 @@
     "openArchive": "圧縮ファイルを開く",
     "archiveHint": "1つのZIP・CBZを1話として読み込みます。"
   },
+  "libraryDrop": {
+    "readyTitle": "ドロップしてライブラリに追加",
+    "readyDescription": "複数画像、または画像フォルダー・ZIP/CBZを1つ",
+    "blockedTitle": "現在は追加できません",
+    "blockedDescription": "開いている画面または処理を終了してから、もう一度ドロップしてください。"
+  },
   "import": {
     "batchTitle": "複数話を追加",
     "addToLibrary": "ライブラリに追加",

@@ -526,6 +526,12 @@
     "openArchive": "開啟壓縮檔案",
     "archiveHint": "將一個 ZIP 或 CBZ 作為一話匯入。"
   },
+  "libraryDrop": {
+    "readyTitle": "拖放以新增到資料庫",
+    "readyDescription": "多張圖片，或一個圖片資料夾、ZIP/CBZ 檔案",
+    "blockedTitle": "目前無法新增",
+    "blockedDescription": "請結束開啟的視窗或工作後再拖放。"
+  },
   "import": {
     "batchTitle": "新增多個章節",
     "addToLibrary": "新增到資料庫",
