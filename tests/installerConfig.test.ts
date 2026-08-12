@@ -96,6 +96,7 @@ describe("Windows installer clean uninstall option", () => {
         "!node_modules/onnxruntime-web/docs{,/**/*}",
         "!node_modules/onnxruntime-web/lib{,/**/*}",
         "!node_modules/onnxruntime-web/dist/!(ort.node.min.js)",
+        "!node_modules/**/.v8-cache{,/**/*}",
         "!node_modules/{flatbuffers,guid-typescript,long,platform,protobufjs}{,/**/*}",
         "!node_modules/@protobufjs{,/**/*}",
       ]),
@@ -185,6 +186,9 @@ describe("Windows installer clean uninstall option", () => {
     // returning (~1212 MiB).
     expect(packagedRuntimeVerifier).toContain(
       "const MAX_PACKAGED_BYTES = 1000 * 1024 * 1024;",
+    );
+    expect(packagedRuntimeVerifier).toContain(
+      "const MAX_PACKAGED_FILES = 258;",
     );
     expect((electronBuilderConfig as { files: string[] }).files).toEqual(
       expect.arrayContaining([

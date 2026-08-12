@@ -85,11 +85,12 @@ const allowedElectronLocales = new Set([
   "zh-TW.pak",
 ]);
 // The clean v1.7.0 thin payload was 217 files after development-only runtime
-// artifacts were omitted. v1.10.1 intentionally adds 14 runtime integrity
-// manifests and hash-complete dependency locks. The managed OCR Python path
-// normalizer is one additional audited runtime module; keep the resulting
-// payload ceiling exact so unrelated packaging growth still fails closed.
-const MAX_PACKAGED_FILES = 255;
+// artifacts were omitted. v1.10.1 intentionally adds runtime integrity
+// manifests and hash-complete dependency locks. Font runtime v2 then adds its
+// four small trust/ranker files while leaving the three large model assets
+// external. Keep the resulting payload ceiling exact so unrelated packaging
+// growth still fails closed.
+const MAX_PACKAGED_FILES = 258;
 // The trained font matching runtime bundle (~467 MiB) is externalized out of
 // the installer and downloaded into the data-root cache on first use, so the
 // unpacked payload is ~745 MiB (Electron + app.asar + tools, no bundle) and the

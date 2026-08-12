@@ -306,6 +306,10 @@ module.exports = {
     "!node_modules/onnxruntime-web/docs{,/**/*}",
     "!node_modules/onnxruntime-web/lib{,/**/*}",
     "!node_modules/onnxruntime-web/dist/!(ort.node.min.js)",
+    // Node's module compile cache may be written inside a dependency while
+    // the development app is running. It is machine-local transient state,
+    // and electron-builder can otherwise auto-unpack the binary cache blobs.
+    "!node_modules/**/.v8-cache{,/**/*}",
     // These are browser-only dependencies of onnxruntime-web. The Node entry
     // requires only onnxruntime-common and Node built-ins.
     "!node_modules/{flatbuffers,guid-typescript,long,platform,protobufjs}{,/**/*}",
