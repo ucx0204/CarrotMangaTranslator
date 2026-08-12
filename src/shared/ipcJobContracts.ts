@@ -22,10 +22,11 @@ import type {
   StartInpaintingRequest,
   StartInpaintingResult,
 } from "./inpaintingTypes";
-import type {
-  PageImageExportPreflightResult,
-  PageImageExportRequest,
-  PageImageExportResult,
+import {
+  PAGE_IMAGE_EXPORT_PREFLIGHT_ISSUE_CODES,
+  type PageImageExportPreflightResult,
+  type PageImageExportRequest,
+  type PageImageExportResult,
 } from "./pageImageExportTypes";
 import {
   ApplyInpaintingHistoryTransactionRequestSchema,
@@ -147,13 +148,7 @@ const pageImageExportPreflightResultSchema = z
       .array(
         z
           .object({
-            code: z.enum([
-              "job-running",
-              "translation-failed",
-              "translation-pending",
-              "postprocess-pending",
-              "empty-translation",
-            ]),
+            code: z.enum(PAGE_IMAGE_EXPORT_PREFLIGHT_ISSUE_CODES),
             severity: z.enum(["warning", "info"]),
             chapterId: stringArg,
             chapterTitle: z.string().min(1).max(300),

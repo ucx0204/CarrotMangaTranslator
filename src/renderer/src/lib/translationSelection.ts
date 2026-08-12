@@ -118,20 +118,6 @@ export function togglePage(
   return next;
 }
 
-/**
- * Maps a 1st-pass selection to its 2nd-pass equivalent. An explicit page subset
- * is re-translated exactly; whole-chapter / pending selections re-translate the
- * whole chapter (context improved for every page — matches the guidance that a
- * 2nd pass re-runs all pages).
- */
-export function toSecondPassSelection(
-  selection: ChapterRunSelection,
-): ChapterRunSelection {
-  return selection.mode === "page-set"
-    ? selection
-    : { chapterId: selection.chapterId, mode: "all" };
-}
-
 /** Build the flow run selection in the given (library) chapter order. */
 export function buildRunSelection(
   chapterOrder: string[],

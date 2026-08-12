@@ -473,21 +473,7 @@
       "cumulative": {
         "label": "累积上下文（推荐）",
         "description": "翻译时逐页累积场景摘要、术语和角色信息，并从下一页起用于参考。"
-      },
-      "twoPass": {
-        "label": "精细二次翻译（旧版）",
-        "description": "所选页面会翻译两次。处理时间较长，通常带来的质量提升有限。",
-        "warningTitle": "旧版功能 · 计划移除",
-        "warningDescription": "精细二次翻译耗时较长且质量提升有限，计划在后续更新中移除。新任务建议使用累积上下文。"
       }
-    },
-    "secondPass": "二次翻译（提升质量）",
-    "secondPassHint": "首次翻译后，AI会分析术语、角色和上下文，再根据分析结果重新翻译。所选页面会翻译两次，因此需要更多时间。",
-    "analysisScope": "自动分析范围",
-    "analysisOptions": {
-      "work": "从头重新分析",
-      "missing": "仅空白章节",
-      "chapter": "仅当前章节"
     },
     "blockModeSummaries": {
       "auto": "自动检测每页的文本块。",
@@ -1236,10 +1222,6 @@
         "cpu": { "label": "CPU", "description": "不使用GPU，在CPU上运行OCR。" }
       },
       "ocrQuality": {
-        "minimum": {
-          "label": "最低（旧版）",
-          "description": "用于旧版兼容的OCR模式，将在后续更新中移除。"
-        },
         "economy": { "label": "经济", "description": "平衡速度和准确度。" },
         "full": {
           "label": "完整",

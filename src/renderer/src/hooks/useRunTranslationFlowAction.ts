@@ -1,6 +1,6 @@
 import { useCallback, type MutableRefObject } from "react";
-import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import type { NotificationPort } from "../lib/notificationPort";
 import type { ChapterRunSelection } from "../lib/translationSelection";
 import {
@@ -13,8 +13,6 @@ import type {
   TranslationFlowOptions,
   UseTranslationActionsOptions,
 } from "./translationActionTypes";
-import { runSecondTranslationPass } from "./translationActionUtils";
-import { runWorkContextAnalysis } from "./translationWorkContextFlow";
 import { runTranslationFlowAction } from "./translationBubbleLayoutWorkflow";
 import { resolveTranslationCompletionOptions } from "./translationBubbleLayoutWorkflowSupport";
 
@@ -62,16 +60,13 @@ export function useRunTranslationFlowAction({
         setShowBlockChrome,
         setJobState,
         t,
-        runPasses: (selection, analysisScope) =>
+        runPasses: (selection) =>
           runTranslationFlowPasses({
             selection,
             executeAnalysisJob,
-            options: { ...options, analysisScope },
+            options,
             pushStatus,
-            refreshLibrary,
-            setJobState,
             t,
-            notificationPort,
             isCancellationRequested: () =>
               flowCancellationRef?.current === true,
           }),
@@ -104,20 +99,14 @@ async function runTranslationFlowPasses({
   executeAnalysisJob,
   options,
   pushStatus,
-  refreshLibrary,
-  setJobState,
   t,
-  notificationPort,
   isCancellationRequested,
 }: {
   selection: ChapterRunSelection;
   executeAnalysisJob: ExecuteAnalysisJob;
   options: TranslationFlowOptions;
   pushStatus: UseTranslationActionsOptions["pushStatus"];
-  refreshLibrary: UseTranslationActionsOptions["refreshLibrary"];
-  setJobState: UseTranslationActionsOptions["setJobState"];
   t: TFunction<"renderer">;
-  notificationPort: NotificationPort;
   isCancellationRequested: () => boolean;
 }): Promise<RunAnalysisOutcome> {
   // Bubble layout is resolved only after inpainting, against a render region
@@ -132,11 +121,11 @@ async function runTranslationFlowPasses({
   const naturalTextLayout = completion.bubbleLayout
     ? undefined
     : options.naturalTextLayout;
-  const pass1 = await runSelectionsSequentially(
+  const outcome = await runSelectionsSequentially(
     executeAnalysisJob,
     [selection],
     pushStatus,
-    t("translation.flow.firstPass"),
+    t("translation.flow.translation"),
     options.blockMode,
     options.workflowMode === "cumulative",
     naturalTextLayout,
@@ -145,32 +134,7 @@ async function runTranslationFlowPasses({
     completionWorkflow,
     true,
   );
-  if (pass1 !== "completed") return pass1;
-  if (isCancellationRequested()) return "cancelled";
-  if (options.workflowMode !== "two-pass") return "completed";
-  const contextOutcome = await runWorkContextAnalysis({
-    analysisScope: options.analysisScope,
-    chapterId: selection.chapterId,
-    pushStatus,
-    refreshLibrary,
-    setJobState,
-    t,
-    notificationPort,
-    deferTerminalFailure: true,
-    isCancellationRequested,
-  });
-  if (contextOutcome !== "completed") return contextOutcome;
-  if (isCancellationRequested()) return "cancelled";
-  return runSecondTranslationPass(
-    executeAnalysisJob,
-    [selection],
-    pushStatus,
-    options.blockMode,
-    naturalTextLayout,
-    options.autoFontMatching,
-    t,
-    notificationPort,
-    completionWorkflow,
-    true,
-  );
+  return outcome === "completed" && isCancellationRequested()
+    ? "cancelled"
+    : outcome;
 }

@@ -91,7 +91,7 @@
   "commands": {
     "translate": {
       "label": "翻译…",
-      "hint": "选项 · 二次翻译 · 批量",
+      "hint": "选项 · 范围 · 批量",
       "keywords": "translate options 翻译 选项"
     },
     "translatePending": {
@@ -436,15 +436,10 @@
     "bubbleLayoutWorkflowPartial": "部分文本块后处理失败。",
     "bubbleLayoutWorkflowFailed": "翻译后的自动擦除和气泡适配失败。",
     "flow": {
-      "firstPass": "第一遍",
-      "secondPass": "第二遍",
-      "chapterProgress": "{{pass}}翻译 {{current}}/{{total}}章",
+      "translation": "翻译",
+      "chapterProgress": "{{pass}} {{current}}/{{total}}章",
       "completed": "翻译已完成。",
-      "partial": "部分文本块后处理失败。",
-      "contextAnalysis": "正在分析 AI 术语/记忆",
-      "contextSkipped": "第一遍翻译完成（已跳过 AI 分析）",
-      "contextFailed": "AI 术语/记忆分析失败，仅保留第一遍翻译结果。",
-      "secondPassCompleted": "第二遍翻译已完成。"
+      "partial": "部分文本块后处理失败。"
     }
   },
   "settings": {

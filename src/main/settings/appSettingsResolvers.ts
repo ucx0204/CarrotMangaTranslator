@@ -120,7 +120,7 @@ export function resolveOcrQualityMode(
       "최소",
     ].includes(normalized)
   ) {
-    return "minimum";
+    return "economy";
   }
   if (
     [
@@ -253,15 +253,6 @@ export function resolveNumberRange(
 export function resolveHexColor(value: unknown, fallback: string): string {
   const text = String(value ?? "").trim();
   return /^#[0-9a-f]{6}$/i.test(text) ? text.toLowerCase() : fallback;
-}
-
-export function resolveAnalysisScopeDefault(
-  value: unknown,
-  fallback: "work" | "missing" | "chapter",
-): "work" | "missing" | "chapter" {
-  return value === "work" || value === "missing" || value === "chapter"
-    ? value
-    : fallback;
 }
 
 export function resolveOcrGpuCudaTag(value: unknown, fallback: string): string {

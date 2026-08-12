@@ -15,15 +15,7 @@ import {
   toastNotificationPort,
   type NotificationPort,
 } from "../lib/notificationPort";
-import {
-  toSecondPassSelection,
-  type ChapterRunSelection,
-} from "../lib/translationSelection";
-import {
-  runSelectionsSequentially,
-  type ExecuteAnalysisJob,
-  type RunAnalysisOutcome,
-} from "./translationFlowHelpers";
+import type { RunAnalysisOutcome } from "./translationFlowHelpers";
 import type {
   RunAnalysisMode,
   UseTranslationActionsOptions,
@@ -204,35 +196,6 @@ export async function refreshLibraryWithWarning(
   } catch (error) {
     reportRefreshLibraryFailure(error, pushStatus, t, notificationPort);
   }
-}
-
-export async function runSecondTranslationPass(
-  executeAnalysisJob: ExecuteAnalysisJob,
-  selection: ChapterRunSelection[],
-  pushStatus: UseTranslationActionsOptions["pushStatus"],
-  blockMode?: AnalysisBlockMode,
-  naturalTextLayout?: boolean,
-  autoFontMatching?: boolean,
-  t?: TFunction<"renderer">,
-  notificationPort: NotificationPort = toastNotificationPort,
-  completionWorkflow?: TranslationCompletionWorkflow,
-  deferTerminalFailure = false,
-): Promise<RunAnalysisOutcome> {
-  const pass2 = await runSelectionsSequentially(
-    executeAnalysisJob,
-    selection.map(toSecondPassSelection),
-    pushStatus,
-    t ? t("translation.flow.secondPass") : "2차",
-    blockMode,
-    false,
-    naturalTextLayout,
-    autoFontMatching,
-    t,
-    completionWorkflow,
-    deferTerminalFailure,
-  );
-  void notificationPort;
-  return pass2;
 }
 
 export function regionTranslationStartingState(

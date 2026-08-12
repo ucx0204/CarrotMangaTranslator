@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "releaseTag": "flux-runners-cuda12.9-r3",
+  "cudaVersion": "12.9",
+  "archiveContract": {
+    "format": "zip",
+    "entries": ["mgt-flux-klein.exe"]
+  },
+  "producer": {
+    "script": "scripts/prepare-flux-klein-runner.cjs",
+    "koharuRevision": "0d640615d435a399bc195c892de8f5d17efb68f8",
+    "candleRevision": "e7e71e18414db8de91113963beaabb6b4046a0a5",
+    "sm75Policy": {
+      "transformerDtype": "f32",
+      "vaeDtype": "f16",
+      "attention": "chunked",
+      "requiredComputeCapability": "7.5"
+    }
+  },
+  "assets": [
+    {
+      "computeCapability": "75",
+      "fileName": "mgt-flux-klein-sm75-cuda12.9-win-x64.zip",
+      "bytes": 25365014,
+      "sha256": "2ea7520e65e165cbc6d1b68f078621cbf850d231ff0295b8355a97c3884d132c",
+      "provenance": "rebuilt",
+      "executableBytes": 56733696,
+      "executableSha256": "c303d074c86608d4b27d0a63bcadf584c2ed705615973c44a2c3fb3271f79442"
+    },
+    {
+      "computeCapability": "80",
+      "fileName": "mgt-flux-klein-sm80-cuda12.9-win-x64.zip",
+      "bytes": 25558874,
+      "sha256": "6e48bcf36c27fd1c61b92d76533b3763ffa530f647d68a36960b992c65e49d2b",
+      "provenance": "byte-identical-to-flux-runners-cuda12.9-r2",
+      "executableBytes": 58186752,
+      "executableSha256": "ed01468893407690c61a949e8a22b328584ab66c26ab751a16f5c5afbf8c9a0b"
+    },
+    {
+      "computeCapability": "86",
+      "fileName": "mgt-flux-klein-sm86-cuda12.9-win-x64.zip",
+      "bytes": 25565540,
+      "sha256": "5139be04ecf1c9c5d8659a0fcce869a4176a6403a3a401e6130e44e29268f29f",
+      "provenance": "byte-identical-to-flux-runners-cuda12.9-r2",
+      "executableBytes": 58199040,
+      "executableSha256": "fb3f3cce3e3b2d8db7f7d5f795d33a59b935746212dfc76423dcab655495b622"
+    },
+    {
+      "computeCapability": "89",
+      "fileName": "mgt-flux-klein-sm89-cuda12.9-win-x64.zip",
+      "bytes": 25408235,
+      "sha256": "37b54975db701869ebfddec2d0b94fca3c87291bddcda932f4e864e3782672d3",
+      "provenance": "byte-identical-to-flux-runners-cuda12.9-r2",
+      "executableBytes": 58437120,
+      "executableSha256": "841a0d6d0764f8123ccb318922afaeddd6cf6f93f24e90330da61453f9092526"
+    },
+    {
+      "computeCapability": "90",
+      "fileName": "mgt-flux-klein-sm90-cuda12.9-win-x64.zip",
+      "bytes": 25388499,
+      "sha256": "b54467516d7f132986c2d6ce9e33c045941facfe27705ce280d61e8792d562c2",
+      "provenance": "byte-identical-to-flux-runners-cuda12.9-r2",
+      "executableBytes": 58348544,
+      "executableSha256": "a08ce5559431fb5f2cc8e1eaa9b62974aa91c1c6fee826102d04239cdf4bd045"
+    },
+    {
+      "computeCapability": "120",
+      "fileName": "mgt-flux-klein-sm120-cuda12.9-win-x64.zip",
+      "bytes": 27487148,
+      "sha256": "dd55fa4adeca466da0c99febab1e98acfe9d68199e331fe3561dc2d72bfa10e2",
+      "provenance": "byte-identical-to-flux-runners-cuda12.9-r2",
+      "executableBytes": 64489984,
+      "executableSha256": "b4def54954638637bf990ee46be2da1c6d8a8dd989fa2cbcd3d77aff10294590"
+    }
+  ]
+}

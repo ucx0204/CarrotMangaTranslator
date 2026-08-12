@@ -490,21 +490,7 @@
       "cumulative": {
         "label": "Cumulative context (Recommended)",
         "description": "Builds page summaries, terms, and character memory while translating, then uses them from the next page onward."
-      },
-      "twoPass": {
-        "label": "Precision two-pass (Legacy)",
-        "description": "Translates the selected pages twice. It takes substantially longer and usually provides limited quality improvement.",
-        "warningTitle": "Legacy feature · Scheduled for removal",
-        "warningDescription": "Precision two-pass is planned for removal in a future update because it is slow and offers limited quality improvement. Use Cumulative context for new work."
       }
-    },
-    "secondPass": "Second pass (better quality)",
-    "secondPassHint": "After the first pass, AI analyzes terminology, characters, and context, then translates again using that analysis. This takes longer because the selected pages are translated twice.",
-    "analysisScope": "Automatic analysis scope",
-    "analysisOptions": {
-      "work": "Start over",
-      "missing": "Only empty chapters",
-      "chapter": "Current chapter only"
     },
     "blockModeSummaries": {
       "auto": "Detect text blocks automatically on each page.",
@@ -1277,10 +1263,6 @@
         }
       },
       "ocrQuality": {
-        "minimum": {
-          "label": "Minimum (Legacy)",
-          "description": "Legacy compatibility mode. It will be removed in a future update."
-        },
         "economy": {
           "label": "Economy",
           "description": "Balances speed and accuracy."

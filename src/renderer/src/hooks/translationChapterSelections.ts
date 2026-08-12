@@ -1,7 +1,6 @@
 import type { AutoInpaintingChapterSelection } from "../../../shared/inpaintingTypes";
 import { libraryGateway } from "../api/libraryGateway";
 import type { ChapterRunSelection } from "../lib/translationSelection";
-import type { TranslationFlowOptions } from "./translationActionTypes";
 
 export type ResolvedChapterSelections = {
   analysis: ChapterRunSelection;
@@ -10,7 +9,6 @@ export type ResolvedChapterSelections = {
 
 export async function resolveTranslationChapterSelections(
   selection: ChapterRunSelection,
-  workflowMode: TranslationFlowOptions["workflowMode"],
   completion: { eraseOriginal: boolean; bubbleLayout: boolean },
 ): Promise<ResolvedChapterSelections> {
   if (!completion.eraseOriginal) {
@@ -19,15 +17,6 @@ export async function resolveTranslationChapterSelections(
   if (selection.mode === "all" || selection.mode === "page-set") {
     return { analysis: selection, inpainting: selection };
   }
-  if (workflowMode === "two-pass") {
-    // Pass 2 expands pending to the whole chapter, so the downstream stage
-    // must cover that same effective range.
-    return {
-      analysis: selection,
-      inpainting: { chapterId: selection.chapterId, mode: "all" },
-    };
-  }
-
   const chapter = await libraryGateway.openChapter(selection.chapterId);
   const workflow = completion.bubbleLayout ? "bubble-layout" : "erase-original";
   const inpaintingPageIds = chapter.pages

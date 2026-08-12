@@ -166,8 +166,6 @@ function useTranslationActionController(
     selectedPage: chapter.derivedState.selectedPage,
     translationWorkflowDefault:
       uiDefaults.translationWorkflowDefault ?? "cumulative",
-    analysisScopeDefault: uiDefaults.analysisScopeDefault ?? "missing",
-    blockModeDefault: uiDefaults.blockModeDefault ?? "auto",
     autoFontMatchingDefault: uiDefaults.autoFontMatchingDefault ?? false,
     naturalTextLayoutDefault: uiDefaults.naturalTextLayoutDefault ?? true,
     recordImageEdit: workspaceHistory.recordImageEdit,

@@ -477,21 +477,7 @@
       "cumulative": {
         "label": "누적 컨텍스트 (권장)",
         "description": "번역하면서 페이지의 장면 요약·용어·캐릭터 정보를 쌓아 다음 페이지부터 참고합니다."
-      },
-      "twoPass": {
-        "label": "정밀 2차 (레거시)",
-        "description": "선택한 페이지를 두 번 번역합니다. 처리 시간이 길고 일반적인 품질 향상 효과는 제한적입니다.",
-        "warningTitle": "레거시 기능 · 제거 예정",
-        "warningDescription": "정밀 2차는 처리 시간이 길고 품질 향상 효과가 제한적이어서 추후 업데이트에서 제거될 예정입니다. 새 작업에는 누적 컨텍스트를 권장합니다."
       }
-    },
-    "secondPass": "2차 번역 (품질 향상)",
-    "secondPassHint": "1차 번역 후 AI가 용어·캐릭터·맥락을 분석하고, 그 결과로 다시 번역해 품질을 높입니다. 선택한 페이지를 다시 번역하므로 시간이 더 걸립니다.",
-    "analysisScope": "자동 분석 범위",
-    "analysisOptions": {
-      "work": "처음부터 다시",
-      "missing": "비어있는 화만",
-      "chapter": "현재 화만"
     },
     "blockModeSummaries": {
       "auto": "페이지마다 텍스트 블록을 자동으로 찾습니다.",
@@ -1255,10 +1241,6 @@
         }
       },
       "ocrQuality": {
-        "minimum": {
-          "label": "최소 (레거시)",
-          "description": "레거시 호환용 OCR 모드입니다. 추후 업데이트에서 제거될 예정입니다."
-        },
         "economy": {
           "label": "절약",
           "description": "속도와 정확도의 균형을 맞춥니다."

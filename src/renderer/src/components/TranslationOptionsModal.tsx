@@ -8,7 +8,6 @@ import type {
   TranslationWorkflowMode,
   UiSettings,
 } from "../../../shared/settingsTypes";
-import type { WorkContextAnalysisScope } from "../../../shared/workContextAnalysisTypes";
 import type { TranslationFlowOptions } from "../hooks/useTranslationActions";
 import { getBlockModeOptions } from "../lib/blockModeOptions";
 import type { TranslationOptionsInitialScope } from "../lib/translationSelection";
@@ -30,21 +29,14 @@ import {
   useTranslationOptionsModalState,
 } from "./translationOptionsState";
 
-const ANALYSIS_OPTION_IDS: WorkContextAnalysisScope[] = [
-  "work",
-  "missing",
-  "chapter",
-];
 const WORKFLOW_OPTION_IDS: TranslationWorkflowMode[] = [
   "standard",
   "cumulative",
-  "two-pass",
 ];
 
 type TranslationDefaultsPatch = Pick<
   UiSettings,
   | "translationWorkflowDefault"
-  | "analysisScopeDefault"
   | "blockModeDefault"
   | "autoFontMatchingDefault"
   | "naturalTextLayoutDefault"
@@ -175,7 +167,6 @@ function buildDefaultsPatch(
 ): TranslationDefaultsPatch {
   return {
     translationWorkflowDefault: form.workflowMode,
-    analysisScopeDefault: form.analysisScope,
     blockModeDefault: form.blockMode,
     autoFontMatchingDefault: form.autoFontMatching,
     naturalTextLayoutDefault: form.naturalTextLayout,
@@ -191,7 +182,6 @@ function buildTranslationFlowOptions(
   return {
     selection,
     workflowMode: form.workflowMode,
-    analysisScope: form.analysisScope,
     blockMode: form.blockMode,
     autoFontMatching: form.autoFontMatching,
     naturalTextLayout: form.naturalTextLayout,
@@ -316,43 +306,15 @@ function TranslationWorkflowOptions(
         label={t("translationOptions.workflowMode")}
         options={WORKFLOW_OPTION_IDS.map((id) => ({
           id,
-          label: t(
-            `translationOptions.workflowOptions.${workflowTranslationKey(id)}.label`,
-          ),
+          label: t(`translationOptions.workflowOptions.${id}.label`),
         }))}
         value={props.workflowMode}
         onChange={props.onWorkflowModeChange}
         description={t(
-          `translationOptions.workflowOptions.${workflowTranslationKey(props.workflowMode)}.description`,
+          `translationOptions.workflowOptions.${props.workflowMode}.description`,
         )}
         showLabel={false}
       />
-      {props.workflowMode === "two-pass" ? (
-        <>
-          <div className="translation-legacy-warning" role="note">
-            <WarnIcon size={18} aria-hidden="true" />
-            <div>
-              <strong>
-                {t("translationOptions.workflowOptions.twoPass.warningTitle")}
-              </strong>
-              <span>
-                {t(
-                  "translationOptions.workflowOptions.twoPass.warningDescription",
-                )}
-              </span>
-            </div>
-          </div>
-          <OptionRow
-            label={t("translationOptions.analysisScope")}
-            options={ANALYSIS_OPTION_IDS.map((id) => ({
-              id,
-              label: t(`translationOptions.analysisOptions.${id}`),
-            }))}
-            value={props.analysisScope}
-            onChange={props.onAnalysisScopeChange}
-          />
-        </>
-      ) : null}
     </>
   );
 }
@@ -385,10 +347,4 @@ function AutoFontMatchingOptions(
       description={t("translationOptions.autoFontMatchingSummary")}
     />
   );
-}
-
-function workflowTranslationKey(
-  mode: TranslationWorkflowMode,
-): "standard" | "cumulative" | "twoPass" {
-  return mode === "two-pass" ? "twoPass" : mode;
 }

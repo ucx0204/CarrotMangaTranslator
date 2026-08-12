@@ -9,7 +9,6 @@ import type {
   TranslationWorkflowMode,
   UiSettings,
 } from "../../../shared/settingsTypes";
-import type { WorkContextAnalysisScope } from "../../../shared/workContextAnalysisTypes";
 import type { TranslationFlowOptions } from "../hooks/useTranslationActions";
 import {
   buildRunSelection,
@@ -25,8 +24,6 @@ export type TranslationOptionsFormProps = {
   onSelectionChange: (selection: ChapterSelectionMap) => void;
   workflowMode: TranslationWorkflowMode;
   onWorkflowModeChange: (mode: TranslationWorkflowMode) => void;
-  analysisScope: WorkContextAnalysisScope;
-  onAnalysisScopeChange: (scope: WorkContextAnalysisScope) => void;
   blockMode: AnalysisBlockMode;
   onBlockModeChange: (mode: AnalysisBlockMode) => void;
   autoFontMatching: boolean;
@@ -92,10 +89,6 @@ function useTranslationFormFields(
   const [workflowMode, onWorkflowModeChange] = React.useState(
     uiSettings?.translationWorkflowDefault ?? "cumulative",
   );
-  const [analysisScope, onAnalysisScopeChange] =
-    React.useState<WorkContextAnalysisScope>(
-      uiSettings?.analysisScopeDefault ?? "missing",
-    );
   const [blockMode, onBlockModeChange] = React.useState<AnalysisBlockMode>(
     uiSettings?.blockModeDefault ?? "auto",
   );
@@ -113,13 +106,11 @@ function useTranslationFormFields(
     completionDefaults.bubbleLayout,
   );
   return {
-    analysisScope,
     autoFontMatching,
     blockMode,
     bubbleLayoutWorkflow,
     eraseOriginalWorkflow,
     naturalTextLayout,
-    onAnalysisScopeChange,
     onAutoFontMatchingChange,
     onBlockModeChange,
     onBubbleLayoutWorkflowChange,

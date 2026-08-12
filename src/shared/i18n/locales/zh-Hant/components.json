@@ -473,21 +473,7 @@
       "cumulative": {
         "label": "累積前後文（建議）",
         "description": "翻譯時逐頁累積場景摘要、術語和角色資訊，並從下一頁起用於參考。"
-      },
-      "twoPass": {
-        "label": "精細二次翻譯（舊版）",
-        "description": "所選頁面會翻譯兩次。處理時間較長，通常帶來的品質提升有限。",
-        "warningTitle": "舊版功能 · 預計移除",
-        "warningDescription": "精細二次翻譯耗時較長且品質提升有限，預計在後續更新中移除。新工作建議使用累積前後文。"
       }
-    },
-    "secondPass": "二次翻譯（提升品質）",
-    "secondPassHint": "第一次翻譯後，AI 會分析術語、角色和前後文，再根據分析結果重新翻譯。所選頁面會翻譯兩次，因此需要更多時間。",
-    "analysisScope": "自動分析範圍",
-    "analysisOptions": {
-      "work": "從頭重新分析",
-      "missing": "僅空白章節",
-      "chapter": "僅目前章節"
     },
     "blockModeSummaries": {
       "auto": "自動偵測每頁的文字區塊。",
@@ -1239,10 +1225,6 @@
         }
       },
       "ocrQuality": {
-        "minimum": {
-          "label": "最小（舊版）",
-          "description": "用於舊版相容的 OCR 模式，將在後續更新中移除。"
-        },
         "economy": { "label": "節省", "description": "平衡速度和準確度。" },
         "full": {
           "label": "完整",

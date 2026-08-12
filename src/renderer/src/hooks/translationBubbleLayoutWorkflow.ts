@@ -5,7 +5,6 @@ import type {
   InpaintingPostprocessOptions,
 } from "../../../shared/inpaintingTypes";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
-import type { WorkContextAnalysisScope } from "../../../shared/workContextAnalysisTypes";
 import type { NotificationPort } from "../lib/notificationPort";
 import type { ChapterRunSelection } from "../lib/translationSelection";
 import { runInpaintingSelectionsSequentially } from "./inpaintingSelectionFlow";
@@ -41,10 +40,7 @@ type TranslationFlowActionContext = Pick<
 > & {
   flowActiveRef: MutableRefObject<boolean>;
   notificationPort: NotificationPort;
-  runPasses: (
-    selection: ChapterRunSelection,
-    analysisScope: WorkContextAnalysisScope,
-  ) => Promise<RunAnalysisOutcome>;
+  runPasses: (selection: ChapterRunSelection) => Promise<RunAnalysisOutcome>;
   t: TFunction<"renderer">;
 };
 
@@ -179,7 +175,6 @@ async function runTranslationChapter(
   reportChapterProgress(index, options.selection.length, context);
   const selections = await resolveTranslationChapterSelections(
     selection,
-    options.workflowMode,
     completion,
   );
   if (isFlowCancellationRequested(context)) {
@@ -189,10 +184,7 @@ async function runTranslationChapter(
       refreshLibrary: false,
     };
   }
-  const translationOutcome = await context.runPasses(
-    selections.analysis,
-    resolvePerChapterAnalysisScope(options.analysisScope, index),
-  );
+  const translationOutcome = await context.runPasses(selections.analysis);
   if (isFlowCancellationRequested(context)) {
     return {
       status: "cancelled",
@@ -288,16 +280,6 @@ function resolveFlowMessageKey(
       ? 2
       : 1;
   return FLOW_MESSAGE_KEYS[status][workflowIndex];
-}
-
-function resolvePerChapterAnalysisScope(
-  requested: WorkContextAnalysisScope,
-  chapterIndex: number,
-): WorkContextAnalysisScope {
-  // A work-wide two-pass flow must not put a global pass-1 barrier between
-  // chapters. Analyze what is currently available for the first chapter, then
-  // only fill missing work context as later chapters finish pass 1.
-  return requested === "work" && chapterIndex > 0 ? "missing" : requested;
 }
 
 async function runTranslationInpaintingChapter(
@@ -408,7 +390,7 @@ function reportChapterProgress(
   if (total <= 1) return;
   context.pushStatus(
     context.t("translation.flow.chapterProgress", {
-      pass: context.t("translation.flow.firstPass"),
+      pass: context.t("translation.flow.translation"),
       current: index + 1,
       total,
     }),

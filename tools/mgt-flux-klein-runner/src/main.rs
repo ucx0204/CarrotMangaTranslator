@@ -129,7 +129,9 @@ async fn main() -> Result<()> {
         CudaRuntimeProbe::Disabled => {}
     }
     if sm75_fp16_requested() {
-        eprintln!("mgt-flux-klein: experimental SM75 mode enabled dtype=fp16 attention=chunked");
+        eprintln!(
+            "mgt-flux-klein: experimental SM75 mode enabled transformer=fp32 vae=fp16 attention=chunked"
+        );
     }
 
     let load_started = Instant::now();

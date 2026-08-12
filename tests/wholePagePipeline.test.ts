@@ -1077,7 +1077,7 @@ function makeAppSettings(sourceLanguage: string): AppSettings {
     },
     ocr: {
       device: "cpu",
-      qualityMode: "minimum",
+      qualityMode: "economy",
       gpuBackend: "cuda",
       gpuCudaTag: "cu124",
     },

@@ -74,7 +74,7 @@ function renderPanel(
     isFluxBackendOptionDisabled: () => false,
     ocrDevice: "gpu",
     ocrGpuBackend: "cuda",
-    ocrQualityMode: "minimum",
+    ocrQualityMode: "economy",
     setAllowUnsafeLowMemoryFlux: vi.fn(),
     setComputeGpuIndex: vi.fn(),
     setFluxBackend: vi.fn(),

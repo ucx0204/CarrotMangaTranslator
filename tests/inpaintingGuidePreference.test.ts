@@ -16,15 +16,15 @@ describe("inpainting guide preference helpers", () => {
   it("persists the hidden flag without dropping other UI defaults", () => {
     const settings = {
       ui: {
-        analysisScopeDefault: "work",
-        twoPassByDefault: true,
+        blockModeDefault: "keep",
+        naturalTextLayoutDefault: false,
       },
     } as AppSettings;
 
     expect(withHiddenInpaintingGuide(settings).ui).toEqual({
-      analysisScopeDefault: "work",
+      blockModeDefault: "keep",
       inpaintingGuideHidden: true,
-      twoPassByDefault: true,
+      naturalTextLayoutDefault: false,
     });
   });
 });

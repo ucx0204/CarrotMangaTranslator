@@ -224,7 +224,9 @@ export const OcrQualityModeSchema = z.preprocess(
         "최소",
       ].includes(normalized)
     ) {
-      return "minimum";
+      // The minimum preset was removed. Preserve a one-way read migration for
+      // settings saved by older releases without keeping it in runtime types.
+      return "economy";
     }
     if (
       [
@@ -260,5 +262,5 @@ export const OcrQualityModeSchema = z.preprocess(
     }
     return value;
   },
-  z.enum(["minimum", "economy", "full"]),
+  z.enum(["economy", "full"]),
 );

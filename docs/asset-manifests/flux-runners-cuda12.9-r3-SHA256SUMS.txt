@@ -1,0 +1,7 @@
+2ea7520e65e165cbc6d1b68f078621cbf850d231ff0295b8355a97c3884d132c  mgt-flux-klein-sm75-cuda12.9-win-x64.zip
+6e48bcf36c27fd1c61b92d76533b3763ffa530f647d68a36960b992c65e49d2b  mgt-flux-klein-sm80-cuda12.9-win-x64.zip
+5139be04ecf1c9c5d8659a0fcce869a4176a6403a3a401e6130e44e29268f29f  mgt-flux-klein-sm86-cuda12.9-win-x64.zip
+37b54975db701869ebfddec2d0b94fca3c87291bddcda932f4e864e3782672d3  mgt-flux-klein-sm89-cuda12.9-win-x64.zip
+b54467516d7f132986c2d6ce9e33c045941facfe27705ce280d61e8792d562c2  mgt-flux-klein-sm90-cuda12.9-win-x64.zip
+dd55fa4adeca466da0c99febab1e98acfe9d68199e331fe3561dc2d72bfa10e2  mgt-flux-klein-sm120-cuda12.9-win-x64.zip
+bb52259299ab0f244accc950ee4b45df378bb221dce5037656a720e785cc2b45  flux-runners-cuda12.9-r3-manifest.json

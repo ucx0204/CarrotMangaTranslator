@@ -6,7 +6,6 @@ import {
   selectedPageIds,
   toggleChapter,
   togglePage,
-  toSecondPassSelection,
   type ChapterSelectionMap,
 } from "../src/renderer/src/lib/translationSelection";
 
@@ -112,25 +111,5 @@ describe("translation selection", () => {
       ),
     ).toBe("all");
     expect(chapterTriState({ kind: "pending" }, 3)).toBe("some");
-  });
-
-  it("maps 2nd-pass selection: page-set stays exact, others become whole-chapter", () => {
-    expect(
-      toSecondPassSelection({
-        chapterId: "c1",
-        mode: "page-set",
-        pageIds: ["p2"],
-      }),
-    ).toEqual({ chapterId: "c1", mode: "page-set", pageIds: ["p2"] });
-    expect(toSecondPassSelection({ chapterId: "c1", mode: "pending" })).toEqual(
-      {
-        chapterId: "c1",
-        mode: "all",
-      },
-    );
-    expect(toSecondPassSelection({ chapterId: "c1", mode: "all" })).toEqual({
-      chapterId: "c1",
-      mode: "all",
-    });
   });
 });

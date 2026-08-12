@@ -6,13 +6,11 @@ import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway
 import type { NotificationPort } from "../src/renderer/src/lib/notificationPort";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationWorkflowMode } from "../src/shared/settingsTypes";
-import { WORK_CONTEXT_ANALYSIS_CANCELLED_ERROR } from "../src/shared/workContextAnalysisTypes";
 import type { UseTranslationActionsOptions } from "../src/renderer/src/hooks/translationActionTypes";
 
 const startAnalysis = vi.fn();
 const startInpainting = vi.fn();
 const openChapter = vi.fn();
-const analyzeWorkContext = vi.fn();
 const notificationMocks: NotificationPort = {
   error: vi.fn(),
   info: vi.fn(),
@@ -22,7 +20,6 @@ const notificationMocks: NotificationPort = {
 
 beforeEach(() => {
   window.mangaApi = createTestMangaGatewayStub({
-    analyzeWorkContext,
     openChapter,
     startAnalysis,
     startInpainting,
@@ -91,7 +88,6 @@ function makeOptions(): UseTranslationActionsOptions {
 async function runWorkflow(workflowMode: TranslationWorkflowMode) {
   const options = makeOptions();
   startAnalysis.mockResolvedValue({ status: "completed" });
-  analyzeWorkContext.mockResolvedValue(undefined);
   const { result } = renderHook(() =>
     useTranslationActions(options, notificationMocks),
   );
@@ -100,7 +96,6 @@ async function runWorkflow(workflowMode: TranslationWorkflowMode) {
     await result.current.runTranslationFlow({
       selection: [{ chapterId: "chapter-1", mode: "pending" }],
       workflowMode,
-      analysisScope: "missing",
       blockMode: "auto",
     });
   });
@@ -215,7 +210,6 @@ describe("translation workflow modes", () => {
       outcome = await result.current.runTranslationFlow({
         selection: [{ chapterId: "chapter-1", mode: "pending" }],
         workflowMode: "cumulative",
-        analysisScope: "missing",
         blockMode: "auto",
         bubbleLayoutWorkflow: true,
       });
@@ -274,7 +268,6 @@ describe("translation workflow modes", () => {
       await result.current.runTranslationFlow({
         selection: [{ chapterId: "chapter-1", mode: "all" }],
         workflowMode: "cumulative",
-        analysisScope: "missing",
         blockMode: "auto",
         naturalTextLayout: true,
         eraseOriginalWorkflow: true,
@@ -312,7 +305,6 @@ describe("translation workflow modes", () => {
       await result.current.runTranslationFlow({
         selection: [{ chapterId: "chapter-1", mode: "all" }],
         workflowMode: "cumulative",
-        analysisScope: "missing",
         blockMode: "auto",
         eraseOriginalWorkflow: false,
         bubbleLayoutWorkflow: true,
@@ -339,7 +331,6 @@ describe("translation workflow modes", () => {
       outcome = await result.current.runTranslationFlow({
         selection: [{ chapterId: "chapter-1", mode: "pending" }],
         workflowMode: "cumulative",
-        analysisScope: "missing",
         blockMode: "auto",
         bubbleLayoutWorkflow: true,
       });
@@ -382,7 +373,6 @@ describe("translation workflow modes", () => {
           { chapterId: "chapter-3", mode: "all" },
         ],
         workflowMode: "cumulative",
-        analysisScope: "missing",
         blockMode: "auto",
         bubbleLayoutWorkflow: true,
       });
@@ -395,61 +385,6 @@ describe("translation workflow modes", () => {
     expect(options.setJobState).toHaveBeenLastCalledWith(
       expect.objectContaining({ status: "failed" }),
     );
-  });
-
-  it("runs every two-pass chapter through its full pipeline before the next chapter", async () => {
-    const options = makeOptions();
-    const calls: string[] = [];
-    const passByChapter = new Map<string, number>();
-    startAnalysis.mockImplementation(async (request) => {
-      const pass = (passByChapter.get(request.chapterId) ?? 0) + 1;
-      passByChapter.set(request.chapterId, pass);
-      calls.push(`T${pass}:${request.chapterId}`);
-      return { status: "completed" };
-    });
-    analyzeWorkContext.mockImplementation(async (request) => {
-      calls.push(`C:${request.chapterId}:${request.scope}`);
-    });
-    startInpainting.mockImplementation(async (request) => {
-      const selection = request.selections[0];
-      calls.push(`I:${selection.chapterId}`);
-      return {
-        status: "completed",
-        chapters: [{ ...makeChapter(), id: selection.chapterId }],
-        pagesChanged: 1,
-        blocksErased: 1,
-      };
-    });
-    const { result } = renderHook(() =>
-      useTranslationActions(options, notificationMocks),
-    );
-
-    let outcome = "not-started";
-    await act(async () => {
-      outcome = await result.current.runTranslationFlow({
-        selection: [
-          { chapterId: "chapter-1", mode: "all" },
-          { chapterId: "chapter-2", mode: "all" },
-        ],
-        workflowMode: "two-pass",
-        analysisScope: "work",
-        blockMode: "auto",
-        bubbleLayoutWorkflow: true,
-      });
-    });
-
-    expect(outcome).toBe("completed");
-    expect(calls).toEqual([
-      "T1:chapter-1",
-      "C:chapter-1:work",
-      "T2:chapter-1",
-      "I:chapter-1",
-      "T1:chapter-2",
-      "C:chapter-2:missing",
-      "T2:chapter-2",
-      "I:chapter-2",
-    ]);
-    expect(notificationMocks.success).toHaveBeenCalledTimes(1);
   });
 
   it("does not start the next chapter after inpainting fails", async () => {
@@ -485,7 +420,6 @@ describe("translation workflow modes", () => {
           { chapterId: "chapter-3", mode: "all" },
         ],
         workflowMode: "cumulative",
-        analysisScope: "missing",
         blockMode: "auto",
         bubbleLayoutWorkflow: true,
       });
@@ -535,7 +469,6 @@ describe("translation workflow modes", () => {
           { chapterId: "chapter-2", mode: "all" },
         ],
         workflowMode: "cumulative",
-        analysisScope: "missing",
         blockMode: "auto",
         bubbleLayoutWorkflow: true,
       });
@@ -572,7 +505,6 @@ describe("translation workflow modes", () => {
           { chapterId: "chapter-2", mode: "all" },
         ],
         workflowMode: "cumulative",
-        analysisScope: "missing",
         blockMode: "auto",
         bubbleLayoutWorkflow: true,
       });
@@ -616,7 +548,6 @@ describe("translation workflow modes", () => {
       await result.current.runTranslationFlow({
         selection: [{ chapterId: "chapter-1", mode: "pending" }],
         workflowMode: "cumulative",
-        analysisScope: "missing",
         blockMode: "auto",
         bubbleLayoutWorkflow: true,
       });
@@ -661,7 +592,6 @@ describe("translation workflow modes", () => {
       await result.current.runTranslationFlow({
         selection: [{ chapterId: "chapter-1", mode: "pending" }],
         workflowMode: "cumulative",
-        analysisScope: "missing",
         blockMode: "auto",
         bubbleLayoutWorkflow: true,
       });
@@ -710,7 +640,6 @@ describe("translation workflow modes", () => {
       outcome = await result.current.runTranslationFlow({
         selection: [{ chapterId: "chapter-1", mode: "all" }],
         workflowMode: "cumulative",
-        analysisScope: "missing",
         blockMode: "auto",
         bubbleLayoutWorkflow: true,
       });
@@ -760,7 +689,6 @@ describe("translation workflow modes", () => {
       outcome = await result.current.runTranslationFlow({
         selection: [{ chapterId: "chapter-1", mode: "all" }],
         workflowMode: "cumulative",
-        analysisScope: "missing",
         blockMode: "auto",
         bubbleLayoutWorkflow: true,
       });
@@ -799,7 +727,6 @@ describe("translation workflow modes", () => {
       outcome = await result.current.runTranslationFlow({
         selection: [{ chapterId: "chapter-1", mode: "all" }],
         workflowMode: "cumulative",
-        analysisScope: "missing",
         blockMode: "auto",
         bubbleLayoutWorkflow: true,
       });
@@ -885,34 +812,6 @@ describe("translation workflow modes", () => {
     );
   });
 
-  it("forwards natural layout through both precision passes", async () => {
-    const options = makeOptions();
-    startAnalysis.mockResolvedValue({ status: "completed" });
-    analyzeWorkContext.mockResolvedValue(undefined);
-    const { result } = renderHook(() =>
-      useTranslationActions(options, notificationMocks),
-    );
-
-    await act(async () => {
-      await result.current.runTranslationFlow({
-        selection: [{ chapterId: "chapter-1", mode: "pending" }],
-        workflowMode: "two-pass",
-        analysisScope: "missing",
-        blockMode: "auto",
-        naturalTextLayout: true,
-      });
-    });
-
-    expect(startAnalysis).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({ naturalTextLayout: true }),
-    );
-    expect(startAnalysis).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({ naturalTextLayout: true }),
-    );
-  });
-
   it("defers natural hard breaks until Bubble postprocess knows the final shape", async () => {
     const options = makeOptions();
     openChapter.mockResolvedValue(makeChapter());
@@ -931,7 +830,6 @@ describe("translation workflow modes", () => {
       await result.current.runTranslationFlow({
         selection: [{ chapterId: "chapter-1", mode: "all" }],
         workflowMode: "cumulative",
-        analysisScope: "missing",
         blockMode: "auto",
         autoFontMatching: true,
         naturalTextLayout: true,
@@ -977,7 +875,6 @@ describe("translation workflow modes", () => {
       await result.current.runTranslationFlow({
         selection: [{ chapterId: "chapter-1", mode: "all" }],
         workflowMode: "cumulative",
-        analysisScope: "missing",
         blockMode: "auto",
         naturalTextLayout: false,
         bubbleLayoutWorkflow: true,
@@ -996,46 +893,6 @@ describe("translation workflow modes", () => {
     );
   });
 
-  it("runs the full precise flow for direct entry points with a two-pass default", async () => {
-    const options = {
-      ...makeOptions(),
-      translationWorkflowDefault: "two-pass" as const,
-      analysisScopeDefault: "chapter" as const,
-      blockModeDefault: "keep" as const,
-    };
-    startAnalysis.mockResolvedValue({ status: "completed" });
-    analyzeWorkContext.mockResolvedValue(undefined);
-    const { result } = renderHook(() =>
-      useTranslationActions(options, notificationMocks),
-    );
-
-    await act(async () => {
-      await result.current.runAnalysis("pending");
-    });
-
-    expect(startAnalysis).toHaveBeenCalledTimes(2);
-    expect(startAnalysis).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        runMode: "pending",
-        blockMode: "keep",
-        collectPageContext: false,
-      }),
-    );
-    expect(analyzeWorkContext).toHaveBeenCalledWith({
-      chapterId: "chapter-1",
-      scope: "chapter",
-    });
-    expect(startAnalysis).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        runMode: "all",
-        blockMode: "keep",
-        collectPageContext: false,
-      }),
-    );
-  });
-
   it("collects page context during the cumulative single pass", async () => {
     await runWorkflow("cumulative");
 
@@ -1046,7 +903,6 @@ describe("translation workflow modes", () => {
       blockMode: "auto",
       collectPageContext: true,
     });
-    expect(analyzeWorkContext).not.toHaveBeenCalled();
     expect(notificationMocks.success).toHaveBeenCalledOnce();
   });
 
@@ -1057,98 +913,6 @@ describe("translation workflow modes", () => {
     expect(startAnalysis).toHaveBeenCalledWith(
       expect.objectContaining({ collectPageContext: false }),
     );
-    expect(analyzeWorkContext).not.toHaveBeenCalled();
-  });
-
-  it("keeps both precision passes free of page-context collection", async () => {
-    await runWorkflow("two-pass");
-
-    expect(startAnalysis).toHaveBeenCalledTimes(2);
-    expect(startAnalysis).toHaveBeenNthCalledWith(1, {
-      chapterId: "chapter-1",
-      runMode: "pending",
-      blockMode: "auto",
-      collectPageContext: false,
-    });
-    expect(analyzeWorkContext).toHaveBeenCalledWith({
-      chapterId: "chapter-1",
-      scope: "missing",
-    });
-    expect(startAnalysis).toHaveBeenNthCalledWith(2, {
-      chapterId: "chapter-1",
-      runMode: "all",
-      blockMode: "auto",
-      collectPageContext: false,
-    });
-    expect(notificationMocks.success).toHaveBeenCalledOnce();
-  });
-
-  it("keeps the first-pass state and reports a context-analysis failure", async () => {
-    const options = makeOptions();
-    startAnalysis.mockResolvedValue({ status: "completed" });
-    analyzeWorkContext.mockRejectedValueOnce(new Error("analysis failed"));
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const { result } = renderHook(() =>
-      useTranslationActions(options, notificationMocks),
-    );
-
-    let outcome = "not-started";
-    await act(async () => {
-      outcome = await result.current.runTranslationFlow({
-        selection: [{ chapterId: "chapter-1", mode: "pending" }],
-        workflowMode: "two-pass",
-        analysisScope: "missing",
-        blockMode: "auto",
-      });
-    });
-
-    expect(outcome).toBe("failed");
-    expect(startAnalysis).toHaveBeenCalledOnce();
-    expect(options.setJobState).not.toHaveBeenCalledWith(
-      expect.objectContaining({ status: "completed" }),
-    );
-    expect(options.setJobState).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        id: "translation-flow-failed",
-        status: "failed",
-      }),
-    );
-    expect(notificationMocks.error).toHaveBeenCalledOnce();
-    expect(options.setFlowActive).toHaveBeenLastCalledWith(false);
-  });
-
-  it("treats cancellation during work-context analysis as aggregate cancellation", async () => {
-    const options = makeOptions();
-    options.flowCancellationRef = { current: false };
-    startAnalysis.mockResolvedValue({ status: "completed" });
-    analyzeWorkContext.mockRejectedValueOnce(
-      new Error(`IPC failed: ${WORK_CONTEXT_ANALYSIS_CANCELLED_ERROR}`),
-    );
-    const { result } = renderHook(() =>
-      useTranslationActions(options, notificationMocks),
-    );
-
-    let outcome = "not-started";
-    await act(async () => {
-      outcome = await result.current.runTranslationFlow({
-        selection: [{ chapterId: "chapter-1", mode: "pending" }],
-        workflowMode: "two-pass",
-        analysisScope: "missing",
-        blockMode: "auto",
-        bubbleLayoutWorkflow: true,
-      });
-    });
-
-    expect(outcome).toBe("cancelled");
-    expect(startAnalysis).toHaveBeenCalledOnce();
-    expect(startInpainting).not.toHaveBeenCalled();
-    expect(options.setJobState).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        id: "translation-flow-cancelled",
-        status: "cancelled",
-      }),
-    );
-    expect(notificationMocks.error).not.toHaveBeenCalled();
   });
 
   it("stops before the next chapter when cancellation lands in a child-job gap", async () => {
@@ -1171,13 +935,11 @@ describe("translation workflow modes", () => {
           { chapterId: "chapter-2", mode: "all" },
         ],
         workflowMode: "standard",
-        analysisScope: "missing",
         blockMode: "auto",
       });
     });
 
     expect(outcome).toBe("cancelled");
     expect(startAnalysis).toHaveBeenCalledOnce();
-    expect(analyzeWorkContext).not.toHaveBeenCalled();
   });
 });

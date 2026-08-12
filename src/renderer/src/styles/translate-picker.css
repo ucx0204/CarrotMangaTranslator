@@ -35,18 +35,6 @@
   line-height: 1.4;
 }
 
-.translation-legacy-warning {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: var(--sp-2);
-  align-items: start;
-  padding: var(--sp-3);
-  border: 1px solid color-mix(in srgb, var(--warn) 42%, var(--border-soft));
-  border-radius: var(--r-md);
-  color: var(--text);
-  background: color-mix(in srgb, var(--warn) 10%, var(--bg-sunken));
-}
-
 .translation-overwrite-warning {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -87,28 +75,6 @@
   line-height: 1.45;
 }
 
-.translation-legacy-warning > svg {
-  margin-top: 1px;
-  color: var(--warn);
-}
-
-.translation-legacy-warning > div {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-
-.translation-legacy-warning strong {
-  color: var(--text-head);
-  font-size: var(--font-sm);
-}
-
-.translation-legacy-warning span {
-  color: var(--text-dim);
-  font-size: var(--font-xs);
-  line-height: 1.5;
-}
-
 .translation-save-defaults {
   display: inline-flex;
   align-items: center;
@@ -118,15 +84,6 @@
   color: var(--text-dim);
   font-size: var(--font-sm);
   cursor: pointer;
-}
-
-.translate-options-twopass {
-  display: grid;
-  gap: var(--sp-2);
-  padding: var(--sp-4);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-md);
-  background: var(--bg-sunken);
 }
 
 .translate-options-toggle {

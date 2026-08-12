@@ -170,7 +170,6 @@ describe("TranslationOptionsModal", () => {
     expect(onStart).toHaveBeenCalledWith({
       selection: [{ chapterId: CHAPTER_ID, mode: "pending" }],
       workflowMode: "cumulative",
-      analysisScope: "missing",
       blockMode: "auto",
       autoFontMatching: false,
       naturalTextLayout: true,
@@ -181,25 +180,11 @@ describe("TranslationOptionsModal", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("shows analysis scope only for the precision two-pass workflow", async () => {
-    const { onStart } = await renderModal();
+  it("does not expose the removed precision two-pass workflow", async () => {
+    await renderModal();
 
-    fireEvent.click(screen.getByRole("radio", { name: "정밀 2차 (레거시)" }));
-
-    expect(screen.getByText("자동 분석 범위")).toBeTruthy();
-    expect(screen.getByText("레거시 기능 · 제거 예정")).toBeTruthy();
-    expect(
-      screen.getByText(/추후 업데이트에서 제거될 예정입니다/),
-    ).toBeTruthy();
-    fireEvent.click(screen.getByRole("radio", { name: "현재 화만" }));
-    fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
-
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        workflowMode: "two-pass",
-        analysisScope: "chapter",
-      }),
-    );
+    expect(screen.queryByRole("radio", { name: /정밀 2차/ })).toBeNull();
+    expect(screen.queryByText("자동 분석 범위")).toBeNull();
   });
 
   it("uses a saved quick single-pass workflow as the initial mode", async () => {

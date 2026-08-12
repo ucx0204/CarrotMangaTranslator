@@ -8,7 +8,6 @@ import type {
 } from "../../../shared/libraryTypes";
 import type { BBox } from "../../../shared/textTypes";
 import type { TranslationWorkflowMode } from "../../../shared/settingsTypes";
-import type { WorkContextAnalysisScope } from "../../../shared/workContextAnalysisTypes";
 import type { LiveChapterMergeOptions } from "../lib/chapterSync";
 import type { ChapterRunSelection } from "../lib/translationSelection";
 import type { RunAnalysisOutcome } from "./translationFlowHelpers";
@@ -18,7 +17,6 @@ export type RunAnalysisMode = "pending" | "all" | "single-page" | "page-set";
 export type TranslationFlowOptions = {
   selection: ChapterRunSelection[];
   workflowMode: TranslationWorkflowMode;
-  analysisScope: WorkContextAnalysisScope;
   blockMode: AnalysisBlockMode;
   autoFontMatching?: boolean;
   naturalTextLayout?: boolean;
@@ -46,8 +44,6 @@ export type UseTranslationActionsOptions = {
   syncSavedPageVersion: (chapter: ChapterSnapshot, pageId: string) => void;
   selectedPage: MangaPage | null;
   translationWorkflowDefault?: TranslationWorkflowMode;
-  analysisScopeDefault?: WorkContextAnalysisScope;
-  blockModeDefault?: AnalysisBlockMode;
   autoFontMatchingDefault?: boolean;
   naturalTextLayoutDefault?: boolean;
   recordImageEdit: (entry: {

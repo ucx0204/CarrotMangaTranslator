@@ -241,11 +241,6 @@ export const OCR_DEVICE_OPTIONS: OcrDeviceOption[] = [
 
 export const OCR_QUALITY_OPTIONS: OcrQualityOption[] = [
   {
-    id: "minimum",
-    labelKey: "settings.options.ocrQuality.minimum.label",
-    descriptionKey: "settings.options.ocrQuality.minimum.description",
-  },
-  {
     id: "economy",
     labelKey: "settings.options.ocrQuality.economy.label",
     descriptionKey: "settings.options.ocrQuality.economy.description",

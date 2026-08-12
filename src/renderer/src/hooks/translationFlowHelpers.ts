@@ -93,7 +93,7 @@ function pushChapterProgress(
           current: index + 1,
           total,
         })
-      : `${passLabel} 번역 ${index + 1}/${total}화`,
+      : `${passLabel} ${index + 1}/${total}화`,
   );
 }
 

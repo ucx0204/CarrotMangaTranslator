@@ -97,7 +97,7 @@
   "commands": {
     "translate": {
       "label": "번역…",
-      "hint": "옵션·2차 번역·일괄",
+      "hint": "옵션·범위·일괄",
       "keywords": "translate options beonyeok 번역 옵션"
     },
     "translatePending": {
@@ -445,15 +445,10 @@
     "bubbleLayoutWorkflowPartial": "일부 블록은 후처리에 실패했습니다.",
     "bubbleLayoutWorkflowFailed": "번역 후 자동 지우기·말풍선 맞춤에 실패했습니다.",
     "flow": {
-      "firstPass": "1차",
-      "secondPass": "2차",
-      "chapterProgress": "{{pass}} 번역 {{current}}/{{total}}화",
+      "translation": "번역",
+      "chapterProgress": "{{pass}} {{current}}/{{total}}화",
       "completed": "번역을 완료했습니다.",
-      "partial": "일부 블록은 후처리에 실패했습니다.",
-      "contextAnalysis": "AI 용어/기억 분석 중",
-      "contextSkipped": "1차 번역 완료 (AI 분석 건너뜀)",
-      "contextFailed": "AI 용어/기억 분석에 실패해 1차 번역 결과만 유지합니다.",
-      "secondPassCompleted": "2차 번역까지 완료했습니다."
+      "partial": "일부 블록은 후처리에 실패했습니다."
     }
   },
   "settings": {

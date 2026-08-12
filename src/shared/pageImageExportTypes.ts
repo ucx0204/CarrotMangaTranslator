@@ -20,13 +20,17 @@ export type PageImageExportRequest = {
 
 export type PageImageExportFormat = "png" | "psd";
 
+export const PAGE_IMAGE_EXPORT_PREFLIGHT_ISSUE_CODES = [
+  "job-running",
+  "translation-failed",
+  "translation-pending",
+  "postprocess-pending",
+  "inpainted-image-missing",
+  "empty-translation",
+] as const;
+
 type PageImageExportPreflightIssueCode =
-  | "job-running"
-  | "translation-failed"
-  | "translation-pending"
-  | "postprocess-pending"
-  | "inpainted-image-missing"
-  | "empty-translation";
+  (typeof PAGE_IMAGE_EXPORT_PREFLIGHT_ISSUE_CODES)[number];
 
 export type PageImageExportPreflightIssue = {
   code: PageImageExportPreflightIssueCode;

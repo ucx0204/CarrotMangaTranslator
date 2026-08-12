@@ -42,22 +42,15 @@ describeWindows("app settings helpers: UI settings and migrations", () => {
     const defaults = resolveDefaultAppSettings();
 
     expect(defaults.ui?.translationWorkflowDefault).toBe("cumulative");
-    expect(
-      parseStoredAppSettings('{"ui":{"twoPassByDefault":true}}', defaults).ui,
-    ).toEqual(
+    const migrated = parseStoredAppSettings(
+      '{"ui":{"twoPassByDefault":true,"translationWorkflowDefault":"two-pass","analysisScopeDefault":"work"}}',
+      defaults,
+    ).ui;
+    expect(migrated).toEqual(
       expect.objectContaining({ translationWorkflowDefault: "cumulative" }),
     );
-    expect(
-      parseStoredAppSettings('{"ui":{"twoPassByDefault":false}}', defaults).ui,
-    ).toEqual(
-      expect.objectContaining({ translationWorkflowDefault: "cumulative" }),
-    );
-    expect(
-      parseStoredAppSettings(
-        '{"ui":{"translationWorkflowDefault":"two-pass"}}',
-        defaults,
-      ).ui?.translationWorkflowDefault,
-    ).toBe("two-pass");
+    expect(migrated).not.toHaveProperty("twoPassByDefault");
+    expect(migrated).not.toHaveProperty("analysisScopeDefault");
   });
 
   it("normalizes OCR device settings", () => {
@@ -115,12 +108,12 @@ describeWindows("app settings helpers: UI settings and migrations", () => {
     expect(resolveOcrGpuBackend("mps", "rocm-transformers")).toBe(
       "rocm-transformers",
     );
-    expect(resolveOcrQualityMode("min", "full")).toBe("minimum");
-    expect(resolveOcrQualityMode("tiny", "full")).toBe("minimum");
+    expect(resolveOcrQualityMode("min", "full")).toBe("economy");
+    expect(resolveOcrQualityMode("tiny", "full")).toBe("economy");
     expect(resolveOcrQualityMode("small", "full")).toBe("economy");
-    expect(resolveOcrQualityMode("full", "minimum")).toBe("full");
-    expect(resolveOcrQualityMode("vl", "minimum")).toBe("full");
-    expect(resolveOcrQualityMode("cuda-legacy", "minimum")).toBe("full");
+    expect(resolveOcrQualityMode("full", "economy")).toBe("full");
+    expect(resolveOcrQualityMode("vl", "economy")).toBe("full");
+    expect(resolveOcrQualityMode("cuda-legacy", "economy")).toBe("full");
     expect(resolveOcrQualityMode("unknown", "economy")).toBe("economy");
   });
 

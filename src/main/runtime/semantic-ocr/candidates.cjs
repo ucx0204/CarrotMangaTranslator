@@ -18,11 +18,7 @@ const {
   semanticContractError,
 } = require("./values.cjs");
 
-const COMMON_SEMANTIC_OCR_QUALITY_MODES = new Set([
-  "minimum",
-  "economy",
-  "full",
-]);
+const COMMON_SEMANTIC_OCR_QUALITY_MODES = new Set(["economy", "full"]);
 
 /**
  * @typedef {{ id: number; bbox: [number, number, number, number]; text: string; score: number | null; group?: string; order?: number; orientation: "horizontal" | "vertical"; soundCandidate:boolean }} SemanticCandidate

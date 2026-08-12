@@ -67,11 +67,8 @@ export function useTranslationActionsImpl(
     executeAnalysisJob,
     flowActiveRef,
     jobActive: options.jobActive,
-    runTranslationFlow: rawRunTranslationFlow,
     translationWorkflowDefault:
       options.translationWorkflowDefault ?? "cumulative",
-    analysisScopeDefault: options.analysisScopeDefault ?? "missing",
-    blockModeDefault: options.blockModeDefault ?? "auto",
     autoFontMatchingDefault: options.autoFontMatchingDefault ?? false,
     naturalTextLayoutDefault: options.naturalTextLayoutDefault ?? true,
   });

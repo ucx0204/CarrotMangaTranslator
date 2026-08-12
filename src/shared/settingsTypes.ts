@@ -39,8 +39,8 @@ export type ApiReasoningEffort =
   | "xhigh";
 export type OcrDevice = "cpu" | "gpu";
 export type OcrGpuBackend = "cuda" | "rocm-transformers";
-export type OcrQualityMode = "minimum" | "economy" | "full";
-export type TranslationWorkflowMode = "standard" | "cumulative" | "two-pass";
+export type OcrQualityMode = "economy" | "full";
+export type TranslationWorkflowMode = "standard" | "cumulative";
 export type LlamaRuntimeProfile =
   | "cuda12"
   | "rtx50"
@@ -123,12 +123,8 @@ export type UiSettings = {
   /** Application interface language. Independent from the manga translation pair. */
   locale?: UiLocale;
   inpaintingGuideHidden?: boolean;
-  /** @deprecated Kept only so older settings files remain readable. */
-  twoPassByDefault?: boolean;
-  /** Default translation workflow. Missing legacy values migrate to cumulative. */
+  /** Default translation workflow. Missing or unsupported values use cumulative. */
   translationWorkflowDefault?: TranslationWorkflowMode;
-  /** Default AI 분석 범위 for the 2-pass flow. Mirrors WorkContextAnalysisScope. */
-  analysisScopeDefault?: "work" | "missing" | "chapter";
   /** Default 블록 mode for translate: auto-detect blocks or keep existing block regions. */
   blockModeDefault?: "auto" | "keep";
   /** Insert size-aware hard line breaks into newly translated block text. */

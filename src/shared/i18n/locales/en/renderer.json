@@ -94,7 +94,7 @@
   "commands": {
     "translate": {
       "label": "Translate…",
-      "hint": "Options · second pass · batch",
+      "hint": "Options · scope · batch",
       "keywords": "translate options translation"
     },
     "translatePending": {
@@ -442,15 +442,10 @@
     "bubbleLayoutWorkflowPartial": "Some blocks failed post-processing.",
     "bubbleLayoutWorkflowFailed": "Automatic erase and bubble fitting after translation failed.",
     "flow": {
-      "firstPass": "First pass",
-      "secondPass": "Second pass",
-      "chapterProgress": "{{pass}} translation · Chapter {{current}}/{{total}}",
+      "translation": "Translation",
+      "chapterProgress": "{{pass}} · Chapter {{current}}/{{total}}",
       "completed": "Translation complete.",
-      "partial": "Some blocks failed post-processing.",
-      "contextAnalysis": "Analyzing AI terminology/memory",
-      "contextSkipped": "First pass complete (AI analysis skipped)",
-      "contextFailed": "AI terminology/memory analysis failed; keeping first-pass results only.",
-      "secondPassCompleted": "Second-pass translation complete."
+      "partial": "Some blocks failed post-processing."
     }
   },
   "settings": {

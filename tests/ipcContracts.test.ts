@@ -16,6 +16,7 @@ import {
   inpaintingIpcContracts,
   ipcInvokeContracts,
   libraryIpcContracts,
+  pageImageExportIpcContracts,
   type IpcContract,
 } from "../src/shared/ipcContracts";
 import { defineIpcContract } from "../src/shared/ipcContractCore";
@@ -93,6 +94,31 @@ it("requires an explicit invalidation state for history transaction results", ()
       invalidated: undefined,
     }).success,
   ).toBe(false);
+});
+
+it("accepts the missing-inpainting issue returned by textless export preflight", () => {
+  const result = {
+    workTitle: "테스트 작품",
+    chapterCount: 1,
+    pageCount: 1,
+    sampleRelativePath: "001-1화\\001-page.png",
+    outputPolicy: "new-timestamped-folder" as const,
+    issues: [
+      {
+        code: "inpainted-image-missing" as const,
+        severity: "warning" as const,
+        chapterId: "chapter-1",
+        chapterTitle: "1화",
+        pageId: "page-1",
+        pageName: "page.png",
+      },
+    ],
+    targets: [],
+  };
+
+  expect(
+    pageImageExportIpcContracts.preflightPageImages.result.parse(result),
+  ).toEqual(result);
 });
 
 it("keeps invoke API keys and channels unique and explicit", () => {

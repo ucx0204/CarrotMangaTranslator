@@ -84,7 +84,7 @@ describe("HardwareSettingsPanel", () => {
         isFluxBackendOptionDisabled={() => false}
         ocrDevice="gpu"
         ocrGpuBackend="cuda"
-        ocrQualityMode="minimum"
+        ocrQualityMode="economy"
         setFluxBackend={vi.fn()}
         setAllowUnsafeLowMemoryFlux={vi.fn()}
         setComputeGpuIndex={vi.fn()}
@@ -151,7 +151,7 @@ describe("HardwareSettingsPanel", () => {
     expect(setOcrDevice).not.toHaveBeenCalled();
   });
 
-  it("removes CUDA legacy full and keeps the supported full preset", () => {
+  it("shows only the supported OCR quality presets", () => {
     const setOcrDevice = vi.fn();
     const setOcrGpuBackend = vi.fn();
     const setOcrQualityMode = vi.fn();
@@ -188,6 +188,12 @@ describe("HardwareSettingsPanel", () => {
     expect(
       screen.queryByRole("button", { name: "CUDA 레거시 풀로드" }),
     ).toBeNull();
+    const ocrQualityGroup = screen.getByRole("group", {
+      name: "Paddle OCR 품질",
+    });
+    expect(
+      within(ocrQualityGroup).queryByRole("button", { name: /최소/ }),
+    ).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "풀로드" }));
     expect(setOcrDevice).toHaveBeenCalledWith("gpu");
     expect(setOcrGpuBackend).toHaveBeenCalledWith("cuda");
@@ -207,7 +213,7 @@ describe("HardwareSettingsPanel", () => {
       isFluxBackendOptionDisabled: (backend) => backend === "cuda-native",
       ocrDevice: "gpu",
       ocrGpuBackend: "cuda",
-      ocrQualityMode: "minimum",
+      ocrQualityMode: "economy",
       setAllowUnsafeLowMemoryFlux: vi.fn(),
       setComputeGpuIndex: vi.fn(),
       setFluxBackend,

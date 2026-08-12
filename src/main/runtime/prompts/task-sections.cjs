@@ -98,7 +98,7 @@ function buildTaskRefinementLines(strictRefineMode, keepBlocksMode) {
     ];
   }
   return [
-    "This is a strict second-pass refinement. Treat OCR candidates as the main geometry anchors, and use previous pass blocks only as weak review hints, never as trusted source text.",
+    "This is a strict OCR refinement. Treat OCR candidates as the main geometry anchors, and use previous blocks only as weak review hints, never as trusted source text.",
     "When OCR split one visual text container into adjacent line/column candidates, collapse those fragments into one corrected ordinary record instead of preserving the bad split.",
     "After collapsing split candidates, re-translate the combined Japanese from Image 1 and the corrected group text; do not stitch together the old Korean fragments.",
     "Do not re-detect the page from scratch in a way that duplicates existing OCR candidates or previous physical text areas.",

@@ -303,7 +303,6 @@ function resolveDefaultUiSettings(
     ),
     inpaintingGuideHidden: false,
     translationWorkflowDefault: "cumulative",
-    analysisScopeDefault: "missing",
     naturalTextLayoutDefault: true,
     autoFontMatchingDefault: false,
     eraseOriginalWorkflowDefault: false,

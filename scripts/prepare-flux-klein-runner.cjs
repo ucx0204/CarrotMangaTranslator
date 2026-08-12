@@ -216,8 +216,106 @@ function patchKoharuFluxSources() {
 
   const koharuMlDir = koharuMl.manifest_path.replace(/[\\/]Cargo\.toml$/, "");
   const fluxModPath = join(koharuMlDir, "src", "flux2_klein", "mod.rs");
-  const fp16DtypePatch = `fn sm75_fp16_enabled() -> bool {\n    std::env::var("MGT_FLUX_SM75_FP16")\n        .map(|value| {\n            matches!(\n                value.trim().to_ascii_lowercase().as_str(),\n                "1" | "true" | "yes" | "on"\n            )\n        })\n        .unwrap_or(false)\n}\n\nfn flux_model_device() -> Result<Device> {\n    #[cfg(feature = "cuda")]\n    if sm75_fp16_enabled() {\n        let model_device = Device::new_cuda(0)?;\n        let (major, minor) = {\n            let cuda_device = model_device.as_cuda_device()?;\n            cuda_device\n                .cuda_stream()\n                .context()\n                .compute_capability()?\n        };\n        if (major, minor) != (7, 5) {\n            bail!(\n                "MGT_FLUX_SM75_FP16 requires CUDA compute capability 7.5, got {major}.{minor}"\n            );\n        }\n        tracing::info!("Flux SM75 FP16 CUDA device enabled");\n        return Ok(model_device);\n    }\n\n    device(false)\n}\n\nfn transformer_dtype(device: &Device) -> DType {\n    if device.is_cuda() && !koharu_runtime::zluda_active() {\n        return if sm75_fp16_enabled() {\n            DType::F16\n        } else {\n            DType::BF16\n        };\n    }\n\n    DType::F32\n}\n\nfn vae_dtype(device: &Device) -> DType {\n    if device.is_cuda() && !koharu_runtime::zluda_active() {\n        return if sm75_fp16_enabled() {\n            DType::F16\n        } else {\n            DType::BF16\n        };\n    }\n\n    DType::F32\n}`;
-  const testableFp16DtypePatch = fp16DtypePatch
+  const sm75DtypePatch = `fn sm75_fp16_enabled() -> bool {
+    std::env::var("MGT_FLUX_SM75_FP16")
+        .map(|value| {
+            matches!(
+                value.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
+        .unwrap_or(false)
+}
+
+fn flux_model_device() -> Result<Device> {
+    #[cfg(feature = "cuda")]
+    if sm75_fp16_enabled() {
+        let model_device = Device::new_cuda(0)?;
+        let (major, minor) = {
+            let cuda_device = model_device.as_cuda_device()?;
+            cuda_device
+                .cuda_stream()
+                .context()
+                .compute_capability()?
+        };
+        if (major, minor) != (7, 5) {
+            bail!(
+                "MGT_FLUX_SM75_FP16 requires CUDA compute capability 7.5, got {major}.{minor}"
+            );
+        }
+        tracing::info!("Flux SM75 mixed-precision CUDA device enabled (transformer=fp32, vae=fp16)");
+        return Ok(model_device);
+    }
+
+    device(false)
+}
+
+fn transformer_dtype(device: &Device) -> DType {
+    if device.is_cuda() && !koharu_runtime::zluda_active() {
+        return if sm75_fp16_enabled() {
+            DType::F32
+        } else {
+            DType::BF16
+        };
+    }
+
+    DType::F32
+}
+
+fn vae_dtype(device: &Device) -> DType {
+    if device.is_cuda() && !koharu_runtime::zluda_active() {
+        return if sm75_fp16_enabled() {
+            DType::F16
+        } else {
+            DType::BF16
+        };
+    }
+
+    DType::F32
+}`;
+  const legacyFp16DtypePatch = sm75DtypePatch
+    .replace(
+      'tracing::info!("Flux SM75 mixed-precision CUDA device enabled (transformer=fp32, vae=fp16)");',
+      'tracing::info!("Flux SM75 FP16 CUDA device enabled");',
+    )
+    .replace(
+      `fn transformer_dtype(device: &Device) -> DType {
+    if device.is_cuda() && !koharu_runtime::zluda_active() {
+        return if sm75_fp16_enabled() {
+            DType::F32
+        } else {
+            DType::BF16
+        };
+    }
+
+    DType::F32
+}`,
+      `fn transformer_dtype(device: &Device) -> DType {
+    if device.is_cuda() && !koharu_runtime::zluda_active() {
+        return if sm75_fp16_enabled() {
+            DType::F16
+        } else {
+            DType::BF16
+        };
+    }
+
+    DType::F32
+}`,
+    );
+  const testableSm75DtypePatch = sm75DtypePatch
+    .replace(
+      "if (major, minor) != (7, 5) {",
+      "if major < 7 || (major == 7 && minor < 5) {",
+    )
+    .replace(
+      "requires CUDA compute capability 7.5, got",
+      "requires CUDA compute capability 7.5 or newer, got",
+    )
+    .replace(
+      'tracing::info!("Flux SM75 mixed-precision CUDA device enabled (transformer=fp32, vae=fp16)");',
+      'tracing::info!("Flux SM75-compatible mixed-precision CUDA device enabled on {major}.{minor} (transformer=fp32, vae=fp16)");',
+    );
+  const testableLegacyFp16DtypePatch = legacyFp16DtypePatch
     .replace(
       "if (major, minor) != (7, 5) {",
       "if major < 7 || (major == 7 && minor < 5) {",
@@ -233,12 +331,14 @@ function patchKoharuFluxSources() {
   patchFileVariant(
     fluxModPath,
     [
-      testableFp16DtypePatch,
+      testableSm75DtypePatch,
+      legacyFp16DtypePatch,
+      testableLegacyFp16DtypePatch,
       `fn transformer_dtype(device: &Device) -> DType {\n    if device.is_cuda() {\n        return DType::BF16;\n    }\n\n    DType::F32\n}\n\nfn vae_dtype(device: &Device) -> DType {\n    if device.is_cuda() {\n        return DType::BF16;\n    }\n\n    DType::F32\n}`,
       `fn transformer_dtype(device: &Device) -> DType {\n    if device.is_cuda() && !koharu_runtime::zluda_active() {\n        return DType::BF16;\n    }\n\n    DType::F32\n}\n\nfn vae_dtype(device: &Device) -> DType {\n    if device.is_cuda() && !koharu_runtime::zluda_active() {\n        return DType::BF16;\n    }\n\n    DType::F32\n}`,
     ],
-    fp16DtypePatch,
-    "SM75 FP16 Flux device and dtype",
+    sm75DtypePatch,
+    "SM75 mixed-precision Flux device and dtype",
   );
   patchFile(
     fluxModPath,

@@ -307,24 +307,11 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
     const scenarios: Array<{
       label: string;
       ocr: AppSettings["ocr"];
-      expectedQuality: "minimum" | "economy" | "full";
+      expectedQuality: "economy" | "full";
       expectedEngine: "paddle_static" | "transformers";
       expectedDetectionModel?: string;
       expectedRecognitionModel?: string;
     }> = [
-      {
-        label: "CUDA minimum",
-        ocr: {
-          ...defaults.ocr,
-          device: "gpu",
-          gpuBackend: "cuda",
-          qualityMode: "minimum",
-        },
-        expectedQuality: "minimum",
-        expectedEngine: "paddle_static",
-        expectedDetectionModel: "PP-OCRv6_small_det",
-        expectedRecognitionModel: "PP-OCRv6_small_rec",
-      },
       {
         label: "CPU full downgraded to economy",
         ocr: {

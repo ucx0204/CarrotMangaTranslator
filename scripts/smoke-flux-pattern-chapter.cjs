@@ -123,7 +123,7 @@ async function main() {
       );
       const beforeVram = vram.current();
       const result = await inpaintPatternPage(page, {
-        fluxEngine: engine,
+        inpaintingEngine: engine,
       });
       const elapsedMs = performance.now() - pageStartedAt;
       const afterVram = vram.current();

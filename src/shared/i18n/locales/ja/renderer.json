@@ -91,7 +91,7 @@
   "commands": {
     "translate": {
       "label": "翻訳…",
-      "hint": "オプション・2回目翻訳・一括",
+      "hint": "オプション・範囲・一括",
       "keywords": "translate options 翻訳 オプション"
     },
     "translatePending": {
@@ -439,15 +439,10 @@
     "bubbleLayoutWorkflowPartial": "一部のブロックで後処理に失敗しました。",
     "bubbleLayoutWorkflowFailed": "翻訳後の自動消去・吹き出しフィットに失敗しました。",
     "flow": {
-      "firstPass": "1回目",
-      "secondPass": "2回目",
-      "chapterProgress": "{{pass}}翻訳 {{current}}/{{total}}話",
+      "translation": "翻訳",
+      "chapterProgress": "{{pass}} {{current}}/{{total}}話",
       "completed": "翻訳が完了しました。",
-      "partial": "一部のブロックで後処理に失敗しました。",
-      "contextAnalysis": "AI用語／メモリを解析中",
-      "contextSkipped": "1回目の翻訳完了（AI解析をスキップ）",
-      "contextFailed": "AI用語／メモリ解析に失敗したため、1回目の翻訳結果のみ保持します。",
-      "secondPassCompleted": "2回目の翻訳まで完了しました。"
+      "partial": "一部のブロックで後処理に失敗しました。"
     }
   },
   "settings": {
