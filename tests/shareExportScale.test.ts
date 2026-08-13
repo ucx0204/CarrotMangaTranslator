@@ -1,9 +1,15 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import type { LibraryChapter, LibraryWork } from "../src/shared/libraryTypes";
 import { MAX_SHARE_CHAPTERS } from "../src/main/libraryStore/sharePackage";
+import type { WorkStyleGuide } from "../src/shared/workContextTypes";
+import {
+  createWorkShareExporter,
+  type WorkShareExportReaderPort,
+} from "../src/main/libraryStore/shareExportWorkflow";
+import { previewWorkShareImport } from "../src/main/libraryStore/shareWorkflow";
 
 const tempDirs: string[] = [];
 
@@ -18,20 +24,23 @@ afterEach(async () => {
   }
 });
 
-it("exports and previews all 2000 chapters in manifest order", async () => {
+it("exports and previews all 2000 in-memory chapters through one real archive", async () => {
   const rootDir = await mkdtemp(join(tmpdir(), "manga-share-export-scale-"));
   tempDirs.push(rootDir);
   const chapterIds = Array.from(
     { length: MAX_SHARE_CHAPTERS },
     (_, index) => `chapter-${String(index + 1).padStart(4, "0")}`,
   );
-  await seedScaleLibrary(rootDir, chapterIds);
-  mockAppPaths(rootDir);
-
-  const { exportWorkShareToFile } =
-    await import("../src/main/libraryStore/shareExportWorkflow");
-  const { previewWorkShareImport } =
-    await import("../src/main/libraryStore/shareWorkflow");
+  const { work, chapters, styleGuide } = createScaleLibrary(chapterIds);
+  const loadChapter = vi.fn(async (workId: string, chapterId: string) =>
+    workId === work.id ? (chapters.get(chapterId) ?? null) : null,
+  );
+  const readers = {
+    loadWork: vi.fn(async () => work),
+    loadChapter,
+    loadStyleGuide: vi.fn(async () => styleGuide),
+  } satisfies WorkShareExportReaderPort;
+  const exportWorkShareToFile = createWorkShareExporter(readers);
   const outputPath = join(rootDir, "scale-2000.mgtshare");
 
   const result = await exportWorkShareToFile({
@@ -49,12 +58,16 @@ it("exports and previews all 2000 chapters in manifest order", async () => {
   expect(preview.chapters.map((chapter) => chapter.packageChapterId)).toEqual(
     chapterIds,
   );
+  expect(loadChapter.mock.calls.map(([, chapterId]) => chapterId)).toEqual(
+    chapterIds,
+  );
 }, 120_000);
 
-async function seedScaleLibrary(
-  rootDir: string,
-  chapterIds: string[],
-): Promise<void> {
+function createScaleLibrary(chapterIds: string[]): {
+  work: LibraryWork;
+  chapters: ReadonlyMap<string, LibraryChapter>;
+  styleGuide: WorkStyleGuide;
+} {
   const work: LibraryWork = {
     id: "scale-work",
     title: "2000 Chapter Work",
@@ -62,56 +75,37 @@ async function seedScaleLibrary(
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
   };
-  const workRoot = join(rootDir, "works", work.id);
-  const chaptersRoot = join(workRoot, "chapters");
-  await mkdir(chaptersRoot, { recursive: true });
-  await writeJson(join(workRoot, "work.json"), work);
-
-  const batchSize = 50;
-  for (let offset = 0; offset < chapterIds.length; offset += batchSize) {
-    const batch = chapterIds.slice(offset, offset + batchSize);
-    await Promise.all(
-      batch.map(async (chapterId, batchIndex) => {
-        const index = offset + batchIndex;
-        const chapter: LibraryChapter = {
-          id: chapterId,
-          workId: work.id,
-          title: `Chapter ${index + 1}`,
-          sourceKind: "folder",
-          status: "idle",
-          pageOrder: [],
-          pages: [],
-          createdAt: "2026-01-01T00:00:00.000Z",
-          updatedAt: "2026-01-01T00:00:00.000Z",
-        };
-        const chapterRoot = join(chaptersRoot, chapterId);
-        await mkdir(chapterRoot, { recursive: true });
-        await writeJson(join(chapterRoot, "chapter.json"), chapter);
-      }),
-    );
-  }
-}
-
-function mockAppPaths(rootDir: string): void {
-  vi.doMock("../src/main/appPaths", () => ({
-    getAppPaths: () => ({
-      isPackaged: false,
-      repoRoot: rootDir,
-      executableDir: rootDir,
-      resourcesDir: rootDir,
-      dataRoot: rootDir,
-      settingsPath: join(rootDir, "settings.json"),
-      libraryDir: rootDir,
-      logsDir: join(rootDir, "logs"),
-      logFile: join(rootDir, "logs", "app.log"),
-      runtimeDir: join(rootDir, "runtime"),
-      toolsDir: join(rootDir, "tools"),
-      llamaRuntimeDir: join(rootDir, "tools", "llama"),
-      llamaServerPath: join(rootDir, "tools", "llama", "llama-server.exe"),
-    }),
-  }));
-}
-
-async function writeJson(path: string, value: unknown): Promise<void> {
-  await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  const chapters = new Map(
+    chapterIds.map((chapterId, index) => [
+      chapterId,
+      {
+        id: chapterId,
+        workId: work.id,
+        title: `Chapter ${index + 1}`,
+        sourceKind: "folder" as const,
+        status: "idle" as const,
+        pageOrder: [],
+        pages: [],
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      } satisfies LibraryChapter,
+    ]),
+  );
+  return {
+    work,
+    chapters,
+    styleGuide: {
+      schemaVersion: 1,
+      workId: work.id,
+      glossary: [],
+      characters: [],
+      rules: {
+        honorifics: "adapt",
+        sfxMode: "translate",
+        defaultTone: "natural_korean",
+      },
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    },
+  };
 }

@@ -30,12 +30,50 @@ import {
 import { isSupportedImagePath } from "./storage";
 import { MAX_SHARE_IMAGE_BYTES } from "./zipSafety";
 
+export type WorkShareExportReaderPort = {
+  loadWork: typeof ensureExistingWork;
+  loadChapter: typeof readChapterFile;
+  loadStyleGuide: typeof readWorkStyleGuide;
+};
+
+type WorkShareExportOperation = (
+  request: WorkShareExportRequest & { outputPath: string },
+  signal?: AbortSignal,
+) => Promise<WorkShareExportResult>;
+
+const productionReaders: WorkShareExportReaderPort = {
+  loadWork: ensureExistingWork,
+  loadChapter: readChapterFile,
+  loadStyleGuide: readWorkStyleGuide,
+};
+
+/**
+ * Build the export use case around an explicit library reader port. Production
+ * keeps the real streaming archive writer while scale/state tests can supply
+ * records without mocking internal modules or manufacturing thousands of
+ * filesystem entries.
+ */
+export function createWorkShareExporter(
+  readers: WorkShareExportReaderPort,
+): WorkShareExportOperation {
+  return (request, signal) =>
+    exportWorkShareWithReaders(readers, request, signal);
+}
+
 export async function exportWorkShareToFile(
   request: WorkShareExportRequest & { outputPath: string },
   signal?: AbortSignal,
 ): Promise<WorkShareExportResult> {
+  return exportWorkShareWithReaders(productionReaders, request, signal);
+}
+
+async function exportWorkShareWithReaders(
+  readers: WorkShareExportReaderPort,
+  request: WorkShareExportRequest & { outputPath: string },
+  signal?: AbortSignal,
+): Promise<WorkShareExportResult> {
   throwIfAborted(signal);
-  const work = await ensureExistingWork(request.workId);
+  const work = await readers.loadWork(request.workId);
   throwIfAborted(signal);
   const requestedIds = new Set(request.chapterIds);
   const chapterIds = work.chapterOrder.filter((chapterId) =>
@@ -67,7 +105,7 @@ export async function exportWorkShareToFile(
       await archive.addJson("manifest.json", manifest);
       throwIfAborted(signal);
 
-      const styleGuide = await readWorkStyleGuide(work.id);
+      const styleGuide = await readers.loadStyleGuide(work.id);
       throwIfAborted(signal);
       await archive.addJson("style-guide.json", styleGuide);
 
@@ -76,6 +114,7 @@ export async function exportWorkShareToFile(
         throwIfAborted(signal);
         pageCount += await addChapterToShare(
           archive,
+          readers,
           work.id,
           chapterId,
           signal,
@@ -95,12 +134,13 @@ export async function exportWorkShareToFile(
 
 async function addChapterToShare(
   archive: StreamingShareArchiveWriter,
+  readers: WorkShareExportReaderPort,
   workId: string,
   chapterId: string,
   signal?: AbortSignal,
 ): Promise<number> {
   throwIfAborted(signal);
-  const chapter = await readChapterFile(workId, chapterId);
+  const chapter = await readers.loadChapter(workId, chapterId);
   throwIfAborted(signal);
   if (!chapter) {
     throw new Error(tMain("share.errors.exportChapterNotFound"));

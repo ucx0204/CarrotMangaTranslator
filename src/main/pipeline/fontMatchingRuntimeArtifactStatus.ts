@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-import { lstat, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
   FONT_MATCHING_ACTIVE_CATALOG_FILE,
@@ -22,8 +20,10 @@ import {
 } from "./fontMatchingRuntimePolicyContract";
 import {
   BundleVerificationError,
+  isVerifiedRuntimeArtifactBundle,
   readVerifiedRuntimeArtifactBundle,
   type ArtifactDescriptor,
+  type VerifiedRuntimeArtifactBundle,
 } from "./fontMatchingRuntimeArtifactBundleLoader";
 import {
   isFiniteNumber,
@@ -35,6 +35,7 @@ import {
   textAt,
   validHybridRoutingForSchema,
 } from "./fontMatchingRuntimeArtifactValidation";
+import { verifyInstalledAssetBytes } from "./fontMatchingInstalledAssetVerification";
 
 const RUNTIME_ASSET_FILES = [
   FONT_MATCHING_SELECTION_CALIBRATION_FILE,
@@ -107,6 +108,34 @@ export async function loadFontMatchingRuntimeArtifactStatus({
         ? error.reason
         : "artifact_verification_failed",
     );
+  }
+  return projectFontMatchingRuntimeArtifactStatus({
+    verifiedBundle: bundle,
+    installedCandidates,
+    onnxRuntimeVersion,
+    reverifyInstalledAssetBytes,
+  });
+}
+
+/**
+ * Project policy/catalog readiness from one verified bundle receipt. The
+ * receipt owns the detached bytes and digests produced by the verification
+ * pass, so model loading can consume the same snapshot without reopening and
+ * hashing a multi-hundred-megabyte artifact directory a second time.
+ */
+export async function projectFontMatchingRuntimeArtifactStatus({
+  verifiedBundle: bundle,
+  installedCandidates,
+  onnxRuntimeVersion = FONT_MATCHING_RUNTIME_ORT_VERSION,
+  reverifyInstalledAssetBytes = true,
+}: {
+  verifiedBundle: VerifiedRuntimeArtifactBundle;
+  installedCandidates: readonly InstalledAutoMatchCandidate[];
+  onnxRuntimeVersion?: string;
+  reverifyInstalledAssetBytes?: boolean;
+}): Promise<FontMatchingRuntimeArtifactStatus> {
+  if (!isVerifiedRuntimeArtifactBundle(bundle)) {
+    return disabled("artifact_verification_failed");
   }
   const parsed = parseRuntimeContract(
     bundle.contract,
@@ -394,26 +423,6 @@ async function installedCandidateAssetsMatch(
     }
   }
   return true;
-}
-
-async function verifyInstalledAssetBytes(
-  asset: InstalledAutoMatchCandidate["assets"][number],
-): Promise<boolean> {
-  try {
-    const [stat, bytes] = await Promise.all([
-      lstat(asset.resolvedFile),
-      readFile(asset.resolvedFile),
-    ]);
-    return (
-      stat.isFile() &&
-      !stat.isSymbolicLink() &&
-      stat.size === asset.byteSize &&
-      bytes.byteLength === asset.byteSize &&
-      createHash("sha256").update(bytes).digest("hex") === asset.sha256
-    );
-  } catch (_error) {
-    return false;
-  }
 }
 
 const disabled = (

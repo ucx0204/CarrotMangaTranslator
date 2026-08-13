@@ -60,6 +60,24 @@ describe("whole-page Font Matching pixel inference", () => {
     ]);
   });
 
+  it("keeps an empty runtime artifact path fail-closed as missing", async () => {
+    await expect(
+      loadFontMatchingRuntimeModel({
+        artifactDir: "",
+        installedCandidates: [],
+        wasmAssets: { wasmBinaryPath: "unused", wasmModulePath: "unused" },
+      }),
+    ).resolves.toEqual({
+      status: {
+        state: "disabled",
+        automaticMutationAllowed: false,
+        semanticBootstrapAllowed: false,
+        reason: "missing_artifact",
+      },
+      model: null,
+    });
+  });
+
   it("batches raw/context/glyph views and applies verified pixel ranking", async () => {
     const page = makePage();
     const item = makeItem();

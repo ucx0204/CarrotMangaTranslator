@@ -4,6 +4,11 @@ import {
   type BubbleShapeRegion,
 } from "./bubbleLayout";
 import { resolveDisjointBubbleLayout } from "./bubbleLayoutDisjoint";
+import {
+  BUBBLE_SLOT_COORDINATE_EPSILON,
+  combineBubbleRegionPlanPrefixes,
+  intersectBubbleRegionLineBand,
+} from "./bubbleShapeSlotPrimitives";
 
 export type NaturalShapeLineSlot = {
   availableWidthPx: number;
@@ -27,7 +32,7 @@ const MIN_BUBBLE_LAYOUT_CONFIDENCE = 0.5;
 const MAX_NATURAL_SHAPE_LINES = 12;
 const MAX_PLANS_PER_SLOT_COUNT = 2;
 const INLINE_SAFETY_RATIO = 0.97;
-const COORDINATE_EPSILON = 1e-7;
+const COORDINATE_EPSILON = BUBBLE_SLOT_COORDINATE_EPSILON;
 
 /**
  * Produces the same kind of complete-line-band slots consumed by the renderer,
@@ -138,7 +143,7 @@ function resolveCenteredRegionPlan(
   for (let index = 0; index < lineCount; index += 1) {
     const lineStartPx = blockOffsetPx + index * lineHeightPx;
     const lineEndPx = lineStartPx + lineHeightPx;
-    const interval = intersectRegionLineBand(
+    const interval = intersectBubbleRegionLineBand(
       region,
       clampCoordinate(lineStartPx / input.blockExtentPx),
       clampCoordinate(lineEndPx / input.blockExtentPx),
@@ -155,116 +160,15 @@ function resolveCenteredRegionPlan(
   return slots;
 }
 
-function intersectRegionLineBand(
-  region: BubbleShapeRegion,
-  blockStart: number,
-  blockEnd: number,
-): { inlineStart: number; inlineEnd: number } | null {
-  if (!isValidLineBand(blockStart, blockEnd)) return null;
-
-  let cursor = blockStart;
-  let inlineStart = 0;
-  let inlineEnd = 1;
-  let touched = false;
-  for (const span of region.spans) {
-    if (span.blockEnd <= cursor + COORDINATE_EPSILON) continue;
-    if (span.blockStart >= blockEnd - COORDINATE_EPSILON) break;
-    if (span.blockStart > cursor + COORDINATE_EPSILON) return null;
-
-    const coveredEnd = Math.min(blockEnd, span.blockEnd);
-    if (coveredEnd <= cursor + COORDINATE_EPSILON) continue;
-    touched = true;
-    inlineStart = Math.max(inlineStart, span.inlineStart);
-    inlineEnd = Math.min(inlineEnd, span.inlineEnd);
-    if (inlineEnd <= inlineStart + COORDINATE_EPSILON) return null;
-    cursor = coveredEnd;
-    if (cursor >= blockEnd - COORDINATE_EPSILON) {
-      return { inlineStart, inlineEnd };
-    }
-  }
-  return touched && cursor >= blockEnd - COORDINATE_EPSILON
-    ? { inlineStart, inlineEnd }
-    : null;
-}
-
-function isValidLineBand(blockStart: number, blockEnd: number): boolean {
-  return (
-    Number.isFinite(blockStart) &&
-    Number.isFinite(blockEnd) &&
-    blockStart >= 0 &&
-    blockEnd <= 1 &&
-    blockStart < blockEnd
-  );
-}
-
 function combineRegionPlans(
   regionPlans: NaturalShapeLineSlot[][][],
   maximumSlotCount: number,
 ): NaturalShapeLineSlot[][] {
-  const usableRegionPlans: NaturalShapeLineSlot[][][] = [];
-  for (const candidates of regionPlans) {
-    if (candidates.length === 0) break;
-    usableRegionPlans.push(candidates);
-  }
-  if (usableRegionPlans.length === 0) return [];
-
-  const plans: NaturalShapeLineSlot[][] = [];
-  for (let slotCount = 1; slotCount <= maximumSlotCount; slotCount += 1) {
-    const maximumCoveredRegions = Math.min(usableRegionPlans.length, slotCount);
-    for (
-      let coveredRegions = maximumCoveredRegions;
-      coveredRegions >= 1;
-      coveredRegions -= 1
-    ) {
-      plans.push(
-        ...combineRegionPrefixAtSlotCount(
-          usableRegionPlans.slice(0, coveredRegions),
-          slotCount,
-        ),
-      );
-    }
-  }
-  return plans;
-}
-
-function combineRegionPrefixAtSlotCount(
-  regionPlans: NaturalShapeLineSlot[][][],
-  slotCount: number,
-): NaturalShapeLineSlot[][] {
-  const combined: NaturalShapeLineSlot[][] = [];
-  const selected: NaturalShapeLineSlot[][] = [];
-  const targetLineCount = slotCount / regionPlans.length;
-
-  const visit = (regionIndex: number, remaining: number): void => {
-    if (combined.length >= MAX_PLANS_PER_SLOT_COUNT) return;
-    if (regionIndex === regionPlans.length) {
-      if (remaining === 0) combined.push(selected.flat());
-      return;
-    }
-
-    const remainingRegions = regionPlans.length - regionIndex - 1;
-    const orderedCandidates = [...(regionPlans[regionIndex] ?? [])]
-      .filter(
-        (candidate) =>
-          candidate.length <= remaining - remainingRegions &&
-          candidate.length >= 1,
-      )
-      .sort(
-        (left, right) =>
-          Math.abs(left.length - targetLineCount) -
-            Math.abs(right.length - targetLineCount) ||
-          right.length - left.length,
-      );
-    for (const candidate of orderedCandidates) {
-      selected.push(candidate);
-      visit(regionIndex + 1, remaining - candidate.length);
-      selected.pop();
-      if (combined.length >= MAX_PLANS_PER_SLOT_COUNT) break;
-    }
-  };
-
-  visit(0, slotCount);
-  return combined;
+  return combineBubbleRegionPlanPrefixes(
+    regionPlans,
+    maximumSlotCount,
+    MAX_PLANS_PER_SLOT_COUNT,
+  );
 }
 
 function clampCoordinate(value: number): number {

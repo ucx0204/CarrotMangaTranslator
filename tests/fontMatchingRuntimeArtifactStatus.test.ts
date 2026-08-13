@@ -14,8 +14,14 @@ import {
   FONT_MATCHING_RUNTIME_ORT_VERSION,
   FONT_MATCHING_SELECTION_CALIBRATION_FILE,
 } from "../src/main/pipeline/fontMatchingRuntimeArtifactContract";
-import { readVerifiedRuntimeArtifactBundle } from "../src/main/pipeline/fontMatchingRuntimeArtifactBundleLoader";
-import { loadFontMatchingRuntimeArtifactStatus } from "../src/main/pipeline/fontMatchingRuntimeArtifactStatus";
+import {
+  readVerifiedRuntimeArtifactBundle,
+  type VerifiedRuntimeArtifactBundle,
+} from "../src/main/pipeline/fontMatchingRuntimeArtifactBundleLoader";
+import {
+  loadFontMatchingRuntimeArtifactStatus,
+  projectFontMatchingRuntimeArtifactStatus,
+} from "../src/main/pipeline/fontMatchingRuntimeArtifactStatus";
 
 const tempDirs: string[] = [];
 const candidateIds = ["font-a", "font-b"] as const;
@@ -279,6 +285,17 @@ describe("font matching runtime artifact status", () => {
     });
   });
 
+  it("rejects a resealed runtime contract with envelope vocabulary drift", async () => {
+    const bundle = await writeBundle();
+    bundle.contract.record_type = "font_matching_runtime_artifact_typo";
+    await rewriteContract(bundle.root, sealRecord(bundle.contract));
+
+    await expect(statusFor(bundle)).resolves.toMatchObject({
+      state: "disabled",
+      reason: "invalid_contract",
+    });
+  });
+
   it("reports a missing model explicitly without allowing bootstrap", async () => {
     await expect(
       loadFontMatchingRuntimeArtifactStatus({
@@ -298,6 +315,52 @@ describe("font matching runtime artifact status", () => {
     await writeFile(join(bundle.root, "prototype-features.f32"), "tampered");
 
     await expect(statusFor(bundle)).resolves.toMatchObject({
+      state: "disabled",
+      reason: "artifact_verification_failed",
+    });
+  });
+
+  it("projects status from detached verified bytes without reopening the artifact", async () => {
+    const bundle = await writeBundle();
+    const verifiedBundle = await readVerifiedRuntimeArtifactBundle(bundle.root);
+    await writeFile(join(bundle.root, "prototype-features.f32"), "tampered");
+
+    await expect(
+      projectFontMatchingRuntimeArtifactStatus({
+        verifiedBundle,
+        installedCandidates: bundle.installedCandidates,
+      }),
+    ).resolves.toMatchObject({
+      state: "ready",
+      automaticMutationAllowed: true,
+    });
+    await expect(statusFor(bundle)).resolves.toMatchObject({
+      state: "disabled",
+      reason: "artifact_verification_failed",
+    });
+  });
+
+  it("rejects a structurally forged verified-bundle receipt", async () => {
+    const bundle = await writeBundle();
+    const verifiedBundle = await readVerifiedRuntimeArtifactBundle(bundle.root);
+    expect(Object.isFrozen(verifiedBundle)).toBe(true);
+    expect(Object.isFrozen(verifiedBundle.contract)).toBe(true);
+    expect(Object.isFrozen(verifiedBundle.activeCatalog)).toBe(true);
+    expect(
+      Object.values(verifiedBundle.assets).every((asset) =>
+        Object.isFrozen(asset),
+      ),
+    ).toBe(true);
+    const forgedBundle = {
+      ...verifiedBundle,
+    } as VerifiedRuntimeArtifactBundle;
+
+    await expect(
+      projectFontMatchingRuntimeArtifactStatus({
+        verifiedBundle: forgedBundle,
+        installedCandidates: bundle.installedCandidates,
+      }),
+    ).resolves.toMatchObject({
       state: "disabled",
       reason: "artifact_verification_failed",
     });
@@ -478,6 +541,16 @@ describe("font matching runtime artifact status", () => {
       bundle.installedCandidates[1].assets[0].resolvedFile,
       "same-descriptor-but-tampered-bytes",
     );
+
+    await expect(statusFor(bundle)).resolves.toMatchObject({
+      state: "disabled",
+      reason: "catalog_mismatch",
+    });
+  });
+
+  it("fails closed when an installed candidate asset disappears", async () => {
+    const bundle = await writeBundle();
+    await rm(bundle.installedCandidates[0].assets[0].resolvedFile);
 
     await expect(statusFor(bundle)).resolves.toMatchObject({
       state: "disabled",

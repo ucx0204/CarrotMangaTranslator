@@ -291,7 +291,7 @@ module.exports = {
     "!electron-builder.config.cjs",
     "!eslint.config.mjs",
     "!jsconfig.json",
-    "!knip.json",
+    "!knip.config.cjs",
     "!knip.exports.json",
     "!README.md",
     "!README.*.md",

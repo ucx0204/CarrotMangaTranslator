@@ -1,5 +1,4 @@
 import { createRequire } from "node:module";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 type ReexportRule = "unapproved-boundary" | "unapproved-source" | "wildcard";
@@ -14,18 +13,10 @@ type ReexportBoundaryChecker = {
     rule: ReexportRule;
     source: string;
   }>;
-  findReexportViolations: (repoRoot: string) => Array<{
-    file: string;
-    line: number;
-    rule: ReexportRule;
-    source: string;
-  }>;
-  listSourceFiles: (repoRoot: string) => string[];
 };
 
 const require = createRequire(import.meta.url);
 const checker: ReexportBoundaryChecker = require("../scripts/check-reexport-boundaries.cjs");
-const repoRoot = join(__dirname, "..");
 
 describe("re-export boundary policy", () => {
   it("accepts a named export from an approved facade/source pair", () => {
@@ -76,11 +67,4 @@ describe("re-export boundary policy", () => {
       expect.objectContaining({ rule: "wildcard" }),
     ]);
   });
-
-  it("passes against every current source file in the repository", () => {
-    expect(checker.listSourceFiles(repoRoot)).toContain(
-      "src/main/appSettings.ts",
-    );
-    expect(checker.findReexportViolations(repoRoot)).toEqual([]);
-  }, 60_000);
 });

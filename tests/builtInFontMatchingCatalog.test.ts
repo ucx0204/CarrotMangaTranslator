@@ -17,12 +17,12 @@ import {
 } from "../src/main/builtInFontMatchingCatalog";
 import { type CustomFontInspection } from "../src/main/customFontInspection";
 import { fontCandidateSupportsText } from "../src/main/fontCoverage";
-import { fontCandidateSupportsBodyLocale } from "../src/main/pipeline/automaticFontBodyCoverage";
 import {
   BUILT_IN_BLOCK_FONTS,
   isRetiredBuiltInBlockFontId,
 } from "../src/shared/blockFontCatalog";
 import type { UiLocale } from "../src/shared/uiLocales";
+import { fontCandidateSupportsBodyLocale } from "./helpers/automaticFontBodyCoverage";
 
 const tempDirs: string[] = [];
 const TEST_INSPECTION: CustomFontInspection = {

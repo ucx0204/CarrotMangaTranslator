@@ -8,7 +8,7 @@ const {
   unlinkSync,
   writeFileSync,
 } = require("node:fs");
-const { dirname, join, resolve } = require("node:path");
+const { dirname, isAbsolute, join, relative, resolve } = require("node:path");
 
 const root = join(__dirname, "..");
 const preloadOutDir = join(root, "out", "preload");
@@ -70,11 +70,40 @@ function cleanGeneratedOutDir(projectRoot, outputDir) {
       `Refusing to clean unexpected generated output: ${outputDir}`,
     );
   }
+  assertRealGeneratedPath(projectRoot, resolvedOutDir);
   if (!existsSync(resolvedOutDir)) {
     return;
   }
   for (const entry of readdirSync(resolvedOutDir)) {
     removePath(resolve(resolvedOutDir, entry));
+  }
+}
+
+/**
+ * @param {string} projectRoot
+ * @param {string} candidate
+ * @param {{ exists?: typeof existsSync; lstat?: typeof lstatSync }} [options]
+ */
+function assertRealGeneratedPath(projectRoot, candidate, options = {}) {
+  const exists = options.exists ?? existsSync;
+  const lstat = options.lstat ?? lstatSync;
+  const resolvedRoot = resolve(projectRoot);
+  const resolvedCandidate = resolve(candidate);
+  const child = relative(resolvedRoot, resolvedCandidate);
+  if (child === "" || /^\.\.(?:[\\/]|$)/u.test(child) || isAbsolute(child)) {
+    throw new Error(
+      `Generated output must stay inside the project: ${candidate}`,
+    );
+  }
+  let cursor = resolvedRoot;
+  for (const part of child.split(/[\\/]/u)) {
+    cursor = join(cursor, part);
+    if (!exists(cursor)) return;
+    if (lstat(cursor).isSymbolicLink()) {
+      throw new Error(
+        `Generated output path cannot contain symbolic links: ${cursor}`,
+      );
+    }
   }
 }
 
@@ -144,12 +173,39 @@ function isBuildOutput(value) {
   );
 }
 
-async function main() {
+/**
+ * @param {string[]} args
+ * @returns {{ noCheck: boolean }}
+ */
+function parseArguments(args) {
+  const unsupported = args.filter((argument) => argument !== "--noCheck");
+  if (
+    unsupported.length > 0 ||
+    args.filter((argument) => argument === "--noCheck").length > 1
+  ) {
+    throw new Error(
+      `Unsupported compile-electron arguments: ${args.join(" ") || "(none)"}`,
+    );
+  }
+  return { noCheck: args.includes("--noCheck") };
+}
+
+/** @param {{ noCheck: boolean }} options */
+function electronTypeScriptArguments(options) {
+  return [
+    "-p",
+    "tsconfig.electron.json",
+    ...(options.noCheck ? ["--noCheck"] : []),
+  ];
+}
+
+/** @param {string[]} [args] */
+async function main(args = process.argv.slice(2)) {
+  const options = parseArguments(args);
   cleanElectronTypeScriptOutDirs();
   run(process.execPath, [
     nodeBin("typescript", "bin", "tsc"),
-    "-p",
-    "tsconfig.electron.json",
+    ...electronTypeScriptArguments(options),
   ]);
   await bundlePreload();
   run(process.execPath, [
@@ -161,7 +217,10 @@ async function main() {
 }
 
 module.exports = {
+  assertRealGeneratedPath,
   cleanElectronTypeScriptOutDirs,
+  electronTypeScriptArguments,
+  parseArguments,
 };
 
 if (require.main === module) {

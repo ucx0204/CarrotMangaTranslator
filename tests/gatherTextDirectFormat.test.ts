@@ -4,8 +4,11 @@ import type { TranslationBlock } from "../src/shared/textTypes";
 import { applyGatherTextFormatRequest } from "../src/renderer/src/app/session/applyGatherTextFormatRequest";
 import type { UpdateCurrentChapter } from "../src/renderer/src/hooks/useCurrentChapterUpdater";
 import { applyGatherDirectFormat } from "../src/renderer/src/lib/gatherTextFormat";
+import { setupRendererI18n } from "./setupI18n";
 
 const TS = "2026-01-01T00:00:00.000Z";
+
+setupRendererI18n();
 
 describe("applyGatherDirectFormat", () => {
   it("applies only touched fields across pages and preserves content", () => {

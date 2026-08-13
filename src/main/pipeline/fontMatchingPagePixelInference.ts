@@ -35,6 +35,7 @@ import type {
 import { resolveFontMatchingV2CatalogVersion } from "./automaticFontMatchingV2Catalog";
 import { markRetiredAutomaticFontCandidates } from "./automaticFontMatchingRetiredFonts";
 import {
+  BundleVerificationError,
   readVerifiedRuntimeArtifactBundle,
   type VerifiedRuntimeArtifactBundle,
 } from "./fontMatchingRuntimeArtifactBundleLoader";
@@ -45,7 +46,7 @@ import {
 } from "./fontMatchingRuntimeArtifactContract";
 import { resolveFontMatchingArtifactDirSync } from "./fontMatchingRuntimePaths";
 import {
-  loadFontMatchingRuntimeArtifactStatus,
+  projectFontMatchingRuntimeArtifactStatus,
   type FontMatchingRuntimeArtifactStatus,
 } from "./fontMatchingRuntimeArtifactStatus";
 import {
@@ -368,32 +369,40 @@ export async function loadFontMatchingRuntimeModel({
   allowQaOnlyRuntime = false,
   reverifyInstalledAssetBytes = true,
 }: RuntimeModelLoadOptions): Promise<RuntimeLoadResult> {
-  const status = await loadFontMatchingRuntimeArtifactStatus({
-    artifactDir,
+  if (!artifactDir) {
+    return { status: disabled("missing_artifact"), model: null };
+  }
+  let bundle: VerifiedRuntimeArtifactBundle;
+  try {
+    bundle = await readRuntimeBundle(artifactDir, allowQaOnlyRuntime);
+  } catch (error) {
+    return {
+      status: disabled(
+        error instanceof BundleVerificationError
+          ? error.reason
+          : "artifact_verification_failed",
+      ),
+      model: null,
+    };
+  }
+  const status = await projectFontMatchingRuntimeArtifactStatus({
+    verifiedBundle: bundle,
     installedCandidates,
-    allowQaOnlyRuntime,
     reverifyInstalledAssetBytes,
   });
   if (status.state !== "ready") return { status, model: null };
   try {
-    return await buildFontMatchingRuntimeModel(
-      artifactDir,
-      wasmAssets,
-      status,
-      allowQaOnlyRuntime,
-    );
+    return await buildFontMatchingRuntimeModel(bundle, wasmAssets, status);
   } catch (_error) {
     return { status: disabled("artifact_verification_failed"), model: null };
   }
 }
 
 async function buildFontMatchingRuntimeModel(
-  artifactDir: string,
+  bundle: VerifiedRuntimeArtifactBundle,
   wasmAssets: OrtWasmAssets,
   status: Extract<FontMatchingRuntimeArtifactStatus, { state: "ready" }>,
-  allowQaOnlyRuntime: boolean,
 ): Promise<RuntimeLoadResult> {
-  const bundle = await readRuntimeBundle(artifactDir, allowQaOnlyRuntime);
   const prototypeBytes = requiredBytes(bundle.assetBytes, PROTOTYPE_FILE);
   const contract = parseRuntimeInferenceContract(
     bundle.contract,

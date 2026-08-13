@@ -42,7 +42,6 @@ import numpy as np
 try:
     from scripts import build_font_matching_runtime_artifact as runtime
     from scripts import export_font_matching_runtime_onnx as legacy_export
-    from scripts import export_manga_font_student_hybrid_runtime_onnx as hybrid
     from scripts import export_manga_font_student_runtime_onnx as base_export
     from scripts import train_manga_font_student_v1 as trainer
     from scripts import train_manga_font_student_v6_fontquery as trainer_v6
@@ -54,7 +53,6 @@ try:
 except ImportError:  # pragma: no cover - direct execution from scripts/
     import build_font_matching_runtime_artifact as runtime
     import export_font_matching_runtime_onnx as legacy_export
-    import export_manga_font_student_hybrid_runtime_onnx as hybrid
     import export_manga_font_student_runtime_onnx as base_export
     import train_manga_font_student_v1 as trainer
     import train_manga_font_student_v6_fontquery as trainer_v6
@@ -65,30 +63,88 @@ except ImportError:  # pragma: no cover - direct execution from scripts/
     import train_manga_font_student_v7_mass21_r3 as trainer_v7_r3
 
 
-SCHEMA_VERSION = hybrid.SCHEMA_VERSION
-RECORD_TYPE = hybrid.RECORD_TYPE
-OWNER = hybrid.OWNER
-MARKER_FILE = hybrid.MARKER_FILE
-CONTRACT_FILE = hybrid.CONTRACT_FILE
-ENCODER_FILE = hybrid.ENCODER_FILE
-RANKER_FILE = hybrid.RANKER_FILE
-PROTOTYPE_FILE = hybrid.PROTOTYPE_FILE
-ACTIVE_CATALOG_FILE = hybrid.ACTIVE_CATALOG_FILE
-OUTPUT_FILES = hybrid.OUTPUT_FILES
-OPSET_VERSION = hybrid.OPSET_VERSION
-MIN_PARITY_SAMPLES = hybrid.MIN_PARITY_SAMPLES
-ENCODER_BATCH_SIZE = hybrid.ENCODER_BATCH_SIZE
-RANKER_BATCH_SIZE = hybrid.RANKER_BATCH_SIZE
-LEGACY_FEATURE_DIM = hybrid.LEGACY_FEATURE_DIM
+SCHEMA_VERSION = "font-matching-runtime-artifact-v2"
+RECORD_TYPE = runtime.RECORD_TYPE
+OWNER = "carrot-manga-translator/font-matching-runtime-artifact-v2"
+MARKER_FILE = runtime.MARKER_FILE
+CONTRACT_FILE = runtime.CONTRACT_FILE
+ENCODER_FILE = runtime.ENCODER_FILE
+RANKER_FILE = runtime.RANKER_FILE
+PROTOTYPE_FILE = runtime.PROTOTYPE_FILE
+ACTIVE_CATALOG_FILE = runtime.ACTIVE_CATALOG_FILE
+OUTPUT_FILES = frozenset(
+    {
+        MARKER_FILE,
+        CONTRACT_FILE,
+        ENCODER_FILE,
+        RANKER_FILE,
+        PROTOTYPE_FILE,
+        ACTIVE_CATALOG_FILE,
+    }
+)
+OPSET_VERSION = legacy_export.OPSET_VERSION
+MIN_PARITY_SAMPLES = 32
+ENCODER_BATCH_SIZE = 2
+RANKER_BATCH_SIZE = 16
+LEGACY_FEATURE_DIM = trainer.PROJECTION_DIM
 QUERY_COUNT = trainer_v7.QUERY_COUNT
 QUERY_DIM = trainer_v7.QUERY_DIM
 QUERY_FEATURE_DIM = QUERY_COUNT * QUERY_DIM
 FEATURE_DIM = LEGACY_FEATURE_DIM + QUERY_FEATURE_DIM
-RANKER_OUTPUT_NAMES = hybrid.RANKER_OUTPUT_NAMES
+BODY_ROLES = ("dialogue", "narration", "thought")
+VARIANT_ROLES = tuple(role for role in trainer.ROLE_VALUES if role not in BODY_ROLES)
+RANKER_OUTPUT_NAMES = (
+    "candidate_scores",
+    "body_candidate_scores",
+    "variant_candidate_scores",
+    "none_logits",
+    "role_logits",
+    "style_logits",
+    *(f"treatment_{field}_logits" for field in sorted(trainer.TREATMENT_VALUES)),
+    "view_gate_weights",
+)
 ACTIVE_CANDIDATE_IDS = mass21.candidate_projection(
     mass21.legacy15.FULL22_CANDIDATE_IDS
 ).active_ids
 ACTIVE_CATALOG_VERSION = "fontclip-font-catalog-v2-manga-font21-no-gugi"
+
+
+def _routing_contract() -> dict[str, Any]:
+    return {
+        "schema_version": "font-matching-hybrid-score-routing-v1",
+        "candidate_scores_compatibility_alias": "body_candidate_scores",
+        "body_candidate_output": "body_candidate_scores",
+        "variant_candidate_output": "variant_candidate_scores",
+        "body_roles": list(BODY_ROLES),
+        "variant_roles": list(VARIANT_ROLES),
+        "unknown_role_fallback": "variant_candidate_scores",
+        "role_source": "resolveCombinedAutomaticFontRole(item.fontRole,pixelRole)",
+        "selection_feature_source": (
+            "selected_candidate_scores_with_legacy256_visual_features"
+        ),
+        "selection_feature_dim": LEGACY_FEATURE_DIM,
+        "row_specific_rules": False,
+    }
+
+
+def _expected_test_boundary() -> dict[str, Any]:
+    return {
+        "aggregate_metrics_only": True,
+        "frozen_test_pixels_opened_by_exporter": 0,
+        "row_level_predictions_packaged": False,
+        "sample_identifiers_packaged": False,
+        "training_or_validation_pixels_packaged": False,
+        "fresh64_rows_accessed": 0,
+        "library_qa_rows_accessed": 0,
+    }
+
+
+def _runtime_batching_contract() -> dict[str, Any]:
+    return {
+        "encoder_batch_size": ENCODER_BATCH_SIZE,
+        "ranker_batch_size": RANKER_BATCH_SIZE,
+        "parity_qualified": True,
+    }
 
 
 class MangaFontV7RuntimeExportError(ValueError):
@@ -1036,7 +1092,7 @@ def _build_contract(
             ),
             "version": "manga-font-v7-active21-shared-pixel-ranker-onnx-v1",
         },
-        "hybrid_score_routing": hybrid._routing_contract(),  # noqa: SLF001
+        "hybrid_score_routing": _routing_contract(),
         "model_version": (
             f"manga-font-v7-active21-{runtime.sha256_file(authority.source.checkpoint_path)[:10]}-"
             f"{candidate_order_sha[:10]}"
@@ -1112,9 +1168,9 @@ def _build_contract(
             "package": runtime.TARGET_ORT_PACKAGE,
             "version": runtime.TARGET_ORT_VERSION,
         },
-        "runtime_batching": hybrid._runtime_batching_contract(),  # noqa: SLF001
+        "runtime_batching": _runtime_batching_contract(),
         "schema_version": SCHEMA_VERSION,
-        "test_data_boundary": hybrid._expected_test_boundary(),  # noqa: SLF001
+        "test_data_boundary": _expected_test_boundary(),
     }
     return runtime.seal_record(contract)
 
@@ -1232,11 +1288,11 @@ def validate_runtime_output(
         or provenance.get("fontquery_source_kind") != authority.source.kind
         or provenance.get("exporter_sha256")
         != runtime.sha256_file(Path(__file__).resolve())
-        or contract.get("hybrid_score_routing") != hybrid._routing_contract()  # noqa: SLF001
+        or contract.get("hybrid_score_routing") != _routing_contract()
         or contract.get("runtime_batching")
-        != hybrid._runtime_batching_contract()  # noqa: SLF001
+        != _runtime_batching_contract()
         or contract.get("test_data_boundary")
-        != hybrid._expected_test_boundary()  # noqa: SLF001
+        != _expected_test_boundary()
         or contract.get("onnx_io_contract") != _io_contract(authority)
     ):
         raise MangaFontV7RuntimeExportError("v7 runtime contract/source drifted")

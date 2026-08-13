@@ -4,6 +4,14 @@ This is a sealed, non-default base runtime for the exact v3-body/v6-r2-variant
 hybrid. It is intentionally not deployable until a supervised calibration is
 rebuilt from the same role-routed score that the application will consume.
 
+The experiment was later rejected and its producer source is no longer part
+of the default working tree. This document describes the historical artifact;
+it is not current production or promotion authority. To reproduce it, first
+restore the exact v6-r2/hybrid family and verify its SHA-256 values using
+the [rejected-experiment archive manifest](./font-matching-v2-rejected-experiments-source-archive.md).
+Do not substitute the active v7 exporter: it preserves the runtime envelope
+but implements a different model.
+
 ## Why the encoder is 1280-D
 
 The strongest v3 head consumes the fine-tuned v2 SigLIP2 pooler followed by
@@ -38,6 +46,11 @@ these values from `runtime_batching`; using the legacy encoder batch size is
 not part of the qualified v2 contract.
 
 ## Reproducible commands
+
+The commands in this section require the archived
+`scripts/export_manga_font_student_hybrid_runtime_onnx.py` restored at the
+commit recorded in the archive manifest. Run that script with the `preflight`,
+`build`, and `validate` subcommands respectively.
 
 PowerShell source setup:
 

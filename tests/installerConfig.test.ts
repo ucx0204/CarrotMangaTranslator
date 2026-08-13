@@ -152,6 +152,7 @@ describe("Windows installer clean uninstall option", () => {
       "@radix-ui/react-progress",
       "@tabler/icons-react",
       "@types/yauzl",
+      "adm-zip",
       "openai-oauth",
       "react",
       "react-dom",
@@ -163,7 +164,6 @@ describe("Windows installer clean uninstall option", () => {
       expect(packageJson.devDependencies).toHaveProperty(packageName);
     }
     for (const runtimePackage of [
-      "adm-zip",
       "i18next",
       "onnxruntime-web",
       "yauzl",

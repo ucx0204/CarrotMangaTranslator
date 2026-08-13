@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "path": "scripts/prepare-flux-cuda-runtime.cjs",
+      "status": "legacy-bootstrap",
+      "purpose": "Prepare the legacy standalone Flux CUDA runtime layout for manual diagnostics.",
+      "usage": "node scripts/prepare-flux-cuda-runtime.cjs",
+      "replacement": "Production installs are owned by src/main/inpainting/fluxAssets."
+    },
+    {
+      "path": "scripts/prepare-ocr-python.cjs",
+      "status": "legacy-bootstrap",
+      "purpose": "Prepare the legacy standalone OCR Python environment for manual diagnostics.",
+      "usage": "node scripts/prepare-ocr-python.cjs",
+      "replacement": "Production installs are owned by src/main/runtime/ocr/managed-python.cjs."
+    },
+    {
+      "path": "scripts/render-ocr-bbox.cjs",
+      "status": "manual-debug",
+      "purpose": "Render OCR bounding-box output for one explicitly supplied image and JSON record.",
+      "usage": "electron scripts/render-ocr-bbox.cjs --image <path> --json <path> --output <path>",
+      "replacement": "No replacement; this is an intentionally retained one-shot diagnostic."
+    }
+  ]
+}

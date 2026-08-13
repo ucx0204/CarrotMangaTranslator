@@ -31,12 +31,30 @@ type JsonLinesWorkerClientOptions = {
   onStderr: (text: string) => void;
   onSpawn?: (pid: number | null) => void;
   onTerminationError: (error: Error) => void;
+  /** @internal Deterministic lifecycle seam used by protocol unit tests. */
+  runtime?: Partial<JsonLinesWorkerClientRuntime>;
+};
+
+type SpawnWorkerOptions = Pick<
+  JsonLinesWorkerClientOptions,
+  "executable" | "args" | "env"
+>;
+
+type JsonLinesWorkerClientRuntime = {
+  spawnWorker: (options: SpawnWorkerOptions) => ChildProcessWithoutNullStreams;
+  now: () => number;
+  schedule: (callback: () => void, delayMs: number) => unknown;
+  clearScheduled: (timer: unknown) => void;
+  forceTerminateProcessTree: (
+    child: ChildProcessWithoutNullStreams,
+  ) => Promise<void>;
+  shutdownGraceMs: number;
 };
 
 type PendingRequest<TResponse extends JsonLinesWorkerResponse> = {
   id: string;
   startedAt: number;
-  deadlineTimer: ReturnType<typeof setTimeout>;
+  deadlineTimer: unknown;
   removeAbortListener: () => void;
   resolve: (response: TResponse) => void;
   reject: (error: Error) => void;
@@ -89,6 +107,7 @@ export class JsonLinesWorkerClient<
   private readonly pending = new Map<string, PendingRequest<TResponse>>();
   private readonly stderrTail: string[] = [];
   private readonly requestTimeoutMs: number;
+  private readonly runtime: JsonLinesWorkerClientRuntime;
   private nextId = 1;
   private stdoutBuffer = "";
   private writeQueue: Promise<void> = Promise.resolve();
@@ -100,12 +119,8 @@ export class JsonLinesWorkerClient<
     this.requestTimeoutMs = normalizeRequestTimeout(
       options.requestTimeoutMs ?? DEFAULT_WORKER_REQUEST_TIMEOUT_MS,
     );
-    this.child = spawn(options.executable, options.args, {
-      windowsHide: true,
-      stdio: ["pipe", "pipe", "pipe"],
-      env: options.env,
-      detached: shouldSpawnInOwnProcessGroup(),
-    });
+    this.runtime = resolveClientRuntime(options.runtime);
+    this.child = this.runtime.spawnWorker(options);
     this.childExitReceipt = createChildExitReceipt(this.child);
     options.onSpawn?.(this.child.pid ?? null);
     this.child.stdout.on("data", (chunk: Buffer) => this.handleStdout(chunk));
@@ -183,7 +198,8 @@ export class JsonLinesWorkerClient<
     const outcome = await waitForGracefulShutdown(
       this.childExitReceipt.promise,
       shutdownWrite,
-      JSON_WORKER_SHUTDOWN_GRACE_MS,
+      this.runtime.shutdownGraceMs,
+      this.runtime,
     );
     if (outcome.kind === "exited") {
       this.state = "closed";
@@ -191,7 +207,7 @@ export class JsonLinesWorkerClient<
     }
 
     try {
-      await forceTerminateChildProcessTree(this.child);
+      await this.runtime.forceTerminateProcessTree(this.child);
       this.state = "closed";
     } catch (error) {
       const terminationError = toError(error);
@@ -207,11 +223,11 @@ export class JsonLinesWorkerClient<
     resolve: (response: TResponse) => void,
     reject: (error: Error) => void,
   ): void {
-    const startedAt = Date.now();
+    const startedAt = this.runtime.now();
     const onAbort = () => this.abortRequest(id);
     const removeAbortListener = () =>
       signal?.removeEventListener("abort", onAbort);
-    const deadlineTimer = setTimeout(
+    const deadlineTimer = this.runtime.schedule(
       () => this.handleRequestTimeout(id, startedAt),
       this.requestTimeoutMs,
     );
@@ -387,7 +403,7 @@ export class JsonLinesWorkerClient<
       this.options.workerName,
       id,
       this.requestTimeoutMs,
-      Math.max(0, Date.now() - startedAt),
+      Math.max(0, this.runtime.now() - startedAt),
     );
     void this.beginPermanentFailure({
       primaryRequestId: id,
@@ -430,7 +446,7 @@ export class JsonLinesWorkerClient<
   private async terminateAndReject(plan: PermanentFailurePlan): Promise<void> {
     let terminationError: Error | null = null;
     try {
-      await forceTerminateChildProcessTree(this.child);
+      await this.runtime.forceTerminateProcessTree(this.child);
       this.state = "closed";
     } catch (error) {
       terminationError = toError(error);
@@ -468,14 +484,14 @@ export class JsonLinesWorkerClient<
       return null;
     }
     this.pending.delete(id);
-    clearTimeout(pending.deadlineTimer);
+    this.runtime.clearScheduled(pending.deadlineTimer);
     pending.removeAbortListener();
     return pending;
   }
 
   private cancelAllPendingWatchdogs(): void {
     for (const pending of this.pending.values()) {
-      clearTimeout(pending.deadlineTimer);
+      this.runtime.clearScheduled(pending.deadlineTimer);
       pending.removeAbortListener();
     }
   }
@@ -527,6 +543,7 @@ async function waitForGracefulShutdown(
   exitPromise: Promise<ChildExitResult>,
   shutdownWrite: Promise<void>,
   timeoutMs: number,
+  scheduler: Pick<JsonLinesWorkerClientRuntime, "schedule" | "clearScheduled">,
 ): Promise<GracefulShutdownOutcome> {
   return await new Promise((resolve) => {
     let settled = false;
@@ -535,10 +552,13 @@ async function waitForGracefulShutdown(
         return;
       }
       settled = true;
-      clearTimeout(timeout);
+      scheduler.clearScheduled(timeout);
       resolve(outcome);
     };
-    const timeout = setTimeout(() => finish({ kind: "timeout" }), timeoutMs);
+    const timeout = scheduler.schedule(
+      () => finish({ kind: "timeout" }),
+      timeoutMs,
+    );
     void exitPromise.then(() => finish({ kind: "exited" }));
     void shutdownWrite.catch((error) =>
       finish({ kind: "write-error", error: toError(error) }),
@@ -593,6 +613,41 @@ function formatInvalidLine(line: string): string {
 function normalizeRequestTimeout(timeoutMs: number): number {
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
     throw new Error("워커 요청 timeout은 0보다 큰 유한한 값이어야 합니다.");
+  }
+  return Math.max(1, Math.floor(timeoutMs));
+}
+
+function resolveClientRuntime(
+  overrides: Partial<JsonLinesWorkerClientRuntime> | undefined,
+): JsonLinesWorkerClientRuntime {
+  const runtime = { ...defaultClientRuntime, ...overrides };
+  return {
+    ...runtime,
+    shutdownGraceMs: normalizeShutdownGrace(runtime.shutdownGraceMs),
+  };
+}
+
+const defaultClientRuntime: JsonLinesWorkerClientRuntime = {
+  spawnWorker: ({ executable, args, env }) =>
+    spawn(executable, args, {
+      windowsHide: true,
+      stdio: ["pipe", "pipe", "pipe"],
+      env,
+      detached: shouldSpawnInOwnProcessGroup(),
+    }),
+  now: () => Date.now(),
+  schedule: (callback, delayMs) => setTimeout(callback, delayMs),
+  clearScheduled: (timer) =>
+    clearTimeout(timer as ReturnType<typeof setTimeout>),
+  forceTerminateProcessTree: async (child) => {
+    await forceTerminateChildProcessTree(child);
+  },
+  shutdownGraceMs: JSON_WORKER_SHUTDOWN_GRACE_MS,
+};
+
+function normalizeShutdownGrace(timeoutMs: number): number {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    throw new Error("워커 종료 grace는 0보다 큰 유한한 값이어야 합니다.");
   }
   return Math.max(1, Math.floor(timeoutMs));
 }
