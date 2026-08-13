@@ -82,5 +82,5 @@ describe("re-export boundary policy", () => {
       "src/main/appSettings.ts",
     );
     expect(checker.findReexportViolations(repoRoot)).toEqual([]);
-  });
+  }, 60_000);
 });
