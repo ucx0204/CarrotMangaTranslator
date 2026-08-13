@@ -2,6 +2,7 @@ import React from "react";
 import {
   IconFiles,
   IconFolderOpen,
+  IconLink,
   IconPhoto,
   IconZip,
 } from "@tabler/icons-react";
@@ -74,6 +75,13 @@ export function TranslateSourceModal({
           icon={<IconZip size={22} stroke={1.8} />}
           label={t("translateSource.openArchive")}
           onClick={() => onSelect("zip")}
+        />
+        <SourceChoice
+          description={t("translateSource.webHint")}
+          disabled={busy}
+          icon={<IconLink size={22} stroke={1.8} />}
+          label={t("translateSource.openWeb")}
+          onClick={() => onSelect("web")}
         />
       </div>
     </Modal>

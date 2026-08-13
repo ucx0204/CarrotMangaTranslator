@@ -5,6 +5,8 @@ export type ImportPageDraft = {
   sourcePath: string;
   sourceKind: "file" | "zip-entry";
   zipEntryName?: string;
+  /** Optional web-import-only numeric stem for the actual stored file name. */
+  storageStem?: string;
 };
 
 export type ImportChapterDraft = {

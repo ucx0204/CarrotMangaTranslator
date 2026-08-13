@@ -16,7 +16,7 @@ import type { ShareImportModalSubmit } from "../lib/shareImportTypes";
 import type { TranslationOptionsInitialScope } from "../lib/translationSelection";
 import { libraryGateway as mangaGateway } from "../api/libraryGateway";
 
-type ImportPreviewMode = TranslateSourceMode | "zip-folder";
+type ImportPreviewMode = Exclude<TranslateSourceMode, "web"> | "zip-folder";
 
 type UseImportShareActionsOptions = {
   applyChapter: (
@@ -44,6 +44,7 @@ type UseImportShareActionsOptions = {
     SetStateAction<WorkShareImportPreview | null>
   >;
   setTranslationSourceOpen: Dispatch<SetStateAction<boolean>>;
+  setWebImportOpen: Dispatch<SetStateAction<boolean>>;
   shareImportPreview: WorkShareImportPreview | null;
 };
 
@@ -51,6 +52,8 @@ type ImportShareActions = {
   openImportPreview: (mode: ImportPreviewMode) => Promise<void>;
   openShareImportPreview: () => Promise<void>;
   selectTranslateSource: (mode: TranslateSourceMode) => Promise<void>;
+  acceptWebImportPreview: (preview: ImportPreviewSession) => void;
+  cancelImportPreview: () => Promise<void>;
   submitImport: (payload: ImportModalSubmit) => Promise<void>;
   submitShareExport: (request: WorkShareExportRequest) => Promise<void>;
   submitShareImport: (payload: ShareImportModalSubmit) => Promise<void>;
@@ -80,6 +83,15 @@ export function useImportShareActions(
     openImportPreview,
   });
   const openShareImportPreview = useOpenShareImportPreviewAction(options);
+  const { setImportPreview, setWebImportOpen } = options;
+  const acceptWebImportPreview = useCallback(
+    (preview: ImportPreviewSession) => {
+      setWebImportOpen(false);
+      setImportPreview(preview);
+    },
+    [setImportPreview, setWebImportOpen],
+  );
+  const cancelImportPreview = useCancelImportPreviewAction(options);
   const submitImport = useSubmitImportAction(options);
   const submitShareExport = useSubmitShareExportAction(options);
   const submitShareImport = useSubmitShareImportAction(options);
@@ -88,6 +100,8 @@ export function useImportShareActions(
     openImportPreview,
     openShareImportPreview,
     selectTranslateSource,
+    acceptWebImportPreview,
+    cancelImportPreview,
     submitImport,
     submitShareExport,
     submitShareImport,
@@ -118,16 +132,40 @@ function useOpenImportPreviewAction({
 function useSelectTranslateSourceAction({
   openImportPreview,
   setTranslationSourceOpen,
+  setWebImportOpen,
 }: UseImportShareActionsOptions & {
   openImportPreview: ImportShareActions["openImportPreview"];
 }): ImportShareActions["selectTranslateSource"] {
   return useCallback(
     async (mode: TranslateSourceMode) => {
       setTranslationSourceOpen(false);
+      if (mode === "web") {
+        setWebImportOpen(true);
+        return;
+      }
       await openImportPreview(mode);
     },
-    [openImportPreview, setTranslationSourceOpen],
+    [openImportPreview, setTranslationSourceOpen, setWebImportOpen],
   );
+}
+
+function useCancelImportPreviewAction({
+  importPreview,
+  pushStatus,
+  setImportPreview,
+}: UseImportShareActionsOptions): ImportShareActions["cancelImportPreview"] {
+  const { t } = useTranslation("renderer");
+  return useCallback(async () => {
+    const previewId = importPreview?.previewId;
+    setImportPreview(null);
+    if (!previewId) return;
+    try {
+      await mangaGateway.discardImportPreview(previewId);
+    } catch (error) {
+      console.error(error);
+      pushStatus(formatErrorMessage(error, t("import.previewDiscardFailed")));
+    }
+  }, [importPreview?.previewId, pushStatus, setImportPreview, t]);
 }
 
 function useSubmitShareExportAction({

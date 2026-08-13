@@ -5,6 +5,8 @@ import type { WorkShareImportPreview } from "../../../shared/shareTypes";
 export function useImportShareModalController(): {
   translationSourceOpen: boolean;
   setTranslationSourceOpen: Dispatch<SetStateAction<boolean>>;
+  webImportOpen: boolean;
+  setWebImportOpen: Dispatch<SetStateAction<boolean>>;
   importPreview: ImportPreviewSession | null;
   setImportPreview: Dispatch<SetStateAction<ImportPreviewSession | null>>;
   importBusy: boolean;
@@ -21,6 +23,7 @@ export function useImportShareModalController(): {
   setShareImportBusy: Dispatch<SetStateAction<boolean>>;
 } {
   const [translationSourceOpen, setTranslationSourceOpen] = useState(false);
+  const [webImportOpen, setWebImportOpen] = useState(false);
   const [importPreview, setImportPreview] =
     useState<ImportPreviewSession | null>(null);
   const [importBusy, setImportBusy] = useState(false);
@@ -33,6 +36,8 @@ export function useImportShareModalController(): {
   return {
     translationSourceOpen,
     setTranslationSourceOpen,
+    webImportOpen,
+    setWebImportOpen,
     importPreview,
     setImportPreview,
     importBusy,

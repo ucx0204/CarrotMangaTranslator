@@ -6,6 +6,7 @@ import type { PanelWindowRegistry } from "../panelWindows";
 import type { ImageDecodeFallback } from "../regionCrop";
 import type { InpaintingRevisionStore } from "../inpainting/inpaintingRevisionStore";
 import type { SimplePageRuntime } from "../simplePageRuntime";
+import type { WebImportSessionManager } from "../webImportSessionManager";
 
 export type PanelWindowPort = Pick<
   PanelWindowRegistry,
@@ -31,4 +32,6 @@ export type IpcContext = {
   loadSimplePageRuntime: () => SimplePageRuntime;
   decodeImage: ImageDecodeFallback;
   inpaintingRevisionStore?: InpaintingRevisionStore;
+  webImportManager?: WebImportSessionManager;
+  reportError?: (message: string, detail?: unknown) => void;
 };

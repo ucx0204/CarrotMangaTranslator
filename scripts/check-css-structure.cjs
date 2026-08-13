@@ -22,6 +22,7 @@ const expectedImports = [
   "formatting.css",
   "stage-overlay.css",
   "modals-share.css",
+  "web-import.css",
   "settings.css",
   "gather-selection.css",
   "search-replace.css",

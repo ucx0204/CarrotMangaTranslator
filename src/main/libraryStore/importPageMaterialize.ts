@@ -73,12 +73,14 @@ export async function materializePageRecord(
     index,
     pageId,
     targetExt,
+    pageDraft.storageStem,
   );
   const publishedPath = resolveImportOutputPath(
     resolvedTarget.publishedPagesDirectory,
     index,
     pageId,
     targetExt,
+    pageDraft.storageStem,
   );
 
   try {
@@ -302,7 +304,17 @@ function resolveImportOutputPath(
   index: number,
   pageId: string,
   targetExt: string,
+  storageStem?: string,
 ): string {
+  if (storageStem !== undefined) {
+    if (
+      !/^[1-9]\d{0,5}$/.test(storageStem) ||
+      storageStem !== String(index + 1)
+    ) {
+      throw new Error("웹 가져오기 이미지 번호가 올바르지 않습니다.");
+    }
+    return join(pagesDir, `${storageStem}${targetExt}`);
+  }
   return join(
     pagesDir,
     `${String(index + 1).padStart(3, "0")}-${pageId}${targetExt}`,

@@ -19,9 +19,11 @@ export function isAppModalSubtreeActive(props: {
   shareExportOpen: boolean;
   shareImportPreview: unknown;
   translationSourceOpen: boolean;
+  webImportOpen: boolean;
 }): boolean {
   return Boolean(
     props.translationSourceOpen ||
+    props.webImportOpen ||
     props.importPreview ||
     props.shareExportOpen ||
     props.shareImportPreview ||

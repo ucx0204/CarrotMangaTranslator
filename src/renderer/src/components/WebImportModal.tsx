@@ -1,0 +1,166 @@
+import React from "react";
+import {
+  IconAlertTriangle,
+  IconDownload,
+  IconLink,
+  IconLoader2,
+} from "@tabler/icons-react";
+import { useTranslation } from "react-i18next";
+import type { ImportPreviewSession } from "../../../shared/importTypes";
+import { Modal } from "./ui/Modal";
+import { ModalActionBar, ModalActionButtons } from "./ui/ModalActionBar";
+import {
+  WebImportCandidateGrid,
+  WebImportInitialState,
+  WebImportProgress,
+  WebImportResultNotice,
+  WebImportToolbar,
+} from "./webImport/WebImportResults";
+import { useWebImportModalState } from "./webImport/useWebImportModalState";
+
+export function WebImportModal({
+  onCancel,
+  onPrepared,
+}: {
+  onCancel: () => void;
+  onPrepared: (preview: ImportPreviewSession) => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const state = useWebImportModalState({ onCancel, onPrepared });
+  return (
+    <Modal
+      size="xl"
+      title={t("webImport.title")}
+      ariaLabel={t("webImport.title")}
+      onClose={state.cancel}
+      closeDisabled={state.preparing}
+      cardClassName="web-import-modal"
+      bodyClassName="web-import-modal-body"
+      footer={
+        <ModalActionBar
+          leading={
+            state.result ? (
+              <span className="web-import-selection-summary">
+                {t("webImport.selectedSummary", {
+                  selected: state.selectedCount,
+                  visible: state.visibleCandidates.length,
+                })}
+              </span>
+            ) : undefined
+          }
+          actions={
+            <ModalActionButtons
+              cancel={{
+                label: t("common.cancel"),
+                onClick: state.cancel,
+                disabled: state.preparing,
+              }}
+              confirm={{
+                label: state.preparing
+                  ? t("webImport.preparing")
+                  : t("webImport.continue"),
+                onClick: () => void state.prepare(),
+                disabled: state.busy || state.selectedCount === 0,
+              }}
+            />
+          }
+        />
+      }
+    >
+      <WebImportUrlForm state={state} />
+      {state.scanning ? <WebImportProgress progress={state.progress} /> : null}
+      {state.error ? (
+        <div
+          className="web-import-message web-import-message--error"
+          role="alert"
+        >
+          <IconAlertTriangle size={18} aria-hidden="true" />
+          <span>{state.error}</span>
+        </div>
+      ) : null}
+      {state.result ? (
+        <WebImportLoadedContent state={state} />
+      ) : !state.scanning ? (
+        <WebImportInitialState />
+      ) : null}
+    </Modal>
+  );
+}
+
+function WebImportUrlForm({
+  state,
+}: {
+  state: ReturnType<typeof useWebImportModalState>;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <form
+      className="web-import-url-form"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void state.scan();
+      }}
+    >
+      <label className="web-import-url-field">
+        <span>{t("webImport.urlLabel")}</span>
+        <span className="web-import-url-input-wrap">
+          <IconLink size={18} aria-hidden="true" />
+          <input
+            type="url"
+            value={state.url}
+            placeholder={t("webImport.urlPlaceholder")}
+            onChange={(event) => state.setUrl(event.target.value)}
+            disabled={state.busy}
+            autoComplete="url"
+            spellCheck={false}
+          />
+        </span>
+      </label>
+      <button
+        type="submit"
+        className="web-import-load-button primary"
+        disabled={state.busy || !state.url.trim()}
+      >
+        {state.scanning ? (
+          <IconLoader2
+            className="web-import-spin"
+            size={17}
+            aria-hidden="true"
+          />
+        ) : (
+          <IconDownload size={17} aria-hidden="true" />
+        )}
+        <span>
+          {state.scanning ? t("webImport.loading") : t("webImport.load")}
+        </span>
+      </button>
+    </form>
+  );
+}
+
+function WebImportLoadedContent({
+  state,
+}: {
+  state: ReturnType<typeof useWebImportModalState>;
+}): React.JSX.Element {
+  if (!state.result) throw new Error("Web import result is required.");
+  return (
+    <>
+      <WebImportResultNotice result={state.result} />
+      <WebImportToolbar
+        busy={state.preparing}
+        filter={state.filter}
+        visibleCount={state.visibleCandidates.length}
+        onFilterChange={state.setFilter}
+        onSelectAll={() => state.setVisibleSelected(true)}
+        onClearAll={() => state.setVisibleSelected(false)}
+      />
+      <WebImportCandidateGrid
+        candidates={state.visibleCandidates}
+        excluded={state.excluded}
+        disabled={state.preparing}
+        onSelectedChange={state.setCandidateSelected}
+      />
+    </>
+  );
+}

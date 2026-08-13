@@ -541,7 +541,59 @@
     "openFolder": "Open folder",
     "folderHint": "Load images in the folder in filename order.",
     "openArchive": "Open archive",
-    "archiveHint": "Load one ZIP or CBZ as a chapter."
+    "archiveHint": "Load one ZIP or CBZ as a chapter.",
+    "openWeb": "Open link",
+    "webHint": "Review and select images from a web page."
+  },
+  "webImport": {
+    "title": "Import images from a link",
+    "urlLabel": "Web page link",
+    "urlPlaceholder": "https://example.com/page",
+    "load": "Load images",
+    "loading": "Loading",
+    "continue": "Continue with selected images",
+    "preparing": "Preparing selection",
+    "sizeFilter": "Image size",
+    "filters": {
+      "all": "All",
+      "medium-or-larger": "Medium+",
+      "large": "Largest"
+    },
+    "selectAll": "Select all",
+    "clearAll": "Clear all",
+    "selectedSummary": "{{selected}} of {{visible}} selected",
+    "initialTitle": "Import images from a public web page",
+    "initialHint": "Enter a link to see large images in top-to-bottom order.",
+    "noMatchingImages": "No images match this size",
+    "tryAnotherFilter": "Try All or Medium+ to widen the range.",
+    "skippedResult": "Skipped {{skipped}} unsupported, duplicate, or broken images.",
+    "partialResult": "Only partial results are shown because a limit was reached. {{skipped}} items were skipped.",
+    "skipReasons": {
+      "unsupported": "unsupported format {{count}}",
+      "failed": "failed {{count}}",
+      "duplicate": "duplicate {{count}}",
+      "blocked": "blocked for safety {{count}}"
+    },
+    "imageSelectionLabel": "Select image {{index}}, {{width}} by {{height}}",
+    "progress": {
+      "starting": "Preparing the page.",
+      "validating": "Checking the link safely.",
+      "loading": "Opening the web page.",
+      "scrolling": "Looking for images further down the page.",
+      "discovering": "Checking image positions on the page.",
+      "downloading": "Checking images {{completed}}/{{total}}"
+    },
+    "errors": {
+      "invalidUrl": "Enter a valid public web page link.",
+      "invalid-url": "This link format cannot be opened.",
+      "private-address": "Local and private network addresses cannot be opened.",
+      "page-unavailable": "Could not open the page. Check that the link is public.",
+      "timed-out": "Loading took too long. Please try again.",
+      "busy": "Another task is running. Try again when it finishes.",
+      "cancelled": "Image loading was cancelled.",
+      "scanFailed": "Could not load images from the web page.",
+      "prepareFailed": "Could not pass the selected images to the import window."
+    }
   },
   "libraryDrop": {
     "readyTitle": "Drop to add to library",

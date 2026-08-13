@@ -16,6 +16,38 @@ afterEach(() => {
 });
 
 describe("useImportShareActions", () => {
+  it("opens the web import modal instead of requesting a file preview", async () => {
+    const setTranslationSourceOpen = vi.fn();
+    const setWebImportOpen = vi.fn();
+    const { result } = renderHook(() =>
+      useImportShareActions({
+        applyChapter: vi.fn(),
+        askConfirm: vi.fn(async () => true),
+        dirty: false,
+        importPreview: null,
+        openTranslateOptions: vi.fn(),
+        pushStatus: vi.fn(),
+        refreshLibrary: vi.fn(async () => undefined),
+        resetWorkspaceHistory: vi.fn(),
+        saveNow: vi.fn(async () => undefined),
+        setImportBusy: vi.fn(),
+        setImportPreview: vi.fn(),
+        setShareExportBusy: vi.fn(),
+        setShareExportOpen: vi.fn(),
+        setShareImportBusy: vi.fn(),
+        setShareImportPreview: vi.fn(),
+        setTranslationSourceOpen,
+        setWebImportOpen,
+        shareImportPreview: null,
+      }),
+    );
+
+    await act(async () => result.current.selectTranslateSource("web"));
+
+    expect(setTranslationSourceOpen).toHaveBeenCalledWith(false);
+    expect(setWebImportOpen).toHaveBeenCalledWith(true);
+  });
+
   it("opens the normal translation modal with the whole work selected after a batch import", async () => {
     const openedChapter = makeChapter();
     const createImport = vi.fn(async () => ({
@@ -47,6 +79,7 @@ describe("useImportShareActions", () => {
         setShareImportBusy: vi.fn(),
         setShareImportPreview: vi.fn(),
         setTranslationSourceOpen: vi.fn(),
+        setWebImportOpen: vi.fn(),
         shareImportPreview: null,
       }),
     );
@@ -107,6 +140,7 @@ describe("useImportShareActions", () => {
         setShareImportBusy: vi.fn(),
         setShareImportPreview: vi.fn(),
         setTranslationSourceOpen: vi.fn(),
+        setWebImportOpen: vi.fn(),
         shareImportPreview: null,
       }),
     );

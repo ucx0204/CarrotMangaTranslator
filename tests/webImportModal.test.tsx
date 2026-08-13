@@ -1,0 +1,100 @@
+/** @vitest-environment jsdom */
+
+import React from "react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { WebImportModal } from "../src/renderer/src/components/WebImportModal";
+import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
+import type { WebImportScanResult } from "../src/shared/webImportTypes";
+
+afterEach(() => {
+  cleanup();
+  window.mangaApi = createTestMangaGatewayStub();
+});
+
+describe("WebImportModal", () => {
+  it("defaults to largest images selected and preserves a manual exclusion", async () => {
+    window.mangaApi = createTestMangaGatewayStub({
+      onWebImportProgress: () => () => undefined,
+      scanWebImport: vi.fn(async () => ({
+        status: "ready" as const,
+        result: RESULT,
+      })),
+      discardWebImportSession: vi.fn(async () => ({ completed: true })),
+    });
+    render(<WebImportModal onCancel={vi.fn()} onPrepared={vi.fn()} />);
+    fireEvent.change(screen.getByRole("textbox", { name: "웹 페이지 링크" }), {
+      target: { value: "https://example.com/gallery" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "이미지 불러오기" }));
+
+    expect(await screen.findByText("1.png")).not.toBeNull();
+    expect(screen.queryByText("2.png")).toBeNull();
+    const largest = screen.getByRole("checkbox", { name: /1번 이미지/ });
+    expect((largest as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(largest);
+    fireEvent.click(screen.getByRole("radio", { name: "전체" }));
+    expect(
+      (screen.getByRole("checkbox", { name: /1번 이미지/ }) as HTMLInputElement)
+        .checked,
+    ).toBe(false);
+    expect(
+      (screen.getByRole("checkbox", { name: /2번 이미지/ }) as HTMLInputElement)
+        .checked,
+    ).toBe(true);
+  });
+
+  it("completes a scan when mounted under React StrictMode", async () => {
+    window.mangaApi = createTestMangaGatewayStub({
+      onWebImportProgress: () => () => undefined,
+      scanWebImport: vi.fn(async () => ({
+        status: "ready" as const,
+        result: RESULT,
+      })),
+      discardWebImportSession: vi.fn(async () => ({ completed: true })),
+    });
+    render(
+      <React.StrictMode>
+        <WebImportModal onCancel={vi.fn()} onPrepared={vi.fn()} />
+      </React.StrictMode>,
+    );
+    fireEvent.change(screen.getByRole("textbox", { name: "웹 페이지 링크" }), {
+      target: { value: "https://example.com/gallery" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "이미지 불러오기" }));
+
+    expect(await screen.findByText("1.png")).not.toBeNull();
+  });
+});
+
+const RESULT: WebImportScanResult = {
+  sessionId: "11111111-1111-4111-8111-111111111111",
+  pageTitle: "Gallery",
+  sourceHost: "example.com",
+  skipped: { unsupported: 0, failed: 0, duplicate: 0, blocked: 0 },
+  truncated: false,
+  candidates: [
+    {
+      id: "22222222-2222-4222-8222-222222222222",
+      previewUrl: "data:image/png;base64,iVBORw0KGgo=",
+      width: 1_000,
+      height: 800,
+      pixelCount: 800_000,
+      byteSize: 10,
+      format: "png",
+      storedExtension: ".png",
+      pageIndex: 0,
+    },
+    {
+      id: "33333333-3333-4333-8333-333333333333",
+      previewUrl: "data:image/png;base64,iVBORw0KGgo=",
+      width: 100,
+      height: 100,
+      pixelCount: 10_000,
+      byteSize: 10,
+      format: "png",
+      storedExtension: ".png",
+      pageIndex: 1,
+    },
+  ],
+};

@@ -1,4 +1,5 @@
 import type { IpcContext } from "./context";
+import { disposeImportPreviewSessions } from "./importPreviewSessionStore";
 import { registerErrorReportIpc } from "./errorReportIpc";
 import { registerExternalLinksIpc } from "./externalLinksIpc";
 import { registerFontsIpc } from "./fontsIpc";
@@ -14,6 +15,54 @@ import { registerTextExportIpc } from "./textExportIpc";
 import { registerTranslationJobIpc } from "./translationJobIpc";
 import { registerReviewTextIpc } from "./reviewTextIpc";
 import { registerWorkContextIpc } from "./workContextIpc";
+import { registerWebImportIpc } from "./webImportIpc";
+import { WebImportSessionManager } from "../webImportSessionManager";
+import {
+  registerWebImportPreviewProtocolHandler,
+  registerWebImportPreviewProtocolScheme,
+} from "../webImportProtocol";
+
+export type ImportRuntimeResources = {
+  webImportManager: WebImportSessionManager;
+  initialize: () => Promise<void>;
+  dispose: () => Promise<void>;
+};
+
+export function registerImportProtocolSchemes(): void {
+  registerWebImportPreviewProtocolScheme();
+}
+
+export function createImportRuntimeResources({
+  dataRoot,
+  reportError,
+}: {
+  dataRoot: string;
+  reportError: (message: string, detail?: unknown) => void;
+}): ImportRuntimeResources {
+  const webImportManager = new WebImportSessionManager({
+    dataRoot,
+    reportError,
+  });
+  return {
+    webImportManager,
+    initialize: async () => {
+      await webImportManager.initialize();
+      registerWebImportPreviewProtocolHandler(webImportManager);
+    },
+    dispose: async () => {
+      const results = await Promise.allSettled([
+        disposeImportPreviewSessions(),
+        webImportManager.dispose(),
+      ]);
+      const failures = results.flatMap((result) =>
+        result.status === "rejected" ? [result.reason] : [],
+      );
+      if (failures.length > 0) {
+        throw new AggregateError(failures, "Transient import cleanup failed.");
+      }
+    },
+  };
+}
 
 export function registerIpc(context: IpcContext): void {
   registerExternalLinksIpc(context);
@@ -23,6 +72,7 @@ export function registerIpc(context: IpcContext): void {
   registerLibraryIpc(context);
   registerFontsIpc(context);
   registerImportShareIpc(context);
+  registerWebImportIpc(context);
   registerTextExportIpc(context);
   registerReviewTextIpc(context);
   registerWorkContextIpc(context);

@@ -1,5 +1,8 @@
 import React from "react";
-import type { ImportPreviewResult } from "../../../shared/importTypes";
+import type {
+  ImportPreviewResult,
+  ImportPreviewSession,
+} from "../../../shared/importTypes";
 import type { LibraryIndex } from "../../../shared/libraryTypes";
 import type { AppSettings } from "../../../shared/settingsTypes";
 import type {
@@ -20,12 +23,14 @@ import { SettingsModal } from "./SettingsModal";
 import { ShareExportModal } from "./ShareExportModal";
 import { ShareImportModal } from "./ShareImportModal";
 import { TranslateSourceModal } from "./TranslateSourceModal";
+import { WebImportModal } from "./WebImportModal";
 import type { ConfirmDialogState } from "../hooks/useConfirmDialog";
 
 type AppModalsProps = {
   library: LibraryIndex;
   currentWorkId: string | null;
   translationSourceOpen: boolean;
+  webImportOpen: boolean;
   importPreview: ImportPreviewResult | null;
   importBusy: boolean;
   shareExportOpen: boolean;
@@ -41,6 +46,8 @@ type AppModalsProps = {
   confirmDialog: ConfirmDialogState | null;
   inpaintingGuideOpen: boolean;
   onCancelTranslationSource: () => void;
+  onCancelWebImport: () => void;
+  onPreparedWebImport: (preview: ImportPreviewSession) => void;
   onSelectTranslationSource: (mode: TranslateSourceMode) => void;
   onCancelImport: () => void;
   onSubmitImport: (payload: ImportModalSubmit) => void;
@@ -77,9 +84,12 @@ function ImportFlowModals({
   library,
   onCancelImport,
   onCancelTranslationSource,
+  onCancelWebImport,
+  onPreparedWebImport,
   onSelectTranslationSource,
   onSubmitImport,
   translationSourceOpen,
+  webImportOpen,
 }: Pick<
   AppModalsProps,
   | "importBusy"
@@ -88,9 +98,12 @@ function ImportFlowModals({
   | "currentWorkId"
   | "onCancelImport"
   | "onCancelTranslationSource"
+  | "onCancelWebImport"
+  | "onPreparedWebImport"
   | "onSelectTranslationSource"
   | "onSubmitImport"
   | "translationSourceOpen"
+  | "webImportOpen"
 >): React.JSX.Element {
   return (
     <>
@@ -99,6 +112,12 @@ function ImportFlowModals({
           busy={importBusy}
           onCancel={onCancelTranslationSource}
           onSelect={onSelectTranslationSource}
+        />
+      ) : null}
+      {webImportOpen ? (
+        <WebImportModal
+          onCancel={onCancelWebImport}
+          onPrepared={onPreparedWebImport}
         />
       ) : null}
       {importPreview ? (

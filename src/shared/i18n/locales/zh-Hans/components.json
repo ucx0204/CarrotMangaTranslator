@@ -524,7 +524,59 @@
     "openFolder": "打开文件夹",
     "folderHint": "按文件名顺序读取文件夹中的图片。",
     "openArchive": "打开压缩文件",
-    "archiveHint": "将一个 ZIP 或 CBZ 作为一话导入。"
+    "archiveHint": "将一个 ZIP 或 CBZ 作为一话导入。",
+    "openWeb": "从链接打开",
+    "webHint": "查看并选择网页中的图片。"
+  },
+  "webImport": {
+    "title": "从链接导入图片",
+    "urlLabel": "网页链接",
+    "urlPlaceholder": "https://example.com/page",
+    "load": "加载图片",
+    "loading": "正在加载",
+    "continue": "使用所选图片继续",
+    "preparing": "正在整理选择",
+    "sizeFilter": "图片大小",
+    "filters": {
+      "all": "全部",
+      "medium-or-larger": "中等以上",
+      "large": "最大"
+    },
+    "selectAll": "全选",
+    "clearAll": "全部取消",
+    "selectedSummary": "已选择 {{selected}}/{{visible}} 张",
+    "initialTitle": "从公开网页导入图片",
+    "initialHint": "输入链接后，将按页面从上到下显示大图。",
+    "noMatchingImages": "没有符合此大小的图片",
+    "tryAnotherFilter": "请选择全部或中等以上以扩大范围。",
+    "skippedResult": "已跳过 {{skipped}} 张不支持、重复或损坏的图片。",
+    "partialResult": "达到限制，仅显示部分结果。已跳过 {{skipped}} 项。",
+    "skipReasons": {
+      "unsupported": "不支持的格式 {{count}}",
+      "failed": "加载失败 {{count}}",
+      "duplicate": "重复 {{count}}",
+      "blocked": "因安全限制阻止 {{count}}"
+    },
+    "imageSelectionLabel": "选择第 {{index}} 张图片，{{width}}×{{height}}",
+    "progress": {
+      "starting": "正在准备页面。",
+      "validating": "正在安全检查链接。",
+      "loading": "正在打开网页。",
+      "scrolling": "正在查找页面下方的图片。",
+      "discovering": "正在确认图片位置。",
+      "downloading": "正在检查图片 {{completed}}/{{total}}"
+    },
+    "errors": {
+      "invalidUrl": "请输入有效的公开网页链接。",
+      "invalid-url": "无法打开此格式的链接。",
+      "private-address": "无法打开本地或私有网络地址。",
+      "page-unavailable": "无法打开页面，请确认链接为公开链接。",
+      "timed-out": "加载时间过长，请重试。",
+      "busy": "其他任务正在进行，请完成后重试。",
+      "cancelled": "已取消加载图片。",
+      "scanFailed": "无法加载网页图片。",
+      "prepareFailed": "无法将所选图片发送到导入窗口。"
+    }
   },
   "libraryDrop": {
     "readyTitle": "拖放以添加到资料库",

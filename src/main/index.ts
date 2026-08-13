@@ -21,7 +21,11 @@ import {
   registerImageProtocolHandler,
   registerImageProtocolScheme,
 } from "./imageProtocol";
-import { registerIpc } from "./ipc/registerIpc";
+import {
+  createImportRuntimeResources,
+  registerImportProtocolSchemes,
+  registerIpc,
+} from "./ipc/registerIpc";
 import { ActiveJobStore } from "./jobs/activeJob";
 import { disposeCachedInpaintingEngines } from "./inpainting/inpaintingEnginePool";
 import { InpaintingRevisionStore } from "./inpainting/inpaintingRevisionStore";
@@ -70,6 +74,10 @@ const appPaths = ensureWritableAppDirectories();
 const appActivityGate = new AppActivityGate();
 const jobs = new ActiveJobStore(undefined, appActivityGate);
 const operations = new AppOperationRegistry(appActivityGate);
+const importRuntime = createImportRuntimeResources({
+  dataRoot: appPaths.dataRoot,
+  reportError: logError,
+});
 const inpaintingRevisionStore = new InpaintingRevisionStore();
 let mainWindow: BrowserWindow | null = null;
 const panelWindows = new PanelWindowRegistry(
@@ -81,18 +89,23 @@ const fatalCoordinator = new FatalMainProcessIncidentCoordinator();
 const mainWindowSessionLifecycle = new MainWindowSessionLifecycle({
   suspendActivities: () => appActivityGate.suspendNewActivities(),
   suspendMutations: () => libraryMutationCoordinator.suspendNewMutations(),
-  runCleanup: () =>
-    runMainWindowCloseCleanup({
-      jobs,
-      operations,
-      waitForLibraryMutations: () => libraryMutationCoordinator.waitForIdle(),
-      disposeInpainting: () =>
-        disposeCachedInpaintingEngines("main-window-closed"),
-      disposeTranslation: () =>
-        disposeTranslationRuntimeResources("main-window-closed"),
-      logError,
-      logWarn,
-    }),
+  runCleanup: async () => {
+    try {
+      await runMainWindowCloseCleanup({
+        jobs,
+        operations,
+        waitForLibraryMutations: () => libraryMutationCoordinator.waitForIdle(),
+        disposeInpainting: () =>
+          disposeCachedInpaintingEngines("main-window-closed"),
+        disposeTranslation: () =>
+          disposeTranslationRuntimeResources("main-window-closed"),
+        logError,
+        logWarn,
+      });
+    } finally {
+      await cleanupTransientImportResources("main-window-closed");
+    }
+  },
   openWindow: () => openMainWindowNow(),
   runtime: {
     platform: process.platform,
@@ -119,6 +132,7 @@ let secondInstanceFocusPending = false;
 let terminalCleanupPromise: Promise<void> | null = null;
 
 registerImageProtocolScheme();
+registerImportProtocolSchemes();
 resetAppLog();
 
 app.on(
@@ -209,6 +223,7 @@ void app
       return;
     }
     registerImageProtocolHandler();
+    await importRuntime.initialize();
     if (await runMacPackageSmokeExit(appPaths)) {
       return;
     }
@@ -224,6 +239,8 @@ void app
       decodeImage: (filePath, signal) =>
         decodeImageThroughRuntime(appPaths.runtimeDir, filePath, signal),
       inpaintingRevisionStore,
+      webImportManager: importRuntime.webImportManager,
+      reportError: logError,
     });
     reactivateDock();
     openMainWindowNow();
@@ -394,25 +411,38 @@ async function finishTerminalCleanup(
   updateProgress: (progress: AppQuitCleanupProgress) => void,
 ): Promise<void> {
   await mainWindowSessionLifecycle.waitForCleanup();
-  await runAppQuitCleanup({
-    jobs,
-    operations,
-    cancelStartupMaintenance: () => {
-      try {
-        cancelStartupMaintenance?.();
-      } finally {
-        cancelStartupMaintenance = null;
-      }
-    },
-    disposeInpainting: () => disposeCachedInpaintingEngines(reason),
-    disposeTranslation: () => disposeTranslationRuntimeResources(reason),
-    waitForLibraryMutations: () => libraryMutationCoordinator.waitForIdle(),
-    releaseInpaintingHistory: () => inpaintingRevisionStore.releaseAll(),
-    updateProgress,
-    logError,
-    logWarn,
-    cleanupReason: reason,
-  });
+  try {
+    await runAppQuitCleanup({
+      jobs,
+      operations,
+      cancelStartupMaintenance: () => {
+        try {
+          cancelStartupMaintenance?.();
+        } finally {
+          cancelStartupMaintenance = null;
+        }
+      },
+      disposeInpainting: () => disposeCachedInpaintingEngines(reason),
+      disposeTranslation: () => disposeTranslationRuntimeResources(reason),
+      waitForLibraryMutations: () => libraryMutationCoordinator.waitForIdle(),
+      releaseInpaintingHistory: () => inpaintingRevisionStore.releaseAll(),
+      updateProgress,
+      logError,
+      logWarn,
+      cleanupReason: reason,
+    });
+  } finally {
+    await cleanupTransientImportResources(reason);
+  }
+}
+
+async function cleanupTransientImportResources(reason: string): Promise<void> {
+  try {
+    await importRuntime.dispose();
+  } catch (error) {
+    logError("Transient import cleanup failed", { reason, error });
+    throw error;
+  }
 }
 
 function openMainWindowNow(): void {

@@ -50,6 +50,10 @@ const importPageDraftSchema = z
     sourcePath: localPathResult,
     sourceKind: z.enum(["file", "zip-entry"]),
     zipEntryName: z.string().min(1).max(MAX_PATH_LENGTH).optional(),
+    storageStem: z
+      .string()
+      .regex(/^[1-9]\d{0,5}$/)
+      .optional(),
   })
   .strict();
 const importChapterDraftSchema = z

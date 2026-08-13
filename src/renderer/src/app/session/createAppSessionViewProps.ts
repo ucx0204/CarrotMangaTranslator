@@ -170,7 +170,8 @@ function createModalsProps({
     inpaintingGuideOpen: uiState.inpaintingGuideOpen,
     jobActive: derivedState.jobActive,
     library: core.library,
-    onCancelImport: () => importShareModal.setImportPreview(null),
+    onCancelImport: () => void importShareActions.cancelImportPreview(),
+    onCancelWebImport: () => importShareModal.setWebImportOpen(false),
     onCancelRename: () => {
       if (!libraryActions.renameBusy) {
         libraryActions.setRenameTarget(null);
@@ -196,6 +197,7 @@ function createModalsProps({
     onResolveConfirm: confirmController.resolveConfirmDialog,
     onSelectTranslationSource: (mode) =>
       void importShareActions.selectTranslateSource(mode),
+    onPreparedWebImport: importShareActions.acceptWebImportPreview,
     onSubmitImport: (payload) => void importShareActions.submitImport(payload),
     onSubmitRename: (title) => void libraryActions.submitRename(title),
     onSubmitSettings: (nextSettings) =>
@@ -214,6 +216,7 @@ function createModalsProps({
     shareImportBusy: importShareModal.shareImportBusy,
     shareImportPreview: importShareModal.shareImportPreview,
     translationSourceOpen: importShareModal.translationSourceOpen,
+    webImportOpen: importShareModal.webImportOpen,
   };
 }
 

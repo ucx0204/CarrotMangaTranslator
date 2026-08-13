@@ -13,8 +13,10 @@ import type { FontLibrarySnapshot } from "./libraryTypes";
 import { FontLibrarySnapshotSchema } from "./ipcContextSettingsContracts";
 import type { ErrorReportContext } from "./errorReportTypes";
 import { ErrorReportContextSchema } from "./errorReportSchemas";
+import { webImportIpcEventContracts } from "./ipcWebImportContracts";
 
 export const ipcEventContracts = {
+  ...webImportIpcEventContracts,
   errorIncident: defineIpcEventContract<ErrorReportContext>({
     eventKey: "errorIncident",
     channel: "error-report:incident",

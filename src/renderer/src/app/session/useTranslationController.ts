@@ -110,6 +110,7 @@ function useImportShareController(
     setShareImportBusy: chapter.importShareModal.setShareImportBusy,
     setShareImportPreview: chapter.importShareModal.setShareImportPreview,
     setTranslationSourceOpen: chapter.importShareModal.setTranslationSourceOpen,
+    setWebImportOpen: chapter.importShareModal.setWebImportOpen,
     shareImportPreview: chapter.importShareModal.shareImportPreview,
     resetWorkspaceHistory,
   });

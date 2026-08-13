@@ -457,6 +457,7 @@
     "added_one": "已将 {{count}} 个章节添加到资料库。",
     "added_other": "已将 {{count}} 个章节添加到资料库。",
     "applyFailed": "无法应用导入内容。",
+    "previewDiscardFailed": "无法清理导入预览临时文件。",
     "drop": {
       "unavailable": "当前有其他窗口或任务正在进行。请结束后再拖放。",
       "empty": "未找到可添加的文件。",

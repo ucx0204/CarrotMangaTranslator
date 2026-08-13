@@ -22,6 +22,7 @@ import {
   panelWindowIpcContracts,
 } from "./ipcSystemContracts";
 import { ipcEventContracts } from "./ipcEventContracts";
+import { webImportIpcContracts } from "./ipcWebImportContracts";
 
 export type { IpcContract, IpcEventContract };
 export {
@@ -57,4 +58,5 @@ export const ipcInvokeContracts = {
   ...pageImageExportIpcContracts,
   ...jobControlIpcContracts,
   ...panelWindowIpcContracts,
+  ...webImportIpcContracts,
 } as const;

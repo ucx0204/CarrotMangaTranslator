@@ -32,8 +32,15 @@ import {
 } from "../recentDialogPaths";
 import type { IpcContext } from "./context";
 import { tMain } from "./localization";
-import { prunePreviewSessions } from "./previewSessions";
 import { trustedHandleContract } from "./trustedIpc";
+import { webImportIpcContracts } from "../../shared/ipcWebImportContracts";
+import {
+  createImportPreviewSession,
+  discardImportPreviewSession,
+  getImportPreviewSession,
+  removeImportPreviewSession,
+  runImportPreviewCleanup,
+} from "./importPreviewSessionStore";
 
 const SUPPORTED_ARCHIVE_DIALOG_EXTENSIONS = SUPPORTED_ARCHIVE_EXTENSIONS.map(
   (extension) => extension.slice(1),
@@ -57,15 +64,6 @@ const productionImportPreviewIpcService: ImportPreviewIpcService = {
   previewZipFolder,
 };
 
-const importPreviewSessions = new Map<
-  string,
-  {
-    preview: ImportPreviewResult;
-    recentLocation: RecentDialogLocation;
-    createdAt: number;
-  }
->();
-
 export function registerImportPreviewIpc(
   context: IpcContext,
   service: ImportPreviewIpcService = productionImportPreviewIpcService,
@@ -76,6 +74,7 @@ export function registerImportPreviewIpc(
   registerZipFolderImportPreviewIpc(context, service);
   registerDroppedImportPreviewIpc(context, service);
   registerCreateImportIpc(context, service);
+  registerDiscardImportPreviewIpc(context);
 }
 
 function registerImageImportPreviewIpc(
@@ -109,7 +108,7 @@ function registerImageImportPreviewIpc(
       }
       const preview = await service.previewImages(result.filePaths);
       return preview.chapters[0]?.pages.length
-        ? createImportPreviewSession(preview, {
+        ? await createImportPreviewSession(preview, {
             key: recentDialogPathKeys.imageImport,
             kind: "file",
             path: result.filePaths[0],
@@ -144,7 +143,7 @@ function registerFolderImportPreviewIpc(
       }
       const preview = await service.previewFolder(result.filePaths[0]);
       return preview.chapters[0]?.pages.length
-        ? createImportPreviewSession(preview, {
+        ? await createImportPreviewSession(preview, {
             key: recentDialogPathKeys.imageFolderImport,
             kind: "directory",
             path: result.filePaths[0],
@@ -185,7 +184,7 @@ function registerZipImportPreviewIpc(
       }
       const preview = await service.previewZip(result.filePaths[0]);
       return preview.chapters[0]?.pages.length
-        ? createImportPreviewSession(preview, {
+        ? await createImportPreviewSession(preview, {
             key: recentDialogPathKeys.archiveImport,
             kind: "file",
             path: result.filePaths[0],
@@ -220,7 +219,7 @@ function registerZipFolderImportPreviewIpc(
       }
       const preview = await service.previewZipFolder(result.filePaths[0]);
       return preview.chapters.length
-        ? createImportPreviewSession(preview, {
+        ? await createImportPreviewSession(preview, {
             key: recentDialogPathKeys.archiveFolderImport,
             kind: "directory",
             path: result.filePaths[0],
@@ -257,7 +256,7 @@ function registerDroppedImportPreviewIpc(
             }
             return {
               status: "ready",
-              preview: createImportPreviewSession(
+              preview: await createImportPreviewSession(
                 preview,
                 droppedSourceRecentLocation(source),
               ),
@@ -342,7 +341,7 @@ function registerCreateImportIpc(
         request,
         tMain("ipc.labels.importApply"),
       );
-      const session = getImportPreviewSession(command.previewId);
+      const session = await getImportPreviewSession(command.previewId);
       const result = await runManagedAppOperation(
         context.operations,
         {
@@ -360,38 +359,34 @@ function registerCreateImportIpc(
             signal,
           ),
       );
-      rememberRecentDialogLocation(
-        context.appPaths.dataRoot,
-        session.recentLocation,
-      );
-      importPreviewSessions.delete(command.previewId);
+      if (session.recentLocation) {
+        rememberRecentDialogLocation(
+          context.appPaths.dataRoot,
+          session.recentLocation,
+        );
+      }
+      removeImportPreviewSession(command.previewId);
+      try {
+        await runImportPreviewCleanup(session.cleanup);
+      } catch (error) {
+        // The library transaction already committed; report cleanup separately
+        // so a temporary-file failure cannot make the user retry the import.
+        context.reportError?.(
+          "Imported preview cleanup failed after commit",
+          error,
+        );
+      }
       return result;
     },
   );
 }
 
-function createImportPreviewSession(
-  preview: ImportPreviewResult,
-  recentLocation: RecentDialogLocation,
-): ImportPreviewSession {
-  prunePreviewSessions(importPreviewSessions);
-  const previewId = randomUUID();
-  importPreviewSessions.set(previewId, {
-    preview,
-    recentLocation,
-    createdAt: Date.now(),
-  });
-  return { previewId, ...preview };
-}
-
-function getImportPreviewSession(previewId: string): {
-  preview: ImportPreviewResult;
-  recentLocation: RecentDialogLocation;
-} {
-  prunePreviewSessions(importPreviewSessions);
-  const session = importPreviewSessions.get(previewId);
-  if (!session) {
-    throw new Error(tMain("ipc.errors.invalidImportPreview"));
-  }
-  return session;
+function registerDiscardImportPreviewIpc(context: IpcContext): void {
+  trustedHandleContract(
+    context,
+    webImportIpcContracts.discardImportPreview,
+    async (_event, previewId) => ({
+      completed: await discardImportPreviewSession(previewId),
+    }),
+  );
 }

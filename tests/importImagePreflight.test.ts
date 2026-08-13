@@ -88,8 +88,54 @@ describe("import image preflight", () => {
 
     expect(page.width).toBe(2);
     expect(page.height).toBe(3);
+    expect(page.imagePath).toMatch(/[\\/]001-[0-9a-f-]+\.png$/);
+    expect(page.imagePath).not.toBe(join(pagesDir, "1.png"));
     expect(runtime.validateImageFile).toHaveBeenCalledTimes(1);
     expect(runtime.convertWebpToPngFile).not.toHaveBeenCalled();
+  });
+
+  it("stores web-import pages with the requested numeric file stem", async () => {
+    const { rootDir, pagesDir } = await createLayout();
+    const sourcePath = join(rootDir, "staged.png");
+    await writeFile(sourcePath, makePngHeader(2, 3));
+    const runtime = makeRuntime();
+
+    const page = await materializePageRecord(
+      {
+        name: "1.png",
+        sourceKind: "file",
+        sourcePath,
+        storageStem: "1",
+      },
+      pagesDir,
+      0,
+      new Map(),
+      runtime,
+    );
+
+    expect(page.imagePath).toBe(join(pagesDir, "1.png"));
+    expect(await readdir(pagesDir)).toEqual(["1.png"]);
+  });
+
+  it("rejects a numeric storage stem that does not match page order", async () => {
+    const { rootDir, pagesDir } = await createLayout();
+    const sourcePath = join(rootDir, "staged.png");
+    await writeFile(sourcePath, makePngHeader(2, 3));
+
+    await expect(
+      materializePageRecord(
+        {
+          name: "2.png",
+          sourceKind: "file",
+          sourcePath,
+          storageStem: "2",
+        },
+        pagesDir,
+        0,
+        new Map(),
+        makeRuntime(),
+      ),
+    ).rejects.toThrow(/번호/);
   });
 
   it("normalizes WebP to an output PNG file and validates the final file", async () => {
@@ -115,6 +161,30 @@ describe("import image preflight", () => {
       .calls[0];
     expect(conversionCall?.[0]).toBe(sourcePath);
     expect(conversionCall?.[1]).toBe(page.imagePath);
+  });
+
+  it("stores a web-import WebP as its numeric PNG output", async () => {
+    const { rootDir, pagesDir } = await createLayout();
+    const sourcePath = join(rootDir, "staged.webp");
+    await writeFile(sourcePath, makeVp8xWebp(2, 3));
+    const runtime = makeRuntime({ conversionOutput: makePngHeader(2, 3) });
+
+    const page = await materializePageRecord(
+      {
+        name: "1.png",
+        sourceKind: "file",
+        sourcePath,
+        storageStem: "1",
+      },
+      pagesDir,
+      0,
+      new Map(),
+      runtime,
+    );
+
+    expect(page.imagePath).toBe(join(pagesDir, "1.png"));
+    expect(await readdir(pagesDir)).toEqual(["1.png"]);
+    expect(runtime.convertWebpToPngFile).toHaveBeenCalledTimes(1);
   });
 
   it("rejects WebP conversion dimension changes and removes partial output", async () => {

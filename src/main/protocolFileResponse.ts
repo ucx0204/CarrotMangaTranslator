@@ -19,6 +19,7 @@ type ProtocolFileVersion = {
 
 type ProtocolFileResponseOptions = {
   contentType: string;
+  cacheControl?: string;
   /**
    * true면 응답에 Access-Control-Allow-Origin: * 를 추가한다. mgt-font:// 커스텀
    * 폰트는 file:// origin 페이지에서 교차 출처로 fetch되므로(corsEnabled 스킴)
@@ -55,7 +56,7 @@ export async function createProtocolFileResponse(
     );
     return new Response(body, {
       headers: {
-        "Cache-Control": IMMUTABLE_CACHE_CONTROL,
+        "Cache-Control": options.cacheControl ?? IMMUTABLE_CACHE_CONTROL,
         "Content-Length": stats.size.toString(),
         "Content-Type": options.contentType,
         "X-Content-Type-Options": "nosniff",

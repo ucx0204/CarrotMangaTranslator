@@ -524,7 +524,59 @@
     "openFolder": "開啟資料夾",
     "folderHint": "依檔名順序讀取資料夾中的圖片。",
     "openArchive": "開啟壓縮檔案",
-    "archiveHint": "將一個 ZIP 或 CBZ 作為一話匯入。"
+    "archiveHint": "將一個 ZIP 或 CBZ 作為一話匯入。",
+    "openWeb": "從連結開啟",
+    "webHint": "檢視並選取網頁中的圖片。"
+  },
+  "webImport": {
+    "title": "從連結匯入圖片",
+    "urlLabel": "網頁連結",
+    "urlPlaceholder": "https://example.com/page",
+    "load": "載入圖片",
+    "loading": "正在載入",
+    "continue": "使用所選圖片繼續",
+    "preparing": "正在整理選取項目",
+    "sizeFilter": "圖片大小",
+    "filters": {
+      "all": "全部",
+      "medium-or-larger": "中等以上",
+      "large": "最大"
+    },
+    "selectAll": "全選",
+    "clearAll": "全部取消",
+    "selectedSummary": "已選取 {{selected}}/{{visible}} 張",
+    "initialTitle": "從公開網頁匯入圖片",
+    "initialHint": "輸入連結後，將依頁面由上到下顯示大圖。",
+    "noMatchingImages": "沒有符合此大小的圖片",
+    "tryAnotherFilter": "請選擇全部或中等以上以擴大範圍。",
+    "skippedResult": "已略過 {{skipped}} 張不支援、重複或損壞的圖片。",
+    "partialResult": "已達限制，僅顯示部分結果。已略過 {{skipped}} 項。",
+    "skipReasons": {
+      "unsupported": "不支援的格式 {{count}}",
+      "failed": "載入失敗 {{count}}",
+      "duplicate": "重複 {{count}}",
+      "blocked": "因安全限制阻擋 {{count}}"
+    },
+    "imageSelectionLabel": "選取第 {{index}} 張圖片，{{width}}×{{height}}",
+    "progress": {
+      "starting": "正在準備頁面。",
+      "validating": "正在安全檢查連結。",
+      "loading": "正在開啟網頁。",
+      "scrolling": "正在尋找頁面下方的圖片。",
+      "discovering": "正在確認圖片位置。",
+      "downloading": "正在檢查圖片 {{completed}}/{{total}}"
+    },
+    "errors": {
+      "invalidUrl": "請輸入有效的公開網頁連結。",
+      "invalid-url": "無法開啟此格式的連結。",
+      "private-address": "無法開啟本機或私人網路位址。",
+      "page-unavailable": "無法開啟頁面，請確認連結為公開連結。",
+      "timed-out": "載入時間過長，請再試一次。",
+      "busy": "其他工作正在進行，請完成後再試。",
+      "cancelled": "已取消載入圖片。",
+      "scanFailed": "無法載入網頁圖片。",
+      "prepareFailed": "無法將所選圖片送到匯入視窗。"
+    }
   },
   "libraryDrop": {
     "readyTitle": "拖放以新增到資料庫",

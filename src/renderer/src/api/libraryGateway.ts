@@ -2,9 +2,12 @@ import { createMangaDomainGateway } from "./mangaGateway";
 
 export const libraryGateway = createMangaDomainGateway("Library", [
   "createImport",
+  "cancelWebImportScan",
   "deleteChapter",
   "deletePage",
   "deleteWork",
+  "discardImportPreview",
+  "discardWebImportSession",
   "exportReviewText",
   "exportWorkShare",
   "getChapterStoryMemory",
@@ -16,6 +19,8 @@ export const libraryGateway = createMangaDomainGateway("Library", [
   "importReviewText",
   "importWorkShare",
   "openChapter",
+  "onWebImportProgress",
+  "prepareWebImport",
   "previewFolderImport",
   "previewDroppedImport",
   "previewImagesImport",
@@ -32,4 +37,5 @@ export const libraryGateway = createMangaDomainGateway("Library", [
   "savePagesBlocks",
   "saveTextFile",
   "saveWorkStyleGuide",
+  "scanWebImport",
 ] as const);

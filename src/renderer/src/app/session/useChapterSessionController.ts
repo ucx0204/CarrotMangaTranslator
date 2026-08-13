@@ -232,6 +232,7 @@ function resolveRuntimeModalState({
     commandPaletteOpen: uiState.commandPaletteOpen,
     overlayModalValues: [
       modalController.importShareModal.importPreview,
+      modalController.importShareModal.webImportOpen,
       modalController.importShareModal.shareExportOpen,
       modalController.importShareModal.shareImportPreview,
       libraryActions.renameTarget,

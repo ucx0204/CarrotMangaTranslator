@@ -58,6 +58,12 @@ export function createMangaApi(runtime: MangaApiRuntime): MangaApi {
         callback,
         runtime,
       ),
+    onWebImportProgress: (callback) =>
+      subscribeToIpcEvent(
+        ipcEventContracts.webImportProgress,
+        callback,
+        runtime,
+      ),
     onUiLocaleChanged: (callback) =>
       subscribeToIpcEvent(ipcEventContracts.uiLocaleChanged, callback, runtime),
     onFontLibraryChanged: (callback) =>

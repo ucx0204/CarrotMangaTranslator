@@ -457,6 +457,7 @@
     "added_one": "已將 {{count}} 個章節加入資料庫。",
     "added_other": "已將 {{count}} 個章節加入資料庫。",
     "applyFailed": "無法套用匯入內容。",
+    "previewDiscardFailed": "無法清理匯入預覽暫存檔。",
     "drop": {
       "unavailable": "目前有其他視窗或工作正在進行。請結束後再拖放。",
       "empty": "找不到可新增的檔案。",

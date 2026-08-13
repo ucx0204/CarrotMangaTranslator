@@ -87,6 +87,13 @@ import type {
   RestartAppResult,
 } from "./errorReportTypes";
 import type { BuildChannel, RuntimeCapabilities } from "./runtimeCapabilities";
+import type {
+  PrepareWebImportRequest,
+  WebImportBooleanResult,
+  WebImportProgressEvent,
+  WebImportScanRequest,
+  WebImportScanResponse,
+} from "./webImportTypes";
 
 export type MangaApi = {
   getPathForFile: (file: File) => string;
@@ -98,6 +105,17 @@ export type MangaApi = {
     filePaths: string[],
   ) => Promise<DroppedImportPreviewResponse>;
   createImport: (request: CreateImportRequest) => Promise<CreateImportResult>;
+  scanWebImport: (
+    request: WebImportScanRequest,
+  ) => Promise<WebImportScanResponse>;
+  cancelWebImportScan: (requestId: string) => Promise<WebImportBooleanResult>;
+  discardWebImportSession: (
+    sessionId: string,
+  ) => Promise<WebImportBooleanResult>;
+  prepareWebImport: (
+    request: PrepareWebImportRequest,
+  ) => Promise<ImportPreviewSession>;
+  discardImportPreview: (previewId: string) => Promise<WebImportBooleanResult>;
   exportWorkShare: (
     request: WorkShareExportRequest,
   ) => Promise<WorkShareExportResult | null>;
@@ -238,6 +256,9 @@ export type MangaApi = {
   onJobEvent: (callback: (event: JobEvent) => void) => () => void;
   onModelTestEvent: (
     callback: (event: ModelTestProgressEvent) => void,
+  ) => () => void;
+  onWebImportProgress: (
+    callback: (event: WebImportProgressEvent) => void,
   ) => () => void;
   onUiLocaleChanged: (callback: (locale: UiLocale) => void) => () => void;
   onFontLibraryChanged: (

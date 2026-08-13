@@ -209,6 +209,7 @@ describe("AppSessionView render boundaries", () => {
       { shareExportOpen: true },
       { shareImportPreview: {} },
       { translationSourceOpen: true },
+      { webImportOpen: true },
     ]) {
       expect(
         isAppModalSubtreeActive({
@@ -385,6 +386,7 @@ function closedAppModalState() {
     shareExportOpen: false,
     shareImportPreview: null,
     translationSourceOpen: false,
+    webImportOpen: false,
   };
 }
 

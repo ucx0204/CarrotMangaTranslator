@@ -463,6 +463,7 @@
     "added_one": "Added {{count}} chapter to the library.",
     "added_other": "Added {{count}} chapters to the library.",
     "applyFailed": "Could not apply the import.",
+    "previewDiscardFailed": "Could not clean up the import preview files.",
     "drop": {
       "unavailable": "Another window or task is open. Finish it, then drop the files again.",
       "empty": "No files were found to add.",

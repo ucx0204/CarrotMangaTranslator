@@ -4,6 +4,7 @@ import { AppActivityGate } from "./appActivityGate";
 export type AppOperationKind =
   | "library-import"
   | "library-import-preview"
+  | "web-import-preview"
   | "work-share-import"
   | "work-share-export"
   | "model-test";
