@@ -55,7 +55,6 @@ export function TranslateSourceModal({
       </div>
       <div className="source-choice-grid">
         <SourceChoice
-          className="primary"
           description={t("translateSource.imagesHint")}
           disabled={busy}
           icon={<IconPhoto size={23} stroke={1.8} />}
@@ -89,14 +88,12 @@ export function TranslateSourceModal({
 }
 
 function SourceChoice({
-  className,
   description,
   disabled,
   icon,
   label,
   onClick,
 }: {
-  className?: string;
   description: string;
   disabled: boolean;
   icon: React.ReactNode;
@@ -106,7 +103,7 @@ function SourceChoice({
   return (
     <button
       type="button"
-      className={["source-choice", className ?? ""].filter(Boolean).join(" ")}
+      className="source-choice"
       disabled={disabled}
       onClick={onClick}
     >

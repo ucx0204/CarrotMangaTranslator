@@ -678,11 +678,6 @@
   text-align: left;
 }
 
-.source-choice.primary {
-  grid-column: 1 / -1;
-  min-height: 94px;
-}
-
 .source-choice:hover:not(:disabled),
 .source-choice:focus-visible {
   border-color: var(--accent-bd);
@@ -698,6 +693,12 @@
   border-radius: var(--r-md);
   background: var(--bg-panel);
   color: var(--accent-hi);
+}
+
+@media (max-width: 640px) {
+  .source-choice-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .import-current-target-note {

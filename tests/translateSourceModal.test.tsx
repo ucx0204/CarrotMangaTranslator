@@ -19,7 +19,12 @@ describe("TranslateSourceModal", () => {
     );
 
     const images = screen.getByRole("button", { name: /이미지 열기/ });
-    expect(images.classList.contains("primary")).toBe(true);
+    expect(images.classList.contains("primary")).toBe(false);
+    const sourceChoices = [...container.querySelectorAll(".source-choice")];
+    expect(sourceChoices).toHaveLength(4);
+    expect(
+      sourceChoices.every((choice) => choice.className === "source-choice"),
+    ).toBe(true);
     expect(container.querySelector(".source-choice-order-note")).toBeNull();
     expect(screen.queryByText(/파일명의 숫자를 인식/)).toBeNull();
     fireEvent.click(images);
