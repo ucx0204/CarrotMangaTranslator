@@ -1508,6 +1508,7 @@
       "inpaintingModel": "インペインティングモデル",
       "amdOcrExperimental": "AMD GPU OCRは実験機能です。失敗した場合はOCRだけをCPUに切り替えられます。",
       "ocrAmdNote": "AMD環境ではNVIDIA CUDA OCRを選択できません。",
+      "ocrAmdUnsupportedNote": "検出された AMD GPU は Windows ROCm OCR の対応リストに含まれていないため、OCR は CPU のみ使用できます。",
       "ocrAppleNote": "Apple SiliconのPaddle OCRはCPUランタイムを使用します。",
       "ocrNvidiaNote": "NVIDIA環境ではAMD ROCm OCRを選択できません。",
       "fluxAmdNote": "検出されたAMD GPUではCUDAネイティブを使用できません。ZLUDAまたはCPUを選択してください。",

@@ -3,10 +3,12 @@ import { useTranslation } from "react-i18next";
 import { settingsGateway } from "../../api/settingsGateway";
 
 export function OcrHardwareContextNote({
+  supportsOcrRocm,
   usesAmdOcrContext,
   usesAppleHardware,
   usesNvidiaOcrContext,
 }: {
+  supportsOcrRocm?: boolean;
   usesAmdOcrContext: boolean;
   usesAppleHardware: boolean;
   usesNvidiaOcrContext: boolean;
@@ -22,7 +24,11 @@ export function OcrHardwareContextNote({
   if (usesAmdOcrContext) {
     return (
       <p className="muted-line modal-note">
-        {t("settings.hardware.ocrAmdNote")}
+        {t(
+          supportsOcrRocm === false
+            ? "settings.hardware.ocrAmdUnsupportedNote"
+            : "settings.hardware.ocrAmdNote",
+        )}
       </p>
     );
   }

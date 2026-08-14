@@ -279,7 +279,7 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
     expect(rx6800Defaults.ocr.device).toBe("cpu");
   });
 
-  it("corrects an unsupported OCR backend without changing GPU to CPU", () => {
+  it("migrates unsupported AMD GPU OCR settings to the canonical CPU route", () => {
     const igpuDefaults = resolveDefaultAppSettings(
       {},
       {
@@ -298,8 +298,27 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
       }),
       igpuDefaults,
     );
-    expect(restored.ocr.gpuBackend).not.toBe("rocm-transformers");
-    expect(restored.ocr.device).toBe("gpu");
+    expect(restored.ocr).toMatchObject({
+      gpuBackend: "cuda",
+      device: "cpu",
+      qualityMode: "economy",
+    });
+
+    const staleCudaRestored = parseStoredAppSettings(
+      JSON.stringify({
+        ocr: {
+          device: "gpu",
+          gpuBackend: "cuda",
+          qualityMode: "full",
+        },
+      }),
+      igpuDefaults,
+    );
+    expect(staleCudaRestored.ocr).toMatchObject({
+      gpuBackend: "cuda",
+      device: "cpu",
+      qualityMode: "economy",
+    });
 
     const supportedDefaults = resolveDefaultAppSettings(
       {},
@@ -321,6 +340,86 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
     );
     expect(supportedRestored.ocr.gpuBackend).toBe("rocm-transformers");
     expect(supportedRestored.ocr.device).toBe("gpu");
+  });
+
+  it("defensively clamps stale unsupported AMD runtime OCR unless env explicitly opts in", () => {
+    const unsupportedAmd = {
+      ...resolveDefaultAppSettings(
+        {},
+        {
+          name: "AMD Radeon RX 6700 XT",
+          memoryMb: 12288,
+          rtxGeneration: null,
+          computeCapability: null,
+          vendor: "amd" as const,
+          rocmArch: "gfx1031",
+          supportsVulkan: true,
+          supportsRocm: false,
+        },
+      ),
+      ocr: {
+        device: "gpu" as const,
+        gpuBackend: "rocm-transformers" as const,
+        qualityMode: "full" as const,
+        gpuCudaTag: DEFAULT_OCR_GPU_CUDA_TAG,
+      },
+      runtimeHardware: {
+        gpuVendor: "amd" as const,
+        gpuName: "AMD Radeon RX 6700 XT",
+        supportsOcrRocm: false,
+      },
+    };
+    const optionInput = {
+      jobId: "job-rx6700-stale",
+      runDir: "C:/runs/job-rx6700-stale",
+      paths: {
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/tools",
+        llamaServerPath: "C:/tools/llama-server.exe",
+        hfHomeDir: "C:/hf-home",
+        hfHubCacheDir: "C:/hf-home/hub",
+      },
+      settings: unsupportedAmd,
+    };
+
+    const guarded = buildBaseTranslationOptions({ ...optionInput, env: {} });
+    expect(guarded).toMatchObject({
+      ocrDevice: "cpu",
+      ocrGpuBackend: "cuda",
+      ocrQualityMode: "economy",
+    });
+
+    for (const env of [
+      { MANGA_TRANSLATOR_OCR_DEVICE: "gpu" },
+      { MANGA_TRANSLATOR_OCR_GPU_BACKEND: "rocm-transformers" },
+      {
+        MANGA_TRANSLATOR_OCR_DEVICE: "gpu",
+        MANGA_TRANSLATOR_OCR_GPU_BACKEND: "rocm-transformers",
+      },
+    ]) {
+      const explicitPowerUser = buildBaseTranslationOptions({
+        ...optionInput,
+        env,
+      });
+      expect(explicitPowerUser).toMatchObject({
+        ocrDevice: "gpu",
+        ocrGpuBackend: "rocm-transformers",
+        ocrQualityMode: "full",
+      });
+    }
+
+    const invalidOverride = buildBaseTranslationOptions({
+      ...optionInput,
+      env: {
+        MANGA_TRANSLATOR_OCR_DEVICE: "definitely-not-a-device",
+        MANGA_TRANSLATOR_OCR_GPU_BACKEND: "not-a-backend",
+      },
+    });
+    expect(invalidOverride).toMatchObject({
+      ocrDevice: "cpu",
+      ocrGpuBackend: "cuda",
+      ocrQualityMode: "economy",
+    });
   });
 
   it("never pairs GPU-only full OCR qualities with the CPU device", () => {
@@ -463,7 +562,8 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
       unsupportedAmdDefaults,
     );
     expect(unsupportedAmdRestored.ocr.gpuBackend).toBe("cuda");
-    expect(unsupportedAmdRestored.ocr.qualityMode).toBe("full");
+    expect(unsupportedAmdRestored.ocr.device).toBe("cpu");
+    expect(unsupportedAmdRestored.ocr.qualityMode).toBe("economy");
   });
 
   it("runs economy OCR when the runtime resolves full quality onto the CPU", () => {

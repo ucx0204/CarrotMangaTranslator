@@ -44,6 +44,7 @@ function OcrSettingsSection({
   setOcrDevice,
   setOcrGpuBackend,
   setOcrQualityMode,
+  supportsOcrRocm,
   usesAmdOcrContext,
   usesAppleHardware,
   usesNvidiaOcrContext,
@@ -59,6 +60,7 @@ function OcrSettingsSection({
           setOcrDevice={setOcrDevice}
           setOcrGpuBackend={setOcrGpuBackend}
           setOcrQualityMode={setOcrQualityMode}
+          supportsOcrRocm={supportsOcrRocm}
           usesAmdOcrContext={usesAmdOcrContext}
           usesAppleHardware={usesAppleHardware}
           usesNvidiaOcrContext={usesNvidiaOcrContext}
@@ -72,6 +74,7 @@ function OcrSettingsSection({
             ocrGpuBackend={ocrGpuBackend}
             setOcrDevice={setOcrDevice}
             setOcrGpuBackend={setOcrGpuBackend}
+            supportsOcrRocm={supportsOcrRocm}
             usesAmdOcrContext={usesAmdOcrContext}
             usesAppleHardware={usesAppleHardware}
             usesNvidiaOcrContext={usesNvidiaOcrContext}
@@ -137,6 +140,7 @@ function OcrQualitySettings({
   setOcrDevice,
   setOcrGpuBackend,
   setOcrQualityMode,
+  supportsOcrRocm,
   usesAmdOcrContext,
   usesAppleHardware,
   usesNvidiaOcrContext,
@@ -148,6 +152,7 @@ function OcrQualitySettings({
   | "setOcrDevice"
   | "setOcrGpuBackend"
   | "setOcrQualityMode"
+  | "supportsOcrRocm"
   | "usesAmdOcrContext"
   | "usesAppleHardware"
   | "usesNvidiaOcrContext"
@@ -157,7 +162,10 @@ function OcrQualitySettings({
     (option) => option.id === ocrQualityMode,
   );
   const visibleQualityOptions = OCR_QUALITY_OPTIONS.filter((option) => {
-    if (usesAppleHardware && option.id === "full") {
+    if (
+      option.id === "full" &&
+      (usesAppleHardware || (usesAmdOcrContext && supportsOcrRocm === false))
+    ) {
       return false;
     }
     return true;
@@ -208,6 +216,7 @@ function OcrDeviceSettings({
   ocrGpuBackend,
   setOcrDevice,
   setOcrGpuBackend,
+  supportsOcrRocm,
   usesAmdOcrContext,
   usesAppleHardware,
   usesNvidiaOcrContext,
@@ -219,6 +228,7 @@ function OcrDeviceSettings({
   | "ocrGpuBackend"
   | "setOcrDevice"
   | "setOcrGpuBackend"
+  | "supportsOcrRocm"
   | "usesAmdOcrContext"
   | "usesAppleHardware"
   | "usesNvidiaOcrContext"
@@ -226,18 +236,15 @@ function OcrDeviceSettings({
   const { t } = useTranslation("components");
   const activeOcrOptionId = ocrDevice === "cpu" ? "cpu" : ocrGpuBackend;
   const activeOcrOption = OCR_DEVICE_OPTIONS.find(
-    (option) => option.id === activeOcrOptionId,
+    ({ id }) => id === activeOcrOptionId,
   );
-  const visibleOcrOptions = usesAppleHardware
-    ? OCR_DEVICE_OPTIONS.filter((option) => option.id === "cpu")
-    : OCR_DEVICE_OPTIONS;
+  const visibleOcrOptions = getVisibleOcrOptions(usesAppleHardware);
   const ocrDescription =
     usesAmdOcrContext && activeOcrOptionId === "rocm-transformers"
       ? t("settings.hardware.amdOcrExperimental")
       : activeOcrOption
         ? t(activeOcrOption.descriptionKey)
         : null;
-
   return (
     <div className="settings-field-stack">
       <span>{t("settings.hardware.ocrDevice")}</span>
@@ -263,6 +270,7 @@ function OcrDeviceSettings({
               controlsBusy,
               usesAmdOcrContext,
               usesNvidiaOcrContext,
+              supportsOcrRocm,
             )}
             aria-pressed={activeOcrOptionId === option.id}
           >
@@ -272,6 +280,7 @@ function OcrDeviceSettings({
       </div>
       <p className="muted-line modal-note">{ocrDescription}</p>
       <OcrHardwareContextNote
+        supportsOcrRocm={supportsOcrRocm}
         usesAmdOcrContext={usesAmdOcrContext}
         usesAppleHardware={usesAppleHardware}
         usesNvidiaOcrContext={usesNvidiaOcrContext}
@@ -280,15 +289,24 @@ function OcrDeviceSettings({
   );
 }
 
+function getVisibleOcrOptions(usesAppleHardware: boolean) {
+  return usesAppleHardware
+    ? OCR_DEVICE_OPTIONS.filter((option) => option.id === "cpu")
+    : OCR_DEVICE_OPTIONS;
+}
+
 function isOcrOptionDisabled(
   optionId: string,
   controlsBusy: boolean,
   usesAmdOcrContext: boolean,
   usesNvidiaOcrContext: boolean,
+  supportsOcrRocm: boolean | undefined,
 ): boolean {
   return (
     controlsBusy ||
     (optionId === "cuda" && usesAmdOcrContext) ||
-    (optionId === "rocm-transformers" && usesNvidiaOcrContext)
+    (optionId === "rocm-transformers" &&
+      (usesNvidiaOcrContext ||
+        (usesAmdOcrContext && supportsOcrRocm === false)))
   );
 }

@@ -8,6 +8,8 @@ import {
   resolveDefaultAppSettings,
 } from "./appSettings";
 import { CURRENT_GENERATION_LIMITS_VERSION } from "./settings/appSettingsGenerationLimitMigration";
+import { supportsWindowsRocmOcrGpu } from "./settings/ocrRocmSupport";
+import { hasExplicitOcrGpuEnableOverride } from "./settings/ocrRuntimeOverrides";
 import {
   detectBestGpuInfo,
   resolveAmdRocmTargetFromInfo,
@@ -51,7 +53,11 @@ export async function getAppSettings(
     const rawText = committed
       ? committed.rawSettingsText
       : await readFile(paths.settingsPath, "utf8");
-    const stored = parseStoredAppSettings(rawText, defaults);
+    const stored = parseStoredAppSettings(
+      rawText,
+      defaults,
+      resolveOcrNormalizationPolicy(env, detectedGpu),
+    );
     const plaintext = separateSettingsSecrets(stored);
     const encryptedSecrets = committed
       ? committed.secrets
@@ -90,10 +96,10 @@ export async function saveAppSettings(
   env: NodeJS.ProcessEnv = process.env,
   detectGpu: GpuInfoProvider = detectBestGpuInfo,
 ): Promise<AppSettings> {
-  const detectedGpu = await detectGpu();
-  const normalized = normalizeAppSettings(
+  const normalized = await normalizeAppSettingsForRuntime(
     settings,
-    resolveDefaultAppSettings(env, detectedGpu),
+    env,
+    detectGpu,
   );
   const existingSecrets = await loadSettingsSecrets(paths);
   const submitted = resolveSubmittedSettingsSecrets(
@@ -101,10 +107,45 @@ export async function saveAppSettings(
     existingSecrets,
   );
   await persistAppSettingsPair(submitted.settings, submitted.secrets, paths);
+  return attachSettingsSecrets(
+    {
+      ...submitted.settings,
+      runtimeHardware: normalized.runtimeHardware,
+    },
+    submitted.secrets,
+  );
+}
+
+/** Apply the exact hardware-aware normalization used by Save without writing. */
+export async function normalizeAppSettingsForRuntime(
+  settings: AppSettings,
+  env: NodeJS.ProcessEnv = process.env,
+  detectGpu: GpuInfoProvider = detectBestGpuInfo,
+): Promise<AppSettings> {
+  const detectedGpu = await detectGpu();
   return attachRuntimeHardware(
-    attachSettingsSecrets(submitted.settings, submitted.secrets),
+    normalizeAppSettings(
+      settings,
+      resolveDefaultAppSettings(env, detectedGpu),
+      resolveOcrNormalizationPolicy(env, detectedGpu),
+    ),
     detectedGpu,
   );
+}
+
+function resolveOcrNormalizationPolicy(
+  env: NodeJS.ProcessEnv,
+  detectedGpu: DetectedGpuInfo | null,
+) {
+  return {
+    allowUnsupportedAmdOcrGpu: hasExplicitOcrGpuEnableOverride(env),
+    detectedHardwareVendor: detectedGpu
+      ? normalizeRuntimeGpuVendor(detectedGpu.vendor)
+      : "unknown",
+    ...(detectedGpu?.vendor === "amd"
+      ? { detectedAmdOcrRocmSupport: supportsWindowsRocmOcrGpu(detectedGpu) }
+      : {}),
+  };
 }
 
 /**
@@ -189,6 +230,9 @@ function createDetectedRuntimeHardware(
     computeCapability: resolveRuntimeComputeCapability(detectedGpu),
     rtxGeneration: resolveRuntimeRtxGeneration(detectedGpu),
     llamaRocmTarget: resolveAmdRocmTargetFromInfo(detectedGpu),
+    ...(detectedGpu.vendor === "amd"
+      ? { supportsOcrRocm: supportsWindowsRocmOcrGpu(detectedGpu) }
+      : {}),
     supportsRocm: Boolean(detectedGpu.supportsRocm),
     supportsVulkan: Boolean(detectedGpu.supportsVulkan),
     supportsMetal: Boolean(detectedGpu.supportsMetal),

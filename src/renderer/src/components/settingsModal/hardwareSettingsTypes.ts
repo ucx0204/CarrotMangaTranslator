@@ -32,6 +32,8 @@ export type HardwareSettingsPanelProps = {
   setOcrDevice: React.Dispatch<React.SetStateAction<OcrDevice>>;
   setOcrGpuBackend: React.Dispatch<React.SetStateAction<OcrGpuBackend>>;
   setOcrQualityMode: React.Dispatch<React.SetStateAction<OcrQualityMode>>;
+  /** Whether the detected adapter can run the packaged Windows ROCm OCR runtime. */
+  supportsOcrRocm?: boolean;
   usesAmdHardware: boolean;
   usesAppleHardware: boolean;
   usesAmdOcrContext: boolean;

@@ -65,6 +65,8 @@ type RuntimeHardwareInfo = {
   computeCapability?: number | null;
   rtxGeneration?: number | null;
   llamaRocmTarget?: AmdRocmTarget | null;
+  /** Whether the detected AMD adapter is supported by the packaged ROCm OCR runtime. */
+  supportsOcrRocm?: boolean;
   supportsRocm?: boolean;
   supportsVulkan?: boolean;
   supportsMetal?: boolean;

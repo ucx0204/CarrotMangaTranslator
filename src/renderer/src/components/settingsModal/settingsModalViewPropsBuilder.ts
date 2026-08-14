@@ -177,6 +177,7 @@ function buildHardwarePanelProps({
     setOcrDevice: form.setters.setOcrDevice,
     setOcrGpuBackend: form.setters.setOcrGpuBackend,
     setOcrQualityMode: form.setters.setOcrQualityMode,
+    supportsOcrRocm: runtime.supportsOcrRocm,
     usesAmdHardware: runtime.usesAmdHardware,
     usesAppleHardware: runtime.usesAppleHardware,
     usesAmdOcrContext: runtime.usesAmdOcrContext,

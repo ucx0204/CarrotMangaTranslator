@@ -7,7 +7,7 @@
     "sourceArtifact": ".tmp/production-cleanup-coverage-baseline-node22.json",
     "sourceArtifactSha256": "a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a",
     "introducedArtifact": ".tmp/production-cleanup-coverage-accepted-node22.json",
-    "introducedArtifactSha256": "8da66550fc974ecdf83e8371e00c11dd912e3ab3fe6562bb5474f70f1b4aad51",
+    "introducedArtifactSha256": "5c694dc7b0c2636bc36e1d72461ba6289569db926fed512b8ea3ee85e6f7bec4",
     "validatedNodeV8": ["22/12.4", "24/13.6"],
     "vitestVersion": "4.1.9",
     "coverageV8Version": "4.1.9"
@@ -54,6 +54,12 @@
       "statements": { "covered": 0, "total": 50, "pct": 0 },
       "functions": { "covered": 0, "total": 8, "pct": 0 },
       "branches": { "covered": 0, "total": 20, "pct": 0 }
+    },
+    "src/main/ipc/settingsIpc.ts": {
+      "lines": { "covered": 34, "total": 55, "pct": 61.81 },
+      "statements": { "covered": 34, "total": 56, "pct": 60.71 },
+      "functions": { "covered": 8, "total": 16, "pct": 50 },
+      "branches": { "covered": 12, "total": 25, "pct": 48 }
     },
     "src/main/jobs/jobEvents.ts": {
       "lines": { "covered": 32, "total": 32, "pct": 100 },
@@ -271,11 +277,23 @@
       "functions": { "covered": 0, "total": 4, "pct": 0 },
       "branches": { "covered": 0, "total": 12, "pct": 0 }
     },
+    "src/main/settings/appSettingsNormalize.ts": {
+      "lines": { "covered": 44, "total": 44, "pct": 100 },
+      "statements": { "covered": 45, "total": 45, "pct": 100 },
+      "functions": { "covered": 15, "total": 15, "pct": 100 },
+      "branches": { "covered": 59, "total": 71, "pct": 83.09 }
+    },
     "src/main/settings/appSettingsResolvers.ts": {
       "lines": { "covered": 126, "total": 134, "pct": 94.02 },
       "statements": { "covered": 127, "total": 135, "pct": 94.07 },
       "functions": { "covered": 26, "total": 26, "pct": 100 },
       "branches": { "covered": 168, "total": 178, "pct": 94.38 }
+    },
+    "src/main/settings/appSettingsStoredResolvers.ts": {
+      "lines": { "covered": 66, "total": 74, "pct": 89.18 },
+      "statements": { "covered": 66, "total": 74, "pct": 89.18 },
+      "functions": { "covered": 13, "total": 14, "pct": 92.85 },
+      "branches": { "covered": 74, "total": 99, "pct": 74.74 }
     },
     "src/main/settings/llamaRuntimeProfile.ts": {
       "lines": { "covered": 33, "total": 36, "pct": 91.66 },
@@ -295,6 +313,12 @@
       "functions": { "covered": 6, "total": 6, "pct": 100 },
       "branches": { "covered": 28, "total": 33, "pct": 84.84 }
     },
+    "src/main/settings/translationOcrOptions.ts": {
+      "lines": { "covered": 30, "total": 34, "pct": 88.23 },
+      "statements": { "covered": 30, "total": 34, "pct": 88.23 },
+      "functions": { "covered": 8, "total": 9, "pct": 88.88 },
+      "branches": { "covered": 41, "total": 51, "pct": 80.39 }
+    },
     "src/main/settingsPairStorage.ts": {
       "lines": { "covered": 110, "total": 139, "pct": 79.13 },
       "statements": { "covered": 113, "total": 144, "pct": 78.47 },
@@ -306,6 +330,12 @@
       "statements": { "covered": 107, "total": 124, "pct": 86.29 },
       "functions": { "covered": 27, "total": 27, "pct": 100 },
       "branches": { "covered": 79, "total": 98, "pct": 80.61 }
+    },
+    "src/main/settingsStore.ts": {
+      "lines": { "covered": 48, "total": 60, "pct": 80 },
+      "statements": { "covered": 48, "total": 60, "pct": 80 },
+      "functions": { "covered": 17, "total": 20, "pct": 85 },
+      "branches": { "covered": 40, "total": 54, "pct": 74.07 }
     },
     "src/main/workContextAiNormalize.ts": {
       "lines": { "covered": 44, "total": 45, "pct": 97.77 },
@@ -336,6 +366,42 @@
       "statements": { "covered": 35, "total": 41, "pct": 85.36 },
       "functions": { "covered": 20, "total": 25, "pct": 80 },
       "branches": { "covered": 8, "total": 12, "pct": 66.66 }
+    },
+    "src/renderer/src/components/settingsModal/HardwareContextNotes.tsx": {
+      "lines": { "covered": 12, "total": 20, "pct": 60 },
+      "statements": { "covered": 12, "total": 20, "pct": 60 },
+      "functions": { "covered": 2, "total": 5, "pct": 40 },
+      "branches": { "covered": 8, "total": 12, "pct": 66.66 }
+    },
+    "src/renderer/src/components/settingsModal/HardwareSettingsPanel.tsx": {
+      "lines": { "covered": 32, "total": 37, "pct": 86.48 },
+      "statements": { "covered": 32, "total": 37, "pct": 86.48 },
+      "functions": { "covered": 13, "total": 14, "pct": 92.85 },
+      "branches": { "covered": 26, "total": 35, "pct": 74.28 }
+    },
+    "src/renderer/src/components/settingsModal/hardwareRecommendation.ts": {
+      "lines": { "covered": 8, "total": 9, "pct": 88.88 },
+      "statements": { "covered": 8, "total": 9, "pct": 88.88 },
+      "functions": { "covered": 2, "total": 2, "pct": 100 },
+      "branches": { "covered": 9, "total": 12, "pct": 75 }
+    },
+    "src/renderer/src/components/settingsModal/hardwareSettingsTypes.ts": {
+      "lines": { "covered": 0, "total": 0, "pct": 100 },
+      "statements": { "covered": 0, "total": 0, "pct": 100 },
+      "functions": { "covered": 0, "total": 0, "pct": 100 },
+      "branches": { "covered": 0, "total": 0, "pct": 100 }
+    },
+    "src/renderer/src/components/settingsModal/settingsModalViewPropsBuilder.ts": {
+      "lines": { "covered": 5, "total": 5, "pct": 100 },
+      "statements": { "covered": 5, "total": 5, "pct": 100 },
+      "functions": { "covered": 4, "total": 4, "pct": 100 },
+      "branches": { "covered": 0, "total": 0, "pct": 100 }
+    },
+    "src/renderer/src/components/settingsModal/useSettingsRuntimeGuards.ts": {
+      "lines": { "covered": 46, "total": 73, "pct": 63.01 },
+      "statements": { "covered": 48, "total": 82, "pct": 58.53 },
+      "functions": { "covered": 15, "total": 20, "pct": 75 },
+      "branches": { "covered": 53, "total": 111, "pct": 47.74 }
     },
     "src/renderer/src/components/styleGuide/CharactersTab.tsx": {
       "lines": { "covered": 23, "total": 44, "pct": 52.27 },
@@ -409,9 +475,21 @@
       "functions": { "covered": 3, "total": 6, "pct": 50 },
       "branches": { "covered": 2, "total": 2, "pct": 100 }
     },
+    "src/shared/ipcSettingsSchemas.ts": {
+      "lines": { "covered": 9, "total": 9, "pct": 100 },
+      "statements": { "covered": 11, "total": 11, "pct": 100 },
+      "functions": { "covered": 5, "total": 5, "pct": 100 },
+      "branches": { "covered": 0, "total": 0, "pct": 100 }
+    },
     "src/shared/jobContracts.ts": {
       "lines": { "covered": 8, "total": 8, "pct": 100 },
       "statements": { "covered": 8, "total": 8, "pct": 100 },
+      "functions": { "covered": 0, "total": 0, "pct": 100 },
+      "branches": { "covered": 0, "total": 0, "pct": 100 }
+    },
+    "src/shared/settingsTypes.ts": {
+      "lines": { "covered": 0, "total": 0, "pct": 100 },
+      "statements": { "covered": 0, "total": 0, "pct": 100 },
       "functions": { "covered": 0, "total": 0, "pct": 100 },
       "branches": { "covered": 0, "total": 0, "pct": 100 }
     }
@@ -434,6 +512,12 @@
       "statements": { "covered": 51, "total": 51, "pct": 100 },
       "functions": { "covered": 12, "total": 12, "pct": 100 },
       "branches": { "covered": 53, "total": 53, "pct": 100 }
+    },
+    "src/main/settings/ocrRuntimeOverrides.ts": {
+      "lines": { "covered": 9, "total": 9, "pct": 100 },
+      "statements": { "covered": 11, "total": 11, "pct": 100 },
+      "functions": { "covered": 4, "total": 4, "pct": 100 },
+      "branches": { "covered": 14, "total": 14, "pct": 100 }
     },
     "src/main/settingsPairCodec.ts": {
       "lines": { "covered": 12, "total": 12, "pct": 100 },

@@ -8,6 +8,7 @@ import {
   settingsIpcContracts,
 } from "../../shared/ipcContracts";
 import type { LocalModelPickResult } from "../../shared/jobTypes";
+import type { AppSettings } from "../../shared/settingsTypes";
 import type { ApiModelDiscoveryRequest } from "../../shared/apiProviderPresets";
 import { SETTINGS_SECRET_PRESERVE_SENTINEL } from "../../shared/settingsSecrets";
 import {
@@ -15,6 +16,7 @@ import {
   getDefaultAppSettings,
   hydrateAppSettingsSecretSentinels,
   maskAppSettingsSecrets,
+  normalizeAppSettingsForRuntime,
   resetAppSettings,
   saveAppSettings,
 } from "../settingsStore";
@@ -38,6 +40,7 @@ import { discoverApiModels } from "../apiModelDiscovery";
 
 export type SettingsIpcDependencies = {
   modelTestEndpointRuntime?: ModelTestEndpointRuntime;
+  normalizeSettingsForRuntime?: typeof normalizeAppSettingsForRuntime;
 };
 
 export function registerSettingsIpc(
@@ -97,15 +100,14 @@ export function registerSettingsIpc(
     settingsIpcContracts.testModelSettings,
     async (event, rawSettings: unknown, providedTestId?: unknown) => {
       void ipcEventContracts.modelTestProgress.channel;
-      const parsedSettings = parseIpcPayload(
-        AppSettingsSchema,
+      const effectiveSettings = await resolveEffectiveModelTestSettings(
         rawSettings,
-        "설정 테스트",
+        dependencies,
       );
       return handleModelSettingsTest(
         context,
         event,
-        await hydrateAppSettingsSecretSentinels(parsedSettings),
+        effectiveSettings,
         providedTestId,
         dependencies.modelTestEndpointRuntime,
       );
@@ -116,6 +118,17 @@ export function registerSettingsIpc(
     settingsIpcContracts.discoverApiModels,
     async (_event, request) => discoverApiModelsWithStoredSecret(request),
   );
+}
+
+async function resolveEffectiveModelTestSettings(
+  rawSettings: unknown,
+  dependencies: SettingsIpcDependencies,
+): Promise<AppSettings> {
+  const parsed = parseIpcPayload(AppSettingsSchema, rawSettings, "설정 테스트");
+  const hydrated = await hydrateAppSettingsSecretSentinels(parsed);
+  return (
+    dependencies.normalizeSettingsForRuntime ?? normalizeAppSettingsForRuntime
+  )(hydrated);
 }
 
 async function discoverApiModelsWithStoredSecret(

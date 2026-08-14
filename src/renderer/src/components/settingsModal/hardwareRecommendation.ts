@@ -15,6 +15,7 @@ export type HardwareRecommendationInput = {
   usesAppleHardware: boolean;
   usesNvidiaHardware: boolean;
   usesSm75Hardware?: boolean;
+  supportsOcrRocm?: boolean;
 };
 
 export type HardwareRecommendation = {
@@ -48,7 +49,19 @@ export function resolveHardwareRecommendation(
     );
   }
   if (props.usesAmdHardware) {
-    return createGpuRecommendation(props, "rocm-transformers", "zluda-native");
+    const recommendation = createGpuRecommendation(
+      props,
+      "rocm-transformers",
+      "zluda-native",
+    );
+    return props.supportsOcrRocm === true
+      ? recommendation
+      : {
+          ...recommendation,
+          ocrDevice: "cpu",
+          ocrGpuBackend: "cuda",
+          ocrQualityMode: "economy",
+        };
   }
   return {
     fluxBackend: "python-cpu",

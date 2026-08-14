@@ -61,10 +61,12 @@ import {
   normalizeBlockStylePresets,
 } from "../../shared/blockStylePresets";
 import { normalizeHardwareGpuSettings } from "./appSettingsHardwareNormalize";
+import type { OcrNormalizationPolicy } from "./ocrRuntimeOverrides";
 
 export function normalizeAppSettings(
   raw: unknown,
   defaults = resolveDefaultAppSettings(),
+  options: OcrNormalizationPolicy = {},
 ): AppSettings {
   const record = asRecord(raw) ?? {};
   const modelProvider = resolveModelProvider(
@@ -103,7 +105,7 @@ export function normalizeAppSettings(
     gemma: normalizeGemmaSettings(asRecord(record.gemma), defaults),
     codex,
     api,
-    ocr: normalizeOcrSettings(asRecord(record.ocr), defaults),
+    ocr: normalizeOcrSettings(asRecord(record.ocr), defaults, options),
     ui: normalizeUiSettings(asRecord(record.ui), defaults),
     inpainting: normalizeInpaintingSettings(
       asRecord(record.inpainting),
@@ -355,12 +357,13 @@ function resolveApiJsonSettings(
 function normalizeOcrSettings(
   ocr: Record<string, unknown> | null,
   defaults: AppSettings,
+  options: OcrNormalizationPolicy,
 ): AppSettings["ocr"] {
   const {
     device,
     gpuBackend,
     qualityMode: normalizedQualityMode,
-  } = resolveStoredOcrModeSettings(ocr, defaults);
+  } = resolveStoredOcrModeSettings(ocr, defaults, options);
   return {
     device,
     // GPU 전용 고품질 모드는 CPU에서 못 쓸 만큼 느리므로 절약 품질로 강제한다.
@@ -402,6 +405,7 @@ function normalizeInpaintingSettings(
 export function parseStoredAppSettings(
   rawText: string | null | undefined,
   defaults = resolveDefaultAppSettings(),
+  options: OcrNormalizationPolicy = {},
 ): AppSettings {
   if (!rawText?.trim()) {
     return defaults;
@@ -410,6 +414,6 @@ export function parseStoredAppSettings(
   const raw = JSON.parse(rawText);
   return migrateLegacyRemoteGenerationLimits(
     raw,
-    normalizeAppSettings(raw, defaults),
+    normalizeAppSettings(raw, defaults, options),
   );
 }

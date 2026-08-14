@@ -80,12 +80,13 @@ editing the totals by hand.
   ignored Node 22 baseline capture. The capture is provenance only; CI does not
   need it. Node 22/V8 12.4 and Node 24/V8 13.6 produced identical covered/total
   counts for every sealed file and are the only accepted runtime families.
-  The accepted Node 22 post-refactor capture that established the seven
+  The accepted Node 22 post-refactor and issue #65 follow-up capture that
+  established the eight
   introduced floors has SHA-256
-  `8da66550fc974ecdf83e8371e00c11dd912e3ab3fe6562bb5474f70f1b4aad51`.
+  `5c694dc7b0c2636bc36e1d72461ba6289569db926fed512b8ea3ee85e6f7bec4`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
-  percentage for lines/statements/functions/branches in all 67 existing
-  coverage-eligible `src/**` files changed since cleanup start. The seven new
+  percentage for lines/statements/functions/branches in all 80 existing
+  coverage-eligible `src/**` files changed since cleanup start. The eight new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record.
 - `scripts/check-production-cleanup-coverage.cjs` derives the eligible modified,
@@ -199,10 +200,13 @@ documentation deletion as production reduction.
   Node 22 baseline capture above is the source for existing-file ratios, while
   a fresh canonical run enforces the tracked manifest without reading either
   ignored provenance artifact.
-- After adding the tracked floor gate and restoring the remaining contracts, a
-  fresh Windows Node 22 run passed at 79.17% lines, 78.27% statements, 79.94%
-  functions, and 70.22% branches. The gate then compared all 67 pre-existing
-  files and all seven introduced files without a lower exact ratio.
+- After adding the tracked floor gate, restoring the remaining contracts, and
+  closing issue #65's unsupported-AMD OCR routing mismatch, a fresh Windows
+  Node 22 run passed at 79.21% lines, 78.31% statements, 79.97% functions, and
+  70.35% branches. The gate then compared all 80 pre-existing files and all
+  eight introduced files without a lower exact ratio. The new
+  `ocrRuntimeOverrides.ts` helper is sealed at 100% for all four metrics rather
+  than a placeholder presence-only floor.
 - Three complete warm `npm run check` runs passed in 197,573 ms, 198,937 ms,
   and 185,184 ms (197,573 ms median). No coverage result, changed-test gate, or
   disabled isolation was used.

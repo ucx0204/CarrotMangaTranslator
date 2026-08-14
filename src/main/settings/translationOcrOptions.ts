@@ -14,6 +14,7 @@ import {
   resolveOcrQualityMode,
   resolveOptionalString,
 } from "./appSettingsResolvers";
+import { hasExplicitOcrGpuEnableOverride } from "./ocrRuntimeOverrides";
 type OcrTranslationOptions = Pick<
   TranslationOptions,
   | "ocrDevice"
@@ -39,11 +40,21 @@ export function resolveOcrTranslationOptions(
   settings: AppSettings,
   gemmaVramMode: GemmaVramMode,
 ): OcrTranslationOptions {
-  const ocrGpuBackend = resolveOcrGpuBackend(
+  const configuredOcrGpuBackend = resolveOcrGpuBackend(
     runtimeEnv.MANGA_TRANSLATOR_OCR_GPU_BACKEND,
     settings.ocr.gpuBackend ?? "cuda",
   );
-  const ocrDevice = resolveRuntimeOcrDevice(runtimeEnv, settings.ocr.device);
+  const configuredOcrDevice = resolveRuntimeOcrDevice(
+    runtimeEnv,
+    settings.ocr.device,
+  );
+  const { device: ocrDevice, gpuBackend: ocrGpuBackend } =
+    resolveSafeRuntimeOcrMode(
+      runtimeEnv,
+      settings,
+      configuredOcrDevice,
+      configuredOcrGpuBackend,
+    );
   const configuredQualityMode = resolveOcrQualityMode(
     runtimeEnv.MANGA_TRANSLATOR_OCR_QUALITY_MODE ??
       runtimeEnv.MANGA_TRANSLATOR_PADDLEOCR_QUALITY_MODE ??
@@ -80,6 +91,26 @@ export function resolveOcrTranslationOptions(
     ocrBboxHintsPath: resolveOptionalString(
       runtimeEnv.MANGA_TRANSLATOR_OCR_BBOX_HINTS_PATH,
     ),
+  };
+}
+
+function resolveSafeRuntimeOcrMode(
+  env: NodeJS.ProcessEnv,
+  settings: AppSettings,
+  configuredDevice: OcrDevice,
+  configuredGpuBackend: OcrGpuBackend,
+): { device: OcrDevice; gpuBackend: OcrGpuBackend } {
+  if (
+    configuredDevice === "gpu" &&
+    settings.runtimeHardware?.gpuVendor === "amd" &&
+    settings.runtimeHardware.supportsOcrRocm === false &&
+    !hasExplicitOcrGpuEnableOverride(env)
+  ) {
+    return { device: "cpu", gpuBackend: "cuda" };
+  }
+  return {
+    device: configuredDevice,
+    gpuBackend: configuredGpuBackend,
   };
 }
 

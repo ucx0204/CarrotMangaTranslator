@@ -16,6 +16,50 @@ import { OCR_FULL_RECOMMENDED_GPU_MEMORY_MB } from "../src/shared/ocrMemoryPolic
 afterEach(cleanup);
 
 describe("HardwareSettingsPanel", () => {
+  it("keeps OCR on CPU for detected AMD adapters outside the ROCm allowlist", () => {
+    const unsupported = resolveHardwareRecommendation({
+      gpuMemoryMb: 12 * 1024,
+      supportsOcrRocm: false,
+      unifiedMemoryMb: null,
+      usesAmdHardware: true,
+      usesAppleHardware: false,
+      usesNvidiaHardware: false,
+    });
+    const supported = resolveHardwareRecommendation({
+      gpuMemoryMb: 12 * 1024,
+      supportsOcrRocm: true,
+      unifiedMemoryMb: null,
+      usesAmdHardware: true,
+      usesAppleHardware: false,
+      usesNvidiaHardware: false,
+    });
+    const manualUnknown = resolveHardwareRecommendation({
+      gpuMemoryMb: 12 * 1024,
+      unifiedMemoryMb: null,
+      usesAmdHardware: true,
+      usesAppleHardware: false,
+      usesNvidiaHardware: false,
+    });
+
+    expect(unsupported).toMatchObject({
+      fluxBackend: "zluda-native",
+      inpaintingModel: "flux-klein",
+      ocrDevice: "cpu",
+      ocrGpuBackend: "cuda",
+      ocrQualityMode: "economy",
+    });
+    expect(supported).toMatchObject({
+      ocrDevice: "gpu",
+      ocrGpuBackend: "rocm-transformers",
+      ocrQualityMode: "full",
+    });
+    expect(manualUnknown).toMatchObject({
+      ocrDevice: "cpu",
+      ocrGpuBackend: "cuda",
+      ocrQualityMode: "economy",
+    });
+  });
+
   it("recommends full OCR when the detected GPU meets the measured memory floor", () => {
     const base = {
       unifiedMemoryMb: null,
@@ -198,6 +242,53 @@ describe("HardwareSettingsPanel", () => {
     expect(setOcrDevice).toHaveBeenCalledWith("gpu");
     expect(setOcrGpuBackend).toHaveBeenCalledWith("cuda");
     expect(setOcrQualityMode).toHaveBeenCalledWith("full");
+  });
+
+  it("does not expose full quality or selectable ROCm OCR on unsupported AMD hardware", () => {
+    const setOcrDevice = vi.fn();
+    const setOcrGpuBackend = vi.fn();
+    const setOcrQualityMode = vi.fn();
+    render(
+      <HardwareSettingsPanel
+        allowUnsafeLowMemoryFlux={false}
+        clearTestState={vi.fn()}
+        computeGpuIndex={null}
+        controlsBusy={false}
+        fluxBackend="zluda-native"
+        graphicsGpuPreference="high-performance"
+        inpaintingModel="flux-klein"
+        isFluxBackendOptionDisabled={() => false}
+        ocrDevice="cpu"
+        ocrGpuBackend="cuda"
+        ocrQualityMode="economy"
+        setFluxBackend={vi.fn()}
+        setAllowUnsafeLowMemoryFlux={vi.fn()}
+        setComputeGpuIndex={vi.fn()}
+        setGraphicsGpuPreference={vi.fn()}
+        setInpaintingModel={vi.fn()}
+        setOcrDevice={setOcrDevice}
+        setOcrGpuBackend={setOcrGpuBackend}
+        setOcrQualityMode={setOcrQualityMode}
+        supportsOcrRocm={false}
+        usesAmdHardware
+        usesAppleHardware={false}
+        usesAmdOcrContext
+        usesNvidiaHardware={false}
+        usesNvidiaOcrContext={false}
+        unifiedMemoryMb={null}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "풀로드" })).toBeNull();
+    const rocmButton = screen.getByRole("button", {
+      name: "AMD ROCm",
+    }) as HTMLButtonElement;
+    expect(rocmButton.disabled).toBe(true);
+    expect(screen.getByText(/Windows ROCm OCR 지원 목록/)).toBeTruthy();
+    fireEvent.click(rocmButton);
+    expect(setOcrDevice).not.toHaveBeenCalled();
+    expect(setOcrGpuBackend).not.toHaveBeenCalled();
+    expect(setOcrQualityMode).not.toHaveBeenCalled();
   });
 
   it("allows SM75 instead of standard CUDA on RTX 20 and keeps it visible elsewhere", () => {

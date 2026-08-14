@@ -1477,6 +1477,7 @@
       "inpaintingModel": "图像修复模型",
       "amdOcrExperimental": "AMD GPU OCR为实验功能。如失败，可仅将OCR切换到CPU。",
       "ocrAmdNote": "AMD环境无法选择NVIDIA CUDA OCR。",
+      "ocrAmdUnsupportedNote": "检测到的 AMD GPU 不在 Windows ROCm OCR 支持列表中，因此 OCR 只能使用 CPU。",
       "ocrAppleNote": "Apple Silicon上的Paddle OCR使用CPU运行时。",
       "ocrNvidiaNote": "NVIDIA环境无法选择AMD ROCm OCR。",
       "fluxAmdNote": "检测到AMD GPU，无法使用CUDA原生后端；请选择ZLUDA或CPU。",

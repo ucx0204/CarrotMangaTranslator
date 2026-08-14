@@ -3,6 +3,9 @@ import type {
   AppSettings,
   FluxBackend,
   LlamaRuntimeProfile,
+  OcrDevice,
+  OcrGpuBackend,
+  OcrQualityMode,
 } from "../../../../shared/settingsTypes";
 import { isFluxRtx20Sm75Hardware } from "../../../../shared/fluxSm75";
 import {
@@ -23,6 +26,7 @@ export type SettingsRuntimeGuards = {
   usesAmdHardware: boolean;
   usesNvidiaHardware: boolean;
   usesSm75Hardware: boolean;
+  supportsOcrRocm: boolean | undefined;
   usesAppleHardware: boolean;
   unifiedMemoryMb: number | null;
   usesAmdOcrContext: boolean;
@@ -54,11 +58,11 @@ export function useSettingsRuntimeGuards({
     initialSettings.runtimeHardware?.unifiedMemoryMb ?? null,
     initialSettings.runtimeHardware?.computeCapability ?? null,
     initialSettings.runtimeHardware?.rtxGeneration ?? null,
+    initialSettings.runtimeHardware?.supportsOcrRocm,
   );
 
   useSettingsFocusEffect(values, refs);
-  useOcrBackendGuard(values, setters, runtime);
-  useOcrQualityDeviceGuard(values, setters);
+  useOcrRuntimeGuard(values, setters, runtime);
   useLlamaRuntimeGuard(values, setters, initialSettings, runtime);
   useFluxBackendGuard(values, setters, initialSettings, runtime);
 
@@ -95,6 +99,7 @@ function resolveRuntimeContext(
   unifiedMemoryMb: number | null,
   computeCapability: number | null,
   rtxGeneration: number | null,
+  supportsOcrRocm: boolean | undefined,
 ) {
   const usesAmdHardware = hardwareRuntimeLock === "amd";
   const usesNvidiaHardware = hardwareRuntimeLock === "nvidia";
@@ -114,6 +119,7 @@ function resolveRuntimeContext(
     usesAppleHardware,
     usesNvidiaHardware,
     usesSm75Hardware,
+    supportsOcrRocm,
     unifiedMemoryMb,
     usesAmdOcrContext,
     usesNvidiaOcrContext:
@@ -147,46 +153,81 @@ function useSettingsFocusEffect(
   ]);
 }
 
-function useOcrBackendGuard(
+function useOcrRuntimeGuard(
   values: SettingsFormValues,
   setters: SettingsFormSetters,
   runtime: ReturnType<typeof resolveRuntimeContext>,
 ): void {
   React.useEffect(() => {
-    if (
-      values.ocrDevice === "gpu" &&
-      values.ocrGpuBackend === "cuda" &&
-      runtime.usesAmdOcrContext
-    ) {
-      setters.setOcrGpuBackend("rocm-transformers");
-      return;
+    const corrected = resolveCompatibleOcrSettings(
+      {
+        ocrDevice: values.ocrDevice,
+        ocrGpuBackend: values.ocrGpuBackend,
+        ocrQualityMode: values.ocrQualityMode,
+      },
+      {
+        supportsOcrRocm: runtime.supportsOcrRocm,
+        usesAmdOcrContext: runtime.usesAmdOcrContext,
+        usesNvidiaOcrContext: runtime.usesNvidiaOcrContext,
+      },
+    );
+    if (corrected.ocrDevice !== values.ocrDevice) {
+      setters.setOcrDevice(corrected.ocrDevice);
     }
-    if (
-      values.ocrDevice === "gpu" &&
-      values.ocrGpuBackend === "rocm-transformers" &&
-      runtime.usesNvidiaOcrContext
-    ) {
-      setters.setOcrGpuBackend("cuda");
+    if (corrected.ocrGpuBackend !== values.ocrGpuBackend) {
+      setters.setOcrGpuBackend(corrected.ocrGpuBackend);
+    }
+    if (corrected.ocrQualityMode !== values.ocrQualityMode) {
+      setters.setOcrQualityMode(corrected.ocrQualityMode);
     }
   }, [
     runtime.usesAmdOcrContext,
     runtime.usesNvidiaOcrContext,
+    runtime.supportsOcrRocm,
     setters,
     values.ocrDevice,
     values.ocrGpuBackend,
+    values.ocrQualityMode,
   ]);
 }
 
-function useOcrQualityDeviceGuard(
-  values: SettingsFormValues,
-  setters: SettingsFormSetters,
-): void {
-  React.useEffect(() => {
-    // GPU 전용 고품질 모드는 CPU 장치와 조합되지 않도록 절약 품질로 강제한다.
-    if (values.ocrDevice === "cpu" && values.ocrQualityMode === "full") {
-      setters.setOcrQualityMode("economy");
-    }
-  }, [setters, values.ocrDevice, values.ocrQualityMode]);
+type OcrRuntimeSettings = {
+  ocrDevice: OcrDevice;
+  ocrGpuBackend: OcrGpuBackend;
+  ocrQualityMode: OcrQualityMode;
+};
+
+export function resolveCompatibleOcrSettings(
+  values: OcrRuntimeSettings,
+  runtime: Pick<
+    ReturnType<typeof resolveRuntimeContext>,
+    "supportsOcrRocm" | "usesAmdOcrContext" | "usesNvidiaOcrContext"
+  >,
+): OcrRuntimeSettings {
+  if (runtime.usesAmdOcrContext && runtime.supportsOcrRocm === false) {
+    return {
+      ocrDevice: "cpu",
+      ocrGpuBackend: "cuda",
+      ocrQualityMode: "economy",
+    };
+  }
+
+  const ocrGpuBackend =
+    values.ocrDevice === "gpu" && runtime.usesAmdOcrContext
+      ? "rocm-transformers"
+      : values.ocrDevice === "gpu" && runtime.usesNvidiaOcrContext
+        ? "cuda"
+        : values.ocrGpuBackend;
+
+  return {
+    ...values,
+    ocrGpuBackend,
+    // GPU-only full quality must never remain paired with the CPU device.
+    ocrQualityMode:
+      values.ocrDevice === "cpu" && values.ocrQualityMode === "full"
+        ? "economy"
+        : values.ocrQualityMode,
+  };
 }
 
 function useLlamaRuntimeGuard(

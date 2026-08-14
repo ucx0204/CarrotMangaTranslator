@@ -7,6 +7,7 @@ import type { AppPaths } from "../src/main/appPaths";
 import {
   getAppSettings,
   maskAppSettingsSecrets,
+  normalizeAppSettingsForRuntime,
   saveAppSettings,
   type SettingsStoreDiagnostics,
 } from "../src/main/settingsStore";
@@ -100,6 +101,222 @@ describe("settings store", () => {
       runtimeHardware?: unknown;
     };
     expect(persisted.runtimeHardware).toBeUndefined();
+  });
+
+  it.each([
+    {
+      gpu: {
+        name: "AMD Radeon RX 6700 XT",
+        memoryMb: 12288,
+        rtxGeneration: null,
+        computeCapability: null,
+        vendor: "amd" as const,
+        rocmArch: "gfx1031",
+        supportsVulkan: true,
+        supportsRocm: false,
+      },
+      expectedOcr: {
+        device: "cpu",
+        gpuBackend: "cuda",
+        qualityMode: "economy",
+      },
+      expectedSupportsOcrRocm: false,
+    },
+    {
+      gpu: {
+        name: "AMD Radeon RX 7900 XTX",
+        memoryMb: 24576,
+        rtxGeneration: null,
+        computeCapability: null,
+        vendor: "amd" as const,
+        rocmArch: "gfx1100",
+        supportsVulkan: true,
+        supportsRocm: true,
+      },
+      expectedOcr: {
+        device: "gpu",
+        gpuBackend: "rocm-transformers",
+        qualityMode: "full",
+      },
+      expectedSupportsOcrRocm: true,
+    },
+  ])(
+    "normalizes OCR against authoritative $gpu.name capability without persisting it",
+    async ({ gpu, expectedOcr, expectedSupportsOcrRocm }) => {
+      const rootDir = await createTempDir();
+      const paths = makeAppPaths(rootDir);
+      const draft = {
+        ...resolveDefaultAppSettings({}, gpu),
+        ocr: {
+          device: "gpu" as const,
+          gpuBackend: "rocm-transformers" as const,
+          qualityMode: "full" as const,
+          gpuCudaTag: "cu126",
+        },
+        runtimeHardware: {
+          gpuVendor: "amd" as const,
+          supportsOcrRocm: true,
+        },
+      };
+      const detectGpu = async () => gpu;
+
+      const effective = await normalizeAppSettingsForRuntime(
+        draft,
+        {},
+        detectGpu,
+      );
+      const saved = await saveAppSettings(draft, paths, {}, detectGpu);
+
+      expect(effective.ocr).toMatchObject(expectedOcr);
+      expect(saved.ocr).toEqual(effective.ocr);
+      expect(saved.runtimeHardware?.supportsOcrRocm).toBe(
+        expectedSupportsOcrRocm,
+      );
+      const persisted = JSON.parse(
+        await readFile(paths.settingsPath, "utf8"),
+      ) as { runtimeHardware?: unknown };
+      expect(persisted.runtimeHardware).toBeUndefined();
+    },
+  );
+
+  it("keeps manual OCR routing when hardware detection is unavailable", async () => {
+    const rootDir = await createTempDir();
+    const paths = makeAppPaths(rootDir);
+    const draft = {
+      ...resolveDefaultAppSettings(),
+      ocr: {
+        device: "gpu" as const,
+        gpuBackend: "rocm-transformers" as const,
+        qualityMode: "full" as const,
+        gpuCudaTag: "cu126",
+      },
+    };
+
+    const saved = await saveAppSettings(draft, paths, {}, async () => null);
+
+    expect(saved.ocr).toMatchObject({
+      device: "gpu",
+      gpuBackend: "rocm-transformers",
+      qualityMode: "full",
+    });
+    expect(saved.runtimeHardware).toMatchObject({ gpuVendor: "unknown" });
+    expect(saved.runtimeHardware?.supportsOcrRocm).toBeUndefined();
+  });
+
+  it.each([
+    {
+      detected: {
+        name: "AMD Radeon RX 6700 XT",
+        memoryMb: 12288,
+        rtxGeneration: null,
+        computeCapability: null,
+        vendor: "amd" as const,
+        rocmArch: "gfx1031",
+        supportsVulkan: true,
+        supportsRocm: false,
+      },
+      expectedOcr: {
+        device: "cpu",
+        gpuBackend: "cuda",
+        qualityMode: "economy",
+      },
+      expectedSupport: false,
+      env: { MANGA_TRANSLATOR_LLAMA_RUNTIME_PROFILE: "cuda12" },
+    },
+    {
+      detected: null,
+      expectedOcr: {
+        device: "gpu",
+        gpuBackend: "rocm-transformers",
+        qualityMode: "full",
+      },
+      expectedSupport: undefined,
+      env: { MANGA_TRANSLATOR_LLAMA_RUNTIME_PROFILE: "rocm" },
+    },
+    {
+      detected: null,
+      expectedOcr: {
+        device: "gpu",
+        gpuBackend: "rocm-transformers",
+        qualityMode: "full",
+      },
+      expectedSupport: undefined,
+      env: { MANGA_TRANSLATOR_AMD_ROCM_TARGET: "gfx103X" },
+    },
+  ])(
+    "loads stale OCR settings through the authoritative hardware policy ($expectedSupport)",
+    async ({ detected, expectedOcr, expectedSupport, env }) => {
+      const rootDir = await createTempDir();
+      const paths = makeAppPaths(rootDir);
+      const stale = {
+        ...resolveDefaultAppSettings(
+          {},
+          {
+            name: "AMD Radeon RX 6700 XT",
+            memoryMb: 12288,
+            rtxGeneration: null,
+            computeCapability: null,
+            vendor: "amd" as const,
+            rocmArch: "gfx1031",
+            supportsVulkan: true,
+            supportsRocm: false,
+          },
+        ),
+        ocr: {
+          device: "gpu" as const,
+          gpuBackend: "rocm-transformers" as const,
+          qualityMode: "full" as const,
+          gpuCudaTag: "cu126",
+        },
+      };
+      await writeFile(paths.settingsPath, `${JSON.stringify(stale)}\n`, "utf8");
+
+      const loaded = await getAppSettings(paths, env, async () => detected);
+
+      expect(loaded.ocr).toMatchObject(expectedOcr);
+      expect(loaded.runtimeHardware?.supportsOcrRocm).toBe(expectedSupport);
+    },
+  );
+
+  it("preserves the explicit OCR GPU environment escape hatch on unsupported AMD", async () => {
+    const rootDir = await createTempDir();
+    const paths = makeAppPaths(rootDir);
+    const rx6700 = {
+      name: "AMD Radeon RX 6700 XT",
+      memoryMb: 12288,
+      rtxGeneration: null,
+      computeCapability: null,
+      vendor: "amd" as const,
+      rocmArch: "gfx1031",
+      supportsVulkan: true,
+      supportsRocm: false,
+    };
+    const draft = {
+      ...resolveDefaultAppSettings({}, rx6700),
+      ocr: {
+        device: "gpu" as const,
+        gpuBackend: "rocm-transformers" as const,
+        qualityMode: "full" as const,
+        gpuCudaTag: "cu126",
+      },
+    };
+
+    const saved = await saveAppSettings(
+      draft,
+      paths,
+      {
+        MANGA_TRANSLATOR_PADDLEOCR_DEVICE: "gpu",
+        MANGA_TRANSLATOR_OCR_GPU_BACKEND: "rocm-transformers",
+      },
+      async () => rx6700,
+    );
+
+    expect(saved.ocr).toMatchObject({
+      device: "gpu",
+      gpuBackend: "rocm-transformers",
+      qualityMode: "full",
+    });
+    expect(saved.runtimeHardware?.supportsOcrRocm).toBe(false);
   });
 
   it("migrates API credentials out of plaintext settings and preserves masked saves", async () => {

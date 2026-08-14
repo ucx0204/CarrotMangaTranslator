@@ -9,6 +9,7 @@ import type { ModelTestProgressEvent } from "../src/shared/jobTypes";
 import type { IpcContext, PanelWindowPort } from "../src/main/ipc/context";
 import type { SimplePageRuntime } from "../src/main/simplePageRuntime";
 import type { OpenAIOAuthEndpoint } from "../src/main/openaiOauthEndpoint";
+import { normalizeAppSettingsForRuntime } from "../src/main/settingsStore";
 
 type IpcHandler = (
   event: {
@@ -249,6 +250,54 @@ describe("settings IPC model/runtime check", () => {
       "raw runtime failure",
     );
   });
+
+  it("tests the same hardware-normalized OCR route that Save would persist", async () => {
+    const runtime = createRuntime({ cached: true });
+    const draft = {
+      ...createGemmaSettings(),
+      ocr: {
+        device: "gpu" as const,
+        gpuBackend: "rocm-transformers" as const,
+        qualityMode: "full" as const,
+        gpuCudaTag: "cu126",
+      },
+      // A forged/stale renderer capability must not be authoritative.
+      runtimeHardware: {
+        gpuVendor: "amd" as const,
+        supportsOcrRocm: true,
+      },
+    };
+    const detectedRx6700 = {
+      name: "AMD Radeon RX 6700 XT",
+      memoryMb: 12288,
+      rtxGeneration: null,
+      computeCapability: null,
+      vendor: "amd" as const,
+      rocmArch: "gfx1031",
+      supportsVulkan: true,
+      supportsRocm: false,
+    };
+
+    await invokeSettingsModelTest({
+      runtime,
+      settings: draft,
+      testId: "rx6700-normalized",
+      normalizeSettingsForRuntime: (settings) =>
+        normalizeAppSettingsForRuntime(
+          settings,
+          {},
+          async () => detectedRx6700,
+        ),
+    });
+
+    expect(runtime.ensurePaddleOcrRuntime).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ocrDevice: "cpu",
+        ocrGpuBackend: "cuda",
+        ocrQualityMode: "economy",
+      }),
+    );
+  });
 });
 
 describe("settings IPC recent model directories", () => {
@@ -316,10 +365,12 @@ async function invokeSettingsModelTest({
   runtime,
   settings,
   testId,
+  normalizeSettingsForRuntime = async (value) => value,
 }: {
   runtime: SimplePageRuntime;
   settings: AppSettings;
   testId: string;
+  normalizeSettingsForRuntime?: (settings: AppSettings) => Promise<AppSettings>;
 }): Promise<{
   result: Record<string, unknown>;
   progressEvents: ModelTestProgressEvent[];
@@ -332,6 +383,7 @@ async function invokeSettingsModelTest({
       startOpenAIOAuthEndpoint: oauthMock.start,
       stopOpenAIOAuthEndpoint: oauthMock.stop,
     },
+    normalizeSettingsForRuntime,
   });
   const handler = electronMock.handlers.get("settings:test-model");
   if (!handler) {
