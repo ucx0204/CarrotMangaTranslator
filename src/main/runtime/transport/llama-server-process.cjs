@@ -134,15 +134,15 @@ function shouldAllowExistingLlamaServerReuse(options = {}) {
 /** @param {string} baseUrl @param {ServerRuntimeOptions} options */
 async function resolveServerPath(baseUrl, options) {
   const requested = requestedServerPath(options);
+  let serverPath = requested || defaultServerPath(options);
   if (
     !requested ||
     !existsSync(requested) ||
     isIncompleteManagedLlamaRuntime(requested, options)
   ) {
     await ensureDefaultLlamaRuntimeDownloaded(options);
+    serverPath = defaultServerPath(options);
   }
-  const serverPath =
-    requested && existsSync(requested) ? requested : defaultServerPath(options);
   if (existsSync(serverPath)) return serverPath;
   throw createDetailedError("Bundled llama-server binary is missing.", {
     baseUrl,

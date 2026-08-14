@@ -29,6 +29,7 @@ type RuntimeZipModule = {
     options?: {
       abortSignal?: AbortSignal;
       deadlineMs?: number;
+      finalOutputDir?: string;
       limits?: ArchiveExtractionLimitOverrides;
       preserveRelativePaths?: boolean;
       replaceOutputDir?: boolean;
@@ -209,12 +210,13 @@ export async function extractSelectedZipEntries(
   shouldExtract: (fileName: string) => boolean,
   signal?: AbortSignal,
   replaceOutputDir = false,
+  finalOutputDir?: string,
 ): Promise<void> {
   await loadRuntimeZipModule().extractSelectedZipEntries(
     archivePath,
     outputDir,
     (fileName) => shouldExtract(fileName),
-    { abortSignal: signal, replaceOutputDir },
+    { abortSignal: signal, finalOutputDir, replaceOutputDir },
   );
 }
 
@@ -222,6 +224,7 @@ export async function extractZipSafely(
   archivePath: string,
   outputDir: string,
   signal?: AbortSignal,
+  finalOutputDir?: string,
 ): Promise<void> {
   await loadRuntimeZipModule().extractSelectedZipEntries(
     archivePath,
@@ -229,6 +232,7 @@ export async function extractZipSafely(
     () => true,
     {
       abortSignal: signal,
+      finalOutputDir,
       preserveRelativePaths: true,
       replaceOutputDir: true,
     },
@@ -241,6 +245,7 @@ export async function extractLargeZipSafely(
   signal?: AbortSignal,
   options?: {
     deadlineMs?: number;
+    finalOutputDir?: string;
     limits?: ArchiveExtractionLimitOverrides;
   },
 ): Promise<void> {
@@ -251,6 +256,7 @@ export async function extractLargeZipSafely(
     {
       abortSignal: signal,
       deadlineMs: options?.deadlineMs,
+      finalOutputDir: options?.finalOutputDir,
       limits: options?.limits,
       preserveRelativePaths: true,
       replaceOutputDir: true,

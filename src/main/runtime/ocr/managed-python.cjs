@@ -34,6 +34,7 @@ const {
 const { runCommand } = require("../simple-page-shell-utils.cjs");
 const { extractSelectedZipEntries } = require("../simple-page-zip-utils.cjs");
 const {
+  createRuntimeStagingDirectory,
   replaceDirectoryWithRollback,
 } = require("../runtime-directory-publish.cjs");
 const {
@@ -212,7 +213,7 @@ async function downloadAndExtractManagedPython(options, context) {
       installLogLine: "OCR용 Python 압축을 앱 데이터 폴더에 풀고 있습니다.",
     },
   );
-  const stagingDir = `${context.pythonDir}.staging-${process.pid}-${Date.now()}`;
+  const stagingDir = createRuntimeStagingDirectory(context.pythonDir);
   const stagedContext = {
     ...context,
     pythonDir: stagingDir,
@@ -223,6 +224,7 @@ async function downloadAndExtractManagedPython(options, context) {
   try {
     await extractSelectedZipEntries(context.zipPath, stagingDir, () => true, {
       abortSignal: options.abortSignal,
+      finalOutputDir: context.pythonDir,
       preserveRelativePaths: true,
     });
     if (!existsSync(path.join(stagingDir, "python.exe"))) {

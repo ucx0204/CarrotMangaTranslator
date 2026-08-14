@@ -35,7 +35,10 @@ import {
   hasUsablePackageDir,
   verifyFluxPythonRuntime,
 } from "./pythonRuntimePackages";
-import { replaceDirectoryWithRollback } from "../../runtimeSupport/runtimeDirectoryPublish";
+import {
+  createRuntimeStagingDirectory,
+  replaceDirectoryWithRollback,
+} from "../../runtimeSupport/runtimeDirectoryPublish";
 import {
   ensurePrebuiltFluxRocmRuntimeArchive,
   resolveArchiveFileName,
@@ -127,7 +130,7 @@ async function extractPrebuiltFluxRocmRuntime(
   options: PrebuiltFluxRocmRuntimeOptions,
   archiveInfo: PrebuiltArchiveInfo,
 ): Promise<void> {
-  const stagingDir = `${options.layout.runtimeDir}.staging-${process.pid}-${Date.now()}`;
+  const stagingDir = createRuntimeStagingDirectory(options.layout.runtimeDir);
   await rm(stagingDir, { recursive: true, force: true });
   try {
     await extractLargeZipSafely(
@@ -137,9 +140,10 @@ async function extractPrebuiltFluxRocmRuntime(
       archiveInfo.usesPinnedLegacyArchive
         ? {
             deadlineMs: FLUX_ROCM_PREBUILT_EXTRACTION_DEADLINE_MS,
+            finalOutputDir: options.layout.runtimeDir,
             limits: FLUX_ROCM_PREBUILT_EXTRACTION_LIMITS,
           }
-        : undefined,
+        : { finalOutputDir: options.layout.runtimeDir },
     );
     sanitizeStandaloneEmbeddedPythonPathFile(
       join(

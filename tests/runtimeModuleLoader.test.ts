@@ -20,6 +20,9 @@ describe("runtime module boundary", () => {
     expect(resolveAppRuntimeModulePath("/runtime", "zipExtractor")).toBe(
       join("/runtime", "simple-page-zip-utils.cjs"),
     );
+    expect(resolveAppRuntimeModulePath("/runtime", "downloadUtils")).toBe(
+      join("/runtime", "simple-page-download-utils.cjs"),
+    );
   });
 
   it.each([

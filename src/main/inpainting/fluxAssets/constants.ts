@@ -191,6 +191,8 @@ export const WINDOWS_LEGACY_MAX_PATH = 260;
 
 export const WINDOWS_PATH_SAFETY_MARGIN = 8;
 
+export const WINDOWS_RUNTIME_WORK_DIR_BASENAME = ".s-0000000000000000";
+
 const ROCM_LONGEST_LIBRARY_ENTRY = join(
   "_rocm_sdk_libraries_custom",
   "bin",

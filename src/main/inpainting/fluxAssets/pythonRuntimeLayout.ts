@@ -9,6 +9,7 @@ import {
   ROCM_LONGEST_PIP_TEMP_ENTRY,
   WINDOWS_LEGACY_MAX_PATH,
   WINDOWS_PATH_SAFETY_MARGIN,
+  WINDOWS_RUNTIME_WORK_DIR_BASENAME,
   resolveFluxRuntimeTempDir,
 } from "./constants";
 import type {
@@ -117,9 +118,11 @@ function resolveWindowsRocmFluxRuntimeDir(baseRuntimeDir: string): string {
 }
 
 function isRocmRuntimePathShortEnough(runtimeDir: string): boolean {
+  const workDir = join(dirname(runtimeDir), WINDOWS_RUNTIME_WORK_DIR_BASENAME);
   const longestRuntimePath = Math.max(
     join(runtimeDir, ROCM_LONGEST_FINAL_ENTRY).length,
     join(runtimeDir, ROCM_LONGEST_PIP_TEMP_ENTRY).length,
+    join(workDir, ROCM_LONGEST_FINAL_ENTRY).length,
   );
   return (
     longestRuntimePath < WINDOWS_LEGACY_MAX_PATH - WINDOWS_PATH_SAFETY_MARGIN

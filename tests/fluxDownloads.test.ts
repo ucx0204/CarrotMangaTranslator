@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
+import { utimesSync, writeFileSync } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -190,7 +191,11 @@ describe("Flux asset downloads", () => {
     expect(await readFile(outputPath)).toEqual(body);
     expect(
       JSON.parse(await readFile(`${outputPath}.mgtmeta.json`, "utf8")),
-    ).toMatchObject({ url, bytes: body.length });
+    ).toEqual({
+      url,
+      bytes: body.length,
+      downloadedAt: expect.any(String),
+    });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
@@ -387,5 +392,62 @@ describe("Flux asset downloads", () => {
     await expect(readFile(`${outputPath}.mgtmeta.json`)).rejects.toMatchObject({
       code: "ENOENT",
     });
+  });
+
+  it("rehashes and removes a payload changed after its download receipt", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "manga-flux-receipt-race-"));
+    tempDirs.push(dir);
+    const fileName = "receipt-race.bin";
+    const outputPath = join(dir, fileName);
+    const url =
+      "https://huggingface.co/example/repo/resolve/revision/receipt-race.bin";
+    const body = Buffer.from("verified-receipt-body");
+    const expectedSha256 = createHash("sha256").update(body).digest("hex");
+    let tampered = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        if (init?.method === "HEAD") {
+          return new Response(null, {
+            status: 200,
+            headers: { "content-length": String(body.length) },
+          });
+        }
+        return new Response(body, {
+          status: 206,
+          headers: {
+            "content-range": `bytes 0-${body.length - 1}/${body.length}`,
+          },
+        });
+      }),
+    );
+
+    await expect(
+      ensureRemoteFile({
+        modelDir: dir,
+        fileName,
+        label: "Receipt race asset",
+        url,
+        expectedSha256,
+        expectedTotalBytes: body.length,
+        minimumBytes: 1,
+        maximumBytes: TEST_MAXIMUM_BYTES,
+        onProgress(progress) {
+          if (!tampered && progress.installLogLine?.includes("다운로드 완료")) {
+            tampered = true;
+            writeFileSync(outputPath, Buffer.alloc(body.length, 0x78));
+            const oldTimestamp = new Date("2000-01-01T00:00:00.000Z");
+            utimesSync(outputPath, oldTimestamp, oldTimestamp);
+          }
+        },
+      }),
+    ).rejects.toThrow("SHA-256 검증에 실패");
+
+    expect(tampered).toBe(true);
+    for (const suffix of ["", ".mgtmeta.json", ".mgt-sha256.json"]) {
+      await expect(readFile(`${outputPath}${suffix}`)).rejects.toMatchObject({
+        code: "ENOENT",
+      });
+    }
   });
 });

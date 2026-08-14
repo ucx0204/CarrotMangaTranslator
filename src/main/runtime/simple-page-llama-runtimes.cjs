@@ -240,6 +240,27 @@ const LEMONADE_LLAMA_ROCM_SHA256 = Object.freeze({
   gfx90a: "23746b7593158e9796d18f2d13448b318b8937710c3ed1447740db6193ab36e7",
 });
 
+// Immutable central-directory audit of the pinned Windows runtime archives.
+// These are selected output paths after the same flatten/preserve rules used
+// by shouldExtractLlamaRuntimeFile. Keeping the exact maxima here lets the
+// managed-tools resolver choose a short root before downloading gigabytes.
+/** @type {Readonly<Record<string, number>>} */
+const WINDOWS_LLAMA_RUNTIME_MAX_RELATIVE_PATH_LENGTH = Object.freeze({
+  "beellama-v0.2.0-cuda12.4": 17,
+  "beellama-v0.2.0-cuda13.1": 17,
+  "beellama-v0.3.1-hip-radeon": 127,
+  "llama-b9547-cuda12.4": 28,
+  "llama-b9547-cuda13.3": 28,
+  "llama-b9547-vulkan": 28,
+  "lemonade-llama-b1291-rocm-gfx103X": 130,
+  "lemonade-llama-b1291-rocm-gfx110X": 115,
+  "lemonade-llama-b1291-rocm-gfx1150": 123,
+  "lemonade-llama-b1291-rocm-gfx1151": 123,
+  "lemonade-llama-b1291-rocm-gfx120X": 127,
+  "lemonade-llama-b1291-rocm-gfx908": 122,
+  "lemonade-llama-b1291-rocm-gfx90a": 137,
+});
+
 /**
  * @param {string} target
  */
@@ -288,71 +309,9 @@ function resolveLemonadeLlamaRuntimeRocm(target) {
 const LLAMA_RUNTIME_MARKER_FILE = ".mgt-runtime.json";
 const LLAMA_RUNTIME_FILES = new Set([
   "LICENSE",
-  "cublas64_12.dll",
-  "cublas64_13.dll",
-  "cublasLt64_12.dll",
-  "cublasLt64_13.dll",
-  "cudart64_12.dll",
-  "cudart64_13.dll",
-  "ggml-base.dll",
-  "ggml-cpu.dll",
-  "ggml-cpu-alderlake.dll",
-  "ggml-cpu-cannonlake.dll",
-  "ggml-cpu-cascadelake.dll",
-  "ggml-cpu-cooperlake.dll",
-  "ggml-cpu-haswell.dll",
-  "ggml-cpu-icelake.dll",
-  "ggml-cpu-ivybridge.dll",
-  "ggml-cpu-piledriver.dll",
-  "ggml-cpu-sandybridge.dll",
-  "ggml-cpu-sapphirerapids.dll",
-  "ggml-cpu-skylakex.dll",
-  "ggml-cpu-sse42.dll",
-  "ggml-cpu-x64.dll",
-  "ggml-cpu-zen4.dll",
-  "ggml-cuda.dll",
-  "ggml-cuda-cu12.dll",
-  "ggml-cuda-cu13.dll",
-  "ggml-hip.dll",
-  "ggml-rocm.dll",
-  "ggml-rpc.dll",
-  "ggml-vulkan.dll",
-  "ggml-hip.so",
-  "ggml-rocm.so",
-  "ggml-vulkan.so",
-  "ggml.dll",
-  "hipblas.dll",
-  "libhipblas.dll",
-  "libhipblaslt.dll",
-  "hiprtc0506.dll",
-  "hiprtc-builtins.dll",
-  "amdhip64.dll",
-  "amdhip64_7.dll",
-  "rocblas.dll",
-  "rocblas64.dll",
-  "rocsolver.dll",
-  "libomp140.x86_64.dll",
-  "libggml.so",
-  "libggml-base.so",
-  "libggml-cpu.so",
-  "libggml-hip.so",
-  "libggml-rocm.so",
-  "libggml-vulkan.so",
-  "libggml.dylib",
-  "libggml-base.dylib",
-  "libggml-cpu.dylib",
-  "libggml-metal.dylib",
-  "libllama.dylib",
-  "libmtmd.dylib",
-  "ggml-metal.metal",
-  "default.metallib",
   "llama-cli",
   "llama-server",
-  "llama-common.dll",
-  "llama-server-impl.dll",
   "llama-server.exe",
-  "llama.dll",
-  "mtmd.dll",
   "rpc-server.exe",
 ]);
 
@@ -378,17 +337,34 @@ function shouldExtractLlamaRuntimeFile(fileName, relativePath = fileName) {
   );
 }
 
+/** @param {{ id?: unknown; requiredFiles?: Array<string | string[]> } | null | undefined} runtime */
+function resolveWindowsLlamaRuntimeMaxRelativePathLength(runtime) {
+  const pinnedMaximum =
+    WINDOWS_LLAMA_RUNTIME_MAX_RELATIVE_PATH_LENGTH[String(runtime?.id || "")];
+  if (pinnedMaximum) return pinnedMaximum;
+  const requiredFiles = Array.isArray(runtime?.requiredFiles)
+    ? runtime.requiredFiles.flatMap((entry) =>
+        Array.isArray(entry) ? entry : [entry],
+      )
+    : [];
+  return Math.max(
+    255,
+    LLAMA_RUNTIME_MARKER_FILE.length,
+    ...requiredFiles.map((fileName) => String(fileName).length),
+  );
+}
+
 module.exports = {
   BEELLAMA_LLAMA_RUNTIME_CUDA12,
   BEELLAMA_LLAMA_RUNTIME_CUDA13,
   BEELLAMA_LLAMA_RUNTIME_HIP_RADEON,
   BEELLAMA_LLAMA_RUNTIME_METAL_ARM64,
-  LLAMA_RUNTIME_FILES,
   LLAMA_RUNTIME_MARKER_FILE,
   MAINLINE_LLAMA_RUNTIME_CUDA12,
   MAINLINE_LLAMA_RUNTIME_CUDA13,
   MAINLINE_LLAMA_RUNTIME_VULKAN,
   MAINLINE_LLAMA_RUNTIME_METAL_ARM64,
   resolveLemonadeLlamaRuntimeRocm,
+  resolveWindowsLlamaRuntimeMaxRelativePathLength,
   shouldExtractLlamaRuntimeFile,
 };

@@ -11,7 +11,7 @@ const {
   isBuiltInGemmaRuntimeModel,
   isGemma31BModel,
   missingRequiredLlamaRuntimeFiles,
-  resolveManagedToolsDir,
+  resolveManagedToolsSearchDirs,
   resolvePreferredLlamaRuntime,
 } = require("../simple-page-runtime-paths.cjs");
 const { looksLikeGemma4Model } = require("../simple-page-launch-args.cjs");
@@ -138,11 +138,13 @@ function assertManagedRuntimeComplete(serverPath, runtime, options) {
 
 /** @param {string} runtimeDir @param {LlamaRuntimeDescriptor} runtime @param {RuntimeOptions} options */
 function isManagedRuntimeDirectory(runtimeDir, runtime, options) {
-  const expected = path.resolve(resolveManagedToolsDir(options), runtime.dir);
   const actual = path.resolve(runtimeDir);
-  return process.platform === "win32"
-    ? actual.toLowerCase() === expected.toLowerCase()
-    : actual === expected;
+  return resolveManagedToolsSearchDirs(options).some((managedToolsDir) => {
+    const expected = path.resolve(managedToolsDir, runtime.dir);
+    return process.platform === "win32"
+      ? actual.toLowerCase() === expected.toLowerCase()
+      : actual === expected;
+  });
 }
 
 /** @param {LlamaRuntimeDescriptor} runtime @param {RuntimeOptions} options */

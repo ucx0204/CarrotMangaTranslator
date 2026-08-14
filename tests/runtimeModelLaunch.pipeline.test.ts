@@ -7,7 +7,6 @@ import {
   hasOcrCpuWorkerRamHeadroom,
   MAINLINE_LLAMA_RUNTIME_CUDA13,
   BEELLAMA_LLAMA_RUNTIME_CUDA13,
-  LLAMA_RUNTIME_FILES,
   shouldExtractLlamaRuntimeFile,
   collectOcrBboxHints,
   requestTranslation,
@@ -274,22 +273,27 @@ describeWindows("runtime model support helpers: OCR pipeline execution", () => {
     expect(
       flattenRequiredFiles(BEELLAMA_LLAMA_RUNTIME_CUDA13.requiredFiles),
     ).not.toContain("llama-server-impl.dll");
-    expect(LLAMA_RUNTIME_FILES.has("llama-server-impl.dll")).toBe(true);
-    expect(shouldExtractLlamaRuntimeFile("llama-server-impl.dll")).toBe(true);
-    expect(shouldExtractLlamaRuntimeFile("vendor-only.dll")).toBe(true);
-    expect(
-      shouldExtractLlamaRuntimeFile(
-        "TensileLibrary.dat",
-        "rocblas/library/TensileLibrary.dat",
-      ),
-    ).toBe(true);
-    expect(
-      shouldExtractLlamaRuntimeFile(
-        "hipblaslt.dat",
-        "hipblaslt/library/hipblaslt.dat",
-      ),
-    ).toBe(true);
-    expect(shouldExtractLlamaRuntimeFile("readme.txt")).toBe(false);
+    const extractionCases: Array<
+      readonly [
+        fileName: string,
+        relativePath: string | undefined,
+        kept: boolean,
+      ]
+    > = [
+      ["llama-server-impl.dll", undefined, true],
+      ["vendor-only.dll", undefined, true],
+      ["llama-server.exe", undefined, true],
+      ["llama-server", undefined, true],
+      ["LICENSE", undefined, true],
+      ["TensileLibrary.dat", "rocblas/library/TensileLibrary.dat", true],
+      ["hipblaslt.dat", "hipblaslt/library/hipblaslt.dat", true],
+      ["unrelated.dat", undefined, false],
+      ["vendor-only.exe", undefined, false],
+      ["readme.txt", undefined, false],
+    ];
+    for (const [fileName, relativePath, kept] of extractionCases) {
+      expect(shouldExtractLlamaRuntimeFile(fileName, relativePath)).toBe(kept);
+    }
   });
 
   it("treats an explicitly empty OCR hint array as a completed OCR pass", async () => {

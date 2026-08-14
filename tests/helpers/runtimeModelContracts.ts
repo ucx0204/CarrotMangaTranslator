@@ -336,7 +336,6 @@ const llamaRuntimeContracts =
       id: string;
       requiredFiles: Array<string | string[]>;
     };
-    LLAMA_RUNTIME_FILES: Set<string>;
     MAINLINE_LLAMA_RUNTIME_CUDA13: {
       id: string;
       requiredFiles: Array<string | string[]>;
@@ -411,7 +410,6 @@ export const { bundledServerCandidates, resolveBundledServerPath } =
   llamaRuntimeResolver;
 export const {
   BEELLAMA_LLAMA_RUNTIME_CUDA13,
-  LLAMA_RUNTIME_FILES,
   MAINLINE_LLAMA_RUNTIME_CUDA13,
   shouldExtractLlamaRuntimeFile,
 } = llamaRuntimeContracts;

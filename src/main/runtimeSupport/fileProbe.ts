@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import {
   createReadStream,
   existsSync,
@@ -7,7 +7,7 @@ import {
   statSync,
 } from "node:fs";
 import { readFile, rename, rm, writeFile } from "node:fs/promises";
-import { isAbsolute, join, relative, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 type RemoteFileMetadata = {
   url: string;
   bytes: number;
@@ -31,38 +31,15 @@ export function findFirstFileRecursive(
   lowerCaseNames: Set<string>,
   maxDepth: number,
 ): string | null {
-  if (!directoryExists(root)) {
-    return null;
-  }
-  const queue: Array<{ dir: string; depth: number }> = [
-    { dir: root, depth: 0 },
-  ];
-  while (queue.length) {
-    const current = queue.shift();
-    if (!current) {
-      continue;
+  let match: string | null = null;
+  walkFilesBreadthFirst(root, maxDepth, (entry, fullPath) => {
+    if (!entry.isFile() || !lowerCaseNames.has(entry.name.toLowerCase())) {
+      return false;
     }
-    let entries: import("node:fs").Dirent[];
-    try {
-      entries = readdirSync(current.dir, { withFileTypes: true });
-    } catch (_error) {
-      continue;
-    }
-    for (const entry of entries) {
-      const fullPath = join(current.dir, entry.name);
-      if (entry.isFile() && lowerCaseNames.has(entry.name.toLowerCase())) {
-        return fullPath;
-      }
-      if (
-        entry.isDirectory() &&
-        current.depth < maxDepth &&
-        !["__pycache__", ".git"].includes(entry.name)
-      ) {
-        queue.push({ dir: fullPath, depth: current.depth + 1 });
-      }
-    }
-  }
-  return null;
+    match = fullPath;
+    return true;
+  });
+  return match;
 }
 
 export function findFilesRecursive(
@@ -71,29 +48,29 @@ export function findFilesRecursive(
   maxDepth: number,
   limit: number,
 ): string[] {
-  if (!directoryExists(root)) {
-    return [];
-  }
   const results: string[] = [];
+  if (limit <= 0) return results;
+  walkFilesBreadthFirst(root, maxDepth, (entry, fullPath) =>
+    appendMatchingFile(results, limit, entry, fullPath, predicate),
+  );
+  return results;
+}
+
+function walkFilesBreadthFirst(
+  root: string,
+  maxDepth: number,
+  visit: (entry: Dirent, fullPath: string) => boolean,
+): void {
+  if (!directoryExists(root)) return;
   const queue: Array<{ dir: string; depth: number }> = [
     { dir: root, depth: 0 },
   ];
-  while (queue.length && results.length < limit) {
-    const current = queue.shift();
-    if (!current) {
-      continue;
-    }
-    let entries: import("node:fs").Dirent[];
-    try {
-      entries = readdirSync(current.dir, { withFileTypes: true });
-    } catch (_error) {
-      continue;
-    }
-    for (const entry of entries) {
+  for (let cursor = 0; cursor < queue.length; cursor += 1) {
+    const current = queue[cursor];
+    if (!current) continue;
+    for (const entry of safeReadDir(current.dir)) {
       const fullPath = join(current.dir, entry.name);
-      if (appendMatchingFile(results, limit, entry, fullPath, predicate)) {
-        break;
-      }
+      if (visit(entry, fullPath)) return;
       if (
         entry.isDirectory() &&
         current.depth < maxDepth &&
@@ -103,7 +80,6 @@ export function findFilesRecursive(
       }
     }
   }
-  return results;
 }
 
 function appendMatchingFile(
@@ -342,7 +318,10 @@ export async function writeRemoteFileMetadata(
   metadata: RemoteFileMetadata,
 ): Promise<void> {
   const metadataPath = remoteFileMetadataPath(filePath);
-  const temporaryPath = `${metadataPath}.${process.pid}.${randomUUID()}.tmp`;
+  const temporaryPath = join(
+    dirname(metadataPath),
+    `.m-${randomBytes(8).toString("hex")}`,
+  );
   try {
     await writeFile(
       temporaryPath,

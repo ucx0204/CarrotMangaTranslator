@@ -339,7 +339,7 @@ describeWindows("OCR runtime boundary behavior", () => {
       ]);
       expect(commands).toHaveLength(1);
       expect(commands[0]?.executable).toMatch(
-        /python-3\.12\.7\.staging-\d+-\d+[\\/]python\.exe$/,
+        /[\\/]\.s-[a-f0-9]{16}[\\/]python\.exe$/,
       );
       expect(commands[0]?.args).toEqual([
         join(root, ".downloads", "python", "get-pip.py"),

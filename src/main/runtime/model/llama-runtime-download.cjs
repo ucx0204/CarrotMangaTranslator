@@ -44,6 +44,7 @@ const {
   safeCleanup,
 } = require("../simple-page-runtime-common.cjs");
 const {
+  createRuntimeStagingDirectory,
   replaceDirectoryWithRollback,
 } = require("../runtime-directory-publish.cjs");
 const {
@@ -59,7 +60,7 @@ const {
 async function ensureDefaultLlamaRuntimeDownloaded(options = {}) {
   const runtime = resolvePreferredLlamaRuntime(options);
   const layout = buildRuntimeLayout(options, runtime);
-  if (isCurrentAndCompleteRuntime(layout.runtimeDir, runtime)) return;
+  if (findCurrentCompleteRuntimeDir(options, runtime)) return;
   assertRuntimeCanBeInstalled(options, layout);
   const archives = getLlamaRuntimeArchives(runtime);
   assertRuntimeArchiveChecksumsPresent(archives);
@@ -99,6 +100,13 @@ async function ensureDefaultLlamaRuntimeDownloaded(options = {}) {
 }
 
 /** @param {ModelAssetOptions} options @param {LlamaRuntimeDescriptor} runtime */
+function findCurrentCompleteRuntimeDir(options, runtime) {
+  return resolveLlamaRuntimeSearchDirs(options)
+    .map((rootDir) => path.join(rootDir, runtime.dir))
+    .find((runtimeDir) => isCurrentAndCompleteRuntime(runtimeDir, runtime));
+}
+
+/** @param {ModelAssetOptions} options @param {LlamaRuntimeDescriptor} runtime */
 function buildRuntimeLayout(options, runtime) {
   const managedToolsDir = resolveManagedToolsDir(options);
   const runtimeDir = path.join(managedToolsDir, runtime.dir);
@@ -113,8 +121,11 @@ function buildRuntimeLayout(options, runtime) {
 /** @param {string} runtimeDir @param {LlamaRuntimeDescriptor} runtime */
 function isCurrentAndCompleteRuntime(runtimeDir, runtime) {
   return (
-    isCurrentLlamaRuntime(runtimeDir, runtime) &&
-    hasRequiredLlamaRuntimeFiles(runtimeDir, runtime)
+    installedRuntimeMarkerMatches(
+      runtimeDir,
+      runtime,
+      LLAMA_RUNTIME_MARKER_FILE,
+    ) && hasRequiredLlamaRuntimeFiles(runtimeDir, runtime)
   );
 }
 
@@ -231,7 +242,7 @@ async function extractRuntimeArchives(
   options,
   restoreArchivesBeforePublish,
 ) {
-  const stagingDir = `${runtimeDir}.staging-${process.pid}-${Date.now()}`;
+  const stagingDir = createRuntimeStagingDirectory(runtimeDir);
   await safeCleanup("remove stale llama runtime staging directory", () =>
     rm(stagingDir, { recursive: true, force: true }),
   );
@@ -256,6 +267,7 @@ async function extractRuntimeArchives(
           shouldExtractLlamaRuntimeFile,
           {
             abortSignal: options.abortSignal,
+            finalOutputDir: runtimeDir,
             limits: resolvePinnedLlamaRuntimeZipExtractionLimits(
               runtime,
               archive,
@@ -412,15 +424,6 @@ function formatLlamaRuntimeBackend(runtime = {}) {
   if (backend === "metal") return "Metal";
   if (backend === "rocm" || backend === "hip") return "ROCm/HIP";
   return "CUDA";
-}
-
-/** @param {string} runtimeDir @param {LlamaRuntimeDescriptor} runtime */
-function isCurrentLlamaRuntime(runtimeDir, runtime) {
-  return installedRuntimeMarkerMatches(
-    runtimeDir,
-    runtime,
-    LLAMA_RUNTIME_MARKER_FILE,
-  );
 }
 
 /** @param {LlamaRuntimeDescriptor | null | undefined} runtime @returns {LlamaRuntimeArchive[]} */

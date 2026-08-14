@@ -9,7 +9,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { describe, expect, it, vi } from "vitest";
 import * as yazl from "yazl";
@@ -72,6 +72,7 @@ const { extractSelectedZipEntries, normalizeSafeZipPath } =
       outputDir: string,
       shouldExtract: (name: string, relativePath: string) => boolean,
       options?: {
+        finalOutputDir?: string;
         limits?: {
           maximumEntries?: number;
           maximumEntryBytes?: number;
@@ -81,6 +82,13 @@ const { extractSelectedZipEntries, normalizeSafeZipPath } =
       },
     ) => Promise<void>;
     normalizeSafeZipPath: (value: string) => string;
+  };
+const { shouldExtractLlamaRuntimeFile } =
+  require("../src/main/runtime/simple-page-llama-runtimes.cjs") as {
+    shouldExtractLlamaRuntimeFile: (
+      fileName: string,
+      relativePath?: string,
+    ) => boolean;
   };
 const { replaceDirectoryWithRollback } =
   require("../src/main/runtime/runtime-directory-publish.cjs") as {
@@ -235,12 +243,148 @@ describe("runtime archive extraction policy", () => {
     }
   });
 
+  it("rejects a real ZIP with no selected runtime files", async () => {
+    const root = await mkdtemp(join(tmpdir(), "mgt-runtime-no-match-"));
+    const archivePath = join(root, "runtime.zip");
+    const outputDir = join(root, "runtime");
+    try {
+      await writeZip(archivePath, [["docs/readme.txt", "documentation"]]);
+      await mkdir(outputDir);
+      await writeFile(join(outputDir, "known-good.dll"), "known-good");
+
+      let caught: unknown;
+      try {
+        await extractSelectedZipEntries(
+          archivePath,
+          outputDir,
+          shouldExtractLlamaRuntimeFile,
+        );
+      } catch (error) {
+        caught = error;
+      }
+
+      expect(caught).toBeInstanceOf(Error);
+      expect((caught as Error).message).toContain("No runtime files matched");
+      expect(caught).toMatchObject({
+        archivePath,
+        extractionMethod: "yauzl",
+      });
+      expect(await readFile(join(outputDir, "known-good.dll"), "utf8")).toBe(
+        "known-good",
+      );
+      await expect(readFile(join(outputDir, "readme.txt"))).rejects.toThrow();
+      expect(
+        (await readdir(root)).some((name) => /^\.z-[a-f0-9]{16}$/.test(name)),
+      ).toBe(false);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("renames selected files, preserves ROCm paths, and keeps archive order", async () => {
+    const root = await mkdtemp(join(tmpdir(), "mgt-runtime-rename-"));
+    const firstArchive = join(root, "first.zip");
+    const secondArchive = join(root, "second.zip");
+    const outputDir = join(root, "runtime");
+    try {
+      await writeZip(firstArchive, [
+        ["bin/llama-server.exe", "first-server"],
+        ["bin/ggml-hip.dll", "first-backend"],
+        ["rocblas/library/TensileLibrary_gfx1101.dat", "rocblas-kernel"],
+        ["hipblaslt/library/Kernels-gfx1101.hsaco", "hipblaslt-kernel"],
+        ["docs/readme.txt", "excluded"],
+      ]);
+      await writeZip(secondArchive, [
+        ["replacement/ggml-hip.dll", "second-backend"],
+      ]);
+
+      await extractSelectedZipEntries(
+        firstArchive,
+        outputDir,
+        shouldExtractLlamaRuntimeFile,
+      );
+      await extractSelectedZipEntries(
+        secondArchive,
+        outputDir,
+        shouldExtractLlamaRuntimeFile,
+      );
+
+      expect(await readFile(join(outputDir, "llama-server.exe"), "utf8")).toBe(
+        "first-server",
+      );
+      expect(await readFile(join(outputDir, "ggml-hip.dll"), "utf8")).toBe(
+        "second-backend",
+      );
+      expect(
+        await readFile(
+          join(outputDir, "rocblas", "library", "TensileLibrary_gfx1101.dat"),
+          "utf8",
+        ),
+      ).toBe("rocblas-kernel");
+      expect(
+        await readFile(
+          join(outputDir, "hipblaslt", "library", "Kernels-gfx1101.hsaco"),
+          "utf8",
+        ),
+      ).toBe("hipblaslt-kernel");
+      await expect(readFile(join(outputDir, "readme.txt"))).rejects.toThrow();
+
+      const source = await readFile(
+        join(process.cwd(), "src/main/runtime/simple-page-zip-utils.cjs"),
+        "utf8",
+      );
+      expect(source).toContain("await rename(selected.filePath, outputPath)");
+      expect(source).not.toMatch(/\bcopyFile(?:Sync)?\b/);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("rejects absolute, traversal, and NUL entry paths", () => {
     expect(() => normalizeSafeZipPath("../escape.dll")).toThrow(/unsafe path/);
     expect(() => normalizeSafeZipPath("C:/escape.dll")).toThrow(/unsafe path/);
     expect(() => normalizeSafeZipPath("safe/evil\0.dll")).toThrow(
       /unsafe path/,
     );
+  });
+
+  it("rejects an overlong Windows selected path before extraction", async () => {
+    if (process.platform !== "win32") return;
+    const root = await mkdtemp(join(tmpdir(), "mgt-runtime-long-path-"));
+    const archivePath = join(root, "runtime.zip");
+    const outputDir = join(root, "s");
+    const outputName = "cudnn_engines_runtime_compiled64_9.dll";
+    const baseFinalPath = resolve(join(root, "final-", outputName));
+    const finalOutputDir = join(
+      root,
+      `final-${"f".repeat(252 - baseFinalPath.length)}`,
+    );
+    const finalPath = resolve(join(finalOutputDir, outputName));
+    expect(finalPath).toHaveLength(252);
+    try {
+      await writeZip(archivePath, [[outputName, "selected"]]);
+
+      await expect(
+        extractSelectedZipEntries(
+          archivePath,
+          outputDir,
+          (name) => name.endsWith(".dll"),
+          { finalOutputDir },
+        ),
+      ).rejects.toMatchObject({
+        runtimePath: finalPath,
+        runtimePathLength: 252,
+        windowsPathCeiling: 252,
+        windowsPathUnsafe: true,
+        nonRetriable: true,
+      });
+      await expect(readFile(join(outputDir, outputName))).rejects.toThrow();
+      expect(
+        (await readdir(root)).some((name) => /^\.z-[a-f0-9]{16}$/.test(name)),
+      ).toBe(false);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 
   it("links cancellation and enforces an absolute extraction deadline", () => {
@@ -281,10 +425,22 @@ describe("runtime archive extraction policy", () => {
         "known-good",
       );
       expect(
-        (await readdir(root)).some((name) => name.includes(".backup-")),
+        (await readdir(root)).some((name) => /^\.b-[a-f0-9]{16}$/.test(name)),
       ).toBe(false);
     } finally {
       await rm(root, { recursive: true, force: true });
     }
   });
 });
+
+async function writeZip(
+  archivePath: string,
+  entries: ReadonlyArray<readonly [name: string, content: string]>,
+): Promise<void> {
+  const zip = new yazl.ZipFile();
+  for (const [name, content] of entries) {
+    zip.addBuffer(Buffer.from(content), name);
+  }
+  zip.end();
+  await pipeline(zip.outputStream, createWriteStream(archivePath));
+}

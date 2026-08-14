@@ -174,6 +174,7 @@ module.exports = {
   assertDownloadMaximumBytes,
   assertDownloadSizeWithinBudget,
   createDownloadBudgetError,
+  createDownloadError,
   createDownloadDeadline,
   createDownloadDeadlineError,
   isDownloadBudgetError,

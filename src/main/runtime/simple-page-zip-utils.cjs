@@ -1,6 +1,6 @@
 // @ts-check
-const { createWriteStream, readdirSync } = require("node:fs");
-const { copyFile, mkdir, rm } = require("node:fs/promises");
+const { createWriteStream } = require("node:fs");
+const { mkdir, rename, rm } = require("node:fs/promises");
 const { createRequire } = require("node:module");
 const path = require("node:path");
 const { Transform } = require("node:stream");
@@ -55,6 +55,8 @@ const {
 } = require("./archive-extraction-policy.cjs");
 const { safeCleanup } = require("./simple-page-runtime-common.cjs");
 const {
+  assertWindowsLegacyRuntimePath,
+  createCompactRuntimeSiblingDirectory,
   replaceDirectoryWithRollback,
 } = require("./runtime-directory-publish.cjs");
 
@@ -62,11 +64,9 @@ const {
  * @typedef {{ filePath: string; outputName: string }} SelectedRuntimeFile
  * @typedef {{ entry: any; outputName: string }} InspectedZipEntry
  * @typedef {(name: string, relativePath: string) => boolean} RuntimeEntryFilter
- * @typedef {{ command: string, args: string[], code: number | null, stdout: string, stderr: string, error?: string }} ArchiveCommandAttempt
- * @typedef {{ method: "powershell" | "tar" | "yauzl", stdout: string, stderr: string, attempts: ArchiveCommandAttempt[] }} ArchiveExtractionResult
- * @typedef {(archivePath: string, outputDir: string) => Promise<ArchiveExtractionResult>} ArchiveExtractor
  * @typedef {{ maximumEntries?: number; maximumEntryBytes?: number; maximumExpandedBytes?: number; maximumCompressionRatio?: number }} ArchiveExtractionLimitOverrides
- * @typedef {{ extractArchive?: ArchiveExtractor; abortSignal?: AbortSignal | null; deadlineMs?: number; limits?: ArchiveExtractionLimitOverrides; preserveRelativePaths?: boolean; replaceOutputDir?: boolean }} ExtractSelectedZipOptions
+ * @typedef {{ abortSignal?: AbortSignal | null; deadlineMs?: number; finalOutputDir?: string; limits?: ArchiveExtractionLimitOverrides; preserveRelativePaths?: boolean; replaceOutputDir?: boolean }} ExtractSelectedZipOptions
+ * @typedef {{ label: string; root: string }} WindowsZipPathRoot
  */
 
 /**
@@ -84,25 +84,17 @@ async function extractSelectedZipEntries(
   shouldExtract,
   options = {},
 ) {
-  const extractDir = path.join(
-    path.dirname(outputDir),
-    `${path.basename(outputDir)}.extract-${process.pid}-${Date.now()}`,
+  const extractDir = createCompactRuntimeSiblingDirectory(outputDir, "z");
+  const windowsPathRoots = resolveWindowsZipPathRoots(
+    extractDir,
+    outputDir,
+    options,
   );
   await safeCleanup("remove previous runtime extract directory", () =>
     rm(extractDir, { recursive: true, force: true }),
   );
   await mkdir(extractDir, { recursive: true });
   try {
-    if (options.extractArchive) {
-      await extractWithInjectedExtractor(
-        archivePath,
-        outputDir,
-        extractDir,
-        shouldExtract,
-        options.extractArchive,
-      );
-      return;
-    }
     const deadline = createArchiveExtractionDeadline(
       options.abortSignal,
       options.deadlineMs,
@@ -116,6 +108,7 @@ async function extractSelectedZipEntries(
         deadline.signal,
         options.preserveRelativePaths === true,
         limits,
+        windowsPathRoots,
       );
       if (options.replaceOutputDir) {
         await replaceDirectoryWithRollback(extractDir, outputDir);
@@ -132,33 +125,6 @@ async function extractSelectedZipEntries(
   }
 }
 
-/** @param {string} archivePath @param {string} outputDir @param {string} extractDir @param {RuntimeEntryFilter} shouldExtract @param {ArchiveExtractor} extractArchive */
-async function extractWithInjectedExtractor(
-  archivePath,
-  outputDir,
-  extractDir,
-  shouldExtract,
-  extractArchive,
-) {
-  const extraction = await extractArchive(archivePath, extractDir);
-  const selectedFiles = collectSelectedFiles(extractDir, shouldExtract);
-  if (selectedFiles.length === 0) {
-    throw createDetailedError(
-      `No runtime files matched in ${archivePath}. Archive extraction completed but produced no supported runtime files.`,
-      {
-        archivePath,
-        extractDir,
-        stdout: truncateText(extraction.stdout.trim()),
-        stderr: truncateText(extraction.stderr.trim()),
-        extractedTopLevelEntries: readTopLevelEntries(extractDir),
-        extractionMethod: extraction.method,
-        extractionAttempts: extraction.attempts,
-      },
-    );
-  }
-  await publishSelectedFiles(selectedFiles, outputDir);
-}
-
 /** @param {SelectedRuntimeFile[]} selectedFiles @param {string} outputDir */
 async function publishSelectedFiles(selectedFiles, outputDir) {
   const resolvedOutputDir = path.resolve(outputDir);
@@ -169,11 +135,15 @@ async function publishSelectedFiles(selectedFiles, outputDir) {
       throw new Error(`Invalid runtime output path: ${selected.outputName}`);
     }
     await mkdir(path.dirname(outputPath), { recursive: true });
-    await copyFile(selected.filePath, outputPath);
+    // extractDir is created beside outputDir, so publication stays on one
+    // volume. Removing the exact destination preserves the previous overwrite
+    // behavior on Windows while rename avoids a second multi-gigabyte write.
+    await rm(outputPath, { force: true });
+    await rename(selected.filePath, outputPath);
   }
 }
 
-/** @param {string} archivePath @param {string} extractDir @param {RuntimeEntryFilter} shouldExtract @param {AbortSignal} signal @param {boolean} preserveRelativePaths @param {{ maximumEntries: number; maximumEntryBytes: number; maximumExpandedBytes: number; maximumCompressionRatio: number }} limits */
+/** @param {string} archivePath @param {string} extractDir @param {RuntimeEntryFilter} shouldExtract @param {AbortSignal} signal @param {boolean} preserveRelativePaths @param {{ maximumEntries: number; maximumEntryBytes: number; maximumExpandedBytes: number; maximumCompressionRatio: number }} limits @param {WindowsZipPathRoot[]} windowsPathRoots */
 async function extractSelectedZipStreams(
   archivePath,
   extractDir,
@@ -181,6 +151,7 @@ async function extractSelectedZipStreams(
   signal,
   preserveRelativePaths,
   limits,
+  windowsPathRoots,
 ) {
   throwIfArchiveExtractionAborted(signal);
   const zipFile = await yauzl.openPromise(archivePath, {
@@ -197,6 +168,7 @@ async function extractSelectedZipStreams(
       signal,
       preserveRelativePaths,
       limits,
+      windowsPathRoots,
     );
     if (selected.length === 0) {
       throw createDetailedError(`No runtime files matched in ${archivePath}.`, {
@@ -215,7 +187,7 @@ async function extractSelectedZipStreams(
   }
 }
 
-/** @param {any} zipFile @param {string} archivePath @param {RuntimeEntryFilter} shouldExtract @param {AbortSignal} signal @param {boolean} preserveRelativePaths @param {{ maximumEntries: number; maximumEntryBytes: number; maximumExpandedBytes: number; maximumCompressionRatio: number }} limits @returns {Promise<InspectedZipEntry[]>} */
+/** @param {any} zipFile @param {string} archivePath @param {RuntimeEntryFilter} shouldExtract @param {AbortSignal} signal @param {boolean} preserveRelativePaths @param {{ maximumEntries: number; maximumEntryBytes: number; maximumExpandedBytes: number; maximumCompressionRatio: number }} limits @param {WindowsZipPathRoot[]} windowsPathRoots @returns {Promise<InspectedZipEntry[]>} */
 async function inspectZipEntries(
   zipFile,
   archivePath,
@@ -223,6 +195,7 @@ async function inspectZipEntries(
   signal,
   preserveRelativePaths,
   limits,
+  windowsPathRoots,
 ) {
   const budget = { entryCount: 0, expandedBytes: 0 };
   const outputNames = new Set();
@@ -251,6 +224,7 @@ async function inspectZipEntries(
       preserveRelativePaths || shouldPreserveRuntimeRelativePath(relativePath)
         ? relativePath
         : fileName;
+    assertSelectedWindowsPathBudget(outputName, windowsPathRoots);
     const foldedOutput = outputName.toLowerCase();
     if (outputNames.has(foldedOutput)) {
       throw new Error(
@@ -261,6 +235,54 @@ async function inspectZipEntries(
     selected.push({ entry, outputName });
   }
   return selected;
+}
+
+/**
+ * Validate every path that the selected entry can occupy: its extraction
+ * source, its immediate output, and the final/rollback roots supplied by a
+ * caller that stages another atomic directory publication.
+ *
+ * @param {string} outputName
+ * @param {WindowsZipPathRoot[]} roots
+ */
+function assertSelectedWindowsPathBudget(outputName, roots) {
+  for (const { label, root } of roots) {
+    assertWindowsLegacyRuntimePath(path.join(root, outputName), label);
+  }
+}
+
+/**
+ * @param {string} extractDir
+ * @param {string} outputDir
+ * @param {ExtractSelectedZipOptions} options
+ * @returns {WindowsZipPathRoot[]}
+ */
+function resolveWindowsZipPathRoots(extractDir, outputDir, options) {
+  if (process.platform !== "win32") return [];
+  /** @type {WindowsZipPathRoot[]} */
+  const roots = [
+    { label: "runtime ZIP extraction path", root: extractDir },
+    { label: "runtime ZIP output path", root: outputDir },
+  ];
+  if (options.replaceOutputDir) {
+    roots.push({
+      label: "runtime ZIP output backup path",
+      root: createCompactRuntimeSiblingDirectory(outputDir, "b"),
+    });
+  }
+  if (options.finalOutputDir) {
+    roots.push(
+      {
+        label: "runtime ZIP final path",
+        root: options.finalOutputDir,
+      },
+      {
+        label: "runtime ZIP final backup path",
+        root: createCompactRuntimeSiblingDirectory(options.finalOutputDir, "b"),
+      },
+    );
+  }
+  return roots;
 }
 
 /** @param {any} zipFile @param {InspectedZipEntry[]} selected @param {string} extractDir @param {AbortSignal} signal @returns {Promise<SelectedRuntimeFile[]>} */
@@ -340,40 +362,6 @@ function normalizeSafeZipPath(rawPath) {
   return parts.join("/");
 }
 
-/** @param {string} rootDir @param {RuntimeEntryFilter} shouldExtract @returns {SelectedRuntimeFile[]} */
-function collectSelectedFiles(rootDir, shouldExtract) {
-  /** @type {SelectedRuntimeFile[]} */
-  const selected = [];
-  const stack = [{ dir: rootDir, relativeDir: "" }];
-  while (stack.length > 0) {
-    const current = stack.pop();
-    if (!current) break;
-    let entries;
-    try {
-      entries = readdirSync(current.dir, { withFileTypes: true });
-    } catch (_error) {
-      continue;
-    }
-    for (const entry of entries) {
-      const filePath = path.join(current.dir, entry.name);
-      const relativePath = current.relativeDir
-        ? path.join(current.relativeDir, entry.name)
-        : entry.name;
-      if (entry.isDirectory()) {
-        stack.push({ dir: filePath, relativeDir: relativePath });
-      } else if (entry.isFile() && shouldExtract(entry.name, relativePath)) {
-        selected.push({
-          filePath,
-          outputName: shouldPreserveRuntimeRelativePath(relativePath)
-            ? relativePath
-            : entry.name,
-        });
-      }
-    }
-  }
-  return selected;
-}
-
 /** @param {string} relativePath */
 function shouldPreserveRuntimeRelativePath(relativePath) {
   const normalized = String(relativePath || "")
@@ -382,25 +370,6 @@ function shouldPreserveRuntimeRelativePath(relativePath) {
   return (
     normalized.startsWith("rocblas/") || normalized.startsWith("hipblaslt/")
   );
-}
-
-/** @param {string} rootDir */
-function readTopLevelEntries(rootDir) {
-  try {
-    return readdirSync(rootDir, { withFileTypes: true })
-      .map((entry) => (entry.isDirectory() ? `${entry.name}/` : entry.name))
-      .sort((left, right) => left.localeCompare(right));
-  } catch (_error) {
-    return [];
-  }
-}
-
-/** @param {unknown} value @param {number} [maxLength] */
-function truncateText(value, maxLength = 4000) {
-  const text = String(value ?? "");
-  return text.length <= maxLength
-    ? text
-    : `${text.slice(0, maxLength)}... [truncated ${text.length - maxLength} chars]`;
 }
 
 /** @param {string} message @param {Record<string, unknown>} detail */
@@ -422,7 +391,6 @@ function isPathInside(childPath, parentPath) {
 }
 
 module.exports = {
-  collectSelectedFiles,
   extractSelectedZipEntries,
   loadYauzlRuntime,
   normalizeSafeZipPath,

@@ -1,8 +1,9 @@
 // @ts-check
-/** @typedef {{ url: string; file: string; destination: string; label: string; maximumBytes: number; expectedTotalBytes?: number; expectedSha256?: string; progressPhase?: string; progressTitle?: string; completeTitle?: string; [key: string]: unknown }} HfDownloadTask */
+/** @typedef {{ url: string; file: string; destination: string; label: string; maximumBytes: number; minimumBytes?: number; expectedTotalBytes?: number; expectedSha256?: string; progressPhase?: string; progressTitle?: string; completeTitle?: string; [key: string]: unknown }} HfDownloadTask */
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions & { abortSignal?: AbortSignal | null; [key: string]: unknown }} DownloadOptions */
 /** @typedef {{ knownAggregateBytes?: number; totalBytes?: number; completedBytes?: number; onComplete?: (receivedBytes: number) => void }} DownloadProgress */
-const { mkdir, rename, rm } = require("node:fs/promises");
+/** @typedef {Readonly<{ receivedBytes: number; verifiedSha256: string | null; size: number; mtimeMs: number }>} DownloadCompletionReceipt */
+const { mkdir, rename, rm, stat } = require("node:fs/promises");
 const path = require("node:path");
 const {
   createDetailedError,
@@ -10,8 +11,6 @@ const {
   safeCleanup,
 } = require("../simple-page-runtime-common.cjs");
 const {
-  assertDownloadMaximumBytes,
-  assertDownloadSizeWithinBudget,
   createAbortError,
   createDownloadDeadline,
   isAbortError,
@@ -23,6 +22,12 @@ const {
   resolveDownloadRetryCount,
   resolveDownloadRetryDelayMs,
 } = require("./download-primitives.cjs");
+const {
+  assertCompatibleActiveDownload,
+  assertReceiptMatchesTask,
+  assertReceivedSize,
+  validateDownloadContract,
+} = require("./download-contract.cjs");
 const {
   emitDownloadRetryProgress,
   emitHfDownloadProgress,
@@ -37,84 +42,43 @@ const {
 } = require("./download-integrity.cjs");
 const { waitForDownloadRetry } = require("./download-retry-wait.cjs");
 
-/** @type {Map<string, { url: string; maximumBytes: number; promise: Promise<number> }>} */
+/** @type {Map<string, { url: string; maximumBytes: number; expectedSha256: string | null; expectedTotalBytes: number | null; minimumBytes: number | null; promise: Promise<DownloadCompletionReceipt> }>} */
 const activeDownloads = new Map();
 const COMMIT_RETRY_COUNT = 6;
 const RETRYABLE_COMMIT_CODES = new Set(["EACCES", "EBUSY", "EPERM"]);
 
 /** @param {HfDownloadTask} task @param {DownloadOptions} [options] @param {DownloadProgress} [progress] */
 async function downloadHfFileWithProgress(task, options = {}, progress = {}) {
-  assertTaskBudgets(task, progress);
+  const contract = validateDownloadContract(task, progress);
   const key = downloadKey(task.destination);
   const active = activeDownloads.get(key);
   if (active) {
-    if (active.url !== task.url) {
-      throw createDetailedError(
-        "같은 경로에 서로 다른 다운로드가 요청되었습니다.",
-        {
-          destination: task.destination,
-          activeUrl: active.url,
-          requestedUrl: task.url,
-        },
-      );
-    }
-    if (active.maximumBytes > task.maximumBytes) {
-      throw createDetailedError(
-        "더 엄격한 다운로드 크기 제한으로 진행 중인 다운로드에 연결할 수 없습니다.",
-        {
-          destination: task.destination,
-          activeMaximumBytes: active.maximumBytes,
-          requestedMaximumBytes: task.maximumBytes,
-          downloadBudgetMismatch: true,
-          nonRetriable: true,
-        },
-      );
-    }
+    assertCompatibleActiveDownload(active, task, contract);
     const startedAt = Date.now();
-    const receivedBytes = await waitForActiveDownload(
+    const receipt = await waitForActiveDownload(
       active.promise,
       options.abortSignal,
     );
-    assertDownloadSizeWithinBudget(task, receivedBytes);
-    completeDownload(task, options, progress, receivedBytes, startedAt);
-    return;
+    assertReceiptMatchesTask(task, contract, receipt);
+    completeDownload(task, options, progress, receipt.receivedBytes, startedAt);
+    return receipt;
   }
   const download = performDownloadWithProgress(task, options, progress);
   const activeEntry = {
     url: task.url,
     maximumBytes: task.maximumBytes,
+    ...contract,
     promise: download,
   };
   activeDownloads.set(key, activeEntry);
   try {
-    await download;
+    return await download;
   } finally {
     if (activeDownloads.get(key) === activeEntry) activeDownloads.delete(key);
   }
 }
 
-/** @param {HfDownloadTask} task @param {DownloadProgress} progress */
-function assertTaskBudgets(task, progress) {
-  assertDownloadMaximumBytes(task);
-  if (task.expectedTotalBytes !== undefined) {
-    assertDownloadSizeWithinBudget(task, task.expectedTotalBytes);
-    if (task.expectedTotalBytes < 1) {
-      throw createDetailedError(
-        `${task.label} 예상 다운로드 크기가 올바르지 않습니다.`,
-        {
-          file: task.file,
-          downloadBudgetInvalid: true,
-          nonRetriable: true,
-        },
-      );
-    }
-  }
-  if (progress.totalBytes !== undefined && progress.totalBytes > 0) {
-    assertDownloadSizeWithinBudget(task, progress.totalBytes);
-  }
-}
-
-/** @param {HfDownloadTask} task @param {DownloadOptions} options @param {DownloadProgress} progress @returns {Promise<number>} */
+/** @param {HfDownloadTask} task @param {DownloadOptions} options @param {DownloadProgress} progress @returns {Promise<DownloadCompletionReceipt>} */
 async function performDownloadWithProgress(task, options, progress) {
   const timeoutMs = resolveDownloadAbsoluteTimeoutMs(options);
   const deadline = createDownloadDeadline(options.abortSignal, timeoutMs, task);
@@ -131,7 +95,7 @@ async function performDownloadWithProgress(task, options, progress) {
   }
 }
 
-/** @param {HfDownloadTask} task @param {DownloadOptions} options @param {DownloadProgress} progress @returns {Promise<number>} */
+/** @param {HfDownloadTask} task @param {DownloadOptions} options @param {DownloadProgress} progress @returns {Promise<DownloadCompletionReceipt>} */
 async function performDownloadRetries(task, options, progress) {
   const maxAttempts = resolveDownloadRetryCount();
   const fallbackState = { used: false };
@@ -176,7 +140,7 @@ function downloadKey(destination) {
   return process.platform === "win32" ? resolved.toLowerCase() : resolved;
 }
 
-/** @param {Promise<number>} download @param {AbortSignal | null | undefined} signal */
+/** @param {Promise<DownloadCompletionReceipt>} download @param {AbortSignal | null | undefined} signal */
 function waitForActiveDownload(download, signal) {
   if (!signal) return download;
   if (signal.aborted) return Promise.reject(createAbortError());
@@ -185,9 +149,9 @@ function waitForActiveDownload(download, signal) {
     const cleanup = () => signal.removeEventListener("abort", onAbort);
     signal.addEventListener("abort", onAbort, { once: true });
     download.then(
-      (receivedBytes) => {
+      (receipt) => {
         cleanup();
-        resolve(receivedBytes);
+        resolve(receipt);
       },
       (error) => {
         cleanup();
@@ -215,6 +179,7 @@ async function downloadAttempt(
   fallbackState,
 ) {
   const partPath = `${task.destination}.part`;
+  let committedDownload = false;
   await mkdir(path.dirname(task.destination), { recursive: true });
   await rm(partPath, { force: true });
   emitDownloadStart(task, options, progress, attempt, maxAttempts);
@@ -228,12 +193,34 @@ async function downloadAttempt(
       startedAt,
       fallbackState,
     );
-    await assertDownloadIntegrity(task, partPath);
+    assertReceivedSize(task, receivedBytes);
+    const verifiedSha256 = await assertDownloadIntegrity(task, partPath);
     await commitDownload(task.destination, partPath);
-    await recordDownloadIntegrity(task);
+    committedDownload = true;
+    await recordDownloadIntegrity(task, verifiedSha256);
+    const committed = await stat(task.destination);
+    if (!committed.isFile() || committed.size !== receivedBytes) {
+      throw createDetailedError(
+        `${task.label} 다운로드의 최종 파일 크기가 전송 결과와 다릅니다.`,
+        {
+          destination: task.destination,
+          receivedBytes,
+          committedBytes: committed.size,
+        },
+      );
+    }
+    const receipt = Object.freeze({
+      receivedBytes,
+      verifiedSha256,
+      size: committed.size,
+      mtimeMs: committed.mtimeMs,
+    });
     completeDownload(task, options, progress, receivedBytes, startedAt);
-    return receivedBytes;
+    return receipt;
   } catch (error) {
+    if (committedDownload) {
+      await removeRejectedCommittedDownload(task.destination);
+    }
     if (!isDownloadCommitFailure(error)) {
       await safeCleanup("remove partial HF download", () =>
         rm(partPath, { force: true }),
@@ -243,12 +230,23 @@ async function downloadAttempt(
   }
 }
 
+/** @param {string} destination */
+async function removeRejectedCommittedDownload(destination) {
+  await safeCleanup("remove rejected committed HF download", () =>
+    Promise.all([
+      rm(destination, { force: true }),
+      rm(`${destination}.mgtmeta.json`, { force: true }),
+      rm(`${destination}.mgt-sha256.json`, { force: true }),
+    ]).then(() => undefined),
+  );
+}
+
 /** @param {HfDownloadTask} task @param {string} partPath */
 async function assertDownloadIntegrity(task, partPath) {
   const expected = normalizeExpectedSha256(task.expectedSha256);
-  if (!expected) return;
+  if (!expected) return null;
   const actual = await calculateFileSha256(partPath);
-  if (actual === expected) return;
+  if (actual === expected) return actual;
   throw createDetailedError(
     `${task.label} 다운로드 체크섬이 일치하지 않습니다.`,
     {
@@ -260,10 +258,11 @@ async function assertDownloadIntegrity(task, partPath) {
   );
 }
 
-/** @param {HfDownloadTask} task */
-async function recordDownloadIntegrity(task) {
-  const expected = normalizeExpectedSha256(task.expectedSha256);
-  if (expected) await writeIntegrityMarker(task.destination, expected);
+/** @param {HfDownloadTask} task @param {string | null} verifiedSha256 */
+async function recordDownloadIntegrity(task, verifiedSha256) {
+  if (verifiedSha256) {
+    await writeIntegrityMarker(task.destination, verifiedSha256);
+  }
 }
 
 /** @param {unknown} error */

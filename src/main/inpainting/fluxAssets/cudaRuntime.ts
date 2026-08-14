@@ -18,7 +18,10 @@ import {
   readJsonUrl,
   readNvidiaRedistPackage,
 } from "./downloads";
-import { replaceDirectoryWithRollback } from "../../runtimeSupport/runtimeDirectoryPublish";
+import {
+  createRuntimeStagingDirectory,
+  replaceDirectoryWithRollback,
+} from "../../runtimeSupport/runtimeDirectoryPublish";
 
 type EnsureFluxCudaRuntimeOptions = {
   runtimeDir: string;
@@ -35,7 +38,7 @@ export async function ensureFluxCudaRuntime(
     return;
   }
 
-  const stagingDir = `${cudaDir}.staging-${process.pid}-${Date.now()}`;
+  const stagingDir = createRuntimeStagingDirectory(cudaDir);
   const downloadsDir = await prepareFluxCudaRuntimeDirs(options, stagingDir);
   try {
     await installFluxCudaPackages(
@@ -122,7 +125,7 @@ async function resolveCudnnRedistPackage(
 async function installFluxCudaPackages(
   options: EnsureFluxCudaRuntimeOptions,
   downloadsDir: string,
-  cudaDir: string,
+  stagingDir: string,
   cudaPackages: NvidiaRedistPackage[],
 ): Promise<void> {
   for (const entry of cudaPackages) {
@@ -133,19 +136,20 @@ async function installFluxCudaPackages(
       baseUrl: CUDA_REDIST_BASE_URL,
       label: "Flux CUDA 런타임",
     });
-    await extractSelectedZipEntries(
+    await extractFluxCudaRuntimeArchiveToStaging({
       archivePath,
-      cudaDir,
-      (fileName) => FLUX_CUDA_DLLS.has(fileName),
-      options.signal,
-    );
+      runtimeDir: options.runtimeDir,
+      selectedFileNames: FLUX_CUDA_DLLS,
+      signal: options.signal,
+      stagingDir,
+    });
   }
 }
 
 async function installFluxCudnnPackage(
   options: EnsureFluxCudaRuntimeOptions,
   downloadsDir: string,
-  cudaDir: string,
+  stagingDir: string,
   cudnnPackage: NvidiaRedistPackage,
 ): Promise<void> {
   const cudnnArchivePath = await downloadRuntimeArchive({
@@ -155,11 +159,34 @@ async function installFluxCudnnPackage(
     baseUrl: CUDNN_REDIST_BASE_URL,
     label: "Flux cuDNN 런타임",
   });
+  await extractFluxCudaRuntimeArchiveToStaging({
+    archivePath: cudnnArchivePath,
+    runtimeDir: options.runtimeDir,
+    selectedFileNames: FLUX_CUDNN_DLLS,
+    signal: options.signal,
+    stagingDir,
+  });
+}
+
+/**
+ * Extracts one pinned CUDA archive into the shared staging directory. Keeping
+ * the final path derivation here prevents an archive caller from accidentally
+ * validating only the shorter staging path.
+ */
+export async function extractFluxCudaRuntimeArchiveToStaging(options: {
+  archivePath: string;
+  runtimeDir: string;
+  selectedFileNames: ReadonlySet<string>;
+  signal?: AbortSignal;
+  stagingDir: string;
+}): Promise<void> {
   await extractSelectedZipEntries(
-    cudnnArchivePath,
-    cudaDir,
-    (fileName) => FLUX_CUDNN_DLLS.has(fileName),
+    options.archivePath,
+    options.stagingDir,
+    (fileName) => options.selectedFileNames.has(fileName),
     options.signal,
+    false,
+    join(options.runtimeDir, FLUX_CUDA_RUNTIME_DIR),
   );
 }
 

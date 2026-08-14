@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
-import { createReadStream, existsSync } from "node:fs";
+import { createReadStream } from "node:fs";
 import { mkdir, rm, stat } from "node:fs/promises";
 import * as path from "node:path";
 import { tMain } from "../i18n";
 import {
   assertRuntimeFunctions,
-  loadRuntimeModuleAtPath,
+  loadAppRuntimeModule,
 } from "../runtimeModuleLoader";
 import { isUsableRemoteFile, writeRemoteFileMetadata } from "./fileProbe";
 
@@ -27,6 +27,7 @@ type DownloadRuntime = {
       destination: string;
       label: string;
       maximumBytes: number;
+      minimumBytes?: number;
       expectedTotalBytes?: number;
       expectedSha256?: string;
       progressPhase?: string;
@@ -41,13 +42,20 @@ type DownloadRuntime = {
       totalBytes?: number;
       onComplete?: (receivedBytes: number) => void;
     },
-  ) => Promise<void>;
+  ) => Promise<unknown>;
   probeContentLength: (
     url: string,
     signal: AbortSignal | undefined,
     maximumBytes: number,
   ) => Promise<number>;
 };
+
+type DownloadCompletionReceipt = Readonly<{
+  receivedBytes: number;
+  verifiedSha256: string | null;
+  size: number;
+  mtimeMs: number;
+}>;
 
 export function hfResolveUrl(
   repo: string,
@@ -70,7 +78,7 @@ export async function ensureRemoteFile(options: {
   signal?: AbortSignal;
   onProgress?: (progress: RuntimeAssetProgress) => void;
 }): Promise<string> {
-  assertDownloadOptions(options.maximumBytes, options.expectedTotalBytes);
+  assertDownloadOptions(options);
   const filePath = path.join(options.modelDir, options.fileName);
   if (
     (await isFileWithinMaximum(filePath, options.maximumBytes)) &&
@@ -99,25 +107,6 @@ export async function ensureRemoteFile(options: {
     expectedTotalBytes: options.expectedTotalBytes,
     onProgress: options.onProgress,
   });
-  if (!options.expectedSha256) {
-    return filePath;
-  }
-  const expectedSha256 = options.expectedSha256.toLowerCase();
-  const actualSha256 = await sha256File(filePath, options.signal);
-  if (actualSha256 !== expectedSha256) {
-    await removeInvalidRemoteFile(filePath);
-    throw new Error(
-      `${options.label} SHA-256 검증에 실패했습니다. expected=${expectedSha256}, actual=${actualSha256}`,
-    );
-  }
-  const fileStat = await stat(filePath);
-  await writeRemoteFileMetadata(filePath, {
-    url: options.url,
-    bytes: fileStat.size,
-    downloadedAt: new Date().toISOString(),
-    mtimeMs: fileStat.mtimeMs,
-    sha256: actualSha256,
-  });
   return filePath;
 }
 
@@ -134,7 +123,7 @@ export async function downloadToFile(options: {
   expectedTotalBytes?: number;
   onProgress?: (progress: RuntimeAssetProgress) => void;
 }): Promise<void> {
-  assertDownloadOptions(options.maximumBytes, options.expectedTotalBytes);
+  assertDownloadOptions(options);
   if (
     (await isFileWithinMaximum(options.outputPath, options.maximumBytes)) &&
     (await isUsableRemoteFile(options.outputPath, options.url, {
@@ -156,14 +145,14 @@ export async function downloadToFile(options: {
           options.signal,
           options.maximumBytes,
         );
-  let receivedBytes = 0;
-  await downloadHfFileWithProgress(
+  const receipt = await downloadHfFileWithProgress(
     {
       url: options.url,
       file: path.basename(options.outputPath),
       destination: options.outputPath,
       label: options.label,
       maximumBytes: options.maximumBytes,
+      minimumBytes: options.minimumBytes,
       expectedTotalBytes: options.expectedTotalBytes,
       expectedSha256: options.expectedSha256,
       progressPhase: options.progressPhase ?? "inpainting_downloading",
@@ -174,47 +163,126 @@ export async function downloadToFile(options: {
       abortSignal: options.signal,
       onProgress: options.onProgress,
     },
-    {
-      totalBytes,
-      onComplete: (bytes) => {
-        receivedBytes = bytes;
-      },
-    },
+    { totalBytes },
   );
+  const verified = await verifyDownloadReceipt(options, receipt);
   await writeRemoteFileMetadata(options.outputPath, {
     url: options.url,
-    bytes: receivedBytes,
+    bytes: verified.size,
     downloadedAt: new Date().toISOString(),
+    ...(verified.sha256
+      ? { mtimeMs: verified.mtimeMs, sha256: verified.sha256 }
+      : {}),
   });
 }
 
 function loadDownloadRuntime(): DownloadRuntime {
-  const runtimePath = resolveDownloadRuntimePath();
-  const runtime = loadRuntimeModuleAtPath(runtimePath);
-  assertRuntimeFunctions(runtime, runtimePath, [
+  const runtime = loadAppRuntimeModule("downloadUtils");
+  assertRuntimeFunctions(runtime, "downloadUtils", [
     "downloadHfFileWithProgress",
     "probeContentLength",
   ]);
   return runtime as DownloadRuntime;
 }
 
-function resolveDownloadRuntimePath(): string {
-  const fileName = "simple-page-download-utils.cjs";
-  const candidates = [
-    ...(typeof process.resourcesPath === "string"
-      ? [path.join(process.resourcesPath, "app-runtime", fileName)]
-      : []),
-    path.resolve(__dirname, "..", "..", "app-runtime", fileName),
-    path.resolve(__dirname, "..", "runtime", fileName),
-    path.resolve(process.cwd(), "src", "main", "runtime", fileName),
-  ];
-  const runtimePath = candidates.find((candidate) => existsSync(candidate));
-  if (!runtimePath) {
+async function verifyDownloadReceipt(
+  options: {
+    outputPath: string;
+    label: string;
+    expectedSha256?: string;
+    minimumBytes?: number;
+    maximumBytes: number;
+    expectedTotalBytes?: number;
+    signal?: AbortSignal;
+  },
+  receipt: unknown,
+): Promise<{ size: number; mtimeMs: number; sha256?: string }> {
+  const fileStat = await stat(options.outputPath);
+  if (!isDownloadedSizeValid(options, fileStat)) {
+    await removeInvalidRemoteFile(options.outputPath);
+    throw new Error(`${options.label} 다운로드 크기 검증에 실패했습니다.`);
+  }
+  const expectedSha256 = normalizeExpectedSha256(options.expectedSha256);
+  if (!expectedSha256) {
+    return { size: fileStat.size, mtimeMs: fileStat.mtimeMs };
+  }
+  if (isCurrentDownloadReceipt(receipt, fileStat, expectedSha256)) {
+    return {
+      size: fileStat.size,
+      mtimeMs: fileStat.mtimeMs,
+      sha256: expectedSha256,
+    };
+  }
+  const actualSha256 = await sha256File(options.outputPath, options.signal);
+  if (actualSha256 !== expectedSha256) {
+    await removeInvalidRemoteFile(options.outputPath);
     throw new Error(
-      `다운로드 런타임 모듈을 찾을 수 없습니다: ${candidates.join(", ")}`,
+      `${options.label} SHA-256 검증에 실패했습니다. expected=${expectedSha256}, actual=${actualSha256}`,
     );
   }
-  return runtimePath;
+  return {
+    size: fileStat.size,
+    mtimeMs: fileStat.mtimeMs,
+    sha256: actualSha256,
+  };
+}
+
+function isDownloadedSizeValid(
+  options: {
+    minimumBytes?: number;
+    maximumBytes: number;
+    expectedTotalBytes?: number;
+  },
+  fileStat: Awaited<ReturnType<typeof stat>>,
+): boolean {
+  return Boolean(
+    fileStat.isFile() &&
+    fileStat.size <= options.maximumBytes &&
+    fileStat.size >= (options.minimumBytes ?? 0) &&
+    (options.expectedTotalBytes === undefined ||
+      fileStat.size === options.expectedTotalBytes),
+  );
+}
+
+function isCurrentDownloadReceipt(
+  receipt: unknown,
+  fileStat: Awaited<ReturnType<typeof stat>>,
+  expectedSha256: string,
+): boolean {
+  return (
+    isDownloadCompletionReceipt(receipt) &&
+    Object.isFrozen(receipt) &&
+    receipt.receivedBytes === fileStat.size &&
+    receipt.size === fileStat.size &&
+    receipt.mtimeMs === fileStat.mtimeMs &&
+    receipt.verifiedSha256 === expectedSha256
+  );
+}
+
+function isDownloadCompletionReceipt(
+  value: unknown,
+): value is DownloadCompletionReceipt {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const receipt = value as Partial<DownloadCompletionReceipt>;
+  return Boolean(
+    isNonNegativeSafeInteger(receipt.receivedBytes) &&
+    isNonNegativeSafeInteger(receipt.size) &&
+    Number.isFinite(receipt.mtimeMs) &&
+    isReceiptSha256(receipt.verifiedSha256),
+  );
+}
+
+function isNonNegativeSafeInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value) && Number(value) >= 0;
+}
+
+function isReceiptSha256(value: unknown): value is string | null {
+  return (
+    value === null ||
+    (typeof value === "string" && /^[a-f0-9]{64}$/.test(value))
+  );
 }
 
 async function sha256File(
@@ -233,6 +301,7 @@ async function removeInvalidRemoteFile(filePath: string): Promise<void> {
   await Promise.all([
     rm(filePath, { force: true }),
     rm(`${filePath}.mgtmeta.json`, { force: true }),
+    rm(`${filePath}.mgt-sha256.json`, { force: true }),
   ]);
 }
 
@@ -264,14 +333,19 @@ function reportDownloadCacheHit(options: {
   });
 }
 
-function assertDownloadOptions(
-  maximumBytes: number,
-  expectedTotalBytes?: number,
-): void {
+function assertDownloadOptions(options: {
+  maximumBytes: number;
+  minimumBytes?: number;
+  expectedTotalBytes?: number;
+  expectedSha256?: string;
+}): void {
+  const { maximumBytes, minimumBytes, expectedTotalBytes, expectedSha256 } =
+    options;
   if (!Number.isSafeInteger(maximumBytes) || maximumBytes < 1) {
     throw new TypeError("maximumBytes must be a positive safe integer.");
   }
   if (expectedTotalBytes === undefined) {
+    assertOptionalDownloadFields(maximumBytes, minimumBytes, expectedSha256);
     return;
   }
   if (
@@ -283,6 +357,38 @@ function assertDownloadOptions(
       "expectedTotalBytes must be a positive safe integer within maximumBytes.",
     );
   }
+  if (minimumBytes !== undefined && expectedTotalBytes < minimumBytes) {
+    throw new TypeError("expectedTotalBytes must not be below minimumBytes.");
+  }
+  assertOptionalDownloadFields(maximumBytes, minimumBytes, expectedSha256);
+}
+
+function assertOptionalDownloadFields(
+  maximumBytes: number,
+  minimumBytes?: number,
+  expectedSha256?: string,
+): void {
+  if (
+    minimumBytes !== undefined &&
+    (!Number.isSafeInteger(minimumBytes) ||
+      minimumBytes < 1 ||
+      minimumBytes > maximumBytes)
+  ) {
+    throw new TypeError(
+      "minimumBytes must be a positive safe integer within maximumBytes.",
+    );
+  }
+  if (
+    expectedSha256 !== undefined &&
+    !normalizeExpectedSha256(expectedSha256)
+  ) {
+    throw new TypeError("expectedSha256 must be a 64-character SHA-256 value.");
+  }
+}
+
+function normalizeExpectedSha256(value: string | undefined): string | null {
+  const normalized = value?.trim().toLowerCase() ?? "";
+  return /^[a-f0-9]{64}$/.test(normalized) ? normalized : null;
 }
 
 async function isFileWithinMaximum(

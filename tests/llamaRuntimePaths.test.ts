@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_GEMMA_MODEL_FILE,
@@ -12,44 +12,15 @@ import {
 } from "../src/shared/modelPresets";
 
 const require = createRequire(import.meta.url);
-type ArchiveExtractionResult = {
-  method: "powershell" | "tar";
-  stdout: string;
-  stderr: string;
-  attempts: Array<{
-    command: string;
-    args: string[];
-    code: number | null;
-    stdout: string;
-    stderr: string;
-    error?: string;
-  }>;
-};
 const { inferAmdRocmTargetFromText } =
   require("../src/main/runtime/simple-page-amd-rocm-target.cjs") as {
     inferAmdRocmTargetFromText: (value: string) => string | null;
   };
-const { collectSelectedFiles, extractSelectedZipEntries } =
-  require("../src/main/runtime/simple-page-zip-utils.cjs") as {
-    collectSelectedFiles: (
-      rootDir: string,
-      shouldExtract: (fileName: string, relativePath?: string) => boolean,
-    ) => Array<{ filePath: string; outputName: string }>;
-    extractSelectedZipEntries: (
-      archivePath: string,
-      outputDir: string,
-      shouldExtract: (fileName: string, relativePath: string) => boolean,
-      options?: {
-        extractArchive?: (
-          archivePath: string,
-          outputDir: string,
-        ) => Promise<ArchiveExtractionResult>;
-      },
-    ) => Promise<void>;
-  };
 const {
   hasRequiredLlamaRuntimeFiles,
   missingRequiredLlamaRuntimeFiles,
+  resolveManagedToolsDir,
+  resolveManagedToolsSearchDirs,
   resolvePreferredLlamaRuntime,
 } = require("../src/main/runtime/simple-page-runtime-paths.cjs") as {
   hasRequiredLlamaRuntimeFiles: (
@@ -59,6 +30,10 @@ const {
   missingRequiredLlamaRuntimeFiles: (
     runtimeDir: string,
     runtime: Record<string, unknown>,
+  ) => string[];
+  resolveManagedToolsDir: (options?: Record<string, unknown>) => string;
+  resolveManagedToolsSearchDirs: (
+    options?: Record<string, unknown>,
   ) => string[];
   resolvePreferredLlamaRuntime: (options?: Record<string, unknown>) => {
     id: string;
@@ -76,6 +51,21 @@ const {
     requiredFiles: Array<string | string[]>;
   };
 };
+const { resolveWindowsLlamaRuntimeMaxRelativePathLength } =
+  require("../src/main/runtime/simple-page-llama-runtimes.cjs") as {
+    resolveWindowsLlamaRuntimeMaxRelativePathLength: (runtime: {
+      id?: string;
+      requiredFiles?: Array<string | string[]>;
+    }) => number;
+  };
+const { createCompactRuntimeSiblingDirectory, createRuntimeStagingDirectory } =
+  require("../src/main/runtime/runtime-directory-publish.cjs") as {
+    createCompactRuntimeSiblingDirectory: (
+      outputDir: string,
+      kind: "b" | "s" | "z",
+    ) => string;
+    createRuntimeStagingDirectory: (outputDir: string) => string;
+  };
 const { resolvePinnedLlamaRuntimeZipExtractionLimits } =
   require("../src/main/runtime/model/llama-runtime-archive-policy.cjs") as {
     resolvePinnedLlamaRuntimeZipExtractionLimits: (
@@ -135,6 +125,183 @@ const {
   };
 
 describe("llama runtime path selection", () => {
+  it("keeps pinned Windows runtime path maxima bound to audited archives", () => {
+    const cases = [
+      [
+        "cuda12",
+        undefined,
+        GEMMA_26B_MODEL_REPO,
+        GEMMA_26B_MODEL_FILE_IQ3_S,
+        28,
+      ],
+      [
+        "rocm",
+        "gfx1201",
+        GEMMA_26B_MODEL_REPO,
+        GEMMA_26B_MODEL_FILE_IQ3_S,
+        127,
+      ],
+      ["rocm", "gfx90a", GEMMA_26B_MODEL_REPO, GEMMA_26B_MODEL_FILE_IQ3_S, 137],
+      [
+        "rocm",
+        "gfx110X",
+        DEFAULT_GEMMA_MODEL_REPO,
+        DEFAULT_GEMMA_MODEL_FILE,
+        127,
+      ],
+    ] as const;
+    for (const [profile, target, repo, file, maximum] of cases) {
+      const runtime = resolvePreferredLlamaRuntime({
+        llamaRuntimeProfile: profile,
+        llamaRocmTarget: target,
+        modelRepo: repo,
+        modelFile: file,
+      });
+      expect(resolveWindowsLlamaRuntimeMaxRelativePathLength(runtime)).toBe(
+        maximum,
+      );
+    }
+    expect(
+      resolveWindowsLlamaRuntimeMaxRelativePathLength({
+        id: "future-unaudited-runtime",
+        requiredFiles: ["server.exe"],
+      }),
+    ).toBe(255);
+  });
+
+  it("uses a compact Windows root and transient siblings for pinned HIP paths", () => {
+    if (process.platform !== "win32") return;
+    const previousLocalAppData = process.env.LOCALAPPDATA;
+    const localAppData = "C:\\Users\\mgt\\AppData\\Local";
+    process.env.LOCALAPPDATA = localAppData;
+    try {
+      const workingDir = join("C:\\", "i".repeat(150));
+      const options = {
+        workingDir,
+        llamaRuntimeProfile: "rocm",
+        llamaRocmTarget: "gfx110X",
+        modelRepo: DEFAULT_GEMMA_MODEL_REPO,
+        modelFile: DEFAULT_GEMMA_MODEL_FILE,
+      };
+      const runtime = resolvePreferredLlamaRuntime(options);
+      const longestPinnedEntry =
+        "hipblaslt/library/TensileLibrary_B8F8_B8B8F8_HA_Bias_SAB_SCD_SAV_UA_Type_B8B8_HPA_Contraction_l_Ailk_Bjlk_Cijk_Dijk_gfx1200.dat";
+      expect(longestPinnedEntry).toHaveLength(127);
+      expect(
+        resolve(join(workingDir, "tools", runtime.dir, longestPinnedEntry))
+          .length,
+      ).toBeGreaterThanOrEqual(252);
+
+      const managedToolsDir = resolveManagedToolsDir(options);
+      expect(managedToolsDir).toBe(join(localAppData, "MGT", "tools"));
+      expect(resolveManagedToolsSearchDirs(options)).toEqual([managedToolsDir]);
+      const runtimeDir = join(managedToolsDir, runtime.dir);
+      const stagingDir = createRuntimeStagingDirectory(runtimeDir);
+      const backupDir = createCompactRuntimeSiblingDirectory(runtimeDir, "b");
+      expect(basename(stagingDir)).toMatch(/^\.s-[a-f0-9]{16}$/);
+      expect(basename(backupDir)).toMatch(/^\.b-[a-f0-9]{16}$/);
+      for (const root of [runtimeDir, stagingDir, backupDir]) {
+        expect(resolve(join(root, longestPinnedEntry)).length).toBeLessThan(
+          252,
+        );
+      }
+    } finally {
+      if (previousLocalAppData === undefined) {
+        delete process.env.LOCALAPPDATA;
+      } else {
+        process.env.LOCALAPPDATA = previousLocalAppData;
+      }
+    }
+  });
+
+  it("fails closed for explicit or fallback managed-tools roots that remain too long", () => {
+    if (process.platform !== "win32") return;
+    const previousLocalAppData = process.env.LOCALAPPDATA;
+    const longRoot = join("C:\\", "x".repeat(180));
+    const baseOptions = {
+      workingDir: longRoot,
+      llamaRuntimeProfile: "rocm",
+      llamaRocmTarget: "gfx110X",
+      modelRepo: DEFAULT_GEMMA_MODEL_REPO,
+      modelFile: DEFAULT_GEMMA_MODEL_FILE,
+    };
+    try {
+      let explicitError: unknown;
+      try {
+        resolveManagedToolsDir({
+          ...baseOptions,
+          managedToolsDir: join(longRoot, "explicit-tools"),
+        });
+      } catch (error) {
+        explicitError = error;
+      }
+      expect(explicitError).toMatchObject({
+        windowsPathCeiling: 252,
+        windowsPathUnsafe: true,
+        nonRetriable: true,
+      });
+
+      process.env.LOCALAPPDATA = longRoot;
+      let fallbackError: unknown;
+      try {
+        resolveManagedToolsDir(baseOptions);
+      } catch (error) {
+        fallbackError = error;
+      }
+      expect(fallbackError).toMatchObject({
+        fallbackManagedToolsDir: resolve(join(longRoot, "MGT", "tools")),
+        windowsPathCeiling: 252,
+        windowsPathUnsafe: true,
+        nonRetriable: true,
+      });
+      expect(
+        (fallbackError as { fallbackDerivedPathLength?: number })
+          .fallbackDerivedPathLength,
+      ).toBeGreaterThanOrEqual(252);
+    } finally {
+      if (previousLocalAppData === undefined) {
+        delete process.env.LOCALAPPDATA;
+      } else {
+        process.env.LOCALAPPDATA = previousLocalAppData;
+      }
+    }
+  });
+
+  it("budgets the claimed Vulkan archive path before installation", () => {
+    if (process.platform !== "win32") return;
+    const options = {
+      llamaRuntimeProfile: "vulkan",
+      modelRepo: GEMMA_26B_MODEL_REPO,
+      modelFile: GEMMA_26B_MODEL_FILE_IQ3_S,
+    };
+    const runtime = resolvePreferredLlamaRuntime(options);
+    const archive = runtime.archives[0];
+    const claimedName = `.mgt-llama-archive-${"0".repeat(32)}.zip`;
+    const baseRoot = join("C:\\", "m");
+    const baseClaimPath = resolve(join(baseRoot, ".downloads", claimedName));
+    const managedToolsDir = `${baseRoot}${"x".repeat(252 - baseClaimPath.length)}`;
+    const claimedPath = resolve(
+      join(managedToolsDir, ".downloads", claimedName),
+    );
+    const integrityPath = resolve(
+      join(managedToolsDir, ".downloads", `${archive.archive}.mgt-sha256.json`),
+    );
+    expect(claimedPath).toHaveLength(252);
+    expect(integrityPath.length).toBeLessThan(252);
+
+    expect(() =>
+      resolveManagedToolsDir({ ...options, managedToolsDir }),
+    ).toThrowError(
+      expect.objectContaining({
+        derivedPath: claimedPath,
+        derivedPathKind: "claimed-runtime-archive",
+        derivedPathLength: 252,
+        windowsPathUnsafe: true,
+        nonRetriable: true,
+      }),
+    );
+  });
+
   it("infers Azure AMD Radeon PRO V710 style hardware text as gfx110X", () => {
     expect(
       inferAmdRocmTargetFromText("AMD Radeon PRO V710 MxGPU VEN_1002&DEV_7460"),
@@ -377,45 +544,6 @@ describe("llama runtime path selection", () => {
     }
   });
 
-  it("preserves ROCm kernel library directories when selecting runtime files", () => {
-    const runtimeDir = mkdtempSync(join(tmpdir(), "mgt-rocm-select-"));
-    try {
-      const rocblasDir = join(runtimeDir, "rocblas", "library");
-      const hipblasltDir = join(runtimeDir, "hipblaslt", "library");
-      mkdirSync(rocblasDir, { recursive: true });
-      mkdirSync(hipblasltDir, { recursive: true });
-      writeFileSync(join(runtimeDir, "llama-server.exe"), "");
-      writeFileSync(join(runtimeDir, "amdhip64_7.dll"), "");
-      writeFileSync(join(rocblasDir, "TensileLibrary_gfx1101.dat"), "");
-      writeFileSync(join(hipblasltDir, "Kernels.so-000-gfx1101.hsaco"), "");
-
-      const selected = collectSelectedFiles(
-        runtimeDir,
-        (fileName, relativePath) => {
-          const normalizedRelativePath = String(relativePath ?? fileName)
-            .replace(/\\/g, "/")
-            .toLowerCase();
-          return (
-            fileName.endsWith(".exe") ||
-            fileName.endsWith(".dll") ||
-            ((normalizedRelativePath.startsWith("rocblas/") ||
-              normalizedRelativePath.startsWith("hipblaslt/")) &&
-              /\.(?:dat|co|hsaco)$/i.test(normalizedRelativePath))
-          );
-        },
-      );
-
-      expect(selected.map((entry) => entry.outputName).sort()).toEqual([
-        "amdhip64_7.dll",
-        join("hipblaslt", "library", "Kernels.so-000-gfx1101.hsaco"),
-        "llama-server.exe",
-        join("rocblas", "library", "TensileLibrary_gfx1101.dat"),
-      ]);
-    } finally {
-      rmSync(runtimeDir, { recursive: true, force: true });
-    }
-  });
-
   it("rejects a managed runtime whose executable changed after installation", () => {
     const managedToolsDir = mkdtempSync(
       join(tmpdir(), "mgt-managed-runtime-integrity-"),
@@ -595,57 +723,6 @@ describe("llama runtime path selection", () => {
       expect(isIncompleteManagedLlamaRuntime(serverPath, options)).toBe(true);
     } finally {
       rmSync(managedToolsDir, { recursive: true, force: true });
-    }
-  });
-
-  it("includes extraction diagnostics when no runtime files match", async () => {
-    const tempDir = mkdtempSync(join(tmpdir(), "mgt-runtime-zip-empty-"));
-    try {
-      const archivePath = join(tempDir, "runtime.zip");
-      const outputDir = join(tempDir, "runtime");
-      mkdirSync(outputDir, { recursive: true });
-
-      let caught: unknown;
-      try {
-        await extractSelectedZipEntries(archivePath, outputDir, () => false, {
-          extractArchive: async (_archivePath, extractDir) => {
-            const docsDir = join(extractDir, "docs");
-            mkdirSync(docsDir, { recursive: true });
-            writeFileSync(join(docsDir, "readme.txt"), "no runtime files here");
-            return {
-              method: "powershell",
-              stdout: "fixture extraction",
-              stderr: "",
-              attempts: [
-                {
-                  command: "powershell",
-                  args: [],
-                  code: 0,
-                  stdout: "fixture extraction",
-                  stderr: "",
-                },
-              ],
-            };
-          },
-        });
-      } catch (error) {
-        caught = error;
-      }
-
-      expect(caught).toBeInstanceOf(Error);
-      expect((caught as Error).message).toContain("No runtime files matched");
-      expect(caught).toMatchObject({
-        archivePath,
-        extractionMethod: "powershell",
-        extractedTopLevelEntries: ["docs/"],
-      });
-      expect(
-        Array.isArray(
-          (caught as { extractionAttempts?: unknown }).extractionAttempts,
-        ),
-      ).toBe(true);
-    } finally {
-      rmSync(tempDir, { recursive: true, force: true });
     }
   });
 
