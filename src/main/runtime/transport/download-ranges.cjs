@@ -5,7 +5,6 @@
 /** @typedef {{ knownAggregateBytes?: number; totalBytes?: number; completedBytes?: number }} DownloadProgress */
 /** @typedef {{ header: "etag" | "last-modified"; value: string }} RangeValidator */
 const { open: fsOpen, rm } = require("node:fs/promises");
-const { setTimeout: delay } = require("node:timers/promises");
 const {
   createDetailedError,
   safeCleanup,
@@ -29,6 +28,7 @@ const {
   emitRangeFallbackProgress,
 } = require("./download-progress.cjs");
 const { downloadHfFileByStream } = require("./download-stream.cjs");
+const { waitForDownloadRetry } = require("./download-retry-wait.cjs");
 
 /** @param {HfDownloadTask} task @param {DownloadOptions} options @param {DownloadProgress} progress @param {string} partPath @param {number} totalBytes @param {number} startedAt @param {{ used: boolean }} fallbackState */
 async function downloadHfFileByRanges(
@@ -384,9 +384,10 @@ async function fetchRangeBufferWithRetry(
         maxAttempts,
         `bytes=${start}-${end}`,
       );
-      await delay(resolveDownloadRetryDelayMs(attempt, error), undefined, {
-        signal: options.abortSignal ?? undefined,
-      });
+      await waitForDownloadRetry(
+        resolveDownloadRetryDelayMs(attempt, error),
+        options.abortSignal,
+      );
     }
   }
   throw lastError || createRangeError(task, start, end);

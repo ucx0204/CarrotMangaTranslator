@@ -9,6 +9,10 @@ import {
   measureStyledWrappedText,
   type TextMeasurementContext,
 } from "../src/renderer/src/lib/overlayTextWrapping";
+import {
+  resolveNaturalWordBreakOffsets,
+  segmentGraphemes,
+} from "../src/renderer/src/lib/overlayTextSegmentation";
 
 describe("overlay text word breaking", () => {
   it("distinguishes natural, anywhere, keep-together, and emergency wrapping", () => {
@@ -95,6 +99,55 @@ describe("overlay text word breaking", () => {
         "break-all",
       ),
     ).toEqual(["é", "B"]);
+  });
+
+  it("keeps the conservative grapheme fallback identical without Intl.Segmenter", () => {
+    const descriptor = Object.getOwnPropertyDescriptor(Intl, "Segmenter");
+    Object.defineProperty(Intl, "Segmenter", {
+      configurable: true,
+      value: undefined,
+    });
+    try {
+      expect(segmentGraphemes("Ae\u0301👨‍👩‍👧‍👦🇰🇷B")).toEqual([
+        "A",
+        "e\u0301",
+        "👨‍👩‍👧‍👦",
+        "🇰🇷",
+        "B",
+      ]);
+      expect(
+        resolveNaturalWordBreakOffsets(
+          segmentGraphemes("가나다 라마").map((text) => ({ text })),
+        ),
+      ).toEqual(new Set());
+    } finally {
+      restoreIntlSegmenter(descriptor);
+    }
+  });
+
+  it("reuses the shared segmenter until the platform constructor changes", () => {
+    const descriptor = Object.getOwnPropertyDescriptor(Intl, "Segmenter");
+    let constructions = 0;
+    class CountingSegmenter {
+      constructor(_locale?: string, _options?: Intl.SegmenterOptions) {
+        constructions += 1;
+      }
+
+      segment(value: string): Array<{ segment: string; index: number }> {
+        return Array.from(value, (segment, index) => ({ segment, index }));
+      }
+    }
+    Object.defineProperty(Intl, "Segmenter", {
+      configurable: true,
+      value: CountingSegmenter,
+    });
+    try {
+      expect(segmentGraphemes("AB")).toEqual(["A", "B"]);
+      expect(segmentGraphemes("CD")).toEqual(["C", "D"]);
+      expect(constructions).toBe(1);
+    } finally {
+      restoreIntlSegmenter(descriptor);
+    }
   });
 
   it("uses each bubble slot width while preserving emergency word breaks", () => {
@@ -195,6 +248,16 @@ describe("overlay text word breaking", () => {
     expect(measured.fits).toBe(true);
   });
 });
+
+function restoreIntlSegmenter(
+  descriptor: PropertyDescriptor | undefined,
+): void {
+  if (descriptor) {
+    Object.defineProperty(Intl, "Segmenter", descriptor);
+    return;
+  }
+  Reflect.deleteProperty(Intl, "Segmenter");
+}
 
 const fixedMeasureContext = {
   font: "",

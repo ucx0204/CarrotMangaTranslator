@@ -9,6 +9,9 @@ export const CLOSING_PUNCTUATION =
   ")]}>»”’,.!?:;」』）］｝〉》】〕〗〙〛、。，．！？：；…";
 export const BREAK_AFTER_PUNCTUATION = "-‐‑‒–—―/";
 
+let cachedSegmenterConstructor: typeof Intl.Segmenter | undefined;
+const cachedSegmenters = new Map<string, Intl.Segmenter>();
+
 export function segmentNaturalTextGraphemes(value: string): string[] {
   const segmenter = resolveSegmenter(undefined, "grapheme");
   return segmenter
@@ -20,15 +23,28 @@ export function segmentNaturalTextWords(
   value: string,
   locale?: string,
 ): NaturalWordSegment[] {
+  return (
+    trySegmentNaturalTextWords(value, locale) ?? segmentWordsFallback(value)
+  );
+}
+
+/**
+ * Return native word boundaries when `Intl.Segmenter` is available. Callers
+ * whose fallback policy is deliberately more conservative can distinguish an
+ * unavailable segmenter from the eojeol fallback used by natural layout.
+ */
+export function trySegmentNaturalTextWords(
+  value: string,
+  locale?: string,
+): NaturalWordSegment[] | null {
   const segmenter = resolveSegmenter(locale, "word");
-  if (segmenter) {
-    return Array.from(segmenter.segment(value), (entry) => ({
-      segment: entry.segment,
-      index: entry.index,
-      isWordLike: Boolean(entry.isWordLike),
-    }));
-  }
-  return segmentWordsFallback(value);
+  return segmenter
+    ? Array.from(segmenter.segment(value), (entry) => ({
+        segment: entry.segment,
+        index: entry.index,
+        isWordLike: Boolean(entry.isWordLike),
+      }))
+    : null;
 }
 
 export function segmentNaturalTextEojeols(value: string): NaturalWordSegment[] {
@@ -166,14 +182,28 @@ function resolveSegmenter(
   granularity: Intl.SegmenterOptions["granularity"],
 ): Intl.Segmenter | null {
   if (typeof Intl === "undefined" || typeof Intl.Segmenter !== "function") {
+    cachedSegmenterConstructor = undefined;
+    cachedSegmenters.clear();
     return null;
   }
+  const Segmenter = Intl.Segmenter;
+  if (cachedSegmenterConstructor !== Segmenter) {
+    cachedSegmenterConstructor = Segmenter;
+    cachedSegmenters.clear();
+  }
+  const cacheKey = `${granularity}\u0000${locale ?? ""}`;
+  const cached = cachedSegmenters.get(cacheKey);
+  if (cached) return cached;
+
+  let segmenter: Intl.Segmenter;
   try {
-    return new Intl.Segmenter(locale, { granularity });
+    segmenter = new Segmenter(locale, { granularity });
   } catch (error) {
     void error;
-    return new Intl.Segmenter(undefined, { granularity });
+    segmenter = new Segmenter(undefined, { granularity });
   }
+  cachedSegmenters.set(cacheKey, segmenter);
+  return segmenter;
 }
 
 function segmentWordsFallback(value: string): NaturalWordSegment[] {

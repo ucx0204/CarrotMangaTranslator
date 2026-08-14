@@ -14,12 +14,6 @@ export type ZipEntryLike = {
   getData?: () => Buffer;
 };
 
-export type AdmZipLike = {
-  getEntries: () => ZipEntryLike[];
-  addFile: (entryName: string, content: Buffer | string) => void;
-  writeZip: (targetPath: string) => void;
-};
-
 type OpenZipEntry = ZipEntryLike & {
   rawEntry: yauzl.Entry;
 };
@@ -41,10 +35,6 @@ export const MAX_SHARE_JSON_BYTES = 20 * 1024 * 1024;
 export const MAX_SHARE_IMAGE_BYTES = 128 * 1024 * 1024;
 export const MAX_IMPORT_IMAGE_BYTES = 256 * 1024 * 1024;
 const MAX_ZIP_COMPRESSION_RATIO = 100;
-
-export const AdmZip = require("adm-zip") as {
-  new (archivePath?: string): AdmZipLike;
-};
 
 export async function openZipArchiveReader(
   archivePath: string,

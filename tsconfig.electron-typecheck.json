@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.electron.json",
+  "compilerOptions": {
+    "incremental": true,
+    "noEmit": true,
+    "tsBuildInfoFile": ".tmp/check-cache/typecheck-electron.tsbuildinfo"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": true,
+    "tsBuildInfoFile": ".tmp/check-cache/typecheck.tsbuildinfo"
+  }
+}

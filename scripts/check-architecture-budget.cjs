@@ -19,48 +19,82 @@ const depcruiseBin = join(
  */
 
 function readDepcruiseReport() {
-  return execFileSync(
-    process.execPath,
-    [
-      depcruiseBin,
-      "--config",
-      ".dependency-cruiser.cjs",
-      "--include-only",
-      "^src",
-      "--output-type",
-      "json",
-      "src",
-    ],
-    {
+  const args = [
+    depcruiseBin,
+    "--config",
+    ".dependency-cruiser.cjs",
+    "--include-only",
+    "^src",
+    "--output-type",
+    "json",
+    "src",
+  ];
+  try {
+    return execFileSync(process.execPath, args, {
       cwd: process.cwd(),
       encoding: "utf8",
       maxBuffer: 32 * 1024 * 1024,
-    },
-  );
-}
-
-/** @type {{ modules?: DepcruiseModule[] }} */
-const report = JSON.parse(readDepcruiseReport());
-const violations = [];
-/** @type {Record<string, number>} */
-const runtimeDependentCounts = {};
-
-for (const moduleInfo of report.modules ?? []) {
-  for (const dependency of moduleInfo.dependencies ?? []) {
-    if (
-      dependency.coreModule ||
-      dependency.couldNotResolve ||
-      dependency.dependencyTypes?.includes("type-only") ||
-      !dependency.resolved
-    ) {
-      continue;
+    });
+  } catch (error) {
+    const processError =
+      error && typeof error === "object"
+        ? /** @type {{ stdout?: unknown; stderr?: unknown }} */ (error)
+        : {};
+    const stdout = String(processError.stdout ?? "");
+    if (stdout.trim()) {
+      return stdout;
     }
-    runtimeDependentCounts[dependency.resolved] =
-      (runtimeDependentCounts[dependency.resolved] ?? 0) + 1;
+    process.stderr.write(String(processError.stderr ?? ""));
+    throw error;
   }
 }
 
-for (const moduleInfo of report.modules ?? []) {
+/**
+ * @param {{ modules?: DepcruiseModule[] }} report
+ * @returns {{ violations: string[]; notices: string[] }}
+ */
+function evaluateArchitectureBudget(report) {
+  const violations = [];
+  const notices = [];
+  const runtimeDependentCounts = countRuntimeDependents(report.modules ?? []);
+
+  for (const moduleInfo of report.modules ?? []) {
+    const result = evaluateModuleBudget(moduleInfo, runtimeDependentCounts);
+    violations.push(...result.violations);
+    notices.push(...result.notices);
+  }
+
+  return { violations, notices };
+}
+
+/** @param {DepcruiseDependency} dependency */
+function isRuntimeDependency(dependency) {
+  return Boolean(
+    !dependency.coreModule &&
+    !dependency.couldNotResolve &&
+    !dependency.dependencyTypes?.includes("type-only") &&
+    dependency.resolved,
+  );
+}
+
+/** @param {DepcruiseModule[]} modules */
+function countRuntimeDependents(modules) {
+  /** @type {Record<string, number>} */
+  const counts = {};
+  for (const moduleInfo of modules) {
+    for (const dependency of moduleInfo.dependencies ?? []) {
+      if (!isRuntimeDependency(dependency) || !dependency.resolved) continue;
+      counts[dependency.resolved] = (counts[dependency.resolved] ?? 0) + 1;
+    }
+  }
+  return counts;
+}
+
+/**
+ * @param {DepcruiseModule} moduleInfo
+ * @param {Record<string, number>} runtimeDependentCounts
+ */
+function evaluateModuleBudget(moduleInfo, runtimeDependentCounts) {
   const source = moduleInfo.source;
   const allow = baseline.allow?.[source] ?? {};
   const maxImports = allow.maxImports ?? baseline.defaultMaxImports;
@@ -69,6 +103,8 @@ for (const moduleInfo of report.modules ?? []) {
     (dependency) => !dependency.coreModule && !dependency.couldNotResolve,
   ).length;
   const runtimeImportedBy = runtimeDependentCounts[source] ?? 0;
+  const violations = [];
+  const notices = [];
 
   if (imports > maxImports) {
     violations.push(
@@ -81,7 +117,7 @@ for (const moduleInfo of report.modules ?? []) {
     );
   }
   if (allow.maxImports !== undefined && imports < allow.maxImports) {
-    console.log(
+    notices.push(
       `${source}: imports ${imports} is below explicit budget ${allow.maxImports}; lower the baseline.`,
     );
   }
@@ -89,18 +125,43 @@ for (const moduleInfo of report.modules ?? []) {
     allow.maxImportedBy !== undefined &&
     runtimeImportedBy < allow.maxImportedBy
   ) {
-    console.log(
+    notices.push(
       `${source}: runtimeImportedBy ${runtimeImportedBy} is below explicit budget ${allow.maxImportedBy}; lower the baseline.`,
     );
   }
+  return { violations, notices };
 }
 
-if (violations.length > 0) {
-  console.error("Architecture budget failed:");
-  for (const violation of violations) {
-    console.error(`- ${violation}`);
+function runArchitectureBudgetCheck() {
+  /** @type {{ modules?: DepcruiseModule[]; summary?: { error?: number } }} */
+  const report = JSON.parse(readDepcruiseReport());
+  const result = evaluateArchitectureBudget(report);
+  const dependencyErrorCount = report.summary?.error ?? 0;
+  for (const notice of result.notices) {
+    console.log(notice);
   }
-  process.exit(1);
+  if (dependencyErrorCount > 0) {
+    console.error(
+      `Architecture dependency rules failed with ${dependencyErrorCount} errors.`,
+    );
+  }
+  if (result.violations.length > 0) {
+    console.error("Architecture budget failed:");
+    for (const violation of result.violations) {
+      console.error(`- ${violation}`);
+    }
+  }
+  if (dependencyErrorCount > 0 || result.violations.length > 0) return false;
+  console.log("architecture budget passed");
+  return true;
 }
 
-console.log("architecture budget passed");
+module.exports = {
+  evaluateArchitectureBudget,
+  readDepcruiseReport,
+  runArchitectureBudgetCheck,
+};
+
+if (require.main === module && !runArchitectureBudgetCheck()) {
+  process.exitCode = 1;
+}

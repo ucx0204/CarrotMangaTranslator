@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -12,9 +12,36 @@ import { readNvidiaRedistPackage } from "../src/main/inpainting/fluxAssets/downl
 
 const tempDirs: string[] = [];
 const TEST_MAXIMUM_BYTES = 1024 * 1024;
+const { setDownloadRetryWaitSchedulerForTests } =
+  require("../src/main/runtime/transport/download-retry-wait.cjs") as {
+    setDownloadRetryWaitSchedulerForTests: (
+      scheduler: (
+        delayMs: number,
+        signal?: AbortSignal | null,
+      ) => Promise<void>,
+    ) => () => void;
+  };
+let restoreRetryWaitScheduler: (() => void) | null = null;
+let retryWaitDelays: number[] = [];
 
 describe("Flux asset downloads", () => {
+  beforeEach(() => {
+    retryWaitDelays = [];
+    restoreRetryWaitScheduler = setDownloadRetryWaitSchedulerForTests(
+      async (delayMs, signal) => {
+        retryWaitDelays.push(delayMs);
+        if (signal?.aborted) {
+          throw signal.reason instanceof Error
+            ? signal.reason
+            : new DOMException("Aborted", "AbortError");
+        }
+      },
+    );
+  });
+
   afterEach(async () => {
+    restoreRetryWaitScheduler?.();
+    restoreRetryWaitScheduler = null;
     vi.unstubAllGlobals();
     while (tempDirs.length > 0) {
       const dir = tempDirs.pop();
@@ -252,6 +279,7 @@ describe("Flux asset downloads", () => {
     ).rejects.toThrow(/체크섬|SHA-256/);
     await expect(readFile(join(dir, "invalid.gguf"))).rejects.toThrow();
     await expect(readFile(join(dir, "invalid.gguf.part"))).rejects.toThrow();
+    expect(retryWaitDelays).toEqual([1000, 2000]);
   });
 
   it.each(["missing", "incomplete"] as const)(

@@ -38,6 +38,10 @@ const HYBRID_BASE_BUNDLE_FILES = [
   "prototype-features.f32",
 ].sort();
 const CACHE_SIDECAR_SUFFIXES = [".mgtmeta.json", ".mgt-sha256.json"] as const;
+const VERIFIED_RUNTIME_ARTIFACT_BUNDLE = Symbol(
+  "verifiedRuntimeArtifactBundle",
+);
+const verifiedRuntimeArtifactBundles = new WeakSet<object>();
 
 export type ArtifactDescriptor = Readonly<{
   file: string;
@@ -46,14 +50,18 @@ export type ArtifactDescriptor = Readonly<{
 }>;
 
 export type VerifiedRuntimeArtifactBundle = Readonly<{
-  contract: Record<string, unknown>;
+  /** Runtime-only brand: structural lookalikes are not verification receipts. */
+  [VERIFIED_RUNTIME_ARTIFACT_BUNDLE]: true;
+  contract: Readonly<Record<string, unknown>>;
   /** Exact verified text, retained for Python-compatible source reconstruction. */
   contractJson: string;
   assets: Readonly<Record<string, ArtifactDescriptor>>;
   /**
    * Bytes that were hashed in the same verification pass as `assets`.
    * Consumers must create ONNX sessions from these detached bytes instead of
-   * reopening the paths, which closes the bundle verification/use race.
+   * reopening the paths, which closes the bundle verification/use race. JS
+   * typed arrays cannot be frozen, so the production loader keeps this branded
+   * receipt locally owned through status projection and model construction.
    */
   assetBytes: Readonly<Record<string, Uint8Array>>;
   activeCatalog: AutoMatchActiveCatalog;
@@ -101,13 +109,19 @@ export async function readVerifiedRuntimeArtifactBundle(
   if (!releaseAcceptance) {
     throw new BundleVerificationError("artifact_verification_failed");
   }
+  // readMarker and readVerifiedFiles already require and verify every bound
+  // asset before this point, including the active catalog. Parse that verified
+  // detached copy directly; a missing file cannot reach this projection path.
   const activeCatalog = parseAutoMatchActiveCatalog(
-    await readJsonRecord(join(root, FONT_MATCHING_ACTIVE_CATALOG_FILE)),
+    parseJsonRecord(
+      decodeUtf8(assetBytes[FONT_MATCHING_ACTIVE_CATALOG_FILE] as Uint8Array),
+    ),
   );
   if (!activeCatalog) {
     throw new BundleVerificationError("artifact_verification_failed");
   }
-  return {
+  const bundle = deepFreeze({
+    [VERIFIED_RUNTIME_ARTIFACT_BUNDLE]: true as const,
     contract,
     contractJson,
     assets,
@@ -118,7 +132,20 @@ export async function readVerifiedRuntimeArtifactBundle(
     releaseAccepted: releaseAcceptance.accepted,
     failedCalibrationQualityAccepted:
       releaseAcceptance.failedCalibrationQualityAccepted,
-  };
+  });
+  verifiedRuntimeArtifactBundles.add(bundle);
+  return bundle;
+}
+
+/** Reject structurally forged receipts at every trust-consuming boundary. */
+export function isVerifiedRuntimeArtifactBundle(
+  value: unknown,
+): value is VerifiedRuntimeArtifactBundle {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    verifiedRuntimeArtifactBundles.has(value)
+  );
 }
 
 async function assertRootDirectory(root: string): Promise<void> {
@@ -358,4 +385,19 @@ function recordAt(
 
 function isSha256(value: unknown): value is string {
   return typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
+}
+
+function deepFreeze<T>(value: T): T {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    ArrayBuffer.isView(value) ||
+    Object.isFrozen(value)
+  ) {
+    return value;
+  }
+  for (const key of Reflect.ownKeys(value)) {
+    deepFreeze((value as Record<PropertyKey, unknown>)[key]);
+  }
+  return Object.freeze(value);
 }

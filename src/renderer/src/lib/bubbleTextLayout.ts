@@ -6,10 +6,15 @@ import {
 import type { RenderTextDirection } from "../../../shared/textTypes";
 import { resolveDisjointBubbleLayout } from "../../../shared/bubbleLayoutDisjoint";
 import type { TextLineSlot } from "./overlayTextWrapping";
+import {
+  BUBBLE_SLOT_COORDINATE_EPSILON,
+  combineBubbleRegionPlanPrefixes,
+  intersectBubbleRegionLineBand,
+} from "../../../shared/bubbleShapeSlotPrimitives";
 
 const MAX_BUBBLE_TEXT_LINES = 128;
 const MAX_PLANS_PER_SLOT_COUNT = 64;
-const COORDINATE_EPSILON = 1e-7;
+const COORDINATE_EPSILON = BUBBLE_SLOT_COORDINATE_EPSILON;
 
 export type BubbleSlotPlanInput = {
   /** Physical extent of the block axis (height for horizontal, width for vertical). */
@@ -57,47 +62,7 @@ export function resolveBubbleRegionLineInterval(
   blockStart: number,
   blockEnd: number,
 ): { inlineStart: number; inlineEnd: number } | null {
-  if (!isValidLineBand(blockStart, blockEnd)) return null;
-  return intersectCoveredRegionSpans(region, blockStart, blockEnd);
-}
-
-function isValidLineBand(blockStart: number, blockEnd: number): boolean {
-  return (
-    Number.isFinite(blockStart) &&
-    Number.isFinite(blockEnd) &&
-    blockStart >= 0 &&
-    blockEnd <= 1 &&
-    blockStart < blockEnd
-  );
-}
-
-function intersectCoveredRegionSpans(
-  region: BubbleShapeRegion,
-  blockStart: number,
-  blockEnd: number,
-): { inlineStart: number; inlineEnd: number } | null {
-  let cursor = blockStart;
-  let inlineStart = 0;
-  let inlineEnd = 1;
-  let touched = false;
-  for (const span of region.spans) {
-    if (span.blockEnd <= cursor + COORDINATE_EPSILON) continue;
-    if (span.blockStart >= blockEnd - COORDINATE_EPSILON) break;
-    if (span.blockStart > cursor + COORDINATE_EPSILON) return null;
-
-    const coveredEnd = Math.min(blockEnd, span.blockEnd);
-    if (coveredEnd <= cursor + COORDINATE_EPSILON) continue;
-    touched = true;
-    inlineStart = Math.max(inlineStart, span.inlineStart);
-    inlineEnd = Math.min(inlineEnd, span.inlineEnd);
-    if (inlineEnd <= inlineStart + COORDINATE_EPSILON) return null;
-    cursor = coveredEnd;
-    if (cursor >= blockEnd - COORDINATE_EPSILON) {
-      return { inlineStart, inlineEnd };
-    }
-  }
-  if (!touched || cursor < blockEnd - COORDINATE_EPSILON) return null;
-  return { inlineStart, inlineEnd };
+  return intersectBubbleRegionLineBand(region, blockStart, blockEnd);
 }
 
 function isBubbleLayoutEligible(
@@ -204,70 +169,11 @@ function combineRegionSlotPlans(
   regionPlans: TextLineSlot[][][],
   maximumSlotCount: number,
 ): TextLineSlot[][] {
-  const usableRegionPlans: TextLineSlot[][][] = [];
-  for (const candidates of regionPlans) {
-    if (candidates.length === 0) break;
-    usableRegionPlans.push(candidates);
-  }
-  if (usableRegionPlans.length === 0) return [];
-
-  const plans: TextLineSlot[][] = [];
-  for (let slotCount = 1; slotCount <= maximumSlotCount; slotCount += 1) {
-    const maximumCoveredRegions = Math.min(usableRegionPlans.length, slotCount);
-    for (
-      let coveredRegions = maximumCoveredRegions;
-      coveredRegions >= 1;
-      coveredRegions -= 1
-    ) {
-      plans.push(
-        ...combineRegionPrefixAtSlotCount(
-          usableRegionPlans.slice(0, coveredRegions),
-          slotCount,
-        ),
-      );
-    }
-  }
-  return plans;
-}
-
-function combineRegionPrefixAtSlotCount(
-  regionPlans: TextLineSlot[][][],
-  slotCount: number,
-): TextLineSlot[][] {
-  const combined: TextLineSlot[][] = [];
-  const selected: TextLineSlot[][] = [];
-  const targetLineCount = slotCount / regionPlans.length;
-
-  const visit = (regionIndex: number, remaining: number): void => {
-    if (combined.length >= MAX_PLANS_PER_SLOT_COUNT) return;
-    if (regionIndex === regionPlans.length) {
-      if (remaining === 0) combined.push(selected.flat());
-      return;
-    }
-
-    const remainingRegions = regionPlans.length - regionIndex - 1;
-    const orderedCandidates = [...(regionPlans[regionIndex] ?? [])]
-      .filter(
-        (candidate) =>
-          candidate.length <= remaining - remainingRegions &&
-          candidate.length >= 1,
-      )
-      .sort(
-        (left, right) =>
-          Math.abs(left.length - targetLineCount) -
-            Math.abs(right.length - targetLineCount) ||
-          right.length - left.length,
-      );
-    for (const candidate of orderedCandidates) {
-      selected.push(candidate);
-      visit(regionIndex + 1, remaining - candidate.length);
-      selected.pop();
-      if (combined.length >= MAX_PLANS_PER_SLOT_COUNT) break;
-    }
-  };
-
-  visit(0, slotCount);
-  return combined;
+  return combineBubbleRegionPlanPrefixes(
+    regionPlans,
+    maximumSlotCount,
+    MAX_PLANS_PER_SLOT_COUNT,
+  );
 }
 
 function resolveMaximumSlotCount(value: number | undefined): number {

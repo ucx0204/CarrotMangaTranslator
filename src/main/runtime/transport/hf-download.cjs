@@ -4,7 +4,6 @@
 /** @typedef {{ knownAggregateBytes?: number; totalBytes?: number; completedBytes?: number; onComplete?: (receivedBytes: number) => void }} DownloadProgress */
 const { mkdir, rename, rm } = require("node:fs/promises");
 const path = require("node:path");
-const { setTimeout: delay } = require("node:timers/promises");
 const {
   createDetailedError,
   emitRuntimeProgress,
@@ -36,6 +35,7 @@ const {
   normalizeExpectedSha256,
   writeIntegrityMarker,
 } = require("./download-integrity.cjs");
+const { waitForDownloadRetry } = require("./download-retry-wait.cjs");
 
 /** @type {Map<string, { url: string; maximumBytes: number; promise: Promise<number> }>} */
 const activeDownloads = new Map();
@@ -199,9 +199,10 @@ function waitForActiveDownload(download, signal) {
 
 /** @param {number} attempt @param {unknown} error @param {AbortSignal | null | undefined} signal */
 function retryDelay(attempt, error, signal) {
-  return delay(resolveDownloadRetryDelayMs(attempt, error), undefined, {
-    signal: signal ?? undefined,
-  });
+  return waitForDownloadRetry(
+    resolveDownloadRetryDelayMs(attempt, error),
+    signal,
+  );
 }
 
 /** @param {HfDownloadTask} task @param {DownloadOptions} options @param {DownloadProgress} progress @param {number} attempt @param {number} maxAttempts @param {{ used: boolean }} fallbackState */
@@ -373,7 +374,7 @@ async function retryCommitOperation(operation) {
       lastError = error;
       if (!isRetryableCommitError(error) || attempt >= COMMIT_RETRY_COUNT)
         throw error;
-      await delay(Math.min(1000, 50 * 2 ** (attempt - 1)));
+      await waitForDownloadRetry(Math.min(1000, 50 * 2 ** (attempt - 1)));
     }
   }
   throw lastError;

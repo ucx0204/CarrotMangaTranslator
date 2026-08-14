@@ -9,10 +9,22 @@ const {
   unlinkSync,
 } = require("node:fs");
 const { spawnSync } = require("node:child_process");
+const { assertRealGeneratedPath } = require("./compile-electron.cjs");
 const { prepareRuntimeAssets } = require("./prepare-runtime.cjs");
 
 const root = join(__dirname, "..");
 const rendererOutDir = join(root, "out", "renderer");
+const skipTypecheck = process.argv.includes("--skip-typecheck");
+const unsupportedArgs = process.argv
+  .slice(2)
+  .filter((argument) => argument !== "--skip-typecheck");
+
+if (
+  unsupportedArgs.length > 0 ||
+  process.argv.filter((argument) => argument === "--skip-typecheck").length > 1
+) {
+  throw new Error(`Unsupported build arguments: ${unsupportedArgs.join(" ")}`);
+}
 
 /**
  * @param {string} command
@@ -40,6 +52,7 @@ function cleanDirectoryContents(dir) {
   if (resolvedDir !== expectedDir) {
     throw new Error(`Refusing to clean unexpected renderer output: ${dir}`);
   }
+  assertRealGeneratedPath(root, resolvedDir);
   if (!existsSync(resolvedDir)) {
     return;
   }
@@ -61,8 +74,23 @@ function removePath(targetPath) {
   unlinkSync(targetPath);
 }
 
-run(process.execPath, [nodeBin("typescript", "bin", "tsc"), "--noEmit"]);
-run(process.execPath, [join(__dirname, "compile-electron.cjs")]);
+// Refuse a redirected output root before compile-electron or any recursive
+// cleanup can touch generated directories.
+assertRealGeneratedPath(root, join(root, "out"));
+
+if (skipTypecheck) {
+  console.log("> reusing the successful general and Electron check typechecks");
+} else {
+  run(process.execPath, [
+    nodeBin("typescript", "bin", "tsc"),
+    "-p",
+    "tsconfig.typecheck.json",
+  ]);
+}
+run(process.execPath, [
+  join(__dirname, "compile-electron.cjs"),
+  ...(skipTypecheck ? ["--noCheck"] : []),
+]);
 cleanDirectoryContents(rendererOutDir);
 run(process.execPath, [
   nodeBin("vite", "bin", "vite.js"),

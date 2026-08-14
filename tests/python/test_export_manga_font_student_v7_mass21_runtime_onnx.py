@@ -747,6 +747,54 @@ class V7RuntimeContractTests(unittest.TestCase):
         )
         self.assertTrue(all(row["shape"] == [None, 21] for row in score_outputs))
 
+    def test_preserves_the_runtime_v2_routing_and_batching_envelope(self) -> None:
+        routing = exporter._routing_contract()  # noqa: SLF001
+        self.assertEqual(
+            routing,
+            {
+                "schema_version": "font-matching-hybrid-score-routing-v1",
+                "candidate_scores_compatibility_alias": "body_candidate_scores",
+                "body_candidate_output": "body_candidate_scores",
+                "variant_candidate_output": "variant_candidate_scores",
+                "body_roles": ["dialogue", "narration", "thought"],
+                "variant_roles": list(exporter.VARIANT_ROLES),
+                "unknown_role_fallback": "variant_candidate_scores",
+                "role_source": (
+                    "resolveCombinedAutomaticFontRole(item.fontRole,pixelRole)"
+                ),
+                "selection_feature_source": (
+                    "selected_candidate_scores_with_legacy256_visual_features"
+                ),
+                "selection_feature_dim": 256,
+                "row_specific_rules": False,
+            },
+        )
+        self.assertFalse(set(routing["body_roles"]) & set(routing["variant_roles"]))
+        self.assertEqual(
+            set(routing["body_roles"]) | set(routing["variant_roles"]),
+            set(exporter.trainer.ROLE_VALUES),
+        )
+        self.assertEqual(
+            exporter._runtime_batching_contract(),  # noqa: SLF001
+            {
+                "encoder_batch_size": 2,
+                "ranker_batch_size": 16,
+                "parity_qualified": True,
+            },
+        )
+        self.assertEqual(
+            exporter._expected_test_boundary(),  # noqa: SLF001
+            {
+                "aggregate_metrics_only": True,
+                "frozen_test_pixels_opened_by_exporter": 0,
+                "row_level_predictions_packaged": False,
+                "sample_identifiers_packaged": False,
+                "training_or_validation_pixels_packaged": False,
+                "fresh64_rows_accessed": 0,
+                "library_qa_rows_accessed": 0,
+            },
+        )
+
     def test_family_contract_forbids_gemma_genre_and_role_logits(self) -> None:
         evidence = exporter._font_family_evidence_contract()  # noqa: SLF001
         self.assertEqual(

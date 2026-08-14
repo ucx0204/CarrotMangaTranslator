@@ -3,6 +3,7 @@
     "allowJs": true,
     "checkJs": true,
     "esModuleInterop": true,
+    "incremental": true,
     "maxNodeModuleJsDepth": 0,
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
@@ -11,6 +12,7 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2022",
+    "tsBuildInfoFile": ".tmp/check-cache/typecheck-js.tsbuildinfo",
     "types": ["node"]
   },
   "include": [

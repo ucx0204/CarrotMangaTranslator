@@ -1,4 +1,11 @@
+import { createRequire } from "node:module";
 import { defineConfig } from "vitest/config";
+
+const require = createRequire(import.meta.url);
+const { resolveVitestMaxWorkers } =
+  require("./scripts/vitest-worker-profile.cjs") as {
+    resolveVitestMaxWorkers(): number;
+  };
 
 const enforceWindowsCoverageThresholds = process.platform === "win32";
 
@@ -35,7 +42,9 @@ export default defineConfig({
               lines: 67,
             }
           : {}),
-        "src/main/inpainting/jsonLinesWorkerClient.ts": {
+        // Keep this path aligned with the shared runtime-support location. A
+        // stale pre-refactor path silently disabled the intended worker gate.
+        "src/main/runtimeSupport/jsonLinesWorkerClient.ts": {
           statements: 90,
           branches: 85,
           functions: 100,
@@ -68,7 +77,7 @@ export default defineConfig({
       },
     },
     exclude: ["**/node_modules/**", "**/dist/**", "**/out/**", "**/.tmp/**"],
-    maxWorkers: 4,
+    maxWorkers: resolveVitestMaxWorkers(),
     testTimeout: 15000,
     setupFiles: ["./tests/setupI18n.ts"],
   },

@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { InstalledAutoMatchCandidate } from "../src/main/pipeline/autoMatchActiveCatalogTypes";
 import { FONT_MATCHING_RUNTIME_ARTIFACT_SCHEMA_V2 } from "../src/main/pipeline/fontMatchingRuntimeArtifactContract";
 import { readVerifiedRuntimeArtifactBundle } from "../src/main/pipeline/fontMatchingRuntimeArtifactBundleLoader";
-import { loadFontMatchingRuntimeArtifactStatus } from "../src/main/pipeline/fontMatchingRuntimeArtifactStatus";
+import { projectFontMatchingRuntimeArtifactStatus } from "../src/main/pipeline/fontMatchingRuntimeArtifactStatus";
 
 const workspace = resolve(import.meta.dirname, "..");
 const artifactDir = resolve(
@@ -93,10 +93,9 @@ describe.skipIf(!artifactAvailable)(
       expect(bundle.activeCatalog.candidateIds).not.toContain("gugi");
 
       await expect(
-        loadFontMatchingRuntimeArtifactStatus({
-          artifactDir,
+        projectFontMatchingRuntimeArtifactStatus({
+          verifiedBundle: bundle,
           installedCandidates,
-          allowQaOnlyRuntime: true,
         }),
       ).resolves.toMatchObject({
         state: "disabled",
@@ -122,8 +121,8 @@ describe.skipIf(!releaseArtifactAvailable)(
       expect(bundle.activeCatalog.candidateIds).toHaveLength(21);
       expect(bundle.activeCatalog.candidateIds).not.toContain("gugi");
       await expect(
-        loadFontMatchingRuntimeArtifactStatus({
-          artifactDir: releaseArtifactDir,
+        projectFontMatchingRuntimeArtifactStatus({
+          verifiedBundle: bundle,
           installedCandidates: installedCandidatesFor(releaseArtifactDir),
         }),
       ).resolves.toMatchObject({
@@ -151,10 +150,9 @@ describe.skipIf(!round1BaseArtifactAvailable)(
       expect(bundle.activeCatalog.candidateIds).toHaveLength(21);
       expect(bundle.activeCatalog.candidateIds).not.toContain("gugi");
       await expect(
-        loadFontMatchingRuntimeArtifactStatus({
-          artifactDir: round1BaseArtifactDir,
+        projectFontMatchingRuntimeArtifactStatus({
+          verifiedBundle: bundle,
           installedCandidates: installedCandidatesFor(round1BaseArtifactDir),
-          allowQaOnlyRuntime: true,
         }),
       ).resolves.toMatchObject({
         state: "disabled",
@@ -180,8 +178,8 @@ describe.skipIf(!v2ReleaseArtifactAvailable)(
         "dfa42ae17f340768cae30f2219973eae1ff62a4c3c1544496502621e6e710c78",
       );
       await expect(
-        loadFontMatchingRuntimeArtifactStatus({
-          artifactDir: v2ReleaseArtifactDir,
+        projectFontMatchingRuntimeArtifactStatus({
+          verifiedBundle: bundle,
           installedCandidates: installedCandidatesFor(v2ReleaseArtifactDir),
         }),
       ).resolves.toMatchObject({

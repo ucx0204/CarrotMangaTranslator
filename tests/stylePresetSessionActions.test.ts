@@ -3,6 +3,9 @@ import { resolveDefaultAppSettings } from "../src/main/settings/appSettingsDefau
 import { createStylePresetDeleteAction } from "../src/renderer/src/app/session/createStylePresetDeleteAction";
 import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../src/shared/blockFormat";
 import { createBlockStylePresetFromDefaults } from "../src/shared/blockStylePresets";
+import { setupRendererI18n } from "./setupI18n";
+
+setupRendererI18n();
 
 describe("style preset session actions", () => {
   it("persists removal and reports success", async () => {

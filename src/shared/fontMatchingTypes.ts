@@ -1,13 +1,5 @@
 import type { UiLocale } from "./uiLocales";
 
-export type AutomaticFontSemanticSlot =
-  | "body"
-  | "strong-impact"
-  | "sharp-motion"
-  | "soft-emotion"
-  | "comic-reaction"
-  | "ambient-eerie";
-
 export type AutomaticFontUnicodeRange = readonly [
   startCodePoint: number,
   endCodePoint: number,

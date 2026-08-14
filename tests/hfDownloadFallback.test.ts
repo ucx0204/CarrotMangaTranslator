@@ -31,6 +31,21 @@ const DOWNLOAD_IO_TEST_TIMEOUT_MS = 60_000;
 const previousRetryCount = process.env.MANGA_TRANSLATOR_DOWNLOAD_RETRY_COUNT;
 const previousConcurrency = process.env.MANGA_TRANSLATOR_DOWNLOAD_CONCURRENCY;
 const previousChunkSizeMb = process.env.MANGA_TRANSLATOR_DOWNLOAD_CHUNK_SIZE_MB;
+const { setDownloadRetryWaitSchedulerForTests, waitForDownloadRetry } =
+  require("../src/main/runtime/transport/download-retry-wait.cjs") as {
+    setDownloadRetryWaitSchedulerForTests: (
+      scheduler: (
+        delayMs: number,
+        signal?: AbortSignal | null,
+      ) => Promise<void>,
+    ) => () => void;
+    waitForDownloadRetry: (
+      delayMs: number,
+      signal?: AbortSignal | null,
+    ) => Promise<void>;
+  };
+let restoreRetryWaitScheduler: (() => void) | null = null;
+let retryWaitDelays: number[] = [];
 
 describe("Hugging Face download fallback", () => {
   it("honors Retry-After while adding bounded 429 jitter", () => {
@@ -44,12 +59,25 @@ describe("Hugging Face download fallback", () => {
   });
 
   beforeEach(() => {
+    retryWaitDelays = [];
+    restoreRetryWaitScheduler = setDownloadRetryWaitSchedulerForTests(
+      async (delayMs, signal) => {
+        retryWaitDelays.push(delayMs);
+        if (signal?.aborted) {
+          throw signal.reason instanceof Error
+            ? signal.reason
+            : new DOMException("Aborted", "AbortError");
+        }
+      },
+    );
     process.env.MANGA_TRANSLATOR_DOWNLOAD_RETRY_COUNT = "1";
     delete process.env.MANGA_TRANSLATOR_DOWNLOAD_CONCURRENCY;
     delete process.env.MANGA_TRANSLATOR_DOWNLOAD_CHUNK_SIZE_MB;
   });
 
   afterEach(async () => {
+    restoreRetryWaitScheduler?.();
+    restoreRetryWaitScheduler = null;
     vi.unstubAllGlobals();
     if (previousRetryCount === undefined) {
       delete process.env.MANGA_TRANSLATOR_DOWNLOAD_RETRY_COUNT;
@@ -152,6 +180,7 @@ describe("Hugging Face download fallback", () => {
     );
     expect(getRangeHeader(fetchMock.mock.calls[1]?.[1])).toBeUndefined();
     expect(getRangeHeader(fetchMock.mock.calls[2]?.[1])).toBeUndefined();
+    expect(retryWaitDelays).toEqual([1000]);
   });
 
   it("does not fallback after an abort error", async () => {
@@ -169,6 +198,49 @@ describe("Hugging Face download fallback", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it.each([
+    { mode: "stream", progress: undefined },
+    { mode: "range", progress: { totalBytes: 4 } },
+  ] as const)(
+    "propagates cancellation during $mode retry backoff before another request",
+    async ({ mode, progress }) => {
+      process.env.MANGA_TRANSLATOR_DOWNLOAD_RETRY_COUNT = "3";
+      const task = await createTask(`abort-during-${mode}-backoff.bin`);
+      const controller = new AbortController();
+      restoreRetryWaitScheduler?.();
+      restoreRetryWaitScheduler = setDownloadRetryWaitSchedulerForTests(
+        async (delayMs, signal) => {
+          retryWaitDelays.push(delayMs);
+          expect(signal).toBeDefined();
+          controller.abort(new DOMException("cancelled", "AbortError"));
+          expect(signal?.aborted).toBe(true);
+          throw signal?.reason ?? controller.signal.reason;
+        },
+      );
+      const fetchMock = vi.fn(async () => {
+        throw new TypeError("connection reset");
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      await expect(
+        downloadHfFileWithProgress(
+          task,
+          { abortSignal: controller.signal },
+          progress,
+        ),
+      ).rejects.toMatchObject({ name: "AbortError" });
+
+      expect(retryWaitDelays).toEqual([1000]);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      await expect(readFile(task.destination)).rejects.toMatchObject({
+        code: "ENOENT",
+      });
+      await expect(readFile(`${task.destination}.part`)).rejects.toMatchObject({
+        code: "ENOENT",
+      });
+    },
+  );
 
   it.each([401, 403, 404, 407])(
     "does not fallback for HTTP %s range failures",
@@ -512,6 +584,17 @@ describe("Hugging Face download fallback", () => {
     await expect(readFile(`${task.destination}.part`)).rejects.toMatchObject({
       code: "ENOENT",
     });
+  });
+});
+
+describe("download retry wait production scheduler", () => {
+  it("remains abort-aware without a test scheduler override", async () => {
+    const controller = new AbortController();
+    controller.abort(new DOMException("cancelled", "AbortError"));
+
+    await expect(
+      waitForDownloadRetry(60_000, controller.signal),
+    ).rejects.toMatchObject({ name: "AbortError" });
   });
 });
 
