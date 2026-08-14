@@ -85,6 +85,7 @@ export type LlamaRuntimeArchive = {
   archive: string;
   url: string;
   sha256?: string;
+  expectedBytes?: number;
   type?: "zip" | "tar.gz";
   stripComponents?: number;
 };

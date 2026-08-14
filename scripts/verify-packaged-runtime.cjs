@@ -88,9 +88,11 @@ const allowedElectronLocales = new Set([
 // artifacts were omitted. v1.10.1 intentionally adds runtime integrity
 // manifests and hash-complete dependency locks. Font runtime v2 then adds its
 // four small trust/ranker files while leaving the three large model assets
-// external. Keep the resulting payload ceiling exact so unrelated packaging
-// growth still fails closed.
-const MAX_PACKAGED_FILES = 258;
+// external. The runtime hardening pass adds the shared retry scheduler and the
+// pinned BeeLlama archive policy as two small production modules. Keep the
+// resulting payload ceiling exact so unrelated packaging growth still fails
+// closed.
+const MAX_PACKAGED_FILES = 260;
 // The trained font matching runtime bundle (~467 MiB) is externalized out of
 // the installer and downloaded into the data-root cache on first use, so the
 // unpacked payload is ~745 MiB (Electron + app.asar + tools, no bundle) and the

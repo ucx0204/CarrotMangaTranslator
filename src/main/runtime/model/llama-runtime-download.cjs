@@ -1,7 +1,7 @@
 // @ts-check
 const { createReadStream } = require("node:fs");
 const { createHash } = require("node:crypto");
-const { mkdir, rm, writeFile } = require("node:fs/promises");
+const { mkdir, rm, stat, writeFile } = require("node:fs/promises");
 const path = require("node:path");
 
 const { bundledServerCandidates } = require("../resolve-llama-runtime.cjs");
@@ -9,6 +9,14 @@ const {
   LLAMA_RUNTIME_MARKER_FILE,
   shouldExtractLlamaRuntimeFile,
 } = require("../simple-page-llama-runtimes.cjs");
+const {
+  assertRuntimeArchiveChecksumsPresent,
+  claimRuntimeArchivePaths,
+  normalizeSha256,
+  readExpectedRuntimeArchiveBytes,
+  resolvePinnedLlamaRuntimeZipExtractionLimits,
+  resolveRuntimeArchiveMaximumBytes,
+} = require("./llama-runtime-archive-policy.cjs");
 const {
   downloadHfFileWithProgress,
   mapWithConcurrency,
@@ -43,8 +51,9 @@ const {
 } = require("../transport/download-budgets.cjs");
 
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} ModelAssetOptions */
-/** @typedef {{ archive: string; url: string; sha256?: string; type?: "zip" | "tar.gz"; stripComponents?: number }} LlamaRuntimeArchive */
+/** @typedef {{ archive: string; url: string; sha256?: string; expectedBytes?: number; type?: "zip" | "tar.gz"; stripComponents?: number }} LlamaRuntimeArchive */
 /** @typedef {{ archive?: string; archives?: LlamaRuntimeArchive[]; backend?: string; platform?: string; arch?: string; dir: string; id?: string; kind?: string; requiredFiles?: Array<string | string[]>; url?: string }} LlamaRuntimeDescriptor */
+/** @typedef {{ archivePath: string; archive: LlamaRuntimeArchive; sha256: string; bytes: number }} VerifiedLlamaRuntimeArchive */
 
 /** @param {ModelAssetOptions} [options] */
 async function ensureDefaultLlamaRuntimeDownloaded(options = {}) {
@@ -64,21 +73,29 @@ async function ensureDefaultLlamaRuntimeDownloaded(options = {}) {
     totals,
     aggregate,
   );
-  await verifyRuntimeArchiveChecksums(archivePaths, archives);
-  emitRuntimeInstallStart(options, runtime);
-  await extractRuntimeArchives(
-    layout.runtimeDir,
-    archivePaths,
-    archives,
-    runtime,
-    options,
-  );
-  // Re-read every archive after extraction to close the download/extract TOCTOU
-  // window before any extracted executable is accepted.
-  await verifyRuntimeArchiveChecksums(archivePaths, archives);
-  assertInstalledRuntime(layout, runtime, archivePaths);
-  await writeRuntimeMarker(layout.runtimeDir, runtime, archives);
-  emitRuntimeInstallComplete(options, runtime);
+  const ownership = await claimRuntimeArchivePaths(archivePaths);
+  try {
+    const verifiedArchives = await verifyRuntimeArchiveChecksums(
+      ownership.archivePaths,
+      archives,
+    );
+    emitRuntimeInstallStart(options, runtime);
+    await extractRuntimeArchives(
+      layout.runtimeDir,
+      verifiedArchives,
+      runtime,
+      options,
+      ownership.restore,
+    );
+    assertInstalledRuntime(layout, runtime, archivePaths);
+    await writeRuntimeMarker(layout.runtimeDir, runtime, archives);
+    emitRuntimeInstallComplete(options, runtime);
+  } finally {
+    await safeCleanup(
+      "restore extraction-owned llama runtime archives",
+      ownership.restore,
+    );
+  }
 }
 
 /** @param {ModelAssetOptions} options @param {LlamaRuntimeDescriptor} runtime */
@@ -185,7 +202,7 @@ function buildRuntimeDownloadTask(runtime, archive, destination) {
     file: archive.archive,
     url: archive.url,
     destination,
-    maximumBytes: MAX_REMOTE_RUNTIME_ARCHIVE_BYTES,
+    maximumBytes: resolveRuntimeArchiveMaximumBytes(archive),
     progressPhase: "model_downloading",
     progressTitle: "Gemma 실행 런타임 다운로드 중",
     completeTitle: "Gemma 실행 런타임 다운로드 완료",
@@ -206,13 +223,13 @@ function emitRuntimeInstallStart(options, runtime) {
   );
 }
 
-/** @param {string} runtimeDir @param {string[]} archivePaths @param {LlamaRuntimeArchive[]} archives @param {LlamaRuntimeDescriptor} runtime @param {ModelAssetOptions} options */
+/** @param {string} runtimeDir @param {VerifiedLlamaRuntimeArchive[]} verifiedArchives @param {LlamaRuntimeDescriptor} runtime @param {ModelAssetOptions} options @param {() => Promise<void>} restoreArchivesBeforePublish */
 async function extractRuntimeArchives(
   runtimeDir,
-  archivePaths,
-  archives,
+  verifiedArchives,
   runtime,
   options,
+  restoreArchivesBeforePublish,
 ) {
   const stagingDir = `${runtimeDir}.staging-${process.pid}-${Date.now()}`;
   await safeCleanup("remove stale llama runtime staging directory", () =>
@@ -220,9 +237,8 @@ async function extractRuntimeArchives(
   );
   await mkdir(stagingDir, { recursive: true });
   try {
-    for (let index = 0; index < archivePaths.length; index += 1) {
-      const archivePath = archivePaths[index];
-      const archive = archives[index];
+    for (const verification of verifiedArchives) {
+      const { archivePath, archive } = verification;
       if (archive?.type === "tar.gz" || /\.tar\.gz$/i.test(archivePath)) {
         await extractSelectedTarEntries(
           archivePath,
@@ -238,11 +254,24 @@ async function extractRuntimeArchives(
           archivePath,
           stagingDir,
           shouldExtractLlamaRuntimeFile,
-          { abortSignal: options.abortSignal },
+          {
+            abortSignal: options.abortSignal,
+            limits: resolvePinnedLlamaRuntimeZipExtractionLimits(
+              runtime,
+              archive,
+              verification,
+            ),
+          },
         );
       }
     }
-    await verifyRuntimeArchiveChecksums(archivePaths, archives);
+    // Re-read the extraction-owned paths after extraction. The public cache
+    // names are restored only after this succeeds, so swapping and later
+    // restoring a known download path cannot hide the bytes yauzl consumed.
+    await verifyRuntimeArchiveChecksums(
+      verifiedArchives.map(({ archivePath }) => archivePath),
+      verifiedArchives.map(({ archive }) => archive),
+    );
     if (!hasRequiredLlamaRuntimeFiles(stagingDir, runtime)) {
       throw createDetailedError(
         "Gemma 실행 런타임 압축에 필요한 실행 파일이 없습니다.",
@@ -252,6 +281,7 @@ async function extractRuntimeArchives(
         },
       );
     }
+    await restoreArchivesBeforePublish();
     await replaceDirectoryWithRollback(stagingDir, runtimeDir);
   } catch (error) {
     await safeCleanup("remove rejected llama runtime staging directory", () =>
@@ -261,19 +291,47 @@ async function extractRuntimeArchives(
   }
 }
 
-/** @param {string[]} archivePaths @param {LlamaRuntimeArchive[]} archives */
+/** @param {readonly string[]} archivePaths @param {LlamaRuntimeArchive[]} archives @returns {Promise<VerifiedLlamaRuntimeArchive[]>} */
 async function verifyRuntimeArchiveChecksums(archivePaths, archives) {
+  /** @type {VerifiedLlamaRuntimeArchive[]} */
+  const verified = [];
   for (let index = 0; index < archivePaths.length; index += 1) {
-    const expected = normalizeSha256(archives[index]?.sha256);
+    const archive = archives[index];
+    const expected = normalizeSha256(archive?.sha256);
     if (!expected) {
       throw createDetailedError(
         "Gemma 실행 런타임에 필수 SHA-256이 없어 설치를 중단했습니다.",
-        { archive: archives[index]?.archive },
+        { archive: archive?.archive },
       );
     }
     const archivePath = archivePaths[index];
+    const actualBytes = (await stat(archivePath)).size;
+    const expectedBytes = readExpectedRuntimeArchiveBytes(archive);
+    if (expectedBytes !== undefined && actualBytes !== expectedBytes) {
+      await safeCleanup("remove size-mismatched llama runtime archive", () =>
+        rm(archivePath, { force: true }),
+      );
+      throw createDetailedError(
+        "Gemma 실행 런타임 압축 파일 크기가 고정된 값과 일치하지 않아 설치를 중단했습니다.",
+        {
+          archivePath,
+          expectedBytes,
+          actualBytes,
+        },
+      );
+    }
     const actual = await calculateFileSha256(archivePath);
-    if (actual === expected) continue;
+    if (actual === expected) {
+      verified.push(
+        Object.freeze({
+          archivePath,
+          archive: Object.freeze({ ...archive }),
+          sha256: actual,
+          bytes: actualBytes,
+        }),
+      );
+      continue;
+    }
     await safeCleanup("remove checksum-mismatched llama runtime archive", () =>
       rm(archivePath, { force: true }),
     );
@@ -286,21 +344,7 @@ async function verifyRuntimeArchiveChecksums(archivePaths, archives) {
       },
     );
   }
-}
-
-/** @param {LlamaRuntimeArchive[]} archives */
-function assertRuntimeArchiveChecksumsPresent(archives) {
-  if (archives.length === 0) {
-    throw new Error("Gemma 실행 런타임 archive descriptor가 비어 있습니다.");
-  }
-  for (const archive of archives) {
-    if (!normalizeSha256(archive.sha256)) {
-      throw createDetailedError(
-        "Gemma 실행 런타임 descriptor에 유효한 SHA-256이 필요합니다.",
-        { archive: archive.archive, url: archive.url },
-      );
-    }
-  }
+  return verified;
 }
 
 /** @param {string} filePath */
@@ -308,14 +352,6 @@ async function calculateFileSha256(filePath) {
   const hash = createHash("sha256");
   for await (const chunk of createReadStream(filePath)) hash.update(chunk);
   return hash.digest("hex");
-}
-
-/** @param {unknown} value */
-function normalizeSha256(value) {
-  const normalized = String(value || "")
-    .trim()
-    .toLowerCase();
-  return /^[a-f0-9]{64}$/.test(normalized) ? normalized : "";
 }
 
 /** @param {ReturnType<typeof buildRuntimeLayout>} layout @param {LlamaRuntimeDescriptor} runtime @param {string[]} archivePaths */
@@ -399,6 +435,8 @@ function getLlamaRuntimeArchives(runtime) {
 module.exports = {
   assertRuntimeArchiveChecksumsPresent,
   calculateFileSha256,
+  claimRuntimeArchivePaths,
   ensureDefaultLlamaRuntimeDownloaded,
+  extractRuntimeArchives,
   verifyRuntimeArchiveChecksums,
 };
