@@ -118,13 +118,30 @@ const {
   verifyRuntimeArchiveChecksums,
 } = require("../src/main/runtime/model/llama-runtime-download.cjs") as {
   assertRuntimeArchiveChecksumsPresent: (
-    archives: Array<{ archive: string; url: string; sha256?: string }>,
+    archives: Array<{
+      archive: string;
+      url: string;
+      sha256?: string;
+      expectedBytes?: number;
+    }>,
   ) => void;
   calculateFileSha256: (filePath: string) => Promise<string>;
   verifyRuntimeArchiveChecksums: (
     paths: string[],
-    archives: Array<{ archive: string; url: string; sha256?: string }>,
-  ) => Promise<void>;
+    archives: Array<{
+      archive: string;
+      url: string;
+      sha256?: string;
+      expectedBytes?: number;
+    }>,
+  ) => Promise<
+    Array<{
+      archivePath: string;
+      archive: Record<string, unknown>;
+      sha256: string;
+      bytes: number;
+    }>
+  >;
 };
 const { shouldExtractLlamaRuntimeFile } =
   require("../src/main/runtime/simple-page-llama-runtimes.cjs") as {
@@ -396,6 +413,60 @@ describe("Metal runtime archive integrity", () => {
       expect(await calculateFileSha256(file)).toBe(
         "44c9c555407dde048d213b49a590e553f0d88f1cc9f29b7824b66bcc4aa1f053",
       );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("returns a byte-bound verified receipt for a pinned runtime archive", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "mgt-runtime-receipt-"));
+    try {
+      const file = join(dir, "runtime.zip");
+      writeFileSync(file, "pinned-runtime");
+      const sha256 = await calculateFileSha256(file);
+      const archive = {
+        archive: "runtime.zip",
+        url: "https://example.invalid/runtime.zip",
+        sha256,
+        expectedBytes: 14,
+      };
+
+      const receipts = await verifyRuntimeArchiveChecksums([file], [archive]);
+      expect(receipts).toEqual([
+        {
+          archivePath: file,
+          archive,
+          sha256,
+          bytes: 14,
+        },
+      ]);
+      expect(Object.isFrozen(receipts[0])).toBe(true);
+      expect(Object.isFrozen(receipts[0]?.archive)).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("deletes a downloaded runtime when its pinned byte size mismatches", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "mgt-runtime-bad-size-"));
+    try {
+      const file = join(dir, "runtime.zip");
+      writeFileSync(file, "pinned-runtime");
+      const sha256 = await calculateFileSha256(file);
+      await expect(
+        verifyRuntimeArchiveChecksums(
+          [file],
+          [
+            {
+              archive: "runtime.zip",
+              url: "https://example.invalid/runtime.zip",
+              sha256,
+              expectedBytes: 15,
+            },
+          ],
+        ),
+      ).rejects.toThrow(/크기/);
+      expect(existsSync(file)).toBe(false);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

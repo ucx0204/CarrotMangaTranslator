@@ -1,4 +1,7 @@
 // @ts-check
+const {
+  BEELLAMA_HIP_RADEON_ARCHIVE_CONTRACT,
+} = require("./model/llama-runtime-archive-policy.cjs");
 const BEELLAMA_LLAMA_RUNTIME_CUDA12 = {
   id: "beellama-v0.2.0-cuda12.4",
   kind: "beellama",
@@ -60,18 +63,18 @@ const BEELLAMA_LLAMA_RUNTIME_CUDA13 = {
 };
 
 const BEELLAMA_LLAMA_RUNTIME_HIP_RADEON = {
-  id: "beellama-v0.3.1-hip-radeon",
-  kind: "beellama-hip",
-  backend: "rocm",
+  id: BEELLAMA_HIP_RADEON_ARCHIVE_CONTRACT.runtimeId,
+  kind: BEELLAMA_HIP_RADEON_ARCHIVE_CONTRACT.runtimeKind,
+  backend: BEELLAMA_HIP_RADEON_ARCHIVE_CONTRACT.backend,
   dir: "beellama-v0.3.1-hip-radeon",
-  archive: "beellama-v0.3.1-bin-win-hip-radeon-x64.zip",
-  url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.3.1/beellama-v0.3.1-bin-win-hip-radeon-x64.zip",
+  archive: BEELLAMA_HIP_RADEON_ARCHIVE_CONTRACT.archive,
+  url: BEELLAMA_HIP_RADEON_ARCHIVE_CONTRACT.url,
   archives: [
     {
-      archive: "beellama-v0.3.1-bin-win-hip-radeon-x64.zip",
-      url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.3.1/beellama-v0.3.1-bin-win-hip-radeon-x64.zip",
-      sha256:
-        "53302ae602dc43381f1c61794c2508a5e72931916b6de015531683358dc78fbc",
+      archive: BEELLAMA_HIP_RADEON_ARCHIVE_CONTRACT.archive,
+      url: BEELLAMA_HIP_RADEON_ARCHIVE_CONTRACT.url,
+      sha256: BEELLAMA_HIP_RADEON_ARCHIVE_CONTRACT.sha256,
+      expectedBytes: BEELLAMA_HIP_RADEON_ARCHIVE_CONTRACT.bytes,
     },
   ],
   requiredFiles: [

@@ -1,7 +1,24 @@
 // @ts-check
 const { createHash } = require("node:crypto");
-const { readFileSync, readdirSync } = require("node:fs");
+const {
+  closeSync,
+  fstatSync,
+  openSync,
+  readFileSync,
+  readSync,
+  readdirSync,
+} = require("node:fs");
 const path = require("node:path");
+
+const INSTALLED_RUNTIME_HASH_CHUNK_BYTES = 4 * 1024 * 1024;
+const DEFAULT_RUNTIME_HASH_IO = Object.freeze({
+  closeSync,
+  fstatSync,
+  openSync,
+  readSync,
+});
+/** @type {Buffer | null} */
+let installedRuntimeHashBuffer = null;
 
 /** @typedef {{ archive?: unknown; url?: unknown; sha256?: unknown }} MarkerArchive */
 /** @typedef {{ id?: unknown; kind?: unknown; dir?: unknown; archives?: MarkerArchive[]; installedFileSha256?: unknown }} InstalledRuntimeMarker */
@@ -24,14 +41,14 @@ function collectInstalledRuntimeFileHashes(runtimeDir) {
         : entry.name;
       if (entry.isDirectory()) {
         stack.push({ absolute, relative });
-      } else if (entry.isFile() && isExecutableRuntimeFile(relative)) {
-        hashes[relative] = hashFile(absolute);
+      } else if (entry.isFile() && isIntegrityProtectedRuntimeFile(relative)) {
+        hashes[relative] = hashInstalledRuntimeFile(absolute);
       }
     }
   }
   if (Object.keys(hashes).length === 0) {
     throw new Error(
-      "Installed llama runtime contains no hashable executable files.",
+      "Installed llama runtime contains no integrity-protected files.",
     );
   }
   return Object.fromEntries(
@@ -65,9 +82,10 @@ function installedRuntimeHashesMatch(runtimeDir, expectedValue) {
 }
 
 /**
- * Validates both the trusted runtime descriptor binding and every executable
- * file hash. Callers use this immediately before a managed runtime is spawned,
- * not only while deciding whether an existing installation can be reused.
+ * Validates both the trusted runtime descriptor binding and every protected
+ * runtime-file hash. Callers use this immediately before a managed runtime is
+ * spawned, not only while deciding whether an existing installation can be
+ * reused.
  *
  * @param {string} runtimeDir
  * @param {RuntimeDescriptor} runtime
@@ -146,22 +164,89 @@ function validInstalledFile(runtimeDir, actual, relativePath, digest) {
 }
 
 /** @param {string} relativePath */
-function isExecutableRuntimeFile(relativePath) {
-  const name = path.posix.basename(relativePath).toLowerCase();
+function isIntegrityProtectedRuntimeFile(relativePath) {
+  const normalized = String(relativePath).replace(/\\/g, "/").toLowerCase();
+  const name = path.posix.basename(normalized);
   return (
     name === "llama-server" ||
     name === "llama-cli" ||
-    /\.(?:exe|dll|dylib|so|metal|metallib)$/i.test(name)
+    /\.(?:exe|dll|dylib|so|metal|metallib)$/i.test(name) ||
+    (isRocmKernelLibraryPath(normalized) && /\.(?:co|dat|hsaco)$/i.test(name))
   );
 }
 
-/** @param {string} filePath */
-function hashFile(filePath) {
-  return createHash("sha256").update(readFileSync(filePath)).digest("hex");
+/** @param {string} normalizedRelativePath */
+function isRocmKernelLibraryPath(normalizedRelativePath) {
+  return (
+    normalizedRelativePath.startsWith("rocblas/") ||
+    normalizedRelativePath.startsWith("hipblaslt/")
+  );
+}
+
+/**
+ * @typedef {{
+ *   closeSync: (fd: number) => void;
+ *   fstatSync: (fd: number) => { isFile: () => boolean; size: number };
+ *   openSync: (filePath: string, flags: string) => number;
+ *   readSync: (fd: number, buffer: Buffer, offset: number, length: number, position: number | null) => number;
+ * }} RuntimeHashIo
+ */
+
+/** @returns {Buffer} */
+function getInstalledRuntimeHashBuffer() {
+  if (!installedRuntimeHashBuffer) {
+    installedRuntimeHashBuffer = Buffer.allocUnsafe(
+      INSTALLED_RUNTIME_HASH_CHUNK_BYTES,
+    );
+  }
+  return installedRuntimeHashBuffer;
+}
+
+/** @param {string} filePath @param {RuntimeHashIo} [io] */
+function hashInstalledRuntimeFile(filePath, io = DEFAULT_RUNTIME_HASH_IO) {
+  const fd = io.openSync(filePath, "r");
+  try {
+    const initial = io.fstatSync(fd);
+    if (
+      !initial.isFile() ||
+      !Number.isSafeInteger(initial.size) ||
+      initial.size < 0
+    ) {
+      throw new Error(`Installed llama runtime file is invalid: ${filePath}`);
+    }
+    const hash = createHash("sha256");
+    const buffer = getInstalledRuntimeHashBuffer();
+    let position = 0;
+    while (position < initial.size) {
+      const requested = Math.min(buffer.length, initial.size - position);
+      const bytesRead = io.readSync(fd, buffer, 0, requested, position);
+      if (
+        !Number.isSafeInteger(bytesRead) ||
+        bytesRead < 1 ||
+        bytesRead > requested
+      ) {
+        throw new Error(
+          `Installed llama runtime file changed while hashing: ${filePath}`,
+        );
+      }
+      hash.update(buffer.subarray(0, bytesRead));
+      position += bytesRead;
+    }
+    if (io.fstatSync(fd).size !== initial.size) {
+      throw new Error(
+        `Installed llama runtime file changed while hashing: ${filePath}`,
+      );
+    }
+    return hash.digest("hex");
+  } finally {
+    io.closeSync(fd);
+  }
 }
 
 module.exports = {
+  INSTALLED_RUNTIME_HASH_CHUNK_BYTES,
   collectInstalledRuntimeFileHashes,
+  hashInstalledRuntimeFile,
   installedRuntimeHashesMatch,
   installedRuntimeMarkerMatches,
 };
