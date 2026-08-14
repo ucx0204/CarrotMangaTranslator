@@ -12,7 +12,7 @@
       "maxImportedBy": 31
     },
     "src/renderer/src/components/ui/Button.tsx": {
-      "maxImportedBy": 44
+      "maxImportedBy": 42
     }
   }
 }

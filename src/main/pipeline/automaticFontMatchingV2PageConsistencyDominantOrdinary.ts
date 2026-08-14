@@ -4,6 +4,10 @@ import {
 } from "./automaticFontMatchingV2PageFamily";
 import { hasVariantGeometry } from "./automaticFontMatchingV2PageConsistencyGeometryMetrics";
 import {
+  type GlyphMorphologyBaseline,
+  projectGlyphMorphologyBaseline,
+} from "./automaticFontMatchingV2PageConsistencyMorphology";
+import {
   type AutomaticFontPageConsistencyState,
   candidatePixelScore,
   comparePixelCandidates,
@@ -45,13 +49,6 @@ type DominantAnchor = Readonly<{
   evidenceCount: number;
   supportShare: number;
   rows: readonly PageEvidenceRow[];
-}>;
-
-type GlyphBaseline = Readonly<{
-  globalDistance: number;
-  componentDistance: number;
-  componentFill: number;
-  foregroundLuma: number;
 }>;
 
 /**
@@ -188,7 +185,7 @@ function isRecoverableRow(
   row: PageEvidenceRow,
   state: AutomaticFontPageConsistencyState | undefined,
   anchor: DominantAnchor,
-  baseline: GlyphBaseline,
+  baseline: GlyphMorphologyBaseline,
 ): boolean {
   const morphology = row.inference.glyphMorphology;
   if (state?.mode !== "local_visual_variant") return false;
@@ -220,7 +217,7 @@ function passesCommonStructuralGate(
 
 function passesCommonMorphologyGate(
   morphology: GlyphMorphology,
-  baseline: GlyphBaseline,
+  baseline: GlyphMorphologyBaseline,
 ): boolean {
   return (
     morphology.connectedComponentCount >= MINIMUM_COMPONENT_COUNT &&
@@ -259,7 +256,7 @@ function hasRenderedAnchorCandidate(
 function passesStrictRoute(
   row: PageEvidenceRow,
   morphology: GlyphMorphology,
-  baseline: GlyphBaseline,
+  baseline: GlyphMorphologyBaseline,
 ): boolean {
   const candidates = [...row.inference.localEvidence.rankedCandidates]
     .filter((candidate) => candidate.renderStatus === "rendered")
@@ -284,7 +281,7 @@ function passesStrictRoute(
 function passesContaminationRoute(
   morphology: GlyphMorphology,
   anchor: DominantAnchor,
-  baseline: GlyphBaseline,
+  baseline: GlyphMorphologyBaseline,
 ): boolean {
   const globalDelta = Math.abs(
     morphology.globalForegroundDistanceMean - baseline.globalDistance,
@@ -306,23 +303,10 @@ function passesContaminationRoute(
 
 function resolveGlyphBaseline(
   rows: readonly PageEvidenceRow[],
-): GlyphBaseline | null {
+): GlyphMorphologyBaseline | null {
   const morphologies = rows.map((row) => row.inference.glyphMorphology);
   if (!morphologies.every(isValidMorphology)) return null;
-  return {
-    globalDistance: median(
-      morphologies.map((entry) => entry.globalForegroundDistanceMean),
-    ),
-    componentDistance: median(
-      morphologies.map((entry) => entry.medianComponentDistanceMean),
-    ),
-    componentFill: median(
-      morphologies.map((entry) => entry.medianComponentFill),
-    ),
-    foregroundLuma: median(
-      morphologies.map((entry) => entry.foregroundMeanLuma),
-    ),
-  };
+  return projectGlyphMorphologyBaseline(morphologies);
 }
 
 function isValidMorphology(
@@ -343,12 +327,4 @@ function isValidMorphology(
       morphology.foregroundMeanLuma,
     ].every(Number.isFinite),
   );
-}
-
-function median(values: readonly number[]): number {
-  const sorted = [...values].sort((left, right) => left - right);
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 1
-    ? (sorted[middle] ?? 0)
-    : ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2;
 }

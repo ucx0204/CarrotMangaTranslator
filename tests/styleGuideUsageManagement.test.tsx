@@ -38,6 +38,15 @@ describe("style guide usage management", () => {
       />,
     );
 
+    fireEvent.click(screen.getByRole("button", { name: "행 추가" }));
+    expect(onGuideChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        glossary: expect.arrayContaining([
+          expect.objectContaining({ source: "", target: "" }),
+        ]),
+      }),
+    );
+
     expect(glossarySourceOrder()).toEqual(["Beta", "Alpha"]);
 
     chooseCustomSelectOption("정렬", "이름");

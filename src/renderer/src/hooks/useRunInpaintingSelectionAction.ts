@@ -7,7 +7,7 @@ import { inpaintingGateway as mangaGateway } from "../api/inpaintingGateway";
 import { formatErrorMessage } from "../lib/errorPresentation";
 import {
   refreshLibraryWithStatus,
-  saveDirtyChanges,
+  saveDirtyChangesOrReportFailure,
   type UseInpaintingActionsOptions,
 } from "./inpaintingActionTypes";
 import {
@@ -123,18 +123,18 @@ async function prepareSelectedInpainting(
   options: UseInpaintingActionsOptions,
   t: TFunction<"renderer">,
 ): Promise<boolean> {
-  try {
-    await saveDirtyChanges(options.dirty, options.saveNow);
-  } catch (error) {
-    console.error(error);
-    reportSelectionFailure(
-      formatErrorMessage(error, t("inpainting.erase.saveFailed")),
-      options,
-      t,
-      t("inpainting.common.saveFailedTitle"),
-    );
-    return false;
-  }
+  const saved = await saveDirtyChangesOrReportFailure(
+    options.dirty,
+    options.saveNow,
+    (error) =>
+      reportSelectionFailure(
+        formatErrorMessage(error, t("inpainting.erase.saveFailed")),
+        options,
+        t,
+        t("inpainting.common.saveFailedTitle"),
+      ),
+  );
+  if (!saved) return false;
   options.setPeekOriginal(false);
   options.setJobState({
     id: "pending-inpainting",

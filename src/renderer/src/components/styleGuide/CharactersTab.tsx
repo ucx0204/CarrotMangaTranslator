@@ -5,20 +5,19 @@ import type {
   CharacterSpeechStyle,
 } from "../../../../shared/workContextTypes";
 import type { WorkContextUsageMetric } from "../../../../shared/workContextUsageTypes";
-import { Button } from "../ui/Button";
 import { CheckboxField } from "../ui/CheckboxField";
 import { Select } from "../ui/Select";
 import type { StyleGuideEditorProps } from "./styleGuideTypes";
 import {
   ContextEntryDeleteButton,
   ContextEntryEnabledToggle,
-  ContextEntryToolbar,
+  ContextEntrySection,
   ContextEntryUsageCount,
 } from "./ContextEntryList";
+import { createContextEntryActions } from "./contextEntryActions";
 import { useContextEntryList } from "./contextEntryListModel";
 import {
   makeCharacterProfile,
-  nowIso,
   SPEECH_STYLE_IDS,
   splitList,
 } from "./styleGuideUtils";
@@ -58,48 +57,27 @@ export function CharactersTab({
     clearSelection: () => entryList.setSelectedIds(new Set()),
   });
   return (
-    <div className="style-guide-content">
-      <section className="style-guide-section">
-        <div className="style-guide-section-head">
-          <h3>{t("styleGuide.characters.title")}</h3>
-          <Button size="sm" onClick={actions.addCharacter}>
-            {t("styleGuide.addRow")}
-          </Button>
-        </div>
-        <ContextEntryToolbar
-          query={entryList.query}
-          onQueryChange={entryList.setQuery}
-          filter={entryList.filter}
-          onFilterChange={entryList.setFilter}
-          sort={entryList.sort}
-          onSortChange={entryList.setSort}
-          selectedCount={entryList.selectedIds.size}
-          onDeleteSelected={actions.removeSelected}
-          usageAvailable={usageAvailable}
-        />
-        {entryList.visibleEntries.length ? (
-          <CharactersTable
-            characters={entryList.visibleEntries}
-            usageById={entryList.usageById}
-            selectedIds={entryList.selectedIds}
-            allVisibleSelected={entryList.allVisibleSelected}
-            onToggleAll={entryList.toggleAllVisible}
-            onToggleSelected={entryList.toggleSelected}
-            onUpdate={actions.updateCharacter}
-            onRemove={actions.removeCharacter}
-            usageAvailable={usageAvailable}
-          />
-        ) : (
-          <p className="style-guide-table-empty">
-            {t(
-              guide.characters.length
-                ? "styleGuide.usage.noMatches"
-                : "styleGuide.characters.empty",
-            )}
-          </p>
-        )}
-      </section>
-    </div>
+    <ContextEntrySection
+      emptyLabel={t("styleGuide.characters.empty")}
+      entryList={entryList}
+      title={t("styleGuide.characters.title")}
+      totalCount={guide.characters.length}
+      usageAvailable={usageAvailable}
+      onAdd={actions.add}
+      onDeleteSelected={actions.removeSelected}
+    >
+      <CharactersTable
+        characters={entryList.visibleEntries}
+        usageById={entryList.usageById}
+        selectedIds={entryList.selectedIds}
+        allVisibleSelected={entryList.allVisibleSelected}
+        onToggleAll={entryList.toggleAllVisible}
+        onToggleSelected={entryList.toggleSelected}
+        onUpdate={actions.update}
+        onRemove={actions.remove}
+        usageAvailable={usageAvailable}
+      />
+    </ContextEntrySection>
   );
 }
 
@@ -113,50 +91,15 @@ function useCharacterActions({
   clearSelection: () => void;
 }) {
   const { t } = useTranslation("components");
-  const updateCharacter = (
-    id: string,
-    patch: Partial<CharacterProfile>,
-  ): void => {
-    onGuideChange({
-      ...guide,
-      characters: guide.characters.map((character) =>
-        character.id === id
-          ? { ...character, ...patch, origin: "manual", updatedAt: nowIso() }
-          : character,
-      ),
-    });
-  };
-  const addCharacter = (): void => {
-    onGuideChange({
-      ...guide,
-      characters: [...guide.characters, makeCharacterProfile()],
-    });
-  };
-  const removeCharacter = (id: string): void => {
-    onGuideChange({
-      ...guide,
-      characters: guide.characters.filter((character) => character.id !== id),
-    });
-  };
-  const removeSelected = (): void => {
-    const confirmed = window.confirm(
-      t("styleGuide.usage.deleteConfirm", { count: selectedIds.size }),
-    );
-    if (!confirmed) return;
-    onGuideChange({
-      ...guide,
-      characters: guide.characters.filter(
-        (character) => !selectedIds.has(character.id),
-      ),
-    });
-    clearSelection();
-  };
-  return {
-    addCharacter,
-    removeCharacter,
-    removeSelected,
-    updateCharacter,
-  };
+  return createContextEntryActions({
+    entries: guide.characters,
+    selectedIds,
+    clearSelection,
+    createEntry: makeCharacterProfile,
+    confirmDelete: (count) =>
+      window.confirm(t("styleGuide.usage.deleteConfirm", { count })),
+    onEntriesChange: (characters) => onGuideChange({ ...guide, characters }),
+  });
 }
 
 function CharactersTable({

@@ -7,7 +7,7 @@ import { captureWorkspaceMaskSnapshot } from "../lib/workspaceHistory";
 import {
   failInpaintingJob,
   refreshLibraryWithStatus,
-  saveDirtyChanges,
+  saveDirtyChangesOrReportFailure,
   type UseInpaintingActionsOptions,
 } from "./inpaintingActionTypes";
 
@@ -57,18 +57,18 @@ async function prepareDrawnInpainting(
   options: UseInpaintingActionsOptions,
   t: TFunction<"renderer">,
 ): Promise<boolean> {
-  try {
-    await saveDirtyChanges(options.dirty, options.saveNow);
-  } catch (error) {
-    console.error(error);
-    failInpaintingJob(
-      options.setJobState,
-      options.pushStatus,
-      t("inpainting.common.saveFailedTitle"),
-      formatErrorMessage(error, t("inpainting.drawn.saveFailed")),
-    );
-    return false;
-  }
+  const saved = await saveDirtyChangesOrReportFailure(
+    options.dirty,
+    options.saveNow,
+    (error) =>
+      failInpaintingJob(
+        options.setJobState,
+        options.pushStatus,
+        t("inpainting.common.saveFailedTitle"),
+        formatErrorMessage(error, t("inpainting.drawn.saveFailed")),
+      ),
+  );
+  if (!saved) return false;
   const confirmed = await options.askConfirm(
     t("inpainting.drawn.title"),
     t("inpainting.drawn.message"),

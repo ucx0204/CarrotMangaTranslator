@@ -106,6 +106,8 @@ describe("GatherTextDirectFormatModal", () => {
     const { container } = renderModal(selection);
 
     fireEvent.click(screen.getByRole("button", { name: "기울임꼴" }));
+    fireEvent.click(screen.getByRole("button", { name: "왼쪽 정렬" }));
+    fireEvent.click(screen.getByRole("button", { name: "세로" }));
 
     const preview = container.querySelector<HTMLElement>(
       ".gather-direct-preview-text",
@@ -113,7 +115,11 @@ describe("GatherTextDirectFormatModal", () => {
     expect(preview?.style.fontStyle).toBe("italic");
     expect(preview?.style.fontSynthesis).toBe("weight style");
     fireEvent.click(screen.getByRole("button", { name: "적용" }));
-    expect(selection.apply).toHaveBeenCalledWith({ italic: true });
+    expect(selection.apply).toHaveBeenCalledWith({
+      italic: true,
+      textAlign: "left",
+      renderDirection: "vertical",
+    });
   });
 
   it("previews and applies text opacity as an output format", () => {
@@ -177,6 +183,23 @@ describe("GatherTextDirectFormatModal", () => {
     const patch = vi.mocked(selection.apply).mock.calls[0][0];
     expect(Object.hasOwn(patch, "fontFamily")).toBe(true);
     expect(patch.fontFamily).toBeUndefined();
+  });
+
+  it("resolves a mixed auto-fit selection to enabled on its first click", () => {
+    const selection = makeSelection([
+      makeBlock({ autoFitText: true }),
+      makeBlock({ id: "block-2", autoFitText: false }),
+    ]);
+    const { container } = renderModal(selection);
+    const toggle = container.querySelector<HTMLButtonElement>(
+      ".gather-direct-pill-toggle",
+    );
+
+    expect(toggle?.getAttribute("aria-pressed")).toBe("mixed");
+    fireEvent.click(toggle as HTMLButtonElement);
+    fireEvent.click(screen.getByRole("button", { name: "적용" }));
+
+    expect(selection.apply).toHaveBeenCalledWith({ autoFitText: true });
   });
 });
 

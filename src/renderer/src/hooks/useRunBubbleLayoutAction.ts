@@ -6,7 +6,7 @@ import { formatErrorMessage } from "../lib/errorPresentation";
 import {
   failInpaintingJob,
   refreshLibraryWithStatus,
-  saveDirtyChanges,
+  saveDirtyChangesOrReportFailure,
   type UseInpaintingActionsOptions,
 } from "./inpaintingActionTypes";
 
@@ -124,18 +124,18 @@ async function prepareBubbleLayout(
   options: UseInpaintingActionsOptions,
   t: TFunction<"renderer">,
 ): Promise<boolean> {
-  try {
-    await saveDirtyChanges(options.dirty, options.saveNow);
-  } catch (error) {
-    console.error(error);
-    failInpaintingJob(
-      options.setJobState,
-      options.pushStatus,
-      t("inpainting.common.saveFailedTitle"),
-      formatErrorMessage(error, t("inpainting.erase.saveFailed")),
-    );
-    return false;
-  }
+  const saved = await saveDirtyChangesOrReportFailure(
+    options.dirty,
+    options.saveNow,
+    (error) =>
+      failInpaintingJob(
+        options.setJobState,
+        options.pushStatus,
+        t("inpainting.common.saveFailedTitle"),
+        formatErrorMessage(error, t("inpainting.erase.saveFailed")),
+      ),
+  );
+  if (!saved) return false;
   options.setPeekOriginal(false);
   options.setJobState({
     id: "pending-bubble-layout",

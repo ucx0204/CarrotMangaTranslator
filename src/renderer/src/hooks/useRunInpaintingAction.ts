@@ -7,7 +7,7 @@ import {
   failInpaintingJob,
   refreshLibraryWithStatus,
   resolveInpaintingTarget,
-  saveDirtyChanges,
+  saveDirtyChangesOrReportFailure,
   type InpaintingActionTarget,
   type InpaintingScope,
   type UseInpaintingActionsOptions,
@@ -109,18 +109,18 @@ async function preparePatternInpainting(
   blockId: string | undefined,
   t: TFunction<"renderer">,
 ): Promise<boolean> {
-  try {
-    await saveDirtyChanges(options.dirty, options.saveNow);
-  } catch (error) {
-    console.error(error);
-    failInpaintingJob(
-      options.setJobState,
-      options.pushStatus,
-      t("inpainting.common.saveFailedTitle"),
-      formatErrorMessage(error, t("inpainting.erase.saveFailed")),
-    );
-    return false;
-  }
+  const saved = await saveDirtyChangesOrReportFailure(
+    options.dirty,
+    options.saveNow,
+    (error) =>
+      failInpaintingJob(
+        options.setJobState,
+        options.pushStatus,
+        t("inpainting.common.saveFailedTitle"),
+        formatErrorMessage(error, t("inpainting.erase.saveFailed")),
+      ),
+  );
+  if (!saved) return false;
   const confirmed = await confirmPatternInpainting(
     options.askConfirm,
     scope,

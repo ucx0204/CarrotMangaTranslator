@@ -6,12 +6,11 @@ import {
   type AutomaticFontPageConsistencyState,
   candidatePixelScore,
   DOHYEON_FONT_ID,
+  groupNeutralAuxiliaryRowsByDirection,
   normalizeBbox,
   type PageEvidenceRow,
 } from "./automaticFontMatchingV2PageConsistencyShared";
 
-const MAXIMUM_NEUTRAL_ROLE_CONFIDENCE = 0.08;
-const NEUTRAL_HEAD_TOLERANCE = 0.005;
 const MINIMUM_EMPHASIS_DOHYEON_SCORE = 0.45;
 const MINIMUM_EMPHASIS_GLOBAL_DISTANCE = 1.35;
 const MAXIMUM_EMPHASIS_FOREGROUND_LUMA = 40;
@@ -30,7 +29,9 @@ export function applyNeutralHeadEmphasisConsensus(
   states: Map<string, AutomaticFontPageConsistencyState>,
   rows: readonly PageEvidenceRow[],
 ): void {
-  for (const directionRows of groupNeutralRowsByDirection(rows).values()) {
+  for (const directionRows of groupNeutralAuxiliaryRowsByDirection(
+    rows,
+  ).values()) {
     const anchors = directionRows.filter(isStrongDohyeonEmphasisAnchor);
     for (const anchorRow of anchors) {
       const cluster = directionRows.filter((row) =>
@@ -124,45 +125,5 @@ function haveComparableEmphasisGeometry(
   return (
     Math.min(leftArea, rightArea) / Math.max(leftArea, rightArea) >=
     MINIMUM_EMPHASIS_BBOX_AREA_RATIO
-  );
-}
-
-function groupNeutralRowsByDirection(
-  rows: readonly PageEvidenceRow[],
-): Map<string, PageEvidenceRow[]> {
-  const groups = new Map<string, PageEvidenceRow[]>();
-  for (const row of rows) {
-    if (!hasNeutralAuxiliaryHeads(row)) continue;
-    const direction =
-      row.item?.direction ?? row.inference.treatment.orientation;
-    const group = groups.get(direction) ?? [];
-    group.push(row);
-    groups.set(direction, group);
-  }
-  return groups;
-}
-
-function hasNeutralAuxiliaryHeads(row: PageEvidenceRow): boolean {
-  const style = row.inference.sourceStyle;
-  return (
-    row.inference.selectionCalibration.operatingFamily === "body" &&
-    row.inference.rolePrediction.confidence <=
-      MAXIMUM_NEUTRAL_ROLE_CONFIDENCE &&
-    [
-      style.serifness,
-      style.weight,
-      style.width,
-      style.roundness,
-      style.strokeContrast,
-      style.handwritten,
-      style.angularity,
-      style.irregularity,
-      style.slant,
-      style.energy,
-    ].every(
-      (value) =>
-        typeof value === "number" &&
-        Math.abs(value - 0.5) <= NEUTRAL_HEAD_TOLERANCE,
-    )
   );
 }

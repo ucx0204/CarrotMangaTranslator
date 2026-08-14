@@ -8,6 +8,11 @@ import {
 } from "./automaticFontMatchingV2PageFamily";
 import { hasVariantGeometry } from "./automaticFontMatchingV2PageConsistencyGeometryMetrics";
 import {
+  type GlyphMorphologyBaseline,
+  median,
+  projectGlyphMorphologyBaseline,
+} from "./automaticFontMatchingV2PageConsistencyMorphology";
+import {
   type AutomaticFontPageConsistencyState,
   candidatePixelScore,
   comparePixelCandidates,
@@ -37,13 +42,6 @@ type PageBodyAnchor = Readonly<{
   evidenceCount: number;
   supportShare: number;
   seedCount: number;
-}>;
-
-type GlyphBaseline = Readonly<{
-  globalDistance: number;
-  componentDistance: number;
-  componentFill: number;
-  foregroundLuma: number;
 }>;
 
 type RelaxedBodyAnchor = Readonly<{
@@ -177,7 +175,7 @@ function resolveRelaxedFontAnchor(
 function isRelaxedConsensusEligible(
   row: PageEvidenceRow,
   anchor: PageBodyAnchor,
-  baseline: GlyphBaseline,
+  baseline: GlyphMorphologyBaseline,
 ): boolean {
   const morphology = row.inference.glyphMorphology;
   if (
@@ -290,30 +288,17 @@ function hasEmphasisGlyphRange(row: PageEvidenceRow): boolean {
 
 function resolveGlyphBaseline(
   rows: readonly PageEvidenceRow[],
-): GlyphBaseline | null {
+): GlyphMorphologyBaseline | null {
   const morphologies = rows.flatMap(({ inference }) =>
     inference.glyphMorphology ? [inference.glyphMorphology] : [],
   );
   if (morphologies.length < 1) return null;
-  return {
-    globalDistance: median(
-      morphologies.map((entry) => entry.globalForegroundDistanceMean),
-    ),
-    componentDistance: median(
-      morphologies.map((entry) => entry.medianComponentDistanceMean),
-    ),
-    componentFill: median(
-      morphologies.map((entry) => entry.medianComponentFill),
-    ),
-    foregroundLuma: median(
-      morphologies.map((entry) => entry.foregroundMeanLuma),
-    ),
-  };
+  return projectGlyphMorphologyBaseline(morphologies);
 }
 
 function isNearRelaxedGlyphBaseline(
   morphology: NonNullable<PageEvidenceRow["inference"]["glyphMorphology"]>,
-  baseline: GlyphBaseline,
+  baseline: GlyphMorphologyBaseline,
 ): boolean {
   return (
     Math.abs(
@@ -327,12 +312,4 @@ function isNearRelaxedGlyphBaseline(
     Math.abs(morphology.foregroundMeanLuma - baseline.foregroundLuma) <=
       RELAXED_MAXIMUM_FOREGROUND_LUMA_DELTA
   );
-}
-
-function median(values: readonly number[]): number {
-  const sorted = [...values].sort((left, right) => left - right);
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 1
-    ? (sorted[middle] ?? 0)
-    : ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2;
 }

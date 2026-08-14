@@ -1,13 +1,17 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { DEFAULT_BLOCK_FONT_ID } from "../../../../shared/blockFontCatalog";
-import { useFonts } from "../../fonts/useFonts";
 import type {
   GatherTextDirectFormatModel,
   GatherTextDirectFormatPatch,
-  GatherTextDirectFormatValueStates,
+  GatherTextDirectFormatValues,
 } from "../../lib/gatherTextDirectFormatModel";
-import { FontSizeNumberInput } from "../FontSizeNumberInput";
+import {
+  BlockTypographyChoiceGroup,
+  BlockTypographyFontPicker,
+  BlockTypographyPillToggle,
+  BlockTypographySizeStepper,
+  BlockTypographyToolButton,
+} from "../blockFormat/BlockTypographyPrimitives";
 import {
   AlignCenterIcon,
   AlignLeftIcon,
@@ -15,22 +19,13 @@ import {
   BoldIcon,
   ItalicIcon,
 } from "../ui/icons";
+import { DirectSectionHeading } from "./GatherTextDirectFormatPrimitives";
 import {
-  DirectControlCaption,
-  DirectSectionHeading,
-} from "./GatherTextDirectFormatPrimitives";
-import {
-  clampDirectFormatValue,
   hasDirectFormatField,
   resolveControlState,
   resolvePreviewValue,
   type DirectChangeHandler,
 } from "./gatherTextDirectFormatUi";
-import { Select } from "../ui/Select";
-import type { SelectOption } from "../ui/selectTypes";
-
-const MIXED_FONT_VALUE = "__gather_mixed_font__";
-const DEFAULT_FONT_VALUE = "__gather_default_font__";
 
 type TypographyControlProps = {
   disabled: boolean;
@@ -38,6 +33,23 @@ type TypographyControlProps = {
   patch: GatherTextDirectFormatPatch;
   onChange: DirectChangeHandler;
   onFontSizeChange: (value: number) => void;
+};
+
+type TypographyField =
+  | "fontFamily"
+  | "fontSizePx"
+  | "autoFitText"
+  | "bold"
+  | "italic"
+  | "textAlign"
+  | "renderDirection";
+
+type TypographyValues = {
+  [Field in TypographyField]: {
+    value: GatherTextDirectFormatValues[Field];
+    mixed: boolean;
+    touched: boolean;
+  };
 };
 
 export function GatherTextDirectTypographyControls({
@@ -48,361 +60,208 @@ export function GatherTextDirectTypographyControls({
   onFontSizeChange,
 }: TypographyControlProps): React.JSX.Element {
   const { t } = useTranslation("components");
+  const values = buildTypographyValues(model, patch);
   return (
     <section className="gather-direct-editor-section">
       <DirectSectionHeading
         title={t("gatherText.typographySection")}
         description={t("gatherText.changedOnlyHint")}
       />
-      <div className="gather-direct-editor-type-row">
-        <FontPicker
-          disabled={disabled}
-          patch={patch}
-          states={model.values}
-          onChange={onChange}
-        />
-        <FontSizeStepper
-          disabled={disabled}
-          model={model}
-          patch={patch}
-          onChange={onFontSizeChange}
-        />
-        <AutoFitToggle
-          disabled={disabled}
-          patch={patch}
-          states={model.values}
-          onChange={onChange}
-        />
-      </div>
-      <StyleToolbar
+      <GatherTypographyTypeRow
         disabled={disabled}
-        patch={patch}
-        states={model.values}
+        values={values}
+        onChange={onChange}
+        onFontSizeChange={onFontSizeChange}
+      />
+      <GatherTypographyToolbar
+        disabled={disabled}
+        values={values}
         onChange={onChange}
       />
     </section>
   );
 }
 
-function FontPicker({
+function GatherTypographyTypeRow({
   disabled,
-  patch,
-  states,
+  values,
   onChange,
-}: {
-  disabled: boolean;
-  patch: GatherTextDirectFormatPatch;
-  states: GatherTextDirectFormatValueStates;
-  onChange: DirectChangeHandler;
+  onFontSizeChange,
+}: Pick<
+  TypographyControlProps,
+  "disabled" | "onChange" | "onFontSizeChange"
+> & {
+  values: TypographyValues;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
-  const { options } = useFonts();
-  const state = resolveControlState(states, patch, "fontFamily");
-  const touched = hasDirectFormatField(patch, "fontFamily");
-  const value =
-    state.kind === "mixed"
-      ? MIXED_FONT_VALUE
-      : (state.value ?? DEFAULT_FONT_VALUE);
-  const defaultOption = options.find(
-    (option) => option.id === DEFAULT_BLOCK_FONT_ID,
-  );
-  const selectOptions: SelectOption[] = [
-    ...(state.kind === "mixed"
-      ? [
-          {
-            value: MIXED_FONT_VALUE,
-            label: t("gatherText.mixedValue"),
-            disabled: true,
-          },
-        ]
-      : []),
-    {
-      value: DEFAULT_FONT_VALUE,
-      label: defaultOption?.label ?? t("gatherText.defaultFont"),
-    },
-    ...options
-      .filter((option) => option.id !== DEFAULT_BLOCK_FONT_ID)
-      .map((option) => ({ value: option.id, label: option.label })),
-  ];
+  const autoFitPressed = !values.autoFitText.mixed && values.autoFitText.value;
   return (
-    <label
-      className="gather-direct-font-picker"
-      data-touched={touched || undefined}
-    >
-      <DirectControlCaption
-        label={t("formatBatch.groups.font")}
-        mixed={state.kind === "mixed"}
-        touched={touched}
-      />
-      <Select
-        ariaLabel={t("formatBatch.groups.font")}
-        value={value}
+    <div className="gather-direct-editor-type-row">
+      <BlockTypographyFontPicker
+        defaultLabel={t("gatherText.defaultFont")}
         disabled={disabled}
-        options={selectOptions}
-        searchable="auto"
-        onValueChange={(nextValue) =>
+        fontFamily={values.fontFamily.value}
+        label={t("formatBatch.groups.font")}
+        mixed={values.fontFamily.mixed}
+        mixedLabel={t("gatherText.mixedValue")}
+        touched={values.fontFamily.touched}
+        onChange={(value) => onChange("fontFamily", value)}
+      />
+      <BlockTypographySizeStepper
+        decreaseLabel={t("format.fontSizeDecrease")}
+        disabled={disabled}
+        increaseLabel={t("format.fontSizeIncrease")}
+        label={t("format.fontSize")}
+        mixed={values.fontSizePx.mixed}
+        touched={values.fontSizePx.touched}
+        value={values.fontSizePx.value}
+        onChange={onFontSizeChange}
+      />
+      <BlockTypographyPillToggle
+        disabled={disabled}
+        label={t("gatherText.autoFitLabel")}
+        mixed={values.autoFitText.mixed}
+        pressed={autoFitPressed}
+        text={t(
+          autoFitPressed ? "gatherText.toggleOn" : "gatherText.toggleOff",
+        )}
+        touched={values.autoFitText.touched}
+        onClick={() =>
           onChange(
-            "fontFamily",
-            nextValue === DEFAULT_FONT_VALUE ? undefined : nextValue,
+            "autoFitText",
+            values.autoFitText.mixed ? true : !values.autoFitText.value,
           )
         }
       />
-    </label>
-  );
-}
-
-function FontSizeStepper({
-  disabled,
-  model,
-  patch,
-  onChange,
-}: {
-  disabled: boolean;
-  model: GatherTextDirectFormatModel;
-  patch: GatherTextDirectFormatPatch;
-  onChange: (value: number) => void;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  const state = resolveControlState(model.values, patch, "fontSizePx");
-  const touched = hasDirectFormatField(patch, "fontSizePx");
-  const value = resolvePreviewValue(model, patch, "fontSizePx");
-  const setRelative = (delta: -1 | 1) =>
-    onChange(clampDirectFormatValue(Math.round(value) + delta, 10, 160));
-  return (
-    <div
-      className="gather-direct-size-control"
-      data-touched={touched || undefined}
-    >
-      <DirectControlCaption
-        label={t("format.fontSize")}
-        mixed={state.kind === "mixed"}
-        touched={touched}
-      />
-      <div className="gather-direct-size-stepper">
-        <button
-          type="button"
-          aria-label={t("format.fontSizeDecrease")}
-          disabled={disabled || value <= 10}
-          onClick={() => setRelative(-1)}
-        >
-          −
-        </button>
-        <FontSizeNumberInput
-          className="gather-direct-size-input"
-          ariaLabel={t("format.fontSize")}
-          value={value}
-          mixed={state.kind === "mixed" && !touched}
-          disabled={disabled}
-          onValueChange={onChange}
-        />
-        <button
-          type="button"
-          aria-label={t("format.fontSizeIncrease")}
-          disabled={disabled || value >= 160}
-          onClick={() => setRelative(1)}
-        >
-          +
-        </button>
-      </div>
     </div>
   );
 }
 
-function AutoFitToggle({
-  disabled,
-  patch,
-  states,
-  onChange,
-}: {
-  disabled: boolean;
-  patch: GatherTextDirectFormatPatch;
-  states: GatherTextDirectFormatValueStates;
-  onChange: DirectChangeHandler;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  const state = resolveControlState(states, patch, "autoFitText");
-  const touched = hasDirectFormatField(patch, "autoFitText");
-  const pressed = state.kind === "common" && state.value;
-  return (
-    <div className="gather-direct-auto-control">
-      <DirectControlCaption
-        label={t("gatherText.autoFitLabel")}
-        mixed={state.kind === "mixed"}
-        touched={touched}
-      />
-      <button
-        type="button"
-        className="gather-direct-pill-toggle"
-        data-touched={touched || undefined}
-        aria-pressed={state.kind === "mixed" ? "mixed" : pressed}
-        disabled={disabled}
-        onClick={() =>
-          onChange("autoFitText", state.kind === "mixed" ? true : !state.value)
-        }
-      >
-        <span aria-hidden="true" />
-        {pressed ? t("gatherText.toggleOn") : t("gatherText.toggleOff")}
-      </button>
-    </div>
-  );
-}
-
-function StyleToolbar({
-  disabled,
-  patch,
-  states,
-  onChange,
-}: {
-  disabled: boolean;
-  patch: GatherTextDirectFormatPatch;
-  states: GatherTextDirectFormatValueStates;
-  onChange: DirectChangeHandler;
-}): React.JSX.Element {
-  return (
-    <div className="gather-direct-style-toolbar">
-      <EmphasisTools {...{ disabled, patch, states, onChange }} />
-      <span className="gather-direct-toolbar-divider" aria-hidden="true" />
-      <AlignmentTools {...{ disabled, patch, states, onChange }} />
-      <span className="gather-direct-toolbar-divider" aria-hidden="true" />
-      <DirectionTools {...{ disabled, patch, states, onChange }} />
-    </div>
-  );
-}
-
-type ToolbarGroupProps = Omit<
+type GatherToolbarProps = Pick<
   TypographyControlProps,
-  "model" | "onFontSizeChange"
+  "disabled" | "onChange"
 > & {
-  states: GatherTextDirectFormatValueStates;
+  values: TypographyValues;
 };
 
-function EmphasisTools({
-  disabled,
-  patch,
-  states,
-  onChange,
-}: ToolbarGroupProps): React.JSX.Element {
-  const { t } = useTranslation("components");
-  const bold = resolveControlState(states, patch, "bold");
-  const italic = resolveControlState(states, patch, "italic");
+function GatherTypographyToolbar(props: GatherToolbarProps): React.JSX.Element {
   return (
-    <div className="gather-direct-toolbar-group">
-      <DirectToolButton
-        label={t("format.bold")}
-        mixed={bold.kind === "mixed"}
-        pressed={bold.kind === "common" && bold.value}
-        touched={hasDirectFormatField(patch, "bold")}
-        disabled={disabled}
-        onClick={() =>
-          onChange("bold", bold.kind === "mixed" ? true : !bold.value)
-        }
-      >
-        <BoldIcon size={17} />
-      </DirectToolButton>
-      <DirectToolButton
-        label={t("format.italic")}
-        mixed={italic.kind === "mixed"}
-        pressed={italic.kind === "common" && italic.value}
-        touched={hasDirectFormatField(patch, "italic")}
-        disabled={disabled}
-        onClick={() =>
-          onChange("italic", italic.kind === "mixed" ? true : !italic.value)
-        }
-      >
-        <ItalicIcon size={17} />
-      </DirectToolButton>
+    <div className="gather-direct-style-toolbar">
+      <GatherEmphasisTools {...props} />
+      <span className="gather-direct-toolbar-divider" aria-hidden="true" />
+      <GatherAlignmentTools {...props} />
+      <span className="gather-direct-toolbar-divider" aria-hidden="true" />
+      <GatherDirectionTools {...props} />
     </div>
   );
 }
 
-function AlignmentTools({
+function GatherEmphasisTools({
   disabled,
-  patch,
-  states,
+  values,
   onChange,
-}: ToolbarGroupProps): React.JSX.Element {
+}: GatherToolbarProps): React.JSX.Element {
   const { t } = useTranslation("components");
-  const align = resolveControlState(states, patch, "textAlign");
-  const tools = [
-    ["left", t("format.align.left"), <AlignLeftIcon size={17} />],
-    ["center", t("format.align.center"), <AlignCenterIcon size={17} />],
-    ["right", t("format.align.right"), <AlignRightIcon size={17} />],
+  return (
+    <div className="gather-direct-toolbar-group">
+      {(["bold", "italic"] as const).map((field) => (
+        <BlockTypographyToolButton
+          key={field}
+          label={t(`format.${field}`)}
+          mixed={values[field].mixed}
+          pressed={!values[field].mixed && values[field].value}
+          touched={values[field].touched}
+          disabled={disabled}
+          onClick={() =>
+            onChange(field, values[field].mixed ? true : !values[field].value)
+          }
+        >
+          {field === "bold" ? <BoldIcon size={17} /> : <ItalicIcon size={17} />}
+        </BlockTypographyToolButton>
+      ))}
+    </div>
+  );
+}
+
+function GatherAlignmentTools({
+  disabled,
+  values,
+  onChange,
+}: GatherToolbarProps): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const choices = [
+    {
+      value: "left",
+      label: t("format.align.left"),
+      content: <AlignLeftIcon size={17} />,
+    },
+    {
+      value: "center",
+      label: t("format.align.center"),
+      content: <AlignCenterIcon size={17} />,
+    },
+    {
+      value: "right",
+      label: t("format.align.right"),
+      content: <AlignRightIcon size={17} />,
+    },
   ] as const;
   return (
-    <div className="gather-direct-toolbar-group">
-      {tools.map(([value, label, icon]) => (
-        <DirectToolButton
-          key={value}
-          label={label}
-          mixed={align.kind === "mixed"}
-          pressed={align.kind === "common" && align.value === value}
-          touched={hasDirectFormatField(patch, "textAlign")}
-          disabled={disabled}
-          onClick={() => onChange("textAlign", value)}
-        >
-          {icon}
-        </DirectToolButton>
-      ))}
-    </div>
-  );
-}
-
-function DirectionTools({
-  disabled,
-  patch,
-  states,
-  onChange,
-}: ToolbarGroupProps): React.JSX.Element {
-  const { t } = useTranslation("components");
-  const direction = resolveControlState(states, patch, "renderDirection");
-  return (
-    <div className="gather-direct-toolbar-group direction">
-      {(["horizontal", "vertical"] as const).map((value) => (
-        <DirectToolButton
-          key={value}
-          label={t(`format.direction.${value}`)}
-          mixed={direction.kind === "mixed"}
-          pressed={direction.kind === "common" && direction.value === value}
-          touched={hasDirectFormatField(patch, "renderDirection")}
-          disabled={disabled}
-          onClick={() => onChange("renderDirection", value)}
-        >
-          <span>{t(`format.direction.${value}`)}</span>
-        </DirectToolButton>
-      ))}
-    </div>
-  );
-}
-
-function DirectToolButton({
-  children,
-  disabled,
-  label,
-  mixed,
-  pressed,
-  touched,
-  onClick,
-}: {
-  children: React.ReactNode;
-  disabled: boolean;
-  label: string;
-  mixed: boolean;
-  pressed: boolean;
-  touched: boolean;
-  onClick: () => void;
-}): React.JSX.Element {
-  return (
-    <button
-      type="button"
-      className="gather-direct-tool-button"
-      aria-label={label}
-      title={label}
-      aria-pressed={mixed && !touched ? "mixed" : pressed}
-      data-touched={touched || undefined}
+    <BlockTypographyChoiceGroup
+      choices={choices}
       disabled={disabled}
-      onClick={onClick}
-    >
-      {children}
-    </button>
+      mixed={values.textAlign.mixed}
+      selectedValue={
+        values.textAlign.mixed ? undefined : values.textAlign.value
+      }
+      touched={values.textAlign.touched}
+      onChange={(value) => onChange("textAlign", value)}
+    />
   );
+}
+
+function GatherDirectionTools({
+  disabled,
+  values,
+  onChange,
+}: GatherToolbarProps): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const choices = (["horizontal", "vertical"] as const).map((value) => ({
+    value,
+    label: t(`format.direction.${value}`),
+    content: <span>{t(`format.direction.${value}`)}</span>,
+  }));
+  return (
+    <BlockTypographyChoiceGroup
+      choices={choices}
+      direction
+      disabled={disabled}
+      mixed={values.renderDirection.mixed}
+      selectedValue={
+        values.renderDirection.mixed ? undefined : values.renderDirection.value
+      }
+      touched={values.renderDirection.touched}
+      onChange={(value) => onChange("renderDirection", value)}
+    />
+  );
+}
+
+function buildTypographyValues(
+  model: GatherTextDirectFormatModel,
+  patch: GatherTextDirectFormatPatch,
+): TypographyValues {
+  const resolveValue = <Field extends TypographyField>(field: Field) => ({
+    value: resolvePreviewValue(model, patch, field),
+    mixed: resolveControlState(model.values, patch, field).kind === "mixed",
+    touched: hasDirectFormatField(patch, field),
+  });
+  return {
+    fontFamily: resolveValue("fontFamily"),
+    fontSizePx: resolveValue("fontSizePx"),
+    autoFitText: resolveValue("autoFitText"),
+    bold: resolveValue("bold"),
+    italic: resolveValue("italic"),
+    textAlign: resolveValue("textAlign"),
+    renderDirection: resolveValue("renderDirection"),
+  };
 }

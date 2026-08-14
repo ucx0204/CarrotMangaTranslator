@@ -7,15 +7,18 @@ import {
 import { hasVariantGeometry } from "./automaticFontMatchingV2PageConsistencyGeometryMetrics";
 import { applyRelaxedNeutralGlyphConsensus } from "./automaticFontMatchingV2PageConsistencyRelaxed";
 import {
+  type GlyphMorphologyBaseline,
+  projectGlyphMorphologyBaseline,
+} from "./automaticFontMatchingV2PageConsistencyMorphology";
+import {
   type AutomaticFontPageConsistencyState,
   candidatePixelScore,
   comparePixelCandidates,
+  groupNeutralAuxiliaryRowsByDirection,
   type PageEvidenceRow,
 } from "./automaticFontMatchingV2PageConsistencyShared";
 
 const MINIMUM_BODY_SEEDS = 3;
-const MAXIMUM_NEUTRAL_ROLE_CONFIDENCE = 0.08;
-const NEUTRAL_HEAD_TOLERANCE = 0.005;
 const MAXIMUM_SHORT_ROW_COMPONENTS = 10;
 const MAXIMUM_AMBIGUOUS_WINNER_MARGIN = 0.1;
 const MAXIMUM_GLOBAL_DISTANCE_DELTA = 0.28;
@@ -32,13 +35,6 @@ type PageBodyAnchor = Readonly<{
   seedCount: number;
 }>;
 
-type GlyphBaseline = Readonly<{
-  globalDistance: number;
-  componentDistance: number;
-  componentFill: number;
-  foregroundLuma: number;
-}>;
-
 /**
  * R5 intentionally emits neutral auxiliary heads. In that narrow case, use
  * repeated page glyphs to repair short/ambiguous body crops without allowing
@@ -48,7 +44,9 @@ export function applyNeutralHeadOrdinaryConsensus(
   states: Map<string, AutomaticFontPageConsistencyState>,
   rows: readonly PageEvidenceRow[],
 ): void {
-  for (const directionRows of groupNeutralRowsByDirection(rows).values()) {
+  for (const directionRows of groupNeutralAuxiliaryRowsByDirection(
+    rows,
+  ).values()) {
     const strongSeeds = directionRows.filter(
       (row) => row.strongBodySeed && row.directBodyFamily,
     );
@@ -67,7 +65,7 @@ function applyPrimaryNeutralGlyphConsensus(
   states: Map<string, AutomaticFontPageConsistencyState>,
   row: PageEvidenceRow,
   anchor: PageBodyAnchor,
-  baseline: GlyphBaseline,
+  baseline: GlyphMorphologyBaseline,
 ): void {
   if (row.family) {
     applyCrossFamilyAnchor(states, row, anchor, baseline);
@@ -84,46 +82,6 @@ function applyPrimaryNeutralGlyphConsensus(
     recoveredBody: true,
     ordinaryMorphologyConsensus: true,
   });
-}
-
-function groupNeutralRowsByDirection(
-  rows: readonly PageEvidenceRow[],
-): Map<string, PageEvidenceRow[]> {
-  const groups = new Map<string, PageEvidenceRow[]>();
-  for (const row of rows) {
-    if (!hasNeutralAuxiliaryHeads(row)) continue;
-    const direction =
-      row.item?.direction ?? row.inference.treatment.orientation;
-    const group = groups.get(direction) ?? [];
-    group.push(row);
-    groups.set(direction, group);
-  }
-  return groups;
-}
-
-function hasNeutralAuxiliaryHeads(row: PageEvidenceRow): boolean {
-  const style = row.inference.sourceStyle;
-  return (
-    row.inference.selectionCalibration.operatingFamily === "body" &&
-    row.inference.rolePrediction.confidence <=
-      MAXIMUM_NEUTRAL_ROLE_CONFIDENCE &&
-    [
-      style.serifness,
-      style.weight,
-      style.width,
-      style.roundness,
-      style.strokeContrast,
-      style.handwritten,
-      style.angularity,
-      style.irregularity,
-      style.slant,
-      style.energy,
-    ].every(
-      (value) =>
-        typeof value === "number" &&
-        Math.abs(value - 0.5) <= NEUTRAL_HEAD_TOLERANCE,
-    )
-  );
 }
 
 function resolvePageBodyAnchor(
@@ -155,7 +113,7 @@ function applyCrossFamilyAnchor(
   states: Map<string, AutomaticFontPageConsistencyState>,
   row: PageEvidenceRow,
   anchor: PageBodyAnchor,
-  baseline: GlyphBaseline,
+  baseline: GlyphMorphologyBaseline,
 ): void {
   const target = row.inference.localEvidence.rankedCandidates.find(
     (candidate) =>
@@ -191,7 +149,7 @@ function applyCrossFamilyAnchor(
 function isRecoverableOrdinaryRow(
   row: PageEvidenceRow,
   anchor: PageBodyAnchor,
-  baseline: GlyphBaseline,
+  baseline: GlyphMorphologyBaseline,
 ): boolean {
   const morphology = row.inference.glyphMorphology;
   if (!morphology || row.inference.treatment.distortion !== "none")
@@ -219,30 +177,17 @@ function isRecoverableOrdinaryRow(
 function resolveGlyphBaseline(
   rows: readonly PageEvidenceRow[],
   minimumSamples = MINIMUM_BODY_SEEDS,
-): GlyphBaseline | null {
+): GlyphMorphologyBaseline | null {
   const morphologies = rows.flatMap(({ inference }) =>
     inference.glyphMorphology ? [inference.glyphMorphology] : [],
   );
   if (morphologies.length < minimumSamples) return null;
-  return {
-    globalDistance: median(
-      morphologies.map((entry) => entry.globalForegroundDistanceMean),
-    ),
-    componentDistance: median(
-      morphologies.map((entry) => entry.medianComponentDistanceMean),
-    ),
-    componentFill: median(
-      morphologies.map((entry) => entry.medianComponentFill),
-    ),
-    foregroundLuma: median(
-      morphologies.map((entry) => entry.foregroundMeanLuma),
-    ),
-  };
+  return projectGlyphMorphologyBaseline(morphologies);
 }
 
 function isNearGlyphBaseline(
   morphology: NonNullable<PageEvidenceRow["inference"]["glyphMorphology"]>,
-  baseline: GlyphBaseline,
+  baseline: GlyphMorphologyBaseline,
   shortRow: boolean,
 ): boolean {
   return (
@@ -259,12 +204,4 @@ function isNearGlyphBaseline(
     Math.abs(morphology.foregroundMeanLuma - baseline.foregroundLuma) <=
       MAXIMUM_FOREGROUND_LUMA_DELTA
   );
-}
-
-function median(values: readonly number[]): number {
-  const sorted = [...values].sort((left, right) => left - right);
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 1
-    ? (sorted[middle] ?? 0)
-    : ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2;
 }

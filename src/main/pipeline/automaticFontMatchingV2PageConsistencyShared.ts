@@ -9,6 +9,9 @@ import {
   type AutomaticFontPrintedFamily,
 } from "./automaticFontMatchingV2PageFamily";
 
+const MAXIMUM_NEUTRAL_ROLE_CONFIDENCE = 0.08;
+const NEUTRAL_HEAD_TOLERANCE = 0.005;
+
 export const DOHYEON_FONT_ID = "dohyeon";
 
 export type PageGeometryItem = Pick<
@@ -166,4 +169,44 @@ export function union(parents: number[], left: number, right: number): void {
 
 export function isDefined<T>(value: T | undefined): value is T {
   return value !== undefined;
+}
+
+export function groupNeutralAuxiliaryRowsByDirection(
+  rows: readonly PageEvidenceRow[],
+): Map<string, PageEvidenceRow[]> {
+  const groups = new Map<string, PageEvidenceRow[]>();
+  for (const row of rows) {
+    if (!hasNeutralAuxiliaryHeads(row)) continue;
+    const direction =
+      row.item?.direction ?? row.inference.treatment.orientation;
+    const group = groups.get(direction) ?? [];
+    group.push(row);
+    groups.set(direction, group);
+  }
+  return groups;
+}
+
+function hasNeutralAuxiliaryHeads(row: PageEvidenceRow): boolean {
+  const style = row.inference.sourceStyle;
+  return (
+    row.inference.selectionCalibration.operatingFamily === "body" &&
+    row.inference.rolePrediction.confidence <=
+      MAXIMUM_NEUTRAL_ROLE_CONFIDENCE &&
+    [
+      style.serifness,
+      style.weight,
+      style.width,
+      style.roundness,
+      style.strokeContrast,
+      style.handwritten,
+      style.angularity,
+      style.irregularity,
+      style.slant,
+      style.energy,
+    ].every(
+      (value) =>
+        typeof value === "number" &&
+        Math.abs(value - 0.5) <= NEUTRAL_HEAD_TOLERANCE,
+    )
+  );
 }

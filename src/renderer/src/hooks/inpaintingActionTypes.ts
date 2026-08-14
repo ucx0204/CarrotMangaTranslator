@@ -105,6 +105,21 @@ export async function saveDirtyChanges(
   return saveNow();
 }
 
+export async function saveDirtyChangesOrReportFailure(
+  dirty: boolean,
+  saveNow: () => Promise<void>,
+  reportFailure: (error: unknown) => void,
+): Promise<boolean> {
+  try {
+    await saveDirtyChanges(dirty, saveNow);
+    return true;
+  } catch (error) {
+    console.error(error);
+    reportFailure(error);
+    return false;
+  }
+}
+
 export async function refreshLibraryWithStatus(
   refreshLibrary: () => Promise<void>,
   pushStatus: (line: string) => void,

@@ -24,7 +24,70 @@ type ContextEntryToolbarProps = {
   usageAvailable?: boolean;
 };
 
-export function ContextEntryToolbar({
+type ContextEntrySectionModel<Entry> = {
+  query: string;
+  setQuery: (value: string) => void;
+  filter: ContextEntryFilter;
+  setFilter: (value: ContextEntryFilter) => void;
+  sort: ContextEntrySort;
+  setSort: (value: ContextEntrySort) => void;
+  selectedIds: ReadonlySet<string>;
+  visibleEntries: readonly Entry[];
+};
+
+export function ContextEntrySection<Entry>({
+  children,
+  emptyLabel,
+  entryList,
+  onAdd,
+  onDeleteSelected,
+  title,
+  totalCount,
+  usageAvailable,
+}: {
+  children: React.ReactNode;
+  emptyLabel: string;
+  entryList: ContextEntrySectionModel<Entry>;
+  onAdd: () => void;
+  onDeleteSelected: () => void;
+  title: string;
+  totalCount: number;
+  usageAvailable: boolean;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <div className="style-guide-content">
+      <section className="style-guide-section">
+        <div className="style-guide-section-head">
+          <h3>{title}</h3>
+          <Button size="sm" onClick={onAdd}>
+            {t("styleGuide.addRow")}
+          </Button>
+        </div>
+        <ContextEntryToolbar
+          query={entryList.query}
+          onQueryChange={entryList.setQuery}
+          filter={entryList.filter}
+          onFilterChange={entryList.setFilter}
+          sort={entryList.sort}
+          onSortChange={entryList.setSort}
+          selectedCount={entryList.selectedIds.size}
+          onDeleteSelected={onDeleteSelected}
+          usageAvailable={usageAvailable}
+        />
+        {entryList.visibleEntries.length ? (
+          children
+        ) : (
+          <p className="style-guide-table-empty">
+            {totalCount ? t("styleGuide.usage.noMatches") : emptyLabel}
+          </p>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function ContextEntryToolbar({
   query,
   onQueryChange,
   filter,

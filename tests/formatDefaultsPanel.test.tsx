@@ -58,6 +58,9 @@ describe("FormatDefaultsPanel", () => {
     ).toBe("새 기본 서식 미리보기");
     expect(onChange).not.toHaveBeenCalled();
 
+    chooseCustomSelectOption("글꼴", "나눔고딕");
+    expect(onChange).toHaveBeenLastCalledWith({ fontFamily: "nanum-gothic" });
+
     fireEvent.click(screen.getByRole("button", { name: "굵게" }));
     expect(
       container.querySelector<HTMLElement>(".gather-direct-preview-text")?.style
@@ -80,6 +83,23 @@ describe("FormatDefaultsPanel", () => {
       container.querySelector<HTMLElement>(".gather-direct-preview-text")?.style
         .fontSize,
     ).toBe("25px");
+
+    fireEvent.click(screen.getByRole("button", { name: "글자 크기 줄이기" }));
+    expect(onChange).toHaveBeenLastCalledWith({
+      fontSizePx: 24,
+      autoFitText: false,
+    });
+  });
+
+  it("toggles auto fit without changing the explicit size", () => {
+    const onChange = vi.fn();
+    renderPanel(onChange);
+
+    const toggle = screen.getByRole("button", { name: "켜짐" });
+    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(toggle);
+
+    expect(onChange).toHaveBeenLastCalledWith({ autoFitText: false });
   });
 
   it("accepts a directly typed default font size", () => {
@@ -103,6 +123,9 @@ describe("FormatDefaultsPanel", () => {
   it("previews vertical direction and disabling the outline", () => {
     const onChange = vi.fn();
     const { container } = renderPanel(onChange);
+
+    fireEvent.click(screen.getByRole("button", { name: "왼쪽 정렬" }));
+    expect(onChange).toHaveBeenLastCalledWith({ textAlign: "left" });
 
     fireEvent.click(screen.getByRole("button", { name: "세로" }));
     expect(

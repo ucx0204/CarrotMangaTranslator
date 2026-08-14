@@ -5,23 +5,18 @@ import type {
   GlossaryEntryCategory,
 } from "../../../../shared/workContextTypes";
 import type { WorkContextUsageMetric } from "../../../../shared/workContextUsageTypes";
-import { Button } from "../ui/Button";
 import { CheckboxField } from "../ui/CheckboxField";
 import { Select } from "../ui/Select";
 import type { StyleGuideEditorProps } from "./styleGuideTypes";
 import {
   ContextEntryDeleteButton,
   ContextEntryEnabledToggle,
-  ContextEntryToolbar,
+  ContextEntrySection,
   ContextEntryUsageCount,
 } from "./ContextEntryList";
+import { createContextEntryActions } from "./contextEntryActions";
 import { useContextEntryList } from "./contextEntryListModel";
-import {
-  CATEGORY_IDS,
-  makeGlossaryEntry,
-  nowIso,
-  splitList,
-} from "./styleGuideUtils";
+import { CATEGORY_IDS, makeGlossaryEntry, splitList } from "./styleGuideUtils";
 
 export function GlossaryTab({
   guide,
@@ -53,48 +48,27 @@ export function GlossaryTab({
     clearSelection: () => entryList.setSelectedIds(new Set()),
   });
   return (
-    <div className="style-guide-content">
-      <section className="style-guide-section">
-        <div className="style-guide-section-head">
-          <h3>{t("styleGuide.tabs.glossary")}</h3>
-          <Button size="sm" onClick={actions.addEntry}>
-            {t("styleGuide.addRow")}
-          </Button>
-        </div>
-        <ContextEntryToolbar
-          query={entryList.query}
-          onQueryChange={entryList.setQuery}
-          filter={entryList.filter}
-          onFilterChange={entryList.setFilter}
-          sort={entryList.sort}
-          onSortChange={entryList.setSort}
-          selectedCount={entryList.selectedIds.size}
-          onDeleteSelected={actions.removeSelected}
-          usageAvailable={usageAvailable}
-        />
-        {entryList.visibleEntries.length ? (
-          <GlossaryTable
-            entries={entryList.visibleEntries}
-            usageById={entryList.usageById}
-            selectedIds={entryList.selectedIds}
-            allVisibleSelected={entryList.allVisibleSelected}
-            onToggleAll={entryList.toggleAllVisible}
-            onToggleSelected={entryList.toggleSelected}
-            onUpdate={actions.updateEntry}
-            onRemove={actions.removeEntry}
-            usageAvailable={usageAvailable}
-          />
-        ) : (
-          <p className="style-guide-table-empty">
-            {t(
-              guide.glossary.length
-                ? "styleGuide.usage.noMatches"
-                : "styleGuide.glossary.empty",
-            )}
-          </p>
-        )}
-      </section>
-    </div>
+    <ContextEntrySection
+      emptyLabel={t("styleGuide.glossary.empty")}
+      entryList={entryList}
+      title={t("styleGuide.tabs.glossary")}
+      totalCount={guide.glossary.length}
+      usageAvailable={usageAvailable}
+      onAdd={actions.add}
+      onDeleteSelected={actions.removeSelected}
+    >
+      <GlossaryTable
+        entries={entryList.visibleEntries}
+        usageById={entryList.usageById}
+        selectedIds={entryList.selectedIds}
+        allVisibleSelected={entryList.allVisibleSelected}
+        onToggleAll={entryList.toggleAllVisible}
+        onToggleSelected={entryList.toggleSelected}
+        onUpdate={actions.update}
+        onRemove={actions.remove}
+        usageAvailable={usageAvailable}
+      />
+    </ContextEntrySection>
   );
 }
 
@@ -108,43 +82,16 @@ function useGlossaryActions({
   clearSelection: () => void;
 }) {
   const { t } = useTranslation("components");
-  const updateEntry = (id: string, patch: Partial<GlossaryEntry>): void => {
-    onGuideChange({
-      ...guide,
-      glossary: guide.glossary.map((entry) =>
-        entry.id === id
-          ? { ...entry, ...patch, origin: "manual", updatedAt: nowIso() }
-          : entry,
-      ),
-    });
-  };
-  const addEntry = (): void => {
-    onGuideChange({
-      ...guide,
-      glossary: [
-        ...guide.glossary,
-        makeGlossaryEntry({ source: "", target: "", category: "term" }),
-      ],
-    });
-  };
-  const removeEntry = (id: string): void => {
-    onGuideChange({
-      ...guide,
-      glossary: guide.glossary.filter((entry) => entry.id !== id),
-    });
-  };
-  const removeSelected = (): void => {
-    const confirmed = window.confirm(
-      t("styleGuide.usage.deleteConfirm", { count: selectedIds.size }),
-    );
-    if (!confirmed) return;
-    onGuideChange({
-      ...guide,
-      glossary: guide.glossary.filter((entry) => !selectedIds.has(entry.id)),
-    });
-    clearSelection();
-  };
-  return { addEntry, removeEntry, removeSelected, updateEntry };
+  return createContextEntryActions({
+    entries: guide.glossary,
+    selectedIds,
+    clearSelection,
+    createEntry: () =>
+      makeGlossaryEntry({ source: "", target: "", category: "term" }),
+    confirmDelete: (count) =>
+      window.confirm(t("styleGuide.usage.deleteConfirm", { count })),
+    onEntriesChange: (glossary) => onGuideChange({ ...guide, glossary }),
+  });
 }
 
 function GlossaryTable({
