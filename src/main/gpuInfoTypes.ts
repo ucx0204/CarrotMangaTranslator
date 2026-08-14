@@ -1,4 +1,4 @@
-import type { AmdRocmTarget } from "./amdRocmTargets";
+import type { AmdRocmTarget } from "../shared/settingsTypes";
 
 export type DetectedGpuInfo = {
   name: string | null;

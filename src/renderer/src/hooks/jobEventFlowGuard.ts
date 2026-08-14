@@ -1,4 +1,5 @@
 import type { JobEvent, JobState } from "../../../shared/jobTypes";
+import { isTerminalJobStatus } from "../../../shared/jobContracts";
 
 export type AggregateJobEventGuard = {
   activeJobIds: Set<string>;
@@ -48,15 +49,6 @@ export function isAggregateFlowTerminal(
     current &&
     isAggregateFlowJobId(current.id) &&
     isTerminalJobStatus(current.status),
-  );
-}
-
-export function isTerminalJobStatus(status: JobState["status"]): boolean {
-  return (
-    status === "cancelled" ||
-    status === "failed" ||
-    status === "partial" ||
-    status === "completed"
   );
 }
 

@@ -1,5 +1,12 @@
 // @ts-check
 
+const {
+  axisGap,
+  boxArea,
+  boxIntersectionArea,
+  unionBoxPair: unionBoxes,
+} = require("./box-geometry.cjs");
+
 const MIN_READING_START_SCALE = 1.5;
 const MIN_CROSS_GAP_SCALE = 0.25;
 const MIN_READING_GAP_SCALE = 0.25;
@@ -42,8 +49,8 @@ function readDistinctPairGeometry(left, right, options = {}) {
   );
   const vertical = leftMode === "vertical";
   const startDeltaPx = readingStartDelta(left.bbox, right.bbox, vertical);
-  const crossGapPx = crossAxisGap(left.bbox, right.bbox, vertical);
-  const readingGapPx = readingAxisGap(left.bbox, right.bbox, vertical);
+  const crossGapPx = axisGap(left.bbox, right.bbox, vertical ? "x" : "y");
+  const readingGapPx = axisGap(left.bbox, right.bbox, vertical ? "y" : "x");
   const hasCrossAxisGap = crossGapPx >= characterScale * MIN_CROSS_GAP_SCALE;
   const hasReadingAxisGap =
     readingGapPx >= characterScale * MIN_READING_GAP_SCALE;
@@ -98,15 +105,7 @@ function readCandidateBox(candidate) {
 function smallerBoxOverlapRatio(left, right) {
   const leftBox = tupleToBox(left);
   const rightBox = tupleToBox(right);
-  const intersection =
-    Math.max(
-      0,
-      Math.min(leftBox.x2, rightBox.x2) - Math.max(leftBox.x1, rightBox.x1),
-    ) *
-    Math.max(
-      0,
-      Math.min(leftBox.y2, rightBox.y2) - Math.max(leftBox.y1, rightBox.y1),
-    );
+  const intersection = boxIntersectionArea(leftBox, rightBox);
   return intersection / Math.min(boxArea(leftBox), boxArea(rightBox));
 }
 
@@ -115,44 +114,9 @@ function tupleToBox(tuple) {
   return { x1: tuple[0], y1: tuple[1], x2: tuple[2], y2: tuple[3] };
 }
 
-/** @param {Box} box */
-function boxArea(box) {
-  return Math.max(1, box.x2 - box.x1) * Math.max(1, box.y2 - box.y1);
-}
-
 /** @param {Box} left @param {Box} right @param {boolean} vertical */
 function readingStartDelta(left, right, vertical) {
   return vertical ? Math.abs(left.y1 - right.y1) : Math.abs(left.x1 - right.x1);
-}
-
-/** @param {Box} left @param {Box} right @param {boolean} vertical */
-function crossAxisGap(left, right, vertical) {
-  const start = vertical ? "x1" : "y1";
-  const end = vertical ? "x2" : "y2";
-  return Math.max(
-    0,
-    Math.max(left[start], right[start]) - Math.min(left[end], right[end]),
-  );
-}
-
-/** @param {Box} left @param {Box} right @param {boolean} vertical */
-function readingAxisGap(left, right, vertical) {
-  const start = vertical ? "y1" : "x1";
-  const end = vertical ? "y2" : "x2";
-  return Math.max(
-    0,
-    Math.max(left[start], right[start]) - Math.min(left[end], right[end]),
-  );
-}
-
-/** @param {Box} left @param {Box} right */
-function unionBoxes(left, right) {
-  return {
-    x1: Math.min(left.x1, right.x1),
-    y1: Math.min(left.y1, right.y1),
-    x2: Math.max(left.x2, right.x2),
-    y2: Math.max(left.y2, right.y2),
-  };
 }
 
 /** @param {number[]} sorted */

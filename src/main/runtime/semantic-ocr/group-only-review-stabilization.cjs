@@ -5,7 +5,7 @@ const {
   boxArea,
   boxIntersectionArea,
   unionBoxes,
-} = require("./group-only-review-values.cjs");
+} = require("./box-geometry.cjs");
 const {
   attachDominantVerticalRubyClusterLabels,
 } = require("./group-only-review-ruby-dominant.cjs");

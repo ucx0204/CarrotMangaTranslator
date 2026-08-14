@@ -4,6 +4,7 @@ import type { TFunction } from "i18next";
 import type { Dispatch, SetStateAction } from "react";
 import type { ChapterSnapshot } from "../../../../shared/libraryTypes";
 import type { JobState } from "../../../../shared/jobTypes";
+import { isTerminalJobStatus } from "../../../../shared/jobContracts";
 import type { ErrorReportContext } from "../../../../shared/errorReportTypes";
 import type { RegionSelectionState } from "../../lib/appHelpers";
 import { toast } from "../../lib/toastStore";
@@ -95,13 +96,13 @@ export function useAppSessionLifecycleEffects({
       prevFlowActiveRef.current && !translationFlowActive;
     prevFlowActiveRef.current = translationFlowActive;
     if (
-      isTerminalStatus(next) &&
+      isTerminalJobStatus(next) &&
       !translationFlowActive &&
       (previous !== next || flowJustFinished)
     ) {
       refreshLibraryState();
     }
-    if (previous === next && !(flowJustFinished && isTerminalStatus(next))) {
+    if (previous === next && !(flowJustFinished && isTerminalJobStatus(next))) {
       return;
     }
     prevJobStatusRef.current = next;
@@ -112,15 +113,6 @@ export function useAppSessionLifecycleEffects({
     refreshLibraryState,
     translationFlowActive,
   ]);
-}
-
-function isTerminalStatus(status: JobState["status"]): boolean {
-  return (
-    status === "completed" ||
-    status === "partial" ||
-    status === "failed" ||
-    status === "cancelled"
-  );
 }
 
 type JobStatusChangeArgs = {
@@ -145,7 +137,7 @@ function handleJobStatusChange({
     onJobStart();
     return;
   }
-  if (translationFlowActive && isTerminalStatus(next)) return;
+  if (translationFlowActive && isTerminalJobStatus(next)) return;
   if (next === "completed") {
     toast.success(
       formatJobLabel(jobState, t) || t("job.notifications.completed"),

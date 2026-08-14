@@ -17,7 +17,7 @@ import {
 
 type GemmaRuntimePreset = (typeof GEMMA_RUNTIME_PRESETS)[GemmaVramMode];
 
-type GemmaFieldOptions = Pick<
+export type GemmaFieldOptions = Pick<
   TranslationOptions,
   | "port"
   | "temperature"

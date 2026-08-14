@@ -9,6 +9,7 @@ import type {
   AiPageSummarySuggestion,
   AiWorkContextSuggestions,
 } from "./workContextAiTypes";
+import { cleanText, sanitizeList } from "./workContextAiMergeUtils";
 
 const GLOSSARY_CATEGORIES: readonly GlossaryEntryCategory[] = [
   "character",
@@ -174,32 +175,6 @@ function pickList(
     }
   }
   return [];
-}
-
-function sanitizeList(
-  value: unknown,
-  maxItems: number,
-  maxLength: number,
-): string[] {
-  return [
-    ...new Map(
-      toArray(value)
-        .map((item) => cleanText(item, maxLength))
-        .filter(Boolean)
-        .map((item) => [normalizeKey(item), item]),
-    ).values(),
-  ].slice(0, maxItems);
-}
-
-function cleanText(value: unknown, maxLength: number): string {
-  const text = String(value ?? "")
-    .replace(/\s+/g, " ")
-    .trim();
-  return text.length <= maxLength ? text : text.slice(0, maxLength);
-}
-
-function normalizeKey(value: unknown): string {
-  return cleanText(value, 400).toLocaleLowerCase();
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {

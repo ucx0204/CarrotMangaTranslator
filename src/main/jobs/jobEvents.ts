@@ -1,4 +1,5 @@
 import { ipcEventContracts } from "../../shared/ipcContracts";
+import { isTerminalJobStatus } from "../../shared/jobContracts";
 import type { JobEvent } from "../../shared/jobTypes";
 import { writeLog } from "../logger";
 import type { ActiveJobStore } from "./activeJob";
@@ -46,14 +47,14 @@ export function createJobEventEmitter(
     const current = jobs.current;
     if (
       current?.id !== event.id ||
-      (current.lastEvent && isTerminalJobEvent(current.lastEvent))
+      (current.lastEvent && isTerminalJobStatus(current.lastEvent.status))
     ) {
       return;
     }
     jobs.updateLastEvent(event.id, event);
     const queue = resolveQueue(jobs);
     queue.enqueue(mainWindow, event);
-    if (isTerminalJobEvent(event)) {
+    if (isTerminalJobStatus(event.status)) {
       queue.dispose();
       dispatchQueueByJobs.delete(jobs);
     }
@@ -115,15 +116,6 @@ function canSendJobEvent(
     mainWindow &&
     !mainWindow.isDestroyed?.() &&
     !mainWindow.webContents.isDestroyed?.(),
-  );
-}
-
-function isTerminalJobEvent(event: JobEvent): boolean {
-  return (
-    event.status === "cancelled" ||
-    event.status === "failed" ||
-    event.status === "partial" ||
-    event.status === "completed"
   );
 }
 

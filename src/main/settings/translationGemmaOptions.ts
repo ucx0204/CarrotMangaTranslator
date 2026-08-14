@@ -15,6 +15,7 @@ import {
   resolveOptionalString,
 } from "./appSettingsResolvers";
 import {
+  type GemmaFieldOptions,
   resolveGemmaCacheOptions,
   resolveGemmaGenerationOptions,
   resolveGemmaGpuOptions,
@@ -45,43 +46,8 @@ export type TranslationRuntimeState = {
   allowUnsafeUnifiedMemory: boolean;
 };
 
-type GemmaTranslationOptions = Pick<
+type GemmaModelOptions = Pick<
   TranslationOptions,
-  | "port"
-  | "temperature"
-  | "topP"
-  | "topK"
-  | "maxTokens"
-  | "ctx"
-  | "batch"
-  | "ubatch"
-  | "gemmaVramMode"
-  | "fitTargetMb"
-  | "gpuLayers"
-  | "cacheTypeK"
-  | "cacheTypeV"
-  | "ctxCheckpoints"
-  | "kvOffload"
-  | "mmprojOffload"
-  | "threads"
-  | "threadsBatch"
-  | "poll"
-  | "pollBatch"
-  | "prioBatch"
-  | "cacheIdleSlots"
-  | "cacheReuse"
-  | "enableMetrics"
-  | "enablePerf"
-  | "draftModelRepo"
-  | "draftModelFile"
-  | "useDraft"
-  | "imageMinTokens"
-  | "imageMaxTokens"
-  | "includeEnhancedVariant"
-  | "enhancedMaxLongSide"
-  | "enhancedContrast"
-  | "imageFirst"
-  | "reuseServer"
   | "llamaRuntimeProfile"
   | "llamaRocmTarget"
   | "unifiedMemoryMb"
@@ -97,6 +63,10 @@ type GemmaTranslationOptions = Pick<
   | "localModelPath"
   | "localMmprojPath"
 >;
+
+type GemmaTranslationOptions = GemmaFieldOptions &
+  GemmaModelOptions &
+  Pick<TranslationOptions, "gemmaVramMode">;
 
 export function resolveTranslationRuntimeState(
   runtimeEnv: NodeJS.ProcessEnv,
@@ -179,23 +149,7 @@ function resolveGemmaModelOptions(
   runtimeEnv: NodeJS.ProcessEnv,
   paths: TranslationOptionPaths,
   state: TranslationRuntimeState,
-): Pick<
-  GemmaTranslationOptions,
-  | "llamaRuntimeProfile"
-  | "llamaRocmTarget"
-  | "unifiedMemoryMb"
-  | "allowUnsafeUnifiedMemory"
-  | "workingDir"
-  | "toolsDir"
-  | "serverPath"
-  | "modelSource"
-  | "modelRepo"
-  | "modelFile"
-  | "mmprojRepo"
-  | "mmprojFile"
-  | "localModelPath"
-  | "localMmprojPath"
-> {
+): GemmaModelOptions {
   return {
     llamaRuntimeProfile: state.llamaRuntimeProfile,
     ...(state.llamaRocmTarget

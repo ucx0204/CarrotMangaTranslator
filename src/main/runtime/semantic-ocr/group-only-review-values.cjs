@@ -258,43 +258,6 @@ function tupleBox(value) {
     : null;
 }
 
-/** @param {Box[]} boxes @returns {Box} */
-function unionBoxes(boxes) {
-  return {
-    x1: Math.min(...boxes.map((box) => box.x1)),
-    y1: Math.min(...boxes.map((box) => box.y1)),
-    x2: Math.max(...boxes.map((box) => box.x2)),
-    y2: Math.max(...boxes.map((box) => box.y2)),
-  };
-}
-
-/** @param {Box} box */
-function boxArea(box) {
-  return Math.max(1, box.x2 - box.x1) * Math.max(1, box.y2 - box.y1);
-}
-
-/** @param {Box} left @param {Box} right */
-function boxIntersectionArea(left, right) {
-  return (
-    Math.max(0, Math.min(left.x2, right.x2) - Math.max(left.x1, right.x1)) *
-    Math.max(0, Math.min(left.y2, right.y2) - Math.max(left.y1, right.y1))
-  );
-}
-
-/** @param {Box} left @param {Box} right @param {"x"|"y"} axis */
-function axisOverlapRatio(left, right, axis) {
-  const start = /** @type {"x1"|"y1"} */ (`${axis}1`);
-  const end = /** @type {"x2"|"y2"} */ (`${axis}2`);
-  const overlap = Math.max(
-    0,
-    Math.min(left[end], right[end]) - Math.max(left[start], right[start]),
-  );
-  return (
-    overlap /
-    Math.max(1, Math.min(left[end] - left[start], right[end] - right[start]))
-  );
-}
-
 /** @param {TupleBox[]} boxes @returns {TupleBox} */
 function unionTuples(boxes) {
   return [
@@ -383,9 +346,6 @@ function fail(suffix, message) {
 module.exports = {
   GROUP_ONLY_REVIEW_VERSION,
   assertNoDuplicateKeys,
-  axisOverlapRatio,
-  boxArea,
-  boxIntersectionArea,
   describeError,
   exactKeys,
   fail,
@@ -400,7 +360,6 @@ module.exports = {
   record,
   toCrop1000,
   tupleBox,
-  unionBoxes,
   unionTuples,
   validateLabels,
 };

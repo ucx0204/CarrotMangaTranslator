@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type { JobEvent, JobState } from "../../../shared/jobTypes";
+import { isTerminalJobStatus } from "../../../shared/jobContracts";
 import {
   resolveStatusLineReplacement,
   statusLineReplacementGroup,
@@ -17,7 +18,6 @@ import { libraryGateway } from "../api/libraryGateway";
 import {
   createAggregateJobEventGuard,
   isAggregateFlowTerminal,
-  isTerminalJobStatus,
   shouldIgnoreAggregateJobEvent,
   updateAggregateJobEventGuard,
   type AggregateJobEventGuard,

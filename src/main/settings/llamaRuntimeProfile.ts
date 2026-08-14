@@ -1,6 +1,7 @@
 import type { DetectedGpuInfo } from "../gpuInfo";
 import { resolveAmdRocmTargetFromInfo } from "../gpuInfo";
 import type { LlamaRuntimeProfile } from "../../shared/settingsTypes";
+import { canonicalizeLlamaRuntimeProfile } from "../../shared/settingsAliasCanonicalizers";
 
 export function resolveLlamaRuntimeProfile(
   env: { MANGA_TRANSLATOR_LLAMA_RUNTIME_PROFILE?: string },
@@ -43,34 +44,6 @@ export function isAmdLlamaRuntimeProfile(profile: string): boolean {
 export function isNvidiaLlamaRuntimeProfile(profile: string): boolean {
   const canonical = canonicalizeLlamaRuntimeProfile(profile);
   return canonical === "cuda12" || canonical === "rtx50";
-}
-
-function canonicalizeLlamaRuntimeProfile(
-  value: unknown,
-): LlamaRuntimeProfile | undefined {
-  const normalized = String(value ?? "")
-    .trim()
-    .toLowerCase();
-  if (
-    ["rtx50", "blackwell", "cuda13", "cuda13.1", "cuda13.3"].includes(
-      normalized,
-    )
-  ) {
-    return "rtx50";
-  }
-  if (["cuda12", "cuda12.4", "cuda"].includes(normalized)) {
-    return "cuda12";
-  }
-  if (["rocm", "hip", "amd-rocm"].includes(normalized)) {
-    return "rocm";
-  }
-  if (["vulkan", "vk", "amd-vulkan"].includes(normalized)) {
-    return "vulkan";
-  }
-  if (["metal", "apple", "apple-metal", "mps"].includes(normalized)) {
-    return "metal";
-  }
-  return undefined;
 }
 
 export function resolveHardwareLlamaRuntimeProfile(

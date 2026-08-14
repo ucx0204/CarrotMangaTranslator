@@ -8,6 +8,14 @@ import {
   resolveOpenAiCompatibleBaseUrl,
 } from "../../shared/apiSettings";
 import { CODEX_REASONING_EFFORTS } from "../../shared/codexSettings";
+import {
+  canonicalizeFluxBackend,
+  canonicalizeGemmaVramMode,
+  canonicalizeInpaintingModel,
+  canonicalizeKoharuInpaintingBackend,
+  canonicalizeOcrGpuBackend,
+  canonicalizeOcrQualityMode,
+} from "../../shared/settingsAliasCanonicalizers";
 import type {
   ApiReasoningEffort,
   CodexReasoningEffort,
@@ -44,19 +52,7 @@ export function resolveGemmaVramMode(
   value: unknown,
   fallback: GemmaVramMode,
 ): GemmaVramMode {
-  const normalized = String(value ?? "")
-    .trim()
-    .toLowerCase();
-  if (["minimum12b", "minimum", "minimal", "min", "12b"].includes(normalized)) {
-    return "minimum12b";
-  }
-  if (["economy26b", "economy", "eco", "26b"].includes(normalized)) {
-    return "economy26b";
-  }
-  if (["full31b", "full", "31b"].includes(normalized)) {
-    return "full31b";
-  }
-  return fallback;
+  return canonicalizeGemmaVramMode(value) ?? fallback;
 }
 
 export function resolveOcrDevice(
@@ -83,154 +79,37 @@ export function resolveOcrGpuBackend(
   value: unknown,
   fallback: OcrGpuBackend = "cuda",
 ): OcrGpuBackend {
-  const normalized = String(value ?? "")
-    .trim()
-    .toLowerCase();
-  if (normalized === "cuda" || normalized === "nvidia") {
-    return "cuda";
-  }
-  if (
-    normalized === "rocm" ||
-    normalized === "amd" ||
-    normalized === "hip" ||
-    normalized === "rocm-transformers" ||
-    normalized === "transformers-rocm"
-  ) {
-    return "rocm-transformers";
-  }
-  return fallback;
+  return canonicalizeOcrGpuBackend(value, "runtime-stored") ?? fallback;
 }
 
 export function resolveOcrQualityMode(
   value: unknown,
   fallback: OcrQualityMode,
 ): OcrQualityMode {
-  const normalized = String(value ?? "")
-    .trim()
-    .toLowerCase();
-  if (
-    [
-      "minimum",
-      "minimal",
-      "min",
-      "tiny",
-      "tiny_rec",
-      "tiny-rec",
-      "12b",
-      "최소",
-    ].includes(normalized)
-  ) {
-    return "economy";
-  }
-  if (
-    [
-      "economy",
-      "eco",
-      "small",
-      "small_rec",
-      "small-rec",
-      "26b",
-      "절약",
-    ].includes(normalized)
-  ) {
-    return "economy";
-  }
-  if (["full", "quality", "31b", "풀로드"].includes(normalized)) {
-    return "full";
-  }
-  if (
-    [
-      "cuda-legacy-full",
-      "cuda_legacy_full",
-      "cuda-legacy",
-      "legacy-full",
-      "legacy",
-      "vl",
-      "paddleocr-vl",
-      "cuda 레거시 풀로드",
-    ].includes(normalized)
-  ) {
-    // CUDA legacy full was removed. Migrate persisted aliases to the current
-    // semantic full-quality path instead of exposing the old runtime mode.
-    return "full";
-  }
-  return fallback;
+  return canonicalizeOcrQualityMode(value) ?? fallback;
 }
 
 export function resolveFluxBackend(
   value: unknown,
   fallback: FluxBackend = "cuda-native",
 ): FluxBackend {
-  const normalized = String(value ?? "")
-    .trim()
-    .toLowerCase();
-  if (["cuda-native", "cuda", "native", "nvidia"].includes(normalized)) {
-    return "cuda-native";
-  }
-  if (
-    ["cuda-sm75-experimental", "cuda-sm75", "sm75-cuda", "sm75"].includes(
-      normalized,
-    )
-  ) {
-    return "cuda-sm75-experimental";
-  }
-  if (["zluda-native", "zluda"].includes(normalized)) {
-    return "zluda-native";
-  }
-  if (["metal-native", "metal", "apple"].includes(normalized)) {
-    return "metal-native";
-  }
-  if (["python-rocm", "rocm", "hip", "amd"].includes(normalized)) {
-    return "zluda-native";
-  }
-  if (["python-cpu", "cpu"].includes(normalized)) {
-    return "python-cpu";
-  }
-  return fallback;
+  return canonicalizeFluxBackend(value, "runtime-stored") ?? fallback;
 }
 
 export function resolveInpaintingModel(
   value: unknown,
   fallback: InpaintingModel = "flux-klein",
 ): InpaintingModel {
-  const normalized = String(value ?? "")
-    .trim()
-    .toLowerCase();
-  if (["flux", "flux-klein", "klein", "default"].includes(normalized)) {
-    return "flux-klein";
-  }
-  if (["koharu", "lama", "lama-manga", "lama_manga"].includes(normalized)) {
-    return "lama-manga";
-  }
-  if (["aot", "aot-inpainting", "aot_inpainting"].includes(normalized)) {
-    return "aot-inpainting";
-  }
-  return fallback;
+  return canonicalizeInpaintingModel(value, "runtime-stored") ?? fallback;
 }
 
 export function resolveKoharuInpaintingBackend(
   value: unknown,
   fallback: KoharuInpaintingBackend = "auto",
 ): KoharuInpaintingBackend {
-  const normalized = String(value ?? "")
-    .trim()
-    .toLowerCase();
-  if (["auto", "default"].includes(normalized)) {
-    return "auto";
-  }
-  if (["cuda", "cuda-native", "nvidia"].includes(normalized)) {
-    return "cuda-native";
-  }
-  if (["zluda", "zluda-native", "amd"].includes(normalized)) {
-    return "zluda-native";
-  }
-  if (["metal", "metal-native", "apple"].includes(normalized)) {
-    return "metal-native";
-  }
-  if (["cpu", "python-cpu"].includes(normalized)) {
-    return "cpu";
-  }
-  return fallback;
+  return (
+    canonicalizeKoharuInpaintingBackend(value, "runtime-stored") ?? fallback
+  );
 }
 
 export function resolveBoolean(value: unknown, fallback: boolean): boolean {

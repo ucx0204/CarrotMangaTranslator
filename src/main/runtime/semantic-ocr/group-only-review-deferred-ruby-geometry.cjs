@@ -1,10 +1,13 @@
 // @ts-check
 
 const {
+  axisCenter: boxCenter,
+  axisGap,
+  axisLength,
   axisOverlapRatio,
   boxArea,
   unionBoxes,
-} = require("./group-only-review-values.cjs");
+} = require("./box-geometry.cjs");
 
 /** @typedef {import("./group-only-review-types").Box} Box */
 /** @typedef {import("./group-only-review-types").ReviewCandidate} ReviewCandidate */
@@ -87,25 +90,6 @@ function approximateHanBoxes(host, mode) {
       },
     ];
   });
-}
-
-/** @param {Box} box @param {"x"|"y"} axis */
-function axisLength(box, axis) {
-  return Math.max(1, box[`${axis}2`] - box[`${axis}1`]);
-}
-
-/** @param {Box} left @param {Box} right @param {"x"|"y"} axis */
-function axisGap(left, right, axis) {
-  const start = /** @type {"x1"|"y1"} */ (`${axis}1`);
-  const end = /** @type {"x2"|"y2"} */ (`${axis}2`);
-  return Math.max(0, left[start] - right[end], right[start] - left[end]);
-}
-
-/** @param {Box} box @param {"x"|"y"} axis */
-function boxCenter(box, axis) {
-  const start = /** @type {"x1"|"y1"} */ (`${axis}1`);
-  const end = /** @type {"x2"|"y2"} */ (`${axis}2`);
-  return (box[start] + box[end]) / 2;
 }
 
 module.exports = { hasDeferredRubyGeometry, isNearHostHan };

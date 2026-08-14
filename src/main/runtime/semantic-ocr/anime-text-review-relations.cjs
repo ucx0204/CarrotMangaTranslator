@@ -1,5 +1,7 @@
 // @ts-check
 
+const { axisGap, unionBoxPair: unionBoxes } = require("./box-geometry.cjs");
+
 const {
   FORBIDDEN_DEFERRED_HOST_REASONS,
 } = require("./group-review-crop-contract.cjs");
@@ -453,16 +455,6 @@ function readBox(candidate) {
     : null;
 }
 
-/** @param {Box} left @param {Box} right */
-function unionBoxes(left, right) {
-  return {
-    x1: Math.min(left.x1, right.x1),
-    y1: Math.min(left.y1, right.y1),
-    x2: Math.max(left.x2, right.x2),
-    y2: Math.max(left.y2, right.y2),
-  };
-}
-
 /** @param {Box} box */
 function isVerticalBox(box) {
   return box.y2 - box.y1 >= (box.x2 - box.x1) * 1.2;
@@ -471,16 +463,6 @@ function isVerticalBox(box) {
 /** @param {Box} box */
 function isHorizontalBox(box) {
   return box.x2 - box.x1 >= (box.y2 - box.y1) * 1.2;
-}
-
-/** @param {Box} left @param {Box} right @param {"x"|"y"} axis */
-function axisGap(left, right, axis) {
-  const start = /** @type {"x1"|"y1"} */ (`${axis}1`);
-  const end = /** @type {"x2"|"y2"} */ (`${axis}2`);
-  return Math.max(
-    0,
-    Math.max(left[start], right[start]) - Math.min(left[end], right[end]),
-  );
 }
 
 /** @param {number[]} sorted */

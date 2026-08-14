@@ -1,6 +1,7 @@
 // @ts-check
 
 const { semanticContractError } = require("./values.cjs");
+const { unionBoxes } = require("./box-geometry.cjs");
 const {
   applyReviewedGroupsToHints,
 } = require("./group-only-review-application.cjs");
@@ -37,7 +38,6 @@ const {
   isPlan,
   normalizeEnvelope,
   record,
-  unionBoxes,
   validateLabels,
 } = require("./group-only-review-values.cjs");
 const { isExpectedGroupOnlyReviewFailure } = require("./review-errors.cjs");

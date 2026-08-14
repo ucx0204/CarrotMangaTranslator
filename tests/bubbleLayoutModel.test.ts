@@ -104,6 +104,17 @@ describe("bubble-aware block data model", () => {
     expect(stored.pages[0].blocks[0].bubbleLayout).toEqual(FUSED_BUBBLE_LAYOUT);
   });
 
+  it("requires renderer data URLs while stored page records reject them", () => {
+    const block = makeBlock();
+    const snapshot = makeSnapshot([block]);
+    const stored = makeStoredChapter([block]);
+
+    expect(ChapterSnapshotSchema.safeParse(snapshot).success).toBe(true);
+    expect(LibraryChapterFileSchema.safeParse(stored).success).toBe(true);
+    expect(LibraryChapterFileSchema.safeParse(snapshot).success).toBe(false);
+    expect(ChapterSnapshotSchema.safeParse(stored).success).toBe(false);
+  });
+
   it("keeps relative bubble regions while normalizing persisted pixel boxes", () => {
     const block = makeBlock({
       bbox: { x: 100, y: 200, w: 300, h: 400 },

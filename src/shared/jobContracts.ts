@@ -21,6 +21,17 @@ const JOB_STATUS_VALUES = [
 export type JobStatus = (typeof JOB_STATUS_VALUES)[number];
 export const JobStatusSchema = z.enum(JOB_STATUS_VALUES);
 
+const TERMINAL_JOB_STATUSES: ReadonlySet<JobStatus> = new Set([
+  "cancelled",
+  "failed",
+  "partial",
+  "completed",
+]);
+
+export function isTerminalJobStatus(status: JobStatus): boolean {
+  return TERMINAL_JOB_STATUSES.has(status);
+}
+
 const JOB_PHASE_VALUES = [
   "booting",
   "model_downloading",

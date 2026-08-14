@@ -1,5 +1,7 @@
 // @ts-check
 
+const { axisGap, axisLength, axisOverlapRatio } = require("./box-geometry.cjs");
+
 /** @typedef {import("./group-only-review-types").ReviewCandidate} ReviewCandidate */
 /** @typedef {import("./group-only-review-types").ReviewPlan} ReviewPlan */
 /** @typedef {import("./group-only-review-types").ReviewProjection} ReviewProjection */
@@ -94,59 +96,24 @@ function isPlausibleRubyPair(satellite, host, maximumCrossAxisRatio) {
   if (!mode) return false;
   const cross = mode === "vertical" ? "x" : "y";
   const along = mode === "vertical" ? "y" : "x";
-  const satelliteCross = axisLength(satellite, cross);
-  const hostCross = axisLength(host, cross);
+  const satelliteCross = axisLength(satellite.bbox, cross);
+  const hostCross = axisLength(host.bbox, cross);
   return (
     satelliteCross / hostCross <= maximumCrossAxisRatio &&
-    axisOverlap(satellite, host, along) >= MIN_ALONG_AXIS_OVERLAP &&
-    axisGap(satellite, host, cross) <=
+    axisOverlapRatio(satellite.bbox, host.bbox, along) >=
+      MIN_ALONG_AXIS_OVERLAP &&
+    axisGap(satellite.bbox, host.bbox, cross) <=
       Math.max(satelliteCross, hostCross) * MAX_CROSS_AXIS_GAP_RATIO
   );
 }
 
 /** @param {ReviewCandidate} candidate */
 function readingMode(candidate) {
-  const width = axisLength(candidate, "x");
-  const height = axisLength(candidate, "y");
+  const width = axisLength(candidate.bbox, "x");
+  const height = axisLength(candidate.bbox, "y");
   if (height >= width * 1.4) return "vertical";
   if (width >= height * 1.4) return "horizontal";
   return null;
-}
-
-/** @param {ReviewCandidate} candidate @param {"x"|"y"} axis */
-function axisLength(candidate, axis) {
-  return Math.max(1, candidate.bbox[`${axis}2`] - candidate.bbox[`${axis}1`]);
-}
-
-/**
- * @param {ReviewCandidate} left
- * @param {ReviewCandidate} right
- * @param {"x"|"y"} axis
- */
-function axisOverlap(left, right, axis) {
-  const start = /** @type {"x1"|"y1"} */ (`${axis}1`);
-  const end = /** @type {"x2"|"y2"} */ (`${axis}2`);
-  const overlap = Math.max(
-    0,
-    Math.min(left.bbox[end], right.bbox[end]) -
-      Math.max(left.bbox[start], right.bbox[start]),
-  );
-  return overlap / Math.min(axisLength(left, axis), axisLength(right, axis));
-}
-
-/**
- * @param {ReviewCandidate} left
- * @param {ReviewCandidate} right
- * @param {"x"|"y"} axis
- */
-function axisGap(left, right, axis) {
-  const start = /** @type {"x1"|"y1"} */ (`${axis}1`);
-  const end = /** @type {"x2"|"y2"} */ (`${axis}2`);
-  return Math.max(
-    0,
-    left.bbox[start] - right.bbox[end],
-    right.bbox[start] - left.bbox[end],
-  );
 }
 
 /** @param {string} text */

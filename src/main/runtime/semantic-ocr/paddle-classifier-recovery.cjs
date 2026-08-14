@@ -1,5 +1,7 @@
 // @ts-check
 
+const { axisGap } = require("./box-geometry.cjs");
+
 const { isRecord } = require("./values.cjs");
 
 /**
@@ -304,16 +306,6 @@ function isVerticalBox(box) {
 /** @param {Box} box */
 function isHorizontalBox(box) {
   return box.x2 - box.x1 >= (box.y2 - box.y1) * 1.2;
-}
-
-/** @param {Box} left @param {Box} right @param {"x"|"y"} axis */
-function axisGap(left, right, axis) {
-  const start = /** @type {"x1"|"y1"} */ (`${axis}1`);
-  const end = /** @type {"x2"|"y2"} */ (`${axis}2`);
-  return Math.max(
-    0,
-    Math.max(left[start], right[start]) - Math.min(left[end], right[end]),
-  );
 }
 
 module.exports = {

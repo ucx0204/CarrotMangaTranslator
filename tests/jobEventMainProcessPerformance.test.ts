@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
 import { createJobEventEmitter } from "../src/main/jobs/jobEvents";
 import type { JobEvent } from "../src/shared/jobTypes";
+import { isTerminalJobStatus } from "../src/shared/jobContracts";
 import { JOB_EVENT_DISPATCH_INTERVAL_MS } from "../src/main/jobs/jobEventDispatchQueue";
 
 const writeLog = vi.fn();
@@ -14,6 +15,19 @@ afterEach(() => {
 });
 
 describe("main-process job event throughput", () => {
+  it.each([
+    ["idle", false],
+    ["starting", false],
+    ["running", false],
+    ["cancelling", false],
+    ["cancelled", true],
+    ["failed", true],
+    ["partial", true],
+    ["completed", true],
+  ] as const)("classifies %s terminal status once", (status, expected) => {
+    expect(isTerminalJobStatus(status)).toBe(expected);
+  });
+
   it("keeps the active state current while bounding validation, logging, and IPC", () => {
     vi.useFakeTimers();
     const jobs = new ActiveJobStore();

@@ -1,13 +1,13 @@
 // @ts-check
 
-const {
-  readDistinctAnimeTextRegionBarrierCandidatePair,
-} = require("./anime-text-distinct-region-plan.cjs");
+const { axisLength, boxArea } = require("./box-geometry.cjs");
 const {
   hasDeferredRubyGeometry,
   isNearHostHan,
 } = require("./group-only-review-deferred-ruby-geometry.cjs");
-const { boxArea } = require("./group-only-review-values.cjs");
+const {
+  pairCrossesDistinctRegionBarrier,
+} = require("./group-only-review-plan.cjs");
 
 /** @typedef {import("./group-only-review-types").ReviewLabel} ReviewLabel */
 /** @typedef {import("./group-only-review-types").ReviewCandidate} ReviewCandidate */
@@ -190,35 +190,6 @@ function hasReason(candidate, reason) {
     ? value.map(String)
     : [String(value ?? "")];
   return reasons.includes(reason);
-}
-
-/** @param {ReviewPlan} plan @param {number[]} leftIds @param {number[]} rightIds */
-function pairCrossesDistinctRegionBarrier(plan, leftIds, rightIds) {
-  const relations = Array.isArray(
-    plan.spatialRelations.distinctAnimeTextRegionBarriers,
-  )
-    ? plan.spatialRelations.distinctAnimeTextRegionBarriers
-    : [];
-  for (const relation of relations) {
-    const pair = readDistinctAnimeTextRegionBarrierCandidatePair(
-      plan,
-      relation,
-    );
-    if (!pair) continue;
-    const forward =
-      leftIds.some((id) => pair[0].includes(id)) &&
-      rightIds.some((id) => pair[1].includes(id));
-    const reverse =
-      leftIds.some((id) => pair[1].includes(id)) &&
-      rightIds.some((id) => pair[0].includes(id));
-    if (forward || reverse) return true;
-  }
-  return false;
-}
-
-/** @param {import("./group-only-review-types").Box} box @param {"x"|"y"} axis */
-function axisLength(box, axis) {
-  return Math.max(1, box[`${axis}2`] - box[`${axis}1`]);
 }
 
 /** @param {string} text */

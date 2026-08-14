@@ -1,6 +1,6 @@
 // @ts-check
 
-const { axisOverlapRatio } = require("./group-only-review-values.cjs");
+const { axisCenter, axisGap, axisOverlapRatio } = require("./box-geometry.cjs");
 
 /** @typedef {import("./group-only-review-types").Box} Box */
 /** @typedef {import("./group-only-review-types").ReviewCandidate} ReviewCandidate */
@@ -59,8 +59,10 @@ function orderVerticalCandidates(candidates) {
     }
     compatible.sort(
       (left, right) =>
-        Math.abs(centerX(candidate.bbox) - verticalColumnCenter(left)) -
-          Math.abs(centerX(candidate.bbox) - verticalColumnCenter(right)) ||
+        Math.abs(axisCenter(candidate.bbox, "x") - verticalColumnCenter(left)) -
+          Math.abs(
+            axisCenter(candidate.bbox, "x") - verticalColumnCenter(right),
+          ) ||
         verticalColumnCenter(right) - verticalColumnCenter(left) ||
         compareCandidateLists(left, right),
     );
@@ -76,7 +78,7 @@ function orderVerticalCandidates(candidates) {
     column.sort(
       (left, right) =>
         left.bbox.y1 - right.bbox.y1 ||
-        centerY(left.bbox) - centerY(right.bbox) ||
+        axisCenter(left.bbox, "y") - axisCenter(right.bbox, "y") ||
         left.bbox.x1 - right.bbox.x1 ||
         left.bbox.x2 - right.bbox.x2 ||
         left.bbox.y2 - right.bbox.y2 ||
@@ -104,8 +106,10 @@ function orderHorizontalCandidates(candidates) {
     }
     compatible.sort(
       (left, right) =>
-        Math.abs(centerY(candidate.bbox) - horizontalRowCenter(left)) -
-          Math.abs(centerY(candidate.bbox) - horizontalRowCenter(right)) ||
+        Math.abs(axisCenter(candidate.bbox, "y") - horizontalRowCenter(left)) -
+          Math.abs(
+            axisCenter(candidate.bbox, "y") - horizontalRowCenter(right),
+          ) ||
         horizontalRowCenter(left) - horizontalRowCenter(right) ||
         compareCandidateLists(left, right),
     );
@@ -121,7 +125,7 @@ function orderHorizontalCandidates(candidates) {
     row.sort(
       (left, right) =>
         left.bbox.x1 - right.bbox.x1 ||
-        centerX(left.bbox) - centerX(right.bbox) ||
+        axisCenter(left.bbox, "x") - axisCenter(right.bbox, "x") ||
         left.bbox.y1 - right.bbox.y1 ||
         left.bbox.y2 - right.bbox.y2 ||
         left.bbox.x2 - right.bbox.x2 ||
@@ -167,7 +171,9 @@ function collectConnectedSets(candidates, connected) {
 function sameVerticalColumn(left, right) {
   const leftSize = boxSize(left.bbox);
   const rightSize = boxSize(right.bbox);
-  const centerDelta = Math.abs(centerX(left.bbox) - centerX(right.bbox));
+  const centerDelta = Math.abs(
+    axisCenter(left.bbox, "x") - axisCenter(right.bbox, "x"),
+  );
   const centerTolerance = Math.max(
     4,
     Math.min(leftSize.width, rightSize.width) * 0.12,
@@ -198,7 +204,9 @@ function sameVerticalColumn(left, right) {
 function sameHorizontalRow(left, right) {
   const leftSize = boxSize(left.bbox);
   const rightSize = boxSize(right.bbox);
-  const centerDelta = Math.abs(centerY(left.bbox) - centerY(right.bbox));
+  const centerDelta = Math.abs(
+    axisCenter(left.bbox, "y") - axisCenter(right.bbox, "y"),
+  );
   const centerTolerance = Math.max(
     4,
     Math.min(leftSize.height, rightSize.height) * 0.12,
@@ -233,7 +241,7 @@ function compatibleWithVerticalColumn(candidate, column) {
     column.map((item) => boxSize(item.bbox).width).sort((a, b) => a - b),
   );
   const centerDelta = Math.abs(
-    centerX(candidate.bbox) - verticalColumnCenter(column),
+    axisCenter(candidate.bbox, "x") - verticalColumnCenter(column),
   );
   const overlap = Math.max(
     ...column.map((item) => axisOverlapRatio(candidate.bbox, item.bbox, "x")),
@@ -251,7 +259,7 @@ function compatibleWithHorizontalRow(candidate, row) {
     row.map((item) => boxSize(item.bbox).height).sort((a, b) => a - b),
   );
   const centerDelta = Math.abs(
-    centerY(candidate.bbox) - horizontalRowCenter(row),
+    axisCenter(candidate.bbox, "y") - horizontalRowCenter(row),
   );
   const overlap = Math.max(
     ...row.map((item) => axisOverlapRatio(candidate.bbox, item.bbox, "y")),
@@ -266,13 +274,13 @@ function compatibleWithHorizontalRow(candidate, row) {
 function verticalColumnCenter(column) {
   const verticalCenters = column
     .filter((candidate) => isVerticalBox(candidate.bbox))
-    .map((candidate) => centerX(candidate.bbox))
+    .map((candidate) => axisCenter(candidate.bbox, "x"))
     .sort((a, b) => a - b);
   const centers =
     verticalCenters.length > 0
       ? verticalCenters
       : column
-          .map((candidate) => centerX(candidate.bbox))
+          .map((candidate) => axisCenter(candidate.bbox, "x"))
           .sort((a, b) => a - b);
   return median(centers);
 }
@@ -281,12 +289,14 @@ function verticalColumnCenter(column) {
 function horizontalRowCenter(row) {
   const horizontalCenters = row
     .filter((candidate) => isHorizontalBox(candidate.bbox))
-    .map((candidate) => centerY(candidate.bbox))
+    .map((candidate) => axisCenter(candidate.bbox, "y"))
     .sort((a, b) => a - b);
   const centers =
     horizontalCenters.length > 0
       ? horizontalCenters
-      : row.map((candidate) => centerY(candidate.bbox)).sort((a, b) => a - b);
+      : row
+          .map((candidate) => axisCenter(candidate.bbox, "y"))
+          .sort((a, b) => a - b);
   return median(centers);
 }
 
@@ -327,26 +337,6 @@ function boxSize(box) {
     width: Math.max(1, box.x2 - box.x1),
     height: Math.max(1, box.y2 - box.y1),
   };
-}
-
-/** @param {Box} box */
-function centerX(box) {
-  return (box.x1 + box.x2) / 2;
-}
-
-/** @param {Box} box */
-function centerY(box) {
-  return (box.y1 + box.y2) / 2;
-}
-
-/** @param {Box} left @param {Box} right @param {"x"|"y"} axis */
-function axisGap(left, right, axis) {
-  const start = /** @type {"x1"|"y1"} */ (`${axis}1`);
-  const end = /** @type {"x2"|"y2"} */ (`${axis}2`);
-  return Math.max(
-    0,
-    Math.max(left[start], right[start]) - Math.min(left[end], right[end]),
-  );
 }
 
 /** @param {number[]} sorted */

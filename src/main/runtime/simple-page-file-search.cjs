@@ -27,30 +27,11 @@ function safeMtimeMs(filePath) {
  * @returns {string | null}
  */
 function findNamedFile(rootDir, expectedName, maxDepth = 6) {
-  if (!rootDir || !existsSync(rootDir)) {
-    return null;
-  }
-
-  const queue = [{ dir: rootDir, depth: 0 }];
-  while (queue.length > 0) {
-    const current = queue.shift();
-    if (!current) {
-      continue;
-    }
-
-    const entries = readdirSync(current.dir, { withFileTypes: true });
-    for (const entry of entries) {
-      const fullPath = path.join(current.dir, entry.name);
-      if (entry.isFile() && entry.name === expectedName) {
-        return fullPath;
-      }
-      if (entry.isDirectory() && current.depth < maxDepth) {
-        queue.push({ dir: fullPath, depth: current.depth + 1 });
-      }
-    }
-  }
-
-  return null;
+  return findFileBreadthFirst(
+    rootDir,
+    (name) => name === expectedName,
+    maxDepth,
+  );
 }
 
 /**
@@ -60,17 +41,24 @@ function findNamedFile(rootDir, expectedName, maxDepth = 6) {
  * @returns {string | null}
  */
 function findMatchingFile(rootDir, predicate, maxDepth = 6) {
+  return findFileBreadthFirst(rootDir, predicate, maxDepth);
+}
+
+/**
+ * @param {string | null | undefined} rootDir
+ * @param {FilePredicate} predicate
+ * @param {number} maxDepth
+ * @returns {string | null}
+ */
+function findFileBreadthFirst(rootDir, predicate, maxDepth) {
   if (!rootDir || !existsSync(rootDir)) {
     return null;
   }
 
   const queue = [{ dir: rootDir, depth: 0 }];
-  while (queue.length > 0) {
-    const current = queue.shift();
-    if (!current) {
-      continue;
-    }
-
+  for (let cursor = 0; cursor < queue.length; cursor += 1) {
+    const current = queue[cursor];
+    if (!current) continue;
     const entries = readdirSync(current.dir, { withFileTypes: true });
     for (const entry of entries) {
       const fullPath = path.join(current.dir, entry.name);

@@ -1,13 +1,16 @@
 // @ts-check
 
 const {
-  readDistinctAnimeTextRegionBarrierCandidatePair,
-} = require("./anime-text-distinct-region-plan.cjs");
-const {
+  axisCenter: center,
+  axisGap,
+  axisLength,
   axisOverlapRatio,
   boxArea,
   unionBoxes,
-} = require("./group-only-review-values.cjs");
+} = require("./box-geometry.cjs");
+const {
+  pairCrossesDistinctRegionBarrier,
+} = require("./group-only-review-plan.cjs");
 
 /** @typedef {import("./group-only-review-types").Box} Box */
 /** @typedef {import("./group-only-review-types").ReviewCandidate} ReviewCandidate */
@@ -207,30 +210,6 @@ function isAdjacentVerticalColumnPair(first, second) {
   );
 }
 
-/** @param {ReviewPlan} plan @param {number[]} leftIds @param {number[]} rightIds */
-function pairCrossesDistinctRegionBarrier(plan, leftIds, rightIds) {
-  const relations = Array.isArray(
-    plan.spatialRelations.distinctAnimeTextRegionBarriers,
-  )
-    ? plan.spatialRelations.distinctAnimeTextRegionBarriers
-    : [];
-  for (const relation of relations) {
-    const pair = readDistinctAnimeTextRegionBarrierCandidatePair(
-      plan,
-      relation,
-    );
-    if (!pair) continue;
-    const forward =
-      leftIds.some((id) => pair[0].includes(id)) &&
-      rightIds.some((id) => pair[1].includes(id));
-    const reverse =
-      leftIds.some((id) => pair[1].includes(id)) &&
-      rightIds.some((id) => pair[0].includes(id));
-    if (forward || reverse) return true;
-  }
-  return false;
-}
-
 /** @param {ReviewCandidate} candidate @param {string} key */
 function readCandidateString(candidate, key) {
   const value = candidate.hint[key];
@@ -244,25 +223,6 @@ function sameIntegerSet(left, right) {
     left.every((value) => right.includes(value)) &&
     right.every((value) => left.includes(value))
   );
-}
-
-/** @param {Box} box @param {"x"|"y"} axis */
-function axisLength(box, axis) {
-  return Math.max(1, box[`${axis}2`] - box[`${axis}1`]);
-}
-
-/** @param {Box} left @param {Box} right @param {"x"|"y"} axis */
-function axisGap(left, right, axis) {
-  const start = /** @type {"x1"|"y1"} */ (`${axis}1`);
-  const end = /** @type {"x2"|"y2"} */ (`${axis}2`);
-  return Math.max(0, left[start] - right[end], right[start] - left[end]);
-}
-
-/** @param {Box} box @param {"x"|"y"} axis */
-function center(box, axis) {
-  const start = /** @type {"x1"|"y1"} */ (`${axis}1`);
-  const end = /** @type {"x2"|"y2"} */ (`${axis}2`);
-  return (box[start] + box[end]) / 2;
 }
 
 module.exports = { mergeAdjacentVerticalRubyColumns };

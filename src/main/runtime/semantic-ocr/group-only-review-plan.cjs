@@ -4,7 +4,9 @@ const { readOcrCandidateText } = require("../prompts/ocr-text.cjs");
 const { isRecord } = require("./values.cjs");
 const {
   refineUpstreamFragmentsForDistinctAnimeTextRegions,
+  readDistinctAnimeTextRegionBarrierCandidatePair,
 } = require("./anime-text-distinct-region-plan.cjs");
+const { unionBoxes } = require("./box-geometry.cjs");
 const {
   readCompleteTwoCandidatePaddleClassifierSplit,
 } = require("./paddle-classifier-recovery.cjs");
@@ -19,7 +21,6 @@ const {
   record,
   toCrop1000,
   tupleBox,
-  unionBoxes,
 } = require("./group-only-review-values.cjs");
 
 /** @typedef {import("./group-only-review-types").ReviewPlan} ReviewPlan */
@@ -211,4 +212,35 @@ function readMatchingPaddleClassifierRecovery(
   return matches.length === 1 ? String(matches[0].targetFragmentId) : null;
 }
 
-module.exports = { buildGroupOnlyReviewPlan };
+/**
+ * @param {ReviewPlan} plan
+ * @param {number[]} leftIds
+ * @param {number[]} rightIds
+ */
+function pairCrossesDistinctRegionBarrier(plan, leftIds, rightIds) {
+  const relations = Array.isArray(
+    plan.spatialRelations.distinctAnimeTextRegionBarriers,
+  )
+    ? plan.spatialRelations.distinctAnimeTextRegionBarriers
+    : [];
+  for (const relation of relations) {
+    const pair = readDistinctAnimeTextRegionBarrierCandidatePair(
+      plan,
+      relation,
+    );
+    if (!pair) continue;
+    const forward =
+      leftIds.some((id) => pair[0].includes(id)) &&
+      rightIds.some((id) => pair[1].includes(id));
+    const reverse =
+      leftIds.some((id) => pair[1].includes(id)) &&
+      rightIds.some((id) => pair[0].includes(id));
+    if (forward || reverse) return true;
+  }
+  return false;
+}
+
+module.exports = {
+  buildGroupOnlyReviewPlan,
+  pairCrossesDistinctRegionBarrier,
+};

@@ -3,6 +3,13 @@ import { chmod, mkdir, open, readFile, readdir, rm } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import type { AppPaths } from "./appPaths";
 import { renameWithTransientRetry } from "./libraryStore/storage";
+import {
+  assertSettingsGeneration,
+  isSettingsGeneration,
+  isSettingsJsonRecord,
+  parseSettingsJsonRecord,
+  serializeSettingsJson,
+} from "./settingsPairCodec";
 
 type SettingsPairReference = {
   generation: string;
@@ -26,8 +33,6 @@ const SETTINGS_COMMIT_FILE = "settings.commit.json";
 const SETTINGS_PAIR_PUBLIC_FILE = "settings.json";
 const SETTINGS_PAIR_SECRET_FILE = "settings.secrets.json";
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
-const GENERATION_PATTERN =
-  /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 let settingsCommitTail: Promise<void> = Promise.resolve();
 
 export async function loadCommittedSettingsPairFiles<T>(
@@ -241,7 +246,7 @@ async function readSettingsCommitPointer(
     if (isMissingFileError(error)) return null;
     throw error;
   }
-  const value = parseJsonRecord(rawText, "Settings commit pointer");
+  const value = parseSettingsJsonRecord(rawText, "Settings commit pointer");
   if (value.version !== 1) {
     throw new Error("Settings commit pointer version is unsupported.");
   }
@@ -259,7 +264,7 @@ function parseSettingsPairReference(
   value: unknown,
   label: string,
 ): SettingsPairReference {
-  if (!isRecord(value)) {
+  if (!isSettingsJsonRecord(value)) {
     throw new Error(`Settings ${label} pair reference is invalid.`);
   }
   const generation = String(value.generation ?? "");
@@ -311,7 +316,7 @@ async function cleanupOldSettingsPairs(
     for (const entry of await readdir(root, { withFileTypes: true })) {
       if (
         entry.isDirectory() &&
-        GENERATION_PATTERN.test(entry.name) &&
+        isSettingsGeneration(entry.name) &&
         !keep.has(entry.name)
       ) {
         await rm(join(root, entry.name), { recursive: true, force: true });
@@ -327,7 +332,7 @@ async function writeRestrictedJsonFile(
   filePath: string,
   payload: unknown,
 ): Promise<void> {
-  await writeRestrictedTextFile(filePath, serializeJson(payload));
+  await writeRestrictedTextFile(filePath, serializeSettingsJson(payload));
 }
 
 async function writeRestrictedTextFile(
@@ -404,38 +409,8 @@ function settingsSecretMirrorPath(paths: AppPaths): string {
   return join(dirname(paths.settingsPath), SETTINGS_PAIR_SECRET_FILE);
 }
 
-function assertSettingsGeneration(generation: string): void {
-  if (!GENERATION_PATTERN.test(generation)) {
-    throw new Error("Settings generation identifier is invalid.");
-  }
-}
-
-function parseJsonRecord(
-  rawText: string,
-  label: string,
-): Record<string, unknown> {
-  let value: unknown;
-  try {
-    value = JSON.parse(rawText) as unknown;
-  } catch (error) {
-    throw new SyntaxError(`${label} is not valid JSON.`, { cause: error });
-  }
-  if (!isRecord(value)) {
-    throw new Error(`${label} must contain a JSON object.`);
-  }
-  return value;
-}
-
-function serializeJson(payload: unknown): string {
-  return `${JSON.stringify(payload, null, 2)}\n`;
-}
-
 function sha256Text(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
 function isMissingFileError(error: unknown): boolean {

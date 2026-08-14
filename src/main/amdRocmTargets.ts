@@ -1,33 +1,11 @@
-export type AmdRocmTarget =
-  | "gfx908"
-  | "gfx90a"
-  | "gfx103X"
-  | "gfx110X"
-  | "gfx1150"
-  | "gfx1151"
-  | "gfx120X";
+import { canonicalizeAmdRocmTarget } from "../shared/settingsAliasCanonicalizers";
+import type { AmdRocmTarget } from "../shared/settingsTypes";
 
 type RocmTargetInfo = {
   name: string | null;
   rocmArch?: string | null;
   rocmTarget?: AmdRocmTarget | null;
 };
-
-const ROCM_TARGET_ALIASES = new Map<string, AmdRocmTarget>([
-  ["gfx908", "gfx908"],
-  ["gfx90a", "gfx90a"],
-  ["gfx1150", "gfx1150"],
-  ["gfx1151", "gfx1151"],
-  ["gfx103x", "gfx103X"],
-  ["gfx110x", "gfx110X"],
-  ["gfx120x", "gfx120X"],
-]);
-
-const ROCM_ARCH_TARGET_PATTERNS: Array<[RegExp, AmdRocmTarget]> = [
-  [/^gfx103[0-9a-fx]*$/, "gfx103X"],
-  [/^gfx110[0-9a-fx]*$/, "gfx110X"],
-  [/^gfx120[0-9a-fx]*$/, "gfx120X"],
-];
 
 const AMD_NAME_TARGET_PATTERNS: Array<{
   target: AmdRocmTarget;
@@ -84,12 +62,7 @@ export function parseRocmArch(value: string): string | null {
 }
 
 export function normalizeAmdRocmTarget(value: unknown): AmdRocmTarget | null {
-  const normalized = normalizeRocmTargetText(value);
-  return (
-    ROCM_TARGET_ALIASES.get(normalized) ??
-    matchRocmTargetPattern(normalized) ??
-    null
-  );
+  return canonicalizeAmdRocmTarget(value) ?? null;
 }
 
 export function resolveAmdRocmTargetFromArch(
@@ -116,22 +89,6 @@ export function resolveAmdRocmTargetFromInfo(
     resolveAmdRocmTargetFromArch(info?.rocmArch) ??
     inferAmdRocmTargetFromName(info?.name)
   );
-}
-
-function normalizeRocmTargetText(value: unknown): string {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[-_\s]/g, "");
-}
-
-function matchRocmTargetPattern(normalized: string): AmdRocmTarget | null {
-  for (const [pattern, target] of ROCM_ARCH_TARGET_PATTERNS) {
-    if (pattern.test(normalized)) {
-      return target;
-    }
-  }
-  return null;
 }
 
 function normalizeGpuNameForRocmTarget(

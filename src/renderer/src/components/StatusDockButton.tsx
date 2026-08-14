@@ -3,6 +3,7 @@ import { IconBell } from "@tabler/icons-react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { JobState } from "../../../shared/jobTypes";
+import { isTerminalJobStatus } from "../../../shared/jobContracts";
 import type { ProgressSnapshot } from "../lib/jobProgress";
 import { IconButton } from "./ui/IconButton";
 import { usePopupController } from "./ui/usePopupController";
@@ -159,8 +160,8 @@ function useStatusJobHistory(jobState: JobState): {
     const previous = previousRef.current;
     if (
       previous &&
-      isTerminalJob(previous) &&
-      (previous.id !== jobState.id || !isTerminalJob(jobState))
+      isTerminalJobStatus(previous.status) &&
+      (previous.id !== jobState.id || !isTerminalJobStatus(jobState.status))
     ) {
       setEntries((current) => {
         if (current.some((entry) => entry.id === previous.id)) return current;
@@ -173,12 +174,6 @@ function useStatusJobHistory(jobState: JobState): {
     clear: React.useCallback(() => setEntries([]), []),
     entries,
   };
-}
-
-function isTerminalJob(jobState: JobState): boolean {
-  return ["completed", "partial", "failed", "cancelled"].includes(
-    jobState.status,
-  );
 }
 
 function toHistoryEntry(jobState: JobState): StatusJobHistoryEntry {

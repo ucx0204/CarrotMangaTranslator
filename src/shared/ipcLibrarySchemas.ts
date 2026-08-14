@@ -42,48 +42,42 @@ const ImportSourceKindSchema = z.enum([
   "zip-folder",
 ]);
 
+const PageRecordPathShape = {
+  name: z.string().min(1).max(260),
+  imagePath: filePath,
+  inpaintedImagePath: filePath.optional(),
+};
+
+const PageRecordContentShape = {
+  width: z.number().int().min(1).max(MAX_IMAGE_DIMENSION),
+  height: z.number().int().min(1).max(MAX_IMAGE_DIMENSION),
+  blocks: z.array(TranslationBlockSchema).max(MAX_BLOCKS_PER_PAGE),
+  blockOrder: z
+    .array(z.string().min(1).max(200))
+    .max(MAX_BLOCKS_PER_PAGE)
+    .refine((ids) => new Set(ids).size === ids.length)
+    .optional(),
+  analysisStatus: PageAnalysisStatusSchema,
+  translationCompletion: TranslationCompletionReceiptSchema.optional(),
+  lastError: z.string().max(4000).optional(),
+  createdAt: z.string().max(80),
+  updatedAt: z.string().max(80),
+};
+
 const MangaPageSchema = z
   .object({
     id: uuid,
-    name: z.string().min(1).max(260),
-    imagePath: filePath,
-    inpaintedImagePath: filePath.optional(),
+    ...PageRecordPathShape,
     dataUrl: z.string().max(32 * 1024 * 1024),
-    width: z.number().int().min(1).max(MAX_IMAGE_DIMENSION),
-    height: z.number().int().min(1).max(MAX_IMAGE_DIMENSION),
-    blocks: z.array(TranslationBlockSchema).max(MAX_BLOCKS_PER_PAGE),
-    blockOrder: z
-      .array(z.string().min(1).max(200))
-      .max(MAX_BLOCKS_PER_PAGE)
-      .refine((ids) => new Set(ids).size === ids.length)
-      .optional(),
-    analysisStatus: PageAnalysisStatusSchema,
-    translationCompletion: TranslationCompletionReceiptSchema.optional(),
-    lastError: z.string().max(4000).optional(),
-    createdAt: z.string().max(80),
-    updatedAt: z.string().max(80),
+    ...PageRecordContentShape,
   })
   .strict();
 
 const LibraryPageRecordSchema = z
   .object({
     id: storeId,
-    name: z.string().min(1).max(260),
-    imagePath: filePath,
-    inpaintedImagePath: filePath.optional(),
-    width: z.number().int().min(1).max(MAX_IMAGE_DIMENSION),
-    height: z.number().int().min(1).max(MAX_IMAGE_DIMENSION),
-    blocks: z.array(TranslationBlockSchema).max(MAX_BLOCKS_PER_PAGE),
-    blockOrder: z
-      .array(z.string().min(1).max(200))
-      .max(MAX_BLOCKS_PER_PAGE)
-      .refine((ids) => new Set(ids).size === ids.length)
-      .optional(),
-    analysisStatus: PageAnalysisStatusSchema,
-    translationCompletion: TranslationCompletionReceiptSchema.optional(),
-    lastError: z.string().max(4000).optional(),
-    createdAt: z.string().max(80),
-    updatedAt: z.string().max(80),
+    ...PageRecordPathShape,
+    ...PageRecordContentShape,
   })
   .strict();
 
