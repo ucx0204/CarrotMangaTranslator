@@ -5,7 +5,12 @@ import {
   buildAutomaticFontPageConsistencyPlan,
   mergeAutomaticFontPageConsistencyState,
 } from "../src/main/pipeline/automaticFontMatchingV2PageConsistency";
-import type { PageGeometryItem } from "../src/main/pipeline/automaticFontMatchingV2PageConsistencyShared";
+import { applyDominantOrdinaryRecoveries } from "../src/main/pipeline/automaticFontMatchingV2PageConsistencyDominantOrdinary";
+import { buildInitialEvidenceRow } from "../src/main/pipeline/automaticFontMatchingV2PageConsistencyEvidence";
+import type {
+  AutomaticFontPageConsistencyState,
+  PageGeometryItem,
+} from "../src/main/pipeline/automaticFontMatchingV2PageConsistencyShared";
 import type { VerifiedAutomaticFontPixelInferenceV2 } from "../src/main/pipeline/fontMatchingPagePixelInferenceTypes";
 
 describe("dominant ordinary page recovery", () => {
@@ -265,6 +270,45 @@ describe("dominant ordinary page recovery", () => {
     expect(plan.get(target.inference.blockId)).toMatchObject({
       mode: "local_visual_variant",
     });
+
+    const unrenderableThirdAnchor = actualTarget("unrenderable-third-anchor", {
+      candidates: [
+        {
+          ...pixelCandidate("ridi-batang", 1, 0.5, 0.3426),
+          renderStatus: "unrenderable",
+          unrenderableReason: "fixture-unrenderable",
+        },
+      ],
+      morphology: baseline,
+      bbox: { x: 500, y: 500, w: 90, h: 150 },
+      candidateIds: [21, 22],
+    });
+    const anchorState: AutomaticFontPageConsistencyState = {
+      mode: "page_anchor",
+      anchorFontId: "ridi-batang",
+      anchorEvidenceCount: 2,
+      anchorSupportShare: 1,
+      printedFamily: "serif",
+    };
+    const states = new Map<string, AutomaticFontPageConsistencyState>([
+      ...anchors.map(
+        (entry) => [entry.inference.blockId, anchorState] as const,
+      ),
+      [unrenderableThirdAnchor.inference.blockId, anchorState],
+      [
+        target.inference.blockId,
+        { mode: "local_visual_variant", anchorEvidenceCount: 0 },
+      ],
+    ]);
+    applyDominantOrdinaryRecoveries(
+      states,
+      [...anchors, unrenderableThirdAnchor, target].map(({ inference, item }) =>
+        buildInitialEvidenceRow(inference, item),
+      ),
+    );
+    expect(states.get(target.inference.blockId)?.mode).toBe(
+      "local_visual_variant",
+    );
   });
 
   it("recovers holdout p17 only when its two body anchors are separated from a recognized emphasis pair", () => {

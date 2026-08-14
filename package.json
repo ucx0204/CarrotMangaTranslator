@@ -45,6 +45,7 @@
     "pretest:coverage": "npm run prepare:electron",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "check:production-cleanup-coverage": "node scripts/check-production-cleanup-coverage.cjs",
     "test:workers:soak": "node scripts/soak-vitest-workers.cjs --iterations 10",
     "check": "node scripts/check.cjs",
     "check:cached-build": "node scripts/check-with-build-cache.cjs",

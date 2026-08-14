@@ -17,6 +17,15 @@ import {
 const now = "2026-01-01T00:00:00.000Z";
 
 describe("AI work context merge", () => {
+  it("normalizes a non-object response to an empty suggestion set", () => {
+    expect(normalizeAiWorkContextSuggestions(null)).toEqual({
+      glossary: [],
+      characters: [],
+      rules: undefined,
+      pageSummaries: [],
+    });
+  });
+
   it("normalizes AI suggestions and merges glossary, characters, rules, and page memory", () => {
     const guide = makeGuide();
     const memory = makeMemory();
@@ -45,7 +54,11 @@ describe("AI work context merge", () => {
           note: "명령조",
         },
       ],
-      rules: { honorifics: "preserve", sfxMode: "translate" },
+      rules: {
+        honorifics: "preserve",
+        sfxMode: "translate",
+        defaultTone: "literal",
+      },
       page_summaries: [
         {
           chapter_id: "chapter-a",
@@ -68,6 +81,7 @@ describe("AI work context merge", () => {
     expect(result.counts.glossaryAdded).toBe(1);
     expect(result.counts.charactersAdded).toBe(1);
     expect(result.counts.rulesUpdated).toBe(1);
+    expect(result.styleGuide.rules.defaultTone).toBe("literal");
     expect(result.counts.pageSummariesUpserted).toBe(1);
     expect(result.styleGuide.glossary).toEqual(
       expect.arrayContaining([

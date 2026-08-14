@@ -194,5 +194,7 @@ describe("GPU info helpers", () => {
     expect(
       inferAmdRocmTargetFromName("AMD Ryzen AI 7 350 with Radeon 860M"),
     ).toBeNull();
+    expect(inferAmdRocmTargetFromName(null)).toBeNull();
+    expect(inferAmdRocmTargetFromName("   ")).toBeNull();
   });
 });

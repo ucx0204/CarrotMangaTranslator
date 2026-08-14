@@ -105,6 +105,10 @@ function createStages() {
       "run",
       "--coverage",
     ),
+    nodeStage(
+      "production-cleanup-coverage",
+      join(__dirname, "check-production-cleanup-coverage.cjs"),
+    ),
     nodeStage("build", join(__dirname, "build.cjs"), "--skip-typecheck"),
     nodeStage(
       "page-artwork-parity",

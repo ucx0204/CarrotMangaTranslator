@@ -58,6 +58,9 @@ describe("status dock", () => {
     fireEvent.click(screen.getByRole("button", { name: "상태 기록 지우기" }));
     expect(onClear).toHaveBeenCalledOnce();
 
+    fireEvent.click(screen.getByRole("button", { name: "닫기" }));
+    expect(screen.queryByRole("region", { name: "작업 센터" })).toBeNull();
+    fireEvent.click(button);
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("region", { name: "작업 센터" })).toBeNull();
     fireEvent.click(button);

@@ -15,6 +15,7 @@ import { CURRENT_GENERATION_LIMITS_VERSION } from "../src/main/settings/appSetti
 import { SETTINGS_SECRET_PRESERVE_SENTINEL } from "../src/shared/settingsSecrets";
 import { settingsSecretVaultPath } from "../src/main/settingsSecretStore";
 import {
+  commitSettingsPairFiles,
   settingsCommitPath,
   settingsPairDirectory,
 } from "../src/main/settingsPairStorage";
@@ -281,6 +282,22 @@ describe("settings store", () => {
         .filter((value): value is string => Boolean(value))
         .sort(),
     );
+  });
+
+  it("cleans an unpublished pair when runtime input violates the text contract", async () => {
+    const rootDir = await createTempDir();
+    const paths = makeAppPaths(rootDir);
+    const generation = "12345678-1234-4123-8123-123456789abc";
+
+    await expect(
+      Reflect.apply(commitSettingsPairFiles, undefined, [
+        paths,
+        { generation, rawSettingsText: undefined, vaultText: "{}\n" },
+      ]),
+    ).rejects.toThrow("Could not durably stage both settings pair files");
+
+    expect(existsSync(settingsCommitPath(paths))).toBe(false);
+    expect(existsSync(settingsPairDirectory(paths, generation))).toBe(false);
   });
 
   it("restores the previous complete pair when the current pair is corrupted", async () => {

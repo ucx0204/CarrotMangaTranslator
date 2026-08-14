@@ -10,6 +10,9 @@ import {
   mergeAutomaticFontPageConsistencyState,
   resolvePixelConsistencyMode,
 } from "../src/main/pipeline/automaticFontMatchingV2PageConsistency";
+import { buildInitialEvidenceRow } from "../src/main/pipeline/automaticFontMatchingV2PageConsistencyEvidence";
+import { applyNeutralHeadOrdinaryConsensus } from "../src/main/pipeline/automaticFontMatchingV2PageConsistencyOrdinary";
+import { applyRelaxedNeutralGlyphConsensus } from "../src/main/pipeline/automaticFontMatchingV2PageConsistencyRelaxed";
 import type { VerifiedAutomaticFontPixelInferenceV2 } from "../src/main/pipeline/fontMatchingPagePixelInferenceTypes";
 import {
   markRetiredAutomaticFontCandidates,
@@ -967,6 +970,57 @@ describe("pixel-only page balloon font consistency", () => {
         mode: "local_visual_variant",
       });
     }
+
+    const mixedRows = [
+      ...bodySeeds.map((row) => buildInitialEvidenceRow(row)),
+      ...Array.from({ length: 4 }, (_value, index) =>
+        buildInitialEvidenceRow(
+          inference({
+            ...neutral,
+            blockId: `mixed-sans-${index}`,
+            candidates: [pixelCandidate("nanum-gothic", 1, 0.7, 0.34)],
+            glyphMorphology: morphology(bodyMorphology),
+          }),
+        ),
+      ),
+    ];
+    const mixedStates = new Map();
+    applyNeutralHeadOrdinaryConsensus(mixedStates, mixedRows);
+    expect(mixedStates.get("mixed-sans-0")).toMatchObject({
+      anchorFontId: "nanum-gothic",
+      anchorEvidenceCount: 4,
+    });
+    expect(mixedStates.get(bodySeeds[0].blockId)).toBeUndefined();
+
+    const lowMass = buildInitialEvidenceRow(
+      inference({
+        ...neutral,
+        blockId: "low-mass-recovered-body",
+        candidates: [
+          pixelCandidate("dohyeon", 1, 0.55, 0.34),
+          pixelCandidate("ridi-batang", 2, 0.2),
+        ],
+        glyphMorphology: morphology({ globalForegroundDistanceMean: 1.2 }),
+      }),
+    );
+    const missingMorphology = buildInitialEvidenceRow(
+      inference({
+        ...neutral,
+        blockId: "missing-relaxed-morphology",
+        candidates: [
+          pixelCandidate("jua", 1, 0.6, 0.34),
+          pixelCandidate("ridi-batang", 2, 0.2),
+        ],
+        glyphMorphology: null,
+      }),
+    );
+    const relaxedStates = new Map();
+    applyRelaxedNeutralGlyphConsensus(relaxedStates, [lowMass]);
+    applyRelaxedNeutralGlyphConsensus(relaxedStates, [
+      buildInitialEvidenceRow(bodySeeds[0]),
+      missingMorphology,
+    ]);
+    expect(relaxedStates.size).toBe(0);
   });
 
   it("separates compact ordinary glyphs from genuinely heavy local variants", () => {
@@ -1240,6 +1294,20 @@ describe("pixel-only page balloon font consistency", () => {
       }),
       inference({
         ...neutral,
+        blockId: "heavy-display-impostor",
+        candidates: [
+          pixelCandidate("jua", 1, 0.5, 0.34),
+          pixelCandidate("dohyeon", 2, 0.2),
+        ],
+        glyphMorphology: morphology({
+          globalForegroundDistanceMean: 2.65,
+          medianComponentDistanceMean: 2.1,
+          medianComponentFill: 0.62,
+          foregroundMeanLuma: 18,
+        }),
+      }),
+      inference({
+        ...neutral,
         blockId: "regular-body",
         candidates: [pixelCandidate("ridi-batang", 1, 0.6, 0.34)],
         glyphMorphology: morphology({
@@ -1264,6 +1332,11 @@ describe("pixel-only page balloon font consistency", () => {
       {
         type: "nonsolid" as const,
         direction: "vertical" as const,
+        bbox: { x: 240, y: 82, w: 94, h: 164 },
+      },
+      {
+        type: "nonsolid" as const,
+        direction: "vertical" as const,
         bbox: { x: 380, y: 660, w: 90, h: 120 },
       },
     ];
@@ -1284,9 +1357,9 @@ describe("pixel-only page balloon font consistency", () => {
         "neutral_head_page_glyph_emphasis_consensus",
       );
     }
-    expect(plan.get("regular-body")?.emphasisMorphologyConsensus).not.toBe(
-      true,
-    );
+    for (const blockId of ["heavy-display-impostor", "regular-body"]) {
+      expect(plan.get(blockId)?.emphasisMorphologyConsensus).not.toBe(true);
+    }
   });
 });
 

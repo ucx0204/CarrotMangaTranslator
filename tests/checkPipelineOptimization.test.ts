@@ -94,6 +94,7 @@ describe("check direct invocation", () => {
       "deadcode-exports",
       "prepare-electron",
       "test-coverage",
+      "production-cleanup-coverage",
       "build",
       "page-artwork-parity",
       "image-protocol-smoke",
@@ -124,6 +125,13 @@ describe("check direct invocation", () => {
       expect.stringMatching(/[\\/]vitest[\\/]vitest\.mjs$/u),
       "run",
       "--coverage",
+    ]);
+    expect(
+      stages.find((stage) => stage.id === "production-cleanup-coverage")?.args,
+    ).toEqual([
+      expect.stringMatching(
+        /[\\/]scripts[\\/]check-production-cleanup-coverage\.cjs$/u,
+      ),
     ]);
   });
 

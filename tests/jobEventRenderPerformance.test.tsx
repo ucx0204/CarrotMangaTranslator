@@ -6,6 +6,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { JobEvent, JobState } from "../src/shared/jobTypes";
 import type { ChapterSnapshot } from "../src/shared/libraryTypes";
 import { useJobEvents } from "../src/renderer/src/hooks/useJobEvents";
+import {
+  createAggregateJobEventGuard,
+  shouldIgnoreAggregateJobEvent,
+} from "../src/renderer/src/hooks/jobEventFlowGuard";
 import { useAppSessionLifecycleEffects } from "../src/renderer/src/app/session/useAppSessionLifecycleEffects";
 import { toast } from "../src/renderer/src/lib/toastStore";
 
@@ -16,6 +20,44 @@ afterEach(() => {
 });
 
 describe("job event render scheduling", () => {
+  it("blocks late child progress after an inpainting aggregate terminates but admits a new start", () => {
+    const current: JobState = {
+      id: "inpainting-flow-failed",
+      kind: "inpainting",
+      progressText: "aggregate failed",
+      status: "failed",
+    };
+    const guard = createAggregateJobEventGuard();
+    guard.activeJobIds.add("owned-child");
+
+    expect(
+      shouldIgnoreAggregateJobEvent(
+        current,
+        { ...makeStateEvent("running"), id: "owned-child" },
+        guard,
+        false,
+      ),
+    ).toBe(true);
+    guard.activeJobIds.clear();
+
+    expect(
+      shouldIgnoreAggregateJobEvent(
+        current,
+        { ...makeStateEvent("running"), id: "late-child" },
+        guard,
+        false,
+      ),
+    ).toBe(true);
+    expect(
+      shouldIgnoreAggregateJobEvent(
+        current,
+        { ...makeStateEvent("starting"), id: "new-job" },
+        guard,
+        false,
+      ),
+    ).toBe(false);
+  });
+
   it("reduces a log burst in one low-priority animation frame", () => {
     const frames = installAnimationFrameController();
     let emit: ((event: JobEvent) => void) | null = null;

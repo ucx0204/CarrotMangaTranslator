@@ -49,7 +49,7 @@ export function findFilesRecursive(
   limit: number,
 ): string[] {
   const results: string[] = [];
-  if (limit <= 0) return results;
+  if (!(limit > 0)) return results;
   walkFilesBreadthFirst(root, maxDepth, (entry, fullPath) =>
     appendMatchingFile(results, limit, entry, fullPath, predicate),
   );

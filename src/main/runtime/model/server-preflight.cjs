@@ -11,7 +11,8 @@ const {
   isBuiltInGemmaRuntimeModel,
   isGemma31BModel,
   missingRequiredLlamaRuntimeFiles,
-  resolveManagedToolsSearchDirs,
+  resolveManagedToolsDir,
+  resolveManagedToolsOwnershipDirs,
   resolvePreferredLlamaRuntime,
 } = require("../simple-page-runtime-paths.cjs");
 const { looksLikeGemma4Model } = require("../simple-page-launch-args.cjs");
@@ -38,7 +39,13 @@ function isIncompleteManagedLlamaRuntime(serverPath, options = {}) {
   const runtime = resolvePreferredLlamaRuntime(options);
   assertMetalDflashConfiguration(serverPath, runtime, options);
   const runtimeDir = path.dirname(serverPath);
-  if (!isManagedRuntimeDirectory(runtimeDir, runtime, options)) return false;
+  const managedToolsDir = resolveManagedRuntimeToolsDir(
+    runtimeDir,
+    runtime,
+    options,
+  );
+  if (!managedToolsDir) return false;
+  assertManagedRuntimePathSafe(managedToolsDir, options);
   return (
     !hasRequiredLlamaRuntimeFiles(runtimeDir, runtime) ||
     !installedRuntimeMarkerMatches(
@@ -103,7 +110,13 @@ async function verifyLlamaRuntimePreflight(serverPath, options = {}) {
 /** @param {string} serverPath @param {LlamaRuntimeDescriptor} runtime @param {RuntimeOptions} options */
 function assertManagedRuntimeComplete(serverPath, runtime, options) {
   const runtimeDir = path.dirname(serverPath);
-  if (!isManagedRuntimeDirectory(runtimeDir, runtime, options)) return;
+  const managedToolsDir = resolveManagedRuntimeToolsDir(
+    runtimeDir,
+    runtime,
+    options,
+  );
+  if (!managedToolsDir) return;
+  assertManagedRuntimePathSafe(managedToolsDir, options);
   const missingFiles = missingRequiredLlamaRuntimeFiles(runtimeDir, runtime);
   if (missingFiles.length > 0) {
     throw createDetailedError(
@@ -137,14 +150,19 @@ function assertManagedRuntimeComplete(serverPath, runtime, options) {
 }
 
 /** @param {string} runtimeDir @param {LlamaRuntimeDescriptor} runtime @param {RuntimeOptions} options */
-function isManagedRuntimeDirectory(runtimeDir, runtime, options) {
+function resolveManagedRuntimeToolsDir(runtimeDir, runtime, options) {
   const actual = path.resolve(runtimeDir);
-  return resolveManagedToolsSearchDirs(options).some((managedToolsDir) => {
+  return resolveManagedToolsOwnershipDirs(options).find((managedToolsDir) => {
     const expected = path.resolve(managedToolsDir, runtime.dir);
     return process.platform === "win32"
       ? actual.toLowerCase() === expected.toLowerCase()
       : actual === expected;
   });
+}
+
+/** @param {string} managedToolsDir @param {RuntimeOptions} options */
+function assertManagedRuntimePathSafe(managedToolsDir, options) {
+  resolveManagedToolsDir({ ...options, managedToolsDir });
 }
 
 /** @param {LlamaRuntimeDescriptor} runtime @param {RuntimeOptions} options */

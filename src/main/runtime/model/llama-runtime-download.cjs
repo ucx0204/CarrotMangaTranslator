@@ -59,8 +59,8 @@ const {
 /** @param {ModelAssetOptions} [options] */
 async function ensureDefaultLlamaRuntimeDownloaded(options = {}) {
   const runtime = resolvePreferredLlamaRuntime(options);
-  const layout = buildRuntimeLayout(options, runtime);
   if (findCurrentCompleteRuntimeDir(options, runtime)) return;
+  const layout = buildRuntimeLayout(options, runtime);
   assertRuntimeCanBeInstalled(options, layout);
   const archives = getLlamaRuntimeArchives(runtime);
   assertRuntimeArchiveChecksumsPresent(archives);

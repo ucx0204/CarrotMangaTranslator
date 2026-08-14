@@ -7,6 +7,10 @@ and 3,372 total scenarios (3,370 executable and two macOS-only skips), with no
 known failure. The executable snapshot used for exact-pair comparison is
 `.tmp/production-cleanup-test-list-baseline.json` (SHA-256
 `352a275cde3b1f5b5f34e222775cfd6c4d17522597e4a0c52a19bcca9cebfca4`).
+That ignored snapshot is historical provenance, not a required gate input. The
+durable reconciliation, the two accepted replacement mappings, and the
+coverage floor policy are recorded in this tracked ledger and the tracked
+manifest described below.
 
 That snapshot predates the BeeLlama HIP stabilization already present in the
 cleanup-start `HEAD` (`c12cd67`). The carry-forward commit added one test file
@@ -66,6 +70,44 @@ gate must retain these two mappings and report zero additional missing baseline
 pairs; a changed count requires regenerating this comparison rather than
 editing the totals by hand.
 
+## Tracked touched-file coverage enforcement
+
+- `scripts/production-cleanup-coverage-floors.json` is the persistent schema-2
+  authority. It records cleanup base commit
+  `01768a05a2e74666c1fd38f2b22e4efb1cf9822b`, `baselinePlatform=win32`, the V8
+  JSON-summary provider, Vitest/coverage-v8 4.1.9, and the SHA-256
+  `a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a` of the
+  ignored Node 22 baseline capture. The capture is provenance only; CI does not
+  need it. Node 22/V8 12.4 and Node 24/V8 13.6 produced identical covered/total
+  counts for every sealed file and are the only accepted runtime families.
+  The accepted Node 22 post-refactor capture that established the seven
+  introduced floors has SHA-256
+  `8da66550fc974ecdf83e8371e00c11dd912e3ab3fe6562bb5474f70f1b4aad51`.
+- The manifest pins the exact Windows covered/total counts and the diagnostic
+  percentage for lines/statements/functions/branches in all 67 existing
+  coverage-eligible `src/**` files changed since cleanup start. The seven new
+  eligible source files have their accepted post-refactor Windows ratios sealed
+  as `introducedFloors`; they cannot regress to a merely present 0% record.
+- `scripts/check-production-cleanup-coverage.cjs` derives the eligible modified,
+  added, deleted, and untracked source scope from Git on every run. A missing or
+  stale manifest entry, unrecorded deletion, unsupported source status, missing
+  source or coverage record, unvalidated Node/V8 or coverage-tool version,
+  damaged JSON/schema/metric, count/percentage mismatch, or lower Windows floor
+  fails closed. This makes a future touched file omitted from the manifest a gate
+  failure instead of silently losing coverage. Floor comparison uses an
+  exact cross-product of covered/total counts, so two ratios truncated to the
+  same two-decimal percentage cannot hide a regression; a zero-total 100%
+  baseline requires any newly instrumented items to remain fully covered, and
+  a previously non-empty baseline cannot be bypassed by a zero-total current
+  record.
+- The canonical `npm run check` runs this gate immediately after fresh V8
+  coverage. Windows compares all four exact ratios to both the pre-change and
+  introduced Windows floors. macOS validates the immutable Windows manifest,
+  current source scope, records, and metric integrity without treating
+  platform-dependent execution as a cross-platform ratio regression. A native
+  Darwin floor map is not claimed or silently substituted for the canonical
+  Windows floors.
+
 ## Fail-closed obligations
 
 - A malformed optional Semantic OCR relation is ignored, but a qualified hard
@@ -100,8 +142,9 @@ editing the totals by hand.
   Node workflow.
 - Pinned llama archives carry audited maximum relative-path lengths. If the
   normal data-root tools directory is unsafe, the managed runtime uses the
-  compact `%LOCALAPPDATA%\MGT\tools` root while retaining safe legacy roots in
-  discovery; an explicit or fallback root that is still unsafe is rejected.
+  compact data-root-isolated `%LOCALAPPDATA%\MGT\d-<16 hex>` root. The old
+  unnamespaced `%LOCALAPPDATA%\MGT\tools` root remains safe discovery-only; an
+  explicit or fallback root that is still unsafe is rejected.
   Preflight includes the eventual `.mgt-llama-archive-<32 hex>` claim name, not
   only the shorter source archive and integrity marker.
 - Hugging Face destinations continue to use compact content keys. The payload,
@@ -142,16 +185,24 @@ explicit validation, error metadata, fallback discovery, and regression-safe
 publication logic. The ledger records the miss rather than counting test or
 documentation deletion as production reduction.
 
-## Final verification results
+## Verification results recorded before the tracked floor gate
 
-- `npm run check:cold` passed in 207,482 ms. All 474 Vitest files completed
+- The pre-floor-gate `npm run check:cold` passed in 207,482 ms. All 474 Vitest
+  files completed
   with 3,432 executable scenarios and the two expected macOS-only skips;
   architecture (1,310 modules/4,968 dependencies), mock-boundary, re-export,
   Knip, build, page-artwork parity, image-protocol, renderer-bundle, and
   preload-bundle gates all passed.
 - Full V8 coverage passed every configured threshold: 78.96% lines, 78.04%
-  statements, 79.65% functions, and 69.99% branches. The global report and
-  touched-file floors remain enforced by the canonical gate.
+  statements, 79.65% functions, and 69.99% branches. Those are post-change
+  verification totals, not the source of the pre-change floors: the sealed
+  Node 22 baseline capture above is the source for existing-file ratios, while
+  a fresh canonical run enforces the tracked manifest without reading either
+  ignored provenance artifact.
+- After adding the tracked floor gate and restoring the remaining contracts, a
+  fresh Windows Node 22 run passed at 79.17% lines, 78.27% statements, 79.94%
+  functions, and 70.22% branches. The gate then compared all 67 pre-existing
+  files and all seven introduced files without a lower exact ratio.
 - Three complete warm `npm run check` runs passed in 197,573 ms, 198,937 ms,
   and 185,184 ms (197,573 ms median). No coverage result, changed-test gate, or
   disabled isolation was used.

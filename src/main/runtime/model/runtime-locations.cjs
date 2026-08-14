@@ -1,4 +1,5 @@
 // @ts-check
+const { createHash } = require("node:crypto");
 const { existsSync } = require("node:fs");
 const path = require("node:path");
 
@@ -25,7 +26,12 @@ const {
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions & { managedToolsDir?: string | null; toolsDir?: string | null }} RuntimePathOptions */
 
 const WINDOWS_LEGACY_PATH_CEILING = 252;
-const WINDOWS_SHORT_MANAGED_TOOLS_DIR = path.join("MGT", "tools");
+const WINDOWS_SHORT_MANAGED_TOOLS_ROOT = "MGT";
+const WINDOWS_LEGACY_SHORT_MANAGED_TOOLS_DIR = path.join(
+  WINDOWS_SHORT_MANAGED_TOOLS_ROOT,
+  "tools",
+);
+const WINDOWS_DATA_ROOT_NAMESPACE_HEX_LENGTH = 16;
 const COMPACT_RUNTIME_SIBLING = ".s-0000000000000000";
 const DOWNLOAD_INTEGRITY_SUFFIX = ".mgt-sha256.json";
 const CLAIMED_RUNTIME_ARCHIVE_PREFIX = ".mgt-llama-archive-";
@@ -48,11 +54,7 @@ function resolveToolsDir(options = {}) {
 
 /** @param {RuntimePathOptions} [options] */
 function resolveManagedToolsDir(options = {}) {
-  const explicit = String(
-    options.managedToolsDir ??
-      runtimeOverrideEnv("MANGA_TRANSLATOR_MANAGED_TOOLS_DIR", options) ??
-      "",
-  ).trim();
+  const explicit = resolveExplicitManagedToolsDir(options);
   const defaultDir = path.join(resolveWorkingDir(options), "tools");
   if (process.platform !== "win32") return explicit || defaultDir;
   const runtime = resolvePreferredLlamaRuntime(options);
@@ -61,10 +63,7 @@ function resolveManagedToolsDir(options = {}) {
     return explicit;
   }
   if (windowsManagedToolsPathIsSafe(defaultDir, runtime)) return defaultDir;
-  const localAppData = String(process.env.LOCALAPPDATA || "").trim();
-  const fallbackDir = localAppData
-    ? path.join(localAppData, WINDOWS_SHORT_MANAGED_TOOLS_DIR)
-    : "";
+  const fallbackDir = resolveWindowsManagedToolsFallbackDir(options) || "";
   if (fallbackDir && windowsManagedToolsPathIsSafe(fallbackDir, runtime)) {
     return fallbackDir;
   }
@@ -73,34 +72,72 @@ function resolveManagedToolsDir(options = {}) {
 
 /** @param {RuntimePathOptions} [options] */
 function resolveManagedToolsSearchDirs(options = {}) {
-  const explicit = String(
+  const explicit = resolveExplicitManagedToolsDir(options);
+  if (explicit) return [resolveManagedToolsDir(options)];
+  const ownershipDirs = resolveManagedToolsOwnershipDirs(options);
+  if (process.platform !== "win32") {
+    return ownershipDirs;
+  }
+  const runtime = resolvePreferredLlamaRuntime(options);
+  return ownershipDirs.filter((candidate) =>
+    windowsManagedToolsPathIsSafe(candidate, runtime),
+  );
+}
+
+/**
+ * Returns every directory whose runtime children are app-managed, without
+ * asserting that the directory is safe to install into. This is deliberately
+ * separate from the search/install resolver: preflight must still recognize
+ * an unsafe managed location and enforce both the path and integrity policy,
+ * while an unrelated custom llama-server must not inherit that path failure.
+ *
+ * The un-namespaced Windows fallback is discovery-only for runtimes installed
+ * by older releases. New writes always use the data-root namespaced fallback.
+ *
+ * @param {RuntimePathOptions} [options]
+ */
+function resolveManagedToolsOwnershipDirs(options = {}) {
+  const explicit = resolveExplicitManagedToolsDir(options);
+  if (explicit) return [explicit];
+  const defaultDir = path.join(resolveWorkingDir(options), "tools");
+  if (process.platform !== "win32") return [defaultDir];
+  return uniqueRuntimeDirs([
+    defaultDir,
+    resolveWindowsManagedToolsFallbackDir(options),
+    resolveWindowsLegacyManagedToolsFallbackDir(),
+  ]);
+}
+
+/** @param {RuntimePathOptions} options */
+function resolveExplicitManagedToolsDir(options) {
+  return String(
     options.managedToolsDir ??
       runtimeOverrideEnv("MANGA_TRANSLATOR_MANAGED_TOOLS_DIR", options) ??
       "",
   ).trim();
-  if (explicit) return [resolveManagedToolsDir(options)];
-  const primary = resolveManagedToolsDir(options);
-  const legacyDefault = path.join(resolveWorkingDir(options), "tools");
-  if (process.platform !== "win32") {
-    return uniqueRuntimeDirs([primary, legacyDefault]);
-  }
+}
+
+/** @param {RuntimePathOptions} options */
+function resolveWindowsManagedToolsFallbackDir(options) {
   const localAppData = String(process.env.LOCALAPPDATA || "").trim();
-  const fallbackCandidate = localAppData
-    ? path.join(localAppData, WINDOWS_SHORT_MANAGED_TOOLS_DIR)
+  if (!localAppData) return null;
+  const dataRoot = path.resolve(resolveWorkingDir(options));
+  const namespace = createHash("sha256")
+    .update(dataRoot.normalize("NFC").toLowerCase())
+    .digest("hex")
+    .slice(0, WINDOWS_DATA_ROOT_NAMESPACE_HEX_LENGTH);
+  return path.join(
+    localAppData,
+    WINDOWS_SHORT_MANAGED_TOOLS_ROOT,
+    `d-${namespace}`,
+  );
+}
+
+function resolveWindowsLegacyManagedToolsFallbackDir() {
+  const localAppData = String(process.env.LOCALAPPDATA || "").trim();
+  return localAppData
+    ? path.join(localAppData, WINDOWS_LEGACY_SHORT_MANAGED_TOOLS_DIR)
     : null;
-  const runtime = resolvePreferredLlamaRuntime(options);
-  const shortFallback =
-    fallbackCandidate &&
-    windowsManagedToolsPathIsSafe(fallbackCandidate, runtime)
-      ? fallbackCandidate
-      : null;
-  const safeLegacyDefault = windowsManagedToolsPathIsSafe(
-    legacyDefault,
-    runtime,
-  )
-    ? legacyDefault
-    : null;
-  return uniqueRuntimeDirs([primary, safeLegacyDefault, shortFallback]);
 }
 
 /** @param {RuntimePathOptions} [options] */
@@ -283,6 +320,7 @@ module.exports = {
   defaultServerPath,
   resolveLlamaRuntimeSearchDirs,
   resolveManagedToolsDir,
+  resolveManagedToolsOwnershipDirs,
   resolveManagedToolsSearchDirs,
   resolveToolsDir,
 };

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_GEMMA_MODEL_FILE,
@@ -19,6 +19,7 @@ const { inferAmdRocmTargetFromText } =
 const {
   hasRequiredLlamaRuntimeFiles,
   missingRequiredLlamaRuntimeFiles,
+  defaultServerPath,
   resolveManagedToolsDir,
   resolveManagedToolsSearchDirs,
   resolvePreferredLlamaRuntime,
@@ -31,6 +32,7 @@ const {
     runtimeDir: string,
     runtime: Record<string, unknown>,
   ) => string[];
+  defaultServerPath: (options?: Record<string, unknown>) => string;
   resolveManagedToolsDir: (options?: Record<string, unknown>) => string;
   resolveManagedToolsSearchDirs: (
     options?: Record<string, unknown>,
@@ -51,6 +53,12 @@ const {
     requiredFiles: Array<string | string[]>;
   };
 };
+const { ensureDefaultLlamaRuntimeDownloaded } =
+  require("../src/main/runtime/simple-page-model-assets.cjs") as {
+    ensureDefaultLlamaRuntimeDownloaded: (
+      options?: Record<string, unknown>,
+    ) => Promise<void>;
+  };
 const { resolveWindowsLlamaRuntimeMaxRelativePathLength } =
   require("../src/main/runtime/simple-page-llama-runtimes.cjs") as {
     resolveWindowsLlamaRuntimeMaxRelativePathLength: (runtime: {
@@ -87,6 +95,7 @@ const { MAX_REMOTE_RUNTIME_ARCHIVE_BYTES } =
 const {
   isIncompleteManagedLlamaRuntime,
   resolveLlamaRuntimePreflightTimeoutMs,
+  verifyLlamaRuntimePreflight,
 } = require("../src/main/runtime/model/server-preflight.cjs") as {
   isIncompleteManagedLlamaRuntime: (
     serverPath: string,
@@ -96,6 +105,10 @@ const {
     runtime?: Record<string, unknown>,
     options?: Record<string, unknown>,
   ) => number;
+  verifyLlamaRuntimePreflight: (
+    serverPath: string,
+    options?: Record<string, unknown>,
+  ) => Promise<void>;
 };
 const {
   INSTALLED_RUNTIME_HASH_CHUNK_BYTES,
@@ -193,8 +206,17 @@ describe("llama runtime path selection", () => {
       ).toBeGreaterThanOrEqual(252);
 
       const managedToolsDir = resolveManagedToolsDir(options);
-      expect(managedToolsDir).toBe(join(localAppData, "MGT", "tools"));
-      expect(resolveManagedToolsSearchDirs(options)).toEqual([managedToolsDir]);
+      expect(basename(managedToolsDir)).toMatch(/^d-[a-f0-9]{16}$/);
+      expect(resolveManagedToolsSearchDirs(options)).toEqual([
+        managedToolsDir,
+        join(localAppData, "MGT", "tools"),
+      ]);
+      expect(
+        isIncompleteManagedLlamaRuntime(
+          join(localAppData, "MGT", "tools", runtime.dir, "llama-server.exe"),
+          options,
+        ),
+      ).toBe(true);
       const runtimeDir = join(managedToolsDir, runtime.dir);
       const stagingDir = createRuntimeStagingDirectory(runtimeDir);
       const backupDir = createCompactRuntimeSiblingDirectory(runtimeDir, "b");
@@ -205,6 +227,105 @@ describe("llama runtime path selection", () => {
           252,
         );
       }
+    } finally {
+      if (previousLocalAppData === undefined) {
+        delete process.env.LOCALAPPDATA;
+      } else {
+        process.env.LOCALAPPDATA = previousLocalAppData;
+      }
+    }
+  });
+
+  it("isolates compact Windows managed-tools fallbacks by data root", () => {
+    if (process.platform !== "win32") return;
+    const previousLocalAppData = process.env.LOCALAPPDATA;
+    const localAppData = "C:\\Users\\mgt\\AppData\\Local";
+    process.env.LOCALAPPDATA = localAppData;
+    try {
+      const commonOptions = {
+        llamaRuntimeProfile: "rocm",
+        llamaRocmTarget: "gfx110X",
+        modelRepo: DEFAULT_GEMMA_MODEL_REPO,
+        modelFile: DEFAULT_GEMMA_MODEL_FILE,
+      };
+      const firstOptions = {
+        ...commonOptions,
+        workingDir: join("C:\\", `first-${"a".repeat(150)}`),
+      };
+      const secondOptions = {
+        ...commonOptions,
+        workingDir: join("C:\\", `second-${"b".repeat(150)}`),
+      };
+
+      const firstDir = resolveManagedToolsDir(firstOptions);
+      const secondDir = resolveManagedToolsDir(secondOptions);
+      expect(firstDir).not.toBe(secondDir);
+      expect(basename(firstDir)).toMatch(/^d-[a-f0-9]{16}$/);
+      expect(basename(secondDir)).toMatch(/^d-[a-f0-9]{16}$/);
+
+      const runtime = resolvePreferredLlamaRuntime(firstOptions);
+      const longestPinnedEntry = "x".repeat(
+        resolveWindowsLlamaRuntimeMaxRelativePathLength(runtime),
+      );
+      for (const managedToolsDir of [firstDir, secondDir]) {
+        expect(
+          resolve(join(managedToolsDir, runtime.dir, longestPinnedEntry))
+            .length,
+        ).toBeLessThan(252);
+      }
+
+      const legacySharedDir = join(localAppData, "MGT", "tools");
+      expect(resolveManagedToolsSearchDirs(firstOptions)).toContain(
+        legacySharedDir,
+      );
+      expect(resolveManagedToolsSearchDirs(secondOptions)).toContain(
+        legacySharedDir,
+      );
+    } finally {
+      if (previousLocalAppData === undefined) {
+        delete process.env.LOCALAPPDATA;
+      } else {
+        process.env.LOCALAPPDATA = previousLocalAppData;
+      }
+    }
+  });
+
+  it("keeps the namespaced fallback shorter than the legacy path ceiling", () => {
+    if (process.platform !== "win32") return;
+    const previousLocalAppData = process.env.LOCALAPPDATA;
+    const options = {
+      workingDir: join("C:\\", "w".repeat(180)),
+      llamaRuntimeProfile: "rocm",
+      llamaRocmTarget: "gfx110X",
+      modelRepo: DEFAULT_GEMMA_MODEL_REPO,
+      modelFile: DEFAULT_GEMMA_MODEL_FILE,
+    };
+    const runtime = resolvePreferredLlamaRuntime(options);
+    const longestPinnedEntry = "x".repeat(
+      resolveWindowsLlamaRuntimeMaxRelativePathLength(runtime),
+    );
+    const localAppData = Array.from({ length: 160 }, (_value, index) =>
+      join("C:\\", "l".repeat(index + 1)),
+    ).find((candidate) => {
+      const compactRoot = join(candidate, "MGT", `d-${"0".repeat(16)}`);
+      return (
+        resolve(join(compactRoot, runtime.dir, longestPinnedEntry)).length ===
+        251
+      );
+    });
+    expect(localAppData).toBeTruthy();
+    if (!localAppData)
+      throw new Error("Expected a Windows path boundary fixture");
+    process.env.LOCALAPPDATA = localAppData;
+    try {
+      const managedToolsDir = resolveManagedToolsDir(options);
+      expect(
+        resolve(join(managedToolsDir, runtime.dir, longestPinnedEntry)).length,
+      ).toBe(251);
+      expect(
+        resolve(join(managedToolsDir, "tools", runtime.dir, longestPinnedEntry))
+          .length,
+      ).toBeGreaterThanOrEqual(252);
     } finally {
       if (previousLocalAppData === undefined) {
         delete process.env.LOCALAPPDATA;
@@ -249,16 +370,159 @@ describe("llama runtime path selection", () => {
         fallbackError = error;
       }
       expect(fallbackError).toMatchObject({
-        fallbackManagedToolsDir: resolve(join(longRoot, "MGT", "tools")),
         windowsPathCeiling: 252,
         windowsPathUnsafe: true,
         nonRetriable: true,
       });
+      const fallbackManagedToolsDir = (
+        fallbackError as { fallbackManagedToolsDir?: string }
+      ).fallbackManagedToolsDir;
+      expect(fallbackManagedToolsDir).toContain(join(longRoot, "MGT", "d-"));
+      expect(basename(String(fallbackManagedToolsDir))).toMatch(
+        /^d-[a-f0-9]{16}$/,
+      );
       expect(
         (fallbackError as { fallbackDerivedPathLength?: number })
           .fallbackDerivedPathLength,
       ).toBeGreaterThanOrEqual(252);
     } finally {
+      if (previousLocalAppData === undefined) {
+        delete process.env.LOCALAPPDATA;
+      } else {
+        process.env.LOCALAPPDATA = previousLocalAppData;
+      }
+    }
+  });
+
+  it("does not apply an unsafe managed-root error to a separate custom server", async () => {
+    if (process.platform !== "win32") return;
+    const previousLocalAppData = process.env.LOCALAPPDATA;
+    const previousSkipPreflight = process.env.MGT_SKIP_LLAMA_RUNTIME_PREFLIGHT;
+    const workingDir = join("C:\\", "w".repeat(180));
+    process.env.LOCALAPPDATA = join("C:\\", "l".repeat(180));
+    process.env.MGT_SKIP_LLAMA_RUNTIME_PREFLIGHT = "1";
+    const options = {
+      workingDir,
+      llamaRuntimeProfile: "rocm",
+      llamaRocmTarget: "gfx110X",
+      modelSource: "huggingface",
+      modelRepo: DEFAULT_GEMMA_MODEL_REPO,
+      modelFile: DEFAULT_GEMMA_MODEL_FILE,
+    };
+    try {
+      const customServerPath = join("C:\\", "custom", "llama-server.exe");
+      expect(isIncompleteManagedLlamaRuntime(customServerPath, options)).toBe(
+        false,
+      );
+      await expect(
+        verifyLlamaRuntimePreflight(customServerPath, options),
+      ).resolves.toBeUndefined();
+
+      const runtime = resolvePreferredLlamaRuntime(options);
+      const unsafeManagedServerPath = join(
+        workingDir,
+        "tools",
+        runtime.dir,
+        "llama-server.exe",
+      );
+      expect(() =>
+        isIncompleteManagedLlamaRuntime(unsafeManagedServerPath, options),
+      ).toThrowError(
+        expect.objectContaining({
+          windowsPathUnsafe: true,
+          nonRetriable: true,
+        }),
+      );
+    } finally {
+      if (previousLocalAppData === undefined) {
+        delete process.env.LOCALAPPDATA;
+      } else {
+        process.env.LOCALAPPDATA = previousLocalAppData;
+      }
+      if (previousSkipPreflight === undefined) {
+        delete process.env.MGT_SKIP_LLAMA_RUNTIME_PREFLIGHT;
+      } else {
+        process.env.MGT_SKIP_LLAMA_RUNTIME_PREFLIGHT = previousSkipPreflight;
+      }
+    }
+  });
+
+  it("reuses a complete legacy fallback before resolving an unsafe write root", async () => {
+    if (process.platform !== "win32") return;
+    const previousLocalAppData = process.env.LOCALAPPDATA;
+    const fixtureRoot = mkdtempSync(join(tmpdir(), "mgt-legacy-discovery-"));
+    const options = {
+      workingDir: join("C:\\", "w".repeat(220)),
+      llamaRuntimeProfile: "cuda12",
+      modelSource: "huggingface",
+      modelRepo: GEMMA_26B_MODEL_REPO,
+      modelFile: GEMMA_26B_MODEL_FILE_IQ3_S,
+    };
+    let localAppData: string | null = null;
+    try {
+      for (let padding = 1; padding <= 180; padding += 1) {
+        const candidate = join(fixtureRoot, "l".repeat(padding));
+        const legacyDir = join(candidate, "MGT", "tools");
+        process.env.LOCALAPPDATA = candidate;
+        try {
+          resolveManagedToolsDir({ ...options, managedToolsDir: legacyDir });
+        } catch (_error) {
+          continue;
+        }
+        try {
+          resolveManagedToolsDir(options);
+        } catch (error) {
+          if ((error as { windowsPathUnsafe?: boolean }).windowsPathUnsafe) {
+            localAppData = candidate;
+            break;
+          }
+        }
+      }
+      expect(localAppData).toBeTruthy();
+      if (!localAppData) throw new Error("Expected a legacy-only safe fixture");
+      process.env.LOCALAPPDATA = localAppData;
+
+      expect(() => resolveManagedToolsDir(options)).toThrowError(
+        expect.objectContaining({ windowsPathUnsafe: true }),
+      );
+      const legacyDir = join(localAppData, "MGT", "tools");
+      expect(resolveManagedToolsSearchDirs(options)).toContain(legacyDir);
+
+      const runtime = resolvePreferredLlamaRuntime(options);
+      const runtimeDir = join(legacyDir, runtime.dir);
+      for (const requirement of runtime.requiredFiles) {
+        const fileName = Array.isArray(requirement)
+          ? requirement[0]
+          : requirement;
+        const filePath = join(runtimeDir, fileName);
+        mkdirSync(dirname(filePath), { recursive: true });
+        writeFileSync(filePath, `trusted:${fileName}`);
+      }
+      const markerPath = join(runtimeDir, ".mgt-runtime.json");
+      writeFileSync(
+        markerPath,
+        JSON.stringify({
+          id: runtime.id,
+          kind: runtime.kind,
+          dir: runtime.dir,
+          archives: runtime.archives,
+          installedFileSha256: collectInstalledRuntimeFileHashes(runtimeDir),
+        }),
+      );
+
+      expect(defaultServerPath(options)).toBe(
+        join(runtimeDir, "llama-server.exe"),
+      );
+      await expect(
+        ensureDefaultLlamaRuntimeDownloaded(options),
+      ).resolves.toBeUndefined();
+
+      rmSync(markerPath);
+      await expect(
+        ensureDefaultLlamaRuntimeDownloaded(options),
+      ).rejects.toMatchObject({ windowsPathUnsafe: true });
+    } finally {
+      rmSync(fixtureRoot, { recursive: true, force: true });
       if (previousLocalAppData === undefined) {
         delete process.env.LOCALAPPDATA;
       } else {

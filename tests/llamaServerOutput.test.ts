@@ -41,8 +41,16 @@ const { createServerOutputTransport } =
       },
     ) => OutputTransport;
   };
+const { stopServer } =
+  require("../src/main/runtime/transport/llama-server-process.cjs") as {
+    stopServer: (server: null) => Promise<void>;
+  };
 
 describe("llama server output transport", () => {
+  it("treats an absent server process as already stopped", async () => {
+    await expect(stopServer(null)).resolves.toBeUndefined();
+  });
+
   it("keeps diagnostics after readiness without mirroring inference output", () => {
     const progress: ProgressEvent[] = [];
     const serverLog: string[] = [];

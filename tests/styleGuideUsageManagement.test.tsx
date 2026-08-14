@@ -79,6 +79,15 @@ describe("style guide usage management", () => {
     expect(onGuideChange).toHaveBeenLastCalledWith(
       expect.objectContaining({ glossary: [] }),
     );
+    expect(screen.getByLabelText("Alpha 선택")).toHaveProperty(
+      "checked",
+      false,
+    );
+    expect(screen.getByLabelText("Beta 선택")).toHaveProperty("checked", false);
+    expect(screen.getByRole("button", { name: "0개 삭제" })).toHaveProperty(
+      "disabled",
+      true,
+    );
   });
 
   it("supports usage sorting and ID-based character edits", () => {
@@ -255,6 +264,98 @@ describe("style guide usage management", () => {
 
     expect(onGuideChange).not.toHaveBeenCalled();
     expect(screen.getByLabelText("Alpha 선택")).toHaveProperty("checked", true);
+  });
+
+  it("selects and clears every visible glossary entry from the table header", () => {
+    render(
+      <GlossaryTab
+        guide={makeGuide()}
+        onGuideChange={vi.fn()}
+        usage={makeUsage()}
+      />,
+    );
+    const selectAll = screen.getByLabelText("현재 목록 전체 선택");
+
+    fireEvent.click(selectAll);
+    expect(screen.getByLabelText("Alpha 선택")).toHaveProperty("checked", true);
+    expect(screen.getByLabelText("Beta 선택")).toHaveProperty("checked", true);
+    expect(screen.getByRole("button", { name: "2개 삭제" })).toHaveProperty(
+      "disabled",
+      false,
+    );
+
+    fireEvent.click(selectAll);
+    expect(screen.getByLabelText("Alpha 선택")).toHaveProperty(
+      "checked",
+      false,
+    );
+    expect(screen.getByLabelText("Beta 선택")).toHaveProperty("checked", false);
+  });
+
+  it("prunes selected IDs when entries are removed by an external update", () => {
+    const guide = makeGuide();
+    const props = {
+      onGuideChange: vi.fn(),
+      usage: makeUsage(),
+    };
+    const { rerender } = render(<GlossaryTab guide={guide} {...props} />);
+    fireEvent.click(screen.getByLabelText("Alpha 선택"));
+    expect(screen.getByRole("button", { name: "1개 삭제" })).toHaveProperty(
+      "disabled",
+      false,
+    );
+
+    rerender(
+      <GlossaryTab
+        guide={{
+          ...guide,
+          glossary: guide.glossary.filter((entry) => entry.id !== "alpha"),
+        }}
+        {...props}
+      />,
+    );
+
+    expect(screen.queryByLabelText("Alpha 선택")).toBeNull();
+    expect(screen.getByLabelText("Beta 선택")).toHaveProperty("checked", false);
+    expect(screen.getByRole("button", { name: "0개 삭제" })).toHaveProperty(
+      "disabled",
+      true,
+    );
+  });
+
+  it("distinguishes an empty glossary from a filtered list with no matches", () => {
+    const guide = makeGuide();
+    const props = { onGuideChange: vi.fn(), usage: makeUsage() };
+    const { rerender } = render(
+      <GlossaryTab guide={{ ...guide, glossary: [] }} {...props} />,
+    );
+
+    expect(screen.getByText(/등록된 용어가 없습니다/)).toBeTruthy();
+
+    rerender(<GlossaryTab guide={guide} {...props} />);
+    fireEvent.change(screen.getByLabelText("이름·번역·별칭 검색"), {
+      target: { value: "존재하지 않는 용어" },
+    });
+
+    expect(screen.getByText("조건에 맞는 항목이 없습니다.")).toBeTruthy();
+  });
+
+  it("uses a target-only glossary name when optional metadata is absent", () => {
+    const guide = makeGuide();
+    guide.glossary = [
+      {
+        ...guide.glossary[0],
+        source: "",
+        target: "번역어",
+        aliases: undefined,
+        note: undefined,
+      },
+    ];
+    render(<GlossaryTab guide={guide} onGuideChange={vi.fn()} />);
+
+    expect(screen.getByLabelText("번역어 선택")).toBeTruthy();
+    expect(screen.getByRole("switch", { name: "번역어 활성화" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "번역어 삭제" })).toBeTruthy();
   });
 });
 

@@ -201,6 +201,20 @@ describe("GatherTextDirectFormatModal", () => {
 
     expect(selection.apply).toHaveBeenCalledWith({ autoFitText: true });
   });
+
+  it("turns a common auto-fit value off on its first click", () => {
+    const selection = makeSelection();
+    const { container } = renderModal(selection);
+    const toggle = container.querySelector<HTMLButtonElement>(
+      ".gather-direct-pill-toggle",
+    );
+
+    expect(toggle?.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(toggle as HTMLButtonElement);
+    fireEvent.click(screen.getByRole("button", { name: "적용" }));
+
+    expect(selection.apply).toHaveBeenCalledWith({ autoFitText: false });
+  });
 });
 
 function renderModal(selection: GatherTextFormatSelection) {

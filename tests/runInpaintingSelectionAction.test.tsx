@@ -18,6 +18,7 @@ beforeEach(() => {
   });
 });
 
+import { useDrawnPatternInpaintingAction } from "../src/renderer/src/hooks/useDrawnPatternInpaintingAction";
 import { useRevertInpaintingAction } from "../src/renderer/src/hooks/useRevertInpaintingAction";
 import { useRunBubbleLayoutAction } from "../src/renderer/src/hooks/useRunBubbleLayoutAction";
 import { useRunInpaintingAction } from "../src/renderer/src/hooks/useRunInpaintingAction";
@@ -227,6 +228,33 @@ describe("useRunInpaintingSelectionAction", () => {
         status: "cancelled",
       }),
     );
+    expect(options.setFlowActive).toHaveBeenLastCalledWith(false);
+  });
+
+  it("honors cancellation requested while dirty edits are being saved", async () => {
+    const flowCancellationRef = { current: false };
+    const options = makeOptions({
+      flowCancellationRef,
+      saveNow: vi.fn(async () => {
+        flowCancellationRef.current = true;
+      }),
+    });
+    const { result } = renderHook(() =>
+      useRunInpaintingSelectionAction(options),
+    );
+
+    await act(() => result.current([{ chapterId: "chapter-1", mode: "all" }]));
+
+    expect(options.saveNow).toHaveBeenCalledOnce();
+    expect(startInpainting).not.toHaveBeenCalled();
+    expect(options.setJobState).toHaveBeenLastCalledWith({
+      id: "inpainting-flow-cancelled",
+      kind: "inpainting",
+      status: "cancelled",
+      progressText: "작업이 취소됨",
+      phase: "cancelled",
+    });
+    expect(options.setFlowActive).toHaveBeenNthCalledWith(1, true);
     expect(options.setFlowActive).toHaveBeenLastCalledWith(false);
   });
 
@@ -456,6 +484,67 @@ describe("original comparison during page operations", () => {
   });
 });
 
+describe("inpainting dirty-save failures", () => {
+  it.each([
+    {
+      adapter: "drawn" as const,
+      detail: "그린 영역을 지우기 전에 변경사항을 저장하지 못했습니다.",
+    },
+    {
+      adapter: "bubble-layout" as const,
+      detail: "원문 지우기 전에 변경사항을 저장하지 못했습니다.",
+    },
+    {
+      adapter: "automatic" as const,
+      detail: "원문 지우기 전에 변경사항을 저장하지 못했습니다.",
+    },
+  ])(
+    "does not enter the pending $adapter flow when saving dirty edits fails",
+    async ({ adapter, detail }) => {
+      const page = { ...makePage(), blocks: [makeBlock()] };
+      const chapter = { ...makeChapter(), pages: [page] };
+      const options = makeOptions({
+        currentChapter: chapter,
+        patternMaskStrokes: [
+          {
+            points: [
+              { x: 10, y: 20 },
+              { x: 30, y: 40 },
+            ],
+            radiusPx: 12,
+          },
+        ],
+        saveNow: vi.fn().mockRejectedValue(new Error("save failed")),
+        selectedPage: page,
+      });
+      const { result } = renderHook(() =>
+        useSaveFailureAdapter(adapter, options),
+      );
+
+      await act(() => result.current());
+
+      expect(options.saveNow).toHaveBeenCalledOnce();
+      expect(options.askConfirm).not.toHaveBeenCalled();
+      expect(startInpainting).not.toHaveBeenCalled();
+      expect(options.setPeekOriginal).not.toHaveBeenCalled();
+      expect(options.setInpaintingTool).not.toHaveBeenCalled();
+      expect(options.setJobState).toHaveBeenCalledOnce();
+      expect(options.setJobState).toHaveBeenCalledWith({
+        id: "failed-inpainting",
+        kind: "inpainting",
+        status: "failed",
+        progressText: "저장 실패",
+        detail,
+      });
+      expect(options.pushStatus).toHaveBeenCalledOnce();
+      expect(options.pushStatus).toHaveBeenCalledWith(detail);
+      expect(options.setJobState).not.toHaveBeenCalledWith(
+        expect.objectContaining({ status: "starting" }),
+      );
+    },
+  );
+});
+
 describe("useRunBubbleLayoutAction", () => {
   it("runs balanced layout on the current page without requiring inpainting", async () => {
     const page = { ...makePage(), blocks: [makeBlock()] };
@@ -567,6 +656,18 @@ function makeBlock(): MangaPage["blocks"][number] {
     backgroundColor: "#ffffff",
     opacity: 1,
   };
+}
+
+function useSaveFailureAdapter(
+  adapter: "drawn" | "bubble-layout" | "automatic",
+  options: UseInpaintingActionsOptions,
+): () => Promise<void> {
+  const runDrawn = useDrawnPatternInpaintingAction(options);
+  const runBubbleLayout = useRunBubbleLayoutAction(options);
+  const runAutomatic = useRunInpaintingAction(options);
+  if (adapter === "drawn") return runDrawn;
+  if (adapter === "bubble-layout") return () => runBubbleLayout();
+  return () => runAutomatic("page");
 }
 
 function createVoidDeferred(): {

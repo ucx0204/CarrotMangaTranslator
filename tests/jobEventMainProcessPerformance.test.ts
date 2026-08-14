@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ActiveJobStore } from "../src/main/jobs/activeJob";
-import { createJobEventEmitter } from "../src/main/jobs/jobEvents";
+import {
+  createJobEventEmitter,
+  isAbortError,
+} from "../src/main/jobs/jobEvents";
 import type { JobEvent } from "../src/shared/jobTypes";
 import { isTerminalJobStatus } from "../src/shared/jobContracts";
 import { JOB_EVENT_DISPATCH_INTERVAL_MS } from "../src/main/jobs/jobEventDispatchQueue";
@@ -137,6 +140,24 @@ describe("main-process job event throughput", () => {
     expect(send).toHaveBeenCalledOnce();
   });
 
+  it("logs a failed terminal event at error severity", () => {
+    const jobs = new ActiveJobStore();
+    jobs.start({
+      id: "job-1",
+      kind: "gemma-analysis",
+      abortController: new AbortController(),
+    });
+    const failed = makeEvent({ status: "failed", progressText: "failed" });
+
+    emitJobEvent(jobs, null, failed);
+
+    expect(writeLog).toHaveBeenCalledWith(
+      "error",
+      "job:gemma-analysis:failed",
+      expect.objectContaining({ id: "job-1", progressText: "failed" }),
+    );
+  });
+
   it("surfaces an invalid event contract instead of treating it as a renderer race", () => {
     const jobs = new ActiveJobStore();
     jobs.start({
@@ -161,6 +182,27 @@ describe("main-process job event throughput", () => {
       ),
     ).toThrow(validationFailure);
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it("contains a missing renderer and classifies only AbortError DOM exceptions", () => {
+    const jobs = new ActiveJobStore();
+    jobs.start({
+      id: "job-1",
+      kind: "gemma-analysis",
+      abortController: new AbortController(),
+    });
+    const completed = makeEvent({ status: "completed" });
+
+    expect(() => emitJobEvent(jobs, null, completed)).not.toThrow();
+    expect(jobs.current?.lastEvent).toEqual(completed);
+    expect(validateEvent).not.toHaveBeenCalled();
+    expect(isAbortError(new DOMException("cancelled", "AbortError"))).toBe(
+      true,
+    );
+    expect(isAbortError(new DOMException("failed", "NetworkError"))).toBe(
+      false,
+    );
+    expect(isAbortError(new Error("AbortError"))).toBe(false);
   });
 });
 

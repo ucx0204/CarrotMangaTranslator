@@ -16,6 +16,7 @@ import {
   resolveKoharuInpaintingBackend,
   resolveOcrGpuBackend,
   resolveOcrQualityMode,
+  resolveOptionalJsonObjectString,
 } from "../src/main/settings/appSettingsResolvers";
 import { normalizeAmdRocmTarget } from "../src/main/gpuInfo";
 import { resolveLlamaRuntimeProfile } from "../src/main/settings/llamaRuntimeProfile";
@@ -198,6 +199,19 @@ describe("settings alias surfaces", () => {
       (alias) => OcrQualityModeSchema.parse(alias),
       (alias) => resolveOcrQualityMode(alias, "full"),
     );
+  });
+
+  it("accepts only optional JSON objects without changing fallback ownership", () => {
+    expect(resolveOptionalJsonObjectString(undefined, "fallback")).toBe(
+      "fallback",
+    );
+    expect(resolveOptionalJsonObjectString(null, "fallback")).toBe("");
+    expect(resolveOptionalJsonObjectString("  ", "fallback")).toBe("");
+    expect(resolveOptionalJsonObjectString('{"X-Trace":"value"}')).toBe(
+      '{"X-Trace":"value"}',
+    );
+    expect(resolveOptionalJsonObjectString("[]", "fallback")).toBe("fallback");
+    expect(resolveOptionalJsonObjectString("{", "fallback")).toBe("fallback");
   });
 
   it("preserves invalid-value behavior on each surface", () => {

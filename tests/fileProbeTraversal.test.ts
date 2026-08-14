@@ -104,6 +104,15 @@ describe("file probe BFS cores", () => {
       ),
     ).toEqual([join(root, "nested")]);
     expect(findFilesRecursive(root, () => true, 4, 0)).toEqual([]);
+    expect(findFilesRecursive(root, () => true, 4, Number.NaN)).toEqual([]);
+    expect(
+      Reflect.apply(findFilesRecursive, undefined, [
+        root,
+        () => true,
+        4,
+        undefined,
+      ]),
+    ).toEqual([]);
   });
 
   it("preserves standalone CJS name, predicate, and depth behavior", async () => {

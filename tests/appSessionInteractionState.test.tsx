@@ -5,6 +5,7 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useAppSessionLifecycleEffects } from "../src/renderer/src/app/session/useAppSessionLifecycleEffects";
 import { useAppSessionUiState } from "../src/renderer/src/app/session/useAppSessionUiState";
+import { toast } from "../src/renderer/src/lib/toastStore";
 
 describe("unified workspace interaction state", () => {
   it("shares one aggregate-flow flag across translation and inpainting", () => {
@@ -136,6 +137,7 @@ describe("unified workspace interaction state", () => {
 
   it("opens one report for each failed job transition", () => {
     const openErrorReport = vi.fn();
+    const errorToast = vi.spyOn(toast, "error").mockReturnValue("toast-id");
     const base = {
       currentChapter: null,
       onJobStart: vi.fn(),
@@ -176,6 +178,51 @@ describe("unified workspace interaction state", () => {
     rerender({ id: "job-2", status: "running" });
     rerender({ id: "job-2", status: "failed" });
     expect(openErrorReport).toHaveBeenCalledTimes(2);
+
+    const reportAction = errorToast.mock.calls.at(-1)?.[1]?.action;
+    expect(reportAction?.label).toBe("오류 보고");
+    reportAction?.onClick();
+    expect(openErrorReport).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        source: "job-failure",
+        message: "engine stopped",
+      }),
+      { force: true },
+    );
+    errorToast.mockRestore();
+  });
+
+  it("notifies a cancelled job without opening an error report", () => {
+    const infoToast = vi.spyOn(toast, "info").mockReturnValue("toast-id");
+    const openErrorReport = vi.fn();
+    const { rerender } = renderHook(
+      ({ status }: { status: "running" | "cancelled" }) =>
+        useAppSessionLifecycleEffects({
+          currentChapter: null,
+          jobState: {
+            id: "job-1",
+            kind: "gemma-analysis",
+            status,
+            progressText: status,
+          },
+          onJobStart: vi.fn(),
+          onPageChange: vi.fn(),
+          openErrorReport,
+          refreshLibrary: vi.fn(),
+          resetChapterScopedUi: vi.fn(),
+          selectedPageId: null,
+          setRegionSelection: vi.fn(),
+          translationFlowActive: false,
+        }),
+      { initialProps: { status: "running" } },
+    );
+
+    rerender({ status: "cancelled" });
+
+    expect(infoToast).toHaveBeenCalledOnce();
+    expect(infoToast).toHaveBeenCalledWith("작업이 취소되었습니다.");
+    expect(openErrorReport).not.toHaveBeenCalled();
+    infoToast.mockRestore();
   });
 
   it("does not restart unrelated lifecycle effects for job progress renders", () => {
