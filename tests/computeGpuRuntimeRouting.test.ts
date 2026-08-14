@@ -227,6 +227,7 @@ describe("compute GPU runtime routing", () => {
 
 function makeLlamaLaunchOptions(): Record<string, unknown> {
   return {
+    serverPath: "C:/mgt/llama-server.exe",
     port: 18180,
     fitTargetMb: 4096,
     ctx: 8192,
