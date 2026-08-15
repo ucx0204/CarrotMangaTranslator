@@ -2,6 +2,8 @@
 const { existsSync, readdirSync } = require("node:fs");
 const path = require("node:path");
 
+const MAX_RUNTIME_LIBRARY_SCAN_DIRECTORIES = 4096;
+
 /** @typedef {{ backend?: string; dir: string; id?: string; kind?: string; requiredFiles?: Array<string | string[]> }} LlamaRuntimeDescriptor */
 
 function serverBinaryName() {
@@ -61,13 +63,35 @@ function hasAnyNamedFile(dir, names) {
 
 /** @param {string} dir */
 function hasAnyRuntimeLibraryFile(dir) {
+  const pending = [dir];
+  let scannedDirectories = 0;
   try {
-    return readdirSync(dir, { withFileTypes: true }).some(
-      (entry) => entry.isFile() && /\.(?:dat|co|hsaco)$/i.test(entry.name),
-    );
+    while (pending.length > 0) {
+      if (scannedDirectories >= MAX_RUNTIME_LIBRARY_SCAN_DIRECTORIES) {
+        return false;
+      }
+      const current = pending.pop();
+      if (!current) break;
+      scannedDirectories += 1;
+      if (scanRuntimeLibraryDirectory(current, pending)) return true;
+    }
   } catch (_error) {
     return false;
   }
+  return false;
+}
+
+/** @param {string} dir @param {string[]} pending */
+function scanRuntimeLibraryDirectory(dir, pending) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isFile() && /\.(?:dat|co|hsaco)$/i.test(entry.name)) return true;
+    // Runtime ZIP extraction owns this tree. Still avoid following links if an
+    // installed directory is replaced or modified before validation.
+    if (!entry.isSymbolicLink() && entry.isDirectory()) {
+      pending.push(path.join(dir, entry.name));
+    }
+  }
+  return false;
 }
 
 /** @param {string} runtimeDir */

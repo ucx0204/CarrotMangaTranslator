@@ -776,6 +776,93 @@ describe("llama runtime path selection", () => {
     }
   });
 
+  it("accepts the audited kernel directory layouts from all pinned ROCm archives", () => {
+    const layouts = [
+      {
+        target: "gfx103X",
+        rocblasDirectories: [""],
+        hipblasltDirectories: ["gfx1100"],
+      },
+      {
+        target: "gfx110X",
+        rocblasDirectories: [""],
+        hipblasltDirectories: [""],
+      },
+      {
+        target: "gfx1150",
+        rocblasDirectories: ["gfx1150"],
+        hipblasltDirectories: ["", "gfx1150"],
+      },
+      {
+        target: "gfx1151",
+        rocblasDirectories: ["gfx1151"],
+        hipblasltDirectories: ["", "gfx1151"],
+      },
+      {
+        target: "gfx120X",
+        rocblasDirectories: [""],
+        hipblasltDirectories: [""],
+      },
+      {
+        target: "gfx908",
+        rocblasDirectories: ["gfx908"],
+        hipblasltDirectories: ["", "gfx908"],
+      },
+      {
+        target: "gfx90a",
+        rocblasDirectories: ["gfx90a"],
+        hipblasltDirectories: ["", "gfx90a"],
+      },
+    ] as const;
+
+    for (const layout of layouts) {
+      const runtime = resolvePreferredLlamaRuntime({
+        llamaRuntimeProfile: "rocm",
+        llamaRocmTarget: layout.target,
+        modelRepo: GEMMA_26B_MODEL_REPO,
+        modelFile: GEMMA_26B_MODEL_FILE_IQ3_S,
+      });
+      const runtimeDir = mkdtempSync(
+        join(tmpdir(), `mgt-rocm-${layout.target.toLowerCase()}-`),
+      );
+      try {
+        for (const requirement of runtime.requiredFiles) {
+          const fileName = Array.isArray(requirement)
+            ? requirement[0]
+            : requirement;
+          writeFileSync(join(runtimeDir, fileName), "");
+        }
+        for (const [library, directories, extension] of [
+          ["rocblas", layout.rocblasDirectories, "dat"],
+          ["hipblaslt", layout.hipblasltDirectories, "hsaco"],
+        ] as const) {
+          directories.forEach((directory, index) => {
+            const libraryDir = join(runtimeDir, library, "library", directory);
+            mkdirSync(libraryDir, { recursive: true });
+            writeFileSync(
+              join(
+                libraryDir,
+                `${library}-${layout.target}-${index}.${extension}`,
+              ),
+              "",
+            );
+          });
+        }
+
+        expect(
+          missingRequiredLlamaRuntimeFiles(runtimeDir, runtime),
+          layout.target,
+        ).toEqual([]);
+        expect(
+          hasRequiredLlamaRuntimeFiles(runtimeDir, runtime),
+          layout.target,
+        ).toBe(true);
+      } finally {
+        rmSync(runtimeDir, { recursive: true, force: true });
+      }
+    }
+  });
+
   it("rejects ROCm runtimes that are missing extracted kernel libraries", () => {
     const runtime = resolvePreferredLlamaRuntime({
       llamaRuntimeProfile: "rocm",
@@ -787,6 +874,9 @@ describe("llama runtime path selection", () => {
       join(tmpdir(), "mgt-rocm-runtime-missing-kernels-"),
     );
     try {
+      const nonKernelDir = join(runtimeDir, "rocblas", "library", "gfx-test");
+      mkdirSync(nonKernelDir, { recursive: true });
+      writeFileSync(join(nonKernelDir, "README.txt"), "not a kernel");
       for (const fileName of [
         "llama-server.exe",
         "llama-server-impl.dll",

@@ -85,7 +85,7 @@ editing the totals by hand.
   introduced floors has SHA-256
   `5c694dc7b0c2636bc36e1d72461ba6289569db926fed512b8ea3ee85e6f7bec4`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
-  percentage for lines/statements/functions/branches in all 123 existing
+  percentage for lines/statements/functions/branches in all 124 existing
   coverage-eligible `src/**` files changed since cleanup start. The 22 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record.

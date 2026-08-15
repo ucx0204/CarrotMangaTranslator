@@ -66,6 +66,14 @@ const TEST_RUNTIME: RuntimeDescriptor = {
   requiredFiles: ["llama-server.exe", "ggml-vulkan.dll"],
 };
 
+const TEST_ROCM_RUNTIME: RuntimeDescriptor = {
+  id: "test-rocm-runtime",
+  kind: "test",
+  backend: "rocm",
+  dir: "test-rocm-runtime",
+  requiredFiles: ["llama-server.exe", "ggml-hip.dll"],
+};
+
 describe("llama runtime archive ownership", () => {
   it("publishes only the claimed archive when the public cache path is swapped", async () => {
     const root = await mkdtemp(join(tmpdir(), "mgt-llama-owned-"));
@@ -140,6 +148,55 @@ describe("llama runtime archive ownership", () => {
       await rm(root, { recursive: true, force: true });
     }
   });
+
+  it("publishes ROCm archives with kernel libraries in architecture subdirectories", async () => {
+    const root = await mkdtemp(join(tmpdir(), "mgt-llama-nested-rocm-"));
+    const archivePath = join(root, "runtime.zip");
+    const runtimeDir = join(root, "installed-runtime");
+    await writeNestedRocmRuntimeZip(archivePath);
+    const archive = await describeRuntimeArchive(archivePath);
+    const ownership = await claimRuntimeArchivePaths([archivePath]);
+
+    try {
+      const verified = await verifyRuntimeArchiveChecksums(
+        ownership.archivePaths,
+        [archive],
+      );
+      await extractRuntimeArchives(
+        runtimeDir,
+        verified,
+        TEST_ROCM_RUNTIME,
+        {},
+        ownership.restore,
+      );
+
+      await expect(
+        access(
+          join(
+            runtimeDir,
+            "rocblas",
+            "library",
+            "gfx908",
+            "TensileLibrary_gfx908.dat",
+          ),
+        ),
+      ).resolves.toBeUndefined();
+      await expect(
+        access(
+          join(
+            runtimeDir,
+            "hipblaslt",
+            "library",
+            "gfx908",
+            "Kernels-gfx908.hsaco",
+          ),
+        ),
+      ).resolves.toBeUndefined();
+    } finally {
+      await ownership.restore();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
 });
 
 async function describeRuntimeArchive(
@@ -159,6 +216,22 @@ async function writeRuntimeZip(
   const zip = new yazl.ZipFile();
   zip.addBuffer(Buffer.from(`${content}-server`), "llama-server.exe");
   zip.addBuffer(Buffer.from(`${content}-backend`), "ggml-vulkan.dll");
+  zip.end();
+  await pipeline(zip.outputStream, createWriteStream(archivePath));
+}
+
+async function writeNestedRocmRuntimeZip(archivePath: string): Promise<void> {
+  const zip = new yazl.ZipFile();
+  zip.addBuffer(Buffer.from("trusted-server"), "llama-server.exe");
+  zip.addBuffer(Buffer.from("trusted-backend"), "ggml-hip.dll");
+  zip.addBuffer(
+    Buffer.from("trusted-rocblas-kernel"),
+    "rocblas/library/gfx908/TensileLibrary_gfx908.dat",
+  );
+  zip.addBuffer(
+    Buffer.from("trusted-hipblaslt-kernel"),
+    "hipblaslt/library/gfx908/Kernels-gfx908.hsaco",
+  );
   zip.end();
   await pipeline(zip.outputStream, createWriteStream(archivePath));
 }

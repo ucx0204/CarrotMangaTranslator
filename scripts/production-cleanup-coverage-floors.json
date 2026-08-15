@@ -109,6 +109,12 @@
       "functions": { "covered": 9, "total": 28, "pct": 32.14 },
       "branches": { "covered": 12, "total": 58, "pct": 20.68 }
     },
+    "src/main/runtime/model/runtime-files.cjs": {
+      "lines": { "covered": 40, "total": 52, "pct": 76.92 },
+      "statements": { "covered": 41, "total": 54, "pct": 75.92 },
+      "functions": { "covered": 16, "total": 20, "pct": 80 },
+      "branches": { "covered": 26, "total": 41, "pct": 63.41 }
+    },
     "src/main/runtime/model/runtime-locations.cjs": {
       "lines": { "covered": 13, "total": 32, "pct": 40.62 },
       "statements": { "covered": 14, "total": 37, "pct": 37.83 },
