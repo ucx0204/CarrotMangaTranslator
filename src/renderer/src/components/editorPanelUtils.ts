@@ -14,8 +14,6 @@ export function resolveColor(
 }
 
 export function clampFontSize(value: number): number {
-  if (!Number.isFinite(value)) {
-    return 24;
-  }
-  return Math.max(10, Math.min(160, Math.round(value)));
+  return clampFontSizePx(value);
 }
+import { clampFontSizePx } from "../../../shared/blockFormatValues";

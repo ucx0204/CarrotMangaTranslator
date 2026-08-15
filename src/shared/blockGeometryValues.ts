@@ -1,18 +1,24 @@
 import type { BBox, BlockType, RenderTextDirection } from "./textTypes";
+import {
+  MAX_FONT_WIDTH_SCALE,
+  MIN_FONT_WIDTH_SCALE,
+  clampBlockFormatNumber,
+} from "./blockFormatValues";
+
+export { MAX_FONT_WIDTH_SCALE, MIN_FONT_WIDTH_SCALE };
 
 /** 장평 (horizontal glyph scale) bounds, shared by editor preview and export. */
-export const MIN_FONT_WIDTH_SCALE = 0.5;
-export const MAX_FONT_WIDTH_SCALE = 1.5;
 const DEFAULT_FONT_WIDTH_SCALE = 1;
 
 /** Clamp a 장평 value to the supported range; undefined/invalid means 1. */
 export function resolveFontWidthScale(
   value: number | undefined | null,
 ): number {
-  return clamp(
+  return clampBlockFormatNumber(
     Number(value ?? DEFAULT_FONT_WIDTH_SCALE),
     MIN_FONT_WIDTH_SCALE,
     MAX_FONT_WIDTH_SCALE,
+    DEFAULT_FONT_WIDTH_SCALE,
   );
 }
 

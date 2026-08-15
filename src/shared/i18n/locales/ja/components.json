@@ -164,6 +164,8 @@
     "fontSizeValue": "文字サイズの値",
     "fontSizeDecrease": "文字サイズを小さくする",
     "fontSizeIncrease": "文字サイズを大きくする",
+    "decreaseValue": "{{label}}を小さくする",
+    "increaseValue": "{{label}}を大きくする",
     "autoFitTitle": "テキストボックスに合わせて自動調整",
     "auto": "自動",
     "rotation": "傾き",

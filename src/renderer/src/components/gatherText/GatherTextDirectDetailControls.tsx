@@ -1,6 +1,15 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import {
+  FONT_WIDTH_SCALE_STEP,
+  LETTER_SPACING_STEP_EM,
+  LINE_HEIGHT_STEP,
+  MAX_LETTER_SPACING_EM,
+  MAX_LINE_HEIGHT,
+  MIN_LETTER_SPACING_EM,
+  MIN_LINE_HEIGHT,
+} from "../../../../shared/blockFormatValues";
+import {
   MAX_FONT_WIDTH_SCALE,
   MIN_FONT_WIDTH_SCALE,
 } from "../../lib/blockFormatGeometry";
@@ -10,8 +19,10 @@ import type {
 } from "../../lib/gatherTextDirectFormatModel";
 import {
   DirectControlCaption,
+  DirectNumberControl,
   DirectSectionHeading,
   DirectSliderControl,
+  type DirectNumberField,
   type DirectSliderField,
 } from "./GatherTextDirectFormatPrimitives";
 import { TextWrappingSelect } from "../TextWrappingSelect";
@@ -87,7 +98,8 @@ function AdvancedControls({
   onChange,
 }: DetailControlProps): React.JSX.Element {
   const { t } = useTranslation("components");
-  const configs = createAdvancedSliderConfigs(t);
+  const numberConfigs = createAdvancedNumberConfigs(t);
+  const sliderConfigs = createAdvancedSliderConfigs(t);
   return (
     <section className="gather-direct-editor-section">
       <DirectSectionHeading
@@ -96,7 +108,15 @@ function AdvancedControls({
       />
       <div className="gather-direct-editor-slider-grid">
         <WordBreakControl {...{ disabled, model, patch, onChange }} />
-        {configs.map((config) => (
+        {numberConfigs.map((config) => (
+          <DirectNumberControl
+            key={config.field}
+            {...config}
+            {...{ disabled, model, patch }}
+            onChange={(value) => onChange(config.field, value)}
+          />
+        ))}
+        {sliderConfigs.map((config) => (
           <DirectSliderControl
             key={config.field}
             {...config}
@@ -148,34 +168,55 @@ type AdvancedSliderConfig = {
   formatValue: (value: number) => string;
 };
 
-function createAdvancedSliderConfigs(
+type AdvancedNumberConfig = {
+  field: DirectNumberField;
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  precision: number;
+  unit?: string;
+  displayScale?: number;
+};
+
+function createAdvancedNumberConfigs(
   t: ReturnType<typeof useTranslation<"components">>["t"],
-): AdvancedSliderConfig[] {
+): AdvancedNumberConfig[] {
   return [
     {
       field: "lineHeight",
       label: t("format.lineHeight"),
-      min: 0.8,
-      max: 3,
-      step: 0.05,
-      formatValue: (value) => value.toFixed(2),
+      min: MIN_LINE_HEIGHT,
+      max: MAX_LINE_HEIGHT,
+      step: LINE_HEIGHT_STEP,
+      precision: 2,
     },
     {
       field: "letterSpacing",
       label: t("format.letterSpacing"),
-      min: -0.1,
-      max: 0.5,
-      step: 0.01,
-      formatValue: (value) => value.toFixed(2),
+      min: MIN_LETTER_SPACING_EM,
+      max: MAX_LETTER_SPACING_EM,
+      step: LETTER_SPACING_STEP_EM,
+      precision: 2,
+      unit: "em",
     },
     {
       field: "fontWidthScale",
       label: t("format.fontWidth"),
       min: MIN_FONT_WIDTH_SCALE,
       max: MAX_FONT_WIDTH_SCALE,
-      step: 0.01,
-      formatValue: formatPercent,
+      step: FONT_WIDTH_SCALE_STEP,
+      precision: 0,
+      unit: "%",
+      displayScale: 100,
     },
+  ];
+}
+
+function createAdvancedSliderConfigs(
+  t: ReturnType<typeof useTranslation<"components">>["t"],
+): AdvancedSliderConfig[] {
+  return [
     {
       field: "rotationDeg",
       label: t("format.rotation"),

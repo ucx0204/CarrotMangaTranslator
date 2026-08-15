@@ -541,7 +541,7 @@
 .editor-font-size-row .font-size-stepper {
   grid-row: 1;
   grid-column: 2;
-  grid-template-columns: 30px 58px 30px;
+  grid-template-columns: 30px 74px 30px;
   justify-self: start;
 }
 
@@ -552,27 +552,12 @@
 }
 
 .font-size-stepper {
-  display: grid;
-  grid-template-columns: 30px minmax(48px, 1fr) 30px;
-  align-items: center;
-  gap: var(--sp-1);
   min-width: 0;
 }
 
 .font-size-stepper .font-size-number {
   width: 100%;
   min-width: 0;
-}
-
-.font-size-adjust-button {
-  width: 30px;
-  min-width: 30px;
-  height: 30px;
-  min-height: 30px;
-  padding: 0;
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1;
 }
 
 .editor-font-size-row .font-size-slider {
@@ -583,23 +568,31 @@
   justify-self: stretch;
 }
 
+.editor-format-number-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  min-width: 0;
+}
+
+.editor-format-number-row > span:first-child {
+  min-width: 0;
+  color: var(--text-dim);
+  font-size: var(--font-sm);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.editor-format-number-row > [data-scrubbable-number-field] {
+  grid-column: 2 / -1;
+  width: 100%;
+}
+
 .font-size-number {
   min-height: var(--ctl-h);
   padding: 0 var(--sp-2);
   text-align: center;
-}
-
-.font-size-number-input {
-  appearance: textfield;
-  -moz-appearance: textfield;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-
-.font-size-number-input::-webkit-inner-spin-button,
-.font-size-number-input::-webkit-outer-spin-button {
-  margin: 0;
-  -webkit-appearance: none;
 }
 
 .block-type-field {

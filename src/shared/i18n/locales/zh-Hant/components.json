@@ -164,6 +164,8 @@
     "fontSizeValue": "字級數值",
     "fontSizeDecrease": "縮小字級",
     "fontSizeIncrease": "放大字級",
+    "decreaseValue": "縮小{{label}}",
+    "increaseValue": "放大{{label}}",
     "autoFitTitle": "自動配合文字框大小",
     "auto": "自動",
     "rotation": "旋轉",

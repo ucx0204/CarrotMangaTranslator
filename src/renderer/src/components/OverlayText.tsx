@@ -11,6 +11,7 @@ import {
   resolveOverlayTextContentStyle,
   resolveOverlayTextWrapStyle,
 } from "./overlayTextStyles";
+import { TextWithVerticalSpacing } from "./VerticalTextSpacing";
 
 export function OverlayText({
   block,
@@ -36,7 +37,7 @@ export function OverlayText({
       >
         {layout.lines
           ? renderFixedLines(block, layout, renderDirection)
-          : renderParsedTextRuns(block, displayText)}
+          : renderParsedTextRuns(block, displayText, renderDirection)}
       </span>
     </div>
   );
@@ -45,13 +46,16 @@ export function OverlayText({
 function renderParsedTextRuns(
   block: TranslationBlock,
   displayText: string,
+  renderDirection: RenderTextDirection,
 ): React.ReactNode {
   const { runs } = parseRichText(
     displayText,
     Boolean(block.bold),
     Boolean(block.italic),
   );
-  return runs.map((run, index) => renderTextRun(run, index));
+  return runs.map((run, index) =>
+    renderTextRun(run, index, renderDirection),
+  );
 }
 
 function renderFixedLines(
@@ -73,7 +77,9 @@ function renderFixedLines(
       )}
     >
       {line.runs.length > 0
-        ? line.runs.map((run, runIndex) => renderTextRun(run, runIndex))
+        ? line.runs.map((run, runIndex) =>
+            renderTextRun(run, runIndex, renderDirection),
+          )
         : "\u00a0"}
     </span>
   ));
@@ -112,6 +118,7 @@ function resolveFixedLineStyle(
 function renderTextRun(
   run: { text: string; bold: boolean; italic: boolean },
   key: React.Key,
+  renderDirection: RenderTextDirection,
 ): React.JSX.Element {
   return (
     <span
@@ -121,7 +128,10 @@ function renderTextRun(
         fontStyle: run.italic ? "italic" : "normal",
       }}
     >
-      {run.text}
+      <TextWithVerticalSpacing
+        direction={renderDirection}
+        text={run.text}
+      />
     </span>
   );
 }

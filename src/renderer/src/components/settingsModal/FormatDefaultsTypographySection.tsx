@@ -4,6 +4,7 @@ import type {
   BlockFormatDefaults,
   BlockFormatDirectionDefault,
 } from "../../../../shared/settingsTypes";
+import { clampFontSizePx } from "../../../../shared/blockFormatValues";
 import {
   BlockTypographyChoiceGroup,
   BlockTypographyFontPicker,
@@ -74,7 +75,7 @@ function DefaultsTypographyTypeRow({
 }: Omit<DefaultsTypographyProps, "allowAutoDirection">): React.JSX.Element {
   const { t } = useTranslation("components");
   const updateFontSize = (fontSizePx: number): void =>
-    onChange({ fontSizePx: clampFontSize(fontSizePx), autoFitText: false });
+    onChange({ fontSizePx: clampFontSizePx(fontSizePx), autoFitText: false });
   return (
     <div className="gather-direct-editor-type-row">
       <PresetGroupControl availability={presetGroups} groupId="font">
@@ -203,9 +204,4 @@ function PresetToolbarGroup({
       {children}
     </PresetGroupControl>
   );
-}
-
-function clampFontSize(value: number): number {
-  if (!Number.isFinite(value)) return 24;
-  return Math.max(10, Math.min(160, Math.round(value)));
 }

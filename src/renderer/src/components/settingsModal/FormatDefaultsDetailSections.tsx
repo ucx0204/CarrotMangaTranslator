@@ -1,6 +1,15 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import {
+  FONT_WIDTH_SCALE_STEP,
+  LETTER_SPACING_STEP_EM,
+  LINE_HEIGHT_STEP,
+  MAX_LETTER_SPACING_EM,
+  MAX_LINE_HEIGHT,
+  MIN_LETTER_SPACING_EM,
+  MIN_LINE_HEIGHT,
+} from "../../../../shared/blockFormatValues";
+import {
   MAX_FONT_WIDTH_SCALE,
   MIN_FONT_WIDTH_SCALE,
 } from "../../lib/blockFormatGeometry";
@@ -8,6 +17,7 @@ import type { BlockFormatDefaults } from "../../../../shared/settingsTypes";
 import {
   BlockFormatControlCaption as DirectControlCaption,
   BlockFormatSectionHeading as DirectSectionHeading,
+  FormatNumberControl,
   FormatSliderControl,
 } from "../blockFormat/BlockFormatPrimitives";
 import { TextWrappingSelect } from "../TextWrappingSelect";
@@ -141,12 +151,12 @@ export function FormatDefaultsFineTuningSection({
           onChange={onChange}
         />
         <PresetGroupControl availability={presetGroups} groupId="lineSpacing">
-          <FormatSliderControl
+          <FormatNumberControl
             label={t("format.lineHeight")}
-            valueLabel={value.lineHeight.toFixed(2)}
-            min={0.8}
-            max={3}
-            step={0.05}
+            min={MIN_LINE_HEIGHT}
+            max={MAX_LINE_HEIGHT}
+            step={LINE_HEIGHT_STEP}
+            precision={2}
             value={value.lineHeight}
             onChange={(lineHeight) =>
               onChange({ lineHeight: round2(lineHeight) })
@@ -154,12 +164,13 @@ export function FormatDefaultsFineTuningSection({
           />
         </PresetGroupControl>
         <PresetGroupControl availability={presetGroups} groupId="letterSpacing">
-          <FormatSliderControl
+          <FormatNumberControl
             label={t("format.letterSpacing")}
-            valueLabel={value.letterSpacing.toFixed(2)}
-            min={-0.1}
-            max={0.5}
-            step={0.01}
+            min={MIN_LETTER_SPACING_EM}
+            max={MAX_LETTER_SPACING_EM}
+            step={LETTER_SPACING_STEP_EM}
+            precision={2}
+            unit="em"
             value={value.letterSpacing}
             onChange={(letterSpacing) =>
               onChange({ letterSpacing: round2(letterSpacing) })
@@ -167,15 +178,16 @@ export function FormatDefaultsFineTuningSection({
           />
         </PresetGroupControl>
         <PresetGroupControl availability={presetGroups} groupId="fontWidth">
-          <FormatSliderControl
+          <FormatNumberControl
             label={t("format.fontWidth")}
-            valueLabel={formatPercent(value.fontWidthScale)}
-            min={MIN_FONT_WIDTH_SCALE}
-            max={MAX_FONT_WIDTH_SCALE}
-            step={0.01}
-            value={value.fontWidthScale}
+            min={MIN_FONT_WIDTH_SCALE * 100}
+            max={MAX_FONT_WIDTH_SCALE * 100}
+            step={FONT_WIDTH_SCALE_STEP * 100}
+            precision={0}
+            unit="%"
+            value={value.fontWidthScale * 100}
             onChange={(fontWidthScale) =>
-              onChange({ fontWidthScale: round2(fontWidthScale) })
+              onChange({ fontWidthScale: round2(fontWidthScale / 100) })
             }
           />
         </PresetGroupControl>

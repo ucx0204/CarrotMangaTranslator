@@ -1,14 +1,17 @@
 import React from "react";
 import { DEFAULT_BLOCK_FONT_ID } from "../../../../shared/blockFontCatalog";
+import {
+  FONT_SIZE_STEP_PX,
+  MAX_FONT_SIZE_PX,
+  MIN_FONT_SIZE_PX,
+} from "../../../../shared/blockFormatValues";
 import { useFonts } from "../../fonts/useFonts";
-import { FontSizeNumberInput } from "../FontSizeNumberInput";
+import { ScrubbableNumberField } from "../ui/ScrubbableNumberField";
 import { Select } from "../ui/Select";
 import { BlockFormatControlCaption } from "./BlockFormatPrimitives";
 
 const DEFAULT_FONT_VALUE = "__block_format_default_font__";
 const MIXED_FONT_VALUE = "__block_format_mixed_font__";
-const MINIMUM_FONT_SIZE = 10;
-const MAXIMUM_FONT_SIZE = 160;
 
 export function BlockTypographyFontPicker({
   defaultLabel,
@@ -93,13 +96,6 @@ export function BlockTypographySizeStepper({
   value: number;
   onChange: (value: number) => void;
 }): React.JSX.Element {
-  const updateRelative = (delta: -1 | 1): void =>
-    onChange(
-      Math.max(
-        MINIMUM_FONT_SIZE,
-        Math.min(MAXIMUM_FONT_SIZE, Math.round(value) + delta),
-      ),
-    );
   return (
     <div
       className="gather-direct-size-control"
@@ -110,32 +106,22 @@ export function BlockTypographySizeStepper({
         mixed={mixed}
         touched={touched}
       />
-      <div className="gather-direct-size-stepper">
-        <button
-          type="button"
-          aria-label={decreaseLabel}
-          disabled={disabled || value <= MINIMUM_FONT_SIZE}
-          onClick={() => updateRelative(-1)}
-        >
-          −
-        </button>
-        <FontSizeNumberInput
-          className="gather-direct-size-input"
-          ariaLabel={label}
-          value={value}
-          mixed={mixed}
-          disabled={disabled}
-          onValueChange={onChange}
-        />
-        <button
-          type="button"
-          aria-label={increaseLabel}
-          disabled={disabled || value >= MAXIMUM_FONT_SIZE}
-          onClick={() => updateRelative(1)}
-        >
-          +
-        </button>
-      </div>
+      <ScrubbableNumberField
+        className="gather-direct-size-stepper"
+        inputClassName="gather-direct-size-input"
+        ariaLabel={label}
+        decreaseLabel={decreaseLabel}
+        increaseLabel={increaseLabel}
+        min={MIN_FONT_SIZE_PX}
+        max={MAX_FONT_SIZE_PX}
+        step={FONT_SIZE_STEP_PX}
+        precision={1}
+        value={value}
+        mixed={mixed}
+        disabled={disabled}
+        unit="px"
+        onValueChange={onChange}
+      />
     </div>
   );
 }

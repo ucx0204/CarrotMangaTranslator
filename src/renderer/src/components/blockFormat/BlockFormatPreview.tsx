@@ -2,6 +2,7 @@ import React from "react";
 import type { TranslationBlock } from "../../../../shared/textTypes";
 import { useFonts } from "../../fonts/useFonts";
 import { resolveBlockFontFamily } from "../../lib/fonts";
+import { TextWithVerticalSpacing } from "../VerticalTextSpacing";
 
 export type BlockFormatPreviewValues = {
   fontFamily: string | undefined;
@@ -113,7 +114,10 @@ export function BlockFormatPreviewStage({
             } as React.CSSProperties
           }
         >
-          {previewText}
+          <TextWithVerticalSpacing
+            direction={values.renderDirection}
+            text={previewText}
+          />
         </div>
       </div>
       {values.autoFitText ? (

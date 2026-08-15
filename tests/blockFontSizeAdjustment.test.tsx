@@ -45,7 +45,7 @@ afterEach(() => {
 });
 
 describe("selected block font-size adjustment", () => {
-  it("adjusts only the active manual-size block by one pixel", () => {
+  it("adjusts only the active manual-size block by half a pixel", () => {
     const chapter = makeChapter([
       makeBlock({ id: "active", fontSizePx: 24, autoFitText: false }),
       makeBlock({ id: "also-selected", fontSizePx: 40, autoFitText: false }),
@@ -59,7 +59,7 @@ describe("selected block font-size adjustment", () => {
       DEFAULT_BLOCK_FONT_CATALOG,
     );
 
-    expect(next.pages[0]?.blocks[0]?.fontSizePx).toBe(25);
+    expect(next.pages[0]?.blocks[0]?.fontSizePx).toBe(24.5);
     expect(next.pages[0]?.blocks[1]?.fontSizePx).toBe(40);
   });
 
@@ -93,17 +93,17 @@ describe("selected block font-size adjustment", () => {
 
     expect(adjusted?.autoFitText).toBe(false);
     expect(adjusted?.fontSizePx).toBe(
-      Math.max(10, Math.min(160, resolved - 1)),
+      Math.max(1, Math.min(512, resolved - 0.5)),
     );
-    expect(adjusted?.fontSizePx).not.toBe(block.fontSizePx - 1);
+    expect(adjusted?.fontSizePx).not.toBe(block.fontSizePx - 0.5);
   });
 
-  it("clamps to 10..160 and skips empty bound edits", () => {
+  it("clamps to 1..512 and skips empty bound edits", () => {
     const minimum = makeChapter([
-      makeBlock({ autoFitText: false, fontSizePx: 10 }),
+      makeBlock({ autoFitText: false, fontSizePx: 1 }),
     ]);
     const maximum = makeChapter([
-      makeBlock({ autoFitText: false, fontSizePx: 160 }),
+      makeBlock({ autoFitText: false, fontSizePx: 512 }),
     ]);
 
     expect(
@@ -162,7 +162,7 @@ describe("selected block font-size adjustment", () => {
       result.current.adjustSelectedBlockFontSize(1);
     });
 
-    expect(chapter.pages[0]?.blocks[0]?.fontSizePx).toBe(26);
+    expect(chapter.pages[0]?.blocks[0]?.fontSizePx).toBe(25);
     expect(updateCurrentChapter).toHaveBeenCalledTimes(2);
   });
 
@@ -569,6 +569,53 @@ describe("selected block font-size adjustment", () => {
     act(() => screen.getByRole("button", { name: "글자 크기 늘리기" }).click());
 
     expect(onAdjustFontSize.mock.calls).toEqual([[-1], [1]]);
+  });
+
+  it("accepts a direct editor size and opens the format batch dialog", () => {
+    const onApplyFormat = vi.fn();
+    const onUpdate = vi.fn();
+    render(
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock({ autoFitText: false, fontSizePx: 24 })}
+          disabled={false}
+          onAdjustFontSize={vi.fn()}
+          onApplyFormat={onApplyFormat}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onUpdate={onUpdate}
+          selectedBlockCount={2}
+        />
+      </FontsTestProvider>,
+    );
+
+    selectEditorTab("서식");
+    const sizeInput = screen.getByRole("spinbutton", {
+      name: "글자 크기 값",
+    });
+    fireEvent.change(sizeInput, { target: { value: "128.5" } });
+    fireEvent.keyDown(sizeInput, { key: "Enter" });
+    expect(onUpdate).toHaveBeenLastCalledWith({
+      fontSizePx: 128.5,
+      autoFitText: false,
+    });
+
+    const formatGroup = screen
+      .getByRole("heading", { name: "서식" })
+      .closest(".editor-group");
+    fireEvent.click(
+      within(formatGroup as HTMLElement).getByRole("button", {
+        name: "일괄 적용",
+      }),
+    );
+    expect(
+      screen.getByRole("heading", { name: "서식 일괄 적용" }),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "취소" }));
+    expect(
+      screen.queryByRole("heading", { name: "서식 일괄 적용" }),
+    ).toBeNull();
+    expect(onApplyFormat).not.toHaveBeenCalled();
   });
 
   it("edits line wrapping with user-facing labels", () => {

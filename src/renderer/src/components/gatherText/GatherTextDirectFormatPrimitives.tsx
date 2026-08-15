@@ -7,6 +7,7 @@ import type {
 import {
   BlockFormatControlCaption,
   BlockFormatSectionHeading,
+  FormatNumberControl,
   FormatSliderControl,
 } from "../blockFormat/BlockFormatPrimitives";
 import {
@@ -22,12 +23,62 @@ export {
 };
 
 export type DirectSliderField =
-  | "lineHeight"
-  | "letterSpacing"
-  | "fontWidthScale"
   | "outlineWidthScale"
   | "rotationDeg"
   | "textOpacity";
+
+export type DirectNumberField =
+  | "lineHeight"
+  | "letterSpacing"
+  | "fontWidthScale";
+
+export function DirectNumberControl<Field extends DirectNumberField>({
+  field,
+  label,
+  min,
+  max,
+  step,
+  precision,
+  unit,
+  displayScale = 1,
+  disabled,
+  model,
+  patch,
+  onChange,
+}: {
+  field: Field;
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  precision?: number;
+  unit?: string;
+  displayScale?: number;
+  disabled: boolean;
+  model: GatherTextDirectFormatModel;
+  patch: GatherTextDirectFormatPatch;
+  onChange: (value: number) => void;
+}): React.JSX.Element {
+  const state = resolveControlState(model.values, patch, field);
+  const touched = hasDirectFormatField(patch, field);
+  const value = resolvePreviewValue(model, patch, field);
+  const mixed = state.kind === "mixed" && !touched;
+  return (
+    <FormatNumberControl
+      label={label}
+      min={min * displayScale}
+      max={max * displayScale}
+      step={step * displayScale}
+      precision={precision}
+      unit={unit}
+      value={clampDirectFormatValue(value, min, max) * displayScale}
+      disabled={disabled}
+      mixed={mixed}
+      touched={touched}
+      onChange={(next) => onChange(next / displayScale)}
+    />
+  );
+}
 
 export function DirectSliderControl<Field extends DirectSliderField>({
   field,

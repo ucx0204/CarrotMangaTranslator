@@ -307,6 +307,7 @@
 .gather-direct-size-control,
 .gather-direct-auto-control,
 .gather-direct-color-control,
+.gather-direct-number-control,
 .gather-direct-select-control,
 .gather-direct-slider-control {
   display: grid;
@@ -386,72 +387,7 @@
 }
 
 .gather-direct-size-stepper {
-  display: grid;
-  grid-template-columns: 34px minmax(54px, 1fr) 34px;
-  height: 34px;
-  overflow: hidden;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-md);
-  background: #14171c;
-}
-
-.gather-direct-size-stepper button {
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--text-dim);
-  font-size: 18px;
-  cursor: pointer;
-}
-
-.gather-direct-size-stepper button:hover:not(:disabled) {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-
-.gather-direct-size-stepper button:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-
-.gather-direct-size-stepper .gather-direct-size-input {
   width: 100%;
-  min-width: 0;
-  height: 100%;
-  padding: 0 4px;
-  border-top: 0;
-  border-right: 1px solid var(--border-soft);
-  border-bottom: 0;
-  border-left: 1px solid var(--border-soft);
-  border-radius: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--text);
-  font-size: var(--font-sm);
-  font-variant-numeric: tabular-nums;
-}
-
-.settings-tabpanel .gather-direct-size-stepper .gather-direct-size-input {
-  border-top: 0;
-  border-right: 1px solid var(--border-soft);
-  border-bottom: 0;
-  border-left: 1px solid var(--border-soft);
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.gather-direct-size-stepper .gather-direct-size-input:focus {
-  border-right-color: var(--accent-bd);
-  border-left-color: var(--accent-bd);
-  box-shadow: inset 0 -1px 0 var(--accent);
-}
-
-.gather-direct-size-stepper .gather-direct-size-input::placeholder {
-  color: var(--text-dim);
-  opacity: 1;
 }
 
 .gather-direct-pill-toggle {
