@@ -212,7 +212,8 @@
 .rotation-handle {
   left: 50%;
   top: -28px;
-  cursor: url("../assets/cursors/tabler-rotate-clockwise.svg") 12 12,
+  cursor:
+    url("../assets/cursors/tabler-rotate-clockwise.svg") 12 12,
     crosshair;
 }
 

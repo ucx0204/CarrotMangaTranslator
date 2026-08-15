@@ -37,7 +37,9 @@ describe("transform handle presentation", () => {
 
   it("does not enlarge or ring markers on hover, focus, or selection", () => {
     expect(stylesheet).not.toMatch(/\.transform-handle:hover[^,{]*::after/);
-    expect(stylesheet).not.toMatch(/\.transform-handle:focus-visible[^,{]*::after/);
+    expect(stylesheet).not.toMatch(
+      /\.transform-handle:focus-visible[^,{]*::after/,
+    );
 
     for (const selector of [
       ".rotation-handle::after",
