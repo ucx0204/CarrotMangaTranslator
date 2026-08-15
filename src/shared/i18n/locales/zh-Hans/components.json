@@ -66,10 +66,17 @@
       "hideControls": "收起视图控制",
       "showControls": "展开视图控制",
       "fitMode": "图像适配方式",
+      "adjusted": "自定义缩放",
       "contain": "适应窗口",
       "width": "适应宽度",
       "height": "适应高度",
-      "actual": "100%"
+      "actual": "原始大小 (100%)"
+    },
+    "quickRail": {
+      "hideTop": "隐藏上方工具",
+      "showTop": "显示上方工具",
+      "hideBottom": "隐藏缩放与通知",
+      "showBottom": "显示缩放与通知"
     },
     "empty": {
       "title": "开始翻译漫画",

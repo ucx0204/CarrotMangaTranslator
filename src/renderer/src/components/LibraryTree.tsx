@@ -27,6 +27,8 @@ import { EditIcon } from "./ui/icons";
 import { SidebarSectionCollapseButton } from "./SidebarSectionCollapseButton";
 
 type LibraryTreeProps = {
+  collapsed: boolean;
+  otherPanelCollapsed: boolean;
   library: LibraryIndex;
   currentChapterId: string | null;
   jobActive: boolean;
@@ -38,6 +40,7 @@ type LibraryTreeProps = {
     sourceChapterId: string,
     targetChapterId: string,
   ) => void;
+  onToggleOtherPanel: () => void;
 };
 
 type ActiveChapterDrag = {
@@ -55,6 +58,8 @@ type ChapterDragController = {
 };
 
 function LibraryTreeView({
+  collapsed,
+  otherPanelCollapsed,
   library,
   currentChapterId,
   jobActive,
@@ -62,13 +67,13 @@ function LibraryTreeView({
   onRenameWork,
   onRenameChapter,
   onReorderChapter,
+  onToggleOtherPanel,
 }: LibraryTreeProps): React.JSX.Element {
   const { i18n } = useTranslation("components");
   const [searchQuery, setSearchQuery] = React.useState("");
   const contentId = React.useId();
   const deferredSearchQuery = React.useDeferredValue(searchQuery);
   const [sort, handleSortChange] = useStoredLibrarySort();
-  const [collapsed, setCollapsed] = React.useState(false);
   const filteredLibrary = React.useMemo(
     () => filterLibraryIndex(library, deferredSearchQuery),
     [deferredSearchQuery, library],
@@ -94,43 +99,42 @@ function LibraryTreeView({
     <section
       className={`library-panel ${collapsed ? "collapsed" : ""}`.trim()}
       data-collapsed={collapsed}
+      id="sidebar-library-panel"
     >
       <LibraryPanelHeader
         collapsed={collapsed}
-        contentId={contentId}
+        otherPanelCollapsed={otherPanelCollapsed}
         onSearchChange={setSearchQuery}
         onSortChange={handleSortChange}
-        onToggle={() => setCollapsed((current) => !current)}
+        onToggleOtherPanel={onToggleOtherPanel}
         searchQuery={searchQuery}
         sort={sort}
       />
-      {!collapsed ? (
-        <div className="library-panel-content" id={contentId}>
-          <DndContext
-            sensors={drag.sensors}
-            collisionDetection={closestCenter}
-            onDragStart={drag.handleDragStart}
-            onDragCancel={drag.handleDragCancel}
-            onDragEnd={drag.handleDragEnd}
-          >
-            <LibraryWorksList
-              activeDrag={drag.activeDrag}
-              currentChapterId={currentChapterId}
-              dragEnabled={drag.dragEnabled}
-              jobActive={jobActive}
-              onOpenChapter={onOpenChapter}
-              onRenameChapter={onRenameChapter}
-              onRenameWork={onRenameWork}
-              searchActive={searchActive}
-              visibleLibrary={visibleLibrary}
-            />
-            <ChapterDragPortal
-              activeDrag={drag.activeDrag}
-              currentChapterId={currentChapterId}
-            />
-          </DndContext>
-        </div>
-      ) : null}
+      <div className="library-panel-content" id={contentId} hidden={collapsed}>
+        <DndContext
+          sensors={drag.sensors}
+          collisionDetection={closestCenter}
+          onDragStart={drag.handleDragStart}
+          onDragCancel={drag.handleDragCancel}
+          onDragEnd={drag.handleDragEnd}
+        >
+          <LibraryWorksList
+            activeDrag={drag.activeDrag}
+            currentChapterId={currentChapterId}
+            dragEnabled={drag.dragEnabled}
+            jobActive={jobActive}
+            onOpenChapter={onOpenChapter}
+            onRenameChapter={onRenameChapter}
+            onRenameWork={onRenameWork}
+            searchActive={searchActive}
+            visibleLibrary={visibleLibrary}
+          />
+          <ChapterDragPortal
+            activeDrag={drag.activeDrag}
+            currentChapterId={currentChapterId}
+          />
+        </DndContext>
+      </div>
     </section>
   );
 }
@@ -202,18 +206,18 @@ function useChapterDragController({
 
 function LibraryPanelHeader({
   collapsed,
-  contentId,
+  otherPanelCollapsed,
   onSearchChange,
   onSortChange,
-  onToggle,
+  onToggleOtherPanel,
   searchQuery,
   sort,
 }: {
   collapsed: boolean;
-  contentId: string;
+  otherPanelCollapsed: boolean;
   onSearchChange: (query: string) => void;
   onSortChange: (sort: LibrarySort) => void;
-  onToggle: () => void;
+  onToggleOtherPanel: () => void;
   searchQuery: string;
   sort: LibrarySort;
 }): React.JSX.Element {
@@ -242,10 +246,11 @@ function LibraryPanelHeader({
         </>
       ) : null}
       <SidebarSectionCollapseButton
-        collapsed={collapsed}
-        controls={contentId}
-        onToggle={onToggle}
-        sectionTitle={t("library.title")}
+        collapsed={otherPanelCollapsed}
+        controls="sidebar-page-panel"
+        direction={otherPanelCollapsed ? "up" : "down"}
+        onToggle={onToggleOtherPanel}
+        sectionTitle={t("common.pages")}
       />
     </div>
   );

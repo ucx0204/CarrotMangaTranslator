@@ -2,6 +2,7 @@
 
 import React from "react";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -33,6 +34,7 @@ const PAGE_2_IMAGE =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAA/////ywAAAAAAQABAAACAUwAOw==";
 
 beforeEach(() => {
+  ResizeObserverStub.reset();
   vi.stubGlobal("ResizeObserver", ResizeObserverStub);
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
 });
@@ -174,6 +176,56 @@ describe("AppWorkspace scroll reset", () => {
     );
 
     expect(workspace.scrollTop).toBe(400);
+  });
+
+  it("recomputes fit scrolling after layout and follows a changed scroll origin", () => {
+    const refs = makeWorkspaceRefs();
+    const onEffectiveScaleChange = vi.fn();
+    const narrowPage = {
+      ...makePage("page-1"),
+      width: 100,
+      height: 1600,
+    };
+    const props = {
+      ...makeWorkspaceProps({
+        refs,
+        selectedPage: narrowPage,
+        selectedPageImageDataUrl: PAGE_1_IMAGE,
+        selectedPageImagePageId: "page-1",
+      }),
+      onEffectiveScaleChange,
+      workspaceFitMode: "actual" as const,
+    };
+    const view = renderWorkspace(props);
+    const workspace = screen.getByLabelText("읽기 영역") as HTMLElement;
+    Object.defineProperties(workspace, {
+      clientHeight: { configurable: true, value: 500 },
+      clientWidth: { configurable: true, value: 400 },
+    });
+
+    act(() => ResizeObserverStub.emit());
+
+    expect(onEffectiveScaleChange).toHaveBeenLastCalledWith(1);
+    expect(workspace.classList.contains("is-fit-scroll-locked")).toBe(false);
+    expect(workspace.scrollLeft).toBe(50);
+    expect(workspace.scrollTop).toBe(250);
+
+    view.rerender(withFonts(<AppWorkspace {...props} workspaceZoom={2} />));
+
+    expect(onEffectiveScaleChange).toHaveBeenLastCalledWith(2);
+    expect(workspace.scrollLeft).toBe(100);
+    expect(workspace.scrollTop).toBe(250);
+
+    view.rerender(
+      withFonts(
+        <AppWorkspace
+          {...props}
+          selectedPage={null}
+          selectedPageImagePageId={null}
+        />,
+      ),
+    );
+    expect(view.container.querySelector(".stage-toolbar")).toBeNull();
   });
 
   it("does not rescan canvas blocks for job-progress-only root updates", () => {
@@ -411,11 +463,31 @@ describe("AppWorkspace scroll reset", () => {
 });
 
 class ResizeObserverStub {
+  static instances: ResizeObserverStub[] = [];
+
+  constructor(private readonly callback: ResizeObserverCallback) {
+    ResizeObserverStub.instances.push(this);
+  }
+
+  static emit(): void {
+    for (const instance of ResizeObserverStub.instances) {
+      instance.callback([], instance);
+    }
+  }
+
+  static reset(): void {
+    ResizeObserverStub.instances = [];
+  }
+
   observe(): void {
     return undefined;
   }
 
   disconnect(): void {
+    return undefined;
+  }
+
+  unobserve(): void {
     return undefined;
   }
 }

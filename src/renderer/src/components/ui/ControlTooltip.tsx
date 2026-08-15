@@ -4,7 +4,7 @@ type ControlTooltipProps = {
   children: React.ReactNode;
   className?: string;
   content: string;
-  placement?: "left" | "right" | "top";
+  placement?: "bottom" | "left" | "right" | "top";
 };
 
 /** App-rendered tooltip for compact icon controls; never uses native title UI. */

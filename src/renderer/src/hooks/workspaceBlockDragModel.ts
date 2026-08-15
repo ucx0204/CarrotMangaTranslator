@@ -149,8 +149,19 @@ export function resolveDragCursor(mode: DragMode): string {
   ) {
     return "crosshair";
   }
-  return "nwse-resize";
+  return RESIZE_CURSOR_BY_MODE[mode] ?? "nwse-resize";
 }
+
+const RESIZE_CURSOR_BY_MODE: Partial<Record<DragMode, string>> = {
+  "resize-n": "ns-resize",
+  "resize-s": "ns-resize",
+  "resize-e": "ew-resize",
+  "resize-w": "ew-resize",
+  "resize-ne": "nesw-resize",
+  "resize-sw": "nesw-resize",
+  "resize-nw": "nwse-resize",
+  "resize-se": "nwse-resize",
+};
 
 function resolveWarpDrag(
   drag: DragState,

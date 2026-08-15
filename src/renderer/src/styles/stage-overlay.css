@@ -195,11 +195,6 @@
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
 }
 
-.workspace .page-image,
-.workspace .page-image-placeholder {
-  max-height: calc(100vh - 192px);
-}
-
 .page-image-loading-overlay {
   position: absolute;
   inset: 0;
@@ -472,7 +467,6 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  padding-right: 48px;
   background: #0c0d10;
 }
 

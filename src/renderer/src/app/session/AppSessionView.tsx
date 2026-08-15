@@ -72,12 +72,34 @@ export function AppSessionView({
   workspaceProps,
 }: AppSessionViewProps): React.JSX.Element {
   const stablePanelSessionValue = useStablePanelSessionValue(panelSessionValue);
+  const [workspaceEffectiveScale, setWorkspaceEffectiveScale] = React.useState(
+    workspaceProps.workspaceZoom,
+  );
+  React.useLayoutEffect(() => {
+    setWorkspaceEffectiveScale(workspaceProps.workspaceZoom);
+  }, [workspaceProps.selectedPage?.id, workspaceProps.workspaceZoom]);
   return (
     <PanelSessionContext.Provider value={stablePanelSessionValue}>
       <main className="app-shell">
         <AppSidebar {...sidebarProps} />
-        <AppWorkspace {...workspaceProps} />
-        <AppRightQuickRail {...rightRailProps} />
+        <div className="workspace-region">
+          <AppWorkspace
+            {...workspaceProps}
+            onEffectiveScaleChange={setWorkspaceEffectiveScale}
+          />
+          <AppRightQuickRail
+            {...rightRailProps}
+            workspaceViewControls={{
+              effectiveScale: workspaceEffectiveScale,
+              fitMode: workspaceProps.workspaceFitMode,
+              zoom: workspaceProps.workspaceZoom,
+              onChangeFitMode: workspaceProps.onChangeWorkspaceFitMode,
+              onResetZoom: workspaceProps.onResetWorkspaceZoom,
+              onZoomIn: workspaceProps.onZoomInWorkspace,
+              onZoomOut: workspaceProps.onZoomOutWorkspace,
+            }}
+          />
+        </div>
         <AppRightRail {...rightRailProps} />
         <MemoizedAppModals {...modalsProps} />
       </main>

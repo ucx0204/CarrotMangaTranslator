@@ -47,74 +47,91 @@ export function AppSidebar(props: AppSidebarProps): React.JSX.Element {
   );
 }
 
-function LibrarySidebarContent({
-  currentChapter,
-  jobActive,
-  library,
-  lockedPageIds = EMPTY_PAGE_IDS,
-  onOpenBatchImport,
-  onOpenChapter,
-  onOpenLibraryFolder,
-  onOpenSettings,
-  onOpenShareExport,
-  onOpenShareImport,
-  onOpenTranslationSource,
-  onRemovePage,
-  onRenameChapter,
-  onRenameWork,
-  onReorderChapter,
-  onReorderPage,
-  onRetranslatePage,
-  onSelectPage,
-  selectedPageId,
-  settingsBusy,
-  settingsOpen,
-}: AppSidebarProps): React.JSX.Element {
-  const stableOnOpenChapter = useEventCallback(onOpenChapter);
-  const stableOnRemovePage = useEventCallback(onRemovePage);
-  const stableOnRenameChapter = useEventCallback(onRenameChapter);
-  const stableOnRenameWork = useEventCallback(onRenameWork);
-  const stableOnReorderChapter = useEventCallback(onReorderChapter);
-  const stableOnReorderPage = useEventCallback(onReorderPage);
-  const stableOnRetranslatePage = useEventCallback(onRetranslatePage);
-  const stableOnSelectPage = useEventCallback(onSelectPage);
+function LibrarySidebarContent(props: AppSidebarProps): React.JSX.Element {
+  const { collapsedPanel, toggleLibraryContent, togglePageContent } =
+    useSidebarPanelCollapse();
+  const actions = useStableSidebarActions(props);
   return (
     <>
       <SidebarToolbar
-        jobActive={jobActive}
-        library={library}
-        onOpenBatchImport={onOpenBatchImport}
-        onOpenLibraryFolder={onOpenLibraryFolder}
-        onOpenSettings={onOpenSettings}
-        onOpenShareExport={onOpenShareExport}
-        onOpenShareImport={onOpenShareImport}
-        onOpenTranslationSource={onOpenTranslationSource}
-        settingsBusy={settingsBusy}
-        settingsOpen={settingsOpen}
+        jobActive={props.jobActive}
+        library={props.library}
+        onOpenBatchImport={props.onOpenBatchImport}
+        onOpenLibraryFolder={props.onOpenLibraryFolder}
+        onOpenSettings={props.onOpenSettings}
+        onOpenShareExport={props.onOpenShareExport}
+        onOpenShareImport={props.onOpenShareImport}
+        onOpenTranslationSource={props.onOpenTranslationSource}
+        settingsBusy={props.settingsBusy}
+        settingsOpen={props.settingsOpen}
       />
 
       <LibraryTree
-        library={library}
-        currentChapterId={currentChapter?.id ?? null}
-        jobActive={jobActive}
-        onOpenChapter={stableOnOpenChapter}
-        onRenameWork={stableOnRenameWork}
-        onRenameChapter={stableOnRenameChapter}
-        onReorderChapter={stableOnReorderChapter}
+        collapsed={collapsedPanel === "library"}
+        otherPanelCollapsed={collapsedPanel === "pages"}
+        library={props.library}
+        currentChapterId={props.currentChapter?.id ?? null}
+        jobActive={props.jobActive}
+        onOpenChapter={actions.onOpenChapter}
+        onRenameWork={actions.onRenameWork}
+        onRenameChapter={actions.onRenameChapter}
+        onReorderChapter={actions.onReorderChapter}
+        onToggleOtherPanel={togglePageContent}
       />
 
       <PageList
-        pages={currentChapter?.pages ?? []}
-        selectedPageId={selectedPageId}
-        jobActive={jobActive}
-        lockedPageIds={lockedPageIds}
-        onSelect={stableOnSelectPage}
-        onRetranslate={stableOnRetranslatePage}
-        onRemove={stableOnRemovePage}
-        onReorder={stableOnReorderPage}
+        collapsed={collapsedPanel === "pages"}
+        otherPanelCollapsed={collapsedPanel === "library"}
+        pages={props.currentChapter?.pages ?? []}
+        selectedPageId={props.selectedPageId}
+        jobActive={props.jobActive}
+        lockedPageIds={props.lockedPageIds ?? EMPTY_PAGE_IDS}
+        onSelect={actions.onSelectPage}
+        onRetranslate={actions.onRetranslatePage}
+        onRemove={actions.onRemovePage}
+        onReorder={actions.onReorderPage}
+        onToggleOtherPanel={toggleLibraryContent}
       />
     </>
   );
+}
+
+function useSidebarPanelCollapse(): {
+  collapsedPanel: "library" | "pages" | null;
+  toggleLibraryContent: () => void;
+  togglePageContent: () => void;
+} {
+  const [collapsedPanel, setCollapsedPanel] = React.useState<
+    "library" | "pages" | null
+  >(null);
+  return {
+    collapsedPanel,
+    toggleLibraryContent: React.useCallback(
+      () =>
+        setCollapsedPanel((current) =>
+          current === "library" ? null : "library",
+        ),
+      [],
+    ),
+    togglePageContent: React.useCallback(
+      () =>
+        setCollapsedPanel((current) => (current === "pages" ? null : "pages")),
+      [],
+    ),
+  };
+}
+
+function useStableSidebarActions(props: AppSidebarProps) {
+  return {
+    onOpenChapter: useEventCallback(props.onOpenChapter),
+    onRemovePage: useEventCallback(props.onRemovePage),
+    onRenameChapter: useEventCallback(props.onRenameChapter),
+    onRenameWork: useEventCallback(props.onRenameWork),
+    onReorderChapter: useEventCallback(props.onReorderChapter),
+    onReorderPage: useEventCallback(props.onReorderPage),
+    onRetranslatePage: useEventCallback(props.onRetranslatePage),
+    onSelectPage: useEventCallback(props.onSelectPage),
+  };
 }
 
 const EMPTY_PAGE_IDS: ReadonlySet<string> = new Set();

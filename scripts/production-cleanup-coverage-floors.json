@@ -349,6 +349,12 @@
       "functions": { "covered": 18, "total": 18, "pct": 100 },
       "branches": { "covered": 33, "total": 40, "pct": 82.5 }
     },
+    "src/renderer/src/app/session/AppSessionView.tsx": {
+      "lines": { "covered": 0, "total": 6, "pct": 0 },
+      "statements": { "covered": 0, "total": 6, "pct": 0 },
+      "functions": { "covered": 0, "total": 2, "pct": 0 },
+      "branches": { "covered": 0, "total": 18, "pct": 0 }
+    },
     "src/renderer/src/app/session/buildPanelSyncState.ts": {
       "lines": { "covered": 0, "total": 2, "pct": 0 },
       "statements": { "covered": 0, "total": 2, "pct": 0 },
@@ -373,6 +379,18 @@
       "functions": { "covered": 12, "total": 13, "pct": 92.3 },
       "branches": { "covered": 43, "total": 56, "pct": 76.78 }
     },
+    "src/renderer/src/components/AppRightQuickRail.tsx": {
+      "lines": { "covered": 4, "total": 5, "pct": 80 },
+      "statements": { "covered": 4, "total": 5, "pct": 80 },
+      "functions": { "covered": 2, "total": 3, "pct": 66.66 },
+      "branches": { "covered": 4, "total": 5, "pct": 80 }
+    },
+    "src/renderer/src/components/AppSidebar.tsx": {
+      "lines": { "covered": 13, "total": 13, "pct": 100 },
+      "statements": { "covered": 13, "total": 13, "pct": 100 },
+      "functions": { "covered": 3, "total": 3, "pct": 100 },
+      "branches": { "covered": 6, "total": 9, "pct": 66.66 }
+    },
     "src/renderer/src/components/AppWorkspace.tsx": {
       "lines": { "covered": 25, "total": 31, "pct": 80.64 },
       "statements": { "covered": 25, "total": 31, "pct": 80.64 },
@@ -384,6 +402,12 @@
       "statements": { "covered": 10, "total": 10, "pct": 100 },
       "functions": { "covered": 7, "total": 7, "pct": 100 },
       "branches": { "covered": 26, "total": 26, "pct": 100 }
+    },
+    "src/renderer/src/components/LibraryTree.tsx": {
+      "lines": { "covered": 30, "total": 47, "pct": 63.82 },
+      "statements": { "covered": 32, "total": 50, "pct": 64 },
+      "functions": { "covered": 13, "total": 19, "pct": 68.42 },
+      "branches": { "covered": 14, "total": 31, "pct": 45.16 }
     },
     "src/renderer/src/components/OverlayBlock.tsx": {
       "lines": { "covered": 25, "total": 26, "pct": 96.15 },
@@ -409,6 +433,18 @@
       "functions": { "covered": 8, "total": 8, "pct": 100 },
       "branches": { "covered": 12, "total": 14, "pct": 85.71 }
     },
+    "src/renderer/src/components/PageList.tsx": {
+      "lines": { "covered": 23, "total": 27, "pct": 85.18 },
+      "statements": { "covered": 24, "total": 28, "pct": 85.71 },
+      "functions": { "covered": 11, "total": 15, "pct": 73.33 },
+      "branches": { "covered": 20, "total": 32, "pct": 62.5 }
+    },
+    "src/renderer/src/components/SidebarSectionCollapseButton.tsx": {
+      "lines": { "covered": 3, "total": 3, "pct": 100 },
+      "statements": { "covered": 3, "total": 3, "pct": 100 },
+      "functions": { "covered": 1, "total": 1, "pct": 100 },
+      "branches": { "covered": 4, "total": 4, "pct": 100 }
+    },
     "src/renderer/src/components/StatusDockButton.tsx": {
       "lines": { "covered": 50, "total": 51, "pct": 98.03 },
       "statements": { "covered": 53, "total": 57, "pct": 92.98 },
@@ -426,6 +462,12 @@
       "statements": { "covered": 13, "total": 19, "pct": 68.42 },
       "functions": { "covered": 5, "total": 8, "pct": 62.5 },
       "branches": { "covered": 14, "total": 20, "pct": 70 }
+    },
+    "src/renderer/src/components/WorkspaceViewControls.tsx": {
+      "lines": { "covered": 51, "total": 51, "pct": 100 },
+      "statements": { "covered": 59, "total": 60, "pct": 98.33 },
+      "functions": { "covered": 19, "total": 19, "pct": 100 },
+      "branches": { "covered": 33, "total": 36, "pct": 91.66 }
     },
     "src/renderer/src/components/appWorkspaceTypes.ts": {
       "lines": { "covered": 0, "total": 0, "pct": 100 },
@@ -511,6 +553,12 @@
       "functions": { "covered": 21, "total": 27, "pct": 77.77 },
       "branches": { "covered": 18, "total": 22, "pct": 81.81 }
     },
+    "src/renderer/src/components/ui/ControlTooltip.tsx": {
+      "lines": { "covered": 4, "total": 4, "pct": 100 },
+      "statements": { "covered": 4, "total": 4, "pct": 100 },
+      "functions": { "covered": 1, "total": 1, "pct": 100 },
+      "branches": { "covered": 5, "total": 5, "pct": 100 }
+    },
     "src/renderer/src/hooks/chapterPersistencePayload.ts": {
       "lines": { "covered": 7, "total": 8, "pct": 87.5 },
       "statements": { "covered": 9, "total": 10, "pct": 90 },
@@ -576,6 +624,12 @@
       "statements": { "covered": 74, "total": 83, "pct": 89.15 },
       "functions": { "covered": 19, "total": 20, "pct": 95 },
       "branches": { "covered": 47, "total": 74, "pct": 63.51 }
+    },
+    "src/renderer/src/hooks/useWorkspaceZoomStyle.ts": {
+      "lines": { "covered": 54, "total": 54, "pct": 100 },
+      "statements": { "covered": 61, "total": 64, "pct": 95.31 },
+      "functions": { "covered": 19, "total": 19, "pct": 100 },
+      "branches": { "covered": 43, "total": 56, "pct": 76.78 }
     },
     "src/renderer/src/hooks/workspaceBlockDragModel.ts": {
       "lines": { "covered": 45, "total": 60, "pct": 75 },

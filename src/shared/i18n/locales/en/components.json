@@ -66,10 +66,17 @@
       "hideControls": "Collapse view controls",
       "showControls": "Expand view controls",
       "fitMode": "Image fit mode",
+      "adjusted": "Custom zoom",
       "contain": "Fit screen",
       "width": "Fit width",
       "height": "Fit height",
-      "actual": "100%"
+      "actual": "Actual size (100%)"
+    },
+    "quickRail": {
+      "hideTop": "Hide upper tools",
+      "showTop": "Show upper tools",
+      "hideBottom": "Hide zoom and notifications",
+      "showBottom": "Show zoom and notifications"
     },
     "empty": {
       "title": "Start translating manga",

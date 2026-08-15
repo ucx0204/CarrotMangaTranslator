@@ -12,8 +12,8 @@ import type {
 
 afterEach(cleanup);
 
-describe("sidebar list panel collapse", () => {
-  it("lets either list release its height to the other list", () => {
+describe("sidebar list panel switching", () => {
+  it("lets each header hide and restore the opposite panel", () => {
     const { container } = render(
       <AppSidebar
         currentChapter={CHAPTER}
@@ -44,21 +44,56 @@ describe("sidebar list panel collapse", () => {
     expect(libraryPanel?.getAttribute("data-collapsed")).toBe("false");
     expect(pagePanel?.getAttribute("data-collapsed")).toBe("false");
 
+    const search = screen.getByRole("textbox", { name: "보관함 검색" });
+    fireEvent.change(search, { target: { value: "테스트" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "페이지 접기" }));
+    expect(libraryPanel?.getAttribute("data-collapsed")).toBe("false");
+    expect(pagePanel?.getAttribute("data-collapsed")).toBe("true");
+    expect(pagePanel?.classList.contains("collapsed")).toBe(true);
+    expect(
+      pagePanel?.querySelector<HTMLElement>(".page-list-content")?.hidden,
+    ).toBe(true);
+    expect(screen.getByRole("heading", { name: "페이지" })).not.toBeNull();
+    expect(container.querySelector(".library-scroll")).not.toBeNull();
+    expect(container.querySelector(".page-list-scroll")).not.toBeNull();
+    const restorePages = screen.getByRole("button", { name: "페이지 펼치기" });
+    expect(restorePages.getAttribute("aria-expanded")).toBe("false");
+    expect(
+      restorePages
+        .querySelector("svg")
+        ?.classList.contains("sidebar-section-collapse-chevron-up"),
+    ).toBe(true);
+
+    fireEvent.click(restorePages);
+    expect(pagePanel?.getAttribute("data-collapsed")).toBe("false");
+    expect((search as HTMLInputElement).value).toBe("테스트");
+
     fireEvent.click(screen.getByRole("button", { name: "보관함 접기" }));
     expect(libraryPanel?.getAttribute("data-collapsed")).toBe("true");
-    expect(container.querySelector(".library-scroll")).toBeNull();
-    expect(container.querySelector(".page-list-scroll")).not.toBeNull();
+    expect(pagePanel?.getAttribute("data-collapsed")).toBe("false");
+    expect(libraryPanel?.classList.contains("collapsed")).toBe(true);
     expect(
-      screen
-        .getByRole("button", { name: "보관함 펼치기" })
-        .getAttribute("aria-expanded"),
-    ).toBe("false");
+      libraryPanel?.querySelector<HTMLElement>(".library-panel-content")
+        ?.hidden,
+    ).toBe(true);
+    expect(screen.getByRole("heading", { name: "보관함" })).not.toBeNull();
+    const restoreLibrary = screen.getByRole("button", {
+      name: "보관함 펼치기",
+    });
+    expect(restoreLibrary.getAttribute("aria-expanded")).toBe("false");
+    expect(
+      restoreLibrary
+        .querySelector("svg")
+        ?.classList.contains("sidebar-section-collapse-chevron-up"),
+    ).toBe(false);
 
-    fireEvent.click(screen.getByRole("button", { name: "보관함 펼치기" }));
-    fireEvent.click(screen.getByRole("button", { name: "페이지 접기" }));
-    expect(pagePanel?.getAttribute("data-collapsed")).toBe("true");
-    expect(container.querySelector(".page-list-scroll")).toBeNull();
-    expect(container.querySelector(".library-scroll")).not.toBeNull();
+    fireEvent.click(restoreLibrary);
+    expect(libraryPanel?.getAttribute("data-collapsed")).toBe("false");
+    expect(
+      (screen.getByRole("textbox", { name: "보관함 검색" }) as HTMLInputElement)
+        .value,
+    ).toBe("테스트");
   });
 });
 
