@@ -3,15 +3,15 @@ import { useTranslation } from "react-i18next";
 import { InstallProgressOverlay } from "./InstallProgressOverlay";
 import { StageToolbar } from "./StageToolbar";
 import { useWorkspaceZoomStyle } from "../hooks/useWorkspaceZoomStyle";
-import { WorkspaceViewControls } from "./WorkspaceViewControls";
 import { useEventCallback } from "../hooks/useEventCallback";
+import type { WorkspaceScrollOrigin } from "../lib/workspaceZoom";
 import type { AppWorkspaceProps } from "./appWorkspaceTypes";
 import { BubbleLayoutContextBar } from "./BubbleLayoutContextBar";
 import { WorkspaceContent } from "./WorkspaceContent";
 
 export function AppWorkspace(props: AppWorkspaceProps): React.JSX.Element {
   const { t } = useTranslation("components");
-  const { workspacePanelRef } = props;
+  const { onEffectiveScaleChange, workspacePanelRef } = props;
   const stableActions = useStableWorkspaceActions(props);
   const stableProps = { ...props, ...stableActions };
   const zoomStyle = useWorkspaceZoomStyle({
@@ -22,11 +22,30 @@ export function AppWorkspace(props: AppWorkspaceProps): React.JSX.Element {
     page: props.selectedPage,
     zoom: props.workspaceZoom,
   });
+  React.useLayoutEffect(() => {
+    if (zoomStyle.effectiveScale !== null) {
+      onEffectiveScaleChange?.(zoomStyle.effectiveScale);
+    }
+  }, [onEffectiveScaleChange, zoomStyle.effectiveScale]);
   useResetWorkspaceScrollOnRenderedPage({
+    layoutReady: zoomStyle.effectiveScale !== null,
+    scrollOrigin: zoomStyle.scrollOrigin,
     pageId: props.selectedPage?.id ?? null,
     renderedImagePageId: props.selectedPageImagePageId,
     workspacePanelRef,
   });
+  React.useLayoutEffect(() => {
+    const panel = workspacePanelRef.current;
+    if (zoomStyle.pageFits && panel) {
+      panel.scrollTop = 0;
+      panel.scrollLeft = 0;
+    }
+  }, [
+    props.selectedPage?.id,
+    workspacePanelRef,
+    zoomStyle.effectiveScale,
+    zoomStyle.pageFits,
+  ]);
   return (
     <section className="workspace-shell">
       {props.selectedPage ? (
@@ -59,11 +78,12 @@ function WorkspaceCanvasViewport({
   zoomStyle: ReturnType<typeof useWorkspaceZoomStyle>;
 }): React.JSX.Element {
   const { workspacePanelRef } = props;
+  const lockFitScroll = zoomStyle.pageFits;
   return (
     <div className="workspace-canvas-viewport">
       <div
         ref={workspacePanelRef as React.RefObject<HTMLDivElement | null>}
-        className={`workspace ${zoomStyle.className}`.trim()}
+        className={`workspace ${zoomStyle.className} ${lockFitScroll ? "is-fit-scroll-locked" : ""}`.trim()}
         style={zoomStyle.style}
         tabIndex={0}
         aria-label={readingAreaLabel}
@@ -86,30 +106,20 @@ function WorkspaceCanvasChrome({
   props: AppWorkspaceProps;
 }): React.JSX.Element {
   return (
-    <>
-      <StageToolbar
-        bubbleLayoutAvailable={hasSelectedBubbleLayoutTarget(props)}
-        brushColor={props.brushColor}
-        brushRadius={props.brushRadius}
-        disabled={props.jobActive}
-        hidden={props.stageToolbarHidden}
-        lastRetouchTool={props.lastRetouchTool}
-        onSelectTool={props.onSelectStageTool}
-        onToggleRegionTranslation={props.onToggleRegionTranslation}
-        onToggleHidden={props.onToggleStageToolbarHidden}
-        regionTranslationActive={props.regionSelectionActive}
-        regionTranslationAvailable={props.regionTranslationAvailable}
-        tool={props.stageTool}
-      />
-      <WorkspaceViewControls
-        fitMode={props.workspaceFitMode}
-        zoom={props.workspaceZoom}
-        onChangeFitMode={props.onChangeWorkspaceFitMode}
-        onResetZoom={props.onResetWorkspaceZoom}
-        onZoomIn={props.onZoomInWorkspace}
-        onZoomOut={props.onZoomOutWorkspace}
-      />
-    </>
+    <StageToolbar
+      bubbleLayoutAvailable={hasSelectedBubbleLayoutTarget(props)}
+      brushColor={props.brushColor}
+      brushRadius={props.brushRadius}
+      disabled={props.jobActive}
+      hidden={props.stageToolbarHidden}
+      lastRetouchTool={props.lastRetouchTool}
+      onSelectTool={props.onSelectStageTool}
+      onToggleRegionTranslation={props.onToggleRegionTranslation}
+      onToggleHidden={props.onToggleStageToolbarHidden}
+      regionTranslationActive={props.regionSelectionActive}
+      regionTranslationAvailable={props.regionTranslationAvailable}
+      tool={props.stageTool}
+    />
   );
 }
 
@@ -169,32 +179,114 @@ function useStableWorkspaceActions(
 }
 
 function useResetWorkspaceScrollOnRenderedPage({
+  layoutReady,
+  scrollOrigin,
   pageId,
   renderedImagePageId,
   workspacePanelRef,
 }: {
+  layoutReady: boolean;
+  scrollOrigin: WorkspaceScrollOrigin | null;
   pageId: string | null;
   renderedImagePageId: string | null;
   workspacePanelRef: React.RefObject<HTMLElement | null>;
 }): void {
   const lastResetPageIdRef = React.useRef<string | null>(null);
+  const pendingLayoutRetryPageIdRef = React.useRef<string | null>(null);
+  const lastScrollOriginRef = React.useRef<
+    (WorkspaceScrollOrigin & { pageId: string }) | null
+  >(null);
 
   React.useLayoutEffect(() => {
-    if (!pageId) {
-      lastResetPageIdRef.current = null;
-      return;
-    }
-    if (renderedImagePageId !== pageId) {
-      return;
-    }
-    if (lastResetPageIdRef.current === pageId) {
-      return;
-    }
-    const panel = workspacePanelRef.current;
-    if (panel) {
-      panel.scrollTop = 0;
-      panel.scrollLeft = 0;
-    }
-    lastResetPageIdRef.current = pageId;
-  }, [pageId, renderedImagePageId, workspacePanelRef]);
+    syncWorkspaceScroll({
+      lastResetPageIdRef,
+      lastScrollOriginRef,
+      layoutReady,
+      pageId,
+      pendingLayoutRetryPageIdRef,
+      renderedImagePageId,
+      scrollOrigin,
+      workspacePanelRef,
+    });
+  }, [
+    layoutReady,
+    pageId,
+    renderedImagePageId,
+    scrollOrigin,
+    workspacePanelRef,
+  ]);
+}
+
+type MutableValueRef<T> = { current: T };
+
+type WorkspaceScrollSyncInput = {
+  lastResetPageIdRef: MutableValueRef<string | null>;
+  lastScrollOriginRef: MutableValueRef<
+    (WorkspaceScrollOrigin & { pageId: string }) | null
+  >;
+  layoutReady: boolean;
+  pageId: string | null;
+  pendingLayoutRetryPageIdRef: MutableValueRef<string | null>;
+  renderedImagePageId: string | null;
+  scrollOrigin: WorkspaceScrollOrigin | null;
+  workspacePanelRef: React.RefObject<HTMLElement | null>;
+};
+
+function syncWorkspaceScroll(input: WorkspaceScrollSyncInput): void {
+  if (!input.pageId) {
+    clearWorkspaceScrollSync(input);
+    return;
+  }
+  if (input.renderedImagePageId !== input.pageId) return;
+  if (!shouldSyncWorkspaceScroll(input, input.pageId)) return;
+  const panel = input.workspacePanelRef.current;
+  if (panel) {
+    panel.scrollTop = input.scrollOrigin?.y ?? 0;
+    panel.scrollLeft = input.scrollOrigin?.x ?? 0;
+  }
+  recordWorkspaceScrollSync(input, input.pageId);
+}
+
+function clearWorkspaceScrollSync(input: WorkspaceScrollSyncInput): void {
+  input.lastResetPageIdRef.current = null;
+  input.pendingLayoutRetryPageIdRef.current = null;
+  input.lastScrollOriginRef.current = null;
+}
+
+function shouldSyncWorkspaceScroll(
+  input: WorkspaceScrollSyncInput,
+  pageId: string,
+): boolean {
+  if (input.lastResetPageIdRef.current !== pageId) return true;
+  if (
+    input.layoutReady &&
+    input.pendingLayoutRetryPageIdRef.current === pageId
+  ) {
+    return true;
+  }
+  return didWorkspaceScrollOriginChange(input, pageId);
+}
+
+function didWorkspaceScrollOriginChange(
+  input: WorkspaceScrollSyncInput,
+  pageId: string,
+): boolean {
+  if (!input.layoutReady || !input.scrollOrigin) return false;
+  const previous = input.lastScrollOriginRef.current;
+  if (!previous || previous.pageId !== pageId) return false;
+  return (
+    previous.x !== input.scrollOrigin.x || previous.y !== input.scrollOrigin.y
+  );
+}
+
+function recordWorkspaceScrollSync(
+  input: WorkspaceScrollSyncInput,
+  pageId: string,
+): void {
+  input.lastResetPageIdRef.current = pageId;
+  input.pendingLayoutRetryPageIdRef.current = input.layoutReady ? null : pageId;
+  input.lastScrollOriginRef.current =
+    input.layoutReady && input.scrollOrigin
+      ? { ...input.scrollOrigin, pageId }
+      : null;
 }

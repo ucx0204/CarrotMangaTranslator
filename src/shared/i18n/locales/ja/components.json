@@ -66,10 +66,17 @@
       "hideControls": "表示コントロールを折りたたむ",
       "showControls": "表示コントロールを展開",
       "fitMode": "画像の表示方法",
+      "adjusted": "カスタム倍率",
       "contain": "画面に合わせる",
       "width": "横幅に合わせる",
       "height": "高さに合わせる",
-      "actual": "100%"
+      "actual": "原寸 (100%)"
+    },
+    "quickRail": {
+      "hideTop": "上のツールを隠す",
+      "showTop": "上のツールを表示",
+      "hideBottom": "倍率と通知を隠す",
+      "showBottom": "倍率と通知を表示"
     },
     "empty": {
       "title": "マンガ翻訳を始めましょう",

@@ -2,7 +2,6 @@ import React from "react";
 import {
   IconAdjustmentsHorizontal,
   IconAspectRatio,
-  IconChevronDown,
   IconMinus,
   IconPlus,
 } from "@tabler/icons-react";
@@ -15,7 +14,8 @@ import {
 import { ControlTooltip } from "./ui/ControlTooltip";
 import { Select } from "./ui/Select";
 
-type WorkspaceViewControlsProps = {
+export type WorkspaceViewControlsProps = {
+  effectiveScale: number;
   fitMode: WorkspaceFitMode;
   zoom: number;
   onChangeFitMode: (fitMode: WorkspaceFitMode) => void;
@@ -27,6 +27,7 @@ type WorkspaceViewControlsProps = {
 const FIT_MODES: WorkspaceFitMode[] = ["contain", "width", "height", "actual"];
 
 type WorkspaceViewLabels = {
+  adjusted: string;
   fitMode: string;
   fitModes: Record<WorkspaceFitMode, string>;
   hideControls: string;
@@ -42,101 +43,129 @@ export function WorkspaceViewControls(
   props: WorkspaceViewControlsProps,
 ): React.JSX.Element {
   const labels = useWorkspaceViewLabels();
-  const controls = useCollapsibleViewControls();
+  const { open, rootRef, toggle, triggerRef } = useWorkspaceViewPopup();
   const panelId = React.useId();
-  const zoomPercent = Math.round(props.zoom * 100);
+  const zoomPercent = Math.round(props.effectiveScale * 100);
   return (
     <div
-      className={`workspace-view-dock ${controls.collapsed ? "collapsed" : ""}`.trim()}
+      ref={rootRef}
+      className={`workspace-view-dock ${open ? "open" : ""}`.trim()}
     >
-      <CollapsedViewTrigger
-        buttonRef={controls.revealButtonRef}
-        hidden={!controls.collapsed}
+      <WorkspaceViewTrigger
+        buttonRef={triggerRef}
         labels={labels}
+        open={open}
         panelId={panelId}
         zoomPercent={zoomPercent}
-        onExpand={controls.expand}
+        onToggle={toggle}
       />
-      <WorkspaceViewPanel
-        {...props}
-        collapseButtonRef={controls.collapseButtonRef}
-        hidden={controls.collapsed}
-        labels={labels}
-        panelId={panelId}
-        zoomPercent={zoomPercent}
-        onCollapse={controls.collapse}
-      />
+      {open ? (
+        <WorkspaceViewPanel
+          {...props}
+          labels={labels}
+          panelId={panelId}
+          zoomPercent={zoomPercent}
+        />
+      ) : null}
     </div>
   );
 }
 
-function useCollapsibleViewControls(): {
-  collapse: () => void;
-  collapseButtonRef: React.RefObject<HTMLButtonElement | null>;
-  collapsed: boolean;
-  expand: () => void;
-  revealButtonRef: React.RefObject<HTMLButtonElement | null>;
+function useWorkspaceViewPopup(): {
+  open: boolean;
+  rootRef: React.RefObject<HTMLDivElement | null>;
+  toggle: () => void;
+  triggerRef: React.RefObject<HTMLButtonElement | null>;
 } {
-  const [collapsed, setCollapsed] = React.useState(true);
-  const collapseButtonRef = React.useRef<HTMLButtonElement>(null);
-  const revealButtonRef = React.useRef<HTMLButtonElement>(null);
-  const focusAfterToggleRef = React.useRef(false);
-  const setCollapsedFromControl = React.useCallback(
-    (nextCollapsed: boolean) => {
-      focusAfterToggleRef.current = true;
-      setCollapsed(nextCollapsed);
-    },
-    [],
-  );
-  const collapse = React.useCallback(() => {
-    setCollapsedFromControl(true);
-  }, [setCollapsedFromControl]);
-  const expand = React.useCallback(() => {
-    setCollapsedFromControl(false);
-  }, [setCollapsedFromControl]);
-  React.useLayoutEffect(() => {
-    if (!focusAfterToggleRef.current) return;
-    focusAfterToggleRef.current = false;
-    (collapsed ? revealButtonRef : collapseButtonRef).current?.focus();
-  }, [collapsed]);
+  const [open, setOpen] = React.useState(false);
+  const rootRef = React.useRef<HTMLDivElement>(null);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    const close = (): void => setOpen(false);
+    const handlePointerDown = (event: PointerEvent): void => {
+      if (!isWorkspaceViewPopupTarget(rootRef.current, event.target)) close();
+    };
+    const handleFocusIn = (event: FocusEvent): void => {
+      if (!isWorkspaceViewPopupTarget(rootRef.current, event.target)) close();
+    };
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      event.preventDefault();
+      setOpen(false);
+      triggerRef.current?.focus();
+    };
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    document.addEventListener("focusin", handleFocusIn, true);
+    window.addEventListener("blur", close);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+      document.removeEventListener("focusin", handleFocusIn, true);
+      window.removeEventListener("blur", close);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
+
   return {
-    collapse,
-    collapseButtonRef,
-    collapsed,
-    expand,
-    revealButtonRef,
+    open,
+    rootRef,
+    toggle: React.useCallback(() => setOpen((current) => !current), []),
+    triggerRef,
   };
 }
 
-function CollapsedViewTrigger({
+function isWorkspaceViewPopupTarget(
+  root: HTMLDivElement | null,
+  target: EventTarget | null,
+): boolean {
+  if (!root || !(target instanceof Node)) return false;
+  if (root.contains(target)) return true;
+  const targetElement =
+    target instanceof Element ? target : target.parentElement;
+  const selectMenu = targetElement?.closest<HTMLElement>(
+    "[data-ui-select-menu]",
+  );
+  if (!selectMenu) return false;
+  const controlledListboxId = root
+    .querySelector<HTMLElement>("[data-ui-select-trigger][aria-controls]")
+    ?.getAttribute("aria-controls");
+  const controlledListbox = controlledListboxId
+    ? document.getElementById(controlledListboxId)
+    : null;
+  return Boolean(controlledListbox && selectMenu.contains(controlledListbox));
+}
+
+function WorkspaceViewTrigger({
   buttonRef,
-  hidden,
   labels,
+  open,
   panelId,
   zoomPercent,
-  onExpand,
+  onToggle,
 }: {
   buttonRef: React.RefObject<HTMLButtonElement | null>;
-  hidden: boolean;
   labels: WorkspaceViewLabels;
+  open: boolean;
   panelId: string;
   zoomPercent: number;
-  onExpand: () => void;
+  onToggle: () => void;
 }): React.JSX.Element {
   return (
-    <span className="workspace-view-reveal-slot" hidden={hidden}>
+    <span className="workspace-view-reveal-slot">
       <ControlTooltip
         className="workspace-view-reveal"
-        content={labels.showControls}
+        content={open ? labels.hideControls : labels.showControls}
         placement="left"
       >
         <button
           type="button"
           ref={buttonRef}
           aria-controls={panelId}
-          aria-expanded={false}
-          aria-label={labels.showControls}
-          onClick={onExpand}
+          aria-expanded={open}
+          aria-label={open ? labels.hideControls : labels.showControls}
+          onClick={onToggle}
         >
           <IconAdjustmentsHorizontal
             size={16}
@@ -151,26 +180,19 @@ function CollapsedViewTrigger({
 }
 
 function WorkspaceViewPanel({
-  collapseButtonRef,
-  hidden,
   labels,
   panelId,
   zoomPercent,
-  onCollapse,
   ...props
 }: WorkspaceViewControlsProps & {
-  collapseButtonRef: React.RefObject<HTMLButtonElement | null>;
-  hidden: boolean;
   labels: WorkspaceViewLabels;
   panelId: string;
   zoomPercent: number;
-  onCollapse: () => void;
 }): React.JSX.Element {
   return (
     <nav
       className="workspace-view-controls"
       aria-label={labels.label}
-      hidden={hidden}
       id={panelId}
     >
       <WorkspaceZoomRow
@@ -184,24 +206,10 @@ function WorkspaceViewPanel({
       <WorkspaceFitModeSelect
         fitMode={props.fitMode}
         labels={labels}
+        zoom={props.zoom}
+        zoomPercent={zoomPercent}
         onChangeFitMode={props.onChangeFitMode}
       />
-      <ControlTooltip
-        className="workspace-view-control workspace-view-collapse"
-        content={labels.hideControls}
-        placement="left"
-      >
-        <button
-          type="button"
-          ref={collapseButtonRef}
-          aria-controls={panelId}
-          aria-expanded={true}
-          aria-label={labels.hideControls}
-          onClick={onCollapse}
-        >
-          <IconChevronDown size={18} stroke={2.2} aria-hidden="true" />
-        </button>
-      </ControlTooltip>
     </nav>
   );
 }
@@ -225,7 +233,7 @@ function WorkspaceZoomRow({
       <ControlTooltip
         className="workspace-view-control"
         content={labels.zoomIn}
-        placement="left"
+        placement="bottom"
       >
         <button
           type="button"
@@ -239,7 +247,7 @@ function WorkspaceZoomRow({
       <ControlTooltip
         className="workspace-view-control workspace-zoom-percent"
         content={labels.resetZoom}
-        placement="left"
+        placement="bottom"
       >
         <button
           type="button"
@@ -252,7 +260,7 @@ function WorkspaceZoomRow({
       <ControlTooltip
         className="workspace-view-control"
         content={labels.zoomOut}
-        placement="left"
+        placement="bottom"
       >
         <button
           type="button"
@@ -270,16 +278,22 @@ function WorkspaceZoomRow({
 function WorkspaceFitModeSelect({
   fitMode,
   labels,
+  zoom,
+  zoomPercent,
   onChangeFitMode,
-}: Pick<WorkspaceViewControlsProps, "fitMode" | "onChangeFitMode"> & {
+}: Pick<WorkspaceViewControlsProps, "fitMode" | "zoom" | "onChangeFitMode"> & {
   labels: WorkspaceViewLabels;
+  zoomPercent: number;
 }): React.JSX.Element {
-  const selectedLabel = labels.fitModes[fitMode];
+  const adjusted = Math.abs(zoom - 1) > 0.001;
+  const selectedLabel = adjusted
+    ? `${labels.adjusted} (${zoomPercent}%)`
+    : labels.fitModes[fitMode];
   return (
     <ControlTooltip
       className="workspace-view-control workspace-fit-picker"
       content={`${labels.fitMode}: ${selectedLabel}`}
-      placement="left"
+      placement="bottom"
     >
       <span className="workspace-fit-picker-face" aria-hidden="true">
         <IconAspectRatio size={19} stroke={2} />
@@ -287,7 +301,8 @@ function WorkspaceFitModeSelect({
       <Select
         ariaLabel={labels.fitMode}
         className="workspace-fit-select"
-        value={fitMode}
+        placeholder={selectedLabel}
+        value={adjusted ? "__adjusted__" : fitMode}
         options={FIT_MODES.map((mode) => ({
           value: mode,
           label: labels.fitModes[mode],
@@ -304,6 +319,7 @@ function useWorkspaceViewLabels(): WorkspaceViewLabels {
   const { t } = useTranslation("components");
   return React.useMemo(
     () => ({
+      adjusted: t("workspace.view.adjusted"),
       fitMode: t("workspace.view.fitMode"),
       fitModes: {
         actual: t("workspace.view.actual"),

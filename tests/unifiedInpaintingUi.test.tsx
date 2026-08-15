@@ -403,6 +403,41 @@ describe("unified right rail", () => {
     expect(container.querySelector('[role="menu"]')).toBeNull();
   });
 
+  it("hides the upper and lower quick-tool groups independently", () => {
+    const props = makeRightRailProps();
+    renderQuickRail(props);
+
+    expect(screen.getByRole("toolbar", { name: "캔버스 작업" })).not.toBeNull();
+    expect(
+      screen.getByRole("button", { name: "보기 조절 펼치기" }),
+    ).not.toBeNull();
+    expect(
+      screen.getByRole("button", { name: "작업 센터 열기" }),
+    ).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "위쪽 도구 숨기기" }));
+    expect(screen.queryByRole("toolbar", { name: "캔버스 작업" })).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "보기 조절 펼치기" }),
+    ).not.toBeNull();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "배율과 알림 숨기기" }),
+    );
+    expect(
+      screen.queryByRole("button", { name: "보기 조절 펼치기" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "작업 센터 열기" }),
+    ).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "위쪽 도구 보이기" }));
+    expect(screen.getByRole("toolbar", { name: "캔버스 작업" })).not.toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "보기 조절 펼치기" }),
+    ).toBeNull();
+  });
+
   it("offers current, whole-chapter, and selected-page erase scopes", () => {
     const props = makeRightRailProps();
     renderRightRail(props);
@@ -708,6 +743,7 @@ describe("unified right rail", () => {
     view.rerender(
       <AppRightQuickRail
         {...props}
+        {...makeQuickRailChromeProps()}
         jobState={{
           id: "job-ocr-failed",
           kind: "gemma-analysis",
@@ -790,9 +826,29 @@ function renderRightRail(props: RightRailProps) {
 }
 
 function renderQuickRail(props: RightRailProps) {
-  return render(<AppRightQuickRail {...props} />, {
+  return render(
+    <AppRightQuickRail {...props} {...makeQuickRailChromeProps()} />,
+    {
     wrapper: RightRailTestProviders,
-  });
+    },
+  );
+}
+
+function makeQuickRailChromeProps(): Pick<
+  React.ComponentProps<typeof AppRightQuickRail>,
+  "workspaceViewControls"
+> {
+  return {
+    workspaceViewControls: {
+      effectiveScale: 1,
+      fitMode: "contain",
+      zoom: 1,
+      onChangeFitMode: () => undefined,
+      onResetZoom: () => undefined,
+      onZoomIn: () => undefined,
+      onZoomOut: () => undefined,
+    },
+  };
 }
 
 function RightRailTestProviders({

@@ -1,8 +1,19 @@
 .app-shell {
   display: grid;
-  grid-template-columns: 400px minmax(0, 1fr) 44px 340px;
+  grid-template-columns: 400px minmax(0, 1fr) 400px;
   height: 100vh;
   background: #0e0f13;
+}
+
+.workspace-region {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
+.workspace-region > .workspace-shell {
+  width: 100%;
+  height: 100%;
 }
 
 .sidebar,
@@ -24,6 +35,11 @@
 .page-list.collapsed {
   flex: 0 0 auto;
   grid-template-rows: auto;
+}
+
+.library-panel-content[hidden],
+.page-list-content[hidden] {
+  display: none;
 }
 
 .library-panel-content,
@@ -49,7 +65,7 @@
   transition: transform var(--motion-fast) var(--ease-standard);
 }
 
-.sidebar-section-collapse-chevron-open {
+.sidebar-section-collapse-chevron-up {
   transform: rotate(180deg);
 }
 
@@ -88,23 +104,116 @@
 }
 
 .right-quick-rail {
+  position: absolute;
+  z-index: var(--layer-toolbar);
+  top: 0;
+  right: 10px;
+  bottom: 0;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
+  width: 42px;
   min-width: 0;
   min-height: 0;
   padding: 12px 0;
-  background: #0c0d10;
+  background: transparent;
+  pointer-events: none;
 }
 
-.chapter-quick-controls-frame {
+.right-quick-rail button,
+.right-quick-rail [role="combobox"],
+.right-quick-rail .status-popover {
+  pointer-events: auto;
+}
+
+.right-quick-rail-top,
+.right-quick-rail-bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.right-quick-controls-frame {
   width: 42px;
   border: 1px solid var(--border-soft);
   border-radius: var(--r-md);
   background: #14161b;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
   overflow: visible;
+}
+
+.right-quick-rail-bottom-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 40px;
+}
+
+.right-quick-rail-toggle,
+.right-quick-rail-toggle > button {
+  width: 40px;
+  height: 32px;
+}
+
+.right-quick-rail-toggle > button {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0 0 calc(var(--r-md) - 1px) calc(var(--r-md) - 1px);
+  background: transparent;
+  color: #aeb8c5;
+  cursor: pointer;
+}
+
+.right-quick-controls-frame:not(.collapsed) > .right-quick-rail-toggle {
+  border-top: 1px solid var(--border-soft);
+}
+
+.right-quick-rail-toggle > button:hover,
+.right-quick-rail-toggle > button:focus-visible {
+  background: #20242b;
+  color: #f4f6f8;
+}
+
+.right-quick-rail-toggle > button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.chapter-quick-controls-frame {
+  width: 42px;
+}
+
+.right-quick-bottom-frame .workspace-view-dock,
+.right-quick-bottom-frame .workspace-view-reveal-slot,
+.right-quick-bottom-frame .workspace-view-reveal,
+.right-quick-bottom-frame .status-dock,
+.right-quick-bottom-frame .status-dock-button {
+  width: 40px;
+}
+
+.right-quick-bottom-frame .workspace-view-reveal-slot,
+.right-quick-bottom-frame .workspace-view-reveal,
+.right-quick-bottom-frame .workspace-view-reveal > button,
+.right-quick-bottom-frame .workspace-view-dock,
+.right-quick-bottom-frame .status-dock,
+.right-quick-bottom-frame .status-dock-button {
+  height: 40px;
+}
+
+.right-quick-bottom-frame .workspace-view-reveal > button,
+.right-quick-bottom-frame .status-dock-button {
+  width: 40px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.right-quick-bottom-frame .status-dock {
+  border-top: 1px solid var(--border-soft);
 }
 
 .status-dock {
@@ -438,30 +547,39 @@
 }
 
 .workspace {
-  --workspace-edit-gutter: 96px;
+  --workspace-overscroll-x: 0px;
+  --workspace-overscroll-y: 0px;
   position: relative;
   display: grid;
   place-items: center;
   width: 100%;
   height: 100%;
   overflow: auto;
-  padding: var(--workspace-edit-gutter);
+  padding: var(--workspace-overscroll-y) var(--workspace-overscroll-x);
   background: #0c0d10;
   outline: none;
 }
 
+/* Screen-fit modes are centered and immovable. Scrolling is enabled only
+   after the rendered page itself grows beyond the viewport. */
+.workspace.is-fit-scroll-locked {
+  overflow: hidden;
+}
+
 .workspace-view-dock {
-  position: absolute;
-  z-index: var(--layer-drag);
-  right: 6px;
-  bottom: 10px;
+  position: relative;
   width: 42px;
+  height: 42px;
 }
 
 .workspace-view-controls {
+  position: absolute;
+  right: calc(100% + 8px);
+  bottom: 0;
   display: flex;
-  flex-direction: column;
-  width: 42px;
+  flex-direction: row;
+  width: max-content;
+  height: 42px;
   border: 1px solid var(--border-soft);
   border-radius: var(--r-md);
   background: rgba(20, 22, 27, 0.96);
@@ -470,27 +588,26 @@
   backdrop-filter: blur(8px);
 }
 
-.workspace-view-controls[hidden],
 .workspace-view-reveal-slot[hidden] {
   display: none;
 }
 
 .workspace-view-zoom-row {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
 }
 
 .workspace-view-control {
   width: 40px;
-  height: 38px;
+  height: 40px;
 }
 
 .workspace-view-control > button {
   display: grid;
   place-items: center;
   width: 40px;
-  height: 38px;
+  height: 40px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -524,8 +641,8 @@
 
 .workspace-view-control.workspace-zoom-percent {
   width: 40px;
-  border-top: 1px solid var(--border-soft);
-  border-bottom: 1px solid var(--border-soft);
+  border-right: 1px solid var(--border-soft);
+  border-left: 1px solid var(--border-soft);
 }
 
 .workspace-view-control.workspace-zoom-percent > button {
@@ -534,28 +651,20 @@
   font-variant-numeric: tabular-nums;
 }
 
-.workspace-view-collapse {
-  border-top: 1px solid var(--border-soft);
-}
-
 .workspace-view-zoom-row > .workspace-view-control:first-child > button {
-  border-radius: var(--r-md) var(--r-md) 0 0;
-}
-
-.workspace-view-collapse > button {
-  border-radius: 0 0 var(--r-md) var(--r-md);
+  border-radius: calc(var(--r-md) - 1px) 0 0 calc(var(--r-md) - 1px);
 }
 
 .workspace-fit-picker {
   position: relative;
-  border-top: 1px solid var(--border-soft);
+  border-left: 1px solid var(--border-soft);
 }
 
 .workspace-fit-picker-face {
   display: grid;
   place-items: center;
   width: 40px;
-  height: 38px;
+  height: 40px;
   color: #aeb8c5;
   pointer-events: none;
 }
@@ -564,17 +673,31 @@
   position: absolute;
   inset: 0;
   width: 40px;
-  height: 38px;
+  height: 40px;
 }
 
 .workspace-fit-select [data-ui-select-trigger] {
   width: 40px;
-  height: 38px;
-  min-height: 38px;
+  height: 40px;
+  min-height: 40px;
   padding: 0;
   border: 0;
   background: transparent;
   color: transparent;
+}
+
+.workspace-fit-picker,
+.workspace-fit-picker-face,
+.workspace-fit-select,
+.workspace-fit-select [data-ui-select-trigger] {
+  border-radius: 0 calc(var(--r-md) - 1px) calc(var(--r-md) - 1px) 0;
+}
+
+.workspace-fit-select [data-ui-select-trigger]:hover,
+.workspace-fit-select [data-ui-select-trigger]:focus-visible,
+.workspace-fit-select [data-ui-select-trigger][aria-expanded="true"] {
+  background: transparent;
+  box-shadow: none;
 }
 
 .workspace-fit-select [data-ui-select-trigger] > span,
@@ -611,6 +734,16 @@
   font-variant-numeric: tabular-nums;
   cursor: pointer;
   backdrop-filter: blur(8px);
+}
+
+.workspace-view-reveal > button[aria-expanded="true"] {
+  border-color: var(--accent-bd);
+  background: #20242b;
+  color: #f4f6f8;
+}
+
+.workspace-view-dock.open .workspace-view-reveal > .control-tooltip-bubble {
+  display: none;
 }
 
 .stage-toolbar {
@@ -839,6 +972,13 @@
   transform-origin: center bottom;
 }
 
+.control-tooltip-bottom .control-tooltip-bubble {
+  top: calc(100% + 9px);
+  left: 50%;
+  transform: translate(-50%, -4px) scale(0.97);
+  transform-origin: center top;
+}
+
 .control-tooltip:hover .control-tooltip-bubble,
 .control-tooltip:has(:focus-visible) .control-tooltip-bubble {
   visibility: visible;
@@ -856,6 +996,24 @@
 .control-tooltip-top:hover .control-tooltip-bubble,
 .control-tooltip-top:has(:focus-visible) .control-tooltip-bubble {
   transform: translate(-50%, 0) scale(1);
+}
+
+.control-tooltip-bottom:hover .control-tooltip-bubble,
+.control-tooltip-bottom:has(:focus-visible) .control-tooltip-bubble {
+  transform: translate(-50%, 0) scale(1);
+}
+
+.workspace-fit-picker.control-tooltip-bottom .control-tooltip-bubble {
+  right: 0;
+  left: auto;
+  transform: translateY(-4px) scale(0.97);
+  transform-origin: right top;
+}
+
+.workspace-fit-picker.control-tooltip-bottom:hover .control-tooltip-bubble,
+.workspace-fit-picker.control-tooltip-bottom:has(:focus-visible)
+  .control-tooltip-bubble {
+  transform: translateY(0) scale(1);
 }
 
 .stage-active-tool-badge {
@@ -919,8 +1077,9 @@
 
 @media (max-width: 1400px) {
   .app-shell {
-    grid-template-columns: 340px minmax(0, 1fr) 44px 300px;
+    grid-template-columns: 340px minmax(0, 1fr) 340px;
   }
+
 }
 
 @media (max-width: 1180px) {
@@ -929,7 +1088,7 @@
   }
 
   .app-shell {
-    grid-template-columns: minmax(0, 1fr) 44px;
+    grid-template-columns: minmax(0, 1fr);
     height: auto;
   }
 
@@ -943,8 +1102,9 @@
     grid-column: 1;
   }
 
-  .right-quick-rail {
-    grid-column: 2;
+  .workspace-region {
+    grid-column: 1;
+    min-height: 480px;
   }
 
   .workspace {

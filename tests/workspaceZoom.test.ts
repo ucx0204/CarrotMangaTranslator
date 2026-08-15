@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   clampWorkspaceZoom,
+  computeWorkspaceOverscroll,
   computeWorkspaceImageSize,
+  computeWorkspaceScrollOrigin,
+  doesWorkspacePageFit,
   MAX_WORKSPACE_ZOOM,
   MIN_WORKSPACE_ZOOM,
 } from "../src/renderer/src/lib/workspaceZoom";
@@ -15,14 +18,52 @@ describe("clampWorkspaceZoom", () => {
   });
 });
 
+describe("workspace overscroll", () => {
+  it("follows half the current viewport instead of a fixed pixel gutter", () => {
+    expect(computeWorkspaceOverscroll({ width: 1000, height: 760 })).toEqual({
+      x: 500,
+      y: 380,
+    });
+  });
+
+  it("centres fitted page pixels instead of pinning them to the left edge", () => {
+    const container = { width: 1000, height: 760 };
+    const overscroll = computeWorkspaceOverscroll(container);
+    expect(
+      computeWorkspaceScrollOrigin(
+        container,
+        { width: 500, height: 760 },
+        overscroll,
+      ),
+    ).toEqual({ x: 250, y: 380 });
+    expect(
+      computeWorkspaceScrollOrigin(
+        container,
+        { width: 1200, height: 900 },
+        overscroll,
+      ),
+    ).toEqual(overscroll);
+  });
+
+  it("shows native bars only when page pixels are clipped", () => {
+    const viewport = { width: 1000, height: 760 };
+    expect(
+      doesWorkspacePageFit({ width: 500, height: 760 }, viewport),
+    ).toBe(true);
+    expect(
+      doesWorkspacePageFit({ width: 1001, height: 760 }, viewport),
+    ).toBe(false);
+  });
+});
+
 describe("computeWorkspaceImageSize", () => {
   const page = { width: 800, height: 1200 };
   const container = { width: 1000, height: 2000 };
 
   it("fits the whole image to the workspace and upscales small pages", () => {
     expect(computeWorkspaceImageSize(1, "contain", page, container)).toEqual({
-      width: 808,
-      height: 1212,
+      width: 1000,
+      height: 1500,
     });
   });
 
@@ -34,9 +75,9 @@ describe("computeWorkspaceImageSize", () => {
   it("scales the fitted size by the zoom factor", () => {
     const base = computeWorkspaceImageSize(2, "contain", page, container);
     expect(base).not.toBeNull();
-    // Width-bound fit: 1000-192 = 808; height = 808 * 1200/800.
-    expect(base?.width).toBe(Math.round(808 * 2));
-    expect(base?.height).toBe(Math.round((808 / (800 / 1200)) * 2));
+    // The editing pasteboard remains scrollable outside the fitted page.
+    expect(base?.width).toBe(2000);
+    expect(base?.height).toBe(3000);
   });
 
   it("keeps the whole image within the available height when tall", () => {
@@ -45,8 +86,8 @@ describe("computeWorkspaceImageSize", () => {
       width: 1000,
       height: 600,
     });
-    // Height-bound: availHeight 600-192 = 408, then * zoom.
-    expect(result?.height).toBe(Math.round(408 * 1.5));
+    // Height-bound against the viewport itself, then scaled by zoom.
+    expect(result?.height).toBe(900);
   });
 
   it("supports width, height, and actual-pixel bases", () => {
@@ -54,14 +95,14 @@ describe("computeWorkspaceImageSize", () => {
     expect(
       computeWorkspaceImageSize(1, "width", page, compactContainer),
     ).toEqual({
-      width: 808,
-      height: 1212,
+      width: 1000,
+      height: 1500,
     });
     expect(
       computeWorkspaceImageSize(1, "height", page, compactContainer),
     ).toEqual({
-      width: 405,
-      height: 608,
+      width: 533,
+      height: 800,
     });
     expect(
       computeWorkspaceImageSize(1, "actual", page, compactContainer),

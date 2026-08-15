@@ -66,10 +66,17 @@
       "hideControls": "보기 조절 접기",
       "showControls": "보기 조절 펼치기",
       "fitMode": "이미지 맞춤 방식",
+      "adjusted": "사용자 배율",
       "contain": "화면 맞춤",
       "width": "가로 맞춤",
       "height": "세로 맞춤",
-      "actual": "100%"
+      "actual": "원본 크기 (100%)"
+    },
+    "quickRail": {
+      "hideTop": "위쪽 도구 숨기기",
+      "showTop": "위쪽 도구 보이기",
+      "hideBottom": "배율과 알림 숨기기",
+      "showBottom": "배율과 알림 보이기"
     },
     "empty": {
       "title": "망가 번역을 시작해요",

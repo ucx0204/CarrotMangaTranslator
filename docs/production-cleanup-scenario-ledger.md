@@ -81,12 +81,12 @@ editing the totals by hand.
   need it. Node 22/V8 12.4 and Node 24/V8 13.6 produced identical covered/total
   counts for every sealed file and are the only accepted runtime families.
   The accepted Node 22 post-refactor and issue #65 follow-up capture that
-  established the eight
+  established the 22
   introduced floors has SHA-256
   `5c694dc7b0c2636bc36e1d72461ba6289569db926fed512b8ea3ee85e6f7bec4`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
-  percentage for lines/statements/functions/branches in all 80 existing
-  coverage-eligible `src/**` files changed since cleanup start. The eight new
+  percentage for lines/statements/functions/branches in all 123 existing
+  coverage-eligible `src/**` files changed since cleanup start. The 22 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record.
 - `scripts/check-production-cleanup-coverage.cjs` derives the eligible modified,

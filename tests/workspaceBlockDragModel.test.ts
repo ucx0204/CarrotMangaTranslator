@@ -18,6 +18,18 @@ describe("workspace block drag model", () => {
     expect(rotationCursor).toMatch(/^url\(".+"\) 12 12, crosshair$/);
   });
 
+  it("keeps the grabbed resize handle cursor throughout a resize drag", () => {
+    expect(resolveDragCursor("resize-n")).toBe("ns-resize");
+    expect(resolveDragCursor("resize-s")).toBe("ns-resize");
+    expect(resolveDragCursor("resize-e")).toBe("ew-resize");
+    expect(resolveDragCursor("resize-w")).toBe("ew-resize");
+    expect(resolveDragCursor("resize-ne")).toBe("nesw-resize");
+    expect(resolveDragCursor("resize-sw")).toBe("nesw-resize");
+    expect(resolveDragCursor("resize-nw")).toBe("nwse-resize");
+    expect(resolveDragCursor("resize-se")).toBe("nwse-resize");
+    expect(resolveDragCursor("resize")).toBe("nwse-resize");
+  });
+
   it("rejects a perspective edge that crosses the opposite edge", () => {
     const { page, drag } = makeFixture("perspective-top");
     const result = resolveBlockDrag(

@@ -6,11 +6,13 @@ import { ChevronDownIcon } from "./ui/icons";
 export function SidebarSectionCollapseButton({
   collapsed,
   controls,
+  direction,
   onToggle,
   sectionTitle,
 }: {
   collapsed: boolean;
   controls: string;
+  direction: "up" | "down";
   onToggle: () => void;
   sectionTitle: string;
 }): React.JSX.Element {
@@ -30,7 +32,9 @@ export function SidebarSectionCollapseButton({
     >
       <ChevronDownIcon
         size={16}
-        className={collapsed ? "" : "sidebar-section-collapse-chevron-open"}
+        className={
+          direction === "up" ? "sidebar-section-collapse-chevron-up" : ""
+        }
       />
     </IconButton>
   );

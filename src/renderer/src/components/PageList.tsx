@@ -29,6 +29,8 @@ import {
 } from "./pageList/pageListMemo";
 
 type PageListProps = {
+  collapsed: boolean;
+  otherPanelCollapsed: boolean;
   pages: MangaPage[];
   selectedPageId: string | null;
   jobActive: boolean;
@@ -38,9 +40,12 @@ type PageListProps = {
   onRetranslate: (pageId: string) => void;
   onRemove: (pageId: string) => void;
   onReorder: (sourcePageId: string, targetPageId: string) => void;
+  onToggleOtherPanel: () => void;
 };
 
 function PageListView({
+  collapsed,
+  otherPanelCollapsed,
   pages,
   selectedPageId,
   jobActive,
@@ -50,8 +55,8 @@ function PageListView({
   onRetranslate,
   onRemove,
   onReorder,
+  onToggleOtherPanel,
 }: PageListProps): React.JSX.Element {
-  const [collapsed, setCollapsed] = React.useState(false);
   const contentId = React.useId();
   const {
     activePage,
@@ -77,63 +82,62 @@ function PageListView({
     <section
       className={buildPageListClassName(pages.length > 0, collapsed)}
       data-collapsed={collapsed}
+      id="sidebar-page-panel"
     >
       <PageListHeader
         collapsed={collapsed}
-        contentId={contentId}
+        otherPanelCollapsed={otherPanelCollapsed}
         filter={filter}
         pages={pages}
         statusMode={statusMode}
         visibleCount={visiblePages.length}
         onFilterChange={setFilter}
-        onToggle={() => setCollapsed((current) => !current)}
+        onToggleOtherPanel={onToggleOtherPanel}
       />
-      {!collapsed ? (
-        <div className="page-list-content" id={contentId}>
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragStart={handleDragStart}
-            onDragCancel={() => setActivePageId(null)}
-            onDragEnd={handleDragEnd}
-          >
-            <PageSortableContent
-              activePage={activePage}
-              activePageId={activePageId}
-              allPageCount={pages.length}
-              disabled={jobActive}
-              lockedPageIds={lockedPageIds}
-              onRemove={onRemove}
-              onRetranslate={onRetranslate}
-              onSelect={onSelect}
-              pages={visiblePages}
-              registerPageItemRef={registerPageItemRef}
-              selectedPageId={selectedPageId}
-              statusMode={statusMode}
-              selectedPageHidden={selectedPageHidden}
-            />
-          </DndContext>
-        </div>
-      ) : null}
+      <div className="page-list-content" id={contentId} hidden={collapsed}>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragCancel={() => setActivePageId(null)}
+          onDragEnd={handleDragEnd}
+        >
+          <PageSortableContent
+            activePage={activePage}
+            activePageId={activePageId}
+            allPageCount={pages.length}
+            disabled={jobActive}
+            lockedPageIds={lockedPageIds}
+            onRemove={onRemove}
+            onRetranslate={onRetranslate}
+            onSelect={onSelect}
+            pages={visiblePages}
+            registerPageItemRef={registerPageItemRef}
+            selectedPageId={selectedPageId}
+            statusMode={statusMode}
+            selectedPageHidden={selectedPageHidden}
+          />
+        </DndContext>
+      </div>
     </section>
   );
 }
 
 function PageListHeader({
   collapsed,
-  contentId,
+  otherPanelCollapsed,
   filter,
   onFilterChange,
-  onToggle,
+  onToggleOtherPanel,
   pages,
   statusMode,
   visibleCount,
 }: {
   collapsed: boolean;
-  contentId: string;
+  otherPanelCollapsed: boolean;
   filter: PageListFilter;
   onFilterChange: (filter: PageListFilter) => void;
-  onToggle: () => void;
+  onToggleOtherPanel: () => void;
   pages: MangaPage[];
   statusMode: PageStatusMode;
   visibleCount: number;
@@ -152,10 +156,11 @@ function PageListHeader({
           </span>
         ) : null}
         <SidebarSectionCollapseButton
-          collapsed={collapsed}
-          controls={contentId}
-          onToggle={onToggle}
-          sectionTitle={t("common.pages")}
+          collapsed={otherPanelCollapsed}
+          controls="sidebar-library-panel"
+          direction={otherPanelCollapsed ? "down" : "up"}
+          onToggle={onToggleOtherPanel}
+          sectionTitle={t("library.title")}
         />
       </div>
       {pages.length && !collapsed ? (

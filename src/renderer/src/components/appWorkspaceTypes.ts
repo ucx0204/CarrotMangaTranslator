@@ -44,6 +44,7 @@ export type AppWorkspaceProps = {
   onResetWorkspaceZoom: () => void;
   onZoomInWorkspace: () => void;
   onZoomOutWorkspace: () => void;
+  onEffectiveScaleChange?: (scale: number) => void;
   onStagePointerMove: ImageStageProps["onStagePointerMove"];
   onStagePointerUp: ImageStageProps["onStagePointerUp"];
   onStagePointerDown: ImageStageProps["onStagePointerDown"];

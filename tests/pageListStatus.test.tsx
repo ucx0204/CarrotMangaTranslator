@@ -12,6 +12,8 @@ describe("page list workflow status", () => {
   it("distinguishes translation completion from full postprocess completion", () => {
     render(
       <PageList
+        collapsed={false}
+        otherPanelCollapsed={false}
         pages={PAGES}
         selectedPageId={null}
         jobActive={false}
@@ -19,6 +21,7 @@ describe("page list workflow status", () => {
         onRetranslate={vi.fn()}
         onRemove={vi.fn()}
         onReorder={vi.fn()}
+        onToggleOtherPanel={vi.fn()}
       />,
     );
 
