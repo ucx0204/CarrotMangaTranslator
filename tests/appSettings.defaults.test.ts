@@ -100,6 +100,28 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     ).toBe("break-word");
   });
 
+  it("preserves the expanded manual typography ranges and half-pixel sizes", () => {
+    const defaults = resolveDefaultAppSettings();
+    const parsed = parseStoredAppSettings(
+      JSON.stringify({
+        blockFormatDefaults: {
+          fontSizePx: 511.5,
+          lineHeight: 10,
+          letterSpacing: -1,
+          fontWidthScale: 5,
+        },
+      }),
+      defaults,
+    );
+
+    expect(parsed.blockFormatDefaults).toMatchObject({
+      fontSizePx: 511.5,
+      lineHeight: 10,
+      letterSpacing: -1,
+      fontWidthScale: 5,
+    });
+  });
+
   it("defaults natural layout on while preserving an explicit saved off setting", () => {
     const defaults = resolveDefaultAppSettings();
 

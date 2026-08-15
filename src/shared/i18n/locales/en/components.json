@@ -161,6 +161,8 @@
     "fontSizeValue": "Font size value",
     "fontSizeDecrease": "Decrease font size",
     "fontSizeIncrease": "Increase font size",
+    "decreaseValue": "Decrease {{label}}",
+    "increaseValue": "Increase {{label}}",
     "autoFitTitle": "Automatically fit text to the text box",
     "auto": "Auto",
     "rotation": "Rotation",

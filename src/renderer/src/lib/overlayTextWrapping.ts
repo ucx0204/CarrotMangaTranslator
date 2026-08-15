@@ -78,12 +78,16 @@ export function measureUniformWrappedText(
   lineHeightPx: number,
   graphemeAdvancePx: number,
   wordBreak: TextWordBreak,
+  resolveGraphemeAdvancePx?: (grapheme: string) => number,
 ): WrappedTextMeasurement {
   const graphemes = segmentGraphemes(normalizeNewlines(text)).map((value) => ({
     text: value,
     bold: false,
     italic: false,
-    width: value === "\n" ? 0 : graphemeAdvancePx,
+    width:
+      value === "\n"
+        ? 0
+        : (resolveGraphemeAdvancePx?.(value) ?? graphemeAdvancePx),
   }));
   return measureWrappedGraphemes(
     graphemes,

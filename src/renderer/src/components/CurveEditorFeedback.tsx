@@ -1,6 +1,11 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { CurveLayout, TranslationBlock } from "../../../shared/textTypes";
+import {
+  FONT_SIZE_STEP_PX,
+  MIN_FONT_SIZE_PX,
+  clampFontSizePx,
+} from "../../../shared/blockFormatValues";
 import { Button } from "./ui/Button";
 
 type CurveUpdate = (patch: Partial<TranslationBlock>) => void;
@@ -62,10 +67,12 @@ export function CurveOverflowWarning({
         ) : null}
         <button
           type="button"
-          disabled={disabled || block.fontSizePx <= 10}
+          disabled={disabled || block.fontSizePx <= MIN_FONT_SIZE_PX}
           onClick={() =>
             onUpdate({
-              fontSizePx: Math.max(10, block.fontSizePx - 1),
+              fontSizePx: clampFontSizePx(
+                block.fontSizePx - FONT_SIZE_STEP_PX,
+              ),
               autoFitText: false,
             })
           }

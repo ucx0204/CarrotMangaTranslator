@@ -191,10 +191,12 @@ function createNumberDraftHandlers({
         commit();
       }
       event.currentTarget.blur();
+      delete event.currentTarget.dataset.skipNumberBlur;
     } else if (event.key === "Escape") {
       event.currentTarget.dataset.skipNumberBlur = "true";
       restore();
       event.currentTarget.blur();
+      delete event.currentTarget.dataset.skipNumberBlur;
       event.stopPropagation();
     }
   };

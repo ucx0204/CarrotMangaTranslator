@@ -1189,7 +1189,7 @@ describe("IPC schemas", () => {
     expect(() =>
       parseIpcPayload(
         TranslationBlockSchema,
-        { ...block, fontWidthScale: 3 },
+        { ...block, fontWidthScale: 5.01 },
         "블록",
       ),
     ).toThrow(/요청 형식/);

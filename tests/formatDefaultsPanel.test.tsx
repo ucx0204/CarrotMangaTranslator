@@ -31,9 +31,9 @@ describe("FormatDefaultsPanel", () => {
       ),
     ).toHaveLength(4);
     expect(container.querySelector("details")).toBeNull();
-    expect(screen.getByRole("slider", { name: "줄 간격" })).toBeTruthy();
-    expect(screen.getByRole("slider", { name: "자간" })).toBeTruthy();
-    expect(screen.getByRole("slider", { name: "장평" })).toBeTruthy();
+    expect(screen.getByRole("spinbutton", { name: "줄 간격" })).toBeTruthy();
+    expect(screen.getByRole("spinbutton", { name: "자간" })).toBeTruthy();
+    expect(screen.getByRole("spinbutton", { name: "장평" })).toBeTruthy();
     expect(screen.getByRole("slider", { name: "글자 투명도" })).toBeTruthy();
     expect(screen.getByRole("slider", { name: "안쪽 여백" })).toBeTruthy();
     expect(screen.getByText("12%")).toBeTruthy();
@@ -76,13 +76,13 @@ describe("FormatDefaultsPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "글자 크기 늘리기" }));
 
     expect(onChange).toHaveBeenLastCalledWith({
-      fontSizePx: 25,
+      fontSizePx: 24.5,
       autoFitText: false,
     });
     expect(
       container.querySelector<HTMLElement>(".gather-direct-preview-text")?.style
         .fontSize,
-    ).toBe("25px");
+    ).toBe("24.5px");
 
     fireEvent.click(screen.getByRole("button", { name: "글자 크기 줄이기" }));
     expect(onChange).toHaveBeenLastCalledWith({
@@ -106,9 +106,11 @@ describe("FormatDefaultsPanel", () => {
     const onChange = vi.fn();
     const { container } = renderPanel(onChange);
 
-    fireEvent.change(screen.getByRole("spinbutton", { name: "글자 크기" }), {
+    const input = screen.getByRole("spinbutton", { name: "글자 크기" });
+    fireEvent.change(input, {
       target: { value: "50" },
     });
+    fireEvent.keyDown(input, { key: "Enter" });
 
     expect(onChange).toHaveBeenLastCalledWith({
       fontSizePx: 50,
@@ -118,6 +120,48 @@ describe("FormatDefaultsPanel", () => {
       container.querySelector<HTMLElement>(".gather-direct-preview-text")?.style
         .fontSize,
     ).toBe("50px");
+  });
+
+  it("accepts expanded spacing and width values through direct inputs", () => {
+    const onChange = vi.fn();
+    renderPanel(onChange);
+    const lineHeight = screen.getByRole("spinbutton", {
+      name: "줄 간격",
+    }) as HTMLInputElement;
+    const letterSpacing = screen.getByRole("spinbutton", {
+      name: "자간",
+    }) as HTMLInputElement;
+    const fontWidth = screen.getByRole("spinbutton", {
+      name: "장평",
+    }) as HTMLInputElement;
+
+    expect([lineHeight.min, lineHeight.max, lineHeight.step]).toEqual([
+      "0.1",
+      "10",
+      "0.01",
+    ]);
+    expect([letterSpacing.min, letterSpacing.max, letterSpacing.step]).toEqual([
+      "-1",
+      "5",
+      "0.01",
+    ]);
+    expect([fontWidth.min, fontWidth.max, fontWidth.step]).toEqual([
+      "10",
+      "500",
+      "1",
+    ]);
+
+    fireEvent.change(lineHeight, { target: { value: "10" } });
+    fireEvent.keyDown(lineHeight, { key: "Enter" });
+    expect(onChange).toHaveBeenLastCalledWith({ lineHeight: 10 });
+
+    fireEvent.change(letterSpacing, { target: { value: "-1" } });
+    fireEvent.blur(letterSpacing);
+    expect(onChange).toHaveBeenLastCalledWith({ letterSpacing: -1 });
+
+    fireEvent.change(fontWidth, { target: { value: "500" } });
+    fireEvent.keyDown(fontWidth, { key: "Enter" });
+    expect(onChange).toHaveBeenLastCalledWith({ fontWidthScale: 5 });
   });
 
   it("previews vertical direction and disabling the outline", () => {
@@ -204,7 +248,7 @@ describe("FormatDefaultsPanel", () => {
 
     expect(onDefaultChange).not.toHaveBeenCalled();
     expect(screen.getByTestId("default-size").textContent).toBe("24");
-    expect(screen.getByTestId("preset-size").textContent).toBe("25");
+    expect(screen.getByTestId("preset-size").textContent).toBe("24.5");
     expect(screen.getByTestId("preset-groups").textContent).toContain("size");
     expect(
       screen

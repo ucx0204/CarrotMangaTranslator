@@ -24,6 +24,7 @@ import {
 import { FONT_MATCHING_SEMANTIC_ROLES } from "./fontMatchingProfileTypes";
 import { normalizeVisualClusterId } from "./visualClusterId";
 import { RenderBBoxSchema } from "./renderBboxSchema";
+import * as blockFormatValueSchemas from "./blockFormatValueSchemas";
 
 export { MAX_MAX_TOKENS, MIN_CONTEXT_TOKENS, MIN_MAX_TOKENS };
 
@@ -335,10 +336,10 @@ export const TranslationBlockSchema = z
     warpTransform: WarpTransformSchema.optional(),
     fontFamily: z.string().max(120).optional(),
     automaticFontMatch: AutomaticFontMatchRecordSchema.optional(),
-    fontSizePx: finiteNumber.min(1).max(512),
-    lineHeight: finiteNumber.min(0.5).max(4),
-    letterSpacing: finiteNumber.min(-0.5).max(2).optional(),
-    fontWidthScale: finiteNumber.min(0.5).max(1.5).optional(),
+    fontSizePx: blockFormatValueSchemas.FontSizePxSchema,
+    lineHeight: blockFormatValueSchemas.LineHeightSchema,
+    letterSpacing: blockFormatValueSchemas.LetterSpacingSchema.optional(),
+    fontWidthScale: blockFormatValueSchemas.FontWidthScaleSchema.optional(),
     wordBreak: z.enum(TEXT_WORD_BREAK_VALUES).optional(),
     textAlign: z.enum(["left", "center", "right"]),
     textColor: hexColor,

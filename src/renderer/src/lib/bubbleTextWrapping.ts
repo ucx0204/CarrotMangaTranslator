@@ -166,8 +166,13 @@ export function measureUniformStyledWrappedTextInSlots(
   columnWidthPx: number,
   graphemeAdvancePx: number,
   wordBreak: TextWordBreak,
+  resolveGraphemeAdvancePx?: (grapheme: string) => number,
 ): SlottedWrappedTextMeasurement {
-  const graphemes = measureUniformStyledGraphemes(runs, graphemeAdvancePx);
+  const graphemes = measureUniformStyledGraphemes(
+    runs,
+    graphemeAdvancePx,
+    resolveGraphemeAdvancePx,
+  );
   return measureWrappedTextInSlots(
     graphemes,
     slots,
@@ -211,13 +216,17 @@ function measureWrappedTextInSlots(
 function measureUniformStyledGraphemes(
   runs: TextStyleRun[],
   graphemeAdvancePx: number,
+  resolveGraphemeAdvancePx?: (grapheme: string) => number,
 ): StyledGrapheme[] {
   return runs.flatMap((run) =>
     segmentGraphemes(run.text.replace(/\r\n?/g, "\n")).map((text) => ({
       text,
       bold: run.bold,
       italic: run.italic,
-      width: text === "\n" ? 0 : graphemeAdvancePx,
+      width:
+        text === "\n"
+          ? 0
+          : (resolveGraphemeAdvancePx?.(text) ?? graphemeAdvancePx),
     })),
   );
 }

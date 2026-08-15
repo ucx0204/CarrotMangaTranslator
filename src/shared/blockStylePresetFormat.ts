@@ -1,5 +1,15 @@
 import type { BlockFormatDefaults, BlockFormatGroupId } from "./blockFormat";
 import type { TranslationBlock } from "./textTypes";
+import {
+  MAX_FONT_SIZE_PX,
+  MAX_FONT_WIDTH_SCALE,
+  MAX_LETTER_SPACING_EM,
+  MAX_LINE_HEIGHT,
+  MIN_FONT_SIZE_PX,
+  MIN_FONT_WIDTH_SCALE,
+  MIN_LETTER_SPACING_EM,
+  MIN_LINE_HEIGHT,
+} from "./blockFormatValues";
 
 export type BlockStylePresetFormat = Partial<
   Pick<
@@ -99,7 +109,12 @@ const NORMALIZED_FORMAT_BUILDERS: Record<
 > = {
   font: (record) => ({ fontFamily: optionalString(record.fontFamily, 120) }),
   size: (record) => ({
-    fontSizePx: rangedNumber(record.fontSizePx, 1, 512, 24),
+    fontSizePx: rangedNumber(
+      record.fontSizePx,
+      MIN_FONT_SIZE_PX,
+      MAX_FONT_SIZE_PX,
+      24,
+    ),
     autoFitText: booleanValue(record.autoFitText, true),
   }),
   align: (record) => ({
@@ -126,13 +141,28 @@ const NORMALIZED_FORMAT_BUILDERS: Record<
     italic: booleanValue(record.italic, false),
   }),
   lineSpacing: (record) => ({
-    lineHeight: rangedNumber(record.lineHeight, 0.5, 4, 1.18),
+    lineHeight: rangedNumber(
+      record.lineHeight,
+      MIN_LINE_HEIGHT,
+      MAX_LINE_HEIGHT,
+      1.18,
+    ),
   }),
   letterSpacing: (record) => ({
-    letterSpacing: rangedNumber(record.letterSpacing, -0.5, 2, 0),
+    letterSpacing: rangedNumber(
+      record.letterSpacing,
+      MIN_LETTER_SPACING_EM,
+      MAX_LETTER_SPACING_EM,
+      0,
+    ),
   }),
   fontWidth: (record) => ({
-    fontWidthScale: rangedNumber(record.fontWidthScale, 0.5, 1.5, 1),
+    fontWidthScale: rangedNumber(
+      record.fontWidthScale,
+      MIN_FONT_WIDTH_SCALE,
+      MAX_FONT_WIDTH_SCALE,
+      1,
+    ),
   }),
   color: (record) => ({
     textColor: colorValue(record.textColor, "#111111"),

@@ -161,6 +161,8 @@
     "fontSizeValue": "글자 크기 값",
     "fontSizeDecrease": "글자 크기 줄이기",
     "fontSizeIncrease": "글자 크기 늘리기",
+    "decreaseValue": "{{label}} 줄이기",
+    "increaseValue": "{{label}} 늘리기",
     "autoFitTitle": "텍스트 상자에 맞춰 자동 크기",
     "auto": "자동",
     "rotation": "회전",

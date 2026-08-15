@@ -78,17 +78,16 @@ editing the totals by hand.
   JSON-summary provider, Vitest/coverage-v8 4.1.9, and the SHA-256
   `a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a` of the
   ignored Node 22 baseline capture. The capture is provenance only; CI does not
-  need it. Node 22/V8 12.4 and Node 24/V8 13.6 produced identical covered/total
-  counts for every sealed file and are the only accepted runtime families.
-  The accepted Node 22 post-refactor and issue #65 follow-up capture that
-  established the eight
-  introduced floors has SHA-256
-  `5c694dc7b0c2636bc36e1d72461ba6289569db926fed512b8ea3ee85e6f7bec4`.
+  need it. Node 22/V8 12.4 and Node 24/V8 13.6 are the only accepted runtime
+  families. The accepted Node 24 capture after the stage 3 typography-control
+  work established all 27 introduced floors and has SHA-256
+  `309ce333341e39295169145f2d2f877be893a6e15ba28f4efe51e5d054bf08e0`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
-  percentage for lines/statements/functions/branches in all 80 existing
-  coverage-eligible `src/**` files changed since cleanup start. The eight new
-  eligible source files have their accepted post-refactor Windows ratios sealed
-  as `introducedFloors`; they cannot regress to a merely present 0% record.
+  percentage for lines/statements/functions/branches in all 133 existing
+  coverage-eligible `src/**` files changed since cleanup start. The 27 new
+  eligible source files have their accepted post-change Windows ratios sealed as
+  `introducedFloors`; they cannot regress to a merely present 0% record. One
+  removed source file is recorded explicitly in `deletedFiles`.
 - `scripts/check-production-cleanup-coverage.cjs` derives the eligible modified,
   added, deleted, and untracked source scope from Git on every run. A missing or
   stale manifest entry, unrecorded deletion, unsupported source status, missing

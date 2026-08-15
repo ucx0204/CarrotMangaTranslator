@@ -456,6 +456,10 @@ describe("geometry helpers", () => {
     expect(normalizeRenderDirection("vertical", "horizontal")).toBe("vertical");
     expect(normalizeRenderDirection("rotated", "vertical")).toBe("horizontal");
     expect(normalizeRenderDirection("hidden", "vertical")).toBe("horizontal");
+    expect(normalizeRenderDirection("diagonal", "vertical")).toBe("vertical");
+    expect(normalizeRenderDirection("diagonal", "horizontal")).toBe(
+      "horizontal",
+    );
   });
 
   it("normalizes full-circle rotation while preserving tenths of a degree", () => {

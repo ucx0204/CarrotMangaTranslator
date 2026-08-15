@@ -3,8 +3,12 @@ import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import type { BlockFormatGroupId } from "../../../shared/blockFormat";
 import { resolveBlockTextWordBreak } from "../../../shared/textWrapping";
+import {
+  FONT_SIZE_STEP_PX,
+  MAX_FONT_SIZE_PX,
+  MIN_FONT_SIZE_PX,
+} from "../../../shared/blockFormatValues";
 import { BlockSpacingFields } from "./BlockSpacingFields";
-import { FontSizeNumberInput } from "./FontSizeNumberInput";
 import { FontSelect } from "./FontSelect";
 import { FormatBatchApplyModal } from "./FormatBatchApplyModal";
 import type { FormatApplyScope } from "../hooks/blockEditingStatus";
@@ -13,6 +17,7 @@ import { CheckboxField } from "./ui/CheckboxField";
 import { FieldSlider, FieldSliderGroup } from "./ui/FieldSlider";
 import { IconButton } from "./ui/IconButton";
 import { RangeInput } from "./ui/Field";
+import { ScrubbableNumberField } from "./ui/ScrubbableNumberField";
 import { TextWrappingSelect } from "./TextWrappingSelect";
 import {
   AlignCenterIcon,
@@ -315,35 +320,24 @@ function FontSizeRow({
   return (
     <div className="font-size-row editor-font-size-row">
       <span className="font-size-label">{t("format.size")}</span>
-      <div className="font-size-stepper">
-        <IconButton
-          className="font-size-adjust-button"
-          size="sm"
-          label={t("format.fontSizeDecrease")}
-          disabled={disabled || (!autoFitText && fontSizePx <= 10)}
-          onClick={() => onAdjust(-1)}
-        >
-          <span aria-hidden="true">−</span>
-        </IconButton>
-        <FontSizeNumberInput
-          className="font-size-number"
-          ariaLabel={t("format.fontSizeValue")}
-          min={10}
-          max={160}
-          value={fontSizePx}
-          disabled={disabled || autoFitText}
-          onValueChange={updateFontSize}
-        />
-        <IconButton
-          className="font-size-adjust-button"
-          size="sm"
-          label={t("format.fontSizeIncrease")}
-          disabled={disabled || (!autoFitText && fontSizePx >= 160)}
-          onClick={() => onAdjust(1)}
-        >
-          <span aria-hidden="true">+</span>
-        </IconButton>
-      </div>
+      <ScrubbableNumberField
+        className="font-size-stepper"
+        inputClassName="font-size-number"
+        ariaLabel={t("format.fontSizeValue")}
+        decreaseLabel={t("format.fontSizeDecrease")}
+        increaseLabel={t("format.fontSizeIncrease")}
+        min={MIN_FONT_SIZE_PX}
+        max={MAX_FONT_SIZE_PX}
+        step={FONT_SIZE_STEP_PX}
+        precision={1}
+        value={fontSizePx}
+        disabled={disabled}
+        inputDisabled={autoFitText}
+        scrubDisabled={autoFitText}
+        unit="px"
+        onStep={onAdjust}
+        onValueChange={updateFontSize}
+      />
       <CheckboxField
         className="inline-toggle"
         title={t("format.autoFitTitle")}
@@ -355,9 +349,9 @@ function FontSizeRow({
       <RangeInput
         className="font-size-slider"
         aria-label={t("format.fontSize")}
-        min={10}
-        max={160}
-        step={1}
+        min={MIN_FONT_SIZE_PX}
+        max={MAX_FONT_SIZE_PX}
+        step={FONT_SIZE_STEP_PX}
         value={fontSizePx}
         disabled={disabled || autoFitText}
         onChange={(event) => updateFontSize(Number(event.target.value))}
