@@ -80,6 +80,11 @@
   outline: 0;
 }
 
+.overlay-block.transform-mode-select.selected {
+  outline: 1px solid #58b9ff;
+  outline-offset: 0;
+}
+
 .transform-guide {
   position: absolute;
   inset: 0;
@@ -113,12 +118,24 @@
   width: 24px;
   height: 24px;
   margin: -12px 0 0 -12px;
+  appearance: none;
   padding: 0;
   border: 0;
   border-radius: 50%;
   background: transparent;
+  box-shadow: none;
+  outline: 0;
   pointer-events: auto;
   touch-action: none;
+}
+
+.transform-handle:hover:not(:disabled),
+.transform-handle:active:not(:disabled),
+.transform-handle:focus-visible {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  outline: 0;
 }
 
 .transform-handle::after {
@@ -126,27 +143,12 @@
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 7px;
-  height: 7px;
-  border: 1.5px solid #102133;
-  border-radius: 2px;
-  background: #eff8ff;
+  width: 0.5vmin;
+  height: 0.5vmin;
+  border: 0;
+  border-radius: 50%;
+  background: #58b9ff;
   transform: translate(-50%, -50%);
-  box-shadow: 0 0 0 1px #58b9ff;
-}
-
-.transform-handle:hover::after,
-.transform-handle:focus-visible::after {
-  width: 9px;
-  height: 9px;
-  background: #fff;
-  box-shadow:
-    0 0 0 2px #58b9ff,
-    0 2px 5px rgba(0, 0, 0, 0.5);
-}
-
-.transform-handle:focus-visible {
-  outline: 0;
 }
 
 .resize-nw {
@@ -210,13 +212,12 @@
 .rotation-handle {
   left: 50%;
   top: -28px;
-  cursor: grab;
+  cursor:
+    url("../assets/cursors/tabler-rotate-clockwise.svg") 12 12,
+    crosshair;
 }
 
 .rotation-handle::after {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
   background: #58b9ff;
 }
 
@@ -232,9 +233,6 @@
 .perspective-controls .perspective-right::after,
 .perspective-controls .perspective-bottom::after,
 .perspective-controls .perspective-left::after {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
   background: #dff3ff;
 }
 
@@ -243,9 +241,7 @@
 }
 
 .curve-controls .transform-handle::after {
-  border-radius: 50%;
   background: #ffb647;
-  box-shadow: 0 0 0 1px #ffb647;
 }
 
 .curve-controls .curve-control::after {
@@ -293,19 +289,11 @@
 }
 
 .warp-controls .warp-point::after {
-  border-radius: 50%;
   background: #dff3ff;
-  box-shadow: 0 0 0 1px #58b9ff;
 }
 
 .warp-controls .warp-point.selected::after {
-  width: 10px;
-  height: 10px;
-  border-color: #17202d;
   background: #ffbf58;
-  box-shadow:
-    0 0 0 2px #fff2d8,
-    0 2px 5px rgba(0, 0, 0, 0.55);
 }
 
 .stage-drag-hud.invalid {

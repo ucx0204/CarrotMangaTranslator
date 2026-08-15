@@ -5,11 +5,19 @@ import {
   applyBlockDragResolution,
   applyResolvedBlockDrag,
   resolveBlockDrag,
+  resolveDragCursor,
 } from "../src/renderer/src/hooks/workspaceBlockDragModel";
 import type { DragState } from "../src/renderer/src/hooks/workspacePointerGeometry";
 import { createIdentityWarpTransform } from "../src/shared/blockTransforms";
 
 describe("workspace block drag model", () => {
+  it("keeps the rotation cursor active throughout a rotation drag", () => {
+    expect(resolveDragCursor("move")).toBe("grabbing");
+    const rotationCursor = resolveDragCursor("rotate");
+    expect(rotationCursor).toContain("data:image/svg+xml");
+    expect(rotationCursor).toMatch(/^url\(".+"\) 12 12, crosshair$/);
+  });
+
   it("rejects a perspective edge that crosses the opposite edge", () => {
     const { page, drag } = makeFixture("perspective-top");
     const result = resolveBlockDrag(
