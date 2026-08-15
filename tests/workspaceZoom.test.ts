@@ -47,12 +47,12 @@ describe("workspace overscroll", () => {
 
   it("shows native bars only when page pixels are clipped", () => {
     const viewport = { width: 1000, height: 760 };
-    expect(
-      doesWorkspacePageFit({ width: 500, height: 760 }, viewport),
-    ).toBe(true);
-    expect(
-      doesWorkspacePageFit({ width: 1001, height: 760 }, viewport),
-    ).toBe(false);
+    expect(doesWorkspacePageFit({ width: 500, height: 760 }, viewport)).toBe(
+      true,
+    );
+    expect(doesWorkspacePageFit({ width: 1001, height: 760 }, viewport)).toBe(
+      false,
+    );
   });
 });
 

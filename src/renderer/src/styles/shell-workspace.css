@@ -1079,7 +1079,6 @@
   .app-shell {
     grid-template-columns: 340px minmax(0, 1fr) 340px;
   }
-
 }
 
 @media (max-width: 1180px) {

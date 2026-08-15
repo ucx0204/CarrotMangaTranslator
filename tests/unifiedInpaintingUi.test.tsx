@@ -421,15 +421,11 @@ describe("unified right rail", () => {
       screen.getByRole("button", { name: "보기 조절 펼치기" }),
     ).not.toBeNull();
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "배율과 알림 숨기기" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "배율과 알림 숨기기" }));
     expect(
       screen.queryByRole("button", { name: "보기 조절 펼치기" }),
     ).toBeNull();
-    expect(
-      screen.queryByRole("button", { name: "작업 센터 열기" }),
-    ).toBeNull();
+    expect(screen.queryByRole("button", { name: "작업 센터 열기" })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "위쪽 도구 보이기" }));
     expect(screen.getByRole("toolbar", { name: "캔버스 작업" })).not.toBeNull();
@@ -829,7 +825,7 @@ function renderQuickRail(props: RightRailProps) {
   return render(
     <AppRightQuickRail {...props} {...makeQuickRailChromeProps()} />,
     {
-    wrapper: RightRailTestProviders,
+      wrapper: RightRailTestProviders,
     },
   );
 }

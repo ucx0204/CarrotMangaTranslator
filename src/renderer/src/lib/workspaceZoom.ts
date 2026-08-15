@@ -49,9 +49,7 @@ export function computeWorkspaceScrollOrigin(
   return {
     x: Math.max(
       0,
-      Math.round(
-        overscroll.x - Math.max(0, container.width - image.width) / 2,
-      ),
+      Math.round(overscroll.x - Math.max(0, container.width - image.width) / 2),
     ),
     y: Math.max(
       0,

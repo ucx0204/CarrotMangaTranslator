@@ -60,9 +60,9 @@ describe("sidebar list panel switching", () => {
     const restorePages = screen.getByRole("button", { name: "페이지 펼치기" });
     expect(restorePages.getAttribute("aria-expanded")).toBe("false");
     expect(
-      restorePages.querySelector("svg")?.classList.contains(
-        "sidebar-section-collapse-chevron-up",
-      ),
+      restorePages
+        .querySelector("svg")
+        ?.classList.contains("sidebar-section-collapse-chevron-up"),
     ).toBe(true);
 
     fireEvent.click(restorePages);
@@ -83,9 +83,9 @@ describe("sidebar list panel switching", () => {
     });
     expect(restoreLibrary.getAttribute("aria-expanded")).toBe("false");
     expect(
-      restoreLibrary.querySelector("svg")?.classList.contains(
-        "sidebar-section-collapse-chevron-up",
-      ),
+      restoreLibrary
+        .querySelector("svg")
+        ?.classList.contains("sidebar-section-collapse-chevron-up"),
     ).toBe(false);
 
     fireEvent.click(restoreLibrary);

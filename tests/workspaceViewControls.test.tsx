@@ -41,8 +41,9 @@ describe("WorkspaceViewControls", () => {
       "actual",
     ]);
     expect(
-      within(screen.getByRole("listbox", { name: "이미지 맞춤 방식" }))
-        .getByRole("option", { name: "원본 크기 (100%)", hidden: true }),
+      within(
+        screen.getByRole("listbox", { name: "이미지 맞춤 방식" }),
+      ).getByRole("option", { name: "원본 크기 (100%)", hidden: true }),
     ).not.toBeNull();
     fireEvent.keyDown(
       screen.getByRole("combobox", { name: "이미지 맞춤 방식" }),
@@ -150,9 +151,7 @@ describe("WorkspaceViewControls", () => {
     fireEvent.pointerDown(document.body);
     expect(screen.queryByRole("button", { name: "축소" })).toBeNull();
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "보기 조절 펼치기" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "보기 조절 펼치기" }));
     fireEvent.keyDown(window, { key: "Escape" });
     const escapedTrigger = screen.getByRole("button", {
       name: "보기 조절 펼치기",

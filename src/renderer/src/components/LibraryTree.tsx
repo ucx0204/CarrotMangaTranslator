@@ -111,29 +111,29 @@ function LibraryTreeView({
         sort={sort}
       />
       <div className="library-panel-content" id={contentId} hidden={collapsed}>
-          <DndContext
-            sensors={drag.sensors}
-            collisionDetection={closestCenter}
-            onDragStart={drag.handleDragStart}
-            onDragCancel={drag.handleDragCancel}
-            onDragEnd={drag.handleDragEnd}
-          >
-            <LibraryWorksList
-              activeDrag={drag.activeDrag}
-              currentChapterId={currentChapterId}
-              dragEnabled={drag.dragEnabled}
-              jobActive={jobActive}
-              onOpenChapter={onOpenChapter}
-              onRenameChapter={onRenameChapter}
-              onRenameWork={onRenameWork}
-              searchActive={searchActive}
-              visibleLibrary={visibleLibrary}
-            />
-            <ChapterDragPortal
-              activeDrag={drag.activeDrag}
-              currentChapterId={currentChapterId}
-            />
-          </DndContext>
+        <DndContext
+          sensors={drag.sensors}
+          collisionDetection={closestCenter}
+          onDragStart={drag.handleDragStart}
+          onDragCancel={drag.handleDragCancel}
+          onDragEnd={drag.handleDragEnd}
+        >
+          <LibraryWorksList
+            activeDrag={drag.activeDrag}
+            currentChapterId={currentChapterId}
+            dragEnabled={drag.dragEnabled}
+            jobActive={jobActive}
+            onOpenChapter={onOpenChapter}
+            onRenameChapter={onRenameChapter}
+            onRenameWork={onRenameWork}
+            searchActive={searchActive}
+            visibleLibrary={visibleLibrary}
+          />
+          <ChapterDragPortal
+            activeDrag={drag.activeDrag}
+            currentChapterId={currentChapterId}
+          />
+        </DndContext>
       </div>
     </section>
   );
