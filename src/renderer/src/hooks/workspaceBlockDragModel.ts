@@ -8,6 +8,7 @@ import {
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { BBox, TranslationBlock } from "../../../shared/textTypes";
 import { constrainEditableRenderBbox } from "../../../shared/editableRenderGeometry";
+import rotateCursorUrl from "../assets/cursors/tabler-rotate-clockwise.svg";
 import {
   applyEditableBlockBbox,
   applyMovedEditableBlockBbox,
@@ -137,7 +138,10 @@ export function applyResolvedBlockDrag(
 }
 
 export function resolveDragCursor(mode: DragMode): string {
-  if (mode === "move" || mode === "rotate") return "grabbing";
+  if (mode === "move") return "grabbing";
+  if (mode === "rotate") {
+    return `url("${rotateCursorUrl}") 12 12, crosshair`;
+  }
   if (
     mode.startsWith("perspective-") ||
     mode.startsWith("curve-") ||

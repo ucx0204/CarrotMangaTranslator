@@ -80,6 +80,11 @@
   outline: 0;
 }
 
+.overlay-block.transform-mode-select.selected {
+  outline: 1px solid #58b9ff;
+  outline-offset: 0;
+}
+
 .transform-guide {
   position: absolute;
   inset: 0;
@@ -113,12 +118,24 @@
   width: 24px;
   height: 24px;
   margin: -12px 0 0 -12px;
+  appearance: none;
   padding: 0;
   border: 0;
   border-radius: 50%;
   background: transparent;
+  box-shadow: none;
+  outline: 0;
   pointer-events: auto;
   touch-action: none;
+}
+
+.transform-handle:hover:not(:disabled),
+.transform-handle:active:not(:disabled),
+.transform-handle:focus-visible {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  outline: 0;
 }
 
 .transform-handle::after {
@@ -126,16 +143,12 @@
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 3px;
-  height: 3px;
+  width: 0.5vmin;
+  height: 0.5vmin;
   border: 0;
   border-radius: 50%;
   background: #58b9ff;
   transform: translate(-50%, -50%);
-}
-
-.transform-handle:focus-visible {
-  outline: 0;
 }
 
 .resize-nw {
@@ -199,7 +212,8 @@
 .rotation-handle {
   left: 50%;
   top: -28px;
-  cursor: grab;
+  cursor: url("../assets/cursors/tabler-rotate-clockwise.svg") 12 12,
+    crosshair;
 }
 
 .rotation-handle::after {
