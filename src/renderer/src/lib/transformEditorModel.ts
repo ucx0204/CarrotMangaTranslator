@@ -7,16 +7,19 @@ import type {
   WarpTransform,
 } from "../../../shared/textTypes";
 import {
-  normalizeRotationDeg,
+  constrainEditableRenderBbox,
+  isEditableBlockVisibleOnPage,
+} from "../../../shared/editableRenderGeometry";
+import {
+  MAX_RENDER_BBOX_COORDINATE,
+  MAX_RENDER_BBOX_SIZE,
+  MIN_RENDER_BBOX_COORDINATE,
+} from "../../../shared/renderBbox";
+import {
   resolveEditableBlockBbox,
   resolveFontWidthScale,
 } from "./blockFormatGeometry";
-import {
-  createWarpEvaluator,
-  mapPointToQuad,
-  normalizePerspectiveTransform,
-  quadraticLength,
-} from "../../../shared/blockTransforms";
+import { quadraticLength } from "../../../shared/blockTransforms";
 
 export type PageSize = { width: number; height: number };
 export type BboxField = "x" | "y" | "w" | "h";
@@ -59,20 +62,36 @@ export function updateBboxFromPixels({
     field === "x" || field === "w" ? pageSize.width : pageSize.height;
   const normalized = (value / Math.max(1, dimension)) * 1000;
   if (field === "x") {
-    return { ...bbox, x: clampValue(normalized, 0, 1000 - bbox.w) };
+    return {
+      ...bbox,
+      x: clampValue(
+        normalized,
+        MIN_RENDER_BBOX_COORDINATE,
+        MAX_RENDER_BBOX_COORDINATE,
+      ),
+    };
   }
   if (field === "y") {
-    return { ...bbox, y: clampValue(normalized, 0, 1000 - bbox.h) };
+    return {
+      ...bbox,
+      y: clampValue(
+        normalized,
+        MIN_RENDER_BBOX_COORDINATE,
+        MAX_RENDER_BBOX_COORDINATE,
+      ),
+    };
   }
   if (!lockRatio) {
-    const maximum = field === "w" ? 1000 - bbox.x : 1000 - bbox.y;
-    return { ...bbox, [field]: clampValue(normalized, 1, maximum) };
+    return {
+      ...bbox,
+      [field]: clampValue(normalized, 1, MAX_RENDER_BBOX_SIZE),
+    };
   }
   const current = field === "w" ? bbox.w : bbox.h;
   const minimumScale = Math.max(1 / bbox.w, 1 / bbox.h);
   const maximumScale = Math.min(
-    (1000 - bbox.x) / bbox.w,
-    (1000 - bbox.y) / bbox.h,
+    MAX_RENDER_BBOX_SIZE / bbox.w,
+    MAX_RENDER_BBOX_SIZE / bbox.h,
   );
   const scale = clampValue(
     normalized / Math.max(Number.EPSILON, current),
@@ -88,18 +107,23 @@ export function bboxFieldMaximumPixels(
   pageSize: PageSize,
   lockRatio: boolean,
 ): number {
-  const xPx = (bbox.x / 1000) * pageSize.width;
-  const yPx = (bbox.y / 1000) * pageSize.height;
   const widthPx = (bbox.w / 1000) * pageSize.width;
   const heightPx = (bbox.h / 1000) * pageSize.height;
-  if (field === "x") return Math.max(0, pageSize.width - widthPx);
-  if (field === "y") return Math.max(0, pageSize.height - heightPx);
+  if (field === "x") {
+    return (MAX_RENDER_BBOX_COORDINATE / 1000) * pageSize.width;
+  }
+  if (field === "y") {
+    return (MAX_RENDER_BBOX_COORDINATE / 1000) * pageSize.height;
+  }
   if (!lockRatio) {
-    return field === "w" ? pageSize.width - xPx : pageSize.height - yPx;
+    return (
+      (MAX_RENDER_BBOX_SIZE / 1000) *
+      (field === "w" ? pageSize.width : pageSize.height)
+    );
   }
   const maximumScale = Math.min(
-    (1000 - bbox.x) / bbox.w,
-    (1000 - bbox.y) / bbox.h,
+    MAX_RENDER_BBOX_SIZE / bbox.w,
+    MAX_RENDER_BBOX_SIZE / bbox.h,
   );
   return (field === "w" ? widthPx : heightPx) * maximumScale;
 }
@@ -109,26 +133,9 @@ export function isPerspectiveVisibleOnPage(
   transform: PerspectiveTransform,
   pageSize: PageSize,
 ): boolean {
-  const bbox = resolveTransformBbox(block, pageSize);
-  const center = { x: bbox.x + bbox.w / 2, y: bbox.y + bbox.h / 2 };
-  const radians = (normalizeRotationDeg(block.rotationDeg) * Math.PI) / 180;
-  const cos = Math.cos(radians);
-  const sin = Math.sin(radians);
-  const points = transform.corners.map((corner) => {
-    const x = bbox.x + corner.x * bbox.w - center.x;
-    const y = bbox.y + corner.y * bbox.h - center.y;
-    return {
-      x: center.x + x * cos - y * sin,
-      y: center.y + x * sin + y * cos,
-    };
-  });
-  const xs = points.map((point) => point.x);
-  const ys = points.map((point) => point.y);
-  return (
-    Math.max(...xs) > 0 &&
-    Math.min(...xs) < 1000 &&
-    Math.max(...ys) > 0 &&
-    Math.min(...ys) < 1000
+  return isEditableBlockVisibleOnPage(
+    { ...block, perspectiveTransform: transform },
+    resolveTransformBbox(block, pageSize),
   );
 }
 
@@ -137,47 +144,30 @@ export function isWarpVisibleOnPage(
   transform: WarpTransform,
   pageSize: PageSize,
 ): boolean {
-  const evaluator = createWarpEvaluator(transform);
-  const perspective = block.perspectiveTransform
-    ? normalizePerspectiveTransform(block.perspectiveTransform).corners
-    : null;
-  const samples: Point[] = [];
-  for (let row = 0; row <= 16; row += 1) {
-    for (let column = 0; column <= 16; column += 1) {
-      if (row !== 0 && row !== 16 && column !== 0 && column !== 16) continue;
-      const warped = evaluator.map({ x: column / 16, y: row / 16 });
-      samples.push(perspective ? mapPointToQuad(warped, perspective) : warped);
-    }
-  }
-  return areLocalPointsVisibleOnPage(block, samples, pageSize);
+  return isEditableBlockVisibleOnPage(
+    { ...block, warpTransform: transform },
+    resolveTransformBbox(block, pageSize),
+  );
 }
 
-function areLocalPointsVisibleOnPage(
+export function constrainTransformBbox(
   block: TranslationBlock,
-  localPoints: readonly Point[],
+  bbox: BBox,
+): BBox {
+  return constrainEditableRenderBbox(block, bbox);
+}
+
+export function bboxFieldMinimumPixels(
+  field: BboxField,
   pageSize: PageSize,
-): boolean {
-  const bbox = resolveTransformBbox(block, pageSize);
-  const center = { x: bbox.x + bbox.w / 2, y: bbox.y + bbox.h / 2 };
-  const radians = (normalizeRotationDeg(block.rotationDeg) * Math.PI) / 180;
-  const cos = Math.cos(radians);
-  const sin = Math.sin(radians);
-  const points = localPoints.map((point) => {
-    const x = bbox.x + point.x * bbox.w - center.x;
-    const y = bbox.y + point.y * bbox.h - center.y;
-    return {
-      x: center.x + x * cos - y * sin,
-      y: center.y + x * sin + y * cos,
-    };
-  });
-  const xs = points.map((point) => point.x);
-  const ys = points.map((point) => point.y);
-  return (
-    Math.max(...xs) > 0 &&
-    Math.min(...xs) < 1000 &&
-    Math.max(...ys) > 0 &&
-    Math.min(...ys) < 1000
-  );
+): number {
+  if (field === "x") {
+    return (MIN_RENDER_BBOX_COORDINATE / 1000) * pageSize.width;
+  }
+  if (field === "y") {
+    return (MIN_RENDER_BBOX_COORDINATE / 1000) * pageSize.height;
+  }
+  return 1;
 }
 
 export function resolveCurveBend(curve: CurveLayout): number {

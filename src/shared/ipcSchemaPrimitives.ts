@@ -23,6 +23,7 @@ import {
 } from "./bubbleLayout";
 import { FONT_MATCHING_SEMANTIC_ROLES } from "./fontMatchingProfileTypes";
 import { normalizeVisualClusterId } from "./visualClusterId";
+import { RenderBBoxSchema } from "./renderBboxSchema";
 
 export { MAX_MAX_TOKENS, MIN_CONTEXT_TOKENS, MIN_MAX_TOKENS };
 
@@ -315,7 +316,7 @@ export const TranslationBlockSchema = z
     id: z.string().min(1).max(200),
     type: z.preprocess(() => "nonsolid", z.literal("nonsolid")),
     bbox: BBoxSchema,
-    renderBbox: BBoxSchema.optional(),
+    renderBbox: RenderBBoxSchema.optional(),
     bboxSpace: z.enum(["normalized_1000", "pixels"]).optional(),
     renderBboxSpace: z.enum(["normalized_1000", "pixels"]).optional(),
     bubbleLayout: BubbleLayoutSchema.optional(),

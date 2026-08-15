@@ -1,5 +1,6 @@
 import { hashTranslationBlocks } from "../../../shared/blockFingerprint";
-import { clampBbox } from "../../../shared/geometry";
+import { constrainEditableRenderBbox } from "../../../shared/editableRenderGeometry";
+import { clampBbox, normalizeRenderBboxTo1000 } from "../../../shared/geometry";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { SavePageBlocksUpdate } from "../../../shared/shareTypes";
 import type { ServerPageVersion } from "./chapterPersistenceTypes";
@@ -30,9 +31,21 @@ export function collectPageBlockUpdates(
 }
 
 function serializePageBlocks(page: MangaPage): MangaPage["blocks"] {
-  return page.blocks.map((block) => ({
-    ...block,
-    bbox: clampBbox(block.bbox),
-    renderBbox: block.renderBbox ? clampBbox(block.renderBbox) : undefined,
-  }));
+  return page.blocks.map((block) => {
+    const renderBbox = block.renderBbox
+      ? normalizeRenderBboxTo1000(
+          block.renderBbox,
+          { width: page.width, height: page.height },
+          block.renderBboxSpace,
+        )
+      : undefined;
+    return {
+      ...block,
+      bbox: clampBbox(block.bbox),
+      renderBbox: renderBbox
+        ? constrainEditableRenderBbox(block, renderBbox)
+        : undefined,
+      renderBboxSpace: renderBbox ? "normalized_1000" : undefined,
+    };
+  });
 }

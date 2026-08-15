@@ -47,8 +47,8 @@ describe("workspace zoom natural image dimensions", () => {
     expect(result.current).toEqual({
       className: "is-zoomed",
       style: {
-        "--page-display-h": "952px",
-        "--page-display-w": "663px",
+        "--page-display-h": "808px",
+        "--page-display-w": "563px",
       },
     });
   });

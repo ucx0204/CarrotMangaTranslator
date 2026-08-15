@@ -2,11 +2,14 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
+import { constrainEditableRenderBbox } from "../../../shared/editableRenderGeometry";
 import {
   clampBbox,
   normalizeBlockType,
+  normalizeRenderBboxTo1000,
   normalizeRenderDirection,
   normalizeRotationDeg,
+  resolveEditableBlockBbox,
 } from "../lib/blockFormatGeometry";
 import type { UpdateCurrentChapter } from "./useCurrentChapterUpdater";
 import { clearAutomaticFontMatchForManualStylePatch } from "../lib/automaticFontMatchProvenance";
@@ -90,7 +93,10 @@ function applySelectedBlockPatch(
     if (page.id !== pageId) return page;
     const blocks = page.blocks.map((block) => {
       if (block.id !== blockId) return block;
-      const next = normalizeTranslationBlockPatch(block, patch);
+      const next = normalizeTranslationBlockPatch(block, patch, {
+        width: page.width,
+        height: page.height,
+      });
       changed ||= next !== block;
       return next;
     });
@@ -104,34 +110,121 @@ function applySelectedBlockPatch(
 export function normalizeTranslationBlockPatch(
   block: TranslationBlock,
   patch: Partial<TranslationBlock>,
+  pageSize?: { width: number; height: number },
 ): TranslationBlock {
   const normalizedPatch = clearAutomaticFontMatchForManualStylePatch(
     block,
     patch,
   );
-  const next: TranslationBlock = {
+  const next = constrainPatchedVisualTransform(
+    buildNormalizedTranslationBlock(block, normalizedPatch, pageSize),
+    normalizedPatch,
+    pageSize,
+  );
+  return hasBlockChanged(block, next, normalizedPatch) ? next : block;
+}
+
+function buildNormalizedTranslationBlock(
+  block: TranslationBlock,
+  patch: Partial<TranslationBlock>,
+  pageSize?: { width: number; height: number },
+): TranslationBlock {
+  const sourceGeometry = normalizeSourceGeometryPatch(block, patch);
+  const renderGeometry = normalizeRenderGeometryPatch(block, patch, pageSize);
+  return {
     ...block,
-    ...normalizedPatch,
-    type: normalizeBlockType(normalizedPatch.type ?? block.type),
+    ...patch,
+    ...sourceGeometry,
+    ...renderGeometry,
+    type: normalizeBlockType(valueOr(patch.type, block.type)),
     renderDirection: normalizeRenderDirection(
-      normalizedPatch.renderDirection ?? block.renderDirection,
+      valueOr(patch.renderDirection, block.renderDirection),
       block.renderDirection,
     ),
     rotationDeg: normalizeRotationDeg(
-      normalizedPatch.rotationDeg ?? block.rotationDeg ?? 0,
+      valueOr(patch.rotationDeg, valueOr(block.rotationDeg, 0)),
     ),
-    backgroundColor: normalizedPatch.backgroundColor ?? block.backgroundColor,
-    opacity: normalizedPatch.opacity ?? block.opacity,
-    bbox: normalizedPatch.bbox ? clampBbox(normalizedPatch.bbox) : block.bbox,
-    bboxSpace: normalizedPatch.bbox ? "normalized_1000" : block.bboxSpace,
-    renderBbox: normalizedPatch.renderBbox
-      ? clampBbox(normalizedPatch.renderBbox)
-      : block.renderBbox,
-    renderBboxSpace: normalizedPatch.renderBbox
-      ? "normalized_1000"
-      : block.renderBboxSpace,
+    backgroundColor: valueOr(patch.backgroundColor, block.backgroundColor),
+    opacity: valueOr(patch.opacity, block.opacity),
   };
-  return hasBlockChanged(block, next, normalizedPatch) ? next : block;
+}
+
+function normalizeSourceGeometryPatch(
+  block: TranslationBlock,
+  patch: Partial<TranslationBlock>,
+): Pick<TranslationBlock, "bbox" | "bboxSpace"> {
+  if (!patch.bbox) {
+    return { bbox: block.bbox, bboxSpace: block.bboxSpace };
+  }
+  return { bbox: clampBbox(patch.bbox), bboxSpace: "normalized_1000" };
+}
+
+function normalizeRenderGeometryPatch(
+  block: TranslationBlock,
+  patch: Partial<TranslationBlock>,
+  pageSize?: { width: number; height: number },
+): Pick<TranslationBlock, "renderBbox" | "renderBboxSpace"> {
+  if (!patch.renderBbox) {
+    return {
+      renderBbox: block.renderBbox,
+      renderBboxSpace: block.renderBboxSpace,
+    };
+  }
+  return {
+    renderBbox: constrainEditableRenderBbox(
+      { ...block, ...patch },
+      normalizeRenderBboxTo1000(
+        patch.renderBbox,
+        pageSize,
+        patch.renderBboxSpace,
+      ),
+    ),
+    renderBboxSpace: "normalized_1000",
+  };
+}
+
+function constrainPatchedVisualTransform(
+  next: TranslationBlock,
+  patch: Partial<TranslationBlock>,
+  pageSize?: { width: number; height: number },
+): TranslationBlock {
+  if (!changesVisualTransform(patch)) return next;
+  const editableBbox = resolveEditableBlockBbox(
+    next,
+    pageSize,
+    next.translatedText || next.sourceText || "...",
+  ).bbox;
+  const constrainedBbox = constrainEditableRenderBbox(next, editableBbox);
+  if (areBboxesEqual(editableBbox, constrainedBbox)) return next;
+  return {
+    ...next,
+    renderBbox: constrainedBbox,
+    renderBboxSpace: "normalized_1000",
+  };
+}
+
+function valueOr<T>(value: T | undefined, fallback: T): T {
+  return value === undefined ? fallback : value;
+}
+
+function changesVisualTransform(patch: Partial<TranslationBlock>): boolean {
+  return (
+    Object.hasOwn(patch, "rotationDeg") ||
+    Object.hasOwn(patch, "perspectiveTransform") ||
+    Object.hasOwn(patch, "warpTransform")
+  );
+}
+
+function areBboxesEqual(
+  left: TranslationBlock["bbox"],
+  right: TranslationBlock["bbox"],
+): boolean {
+  return (
+    Math.abs(left.x - right.x) < 0.0001 &&
+    Math.abs(left.y - right.y) < 0.0001 &&
+    Math.abs(left.w - right.w) < 0.0001 &&
+    Math.abs(left.h - right.h) < 0.0001
+  );
 }
 
 function isAutomaticFontRollbackPatch(

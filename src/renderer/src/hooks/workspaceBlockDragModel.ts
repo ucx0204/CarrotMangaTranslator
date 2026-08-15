@@ -7,6 +7,7 @@ import {
 } from "../../../shared/blockTransforms";
 import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { BBox, TranslationBlock } from "../../../shared/textTypes";
+import { constrainEditableRenderBbox } from "../../../shared/editableRenderGeometry";
 import {
   applyEditableBlockBbox,
   applyMovedEditableBlockBbox,
@@ -60,7 +61,7 @@ export function resolveBlockDrag(
     const bbox =
       drag.mode === "move"
         ? constrainMovedBlockBbox(drag, requestedBbox, page)
-        : requestedBbox;
+        : constrainEditableRenderBbox(drag.startBlock, requestedBbox);
     return {
       bbox,
       label: describeDragBbox(drag.mode, bbox, page),
@@ -69,7 +70,13 @@ export function resolveBlockDrag(
   }
   if (drag.mode === "rotate") {
     const result = resolveDraggedRotationWithSnap(drag, event, rect);
+    const nextBlock = {
+      ...drag.startBlock,
+      rotationDeg: result.rotationDeg,
+    };
+    const bbox = constrainEditableRenderBbox(nextBlock, drag.startBbox);
     return {
+      ...(areBboxesEqual(bbox, drag.startBbox) ? {} : { bbox }),
       patch: { rotationDeg: result.rotationDeg },
       label: `${result.rotationDeg}°`,
       mode: drag.mode,
@@ -86,6 +93,15 @@ export function resolveBlockDrag(
     return resolveWarpDrag(drag, event, rect, page);
   }
   return null;
+}
+
+function areBboxesEqual(left: BBox, right: BBox): boolean {
+  return (
+    Math.abs(left.x - right.x) < 0.0001 &&
+    Math.abs(left.y - right.y) < 0.0001 &&
+    Math.abs(left.w - right.w) < 0.0001 &&
+    Math.abs(left.h - right.h) < 0.0001
+  );
 }
 
 function constrainMovedBlockBbox(

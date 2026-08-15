@@ -1,8 +1,8 @@
 import type { TranslationBlock } from "../../../shared/textTypes";
+import { MIN_READABLE_FONT_SIZE_PX } from "../../../shared/readableTextBox";
 import {
   bboxToPixels,
   clamp,
-  MIN_READABLE_FONT_SIZE_PX,
   normalizeRenderDirection,
   resolveBlockRenderBbox,
   resolveEffectiveRenderBbox,

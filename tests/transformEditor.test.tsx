@@ -6,7 +6,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { TransformEditorGroup } from "../src/renderer/src/components/TransformEditorGroup";
 import {
   bboxFieldMaximumPixels,
+  constrainTransformBbox,
   isPerspectiveVisibleOnPage,
+  updateCurveBend,
   updateBboxFromPixels,
 } from "../src/renderer/src/lib/transformEditorModel";
 import {
@@ -279,11 +281,11 @@ describe("dense transform editor", () => {
 });
 
 describe("transform editor geometry safety", () => {
-  it("keeps the block size when X/Y input reaches the page edge", () => {
+  it("allows X/Y input beyond the page without changing block size", () => {
     const bbox = { x: 100, y: 200, w: 300, h: 150 };
     const page = { width: 1000, height: 1000 };
 
-    expect(bboxFieldMaximumPixels(bbox, "x", page, true)).toBe(700);
+    expect(bboxFieldMaximumPixels(bbox, "x", page, true)).toBe(5000);
     expect(
       updateBboxFromPixels({
         bbox,
@@ -292,10 +294,35 @@ describe("transform editor geometry safety", () => {
         pageSize: page,
         value: 1000,
       }),
-    ).toEqual({ x: 700, y: 200, w: 300, h: 150 });
+    ).toEqual({ x: 1000, y: 200, w: 300, h: 150 });
+    expect(
+      updateBboxFromPixels({
+        bbox,
+        field: "y",
+        lockRatio: true,
+        pageSize: page,
+        value: -500,
+      }),
+    ).toEqual({ x: 100, y: -500, w: 300, h: 150 });
   });
 
-  it("limits ratio-locked growth by both remaining page axes", () => {
+  it("updates an unlocked extent and reports its expanded maximum", () => {
+    const bbox = { x: 100, y: 200, w: 300, h: 150 };
+    const page = { width: 1000, height: 500 };
+
+    expect(
+      updateBboxFromPixels({
+        bbox,
+        field: "h",
+        lockRatio: false,
+        pageSize: page,
+        value: 750,
+      }),
+    ).toEqual({ x: 100, y: 200, w: 300, h: 1500 });
+    expect(bboxFieldMaximumPixels(bbox, "h", page, false)).toBe(2000);
+  });
+
+  it("limits ratio-locked growth by the render-box safety size", () => {
     const result = updateBboxFromPixels({
       bbox: { x: 100, y: 800, w: 400, h: 100 },
       field: "w",
@@ -304,7 +331,18 @@ describe("transform editor geometry safety", () => {
       value: 900,
     });
 
-    expect(result).toEqual({ x: 100, y: 800, w: 800, h: 200 });
+    expect(result).toEqual({ x: 100, y: 800, w: 900, h: 225 });
+  });
+
+  it("pulls a direct position back until eight units remain visible", () => {
+    expect(
+      constrainTransformBbox(makeBlock(), {
+        x: 5000,
+        y: -4000,
+        w: 300,
+        h: 150,
+      }),
+    ).toEqual({ x: 992, y: -142, w: 300, h: 150 });
   });
 
   it("rejects a perspective quad that is completely outside the page", () => {
@@ -328,6 +366,15 @@ describe("transform editor geometry safety", () => {
         { width: 1000, height: 1000 },
       ),
     ).toBe(false);
+  });
+
+  it("moves a curve control point to the requested signed bend", () => {
+    const curve = createCurvePreset("straight");
+    const bent = updateCurveBend(curve, 50);
+
+    expect(bent.path.start).toEqual(curve.path.start);
+    expect(bent.path.end).toEqual(curve.path.end);
+    expect(bent.path.control).not.toEqual(curve.path.control);
   });
 });
 

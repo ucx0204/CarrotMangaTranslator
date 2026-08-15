@@ -511,6 +511,12 @@
       "functions": { "covered": 21, "total": 27, "pct": 77.77 },
       "branches": { "covered": 18, "total": 22, "pct": 81.81 }
     },
+    "src/renderer/src/hooks/chapterPersistencePayload.ts": {
+      "lines": { "covered": 7, "total": 8, "pct": 87.5 },
+      "statements": { "covered": 9, "total": 10, "pct": 90 },
+      "functions": { "covered": 5, "total": 5, "pct": 100 },
+      "branches": { "covered": 7, "total": 8, "pct": 87.5 }
+    },
     "src/renderer/src/hooks/inpaintingActionTypes.ts": {
       "lines": { "covered": 12, "total": 18, "pct": 66.66 },
       "statements": { "covered": 12, "total": 18, "pct": 66.66 },
@@ -522,6 +528,12 @@
       "statements": { "covered": 17, "total": 18, "pct": 94.44 },
       "functions": { "covered": 7, "total": 7, "pct": 100 },
       "branches": { "covered": 25, "total": 26, "pct": 96.15 }
+    },
+    "src/renderer/src/hooks/useBlockReadingOrderActions.ts": {
+      "lines": { "covered": 10, "total": 73, "pct": 13.69 },
+      "statements": { "covered": 10, "total": 86, "pct": 11.62 },
+      "functions": { "covered": 5, "total": 25, "pct": 20 },
+      "branches": { "covered": 4, "total": 73, "pct": 5.47 }
     },
     "src/renderer/src/hooks/useDrawnPatternInpaintingAction.ts": {
       "lines": { "covered": 34, "total": 48, "pct": 70.83 },
@@ -553,6 +565,12 @@
       "functions": { "covered": 11, "total": 12, "pct": 91.66 },
       "branches": { "covered": 26, "total": 34, "pct": 76.47 }
     },
+    "src/renderer/src/hooks/useUpdateSelectedBlockAction.ts": {
+      "lines": { "covered": 45, "total": 49, "pct": 91.83 },
+      "statements": { "covered": 49, "total": 55, "pct": 89.09 },
+      "functions": { "covered": 19, "total": 19, "pct": 100 },
+      "branches": { "covered": 35, "total": 48, "pct": 72.91 }
+    },
     "src/renderer/src/hooks/useWorkspaceBlockDragHandlers.ts": {
       "lines": { "covered": 72, "total": 78, "pct": 92.3 },
       "statements": { "covered": 74, "total": 83, "pct": 89.15 },
@@ -564,6 +582,18 @@
       "statements": { "covered": 48, "total": 65, "pct": 73.84 },
       "functions": { "covered": 15, "total": 18, "pct": 83.33 },
       "branches": { "covered": 34, "total": 52, "pct": 65.38 }
+    },
+    "src/renderer/src/lib/blockFormatGeometry.ts": {
+      "lines": { "covered": 0, "total": 0, "pct": 100 },
+      "statements": { "covered": 0, "total": 0, "pct": 100 },
+      "functions": { "covered": 0, "total": 0, "pct": 100 },
+      "branches": { "covered": 0, "total": 0, "pct": 100 }
+    },
+    "src/renderer/src/lib/overlayLayout.ts": {
+      "lines": { "covered": 66, "total": 66, "pct": 100 },
+      "statements": { "covered": 71, "total": 71, "pct": 100 },
+      "functions": { "covered": 14, "total": 14, "pct": 100 },
+      "branches": { "covered": 41, "total": 44, "pct": 93.18 }
     },
     "src/renderer/src/lib/stageTool.ts": {
       "lines": { "covered": 4, "total": 4, "pct": 100 },
@@ -583,11 +613,29 @@
       "functions": { "covered": 0, "total": 0, "pct": 100 },
       "branches": { "covered": 0, "total": 0, "pct": 100 }
     },
+    "src/renderer/src/lib/workspaceZoom.ts": {
+      "lines": { "covered": 22, "total": 22, "pct": 100 },
+      "statements": { "covered": 22, "total": 22, "pct": 100 },
+      "functions": { "covered": 3, "total": 3, "pct": 100 },
+      "branches": { "covered": 14, "total": 14, "pct": 100 }
+    },
+    "src/shared/bboxTranslation.ts": {
+      "lines": { "covered": 9, "total": 10, "pct": 90 },
+      "statements": { "covered": 13, "total": 14, "pct": 92.85 },
+      "functions": { "covered": 7, "total": 7, "pct": 100 },
+      "branches": { "covered": 1, "total": 2, "pct": 50 }
+    },
     "src/shared/blockTransforms.ts": {
       "lines": { "covered": 0, "total": 0, "pct": 100 },
       "statements": { "covered": 0, "total": 0, "pct": 100 },
       "functions": { "covered": 0, "total": 0, "pct": 100 },
       "branches": { "covered": 0, "total": 0, "pct": 100 }
+    },
+    "src/shared/geometry.ts": {
+      "lines": { "covered": 74, "total": 76, "pct": 97.36 },
+      "statements": { "covered": 75, "total": 77, "pct": 97.4 },
+      "functions": { "covered": 23, "total": 23, "pct": 100 },
+      "branches": { "covered": 49, "total": 57, "pct": 85.96 }
     },
     "src/shared/ipcEnumSchemas.ts": {
       "lines": { "covered": 63, "total": 96, "pct": 65.62 },
@@ -734,6 +782,30 @@
       "statements": { "covered": 34, "total": 37, "pct": 91.89 },
       "functions": { "covered": 13, "total": 14, "pct": 92.85 },
       "branches": { "covered": 15, "total": 19, "pct": 78.94 }
+    },
+    "src/shared/editableRenderGeometry.ts": {
+      "lines": { "covered": 30, "total": 30, "pct": 100 },
+      "statements": { "covered": 33, "total": 33, "pct": 100 },
+      "functions": { "covered": 9, "total": 9, "pct": 100 },
+      "branches": { "covered": 14, "total": 14, "pct": 100 }
+    },
+    "src/shared/readableTextBox.ts": {
+      "lines": { "covered": 24, "total": 24, "pct": 100 },
+      "statements": { "covered": 26, "total": 26, "pct": 100 },
+      "functions": { "covered": 2, "total": 2, "pct": 100 },
+      "branches": { "covered": 10, "total": 10, "pct": 100 }
+    },
+    "src/shared/renderBbox.ts": {
+      "lines": { "covered": 7, "total": 7, "pct": 100 },
+      "statements": { "covered": 7, "total": 8, "pct": 87.5 },
+      "functions": { "covered": 2, "total": 2, "pct": 100 },
+      "branches": { "covered": 1, "total": 2, "pct": 50 }
+    },
+    "src/shared/renderBboxSchema.ts": {
+      "lines": { "covered": 1, "total": 1, "pct": 100 },
+      "statements": { "covered": 1, "total": 1, "pct": 100 },
+      "functions": { "covered": 0, "total": 0, "pct": 100 },
+      "branches": { "covered": 0, "total": 0, "pct": 100 }
     },
     "src/shared/settingsAliasCanonicalizers.ts": {
       "lines": { "covered": 44, "total": 44, "pct": 100 },

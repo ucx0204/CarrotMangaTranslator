@@ -21,8 +21,8 @@ describe("computeWorkspaceImageSize", () => {
 
   it("fits the whole image to the workspace and upscales small pages", () => {
     expect(computeWorkspaceImageSize(1, "contain", page, container)).toEqual({
-      width: 952,
-      height: 1428,
+      width: 808,
+      height: 1212,
     });
   });
 
@@ -34,9 +34,9 @@ describe("computeWorkspaceImageSize", () => {
   it("scales the fitted size by the zoom factor", () => {
     const base = computeWorkspaceImageSize(2, "contain", page, container);
     expect(base).not.toBeNull();
-    // Width-bound fit: 1000-48 = 952; height = 952 * 1200/800.
-    expect(base?.width).toBe(Math.round(952 * 2));
-    expect(base?.height).toBe(Math.round((952 / (800 / 1200)) * 2));
+    // Width-bound fit: 1000-192 = 808; height = 808 * 1200/800.
+    expect(base?.width).toBe(Math.round(808 * 2));
+    expect(base?.height).toBe(Math.round((808 / (800 / 1200)) * 2));
   });
 
   it("keeps the whole image within the available height when tall", () => {
@@ -45,8 +45,8 @@ describe("computeWorkspaceImageSize", () => {
       width: 1000,
       height: 600,
     });
-    // Height-bound: availHeight 600-48 = 552, then * zoom.
-    expect(result?.height).toBe(Math.round(552 * 1.5));
+    // Height-bound: availHeight 600-192 = 408, then * zoom.
+    expect(result?.height).toBe(Math.round(408 * 1.5));
   });
 
   it("supports width, height, and actual-pixel bases", () => {
@@ -54,14 +54,14 @@ describe("computeWorkspaceImageSize", () => {
     expect(
       computeWorkspaceImageSize(1, "width", page, compactContainer),
     ).toEqual({
-      width: 952,
-      height: 1428,
+      width: 808,
+      height: 1212,
     });
     expect(
       computeWorkspaceImageSize(1, "height", page, compactContainer),
     ).toEqual({
-      width: 501,
-      height: 752,
+      width: 405,
+      height: 608,
     });
     expect(
       computeWorkspaceImageSize(1, "actual", page, compactContainer),

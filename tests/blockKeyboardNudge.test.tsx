@@ -79,10 +79,16 @@ describe("block keyboard nudge model", () => {
       { width: 1_000, height: 2_000 },
       { x: 1, y: 1 },
     );
-    expect(moved.bbox).toEqual({ x: 101, y: 100.5, w: 200, h: 200 });
+    expect(moved.bbox).toEqual(block.bbox);
+    expect(moved.renderBbox).toEqual({
+      x: 101,
+      y: 100.5,
+      w: 200,
+      h: 200,
+    });
   });
 
-  it("moves an explicit render box and its source box by the same delta", () => {
+  it("moves an explicit render box without changing its source box", () => {
     const block = makeBlock({
       bbox: { x: 100, y: 100, w: 80, h: 80 },
       renderBbox: { x: 200, y: 250, w: 300, h: 180 },
@@ -93,7 +99,7 @@ describe("block keyboard nudge model", () => {
       { width: 1_000, height: 1_000 },
       { x: -2, y: 4 },
     );
-    expect(moved.bbox).toEqual({ x: 98, y: 104, w: 80, h: 80 });
+    expect(moved.bbox).toEqual(block.bbox);
     expect(moved.renderBbox).toEqual({
       x: 198,
       y: 254,
@@ -102,7 +108,7 @@ describe("block keyboard nudge model", () => {
     });
   });
 
-  it("uses the stricter source boundary without changing the source-render offset", () => {
+  it("ignores the source boundary when moving the render box", () => {
     const block = makeBlock({
       bbox: { x: 850, y: 100, w: 100, h: 100 },
       renderBbox: { x: 700, y: 80, w: 100, h: 140 },
@@ -119,22 +125,22 @@ describe("block keyboard nudge model", () => {
       shared,
     );
 
-    expect(shared).toEqual({ x: 50, y: 0 });
-    expect(moved.bbox).toEqual({ x: 900, y: 100, w: 100, h: 100 });
-    expect(moved.renderBbox).toEqual({ x: 750, y: 80, w: 100, h: 140 });
-    expect((moved.bbox.x ?? 0) - (moved.renderBbox?.x ?? 0)).toBe(150);
+    expect(shared).toEqual({ x: 100, y: 0 });
+    expect(moved.bbox).toEqual(block.bbox);
+    expect(moved.renderBbox).toEqual({ x: 800, y: 80, w: 100, h: 140 });
   });
 
-  it("stops at page edges without shrinking the editable box", () => {
+  it("stops only when eight normalized units would remain hidden", () => {
     const block = makeBlock({
       bbox: { x: 790, y: 0, w: 200, h: 200 },
     });
     const moved = nudgeBlockByImagePixels(
       block,
       { width: 1_000, height: 1_000 },
-      { x: 100, y: -100 },
+      { x: 1_000, y: -1_000 },
     );
-    expect(moved.bbox).toEqual({ x: 800, y: 0, w: 200, h: 200 });
+    expect(moved.bbox).toEqual(block.bbox);
+    expect(moved.renderBbox).toEqual({ x: 992, y: -192, w: 200, h: 200 });
   });
 
   it("clamps a multi-selection as one group at page edges", () => {
@@ -149,17 +155,17 @@ describe("block keyboard nudge model", () => {
     const shared = resolveSharedBlockNudgeDeltaPx(
       [left, right],
       { width: 1_000, height: 1_000 },
-      { x: 100, y: 0 },
+      { x: 1_000, y: 0 },
     );
-    expect(shared).toEqual({ x: 10, y: 0 });
+    expect(shared).toEqual({ x: 202, y: 0 });
     expect(
       nudgeBlockByImagePixels(left, { width: 1_000, height: 1_000 }, shared)
-        .bbox.x,
-    ).toBe(110);
+        .renderBbox?.x,
+    ).toBe(302);
     expect(
       nudgeBlockByImagePixels(right, { width: 1_000, height: 1_000 }, shared)
-        .bbox.x,
-    ).toBe(800);
+        .renderBbox?.x,
+    ).toBe(992);
   });
 });
 

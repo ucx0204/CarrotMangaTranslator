@@ -12,6 +12,7 @@ export {
   clamp,
   clampBbox,
   normalizeBlockType,
+  normalizeRenderBboxTo1000,
   normalizeRenderDirection,
   normalizeRotationDeg,
   resolveEditableBlockBbox,

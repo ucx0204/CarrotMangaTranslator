@@ -117,7 +117,10 @@ export function useUpdateSelectedBlocksAction({
             if (page.id !== selectedPage.id) return page;
             const blocks = page.blocks.map((block) => {
               if (!selectedIds.has(block.id)) return block;
-              const next = normalizeTranslationBlockPatch(block, patch);
+              const next = normalizeTranslationBlockPatch(block, patch, {
+                width: page.width,
+                height: page.height,
+              });
               changed ||= next !== block;
               return next;
             });

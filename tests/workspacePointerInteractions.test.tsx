@@ -122,7 +122,7 @@ describe("workspace pointer interactions", () => {
     });
     act(() => frames.flush());
 
-    expect(api.current.getBlockPreview()?.bbox).toMatchObject({
+    expect(api.current.getBlockPreview()?.renderBbox).toMatchObject({
       x: 700,
       y: 700,
     });
@@ -165,7 +165,7 @@ describe("workspace pointer interactions", () => {
     expect(frames.count()).toBe(1);
 
     act(() => frames.flush());
-    expect(api.current.getBlockPreview()?.bbox.x).toBe(700);
+    expect(api.current.getBlockPreview()?.renderBbox?.x).toBe(700);
 
     fireEvent.pointerUp(stage, {
       clientX: 80,
@@ -176,11 +176,13 @@ describe("workspace pointer interactions", () => {
     expect(api.current.updateCurrentChapter).toHaveBeenCalledTimes(1);
     const updater = api.current.updateCurrentChapter.mock.calls[0]?.[1];
     const page = makePage();
-    expect(updater?.(makeChapter(page)).pages[0]?.blocks[0]?.bbox.x).toBe(700);
+    const moved = updater?.(makeChapter(page)).pages[0]?.blocks[0];
+    expect(moved?.bbox.x).toBe(100);
+    expect(moved?.renderBbox?.x).toBe(700);
     expect(api.current.getBlockPreview()).toBeNull();
   });
 
-  it("moves automatic source and render boxes together through pointer handlers", () => {
+  it("moves only the render box through pointer handlers", () => {
     const api = renderHarness({
       initialSelectedBlockId: "block-1",
       withBubbleLayout: true,
@@ -208,7 +210,7 @@ describe("workspace pointer interactions", () => {
     const updater = api.current.updateCurrentChapter.mock.calls[0]?.[1];
     const page = makePage({ withBubbleLayout: true });
     const moved = updater?.(makeChapter(page)).pages[0]?.blocks[0];
-    expect(moved?.bbox).toEqual({ x: 500, y: 400, w: 200, h: 100 });
+    expect(moved?.bbox).toEqual({ x: 100, y: 100, w: 200, h: 100 });
     expect(moved?.renderBbox).toEqual({
       x: 500,
       y: 400,

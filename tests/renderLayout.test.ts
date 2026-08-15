@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { MIN_READABLE_FONT_SIZE_PX } from "../src/shared/geometry";
+import { MIN_READABLE_FONT_SIZE_PX } from "../src/shared/readableTextBox";
 import {
   resolveBlockPaddingPx,
   resolveBlockRectPx,
