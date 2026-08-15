@@ -78,7 +78,9 @@ export type CurveLayout = {
 export type TranslationBlock = {
   id: string;
   type: BlockType;
+  /** Source OCR/inpainting geometry, always confined to the page. */
   bbox: BBox;
+  /** Optional user-authored visual geometry; may extend beyond the page. */
   renderBbox?: BBox;
   bboxSpace?: "normalized_1000" | "pixels";
   renderBboxSpace?: "normalized_1000" | "pixels";

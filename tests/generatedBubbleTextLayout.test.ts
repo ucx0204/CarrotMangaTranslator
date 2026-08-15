@@ -127,7 +127,7 @@ describe("generated bubble text layout", () => {
     expect(gated.rect).toEqual({
       left: 940,
       top: 80,
-      width: 60,
+      width: 100,
       height: 220,
     });
     expect(generatedBlock.renderBbox).toEqual({
@@ -164,9 +164,9 @@ describe("generated bubble text layout", () => {
     const fixedLayout = resolveBlockTextLayout(fixedAuto);
 
     expect(manualLayout.rect.left).toBe(940);
-    expect(manualLayout.rect.width).toBe(60);
+    expect(manualLayout.rect.width).toBe(100);
     expect(fixedLayout.rect.left).toBe(940);
-    expect(fixedLayout.rect.width).toBe(60);
+    expect(fixedLayout.rect.width).toBe(100);
     expect(fixedLayout.fontSizePx).toBe(fixedAuto.fontSizePx);
   });
 

@@ -8,8 +8,8 @@ export const MIN_WORKSPACE_ZOOM = 0.5;
 export const MAX_WORKSPACE_ZOOM = 4;
 export const WORKSPACE_ZOOM_STEP = 0.25;
 
-/** Matches the `.workspace` padding in styles.css. */
-const WORKSPACE_PADDING_PX = 24;
+/** Matches the recoverable editing gutter around `.workspace`. */
+const WORKSPACE_EDIT_GUTTER_PX = 96;
 
 export type WorkspaceFitMode = "contain" | "width" | "height" | "actual";
 
@@ -50,8 +50,14 @@ export function computeWorkspaceImageSize(
   ) {
     return null;
   }
-  const availWidth = Math.max(1, container.width - WORKSPACE_PADDING_PX * 2);
-  const availHeight = Math.max(1, container.height - WORKSPACE_PADDING_PX * 2);
+  const availWidth = Math.max(
+    1,
+    container.width - WORKSPACE_EDIT_GUTTER_PX * 2,
+  );
+  const availHeight = Math.max(
+    1,
+    container.height - WORKSPACE_EDIT_GUTTER_PX * 2,
+  );
   const widthScale = availWidth / page.width;
   const heightScale = availHeight / page.height;
   const fitScale = resolveFitScale(fitMode, widthScale, heightScale);

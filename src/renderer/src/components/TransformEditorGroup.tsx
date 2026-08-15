@@ -4,8 +4,10 @@ import type { TransformEditorMode } from "../../../shared/panelBridgeTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import { normalizeRotationDeg } from "../lib/blockFormatGeometry";
 import {
+  bboxFieldMinimumPixels,
   bboxFieldToPixels,
   bboxFieldMaximumPixels,
+  constrainTransformBbox,
   resolveTransformBbox,
   updateBboxFromPixels,
   type BboxField,
@@ -150,13 +152,16 @@ function GeneralTransformControls({
   const [lockRatio, setLockRatio] = React.useState(true);
   const bbox = resolveTransformBbox(block, pageSize);
   const updateField = (field: BboxField, value: number): void => {
-    const next = updateBboxFromPixels({
-      bbox,
-      field,
-      lockRatio,
-      pageSize,
-      value,
-    });
+    const next = constrainTransformBbox(
+      block,
+      updateBboxFromPixels({
+        bbox,
+        field,
+        lockRatio,
+        pageSize,
+        value,
+      }),
+    );
     onUpdate({ renderBbox: next, renderBboxSpace: "normalized_1000" });
   };
   return (
@@ -230,7 +235,7 @@ function BboxNumberField({
     <TransformNumberField
       label={t(`transform.fields.${field}`)}
       value={bboxFieldToPixels(blockBbox, field, pageSize)}
-      min={field === "w" || field === "h" ? 1 : 0}
+      min={bboxFieldMinimumPixels(field, pageSize)}
       max={bboxFieldMaximumPixels(blockBbox, field, pageSize, lockRatio)}
       unit="px"
       disabled={disabled}

@@ -67,6 +67,13 @@ function createFixtureBlocks() {
       translatedText: "**여러 줄**과 *부분 강조*\n외곽선도 함께",
       warpTransform: createWarpFixture("flag", 3),
     }),
+    createBlock("off-canvas-rotated", {
+      bbox: { x: 0, y: 420, w: 180, h: 180 },
+      renderBbox: { x: -165, y: 420, w: 220, h: 180 },
+      renderBboxSpace: "normalized_1000",
+      rotationDeg: 90,
+      translatedText: "경계 밖 텍스트",
+    }),
     createBlock("empty", {
       bbox: { x: 90, y: 980, w: 240, h: 90 },
       sourceText: "",

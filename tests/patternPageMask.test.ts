@@ -11,7 +11,7 @@ import type { MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
 
 describe("pattern page text masks", () => {
-  it("inpaints an automatic block's moved source location instead of its original location", () => {
+  it("keeps inpainting at the source location after visual text is moved", () => {
     const width = 100;
     const height = 100;
     const block: TranslationBlock = {
@@ -33,9 +33,10 @@ describe("pattern page text masks", () => {
       height,
     });
 
-    expect(moved.bbox).toEqual({ x: 600, y: 600, w: 200, h: 200 });
-    expect(context.pageMask[20 * width + 20]).toBe(0);
-    expect(context.pageMask[70 * width + 70]).toBe(1);
+    expect(moved.bbox).toEqual({ x: 100, y: 100, w: 200, h: 200 });
+    expect(moved.renderBbox).toEqual({ x: 580, y: 580, w: 240, h: 240 });
+    expect(context.pageMask[20 * width + 20]).toBe(1);
+    expect(context.pageMask[70 * width + 70]).toBe(0);
   });
 
   it("keeps block-owned masks separate for overlapping Metal windows", () => {

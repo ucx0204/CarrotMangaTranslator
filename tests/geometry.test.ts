@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  constrainEditableRenderBbox,
+  isEditableBlockVisibleOnPage,
+} from "../src/shared/editableRenderGeometry";
+import {
   applyEditableBlockBbox,
   applyMovedEditableBlockBbox,
   bboxOverlapRatio,
@@ -140,8 +144,8 @@ describe("geometry helpers", () => {
       h: 1,
     });
     expect(chapter.pages[0].blocks[0].renderBbox).toEqual({
-      x: 999,
-      y: 999,
+      x: 992,
+      y: 992,
       w: 1,
       h: 1,
     });
@@ -257,7 +261,7 @@ describe("geometry helpers", () => {
     expect(next.renderBbox).toEqual({ x: 120, y: 140, w: 240, h: 280 });
   });
 
-  it("moves source and render boxes by the exact same delta", () => {
+  it("moves only the render box and preserves OCR source geometry", () => {
     const next = applyMovedEditableBlockBbox(
       {
         id: "block-1",
@@ -279,13 +283,11 @@ describe("geometry helpers", () => {
       { x: 130, y: 150, w: 220, h: 260 },
     );
 
-    expect(next.bbox).toEqual({ x: 150, y: 180, w: 80, h: 120 });
+    expect(next.bbox).toEqual({ x: 100, y: 120, w: 80, h: 120 });
     expect(next.renderBbox).toEqual({ x: 130, y: 150, w: 220, h: 260 });
-    expect((next.bbox.x ?? 0) - (next.renderBbox?.x ?? 0)).toBe(20);
-    expect((next.bbox.y ?? 0) - (next.renderBbox?.y ?? 0)).toBe(30);
   });
 
-  it("uses the stricter box boundary without desynchronizing source and render positions", () => {
+  it("lets the render box cross the source boundary independently", () => {
     const block = {
       id: "block-1",
       type: "nonsolid" as const,
@@ -310,9 +312,8 @@ describe("geometry helpers", () => {
       h: 140,
     });
 
-    expect(next.bbox).toEqual({ x: 900, y: 100, w: 100, h: 100 });
-    expect(next.renderBbox).toEqual({ x: 750, y: 80, w: 100, h: 140 });
-    expect((next.bbox.x ?? 0) - (next.renderBbox?.x ?? 0)).toBe(150);
+    expect(next.bbox).toEqual({ x: 850, y: 100, w: 100, h: 100 });
+    expect(next.renderBbox).toEqual({ x: 800, y: 80, w: 100, h: 140 });
   });
 
   it("stores a temporary readable render box when dragging a tiny source-only block", () => {
@@ -345,7 +346,7 @@ describe("geometry helpers", () => {
     expect(next.renderBbox).toEqual({ x: 120, y: 120, w: 80, h: 60 });
   });
 
-  it("offsets both source and render boxes when duplicating a block", () => {
+  it("offsets only the editable render box when duplicating a block", () => {
     const duplicated = offsetBlockBboxes(
       {
         id: "block-1",
@@ -368,11 +369,11 @@ describe("geometry helpers", () => {
       16,
     );
 
-    expect(duplicated.bbox).toEqual({ x: 116, y: 116, w: 80, h: 120 });
+    expect(duplicated.bbox).toEqual({ x: 100, y: 100, w: 80, h: 120 });
     expect(duplicated.renderBbox).toEqual({ x: 96, y: 106, w: 220, h: 260 });
   });
 
-  it("keeps duplicated source and render boxes aligned at a page edge", () => {
+  it("does not use the source boundary to limit a duplicated render box", () => {
     const duplicated = offsetBlockBboxes(
       {
         id: "block-1",
@@ -395,13 +396,54 @@ describe("geometry helpers", () => {
       0,
     );
 
-    expect(duplicated.bbox).toEqual({ x: 900, y: 100, w: 100, h: 100 });
+    expect(duplicated.bbox).toEqual({ x: 850, y: 100, w: 100, h: 100 });
     expect(duplicated.renderBbox).toEqual({
-      x: 750,
+      x: 800,
       y: 80,
       w: 100,
       h: 140,
     });
+  });
+
+  it("keeps exactly eight normalized units recoverable at an outer edge", () => {
+    const block = {
+      id: "block-1",
+      type: "nonsolid" as const,
+      bbox: { x: 900, y: 900, w: 100, h: 100 },
+      sourceText: "원문",
+      translatedText: "번역",
+      confidence: 1,
+      sourceDirection: "horizontal" as const,
+      renderDirection: "horizontal" as const,
+      fontSizePx: 24,
+      lineHeight: 1.18,
+      textAlign: "center" as const,
+      textColor: "#111111",
+      backgroundColor: "#fffdf5",
+      opacity: 0.8,
+    };
+    const moved = applyMovedEditableBlockBbox(block, {
+      x: 2_000,
+      y: -2_000,
+      w: 100,
+      h: 100,
+    });
+
+    expect(moved.bbox).toEqual(block.bbox);
+    expect(moved.renderBbox).toEqual({ x: 992, y: -92, w: 100, h: 100 });
+  });
+
+  it("constrains the transformed outline rather than the unrotated box", () => {
+    const block = { rotationDeg: 45 };
+    const constrained = constrainEditableRenderBbox(block, {
+      x: 1_200,
+      y: 400,
+      w: 240,
+      h: 80,
+    });
+
+    expect(isEditableBlockVisibleOnPage(block, constrained)).toBe(true);
+    expect(constrained.x).toBeLessThan(1_000);
   });
 
   it("normalizes old block kinds into the unified inpainting block type and allows manual direction controls", () => {

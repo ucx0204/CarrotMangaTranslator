@@ -68,7 +68,46 @@ describe("workspace block drag model", () => {
     expect(changed.pages[0].blocks[0]).toEqual(preview);
   });
 
-  it("moves an automatic block's source and render boxes together in preview and commit", () => {
+  it("repositions a narrow off-page box when rotation would hide it", () => {
+    const fixture = makeFixture("rotate");
+    const startBlock = {
+      ...fixture.block,
+      bbox: { x: 100, y: 100, w: 100, h: 10 },
+      renderBbox: { x: 992, y: 400, w: 100, h: 10 },
+      renderBboxSpace: "normalized_1000" as const,
+      rotationDeg: 0,
+    };
+    const result = resolveBlockDrag(
+      {
+        ...fixture.drag,
+        startBlock,
+        startBbox: startBlock.renderBbox,
+        startX: 109.2,
+        startY: 40.5,
+      },
+      { clientX: 104.2, clientY: 45.5 },
+      { left: 0, top: 0, width: 100, height: 100 },
+      fixture.page,
+    );
+
+    expect(result?.patch?.rotationDeg).toBe(90);
+    expect(result?.bbox).toEqual({ x: 947, y: 400, w: 100, h: 10 });
+  });
+
+  it("does not add a bbox patch when rotation remains recoverable", () => {
+    const fixture = makeFixture("rotate");
+    const result = resolveBlockDrag(
+      fixture.drag,
+      { clientX: 0, clientY: 0 },
+      { left: 0, top: 0, width: 100, height: 100 },
+      fixture.page,
+    );
+
+    expect(result?.mode).toBe("rotate");
+    expect(result && Object.hasOwn(result, "bbox")).toBe(false);
+  });
+
+  it("moves an automatic block's render box while preserving its source box", () => {
     const fixture = makeFixture("move");
     const startBlock: TranslationBlock = {
       ...fixture.block,
@@ -98,9 +137,27 @@ describe("workspace block drag model", () => {
     const preview = applyBlockDragResolution(startBlock, page, resolution);
     const changed = applyResolvedBlockDrag(chapter, page, drag, resolution);
 
-    expect(preview.bbox).toEqual({ x: 200, y: 320, w: 200, h: 100 });
+    expect(preview.bbox).toEqual(startBlock.bbox);
     expect(preview.renderBbox).toEqual({ x: 180, y: 290, w: 260, h: 140 });
     expect(changed.pages[0]?.blocks[0]).toEqual(preview);
+  });
+
+  it("allows a move beyond the page and keeps eight units of the box visible", () => {
+    const fixture = makeFixture("move");
+    const startBlock = {
+      ...fixture.block,
+      bbox: { x: 900, y: 100, w: 100, h: 200 },
+      renderBbox: { x: 900, y: 100, w: 100, h: 200 },
+      renderBboxSpace: "normalized_1000" as const,
+    };
+    const result = resolveBlockDrag(
+      { ...fixture.drag, startBbox: startBlock.renderBbox, startBlock },
+      { clientX: 80, clientY: 0 },
+      { left: 0, top: 0, width: 100, height: 100 },
+      { ...fixture.page, blocks: [startBlock] },
+    );
+
+    expect(result?.bbox).toEqual({ x: 992, y: 100, w: 100, h: 200 });
   });
 
   it("keeps source geometry unchanged when only the render box is resized", () => {

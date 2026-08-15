@@ -438,13 +438,14 @@
 }
 
 .workspace {
+  --workspace-edit-gutter: 96px;
   position: relative;
   display: grid;
   place-items: center;
   width: 100%;
   height: 100%;
   overflow: auto;
-  padding: 24px;
+  padding: var(--workspace-edit-gutter);
   background: #0c0d10;
   outline: none;
 }
