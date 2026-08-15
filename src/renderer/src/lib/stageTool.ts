@@ -8,6 +8,7 @@
  * - "hand": drag anywhere (blocks ignore the pointer) to pan the workspace.
  * - "perspective": select/move blocks and edit their four-corner transform.
  * - "curve": select/move blocks and edit an enabled curve text path.
+ * - "warp": select/move blocks and edit an enabled text mesh warp.
  * - "bubble": click points to replace the selected block's bubble region.
  * - "mask": paint a mask which can be sent to the inpainting engine.
  * - "brush": paint directly on the current inpainting result.
@@ -22,6 +23,7 @@ export type WorkspaceTool =
   | "hand"
   | "perspective"
   | "curve"
+  | "warp"
   | "bubble"
   | "mask"
   | "brush"
@@ -51,13 +53,18 @@ export function isRetouchTool(tool: WorkspaceTool): tool is RetouchTool {
 
 export type BlockEditingTool = Extract<
   WorkspaceTool,
-  "select" | "perspective" | "curve"
+  "select" | "perspective" | "curve" | "warp"
 >;
 
 export function isBlockEditingTool(
   tool: WorkspaceTool,
 ): tool is BlockEditingTool {
-  return tool === "select" || tool === "perspective" || tool === "curve";
+  return (
+    tool === "select" ||
+    tool === "perspective" ||
+    tool === "curve" ||
+    tool === "warp"
+  );
 }
 
 export function isSizableRetouchTool(

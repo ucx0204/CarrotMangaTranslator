@@ -10,7 +10,7 @@ import type { BlockStylePresetSummary } from "./blockStylePresets";
 export type PanelId = "editor";
 
 /** Canvas modes surfaced by the compact transform editor. */
-export type TransformEditorMode = "select" | "perspective" | "curve";
+export type TransformEditorMode = "select" | "perspective" | "curve" | "warp";
 
 /** Mirrors the renderer's FormatApplyScope without importing renderer code. */
 type PanelFormatScope = "selection" | "page" | "chapter";

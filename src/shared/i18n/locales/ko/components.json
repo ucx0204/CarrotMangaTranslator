@@ -195,7 +195,12 @@
     "inactive": "사용 안 함",
     "suspended": "일시 중지",
     "modeLabel": "변형 모드",
-    "modes": { "select": "선택", "perspective": "원근", "curve": "곡선" },
+    "modes": {
+      "select": "선택",
+      "perspective": "원근",
+      "curve": "곡선",
+      "warp": "워프"
+    },
     "fields": { "x": "X", "y": "Y", "w": "너비", "h": "높이" },
     "controlKinds": { "slider": "슬라이더", "value": "값" },
     "lockRatio": "비율 유지",
@@ -204,7 +209,8 @@
     "hints": {
       "select": "모서리로 크기를, 위 손잡이로 회전해요 · Shift 15°",
       "perspective": "네 모서리를 이미지의 면에 맞추세요 · Esc 취소",
-      "curve": "양끝은 길이, 가운데 점은 휘어짐을 조절해요"
+      "curve": "양끝은 길이, 가운데 점은 휘어짐을 조절해요",
+      "warp": "점을 끌고, 격자선으로 행·열을 이동해요 · Shift 다중 선택 · Esc 취소"
     },
     "handles": {
       "rotate": "회전 손잡이",
@@ -231,6 +237,7 @@
     "hud": {
       "invalidPerspective": "꼭짓점이 교차하거나 너무 가까워질 수 없어요",
       "invalidCurve": "경로의 양끝이 너무 가까워질 수 없어요",
+      "invalidWarp": "격자가 접히거나 지나치게 압축될 수 없어요",
       "outsidePage": "변형 결과가 페이지 밖으로 완전히 나갈 수 없어요",
       "snapped": "맞춤"
     },
@@ -278,6 +285,28 @@
       "presets": { "straight": "직선", "archUp": "위로", "archDown": "아래로" },
       "align": { "start": "시작", "center": "가운데", "end": "끝" },
       "orientations": { "tangent": "경로 따라", "upright": "똑바로" }
+    },
+    "warp": {
+      "disabledDescription": "텍스트 전체를 부드러운 격자로 변형합니다. 글꼴, 외곽선, 부분 강조와 곡선은 그대로 유지돼요.",
+      "start": "워프 시작",
+      "remove": "워프 해제",
+      "gridSize": "격자",
+      "preset": "프리셋",
+      "choosePreset": "모양 선택…",
+      "selectedPoint": "선택점",
+      "pointLabel": "{{row}}행 {{column}}열",
+      "pointAccessibleLabel": "워프 제어점 {{row}}행 {{column}}열",
+      "selectionCount": "제어점 {{count}}개 선택",
+      "resetSelected": "선택점 초기화",
+      "resetMesh": "격자 초기화",
+      "presets": {
+        "archUp": "아치 위",
+        "archDown": "아치 아래",
+        "bulge": "벌지",
+        "squeeze": "압축",
+        "flag": "깃발",
+        "wave": "물결"
+      }
     }
   },
   "editor": {

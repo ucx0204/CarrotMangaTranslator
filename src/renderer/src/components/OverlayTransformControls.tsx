@@ -5,20 +5,28 @@ import {
   normalizePerspectiveTransform,
   quadraticPointAt,
 } from "../../../shared/blockTransforms";
-import type { Point, TranslationBlock } from "../../../shared/textTypes";
+import type {
+  Point,
+  TranslationBlock,
+  WarpTransform,
+} from "../../../shared/textTypes";
+import type { ViewportSize } from "../lib/overlayLayout";
 import type {
   DragMode,
   PerspectiveHandle,
   ResizeHandle,
 } from "../lib/workspaceInteractionTypes";
+import { WarpOverlayControls } from "./WarpOverlayControls";
 
-export type BlockTransformMode = "select" | "perspective" | "curve";
+export type BlockTransformMode = "select" | "perspective" | "curve" | "warp";
 
 type TransformControlsProps = {
   block: TranslationBlock;
   height: number;
   mode: BlockTransformMode;
   onPointerDown: (event: React.PointerEvent, mode: DragMode) => void;
+  onWarpTransformCommit?: (transform: WarpTransform) => void;
+  pageSize: ViewportSize;
   showCurveGuide: boolean;
   width: number;
 };
@@ -63,6 +71,19 @@ export function OverlayTransformControls(
     props.block.curveLayout
   ) {
     return <CurveControls {...props} />;
+  }
+  if (props.mode === "warp" && props.block.warpTransform) {
+    return (
+      <WarpOverlayControls
+        block={props.block}
+        height={props.height}
+        onPointerDown={props.onPointerDown}
+        onWarpTransformCommit={props.onWarpTransformCommit}
+        pageSize={props.pageSize}
+        transform={props.block.warpTransform}
+        width={props.width}
+      />
+    );
   }
   return null;
 }

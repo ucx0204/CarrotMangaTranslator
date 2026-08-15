@@ -191,7 +191,12 @@
     "inactive": "未使用",
     "suspended": "一時停止",
     "modeLabel": "変形モード",
-    "modes": { "select": "選択", "perspective": "遠近", "curve": "曲線" },
+    "modes": {
+      "select": "選択",
+      "perspective": "遠近",
+      "curve": "曲線",
+      "warp": "ワープ"
+    },
     "fields": { "x": "X", "y": "Y", "w": "幅", "h": "高さ" },
     "controlKinds": { "slider": "スライダー", "value": "値" },
     "lockRatio": "比率を維持",
@@ -200,7 +205,8 @@
     "hints": {
       "select": "角でサイズ変更、上のハンドルで回転 · Shift 15°",
       "perspective": "4つの角を画像の面に合わせます · Escで取消",
-      "curve": "両端で長さ、中央点で曲がりを調整します"
+      "curve": "両端で長さ、中央点で曲がりを調整します",
+      "warp": "点をドラッグ、格子線で行・列を移動 · Shiftで複数選択 · Escで取消"
     },
     "handles": {
       "rotate": "回転ハンドル",
@@ -227,6 +233,7 @@
     "hud": {
       "invalidPerspective": "頂点を交差させたり近づけすぎたりできません",
       "invalidCurve": "経路の両端を近づけすぎることはできません",
+      "invalidWarp": "メッシュを折り返したり圧縮しすぎたりできません",
       "outsidePage": "変形結果をページの外へ完全に移動することはできません",
       "snapped": "スナップ"
     },
@@ -278,6 +285,28 @@
       },
       "align": { "start": "開始", "center": "中央", "end": "終了" },
       "orientations": { "tangent": "パスに沿う", "upright": "直立" }
+    },
+    "warp": {
+      "disabledDescription": "フォント、輪郭線、部分強調、曲線を保ったまま、テキスト全体を滑らかなメッシュで変形します。",
+      "start": "ワープを開始",
+      "remove": "ワープを解除",
+      "gridSize": "グリッド",
+      "preset": "プリセット",
+      "choosePreset": "形状を選択…",
+      "selectedPoint": "選択点",
+      "pointLabel": "{{row}}行 {{column}}列",
+      "pointAccessibleLabel": "ワープ制御点 {{row}}行 {{column}}列",
+      "selectionCount": "制御点を{{count}}個選択",
+      "resetSelected": "選択点をリセット",
+      "resetMesh": "メッシュをリセット",
+      "presets": {
+        "archUp": "上アーチ",
+        "archDown": "下アーチ",
+        "bulge": "膨張",
+        "squeeze": "圧縮",
+        "flag": "旗",
+        "wave": "波"
+      }
     }
   },
   "editor": {

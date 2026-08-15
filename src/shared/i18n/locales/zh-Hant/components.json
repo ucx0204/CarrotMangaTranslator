@@ -191,7 +191,12 @@
     "inactive": "未使用",
     "suspended": "已暫停",
     "modeLabel": "變形模式",
-    "modes": { "select": "選取", "perspective": "透視", "curve": "曲線" },
+    "modes": {
+      "select": "選取",
+      "perspective": "透視",
+      "curve": "曲線",
+      "warp": "變形網格"
+    },
     "fields": { "x": "X", "y": "Y", "w": "寬度", "h": "高度" },
     "controlKinds": { "slider": "滑桿", "value": "數值" },
     "lockRatio": "保持比例",
@@ -200,7 +205,8 @@
     "hints": {
       "select": "拖曳邊角調整大小，上方控點旋轉 · Shift 15°",
       "perspective": "將四個角對齊影像表面 · Esc 取消",
-      "curve": "兩端控制長度，中點控制彎曲"
+      "curve": "兩端控制長度，中點控制彎曲",
+      "warp": "拖曳控制點，或拖曳網格線移動整列、整欄 · Shift 多選 · Esc 取消"
     },
     "handles": {
       "rotate": "旋轉控點",
@@ -227,6 +233,7 @@
     "hud": {
       "invalidPerspective": "頂點不能交叉或距離過近",
       "invalidCurve": "路徑兩端不能距離過近",
+      "invalidWarp": "網格不能摺疊或過度壓縮",
       "outsidePage": "變形結果不能完全移出頁面",
       "snapped": "已吸附"
     },
@@ -274,6 +281,28 @@
       "presets": { "straight": "直線", "archUp": "向上", "archDown": "向下" },
       "align": { "start": "起點", "center": "置中", "end": "終點" },
       "orientations": { "tangent": "沿路徑", "upright": "保持直立" }
+    },
+    "warp": {
+      "disabledDescription": "使用平滑網格變形整段文字，同時保留字型、描邊、局部強調與曲線。",
+      "start": "開始網格變形",
+      "remove": "取消網格變形",
+      "gridSize": "網格",
+      "preset": "預設",
+      "choosePreset": "選擇形狀…",
+      "selectedPoint": "所選點",
+      "pointLabel": "第 {{row}} 列，第 {{column}} 欄",
+      "pointAccessibleLabel": "網格控制點，第 {{row}} 列，第 {{column}} 欄",
+      "selectionCount": "已選取 {{count}} 個控制點",
+      "resetSelected": "重設所選點",
+      "resetMesh": "重設網格",
+      "presets": {
+        "archUp": "向上拱形",
+        "archDown": "向下拱形",
+        "bulge": "膨脹",
+        "squeeze": "壓縮",
+        "flag": "旗幟",
+        "wave": "波浪"
+      }
     }
   },
   "editor": {

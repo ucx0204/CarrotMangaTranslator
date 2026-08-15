@@ -7,6 +7,7 @@ import {
   type BlockFontLoadReport,
 } from "../lib/blockFontLoading";
 import { createBlockFontCatalog } from "../lib/fonts";
+import { waitForWarpDisplacementMaps } from "../lib/warpDisplacementMap";
 import { parsePageExportData } from "./documentData";
 import { assertDecodedPageExportImageSize } from "./rasterValidation";
 import type { PageExportRasterSize } from "../../../shared/pageExportLimits";
@@ -61,6 +62,7 @@ async function startPageExport(): Promise<void> {
     );
   });
   await waitForRenderedImage(stage, showImage);
+  await waitForWarpDisplacementMaps(stage);
   await waitForTwoAnimationFrames();
   document.body.dataset.outputWidth = String(data.outputSize.width);
   document.body.dataset.outputHeight = String(data.outputSize.height);

@@ -8,6 +8,7 @@ import {
 } from "../src/main/jobs/pagePsdExport";
 import type { MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
+import { createIdentityWarpTransform } from "../src/shared/blockTransforms";
 
 describe("layered PSD export", () => {
   it("writes a flat bottom-to-top stack with text above both backgrounds", () => {
@@ -102,6 +103,12 @@ describe("layered PSD export", () => {
     expect(
       resolveEditablePsdText(
         { ...makeBlock(), renderDirection: "vertical" },
+        { width: 1000, height: 1600 },
+      ),
+    ).toBeNull();
+    expect(
+      resolveEditablePsdText(
+        { ...makeBlock(), warpTransform: createIdentityWarpTransform(3) },
         { width: 1000, height: 1600 },
       ),
     ).toBeNull();

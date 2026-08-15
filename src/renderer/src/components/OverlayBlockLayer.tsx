@@ -16,6 +16,7 @@ type OverlayBlockLayerProps = Pick<
   | "imageDataUrl"
   | "interactionPreviewStore"
   | "onBlockPointerDown"
+  | "onWarpTransformCommit"
   | "page"
   | "selectedBlockId"
   | "selectedBlockIds"
@@ -43,6 +44,7 @@ const OverlayBlockLayerView = React.memo(function OverlayBlockLayerView({
   imageDataUrl,
   interactionPreviewStore,
   onBlockPointerDown,
+  onWarpTransformCommit,
   page,
   selectedBlockId,
   selectedBlockIds,
@@ -90,11 +92,13 @@ const OverlayBlockLayerView = React.memo(function OverlayBlockLayerView({
             block.id === selectedBlockId &&
             (stageTool === "select" ||
               stageTool === "perspective" ||
-              stageTool === "curve")
+              stageTool === "curve" ||
+              stageTool === "warp")
               ? stageTool
               : undefined
           }
           onBlockPointerDown={handleBlockPointerDown}
+          onWarpTransformCommit={onWarpTransformCommit}
         />
       ))}
     </>
@@ -103,14 +107,19 @@ const OverlayBlockLayerView = React.memo(function OverlayBlockLayerView({
 
 type OverlayBlockItemProps = Omit<
   React.ComponentProps<typeof OverlayBlockView>,
-  "onPointerDown" | "onResizePointerDown" | "onTransformPointerDown"
+  | "onPointerDown"
+  | "onResizePointerDown"
+  | "onTransformPointerDown"
+  | "onWarpTransformCommit"
 > & {
   onBlockPointerDown: ImageStageProps["onBlockPointerDown"];
+  onWarpTransformCommit?: ImageStageProps["onWarpTransformCommit"];
 };
 
 const OverlayBlockItem = React.memo(function OverlayBlockItem({
   block,
   onBlockPointerDown,
+  onWarpTransformCommit,
   ...props
 }: OverlayBlockItemProps): React.JSX.Element {
   const onPointerDown = React.useCallback(
@@ -135,6 +144,11 @@ const OverlayBlockItem = React.memo(function OverlayBlockItem({
       onPointerDown={onPointerDown}
       onResizePointerDown={onResizePointerDown}
       onTransformPointerDown={onTransformPointerDown}
+      onWarpTransformCommit={
+        onWarpTransformCommit
+          ? (transform) => onWarpTransformCommit(block.id, transform)
+          : undefined
+      }
     />
   );
 });

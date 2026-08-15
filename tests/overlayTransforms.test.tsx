@@ -17,16 +17,29 @@ import { DEFAULT_BLOCK_FONT_CATALOG } from "../src/renderer/src/lib/fonts";
 import { createWorkspaceInteractionPreviewStore } from "../src/renderer/src/lib/workspaceInteractionPreview";
 import type { DragMode } from "../src/renderer/src/lib/workspaceInteractionTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
+import {
+  createIdentityWarpTransform,
+  createWarpPreset,
+} from "../src/shared/blockTransforms";
 
 const originalGetContext = HTMLCanvasElement.prototype.getContext;
+const originalToDataUrl = HTMLCanvasElement.prototype.toDataURL;
 
 beforeAll(() => {
   Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
     configurable: true,
     value: () => ({
+      createImageData: (width: number, height: number) => ({
+        data: new Uint8ClampedArray(width * height * 4),
+      }),
       font: "",
       measureText: (text: string) => ({ width: Array.from(text).length * 10 }),
+      putImageData: vi.fn(),
     }),
+  });
+  Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+    configurable: true,
+    value: () => "data:image/png;base64,AA==",
   });
 });
 
@@ -36,6 +49,10 @@ afterAll(() => {
   Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
     configurable: true,
     value: originalGetContext,
+  });
+  Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+    configurable: true,
+    value: originalToDataUrl,
   });
 });
 
@@ -168,6 +185,73 @@ describe("overlay transform controls", () => {
       expect(container.querySelector(".curve-controls")).toBeNull();
     },
   );
+
+  it("renders a 3x3-cell warp mesh with 16 accessible point handles", () => {
+    const onTransformPointerDown = vi.fn();
+    const onWarpTransformCommit = vi.fn();
+    const { container } = renderOverlay({
+      block: { ...makeBlock(), warpTransform: createIdentityWarpTransform(3) },
+      onTransformPointerDown,
+      onWarpTransformCommit,
+      transformMode: "warp",
+    });
+
+    expect(container.querySelectorAll(".warp-point")).toHaveLength(16);
+    expect(container.querySelectorAll(".warp-grid-line")).toHaveLength(8);
+    const first = container.querySelector<HTMLElement>(
+      '[data-transform-handle="warp-point-0"]',
+    );
+    if (!first) throw new Error("Warp point was not rendered");
+    fireEvent.pointerDown(first);
+    expect(onTransformPointerDown).toHaveBeenCalledWith(
+      expect.anything(),
+      "warp-points-0",
+    );
+    fireEvent.keyDown(first, { key: "ArrowRight" });
+    expect(onWarpTransformCommit).toHaveBeenCalledWith(
+      expect.objectContaining({ gridSize: 3 }),
+    );
+    expect(onWarpTransformCommit.mock.calls[0]?.[0].points[0].x).toBeCloseTo(
+      1 / 250,
+    );
+  });
+
+  it("applies an SVG inverse displacement map to rich text before perspective", () => {
+    const { container } = renderOverlay({
+      block: {
+        ...makeBlock(),
+        translatedText: "A**굵게**\n둘째 줄",
+        perspectiveTransform: {
+          version: 1,
+          corners: [
+            { x: 0.08, y: 0 },
+            { x: 0.92, y: 0.04 },
+            { x: 1, y: 1 },
+            { x: 0, y: 0.94 },
+          ],
+        },
+        warpTransform: createWarpPreset("wave", 3),
+      },
+      transformMode: "warp",
+    });
+
+    expect(
+      container.querySelector(".warped-text-content .overlay-text"),
+    ).not.toBeNull();
+    expect(container.querySelector("feDisplacementMap")).not.toBeNull();
+    expect(container.querySelector("filter")?.getAttribute("filterUnits")).toBe(
+      "userSpaceOnUse",
+    );
+    expect(
+      container.querySelector("filter")?.getAttribute("primitiveUnits"),
+    ).toBe("userSpaceOnUse");
+    expect(container.querySelector("img[data-warp-map]")).not.toBeNull();
+    expect(
+      container.querySelector(
+        ".overlay-transform-content > .warped-text-content",
+      ),
+    ).not.toBeNull();
+  });
 });
 
 function renderOverlay({
@@ -175,13 +259,17 @@ function renderOverlay({
   onTransformPointerDown = vi.fn<
     (event: React.PointerEvent, mode: DragMode) => void
   >(),
+  onWarpTransformCommit = vi.fn(),
   showChrome = true,
   transformMode = "select",
 }: {
   block?: TranslationBlock;
   onTransformPointerDown?: (event: React.PointerEvent, mode: DragMode) => void;
+  onWarpTransformCommit?: NonNullable<
+    React.ComponentProps<typeof OverlayBlock>["onWarpTransformCommit"]
+  >;
   showChrome?: boolean;
-  transformMode?: "select" | "perspective" | "curve";
+  transformMode?: "select" | "perspective" | "curve" | "warp";
 } = {}): ReturnType<typeof render> {
   return render(
     <FontsContext.Provider
@@ -201,6 +289,7 @@ function renderOverlay({
         onPointerDown={vi.fn()}
         onResizePointerDown={vi.fn()}
         onTransformPointerDown={onTransformPointerDown}
+        onWarpTransformCommit={onWarpTransformCommit}
         pageSize={{ width: 1000, height: 1000 }}
         selected
         showChrome={showChrome}

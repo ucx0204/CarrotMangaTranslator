@@ -333,6 +333,7 @@ function isRegionTranslationAvailable(
 }
 
 function createWorkspaceProps({
+  blockEditingActions,
   core,
   derivedState,
   importShareActions,
@@ -358,6 +359,8 @@ function createWorkspaceProps({
     maskStrokes: derivedState.patternMaskStrokes,
     lastRetouchTool: uiState.lastRetouchTool,
     onBlockPointerDown: pointerHandlers.onBlockPointerDown,
+    onWarpTransformCommit: (blockId, transform) =>
+      blockEditingActions.updateBlock(blockId, { warpTransform: transform }),
     onApplyBubbleLayoutDraft: pointerHandlers.applyBubbleLayoutDraft,
     onCancelBubbleLayoutDraft: pointerHandlers.cancelBubbleLayoutDraft,
     onOpenBatchImport: () =>

@@ -6,6 +6,31 @@
   pointer-events: none;
 }
 
+.warp-filter-definition {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.warp-map-preload {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.warped-text-content {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
 .overlay-curve-text {
   position: absolute;
   inset: 0;
@@ -50,7 +75,8 @@
 }
 
 .overlay-block.transform-mode-perspective.selected,
-.overlay-block.transform-mode-curve.selected {
+.overlay-block.transform-mode-curve.selected,
+.overlay-block.transform-mode-warp.selected {
   outline: 0;
 }
 
@@ -228,6 +254,60 @@
   transform: translate(-50%, -50%) rotate(45deg);
 }
 
+.warp-controls .warp-selection-surface {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.warp-controls .warp-grid-guide {
+  z-index: 1;
+}
+
+.warp-controls .warp-grid-line {
+  fill: none;
+  stroke: rgba(88, 185, 255, 0.76);
+  stroke-width: 1.1px;
+  pointer-events: stroke;
+  cursor: move;
+}
+
+.warp-controls .warp-grid-line:hover {
+  stroke: #b9e4ff;
+  stroke-width: 2px;
+}
+
+.warp-controls .warp-selection-rect {
+  fill: rgba(88, 185, 255, 0.14);
+  stroke: #8fd2ff;
+  stroke-width: 1px;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.warp-controls .warp-point {
+  z-index: 2;
+  cursor: crosshair;
+}
+
+.warp-controls .warp-point::after {
+  border-radius: 50%;
+  background: #dff3ff;
+  box-shadow: 0 0 0 1px #58b9ff;
+}
+
+.warp-controls .warp-point.selected::after {
+  width: 10px;
+  height: 10px;
+  border-color: #17202d;
+  background: #ffbf58;
+  box-shadow:
+    0 0 0 2px #fff2d8,
+    0 2px 5px rgba(0, 0, 0, 0.55);
+}
+
 .stage-drag-hud.invalid {
   border-color: rgba(255, 108, 108, 0.86);
   background: rgba(85, 20, 24, 0.92);
@@ -235,6 +315,7 @@
 }
 
 .image-stage.stage-tool-perspective .overlay-block.selected,
-.image-stage.stage-tool-curve .overlay-block.selected {
+.image-stage.stage-tool-curve .overlay-block.selected,
+.image-stage.stage-tool-warp .overlay-block.selected {
   cursor: move;
 }

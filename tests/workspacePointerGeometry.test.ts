@@ -7,6 +7,11 @@ import {
   resolveNormalizedImagePoint,
   type DragState,
 } from "../src/renderer/src/hooks/workspacePointerGeometry";
+import { resolveDraggedWarpTransform } from "../src/renderer/src/hooks/workspaceWarpPointerGeometry";
+import {
+  createIdentityWarpTransform,
+  mapPointToQuad,
+} from "../src/shared/blockTransforms";
 
 describe("workspace pointer geometry", () => {
   it("formats move and resize drag HUD labels in page pixels", () => {
@@ -136,6 +141,60 @@ describe("workspace pointer geometry", () => {
     expect(result.corners[0].y).toBeCloseTo(0.25);
     expect(result.corners[1].y).toBeCloseTo(0.25);
     expect(result.corners[2]).toEqual({ x: 1, y: 1 });
+  });
+
+  it("moves all encoded warp points as one selection", () => {
+    const transform = createIdentityWarpTransform(3);
+    const drag: DragState = {
+      blockId: "block-1",
+      mode: "warp-points-0_1_2_3",
+      startX: 0,
+      startY: 0,
+      startBbox: { x: 100, y: 100, w: 500, h: 400 },
+      startBlock: { rotationDeg: 0 } as DragState["startBlock"],
+    };
+    const result = resolveDraggedWarpTransform(
+      drag,
+      { clientX: 5, clientY: 10 },
+      transform,
+      { left: 0, top: 0, width: 100, height: 100 },
+    );
+
+    expect(result.points[0]).toEqual({ x: 0.1, y: 0.25 });
+    expect(result.points[3]).toEqual({ x: 1.1, y: 0.25 });
+    expect(result.points[4]).toEqual(transform.points[4]);
+  });
+
+  it("uses inverse perspective coordinates for a warp pointer delta", () => {
+    const transform = createIdentityWarpTransform(3);
+    const corners = [
+      { x: 0.2, y: 0 },
+      { x: 0.8, y: 0 },
+      { x: 1, y: 1 },
+      { x: 0, y: 1 },
+    ] as const;
+    const drag: DragState = {
+      blockId: "block-1",
+      mode: "warp-points-0",
+      startX: 0,
+      startY: 0,
+      startBbox: { x: 100, y: 100, w: 500, h: 400 },
+      startBlock: {
+        rotationDeg: 0,
+        perspectiveTransform: { version: 1, corners: [...corners] },
+      } as DragState["startBlock"],
+    };
+    const result = resolveDraggedWarpTransform(
+      drag,
+      { clientX: 5, clientY: 0 },
+      transform,
+      { left: 0, top: 0, width: 100, height: 100 },
+    );
+
+    const before = mapPointToQuad(transform.points[0], [...corners]);
+    const after = mapPointToQuad(result.points[0], [...corners]);
+    expect(after.x - before.x).toBeCloseTo(0.1, 7);
+    expect(after.y - before.y).toBeCloseTo(0, 7);
   });
 
   it("normalizes client points and clamps outside the image rect", () => {

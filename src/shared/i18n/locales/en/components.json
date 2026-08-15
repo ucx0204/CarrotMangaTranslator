@@ -198,7 +198,8 @@
     "modes": {
       "select": "Select",
       "perspective": "Perspective",
-      "curve": "Curve"
+      "curve": "Curve",
+      "warp": "Warp"
     },
     "fields": { "x": "X", "y": "Y", "w": "Width", "h": "Height" },
     "controlKinds": { "slider": "slider", "value": "value" },
@@ -208,7 +209,8 @@
     "hints": {
       "select": "Drag corners to resize or the top handle to rotate · Shift 15°",
       "perspective": "Match the four corners to the image surface · Esc cancels",
-      "curve": "The ends set length; the middle point controls the bend"
+      "curve": "The ends set length; the middle point controls the bend",
+      "warp": "Drag points, or drag grid lines to move rows and columns · Shift multi-select · Esc cancels"
     },
     "handles": {
       "rotate": "Rotation handle",
@@ -235,6 +237,7 @@
     "hud": {
       "invalidPerspective": "Corners cannot cross or become too close",
       "invalidCurve": "The path ends cannot become too close",
+      "invalidWarp": "The mesh cannot fold or become excessively compressed",
       "outsidePage": "The transformed block cannot move completely off the page",
       "snapped": "Snapped"
     },
@@ -282,6 +285,28 @@
       "presets": { "straight": "Straight", "archUp": "Up", "archDown": "Down" },
       "align": { "start": "Start", "center": "Center", "end": "End" },
       "orientations": { "tangent": "Follow path", "upright": "Upright" }
+    },
+    "warp": {
+      "disabledDescription": "Deform the complete text with a smooth mesh while preserving fonts, outlines, inline emphasis, and curves.",
+      "start": "Start warp",
+      "remove": "Remove warp",
+      "gridSize": "Grid",
+      "preset": "Preset",
+      "choosePreset": "Choose shape…",
+      "selectedPoint": "Selected point",
+      "pointLabel": "Row {{row}}, column {{column}}",
+      "pointAccessibleLabel": "Warp control point row {{row}}, column {{column}}",
+      "selectionCount": "{{count}} control points selected",
+      "resetSelected": "Reset selected",
+      "resetMesh": "Reset mesh",
+      "presets": {
+        "archUp": "Arch up",
+        "archDown": "Arch down",
+        "bulge": "Bulge",
+        "squeeze": "Squeeze",
+        "flag": "Flag",
+        "wave": "Wave"
+      }
     }
   },
   "editor": {

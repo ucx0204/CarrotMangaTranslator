@@ -167,7 +167,9 @@ function supportsEditablePsdText(
   displayText: string,
 ): boolean {
   if (!displayText || block.renderDirection === "vertical") return false;
-  return !block.curveLayout && !block.perspectiveTransform;
+  return (
+    !block.curveLayout && !block.perspectiveTransform && !block.warpTransform
+  );
 }
 
 export function cropTransparentPixelData(imageData: PixelData): {

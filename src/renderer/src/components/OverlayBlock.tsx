@@ -1,7 +1,10 @@
 import React from "react";
 import { IconEraserOff } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
-import type { TranslationBlock } from "../../../shared/textTypes";
+import type {
+  TranslationBlock,
+  WarpTransform,
+} from "../../../shared/textTypes";
 import type { DragMode } from "../lib/workspaceInteractionTypes";
 import { useFonts } from "../fonts/useFonts";
 import type { BlockFontCatalog } from "../lib/fonts";
@@ -38,6 +41,7 @@ type OverlayBlockProps = {
   onPointerDown: (event: React.PointerEvent) => void;
   onResizePointerDown: (event: React.PointerEvent) => void;
   onTransformPointerDown?: (event: React.PointerEvent, mode: DragMode) => void;
+  onWarpTransformCommit?: (transform: WarpTransform) => void;
 };
 
 export const OverlayBlock = React.memo(function OverlayBlock(
@@ -95,6 +99,8 @@ export const OverlayBlockView = React.memo(function OverlayBlockView(
             model={model}
             mode={selectedMode}
             onPointerDown={resolveTransformPointerDown(props)}
+            onWarpTransformCommit={props.onWarpTransformCommit}
+            pageSize={props.pageSize}
             pointerDisabled={flags.pointerDisabled}
             selected={props.selected}
             textVisible={flags.textVisible}
@@ -118,6 +124,7 @@ export const OverlayBlockView = React.memo(function OverlayBlockView(
       fontCatalog={catalog}
       model={model}
       onPointerDown={resolveOuterPointerDown(props)}
+      warpPreview={previewBlock !== null}
     />
   );
 });
@@ -175,6 +182,8 @@ function OverlayBlockControls({
   model,
   mode,
   onPointerDown,
+  onWarpTransformCommit,
+  pageSize,
   pointerDisabled,
   selected,
   textVisible,
@@ -183,6 +192,8 @@ function OverlayBlockControls({
   model: OverlayBlockRenderModel;
   mode?: BlockTransformMode;
   onPointerDown: (event: React.PointerEvent, mode: DragMode) => void;
+  onWarpTransformCommit?: (transform: WarpTransform) => void;
+  pageSize: ViewportSize;
   pointerDisabled: boolean;
   selected: boolean;
   textVisible: boolean;
@@ -194,6 +205,8 @@ function OverlayBlockControls({
       height={model.layout.rect.height}
       mode={mode}
       onPointerDown={onPointerDown}
+      onWarpTransformCommit={onWarpTransformCommit}
+      pageSize={pageSize}
       showCurveGuide={model.curveRenderable}
       width={model.layout.rect.width}
     />

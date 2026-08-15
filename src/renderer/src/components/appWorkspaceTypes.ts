@@ -58,6 +58,7 @@ export type AppWorkspaceProps = {
     ImageStageProps["onUndoBubbleLayoutPoint"]
   >;
   onBlockPointerDown: ImageStageProps["onBlockPointerDown"];
+  onWarpTransformCommit?: ImageStageProps["onWarpTransformCommit"];
   onOpenTranslationSource: () => void;
   onOpenBatchImport: () => void;
   onOpenShareImport: () => void;

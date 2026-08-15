@@ -125,6 +125,7 @@ function hasSelectedBubbleLayoutTarget(props: AppWorkspaceProps): boolean {
 type WorkspaceContentActions = Pick<
   AppWorkspaceProps,
   | "onBlockPointerDown"
+  | "onWarpTransformCommit"
   | "onApplyBubbleLayoutDraft"
   | "onCancelBubbleLayoutDraft"
   | "onOpenBatchImport"
@@ -149,6 +150,9 @@ function useStableWorkspaceActions(
   return {
     onApplyBubbleLayoutDraft: useEventCallback(props.onApplyBubbleLayoutDraft),
     onBlockPointerDown: useEventCallback(props.onBlockPointerDown),
+    onWarpTransformCommit: useEventCallback((blockId, transform) =>
+      props.onWarpTransformCommit?.(blockId, transform),
+    ),
     onCancelBubbleLayoutDraft: useEventCallback(
       props.onCancelBubbleLayoutDraft,
     ),

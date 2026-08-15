@@ -226,6 +226,7 @@ function useBlockPointerMove(
       const dragHud = resolveBlockDragHud(resolution, active.drag.mode, {
         invalidCurve: tComponents("transform.hud.invalidCurve"),
         invalidPerspective: tComponents("transform.hud.invalidPerspective"),
+        invalidWarp: tComponents("transform.hud.invalidWarp"),
         outsidePage: tComponents("transform.hud.outsidePage"),
         snapped: tComponents("transform.hud.snapped"),
       });
@@ -375,6 +376,7 @@ function resolveBlockDragHud(
   labels: {
     invalidCurve: string;
     invalidPerspective: string;
+    invalidWarp: string;
     outsidePage: string;
     snapped: string;
   },
@@ -385,9 +387,11 @@ function resolveBlockDragHud(
       label:
         resolution.invalidKind === "curve"
           ? labels.invalidCurve
-          : resolution.invalidKind === "outside"
-            ? labels.outsidePage
-            : labels.invalidPerspective,
+          : resolution.invalidKind === "warp"
+            ? labels.invalidWarp
+            : resolution.invalidKind === "outside"
+              ? labels.outsidePage
+              : labels.invalidPerspective,
       invalid: true,
     };
   }

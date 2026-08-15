@@ -1,0 +1,103 @@
+.warp-editor-empty > p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  line-height: 1.45;
+}
+
+.warp-grid-size-row,
+.warp-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.warp-grid-size-row > span {
+  margin-right: auto;
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+}
+
+.warp-grid-size-row button {
+  min-height: 28px;
+  padding: 3px 9px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.warp-grid-size-row button[aria-pressed="true"] {
+  border-color: var(--accent-bd);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.warp-grid-size-row button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.warp-preset-field,
+.warp-point-field {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+}
+
+.warp-preset-field [data-ui-select],
+.warp-point-field [data-ui-select] {
+  width: 100%;
+  min-width: 0;
+}
+
+.warp-coordinate-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-2);
+}
+
+.warp-editor-actions {
+  flex-wrap: wrap;
+}
+
+.warp-action-button {
+  min-height: 28px;
+  padding: 4px 9px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  color: var(--text);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.warp-action-button.primary {
+  border-color: var(--accent-bd);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.warp-action-button.ghost {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.warp-action-button:hover:not(:disabled) {
+  border-color: var(--accent-bd);
+  color: var(--accent-text);
+}
+
+.warp-action-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

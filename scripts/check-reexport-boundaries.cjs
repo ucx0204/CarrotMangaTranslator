@@ -72,6 +72,8 @@ const APPROVED_REEXPORT_BOUNDARIES = new Map([
       "./blockTransformPresets",
       "./curveTransformMath",
       "./perspectiveTransformMath",
+      "./thinPlateSpline",
+      "./warpTransformMath",
     ]),
   ],
   ["src/shared/geometry.ts", new Set(["./blockGeometryValues"])],

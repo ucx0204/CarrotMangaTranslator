@@ -67,6 +67,12 @@
       "functions": { "covered": 9, "total": 9, "pct": 100 },
       "branches": { "covered": 26, "total": 27, "pct": 96.29 }
     },
+    "src/main/jobs/pagePsdExport.ts": {
+      "lines": { "covered": 68, "total": 69, "pct": 98.55 },
+      "statements": { "covered": 73, "total": 77, "pct": 94.8 },
+      "functions": { "covered": 10, "total": 10, "pct": 100 },
+      "branches": { "covered": 44, "total": 60, "pct": 73.33 }
+    },
     "src/main/pipeline/automaticFontMatchingV2PageConsistencyDominantOrdinary.ts": {
       "lines": { "covered": 95, "total": 96, "pct": 98.95 },
       "statements": { "covered": 105, "total": 113, "pct": 92.92 },
@@ -343,11 +349,65 @@
       "functions": { "covered": 18, "total": 18, "pct": 100 },
       "branches": { "covered": 33, "total": 40, "pct": 82.5 }
     },
+    "src/renderer/src/app/session/buildPanelSyncState.ts": {
+      "lines": { "covered": 0, "total": 2, "pct": 0 },
+      "statements": { "covered": 0, "total": 2, "pct": 0 },
+      "functions": { "covered": 0, "total": 1, "pct": 0 },
+      "branches": { "covered": 0, "total": 14, "pct": 0 }
+    },
+    "src/renderer/src/app/session/createAppSessionViewProps.ts": {
+      "lines": { "covered": 0, "total": 75, "pct": 0 },
+      "statements": { "covered": 0, "total": 79, "pct": 0 },
+      "functions": { "covered": 0, "total": 53, "pct": 0 },
+      "branches": { "covered": 0, "total": 45, "pct": 0 }
+    },
+    "src/renderer/src/app/session/useAppSessionInpaintingController.ts": {
+      "lines": { "covered": 0, "total": 53, "pct": 0 },
+      "statements": { "covered": 0, "total": 56, "pct": 0 },
+      "functions": { "covered": 0, "total": 20, "pct": 0 },
+      "branches": { "covered": 0, "total": 38, "pct": 0 }
+    },
     "src/renderer/src/app/session/useAppSessionLifecycleEffects.ts": {
       "lines": { "covered": 59, "total": 64, "pct": 92.18 },
       "statements": { "covered": 61, "total": 66, "pct": 92.42 },
       "functions": { "covered": 12, "total": 13, "pct": 92.3 },
       "branches": { "covered": 43, "total": 56, "pct": 76.78 }
+    },
+    "src/renderer/src/components/AppWorkspace.tsx": {
+      "lines": { "covered": 25, "total": 31, "pct": 80.64 },
+      "statements": { "covered": 25, "total": 31, "pct": 80.64 },
+      "functions": { "covered": 8, "total": 11, "pct": 72.72 },
+      "branches": { "covered": 9, "total": 16, "pct": 56.25 }
+    },
+    "src/renderer/src/components/ImageStage.tsx": {
+      "lines": { "covered": 9, "total": 9, "pct": 100 },
+      "statements": { "covered": 10, "total": 10, "pct": 100 },
+      "functions": { "covered": 7, "total": 7, "pct": 100 },
+      "branches": { "covered": 26, "total": 26, "pct": 100 }
+    },
+    "src/renderer/src/components/OverlayBlock.tsx": {
+      "lines": { "covered": 25, "total": 26, "pct": 96.15 },
+      "statements": { "covered": 27, "total": 28, "pct": 96.42 },
+      "functions": { "covered": 10, "total": 11, "pct": 90.9 },
+      "branches": { "covered": 35, "total": 37, "pct": 94.59 }
+    },
+    "src/renderer/src/components/OverlayBlockLayer.tsx": {
+      "lines": { "covered": 38, "total": 53, "pct": 71.69 },
+      "statements": { "covered": 40, "total": 59, "pct": 67.79 },
+      "functions": { "covered": 16, "total": 24, "pct": 66.66 },
+      "branches": { "covered": 35, "total": 46, "pct": 76.08 }
+    },
+    "src/renderer/src/components/OverlayTransformControls.tsx": {
+      "lines": { "covered": 39, "total": 41, "pct": 95.12 },
+      "statements": { "covered": 43, "total": 47, "pct": 91.48 },
+      "functions": { "covered": 21, "total": 22, "pct": 95.45 },
+      "branches": { "covered": 17, "total": 19, "pct": 89.47 }
+    },
+    "src/renderer/src/components/PageArtwork.tsx": {
+      "lines": { "covered": 14, "total": 14, "pct": 100 },
+      "statements": { "covered": 16, "total": 16, "pct": 100 },
+      "functions": { "covered": 8, "total": 8, "pct": 100 },
+      "branches": { "covered": 12, "total": 14, "pct": 85.71 }
     },
     "src/renderer/src/components/StatusDockButton.tsx": {
       "lines": { "covered": 50, "total": 51, "pct": 98.03 },
@@ -355,11 +415,41 @@
       "functions": { "covered": 19, "total": 21, "pct": 90.47 },
       "branches": { "covered": 35, "total": 39, "pct": 89.74 }
     },
+    "src/renderer/src/components/TransformEditorGroup.tsx": {
+      "lines": { "covered": 20, "total": 26, "pct": 76.92 },
+      "statements": { "covered": 20, "total": 26, "pct": 76.92 },
+      "functions": { "covered": 9, "total": 14, "pct": 64.28 },
+      "branches": { "covered": 18, "total": 18, "pct": 100 }
+    },
+    "src/renderer/src/components/WorkspaceContent.tsx": {
+      "lines": { "covered": 13, "total": 19, "pct": 68.42 },
+      "statements": { "covered": 13, "total": 19, "pct": 68.42 },
+      "functions": { "covered": 5, "total": 8, "pct": 62.5 },
+      "branches": { "covered": 14, "total": 20, "pct": 70 }
+    },
+    "src/renderer/src/components/appWorkspaceTypes.ts": {
+      "lines": { "covered": 0, "total": 0, "pct": 100 },
+      "statements": { "covered": 0, "total": 0, "pct": 100 },
+      "functions": { "covered": 0, "total": 0, "pct": 100 },
+      "branches": { "covered": 0, "total": 0, "pct": 100 }
+    },
     "src/renderer/src/components/gatherText/GatherTextDirectTypographyControls.tsx": {
       "lines": { "covered": 45, "total": 50, "pct": 90 },
       "statements": { "covered": 45, "total": 50, "pct": 90 },
       "functions": { "covered": 18, "total": 23, "pct": 78.26 },
       "branches": { "covered": 38, "total": 48, "pct": 79.16 }
+    },
+    "src/renderer/src/components/imageStageModel.ts": {
+      "lines": { "covered": 10, "total": 13, "pct": 76.92 },
+      "statements": { "covered": 11, "total": 14, "pct": 78.57 },
+      "functions": { "covered": 7, "total": 7, "pct": 100 },
+      "branches": { "covered": 23, "total": 29, "pct": 79.31 }
+    },
+    "src/renderer/src/components/imageStageTypes.ts": {
+      "lines": { "covered": 0, "total": 0, "pct": 100 },
+      "statements": { "covered": 0, "total": 0, "pct": 100 },
+      "functions": { "covered": 0, "total": 0, "pct": 100 },
+      "branches": { "covered": 0, "total": 0, "pct": 100 }
     },
     "src/renderer/src/components/settingsModal/FormatDefaultsTypographySection.tsx": {
       "lines": { "covered": 35, "total": 40, "pct": 87.5 },
@@ -463,6 +553,42 @@
       "functions": { "covered": 11, "total": 12, "pct": 91.66 },
       "branches": { "covered": 26, "total": 34, "pct": 76.47 }
     },
+    "src/renderer/src/hooks/useWorkspaceBlockDragHandlers.ts": {
+      "lines": { "covered": 72, "total": 78, "pct": 92.3 },
+      "statements": { "covered": 74, "total": 83, "pct": 89.15 },
+      "functions": { "covered": 19, "total": 20, "pct": 95 },
+      "branches": { "covered": 47, "total": 74, "pct": 63.51 }
+    },
+    "src/renderer/src/hooks/workspaceBlockDragModel.ts": {
+      "lines": { "covered": 45, "total": 60, "pct": 75 },
+      "statements": { "covered": 48, "total": 65, "pct": 73.84 },
+      "functions": { "covered": 15, "total": 18, "pct": 83.33 },
+      "branches": { "covered": 34, "total": 52, "pct": 65.38 }
+    },
+    "src/renderer/src/lib/stageTool.ts": {
+      "lines": { "covered": 4, "total": 4, "pct": 100 },
+      "statements": { "covered": 4, "total": 4, "pct": 100 },
+      "functions": { "covered": 4, "total": 4, "pct": 100 },
+      "branches": { "covered": 16, "total": 16, "pct": 100 }
+    },
+    "src/renderer/src/lib/transformEditorModel.ts": {
+      "lines": { "covered": 89, "total": 96, "pct": 92.7 },
+      "statements": { "covered": 100, "total": 109, "pct": 91.74 },
+      "functions": { "covered": 22, "total": 23, "pct": 95.65 },
+      "branches": { "covered": 51, "total": 71, "pct": 71.83 }
+    },
+    "src/renderer/src/lib/workspaceInteractionTypes.ts": {
+      "lines": { "covered": 0, "total": 0, "pct": 100 },
+      "statements": { "covered": 0, "total": 0, "pct": 100 },
+      "functions": { "covered": 0, "total": 0, "pct": 100 },
+      "branches": { "covered": 0, "total": 0, "pct": 100 }
+    },
+    "src/shared/blockTransforms.ts": {
+      "lines": { "covered": 0, "total": 0, "pct": 100 },
+      "statements": { "covered": 0, "total": 0, "pct": 100 },
+      "functions": { "covered": 0, "total": 0, "pct": 100 },
+      "branches": { "covered": 0, "total": 0, "pct": 100 }
+    },
     "src/shared/ipcEnumSchemas.ts": {
       "lines": { "covered": 63, "total": 96, "pct": 65.62 },
       "statements": { "covered": 63, "total": 96, "pct": 65.62 },
@@ -474,6 +600,12 @@
       "statements": { "covered": 32, "total": 35, "pct": 91.42 },
       "functions": { "covered": 3, "total": 6, "pct": 50 },
       "branches": { "covered": 2, "total": 2, "pct": 100 }
+    },
+    "src/shared/ipcSchemaPrimitives.ts": {
+      "lines": { "covered": 81, "total": 85, "pct": 95.29 },
+      "statements": { "covered": 82, "total": 86, "pct": 95.34 },
+      "functions": { "covered": 18, "total": 18, "pct": 100 },
+      "branches": { "covered": 44, "total": 49, "pct": 89.79 }
     },
     "src/shared/ipcSettingsSchemas.ts": {
       "lines": { "covered": 9, "total": 9, "pct": 100 },
@@ -487,7 +619,31 @@
       "functions": { "covered": 0, "total": 0, "pct": 100 },
       "branches": { "covered": 0, "total": 0, "pct": 100 }
     },
+    "src/shared/panelBridgeSchemas.ts": {
+      "lines": { "covered": 6, "total": 6, "pct": 100 },
+      "statements": { "covered": 6, "total": 6, "pct": 100 },
+      "functions": { "covered": 0, "total": 0, "pct": 100 },
+      "branches": { "covered": 0, "total": 0, "pct": 100 }
+    },
+    "src/shared/panelBridgeTypes.ts": {
+      "lines": { "covered": 0, "total": 0, "pct": 100 },
+      "statements": { "covered": 0, "total": 0, "pct": 100 },
+      "functions": { "covered": 0, "total": 0, "pct": 100 },
+      "branches": { "covered": 0, "total": 0, "pct": 100 }
+    },
+    "src/shared/perspectiveTransformMath.ts": {
+      "lines": { "covered": 85, "total": 91, "pct": 93.4 },
+      "statements": { "covered": 95, "total": 106, "pct": 89.62 },
+      "functions": { "covered": 28, "total": 30, "pct": 93.33 },
+      "branches": { "covered": 67, "total": 88, "pct": 76.13 }
+    },
     "src/shared/settingsTypes.ts": {
+      "lines": { "covered": 0, "total": 0, "pct": 100 },
+      "statements": { "covered": 0, "total": 0, "pct": 100 },
+      "functions": { "covered": 0, "total": 0, "pct": 100 },
+      "branches": { "covered": 0, "total": 0, "pct": 100 }
+    },
+    "src/shared/textTypes.ts": {
       "lines": { "covered": 0, "total": 0, "pct": 100 },
       "statements": { "covered": 0, "total": 0, "pct": 100 },
       "functions": { "covered": 0, "total": 0, "pct": 100 },
@@ -525,6 +681,24 @@
       "functions": { "covered": 5, "total": 5, "pct": 100 },
       "branches": { "covered": 7, "total": 7, "pct": 100 }
     },
+    "src/renderer/src/components/WarpEditorControls.tsx": {
+      "lines": { "covered": 38, "total": 43, "pct": 88.37 },
+      "statements": { "covered": 39, "total": 47, "pct": 82.97 },
+      "functions": { "covered": 18, "total": 22, "pct": 81.81 },
+      "branches": { "covered": 17, "total": 24, "pct": 70.83 }
+    },
+    "src/renderer/src/components/WarpOverlayControls.tsx": {
+      "lines": { "covered": 39, "total": 77, "pct": 50.64 },
+      "statements": { "covered": 41, "total": 85, "pct": 48.23 },
+      "functions": { "covered": 16, "total": 31, "pct": 51.61 },
+      "branches": { "covered": 15, "total": 42, "pct": 35.71 }
+    },
+    "src/renderer/src/components/WarpedTextContent.tsx": {
+      "lines": { "covered": 7, "total": 7, "pct": 100 },
+      "statements": { "covered": 9, "total": 9, "pct": 100 },
+      "functions": { "covered": 3, "total": 3, "pct": 100 },
+      "branches": { "covered": 3, "total": 3, "pct": 100 }
+    },
     "src/renderer/src/components/blockFormat/BlockTypographyPrimitives.tsx": {
       "lines": { "covered": 21, "total": 21, "pct": 100 },
       "statements": { "covered": 21, "total": 21, "pct": 100 },
@@ -537,11 +711,53 @@
       "functions": { "covered": 8, "total": 8, "pct": 100 },
       "branches": { "covered": 4, "total": 4, "pct": 100 }
     },
+    "src/renderer/src/hooks/workspaceWarpPointerGeometry.ts": {
+      "lines": { "covered": 25, "total": 25, "pct": 100 },
+      "statements": { "covered": 26, "total": 28, "pct": 92.85 },
+      "functions": { "covered": 9, "total": 9, "pct": 100 },
+      "branches": { "covered": 10, "total": 13, "pct": 76.92 }
+    },
+    "src/renderer/src/lib/warpDisplacementMap.ts": {
+      "lines": { "covered": 83, "total": 112, "pct": 74.1 },
+      "statements": { "covered": 88, "total": 124, "pct": 70.96 },
+      "functions": { "covered": 11, "total": 19, "pct": 57.89 },
+      "branches": { "covered": 24, "total": 47, "pct": 51.06 }
+    },
+    "src/renderer/src/lib/warpOverlayGeometry.ts": {
+      "lines": { "covered": 26, "total": 33, "pct": 78.78 },
+      "statements": { "covered": 32, "total": 42, "pct": 76.19 },
+      "functions": { "covered": 15, "total": 15, "pct": 100 },
+      "branches": { "covered": 7, "total": 14, "pct": 50 }
+    },
+    "src/renderer/src/lib/warpPointSelection.ts": {
+      "lines": { "covered": 30, "total": 32, "pct": 93.75 },
+      "statements": { "covered": 34, "total": 37, "pct": 91.89 },
+      "functions": { "covered": 13, "total": 14, "pct": 92.85 },
+      "branches": { "covered": 15, "total": 19, "pct": 78.94 }
+    },
     "src/shared/settingsAliasCanonicalizers.ts": {
       "lines": { "covered": 44, "total": 44, "pct": 100 },
       "statements": { "covered": 50, "total": 50, "pct": 100 },
       "functions": { "covered": 14, "total": 14, "pct": 100 },
       "branches": { "covered": 46, "total": 46, "pct": 100 }
+    },
+    "src/shared/thinPlateSpline.ts": {
+      "lines": { "covered": 69, "total": 72, "pct": 95.83 },
+      "statements": { "covered": 85, "total": 88, "pct": 96.59 },
+      "functions": { "covered": 17, "total": 17, "pct": 100 },
+      "branches": { "covered": 20, "total": 23, "pct": 86.95 }
+    },
+    "src/shared/warpTransformMath.ts": {
+      "lines": { "covered": 85, "total": 95, "pct": 89.47 },
+      "statements": { "covered": 90, "total": 102, "pct": 88.23 },
+      "functions": { "covered": 24, "total": 26, "pct": 92.3 },
+      "branches": { "covered": 53, "total": 64, "pct": 82.81 }
+    },
+    "src/shared/warpTransformSchema.ts": {
+      "lines": { "covered": 6, "total": 7, "pct": 85.71 },
+      "statements": { "covered": 6, "total": 7, "pct": 85.71 },
+      "functions": { "covered": 1, "total": 1, "pct": 100 },
+      "branches": { "covered": 3, "total": 4, "pct": 75 }
     }
   },
   "deletedFiles": []

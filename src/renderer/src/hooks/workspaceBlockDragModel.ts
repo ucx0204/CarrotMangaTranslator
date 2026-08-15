@@ -1,5 +1,6 @@
 import {
   isValidPerspectiveTransform,
+  isValidWarpTransform,
   normalizeCurveLayout,
   normalizePerspectiveTransform,
   validateQuadraticPath,
@@ -11,7 +12,10 @@ import {
   applyMovedEditableBlockBbox,
   resolveSharedEditableBlockMoveDelta,
 } from "../lib/blockFormatGeometry";
-import { isPerspectiveVisibleOnPage } from "../lib/transformEditorModel";
+import {
+  isPerspectiveVisibleOnPage,
+  isWarpVisibleOnPage,
+} from "../lib/transformEditorModel";
 import type { DragMode } from "../lib/workspaceInteractionTypes";
 import {
   describeDragBbox,
@@ -24,6 +28,10 @@ import {
   type DragState,
   type PointerRect,
 } from "./workspacePointerGeometry";
+import {
+  resolveDraggedWarpTransform,
+  warpPointIndexesFromMode,
+} from "./workspaceWarpPointerGeometry";
 
 export type BlockDragResolution = {
   bbox?: BBox;
@@ -31,7 +39,7 @@ export type BlockDragResolution = {
   label: string;
   mode: DragMode;
   invalid?: boolean;
-  invalidKind?: "perspective" | "curve" | "outside";
+  invalidKind?: "perspective" | "curve" | "warp" | "outside";
   snapped?: boolean;
 };
 
@@ -74,6 +82,9 @@ export function resolveBlockDrag(
   if (drag.mode.startsWith("curve-")) {
     return resolveCurveDrag(drag, event, rect);
   }
+  if (drag.mode.startsWith("warp-points-")) {
+    return resolveWarpDrag(drag, event, rect, page);
+  }
   return null;
 }
 
@@ -111,10 +122,52 @@ export function applyResolvedBlockDrag(
 
 export function resolveDragCursor(mode: DragMode): string {
   if (mode === "move" || mode === "rotate") return "grabbing";
-  if (mode.startsWith("perspective-") || mode.startsWith("curve-")) {
+  if (
+    mode.startsWith("perspective-") ||
+    mode.startsWith("curve-") ||
+    mode.startsWith("warp-points-")
+  ) {
     return "crosshair";
   }
   return "nwse-resize";
+}
+
+function resolveWarpDrag(
+  drag: DragState,
+  event: DragPointer,
+  rect: PointerRect,
+  page: MangaPage,
+): BlockDragResolution | null {
+  const start = drag.startBlock.warpTransform;
+  if (!start) return null;
+  const warpTransform = resolveDraggedWarpTransform(drag, event, start, rect);
+  const indexes = warpPointIndexesFromMode(
+    drag.mode,
+    warpTransform.points.length,
+  );
+  if (!isValidWarpTransform(warpTransform)) {
+    return {
+      label: "",
+      mode: drag.mode,
+      invalid: true,
+      invalidKind: "warp",
+    };
+  }
+  if (!isWarpVisibleOnPage(drag.startBlock, warpTransform, page)) {
+    return {
+      label: "",
+      mode: drag.mode,
+      invalid: true,
+      invalidKind: "outside",
+    };
+  }
+  return {
+    patch: { warpTransform },
+    label: describeTransformPoint(
+      averagePoints(indexes.map((index) => warpTransform.points[index])),
+    ),
+    mode: drag.mode,
+  };
 }
 
 function resolvePerspectiveDrag(

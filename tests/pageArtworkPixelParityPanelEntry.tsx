@@ -15,6 +15,7 @@ import {
 } from "../src/renderer/src/lib/blockFontLoading";
 import { createBlockFontCatalog } from "../src/renderer/src/lib/fonts";
 import { createWorkspaceInteractionPreviewStore } from "../src/renderer/src/lib/workspaceInteractionPreview";
+import { waitForWarpDisplacementMaps } from "../src/renderer/src/lib/warpDisplacementMap";
 
 const PixelParityPayloadSchema = z
   .object({
@@ -85,6 +86,7 @@ async function startPanelArtwork(): Promise<void> {
     );
   });
   await waitForRenderedImage(stage, imageSize);
+  await waitForWarpDisplacementMaps(stage);
   await waitForPanelSize(stage, payload.panelSize);
   await waitForFrames(4);
   document.body.dataset.ready = "1";

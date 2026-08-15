@@ -8,6 +8,7 @@ import {
   MIN_CURVE_OFFSET_EM,
   validateQuadraticPath,
 } from "./blockTransforms";
+import { WarpTransformSchema } from "./warpTransformSchema";
 import {
   MAX_MAX_TOKENS,
   MIN_CONTEXT_TOKENS,
@@ -330,6 +331,7 @@ export const TranslationBlockSchema = z
     rotationDeg: finiteNumber.min(-180).max(180).optional(),
     perspectiveTransform: PerspectiveTransformSchema.optional(),
     curveLayout: CurveLayoutSchema.optional(),
+    warpTransform: WarpTransformSchema.optional(),
     fontFamily: z.string().max(120).optional(),
     automaticFontMatch: AutomaticFontMatchRecordSchema.optional(),
     fontSizePx: finiteNumber.min(1).max(512),

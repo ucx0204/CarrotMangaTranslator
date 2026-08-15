@@ -18,6 +18,7 @@ import {
 } from "../src/shared/ipcSchemas";
 import { MAX_MAX_TOKENS } from "../src/shared/modelPresets";
 import { MAX_ID_LIST_LENGTH } from "../src/shared/ipcSchemaPrimitives";
+import { createWarpPreset } from "../src/shared/blockTransforms";
 
 const workId = "11111111-1111-4111-8111-111111111111";
 const chapterId = "22222222-2222-4222-8222-222222222222";
@@ -349,7 +350,7 @@ describe("IPC schemas", () => {
     ).toThrow(/요청 형식/);
   });
 
-  it("accepts rotation, perspective, and curve data in autosave payloads", () => {
+  it("accepts rotation, perspective, curve, and warp data in autosave payloads", () => {
     const block = {
       ...makeChapterSnapshot().pages[0].blocks[0],
       rotationDeg: -135,
@@ -374,6 +375,7 @@ describe("IPC schemas", () => {
         offsetEm: 0,
         orientation: "tangent",
       },
+      warpTransform: createWarpPreset("wave", 3),
     };
     const parsed = parseIpcPayload(
       SavePageBlocksRequestSchema,
@@ -390,6 +392,7 @@ describe("IPC schemas", () => {
     expect(parsed.blocks[0].rotationDeg).toBe(-135);
     expect(parsed.blocks[0].perspectiveTransform?.version).toBe(1);
     expect(parsed.blocks[0].curveLayout?.path.type).toBe("quadratic");
+    expect(parsed.blocks[0].warpTransform?.points).toHaveLength(16);
   });
 
   it("accepts bounded AI work context analysis requests", () => {

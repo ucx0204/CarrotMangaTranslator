@@ -9,7 +9,11 @@ import {
   isPerspectiveVisibleOnPage,
   updateBboxFromPixels,
 } from "../src/renderer/src/lib/transformEditorModel";
-import { createCurvePreset } from "../src/shared/blockTransforms";
+import {
+  createCurvePreset,
+  createIdentityWarpTransform,
+  createWarpPreset,
+} from "../src/shared/blockTransforms";
 import type { TranslationBlock } from "../src/shared/textTypes";
 
 afterEach(() => cleanup());
@@ -208,6 +212,70 @@ describe("dense transform editor", () => {
       curveLayout: createCurvePreset("straight"),
     });
   });
+
+  it("starts a 3x3-cell warp and clears it with every other transform", () => {
+    const onUpdate = vi.fn();
+    const { rerender } = renderEditor({ mode: "warp", onUpdate });
+
+    fireEvent.click(screen.getByRole("button", { name: "워프 시작" }));
+    expect(onUpdate).toHaveBeenLastCalledWith({
+      warpTransform: createIdentityWarpTransform(3),
+    });
+
+    rerender(
+      <TransformEditorGroup
+        block={makeBlock({
+          rotationDeg: 20,
+          curveLayout: createCurvePreset("archUp"),
+          warpTransform: createWarpPreset("wave", 3),
+        })}
+        disabled={false}
+        mode="warp"
+        pageSize={{ width: 1000, height: 1000 }}
+        onSelectMode={vi.fn()}
+        onUpdate={onUpdate}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "모두 초기화" }));
+    expect(onUpdate).toHaveBeenLastCalledWith({
+      rotationDeg: 0,
+      perspectiveTransform: undefined,
+      curveLayout: undefined,
+      warpTransform: undefined,
+    });
+  });
+
+  it("resamples 3x3 to 5x5, applies presets, and edits a selected point", () => {
+    const onUpdate = vi.fn();
+    const warp = createWarpPreset("archUp", 3);
+    renderEditor({
+      mode: "warp",
+      onUpdate,
+      block: makeBlock({ warpTransform: warp }),
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "5×5" }));
+    expect(onUpdate.mock.calls.at(-1)?.[0].warpTransform).toMatchObject({
+      gridSize: 5,
+      points: expect.arrayContaining([expect.any(Object)]),
+    });
+    expect(onUpdate.mock.calls.at(-1)?.[0].warpTransform.points).toHaveLength(
+      36,
+    );
+
+    fireEvent.click(screen.getByRole("combobox", { name: "프리셋" }));
+    fireEvent.click(screen.getByRole("option", { name: "물결" }));
+    expect(onUpdate).toHaveBeenLastCalledWith({
+      warpTransform: createWarpPreset("wave", 3),
+    });
+
+    const x = screen.getByRole("spinbutton", { name: "X" });
+    fireEvent.change(x, { target: { value: "5" } });
+    fireEvent.keyDown(x, { key: "Enter" });
+    expect(onUpdate.mock.calls.at(-1)?.[0].warpTransform.points[0].x).toBe(
+      0.05,
+    );
+  });
 });
 
 describe("transform editor geometry safety", () => {
@@ -270,8 +338,8 @@ function renderEditor({
   onUpdate = vi.fn(),
 }: {
   block?: TranslationBlock;
-  mode: "select" | "perspective" | "curve";
-  onSelectMode?: (mode: "select" | "perspective" | "curve") => void;
+  mode: "select" | "perspective" | "curve" | "warp";
+  onSelectMode?: (mode: "select" | "perspective" | "curve" | "warp") => void;
   onUpdate?: (patch: Partial<TranslationBlock>) => void;
 }) {
   return render(

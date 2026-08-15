@@ -16,6 +16,7 @@ import { RangeInput } from "./ui/Field";
 import { TransformNumberField } from "./TransformNumberField";
 import { PerspectiveEditorControls } from "./PerspectiveEditorControls";
 import { CurveEditorControls } from "./CurveEditorControls";
+import { WarpEditorControls } from "./WarpEditorControls";
 
 type TransformEditorGroupProps = {
   block: TranslationBlock;
@@ -49,6 +50,7 @@ export function TransformEditorGroup({
               rotationDeg: 0,
               perspectiveTransform: undefined,
               curveLayout: undefined,
+              warpTransform: undefined,
             })
           }
         >
@@ -84,6 +86,14 @@ export function TransformEditorGroup({
           onUpdate={onUpdate}
         />
       ) : null}
+      {mode === "warp" ? (
+        <WarpEditorControls
+          block={block}
+          disabled={disabled}
+          pageSize={resolvedPageSize}
+          onUpdate={onUpdate}
+        />
+      ) : null}
     </div>
   );
 }
@@ -98,7 +108,12 @@ function TransformModeTabs({
   onSelectMode: (mode: TransformEditorMode) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
-  const modes: TransformEditorMode[] = ["select", "perspective", "curve"];
+  const modes: TransformEditorMode[] = [
+    "select",
+    "perspective",
+    "curve",
+    "warp",
+  ];
   return (
     <div
       className="transform-mode-tabs"

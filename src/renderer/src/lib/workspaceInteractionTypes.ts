@@ -12,13 +12,16 @@ export type PerspectiveHandle =
 
 type CurveHandle = "start" | "control" | "end";
 
+type WarpDragMode = `warp-points-${string}`;
+
 export type DragMode =
   | "move"
   | "resize"
   | `resize-${ResizeHandle}`
   | "rotate"
   | `perspective-${PerspectiveHandle}`
-  | `curve-${CurveHandle}`;
+  | `curve-${CurveHandle}`
+  | WarpDragMode;
 
 export type DragHud = {
   mode: DragMode;

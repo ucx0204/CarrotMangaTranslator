@@ -191,7 +191,12 @@
     "inactive": "未使用",
     "suspended": "已暂停",
     "modeLabel": "变形模式",
-    "modes": { "select": "选择", "perspective": "透视", "curve": "曲线" },
+    "modes": {
+      "select": "选择",
+      "perspective": "透视",
+      "curve": "曲线",
+      "warp": "变形网格"
+    },
     "fields": { "x": "X", "y": "Y", "w": "宽度", "h": "高度" },
     "controlKinds": { "slider": "滑块", "value": "数值" },
     "lockRatio": "保持比例",
@@ -200,7 +205,8 @@
     "hints": {
       "select": "拖动边角调整大小，上方手柄旋转 · Shift 15°",
       "perspective": "将四个角对齐图像表面 · Esc 取消",
-      "curve": "两端控制长度，中点控制弯曲"
+      "curve": "两端控制长度，中点控制弯曲",
+      "warp": "拖动控制点，或拖动网格线移动整行、整列 · Shift 多选 · Esc 取消"
     },
     "handles": {
       "rotate": "旋转手柄",
@@ -227,6 +233,7 @@
     "hud": {
       "invalidPerspective": "顶点不能交叉或距离过近",
       "invalidCurve": "路径两端不能距离过近",
+      "invalidWarp": "网格不能折叠或过度压缩",
       "outsidePage": "变形结果不能完全移出页面",
       "snapped": "已吸附"
     },
@@ -274,6 +281,28 @@
       "presets": { "straight": "直线", "archUp": "向上", "archDown": "向下" },
       "align": { "start": "起点", "center": "居中", "end": "终点" },
       "orientations": { "tangent": "沿路径", "upright": "保持直立" }
+    },
+    "warp": {
+      "disabledDescription": "使用平滑网格变形整段文字，同时保留字体、描边、局部强调和曲线。",
+      "start": "开始网格变形",
+      "remove": "取消网格变形",
+      "gridSize": "网格",
+      "preset": "预设",
+      "choosePreset": "选择形状…",
+      "selectedPoint": "所选点",
+      "pointLabel": "第 {{row}} 行，第 {{column}} 列",
+      "pointAccessibleLabel": "网格控制点，第 {{row}} 行，第 {{column}} 列",
+      "selectionCount": "已选择 {{count}} 个控制点",
+      "resetSelected": "重置所选点",
+      "resetMesh": "重置网格",
+      "presets": {
+        "archUp": "向上拱形",
+        "archDown": "向下拱形",
+        "bulge": "膨胀",
+        "squeeze": "压缩",
+        "flag": "旗帜",
+        "wave": "波浪"
+      }
     }
   },
   "editor": {

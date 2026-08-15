@@ -26,6 +26,7 @@ export function ImageStage({
   interactionPreviewStore,
   maskStrokes = [],
   onBlockPointerDown,
+  onWarpTransformCommit,
   onStagePointerDown,
   onStagePointerLeave,
   onStagePointerMove,
@@ -62,6 +63,7 @@ export function ImageStage({
       imageRef={imageRef}
       interactionPreviewStore={interactionPreviewStore}
       onBlockPointerDown={onBlockPointerDown}
+      onWarpTransformCommit={onWarpTransformCommit}
       onStagePointerDown={onStagePointerDown}
       onStagePointerLeave={onStagePointerLeave}
       onStagePointerMove={onStagePointerMove}
@@ -92,6 +94,7 @@ function ImageStageFrame({
   imageRef,
   interactionPreviewStore,
   onBlockPointerDown,
+  onWarpTransformCommit,
   onStagePointerDown,
   onStagePointerLeave,
   onStagePointerMove,
@@ -142,6 +145,7 @@ function ImageStageFrame({
           imageRef={imageRef}
           interactionPreviewStore={interactionPreviewStore}
           onBlockPointerDown={onBlockPointerDown}
+          onWarpTransformCommit={onWarpTransformCommit}
           page={page}
           regionSelectionActive={regionSelectionActive}
           regionSelectionRect={regionSelectionRect}
@@ -180,6 +184,7 @@ function ImageStageLayerSet({
   imageRef,
   interactionPreviewStore,
   onBlockPointerDown,
+  onWarpTransformCommit,
   page,
   regionSelectionActive,
   regionSelectionRect,
@@ -209,6 +214,7 @@ function ImageStageLayerSet({
             imageDataUrl={imageDataUrl}
             interactionPreviewStore={interactionPreviewStore}
             onBlockPointerDown={onBlockPointerDown}
+            onWarpTransformCommit={onWarpTransformCommit}
             page={page}
             selectedBlockId={selectedBlockId}
             selectedBlockIds={selectedBlockIds}

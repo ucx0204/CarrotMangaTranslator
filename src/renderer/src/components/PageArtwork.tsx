@@ -10,6 +10,7 @@ import {
 } from "../lib/overlayLayout";
 import { CurveText } from "./CurveText";
 import { OverlayText } from "./OverlayText";
+import { WarpedTextContent } from "./WarpedTextContent";
 import {
   resolveOverlayBlockRenderModel,
   type OverlayBlockRenderModel,
@@ -23,6 +24,7 @@ type ArtworkBlockProps = {
   fontCatalog: BlockFontCatalog;
   model: OverlayBlockRenderModel;
   onPointerDown?: (event: React.PointerEvent) => void;
+  warpPreview?: boolean;
 };
 
 export const ArtworkBlock = React.memo(function ArtworkBlock({
@@ -32,6 +34,7 @@ export const ArtworkBlock = React.memo(function ArtworkBlock({
   fontCatalog,
   model,
   onPointerDown,
+  warpPreview = false,
 }: ArtworkBlockProps): React.JSX.Element {
   return (
     <div
@@ -45,6 +48,7 @@ export const ArtworkBlock = React.memo(function ArtworkBlock({
           block={block}
           fontCatalog={fontCatalog}
           model={model}
+          warpPreview={warpPreview}
         />
       </div>
       {afterContent}
@@ -56,14 +60,16 @@ function ArtworkBlockText({
   block,
   fontCatalog,
   model,
+  warpPreview,
 }: {
   block: TranslationBlock;
   fontCatalog: BlockFontCatalog;
   model: OverlayBlockRenderModel;
+  warpPreview: boolean;
 }): React.JSX.Element | null {
   if (!model.textVisible) return null;
-  if (model.curveRenderable && block.curveLayout) {
-    return (
+  const text =
+    model.curveRenderable && block.curveLayout ? (
       <CurveText
         block={block}
         curveLayout={normalizeCurveLayout(block.curveLayout)}
@@ -71,16 +77,24 @@ function ArtworkBlockText({
         fontCatalog={fontCatalog}
         layout={model.layout}
       />
+    ) : (
+      <OverlayText
+        block={block}
+        displayText={model.displayText}
+        fontCatalog={fontCatalog}
+        layout={model.layout}
+        renderDirection={model.renderDirection}
+      />
     );
-  }
   return (
-    <OverlayText
-      block={block}
-      displayText={model.displayText}
-      fontCatalog={fontCatalog}
-      layout={model.layout}
-      renderDirection={model.renderDirection}
-    />
+    <WarpedTextContent
+      height={model.layout.rect.height}
+      preview={warpPreview}
+      transform={block.warpTransform}
+      width={model.layout.rect.width}
+    >
+      {text}
+    </WarpedTextContent>
   );
 }
 

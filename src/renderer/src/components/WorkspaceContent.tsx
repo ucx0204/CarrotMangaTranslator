@@ -44,6 +44,7 @@ export const WorkspaceContent = React.memo(function WorkspaceContent(
       interactionPreviewStore={props.interactionPreviewStore}
       maskStrokes={props.maskStrokes}
       onBlockPointerDown={props.onBlockPointerDown}
+      onWarpTransformCommit={props.onWarpTransformCommit}
       onStagePointerDown={props.onStagePointerDown}
       onStagePointerLeave={props.onStagePointerLeave}
       onStagePointerMove={props.onStagePointerMove}
@@ -81,6 +82,7 @@ const WORKSPACE_CONTENT_RENDER_KEYS = [
   "jobActive",
   "maskStrokes",
   "onBlockPointerDown",
+  "onWarpTransformCommit",
   "onOpenBatchImport",
   "onOpenSettings",
   "onOpenShareImport",

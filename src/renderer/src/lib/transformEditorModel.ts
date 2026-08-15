@@ -4,13 +4,19 @@ import type {
   PerspectiveTransform,
   Point,
   TranslationBlock,
+  WarpTransform,
 } from "../../../shared/textTypes";
 import {
   normalizeRotationDeg,
   resolveEditableBlockBbox,
   resolveFontWidthScale,
 } from "./blockFormatGeometry";
-import { quadraticLength } from "../../../shared/blockTransforms";
+import {
+  createWarpEvaluator,
+  mapPointToQuad,
+  normalizePerspectiveTransform,
+  quadraticLength,
+} from "../../../shared/blockTransforms";
 
 export type PageSize = { width: number; height: number };
 export type BboxField = "x" | "y" | "w" | "h";
@@ -111,6 +117,54 @@ export function isPerspectiveVisibleOnPage(
   const points = transform.corners.map((corner) => {
     const x = bbox.x + corner.x * bbox.w - center.x;
     const y = bbox.y + corner.y * bbox.h - center.y;
+    return {
+      x: center.x + x * cos - y * sin,
+      y: center.y + x * sin + y * cos,
+    };
+  });
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  return (
+    Math.max(...xs) > 0 &&
+    Math.min(...xs) < 1000 &&
+    Math.max(...ys) > 0 &&
+    Math.min(...ys) < 1000
+  );
+}
+
+export function isWarpVisibleOnPage(
+  block: TranslationBlock,
+  transform: WarpTransform,
+  pageSize: PageSize,
+): boolean {
+  const evaluator = createWarpEvaluator(transform);
+  const perspective = block.perspectiveTransform
+    ? normalizePerspectiveTransform(block.perspectiveTransform).corners
+    : null;
+  const samples: Point[] = [];
+  for (let row = 0; row <= 16; row += 1) {
+    for (let column = 0; column <= 16; column += 1) {
+      if (row !== 0 && row !== 16 && column !== 0 && column !== 16) continue;
+      const warped = evaluator.map({ x: column / 16, y: row / 16 });
+      samples.push(perspective ? mapPointToQuad(warped, perspective) : warped);
+    }
+  }
+  return areLocalPointsVisibleOnPage(block, samples, pageSize);
+}
+
+function areLocalPointsVisibleOnPage(
+  block: TranslationBlock,
+  localPoints: readonly Point[],
+  pageSize: PageSize,
+): boolean {
+  const bbox = resolveTransformBbox(block, pageSize);
+  const center = { x: bbox.x + bbox.w / 2, y: bbox.y + bbox.h / 2 };
+  const radians = (normalizeRotationDeg(block.rotationDeg) * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  const points = localPoints.map((point) => {
+    const x = bbox.x + point.x * bbox.w - center.x;
+    const y = bbox.y + point.y * bbox.h - center.y;
     return {
       x: center.x + x * cos - y * sin,
       y: center.y + x * sin + y * cos,

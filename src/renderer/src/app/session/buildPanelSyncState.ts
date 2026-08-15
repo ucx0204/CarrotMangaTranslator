@@ -37,7 +37,9 @@ export function buildPanelSyncState({
     selectedBlock: derivedState.selectedBlock,
     selectedBlockCount: derivedState.selectedBlockIds.length,
     transformMode:
-      uiState.stageTool === "perspective" || uiState.stageTool === "curve"
+      uiState.stageTool === "perspective" ||
+      uiState.stageTool === "curve" ||
+      uiState.stageTool === "warp"
         ? uiState.stageTool
         : "select",
     selectedPageSize: derivedState.selectedPage

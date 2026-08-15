@@ -511,7 +511,7 @@
 
 .transform-mode-tabs {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 2px;
   padding: 2px;
   border: 1px solid var(--border-soft);

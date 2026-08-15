@@ -22,6 +22,7 @@ export {
 } from "./curveTransformMath";
 export {
   isValidPerspectiveTransform,
+  mapPointFromQuad,
   mapPointToQuad,
   mapPointWithMatrix3d,
   matrix3dToCss,
@@ -29,3 +30,18 @@ export {
   rectToQuadMatrix3d,
   validatePerspectiveCorners,
 } from "./perspectiveTransformMath";
+export {
+  createIdentityWarpPoints,
+  createIdentityWarpTransform,
+  createInverseWarpEvaluator,
+  createWarpEvaluator,
+  createWarpPreset,
+  isIdentityWarpTransform,
+  isValidWarpTransform,
+  resetWarpPointIndexes,
+  resampleWarpTransform,
+  validateWarpTransform,
+  warpPointCount,
+  WARP_PRESET_NAMES,
+} from "./warpTransformMath";
+export type { WarpPresetName } from "./warpTransformMath";

@@ -1,4 +1,8 @@
-import type { BBox, TranslationBlock } from "../../../shared/textTypes";
+import type {
+  BBox,
+  TranslationBlock,
+  WarpTransform,
+} from "../../../shared/textTypes";
 import type { InpaintingMaskStroke } from "../../../shared/inpaintingTypes";
 import type { MangaPage } from "../../../shared/libraryTypes";
 import type { DragMode } from "../lib/workspaceInteractionTypes";
@@ -43,6 +47,7 @@ export type ImageStageProps = {
     block: TranslationBlock,
     mode: DragMode,
   ) => void;
+  onWarpTransformCommit?: (blockId: string, transform: WarpTransform) => void;
 };
 
 export type RetouchStageModel = {

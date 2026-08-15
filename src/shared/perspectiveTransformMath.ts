@@ -135,6 +135,17 @@ export function mapPointToQuad(
   return mapPointWithHomography(point, unitSquareToQuadHomography(corners));
 }
 
+/** Map a point in a perspective quad back into the unit source rectangle. */
+export function mapPointFromQuad(
+  point: Point,
+  corners: PerspectiveTransform["corners"],
+): Point {
+  return mapPointWithHomography(
+    point,
+    invertHomography(unitSquareToQuadHomography(corners)),
+  );
+}
+
 /** Map (0,0)-(width,height) onto normalized corners scaled by that size. */
 export function rectToQuadMatrix3d(
   width: number,
@@ -197,6 +208,26 @@ type Homography = {
   g: number;
   h: number;
 };
+
+function invertHomography(value: Homography): Homography {
+  const determinant =
+    value.a * (value.e - value.f * value.h) -
+    value.b * (value.d - value.f * value.g) +
+    value.c * (value.d * value.h - value.e * value.g);
+  if (Math.abs(determinant) <= EPSILON) {
+    throw new RangeError("Perspective quad has no stable inverse homography.");
+  }
+  return {
+    a: (value.e - value.f * value.h) / determinant,
+    b: (value.c * value.h - value.b) / determinant,
+    c: (value.b * value.f - value.c * value.e) / determinant,
+    d: (value.f * value.g - value.d) / determinant,
+    e: (value.a - value.c * value.g) / determinant,
+    f: (value.c * value.d - value.a * value.f) / determinant,
+    g: (value.d * value.h - value.e * value.g) / determinant,
+    h: (value.b * value.g - value.a * value.h) / determinant,
+  };
+}
 
 function unitSquareToQuadHomography(
   corners: PerspectiveTransform["corners"],

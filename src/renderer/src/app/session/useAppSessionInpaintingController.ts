@@ -265,7 +265,11 @@ function createBlockSelectionPointerOptions(
 function resetBlockTransformTool(
   uiState: AppSessionInpaintingControllerArgs["uiState"],
 ): void {
-  if (uiState.stageTool === "perspective" || uiState.stageTool === "curve") {
+  if (
+    uiState.stageTool === "perspective" ||
+    uiState.stageTool === "curve" ||
+    uiState.stageTool === "warp"
+  ) {
     uiState.selectWorkspaceTool("select");
   }
 }

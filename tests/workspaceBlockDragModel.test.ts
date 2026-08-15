@@ -7,6 +7,7 @@ import {
   resolveBlockDrag,
 } from "../src/renderer/src/hooks/workspaceBlockDragModel";
 import type { DragState } from "../src/renderer/src/hooks/workspacePointerGeometry";
+import { createIdentityWarpTransform } from "../src/shared/blockTransforms";
 
 describe("workspace block drag model", () => {
   it("rejects a perspective edge that crosses the opposite edge", () => {
@@ -119,6 +120,42 @@ describe("workspace block drag model", () => {
 
     expect(changed.bbox).toEqual(block.bbox);
     expect(changed.renderBbox).toEqual({ x: 80, y: 90, w: 320, h: 200 });
+  });
+
+  it("rejects a warp drag that folds the mesh", () => {
+    const fixture = makeFixture("warp-points-1_5_9_13");
+    fixture.drag.startBlock = {
+      ...fixture.drag.startBlock,
+      warpTransform: createIdentityWarpTransform(3),
+    };
+    const result = resolveBlockDrag(
+      fixture.drag,
+      { clientX: -20, clientY: 0 },
+      { left: 0, top: 0, width: 100, height: 100 },
+      fixture.page,
+    );
+
+    expect(result).toMatchObject({ invalid: true, invalidKind: "warp" });
+  });
+
+  it("rejects a valid warp translated completely outside the page", () => {
+    const fixture = makeFixture(
+      `warp-points-${Array.from({ length: 16 }, (_value, index) => index).join("_")}`,
+    );
+    const block = {
+      ...fixture.drag.startBlock,
+      bbox: { x: 900, y: 100, w: 100, h: 200 },
+      renderBbox: { x: 900, y: 100, w: 100, h: 200 },
+      warpTransform: createIdentityWarpTransform(3),
+    };
+    const result = resolveBlockDrag(
+      { ...fixture.drag, startBbox: block.bbox, startBlock: block },
+      { clientX: 20, clientY: 0 },
+      { left: 0, top: 0, width: 100, height: 100 },
+      fixture.page,
+    );
+
+    expect(result).toMatchObject({ invalid: true, invalidKind: "outside" });
   });
 });
 

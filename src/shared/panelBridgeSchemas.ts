@@ -32,7 +32,7 @@ export const PanelSyncStateSchema = z
     disableChapterApply: z.boolean(),
     areaTranslateAvailable: z.boolean(),
     areaTranslateSelecting: z.boolean(),
-    transformMode: z.enum(["select", "perspective", "curve"]),
+    transformMode: z.enum(["select", "perspective", "curve", "warp"]),
     selectedPageSize: z
       .object({
         width: z.number().finite().positive().max(100000),
@@ -94,7 +94,7 @@ export const PanelCommandSchema = z.discriminatedUnion("type", [
   z
     .object({
       type: z.literal("selectTransformMode"),
-      mode: z.enum(["select", "perspective", "curve"]),
+      mode: z.enum(["select", "perspective", "curve", "warp"]),
     })
     .strict(),
   z

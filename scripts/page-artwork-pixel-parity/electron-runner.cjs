@@ -9,6 +9,7 @@ const {
 const { mkdir, writeFile } = require("node:fs/promises");
 const { extname, join, resolve } = require("node:path");
 const { pathToFileURL } = require("node:url");
+const { createFixtureBlocks } = require("./fixtures.cjs");
 
 const root = resolve(__dirname, "..", "..");
 const runRoot = readRequiredEnv("MGT_PIXEL_PARITY_RUN_ROOT");
@@ -177,89 +178,6 @@ function createFixturePage(pageSize) {
     name: "fixture.png",
     updatedAt: "2026-01-01T00:00:00.000Z",
     width: pageSize.width,
-  };
-}
-
-function createFixtureBlocks() {
-  return [
-    createBlock("rich", {
-      bbox: { x: 110.25, y: 75.5, w: 300.5, h: 155.25 },
-      bold: true,
-      fontWidthScale: 0.86,
-      italic: true,
-      letterSpacing: 0.08,
-      rotationDeg: 13.5,
-      translatedText: "**굵게** 그리고 *기울임*",
-    }),
-    createBlock("vertical", {
-      bbox: { x: 650.2, y: 105.4, w: 155.7, h: 350.3 },
-      renderDirection: "vertical",
-      translatedText: "세로쓰기",
-      wordBreak: "keep-all",
-    }),
-    createBlock("perspective", {
-      bbox: { x: 145.1, y: 495.6, w: 600.8, h: 135.2 },
-      perspectiveTransform: {
-        corners: [
-          { x: 0.04, y: 0.1 },
-          { x: 0.98, y: 0 },
-          { x: 0.91, y: 0.94 },
-          { x: 0.02, y: 0.82 },
-        ],
-        version: 1,
-      },
-      translatedText: "원근 변환",
-    }),
-    createBlock("curve", {
-      bbox: { x: 115.5, y: 730.25, w: 710.5, h: 190.75 },
-      curveLayout: {
-        alignment: "center",
-        fitSpacing: true,
-        offsetEm: 0.15,
-        orientation: "tangent",
-        path: {
-          control: { x: 0.5, y: 0.05 },
-          end: { x: 0.95, y: 0.7 },
-          start: { x: 0.05, y: 0.7 },
-          type: "quadratic",
-        },
-        version: 1,
-      },
-      translatedText: "곡선 텍스트",
-    }),
-    createBlock("empty", {
-      bbox: { x: 90, y: 980, w: 240, h: 90 },
-      sourceText: "",
-      translatedText: "",
-    }),
-  ];
-}
-
-/**
- * @param {string} id
- * @param {Record<string, unknown>} overrides
- */
-function createBlock(id, overrides) {
-  return {
-    autoFitText: true,
-    backgroundColor: "#ffffff",
-    bbox: { x: 100, y: 100, w: 300, h: 160 },
-    confidence: 1,
-    fontFamily: "nanum-myeongjo",
-    fontSizePx: 34,
-    id,
-    lineHeight: 1.18,
-    opacity: 1,
-    outlineColor: "#ffffff",
-    outlineWidthScale: 0.04,
-    renderDirection: "horizontal",
-    sourceDirection: "horizontal",
-    sourceText: "",
-    textAlign: "center",
-    textColor: "#111111",
-    translatedText: "텍스트",
-    type: "nonsolid",
-    ...overrides,
   };
 }
 

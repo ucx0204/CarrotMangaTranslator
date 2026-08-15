@@ -45,6 +45,19 @@ export type PerspectiveTransform = {
   corners: [Point, Point, Point, Point];
 };
 
+export type WarpGridSize = 3 | 5;
+
+/**
+ * Smooth block-local mesh deformation. `gridSize` is the number of cells on
+ * each axis (Photoshop-compatible terminology), so the point lattice contains
+ * `(gridSize + 1)²` row-major anchors.
+ */
+export type WarpTransform = {
+  version: 1;
+  gridSize: WarpGridSize;
+  points: Point[];
+};
+
 export type QuadraticCurvePath = {
   type: "quadratic";
   start: Point;
@@ -90,6 +103,7 @@ export type TranslationBlock = {
   rotationDeg?: number;
   perspectiveTransform?: PerspectiveTransform;
   curveLayout?: CurveLayout;
+  warpTransform?: WarpTransform;
   fontFamily?: string;
   /** Provenance plus an exact one-click rollback for an automatic V2 choice. */
   automaticFontMatch?: AutomaticFontMatchRecord;
