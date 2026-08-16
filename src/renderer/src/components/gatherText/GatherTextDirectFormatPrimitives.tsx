@@ -22,15 +22,13 @@ export {
   BlockFormatSectionHeading as DirectSectionHeading,
 };
 
-export type DirectSliderField =
-  | "outlineWidthScale"
-  | "rotationDeg"
-  | "textOpacity";
+export type DirectSliderField = "rotationDeg" | "textOpacity";
 
 export type DirectNumberField =
   | "lineHeight"
   | "letterSpacing"
-  | "fontWidthScale";
+  | "fontWidthScale"
+  | "outlineWidthPx";
 
 export function DirectNumberControl<Field extends DirectNumberField>({
   field,

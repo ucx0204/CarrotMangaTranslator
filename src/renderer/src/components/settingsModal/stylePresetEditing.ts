@@ -29,7 +29,12 @@ const EDITOR_FIELDS_BY_GROUP: Record<
   letterSpacing: ["letterSpacing"],
   fontWidth: ["fontWidthScale"],
   color: ["textColor"],
-  outline: ["outlineEnabled", "outlineColor", "outlineWidthScale"],
+  outline: [
+    "outlineEnabled",
+    "outlineColor",
+    "outlineWidthPx",
+    "outlineWidthScale",
+  ],
   transform: ["rotationDeg", "textOpacity"],
 };
 
@@ -47,7 +52,7 @@ const PRESET_FIELDS_BY_GROUP: Record<
   letterSpacing: ["letterSpacing"],
   fontWidth: ["fontWidthScale"],
   color: ["textColor"],
-  outline: ["outlineColor", "outlineWidthScale"],
+  outline: ["outlineColor", "outlineWidthPx", "outlineWidthScale"],
   transform: ["rotationDeg", "textOpacity"],
 };
 
@@ -100,8 +105,12 @@ function buildEditorGroupValues(
     }),
     color: () => ({ textColor: format.textColor ?? defaults.textColor }),
     outline: () => ({
-      outlineEnabled: (format.outlineWidthScale ?? 0) > 0,
+      outlineEnabled:
+        format.outlineWidthPx === undefined
+          ? (format.outlineWidthScale ?? 0) > 0
+          : format.outlineWidthPx > 0,
       outlineColor: format.outlineColor ?? defaults.outlineColor,
+      outlineWidthPx: format.outlineWidthPx,
       outlineWidthScale: format.outlineWidthScale ?? 0,
     }),
     transform: () => ({
@@ -211,11 +220,16 @@ function buildGroupFormat(
     color: () => ({ textColor: values.textColor }),
     outline: () =>
       values.outlineEnabled
-        ? {
-            outlineColor: values.outlineColor,
-            outlineWidthScale: values.outlineWidthScale,
-          }
-        : { outlineWidthScale: 0 },
+        ? values.outlineWidthPx === undefined
+          ? {
+              outlineColor: values.outlineColor,
+              outlineWidthScale: values.outlineWidthScale,
+            }
+          : {
+              outlineColor: values.outlineColor,
+              outlineWidthPx: values.outlineWidthPx,
+            }
+        : { outlineWidthPx: 0 },
     transform: () => ({
       rotationDeg: values.rotationDeg,
       textOpacity: values.textOpacity,

@@ -113,4 +113,40 @@ describe("inline style preset editing", () => {
       ),
     ).toBe(preset);
   });
+
+  it("converts an edited legacy outline preset to pixels and can re-enable it", () => {
+    const legacyPreset = {
+      ...createBlockStylePresetFromDefaults({
+        defaults: DEFAULT_BLOCK_FORMAT_DEFAULTS,
+        groupIds: ["outline"],
+        name: "기존 외곽선",
+      }),
+      format: { outlineColor: "#ffffff", outlineWidthScale: 1.25 },
+    };
+    const edited = updateStylePresetFromEditor(
+      legacyPreset,
+      DEFAULT_BLOCK_FORMAT_DEFAULTS,
+      { outlineWidthPx: 8.5 },
+    );
+    expect(edited.format).toEqual({
+      outlineColor: "#ffffff",
+      outlineWidthPx: 8.5,
+    });
+
+    const disabled = updateStylePresetFromEditor(
+      edited,
+      DEFAULT_BLOCK_FORMAT_DEFAULTS,
+      { outlineEnabled: false },
+    );
+    expect(disabled.format).toEqual({ outlineWidthPx: 0 });
+    const reenabled = updateStylePresetFromEditor(
+      disabled,
+      DEFAULT_BLOCK_FORMAT_DEFAULTS,
+      { outlineEnabled: true, outlineWidthPx: 8.5 },
+    );
+    expect(reenabled.format).toEqual({
+      outlineColor: DEFAULT_BLOCK_FORMAT_DEFAULTS.outlineColor,
+      outlineWidthPx: 8.5,
+    });
+  });
 });

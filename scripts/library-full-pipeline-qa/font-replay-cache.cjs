@@ -94,8 +94,8 @@ function createFontReplayPageDecisionContext(options) {
 
 /**
  * Restore translation-time semantic metadata only after the pixel-only font
- * decision has been applied. This keeps the renderer's layout role distinct
- * from automaticFontMatch.role, which records the role used by font selection.
+ * decision has been applied. This keeps the renderer's layout role independent
+ * from the pixel-only inference role used by font selection.
  *
  * @param {any} block
  * @param {any} item

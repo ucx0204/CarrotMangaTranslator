@@ -1,5 +1,9 @@
 import React from "react";
 import type { TranslationBlock } from "../../../../shared/textTypes";
+import {
+  resolveEffectiveTextOutlineColor,
+  resolveEffectiveTextOutlineWidthPx,
+} from "../../../../shared/textOutline";
 import { useFonts } from "../../fonts/useFonts";
 import { resolveBlockFontFamily } from "../../lib/fonts";
 import { TextWithVerticalSpacing } from "../VerticalTextSpacing";
@@ -19,7 +23,7 @@ export type BlockFormatPreviewValues = {
   textColor: string;
   textOpacity: number;
   outlineColor: string | undefined;
-  outlineWidthScale: number;
+  outlineWidthPx: number;
   rotationDeg: number;
 };
 
@@ -72,10 +76,9 @@ export function BlockFormatPreviewStage({
   values: BlockFormatPreviewValues;
 }): React.JSX.Element {
   const { catalog } = useFonts();
-  const textShadow = resolvePreviewOutline(
+  const outlineWidthPx = resolveEffectiveTextOutlineWidthPx(
+    values,
     values.fontSizePx,
-    values.outlineColor ?? "#ffffff",
-    values.outlineWidthScale,
   );
   const vertical = values.renderDirection === "vertical";
   return (
@@ -107,7 +110,13 @@ export function BlockFormatPreviewStage({
                 : undefined,
               lineHeight: values.lineHeight,
               textAlign: values.textAlign,
-              textShadow,
+              textShadow: "none",
+              WebkitTextStrokeColor:
+                outlineWidthPx > 0
+                  ? resolveEffectiveTextOutlineColor(values)
+                  : "transparent",
+              WebkitTextStrokeWidth: `${outlineWidthPx * 2}px`,
+              paintOrder: "stroke fill",
               transform: `scaleX(${values.fontWidthScale})`,
               ...resolvePreviewWrappingStyle(values.wordBreak),
               writingMode: vertical ? "vertical-rl" : "horizontal-tb",
@@ -125,27 +134,6 @@ export function BlockFormatPreviewStage({
       ) : null}
     </div>
   );
-}
-
-function resolvePreviewOutline(
-  fontSizePx: number,
-  color: string,
-  scale: number,
-): string {
-  if (scale <= 0) return "none";
-  const width = Math.max(0.6, fontSizePx * 0.032 * scale);
-  return [
-    [-width, 0],
-    [width, 0],
-    [0, -width],
-    [0, width],
-    [-width, -width],
-    [width, -width],
-    [-width, width],
-    [width, width],
-  ]
-    .map(([x, y]) => `${x}px ${y}px 0 ${color}`)
-    .join(", ");
 }
 
 function resolvePreviewWrappingStyle(

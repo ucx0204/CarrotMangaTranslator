@@ -1036,10 +1036,10 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .gather-direct-editor-color-row .gather-direct-slider-control {
+  .gather-direct-editor-color-row
+    :is(.gather-direct-slider-control, .gather-direct-outline-number-control) {
     grid-column: 1 / -1;
   }
-
   .gather-direct-editor-slider-grid {
     grid-template-columns: 1fr;
   }
@@ -1121,10 +1121,10 @@
   }
 
   .gather-direct-auto-control,
-  .gather-direct-editor-color-row .gather-direct-slider-control {
+  .gather-direct-editor-color-row
+    :is(.gather-direct-slider-control, .gather-direct-outline-number-control) {
     grid-column: auto;
   }
-
   .gather-direct-auto-control {
     grid-template-columns: 1fr 106px;
   }

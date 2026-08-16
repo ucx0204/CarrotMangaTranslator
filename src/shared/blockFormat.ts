@@ -55,7 +55,7 @@ export const BLOCK_FORMAT_GROUPS: readonly BlockFormatGroup[] = [
   {
     id: "outline",
     label: "외곽선",
-    keys: ["outlineColor", "outlineWidthScale"],
+    keys: ["outlineColor", "outlineWidthPx", "outlineWidthScale"],
   },
   {
     id: "transform",
@@ -110,6 +110,8 @@ export type BlockFormatDefaults = {
   textOpacity: number;
   outlineEnabled: boolean;
   outlineColor: string;
+  /** New manual default. Undefined keeps a legacy outlineWidthScale untouched. */
+  outlineWidthPx?: number;
   outlineWidthScale: number;
   bold: boolean;
   italic: boolean;
@@ -174,10 +176,15 @@ export function applyFormatDefaultsToBlock(
 
   if (defaults.outlineEnabled) {
     next.outlineColor = defaults.outlineColor;
-    next.outlineWidthScale = defaults.outlineWidthScale;
+    if (defaults.outlineWidthPx !== undefined) {
+      next.outlineWidthPx = defaults.outlineWidthPx;
+    } else {
+      delete next.outlineWidthPx;
+      next.outlineWidthScale = defaults.outlineWidthScale;
+    }
   } else {
     delete next.outlineColor;
-    next.outlineWidthScale = 0;
+    next.outlineWidthPx = 0;
   }
 
   // "auto" keeps the detected direction; otherwise force the chosen direction.

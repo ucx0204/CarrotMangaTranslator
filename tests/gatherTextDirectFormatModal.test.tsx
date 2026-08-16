@@ -153,6 +153,22 @@ describe("GatherTextDirectFormatModal", () => {
     expect(selection.apply).toHaveBeenCalledWith({ textOpacity: 0.45 });
   });
 
+  it("previews and applies a directly entered pixel outline width", () => {
+    const selection = makeSelection();
+    const { container } = renderModal(selection);
+    const input = screen.getByRole("spinbutton", { name: "외곽선 굵기" });
+
+    fireEvent.change(input, { target: { value: "8" } });
+    fireEvent.blur(input);
+
+    expect(
+      container.querySelector<HTMLElement>(".gather-direct-preview-text")
+        ?.style.webkitTextStrokeWidth,
+    ).toBe("16px");
+    fireEvent.click(screen.getByRole("button", { name: "적용" }));
+    expect(selection.apply).toHaveBeenCalledWith({ outlineWidthPx: 8 });
+  });
+
   it("previews and applies wrapping without exposing CSS names", () => {
     const selection = makeSelection();
     const { container } = renderModal(selection);

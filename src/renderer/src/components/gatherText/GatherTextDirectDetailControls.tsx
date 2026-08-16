@@ -10,6 +10,11 @@ import {
   MIN_LINE_HEIGHT,
 } from "../../../../shared/blockFormatValues";
 import {
+  MAX_TEXT_OUTLINE_WIDTH_PX,
+  MIN_TEXT_OUTLINE_WIDTH_PX,
+  TEXT_OUTLINE_WIDTH_STEP_PX,
+} from "../../../../shared/textOutline";
+import {
   MAX_FONT_WIDTH_SCALE,
   MIN_FONT_WIDTH_SCALE,
 } from "../../lib/blockFormatGeometry";
@@ -76,18 +81,33 @@ function ColorControls({
           {...{ disabled, model, patch }}
           onChange={(value) => onChange("outlineColor", value)}
         />
-        <DirectSliderControl
-          field="outlineWidthScale"
-          label={t("gatherText.outlineWidth")}
-          min={0}
-          max={2.5}
-          step={0.1}
-          formatValue={formatPercent}
-          {...{ disabled, model, patch }}
-          onChange={(value) => onChange("outlineWidthScale", value)}
+        <OutlineWidthControl
+          {...{ disabled, model, patch, onChange }}
         />
       </div>
     </section>
+  );
+}
+
+function OutlineWidthControl({
+  disabled,
+  model,
+  patch,
+  onChange,
+}: DetailControlProps): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <DirectNumberControl
+      field="outlineWidthPx"
+      label={t("gatherText.outlineWidth")}
+      max={MAX_TEXT_OUTLINE_WIDTH_PX}
+      min={MIN_TEXT_OUTLINE_WIDTH_PX}
+      precision={1}
+      step={TEXT_OUTLINE_WIDTH_STEP_PX}
+      unit="px"
+      {...{ disabled, model, patch }}
+      onChange={(value) => onChange("outlineWidthPx", value)}
+    />
   );
 }
 

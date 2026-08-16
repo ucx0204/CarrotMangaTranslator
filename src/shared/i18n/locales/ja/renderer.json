@@ -240,7 +240,6 @@
   },
   "workspaceHistory": {
     "blockEdit": "テキストブロックを編集",
-    "autoFontRollback": "自動フォント選択を元に戻す",
     "blockBackgroundOpacity": "ブロック背景の不透明度を変更",
     "exclusion": "自動消去の除外設定を変更",
     "format": "ブロックの書式を変更",

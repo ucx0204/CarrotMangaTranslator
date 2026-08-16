@@ -5,9 +5,18 @@ import {
   MAX_BLOCK_STYLE_PRESET_ID_LENGTH,
   MAX_BLOCK_STYLE_PRESET_NAME_LENGTH,
 } from "./blockStylePresets";
-import { TranslationBlockSchema } from "./ipcSchemaPrimitives";
+import {
+  TranslationBlockObjectSchema,
+  TranslationBlockSchema,
+} from "./ipcSchemaPrimitives";
 
 const MAX_SELECTED_BLOCK_COUNT = 100000;
+
+const TranslationBlockPatchSchema = TranslationBlockObjectSchema.omit({
+  automaticFontMatch: true,
+})
+  .partial()
+  .strict();
 
 export const PanelIdSchema = z.enum(["editor"]);
 
@@ -50,45 +59,45 @@ export const PanelCommandSchema = z.discriminatedUnion("type", [
   z
     .object({
       type: z.literal("updateBlock"),
-      blockId: TranslationBlockSchema.shape.id,
-      patch: TranslationBlockSchema.partial().strict(),
+      blockId: TranslationBlockObjectSchema.shape.id,
+      patch: TranslationBlockPatchSchema,
     })
     .strict(),
   z
     .object({
       type: z.literal("adjustFontSize"),
-      blockId: TranslationBlockSchema.shape.id,
+      blockId: TranslationBlockObjectSchema.shape.id,
       adjustment: z.union([z.literal(-1), z.literal(1)]),
     })
     .strict(),
   z
     .object({
       type: z.literal("deleteBlock"),
-      blockId: TranslationBlockSchema.shape.id,
+      blockId: TranslationBlockObjectSchema.shape.id,
     })
     .strict(),
   z
     .object({
       type: z.literal("duplicateBlock"),
-      blockId: TranslationBlockSchema.shape.id,
+      blockId: TranslationBlockObjectSchema.shape.id,
     })
     .strict(),
   z
     .object({
       type: z.literal("eraseBlockOriginal"),
-      blockId: TranslationBlockSchema.shape.id,
+      blockId: TranslationBlockObjectSchema.shape.id,
     })
     .strict(),
   z
     .object({
       type: z.literal("fitBlockBubble"),
-      blockId: TranslationBlockSchema.shape.id,
+      blockId: TranslationBlockObjectSchema.shape.id,
     })
     .strict(),
   z
     .object({
       type: z.literal("removeBubbleLayout"),
-      blockId: TranslationBlockSchema.shape.id,
+      blockId: TranslationBlockObjectSchema.shape.id,
     })
     .strict(),
   z
@@ -107,7 +116,7 @@ export const PanelCommandSchema = z.discriminatedUnion("type", [
   z
     .object({
       type: z.literal("applyStylePreset"),
-      blockId: TranslationBlockSchema.shape.id,
+      blockId: TranslationBlockObjectSchema.shape.id,
       presetId: z.string().min(1).max(MAX_BLOCK_STYLE_PRESET_ID_LENGTH),
     })
     .strict(),

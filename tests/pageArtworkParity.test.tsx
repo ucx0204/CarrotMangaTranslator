@@ -100,20 +100,19 @@ describe("page artwork renderer parity", () => {
     );
   });
 
-  it("keeps automatic outlines visible and contrasting in editor and export", () => {
+  it("keeps persisted outlines identical in editor and export", () => {
     const blocks = [
       makeBlock("automatic-dark", {
         translatedText: "자동 검정",
         textColor: "#111111",
-        outlineColor: "#111111",
+        outlineColor: "#ffffff",
         outlineWidthScale: 1,
-        automaticFontMatch: makeAutomaticFontMatch(),
       }),
       makeBlock("automatic-inverse-curve", {
         bbox: { x: 100, y: 350, w: 500, h: 180 },
         translatedText: "자동 흰색",
         textColor: "#f7f7f2",
-        outlineColor: "#f7f7f2",
+        outlineColor: "#111111",
         outlineWidthScale: 1,
         curveLayout: {
           version: 1,
@@ -127,7 +126,6 @@ describe("page artwork renderer parity", () => {
             end: { x: 0.95, y: 0.7 },
           },
         },
-        automaticFontMatch: makeAutomaticFontMatch(),
       }),
     ];
     const page = {
@@ -172,7 +170,11 @@ describe("page artwork renderer parity", () => {
       const normal = Array.from(
         container.querySelectorAll<HTMLElement>(".overlay-text-content"),
       ).find((element) => element.textContent === "자동 검정");
-      expect(normal?.style.textShadow).toContain("#ffffff");
+      expect(normal?.style.textShadow).toBe("none");
+      expect(normal?.style.webkitTextStrokeColor).toBe("rgb(255, 255, 255)");
+      expect(Number.parseFloat(normal?.style.webkitTextStrokeWidth ?? "0")).toBeGreaterThan(
+        0,
+      );
       const curveGlyph = container.querySelector<SVGTextElement>(
         'svg[aria-label="자동 흰색"] text',
       );
@@ -351,23 +353,5 @@ function makeBlock(
     translatedText: "텍스트",
     type: "nonsolid",
     ...overrides,
-  };
-}
-
-function makeAutomaticFontMatch(): NonNullable<
-  TranslationBlock["automaticFontMatch"]
-> {
-  return {
-    schemaVersion: 1,
-    selectedFontId: "dohyeon",
-    role: "dialogue",
-    confidence: 0.9,
-    source: "local_visual",
-    previousStyle: {
-      fontFamily: null,
-      bold: null,
-      italic: null,
-      outlineWidthScale: 0,
-    },
   };
 }

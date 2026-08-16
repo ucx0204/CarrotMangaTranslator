@@ -6,6 +6,7 @@ import type {
 } from "../../../../shared/blockFormat";
 import type { BlockStylePreset } from "../../../../shared/blockStylePresets";
 import type { GatherTextDirectFormatValues } from "../../lib/gatherTextDirectFormatModel";
+import { resolveEffectiveTextOutlineWidthPx } from "../../../../shared/textOutline";
 import { toast } from "../../lib/toastStore";
 import type { PresetGroupAvailability } from "./PresetGroupControl";
 import {
@@ -184,7 +185,9 @@ function createPreviewValues(
     textColor: value.textColor,
     textOpacity: value.textOpacity,
     outlineColor: value.outlineColor,
-    outlineWidthScale: value.outlineEnabled ? value.outlineWidthScale : 0,
+    outlineWidthPx: value.outlineEnabled
+      ? resolveEffectiveTextOutlineWidthPx(value, value.fontSizePx)
+      : 0,
     rotationDeg: value.rotationDeg,
   };
 }

@@ -55,6 +55,29 @@ describe("NumberField", () => {
     fireEvent.change(input, { target: { value: "30" } });
     expect(onValueChange).toHaveBeenCalledWith(30);
   });
+
+  it("snaps direct blur commits to the requested step", () => {
+    const onValueChange = vi.fn();
+    render(
+      <NumberField
+        ariaLabel="외곽선"
+        value={1.5}
+        min={0}
+        max={64}
+        step={0.5}
+        precision={1}
+        snapToStep
+        commitMode="blur"
+        onValueChange={onValueChange}
+      />,
+    );
+    const input = screen.getByRole("spinbutton", { name: "외곽선" });
+    fireEvent.change(input, { target: { value: "8.3" } });
+    fireEvent.blur(input);
+
+    expect(onValueChange).toHaveBeenCalledWith(8.5);
+    expect((input as HTMLInputElement).valueAsNumber).toBe(8.5);
+  });
 });
 
 function NumberHarness({

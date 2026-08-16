@@ -636,6 +636,9 @@ describe("selected block font-size adjustment", () => {
     selectEditorTab("서식");
     const select = screen.getByRole("combobox", { name: "줄바꿈 방식" });
     expect((select as HTMLButtonElement).value).toBe("break-all");
+    expect(
+      screen.queryByText("단어 중간이라도 글자 단위로 줄을 바꿉니다."),
+    ).toBeNull();
     openCustomSelect("줄바꿈 방식");
     expect(screen.getByRole("option", { name: "글자 단위" })).toBeTruthy();
     expect(
@@ -689,7 +692,9 @@ describe("selected block font-size adjustment", () => {
     );
 
     selectEditorTab("서식");
-    const textOpacity = screen.getByRole("slider", { name: "글자 투명도" });
+    const textOpacity = screen.getByRole("spinbutton", {
+      name: "글자 투명도",
+    }) as HTMLInputElement;
     const backgroundOpacity = screen.getByRole("slider", {
       name: "블록 배경 투명도",
     });
@@ -703,7 +708,14 @@ describe("selected block font-size adjustment", () => {
       ),
     ).toBeNull();
 
-    fireEvent.change(textOpacity, { target: { value: "0.4" } });
+    expect([textOpacity.min, textOpacity.max, textOpacity.step]).toEqual([
+      "0",
+      "100",
+      "1",
+    ]);
+    expect(textOpacity.valueAsNumber).toBe(80);
+    fireEvent.change(textOpacity, { target: { value: "40" } });
+    fireEvent.keyDown(textOpacity, { key: "Enter" });
     fireEvent.change(backgroundOpacity, { target: { value: "0.2" } });
     expect(onUpdate).toHaveBeenNthCalledWith(1, { textOpacity: 0.4 });
     expect(onUpdate).toHaveBeenNthCalledWith(2, { opacity: 0.2 });

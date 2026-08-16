@@ -94,43 +94,50 @@ describe("overlay text word-break styles", () => {
     expect(style.transform).toBe("scaleX(0.8)");
   });
 
-  it("keeps a contrasting outline on automatic dark text", () => {
-    const block = makeAutomaticBlock({
+  it("renders an explicit contrasting outline on dark text", () => {
+    const block = {
+      ...BLOCK,
       textColor: "#111111",
-      outlineColor: "#111111",
+      outlineColor: "#ffffff",
       outlineWidthScale: 1,
-    });
+    };
     const style = resolveOverlayTextContentStyle(block, LAYOUT, "horizontal");
 
-    expect(style.textShadow).not.toBe("none");
-    expect(style.textShadow).toContain("#ffffff");
+    expect(style.textShadow).toBe("none");
+    expect(style.WebkitTextStrokeColor).toBe("#ffffff");
+    expect(style.WebkitTextStrokeWidth).not.toBe("0px");
+    expect(style.paintOrder).toBe("stroke fill");
     expect(resolveBlockTextOutlinePx(block, 10)).toBeGreaterThanOrEqual(0.5);
   });
 
-  it("keeps inverse automatic text white with a contrasting dark outline", () => {
+  it("renders inverse text with an explicit dark outline", () => {
     const style = resolveOverlayTextContentStyle(
-      makeAutomaticBlock({
+      {
+        ...BLOCK,
         textColor: "#f7f7f2",
-        outlineColor: "#f7f7f2",
+        outlineColor: "#111111",
         outlineWidthScale: 1,
-      }),
+      },
       LAYOUT,
       "horizontal",
     );
 
-    expect(style.textShadow).not.toBe("none");
-    expect(style.textShadow).toContain("#111111");
+    expect(style.textShadow).toBe("none");
+    expect(style.WebkitTextStrokeColor).toBe("#111111");
+    expect(style.WebkitTextStrokeWidth).not.toBe("0px");
   });
 
-  it("preserves a zero-width outline on automatic blocks without a minimum", () => {
-    const block = makeAutomaticBlock({
+  it("preserves a zero-width outline without a minimum", () => {
+    const block = {
+      ...BLOCK,
       textColor: "#111111",
       outlineColor: "#111111",
       outlineWidthScale: 0,
-    });
+    };
     const style = resolveOverlayTextContentStyle(block, LAYOUT, "horizontal");
 
     expect(style.textShadow).toBe("none");
+    expect(style.WebkitTextStrokeWidth).toBe("0px");
     expect(resolveBlockTextOutlinePx(block, 10)).toBe(0);
   });
 
@@ -142,30 +149,23 @@ describe("overlay text word-break styles", () => {
     );
 
     expect(style.textShadow).toBe("none");
+    expect(style.WebkitTextStrokeColor).toBe("transparent");
+  });
+
+  it("prefers an absolute manual outline width over the legacy scale", () => {
+    const style = resolveOverlayTextContentStyle(
+      { ...BLOCK, outlineWidthPx: 8.5, outlineWidthScale: 0 },
+      LAYOUT,
+      "horizontal",
+    );
+
+    expect(style.textShadow).toBe("none");
+    expect(style.WebkitTextStrokeWidth).toBe("17px");
+    expect(resolveBlockTextOutlinePx({ ...BLOCK, outlineWidthPx: 8.5 }, 10)).toBe(
+      8.5,
+    );
   });
 });
-
-function makeAutomaticBlock(
-  overrides: Partial<TranslationBlock>,
-): TranslationBlock {
-  return {
-    ...BLOCK,
-    automaticFontMatch: {
-      schemaVersion: 1,
-      selectedFontId: "dohyeon",
-      role: "dialogue",
-      confidence: 0.9,
-      source: "local_visual",
-      previousStyle: {
-        fontFamily: null,
-        bold: null,
-        italic: null,
-        outlineWidthScale: 0,
-      },
-    },
-    ...overrides,
-  };
-}
 
 const BLOCK: TranslationBlock = {
   id: "block-style",

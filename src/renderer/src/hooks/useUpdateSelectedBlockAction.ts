@@ -12,16 +12,11 @@ import {
   resolveEditableBlockBbox,
 } from "../lib/blockFormatGeometry";
 import type { UpdateCurrentChapter } from "./useCurrentChapterUpdater";
-import { clearAutomaticFontMatchForManualStylePatch } from "../lib/automaticFontMatchProvenance";
 
 type UpdateBlockOptions = {
   selectedPage: MangaPage | null;
   selectedPageEditLocked: boolean;
   updateCurrentChapter: UpdateCurrentChapter;
-};
-
-type UpdateSelectedBlockOptions = UpdateBlockOptions & {
-  selectedBlock: TranslationBlock | null;
 };
 
 /** Text edits coalesce per block; style edits coalesce separately per block. */
@@ -49,36 +44,17 @@ export function useUpdateBlockAction({
       }
 
       const mergeKey = resolveBlockEditMergeKey(blockId, patch);
-      const automaticFontRollback = isAutomaticFontRollbackPatch(patch);
       updateCurrentChapter(
         selectedPage.id,
         (current) =>
           applySelectedBlockPatch(current, selectedPage.id, blockId, patch),
         {
-          label: automaticFontRollback
-            ? t("workspaceHistory.autoFontRollback")
-            : t("workspaceHistory.blockEdit"),
-          mergeKey: automaticFontRollback
-            ? `automatic-font-rollback:${blockId}`
-            : mergeKey,
+          label: t("workspaceHistory.blockEdit"),
+          mergeKey,
         },
       );
     },
     [selectedPage, selectedPageEditLocked, t, updateCurrentChapter],
-  );
-}
-
-/** Compatibility wrapper for callers that edit only the active block. */
-export function useUpdateSelectedBlockAction({
-  selectedBlock,
-  ...options
-}: UpdateSelectedBlockOptions): (patch: Partial<TranslationBlock>) => void {
-  const updateBlock = useUpdateBlockAction(options);
-  return useCallback(
-    (patch: Partial<TranslationBlock>) => {
-      if (selectedBlock) updateBlock(selectedBlock.id, patch);
-    },
-    [selectedBlock, updateBlock],
   );
 }
 
@@ -112,16 +88,12 @@ export function normalizeTranslationBlockPatch(
   patch: Partial<TranslationBlock>,
   pageSize?: { width: number; height: number },
 ): TranslationBlock {
-  const normalizedPatch = clearAutomaticFontMatchForManualStylePatch(
-    block,
-    patch,
-  );
   const next = constrainPatchedVisualTransform(
-    buildNormalizedTranslationBlock(block, normalizedPatch, pageSize),
-    normalizedPatch,
+    buildNormalizedTranslationBlock(block, patch, pageSize),
+    patch,
     pageSize,
   );
-  return hasBlockChanged(block, next, normalizedPatch) ? next : block;
+  return hasBlockChanged(block, next, patch) ? next : block;
 }
 
 function buildNormalizedTranslationBlock(
@@ -224,14 +196,6 @@ function areBboxesEqual(
     Math.abs(left.y - right.y) < 0.0001 &&
     Math.abs(left.w - right.w) < 0.0001 &&
     Math.abs(left.h - right.h) < 0.0001
-  );
-}
-
-function isAutomaticFontRollbackPatch(
-  patch: Partial<TranslationBlock>,
-): boolean {
-  return (
-    "automaticFontMatch" in patch && patch.automaticFontMatch === undefined
   );
 }
 

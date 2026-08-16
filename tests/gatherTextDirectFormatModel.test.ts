@@ -85,6 +85,25 @@ describe("gatherTextDirectFormatModel", () => {
     expect(model.values.wordBreak).toEqual({ kind: "mixed" });
   });
 
+  it("compares legacy and manual outline widths in rendered pixels", () => {
+    const legacy = deriveGatherTextDirectFormatModel([
+      makeBlock({ fontSizePx: 24, outlineWidthScale: 1 }),
+    ]);
+    expect(legacy.values.outlineWidthPx).toEqual({
+      kind: "common",
+      value: 1.3,
+    });
+
+    const pixels = deriveGatherTextDirectFormatModel([
+      makeBlock({ outlineWidthPx: 8.5, outlineWidthScale: 0 }),
+      makeBlock({ outlineWidthPx: 8.5, outlineWidthScale: 2 }),
+    ]);
+    expect(pixels.values.outlineWidthPx).toEqual({
+      kind: "common",
+      value: 8.5,
+    });
+  });
+
   it("preserves explicitly touched undefined values and strips other fields", () => {
     const patch = mergeGatherTextDirectFormatPatch(
       { translatedText: "ignore", fontFamily: "nanum-gothic" },

@@ -15,12 +15,21 @@ import {
 } from "../../lib/blockFormatGeometry";
 import type { BlockFormatDefaults } from "../../../../shared/settingsTypes";
 import {
+  DEFAULT_MANUAL_TEXT_OUTLINE_WIDTH_PX,
+  MAX_TEXT_OUTLINE_WIDTH_PX,
+  MIN_TEXT_OUTLINE_WIDTH_PX,
+  TEXT_OUTLINE_WIDTH_STEP_PX,
+  resolveEffectiveTextOutlineWidthPx,
+  snapTextOutlineWidthPx,
+} from "../../../../shared/textOutline";
+import {
   BlockFormatControlCaption as DirectControlCaption,
   BlockFormatSectionHeading as DirectSectionHeading,
   FormatNumberControl,
   FormatSliderControl,
 } from "../blockFormat/BlockFormatPrimitives";
 import { TextWrappingSelect } from "../TextWrappingSelect";
+import { CheckboxField } from "../ui/CheckboxField";
 import {
   PresetGroupControl,
   type PresetGroupAvailability,
@@ -32,12 +41,25 @@ type DetailSectionProps = {
   onChange: (patch: Partial<BlockFormatDefaults>) => void;
 };
 
+let lastPositiveDefaultOutlineWidthPx =
+  DEFAULT_MANUAL_TEXT_OUTLINE_WIDTH_PX;
+
 export function FormatDefaultsColorSection({
   presetGroups,
   value,
   onChange,
 }: DetailSectionProps): React.JSX.Element {
   const { t } = useTranslation("components");
+  const outlineWidthPx = resolveEffectiveTextOutlineWidthPx(
+    value,
+    value.fontSizePx,
+  );
+  React.useEffect(() => {
+    if (outlineWidthPx > 0) {
+      lastPositiveDefaultOutlineWidthPx =
+        snapTextOutlineWidthPx(outlineWidthPx);
+    }
+  }, [outlineWidthPx]);
   return (
     <section className="gather-direct-editor-section">
       <div className="gather-direct-editor-section-head">
@@ -47,15 +69,19 @@ export function FormatDefaultsColorSection({
           className="format-preset-outline-toggle-guard"
           groupId="outline"
         >
-          <button
-            type="button"
-            className="format-defaults-outline-toggle"
-            aria-pressed={value.outlineEnabled}
-            onClick={() => onChange({ outlineEnabled: !value.outlineEnabled })}
-          >
-            <span aria-hidden="true" />
-            {t("settings.format.color.outlineEnabled")}
-          </button>
+          <CheckboxField
+            className="inline-toggle format-defaults-outline-checkbox"
+            label={t("settings.format.color.outlineEnabled")}
+            checked={value.outlineEnabled}
+            onCheckedChange={(outlineEnabled) => {
+              onChange({
+                outlineEnabled,
+                ...(outlineEnabled && outlineWidthPx <= 0
+                  ? { outlineWidthPx: lastPositiveDefaultOutlineWidthPx }
+                  : {}),
+              });
+            }}
+          />
         </PresetGroupControl>
       </div>
       <div className="gather-direct-editor-color-row">
@@ -79,15 +105,16 @@ export function FormatDefaultsColorSection({
           className="format-preset-color-slider-guard"
           groupId="outline"
         >
-          <FormatSliderControl
+          <FormatNumberControl
             label={t("gatherText.outlineWidth")}
-            valueLabel={`${Math.round(value.outlineWidthScale * 100)}%`}
-            min={0}
-            max={2.5}
-            step={0.1}
-            value={value.outlineWidthScale}
+            min={MIN_TEXT_OUTLINE_WIDTH_PX}
+            max={MAX_TEXT_OUTLINE_WIDTH_PX}
+            step={TEXT_OUTLINE_WIDTH_STEP_PX}
+            precision={1}
+            unit="px"
+            value={outlineWidthPx}
             disabled={!value.outlineEnabled}
-            onChange={(outlineWidthScale) => onChange({ outlineWidthScale })}
+            onChange={(outlineWidthPx) => onChange({ outlineWidthPx })}
           />
         </PresetGroupControl>
       </div>

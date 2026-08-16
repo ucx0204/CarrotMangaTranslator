@@ -27,6 +27,7 @@ export function normalizeBlockFormatDefaults(
   const base = defaults.blockFormatDefaults ?? DEFAULT_BLOCK_FORMAT_DEFAULTS;
   const data = raw ?? {};
   const fontFamily = resolveOptionalString(data.fontFamily);
+  const outlineWidthPx = resolveOptionalOutlineWidthPx(data.outlineWidthPx);
   return {
     renderDirection: resolveBlockFormatDirection(
       data.renderDirection,
@@ -66,6 +67,7 @@ export function normalizeBlockFormatDefaults(
     textOpacity: resolveNumberRange(data.textOpacity, base.textOpacity, 0, 1),
     outlineEnabled: resolveBoolean(data.outlineEnabled, base.outlineEnabled),
     outlineColor: resolveHexColor(data.outlineColor, base.outlineColor),
+    ...(outlineWidthPx === undefined ? {} : { outlineWidthPx }),
     outlineWidthScale: resolveNumberRange(
       data.outlineWidthScale,
       base.outlineWidthScale,
@@ -75,6 +77,12 @@ export function normalizeBlockFormatDefaults(
     bold: resolveBoolean(data.bold, base.bold),
     italic: resolveBoolean(data.italic, base.italic),
   };
+}
+
+function resolveOptionalOutlineWidthPx(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.min(64, Math.max(0, value))
+    : undefined;
 }
 
 function resolveBlockFormatDirection(

@@ -128,12 +128,6 @@ describe("whole-page Font Matching pixel inference", () => {
     });
     expect(result.page.blocks[0]?.fontFamily).toBe("jua");
     expect(result.page.blocks[0]?.fontRole).toBe("sfx_impact");
-    expect(result.page.blocks[0]?.automaticFontMatch).toMatchObject({
-      schemaVersion: 1,
-      selectedFontId: "jua",
-      role: "sfx_impact",
-      source: "local_visual",
-    });
   });
 
   it("rejects mixed cross-page and cross-catalog inference before page coordination", async () => {
@@ -218,13 +212,9 @@ describe("whole-page Font Matching pixel inference", () => {
 
     expect(preparationOrder).toEqual([blockIds[0]]);
     expect(mixed.page.blocks[0].fontFamily).toBe("nanum-gothic");
-    expect(mixed.page.blocks[0].automaticFontMatch).toEqual(
-      clean.page.blocks[0].automaticFontMatch,
-    );
+    expect(mixed.page.blocks[0].fontRole).toBe(clean.page.blocks[0].fontRole);
     expect(mixed.page.blocks[1].fontFamily).toBeUndefined();
     expect(mixed.page.blocks[2].fontFamily).toBeUndefined();
-    expect(mixed.page.blocks[1].automaticFontMatch).toBeUndefined();
-    expect(mixed.page.blocks[2].automaticFontMatch).toBeUndefined();
   });
 
   it("uses failed release-quality points only for QA or an explicit manual-v2 acceptance", async () => {
@@ -604,7 +594,6 @@ describe("whole-page Font Matching pixel inference", () => {
     });
 
     expect(result.page.blocks[0]?.fontFamily).toBeUndefined();
-    expect(result.page.blocks[0]?.automaticFontMatch).toBeUndefined();
   });
 
   it("forwards caller-bound persistent block ids for keep-mode crops", async () => {
@@ -804,7 +793,6 @@ describe("whole-page Font Matching pixel inference", () => {
 
     expect(inference.pixelInferenceByBlockId.size).toBe(0);
     expect(result.page.blocks[0]?.fontFamily).toBeUndefined();
-    expect(result.page.blocks[0]?.automaticFontMatch).toBeUndefined();
   });
 
   it.each([

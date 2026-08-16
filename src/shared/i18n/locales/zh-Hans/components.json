@@ -133,24 +133,6 @@
     "title": "格式",
     "batchApply": "批量应用",
     "batchApplyTitle": "将此文本块的格式批量应用到其他文本块",
-    "autoFont": {
-      "badge": "自动匹配",
-      "rollback": "撤销自动选择",
-      "sources": {
-        "episode_consistency": "弱参考了本话中相似对白的字体；原文字形不同时仍以当前文本的视觉判断为先。",
-        "local_visual": "优先依据当前文字的形状、粗细与手写感进行选择。",
-        "work_profile": "同时参考作品字体策略与当前文字的视觉特征。",
-        "user_lock": "已应用用户明确锁定的字体。"
-      },
-      "roles": {
-        "dialogue": "普通对白",
-        "narration": "旁白",
-        "thought": "内心独白",
-        "aside": "气泡边注",
-        "expressive": "音效·强调",
-        "other": "单独文本"
-      }
-    },
     "bold": "粗体",
     "italic": "斜体",
     "italicShort": "斜体",

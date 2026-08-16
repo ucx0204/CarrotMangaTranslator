@@ -9,6 +9,7 @@ import { PNG } from "pngjs";
 import { resolveBlockRenderBbox } from "../../shared/geometry";
 import type { MangaPage } from "../../shared/libraryTypes";
 import type { TranslationBlock } from "../../shared/textTypes";
+import { resolveEffectiveTextOutlineWidthPx } from "../../shared/textOutline";
 
 type PagePsdTextLayerInput = {
   block: TranslationBlock;
@@ -154,7 +155,12 @@ export function resolveEditablePsdText(
             }),
             strokeFlag: true,
             fillFlag: true,
-            outlineWidth: Math.max(0, block.outlineWidthScale ?? 1),
+            // Preserve the legacy PSD contract for untouched scale-based
+            // blocks. Only manually converted blocks use absolute pixels.
+            outlineWidth:
+              block.outlineWidthPx === undefined
+                ? Math.max(0, block.outlineWidthScale ?? 1)
+                : resolveEffectiveTextOutlineWidthPx(block, fontSize),
           }
         : {}),
     },

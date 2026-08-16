@@ -146,6 +146,7 @@ const BlockStylePresetSchema = z
         textColor: hexColor.optional(),
         textOpacity: z.number().min(0).max(1).optional(),
         outlineColor: hexColor.optional(),
+        outlineWidthPx: z.number().min(0).max(64).optional(),
         outlineWidthScale: z.number().min(0).max(8).optional(),
         rotationDeg: z.number().min(-180).max(180).optional(),
       })
@@ -286,6 +287,7 @@ export const AppSettingsSchema = z
         textOpacity: z.number().min(0).max(1),
         outlineEnabled: z.boolean(),
         outlineColor: hexColor,
+        outlineWidthPx: z.number().min(0).max(64).optional(),
         outlineWidthScale: z.number().min(0).max(8),
         bold: z.boolean(),
         italic: z.boolean(),

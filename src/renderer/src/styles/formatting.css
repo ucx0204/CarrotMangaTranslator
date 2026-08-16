@@ -4,63 +4,6 @@
   font-size: var(--font-sm);
 }
 
-.automatic-font-match-notice {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-  padding: 9px 10px;
-  border: 1px solid color-mix(in srgb, var(--accent-bd) 72%, transparent);
-  border-radius: var(--r-md);
-  background: color-mix(in srgb, var(--accent-soft) 70%, var(--bg-sunken));
-}
-
-.automatic-font-match-summary {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  color: var(--text-muted);
-  font-size: 11px;
-}
-
-.automatic-font-match-summary strong {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-head);
-  font-size: var(--font-xs);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.automatic-font-match-summary > span:last-child {
-  margin-left: auto;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.automatic-font-match-badge {
-  flex: 0 0 auto;
-  padding: 2px 6px;
-  border-radius: var(--r-pill);
-  background: var(--accent-soft);
-  color: var(--accent-text);
-  font-size: 10px;
-  font-weight: 750;
-}
-
-.automatic-font-match-notice p {
-  margin: 0;
-  color: var(--text-dim);
-  font-size: 11px;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
-}
-
-.automatic-font-match-notice button {
-  justify-self: start;
-  min-width: 0;
-}
-
 .editor-panel.has-block .editor-word-break-field {
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
@@ -512,43 +455,30 @@
   white-space: nowrap;
 }
 
-.font-size-row {
-  display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) 56px auto;
+.editor-panel.has-block
+  .editor-group
+  > label.editor-outline-enabled-toggle {
+  display: inline-flex;
+  width: max-content;
   align-items: center;
-  gap: var(--sp-3);
-}
-
-.font-size-label {
-  font-size: var(--font-sm);
-  color: var(--text-dim);
-  white-space: nowrap;
+  justify-self: start;
+  gap: 6px;
 }
 
 .editor-font-size-row {
-  grid-column: 1 / -1;
-  grid-template-columns: subgrid;
-  grid-template-rows: repeat(2, auto);
-  column-gap: inherit;
-  row-gap: var(--sp-2);
-}
-
-.editor-font-size-row .font-size-label {
-  grid-row: 1;
-  grid-column: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: var(--sp-3);
 }
 
 .editor-font-size-row .font-size-stepper {
-  grid-row: 1;
-  grid-column: 2;
-  grid-template-columns: 30px 74px 30px;
-  justify-self: start;
+  width: 100%;
 }
 
-.editor-font-size-row > .inline-toggle {
-  grid-row: 1;
-  grid-column: 3;
-  justify-self: end;
+.editor-font-size-auto {
+  min-height: 34px;
+  justify-self: start;
 }
 
 .font-size-stepper {
@@ -560,33 +490,59 @@
   min-width: 0;
 }
 
-.editor-font-size-row .font-size-slider {
-  grid-row: 2;
-  grid-column: 2;
-  width: 100%;
-  margin: 0;
-  justify-self: stretch;
+.editor-format-fields {
+  display: grid;
+  gap: var(--sp-3);
 }
 
-.editor-format-number-row {
+.editor-format-number-grid {
   display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: subgrid;
-  align-items: center;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+
+.editor-format-number-cell {
+  display: grid;
+  gap: 5px;
   min-width: 0;
 }
 
-.editor-format-number-row > span:first-child {
+.editor-format-number-cell > span:first-child {
   min-width: 0;
   color: var(--text-dim);
-  font-size: var(--font-sm);
+  font-size: var(--font-xs);
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
-.editor-format-number-row > [data-scrubbable-number-field] {
-  grid-column: 2 / -1;
+.editor-format-number-cell > [data-scrubbable-number-field] {
   width: 100%;
+}
+
+.editor-outline-width-control {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.editor-outline-width-control > span:first-child {
+  color: var(--text-dim);
+  font-size: var(--font-xs);
+  line-height: 1.25;
+}
+
+.editor-outline-width-control > [data-scrubbable-number-field] {
+  width: 100%;
+}
+
+@container editor-panel (max-width: 300px) {
+  .editor-format-number-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .editor-font-size-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .font-size-number {

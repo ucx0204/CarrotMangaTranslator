@@ -44,7 +44,7 @@ export function BlockSpacingFields({
 
   return (
     <>
-      <EditorNumberRow label={labels.lineHeight}>
+      <EditorNumberCell label={labels.lineHeight}>
         <ScrubbableNumberField
           ariaLabel={labels.lineHeight}
           decreaseLabel={decreaseLabel(labels.lineHeight)}
@@ -59,8 +59,8 @@ export function BlockSpacingFields({
             onUpdate({ lineHeight: clampLineHeight(value) })
           }
         />
-      </EditorNumberRow>
-      <EditorNumberRow label={labels.letterSpacing}>
+      </EditorNumberCell>
+      <EditorNumberCell label={labels.letterSpacing}>
         <ScrubbableNumberField
           ariaLabel={labels.letterSpacing}
           decreaseLabel={decreaseLabel(labels.letterSpacing)}
@@ -76,8 +76,8 @@ export function BlockSpacingFields({
             onUpdate({ letterSpacing: clampLetterSpacingEm(value) })
           }
         />
-      </EditorNumberRow>
-      <EditorNumberRow label={labels.fontWidth}>
+      </EditorNumberCell>
+      <EditorNumberCell label={labels.fontWidth}>
         <ScrubbableNumberField
           ariaLabel={labels.fontWidth}
           decreaseLabel={decreaseLabel(labels.fontWidth)}
@@ -93,12 +93,12 @@ export function BlockSpacingFields({
             onUpdate({ fontWidthScale: clampFontWidthScale(value / 100) })
           }
         />
-      </EditorNumberRow>
+      </EditorNumberCell>
     </>
   );
 }
 
-function EditorNumberRow({
+function EditorNumberCell({
   children,
   label,
 }: {
@@ -106,7 +106,7 @@ function EditorNumberRow({
   label: string;
 }): React.JSX.Element {
   return (
-    <div className="editor-format-number-row">
+    <div className="editor-format-number-cell">
       <span>{label}</span>
       {children}
     </div>

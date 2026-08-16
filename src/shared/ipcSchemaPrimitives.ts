@@ -25,6 +25,11 @@ import { FONT_MATCHING_SEMANTIC_ROLES } from "./fontMatchingProfileTypes";
 import { normalizeVisualClusterId } from "./visualClusterId";
 import { RenderBBoxSchema } from "./renderBboxSchema";
 import * as blockFormatValueSchemas from "./blockFormatValueSchemas";
+import {
+  resolveAutomaticTextOutlineColor,
+  resolveEffectiveTextOutlineWidthPx,
+} from "./textOutline";
+import type { BBox } from "./textTypes";
 
 export { MAX_MAX_TOKENS, MIN_CONTEXT_TOKENS, MIN_MAX_TOKENS };
 
@@ -287,32 +292,7 @@ export const BubbleLayoutSchema = z
     }
   });
 
-const AutomaticFontMatchRecordSchema = z
-  .object({
-    schemaVersion: z.literal(1),
-    selectedFontId: z.string().min(1).max(120),
-    role: z.enum(FONT_MATCHING_SEMANTIC_ROLES),
-    confidence: finiteNumber.min(0).max(1),
-    source: z.enum([
-      "episode_consistency",
-      "local_visual",
-      "work_profile",
-      "user_lock",
-    ]),
-    previousStyle: z
-      .object({
-        fontFamily: z.string().max(120).nullable(),
-        bold: z.boolean().nullable(),
-        italic: z.boolean().nullable(),
-        outlineWidthScale: finiteNumber.min(0).max(8).nullable(),
-        textColor: hexColor.optional(),
-        outlineColor: hexColor.nullable().optional(),
-      })
-      .strict(),
-  })
-  .strict();
-
-export const TranslationBlockSchema = z
+export const TranslationBlockObjectSchema = z
   .object({
     id: z.string().min(1).max(200),
     type: z.preprocess(() => "nonsolid", z.literal("nonsolid")),
@@ -335,7 +315,8 @@ export const TranslationBlockSchema = z
     curveLayout: CurveLayoutSchema.optional(),
     warpTransform: WarpTransformSchema.optional(),
     fontFamily: z.string().max(120).optional(),
-    automaticFontMatch: AutomaticFontMatchRecordSchema.optional(),
+    /** Removed in v1.16; accepted only so older projects can be migrated. */
+    automaticFontMatch: z.unknown().optional(),
     fontSizePx: blockFormatValueSchemas.FontSizePxSchema,
     lineHeight: blockFormatValueSchemas.LineHeightSchema,
     letterSpacing: blockFormatValueSchemas.LetterSpacingSchema.optional(),
@@ -345,6 +326,7 @@ export const TranslationBlockSchema = z
     textColor: hexColor,
     textOpacity: finiteNumber.min(0).max(1).optional(),
     outlineColor: hexColor.optional(),
+    outlineWidthPx: finiteNumber.min(0).max(64).optional(),
     outlineWidthScale: finiteNumber.min(0).max(8).optional(),
     bold: z.boolean().optional(),
     italic: z.boolean().optional(),
@@ -358,6 +340,31 @@ export const TranslationBlockSchema = z
     glossaryEntryIds: z.array(z.string().max(200)).max(50).optional(),
   })
   .strict();
+
+export const TranslationBlockSchema =
+  TranslationBlockObjectSchema.transform(
+    ({ automaticFontMatch, ...block }) => {
+      if (
+        !isLegacyAutomaticFontMatch(automaticFontMatch) ||
+        resolveEffectiveTextOutlineWidthPx(block, block.fontSizePx) <= 0
+      ) {
+        return block;
+      }
+      return {
+        ...block,
+        outlineColor: resolveAutomaticTextOutlineColor(block),
+      };
+    },
+  );
+
+function isLegacyAutomaticFontMatch(value: unknown): boolean {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      (value as { schemaVersion?: unknown }).schemaVersion === 1,
+  );
+}
 
 function isJsonObjectString(value: string): boolean {
   try {
@@ -402,17 +409,7 @@ function isForbiddenCustomHeader(name: string): boolean {
   ].includes(name.trim().toLowerCase());
 }
 
-function clampNormalizedBbox(bbox: {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}): {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-} {
+function clampNormalizedBbox(bbox: BBox): BBox {
   const x = Math.min(999, Math.max(0, bbox.x));
   const y = Math.min(999, Math.max(0, bbox.y));
   const w = Math.min(1000 - x, Math.max(1, bbox.w));

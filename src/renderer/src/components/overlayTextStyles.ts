@@ -84,7 +84,7 @@ export function resolveOverlayTextContentStyle(
     fontWeight: block.bold ? 800 : 400,
     fontStyle: block.italic ? "italic" : "normal",
     fontSynthesis: "weight style",
-    textShadow: resolveBlockTextOutlineShadow(block, layout.fontSizePx),
+    ...resolveBlockTextOutlineCss(block, layout.fontSizePx),
     transform: scaleX === 1 ? undefined : `scaleX(${scaleX})`,
   };
 }
@@ -137,16 +137,26 @@ export function resolveBlockTextOutlinePx(
   return resolveEffectiveTextOutlineWidthPx(block, fontSizePx);
 }
 
-function resolveBlockTextOutlineShadow(
+function resolveBlockTextOutlineCss(
   block: TranslationBlock,
   fontSizePx: number,
-): string {
-  const radius = resolveBlockTextOutlinePx(block, fontSizePx);
-  if (radius <= 0) return "none";
-  return resolveTextOutlineShadow(
-    radius,
-    resolveEffectiveTextOutlineColor(block),
-  );
+): Pick<
+  React.CSSProperties,
+  | "WebkitTextStrokeColor"
+  | "WebkitTextStrokeWidth"
+  | "paintOrder"
+  | "textShadow"
+> {
+  const width = resolveBlockTextOutlinePx(block, fontSizePx);
+  return {
+    textShadow: "none",
+    WebkitTextStrokeColor:
+      width > 0 ? resolveEffectiveTextOutlineColor(block) : "transparent",
+    // CSS/SVG strokes are centered on the glyph path. Doubling the stored
+    // outward thickness keeps the visible outline equal to the requested px.
+    WebkitTextStrokeWidth: `${width * 2}px`,
+    paintOrder: "stroke fill",
+  };
 }
 
 function resolveFontWidthOrigin(
@@ -157,23 +167,4 @@ function resolveFontWidthOrigin(
   if (textAlign === "left") return "left center";
   if (textAlign === "right") return "right center";
   return "center center";
-}
-
-function resolveTextOutlineShadow(radius: number, color: string): string {
-  const halfRadius = Math.round(radius * 0.55 * 10) / 10;
-  const offsets = [
-    [0, -radius],
-    [radius, 0],
-    [0, radius],
-    [-radius, 0],
-    [radius, -radius],
-    [radius, radius],
-    [-radius, radius],
-    [-radius, -radius],
-    [halfRadius, -halfRadius],
-    [halfRadius, halfRadius],
-    [-halfRadius, halfRadius],
-    [-halfRadius, -halfRadius],
-  ];
-  return offsets.map(([x, y]) => `${x}px ${y}px 0 ${color}`).join(", ");
 }

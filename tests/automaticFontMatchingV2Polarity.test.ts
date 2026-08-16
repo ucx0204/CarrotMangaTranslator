@@ -10,7 +10,6 @@ import {
   type FontMatchingGlyphMorphologyV1,
 } from "../src/main/pipeline/fontMatchingPagePixelPreprocessing";
 import type { TranslationBlock } from "../src/shared/textTypes";
-import { clearAutomaticFontMatchForManualStylePatch } from "../src/renderer/src/lib/automaticFontMatchProvenance";
 
 const COLOR_PRESERVATION_CASES: ReadonlyArray<
   readonly [string, Partial<FontMatchingGlyphMorphologyV1>]
@@ -43,14 +42,11 @@ describe("automatic inverse text polarity", () => {
     },
   );
 
-  it("preserves normal colors, but records and overrides inverse colors on apply", () => {
+  it("preserves readable normal colors and overrides inverse colors on apply", () => {
     const block = makeBlock();
     const normal = applyAutomaticFontDecisionV2(block, makeDecision());
     expect(normal.textColor).toBe("#234567");
     expect(normal.outlineColor).toBe("#abcdef");
-    expect(normal.automaticFontMatch?.previousStyle).not.toHaveProperty(
-      "textColor",
-    );
 
     const inverse = applyAutomaticFontDecisionV2(
       block,
@@ -58,13 +54,9 @@ describe("automatic inverse text polarity", () => {
     );
     expect(inverse.textColor).toBe("#f7f7f2");
     expect(inverse.outlineColor).toBe("#141414");
-    expect(inverse.automaticFontMatch?.previousStyle).toMatchObject({
-      textColor: "#234567",
-      outlineColor: "#abcdef",
-    });
   });
 
-  it("keeps the first pre-automatic style across repeated automatic decisions", () => {
+  it("keeps applied colors across repeated automatic decisions", () => {
     const first = applyAutomaticFontDecisionV2(
       makeBlock(),
       makeDecision(resolveAutomaticInverseTextStyle(makeMorphology())),
@@ -79,17 +71,9 @@ describe("automatic inverse text polarity", () => {
       textColor: "#f7f7f2",
       outlineColor: "#141414",
     });
-    expect(second.automaticFontMatch?.previousStyle).toEqual({
-      fontFamily: "nanum-gothic",
-      bold: false,
-      italic: true,
-      outlineWidthScale: 1.25,
-      textColor: "#234567",
-      outlineColor: "#abcdef",
-    });
   });
 
-  it("preserves the semantic role while provenance records the pixel-only role", () => {
+  it("preserves an existing semantic role", () => {
     const applied = applyAutomaticFontDecisionV2(
       {
         ...makeBlock(),
@@ -103,10 +87,6 @@ describe("automatic inverse text polarity", () => {
       fontFamily: "dohyeon",
       fontRole: "sign_ui_title",
       fontRoleConfidence: 0.97,
-    });
-    expect(applied.automaticFontMatch).toMatchObject({
-      selectedFontId: "dohyeon",
-      role: "dialogue",
     });
   });
 
@@ -126,25 +106,6 @@ describe("automatic inverse text polarity", () => {
       textColor: "#f7f7f2",
       outlineColor: "#141414",
     });
-    expect(applied.automaticFontMatch?.previousStyle.outlineWidthScale).toBe(0);
-  });
-
-  it("clears automatic provenance for manual color changes only", () => {
-    const automatic = applyAutomaticFontDecisionV2(
-      makeBlock(),
-      makeDecision(resolveAutomaticInverseTextStyle(makeMorphology())),
-    );
-
-    expect(
-      clearAutomaticFontMatchForManualStylePatch(automatic, {
-        textColor: "#fedcba",
-      }),
-    ).toEqual({ textColor: "#fedcba", automaticFontMatch: undefined });
-    expect(
-      clearAutomaticFontMatchForManualStylePatch(automatic, {
-        translatedText: "수동 번역",
-      }),
-    ).toEqual({ translatedText: "수동 번역" });
   });
 });
 

@@ -177,12 +177,36 @@ describe("FormatDefaultsPanel", () => {
         .writingMode,
     ).toBe("vertical-rl");
 
-    fireEvent.click(screen.getByRole("button", { name: "외곽선 사용" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "외곽선 사용" }));
     expect(
       container.querySelector<HTMLElement>(".gather-direct-preview-text")?.style
         .textShadow,
     ).toBe("none");
     expect(onChange).toHaveBeenLastCalledWith({ outlineEnabled: false });
+  });
+
+  it("edits outline width in 0.5px steps and restores it after toggling", () => {
+    const onChange = vi.fn();
+    const { container } = renderPanel(onChange);
+    const input = screen.getByRole("spinbutton", {
+      name: "외곽선 굵기",
+    });
+
+    fireEvent.change(input, { target: { value: "8" } });
+    fireEvent.blur(input);
+    expect(onChange).toHaveBeenLastCalledWith({ outlineWidthPx: 8 });
+    expect(
+      container.querySelector<HTMLElement>(".gather-direct-preview-text")
+        ?.style.webkitTextStrokeWidth,
+    ).toBe("16px");
+
+    const checkbox = screen.getByRole("checkbox", { name: "외곽선 사용" });
+    fireEvent.click(checkbox);
+    expect(onChange).toHaveBeenLastCalledWith({ outlineEnabled: false });
+    expect((input as HTMLInputElement).disabled).toBe(true);
+    fireEvent.click(checkbox);
+    expect(onChange).toHaveBeenLastCalledWith({ outlineEnabled: true });
+    expect((input as HTMLInputElement).valueAsNumber).toBe(8);
   });
 
   it("updates the default wrapping mode and its live preview", () => {

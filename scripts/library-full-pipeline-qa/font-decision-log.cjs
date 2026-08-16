@@ -24,7 +24,8 @@ function buildFontDecisionLog(page, trace, outlinePolicy) {
       blockIndex,
     ) => {
       const inference = inferenceByBlockId.get(block.id);
-      const automatic = block.automaticFontMatch;
+      const automaticApplied =
+        inference?.selectionCalibration?.applied === true;
       const effectiveTextColor = outlinePolicy.resolveEffectiveTextColor(block);
       const effectiveOutlineColor =
         outlinePolicy.resolveEffectiveTextOutlineColor(block);
@@ -41,20 +42,18 @@ function buildFontDecisionLog(page, trace, outlinePolicy) {
         bbox: block.bbox,
         sourceText: block.sourceText,
         translatedText: block.translatedText,
-        applied: Boolean(automatic),
-        selectedFontId: automatic?.selectedFontId || null,
+        applied: automaticApplied,
+        selectedFontId: automaticApplied ? block.fontFamily || null : null,
         effectiveFontFamily: block.fontFamily || null,
         effectiveOutlineWidthScale,
         effectiveTextColor,
         effectiveOutlineColor,
         effectiveOutlineContrastRatio,
-        role:
-          automatic?.role ||
-          block.fontRole ||
-          inference?.rolePrediction?.primary ||
-          null,
-        confidence: automatic?.confidence || null,
-        source: automatic?.source || null,
+        role: block.fontRole || inference?.rolePrediction?.primary || null,
+        confidence: automaticApplied
+          ? (inference?.localEvidence?.calibratedConfidence ?? null)
+          : null,
+        source: automaticApplied ? "local_visual" : null,
         selectionCalibration: inference?.selectionCalibration || null,
         pageRelativeRoleQa: inference?.pageRelativeRoleQa || null,
         noneAcceptable: inference?.localEvidence?.noneAcceptable ?? null,
