@@ -20,7 +20,13 @@ type RunPrettierModule = {
   runPrettier(
     mode: "check" | "write",
     paths: string[],
-    options: { root: string },
+    options: {
+      root: string;
+      spawn?: (
+        command: string,
+        args: readonly string[],
+      ) => { error?: Error; status: number };
+    },
   ): number;
 };
 
@@ -162,6 +168,25 @@ describe("run-prettier command contract", () => {
     expect(
       runner.buildPathBatches(["src/a.ts", "src/b.ts", "tests/c.ts"], 20),
     ).toEqual([["src/a.ts"], ["src/b.ts"], ["tests/c.ts"]]);
+  });
+
+  it("always inspects current bytes instead of reusing a local cache", () => {
+    const calls: string[][] = [];
+    const spawn = (_command: string, args: readonly string[]) => {
+      calls.push([...args]);
+      return { status: 0 };
+    };
+
+    expect(
+      runner.runPrettier("check", ["src/a.ts"], {
+        root: process.cwd(),
+        spawn,
+      }),
+    ).toBe(0);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toContain("--check");
+    expect(calls[0]).not.toContain("--cache");
+    expect(calls[0]).not.toContain("--cache-location");
   });
 });
 

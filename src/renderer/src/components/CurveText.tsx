@@ -19,9 +19,7 @@ import {
   createTextRunStyleResolver,
   type TextRunStyleResolver,
 } from "../lib/textStyleRunResolution";
-import {
-  resolveBlockTextOutlinePx,
-} from "./overlayTextStyles";
+import { resolveBlockTextOutlinePx } from "./overlayTextStyles";
 
 let measureCanvas: HTMLCanvasElement | null = null;
 
@@ -112,11 +110,7 @@ function measureGlyphs(
   const context = getMeasureContext();
   return runs.flatMap((run) => {
     const style = resolveRunStyle(run);
-    context.font = resolveCanvasFont(
-      run,
-      style.fontSizePx,
-      style.fontFamily,
-    );
+    context.font = resolveCanvasFont(run, style.fontSizePx, style.fontFamily);
     return Array.from(run.text).map((char) => ({
       char,
       width: context.measureText(char).width,

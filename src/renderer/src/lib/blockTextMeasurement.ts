@@ -177,8 +177,7 @@ function measureVerticalText(
     defaultAdvancePx,
     wordBreak,
     (grapheme, style) => {
-      const runLetterSpacingPx =
-        (block.letterSpacing ?? 0) * style.fontSizePx;
+      const runLetterSpacingPx = (block.letterSpacing ?? 0) * style.fontSizePx;
       const runDefaultAdvancePx = resolveDefaultVerticalGraphemeAdvancePx(
         style.fontSizePx,
         style.fontSizePx * block.lineHeight,

@@ -227,7 +227,6 @@ function runPrettier(mode, paths, options = {}) {
   const root = options.root ?? repoRoot;
   const spawn = options.spawn ?? spawnSync;
   const ignorePath = resolve(root, ".prettierignore");
-  const cachePath = resolve(root, ".tmp", "check-cache", "prettier");
   let failed = false;
   for (const batch of buildPathBatches(paths)) {
     const result = spawn(
@@ -235,11 +234,10 @@ function runPrettier(mode, paths, options = {}) {
       [
         prettierCli,
         `--${mode}`,
-        "--cache",
-        "--cache-strategy",
-        "content",
-        "--cache-location",
-        cachePath,
+        // A persistent Prettier cache can outlive configuration or dependency
+        // changes and make a local checkout skip files that fresh CI rejects.
+        // Formatting is intentionally uncached so both environments inspect
+        // the exact current bytes with the exact current toolchain.
         "--ignore-path",
         ignorePath,
         "--",

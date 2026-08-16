@@ -141,9 +141,7 @@ describe("parseRichText", () => {
   });
 
   it("preserves nested same-kind tags without confusing their closing tags", () => {
-    const parsed = parseRichText(
-      "[size=20]가[size=40]나[/size]다[/size]",
-    );
+    const parsed = parseRichText("[size=20]가[size=40]나[/size]다[/size]");
     expect(parsed.runs).toEqual([
       { text: "가", bold: false, italic: false, sizePx: 20 },
       { text: "나", bold: false, italic: false, sizePx: 40 },
