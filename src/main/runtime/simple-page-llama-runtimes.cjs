@@ -15,12 +15,14 @@ const BEELLAMA_LLAMA_RUNTIME_CUDA12 = {
       url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.2.0/beellama-v0.2.0-bin-win-cuda-12.4-x64.zip",
       sha256:
         "e6fcbd650975b5634cceb33aedcec7693117ea55feae50330f5f2c83725bdaef",
+      expectedBytes: 582_197_990,
     },
     {
       archive: "cudart-llama-bin-win-cuda-12.4-x64.zip",
       url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.2.0/cudart-llama-bin-win-cuda-12.4-x64.zip",
       sha256:
         "b7c63d27aad42645fb7228b66a60b13805277b56a3db876157996718132115d0",
+      expectedBytes: 396_872_488,
     },
   ],
   requiredFiles: [
@@ -45,12 +47,14 @@ const BEELLAMA_LLAMA_RUNTIME_CUDA13 = {
       url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.2.0/beellama-v0.2.0-bin-win-cuda-13.1-x64.zip",
       sha256:
         "7d23a41d34cd3fb01219189a298de60c152bfec5e2bfeee1b06f6aa059036a4e",
+      expectedBytes: 287_720_926,
     },
     {
       archive: "cudart-llama-bin-win-cuda-13.1-x64.zip",
       url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.2.0/cudart-llama-bin-win-cuda-13.1-x64.zip",
       sha256:
         "01163b5ba513d7a410932d31477e22e496699a51c5902b3e21b32bd0241dff22",
+      expectedBytes: 403_486_786,
     },
   ],
   requiredFiles: [
@@ -101,12 +105,14 @@ const MAINLINE_LLAMA_RUNTIME_CUDA12 = {
       url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/llama-b9547-bin-win-cuda-12.4-x64.zip",
       sha256:
         "f05bdda225aa25123c9d57c7cb14ab5dcdfa730f756332bed765466a50c920b6",
+      expectedBytes: 261_158_499,
     },
     {
       archive: "cudart-llama-bin-win-cuda-12.4-x64.zip",
       url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/cudart-llama-bin-win-cuda-12.4-x64.zip",
       sha256:
         "8c79a9b226de4b3cacfd1f83d24f962d0773be79f1e7b75c6af4ded7e32ae1d6",
+      expectedBytes: 391_443_627,
     },
   ],
   requiredFiles: [
@@ -132,12 +138,14 @@ const MAINLINE_LLAMA_RUNTIME_CUDA13 = {
       url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/llama-b9547-bin-win-cuda-13.3-x64.zip",
       sha256:
         "3fe964551526139b16c205d05948036e3cf621b974bb47744065e3d7bda93362",
+      expectedBytes: 159_097_564,
     },
     {
       archive: "cudart-llama-bin-win-cuda-13.3-x64.zip",
       url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/cudart-llama-bin-win-cuda-13.3-x64.zip",
       sha256:
         "1462a050eb4c684921ba51dcc4cc488a036674c3e73e9945ee705b854808d03e",
+      expectedBytes: 390_970_417,
     },
   ],
   requiredFiles: [
@@ -163,6 +171,7 @@ const MAINLINE_LLAMA_RUNTIME_VULKAN = {
       url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/llama-b9547-bin-win-vulkan-x64.zip",
       sha256:
         "12c8f21b1974fdbaa53c72ce67d2c5665e5908d836501e4c988d4bf0281fee64",
+      expectedBytes: 33_920_738,
     },
   ],
   requiredFiles: [
@@ -187,6 +196,7 @@ const MAINLINE_LLAMA_RUNTIME_METAL_ARM64 = {
       url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/llama-b9547-bin-macos-arm64.tar.gz",
       sha256:
         "8791fdac4d5b7008b53fd15c609491d5a2fce2d180bb0b0e041eac53c5ade000",
+      expectedBytes: 10_519_888,
       type: "tar.gz",
       stripComponents: 1,
     },
@@ -215,6 +225,7 @@ const BEELLAMA_LLAMA_RUNTIME_METAL_ARM64 = {
       url: "https://github.com/Anbeeld/beellama.cpp/releases/download/v0.3.1/beellama-v0.3.1-bin-macos-arm64.tar.gz",
       sha256:
         "14c0af87fc124e50469279ceae96016bbc6f7649de484b1de8a0a38675004556",
+      expectedBytes: 11_109_738,
       type: "tar.gz",
       stripComponents: 1,
     },
@@ -238,6 +249,17 @@ const LEMONADE_LLAMA_ROCM_SHA256 = Object.freeze({
   gfx120X: "51072424c83349ac375b574f432bf80d14a2c7920946128de2c526cfdc3012f1",
   gfx908: "3634008a78f75bafc27c211b374ad62b6eaec5dd2f79a354add5b8aec7eb71ae",
   gfx90a: "23746b7593158e9796d18f2d13448b318b8937710c3ed1447740db6193ab36e7",
+});
+
+/** @type {Readonly<Record<string, number>>} */
+const LEMONADE_LLAMA_ROCM_BYTES = Object.freeze({
+  gfx103X: 160_723_690,
+  gfx110X: 201_186_573,
+  gfx1150: 120_027_841,
+  gfx1151: 125_399_764,
+  gfx120X: 528_745_915,
+  gfx908: 123_928_182,
+  gfx90a: 242_111_030,
 });
 
 // Immutable central-directory audit of the pinned Windows runtime archives.
@@ -267,7 +289,8 @@ const WINDOWS_LLAMA_RUNTIME_MAX_RELATIVE_PATH_LENGTH = Object.freeze({
 function createLemonadeLlamaRuntimeRocm(target) {
   const archive = `llama-${LEMONADE_LLAMA_ROCM_RELEASE}-windows-rocm-${target}-x64.zip`;
   const sha256 = LEMONADE_LLAMA_ROCM_SHA256[target];
-  if (!sha256) {
+  const expectedBytes = LEMONADE_LLAMA_ROCM_BYTES[target];
+  if (!sha256 || !expectedBytes) {
     throw new Error(
       `No pinned llama ROCm runtime exists for target: ${target}`,
     );
@@ -284,6 +307,7 @@ function createLemonadeLlamaRuntimeRocm(target) {
         archive,
         url: `${LEMONADE_LLAMA_ROCM_BASE_URL}/${archive}`,
         sha256,
+        expectedBytes,
       },
     ],
     requiredFiles: [

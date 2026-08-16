@@ -149,53 +149,67 @@ describe("runtime archive extraction policy", () => {
     );
   });
 
-  it("keeps global limits while allowing only the pinned HIP entry size", () => {
-    const ggmlHipBytes = 1_515_477_504;
+  it("keeps global defaults while allowing verified Llama entries up to the total budget", () => {
+    const oversizedLlamaEntries = [
+      {
+        name: "ggml-cuda.dll",
+        size: 1_281_715_200,
+        compressedSize: 270_000_000,
+      },
+      {
+        name: "ggml-hip.dll",
+        size: 1_515_477_504,
+        compressedSize: 330_348_185,
+      },
+    ];
     expect(MAX_RUNTIME_ARCHIVE_ENTRY_BYTES).toBe(1024 * 1024 * 1024);
     expect(MAX_RUNTIME_ARCHIVE_EXPANDED_BYTES).toBe(4 * 1024 * 1024 * 1024);
 
-    const entry = {
-      name: "ggml-hip.dll",
-      size: ggmlHipBytes,
-      compressedSize: 330_348_185,
-    };
-    expect(() =>
-      addArchiveEntryToBudget(
-        { entryCount: 0, expandedBytes: 0 },
-        entry,
-        "beellama.zip",
-      ),
-    ).toThrow(/entry is too large/);
+    for (const entry of oversizedLlamaEntries) {
+      expect(() =>
+        addArchiveEntryToBudget(
+          { entryCount: 0, expandedBytes: 0 },
+          entry,
+          "unverified-runtime.zip",
+        ),
+      ).toThrow(/entry is too large/);
+    }
 
-    const pinnedLimits = resolveArchiveExtractionLimits({
-      maximumEntryBytes: ggmlHipBytes,
+    const verifiedLimits = resolveArchiveExtractionLimits({
+      maximumEntryBytes: MAX_RUNTIME_ARCHIVE_EXPANDED_BYTES,
     });
-    expect(pinnedLimits).toEqual({
+    expect(verifiedLimits).toEqual({
       ...DEFAULT_RUNTIME_ARCHIVE_EXTRACTION_LIMITS,
-      maximumEntryBytes: ggmlHipBytes,
+      maximumEntryBytes: MAX_RUNTIME_ARCHIVE_EXPANDED_BYTES,
     });
+    for (const entry of oversizedLlamaEntries) {
+      expect(() =>
+        addArchiveEntryToBudget(
+          { entryCount: 0, expandedBytes: 0 },
+          entry,
+          "verified-llama-runtime.zip",
+          verifiedLimits,
+        ),
+      ).not.toThrow();
+    }
     expect(() =>
       addArchiveEntryToBudget(
         { entryCount: 0, expandedBytes: 0 },
-        entry,
-        "beellama.zip",
-        pinnedLimits,
-      ),
-    ).not.toThrow();
-    expect(() =>
-      addArchiveEntryToBudget(
-        { entryCount: 0, expandedBytes: 0 },
-        { ...entry, size: ggmlHipBytes + 1 },
-        "beellama.zip",
-        pinnedLimits,
+        {
+          name: "too-large.dll",
+          size: MAX_RUNTIME_ARCHIVE_EXPANDED_BYTES + 1,
+          compressedSize: MAX_RUNTIME_ARCHIVE_EXPANDED_BYTES + 1,
+        },
+        "verified-llama-runtime.zip",
+        verifiedLimits,
       ),
     ).toThrow(/entry is too large/);
     expect(() =>
       addArchiveEntryToBudget(
         { entryCount: 0, expandedBytes: MAX_RUNTIME_ARCHIVE_EXPANDED_BYTES },
         { name: "overflow.dll", size: 1, compressedSize: 1 },
-        "beellama.zip",
-        pinnedLimits,
+        "verified-llama-runtime.zip",
+        verifiedLimits,
       ),
     ).toThrow(/expands beyond/);
   });

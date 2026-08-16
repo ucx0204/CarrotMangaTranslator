@@ -14,7 +14,7 @@ const {
   claimRuntimeArchivePaths,
   normalizeSha256,
   readExpectedRuntimeArchiveBytes,
-  resolvePinnedLlamaRuntimeZipExtractionLimits,
+  requireVerifiedLlamaRuntimeExtractionLimits,
   resolveRuntimeArchiveMaximumBytes,
 } = require("./llama-runtime-archive-policy.cjs");
 const {
@@ -250,6 +250,11 @@ async function extractRuntimeArchives(
   try {
     for (const verification of verifiedArchives) {
       const { archivePath, archive } = verification;
+      const limits = requireVerifiedLlamaRuntimeExtractionLimits(
+        runtime,
+        archive,
+        verification,
+      );
       if (archive?.type === "tar.gz" || /\.tar\.gz$/i.test(archivePath)) {
         await extractSelectedTarEntries(
           archivePath,
@@ -258,6 +263,7 @@ async function extractRuntimeArchives(
           {
             stripComponents: archive?.stripComponents,
             abortSignal: options.abortSignal,
+            limits,
           },
         );
       } else {
@@ -268,11 +274,7 @@ async function extractRuntimeArchives(
           {
             abortSignal: options.abortSignal,
             finalOutputDir: runtimeDir,
-            limits: resolvePinnedLlamaRuntimeZipExtractionLimits(
-              runtime,
-              archive,
-              verification,
-            ),
+            limits,
           },
         );
       }

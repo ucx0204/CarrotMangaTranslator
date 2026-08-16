@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 import { createWriteStream } from "node:fs";
-import { access, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pipeline } from "node:stream/promises";
@@ -48,6 +48,7 @@ type RuntimeArchive = {
   archive: string;
   url: string;
   sha256: string;
+  expectedBytes: number;
 };
 
 type RuntimeDescriptor = {
@@ -56,23 +57,24 @@ type RuntimeDescriptor = {
   backend: string;
   dir: string;
   requiredFiles: string[];
+  archives: RuntimeArchive[];
 };
 
-const TEST_RUNTIME: RuntimeDescriptor = {
+const TEST_RUNTIME = {
   id: "test-vulkan-runtime",
   kind: "test",
   backend: "vulkan",
   dir: "test-vulkan-runtime",
   requiredFiles: ["llama-server.exe", "ggml-vulkan.dll"],
-};
+} satisfies Omit<RuntimeDescriptor, "archives">;
 
-const TEST_ROCM_RUNTIME: RuntimeDescriptor = {
+const TEST_ROCM_RUNTIME = {
   id: "test-rocm-runtime",
   kind: "test",
   backend: "rocm",
   dir: "test-rocm-runtime",
   requiredFiles: ["llama-server.exe", "ggml-hip.dll"],
-};
+} satisfies Omit<RuntimeDescriptor, "archives">;
 
 describe("llama runtime archive ownership", () => {
   it("publishes only the claimed archive when the public cache path is swapped", async () => {
@@ -81,6 +83,7 @@ describe("llama runtime archive ownership", () => {
     const runtimeDir = join(root, "installed-runtime");
     await writeRuntimeZip(archivePath, "trusted");
     const archive = await describeRuntimeArchive(archivePath);
+    const runtime = { ...TEST_RUNTIME, archives: [archive] };
     const ownership = await claimRuntimeArchivePaths([archivePath]);
 
     try {
@@ -99,7 +102,7 @@ describe("llama runtime archive ownership", () => {
       await extractRuntimeArchives(
         runtimeDir,
         verified,
-        TEST_RUNTIME,
+        runtime,
         {},
         ownership.restore,
       );
@@ -123,6 +126,7 @@ describe("llama runtime archive ownership", () => {
     const runtimeDir = join(root, "installed-runtime");
     await writeRuntimeZip(archivePath, "trusted");
     const archive = await describeRuntimeArchive(archivePath);
+    const runtime = { ...TEST_RUNTIME, archives: [archive] };
     const ownership = await claimRuntimeArchivePaths([archivePath]);
 
     try {
@@ -136,7 +140,7 @@ describe("llama runtime archive ownership", () => {
         extractRuntimeArchives(
           runtimeDir,
           verified,
-          TEST_RUNTIME,
+          runtime,
           {},
           ownership.restore,
         ),
@@ -155,6 +159,7 @@ describe("llama runtime archive ownership", () => {
     const runtimeDir = join(root, "installed-runtime");
     await writeNestedRocmRuntimeZip(archivePath);
     const archive = await describeRuntimeArchive(archivePath);
+    const runtime = { ...TEST_ROCM_RUNTIME, archives: [archive] };
     const ownership = await claimRuntimeArchivePaths([archivePath]);
 
     try {
@@ -165,7 +170,7 @@ describe("llama runtime archive ownership", () => {
       await extractRuntimeArchives(
         runtimeDir,
         verified,
-        TEST_ROCM_RUNTIME,
+        runtime,
         {},
         ownership.restore,
       );
@@ -202,10 +207,12 @@ describe("llama runtime archive ownership", () => {
 async function describeRuntimeArchive(
   archivePath: string,
 ): Promise<RuntimeArchive> {
+  const metadata = await stat(archivePath);
   return {
     archive: "runtime.zip",
     url: "https://example.invalid/runtime.zip",
     sha256: await calculateFileSha256(archivePath),
+    expectedBytes: metadata.size,
   };
 }
 

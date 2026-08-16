@@ -41,6 +41,7 @@ const { resolvePreferredLlamaRuntime } =
         archive: string;
         url: string;
         sha256?: string;
+        expectedBytes?: number;
         type?: string;
         stripComponents?: number;
       }>;
@@ -98,7 +99,15 @@ const {
     archivePath: string,
     outputDir: string,
     filter: (name: string, relativePath: string) => boolean,
-    options: { stripComponents: number },
+    options?: {
+      stripComponents?: number;
+      limits?: {
+        maximumEntries?: number;
+        maximumEntryBytes?: number;
+        maximumExpandedBytes?: number;
+        maximumCompressionRatio?: number;
+      };
+    },
   ) => Promise<void>;
   validateSelectedTarLinks: (
     entries: Array<Record<string, unknown>>,
@@ -333,6 +342,18 @@ describe("Metal runtime archive integrity", () => {
     ).toThrow(/SHA-256/);
   });
 
+  it("fails closed when a runtime descriptor omits its exact byte size", () => {
+    expect(() =>
+      assertRuntimeArchiveChecksumsPresent([
+        {
+          archive: "runtime.zip",
+          url: "https://example.invalid/runtime.zip",
+          sha256: "1".repeat(64),
+        },
+      ]),
+    ).toThrow(/expectedBytes/);
+  });
+
   it("rejects path traversal, hard links, and escaping symlinks", () => {
     expect(() =>
       validateTarEntries([{ path: "root/../escape", type: "File" }], 1),
@@ -520,6 +541,78 @@ describe("Metal runtime archive integrity", () => {
         "metal",
       );
       expect(() => readFileSync(join(output, "README.md"))).toThrow();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("applies caller-provided entry limits during the TAR metadata pass", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "mgt-mac-runtime-tar-limit-"));
+    try {
+      const source = join(dir, "source");
+      const release = join(source, "llama-runtime");
+      const output = join(dir, "output");
+      const archive = join(dir, "runtime.tar.gz");
+      mkdirSync(release, { recursive: true });
+      writeFileSync(join(release, "llama-server"), "12345");
+      writeFileSync(join(release, "after-error.bin"), "ok");
+      await tar.c({ cwd: source, file: archive, gzip: true }, [
+        "llama-runtime/llama-server",
+        "llama-runtime/after-error.bin",
+      ]);
+
+      await expect(
+        extractSelectedTarEntries(
+          archive,
+          output,
+          shouldExtractLlamaRuntimeFile,
+          {
+            stripComponents: 1,
+            limits: { maximumEntryBytes: 4 },
+          },
+        ),
+      ).rejects.toThrow(/entry is too large/);
+      expect(existsSync(output)).toBe(false);
+
+      await extractSelectedTarEntries(
+        archive,
+        output,
+        shouldExtractLlamaRuntimeFile,
+        {
+          stripComponents: 1,
+          limits: { maximumEntryBytes: 5 },
+        },
+      );
+      expect(readFileSync(join(output, "llama-server"), "utf8")).toBe("12345");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects TAR entries that collide after path stripping", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "mgt-mac-runtime-duplicate-"));
+    try {
+      const source = join(dir, "source");
+      const output = join(dir, "output");
+      const archive = join(dir, "runtime.tar.gz");
+      mkdirSync(join(source, "one"), { recursive: true });
+      mkdirSync(join(source, "two"), { recursive: true });
+      writeFileSync(join(source, "one", "llama-server"), "first");
+      writeFileSync(join(source, "two", "llama-server"), "second");
+      await tar.c({ cwd: source, file: archive, gzip: true }, [
+        "one/llama-server",
+        "two/llama-server",
+      ]);
+
+      await expect(
+        extractSelectedTarEntries(
+          archive,
+          output,
+          shouldExtractLlamaRuntimeFile,
+          { stripComponents: 1 },
+        ),
+      ).rejects.toThrow(/duplicate output/);
+      expect(existsSync(output)).toBe(false);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

@@ -74,9 +74,17 @@ const { createCompactRuntimeSiblingDirectory, createRuntimeStagingDirectory } =
     ) => string;
     createRuntimeStagingDirectory: (outputDir: string) => string;
   };
-const { resolvePinnedLlamaRuntimeZipExtractionLimits } =
+const {
+  requireVerifiedLlamaRuntimeExtractionLimits,
+  resolveVerifiedLlamaRuntimeExtractionLimits,
+} =
   require("../src/main/runtime/model/llama-runtime-archive-policy.cjs") as {
-    resolvePinnedLlamaRuntimeZipExtractionLimits: (
+    requireVerifiedLlamaRuntimeExtractionLimits: (
+      runtime: Record<string, unknown>,
+      archive: Record<string, unknown>,
+      verification: { sha256: string; bytes: number },
+    ) => { maximumEntryBytes: number };
+    resolveVerifiedLlamaRuntimeExtractionLimits: (
       runtime: Record<string, unknown>,
       archive: Record<string, unknown>,
       verification: { sha256: string; bytes: number },
@@ -88,9 +96,9 @@ const { resolveRuntimeArchiveMaximumBytes } =
       expectedBytes?: number;
     }) => number;
   };
-const { MAX_REMOTE_RUNTIME_ARCHIVE_BYTES } =
-  require("../src/main/runtime/transport/download-budgets.cjs") as {
-    MAX_REMOTE_RUNTIME_ARCHIVE_BYTES: number;
+const { MAX_RUNTIME_ARCHIVE_EXPANDED_BYTES } =
+  require("../src/main/runtime/archive-extraction-policy.cjs") as {
+    MAX_RUNTIME_ARCHIVE_EXPANDED_BYTES: number;
   };
 const {
   isIncompleteManagedLlamaRuntime,
@@ -180,6 +188,83 @@ describe("llama runtime path selection", () => {
         requiredFiles: ["server.exe"],
       }),
     ).toBe(255);
+  });
+
+  it("pins bytes and verified extraction limits for every built-in archive", () => {
+    const runtimeOptions: Array<Record<string, unknown>> = [
+      {
+        llamaRuntimeProfile: "cuda12",
+        modelRepo: DEFAULT_GEMMA_MODEL_REPO,
+        modelFile: DEFAULT_GEMMA_MODEL_FILE,
+      },
+      {
+        llamaRuntimeProfile: "rtx50",
+        modelRepo: DEFAULT_GEMMA_MODEL_REPO,
+        modelFile: DEFAULT_GEMMA_MODEL_FILE,
+      },
+      {
+        llamaRuntimeProfile: "rocm",
+        llamaRocmTarget: "gfx110X",
+        modelRepo: DEFAULT_GEMMA_MODEL_REPO,
+        modelFile: DEFAULT_GEMMA_MODEL_FILE,
+      },
+      {
+        llamaRuntimeProfile: "metal",
+        modelRepo: DEFAULT_GEMMA_MODEL_REPO,
+        modelFile: DEFAULT_GEMMA_MODEL_FILE,
+      },
+      ...["cuda12", "rtx50", "vulkan", "metal"].map((llamaRuntimeProfile) => ({
+        llamaRuntimeProfile,
+        modelRepo: GEMMA_26B_MODEL_REPO,
+        modelFile: GEMMA_26B_MODEL_FILE_IQ3_S,
+      })),
+      ...[
+        "gfx103X",
+        "gfx110X",
+        "gfx1150",
+        "gfx1151",
+        "gfx120X",
+        "gfx908",
+        "gfx90a",
+      ].map((llamaRocmTarget) => ({
+        llamaRuntimeProfile: "rocm",
+        llamaRocmTarget,
+        modelRepo: GEMMA_26B_MODEL_REPO,
+        modelFile: GEMMA_26B_MODEL_FILE_IQ3_S,
+      })),
+    ];
+    const archiveUrls = new Set<string>();
+
+    for (const options of runtimeOptions) {
+      const runtime = resolvePreferredLlamaRuntime(options);
+      for (const archive of runtime.archives) {
+        expect(archive.sha256).toMatch(/^[a-f0-9]{64}$/);
+        expect(archive.expectedBytes).toBeGreaterThan(0);
+        if (!archive.sha256 || archive.expectedBytes === undefined) {
+          throw new Error(`Incomplete runtime archive: ${archive.archive}`);
+        }
+        const archiveSha256 = archive.sha256;
+        const archiveExpectedBytes = archive.expectedBytes;
+        archiveUrls.add(archive.url);
+        expect(resolveRuntimeArchiveMaximumBytes(archive)).toBe(
+          archiveExpectedBytes,
+        );
+        expect(
+          resolveVerifiedLlamaRuntimeExtractionLimits(runtime, archive, {
+            sha256: archiveSha256,
+            bytes: archiveExpectedBytes,
+          }),
+        ).toEqual({ maximumEntryBytes: MAX_RUNTIME_ARCHIVE_EXPANDED_BYTES });
+        expect(() =>
+          requireVerifiedLlamaRuntimeExtractionLimits(runtime, archive, {
+            sha256: archiveSha256,
+            bytes: archiveExpectedBytes + 1,
+          }),
+        ).toThrow(/압축 자산 계약이 일치하지 않습니다/);
+      }
+    }
+
+    expect(archiveUrls.size).toBe(19);
   });
 
   it("uses a compact Windows root and transient siblings for pinned HIP paths", () => {
@@ -615,7 +700,7 @@ describe("llama runtime path selection", () => {
     });
   });
 
-  it("scopes the large HIP entry budget to the exact verified BeeLlama archive", () => {
+  it("uses one verified-asset entry budget for every pinned Llama runtime", () => {
     const runtime = resolvePreferredLlamaRuntime({
       llamaRuntimeProfile: "rocm",
       llamaRocmTarget: "gfx110X",
@@ -631,21 +716,21 @@ describe("llama runtime path selection", () => {
       bytes: archive.expectedBytes,
     };
 
-    const limits = resolvePinnedLlamaRuntimeZipExtractionLimits(
+    const limits = resolveVerifiedLlamaRuntimeExtractionLimits(
       runtime,
       archive,
       verification,
     );
-    expect(limits).toEqual({ maximumEntryBytes: 1_515_477_504 });
+    expect(limits).toEqual({
+      maximumEntryBytes: MAX_RUNTIME_ARCHIVE_EXPANDED_BYTES,
+    });
     expect(Object.isFrozen(limits)).toBe(true);
     expect(resolveRuntimeArchiveMaximumBytes(archive)).toBe(553_375_639);
 
     const mismatches: Array<
       [Record<string, unknown>, Record<string, unknown>, typeof verification]
     > = [
-      [{ ...runtime, id: "other-runtime" }, archive, verification],
-      [{ ...runtime, kind: "other-kind" }, archive, verification],
-      [{ ...runtime, backend: "cuda" }, archive, verification],
+      [{ ...runtime, archives: [] }, archive, verification],
       [runtime, { ...archive, archive: "other.zip" }, verification],
       [
         runtime,
@@ -667,7 +752,7 @@ describe("llama runtime path selection", () => {
       candidateVerification,
     ] of mismatches) {
       expect(
-        resolvePinnedLlamaRuntimeZipExtractionLimits(
+        resolveVerifiedLlamaRuntimeExtractionLimits(
           candidateRuntime,
           candidateArchive,
           candidateVerification,
@@ -681,22 +766,31 @@ describe("llama runtime path selection", () => {
       modelFile: GEMMA_26B_MODEL_FILE_IQ3_S,
     });
     const otherArchive = otherRuntime.archives[0];
-    if (!otherArchive?.sha256) {
+    if (!otherArchive?.sha256 || otherArchive.expectedBytes === undefined) {
       throw new Error("CUDA archive binding is incomplete.");
     }
     expect(resolveRuntimeArchiveMaximumBytes(otherArchive)).toBe(
-      MAX_REMOTE_RUNTIME_ARCHIVE_BYTES,
+      otherArchive.expectedBytes,
     );
     expect(
-      resolvePinnedLlamaRuntimeZipExtractionLimits(otherRuntime, otherArchive, {
+      resolveVerifiedLlamaRuntimeExtractionLimits(otherRuntime, otherArchive, {
         sha256: otherArchive.sha256,
-        bytes: 0,
+        bytes: otherArchive.expectedBytes,
+      }),
+    ).toEqual({ maximumEntryBytes: MAX_RUNTIME_ARCHIVE_EXPANDED_BYTES });
+    expect(
+      resolveVerifiedLlamaRuntimeExtractionLimits(otherRuntime, otherArchive, {
+        sha256: otherArchive.sha256,
+        bytes: otherArchive.expectedBytes + 1,
       }),
     ).toBeUndefined();
 
     expect(() =>
       resolveRuntimeArchiveMaximumBytes({ expectedBytes: 0 }),
     ).toThrow(/expectedBytes/);
+    expect(() => resolveRuntimeArchiveMaximumBytes({})).toThrow(
+      /expectedBytes/,
+    );
   });
 
   it("does not require a target-specific Lemonade archive for 31B ROCm DFlash", () => {

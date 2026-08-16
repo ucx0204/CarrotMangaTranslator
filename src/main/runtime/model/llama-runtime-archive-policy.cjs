@@ -5,10 +5,14 @@ const { lstat, rename, rm } = require("node:fs/promises");
 const path = require("node:path");
 
 const {
+  MAX_RUNTIME_ARCHIVE_EXPANDED_BYTES,
+} = require("../archive-extraction-policy.cjs");
+const {
   MAX_REMOTE_RUNTIME_ARCHIVE_BYTES,
 } = require("../transport/download-budgets.cjs");
 
 /** @typedef {{ originalPath: string; ownedPath: string; restored: boolean }} RuntimeArchiveClaim */
+/** @typedef {{ archive?: unknown; url?: unknown; sha256?: unknown; expectedBytes?: unknown; type?: unknown; stripComponents?: unknown }} RuntimeArchiveDescriptor */
 
 const BEELLAMA_HIP_RADEON_ARCHIVE_CONTRACT = Object.freeze({
   runtimeId: "beellama-v0.3.1-hip-radeon",
@@ -20,54 +24,79 @@ const BEELLAMA_HIP_RADEON_ARCHIVE_CONTRACT = Object.freeze({
   bytes: 553_375_639,
 });
 
-// The contract above contains ggml-hip.dll at exactly 1,515,477,504
-// uncompressed bytes. Scope the exception to the verified asset instead of
-// weakening the shared 1-GiB runtime-archive default for every ZIP and TAR.
-const BEELLAMA_HIP_RADEON_ZIP_EXTRACTION_LIMITS = Object.freeze({
-  maximumEntryBytes: 1_515_477_504,
+// Runtime archives are owned, hashed before extraction, and hashed again
+// before publication. Once a descriptor's SHA-256 and exact byte size match,
+// the total expanded-size budget is the effective single-entry ceiling too.
+// Unverified ZIP/TAR callers keep the shared 1-GiB per-entry default.
+const VERIFIED_LLAMA_RUNTIME_EXTRACTION_LIMITS = Object.freeze({
+  maximumEntryBytes: MAX_RUNTIME_ARCHIVE_EXPANDED_BYTES,
 });
 
-/** @param {{ id?: unknown; kind?: unknown; backend?: unknown }} runtime */
-function matchesPinnedRuntime(runtime) {
-  return (
-    runtime?.id === BEELLAMA_HIP_RADEON_ARCHIVE_CONTRACT.runtimeId &&
-    runtime?.kind === BEELLAMA_HIP_RADEON_ARCHIVE_CONTRACT.runtimeKind &&
-    runtime?.backend === BEELLAMA_HIP_RADEON_ARCHIVE_CONTRACT.backend
-  );
+/** @param {RuntimeArchiveDescriptor} left @param {RuntimeArchiveDescriptor} right */
+function runtimeArchiveDescriptorsMatch(left, right) {
+  if (!left || !right) return false;
+  return [
+    left.archive === right.archive,
+    left.url === right.url,
+    normalizeSha256(left.sha256) === normalizeSha256(right.sha256),
+    left.expectedBytes === right.expectedBytes,
+    (left.type ?? "zip") === (right.type ?? "zip"),
+    (left.stripComponents ?? 0) === (right.stripComponents ?? 0),
+  ].every(Boolean);
 }
 
-/** @param {{ archive?: unknown; url?: unknown; sha256?: unknown; expectedBytes?: unknown }} archive */
-function matchesPinnedArchive(archive) {
-  return (
-    archive?.archive === BEELLAMA_HIP_RADEON_ARCHIVE_CONTRACT.archive &&
-    archive?.url === BEELLAMA_HIP_RADEON_ARCHIVE_CONTRACT.url &&
-    archive?.sha256 === BEELLAMA_HIP_RADEON_ARCHIVE_CONTRACT.sha256 &&
-    archive?.expectedBytes === BEELLAMA_HIP_RADEON_ARCHIVE_CONTRACT.bytes
-  );
-}
-
-/** @param {{ sha256?: unknown; bytes?: unknown }} verification */
-function matchesPinnedVerification(verification) {
-  return (
-    verification?.sha256 === BEELLAMA_HIP_RADEON_ARCHIVE_CONTRACT.sha256 &&
-    verification?.bytes === BEELLAMA_HIP_RADEON_ARCHIVE_CONTRACT.bytes
+/** @param {{ archives?: RuntimeArchiveDescriptor[] } | null | undefined} runtime @param {RuntimeArchiveDescriptor} archive */
+function runtimeContainsArchiveDescriptor(runtime, archive) {
+  return Boolean(
+    Array.isArray(runtime?.archives) &&
+    runtime.archives.some((candidate) =>
+      runtimeArchiveDescriptorsMatch(candidate, archive),
+    ),
   );
 }
 
 /**
- * @param {{ id?: unknown; kind?: unknown; backend?: unknown }} runtime
- * @param {{ archive?: unknown; url?: unknown; sha256?: unknown; expectedBytes?: unknown }} archive
+ * @param {{ archives?: RuntimeArchiveDescriptor[] } | null | undefined} runtime
+ * @param {RuntimeArchiveDescriptor} archive
  * @param {{ sha256?: unknown; bytes?: unknown }} verification
  */
-function resolvePinnedLlamaRuntimeZipExtractionLimits(
+function resolveVerifiedLlamaRuntimeExtractionLimits(
   runtime,
   archive,
   verification,
 ) {
-  if (!matchesPinnedRuntime(runtime)) return undefined;
-  if (!matchesPinnedArchive(archive)) return undefined;
-  if (!matchesPinnedVerification(verification)) return undefined;
-  return BEELLAMA_HIP_RADEON_ZIP_EXTRACTION_LIMITS;
+  const expectedSha256 = normalizeSha256(archive?.sha256);
+  const expectedBytes = readExpectedRuntimeArchiveBytes(archive);
+  if (!expectedSha256 || expectedBytes === undefined) return undefined;
+  if (!runtimeContainsArchiveDescriptor(runtime, archive)) return undefined;
+  if (normalizeSha256(verification?.sha256) !== expectedSha256)
+    return undefined;
+  if (verification?.bytes !== expectedBytes) return undefined;
+  return VERIFIED_LLAMA_RUNTIME_EXTRACTION_LIMITS;
+}
+
+/**
+ * @param {{ id?: unknown; archives?: RuntimeArchiveDescriptor[] } | null | undefined} runtime
+ * @param {RuntimeArchiveDescriptor} archive
+ * @param {{ sha256?: unknown; bytes?: unknown }} verification
+ */
+function requireVerifiedLlamaRuntimeExtractionLimits(
+  runtime,
+  archive,
+  verification,
+) {
+  const limits = resolveVerifiedLlamaRuntimeExtractionLimits(
+    runtime,
+    archive,
+    verification,
+  );
+  if (limits) return limits;
+  throw Object.assign(
+    new Error(
+      "검증된 Gemma 실행 런타임과 내장 압축 자산 계약이 일치하지 않습니다.",
+    ),
+    { archive: archive.archive, runtimeId: runtime?.id },
+  );
 }
 
 /** @param {{ expectedBytes?: unknown } | null | undefined} archive */
@@ -88,9 +117,13 @@ function readExpectedRuntimeArchiveBytes(archive) {
 
 /** @param {{ expectedBytes?: unknown } | null | undefined} archive */
 function resolveRuntimeArchiveMaximumBytes(archive) {
-  return (
-    readExpectedRuntimeArchiveBytes(archive) ?? MAX_REMOTE_RUNTIME_ARCHIVE_BYTES
-  );
+  const expectedBytes = readExpectedRuntimeArchiveBytes(archive);
+  if (expectedBytes === undefined) {
+    throw new TypeError(
+      "Gemma 실행 런타임 descriptor에 expectedBytes가 필요합니다.",
+    );
+  }
+  return expectedBytes;
 }
 
 /** @param {Array<{ archive: string; url: string; sha256?: string; expectedBytes?: number }>} archives */
@@ -107,7 +140,17 @@ function assertRuntimeArchiveChecksumsPresent(archives) {
         { archive: archive.archive, url: archive.url },
       );
     }
-    resolveRuntimeArchiveMaximumBytes(archive);
+    try {
+      resolveRuntimeArchiveMaximumBytes(archive);
+    } catch (cause) {
+      throw Object.assign(
+        new Error(
+          "Gemma 실행 런타임 descriptor에 유효한 expectedBytes가 필요합니다.",
+          { cause },
+        ),
+        { archive: archive.archive, url: archive.url },
+      );
+    }
   }
 }
 
@@ -204,6 +247,7 @@ module.exports = {
   claimRuntimeArchivePaths,
   normalizeSha256,
   readExpectedRuntimeArchiveBytes,
-  resolvePinnedLlamaRuntimeZipExtractionLimits,
+  requireVerifiedLlamaRuntimeExtractionLimits,
+  resolveVerifiedLlamaRuntimeExtractionLimits,
   resolveRuntimeArchiveMaximumBytes,
 };

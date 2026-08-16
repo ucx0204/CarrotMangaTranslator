@@ -11,6 +11,7 @@ const path = require("node:path");
 const {
   addArchiveEntryToBudget,
   createArchiveExtractionDeadline,
+  resolveArchiveExtractionLimits,
   throwIfArchiveExtractionAborted,
 } = require("./archive-extraction-policy.cjs");
 
@@ -57,7 +58,18 @@ function isMissingDirectTarModule(error) {
 const tar = loadTarRuntime();
 
 /** @typedef {(name: string, relativePath: string) => boolean} RuntimeEntryFilter */
-/** @typedef {{ path: string; type?: string; linkpath?: string; size?: number; mode?: number }} TarEntryInfo */
+/** @typedef {{ path: string; type?: string; linkpath?: string; size?: number }} TarEntryInfo */
+/** @typedef {{ maximumEntries?: number; maximumEntryBytes?: number; maximumExpandedBytes?: number; maximumCompressionRatio?: number }} ArchiveExtractionLimitOverrides */
+
+/** @param {any} entry @param {string} [entryPath] @returns {TarEntryInfo} */
+function copyTarEntryInfo(entry, entryPath = entry.path) {
+  return {
+    path: entryPath,
+    type: entry.type,
+    linkpath: entry.linkpath,
+    size: entry.size,
+  };
+}
 
 /**
  * Extract a checksum-verified runtime tarball after a complete metadata pass.
@@ -66,7 +78,7 @@ const tar = loadTarRuntime();
  * @param {string} archivePath
  * @param {string} outputDir
  * @param {RuntimeEntryFilter} shouldExtract
- * @param {{ stripComponents?: number; abortSignal?: AbortSignal | null; deadlineMs?: number }} [options]
+ * @param {{ stripComponents?: number; abortSignal?: AbortSignal | null; deadlineMs?: number; limits?: ArchiveExtractionLimitOverrides }} [options]
  */
 async function extractSelectedTarEntries(
   archivePath,
@@ -75,12 +87,17 @@ async function extractSelectedTarEntries(
   options = {},
 ) {
   const stripComponents = normalizeStripComponents(options.stripComponents);
+  const limits = resolveArchiveExtractionLimits(options.limits);
   const deadline = createArchiveExtractionDeadline(
     options.abortSignal,
     options.deadlineMs,
   );
   try {
-    const entries = await inspectTarEntries(archivePath, deadline.signal);
+    const entries = await inspectTarEntries(
+      archivePath,
+      deadline.signal,
+      limits,
+    );
     validateTarEntries(entries, stripComponents);
     validateSelectedTarLinks(entries, stripComponents, shouldExtract);
     throwIfArchiveExtractionAborted(deadline.signal);
@@ -98,13 +115,7 @@ async function extractSelectedTarEntries(
       filter: (entryPath, entry) => {
         throwIfArchiveExtractionAborted(deadline.signal);
         const tarEntry = /** @type {any} */ (entry);
-        const entryInfo = {
-          path: entryPath,
-          type: tarEntry.type,
-          linkpath: tarEntry.linkpath,
-          size: tarEntry.size,
-          mode: tarEntry.mode,
-        };
+        const entryInfo = copyTarEntryInfo(tarEntry, entryPath);
         return (
           !isSymbolicLinkType(entryInfo.type) &&
           shouldExtractTarEntry(entryInfo, stripComponents, shouldExtract)
@@ -270,40 +281,45 @@ function resolveSelectedTarLinkTarget(
   return current.outputPath;
 }
 
-/** @param {string} archivePath @param {AbortSignal} signal @returns {Promise<TarEntryInfo[]>} */
-async function inspectTarEntries(archivePath, signal) {
+/** @param {string} archivePath @param {AbortSignal} signal @param {{ maximumEntries: number; maximumEntryBytes: number; maximumExpandedBytes: number; maximumCompressionRatio: number }} limits @returns {Promise<TarEntryInfo[]>} */
+async function inspectTarEntries(archivePath, signal, limits) {
   /** @type {TarEntryInfo[]} */
   const entries = [];
   const budget = { entryCount: 0, expandedBytes: 0 };
+  /** @type {unknown} */
+  let inspectionError;
   await tar.t({
     file: archivePath,
     strict: true,
     signal,
     /** @param {any} entry */
     onentry: (entry) => {
-      throwIfArchiveExtractionAborted(signal);
-      const entryInfo = {
-        path: entry.path,
-        type: entry.type,
-        linkpath: entry.linkpath,
-        size: entry.size,
-        mode: entry.mode,
-      };
-      addArchiveEntryToBudget(
-        budget,
-        {
-          name: entryInfo.path,
-          size: isDirectoryType(entryInfo.type) ? 0 : entryInfo.size,
-          directory: isDirectoryType(entryInfo.type),
-        },
-        path.basename(archivePath),
-      );
-      entries.push(entryInfo);
+      if (inspectionError) return;
+      try {
+        throwIfArchiveExtractionAborted(signal);
+        const entryInfo = copyTarEntryInfo(entry);
+        addArchiveEntryToBudget(
+          budget,
+          {
+            name: entryInfo.path,
+            size: isDirectoryType(entryInfo.type) ? 0 : entryInfo.size,
+            directory: isDirectoryType(entryInfo.type),
+          },
+          path.basename(archivePath),
+          limits,
+        );
+        entries.push(entryInfo);
+      } catch (error) {
+        // tar's onentry callback is event-driven; throwing here escapes the
+        // promise and can leave the metadata pass pending. Capture the first
+        // validation error and reject after tar.t has drained the archive.
+        inspectionError = error;
+      }
     },
   });
-  if (entries.length === 0) {
+  if (inspectionError) throw inspectionError;
+  if (entries.length === 0)
     throw new Error(`${path.basename(archivePath)} archive is empty.`);
-  }
   return entries;
 }
 

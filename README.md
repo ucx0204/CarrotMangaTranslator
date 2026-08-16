@@ -23,8 +23,8 @@
 당근망가번역기는 이미지 속 대사와 효과음을 찾고, AI 번역 블록을 만든 뒤, 사람이 문장과 배치를 다듬어 완성 PNG나 레이어 PSD로 내보내는 만화 작업 도구입니다. 이미지 한 장부터 폴더, ZIP, CBZ까지 불러올 수 있습니다.
 
 - 다운로드: [GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
-- 현재 소스 버전: `v1.15.0`
-- 패치노트: [v1.15.0](docs/release-notes/v1.15.0.md)
+- 현재 소스 버전: `v1.16.0`
+- 패치노트: [v1.16.0](docs/release-notes/v1.16.0.md)
 - 문제가 생겼나요?: [자주 묻는 질문](#막히면-여기부터-확인하세요)
 
 ---

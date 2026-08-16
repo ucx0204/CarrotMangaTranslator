@@ -109,6 +109,12 @@
       "functions": { "covered": 14, "total": 15, "pct": 93.33 },
       "branches": { "covered": 37, "total": 53, "pct": 69.81 }
     },
+    "src/main/runtime/model/llama-runtime-archive-policy.cjs": {
+      "lines": { "covered": 49, "total": 59, "pct": 83.05 },
+      "statements": { "covered": 56, "total": 66, "pct": 84.84 },
+      "functions": { "covered": 14, "total": 14, "pct": 100 },
+      "branches": { "covered": 37, "total": 44, "pct": 84.09 }
+    },
     "src/main/runtime/model/llama-runtime-download.cjs": {
       "lines": { "covered": 71, "total": 124, "pct": 57.25 },
       "statements": { "covered": 74, "total": 133, "pct": 55.63 },
@@ -246,6 +252,12 @@
       "statements": { "covered": 34, "total": 36, "pct": 94.44 },
       "functions": { "covered": 6, "total": 6, "pct": 100 },
       "branches": { "covered": 22, "total": 27, "pct": 81.48 }
+    },
+    "src/main/runtime/simple-page-tar-utils.cjs": {
+      "lines": { "covered": 126, "total": 155, "pct": 81.29 },
+      "statements": { "covered": 132, "total": 163, "pct": 80.98 },
+      "functions": { "covered": 24, "total": 26, "pct": 92.3 },
+      "branches": { "covered": 84, "total": 110, "pct": 76.36 }
     },
     "src/main/runtime/simple-page-zip-utils.cjs": {
       "lines": { "covered": 115, "total": 121, "pct": 95.04 },

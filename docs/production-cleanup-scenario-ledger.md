@@ -83,7 +83,7 @@ editing the totals by hand.
   the sealed scope; its ignored artifact has SHA-256
   `fa34ac98e47d3e3848b1309ebddfb63f33d6e2ee1661da30788ca592484fe0bc`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
-  percentage for lines/statements/functions/branches in all 159 existing
+  percentage for lines/statements/functions/branches in all 161 existing
   coverage-eligible `src/**` files changed since cleanup start. The 27 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record. The
