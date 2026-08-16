@@ -173,12 +173,10 @@ describe("GatherTextDirectFormatModal", () => {
     const selection = makeSelection();
     const { container } = renderModal(selection);
 
-    chooseCustomSelectOption("줄바꿈 방식", "긴 문자열 넘침 방지");
+    chooseCustomSelectOption("줄바꿈 방식", "표준+넘침 방지");
 
     openCustomSelect("줄바꿈 방식");
-    expect(
-      screen.getByRole("option", { name: "긴 문자열 넘침 방지" }),
-    ).toBeTruthy();
+    expect(screen.getByRole("option", { name: "표준+넘침 방지" })).toBeTruthy();
     expect(screen.queryByText("break-word")).toBeNull();
     expect(
       container.querySelector<HTMLElement>(".gather-direct-preview-text")?.style

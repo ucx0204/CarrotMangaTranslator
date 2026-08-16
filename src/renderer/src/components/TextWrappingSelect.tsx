@@ -14,7 +14,6 @@ export function TextWrappingSelect({
   className,
   disabled = false,
   mixed = false,
-  showDescription = true,
   value,
   onChange,
 }: {
@@ -22,16 +21,11 @@ export function TextWrappingSelect({
   className?: string;
   disabled?: boolean;
   mixed?: boolean;
-  showDescription?: boolean;
   value: TextWordBreak;
   onChange: (value: TextWordBreak) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
-  const descriptionId = React.useId();
   const selectValue = mixed ? MIXED_TEXT_WRAPPING_VALUE : value;
-  const description = mixed
-    ? t("gatherText.mixedValue")
-    : t(`format.wordBreak.descriptions.${value}`);
   const options: SelectOption[] = [
     ...(mixed
       ? [
@@ -45,7 +39,6 @@ export function TextWrappingSelect({
     ...TEXT_WORD_BREAK_VALUES.map((option) => ({
       value: option,
       label: t(`format.wordBreak.options.${option}`),
-      description: t(`format.wordBreak.descriptions.${option}`),
     })),
   ];
   return (
@@ -53,20 +46,11 @@ export function TextWrappingSelect({
       <Select
         className={className}
         ariaLabel={ariaLabel}
-        ariaDescribedBy={showDescription ? descriptionId : undefined}
         value={selectValue}
         disabled={disabled}
         options={options}
-        onValueChange={(nextValue) => {
-          if (nextValue === MIXED_TEXT_WRAPPING_VALUE) return;
-          onChange(nextValue as TextWordBreak);
-        }}
+        onValueChange={(nextValue) => onChange(nextValue as TextWordBreak)}
       />
-      {showDescription ? (
-        <small id={descriptionId} className="text-wrapping-select-description">
-          {description}
-        </small>
-      ) : null}
     </span>
   );
 }

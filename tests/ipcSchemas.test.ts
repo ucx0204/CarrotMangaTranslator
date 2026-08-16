@@ -1150,6 +1150,7 @@ describe("IPC schemas", () => {
       "break-all",
       "keep-all",
       "break-word",
+      "keep-all-overflow",
     ] as const) {
       const parsed = parseIpcPayload(
         TranslationBlockSchema,

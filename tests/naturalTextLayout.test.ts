@@ -704,7 +704,13 @@ describe("natural translated-text layout", () => {
     expect(block.wordBreak).toBeUndefined();
   });
 
-  it.each(["normal", "break-all"] as const)(
+  it.each([
+    "normal",
+    "break-word",
+    "break-all",
+    "keep-all",
+    "keep-all-overflow",
+  ] as const)(
     "adds hard breaks without changing an explicit %s wrapping policy",
     (wordBreak) => {
       const block = makeBlock(

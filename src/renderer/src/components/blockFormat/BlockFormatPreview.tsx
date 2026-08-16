@@ -4,6 +4,10 @@ import {
   resolveEffectiveTextOutlineColor,
   resolveEffectiveTextOutlineWidthPx,
 } from "../../../../shared/textOutline";
+import {
+  allowsLongTokenFallback,
+  resolveCssTextWordBreak,
+} from "../../../../shared/textWrapping";
 import { useFonts } from "../../fonts/useFonts";
 import { resolveBlockFontFamily } from "../../lib/fonts";
 import { TextWithVerticalSpacing } from "../VerticalTextSpacing";
@@ -116,6 +120,11 @@ export function BlockFormatPreviewStage({
                   ? resolveEffectiveTextOutlineColor(values)
                   : "transparent",
               WebkitTextStrokeWidth: `${outlineWidthPx * 2}px`,
+              "--mgt-vertical-symbol-outline-color":
+                outlineWidthPx > 0
+                  ? resolveEffectiveTextOutlineColor(values)
+                  : "transparent",
+              "--mgt-vertical-symbol-outline-width": `${outlineWidthPx}px`,
               paintOrder: "stroke fill",
               transform: `scaleX(${values.fontWidthScale})`,
               ...resolvePreviewWrappingStyle(values.wordBreak),
@@ -124,6 +133,7 @@ export function BlockFormatPreviewStage({
           }
         >
           <TextWithVerticalSpacing
+            bold={values.bold}
             direction={values.renderDirection}
             text={previewText}
           />
@@ -140,8 +150,8 @@ function resolvePreviewWrappingStyle(
   wordBreak: BlockFormatPreviewValues["wordBreak"],
 ): React.CSSProperties {
   return {
-    overflowWrap: wordBreak === "break-word" ? "anywhere" : "normal",
-    wordBreak,
+    overflowWrap: allowsLongTokenFallback(wordBreak) ? "anywhere" : "normal",
+    wordBreak: resolveCssTextWordBreak(wordBreak),
   };
 }
 

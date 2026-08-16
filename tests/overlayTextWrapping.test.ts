@@ -18,9 +18,10 @@ describe("overlay text word breaking", () => {
   it("distinguishes natural, anywhere, keep-together, and emergency wrapping", () => {
     const expected: Record<TextWordBreak, string[]> = {
       normal: ["ab ", "cdefgh"],
+      "break-word": ["ab ", "cdefg", "h"],
       "break-all": ["ab cd", "efgh"],
       "keep-all": ["ab ", "cdefgh"],
-      "break-word": ["ab ", "cdefg", "h"],
+      "keep-all-overflow": ["ab ", "cdefg", "h"],
     };
 
     for (const wordBreak of Object.keys(expected) as TextWordBreak[]) {
@@ -30,7 +31,7 @@ describe("overlay text word breaking", () => {
     }
   });
 
-  it("allows ordinary CJK breaks except in the keep-together mode", () => {
+  it("keeps legacy word wrapping while offering a separate overflow-safe mode", () => {
     expect(measureLines(plainRuns("가나다라마"), 30, "normal")).toEqual([
       "가나다",
       "라마",
@@ -42,6 +43,9 @@ describe("overlay text word breaking", () => {
     expect(measureLines(plainRuns("가나다라마"), 30, "keep-all")).toEqual([
       "가나다라마",
     ]);
+    expect(
+      measureLines(plainRuns("가나다라마"), 30, "keep-all-overflow"),
+    ).toEqual(["가나다", "라마"]);
     expect(measureLines(plainRuns("가,나"), 20, "normal")).toEqual([
       "가,",
       "나",
@@ -188,6 +192,43 @@ describe("overlay text word breaking", () => {
 
     expect(lineTexts(measured.lines)).toEqual(["ab ", "cdefg", "h"]);
     expect(measured.lines.map((line) => line.slot)).toEqual(slots);
+    expect(measured.consumedAll).toBe(true);
+    expect(measured.fits).toBe(true);
+  });
+
+  it("uses the opt-in long-word fallback in word-preserving bubble slots", () => {
+    const slots = [
+      {
+        blockOffsetPx: 0,
+        inlineOffsetPx: 0,
+        availableWidth: 30,
+        regionIndex: 0,
+      },
+      {
+        blockOffsetPx: 12,
+        inlineOffsetPx: 0,
+        availableWidth: 30,
+        regionIndex: 0,
+      },
+      {
+        blockOffsetPx: 24,
+        inlineOffsetPx: 0,
+        availableWidth: 30,
+        regionIndex: 0,
+      },
+    ];
+    const measured = measureStyledWrappedTextInSlots(
+      fixedMeasureContext,
+      plainRuns("abcdefgh"),
+      slots,
+      12,
+      10,
+      "sans-serif",
+      0,
+      "keep-all-overflow",
+    );
+
+    expect(lineTexts(measured.lines)).toEqual(["abc", "def", "gh"]);
     expect(measured.consumedAll).toBe(true);
     expect(measured.fits).toBe(true);
   });

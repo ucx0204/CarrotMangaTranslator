@@ -259,6 +259,9 @@ function readRunStyle(element: HTMLElement): Omit<TextStyleRun, "text"> {
       ? { fontFamily: element.dataset.fontFamily }
       : {}),
     ...(opacity === undefined ? {} : { opacity }),
+    ...(element.dataset.verticalCombine === "true"
+      ? { verticalCombine: true }
+      : {}),
   };
 }
 
@@ -282,6 +285,7 @@ function createRunSpan(
   if (run.sizePx !== undefined) span.dataset.sizePx = String(run.sizePx);
   if (run.fontFamily) span.dataset.fontFamily = run.fontFamily;
   if (run.opacity !== undefined) span.dataset.opacity = String(run.opacity);
+  span.dataset.verticalCombine = String(Boolean(run.verticalCombine));
 
   const absoluteSize = run.sizePx ?? baseSize;
   span.style.fontSize = `${clampPreviewFontSize((absoluteSize / baseSize) * 16)}px`;

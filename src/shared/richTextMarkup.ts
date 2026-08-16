@@ -22,6 +22,8 @@ export type TextStyleRun = {
   fontFamily?: string;
   /** Absolute text opacity from 0 to 1. */
   opacity?: number;
+  /** Render this run as one horizontal cell only in vertical writing. */
+  verticalCombine?: boolean;
 };
 
 export type ParsedRichText = {
@@ -35,6 +37,7 @@ export type TextStylePatch = {
   sizePx?: number | null;
   fontFamily?: string | null;
   opacity?: number | null;
+  verticalCombine?: boolean | null;
 };
 
 const MARKERS = ["***", "**", "*"] as const;
@@ -42,7 +45,7 @@ const MAX_PARSE_DEPTH = 16;
 const FONT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$/;
 
 type StyleContext = Omit<TextStyleRun, "text">;
-type StyleTagName = "size" | "font" | "opacity";
+type StyleTagName = "size" | "font" | "opacity" | "tcy";
 
 type StyleTagMatch = {
   name: StyleTagName;
@@ -136,6 +139,7 @@ export function clearTextStylesFromRuns(
     sizePx: null,
     fontFamily: null,
     opacity: null,
+    verticalCombine: null,
   });
 }
 
@@ -248,11 +252,18 @@ function matchStyleOpeningTag(
   const end = input.indexOf("]", start + 1);
   if (end < 0 || end - start > 140) return null;
   const body = input.slice(start + 1, end);
+  const nextIndex = end + 1;
+  if (body === "tcy") {
+    return {
+      name: "tcy",
+      nextIndex,
+      patch: { verticalCombine: true },
+    };
+  }
   const equals = body.indexOf("=");
   if (equals <= 0) return null;
   const name = body.slice(0, equals) as StyleTagName;
   const rawValue = body.slice(equals + 1).trim();
-  const nextIndex = end + 1;
 
   if (name === "size") {
     const value = Number(rawValue);
@@ -380,6 +391,7 @@ function serializeRun(run: TextStyleRun): string {
   if (run.bold && run.italic) content = `***${content}***`;
   else if (run.bold) content = `**${content}**`;
   else if (run.italic) content = `*${content}*`;
+  if (run.verticalCombine) content = `[tcy]${content}[/tcy]`;
   if (run.opacity !== undefined) {
     content = `[opacity=${formatNumber(normalizeOpacity(run.opacity) * 100)}]${content}[/opacity]`;
   }
@@ -409,6 +421,7 @@ function applyStylePatch(
   applyOptionalPatch(next, "sizePx", patch.sizePx);
   applyOptionalPatch(next, "fontFamily", patch.fontFamily);
   applyOptionalPatch(next, "opacity", patch.opacity);
+  applyOptionalPatch(next, "verticalCombine", patch.verticalCombine);
   return normalizeRun(next);
 }
 
@@ -424,7 +437,13 @@ function applyContextPatch(
 }
 
 function applyOptionalPatch<
-  Key extends "bold" | "italic" | "sizePx" | "fontFamily" | "opacity",
+  Key extends
+    | "bold"
+    | "italic"
+    | "sizePx"
+    | "fontFamily"
+    | "opacity"
+    | "verticalCombine",
 >(target: TextStyleRun, key: Key, value: TextStylePatch[Key]): void {
   if (value === undefined) return;
   if (value === null) {
@@ -455,6 +474,9 @@ function normalizeRun(run: TextStyleRun): TextStyleRun {
   if (run.opacity !== undefined && Number.isFinite(run.opacity)) {
     next.opacity = normalizeOpacity(run.opacity);
   }
+  if (run.verticalCombine) {
+    next.verticalCombine = true;
+  }
   return next;
 }
 
@@ -464,7 +486,8 @@ function haveSameStyle(left: TextStyleRun, right: TextStyleRun): boolean {
     left.italic === right.italic &&
     left.sizePx === right.sizePx &&
     left.fontFamily === right.fontFamily &&
-    left.opacity === right.opacity
+    left.opacity === right.opacity &&
+    left.verticalCombine === right.verticalCombine
   );
 }
 

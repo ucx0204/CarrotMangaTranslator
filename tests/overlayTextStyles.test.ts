@@ -14,6 +14,7 @@ describe("overlay text word-break styles", () => {
     ["break-all", "vertical", "break-all", "normal"],
     ["keep-all", "vertical", "keep-all", "normal"],
     ["break-word", "vertical", "break-word", "anywhere"],
+    ["keep-all-overflow", "vertical", "keep-all", "anywhere"],
   ] as const)(
     "maps %s in %s text to word-break %s and overflow-wrap %s",
     (wordBreak, renderDirection, expectedWordBreak, expectedOverflowWrap) => {
@@ -102,11 +103,18 @@ describe("overlay text word-break styles", () => {
       outlineWidthScale: 1,
     };
     const style = resolveOverlayTextContentStyle(block, LAYOUT, "horizontal");
-
+    const verticalSymbolStyle = style as typeof style &
+      VerticalSymbolOutlineCss;
     expect(style.textShadow).toBe("none");
     expect(style.WebkitTextStrokeColor).toBe("#ffffff");
     expect(style.WebkitTextStrokeWidth).not.toBe("0px");
     expect(style.paintOrder).toBe("stroke fill");
+    expect(verticalSymbolStyle["--mgt-vertical-symbol-outline-color"]).toBe(
+      "#ffffff",
+    );
+    expect(verticalSymbolStyle["--mgt-vertical-symbol-outline-width"]).toBe(
+      `${resolveBlockTextOutlinePx(block, LAYOUT.fontSizePx)}px`,
+    );
     expect(resolveBlockTextOutlinePx(block, 10)).toBeGreaterThanOrEqual(0.5);
   });
 
@@ -121,7 +129,6 @@ describe("overlay text word-break styles", () => {
       LAYOUT,
       "horizontal",
     );
-
     expect(style.textShadow).toBe("none");
     expect(style.WebkitTextStrokeColor).toBe("#111111");
     expect(style.WebkitTextStrokeWidth).not.toBe("0px");
@@ -147,9 +154,17 @@ describe("overlay text word-break styles", () => {
       LAYOUT,
       "horizontal",
     );
+    const verticalSymbolStyle = style as typeof style &
+      VerticalSymbolOutlineCss;
 
     expect(style.textShadow).toBe("none");
     expect(style.WebkitTextStrokeColor).toBe("transparent");
+    expect(verticalSymbolStyle["--mgt-vertical-symbol-outline-color"]).toBe(
+      "transparent",
+    );
+    expect(verticalSymbolStyle["--mgt-vertical-symbol-outline-width"]).toBe(
+      "0px",
+    );
   });
 
   it("prefers an absolute manual outline width over the legacy scale", () => {
@@ -199,4 +214,9 @@ const LAYOUT: BlockTextLayout = {
   textScaleX: 1,
   textScaleY: 1,
   overflow: false,
+};
+
+type VerticalSymbolOutlineCss = {
+  "--mgt-vertical-symbol-outline-color": string;
+  "--mgt-vertical-symbol-outline-width": string;
 };

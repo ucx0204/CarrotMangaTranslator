@@ -28,16 +28,7 @@
 .text-wrapping-select-control {
   display: grid;
   min-width: 0;
-  gap: 4px;
   white-space: normal;
-}
-
-.text-wrapping-select-description {
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 400;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
 }
 
 /* 서식 일괄 적용 modal */
@@ -279,6 +270,65 @@
 .rich-editor-toolbar {
   justify-content: flex-end;
   gap: 5px;
+}
+
+.rich-special-character-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 7px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-sm);
+  background: var(--bg-elevated);
+  color: var(--text-dim);
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.rich-special-character-trigger:hover:not(:disabled),
+.rich-special-character-trigger[aria-expanded="true"] {
+  border-color: color-mix(in srgb, var(--accent) 58%, var(--border-strong));
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.rich-special-character-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.rich-special-character-panel {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(28px, 1fr));
+  padding: 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-sm);
+  background: var(--bg-sunken);
+  gap: 4px;
+}
+
+.rich-special-character-panel button {
+  min-width: 0;
+  min-height: 30px;
+  padding: 0 3px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-xs);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.rich-special-character-panel button:hover:not(:disabled),
+.rich-special-character-panel button:focus-visible {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  outline: none;
 }
 
 .rich-editor-toolbar button[aria-pressed="true"],

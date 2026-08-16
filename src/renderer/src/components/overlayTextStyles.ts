@@ -9,7 +9,9 @@ import {
   resolveEffectiveTextOutlineWidthPx,
 } from "../../../shared/textOutline";
 import {
+  allowsLongTokenFallback,
   resolveBlockTextWordBreak,
+  resolveCssTextWordBreak,
   type TextWordBreak,
 } from "../../../shared/textWrapping";
 import { resolveBlockFontFamily, type BlockFontCatalog } from "../lib/fonts";
@@ -127,10 +129,16 @@ function resolveWordBreakCss(wordBreak: TextWordBreak): {
   overflowWrap: React.CSSProperties["overflowWrap"];
   wordBreak: React.CSSProperties["wordBreak"];
 } {
-  if (wordBreak === "break-word") {
-    return { overflowWrap: "anywhere", wordBreak };
+  if (allowsLongTokenFallback(wordBreak)) {
+    return {
+      overflowWrap: "anywhere",
+      wordBreak: resolveCssTextWordBreak(wordBreak),
+    };
   }
-  return { overflowWrap: "normal", wordBreak };
+  return {
+    overflowWrap: "normal",
+    wordBreak: resolveCssTextWordBreak(wordBreak),
+  };
 }
 
 export function resolveBlockTextOutlinePx(
@@ -143,15 +151,12 @@ export function resolveBlockTextOutlinePx(
 function resolveBlockTextOutlineCss(
   block: TranslationBlock,
   fontSizePx: number,
-): Pick<
-  React.CSSProperties,
-  | "WebkitTextStrokeColor"
-  | "WebkitTextStrokeWidth"
-  | "paintOrder"
-  | "textShadow"
-> {
+): React.CSSProperties {
   const width = resolveBlockTextOutlinePx(block, fontSizePx);
   return {
+    "--mgt-vertical-symbol-outline-color":
+      width > 0 ? resolveEffectiveTextOutlineColor(block) : "transparent",
+    "--mgt-vertical-symbol-outline-width": `${width}px`,
     textShadow: "none",
     WebkitTextStrokeColor:
       width > 0 ? resolveEffectiveTextOutlineColor(block) : "transparent",
@@ -159,7 +164,7 @@ function resolveBlockTextOutlineCss(
     // outward thickness keeps the visible outline equal to the requested px.
     WebkitTextStrokeWidth: `${width * 2}px`,
     paintOrder: "stroke fill",
-  };
+  } as React.CSSProperties;
 }
 
 function resolveFontWidthOrigin(

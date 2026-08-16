@@ -4,9 +4,10 @@ export type { TextWordBreak } from "./textTypes";
 
 export const TEXT_WORD_BREAK_VALUES = [
   "normal",
+  "break-word",
   "break-all",
   "keep-all",
-  "break-word",
+  "keep-all-overflow",
 ] as const satisfies readonly TextWordBreak[];
 
 /** Matches the text overflow behavior used before wrapping became configurable. */
@@ -40,4 +41,18 @@ export function resolveBlockTextWordBreak(
     return value as TextWordBreak;
   }
   return renderDirection === "vertical" ? "break-word" : "break-all";
+}
+
+export function allowsLongTokenFallback(wordBreak: TextWordBreak): boolean {
+  return wordBreak === "break-word" || wordBreak === "keep-all-overflow";
+}
+
+export function keepsWordsTogether(wordBreak: TextWordBreak): boolean {
+  return wordBreak === "keep-all" || wordBreak === "keep-all-overflow";
+}
+
+export function resolveCssTextWordBreak(
+  wordBreak: TextWordBreak,
+): Exclude<TextWordBreak, "keep-all-overflow"> {
+  return wordBreak === "keep-all-overflow" ? "keep-all" : wordBreak;
 }

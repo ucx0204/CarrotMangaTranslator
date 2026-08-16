@@ -254,7 +254,8 @@ function supportsNaturalHardBreaks(block: TranslationBlock): boolean {
     block.wordBreak === "normal" ||
     block.wordBreak === "break-all" ||
     block.wordBreak === "break-word" ||
-    block.wordBreak === "keep-all"
+    block.wordBreak === "keep-all" ||
+    block.wordBreak === "keep-all-overflow"
   );
 }
 

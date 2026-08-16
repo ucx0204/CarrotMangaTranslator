@@ -1,5 +1,7 @@
 import type { TextStyleRun } from "../../../shared/richTextMarkup";
 import {
+  allowsLongTokenFallback,
+  keepsWordsTogether,
   resolveTextWordBreak,
   type TextWordBreak,
 } from "../../../shared/textWrapping";
@@ -183,12 +185,14 @@ export function measureUniformStyledWrappedTextInSlots(
     style: TextRunRenderStyle,
   ) => number,
   resolveRunStyle?: TextRunStyleResolver,
+  segmentText?: (text: string, run: TextStyleRun) => string[],
 ): SlottedWrappedTextMeasurement {
   const graphemes = measureUniformStyledGraphemes(
     runs,
     graphemeAdvancePx,
     resolveGraphemeAdvancePx,
     resolveRunStyle,
+    segmentText,
   );
   return measureWrappedTextInSlots(
     graphemes,
@@ -267,11 +271,11 @@ function wrapParagraphInSlots(
   const units =
     wordBreak === "break-all"
       ? graphemes.map((grapheme) => [grapheme])
-      : buildNaturalUnits(graphemes, wordBreak !== "keep-all");
+      : buildNaturalUnits(graphemes, !keepsWordsTogether(wordBreak));
   return new SlotParagraphWriter(
     slots,
     letterSpacingPx,
-    wordBreak === "break-word",
+    allowsLongTokenFallback(wordBreak),
   ).wrap(units);
 }
 

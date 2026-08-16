@@ -163,15 +163,10 @@
       "label": "改行方法",
       "options": {
         "normal": "標準",
+        "break-word": "標準＋はみ出し防止",
         "break-all": "文字単位",
         "keep-all": "単語単位",
-        "break-word": "長い文字列のはみ出し防止"
-      },
-      "descriptions": {
-        "normal": "言語ごとの標準的な規則で改行します。",
-        "break-all": "単語の途中でも文字単位で改行します。",
-        "keep-all": "単語を分割せず、単語の間で改行します。",
-        "break-word": "URLなどの長い文字列が枠を超える場合だけ分割します。"
+        "keep-all-overflow": "単語単位＋はみ出し防止"
       }
     }
   },
@@ -354,7 +349,9 @@
       "opacity": "文字の不透明度",
       "mixed": "混在",
       "placeholder": "翻訳文を入力",
-      "codeAria": "翻訳文の書式コード"
+      "codeAria": "翻訳文の書式コード",
+      "specialCharacters": "記号",
+      "insertSpecialCharacter": "{{character}}を入力"
     }
   },
   "formatBatch": {

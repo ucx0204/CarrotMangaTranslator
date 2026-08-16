@@ -18,6 +18,7 @@ import {
 import {
   resolveDefaultVerticalGraphemeAdvancePx,
   resolveVerticalGraphemeAdvancePx,
+  segmentVerticalTextGraphemes,
 } from "./verticalTextSpacing";
 import {
   createTextRunStyleResolver,
@@ -146,5 +147,7 @@ function measureVerticalStyledTextInSlots(
       );
     },
     resolveRunStyle,
+    (text, run) =>
+      segmentVerticalTextGraphemes(text, run.verticalCombine === true),
   );
 }

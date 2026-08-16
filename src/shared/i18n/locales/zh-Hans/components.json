@@ -163,15 +163,10 @@
       "label": "换行方式",
       "options": {
         "normal": "标准",
+        "break-word": "标准＋防溢出",
         "break-all": "按字符",
         "keep-all": "按词语",
-        "break-word": "防止长字符串溢出"
-      },
-      "descriptions": {
-        "normal": "按照各语言的默认规则换行。",
-        "break-all": "即使在词语中间，也按字符换行。",
-        "keep-all": "保持词语完整，只在词语之间换行。",
-        "break-word": "仅当网址等长字符串超出边框时才拆分。"
+        "keep-all-overflow": "按词语＋防溢出"
       }
     }
   },
@@ -347,7 +342,9 @@
       "opacity": "字符不透明度",
       "mixed": "混合",
       "placeholder": "输入译文",
-      "codeAria": "译文格式代码"
+      "codeAria": "译文格式代码",
+      "specialCharacters": "符号",
+      "insertSpecialCharacter": "输入{{character}}"
     }
   },
   "formatBatch": {

@@ -6,7 +6,12 @@ export type BlockType = "nonsolid";
 export type SourceTextDirection = "horizontal" | "vertical";
 export type RenderTextDirection = "horizontal" | "vertical";
 export type ReviewStatus = "draft" | "needs_review" | "reviewed";
-export type TextWordBreak = "normal" | "break-all" | "keep-all" | "break-word";
+export type TextWordBreak =
+  | "normal"
+  | "break-word"
+  | "break-all"
+  | "keep-all"
+  | "keep-all-overflow";
 
 export type BBox = {
   x: number;

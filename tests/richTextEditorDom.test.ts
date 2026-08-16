@@ -37,6 +37,7 @@ describe("rich text editor DOM", () => {
         sizePx: 40,
         fontFamily: "display",
         opacity: 0.45,
+        verticalCombine: true,
       },
     ];
 

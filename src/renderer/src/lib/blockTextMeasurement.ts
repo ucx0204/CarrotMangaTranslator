@@ -17,6 +17,7 @@ import {
 import {
   resolveDefaultVerticalGraphemeAdvancePx,
   resolveVerticalGraphemeAdvancePx,
+  segmentVerticalTextGraphemes,
 } from "./verticalTextSpacing";
 import {
   createTextRunStyleResolver,
@@ -191,6 +192,8 @@ function measureVerticalText(
       );
     },
     resolveRunStyle,
+    (text, run) =>
+      segmentVerticalTextGraphemes(text, run.verticalCombine === true),
   );
   const columnCount = Math.max(1, measured.lineCount);
   const estimatedColumnWidth = maximumFontSizePx * 1.15 * fontWidthScale;

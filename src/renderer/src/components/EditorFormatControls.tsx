@@ -133,7 +133,6 @@ function TextWrappingField({
           block.renderDirection,
         )}
         disabled={disabled}
-        showDescription={false}
         onChange={(wordBreak) => onUpdate({ wordBreak })}
       />
     </label>

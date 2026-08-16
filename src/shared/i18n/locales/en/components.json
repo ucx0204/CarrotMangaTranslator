@@ -167,15 +167,10 @@
       "label": "Line wrapping",
       "options": {
         "normal": "Standard",
+        "break-word": "Standard + overflow protection",
         "break-all": "By character",
         "keep-all": "By word",
-        "break-word": "Prevent long-text overflow"
-      },
-      "descriptions": {
-        "normal": "Wrap using the default rules for each language.",
-        "break-all": "Wrap by character, even in the middle of a word.",
-        "keep-all": "Keep words intact and wrap between words.",
-        "break-word": "Split only long strings such as URLs when they would overflow."
+        "keep-all-overflow": "By word + overflow protection"
       }
     }
   },
@@ -354,7 +349,9 @@
       "opacity": "Character opacity",
       "mixed": "Mixed",
       "placeholder": "Enter translation",
-      "codeAria": "Translation formatting code"
+      "codeAria": "Translation formatting code",
+      "specialCharacters": "Symbols",
+      "insertSpecialCharacter": "Insert {{character}}"
     }
   },
   "formatBatch": {

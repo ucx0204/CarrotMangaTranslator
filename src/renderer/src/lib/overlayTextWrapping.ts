@@ -1,6 +1,8 @@
 /* eslint-disable max-lines -- one wrapping module owns the shared styled-grapheme measurement and line-break contract */
 import type { TextStyleRun } from "../../../shared/richTextMarkup";
 import {
+  allowsLongTokenFallback,
+  keepsWordsTogether,
   resolveTextWordBreak,
   type TextWordBreak,
 } from "../../../shared/textWrapping";
@@ -47,6 +49,7 @@ export type StyledGrapheme = {
   text: string;
   bold: boolean;
   italic: boolean;
+  verticalCombine?: boolean;
   width: number;
   renderedFontSizePx?: number;
   renderedFontFamily?: string;
@@ -105,12 +108,14 @@ export function measureUniformStyledWrappedText(
     style: TextRunRenderStyle,
   ) => number,
   resolveRunStyle?: TextRunStyleResolver,
+  segmentText?: (text: string, run: TextStyleRun) => string[],
 ): WrappedTextMeasurement {
   const graphemes = measureUniformStyledGraphemes(
     runs,
     graphemeAdvancePx,
     resolveGraphemeAdvancePx,
     resolveRunStyle,
+    segmentText,
   );
   return measureWrappedGraphemes(
     graphemes,
@@ -163,6 +168,7 @@ export function measureStyledGraphemes(
       text: segment,
       bold: run.bold,
       italic: run.italic,
+      ...(run.verticalCombine ? { verticalCombine: true } : {}),
       width: segment === "\n" ? 0 : context.measureText(segment).width,
       ...(resolveRunStyle
         ? {
@@ -185,6 +191,7 @@ export function measureUniformStyledGraphemes(
     style: TextRunRenderStyle,
   ) => number,
   resolveRunStyle?: TextRunStyleResolver,
+  segmentText: (text: string, run: TextStyleRun) => string[] = segmentGraphemes,
 ): StyledGrapheme[] {
   return runs.flatMap((run) => {
     const style = resolveRunStyle?.(run) ?? {
@@ -192,10 +199,11 @@ export function measureUniformStyledGraphemes(
       fontFamily: "sans-serif",
       opacity: 1,
     };
-    return segmentGraphemes(normalizeNewlines(run.text)).map((text) => ({
+    return segmentText(normalizeNewlines(run.text), run).map((text) => ({
       text,
       bold: run.bold,
       italic: run.italic,
+      ...(run.verticalCombine ? { verticalCombine: true } : {}),
       width:
         text === "\n"
           ? 0
@@ -262,12 +270,12 @@ function wrapParagraph(
     return wrapEagerly(graphemes, maxWidth, letterSpacingPx);
   }
 
-  const units = buildNaturalUnits(graphemes, wordBreak !== "keep-all");
+  const units = buildNaturalUnits(graphemes, !keepsWordsTogether(wordBreak));
   return wrapNaturalUnits(
     units,
     maxWidth,
     letterSpacingPx,
-    wordBreak === "break-word",
+    allowsLongTokenFallback(wordBreak),
   );
 }
 
@@ -397,40 +405,51 @@ export function toBlockTextLine(
       lastRun &&
       lastRun.bold === grapheme.bold &&
       lastRun.italic === grapheme.italic &&
+      lastRun.verticalCombine === grapheme.verticalCombine &&
       lastRun.renderedFontSizePx === grapheme.renderedFontSizePx &&
       lastRun.renderedFontFamily === grapheme.renderedFontFamily &&
       lastRun.renderedOpacity === grapheme.renderedOpacity
     ) {
       lastRun.text += grapheme.text;
     } else {
-      runs.push({
-        text: grapheme.text,
-        bold: grapheme.bold,
-        italic: grapheme.italic,
-        ...(grapheme.renderedFontSizePx === undefined
-          ? {}
-          : { renderedFontSizePx: grapheme.renderedFontSizePx }),
-        ...(grapheme.renderedFontFamily === undefined
-          ? {}
-          : { renderedFontFamily: grapheme.renderedFontFamily }),
-        ...(grapheme.renderedOpacity === undefined
-          ? {}
-          : { renderedOpacity: grapheme.renderedOpacity }),
-      });
+      runs.push(createRenderedTextStyleRun(grapheme));
     }
   }
   return { runs, width };
+}
+
+function createRenderedTextStyleRun(
+  grapheme: StyledGrapheme,
+): RenderedTextStyleRun {
+  return {
+    text: grapheme.text,
+    bold: grapheme.bold,
+    italic: grapheme.italic,
+    ...(grapheme.verticalCombine ? { verticalCombine: true } : {}),
+    ...(grapheme.renderedFontSizePx === undefined
+      ? {}
+      : { renderedFontSizePx: grapheme.renderedFontSizePx }),
+    ...(grapheme.renderedFontFamily === undefined
+      ? {}
+      : { renderedFontFamily: grapheme.renderedFontFamily }),
+    ...(grapheme.renderedOpacity === undefined
+      ? {}
+      : { renderedOpacity: grapheme.renderedOpacity }),
+  };
 }
 
 function lineFromRuns(
   runs: RenderedTextStyleRun[],
   candidates: StyledGrapheme[],
 ): StyledGrapheme[] {
-  const count = runs.reduce(
-    (total, run) => total + segmentGraphemes(run.text).length,
-    0,
-  );
-  return candidates.slice(Math.max(0, candidates.length - count));
+  const textLength = runs.reduce((total, run) => total + run.text.length, 0);
+  let recoveredLength = 0;
+  let start = candidates.length;
+  while (start > 0 && recoveredLength < textLength) {
+    start -= 1;
+    recoveredLength += candidates[start]?.text.length ?? 0;
+  }
+  return candidates.slice(start);
 }
 
 function resolveEffectiveLineHeightPx(

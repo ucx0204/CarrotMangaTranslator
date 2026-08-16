@@ -721,6 +721,142 @@ describe("selected block font-size adjustment", () => {
     expect(onUpdate).not.toHaveBeenCalled();
   });
 
+  it("inserts a special character at the saved visual caret", async () => {
+    const onUpdate = vi.fn();
+    render(
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock({ translatedText: "가나" })}
+          disabled={false}
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onUpdate={onUpdate}
+        />
+      </FontsTestProvider>,
+    );
+    const editor = screen.getByRole("textbox", { name: "번역문" });
+    const textNode = editor.querySelector("[data-rich-text-run]")?.firstChild;
+    if (!(textNode instanceof Text)) {
+      throw new Error("Expected a visual editor text node");
+    }
+    const range = document.createRange();
+    range.setStart(textNode, 1);
+    range.collapse(true);
+    document.getSelection()?.removeAllRanges();
+    document.getSelection()?.addRange(range);
+    act(() => document.dispatchEvent(new Event("selectionchange")));
+
+    fireEvent.click(screen.getByRole("button", { name: "기호" }));
+    expect(screen.getByTitle("〜 입력")).toBeTruthy();
+    fireEvent.click(screen.getByTitle("!? 입력"));
+
+    await waitFor(() =>
+      expect(onUpdate).toHaveBeenLastCalledWith({
+        translatedText: "가[tcy]!?[/tcy]나",
+      }),
+    );
+    expect(screen.queryByRole("group", { name: "기호" })).toBeNull();
+    expect(document.activeElement).toBe(editor);
+
+    const combinedTextNode = editor.querySelector<HTMLElement>(
+      '[data-vertical-combine="true"]',
+    )?.firstChild;
+    if (!(combinedTextNode instanceof Text)) {
+      throw new Error("Expected a combined punctuation text node");
+    }
+    act(() => {
+      const afterCombined = document.createRange();
+      afterCombined.setStart(combinedTextNode, combinedTextNode.length);
+      afterCombined.collapse(true);
+      document.getSelection()?.removeAllRanges();
+      document.getSelection()?.addRange(afterCombined);
+      editor.dispatchEvent(
+        new InputEvent("beforeinput", {
+          bubbles: true,
+          cancelable: true,
+          data: "새",
+          inputType: "insertText",
+        }),
+      );
+      combinedTextNode.data = `${combinedTextNode.data}새`;
+      afterCombined.setStart(combinedTextNode, combinedTextNode.length);
+      document.getSelection()?.removeAllRanges();
+      document.getSelection()?.addRange(afterCombined);
+      fireEvent.input(editor, { data: "새", inputType: "insertText" });
+    });
+
+    await waitFor(() =>
+      expect(onUpdate).toHaveBeenLastCalledWith({
+        translatedText: "가[tcy]!?[/tcy]새나",
+      }),
+    );
+  });
+
+  it("inserts a special character at the saved code selection", async () => {
+    const onUpdate = vi.fn();
+    render(
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock({ translatedText: "가나다" })}
+          disabled={false}
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onUpdate={onUpdate}
+        />
+      </FontsTestProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "코드" }));
+    const code = screen.getByRole("textbox", {
+      name: "번역문 서식 코드",
+    }) as HTMLTextAreaElement;
+    code.setSelectionRange(1, 2);
+    fireEvent.select(code);
+
+    fireEvent.click(screen.getByRole("button", { name: "기호" }));
+    fireEvent.click(screen.getByTitle("♥ 입력"));
+
+    await waitFor(() =>
+      expect(onUpdate).toHaveBeenLastCalledWith({ translatedText: "가♥다" }),
+    );
+    await waitFor(() => expect(document.activeElement).toBe(code));
+    expect(code.selectionStart).toBe(2);
+    expect(code.selectionEnd).toBe(2);
+  });
+
+  it("marks a combined punctuation option only when inserted from the palette", async () => {
+    const onUpdate = vi.fn();
+    render(
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock({ translatedText: "가!?나" })}
+          disabled={false}
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onUpdate={onUpdate}
+        />
+      </FontsTestProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "코드" }));
+    const code = screen.getByRole("textbox", {
+      name: "번역문 서식 코드",
+    }) as HTMLTextAreaElement;
+    expect(code.value).toBe("가!?나");
+    code.setSelectionRange(1, 3);
+    fireEvent.select(code);
+
+    fireEvent.click(screen.getByRole("button", { name: "기호" }));
+    fireEvent.click(screen.getByTitle("!? 입력"));
+
+    await waitFor(() =>
+      expect(onUpdate).toHaveBeenLastCalledWith({
+        translatedText: "가[tcy]!?[/tcy]나",
+      }),
+    );
+  });
+
   it("supports tab keyboard navigation and remembers the selected tab", () => {
     const props = {
       block: makeBlock(),
@@ -988,12 +1124,28 @@ describe("selected block font-size adjustment", () => {
     openCustomSelect("줄바꿈 방식");
     expect(screen.getByRole("option", { name: "글자 단위" })).toBeTruthy();
     expect(
-      screen.getByText("단어 중간이라도 글자 단위로 줄을 바꿉니다."),
-    ).toBeTruthy();
+      screen
+        .getAllByRole("option")
+        .map((option) => option.getAttribute("aria-label")),
+    ).toEqual([
+      "표준",
+      "표준+넘침 방지",
+      "글자 단위",
+      "단어 단위",
+      "단어 단위+넘침 방지",
+    ]);
+    expect(
+      screen.queryByText("단어 중간이라도 글자 단위로 줄을 바꿉니다."),
+    ).toBeNull();
     expect(screen.queryByText("break-word")).toBeNull();
 
-    chooseCustomSelectOption("줄바꿈 방식", "긴 문자열 넘침 방지");
+    chooseCustomSelectOption("줄바꿈 방식", "표준+넘침 방지");
     expect(onUpdate).toHaveBeenCalledWith({ wordBreak: "break-word" });
+
+    chooseCustomSelectOption("줄바꿈 방식", "단어 단위+넘침 방지");
+    expect(onUpdate).toHaveBeenLastCalledWith({
+      wordBreak: "keep-all-overflow",
+    });
   });
 
   it("shows the legacy vertical wrapping behavior", () => {

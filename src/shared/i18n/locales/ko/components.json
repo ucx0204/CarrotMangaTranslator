@@ -167,15 +167,10 @@
       "label": "줄바꿈 방식",
       "options": {
         "normal": "표준",
+        "break-word": "표준+넘침 방지",
         "break-all": "글자 단위",
         "keep-all": "단어 단위",
-        "break-word": "긴 문자열 넘침 방지"
-      },
-      "descriptions": {
-        "normal": "언어별 기본 규칙에 맞춰 줄을 바꿉니다.",
-        "break-all": "단어 중간이라도 글자 단위로 줄을 바꿉니다.",
-        "keep-all": "단어를 자르지 않고 단어 사이에서 줄을 바꿉니다.",
-        "break-word": "URL처럼 긴 문자열이 칸을 넘을 때만 중간에서 줄을 바꿉니다."
+        "keep-all-overflow": "단어 단위+넘침 방지"
       }
     }
   },
@@ -351,7 +346,9 @@
       "opacity": "글자 투명도",
       "mixed": "혼합",
       "placeholder": "번역문을 입력하세요",
-      "codeAria": "번역문 서식 코드"
+      "codeAria": "번역문 서식 코드",
+      "specialCharacters": "기호",
+      "insertSpecialCharacter": "{{character}} 입력"
     }
   },
   "formatBatch": {

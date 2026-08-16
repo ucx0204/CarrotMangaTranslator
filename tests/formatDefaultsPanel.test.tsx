@@ -221,8 +221,8 @@ describe("FormatDefaultsPanel", () => {
         .wordBreak,
     ).toBe("keep-all");
     expect(
-      screen.getByText("단어를 자르지 않고 단어 사이에서 줄을 바꿉니다."),
-    ).toBeTruthy();
+      container.querySelector(".text-wrapping-select-description"),
+    ).toBeNull();
   });
 
   it("updates bubble-fit padding as a bounded percentage ratio", () => {

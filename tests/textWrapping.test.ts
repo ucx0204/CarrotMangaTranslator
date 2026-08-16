@@ -22,9 +22,10 @@ describe("text wrapping settings", () => {
   it("resolves every supported value and falls back to the app default", () => {
     expect(TEXT_WORD_BREAK_VALUES).toEqual([
       "normal",
+      "break-word",
       "break-all",
       "keep-all",
-      "break-word",
+      "keep-all-overflow",
     ]);
     for (const value of TEXT_WORD_BREAK_VALUES) {
       expect(resolveTextWordBreak(value)).toBe(value);
@@ -42,6 +43,9 @@ describe("text wrapping settings", () => {
     expect(resolveBlockTextWordBreak(undefined, "vertical")).toBe("break-word");
     expect(resolveBlockTextWordBreak("normal", "horizontal")).toBe("normal");
     expect(resolveBlockTextWordBreak("keep-all", "vertical")).toBe("keep-all");
+    expect(resolveBlockTextWordBreak("keep-all-overflow", "vertical")).toBe(
+      "keep-all-overflow",
+    );
   });
 
   it("keeps legacy blocks valid while accepting only supported values", () => {

@@ -138,7 +138,7 @@ const NORMALIZED_FORMAT_BUILDERS: Record<
   wordBreak: (record) => ({
     wordBreak: enumValue<NonNullable<TranslationBlock["wordBreak"]>>(
       record.wordBreak,
-      ["normal", "break-all", "keep-all", "break-word"],
+      ["normal", "break-word", "break-all", "keep-all", "keep-all-overflow"],
       "normal",
     ),
   }),

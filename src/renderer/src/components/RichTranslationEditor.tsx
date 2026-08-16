@@ -56,6 +56,23 @@ type RichTranslationEditorProps = {
 };
 
 const EDITOR_MODE_STORAGE_KEY = "editor.richText.mode";
+type SpecialCharacterOption = {
+  text: string;
+  combineUpright?: boolean;
+};
+const SPECIAL_CHARACTERS: readonly SpecialCharacterOption[] = [
+  { text: "…" },
+  { text: "—" },
+  { text: "〜" },
+  { text: "!!", combineUpright: true },
+  { text: "!?", combineUpright: true },
+  { text: "?!", combineUpright: true },
+  { text: "??", combineUpright: true },
+  { text: "♡" },
+  { text: "♥" },
+  { text: "♪" },
+  { text: "♬" },
+];
 
 export function RichTranslationEditor({
   block,
@@ -68,6 +85,9 @@ export function RichTranslationEditor({
   const { t } = useTranslation("components");
   const { catalog } = useFonts();
   const [mode, setMode] = React.useState<EditorMode>(readStoredMode);
+  const [specialCharactersOpen, setSpecialCharactersOpen] =
+    React.useState(false);
+  const specialCharactersId = React.useId();
   const [selection, setSelectionState] =
     React.useState<RichTextEditorSelection>({ start: 0, end: 0 });
   const selectionRef = React.useRef(selection);
@@ -89,7 +109,9 @@ export function RichTranslationEditor({
     null,
   );
   const blockIdRef = React.useRef(block.id);
-  const selectionFrameRef = React.useRef<number | null>(null);
+  const pendingCodeSelectionRef = React.useRef<RichTextEditorSelection | null>(
+    null,
+  );
   const parsed = React.useMemo(() => parseRichText(value), [value]);
 
   const renderOptions = React.useMemo<RichTextEditorRenderOptions>(
@@ -202,19 +224,42 @@ export function RichTranslationEditor({
     clearTypingStyle();
     beforeInputRef.current = null;
     composingRef.current = false;
+    setSpecialCharactersOpen(false);
   }, [block.id, clearTypingStyle]);
 
-  React.useEffect(
-    () => () => {
-      if (selectionFrameRef.current !== null) {
-        cancelAnimationFrame(selectionFrameRef.current);
+  React.useEffect(() => {
+    if (!specialCharactersOpen) return;
+    const document = editorRootRef.current?.ownerDocument;
+    if (!document) return;
+    const closeOutside = (event: PointerEvent): void => {
+      if (!editorRootRef.current?.contains(event.target as Node)) {
+        setSpecialCharactersOpen(false);
       }
-    },
-    [],
-  );
+    };
+    const closeOnEscape = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") setSpecialCharactersOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [editorRootRef, specialCharactersOpen]);
+
+  React.useLayoutEffect(() => {
+    if (mode !== "code") return;
+    const pending = pendingCodeSelectionRef.current;
+    const element = codeRef.current;
+    if (!pending || !element) return;
+    pendingCodeSelectionRef.current = null;
+    element.focus();
+    element.setSelectionRange(pending.start, pending.end);
+  }, [mode, value]);
 
   const setEditorMode = (next: EditorMode): void => {
     setMode(next);
+    setSpecialCharactersOpen(false);
     setSelection({ start: 0, end: 0 });
     setCaretRun(null);
     clearTypingStyle();
@@ -343,20 +388,13 @@ export function RichTranslationEditor({
   };
 
   const commitCodeResult = (result: InlineMarkupResult): void => {
-    onChange(result.value);
-    setSelection({
+    const nextSelection = {
       start: result.selectionStart,
       end: result.selectionEnd,
-    });
-    if (selectionFrameRef.current !== null) {
-      cancelAnimationFrame(selectionFrameRef.current);
-    }
-    selectionFrameRef.current = requestAnimationFrame(() => {
-      selectionFrameRef.current = null;
-      const element = codeRef.current;
-      if (!element) return;
-      element.setSelectionRange(result.selectionStart, result.selectionEnd);
-    });
+    };
+    pendingCodeSelectionRef.current = nextSelection;
+    onChange(result.value);
+    setSelection(nextSelection);
   };
 
   const selectionValues = React.useMemo(
@@ -453,6 +491,72 @@ export function RichTranslationEditor({
     }
   };
 
+  const insertSpecialCharacter = (option: SpecialCharacterOption): void => {
+    const character = option.text;
+    setSpecialCharactersOpen(false);
+    if (mode === "visual") {
+      const root = visualRef.current;
+      if (!root) return;
+      const current = selectionRef.current;
+      root.focus();
+      restoreRichTextEditorSelection(root, current);
+      beforeInputRef.current = {
+        selection: current,
+        style: typingStyleRef.current,
+      };
+      if (!insertPlainTextAtEditorSelection(root, character)) return;
+      if (!option.combineUpright) {
+        commitVisualInput();
+        return;
+      }
+      beforeInputRef.current = null;
+      const nextSelection =
+        getRichTextEditorSelection(root) ??
+        ({
+          start: current.start + character.length,
+          end: current.start + character.length,
+        } satisfies RichTextEditorSelection);
+      const previousTypingStyle = typingStyleRef.current;
+      const patch: TextStylePatch = {
+        ...(previousTypingStyle ?? {}),
+        verticalCombine: true,
+      };
+      commitVisualRuns(
+        applyTextStyleToRuns(
+          extractRichTextEditorRuns(root),
+          current.start,
+          current.start + character.length,
+          patch,
+        ),
+        nextSelection,
+      );
+      const resumedTypingStyle: TextStylePatch = {
+        ...(previousTypingStyle ?? {}),
+        verticalCombine: null,
+      };
+      typingStyleRef.current = resumedTypingStyle;
+      typingOffsetRef.current = nextSelection.start;
+      setTypingStyleState(resumedTypingStyle);
+      return;
+    }
+    const code = codeRef.current;
+    const start = code
+      ? Math.min(code.selectionStart, code.selectionEnd)
+      : selectionRef.current.start;
+    const end = code
+      ? Math.max(code.selectionStart, code.selectionEnd)
+      : selectionRef.current.end;
+    const inserted = option.combineUpright
+      ? `[tcy]${character}[/tcy]`
+      : character;
+    const caret = start + inserted.length;
+    commitCodeResult({
+      value: `${value.slice(0, start)}${inserted}${value.slice(end)}`,
+      selectionStart: caret,
+      selectionEnd: caret,
+    });
+  };
+
   return (
     <div
       className="rich-translation-editor"
@@ -487,6 +591,19 @@ export function RichTranslationEditor({
           </div>
         </div>
         <div className="rich-editor-toolbar">
+          <button
+            type="button"
+            className="rich-special-character-trigger"
+            aria-controls={specialCharactersId}
+            aria-expanded={specialCharactersOpen}
+            disabled={disabled}
+            onClick={() => setSpecialCharactersOpen((open) => !open)}
+          >
+            <span aria-hidden="true">Ω</span>
+            {t("editor.richText.specialCharacters", {
+              defaultValue: "기호",
+            })}
+          </button>
           <IconButton
             size="sm"
             label={t("editor.richText.resetAll", {
@@ -502,6 +619,32 @@ export function RichTranslationEditor({
           </IconButton>
         </div>
       </div>
+
+      {specialCharactersOpen ? (
+        <div
+          id={specialCharactersId}
+          className="rich-special-character-panel"
+          role="group"
+          aria-label={t("editor.richText.specialCharacters", {
+            defaultValue: "특수문자",
+          })}
+        >
+          {SPECIAL_CHARACTERS.map((option) => (
+            <button
+              type="button"
+              key={option.text}
+              title={t("editor.richText.insertSpecialCharacter", {
+                character: option.text,
+                defaultValue: "{{character}} 입력",
+              })}
+              disabled={disabled}
+              onClick={() => insertSpecialCharacter(option)}
+            >
+              {option.text}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <InlineStylePanel
         disabled={disabled}

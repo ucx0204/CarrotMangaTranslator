@@ -86,7 +86,7 @@ editing the totals by hand.
   The stage-5 rich-text editor pass extended it again to SHA-256
   `67a7bc7478c11b299f75528fd69f2d7e96c467d6556b5abfbcbec2e1f92cbf61`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
-  percentage for lines/statements/functions/branches in all 176 existing
+  percentage for lines/statements/functions/branches in all 178 existing
   coverage-eligible `src/**` files changed since cleanup start. The 34 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record. The

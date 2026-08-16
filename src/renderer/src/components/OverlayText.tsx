@@ -183,7 +183,12 @@ function renderTextRun(
           : (run.renderedOpacity ?? fallback.opacity),
       }}
     >
-      <TextWithVerticalSpacing direction={renderDirection} text={run.text} />
+      <TextWithVerticalSpacing
+        bold={run.bold}
+        combineUpright={run.verticalCombine}
+        direction={renderDirection}
+        text={run.text}
+      />
     </span>
   );
 }
