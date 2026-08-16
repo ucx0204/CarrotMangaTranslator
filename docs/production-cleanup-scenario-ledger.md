@@ -82,7 +82,7 @@ editing the totals by hand.
   families. The review-04 outline-control capture on Node 24/V8 13.6 extended
   the sealed scope. The v1.16.1 GPU compatibility pass extended that ignored
   Node 24 artifact to SHA-256
-  `9c7981098e59af22ac4129fab3875684256dd4ac95c9c556f678faabdb687272`.
+  `37ee0afbe704b6f3fe0e5b156c3154f188ca29d21b881829d9e23ae845b89678`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
   percentage for lines/statements/functions/branches in all 166 existing
   coverage-eligible `src/**` files changed since cleanup start. The 31 new

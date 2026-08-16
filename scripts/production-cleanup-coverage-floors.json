@@ -7,7 +7,7 @@
     "sourceArtifact": ".tmp/production-cleanup-coverage-baseline-node22.json",
     "sourceArtifactSha256": "a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a",
     "introducedArtifact": ".tmp/production-cleanup-coverage-accepted-node24.json",
-    "introducedArtifactSha256": "9c7981098e59af22ac4129fab3875684256dd4ac95c9c556f678faabdb687272",
+    "introducedArtifactSha256": "37ee0afbe704b6f3fe0e5b156c3154f188ca29d21b881829d9e23ae845b89678",
     "validatedNodeV8": ["22/12.4", "24/13.6"],
     "vitestVersion": "4.1.9",
     "coverageV8Version": "4.1.9"

@@ -234,8 +234,7 @@ function createDetectedRuntimeHardware(
     ...(detectedGpu.vendor === "amd"
       ? {
           supportsOcrRocm: supportsWindowsRocmOcrGpu(detectedGpu),
-          supportsFluxZluda:
-            resolveWindowsHipSdkGpuSupport(detectedGpu),
+          supportsFluxZluda: resolveWindowsHipSdkGpuSupport(detectedGpu),
         }
       : {}),
     supportsRocm: Boolean(detectedGpu.supportsRocm),
