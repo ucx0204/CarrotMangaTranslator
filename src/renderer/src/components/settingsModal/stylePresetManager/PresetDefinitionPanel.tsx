@@ -11,6 +11,7 @@ import {
   type BlockStylePreset,
   type BlockStylePresetGroup,
 } from "../../../../../shared/blockStylePresets";
+import { resolveEffectiveTextOutlineWidthPx } from "../../../../../shared/textOutline";
 import type { GatherTextDirectFormatValues } from "../../../lib/gatherTextDirectFormatModel";
 import { BlockFormatPreviewStage } from "../../blockFormat/BlockFormatPreview";
 import { CheckboxField } from "../../ui/CheckboxField";
@@ -195,14 +196,23 @@ const PRESET_PREVIEW_DEFAULTS: GatherTextDirectFormatValues = {
   textColor: "#111111",
   textOpacity: 1,
   outlineColor: undefined,
-  outlineWidthScale: 0,
+  outlineWidthPx: 0,
   rotationDeg: 0,
 };
 
 function createPresetPreviewValues(
   preset: BlockStylePreset,
 ): GatherTextDirectFormatValues {
-  return { ...PRESET_PREVIEW_DEFAULTS, ...preset.format };
+  const fontSizePx = preset.format.fontSizePx ?? PRESET_PREVIEW_DEFAULTS.fontSizePx;
+  return {
+    ...PRESET_PREVIEW_DEFAULTS,
+    ...preset.format,
+    fontSizePx,
+    outlineWidthPx: resolveEffectiveTextOutlineWidthPx(
+      preset.format,
+      fontSizePx,
+    ),
+  };
 }
 
 type FormatValueContext = {
@@ -246,9 +256,13 @@ function resolveEmphasisValue({ format, t }: FormatValueContext): string {
 }
 
 function resolveOutlineValue({ format }: FormatValueContext): string {
-  if ((format.outlineWidthScale ?? 0) <= 0) return "—";
+  const outlineWidthPx = resolveEffectiveTextOutlineWidthPx(
+    format,
+    format.fontSizePx ?? PRESET_PREVIEW_DEFAULTS.fontSizePx,
+  );
+  if (outlineWidthPx <= 0) return "—";
   const color = (format.outlineColor ?? "#FFFFFF").toUpperCase();
-  return `${color} · ${(format.outlineWidthScale ?? 0).toFixed(1)}`;
+  return `${color} · ${outlineWidthPx.toFixed(1)}px`;
 }
 
 function PresetFormatValue({

@@ -33,9 +33,9 @@ describe("GatherTextDirectFormatModal", () => {
     expect(controls?.contains(preview)).toBe(false);
     expect(sections).toHaveLength(3);
     expect(container.querySelector(".gather-direct-editor-details")).toBeNull();
-    expect(screen.getByRole("slider", { name: "줄 간격" })).toBeTruthy();
-    expect(screen.getByRole("slider", { name: "자간" })).toBeTruthy();
-    expect(screen.getByRole("slider", { name: "장평" })).toBeTruthy();
+    expect(screen.getByRole("spinbutton", { name: "줄 간격" })).toBeTruthy();
+    expect(screen.getByRole("spinbutton", { name: "자간" })).toBeTruthy();
+    expect(screen.getByRole("spinbutton", { name: "장평" })).toBeTruthy();
     expect(screen.getByRole("slider", { name: "회전" })).toBeTruthy();
     expect(screen.getByRole("slider", { name: "글자 투명도" })).toBeTruthy();
     expect(screen.getByRole("combobox", { name: "줄바꿈 방식" })).toBeTruthy();
@@ -55,14 +55,14 @@ describe("GatherTextDirectFormatModal", () => {
     const preview = container.querySelector<HTMLElement>(
       ".gather-direct-preview-text",
     );
-    expect(preview?.style.fontSize).toBe("25px");
+    expect(preview?.style.fontSize).toBe("24.5px");
     expect(
       screen.getByRole("button", { name: "적용" }).hasAttribute("disabled"),
     ).toBe(false);
 
     fireEvent.click(screen.getByRole("button", { name: "적용" }));
     expect(selection.apply).toHaveBeenCalledWith({
-      fontSizePx: 25,
+      fontSizePx: 24.5,
       autoFitText: false,
     });
   });
@@ -71,9 +71,11 @@ describe("GatherTextDirectFormatModal", () => {
     const selection = makeSelection();
     const { container } = renderModal(selection);
 
-    fireEvent.change(screen.getByRole("spinbutton", { name: "글자 크기" }), {
+    const input = screen.getByRole("spinbutton", { name: "글자 크기" });
+    fireEvent.change(input, {
       target: { value: "50" },
     });
+    fireEvent.keyDown(input, { key: "Enter" });
 
     expect(
       container.querySelector<HTMLElement>(".gather-direct-preview-text")?.style
@@ -84,6 +86,18 @@ describe("GatherTextDirectFormatModal", () => {
       fontSizePx: 50,
       autoFitText: false,
     });
+  });
+
+  it("accepts precise line spacing through the shared direct number field", () => {
+    const selection = makeSelection();
+    renderModal(selection);
+
+    const input = screen.getByRole("spinbutton", { name: "줄 간격" });
+    fireEvent.change(input, { target: { value: "2.35" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    fireEvent.click(screen.getByRole("button", { name: "적용" }));
+
+    expect(selection.apply).toHaveBeenCalledWith({ lineHeight: 2.35 });
   });
 
   it("lets the sample phrase be edited without adding it to the format patch", () => {
@@ -137,6 +151,22 @@ describe("GatherTextDirectFormatModal", () => {
     expect(screen.queryByText("블록 배경 투명도")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "적용" }));
     expect(selection.apply).toHaveBeenCalledWith({ textOpacity: 0.45 });
+  });
+
+  it("previews and applies a directly entered pixel outline width", () => {
+    const selection = makeSelection();
+    const { container } = renderModal(selection);
+    const input = screen.getByRole("spinbutton", { name: "외곽선 굵기" });
+
+    fireEvent.change(input, { target: { value: "8" } });
+    fireEvent.blur(input);
+
+    expect(
+      container.querySelector<HTMLElement>(".gather-direct-preview-text")
+        ?.style.webkitTextStrokeWidth,
+    ).toBe("16px");
+    fireEvent.click(screen.getByRole("button", { name: "적용" }));
+    expect(selection.apply).toHaveBeenCalledWith({ outlineWidthPx: 8 });
   });
 
   it("previews and applies wrapping without exposing CSS names", () => {
@@ -200,6 +230,18 @@ describe("GatherTextDirectFormatModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "적용" }));
 
     expect(selection.apply).toHaveBeenCalledWith({ autoFitText: true });
+  });
+
+  it("marks a mixed block emphasis without pretending either value is active", () => {
+    const selection = makeSelection([
+      makeBlock({ bold: true }),
+      makeBlock({ id: "block-2", bold: false }),
+    ]);
+    renderModal(selection);
+
+    expect(
+      screen.getByRole("button", { name: "굵게" }).getAttribute("aria-pressed"),
+    ).toBe("mixed");
   });
 
   it("turns a common auto-fit value off on its first click", () => {

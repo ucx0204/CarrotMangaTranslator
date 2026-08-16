@@ -48,6 +48,16 @@ import {
   MAX_BLOCK_STYLE_PRESETS,
   MAX_BLOCK_STYLE_PRESET_SHORTCUT_SLOT,
 } from "./blockStylePresets";
+import {
+  MAX_FONT_SIZE_PX,
+  MAX_FONT_WIDTH_SCALE,
+  MAX_LETTER_SPACING_EM,
+  MAX_LINE_HEIGHT,
+  MIN_FONT_SIZE_PX,
+  MIN_FONT_WIDTH_SCALE,
+  MIN_LETTER_SPACING_EM,
+  MIN_LINE_HEIGHT,
+} from "./blockFormatValues";
 
 const LanguageCodeSchema = z
   .string()
@@ -107,19 +117,36 @@ const BlockStylePresetSchema = z
     format: z
       .object({
         fontFamily: z.string().max(120).optional(),
-        fontSizePx: z.number().min(1).max(512).optional(),
+        fontSizePx: z
+          .number()
+          .min(MIN_FONT_SIZE_PX)
+          .max(MAX_FONT_SIZE_PX)
+          .optional(),
         autoFitText: z.boolean().optional(),
         textAlign: z.enum(["left", "center", "right"]).optional(),
         wordBreak: z.enum(TEXT_WORD_BREAK_VALUES).optional(),
         renderDirection: z.enum(["horizontal", "vertical"]).optional(),
         bold: z.boolean().optional(),
         italic: z.boolean().optional(),
-        lineHeight: z.number().min(0.5).max(4).optional(),
-        letterSpacing: z.number().min(-0.5).max(2).optional(),
-        fontWidthScale: z.number().min(0.5).max(1.5).optional(),
+        lineHeight: z
+          .number()
+          .min(MIN_LINE_HEIGHT)
+          .max(MAX_LINE_HEIGHT)
+          .optional(),
+        letterSpacing: z
+          .number()
+          .min(MIN_LETTER_SPACING_EM)
+          .max(MAX_LETTER_SPACING_EM)
+          .optional(),
+        fontWidthScale: z
+          .number()
+          .min(MIN_FONT_WIDTH_SCALE)
+          .max(MAX_FONT_WIDTH_SCALE)
+          .optional(),
         textColor: hexColor.optional(),
         textOpacity: z.number().min(0).max(1).optional(),
         outlineColor: hexColor.optional(),
+        outlineWidthPx: z.number().min(0).max(64).optional(),
         outlineWidthScale: z.number().min(0).max(8).optional(),
         rotationDeg: z.number().min(-180).max(180).optional(),
       })
@@ -245,15 +272,22 @@ export const AppSettingsSchema = z
         textAlign: z.enum(["left", "center", "right"]),
         fontFamily: z.string().max(120).optional(),
         autoFitText: z.boolean(),
-        fontSizePx: z.number().min(1).max(512),
-        lineHeight: z.number().min(0.5).max(4),
-        letterSpacing: z.number().min(-0.5).max(2),
-        fontWidthScale: z.number().min(0.5).max(1.5),
+        fontSizePx: z.number().min(MIN_FONT_SIZE_PX).max(MAX_FONT_SIZE_PX),
+        lineHeight: z.number().min(MIN_LINE_HEIGHT).max(MAX_LINE_HEIGHT),
+        letterSpacing: z
+          .number()
+          .min(MIN_LETTER_SPACING_EM)
+          .max(MAX_LETTER_SPACING_EM),
+        fontWidthScale: z
+          .number()
+          .min(MIN_FONT_WIDTH_SCALE)
+          .max(MAX_FONT_WIDTH_SCALE),
         wordBreak: z.enum(TEXT_WORD_BREAK_VALUES),
         textColor: hexColor,
         textOpacity: z.number().min(0).max(1),
         outlineEnabled: z.boolean(),
         outlineColor: hexColor,
+        outlineWidthPx: z.number().min(0).max(64).optional(),
         outlineWidthScale: z.number().min(0).max(8),
         bold: z.boolean(),
         italic: z.boolean(),

@@ -15,6 +15,10 @@ import {
   normalizeRenderDirection,
   resolveFontWidthScale,
 } from "./blockFormatGeometry";
+import {
+  resolveDefaultVerticalGraphemeAdvancePx,
+  resolveVerticalGraphemeAdvancePx,
+} from "./verticalTextSpacing";
 
 export function resolveBubbleWrappedText(
   block: TranslationBlock,
@@ -55,15 +59,12 @@ export function resolveBubbleWrappedText(
   for (const slots of plans) {
     const measured =
       renderDirection === "vertical"
-        ? measureUniformStyledWrappedTextInSlots(
+        ? measureVerticalStyledTextInSlots(
             runs,
             slots,
             lineHeightPx,
-            resolveVerticalGraphemeAdvancePx(
-              fontSize,
-              lineHeightPx,
-              letterSpacingPx,
-            ),
+            fontSize,
+            letterSpacingPx,
             wordBreak,
           )
         : measureStyledWrappedTextInSlots(
@@ -91,10 +92,31 @@ function resolveMaximumTextSlotCount(plainText: string): number {
   return Math.max(1, Array.from(plainText.replace(/\r\n?/g, "\n")).length);
 }
 
-function resolveVerticalGraphemeAdvancePx(
-  fontSize: number,
+function measureVerticalStyledTextInSlots(
+  runs: Parameters<typeof measureUniformStyledWrappedTextInSlots>[0],
+  slots: Parameters<typeof measureUniformStyledWrappedTextInSlots>[1],
   lineHeightPx: number,
+  fontSize: number,
   letterSpacingPx: number,
-): number {
-  return Math.max(1, Math.max(fontSize, lineHeightPx) + letterSpacingPx);
+  wordBreak: Parameters<typeof measureUniformStyledWrappedTextInSlots>[4],
+): ReturnType<typeof measureUniformStyledWrappedTextInSlots> {
+  const defaultAdvancePx = resolveDefaultVerticalGraphemeAdvancePx(
+    fontSize,
+    lineHeightPx,
+    letterSpacingPx,
+  );
+  return measureUniformStyledWrappedTextInSlots(
+    runs,
+    slots,
+    lineHeightPx,
+    defaultAdvancePx,
+    wordBreak,
+    (grapheme) =>
+      resolveVerticalGraphemeAdvancePx(
+        grapheme,
+        fontSize,
+        defaultAdvancePx,
+        letterSpacingPx,
+      ),
+  );
 }

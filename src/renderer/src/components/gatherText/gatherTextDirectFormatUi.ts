@@ -27,7 +27,7 @@ const PREVIEW_DEFAULTS: GatherTextDirectFormatValues = {
   textColor: "#f6f1e8",
   textOpacity: 1,
   outlineColor: "#111111",
-  outlineWidthScale: 1,
+  outlineWidthPx: 1.5,
   rotationDeg: 0,
 };
 

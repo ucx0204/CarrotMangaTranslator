@@ -24,18 +24,21 @@ describe("library font QA effective outline log", () => {
             translatedText: "흰색",
             fontFamily: "dohyeon",
             textColor: "#f7f7f2",
-            outlineColor: "#f7f7f2",
+            outlineColor: "#111111",
             outlineWidthScale: 1,
-            automaticFontMatch: {
-              selectedFontId: "dohyeon",
-              role: "dialogue",
-              confidence: 0.9,
-              source: "local_visual",
-            },
+            fontRole: "dialogue",
           },
         ],
       },
-      { pixelInference: [] },
+      {
+        pixelInference: [
+          {
+            blockId: "block-1",
+            selectionCalibration: { applied: true },
+            localEvidence: { calibratedConfidence: 0.9 },
+          },
+        ],
+      },
       outlinePolicy,
     );
 
@@ -63,16 +66,19 @@ describe("library font QA effective outline log", () => {
               textColor: "#f7f7f2",
               outlineColor: "#111111",
               outlineWidthScale: 0,
-              automaticFontMatch: {
-                selectedFontId: "dohyeon",
-                role: "dialogue",
-                confidence: 0.9,
-                source: "local_visual",
-              },
+              fontRole: "dialogue",
             },
           ],
         },
-        { pixelInference: [] },
+        {
+          pixelInference: [
+            {
+              blockId: "automatic-outline-free",
+              selectionCalibration: { applied: true },
+              localEvidence: { calibratedConfidence: 0.9 },
+            },
+          ],
+        },
         outlinePolicy,
       ),
     ).toThrow(

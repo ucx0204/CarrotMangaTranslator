@@ -2,13 +2,25 @@ import React from "react";
 import { IconSwitchHorizontal } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
+import {
+  DEFAULT_MANUAL_TEXT_OUTLINE_WIDTH_PX,
+  MAX_TEXT_OUTLINE_WIDTH_PX,
+  MIN_TEXT_OUTLINE_WIDTH_PX,
+  TEXT_OUTLINE_WIDTH_STEP_PX,
+  resolveEffectiveTextOutlineWidthPx,
+  snapTextOutlineWidthPx,
+} from "../../../shared/textOutline";
 import type { BlockBackgroundApplyScope } from "../hooks/useApplyBlockBackgroundOpacityAction";
 import { BlockBackgroundApplyModal } from "./BlockBackgroundApplyModal";
 import { ColorField } from "./ColorField";
 import { resolveColor, type EditorPanelModel } from "./editorPanelUtils";
 import { Button } from "./ui/Button";
+import { CheckboxField } from "./ui/CheckboxField";
 import { FieldSlider } from "./ui/FieldSlider";
 import { IconButton } from "./ui/IconButton";
+import { ScrubbableNumberField } from "./ui/ScrubbableNumberField";
+
+let lastPositiveOutlineWidthPx = DEFAULT_MANUAL_TEXT_OUTLINE_WIDTH_PX;
 
 type EditorColorGroupProps = {
   block: TranslationBlock;
@@ -24,6 +36,7 @@ export function EditorColorGroup({
   onUpdate,
 }: EditorColorGroupProps): React.JSX.Element {
   const { t } = useTranslation("components");
+  const outline = useEditorOutlineControls(block, onUpdate);
   return (
     <div className="editor-group">
       <div className="editor-group-head">
@@ -43,6 +56,13 @@ export function EditorColorGroup({
           <IconSwitchHorizontal size={15} stroke={2.1} aria-hidden="true" />
         </IconButton>
       </div>
+      <CheckboxField
+        className="inline-toggle editor-outline-enabled-toggle"
+        label={t("settings.format.color.outlineEnabled")}
+        checked={outline.enabled}
+        disabled={disabled}
+        onCheckedChange={outline.toggle}
+      />
       <div className="color-row" aria-label={t("editor.blockColors")}>
         <ColorField
           label={t("format.textColor")}
@@ -53,24 +73,68 @@ export function EditorColorGroup({
         <ColorField
           label={t("format.outline")}
           value={model.outlineColor}
-          disabled={disabled}
+          disabled={disabled || !outline.enabled}
           onChange={(outlineColor) => onUpdate({ outlineColor })}
         />
       </div>
-      <FieldSlider
-        label={t("format.outline")}
-        valueLabel={`${Math.round((block.outlineWidthScale ?? 1) * 100)}%`}
-        min={0}
-        max={2.5}
-        step={0.1}
-        value={block.outlineWidthScale ?? 1}
-        disabled={disabled}
-        onChange={(event) =>
-          onUpdate({ outlineWidthScale: Number(event.target.value) })
-        }
-      />
+      <div className="editor-outline-width-control">
+        <span>{t("gatherText.outlineWidth")}</span>
+        <ScrubbableNumberField
+          ariaLabel={t("gatherText.outlineWidth")}
+          decreaseLabel={t("format.decreaseValue", {
+            label: t("gatherText.outlineWidth"),
+          })}
+          increaseLabel={t("format.increaseValue", {
+            label: t("gatherText.outlineWidth"),
+          })}
+          max={MAX_TEXT_OUTLINE_WIDTH_PX}
+          min={MIN_TEXT_OUTLINE_WIDTH_PX}
+          precision={1}
+          step={TEXT_OUTLINE_WIDTH_STEP_PX}
+          unit="px"
+          value={outline.widthPx}
+          disabled={disabled || !outline.enabled}
+          onValueChange={outline.updateWidth}
+        />
+      </div>
     </div>
   );
+}
+
+function useEditorOutlineControls(
+  block: TranslationBlock,
+  onUpdate: (patch: Partial<TranslationBlock>) => void,
+): {
+  enabled: boolean;
+  widthPx: number;
+  toggle: (checked: boolean) => void;
+  updateWidth: (value: number) => void;
+} {
+  const widthPx = resolveEffectiveTextOutlineWidthPx(block, block.fontSizePx);
+  React.useEffect(() => {
+    if (widthPx > 0) {
+      lastPositiveOutlineWidthPx = snapTextOutlineWidthPx(widthPx);
+    }
+  }, [widthPx]);
+  return {
+    enabled: widthPx > 0,
+    widthPx,
+    toggle: (checked) => {
+      if (!checked) {
+        if (widthPx > 0) {
+          lastPositiveOutlineWidthPx = snapTextOutlineWidthPx(widthPx);
+        }
+        onUpdate({ outlineWidthPx: 0 });
+        return;
+      }
+      onUpdate({ outlineWidthPx: lastPositiveOutlineWidthPx });
+    },
+    updateWidth: (value) => {
+      const normalized = snapTextOutlineWidthPx(value);
+      if (normalized > 0) lastPositiveOutlineWidthPx = normalized;
+      onUpdate({ outlineWidthPx: normalized });
+    },
+  };
 }
 
 export function BlockDisplayGroup({

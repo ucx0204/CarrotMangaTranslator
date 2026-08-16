@@ -125,6 +125,7 @@ function loadModules(root) {
     automaticFontCoordinator: load(
       "out/main/pipeline/automaticFontMatchingV2PageCoordinator.js",
     ),
+    blockFormat: load("out/shared/blockFormat.js"),
     activeCatalog: load("out/main/pipeline/autoMatchActiveCatalog.js"),
     appPaths: load("out/main/appPaths.js"),
     bubbleFacade: load("out/main/bubbleLayout/bubbleLayoutFacade.js"),
@@ -409,7 +410,11 @@ async function runFullPipeline(records, modules, context, report) {
     );
     try {
       const trace = context.inferenceTraces.get(record.page.id);
-      const neutralPage = neutralizeAutomaticFonts(translatedPage);
+      const neutralPage = buildFontReplayInput(
+        translatedPage,
+        context.appSettings.blockFormatDefaults,
+        modules.blockFormat,
+      );
       const fontInputPath = await persistFontInput(record, neutralPage, trace);
       const processedPage = await inpaintLayoutAndRender(
         record,
@@ -918,39 +923,28 @@ async function persistFontInput(record, page, trace) {
   return filePath;
 }
 
-/** @param {any} page */
-function neutralizeAutomaticFonts(page) {
+/**
+ * Rebuild the pre-selection formatting for the QA replay input from the same
+ * normalized defaults used by the production pipeline. Automatic matching no
+ * longer stores a hidden previous-style snapshot on each block.
+ *
+ * @param {any} page
+ * @param {any} formatDefaults
+ * @param {{ applyFormatDefaultsToBlock: (block: any, defaults: any) => any }} blockFormat
+ */
+function buildFontReplayInput(page, formatDefaults, blockFormat) {
   return {
     ...page,
     blocks: page.blocks.map((block) => {
-      const match = block.automaticFontMatch;
-      const neutral = { ...block };
-      if (match?.previousStyle) {
-        assignNullableStyle(
-          neutral,
-          "fontFamily",
-          match.previousStyle.fontFamily,
-        );
-        assignNullableStyle(neutral, "bold", match.previousStyle.bold);
-        assignNullableStyle(neutral, "italic", match.previousStyle.italic);
-        assignNullableStyle(
-          neutral,
-          "outlineWidthScale",
-          match.previousStyle.outlineWidthScale,
-        );
-      }
-      delete neutral.automaticFontMatch;
+      const neutral = blockFormat.applyFormatDefaultsToBlock(
+        block,
+        formatDefaults,
+      );
       delete neutral.fontRole;
       delete neutral.fontRoleConfidence;
       return neutral;
     }),
   };
-}
-
-/** @param {Record<string, any>} target @param {string} key @param {unknown} value */
-function assignNullableStyle(target, key, value) {
-  if (value === null || value === undefined) delete target[key];
-  else target[key] = value;
 }
 
 /** @param {any} record @param {any} processedPage @param {any} trace @param {string} fontInputPath @param {string} mode @param {ReturnType<typeof loadModules>} modules */

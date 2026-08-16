@@ -240,7 +240,6 @@
   },
   "workspaceHistory": {
     "blockEdit": "Edit text block",
-    "autoFontRollback": "Revert automatic font choice",
     "blockBackgroundOpacity": "Change block background opacity",
     "exclusion": "Change auto-erase exclusion",
     "format": "Format block",

@@ -133,24 +133,6 @@
     "title": "書式",
     "batchApply": "一括適用",
     "batchApplyTitle": "このブロックの書式をほかのブロックに一括適用",
-    "autoFont": {
-      "badge": "自動マッチ",
-      "rollback": "自動選択を元に戻す",
-      "sources": {
-        "episode_consistency": "この話の似た台詞を弱い事前情報として参照しました。原文の見た目が異なる場合は個別予測を優先します。",
-        "local_visual": "この文字の形・太さ・手書き感を優先して選びました。",
-        "work_profile": "作品のフォント方針と現在の文字の視覚情報を反映しました。",
-        "user_lock": "ユーザーが固定したフォントを適用しました。"
-      },
-      "roles": {
-        "dialogue": "通常の台詞",
-        "narration": "ナレーション",
-        "thought": "心の声",
-        "aside": "吹き出し脇の文字",
-        "expressive": "効果音・強調",
-        "other": "個別テキスト"
-      }
-    },
     "bold": "太字",
     "italic": "斜体",
     "italicShort": "斜体",
@@ -164,6 +146,8 @@
     "fontSizeValue": "文字サイズの値",
     "fontSizeDecrease": "文字サイズを小さくする",
     "fontSizeIncrease": "文字サイズを大きくする",
+    "decreaseValue": "{{label}}を小さくする",
+    "increaseValue": "{{label}}を大きくする",
     "autoFitTitle": "テキストボックスに合わせて自動調整",
     "auto": "自動",
     "rotation": "傾き",

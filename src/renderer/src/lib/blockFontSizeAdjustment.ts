@@ -2,6 +2,10 @@ import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import type { BlockFontCatalog } from "./fonts";
 import { resolveBlockTextLayout } from "./overlayLayout";
+import {
+  FONT_SIZE_STEP_PX,
+  clampFontSizePx,
+} from "../../../shared/blockFormatValues";
 
 export type FontSizeAdjustment = -1 | 1;
 
@@ -60,7 +64,9 @@ function adjustBlockFontSize(
   const baseFontSize = autoFitText
     ? resolveAutoFitFontSizeAtNaturalPageScale(block, page, fontCatalog)
     : block.fontSizePx;
-  const fontSizePx = clampFontSize(baseFontSize + adjustment);
+  const fontSizePx = clampFontSizePx(
+    baseFontSize + adjustment * FONT_SIZE_STEP_PX,
+  );
   if (!autoFitText && fontSizePx === block.fontSizePx) {
     return block;
   }
@@ -81,11 +87,4 @@ function resolveAutoFitFontSizeAtNaturalPageScale(
     naturalPageSize,
     fontCatalog,
   ).fontSizePx;
-}
-
-function clampFontSize(value: number): number {
-  if (!Number.isFinite(value)) {
-    return 24;
-  }
-  return Math.max(10, Math.min(160, Math.round(value)));
 }

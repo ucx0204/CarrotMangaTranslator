@@ -1,5 +1,15 @@
 import type { BlockFormatDefaults, BlockFormatGroupId } from "./blockFormat";
 import type { TranslationBlock } from "./textTypes";
+import {
+  MAX_FONT_SIZE_PX,
+  MAX_FONT_WIDTH_SCALE,
+  MAX_LETTER_SPACING_EM,
+  MAX_LINE_HEIGHT,
+  MIN_FONT_SIZE_PX,
+  MIN_FONT_WIDTH_SCALE,
+  MIN_LETTER_SPACING_EM,
+  MIN_LINE_HEIGHT,
+} from "./blockFormatValues";
 
 export type BlockStylePresetFormat = Partial<
   Pick<
@@ -18,6 +28,7 @@ export type BlockStylePresetFormat = Partial<
     | "textColor"
     | "textOpacity"
     | "outlineColor"
+    | "outlineWidthPx"
     | "outlineWidthScale"
     | "rotationDeg"
   >
@@ -52,7 +63,9 @@ const BLOCK_FORMAT_BUILDERS: Record<
   color: (block) => ({ textColor: block.textColor }),
   outline: (block) => ({
     outlineColor: block.outlineColor,
-    outlineWidthScale: block.outlineWidthScale ?? 0,
+    ...(block.outlineWidthPx === undefined
+      ? { outlineWidthScale: block.outlineWidthScale ?? 0 }
+      : { outlineWidthPx: block.outlineWidthPx }),
   }),
   transform: (block) => ({
     rotationDeg: block.rotationDeg ?? 0,
@@ -85,7 +98,17 @@ const DEFAULT_FORMAT_BUILDERS: Record<
   color: (defaults) => ({ textColor: defaults.textColor }),
   outline: (defaults) => ({
     outlineColor: defaults.outlineEnabled ? defaults.outlineColor : undefined,
-    outlineWidthScale: defaults.outlineEnabled ? defaults.outlineWidthScale : 0,
+    ...(defaults.outlineWidthPx === undefined
+      ? {
+          outlineWidthScale: defaults.outlineEnabled
+            ? defaults.outlineWidthScale
+            : 0,
+        }
+      : {
+          outlineWidthPx: defaults.outlineEnabled
+            ? defaults.outlineWidthPx
+            : 0,
+        }),
   }),
   transform: (defaults) => ({
     rotationDeg: 0,
@@ -99,7 +122,12 @@ const NORMALIZED_FORMAT_BUILDERS: Record<
 > = {
   font: (record) => ({ fontFamily: optionalString(record.fontFamily, 120) }),
   size: (record) => ({
-    fontSizePx: rangedNumber(record.fontSizePx, 1, 512, 24),
+    fontSizePx: rangedNumber(
+      record.fontSizePx,
+      MIN_FONT_SIZE_PX,
+      MAX_FONT_SIZE_PX,
+      24,
+    ),
     autoFitText: booleanValue(record.autoFitText, true),
   }),
   align: (record) => ({
@@ -126,21 +154,45 @@ const NORMALIZED_FORMAT_BUILDERS: Record<
     italic: booleanValue(record.italic, false),
   }),
   lineSpacing: (record) => ({
-    lineHeight: rangedNumber(record.lineHeight, 0.5, 4, 1.18),
+    lineHeight: rangedNumber(
+      record.lineHeight,
+      MIN_LINE_HEIGHT,
+      MAX_LINE_HEIGHT,
+      1.18,
+    ),
   }),
   letterSpacing: (record) => ({
-    letterSpacing: rangedNumber(record.letterSpacing, -0.5, 2, 0),
+    letterSpacing: rangedNumber(
+      record.letterSpacing,
+      MIN_LETTER_SPACING_EM,
+      MAX_LETTER_SPACING_EM,
+      0,
+    ),
   }),
   fontWidth: (record) => ({
-    fontWidthScale: rangedNumber(record.fontWidthScale, 0.5, 1.5, 1),
+    fontWidthScale: rangedNumber(
+      record.fontWidthScale,
+      MIN_FONT_WIDTH_SCALE,
+      MAX_FONT_WIDTH_SCALE,
+      1,
+    ),
   }),
   color: (record) => ({
     textColor: colorValue(record.textColor, "#111111"),
   }),
-  outline: (record) => ({
-    outlineColor: optionalColor(record.outlineColor),
-    outlineWidthScale: rangedNumber(record.outlineWidthScale, 0, 8, 0),
-  }),
+  outline: (record) => {
+    const outlineWidthPx = optionalRangedNumber(
+      record.outlineWidthPx,
+      0,
+      64,
+    );
+    return {
+      outlineColor: optionalColor(record.outlineColor),
+      ...(outlineWidthPx === undefined
+        ? { outlineWidthScale: rangedNumber(record.outlineWidthScale, 0, 8, 0) }
+        : { outlineWidthPx }),
+    };
+  },
   transform: (record) => ({
     rotationDeg: rangedNumber(record.rotationDeg, -180, 180, 0),
     textOpacity: rangedNumber(record.textOpacity, 0, 1, 1),
@@ -171,7 +223,9 @@ const PATCH_BUILDERS: Record<
   color: (format) => ({ textColor: format.textColor ?? "#111111" }),
   outline: (format) => ({
     outlineColor: format.outlineColor,
-    outlineWidthScale: format.outlineWidthScale ?? 0,
+    ...(format.outlineWidthPx === undefined
+      ? { outlineWidthScale: format.outlineWidthScale ?? 0 }
+      : { outlineWidthPx: format.outlineWidthPx }),
   }),
   transform: (format) => ({
     rotationDeg: format.rotationDeg ?? 0,
@@ -211,7 +265,11 @@ export function resolveBlockStylePresetPatchFields(
   const groupIds = options.omitFont
     ? preset.groupIds.filter((groupId) => groupId !== "font")
     : preset.groupIds;
-  return buildFormat(preset.format, groupIds, PATCH_BUILDERS);
+  const patch = buildFormat(preset.format, groupIds, PATCH_BUILDERS);
+  if (!groupIds.includes("outline")) return patch;
+  return preset.format.outlineWidthPx === undefined
+    ? { ...patch, outlineWidthPx: undefined }
+    : { ...patch, outlineWidthScale: undefined };
 }
 
 function buildFormat<Source>(
@@ -249,6 +307,16 @@ function rangedNumber(
   return typeof value === "number" && Number.isFinite(value)
     ? Math.max(minimum, Math.min(maximum, value))
     : fallback;
+}
+
+function optionalRangedNumber(
+  value: unknown,
+  minimum: number,
+  maximum: number,
+): number | undefined {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.max(minimum, Math.min(maximum, value))
+    : undefined;
 }
 
 function optionalString(

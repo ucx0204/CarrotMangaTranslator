@@ -390,7 +390,9 @@ describe("AppWorkspace scroll reset", () => {
     };
     const view = renderWorkspace(props);
 
-    expect(screen.getByText("translated text")).not.toBeNull();
+    expect(
+      view.container.querySelector(".overlay-text-content")?.textContent,
+    ).toContain("translated text");
     expect(view.container.querySelector(".overlay-block")).not.toBeNull();
     expect(
       view.container.querySelector(".retouch-preview-committed-mask"),
@@ -429,7 +431,9 @@ describe("AppWorkspace scroll reset", () => {
     view.rerender(
       withFonts(<AppWorkspace {...props} showingOriginalPeek={false} />),
     );
-    expect(screen.getByText("translated text")).not.toBeNull();
+    expect(
+      view.container.querySelector(".overlay-text-content")?.textContent,
+    ).toContain("translated text");
     expect(view.container.querySelector(".overlay-block")).not.toBeNull();
     expect(
       view.container.querySelector(".retouch-preview-committed-mask"),

@@ -237,7 +237,6 @@
   },
   "workspaceHistory": {
     "blockEdit": "編輯文字區塊",
-    "autoFontRollback": "還原自動字體選擇",
     "blockBackgroundOpacity": "變更文字區塊背景不透明度",
     "exclusion": "變更自動清除排除設定",
     "format": "設定文字區塊格式",

@@ -133,24 +133,6 @@
     "title": "Formatting",
     "batchApply": "Batch apply",
     "batchApplyTitle": "Apply this block's formatting to other blocks",
-    "autoFont": {
-      "badge": "Auto matched",
-      "rollback": "Revert automatic choice",
-      "sources": {
-        "episode_consistency": "Used similar dialogue in this chapter as a weak prior. Local visual evidence still wins when the source style differs.",
-        "local_visual": "Prioritized this text's shape, weight, and handwritten character.",
-        "work_profile": "Combined the work's font policy with this text's visual evidence.",
-        "user_lock": "Applied a font choice explicitly locked by the user."
-      },
-      "roles": {
-        "dialogue": "Dialogue",
-        "narration": "Narration",
-        "thought": "Thought",
-        "aside": "Balloon-edge aside",
-        "expressive": "SFX / emphasis",
-        "other": "Individual text"
-      }
-    },
     "bold": "Bold",
     "italic": "Italic",
     "italicShort": "Italic",
@@ -168,6 +150,8 @@
     "fontSizeValue": "Font size value",
     "fontSizeDecrease": "Decrease font size",
     "fontSizeIncrease": "Increase font size",
+    "decreaseValue": "Decrease {{label}}",
+    "increaseValue": "Increase {{label}}",
     "autoFitTitle": "Automatically fit text to the text box",
     "auto": "Auto",
     "rotation": "Rotation",

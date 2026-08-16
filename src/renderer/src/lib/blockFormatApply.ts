@@ -1,6 +1,5 @@
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
-import { clearAutomaticFontMatchForManualStylePatch } from "./automaticFontMatchProvenance";
 import {
   normalizeRenderDirection,
   normalizeRotationDeg,
@@ -35,19 +34,15 @@ function applyFormatPatchToBlock(
   block: TranslationBlock,
   patch: Partial<TranslationBlock>,
 ): TranslationBlock {
-  const provenanceSafePatch = clearAutomaticFontMatchForManualStylePatch(
-    block,
-    patch,
-  );
-  const next = { ...block, ...provenanceSafePatch };
-  if (provenanceSafePatch.renderDirection !== undefined) {
+  const next = { ...block, ...patch };
+  if (patch.renderDirection !== undefined) {
     next.renderDirection = normalizeRenderDirection(
-      provenanceSafePatch.renderDirection,
+      patch.renderDirection,
       block.renderDirection,
     );
   }
-  if (provenanceSafePatch.rotationDeg !== undefined) {
-    next.rotationDeg = normalizeRotationDeg(provenanceSafePatch.rotationDeg);
+  if (patch.rotationDeg !== undefined) {
+    next.rotationDeg = normalizeRotationDeg(patch.rotationDeg);
   }
   return next;
 }

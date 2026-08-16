@@ -90,6 +90,20 @@ describe("layered PSD export", () => {
     ).toBe(true);
   });
 
+  it("keeps legacy PSD outline sizing and uses pixels only after manual conversion", () => {
+    const legacy = resolveEditablePsdText(
+      { ...makeBlock(), outlineWidthScale: 1.7 },
+      { width: 1000, height: 1600 },
+    );
+    const pixels = resolveEditablePsdText(
+      { ...makeBlock(), outlineWidthPx: 8.5, outlineWidthScale: 1.7 },
+      { width: 1000, height: 1600 },
+    );
+
+    expect(legacy?.style?.outlineWidth).toBe(1.7);
+    expect(pixels?.style?.outlineWidth).toBe(8.5);
+  });
+
   it("crops transparent layer pixels and keeps complex text raster-only", () => {
     const data = new Uint8Array(4 * 3 * 4);
     data.set([1, 2, 3, 255], (1 * 4 + 2) * 4);

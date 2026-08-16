@@ -14,6 +14,7 @@ export type NumberFieldProps = {
   mixed?: boolean;
   placeholder?: string;
   precision?: number;
+  snapToStep?: boolean;
   step?: number;
 };
 
@@ -32,6 +33,7 @@ export function NumberField({
   mixed = false,
   placeholder,
   precision = 0,
+  snapToStep = false,
   step = 1,
 }: NumberFieldProps): React.JSX.Element {
   const inputRef = React.useRef<HTMLInputElement | null>(null);
@@ -49,6 +51,8 @@ export function NumberField({
     commitMode,
     mixed,
     precision,
+    snapToStep,
+    step,
   });
 
   return (
@@ -82,6 +86,8 @@ type NumberDraftOptions = Required<
     | "commitMode"
     | "mixed"
     | "precision"
+    | "snapToStep"
+    | "step"
   >
 > & { inputRef: React.RefObject<HTMLInputElement | null> };
 
@@ -100,6 +106,8 @@ function useNumberFieldDraft({
   commitMode,
   mixed,
   precision,
+  snapToStep,
+  step,
 }: NumberDraftOptions): NumberDraftHandlers & { value: string } {
   const format = React.useCallback(
     (next: number): string => formatNumber(next, precision),
@@ -117,9 +125,13 @@ function useNumberFieldDraft({
   const commit = (): void => {
     const parsed = parseNumber(draft);
     if (parsed === null) return restore();
-    const next = roundToPrecision(
-      Math.min(max, Math.max(min, parsed)),
+    const next = normalizeNumberFieldValue(
+      parsed,
+      min,
+      max,
       precision,
+      step,
+      snapToStep,
     );
     setDraft(format(next));
     if (next !== roundToPrecision(value, precision)) onValueChange(next);
@@ -133,6 +145,8 @@ function useNumberFieldDraft({
     min,
     onValueChange,
     precision,
+    snapToStep,
+    step,
     restore,
     setDraft,
     value,
@@ -149,6 +163,8 @@ function createNumberDraftHandlers({
   min,
   onValueChange,
   precision,
+  snapToStep,
+  step,
   restore,
   setDraft,
   value,
@@ -171,7 +187,14 @@ function createNumberDraftHandlers({
     ) {
       return;
     }
-    const next = roundToPrecision(parsed, precision);
+    const next = normalizeNumberFieldValue(
+      parsed,
+      min,
+      max,
+      precision,
+      step,
+      snapToStep,
+    );
     if (next !== roundToPrecision(value, precision)) onValueChange(next);
   };
   const onBlur: React.FocusEventHandler<HTMLInputElement> = (event) => {
@@ -191,10 +214,12 @@ function createNumberDraftHandlers({
         commit();
       }
       event.currentTarget.blur();
+      delete event.currentTarget.dataset.skipNumberBlur;
     } else if (event.key === "Escape") {
       event.currentTarget.dataset.skipNumberBlur = "true";
       restore();
       event.currentTarget.blur();
+      delete event.currentTarget.dataset.skipNumberBlur;
       event.stopPropagation();
     }
   };
@@ -210,6 +235,22 @@ function parseNumber(raw: string): number | null {
 function roundToPrecision(value: number, precision: number): number {
   const scale = 10 ** Math.max(0, precision);
   return Math.round(value * scale) / scale;
+}
+
+function normalizeNumberFieldValue(
+  value: number,
+  min: number,
+  max: number,
+  precision: number,
+  step: number,
+  snapToStep: boolean,
+): number {
+  const clamped = Math.min(max, Math.max(min, value));
+  const snapped =
+    snapToStep && step > 0
+      ? min + Math.round((clamped - min) / step) * step
+      : clamped;
+  return roundToPrecision(Math.min(max, Math.max(min, snapped)), precision);
 }
 
 function formatNumber(value: number, precision: number): string {

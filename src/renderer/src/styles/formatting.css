@@ -4,63 +4,6 @@
   font-size: var(--font-sm);
 }
 
-.automatic-font-match-notice {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-  padding: 9px 10px;
-  border: 1px solid color-mix(in srgb, var(--accent-bd) 72%, transparent);
-  border-radius: var(--r-md);
-  background: color-mix(in srgb, var(--accent-soft) 70%, var(--bg-sunken));
-}
-
-.automatic-font-match-summary {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  color: var(--text-muted);
-  font-size: 11px;
-}
-
-.automatic-font-match-summary strong {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-head);
-  font-size: var(--font-xs);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.automatic-font-match-summary > span:last-child {
-  margin-left: auto;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.automatic-font-match-badge {
-  flex: 0 0 auto;
-  padding: 2px 6px;
-  border-radius: var(--r-pill);
-  background: var(--accent-soft);
-  color: var(--accent-text);
-  font-size: 10px;
-  font-weight: 750;
-}
-
-.automatic-font-match-notice p {
-  margin: 0;
-  color: var(--text-dim);
-  font-size: 11px;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
-}
-
-.automatic-font-match-notice button {
-  justify-self: start;
-  min-width: 0;
-}
-
 .editor-panel.has-block .editor-word-break-field {
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
@@ -512,50 +455,33 @@
   white-space: nowrap;
 }
 
-.font-size-row {
-  display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) 56px auto;
+.editor-panel.has-block
+  .editor-group
+  > label.editor-outline-enabled-toggle {
+  display: inline-flex;
+  width: max-content;
   align-items: center;
-  gap: var(--sp-3);
-}
-
-.font-size-label {
-  font-size: var(--font-sm);
-  color: var(--text-dim);
-  white-space: nowrap;
+  justify-self: start;
+  gap: 6px;
 }
 
 .editor-font-size-row {
-  grid-column: 1 / -1;
-  grid-template-columns: subgrid;
-  grid-template-rows: repeat(2, auto);
-  column-gap: inherit;
-  row-gap: var(--sp-2);
-}
-
-.editor-font-size-row .font-size-label {
-  grid-row: 1;
-  grid-column: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: var(--sp-3);
 }
 
 .editor-font-size-row .font-size-stepper {
-  grid-row: 1;
-  grid-column: 2;
-  grid-template-columns: 30px 58px 30px;
+  width: 100%;
+}
+
+.editor-font-size-auto {
+  min-height: 34px;
   justify-self: start;
 }
 
-.editor-font-size-row > .inline-toggle {
-  grid-row: 1;
-  grid-column: 3;
-  justify-self: end;
-}
-
 .font-size-stepper {
-  display: grid;
-  grid-template-columns: 30px minmax(48px, 1fr) 30px;
-  align-items: center;
-  gap: var(--sp-1);
   min-width: 0;
 }
 
@@ -564,42 +490,65 @@
   min-width: 0;
 }
 
-.font-size-adjust-button {
-  width: 30px;
-  min-width: 30px;
-  height: 30px;
-  min-height: 30px;
-  padding: 0;
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1;
+.editor-format-fields {
+  display: grid;
+  gap: var(--sp-3);
 }
 
-.editor-font-size-row .font-size-slider {
-  grid-row: 2;
-  grid-column: 2;
+.editor-format-number-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+
+.editor-format-number-cell {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.editor-format-number-cell > span:first-child {
+  min-width: 0;
+  color: var(--text-dim);
+  font-size: var(--font-xs);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.editor-format-number-cell > [data-scrubbable-number-field] {
   width: 100%;
-  margin: 0;
-  justify-self: stretch;
+}
+
+.editor-outline-width-control {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.editor-outline-width-control > span:first-child {
+  color: var(--text-dim);
+  font-size: var(--font-xs);
+  line-height: 1.25;
+}
+
+.editor-outline-width-control > [data-scrubbable-number-field] {
+  width: 100%;
+}
+
+@container editor-panel (max-width: 300px) {
+  .editor-format-number-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .editor-font-size-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .font-size-number {
   min-height: var(--ctl-h);
   padding: 0 var(--sp-2);
   text-align: center;
-}
-
-.font-size-number-input {
-  appearance: textfield;
-  -moz-appearance: textfield;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-
-.font-size-number-input::-webkit-inner-spin-button,
-.font-size-number-input::-webkit-outer-spin-button {
-  margin: 0;
-  -webkit-appearance: none;
 }
 
 .block-type-field {

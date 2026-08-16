@@ -133,24 +133,6 @@
     "title": "서식",
     "batchApply": "일괄 적용",
     "batchApplyTitle": "이 블록의 서식을 다른 블록에 일괄 적용",
-    "autoFont": {
-      "badge": "자동 맞춤",
-      "rollback": "자동 선택 되돌리기",
-      "sources": {
-        "episode_consistency": "이 화의 비슷한 대사 글꼴을 약하게 참고했습니다. 이 텍스트의 시각 특징이 다르면 개별 예측이 우선합니다.",
-        "local_visual": "이 텍스트의 모양·굵기·손글씨 느낌을 우선해 선택했습니다.",
-        "work_profile": "작품 글꼴 정책과 현재 텍스트의 시각 특징을 함께 반영했습니다.",
-        "user_lock": "사용자가 고정한 글꼴 선택을 적용했습니다."
-      },
-      "roles": {
-        "dialogue": "일반 대사",
-        "narration": "내레이션",
-        "thought": "생각",
-        "aside": "말풍선 옆글",
-        "expressive": "효과음·강조",
-        "other": "개별 텍스트"
-      }
-    },
     "bold": "굵게",
     "italic": "기울임꼴",
     "italicShort": "기울임",
@@ -168,6 +150,8 @@
     "fontSizeValue": "글자 크기 값",
     "fontSizeDecrease": "글자 크기 줄이기",
     "fontSizeIncrease": "글자 크기 늘리기",
+    "decreaseValue": "{{label}} 줄이기",
+    "increaseValue": "{{label}} 늘리기",
     "autoFitTitle": "텍스트 상자에 맞춰 자동 크기",
     "auto": "자동",
     "rotation": "회전",

@@ -1,4 +1,8 @@
 export const MIN_AUTOMATIC_TEXT_OUTLINE_CONTRAST_RATIO = 3;
+export const MIN_TEXT_OUTLINE_WIDTH_PX = 0;
+export const MAX_TEXT_OUTLINE_WIDTH_PX = 64;
+export const TEXT_OUTLINE_WIDTH_STEP_PX = 0.5;
+export const DEFAULT_MANUAL_TEXT_OUTLINE_WIDTH_PX = 1.5;
 
 const DEFAULT_TEXT_COLOR = "#111111";
 const DEFAULT_OUTLINE_COLOR = "#ffffff";
@@ -6,8 +10,8 @@ const DARK_OUTLINE_COLOR = "#111111";
 const LIGHT_OUTLINE_COLOR = "#ffffff";
 
 type TextOutlineStyle = Readonly<{
-  automaticFontMatch?: unknown;
   outlineColor?: string;
+  outlineWidthPx?: number;
   outlineWidthScale?: number;
   textColor?: string;
 }>;
@@ -22,11 +26,33 @@ export function resolveEffectiveTextOutlineWidthPx(
   style: TextOutlineStyle,
   fontSizePx: number,
 ): number {
+  if (
+    typeof style.outlineWidthPx === "number" &&
+    Number.isFinite(style.outlineWidthPx)
+  ) {
+    return clampTextOutlineWidthPx(style.outlineWidthPx);
+  }
   const scale = resolveEffectiveTextOutlineWidthScale(style);
   if (scale <= 0) return 0;
   return (
     (Math.round(Math.min(4, Math.max(0.35, fontSizePx * 0.055)) * 10) / 10) *
     scale
+  );
+}
+
+export function clampTextOutlineWidthPx(value: number): number {
+  if (!Number.isFinite(value)) return MIN_TEXT_OUTLINE_WIDTH_PX;
+  return Math.min(
+    MAX_TEXT_OUTLINE_WIDTH_PX,
+    Math.max(MIN_TEXT_OUTLINE_WIDTH_PX, value),
+  );
+}
+
+export function snapTextOutlineWidthPx(value: number): number {
+  const clamped = clampTextOutlineWidthPx(value);
+  return (
+    Math.round(clamped / TEXT_OUTLINE_WIDTH_STEP_PX) *
+    TEXT_OUTLINE_WIDTH_STEP_PX
   );
 }
 
@@ -37,13 +63,19 @@ export function resolveEffectiveTextColor(style: TextOutlineStyle): string {
 export function resolveEffectiveTextOutlineColor(
   style: TextOutlineStyle,
 ): string {
-  const textColor = resolveEffectiveTextColor(style);
-  const outlineColor = resolveHexColor(
+  return resolveHexColor(
     style.outlineColor,
     DEFAULT_OUTLINE_COLOR,
   );
+}
+
+/** Automatic choices persist a readable outline color at application time. */
+export function resolveAutomaticTextOutlineColor(
+  style: TextOutlineStyle,
+): string {
+  const textColor = resolveEffectiveTextColor(style);
+  const outlineColor = resolveEffectiveTextOutlineColor(style);
   if (
-    !style.automaticFontMatch ||
     resolveTextOutlineContrastRatio(textColor, outlineColor) >=
       MIN_AUTOMATIC_TEXT_OUTLINE_CONTRAST_RATIO
   ) {

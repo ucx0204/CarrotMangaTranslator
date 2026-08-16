@@ -14,6 +14,10 @@ import {
   measureUniformWrappedText,
   type BlockTextLine,
 } from "./overlayTextWrapping";
+import {
+  resolveDefaultVerticalGraphemeAdvancePx,
+  resolveVerticalGraphemeAdvancePx,
+} from "./verticalTextSpacing";
 
 const MAX_VERTICAL_COLUMNS = 2;
 
@@ -82,7 +86,8 @@ export function doesBlockTextFit(
       fontSize,
       innerWidth,
       innerHeight,
-      fontSize * block.lineHeight + letterSpacingPx,
+      fontSize * block.lineHeight,
+      letterSpacingPx,
       scaleX,
       resolveBlockTextWordBreak(block.wordBreak, "vertical"),
     ).fits;
@@ -128,17 +133,30 @@ function measureVerticalText(
   fontSize: number,
   maxWidth: number,
   maxHeight: number,
-  lineHeight: number,
+  lineHeightPx: number,
+  letterSpacingPx: number,
   fontWidthScale: number,
   wordBreak: TextWordBreak,
 ): { columnCount: number; fits: boolean } {
   if (!text.trim()) return { columnCount: 0, fits: true };
+  const defaultAdvancePx = resolveDefaultVerticalGraphemeAdvancePx(
+    fontSize,
+    lineHeightPx,
+    letterSpacingPx,
+  );
   const measured = measureUniformWrappedText(
     text,
     maxHeight,
     1,
-    Math.max(fontSize, lineHeight),
+    defaultAdvancePx,
     wordBreak,
+    (grapheme) =>
+      resolveVerticalGraphemeAdvancePx(
+        grapheme,
+        fontSize,
+        defaultAdvancePx,
+        letterSpacingPx,
+      ),
   );
   const columnCount = Math.max(1, measured.lineCount);
   const estimatedColumnWidth = fontSize * 1.15 * fontWidthScale;

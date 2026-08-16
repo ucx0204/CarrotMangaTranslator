@@ -251,11 +251,6 @@ describe("keep-blocks translation mode", () => {
 
     expect(mapping.blocks[0]).toMatchObject({
       fontFamily: "nanum-barun-gothic",
-      automaticFontMatch: {
-        selectedFontId: "nanum-barun-gothic",
-        source: "local_visual",
-        previousStyle: { fontFamily: "legacy-current-font" },
-      },
     });
   });
 
@@ -461,13 +456,9 @@ describe("keep-blocks translation mode", () => {
 
     expect(preparationOrder).toEqual(["b-valid"]);
     expect(mixed.blocks[0].fontFamily).toBe(clean.blocks[0].fontFamily);
-    expect(mixed.blocks[0].automaticFontMatch).toEqual(
-      clean.blocks[0].automaticFontMatch,
-    );
+    expect(mixed.blocks[0].fontRole).toBe(clean.blocks[0].fontRole);
     expect(mixed.blocks[1].fontFamily).toBe("legacy-cross-page");
     expect(mixed.blocks[2].fontFamily).toBe("legacy-cross-catalog");
-    expect(mixed.blocks[1].automaticFontMatch).toBeUndefined();
-    expect(mixed.blocks[2].automaticFontMatch).toBeUndefined();
   });
 
   it("preserves a manual block font lock without pixel inference", () => {
@@ -501,11 +492,6 @@ describe("keep-blocks translation mode", () => {
 
     expect(mapping.blocks[0]).toMatchObject({
       fontFamily: candidate.fontId,
-      automaticFontMatch: {
-        selectedFontId: candidate.fontId,
-        source: "user_lock",
-        previousStyle: { fontFamily: "legacy-current-font" },
-      },
     });
   });
 

@@ -64,6 +64,62 @@ describe("editor text and outline color swap", () => {
     fireEvent.click(button);
     expect(onUpdate).not.toHaveBeenCalled();
   });
+
+  it("offers an outline checkbox and converts only manual edits to pixels", () => {
+    const onUpdate = vi.fn();
+    const { rerender } = render(
+      <EditorColorGroup
+        block={makeBlock({ outlineColor: "#ffffff", outlineWidthScale: 1 })}
+        disabled={false}
+        model={{
+          autoFitText: true,
+          fontSizePx: 24,
+          outlineColor: "#ffffff",
+          renderDirection: "horizontal",
+        }}
+        onUpdate={onUpdate}
+      />,
+    );
+
+    const checkbox = screen.getByRole("checkbox", { name: "외곽선 사용" });
+    expect((checkbox as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(checkbox);
+    expect(onUpdate).toHaveBeenLastCalledWith({ outlineWidthPx: 0 });
+
+    rerender(
+      <EditorColorGroup
+        block={makeBlock({ outlineColor: "#ffffff", outlineWidthPx: 0 })}
+        disabled={false}
+        model={{
+          autoFitText: true,
+          fontSizePx: 24,
+          outlineColor: "#ffffff",
+          renderDirection: "horizontal",
+        }}
+        onUpdate={onUpdate}
+      />,
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: "외곽선 사용" }));
+    expect(onUpdate).toHaveBeenLastCalledWith({ outlineWidthPx: 1.5 });
+
+    rerender(
+      <EditorColorGroup
+        block={makeBlock({ outlineColor: "#ffffff", outlineWidthPx: 1.5 })}
+        disabled={false}
+        model={{
+          autoFitText: true,
+          fontSizePx: 24,
+          outlineColor: "#ffffff",
+          renderDirection: "horizontal",
+        }}
+        onUpdate={onUpdate}
+      />,
+    );
+    const input = screen.getByRole("spinbutton", { name: "외곽선 굵기" });
+    fireEvent.change(input, { target: { value: "32" } });
+    fireEvent.blur(input);
+    expect(onUpdate).toHaveBeenLastCalledWith({ outlineWidthPx: 32 });
+  });
 });
 
 function makeBlock(patch: Partial<TranslationBlock> = {}): TranslationBlock {

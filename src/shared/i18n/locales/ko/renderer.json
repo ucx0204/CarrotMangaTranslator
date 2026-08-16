@@ -243,7 +243,6 @@
   },
   "workspaceHistory": {
     "blockEdit": "텍스트 블록 편집",
-    "autoFontRollback": "자동 폰트 선택 되돌리기",
     "blockBackgroundOpacity": "블록 배경 투명도 변경",
     "exclusion": "자동 지우기 제외 설정 변경",
     "format": "블록 서식 변경",

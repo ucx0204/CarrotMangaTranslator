@@ -204,16 +204,12 @@ describe("font replay page decision context", () => {
 });
 
 describe("font replay semantic role restoration", () => {
-  it("restores semantic metadata after selection without changing pixel provenance", () => {
+  it("restores semantic metadata after selection without changing selected styling", () => {
     const applied = {
       id: "block-a",
       fontFamily: "dohyeon",
       fontRole: "dialogue",
       fontRoleConfidence: 0.61,
-      automaticFontMatch: {
-        selectedFontId: "dohyeon",
-        role: "dialogue",
-      },
     };
 
     const restored = restoreFontReplaySemanticRole(applied, {
@@ -226,7 +222,7 @@ describe("font replay semantic role restoration", () => {
       fontRole: "sign_ui_title",
       fontRoleConfidence: 0.97,
     });
-    expect(restored.automaticFontMatch).toEqual(applied.automaticFontMatch);
+    expect(restored.fontFamily).toBe(applied.fontFamily);
   });
 
   it("leaves ordinary replay output untouched without semantic metadata", () => {

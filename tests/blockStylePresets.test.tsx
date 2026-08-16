@@ -117,6 +117,46 @@ describe("block style preset model", () => {
     ).toBe(false);
   });
 
+  it("round-trips pixel outlines while legacy outline presets stay scale-based", () => {
+    const legacy = createBlockStylePreset({
+      block: makeBlock("legacy", { outlineWidthScale: 1.25 }),
+      groupIds: ["outline"],
+      id: "style-preset:legacy-outline",
+      name: "기존 외곽선",
+    });
+    expect(legacy.format).toEqual({ outlineWidthScale: 1.25 });
+    expect(resolveBlockStylePresetPatch(legacy)).toMatchObject({
+      outlineWidthScale: 1.25,
+      outlineWidthPx: undefined,
+    });
+
+    const pixel = createBlockStylePreset({
+      block: makeBlock("pixel", {
+        outlineColor: "#abcdef",
+        outlineWidthPx: 8.5,
+        outlineWidthScale: 1.25,
+      }),
+      groupIds: ["outline"],
+      id: "style-preset:pixel-outline",
+      name: "픽셀 외곽선",
+    });
+    expect(pixel.format).toEqual({
+      outlineColor: "#abcdef",
+      outlineWidthPx: 8.5,
+    });
+    expect(resolveBlockStylePresetPatch(pixel)).toMatchObject({
+      outlineWidthPx: 8.5,
+      outlineWidthScale: undefined,
+    });
+
+    const defaults = resolveDefaultAppSettings();
+    const restored = parseStoredAppSettings(
+      JSON.stringify({ ...defaults, blockStylePresets: [legacy, pixel] }),
+      defaults,
+    );
+    expect(restored.blockStylePresets).toEqual([legacy, pixel]);
+  });
+
   it("persists optional two-level groups and safely ungroups orphaned presets", () => {
     const defaults = resolveDefaultAppSettings();
     const group = createBlockStylePresetGroup({
@@ -245,19 +285,6 @@ describe("block style preset application", () => {
   it("updates a multi-selection in one history entry, skips a missing font, and preserves non-format data", () => {
     const first = makeBlock("block-a", {
       fontFamily: "font-good",
-      automaticFontMatch: {
-        schemaVersion: 1,
-        selectedFontId: "font-good",
-        role: "dialogue",
-        confidence: 0.9,
-        source: "local_visual",
-        previousStyle: {
-          fontFamily: null,
-          bold: null,
-          italic: null,
-          outlineWidthScale: null,
-        },
-      },
       reviewStatus: "needs_review",
       speakerId: "speaker-1",
     });
@@ -324,7 +351,6 @@ describe("block style preset application", () => {
       "font-good",
       "font-good",
     ]);
-    expect(latest.pages[0]?.blocks[0]?.automaticFontMatch).toBeUndefined();
     expect(latest.pages[0]?.blocks.map((block) => block.bbox)).toEqual(
       beforeBboxes,
     );

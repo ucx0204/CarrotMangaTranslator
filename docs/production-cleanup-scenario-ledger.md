@@ -78,17 +78,16 @@ editing the totals by hand.
   JSON-summary provider, Vitest/coverage-v8 4.1.9, and the SHA-256
   `a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a` of the
   ignored Node 22 baseline capture. The capture is provenance only; CI does not
-  need it. Node 22/V8 12.4 and Node 24/V8 13.6 produced identical covered/total
-  counts for every sealed file and are the only accepted runtime families.
-  The accepted Node 22 post-refactor and issue #65 follow-up capture that
-  established the 22
-  introduced floors has SHA-256
-  `5c694dc7b0c2636bc36e1d72461ba6289569db926fed512b8ea3ee85e6f7bec4`.
+  need it. Node 22/V8 12.4 and Node 24/V8 13.6 are the only accepted runtime
+  families. The review-04 outline-control capture on Node 24/V8 13.6 extended
+  the sealed scope; its ignored artifact has SHA-256
+  `fa34ac98e47d3e3848b1309ebddfb63f33d6e2ee1661da30788ca592484fe0bc`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
-  percentage for lines/statements/functions/branches in all 124 existing
-  coverage-eligible `src/**` files changed since cleanup start. The 22 new
+  percentage for lines/statements/functions/branches in all 159 existing
+  coverage-eligible `src/**` files changed since cleanup start. The 27 new
   eligible source files have their accepted post-refactor Windows ratios sealed
-  as `introducedFloors`; they cannot regress to a merely present 0% record.
+  as `introducedFloors`; they cannot regress to a merely present 0% record. The
+  three removed source files are recorded explicitly in `deletedFiles`.
 - `scripts/check-production-cleanup-coverage.cjs` derives the eligible modified,
   added, deleted, and untracked source scope from Git on every run. A missing or
   stale manifest entry, unrecorded deletion, unsupported source status, missing
@@ -108,6 +107,9 @@ editing the totals by hand.
   platform-dependent execution as a cross-platform ratio regression. A native
   Darwin floor map is not claimed or silently substituted for the canonical
   Windows floors.
+- The review-04 capture passed all 486 Vitest files: 3,587 tests passed and the
+  two expected platform-specific tests were skipped. Its aggregate V8 coverage
+  was 79.42% lines, 78.50% statements, 80.23% functions, and 70.60% branches.
 
 ## Fail-closed obligations
 

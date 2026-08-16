@@ -82,6 +82,10 @@ describe("overlay text word breaking", () => {
     expect(measured.lineCount).toBe(2);
   });
 
+  it("keeps an empty paragraph as one measurable empty line", () => {
+    expect(measureLines(plainRuns(""), 50, "normal")).toEqual([""]);
+  });
+
   it("never splits a grapheme cluster in the anywhere mode", () => {
     expect(measureLines(plainRuns("A👨‍👩‍👧‍👦B"), 10, "break-all")).toEqual([
       "A",

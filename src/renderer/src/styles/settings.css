@@ -563,41 +563,6 @@
   padding: 16px 32px;
 }
 
-.format-defaults-outline-toggle {
-  display: inline-flex;
-  min-height: 28px;
-  align-items: center;
-  gap: 7px;
-  padding: 3px 9px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-pill);
-  background: #14171c;
-  color: var(--text-muted);
-  font-size: var(--font-xs);
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.format-defaults-outline-toggle > span {
-  width: 7px;
-  height: 7px;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  background: var(--text-muted);
-}
-
-.format-defaults-outline-toggle[aria-pressed="true"] {
-  border-color: rgba(193, 95, 65, 0.55);
-  background: var(--accent-soft);
-  color: var(--accent-hi);
-}
-
-.format-defaults-outline-toggle[aria-pressed="true"] > span {
-  background: var(--accent-hi);
-  box-shadow: 0 0 0 3px rgba(193, 95, 65, 0.16);
-}
-
 .format-defaults-editor .gather-direct-color-control[aria-disabled="true"] {
   opacity: 0.48;
 }

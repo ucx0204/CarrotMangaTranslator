@@ -1,6 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { RangeInput } from "../ui/Field";
+import { ScrubbableNumberField } from "../ui/ScrubbableNumberField";
 
 export function BlockFormatSectionHeading({
   title,
@@ -78,5 +79,60 @@ export function FormatSliderControl({
         onChange={(event) => onChange(Number(event.target.value))}
       />
     </label>
+  );
+}
+
+export function FormatNumberControl({
+  disabled = false,
+  label,
+  max,
+  min,
+  mixed = false,
+  precision,
+  step,
+  touched = false,
+  unit,
+  value,
+  onChange,
+}: {
+  disabled?: boolean;
+  label: string;
+  max: number;
+  min: number;
+  mixed?: boolean;
+  precision?: number;
+  step: number;
+  touched?: boolean;
+  unit?: string;
+  value: number;
+  onChange: (value: number) => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <div
+      className="gather-direct-number-control"
+      data-touched={touched || undefined}
+      data-mixed={mixed || undefined}
+    >
+      <BlockFormatControlCaption
+        label={label}
+        mixed={mixed}
+        touched={touched}
+      />
+      <ScrubbableNumberField
+        ariaLabel={label}
+        decreaseLabel={t("format.decreaseValue", { label })}
+        increaseLabel={t("format.increaseValue", { label })}
+        min={min}
+        max={max}
+        step={step}
+        precision={precision}
+        value={value}
+        mixed={mixed}
+        disabled={disabled}
+        unit={unit}
+        onValueChange={onChange}
+      />
+    </div>
   );
 }

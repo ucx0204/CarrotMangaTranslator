@@ -3,16 +3,19 @@ import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import type { BlockFormatGroupId } from "../../../shared/blockFormat";
 import { resolveBlockTextWordBreak } from "../../../shared/textWrapping";
+import {
+  FONT_SIZE_STEP_PX,
+  MAX_FONT_SIZE_PX,
+  MIN_FONT_SIZE_PX,
+} from "../../../shared/blockFormatValues";
 import { BlockSpacingFields } from "./BlockSpacingFields";
-import { FontSizeNumberInput } from "./FontSizeNumberInput";
 import { FontSelect } from "./FontSelect";
 import { FormatBatchApplyModal } from "./FormatBatchApplyModal";
 import type { FormatApplyScope } from "../hooks/blockEditingStatus";
 import { Button } from "./ui/Button";
 import { CheckboxField } from "./ui/CheckboxField";
-import { FieldSlider, FieldSliderGroup } from "./ui/FieldSlider";
 import { IconButton } from "./ui/IconButton";
-import { RangeInput } from "./ui/Field";
+import { ScrubbableNumberField } from "./ui/ScrubbableNumberField";
 import { TextWrappingSelect } from "./TextWrappingSelect";
 import {
   AlignCenterIcon,
@@ -22,7 +25,6 @@ import {
   ItalicIcon,
 } from "./ui/icons";
 import { clampFontSize, type EditorPanelModel } from "./editorPanelUtils";
-import { AutomaticFontMatchNotice } from "./AutomaticFontMatchNotice";
 
 type BlockPatchHandler = (patch: Partial<TranslationBlock>) => void;
 type ApplyFormatHandler = (
@@ -89,9 +91,8 @@ export function FormatEditorGroup({
         onFontFamilyDraftChange={onFontFamilyDraftChange}
         onUpdate={onUpdate}
       />
-      <AutomaticFontMatchNotice {...{ block, disabled, onUpdate }} />
       <TextWrappingField {...{ block, disabled, onUpdate }} />
-      <FieldSliderGroup>
+      <div className="editor-format-fields">
         <FontSizeRow
           autoFitText={model.autoFitText}
           disabled={disabled}
@@ -99,17 +100,19 @@ export function FormatEditorGroup({
           onAdjust={onAdjustFontSize}
           onUpdate={onUpdate}
         />
-        <BlockTextOpacitySlider
-          block={block}
-          disabled={disabled}
-          onUpdate={onUpdate}
-        />
-        <BlockSpacingFields
-          block={block}
-          disabled={disabled}
-          onUpdate={onUpdate}
-        />
-      </FieldSliderGroup>
+        <div className="editor-format-number-grid">
+          <BlockTextOpacityField
+            block={block}
+            disabled={disabled}
+            onUpdate={onUpdate}
+          />
+          <BlockSpacingFields
+            block={block}
+            disabled={disabled}
+            onUpdate={onUpdate}
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -130,6 +133,7 @@ function TextWrappingField({
           block.renderDirection,
         )}
         disabled={disabled}
+        showDescription={false}
         onChange={(wordBreak) => onUpdate({ wordBreak })}
       />
     </label>
@@ -313,77 +317,63 @@ function FontSizeRow({
   const updateFontSize = (value: number) =>
     onUpdate({ fontSizePx: clampFontSize(value), autoFitText: false });
   return (
-    <div className="font-size-row editor-font-size-row">
-      <span className="font-size-label">{t("format.size")}</span>
-      <div className="font-size-stepper">
-        <IconButton
-          className="font-size-adjust-button"
-          size="sm"
-          label={t("format.fontSizeDecrease")}
-          disabled={disabled || (!autoFitText && fontSizePx <= 10)}
-          onClick={() => onAdjust(-1)}
-        >
-          <span aria-hidden="true">−</span>
-        </IconButton>
-        <FontSizeNumberInput
-          className="font-size-number"
+    <div className="editor-font-size-row">
+      <div className="editor-format-number-cell">
+        <span>{t("format.size")}</span>
+        <ScrubbableNumberField
+          className="font-size-stepper"
+          inputClassName="font-size-number"
           ariaLabel={t("format.fontSizeValue")}
-          min={10}
-          max={160}
+          decreaseLabel={t("format.fontSizeDecrease")}
+          increaseLabel={t("format.fontSizeIncrease")}
+          min={MIN_FONT_SIZE_PX}
+          max={MAX_FONT_SIZE_PX}
+          step={FONT_SIZE_STEP_PX}
+          precision={1}
           value={fontSizePx}
-          disabled={disabled || autoFitText}
+          disabled={disabled}
+          inputDisabled={autoFitText}
+          scrubDisabled={autoFitText}
+          unit="px"
+          onStep={onAdjust}
           onValueChange={updateFontSize}
         />
-        <IconButton
-          className="font-size-adjust-button"
-          size="sm"
-          label={t("format.fontSizeIncrease")}
-          disabled={disabled || (!autoFitText && fontSizePx >= 160)}
-          onClick={() => onAdjust(1)}
-        >
-          <span aria-hidden="true">+</span>
-        </IconButton>
       </div>
       <CheckboxField
-        className="inline-toggle"
+        className="inline-toggle editor-font-size-auto"
         title={t("format.autoFitTitle")}
         label={t("format.auto")}
         checked={autoFitText}
         disabled={disabled}
         onCheckedChange={(checked) => onUpdate({ autoFitText: checked })}
       />
-      <RangeInput
-        className="font-size-slider"
-        aria-label={t("format.fontSize")}
-        min={10}
-        max={160}
-        step={1}
-        value={fontSizePx}
-        disabled={disabled || autoFitText}
-        onChange={(event) => updateFontSize(Number(event.target.value))}
-      />
     </div>
   );
 }
 
-function BlockTextOpacitySlider({
+function BlockTextOpacityField({
   block,
   disabled,
   onUpdate,
 }: BlockSectionProps): React.JSX.Element {
   const { t } = useTranslation("components");
+  const label = t("format.textOpacity");
   return (
-    <FieldSlider
-      label={t("format.textOpacity")}
-      valueLabel={`${Math.round((block.textOpacity ?? 1) * 100)}%`}
-      min={0}
-      max={1}
-      step={0.01}
-      value={block.textOpacity ?? 1}
-      disabled={disabled}
-      onChange={(event) =>
-        onUpdate({ textOpacity: Number(event.target.value) })
-      }
-    />
+    <div className="editor-format-number-cell">
+      <span>{label}</span>
+      <ScrubbableNumberField
+        ariaLabel={label}
+        decreaseLabel={t("format.decreaseValue", { label })}
+        increaseLabel={t("format.increaseValue", { label })}
+        min={0}
+        max={100}
+        step={1}
+        precision={0}
+        value={Math.round((block.textOpacity ?? 1) * 100)}
+        disabled={disabled}
+        unit="%"
+        onValueChange={(value) => onUpdate({ textOpacity: value / 100 })}
+      />
+    </div>
   );
 }
