@@ -1,5 +1,7 @@
 import React from "react";
 import type { TranslationBlock } from "../../../../shared/textTypes";
+import type { TextEffect } from "../../../../shared/textTypes";
+import { resolveTextEffectFilter } from "../../../../shared/textEffect";
 import {
   resolveEffectiveTextOutlineColor,
   resolveEffectiveTextOutlineWidthPx,
@@ -29,6 +31,7 @@ export type BlockFormatPreviewValues = {
   outlineColor: string | undefined;
   outlineWidthPx: number;
   rotationDeg: number;
+  textEffect?: TextEffect;
 };
 
 export function BlockFormatPreview({
@@ -94,6 +97,7 @@ export function BlockFormatPreviewStage({
       <div
         className="gather-direct-preview-rotation"
         style={{
+          filter: resolveTextEffectFilter(values.textEffect),
           opacity: values.textOpacity,
           transform: `rotate(${values.rotationDeg}deg)`,
         }}

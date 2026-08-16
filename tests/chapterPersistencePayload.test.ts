@@ -62,6 +62,32 @@ describe("chapter persistence payload", () => {
     });
     expect(update?.blocks[0]?.renderBboxSpace).toBe("normalized_1000");
   });
+
+  it("normalizes a legacy pixel-space source box before saving", () => {
+    const chapter = makeChapter();
+    chapter.pages[0].width = 2_000;
+    chapter.pages[0].height = 1_000;
+    chapter.pages[0].blocks[0].bbox = {
+      x: 1_000,
+      y: 250,
+      w: 400,
+      h: 200,
+    };
+    chapter.pages[0].blocks[0].bboxSpace = "pixels";
+    const update = collectPageBlockUpdates(
+      chapter,
+      [chapter.pages[0].id],
+      new Map(),
+    )[0];
+
+    expect(update?.blocks[0]?.bbox).toEqual({
+      x: 500,
+      y: 250,
+      w: 200,
+      h: 200,
+    });
+    expect(update?.blocks[0]?.bboxSpace).toBe("normalized_1000");
+  });
 });
 
 function makeChapter(): ChapterSnapshot {

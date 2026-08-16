@@ -163,6 +163,15 @@
     "color": "Color",
     "textColor": "Text color",
     "outline": "Outline",
+    "textEffect": {
+      "title": "Shadow & glow",
+      "enabled": "Use effect",
+      "color": "Effect color",
+      "offsetX": "X offset",
+      "offsetY": "Y offset",
+      "blur": "Blur",
+      "opacity": "Opacity"
+    },
     "wordBreak": {
       "label": "Line wrapping",
       "options": {
@@ -376,6 +385,7 @@
       "wordBreak": "Line wrapping",
       "color": "Text color",
       "outline": "Outline",
+      "effect": "Shadow & glow",
       "transform": "Rotation & text opacity"
     }
   },

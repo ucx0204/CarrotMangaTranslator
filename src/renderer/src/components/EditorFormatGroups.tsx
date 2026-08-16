@@ -9,7 +9,11 @@ import type { TranslationBlock } from "../../../shared/textTypes";
 import type { FormatApplyScope } from "../hooks/blockEditingStatus";
 import type { BlockBackgroundApplyScope } from "../hooks/useApplyBlockBackgroundOpacityAction";
 import { BlockStylePresetControls } from "./BlockStylePresetControls";
-import { BlockDisplayGroup, EditorColorGroup } from "./EditorColorGroup";
+import {
+  BlockDisplayGroup,
+  EditorColorGroup,
+  EditorTextEffectGroup,
+} from "./EditorColorGroup";
 import { FormatEditorGroup } from "./EditorFormatControls";
 import {
   clampFontSize,
@@ -87,6 +91,11 @@ export function EditorFormatGroups({
         block={block}
         disabled={disabled}
         model={model}
+        onUpdate={onUpdate}
+      />
+      <EditorTextEffectGroup
+        block={block}
+        disabled={disabled}
         onUpdate={onUpdate}
       />
       <BlockDisplayGroup

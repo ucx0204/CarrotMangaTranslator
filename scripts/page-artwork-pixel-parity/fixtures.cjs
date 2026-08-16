@@ -9,11 +9,13 @@ function createFixtureBlocks() {
       italic: true,
       letterSpacing: 0.08,
       rotationDeg: 13.5,
+      textEffect: createTextEffect("#7a2148", 4, 6, 8, 0.72),
       translatedText: "**굵게** 그리고 *기울임*",
     }),
     createBlock("vertical", {
       bbox: { x: 650.2, y: 105.4, w: 155.7, h: 350.3 },
       renderDirection: "vertical",
+      textEffect: createTextEffect("#2358b8", 0, 0, 12, 0.8),
       translatedText: "세로쓰기",
       warpTransform: createWarpFixture("wave", 3),
       wordBreak: "keep-all",
@@ -29,6 +31,7 @@ function createFixtureBlocks() {
         ],
         version: 1,
       },
+      textEffect: createTextEffect("#182840", -5, 7, 10, 0.7),
       translatedText: "원근 변환",
       warpTransform: createWarpFixture("bulge", 3),
     }),
@@ -57,6 +60,7 @@ function createFixtureBlocks() {
         version: 1,
       },
       rotationDeg: -4.5,
+      textEffect: createTextEffect("#d56b20", 0, 0, 14, 0.68),
       translatedText: "곡선 텍스트",
       warpTransform: createWarpFixture("archUp", 5),
     }),
@@ -64,6 +68,7 @@ function createFixtureBlocks() {
       bbox: { x: 355, y: 955, w: 520, h: 150 },
       bold: true,
       italic: true,
+      textEffect: createTextEffect("#204d35", 3, -4, 6, 0.76),
       translatedText: "**여러 줄**과 *부분 강조*\n외곽선도 함께",
       warpTransform: createWarpFixture("flag", 3),
     }),
@@ -72,6 +77,7 @@ function createFixtureBlocks() {
       renderBbox: { x: -165, y: 420, w: 220, h: 180 },
       renderBboxSpace: "normalized_1000",
       rotationDeg: 90,
+      textEffect: createTextEffect("#701b1b", -10, 0, 16, 0.9),
       translatedText: "경계 밖 텍스트",
     }),
     createBlock("empty", {
@@ -80,6 +86,24 @@ function createFixtureBlocks() {
       translatedText: "",
     }),
   ];
+}
+
+/**
+ * @param {string} color
+ * @param {number} offsetXpx
+ * @param {number} offsetYpx
+ * @param {number} blurPx
+ * @param {number} opacity
+ */
+function createTextEffect(color, offsetXpx, offsetYpx, blurPx, opacity) {
+  return {
+    enabled: true,
+    color,
+    offsetXpx,
+    offsetYpx,
+    blurPx,
+    opacity,
+  };
 }
 
 /**

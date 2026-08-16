@@ -98,6 +98,21 @@ describe("page artwork renderer parity", () => {
     expect(verticalBubbleColumn?.parentElement?.style.width).not.toBe(
       "max-content",
     );
+    const effectLayers = Array.from(
+      exported.container.querySelectorAll<HTMLElement>(".text-effect-layer"),
+    );
+    expect(effectLayers).toHaveLength(4);
+    expect(effectLayers.map((layer) => layer.style.filter)).toEqual([
+      "drop-shadow(2.508px 4.2857px 5.926px rgba(18, 52, 86, 0.7))",
+      "drop-shadow(0px 0px 8.4657px rgba(68, 102, 204, 0.8))",
+      "drop-shadow(-3.344px 5.1429px 10.1589px rgba(136, 34, 68, 0.55))",
+      "drop-shadow(1.672px -2.5714px 4.2329px rgba(34, 119, 85, 0.65))",
+    ]);
+    expect(
+      exported.container.querySelector(
+        ".text-effect-layer .overlay-block-chrome",
+      ),
+    ).toBeNull();
   });
 
   it("keeps persisted outlines identical in editor and export", () => {
@@ -226,11 +241,27 @@ function makeBlocks(): TranslationBlock[] {
       rotationDeg: 13.5,
       fontWidthScale: 0.86,
       letterSpacing: 0.08,
+      textEffect: {
+        enabled: true,
+        color: "#123456",
+        offsetXpx: 3,
+        offsetYpx: 5,
+        blurPx: 7,
+        opacity: 0.7,
+      },
     }),
     makeBlock("vertical", {
       bbox: { x: 620.2, y: 120.4, w: 150.7, h: 370.3 },
       renderDirection: "vertical",
       translatedText: "세로쓰기",
+      textEffect: {
+        enabled: true,
+        color: "#4466cc",
+        offsetXpx: 0,
+        offsetYpx: 0,
+        blurPx: 10,
+        opacity: 0.8,
+      },
       wordBreak: "keep-all",
     }),
     makeBlock("perspective", {
@@ -243,6 +274,14 @@ function makeBlocks(): TranslationBlock[] {
           { x: 0.91, y: 0.94 },
           { x: 0.02, y: 0.82 },
         ],
+      },
+      textEffect: {
+        enabled: true,
+        color: "#882244",
+        offsetXpx: -4,
+        offsetYpx: 6,
+        blurPx: 12,
+        opacity: 0.55,
       },
       translatedText: "원근 변환",
     }),
@@ -260,6 +299,14 @@ function makeBlocks(): TranslationBlock[] {
           control: { x: 0.5, y: 0.05 },
           end: { x: 0.95, y: 0.7 },
         },
+      },
+      textEffect: {
+        enabled: true,
+        color: "#227755",
+        offsetXpx: 2,
+        offsetYpx: -3,
+        blurPx: 5,
+        opacity: 0.65,
       },
       translatedText: "곡선 텍스트",
     }),

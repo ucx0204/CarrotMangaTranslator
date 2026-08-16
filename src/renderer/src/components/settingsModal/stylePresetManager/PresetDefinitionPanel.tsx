@@ -12,8 +12,11 @@ import {
   type BlockStylePresetGroup,
 } from "../../../../../shared/blockStylePresets";
 import { resolveEffectiveTextOutlineWidthPx } from "../../../../../shared/textOutline";
-import type { GatherTextDirectFormatValues } from "../../../lib/gatherTextDirectFormatModel";
-import { BlockFormatPreviewStage } from "../../blockFormat/BlockFormatPreview";
+import { resolveTextEffect } from "../../../../../shared/textEffect";
+import {
+  BlockFormatPreviewStage,
+  type BlockFormatPreviewValues,
+} from "../../blockFormat/BlockFormatPreview";
 import { CheckboxField } from "../../ui/CheckboxField";
 import { Select } from "../../ui/Select";
 import { toast } from "../../../lib/toastStore";
@@ -181,7 +184,7 @@ function PresetAppearancePreview({
   );
 }
 
-const PRESET_PREVIEW_DEFAULTS: GatherTextDirectFormatValues = {
+const PRESET_PREVIEW_DEFAULTS: BlockFormatPreviewValues = {
   fontFamily: undefined,
   fontSizePx: 24,
   autoFitText: true,
@@ -202,7 +205,7 @@ const PRESET_PREVIEW_DEFAULTS: GatherTextDirectFormatValues = {
 
 function createPresetPreviewValues(
   preset: BlockStylePreset,
-): GatherTextDirectFormatValues {
+): BlockFormatPreviewValues {
   const fontSizePx =
     preset.format.fontSizePx ?? PRESET_PREVIEW_DEFAULTS.fontSizePx;
   return {
@@ -244,6 +247,7 @@ const FORMAT_VALUE_RESOLVERS: Record<
     `${Math.round((format.fontWidthScale ?? 1) * 100)}%`,
   color: ({ format }) => (format.textColor ?? "#111111").toUpperCase(),
   outline: resolveOutlineValue,
+  effect: resolveEffectValue,
   transform: ({ format }) =>
     `${format.rotationDeg ?? 0}° · ${Math.round((format.textOpacity ?? 1) * 100)}%`,
 };
@@ -254,6 +258,12 @@ function resolveEmphasisValue({ format, t }: FormatValueContext): string {
     format.italic ? t("format.italicShort") : "",
   ].filter(Boolean);
   return styles.join(" · ") || "—";
+}
+
+function resolveEffectValue({ format }: FormatValueContext): string {
+  const effect = resolveTextEffect(format.textEffect);
+  if (!effect.enabled) return "—";
+  return `${effect.color.toUpperCase()} · ${effect.offsetXpx}/${effect.offsetYpx}px · ${effect.blurPx}px · ${Math.round(effect.opacity * 100)}%`;
 }
 
 function resolveOutlineValue({ format }: FormatValueContext): string {
@@ -298,6 +308,7 @@ function resolveSwatch(
 ): string | undefined {
   if (groupId === "color") return preset.format.textColor;
   if (groupId === "outline") return preset.format.outlineColor;
+  if (groupId === "effect") return preset.format.textEffect?.color;
   return undefined;
 }
 

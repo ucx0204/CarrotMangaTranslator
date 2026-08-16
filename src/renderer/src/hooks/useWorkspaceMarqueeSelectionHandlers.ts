@@ -8,16 +8,18 @@ import {
   type SetStateAction,
 } from "react";
 import type { MangaPage } from "../../../shared/libraryTypes";
-import type { BBox } from "../../../shared/textTypes";
+import {
+  MAX_RENDER_BBOX_COORDINATE,
+  MIN_RENDER_BBOX_COORDINATE,
+} from "../../../shared/renderBbox";
+import type { BBox, Point } from "../../../shared/textTypes";
+import { resolveBlockSelectionBoundary } from "../../../shared/geometry";
 import type { WorkspaceInteractionPreviewStore } from "../lib/workspaceInteractionPreview";
 import {
   capturePointerSafely,
   releasePointerCaptureSafely,
 } from "./workspacePointerCapture";
-import {
-  resolveNormalizedImagePoint,
-  type PointerRect,
-} from "./workspacePointerGeometry";
+import { type PointerRect } from "./workspacePointerGeometry";
 
 type ActiveMarquee = {
   additive: boolean;
@@ -78,7 +80,7 @@ function useMarqueePointerDown(
       if (!options.active || !options.page || event.button !== 0) return false;
       const pointerRect = options.getImagePointerRect();
       const point = pointerRect
-        ? resolveNormalizedImagePoint(event, pointerRect)
+        ? resolveMarqueeImagePoint(event, pointerRect)
         : null;
       if (!pointerRect || !point || !options.stageRef.current) return false;
       event.preventDefault();
@@ -108,7 +110,7 @@ function useMarqueePointerMove(
     (event) => {
       const active = activeRef.current;
       if (!active) return false;
-      const point = resolveNormalizedImagePoint(event, active.pointerRect);
+      const point = resolveMarqueeImagePoint(event, active.pointerRect);
       if (point) active.current = point;
       interactionPreviewStore.queue({
         selectionMarqueeRect: marqueeToBbox(active),
@@ -131,15 +133,13 @@ function useMarqueePointerUp(
       activeRef.current = null;
       options.interactionPreviewStore.set({ selectionMarqueeRect: null });
       if (event.type === "pointercancel" || !options.page) return true;
-      const finalPoint = resolveNormalizedImagePoint(event, active.pointerRect);
+      const finalPoint = resolveMarqueeImagePoint(event, active.pointerRect);
       if (finalPoint) active.current = finalPoint;
       const marquee = marqueeToBbox(active);
       const hitIds =
         marquee.w < 3 && marquee.h < 3
           ? []
-          : options.page.blocks
-              .filter((block) => bboxesIntersect(marquee, block.bbox))
-              .map((block) => block.id);
+          : resolveMarqueeHitBlockIds(options.page, marquee);
       const nextIds = active.additive
         ? [...new Set([...active.initialIds, ...hitIds])]
         : hitIds;
@@ -153,6 +153,37 @@ function useMarqueePointerUp(
     },
     [activeRef, options],
   );
+}
+
+export function resolveMarqueeHitBlockIds(
+  page: MangaPage,
+  marquee: BBox,
+): string[] {
+  const pageSize = { width: page.width, height: page.height };
+  return page.blocks
+    .filter((block) =>
+      bboxIntersectsPolygon(
+        marquee,
+        resolveBlockSelectionBoundary(block, pageSize),
+      ),
+    )
+    .map((block) => block.id);
+}
+
+/** Marquee selection may extend into the editable area outside the page. */
+export function resolveMarqueeImagePoint(
+  point: { clientX: number; clientY: number },
+  rect: PointerRect,
+): { x: number; y: number } | null {
+  if (rect.width <= 0 || rect.height <= 0) return null;
+  return {
+    x: clampMarqueeCoordinate(
+      ((point.clientX - rect.left) / rect.width) * 1000,
+    ),
+    y: clampMarqueeCoordinate(
+      ((point.clientY - rect.top) / rect.height) * 1000,
+    ),
+  };
 }
 
 function marqueeToBbox(selection: {
@@ -169,11 +200,119 @@ function marqueeToBbox(selection: {
   };
 }
 
-function bboxesIntersect(left: BBox, right: BBox): boolean {
+function bboxIntersectsPolygon(bbox: BBox, polygon: readonly Point[]): boolean {
+  if (polygon.length < 3) return false;
+  const corners = bboxCorners(bbox);
+  if (polygon.some((point) => pointInBbox(point, bbox))) return true;
+  if (corners.some((point) => pointInPolygon(point, polygon))) return true;
+  const bboxEdges = polygonEdges(corners);
+  return polygonEdges(polygon).some(([start, end]) =>
+    bboxEdges.some(([boxStart, boxEnd]) =>
+      segmentsIntersect(start, end, boxStart, boxEnd),
+    ),
+  );
+}
+
+function bboxCorners(bbox: BBox): Point[] {
+  return [
+    { x: bbox.x, y: bbox.y },
+    { x: bbox.x + bbox.w, y: bbox.y },
+    { x: bbox.x + bbox.w, y: bbox.y + bbox.h },
+    { x: bbox.x, y: bbox.y + bbox.h },
+  ];
+}
+
+function polygonEdges(
+  polygon: readonly Point[],
+): Array<readonly [Point, Point]> {
+  return polygon.map((point, index) => [
+    point,
+    polygon[(index + 1) % polygon.length] ?? point,
+  ]);
+}
+
+function pointInBbox(point: Point, bbox: BBox): boolean {
   return (
-    left.x <= right.x + right.w &&
-    left.x + left.w >= right.x &&
-    left.y <= right.y + right.h &&
-    left.y + left.h >= right.y
+    point.x >= bbox.x &&
+    point.x <= bbox.x + bbox.w &&
+    point.y >= bbox.y &&
+    point.y <= bbox.y + bbox.h
+  );
+}
+
+function pointInPolygon(point: Point, polygon: readonly Point[]): boolean {
+  let inside = false;
+  for (
+    let index = 0, previous = polygon.length - 1;
+    index < polygon.length;
+    previous = index, index += 1
+  ) {
+    const currentPoint = polygon[index];
+    const previousPoint = polygon[previous];
+    if (!currentPoint || !previousPoint) continue;
+    if (pointOnSegment(point, previousPoint, currentPoint)) return true;
+    const crosses =
+      currentPoint.y > point.y !== previousPoint.y > point.y &&
+      point.x <
+        ((previousPoint.x - currentPoint.x) * (point.y - currentPoint.y)) /
+          (previousPoint.y - currentPoint.y) +
+          currentPoint.x;
+    if (crosses) inside = !inside;
+  }
+  return inside;
+}
+
+function segmentsIntersect(a: Point, b: Point, c: Point, d: Point): boolean {
+  const abC = crossProduct(a, b, c);
+  const abD = crossProduct(a, b, d);
+  const cdA = crossProduct(c, d, a);
+  const cdB = crossProduct(c, d, b);
+  if (haveOppositeSigns(abC, abD) && haveOppositeSigns(cdA, cdB)) {
+    return true;
+  }
+  return (
+    collinearPointTouchesSegment(abC, c, a, b) ||
+    collinearPointTouchesSegment(abD, d, a, b) ||
+    collinearPointTouchesSegment(cdA, a, c, d) ||
+    collinearPointTouchesSegment(cdB, b, c, d)
+  );
+}
+
+function haveOppositeSigns(left: number, right: number): boolean {
+  return (left > 0 && right < 0) || (left < 0 && right > 0);
+}
+
+function collinearPointTouchesSegment(
+  cross: number,
+  point: Point,
+  start: Point,
+  end: Point,
+): boolean {
+  return nearZero(cross) && pointOnSegment(point, start, end);
+}
+
+function pointOnSegment(point: Point, start: Point, end: Point): boolean {
+  if (!nearZero(crossProduct(start, end, point))) return false;
+  return (
+    point.x >= Math.min(start.x, end.x) - Number.EPSILON &&
+    point.x <= Math.max(start.x, end.x) + Number.EPSILON &&
+    point.y >= Math.min(start.y, end.y) - Number.EPSILON &&
+    point.y <= Math.max(start.y, end.y) + Number.EPSILON
+  );
+}
+
+function crossProduct(a: Point, b: Point, point: Point): number {
+  return (b.x - a.x) * (point.y - a.y) - (b.y - a.y) * (point.x - a.x);
+}
+
+function nearZero(value: number): boolean {
+  return Math.abs(value) <= 1e-7;
+}
+
+function clampMarqueeCoordinate(value: number): number {
+  if (!Number.isFinite(value)) return MIN_RENDER_BBOX_COORDINATE;
+  return Math.min(
+    MAX_RENDER_BBOX_COORDINATE,
+    Math.max(MIN_RENDER_BBOX_COORDINATE, value),
   );
 }

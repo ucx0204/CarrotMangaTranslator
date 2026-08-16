@@ -15,6 +15,7 @@ import {
   OcrGpuBackendSchema,
   OcrQualityModeSchema,
   OpenAiCompatibleBaseUrlSchema,
+  TextEffectSchema,
   filePath,
   hexColor,
 } from "./ipcSchemaPrimitives";
@@ -84,6 +85,7 @@ const BlockFormatGroupIdSchema = z.enum([
   "fontWidth",
   "color",
   "outline",
+  "effect",
   "transform",
 ]);
 
@@ -112,7 +114,7 @@ const BlockStylePresetSchema = z
     groupIds: z
       .array(BlockFormatGroupIdSchema)
       .min(1)
-      .max(12)
+      .max(13)
       .refine((items) => new Set(items).size === items.length),
     format: z
       .object({
@@ -148,6 +150,7 @@ const BlockStylePresetSchema = z
         outlineColor: hexColor.optional(),
         outlineWidthPx: z.number().min(0).max(64).optional(),
         outlineWidthScale: z.number().min(0).max(8).optional(),
+        textEffect: TextEffectSchema.optional(),
         rotationDeg: z.number().min(-180).max(180).optional(),
       })
       .strict(),

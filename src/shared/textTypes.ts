@@ -13,6 +13,15 @@ export type TextWordBreak =
   | "keep-all"
   | "keep-all-overflow";
 
+export type TextEffect = {
+  enabled: boolean;
+  color: string;
+  offsetXpx: number;
+  offsetYpx: number;
+  blurPx: number;
+  opacity: number;
+};
+
 export type BBox = {
   x: number;
   y: number;
@@ -109,6 +118,8 @@ export type TranslationBlock = {
   /** User-authored absolute outline thickness. Undefined preserves legacy scale behavior. */
   outlineWidthPx?: number;
   outlineWidthScale?: number;
+  /** Optional block-wide shadow/glow rendered after text and outline composition. */
+  textEffect?: TextEffect;
   bold?: boolean;
   italic?: boolean;
   backgroundColor: string;

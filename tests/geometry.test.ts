@@ -14,6 +14,8 @@ import {
   normalizeBlockType,
   normalizeRenderDirection,
   offsetBlockBboxes,
+  resolveBlockSelectionBoundary,
+  resolveBlockSelectionBounds,
   resolveEditableBlockBbox,
   resolveEffectiveRenderBbox,
   resolveBlockRenderBbox,
@@ -213,6 +215,74 @@ describe("geometry helpers", () => {
         "가나다라마바사",
       ),
     ).toEqual(block.renderBbox);
+  });
+
+  it("resolves selection bounds from the displayed render frame and rotation", () => {
+    const bounds = resolveBlockSelectionBounds(
+      {
+        id: "block-1",
+        type: "nonsolid",
+        bbox: { x: 100, y: 100, w: 80, h: 80 },
+        renderBbox: { x: 400, y: 400, w: 200, h: 100 },
+        renderBboxSpace: "normalized_1000",
+        sourceText: "원문",
+        translatedText: "번역",
+        confidence: 1,
+        sourceDirection: "horizontal",
+        renderDirection: "horizontal",
+        rotationDeg: 90,
+        fontSizePx: 24,
+        lineHeight: 1.18,
+        textAlign: "center",
+        textColor: "#111111",
+        backgroundColor: "#ffffff",
+        opacity: 1,
+      },
+      { width: 1000, height: 1000 },
+    );
+
+    expect(bounds.x).toBeCloseTo(450);
+    expect(bounds.y).toBeCloseTo(350);
+    expect(bounds.w).toBeCloseTo(100);
+    expect(bounds.h).toBeCloseTo(200);
+  });
+
+  it("resolves selection geometry when only source text or placeholder text is available", () => {
+    const sourceOnlyBlock = {
+      id: "block-source-only",
+      type: "nonsolid" as const,
+      bbox: { x: 100, y: 100, w: 80, h: 80 },
+      renderBbox: { x: 400, y: 420, w: 180, h: 120 },
+      renderBboxSpace: "normalized_1000" as const,
+      sourceText: "원문",
+      translatedText: "",
+      confidence: 1,
+      sourceDirection: "horizontal" as const,
+      renderDirection: "horizontal" as const,
+      fontSizePx: 24,
+      lineHeight: 1.18,
+      textAlign: "center" as const,
+      textColor: "#111111",
+      backgroundColor: "#ffffff",
+      opacity: 1,
+    };
+    const pageSize = { width: 1000, height: 1000 };
+
+    expect(resolveBlockSelectionBounds(sourceOnlyBlock, pageSize)).toEqual(
+      sourceOnlyBlock.renderBbox,
+    );
+    expect(resolveBlockSelectionBoundary(sourceOnlyBlock, pageSize)[0]).toEqual(
+      { x: 400, y: 420 },
+    );
+
+    const emptyBlock = { ...sourceOnlyBlock, sourceText: "" };
+    expect(resolveBlockSelectionBounds(emptyBlock, pageSize)).toEqual(
+      emptyBlock.renderBbox,
+    );
+    expect(resolveBlockSelectionBoundary(emptyBlock, pageSize)[0]).toEqual({
+      x: 400,
+      y: 420,
+    });
   });
 
   it("estimates a larger font size for a larger render box", () => {

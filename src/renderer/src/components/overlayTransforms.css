@@ -31,6 +31,13 @@
   pointer-events: none;
 }
 
+.text-effect-layer {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
 .overlay-curve-text {
   position: absolute;
   inset: 0;
@@ -83,6 +90,11 @@
 .overlay-block.transform-mode-select.selected {
   outline: 1px solid #58b9ff;
   outline-offset: 0;
+}
+
+.overlay-block.selected.multi-selected {
+  outline: 2px solid var(--accent-bd);
+  outline-offset: 2px;
 }
 
 .transform-guide {

@@ -130,6 +130,22 @@ describe("layered PSD export", () => {
       resolveEditablePsdText(
         {
           ...makeBlock(),
+          textEffect: {
+            enabled: true,
+            color: "#000000",
+            offsetXpx: 2,
+            offsetYpx: 2,
+            blurPx: 4,
+            opacity: 0.5,
+          },
+        },
+        { width: 1000, height: 1600 },
+      ),
+    ).toBeNull();
+    expect(
+      resolveEditablePsdText(
+        {
+          ...makeBlock(),
           translatedText: "[size=48]큰 글자[/size]와 보통 글자",
         },
         { width: 1000, height: 1600 },

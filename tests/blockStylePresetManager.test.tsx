@@ -15,7 +15,10 @@ import {
   type FontsContextValue,
 } from "../src/renderer/src/fonts/fontsContextValue";
 import { DEFAULT_BLOCK_FONT_CATALOG } from "../src/renderer/src/lib/fonts";
-import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../src/shared/blockFormat";
+import {
+  ALL_BLOCK_FORMAT_GROUP_IDS,
+  DEFAULT_BLOCK_FORMAT_DEFAULTS,
+} from "../src/shared/blockFormat";
 import {
   createBlockStylePresetFromDefaults,
   type BlockStylePreset,
@@ -88,7 +91,7 @@ describe("block style preset manager", () => {
       ),
     ).not.toBeNull();
     expect(container.querySelectorAll(".style-preset-property")).toHaveLength(
-      12,
+      ALL_BLOCK_FORMAT_GROUP_IDS.length,
     );
     expect(screen.getByText("기본 폰트")).not.toBeNull();
     expect(screen.getByText("가운데 정렬")).not.toBeNull();
@@ -104,6 +107,33 @@ describe("block style preset manager", () => {
     expect(screen.getAllByRole("option")).toHaveLength(13);
     expect(
       screen.getByRole("option", { name: /효과음 복사본/ }),
+    ).not.toBeNull();
+  });
+
+  it("shows an enabled text effect value and swatch in preset details", () => {
+    const preset = {
+      ...makePreset("그림자 대사", "style-preset:shadow"),
+      format: {
+        ...makePreset("그림자 대사", "style-preset:shadow").format,
+        textEffect: {
+          enabled: true,
+          color: "#123456",
+          offsetXpx: -2.5,
+          offsetYpx: 4,
+          blurPx: 8.5,
+          opacity: 0.35,
+        },
+      },
+    } satisfies BlockStylePreset;
+    const { container } = render(<ManagerHarness initialPresets={[preset]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "프리셋 관리" }));
+
+    expect(screen.getByText("#123456 · -2.5/4px · 8.5px · 35%")).not.toBeNull();
+    expect(
+      container.querySelector(
+        '.style-preset-property i[style*="background-color: rgb(18, 52, 86)"]',
+      ),
     ).not.toBeNull();
   });
 

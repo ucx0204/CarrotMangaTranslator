@@ -1,4 +1,4 @@
-import type { BBox, TranslationBlock } from "./textTypes";
+import type { BBox, Point, TranslationBlock } from "./textTypes";
 import type { ChapterSnapshot } from "./libraryTypes";
 import {
   clampTranslationToVisibleBboxes,
@@ -11,6 +11,7 @@ import {
 import { MIN_VISIBLE_RENDER_BBOX_EXTENT, clampRenderBbox } from "./renderBbox";
 import {
   constrainEditableRenderBbox,
+  resolveTransformedBlockBoundary,
   resolveTransformedBlockBounds,
 } from "./editableRenderGeometry";
 import { estimateReadableTextBoxSizePx } from "./readableTextBox";
@@ -248,6 +249,29 @@ export function resolveEditableBlockBbox(
   }
 
   return { key: "bbox", bbox };
+}
+
+/**
+ * Resolves the frame users can see and manipulate in the editor. Source OCR
+ * geometry is deliberately excluded once a render box exists, and visual
+ * transforms are included so marquee selection matches the displayed frame.
+ */
+export function resolveBlockSelectionBounds(
+  block: TranslationBlock,
+  pageSize: PageSize,
+): BBox {
+  const text = block.translatedText || block.sourceText || "...";
+  const target = resolveEditableBlockBbox(block, pageSize, text);
+  return resolveTransformedBlockBounds(block, target.bbox);
+}
+
+export function resolveBlockSelectionBoundary(
+  block: TranslationBlock,
+  pageSize: PageSize,
+): Point[] {
+  const text = block.translatedText || block.sourceText || "...";
+  const target = resolveEditableBlockBbox(block, pageSize, text);
+  return resolveTransformedBlockBoundary(block, target.bbox);
 }
 
 export function applyEditableBlockBbox(

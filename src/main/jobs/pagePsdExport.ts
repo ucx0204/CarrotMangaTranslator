@@ -10,6 +10,7 @@ import { resolveBlockRenderBbox } from "../../shared/geometry";
 import type { MangaPage } from "../../shared/libraryTypes";
 import { parseRichText } from "../../shared/richTextMarkup";
 import type { TranslationBlock } from "../../shared/textTypes";
+import { resolveTextEffectFilter } from "../../shared/textEffect";
 import { resolveEffectiveTextOutlineWidthPx } from "../../shared/textOutline";
 
 type PagePsdTextLayerInput = {
@@ -173,7 +174,13 @@ function supportsEditablePsdText(
   block: TranslationBlock,
   displayText: string,
 ): boolean {
-  if (!displayText || block.renderDirection === "vertical") return false;
+  if (
+    !displayText ||
+    block.renderDirection === "vertical" ||
+    resolveTextEffectFilter(block.textEffect)
+  ) {
+    return false;
+  }
   const parsed = parseRichText(displayText);
   if (
     parsed.plainText !== displayText ||

@@ -2,6 +2,7 @@ import React from "react";
 import { normalizeCurveLayout } from "../../../shared/blockTransforms";
 import type { PageArtworkSnapshot } from "../../../shared/pageExportContracts";
 import type { TranslationBlock } from "../../../shared/textTypes";
+import { resolveTextEffectFilter } from "../../../shared/textEffect";
 import type { BlockFontCatalog } from "../lib/fonts";
 import {
   resolveBlockTextLayout,
@@ -87,14 +88,35 @@ function ArtworkBlockText({
       />
     );
   return (
-    <WarpedTextContent
-      height={model.layout.rect.height}
-      preview={warpPreview}
-      transform={block.warpTransform}
-      width={model.layout.rect.width}
-    >
-      {text}
-    </WarpedTextContent>
+    <TextEffectLayer block={block} scale={model.stageScale}>
+      <WarpedTextContent
+        height={model.layout.rect.height}
+        preview={warpPreview}
+        transform={block.warpTransform}
+        width={model.layout.rect.width}
+      >
+        {text}
+      </WarpedTextContent>
+    </TextEffectLayer>
+  );
+}
+
+function TextEffectLayer({
+  block,
+  children,
+  scale,
+}: {
+  block: TranslationBlock;
+  children: React.ReactNode;
+  scale: { x: number; y: number };
+}): React.JSX.Element {
+  const filter = resolveTextEffectFilter(block.textEffect, scale);
+  return filter ? (
+    <div className="text-effect-layer" style={{ filter }}>
+      {children}
+    </div>
+  ) : (
+    <>{children}</>
   );
 }
 

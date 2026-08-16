@@ -4,7 +4,9 @@ import React from "react";
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
+  cloneBlockStylePresets,
   createBlockStylePreset,
+  createBlockStylePresetFromDefaults,
   createBlockStylePresetGroup,
   detachUnknownStylePresetGroups,
   normalizeBlockStylePresetGroups,
@@ -14,6 +16,10 @@ import {
   type BlockStylePreset,
 } from "../src/shared/blockStylePresets";
 import type { TranslationBlock } from "../src/shared/textTypes";
+import {
+  DEFAULT_BLOCK_FORMAT_DEFAULTS,
+  pickBlockFormat,
+} from "../src/shared/blockFormat";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import { useBlockEditingActions } from "../src/renderer/src/hooks/useBlockEditingActions";
 import type { UpdateCurrentChapter } from "../src/renderer/src/hooks/useCurrentChapterUpdater";
@@ -155,6 +161,48 @@ describe("block style preset model", () => {
       defaults,
     );
     expect(restored.blockStylePresets).toEqual([legacy, pixel]);
+  });
+
+  it("persists shadow and glow presets without adding effects to global defaults", () => {
+    const textEffect = {
+      enabled: true,
+      color: "#2458a6",
+      offsetXpx: -3.5,
+      offsetYpx: 6,
+      blurPx: 12.5,
+      opacity: 0.65,
+    };
+    const preset = createBlockStylePreset({
+      block: makeBlock("effect", { textEffect }),
+      groupIds: ["effect"],
+      id: "style-preset:effect",
+      name: "큰 의성어 글로우",
+    });
+    expect(preset.format).toEqual({ textEffect });
+    expect(resolveBlockStylePresetPatch(preset)).toEqual({ textEffect });
+    expect(
+      pickBlockFormat(makeBlock("effect-copy", { textEffect }), ["effect"]),
+    ).toEqual({ textEffect });
+
+    const defaultsPreset = createBlockStylePresetFromDefaults({
+      defaults: DEFAULT_BLOCK_FORMAT_DEFAULTS,
+      groupIds: ["color", "effect"],
+      id: "style-preset:defaults-with-effect",
+      name: "기본 서식",
+    });
+    expect(defaultsPreset.groupIds).toEqual(["color"]);
+    expect(defaultsPreset.format).not.toHaveProperty("textEffect");
+
+    const defaults = resolveDefaultAppSettings();
+    const restored = parseStoredAppSettings(
+      JSON.stringify({ ...defaults, blockStylePresets: [preset] }),
+      defaults,
+    );
+    expect(restored.blockStylePresets).toEqual([preset]);
+
+    const [cloned] = cloneBlockStylePresets([preset]);
+    expect(cloned?.format.textEffect).toEqual(textEffect);
+    expect(cloned?.format.textEffect).not.toBe(preset.format.textEffect);
   });
 
   it("persists optional two-level groups and safely ungroups orphaned presets", () => {

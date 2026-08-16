@@ -163,6 +163,15 @@
     "color": "색상",
     "textColor": "글자색",
     "outline": "외곽선",
+    "textEffect": {
+      "title": "그림자 · 글로우",
+      "enabled": "효과 사용",
+      "color": "효과 색상",
+      "offsetX": "X 위치",
+      "offsetY": "Y 위치",
+      "blur": "블러",
+      "opacity": "불투명도"
+    },
     "wordBreak": {
       "label": "줄바꿈 방식",
       "options": {
@@ -373,6 +382,7 @@
       "wordBreak": "줄바꿈",
       "color": "글자색",
       "outline": "외곽선",
+      "effect": "그림자·글로우",
       "transform": "회전·글자 투명도"
     }
   },

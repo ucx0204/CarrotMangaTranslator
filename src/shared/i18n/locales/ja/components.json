@@ -159,6 +159,15 @@
     "color": "色",
     "textColor": "文字色",
     "outline": "縁取り",
+    "textEffect": {
+      "title": "影・グロー",
+      "enabled": "効果を使用",
+      "color": "効果の色",
+      "offsetX": "X位置",
+      "offsetY": "Y位置",
+      "blur": "ぼかし",
+      "opacity": "不透明度"
+    },
     "wordBreak": {
       "label": "改行方法",
       "options": {
@@ -376,6 +385,7 @@
       "wordBreak": "改行方法",
       "color": "文字色",
       "outline": "縁取り",
+      "effect": "影・グロー",
       "transform": "傾き・文字の不透明度"
     }
   },

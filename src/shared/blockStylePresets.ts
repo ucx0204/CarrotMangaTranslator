@@ -95,8 +95,10 @@ export function createBlockStylePresetFromDefaults(input: {
   );
   const groupIds =
     input.defaults.renderDirection === "auto"
-      ? requestedGroups.filter((groupId) => groupId !== "direction")
-      : requestedGroups;
+      ? requestedGroups.filter(
+          (groupId) => groupId !== "direction" && groupId !== "effect",
+        )
+      : requestedGroups.filter((groupId) => groupId !== "effect");
   return {
     version: BLOCK_STYLE_PRESET_VERSION,
     id: input.id ?? createBlockStylePresetId(),
@@ -257,7 +259,12 @@ export function cloneBlockStylePresets(
   return presets.map((preset) => ({
     ...preset,
     groupIds: [...preset.groupIds],
-    format: { ...preset.format },
+    format: {
+      ...preset.format,
+      ...(preset.format.textEffect
+        ? { textEffect: { ...preset.format.textEffect } }
+        : {}),
+    },
   }));
 }
 

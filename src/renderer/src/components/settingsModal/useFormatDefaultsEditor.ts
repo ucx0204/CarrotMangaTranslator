@@ -5,7 +5,11 @@ import type {
   BlockFormatGroupId,
 } from "../../../../shared/blockFormat";
 import type { BlockStylePreset } from "../../../../shared/blockStylePresets";
-import type { GatherTextDirectFormatValues } from "../../lib/gatherTextDirectFormatModel";
+import {
+  DEFAULT_TEXT_EFFECT,
+  cloneTextEffect,
+} from "../../../../shared/textEffect";
+import type { BlockFormatPreviewValues } from "../blockFormat/BlockFormatPreview";
 import { resolveEffectiveTextOutlineWidthPx } from "../../../../shared/textOutline";
 import { toast } from "../../lib/toastStore";
 import type { PresetGroupAvailability } from "./PresetGroupControl";
@@ -23,7 +27,7 @@ export type FormatDefaultsEditorModel = {
   editorValues: StylePresetEditorValues;
   exampleText: string;
   presetGroupAvailability: PresetGroupAvailability | undefined;
-  previewValues: GatherTextDirectFormatValues;
+  previewValues: BlockFormatPreviewValues;
   setExampleText: React.Dispatch<React.SetStateAction<string>>;
   togglePresetGroup: (groupId: BlockFormatGroupId) => void;
   updateEditor: (patch: Partial<StylePresetEditorValues>) => void;
@@ -51,7 +55,11 @@ export function useFormatDefaultsEditor({
     () =>
       activePreset
         ? resolveStylePresetEditorValues(defaults, activePreset)
-        : { ...defaults, rotationDeg: 0 },
+        : {
+            ...defaults,
+            rotationDeg: 0,
+            textEffect: { ...DEFAULT_TEXT_EFFECT },
+          },
     [activePreset, defaults],
   );
   const previewValues = React.useMemo(
@@ -112,7 +120,11 @@ function useFormatEditorUpdate({
   return React.useCallback(
     (patch) => {
       if (!activePreset) {
-        const { rotationDeg: _rotationDeg, ...defaultsPatch } = patch;
+        const {
+          rotationDeg: _rotationDeg,
+          textEffect: _textEffect,
+          ...defaultsPatch
+        } = patch;
         onDefaultsChange(defaultsPatch);
         return;
       }
@@ -168,7 +180,7 @@ function usePresetGroupToggle({
 
 function createPreviewValues(
   value: StylePresetEditorValues,
-): GatherTextDirectFormatValues {
+): BlockFormatPreviewValues {
   return {
     fontFamily: value.fontFamily,
     fontSizePx: value.fontSizePx,
@@ -189,5 +201,6 @@ function createPreviewValues(
       ? resolveEffectiveTextOutlineWidthPx(value, value.fontSizePx)
       : 0,
     rotationDeg: value.rotationDeg,
+    textEffect: cloneTextEffect(value.textEffect),
   };
 }

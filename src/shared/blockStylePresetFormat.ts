@@ -1,6 +1,11 @@
 import type { BlockFormatDefaults, BlockFormatGroupId } from "./blockFormat";
 import type { TranslationBlock } from "./textTypes";
 import {
+  DEFAULT_TEXT_EFFECT,
+  cloneTextEffect,
+  normalizeTextEffect,
+} from "./textEffect";
+import {
   MAX_FONT_SIZE_PX,
   MAX_FONT_WIDTH_SCALE,
   MAX_LETTER_SPACING_EM,
@@ -30,6 +35,7 @@ export type BlockStylePresetFormat = Partial<
     | "outlineColor"
     | "outlineWidthPx"
     | "outlineWidthScale"
+    | "textEffect"
     | "rotationDeg"
   >
 >;
@@ -66,6 +72,11 @@ const BLOCK_FORMAT_BUILDERS: Record<
     ...(block.outlineWidthPx === undefined
       ? { outlineWidthScale: block.outlineWidthScale ?? 0 }
       : { outlineWidthPx: block.outlineWidthPx }),
+  }),
+  effect: (block) => ({
+    textEffect: block.textEffect
+      ? cloneTextEffect(block.textEffect)
+      : { ...DEFAULT_TEXT_EFFECT },
   }),
   transform: (block) => ({
     rotationDeg: block.rotationDeg ?? 0,
@@ -108,6 +119,7 @@ const DEFAULT_FORMAT_BUILDERS: Record<
           outlineWidthPx: defaults.outlineEnabled ? defaults.outlineWidthPx : 0,
         }),
   }),
+  effect: () => ({}),
   transform: (defaults) => ({
     rotationDeg: 0,
     textOpacity: defaults.textOpacity,
@@ -187,6 +199,11 @@ const NORMALIZED_FORMAT_BUILDERS: Record<
         : { outlineWidthPx }),
     };
   },
+  effect: (record) => ({
+    textEffect: normalizeTextEffect(record.textEffect) ?? {
+      ...DEFAULT_TEXT_EFFECT,
+    },
+  }),
   transform: (record) => ({
     rotationDeg: rangedNumber(record.rotationDeg, -180, 180, 0),
     textOpacity: rangedNumber(record.textOpacity, 0, 1, 1),
@@ -220,6 +237,11 @@ const PATCH_BUILDERS: Record<
     ...(format.outlineWidthPx === undefined
       ? { outlineWidthScale: format.outlineWidthScale ?? 0 }
       : { outlineWidthPx: format.outlineWidthPx }),
+  }),
+  effect: (format) => ({
+    textEffect: format.textEffect
+      ? cloneTextEffect(format.textEffect)
+      : { ...DEFAULT_TEXT_EFFECT },
   }),
   transform: (format) => ({
     rotationDeg: format.rotationDeg ?? 0,

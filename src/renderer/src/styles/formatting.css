@@ -838,12 +838,31 @@
   width: 100%;
 }
 
+.text-effect-controls {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.text-effect-enabled-toggle {
+  justify-self: start;
+}
+
+.text-effect-number-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+
 @container editor-panel (max-width: 300px) {
   .editor-format-number-grid {
     grid-template-columns: 1fr;
   }
 
   .editor-font-size-row {
+    grid-template-columns: 1fr;
+  }
+
+  .text-effect-number-grid {
     grid-template-columns: 1fr;
   }
 }

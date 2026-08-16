@@ -16,6 +16,8 @@ import {
   FormatDefaultsColorSection,
   FormatDefaultsFineTuningSection,
 } from "./FormatDefaultsDetailSections";
+import { TextEffectControls } from "../EditorColorGroup";
+import { PresetGroupControl } from "./PresetGroupControl";
 import type {
   BlockStylePreset,
   BlockStylePresetGroup,
@@ -132,6 +134,7 @@ function FormatDefaultsEditor({
               : undefined
           }
         />
+        {activePreset ? <PresetTextEffectSection editor={editor} /> : null}
         {!activePreset ? (
           <BubbleLayoutPaddingSection
             value={bubbleLayoutPaddingRatio}
@@ -146,6 +149,29 @@ function FormatDefaultsEditor({
         ) : null}
       </div>
     </div>
+  );
+}
+
+function PresetTextEffectSection({
+  editor,
+}: {
+  editor: FormatDefaultsEditorModel;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <section className="gather-direct-editor-section">
+      <DirectSectionHeading title={t("format.textEffect.title")} />
+      <PresetGroupControl
+        availability={editor.presetGroupAvailability}
+        groupId="effect"
+      >
+        <TextEffectControls
+          disabled={false}
+          effect={editor.editorValues.textEffect}
+          onChange={(textEffect) => editor.updateEditor({ textEffect })}
+        />
+      </PresetGroupControl>
+    </section>
   );
 }
 

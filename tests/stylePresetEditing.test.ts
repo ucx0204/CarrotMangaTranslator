@@ -149,4 +149,41 @@ describe("inline style preset editing", () => {
       outlineWidthPx: 8.5,
     });
   });
+
+  it("adds, edits, and removes the shadow and glow group atomically", () => {
+    const preset = createBlockStylePresetFromDefaults({
+      defaults: DEFAULT_BLOCK_FORMAT_DEFAULTS,
+      groupIds: ["color"],
+      name: "효과 실험",
+    });
+    const textEffect = {
+      enabled: true,
+      color: "#ff8a21",
+      offsetXpx: 0,
+      offsetYpx: 0,
+      blurPx: 18,
+      opacity: 0.72,
+    };
+    const edited = updateStylePresetFromEditor(
+      preset,
+      DEFAULT_BLOCK_FORMAT_DEFAULTS,
+      { textEffect },
+    );
+
+    expect(edited.groupIds).toEqual(["color", "effect"]);
+    expect(edited.format.textEffect).toEqual(textEffect);
+    expect(edited.format.textEffect).not.toBe(textEffect);
+    expect(
+      resolveStylePresetEditorValues(DEFAULT_BLOCK_FORMAT_DEFAULTS, edited),
+    ).toMatchObject({ textEffect });
+
+    const disabled = setStylePresetGroupEnabled(
+      edited,
+      DEFAULT_BLOCK_FORMAT_DEFAULTS,
+      "effect",
+      false,
+    );
+    expect(disabled.groupIds).toEqual(["color"]);
+    expect(disabled.format).not.toHaveProperty("textEffect");
+  });
 });

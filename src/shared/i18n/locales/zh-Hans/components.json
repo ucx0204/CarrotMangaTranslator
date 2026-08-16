@@ -159,6 +159,15 @@
     "color": "颜色",
     "textColor": "文字颜色",
     "outline": "描边",
+    "textEffect": {
+      "title": "阴影与辉光",
+      "enabled": "使用效果",
+      "color": "效果颜色",
+      "offsetX": "X偏移",
+      "offsetY": "Y偏移",
+      "blur": "模糊",
+      "opacity": "不透明度"
+    },
     "wordBreak": {
       "label": "换行方式",
       "options": {
@@ -369,6 +378,7 @@
       "wordBreak": "换行方式",
       "color": "文字颜色",
       "outline": "描边",
+      "effect": "阴影与辉光",
       "transform": "旋转与文字不透明度"
     }
   },

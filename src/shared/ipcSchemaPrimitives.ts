@@ -30,8 +30,10 @@ import {
   resolveEffectiveTextOutlineWidthPx,
 } from "./textOutline";
 import type { BBox } from "./textTypes";
+import { TextEffectSchema } from "./textEffect";
 
 export { MAX_MAX_TOKENS, MIN_CONTEXT_TOKENS, MIN_MAX_TOKENS };
+export { TextEffectSchema };
 
 const MAX_TITLE_LENGTH = 240;
 const MAX_TEXT_LENGTH = 20000;
@@ -328,6 +330,7 @@ export const TranslationBlockObjectSchema = z
     outlineColor: hexColor.optional(),
     outlineWidthPx: finiteNumber.min(0).max(64).optional(),
     outlineWidthScale: finiteNumber.min(0).max(8).optional(),
+    textEffect: TextEffectSchema.optional(),
     bold: z.boolean().optional(),
     italic: z.boolean().optional(),
     backgroundColor: hexColor,

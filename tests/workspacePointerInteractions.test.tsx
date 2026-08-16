@@ -68,6 +68,7 @@ type HarnessApi = {
   getRegionSelection: () => RegionSelectionState | null;
   getRegionSelectionPreview: () => BBox | null;
   getSelectedBlockId: () => string | null;
+  getSelectedBlockIds: () => string[];
   startRegionTranslationSelection: () => void;
   statuses: string[];
   onBubbleLayoutFinished: ReturnType<typeof vi.fn>;
@@ -217,6 +218,43 @@ describe("workspace pointer interactions", () => {
       w: 200,
       h: 100,
     });
+  });
+
+  it("marquee-selects a moved bubble fit only at its displayed position", () => {
+    const api = renderHarness({
+      blockPatch: {
+        renderBbox: { x: 600, y: 400, w: 200, h: 100 },
+        renderBboxSpace: "normalized_1000",
+      },
+      withBubbleLayout: true,
+    });
+    const stage = screen.getByTestId("stage");
+
+    fireEvent.pointerDown(stage, {
+      button: 0,
+      clientX: 59,
+      clientY: 39,
+      pointerId: 31,
+    });
+    fireEvent.pointerUp(stage, {
+      clientX: 81,
+      clientY: 51,
+      pointerId: 31,
+    });
+    expect(api.current.getSelectedBlockIds()).toEqual(["block-1"]);
+
+    fireEvent.pointerDown(stage, {
+      button: 0,
+      clientX: 9,
+      clientY: 9,
+      pointerId: 32,
+    });
+    fireEvent.pointerUp(stage, {
+      clientX: 31,
+      clientY: 21,
+      pointerId: 32,
+    });
+    expect(api.current.getSelectedBlockIds()).toEqual([]);
   });
 
   it("keeps region and block-create marquee bursts outside root React state", () => {
@@ -567,6 +605,7 @@ describe("workspace pointer interactions", () => {
 
 function renderHarness(
   props: {
+    blockPatch?: Partial<TranslationBlock>;
     initialSelectedBlockId?: string | null;
     jobActive?: boolean;
     renderOverlay?: boolean;
@@ -585,6 +624,7 @@ function renderHarness(
       onReady={(nextApi) => {
         api.current = nextApi;
       }}
+      blockPatch={props.blockPatch}
       initialSelectedBlockId={props.initialSelectedBlockId ?? null}
       jobActive={props.jobActive ?? false}
       renderOverlay={props.renderOverlay ?? false}
@@ -606,6 +646,7 @@ function renderHarness(
 }
 
 function WorkspacePointerHarness({
+  blockPatch,
   initialSelectedBlockId,
   jobActive,
   onReady,
@@ -616,6 +657,7 @@ function WorkspacePointerHarness({
   stageTool,
   withBubbleLayout,
 }: {
+  blockPatch?: Partial<TranslationBlock>;
   initialSelectedBlockId: string | null;
   jobActive: boolean;
   onReady: (api: HarnessApi) => void;
@@ -658,7 +700,7 @@ function WorkspacePointerHarness({
     [],
   );
   const getBounds = useMemo(() => vi.fn(() => makeDomRect()), []);
-  const page = makePage({ withBubbleLayout });
+  const page = makePage({ blockPatch, withBubbleLayout });
   const block = page.blocks[0];
   const handlers = useWorkspacePointerHandlers({
     appendRetouchPoint: () => null,
@@ -722,6 +764,7 @@ function WorkspacePointerHarness({
       getRegionSelectionPreview:
         handlers.interactionPreviewStore.getRegionSelectionRect,
       getSelectedBlockId: () => selectedBlockId,
+      getSelectedBlockIds: () => selectedBlockIds,
       onBubbleLayoutFinished,
       startRegionTranslationSelection: handlers.startRegionTranslationSelection,
       statuses: statusesRef.current,
@@ -736,6 +779,7 @@ function WorkspacePointerHarness({
     onReady,
     regionSelection,
     selectedBlockId,
+    selectedBlockIds,
     translateSelectedRegion,
     updateCurrentChapter,
   ]);
@@ -895,8 +939,10 @@ function makeChapter(page: MangaPage): ChapterSnapshot {
 }
 
 function makePage({
+  blockPatch,
   withBubbleLayout = false,
 }: {
+  blockPatch?: Partial<TranslationBlock>;
   withBubbleLayout?: boolean;
 } = {}): MangaPage {
   return {
@@ -906,14 +952,17 @@ function makePage({
     dataUrl: "",
     width: 1000,
     height: 1000,
-    blocks: [makeBlock(withBubbleLayout)],
+    blocks: [makeBlock(withBubbleLayout, blockPatch)],
     analysisStatus: "idle",
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
   };
 }
 
-function makeBlock(withBubbleLayout = false): TranslationBlock {
+function makeBlock(
+  withBubbleLayout = false,
+  patch: Partial<TranslationBlock> = {},
+): TranslationBlock {
   return {
     id: "block-1",
     type: "nonsolid",
@@ -957,6 +1006,7 @@ function makeBlock(withBubbleLayout = false): TranslationBlock {
     backgroundColor: "#ffffff",
     opacity: 1,
     wordBreak: "keep-all",
+    ...patch,
   };
 }
 

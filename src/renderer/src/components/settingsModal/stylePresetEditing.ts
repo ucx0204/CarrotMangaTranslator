@@ -4,10 +4,18 @@ import {
   type BlockFormatGroupId,
 } from "../../../../shared/blockFormat";
 import type { BlockStylePreset } from "../../../../shared/blockStylePresets";
-import type { TranslationBlock } from "../../../../shared/textTypes";
+import type {
+  TextEffect,
+  TranslationBlock,
+} from "../../../../shared/textTypes";
+import {
+  DEFAULT_TEXT_EFFECT,
+  cloneTextEffect,
+} from "../../../../shared/textEffect";
 
 export type StylePresetEditorValues = BlockFormatDefaults & {
   rotationDeg: number;
+  textEffect: TextEffect;
 };
 
 type EditorPatch = Partial<StylePresetEditorValues>;
@@ -35,6 +43,7 @@ const EDITOR_FIELDS_BY_GROUP: Record<
     "outlineWidthPx",
     "outlineWidthScale",
   ],
+  effect: ["textEffect"],
   transform: ["rotationDeg", "textOpacity"],
 };
 
@@ -53,6 +62,7 @@ const PRESET_FIELDS_BY_GROUP: Record<
   fontWidth: ["fontWidthScale"],
   color: ["textColor"],
   outline: ["outlineColor", "outlineWidthPx", "outlineWidthScale"],
+  effect: ["textEffect"],
   transform: ["rotationDeg", "textOpacity"],
 };
 
@@ -63,6 +73,7 @@ export function resolveStylePresetEditorValues(
   const values: StylePresetEditorValues = {
     ...defaults,
     rotationDeg: 0,
+    textEffect: { ...DEFAULT_TEXT_EFFECT },
   };
   for (const groupId of preset.groupIds) {
     Object.assign(
@@ -112,6 +123,11 @@ function buildEditorGroupValues(
       outlineColor: format.outlineColor ?? defaults.outlineColor,
       outlineWidthPx: format.outlineWidthPx,
       outlineWidthScale: format.outlineWidthScale ?? 0,
+    }),
+    effect: () => ({
+      textEffect: format.textEffect
+        ? cloneTextEffect(format.textEffect)
+        : { ...DEFAULT_TEXT_EFFECT },
     }),
     transform: () => ({
       rotationDeg: format.rotationDeg ?? 0,
@@ -230,6 +246,7 @@ function buildGroupFormat(
               outlineWidthPx: values.outlineWidthPx,
             }
         : { outlineWidthPx: 0 },
+    effect: () => ({ textEffect: cloneTextEffect(values.textEffect) }),
     transform: () => ({
       rotationDeg: values.rotationDeg,
       textOpacity: values.textOpacity,

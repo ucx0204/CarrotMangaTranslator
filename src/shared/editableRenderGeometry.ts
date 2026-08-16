@@ -46,19 +46,7 @@ export function resolveTransformedBlockBounds(
   block: RenderTransformBlock,
   bbox: BBox,
 ): BBox {
-  const localPoints = resolveTransformedBoundaryPoints(block);
-  const center = { x: bbox.x + bbox.w / 2, y: bbox.y + bbox.h / 2 };
-  const radians = (normalizeRotationDeg(block.rotationDeg) * Math.PI) / 180;
-  const cos = Math.cos(radians);
-  const sin = Math.sin(radians);
-  const points = localPoints.map((point) => {
-    const x = bbox.x + point.x * bbox.w - center.x;
-    const y = bbox.y + point.y * bbox.h - center.y;
-    return {
-      x: center.x + x * cos - y * sin,
-      y: center.y + x * sin + y * cos,
-    };
-  });
+  const points = resolveTransformedBlockBoundary(block, bbox);
   const xs = points.map((point) => point.x);
   const ys = points.map((point) => point.y);
   const left = Math.min(...xs);
@@ -71,7 +59,27 @@ export function resolveTransformedBlockBounds(
   };
 }
 
-function resolveTransformedBoundaryPoints(
+/** Ordered page-space boundary used for precise visual hit testing. */
+export function resolveTransformedBlockBoundary(
+  block: RenderTransformBlock,
+  bbox: BBox,
+): Point[] {
+  const localPoints = resolveLocalTransformedBoundaryPoints(block);
+  const center = { x: bbox.x + bbox.w / 2, y: bbox.y + bbox.h / 2 };
+  const radians = (normalizeRotationDeg(block.rotationDeg) * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  return localPoints.map((point) => {
+    const x = bbox.x + point.x * bbox.w - center.x;
+    const y = bbox.y + point.y * bbox.h - center.y;
+    return {
+      x: center.x + x * cos - y * sin,
+      y: center.y + x * sin + y * cos,
+    };
+  });
+}
+
+function resolveLocalTransformedBoundaryPoints(
   block: RenderTransformBlock,
 ): Point[] {
   const boundary = sampleUnitBoundary(block.warpTransform ? 16 : 1);
@@ -90,13 +98,16 @@ function resolveTransformedBoundaryPoints(
 function sampleUnitBoundary(segments: number): Point[] {
   const points: Point[] = [];
   for (let index = 0; index <= segments; index += 1) {
-    const value = index / segments;
-    points.push(
-      { x: value, y: 0 },
-      { x: 1, y: value },
-      { x: 1 - value, y: 1 },
-      { x: 0, y: 1 - value },
-    );
+    points.push({ x: index / segments, y: 0 });
+  }
+  for (let index = 1; index <= segments; index += 1) {
+    points.push({ x: 1, y: index / segments });
+  }
+  for (let index = 1; index <= segments; index += 1) {
+    points.push({ x: 1 - index / segments, y: 1 });
+  }
+  for (let index = 1; index < segments; index += 1) {
+    points.push({ x: 0, y: 1 - index / segments });
   }
   return points;
 }

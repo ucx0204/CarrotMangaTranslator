@@ -30,6 +30,7 @@ export type BlockFormatGroupId =
   | "fontWidth"
   | "color"
   | "outline"
+  | "effect"
   | "transform";
 
 type BlockFormatKey = keyof TranslationBlock;
@@ -57,6 +58,7 @@ export const BLOCK_FORMAT_GROUPS: readonly BlockFormatGroup[] = [
     label: "외곽선",
     keys: ["outlineColor", "outlineWidthPx", "outlineWidthScale"],
   },
+  { id: "effect", label: "그림자·글로우", keys: ["textEffect"] },
   {
     id: "transform",
     label: "기울기·글자 투명도",

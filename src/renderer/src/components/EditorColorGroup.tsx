@@ -2,6 +2,15 @@ import React from "react";
 import { IconSwitchHorizontal } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
+import type { TextEffect } from "../../../shared/textTypes";
+import {
+  MAX_TEXT_EFFECT_BLUR_PX,
+  MAX_TEXT_EFFECT_OFFSET_PX,
+  MIN_TEXT_EFFECT_BLUR_PX,
+  MIN_TEXT_EFFECT_OFFSET_PX,
+  TEXT_EFFECT_LENGTH_STEP_PX,
+  resolveTextEffect,
+} from "../../../shared/textEffect";
 import {
   DEFAULT_MANUAL_TEXT_OUTLINE_WIDTH_PX,
   MAX_TEXT_OUTLINE_WIDTH_PX,
@@ -97,6 +106,141 @@ export function EditorColorGroup({
           onValueChange={outline.updateWidth}
         />
       </div>
+    </div>
+  );
+}
+
+export function EditorTextEffectGroup({
+  block,
+  disabled,
+  onUpdate,
+}: {
+  block: TranslationBlock;
+  disabled: boolean;
+  onUpdate: (patch: Partial<TranslationBlock>) => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <div className="editor-group editor-text-effect-group">
+      <div className="editor-group-head">
+        <h3>{t("format.textEffect.title")}</h3>
+      </div>
+      <TextEffectControls
+        disabled={disabled}
+        effect={block.textEffect}
+        onChange={(textEffect) => onUpdate({ textEffect })}
+      />
+    </div>
+  );
+}
+
+export function TextEffectControls({
+  disabled,
+  effect,
+  onChange,
+}: {
+  disabled: boolean;
+  effect: TextEffect | undefined;
+  onChange: (effect: TextEffect) => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const value = resolveTextEffect(effect);
+  const update = (patch: Partial<TextEffect>): void =>
+    onChange({ ...value, ...patch });
+  return (
+    <div className="text-effect-controls">
+      <CheckboxField
+        className="inline-toggle text-effect-enabled-toggle"
+        label={t("format.textEffect.enabled")}
+        checked={value.enabled}
+        disabled={disabled}
+        onCheckedChange={(enabled) => update({ enabled })}
+      />
+      <ColorField
+        label={t("format.textEffect.color")}
+        value={value.color}
+        disabled={disabled || !value.enabled}
+        onChange={(color) => update({ color })}
+      />
+      <div className="text-effect-number-grid">
+        <TextEffectNumberField
+          disabled={disabled || !value.enabled}
+          label={t("format.textEffect.offsetX")}
+          min={MIN_TEXT_EFFECT_OFFSET_PX}
+          max={MAX_TEXT_EFFECT_OFFSET_PX}
+          value={value.offsetXpx}
+          onChange={(offsetXpx) => update({ offsetXpx })}
+        />
+        <TextEffectNumberField
+          disabled={disabled || !value.enabled}
+          label={t("format.textEffect.offsetY")}
+          min={MIN_TEXT_EFFECT_OFFSET_PX}
+          max={MAX_TEXT_EFFECT_OFFSET_PX}
+          value={value.offsetYpx}
+          onChange={(offsetYpx) => update({ offsetYpx })}
+        />
+        <TextEffectNumberField
+          disabled={disabled || !value.enabled}
+          label={t("format.textEffect.blur")}
+          min={MIN_TEXT_EFFECT_BLUR_PX}
+          max={MAX_TEXT_EFFECT_BLUR_PX}
+          value={value.blurPx}
+          onChange={(blurPx) => update({ blurPx })}
+        />
+        <TextEffectNumberField
+          disabled={disabled || !value.enabled}
+          label={t("format.textEffect.opacity")}
+          min={0}
+          max={100}
+          precision={0}
+          step={1}
+          unit="%"
+          value={Math.round(value.opacity * 100)}
+          onChange={(opacity) => update({ opacity: opacity / 100 })}
+        />
+      </div>
+    </div>
+  );
+}
+
+function TextEffectNumberField({
+  disabled,
+  label,
+  max,
+  min,
+  onChange,
+  precision = 1,
+  step = TEXT_EFFECT_LENGTH_STEP_PX,
+  unit = "px",
+  value,
+}: {
+  disabled: boolean;
+  label: string;
+  max: number;
+  min: number;
+  onChange: (value: number) => void;
+  precision?: number;
+  step?: number;
+  unit?: string;
+  value: number;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <div className="editor-format-number-cell">
+      <span>{label}</span>
+      <ScrubbableNumberField
+        ariaLabel={label}
+        decreaseLabel={t("format.decreaseValue", { label })}
+        increaseLabel={t("format.increaseValue", { label })}
+        disabled={disabled}
+        max={max}
+        min={min}
+        precision={precision}
+        step={step}
+        unit={unit}
+        value={value}
+        onValueChange={onChange}
+      />
     </div>
   );
 }
