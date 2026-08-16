@@ -104,6 +104,37 @@ describe("data-root instance lock", () => {
     second.release();
   });
 
+  it("retries when the canonical owner disappears after inspection", () => {
+    const root = makeRoot();
+    writeCanonicalOwner(
+      root,
+      makeOwner(root, { token: "dead-owner", pid: 404 }),
+    );
+    let lockRemoved = false;
+
+    const lease = acquireDataRootInstanceLock(
+      root,
+      makeRuntime({
+        token: "new-owner",
+        pid: 505,
+        isProcessAlive: () => false,
+      }),
+      {
+        afterCanonicalOwnerFileInspected: () => {
+          if (lockRemoved) {
+            return;
+          }
+          lockRemoved = true;
+          rmSync(lockDirectory(root), { recursive: true, force: false });
+        },
+      },
+    );
+
+    expect(lockRemoved).toBe(true);
+    expect(readCanonicalOwner(root).token).toBe("new-owner");
+    lease.release();
+  });
+
   it("reclaims a same-host dead-PID lock through the reclaim marker", () => {
     const root = makeRoot();
     writeCanonicalOwner(
@@ -280,6 +311,45 @@ describe("data-root instance lock", () => {
       }),
     );
 
+    expect(lease.reclaimedOwner?.token).toBe("dead-owner");
+    expect(readCanonicalOwner(root).token).toBe("new-owner");
+    lease.release();
+  });
+
+  it("retries when a competing reclaimer removes the marker after inspection", () => {
+    const root = makeRoot();
+    writeCanonicalOwner(
+      root,
+      makeOwner(root, { token: "dead-owner", pid: 404 }),
+    );
+    writeReclaimMarker(root, {
+      schemaVersion: 1,
+      token: "competing-reclaimer",
+      pid: 606,
+      hostname: "HOST-A",
+      startedAt: "2026-08-06T12:01:00.000Z",
+    });
+    let markerRemoved = false;
+
+    const lease = acquireDataRootInstanceLock(
+      root,
+      makeRuntime({
+        token: "new-owner",
+        pid: 505,
+        isProcessAlive: () => false,
+      }),
+      {
+        afterReclaimMarkerInspected: () => {
+          if (markerRemoved) {
+            return;
+          }
+          markerRemoved = true;
+          rmSync(join(lockDirectory(root), "reclaim.json"));
+        },
+      },
+    );
+
+    expect(markerRemoved).toBe(true);
     expect(lease.reclaimedOwner?.token).toBe("dead-owner");
     expect(readCanonicalOwner(root).token).toBe("new-owner");
     lease.release();

@@ -7,7 +7,7 @@
     "sourceArtifact": ".tmp/production-cleanup-coverage-baseline-node22.json",
     "sourceArtifactSha256": "a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a",
     "introducedArtifact": ".tmp/production-cleanup-coverage-accepted-node24.json",
-    "introducedArtifactSha256": "37ee0afbe704b6f3fe0e5b156c3154f188ca29d21b881829d9e23ae845b89678",
+    "introducedArtifactSha256": "6f35a61cb6556ff31b4589913cdb79bb04faedab7c18228eac61ead3b2ad9157",
     "validatedNodeV8": ["22/12.4", "24/13.6"],
     "vitestVersion": "4.1.9",
     "coverageV8Version": "4.1.9"
@@ -33,6 +33,28 @@
         "covered": 19,
         "total": 19,
         "pct": 100
+      }
+    },
+    "src/main/dataRootInstanceLock.ts": {
+      "lines": {
+        "covered": 237,
+        "total": 309,
+        "pct": 76.69
+      },
+      "statements": {
+        "covered": 240,
+        "total": 312,
+        "pct": 76.92
+      },
+      "functions": {
+        "covered": 42,
+        "total": 48,
+        "pct": 87.5
+      },
+      "branches": {
+        "covered": 122,
+        "total": 175,
+        "pct": 69.71
       }
     },
     "src/main/gpuInfoTypes.ts": {

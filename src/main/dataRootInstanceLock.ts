@@ -56,10 +56,12 @@ export type DataRootInstanceLockRuntime = {
 };
 
 export type DataRootInstanceLockHooks = {
+  afterCanonicalOwnerFileInspected?: () => void;
   afterInitialOwnerRead?: (owner: Readonly<DataRootInstanceLockOwner>) => void;
   afterReclaimMarkerCreated?: (
     owner: Readonly<DataRootInstanceLockOwner>,
   ) => void;
+  afterReclaimMarkerInspected?: () => void;
   afterReclaimRename?: (quarantineDirectory: string) => void;
   beforeStaleReclaimMarkerQuarantine?: () => void;
   afterReleaseOwnerRead?: (owner: Readonly<DataRootInstanceLockOwner>) => void;
@@ -202,7 +204,11 @@ export function acquireDataRootInstanceLock(
 
       let observedOwner: DataRootInstanceLockOwner;
       try {
-        observedOwner = readCanonicalOwner(canonicalDataRoot, lockDirectory);
+        observedOwner = readCanonicalOwner(
+          canonicalDataRoot,
+          lockDirectory,
+          hooks.afterCanonicalOwnerFileInspected,
+        );
       } catch (error) {
         if (error instanceof LockObservationRetryError) {
           continue;
@@ -388,7 +394,11 @@ function tryReclaimStaleLock(options: {
 
   let currentOwner: DataRootInstanceLockOwner;
   try {
-    currentOwner = readCanonicalOwner(canonicalDataRoot, lockDirectory);
+    currentOwner = readCanonicalOwner(
+      canonicalDataRoot,
+      lockDirectory,
+      hooks.afterCanonicalOwnerFileInspected,
+    );
   } catch (error) {
     if (error instanceof LockObservationRetryError) {
       return "retry";
@@ -505,6 +515,7 @@ function claimReclaimMarker(
       canonicalDataRoot,
       lockDirectory,
       "retry",
+      hooks.afterReclaimMarkerInspected,
     );
     if (!sameHostname(existingMarker.hostname, runtime.getHostname())) {
       throw new DataRootInstanceLockHeldError(
@@ -760,16 +771,24 @@ function readOwnerForRelease(
 function readCanonicalOwner(
   canonicalDataRoot: string,
   lockDirectory: string,
+  afterInspect?: () => void,
 ): DataRootInstanceLockOwner {
   if (!existsSync(lockDirectory)) {
     throw new LockObservationRetryError();
   }
-  return readOwnerFromDirectory(canonicalDataRoot, lockDirectory);
+  return readOwnerFromDirectory(
+    canonicalDataRoot,
+    lockDirectory,
+    "retry",
+    afterInspect,
+  );
 }
 
 function readOwnerFromDirectory(
   canonicalDataRoot: string,
   lockDirectory: string,
+  missingBehavior: "invalid" | "retry" = "invalid",
+  afterInspect?: () => void,
 ): DataRootInstanceLockOwner {
   const directoryStat = safeLstat(
     lockDirectory,
@@ -841,11 +860,15 @@ function readOwnerFromDirectory(
       "owner-too-large",
     );
   }
+  afterInspect?.();
 
   let rawOwner: string;
   try {
     rawOwner = readFileSync(ownerPath, "utf8");
   } catch (error) {
+    if (isNodeErrorCode(error, "ENOENT") && missingBehavior === "retry") {
+      throw new LockObservationRetryError();
+    }
     throw new DataRootInstanceLockInvalidError(
       `The data-root lock owner file could not be read: ${formatError(error)}`,
       canonicalDataRoot,
@@ -875,12 +898,14 @@ function readReclaimOwner(
   canonicalDataRoot: string,
   lockDirectory: string,
   missingBehavior: "invalid" | "retry" = "invalid",
+  afterInspect?: () => void,
 ): ReclaimOwner {
   return readReclaimOwnerFile(
     canonicalDataRoot,
     lockDirectory,
     join(lockDirectory, DATA_ROOT_INSTANCE_RECLAIM_FILE),
     missingBehavior,
+    afterInspect,
   );
 }
 
@@ -889,6 +914,7 @@ function readReclaimOwnerFile(
   lockDirectory: string,
   markerPath: string,
   missingBehavior: "invalid" | "retry" = "invalid",
+  afterInspect?: () => void,
 ): ReclaimOwner {
   let markerStat;
   try {
@@ -916,11 +942,15 @@ function readReclaimOwnerFile(
       "reclaim-metadata-invalid",
     );
   }
+  afterInspect?.();
 
   let rawMarker: string;
   try {
     rawMarker = readFileSync(markerPath, "utf8");
   } catch (error) {
+    if (isNodeErrorCode(error, "ENOENT") && missingBehavior === "retry") {
+      throw new LockObservationRetryError();
+    }
     throw new DataRootInstanceLockInvalidError(
       `The reclaim marker could not be read: ${formatError(error)}`,
       canonicalDataRoot,
