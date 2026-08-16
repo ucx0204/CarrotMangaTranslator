@@ -340,8 +340,21 @@
       "boldTitle": "選択した文字を太字にする（**太字**）",
       "italicLabel": "斜体（*斜体*）",
       "italicTitle": "選択した文字を斜体にする（*斜体*）",
-      "help": "部分強調のヘルプ",
       "resetHeight": "入力欄の高さをリセット"
+    },
+    "richText": {
+      "modeLabel": "翻訳文の表示モード",
+      "visualMode": "編集",
+      "codeMode": "コード",
+      "inlineStyle": "文字ごとの書式",
+      "resetAll": "翻訳文の書式をすべてリセット",
+      "resetAllTitle": "翻訳文内の強調と文字ごとの書式をすべて削除",
+      "size": "文字サイズ",
+      "font": "文字フォント",
+      "opacity": "文字の不透明度",
+      "mixed": "混在",
+      "placeholder": "翻訳文を入力",
+      "codeAria": "翻訳文の書式コード"
     }
   },
   "formatBatch": {

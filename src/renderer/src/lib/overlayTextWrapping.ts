@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- one wrapping module owns the shared styled-grapheme measurement and line-break contract */
 import type { TextStyleRun } from "../../../shared/richTextMarkup";
 import {
   resolveTextWordBreak,
@@ -8,9 +9,19 @@ import {
   segmentGraphemes,
   shouldBreakNaturally,
 } from "./overlayTextSegmentation";
+import type {
+  TextRunRenderStyle,
+  TextRunStyleResolver,
+} from "./textStyleRunResolution";
+
+type RenderedTextStyleRun = TextStyleRun & {
+  renderedFontSizePx?: number;
+  renderedFontFamily?: string;
+  renderedOpacity?: number;
+};
 
 export type BlockTextLine = {
-  runs: TextStyleRun[];
+  runs: RenderedTextStyleRun[];
   width: number;
   slot?: TextLineSlot;
 };
@@ -37,6 +48,9 @@ export type StyledGrapheme = {
   bold: boolean;
   italic: boolean;
   width: number;
+  renderedFontSizePx?: number;
+  renderedFontFamily?: string;
+  renderedOpacity?: number;
 };
 
 export type TextMeasurementContext = Pick<
@@ -57,38 +71,47 @@ export function measureStyledWrappedText(
   fontFamily: string,
   letterSpacingPx: number,
   wordBreak: TextWordBreak,
+  resolveRunStyle?: TextRunStyleResolver,
 ): WrappedTextMeasurement {
-  const graphemes = measureStyledGraphemes(context, runs, fontSize, fontFamily);
+  const graphemes = measureStyledGraphemes(
+    context,
+    runs,
+    fontSize,
+    fontFamily,
+    resolveRunStyle,
+  );
+  const effectiveLineHeightPx = resolveEffectiveLineHeightPx(
+    graphemes,
+    lineHeightPx,
+    fontSize,
+  );
   return measureWrappedGraphemes(
     graphemes,
     maxWidth,
-    lineHeightPx,
+    effectiveLineHeightPx,
     letterSpacingPx,
     resolveTextWordBreak(wordBreak),
   );
 }
 
-/**
- * Vertical text uses a uniform inline-axis advance. Reusing the same break
- * policy here keeps auto-fit/overflow decisions aligned with vertical CSS.
- */
-export function measureUniformWrappedText(
-  text: string,
+export function measureUniformStyledWrappedText(
+  runs: TextStyleRun[],
   maxWidth: number,
   lineHeightPx: number,
   graphemeAdvancePx: number,
   wordBreak: TextWordBreak,
-  resolveGraphemeAdvancePx?: (grapheme: string) => number,
+  resolveGraphemeAdvancePx?: (
+    grapheme: string,
+    style: TextRunRenderStyle,
+  ) => number,
+  resolveRunStyle?: TextRunStyleResolver,
 ): WrappedTextMeasurement {
-  const graphemes = segmentGraphemes(normalizeNewlines(text)).map((value) => ({
-    text: value,
-    bold: false,
-    italic: false,
-    width:
-      value === "\n"
-        ? 0
-        : (resolveGraphemeAdvancePx?.(value) ?? graphemeAdvancePx),
-  }));
+  const graphemes = measureUniformStyledGraphemes(
+    runs,
+    graphemeAdvancePx,
+    resolveGraphemeAdvancePx,
+    resolveRunStyle,
+  );
   return measureWrappedGraphemes(
     graphemes,
     maxWidth,
@@ -98,11 +121,13 @@ export function measureUniformWrappedText(
   );
 }
 
+// eslint-disable-next-line complexity -- run-boundary traversal and styled grapheme measurement must stay in one ordered pass
 export function measureStyledGraphemes(
   context: TextMeasurementContext,
   runs: TextStyleRun[],
   fontSize: number,
   fontFamily: string,
+  resolveRunStyle?: TextRunStyleResolver,
 ): StyledGrapheme[] {
   const normalizedRuns = runs.map((run) => ({
     ...run,
@@ -123,9 +148,14 @@ export function measureStyledGraphemes(
       bold: false,
       italic: false,
     };
-    context.font = buildFontForStyle(
-      fontSize,
+    const style = resolveRunStyle?.(run) ?? {
+      fontSizePx: fontSize,
       fontFamily,
+      opacity: 1,
+    };
+    context.font = buildFontForStyle(
+      style.fontSizePx,
+      style.fontFamily,
       run.bold,
       run.italic,
     );
@@ -134,10 +164,51 @@ export function measureStyledGraphemes(
       bold: run.bold,
       italic: run.italic,
       width: segment === "\n" ? 0 : context.measureText(segment).width,
+      ...(resolveRunStyle
+        ? {
+            renderedFontSizePx: style.fontSizePx,
+            renderedFontFamily: style.fontFamily,
+            renderedOpacity: style.opacity,
+          }
+        : {}),
     });
     textOffset += segment.length;
   }
   return graphemes;
+}
+
+export function measureUniformStyledGraphemes(
+  runs: TextStyleRun[],
+  graphemeAdvancePx: number,
+  resolveGraphemeAdvancePx?: (
+    grapheme: string,
+    style: TextRunRenderStyle,
+  ) => number,
+  resolveRunStyle?: TextRunStyleResolver,
+): StyledGrapheme[] {
+  return runs.flatMap((run) => {
+    const style = resolveRunStyle?.(run) ?? {
+      fontSizePx: graphemeAdvancePx,
+      fontFamily: "sans-serif",
+      opacity: 1,
+    };
+    return segmentGraphemes(normalizeNewlines(run.text)).map((text) => ({
+      text,
+      bold: run.bold,
+      italic: run.italic,
+      width:
+        text === "\n"
+          ? 0
+          : (resolveGraphemeAdvancePx?.(text, style) ?? graphemeAdvancePx),
+      ...(resolveRunStyle
+        ? {
+            renderedFontSizePx: style.fontSizePx,
+            renderedFontFamily: style.fontFamily,
+            renderedOpacity: style.opacity,
+          }
+        : {}),
+    }));
+  });
 }
 
 function measureWrappedGraphemes(
@@ -319,13 +390,16 @@ export function toBlockTextLine(
   graphemes: StyledGrapheme[],
   width: number,
 ): BlockTextLine {
-  const runs: TextStyleRun[] = [];
+  const runs: RenderedTextStyleRun[] = [];
   for (const grapheme of graphemes) {
     const lastRun = runs.at(-1);
     if (
       lastRun &&
       lastRun.bold === grapheme.bold &&
-      lastRun.italic === grapheme.italic
+      lastRun.italic === grapheme.italic &&
+      lastRun.renderedFontSizePx === grapheme.renderedFontSizePx &&
+      lastRun.renderedFontFamily === grapheme.renderedFontFamily &&
+      lastRun.renderedOpacity === grapheme.renderedOpacity
     ) {
       lastRun.text += grapheme.text;
     } else {
@@ -333,6 +407,15 @@ export function toBlockTextLine(
         text: grapheme.text,
         bold: grapheme.bold,
         italic: grapheme.italic,
+        ...(grapheme.renderedFontSizePx === undefined
+          ? {}
+          : { renderedFontSizePx: grapheme.renderedFontSizePx }),
+        ...(grapheme.renderedFontFamily === undefined
+          ? {}
+          : { renderedFontFamily: grapheme.renderedFontFamily }),
+        ...(grapheme.renderedOpacity === undefined
+          ? {}
+          : { renderedOpacity: grapheme.renderedOpacity }),
       });
     }
   }
@@ -340,7 +423,7 @@ export function toBlockTextLine(
 }
 
 function lineFromRuns(
-  runs: TextStyleRun[],
+  runs: RenderedTextStyleRun[],
   candidates: StyledGrapheme[],
 ): StyledGrapheme[] {
   const count = runs.reduce(
@@ -348,6 +431,22 @@ function lineFromRuns(
     0,
   );
   return candidates.slice(Math.max(0, candidates.length - count));
+}
+
+function resolveEffectiveLineHeightPx(
+  graphemes: readonly StyledGrapheme[],
+  baseLineHeightPx: number,
+  baseFontSizePx: number,
+): number {
+  const maximumFontSizePx = graphemes.reduce(
+    (largest, grapheme) =>
+      Math.max(largest, grapheme.renderedFontSizePx ?? baseFontSizePx),
+    baseFontSizePx,
+  );
+  return (
+    baseLineHeightPx *
+    (maximumFontSizePx / Math.max(Number.EPSILON, baseFontSizePx))
+  );
 }
 
 function normalizeNewlines(value: string): string {

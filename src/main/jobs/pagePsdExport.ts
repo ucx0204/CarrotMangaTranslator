@@ -8,6 +8,7 @@ import {
 import { PNG } from "pngjs";
 import { resolveBlockRenderBbox } from "../../shared/geometry";
 import type { MangaPage } from "../../shared/libraryTypes";
+import { parseRichText } from "../../shared/richTextMarkup";
 import type { TranslationBlock } from "../../shared/textTypes";
 import { resolveEffectiveTextOutlineWidthPx } from "../../shared/textOutline";
 
@@ -173,6 +174,23 @@ function supportsEditablePsdText(
   displayText: string,
 ): boolean {
   if (!displayText || block.renderDirection === "vertical") return false;
+  const parsed = parseRichText(displayText);
+  if (
+    parsed.plainText !== displayText ||
+    parsed.runs.some(
+      (run) =>
+        run.bold ||
+        run.italic ||
+        run.sizePx !== undefined ||
+        run.fontFamily !== undefined ||
+        run.opacity !== undefined,
+    )
+  ) {
+    // ag-psd exposes only one text style for this editable layer contract.
+    // Keep the faithfully rendered raster layer instead of leaking markup or
+    // flattening per-character styles into the wrong editable appearance.
+    return false;
+  }
   return (
     !block.curveLayout && !block.perspectiveTransform && !block.warpTransform
   );

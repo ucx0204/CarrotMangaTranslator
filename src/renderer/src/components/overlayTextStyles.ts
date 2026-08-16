@@ -20,6 +20,7 @@ export function resolveOverlayTextWrapStyle(
   block: TranslationBlock,
   layout: BlockTextLayout,
   fontCatalog: BlockFontCatalog,
+  blockOpacityAtRoot: boolean,
 ): React.CSSProperties {
   return {
     bottom: "auto",
@@ -31,7 +32,9 @@ export function resolveOverlayTextWrapStyle(
     lineHeight: block.lineHeight,
     letterSpacing: block.letterSpacing ? `${block.letterSpacing}em` : undefined,
     right: "auto",
-    opacity: normalizeTextOpacity(block.textOpacity),
+    // Plain blocks keep opacity on the root for the existing canvas contract.
+    // Inline opacity switches to per-run values so one run can override it.
+    opacity: blockOpacityAtRoot ? normalizeTextOpacity(block.textOpacity) : 1,
     textAlign: block.textAlign,
     top: 0,
     transform:
@@ -41,6 +44,11 @@ export function resolveOverlayTextWrapStyle(
     transformOrigin: "top left",
     width: `${layout.layoutWidth}px`,
   };
+}
+
+function normalizeTextOpacity(value: number | undefined): number {
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(0, Math.min(1, value as number));
 }
 
 export function resolveOverlayTextContentStyle(
@@ -123,11 +131,6 @@ function resolveWordBreakCss(wordBreak: TextWordBreak): {
     return { overflowWrap: "anywhere", wordBreak };
   }
   return { overflowWrap: "normal", wordBreak };
-}
-
-export function normalizeTextOpacity(value: number | undefined): number {
-  if (!Number.isFinite(value)) return 1;
-  return Math.max(0, Math.min(1, value as number));
 }
 
 export function resolveBlockTextOutlinePx(

@@ -8,7 +8,6 @@ import {
   parseRichText,
   type TextStyleRun,
 } from "../../../shared/richTextMarkup";
-import { resolveBlockFontFamily } from "../lib/fonts";
 import type { BlockFontCatalog } from "../lib/fonts";
 import { resolveFontWidthScale } from "../lib/blockFormatGeometry";
 import {
@@ -17,7 +16,10 @@ import {
 } from "../lib/curveGlyphLayout";
 import type { BlockTextLayout } from "../lib/overlayLayout";
 import {
-  normalizeTextOpacity,
+  createTextRunStyleResolver,
+  type TextRunStyleResolver,
+} from "../lib/textStyleRunResolution";
+import {
   resolveBlockTextOutlinePx,
 } from "./overlayTextStyles";
 
@@ -36,11 +38,14 @@ export function CurveText({
   fontCatalog: BlockFontCatalog;
   layout: BlockTextLayout;
 }): React.JSX.Element {
-  const fontFamily = resolveBlockFontFamily(block.fontFamily, fontCatalog);
+  const resolveRunStyle = createTextRunStyleResolver(
+    block,
+    layout.fontSizePx,
+    fontCatalog,
+  );
   const glyphs = measureGlyphs(
     parseRichText(displayText, Boolean(block.bold), Boolean(block.italic)).runs,
-    layout.fontSizePx,
-    fontFamily,
+    resolveRunStyle,
   );
   const widthScale = resolveFontWidthScale(block.fontWidthScale);
   const positioned = layoutGlyphsOnCurve({
@@ -61,7 +66,7 @@ export function CurveText({
       height={layout.layoutHeight}
       role="img"
       style={{
-        opacity: normalizeTextOpacity(block.textOpacity),
+        opacity: 1,
         transform:
           layout.textScaleX === 1 && layout.textScaleY === 1
             ? undefined
@@ -75,11 +80,12 @@ export function CurveText({
         <text
           dominantBaseline="central"
           fill={resolveEffectiveTextColor(block)}
-          fontFamily={fontFamily}
-          fontSize={layout.fontSizePx}
+          fontFamily={glyph.fontFamily}
+          fontSize={glyph.fontSizePx}
           fontStyle={glyph.italic ? "italic" : "normal"}
           fontWeight={glyph.bold ? 800 : 400}
           key={`${index}-${glyph.char}`}
+          opacity={glyph.opacity}
           paintOrder="stroke fill"
           stroke={
             outlineWidth > 0 ? resolveEffectiveTextOutlineColor(block) : "none"
@@ -101,17 +107,24 @@ export function CurveText({
 
 function measureGlyphs(
   runs: TextStyleRun[],
-  fontSizePx: number,
-  fontFamily: string,
+  resolveRunStyle: TextRunStyleResolver,
 ): MeasuredCurveGlyph[] {
   const context = getMeasureContext();
   return runs.flatMap((run) => {
-    context.font = resolveCanvasFont(run, fontSizePx, fontFamily);
+    const style = resolveRunStyle(run);
+    context.font = resolveCanvasFont(
+      run,
+      style.fontSizePx,
+      style.fontFamily,
+    );
     return Array.from(run.text).map((char) => ({
       char,
       width: context.measureText(char).width,
       bold: run.bold,
       italic: run.italic,
+      fontSizePx: style.fontSizePx,
+      fontFamily: style.fontFamily,
+      opacity: style.opacity,
     }));
   });
 }

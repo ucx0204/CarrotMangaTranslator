@@ -849,6 +849,14 @@
     text-align: right;
   }
 
+  .rich-inline-style-grid {
+    grid-template-columns: minmax(72px, 1fr) minmax(72px, 1fr) auto;
+  }
+
+  .rich-inline-font-field {
+    grid-column: 1 / -1;
+  }
+
   .editor-bubble-layout-status {
     grid-template-columns: minmax(0, 1fr);
   }

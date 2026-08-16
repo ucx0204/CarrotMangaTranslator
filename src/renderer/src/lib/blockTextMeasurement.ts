@@ -11,13 +11,17 @@ import type { TranslationBlock } from "../../../shared/textTypes";
 import { resolveBlockFontFamily, type BlockFontCatalog } from "./fonts";
 import {
   measureStyledWrappedText,
-  measureUniformWrappedText,
+  measureUniformStyledWrappedText,
   type BlockTextLine,
 } from "./overlayTextWrapping";
 import {
   resolveDefaultVerticalGraphemeAdvancePx,
   resolveVerticalGraphemeAdvancePx,
 } from "./verticalTextSpacing";
+import {
+  createTextRunStyleResolver,
+  resolveMaximumTextRunFontSizePx,
+} from "./textStyleRunResolution";
 
 const MAX_VERTICAL_COLUMNS = 2;
 
@@ -51,6 +55,11 @@ export function resolveFixedHorizontalTextLines(
     Boolean(block.bold),
     Boolean(block.italic),
   );
+  const resolveRunStyle = createTextRunStyleResolver(
+    block,
+    fontSize,
+    fontCatalog,
+  );
   return measureStyledWrappedText(
     getTextMeasureContext(),
     runs,
@@ -60,6 +69,7 @@ export function resolveFixedHorizontalTextLines(
     resolveBlockFontFamily(block.fontFamily, fontCatalog),
     resolveLetterSpacingPx(block, fontSize),
     resolveBlockTextWordBreak(block.wordBreak, "horizontal"),
+    resolveRunStyle,
   ).lines;
 }
 
@@ -73,7 +83,7 @@ export function doesBlockTextFit(
 ): boolean {
   const letterSpacingPx = resolveLetterSpacingPx(block, fontSize);
   const scaleX = resolveFontWidthScale(block.fontWidthScale);
-  const { runs, plainText } = parseRichText(
+  const { runs } = parseRichText(
     text,
     Boolean(block.bold),
     Boolean(block.italic),
@@ -82,7 +92,9 @@ export function doesBlockTextFit(
     normalizeRenderDirection(block.renderDirection, "horizontal") === "vertical"
   ) {
     return measureVerticalText(
-      plainText,
+      runs,
+      block,
+      fontCatalog,
       fontSize,
       innerWidth,
       innerHeight,
@@ -103,6 +115,7 @@ export function doesBlockTextFit(
     resolveBlockFontFamily(block.fontFamily, fontCatalog),
     letterSpacingPx,
     resolveBlockTextWordBreak(block.wordBreak, "horizontal"),
+    createTextRunStyleResolver(block, fontSize, fontCatalog),
   );
   return (
     measured.totalHeight <= innerHeight &&
@@ -129,7 +142,9 @@ export function getTextMeasureContext(): CanvasRenderingContext2D {
 }
 
 function measureVerticalText(
-  text: string,
+  runs: ReturnType<typeof parseRichText>["runs"],
+  block: TranslationBlock,
+  fontCatalog: BlockFontCatalog,
   fontSize: number,
   maxWidth: number,
   maxHeight: number,
@@ -138,28 +153,48 @@ function measureVerticalText(
   fontWidthScale: number,
   wordBreak: TextWordBreak,
 ): { columnCount: number; fits: boolean } {
-  if (!text.trim()) return { columnCount: 0, fits: true };
+  const plainText = runs.map((run) => run.text).join("");
+  if (!plainText.trim()) return { columnCount: 0, fits: true };
+  const resolveRunStyle = createTextRunStyleResolver(
+    block,
+    fontSize,
+    fontCatalog,
+  );
+  const maximumFontSizePx = resolveMaximumTextRunFontSizePx(
+    runs,
+    block,
+    fontSize,
+  );
   const defaultAdvancePx = resolveDefaultVerticalGraphemeAdvancePx(
     fontSize,
     lineHeightPx,
     letterSpacingPx,
   );
-  const measured = measureUniformWrappedText(
-    text,
+  const measured = measureUniformStyledWrappedText(
+    runs,
     maxHeight,
-    1,
+    maximumFontSizePx * block.lineHeight,
     defaultAdvancePx,
     wordBreak,
-    (grapheme) =>
-      resolveVerticalGraphemeAdvancePx(
+    (grapheme, style) => {
+      const runLetterSpacingPx =
+        (block.letterSpacing ?? 0) * style.fontSizePx;
+      const runDefaultAdvancePx = resolveDefaultVerticalGraphemeAdvancePx(
+        style.fontSizePx,
+        style.fontSizePx * block.lineHeight,
+        runLetterSpacingPx,
+      );
+      return resolveVerticalGraphemeAdvancePx(
         grapheme,
-        fontSize,
-        defaultAdvancePx,
-        letterSpacingPx,
-      ),
+        style.fontSizePx,
+        runDefaultAdvancePx,
+        runLetterSpacingPx,
+      );
+    },
+    resolveRunStyle,
   );
   const columnCount = Math.max(1, measured.lineCount);
-  const estimatedColumnWidth = fontSize * 1.15 * fontWidthScale;
+  const estimatedColumnWidth = maximumFontSizePx * 1.15 * fontWidthScale;
   return {
     columnCount,
     fits:

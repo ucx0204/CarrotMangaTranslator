@@ -6,6 +6,7 @@ import { toast } from "../lib/toastStore";
 
 export type FontSelectProps = {
   value: string | undefined;
+  ariaLabel?: string;
   disabled?: boolean;
   onChange: (fontFamily: string | undefined) => void;
 };
@@ -143,8 +144,8 @@ function useFontSelectHandlers({
 }): FontSelectHandlers {
   const commit = React.useCallback(
     (id: string) => {
-      onChange(normalizeBlockFontFamily(id, catalog));
       close();
+      onChange(normalizeBlockFontFamily(id, catalog));
     },
     [catalog, onChange, close],
   );
@@ -267,7 +268,9 @@ function useActiveFontScroll(
     const node = listRef.current.children[activeIndex] as
       | HTMLElement
       | undefined;
-    node?.scrollIntoView({ block: "nearest" });
+    if (typeof node?.scrollIntoView === "function") {
+      node.scrollIntoView({ block: "nearest" });
+    }
   }, [open, activeIndex, listRef]);
 }
 

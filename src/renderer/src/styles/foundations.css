@@ -246,7 +246,7 @@ textarea:focus-visible {
 
 input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
     .gather-direct-size-input
-  ):not(.library-search-input),
+  ):not(.library-search-input):not(.rich-inline-number-input),
 textarea {
   width: 100%;
   color: #f5f0e8;
@@ -258,7 +258,9 @@ textarea {
 
 input:not([type="range"]):not([type="color"]):not([type="checkbox"]):not(
     [type="radio"]
-  ):not(.gather-direct-size-input):not(.library-search-input) {
+  ):not(.gather-direct-size-input):not(.library-search-input):not(
+    .rich-inline-number-input
+  ) {
   min-height: var(--ctl-h);
 }
 

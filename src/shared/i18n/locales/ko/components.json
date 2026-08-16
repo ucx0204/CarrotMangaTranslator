@@ -337,8 +337,21 @@
       "boldTitle": "선택한 글자를 굵게 (**굵게**)",
       "italicLabel": "기울임 (*기울임*)",
       "italicTitle": "선택한 글자를 기울임 (*기울임*)",
-      "help": "부분 강조 도움말",
       "resetHeight": "입력칸 높이 초기화"
+    },
+    "richText": {
+      "modeLabel": "번역문 보기 방식",
+      "visualMode": "편집",
+      "codeMode": "코드",
+      "inlineStyle": "글자별 서식",
+      "resetAll": "번역문 서식 전체 초기화",
+      "resetAllTitle": "번역문 안의 모든 강조와 글자별 서식 제거",
+      "size": "글자 크기",
+      "font": "글자 폰트",
+      "opacity": "글자 투명도",
+      "mixed": "혼합",
+      "placeholder": "번역문을 입력하세요",
+      "codeAria": "번역문 서식 코드"
     }
   },
   "formatBatch": {

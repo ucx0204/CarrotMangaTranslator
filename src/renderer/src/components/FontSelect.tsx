@@ -16,6 +16,7 @@ export function FontSelect(props: FontSelectProps): React.JSX.Element {
   return (
     <>
       <FontSelectView
+        ariaLabel={props.ariaLabel}
         listRef={listRef}
         model={model}
         onManage={() => {
@@ -32,11 +33,13 @@ export function FontSelect(props: FontSelectProps): React.JSX.Element {
 }
 
 function FontSelectView({
+  ariaLabel,
   listRef,
   model,
   onManage,
   rootRef,
 }: {
+  ariaLabel?: string;
   listRef: React.RefObject<HTMLDivElement | null>;
   model: FontSelectModel;
   onManage: () => void;
@@ -44,7 +47,7 @@ function FontSelectView({
 }): React.JSX.Element {
   return (
     <div className={`font-select ${model.open ? "open" : ""}`} ref={rootRef}>
-      <FontSelectTrigger model={model} />
+      <FontSelectTrigger ariaLabel={ariaLabel} model={model} />
       {model.open ? (
         <FontSelectMenu listRef={listRef} model={model} onManage={onManage} />
       ) : null}
@@ -53,14 +56,17 @@ function FontSelectView({
 }
 
 function FontSelectTrigger({
+  ariaLabel,
   model,
 }: {
+  ariaLabel?: string;
   model: FontSelectModel;
 }): React.JSX.Element {
   return (
     <button
       type="button"
       className="font-select-trigger"
+      aria-label={ariaLabel}
       disabled={model.disabled}
       aria-haspopup="listbox"
       aria-expanded={model.open}

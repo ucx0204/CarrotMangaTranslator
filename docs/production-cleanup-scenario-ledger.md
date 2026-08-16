@@ -83,9 +83,11 @@ editing the totals by hand.
   the sealed scope. The v1.16.1 GPU compatibility pass extended that ignored
   Node 24 artifact to SHA-256
   `6f35a61cb6556ff31b4589913cdb79bb04faedab7c18228eac61ead3b2ad9157`.
+  The stage-5 rich-text editor pass extended it again to SHA-256
+  `67a7bc7478c11b299f75528fd69f2d7e96c467d6556b5abfbcbec2e1f92cbf61`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
-  percentage for lines/statements/functions/branches in all 167 existing
-  coverage-eligible `src/**` files changed since cleanup start. The 31 new
+  percentage for lines/statements/functions/branches in all 176 existing
+  coverage-eligible `src/**` files changed since cleanup start. The 34 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record. The
   three removed source files are recorded explicitly in `deletedFiles`.

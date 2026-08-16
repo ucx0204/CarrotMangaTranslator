@@ -340,8 +340,21 @@
       "boldTitle": "Make selected text bold (**bold**)",
       "italicLabel": "Italic (*italic*)",
       "italicTitle": "Italicize selected text (*italic*)",
-      "help": "Inline emphasis help",
       "resetHeight": "Reset input height"
+    },
+    "richText": {
+      "modeLabel": "Translation view mode",
+      "visualMode": "Edit",
+      "codeMode": "Code",
+      "inlineStyle": "Character formatting",
+      "resetAll": "Reset all translation formatting",
+      "resetAllTitle": "Remove all emphasis and character formatting from the translation",
+      "size": "Character size",
+      "font": "Character font",
+      "opacity": "Character opacity",
+      "mixed": "Mixed",
+      "placeholder": "Enter translation",
+      "codeAria": "Translation formatting code"
     }
   },
   "formatBatch": {

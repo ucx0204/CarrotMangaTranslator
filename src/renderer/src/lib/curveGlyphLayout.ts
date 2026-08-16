@@ -15,6 +15,9 @@ export type MeasuredCurveGlyph = {
   width: number;
   bold: boolean;
   italic: boolean;
+  fontSizePx?: number;
+  fontFamily?: string;
+  opacity?: number;
 };
 
 export type PositionedCurveGlyph = MeasuredCurveGlyph & {

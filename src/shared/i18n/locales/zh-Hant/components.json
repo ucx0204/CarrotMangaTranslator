@@ -333,8 +333,21 @@
       "boldTitle": "將所選文字設為粗體（**粗體**）",
       "italicLabel": "斜體（*斜體*）",
       "italicTitle": "將所選文字設為斜體（*斜體*）",
-      "help": "局部強調說明",
       "resetHeight": "重設輸入框高度"
+    },
+    "richText": {
+      "modeLabel": "譯文檢視模式",
+      "visualMode": "編輯",
+      "codeMode": "程式碼",
+      "inlineStyle": "逐字格式",
+      "resetAll": "重設全部譯文格式",
+      "resetAllTitle": "移除譯文中的所有強調和逐字格式",
+      "size": "字元大小",
+      "font": "字元字型",
+      "opacity": "字元不透明度",
+      "mixed": "混合",
+      "placeholder": "輸入譯文",
+      "codeAria": "譯文格式程式碼"
     }
   },
   "formatBatch": {

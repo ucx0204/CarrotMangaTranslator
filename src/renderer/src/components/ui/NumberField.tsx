@@ -14,11 +14,15 @@ export type NumberFieldProps = {
   mixed?: boolean;
   placeholder?: string;
   precision?: number;
+  selectOnFocus?: boolean;
   snapToStep?: boolean;
   step?: number;
+  /** Render without native number steppers while still accepting only numbers. */
+  useTextInput?: boolean;
 };
 
 /** Shared numeric draft, clamping, and Enter/Escape behavior. */
+// eslint-disable-next-line complexity -- native-number and text-only numeric inputs intentionally share one accessible field contract
 export function NumberField({
   ariaLabel,
   value,
@@ -33,8 +37,10 @@ export function NumberField({
   mixed = false,
   placeholder,
   precision = 0,
+  selectOnFocus = false,
   snapToStep = false,
   step = 1,
+  useTextInput = false,
 }: NumberFieldProps): React.JSX.Element {
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const {
@@ -59,7 +65,7 @@ export function NumberField({
     <input
       ref={inputRef}
       className={className}
-      type="number"
+      type={useTextInput ? "text" : "number"}
       inputMode={inputMode}
       aria-label={ariaLabel}
       aria-invalid={invalid || undefined}
@@ -69,11 +75,44 @@ export function NumberField({
       value={draftValue}
       placeholder={mixed ? (placeholder ?? "—") : placeholder}
       disabled={disabled}
-      onChange={onChange}
+      pattern={
+        useTextInput
+          ? inputMode === "numeric"
+            ? min < 0
+              ? "-?[0-9]*"
+              : "[0-9]*"
+            : min < 0
+              ? "-?[0-9]*[.]?[0-9]*"
+              : "[0-9]*[.]?[0-9]*"
+          : undefined
+      }
+      onChange={(event) => {
+        if (
+          useTextInput &&
+          !isAllowedNumericDraft(event.target.value, inputMode, min < 0)
+        ) {
+          return;
+        }
+        onChange(event);
+      }}
       onBlur={onBlur}
+      onFocus={(event) => {
+        if (selectOnFocus) event.currentTarget.select();
+      }}
       onKeyDown={onKeyDown}
     />
   );
+}
+
+function isAllowedNumericDraft(
+  value: string,
+  inputMode: "decimal" | "numeric",
+  allowNegative: boolean,
+): boolean {
+  const sign = allowNegative ? "-?" : "";
+  return inputMode === "numeric"
+    ? new RegExp(`^${sign}\\d*$`).test(value)
+    : new RegExp(`^${sign}\\d*(?:\\.\\d*)?$`).test(value);
 }
 
 type NumberDraftOptions = Required<

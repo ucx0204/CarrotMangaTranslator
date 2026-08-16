@@ -192,6 +192,30 @@ describe("overlay text word breaking", () => {
     expect(measured.fits).toBe(true);
   });
 
+  it("keeps an empty paragraph in its first bubble slot", () => {
+    const slot = {
+      blockOffsetPx: 12,
+      inlineOffsetPx: 8,
+      availableWidth: 40,
+      regionIndex: 0,
+    };
+    const measured = measureStyledWrappedTextInSlots(
+      fixedMeasureContext,
+      plainRuns(""),
+      [slot],
+      12,
+      10,
+      "sans-serif",
+      0,
+      "normal",
+    );
+
+    expect(lineTexts(measured.lines)).toEqual([""]);
+    expect(measured.lines[0]?.slot).toEqual(slot);
+    expect(measured.consumedAll).toBe(true);
+    expect(measured.fits).toBe(true);
+  });
+
   it("reports an unbreakable word wider than its bubble slot", () => {
     const measured = measureStyledWrappedTextInSlots(
       fixedMeasureContext,

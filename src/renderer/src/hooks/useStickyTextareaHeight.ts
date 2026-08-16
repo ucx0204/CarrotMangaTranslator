@@ -3,7 +3,7 @@ import React from "react";
 const TEXTAREA_HEIGHT_PATTERN = /^\d+(\.\d+)?px$/;
 
 export type StickyTextareaHeight = {
-  refCallback: (element: HTMLTextAreaElement | null) => void;
+  refCallback: (element: HTMLElement | null) => void;
   reset: () => void;
 };
 
@@ -16,11 +16,11 @@ export type StickyTextareaHeight = {
 export function useStickyTextareaHeight(
   storageKey: string,
 ): StickyTextareaHeight {
-  const elementRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const elementRef = React.useRef<HTMLElement | null>(null);
   const observerRef = React.useRef<ResizeObserver | null>(null);
 
   const refCallback = React.useCallback(
-    (element: HTMLTextAreaElement | null) => {
+    (element: HTMLElement | null) => {
       observerRef.current?.disconnect();
       observerRef.current = null;
       elementRef.current = element;

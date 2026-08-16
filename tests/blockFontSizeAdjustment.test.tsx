@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- text-format UI regressions share the production editor fixture and interaction harness */
 /** @vitest-environment jsdom */
 
 import React from "react";
@@ -279,7 +280,9 @@ describe("selected block font-size adjustment", () => {
     const fit = screen.getByRole("button", { name: "말풍선 맞춤" });
     const actionRow = view.container.querySelector(".editor-text-actions");
     expect(
-      actionRow?.nextElementSibling?.classList.contains("editor-group-head"),
+      actionRow?.nextElementSibling?.classList.contains(
+        "rich-translation-editor",
+      ),
     ).toBe(true);
 
     fireEvent.click(erase);
@@ -340,8 +343,9 @@ describe("selected block font-size adjustment", () => {
     ).toBe("true");
     const translation = screen.getByRole("textbox", {
       name: "번역문",
-    }) as HTMLTextAreaElement;
-    fireEvent.change(translation, { target: { value: "작성 중 번역" } });
+    }) as HTMLDivElement;
+    translation.textContent = "작성 중 번역";
+    fireEvent.input(translation);
     expect(onUpdate).toHaveBeenCalledWith({ translatedText: "작성 중 번역" });
 
     const source = screen.getByRole("textbox", {
@@ -352,8 +356,9 @@ describe("selected block font-size adjustment", () => {
     expect(container.querySelector(".editor-source-field")).not.toBeNull();
     expect(container.querySelector(".markup-hint")).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "부분 강조 도움말" }));
-    expect(container.querySelector(".markup-hint")).not.toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "부분 강조 도움말" }),
+    ).toBeNull();
     expect(
       screen.getByRole("button", { name: "굵게 (**굵게**)" }),
     ).not.toBeNull();
@@ -365,14 +370,355 @@ describe("selected block font-size adjustment", () => {
       screen.getByRole("button", { name: "블록 전체 굵게" }),
     ).not.toBeNull();
     selectEditorTab("텍스트");
-    expect(
-      (screen.getByRole("textbox", { name: "번역문" }) as HTMLTextAreaElement)
-        .value,
-    ).toBe("작성 중 번역");
+    expect(screen.getByRole("textbox", { name: "번역문" }).textContent).toBe(
+      "작성 중 번역",
+    );
     expect(
       (screen.getByRole("textbox", { name: "OCR" }) as HTMLTextAreaElement)
         .value,
     ).toBe("수정한 OCR");
+  });
+
+  it("applies visible per-character formatting and can inspect or reset its code", async () => {
+    const onUpdate = vi.fn();
+    render(
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock({ translatedText: "가나다라", fontSizePx: 12 })}
+          disabled={false}
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onUpdate={onUpdate}
+        />
+      </FontsTestProvider>,
+    );
+    const editor = screen.getByRole("textbox", { name: "번역문" });
+    const textNode = editor.querySelector("[data-rich-text-run]")?.firstChild;
+    if (!textNode) throw new Error("Expected a visual editor text node");
+    const range = document.createRange();
+    range.setStart(textNode, 1);
+    range.setEnd(textNode, 3);
+    document.getSelection()?.removeAllRanges();
+    document.getSelection()?.addRange(range);
+    act(() => document.dispatchEvent(new Event("selectionchange")));
+
+    const inlinePanel = screen.getByRole("region", { name: "글자별 서식" });
+    expect(
+      within(inlinePanel).getByRole("button", { name: "굵게 (**굵게**)" }),
+    ).not.toBeNull();
+    expect(
+      within(inlinePanel).getByRole("button", {
+        name: "기울임 (*기울임*)",
+      }),
+    ).not.toBeNull();
+    const size = within(inlinePanel).getByRole("textbox", {
+      name: "글자 크기",
+    }) as HTMLInputElement;
+    fireEvent.pointerDown(size);
+    act(() => size.focus());
+    act(() => {
+      document.getSelection()?.removeAllRanges();
+      document.dispatchEvent(new Event("selectionchange"));
+    });
+    expect(
+      Array.from(
+        editor.querySelectorAll<HTMLElement>("[data-rich-text-selection]"),
+      )
+        .map((element) => element.textContent)
+        .join(""),
+    ).toBe("나다");
+    fireEvent.change(size, { target: { value: "40" } });
+    expect(document.activeElement).toBe(size);
+    const opacity = within(inlinePanel).getByRole("textbox", {
+      name: "글자 투명도",
+    }) as HTMLInputElement;
+    fireEvent.pointerDown(opacity);
+    act(() => opacity.focus());
+    fireEvent.change(opacity, { target: { value: "60" } });
+    expect(document.activeElement).toBe(opacity);
+
+    await waitFor(() =>
+      expect(onUpdate).toHaveBeenLastCalledWith({
+        translatedText: "가[size=40][opacity=60]나다[/opacity][/size]라",
+      }),
+    );
+    expect(editor.textContent).toBe("가나다라");
+    expect(
+      Array.from(
+        editor.querySelectorAll<HTMLElement>("[data-rich-text-selection]"),
+      )
+        .map((element) => element.textContent)
+        .join(""),
+    ).toBe("나다");
+    expect(
+      editor.querySelectorAll<HTMLElement>("[data-rich-text-run]")[1]?.style
+        .opacity,
+    ).toBe("0.6");
+
+    fireEvent.click(screen.getByRole("button", { name: "코드" }));
+    expect(
+      (
+        screen.getByRole("textbox", {
+          name: "번역문 서식 코드",
+        }) as HTMLTextAreaElement
+      ).value,
+    ).toBe("가[size=40][opacity=60]나다[/opacity][/size]라");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "번역문 서식 전체 초기화" }),
+    );
+    await waitFor(() =>
+      expect(onUpdate).toHaveBeenLastCalledWith({ translatedText: "가나다라" }),
+    );
+  });
+
+  it("shows the actual character formatting at the visual caret", () => {
+    render(
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock({
+            translatedText: "가[size=48][opacity=60]나다[/opacity][/size]라",
+            fontSizePx: 12,
+          })}
+          disabled={false}
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onUpdate={vi.fn()}
+        />
+      </FontsTestProvider>,
+    );
+    const editor = screen.getByRole("textbox", { name: "번역문" });
+    const styledText = editor.querySelector<HTMLElement>(
+      "[data-size-px='48']",
+    )?.firstChild;
+    if (!styledText) throw new Error("Expected an inline-sized text run");
+    const range = document.createRange();
+    range.setStart(styledText, 1);
+    range.collapse(true);
+    document.getSelection()?.removeAllRanges();
+    document.getSelection()?.addRange(range);
+    act(() => document.dispatchEvent(new Event("selectionchange")));
+
+    const inlinePanel = screen.getByRole("region", { name: "글자별 서식" });
+    expect(
+      (
+        within(inlinePanel).getByRole("textbox", {
+          name: "글자 크기",
+        }) as HTMLInputElement
+      ).value,
+    ).toBe("48");
+    expect(
+      (
+        within(inlinePanel).getByRole("textbox", {
+          name: "글자 투명도",
+        }) as HTMLInputElement
+      ).value,
+    ).toBe("60");
+  });
+
+  it("preserves text and formatting when returning from code to visual mode", () => {
+    render(
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock({
+            translatedText: "가[size=48]나다[/size]라",
+            fontSizePx: 12,
+          })}
+          disabled={false}
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onUpdate={vi.fn()}
+        />
+      </FontsTestProvider>,
+    );
+    expect(screen.getByRole("textbox", { name: "번역문" }).textContent).toBe(
+      "가나다라",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "코드" }));
+    expect(
+      (
+        screen.getByRole("textbox", {
+          name: "번역문 서식 코드",
+        }) as HTMLTextAreaElement
+      ).value,
+    ).toBe("가[size=48]나다[/size]라");
+    fireEvent.click(screen.getByRole("button", { name: "편집" }));
+
+    const visual = screen.getByRole("textbox", { name: "번역문" });
+    expect(visual.textContent).toBe("가나다라");
+    expect(
+      visual.querySelector<HTMLElement>("[data-size-px='48']")?.textContent,
+    ).toBe("나다");
+  });
+
+  it("uses a collapsed caret style only for text typed afterward", async () => {
+    const onUpdate = vi.fn();
+    render(
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock({ translatedText: "가나다라", fontSizePx: 12 })}
+          disabled={false}
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onUpdate={onUpdate}
+        />
+      </FontsTestProvider>,
+    );
+    const editor = screen.getByRole("textbox", {
+      name: "번역문",
+    }) as HTMLDivElement;
+    const textNode = editor.querySelector("[data-rich-text-run]")?.firstChild;
+    if (!(textNode instanceof Text)) {
+      throw new Error("Expected a visual editor text node");
+    }
+    const placeCaret = (offset: number, notify = true): void => {
+      const range = document.createRange();
+      range.setStart(textNode, offset);
+      range.collapse(true);
+      document.getSelection()?.removeAllRanges();
+      document.getSelection()?.addRange(range);
+      if (notify) document.dispatchEvent(new Event("selectionchange"));
+    };
+    act(() => placeCaret(1));
+
+    const inlinePanel = screen.getByRole("region", { name: "글자별 서식" });
+    const size = within(inlinePanel).getByRole("textbox", {
+      name: "글자 크기",
+    }) as HTMLInputElement;
+    fireEvent.pointerDown(size);
+    act(() => size.focus());
+    fireEvent.change(size, { target: { value: "40" } });
+    expect(onUpdate).not.toHaveBeenCalled();
+    expect(size.value).toBe("40");
+
+    act(() => {
+      editor.focus();
+      placeCaret(1);
+      editor.dispatchEvent(
+        new InputEvent("beforeinput", {
+          bubbles: true,
+          cancelable: true,
+          data: "새",
+          inputType: "insertText",
+        }),
+      );
+      textNode.data = "가새나다라";
+      placeCaret(2, false);
+      fireEvent.input(editor, { data: "새", inputType: "insertText" });
+      document.dispatchEvent(new Event("selectionchange"));
+    });
+
+    await waitFor(() =>
+      expect(onUpdate).toHaveBeenLastCalledWith({
+        translatedText: "가[size=40]새[/size]나다라",
+      }),
+    );
+  });
+
+  it("waits for IME composition to finish before applying a typing style", async () => {
+    const onUpdate = vi.fn();
+    render(
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock({ translatedText: "가나다라", fontSizePx: 12 })}
+          disabled={false}
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onUpdate={onUpdate}
+        />
+      </FontsTestProvider>,
+    );
+    const editor = screen.getByRole("textbox", {
+      name: "번역문",
+    }) as HTMLDivElement;
+    const textNode = editor.querySelector("[data-rich-text-run]")?.firstChild;
+    if (!(textNode instanceof Text)) {
+      throw new Error("Expected a visual editor text node");
+    }
+    const placeCaret = (offset: number): void => {
+      const range = document.createRange();
+      range.setStart(textNode, offset);
+      range.collapse(true);
+      document.getSelection()?.removeAllRanges();
+      document.getSelection()?.addRange(range);
+    };
+    act(() => {
+      placeCaret(1);
+      document.dispatchEvent(new Event("selectionchange"));
+    });
+    const size = within(
+      screen.getByRole("region", { name: "글자별 서식" }),
+    ).getByRole("textbox", { name: "글자 크기" }) as HTMLInputElement;
+    fireEvent.pointerDown(size);
+    act(() => size.focus());
+    fireEvent.change(size, { target: { value: "40" } });
+
+    act(() => {
+      editor.focus();
+      placeCaret(1);
+      document.dispatchEvent(new Event("selectionchange"));
+    });
+    fireEvent.compositionStart(editor);
+    act(() => {
+      textNode.data = "가한나다라";
+      placeCaret(2);
+      fireEvent.input(editor, {
+        data: "한",
+        inputType: "insertCompositionText",
+        isComposing: true,
+      });
+    });
+    expect(onUpdate).toHaveBeenLastCalledWith({ translatedText: "가한나다라" });
+
+    fireEvent.compositionEnd(editor, { data: "한" });
+    await waitFor(() =>
+      expect(onUpdate).toHaveBeenLastCalledWith({
+        translatedText: "가[size=40]한[/size]나다라",
+      }),
+    );
+  });
+
+  it("closes the character-font menu immediately after choosing a font", () => {
+    const onUpdate = vi.fn();
+    render(
+      <FontsTestProvider>
+        <EditorPanel
+          block={makeBlock({ translatedText: "가나다라" })}
+          disabled={false}
+          onAdjustFontSize={vi.fn()}
+          onDelete={vi.fn()}
+          onDuplicate={vi.fn()}
+          onUpdate={onUpdate}
+        />
+      </FontsTestProvider>,
+    );
+    const editor = screen.getByRole("textbox", { name: "번역문" });
+    const textNode = editor.querySelector("[data-rich-text-run]")?.firstChild;
+    if (!textNode) throw new Error("Expected a visual editor text node");
+    const range = document.createRange();
+    range.setStart(textNode, 2);
+    range.collapse(true);
+    document.getSelection()?.removeAllRanges();
+    document.getSelection()?.addRange(range);
+    act(() => document.dispatchEvent(new Event("selectionchange")));
+
+    const inlinePanel = screen.getByRole("region", { name: "글자별 서식" });
+    const fontTrigger = within(inlinePanel).getByRole("button", {
+      name: "글자 폰트",
+    });
+    fireEvent.click(fontTrigger);
+    expect(screen.getByRole("listbox")).not.toBeNull();
+    fireEvent.click(screen.getByRole("option", { name: /나눔고딕/ }));
+
+    expect(screen.queryByRole("listbox")).toBeNull();
+    expect(fontTrigger.getAttribute("aria-expanded")).toBe("false");
+    expect(onUpdate).not.toHaveBeenCalled();
   });
 
   it("supports tab keyboard navigation and remembers the selected tab", () => {
@@ -1074,7 +1420,20 @@ function FontsTestProvider({
         busy: false,
         catalog: DEFAULT_BLOCK_FONT_CATALOG,
         baseOptions: [],
-        options: [],
+        options: [
+          {
+            id: "default",
+            label: "기본 폰트",
+            cssFamily: '"Nanum Gothic", sans-serif',
+            sample: "가나다 Aa",
+          },
+          {
+            id: "nanum-gothic",
+            label: "나눔고딕",
+            cssFamily: '"Nanum Gothic", sans-serif',
+            sample: "나눔고딕 Aa",
+          },
+        ],
         registerFont: async () => undefined,
         removeFont: async () => undefined,
         savePreferences: async () => undefined,

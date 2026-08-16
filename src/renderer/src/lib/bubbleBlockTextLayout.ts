@@ -19,6 +19,11 @@ import {
   resolveDefaultVerticalGraphemeAdvancePx,
   resolveVerticalGraphemeAdvancePx,
 } from "./verticalTextSpacing";
+import {
+  createTextRunStyleResolver,
+  resolveMaximumTextRunFontSizePx,
+  type TextRunStyleResolver,
+} from "./textStyleRunResolution";
 
 export function resolveBubbleWrappedText(
   block: TranslationBlock,
@@ -33,13 +38,23 @@ export function resolveBubbleWrappedText(
     block.renderDirection,
     "horizontal",
   );
-  const lineHeightPx = fontSize * block.lineHeight;
-  const letterSpacingPx = resolveLetterSpacingPx(block, fontSize);
-  const fontWidthScale = resolveFontWidthScale(block.fontWidthScale);
   const { runs, plainText } = parseRichText(
     text,
     Boolean(block.bold),
     Boolean(block.italic),
+  );
+  const maximumFontSizePx = resolveMaximumTextRunFontSizePx(
+    runs,
+    block,
+    fontSize,
+  );
+  const lineHeightPx = maximumFontSizePx * block.lineHeight;
+  const letterSpacingPx = resolveLetterSpacingPx(block, fontSize);
+  const fontWidthScale = resolveFontWidthScale(block.fontWidthScale);
+  const resolveRunStyle = createTextRunStyleResolver(
+    block,
+    fontSize,
+    fontCatalog,
   );
   const plans = resolveBubbleTextSlotPlans(block.bubbleLayout, {
     blockExtentPx: renderDirection === "vertical" ? innerWidth : innerHeight,
@@ -66,6 +81,8 @@ export function resolveBubbleWrappedText(
             fontSize,
             letterSpacingPx,
             wordBreak,
+            block,
+            resolveRunStyle,
           )
         : measureStyledWrappedTextInSlots(
             getTextMeasureContext(),
@@ -76,6 +93,7 @@ export function resolveBubbleWrappedText(
             fontFamily,
             letterSpacingPx,
             wordBreak,
+            resolveRunStyle,
           );
     if (
       measured.fits &&
@@ -99,6 +117,8 @@ function measureVerticalStyledTextInSlots(
   fontSize: number,
   letterSpacingPx: number,
   wordBreak: Parameters<typeof measureUniformStyledWrappedTextInSlots>[4],
+  block: TranslationBlock,
+  resolveRunStyle: TextRunStyleResolver,
 ): ReturnType<typeof measureUniformStyledWrappedTextInSlots> {
   const defaultAdvancePx = resolveDefaultVerticalGraphemeAdvancePx(
     fontSize,
@@ -111,12 +131,21 @@ function measureVerticalStyledTextInSlots(
     lineHeightPx,
     defaultAdvancePx,
     wordBreak,
-    (grapheme) =>
-      resolveVerticalGraphemeAdvancePx(
+    (grapheme, style) => {
+      const runLetterSpacingPx =
+        (block.letterSpacing ?? 0) * style.fontSizePx;
+      const runDefaultAdvancePx = resolveDefaultVerticalGraphemeAdvancePx(
+        style.fontSizePx,
+        style.fontSizePx * block.lineHeight,
+        runLetterSpacingPx,
+      );
+      return resolveVerticalGraphemeAdvancePx(
         grapheme,
-        fontSize,
-        defaultAdvancePx,
-        letterSpacingPx,
-      ),
+        style.fontSizePx,
+        runDefaultAdvancePx,
+        runLetterSpacingPx,
+      );
+    },
+    resolveRunStyle,
   );
 }

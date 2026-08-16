@@ -84,17 +84,18 @@ function collectBlockFontLoadRequests(
   for (const block of blocks) {
     const displayText = block.translatedText || block.sourceText;
     if (!displayText.trim()) continue;
-    const family = resolveBlockFontFamily(block.fontFamily, catalog);
-    const required = isManagedFont(
-      resolveEffectiveFontId(block, catalog),
-      catalog,
-    );
     const { runs } = parseRichText(
       displayText,
       Boolean(block.bold),
       Boolean(block.italic),
     );
     for (const run of runs) {
+      const fontId = run.fontFamily ?? block.fontFamily;
+      const family = resolveBlockFontFamily(fontId, catalog);
+      const required = isManagedFont(
+        resolveEffectiveFontId(fontId, catalog),
+        catalog,
+      );
       const css = `${run.italic ? "italic" : "normal"} ${run.bold ? 800 : 400} 16px ${family}`;
       requests.set(css, { css, family, required });
     }
@@ -105,11 +106,11 @@ function collectBlockFontLoadRequests(
 }
 
 function resolveEffectiveFontId(
-  block: TranslationBlock,
+  fontFamily: string | undefined,
   catalog: BlockFontCatalog,
 ): string {
   return (
-    normalizeBlockFontFamily(block.fontFamily, catalog) ??
+    normalizeBlockFontFamily(fontFamily, catalog) ??
     catalog.preferences.defaultFontId
   );
 }

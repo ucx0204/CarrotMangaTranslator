@@ -12,6 +12,7 @@ import {
   vi,
 } from "vitest";
 import { OverlayBlock } from "../src/renderer/src/components/OverlayBlock";
+import { OverlayText } from "../src/renderer/src/components/OverlayText";
 import { FontsContext } from "../src/renderer/src/fonts/fontsContextValue";
 import { DEFAULT_BLOCK_FONT_CATALOG } from "../src/renderer/src/lib/fonts";
 import { createWorkspaceInteractionPreviewStore } from "../src/renderer/src/lib/workspaceInteractionPreview";
@@ -124,6 +125,134 @@ describe("overlay transform controls", () => {
       3,
     );
     expect(container.querySelector(".curve-path-line")).not.toBeNull();
+  });
+
+  it("renders per-character size, font, and opacity in ordinary and curved text", () => {
+    const translatedText =
+      "[font=nanum-myeongjo][size=56][opacity=40]A[/opacity][/size][/font]B";
+    const ordinary = renderOverlay({
+      block: { ...makeBlock(), translatedText, textOpacity: 0.8 },
+    });
+    const ordinaryRuns = ordinary.container.querySelectorAll<HTMLElement>(
+      ".overlay-text-line > span",
+    );
+    expect(ordinaryRuns[0]?.style.fontSize).toBe("28px");
+    expect(ordinaryRuns[0]?.style.fontFamily).toContain("MGT Nanum Myeongjo");
+    expect(ordinaryRuns[0]?.style.opacity).toBe("0.4");
+    expect(ordinaryRuns[1]?.style.fontSize).toBe("14px");
+    expect(ordinaryRuns[1]?.style.opacity).toBe("0.8");
+    ordinary.unmount();
+
+    const curved = renderOverlay({
+      block: { ...makeBlock(), translatedText, curveLayout: makeCurveLayout() },
+      transformMode: "curve",
+    });
+    const glyphs = curved.container.querySelectorAll(
+      ".overlay-curve-text text",
+    );
+    expect(glyphs[0]?.getAttribute("font-size")).toBe("28");
+    expect(glyphs[0]?.getAttribute("font-family")).toContain(
+      "MGT Nanum Myeongjo",
+    );
+    expect(glyphs[0]?.getAttribute("opacity")).toBe("0.4");
+    expect(glyphs[1]?.getAttribute("font-size")).toBe("14");
+  });
+
+  it("renders empty and styled runs when fixed lines switch writing direction", () => {
+    const block = {
+      ...makeBlock(),
+      renderDirection: "vertical" as const,
+    };
+    const { container, rerender } = render(
+      <OverlayText
+        block={block}
+        displayText=""
+        fontCatalog={DEFAULT_BLOCK_FONT_CATALOG}
+        layout={{
+          rect: { left: 0, top: 0, width: 100, height: 160 },
+          paddingPx: 0,
+          layoutWidth: 100,
+          layoutHeight: 160,
+          innerWidth: 100,
+          innerHeight: 160,
+          fitInnerWidth: 100,
+          fitInnerHeight: 160,
+          fontSizePx: 20,
+          textContentWidth: 100,
+          lines: [
+            {
+              runs: [],
+              width: 0,
+              slot: {
+                blockOffsetPx: 60,
+                inlineOffsetPx: 0,
+                availableWidth: 80,
+                regionIndex: 0,
+              },
+            },
+            {
+              runs: [
+                { text: "세", bold: false, italic: false },
+                {
+                  text: "로",
+                  bold: false,
+                  italic: true,
+                  renderedFontSizePx: 30,
+                },
+              ],
+              width: 50,
+              slot: {
+                blockOffsetPx: 20,
+                inlineOffsetPx: 80,
+                availableWidth: 80,
+                regionIndex: 0,
+              },
+            },
+          ],
+          textScaleX: 1,
+          textScaleY: 1,
+          overflow: false,
+        }}
+        renderDirection="vertical"
+      />,
+    );
+
+    const lines = container.querySelectorAll<HTMLElement>(".overlay-text-line");
+    expect(lines[0]?.textContent).toBe("\u00a0");
+    expect(lines[1]?.style.width).toBe("36px");
+    expect(
+      lines[1]?.querySelectorAll(":scope > span")[1]?.getAttribute("style"),
+    ).toContain("font-style: italic");
+
+    rerender(
+      <OverlayText
+        block={{ ...block, renderDirection: "horizontal" }}
+        displayText="[opacity=40]A[/opacity]B"
+        fontCatalog={DEFAULT_BLOCK_FONT_CATALOG}
+        layout={{
+          rect: { left: 0, top: 0, width: 100, height: 160 },
+          paddingPx: 0,
+          layoutWidth: 100,
+          layoutHeight: 160,
+          innerWidth: 100,
+          innerHeight: 160,
+          fitInnerWidth: 100,
+          fitInnerHeight: 160,
+          fontSizePx: 20,
+          textContentWidth: 100,
+          lines: null,
+          textScaleX: 1,
+          textScaleY: 1,
+          overflow: false,
+        }}
+        renderDirection="horizontal"
+      />,
+    );
+    const parsedRuns = container.querySelectorAll<HTMLElement>(
+      ".overlay-text-content > span",
+    );
+    expect(parsedRuns[0]?.style.opacity).toBe("0.4");
+    expect(parsedRuns[1]?.style.opacity).toBe("1");
   });
 
   it("shows the selected bubble profile even when block chrome is hidden", () => {

@@ -67,6 +67,21 @@ describe("block font loading", () => {
       createBlockFontLoadKey([original], DEFAULT_BLOCK_FONT_CATALOG),
     );
   });
+
+  it("loads every font referenced by an inline font run", () => {
+    const key = createBlockFontLoadKey(
+      [
+        makeBlock({
+          fontFamily: "nanum-gothic",
+          translatedText: "기본 [font=nanum-myeongjo]명조[/font]",
+        }),
+      ],
+      DEFAULT_BLOCK_FONT_CATALOG,
+    );
+
+    expect(key).toContain("MGT Nanum Gothic");
+    expect(key).toContain("MGT Nanum Myeongjo");
+  });
 });
 
 function makeFontSet(

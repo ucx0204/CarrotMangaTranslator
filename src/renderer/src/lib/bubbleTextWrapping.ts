@@ -7,6 +7,7 @@ import {
   buildNaturalUnits,
   measureGraphemeSequence,
   measureStyledGraphemes,
+  measureUniformStyledGraphemes,
   toBlockTextLine,
   type BlockTextLine,
   type StyledGrapheme,
@@ -14,6 +15,10 @@ import {
   type TextMeasurementContext,
   type WrappedTextMeasurement,
 } from "./overlayTextWrapping";
+import type {
+  TextRunRenderStyle,
+  TextRunStyleResolver,
+} from "./textStyleRunResolution";
 import {
   resolveNaturalWordBreakOffsets,
   segmentGraphemes,
@@ -110,8 +115,8 @@ function isDamagingWordBoundary(
   ) {
     return false;
   }
-  const previous = segmentGraphemes(text.slice(0, offset)).at(-1) ?? "";
-  const next = segmentGraphemes(text.slice(offset))[0] ?? "";
+  const previous = segmentGraphemes(text.slice(0, offset)).slice(-1).join("");
+  const next = segmentGraphemes(text.slice(offset)).slice(0, 1).join("");
   return isWordContent(previous) && isWordContent(next);
 }
 
@@ -144,8 +149,15 @@ export function measureStyledWrappedTextInSlots(
   fontFamily: string,
   letterSpacingPx: number,
   wordBreak: TextWordBreak,
+  resolveRunStyle?: TextRunStyleResolver,
 ): SlottedWrappedTextMeasurement {
-  const graphemes = measureStyledGraphemes(context, runs, fontSize, fontFamily);
+  const graphemes = measureStyledGraphemes(
+    context,
+    runs,
+    fontSize,
+    fontFamily,
+    resolveRunStyle,
+  );
   return measureWrappedTextInSlots(
     graphemes,
     slots,
@@ -166,12 +178,17 @@ export function measureUniformStyledWrappedTextInSlots(
   columnWidthPx: number,
   graphemeAdvancePx: number,
   wordBreak: TextWordBreak,
-  resolveGraphemeAdvancePx?: (grapheme: string) => number,
+  resolveGraphemeAdvancePx?: (
+    grapheme: string,
+    style: TextRunRenderStyle,
+  ) => number,
+  resolveRunStyle?: TextRunStyleResolver,
 ): SlottedWrappedTextMeasurement {
   const graphemes = measureUniformStyledGraphemes(
     runs,
     graphemeAdvancePx,
     resolveGraphemeAdvancePx,
+    resolveRunStyle,
   );
   return measureWrappedTextInSlots(
     graphemes,
@@ -211,24 +228,6 @@ function measureWrappedTextInSlots(
   }
 
   return summarizeSlottedLines(lines, lineHeightPx, fits, consumedAll);
-}
-
-function measureUniformStyledGraphemes(
-  runs: TextStyleRun[],
-  graphemeAdvancePx: number,
-  resolveGraphemeAdvancePx?: (grapheme: string) => number,
-): StyledGrapheme[] {
-  return runs.flatMap((run) =>
-    segmentGraphemes(run.text.replace(/\r\n?/g, "\n")).map((text) => ({
-      text,
-      bold: run.bold,
-      italic: run.italic,
-      width:
-        text === "\n"
-          ? 0
-          : (resolveGraphemeAdvancePx?.(text) ?? graphemeAdvancePx),
-    })),
-  );
 }
 
 function splitParagraphs(graphemes: StyledGrapheme[]): StyledGrapheme[][] {

@@ -431,6 +431,37 @@ describe("render layout padding", () => {
     expect(marked.overflow).toBe(plain.overflow);
   });
 
+  it("preserves absolute inline size ratios through one auto-fit scale", () => {
+    installCanvasMeasureMock();
+    const block: TranslationBlock = {
+      id: "inline-size",
+      type: "nonsolid",
+      bbox: { x: 0, y: 0, w: 180, h: 100 },
+      sourceText: "",
+      translatedText: "[size=24]가[/size]나",
+      confidence: 1,
+      sourceDirection: "horizontal",
+      renderDirection: "horizontal",
+      fontSizePx: 12,
+      lineHeight: 1.2,
+      textAlign: "center",
+      textColor: "#111111",
+      backgroundColor: "#ffffff",
+      opacity: 1,
+      autoFitText: true,
+    };
+    const layout = resolveBlockTextLayout(
+      block,
+      block.translatedText,
+      { width: 1000, height: 1000 },
+      { width: 1000, height: 1000 },
+    );
+    const runs = layout.lines?.flatMap((line) => line.runs) ?? [];
+
+    expect(runs[0]?.renderedFontSizePx).toBe(layout.fontSizePx * 2);
+    expect(runs[1]?.renderedFontSizePx).toBe(layout.fontSizePx);
+  });
+
   it("excludes inline markup markers from automatic render-box growth", () => {
     installCanvasMeasureMock();
 

@@ -126,6 +126,15 @@ describe("layered PSD export", () => {
         { width: 1000, height: 1600 },
       ),
     ).toBeNull();
+    expect(
+      resolveEditablePsdText(
+        {
+          ...makeBlock(),
+          translatedText: "[size=48]큰 글자[/size]와 보통 글자",
+        },
+        { width: 1000, height: 1600 },
+      ),
+    ).toBeNull();
   });
 
   it("rejects a broken full-canvas opaque text capture", () => {

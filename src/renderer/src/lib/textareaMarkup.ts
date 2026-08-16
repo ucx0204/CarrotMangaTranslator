@@ -31,6 +31,27 @@ export function applyInlineMarkup(
   };
 }
 
+export function applyInlineStyleTag(
+  value: string,
+  selectionStart: number,
+  selectionEnd: number,
+  name: "size" | "font" | "opacity",
+  tagValue: string | number,
+): InlineMarkupResult {
+  const start = clampIndex(selectionStart, value.length);
+  const end = clampIndex(selectionEnd, value.length);
+  const from = Math.min(start, end);
+  const to = Math.max(start, end);
+  const opening = `[${name}=${tagValue}]`;
+  const closing = `[/${name}]`;
+  const selected = value.slice(from, to);
+  return {
+    value: `${value.slice(0, from)}${opening}${selected}${closing}${value.slice(to)}`,
+    selectionStart: from + opening.length,
+    selectionEnd: from + opening.length + selected.length,
+  };
+}
+
 function clampIndex(index: number, length: number): number {
   if (!Number.isFinite(index)) {
     return length;

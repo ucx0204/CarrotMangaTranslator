@@ -78,6 +78,30 @@ describe("NumberField", () => {
     expect(onValueChange).toHaveBeenCalledWith(8.5);
     expect((input as HTMLInputElement).valueAsNumber).toBe(8.5);
   });
+
+  it("can use a stepper-free text input while rejecting non-numeric drafts", () => {
+    const onValueChange = vi.fn();
+    render(
+      <NumberField
+        ariaLabel="글자 크기"
+        value={12}
+        min={1}
+        max={512}
+        step={0.5}
+        precision={1}
+        useTextInput
+        onValueChange={onValueChange}
+      />,
+    );
+    const input = screen.getByRole("textbox", { name: "글자 크기" });
+    expect(input.getAttribute("type")).toBe("text");
+
+    fireEvent.change(input, { target: { value: "12px" } });
+    expect((input as HTMLInputElement).value).toBe("12");
+    fireEvent.change(input, { target: { value: "12.5" } });
+    fireEvent.blur(input);
+    expect(onValueChange).toHaveBeenCalledWith(12.5);
+  });
 });
 
 function NumberHarness({
