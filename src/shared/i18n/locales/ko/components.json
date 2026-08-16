@@ -1414,7 +1414,10 @@
         "label": "llama.cpp 런타임",
         "appleNote": "Apple Silicon에서는 Metal 런타임만 표시됩니다.",
         "amdNote": "AMD GPU에서는 ROCm 런타임을 권장합니다.",
-        "nvidiaNote": "NVIDIA GPU에서는 CUDA 런타임을 권장합니다."
+        "nvidiaNote": "NVIDIA GPU에서는 CUDA 런타임을 권장합니다.",
+        "mismatchTitle": "감지된 GPU와 런타임이 맞지 않습니다",
+        "rtx50UsingCuda12Warning": "{{gpu}}는 RTX 50 계열입니다. CUDA 12 대신 RTX 50 런타임을 권장합니다.",
+        "nonRtx50UsingRtx50Warning": "{{gpu}}는 RTX 50 계열이 아닙니다. RTX 50 런타임이 실행되지 않을 수 있으므로 CUDA 12를 권장합니다."
       },
       "memory": {
         "summary": "통합 메모리 {{available}} · 권장 {{required}} · 첫 다운로드 약 {{download}}",
@@ -1533,7 +1536,10 @@
       "fluxLowMemoryOverride": "통합 메모리 {{available}}에서 Flux 위험 실행 허용",
       "sm75FluxWarningTitle": "RTX 20 시리즈 전용",
       "sm75FluxWarningDetail": "기존 NVIDIA CUDA와 동작이나 결과가 조금 다를 수 있습니다.",
-      "downloadHipSdk": "AMD HIP SDK 다운로드 (ROCm 7.1.1)"
+      "fluxAmdUnsupportedTitle": "공식 지원 대상이 아닌 AMD GPU",
+      "fluxAmdUnsupportedDetail": "{{gpu}}는 AMD의 현재 Windows HIP SDK 공식 지원 목록에 없습니다. ZLUDA를 직접 선택해 실험할 수는 있지만 런타임 오류가 발생할 수 있습니다.",
+      "fluxAmdUseCpu": "CPU 백엔드로 전환",
+      "downloadHipSdk": "AMD HIP SDK 다운로드"
     },
     "format": {
       "alignment": {

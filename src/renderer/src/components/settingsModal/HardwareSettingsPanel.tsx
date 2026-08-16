@@ -99,6 +99,8 @@ function InpaintingSettingsSection({
   usesAmdHardware,
   usesAppleHardware,
   usesNvidiaHardware,
+  detectedGpuName,
+  supportsFluxZluda,
 }: HardwareSettingsPanelProps): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
@@ -123,6 +125,8 @@ function InpaintingSettingsSection({
             inpaintingModel={inpaintingModel}
             isFluxBackendOptionDisabled={isFluxBackendOptionDisabled}
             setFluxBackend={setFluxBackend}
+            detectedGpuName={detectedGpuName}
+            supportsFluxZluda={supportsFluxZluda}
             usesAmdHardware={usesAmdHardware}
             usesAppleHardware={usesAppleHardware}
             usesNvidiaHardware={usesNvidiaHardware}

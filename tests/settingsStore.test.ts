@@ -121,6 +121,7 @@ describe("settings store", () => {
         qualityMode: "economy",
       },
       expectedSupportsOcrRocm: false,
+      expectedSupportsFluxZluda: false,
     },
     {
       gpu: {
@@ -139,10 +140,16 @@ describe("settings store", () => {
         qualityMode: "full",
       },
       expectedSupportsOcrRocm: true,
+      expectedSupportsFluxZluda: true,
     },
   ])(
     "normalizes OCR against authoritative $gpu.name capability without persisting it",
-    async ({ gpu, expectedOcr, expectedSupportsOcrRocm }) => {
+    async ({
+      gpu,
+      expectedOcr,
+      expectedSupportsOcrRocm,
+      expectedSupportsFluxZluda,
+    }) => {
       const rootDir = await createTempDir();
       const paths = makeAppPaths(rootDir);
       const draft = {
@@ -171,6 +178,9 @@ describe("settings store", () => {
       expect(saved.ocr).toEqual(effective.ocr);
       expect(saved.runtimeHardware?.supportsOcrRocm).toBe(
         expectedSupportsOcrRocm,
+      );
+      expect(saved.runtimeHardware?.supportsFluxZluda).toBe(
+        expectedSupportsFluxZluda,
       );
       const persisted = JSON.parse(
         await readFile(paths.settingsPath, "utf8"),
@@ -221,6 +231,7 @@ describe("settings store", () => {
         qualityMode: "economy",
       },
       expectedSupport: false,
+      expectedFluxSupport: false,
       env: { MANGA_TRANSLATOR_LLAMA_RUNTIME_PROFILE: "cuda12" },
     },
     {
@@ -231,6 +242,7 @@ describe("settings store", () => {
         qualityMode: "full",
       },
       expectedSupport: undefined,
+      expectedFluxSupport: undefined,
       env: { MANGA_TRANSLATOR_LLAMA_RUNTIME_PROFILE: "rocm" },
     },
     {
@@ -241,11 +253,18 @@ describe("settings store", () => {
         qualityMode: "full",
       },
       expectedSupport: undefined,
+      expectedFluxSupport: undefined,
       env: { MANGA_TRANSLATOR_AMD_ROCM_TARGET: "gfx103X" },
     },
   ])(
     "loads stale OCR settings through the authoritative hardware policy ($expectedSupport)",
-    async ({ detected, expectedOcr, expectedSupport, env }) => {
+    async ({
+      detected,
+      expectedOcr,
+      expectedSupport,
+      expectedFluxSupport,
+      env,
+    }) => {
       const rootDir = await createTempDir();
       const paths = makeAppPaths(rootDir);
       const stale = {
@@ -275,6 +294,9 @@ describe("settings store", () => {
 
       expect(loaded.ocr).toMatchObject(expectedOcr);
       expect(loaded.runtimeHardware?.supportsOcrRocm).toBe(expectedSupport);
+      expect(loaded.runtimeHardware?.supportsFluxZluda).toBe(
+        expectedFluxSupport,
+      );
     },
   );
 

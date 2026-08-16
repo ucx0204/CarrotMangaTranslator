@@ -250,8 +250,12 @@ describeWindows("Flux worker runtime helpers", () => {
   it("passes the managed ZLUDA CUDA support runtime explicitly to the Flux launcher", async () => {
     const runtimeDir = createTempDir("mgt-flux-zluda-");
     const modelDir = createTempDir("mgt-flux-model-");
+    const hipRoot = createTempDir("mgt-flux-hip-");
+    mkdirSync(join(hipRoot, "bin"), { recursive: true });
+    writeFileSync(join(hipRoot, "bin", "amdhip64_7.dll"), "hip-runtime");
     const supportDir = writeCachedZludaSupportRuntime(runtimeDir);
     const { exe } = createTempToolsLayout();
+    process.env.HIP_PATH = hipRoot;
     process.env.MGT_FLUX_KLEIN_EXE = exe;
     process.env.MANGA_TRANSLATOR_LOG_PATH = join(runtimeDir, "app.log");
 
@@ -270,9 +274,12 @@ describeWindows("Flux worker runtime helpers", () => {
       "--cuda-runtime-dir",
       supportDir,
     ]);
-    expect(launch.env).toEqual({
+    expect(launch.env).toMatchObject({
+      HIP_PATH: hipRoot,
       KOHARU_DATA_ROOT: join(runtimeDir, "koharu-zluda"),
+      ROCM_PATH: hipRoot,
     });
+    expect(launch.env?.PATH?.split(delimiter)[0]).toBe(join(hipRoot, "bin"));
   });
 
   it("passes the managed CUDA runtime explicitly to the native Flux launcher", async () => {

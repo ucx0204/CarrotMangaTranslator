@@ -9,14 +9,17 @@ import {
   AmdHipSdkDownloadButton,
   FluxHardwareContextNote,
 } from "./HardwareContextNotes";
+import { Button } from "../ui/Button";
 
 type FluxBackendSettingsProps = {
   clearTestState: () => void;
   controlsBusy: boolean;
+  detectedGpuName?: string | null;
   fluxBackend: FluxBackend;
   inpaintingModel: InpaintingModel;
   isFluxBackendOptionDisabled: (backend: FluxBackend) => boolean;
   setFluxBackend: React.Dispatch<React.SetStateAction<FluxBackend>>;
+  supportsFluxZluda?: boolean;
   usesAmdHardware: boolean;
   usesAppleHardware: boolean;
   usesNvidiaHardware: boolean;
@@ -25,10 +28,12 @@ type FluxBackendSettingsProps = {
 export function FluxBackendSettings({
   clearTestState,
   controlsBusy,
+  detectedGpuName,
   fluxBackend,
   inpaintingModel,
   isFluxBackendOptionDisabled,
   setFluxBackend,
+  supportsFluxZluda,
   usesAmdHardware,
   usesAppleHardware,
   usesNvidiaHardware,
@@ -72,13 +77,20 @@ export function FluxBackendSettings({
             : t("settings.hardware.fluxOnlyNote")}
         </p>
       )}
-      {inpaintingModel === "flux-klein" &&
-      fluxBackend === "cuda-sm75-experimental" ? (
-        <div className="sm75-flux-warning" role="note">
-          <strong>{t("settings.hardware.sm75FluxWarningTitle")}</strong>
-          <span>{t("settings.hardware.sm75FluxWarningDetail")}</span>
-        </div>
-      ) : null}
+      <Sm75FluxWarning
+        fluxBackend={fluxBackend}
+        inpaintingModel={inpaintingModel}
+      />
+      <UnsupportedAmdFluxWarning
+        clearTestState={clearTestState}
+        controlsBusy={controlsBusy}
+        detectedGpuName={detectedGpuName}
+        fluxBackend={fluxBackend}
+        inpaintingModel={inpaintingModel}
+        setFluxBackend={setFluxBackend}
+        supportsFluxZluda={supportsFluxZluda}
+        usesAmdHardware={usesAmdHardware}
+      />
       {inpaintingModel === "flux-klein" && fluxBackend === "zluda-native" ? (
         <AmdHipSdkDownloadButton />
       ) : null}
@@ -87,6 +99,82 @@ export function FluxBackendSettings({
         usesAppleHardware={usesAppleHardware}
         usesNvidiaHardware={usesNvidiaHardware}
       />
+    </div>
+  );
+}
+
+function Sm75FluxWarning({
+  fluxBackend,
+  inpaintingModel,
+}: Pick<
+  FluxBackendSettingsProps,
+  "fluxBackend" | "inpaintingModel"
+>): React.JSX.Element | null {
+  const { t } = useTranslation("components");
+  if (
+    inpaintingModel !== "flux-klein" ||
+    fluxBackend !== "cuda-sm75-experimental"
+  ) {
+    return null;
+  }
+  return (
+    <div className="hardware-runtime-warning" role="note">
+      <strong>{t("settings.hardware.sm75FluxWarningTitle")}</strong>
+      <span>{t("settings.hardware.sm75FluxWarningDetail")}</span>
+    </div>
+  );
+}
+
+function UnsupportedAmdFluxWarning({
+  clearTestState,
+  controlsBusy,
+  detectedGpuName,
+  fluxBackend,
+  inpaintingModel,
+  setFluxBackend,
+  supportsFluxZluda,
+  usesAmdHardware,
+}: Pick<
+  FluxBackendSettingsProps,
+  | "clearTestState"
+  | "controlsBusy"
+  | "detectedGpuName"
+  | "fluxBackend"
+  | "inpaintingModel"
+  | "setFluxBackend"
+  | "supportsFluxZluda"
+  | "usesAmdHardware"
+>): React.JSX.Element | null {
+  const { t } = useTranslation("components");
+  if (
+    inpaintingModel !== "flux-klein" ||
+    !usesAmdHardware ||
+    supportsFluxZluda !== false
+  ) {
+    return null;
+  }
+  return (
+    <div className="hardware-runtime-warning" role="alert">
+      <strong>{t("settings.hardware.fluxAmdUnsupportedTitle")}</strong>
+      <span>
+        {t("settings.hardware.fluxAmdUnsupportedDetail", {
+          gpu: detectedGpuName || t("settings.hardware.detectedUnknown"),
+        })}
+      </span>
+      {fluxBackend === "zluda-native" ? (
+        <div className="hardware-runtime-warning-action">
+          <Button
+            size="sm"
+            onClick={() => {
+              clearTestState();
+              setFluxBackend("python-cpu");
+            }}
+            disabled={controlsBusy}
+          >
+            {t("settings.hardware.fluxAmdUseCpu")}
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

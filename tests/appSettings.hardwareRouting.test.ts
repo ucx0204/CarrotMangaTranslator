@@ -245,6 +245,7 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
     // ...but OCR must not default to the Windows ROCm PyTorch backend.
     expect(rx7600Defaults.ocr.gpuBackend).not.toBe("rocm-transformers");
     expect(rx7600Defaults.ocr.device).toBe("cpu");
+    expect(rx7600Defaults.inpainting?.fluxBackend).toBe("zluda-native");
 
     const igpuDefaults = resolveDefaultAppSettings(
       {},
@@ -277,6 +278,21 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
     expect(rx6800Defaults.gemma.llamaRocmTarget).toBe("gfx103X");
     expect(rx6800Defaults.ocr.gpuBackend).not.toBe("rocm-transformers");
     expect(rx6800Defaults.ocr.device).toBe("cpu");
+    expect(rx6800Defaults.inpainting?.fluxBackend).toBe("python-cpu");
+
+    const rx6700Defaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "AMD Radeon RX 6700 XT",
+        memoryMb: 12288,
+        rtxGeneration: null,
+        computeCapability: null,
+        vendor: "amd",
+        supportsVulkan: true,
+        supportsRocm: false,
+      },
+    );
+    expect(rx6700Defaults.inpainting?.fluxBackend).toBe("python-cpu");
   });
 
   it("migrates unsupported AMD GPU OCR settings to the canonical CPU route", () => {

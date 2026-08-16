@@ -19,14 +19,17 @@ import type {
   SettingsFormSetters,
 } from "./useSettingsFormState";
 import type { SettingsFormValues } from "./settingsModalFormValues";
+import { isRtx50Hardware } from "./llamaRuntimeCompatibility";
 
 export type SettingsRuntimeGuards = {
   gpuName: string | null;
   gpuMemoryMb: number | null;
   usesAmdHardware: boolean;
   usesNvidiaHardware: boolean;
+  usesRtx50Hardware: boolean;
   usesSm75Hardware: boolean;
   supportsOcrRocm: boolean | undefined;
+  supportsFluxZluda: boolean | undefined;
   usesAppleHardware: boolean;
   unifiedMemoryMb: number | null;
   usesAmdOcrContext: boolean;
@@ -55,10 +58,7 @@ export function useSettingsRuntimeGuards({
   const runtime = resolveRuntimeContext(
     values,
     hardwareRuntimeLock,
-    initialSettings.runtimeHardware?.unifiedMemoryMb ?? null,
-    initialSettings.runtimeHardware?.computeCapability ?? null,
-    initialSettings.runtimeHardware?.rtxGeneration ?? null,
-    initialSettings.runtimeHardware?.supportsOcrRocm,
+    initialSettings.runtimeHardware,
   );
 
   useSettingsFocusEffect(values, refs);
@@ -96,17 +96,10 @@ export function useSettingsRuntimeGuards({
 function resolveRuntimeContext(
   values: SettingsFormValues,
   hardwareRuntimeLock: "amd" | "nvidia" | "apple" | "unknown",
-  unifiedMemoryMb: number | null,
-  computeCapability: number | null,
-  rtxGeneration: number | null,
-  supportsOcrRocm: boolean | undefined,
+  hardware: AppSettings["runtimeHardware"],
 ) {
-  const usesAmdHardware = hardwareRuntimeLock === "amd";
-  const usesNvidiaHardware = hardwareRuntimeLock === "nvidia";
-  const usesAppleHardware = hardwareRuntimeLock === "apple";
-  const usesSm75Hardware =
-    usesNvidiaHardware &&
-    isFluxRtx20Sm75Hardware({ computeCapability, rtxGeneration });
+  const detected = resolveDetectedRuntimeContext(hardwareRuntimeLock, hardware);
+  const { usesAmdHardware, usesNvidiaHardware } = detected;
   const usesAmdGemmaRuntime =
     values.modelProvider === "gemma" &&
     isAmdLlamaRuntimeProfile(values.llamaRuntimeProfile);
@@ -115,15 +108,56 @@ function resolveRuntimeContext(
     isNvidiaLlamaRuntimeProfile(values.llamaRuntimeProfile);
   const usesAmdOcrContext = usesAmdHardware || usesAmdGemmaRuntime;
   return {
-    usesAmdHardware,
-    usesAppleHardware,
-    usesNvidiaHardware,
-    usesSm75Hardware,
-    supportsOcrRocm,
-    unifiedMemoryMb,
+    ...detected,
     usesAmdOcrContext,
     usesNvidiaOcrContext:
       usesNvidiaHardware || (!usesAmdOcrContext && usesNvidiaGemmaRuntime),
+  };
+}
+
+function resolveDetectedRuntimeContext(
+  hardwareRuntimeLock: "amd" | "nvidia" | "apple" | "unknown",
+  hardware: AppSettings["runtimeHardware"],
+) {
+  const hardwareFlags = resolveDetectedHardwareFlags(hardwareRuntimeLock);
+  const nvidiaFeatures = resolveNvidiaFeatureFlags(
+    hardwareFlags.usesNvidiaHardware,
+    hardware,
+  );
+  return {
+    ...hardwareFlags,
+    ...nvidiaFeatures,
+    supportsOcrRocm: hardware?.supportsOcrRocm,
+    supportsFluxZluda: hardware?.supportsFluxZluda,
+    unifiedMemoryMb: hardware?.unifiedMemoryMb ?? null,
+  };
+}
+
+function resolveDetectedHardwareFlags(
+  hardwareRuntimeLock: "amd" | "nvidia" | "apple" | "unknown",
+) {
+  return {
+    usesAmdHardware: hardwareRuntimeLock === "amd",
+    usesNvidiaHardware: hardwareRuntimeLock === "nvidia",
+    usesAppleHardware: hardwareRuntimeLock === "apple",
+  };
+}
+
+export function resolveNvidiaFeatureFlags(
+  usesNvidiaHardware: boolean,
+  hardware: AppSettings["runtimeHardware"],
+) {
+  if (!usesNvidiaHardware) {
+    return { usesRtx50Hardware: false, usesSm75Hardware: false };
+  }
+  const computeCapability = hardware?.computeCapability ?? null;
+  const rtxGeneration = hardware?.rtxGeneration ?? null;
+  return {
+    usesRtx50Hardware: isRtx50Hardware(computeCapability, rtxGeneration),
+    usesSm75Hardware: isFluxRtx20Sm75Hardware({
+      computeCapability,
+      rtxGeneration,
+    }),
   };
 }
 

@@ -7,1141 +7,4347 @@
     "sourceArtifact": ".tmp/production-cleanup-coverage-baseline-node22.json",
     "sourceArtifactSha256": "a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a",
     "introducedArtifact": ".tmp/production-cleanup-coverage-accepted-node24.json",
-    "introducedArtifactSha256": "fa34ac98e47d3e3848b1309ebddfb63f33d6e2ee1661da30788ca592484fe0bc",
+    "introducedArtifactSha256": "9c7981098e59af22ac4129fab3875684256dd4ac95c9c556f678faabdb687272",
     "validatedNodeV8": ["22/12.4", "24/13.6"],
     "vitestVersion": "4.1.9",
     "coverageV8Version": "4.1.9"
   },
   "floors": {
     "src/main/amdRocmTargets.ts": {
-      "lines": { "covered": 16, "total": 16, "pct": 100 },
-      "statements": { "covered": 17, "total": 17, "pct": 100 },
-      "functions": { "covered": 8, "total": 8, "pct": 100 },
-      "branches": { "covered": 19, "total": 19, "pct": 100 }
+      "lines": {
+        "covered": 16,
+        "total": 16,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 17,
+        "total": 17,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 19,
+        "total": 19,
+        "pct": 100
+      }
     },
     "src/main/gpuInfoTypes.ts": {
-      "lines": { "covered": 0, "total": 0, "pct": 100 },
-      "statements": { "covered": 0, "total": 0, "pct": 100 },
-      "functions": { "covered": 0, "total": 0, "pct": 100 },
-      "branches": { "covered": 0, "total": 0, "pct": 100 }
+      "lines": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
     },
     "src/main/inpainting/fluxAssets/constants.ts": {
-      "lines": { "covered": 59, "total": 59, "pct": 100 },
-      "statements": { "covered": 59, "total": 59, "pct": 100 },
-      "functions": { "covered": 1, "total": 1, "pct": 100 },
-      "branches": { "covered": 1, "total": 2, "pct": 50 }
+      "lines": {
+        "covered": 59,
+        "total": 59,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 59,
+        "total": 59,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 1,
+        "total": 2,
+        "pct": 50
+      }
     },
     "src/main/inpainting/fluxAssets/cudaRuntime.ts": {
-      "lines": { "covered": 14, "total": 51, "pct": 27.45 },
-      "statements": { "covered": 14, "total": 51, "pct": 27.45 },
-      "functions": { "covered": 8, "total": 16, "pct": 50 },
-      "branches": { "covered": 3, "total": 10, "pct": 30 }
+      "lines": {
+        "covered": 14,
+        "total": 51,
+        "pct": 27.45
+      },
+      "statements": {
+        "covered": 14,
+        "total": 51,
+        "pct": 27.45
+      },
+      "functions": {
+        "covered": 8,
+        "total": 16,
+        "pct": 50
+      },
+      "branches": {
+        "covered": 3,
+        "total": 10,
+        "pct": 30
+      }
     },
     "src/main/inpainting/fluxAssets/downloads.ts": {
-      "lines": { "covered": 35, "total": 56, "pct": 62.5 },
-      "statements": { "covered": 35, "total": 56, "pct": 62.5 },
-      "functions": { "covered": 9, "total": 13, "pct": 69.23 },
-      "branches": { "covered": 34, "total": 46, "pct": 73.91 }
+      "lines": {
+        "covered": 35,
+        "total": 56,
+        "pct": 62.5
+      },
+      "statements": {
+        "covered": 35,
+        "total": 56,
+        "pct": 62.5
+      },
+      "functions": {
+        "covered": 9,
+        "total": 13,
+        "pct": 69.23
+      },
+      "branches": {
+        "covered": 34,
+        "total": 46,
+        "pct": 73.91
+      }
     },
     "src/main/inpainting/fluxAssets/pythonRuntimeLayout.ts": {
-      "lines": { "covered": 39, "total": 63, "pct": 61.9 },
-      "statements": { "covered": 39, "total": 64, "pct": 60.93 },
-      "functions": { "covered": 8, "total": 17, "pct": 47.05 },
-      "branches": { "covered": 29, "total": 66, "pct": 43.93 }
+      "lines": {
+        "covered": 39,
+        "total": 63,
+        "pct": 61.9
+      },
+      "statements": {
+        "covered": 39,
+        "total": 64,
+        "pct": 60.93
+      },
+      "functions": {
+        "covered": 8,
+        "total": 17,
+        "pct": 47.05
+      },
+      "branches": {
+        "covered": 29,
+        "total": 66,
+        "pct": 43.93
+      }
     },
     "src/main/inpainting/fluxAssets/rocmPrebuiltRuntime.ts": {
-      "lines": { "covered": 0, "total": 50, "pct": 0 },
-      "statements": { "covered": 0, "total": 50, "pct": 0 },
-      "functions": { "covered": 0, "total": 8, "pct": 0 },
-      "branches": { "covered": 0, "total": 20, "pct": 0 }
+      "lines": {
+        "covered": 0,
+        "total": 50,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 50,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 8,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 20,
+        "pct": 0
+      }
+    },
+    "src/main/inpainting/fluxAssets/workerLaunch.ts": {
+      "lines": {
+        "covered": 34,
+        "total": 47,
+        "pct": 72.34
+      },
+      "statements": {
+        "covered": 34,
+        "total": 48,
+        "pct": 70.83
+      },
+      "functions": {
+        "covered": 6,
+        "total": 7,
+        "pct": 85.71
+      },
+      "branches": {
+        "covered": 14,
+        "total": 28,
+        "pct": 50
+      }
     },
     "src/main/ipc/settingsIpc.ts": {
-      "lines": { "covered": 37, "total": 58, "pct": 63.79 },
-      "statements": { "covered": 37, "total": 59, "pct": 62.71 },
-      "functions": { "covered": 9, "total": 17, "pct": 52.94 },
-      "branches": { "covered": 13, "total": 27, "pct": 48.14 }
+      "lines": {
+        "covered": 37,
+        "total": 58,
+        "pct": 63.79
+      },
+      "statements": {
+        "covered": 37,
+        "total": 59,
+        "pct": 62.71
+      },
+      "functions": {
+        "covered": 9,
+        "total": 17,
+        "pct": 52.94
+      },
+      "branches": {
+        "covered": 13,
+        "total": 27,
+        "pct": 48.14
+      }
     },
     "src/main/jobs/jobEvents.ts": {
-      "lines": { "covered": 31, "total": 31, "pct": 100 },
-      "statements": { "covered": 31, "total": 31, "pct": 100 },
-      "functions": { "covered": 8, "total": 8, "pct": 100 },
-      "branches": { "covered": 23, "total": 23, "pct": 100 }
+      "lines": {
+        "covered": 31,
+        "total": 31,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 31,
+        "total": 31,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 23,
+        "total": 23,
+        "pct": 100
+      }
     },
     "src/main/jobs/pagePsdExport.ts": {
-      "lines": { "covered": 68, "total": 69, "pct": 98.55 },
-      "statements": { "covered": 73, "total": 77, "pct": 94.8 },
-      "functions": { "covered": 10, "total": 10, "pct": 100 },
-      "branches": { "covered": 46, "total": 62, "pct": 74.19 }
+      "lines": {
+        "covered": 68,
+        "total": 69,
+        "pct": 98.55
+      },
+      "statements": {
+        "covered": 73,
+        "total": 77,
+        "pct": 94.8
+      },
+      "functions": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 46,
+        "total": 62,
+        "pct": 74.19
+      }
     },
     "src/main/pipeline/automaticFontMatchingV2Apply.ts": {
-      "lines": { "covered": 7, "total": 7, "pct": 100 },
-      "statements": { "covered": 8, "total": 8, "pct": 100 },
-      "functions": { "covered": 1, "total": 1, "pct": 100 },
-      "branches": { "covered": 16, "total": 16, "pct": 100 }
+      "lines": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 16,
+        "total": 16,
+        "pct": 100
+      }
     },
     "src/main/pipeline/automaticFontMatchingV2PageConsistencyDominantOrdinary.ts": {
-      "lines": { "covered": 89, "total": 89, "pct": 100 },
-      "statements": { "covered": 98, "total": 105, "pct": 93.33 },
-      "functions": { "covered": 27, "total": 27, "pct": 100 },
-      "branches": { "covered": 90, "total": 99, "pct": 90.9 }
+      "lines": {
+        "covered": 89,
+        "total": 89,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 98,
+        "total": 105,
+        "pct": 93.33
+      },
+      "functions": {
+        "covered": 27,
+        "total": 27,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 90,
+        "total": 99,
+        "pct": 90.9
+      }
     },
     "src/main/pipeline/automaticFontMatchingV2PageConsistencyEmphasis.ts": {
-      "lines": { "covered": 38, "total": 38, "pct": 100 },
-      "statements": { "covered": 41, "total": 42, "pct": 97.61 },
-      "functions": { "covered": 7, "total": 7, "pct": 100 },
-      "branches": { "covered": 32, "total": 33, "pct": 96.96 }
+      "lines": {
+        "covered": 38,
+        "total": 38,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 41,
+        "total": 42,
+        "pct": 97.61
+      },
+      "functions": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 32,
+        "total": 33,
+        "pct": 96.96
+      }
     },
     "src/main/pipeline/automaticFontMatchingV2PageConsistencyOrdinary.ts": {
-      "lines": { "covered": 57, "total": 59, "pct": 96.61 },
-      "statements": { "covered": 63, "total": 66, "pct": 95.45 },
-      "functions": { "covered": 15, "total": 15, "pct": 100 },
-      "branches": { "covered": 54, "total": 65, "pct": 83.07 }
+      "lines": {
+        "covered": 57,
+        "total": 59,
+        "pct": 96.61
+      },
+      "statements": {
+        "covered": 63,
+        "total": 66,
+        "pct": 95.45
+      },
+      "functions": {
+        "covered": 15,
+        "total": 15,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 54,
+        "total": 65,
+        "pct": 83.07
+      }
     },
     "src/main/pipeline/automaticFontMatchingV2PageConsistencyRelaxed.ts": {
-      "lines": { "covered": 94, "total": 94, "pct": 100 },
-      "statements": { "covered": 103, "total": 107, "pct": 96.26 },
-      "functions": { "covered": 23, "total": 23, "pct": 100 },
-      "branches": { "covered": 96, "total": 108, "pct": 88.88 }
+      "lines": {
+        "covered": 94,
+        "total": 94,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 103,
+        "total": 107,
+        "pct": 96.26
+      },
+      "functions": {
+        "covered": 23,
+        "total": 23,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 96,
+        "total": 108,
+        "pct": 88.88
+      }
     },
     "src/main/pipeline/automaticFontMatchingV2PageConsistencyShared.ts": {
-      "lines": { "covered": 43, "total": 48, "pct": 89.58 },
-      "statements": { "covered": 49, "total": 56, "pct": 87.5 },
-      "functions": { "covered": 14, "total": 15, "pct": 93.33 },
-      "branches": { "covered": 37, "total": 53, "pct": 69.81 }
+      "lines": {
+        "covered": 43,
+        "total": 48,
+        "pct": 89.58
+      },
+      "statements": {
+        "covered": 49,
+        "total": 56,
+        "pct": 87.5
+      },
+      "functions": {
+        "covered": 14,
+        "total": 15,
+        "pct": 93.33
+      },
+      "branches": {
+        "covered": 37,
+        "total": 53,
+        "pct": 69.81
+      }
     },
     "src/main/runtime/model/llama-runtime-archive-policy.cjs": {
-      "lines": { "covered": 49, "total": 59, "pct": 83.05 },
-      "statements": { "covered": 56, "total": 66, "pct": 84.84 },
-      "functions": { "covered": 14, "total": 14, "pct": 100 },
-      "branches": { "covered": 37, "total": 44, "pct": 84.09 }
+      "lines": {
+        "covered": 49,
+        "total": 59,
+        "pct": 83.05
+      },
+      "statements": {
+        "covered": 56,
+        "total": 66,
+        "pct": 84.84
+      },
+      "functions": {
+        "covered": 14,
+        "total": 14,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 37,
+        "total": 44,
+        "pct": 84.09
+      }
     },
     "src/main/runtime/model/llama-runtime-download.cjs": {
-      "lines": { "covered": 71, "total": 124, "pct": 57.25 },
-      "statements": { "covered": 74, "total": 133, "pct": 55.63 },
-      "functions": { "covered": 15, "total": 30, "pct": 50 },
-      "branches": { "covered": 17, "total": 58, "pct": 29.31 }
+      "lines": {
+        "covered": 71,
+        "total": 124,
+        "pct": 57.25
+      },
+      "statements": {
+        "covered": 74,
+        "total": 133,
+        "pct": 55.63
+      },
+      "functions": {
+        "covered": 15,
+        "total": 30,
+        "pct": 50
+      },
+      "branches": {
+        "covered": 17,
+        "total": 58,
+        "pct": 29.31
+      }
     },
     "src/main/runtime/model/runtime-files.cjs": {
-      "lines": { "covered": 57, "total": 66, "pct": 86.36 },
-      "statements": { "covered": 60, "total": 71, "pct": 84.5 },
-      "functions": { "covered": 17, "total": 20, "pct": 85 },
-      "branches": { "covered": 39, "total": 53, "pct": 73.58 }
+      "lines": {
+        "covered": 57,
+        "total": 66,
+        "pct": 86.36
+      },
+      "statements": {
+        "covered": 60,
+        "total": 71,
+        "pct": 84.5
+      },
+      "functions": {
+        "covered": 17,
+        "total": 20,
+        "pct": 85
+      },
+      "branches": {
+        "covered": 39,
+        "total": 53,
+        "pct": 73.58
+      }
     },
     "src/main/runtime/model/runtime-locations.cjs": {
-      "lines": { "covered": 87, "total": 93, "pct": 93.54 },
-      "statements": { "covered": 92, "total": 106, "pct": 86.79 },
-      "functions": { "covered": 27, "total": 28, "pct": 96.42 },
-      "branches": { "covered": 58, "total": 88, "pct": 65.9 }
+      "lines": {
+        "covered": 87,
+        "total": 93,
+        "pct": 93.54
+      },
+      "statements": {
+        "covered": 92,
+        "total": 106,
+        "pct": 86.79
+      },
+      "functions": {
+        "covered": 27,
+        "total": 28,
+        "pct": 96.42
+      },
+      "branches": {
+        "covered": 58,
+        "total": 88,
+        "pct": 65.9
+      }
     },
     "src/main/runtime/model/server-preflight.cjs": {
-      "lines": { "covered": 51, "total": 102, "pct": 50 },
-      "statements": { "covered": 55, "total": 119, "pct": 46.21 },
-      "functions": { "covered": 10, "total": 24, "pct": 41.66 },
-      "branches": { "covered": 53, "total": 107, "pct": 49.53 }
+      "lines": {
+        "covered": 51,
+        "total": 102,
+        "pct": 50
+      },
+      "statements": {
+        "covered": 55,
+        "total": 119,
+        "pct": 46.21
+      },
+      "functions": {
+        "covered": 10,
+        "total": 24,
+        "pct": 41.66
+      },
+      "branches": {
+        "covered": 53,
+        "total": 107,
+        "pct": 49.53
+      }
     },
     "src/main/runtime/ocr/managed-python.cjs": {
-      "lines": { "covered": 74, "total": 83, "pct": 89.15 },
-      "statements": { "covered": 75, "total": 84, "pct": 89.28 },
-      "functions": { "covered": 14, "total": 16, "pct": 87.5 },
-      "branches": { "covered": 21, "total": 24, "pct": 87.5 }
+      "lines": {
+        "covered": 74,
+        "total": 83,
+        "pct": 89.15
+      },
+      "statements": {
+        "covered": 75,
+        "total": 84,
+        "pct": 89.28
+      },
+      "functions": {
+        "covered": 14,
+        "total": 16,
+        "pct": 87.5
+      },
+      "branches": {
+        "covered": 21,
+        "total": 24,
+        "pct": 87.5
+      }
     },
     "src/main/runtime/runtime-directory-publish.cjs": {
-      "lines": { "covered": 35, "total": 37, "pct": 94.59 },
-      "statements": { "covered": 36, "total": 39, "pct": 92.3 },
-      "functions": { "covered": 7, "total": 7, "pct": 100 },
-      "branches": { "covered": 9, "total": 12, "pct": 75 }
+      "lines": {
+        "covered": 35,
+        "total": 37,
+        "pct": 94.59
+      },
+      "statements": {
+        "covered": 36,
+        "total": 39,
+        "pct": 92.3
+      },
+      "functions": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 9,
+        "total": 12,
+        "pct": 75
+      }
     },
     "src/main/runtime/semantic-ocr/anime-text-distinct-region-geometry.cjs": {
-      "lines": { "covered": 45, "total": 48, "pct": 93.75 },
-      "statements": { "covered": 52, "total": 60, "pct": 86.66 },
-      "functions": { "covered": 15, "total": 15, "pct": 100 },
-      "branches": { "covered": 31, "total": 42, "pct": 73.8 }
+      "lines": {
+        "covered": 45,
+        "total": 48,
+        "pct": 93.75
+      },
+      "statements": {
+        "covered": 52,
+        "total": 60,
+        "pct": 86.66
+      },
+      "functions": {
+        "covered": 15,
+        "total": 15,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 31,
+        "total": 42,
+        "pct": 73.8
+      }
     },
     "src/main/runtime/semantic-ocr/anime-text-review-relations.cjs": {
-      "lines": { "covered": 139, "total": 139, "pct": 100 },
-      "statements": { "covered": 151, "total": 155, "pct": 97.41 },
-      "functions": { "covered": 47, "total": 47, "pct": 100 },
-      "branches": { "covered": 105, "total": 112, "pct": 93.75 }
+      "lines": {
+        "covered": 139,
+        "total": 139,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 151,
+        "total": 155,
+        "pct": 97.41
+      },
+      "functions": {
+        "covered": 47,
+        "total": 47,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 105,
+        "total": 112,
+        "pct": 93.75
+      }
     },
     "src/main/runtime/semantic-ocr/group-only-review-adjacent-columns.cjs": {
-      "lines": { "covered": 87, "total": 90, "pct": 96.66 },
-      "statements": { "covered": 101, "total": 108, "pct": 93.51 },
-      "functions": { "covered": 22, "total": 22, "pct": 100 },
-      "branches": { "covered": 55, "total": 65, "pct": 84.61 }
+      "lines": {
+        "covered": 87,
+        "total": 90,
+        "pct": 96.66
+      },
+      "statements": {
+        "covered": 101,
+        "total": 108,
+        "pct": 93.51
+      },
+      "functions": {
+        "covered": 22,
+        "total": 22,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 55,
+        "total": 65,
+        "pct": 84.61
+      }
     },
     "src/main/runtime/semantic-ocr/group-only-review-deferred-ruby-geometry.cjs": {
-      "lines": { "covered": 28, "total": 28, "pct": 100 },
-      "statements": { "covered": 31, "total": 31, "pct": 100 },
-      "functions": { "covered": 5, "total": 5, "pct": 100 },
-      "branches": { "covered": 22, "total": 22, "pct": 100 }
+      "lines": {
+        "covered": 28,
+        "total": 28,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 31,
+        "total": 31,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 22,
+        "total": 22,
+        "pct": 100
+      }
     },
     "src/main/runtime/semantic-ocr/group-only-review-lineage-stabilization.cjs": {
-      "lines": { "covered": 117, "total": 120, "pct": 97.5 },
-      "statements": { "covered": 131, "total": 141, "pct": 92.9 },
-      "functions": { "covered": 34, "total": 34, "pct": 100 },
-      "branches": { "covered": 94, "total": 112, "pct": 83.92 }
+      "lines": {
+        "covered": 117,
+        "total": 120,
+        "pct": 97.5
+      },
+      "statements": {
+        "covered": 131,
+        "total": 141,
+        "pct": 92.9
+      },
+      "functions": {
+        "covered": 34,
+        "total": 34,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 94,
+        "total": 112,
+        "pct": 83.92
+      }
     },
     "src/main/runtime/semantic-ocr/group-only-review-plan.cjs": {
-      "lines": { "covered": 74, "total": 75, "pct": 98.66 },
-      "statements": { "covered": 84, "total": 86, "pct": 97.67 },
-      "functions": { "covered": 17, "total": 17, "pct": 100 },
-      "branches": { "covered": 67, "total": 71, "pct": 94.36 }
+      "lines": {
+        "covered": 74,
+        "total": 75,
+        "pct": 98.66
+      },
+      "statements": {
+        "covered": 84,
+        "total": 86,
+        "pct": 97.67
+      },
+      "functions": {
+        "covered": 17,
+        "total": 17,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 67,
+        "total": 71,
+        "pct": 94.36
+      }
     },
     "src/main/runtime/semantic-ocr/group-only-review-reading-order.cjs": {
-      "lines": { "covered": 124, "total": 128, "pct": 96.87 },
-      "statements": { "covered": 136, "total": 141, "pct": 96.45 },
-      "functions": { "covered": 43, "total": 48, "pct": 89.58 },
-      "branches": { "covered": 60, "total": 86, "pct": 69.76 }
+      "lines": {
+        "covered": 124,
+        "total": 128,
+        "pct": 96.87
+      },
+      "statements": {
+        "covered": 136,
+        "total": 141,
+        "pct": 96.45
+      },
+      "functions": {
+        "covered": 43,
+        "total": 48,
+        "pct": 89.58
+      },
+      "branches": {
+        "covered": 60,
+        "total": 86,
+        "pct": 69.76
+      }
     },
     "src/main/runtime/semantic-ocr/group-only-review-role-policy.cjs": {
-      "lines": { "covered": 48, "total": 48, "pct": 100 },
-      "statements": { "covered": 53, "total": 53, "pct": 100 },
-      "functions": { "covered": 17, "total": 17, "pct": 100 },
-      "branches": { "covered": 29, "total": 29, "pct": 100 }
+      "lines": {
+        "covered": 48,
+        "total": 48,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 53,
+        "total": 53,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 17,
+        "total": 17,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 29,
+        "total": 29,
+        "pct": 100
+      }
     },
     "src/main/runtime/semantic-ocr/group-only-review-ruby-deferred.cjs": {
-      "lines": { "covered": 114, "total": 118, "pct": 96.61 },
-      "statements": { "covered": 127, "total": 134, "pct": 94.77 },
-      "functions": { "covered": 49, "total": 49, "pct": 100 },
-      "branches": { "covered": 93, "total": 104, "pct": 89.42 }
+      "lines": {
+        "covered": 114,
+        "total": 118,
+        "pct": 96.61
+      },
+      "statements": {
+        "covered": 127,
+        "total": 134,
+        "pct": 94.77
+      },
+      "functions": {
+        "covered": 49,
+        "total": 49,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 93,
+        "total": 104,
+        "pct": 89.42
+      }
     },
     "src/main/runtime/semantic-ocr/group-only-review-ruby-dominant.cjs": {
-      "lines": { "covered": 63, "total": 64, "pct": 98.43 },
-      "statements": { "covered": 71, "total": 73, "pct": 97.26 },
-      "functions": { "covered": 21, "total": 22, "pct": 95.45 },
-      "branches": { "covered": 49, "total": 60, "pct": 81.66 }
+      "lines": {
+        "covered": 63,
+        "total": 64,
+        "pct": 98.43
+      },
+      "statements": {
+        "covered": 71,
+        "total": 73,
+        "pct": 97.26
+      },
+      "functions": {
+        "covered": 21,
+        "total": 22,
+        "pct": 95.45
+      },
+      "branches": {
+        "covered": 49,
+        "total": 60,
+        "pct": 81.66
+      }
     },
     "src/main/runtime/semantic-ocr/group-only-review-stabilization.cjs": {
-      "lines": { "covered": 148, "total": 151, "pct": 98.01 },
-      "statements": { "covered": 171, "total": 177, "pct": 96.61 },
-      "functions": { "covered": 57, "total": 57, "pct": 100 },
-      "branches": { "covered": 89, "total": 98, "pct": 90.81 }
+      "lines": {
+        "covered": 148,
+        "total": 151,
+        "pct": 98.01
+      },
+      "statements": {
+        "covered": 171,
+        "total": 177,
+        "pct": 96.61
+      },
+      "functions": {
+        "covered": 57,
+        "total": 57,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 89,
+        "total": 98,
+        "pct": 90.81
+      }
     },
     "src/main/runtime/semantic-ocr/group-only-review-values.cjs": {
-      "lines": { "covered": 131, "total": 132, "pct": 99.24 },
-      "statements": { "covered": 143, "total": 157, "pct": 91.08 },
-      "functions": { "covered": 36, "total": 36, "pct": 100 },
-      "branches": { "covered": 114, "total": 133, "pct": 85.71 }
+      "lines": {
+        "covered": 131,
+        "total": 132,
+        "pct": 99.24
+      },
+      "statements": {
+        "covered": 143,
+        "total": 157,
+        "pct": 91.08
+      },
+      "functions": {
+        "covered": 36,
+        "total": 36,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 114,
+        "total": 133,
+        "pct": 85.71
+      }
     },
     "src/main/runtime/semantic-ocr/group-only-review.cjs": {
-      "lines": { "covered": 117, "total": 123, "pct": 95.12 },
-      "statements": { "covered": 125, "total": 135, "pct": 92.59 },
-      "functions": { "covered": 36, "total": 36, "pct": 100 },
-      "branches": { "covered": 57, "total": 67, "pct": 85.07 }
+      "lines": {
+        "covered": 117,
+        "total": 123,
+        "pct": 95.12
+      },
+      "statements": {
+        "covered": 125,
+        "total": 135,
+        "pct": 92.59
+      },
+      "functions": {
+        "covered": 36,
+        "total": 36,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 57,
+        "total": 67,
+        "pct": 85.07
+      }
     },
     "src/main/runtime/semantic-ocr/group-review-crop-geometry.cjs": {
-      "lines": { "covered": 114, "total": 124, "pct": 91.93 },
-      "statements": { "covered": 122, "total": 136, "pct": 89.7 },
-      "functions": { "covered": 35, "total": 36, "pct": 97.22 },
-      "branches": { "covered": 100, "total": 115, "pct": 86.95 }
+      "lines": {
+        "covered": 114,
+        "total": 124,
+        "pct": 91.93
+      },
+      "statements": {
+        "covered": 122,
+        "total": 136,
+        "pct": 89.7
+      },
+      "functions": {
+        "covered": 35,
+        "total": 36,
+        "pct": 97.22
+      },
+      "branches": {
+        "covered": 100,
+        "total": 115,
+        "pct": 86.95
+      }
     },
     "src/main/runtime/semantic-ocr/paddle-classifier-recovery.cjs": {
-      "lines": { "covered": 95, "total": 97, "pct": 97.93 },
-      "statements": { "covered": 104, "total": 111, "pct": 93.69 },
-      "functions": { "covered": 20, "total": 20, "pct": 100 },
-      "branches": { "covered": 103, "total": 115, "pct": 89.56 }
+      "lines": {
+        "covered": 95,
+        "total": 97,
+        "pct": 97.93
+      },
+      "statements": {
+        "covered": 104,
+        "total": 111,
+        "pct": 93.69
+      },
+      "functions": {
+        "covered": 20,
+        "total": 20,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 103,
+        "total": 115,
+        "pct": 89.56
+      }
     },
     "src/main/runtime/simple-page-file-search.cjs": {
-      "lines": { "covered": 30, "total": 36, "pct": 83.33 },
-      "statements": { "covered": 32, "total": 39, "pct": 82.05 },
-      "functions": { "covered": 9, "total": 11, "pct": 81.81 },
-      "branches": { "covered": 17, "total": 22, "pct": 77.27 }
+      "lines": {
+        "covered": 30,
+        "total": 36,
+        "pct": 83.33
+      },
+      "statements": {
+        "covered": 32,
+        "total": 39,
+        "pct": 82.05
+      },
+      "functions": {
+        "covered": 9,
+        "total": 11,
+        "pct": 81.81
+      },
+      "branches": {
+        "covered": 17,
+        "total": 22,
+        "pct": 77.27
+      }
     },
     "src/main/runtime/simple-page-llama-runtimes.cjs": {
-      "lines": { "covered": 33, "total": 35, "pct": 94.28 },
-      "statements": { "covered": 34, "total": 36, "pct": 94.44 },
-      "functions": { "covered": 6, "total": 6, "pct": 100 },
-      "branches": { "covered": 22, "total": 27, "pct": 81.48 }
+      "lines": {
+        "covered": 33,
+        "total": 35,
+        "pct": 94.28
+      },
+      "statements": {
+        "covered": 34,
+        "total": 36,
+        "pct": 94.44
+      },
+      "functions": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 22,
+        "total": 27,
+        "pct": 81.48
+      }
     },
     "src/main/runtime/simple-page-tar-utils.cjs": {
-      "lines": { "covered": 126, "total": 155, "pct": 81.29 },
-      "statements": { "covered": 132, "total": 163, "pct": 80.98 },
-      "functions": { "covered": 24, "total": 26, "pct": 92.3 },
-      "branches": { "covered": 84, "total": 110, "pct": 76.36 }
+      "lines": {
+        "covered": 126,
+        "total": 155,
+        "pct": 81.29
+      },
+      "statements": {
+        "covered": 132,
+        "total": 163,
+        "pct": 80.98
+      },
+      "functions": {
+        "covered": 24,
+        "total": 26,
+        "pct": 92.3
+      },
+      "branches": {
+        "covered": 84,
+        "total": 110,
+        "pct": 76.36
+      }
     },
     "src/main/runtime/simple-page-zip-utils.cjs": {
-      "lines": { "covered": 115, "total": 121, "pct": 95.04 },
-      "statements": { "covered": 120, "total": 129, "pct": 93.02 },
-      "functions": { "covered": 19, "total": 19, "pct": 100 },
-      "branches": { "covered": 59, "total": 74, "pct": 79.72 }
+      "lines": {
+        "covered": 115,
+        "total": 121,
+        "pct": 95.04
+      },
+      "statements": {
+        "covered": 120,
+        "total": 129,
+        "pct": 93.02
+      },
+      "functions": {
+        "covered": 19,
+        "total": 19,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 59,
+        "total": 74,
+        "pct": 79.72
+      }
     },
     "src/main/runtime/transport/download-budget-utils.cjs": {
-      "lines": { "covered": 61, "total": 71, "pct": 85.91 },
-      "statements": { "covered": 64, "total": 76, "pct": 84.21 },
-      "functions": { "covered": 18, "total": 18, "pct": 100 },
-      "branches": { "covered": 36, "total": 50, "pct": 72 }
+      "lines": {
+        "covered": 61,
+        "total": 71,
+        "pct": 85.91
+      },
+      "statements": {
+        "covered": 64,
+        "total": 76,
+        "pct": 84.21
+      },
+      "functions": {
+        "covered": 18,
+        "total": 18,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 36,
+        "total": 50,
+        "pct": 72
+      }
     },
     "src/main/runtime/transport/hf-download.cjs": {
-      "lines": { "covered": 112, "total": 135, "pct": 82.96 },
-      "statements": { "covered": 121, "total": 148, "pct": 81.75 },
-      "functions": { "covered": 23, "total": 29, "pct": 79.31 },
-      "branches": { "covered": 68, "total": 94, "pct": 72.34 }
+      "lines": {
+        "covered": 112,
+        "total": 135,
+        "pct": 82.96
+      },
+      "statements": {
+        "covered": 121,
+        "total": 148,
+        "pct": 81.75
+      },
+      "functions": {
+        "covered": 23,
+        "total": 29,
+        "pct": 79.31
+      },
+      "branches": {
+        "covered": 68,
+        "total": 94,
+        "pct": 72.34
+      }
     },
     "src/main/runtime/transport/llama-server-process.cjs": {
-      "lines": { "covered": 21, "total": 108, "pct": 19.44 },
-      "statements": { "covered": 22, "total": 116, "pct": 18.96 },
-      "functions": { "covered": 1, "total": 26, "pct": 3.84 },
-      "branches": { "covered": 1, "total": 61, "pct": 1.63 }
+      "lines": {
+        "covered": 21,
+        "total": 108,
+        "pct": 19.44
+      },
+      "statements": {
+        "covered": 22,
+        "total": 116,
+        "pct": 18.96
+      },
+      "functions": {
+        "covered": 1,
+        "total": 26,
+        "pct": 3.84
+      },
+      "branches": {
+        "covered": 1,
+        "total": 61,
+        "pct": 1.63
+      }
     },
     "src/main/runtimeModuleLoader.ts": {
-      "lines": { "covered": 16, "total": 17, "pct": 94.11 },
-      "statements": { "covered": 16, "total": 17, "pct": 94.11 },
-      "functions": { "covered": 8, "total": 9, "pct": 88.88 },
-      "branches": { "covered": 11, "total": 11, "pct": 100 }
+      "lines": {
+        "covered": 16,
+        "total": 17,
+        "pct": 94.11
+      },
+      "statements": {
+        "covered": 16,
+        "total": 17,
+        "pct": 94.11
+      },
+      "functions": {
+        "covered": 8,
+        "total": 9,
+        "pct": 88.88
+      },
+      "branches": {
+        "covered": 11,
+        "total": 11,
+        "pct": 100
+      }
     },
     "src/main/runtimeSupport/fileProbe.ts": {
-      "lines": { "covered": 91, "total": 112, "pct": 81.25 },
-      "statements": { "covered": 95, "total": 119, "pct": 79.83 },
-      "functions": { "covered": 28, "total": 31, "pct": 90.32 },
-      "branches": { "covered": 49, "total": 65, "pct": 75.38 }
+      "lines": {
+        "covered": 91,
+        "total": 112,
+        "pct": 81.25
+      },
+      "statements": {
+        "covered": 95,
+        "total": 119,
+        "pct": 79.83
+      },
+      "functions": {
+        "covered": 28,
+        "total": 31,
+        "pct": 90.32
+      },
+      "branches": {
+        "covered": 49,
+        "total": 65,
+        "pct": 75.38
+      }
     },
     "src/main/runtimeSupport/modelDownloads.ts": {
-      "lines": { "covered": 65, "total": 76, "pct": 85.52 },
-      "statements": { "covered": 65, "total": 76, "pct": 85.52 },
-      "functions": { "covered": 18, "total": 19, "pct": 94.73 },
-      "branches": { "covered": 74, "total": 83, "pct": 89.15 }
+      "lines": {
+        "covered": 65,
+        "total": 76,
+        "pct": 85.52
+      },
+      "statements": {
+        "covered": 65,
+        "total": 76,
+        "pct": 85.52
+      },
+      "functions": {
+        "covered": 18,
+        "total": 19,
+        "pct": 94.73
+      },
+      "branches": {
+        "covered": 74,
+        "total": 83,
+        "pct": 89.15
+      }
     },
     "src/main/runtimeSupport/runtimeDirectoryPublish.ts": {
-      "lines": { "covered": 23, "total": 35, "pct": 65.71 },
-      "statements": { "covered": 23, "total": 35, "pct": 65.71 },
-      "functions": { "covered": 6, "total": 7, "pct": 85.71 },
-      "branches": { "covered": 11, "total": 18, "pct": 61.11 }
+      "lines": {
+        "covered": 23,
+        "total": 35,
+        "pct": 65.71
+      },
+      "statements": {
+        "covered": 23,
+        "total": 35,
+        "pct": 65.71
+      },
+      "functions": {
+        "covered": 6,
+        "total": 7,
+        "pct": 85.71
+      },
+      "branches": {
+        "covered": 11,
+        "total": 18,
+        "pct": 61.11
+      }
     },
     "src/main/settings/appSettingsNormalize.ts": {
-      "lines": { "covered": 44, "total": 44, "pct": 100 },
-      "statements": { "covered": 45, "total": 45, "pct": 100 },
-      "functions": { "covered": 15, "total": 15, "pct": 100 },
-      "branches": { "covered": 61, "total": 73, "pct": 83.56 }
+      "lines": {
+        "covered": 44,
+        "total": 44,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 45,
+        "total": 45,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 15,
+        "total": 15,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 61,
+        "total": 73,
+        "pct": 83.56
+      }
     },
     "src/main/settings/appSettingsResolvers.ts": {
-      "lines": { "covered": 79, "total": 82, "pct": 96.34 },
-      "statements": { "covered": 80, "total": 83, "pct": 96.38 },
-      "functions": { "covered": 26, "total": 26, "pct": 100 },
-      "branches": { "covered": 119, "total": 125, "pct": 95.2 }
+      "lines": {
+        "covered": 79,
+        "total": 82,
+        "pct": 96.34
+      },
+      "statements": {
+        "covered": 80,
+        "total": 83,
+        "pct": 96.38
+      },
+      "functions": {
+        "covered": 26,
+        "total": 26,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 119,
+        "total": 125,
+        "pct": 95.2
+      }
     },
     "src/main/settings/appSettingsStoredResolvers.ts": {
-      "lines": { "covered": 73, "total": 79, "pct": 92.4 },
-      "statements": { "covered": 74, "total": 80, "pct": 92.5 },
-      "functions": { "covered": 15, "total": 15, "pct": 100 },
-      "branches": { "covered": 95, "total": 117, "pct": 81.19 }
+      "lines": {
+        "covered": 73,
+        "total": 79,
+        "pct": 92.4
+      },
+      "statements": {
+        "covered": 74,
+        "total": 80,
+        "pct": 92.5
+      },
+      "functions": {
+        "covered": 15,
+        "total": 15,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 95,
+        "total": 117,
+        "pct": 81.19
+      }
     },
     "src/main/settings/blockFormatDefaultsNormalize.ts": {
-      "lines": { "covered": 8, "total": 8, "pct": 100 },
-      "statements": { "covered": 8, "total": 8, "pct": 100 },
-      "functions": { "covered": 4, "total": 4, "pct": 100 },
-      "branches": { "covered": 20, "total": 22, "pct": 90.9 }
+      "lines": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 20,
+        "total": 22,
+        "pct": 90.9
+      }
+    },
+    "src/main/settings/hardwareDefaults.ts": {
+      "lines": {
+        "covered": 71,
+        "total": 72,
+        "pct": 98.61
+      },
+      "statements": {
+        "covered": 71,
+        "total": 72,
+        "pct": 98.61
+      },
+      "functions": {
+        "covered": 24,
+        "total": 24,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 97,
+        "total": 104,
+        "pct": 93.26
+      }
     },
     "src/main/settings/llamaRuntimeProfile.ts": {
-      "lines": { "covered": 23, "total": 24, "pct": 95.83 },
-      "statements": { "covered": 23, "total": 24, "pct": 95.83 },
-      "functions": { "covered": 10, "total": 10, "pct": 100 },
-      "branches": { "covered": 28, "total": 32, "pct": 87.5 }
+      "lines": {
+        "covered": 23,
+        "total": 24,
+        "pct": 95.83
+      },
+      "statements": {
+        "covered": 23,
+        "total": 24,
+        "pct": 95.83
+      },
+      "functions": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 28,
+        "total": 32,
+        "pct": 87.5
+      }
     },
     "src/main/settings/translationGemmaFieldOptions.ts": {
-      "lines": { "covered": 8, "total": 15, "pct": 53.33 },
-      "statements": { "covered": 8, "total": 15, "pct": 53.33 },
-      "functions": { "covered": 6, "total": 6, "pct": 100 },
-      "branches": { "covered": 53, "total": 61, "pct": 86.88 }
+      "lines": {
+        "covered": 8,
+        "total": 15,
+        "pct": 53.33
+      },
+      "statements": {
+        "covered": 8,
+        "total": 15,
+        "pct": 53.33
+      },
+      "functions": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 53,
+        "total": 61,
+        "pct": 86.88
+      }
     },
     "src/main/settings/translationGemmaOptions.ts": {
-      "lines": { "covered": 12, "total": 14, "pct": 85.71 },
-      "statements": { "covered": 12, "total": 14, "pct": 85.71 },
-      "functions": { "covered": 6, "total": 6, "pct": 100 },
-      "branches": { "covered": 28, "total": 33, "pct": 84.84 }
+      "lines": {
+        "covered": 12,
+        "total": 14,
+        "pct": 85.71
+      },
+      "statements": {
+        "covered": 12,
+        "total": 14,
+        "pct": 85.71
+      },
+      "functions": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 28,
+        "total": 33,
+        "pct": 84.84
+      }
     },
     "src/main/settings/translationOcrOptions.ts": {
-      "lines": { "covered": 35, "total": 38, "pct": 92.1 },
-      "statements": { "covered": 35, "total": 38, "pct": 92.1 },
-      "functions": { "covered": 9, "total": 10, "pct": 90 },
-      "branches": { "covered": 48, "total": 57, "pct": 84.21 }
+      "lines": {
+        "covered": 35,
+        "total": 38,
+        "pct": 92.1
+      },
+      "statements": {
+        "covered": 35,
+        "total": 38,
+        "pct": 92.1
+      },
+      "functions": {
+        "covered": 9,
+        "total": 10,
+        "pct": 90
+      },
+      "branches": {
+        "covered": 48,
+        "total": 57,
+        "pct": 84.21
+      }
     },
     "src/main/settingsPairStorage.ts": {
-      "lines": { "covered": 118, "total": 128, "pct": 92.18 },
-      "statements": { "covered": 121, "total": 133, "pct": 90.97 },
-      "functions": { "covered": 28, "total": 28, "pct": 100 },
-      "branches": { "covered": 37, "total": 48, "pct": 77.08 }
+      "lines": {
+        "covered": 118,
+        "total": 128,
+        "pct": 92.18
+      },
+      "statements": {
+        "covered": 121,
+        "total": 133,
+        "pct": 90.97
+      },
+      "functions": {
+        "covered": 28,
+        "total": 28,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 37,
+        "total": 48,
+        "pct": 77.08
+      }
     },
     "src/main/settingsSecretStore.ts": {
-      "lines": { "covered": 93, "total": 106, "pct": 87.73 },
-      "statements": { "covered": 99, "total": 113, "pct": 87.61 },
-      "functions": { "covered": 23, "total": 23, "pct": 100 },
-      "branches": { "covered": 74, "total": 91, "pct": 81.31 }
+      "lines": {
+        "covered": 93,
+        "total": 106,
+        "pct": 87.73
+      },
+      "statements": {
+        "covered": 99,
+        "total": 113,
+        "pct": 87.61
+      },
+      "functions": {
+        "covered": 23,
+        "total": 23,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 74,
+        "total": 91,
+        "pct": 81.31
+      }
     },
     "src/main/settingsStore.ts": {
-      "lines": { "covered": 50, "total": 62, "pct": 80.64 },
-      "statements": { "covered": 50, "total": 62, "pct": 80.64 },
-      "functions": { "covered": 19, "total": 22, "pct": 86.36 },
-      "branches": { "covered": 50, "total": 62, "pct": 80.64 }
+      "lines": {
+        "covered": 50,
+        "total": 62,
+        "pct": 80.64
+      },
+      "statements": {
+        "covered": 50,
+        "total": 62,
+        "pct": 80.64
+      },
+      "functions": {
+        "covered": 19,
+        "total": 22,
+        "pct": 86.36
+      },
+      "branches": {
+        "covered": 50,
+        "total": 62,
+        "pct": 80.64
+      }
     },
     "src/main/workContextAiNormalize.ts": {
-      "lines": { "covered": 39, "total": 39, "pct": 100 },
-      "statements": { "covered": 39, "total": 39, "pct": 100 },
-      "functions": { "covered": 13, "total": 13, "pct": 100 },
-      "branches": { "covered": 30, "total": 36, "pct": 83.33 }
+      "lines": {
+        "covered": 39,
+        "total": 39,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 39,
+        "total": 39,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 13,
+        "total": 13,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 30,
+        "total": 36,
+        "pct": 83.33
+      }
     },
     "src/renderer/src/app/session/AppSessionView.tsx": {
-      "lines": { "covered": 0, "total": 9, "pct": 0 },
-      "statements": { "covered": 0, "total": 9, "pct": 0 },
-      "functions": { "covered": 0, "total": 3, "pct": 0 },
-      "branches": { "covered": 0, "total": 18, "pct": 0 }
+      "lines": {
+        "covered": 0,
+        "total": 9,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 9,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 3,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 18,
+        "pct": 0
+      }
     },
     "src/renderer/src/app/session/buildPanelSyncState.ts": {
-      "lines": { "covered": 0, "total": 2, "pct": 0 },
-      "statements": { "covered": 0, "total": 2, "pct": 0 },
-      "functions": { "covered": 0, "total": 1, "pct": 0 },
-      "branches": { "covered": 0, "total": 14, "pct": 0 }
+      "lines": {
+        "covered": 0,
+        "total": 2,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 2,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 1,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 14,
+        "pct": 0
+      }
     },
     "src/renderer/src/app/session/createAppSessionViewProps.ts": {
-      "lines": { "covered": 0, "total": 75, "pct": 0 },
-      "statements": { "covered": 0, "total": 79, "pct": 0 },
-      "functions": { "covered": 0, "total": 53, "pct": 0 },
-      "branches": { "covered": 0, "total": 45, "pct": 0 }
+      "lines": {
+        "covered": 0,
+        "total": 75,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 79,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 53,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 45,
+        "pct": 0
+      }
     },
     "src/renderer/src/app/session/useAppSessionInpaintingController.ts": {
-      "lines": { "covered": 0, "total": 53, "pct": 0 },
-      "statements": { "covered": 0, "total": 56, "pct": 0 },
-      "functions": { "covered": 0, "total": 20, "pct": 0 },
-      "branches": { "covered": 0, "total": 38, "pct": 0 }
+      "lines": {
+        "covered": 0,
+        "total": 53,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 56,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 20,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 38,
+        "pct": 0
+      }
     },
     "src/renderer/src/app/session/useAppSessionLifecycleEffects.ts": {
-      "lines": { "covered": 61, "total": 63, "pct": 96.82 },
-      "statements": { "covered": 63, "total": 65, "pct": 96.92 },
-      "functions": { "covered": 12, "total": 12, "pct": 100 },
-      "branches": { "covered": 41, "total": 52, "pct": 78.84 }
+      "lines": {
+        "covered": 61,
+        "total": 63,
+        "pct": 96.82
+      },
+      "statements": {
+        "covered": 63,
+        "total": 65,
+        "pct": 96.92
+      },
+      "functions": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 41,
+        "total": 52,
+        "pct": 78.84
+      }
     },
     "src/renderer/src/components/AppRightQuickRail.tsx": {
-      "lines": { "covered": 15, "total": 16, "pct": 93.75 },
-      "statements": { "covered": 17, "total": 18, "pct": 94.44 },
-      "functions": { "covered": 10, "total": 11, "pct": 90.9 },
-      "branches": { "covered": 18, "total": 19, "pct": 94.73 }
+      "lines": {
+        "covered": 15,
+        "total": 16,
+        "pct": 93.75
+      },
+      "statements": {
+        "covered": 17,
+        "total": 18,
+        "pct": 94.44
+      },
+      "functions": {
+        "covered": 10,
+        "total": 11,
+        "pct": 90.9
+      },
+      "branches": {
+        "covered": 18,
+        "total": 19,
+        "pct": 94.73
+      }
     },
     "src/renderer/src/components/AppSidebar.tsx": {
-      "lines": { "covered": 13, "total": 13, "pct": 100 },
-      "statements": { "covered": 14, "total": 14, "pct": 100 },
-      "functions": { "covered": 9, "total": 9, "pct": 100 },
-      "branches": { "covered": 11, "total": 14, "pct": 78.57 }
+      "lines": {
+        "covered": 13,
+        "total": 13,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 14,
+        "total": 14,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 11,
+        "total": 14,
+        "pct": 78.57
+      }
     },
     "src/renderer/src/components/AppWorkspace.tsx": {
-      "lines": { "covered": 50, "total": 55, "pct": 90.9 },
-      "statements": { "covered": 52, "total": 60, "pct": 86.66 },
-      "functions": { "covered": 15, "total": 18, "pct": 83.33 },
-      "branches": { "covered": 41, "total": 50, "pct": 82 }
+      "lines": {
+        "covered": 50,
+        "total": 55,
+        "pct": 90.9
+      },
+      "statements": {
+        "covered": 52,
+        "total": 60,
+        "pct": 86.66
+      },
+      "functions": {
+        "covered": 15,
+        "total": 18,
+        "pct": 83.33
+      },
+      "branches": {
+        "covered": 41,
+        "total": 50,
+        "pct": 82
+      }
     },
     "src/renderer/src/components/BlockSpacingFields.tsx": {
-      "lines": { "covered": 11, "total": 14, "pct": 78.57 },
-      "statements": { "covered": 11, "total": 14, "pct": 78.57 },
-      "functions": { "covered": 4, "total": 7, "pct": 57.14 },
-      "branches": { "covered": 4, "total": 4, "pct": 100 }
+      "lines": {
+        "covered": 11,
+        "total": 14,
+        "pct": 78.57
+      },
+      "statements": {
+        "covered": 11,
+        "total": 14,
+        "pct": 78.57
+      },
+      "functions": {
+        "covered": 4,
+        "total": 7,
+        "pct": 57.14
+      },
+      "branches": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      }
     },
     "src/renderer/src/components/CurveEditorFeedback.tsx": {
-      "lines": { "covered": 4, "total": 7, "pct": 57.14 },
-      "statements": { "covered": 4, "total": 7, "pct": 57.14 },
-      "functions": { "covered": 2, "total": 5, "pct": 40 },
-      "branches": { "covered": 6, "total": 6, "pct": 100 }
+      "lines": {
+        "covered": 4,
+        "total": 7,
+        "pct": 57.14
+      },
+      "statements": {
+        "covered": 4,
+        "total": 7,
+        "pct": 57.14
+      },
+      "functions": {
+        "covered": 2,
+        "total": 5,
+        "pct": 40
+      },
+      "branches": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      }
     },
     "src/renderer/src/components/CurveText.tsx": {
-      "lines": { "covered": 17, "total": 17, "pct": 100 },
-      "statements": { "covered": 18, "total": 19, "pct": 94.73 },
-      "functions": { "covered": 7, "total": 7, "pct": 100 },
-      "branches": { "covered": 14, "total": 18, "pct": 77.77 }
+      "lines": {
+        "covered": 17,
+        "total": 17,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 18,
+        "total": 19,
+        "pct": 94.73
+      },
+      "functions": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 14,
+        "total": 18,
+        "pct": 77.77
+      }
     },
     "src/renderer/src/components/EditorColorGroup.tsx": {
-      "lines": { "covered": 25, "total": 27, "pct": 92.59 },
-      "statements": { "covered": 26, "total": 28, "pct": 92.85 },
-      "functions": { "covered": 10, "total": 12, "pct": 83.33 },
-      "branches": { "covered": 16, "total": 18, "pct": 88.88 }
+      "lines": {
+        "covered": 25,
+        "total": 27,
+        "pct": 92.59
+      },
+      "statements": {
+        "covered": 26,
+        "total": 28,
+        "pct": 92.85
+      },
+      "functions": {
+        "covered": 10,
+        "total": 12,
+        "pct": 83.33
+      },
+      "branches": {
+        "covered": 16,
+        "total": 18,
+        "pct": 88.88
+      }
     },
     "src/renderer/src/components/EditorFormatControls.tsx": {
-      "lines": { "covered": 25, "total": 34, "pct": 73.52 },
-      "statements": { "covered": 25, "total": 34, "pct": 73.52 },
-      "functions": { "covered": 15, "total": 23, "pct": 65.21 },
-      "branches": { "covered": 8, "total": 8, "pct": 100 }
+      "lines": {
+        "covered": 25,
+        "total": 34,
+        "pct": 73.52
+      },
+      "statements": {
+        "covered": 25,
+        "total": 34,
+        "pct": 73.52
+      },
+      "functions": {
+        "covered": 15,
+        "total": 23,
+        "pct": 65.21
+      },
+      "branches": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      }
     },
     "src/renderer/src/components/ImageStage.tsx": {
-      "lines": { "covered": 9, "total": 9, "pct": 100 },
-      "statements": { "covered": 10, "total": 10, "pct": 100 },
-      "functions": { "covered": 7, "total": 7, "pct": 100 },
-      "branches": { "covered": 26, "total": 26, "pct": 100 }
+      "lines": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 26,
+        "total": 26,
+        "pct": 100
+      }
     },
     "src/renderer/src/components/LibraryTree.tsx": {
-      "lines": { "covered": 30, "total": 47, "pct": 63.82 },
-      "statements": { "covered": 32, "total": 50, "pct": 64 },
-      "functions": { "covered": 13, "total": 19, "pct": 68.42 },
-      "branches": { "covered": 14, "total": 31, "pct": 45.16 }
+      "lines": {
+        "covered": 30,
+        "total": 47,
+        "pct": 63.82
+      },
+      "statements": {
+        "covered": 32,
+        "total": 50,
+        "pct": 64
+      },
+      "functions": {
+        "covered": 13,
+        "total": 19,
+        "pct": 68.42
+      },
+      "branches": {
+        "covered": 14,
+        "total": 31,
+        "pct": 45.16
+      }
     },
     "src/renderer/src/components/OverlayBlock.tsx": {
-      "lines": { "covered": 25, "total": 26, "pct": 96.15 },
-      "statements": { "covered": 27, "total": 28, "pct": 96.42 },
-      "functions": { "covered": 10, "total": 11, "pct": 90.9 },
-      "branches": { "covered": 35, "total": 37, "pct": 94.59 }
+      "lines": {
+        "covered": 25,
+        "total": 26,
+        "pct": 96.15
+      },
+      "statements": {
+        "covered": 27,
+        "total": 28,
+        "pct": 96.42
+      },
+      "functions": {
+        "covered": 10,
+        "total": 11,
+        "pct": 90.9
+      },
+      "branches": {
+        "covered": 35,
+        "total": 37,
+        "pct": 94.59
+      }
     },
     "src/renderer/src/components/OverlayBlockLayer.tsx": {
-      "lines": { "covered": 38, "total": 53, "pct": 71.69 },
-      "statements": { "covered": 40, "total": 59, "pct": 67.79 },
-      "functions": { "covered": 16, "total": 24, "pct": 66.66 },
-      "branches": { "covered": 35, "total": 46, "pct": 76.08 }
+      "lines": {
+        "covered": 38,
+        "total": 53,
+        "pct": 71.69
+      },
+      "statements": {
+        "covered": 40,
+        "total": 59,
+        "pct": 67.79
+      },
+      "functions": {
+        "covered": 16,
+        "total": 24,
+        "pct": 66.66
+      },
+      "branches": {
+        "covered": 35,
+        "total": 46,
+        "pct": 76.08
+      }
     },
     "src/renderer/src/components/OverlayText.tsx": {
-      "lines": { "covered": 12, "total": 12, "pct": 100 },
-      "statements": { "covered": 13, "total": 13, "pct": 100 },
-      "functions": { "covered": 8, "total": 8, "pct": 100 },
-      "branches": { "covered": 15, "total": 16, "pct": 93.75 }
+      "lines": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 13,
+        "total": 13,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 15,
+        "total": 16,
+        "pct": 93.75
+      }
     },
     "src/renderer/src/components/OverlayTransformControls.tsx": {
-      "lines": { "covered": 39, "total": 41, "pct": 95.12 },
-      "statements": { "covered": 43, "total": 47, "pct": 91.48 },
-      "functions": { "covered": 21, "total": 22, "pct": 95.45 },
-      "branches": { "covered": 17, "total": 19, "pct": 89.47 }
+      "lines": {
+        "covered": 39,
+        "total": 41,
+        "pct": 95.12
+      },
+      "statements": {
+        "covered": 43,
+        "total": 47,
+        "pct": 91.48
+      },
+      "functions": {
+        "covered": 21,
+        "total": 22,
+        "pct": 95.45
+      },
+      "branches": {
+        "covered": 17,
+        "total": 19,
+        "pct": 89.47
+      }
     },
     "src/renderer/src/components/PageArtwork.tsx": {
-      "lines": { "covered": 14, "total": 14, "pct": 100 },
-      "statements": { "covered": 16, "total": 16, "pct": 100 },
-      "functions": { "covered": 8, "total": 8, "pct": 100 },
-      "branches": { "covered": 12, "total": 14, "pct": 85.71 }
+      "lines": {
+        "covered": 14,
+        "total": 14,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 16,
+        "total": 16,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 12,
+        "total": 14,
+        "pct": 85.71
+      }
     },
     "src/renderer/src/components/PageList.tsx": {
-      "lines": { "covered": 23, "total": 27, "pct": 85.18 },
-      "statements": { "covered": 24, "total": 28, "pct": 85.71 },
-      "functions": { "covered": 11, "total": 15, "pct": 73.33 },
-      "branches": { "covered": 20, "total": 32, "pct": 62.5 }
+      "lines": {
+        "covered": 23,
+        "total": 27,
+        "pct": 85.18
+      },
+      "statements": {
+        "covered": 24,
+        "total": 28,
+        "pct": 85.71
+      },
+      "functions": {
+        "covered": 11,
+        "total": 15,
+        "pct": 73.33
+      },
+      "branches": {
+        "covered": 20,
+        "total": 32,
+        "pct": 62.5
+      }
     },
     "src/renderer/src/components/SidebarSectionCollapseButton.tsx": {
-      "lines": { "covered": 3, "total": 3, "pct": 100 },
-      "statements": { "covered": 3, "total": 3, "pct": 100 },
-      "functions": { "covered": 1, "total": 1, "pct": 100 },
-      "branches": { "covered": 4, "total": 4, "pct": 100 }
+      "lines": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      }
     },
     "src/renderer/src/components/StatusDockButton.tsx": {
-      "lines": { "covered": 50, "total": 50, "pct": 100 },
-      "statements": { "covered": 53, "total": 56, "pct": 94.64 },
-      "functions": { "covered": 19, "total": 20, "pct": 95 },
-      "branches": { "covered": 35, "total": 39, "pct": 89.74 }
+      "lines": {
+        "covered": 50,
+        "total": 50,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 53,
+        "total": 56,
+        "pct": 94.64
+      },
+      "functions": {
+        "covered": 19,
+        "total": 20,
+        "pct": 95
+      },
+      "branches": {
+        "covered": 35,
+        "total": 39,
+        "pct": 89.74
+      }
     },
     "src/renderer/src/components/TextWrappingSelect.tsx": {
-      "lines": { "covered": 10, "total": 10, "pct": 100 },
-      "statements": { "covered": 10, "total": 11, "pct": 90.9 },
-      "functions": { "covered": 3, "total": 3, "pct": 100 },
-      "branches": { "covered": 14, "total": 15, "pct": 93.33 }
+      "lines": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 10,
+        "total": 11,
+        "pct": 90.9
+      },
+      "functions": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 14,
+        "total": 15,
+        "pct": 93.33
+      }
     },
     "src/renderer/src/components/TransformEditorGroup.tsx": {
-      "lines": { "covered": 20, "total": 26, "pct": 76.92 },
-      "statements": { "covered": 20, "total": 26, "pct": 76.92 },
-      "functions": { "covered": 9, "total": 14, "pct": 64.28 },
-      "branches": { "covered": 14, "total": 14, "pct": 100 }
+      "lines": {
+        "covered": 20,
+        "total": 26,
+        "pct": 76.92
+      },
+      "statements": {
+        "covered": 20,
+        "total": 26,
+        "pct": 76.92
+      },
+      "functions": {
+        "covered": 9,
+        "total": 14,
+        "pct": 64.28
+      },
+      "branches": {
+        "covered": 14,
+        "total": 14,
+        "pct": 100
+      }
     },
     "src/renderer/src/components/WorkspaceContent.tsx": {
-      "lines": { "covered": 19, "total": 19, "pct": 100 },
-      "statements": { "covered": 19, "total": 19, "pct": 100 },
-      "functions": { "covered": 8, "total": 8, "pct": 100 },
-      "branches": { "covered": 20, "total": 20, "pct": 100 }
+      "lines": {
+        "covered": 19,
+        "total": 19,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 19,
+        "total": 19,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 20,
+        "total": 20,
+        "pct": 100
+      }
     },
     "src/renderer/src/components/WorkspaceViewControls.tsx": {
-      "lines": { "covered": 51, "total": 51, "pct": 100 },
-      "statements": { "covered": 59, "total": 60, "pct": 98.33 },
-      "functions": { "covered": 19, "total": 19, "pct": 100 },
-      "branches": { "covered": 33, "total": 36, "pct": 91.66 }
+      "lines": {
+        "covered": 51,
+        "total": 51,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 59,
+        "total": 60,
+        "pct": 98.33
+      },
+      "functions": {
+        "covered": 19,
+        "total": 19,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 33,
+        "total": 36,
+        "pct": 91.66
+      }
     },
     "src/renderer/src/components/appWorkspaceTypes.ts": {
-      "lines": { "covered": 0, "total": 0, "pct": 100 },
-      "statements": { "covered": 0, "total": 0, "pct": 100 },
-      "functions": { "covered": 0, "total": 0, "pct": 100 },
-      "branches": { "covered": 0, "total": 0, "pct": 100 }
+      "lines": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
     },
     "src/renderer/src/components/blockFormat/BlockFormatPreview.tsx": {
-      "lines": { "covered": 8, "total": 8, "pct": 100 },
-      "statements": { "covered": 8, "total": 8, "pct": 100 },
-      "functions": { "covered": 5, "total": 5, "pct": 100 },
-      "branches": { "covered": 18, "total": 19, "pct": 94.73 }
+      "lines": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 18,
+        "total": 19,
+        "pct": 94.73
+      }
     },
     "src/renderer/src/components/blockFormat/BlockFormatPrimitives.tsx": {
-      "lines": { "covered": 7, "total": 7, "pct": 100 },
-      "statements": { "covered": 7, "total": 7, "pct": 100 },
-      "functions": { "covered": 5, "total": 5, "pct": 100 },
-      "branches": { "covered": 20, "total": 20, "pct": 100 }
+      "lines": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 20,
+        "total": 20,
+        "pct": 100
+      }
     },
     "src/renderer/src/components/editorPanelUtils.ts": {
-      "lines": { "covered": 3, "total": 3, "pct": 100 },
-      "statements": { "covered": 3, "total": 3, "pct": 100 },
-      "functions": { "covered": 2, "total": 2, "pct": 100 },
-      "branches": { "covered": 4, "total": 4, "pct": 100 }
+      "lines": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      }
     },
     "src/renderer/src/components/gatherText/GatherTextDirectDetailControls.tsx": {
-      "lines": { "covered": 29, "total": 32, "pct": 90.62 },
-      "statements": { "covered": 29, "total": 32, "pct": 90.62 },
-      "functions": { "covered": 16, "total": 19, "pct": 84.21 },
-      "branches": { "covered": 9, "total": 12, "pct": 75 }
+      "lines": {
+        "covered": 29,
+        "total": 32,
+        "pct": 90.62
+      },
+      "statements": {
+        "covered": 29,
+        "total": 32,
+        "pct": 90.62
+      },
+      "functions": {
+        "covered": 16,
+        "total": 19,
+        "pct": 84.21
+      },
+      "branches": {
+        "covered": 9,
+        "total": 12,
+        "pct": 75
+      }
     },
     "src/renderer/src/components/gatherText/GatherTextDirectFormatPrimitives.tsx": {
-      "lines": { "covered": 13, "total": 13, "pct": 100 },
-      "statements": { "covered": 13, "total": 13, "pct": 100 },
-      "functions": { "covered": 3, "total": 3, "pct": 100 },
-      "branches": { "covered": 5, "total": 7, "pct": 71.42 }
+      "lines": {
+        "covered": 13,
+        "total": 13,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 13,
+        "total": 13,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 5,
+        "total": 7,
+        "pct": 71.42
+      }
     },
     "src/renderer/src/components/gatherText/GatherTextDirectTypographyControls.tsx": {
-      "lines": { "covered": 23, "total": 23, "pct": 100 },
-      "statements": { "covered": 25, "total": 25, "pct": 100 },
-      "functions": { "covered": 15, "total": 15, "pct": 100 },
-      "branches": { "covered": 13, "total": 16, "pct": 81.25 }
+      "lines": {
+        "covered": 23,
+        "total": 23,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 25,
+        "total": 25,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 15,
+        "total": 15,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 13,
+        "total": 16,
+        "pct": 81.25
+      }
     },
     "src/renderer/src/components/gatherText/gatherTextDirectFormatUi.ts": {
-      "lines": { "covered": 12, "total": 12, "pct": 100 },
-      "statements": { "covered": 12, "total": 13, "pct": 92.3 },
-      "functions": { "covered": 6, "total": 6, "pct": 100 },
-      "branches": { "covered": 7, "total": 8, "pct": 87.5 }
+      "lines": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 12,
+        "total": 13,
+        "pct": 92.3
+      },
+      "functions": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 7,
+        "total": 8,
+        "pct": 87.5
+      }
     },
     "src/renderer/src/components/imageStageModel.ts": {
-      "lines": { "covered": 10, "total": 13, "pct": 76.92 },
-      "statements": { "covered": 11, "total": 14, "pct": 78.57 },
-      "functions": { "covered": 7, "total": 7, "pct": 100 },
-      "branches": { "covered": 23, "total": 29, "pct": 79.31 }
+      "lines": {
+        "covered": 10,
+        "total": 13,
+        "pct": 76.92
+      },
+      "statements": {
+        "covered": 11,
+        "total": 14,
+        "pct": 78.57
+      },
+      "functions": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 23,
+        "total": 29,
+        "pct": 79.31
+      }
     },
     "src/renderer/src/components/imageStageTypes.ts": {
-      "lines": { "covered": 0, "total": 0, "pct": 100 },
-      "statements": { "covered": 0, "total": 0, "pct": 100 },
-      "functions": { "covered": 0, "total": 0, "pct": 100 },
-      "branches": { "covered": 0, "total": 0, "pct": 100 }
+      "lines": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
     },
     "src/renderer/src/components/overlayTextStyles.ts": {
-      "lines": { "covered": 22, "total": 22, "pct": 100 },
-      "statements": { "covered": 24, "total": 26, "pct": 92.3 },
-      "functions": { "covered": 9, "total": 9, "pct": 100 },
-      "branches": { "covered": 34, "total": 38, "pct": 89.47 }
+      "lines": {
+        "covered": 22,
+        "total": 22,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 24,
+        "total": 26,
+        "pct": 92.3
+      },
+      "functions": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 34,
+        "total": 38,
+        "pct": 89.47
+      }
+    },
+    "src/renderer/src/components/settingsModal/EngineSettingsPanelTypes.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/renderer/src/components/settingsModal/FluxBackendSettings.tsx": {
+      "lines": {
+        "covered": 21,
+        "total": 21,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 22,
+        "total": 22,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 27,
+        "total": 31,
+        "pct": 87.09
+      }
     },
     "src/renderer/src/components/settingsModal/FormatDefaultsDetailSections.tsx": {
-      "lines": { "covered": 23, "total": 28, "pct": 82.14 },
-      "statements": { "covered": 23, "total": 28, "pct": 82.14 },
-      "functions": { "covered": 14, "total": 18, "pct": 77.77 },
-      "branches": { "covered": 12, "total": 15, "pct": 80 }
+      "lines": {
+        "covered": 23,
+        "total": 28,
+        "pct": 82.14
+      },
+      "statements": {
+        "covered": 23,
+        "total": 28,
+        "pct": 82.14
+      },
+      "functions": {
+        "covered": 14,
+        "total": 18,
+        "pct": 77.77
+      },
+      "branches": {
+        "covered": 12,
+        "total": 15,
+        "pct": 80
+      }
     },
     "src/renderer/src/components/settingsModal/FormatDefaultsTypographySection.tsx": {
-      "lines": { "covered": 20, "total": 20, "pct": 100 },
-      "statements": { "covered": 20, "total": 20, "pct": 100 },
-      "functions": { "covered": 13, "total": 13, "pct": 100 },
-      "branches": { "covered": 6, "total": 6, "pct": 100 }
+      "lines": {
+        "covered": 20,
+        "total": 20,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 20,
+        "total": 20,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 13,
+        "total": 13,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      }
+    },
+    "src/renderer/src/components/settingsModal/GemmaSettingsFields.tsx": {
+      "lines": {
+        "covered": 1,
+        "total": 47,
+        "pct": 2.12
+      },
+      "statements": {
+        "covered": 1,
+        "total": 48,
+        "pct": 2.08
+      },
+      "functions": {
+        "covered": 0,
+        "total": 21,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 38,
+        "pct": 0
+      }
     },
     "src/renderer/src/components/settingsModal/HardwareContextNotes.tsx": {
-      "lines": { "covered": 16, "total": 20, "pct": 80 },
-      "statements": { "covered": 16, "total": 20, "pct": 80 },
-      "functions": { "covered": 3, "total": 5, "pct": 60 },
-      "branches": { "covered": 11, "total": 14, "pct": 78.57 }
+      "lines": {
+        "covered": 16,
+        "total": 20,
+        "pct": 80
+      },
+      "statements": {
+        "covered": 16,
+        "total": 20,
+        "pct": 80
+      },
+      "functions": {
+        "covered": 3,
+        "total": 5,
+        "pct": 60
+      },
+      "branches": {
+        "covered": 11,
+        "total": 14,
+        "pct": 78.57
+      }
     },
     "src/renderer/src/components/settingsModal/HardwareSettingsPanel.tsx": {
-      "lines": { "covered": 33, "total": 38, "pct": 86.84 },
-      "statements": { "covered": 33, "total": 38, "pct": 86.84 },
-      "functions": { "covered": 14, "total": 15, "pct": 93.33 },
-      "branches": { "covered": 32, "total": 39, "pct": 82.05 }
+      "lines": {
+        "covered": 33,
+        "total": 38,
+        "pct": 86.84
+      },
+      "statements": {
+        "covered": 33,
+        "total": 38,
+        "pct": 86.84
+      },
+      "functions": {
+        "covered": 14,
+        "total": 15,
+        "pct": 93.33
+      },
+      "branches": {
+        "covered": 32,
+        "total": 39,
+        "pct": 82.05
+      }
     },
     "src/renderer/src/components/settingsModal/hardwareRecommendation.ts": {
-      "lines": { "covered": 10, "total": 10, "pct": 100 },
-      "statements": { "covered": 10, "total": 10, "pct": 100 },
-      "functions": { "covered": 2, "total": 2, "pct": 100 },
-      "branches": { "covered": 12, "total": 14, "pct": 85.71 }
+      "lines": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 12,
+        "total": 14,
+        "pct": 85.71
+      }
     },
     "src/renderer/src/components/settingsModal/hardwareSettingsTypes.ts": {
-      "lines": { "covered": 0, "total": 0, "pct": 100 },
-      "statements": { "covered": 0, "total": 0, "pct": 100 },
-      "functions": { "covered": 0, "total": 0, "pct": 100 },
-      "branches": { "covered": 0, "total": 0, "pct": 100 }
+      "lines": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
     },
     "src/renderer/src/components/settingsModal/settingsModalViewPropsBuilder.ts": {
-      "lines": { "covered": 5, "total": 5, "pct": 100 },
-      "statements": { "covered": 5, "total": 5, "pct": 100 },
-      "functions": { "covered": 4, "total": 4, "pct": 100 },
-      "branches": { "covered": 0, "total": 0, "pct": 100 }
+      "lines": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
     },
     "src/renderer/src/components/settingsModal/stylePresetEditing.ts": {
-      "lines": { "covered": 44, "total": 60, "pct": 73.33 },
-      "statements": { "covered": 47, "total": 65, "pct": 72.3 },
-      "functions": { "covered": 23, "total": 39, "pct": 58.97 },
-      "branches": { "covered": 22, "total": 50, "pct": 44 }
+      "lines": {
+        "covered": 44,
+        "total": 60,
+        "pct": 73.33
+      },
+      "statements": {
+        "covered": 47,
+        "total": 65,
+        "pct": 72.3
+      },
+      "functions": {
+        "covered": 23,
+        "total": 39,
+        "pct": 58.97
+      },
+      "branches": {
+        "covered": 22,
+        "total": 50,
+        "pct": 44
+      }
     },
     "src/renderer/src/components/settingsModal/stylePresetManager/PresetDefinitionPanel.tsx": {
-      "lines": { "covered": 47, "total": 55, "pct": 85.45 },
-      "statements": { "covered": 49, "total": 58, "pct": 84.48 },
-      "functions": { "covered": 26, "total": 32, "pct": 81.25 },
-      "branches": { "covered": 46, "total": 64, "pct": 71.87 }
+      "lines": {
+        "covered": 47,
+        "total": 55,
+        "pct": 85.45
+      },
+      "statements": {
+        "covered": 49,
+        "total": 58,
+        "pct": 84.48
+      },
+      "functions": {
+        "covered": 26,
+        "total": 32,
+        "pct": 81.25
+      },
+      "branches": {
+        "covered": 46,
+        "total": 64,
+        "pct": 71.87
+      }
     },
     "src/renderer/src/components/settingsModal/useFormatDefaultsEditor.ts": {
-      "lines": { "covered": 31, "total": 31, "pct": 100 },
-      "statements": { "covered": 32, "total": 33, "pct": 96.96 },
-      "functions": { "covered": 16, "total": 16, "pct": 100 },
-      "branches": { "covered": 17, "total": 20, "pct": 85 }
+      "lines": {
+        "covered": 31,
+        "total": 31,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 32,
+        "total": 33,
+        "pct": 96.96
+      },
+      "functions": {
+        "covered": 16,
+        "total": 16,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 17,
+        "total": 20,
+        "pct": 85
+      }
     },
     "src/renderer/src/components/settingsModal/useSettingsRuntimeGuards.ts": {
-      "lines": { "covered": 50, "total": 75, "pct": 66.66 },
-      "statements": { "covered": 53, "total": 84, "pct": 63.09 },
-      "functions": { "covered": 15, "total": 19, "pct": 78.94 },
-      "branches": { "covered": 66, "total": 119, "pct": 55.46 }
+      "lines": {
+        "covered": 50,
+        "total": 75,
+        "pct": 66.66
+      },
+      "statements": {
+        "covered": 53,
+        "total": 84,
+        "pct": 63.09
+      },
+      "functions": {
+        "covered": 15,
+        "total": 19,
+        "pct": 78.94
+      },
+      "branches": {
+        "covered": 66,
+        "total": 119,
+        "pct": 55.46
+      }
     },
     "src/renderer/src/components/styleGuide/CharactersTab.tsx": {
-      "lines": { "covered": 18, "total": 32, "pct": 56.25 },
-      "statements": { "covered": 18, "total": 32, "pct": 56.25 },
-      "functions": { "covered": 10, "total": 24, "pct": 41.66 },
-      "branches": { "covered": 7, "total": 18, "pct": 38.88 }
+      "lines": {
+        "covered": 18,
+        "total": 32,
+        "pct": 56.25
+      },
+      "statements": {
+        "covered": 18,
+        "total": 32,
+        "pct": 56.25
+      },
+      "functions": {
+        "covered": 10,
+        "total": 24,
+        "pct": 41.66
+      },
+      "branches": {
+        "covered": 7,
+        "total": 18,
+        "pct": 38.88
+      }
     },
     "src/renderer/src/components/styleGuide/ContextEntryList.tsx": {
-      "lines": { "covered": 18, "total": 18, "pct": 100 },
-      "statements": { "covered": 18, "total": 18, "pct": 100 },
-      "functions": { "covered": 12, "total": 12, "pct": 100 },
-      "branches": { "covered": 17, "total": 17, "pct": 100 }
+      "lines": {
+        "covered": 18,
+        "total": 18,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 18,
+        "total": 18,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 17,
+        "total": 17,
+        "pct": 100
+      }
     },
     "src/renderer/src/components/styleGuide/GlossaryTab.tsx": {
-      "lines": { "covered": 26, "total": 30, "pct": 86.66 },
-      "statements": { "covered": 26, "total": 30, "pct": 86.66 },
-      "functions": { "covered": 19, "total": 23, "pct": 82.6 },
-      "branches": { "covered": 12, "total": 14, "pct": 85.71 }
+      "lines": {
+        "covered": 26,
+        "total": 30,
+        "pct": 86.66
+      },
+      "statements": {
+        "covered": 26,
+        "total": 30,
+        "pct": 86.66
+      },
+      "functions": {
+        "covered": 19,
+        "total": 23,
+        "pct": 82.6
+      },
+      "branches": {
+        "covered": 12,
+        "total": 14,
+        "pct": 85.71
+      }
     },
     "src/renderer/src/components/ui/ControlTooltip.tsx": {
-      "lines": { "covered": 4, "total": 4, "pct": 100 },
-      "statements": { "covered": 4, "total": 4, "pct": 100 },
-      "functions": { "covered": 1, "total": 1, "pct": 100 },
-      "branches": { "covered": 5, "total": 5, "pct": 100 }
+      "lines": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      }
     },
     "src/renderer/src/components/ui/FieldSlider.tsx": {
-      "lines": { "covered": 1, "total": 1, "pct": 100 },
-      "statements": { "covered": 1, "total": 1, "pct": 100 },
-      "functions": { "covered": 1, "total": 1, "pct": 100 },
-      "branches": { "covered": 2, "total": 2, "pct": 100 }
+      "lines": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      }
     },
     "src/renderer/src/components/ui/NumberField.tsx": {
-      "lines": { "covered": 55, "total": 58, "pct": 94.82 },
-      "statements": { "covered": 61, "total": 65, "pct": 93.84 },
-      "functions": { "covered": 15, "total": 15, "pct": 100 },
-      "branches": { "covered": 46, "total": 57, "pct": 80.7 }
+      "lines": {
+        "covered": 55,
+        "total": 58,
+        "pct": 94.82
+      },
+      "statements": {
+        "covered": 61,
+        "total": 65,
+        "pct": 93.84
+      },
+      "functions": {
+        "covered": 15,
+        "total": 15,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 46,
+        "total": 57,
+        "pct": 80.7
+      }
     },
     "src/renderer/src/hooks/chapterPersistencePayload.ts": {
-      "lines": { "covered": 9, "total": 10, "pct": 90 },
-      "statements": { "covered": 10, "total": 11, "pct": 90.9 },
-      "functions": { "covered": 5, "total": 5, "pct": 100 },
-      "branches": { "covered": 11, "total": 12, "pct": 91.66 }
+      "lines": {
+        "covered": 9,
+        "total": 10,
+        "pct": 90
+      },
+      "statements": {
+        "covered": 10,
+        "total": 11,
+        "pct": 90.9
+      },
+      "functions": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 11,
+        "total": 12,
+        "pct": 91.66
+      }
     },
     "src/renderer/src/hooks/inpaintingActionTypes.ts": {
-      "lines": { "covered": 20, "total": 24, "pct": 83.33 },
-      "statements": { "covered": 20, "total": 24, "pct": 83.33 },
-      "functions": { "covered": 6, "total": 6, "pct": 100 },
-      "branches": { "covered": 10, "total": 14, "pct": 71.42 }
+      "lines": {
+        "covered": 20,
+        "total": 24,
+        "pct": 83.33
+      },
+      "statements": {
+        "covered": 20,
+        "total": 24,
+        "pct": 83.33
+      },
+      "functions": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 10,
+        "total": 14,
+        "pct": 71.42
+      }
     },
     "src/renderer/src/hooks/jobEventFlowGuard.ts": {
-      "lines": { "covered": 15, "total": 15, "pct": 100 },
-      "statements": { "covered": 17, "total": 17, "pct": 100 },
-      "functions": { "covered": 6, "total": 6, "pct": 100 },
-      "branches": { "covered": 22, "total": 22, "pct": 100 }
+      "lines": {
+        "covered": 15,
+        "total": 15,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 17,
+        "total": 17,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 22,
+        "total": 22,
+        "pct": 100
+      }
     },
     "src/renderer/src/hooks/useBlockReadingOrderActions.ts": {
-      "lines": { "covered": 10, "total": 73, "pct": 13.69 },
-      "statements": { "covered": 10, "total": 86, "pct": 11.62 },
-      "functions": { "covered": 5, "total": 25, "pct": 20 },
-      "branches": { "covered": 4, "total": 73, "pct": 5.47 }
+      "lines": {
+        "covered": 10,
+        "total": 73,
+        "pct": 13.69
+      },
+      "statements": {
+        "covered": 10,
+        "total": 86,
+        "pct": 11.62
+      },
+      "functions": {
+        "covered": 5,
+        "total": 25,
+        "pct": 20
+      },
+      "branches": {
+        "covered": 4,
+        "total": 73,
+        "pct": 5.47
+      }
     },
     "src/renderer/src/hooks/useDrawnPatternInpaintingAction.ts": {
-      "lines": { "covered": 36, "total": 46, "pct": 78.26 },
-      "statements": { "covered": 37, "total": 49, "pct": 75.51 },
-      "functions": { "covered": 10, "total": 10, "pct": 100 },
-      "branches": { "covered": 16, "total": 34, "pct": 47.05 }
+      "lines": {
+        "covered": 36,
+        "total": 46,
+        "pct": 78.26
+      },
+      "statements": {
+        "covered": 37,
+        "total": 49,
+        "pct": 75.51
+      },
+      "functions": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 16,
+        "total": 34,
+        "pct": 47.05
+      }
     },
     "src/renderer/src/hooks/useJobEvents.ts": {
-      "lines": { "covered": 68, "total": 76, "pct": 89.47 },
-      "statements": { "covered": 69, "total": 79, "pct": 87.34 },
-      "functions": { "covered": 23, "total": 27, "pct": 85.18 },
-      "branches": { "covered": 54, "total": 63, "pct": 85.71 }
+      "lines": {
+        "covered": 68,
+        "total": 76,
+        "pct": 89.47
+      },
+      "statements": {
+        "covered": 69,
+        "total": 79,
+        "pct": 87.34
+      },
+      "functions": {
+        "covered": 23,
+        "total": 27,
+        "pct": 85.18
+      },
+      "branches": {
+        "covered": 54,
+        "total": 63,
+        "pct": 85.71
+      }
     },
     "src/renderer/src/hooks/useRunBubbleLayoutAction.ts": {
-      "lines": { "covered": 34, "total": 39, "pct": 87.17 },
-      "statements": { "covered": 36, "total": 42, "pct": 85.71 },
-      "functions": { "covered": 8, "total": 9, "pct": 88.88 },
-      "branches": { "covered": 24, "total": 30, "pct": 80 }
+      "lines": {
+        "covered": 34,
+        "total": 39,
+        "pct": 87.17
+      },
+      "statements": {
+        "covered": 36,
+        "total": 42,
+        "pct": 85.71
+      },
+      "functions": {
+        "covered": 8,
+        "total": 9,
+        "pct": 88.88
+      },
+      "branches": {
+        "covered": 24,
+        "total": 30,
+        "pct": 80
+      }
     },
     "src/renderer/src/hooks/useRunInpaintingAction.ts": {
-      "lines": { "covered": 34, "total": 43, "pct": 79.06 },
-      "statements": { "covered": 38, "total": 50, "pct": 76 },
-      "functions": { "covered": 11, "total": 11, "pct": 100 },
-      "branches": { "covered": 23, "total": 42, "pct": 54.76 }
+      "lines": {
+        "covered": 34,
+        "total": 43,
+        "pct": 79.06
+      },
+      "statements": {
+        "covered": 38,
+        "total": 50,
+        "pct": 76
+      },
+      "functions": {
+        "covered": 11,
+        "total": 11,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 23,
+        "total": 42,
+        "pct": 54.76
+      }
     },
     "src/renderer/src/hooks/useRunInpaintingSelectionAction.ts": {
-      "lines": { "covered": 50, "total": 57, "pct": 87.71 },
-      "statements": { "covered": 52, "total": 59, "pct": 88.13 },
-      "functions": { "covered": 13, "total": 13, "pct": 100 },
-      "branches": { "covered": 30, "total": 36, "pct": 83.33 }
+      "lines": {
+        "covered": 50,
+        "total": 57,
+        "pct": 87.71
+      },
+      "statements": {
+        "covered": 52,
+        "total": 59,
+        "pct": 88.13
+      },
+      "functions": {
+        "covered": 13,
+        "total": 13,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 30,
+        "total": 36,
+        "pct": 83.33
+      }
     },
     "src/renderer/src/hooks/useUpdateSelectedBlockAction.ts": {
-      "lines": { "covered": 23, "total": 43, "pct": 53.48 },
-      "statements": { "covered": 25, "total": 48, "pct": 52.08 },
-      "functions": { "covered": 10, "total": 16, "pct": 62.5 },
-      "branches": { "covered": 15, "total": 40, "pct": 37.5 }
+      "lines": {
+        "covered": 23,
+        "total": 43,
+        "pct": 53.48
+      },
+      "statements": {
+        "covered": 25,
+        "total": 48,
+        "pct": 52.08
+      },
+      "functions": {
+        "covered": 10,
+        "total": 16,
+        "pct": 62.5
+      },
+      "branches": {
+        "covered": 15,
+        "total": 40,
+        "pct": 37.5
+      }
     },
     "src/renderer/src/hooks/useWorkspaceBlockDragHandlers.ts": {
-      "lines": { "covered": 72, "total": 78, "pct": 92.3 },
-      "statements": { "covered": 74, "total": 83, "pct": 89.15 },
-      "functions": { "covered": 19, "total": 20, "pct": 95 },
-      "branches": { "covered": 47, "total": 74, "pct": 63.51 }
+      "lines": {
+        "covered": 72,
+        "total": 78,
+        "pct": 92.3
+      },
+      "statements": {
+        "covered": 74,
+        "total": 83,
+        "pct": 89.15
+      },
+      "functions": {
+        "covered": 19,
+        "total": 20,
+        "pct": 95
+      },
+      "branches": {
+        "covered": 47,
+        "total": 74,
+        "pct": 63.51
+      }
     },
     "src/renderer/src/hooks/useWorkspaceZoomStyle.ts": {
-      "lines": { "covered": 54, "total": 54, "pct": 100 },
-      "statements": { "covered": 61, "total": 64, "pct": 95.31 },
-      "functions": { "covered": 19, "total": 19, "pct": 100 },
-      "branches": { "covered": 43, "total": 56, "pct": 76.78 }
+      "lines": {
+        "covered": 54,
+        "total": 54,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 61,
+        "total": 64,
+        "pct": 95.31
+      },
+      "functions": {
+        "covered": 19,
+        "total": 19,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 43,
+        "total": 56,
+        "pct": 76.78
+      }
     },
     "src/renderer/src/hooks/workspaceBlockDragModel.ts": {
-      "lines": { "covered": 54, "total": 66, "pct": 81.81 },
-      "statements": { "covered": 57, "total": 71, "pct": 80.28 },
-      "functions": { "covered": 16, "total": 19, "pct": 84.21 },
-      "branches": { "covered": 45, "total": 60, "pct": 75 }
+      "lines": {
+        "covered": 54,
+        "total": 66,
+        "pct": 81.81
+      },
+      "statements": {
+        "covered": 57,
+        "total": 71,
+        "pct": 80.28
+      },
+      "functions": {
+        "covered": 16,
+        "total": 19,
+        "pct": 84.21
+      },
+      "branches": {
+        "covered": 45,
+        "total": 60,
+        "pct": 75
+      }
     },
     "src/renderer/src/lib/blockFontSizeAdjustment.ts": {
-      "lines": { "covered": 22, "total": 23, "pct": 95.65 },
-      "statements": { "covered": 23, "total": 24, "pct": 95.83 },
-      "functions": { "covered": 6, "total": 6, "pct": 100 },
-      "branches": { "covered": 14, "total": 19, "pct": 73.68 }
+      "lines": {
+        "covered": 22,
+        "total": 23,
+        "pct": 95.65
+      },
+      "statements": {
+        "covered": 23,
+        "total": 24,
+        "pct": 95.83
+      },
+      "functions": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 14,
+        "total": 19,
+        "pct": 73.68
+      }
     },
     "src/renderer/src/lib/blockFormatApply.ts": {
-      "lines": { "covered": 9, "total": 10, "pct": 90 },
-      "statements": { "covered": 9, "total": 10, "pct": 90 },
-      "functions": { "covered": 4, "total": 4, "pct": 100 },
-      "branches": { "covered": 6, "total": 10, "pct": 60 }
+      "lines": {
+        "covered": 9,
+        "total": 10,
+        "pct": 90
+      },
+      "statements": {
+        "covered": 9,
+        "total": 10,
+        "pct": 90
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 6,
+        "total": 10,
+        "pct": 60
+      }
     },
     "src/renderer/src/lib/blockFormatGeometry.ts": {
-      "lines": { "covered": 0, "total": 0, "pct": 100 },
-      "statements": { "covered": 0, "total": 0, "pct": 100 },
-      "functions": { "covered": 0, "total": 0, "pct": 100 },
-      "branches": { "covered": 0, "total": 0, "pct": 100 }
+      "lines": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
     },
     "src/renderer/src/lib/blockTextMeasurement.ts": {
-      "lines": { "covered": 29, "total": 30, "pct": 96.66 },
-      "statements": { "covered": 29, "total": 32, "pct": 90.62 },
-      "functions": { "covered": 7, "total": 7, "pct": 100 },
-      "branches": { "covered": 20, "total": 23, "pct": 86.95 }
+      "lines": {
+        "covered": 29,
+        "total": 30,
+        "pct": 96.66
+      },
+      "statements": {
+        "covered": 29,
+        "total": 32,
+        "pct": 90.62
+      },
+      "functions": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 20,
+        "total": 23,
+        "pct": 86.95
+      }
     },
     "src/renderer/src/lib/bubbleBlockTextLayout.ts": {
-      "lines": { "covered": 19, "total": 19, "pct": 100 },
-      "statements": { "covered": 20, "total": 21, "pct": 95.23 },
-      "functions": { "covered": 4, "total": 4, "pct": 100 },
-      "branches": { "covered": 16, "total": 17, "pct": 94.11 }
+      "lines": {
+        "covered": 19,
+        "total": 19,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 20,
+        "total": 21,
+        "pct": 95.23
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 16,
+        "total": 17,
+        "pct": 94.11
+      }
     },
     "src/renderer/src/lib/bubbleTextWrapping.ts": {
-      "lines": { "covered": 120, "total": 121, "pct": 99.17 },
-      "statements": { "covered": 128, "total": 133, "pct": 96.24 },
-      "functions": { "covered": 31, "total": 31, "pct": 100 },
-      "branches": { "covered": 65, "total": 74, "pct": 87.83 }
+      "lines": {
+        "covered": 120,
+        "total": 121,
+        "pct": 99.17
+      },
+      "statements": {
+        "covered": 128,
+        "total": 133,
+        "pct": 96.24
+      },
+      "functions": {
+        "covered": 31,
+        "total": 31,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 65,
+        "total": 74,
+        "pct": 87.83
+      }
     },
     "src/renderer/src/lib/gatherTextDirectFormatModel.ts": {
-      "lines": { "covered": 27, "total": 27, "pct": 100 },
-      "statements": { "covered": 27, "total": 27, "pct": 100 },
-      "functions": { "covered": 11, "total": 11, "pct": 100 },
-      "branches": { "covered": 24, "total": 24, "pct": 100 }
+      "lines": {
+        "covered": 27,
+        "total": 27,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 27,
+        "total": 27,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 11,
+        "total": 11,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 24,
+        "total": 24,
+        "pct": 100
+      }
     },
     "src/renderer/src/lib/gatherTextFormat.ts": {
-      "lines": { "covered": 34, "total": 35, "pct": 97.14 },
-      "statements": { "covered": 37, "total": 39, "pct": 94.87 },
-      "functions": { "covered": 11, "total": 11, "pct": 100 },
-      "branches": { "covered": 28, "total": 33, "pct": 84.84 }
+      "lines": {
+        "covered": 34,
+        "total": 35,
+        "pct": 97.14
+      },
+      "statements": {
+        "covered": 37,
+        "total": 39,
+        "pct": 94.87
+      },
+      "functions": {
+        "covered": 11,
+        "total": 11,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 28,
+        "total": 33,
+        "pct": 84.84
+      }
     },
     "src/renderer/src/lib/overlayLayout.ts": {
-      "lines": { "covered": 66, "total": 66, "pct": 100 },
-      "statements": { "covered": 71, "total": 71, "pct": 100 },
-      "functions": { "covered": 14, "total": 14, "pct": 100 },
-      "branches": { "covered": 41, "total": 44, "pct": 93.18 }
+      "lines": {
+        "covered": 66,
+        "total": 66,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 71,
+        "total": 71,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 14,
+        "total": 14,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 41,
+        "total": 44,
+        "pct": 93.18
+      }
     },
     "src/renderer/src/lib/overlayTextWrapping.ts": {
-      "lines": { "covered": 110, "total": 110, "pct": 100 },
-      "statements": { "covered": 113, "total": 113, "pct": 100 },
-      "functions": { "covered": 22, "total": 22, "pct": 100 },
-      "branches": { "covered": 53, "total": 61, "pct": 86.88 }
+      "lines": {
+        "covered": 110,
+        "total": 110,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 113,
+        "total": 113,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 22,
+        "total": 22,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 53,
+        "total": 61,
+        "pct": 86.88
+      }
     },
     "src/renderer/src/lib/stageTool.ts": {
-      "lines": { "covered": 4, "total": 4, "pct": 100 },
-      "statements": { "covered": 4, "total": 4, "pct": 100 },
-      "functions": { "covered": 4, "total": 4, "pct": 100 },
-      "branches": { "covered": 16, "total": 16, "pct": 100 }
+      "lines": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 16,
+        "total": 16,
+        "pct": 100
+      }
     },
     "src/renderer/src/lib/transformEditorModel.ts": {
-      "lines": { "covered": 70, "total": 70, "pct": 100 },
-      "statements": { "covered": 72, "total": 74, "pct": 97.29 },
-      "functions": { "covered": 18, "total": 18, "pct": 100 },
-      "branches": { "covered": 44, "total": 55, "pct": 80 }
+      "lines": {
+        "covered": 70,
+        "total": 70,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 72,
+        "total": 74,
+        "pct": 97.29
+      },
+      "functions": {
+        "covered": 18,
+        "total": 18,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 44,
+        "total": 55,
+        "pct": 80
+      }
     },
     "src/renderer/src/lib/workspaceInteractionTypes.ts": {
-      "lines": { "covered": 0, "total": 0, "pct": 100 },
-      "statements": { "covered": 0, "total": 0, "pct": 100 },
-      "functions": { "covered": 0, "total": 0, "pct": 100 },
-      "branches": { "covered": 0, "total": 0, "pct": 100 }
+      "lines": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
     },
     "src/renderer/src/lib/workspaceZoom.ts": {
-      "lines": { "covered": 24, "total": 24, "pct": 100 },
-      "statements": { "covered": 24, "total": 24, "pct": 100 },
-      "functions": { "covered": 6, "total": 6, "pct": 100 },
-      "branches": { "covered": 16, "total": 16, "pct": 100 }
+      "lines": {
+        "covered": 24,
+        "total": 24,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 24,
+        "total": 24,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 16,
+        "total": 16,
+        "pct": 100
+      }
     },
     "src/shared/bboxTranslation.ts": {
-      "lines": { "covered": 9, "total": 10, "pct": 90 },
-      "statements": { "covered": 13, "total": 14, "pct": 92.85 },
-      "functions": { "covered": 7, "total": 7, "pct": 100 },
-      "branches": { "covered": 1, "total": 2, "pct": 50 }
+      "lines": {
+        "covered": 9,
+        "total": 10,
+        "pct": 90
+      },
+      "statements": {
+        "covered": 13,
+        "total": 14,
+        "pct": 92.85
+      },
+      "functions": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 1,
+        "total": 2,
+        "pct": 50
+      }
     },
     "src/shared/blockFormat.ts": {
-      "lines": { "covered": 27, "total": 30, "pct": 90 },
-      "statements": { "covered": 28, "total": 31, "pct": 90.32 },
-      "functions": { "covered": 3, "total": 3, "pct": 100 },
-      "branches": { "covered": 13, "total": 16, "pct": 81.25 }
+      "lines": {
+        "covered": 27,
+        "total": 30,
+        "pct": 90
+      },
+      "statements": {
+        "covered": 28,
+        "total": 31,
+        "pct": 90.32
+      },
+      "functions": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 13,
+        "total": 16,
+        "pct": 81.25
+      }
     },
     "src/shared/blockGeometryValues.ts": {
-      "lines": { "covered": 32, "total": 33, "pct": 96.96 },
-      "statements": { "covered": 32, "total": 33, "pct": 96.96 },
-      "functions": { "covered": 8, "total": 8, "pct": 100 },
-      "branches": { "covered": 22, "total": 25, "pct": 88 }
+      "lines": {
+        "covered": 32,
+        "total": 33,
+        "pct": 96.96
+      },
+      "statements": {
+        "covered": 32,
+        "total": 33,
+        "pct": 96.96
+      },
+      "functions": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 22,
+        "total": 25,
+        "pct": 88
+      }
     },
     "src/shared/blockStylePresetFormat.ts": {
-      "lines": { "covered": 48, "total": 76, "pct": 63.15 },
-      "statements": { "covered": 49, "total": 78, "pct": 62.82 },
-      "functions": { "covered": 37, "total": 65, "pct": 56.92 },
-      "branches": { "covered": 44, "total": 99, "pct": 44.44 }
+      "lines": {
+        "covered": 48,
+        "total": 76,
+        "pct": 63.15
+      },
+      "statements": {
+        "covered": 49,
+        "total": 78,
+        "pct": 62.82
+      },
+      "functions": {
+        "covered": 37,
+        "total": 65,
+        "pct": 56.92
+      },
+      "branches": {
+        "covered": 44,
+        "total": 99,
+        "pct": 44.44
+      }
     },
     "src/shared/blockTransforms.ts": {
-      "lines": { "covered": 0, "total": 0, "pct": 100 },
-      "statements": { "covered": 0, "total": 0, "pct": 100 },
-      "functions": { "covered": 0, "total": 0, "pct": 100 },
-      "branches": { "covered": 0, "total": 0, "pct": 100 }
+      "lines": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
     },
     "src/shared/geometry.ts": {
-      "lines": { "covered": 74, "total": 76, "pct": 97.36 },
-      "statements": { "covered": 75, "total": 77, "pct": 97.4 },
-      "functions": { "covered": 23, "total": 23, "pct": 100 },
-      "branches": { "covered": 49, "total": 57, "pct": 85.96 }
+      "lines": {
+        "covered": 74,
+        "total": 76,
+        "pct": 97.36
+      },
+      "statements": {
+        "covered": 75,
+        "total": 77,
+        "pct": 97.4
+      },
+      "functions": {
+        "covered": 23,
+        "total": 23,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 49,
+        "total": 57,
+        "pct": 85.96
+      }
     },
     "src/shared/ipcEnumSchemas.ts": {
-      "lines": { "covered": 16, "total": 16, "pct": 100 },
-      "statements": { "covered": 16, "total": 16, "pct": 100 },
-      "functions": { "covered": 8, "total": 8, "pct": 100 },
-      "branches": { "covered": 16, "total": 16, "pct": 100 }
+      "lines": {
+        "covered": 16,
+        "total": 16,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 16,
+        "total": 16,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 16,
+        "total": 16,
+        "pct": 100
+      }
     },
     "src/shared/ipcJobSchemas.ts": {
-      "lines": { "covered": 25, "total": 26, "pct": 96.15 },
-      "statements": { "covered": 25, "total": 26, "pct": 96.15 },
-      "functions": { "covered": 2, "total": 3, "pct": 66.66 },
-      "branches": { "covered": 0, "total": 0, "pct": 100 }
+      "lines": {
+        "covered": 25,
+        "total": 26,
+        "pct": 96.15
+      },
+      "statements": {
+        "covered": 25,
+        "total": 26,
+        "pct": 96.15
+      },
+      "functions": {
+        "covered": 2,
+        "total": 3,
+        "pct": 66.66
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
     },
     "src/shared/ipcLibrarySchemas.ts": {
-      "lines": { "covered": 34, "total": 36, "pct": 94.44 },
-      "statements": { "covered": 34, "total": 36, "pct": 94.44 },
-      "functions": { "covered": 3, "total": 5, "pct": 60 },
-      "branches": { "covered": 2, "total": 2, "pct": 100 }
+      "lines": {
+        "covered": 34,
+        "total": 36,
+        "pct": 94.44
+      },
+      "statements": {
+        "covered": 34,
+        "total": 36,
+        "pct": 94.44
+      },
+      "functions": {
+        "covered": 3,
+        "total": 5,
+        "pct": 60
+      },
+      "branches": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      }
     },
     "src/shared/ipcSchemaPrimitives.ts": {
-      "lines": { "covered": 85, "total": 89, "pct": 95.5 },
-      "statements": { "covered": 86, "total": 90, "pct": 95.55 },
-      "functions": { "covered": 20, "total": 20, "pct": 100 },
-      "branches": { "covered": 52, "total": 57, "pct": 91.22 }
+      "lines": {
+        "covered": 85,
+        "total": 89,
+        "pct": 95.5
+      },
+      "statements": {
+        "covered": 86,
+        "total": 90,
+        "pct": 95.55
+      },
+      "functions": {
+        "covered": 20,
+        "total": 20,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 52,
+        "total": 57,
+        "pct": 91.22
+      }
     },
     "src/shared/ipcSettingsSchemas.ts": {
-      "lines": { "covered": 9, "total": 9, "pct": 100 },
-      "statements": { "covered": 11, "total": 11, "pct": 100 },
-      "functions": { "covered": 5, "total": 5, "pct": 100 },
-      "branches": { "covered": 0, "total": 0, "pct": 100 }
+      "lines": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 11,
+        "total": 11,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
     },
     "src/shared/jobContracts.ts": {
-      "lines": { "covered": 10, "total": 10, "pct": 100 },
-      "statements": { "covered": 10, "total": 10, "pct": 100 },
-      "functions": { "covered": 1, "total": 1, "pct": 100 },
-      "branches": { "covered": 0, "total": 0, "pct": 100 }
+      "lines": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
     },
     "src/shared/panelBridgeSchemas.ts": {
-      "lines": { "covered": 7, "total": 7, "pct": 100 },
-      "statements": { "covered": 7, "total": 7, "pct": 100 },
-      "functions": { "covered": 0, "total": 0, "pct": 100 },
-      "branches": { "covered": 0, "total": 0, "pct": 100 }
+      "lines": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
     },
     "src/shared/panelBridgeTypes.ts": {
-      "lines": { "covered": 0, "total": 0, "pct": 100 },
-      "statements": { "covered": 0, "total": 0, "pct": 100 },
-      "functions": { "covered": 0, "total": 0, "pct": 100 },
-      "branches": { "covered": 0, "total": 0, "pct": 100 }
+      "lines": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
     },
     "src/shared/perspectiveTransformMath.ts": {
-      "lines": { "covered": 85, "total": 91, "pct": 93.4 },
-      "statements": { "covered": 95, "total": 106, "pct": 89.62 },
-      "functions": { "covered": 28, "total": 30, "pct": 93.33 },
-      "branches": { "covered": 67, "total": 88, "pct": 76.13 }
+      "lines": {
+        "covered": 85,
+        "total": 91,
+        "pct": 93.4
+      },
+      "statements": {
+        "covered": 95,
+        "total": 106,
+        "pct": 89.62
+      },
+      "functions": {
+        "covered": 28,
+        "total": 30,
+        "pct": 93.33
+      },
+      "branches": {
+        "covered": 67,
+        "total": 88,
+        "pct": 76.13
+      }
     },
     "src/shared/settingsTypes.ts": {
-      "lines": { "covered": 0, "total": 0, "pct": 100 },
-      "statements": { "covered": 0, "total": 0, "pct": 100 },
-      "functions": { "covered": 0, "total": 0, "pct": 100 },
-      "branches": { "covered": 0, "total": 0, "pct": 100 }
+      "lines": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
     },
     "src/shared/textOutline.ts": {
-      "lines": { "covered": 40, "total": 40, "pct": 100 },
-      "statements": { "covered": 41, "total": 42, "pct": 97.61 },
-      "functions": { "covered": 12, "total": 12, "pct": 100 },
-      "branches": { "covered": 22, "total": 28, "pct": 78.57 }
+      "lines": {
+        "covered": 40,
+        "total": 40,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 41,
+        "total": 42,
+        "pct": 97.61
+      },
+      "functions": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 22,
+        "total": 28,
+        "pct": 78.57
+      }
     },
     "src/shared/textTypes.ts": {
-      "lines": { "covered": 0, "total": 0, "pct": 100 },
-      "statements": { "covered": 0, "total": 0, "pct": 100 },
-      "functions": { "covered": 0, "total": 0, "pct": 100 },
-      "branches": { "covered": 0, "total": 0, "pct": 100 }
+      "lines": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
     }
   },
   "introducedFloors": {
+    "src/main/inpainting/fluxAssets/hipSdk.ts": {
+      "lines": {
+        "covered": 97,
+        "total": 101,
+        "pct": 96.03
+      },
+      "statements": {
+        "covered": 107,
+        "total": 114,
+        "pct": 93.85
+      },
+      "functions": {
+        "covered": 26,
+        "total": 26,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 51,
+        "total": 66,
+        "pct": 77.27
+      }
+    },
     "src/main/pipeline/automaticFontMatchingV2PageConsistencyMorphology.ts": {
-      "lines": { "covered": 8, "total": 8, "pct": 100 },
-      "statements": { "covered": 9, "total": 9, "pct": 100 },
-      "functions": { "covered": 7, "total": 7, "pct": 100 },
-      "branches": { "covered": 5, "total": 8, "pct": 62.5 }
+      "lines": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 5,
+        "total": 8,
+        "pct": 62.5
+      }
     },
     "src/main/runtime/semantic-ocr/box-geometry.cjs": {
-      "lines": { "covered": 20, "total": 20, "pct": 100 },
-      "statements": { "covered": 20, "total": 20, "pct": 100 },
-      "functions": { "covered": 12, "total": 12, "pct": 100 },
-      "branches": { "covered": 0, "total": 0, "pct": 100 }
+      "lines": {
+        "covered": 20,
+        "total": 20,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 20,
+        "total": 20,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
     },
     "src/main/runtime/transport/download-contract.cjs": {
-      "lines": { "covered": 49, "total": 49, "pct": 100 },
-      "statements": { "covered": 51, "total": 51, "pct": 100 },
-      "functions": { "covered": 12, "total": 12, "pct": 100 },
-      "branches": { "covered": 53, "total": 53, "pct": 100 }
+      "lines": {
+        "covered": 49,
+        "total": 49,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 51,
+        "total": 51,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 53,
+        "total": 53,
+        "pct": 100
+      }
+    },
+    "src/main/settings/fluxZludaSupport.ts": {
+      "lines": {
+        "covered": 23,
+        "total": 24,
+        "pct": 95.83
+      },
+      "statements": {
+        "covered": 30,
+        "total": 32,
+        "pct": 93.75
+      },
+      "functions": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 25,
+        "total": 29,
+        "pct": 86.2
+      }
     },
     "src/main/settings/ocrRuntimeOverrides.ts": {
-      "lines": { "covered": 9, "total": 9, "pct": 100 },
-      "statements": { "covered": 11, "total": 11, "pct": 100 },
-      "functions": { "covered": 4, "total": 4, "pct": 100 },
-      "branches": { "covered": 14, "total": 14, "pct": 100 }
+      "lines": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 11,
+        "total": 11,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 14,
+        "total": 14,
+        "pct": 100
+      }
     },
     "src/main/settingsPairCodec.ts": {
-      "lines": { "covered": 12, "total": 12, "pct": 100 },
-      "statements": { "covered": 12, "total": 12, "pct": 100 },
-      "functions": { "covered": 5, "total": 5, "pct": 100 },
-      "branches": { "covered": 7, "total": 7, "pct": 100 }
+      "lines": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      }
     },
     "src/renderer/src/components/VerticalTextSpacing.tsx": {
-      "lines": { "covered": 3, "total": 3, "pct": 100 },
-      "statements": { "covered": 4, "total": 4, "pct": 100 },
-      "functions": { "covered": 2, "total": 2, "pct": 100 },
-      "branches": { "covered": 4, "total": 4, "pct": 100 }
+      "lines": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      }
     },
     "src/renderer/src/components/WarpEditorControls.tsx": {
-      "lines": { "covered": 38, "total": 43, "pct": 88.37 },
-      "statements": { "covered": 39, "total": 47, "pct": 82.97 },
-      "functions": { "covered": 18, "total": 22, "pct": 81.81 },
-      "branches": { "covered": 17, "total": 24, "pct": 70.83 }
+      "lines": {
+        "covered": 38,
+        "total": 43,
+        "pct": 88.37
+      },
+      "statements": {
+        "covered": 39,
+        "total": 47,
+        "pct": 82.97
+      },
+      "functions": {
+        "covered": 18,
+        "total": 22,
+        "pct": 81.81
+      },
+      "branches": {
+        "covered": 17,
+        "total": 24,
+        "pct": 70.83
+      }
     },
     "src/renderer/src/components/WarpOverlayControls.tsx": {
-      "lines": { "covered": 39, "total": 77, "pct": 50.64 },
-      "statements": { "covered": 41, "total": 85, "pct": 48.23 },
-      "functions": { "covered": 16, "total": 31, "pct": 51.61 },
-      "branches": { "covered": 15, "total": 42, "pct": 35.71 }
+      "lines": {
+        "covered": 39,
+        "total": 77,
+        "pct": 50.64
+      },
+      "statements": {
+        "covered": 41,
+        "total": 85,
+        "pct": 48.23
+      },
+      "functions": {
+        "covered": 16,
+        "total": 31,
+        "pct": 51.61
+      },
+      "branches": {
+        "covered": 15,
+        "total": 42,
+        "pct": 35.71
+      }
     },
     "src/renderer/src/components/WarpedTextContent.tsx": {
-      "lines": { "covered": 7, "total": 7, "pct": 100 },
-      "statements": { "covered": 9, "total": 9, "pct": 100 },
-      "functions": { "covered": 3, "total": 3, "pct": 100 },
-      "branches": { "covered": 3, "total": 3, "pct": 100 }
+      "lines": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      }
     },
     "src/renderer/src/components/blockFormat/BlockTypographyPrimitives.tsx": {
-      "lines": { "covered": 15, "total": 15, "pct": 100 },
-      "statements": { "covered": 15, "total": 15, "pct": 100 },
-      "functions": { "covered": 11, "total": 11, "pct": 100 },
-      "branches": { "covered": 41, "total": 42, "pct": 97.61 }
+      "lines": {
+        "covered": 15,
+        "total": 15,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 15,
+        "total": 15,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 11,
+        "total": 11,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 41,
+        "total": 42,
+        "pct": 97.61
+      }
+    },
+    "src/renderer/src/components/settingsModal/LlamaRuntimeCompatibilityWarning.tsx": {
+      "lines": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      }
+    },
+    "src/renderer/src/components/settingsModal/llamaRuntimeCompatibility.ts": {
+      "lines": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 14,
+        "total": 14,
+        "pct": 100
+      }
     },
     "src/renderer/src/components/styleGuide/contextEntryActions.ts": {
-      "lines": { "covered": 11, "total": 11, "pct": 100 },
-      "statements": { "covered": 15, "total": 15, "pct": 100 },
-      "functions": { "covered": 8, "total": 8, "pct": 100 },
-      "branches": { "covered": 4, "total": 4, "pct": 100 }
+      "lines": {
+        "covered": 11,
+        "total": 11,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 15,
+        "total": 15,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      }
     },
     "src/renderer/src/components/ui/ScrubbableNumberField.tsx": {
-      "lines": { "covered": 49, "total": 54, "pct": 90.74 },
-      "statements": { "covered": 52, "total": 60, "pct": 86.66 },
-      "functions": { "covered": 11, "total": 13, "pct": 84.61 },
-      "branches": { "covered": 38, "total": 47, "pct": 80.85 }
+      "lines": {
+        "covered": 49,
+        "total": 54,
+        "pct": 90.74
+      },
+      "statements": {
+        "covered": 52,
+        "total": 60,
+        "pct": 86.66
+      },
+      "functions": {
+        "covered": 11,
+        "total": 13,
+        "pct": 84.61
+      },
+      "branches": {
+        "covered": 38,
+        "total": 47,
+        "pct": 80.85
+      }
     },
     "src/renderer/src/hooks/workspaceWarpPointerGeometry.ts": {
-      "lines": { "covered": 25, "total": 25, "pct": 100 },
-      "statements": { "covered": 26, "total": 28, "pct": 92.85 },
-      "functions": { "covered": 9, "total": 9, "pct": 100 },
-      "branches": { "covered": 10, "total": 13, "pct": 76.92 }
+      "lines": {
+        "covered": 25,
+        "total": 25,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 26,
+        "total": 28,
+        "pct": 92.85
+      },
+      "functions": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 10,
+        "total": 13,
+        "pct": 76.92
+      }
     },
     "src/renderer/src/lib/verticalTextSpacing.ts": {
-      "lines": { "covered": 24, "total": 24, "pct": 100 },
-      "statements": { "covered": 24, "total": 25, "pct": 96 },
-      "functions": { "covered": 4, "total": 4, "pct": 100 },
-      "branches": { "covered": 9, "total": 10, "pct": 90 }
+      "lines": {
+        "covered": 24,
+        "total": 24,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 24,
+        "total": 25,
+        "pct": 96
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 9,
+        "total": 10,
+        "pct": 90
+      }
     },
     "src/renderer/src/lib/warpDisplacementMap.ts": {
-      "lines": { "covered": 83, "total": 112, "pct": 74.1 },
-      "statements": { "covered": 88, "total": 124, "pct": 70.96 },
-      "functions": { "covered": 11, "total": 19, "pct": 57.89 },
-      "branches": { "covered": 24, "total": 47, "pct": 51.06 }
+      "lines": {
+        "covered": 83,
+        "total": 112,
+        "pct": 74.1
+      },
+      "statements": {
+        "covered": 88,
+        "total": 124,
+        "pct": 70.96
+      },
+      "functions": {
+        "covered": 11,
+        "total": 19,
+        "pct": 57.89
+      },
+      "branches": {
+        "covered": 24,
+        "total": 47,
+        "pct": 51.06
+      }
     },
     "src/renderer/src/lib/warpOverlayGeometry.ts": {
-      "lines": { "covered": 26, "total": 33, "pct": 78.78 },
-      "statements": { "covered": 32, "total": 42, "pct": 76.19 },
-      "functions": { "covered": 15, "total": 15, "pct": 100 },
-      "branches": { "covered": 7, "total": 14, "pct": 50 }
+      "lines": {
+        "covered": 26,
+        "total": 33,
+        "pct": 78.78
+      },
+      "statements": {
+        "covered": 32,
+        "total": 42,
+        "pct": 76.19
+      },
+      "functions": {
+        "covered": 15,
+        "total": 15,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 7,
+        "total": 14,
+        "pct": 50
+      }
     },
     "src/renderer/src/lib/warpPointSelection.ts": {
-      "lines": { "covered": 30, "total": 32, "pct": 93.75 },
-      "statements": { "covered": 34, "total": 37, "pct": 91.89 },
-      "functions": { "covered": 13, "total": 14, "pct": 92.85 },
-      "branches": { "covered": 15, "total": 19, "pct": 78.94 }
+      "lines": {
+        "covered": 30,
+        "total": 32,
+        "pct": 93.75
+      },
+      "statements": {
+        "covered": 34,
+        "total": 37,
+        "pct": 91.89
+      },
+      "functions": {
+        "covered": 13,
+        "total": 14,
+        "pct": 92.85
+      },
+      "branches": {
+        "covered": 15,
+        "total": 19,
+        "pct": 78.94
+      }
     },
     "src/shared/blockFormatValueSchemas.ts": {
-      "lines": { "covered": 5, "total": 5, "pct": 100 },
-      "statements": { "covered": 5, "total": 5, "pct": 100 },
-      "functions": { "covered": 0, "total": 0, "pct": 100 },
-      "branches": { "covered": 0, "total": 0, "pct": 100 }
+      "lines": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
     },
     "src/shared/blockFormatValues.ts": {
-      "lines": { "covered": 26, "total": 26, "pct": 100 },
-      "statements": { "covered": 26, "total": 26, "pct": 100 },
-      "functions": { "covered": 7, "total": 7, "pct": 100 },
-      "branches": { "covered": 6, "total": 8, "pct": 75 }
+      "lines": {
+        "covered": 26,
+        "total": 26,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 26,
+        "total": 26,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 6,
+        "total": 8,
+        "pct": 75
+      }
     },
     "src/shared/editableRenderGeometry.ts": {
-      "lines": { "covered": 30, "total": 30, "pct": 100 },
-      "statements": { "covered": 33, "total": 33, "pct": 100 },
-      "functions": { "covered": 9, "total": 9, "pct": 100 },
-      "branches": { "covered": 14, "total": 14, "pct": 100 }
+      "lines": {
+        "covered": 30,
+        "total": 30,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 33,
+        "total": 33,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 14,
+        "total": 14,
+        "pct": 100
+      }
     },
     "src/shared/readableTextBox.ts": {
-      "lines": { "covered": 24, "total": 24, "pct": 100 },
-      "statements": { "covered": 26, "total": 26, "pct": 100 },
-      "functions": { "covered": 2, "total": 2, "pct": 100 },
-      "branches": { "covered": 10, "total": 10, "pct": 100 }
+      "lines": {
+        "covered": 24,
+        "total": 24,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 26,
+        "total": 26,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      }
     },
     "src/shared/renderBbox.ts": {
-      "lines": { "covered": 7, "total": 7, "pct": 100 },
-      "statements": { "covered": 7, "total": 8, "pct": 87.5 },
-      "functions": { "covered": 2, "total": 2, "pct": 100 },
-      "branches": { "covered": 1, "total": 2, "pct": 50 }
+      "lines": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 7,
+        "total": 8,
+        "pct": 87.5
+      },
+      "functions": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 1,
+        "total": 2,
+        "pct": 50
+      }
     },
     "src/shared/renderBboxSchema.ts": {
-      "lines": { "covered": 1, "total": 1, "pct": 100 },
-      "statements": { "covered": 1, "total": 1, "pct": 100 },
-      "functions": { "covered": 0, "total": 0, "pct": 100 },
-      "branches": { "covered": 0, "total": 0, "pct": 100 }
+      "lines": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
     },
     "src/shared/settingsAliasCanonicalizers.ts": {
-      "lines": { "covered": 44, "total": 44, "pct": 100 },
-      "statements": { "covered": 50, "total": 50, "pct": 100 },
-      "functions": { "covered": 14, "total": 14, "pct": 100 },
-      "branches": { "covered": 46, "total": 46, "pct": 100 }
+      "lines": {
+        "covered": 44,
+        "total": 44,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 50,
+        "total": 50,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 14,
+        "total": 14,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 46,
+        "total": 46,
+        "pct": 100
+      }
     },
     "src/shared/thinPlateSpline.ts": {
-      "lines": { "covered": 69, "total": 72, "pct": 95.83 },
-      "statements": { "covered": 85, "total": 88, "pct": 96.59 },
-      "functions": { "covered": 17, "total": 17, "pct": 100 },
-      "branches": { "covered": 20, "total": 23, "pct": 86.95 }
+      "lines": {
+        "covered": 69,
+        "total": 72,
+        "pct": 95.83
+      },
+      "statements": {
+        "covered": 85,
+        "total": 88,
+        "pct": 96.59
+      },
+      "functions": {
+        "covered": 17,
+        "total": 17,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 20,
+        "total": 23,
+        "pct": 86.95
+      }
     },
     "src/shared/warpTransformMath.ts": {
-      "lines": { "covered": 85, "total": 95, "pct": 89.47 },
-      "statements": { "covered": 90, "total": 102, "pct": 88.23 },
-      "functions": { "covered": 24, "total": 26, "pct": 92.3 },
-      "branches": { "covered": 53, "total": 64, "pct": 82.81 }
+      "lines": {
+        "covered": 85,
+        "total": 95,
+        "pct": 89.47
+      },
+      "statements": {
+        "covered": 90,
+        "total": 102,
+        "pct": 88.23
+      },
+      "functions": {
+        "covered": 24,
+        "total": 26,
+        "pct": 92.3
+      },
+      "branches": {
+        "covered": 53,
+        "total": 64,
+        "pct": 82.81
+      }
     },
     "src/shared/warpTransformSchema.ts": {
-      "lines": { "covered": 6, "total": 7, "pct": 85.71 },
-      "statements": { "covered": 6, "total": 7, "pct": 85.71 },
-      "functions": { "covered": 1, "total": 1, "pct": 100 },
-      "branches": { "covered": 3, "total": 4, "pct": 75 }
+      "lines": {
+        "covered": 6,
+        "total": 7,
+        "pct": 85.71
+      },
+      "statements": {
+        "covered": 6,
+        "total": 7,
+        "pct": 85.71
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 3,
+        "total": 4,
+        "pct": 75
+      }
     }
   },
   "deletedFiles": [

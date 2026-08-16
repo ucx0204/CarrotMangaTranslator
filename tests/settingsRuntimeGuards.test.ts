@@ -3,13 +3,16 @@ import {
   isFluxBackendIncompatible,
   resolveCompatibleFluxBackend,
   resolveCompatibleOcrSettings,
+  resolveNvidiaFeatureFlags,
 } from "../src/renderer/src/components/settingsModal/useSettingsRuntimeGuards";
 
 const baseRuntime = {
   usesAmdHardware: false,
   usesAppleHardware: false,
   usesNvidiaHardware: true,
+  usesRtx50Hardware: false,
   usesSm75Hardware: false,
+  supportsFluxZluda: undefined,
   supportsOcrRocm: undefined,
   unifiedMemoryMb: null,
   usesAmdOcrContext: false,
@@ -17,6 +20,13 @@ const baseRuntime = {
 };
 
 describe("Flux settings runtime guards", () => {
+  it("keeps NVIDIA-only feature flags off on other hardware", () => {
+    expect(resolveNvidiaFeatureFlags(false, undefined)).toEqual({
+      usesRtx50Hardware: false,
+      usesSm75Hardware: false,
+    });
+  });
+
   it("enables only SM75 CUDA on detected SM75 NVIDIA hardware", () => {
     const runtime = { ...baseRuntime, usesSm75Hardware: true };
 

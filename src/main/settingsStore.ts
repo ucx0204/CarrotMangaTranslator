@@ -9,6 +9,7 @@ import {
 } from "./appSettings";
 import { CURRENT_GENERATION_LIMITS_VERSION } from "./settings/appSettingsGenerationLimitMigration";
 import { supportsWindowsRocmOcrGpu } from "./settings/ocrRocmSupport";
+import { resolveWindowsHipSdkGpuSupport } from "./settings/fluxZludaSupport";
 import { hasExplicitOcrGpuEnableOverride } from "./settings/ocrRuntimeOverrides";
 import {
   detectBestGpuInfo,
@@ -231,7 +232,11 @@ function createDetectedRuntimeHardware(
     rtxGeneration: resolveRuntimeRtxGeneration(detectedGpu),
     llamaRocmTarget: resolveAmdRocmTargetFromInfo(detectedGpu),
     ...(detectedGpu.vendor === "amd"
-      ? { supportsOcrRocm: supportsWindowsRocmOcrGpu(detectedGpu) }
+      ? {
+          supportsOcrRocm: supportsWindowsRocmOcrGpu(detectedGpu),
+          supportsFluxZluda:
+            resolveWindowsHipSdkGpuSupport(detectedGpu),
+        }
       : {}),
     supportsRocm: Boolean(detectedGpu.supportsRocm),
     supportsVulkan: Boolean(detectedGpu.supportsVulkan),

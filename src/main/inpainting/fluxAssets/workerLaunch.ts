@@ -1,5 +1,5 @@
 import { mkdir } from "node:fs/promises";
-import { basename, dirname, join } from "node:path";
+import { basename, delimiter, dirname, join } from "node:path";
 import type {
   FluxWorkerBackend,
   FluxWorkerLaunchSpec,
@@ -11,6 +11,7 @@ import { ensureFluxCudaRuntime } from "./cudaRuntime";
 import { ensureManagedFluxRunner } from "./runner";
 import { ensureFluxZludaSupportRuntime } from "./zludaRuntime";
 import { ensureFluxPythonRuntime } from "./pythonRuntime";
+import { discoverWindowsHipSdk, formatWindowsHipSdkProbeError } from "./hipSdk";
 
 type EnsureFluxWorkerLaunchOptions = {
   runtimeDir: string;
@@ -68,40 +69,7 @@ export async function ensureFluxWorkerLaunch(
     };
   }
   if (backend === "zluda-native") {
-    await mkdir(options.runtimeDir, { recursive: true });
-    const runtimePath = await ensureManagedFluxRunner(options);
-    const cudaRuntimeDir = await ensureFluxZludaSupportRuntime(options);
-    const zludaRuntimeRoot = join(options.runtimeDir, "koharu-zluda");
-    options.onProgress?.({
-      progressText: "Flux ZLUDA 런타임 준비 중",
-      detail: "Koharu/Candle ZLUDA",
-      progressMode: "log-only",
-      installLogLine:
-        "AMD GPU에서는 NVIDIA와 같은 Flux Klein 실행기를 ZLUDA/HIP 경로로 실행하고, 필요한 CUDA 보조 DLL만 함께 준비합니다.",
-    });
-    logFluxRuntimeSelected({
-      backend,
-      nvidiaComputeCapability: options.nvidiaComputeCapability,
-      runtimePath,
-      cudaRuntimeDir,
-      zludaRuntimeRoot,
-    });
-    return {
-      backend,
-      executable: runtimePath,
-      runtimePath,
-      label: "Flux Klein ZLUDA",
-      args: [
-        "--require-zluda",
-        "--zluda-runtime-root",
-        zludaRuntimeRoot,
-        "--cuda-runtime-dir",
-        cudaRuntimeDir,
-      ],
-      env: {
-        KOHARU_DATA_ROOT: zludaRuntimeRoot,
-      },
-    };
+    return ensureFluxZludaWorkerLaunch(options);
   }
   if (backend === "python-rocm" || backend === "python-cpu") {
     const launch = await ensureFluxPythonRuntime({ ...options, backend });
@@ -114,6 +82,59 @@ export async function ensureFluxWorkerLaunch(
     return launch;
   }
   throw new Error(`지원하지 않는 Flux 런타임입니다: ${backend}`);
+}
+
+async function ensureFluxZludaWorkerLaunch(
+  options: EnsureFluxWorkerLaunchOptions,
+): Promise<FluxWorkerLaunchSpec> {
+  const hipSdkProbe = await discoverWindowsHipSdk();
+  if (!hipSdkProbe.sdk) throw formatWindowsHipSdkProbeError(hipSdkProbe);
+  const hipSdk = hipSdkProbe.sdk;
+  await mkdir(options.runtimeDir, { recursive: true });
+  const runtimePath = await ensureManagedFluxRunner(options);
+  const cudaRuntimeDir = await ensureFluxZludaSupportRuntime(options);
+  const zludaRuntimeRoot = join(options.runtimeDir, "koharu-zluda");
+  options.onProgress?.({
+    progressText: "Flux ZLUDA 런타임 준비 중",
+    detail: "Koharu/Candle ZLUDA",
+    progressMode: "log-only",
+    installLogLine:
+      "AMD GPU에서는 NVIDIA와 같은 Flux Klein 실행기를 ZLUDA/HIP 경로로 실행하고, 필요한 CUDA 보조 DLL만 함께 준비합니다.",
+  });
+  options.onProgress?.({
+    progressText: "AMD HIP SDK 확인 완료",
+    detail: hipSdk.version
+      ? `ROCm ${hipSdk.version} · ${hipSdk.rootDir}`
+      : hipSdk.rootDir,
+    progressMode: "log-only",
+    installLogLine: `AMD HIP SDK를 확인했습니다 (${hipSdk.source}): ${hipSdk.runtimeDllPath}`,
+  });
+  logFluxRuntimeSelected({
+    backend: "zluda-native",
+    nvidiaComputeCapability: options.nvidiaComputeCapability,
+    runtimePath,
+    cudaRuntimeDir,
+    zludaRuntimeRoot,
+  });
+  return {
+    backend: "zluda-native",
+    executable: runtimePath,
+    runtimePath,
+    label: "Flux Klein ZLUDA",
+    args: [
+      "--require-zluda",
+      "--zluda-runtime-root",
+      zludaRuntimeRoot,
+      "--cuda-runtime-dir",
+      cudaRuntimeDir,
+    ],
+    env: {
+      HIP_PATH: hipSdk.rootDir,
+      KOHARU_DATA_ROOT: zludaRuntimeRoot,
+      PATH: [hipSdk.binDir, process.env.PATH].filter(Boolean).join(delimiter),
+      ROCM_PATH: hipSdk.rootDir,
+    },
+  };
 }
 
 async function ensureFluxMetalWorkerLaunch(

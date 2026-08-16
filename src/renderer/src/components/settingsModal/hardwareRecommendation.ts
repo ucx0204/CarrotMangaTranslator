@@ -16,6 +16,7 @@ export type HardwareRecommendationInput = {
   usesNvidiaHardware: boolean;
   usesSm75Hardware?: boolean;
   supportsOcrRocm?: boolean;
+  supportsFluxZluda?: boolean;
 };
 
 export type HardwareRecommendation = {
@@ -52,7 +53,7 @@ export function resolveHardwareRecommendation(
     const recommendation = createGpuRecommendation(
       props,
       "rocm-transformers",
-      "zluda-native",
+      props.supportsFluxZluda === false ? "python-cpu" : "zluda-native",
     );
     return props.supportsOcrRocm === true
       ? recommendation

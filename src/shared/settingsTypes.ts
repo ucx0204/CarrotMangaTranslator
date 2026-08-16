@@ -67,6 +67,8 @@ type RuntimeHardwareInfo = {
   llamaRocmTarget?: AmdRocmTarget | null;
   /** Whether the detected AMD adapter is supported by the packaged ROCm OCR runtime. */
   supportsOcrRocm?: boolean;
+  /** Whether AMD officially supports the adapter in the current Windows HIP SDK. */
+  supportsFluxZluda?: boolean;
   supportsRocm?: boolean;
   supportsVulkan?: boolean;
   supportsMetal?: boolean;

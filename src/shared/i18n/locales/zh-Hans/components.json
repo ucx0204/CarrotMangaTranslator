@@ -1389,7 +1389,10 @@
         "label": "llama.cpp运行时",
         "appleNote": "Apple Silicon仅显示Metal运行时。",
         "amdNote": "AMD GPU建议使用ROCm运行时。",
-        "nvidiaNote": "NVIDIA GPU建议使用CUDA运行时。"
+        "nvidiaNote": "NVIDIA GPU建议使用CUDA运行时。",
+        "mismatchTitle": "运行时与检测到的GPU不匹配",
+        "rtx50UsingCuda12Warning": "{{gpu}}属于RTX 50系列。建议使用RTX 50运行时而不是CUDA 12。",
+        "nonRtx50UsingRtx50Warning": "{{gpu}}不属于RTX 50系列。RTX 50运行时可能无法启动，建议使用CUDA 12。"
       },
       "memory": {
         "summary": "统一内存{{available}} · 建议{{required}} · 首次下载约{{download}}",
@@ -1508,7 +1511,10 @@
       "fluxLowMemoryOverride": "允许在{{available}}统一内存下风险运行Flux",
       "sm75FluxWarningTitle": "仅限 RTX 20 系列",
       "sm75FluxWarningDetail": "其行为或结果可能与标准 NVIDIA CUDA 略有不同。",
-      "downloadHipSdk": "下载AMD HIP SDK（ROCm 7.1.1）"
+      "fluxAmdUnsupportedTitle": "AMD官方未支持的GPU",
+      "fluxAmdUnsupportedDetail": "{{gpu}}不在AMD当前Windows HIP SDK官方支持列表中。仍可实验性选择ZLUDA，但运行时可能失败。",
+      "fluxAmdUseCpu": "切换到CPU后端",
+      "downloadHipSdk": "下载AMD HIP SDK"
     },
     "format": {
       "alignment": {

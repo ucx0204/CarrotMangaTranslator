@@ -1420,7 +1420,10 @@
         "label": "llama.cppランタイム",
         "appleNote": "Apple SiliconではMetalランタイムのみ表示されます。",
         "amdNote": "AMD GPUではROCmランタイムを推奨します。",
-        "nvidiaNote": "NVIDIA GPUではCUDAランタイムを推奨します。"
+        "nvidiaNote": "NVIDIA GPUではCUDAランタイムを推奨します。",
+        "mismatchTitle": "検出されたGPUとランタイムが一致しません",
+        "rtx50UsingCuda12Warning": "{{gpu}}はRTX 50シリーズです。CUDA 12ではなくRTX 50ランタイムを推奨します。",
+        "nonRtx50UsingRtx50Warning": "{{gpu}}はRTX 50シリーズではありません。RTX 50ランタイムが起動しない可能性があるため、CUDA 12を推奨します。"
       },
       "memory": {
         "summary": "ユニファイドメモリ {{available}}・推奨 {{required}}・初回ダウンロード約 {{download}}",
@@ -1539,7 +1542,10 @@
       "fluxLowMemoryOverride": "ユニファイドメモリ{{available}}で危険なFlux実行を許可",
       "sm75FluxWarningTitle": "RTX 20シリーズ専用",
       "sm75FluxWarningDetail": "通常のNVIDIA CUDAとは動作や結果が少し異なる場合があります。",
-      "downloadHipSdk": "AMD HIP SDKをダウンロード（ROCm 7.1.1）"
+      "fluxAmdUnsupportedTitle": "AMDの公式サポート対象外GPU",
+      "fluxAmdUnsupportedDetail": "{{gpu}}は現在のWindows HIP SDK公式サポート一覧に含まれていません。ZLUDAを実験的に選択できますが、実行時エラーが発生する可能性があります。",
+      "fluxAmdUseCpu": "CPUバックエンドに切り替える",
+      "downloadHipSdk": "AMD HIP SDKをダウンロード"
     },
     "format": {
       "alignment": {

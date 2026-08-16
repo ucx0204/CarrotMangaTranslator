@@ -80,11 +80,12 @@ editing the totals by hand.
   ignored Node 22 baseline capture. The capture is provenance only; CI does not
   need it. Node 22/V8 12.4 and Node 24/V8 13.6 are the only accepted runtime
   families. The review-04 outline-control capture on Node 24/V8 13.6 extended
-  the sealed scope; its ignored artifact has SHA-256
-  `fa34ac98e47d3e3848b1309ebddfb63f33d6e2ee1661da30788ca592484fe0bc`.
+  the sealed scope. The v1.16.1 GPU compatibility pass extended that ignored
+  Node 24 artifact to SHA-256
+  `9c7981098e59af22ac4129fab3875684256dd4ac95c9c556f678faabdb687272`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
-  percentage for lines/statements/functions/branches in all 161 existing
-  coverage-eligible `src/**` files changed since cleanup start. The 27 new
+  percentage for lines/statements/functions/branches in all 166 existing
+  coverage-eligible `src/**` files changed since cleanup start. The 31 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record. The
   three removed source files are recorded explicitly in `deletedFiles`.

@@ -27,6 +27,7 @@ export type EngineSettingsPanelProps = {
   codexReasoningEffort: CodexReasoningEffort;
   contextTokens: string;
   controlsBusy: boolean;
+  detectedGpuName?: string | null;
   customModelFile: string;
   customModelRepo: string;
   isLlamaRuntimeOptionDisabled: (profile: LlamaRuntimeProfile) => boolean;
@@ -83,4 +84,5 @@ export type EngineSettingsPanelProps = {
   usesAmdHardware: boolean;
   usesAppleHardware: boolean;
   usesNvidiaHardware: boolean;
+  usesRtx50Hardware: boolean;
 };

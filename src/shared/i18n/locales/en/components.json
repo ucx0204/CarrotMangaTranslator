@@ -1429,7 +1429,10 @@
         "label": "llama.cpp runtime",
         "appleNote": "Only the Metal runtime is shown on Apple Silicon.",
         "amdNote": "The ROCm runtime is recommended for AMD GPUs.",
-        "nvidiaNote": "The CUDA runtime is recommended for NVIDIA GPUs."
+        "nvidiaNote": "The CUDA runtime is recommended for NVIDIA GPUs.",
+        "mismatchTitle": "Runtime does not match the detected GPU",
+        "rtx50UsingCuda12Warning": "{{gpu}} is an RTX 50-series GPU. The RTX 50 runtime is recommended instead of CUDA 12.",
+        "nonRtx50UsingRtx50Warning": "{{gpu}} is not an RTX 50-series GPU. The RTX 50 runtime may not start, so CUDA 12 is recommended."
       },
       "memory": {
         "summary": "Unified memory {{available}} · recommended {{required}} · first download about {{download}}",
@@ -1551,7 +1554,10 @@
       "fluxLowMemoryOverride": "Allow risky Flux runs with {{available}} unified memory",
       "sm75FluxWarningTitle": "RTX 20-series only",
       "sm75FluxWarningDetail": "Behavior or output may differ slightly from the standard NVIDIA CUDA backend.",
-      "downloadHipSdk": "Download AMD HIP SDK (ROCm 7.1.1)"
+      "fluxAmdUnsupportedTitle": "AMD GPU not officially supported",
+      "fluxAmdUnsupportedDetail": "{{gpu}} is not listed in AMD's current Windows HIP SDK support matrix. You can still try ZLUDA experimentally, but it may fail at runtime.",
+      "fluxAmdUseCpu": "Switch to CPU backend",
+      "downloadHipSdk": "Download AMD HIP SDK"
     },
     "format": {
       "alignment": {

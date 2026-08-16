@@ -21,6 +21,7 @@ import {
 } from "../gpuInfo";
 import { resolveHardwareLlamaRuntimeProfile } from "./llamaRuntimeProfile";
 import { supportsWindowsRocmOcrGpu } from "./ocrRocmSupport";
+import { resolveWindowsHipSdkGpuSupport } from "./fluxZludaSupport";
 
 const GEMMA_MINIMUM_VRAM_MB = 8000;
 const GEMMA_ECONOMY_VRAM_MB = 16000;
@@ -240,7 +241,9 @@ function resolveHardwareFluxBackend(info: DetectedGpuInfo | null): FluxBackend {
       ? "cuda-sm75-experimental"
       : "cuda-native";
   }
-  return "zluda-native";
+  return resolveWindowsHipSdkGpuSupport(info) === false
+    ? "python-cpu"
+    : "zluda-native";
 }
 
 function normalizeDetectedGpuInfo(

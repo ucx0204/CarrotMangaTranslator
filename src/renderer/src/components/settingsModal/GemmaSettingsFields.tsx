@@ -10,6 +10,7 @@ import type { EngineSettingsPanelProps } from "./EngineSettingsPanelTypes";
 import { GemmaMemorySummary } from "./GemmaMemorySummary";
 import { confirmGemmaMemoryRisk } from "./gemmaMemoryRisk";
 import { LocalModelFields } from "./GemmaLocalModelFields";
+import { LlamaRuntimeCompatibilityWarning } from "./LlamaRuntimeCompatibilityWarning";
 
 const MODEL_PRESET_BUTTON_IDS = [
   "minimum12b",
@@ -24,6 +25,7 @@ type GemmaSettingsFieldsProps = Pick<
   | "controlsBusy"
   | "customModelFile"
   | "customModelRepo"
+  | "detectedGpuName"
   | "isLlamaRuntimeOptionDisabled"
   | "llamaRuntimeProfile"
   | "allowUnsafeUnifiedMemory"
@@ -49,6 +51,7 @@ type GemmaSettingsFieldsProps = Pick<
   | "usesAmdHardware"
   | "usesAppleHardware"
   | "usesNvidiaHardware"
+  | "usesRtx50Hardware"
 >;
 
 export function GemmaSettingsFields(
@@ -116,6 +119,7 @@ type HuggingFaceModelFieldsProps = Pick<
   | "controlsBusy"
   | "customModelFile"
   | "customModelRepo"
+  | "detectedGpuName"
   | "isLlamaRuntimeOptionDisabled"
   | "llamaRuntimeProfile"
   | "allowUnsafeUnifiedMemory"
@@ -132,6 +136,7 @@ type HuggingFaceModelFieldsProps = Pick<
   | "usesAmdHardware"
   | "usesAppleHardware"
   | "usesNvidiaHardware"
+  | "usesRtx50Hardware"
 >;
 
 function HuggingFaceModelFields(
@@ -302,21 +307,25 @@ function CustomHfModelFields({
 
 function LlamaRuntimeSelector({
   clearTestState,
+  detectedGpuName,
   isLlamaRuntimeOptionDisabled,
   llamaRuntimeProfile,
   setLlamaRuntimeProfile,
   usesAmdHardware,
   usesAppleHardware,
   usesNvidiaHardware,
+  usesRtx50Hardware,
 }: Pick<
   HuggingFaceModelFieldsProps,
   | "clearTestState"
+  | "detectedGpuName"
   | "isLlamaRuntimeOptionDisabled"
   | "llamaRuntimeProfile"
   | "setLlamaRuntimeProfile"
   | "usesAmdHardware"
   | "usesAppleHardware"
   | "usesNvidiaHardware"
+  | "usesRtx50Hardware"
 >): React.JSX.Element {
   const { t } = useTranslation("components");
   const visibleRuntimeOptions = LLAMA_RUNTIME_PROFILE_OPTIONS.filter(
@@ -353,6 +362,12 @@ function LlamaRuntimeSelector({
       <p className="muted-line modal-note">
         {activeRuntime ? t(activeRuntime.descriptionKey) : null}
       </p>
+      <LlamaRuntimeCompatibilityWarning
+        detectedGpuName={detectedGpuName}
+        llamaRuntimeProfile={llamaRuntimeProfile}
+        usesNvidiaHardware={usesNvidiaHardware}
+        usesRtx50Hardware={usesRtx50Hardware}
+      />
       <RuntimeHardwareNote
         usesAmdHardware={usesAmdHardware}
         usesAppleHardware={usesAppleHardware}

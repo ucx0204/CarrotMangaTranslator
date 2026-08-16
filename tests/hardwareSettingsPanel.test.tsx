@@ -19,6 +19,7 @@ describe("HardwareSettingsPanel", () => {
   it("keeps OCR on CPU for detected AMD adapters outside the ROCm allowlist", () => {
     const unsupported = resolveHardwareRecommendation({
       gpuMemoryMb: 12 * 1024,
+      supportsFluxZluda: false,
       supportsOcrRocm: false,
       unifiedMemoryMb: null,
       usesAmdHardware: true,
@@ -27,6 +28,7 @@ describe("HardwareSettingsPanel", () => {
     });
     const supported = resolveHardwareRecommendation({
       gpuMemoryMb: 12 * 1024,
+      supportsFluxZluda: true,
       supportsOcrRocm: true,
       unifiedMemoryMb: null,
       usesAmdHardware: true,
@@ -42,22 +44,70 @@ describe("HardwareSettingsPanel", () => {
     });
 
     expect(unsupported).toMatchObject({
-      fluxBackend: "zluda-native",
+      fluxBackend: "python-cpu",
       inpaintingModel: "flux-klein",
       ocrDevice: "cpu",
       ocrGpuBackend: "cuda",
       ocrQualityMode: "economy",
     });
     expect(supported).toMatchObject({
+      fluxBackend: "zluda-native",
       ocrDevice: "gpu",
       ocrGpuBackend: "rocm-transformers",
       ocrQualityMode: "full",
     });
     expect(manualUnknown).toMatchObject({
+      fluxBackend: "zluda-native",
       ocrDevice: "cpu",
       ocrGpuBackend: "cuda",
       ocrQualityMode: "economy",
     });
+  });
+
+  it("warns for officially unsupported AMD Flux hardware and offers CPU", () => {
+    const setFluxBackend = vi.fn();
+    const clearTestState = vi.fn();
+    render(
+      <HardwareSettingsPanel
+        allowUnsafeLowMemoryFlux={false}
+        clearTestState={clearTestState}
+        computeGpuIndex={null}
+        controlsBusy={false}
+        detectedGpuName="AMD Radeon RX 6700 XT"
+        fluxBackend="zluda-native"
+        graphicsGpuPreference="high-performance"
+        inpaintingModel="flux-klein"
+        isFluxBackendOptionDisabled={() => false}
+        ocrDevice="cpu"
+        ocrGpuBackend="cuda"
+        ocrQualityMode="economy"
+        setFluxBackend={setFluxBackend}
+        setAllowUnsafeLowMemoryFlux={vi.fn()}
+        setComputeGpuIndex={vi.fn()}
+        setGraphicsGpuPreference={vi.fn()}
+        setInpaintingModel={vi.fn()}
+        setOcrDevice={vi.fn()}
+        setOcrGpuBackend={vi.fn()}
+        setOcrQualityMode={vi.fn()}
+        supportsFluxZluda={false}
+        supportsOcrRocm={false}
+        usesAmdHardware
+        usesAppleHardware={false}
+        usesAmdOcrContext
+        usesNvidiaHardware={false}
+        usesNvidiaOcrContext={false}
+        unifiedMemoryMb={null}
+      />,
+    );
+
+    const warning = screen.getByRole("alert");
+    expect(warning.textContent).toContain("공식 지원 대상이 아닌 AMD GPU");
+    expect(warning.textContent).toContain("AMD Radeon RX 6700 XT");
+    fireEvent.click(
+      within(warning).getByRole("button", { name: "CPU 백엔드로 전환" }),
+    );
+    expect(clearTestState).toHaveBeenCalledOnce();
+    expect(setFluxBackend).toHaveBeenCalledWith("python-cpu");
   });
 
   it("recommends full OCR when the detected GPU meets the measured memory floor", () => {

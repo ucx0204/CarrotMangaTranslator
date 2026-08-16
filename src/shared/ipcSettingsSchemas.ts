@@ -330,6 +330,7 @@ export const AppSettingsSchema = z
         rtxGeneration: z.number().int().positive().nullable().optional(),
         llamaRocmTarget: AmdRocmTargetSchema.nullable().optional(),
         supportsOcrRocm: z.boolean().optional(),
+        supportsFluxZluda: z.boolean().optional(),
         supportsRocm: z.boolean().optional(),
         supportsVulkan: z.boolean().optional(),
         supportsMetal: z.boolean().optional(),

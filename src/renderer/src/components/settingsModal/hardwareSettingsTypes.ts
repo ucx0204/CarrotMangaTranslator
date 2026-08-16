@@ -34,6 +34,8 @@ export type HardwareSettingsPanelProps = {
   setOcrQualityMode: React.Dispatch<React.SetStateAction<OcrQualityMode>>;
   /** Whether the detected adapter can run the packaged Windows ROCm OCR runtime. */
   supportsOcrRocm?: boolean;
+  /** Whether AMD officially supports the adapter in the current Windows HIP SDK. */
+  supportsFluxZluda?: boolean;
   usesAmdHardware: boolean;
   usesAppleHardware: boolean;
   usesAmdOcrContext: boolean;

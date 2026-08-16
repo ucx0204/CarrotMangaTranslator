@@ -129,6 +129,7 @@ function buildEnginePanelProps({
   return {
     clearTestState: test.clearTestState,
     controlsBusy,
+    detectedGpuName: runtime.gpuName,
     isLlamaRuntimeOptionDisabled: runtime.isLlamaRuntimeOptionDisabled,
     localModelInputRef: refs.localModelInputRef,
     modelRepoInputRef: refs.modelRepoInputRef,
@@ -138,6 +139,7 @@ function buildEnginePanelProps({
     usesAmdHardware: runtime.usesAmdHardware,
     usesAppleHardware: runtime.usesAppleHardware,
     usesNvidiaHardware: runtime.usesNvidiaHardware,
+    usesRtx50Hardware: runtime.usesRtx50Hardware,
     unifiedMemoryMb: runtime.unifiedMemoryMb,
     ...values,
     ...setters,
@@ -178,6 +180,7 @@ function buildHardwarePanelProps({
     setOcrGpuBackend: form.setters.setOcrGpuBackend,
     setOcrQualityMode: form.setters.setOcrQualityMode,
     supportsOcrRocm: runtime.supportsOcrRocm,
+    supportsFluxZluda: runtime.supportsFluxZluda,
     usesAmdHardware: runtime.usesAmdHardware,
     usesAppleHardware: runtime.usesAppleHardware,
     usesAmdOcrContext: runtime.usesAmdOcrContext,

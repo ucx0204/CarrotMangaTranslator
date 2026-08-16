@@ -517,7 +517,7 @@
   color: #f4bd86;
 }
 
-.sm75-flux-warning {
+.hardware-runtime-warning {
   display: grid;
   gap: 4px;
   padding: 10px 12px;
@@ -529,9 +529,15 @@
   line-height: 1.5;
 }
 
-.sm75-flux-warning strong {
+.hardware-runtime-warning strong {
   color: #f4bd86;
   font-weight: 750;
+}
+
+.hardware-runtime-warning-action {
+  display: flex;
+  justify-content: flex-start;
+  padding-top: 4px;
 }
 
 .format-defaults-editor {
