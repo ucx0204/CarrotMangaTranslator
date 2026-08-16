@@ -172,9 +172,9 @@ describe("page artwork renderer parity", () => {
       ).find((element) => element.textContent === "자동 검정");
       expect(normal?.style.textShadow).toBe("none");
       expect(normal?.style.webkitTextStrokeColor).toBe("rgb(255, 255, 255)");
-      expect(Number.parseFloat(normal?.style.webkitTextStrokeWidth ?? "0")).toBeGreaterThan(
-        0,
-      );
+      expect(
+        Number.parseFloat(normal?.style.webkitTextStrokeWidth ?? "0"),
+      ).toBeGreaterThan(0);
       const curveGlyph = container.querySelector<SVGTextElement>(
         'svg[aria-label="자동 흰색"] text',
       );

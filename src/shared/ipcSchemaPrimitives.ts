@@ -341,28 +341,27 @@ export const TranslationBlockObjectSchema = z
   })
   .strict();
 
-export const TranslationBlockSchema =
-  TranslationBlockObjectSchema.transform(
-    ({ automaticFontMatch, ...block }) => {
-      if (
-        !isLegacyAutomaticFontMatch(automaticFontMatch) ||
-        resolveEffectiveTextOutlineWidthPx(block, block.fontSizePx) <= 0
-      ) {
-        return block;
-      }
-      return {
-        ...block,
-        outlineColor: resolveAutomaticTextOutlineColor(block),
-      };
-    },
-  );
+export const TranslationBlockSchema = TranslationBlockObjectSchema.transform(
+  ({ automaticFontMatch, ...block }) => {
+    if (
+      !isLegacyAutomaticFontMatch(automaticFontMatch) ||
+      resolveEffectiveTextOutlineWidthPx(block, block.fontSizePx) <= 0
+    ) {
+      return block;
+    }
+    return {
+      ...block,
+      outlineColor: resolveAutomaticTextOutlineColor(block),
+    };
+  },
+);
 
 function isLegacyAutomaticFontMatch(value: unknown): boolean {
   return Boolean(
     value &&
-      typeof value === "object" &&
-      !Array.isArray(value) &&
-      (value as { schemaVersion?: unknown }).schemaVersion === 1,
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    (value as { schemaVersion?: unknown }).schemaVersion === 1,
   );
 }
 

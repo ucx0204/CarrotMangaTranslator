@@ -70,9 +70,7 @@ export function CurveOverflowWarning({
           disabled={disabled || block.fontSizePx <= MIN_FONT_SIZE_PX}
           onClick={() =>
             onUpdate({
-              fontSizePx: clampFontSizePx(
-                block.fontSizePx - FONT_SIZE_STEP_PX,
-              ),
+              fontSizePx: clampFontSizePx(block.fontSizePx - FONT_SIZE_STEP_PX),
               autoFitText: false,
             })
           }

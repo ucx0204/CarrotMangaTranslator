@@ -105,9 +105,7 @@ const DEFAULT_FORMAT_BUILDERS: Record<
             : 0,
         }
       : {
-          outlineWidthPx: defaults.outlineEnabled
-            ? defaults.outlineWidthPx
-            : 0,
+          outlineWidthPx: defaults.outlineEnabled ? defaults.outlineWidthPx : 0,
         }),
   }),
   transform: (defaults) => ({
@@ -181,11 +179,7 @@ const NORMALIZED_FORMAT_BUILDERS: Record<
     textColor: colorValue(record.textColor, "#111111"),
   }),
   outline: (record) => {
-    const outlineWidthPx = optionalRangedNumber(
-      record.outlineWidthPx,
-      0,
-      64,
-    );
+    const outlineWidthPx = optionalRangedNumber(record.outlineWidthPx, 0, 64);
     return {
       outlineColor: optionalColor(record.outlineColor),
       ...(outlineWidthPx === undefined

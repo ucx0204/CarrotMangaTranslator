@@ -162,8 +162,8 @@ describe("GatherTextDirectFormatModal", () => {
     fireEvent.blur(input);
 
     expect(
-      container.querySelector<HTMLElement>(".gather-direct-preview-text")
-        ?.style.webkitTextStrokeWidth,
+      container.querySelector<HTMLElement>(".gather-direct-preview-text")?.style
+        .webkitTextStrokeWidth,
     ).toBe("16px");
     fireEvent.click(screen.getByRole("button", { name: "적용" }));
     expect(selection.apply).toHaveBeenCalledWith({ outlineWidthPx: 8 });

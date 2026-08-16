@@ -53,9 +53,7 @@ function renderParsedTextRuns(
     Boolean(block.bold),
     Boolean(block.italic),
   );
-  return runs.map((run, index) =>
-    renderTextRun(run, index, renderDirection),
-  );
+  return runs.map((run, index) => renderTextRun(run, index, renderDirection));
 }
 
 function renderFixedLines(
@@ -128,10 +126,7 @@ function renderTextRun(
         fontStyle: run.italic ? "italic" : "normal",
       }}
     >
-      <TextWithVerticalSpacing
-        direction={renderDirection}
-        text={run.text}
-      />
+      <TextWithVerticalSpacing direction={renderDirection} text={run.text} />
     </span>
   );
 }

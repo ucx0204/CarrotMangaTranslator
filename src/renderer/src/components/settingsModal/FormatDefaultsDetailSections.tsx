@@ -41,8 +41,7 @@ type DetailSectionProps = {
   onChange: (patch: Partial<BlockFormatDefaults>) => void;
 };
 
-let lastPositiveDefaultOutlineWidthPx =
-  DEFAULT_MANUAL_TEXT_OUTLINE_WIDTH_PX;
+let lastPositiveDefaultOutlineWidthPx = DEFAULT_MANUAL_TEXT_OUTLINE_WIDTH_PX;
 
 export function FormatDefaultsColorSection({
   presetGroups,

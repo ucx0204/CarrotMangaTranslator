@@ -161,9 +161,9 @@ describe("overlay text word-break styles", () => {
 
     expect(style.textShadow).toBe("none");
     expect(style.WebkitTextStrokeWidth).toBe("17px");
-    expect(resolveBlockTextOutlinePx({ ...BLOCK, outlineWidthPx: 8.5 }, 10)).toBe(
-      8.5,
-    );
+    expect(
+      resolveBlockTextOutlinePx({ ...BLOCK, outlineWidthPx: 8.5 }, 10),
+    ).toBe(8.5);
   });
 });
 

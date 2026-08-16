@@ -77,19 +77,18 @@ const { createCompactRuntimeSiblingDirectory, createRuntimeStagingDirectory } =
 const {
   requireVerifiedLlamaRuntimeExtractionLimits,
   resolveVerifiedLlamaRuntimeExtractionLimits,
-} =
-  require("../src/main/runtime/model/llama-runtime-archive-policy.cjs") as {
-    requireVerifiedLlamaRuntimeExtractionLimits: (
-      runtime: Record<string, unknown>,
-      archive: Record<string, unknown>,
-      verification: { sha256: string; bytes: number },
-    ) => { maximumEntryBytes: number };
-    resolveVerifiedLlamaRuntimeExtractionLimits: (
-      runtime: Record<string, unknown>,
-      archive: Record<string, unknown>,
-      verification: { sha256: string; bytes: number },
-    ) => { maximumEntryBytes: number } | undefined;
-  };
+} = require("../src/main/runtime/model/llama-runtime-archive-policy.cjs") as {
+  requireVerifiedLlamaRuntimeExtractionLimits: (
+    runtime: Record<string, unknown>,
+    archive: Record<string, unknown>,
+    verification: { sha256: string; bytes: number },
+  ) => { maximumEntryBytes: number };
+  resolveVerifiedLlamaRuntimeExtractionLimits: (
+    runtime: Record<string, unknown>,
+    archive: Record<string, unknown>,
+    verification: { sha256: string; bytes: number },
+  ) => { maximumEntryBytes: number } | undefined;
+};
 const { resolveRuntimeArchiveMaximumBytes } =
   require("../src/main/runtime/model/llama-runtime-archive-policy.cjs") as {
     resolveRuntimeArchiveMaximumBytes: (archive: {

@@ -196,8 +196,8 @@ describe("FormatDefaultsPanel", () => {
     fireEvent.blur(input);
     expect(onChange).toHaveBeenLastCalledWith({ outlineWidthPx: 8 });
     expect(
-      container.querySelector<HTMLElement>(".gather-direct-preview-text")
-        ?.style.webkitTextStrokeWidth,
+      container.querySelector<HTMLElement>(".gather-direct-preview-text")?.style
+        .webkitTextStrokeWidth,
     ).toBe("16px");
 
     const checkbox = screen.getByRole("checkbox", { name: "외곽선 사용" });

@@ -63,10 +63,7 @@ export function resolveEffectiveTextColor(style: TextOutlineStyle): string {
 export function resolveEffectiveTextOutlineColor(
   style: TextOutlineStyle,
 ): string {
-  return resolveHexColor(
-    style.outlineColor,
-    DEFAULT_OUTLINE_COLOR,
-  );
+  return resolveHexColor(style.outlineColor, DEFAULT_OUTLINE_COLOR);
 }
 
 /** Automatic choices persist a readable outline color at application time. */
@@ -77,7 +74,7 @@ export function resolveAutomaticTextOutlineColor(
   const outlineColor = resolveEffectiveTextOutlineColor(style);
   if (
     resolveTextOutlineContrastRatio(textColor, outlineColor) >=
-      MIN_AUTOMATIC_TEXT_OUTLINE_CONTRAST_RATIO
+    MIN_AUTOMATIC_TEXT_OUTLINE_CONTRAST_RATIO
   ) {
     return outlineColor;
   }

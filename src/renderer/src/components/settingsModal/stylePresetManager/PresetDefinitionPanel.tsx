@@ -203,7 +203,8 @@ const PRESET_PREVIEW_DEFAULTS: GatherTextDirectFormatValues = {
 function createPresetPreviewValues(
   preset: BlockStylePreset,
 ): GatherTextDirectFormatValues {
-  const fontSizePx = preset.format.fontSizePx ?? PRESET_PREVIEW_DEFAULTS.fontSizePx;
+  const fontSizePx =
+    preset.format.fontSizePx ?? PRESET_PREVIEW_DEFAULTS.fontSizePx;
   return {
     ...PRESET_PREVIEW_DEFAULTS,
     ...preset.format,

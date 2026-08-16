@@ -455,9 +455,7 @@
   white-space: nowrap;
 }
 
-.editor-panel.has-block
-  .editor-group
-  > label.editor-outline-enabled-toggle {
+.editor-panel.has-block .editor-group > label.editor-outline-enabled-toggle {
   display: inline-flex;
   width: max-content;
   align-items: center;

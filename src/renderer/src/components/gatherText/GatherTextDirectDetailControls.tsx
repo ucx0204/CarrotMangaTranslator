@@ -81,9 +81,7 @@ function ColorControls({
           {...{ disabled, model, patch }}
           onChange={(value) => onChange("outlineColor", value)}
         />
-        <OutlineWidthControl
-          {...{ disabled, model, patch, onChange }}
-        />
+        <OutlineWidthControl {...{ disabled, model, patch, onChange }} />
       </div>
     </section>
   );

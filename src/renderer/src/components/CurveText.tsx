@@ -82,9 +82,7 @@ export function CurveText({
           key={`${index}-${glyph.char}`}
           paintOrder="stroke fill"
           stroke={
-            outlineWidth > 0
-              ? resolveEffectiveTextOutlineColor(block)
-              : "none"
+            outlineWidth > 0 ? resolveEffectiveTextOutlineColor(block) : "none"
           }
           strokeLinecap="round"
           strokeLinejoin="round"
