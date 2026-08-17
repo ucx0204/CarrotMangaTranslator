@@ -227,11 +227,15 @@ describe("API provider connection fields", () => {
       ["Open Vertex AI API", "vertex-ai-api"],
       ["Open service accounts", "service-accounts"],
     ] as const;
-    for (const [label, page] of guidePages) {
-      fireEvent.click(screen.getByRole("button", { name: label }));
-      await waitFor(() =>
-        expect(openVertexSetupPage).toHaveBeenLastCalledWith(page),
-      );
+    for (const [index, [label, page]] of guidePages.entries()) {
+      const linkButton = within(guideDialog).getByRole("button", {
+        name: label,
+      }) as HTMLButtonElement;
+      fireEvent.click(linkButton);
+      await waitFor(() => {
+        expect(openVertexSetupPage).toHaveBeenNthCalledWith(index + 1, page);
+        expect(linkButton.disabled).toBe(false);
+      });
     }
     fireEvent.click(
       within(guideDialog).getAllByRole("button", { name: "Close" })[1],
