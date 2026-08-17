@@ -176,9 +176,78 @@ jobs:
             Accept = "application/vnd.github+json"
             "X-GitHub-Api-Version" = "2022-11-28"
           }
+          function Get-GitHubApiStatusCode {
+            param([Parameter(Mandatory = $true)] $ErrorRecord)
+
+            if ($null -eq $ErrorRecord.Exception.Response) {
+              return 0
+            }
+            try {
+              return [int]$ErrorRecord.Exception.Response.StatusCode
+            } catch {
+              return 0
+            }
+          }
+          function Invoke-GitHubApiWithRetry {
+            param(
+              [Parameter(Mandatory = $true)] [string] $Uri,
+              [string] $Method = "Get",
+              [Parameter(Mandatory = $true)] [hashtable] $Headers,
+              [string] $Body,
+              [string] $ContentType,
+              [string] $InFile,
+              [int] $TimeoutSec = 100,
+              [string] $RecoveryUri
+            )
+
+            $maximumAttempts = 6
+            $retryableStatusCodes = @(0, 408, 429, 500, 502, 503, 504)
+            for ($attempt = 1; $attempt -le $maximumAttempts; $attempt++) {
+              $request = @{
+                Uri = $Uri
+                Method = $Method
+                Headers = $Headers
+                TimeoutSec = $TimeoutSec
+                ErrorAction = "Stop"
+              }
+              if ($PSBoundParameters.ContainsKey("Body")) { $request.Body = $Body }
+              if ($PSBoundParameters.ContainsKey("ContentType")) { $request.ContentType = $ContentType }
+              if ($PSBoundParameters.ContainsKey("InFile")) { $request.InFile = $InFile }
+
+              try {
+                return Invoke-RestMethod @request
+              } catch {
+                $statusCode = Get-GitHubApiStatusCode $_
+                $canRecoverCreatedRelease = $RecoveryUri -and (
+                  $statusCode -eq 422 -or $retryableStatusCodes -contains $statusCode
+                )
+                if ($canRecoverCreatedRelease) {
+                  try {
+                    return Invoke-RestMethod -Method Get -Uri $RecoveryUri -Headers $Headers -TimeoutSec $TimeoutSec -ErrorAction Stop
+                  } catch {
+                    $recoveryStatusCode = Get-GitHubApiStatusCode $_
+                    if ($recoveryStatusCode -ne 404 -and $retryableStatusCodes -notcontains $recoveryStatusCode) {
+                      throw
+                    }
+                  }
+                }
+
+                $isRetryable = $retryableStatusCodes -contains $statusCode -or (
+                  $RecoveryUri -and $statusCode -eq 422
+                )
+                if (-not $isRetryable -or $attempt -eq $maximumAttempts) {
+                  throw
+                }
+                $delaySeconds = [int][Math]::Min(30, 5 * [Math]::Pow(2, $attempt - 1))
+                Write-Warning "GitHub API returned HTTP $statusCode for $Method $Uri (attempt $attempt/$maximumAttempts); retrying in $delaySeconds seconds."
+                Start-Sleep -Seconds $delaySeconds
+              }
+            }
+          }
           $owner = "${{ github.repository_owner }}"
           $repo = "${{ github.event.repository.name }}"
           $encodedTag = [uri]::EscapeDataString($env:RELEASE_TAG)
+          $releaseByTagUri = "https://api.github.com/repos/$owner/$repo/releases/tags/$encodedTag"
           $releaseNotes = Get-Content -Raw -LiteralPath $env:RELEASE_NOTES_PATH
           $policyUrl = "https://github.com/$owner/$repo/blob/$env:RELEASE_TARGET/CODE_SIGNING_POLICY.md"
           if ($releaseNotes -notmatch '(?im)\[Code signing policy\]\(') {
@@ -202,13 +271,13 @@ jobs:
           } | ConvertTo-Json
 
           try {
-            $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$owner/$repo/releases/tags/$encodedTag" -Headers $headers
+            $release = Invoke-GitHubApiWithRetry -Uri $releaseByTagUri -Headers $headers
           } catch {
-            $statusCode = $_.Exception.Response.StatusCode.value__
+            $statusCode = Get-GitHubApiStatusCode $_
             if ($statusCode -ne 404) {
               throw
             }
-            $release = Invoke-RestMethod -Method Post -Uri "https://api.github.com/repos/$owner/$repo/releases" -Headers $headers -Body $releaseBody -ContentType "application/json"
+            $release = Invoke-GitHubApiWithRetry -Method Post -Uri "https://api.github.com/repos/$owner/$repo/releases" -Headers $headers -Body $releaseBody -ContentType "application/json" -RecoveryUri $releaseByTagUri
           }
 
           $files = @(Get-ChildItem -Path "release-artifact" -Filter "* Setup *.exe")
@@ -216,7 +285,7 @@ jobs:
             throw "Expected exactly one Windows installer matching dist/* Setup *.exe, found $($files.Count)."
           }
 
-          $release = Invoke-RestMethod -Method Patch -Uri "https://api.github.com/repos/$owner/$repo/releases/$($release.id)" -Headers $headers -Body $releaseUpdateBody -ContentType "application/json"
+          $release = Invoke-GitHubApiWithRetry -Method Patch -Uri "https://api.github.com/repos/$owner/$repo/releases/$($release.id)" -Headers $headers -Body $releaseUpdateBody -ContentType "application/json"
           $replaceAssetNames = @(
             "CarrotMangaTranslator-Setup-$env:RELEASE_TAG.exe",
             "SHA256SUMS-windows.txt",
@@ -224,7 +293,7 @@ jobs:
           )
           foreach ($asset in $release.assets) {
             if ($replaceAssetNames -contains $asset.name) {
-              Invoke-RestMethod -Method Delete -Uri "https://api.github.com/repos/$owner/$repo/releases/assets/$($asset.id)" -Headers $headers
+              Invoke-GitHubApiWithRetry -Method Delete -Uri "https://api.github.com/repos/$owner/$repo/releases/assets/$($asset.id)" -Headers $headers
               Write-Host "Deleted existing asset $($asset.name)"
             }
           }

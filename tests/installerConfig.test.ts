@@ -225,6 +225,11 @@ describe("Windows installer clean uninstall option", () => {
     expect(releaseWorkflow).toContain("not ${{ github.sha }}");
     expect(releaseWorkflow).toContain("body = $releaseNotes");
     expect(releaseWorkflow).toContain("[Code signing policy]($policyUrl)");
+    expect(releaseWorkflow).toContain("function Invoke-GitHubApiWithRetry");
+    expect(releaseWorkflow).toContain(
+      "$retryableStatusCodes = @(0, 408, 429, 500, 502, 503, 504)",
+    );
+    expect(releaseWorkflow).toContain("-RecoveryUri $releaseByTagUri");
     expect(releaseWorkflow).toContain(
       "Expected exactly one Windows installer matching",
     );

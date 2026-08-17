@@ -237,9 +237,23 @@ jobs:
           test -s "$zip_path"
           test -s "$provenance_path"
           (cd "$artifact_dir" && shasum -a 256 -c SHA256SUMS-macOS-arm64.txt)
-          gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
-            "$dmg_path" \
-            "$zip_path" \
-            "${checksum_paths[0]}" \
-            "$provenance_path" \
-            --clobber
+          publish_attempt=1
+          while true; do
+            if gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+              "$dmg_path" \
+              "$zip_path" \
+              "${checksum_paths[0]}" \
+              "$provenance_path" \
+              --clobber; then
+              break
+            fi
+            if (( publish_attempt >= 6 )); then
+              echo "macOS release asset upload failed after ${publish_attempt} attempts." >&2
+              exit 1
+            fi
+            delay=$((5 * (1 << (publish_attempt - 1))))
+            if (( delay > 30 )); then delay=30; fi
+            echo "macOS release asset upload failed (attempt ${publish_attempt}/6); retrying in ${delay} seconds." >&2
+            sleep "$delay"
+            publish_attempt=$((publish_attempt + 1))
+          done

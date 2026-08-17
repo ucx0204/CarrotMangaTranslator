@@ -1030,6 +1030,8 @@ describe("Apple Silicon Alpha packaging", () => {
     expect(workflow).toContain("--build-channel stable");
     expect(workflow).toContain("gh release upload");
     expect(workflow).toContain("--clobber");
+    expect(workflow).toContain("publish_attempt=1");
+    expect(workflow).toContain("retrying in ${delay} seconds");
     expect(workflow).toContain(
       "test ! -e dist/mac-alpha-hosted-app-smoke-waiver.json",
     );
