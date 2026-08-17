@@ -1,8 +1,10 @@
 // @ts-check
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
+/** @typedef {(request?: {forceRefresh?: boolean}) => Promise<string>} AccessTokenProvider */
 /**
  * @typedef {RuntimeOptions & {
  *   apiKey?: unknown;
+ *   apiAccessTokenProvider?: unknown;
  *   apiKeyMaxAttempts?: unknown;
  *   apiRetryDelaySeconds?: unknown;
  *   modelProvider?: unknown;
@@ -34,10 +36,8 @@ const {
  * @returns {Promise<TResult>}
  */
 async function runWithApiKeyRetry(options, requestAttempt) {
-  const apiKeys = isOpenAIApiProvider(options)
-    ? resolveConfiguredApiKeys(options)
-    : [];
-  if (apiKeys.length === 0) {
+  const { accessTokenProvider, apiKeys } = resolveCredentialSources(options);
+  if (!accessTokenProvider && apiKeys.length === 0) {
     throwIfSignalAborted(options.abortSignal);
     return requestAttempt(undefined, {
       attemptIndex: 1,
@@ -49,19 +49,28 @@ async function runWithApiKeyRetry(options, requestAttempt) {
   }
 
   const maxAttemptsPerKey = resolveConfiguredApiKeyMaxAttempts(options);
-  const attemptTotal = apiKeys.length * maxAttemptsPerKey;
+  const keyCount = accessTokenProvider ? 1 : apiKeys.length;
+  const attemptTotal = keyCount * maxAttemptsPerKey;
   const delayMs = resolveConfiguredApiRetryDelaySeconds(options) * 1000;
+  let forceTokenRefresh = false;
 
   for (let attemptIndex = 1; attemptIndex <= attemptTotal; attemptIndex += 1) {
-    const keyIndex = (attemptIndex - 1) % apiKeys.length;
-    const round = Math.floor((attemptIndex - 1) / apiKeys.length) + 1;
+    const keyIndex = (attemptIndex - 1) % keyCount;
+    const round = Math.floor((attemptIndex - 1) / keyCount) + 1;
     throwIfSignalAborted(options.abortSignal);
     try {
-      return await requestAttempt(apiKeys[keyIndex], {
+      const apiKey = await resolveRetryCredential(
+        accessTokenProvider,
+        apiKeys,
+        keyIndex,
+        forceTokenRefresh,
+      );
+      forceTokenRefresh = false;
+      return await requestAttempt(apiKey, {
         attemptIndex,
         attemptTotal,
         keyIndex,
-        keyCount: apiKeys.length,
+        keyCount,
         round,
       });
     } catch (error) {
@@ -73,14 +82,68 @@ async function runWithApiKeyRetry(options, requestAttempt) {
       if (!isRetryableApiKeyError(error)) {
         throw error;
       }
+      forceTokenRefresh = shouldForceTokenRefresh(accessTokenProvider, error);
       if (attemptIndex >= attemptTotal) {
-        throw markApiKeyRetriesExhausted(error, attemptIndex, apiKeys.length);
+        throw markApiKeyRetriesExhausted(error, attemptIndex, keyCount);
       }
       await waitForRetryDelay(delayMs, options.abortSignal);
     }
   }
 
   throw new Error("API key retry loop ended unexpectedly.");
+}
+
+/** @param {ApiKeyRetryOptions} options */
+function resolveCredentialSources(options) {
+  if (!isOpenAIApiProvider(options)) {
+    return { accessTokenProvider: null, apiKeys: [] };
+  }
+  const candidate = options.apiAccessTokenProvider;
+  return {
+    accessTokenProvider:
+      typeof candidate === "function"
+        ? /** @type {AccessTokenProvider} */ (candidate)
+        : null,
+    apiKeys: resolveConfiguredApiKeys(options),
+  };
+}
+
+/**
+ * @param {AccessTokenProvider | null} accessTokenProvider
+ * @param {string[]} apiKeys
+ * @param {number} keyIndex
+ * @param {boolean} forceRefresh
+ */
+async function resolveRetryCredential(
+  accessTokenProvider,
+  apiKeys,
+  keyIndex,
+  forceRefresh,
+) {
+  return accessTokenProvider
+    ? accessTokenProvider({ forceRefresh })
+    : apiKeys[keyIndex];
+}
+
+/**
+ * @param {AccessTokenProvider | null} accessTokenProvider
+ * @param {unknown} error
+ */
+function shouldForceTokenRefresh(accessTokenProvider, error) {
+  return Boolean(accessTokenProvider && isAuthenticationFailure(error));
+}
+
+/** @param {unknown} error */
+function isAuthenticationFailure(error) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const record = /** @type {Record<string, unknown>} */ (error);
+  return (
+    record.status === 401 ||
+    record.status === 403 ||
+    record.apiKeyRetryable === true
+  );
 }
 
 /** @param {AbortSignal | null | undefined} signal */

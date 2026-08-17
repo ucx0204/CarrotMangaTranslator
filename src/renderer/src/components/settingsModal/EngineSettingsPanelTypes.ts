@@ -7,11 +7,14 @@ import type {
   ModelProvider,
   ModelSource,
 } from "../../../../shared/settingsTypes";
+import type { VertexAuthMode } from "../../../../shared/apiProviderPresets";
 import type { ModelPresetId } from "../settingsOptions";
 
 export type EngineSettingsPanelProps = {
   apiBaseUrl: string;
   apiKey: string;
+  apiVertexAuthMode: VertexAuthMode;
+  apiVertexServiceAccountPath: string;
   apiKeyMaxAttempts: string;
   apiRetryDelaySeconds: string;
   apiModel: string;
@@ -71,6 +74,8 @@ export type EngineSettingsPanelProps = {
   setApiCustomHeadersJson: React.Dispatch<React.SetStateAction<string>>;
   setApiExtraBodyJson: React.Dispatch<React.SetStateAction<string>>;
   setApiKey: React.Dispatch<React.SetStateAction<string>>;
+  setApiVertexAuthMode: React.Dispatch<React.SetStateAction<VertexAuthMode>>;
+  setApiVertexServiceAccountPath: React.Dispatch<React.SetStateAction<string>>;
   setApiKeyMaxAttempts: React.Dispatch<React.SetStateAction<string>>;
   setApiRetryDelaySeconds: React.Dispatch<React.SetStateAction<string>>;
   setApiModel: React.Dispatch<React.SetStateAction<string>>;

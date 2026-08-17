@@ -1483,7 +1483,15 @@
       "providerHintVerified": "제공자의 현재 목록에서 이미지 입력 지원을 확인할 수 있는 모델만 불러옵니다. 목록에 없어도 아래 모델 ID를 직접 입력할 수 있습니다.",
       "vertexProject": "Google Cloud 프로젝트 ID",
       "vertexLocation": "Vertex 리전",
+      "vertexAuthMode": "Vertex 인증 방식",
+      "vertexAuthAccessToken": "액세스 토큰 직접 입력",
+      "vertexAuthServiceAccount": "서비스 계정 JSON",
       "vertexAccessToken": "OAuth 액세스 토큰 (한 줄에 하나)",
+      "vertexServiceAccountNotSelected": "서비스 계정 JSON을 선택해 주세요",
+      "vertexServiceAccountSelect": "JSON 선택",
+      "vertexServiceAccountChange": "변경",
+      "vertexServiceAccountClear": "해제",
+      "vertexServiceAccountDescription": "JSON 키 내용은 앱 설정에 복사하지 않고 이 PC의 선택한 파일에서만 읽습니다. 해당 서비스 계정에는 대상 프로젝트의 Vertex AI 사용자 역할이 필요합니다. 키 파일은 공유하거나 저장소에 올리지 마세요.",
       "discoveredModel": "확인된 이미지 입력 모델",
       "chooseModel": "모델 선택…",
       "loadModels": "모델 불러오기",
@@ -1499,6 +1507,39 @@
       "hideKey": "API 키 숨기기",
       "openKeyPage": "API 키 발급 페이지 열기",
       "openVertexAuth": "Vertex 인증 설정 안내 열기",
+      "vertexGuide": {
+        "title": "Vertex 서비스 계정 JSON 설정",
+        "intro": "서비스 계정 JSON을 한 번 연결하면 1시간마다 액세스 토큰을 다시 입력하지 않아도 앱이 필요한 토큰을 자동으로 갱신합니다.",
+        "project": {
+          "title": "Google Cloud 프로젝트 만들기",
+          "description": "<highlight>Vertex AI 사용량과 무료 크레딧</highlight>이 연결될 프로젝트를 만들거나 기존 프로젝트를 사용합니다.",
+          "action": "프로젝트 만들기"
+        },
+        "api": {
+          "title": "Vertex AI API 활성화",
+          "description": "선택한 프로젝트에서 <highlight>Vertex AI API의 ‘사용’ 버튼</highlight>을 누릅니다.",
+          "action": "Vertex AI API 열기"
+        },
+        "account": {
+          "title": "서비스 계정 만들기",
+          "description": "서비스 계정 페이지에서 프로젝트를 선택하고 <highlight>‘서비스 계정 만들기’</highlight>를 누릅니다. 이름은 Vertex AI처럼 알아보기 쉽게 정하고, 역할에는 <highlight>Vertex AI 사용자</highlight>를 지정한 뒤 완료합니다.",
+          "action": "서비스 계정 열기",
+          "roleLabel": "필요한 역할",
+          "roleName": "Vertex AI 사용자"
+        },
+        "key": {
+          "title": "JSON 키 내려받기",
+          "description": "생성된 서비스 계정의 <highlight>파란색 이메일</highlight>을 누른 뒤 <highlight>‘키 → 키 추가 → 새 키 만들기’</highlight>로 이동합니다. 키 유형이 <highlight>JSON</highlight>인지 확인하고 안전한 위치에 저장합니다."
+        },
+        "app": {
+          "title": "앱에서 JSON 선택",
+          "description": "이 안내를 닫고 서비스 계정 JSON 항목의 <highlight>‘JSON 선택’</highlight>을 눌러 내려받은 파일을 선택합니다. <highlight>프로젝트 ID</highlight>는 파일에서 자동으로 입력됩니다."
+        },
+        "security": {
+          "description": "파일을 다른 사람에게 보내거나 게시글·클라우드 공유 폴더·코드 저장소에 올리지 마세요. 유출되었다면 Google Cloud에서 해당 키를 즉시 삭제하고 새 키를 만드세요."
+        },
+        "openError": "Google Cloud 페이지를 열지 못했습니다. 잠시 후 다시 시도해 주세요."
+      },
       "openOllamaLibrary": "Ollama 모델 라이브러리 열기",
       "keyMaxAttempts": "키별 최대 시도 횟수",
       "retryDelaySeconds": "재시도 대기 시간 (초)",

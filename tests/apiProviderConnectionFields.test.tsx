@@ -7,6 +7,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -172,6 +173,139 @@ describe("API provider connection fields", () => {
     });
     expect(stringify).not.toHaveBeenCalled();
   });
+
+  it("selects a validated Vertex service-account JSON and uses it for discovery", async () => {
+    const openVertexSetupPage = vi.fn().mockResolvedValue({
+      opened: true,
+      url: "https://console.cloud.google.com/",
+    });
+    const pickVertexServiceAccountFile = vi.fn().mockResolvedValue({
+      filePath: "C:\\keys\\vertex-service.json",
+      fileName: "vertex-service.json",
+      projectId: "sample-project",
+      clientEmail: "translator@sample-project.iam.gserviceaccount.com",
+    });
+    const discoverApiModels = vi.fn().mockResolvedValue({
+      provider: "google-vertex",
+      models: [],
+      checkedCount: 0,
+      unverifiedCount: 0,
+    });
+    window.mangaApi = createTestMangaGatewayStub({
+      discoverApiModels,
+      openVertexSetupPage,
+      pickVertexServiceAccountFile,
+      onUiLocaleChanged: () => () => undefined,
+    });
+
+    render(
+      <AppI18nProvider>
+        <Harness />
+      </AppI18nProvider>,
+    );
+
+    chooseCustomSelectOption("Quick API provider setup", "Google Vertex AI");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Service account JSON" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open Vertex authentication guide" }),
+    );
+    const guideDialog = screen.getByRole("dialog", {
+      name: "Set up a Vertex service account JSON",
+    });
+    expect(within(guideDialog).queryByText(/Gemini API/)).toBeNull();
+    expect(
+      within(guideDialog).getByText("Vertex AI usage and credits").tagName,
+    ).toBe("STRONG");
+    expect(
+      within(guideDialog).queryByText("Protect the JSON file like a password"),
+    ).toBeNull();
+
+    const guidePages = [
+      ["Create project", "project-create"],
+      ["Open Vertex AI API", "vertex-ai-api"],
+      ["Open service accounts", "service-accounts"],
+    ] as const;
+    for (const [label, page] of guidePages) {
+      fireEvent.click(screen.getByRole("button", { name: label }));
+      await waitFor(() =>
+        expect(openVertexSetupPage).toHaveBeenLastCalledWith(page),
+      );
+    }
+    fireEvent.click(
+      within(guideDialog).getAllByRole("button", { name: "Close" })[1],
+    );
+    expect(
+      screen.queryByRole("dialog", {
+        name: "Set up a Vertex service account JSON",
+      }),
+    ).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Select JSON" }));
+
+    await waitFor(() =>
+      expect(pickVertexServiceAccountFile).toHaveBeenCalled(),
+    );
+    expect(readValue(screen.getByLabelText("Google Cloud project ID"))).toBe(
+      "sample-project",
+    );
+    expect(screen.getByText("vertex-service.json")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Load models" }));
+    await waitFor(() => expect(discoverApiModels).toHaveBeenCalledOnce());
+    expect(discoverApiModels).toHaveBeenCalledWith({
+      provider: "google-vertex",
+      apiKey: "",
+      vertexAuthMode: "service-account",
+      vertexServiceAccountPath: "C:\\keys\\vertex-service.json",
+      vertexProject: "sample-project",
+      vertexLocation: "global",
+    });
+  });
+
+  it("keeps the legacy Vertex token flow usable and reports invalid JSON selections", async () => {
+    const openApiProviderPage = vi.fn().mockResolvedValue(undefined);
+    const pickVertexServiceAccountFile = vi
+      .fn()
+      .mockRejectedValue(new Error("Invalid service account JSON"));
+    window.mangaApi = createTestMangaGatewayStub({
+      openApiProviderPage,
+      pickVertexServiceAccountFile,
+      onUiLocaleChanged: () => () => undefined,
+    });
+
+    render(
+      <AppI18nProvider>
+        <Harness />
+      </AppI18nProvider>,
+    );
+
+    chooseCustomSelectOption("Quick API provider setup", "Google Vertex AI");
+    const tokenInput = screen.getByLabelText(
+      "OAuth access tokens (one per line)",
+    );
+    expect(tokenInput.classList.contains("masked")).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Show API key" }));
+    expect(tokenInput.classList.contains("masked")).toBe(false);
+    fireEvent.change(tokenInput, { target: { value: "temporary-token" } });
+    expect(readValue(tokenInput)).toBe("temporary-token");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open Vertex authentication guide" }),
+    );
+    await waitFor(() =>
+      expect(openApiProviderPage).toHaveBeenCalledWith("google-vertex"),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Service account JSON" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Select JSON" }));
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "Invalid service account JSON",
+    );
+  });
 });
 
 function readValue(element: HTMLElement): string {
@@ -184,6 +318,11 @@ function Harness(): React.JSX.Element {
   );
   const [apiModel, setApiModel] = React.useState("manual-vision-model");
   const [apiKey, setApiKey] = React.useState("");
+  const [apiVertexAuthMode, setApiVertexAuthMode] = React.useState<
+    "access-token" | "service-account"
+  >("access-token");
+  const [apiVertexServiceAccountPath, setApiVertexServiceAccountPath] =
+    React.useState("");
   const [apiKeyMaxAttempts, setApiKeyMaxAttempts] = React.useState("2");
   const [apiRetryDelaySeconds, setApiRetryDelaySeconds] = React.useState("1");
 
@@ -193,6 +332,8 @@ function Harness(): React.JSX.Element {
         apiBaseUrl={apiBaseUrl}
         apiModel={apiModel}
         apiKey={apiKey}
+        apiVertexAuthMode={apiVertexAuthMode}
+        apiVertexServiceAccountPath={apiVertexServiceAccountPath}
         apiKeyMaxAttempts={apiKeyMaxAttempts}
         apiRetryDelaySeconds={apiRetryDelaySeconds}
         clearTestState={() => undefined}
@@ -200,6 +341,8 @@ function Harness(): React.JSX.Element {
         setApiBaseUrl={setApiBaseUrl}
         setApiModel={setApiModel}
         setApiKey={setApiKey}
+        setApiVertexAuthMode={setApiVertexAuthMode}
+        setApiVertexServiceAccountPath={setApiVertexServiceAccountPath}
         setApiKeyMaxAttempts={setApiKeyMaxAttempts}
         setApiRetryDelaySeconds={setApiRetryDelaySeconds}
         submit={() => undefined}

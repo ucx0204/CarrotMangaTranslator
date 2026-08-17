@@ -6,7 +6,6 @@ import {
 import {
   asRecord,
   resolveBoolean,
-  resolveCodexReasoningEffort,
   resolveContextTokens,
   resolveGemmaVramMode,
   resolveMaxTokens,
@@ -20,7 +19,6 @@ import {
   resolveOpenAiCompatibleBaseUrl,
   resolveOptionalJsonObjectString,
   resolveOptionalString,
-  resolvePortNumber,
 } from "./appSettingsResolvers";
 import { resolveDefaultAppSettings } from "./appSettingsDefaults";
 import {
@@ -62,6 +60,8 @@ import {
 } from "../../shared/blockStylePresets";
 import { normalizeHardwareGpuSettings } from "./appSettingsHardwareNormalize";
 import type { OcrNormalizationPolicy } from "./ocrRuntimeOverrides";
+import { normalizeVertexAuthSettings } from "./vertexAuthSettingsNormalize";
+import { normalizeCodexSettings } from "./appSettingsCodexNormalize";
 
 export function normalizeAppSettings(
   raw: unknown,
@@ -251,20 +251,6 @@ function resolveModeAwareDefaults(
   };
 }
 
-function normalizeCodexSettings(
-  codex: Record<string, unknown> | null,
-  defaults: AppSettings,
-): AppSettings["codex"] {
-  return {
-    model: resolveNonEmptyString(codex?.model, defaults.codex.model),
-    reasoningEffort: resolveCodexReasoningEffort(
-      codex?.reasoningEffort,
-      defaults.codex.reasoningEffort,
-    ),
-    oauthPort: resolvePortNumber(codex?.oauthPort, defaults.codex.oauthPort),
-  };
-}
-
 function normalizeApiSettings(
   api: Record<string, unknown> | null,
   defaults: AppSettings,
@@ -273,6 +259,7 @@ function normalizeApiSettings(
     baseUrl: resolveOpenAiCompatibleBaseUrl(api?.baseUrl, defaults.api.baseUrl),
     model: resolveNonEmptyString(api?.model, defaults.api.model),
     ...resolveApiKeySettings(api),
+    ...normalizeVertexAuthSettings(api),
     keyMaxAttempts: Math.round(
       resolveNumberRange(
         api?.keyMaxAttempts,

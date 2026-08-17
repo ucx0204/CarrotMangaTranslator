@@ -11,10 +11,10 @@ import {
   API_PROVIDER_PRESET_IDS,
   type ApiProviderPresetId,
 } from "../../../../shared/apiProviderPresets";
-import { IconButton } from "../ui/IconButton";
-import { EyeIcon, EyeOffIcon } from "../ui/icons";
 import { Select } from "../ui/Select";
+import { ApiKeyVisibilityButton } from "./ApiKeyVisibilityButton";
 import { ApiProviderModelFields } from "./ApiProviderModelFields";
+import { VertexCredentialFields } from "./VertexCredentialFields";
 import {
   useApiProviderConnection,
   type ApiProviderConnectionProps,
@@ -187,25 +187,40 @@ function BaseUrlField({
 
 function CredentialFields({
   apiKey,
+  apiVertexAuthMode,
+  apiVertexServiceAccountPath,
   clearTestState,
   connection,
   controlsBusy,
   setApiKey,
 }: Pick<
   ApiProviderConnectionProps,
-  "apiKey" | "clearTestState" | "controlsBusy" | "setApiKey"
+  | "apiKey"
+  | "apiVertexAuthMode"
+  | "apiVertexServiceAccountPath"
+  | "clearTestState"
+  | "controlsBusy"
+  | "setApiKey"
 > & { connection: ApiProviderConnectionState }): React.JSX.Element {
   const { t } = useTranslation("components");
-  const keyLabel =
-    connection.provider === "google-vertex"
-      ? "settings.api.vertexAccessToken"
-      : "settings.api.key";
+  if (connection.provider === "google-vertex") {
+    return (
+      <VertexCredentialFields
+        apiKey={apiKey}
+        apiVertexAuthMode={apiVertexAuthMode}
+        apiVertexServiceAccountPath={apiVertexServiceAccountPath}
+        clearTestState={clearTestState}
+        connection={connection}
+        controlsBusy={controlsBusy}
+        setApiKey={setApiKey}
+      />
+    );
+  }
+  const keyLabel = "settings.api.key";
   const linkLabel =
-    connection.provider === "google-vertex"
-      ? "settings.api.openVertexAuth"
-      : connection.provider === "ollama"
-        ? "settings.api.openOllamaLibrary"
-        : "settings.api.openKeyPage";
+    connection.provider === "ollama"
+      ? "settings.api.openOllamaLibrary"
+      : "settings.api.openKeyPage";
   return (
     <>
       <label>
@@ -227,8 +242,9 @@ function CredentialFields({
           />
           <span className="settings-api-key-action">
             <ApiKeyVisibilityButton
-              connection={connection}
               controlsBusy={controlsBusy}
+              setShowApiKey={connection.setShowApiKey}
+              showApiKey={connection.showApiKey}
             />
           </span>
         </div>
@@ -247,30 +263,6 @@ function CredentialFields({
         </button>
       ) : null}
     </>
-  );
-}
-
-function ApiKeyVisibilityButton({
-  connection,
-  controlsBusy,
-}: {
-  connection: ApiProviderConnectionState;
-  controlsBusy: boolean;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <IconButton
-      label={
-        connection.showApiKey
-          ? t("settings.api.hideKey")
-          : t("settings.api.showKey")
-      }
-      aria-pressed={connection.showApiKey}
-      disabled={controlsBusy}
-      onClick={() => connection.setShowApiKey(!connection.showApiKey)}
-    >
-      {connection.showApiKey ? <EyeOffIcon /> : <EyeIcon />}
-    </IconButton>
   );
 }
 

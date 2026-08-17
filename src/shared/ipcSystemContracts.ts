@@ -6,7 +6,11 @@ import {
   PanelSyncStateSchema,
 } from "./panelBridgeSchemas";
 import { defineIpcContract, localPathResult } from "./ipcContractCore";
-import type { DiscoverableApiProviderId } from "./apiProviderPresets";
+import {
+  VERTEX_SETUP_PAGE_IDS,
+  type DiscoverableApiProviderId,
+  type VertexSetupPageId,
+} from "./apiProviderPresets";
 import {
   CopyErrorReportBodySchema,
   CopyErrorReportResultSchema,
@@ -98,6 +102,7 @@ const discoverableApiProviderSchema = z.enum([
   "openrouter",
   "ollama",
 ]);
+const vertexSetupPageSchema = z.enum(VERTEX_SETUP_PAGE_IDS);
 
 export const externalIpcContracts = {
   openAmdHipSdkDownload: defineIpcContract<
@@ -137,6 +142,15 @@ export const externalIpcContracts = {
     apiKey: "openApiProviderPage",
     channel: "external:open-api-provider-page",
     args: z.tuple([discoverableApiProviderSchema]),
+    result: openedUrlResultSchema,
+  }),
+  openVertexSetupPage: defineIpcContract<
+    [VertexSetupPageId],
+    { opened: boolean; url: string }
+  >({
+    apiKey: "openVertexSetupPage",
+    channel: "external:open-vertex-setup-page",
+    args: z.tuple([vertexSetupPageSchema]),
     result: openedUrlResultSchema,
   }),
 } as const;

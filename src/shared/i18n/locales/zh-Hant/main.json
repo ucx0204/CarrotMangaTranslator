@@ -2,6 +2,7 @@
   "settings": {
     "localModelDialogTitle": "選擇本機 GGUF 模型",
     "mmprojDialogTitle": "選擇 mmproj 檔案",
+    "vertexServiceAccountDialogTitle": "選擇 Vertex 服務帳戶 JSON",
     "modelTestBusy": "翻譯工作執行期間無法檢查模型與執行環境。",
     "modelTestComplete": "Paddle OCR 與翻譯引擎檢查完成：{{output}}",
     "modelTestLabel": "模型／執行環境檢查"

@@ -58,7 +58,7 @@ export function redactDiagnosticText(
   replace(/(?<![a-z])[a-z]%3a(?:%5c|%2f)+[^&#\s"']+/gi, "<local-path>");
 
   replace(
-    /("(?:apiKey|authorization|proxyAuthorization|accessToken|refreshToken|token|secret|password|cookie|setCookie|customHeadersJson|extraBodyJson|promptOverrideText|promptOverrideTextPreview|sourceText|translatedText|ocrText|outputPreview|repairedOutputPreview|story|glossary|characters|imagePath|sourcePath|outputPath|outputDir|workName|chapterName|pageName|fileName|page)"\s*:\s*)("(?:\\.|[^"\\])*"|[^,\s}\]]+)/gi,
+    /("(?:apiKey|authorization|proxyAuthorization|accessToken|refreshToken|token|secret|password|cookie|setCookie|customHeadersJson|extraBodyJson|vertexServiceAccountPath|promptOverrideText|promptOverrideTextPreview|sourceText|translatedText|ocrText|outputPreview|repairedOutputPreview|story|glossary|characters|imagePath|sourcePath|outputPath|outputDir|workName|chapterName|pageName|fileName|page)"\s*:\s*)("(?:\\.|[^"\\])*"|[^,\s}\]]+)/gi,
     (_match, prefix, rawValue) =>
       isRedactionPlaceholder(rawValue)
         ? `${prefix}${rawValue}`

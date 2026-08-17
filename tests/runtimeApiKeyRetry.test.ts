@@ -98,6 +98,38 @@ afterEach(() => {
 });
 
 describe("runtime API key retry policy", () => {
+  it("obtains a fresh dynamic token for Vertex requests and refreshes after auth failure", async () => {
+    const tokenProvider = vi
+      .fn()
+      .mockResolvedValueOnce("service-token-1")
+      .mockResolvedValueOnce("service-token-2");
+    const attemptedKeys: Array<string | undefined> = [];
+
+    const result = await runWithApiKeyRetry(
+      {
+        modelProvider: "openai-api",
+        apiAccessTokenProvider: tokenProvider,
+        apiKey: "stale-manual-token",
+        apiKeyMaxAttempts: 2,
+        apiRetryDelaySeconds: 0,
+      },
+      async (apiKey) => {
+        attemptedKeys.push(apiKey);
+        if (attemptedKeys.length === 1) {
+          throw Object.assign(new Error("expired"), { status: 401 });
+        }
+        return "ok";
+      },
+    );
+
+    expect(result).toBe("ok");
+    expect(attemptedKeys).toEqual(["service-token-1", "service-token-2"]);
+    expect(tokenProvider).toHaveBeenNthCalledWith(1, {
+      forceRefresh: false,
+    });
+    expect(tokenProvider).toHaveBeenNthCalledWith(2, { forceRefresh: true });
+  });
+
   it("cycles key 1 through key N once per round", async () => {
     const attemptedKeys: Array<string | undefined> = [];
 

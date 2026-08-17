@@ -77,6 +77,8 @@ import type {
   ApiModelDiscoveryRequest,
   ApiModelDiscoveryResult,
   DiscoverableApiProviderId,
+  VertexSetupPageId,
+  VertexServiceAccountPickResult,
 } from "./apiProviderPresets";
 import type {
   CopyErrorReportResult,
@@ -180,6 +182,7 @@ export type MangaApi = {
   resetSettings: () => Promise<AppSettings>;
   pickLocalModelFile: () => Promise<LocalModelPickResult | null>;
   pickLocalMmprojFile: () => Promise<string | null>;
+  pickVertexServiceAccountFile: () => Promise<VertexServiceAccountPickResult | null>;
   openAmdHipSdkDownload: () => Promise<unknown>;
   getAppUpdateInfo: () => Promise<{
     currentVersion: string;
@@ -197,6 +200,9 @@ export type MangaApi = {
   ) => Promise<ApiModelDiscoveryResult>;
   openApiProviderPage: (
     provider: DiscoverableApiProviderId,
+  ) => Promise<{ opened: boolean; url: string }>;
+  openVertexSetupPage: (
+    page: VertexSetupPageId,
   ) => Promise<{ opened: boolean; url: string }>;
   getLogPath: () => Promise<string>;
   openLogFolder: () => Promise<unknown>;

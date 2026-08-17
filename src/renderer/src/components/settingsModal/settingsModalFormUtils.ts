@@ -17,6 +17,7 @@ import {
   normalizeApiKeysText,
   parseApiKeys,
 } from "../../../../shared/apiKeySettings";
+import { inferApiProviderPreset } from "../../../../shared/apiProviderPresets";
 
 export type SettingsDraft = ReturnType<typeof resolveSettingsDraft>;
 
@@ -99,6 +100,8 @@ function resolveApiDraft(values: SettingsFormValues) {
     normalizedApiBaseUrl: coerceOpenAiCompatibleBaseUrl(values.apiBaseUrl),
     trimmedApiModel: values.apiModel.trim(),
     trimmedApiKey: normalizeApiKeysText(values.apiKey),
+    trimmedApiVertexServiceAccountPath:
+      values.apiVertexServiceAccountPath.trim(),
     parsedApiKeyMaxAttempts: parsedApiKeyMaxAttempts.value,
     parsedApiRetryDelaySeconds: parsedApiRetryDelaySeconds.value,
     apiKeyMaxAttemptsValidation: parsedApiKeyMaxAttempts,
@@ -194,13 +197,25 @@ export function isSettingsFormSubmittable(
     return Boolean(draft.trimmedCodexModel && draft.codexOauthPortValid);
   }
   if (values.modelProvider === "openai-api") {
-    return Boolean(
-      draft.apiBaseUrlValid &&
-      draft.trimmedApiModel &&
-      draft.apiAdvancedSettingsValid,
-    );
+    return isOpenAiApiSettingsReady(values, draft);
   }
   return isGemmaSettingsReady(values, draft);
+}
+
+function isOpenAiApiSettingsReady(
+  values: SettingsFormValues,
+  draft: SettingsDraft,
+): boolean {
+  const vertexServiceAccountReady =
+    inferApiProviderPreset(values.apiBaseUrl) !== "google-vertex" ||
+    values.apiVertexAuthMode !== "service-account" ||
+    Boolean(draft.trimmedApiVertexServiceAccountPath);
+  return Boolean(
+    draft.apiBaseUrlValid &&
+    draft.trimmedApiModel &&
+    draft.apiAdvancedSettingsValid &&
+    vertexServiceAccountReady,
+  );
 }
 
 function isGemmaSettingsReady(

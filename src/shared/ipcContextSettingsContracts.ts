@@ -14,12 +14,13 @@ import type { AppSettings } from "./settingsTypes";
 import type {
   ApiModelDiscoveryRequest,
   ApiModelDiscoveryResult,
+  VertexServiceAccountPickResult,
 } from "./apiProviderPresets";
 import {
-  MAX_API_KEYS,
-  MAX_API_KEYS_TEXT_LENGTH,
-  parseApiKeys,
-} from "./apiKeySettings";
+  apiModelDiscoveryRequestSchema,
+  apiModelDiscoveryResultSchema,
+  vertexServiceAccountPickResultSchema,
+} from "./apiModelDiscoverySchemas";
 import type { SaveTextFileRequest, SaveTextFileResult } from "./shareTypes";
 import type {
   AnalyzeWorkContextRequest,
@@ -304,43 +305,6 @@ const optionalModelTestArgsSchema = z.union([
   z.tuple([AppSettingsSchema]),
   z.tuple([AppSettingsSchema, z.unknown()]),
 ]);
-const discoverableApiProviderSchema = z.enum([
-  "nvidia-nim",
-  "google-ai-studio",
-  "google-vertex",
-  "openrouter",
-  "ollama",
-]);
-const apiModelDiscoveryRequestSchema = z
-  .object({
-    provider: discoverableApiProviderSchema,
-    apiKey: z
-      .string()
-      .max(MAX_API_KEYS_TEXT_LENGTH)
-      .refine((value) => parseApiKeys(value).length <= MAX_API_KEYS),
-    vertexProject: z.string().max(100).optional(),
-    vertexLocation: z.string().max(100).optional(),
-  })
-  .strict();
-const apiModelDiscoveryResultSchema = z
-  .object({
-    provider: discoverableApiProviderSchema,
-    models: z
-      .array(
-        z
-          .object({
-            id: z.string().min(1).max(300),
-            label: z.string().min(1).max(500),
-            baseUrl: z.string().url().max(2000),
-          })
-          .strict(),
-      )
-      .max(2000),
-    checkedCount: z.number().int().nonnegative(),
-    unverifiedCount: z.number().int().nonnegative(),
-  })
-  .strict();
-
 export const settingsIpcContracts = {
   getUiLocale: defineIpcContract<[], UiLocale>({
     apiKey: "getUiLocale",
@@ -383,6 +347,15 @@ export const settingsIpcContracts = {
     channel: "settings:pick-local-mmproj",
     args: z.tuple([]),
     result: localPathResult.nullable(),
+  }),
+  pickVertexServiceAccountFile: defineIpcContract<
+    [],
+    VertexServiceAccountPickResult | null
+  >({
+    apiKey: "pickVertexServiceAccountFile",
+    channel: "settings:pick-vertex-service-account",
+    args: z.tuple([]),
+    result: vertexServiceAccountPickResultSchema.nullable(),
   }),
   testModelSettings: defineIpcContract<
     [AppSettings, providedTestId?: unknown],

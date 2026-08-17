@@ -16,6 +16,8 @@ export type ApiProviderConnectionProps = Pick<
   EngineSettingsPanelProps,
   | "apiBaseUrl"
   | "apiKey"
+  | "apiVertexAuthMode"
+  | "apiVertexServiceAccountPath"
   | "apiKeyMaxAttempts"
   | "apiModel"
   | "apiRetryDelaySeconds"
@@ -23,6 +25,8 @@ export type ApiProviderConnectionProps = Pick<
   | "controlsBusy"
   | "setApiBaseUrl"
   | "setApiKey"
+  | "setApiVertexAuthMode"
+  | "setApiVertexServiceAccountPath"
   | "setApiKeyMaxAttempts"
   | "setApiModel"
   | "setApiRetryDelaySeconds"
@@ -42,6 +46,8 @@ type DiscoveryController = {
   load: (
     provider: DiscoverableApiProviderId,
     apiKey: string,
+    vertexAuthMode: ApiProviderConnectionProps["apiVertexAuthMode"],
+    vertexServiceAccountPath: string,
     vertexProject: string,
     vertexLocation: string,
   ) => Promise<void>;
@@ -68,35 +74,22 @@ export function useApiProviderConnection(props: ApiProviderConnectionProps) {
     setVertexLocation,
     setVertexProject,
   });
-
-  const applyProvider = (nextProvider: ApiProviderPresetId): void => {
-    setProvider(nextProvider);
-    modelDiscovery.invalidate();
-    props.clearTestState();
-    const baseUrl = resolveApiProviderBaseUrl({
-      provider: nextProvider,
-      vertexProject,
-      vertexLocation,
-    });
-    if (baseUrl) {
-      updateBaseUrl(baseUrl);
-    } else if (nextProvider === "google-vertex") {
-      updateBaseUrl("");
-    }
-  };
-
-  const updateVertex = (project: string, location: string): void => {
-    setVertexProject(project);
-    setVertexLocation(location);
-    modelDiscovery.invalidate();
-    props.clearTestState();
-    const baseUrl = resolveApiProviderBaseUrl({
-      provider: "google-vertex",
-      vertexProject: project,
-      vertexLocation: location,
-    });
-    updateBaseUrl(baseUrl ?? "");
-  };
+  const { applyProvider, updateVertex } = createProviderSelectionActions({
+    clearTestState: props.clearTestState,
+    invalidate: modelDiscovery.invalidate,
+    setProvider,
+    setVertexLocation,
+    setVertexProject,
+    updateBaseUrl,
+    vertexLocation,
+    vertexProject,
+  });
+  const vertexCredentials = useVertexCredentialController(
+    props,
+    modelDiscovery,
+    updateVertex,
+    vertexLocation,
+  );
 
   const isDiscoverable = provider !== "custom";
   const loadModels = async (): Promise<void> => {
@@ -104,6 +97,8 @@ export function useApiProviderConnection(props: ApiProviderConnectionProps) {
     await modelDiscovery.load(
       provider,
       props.apiKey,
+      props.apiVertexAuthMode,
+      props.apiVertexServiceAccountPath,
       vertexProject,
       vertexLocation,
     );
@@ -111,6 +106,7 @@ export function useApiProviderConnection(props: ApiProviderConnectionProps) {
 
   return {
     ...modelDiscovery,
+    ...vertexCredentials,
     applyProvider,
     isDiscoverable,
     keyCount: parseApiKeys(props.apiKey).length,
@@ -125,9 +121,106 @@ export function useApiProviderConnection(props: ApiProviderConnectionProps) {
     vertexProject,
     vertexReady:
       provider !== "google-vertex" ||
-      Boolean(
+      (Boolean(
         resolveApiProviderBaseUrl({ provider, vertexProject, vertexLocation }),
-      ),
+      ) &&
+        (props.apiVertexAuthMode !== "service-account" ||
+          Boolean(props.apiVertexServiceAccountPath.trim()))),
+  };
+}
+
+function createProviderSelectionActions({
+  clearTestState,
+  invalidate,
+  setProvider,
+  setVertexLocation,
+  setVertexProject,
+  updateBaseUrl,
+  vertexLocation,
+  vertexProject,
+}: {
+  clearTestState: () => void;
+  invalidate: () => void;
+  setProvider: React.Dispatch<React.SetStateAction<ApiProviderPresetId>>;
+  setVertexLocation: React.Dispatch<React.SetStateAction<string>>;
+  setVertexProject: React.Dispatch<React.SetStateAction<string>>;
+  updateBaseUrl: (value: string) => void;
+  vertexLocation: string;
+  vertexProject: string;
+}) {
+  const applyProvider = (nextProvider: ApiProviderPresetId): void => {
+    setProvider(nextProvider);
+    invalidate();
+    clearTestState();
+    const baseUrl = resolveApiProviderBaseUrl({
+      provider: nextProvider,
+      vertexProject,
+      vertexLocation,
+    });
+    if (baseUrl) updateBaseUrl(baseUrl);
+    else if (nextProvider === "google-vertex") updateBaseUrl("");
+  };
+  const updateVertex = (project: string, location: string): void => {
+    setVertexProject(project);
+    setVertexLocation(location);
+    invalidate();
+    clearTestState();
+    const baseUrl = resolveApiProviderBaseUrl({
+      provider: "google-vertex",
+      vertexProject: project,
+      vertexLocation: location,
+    });
+    updateBaseUrl(baseUrl ?? "");
+  };
+  return { applyProvider, updateVertex };
+}
+
+function useVertexCredentialController(
+  props: ApiProviderConnectionProps,
+  discovery: DiscoveryController,
+  updateVertex: (project: string, location: string) => void,
+  vertexLocation: string,
+) {
+  const [credentialBusy, setCredentialBusy] = React.useState(false);
+  const [credentialError, setCredentialError] = React.useState<string | null>(
+    null,
+  );
+  const updateVertexAuthMode = (
+    nextMode: ApiProviderConnectionProps["apiVertexAuthMode"],
+  ): void => {
+    props.clearTestState();
+    props.setApiVertexAuthMode(nextMode);
+    setCredentialError(null);
+    discovery.invalidate();
+  };
+  const pickVertexServiceAccount = async (): Promise<void> => {
+    setCredentialBusy(true);
+    setCredentialError(null);
+    try {
+      const picked = await settingsGateway.pickVertexServiceAccountFile();
+      if (!picked) return;
+      props.clearTestState();
+      props.setApiVertexAuthMode("service-account");
+      props.setApiVertexServiceAccountPath(picked.filePath);
+      updateVertex(picked.projectId, vertexLocation);
+    } catch (error) {
+      setCredentialError(readErrorMessage(error));
+    } finally {
+      setCredentialBusy(false);
+    }
+  };
+  const clearVertexServiceAccount = (): void => {
+    props.clearTestState();
+    props.setApiVertexServiceAccountPath("");
+    setCredentialError(null);
+    discovery.invalidate();
+  };
+  return {
+    clearVertexServiceAccount,
+    credentialBusy,
+    credentialError,
+    pickVertexServiceAccount,
+    updateVertexAuthMode,
   };
 }
 
@@ -214,7 +307,14 @@ function useModelDiscovery(): DiscoveryController {
     [activeRef],
   );
   const load: DiscoveryController["load"] = React.useCallback(
-    async (provider, apiKey, vertexProject, vertexLocation) => {
+    async (
+      provider,
+      apiKey,
+      vertexAuthMode,
+      vertexServiceAccountPath,
+      vertexProject,
+      vertexLocation,
+    ) => {
       if (!activeRef.current) {
         return;
       }
@@ -225,7 +325,12 @@ function useModelDiscovery(): DiscoveryController {
           provider,
           apiKey,
           ...(provider === "google-vertex"
-            ? { vertexProject, vertexLocation }
+            ? {
+                vertexAuthMode,
+                vertexServiceAccountPath,
+                vertexProject,
+                vertexLocation,
+              }
             : {}),
         });
         if (!activeRef.current || requestSequence.current !== sequence) return;

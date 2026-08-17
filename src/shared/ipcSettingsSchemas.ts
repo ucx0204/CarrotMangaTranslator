@@ -209,6 +209,8 @@ export const AppSettingsSchema = z
         baseUrl: OpenAiCompatibleBaseUrlSchema,
         model: z.string().min(1).max(200),
         apiKey: z.string().max(MAX_API_KEYS_TEXT_LENGTH).optional(),
+        vertexAuthMode: z.enum(["access-token", "service-account"]).optional(),
+        vertexServiceAccountPath: filePath.optional(),
         keyMaxAttempts: z
           .number()
           .int()

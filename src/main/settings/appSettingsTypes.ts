@@ -123,6 +123,7 @@ export type TranslationOptions = {
   apiBaseUrl: string;
   apiModel: string;
   apiKey?: string;
+  apiAccessTokenProvider?: import("../vertexServiceAccountAuth").VertexAccessTokenProvider;
   apiKeyMaxAttempts?: number;
   apiRetryDelaySeconds?: number;
   apiTemperature?: number | null;

@@ -23,8 +23,8 @@
 당근망가번역기는 이미지 속 대사와 효과음을 찾고, AI 번역 블록을 만든 뒤, 사람이 문장과 배치를 다듬어 완성 PNG나 레이어 PSD로 내보내는 만화 작업 도구입니다. 이미지 한 장부터 폴더, ZIP, CBZ까지 불러올 수 있습니다.
 
 - 다운로드: [GitHub Releases](https://github.com/ucx0204/CarrotMangaTranslator/releases)
-- 현재 소스 버전: `v1.17.1`
-- 패치노트: [v1.17.1](docs/release-notes/v1.17.1.md)
+- 현재 소스 버전: `v1.17.2`
+- 패치노트: [v1.17.2](docs/release-notes/v1.17.2.md)
 - 문제가 생겼나요?: [자주 묻는 질문](#막히면-여기부터-확인하세요)
 
 ---
@@ -618,7 +618,12 @@ API 엔진은 Base URL에 `/chat/completions`를 붙여 이미지와 OCR 힌트�
 - 일반 OpenAI 호환 서버: `https://server.example/v1`
 - NVIDIA NIM: `https://integrate.api.nvidia.com/v1`
 - Gemini OpenAI 호환: `https://generativelanguage.googleapis.com/v1beta/openai`
+- Google Vertex AI: 빠른 설정에서 프로젝트와 리전을 입력하면 주소를 자동 구성합니다.
 - LM Studio 같은 인증 없는 로컬 서버는 API 키를 비울 수 있습니다.
+
+Vertex AI 인증은 만료되는 OAuth 액세스 토큰을 직접 넣는 기존 방식과 서비스 계정 JSON 방식 중에서 선택할 수 있습니다. 서비스 계정 JSON을 선택하면 파일의 `project_id`가 자동 입력되고, 앱이 필요할 때 짧은 수명의 액세스 토큰을 자동 발급·갱신합니다. JSON 내용은 앱 설정에 복사되지 않으며 선택한 로컬 파일의 경로만 저장됩니다.
+
+서비스 계정에는 대상 프로젝트의 `Vertex AI User` 역할이 필요합니다. JSON 키는 비밀번호와 같은 개인키이므로 공유하거나 Git 저장소에 올리지 말고, 필요 없어진 키는 Google Cloud에서 삭제하세요. Google은 가능한 경우 키 파일보다 ADC 같은 키 없는 인증을 우선하도록 권장합니다: [Vertex AI 인증 빠른 시작](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/start/quickstart), [서비스 계정 키 보안 권장사항](https://docs.cloud.google.com/iam/docs/best-practices-for-managing-service-account-keys)
 
 `Temperature`, `top_p`, `top_k`, `reasoning_effort`, 추가 request body JSON과 custom headers JSON도 설정할 수 있습니다. 서버가 값을 거부한다면 고급 값을 먼저 비우세요.
 

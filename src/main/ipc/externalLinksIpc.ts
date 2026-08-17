@@ -17,6 +17,13 @@ const API_PROVIDER_URLS = {
   openrouter: "https://openrouter.ai/keys",
   ollama: "https://ollama.com/library",
 } as const;
+const VERTEX_SETUP_PAGE_URLS = {
+  "project-create": "https://console.cloud.google.com/projectcreate",
+  "vertex-ai-api":
+    "https://console.cloud.google.com/marketplace/product/google/aiplatform.googleapis.com",
+  "service-accounts":
+    "https://console.cloud.google.com/iam-admin/serviceaccounts",
+} as const;
 
 export function registerExternalLinksIpc(context: IpcContext): void {
   trustedHandleContract(
@@ -61,6 +68,16 @@ export function registerExternalLinksIpc(context: IpcContext): void {
     externalIpcContracts.openApiProviderPage,
     async (_event, provider) => {
       const url = API_PROVIDER_URLS[provider];
+      await shell.openExternal(url);
+      return { opened: true, url };
+    },
+  );
+
+  trustedHandleContract(
+    context,
+    externalIpcContracts.openVertexSetupPage,
+    async (_event, page) => {
+      const url = VERTEX_SETUP_PAGE_URLS[page];
       await shell.openExternal(url);
       return { opened: true, url };
     },

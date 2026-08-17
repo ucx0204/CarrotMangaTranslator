@@ -2,6 +2,7 @@
   "settings": {
     "localModelDialogTitle": "ローカルGGUFモデルを選択",
     "mmprojDialogTitle": "mmprojファイルを選択",
+    "vertexServiceAccountDialogTitle": "VertexサービスアカウントJSONを選択",
     "modelTestBusy": "翻訳中はモデル／ランタイムの確認を実行できません。",
     "modelTestComplete": "Paddle OCRと翻訳エンジンの確認が完了しました：{{output}}",
     "modelTestLabel": "モデル／ランタイム確認"

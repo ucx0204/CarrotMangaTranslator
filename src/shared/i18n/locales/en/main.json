@@ -2,6 +2,7 @@
   "settings": {
     "localModelDialogTitle": "Select Local GGUF Model",
     "mmprojDialogTitle": "Select mmproj File",
+    "vertexServiceAccountDialogTitle": "Select Vertex Service Account JSON",
     "modelTestBusy": "The model and runtime cannot be tested while a translation job is running.",
     "modelTestComplete": "Paddle OCR and translation engine check complete: {{output}}",
     "modelTestLabel": "Model/Runtime Check"

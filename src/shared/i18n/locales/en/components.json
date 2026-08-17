@@ -1501,7 +1501,15 @@
       "providerHintVerified": "Loads only current models whose image input support can be verified. You can still type any model ID below.",
       "vertexProject": "Google Cloud project ID",
       "vertexLocation": "Vertex region",
+      "vertexAuthMode": "Vertex authentication",
+      "vertexAuthAccessToken": "Enter access token",
+      "vertexAuthServiceAccount": "Service account JSON",
       "vertexAccessToken": "OAuth access tokens (one per line)",
+      "vertexServiceAccountNotSelected": "Select a service account JSON file",
+      "vertexServiceAccountSelect": "Select JSON",
+      "vertexServiceAccountChange": "Change",
+      "vertexServiceAccountClear": "Remove",
+      "vertexServiceAccountDescription": "The JSON key is read only from the selected file on this PC and is never copied into app settings. The service account needs the Vertex AI User role on the target project. Never share or commit the key file.",
       "discoveredModel": "Verified image-input model",
       "chooseModel": "Choose a model…",
       "loadModels": "Load models",
@@ -1517,6 +1525,39 @@
       "hideKey": "Hide API key",
       "openKeyPage": "Open API key page",
       "openVertexAuth": "Open Vertex authentication guide",
+      "vertexGuide": {
+        "title": "Set up a Vertex service account JSON",
+        "intro": "After you connect a service account JSON once, the app refreshes the required access tokens automatically instead of asking you to paste a new token every hour.",
+        "project": {
+          "title": "Create a Google Cloud project",
+          "description": "Create a project, or use an existing one, for <highlight>Vertex AI usage and credits</highlight>.",
+          "action": "Create project"
+        },
+        "api": {
+          "title": "Enable the Vertex AI API",
+          "description": "In the selected project, click <highlight>Enable for the Vertex AI API</highlight>.",
+          "action": "Open Vertex AI API"
+        },
+        "account": {
+          "title": "Create a service account",
+          "description": "On the Service Accounts page, select the project and choose <highlight>Create service account</highlight>. Use a recognizable name such as Vertex AI, then assign the <highlight>Vertex AI User</highlight> role and finish.",
+          "action": "Open service accounts",
+          "roleLabel": "Required role",
+          "roleName": "Vertex AI User"
+        },
+        "key": {
+          "title": "Download a JSON key",
+          "description": "Open the new service account's <highlight>blue email address</highlight>, then go to <highlight>Keys → Add key → Create new key</highlight>. Select <highlight>JSON</highlight> and save the file in a secure location."
+        },
+        "app": {
+          "title": "Select the JSON in the app",
+          "description": "Close this guide, choose <highlight>Select JSON</highlight> under Service account JSON, and select the downloaded file. The <highlight>project ID</highlight> is filled from the file automatically."
+        },
+        "security": {
+          "description": "Never send it to another person or upload it to a post, shared cloud folder, or code repository. If it leaks, delete that key in Google Cloud immediately and create a replacement."
+        },
+        "openError": "Could not open the Google Cloud page. Please try again."
+      },
       "openOllamaLibrary": "Open Ollama model library",
       "keyMaxAttempts": "Maximum attempts per key",
       "retryDelaySeconds": "Retry delay (seconds)",

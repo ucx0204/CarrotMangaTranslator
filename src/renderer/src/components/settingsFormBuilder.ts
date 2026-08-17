@@ -50,6 +50,8 @@ type BuildSettingsFromFormInput = {
   apiBaseUrl: string;
   apiModel: string;
   apiKey: string;
+  apiVertexAuthMode: import("../../../shared/apiProviderPresets").VertexAuthMode;
+  apiVertexServiceAccountPath: string;
   apiKeyMaxAttempts: number;
   apiRetryDelaySeconds: number;
   apiTemperature: number | null;
@@ -161,6 +163,10 @@ function buildApiSettings(input: BuildSettingsFromFormInput) {
     baseUrl: input.apiBaseUrl || input.initialSettings.api.baseUrl,
     model: input.apiModel || input.initialSettings.api.model,
     ...(input.apiKey ? { apiKey: input.apiKey } : {}),
+    vertexAuthMode: input.apiVertexAuthMode,
+    ...(input.apiVertexServiceAccountPath
+      ? { vertexServiceAccountPath: input.apiVertexServiceAccountPath }
+      : {}),
     keyMaxAttempts: input.apiKeyMaxAttempts,
     retryDelaySeconds: input.apiRetryDelaySeconds,
     temperature: input.apiTemperature,

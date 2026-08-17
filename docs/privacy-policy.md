@@ -1,6 +1,6 @@
 # Privacy policy
 
-Last updated: 2026-07-17
+Last updated: 2026-08-17
 
 This notice describes how CarrotMangaTranslator (distributed in Korean as
 `당근망가번역기`) stores data and uses network services. The project does not
@@ -20,16 +20,19 @@ during installation:
   layouts, inpainting results, glossaries, character notes, translation rules,
   and story memory;
 - application settings, custom API endpoints, model identifiers, API keys,
-  access tokens, and custom request headers;
+  access tokens, custom request headers, and the local path of a selected
+  Vertex service-account JSON file;
 - application logs that may contain local file paths, system information, error
   details, or project-related text;
 - downloaded models, OCR and inpainting runtimes, caches, custom fonts, and
   window preferences.
 
-API keys, access tokens, and custom headers entered in the application are
-stored as plain text in the local `settings.json` file. They are not encrypted
-by the application. Protect the data folder, do not place it in a publicly
-shared location, and do not send the settings file or raw logs to other people.
+API keys, access tokens, and credential-bearing custom headers entered in the
+application are kept in the app's OS-encrypted local settings vault. A selected
+Vertex service-account JSON file is not copied into the data folder; the app
+stores its local path and reads the credential from that file when Vertex is
+used. Protect both the data folder and the original JSON key file, do not place
+them in a publicly shared location, and never send them or raw logs to others.
 
 Codex CLI credentials are managed by Codex CLI and are not copied into the
 application's settings file.
@@ -89,9 +92,10 @@ The user controls where exported files are saved and whether they are shared.
 Local data remains in the selected data folder until the user deletes it. The
 uninstaller asks separately whether project data and downloaded models or
 runtimes should also be removed. API keys and access tokens can be removed by
-clearing them in Settings or deleting the local settings file. External
-providers retain or delete data according to their own policies and the user's
-account settings.
+clearing them in Settings or deleting the local settings vault. A Vertex
+service-account key must also be removed or revoked in Google Cloud when it is
+no longer needed. External providers retain or delete data according to their
+own policies and the user's account settings.
 
 ## Logs and support
 
@@ -110,7 +114,7 @@ including confidential information.
 
 # 개인정보 처리 안내
 
-최종 수정일: 2026-07-17
+최종 수정일: 2026-08-17
 
 이 문서는 CarrotMangaTranslator(당근망가번역기)가 데이터를 저장하고 네트워크
 서비스를 사용하는 방식을 설명합니다. 프로젝트는 앱용 백엔드 서버, 사용자 계정
@@ -125,15 +129,17 @@ including confidential information.
 
 - 가져온 만화 이미지, 작품과 화, OCR 원문, 번역문, 텍스트 블록 배치,
   인페인팅 결과, 용어집, 캐릭터 메모, 번역 규칙과 스토리 기억
-- 앱 설정, 사용자 지정 API 주소, 모델 ID, API 키, 액세스 토큰과 사용자 지정 요청
-  헤더
+- 앱 설정, 사용자 지정 API 주소, 모델 ID, API 키, 액세스 토큰, 사용자 지정 요청
+  헤더와 선택한 Vertex 서비스 계정 JSON 파일의 로컬 경로
 - 로컬 파일 경로, 시스템 정보, 오류 상세 또는 작품 관련 텍스트가 들어갈 수 있는
   앱 로그
 - 내려받은 모델, OCR·인페인팅 런타임, 캐시, 사용자 폰트와 창 위치 설정
 
-앱에 입력한 API 키, 액세스 토큰과 사용자 지정 헤더는 로컬 `settings.json` 파일에
-평문으로 저장되며 앱이 암호화하지 않습니다. 데이터 폴더를 보호하고 공개 공유
-폴더에 두지 말며, 설정 파일이나 원본 로그를 다른 사람에게 보내지 마세요.
+앱에 입력한 API 키, 액세스 토큰과 인증용 사용자 지정 헤더는 운영체제로 암호화한
+로컬 설정 금고에 보관됩니다. 선택한 Vertex 서비스 계정 JSON은 데이터 폴더로
+복사하지 않고 로컬 경로만 저장하며, Vertex를 사용할 때 원본 파일에서 인증 정보를
+읽습니다. 데이터 폴더와 원본 JSON 키 파일을 모두 보호하고 공개 공유 폴더에 두지
+말며, 다른 사람에게 보내거나 원본 로그에 첨부하지 마세요.
 
 Codex CLI 로그인 정보는 Codex CLI가 관리하며 앱 설정 파일로 복사되지 않습니다.
 
@@ -187,9 +193,10 @@ Codex CLI 로그인 정보는 Codex CLI가 관리하며 앱 설정 파일로 복
 
 로컬 데이터는 사용자가 삭제할 때까지 선택한 데이터 폴더에 남습니다. 제거
 프로그램은 작품 데이터와 내려받은 모델·런타임도 함께 지울지 별도로 묻습니다.
-API 키와 액세스 토큰은 설정에서 지우거나 로컬 설정 파일을 삭제해 제거할 수
-있습니다. 외부 서비스의 보관과 삭제에는 해당 제공자의 정책과 사용자 계정 설정이
-적용됩니다.
+API 키와 액세스 토큰은 설정에서 지우거나 로컬 설정 금고를 삭제해 제거할 수
+있습니다. Vertex 서비스 계정 키가 더 이상 필요하지 않으면 Google Cloud에서도
+삭제하거나 폐기해야 합니다. 외부 서비스의 보관과 삭제에는 해당 제공자의 정책과
+사용자 계정 설정이 적용됩니다.
 
 ## 로그와 지원
 

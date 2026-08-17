@@ -172,6 +172,7 @@ function summarizeRemoteModelOptions(
     apiBaseUrl: options.apiBaseUrl,
     apiModel: options.apiModel,
     apiKeyConfigured: Boolean(options.apiKey),
+    apiAccessTokenProviderConfigured: Boolean(options.apiAccessTokenProvider),
     apiKeyCount: parseApiKeys(options.apiKey).length,
     apiKeyMaxAttempts: options.apiKeyMaxAttempts,
     apiRetryDelaySeconds: options.apiRetryDelaySeconds,

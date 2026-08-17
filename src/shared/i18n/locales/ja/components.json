@@ -1489,7 +1489,15 @@
       "providerHintVerified": "現在の一覧から画像入力対応を確認できたモデルだけを読み込みます。一覧にないモデルIDも下で直接入力できます。",
       "vertexProject": "Google CloudプロジェクトID",
       "vertexLocation": "Vertexリージョン",
+      "vertexAuthMode": "Vertex認証方式",
+      "vertexAuthAccessToken": "アクセストークンを入力",
+      "vertexAuthServiceAccount": "サービスアカウントJSON",
       "vertexAccessToken": "OAuthアクセストークン（1行に1つ）",
+      "vertexServiceAccountNotSelected": "サービスアカウントJSONを選択してください",
+      "vertexServiceAccountSelect": "JSONを選択",
+      "vertexServiceAccountChange": "変更",
+      "vertexServiceAccountClear": "解除",
+      "vertexServiceAccountDescription": "JSONキーの内容はアプリ設定にコピーせず、このPCで選択したファイルからのみ読み取ります。サービスアカウントには対象プロジェクトのVertex AIユーザーロールが必要です。キーファイルを共有したりリポジトリへ追加したりしないでください。",
       "discoveredModel": "確認済み画像入力モデル",
       "chooseModel": "モデルを選択…",
       "loadModels": "モデルを読み込む",
@@ -1505,6 +1513,39 @@
       "hideKey": "APIキーを隠す",
       "openKeyPage": "APIキー発行ページを開く",
       "openVertexAuth": "Vertex認証設定ガイドを開く",
+      "vertexGuide": {
+        "title": "VertexサービスアカウントJSONの設定",
+        "intro": "サービスアカウントJSONを一度接続すると、1時間ごとにアクセストークンを入力し直す代わりに、アプリが必要なトークンを自動更新します。",
+        "project": {
+          "title": "Google Cloudプロジェクトを作成",
+          "description": "<highlight>Vertex AIの利用量とクレジット</highlight>を紐付けるプロジェクトを作成するか、既存のプロジェクトを使用します。",
+          "action": "プロジェクトを作成"
+        },
+        "api": {
+          "title": "Vertex AI APIを有効化",
+          "description": "選択したプロジェクトで<highlight>Vertex AI APIの［有効にする］</highlight>を押します。",
+          "action": "Vertex AI APIを開く"
+        },
+        "account": {
+          "title": "サービスアカウントを作成",
+          "description": "サービスアカウントページでプロジェクトを選び、<highlight>［サービスアカウントを作成］</highlight>を押します。Vertex AIなど分かりやすい名前を付け、<highlight>Vertex AI ユーザー</highlight>ロールを割り当てて完了します。",
+          "action": "サービスアカウントを開く",
+          "roleLabel": "必要なロール",
+          "roleName": "Vertex AI ユーザー"
+        },
+        "key": {
+          "title": "JSONキーをダウンロード",
+          "description": "作成したサービスアカウントの<highlight>青いメールアドレス</highlight>を開き、<highlight>［キー → 鍵を追加 → 新しい鍵を作成］</highlight>へ進みます。<highlight>JSON</highlight>を選択し、安全な場所に保存します。"
+        },
+        "app": {
+          "title": "アプリでJSONを選択",
+          "description": "このガイドを閉じ、サービスアカウントJSONの<highlight>［JSONを選択］</highlight>からダウンロードしたファイルを選びます。<highlight>プロジェクトID</highlight>は自動入力されます。"
+        },
+        "security": {
+          "description": "他人に送信したり、投稿・共有クラウドフォルダー・コードリポジトリへアップロードしないでください。漏えいした場合はGoogle Cloudでそのキーを直ちに削除し、新しいキーを作成してください。"
+        },
+        "openError": "Google Cloudページを開けませんでした。もう一度お試しください。"
+      },
       "openOllamaLibrary": "Ollama モデルライブラリを開く",
       "keyMaxAttempts": "キーごとの最大試行回数",
       "retryDelaySeconds": "再試行の待機時間（秒）",

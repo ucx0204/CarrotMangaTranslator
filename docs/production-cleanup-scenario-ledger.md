@@ -87,9 +87,11 @@ editing the totals by hand.
   `67a7bc7478c11b299f75528fd69f2d7e96c467d6556b5abfbcbec2e1f92cbf61`.
   The multi-GPU detection pass extended it to SHA-256
   `2ddbe6e55074a92c6fd426591da5bfe4a788f8266a351894b819162090584933`.
+  The Vertex AI service-account authentication pass extended it to SHA-256
+  `acaa78c5367da5fa3584026c25287838c7f72a93fe37284024bfd1c48c9846bb`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
-  percentage for lines/statements/functions/branches in all 186 existing
-  coverage-eligible `src/**` files changed since cleanup start. The 36 new
+  percentage for lines/statements/functions/branches in all 207 existing
+  coverage-eligible `src/**` files changed since cleanup start. The 43 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record. The
   three removed source files are recorded explicitly in `deletedFiles`.

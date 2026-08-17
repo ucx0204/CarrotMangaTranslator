@@ -6,6 +6,9 @@ export type CommandSpec = {
 export type RuntimeOptions = {
   abortSignal?: AbortSignal | null;
   apiKey?: string | null;
+  apiAccessTokenProvider?: (request?: {
+    forceRefresh?: boolean;
+  }) => Promise<string>;
   apiKeyMaxAttempts?: number | string | null;
   apiRetryDelaySeconds?: number | string | null;
   amdRocmTarget?: string | null;

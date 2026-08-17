@@ -361,6 +361,102 @@ describe("settings IPC recent model directories", () => {
   });
 });
 
+describe("settings IPC Vertex service-account picker", () => {
+  it("validates the selected JSON, returns only public metadata, and remembers its folder", async () => {
+    const dataRoot = mkdtempSync(join(tmpdir(), "settings-vertex-ipc-"));
+    tempDirs.push(dataRoot);
+    const keyDirectory = join(dataRoot, "google-keys");
+    const keyPath = join(keyDirectory, "vertex-service-account.json");
+    mkdirSync(keyDirectory, { recursive: true });
+    writeFileSync(
+      keyPath,
+      JSON.stringify({
+        type: "service_account",
+        project_id: "sample-project",
+        private_key:
+          "-----BEGIN PRIVATE KEY-----\nnot-a-real-key\n-----END PRIVATE KEY-----\n",
+        client_email:
+          "carrot-translator@sample-project.iam.gserviceaccount.com",
+        token_uri: "https://oauth2.googleapis.com/token",
+      }),
+    );
+
+    registerSettingsIpc(
+      createContext(dataRoot, createRuntime({ cached: true })),
+    );
+    const handler = electronMock.handlers.get(
+      "settings:pick-vertex-service-account",
+    );
+    if (!handler) {
+      throw new Error("Vertex service-account picker was not registered");
+    }
+    const event = {
+      sender: { id: 1, send: vi.fn() },
+      senderFrame: { url: "http://127.0.0.1:5173/" },
+    };
+    electronMock.showOpenDialog
+      .mockResolvedValueOnce({ canceled: false, filePaths: [keyPath] })
+      .mockResolvedValueOnce({ canceled: true, filePaths: [] });
+
+    await expect(handler(event)).resolves.toEqual({
+      filePath: keyPath,
+      fileName: "vertex-service-account.json",
+      projectId: "sample-project",
+      clientEmail: "carrot-translator@sample-project.iam.gserviceaccount.com",
+    });
+    await expect(handler(event)).resolves.toBeNull();
+
+    expect(electronMock.showOpenDialog).toHaveBeenNthCalledWith(
+      1,
+      expect.anything(),
+      expect.objectContaining({
+        defaultPath: undefined,
+        filters: [
+          {
+            name: "Google service account JSON",
+            extensions: ["json"],
+          },
+        ],
+      }),
+    );
+    expect(electronMock.showOpenDialog).toHaveBeenNthCalledWith(
+      2,
+      expect.anything(),
+      expect.objectContaining({ defaultPath: keyDirectory }),
+    );
+  });
+
+  it("rejects a selected file that is not a service-account key", async () => {
+    const dataRoot = mkdtempSync(join(tmpdir(), "settings-vertex-bad-ipc-"));
+    tempDirs.push(dataRoot);
+    const keyPath = join(dataRoot, "user-credential.json");
+    writeFileSync(keyPath, JSON.stringify({ type: "authorized_user" }));
+    const context = createContext(dataRoot, createRuntime({ cached: true }));
+    registerSettingsIpc(context);
+    const handler = electronMock.handlers.get(
+      "settings:pick-vertex-service-account",
+    );
+    if (!handler) {
+      throw new Error("Vertex service-account picker was not registered");
+    }
+    electronMock.showOpenDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePaths: [keyPath],
+    });
+
+    await expect(
+      handler({
+        sender: { id: 1, send: vi.fn() },
+        senderFrame: { url: "http://127.0.0.1:5173/" },
+      }),
+    ).rejects.toThrow("type 값이 service_account");
+    expect(electronMock.showOpenDialog).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ properties: ["openFile"] }),
+    );
+  });
+});
+
 async function invokeSettingsModelTest({
   runtime,
   settings,

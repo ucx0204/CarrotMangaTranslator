@@ -20,6 +20,7 @@ export const recentDialogPathKeys = {
   customFontImport: "customFontImport",
   localModel: "localModel",
   localMmproj: "localMmproj",
+  vertexServiceAccount: "vertexServiceAccount",
   pageImageExport: "pageImageExport",
   reviewTextExport: "reviewTextExport",
   plainTextExport: "plainTextExport",

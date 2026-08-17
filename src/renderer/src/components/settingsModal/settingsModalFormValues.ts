@@ -33,6 +33,7 @@ import {
   DEFAULT_API_RETRY_DELAY_SECONDS,
 } from "../../../../shared/apiKeySettings";
 import { DEFAULT_BUBBLE_LAYOUT_PADDING_RATIO } from "../../../../shared/bubbleLayoutSettings";
+import { inferApiProviderPreset } from "../../../../shared/apiProviderPresets";
 
 export type SettingsFormValues = {
   uiLocale: UiLocale;
@@ -56,6 +57,8 @@ export type SettingsFormValues = {
   apiBaseUrl: string;
   apiModel: string;
   apiKey: string;
+  apiVertexAuthMode: import("../../../../shared/apiProviderPresets").VertexAuthMode;
+  apiVertexServiceAccountPath: string;
   apiKeyMaxAttempts: string;
   apiRetryDelaySeconds: string;
   apiTemperature: string;
@@ -155,6 +158,8 @@ function resolveApiFormValues(
   | "apiBaseUrl"
   | "apiModel"
   | "apiKey"
+  | "apiVertexAuthMode"
+  | "apiVertexServiceAccountPath"
   | "apiKeyMaxAttempts"
   | "apiRetryDelaySeconds"
   | "apiTemperature"
@@ -168,6 +173,8 @@ function resolveApiFormValues(
     apiBaseUrl: settings.api.baseUrl,
     apiModel: settings.api.model,
     apiKey: settings.api.apiKey ?? "",
+    apiVertexAuthMode: resolveVertexAuthMode(settings),
+    apiVertexServiceAccountPath: settings.api.vertexServiceAccountPath ?? "",
     apiKeyMaxAttempts: String(
       settings.api.keyMaxAttempts ?? DEFAULT_API_KEY_MAX_ATTEMPTS,
     ),
@@ -181,6 +188,16 @@ function resolveApiFormValues(
     apiExtraBodyJson: settings.api.extraBodyJson ?? "",
     apiCustomHeadersJson: settings.api.customHeadersJson ?? "",
   };
+}
+
+function resolveVertexAuthMode(
+  settings: AppSettings,
+): SettingsFormValues["apiVertexAuthMode"] {
+  if (settings.api.vertexAuthMode) return settings.api.vertexAuthMode;
+  const isLegacyVertexToken =
+    inferApiProviderPreset(settings.api.baseUrl) === "google-vertex" &&
+    Boolean(settings.api.apiKey?.trim());
+  return isLegacyVertexToken ? "access-token" : "service-account";
 }
 
 function resolveHardwareFormValues(

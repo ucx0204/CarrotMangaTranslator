@@ -19,6 +19,8 @@ import {
   MIN_API_RETRY_DELAY_SECONDS,
 } from "../../shared/apiKeySettings";
 import type { TranslationOptions } from "./appSettingsTypes";
+import { inferApiProviderPreset } from "../../shared/apiProviderPresets";
+import { createVertexServiceAccountAccessTokenProvider } from "../vertexServiceAccountAuth";
 import {
   isOfficialOpenAiApiBaseUrl,
   resolveNullableIntegerRange,
@@ -35,6 +37,7 @@ type ApiTranslationOptions = Pick<
   | "apiBaseUrl"
   | "apiModel"
   | "apiKey"
+  | "apiAccessTokenProvider"
   | "apiKeyMaxAttempts"
   | "apiRetryDelaySeconds"
   | "apiTemperature"
@@ -54,12 +57,21 @@ export function resolveApiTranslationOptions(
     settings.api.baseUrl,
   );
   const apiKey = resolveApiKey(runtimeEnv, settings, apiBaseUrl);
+  const apiAccessTokenProvider = resolveVertexAccessTokenProvider({
+    runtimeEnv,
+    settings,
+    apiBaseUrl,
+  });
   return {
     apiBaseUrl,
     apiModel:
       resolveOptionalString(runtimeEnv.MANGA_TRANSLATOR_API_MODEL) ??
       settings.api.model,
-    ...(apiKey ? { apiKey } : {}),
+    ...(apiAccessTokenProvider
+      ? { apiAccessTokenProvider }
+      : apiKey
+        ? { apiKey }
+        : {}),
     apiKeyMaxAttempts: Math.round(
       resolveNumberRange(
         runtimeEnv.MANGA_TRANSLATOR_API_KEY_MAX_ATTEMPTS ??
@@ -111,6 +123,28 @@ export function resolveApiTranslationOptions(
       settings.api.customHeadersJson ?? DEFAULT_API_CUSTOM_HEADERS_JSON,
     ),
   };
+}
+
+function resolveVertexAccessTokenProvider({
+  runtimeEnv,
+  settings,
+  apiBaseUrl,
+}: {
+  runtimeEnv: NodeJS.ProcessEnv;
+  settings: AppSettings;
+  apiBaseUrl: string;
+}): TranslationOptions["apiAccessTokenProvider"] {
+  if (
+    resolveOptionalString(runtimeEnv.MANGA_TRANSLATOR_API_KEY) ||
+    inferApiProviderPreset(apiBaseUrl) !== "google-vertex" ||
+    settings.api.vertexAuthMode !== "service-account"
+  ) {
+    return undefined;
+  }
+  const filePath = resolveOptionalString(settings.api.vertexServiceAccountPath);
+  return filePath
+    ? createVertexServiceAccountAccessTokenProvider(filePath)
+    : undefined;
 }
 
 function resolveApiKey(

@@ -1461,7 +1461,15 @@
       "providerHintVerified": "只載入目前可驗證支援圖片輸入的模型。清單中沒有的模型 ID 仍可在下方手動輸入。",
       "vertexProject": "Google Cloud 專案 ID",
       "vertexLocation": "Vertex 區域",
+      "vertexAuthMode": "Vertex 驗證方式",
+      "vertexAuthAccessToken": "手動輸入存取權杖",
+      "vertexAuthServiceAccount": "服務帳戶 JSON",
       "vertexAccessToken": "OAuth 存取權杖（每行一個）",
+      "vertexServiceAccountNotSelected": "請選擇服務帳戶 JSON 檔案",
+      "vertexServiceAccountSelect": "選擇 JSON",
+      "vertexServiceAccountChange": "變更",
+      "vertexServiceAccountClear": "移除",
+      "vertexServiceAccountDescription": "JSON 金鑰內容不會複製到應用程式設定，只會從此電腦上選擇的檔案讀取。該服務帳戶需要目標專案的 Vertex AI User 角色。請勿分享金鑰檔案或將其提交至程式碼儲存庫。",
       "discoveredModel": "已驗證的圖片輸入模型",
       "chooseModel": "選擇模型…",
       "loadModels": "載入模型",
@@ -1477,6 +1485,39 @@
       "hideKey": "隱藏 API 金鑰",
       "openKeyPage": "開啟 API 金鑰頁面",
       "openVertexAuth": "開啟 Vertex 驗證指南",
+      "vertexGuide": {
+        "title": "設定Vertex服務帳戶JSON",
+        "intro": "服務帳戶JSON連接一次後，應用程式會自動更新所需的存取權杖，無需每小時重新貼上權杖。",
+        "project": {
+          "title": "建立Google Cloud專案",
+          "description": "建立新專案或使用現有專案，以連結<highlight>Vertex AI用量與贈送額度</highlight>。",
+          "action": "建立專案"
+        },
+        "api": {
+          "title": "啟用Vertex AI API",
+          "description": "在所選專案中按下<highlight>Vertex AI API的「啟用」按鈕</highlight>。",
+          "action": "開啟Vertex AI API"
+        },
+        "account": {
+          "title": "建立服務帳戶",
+          "description": "在服務帳戶頁面選擇專案並按下<highlight>「建立服務帳戶」</highlight>。使用Vertex AI等容易辨識的名稱，然後指派<highlight>Vertex AI 使用者</highlight>角色並完成。",
+          "action": "開啟服務帳戶",
+          "roleLabel": "所需角色",
+          "roleName": "Vertex AI 使用者"
+        },
+        "key": {
+          "title": "下載JSON金鑰",
+          "description": "開啟新服務帳戶的<highlight>藍色電子郵件地址</highlight>，然後前往<highlight>「金鑰 → 新增金鑰 → 建立新的金鑰」</highlight>。選擇<highlight>JSON</highlight>並將檔案存放在安全位置。"
+        },
+        "app": {
+          "title": "在應用程式中選擇JSON",
+          "description": "關閉本指南，在服務帳戶JSON下按<highlight>「選擇JSON」</highlight>，然後選擇下載的檔案。<highlight>專案ID</highlight>會自動從檔案填入。"
+        },
+        "security": {
+          "description": "切勿將其傳送給他人或上傳到貼文、共用雲端資料夾或程式碼儲存庫。如果外洩，請立即在Google Cloud刪除該金鑰並建立新金鑰。"
+        },
+        "openError": "無法開啟Google Cloud頁面，請再試一次。"
+      },
       "openOllamaLibrary": "開啟 Ollama 模型庫",
       "keyMaxAttempts": "每個金鑰的最大嘗試次數",
       "retryDelaySeconds": "重試等待時間（秒）",

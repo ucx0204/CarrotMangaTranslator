@@ -37,6 +37,7 @@ import {
 } from "./trustedIpc";
 import { getMainLocale, setMainLocale, tMain } from "./localization";
 import { discoverApiModels } from "../apiModelDiscovery";
+import { inspectVertexServiceAccountFile } from "../vertexServiceAccountAuth";
 
 export type SettingsIpcDependencies = {
   modelTestEndpointRuntime?: ModelTestEndpointRuntime;
@@ -95,6 +96,7 @@ export function registerSettingsIpc(
         recentDialogPathKeys.localMmproj,
       ),
   );
+  registerVertexServiceAccountPickerIpc(context);
   trustedHandleContract(
     context,
     settingsIpcContracts.testModelSettings,
@@ -117,6 +119,14 @@ export function registerSettingsIpc(
     context,
     settingsIpcContracts.discoverApiModels,
     async (_event, request) => discoverApiModelsWithStoredSecret(request),
+  );
+}
+
+function registerVertexServiceAccountPickerIpc(context: IpcContext): void {
+  trustedHandleContract(
+    context,
+    settingsIpcContracts.pickVertexServiceAccountFile,
+    async () => pickVertexServiceAccountFile(context),
   );
 }
 
@@ -160,6 +170,33 @@ async function pickLocalModelFile(
     modelPath,
     ...(detectedMmprojPath ? { detectedMmprojPath } : {}),
   };
+}
+
+async function pickVertexServiceAccountFile(context: IpcContext) {
+  const options = {
+    title: tMain("settings.vertexServiceAccountDialogTitle"),
+    defaultPath: getRecentDialogDirectory(
+      context.appPaths.dataRoot,
+      recentDialogPathKeys.vertexServiceAccount,
+    ),
+    properties: ["openFile"],
+    filters: [{ name: "Google service account JSON", extensions: ["json"] }],
+  } satisfies Electron.OpenDialogOptions;
+  const window = context.getMainWindow();
+  const result = window
+    ? await dialog.showOpenDialog(window, options)
+    : await dialog.showOpenDialog(options);
+  const filePath = result.filePaths[0];
+  if (result.canceled || !filePath) {
+    return null;
+  }
+  const inspected = await inspectVertexServiceAccountFile(filePath);
+  rememberRecentDialogFile(
+    context.appPaths.dataRoot,
+    recentDialogPathKeys.vertexServiceAccount,
+    filePath,
+  );
+  return inspected;
 }
 
 async function pickGgufFile(

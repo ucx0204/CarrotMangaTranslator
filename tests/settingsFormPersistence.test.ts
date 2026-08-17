@@ -42,6 +42,62 @@ describe("UI locale settings form", () => {
   });
 });
 
+describe("Vertex service-account settings form", () => {
+  it("defaults new Vertex setups to service-account JSON", () => {
+    const settings = resolveDefaultAppSettings({});
+    settings.api.vertexAuthMode = undefined;
+    settings.api.vertexServiceAccountPath = undefined;
+    settings.api.apiKey = "";
+
+    expect(createSettingsFormValues(settings).apiVertexAuthMode).toBe(
+      "service-account",
+    );
+  });
+
+  it("keeps legacy Vertex access-token setups working", () => {
+    const settings = resolveDefaultAppSettings({});
+    settings.api = {
+      ...settings.api,
+      baseUrl:
+        "https://aiplatform.googleapis.com/v1/projects/sample-project/locations/global/endpoints/openapi",
+      apiKey: "legacy-access-token",
+      vertexAuthMode: undefined,
+    };
+
+    expect(createSettingsFormValues(settings).apiVertexAuthMode).toBe(
+      "access-token",
+    );
+  });
+
+  it("round-trips the authentication mode and local JSON path", () => {
+    const initialSettings = resolveDefaultAppSettings({});
+    const values = {
+      ...createSettingsFormValues(initialSettings),
+      apiBaseUrl:
+        "https://aiplatform.googleapis.com/v1/projects/sample-project/locations/global/endpoints/openapi",
+      apiVertexAuthMode: "service-account" as const,
+      apiVertexServiceAccountPath: "C:\\keys\\vertex.json",
+    };
+    const result = buildSettingsFromDraft({
+      draft: resolveSettingsDraft(values),
+      initialSettings,
+      keybindings: initialSettings.keybindings ?? {},
+      blockFormatDefaults:
+        initialSettings.blockFormatDefaults ?? DEFAULT_BLOCK_FORMAT_DEFAULTS,
+      values,
+    });
+
+    expect(result.api).toMatchObject({
+      vertexAuthMode: "service-account",
+      vertexServiceAccountPath: "C:\\keys\\vertex.json",
+    });
+    expect(createSettingsFormValues(result)).toMatchObject({
+      apiVertexAuthMode: "service-account",
+      apiVertexServiceAccountPath: "C:\\keys\\vertex.json",
+    });
+  });
+});
+
 describe("GPU selection settings form", () => {
   it("represents missing stored preferences as automatic selections", () => {
     const initialSettings = resolveDefaultAppSettings({});

@@ -2,6 +2,7 @@
   "settings": {
     "localModelDialogTitle": "选择本地 GGUF 模型",
     "mmprojDialogTitle": "选择 mmproj 文件",
+    "vertexServiceAccountDialogTitle": "选择Vertex服务账号JSON",
     "modelTestBusy": "翻译任务运行期间无法检查模型和运行时。",
     "modelTestComplete": "Paddle OCR 和翻译引擎检查完成：{{output}}",
     "modelTestLabel": "模型/运行时检查"

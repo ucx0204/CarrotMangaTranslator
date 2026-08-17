@@ -255,6 +255,34 @@ describe("API image-model discovery", () => {
     ]);
   });
 
+  it("mints a Vertex discovery token from the selected service-account file", async () => {
+    const resolveVertexToken = vi.fn().mockResolvedValue("minted-token");
+    const fetchMock = vi.fn(
+      async (_input: string | URL | Request, init?: RequestInit) => {
+        expect(new Headers(init?.headers).get("Authorization")).toBe(
+          "Bearer minted-token",
+        );
+        return jsonResponse({ publisherModels: [] });
+      },
+    );
+
+    await expect(
+      discoverApiModels(
+        {
+          provider: "google-vertex",
+          apiKey: "",
+          vertexAuthMode: "service-account",
+          vertexServiceAccountPath: "C:\\keys\\vertex.json",
+          vertexProject: "sample-project",
+          vertexLocation: "global",
+        },
+        fetchMock,
+        resolveVertexToken,
+      ),
+    ).resolves.toMatchObject({ provider: "google-vertex", models: [] });
+    expect(resolveVertexToken).toHaveBeenCalledWith("C:\\keys\\vertex.json");
+  });
+
   it("lists Ollama models from /v1/models without auth", async () => {
     const authorizationHeaders: string[] = [];
     const fetchMock = vi.fn(

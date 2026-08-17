@@ -1,4 +1,4 @@
-import type { IpcMainInvokeEvent } from "electron";
+import { shell, type IpcMainInvokeEvent } from "electron";
 import { z } from "zod";
 import { beforeEach, expect, it, vi } from "vitest";
 import { AppActivityGate } from "../src/main/appActivityGate";
@@ -73,6 +73,7 @@ const invokeContractEntries = Object.entries(ipcInvokeContracts);
 beforeEach(() => {
   electronBoundary.handle.mockClear();
   electronBoundary.handlers.clear();
+  vi.mocked(shell.openExternal).mockClear();
 });
 
 it("requires an explicit invalidation state for history transaction results", () => {
@@ -297,6 +298,50 @@ it("registers exactly one main handler for every invoke contract", async () => {
   expect(electronBoundary.handle).toHaveBeenCalledTimes(
     expectedChannels.length,
   );
+});
+
+it("opens only allowlisted Vertex setup pages", async () => {
+  const { registerExternalLinksIpc } =
+    await import("../src/main/ipc/externalLinksIpc");
+  const rendererUrl = "http://127.0.0.1:5173/";
+  const context = {
+    getMainWindow: () => ({
+      isDestroyed: () => false,
+      webContents: { getURL: () => rendererUrl, id: 23 },
+    }),
+  } as IpcContext;
+  registerExternalLinksIpc(context);
+  const contract = ipcInvokeContracts.openVertexSetupPage;
+  const handler = electronBoundary.handlers.get(contract.channel);
+  if (!handler) {
+    throw new Error("Vertex setup page handler was not registered.");
+  }
+  const event = {
+    sender: { id: 23 },
+    senderFrame: { url: rendererUrl },
+  } as IpcMainInvokeEvent;
+  const pages = [
+    ["project-create", "https://console.cloud.google.com/projectcreate"],
+    [
+      "vertex-ai-api",
+      "https://console.cloud.google.com/marketplace/product/google/aiplatform.googleapis.com",
+    ],
+    [
+      "service-accounts",
+      "https://console.cloud.google.com/iam-admin/serviceaccounts",
+    ],
+  ] as const;
+
+  for (const [page, url] of pages) {
+    await expect(handler(event, page)).resolves.toEqual({
+      opened: true,
+      url,
+    });
+    expect(shell.openExternal).toHaveBeenLastCalledWith(url);
+  }
+
+  await expect(handler(event, "https://attacker.example")).rejects.toThrow();
+  expect(shell.openExternal).toHaveBeenCalledTimes(pages.length);
 });
 
 it("validates main handler arguments and results at the registered boundary", async () => {

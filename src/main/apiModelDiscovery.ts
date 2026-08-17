@@ -12,10 +12,17 @@ import {
   discoverGoogleAiStudioModels,
   discoverGoogleVertexModels,
 } from "./apiModelDiscoveryGoogle";
+import { getVertexServiceAccountAccessToken } from "./vertexServiceAccountAuth";
+
+type VertexTokenResolver = (
+  filePath: string,
+  request?: { forceRefresh?: boolean },
+) => Promise<string>;
 
 export async function discoverApiModels(
   request: ApiModelDiscoveryRequest,
   fetchImpl: FetchLike = fetch,
+  resolveVertexToken: VertexTokenResolver = getVertexServiceAccountAccessToken,
 ): Promise<ApiModelDiscoveryResult> {
   const controller = new AbortController();
   const timeout = setTimeout(
@@ -31,7 +38,14 @@ export async function discoverApiModels(
         : controller.signal,
     });
   try {
-    const result = await dispatchApiModelDiscovery(request, deadlineFetch);
+    const effectiveRequest = await resolveDiscoveryCredentials(
+      request,
+      resolveVertexToken,
+    );
+    const result = await dispatchApiModelDiscovery(
+      effectiveRequest,
+      deadlineFetch,
+    );
     if (controller.signal.aborted) {
       throw controller.signal.reason;
     }
@@ -39,6 +53,26 @@ export async function discoverApiModels(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function resolveDiscoveryCredentials(
+  request: ApiModelDiscoveryRequest,
+  resolveVertexToken: VertexTokenResolver,
+): Promise<ApiModelDiscoveryRequest> {
+  if (
+    request.provider !== "google-vertex" ||
+    request.vertexAuthMode !== "service-account"
+  ) {
+    return request;
+  }
+  const filePath = request.vertexServiceAccountPath?.trim();
+  if (!filePath) {
+    throw new Error("Vertex 서비스 계정 JSON 파일을 선택해 주세요.");
+  }
+  return {
+    ...request,
+    apiKey: await resolveVertexToken(filePath),
+  };
 }
 
 function dispatchApiModelDiscovery(

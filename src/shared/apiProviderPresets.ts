@@ -10,9 +10,28 @@ export const API_PROVIDER_PRESET_IDS = [
 export type ApiProviderPresetId = (typeof API_PROVIDER_PRESET_IDS)[number];
 export type DiscoverableApiProviderId = Exclude<ApiProviderPresetId, "custom">;
 
+export type VertexAuthMode = "access-token" | "service-account";
+
+export const VERTEX_SETUP_PAGE_IDS = [
+  "project-create",
+  "vertex-ai-api",
+  "service-accounts",
+] as const;
+
+export type VertexSetupPageId = (typeof VERTEX_SETUP_PAGE_IDS)[number];
+
+export type VertexServiceAccountPickResult = {
+  filePath: string;
+  fileName: string;
+  projectId: string;
+  clientEmail: string;
+};
+
 export type ApiModelDiscoveryRequest = {
   provider: DiscoverableApiProviderId;
   apiKey: string;
+  vertexAuthMode?: VertexAuthMode;
+  vertexServiceAccountPath?: string;
   vertexProject?: string;
   vertexLocation?: string;
 };

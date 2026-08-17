@@ -82,32 +82,7 @@ function useSettingsFormSetters(
         "codexReasoningEffort",
       ),
       setCodexOauthPort: createFormFieldDispatch(setValues, "codexOauthPort"),
-      setApiBaseUrl: createFormFieldDispatch(setValues, "apiBaseUrl"),
-      setApiModel: createFormFieldDispatch(setValues, "apiModel"),
-      setApiKey: createFormFieldDispatch(setValues, "apiKey"),
-      setApiKeyMaxAttempts: createFormFieldDispatch(
-        setValues,
-        "apiKeyMaxAttempts",
-      ),
-      setApiRetryDelaySeconds: createFormFieldDispatch(
-        setValues,
-        "apiRetryDelaySeconds",
-      ),
-      setApiTemperature: createFormFieldDispatch(setValues, "apiTemperature"),
-      setApiTopP: createFormFieldDispatch(setValues, "apiTopP"),
-      setApiTopK: createFormFieldDispatch(setValues, "apiTopK"),
-      setApiReasoningEffort: createFormFieldDispatch(
-        setValues,
-        "apiReasoningEffort",
-      ),
-      setApiExtraBodyJson: createFormFieldDispatch(
-        setValues,
-        "apiExtraBodyJson",
-      ),
-      setApiCustomHeadersJson: createFormFieldDispatch(
-        setValues,
-        "apiCustomHeadersJson",
-      ),
+      ...createApiFormSetters(setValues),
       setGraphicsGpuPreference: createFormFieldDispatch(
         setValues,
         "graphicsGpuPreference",
@@ -131,6 +106,44 @@ function useSettingsFormSetters(
     }),
     [setValues],
   );
+}
+
+function createApiFormSetters(
+  setValues: React.Dispatch<React.SetStateAction<SettingsFormValues>>,
+) {
+  return {
+    setApiBaseUrl: createFormFieldDispatch(setValues, "apiBaseUrl"),
+    setApiModel: createFormFieldDispatch(setValues, "apiModel"),
+    setApiKey: createFormFieldDispatch(setValues, "apiKey"),
+    setApiVertexAuthMode: createFormFieldDispatch(
+      setValues,
+      "apiVertexAuthMode",
+    ),
+    setApiVertexServiceAccountPath: createFormFieldDispatch(
+      setValues,
+      "apiVertexServiceAccountPath",
+    ),
+    setApiKeyMaxAttempts: createFormFieldDispatch(
+      setValues,
+      "apiKeyMaxAttempts",
+    ),
+    setApiRetryDelaySeconds: createFormFieldDispatch(
+      setValues,
+      "apiRetryDelaySeconds",
+    ),
+    setApiTemperature: createFormFieldDispatch(setValues, "apiTemperature"),
+    setApiTopP: createFormFieldDispatch(setValues, "apiTopP"),
+    setApiTopK: createFormFieldDispatch(setValues, "apiTopK"),
+    setApiReasoningEffort: createFormFieldDispatch(
+      setValues,
+      "apiReasoningEffort",
+    ),
+    setApiExtraBodyJson: createFormFieldDispatch(setValues, "apiExtraBodyJson"),
+    setApiCustomHeadersJson: createFormFieldDispatch(
+      setValues,
+      "apiCustomHeadersJson",
+    ),
+  };
 }
 
 function createFormFieldDispatch<K extends keyof SettingsFormValues>(

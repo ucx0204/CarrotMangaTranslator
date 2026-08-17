@@ -106,6 +106,10 @@ type ApiSettings = {
   model: string;
   /** Newline-delimited keys. A single legacy key remains valid. */
   apiKey?: string;
+  /** Vertex only. The UI defaults new setups to service-account JSON. */
+  vertexAuthMode?: import("./apiProviderPresets").VertexAuthMode;
+  /** Local path only. The JSON credential contents are never copied to settings. */
+  vertexServiceAccountPath?: string;
   keyMaxAttempts?: number;
   retryDelaySeconds?: number;
   temperature?: number | null;

@@ -314,4 +314,48 @@ describeWindows("app settings helpers: model providers", () => {
     expect(compatibleOptions.apiKey).toBeUndefined();
     expect(explicitCompatibleOptions.apiKey).toBe("provider-env-key");
   });
+
+  it("configures automatic Vertex tokens from a service-account path unless an environment token overrides it", () => {
+    const defaults = resolveDefaultAppSettings();
+    const settings = {
+      ...defaults,
+      modelProvider: "openai-api" as const,
+      api: {
+        ...defaults.api,
+        baseUrl:
+          "https://aiplatform.googleapis.com/v1/projects/sample-project/locations/global/endpoints/openapi",
+        model: "google/gemini-2.5-flash",
+        apiKey: "stale-token",
+        vertexAuthMode: "service-account" as const,
+        vertexServiceAccountPath: "C:\\keys\\vertex.json",
+      },
+    };
+    const serviceAccountOptions = buildBaseTranslationOptions({
+      jobId: "job-vertex-service-account",
+      runDir: "C:/runs/job-vertex-service-account",
+      paths: {
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/tools",
+        llamaServerPath: "C:/tools/llama-server.exe",
+      },
+      settings,
+      env: {},
+    });
+    const environmentOverrideOptions = buildBaseTranslationOptions({
+      jobId: "job-vertex-env-token",
+      runDir: "C:/runs/job-vertex-env-token",
+      paths: {
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/tools",
+        llamaServerPath: "C:/tools/llama-server.exe",
+      },
+      settings,
+      env: { MANGA_TRANSLATOR_API_KEY: "env-token" },
+    });
+
+    expect(serviceAccountOptions.apiKey).toBeUndefined();
+    expect(serviceAccountOptions.apiAccessTokenProvider).toBeTypeOf("function");
+    expect(environmentOverrideOptions.apiKey).toBe("env-token");
+    expect(environmentOverrideOptions.apiAccessTokenProvider).toBeUndefined();
+  });
 });
