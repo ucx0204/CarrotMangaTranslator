@@ -79,10 +79,14 @@ describe("absolute download deadline", () => {
   });
 
   it("terminates a continuous drip stream even while stall progress continues", async () => {
-    accelerateAbsoluteDeadlineTimer();
+    const deadline = holdAbsoluteDeadlineTimer();
     const task = await createTask("drip.bin");
     let cancelled = false;
     let chunks = 0;
+    let markContinuousProgress!: () => void;
+    const continuousProgress = new Promise<void>((resolve) => {
+      markContinuousProgress = resolve;
+    });
     const body = new ReadableStream<Uint8Array>({
       pull(controller) {
         return new Promise<void>((resolve) => {
@@ -90,6 +94,7 @@ describe("absolute download deadline", () => {
             if (!cancelled) {
               chunks += 1;
               controller.enqueue(Uint8Array.of(1));
+              if (chunks === 2) markContinuousProgress();
             }
             resolve();
           }, 10);
@@ -104,16 +109,18 @@ describe("absolute download deadline", () => {
       .mockResolvedValue(new Response(body, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(
-      downloadHfFileWithProgress(task, {
-        downloadAbsoluteTimeoutMs: MIN_DOWNLOAD_ABSOLUTE_TIMEOUT_MS,
-      }),
-    ).rejects.toMatchObject({
+    const download = downloadHfFileWithProgress(task, {
+      downloadAbsoluteTimeoutMs: MIN_DOWNLOAD_ABSOLUTE_TIMEOUT_MS,
+    });
+    const deadlineResult = expect(download).rejects.toMatchObject({
       code: "DOWNLOAD_DEADLINE_EXCEEDED",
       downloadDeadlineExceeded: true,
       nonRetriable: true,
       timeoutMs: MIN_DOWNLOAD_ABSOLUTE_TIMEOUT_MS,
     });
+    await continuousProgress;
+    deadline.fire();
+    await deadlineResult;
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(chunks).toBeGreaterThan(1);
     expect(cancelled).toBe(true);
@@ -144,6 +151,40 @@ describe("absolute download deadline", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
+
+function holdAbsoluteDeadlineTimer(): { fire(): void } {
+  let callback: (() => void) | null = null;
+  let heldTimer: ReturnType<typeof setTimeout> | null = null;
+  vi.spyOn(globalThis, "setTimeout").mockImplementation(((
+    handler: TimerHandler,
+    timeout?: number,
+    ...args: unknown[]
+  ) => {
+    if ((timeout ?? 0) === MIN_DOWNLOAD_ABSOLUTE_TIMEOUT_MS) {
+      heldTimer = realSetTimeout(() => {}, 60_000);
+      heldTimer.unref?.();
+      callback = () => {
+        if (typeof handler !== "function") {
+          throw new Error("Expected the download deadline to use a callback.");
+        }
+        handler(...args);
+      };
+      return heldTimer;
+    }
+    return realSetTimeout(handler, timeout, ...args);
+  }) as typeof setTimeout);
+  return {
+    fire() {
+      if (!callback) {
+        throw new Error("The download deadline timer was not scheduled.");
+      }
+      if (heldTimer) clearTimeout(heldTimer);
+      const fire = callback;
+      callback = null;
+      fire();
+    },
+  };
+}
 
 function accelerateAbsoluteDeadlineTimer(): void {
   vi.spyOn(globalThis, "setTimeout").mockImplementation(((
