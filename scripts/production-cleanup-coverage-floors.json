@@ -7,7 +7,7 @@
     "sourceArtifact": ".tmp/production-cleanup-coverage-baseline-node22.json",
     "sourceArtifactSha256": "a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a",
     "introducedArtifact": ".tmp/production-cleanup-coverage-accepted-node24.json",
-    "introducedArtifactSha256": "67a7bc7478c11b299f75528fd69f2d7e96c467d6556b5abfbcbec2e1f92cbf61",
+    "introducedArtifactSha256": "2ddbe6e55074a92c6fd426591da5bfe4a788f8266a351894b819162090584933",
     "validatedNodeV8": ["22/12.4", "24/13.6"],
     "vitestVersion": "4.1.9",
     "coverageV8Version": "4.1.9"
@@ -55,6 +55,28 @@
         "covered": 122,
         "total": 175,
         "pct": 69.71
+      }
+    },
+    "src/main/gpuInfo.ts": {
+      "lines": {
+        "covered": 22,
+        "total": 73,
+        "pct": 30.13
+      },
+      "statements": {
+        "covered": 22,
+        "total": 80,
+        "pct": 27.5
+      },
+      "functions": {
+        "covered": 6,
+        "total": 23,
+        "pct": 26.08
+      },
+      "branches": {
+        "covered": 14,
+        "total": 60,
+        "pct": 23.33
       }
     },
     "src/main/gpuInfoTypes.ts": {
@@ -407,6 +429,28 @@
         "covered": 37,
         "total": 53,
         "pct": 69.81
+      }
+    },
+    "src/main/runtime/hardware/amd-rocm-target.cjs": {
+      "lines": {
+        "covered": 37,
+        "total": 50,
+        "pct": 74
+      },
+      "statements": {
+        "covered": 38,
+        "total": 51,
+        "pct": 74.5
+      },
+      "functions": {
+        "covered": 10,
+        "total": 14,
+        "pct": 71.42
+      },
+      "branches": {
+        "covered": 28,
+        "total": 40,
+        "pct": 70
       }
     },
     "src/main/runtime/model/llama-runtime-archive-policy.cjs": {
@@ -2447,6 +2491,28 @@
         "pct": 82.05
       }
     },
+    "src/renderer/src/components/settingsModal/HardwareStatusSummary.tsx": {
+      "lines": {
+        "covered": 14,
+        "total": 24,
+        "pct": 58.33
+      },
+      "statements": {
+        "covered": 15,
+        "total": 26,
+        "pct": 57.69
+      },
+      "functions": {
+        "covered": 5,
+        "total": 7,
+        "pct": 71.42
+      },
+      "branches": {
+        "covered": 28,
+        "total": 30,
+        "pct": 93.33
+      }
+    },
     "src/renderer/src/components/settingsModal/hardwareRecommendation.ts": {
       "lines": {
         "covered": 10,
@@ -3953,6 +4019,28 @@
         "covered": 7,
         "total": 7,
         "pct": 100
+      }
+    },
+    "src/main/windowsAmdGpuInfo.ts": {
+      "lines": {
+        "covered": 79,
+        "total": 88,
+        "pct": 89.77
+      },
+      "statements": {
+        "covered": 84,
+        "total": 97,
+        "pct": 86.59
+      },
+      "functions": {
+        "covered": 24,
+        "total": 24,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 65,
+        "total": 101,
+        "pct": 64.35
       }
     },
     "src/renderer/src/components/RichTranslationEditor.tsx": {

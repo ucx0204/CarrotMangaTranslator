@@ -228,6 +228,24 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
   });
 
   it("keeps GPU OCR off for AMD GPUs Windows ROCm PyTorch does not support", () => {
+    const rx7600mXtDefaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "AMD Radeon RX 7600M XT",
+        memoryMb: 8192,
+        rtxGeneration: null,
+        computeCapability: null,
+        vendor: "amd",
+        supportsVulkan: true,
+        supportsRocm: true,
+      },
+    );
+    expect(rx7600mXtDefaults.gemma.llamaRocmTarget).toBe("gfx110X");
+    expect(rx7600mXtDefaults.gemma.llamaRuntimeProfile).toBe("rocm");
+    expect(rx7600mXtDefaults.ocr.gpuBackend).not.toBe("rocm-transformers");
+    expect(rx7600mXtDefaults.ocr.device).toBe("cpu");
+    expect(rx7600mXtDefaults.inpainting?.fluxBackend).toBe("python-cpu");
+
     const rx7600Defaults = resolveDefaultAppSettings(
       {},
       {

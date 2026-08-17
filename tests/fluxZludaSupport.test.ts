@@ -26,6 +26,7 @@ describe("Windows HIP SDK GPU support classification", () => {
   it.each([
     ["AMD Radeon RX 6700 XT", undefined],
     ["AMD Radeon RX 6800", "gfx1030"],
+    ["AMD Radeon RX 7600M XT", undefined],
     ["AMD Radeon PRO W6800", undefined],
     ["AMD Radeon 780M", "gfx1103"],
     ["AMD Radeon RX 7700S", undefined],

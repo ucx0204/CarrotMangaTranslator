@@ -16,6 +16,50 @@ import { OCR_FULL_RECOMMENDED_GPU_MEMORY_MB } from "../src/shared/ocrMemoryPolic
 afterEach(cleanup);
 
 describe("HardwareSettingsPanel", () => {
+  it("separates the auto-detected GPU from a manually selected runtime device", () => {
+    render(
+      <HardwareSettingsPanel
+        allowUnsafeLowMemoryFlux={false}
+        clearTestState={vi.fn()}
+        computeGpuIndex={1}
+        controlsBusy={false}
+        detectedGpuName="AMD Radeon RX 7600M XT"
+        fluxBackend="python-cpu"
+        gpuMemoryMb={8192}
+        graphicsGpuPreference="high-performance"
+        inpaintingModel="lama-manga"
+        isFluxBackendOptionDisabled={() => false}
+        ocrDevice="cpu"
+        ocrGpuBackend="cuda"
+        ocrQualityMode="economy"
+        setFluxBackend={vi.fn()}
+        setAllowUnsafeLowMemoryFlux={vi.fn()}
+        setComputeGpuIndex={vi.fn()}
+        setGraphicsGpuPreference={vi.fn()}
+        setInpaintingModel={vi.fn()}
+        setOcrDevice={vi.fn()}
+        setOcrGpuBackend={vi.fn()}
+        setOcrQualityMode={vi.fn()}
+        supportsFluxZluda={false}
+        supportsOcrRocm={false}
+        usesAmdHardware
+        usesAppleHardware={false}
+        usesAmdOcrContext
+        usesNvidiaHardware={false}
+        usesNvidiaOcrContext={false}
+        unifiedMemoryMb={null}
+      />,
+    );
+
+    expect(screen.getByText("자동 감지 기준 GPU")).toBeTruthy();
+    expect(screen.getByText("AMD Radeon RX 7600M XT")).toBeTruthy();
+    expect(screen.getByText("로컬 AI 연산 장치")).toBeTruthy();
+    expect(screen.getByText("장치 1 (수동)")).toBeTruthy();
+    expect(
+      screen.getByText("권장값과 다른 고급 설정이 있습니다."),
+    ).toBeTruthy();
+  });
+
   it("keeps OCR on CPU for detected AMD adapters outside the ROCm allowlist", () => {
     const unsupported = resolveHardwareRecommendation({
       gpuMemoryMb: 12 * 1024,

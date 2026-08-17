@@ -85,9 +85,11 @@ editing the totals by hand.
   `6f35a61cb6556ff31b4589913cdb79bb04faedab7c18228eac61ead3b2ad9157`.
   The stage-5 rich-text editor pass extended it again to SHA-256
   `67a7bc7478c11b299f75528fd69f2d7e96c467d6556b5abfbcbec2e1f92cbf61`.
+  The multi-GPU detection pass extended it to SHA-256
+  `2ddbe6e55074a92c6fd426591da5bfe4a788f8266a351894b819162090584933`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
-  percentage for lines/statements/functions/branches in all 178 existing
-  coverage-eligible `src/**` files changed since cleanup start. The 34 new
+  percentage for lines/statements/functions/branches in all 186 existing
+  coverage-eligible `src/**` files changed since cleanup start. The 36 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record. The
   three removed source files are recorded explicitly in `deletedFiles`.

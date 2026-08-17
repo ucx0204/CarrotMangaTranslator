@@ -456,6 +456,10 @@
   background: color-mix(in srgb, var(--bg-elevated) 72%, transparent);
 }
 
+.hardware-route-grid > div:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
 .hardware-recommendation-row {
   grid-column: 1 / -1;
   display: flex;

@@ -3,10 +3,14 @@ import {
   inferAmdRocmTargetFromName,
   parseRocmArch,
   resolveAmdRocmTargetFromArch,
-  resolveAmdRocmTargetFromInfo,
 } from "./amdRocmTargets";
 import { detectAppleGpuInfo } from "./appleGpuInfo";
 import type { DetectedGpuInfo } from "./gpuInfoTypes";
+import {
+  buildWindowsAmdGpuQueryCommand,
+  parseWindowsAmdGpuLines,
+  selectBestAmdGpuInfo,
+} from "./windowsAmdGpuInfo";
 
 export type { DetectedGpuInfo } from "./gpuInfoTypes";
 
@@ -16,8 +20,6 @@ export {
   resolveAmdRocmTargetFromArch,
   resolveAmdRocmTargetFromInfo,
 } from "./amdRocmTargets";
-
-const WINDOWS_AMD_GPU_FIELD_SEPARATOR = "\u001f";
 
 export class GpuInfoDetector {
   private cachedPromise: Promise<DetectedGpuInfo | null> | null = null;
@@ -38,18 +40,10 @@ export function detectBestGpuInfo(): Promise<DetectedGpuInfo | null> {
 
 async function queryBestGpuInfo(): Promise<DetectedGpuInfo | null> {
   const apple = await detectAppleGpuInfo();
-  if (apple) {
-    return apple;
-  }
+  if (apple) return apple;
   const nvidia = await queryNvidiaGpuInfo();
-  if (nvidia) {
-    return nvidia;
-  }
-  const amd = await queryAmdGpuInfo();
-  if (amd) {
-    return amd;
-  }
-  return null;
+  if (nvidia) return nvidia;
+  return queryAmdGpuInfo();
 }
 
 async function queryNvidiaGpuInfo(): Promise<DetectedGpuInfo | null> {
@@ -72,14 +66,11 @@ async function queryNvidiaGpuInfo(): Promise<DetectedGpuInfo | null> {
       .filter((value): value is DetectedGpuInfo =>
         Boolean(value?.memoryMb && value.memoryMb > 0),
       );
-
-    if (values.length === 0) {
-      return null;
-    }
-
-    return values.sort(
-      (left, right) => (right.memoryMb ?? 0) - (left.memoryMb ?? 0),
-    )[0];
+    return values.length > 0
+      ? values.sort(
+          (left, right) => (right.memoryMb ?? 0) - (left.memoryMb ?? 0),
+        )[0]
+      : null;
   } catch (_error) {
     return null;
   }
@@ -93,35 +84,22 @@ async function queryAmdGpuInfo(): Promise<DetectedGpuInfo | null> {
       : rocmCandidates.length > 0
         ? rocmCandidates
         : await queryLspciAmdGpuInfo();
-  const values = candidates.filter((value): value is DetectedGpuInfo =>
-    Boolean(value),
-  );
-  if (values.length === 0) {
-    return null;
-  }
-  return values.sort(compareAmdGpuPriority)[0];
+  return selectBestAmdGpuInfo(candidates);
 }
 
 function parseNvidiaSmiGpuLine(line: string): DetectedGpuInfo | null {
   const trimmed = line.trim();
-  if (!trimmed) {
-    return null;
-  }
-
+  if (!trimmed) return null;
   const parts = trimmed.split(",").map((part) => part.trim());
   const name = parts.length >= 2 ? parts[0] : null;
   const memoryText = parts.length >= 2 ? parts[1] : parts[0];
   const memoryMb = Number(memoryText);
-  if (!Number.isFinite(memoryMb) || memoryMb <= 0) {
-    return null;
-  }
-  const computeCapability = parseComputeCapability(parts[2]);
-
+  if (!Number.isFinite(memoryMb) || memoryMb <= 0) return null;
   return {
     name,
     memoryMb,
     rtxGeneration: parseRtxGeneration(name),
-    computeCapability,
+    computeCapability: parseComputeCapability(parts[2]),
     vendor: "nvidia",
     supportsRocm: false,
     supportsVulkan: true,
@@ -137,15 +115,9 @@ async function queryWindowsAmdGpuInfo(): Promise<
       "-ExecutionPolicy",
       "Bypass",
       "-Command",
-      [
-        "$sep = [char]31;",
-        "$pattern = 'AMD|Radeon|ATI|Advanced Micro Devices|VEN_1002|V710';",
-        "$video = Get-CimInstance Win32_VideoController | Where-Object { (($_.Name, $_.AdapterCompatibility, $_.VideoProcessor, $_.PNPDeviceID) -join ' ') -match $pattern } | ForEach-Object { @($_.Name, $_.AdapterCompatibility, $_.VideoProcessor, $_.PNPDeviceID, $_.AdapterRAM) -join $sep };",
-        "$pnp = Get-CimInstance Win32_PnPEntity | Where-Object { (($_.Name, $_.Manufacturer, $_.PNPClass, $_.DeviceID) -join ' ') -match $pattern } | ForEach-Object { @($_.Name, $_.Manufacturer, $_.PNPClass, $_.DeviceID, '') -join $sep };",
-        "$video; $pnp",
-      ].join(" "),
+      buildWindowsAmdGpuQueryCommand(),
     ]);
-    return stdout.split(/\r?\n/).map(parseWindowsAmdGpuLine);
+    return parseWindowsAmdGpuLines(stdout.split(/\r?\n/));
   } catch (_error) {
     return [];
   }
@@ -191,106 +163,9 @@ async function queryLspciAmdGpuInfo(): Promise<Array<DetectedGpuInfo | null>> {
   }
 }
 
-export function parseWindowsAmdGpuLine(line: string): DetectedGpuInfo | null {
-  const trimmed = line.trim();
-  if (!trimmed) {
-    return null;
-  }
-  const fields = parseWindowsAmdGpuFields(trimmed);
-  const [rawName, rawCompatibility, rawProcessor, rawPnpDeviceId, rawBytes] =
-    fields;
-  const hardwareText = [rawName, rawCompatibility, rawProcessor, rawPnpDeviceId]
-    .filter(Boolean)
-    .join(" ");
-  const name = pickAmdDisplayName(
-    rawName,
-    rawCompatibility,
-    rawProcessor,
-    rawPnpDeviceId,
-  );
-  const bytes = Number(rawBytes);
-  const parsedMemoryMb =
-    Number.isFinite(bytes) && bytes > 0
-      ? Math.round(bytes / 1024 / 1024)
-      : null;
-  const inferredMemoryMb = inferAmdVramMbFromName(hardwareText || name);
-  const memoryMb =
-    parsedMemoryMb && parsedMemoryMb >= 8192
-      ? parsedMemoryMb
-      : (inferredMemoryMb ?? parsedMemoryMb);
-  const rocmTarget = inferAmdRocmTargetFromName(hardwareText || name);
-  return {
-    name,
-    memoryMb,
-    rtxGeneration: null,
-    computeCapability: null,
-    vendor: "amd",
-    rocmArch: null,
-    rocmTarget,
-    supportsRocm: Boolean(rocmTarget),
-    supportsVulkan: true,
-  };
-}
-
-function inferAmdVramMbFromName(
-  name: string | null | undefined,
-): number | null {
-  const normalized = String(name ?? "").toLowerCase();
-  if (!normalized) {
-    return null;
-  }
-  const explicitGib = normalized.match(/\b(\d{1,3})\s*(?:gib|gb)\b/);
-  if (explicitGib) {
-    const parsed = Number(explicitGib[1]);
-    if (Number.isFinite(parsed) && parsed > 0) {
-      return Math.round(parsed * 1024);
-    }
-  }
-  const rules: Array<[RegExp, number]> = [
-    [/\b(?:amd\s+)?(?:radeon\s+)?(?:ai\s+)?pro\s+r\s*9700\b/, 32768],
-    [/\b(rx\s*)?9070\s*(xt|gre)?\b/, 16384],
-    [/\b(rx\s*)?9060\s*xt\b/, 8192],
-    [/\b(rx\s*)?9060\b/, 8192],
-    [/\b(?:radeon\s+)?pro\s+w\s*7900\b/, 49152],
-    [/\b(?:radeon\s+)?pro\s+w\s*7800\b/, 32768],
-    [/\b(?:radeon\s+)?pro\s+w\s*7700\b/, 16384],
-    [/\b(?:radeon\s+)?pro\s+w\s*(7600|7500)\b/, 8192],
-    [
-      /\b(?:amd\s+)?(?:radeon\s+)?(?:pro\s+)?v\s*710(?:\s*mxgpu)?(?:[-\s]\d+q)?\b|\bven_1002&dev_746[01]\b/,
-      28672,
-    ],
-    [/\b(?:radeon\s+)?pro\s+v\s*620\b/, 32768],
-    [/\b(?:radeon\s+)?pro\s+w\s*6800\b/, 32768],
-    [/\b(?:radeon\s+)?pro\s+w\s*6600\b/, 8192],
-    [/\b(rx\s*)?7900\s*xtx\b/, 24576],
-    [/\b(rx\s*)?7900\s*xt\b/, 20480],
-    [/\b(rx\s*)?7900\s*gre\b/, 16384],
-    [/\b(rx\s*)?7800\s*xt\b/, 16384],
-    [/\b(rx\s*)?7800\b/, 16384],
-    [/\b(rx\s*)?7700\s*xt\b/, 12288],
-    [/\b(rx\s*)?7700\b/, 16384],
-    [/\b(rx\s*)?7650\s*gre\b/, 8192],
-    [/\b(rx\s*)?7600\s*xt\b/, 16384],
-    [/\b(rx\s*)?7600\b/, 8192],
-    [/\b(rx\s*)?6950\s*xt\b/, 16384],
-    [/\b(rx\s*)?6900\s*xt\b/, 16384],
-    [/\b(rx\s*)?6800\s*xt\b/, 16384],
-    [/\b(rx\s*)?6800\b/, 16384],
-    [/\b(rx\s*)?6750\s*xt\b/, 12288],
-    [/\b(rx\s*)?6700\s*xt\b/, 12288],
-    [/\b(rx\s*)?6600\s*xt\b/, 8192],
-    [/\b(rx\s*)?6600\b/, 8192],
-    [/\b(rx\s*)?6500\s*xt\b/, 4096],
-    [/\b(rx\s*)?6400\b/, 4096],
-  ];
-  return rules.find(([pattern]) => pattern.test(normalized))?.[1] ?? null;
-}
-
 export function parseRocmSmiGpuLine(line: string): DetectedGpuInfo | null {
   const trimmed = line.trim();
-  if (!trimmed || /^(card|device)\s*(?:,|$)/i.test(trimmed)) {
-    return null;
-  }
+  if (!trimmed || /^(card|device)\s*(?:,|$)/i.test(trimmed)) return null;
   const parts = trimmed
     .split(",")
     .map((part) => part.trim().replace(/^"|"$/g, ""));
@@ -326,12 +201,8 @@ function parseComputeCapability(
 export function parseRtxGeneration(
   name: string | null | undefined,
 ): number | null {
-  const normalized = String(name ?? "");
-  const match = normalized.match(/\bRTX\s*([2345]\d{3})\b/i);
-  if (!match) {
-    return null;
-  }
-  return Math.floor(Number(match[1]) / 100);
+  const match = String(name ?? "").match(/\bRTX\s*([2345]\d{3})\b/i);
+  return match ? Math.floor(Number(match[1]) / 100) : null;
 }
 
 function parseMemoryMb(value: string): number | null {
@@ -341,64 +212,11 @@ function parseMemoryMb(value: string): number | null {
     return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : null;
   }
   const gib = value.match(/(\d+(?:\.\d+)?)\s*(?:gib|gb)\b/i);
-  if (gib) {
-    const parsed = Number(gib[1]);
-    return Number.isFinite(parsed) && parsed > 0
-      ? Math.round(parsed * 1024)
-      : null;
-  }
-  return null;
-}
-
-function parseWindowsAmdGpuFields(line: string): string[] {
-  if (line.includes(WINDOWS_AMD_GPU_FIELD_SEPARATOR)) {
-    const fields = line
-      .split(WINDOWS_AMD_GPU_FIELD_SEPARATOR)
-      .map((part) => part.trim());
-    while (fields.length < 5) {
-      fields.push("");
-    }
-    return fields.slice(0, 5);
-  }
-  const [rawName = "", rawBytes = ""] = line
-    .split(",")
-    .map((part) => part.trim());
-  return [rawName, "", "", "", rawBytes];
-}
-
-function pickAmdDisplayName(
-  rawName: string | null | undefined,
-  rawCompatibility: string | null | undefined,
-  rawProcessor: string | null | undefined,
-  rawPnpDeviceId: string | null | undefined,
-): string | null {
-  const candidates = [rawName, rawProcessor, rawCompatibility, rawPnpDeviceId]
-    .map((value) => String(value ?? "").trim())
-    .filter(Boolean);
-  return (
-    candidates.find((value) =>
-      /\bradeon\b|\binstinct\b|\bryzen\s+ai\b|\bai\s+pro\b|\bpro\s+[rvw]\s*\d+\b|\brx\s*\d+\b|\bmi\s*\d+\b/i.test(
-        value,
-      ),
-    ) ??
-    candidates.find((value) =>
-      /amd|advanced micro devices|ven_1002/i.test(value),
-    ) ??
-    candidates[0] ??
-    null
-  );
-}
-
-function compareAmdGpuPriority(
-  left: DetectedGpuInfo,
-  right: DetectedGpuInfo,
-): number {
-  const leftRocm = resolveAmdRocmTargetFromInfo(left) ? 1 : 0;
-  const rightRocm = resolveAmdRocmTargetFromInfo(right) ? 1 : 0;
-  if (leftRocm !== rightRocm) {
-    return rightRocm - leftRocm;
-  }
-  return (right.memoryMb ?? 0) - (left.memoryMb ?? 0);
+  if (!gib) return null;
+  const parsed = Number(gib[1]);
+  return Number.isFinite(parsed) && parsed > 0
+    ? Math.round(parsed * 1024)
+    : null;
 }
 
 function execFileAsync(file: string, args: string[]): Promise<string> {

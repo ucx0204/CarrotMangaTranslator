@@ -23,7 +23,7 @@ const AMD_NAME_TARGET_PATTERNS: Array<{
     target: "gfx120X",
     patterns: [
       /\b(?:amd\s+)?(?:radeon\s+)?(?:ai\s+)?pro\s+r\s*9700\b/,
-      /\b(rx\s*)?90(60|70)\b|\b(rx\s*)?90(60|70)\s*(xt|gre)\b/,
+      /\b(?:amd\s+)?(?:radeon\s+)?(?:rx\s*)?9\d{3}(?:\s*(?:xtx?|gre|m(?:\s*xt)?|s))?\b/,
     ],
   },
   {
@@ -32,7 +32,7 @@ const AMD_NAME_TARGET_PATTERNS: Array<{
       /\b(?:amd\s+)?(?:radeon\s+)?(?:pro\s+)?v\s*710(?:\s*mxgpu)?(?:[-\s]\d+q)?\b/,
       /\bven_1002&dev_746[01]\b/,
       /\bven_1002&dev_7480\b/,
-      /\b(rx\s*)?7(600|650|700|800|900)\b|\b(rx\s*)?7(600|650|700|800|900)\s*(xt|xtx|gre)\b/,
+      /\b(?:amd\s+)?(?:radeon\s+)?(?:rx\s*)?7\d{3}(?:\s*(?:xtx?|gre|m(?:\s*xt)?|s))?\b/,
       /\b(?:radeon\s+)?(?:pro\s*)?w7(500|600|700|800|900)\b/,
       /\bradeon\s+(740m|760m|780m)\b/,
     ],
@@ -41,7 +41,7 @@ const AMD_NAME_TARGET_PATTERNS: Array<{
     target: "gfx103X",
     patterns: [
       /\b(?:radeon\s+)?pro\s+(v\s*620|w\s*(6600|6800))\b/,
-      /\b(rx\s*)?6(400|500|600|650|700|750|800|900|950)\b|\b(rx\s*)?6(400|500|600|650|700|750|800|900|950)\s*(xt|m|s)\b/,
+      /\b(?:amd\s+)?(?:radeon\s+)?(?:rx\s*)?6\d{3}(?:\s*(?:xtx?|gre|m(?:\s*xt)?|s))?\b/,
     ],
   },
   {

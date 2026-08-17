@@ -4,10 +4,15 @@ import {
   inferAmdRocmTargetFromName,
   parseRocmSmiGpuLine,
   parseRtxGeneration,
-  parseWindowsAmdGpuLine,
   resolveAmdRocmTargetFromArch,
 } from "../src/main/gpuInfo";
 import { buildAppleGpuInfo } from "../src/main/appleGpuInfo";
+import {
+  buildWindowsAmdGpuQueryCommand,
+  parseWindowsAmdGpuLine,
+  parseWindowsAmdGpuLines,
+  selectBestAmdGpuInfo,
+} from "../src/main/windowsAmdGpuInfo";
 
 describe("Apple Silicon GPU detection", () => {
   it("reports Metal and unified system memory", () => {
@@ -148,6 +153,91 @@ describe("GPU info helpers", () => {
       supportsRocm: true,
       supportsVulkan: true,
     });
+  });
+
+  it("recognizes current AMD mobile families and their dedicated memory", () => {
+    const separator = "\u001f";
+    expect(
+      parseWindowsAmdGpuLine(
+        [
+          "AMD Radeon RX 7600M XT",
+          "Advanced Micro Devices, Inc.",
+          "AMD Radeon RX 7600M XT",
+          "PCI\\VEN_1002&DEV_7480&SUBSYS_00000000",
+          "4293918720",
+          "video",
+          "0",
+          "True",
+        ].join(separator),
+      ),
+    ).toMatchObject({
+      name: "AMD Radeon RX 7600M XT",
+      memoryMb: 8192,
+      rocmTarget: "gfx110X",
+      supportsRocm: true,
+    });
+    expect(inferAmdRocmTargetFromName("AMD Radeon RX 7900M")).toBe("gfx110X");
+    expect(inferAmdRocmTargetFromName("AMD Radeon RX 7700S")).toBe("gfx110X");
+    expect(inferAmdRocmTargetFromName("AMD Radeon RX 6800M")).toBe("gfx103X");
+  });
+
+  it("drops disabled adapters and merges duplicate Windows PnP records", () => {
+    const separator = "\u001f";
+    const deviceId = "PCI\\VEN_1002&DEV_7480&SUBSYS_00000000";
+    const disabled = [
+      "AMD Radeon 780M",
+      "Advanced Micro Devices, Inc.",
+      "AMD Radeon 780M",
+      "PCI\\VEN_1002&DEV_15BF&SUBSYS_00000000",
+      "8589934592",
+      "video",
+      "22",
+      "False",
+    ].join(separator);
+    const video = [
+      "AMD Radeon RX 7600M XT",
+      "Advanced Micro Devices, Inc.",
+      "AMD Radeon RX 7600M XT",
+      deviceId,
+      "4293918720",
+      "video",
+      "0",
+      "True",
+    ].join(separator);
+    const pnp = [
+      "AMD Radeon RX 7600M XT",
+      "Advanced Micro Devices, Inc.",
+      "Display",
+      deviceId,
+      "",
+      "pnp",
+      "0",
+      "True",
+    ].join(separator);
+
+    expect(parseWindowsAmdGpuLine(disabled)).toBeNull();
+    expect(parseWindowsAmdGpuLines([disabled, video, pnp])).toEqual([
+      expect.objectContaining({
+        name: "AMD Radeon RX 7600M XT",
+        memoryMb: 8192,
+        rocmTarget: "gfx110X",
+      }),
+    ]);
+    const query = buildWindowsAmdGpuQueryCommand();
+    expect(query).toContain("ConfigManagerErrorCode");
+    expect(query).toContain("PNPClass -eq 'Display'");
+    expect(query).toContain("$displayClass");
+  });
+
+  it("prefers an active discrete Radeon over an integrated Radeon", () => {
+    const integrated = parseWindowsAmdGpuLine("AMD Radeon 780M,17179869184");
+    const external = parseWindowsAmdGpuLine(
+      "AMD Radeon RX 7600M XT,4293918720",
+    );
+
+    expect(selectBestAmdGpuInfo([integrated, external])?.name).toBe(
+      "AMD Radeon RX 7600M XT",
+    );
   });
 
   it("parses AMD ROCm SMI lines as ROCm-capable GPUs", () => {

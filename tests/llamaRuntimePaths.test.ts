@@ -12,9 +12,10 @@ import {
 } from "../src/shared/modelPresets";
 
 const require = createRequire(import.meta.url);
-const { inferAmdRocmTargetFromText } =
+const { inferAmdRocmTargetFromText, selectAmdRocmTargetFromProbeText } =
   require("../src/main/runtime/simple-page-amd-rocm-target.cjs") as {
     inferAmdRocmTargetFromText: (value: string) => string | null;
+    selectAmdRocmTargetFromProbeText: (value: string) => string | null;
   };
 const {
   hasRequiredLlamaRuntimeFiles,
@@ -657,6 +658,25 @@ describe("llama runtime path selection", () => {
     expect(inferAmdRocmTargetFromText("AMD Radeon PRO V710-8Q")).toBe(
       "gfx110X",
     );
+  });
+
+  it("infers desktop, mobile, and compact AMD family names", () => {
+    expect(inferAmdRocmTargetFromText("AMD Radeon RX 7600M XT")).toBe(
+      "gfx110X",
+    );
+    expect(inferAmdRocmTargetFromText("AMD Radeon RX 7700S")).toBe("gfx110X");
+    expect(inferAmdRocmTargetFromText("AMD Radeon RX 6800M")).toBe("gfx103X");
+    expect(inferAmdRocmTargetFromText("AMD Radeon RX 9070 GRE")).toBe(
+      "gfx120X",
+    );
+    expect(
+      selectAmdRocmTargetFromProbeText(
+        [
+          "AMD Radeon 780M PCI\\VEN_1002&DEV_15BF",
+          "AMD Radeon RX 6800M PCI\\VEN_1002&DEV_73DF",
+        ].join("\n"),
+      ),
+    ).toBe("gfx103X");
   });
 
   it("selects the matching Lemonade ROCm runtime for a known AMD target", () => {

@@ -29,7 +29,7 @@ const AMD_ROCM_TEXT_MATCHERS = [
     target: "gfx120X",
     patterns: [
       /\b(?:amd\s+)?(?:radeon\s+)?(?:ai\s+)?pro\s+r\s*9700\b/,
-      /\b(rx\s*)?90(60|70)\b|\b(rx\s*)?90(60|70)\s*(xt|gre)\b/,
+      /\b(?:amd\s+)?(?:radeon\s+)?(?:rx\s*)?9\d{3}(?:\s*(?:xtx?|gre|m(?:\s*xt)?|s))?\b/,
     ],
   },
   {
@@ -38,7 +38,7 @@ const AMD_ROCM_TEXT_MATCHERS = [
       /\b(?:amd\s+)?(?:radeon\s+)?(?:pro\s+)?v\s*710(?:\s*mxgpu)?(?:[-\s]\d+q)?\b/,
       /\bven_1002&dev_746[01]\b/,
       /\bven_1002&dev_7480\b/,
-      /\b(rx\s*)?7(600|650|700|800|900)\b|\b(rx\s*)?7(600|650|700|800|900)\s*(xt|xtx|gre)\b/,
+      /\b(?:amd\s+)?(?:radeon\s+)?(?:rx\s*)?7\d{3}(?:\s*(?:xtx?|gre|m(?:\s*xt)?|s))?\b/,
       /\b(?:radeon\s+)?(?:pro\s*)?w7(500|600|700|800|900)\b/,
       /\bradeon\s+(740m|760m|780m)\b/,
     ],
@@ -47,7 +47,7 @@ const AMD_ROCM_TEXT_MATCHERS = [
     target: "gfx103X",
     patterns: [
       /\b(?:radeon\s+)?pro\s+(v\s*620|w\s*(6600|6800))\b/,
-      /\b(rx\s*)?6(400|500|600|650|700|750|800|900|950)\b|\b(rx\s*)?6(400|500|600|650|700|750|800|900|950)\s*(xt|m|s)\b/,
+      /\b(?:amd\s+)?(?:radeon\s+)?(?:rx\s*)?6\d{3}(?:\s*(?:xtx?|gre|m(?:\s*xt)?|s))?\b/,
     ],
   },
   {
@@ -116,8 +116,10 @@ function detectWindowsAmdRocmTarget() {
     "-Command",
     [
       "$pattern = 'AMD|Radeon|ATI|Advanced Micro Devices|VEN_1002|V710';",
-      "$video = Get-CimInstance Win32_VideoController | Where-Object { (($_.Name, $_.AdapterCompatibility, $_.VideoProcessor, $_.PNPDeviceID) -join ' ') -match $pattern } | ForEach-Object { ($_.Name, $_.AdapterCompatibility, $_.VideoProcessor, $_.PNPDeviceID) -join ' ' };",
-      "$pnp = Get-CimInstance Win32_PnPEntity | Where-Object { (($_.Name, $_.Manufacturer, $_.PNPClass, $_.DeviceID) -join ' ') -match $pattern } | ForEach-Object { ($_.Name, $_.Manufacturer, $_.PNPClass, $_.DeviceID) -join ' ' };",
+      "$displayClass = '{4d36e968-e325-11ce-bfc1-08002be10318}';",
+      "$isActive = { param($item) $code = $item.ConfigManagerErrorCode; $present = $item.Present; ($null -eq $code -or [int]$code -eq 0) -and ($null -eq $present -or [bool]$present) };",
+      "$video = Get-CimInstance Win32_VideoController | Where-Object { (($_.Name, $_.AdapterCompatibility, $_.VideoProcessor, $_.PNPDeviceID) -join ' ') -match $pattern -and (& $isActive $_) } | ForEach-Object { ($_.Name, $_.AdapterCompatibility, $_.VideoProcessor, $_.PNPDeviceID) -join ' ' };",
+      "$pnp = Get-CimInstance Win32_PnPEntity | Where-Object { ($_.PNPClass -eq 'Display' -or $_.ClassGuid -eq $displayClass) -and (($_.Name, $_.Manufacturer, $_.PNPClass, $_.DeviceID) -join ' ') -match $pattern -and (& $isActive $_) } | ForEach-Object { ($_.Name, $_.Manufacturer, $_.PNPClass, $_.DeviceID) -join ' ' };",
       "$video; $pnp",
     ].join(" "),
   ]);
@@ -140,10 +142,49 @@ function runTargetProbe(command, args) {
       windowsHide: true,
       timeout: 5000,
     });
-    return inferAmdRocmTargetFromText(stdout);
+    return selectAmdRocmTargetFromProbeText(stdout);
   } catch (_error) {
     return null;
   }
+}
+
+/** @param {unknown} value @returns {string | null} */
+function selectAmdRocmTargetFromProbeText(value) {
+  const candidates = String(value ?? "")
+    .split(/\r?\n/)
+    .map((line, index) => ({
+      index,
+      priority: resolveAmdAdapterClassPriority(line),
+      target: inferAmdRocmTargetFromText(line),
+    }))
+    .filter((candidate) => candidate.target)
+    .sort(
+      (left, right) =>
+        right.priority - left.priority || left.index - right.index,
+    );
+  return candidates[0]?.target ?? inferAmdRocmTargetFromText(value);
+}
+
+/** @param {unknown} value @returns {number} */
+function resolveAmdAdapterClassPriority(value) {
+  const normalized = String(value ?? "")
+    .toLowerCase()
+    .replace(/[™®]/g, " ");
+  if (
+    /\brx\s*\d{3,4}(?:\s*(?:xtx?|gre|m(?:\s*xt)?|s))?\b|\bradeon\s+pro\s+[wv]\s*\d+\b|\bpro\s+v\s*\d+\b|\binstinct\b|\bmi\s*\d+\b/.test(
+      normalized,
+    )
+  ) {
+    return 2;
+  }
+  if (
+    /\bryzen\b|\bradeon\s+(?:\d{3,4}[ms])\b|\bradeon(?:\(tm\))?\s+graphics\b/.test(
+      normalized,
+    )
+  ) {
+    return 0;
+  }
+  return 1;
 }
 
 /** @param {unknown} value @returns {string | null} */
@@ -178,4 +219,5 @@ module.exports = {
   inferAmdRocmTargetFromText,
   normalizeAmdRocmTarget,
   resolveAmdRocmTargetFromOptions,
+  selectAmdRocmTargetFromProbeText,
 };

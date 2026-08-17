@@ -22,6 +22,12 @@ export function HardwareStatusSummary(
   const modelLabel = t(
     `settings.options.inpaintingModels.${resolveInpaintingModelKey(props.inpaintingModel)}.label`,
   );
+  const computeRouteLabel =
+    props.computeGpuIndex === null
+      ? t("settings.hardware.computeRouteAuto")
+      : t("settings.hardware.computeRouteManual", {
+          index: props.computeGpuIndex,
+        });
   const visibleMemoryMb = props.usesAppleHardware
     ? props.unifiedMemoryMb
     : props.gpuMemoryMb;
@@ -44,6 +50,10 @@ export function HardwareStatusSummary(
         ) : null}
       </div>
       <div className="hardware-route-grid">
+        <div>
+          <span>{t("settings.hardware.computeRoute")}</span>
+          <strong>{computeRouteLabel}</strong>
+        </div>
         <div>
           <span>{t("settings.hardware.ocrRoute")}</span>
           <strong>{ocrOption ? t(ocrOption.labelKey) : props.ocrDevice}</strong>
@@ -80,6 +90,7 @@ function hardwareRecommendationMatches(
   recommendation: HardwareRecommendation,
 ): boolean {
   return (
+    props.computeGpuIndex === null &&
     props.graphicsGpuPreference === recommendation.graphicsGpuPreference &&
     props.ocrDevice === recommendation.ocrDevice &&
     props.ocrGpuBackend === recommendation.ocrGpuBackend &&
