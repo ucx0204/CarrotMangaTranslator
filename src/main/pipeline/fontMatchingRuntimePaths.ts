@@ -24,7 +24,7 @@ import type { AppPaths } from "../appPaths";
  * bundle revision coexists without invalidating this cache.
  */
 export const FONT_MATCHING_RUNTIME_BUNDLE_VERSION =
-  "active21-v8-r3h-manual-v2-release-v1";
+  "active21-v9-r33-page-common-user-v3-release-v2";
 
 export const FONT_MATCHING_RUNTIME_MARKER_FILE =
   ".font-matching-runtime-artifact-owned.json";

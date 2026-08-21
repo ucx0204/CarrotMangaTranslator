@@ -2,6 +2,10 @@ import { bboxToPixels, clamp } from "../../shared/geometry";
 import type { TranslationBlock } from "../../shared/textTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
 import { applyNaturalTextLayout } from "../../shared/naturalTextLayout";
+import {
+  applyModelTextLayoutIntent,
+  MIN_EXTERIOR_VERTICAL_NARRATION_CONFIDENCE,
+} from "../../shared/textLayoutIntent";
 import type { PreviousOverlayBlockForPrompt } from "../appSettings";
 import { tMain } from "./localization";
 import { buildPageWarnings } from "./overlayItems";
@@ -296,23 +300,29 @@ function applyOverlayItemToExistingBlock({
   effectiveTextRole?: TranslationBlock["textRole"];
   skipNaturalLayout: boolean;
 }): TranslationBlock {
-  const textUpdated = {
-    ...block,
-    sourceText: item.jp.trim(),
-    translatedText: item.ko.trim(),
-    ...(effectiveTextRole ? { textRole: effectiveTextRole } : {}),
-    ...(item.fontRole
-      ? {
-          fontRole: item.fontRole,
-          fontRoleConfidence: normalizeItemConfidence(
-            item.fontRoleConfidence,
-            0,
-          ),
-        }
-      : {}),
-    ...(item.visualClusterId ? { visualClusterId: item.visualClusterId } : {}),
-    confidence: normalizeItemConfidence(item.confidence, block.confidence),
-  };
+  const textUpdated = applyModelTextLayoutIntent(
+    {
+      ...block,
+      sourceText: item.jp.trim(),
+      translatedText: item.ko.trim(),
+      ...(effectiveTextRole ? { textRole: effectiveTextRole } : {}),
+      ...(item.fontRole
+        ? {
+            fontRole: item.fontRole,
+            fontRoleConfidence: normalizeItemConfidence(
+              item.fontRoleConfidence,
+              0,
+            ),
+          }
+        : {}),
+      ...(item.visualClusterId
+        ? { visualClusterId: item.visualClusterId }
+        : {}),
+      confidence: normalizeItemConfidence(item.confidence, block.confidence),
+    },
+    resolveCurrentItemLayoutIntent(item),
+    effectiveTextRole,
+  );
   const itemWithPersistedIntent =
     item.fontRole || !block.fontRole
       ? item
@@ -338,7 +348,7 @@ function applyOverlayItemToExistingBlock({
     pageSize: { width: page.width, height: page.height },
     locale: naturalLayout.locale,
     allowAutoVertical: false,
-    directionPreference: block.renderDirection,
+    directionPreference: updated.renderDirection,
     fontMetricWidthScale:
       fontDecision?.result.decision.mode === "apply"
         ? fontDecision.fontMetricWidthScale
@@ -380,6 +390,23 @@ function normalizePersistentTextRole(
 ): TranslationBlock["textRole"] {
   if (value === "ordinary" || value === "sound") return value;
   return undefined;
+}
+
+/**
+ * Keep-mode blocks can carry a persisted narration role from an older run.
+ * Never let that stale value authenticate a new vertical advisory: the role
+ * and confidence must both be present on the current translated item.
+ */
+function resolveCurrentItemLayoutIntent(
+  item: OverlayItem,
+): OverlayItem["layoutIntent"] {
+  if (item.layoutIntent !== "vertical") return item.layoutIntent;
+  return item.fontRole === "narration" &&
+    typeof item.fontRoleConfidence === "number" &&
+    Number.isFinite(item.fontRoleConfidence) &&
+    item.fontRoleConfidence >= MIN_EXTERIOR_VERTICAL_NARRATION_CONFIDENCE
+    ? "vertical"
+    : "auto";
 }
 
 function normalizeItemConfidence(value: unknown, fallback: number): number {

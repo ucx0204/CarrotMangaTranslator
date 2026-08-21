@@ -33,6 +33,14 @@ async function compareRuns(baselineDir, candidateDir) {
       "Baseline and candidate runs do not use the same frozen cohort.",
     );
   }
+  if (
+    resolveCompletionSemantics(baseline) !==
+    resolveCompletionSemantics(candidate)
+  ) {
+    throw new Error(
+      "Baseline and candidate runs use different completion semantics.",
+    );
+  }
   const baselinePages = new Map(
     (baseline.pages || []).map((page) => [page.sourcePageId, page]),
   );
@@ -140,6 +148,12 @@ async function compareRuns(baselineDir, candidateDir) {
     pages: pageRows,
     blocks: blockRows,
   };
+}
+
+function resolveCompletionSemantics(report) {
+  return (
+    report.completionSemanticsVersion || "legacy-execution-only-completion-v1"
+  );
 }
 
 /** @param {string} pageId @param {any[]} baselineBlocks @param {any[]} candidateBlocks */

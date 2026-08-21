@@ -13,6 +13,8 @@ export type BlockLocalFontEvidenceV2 = Readonly<{
   calibratedConfidence: number;
   /** The sealed supervised selector, including its cohort operating point, accepted this row. */
   supervisedSelectionAccepted?: boolean;
+  /** Verified pixel inference produced a renderable candidate; automatic mode must choose its best feasible result instead of retaining formatting. */
+  bestAvailableSelectionRequired?: boolean;
   noneAcceptable: boolean;
   catalogVersion: string;
   modelVersion: string;
@@ -41,9 +43,9 @@ export type FontMatchingWorkStateV2 = Readonly<{
   rolePaletteUsedFontIds?: readonly string[];
   /** Runtime policy chosen from verified page pixels, never title/genre text. */
   automaticStrategy?: "body_consistency_soft" | "local_visual_first";
-  /** Same-chapter, same-role and visually-similar body-font prior. */
+  /** AI-selected same-chapter, same-role and visually-similar body-font anchor. */
   bodyConsistencyFontId?: string | null;
-  /** Small score contribution; local visual evidence can always beat it. */
+  /** Sealed evidence strength used to authorize the chapter anchor. */
   bodyConsistencyScoreBoost?: number;
   /** Pixel-only page policy for speech-balloon typography. */
   pageBalloonConsistencyMode?:
@@ -64,6 +66,8 @@ export type FontMatchingWorkStateV2 = Readonly<{
   pageBalloonGeometryComponentForced?: boolean;
   /** Neutral-head, page-relative glyph evidence identified an ordinary balloon. */
   pageBalloonOrdinaryMorphologyConsensus?: boolean;
+  /** Every row independently supported one stable raw-top3 mean-score anchor. */
+  pageBalloonStableMeanConsensus?: boolean;
   /** Neutral-head, pixel-only evidence identified one repeated heavy emphasis face. */
   pageBalloonEmphasisMorphologyConsensus?: boolean;
   /** A strong Dohyeon winner failed the sealed raw-glyph morphology gate. */
@@ -78,6 +82,7 @@ export type FontMatchingWorkStateV2 = Readonly<{
     | "strong_page_anchor"
     | "residual_stable_body"
     | "non_dohyeon_top3"
+    | "non_dohyeon_variant_top3"
     | null;
   /** Runtime policy margin required to retain a different local body winner. */
   pageBalloonLocalOverrideMinimumScoreMargin?: number;

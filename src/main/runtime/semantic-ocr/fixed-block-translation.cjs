@@ -38,13 +38,13 @@ const {
   parseFixedBlockTranslationResponse,
 } = require("./fixed-block-response.cjs");
 
-const FIXED_BLOCK_TRANSLATION_VERSION = 5;
+const FIXED_BLOCK_TRANSLATION_VERSION = 6;
 
 /**
  * @typedef {{id:number;bbox:[number,number,number,number];text:string;score:number|null;orientation:"horizontal"|"vertical";soundCandidate:boolean}} FixedCandidate
  * @typedef {{blockId:string;representativeId:number;candidateIds:number[];directionVoterCandidateIds:number[];jp:string;direction:"horizontal"|"vertical";bbox:{x1:number;y1:number;x2:number;y2:number};confidence:number;soundCandidate:boolean;fragments:Array<{candidateId:number;text:string;score:number|null;bbox:[number,number,number,number]}>}} FixedBlock
- * @typedef {{version:5;blocks:FixedBlock[]}} FixedBlockPlan
- * @typedef {{blockId:string;ko:string;textRole?:"ordinary"|"sound";fontRole?:string;fontRoleConfidence?:number;visualClusterId?:string}} FixedBlockTranslation
+ * @typedef {{version:6;blocks:FixedBlock[]}} FixedBlockPlan
+ * @typedef {{blockId:string;ko:string;textRole?:"ordinary"|"sound";layoutIntent?:"horizontal"|"vertical";fontRole?:string;fontRoleConfidence?:number;visualClusterId?:string}} FixedBlockTranslation
  * @typedef {{items:FixedBlockTranslation[];pageContext?:Record<string,unknown>}} FixedBlockTranslationResult
  * @typedef {{sourceLanguage?:unknown;targetLanguage?:unknown;modelProvider?:unknown;regionCropMode?:unknown;keepBlocksMode?:unknown;promptOverrideText?:unknown;translationAttempt?:unknown;collectPageContext?:unknown;autoFontMatching?:unknown;ocrBboxHints?:unknown;validatedGroupOnlyReview?:unknown;[key:string]:unknown}} FixedBlockOptions
  * @typedef {{role:string;dataUrl?:string;width?:unknown;height?:unknown;originalWidth?:unknown;originalHeight?:unknown;[key:string]:unknown}} ImageVariant
@@ -266,11 +266,21 @@ function buildFixedBlockTranslationPrompt(plan, options = {}) {
     "Never transcribe, correct, normalize, merge, split, add, remove, reorder, or replace any jp text.",
     "Translate the exact supplied jp string even when it is short, stylized, noisy, or contains an OCR error.",
     options.autoFontMatching
-      ? "Each item requires blockId, textRole, fontRole, fontRoleConfidence, and ko, and may additionally include visualClusterId. Never output jp, candidateIds, coordinates, bbox, type, confidence, action, or commentary."
-      : 'Each item has exactly three keys: blockId, textRole, and ko. textRole must be exactly "ordinary" or "sound". Never output jp, candidateIds, coordinates, bbox, type, confidence, action, or commentary.',
+      ? "Each item requires blockId, textRole, layoutIntent, fontRole, fontRoleConfidence, and ko, and may additionally include visualClusterId. Never output jp, candidateIds, coordinates, bbox, type, confidence, action, or commentary."
+      : 'Each item has exactly four keys: blockId, textRole, layoutIntent, and ko. textRole must be exactly "ordinary" or "sound". Never output jp, candidateIds, coordinates, bbox, type, confidence, action, or commentary.',
     'Use textRole "ordinary" for speech balloons, narration, captions, interface labels, titles, signs, notes, and readable dialogue even when the string is very short.',
     'Use textRole "sound" only for standalone printed sound effects, action noises, and stylized reaction lettering that belongs to the depicted scene rather than a speaker or label.',
     'Judge textRole from the original page image, bbox, lettering, and scene context. Do not classify by string length alone; when genuinely ambiguous, use "ordinary".',
+    options.autoFontMatching
+      ? 'layoutIntent must be exactly "auto", "horizontal", or "vertical" and is only a render advisory; it never changes source direction, bbox, grouping, or inpainting geometry.'
+      : 'layoutIntent must be exactly "auto" or "horizontal". Never return "vertical" because this response has no current visual-role confidence evidence. It never changes source direction, bbox, grouping, or inpainting geometry.',
+    'Use layoutIntent "horizontal" by default. Korean ordinary speech balloons, dialogue, thought, signs, labels, titles, and normal captions should remain horizontal even when the Japanese source is vertical. Do not use "auto" merely because the source is vertical.',
+    ...(options.autoFontMatching
+      ? [
+          'Use layoutIntent "vertical" extremely sparingly: only for a genuinely long ordinary explanatory caption or narration column that is visibly very tall, very narrow, outside speech balloons, placed along the outer edge of the manga page, and classified in this same response as fontRole "narration" with finite fontRoleConfidence >= 0.82. Never use it for sound effects or text inside a balloon.',
+        ]
+      : []),
+    'Use layoutIntent "auto" only when the image provides no useful direction evidence and the application should preserve its existing choice; do not prefer it over the horizontal default. The application will reject unsafe vertical advisories.',
     ...buildFixedBlockFontRoleLines(options),
     'For textRole "sound", translate as compact natural effect lettering instead of an explanatory sentence.',
     "ko must faithfully translate the complete jp without losing the opening phrase, modifiers, negation, names, numbers, honorifics, register, modality, or final predicate.",
@@ -290,7 +300,7 @@ function buildFixedBlockTranslationPrompt(plan, options = {}) {
       : []),
     ...(Number.isFinite(attempt) && attempt > 1
       ? [
-          `Schema verification attempt ${Math.trunc(attempt)}: correct the previous translation, target-language, or blockId partition violation without changing any fixed block.`,
+          `Schema verification attempt ${Math.trunc(attempt)}: correct the previous translation, layout advisory, target-language, or blockId partition violation without changing any fixed block.`,
         ]
       : []),
     contextText,
@@ -307,8 +317,8 @@ function buildFixedBlockTranslationSystemPrompt(options = {}) {
     /** @type {import("../prompts/prompt-types").PromptOptions} */ (options),
   );
   const outputKeys = options.autoFontMatching
-    ? "blockId, textRole, fontRole, fontRoleConfidence, ko, and optional visualClusterId"
-    : "blockId, textRole, and ko";
+    ? "blockId, textRole, layoutIntent, fontRole, fontRoleConfidence, ko, and optional visualClusterId"
+    : "blockId, textRole, layoutIntent, and ko";
   return `You are a faithful ${profile.sourceName}-to-${profile.targetName} manga translator and visual text-role classifier. Source strings, geometry, and grouping are immutable; classify each visible fixed block, write ko only in ${profile.targetName} without untranslated source script, and output only ${outputKeys} as valid JSON.`;
 }
 
@@ -321,6 +331,7 @@ function buildFixedBlockFontRoleLines(options) {
     "Use dialogue for normal balloons; narration for caption/free narration; thought for internal monologue; aside_balloon_edge for detached small balloon-adjacent lettering; emphasis_dialogue or shout only when visually clear.",
     "Separate SFX into impact, motion, ambient, emotion, or comic by the depicted sound and lettering. Use sign_ui_title for signs, interface labels, titles, and display cards.",
     'fontRole values beginning with "sfx_" require textRole "sound"; every other concrete fontRole requires textRole "ordinary".',
+    'layoutIntent "vertical" is valid only when this same response has fontRole exactly "narration" and finite fontRoleConfidence >= 0.82. Every other role or confidence must use layoutIntent "horizontal" or "auto", regardless of Japanese source orientation.',
     "fontRoleConfidence is confidence in the fine-grained visual role only. Use below 0.82 when uncertain and unknown_needs_review when the role cannot be decided safely.",
     "visualClusterId is optional. Use one short ID only when two or more separate non-body accent blocks visibly share the same repeated lettering treatment, and reuse that exact ID on those members.",
     "Omit visualClusterId for dialogue, narration, thought, and whenever the visual grouping is uncertain.",
@@ -357,12 +368,18 @@ function buildFixedBlockOverlayPayload(plan, translations) {
       const modelClassifiedSound =
         translation.textRole === "sound" && block.confidence >= 0.58;
       const soundCandidate = block.soundCandidate || modelClassifiedSound;
+      const layoutIntent = normalizeFixedBlockLayoutIntent(
+        translation.layoutIntent,
+      );
       return [
         {
           id: block.representativeId,
           candidateIds: block.candidateIds,
           type: "nonsolid",
           textRole: soundCandidate ? "sound" : "ordinary",
+          ...(!soundCandidate && layoutIntent !== "auto"
+            ? { layoutIntent }
+            : {}),
           ...(translation.fontRole
             ? {
                 fontRole: translation.fontRole,
@@ -396,6 +413,11 @@ function buildFixedBlockOverlayPayload(plan, translations) {
       ? { pageContext: translations.pageContext }
       : {}),
   };
+}
+
+/** @param {unknown} value @returns {"auto"|"horizontal"|"vertical"} */
+function normalizeFixedBlockLayoutIntent(value) {
+  return value === "horizontal" || value === "vertical" ? value : "auto";
 }
 
 module.exports = {

@@ -95,15 +95,20 @@ function createFontReplayPageDecisionContext(options) {
 /**
  * Restore translation-time semantic metadata only after the pixel-only font
  * decision has been applied. This keeps the renderer's layout role independent
- * from the pixel-only inference role used by font selection.
+ * from the pixel-only inference role used by font selection. Layout intent is
+ * reconciled here too because older sealed QA inputs may predate its keep-block
+ * persistence fix.
  *
  * @param {any} block
  * @param {any} item
  * @returns {any}
  */
 function restoreFontReplaySemanticRole(block, item) {
-  if (typeof item?.fontRole !== "string" || !item.fontRole) return block;
-  const restored = { ...block, fontRole: item.fontRole };
+  const layoutRestored = restoreFontReplayLayoutIntent(block, item);
+  if (typeof item?.fontRole !== "string" || !item.fontRole) {
+    return layoutRestored;
+  }
+  const restored = { ...layoutRestored, fontRole: item.fontRole };
   if (
     typeof item.fontRoleConfidence === "number" &&
     Number.isFinite(item.fontRoleConfidence)
@@ -113,6 +118,43 @@ function restoreFontReplaySemanticRole(block, item) {
     delete restored.fontRoleConfidence;
   }
   return restored;
+}
+
+/** @param {any} block @param {any} item @returns {any} */
+function restoreFontReplayLayoutIntent(block, item) {
+  const layoutIntent = readFontReplayLayoutIntent(block, item);
+  const hasStaleIntent =
+    layoutIntent === undefined && Object.hasOwn(block, "layoutIntent");
+  const changesIntent =
+    layoutIntent !== undefined && block.layoutIntent !== layoutIntent;
+  const forcesHorizontal =
+    layoutIntent === "horizontal" && block.renderDirection !== "horizontal";
+  if (!hasStaleIntent && !changesIntent && !forcesHorizontal) return block;
+
+  const restored = { ...block };
+  if (layoutIntent) restored.layoutIntent = layoutIntent;
+  else delete restored.layoutIntent;
+  if (layoutIntent === "horizontal") restored.renderDirection = "horizontal";
+  return restored;
+}
+
+/** @param {any} block @param {any} item @returns {"horizontal"|"vertical"|undefined} */
+function readFontReplayLayoutIntent(block, item) {
+  if (block?.layoutIntentSuppressed === true) return undefined;
+  const textRole = readFontReplayTextRole(block, item);
+  if (textRole !== "ordinary") return undefined;
+  return item?.layoutIntent === "horizontal" ||
+    item?.layoutIntent === "vertical"
+    ? item.layoutIntent
+    : undefined;
+}
+
+/** @param {any} block @param {any} item @returns {"ordinary"|"sound"|undefined} */
+function readFontReplayTextRole(block, item) {
+  if (item?.textRole === "ordinary" || item?.textRole === "sound") {
+    return item.textRole;
+  }
+  return block?.textRole;
 }
 
 module.exports = {

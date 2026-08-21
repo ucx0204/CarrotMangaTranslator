@@ -3,6 +3,8 @@ import {
   clusterAutomaticFontPrintedRows,
   isAutomaticFontPageTransferEligible,
   selectAutomaticFontPageAnchor,
+  selectAutomaticFontStableMajorityPageAnchor,
+  selectAutomaticFontStableMeanPageAnchor,
   type AutomaticFontPrintedFamily,
 } from "./automaticFontMatchingV2PageFamily";
 import { applyDohyeonDominanceClusterRescues } from "./automaticFontMatchingV2PageConsistencyDohyeonCluster";
@@ -26,6 +28,7 @@ import {
 import type { VerifiedAutomaticFontPixelInferenceV2 } from "./fontMatchingPagePixelInferenceTypes";
 
 const MINIMUM_PAGE_ANCHOR_SEED_COUNT = 2;
+const MINIMUM_EXPLICIT_DIALOGUE_CONFIDENCE = 0.75;
 
 export function buildPageConsistencyPlan(
   inferences: readonly (
@@ -48,6 +51,7 @@ export function buildPageConsistencyPlan(
   applySplitGeometryComponents(rows);
   const states = initializeVariantStates(rows);
   applyBodyGroupPlans(states, rows);
+  applyStableMeanBodyConsensus(states, rows);
   applyNeutralHeadOrdinaryConsensus(states, rows);
   applyDohyeonDominanceClusterRescues(states, rows);
   applyDohyeonMorphologyRecoveryPlans(states, rows);
@@ -248,6 +252,81 @@ function groupBodyRows(
     groups.set(key, group);
   }
   return groups;
+}
+
+/**
+ * Page-wide ordinary-body consensus. The anchor is allowed to cross a noisy
+ * local serif/sans route only when every row independently ranks the same
+ * stable face in raw top3 at probability >= 0.15.
+ */
+function applyStableMeanBodyConsensus(
+  states: Map<string, AutomaticFontPageConsistencyState>,
+  rows: readonly PageEvidenceRow[],
+): void {
+  for (const group of groupStableMeanBodyRows(rows).values()) {
+    if (
+      group.some(
+        (row) =>
+          row.geometryComponentForced &&
+          row.geometryComponentAnchorFontId !== null,
+      )
+    ) {
+      continue;
+    }
+    const inferences = group.map(({ inference }) => inference);
+    const unanimousAnchor = selectAutomaticFontStableMeanPageAnchor(inferences);
+    const anchor = unanimousAnchor
+      ? {
+          ...unanimousAnchor,
+          supportedBlockIds: inferences.map(({ blockId }) => blockId),
+        }
+      : selectAutomaticFontStableMajorityPageAnchor(inferences);
+    const family = anchor
+      ? resolveCandidateBodyFamily({ fontId: anchor.fontId })
+      : null;
+    if (!anchor || !family) continue;
+    const supportedBlockIds = new Set(anchor.supportedBlockIds);
+    for (const row of group) {
+      if (!supportedBlockIds.has(row.inference.blockId)) continue;
+      states.set(row.inference.blockId, {
+        ...states.get(row.inference.blockId),
+        mode: "page_anchor",
+        anchorFontId: anchor.fontId,
+        anchorEvidenceCount: anchor.evidenceCount,
+        anchorSupportShare: anchor.supportShare,
+        printedFamily: family,
+        recoveredBody: row.recoveredBody,
+        geometryComponentForced: row.geometryComponentForced,
+        stableMeanConsensus: true,
+        dohyeonMorphologyVeto: row.dohyeonMorphologyVeto,
+      });
+    }
+  }
+}
+
+function groupStableMeanBodyRows(
+  rows: readonly PageEvidenceRow[],
+): Map<string, PageEvidenceRow[]> {
+  const groups = new Map<string, PageEvidenceRow[]>();
+  for (const row of rows) {
+    if (!row.family && !isExplicitHighConfidenceDialogue(row)) continue;
+    const direction =
+      row.item?.direction ?? row.inference.treatment.orientation;
+    const group = groups.get(direction) ?? [];
+    group.push(row);
+    groups.set(direction, group);
+  }
+  return groups;
+}
+
+function isExplicitHighConfidenceDialogue(row: PageEvidenceRow): boolean {
+  return (
+    row.item?.textRole === "ordinary" &&
+    row.item.fontRole === "dialogue" &&
+    typeof row.item.fontRoleConfidence === "number" &&
+    Number.isFinite(row.item.fontRoleConfidence) &&
+    row.item.fontRoleConfidence >= MINIMUM_EXPLICIT_DIALOGUE_CONFIDENCE
+  );
 }
 
 function buildConnectedMorphologyClusters(

@@ -311,6 +311,8 @@ export const TranslationBlockObjectSchema = z
     visualClusterId: visualClusterId.optional(),
     confidence: finiteNumber.min(0).max(1),
     sourceDirection: z.enum(["horizontal", "vertical"]),
+    layoutIntent: z.enum(["auto", "horizontal", "vertical"]).optional(),
+    layoutIntentSuppressed: z.literal(true).optional(),
     renderDirection: LegacyRenderDirectionSchema,
     rotationDeg: finiteNumber.min(-180).max(180).optional(),
     perspectiveTransform: PerspectiveTransformSchema.optional(),

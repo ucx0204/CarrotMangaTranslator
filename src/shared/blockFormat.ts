@@ -192,6 +192,8 @@ export function applyFormatDefaultsToBlock(
   // "auto" keeps the detected direction; otherwise force the chosen direction.
   if (defaults.renderDirection !== "auto") {
     next.renderDirection = defaults.renderDirection;
+    delete next.layoutIntent;
+    next.layoutIntentSuppressed = true;
   }
 
   return next;

@@ -107,9 +107,14 @@ function applyFormatPatch(
   block: TranslationBlock,
   patch: Partial<TranslationBlock>,
 ): TranslationBlock {
+  const hasRenderDirectionPatch = Object.hasOwn(patch, "renderDirection");
+  const hasExplicitRenderDirection = patch.renderDirection !== undefined;
+  const claimsLayoutDirection =
+    hasExplicitRenderDirection &&
+    (block.layoutIntent !== undefined || block.layoutIntentSuppressed !== true);
   const normalizedPatch: Partial<TranslationBlock> = {
     ...patch,
-    ...(Object.hasOwn(patch, "renderDirection")
+    ...(hasRenderDirectionPatch
       ? {
           renderDirection: normalizeRenderDirection(
             patch.renderDirection,
@@ -122,11 +127,17 @@ function applyFormatPatch(
       : {}),
   };
   if (
+    !claimsLayoutDirection &&
     Object.entries(normalizedPatch).every(([key, value]) =>
       Object.is(block[key as keyof TranslationBlock], value),
     )
   ) {
     return block;
   }
-  return { ...block, ...normalizedPatch };
+  const next = { ...block, ...normalizedPatch };
+  if (hasExplicitRenderDirection) {
+    delete next.layoutIntent;
+    next.layoutIntentSuppressed = true;
+  }
+  return next;
 }

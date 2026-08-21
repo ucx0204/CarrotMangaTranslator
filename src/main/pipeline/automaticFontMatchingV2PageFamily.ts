@@ -5,6 +5,9 @@ const MAXIMUM_PIXEL_MORPHOLOGY_DISTANCE = 0.68;
 const MINIMUM_PAGE_ANCHOR_SUPPORT = 2;
 const MINIMUM_PAGE_ANCHOR_SUPPORT_SHARE = 0.6;
 const MINIMUM_PAGE_ANCHOR_AGGREGATE_GAP = 0.08;
+const MINIMUM_STABLE_MEAN_ANCHOR_PROBABILITY = 0.15;
+const MINIMUM_STABLE_MAJORITY_ANCHOR_PROBABILITY = 0.1;
+const MINIMUM_STABLE_MEAN_SUPPORT_SHARE = 0.6;
 
 export type AutomaticFontPrintedFamily = "sans" | "serif";
 
@@ -33,10 +36,9 @@ export const STABLE_BALLOON_SERIF_FONT_IDS = new Set([
 ]);
 
 /**
- * Return the rank-preserving selector winner, not the semantic/style heads.
- * Production calibration assigns positive confidence only to the candidate it
- * authorized. Requiring that authority keeps page consistency from turning an
- * uncalibrated shortlist into a page-wide font mutation.
+ * Return the rank-preserving pixel winner, not the semantic/style heads.
+ * When calibration declines a verified row, automatic mode deliberately uses
+ * its best renderable rank instead of falling back to the formatting font.
  */
 export function resolveAutomaticFontCalibratedPixelWinner(
   inference: Pick<
@@ -44,12 +46,20 @@ export function resolveAutomaticFontCalibratedPixelWinner(
     "localEvidence" | "selectionCalibration"
   >,
 ): RankedFontCandidateV2 | null {
-  if (!inference.selectionCalibration.applied) return null;
+  const bestAvailableSelection =
+    !inference.selectionCalibration.applied &&
+    inference.localEvidence.rankedCandidates.some(
+      (candidate) => candidate.renderStatus === "rendered",
+    );
+  if (!inference.selectionCalibration.applied && !bestAvailableSelection) {
+    return null;
+  }
   return (
     [...inference.localEvidence.rankedCandidates]
       .filter(
         (candidate) =>
-          candidate.renderStatus === "rendered" && candidate.confidence > 0,
+          candidate.renderStatus === "rendered" &&
+          (candidate.confidence > 0 || bestAvailableSelection),
       )
       .sort(
         (left, right) =>
@@ -58,6 +68,70 @@ export function resolveAutomaticFontCalibratedPixelWinner(
           compareStrings(left.fontId, right.fontId),
       )[0] ?? null
   );
+}
+
+/**
+ * Select the stable body face supported by a clear page majority and return
+ * only the rows that independently kept that face in their raw top three.
+ * Outliers remain local instead of vetoing or inheriting the page choice.
+ */
+export function selectAutomaticFontStableMajorityPageAnchor(
+  rows: readonly VerifiedAutomaticFontPixelInferenceV2[],
+): {
+  fontId: string;
+  evidenceCount: number;
+  supportShare: number;
+  supportedBlockIds: readonly string[];
+} | null {
+  if (rows.length < MINIMUM_PAGE_ANCHOR_SUPPORT) return null;
+  const minimumSupport = Math.max(
+    MINIMUM_PAGE_ANCHOR_SUPPORT,
+    Math.ceil(rows.length * MINIMUM_STABLE_MEAN_SUPPORT_SHARE),
+  );
+  const ranked = [...STABLE_BALLOON_BODY_FONT_IDS]
+    .flatMap((fontId) => {
+      const supported = rows.flatMap((row) => {
+        const score = resolveStrictStableMeanCandidateScore(
+          row,
+          fontId,
+          MINIMUM_STABLE_MAJORITY_ANCHOR_PROBABILITY,
+        );
+        return score === null ? [] : [{ blockId: row.blockId, score }];
+      });
+      // This is the partial-majority fallback. A candidate present on every
+      // row must satisfy the stricter unanimous 0.15 floor above instead of
+      // entering through this relaxed 0.10 boundary.
+      if (
+        supported.length < minimumSupport ||
+        supported.length === rows.length
+      ) {
+        return [];
+      }
+      return [
+        {
+          fontId,
+          supported,
+          meanScore:
+            supported.reduce((sum, entry) => sum + entry.score, 0) /
+            supported.length,
+        },
+      ];
+    })
+    .sort(
+      (left, right) =>
+        right.supported.length - left.supported.length ||
+        right.meanScore - left.meanScore ||
+        compareStrings(left.fontId, right.fontId),
+    );
+  const winner = ranked[0];
+  return winner
+    ? {
+        fontId: winner.fontId,
+        evidenceCount: winner.supported.length,
+        supportShare: winner.supported.length / rows.length,
+        supportedBlockIds: winner.supported.map(({ blockId }) => blockId),
+      }
+    : null;
 }
 
 /** The calibrated winner itself is the reliable body-family signal. */
@@ -148,6 +222,69 @@ export function selectAutomaticFontPageAnchor(
         evidenceCount: winner.scores.length,
         supportShare: winner.scores.length / rows.length,
       }
+    : null;
+}
+
+/**
+ * Select one conservative body face only when every row independently keeps
+ * it inside the raw pixel top three with meaningful probability. Unlike the
+ * older seed vote, this uses the mean raw model probability across the whole
+ * page group so one noisy local top-one cannot fragment ordinary balloons.
+ */
+export function selectAutomaticFontStableMeanPageAnchor(
+  rows: readonly VerifiedAutomaticFontPixelInferenceV2[],
+): {
+  fontId: string;
+  evidenceCount: number;
+  supportShare: number;
+} | null {
+  if (rows.length < MINIMUM_PAGE_ANCHOR_SUPPORT) return null;
+  const ranked = [...STABLE_BALLOON_BODY_FONT_IDS]
+    .flatMap((fontId) => {
+      const scores = rows.map((row) =>
+        resolveStrictStableMeanCandidateScore(row, fontId),
+      );
+      if (scores.some((score) => score === null)) return [];
+      const values = scores.filter((score): score is number => score !== null);
+      return [
+        {
+          fontId,
+          meanScore:
+            values.reduce((sum, score) => sum + score, 0) / values.length,
+        },
+      ];
+    })
+    .sort(
+      (left, right) =>
+        right.meanScore - left.meanScore ||
+        compareStrings(left.fontId, right.fontId),
+    );
+  const winner = ranked[0];
+  return winner
+    ? {
+        fontId: winner.fontId,
+        evidenceCount: rows.length,
+        supportShare: 1,
+      }
+    : null;
+}
+
+function resolveStrictStableMeanCandidateScore(
+  row: VerifiedAutomaticFontPixelInferenceV2,
+  fontId: string,
+  minimumProbability = MINIMUM_STABLE_MEAN_ANCHOR_PROBABILITY,
+): number | null {
+  const candidate = row.localEvidence.rankedCandidates.find(
+    (entry) => entry.fontId === fontId,
+  );
+  if (!candidate || !isAutomaticFontPageTransferEligible(candidate)) {
+    return null;
+  }
+  const score = candidate.rawPixelScore;
+  return typeof score === "number" &&
+    Number.isFinite(score) &&
+    score >= minimumProbability
+    ? score
     : null;
 }
 

@@ -33,6 +33,7 @@ export type FontMatchingPageRelativeBaselineConsistencyState = Readonly<{
   recoveredBody?: boolean;
   geometryComponentForced?: boolean;
   ordinaryMorphologyConsensus?: boolean;
+  stableMeanConsensus?: boolean;
   emphasisMorphologyConsensus?: boolean;
   dohyeonMorphologyVeto?: boolean;
   dohyeonDominanceClusterRescue?: boolean;
@@ -41,7 +42,8 @@ export type FontMatchingPageRelativeBaselineConsistencyState = Readonly<{
     | "inverse_page_anchor"
     | "strong_page_anchor"
     | "residual_stable_body"
-    | "non_dohyeon_top3";
+    | "non_dohyeon_top3"
+    | "non_dohyeon_variant_top3";
 }>;
 
 type FontMatchingSelectionCalibrationAudit = Readonly<{

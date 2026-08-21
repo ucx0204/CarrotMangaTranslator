@@ -88,7 +88,7 @@ type FixedBlock = {
   fragments: Array<Record<string, unknown>>;
 };
 
-type FixedBlockPlan = { version: 5; blocks: FixedBlock[] };
+type FixedBlockPlan = { version: 6; blocks: FixedBlock[] };
 type FixedTranslationResult = {
   items: Array<{
     blockId: string;
@@ -380,6 +380,7 @@ describe("fixed-block translation contract", () => {
     expect(Object.keys(itemSchema.properties)).toEqual([
       "blockId",
       "textRole",
+      "layoutIntent",
       "ko",
     ]);
     expect(itemSchema.properties.blockId.enum).toEqual(["B001", "B002"]);
@@ -397,16 +398,18 @@ describe("fixed-block translation contract", () => {
     expect(Object.keys(itemSchema.properties)).toEqual([
       "blockId",
       "textRole",
+      "layoutIntent",
       "fontRole",
       "fontRoleConfidence",
       "visualClusterId",
       "ko",
     ]);
     expect(itemSchema.properties.fontRole?.enum).toContain("sfx_impact");
-    expect(itemSchema.properties.fontRoleConfidence).toEqual({
+    expect(itemSchema.properties.fontRoleConfidence).toMatchObject({
       type: "number",
       minimum: 0,
       maximum: 1,
+      description: expect.stringContaining(">= 0.82"),
     });
     expect(itemSchema.properties.visualClusterId).toEqual({ type: "string" });
     expect(itemSchema.required).not.toContain("visualClusterId");
@@ -1107,9 +1110,7 @@ describe("fixed-block translation contract", () => {
     expect(prompt).toContain(
       "Every blockId, jp, direction, bbox, block count, and block order was already fixed before translation",
     );
-    expect(prompt).toContain(
-      "Each item has exactly three keys: blockId, textRole, and ko",
-    );
+    expect(prompt).toContain("layoutIntent");
     expect(prompt).toContain(
       'Use textRole "sound" only for standalone printed sound effects',
     );
@@ -1134,9 +1135,7 @@ describe("fixed-block translation contract", () => {
       autoFontMatching: true,
     });
 
-    expect(prompt).toContain(
-      "Each item requires blockId, textRole, fontRole, fontRoleConfidence, and ko, and may additionally include visualClusterId",
-    );
+    expect(prompt).toContain("fontRoleConfidence");
     expect(prompt).toContain("aside_balloon_edge");
     expect(prompt).toContain("Omit visualClusterId for dialogue");
     expect(prompt).toContain("never from the work title, genre stereotype");

@@ -35,6 +35,35 @@ const MANUAL_V2_EVIDENCE = {
   visual_review_index_sha256:
     "5155436a1bf25e2e5694c4cc88d1f65092245e6bc80743484e604ef7984593ad",
 } as const;
+const R33_ACCEPTANCE_SCHEMA = "font-matching-runtime-release-acceptance-v3";
+const R33_ACCEPTANCE_AUTHORITY =
+  "explicit_user_approved_cached_page_ab_with_agent_visual_audit";
+const R33_ACCEPTANCE_RECORD_SHA256 =
+  "80be96c4314db4d89e4bc86ea6221ae2c5eae4b54226b64701e95fd1659c0140";
+const R33_MODEL_VERSION = "manga-font-v9-r33-e049fc74c3ba";
+const R33_EVIDENCE = {
+  candidate_order_sha256:
+    "17343ec15ee2153e770101d0cbf707600e97a8bc2d490496efaf4da2f638437d",
+  model_version: R33_MODEL_VERSION,
+  page_consistency_apply_sha256:
+    "eb30c3e7a0a0518b854b83e8ea1c8bb2414d22f1ffd073e551c2d4434b31ace4",
+  page_consistency_plan_sha256:
+    "099a34473124faeff0d508ae4173c8c7444904c6959558c8bf0b92dc34520352",
+  page_consistency_shared_sha256:
+    "8aa94b55c963f3b236279e5f67fd9cc8aa6a4ade189bc1bbcf4760eddb427279",
+  ranker_sha256:
+    "e049fc74c3baeeee9aba179412a3b20387304b749936c167ecc753afcc78f4aa",
+  source_evaluation_runtime_contract_sha256:
+    "c96f24268af9128d19c2b8a6ff7100c2725e8e991da9d3d6f7320b611e90b972",
+  source_marker_sha256:
+    "3a794cc2f5ec75eb83f8c060138f50652d2df98ec24bc4beafe34cb1eceaa545",
+  source_page_inventory_sha256:
+    "2dc2352a401c7a5defa22606ac77a3e99b2a2b72c9f901a7436d4bb471d906d3",
+  source_selection_calibration_sha256:
+    "aaaaa938d5fbed6070115b2d206c6cc4a35517b3b11061fb0a4d11383caa5660",
+  visual_comparison_inventory_sha256:
+    "835165dc2048c5a9a3107aa593758c22f14f0ca5940e0c7f40a896c4e4d79b42",
+} as const;
 
 /** Undefined means malformed evidence; absence remains a valid unaccepted state. */
 export function parseFontMatchingReleaseAcceptance(
@@ -51,8 +80,14 @@ export function parseFontMatchingReleaseAcceptance(
   const qualityGate = recordAt(raw, "quality_gate");
   if (!qualityGate || !validCommonEnvelope(raw)) return undefined;
   if (raw.schema_version === "font-matching-runtime-release-acceptance-v1") {
-    return validLegacyV1Gate(qualityGate)
+    return raw.automatic_visual_judgment === false &&
+      validLegacyV1Gate(qualityGate)
       ? { accepted: true, failedCalibrationQualityAccepted: false }
+      : undefined;
+  }
+  if (raw.schema_version === R33_ACCEPTANCE_SCHEMA) {
+    return validR33Acceptance(raw, qualityGate)
+      ? { accepted: true, failedCalibrationQualityAccepted: true }
       : undefined;
   }
   return validManualV2Acceptance(raw, qualityGate)
@@ -80,7 +115,7 @@ function validCommonEnvelope(acceptance: Record<string, unknown>): boolean {
     acceptance.record_type === "font_matching_runtime_release_acceptance" &&
     acceptance.status === "accepted" &&
     acceptance.external_release_quality_gate_passed === true &&
-    acceptance.automatic_visual_judgment === false
+    typeof acceptance.automatic_visual_judgment === "boolean"
   );
 }
 
@@ -130,8 +165,63 @@ function validManualV2Envelope(acceptance: Record<string, unknown>): boolean {
     ]) &&
     acceptance.schema_version === MANUAL_V2_ACCEPTANCE_SCHEMA &&
     acceptance.acceptance_authority === MANUAL_V2_ACCEPTANCE_AUTHORITY &&
+    acceptance.automatic_visual_judgment === false &&
     acceptance.explicit_user_acceptance === true &&
     validUtcTimestamp(acceptance.accepted_at)
+  );
+}
+
+function validR33Acceptance(
+  acceptance: Record<string, unknown>,
+  qualityGate: Record<string, unknown>,
+): boolean {
+  const evidence = recordAt(acceptance, "evidence");
+  const publication = recordAt(acceptance, "publication");
+  return Boolean(
+    evidence &&
+    publication &&
+    sameOrder(Object.keys(acceptance).sort(), [
+      "acceptance_authority",
+      "accepted_at",
+      "automatic_visual_judgment",
+      "evidence",
+      "explicit_user_acceptance",
+      "external_release_quality_gate_passed",
+      "publication",
+      "quality_gate",
+      "record_sha256",
+      "record_type",
+      "schema_version",
+      "status",
+    ]) &&
+    acceptance.schema_version === R33_ACCEPTANCE_SCHEMA &&
+    acceptance.acceptance_authority === R33_ACCEPTANCE_AUTHORITY &&
+    acceptance.record_sha256 === R33_ACCEPTANCE_RECORD_SHA256 &&
+    acceptance.automatic_visual_judgment === true &&
+    acceptance.explicit_user_acceptance === true &&
+    validUtcTimestamp(acceptance.accepted_at) &&
+    exactRecord(evidence, R33_EVIDENCE) &&
+    validPublication(publication) &&
+    exactRecord(qualityGate, {
+      cached_development_pages: 5,
+      fresh_gemma_or_inpainting_pages: 0,
+      gemma_or_inpainting_runs: 0,
+      human_gold: false,
+      improved_pages: 4,
+      independent_holdout: false,
+      judged_content_pages: 5,
+      live_font_replay_pages: 5,
+      outline_loss_count: 0,
+      ranker_cpu_batch1_median_multiplier: 1.093,
+      ranker_cpu_batch16_median_multiplier: 1.224,
+      ranker_cpu_budget_limit_multiplier: 2,
+      ranker_cpu_budget_passed: true,
+      regressed_pages: 0,
+      sfx_body_regression_count: 0,
+      structural_error_count: 0,
+      unchanged_pages: 1,
+      user_visual_verdict: "new_version_better",
+    }),
   );
 }
 

@@ -30,6 +30,33 @@ describe("translation block patch geometry", () => {
     expect(next.rotationDeg).toBe(45);
     expect(next.renderBbox).toBeUndefined();
   });
+
+  it("clears a Gemma advisory only for an explicit selected-block direction edit", () => {
+    const block = makeBlock({ layoutIntent: "vertical" });
+    const directionEdited = normalizeTranslationBlockPatch(block, {
+      renderDirection: "horizontal",
+    });
+    const unrelatedEdit = normalizeTranslationBlockPatch(block, {
+      fontSizePx: 30,
+    });
+
+    expect(directionEdited.renderDirection).toBe("horizontal");
+    expect(directionEdited).not.toHaveProperty("layoutIntent");
+    expect(directionEdited.layoutIntentSuppressed).toBe(true);
+    expect(unrelatedEdit.layoutIntent).toBe("vertical");
+    expect(unrelatedEdit.layoutIntentSuppressed).toBeUndefined();
+  });
+
+  it("persists ownership when the user confirms the already-rendered direction", () => {
+    const block = makeBlock();
+    const confirmed = normalizeTranslationBlockPatch(block, {
+      renderDirection: "horizontal",
+    });
+
+    expect(confirmed).not.toBe(block);
+    expect(confirmed.renderDirection).toBe("horizontal");
+    expect(confirmed.layoutIntentSuppressed).toBe(true);
+  });
 });
 
 function makeBlock(patch: Partial<TranslationBlock> = {}): TranslationBlock {

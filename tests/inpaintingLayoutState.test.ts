@@ -111,6 +111,39 @@ describe("inpainting layout state", () => {
       }),
     ).toThrow(/번역문이 올바르지 않습니다/);
   });
+
+  it("captures and restores render direction only when explicitly requested", () => {
+    const page = makePage();
+    const [directionState] = captureInpaintingLayoutStates(
+      page,
+      ["seed-block"],
+      { includeRenderDirection: true },
+    );
+    if (!directionState) {
+      throw new Error("Expected a captured direction state.");
+    }
+    expect(directionState).toMatchObject({ renderDirection: "horizontal" });
+
+    const edited = {
+      blocks: page.blocks.map((block) => ({
+        ...block,
+        renderDirection: "vertical" as const,
+      })),
+    };
+    expect(pageMatchesInpaintingLayoutStates(edited, [directionState])).toBe(
+      false,
+    );
+    expect(
+      applyInpaintingLayoutStates(edited, [directionState]).blocks[0]
+        ?.renderDirection,
+    ).toBe("horizontal");
+
+    const invalidDirectionState = structuredClone(directionState);
+    Reflect.set(invalidDirectionState, "renderDirection", "diagonal");
+    expect(() =>
+      applyInpaintingLayoutStates(page, [invalidDirectionState]),
+    ).toThrow(/텍스트 방향이 올바르지 않습니다/);
+  });
 });
 
 function makePage(): Pick<MangaPage, "blocks"> {

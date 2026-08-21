@@ -13,9 +13,11 @@ import type { VerifiedAutomaticFontPixelInferenceV2 } from "./fontMatchingPagePi
 const DEFAULT_LOCAL_OVERRIDE_MINIMUM_SCORE_MARGIN = 0.12;
 
 /**
- * Build page-local body anchors from verified candidate scores and nonverbal
- * OCR geometry. Translation text, item roles, genre, and model semantics are
- * intentionally absent from this boundary.
+ * Build page-local body anchors from verified candidate scores and OCR
+ * geometry. Translation text and genre remain outside this boundary. Explicit
+ * high-confidence sound/dialogue roles only stop geometry from mistaking
+ * short speech for display text or sound effects for balloon body text; they
+ * never choose the font.
  */
 export function buildAutomaticFontPageConsistencyPlan(
   inferences: readonly (
@@ -49,6 +51,7 @@ export function mergeAutomaticFontPageConsistencyState(
       pageState.geometryComponentForced ?? false,
     pageBalloonOrdinaryMorphologyConsensus:
       pageState.ordinaryMorphologyConsensus === true,
+    pageBalloonStableMeanConsensus: pageState.stableMeanConsensus === true,
     pageBalloonEmphasisMorphologyConsensus:
       pageState.emphasisMorphologyConsensus === true,
     pageBalloonDohyeonMorphologyVeto: pageState.dohyeonMorphologyVeto ?? false,

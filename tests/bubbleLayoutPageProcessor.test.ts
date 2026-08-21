@@ -58,6 +58,43 @@ describe("bubble layout page processor", () => {
     expect(page.blocks[0].bbox).toEqual({ x: 150, y: 225, w: 700, h: 450 });
   });
 
+  it("keeps an unresolved vertical Gemma advisory out of automatic bubble profiles", () => {
+    const bitmap = createBitmap(25);
+    paintEllipse(bitmap, 60, 40, 50, 30, 245);
+    const page = createPage();
+    page.blocks[0] = {
+      ...page.blocks[0],
+      textRole: "ordinary",
+      layoutIntent: "vertical",
+      renderDirection: "vertical",
+    };
+
+    const patches = processDetectedBubbleLayouts({
+      page,
+      bitmap,
+      imageWidth: WIDTH,
+      imageHeight: HEIGHT,
+      detections: [
+        detection(0, [8, 8, 112, 72], 0.98),
+        detection(1, [28, 26, 92, 54], 0.98),
+      ],
+      policy: "maximize",
+      pageRevision: "page-revision",
+    });
+
+    expect(patches).toHaveLength(1);
+    expect(patches[0]?.bubbleLayout?.direction).toBe("horizontal");
+    expect(
+      resolveBubbleLayoutBlockRevision("page-revision", page.blocks[0]),
+    ).toBe(
+      resolveBubbleLayoutBlockRevision("page-revision", {
+        ...page.blocks[0],
+        layoutIntent: "horizontal",
+        renderDirection: "horizontal",
+      }),
+    );
+  });
+
   it("falls back to the OCR box when a match fragments into three regions", () => {
     const bitmap = createBitmap(25);
     paintCircle(bitmap, 22, 40, 16, 245);

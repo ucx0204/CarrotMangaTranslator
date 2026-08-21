@@ -18,6 +18,10 @@ import type { BlockFormatDefaults } from "../../shared/blockFormat";
 import type { MangaPage } from "../../shared/libraryTypes";
 import { applyFormatDefaultsToBlock } from "../../shared/blockFormat";
 import { applyNaturalTextLayout } from "../../shared/naturalTextLayout";
+import {
+  readTextLayoutIntent,
+  readUnsuppressedTextLayoutIntent,
+} from "../../shared/textLayoutIntent";
 import { normalizeVisualClusterId } from "../../shared/visualClusterId";
 import {
   resolveAutomaticFontDecisionV2,
@@ -92,6 +96,7 @@ export function overlayItemToBlock(
     ...buildOverlayFontIntent(item),
     confidence: normalizeConfidence(item.confidence, sourceText ? 0.92 : 0.75),
     sourceDirection,
+    ...buildOverlayLayoutIntent(item.layoutIntent, textRole),
     renderDirection,
     rotationDeg,
     fontSizePx,
@@ -118,6 +123,17 @@ export function overlayItemToBlock(
     naturalLayout,
     fontMatched.fontMetricWidthScale,
   );
+}
+
+function buildOverlayLayoutIntent(
+  value: unknown,
+  textRole: NormalizedTextRole,
+): Pick<TranslationBlock, "layoutIntent"> {
+  const layoutIntent = readTextLayoutIntent(value);
+  return textRole === "ordinary" &&
+    (layoutIntent === "horizontal" || layoutIntent === "vertical")
+    ? { layoutIntent }
+    : {};
 }
 
 function buildOverlayFontIntent(
@@ -182,12 +198,19 @@ function applyNaturalLayoutToOverlayBlock(
   if (!naturalLayout?.enabled || textRole === "sound") {
     return formatted;
   }
+  const configuredDirection = formatDefaults?.renderDirection ?? "auto";
+  const directionPreference =
+    configuredDirection === "auto"
+      ? (readUnsuppressedTextLayoutIntent(formatted) ?? "auto")
+      : configuredDirection;
   const layout = applyNaturalTextLayout(formatted, {
     enabled: true,
     pageSize: { width: page.width, height: page.height },
     locale: naturalLayout.locale,
-    allowAutoVertical: textRole === "ordinary" || textRole === "",
-    directionPreference: formatDefaults?.renderDirection ?? "auto",
+    allowAutoVertical:
+      directionPreference === "auto" &&
+      (textRole === "ordinary" || textRole === ""),
+    directionPreference,
     fontMetricWidthScale,
   });
   return {

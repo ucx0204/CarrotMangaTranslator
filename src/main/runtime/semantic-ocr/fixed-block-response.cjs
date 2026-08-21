@@ -17,12 +17,14 @@ const {
 } = require("../font-matching-intent.cjs");
 const { normalizeVisualClusterId } = require("../visual-cluster-id.cjs");
 
+const MIN_VERTICAL_LAYOUT_FONT_ROLE_CONFIDENCE = 0.82;
+
 /**
- * @typedef {{blockId:string;ko:string;textRole?:"ordinary"|"sound";fontRole?:string;fontRoleConfidence?:number;visualClusterId?:string}} FixedBlockTranslation
+ * @typedef {{blockId:string;ko:string;textRole?:"ordinary"|"sound";layoutIntent?:"horizontal"|"vertical";fontRole?:string;fontRoleConfidence?:number;visualClusterId?:string}} FixedBlockTranslation
  * @typedef {{items:FixedBlockTranslation[];pageContext?:Record<string,unknown>}} FixedBlockTranslationResult
  * @typedef {{blocks:Array<{blockId:string}>}} FixedBlockPlan
  * @typedef {{sourceLanguage?:unknown;targetLanguage?:unknown;collectPageContext?:unknown;autoFontMatching?:unknown;[key:string]:unknown}} FixedBlockOptions
- * @typedef {{translations:FixedBlockTranslationResult;retryBlockIds:string[]}} FixedBlockPartialResult
+ * @typedef {{translations:FixedBlockTranslationResult;retryBlockIds:string[];horizontalFallbackTranslations?:FixedBlockTranslationResult}} FixedBlockPartialResult
  */
 
 /**
@@ -93,7 +95,7 @@ function parseFixedBlockTranslationPartialResponse(
   const expectedIds = plan.blocks.map((block) => block.blockId);
   const expectedIdSet = new Set(expectedIds);
   const claimCounts = countExpectedBlockIdClaims(rawItems, expectedIdSet);
-  const validById = collectUniqueValidItems(
+  const { validById, horizontalFallbackById } = collectUniqueValidItems(
     rawItems,
     expectedIdSet,
     claimCounts,
@@ -106,11 +108,31 @@ function parseFixedBlockTranslationPartialResponse(
     ),
   );
   const items = orderedItems.filter((item) => !violationIds.has(item.blockId));
+  const orderedHorizontalFallbackItems = readItemsInOrder(
+    expectedIds,
+    horizontalFallbackById,
+  );
+  const horizontalFallbackViolationIds = new Set(
+    findFixedBlockTargetLanguageViolations(
+      orderedHorizontalFallbackItems,
+      options,
+    ).map((item) => item.blockId),
+  );
+  const horizontalFallbackItems = orderedHorizontalFallbackItems.filter(
+    (item) => !horizontalFallbackViolationIds.has(item.blockId),
+  );
   const acceptedIds = new Set(items.map((item) => item.blockId));
   const pageContext = readOptionalPageContext(raw, options);
   return {
     translations: { items, ...(pageContext ? { pageContext } : {}) },
     retryBlockIds: expectedIds.filter((blockId) => !acceptedIds.has(blockId)),
+    ...(horizontalFallbackItems.length > 0
+      ? {
+          horizontalFallbackTranslations: {
+            items: horizontalFallbackItems,
+          },
+        }
+      : {}),
   };
 }
 
@@ -192,10 +214,11 @@ function countExpectedBlockIdClaims(rawItems, expectedIds) {
  * @param {Set<string>} expectedIds
  * @param {Map<string,number>} claimCounts
  * @param {FixedBlockOptions} options
- * @returns {Map<string,FixedBlockTranslation>}
+ * @returns {{validById:Map<string,FixedBlockTranslation>;horizontalFallbackById:Map<string,FixedBlockTranslation>}}
  */
 function collectUniqueValidItems(rawItems, expectedIds, claimCounts, options) {
   const validById = new Map();
+  const horizontalFallbackById = new Map();
   for (const [index, value] of rawItems.entries()) {
     if (!isRecord(value) || typeof value.blockId !== "string") continue;
     const blockId = value.blockId.trim();
@@ -205,9 +228,55 @@ function collectUniqueValidItems(rawItems, expectedIds, claimCounts, options) {
       validById.set(item.blockId, item);
     } catch (error) {
       if (!isFixedBlockItemContractError(error)) throw error;
+      const item = readHorizontalLayoutFallbackTranslation(
+        value,
+        index,
+        options,
+        error,
+      );
+      if (item) {
+        horizontalFallbackById.set(item.blockId, item);
+      }
     }
   }
-  return validById;
+  return { validById, horizontalFallbackById };
+}
+
+/**
+ * @param {Record<string,unknown>} value
+ * @param {number} index
+ * @param {FixedBlockOptions} options
+ * @param {unknown} originalError
+ * @returns {FixedBlockTranslation|null}
+ */
+function readHorizontalLayoutFallbackTranslation(
+  value,
+  index,
+  options,
+  originalError,
+) {
+  if (!isVerticalLayoutFontRoleConflict(originalError)) return null;
+  try {
+    return readFixedBlockTranslation(
+      { ...value, layoutIntent: "horizontal" },
+      index,
+      options,
+    );
+  } catch (fallbackError) {
+    if (!isFixedBlockItemContractError(fallbackError)) throw fallbackError;
+    return null;
+  }
+}
+
+/** @param {unknown} error */
+function isVerticalLayoutFontRoleConflict(error) {
+  return (
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    String(error.code ?? "") ===
+      "fixed-block-translation-layout-intent-font-role-conflict"
+  );
 }
 
 /** @param {unknown} error */
@@ -251,13 +320,14 @@ function readFixedBlockTranslation(value, index, options = {}) {
     ? [
         "blockId",
         "textRole",
+        "layoutIntent",
         "fontRole",
         "fontRoleConfidence",
         "visualClusterId",
         "visual_cluster_id",
         "ko",
       ]
-    : ["blockId", "textRole", "ko"];
+    : ["blockId", "textRole", "layoutIntent", "ko"];
   const unexpectedKeys = Object.keys(value).filter(
     (key) => !allowedKeys.includes(key),
   );
@@ -269,7 +339,9 @@ function readFixedBlockTranslation(value, index, options = {}) {
   }
   const blockId = String(value.blockId ?? "").trim();
   const textRole = readFixedBlockTextRole(value.textRole, index);
+  const layoutIntent = readFixedBlockLayoutIntent(value.layoutIntent, index);
   const fontIntent = readFixedBlockFontIntent(value, index, options, textRole);
+  validateFixedBlockLayoutFontRole(layoutIntent, fontIntent, index, options);
   const visualClusterId = readFixedBlockVisualClusterId(value, options);
   if (
     typeof value.ko === "string" &&
@@ -297,8 +369,25 @@ function readFixedBlockTranslation(value, index, options = {}) {
     blockId,
     ko,
     textRole,
+    layoutIntent,
     fontIntent,
     visualClusterId,
+  );
+}
+
+/**
+ * Missing legacy values and explicit auto both preserve automatic behavior.
+ * An explicitly malformed current value is a targeted item contract failure.
+ * @param {unknown} value
+ * @param {number} index
+ * @returns {"horizontal"|"vertical"|undefined}
+ */
+function readFixedBlockLayoutIntent(value, index) {
+  if (value === undefined || value === "auto") return undefined;
+  if (value === "horizontal" || value === "vertical") return value;
+  throw semanticContractError(
+    "fixed-block-translation-layout-intent-invalid",
+    `Fixed-block translation ${index + 1} layoutIntent must be auto, horizontal, or vertical.`,
   );
 }
 
@@ -333,6 +422,37 @@ function readFixedBlockFontIntent(value, index, options, textRole) {
 }
 
 /**
+ * A vertical rendering advisory needs narration evidence produced by this
+ * exact v6 response. Persisted roles are deliberately unavailable here. Treat
+ * missing, disabled, conflicting, or low-confidence evidence as an item-local
+ * contract failure so the partial parser can request a targeted correction.
+ *
+ * @param {"horizontal"|"vertical"|undefined} layoutIntent
+ * @param {{fontRole:string;fontRoleConfidence:number}|undefined} fontIntent
+ * @param {number} index
+ * @param {FixedBlockOptions} options
+ */
+function validateFixedBlockLayoutFontRole(
+  layoutIntent,
+  fontIntent,
+  index,
+  options,
+) {
+  if (layoutIntent !== "vertical") return;
+  if (
+    options.autoFontMatching === true &&
+    fontIntent?.fontRole === "narration" &&
+    Number.isFinite(fontIntent.fontRoleConfidence) &&
+    fontIntent.fontRoleConfidence >= MIN_VERTICAL_LAYOUT_FONT_ROLE_CONFIDENCE
+  )
+    return;
+  throw semanticContractError(
+    "fixed-block-translation-layout-intent-font-role-conflict",
+    `Fixed-block translation ${index + 1} layoutIntent vertical requires autoFontMatching with fontRole narration and finite fontRoleConfidence >= ${MIN_VERTICAL_LAYOUT_FONT_ROLE_CONFIDENCE}.`,
+  );
+}
+
+/**
  * @param {unknown} value
  * @param {number} index
  * @returns {"ordinary"|"sound"|undefined}
@@ -353,6 +473,7 @@ function readFixedBlockTextRole(value, index) {
  * @param {string} blockId
  * @param {string} ko
  * @param {"ordinary"|"sound"|undefined} textRole
+ * @param {"horizontal"|"vertical"|undefined} layoutIntent
  * @param {{fontRole:string;fontRoleConfidence:number}|undefined} fontIntent
  * @param {string|undefined} visualClusterId
  * @returns {FixedBlockTranslation}
@@ -361,12 +482,14 @@ function buildFixedBlockTranslation(
   blockId,
   ko,
   textRole,
+  layoutIntent,
   fontIntent,
   visualClusterId,
 ) {
   return {
     blockId,
     ...(textRole ? { textRole } : {}),
+    ...(layoutIntent ? { layoutIntent } : {}),
     ...(fontIntent ?? {}),
     ...(visualClusterId ? { visualClusterId } : {}),
     ko,

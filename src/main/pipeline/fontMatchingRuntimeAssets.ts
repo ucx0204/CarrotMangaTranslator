@@ -1,7 +1,7 @@
 /**
  * Font matching runtime asset externalization.
  *
- * The v2 trust files and ranker are bundled, while the unchanged large
+ * The v3 trust files and R33 ranker are bundled, while the unchanged large
  * encoder/prototype/catalog assets are verified and either migrated from the
  * byte-identical v1 cache or downloaded from the immutable v2 asset release
  * into a new writable cache. The completed seven-file
@@ -14,7 +14,7 @@
  * digest is the primary anchor — the marker internally pins the other 6.
  *
  * Dev stages the complete bundle at `out/app-runtime/font-matching`. Packaged
- * builds contain only the four small v2 files there; path resolution therefore
+ * builds contain only the four small v3 files there; path resolution therefore
  * selects the completed data-root cache until all seven files exist.
  */
 import { createHash } from "node:crypto";
@@ -42,8 +42,8 @@ import {
 } from "./fontMatchingRuntimePaths";
 
 /**
- * Immutable asset-only GitHub prerelease hosting the complete seven-file v2
- * bundle. The installer already carries the four small trust/ranker files;
+ * Immutable asset-only GitHub prerelease hosting the byte-identical shared
+ * assets. The installer carries the four small v3 trust/ranker files;
  * the three large files use this tag on a fresh install. A byte-identical v1
  * cache may still be migrated locally to avoid a redundant 467 MiB download.
  */
@@ -64,22 +64,22 @@ type FontMatchingRuntimeFile = {
   urlName?: string;
   sha256: string;
   bytes: number;
-  source: "bundled-v2" | "remote-v2-release";
+  source: "bundled-v3" | "remote-v2-release";
 };
 
 export const FONT_MATCHING_RUNTIME_FILES: readonly FontMatchingRuntimeFile[] = [
   {
     fileName: FONT_MATCHING_RUNTIME_MARKER_FILE,
     urlName: "default.font-matching-runtime-artifact-owned.json",
-    sha256: "fc0e48ac7c02dac8b4da3a4a448fb579a34dbca42bb73ec3df5a248a25d2e55f",
+    sha256: "3477b25beed9a2518fe024a5b6b8d766c3593f7aefe58a3e65cdc3ac71a0cd2b",
     bytes: 755,
-    source: "bundled-v2",
+    source: "bundled-v3",
   },
   {
     fileName: "runtime-contract.json",
-    sha256: "11b430ac8782c2060d42592c3da133284ccbd90580c6991f3659c1f8e505b56a",
-    bytes: 21_941,
-    source: "bundled-v2",
+    sha256: "f1ec598247f86904072c0615ec38f7efe4eab3950268206cae5fa9e9ffc5f52a",
+    bytes: 23_401,
+    source: "bundled-v3",
   },
   {
     fileName: "auto-match-active-catalog.json",
@@ -89,15 +89,15 @@ export const FONT_MATCHING_RUNTIME_FILES: readonly FontMatchingRuntimeFile[] = [
   },
   {
     fileName: "selection-calibration.json",
-    sha256: "501c39cd12019e4334336c486a0b8a87699ea6a5e8845232af5537e0929dc3fb",
-    bytes: 19_160,
-    source: "bundled-v2",
+    sha256: "aaaaa938d5fbed6070115b2d206c6cc4a35517b3b11061fb0a4d11383caa5660",
+    bytes: 19_146,
+    source: "bundled-v3",
   },
   {
     fileName: "ranker.onnx",
-    sha256: "dfa42ae17f340768cae30f2219973eae1ff62a4c3c1544496502621e6e710c78",
-    bytes: 351_127,
-    source: "bundled-v2",
+    sha256: "e049fc74c3baeeee9aba179412a3b20387304b749936c167ecc753afcc78f4aa",
+    bytes: 647_571,
+    source: "bundled-v3",
   },
   {
     fileName: "prototype-features.f32",
@@ -113,7 +113,10 @@ export const FONT_MATCHING_RUNTIME_FILES: readonly FontMatchingRuntimeFile[] = [
   },
 ];
 
-const LEGACY_SHARED_CACHE_VERSION = "active21-r5-e1-release-v1";
+const SHARED_CACHE_VERSIONS = [
+  "active21-v8-r3h-manual-v2-release-v1",
+  "active21-r5-e1-release-v1",
+] as const;
 
 /**
  * Download all 7 bundle files into the cache directory under `dataRoot`, each
@@ -136,10 +139,10 @@ export async function ensureFontMatchingRuntimeAssets(options: {
   );
   for (const file of FONT_MATCHING_RUNTIME_FILES) {
     throwIfAborted(options.signal);
-    if (file.source === "bundled-v2") {
+    if (file.source === "bundled-v3") {
       if (!options.bundledDir) {
         throw new Error(
-          "Bundled font runtime directory is required for v2 trust files",
+          "Bundled font runtime directory is required for v3 trust files",
         );
       }
       await installVerifiedBundledFile({
@@ -150,19 +153,23 @@ export async function ensureFontMatchingRuntimeAssets(options: {
       });
       continue;
     }
-    const migrated = await installVerifiedBundledFile({
-      sourcePath: join(
-        options.dataRoot,
-        "models",
-        "font-matching",
-        LEGACY_SHARED_CACHE_VERSION,
-        file.fileName,
-      ),
-      destinationPath: join(cacheDir, file.fileName),
-      expectedSha256: file.sha256,
-      expectedBytes: file.bytes,
-      optionalSource: true,
-    });
+    let migrated = false;
+    for (const cacheVersion of SHARED_CACHE_VERSIONS) {
+      migrated = await installVerifiedBundledFile({
+        sourcePath: join(
+          options.dataRoot,
+          "models",
+          "font-matching",
+          cacheVersion,
+          file.fileName,
+        ),
+        destinationPath: join(cacheDir, file.fileName),
+        expectedSha256: file.sha256,
+        expectedBytes: file.bytes,
+        optionalSource: true,
+      });
+      if (migrated) break;
+    }
     if (migrated) continue;
     await ensureRemoteFile({
       modelDir: cacheDir,

@@ -25,9 +25,9 @@ export function applyAutomaticFontDecisionV2(
       ? {}
       : { bold: selection.fontWeight >= 600 }),
     ...(selection.italic === undefined ? {} : { italic: selection.italic }),
-    ...(selection.outlineWidthScale === undefined
-      ? {}
-      : { outlineWidthScale: selection.outlineWidthScale }),
+    // Font matching may choose a face and source-polarity colors, but outline
+    // thickness belongs to the user's block/default formatting. In particular,
+    // never let a learned/profile selection replace it with a legacy scale.
     ...(inverseTextStyle
       ? {
           textColor: inverseTextStyle.textColor,

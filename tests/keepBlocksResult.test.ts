@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { joinCropOcrTexts } from "../src/main/pipeline/keepBlocksOcr";
+import { applyBubbleNaturalTextLayout } from "../src/main/inpainting/bubbleLayoutNaturalText";
 import {
   FONT_MATCHING_V2_MODEL_VERSION,
   FONT_MATCHING_V2_RENDERER_HASH,
@@ -15,6 +16,7 @@ import {
 } from "../src/main/pipeline/keepBlocksResult";
 import { buildKeepBlocksFontInferenceBlocks } from "../src/main/pipeline/keepBlocksAssignment";
 import { buildPreviousBlocksForPrompt } from "../src/main/pipeline/previousBlocksForPrompt";
+import { normalizeTranslationBlockPatch } from "../src/renderer/src/hooks/useUpdateSelectedBlockAction";
 import type { MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
 import type { OverlayItem } from "../src/main/pipeline/types";
@@ -175,6 +177,162 @@ describe("keep-blocks translation mode", () => {
       id: "b-2",
       sourceText: "こんにちは",
       translatedText: "안녕하세요",
+    });
+  });
+
+  it("persists concrete v6 advisories on ordinary keep blocks and applies horizontal immediately", () => {
+    const page = makePage([
+      {
+        ...makeBlock("b-horizontal", { x: 100, y: 100, w: 90, h: 240 }),
+        layoutIntent: "vertical",
+        renderDirection: "vertical",
+      },
+      makeBlock("b-vertical", { x: 20, y: 100, w: 70, h: 600 }),
+    ]);
+    const previousBlocks = buildPreviousBlocksForPrompt(page, [], {
+      assignSequentialCandidateIds: true,
+    });
+
+    const mapping = applyOverlayItemsToExistingBlocks({
+      page,
+      previousBlocks,
+      items: [
+        {
+          ...makeItem(1, page.blocks[0].bbox, "縦書き", "가로로 읽는 대사"),
+          layoutIntent: "horizontal",
+        },
+        {
+          ...makeItem(2, page.blocks[1].bbox, "長い説明", "아주 긴 설명문"),
+          layoutIntent: "vertical",
+          fontRole: "narration",
+          fontRoleConfidence: 0.95,
+        },
+      ],
+      naturalLayout: { enabled: true, locale: "ko" },
+    });
+
+    expect(mapping.blocks[0]).toMatchObject({
+      layoutIntent: "horizontal",
+      renderDirection: "horizontal",
+    });
+    expect(mapping.blocks[1]).toMatchObject({
+      layoutIntent: "vertical",
+      renderDirection: "horizontal",
+    });
+  });
+
+  it("does not authenticate a new keep vertical intent with a stale persisted narration role", () => {
+    const stale = {
+      ...makeBlock("b-stale-role", { x: 20, y: 100, w: 70, h: 600 }),
+      textRole: "ordinary" as const,
+      fontRole: "narration" as const,
+      fontRoleConfidence: 0.95,
+      layoutIntent: "vertical" as const,
+    };
+    const page = makePage([stale]);
+    const previousBlocks = buildPreviousBlocksForPrompt(page, [], {
+      assignSequentialCandidateIds: true,
+    });
+    const mapping = applyOverlayItemsToExistingBlocks({
+      page,
+      previousBlocks,
+      items: [
+        {
+          ...makeItem(
+            1,
+            stale.bbox,
+            "長い説明",
+            "페이지 바깥쪽에 놓인 아주 길고 세로로 이어지는 설명문입니다",
+          ),
+          layoutIntent: "vertical",
+        },
+      ],
+    });
+
+    expect(mapping.blocks[0]).toMatchObject({
+      fontRole: "narration",
+      fontRoleConfidence: 0.95,
+      renderDirection: "horizontal",
+    });
+    expect(mapping.blocks[0]).not.toHaveProperty("layoutIntent");
+
+    const postprocessed = applyBubbleNaturalTextLayout(
+      { ...page, blocks: mapping.blocks },
+      { locale: "ko" },
+    );
+    expect(postprocessed.blocks[0]?.renderDirection).toBe("horizontal");
+    expect(postprocessed.blocks[0]).not.toHaveProperty("layoutIntent");
+  });
+
+  it("clears stale model advisories for auto and sound keep results", () => {
+    const page = makePage([
+      {
+        ...makeBlock("b-auto", { x: 100, y: 100, w: 160, h: 120 }),
+        textRole: "ordinary",
+        layoutIntent: "vertical",
+      },
+      {
+        ...makeBlock("b-sound", { x: 400, y: 100, w: 160, h: 120 }),
+        textRole: "ordinary",
+        layoutIntent: "vertical",
+      },
+    ]);
+    const previousBlocks = buildPreviousBlocksForPrompt(page, [], {
+      assignSequentialCandidateIds: true,
+    });
+    const mapping = applyOverlayItemsToExistingBlocks({
+      page,
+      previousBlocks,
+      items: [
+        {
+          ...makeItem(1, page.blocks[0].bbox, "台詞", "대사"),
+          layoutIntent: "auto",
+        },
+        {
+          ...makeItem(2, page.blocks[1].bbox, "ドン", "쾅"),
+          textRole: "sound",
+          layoutIntent: "vertical",
+        },
+      ],
+    });
+
+    expect(mapping.blocks[0]).not.toHaveProperty("layoutIntent");
+    expect(mapping.blocks[1]).not.toHaveProperty("layoutIntent");
+    expect(mapping.blocks[1].textRole).toBe("sound");
+  });
+
+  it("does not resurrect an advisory after a manual direction override and retranslation", () => {
+    const original = {
+      ...makeBlock("b-manual", { x: 20, y: 100, w: 70, h: 600 }),
+      textRole: "ordinary" as const,
+      layoutIntent: "vertical" as const,
+    };
+    const manuallyOverridden = normalizeTranslationBlockPatch(original, {
+      renderDirection: "horizontal",
+    });
+    const page = makePage([manuallyOverridden]);
+    const previousBlocks = buildPreviousBlocksForPrompt(page, [], {
+      assignSequentialCandidateIds: true,
+    });
+    const mapping = applyOverlayItemsToExistingBlocks({
+      page,
+      previousBlocks,
+      items: [
+        {
+          ...makeItem(1, original.bbox, "長い説明", "아주 긴 설명문"),
+          layoutIntent: "vertical",
+          fontRole: "narration",
+          fontRoleConfidence: 0.99,
+        },
+      ],
+      naturalLayout: { enabled: true, locale: "ko" },
+    });
+
+    expect(manuallyOverridden.layoutIntentSuppressed).toBe(true);
+    expect(mapping.blocks[0]).not.toHaveProperty("layoutIntent");
+    expect(mapping.blocks[0]).toMatchObject({
+      layoutIntentSuppressed: true,
+      renderDirection: "horizontal",
     });
   });
 

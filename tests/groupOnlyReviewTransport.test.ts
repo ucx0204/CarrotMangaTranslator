@@ -533,7 +533,101 @@ describe("axis-v4 group-only review transport", () => {
     });
   });
 
-  it("omits one persistently invalid block instead of failing its whole page", async () => {
+  it("preserves the exact page-3 translations and falls back only their invalid vertical advisories", async () => {
+    const request = makePage3RegressionRequest();
+    const bodies: RequestBody[] = [];
+    let fixedRequestCount = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockImplementation(async (_input, init) => {
+        const body = postedBody(init);
+        bodies.push(body);
+        if (!isFixedTranslation(body)) {
+          const candidateOrder = readPayload<number[]>(body, "candidateOrder");
+          return chatResponse({
+            labels: candidateOrder.map((_, index) => ({
+              group: index + 1,
+              role: "body",
+            })),
+          });
+        }
+        fixedRequestCount += 1;
+        const requestedIds = new Set(
+          readPayload<Array<{ blockId: string }>>(body, "fixedBlocks").map(
+            (block) => block.blockId,
+          ),
+        );
+        const exact = exactPage3RegressionReply();
+        return chatResponse({
+          items: exact.items.filter((item) => requestedIds.has(item.blockId)),
+          ...(fixedRequestCount === 1
+            ? { pageContext: exact.pageContext }
+            : {}),
+        });
+      }),
+    );
+
+    const result = await requestTranslation(request.server, request.options);
+    const fixedBodies = bodies.filter(isFixedTranslation);
+    const output = JSON.parse(result.outputText) as {
+      items: Array<{
+        ko: string;
+        layoutIntent?: string;
+        candidateIds: number[];
+      }>;
+      pageContext?: JsonRecord;
+    };
+
+    expect(fixedBodies).toHaveLength(4);
+    expect(
+      readPayload<JsonRecord[]>(fixedBodies[0], "fixedBlocks"),
+    ).toHaveLength(10);
+    for (const repairBody of fixedBodies.slice(1)) {
+      expect(readPayload<JsonRecord[]>(repairBody, "fixedBlocks")).toHaveLength(
+        9,
+      );
+      expect(readUserText(repairBody)).toContain(
+        "correct the previous translation, layout advisory",
+      );
+    }
+    expect(output.items).toHaveLength(10);
+    expect(output.items.map((item) => item.ko)).toEqual(
+      exactPage3RegressionReply().items.map((item) => item.ko),
+    );
+    expect(output.items.slice(0, 9)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          candidateIds: expect.any(Array),
+          layoutIntent: "horizontal",
+        }),
+      ]),
+    );
+    expect(
+      output.items
+        .slice(0, 9)
+        .every((item) => item.layoutIntent === "horizontal"),
+    ).toBe(true);
+    expect(output.pageContext).toEqual(exactPage3RegressionReply().pageContext);
+    expect(result.requestBody).toMatchObject({
+      fixedBlockCount: 10,
+      fixedBlockRepairAttempts: 3,
+      fixedBlockHorizontalFallbackIds: [
+        "B001",
+        "B002",
+        "B003",
+        "B004",
+        "B005",
+        "B006",
+        "B007",
+        "B008",
+        "B009",
+      ],
+    });
+    expect(result.requestBody).not.toHaveProperty("fixedBlockOmittedIds");
+    expect(result.requestBody).not.toHaveProperty("fixedBlockUnresolvedIds");
+  });
+
+  it("fails closed when a malformed block remains unresolved after bounded repairs", async () => {
     const request = makeRequest();
     const bodies: RequestBody[] = [];
     vi.stubGlobal(
@@ -557,22 +651,14 @@ describe("axis-v4 group-only review transport", () => {
       }),
     );
 
-    const result = await requestTranslation(request.server, request.options);
-    const output = JSON.parse(result.outputText) as {
-      items: Array<{ ko: string; candidateIds: number[] }>;
-    };
-
-    expect(bodies.filter(isFixedTranslation)).toHaveLength(4);
-    expect(output.items).toEqual([
-      expect.objectContaining({
-        ko: "살아남는 번역",
-        candidateIds: [1],
-      }),
-    ]);
-    expect(result.requestBody).toMatchObject({
-      fixedBlockRepairAttempts: 3,
-      fixedBlockOmittedIds: ["B002"],
+    await expect(
+      requestTranslation(request.server, request.options),
+    ).rejects.toMatchObject({
+      code: "fixed-block-translation-repair-exhausted",
+      blockIds: ["B002"],
+      message: expect.stringContaining("Refusing to omit"),
     });
+    expect(bodies.filter(isFixedTranslation)).toHaveLength(4);
   });
 });
 
@@ -617,6 +703,135 @@ function makeStaggeredRequest() {
     staggeredHint(4, 580, 286, 612, 476, "左の本文", "B003", 1),
   ];
   return request;
+}
+
+function makePage3RegressionRequest() {
+  const request = makeRequest();
+  const sourceTexts = [
+    "アルドリッジさん壇上へ。",
+    "私の成績い知ってるでしょう!?",
+    "ま待ってください！",
+    "ですよね！？",
+    "魔法もまともに使えないのに、足手まといになるだけですわ！？",
+    "私もそう思ったんだけどね…",
+    "指名…",
+    "そんな感じなの！？",
+    "されちゃったからねえ。",
+    "切",
+  ];
+  Object.assign(request.options, {
+    autoFontMatching: true,
+    collectPageContext: true,
+  });
+  request.options.ocrBboxHints = sourceTexts.map((sourceText, index) => {
+    const id = index + 1;
+    const x1 = 40 + (index % 5) * 190;
+    const y1 = 60 + Math.floor(index / 5) * 420;
+    return hint(
+      id,
+      x1,
+      y1,
+      x1 + (index === 9 ? 140 : 50),
+      y1 + (index === 9 ? 55 : 130),
+      sourceText,
+      `B${String(id).padStart(3, "0")}`,
+    );
+  });
+  return request;
+}
+
+function exactPage3RegressionReply() {
+  return {
+    items: [
+      {
+        blockId: "B001",
+        textRole: "ordinary",
+        layoutIntent: "vertical",
+        fontRole: "dialogue",
+        fontRoleConfidence: 1,
+        ko: "알드리치 씨, 단상으로.",
+      },
+      {
+        blockId: "B002",
+        textRole: "ordinary",
+        layoutIntent: "vertical",
+        fontRole: "dialogue",
+        fontRoleConfidence: 1,
+        ko: "제 성적 알고 계시잖아요!?",
+      },
+      {
+        blockId: "B003",
+        textRole: "ordinary",
+        layoutIntent: "vertical",
+        fontRole: "dialogue",
+        fontRoleConfidence: 1,
+        ko: "기, 기다려 주세요!",
+      },
+      {
+        blockId: "B004",
+        textRole: "ordinary",
+        layoutIntent: "vertical",
+        fontRole: "dialogue",
+        fontRoleConfidence: 1,
+        ko: "그렇죠!?",
+      },
+      {
+        blockId: "B005",
+        textRole: "ordinary",
+        layoutIntent: "vertical",
+        fontRole: "dialogue",
+        fontRoleConfidence: 1,
+        ko: "마법도 제대로 못 쓰면서, 방해만 될 뿐이잖아요!?",
+      },
+      {
+        blockId: "B006",
+        textRole: "ordinary",
+        layoutIntent: "vertical",
+        fontRole: "dialogue",
+        fontRoleConfidence: 1,
+        ko: "나도 그렇게 생각했지만 말이야...",
+      },
+      {
+        blockId: "B007",
+        textRole: "ordinary",
+        layoutIntent: "vertical",
+        fontRole: "thought",
+        fontRoleConfidence: 1,
+        ko: "지명...",
+      },
+      {
+        blockId: "B008",
+        textRole: "ordinary",
+        layoutIntent: "vertical",
+        fontRole: "shout",
+        fontRoleConfidence: 1,
+        ko: "그런 느낌이야!?",
+      },
+      {
+        blockId: "B009",
+        textRole: "ordinary",
+        layoutIntent: "vertical",
+        fontRole: "dialogue",
+        fontRoleConfidence: 1,
+        ko: "되어 버렸으니까 말이야.",
+      },
+      {
+        blockId: "B010",
+        textRole: "sound",
+        layoutIntent: "horizontal",
+        fontRole: "sfx_impact",
+        fontRoleConfidence: 1,
+        ko: "절",
+        visualClusterId: "V001",
+      },
+    ],
+    pageContext: {
+      visualSummary:
+        "학장이 영웅 지명을 선포하자 학생들이 술렁이고, 당황한 학생들 사이에서 긴장감이 흐르는 가운데 주인공이 상황을 살피는 장면입니다.",
+      glossary: [],
+      characters: [],
+    },
+  };
 }
 
 function staggeredHint(

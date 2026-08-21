@@ -2,7 +2,11 @@ import type { TranslationOptions } from "../appSettings";
 import type { PreviousOverlayBlockForPrompt } from "../appSettings";
 import type { OpenAICompatibleApiEndpoint } from "../openaiApiEndpoint";
 import type { OpenAIOAuthEndpoint } from "../openaiOauthEndpoint";
-import type { BBox, SourceTextDirection } from "../../shared/textTypes";
+import type {
+  BBox,
+  SourceTextDirection,
+  TextLayoutIntent,
+} from "../../shared/textTypes";
 import type { JobEvent } from "../../shared/jobTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
 import type {
@@ -153,6 +157,8 @@ export type OverlayItem = {
   /** 언어 중립 명칭. 파서는 jp/ko와 항상 같은 값으로 채운다. */
   sourceText?: string;
   translatedText?: string;
+  /** Gemma advisory; vertical remains code-gated until bubble detection finishes. */
+  layoutIntent?: TextLayoutIntent;
   direction?: SourceTextDirection;
   angle?: number;
   fontSize?: number | null;
@@ -163,6 +169,7 @@ export type FontMatchingOcrCandidateMembershipV2 = Readonly<{
   contractVersion: "font-matching-ocr-candidate-membership-v2";
   source:
     | "semantic_ocr_fixed_block_request_v5"
+    | "semantic_ocr_fixed_block_request_v6"
     | "sealed_font_input_request_block_v2";
   bindingId: string;
   originalCandidateIds: readonly number[];

@@ -320,7 +320,7 @@ describe("automatic font matching V2 adapter", () => {
     });
   });
 
-  it("fails closed when the supervised selector misses its operating point", () => {
+  it("applies the model top one when a valid selector score misses its operating point", () => {
     const candidates = [builtIn("jua"), builtIn("dohyeon")];
     const catalogVersion = resolveFontMatchingV2CatalogVersion(candidates);
     const status = makeReadyRuntimeStatus(candidates, catalogVersion);
@@ -355,10 +355,65 @@ describe("automatic font matching V2 adapter", () => {
     });
 
     expect(decision?.result.decision).toMatchObject({
-      mode: "abstain",
-      selectedFontId: null,
-      abstainReason: "low_confidence",
+      mode: "apply",
+      selectedFontId: "jua",
+      abstainReason: null,
     });
+    expect(
+      decision?.result.audit.priorityTrace.find(
+        (entry) => entry.priority === "v2_automatic",
+      )?.reasonCodes,
+    ).toContain("verified_pixel_best_available_required");
+  });
+
+  it("applies the best renderable pixel candidate when the selector reports none acceptable", () => {
+    const candidates = [builtIn("jua"), builtIn("dohyeon")];
+    const catalogVersion = resolveFontMatchingV2CatalogVersion(candidates);
+    const status = makeReadyRuntimeStatus(candidates, catalogVersion);
+    const block = makeBlock();
+    const page = makePage();
+    const baseInference = makePixelInference({
+      blockId: block.id,
+      catalogVersion,
+      pageId: page.id,
+      scores: [0.97, 0.72],
+      sourceStyle: makeSourceStyle(),
+      selectionCalibration: {
+        applied: false,
+        fallbackReason: "none_acceptable",
+        operatingFamily: null,
+        selectionScore: null,
+        globalRiskLowerConfidenceBound: 0.9,
+      },
+    });
+    const pixelInference = {
+      ...baseInference,
+      localEvidence: {
+        ...baseInference.localEvidence,
+        noneAcceptable: true,
+      },
+    };
+
+    const decision = resolveAutomaticFontDecisionV2({
+      block,
+      item: makeItem("dialogue", 0.99),
+      page,
+      options: {
+        enabled: true,
+        targetLanguage: "ko",
+        candidates,
+        pixelInference,
+        runtimeArtifactStatus: status,
+      },
+    });
+
+    expect(decision?.result.decision).toMatchObject({
+      mode: "apply",
+      selectedFontId: "jua",
+      noneAcceptable: false,
+      abstainReason: null,
+    });
+    expect(decision?.result.audit.modelReportedNoneAcceptable).toBe(true);
   });
 
   it("rejects forged chapter-prior authority outside the sealed pixel top three", () => {
@@ -503,7 +558,7 @@ describe("automatic font matching V2 adapter", () => {
     expect(repeatedState).not.toHaveProperty("visualClusterFontId");
   });
 
-  it("uses a same-chapter body prior softly without mistaking emphasis for a family change", () => {
+  it("uses an AI-selected same-chapter body anchor without mistaking emphasis for a family change", () => {
     const candidates = [builtIn("jua"), builtIn("dohyeon")];
     const catalogVersion = resolveFontMatchingV2CatalogVersion(candidates);
     const coordinator = createAutomaticFontPageCoordinatorV2();
@@ -608,7 +663,7 @@ describe("automatic font matching V2 adapter", () => {
         runtimeArtifactStatus: status,
       },
     });
-    expect(localWins?.result.decision.selectedFontId).toBe("dohyeon");
+    expect(localWins?.result.decision.selectedFontId).toBe("jua");
 
     const differentSourceStyle = makePixelInference({
       blockId: "block-6",
@@ -673,7 +728,7 @@ describe("automatic font matching V2 adapter", () => {
     ).not.toContain("episode_body_consistency_prior");
   });
 
-  it("lets the verified local-override margin defeat a chapter prior", () => {
+  it("does not treat a small local score difference as a chapter font change", () => {
     const candidates = [builtIn("jua"), builtIn("dohyeon")];
     const catalogVersion = resolveFontMatchingV2CatalogVersion(candidates);
     const ready = makeReadyRuntimeStatus(candidates, catalogVersion);
@@ -737,12 +792,12 @@ describe("automatic font matching V2 adapter", () => {
       },
     });
 
-    expect(decision?.result.decision.selectedFontId).toBe("dohyeon");
+    expect(decision?.result.decision.selectedFontId).toBe("jua");
     expect(
       decision?.result.audit.priorityTrace.find(
         (entry) => entry.priority === "v2_automatic",
       )?.reasonCodes,
-    ).not.toContain("episode_body_consistency_prior");
+    ).toContain("episode_body_consistency_prior");
   });
 
   it("honors the verified chapter anchor minimum and score cap", () => {

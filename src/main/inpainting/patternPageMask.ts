@@ -17,6 +17,11 @@ import {
 import { isPatternInpaintingBlockEligible } from "./patternBlockEligibility";
 import { buildPatternTextMask } from "./patternTextMask";
 import { extendSharedBubbleMaskWithDetectedText } from "./sharedBubbleTextBridge";
+import { coalesceSharedConstrainedWindows } from "./patternSharedWindows";
+import {
+  buildSourceGlyphEvidence,
+  type SourceGlyphEvidence,
+} from "./sourceGlyphResidual";
 
 export type PatternPageMaskMode = "glyph" | "flux-region";
 
@@ -28,6 +33,15 @@ export type PatternMaskContext = {
   inpaintWindowGroupIds: string[][];
   validationWindowMasks: InpaintingWindowMask[];
   validationBlockIds: string[];
+  sourceGlyphEvidence: SourceGlyphEvidence[];
+  validationBindingsByBlockId: Map<
+    string,
+    {
+      blockId: string;
+      firstPassCore: InpaintingWindowMask;
+      sourceGlyphEvidence: SourceGlyphEvidence;
+    }
+  >;
   blocksErased: number;
   otsuBlocks: number;
 };
@@ -36,6 +50,10 @@ export function buildPatternPageMask(options: {
   blockId?: string;
   page: MangaPage;
   bitmap: Buffer;
+  /** Immutable decoded original used only for diagnostic source evidence. */
+  sourceEvidenceBitmap?: Buffer;
+  /** Disabled by production; QA/offline callers opt in explicitly. */
+  collectSourceGlyphEvidence?: boolean;
   width: number;
   height: number;
   mode?: PatternPageMaskMode;
@@ -57,6 +75,8 @@ export function buildPatternPageMask(options: {
     inpaintWindowGroupIds: [],
     validationWindowMasks: [],
     validationBlockIds: [],
+    sourceGlyphEvidence: [],
+    validationBindingsByBlockId: new Map(),
     blocksErased: 0,
     otsuBlocks: 0,
   };
@@ -85,6 +105,16 @@ function mergePatternBlock(
   block: MangaPage["blocks"][number],
 ): void {
   const sourceRect = bboxToPixelRect(block.bbox, options.page);
+  const sourceGlyphEvidence =
+    options.collectSourceGlyphEvidence === true
+      ? buildSourceGlyphEvidence({
+          bitmap: options.sourceEvidenceBitmap ?? options.bitmap,
+          block,
+          height: options.height,
+          page: options.page,
+          width: options.width,
+        })
+      : undefined;
   const supportRect = expandRect(
     sourceRect,
     options.width,
@@ -92,7 +122,13 @@ function mergePatternBlock(
     resolvePatternRegionPaddingPx(block, options.page),
   );
   if (options.mode === "flux-region") {
-    mergeFluxRegionMask(options, context, block, supportRect);
+    mergeFluxRegionMask(
+      options,
+      context,
+      block,
+      supportRect,
+      sourceGlyphEvidence,
+    );
     return;
   }
   const detection = mergePatternDetectionMask({
@@ -115,8 +151,12 @@ function mergePatternBlock(
     ),
   );
   context.inpaintWindowMasks.push(detection.windowMask);
-  context.validationWindowMasks.push(detection.windowMask);
-  context.validationBlockIds.push(block.id);
+  appendPatternValidationBinding(
+    context,
+    block.id,
+    detection.windowMask,
+    sourceGlyphEvidence,
+  );
   context.inpaintWindowConstraints.push(null);
   context.inpaintWindowGroupIds.push([]);
   if (detection.usedOtsu) context.otsuBlocks += 1;
@@ -128,6 +168,7 @@ function mergeFluxRegionMask(
   context: PatternMaskContext,
   block: MangaPage["blocks"][number],
   supportRect: PixelRect,
+  sourceGlyphEvidence: SourceGlyphEvidence | undefined,
 ): void {
   const sharedGroupIds = [
     ...(options.sharedInpaintGroupIdsByBlock?.[block.id] ?? []),
@@ -165,8 +206,12 @@ function mergeFluxRegionMask(
     ),
   );
   context.inpaintWindowMasks.push(regionMask);
-  context.validationWindowMasks.push(regionMask);
-  context.validationBlockIds.push(block.id);
+  appendPatternValidationBinding(
+    context,
+    block.id,
+    regionMask,
+    sourceGlyphEvidence,
+  );
   // Only a detected green region is a hard final-composite boundary. The
   // no-green fallback intentionally preserves the legacy OCR-region feather.
   context.inpaintWindowConstraints.push(bubbleMask ? regionMask : null);
@@ -297,6 +342,26 @@ function resolveSharedBubbleTextBridgeRadius(
   );
 }
 
+function appendPatternValidationBinding(
+  context: PatternMaskContext,
+  blockId: string,
+  firstPassCore: InpaintingWindowMask,
+  sourceGlyphEvidence: SourceGlyphEvidence | undefined,
+): void {
+  if (context.validationBlockIds.includes(blockId)) {
+    throw new Error(`Duplicate pattern validation block binding: ${blockId}`);
+  }
+  context.validationBlockIds.push(blockId);
+  context.validationWindowMasks.push(firstPassCore);
+  if (!sourceGlyphEvidence) return;
+  context.sourceGlyphEvidence.push(sourceGlyphEvidence);
+  context.validationBindingsByBlockId.set(blockId, {
+    blockId,
+    firstPassCore,
+    sourceGlyphEvidence,
+  });
+}
+
 function fillRectInWindowMask(
   mask: Uint8Array,
   bounds: PixelRect,
@@ -324,104 +389,6 @@ function unionRects(left: PixelRect, right: PixelRect): PixelRect {
   const rightEdge = Math.max(left.x + left.w, right.x + right.w);
   const bottomEdge = Math.max(left.y + left.h, right.y + right.h);
   return { x, y, w: rightEdge - x, h: bottomEdge - y };
-}
-
-function coalesceSharedConstrainedWindows(context: PatternMaskContext): void {
-  const roots = resolveSharedWindowRoots(context.inpaintWindowGroupIds);
-  const windows: PixelRect[] = [];
-  const masks: InpaintingWindowMask[] = [];
-  const constraints: Array<InpaintingWindowMask | null> = [];
-  const groupIds: string[][] = [];
-  const outputIndexByRoot = new Map<number, number>();
-  for (let index = 0; index < context.inpaintWindows.length; index += 1) {
-    const window = context.inpaintWindows[index];
-    const mask = context.inpaintWindowMasks[index];
-    const constraint = context.inpaintWindowConstraints[index] ?? null;
-    if (!window || !mask) {
-      throw new Error("Inpainting window metadata is incomplete.");
-    }
-    const root = roots[index] ?? index;
-    const outputIndex = outputIndexByRoot.get(root);
-    if (outputIndex === undefined) {
-      outputIndexByRoot.set(root, windows.length);
-      windows.push(window);
-      masks.push(mask);
-      constraints.push(constraint);
-      groupIds.push([...(context.inpaintWindowGroupIds[index] ?? [])]);
-      continue;
-    }
-    const existingWindow = windows[outputIndex] as PixelRect;
-    const existingMask = masks[outputIndex] as InpaintingWindowMask;
-    windows[outputIndex] = unionRects(existingWindow, window);
-    masks[outputIndex] = unionWindowMasks(existingMask, mask);
-    constraints[outputIndex] = unionOptionalWindowMasks(
-      constraints[outputIndex] ?? null,
-      constraint,
-    );
-    groupIds[outputIndex] = [
-      ...new Set([
-        ...(groupIds[outputIndex] ?? []),
-        ...(context.inpaintWindowGroupIds[index] ?? []),
-      ]),
-    ];
-  }
-  context.inpaintWindows = windows;
-  context.inpaintWindowMasks = masks;
-  context.inpaintWindowConstraints = constraints;
-  context.inpaintWindowGroupIds = groupIds;
-}
-
-function resolveSharedWindowRoots(groupIds: readonly string[][]): number[] {
-  const parents = groupIds.map((_, index) => index);
-  const firstWindowByGroup = new Map<string, number>();
-  for (const [index, ids] of groupIds.entries()) {
-    for (const id of ids) {
-      const firstIndex = firstWindowByGroup.get(id);
-      if (firstIndex === undefined) {
-        firstWindowByGroup.set(id, index);
-      } else {
-        joinWindowRoots(parents, firstIndex, index);
-      }
-    }
-  }
-  return parents.map((_, index) => findWindowRoot(parents, index));
-}
-
-function findWindowRoot(parents: number[], index: number): number {
-  let root = index;
-  while (parents[root] !== root) root = parents[root] as number;
-  let cursor = index;
-  while (parents[cursor] !== cursor) {
-    const parent = parents[cursor] as number;
-    parents[cursor] = root;
-    cursor = parent;
-  }
-  return root;
-}
-
-function joinWindowRoots(parents: number[], left: number, right: number): void {
-  const leftRoot = findWindowRoot(parents, left);
-  const rightRoot = findWindowRoot(parents, right);
-  if (leftRoot !== rightRoot) parents[rightRoot] = leftRoot;
-}
-
-function unionOptionalWindowMasks(
-  left: InpaintingWindowMask | null,
-  right: InpaintingWindowMask | null,
-): InpaintingWindowMask | null {
-  if (!left) return right;
-  if (!right) return left;
-  return unionWindowMasks(left, right);
-}
-
-function unionWindowMasks(
-  left: InpaintingWindowMask,
-  right: InpaintingWindowMask,
-): InpaintingWindowMask {
-  const bounds = unionRects(left.bounds, right.bounds);
-  const data = projectWindowMask(left, bounds);
-  mergeLocalMask(data, projectWindowMask(right, bounds));
-  return { bounds, data };
 }
 
 function throwIfAborted(signal?: AbortSignal): void {

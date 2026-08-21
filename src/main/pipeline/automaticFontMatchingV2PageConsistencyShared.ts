@@ -16,7 +16,13 @@ export const DOHYEON_FONT_ID = "dohyeon";
 
 export type PageGeometryItem = Pick<
   OverlayItem,
-  "bbox" | "candidateIds" | "direction" | "type"
+  | "bbox"
+  | "candidateIds"
+  | "direction"
+  | "fontRole"
+  | "fontRoleConfidence"
+  | "textRole"
+  | "type"
 >;
 
 export type AutomaticFontPageConsistencyState = Readonly<{
@@ -32,6 +38,8 @@ export type AutomaticFontPageConsistencyState = Readonly<{
   geometryComponentForced?: boolean;
   /** A neutral-head row matched repeated page-body pixel morphology. */
   ordinaryMorphologyConsensus?: boolean;
+  /** Every row independently supported one stable raw-top3 mean-score anchor. */
+  stableMeanConsensus?: boolean;
   /** A narrow, heavy-glyph cluster shared one local emphasis face. */
   emphasisMorphologyConsensus?: boolean;
   /** A strong Dohyeon winner failed the raw-pixel glyph morphology gate. */
@@ -45,7 +53,8 @@ export type AutomaticFontPageConsistencyState = Readonly<{
     | "inverse_page_anchor"
     | "strong_page_anchor"
     | "residual_stable_body"
-    | "non_dohyeon_top3";
+    | "non_dohyeon_top3"
+    | "non_dohyeon_variant_top3";
 }>;
 
 export type PageEvidenceRow = {

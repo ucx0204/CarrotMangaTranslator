@@ -113,7 +113,8 @@ function resolveRoleLockWithConfidenceGate(
 function resolveAfterLocks(state: DecisionState): FontMatchingDecisionResultV2 {
   if (
     state.input.role.primary === "unknown_needs_review" &&
-    state.input.localEvidence.supervisedSelectionAccepted !== true
+    state.input.localEvidence.supervisedSelectionAccepted !== true &&
+    state.input.localEvidence.bestAvailableSelectionRequired !== true
   ) {
     recordDecisionTrace(state, "work_profile", "skipped", null, [
       "role_unknown",
@@ -166,7 +167,10 @@ function resolveAutomaticOrAbstain(
     ]);
     return finishAbstained(state, "unrenderable_translation");
   }
-  if (state.input.localEvidence.noneAcceptable) {
+  if (
+    state.input.localEvidence.noneAcceptable &&
+    state.input.localEvidence.bestAvailableSelectionRequired !== true
+  ) {
     rejectAutomaticCandidates(
       state,
       eligible,
@@ -187,7 +191,9 @@ function resolveAutomaticOrAbstain(
     return finishAbstained(state, "low_confidence");
   }
   recordDecisionTrace(state, "v2_automatic", "selected", best.fontId, [
-    "calibrated_threshold_passed",
+    state.input.localEvidence.bestAvailableSelectionRequired === true
+      ? "verified_pixel_best_available_required"
+      : "calibrated_threshold_passed",
     ...(state.input.workState?.bodyConsistencyFontId === best.fontId &&
     state.candidates
       .get(best.fontId)
@@ -278,6 +284,9 @@ function passesAutomaticConfidence(
   state: DecisionState,
   best: CandidateEvaluation,
 ): boolean {
+  if (state.input.localEvidence.bestAvailableSelectionRequired === true) {
+    return true;
+  }
   if (state.input.localEvidence.supervisedSelectionAccepted === true) {
     const supervisedWinner = [...state.candidates.values()].sort(
       (left, right) =>

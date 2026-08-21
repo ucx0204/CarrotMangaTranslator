@@ -166,7 +166,7 @@ function createFontMatchingBundle(
     root,
     "artifacts",
     options.directoryName ??
-      "font-matching-runtime-active21-v8-r3h-manual-v2-release-v1",
+      "font-matching-runtime-active21-v9-r33-page-common-user-v3-release-v2",
   );
   mkdirSync(bundleDir, { recursive: true });
   const runtimeContract: Record<string, unknown> = {
@@ -290,10 +290,10 @@ describe("prepareRuntimeAssets", () => {
       join(
         root,
         "artifacts",
-        "font-matching-runtime-active21-v8-r3h-manual-v2-release-v1",
+        "font-matching-runtime-active21-v9-r33-page-common-user-v3-release-v2",
       ),
     );
-    // Real builds already carry the small v2 trust/ranker files inside the
+    // Real builds already carry the small v3 trust/ranker files inside the
     // runtime source. This minimal fixture omits them, but the missing optional
     // full bundle must still not break a fresh CI build.
     expect(() => prepareRuntimeAssets({ root, outputDir })).not.toThrow();

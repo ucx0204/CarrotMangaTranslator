@@ -9,10 +9,10 @@
     "master_manifest_sha256": "f76ba7b25964a972c46a7350d9e7022e9c5e309136ec8ef96adf1bb77d78f036",
     "master_report_sha256": "49ac8b5c53b06aa330187c7c87c1738ea98b04d68b5740d42f690a125051f0da",
     "master_split_map_sha256": "e19f116e10fbe2171c997b537dc6245042df972f34f9ae8adec6fa2d90f91f5e",
-    "model_version": "manga-font-v8-active21-dfa42ae17f-ffb3285338",
+    "model_version": "manga-font-v9-r33-e049fc74c3ba",
     "prototype_features_sha256": "cb4479cd7a48f052698235fd427c7fd90a91fb4ec47e74316bd574b1ffd7bcd3",
-    "ranker_sha256": "dfa42ae17f340768cae30f2219973eae1ff62a4c3c1544496502621e6e710c78",
-    "runtime_contract_sha256": "7f1f65d940c144f765d5a9bcd3688f90d13b7b1e81e37aa4ad555249f4b0e184"
+    "ranker_sha256": "e049fc74c3baeeee9aba179412a3b20387304b749936c167ecc753afcc78f4aa",
+    "runtime_contract_sha256": "e09df0904d0898e5a7ea46f6b865a7cbbefa01bfb7826946a355ca5697723170"
   },
   "candidate_ids": [
     "mongtori",
@@ -475,7 +475,7 @@
       "selection_score_threshold": 0.5089401558352229
     }
   },
-  "record_sha256": "aa228b1d3a6a60912bc8616a1f47f903d3a8f376f773885a38ac970bdd942b68",
+  "record_sha256": "72fa27e640aca065a15e2f4ef6c11a8fe4ba7ab9f8b6643b7938edee7d8e5a1b",
   "record_type": "font_matching_selection_calibration",
   "scaler": {
     "mean": [

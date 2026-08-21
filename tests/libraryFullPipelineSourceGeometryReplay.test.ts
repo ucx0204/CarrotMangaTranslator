@@ -155,6 +155,38 @@ describe("full-pipeline source geometry direction replay", () => {
     );
   });
 
+  it("replays voter commitments captured by the current v6 fixed-block request", async () => {
+    const fixture = createFixture();
+    const blocks = [
+      {
+        blockId: "block-1",
+        item: { id: 1, candidateIds: [1, 2] },
+        sourceGeometryDirection: fixedBlockDirectionEvidenceV2(
+          "semantic_ocr_fixed_block_request_v6",
+          "horizontal",
+          [1, 2],
+          [1],
+        ),
+      },
+    ];
+    writeRawResult(fixture, [hint(1, 20, 80), hint(2, 80, 20)]);
+    const baselineSeal = await sealAndLoad(fixture, blocks);
+
+    const replayed = await attach(fixture, blocks, baselineSeal);
+
+    expect(replayed.blocks[0]).toMatchObject({
+      sourceCandidateMembership: {
+        source: "sealed_font_input_request_block_v2",
+        originalCandidateIds: [1, 2],
+        voterCandidateIds: [1],
+      },
+      sourceGeometryDirection: {
+        direction: "vertical",
+        candidateIds: [1],
+      },
+    });
+  });
+
   it("ignores raw reviewRole and uses only the sealed code-owned voter list", async () => {
     const fixture = createFixture();
     const blocks = [
@@ -555,6 +587,29 @@ function legacyDirectionEvidence(
     source: "semantic_ocr_candidate_bbox_majority" as const,
     direction,
     candidateIds,
+  };
+}
+
+function fixedBlockDirectionEvidenceV2(
+  source:
+    | "semantic_ocr_fixed_block_request_v5"
+    | "semantic_ocr_fixed_block_request_v6",
+  direction: "horizontal" | "vertical",
+  originalCandidateIds: readonly number[],
+  voterCandidateIds: readonly number[],
+) {
+  return {
+    contractVersion: "font-matching-ocr-geometry-direction-v2" as const,
+    source: "semantic_ocr_candidate_bbox_majority" as const,
+    direction,
+    candidateIds: voterCandidateIds,
+    candidateMembership: {
+      contractVersion: "font-matching-ocr-candidate-membership-v2" as const,
+      source,
+      bindingId: "B001",
+      originalCandidateIds,
+      voterCandidateIds,
+    },
   };
 }
 

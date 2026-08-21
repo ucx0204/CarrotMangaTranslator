@@ -73,6 +73,7 @@ type RunReport = {
   candidateId: string;
   cohort: string;
   cohortDigest: string;
+  completionSemanticsVersion?: string;
   pages: Array<{
     sourcePageId: string;
     status: string;
@@ -542,6 +543,26 @@ describe("library full-pipeline font QA comparison", () => {
     await expect(
       comparison.compareRuns(baselineDir, candidateDir),
     ).rejects.toThrow("same frozen cohort");
+  });
+
+  it("refuses to mix legacy execution-only and production completion semantics", async () => {
+    const root = makeTemporaryRoot();
+    const baselineDir = join(root, "baseline");
+    const candidateDir = join(root, "candidate");
+    mkdirSync(baselineDir);
+    mkdirSync(candidateDir);
+    writeRunReport(
+      baselineDir,
+      buildRunReport("baseline", "nanum-gothic", 0.8),
+    );
+    writeRunReport(candidateDir, {
+      ...buildRunReport("candidate", "gugi", 0.9),
+      completionSemanticsVersion: "library-full-pipeline-qa-page-completion-v1",
+    });
+
+    await expect(
+      comparison.compareRuns(baselineDir, candidateDir),
+    ).rejects.toThrow("different completion semantics");
   });
 });
 

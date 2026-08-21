@@ -333,6 +333,12 @@ function boundaryFilesBindingSha256(files) {
 
 /** @param {Record<string, any>} options */
 async function runCommand(options) {
+  if (
+    options["page-limit"] !== undefined &&
+    options["selection-index"] !== undefined
+  ) {
+    throw new Error("--page-limit and --selection-index cannot be combined.");
+  }
   const outputRoot = path.resolve(options.output || DEFAULT_OUTPUT);
   const cohort = String(options.cohort || "baseline40");
   assertRunnableCohort(cohort, Boolean(options["allow-holdout"]));
@@ -408,6 +414,10 @@ async function runCommand(options) {
     pageLimit: options["page-limit"]
       ? parsePositiveInteger(options["page-limit"], "page-limit")
       : null,
+    selectionIndex:
+      options["selection-index"] !== undefined
+        ? parseNonNegativeInteger(options["selection-index"], "selection-index")
+        : null,
   };
   if (!config.execute) {
     console.log(
@@ -626,6 +636,15 @@ function parsePositiveInteger(value, label) {
   return parsed;
 }
 
+/** @param {unknown} value @param {string} label */
+function parseNonNegativeInteger(value, label) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new Error(`${label} must be a non-negative integer`);
+  }
+  return parsed;
+}
+
 /** @param {unknown} value */
 function sanitizeId(value) {
   const result = String(value || "run")
@@ -690,9 +709,13 @@ function resolveCacheFromSeal(
       "--qa-page-relative-role-reroute requires --cache-from and --cache-from-seal.",
     );
   }
-  if (qaPageRelativeRoleReroute && options["page-limit"] !== undefined) {
+  if (
+    qaPageRelativeRoleReroute &&
+    (options["page-limit"] !== undefined ||
+      options["selection-index"] !== undefined)
+  ) {
     throw new Error(
-      "--qa-page-relative-role-reroute requires the complete 40-page cohort; remove --page-limit.",
+      "--qa-page-relative-role-reroute requires the complete 40-page cohort; remove --page-limit and --selection-index.",
     );
   }
   return seal;
@@ -712,6 +735,7 @@ function printHelp() {
       `  node scripts/run-library-full-pipeline-qa.cjs run --cohort baseline40 --candidate-id v2\n` +
       `  node scripts/run-library-full-pipeline-qa.cjs run --cohort baseline40 --candidate-id v2 --execute\n` +
       `  node scripts/run-library-full-pipeline-qa.cjs run --cohort baseline40 --candidate-id qa-v2 --runtime-dir <qa-runtime> --allow-qa-only-runtime --preflight\n` +
+      `  node scripts/run-library-full-pipeline-qa.cjs run --cohort baseline40 --candidate-id qa-v2 --selection-index 8 --cache-from <fresh-run> --cache-from-seal <fresh-run-audit.json> --execute\n` +
       `  node scripts/run-library-full-pipeline-qa.cjs run --cohort baseline40 --candidate-id v3 --cache-from <v2-run> --cache-from-seal <fresh-run-audit.json> --execute\n` +
       `  node scripts/run-library-full-pipeline-qa.cjs run --cohort baseline40 --candidate-id v4 --cache-from <v3-run> --reuse-cached-font-inference required --execute\n` +
       `  node scripts/run-library-full-pipeline-qa.cjs run --cohort baseline40 --candidate-id page-role-qa --cache-from <fresh-run> --cache-from-seal <fresh-run-audit.json> --qa-page-relative-role-reroute --execute\n` +

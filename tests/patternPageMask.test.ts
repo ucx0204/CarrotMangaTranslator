@@ -6,11 +6,38 @@ import {
 } from "../src/main/inpainting/maskGeometry";
 import { expandWindowMaskToPage } from "../src/main/inpainting/inpaintingWindowMask";
 import { buildPatternPageMask } from "../src/main/inpainting/patternPageMask";
+import { hydratePatternSourceGlyphEvidence } from "../src/main/inpainting/patternPageSourceDiagnostics";
+import { assertPatternValidationBindings } from "../src/main/inpainting/sourceGlyphEvidenceReceipt";
 import { applyMovedEditableBlockBbox } from "../src/shared/geometry";
 import type { MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
 
 describe("pattern page text masks", () => {
+  it("rejects array evidence rebound to a different block-keyed mask", () => {
+    const page = createPage(32, 32, [
+      createBlock("block-1", 100, { y: 100, w: 300, h: 300 }),
+    ]);
+    const context = buildPatternPageMask({
+      page,
+      bitmap: Buffer.alloc(32 * 32 * 4, 255),
+      collectSourceGlyphEvidence: true,
+      width: 32,
+      height: 32,
+    });
+    const keyed = context.validationBindingsByBlockId.get("block-1");
+    if (!keyed) throw new Error("expected keyed validation binding");
+    const tamperedData = new Uint8Array(keyed.firstPassCore.data);
+    tamperedData[0] = tamperedData[0] ? 0 : 1;
+    context.validationBindingsByBlockId.set("block-1", {
+      ...keyed,
+      firstPassCore: { ...keyed.firstPassCore, data: tamperedData },
+    });
+
+    expect(() => assertPatternValidationBindings(context)).toThrow(
+      "core hash mismatch",
+    );
+  });
+
   it("keeps inpainting at the source location after visual text is moved", () => {
     const width = 100;
     const height = 100;
@@ -123,6 +150,38 @@ describe("pattern page text masks", () => {
     expect(context.blocksErased).toBe(1);
     expect(context.validationBlockIds).toEqual(["block-2"]);
     expect(context.validationWindowMasks).toHaveLength(1);
+    expect(context.sourceGlyphEvidence).toHaveLength(0);
+    expect(context.validationBindingsByBlockId.size).toBe(0);
+  });
+
+  it("collects source-glyph evidence only after an explicit opt-in", () => {
+    const width = 64;
+    const height = 64;
+    const page = createPage(width, height, [
+      createBlock("block-1", 100, { y: 100, w: 600, h: 600 }),
+    ]);
+    const bitmap = Buffer.alloc(width * height * 4, 255);
+
+    const defaultContext = buildPatternPageMask({
+      page,
+      bitmap,
+      width,
+      height,
+    });
+    const optedInContext = buildPatternPageMask({
+      page,
+      bitmap,
+      collectSourceGlyphEvidence: true,
+      width,
+      height,
+    });
+
+    expect(defaultContext.sourceGlyphEvidence).toEqual([]);
+    expect(defaultContext.validationBindingsByBlockId.size).toBe(0);
+    expect(optedInContext.sourceGlyphEvidence).toHaveLength(1);
+    expect(optedInContext.validationBindingsByBlockId.has("block-1")).toBe(
+      true,
+    );
   });
 
   it("allows an explicitly requested block even when it was previously committed", () => {
@@ -314,6 +373,128 @@ describe("pattern page text masks", () => {
     expect(context.pageMask[50 * width + 40]).toBe(1);
     expect(context.pageMask[50 * width + 59]).toBe(1);
     expect(context.pageMask[50 * width + 60]).toBe(0);
+  });
+
+  it("keeps source-glyph evidence separate from the authoritative Flux mask", () => {
+    const width = 100;
+    const height = 100;
+    const block = {
+      ...createBlock("block-1", 100, {
+        y: 100,
+        w: 800,
+        h: 800,
+      }),
+      renderBbox: { x: 300, y: 300, w: 400, h: 400 },
+      renderBboxSpace: "normalized_1000" as const,
+      bubbleLayout: {
+        version: 1 as const,
+        direction: "horizontal" as const,
+        confidence: 1,
+        origin: "manual" as const,
+        insetRatio: 0.08,
+        regions: [
+          {
+            spans: [
+              {
+                blockStart: 0,
+                blockEnd: 1,
+                inlineStart: 0.25,
+                inlineEnd: 0.75,
+              },
+            ],
+          },
+        ],
+      },
+    };
+    const page = createPage(width, height, [block]);
+    const blank = Buffer.alloc(width * height * 4, 255);
+    const source = Buffer.from(blank);
+    fillRect(source, width, { x: 16, y: 42, w: 8, h: 16 }, 8);
+    const baseline = buildPatternPageMask({
+      page,
+      bitmap: blank,
+      width,
+      height,
+      mode: "flux-region",
+      bubbleLayoutConstraintBlockIds: [block.id],
+    });
+    const withImmutableSourceEvidence = buildPatternPageMask({
+      page,
+      bitmap: blank,
+      collectSourceGlyphEvidence: true,
+      sourceEvidenceBitmap: source,
+      width,
+      height,
+      mode: "flux-region",
+      bubbleLayoutConstraintBlockIds: [block.id],
+    });
+    const evidence = withImmutableSourceEvidence.sourceGlyphEvidence[0];
+
+    expect(withImmutableSourceEvidence.pageMask).toEqual(baseline.pageMask);
+    expect(withImmutableSourceEvidence.inpaintWindows).toEqual(
+      baseline.inpaintWindows,
+    );
+    expect(withImmutableSourceEvidence.inpaintWindowMasks).toEqual(
+      baseline.inpaintWindowMasks,
+    );
+    expect(withImmutableSourceEvidence.inpaintWindowConstraints).toEqual(
+      baseline.inpaintWindowConstraints,
+    );
+    expect(withImmutableSourceEvidence.inpaintWindowGroupIds).toEqual(
+      baseline.inpaintWindowGroupIds,
+    );
+    expect(evidence?.strategy).not.toBe("none");
+    expect(evidence?.windowMask.data.some((value) => value > 0)).toBe(true);
+    expect(withImmutableSourceEvidence.pageMask[50 * width + 20]).toBe(0);
+  });
+
+  it("hydrates required evidence without changing authoritative mask bytes", () => {
+    const width = 100;
+    const height = 100;
+    const block = createBlock("block-1", 100, {
+      y: 100,
+      w: 800,
+      h: 800,
+    });
+    const page = createPage(width, height, [block]);
+    const working = Buffer.alloc(width * height * 4, 255);
+    const source = Buffer.from(working);
+    fillRect(source, width, { x: 16, y: 42, w: 8, h: 16 }, 8);
+    const context = buildPatternPageMask({
+      page,
+      bitmap: working,
+      collectSourceGlyphEvidence: false,
+      width,
+      height,
+      mode: "flux-region",
+    });
+    const pageMask = Buffer.from(context.pageMask);
+    const windowMasks = context.inpaintWindowMasks.map((mask) =>
+      Buffer.from(mask.data),
+    );
+    const validationMasks = context.validationWindowMasks.map((mask) =>
+      Buffer.from(mask.data),
+    );
+    const windows = structuredClone(context.inpaintWindows);
+
+    hydratePatternSourceGlyphEvidence({
+      bitmap: source,
+      context,
+      height,
+      page,
+      width,
+    });
+
+    expect(Buffer.from(context.pageMask)).toEqual(pageMask);
+    expect(context.inpaintWindows).toEqual(windows);
+    expect(
+      context.inpaintWindowMasks.map((mask) => Buffer.from(mask.data)),
+    ).toEqual(windowMasks);
+    expect(
+      context.validationWindowMasks.map((mask) => Buffer.from(mask.data)),
+    ).toEqual(validationMasks);
+    expect(context.sourceGlyphEvidence).toHaveLength(1);
+    expect(context.validationBindingsByBlockId.has(block.id)).toBe(true);
   });
 
   it("unions different masks from one detector conflict into one Flux window", () => {

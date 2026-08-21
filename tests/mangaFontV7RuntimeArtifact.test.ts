@@ -35,6 +35,13 @@ const v2ReleaseArtifactDir = resolve(
 const v2ReleaseArtifactAvailable = existsSync(
   resolve(v2ReleaseArtifactDir, ".font-matching-runtime-artifact-owned.json"),
 );
+const r33ReleaseArtifactDir = resolve(
+  workspace,
+  "artifacts/font-matching-runtime-active21-v9-r33-page-common-user-v3-release-v2",
+);
+const r33ReleaseArtifactAvailable = existsSync(
+  resolve(r33ReleaseArtifactDir, ".font-matching-runtime-artifact-owned.json"),
+);
 
 type RawActiveCatalog = Readonly<{
   candidate_ids: string[];
@@ -187,6 +194,36 @@ describe.skipIf(!v2ReleaseArtifactAvailable)(
         automaticMutationAllowed: true,
         semanticBootstrapAllowed: false,
         modelVersion: "manga-font-v8-active21-dfa42ae17f-ffb3285338",
+      });
+    });
+  },
+);
+
+describe.skipIf(!r33ReleaseArtifactAvailable)(
+  "sealed active21 R33 cached-page A/B release runtime",
+  () => {
+    it("loads the exact user-accepted R33 model without QA permission", async () => {
+      const bundle = await readVerifiedRuntimeArtifactBundle(
+        r33ReleaseArtifactDir,
+      );
+
+      expect(bundle.qaOnly).toBe(false);
+      expect(bundle.releaseAccepted).toBe(true);
+      expect(bundle.failedCalibrationQualityAccepted).toBe(true);
+      expect(bundle.activeCatalog.candidateIds).toHaveLength(21);
+      expect(bundle.assets["ranker.onnx"]?.sha256).toBe(
+        "e049fc74c3baeeee9aba179412a3b20387304b749936c167ecc753afcc78f4aa",
+      );
+      await expect(
+        projectFontMatchingRuntimeArtifactStatus({
+          verifiedBundle: bundle,
+          installedCandidates: installedCandidatesFor(r33ReleaseArtifactDir),
+        }),
+      ).resolves.toMatchObject({
+        state: "ready",
+        automaticMutationAllowed: true,
+        semanticBootstrapAllowed: false,
+        modelVersion: "manga-font-v9-r33-e049fc74c3ba",
       });
     });
   },

@@ -107,6 +107,27 @@ describe("automatic inverse text polarity", () => {
       outlineColor: "#141414",
     });
   });
+
+  it("never lets automatic font selection overwrite the user's outline thickness", () => {
+    const legacyScale = applyAutomaticFontDecisionV2(
+      { ...makeBlock(), outlineWidthScale: 1.75 },
+      makeDecision(undefined, "dohyeon", 0.5),
+    );
+    const explicitPixels = applyAutomaticFontDecisionV2(
+      { ...makeBlock(), outlineWidthPx: 3.5, outlineWidthScale: 1.75 },
+      makeDecision(undefined, "dohyeon", 0.5),
+    );
+
+    expect(legacyScale).toMatchObject({
+      fontFamily: "dohyeon",
+      outlineWidthScale: 1.75,
+    });
+    expect(explicitPixels).toMatchObject({
+      fontFamily: "dohyeon",
+      outlineWidthPx: 3.5,
+      outlineWidthScale: 1.75,
+    });
+  });
 });
 
 function makeMorphology(

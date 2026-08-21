@@ -234,4 +234,64 @@ describe("font replay semantic role restoration", () => {
 
     expect(restoreFontReplaySemanticRole(applied, {})).toBe(applied);
   });
+
+  it("restores concrete layout intent and makes horizontal effective before postprocess", () => {
+    const applied = {
+      id: "block-a",
+      textRole: "ordinary",
+      layoutIntent: "vertical",
+      renderDirection: "vertical",
+    };
+
+    expect(
+      restoreFontReplaySemanticRole(applied, {
+        textRole: "ordinary",
+        layoutIntent: "horizontal",
+      }),
+    ).toEqual({
+      ...applied,
+      layoutIntent: "horizontal",
+      renderDirection: "horizontal",
+    });
+    expect(
+      restoreFontReplaySemanticRole(
+        { ...applied, layoutIntent: undefined, renderDirection: "horizontal" },
+        { textRole: "ordinary", layoutIntent: "vertical" },
+      ),
+    ).toMatchObject({
+      layoutIntent: "vertical",
+      renderDirection: "horizontal",
+    });
+  });
+
+  it("clears stale replay intent for auto/sound but honors persisted manual suppression", () => {
+    const stale = {
+      id: "block-a",
+      textRole: "ordinary",
+      layoutIntent: "vertical",
+      renderDirection: "horizontal",
+    };
+    const suppressed = {
+      id: "block-b",
+      textRole: "ordinary",
+      layoutIntentSuppressed: true,
+      renderDirection: "horizontal",
+    };
+
+    expect(
+      restoreFontReplaySemanticRole(stale, { textRole: "ordinary" }),
+    ).not.toHaveProperty("layoutIntent");
+    expect(
+      restoreFontReplaySemanticRole(stale, {
+        textRole: "sound",
+        layoutIntent: "vertical",
+      }),
+    ).not.toHaveProperty("layoutIntent");
+    expect(
+      restoreFontReplaySemanticRole(suppressed, {
+        textRole: "ordinary",
+        layoutIntent: "vertical",
+      }),
+    ).toBe(suppressed);
+  });
 });

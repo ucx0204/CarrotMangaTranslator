@@ -273,12 +273,18 @@ function resolveAutomaticPolicyDecision({
           rankedCandidates,
           supervisedSelectionAccepted:
             pixelInference.selectionCalibration.applied,
+          bestAvailableSelectionRequired:
+            !pixelInference.selectionCalibration.applied &&
+            pixelInference.localEvidence.rankedCandidates.some(
+              (candidate) => candidate.renderStatus === "rendered",
+            ),
         }
       : {
           rankedCandidates,
           // Semantic ranking is audit-only and cannot unlock profiles or mutation.
           calibratedConfidence: 0,
           supervisedSelectionAccepted: false,
+          bestAvailableSelectionRequired: false,
           noneAcceptable: false,
           catalogVersion,
           modelVersion: FONT_MATCHING_V2_MODEL_VERSION,

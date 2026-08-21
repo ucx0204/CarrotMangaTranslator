@@ -7,7 +7,11 @@ export const FONT_MATCHING_OCR_GEOMETRY_DIRECTION_CONTRACT_VERSION =
   "font-matching-ocr-geometry-direction-v2" as const;
 const FONT_MATCHING_OCR_CANDIDATE_MEMBERSHIP_CONTRACT_VERSION =
   "font-matching-ocr-candidate-membership-v2" as const;
-const FIXED_BLOCK_TRANSLATION_MEMBERSHIP_VERSION = 5;
+const FIXED_BLOCK_TRANSLATION_MEMBERSHIP_VERSION = 6;
+type FixedBlockMembershipSource = Extract<
+  FontMatchingOcrCandidateMembershipV2["source"],
+  `semantic_ocr_fixed_block_request_v${number}`
+>;
 
 export type FontMatchingOcrGeometryDirectionV2 = Readonly<{
   contractVersion: typeof FONT_MATCHING_OCR_GEOMETRY_DIRECTION_CONTRACT_VERSION;
@@ -27,6 +31,10 @@ type FixedBlockMembershipBinding = Readonly<{
   blockId: string;
   candidateIds: readonly number[];
   voterCandidateIds: readonly number[];
+}>;
+type FixedBlockMembershipInventory = Readonly<{
+  source: FixedBlockMembershipSource;
+  bindings: ReadonlyMap<string, FixedBlockMembershipBinding>;
 }>;
 type IndexedHint = Readonly<{
   id: number;
@@ -132,14 +140,14 @@ export function attachFontMatchingFixedBlockCandidateMembership(
     const candidateIds = resolveCandidateIds(item);
     if (!candidateIds || item.id !== Math.min(...candidateIds)) return item;
     const key = candidateMembershipKey(candidateIds);
-    const binding = inventory.get(key);
+    const binding = inventory.bindings.get(key);
     if (!binding || itemKeyCounts.get(key) !== 1) return item;
     return {
       ...item,
       sourceCandidateMembership: {
         contractVersion:
           FONT_MATCHING_OCR_CANDIDATE_MEMBERSHIP_CONTRACT_VERSION,
-        source: "semantic_ocr_fixed_block_request_v5",
+        source: inventory.source,
         bindingId: binding.blockId,
         originalCandidateIds: [...binding.candidateIds],
         voterCandidateIds: [...binding.voterCandidateIds],
@@ -161,6 +169,7 @@ function readFontMatchingOcrCandidateMembership(
     record.contractVersion !==
       FONT_MATCHING_OCR_CANDIDATE_MEMBERSHIP_CONTRACT_VERSION ||
     (record.source !== "semantic_ocr_fixed_block_request_v5" &&
+      record.source !== "semantic_ocr_fixed_block_request_v6" &&
       record.source !== "sealed_font_input_request_block_v2") ||
     typeof record.bindingId !== "string" ||
     record.bindingId.length === 0 ||
@@ -178,12 +187,14 @@ function readFontMatchingOcrCandidateMembership(
 // eslint-disable-next-line complexity -- the code-owned fixed-block inventory is validated as one atomic contract
 function readFixedBlockMembershipInventory(
   value: unknown,
-): ReadonlyMap<string, FixedBlockMembershipBinding> | null {
+): FixedBlockMembershipInventory | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const record = value as Record<string, unknown>;
+  const fixedBlockTranslationVersion = record.fixedBlockTranslationVersion;
   if (
-    record.fixedBlockTranslationVersion !==
-      FIXED_BLOCK_TRANSLATION_MEMBERSHIP_VERSION ||
+    (fixedBlockTranslationVersion !== 5 &&
+      fixedBlockTranslationVersion !==
+        FIXED_BLOCK_TRANSLATION_MEMBERSHIP_VERSION) ||
     !Array.isArray(record.fixedBlockIds) ||
     !Array.isArray(record.fixedBlockCandidateIds) ||
     !Array.isArray(record.fixedBlockDirectionVoterCandidateIds) ||
@@ -225,7 +236,13 @@ function readFixedBlockMembershipInventory(
     if (inventory.has(key)) return null;
     inventory.set(key, { blockId, candidateIds, voterCandidateIds });
   }
-  return inventory;
+  return {
+    source:
+      fixedBlockTranslationVersion === 5
+        ? "semantic_ocr_fixed_block_request_v5"
+        : "semantic_ocr_fixed_block_request_v6",
+    bindings: inventory,
+  };
 }
 
 function countItemMembershipKeys(

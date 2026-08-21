@@ -62,6 +62,35 @@ describe("applyGatherDirectFormat", () => {
     expect(changed.bbox).toEqual({ x: 1, y: 2, w: 3, h: 4 });
   });
 
+  it("makes an explicit gathered direction authoritative without clearing on unrelated edits", () => {
+    const chapter = makeChapter([
+      makePage("p1", [makeBlock("one", { layoutIntent: "vertical" })]),
+    ]);
+
+    const directionEdited = applyGatherDirectFormat(chapter, {
+      targets: [{ pageId: "p1", blockId: "one" }],
+      patch: { renderDirection: "horizontal" },
+    });
+    const unrelatedEdit = applyGatherDirectFormat(chapter, {
+      targets: [{ pageId: "p1", blockId: "one" }],
+      patch: { bold: true },
+    });
+
+    expect(directionEdited.dirtyPageIds).toEqual(["p1"]);
+    expect(directionEdited.chapter.pages[0].blocks[0]).not.toHaveProperty(
+      "layoutIntent",
+    );
+    expect(
+      directionEdited.chapter.pages[0].blocks[0]?.layoutIntentSuppressed,
+    ).toBe(true);
+    expect(unrelatedEdit.chapter.pages[0].blocks[0]?.layoutIntent).toBe(
+      "vertical",
+    );
+    expect(
+      unrelatedEdit.chapter.pages[0].blocks[0]?.layoutIntentSuppressed,
+    ).toBeUndefined();
+  });
+
   it("returns the original chapter when targets or values produce no change", () => {
     const chapter = makeChapter([
       makePage("p1", [makeBlock("one", { fontSizePx: 24 })]),

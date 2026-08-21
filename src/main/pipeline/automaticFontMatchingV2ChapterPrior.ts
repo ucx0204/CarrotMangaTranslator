@@ -129,15 +129,6 @@ export function applyAutomaticFontChapterBodyPrior(
   if (!isChapterPriorCandidateEligible(priorCandidate)) {
     return rankedCandidates;
   }
-  if (
-    localAlternativeOverridesPrior(
-      rankedCandidates,
-      prior.fontId,
-      runtimePolicy.chapterPrior.localOverrideMinimumScoreMargin,
-    )
-  ) {
-    return rankedCandidates;
-  }
   const confidenceAuthority = [...rankedCandidates]
     .filter((candidate) => candidate.confidence > 0)
     .sort(
@@ -145,16 +136,22 @@ export function applyAutomaticFontChapterBodyPrior(
         right.confidence - left.confidence ||
         compareRankedCandidates(left, right),
     )[0];
-  const boosted = rankedCandidates
+  const topScore = Math.max(
+    ...rankedCandidates.map((candidate) => candidate.totalScore),
+  );
+  const anchored = rankedCandidates
     .map((candidate) =>
-      boostMatchingCandidate(candidate, prior.fontId, prior.scoreBoost),
+      promoteMatchingCandidate(candidate, prior.fontId, topScore),
     )
-    .sort(compareRankedCandidates);
-  const priorWon = boosted[0]?.fontId === prior.fontId;
-  return boosted.map((candidate, index) => ({
+    .sort((left, right) => {
+      if (left.fontId === prior.fontId) return -1;
+      if (right.fontId === prior.fontId) return 1;
+      return compareRankedCandidates(left, right);
+    });
+  return anchored.map((candidate, index) => ({
     ...candidate,
     rank: index + 1,
-    ...(priorWon && confidenceAuthority
+    ...(confidenceAuthority
       ? {
           confidence:
             candidate.fontId === prior.fontId
@@ -206,15 +203,15 @@ function resolveApplicablePrior(
   };
 }
 
-function boostMatchingCandidate(
+function promoteMatchingCandidate(
   candidate: RankedFontCandidateV2,
   fontId: string,
-  scoreBoost: number,
+  topScore: number,
 ): RankedFontCandidateV2 {
   if (candidate.fontId !== fontId) return candidate;
   return {
     ...candidate,
-    totalScore: candidate.totalScore + scoreBoost,
+    totalScore: topScore,
     reasonCodes: [
       ...new Set([...candidate.reasonCodes, "episode_body_consistency_prior"]),
     ],
@@ -316,24 +313,6 @@ function resolveBodyConsistencyPrior(
       0.035 + vote.count * 0.005,
     ),
   };
-}
-
-function localAlternativeOverridesPrior(
-  rankedCandidates: readonly RankedFontCandidateV2[],
-  priorFontId: string,
-  minimumMargin: number,
-): boolean {
-  const rendered = rankedCandidates
-    .filter((candidate) => candidate.renderStatus === "rendered")
-    .sort(compareRankedCandidates);
-  const localTop = rendered[0];
-  const prior = rendered.find((candidate) => candidate.fontId === priorFontId);
-  return Boolean(
-    localTop &&
-    prior &&
-    localTop.fontId !== priorFontId &&
-    localTop.totalScore - prior.totalScore >= minimumMargin,
-  );
 }
 
 function selectWinningFontVote(

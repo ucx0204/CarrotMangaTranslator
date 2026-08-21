@@ -40,6 +40,8 @@ function applyFormatPatchToBlock(
       patch.renderDirection,
       block.renderDirection,
     );
+    delete next.layoutIntent;
+    next.layoutIntentSuppressed = true;
   }
   if (patch.rotationDeg !== undefined) {
     next.rotationDeg = normalizeRotationDeg(patch.rotationDeg);

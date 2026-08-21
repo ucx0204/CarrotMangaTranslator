@@ -45,12 +45,20 @@ export function buildInitialEvidenceRow(
   inference: VerifiedAutomaticFontPixelInferenceV2,
   item?: PageGeometryItem,
 ): PageEvidenceRow {
+  const morphologyVeto = resolveDohyeonMorphologyVeto(inference);
+  if (isExplicitLocalVisualItem(item)) {
+    return createEvidenceRow(inference, item, morphologyVeto, {
+      directBodyFamily: null,
+      strongBodySeed: false,
+      family: null,
+      recoveredBody: false,
+    });
+  }
   const winnerFamily = resolveAutomaticFontCalibratedBodyFamily(inference);
   const recoverableBody = resolveBestEligibleBodyCandidate(inference);
   const recoverableFamily = recoverableBody
     ? resolveCandidateBodyFamily(recoverableBody)
     : null;
-  const morphologyVeto = resolveDohyeonMorphologyVeto(inference);
   const variantMass = resolveVariantMass(inference);
 
   if (isStrongBodySeed(recoverableFamily, variantMass)) {
@@ -78,6 +86,14 @@ export function buildInitialEvidenceRow(
     variantMass,
     morphologyVeto,
   );
+}
+
+function isExplicitLocalVisualItem(
+  item: PageGeometryItem | undefined,
+): boolean {
+  if (item?.textRole === "sound") return true;
+  const role = item?.fontRole;
+  return role?.startsWith("sfx_") === true || role === "sign_ui_title";
 }
 
 function createWeakEvidenceRow(

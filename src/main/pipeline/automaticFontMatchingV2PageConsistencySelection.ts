@@ -12,6 +12,7 @@ import {
 import {
   candidatePixelScore,
   compareCandidates,
+  resolveCandidateBodyFamily,
 } from "./automaticFontMatchingV2PageConsistencyShared";
 
 const DEFAULT_LOCAL_OVERRIDE_MINIMUM_SCORE_MARGIN = 0.12;
@@ -45,7 +46,10 @@ function applyBodyConsistency(
   if (shouldRejectUnstableWinner(supervisedWinner, workState)) {
     return [...ordered];
   }
-  const family = workState.pageBalloonPrintedFamily ?? null;
+  const chapterAnchorFontId = workState.bodyConsistencyFontId ?? null;
+  const family = chapterAnchorFontId
+    ? resolveCandidateBodyFamily({ fontId: chapterAnchorFontId })
+    : (workState.pageBalloonPrintedFamily ?? null);
   const requestedTargetId = resolveRequestedTargetId(
     ordered,
     workState,
@@ -74,6 +78,7 @@ function shouldRejectUnstableWinner(
   if (!winner) return false;
   if (workState.pageBalloonRecoveredBody === true) return false;
   if (workState.pageBalloonOrdinaryMorphologyConsensus === true) return false;
+  if (workState.pageBalloonStableMeanConsensus === true) return false;
   if (workState.pageBalloonEmphasisMorphologyConsensus === true) return false;
   return !isStableAutomaticFontBodyCandidate(
     winner,
@@ -87,6 +92,7 @@ function resolveRequestedTargetId(
   family: AutomaticFontPrintedFamily | null,
 ): string | undefined {
   return (
+    workState.bodyConsistencyFontId ||
     workState.pageBalloonAnchorFontId ||
     candidates.find((candidate) => isEligibleBodyTarget(candidate, family))
       ?.fontId
@@ -146,8 +152,10 @@ function shouldKeepLocalBodyOverride(
 ): boolean {
   const { supervisedWinner: localWinner, target } = promotion;
   if (localWinner.fontId === target.fontId) return false;
+  if (workState.bodyConsistencyFontId === target.fontId) return false;
   if (workState.pageBalloonRecoveredBody) return false;
   if (workState.pageBalloonGeometryComponentForced) return false;
+  if (workState.pageBalloonStableMeanConsensus) return false;
   if (workState.pageBalloonEmphasisMorphologyConsensus) return false;
   const minimumMargin =
     workState.pageBalloonLocalOverrideMinimumScoreMargin ??
@@ -227,6 +235,9 @@ function buildPromotionReasonCodes(
         : []),
       ...(workState.pageBalloonOrdinaryMorphologyConsensus
         ? ["neutral_head_page_glyph_body_consensus"]
+        : []),
+      ...(workState.pageBalloonStableMeanConsensus
+        ? ["stable_body_page_mean_consensus"]
         : []),
       ...(workState.pageBalloonEmphasisMorphologyConsensus
         ? ["neutral_head_page_glyph_emphasis_consensus"]

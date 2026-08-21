@@ -37,12 +37,30 @@ export function applyDohyeonMorphologyRecoveryPlans(
   for (const row of rows) {
     const state = states.get(row.inference.blockId);
     if (!isVetoedLocalVariant(state)) continue;
+    const soundEffectRunner = isExplicitSoundEffect(row)
+      ? resolveNonDohyeonTopThreeRunner(row.inference, true)
+      : null;
+    if (soundEffectRunner) {
+      setRecoveryState(
+        states,
+        row,
+        state,
+        soundEffectRunner.fontId,
+        "non_dohyeon_variant_top3",
+      );
+      continue;
+    }
     if (applyPreferredRecovery(states, row, state, strongAnchors)) continue;
     const runner = resolveNonDohyeonTopThreeRunner(row.inference);
     if (runner) {
       setRecoveryState(states, row, state, runner.fontId, "non_dohyeon_top3");
     }
   }
+}
+
+function isExplicitSoundEffect(row: PageEvidenceRow): boolean {
+  if (row.item?.textRole === "sound") return true;
+  return row.item?.fontRole?.startsWith("sfx_") === true;
 }
 
 function isVetoedLocalVariant(
@@ -248,8 +266,12 @@ function resolveResidualStableBodyTarget(
 
 function resolveNonDohyeonTopThreeRunner(
   inference: VerifiedAutomaticFontPixelInferenceV2,
+  variantsOnly = false,
 ): RankedFontCandidateV2 | null {
-  const residual = renderedNonDohyeonCandidates(inference);
+  const residual = renderedNonDohyeonCandidates(inference).filter(
+    (candidate) =>
+      !variantsOnly || !STABLE_BALLOON_BODY_FONT_IDS.has(candidate.fontId),
+  );
   const residualScore = sumCandidateScores(residual);
   if (residualScore <= 0) return null;
   const runner = residual

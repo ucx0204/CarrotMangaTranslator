@@ -7,6 +7,9 @@
  * @typedef {{ role: string; path: string; dataUrl?: string; width?: unknown; height?: unknown; originalWidth?: unknown; originalHeight?: unknown; [key: string]: unknown }} ImageVariant
  * @typedef {Record<string, unknown>} RequestSummary
  * @typedef {{ hints: unknown[]; noTextDetected: boolean; textEvidenceCount: unknown; diagnostics: unknown[] }} OcrBboxResult
+ * @typedef {{blockId:string;ko:string;textRole?:"ordinary"|"sound";layoutIntent?:"horizontal"|"vertical";fontRole?:string;fontRoleConfidence?:number;visualClusterId?:string}} FixedBlockTranslation
+ * @typedef {{items:FixedBlockTranslation[];pageContext?:Record<string,unknown>}} FixedBlockTranslationResult
+ * @typedef {{server:ModelServer;options:SemanticRequestOptions;imageVariants:ImageVariant[];plan:ReturnType<typeof buildFixedBlockPlan>;initialTranslations:FixedBlockTranslationResult;initialPendingBlockIds:string[];horizontalFallbackById:Map<string,FixedBlockTranslation>;requestSummary:RequestSummary;requestStartedAt:number;expectedIds:string[]}} FixedBlockRepairLoopContext
  */
 
 const { prepareImageVariants } = require("../simple-page-image-variants.cjs");
@@ -26,6 +29,10 @@ const {
 const {
   buildFixedBlockTranslationResponseFormat,
 } = require("../semantic-ocr/response-formats.cjs");
+const {
+  completeHorizontalFixedBlockFallbacks,
+} = require("../semantic-ocr/fixed-block-repair-fallback.cjs");
+const { semanticContractError } = require("../semantic-ocr/values.cjs");
 const {
   readChatCompletionResult,
   sendChatCompletion,
@@ -176,36 +183,35 @@ async function completeFixedBlockTranslation(
     plan,
     initialPartial.translations,
     initialPartial.retryBlockIds,
+    initialPartial.horizontalFallbackTranslations,
     requestSummary,
     requestStartedAt,
   );
   const translations = repaired.translations;
   const repairResponses = repaired.responses;
   const repairHistory = repaired.history;
-  const omittedIds = new Set(repaired.pendingBlockIds);
-  const safePlan =
-    omittedIds.size === 0
-      ? plan
-      : {
-          ...plan,
-          blocks: plan.blocks.filter((block) => !omittedIds.has(block.blockId)),
-        };
-  const safeTranslations =
-    omittedIds.size === 0
-      ? translations
-      : {
-          ...translations,
-          items: translations.items.filter(
-            (item) => !omittedIds.has(item.blockId),
-          ),
-        };
+  const unresolvedIds = repaired.pendingBlockIds;
   Object.assign(requestSummary, {
     fixedBlockRepairAttempts: repairHistory.length,
     ...(repairHistory.length > 0
       ? { fixedBlockRepairHistory: repairHistory }
       : {}),
-    ...(omittedIds.size > 0 ? { fixedBlockOmittedIds: [...omittedIds] } : {}),
+    ...(repaired.horizontalFallbackBlockIds.length > 0
+      ? {
+          fixedBlockHorizontalFallbackIds: repaired.horizontalFallbackBlockIds,
+        }
+      : {}),
+    ...(unresolvedIds.length > 0
+      ? { fixedBlockUnresolvedIds: unresolvedIds }
+      : {}),
   });
+  if (unresolvedIds.length > 0) {
+    throw semanticContractError(
+      "fixed-block-translation-repair-exhausted",
+      `Fixed-block translation repair exhausted with unresolved ids: [${unresolvedIds.join(",")}]. Refusing to omit untranslated or malformed blocks.`,
+      { blockIds: unresolvedIds },
+    );
+  }
   return {
     requestBody: requestSummary,
     rawResponse:
@@ -216,7 +222,7 @@ async function completeFixedBlockTranslation(
           }
         : initialPass.response.rawResponse,
     outputText: JSON.stringify(
-      buildFixedBlockOverlayPayload(safePlan, safeTranslations),
+      buildFixedBlockOverlayPayload(plan, translations),
     ),
   };
 }
@@ -229,8 +235,9 @@ async function completeFixedBlockTranslation(
  * @param {SemanticRequestOptions} options
  * @param {ImageVariant[]} imageVariants
  * @param {ReturnType<typeof buildFixedBlockPlan>} plan
- * @param {{items:Array<{blockId:string;ko:string;textRole?:"ordinary"|"sound"}>;pageContext?:Record<string,unknown>}} initialTranslations
+ * @param {FixedBlockTranslationResult} initialTranslations
  * @param {string[]} initialPendingBlockIds
+ * @param {FixedBlockTranslationResult|undefined} initialHorizontalFallbackTranslations
  * @param {RequestSummary} requestSummary
  * @param {number} requestStartedAt
  */
@@ -241,15 +248,51 @@ async function repairInvalidFixedBlockTranslations(
   plan,
   initialTranslations,
   initialPendingBlockIds,
+  initialHorizontalFallbackTranslations,
   requestSummary,
   requestStartedAt,
 ) {
+  const expectedIds = plan.blocks.map((block) => block.blockId);
+  const horizontalFallbackById = indexHorizontalFallbackTranslations(
+    initialHorizontalFallbackTranslations,
+  );
+  const repaired = await runFixedBlockRepairAttempts({
+    server,
+    options,
+    imageVariants,
+    plan,
+    initialTranslations,
+    initialPendingBlockIds,
+    horizontalFallbackById,
+    requestSummary,
+    requestStartedAt,
+    expectedIds,
+  });
+  return completeHorizontalFixedBlockFallbacks(
+    repaired,
+    horizontalFallbackById,
+    expectedIds,
+  );
+}
+
+/** @param {FixedBlockRepairLoopContext} context */
+async function runFixedBlockRepairAttempts(context) {
+  const {
+    server,
+    options,
+    imageVariants,
+    plan,
+    initialTranslations,
+    initialPendingBlockIds,
+    horizontalFallbackById,
+    requestSummary,
+    requestStartedAt,
+    expectedIds,
+  } = context;
   let translations = initialTranslations;
   let pendingBlockIds = initialPendingBlockIds;
   const responses = [];
   const history = [];
-  const expectedIds = plan.blocks.map((block) => block.blockId);
-
   for (
     let repairAttempt = 1;
     pendingBlockIds.length > 0 &&
@@ -284,6 +327,10 @@ async function repairInvalidFixedBlockTranslations(
         partial.translations,
         expectedIds,
       );
+      preserveFirstHorizontalFallbackTranslations(
+        horizontalFallbackById,
+        partial.horizontalFallbackTranslations,
+      );
       pendingBlockIds = partial.retryBlockIds;
       responses.push(repairPass.response.rawResponse);
       history.push({
@@ -307,6 +354,28 @@ async function repairInvalidFixedBlockTranslations(
   }
 
   return { translations, pendingBlockIds, responses, history };
+}
+
+/** @param {FixedBlockTranslationResult|undefined} translations */
+function indexHorizontalFallbackTranslations(translations) {
+  return new Map(
+    (translations?.items ?? []).map((item) => [item.blockId, item]),
+  );
+}
+
+/**
+ * Preserve the first otherwise-valid translation so repeated advisory repair
+ * attempts cannot rewrite text that Gemma had already translated correctly.
+ * @param {Map<string,FixedBlockTranslation>} fallbackById
+ * @param {FixedBlockTranslationResult|undefined} translations
+ */
+function preserveFirstHorizontalFallbackTranslations(
+  fallbackById,
+  translations,
+) {
+  for (const item of translations?.items ?? []) {
+    if (!fallbackById.has(item.blockId)) fallbackById.set(item.blockId, item);
+  }
 }
 
 /**

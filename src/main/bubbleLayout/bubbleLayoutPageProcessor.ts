@@ -3,7 +3,12 @@ import { isGeneratedBubbleLayout } from "../../shared/bubbleLayout";
 import type { BubbleLayoutPolicy } from "../../shared/inpaintingTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
 import { resolveEffectiveTextOutlineWidthPx } from "../../shared/textOutline";
-import type { BBox, TranslationBlock } from "../../shared/textTypes";
+import { readUnsuppressedTextLayoutIntent } from "../../shared/textLayoutIntent";
+import type {
+  BBox,
+  RenderTextDirection,
+  TranslationBlock,
+} from "../../shared/textTypes";
 import type { BubbleLayoutBlockPatch } from "../inpainting/bubbleLayoutRunnerPatches";
 import { associateComicDetections } from "./association";
 import {
@@ -128,7 +133,7 @@ function processBlock(
     pageWidth: options.imageWidth,
     pageHeight: options.imageHeight,
     textBounds: blockBounds,
-    renderDirection: block.renderDirection,
+    renderDirection: resolveAutomaticBubbleRenderDirection(block),
     sourceDirection: block.sourceDirection,
     confidence,
     modelId: BUBBLE_LAYOUT_MODEL_ID,
@@ -350,9 +355,20 @@ export function resolveBubbleLayoutBlockRevision(
 ): string {
   return createHash("sha256")
     .update(
-      `${pageRevision}:${block.bboxSpace ?? "normalized_1000"}:${block.bbox.x}:${block.bbox.y}:${block.bbox.w}:${block.bbox.h}:${block.renderDirection}:${BUBBLE_LAYOUT_MODEL_ID}`,
+      `${pageRevision}:${block.bboxSpace ?? "normalized_1000"}:${block.bbox.x}:${block.bbox.y}:${block.bbox.w}:${block.bbox.h}:${resolveAutomaticBubbleRenderDirection(block)}:${BUBBLE_LAYOUT_MODEL_ID}`,
     )
     .digest("hex");
+}
+
+function resolveAutomaticBubbleRenderDirection(
+  block: TranslationBlock,
+): RenderTextDirection {
+  // A vertical Gemma advisory is unresolved until this detector proves the
+  // block is not a balloon. Automatic balloon profiles therefore stay on the
+  // ordinary horizontal default and can safely veto the advisory afterward.
+  return readUnsuppressedTextLayoutIntent(block) === "vertical"
+    ? "horizontal"
+    : block.renderDirection;
 }
 
 function intersectionOverUnion(left: BBox, right: BBox): number {

@@ -13,6 +13,7 @@ import {
 import { buildInitialEvidenceRow } from "../src/main/pipeline/automaticFontMatchingV2PageConsistencyEvidence";
 import { applyNeutralHeadOrdinaryConsensus } from "../src/main/pipeline/automaticFontMatchingV2PageConsistencyOrdinary";
 import { applyRelaxedNeutralGlyphConsensus } from "../src/main/pipeline/automaticFontMatchingV2PageConsistencyRelaxed";
+import { selectAutomaticFontStableMeanPageAnchor } from "../src/main/pipeline/automaticFontMatchingV2PageFamily";
 import type { VerifiedAutomaticFontPixelInferenceV2 } from "../src/main/pipeline/fontMatchingPagePixelInferenceTypes";
 import {
   markRetiredAutomaticFontCandidates,
@@ -251,6 +252,54 @@ describe("pixel-only page balloon font consistency", () => {
         "non_dohyeon_pixel_top3_after_dohyeon_veto",
         "pixel_only_policy",
       ]),
+    );
+  });
+
+  it("recovers an explicit sound effect to the strongest variant runner", () => {
+    const row = inference({
+      blockId: "sound-dohyeon-false-positive",
+      role: "dialogue",
+      candidates: [
+        pixelCandidate("dohyeon", 1, 0.42, 0.82),
+        pixelCandidate("nanum-myeongjo", 2, 0.13),
+        pixelCandidate("griun-pol-sensibility", 3, 0.11),
+        pixelCandidate("mongtori", 4, 0.06),
+      ],
+      glyphMorphology: morphology({
+        globalForegroundDistanceMean: 1.6,
+        medianComponentDistanceMean: 1.2,
+        medianComponentFill: 0.4,
+      }),
+    });
+    const pageState = buildAutomaticFontPageConsistencyPlan(
+      [row],
+      [
+        {
+          type: "nonsolid",
+          textRole: "sound",
+          fontRole: "sfx_motion",
+          direction: "vertical",
+          bbox: { x: 100, y: 100, w: 80, h: 120 },
+        },
+      ],
+    ).get(row.blockId);
+
+    expect(pageState).toMatchObject({
+      mode: "local_visual_variant",
+      dohyeonMorphologyVeto: true,
+      dohyeonMorphologyRecoveryFontId: "griun-pol-sensibility",
+      dohyeonMorphologyRecoveryRoute: "non_dohyeon_variant_top3",
+    });
+    const result = applyAutomaticFontPageConsistency(
+      row.localEvidence.rankedCandidates,
+      mergeAutomaticFontPageConsistencyState(undefined, pageState),
+    );
+    expect(result[0]).toMatchObject({
+      fontId: "griun-pol-sensibility",
+      confidence: 0.82,
+    });
+    expect(result[0]?.reasonCodes).toContain(
+      "non_dohyeon_variant_top3_after_dohyeon_veto",
     );
   });
 
@@ -560,6 +609,303 @@ describe("pixel-only page balloon font consistency", () => {
     }
   });
 
+  it("uses a unanimous stable raw-top3 mean anchor across noisy family routes", () => {
+    const serifLocal = inference({
+      blockId: "stable-mean-serif-local",
+      role: "dialogue",
+      candidates: [
+        pixelCandidate("ridi-batang", 1, 0.9, 0.8),
+        pixelCandidate("nanum-gothic", 2, 0.15),
+        pixelCandidate("dohyeon", 3, 0.1),
+      ],
+    });
+    const sansLocal = inference({
+      blockId: "stable-mean-sans-local",
+      role: "dialogue",
+      candidates: [
+        pixelCandidate("nanum-gothic", 1, 0.6, 0.8),
+        pixelCandidate("ridi-batang", 2, 0.2),
+        pixelCandidate("jua", 3, 0.1),
+      ],
+    });
+
+    const plan = buildAutomaticFontPageConsistencyPlan([serifLocal, sansLocal]);
+    for (const row of [serifLocal, sansLocal]) {
+      expect(plan.get(row.blockId)).toMatchObject({
+        mode: "page_anchor",
+        anchorFontId: "ridi-batang",
+        anchorEvidenceCount: 2,
+        anchorSupportShare: 1,
+        stableMeanConsensus: true,
+      });
+    }
+
+    const workState = mergeAutomaticFontPageConsistencyState(
+      undefined,
+      plan.get(sansLocal.blockId),
+    );
+    expect(workState).toMatchObject({
+      pageBalloonStableMeanConsensus: true,
+    });
+    const selected = applyAutomaticFontPageConsistency(
+      sansLocal.localEvidence.rankedCandidates,
+      workState,
+    )[0];
+    expect(selected).toMatchObject({ fontId: "ridi-batang", confidence: 0.8 });
+    expect(selected?.reasonCodes).toContain("stable_body_page_mean_consensus");
+  });
+
+  it("rejects stable mean consensus below the per-row 0.15 probability floor", () => {
+    const first = inference({
+      blockId: "stable-mean-floor-a",
+      role: "dialogue",
+      candidates: [
+        pixelCandidate("ridi-batang", 1, 0.8, 0.8),
+        pixelCandidate("nanum-gothic", 2, 0.1),
+      ],
+    });
+    const second = inference({
+      blockId: "stable-mean-floor-b",
+      role: "dialogue",
+      candidates: [
+        pixelCandidate("nanum-gothic", 1, 0.8, 0.8),
+        pixelCandidate("ridi-batang", 2, 0.149),
+      ],
+    });
+
+    const plan = buildAutomaticFontPageConsistencyPlan([first, second]);
+    expect(plan.get(first.blockId)).not.toHaveProperty("stableMeanConsensus");
+    expect(plan.get(second.blockId)).not.toHaveProperty("stableMeanConsensus");
+  });
+
+  it("applies a stable majority anchor only to rows that support it", () => {
+    const supporters = ["majority-a", "majority-b", "majority-c"].map(
+      (blockId) =>
+        inference({
+          blockId,
+          role: "dialogue",
+          candidates: [
+            pixelCandidate("ridi-batang", 1, 0.46, 0.8),
+            pixelCandidate("nanum-gothic", 2, 0.14),
+            pixelCandidate("dohyeon", 3, 0.18),
+          ],
+        }),
+    );
+    const outlier = inference({
+      blockId: "majority-outlier",
+      role: "dialogue",
+      candidates: [
+        pixelCandidate("nanum-gothic", 1, 0.72, 0.8),
+        pixelCandidate("dohyeon", 2, 0.18),
+        pixelCandidate("jua", 3, 0.1),
+      ],
+    });
+
+    const plan = buildAutomaticFontPageConsistencyPlan([
+      ...supporters,
+      outlier,
+    ]);
+    for (const supporter of supporters) {
+      expect(plan.get(supporter.blockId)).toMatchObject({
+        mode: "page_anchor",
+        anchorFontId: "ridi-batang",
+        anchorEvidenceCount: 3,
+        anchorSupportShare: 0.75,
+        stableMeanConsensus: true,
+      });
+    }
+    expect(plan.get(outlier.blockId)).not.toMatchObject({
+      anchorFontId: "ridi-batang",
+      stableMeanConsensus: true,
+    });
+  });
+
+  it("uses a 60 percent page majority without forcing unsupported dialogue rows", () => {
+    const localFonts = [
+      "nanum-gothic",
+      "nanum-myeongjo",
+      "nanum-barun-gothic",
+      "seoul-namsan",
+      "seoul-hangang",
+    ];
+    const supporters = localFonts.map((fontId, index) =>
+      inference({
+        blockId: `relaxed-majority-${index}`,
+        role: "dialogue",
+        candidates: [
+          pixelCandidate(fontId, 1, 0.52, 0.8),
+          pixelCandidate("jua", 2, 0.2),
+          pixelCandidate("ridi-batang", 3, 0.11),
+        ],
+      }),
+    );
+    const outliers = ["outlier-a", "outlier-b"].map((blockId, index) =>
+      inference({
+        blockId,
+        role: "dialogue",
+        candidates: [
+          pixelCandidate(
+            index === 0 ? "nanum-gothic" : "seoul-hangang",
+            1,
+            0.7,
+            0.8,
+          ),
+          pixelCandidate("dohyeon", 2, 0.2),
+          pixelCandidate("jua", 3, 0.1),
+        ],
+      }),
+    );
+
+    const plan = buildAutomaticFontPageConsistencyPlan([
+      ...supporters,
+      ...outliers,
+    ]);
+    for (const supporter of supporters) {
+      expect(plan.get(supporter.blockId)).toMatchObject({
+        mode: "page_anchor",
+        anchorFontId: "ridi-batang",
+        anchorEvidenceCount: 5,
+        anchorSupportShare: 5 / 7,
+        stableMeanConsensus: true,
+      });
+    }
+    for (const outlier of outliers) {
+      expect(plan.get(outlier.blockId)).not.toMatchObject({
+        anchorFontId: "ridi-batang",
+        stableMeanConsensus: true,
+      });
+    }
+  });
+
+  it("lets a high-confidence short ordinary dialogue join a supported page body majority", () => {
+    const stable = inference({
+      blockId: "semantic-dialogue-stable",
+      role: "dialogue",
+      candidates: [
+        pixelCandidate("ridi-batang", 1, 0.52, 0.8),
+        pixelCandidate("jua", 2, 0.2),
+        pixelCandidate("gaegu", 3, 0.12),
+      ],
+    });
+    const compact = inference({
+      blockId: "semantic-dialogue-compact",
+      role: "emphasis_dialogue",
+      candidates: [
+        pixelCandidate("chosun-gungseo", 1, 0.54, 0.8),
+        pixelCandidate("jua", 2, 0.18),
+        pixelCandidate("ridi-batang", 3, 0.11),
+      ],
+    });
+    const unsupported = inference({
+      blockId: "semantic-dialogue-unsupported",
+      role: "dialogue",
+      candidates: [
+        pixelCandidate("nanum-gothic", 1, 0.72, 0.8),
+        pixelCandidate("dohyeon", 2, 0.18),
+        pixelCandidate("gaegu", 3, 0.1),
+      ],
+    });
+    const compactGeometry = {
+      type: "nonsolid" as const,
+      textRole: "ordinary" as const,
+      fontRole: "dialogue" as const,
+      fontRoleConfidence: 0.9,
+      direction: "vertical" as const,
+      bbox: { x: 300, y: 300, w: 50, h: 120 },
+    };
+
+    expect(buildInitialEvidenceRow(compact, compactGeometry).family).toBeNull();
+    const plan = buildAutomaticFontPageConsistencyPlan(
+      [stable, compact, unsupported],
+      [
+        {
+          type: "nonsolid",
+          direction: "vertical",
+          bbox: { x: 500, y: 100, w: 100, h: 200 },
+        },
+        compactGeometry,
+        {
+          type: "nonsolid",
+          direction: "vertical",
+          bbox: { x: 700, y: 100, w: 100, h: 200 },
+        },
+      ],
+    );
+
+    for (const blockId of [stable.blockId, compact.blockId]) {
+      expect(plan.get(blockId)).toMatchObject({
+        mode: "page_anchor",
+        anchorFontId: "ridi-batang",
+        anchorEvidenceCount: 2,
+        anchorSupportShare: 2 / 3,
+        stableMeanConsensus: true,
+      });
+    }
+    expect(plan.get(unsupported.blockId)).not.toMatchObject({
+      anchorFontId: "ridi-batang",
+      stableMeanConsensus: true,
+    });
+  });
+
+  it("keeps an explicit sound-effect item out of the balloon body plan", () => {
+    const row = inference({
+      blockId: "semantic-sfx-local",
+      role: "dialogue",
+      candidates: [
+        pixelCandidate("dohyeon", 1, 0.42, 0.8),
+        pixelCandidate("nanum-myeongjo", 2, 0.18),
+        pixelCandidate("ridi-batang", 3, 0.16),
+      ],
+    });
+    const plan = buildAutomaticFontPageConsistencyPlan(
+      [row],
+      [
+        {
+          type: "nonsolid",
+          textRole: "sound",
+          fontRole: "sfx_motion",
+          direction: "vertical",
+          bbox: { x: 100, y: 100, w: 80, h: 120 },
+        },
+      ],
+    );
+
+    expect(plan.get(row.blockId)).toMatchObject({
+      mode: "local_visual_variant",
+      anchorEvidenceCount: 0,
+    });
+  });
+
+  it("rejects stable mean candidates outside raw top three and display faces", () => {
+    const rows = [
+      inference({
+        blockId: "stable-mean-rank-a",
+        role: "dialogue",
+        candidates: [
+          pixelCandidate("nanum-gothic", 1, 0.4, 0.8),
+          pixelCandidate("dohyeon", 2, 0.35),
+          pixelCandidate("jua", 3, 0.2),
+          pixelCandidate("ridi-batang", 4, 0.3),
+        ],
+      }),
+      inference({
+        blockId: "stable-mean-rank-b",
+        role: "dialogue",
+        candidates: [
+          pixelCandidate("nanum-gothic", 1, 0.4, 0.8),
+          pixelCandidate("dohyeon", 2, 0.36),
+          pixelCandidate("ridi-batang", 3, 0.3),
+        ],
+      }),
+    ];
+
+    expect(selectAutomaticFontStableMeanPageAnchor(rows)).toEqual({
+      fontId: "nanum-gothic",
+      evidenceCount: 2,
+      supportShare: 1,
+    });
+  });
+
   it("keeps a strong Mincho-consensus cluster in the serif body shortlist", () => {
     const rows = [0, 1, 2, 3, 4].map((index) =>
       inference({
@@ -663,7 +1009,7 @@ describe("pixel-only page balloon font consistency", () => {
     ).toMatchObject({ fontId: "dohyeon", confidence: 0.34 });
   });
 
-  it("rejects a shared two-seed anchor when the aggregate winner gap is under 0.08", () => {
+  it("uses stable mean consensus when the older seed gap is under 0.08", () => {
     const rows = ["ambiguous-a", "ambiguous-b"].map((blockId) =>
       inference({
         blockId,
@@ -678,14 +1024,16 @@ describe("pixel-only page balloon font consistency", () => {
 
     const plan = buildAutomaticFontPageConsistencyPlan(rows);
     expect(plan.get("ambiguous-a")).toMatchObject({
-      mode: "stable_body",
+      mode: "page_anchor",
       anchorFontId: "ridi-batang",
-      anchorEvidenceCount: 1,
+      anchorEvidenceCount: 2,
+      stableMeanConsensus: true,
     });
     expect(plan.get("ambiguous-b")).toMatchObject({
-      mode: "stable_body",
+      mode: "page_anchor",
       anchorFontId: "ridi-batang",
-      anchorEvidenceCount: 1,
+      anchorEvidenceCount: 2,
+      stableMeanConsensus: true,
     });
   });
 

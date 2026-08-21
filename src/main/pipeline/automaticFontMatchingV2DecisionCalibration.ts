@@ -16,15 +16,26 @@ export function resolveAutomaticDecisionCalibration(
   const base = runtimePolicy?.automaticMutation ?? FAIL_CLOSED_CALIBRATION;
   if (!pixelInference) return { ...base };
 
+  const bestAvailableSelection =
+    !pixelInference.selectionCalibration.applied &&
+    pixelInference.localEvidence.rankedCandidates.some(
+      (candidate) => candidate.renderStatus === "rendered",
+    );
+
   // The supervised selector has already applied its sealed cohort operating
   // point. Its confidence is a cohort risk lower bound, not the legacy raw
-  // ONNX confidence scale, so comparing it against the old gate would reject
-  // every otherwise accepted selection. Honor that learned bound once and
-  // fail closed whenever the selector itself declined the sample.
+  // ONNX confidence scale. Automatic mode still has a job when calibration
+  // declines: choose the best renderable pixel candidate instead of silently
+  // retaining the formatting font.
   return {
     ...base,
     minimumAutomaticConfidence: pixelInference.selectionCalibration.applied
       ? pixelInference.selectionCalibration.globalRiskLowerConfidenceBound
-      : 1,
+      : bestAvailableSelection
+        ? 0
+        : 1,
+    minimumRoleConfidence: bestAvailableSelection
+      ? 0
+      : base.minimumRoleConfidence,
   };
 }

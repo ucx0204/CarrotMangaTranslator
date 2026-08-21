@@ -23,7 +23,7 @@ import {
 const modelDownloadsMocks = vi.hoisted(() => ({
   ensureRemoteFile: vi.fn(),
 }));
-const bundledV2Dir = join(
+const bundledV3Dir = join(
   __dirname,
   "..",
   "src",
@@ -32,21 +32,21 @@ const bundledV2Dir = join(
   "font-matching",
 );
 
-function stageBundledV2Files(runtimeDir: string): void {
+function stageBundledV3Files(runtimeDir: string): void {
   const destination = join(runtimeDir, "font-matching");
   mkdirSync(destination, { recursive: true });
   for (const file of FONT_MATCHING_RUNTIME_FILES.filter(
-    (entry) => entry.source === "bundled-v2",
+    (entry) => entry.source === "bundled-v3",
   )) {
     copyFileSync(
-      join(bundledV2Dir, file.fileName),
+      join(bundledV3Dir, file.fileName),
       join(destination, file.fileName),
     );
   }
 }
 
 function stageCompleteDevBundle(runtimeDir: string): void {
-  stageBundledV2Files(runtimeDir);
+  stageBundledV3Files(runtimeDir);
   const destination = join(runtimeDir, "font-matching");
   for (const file of FONT_MATCHING_RUNTIME_FILES.filter(
     (entry) => entry.source === "remote-v2-release",
@@ -125,14 +125,14 @@ describe("ensureFontMatchingRuntimeAssets", () => {
     );
   });
 
-  it("installs bundled v2 trust files and downloads only external large assets", async () => {
+  it("installs bundled v3 trust files and downloads only external large assets", async () => {
     const dataRoot = createTempDir("data");
     const { ensureFontMatchingRuntimeAssets } =
       await import("../src/main/pipeline/fontMatchingRuntimeAssets");
 
     const cacheDir = await ensureFontMatchingRuntimeAssets({
       dataRoot,
-      bundledDir: bundledV2Dir,
+      bundledDir: bundledV3Dir,
     });
 
     expect(modelDownloadsMocks.ensureRemoteFile).toHaveBeenCalledTimes(3);
@@ -174,7 +174,7 @@ describe("ensureFontMatchingRuntimeAssets", () => {
 
     await ensureFontMatchingRuntimeAssets({
       dataRoot,
-      bundledDir: bundledV2Dir,
+      bundledDir: bundledV3Dir,
       signal: controller.signal,
       onProgress,
     });
@@ -210,7 +210,7 @@ describe("prepareFontMatchingRuntime", () => {
 
   it("downloads the bundle into the cache when the marker is absent", async () => {
     const runtimeDir = createTempDir("runtime-empty");
-    stageBundledV2Files(runtimeDir);
+    stageBundledV3Files(runtimeDir);
     const dataRoot = createTempDir("data");
     const { prepareFontMatchingRuntime } =
       await import("../src/main/pipeline/fontMatchingRuntimeAssets");

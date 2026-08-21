@@ -12,7 +12,7 @@ const RUN_SEAL_TOOL_VERSION = "1.1.0";
 const verifiedBaselinePages = new WeakMap();
 
 /**
- * @typedef {{contractVersion:"font-matching-ocr-candidate-membership-v2";source:"semantic_ocr_fixed_block_request_v5"|"sealed_font_input_request_block_v2";bindingId:string;originalCandidateIds:number[];voterCandidateIds:number[]}} CandidateMembership
+ * @typedef {{contractVersion:"font-matching-ocr-candidate-membership-v2";source:"semantic_ocr_fixed_block_request_v5"|"semantic_ocr_fixed_block_request_v6"|"sealed_font_input_request_block_v2";bindingId:string;originalCandidateIds:number[];voterCandidateIds:number[]}} CandidateMembership
  * @typedef {{contractVersion:string;source:string;direction:"horizontal"|"vertical";candidateIds:number[];candidateMembership:CandidateMembership}} DirectionEvidence
  * @typedef {{readFontMatchingOcrGeometryDirection:(value:unknown,item:any,membership:unknown)=>DirectionEvidence|null;resolveFontMatchingOcrGeometryDirection:(item:any,hints:unknown)=>DirectionEvidence|undefined}} DirectionModule
  * @typedef {{kind:string;path:string;size:number;sha256:string}} SealBinding
@@ -52,7 +52,7 @@ async function loadFontReplayBaselineSeal(options) {
     const sourcePageId = expectedPageIds[index];
     if (!sourcePageId || rawPage?.sourcePageId !== sourcePageId) {
       throw new Error(
-        "Fresh baseline audit page order does not match the replay cohort.",
+        `Fresh baseline audit page order does not match the replay cohort at ${index}: expected ${sourcePageId || "<missing>"}, got ${rawPage?.sourcePageId || "<missing>"}.`,
       );
     }
     const pageArtifacts = readSealBindings(rawPage.artifacts);
@@ -397,7 +397,8 @@ function readSealedDirectionVoterCandidateIds(evidence, originalCandidateIds) {
     !membership ||
     membership.contractVersion !==
       "font-matching-ocr-candidate-membership-v2" ||
-    membership.source !== "semantic_ocr_fixed_block_request_v5" ||
+    (membership.source !== "semantic_ocr_fixed_block_request_v5" &&
+      membership.source !== "semantic_ocr_fixed_block_request_v6") ||
     !sameCandidateOrder(
       membership.originalCandidateIds,
       originalCandidateIds,

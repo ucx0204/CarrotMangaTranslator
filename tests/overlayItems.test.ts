@@ -376,6 +376,61 @@ describe("overlay item conversion", () => {
     expect(block.renderDirection).toBe("vertical");
     expect(block.translatedText).toBe("세로쓰기");
   });
+
+  it("preserves a vertical advisory without applying it before bubble detection", () => {
+    const bbox = { x: 20, y: 120, w: 70, h: 620 };
+    const block = overlayItemToBlock(
+      {
+        id: 1,
+        type: "nonsolid",
+        textRole: "ordinary",
+        layoutIntent: "vertical",
+        bbox,
+        jp: "ページ外側の長い説明文です",
+        ko: "페이지 바깥쪽에 놓인 아주 길고 세로로 이어지는 설명문입니다",
+        direction: "vertical",
+        fontSize: 20,
+        confidence: 1,
+      },
+      makePage(),
+      0,
+      undefined,
+      undefined,
+      { enabled: true, locale: "ko" },
+    );
+
+    expect(block.layoutIntent).toBe("vertical");
+    expect(block.renderDirection).toBe("horizontal");
+    expect(block.sourceDirection).toBe("vertical");
+    expect(block.bbox).toEqual(bbox);
+    expect(block.translatedText).not.toContain("\n");
+  });
+
+  it("lets an explicit horizontal advisory veto the old ultra-narrow auto-vertical heuristic", () => {
+    const block = overlayItemToBlock(
+      {
+        id: 1,
+        type: "nonsolid",
+        textRole: "ordinary",
+        layoutIntent: "horizontal",
+        bbox: { x: 100, y: 100, w: 25, h: 300 },
+        jp: "縦書き",
+        ko: "세로쓰기",
+        direction: "vertical",
+        fontSize: 20,
+        confidence: 1,
+      },
+      makePage(),
+      0,
+      undefined,
+      undefined,
+      { enabled: true, locale: "ko" },
+    );
+
+    expect(block.layoutIntent).toBe("horizontal");
+    expect(block.layoutIntentSuppressed).toBeUndefined();
+    expect(block.renderDirection).toBe("horizontal");
+  });
 });
 
 function makePage(): MangaPage {

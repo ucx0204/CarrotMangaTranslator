@@ -255,7 +255,7 @@ function addFontMatchingBundle(root: string): string {
   const bundleDir = join(
     root,
     "artifacts",
-    "font-matching-runtime-active21-v8-r3h-manual-v2-release-v1",
+    "font-matching-runtime-active21-v9-r33-page-common-user-v3-release-v2",
   );
   mkdirSync(bundleDir, { recursive: true });
   const artifacts: Record<string, string> = {};

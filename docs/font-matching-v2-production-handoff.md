@@ -1,22 +1,52 @@
-# 폰트 자동 맞춤 v2 프로덕션 인계서
+# 폰트 자동 맞춤 프로덕션 인계서
 
-최종 갱신: 2026-08-12 KST
-현재 제품 기준: `r3h manual-v2 production release`
-모델 버전: `manga-font-v8-active21-dfa42ae17f-ffb3285338`
+최종 갱신: 2026-08-21 KST
+현재 제품 기준: `R33 page-common user-v3 production release`
+모델 버전: `manga-font-v9-r33-e049fc74c3ba`
 
 현재 배포 상태:
 
-- GitHub runtime asset prerelease `font-matching-runtime-v2`: 게시 완료
-- 게시 자산 7개 서버 재다운로드/SHA 검증: 완료
-- 앱 소스의 v2 tag/cache/loader 연결과 로컬 검증: 완료
+- 기존 공용 대형 자산용 GitHub prerelease `font-matching-runtime-v2`: 유지
+- 새 R33 ranker/contract/calibration/marker 앱 번들 연결: 완료
+- 새 프로덕션 번들 strict validate와 앱 loader/build 검증: 완료
 - 이 작업의 소스 commit/push: 아직 안 함
 - 앱 버전 릴리스/installer 게시: 사용자의 별도 지시 전까지 보류
 
-이 문서는 현재 앱에 반영된 폰트 자동 맞춤 v2의 정확한 상태, 출시 근거,
+이 문서는 현재 앱에 반영된 폰트 자동 맞춤의 정확한 상태, 출시 근거,
 알려진 한계, 시행착오, 재현 명령, 정리 내역과 v3 작업 순서를 한곳에 모은다.
 다음 세션은 오래된 계획서보다 이 문서를 먼저 읽는다.
 
-## 1. 지금 무엇이 제품에 들어갔는가
+## 0. 2026-08-21 R33 제품 전환
+
+현재 기본 runtime은 다음이다.
+
+`artifacts/font-matching-runtime-active21-v9-r33-page-common-user-v3-release-v2`
+
+R33은 기존 r3h의 body/variant 출력 위에 페이지 공통 후보 prior와 로컬 family router를
+추가한다. 페이지 합의는 임의의 기본 서식 폰트를 고르는 경로가 아니며, 각 행의 픽셀
+후보 top-3가 실제로 지지하는 폰트만 선택할 수 있다. 일반 대사인데 짧아서 로컬 family가
+장식체로 흔들린 행은 semantic role confidence가 충분할 때 페이지 body 합의에 참여한다.
+SFX/강조는 별도 variant 경로를 유지하고, 자동 적용은 사용자가 정한 외곽선 굵기를
+덮어쓰지 않는다.
+
+핵심 파일:
+
+| 파일                  |   bytes | SHA-256                                                            |
+| --------------------- | ------: | ------------------------------------------------------------------ |
+| ownership marker      |     755 | `3477b25beed9a2518fe024a5b6b8d766c3593f7aefe58a3e65cdc3ac71a0cd2b` |
+| runtime contract      |  23,401 | `f1ec598247f86904072c0615ec38f7efe4eab3950268206cae5fa9e9ffc5f52a` |
+| selection calibration |  19,146 | `aaaaa938d5fbed6070115b2d206c6cc4a35517b3b11061fb0a4d11383caa5660` |
+| ranker                | 647,571 | `e049fc74c3baeeee9aba179412a3b20387304b749936c167ecc753afcc78f4aa` |
+
+release acceptance SHA는
+`80be96c4314db4d89e4bc86ea6221ae2c5eae4b54226b64701e95fd1659c0140`이다.
+캐시된 실제 만화 content page 5장(02/07/09/12/17)의 old/new 렌더를 단계적으로
+검토했고, 4장 개선·1장 동일·0장 악화였다. 이는 새 Gemma/인페인팅 실행이나 독립
+holdout/human-gold 평가가 아니다. 그 한계와 `automatic_visual_judgment=true`가 contract에
+그대로 봉인되어 있다. 실제 ORT-Web WASM 1-thread ranker median은 batch1 약 1.093배,
+batch16 약 1.224배로 사용자가 허용한 2배 이내였다.
+
+## 1. 이전 r3h manual-v2 제품 기준
 
 기존 production v1 대신 r3h dual-branch ranker를 기본 runtime으로 연결했다.
 후보는 한국어 폰트 21종이며, 픽셀 역할 예측에 따라 body/variant 점수 branch를

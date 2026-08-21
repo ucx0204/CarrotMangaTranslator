@@ -16,14 +16,14 @@
       "sha256": "cb4479cd7a48f052698235fd427c7fd90a91fb4ec47e74316bd574b1ffd7bcd3"
     },
     "ranker.onnx": {
-      "byte_size": 351127,
+      "byte_size": 647571,
       "file": "ranker.onnx",
-      "sha256": "dfa42ae17f340768cae30f2219973eae1ff62a4c3c1544496502621e6e710c78"
+      "sha256": "e049fc74c3baeeee9aba179412a3b20387304b749936c167ecc753afcc78f4aa"
     },
     "selection-calibration.json": {
-      "byte_size": 19160,
+      "byte_size": 19146,
       "file": "selection-calibration.json",
-      "sha256": "501c39cd12019e4334336c486a0b8a87699ea6a5e8845232af5537e0929dc3fb"
+      "sha256": "aaaaa938d5fbed6070115b2d206c6cc4a35517b3b11061fb0a4d11383caa5660"
     }
   },
   "calibration": {
@@ -228,9 +228,9 @@
     },
     "body_checkpoint_sha256": "ff580ef87c949d9b5cc8f4552490015cb621814d6cd5c122018def415792f3de",
     "family_score_sharing": "separate_body_variant_pixel_scores",
-    "onnx_sha256": "dfa42ae17f340768cae30f2219973eae1ff62a4c3c1544496502621e6e710c78",
+    "onnx_sha256": "e049fc74c3baeeee9aba179412a3b20387304b749936c167ecc753afcc78f4aa",
     "variant_checkpoint_sha256": "ff580ef87c949d9b5cc8f4552490015cb621814d6cd5c122018def415792f3de",
-    "version": "manga-font-v8-role-family-adapter-ranker-onnx-v1"
+    "version": "manga-font-v9-r33-page-common-ranker-onnx-v1"
   },
   "hybrid_score_routing": {
     "body_candidate_output": "body_candidate_scores",
@@ -261,7 +261,7 @@
       "other"
     ]
   },
-  "model_version": "manga-font-v8-active21-dfa42ae17f-ffb3285338",
+  "model_version": "manga-font-v9-r33-e049fc74c3ba",
   "onnx_io_contract": {
     "encoder.onnx": {
       "inputs": [
@@ -495,24 +495,69 @@
     "v8_graph_report_sha256": "99987d5fdab778cffb684849dd9312f6f7fe735246035d15937836ec4bc2fb6c",
     "v8_visual_holdout_evaluation_sha256": "159f01a2d579252d5c577ec7791b8f53a7f3de46b9098c430b05b147146552d7"
   },
-  "record_sha256": "52aef220bbdc55df77061783d389fdb3c8fda17a1c4463e31c3af3ba6efccf76",
+  "r31_family_router_qa": {
+    "automatic_mutation_release_approved": false,
+    "calibration_reused_without_refit": true,
+    "candidate_score_outputs_frozen": true,
+    "checkpoint_sha256": "6f2534bdee9a448bf164497f89a13cec7b5f9024381aa06351acf7454e2b6883",
+    "cpu_budget": {
+      "context_mode": "local",
+      "estimated_total_mac_ratio": 1.3584379358437937,
+      "estimated_total_parameter_ratio": 1.442276728209532,
+      "hidden_width": 32,
+      "parameter_count": 32962
+    },
+    "parity": {
+      "candidate_outputs_byte_exact": {
+        "body_candidate_scores": true,
+        "candidate_scores": true,
+        "variant_candidate_scores": true
+      },
+      "role_logits_max_abs_error": 3.5762786865234375e-07
+    },
+    "production_eligible": false,
+    "router": "local-query-anchor-family-mlp32-v1",
+    "training_report_sha256": "9cd8149383debd2b0233fc0b335b4a260740a2d0e0a44ee3d6f7899df18854b6"
+  },
+  "r33_page_common_qa": {
+    "automatic_mutation_release_approved": false,
+    "calibration_reused_without_refit": true,
+    "checkpoint_sha256": "847afc45c8f1c6cb6831b1500c3914baa2829cec189d1204f9db8dae1efe9a85",
+    "cpu_budget": {
+      "estimated_total_mac_ratio": 1.8664578996687564,
+      "estimated_total_parameter_ratio": 1.6697214469729498,
+      "fixed_candidate_prototype_dot_mac": 21504,
+      "page_ranker_parameter_count": 16951,
+      "total_new_trainable_parameters": 49913
+    },
+    "page_common_mode": "soft-learned-candidate-prior-strength-1",
+    "parity": {
+      "body_scores_max_abs_error": 1.7881393432617188e-07,
+      "single_row_body_scores_byte_exact": true,
+      "variant_and_role_outputs_byte_exact": true
+    },
+    "production_eligible": false,
+    "source_model_version": "manga-font-v9-r31-96cf5123c044",
+    "training_report_sha256": "87295149b28e3c8ba6521e7c24787ac5a30bce02c5452c540c865c891ac2f32e"
+  },
+  "record_sha256": "90ec811ad23e0de4693e1ca31d4259d4d6c955ba1cf24c712492e541317d81e9",
   "record_type": "font_matching_runtime_artifact",
   "release_acceptance": {
-    "acceptance_authority": "explicit_user_approved_work_disjoint_fresh_gemma_manual_visual_review",
-    "accepted_at": "2026-08-12T03:23:41Z",
-    "automatic_visual_judgment": false,
+    "acceptance_authority": "explicit_user_approved_cached_page_ab_with_agent_visual_audit",
+    "accepted_at": "2026-08-20T21:50:16Z",
+    "automatic_visual_judgment": true,
     "evidence": {
-      "adapter_checkpoint_sha256": "ff580ef87c949d9b5cc8f4552490015cb621814d6cd5c122018def415792f3de",
       "candidate_order_sha256": "17343ec15ee2153e770101d0cbf707600e97a8bc2d490496efaf4da2f638437d",
-      "cohort_digest": "9c1ddde045ab0ddbad1e86fa30c20b869a112a9405eddbe404b0d1292686f5d2",
-      "manual_review_content_sha256": "39e45f037d15dd42f3aa74ee987a0e272d308c13115036f182fc1a6f0dfe1157",
-      "manual_review_file_sha256": "a92a751168d0cbde436371c30e1dcfe613194b80d3eff9787df6b2375f3364eb",
-      "model_version": "manga-font-v8-active21-dfa42ae17f-ffb3285338",
-      "ranker_sha256": "dfa42ae17f340768cae30f2219973eae1ff62a4c3c1544496502621e6e710c78",
-      "run_report_sha256": "61570016f17039e982c05afb066c92bf649a5ac837d3e8254b847b96bb2d11cb",
-      "source_evaluation_runtime_contract_sha256": "292433b367a7aef5abd8d2b8c3833d521584bc4cb41027924c37774585fdb7f4",
-      "source_selection_calibration_sha256": "501c39cd12019e4334336c486a0b8a87699ea6a5e8845232af5537e0929dc3fb",
-      "visual_review_index_sha256": "5155436a1bf25e2e5694c4cc88d1f65092245e6bc80743484e604ef7984593ad"
+      "model_version": "manga-font-v9-r33-e049fc74c3ba",
+      "page_consistency_apply_sha256": "eb30c3e7a0a0518b854b83e8ea1c8bb2414d22f1ffd073e551c2d4434b31ace4",
+      "page_consistency_plan_sha256": "099a34473124faeff0d508ae4173c8c7444904c6959558c8bf0b92dc34520352",
+      "page_consistency_shared_sha256": "8aa94b55c963f3b236279e5f67fd9cc8aa6a4ade189bc1bbcf4760eddb427279",
+      "ranker_sha256": "e049fc74c3baeeee9aba179412a3b20387304b749936c167ecc753afcc78f4aa",
+      "source_evaluation_runtime_contract_sha256": "c96f24268af9128d19c2b8a6ff7100c2725e8e991da9d3d6f7320b611e90b972",
+      "source_marker_sha256": "3a794cc2f5ec75eb83f8c060138f50652d2df98ec24bc4beafe34cb1eceaa545",
+      "source_page_inventory_sha256": "2dc2352a401c7a5defa22606ac77a3e99b2a2b72c9f901a7436d4bb471d906d3",
+      "source_selection_calibration_sha256": "aaaaa938d5fbed6070115b2d206c6cc4a35517b3b11061fb0a4d11383caa5660",
+      "visual_comparison_inventory_sha256": "835165dc2048c5a9a3107aa593758c22f14f0ca5940e0c7f40a896c4e4d79b42"
     },
     "explicit_user_acceptance": true,
     "external_release_quality_gate_passed": true,
@@ -523,38 +568,28 @@
       "source_model_assets_copied_exactly": true
     },
     "quality_gate": {
-      "acceptable_pages": 15,
-      "bad_pages": 5,
-      "calibration_gate_waiver": {
-        "approved": true,
-        "exact_scope": "manga-font-v8-active21-dfa42ae17f-ffb3285338/r3h-manual-v2",
-        "reason": "explicit_user_acceptance_after_fresh_work_disjoint_manual_review",
-        "strict_gate_failures": {
-          "global_acceptable_at1": 0.7096774193548387,
-          "global_precision_target": 0.88,
-          "global_preferred_at1": 0.41935483870967744,
-          "variant_acceptable_at1": 0.7333333333333333,
-          "variant_precision_target": 0.88,
-          "variant_preferred_at1": 0.43333333333333335
-        }
-      },
-      "calibration_release_quality_gate_passed": false,
-      "distinct_chapters": 40,
-      "distinct_works": 10,
-      "fresh_work_disjoint_pages": 40,
-      "good_pages": 10,
-      "judged_content_pages": 30,
-      "master_work_overlap": 0,
-      "minimum_usable_rate": 0.8,
+      "cached_development_pages": 5,
+      "fresh_gemma_or_inpainting_pages": 0,
+      "gemma_or_inpainting_runs": 0,
+      "human_gold": false,
+      "improved_pages": 4,
+      "independent_holdout": false,
+      "judged_content_pages": 5,
+      "live_font_replay_pages": 5,
       "outline_loss_count": 0,
-      "single_day_body_role_count": 0,
+      "ranker_cpu_batch16_median_multiplier": 1.224,
+      "ranker_cpu_batch1_median_multiplier": 1.093,
+      "ranker_cpu_budget_limit_multiplier": 2.0,
+      "ranker_cpu_budget_passed": true,
+      "regressed_pages": 0,
+      "sfx_body_regression_count": 0,
       "structural_error_count": 0,
-      "usable_pages": 25,
-      "usable_rate": 0.8333333333333334
+      "unchanged_pages": 1,
+      "user_visual_verdict": "new_version_better"
     },
-    "record_sha256": "c2418e72d42d85be87a67973e7bd4af8b3df46c5b16a2d717280496bfec0a7fd",
+    "record_sha256": "80be96c4314db4d89e4bc86ea6221ae2c5eae4b54226b64701e95fd1659c0140",
     "record_type": "font_matching_runtime_release_acceptance",
-    "schema_version": "font-matching-runtime-release-acceptance-v2",
+    "schema_version": "font-matching-runtime-release-acceptance-v3",
     "status": "accepted"
   },
   "release_evaluation": {
@@ -650,7 +685,7 @@
       "genre",
       "text"
     ],
-    "role_logits": "pixel_query_role_family_adapter",
+    "role_logits": "r31_local_query_replacement_family_router_qa",
     "schema_version": "manga-font-v8-role-family-pixel-evidence-v1"
   },
   "v8_runtime_packaging": {

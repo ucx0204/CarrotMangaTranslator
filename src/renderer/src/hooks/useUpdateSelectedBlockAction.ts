@@ -103,7 +103,7 @@ function buildNormalizedTranslationBlock(
 ): TranslationBlock {
   const sourceGeometry = normalizeSourceGeometryPatch(block, patch);
   const renderGeometry = normalizeRenderGeometryPatch(block, patch, pageSize);
-  return {
+  const next: TranslationBlock = {
     ...block,
     ...patch,
     ...sourceGeometry,
@@ -119,6 +119,11 @@ function buildNormalizedTranslationBlock(
     backgroundColor: valueOr(patch.backgroundColor, block.backgroundColor),
     opacity: valueOr(patch.opacity, block.opacity),
   };
+  if (patch.renderDirection !== undefined) {
+    delete next.layoutIntent;
+    next.layoutIntentSuppressed = true;
+  }
+  return next;
 }
 
 function normalizeSourceGeometryPatch(
@@ -208,6 +213,8 @@ function hasBlockChanged(
     "backgroundColor",
     "bbox",
     "bboxSpace",
+    "layoutIntent",
+    "layoutIntentSuppressed",
     "opacity",
     "renderBbox",
     "renderBboxSpace",

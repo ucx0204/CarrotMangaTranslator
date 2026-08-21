@@ -5,6 +5,7 @@ export type BlockType = "nonsolid";
 
 export type SourceTextDirection = "horizontal" | "vertical";
 export type RenderTextDirection = "horizontal" | "vertical";
+export type TextLayoutIntent = "auto" | "horizontal" | "vertical";
 export type ReviewStatus = "draft" | "needs_review" | "reviewed";
 export type TextWordBreak =
   | "normal"
@@ -97,6 +98,10 @@ export type TranslationBlock = {
   visualClusterId?: string;
   confidence: number;
   sourceDirection: SourceTextDirection;
+  /** Gemma-authored advisory. Code applies vertical only after strict non-bubble validation. */
+  layoutIntent?: TextLayoutIntent;
+  /** A persisted user/default direction claim; future model advisories must not replace it. */
+  layoutIntentSuppressed?: true;
   renderDirection: RenderTextDirection;
   rotationDeg?: number;
   perspectiveTransform?: PerspectiveTransform;

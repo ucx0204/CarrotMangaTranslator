@@ -30,6 +30,7 @@ function buildFixedBlockTranslationResponseFormat(blockIds, options = {}) {
         required: [
           "blockId",
           "textRole",
+          "layoutIntent",
           ...(options.autoFontMatching
             ? ["fontRole", "fontRoleConfidence"]
             : []),
@@ -38,6 +39,15 @@ function buildFixedBlockTranslationResponseFormat(blockIds, options = {}) {
         properties: {
           blockId: { type: "string", enum: blockIds },
           textRole: { type: "string", enum: ["ordinary", "sound"] },
+          layoutIntent: {
+            type: "string",
+            enum: options.autoFontMatching
+              ? ["auto", "horizontal", "vertical"]
+              : ["auto", "horizontal"],
+            description: options.autoFontMatching
+              ? '"vertical" requires fontRole "narration" and finite fontRoleConfidence >= 0.82 in this same item.'
+              : 'Only "auto" or "horizontal" is valid because current visual-role evidence is disabled.',
+          },
           ...(options.autoFontMatching
             ? {
                 fontRole: {
@@ -48,6 +58,8 @@ function buildFixedBlockTranslationResponseFormat(blockIds, options = {}) {
                   type: "number",
                   minimum: 0,
                   maximum: 1,
+                  description:
+                    'Confidence in fontRole; layoutIntent "vertical" requires a finite value >= 0.82 with fontRole "narration".',
                 },
                 // Keep this optional and runtime-bounded. Some local
                 // llama.cpp JSON-schema converters reject large maxLength

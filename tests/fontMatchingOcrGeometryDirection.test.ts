@@ -64,7 +64,7 @@ describe("Font Matching OCR candidate geometry direction", () => {
     const [attached] = attachFontMatchingFixedBlockCandidateMembership(
       [overlayItem(1, [2, 1])],
       {
-        fixedBlockTranslationVersion: 5,
+        fixedBlockTranslationVersion: 6,
         fixedBlockIds: ["B001"],
         fixedBlockCandidateIds: [[2, 1]],
         fixedBlockDirectionVoterCandidateIds: [[2, 1]],
@@ -73,7 +73,7 @@ describe("Font Matching OCR candidate geometry direction", () => {
     if (!attached) throw new Error("missing attached fixed-block item");
     expect(attached?.sourceCandidateMembership).toEqual({
       contractVersion: "font-matching-ocr-candidate-membership-v2",
-      source: "semantic_ocr_fixed_block_request_v5",
+      source: "semantic_ocr_fixed_block_request_v6",
       bindingId: "B001",
       originalCandidateIds: [2, 1],
       voterCandidateIds: [2, 1],
@@ -88,7 +88,7 @@ describe("Font Matching OCR candidate geometry direction", () => {
     const [orderMismatch] = attachFontMatchingFixedBlockCandidateMembership(
       [overlayItem(1, [1, 2])],
       {
-        fixedBlockTranslationVersion: 5,
+        fixedBlockTranslationVersion: 6,
         fixedBlockIds: ["B001"],
         fixedBlockCandidateIds: [[2, 1]],
         fixedBlockDirectionVoterCandidateIds: [[2, 1]],
@@ -100,6 +100,43 @@ describe("Font Matching OCR candidate geometry direction", () => {
     );
     expect(orderMismatch?.sourceCandidateMembership).toBeUndefined();
     expect(generalFallback?.sourceCandidateMembership).toBeUndefined();
+  });
+
+  it("accepts cached v5 membership while current requests remain v6", () => {
+    const [cached] = attachFontMatchingFixedBlockCandidateMembership(
+      [overlayItem(1, [1, 2])],
+      {
+        fixedBlockTranslationVersion: 5,
+        fixedBlockIds: ["B001"],
+        fixedBlockCandidateIds: [[1, 2]],
+        fixedBlockDirectionVoterCandidateIds: [[1]],
+      },
+    );
+    if (!cached?.sourceCandidateMembership) {
+      throw new Error("missing cached fixed-block membership");
+    }
+    expect(cached.sourceCandidateMembership.source).toBe(
+      "semantic_ocr_fixed_block_request_v5",
+    );
+
+    const evidence = resolveFontMatchingOcrGeometryDirection(cached, [
+      hint(1, 20, 80),
+      hint(2, 80, 20),
+    ]);
+    expect(evidence).toMatchObject({
+      candidateIds: [1],
+      direction: "vertical",
+      candidateMembership: {
+        source: "semantic_ocr_fixed_block_request_v5",
+      },
+    });
+    expect(
+      readFontMatchingOcrGeometryDirection(
+        evidence,
+        cached,
+        cached.sourceCandidateMembership,
+      ),
+    ).toEqual(evidence);
   });
 
   it("fails closed on missing, duplicate, or malformed candidate geometry", () => {

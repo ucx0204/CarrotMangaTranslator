@@ -1,7 +1,11 @@
 import { isDeepStrictEqual } from "node:util";
 import type { BubbleLayout } from "../../shared/bubbleLayout";
 import type { MangaPage } from "../../shared/libraryTypes";
-import type { BBox, TranslationBlock } from "../../shared/textTypes";
+import type {
+  BBox,
+  RenderTextDirection,
+  TranslationBlock,
+} from "../../shared/textTypes";
 
 type RenderBboxSpace = NonNullable<TranslationBlock["renderBboxSpace"]>;
 
@@ -22,6 +26,7 @@ export type InpaintingBlockLayoutState = {
   renderBboxSpace: RenderBboxSpace | null;
   bubbleLayout: BubbleLayout | null;
   translatedText?: string;
+  renderDirection?: RenderTextDirection;
 };
 
 export type InpaintingPageLayoutPatch = {
@@ -34,12 +39,16 @@ export type InpaintingPageLayoutPatch = {
 export function captureInpaintingLayoutStates(
   page: Pick<MangaPage, "blocks">,
   blockIds: readonly string[],
-  options: { includeTranslatedText?: boolean } = {},
+  options: {
+    includeTranslatedText?: boolean;
+    includeRenderDirection?: boolean;
+  } = {},
 ): InpaintingBlockLayoutState[] {
   return captureSelectedInpaintingLayoutStates(
     page,
     blockIds,
     () => options.includeTranslatedText === true,
+    () => options.includeRenderDirection === true,
   );
 }
 
@@ -47,6 +56,7 @@ function captureSelectedInpaintingLayoutStates(
   page: Pick<MangaPage, "blocks">,
   blockIds: readonly string[],
   includeTranslatedText: (index: number) => boolean,
+  includeRenderDirection: (index: number) => boolean,
 ): InpaintingBlockLayoutState[] {
   const blocksById = new Map(page.blocks.map((block) => [block.id, block]));
   const seen = new Set<string>();
@@ -71,6 +81,9 @@ function captureSelectedInpaintingLayoutStates(
       assertStoredTranslatedText(block.translatedText);
       state.translatedText = block.translatedText;
     }
+    if (includeRenderDirection(index)) {
+      state.renderDirection = block.renderDirection;
+    }
     return state;
   });
 }
@@ -89,6 +102,9 @@ export function applyInpaintingLayoutStates<
     assertStoredRenderBbox(state.renderBbox);
     if (hasOwnTranslatedText(state)) {
       assertStoredTranslatedText(state.translatedText);
+    }
+    if (hasOwnRenderDirection(state)) {
+      assertStoredRenderDirection(state.renderDirection);
     }
     stateById.set(state.blockId, state);
   }
@@ -128,6 +144,11 @@ export function applyInpaintingLayoutStates<
         assertStoredTranslatedText(translatedText);
         next.translatedText = translatedText;
       }
+      if (hasOwnRenderDirection(state)) {
+        const renderDirection = state.renderDirection;
+        assertStoredRenderDirection(renderDirection);
+        next.renderDirection = renderDirection;
+      }
       return next;
     }),
   };
@@ -151,12 +172,16 @@ export function pageMatchesInpaintingLayoutStates(
     if (hasOwnTranslatedText(state)) {
       assertStoredTranslatedText(state.translatedText);
     }
+    if (hasOwnRenderDirection(state)) {
+      assertStoredRenderDirection(state.renderDirection);
+    }
   }
   return inpaintingLayoutStatesEqual(
     captureSelectedInpaintingLayoutStates(
       page,
       expected.map((state) => state.blockId),
       (index) => hasOwnTranslatedText(expected[index]),
+      (index) => hasOwnRenderDirection(expected[index]),
     ),
     expected,
   );
@@ -188,12 +213,29 @@ function assertStoredTranslatedText(value: unknown): asserts value is string {
   }
 }
 
+function assertStoredRenderDirection(
+  value: unknown,
+): asserts value is RenderTextDirection {
+  if (value !== "horizontal" && value !== "vertical") {
+    throw new Error("말풍선 배치 기록의 텍스트 방향이 올바르지 않습니다.");
+  }
+}
+
 function hasOwnTranslatedText(
   state: InpaintingBlockLayoutState | undefined,
 ): boolean {
   return (
     state !== undefined &&
     Object.prototype.hasOwnProperty.call(state, "translatedText")
+  );
+}
+
+function hasOwnRenderDirection(
+  state: InpaintingBlockLayoutState | undefined,
+): boolean {
+  return (
+    state !== undefined &&
+    Object.prototype.hasOwnProperty.call(state, "renderDirection")
   );
 }
 

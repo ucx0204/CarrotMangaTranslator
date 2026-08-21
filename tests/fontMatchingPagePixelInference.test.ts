@@ -1252,7 +1252,7 @@ function makeItem(): OverlayItem {
 function sourceMembership(candidateIds: number[], bindingId: string) {
   return {
     contractVersion: "font-matching-ocr-candidate-membership-v2" as const,
-    source: "semantic_ocr_fixed_block_request_v5" as const,
+    source: "semantic_ocr_fixed_block_request_v6" as const,
     bindingId,
     originalCandidateIds: candidateIds,
     voterCandidateIds: candidateIds,

@@ -21,6 +21,14 @@ const {
 } = require("./font-replay-inference-cache.cjs");
 const { buildFontDecisionLog } = require("./font-decision-log.cjs");
 const {
+  QA_PAGE_COMPLETION_CONTRACT_VERSION,
+  assertQaInpaintingResultMatchesProduction,
+  isQaRunExactlyCompleted,
+  isQaTargetlessPage,
+  resolveQaPageCompletion,
+  seedQaTranslationCompletion,
+} = require("./page-completion-contract.cjs");
+const {
   summarizePageRelativeRoleQa,
 } = require("./page-relative-role-qa-audit.cjs");
 const {
@@ -66,10 +74,22 @@ async function run() {
   await app.whenReady();
   imageProtocol.registerImageProtocolHandler();
   const modules = loadModules(config.root);
-  const records = (await readJsonl(config.manifestPath)).slice(
-    0,
-    config.pageLimit || undefined,
-  );
+  const cohortRecords = await readJsonl(config.manifestPath);
+  const records =
+    config.selectionIndex === null || config.selectionIndex === undefined
+      ? cohortRecords.slice(0, config.pageLimit || undefined)
+      : cohortRecords.filter(
+          (record) => record.selectionIndex === config.selectionIndex,
+        );
+  if (
+    config.selectionIndex !== null &&
+    config.selectionIndex !== undefined &&
+    records.length !== 1
+  ) {
+    throw new Error(
+      `Frozen cohort selection index ${config.selectionIndex} matched ${records.length} pages; expected exactly one.`,
+    );
+  }
   assertCohort(records);
   const context = await createRuntimeContext(modules);
   const report = createInitialReport(records, context);
@@ -90,9 +110,13 @@ async function run() {
       await runFullPipeline(records, modules, context, report);
     }
     if (!config.preflightOnly) {
-      report.status = report.pages.every((page) => page.status === "completed")
+      report.status = isQaRunExactlyCompleted(
+        report.pages,
+        records.map((record) => record.page.id),
+      )
         ? "completed"
         : "partial";
+      if (report.status !== "completed") process.exitCode = 1;
     }
   } catch (error) {
     report.status = "failed";
@@ -138,6 +162,7 @@ function loadModules(root) {
     ),
     fontInference: load("out/main/pipeline/fontMatchingPagePixelInference.js"),
     inpainting: load("out/main/inpainting/patternPage.js"),
+    inpaintingCompletion: load("out/main/jobs/inpaintingJobPageCompletion.js"),
     inpaintingLayout: load("out/main/inpainting/inpaintingLayoutState.js"),
     inpaintingPool: load("out/main/inpainting/inpaintingEnginePool.js"),
     library: load("out/main/library.js"),
@@ -364,11 +389,16 @@ async function runFullPipeline(records, modules, context, report) {
           autoFontMatching: true,
           canonicalPageIndexById: canonical,
           onPageComplete: async (page) => {
-            translatedByPageId.set(page.id, page);
+            translatedByPageId.set(page.id, seedQaTranslationCompletion(page));
             return true;
           },
           onPagesComplete: async (pages) => {
-            for (const page of pages) translatedByPageId.set(page.id, page);
+            for (const page of pages) {
+              translatedByPageId.set(
+                page.id,
+                seedQaTranslationCompletion(page),
+              );
+            }
             return new Set(pages.map((page) => page.id));
           },
           onPageFailed: async (page, message) => {
@@ -444,23 +474,7 @@ async function runFullPipeline(records, modules, context, report) {
 
 /** @param {any[]} records @param {ReturnType<typeof loadModules>} modules @param {Awaited<ReturnType<typeof createRuntimeContext>>} context @param {ReturnType<typeof createInitialReport>} report */
 async function runFontReplay(records, modules, context, report) {
-  const baselineSeal =
-    config.fontInferenceCacheMode === "off"
-      ? await loadFontReplayBaselineSeal({
-          auditPath: config.cacheFromSeal,
-          expectedRunDir: config.cacheFrom,
-          expectedPageIds: records.map((record) => record.page.id),
-        })
-      : null;
-  const sourceReport = JSON.parse(
-    await fsp.readFile(path.join(config.cacheFrom, "run-report.json"), "utf8"),
-  );
-  if (sourceReport.cohortDigest !== config.cohortDigest) {
-    throw new Error("cache-from was built from a different frozen cohort.");
-  }
-  const sourcePages = new Map(
-    sourceReport.pages.map((page) => [page.sourcePageId, page]),
-  );
+  const { baselineSeal, sourcePages } = await loadFontReplaySource(records);
   const inferenceCache = await prepareFontInferenceCacheRuntime(
     modules,
     context,
@@ -493,11 +507,17 @@ async function runFontReplay(records, modules, context, report) {
         cached,
         fontInput,
       );
-      const neutralPage = {
-        ...fontInput.page,
-        imagePath: record.page.imagePath,
-        inpaintedImagePath: replayImagePath,
-      };
+      const neutralPage = completeTargetlessFontReplayPage(
+        {
+          ...fontInput.page,
+          imagePath: record.page.imagePath,
+          inpaintedImagePath: replayImagePath,
+          translationCompletion:
+            cached.productionTranslationCompletion ??
+            fontInput.page.translationCompletion,
+        },
+        modules,
+      );
       let profile = profiles.get(record.work.id);
       if (profile === undefined) {
         profile = await context.dependencies.fontMatching.loadProfile(
@@ -538,7 +558,7 @@ async function runFontReplay(records, modules, context, report) {
         modules,
         context.candidates,
       );
-      const laidOut = await applyFinalBubbleLayout(
+      const laidOut = await applyFontReplayLayout(
         candidatePage,
         modules,
         context,
@@ -558,7 +578,17 @@ async function runFontReplay(records, modules, context, report) {
       }
       const pageReport = await buildCompletedPageReport(
         record,
-        { ...laidOut, renderedImagePath },
+        {
+          ...laidOut,
+          renderedImagePath,
+          qaCleanedImagePath: replayImagePath,
+          qaCleanedAssetKind: isQaTargetlessPage(laidOut)
+            ? "targetless-original"
+            : "production-inpainted",
+          ...(cached.sourceEvidenceReceipt
+            ? { sourceEvidenceReceipt: cached.sourceEvidenceReceipt }
+            : {}),
+        },
         trace,
         fontInputPath,
         "font-replay-cache",
@@ -589,6 +619,64 @@ async function runFontReplay(records, modules, context, report) {
       livePageIds: liveInferencePageIds,
     },
   };
+}
+
+/** @param {any[]} records */
+async function loadFontReplaySource(records) {
+  const sealedCohortRecords =
+    config.fontInferenceCacheMode === "off"
+      ? await readJsonl(config.manifestPath)
+      : records;
+  const baselineSeal =
+    config.fontInferenceCacheMode === "off"
+      ? await loadFontReplayBaselineSeal({
+          auditPath: config.cacheFromSeal,
+          expectedRunDir: config.cacheFrom,
+          expectedPageIds: sealedCohortRecords.map((record) => record.page.id),
+        })
+      : null;
+  const sourceReport = JSON.parse(
+    await fsp.readFile(path.join(config.cacheFrom, "run-report.json"), "utf8"),
+  );
+  if (sourceReport.cohortDigest !== config.cohortDigest) {
+    throw new Error("cache-from was built from a different frozen cohort.");
+  }
+  return {
+    baselineSeal,
+    sourcePages: new Map(
+      sourceReport.pages.map((page) => [page.sourcePageId, page]),
+    ),
+  };
+}
+
+/**
+ * Mirror production's targetless completion without claiming an inpainted
+ * asset. The replay still uses the frozen source raster for QA rendering.
+ *
+ * @param {any} page
+ * @param {ReturnType<typeof loadModules>} modules
+ */
+function completeTargetlessFontReplayPage(page, modules) {
+  if (!isQaTargetlessPage(page)) return page;
+  let completedPage = { ...page, inpaintedImagePath: undefined };
+  if (!completedPage.translationCompletion) {
+    completedPage = seedQaTranslationCompletion(completedPage);
+  }
+  if (completedPage.translationCompletion?.status !== "pending") {
+    return completedPage;
+  }
+  return modules.inpaintingCompletion.completeTranslationWorkflow(
+    { page: completedPage, blocksErased: 0 },
+    { requestedCompletionWorkflow: "bubble-layout" },
+    FULL_PAGE_INPAINTING_TARGET,
+  ).page;
+}
+
+/** @param {any} page @param {ReturnType<typeof loadModules>} modules @param {Awaited<ReturnType<typeof createRuntimeContext>>} context */
+async function applyFontReplayLayout(page, modules, context) {
+  return isQaTargetlessPage(page)
+    ? page
+    : applyFinalBubbleLayout(page, modules, context);
 }
 
 /** @param {ReturnType<typeof loadModules>} modules @param {Awaited<ReturnType<typeof createRuntimeContext>>} context */
@@ -792,9 +880,12 @@ async function inpaintLayoutAndRender(record, page, modules, context) {
   const raw = await modules.inpainting.inpaintPatternPage(prepass.page, {
     signal: controller.signal,
     inpaintingEngine: context.inpaintingLease.engine,
+    sourceEvidenceMode: "required",
     bubbleLayoutConstraintBlockIds: prepass.bubbleLayoutConstraintBlockIds,
     sharedInpaintGroupIdsByBlock: prepass.sharedInpaintGroupIdsByBlock,
   });
+  const targetless = isQaTargetlessPage(prepass.page);
+  assertQaInpaintingResultMatchesProduction(raw, { targetless });
   let restoredPage = raw.page;
   if (prepass.restoreLayout) {
     restoredPage = modules.inpaintingLayout.applyInpaintingLayoutStates(
@@ -802,17 +893,27 @@ async function inpaintLayoutAndRender(record, page, modules, context) {
       prepass.restoreLayout,
     );
   }
-  const laidOut = await modules.bubbleRunner.runBubbleLayoutPostprocess({
-    config: context.bubbleLayoutConfig,
-    ...(raw.erasedBlockIds?.length ? { blockIds: raw.erasedBlockIds } : {}),
-    page: restoredPage,
-    runner: context.bubbleLayoutRunner,
-    signal: controller.signal,
-  });
-  const finalPage = {
-    ...laidOut.page,
-    translationCompletion: { workflow: "bubble-layout", status: "completed" },
-  };
+  const laidOut = targetless
+    ? { page: restoredPage }
+    : await modules.bubbleRunner.runBubbleLayoutPostprocess({
+        config: context.bubbleLayoutConfig,
+        ...(raw.erasedBlockIds?.length ? { blockIds: raw.erasedBlockIds } : {}),
+        page: restoredPage,
+        runner: context.bubbleLayoutRunner,
+        signal: controller.signal,
+      });
+  const completed = modules.inpaintingCompletion.completeTranslationWorkflow(
+    { ...raw, page: laidOut.page, bubbleLayoutPostprocessed: true },
+    {
+      bubbleLayoutPostprocess: context.bubbleLayoutConfig,
+      requestedCompletionWorkflow: "bubble-layout",
+    },
+    FULL_PAGE_INPAINTING_TARGET,
+  );
+  const finalPage = completed.page;
+  const qaCleanedImagePath = targetless
+    ? await stageTargetlessCleanedAsset(record, finalPage.imagePath)
+    : finalPage.inpaintedImagePath;
   const renderedImagePath = await renderPage(
     record,
     finalPage,
@@ -824,7 +925,31 @@ async function inpaintLayoutAndRender(record, page, modules, context) {
     renderedImagePath,
     blocksErased: raw.blocksErased,
     blocksIncomplete: raw.blocksIncomplete || 0,
+    qaCleanedImagePath,
+    qaCleanedAssetKind: targetless
+      ? "targetless-original-copy"
+      : "production-inpainted",
+    ...(raw.residualDiagnostics
+      ? { residualDiagnostics: raw.residualDiagnostics }
+      : {}),
+    ...(raw.sourceEvidenceReceipt
+      ? { sourceEvidenceReceipt: raw.sourceEvidenceReceipt }
+      : {}),
   };
+}
+
+const FULL_PAGE_INPAINTING_TARGET = {
+  blockId: undefined,
+  drawnPatternMode: false,
+  drawnStrokes: [],
+  layoutOnly: false,
+  targetType: "source",
+};
+
+async function stageTargetlessCleanedAsset(record, sourceImagePath) {
+  const outputPath = path.join(pageOutputDir(record), "targetless-clean.png");
+  await fsp.copyFile(sourceImagePath, outputPath);
+  return outputPath;
 }
 
 /** @param {any} page @param {ReturnType<typeof loadModules>} modules @param {Awaited<ReturnType<typeof createRuntimeContext>>} context */
@@ -958,15 +1083,46 @@ async function buildCompletedPageReport(
 ) {
   const renderedImagePath = processedPage.renderedImagePath;
   const pageRelativeRoleQa = summarizePageRelativeRoleQa(trace);
+  const evidenceSourceImagePath =
+    mode === "font-replay-cache" &&
+    processedPage.sourceEvidenceReceipt?.source?.assetPath
+      ? processedPage.sourceEvidenceReceipt.source.assetPath
+      : processedPage.imagePath;
+  const completion = await resolveQaPageCompletion({
+    executionStatus: "completed",
+    translationCompletion: processedPage.translationCompletion,
+    cleanedImagePath:
+      processedPage.qaCleanedImagePath ?? processedPage.inpaintedImagePath,
+    cleanedAssetKind:
+      processedPage.qaCleanedAssetKind ?? "production-inpainted",
+    blocksIncomplete: processedPage.blocksIncomplete,
+    sourceEvidenceBindingRequired: true,
+    sourceEvidenceReceipt: processedPage.sourceEvidenceReceipt,
+    expectedSourceImagePath: evidenceSourceImagePath,
+    expectedSourcePageId: record.page.id,
+    expectedSourceSha256: record.page.imageSha256,
+  });
   return {
-    status: "completed",
-    stage: "done",
+    ...completion,
     mode,
     blockCount: processedPage.blocks.length,
     blocksErased: processedPage.blocksErased,
     blocksIncomplete: processedPage.blocksIncomplete,
-    stagedOriginalImagePath: processedPage.imagePath,
-    cleanedImagePath: processedPage.inpaintedImagePath,
+    ...(processedPage.residualDiagnostics
+      ? { residualDiagnostics: processedPage.residualDiagnostics }
+      : {}),
+    ...(processedPage.sourceEvidenceReceipt
+      ? { sourceEvidenceReceipt: processedPage.sourceEvidenceReceipt }
+      : {}),
+    stagedOriginalImagePath: evidenceSourceImagePath,
+    ...(evidenceSourceImagePath !== processedPage.imagePath
+      ? { replayInputImagePath: processedPage.imagePath }
+      : {}),
+    cleanedImagePath:
+      processedPage.qaCleanedImagePath ?? processedPage.inpaintedImagePath,
+    cleanedAssetKind:
+      processedPage.qaCleanedAssetKind ?? "production-inpainted",
+    productionInpaintedImagePath: processedPage.inpaintedImagePath ?? null,
     renderedImagePath,
     renderedImageSha256: await sha256File(renderedImagePath),
     fontInputPath,
@@ -1007,6 +1163,7 @@ function assertCachedInput(record, fontInput) {
 function createInitialReport(records, context) {
   return {
     schemaVersion: 1,
+    completionSemanticsVersion: QA_PAGE_COMPLETION_CONTRACT_VERSION,
     status: "running",
     startedAt: new Date().toISOString(),
     finishedAt: null,

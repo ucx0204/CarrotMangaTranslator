@@ -75,6 +75,9 @@ function isValidTarget(
   if (route === "residual_stable_body") {
     return isValidResidualBodyTarget(candidates, target);
   }
+  if (route === "non_dohyeon_variant_top3") {
+    return isValidVariantTopThreeRunner(candidates, target);
+  }
   return isValidTopThreeRunner(candidates, target);
 }
 
@@ -146,6 +149,24 @@ function isValidTopThreeRunner(
   );
 }
 
+function isValidVariantTopThreeRunner(
+  candidates: readonly RankedFontCandidateV2[],
+  target: RankedFontCandidateV2,
+): boolean {
+  if (
+    resolveBestNonDohyeonVariantTopThree(candidates)?.fontId !== target.fontId
+  ) {
+    return false;
+  }
+  const residualScore = resolveNonDohyeonVariantResidualScore(candidates);
+  const score = candidatePixelScore(target);
+  return (
+    residualScore > 0 &&
+    score >= MINIMUM_RUNNER_SCORE &&
+    score / residualScore >= MINIMUM_RUNNER_RESIDUAL_SHARE
+  );
+}
+
 function applyRecovery(
   candidates: readonly RankedFontCandidateV2[],
   recovery: Recovery,
@@ -183,7 +204,8 @@ function updateRecoveryCandidate(
         "dohyeon_glyph_morphology_veto",
         "dohyeon_morphology_confidence_transfer",
         resolveRecoveryReason(recovery.route),
-        ...(recovery.route === "non_dohyeon_top3"
+        ...(recovery.route === "non_dohyeon_top3" ||
+        recovery.route === "non_dohyeon_variant_top3"
           ? ["pixel_top3_transfer_boundary"]
           : ["pixel_raw_top8_veto_recovery_boundary"]),
         "pixel_only_policy",
@@ -238,6 +260,9 @@ function resolveRecoveryReason(route: Recovery["route"]): string {
   if (route === "residual_stable_body") {
     return "residual_stable_body_after_dohyeon_veto";
   }
+  if (route === "non_dohyeon_variant_top3") {
+    return "non_dohyeon_variant_top3_after_dohyeon_veto";
+  }
   return "non_dohyeon_pixel_top3_after_dohyeon_veto";
 }
 
@@ -272,6 +297,22 @@ function resolveBestNonDohyeonTopThree(
   );
 }
 
+function resolveBestNonDohyeonVariantTopThree(
+  candidates: readonly RankedFontCandidateV2[],
+): RankedFontCandidateV2 | null {
+  return (
+    candidates
+      .filter(
+        (candidate) =>
+          candidate.renderStatus === "rendered" &&
+          candidate.fontId !== DOHYEON_FONT_ID &&
+          !STABLE_BALLOON_BODY_FONT_IDS.has(candidate.fontId) &&
+          isRawRankInRange(candidate, 3),
+      )
+      .sort(comparePixelRecoveryCandidates)[0] ?? null
+  );
+}
+
 function resolveResidualStableBodyMass(
   candidates: readonly RankedFontCandidateV2[],
 ): number {
@@ -296,6 +337,19 @@ function resolveNonDohyeonResidualScore(
       (candidate) =>
         candidate.renderStatus === "rendered" &&
         candidate.fontId !== DOHYEON_FONT_ID,
+    )
+    .reduce((sum, candidate) => sum + candidatePixelScore(candidate), 0);
+}
+
+function resolveNonDohyeonVariantResidualScore(
+  candidates: readonly RankedFontCandidateV2[],
+): number {
+  return candidates
+    .filter(
+      (candidate) =>
+        candidate.renderStatus === "rendered" &&
+        candidate.fontId !== DOHYEON_FONT_ID &&
+        !STABLE_BALLOON_BODY_FONT_IDS.has(candidate.fontId),
     )
     .reduce((sum, candidate) => sum + candidatePixelScore(candidate), 0);
 }

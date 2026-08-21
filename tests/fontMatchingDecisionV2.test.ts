@@ -630,6 +630,28 @@ describe("font matching V2 decision policy", () => {
     );
   });
 
+  it("uses the best feasible pixel candidate instead of the formatting fallback when explicitly required", () => {
+    const result = resolveFontMatchingDecisionV2(
+      makeInput({
+        localEvidence: evidence(undefined, {
+          bestAvailableSelectionRequired: true,
+          calibratedConfidence: 0,
+          noneAcceptable: true,
+          supervisedSelectionAccepted: false,
+        }),
+      }),
+    );
+
+    expect(result.decision).toMatchObject({
+      mode: "apply",
+      selectedFontId: "font-a",
+      noneAcceptable: false,
+      abstainReason: null,
+      resolvedBy: "v2_automatic",
+    });
+    expect(result.audit.modelReportedNoneAcceptable).toBe(true);
+  });
+
   it("lets a hard-gate-safe block lock override an unknown semantic role", () => {
     const result = resolveFontMatchingDecisionV2(
       makeInput({

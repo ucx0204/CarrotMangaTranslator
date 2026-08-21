@@ -17,7 +17,7 @@ const {
 const FONT_MATCHING_BUNDLE_DIRECTORY = "font-matching";
 const DEFAULT_FONT_MATCHING_BUNDLE_RELATIVE = join(
   "artifacts",
-  "font-matching-runtime-active21-v8-r3h-manual-v2-release-v1",
+  "font-matching-runtime-active21-v9-r33-page-common-user-v3-release-v2",
 );
 const FONT_MATCHING_BUNDLE_FILES = [
   ".font-matching-runtime-artifact-owned.json",
@@ -46,6 +46,14 @@ const MANUAL_V2_ACCEPTANCE_AUTHORITY =
 const MANUAL_V2_MODEL_VERSION = "manga-font-v8-active21-dfa42ae17f-ffb3285338";
 const MANUAL_V2_RANKER_SHA256 =
   "dfa42ae17f340768cae30f2219973eae1ff62a4c3c1544496502621e6e710c78";
+const R33_ACCEPTANCE_SCHEMA = "font-matching-runtime-release-acceptance-v3";
+const R33_ACCEPTANCE_RECORD_SHA256 =
+  "80be96c4314db4d89e4bc86ea6221ae2c5eae4b54226b64701e95fd1659c0140";
+const R33_ACCEPTANCE_AUTHORITY =
+  "explicit_user_approved_cached_page_ab_with_agent_visual_audit";
+const R33_MODEL_VERSION = "manga-font-v9-r33-e049fc74c3ba";
+const R33_RANKER_SHA256 =
+  "e049fc74c3baeeee9aba179412a3b20387304b749936c167ecc753afcc78f4aa";
 const HYBRID_BODY_ROLES = ["dialogue", "narration", "thought"];
 const HYBRID_VARIANT_ROLES = [
   "whisper",
@@ -327,7 +335,13 @@ function validReleaseAcceptance(contract, contractJson) {
     acceptance.schema_version === "font-matching-runtime-release-acceptance-v1"
   ) {
     if (!isPlainObject(acceptance.quality_gate)) return false;
-    return validLegacyReleaseAcceptance(acceptance.quality_gate);
+    return (
+      acceptance.automatic_visual_judgment === false &&
+      validLegacyReleaseAcceptance(acceptance.quality_gate)
+    );
+  }
+  if (acceptance.schema_version === R33_ACCEPTANCE_SCHEMA) {
+    return validR33ReleaseAcceptance(contract, acceptance);
   }
   return validManualV2ReleaseAcceptance(contract, acceptance);
 }
@@ -338,7 +352,7 @@ function validCommonReleaseAcceptance(acceptance) {
     acceptance.record_type === "font_matching_runtime_release_acceptance" &&
     acceptance.status === "accepted" &&
     acceptance.external_release_quality_gate_passed === true &&
-    acceptance.automatic_visual_judgment === false &&
+    typeof acceptance.automatic_visual_judgment === "boolean" &&
     isPlainObject(acceptance.quality_gate),
   );
 }
@@ -365,6 +379,7 @@ function validManualV2ReleaseAcceptance(contract, acceptance) {
     acceptance.schema_version === MANUAL_V2_ACCEPTANCE_SCHEMA &&
     acceptance.record_sha256 === MANUAL_V2_ACCEPTANCE_RECORD_SHA256 &&
     acceptance.acceptance_authority === MANUAL_V2_ACCEPTANCE_AUTHORITY &&
+    acceptance.automatic_visual_judgment === false &&
     acceptance.explicit_user_acceptance === true &&
     contract.model_version === MANUAL_V2_MODEL_VERSION &&
     isPlainObject(contract.head) &&
@@ -378,6 +393,41 @@ function validManualV2ReleaseAcceptance(contract, acceptance) {
     qualityGate.structural_error_count === 0 &&
     qualityGate.outline_loss_count === 0 &&
     qualityGate.single_day_body_role_count === 0,
+  );
+}
+
+/**
+ * @param {Record<string, unknown>} contract
+ * @param {Record<string, unknown>} acceptance
+ */
+// eslint-disable-next-line complexity -- every byte-pinned R33 release clause is mandatory
+function validR33ReleaseAcceptance(contract, acceptance) {
+  const qualityGate = acceptance.quality_gate;
+  const evidence = acceptance.evidence;
+  return Boolean(
+    acceptance.record_sha256 === R33_ACCEPTANCE_RECORD_SHA256 &&
+    acceptance.acceptance_authority === R33_ACCEPTANCE_AUTHORITY &&
+    acceptance.automatic_visual_judgment === true &&
+    acceptance.explicit_user_acceptance === true &&
+    contract.model_version === R33_MODEL_VERSION &&
+    isPlainObject(contract.head) &&
+    contract.head.onnx_sha256 === R33_RANKER_SHA256 &&
+    isPlainObject(evidence) &&
+    evidence.model_version === R33_MODEL_VERSION &&
+    evidence.ranker_sha256 === R33_RANKER_SHA256 &&
+    isPlainObject(qualityGate) &&
+    qualityGate.judged_content_pages === 5 &&
+    qualityGate.live_font_replay_pages === 5 &&
+    qualityGate.fresh_gemma_or_inpainting_pages === 0 &&
+    qualityGate.improved_pages === 4 &&
+    qualityGate.unchanged_pages === 1 &&
+    qualityGate.regressed_pages === 0 &&
+    qualityGate.outline_loss_count === 0 &&
+    qualityGate.sfx_body_regression_count === 0 &&
+    qualityGate.structural_error_count === 0 &&
+    qualityGate.ranker_cpu_budget_passed === true &&
+    qualityGate.ranker_cpu_budget_limit_multiplier === 2 &&
+    qualityGate.gemma_or_inpainting_runs === 0,
   );
 }
 
