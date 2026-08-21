@@ -1,22 +1,14 @@
 import { resolve } from "node:path";
-import { pathToFileURL } from "node:url";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  COMIC_BUBBLE_DETECTOR_BYTES,
-  COMIC_BUBBLE_DETECTOR_FILE,
-  COMIC_BUBBLE_DETECTOR_SHA256,
-  ONNXRUNTIME_WEB_VERSION,
-  ONNXRUNTIME_WEB_WASM_BINARY_BYTES,
-  ONNXRUNTIME_WEB_WASM_BINARY_FILE,
-  ONNXRUNTIME_WEB_WASM_BINARY_SHA256,
-  ONNXRUNTIME_WEB_WASM_BINARY_URL,
-  ONNXRUNTIME_WEB_WASM_MODULE_FILE,
+  KOHARU_LAYOUT_ONNX_BYTES,
+  KOHARU_LAYOUT_ONNX_FILE,
+  KOHARU_LAYOUT_ONNX_SHA256,
 } from "../src/main/bubbleLayout/constants";
 
-const onnxRuntimeMocks = vi.hoisted(() => ({
+const runtimeMocks = vi.hoisted(() => ({
   createSession: vi.fn(),
   ensureRemoteFile: vi.fn(),
-  wasmEnvironment: {} as Record<string, unknown>,
 }));
 
 vi.mock("../src/main/runtimeSupport/modelDownloads", async (importOriginal) => {
@@ -24,70 +16,48 @@ vi.mock("../src/main/runtimeSupport/modelDownloads", async (importOriginal) => {
     await importOriginal<
       typeof import("../src/main/runtimeSupport/modelDownloads")
     >();
-  return {
-    ...actual,
-    ensureRemoteFile: onnxRuntimeMocks.ensureRemoteFile,
-  };
+  return { ...actual, ensureRemoteFile: runtimeMocks.ensureRemoteFile };
 });
 
-vi.mock("onnxruntime-web", () => ({
-  env: { wasm: onnxRuntimeMocks.wasmEnvironment },
-  InferenceSession: { create: onnxRuntimeMocks.createSession },
+vi.mock("../src/main/bubbleLayout/nativeOrt", () => ({
+  onnxRuntimeNode: {
+    InferenceSession: { create: runtimeMocks.createSession },
+  },
 }));
 
 beforeEach(() => {
   vi.resetModules();
-  onnxRuntimeMocks.ensureRemoteFile.mockReset();
-  onnxRuntimeMocks.ensureRemoteFile.mockImplementation(
+  runtimeMocks.ensureRemoteFile.mockReset();
+  runtimeMocks.ensureRemoteFile.mockImplementation(
     async (options: { fileName: string; modelDir: string }) =>
       `${options.modelDir}/${options.fileName}`,
   );
-  onnxRuntimeMocks.createSession.mockReset();
-  onnxRuntimeMocks.createSession.mockResolvedValue({
-    inputNames: ["images", "orig_target_sizes"],
-    outputNames: ["labels", "boxes", "scores"],
+  runtimeMocks.createSession.mockReset();
+  runtimeMocks.createSession.mockResolvedValue({
+    inputNames: ["input"],
+    outputNames: ["dets", "labels", "masks"],
   });
-  for (const key of Object.keys(onnxRuntimeMocks.wasmEnvironment)) {
-    delete onnxRuntimeMocks.wasmEnvironment[key];
-  }
 });
 
-describe("comic bubble ONNX runtime", () => {
-  it("downloads only the verified WASM binary beside the cached model", async () => {
+describe("KoharuLayout native ONNX runtime", () => {
+  it("downloads only the pinned Koharu model", async () => {
     const dataRoot = resolve("test-data");
-    const { ensureComicBubbleDetectorAssets } =
+    const { ensureKoharuLayoutAssets } =
       await import("../src/main/bubbleLayout/assets");
-
-    const assets = await ensureComicBubbleDetectorAssets({ dataRoot });
-
-    expect(onnxRuntimeMocks.ensureRemoteFile).toHaveBeenCalledTimes(2);
-    expect(onnxRuntimeMocks.ensureRemoteFile).toHaveBeenNthCalledWith(
-      1,
+    const assets = await ensureKoharuLayoutAssets({ dataRoot });
+    expect(runtimeMocks.ensureRemoteFile).toHaveBeenCalledTimes(1);
+    expect(runtimeMocks.ensureRemoteFile).toHaveBeenCalledWith(
       expect.objectContaining({
         modelDir: resolve(
           dataRoot,
           "models",
           "bubble-layout",
-          "comic-text-and-bubble-detector",
+          "koharu-layout-rfdetr-seg-2xl-1152",
         ),
-        fileName: COMIC_BUBBLE_DETECTOR_FILE,
-        expectedSha256: COMIC_BUBBLE_DETECTOR_SHA256,
-        minimumBytes: COMIC_BUBBLE_DETECTOR_BYTES,
-      }),
-    );
-    expect(onnxRuntimeMocks.ensureRemoteFile).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        modelDir: resolve(
-          dataRoot,
-          "runtime",
-          "onnxruntime-web",
-          ONNXRUNTIME_WEB_VERSION,
-        ),
-        url: ONNXRUNTIME_WEB_WASM_BINARY_URL,
-        fileName: ONNXRUNTIME_WEB_WASM_BINARY_FILE,
-        expectedSha256: ONNXRUNTIME_WEB_WASM_BINARY_SHA256,
-        minimumBytes: ONNXRUNTIME_WEB_WASM_BINARY_BYTES,
+        fileName: KOHARU_LAYOUT_ONNX_FILE,
+        expectedSha256: KOHARU_LAYOUT_ONNX_SHA256,
+        minimumBytes: KOHARU_LAYOUT_ONNX_BYTES,
+        maximumBytes: KOHARU_LAYOUT_ONNX_BYTES,
       }),
     );
     expect(assets).toEqual({
@@ -95,58 +65,103 @@ describe("comic bubble ONNX runtime", () => {
         dataRoot,
         "models",
         "bubble-layout",
-        "comic-text-and-bubble-detector",
-      )}/${COMIC_BUBBLE_DETECTOR_FILE}`,
-      wasmBinaryPath: `${resolve(
-        dataRoot,
-        "runtime",
-        "onnxruntime-web",
-        ONNXRUNTIME_WEB_VERSION,
-      )}/${ONNXRUNTIME_WEB_WASM_BINARY_FILE}`,
-      wasmModulePath: require.resolve(
-        `onnxruntime-web/${ONNXRUNTIME_WEB_WASM_MODULE_FILE}`,
-      ),
+        "koharu-layout-rfdetr-seg-2xl-1152",
+      )}/${KOHARU_LAYOUT_ONNX_FILE}`,
     });
   });
 
-  it("pins file URLs before creation and rejects runtime path changes", async () => {
-    const { getComicBubbleDetectorSession } =
+  it("uses DirectML for AMD/NVIDIA/Intel Windows GPUs and falls back only to Koharu CPU", async () => {
+    runtimeMocks.createSession
+      .mockRejectedValueOnce(new Error("DML unavailable"))
+      .mockResolvedValueOnce({
+        inputNames: ["input"],
+        outputNames: ["dets", "labels", "masks"],
+      });
+    const { getKoharuLayoutSession, resolveKoharuCpuThreadCount } =
       await import("../src/main/bubbleLayout/session");
-    const options = {
-      modelPath: resolve("models", "detector.onnx"),
-      wasmBinaryPath: resolve("runtime", "ort.wasm"),
-      wasmModulePath: resolve("runtime", "ort.mjs"),
-    };
-
-    const first = await getComicBubbleDetectorSession(options);
-    const second = await getComicBubbleDetectorSession(options);
-
-    expect(second).toBe(first);
-    expect(onnxRuntimeMocks.createSession).toHaveBeenCalledTimes(1);
-    expect(onnxRuntimeMocks.createSession).toHaveBeenCalledWith(
-      resolve(options.modelPath),
-      {
-        executionProviders: ["wasm"],
-        executionMode: "sequential",
-        graphOptimizationLevel: "all",
-        freeDimensionOverrides: { N: 1 },
-      },
+    const modelPath = resolve("models", "koharu.onnx");
+    const first = await getKoharuLayoutSession({
+      modelPath,
+      providerPreference: ["dml", "cpu"],
+    });
+    const second = await getKoharuLayoutSession({
+      modelPath,
+      providerPreference: ["dml", "cpu"],
+    });
+    expect(first.provider).toBe("cpu");
+    expect(second.session).toBe(first.session);
+    expect(runtimeMocks.createSession).toHaveBeenNthCalledWith(
+      1,
+      modelPath,
+      expect.objectContaining({ executionProviders: ["dml"] }),
     );
-    expect(onnxRuntimeMocks.wasmEnvironment).toEqual({
-      wasmPaths: {
-        mjs: pathToFileURL(resolve(options.wasmModulePath)).href,
-        wasm: pathToFileURL(resolve(options.wasmBinaryPath)).href,
-      },
-      numThreads: 1,
-      proxy: false,
+    expect(runtimeMocks.createSession).toHaveBeenNthCalledWith(2, modelPath, {
+      executionProviders: ["cpu"],
+      executionMode: "sequential",
+      graphOptimizationLevel: "all",
+      intraOpNumThreads: resolveKoharuCpuThreadCount(),
+      interOpNumThreads: 1,
+      enableMemPattern: true,
+    });
+    expect(runtimeMocks.createSession).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not turn cancellation into a CPU fallback", async () => {
+    let releaseSession: ((value: unknown) => void) | undefined;
+    runtimeMocks.createSession.mockImplementationOnce(
+      () =>
+        new Promise((resolvePromise) => {
+          releaseSession = resolvePromise;
+        }),
+    );
+    const controller = new AbortController();
+    const { getKoharuLayoutSession } =
+      await import("../src/main/bubbleLayout/session");
+    const pending = getKoharuLayoutSession({
+      modelPath: resolve("models", "cancelled-koharu.onnx"),
+      providerPreference: ["dml", "cpu"],
+      signal: controller.signal,
     });
 
-    await expect(
-      getComicBubbleDetectorSession({
-        ...options,
-        wasmBinaryPath: resolve("runtime", "other.wasm"),
-      }),
-    ).rejects.toThrow(/런타임 경로를 다시 설정할 수 없습니다/);
-    expect(onnxRuntimeMocks.createSession).toHaveBeenCalledTimes(1);
+    controller.abort();
+    releaseSession?.({
+      inputNames: ["input"],
+      outputNames: ["dets", "labels", "masks"],
+    });
+
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(runtimeMocks.createSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("serializes runs that share a DirectML session", async () => {
+    const { withKoharuSessionLease } =
+      await import("../src/main/bubbleLayout/session");
+    const session = {} as never;
+    const events: string[] = [];
+    let releaseFirst: () => void = () => undefined;
+    const first = withKoharuSessionLease(session, undefined, async () => {
+      events.push("first:start");
+      await new Promise<void>((resolvePromise) => {
+        releaseFirst = resolvePromise;
+      });
+      events.push("first:end");
+    });
+    await vi.waitFor(() => expect(events).toEqual(["first:start"]));
+
+    const second = withKoharuSessionLease(session, undefined, async () => {
+      events.push("second:start");
+      events.push("second:end");
+    });
+    await Promise.resolve();
+    expect(events).toEqual(["first:start"]);
+
+    releaseFirst();
+    await Promise.all([first, second]);
+    expect(events).toEqual([
+      "first:start",
+      "first:end",
+      "second:start",
+      "second:end",
+    ]);
   });
 });

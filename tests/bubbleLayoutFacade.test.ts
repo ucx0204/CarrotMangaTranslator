@@ -8,29 +8,16 @@ import type { BubbleLayout } from "../src/shared/bubbleLayout";
 import type { MangaPage } from "../src/shared/libraryTypes";
 
 const bubbleRuntimeMocks = vi.hoisted(() => ({
-  detectComicPageLayout: vi.fn(),
-  ensureComicBubbleDetectorAssets: vi.fn(),
-}));
-
-const nativeImageMocks = vi.hoisted(() => ({
-  createFromBuffer: vi.fn(),
-  createFromPath: vi.fn(),
+  detectKoharuPageLayout: vi.fn(),
+  ensureKoharuLayoutAssets: vi.fn(),
 }));
 
 vi.mock("../src/main/bubbleLayout/assets", () => ({
-  ensureComicBubbleDetectorAssets:
-    bubbleRuntimeMocks.ensureComicBubbleDetectorAssets,
+  ensureKoharuLayoutAssets: bubbleRuntimeMocks.ensureKoharuLayoutAssets,
 }));
 
 vi.mock("../src/main/bubbleLayout/detector", () => ({
-  detectComicPageLayout: bubbleRuntimeMocks.detectComicPageLayout,
-}));
-
-vi.mock("electron", () => ({
-  nativeImage: {
-    createFromBuffer: nativeImageMocks.createFromBuffer,
-    createFromPath: nativeImageMocks.createFromPath,
-  },
+  detectKoharuPageLayout: bubbleRuntimeMocks.detectKoharuPageLayout,
 }));
 
 vi.mock("../src/main/logger", () => ({
@@ -40,13 +27,11 @@ vi.mock("../src/main/logger", () => ({
 const temporaryRoots: string[] = [];
 
 beforeEach(() => {
-  bubbleRuntimeMocks.ensureComicBubbleDetectorAssets.mockReset();
-  bubbleRuntimeMocks.ensureComicBubbleDetectorAssets.mockRejectedValue(
+  bubbleRuntimeMocks.ensureKoharuLayoutAssets.mockReset();
+  bubbleRuntimeMocks.ensureKoharuLayoutAssets.mockRejectedValue(
     new Error("detector unavailable"),
   );
-  bubbleRuntimeMocks.detectComicPageLayout.mockReset();
-  nativeImageMocks.createFromBuffer.mockReset();
-  nativeImageMocks.createFromPath.mockReset();
+  bubbleRuntimeMocks.detectKoharuPageLayout.mockReset();
 });
 
 afterEach(async () => {
@@ -65,19 +50,15 @@ describe("production bubble layout failure fallback", () => {
     delete prepassPage.inpaintedImagePath;
     const detectorAssets = {
       modelPath: join(files.root, "model.onnx"),
-      wasmBinaryPath: join(files.root, "ort.wasm"),
-      wasmModulePath: join(files.root, "ort.mjs"),
     };
-    const image = createFakeNativeImage();
-    bubbleRuntimeMocks.ensureComicBubbleDetectorAssets.mockResolvedValue(
+    bubbleRuntimeMocks.ensureKoharuLayoutAssets.mockResolvedValue(
       detectorAssets,
     );
-    bubbleRuntimeMocks.detectComicPageLayout.mockResolvedValue({
+    bubbleRuntimeMocks.detectKoharuPageLayout.mockResolvedValue({
       imageWidth: 4,
       imageHeight: 4,
       detections: [],
     });
-    nativeImageMocks.createFromPath.mockReturnValue(image);
     const { createProductionBubbleLayoutRunner } =
       await import("../src/main/bubbleLayout/bubbleLayoutFacade");
     const runner = createProductionBubbleLayoutRunner({
@@ -101,23 +82,15 @@ describe("production bubble layout failure fallback", () => {
       signal,
     });
 
-    expect(
-      bubbleRuntimeMocks.ensureComicBubbleDetectorAssets,
-    ).toHaveBeenCalledTimes(1);
-    expect(bubbleRuntimeMocks.detectComicPageLayout).toHaveBeenCalledTimes(1);
-    expect(bubbleRuntimeMocks.detectComicPageLayout).toHaveBeenCalledWith(
+    expect(bubbleRuntimeMocks.ensureKoharuLayoutAssets).toHaveBeenCalledTimes(
+      1,
+    );
+    expect(bubbleRuntimeMocks.detectKoharuPageLayout).toHaveBeenCalledTimes(1);
+    expect(bubbleRuntimeMocks.detectKoharuPageLayout).toHaveBeenCalledWith(
       expect.objectContaining({
         imagePath: files.original,
         ...detectorAssets,
       }),
-    );
-    expect(nativeImageMocks.createFromPath).toHaveBeenNthCalledWith(
-      1,
-      files.original,
-    );
-    expect(nativeImageMocks.createFromPath).toHaveBeenNthCalledWith(
-      2,
-      files.cleaned,
     );
   });
 
@@ -126,19 +99,16 @@ describe("production bubble layout failure fallback", () => {
     const finalPage = makePage(files.original, files.cleaned);
     const prepassPage = structuredClone(finalPage);
     delete prepassPage.inpaintedImagePath;
-    bubbleRuntimeMocks.ensureComicBubbleDetectorAssets.mockResolvedValue({
+    bubbleRuntimeMocks.ensureKoharuLayoutAssets.mockResolvedValue({
       modelPath: join(files.root, "model.onnx"),
-      wasmBinaryPath: join(files.root, "ort.wasm"),
-      wasmModulePath: join(files.root, "ort.mjs"),
     });
-    bubbleRuntimeMocks.detectComicPageLayout
+    bubbleRuntimeMocks.detectKoharuPageLayout
       .mockRejectedValueOnce(new Error("transient detector failure"))
       .mockResolvedValueOnce({
         imageWidth: 4,
         imageHeight: 4,
         detections: [],
       });
-    nativeImageMocks.createFromPath.mockReturnValue(createFakeNativeImage());
     const { createProductionBubbleLayoutRunner } =
       await import("../src/main/bubbleLayout/bubbleLayoutFacade");
     const runner = createProductionBubbleLayoutRunner({
@@ -162,23 +132,19 @@ describe("production bubble layout failure fallback", () => {
       signal,
     });
 
-    expect(bubbleRuntimeMocks.detectComicPageLayout).toHaveBeenCalledTimes(2);
-    expect(nativeImageMocks.createFromPath).toHaveBeenCalledTimes(1);
-    expect(nativeImageMocks.createFromPath).toHaveBeenCalledWith(files.cleaned);
+    expect(bubbleRuntimeMocks.detectKoharuPageLayout).toHaveBeenCalledTimes(2);
   });
 
-  it("passes the verified model and WASM runtime paths to the detector", async () => {
+  it("passes only the verified Koharu model path to the detector", async () => {
     const files = await createPageFiles();
     const page = makePage(files.original, files.cleaned);
     const detectorAssets = {
       modelPath: join(files.root, "model.onnx"),
-      wasmBinaryPath: join(files.root, "ort.wasm"),
-      wasmModulePath: join(files.root, "ort.mjs"),
     };
-    bubbleRuntimeMocks.ensureComicBubbleDetectorAssets.mockResolvedValue(
+    bubbleRuntimeMocks.ensureKoharuLayoutAssets.mockResolvedValue(
       detectorAssets,
     );
-    bubbleRuntimeMocks.detectComicPageLayout.mockRejectedValue(
+    bubbleRuntimeMocks.detectKoharuPageLayout.mockRejectedValue(
       new Error("stop after forwarding"),
     );
     const { createProductionBubbleLayoutRunner } =
@@ -196,13 +162,11 @@ describe("production bubble layout failure fallback", () => {
       signal,
     });
 
-    expect(
-      bubbleRuntimeMocks.ensureComicBubbleDetectorAssets,
-    ).toHaveBeenCalledWith({
+    expect(bubbleRuntimeMocks.ensureKoharuLayoutAssets).toHaveBeenCalledWith({
       dataRoot: files.root,
       signal,
     });
-    expect(bubbleRuntimeMocks.detectComicPageLayout).toHaveBeenCalledWith(
+    expect(bubbleRuntimeMocks.detectKoharuPageLayout).toHaveBeenCalledWith(
       expect.objectContaining({
         imagePath: files.original,
         ...detectorAssets,
@@ -387,16 +351,4 @@ function makeDetectedLayout(sourceImageRevision: string): BubbleLayout {
       },
     ],
   };
-}
-
-function createFakeNativeImage() {
-  const bitmap = new Uint8Array(4 * 4 * 4).fill(255);
-  const image = {
-    getSize: () => ({ width: 4, height: 4 }),
-    isEmpty: () => false,
-    resize: vi.fn(),
-    toBitmap: () => bitmap,
-  };
-  image.resize.mockReturnValue(image);
-  return image;
 }

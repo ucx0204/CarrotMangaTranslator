@@ -164,7 +164,7 @@ describe("bubble layout page processor", () => {
     expect(patches).toEqual([]);
   });
 
-  it("falls back to a safe detector inset when original ink still ruins refinement", () => {
+  it("uses Koharu mask geometry without reading source-ink pixels", () => {
     const bitmap = createBitmap(20);
     paintCircle(bitmap, 60, 40, 32, 245);
     paintRect(bitmap, 58, 8, 5, 64, 20);
@@ -189,7 +189,7 @@ describe("bubble layout page processor", () => {
     expect(patches[0].bubbleLayout?.regions).toHaveLength(1);
     expect(patchBoundsInPixels(patches[0]).w).toBeGreaterThan(55);
     const spans = patches[0].bubbleLayout?.regions[0].spans ?? [];
-    expect(spans[0].inlineEnd - spans[0].inlineStart).toBeLessThan(0.5);
+    expect(spans[0].inlineEnd - spans[0].inlineStart).toBeGreaterThan(0.8);
     expect(
       spans[Math.floor(spans.length / 2)].inlineEnd -
         spans[Math.floor(spans.length / 2)].inlineStart,
@@ -685,12 +685,28 @@ function createPage(): MangaPage {
 }
 
 function detection(
-  labelId: ComicDetectionLabelId,
+  legacyLabelId: ComicDetectionLabelId,
   box: [number, number, number, number],
   score: number,
 ): ComicPageDetection {
-  const labels = ["bubble", "text_bubble", "text_free"] as const;
-  return { labelId, label: labels[labelId], box, score };
+  const labelIds = [2, 0, 1, 3] as const;
+  const labels = ["text", "onomatopoeia", "bubble", "panel"] as const;
+  const labelId = labelIds[legacyLabelId];
+  return {
+    labelId,
+    label: labels[labelId],
+    box,
+    score,
+    ...(labelId === 2
+      ? {
+          mask: {
+            width: 288,
+            height: 288,
+            logits: new Float32Array(288 * 288).fill(1),
+          },
+        }
+      : {}),
+  };
 }
 
 function generatedBubbleLayout(): NonNullable<

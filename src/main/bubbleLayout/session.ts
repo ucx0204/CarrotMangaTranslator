@@ -1,45 +1,112 @@
+import { availableParallelism } from "node:os";
 import { resolve } from "node:path";
-import { pathToFileURL } from "node:url";
-import * as ort from "onnxruntime-web";
+import type * as Ort from "onnxruntime-node";
+import { onnxRuntimeNode as ort } from "./nativeOrt";
 
-const sessionCache = new Map<string, Promise<ort.InferenceSession>>();
-let configuredWasmPaths: ResolvedWasmPaths | null = null;
+export type KoharuExecutionProvider = "dml" | "cpu";
 
-type ResolvedWasmPaths = {
-  mjs: string;
-  wasm: string;
+export type KoharuLayoutSessionHandle = {
+  session: Ort.InferenceSession;
+  provider: KoharuExecutionProvider;
 };
 
-export async function getComicBubbleDetectorSession(options: {
+const sessionCache = new Map<string, Promise<Ort.InferenceSession>>();
+const unavailableProviderKeys = new Set<string>();
+const sessionRunTails = new WeakMap<Ort.InferenceSession, Promise<void>>();
+
+export async function getKoharuLayoutSession(options: {
   modelPath: string;
-  wasmBinaryPath: string;
-  wasmModulePath: string;
   signal?: AbortSignal;
-}): Promise<ort.InferenceSession> {
+  providerPreference?: readonly KoharuExecutionProvider[];
+}): Promise<KoharuLayoutSessionHandle> {
   throwIfAborted(options.signal);
   const modelPath = resolve(options.modelPath);
-  const wasmPaths = resolveWasmPaths(options);
-  configureWasmRuntime(wasmPaths);
-  const cacheKey = buildSessionCacheKey(modelPath, wasmPaths);
+  const providers =
+    options.providerPreference ?? resolveKoharuProviderPreference();
+  const errors: unknown[] = [];
+  for (const provider of providers) {
+    const cacheKey = JSON.stringify([modelPath, provider]);
+    if (unavailableProviderKeys.has(cacheKey)) continue;
+    try {
+      const session = await getOrCreateSession(modelPath, provider, cacheKey);
+      throwIfAborted(options.signal);
+      return { session, provider };
+    } catch (error) {
+      if (isAbortError(error)) throw error;
+      throwIfAborted(options.signal);
+      unavailableProviderKeys.add(cacheKey);
+      errors.push(error);
+    }
+  }
+  throw new AggregateError(
+    errors,
+    "KoharuLayout ONNX 세션을 DML 또는 CPU로 만들 수 없습니다.",
+  );
+}
+
+export function resolveKoharuProviderPreference(
+  platform: NodeJS.Platform = process.platform,
+): readonly KoharuExecutionProvider[] {
+  return platform === "win32" ? ["dml", "cpu"] : ["cpu"];
+}
+
+export function resolveKoharuCpuThreadCount(): number {
+  return Math.max(1, Math.min(8, availableParallelism()));
+}
+
+/**
+ * DirectML forbids concurrent Run calls on one session. Use the same lease for
+ * CPU sessions so provider fallback cannot change job ordering.
+ */
+export async function withKoharuSessionLease<T>(
+  session: Ort.InferenceSession,
+  signal: AbortSignal | undefined,
+  task: () => Promise<T>,
+): Promise<T> {
+  const previous = sessionRunTails.get(session) ?? Promise.resolve();
+  let releaseLease: () => void = () => undefined;
+  const lease = new Promise<void>((resolveLease) => {
+    releaseLease = resolveLease;
+  });
+  const tail = previous.catch(() => undefined).then(() => lease);
+  sessionRunTails.set(session, tail);
+  try {
+    await previous.catch(() => undefined);
+    throwIfAborted(signal);
+    return await task();
+  } finally {
+    releaseLease();
+    if (sessionRunTails.get(session) === tail) {
+      sessionRunTails.delete(session);
+    }
+  }
+}
+
+function getOrCreateSession(
+  modelPath: string,
+  provider: KoharuExecutionProvider,
+  cacheKey: string,
+): Promise<Ort.InferenceSession> {
   let pending = sessionCache.get(cacheKey);
   if (!pending) {
-    pending = createCachedSession(modelPath, cacheKey);
+    pending = createCachedSession(modelPath, provider, cacheKey);
     sessionCache.set(cacheKey, pending);
   }
-  const session = await pending;
-  throwIfAborted(options.signal);
-  return session;
+  return pending;
 }
 
 function createCachedSession(
   modelPath: string,
+  provider: KoharuExecutionProvider,
   cacheKey: string,
-): Promise<ort.InferenceSession> {
+): Promise<Ort.InferenceSession> {
   const pending = ort.InferenceSession.create(modelPath, {
-    executionProviders: ["wasm"],
+    executionProviders: [provider],
     executionMode: "sequential",
     graphOptimizationLevel: "all",
-    freeDimensionOverrides: { N: 1 },
+    intraOpNumThreads: provider === "cpu" ? resolveKoharuCpuThreadCount() : 1,
+    interOpNumThreads: 1,
+    enableMemPattern: provider === "cpu",
   })
     .then((session) => {
       assertSessionContract(session);
@@ -54,50 +121,9 @@ function createCachedSession(
   return pending;
 }
 
-function configureWasmRuntime(wasmPaths: ResolvedWasmPaths): void {
-  if (configuredWasmPaths) {
-    if (
-      configuredWasmPaths.mjs !== wasmPaths.mjs ||
-      configuredWasmPaths.wasm !== wasmPaths.wasm
-    ) {
-      throw new Error(
-        [
-          "말풍선 검출기 ONNX 런타임 경로를 다시 설정할 수 없습니다.",
-          `configured=${configuredWasmPaths.mjs},${configuredWasmPaths.wasm}`,
-          `requested=${wasmPaths.mjs},${wasmPaths.wasm}`,
-        ].join(" "),
-      );
-    }
-    return;
-  }
-  // A single WASM thread avoids Electron/worker bootstrap constraints while
-  // keeping inference deterministic and lightweight.
-  ort.env.wasm.wasmPaths = wasmPaths;
-  ort.env.wasm.numThreads = 1;
-  ort.env.wasm.proxy = false;
-  configuredWasmPaths = wasmPaths;
-}
-
-function resolveWasmPaths(options: {
-  wasmBinaryPath: string;
-  wasmModulePath: string;
-}): ResolvedWasmPaths {
-  return {
-    mjs: pathToFileURL(resolve(options.wasmModulePath)).href,
-    wasm: pathToFileURL(resolve(options.wasmBinaryPath)).href,
-  };
-}
-
-function buildSessionCacheKey(
-  modelPath: string,
-  wasmPaths: ResolvedWasmPaths,
-): string {
-  return JSON.stringify([modelPath, wasmPaths.mjs, wasmPaths.wasm]);
-}
-
-function assertSessionContract(session: ort.InferenceSession): void {
-  assertNames(session.inputNames, ["images", "orig_target_sizes"], "입력");
-  assertNames(session.outputNames, ["labels", "boxes", "scores"], "출력");
+function assertSessionContract(session: Ort.InferenceSession): void {
+  assertNames(session.inputNames, ["input"], "입력");
+  assertNames(session.outputNames, ["dets", "labels", "masks"], "출력");
 }
 
 function assertNames(
@@ -108,7 +134,7 @@ function assertNames(
   const missing = required.filter((name) => !actual.includes(name));
   if (missing.length > 0) {
     throw new Error(
-      `말풍선 검출기 ONNX ${label} 이름이 올바르지 않습니다: ${missing.join(", ")}`,
+      `KoharuLayout ONNX ${label} 이름이 올바르지 않습니다: ${missing.join(", ")}`,
     );
   }
 }
@@ -117,4 +143,8 @@ function throwIfAborted(signal?: AbortSignal): void {
   if (signal?.aborted) {
     throw new DOMException("Aborted", "AbortError");
   }
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "AbortError";
 }

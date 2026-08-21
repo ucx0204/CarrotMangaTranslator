@@ -21,6 +21,13 @@
       "purpose": "Render OCR bounding-box output for one explicitly supplied image and JSON record.",
       "usage": "electron scripts/render-ocr-bbox.cjs --image <path> --json <path> --output <path>",
       "replacement": "No replacement; this is an intentionally retained one-shot diagnostic."
+    },
+    {
+      "path": "scripts/run_koharu_layout_onnx_probe.cjs",
+      "status": "manual-debug",
+      "purpose": "Run one pinned KoharuLayout ONNX page through CPU, DirectML, or WebGPU and report runtime/output diagnostics.",
+      "usage": "electron scripts/run_koharu_layout_onnx_probe.cjs --model <onnx> --image <page> --provider <cpu|dml|webgpu>",
+      "replacement": "No replacement; this is an intentionally retained one-page backend diagnostic."
     }
   ]
 }

@@ -108,6 +108,7 @@ describe("Windows installer clean uninstall option", () => {
           // assets migrate from v1 cache or download from the v2 asset tag.
           filter: [
             "**/*",
+            "!o{,/**/*}",
             "!font-matching/encoder.onnx",
             "!font-matching/prototype-features.f32",
             "!font-matching/auto-match-active-catalog.json",
@@ -116,6 +117,15 @@ describe("Windows installer clean uninstall option", () => {
         {
           from: "node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs",
           to: "app-runtime/onnxruntime-web/1.27.0/ort-wasm-simd-threaded.mjs",
+        },
+        {
+          from: "node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm",
+          to: "app-runtime/onnxruntime-web/1.27.0/ort-wasm-simd-threaded.wasm",
+        },
+        {
+          from: "out/app-runtime/o",
+          to: "o",
+          filter: ["**/*"],
         },
       ]),
       nsis: {
@@ -131,6 +141,14 @@ describe("Windows installer clean uninstall option", () => {
             from: "tools/ffmpeg",
             to: "tools/ffmpeg",
           },
+          expect.objectContaining({
+            from: "tools/python",
+            filter: expect.arrayContaining([
+              "!**/site-packages/pkg_resources/**",
+              "!**/Scripts/pip*.exe",
+              "!**/Scripts/wheel.exe",
+            ]),
+          }),
         ]),
       }),
       afterPack: expect.any(Function),
@@ -165,6 +183,7 @@ describe("Windows installer clean uninstall option", () => {
     }
     for (const runtimePackage of [
       "i18next",
+      "onnxruntime-node",
       "onnxruntime-web",
       "yauzl",
       "zod",
@@ -172,6 +191,7 @@ describe("Windows installer clean uninstall option", () => {
       expect(packageJson.dependencies).toHaveProperty(runtimePackage);
     }
     expect(packageJson.dependencies["onnxruntime-web"]).toBe("1.27.0");
+    expect(packageJson.dependencies["onnxruntime-node"]).toBe("1.27.0");
   });
 
   it("budgets the externalized font runtime without allowing training data into the package", () => {
@@ -188,7 +208,7 @@ describe("Windows installer clean uninstall option", () => {
       "const MAX_PACKAGED_BYTES = 1000 * 1024 * 1024;",
     );
     expect(packagedRuntimeVerifier).toContain(
-      "const MAX_PACKAGED_FILES = 262;",
+      "const MAX_PACKAGED_FILES = 293;",
     );
     expect((electronBuilderConfig as { files: string[] }).files).toEqual(
       expect.arrayContaining([

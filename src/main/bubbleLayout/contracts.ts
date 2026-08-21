@@ -1,8 +1,15 @@
-import { COMIC_DETECTION_LABELS } from "./constants";
+import { KOHARU_LAYOUT_LABELS } from "./constants";
 
-export type ComicDetectionLabel = (typeof COMIC_DETECTION_LABELS)[number];
-export type ComicDetectionLabelId = 0 | 1 | 2;
+export type ComicDetectionLabel = (typeof KOHARU_LAYOUT_LABELS)[number];
+export type ComicDetectionLabelId = 0 | 1 | 2 | 3;
 export type ComicDetectionBox = [number, number, number, number];
+
+export type KoharuInstanceMask = {
+  /** Full-page low-resolution mask-logit plane. */
+  logits: Float32Array;
+  width: number;
+  height: number;
+};
 
 export type ComicPageDetection = {
   labelId: ComicDetectionLabelId;
@@ -10,12 +17,15 @@ export type ComicPageDetection = {
   /** Absolute source-image pixel coordinates in x1, y1, x2, y2 order. */
   box: ComicDetectionBox;
   score: number;
+  /** KoharuLayout instance mask. Parser-produced detections always carry it. */
+  mask?: KoharuInstanceMask;
 };
 
 export type ComicPageDetectionResult = {
   imageWidth: number;
   imageHeight: number;
   detections: ComicPageDetection[];
+  executionProvider?: "dml" | "cpu";
 };
 
 export type AssociatedComicBubble = {
@@ -32,11 +42,11 @@ export type ComicDetectionAssociations = {
 export function resolveComicDetectionLabel(
   labelId: number,
 ): ComicDetectionLabel | undefined {
-  return COMIC_DETECTION_LABELS[labelId];
+  return KOHARU_LAYOUT_LABELS[labelId];
 }
 
 export function isComicDetectionLabelId(
   value: number,
 ): value is ComicDetectionLabelId {
-  return Number.isInteger(value) && value >= 0 && value < 3;
+  return Number.isInteger(value) && value >= 0 && value < 4;
 }

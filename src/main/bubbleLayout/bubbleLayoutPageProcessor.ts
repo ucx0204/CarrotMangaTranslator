@@ -15,24 +15,18 @@ import {
   selectBlockBubbleCandidates,
   type BlockBubbleCandidate,
 } from "./bubbleBlockAssociation";
-import {
-  isUsableAutomaticBubbleRegionSet,
-  repairFragmentedBubbleRegions,
-  type ScoredBubbleRegion,
-} from "./bubbleFragmentRepair";
 import { partitionSharedBubbleOwnership } from "./bubbleOwnershipPartition";
 import type { ComicPageDetection } from "./contracts";
-import { refineBubbleSafeMask } from "./bubbleMaskRefinement";
 import {
-  buildOwnershipFallbackRegion,
   clipRegionsToOwnershipPartition,
   resolveBubblePartitionGapPx,
 } from "./bubbleRegionPartition";
 import { buildBubbleShapeProfile } from "./bubbleShapeProfileBuilder";
 import { isBubbleLayoutBlockEligible } from "./bubbleLayoutBlockEligibility";
+import { refineKoharuBubbleMask } from "./koharuMaskRefinement";
 
 const BUBBLE_LAYOUT_MODEL_ID =
-  "comic-rtdetr-v4-s-int8+safe-distance-v2-overlap-fragment-guard-v3";
+  "koharu-layout-rfdetr-seg-2xl-1152+mask-safe-inset-v1+ownership-partition-v1";
 
 const POLICY_CONFIDENCE_THRESHOLD = {
   safe: 0.72,
@@ -40,11 +34,17 @@ const POLICY_CONFIDENCE_THRESHOLD = {
   maximize: 0.52,
 } as const;
 
-type ScoredRegion = ScoredBubbleRegion;
+type ScoredRegion = {
+  region: import("./bubbleMaskTypes").RefinedBubbleRegion;
+  confidence: number;
+  insetPx: number;
+  sharedGroupIds?: string[];
+};
 
 export function processDetectedBubbleLayouts(options: {
   page: MangaPage;
-  bitmap: Uint8Array;
+  /** Retained only for call-site compatibility; Koharu fitting never reads it. */
+  bitmap?: Uint8Array;
   imageWidth: number;
   imageHeight: number;
   detections: ComicPageDetection[];
@@ -96,22 +96,7 @@ function processBlock(
   );
   const initialRegions = deduplicateRegions(scoredRegions).slice(0, 4);
   const blockBounds = blockBboxToPixels(block, options);
-  const fragmentRepair = repairFragmentedBubbleRegions({
-    block,
-    candidates,
-    initialRegions,
-    blockBounds,
-    bitmap: options.bitmap,
-    imageWidth: options.imageWidth,
-    imageHeight: options.imageHeight,
-    policy: options.policy,
-    outlineWidthPx: resolveBubbleLayoutOutlineWidthPx(block),
-    repairOriginalTextInk: options.repairOriginalTextInk,
-  });
-  if (fragmentRepair === null) {
-    return clearGeneratedLayoutPatch(block);
-  }
-  const regions = fragmentRepair ?? initialRegions;
+  const regions = initialRegions;
   const confidence = resolveCombinedConfidence(regions);
   const hasSharedOwnership = candidates.some(
     (candidate) => candidate.ownershipPartition !== undefined,
@@ -174,8 +159,10 @@ function refineCandidateRegions(
   options: Parameters<typeof processDetectedBubbleLayouts>[0],
 ): ScoredRegion[] {
   const outlineWidthPx = resolveBubbleLayoutOutlineWidthPx(block);
-  const refined = refineBubbleSafeMask({
-    bitmap: options.bitmap,
+  if (isImplausiblyPageWideBubble(candidate, options)) return [];
+  if (!candidate.bubbleDetection.mask) return [];
+  const refined = refineKoharuBubbleMask({
+    mask: candidate.bubbleDetection.mask,
     imageWidth: options.imageWidth,
     imageHeight: options.imageHeight,
     bubbleBox: candidate.bubbleBox,
@@ -183,7 +170,6 @@ function refineCandidateRegions(
     fontSizePx: block.fontSizePx,
     outlineWidthPx,
     policy: options.policy,
-    repairOriginalTextInk: options.repairOriginalTextInk,
   });
   if (refined) {
     const regions = clipRegionsToOwnershipPartition(
@@ -191,7 +177,7 @@ function refineCandidateRegions(
       candidate.ownershipPartition,
     );
     if (regions.length > 0) {
-      const confidence = candidate.score * 0.58 + refined.confidence * 0.42;
+      const confidence = candidate.score * 0.72 + refined.confidence * 0.28;
       return regions.map((region) => ({
         region,
         confidence,
@@ -204,77 +190,26 @@ function refineCandidateRegions(
       }));
     }
   }
-  const insetPx = resolveFallbackInsetPx(block, outlineWidthPx);
-  const allowOriginalFallback =
-    options.repairOriginalTextInk === true &&
-    isCredibleOriginalFallbackCandidate(candidate, options);
-  const fallback = buildOwnershipFallbackRegion(
-    candidate,
-    insetPx,
-    allowOriginalFallback,
-  );
-  return fallback
-    ? [
-        {
-          region: fallback,
-          confidence:
-            candidate.score * (options.repairOriginalTextInk ? 0.7 : 0.55),
-          insetPx,
-          ...(candidate.ownershipPartition?.sharedGroupId
-            ? {
-                sharedGroupIds: [candidate.ownershipPartition.sharedGroupId],
-              }
-            : {}),
-        },
-      ]
-    : [];
+  return [];
 }
 
-function isCredibleOriginalFallbackCandidate(
+function isImplausiblyPageWideBubble(
   candidate: BlockBubbleCandidate,
-  options: Parameters<typeof processDetectedBubbleLayouts>[0],
+  options: Pick<
+    Parameters<typeof processDetectedBubbleLayouts>[0],
+    "imageWidth" | "imageHeight"
+  >,
 ): boolean {
-  const minimumScore = {
-    safe: 0.9,
-    balanced: 0.84,
-    maximize: 0.78,
-  }[options.policy];
-  if (candidate.score < minimumScore) return false;
-  const prompts = candidate.promptBoxes.filter(
-    (prompt) => prompt.w > 0 && prompt.h > 0,
-  );
-  if (prompts.length === 0) return false;
-  const containedArea = prompts.reduce(
-    (sum, prompt) => sum + intersectionArea(prompt, candidate.bubbleBox),
-    0,
-  );
-  const promptArea = prompts.reduce(
+  const imageArea = options.imageWidth * options.imageHeight;
+  const bubbleArea = candidate.bubbleBox.w * candidate.bubbleBox.h;
+  const promptArea = candidate.promptBoxes.reduce(
     (sum, prompt) => sum + prompt.w * prompt.h,
     0,
   );
-  if (containedArea / Math.max(1, promptArea) < 0.92) return false;
-  const promptEnvelope = unionBounds(prompts);
-  const bubbleArea = candidate.bubbleBox.w * candidate.bubbleBox.h;
-  const imageArea = options.imageWidth * options.imageHeight;
   return (
-    bubbleArea / Math.max(1, promptEnvelope.w * promptEnvelope.h) <= 12 &&
-    bubbleArea / Math.max(1, imageArea) <= 0.72
+    bubbleArea / Math.max(1, imageArea) >= 0.8 &&
+    promptArea / Math.max(1, bubbleArea) < 0.25
   );
-}
-
-function unionBounds(boxes: readonly BBox[]): BBox {
-  const left = Math.min(...boxes.map((box) => box.x));
-  const top = Math.min(...boxes.map((box) => box.y));
-  const right = Math.max(...boxes.map((box) => box.x + box.w));
-  const bottom = Math.max(...boxes.map((box) => box.y + box.h));
-  return { x: left, y: top, w: right - left, h: bottom - top };
-}
-
-function resolveFallbackInsetPx(
-  block: TranslationBlock,
-  outlineWidthPx: number,
-): number {
-  return Math.min(8, Math.max(2, block.fontSizePx * 0.12, outlineWidthPx * 2));
 }
 
 function blockBboxToPixels(
@@ -381,10 +316,35 @@ function intersectionOverUnion(left: BBox, right: BBox): number {
   return intersection / Math.max(1, union);
 }
 
-function intersectionArea(left: BBox, right: BBox): number {
-  const x1 = Math.max(left.x, right.x);
-  const y1 = Math.max(left.y, right.y);
-  const x2 = Math.min(left.x + left.w, right.x + right.w);
-  const y2 = Math.min(left.y + left.h, right.y + right.h);
-  return Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
+function isUsableAutomaticBubbleRegionSet(
+  regions: readonly import("./bubbleMaskTypes").RefinedBubbleRegion[],
+  blockBounds: BBox,
+): boolean {
+  if (regions.length === 0 || regions.length > 2) return false;
+  if (regions.length === 1) return true;
+  const blockArea = blockBounds.w * blockBounds.h;
+  if (blockArea <= 0) return false;
+  return regions.every(
+    (region) =>
+      countRegionPixelsInsideBox(region, blockBounds) / blockArea >= 0.17,
+  );
+}
+
+function countRegionPixelsInsideBox(
+  region: import("./bubbleMaskTypes").RefinedBubbleRegion,
+  box: BBox,
+): number {
+  const originX = Math.round(region.bounds.x);
+  const originY = Math.round(region.bounds.y);
+  const startX = Math.max(0, Math.floor(box.x - originX));
+  const startY = Math.max(0, Math.floor(box.y - originY));
+  const endX = Math.min(region.width, Math.ceil(box.x + box.w - originX));
+  const endY = Math.min(region.height, Math.ceil(box.y + box.h - originY));
+  let pixels = 0;
+  for (let y = startY; y < endY; y += 1) {
+    for (let x = startX; x < endX; x += 1) {
+      pixels += region.mask[y * region.width + x] ?? 0;
+    }
+  }
+  return pixels;
 }

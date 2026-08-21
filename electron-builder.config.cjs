@@ -44,6 +44,7 @@ const extraResources = [
     // downloaded from the immutable font-matching-runtime-v2 prerelease.
     filter: [
       "**/*",
+      "!o{,/**/*}",
       "!font-matching/encoder.onnx",
       "!font-matching/prototype-features.f32",
       "!font-matching/auto-match-active-catalog.json",
@@ -62,6 +63,14 @@ const extraResources = [
   {
     from: `node_modules/onnxruntime-web/dist/${onnxWasmBinaryFile}`,
     to: `app-runtime/onnxruntime-web/${onnxRuntimeWebVersion}/${onnxWasmBinaryFile}`,
+  },
+  // The normal app.asar.unpacked/node_modules path exceeds this project's
+  // NSIS Fast ZIP safety limit. Stage the native runtime under the short `o`
+  // resource root and load it explicitly from bubbleLayout/nativeOrt.
+  {
+    from: "out/app-runtime/o",
+    to: "o",
+    filter: ["**/*"],
   },
 ];
 const windowsExtraResources = [];
@@ -94,12 +103,15 @@ if (!thinInstaller && existsSync(join(__dirname, "tools", "python"))) {
       "!**/site-packages/pip-*.dist-info/**",
       "!**/site-packages/setuptools/**",
       "!**/site-packages/setuptools-*.dist-info/**",
+      "!**/site-packages/pkg_resources/**",
       "!**/site-packages/wheel/**",
       "!**/site-packages/wheel-*.dist-info/**",
       "!**/site-packages/packaging/**",
       "!**/site-packages/packaging-*.dist-info/**",
       "!**/site-packages/_distutils_hack/**",
       "!**/site-packages/distutils-precedence.pth",
+      "!**/Scripts/pip*.exe",
+      "!**/Scripts/wheel.exe",
     ],
   });
 }
@@ -300,9 +312,8 @@ module.exports = {
     "!vite*.config.ts",
     "!vitest.config.ts",
     "!out/app-runtime{,/**/*}",
-    // Bubble detection uses the Node WASM entry. Keep its tiny JS loader and
-    // shared API, stage the 24 KiB ESM glue above, and download the pinned
-    // 13 MiB WASM binary into the persistent data root on first use.
+    // Font pixel inference still uses the ORT-Web Node/WASM entry. Bubble and
+    // text segmentation now use the native onnxruntime-node dependency.
     "!node_modules/onnxruntime-web/docs{,/**/*}",
     "!node_modules/onnxruntime-web/lib{,/**/*}",
     "!node_modules/onnxruntime-web/dist/!(ort.node.min.js)",
@@ -316,6 +327,8 @@ module.exports = {
     "!node_modules/@protobufjs{,/**/*}",
     "!node_modules/@types/node{,/**/*}",
     "!node_modules/undici-types{,/**/*}",
+    // A platform-specific copy is staged under the short `resources/o` path.
+    "!node_modules/onnxruntime-node{,/**/*}",
   ],
   extraResources,
   asar: true,

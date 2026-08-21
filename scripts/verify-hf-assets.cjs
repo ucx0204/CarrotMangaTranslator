@@ -124,20 +124,20 @@ const assets = [
     ),
   },
   {
-    label: "Comic bubble and text detector",
-    repo: readStringConstant(bubbleLayoutAssets, "COMIC_BUBBLE_DETECTOR_REPO"),
-    file: readStringConstant(bubbleLayoutAssets, "COMIC_BUBBLE_DETECTOR_FILE"),
+    label: "KoharuLayout bubble and text segmentation ONNX",
+    repo: readStringConstant(bubbleLayoutAssets, "KOHARU_LAYOUT_ONNX_REPO"),
+    file: readStringConstant(bubbleLayoutAssets, "KOHARU_LAYOUT_ONNX_FILE"),
     revision: readStringConstant(
       bubbleLayoutAssets,
-      "COMIC_BUBBLE_DETECTOR_REVISION",
+      "KOHARU_LAYOUT_ONNX_REVISION",
     ),
     expectedSha256: readStringConstant(
       bubbleLayoutAssets,
-      "COMIC_BUBBLE_DETECTOR_SHA256",
+      "KOHARU_LAYOUT_ONNX_SHA256",
     ),
   },
   {
-    label: "ONNX bubble detector WASM runtime",
+    label: "ONNX font-inference WASM runtime",
     url: readStringConstant(
       bubbleLayoutAssets,
       "ONNXRUNTIME_WEB_WASM_BINARY_URL",

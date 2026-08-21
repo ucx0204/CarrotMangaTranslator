@@ -104,6 +104,7 @@ run(process.execPath, [
 // 트리를 out/renderer/assets/fonts 아래에 그대로 복사한다(#53 OTS zero-length).
 copyFontAssets(root);
 prepareRuntimeAssets({ root, outputDir: join(root, "out", "app-runtime") });
+run(process.execPath, [join(__dirname, "stage-onnxruntime-node.cjs")]);
 run(process.execPath, [join(__dirname, "bundle-openai-oauth-runtime.cjs")]);
 
 /**

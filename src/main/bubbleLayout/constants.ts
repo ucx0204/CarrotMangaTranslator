@@ -1,14 +1,36 @@
-export const COMIC_BUBBLE_DETECTOR_REPO =
-  "ogkalu/comic-text-and-bubble-detector";
-export const COMIC_BUBBLE_DETECTOR_REVISION =
-  "16e8a622f91fabc6b5b65c96d32d1183f8843546";
-export const COMIC_BUBBLE_DETECTOR_FILE = "detector-v4-s_int8.onnx";
-export const COMIC_BUBBLE_DETECTOR_SHA256 =
-  "5fe9e4f576e49d4e7e8b0e029d6d3cdc252abd4694113e1cae120e62c931ea79";
-export const COMIC_BUBBLE_DETECTOR_BYTES = 11_120_765;
-export const COMIC_BUBBLE_DETECTOR_INPUT_SIZE = 640;
-export const DEFAULT_COMIC_DETECTION_SCORE_THRESHOLD = 0.35;
+/**
+ * Production page-layout model. This replaces the legacy comic RT-DETR
+ * detector completely; there is no legacy-model fallback path.
+ */
+export const KOHARU_LAYOUT_SOURCE_REPO =
+  "mayocream/koharu-layout-rfdetr-seg-2xl-1152";
+export const KOHARU_LAYOUT_ONNX_REPO =
+  "ShiniShiho/koharu-layout-rfdetr-seg-2xl-1152-onnx";
+export const KOHARU_LAYOUT_ONNX_REVISION =
+  "bfbbd4e5ab34a50459865074fa044da496cebb57";
+export const KOHARU_LAYOUT_ONNX_FILE = "rfdetr-seg-2xlarge.onnx";
+export const KOHARU_LAYOUT_ONNX_SHA256 =
+  "7cc10d4316371946b8441da3512261a8e148b129abcdb0ea6235ed1d1d06d351";
+export const KOHARU_LAYOUT_ONNX_BYTES = 148_442_003;
+export const KOHARU_LAYOUT_INPUT_SIZE = 1152;
+export const KOHARU_LAYOUT_QUERY_COUNT = 300;
+export const KOHARU_LAYOUT_MASK_SIZE = 288;
 
+export const KOHARU_LAYOUT_LABELS = [
+  "text",
+  "onomatopoeia",
+  "bubble",
+  "panel",
+] as const;
+
+/** Per-class thresholds published with the pinned KoharuLayout model. */
+export const KOHARU_LAYOUT_SCORE_THRESHOLDS = [0.25, 0.2, 0.5, 0.5] as const;
+
+/**
+ * The font pixel-inference runtime still consumes ORT-Web. These constants no
+ * longer belong to bubble detection, but remain here until that shared runtime
+ * contract is moved without breaking its already-published asset hashes.
+ */
 export const ONNXRUNTIME_WEB_VERSION = "1.27.0";
 export const ONNXRUNTIME_WEB_WASM_MODULE_FILE = "ort-wasm-simd-threaded.mjs";
 export const ONNXRUNTIME_WEB_WASM_MODULE_SHA256 =
@@ -20,9 +42,3 @@ export const ONNXRUNTIME_WEB_WASM_BINARY_URL =
 export const ONNXRUNTIME_WEB_WASM_BINARY_SHA256 =
   "d1ab1b94b16a65b29d710d0b587b29e7bed336827577623913479b8afe8113e6";
 export const ONNXRUNTIME_WEB_WASM_BINARY_BYTES = 13_479_978;
-
-export const COMIC_DETECTION_LABELS = [
-  "bubble",
-  "text_bubble",
-  "text_free",
-] as const;

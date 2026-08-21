@@ -1,99 +1,67 @@
-import * as ort from "onnxruntime-web";
+import type * as Ort from "onnxruntime-node";
 import type { ImageDecodeFallback } from "../inpainting/inpaintingTypes";
 import { loadPageImage } from "../inpainting/imageIO";
-import { COMIC_BUBBLE_DETECTOR_INPUT_SIZE } from "./constants";
+import { KOHARU_LAYOUT_INPUT_SIZE } from "./constants";
 import type { ComicPageDetectionResult } from "./contracts";
-import { parseComicDetectorOutputs } from "./outputs";
+import { parseKoharuLayoutOutputs } from "./outputs";
 import { prepareComicDetectorImage } from "./preprocess";
-import { getComicBubbleDetectorSession } from "./session";
+import { getKoharuLayoutSession, withKoharuSessionLease } from "./session";
+import { onnxRuntimeNode as ort } from "./nativeOrt";
 
-export async function detectComicPageLayout(options: {
-  /** Callers should pass the original page image, not an inpainted derivative. */
+export async function detectKoharuPageLayout(options: {
+  /** Callers must pass the original page image, not an inpainted derivative. */
   imagePath: string;
   modelPath: string;
-  wasmBinaryPath: string;
-  wasmModulePath: string;
-  scoreThreshold?: number;
   signal?: AbortSignal;
   decodeFallback?: ImageDecodeFallback;
 }): Promise<ComicPageDetectionResult> {
   throwIfAborted(options.signal);
   const image = await loadPageImage(options.imagePath, options.decodeFallback);
   const prepared = prepareComicDetectorImage(image, options.signal);
-  const session = await getComicBubbleDetectorSession({
+  const { session, provider } = await getKoharuLayoutSession({
     modelPath: options.modelPath,
-    wasmBinaryPath: options.wasmBinaryPath,
-    wasmModulePath: options.wasmModulePath,
     signal: options.signal,
   });
-  const inputs = createDetectorInputs(prepared);
+  const input = new ort.Tensor("float32", prepared.rgbChw, [
+    1,
+    3,
+    KOHARU_LAYOUT_INPUT_SIZE,
+    KOHARU_LAYOUT_INPUT_SIZE,
+  ]);
   try {
-    const outputs = await runDetectorSession(session, inputs, options.signal);
+    const outputs = await runKoharuSession(session, input, options.signal);
     try {
       return {
         imageWidth: prepared.imageWidth,
         imageHeight: prepared.imageHeight,
-        detections: parseComicDetectorOutputs(
-          outputs,
-          { width: prepared.imageWidth, height: prepared.imageHeight },
-          options.scoreThreshold,
-        ),
+        detections: parseKoharuLayoutOutputs(outputs, {
+          width: prepared.imageWidth,
+          height: prepared.imageHeight,
+        }),
+        executionProvider: provider,
       };
     } finally {
       disposeOutputs(outputs);
     }
   } finally {
-    inputs.images.dispose();
-    inputs.orig_target_sizes.dispose();
+    input.dispose();
   }
 }
 
-type DetectorInputs = {
-  images: ort.TypedTensor<"float32">;
-  orig_target_sizes: ort.TypedTensor<"int64">;
-};
-
-function createDetectorInputs(prepared: {
-  imageWidth: number;
-  imageHeight: number;
-  rgbChw: Float32Array;
-}): DetectorInputs {
-  return {
-    images: new ort.Tensor("float32", prepared.rgbChw, [
-      1,
-      3,
-      COMIC_BUBBLE_DETECTOR_INPUT_SIZE,
-      COMIC_BUBBLE_DETECTOR_INPUT_SIZE,
-    ]),
-    // This exported model expects the original target pair in width, height
-    // order. Keep BigInt64Array so the tensor remains true ONNX int64.
-    orig_target_sizes: new ort.Tensor(
-      "int64",
-      BigInt64Array.of(
-        BigInt(prepared.imageWidth),
-        BigInt(prepared.imageHeight),
-      ),
-      [1, 2],
-    ),
-  };
-}
-
-async function runDetectorSession(
-  session: ort.InferenceSession,
-  inputs: DetectorInputs,
+async function runKoharuSession(
+  session: Ort.InferenceSession,
+  input: Ort.TypedTensor<"float32">,
   signal?: AbortSignal,
-): Promise<ort.InferenceSession.ReturnType> {
+): Promise<Ort.InferenceSession.ReturnType> {
   throwIfAborted(signal);
-  const runOptions: ort.InferenceSession.RunOptions = { terminate: false };
+  const runOptions: Ort.InferenceSession.RunOptions = { terminate: false };
   const terminate = (): void => {
     runOptions.terminate = true;
   };
   signal?.addEventListener("abort", terminate, { once: true });
   try {
-    const outputs = await session.run(
-      inputs,
-      ["labels", "boxes", "scores"],
-      runOptions,
+    const outputs = await withKoharuSessionLease(session, signal, () =>
+      session.run({ input }, ["dets", "labels", "masks"], runOptions),
     );
     throwIfAborted(signal);
     return outputs;
@@ -105,9 +73,9 @@ async function runDetectorSession(
   }
 }
 
-function disposeOutputs(outputs: ort.InferenceSession.ReturnType): void {
+function disposeOutputs(outputs: Ort.InferenceSession.ReturnType): void {
   for (const value of Object.values(outputs)) {
-    if (typeof value.dispose === "function") value.dispose();
+    value.dispose?.();
   }
 }
 

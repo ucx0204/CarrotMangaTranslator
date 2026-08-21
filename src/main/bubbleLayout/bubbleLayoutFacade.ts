@@ -8,9 +8,8 @@ import type {
   BubbleLayoutRunnerRequest,
   BubbleLayoutRunnerResult,
 } from "../inpainting/bubbleLayoutRunner";
-import { loadPageImage } from "../inpainting/imageIO";
-import { ensureComicBubbleDetectorAssets } from "./assets";
-import { detectComicPageLayout } from "./detector";
+import { ensureKoharuLayoutAssets } from "./assets";
+import { detectKoharuPageLayout } from "./detector";
 import type { ComicPageDetectionResult } from "./contracts";
 import {
   processDetectedBubbleLayouts,
@@ -47,20 +46,10 @@ async function runProductionBubbleLayout(
       request,
       detectionsByOriginalPath,
     );
-    const image = await loadPageImage(
-      request.imagePath,
-      options.decodeFallback,
-    );
     throwIfAborted(request.signal);
-    const normalizedImage = normalizeImageSize(
-      image,
-      detection.imageWidth,
-      detection.imageHeight,
-    );
     return {
       patches: processDetectedBubbleLayouts({
         page: request.page,
-        bitmap: normalizedImage.toBitmap(),
         imageWidth: detection.imageWidth,
         imageHeight: detection.imageHeight,
         detections: detection.detections,
@@ -68,9 +57,6 @@ async function runProductionBubbleLayout(
         paddingRatio: request.paddingRatio,
         sharedOwnershipGapPx: request.sharedOwnershipGapPx,
         pageRevision,
-        repairOriginalTextInk:
-          !request.page.inpaintedImagePath &&
-          request.imagePath === request.page.imagePath,
       }),
     };
   } catch (error) {
@@ -123,30 +109,16 @@ async function detectOriginalPageLayoutUncached(
   options: BubbleLayoutRunnerFactoryOptions,
   request: BubbleLayoutRunnerRequest,
 ): Promise<ComicPageDetectionResult> {
-  const detectorAssets = await ensureComicBubbleDetectorAssets({
+  const detectorAssets = await ensureKoharuLayoutAssets({
     dataRoot: options.dataRoot,
     signal: request.signal,
   });
-  return detectComicPageLayout({
+  return detectKoharuPageLayout({
     imagePath: request.page.imagePath,
     modelPath: detectorAssets.modelPath,
-    wasmBinaryPath: detectorAssets.wasmBinaryPath,
-    wasmModulePath: detectorAssets.wasmModulePath,
-    scoreThreshold: 0.35,
     signal: request.signal,
     decodeFallback: options.decodeFallback,
   });
-}
-
-function normalizeImageSize(
-  image: Electron.NativeImage,
-  width: number,
-  height: number,
-): Electron.NativeImage {
-  const size = image.getSize();
-  return size.width === width && size.height === height
-    ? image
-    : image.resize({ width, height, quality: "best" });
 }
 
 async function resolvePageRevision(

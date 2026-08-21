@@ -97,7 +97,13 @@ export function isGeneratedBubbleLayout(
 ): boolean {
   if (!value || value.origin === "manual") return false;
   if (value.origin === "detected") return true;
-  return value.modelId?.startsWith("comic-rtdetr-") ?? false;
+  const modelId = value.modelId ?? "";
+  return (
+    modelId.startsWith("koharu-layout-rfdetr-") ||
+    // Legacy ids are recognized only so stale stored geometry can be cleared.
+    // No legacy detector is imported or invoked.
+    modelId.startsWith("comic-rtdetr-")
+  );
 }
 
 function hasUsableBubbleMetadata(value: Record<string, unknown>): boolean {

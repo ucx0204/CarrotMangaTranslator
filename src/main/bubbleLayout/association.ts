@@ -18,15 +18,16 @@ export function associateComicDetections(
     .map((bubble) => ({ bubble, textDetections: [] }));
   const unassociatedBubbleText: ComicPageDetection[] = [];
   const freeText = detections.filter(
-    (detection) => detection.label === "text_free",
+    (detection) => detection.label === "onomatopoeia",
   );
   for (const text of detections) {
-    if (text.label !== "text_bubble") continue;
+    if (text.label !== "text") continue;
     const association = findBestBubbleAssociation(text, bubbles);
     if (association && association.containment >= minContainment) {
       association.group.textDetections.push(text);
     } else {
       unassociatedBubbleText.push(text);
+      freeText.push(text);
     }
   }
   return { bubbles, unassociatedBubbleText, freeText };

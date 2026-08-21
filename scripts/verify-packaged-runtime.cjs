@@ -1,6 +1,6 @@
 const { spawnSync } = require("node:child_process");
 const { existsSync, readdirSync, statSync } = require("node:fs");
-const { join } = require("node:path");
+const { basename, join, relative, sep } = require("node:path");
 const {
   OPENAI_OAUTH_LICENSES_FILENAME,
   OPENAI_OAUTH_RUNTIME_FILENAME,
@@ -38,6 +38,10 @@ const packagedNativeImportModule = join(
 );
 const oauthSmokeScript = join(__dirname, "smoke-openai-oauth-runtime.cjs");
 const onnxSmokeScript = join(__dirname, "smoke-packaged-onnx-runtime.cjs");
+const onnxNodeSmokeScript = join(
+  __dirname,
+  "smoke-packaged-onnx-node-runtime.cjs",
+);
 const imageSmokeScript = join(__dirname, "smoke-packaged-image-runtime.cjs");
 const imageRuntimePath = join(
   resourcesDir,
@@ -53,6 +57,25 @@ const onnxRuntimeEntryPath = join(
   "dist",
   "ort.node.min.js",
 );
+const onnxNodeRuntimeEntryPath = join(resourcesDir, "o", "index.js");
+const packagedNativeOrtModule = join(
+  resourcesDir,
+  "app.asar",
+  "out",
+  "main",
+  "bubbleLayout",
+  "nativeOrt.js",
+);
+const onnxNodeResourceRoot = join(resourcesDir, "o");
+const onnxNodeResourceBinDir = join(onnxNodeResourceRoot, "b");
+const onnxNodeStagedRoot = join(root, "out", "app-runtime", "o");
+const expectedOnnxNodeBinaries = [
+  "DirectML.dll",
+  "dxcompiler.dll",
+  "dxil.dll",
+  "onnxruntime.dll",
+  "onnxruntime_binding.node",
+];
 const onnxWasmModulePath = join(
   resourcesDir,
   "app-runtime",
@@ -91,9 +114,9 @@ const allowedElectronLocales = new Set([
 // external. The runtime hardening pass adds the shared retry scheduler and the
 // pinned BeeLlama archive policy as two small production modules. The
 // production cleanup then adds the semantic-OCR geometry leaf and the sealed
-// download-contract leaf. Keep the resulting payload ceiling exact so
-// unrelated packaging growth still fails closed.
-const MAX_PACKAGED_FILES = 262;
+// download-contract leaf. KoharuLayout adds one short-path native ORT runtime;
+// keep the resulting payload ceiling exact so unrelated growth fails closed.
+const MAX_PACKAGED_FILES = 293;
 // The trained font matching runtime bundle (~467 MiB) is externalized out of
 // the installer and downloaded into the data-root cache on first use, so the
 // unpacked payload is ~745 MiB (Electron + app.asar + tools, no bundle) and the
@@ -113,9 +136,10 @@ if (!existsSync(oauthLicensesPath)) {
 }
 if (existsSync(asarUnpackedNodeModules)) {
   throw new Error(
-    `Production node_modules must remain inside app.asar: ${asarUnpackedNodeModules}`,
+    `Unexpected unpacked node_modules payload: ${asarUnpackedNodeModules}`,
   );
 }
+assertPackagedOnnxNodeInventory();
 if (!existsSync(appExecutable)) {
   throw new Error(`Packaged Electron executable is missing: ${appExecutable}`);
 }
@@ -188,6 +212,20 @@ const onnxResult = spawnSync(
   },
 );
 assertSmokeSucceeded(onnxResult, "Packaged ONNX runtime");
+const onnxNodeResult = spawnSync(
+  appExecutable,
+  [onnxNodeSmokeScript, onnxNodeRuntimeEntryPath, packagedNativeOrtModule],
+  {
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      ELECTRON_RUN_AS_NODE: "1",
+    },
+    timeout: 30_000,
+    windowsHide: true,
+  },
+);
+assertSmokeSucceeded(onnxNodeResult, "Packaged native ONNX runtime");
 const imageResult = spawnSync(
   appExecutable,
   [imageSmokeScript, imageRuntimePath, ffmpegPath],
@@ -220,6 +258,7 @@ if (packageStats.bytes > MAX_PACKAGED_BYTES) {
 }
 console.log(oauthResult.stdout.trim());
 console.log(onnxResult.stdout.trim());
+console.log(onnxNodeResult.stdout.trim());
 console.log(imageResult.stdout.trim());
 console.log(
   `[package] ${packageStats.files} files, ${(
@@ -251,6 +290,70 @@ function countFiles(directory) {
     }
   }
   return { files, bytes };
+}
+
+function assertPackagedOnnxNodeInventory() {
+  if (!existsSync(onnxNodeResourceBinDir)) {
+    throw new Error(
+      `Packaged onnxruntime-node binaries are missing: ${onnxNodeResourceBinDir}`,
+    );
+  }
+  if (!existsSync(onnxNodeStagedRoot)) {
+    throw new Error(
+      `Staged onnxruntime-node is missing: ${onnxNodeStagedRoot}`,
+    );
+  }
+  const expectedFiles = collectRelativeFiles(onnxNodeStagedRoot);
+  const packagedFiles = collectRelativeFiles(onnxNodeResourceRoot);
+  if (JSON.stringify(packagedFiles) !== JSON.stringify(expectedFiles)) {
+    throw new Error(
+      `Unexpected packaged onnxruntime-node inventory: ${packagedFiles.join(", ")}`,
+    );
+  }
+  for (const relativePath of expectedFiles) {
+    const packaged = join(onnxNodeResourceRoot, relativePath);
+    const fixture = join(onnxNodeStagedRoot, relativePath);
+    if (!existsSync(packaged) || !existsSync(fixture)) {
+      throw new Error(`onnxruntime-node resource is missing: ${relativePath}`);
+    }
+    if (statSync(packaged).size !== statSync(fixture).size) {
+      throw new Error(
+        `onnxruntime-node resource size drifted: ${relativePath}`,
+      );
+    }
+  }
+  const binaryFiles = collectRelativeFiles(onnxNodeResourceBinDir).map((path) =>
+    basename(path),
+  );
+  if (
+    JSON.stringify(binaryFiles) !==
+    JSON.stringify([...expectedOnnxNodeBinaries].sort())
+  ) {
+    throw new Error(
+      `Unexpected onnxruntime-node binary inventory: ${binaryFiles.join(", ")}`,
+    );
+  }
+}
+
+/**
+ * @param {string} directory
+ * @returns {string[]}
+ */
+function collectRelativeFiles(directory) {
+  /** @type {string[]} */
+  const files = [];
+  /** @param {string} current */
+  const visit = (current) => {
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const entryPath = join(current, entry.name);
+      if (entry.isDirectory()) visit(entryPath);
+      else if (entry.isFile()) {
+        files.push(relative(directory, entryPath).split(sep).join("/"));
+      }
+    }
+  };
+  visit(directory);
+  return files.sort();
 }
 
 /**

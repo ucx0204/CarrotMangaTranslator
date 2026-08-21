@@ -74,6 +74,7 @@
     "ag-psd": "^31.0.2",
     "google-auth-library": "^11.0.2",
     "i18next": "^26.3.6",
+    "onnxruntime-node": "1.27.0",
     "onnxruntime-web": "1.27.0",
     "pngjs": "^7.0.0",
     "tar": "^7.5.7",

@@ -267,10 +267,12 @@ describe("block-to-bubble association", () => {
 });
 
 function detection(
-  labelId: ComicDetectionLabelId,
+  legacyLabelId: ComicDetectionLabelId,
   box: [number, number, number, number],
   score: number,
 ): ComicPageDetection {
-  const labels = ["bubble", "text_bubble", "text_free"] as const;
+  const labelIds = [2, 0, 1, 3] as const;
+  const labels = ["text", "onomatopoeia", "bubble", "panel"] as const;
+  const labelId = labelIds[legacyLabelId];
   return { labelId, label: labels[labelId], box, score };
 }
