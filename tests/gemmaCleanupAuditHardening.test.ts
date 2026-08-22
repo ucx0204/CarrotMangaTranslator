@@ -9,6 +9,7 @@ import {
   rmdirSync,
   statSync,
   symlinkSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -335,7 +336,7 @@ describe("Gemma cleanup audit hardening", () => {
       }),
     ).rejects.toThrow("source library");
 
-    rmdirSync(outputRoot);
+    unlinkSync(outputRoot);
     mkdirSync(outputRoot);
     rmSync(cacheDir, { recursive: true });
     symlinkSync(runRoot, cacheDir, "junction");
@@ -579,7 +580,7 @@ describe("Gemma cleanup audit hardening", () => {
     expect(guardCalls).toBe(3);
     expect(existsSync(join(protectedTarget, "live.lock"))).toBe(false);
     expect(snapshotProtected([protectedTarget])).toEqual(before);
-    rmdirSync(locksRoot);
+    unlinkSync(locksRoot);
   });
 
   it("leaves protected library and frozen-run bytes unchanged on a successful shadow fixture", async () => {
