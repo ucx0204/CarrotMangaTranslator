@@ -23,6 +23,14 @@ import {
   resolvePinnedRemoteAsset,
 } from "../../runtimeSupport/runtimeIntegrity";
 
+const { buildIsolatedPipEnvironment } =
+  require("../../runtime/python-pip-environment.cjs") as {
+    buildIsolatedPipEnvironment: (
+      baseEnv?: NodeJS.ProcessEnv,
+      managedPipEnv?: NodeJS.ProcessEnv,
+    ) => NodeJS.ProcessEnv;
+  };
+
 type PythonBootstrapOptions = {
   runtimeDir: string;
   signal?: AbortSignal;
@@ -321,5 +329,7 @@ export function buildBootstrapPythonEnv(runtimeDir: string): NodeJS.ProcessEnv {
   delete env.PYTHONHOME;
   delete env.PYTHONPATH;
   delete env.PYTHONUSERBASE;
-  return env;
+  return buildIsolatedPipEnvironment(env, {
+    PIP_CACHE_DIR: join(runtimeDir, "pip-cache"),
+  });
 }

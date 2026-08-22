@@ -25,6 +25,9 @@
 const path = require("node:path");
 const gpuSelection = require("../compute-gpu-selection.cjs");
 const {
+  buildIsolatedPipEnvironment,
+} = require("../python-pip-environment.cjs");
+const {
   HF_CHILD_ENV_KEYS,
   NETWORK_CHILD_ENV_KEYS,
   ROCM_CHILD_ENV_KEYS,
@@ -81,7 +84,9 @@ function buildOcrRuntimeEnv(
     ...buildPythonRuntimeEnv(options, runtime, context),
   };
   gpuSelection.applyOcrComputeGpuVisibility(env, options, context);
-  return env;
+  return buildIsolatedPipEnvironment(env, {
+    PIP_CACHE_DIR: env.PIP_CACHE_DIR,
+  });
 }
 
 /** @param {OcrConfigOptions} options @param {OcrRuntimeLayout | null} runtime @returns {OcrEnvContext} */
@@ -233,8 +238,6 @@ function buildPythonRuntimeEnv(options, runtime, context) {
       "True",
     PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT:
       runtimeOverrideEnv("PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT", options) || "0",
-    PIP_DISABLE_PIP_VERSION_CHECK:
-      runtimeOverrideEnv("PIP_DISABLE_PIP_VERSION_CHECK", options) || "1",
     TMP: tempDir,
     TEMP: tempDir,
     TMPDIR: tempDir,
@@ -369,10 +372,7 @@ function buildOcrRuntimePathDirs(
 ) {
   const variant = resolveOcrRuntimeVariant(options);
   const venvDir = resolveOcrVenvDir(runtimeDir, variant, options);
-  const venvBinDir =
-    process.platform === "win32"
-      ? path.join(venvDir, "Scripts")
-      : path.join(venvDir, "bin");
+  const venvBinDir = resolveOcrVenvBinDir(venvDir);
   const toolsDir = resolveToolsDir(options);
   return [
     runtime?.pythonPath ? path.dirname(runtime.pythonPath) : null,
@@ -382,6 +382,13 @@ function buildOcrRuntimePathDirs(
     path.join(toolsDir || "", "python", "python-embed"),
     runtimeDir,
   ];
+}
+
+/** @param {string} venvDir @param {NodeJS.Platform} [platform] @returns {string} */
+function resolveOcrVenvBinDir(venvDir, platform = process.platform) {
+  return platform === "win32"
+    ? path.join(venvDir, "Scripts")
+    : path.join(venvDir, "bin");
 }
 
 /** @param {RuntimeOptions} [options] @param {OcrRuntimeLayout | null} [runtime] @param {string} [runtimeDir] @returns {string[]} */
@@ -446,5 +453,6 @@ function buildTorchDllSearchDirs(packageDir) {
 module.exports = {
   buildOcrRuntimeEnv,
   buildPaddleOcrCpuThreadEnv,
+  resolveOcrVenvBinDir,
   resolvePaddleOcrWorkerThreadCount,
 };

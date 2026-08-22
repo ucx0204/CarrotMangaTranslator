@@ -20,6 +20,9 @@ const { existsSync, readFileSync } = require("node:fs");
 const { mkdir, rm, writeFile } = require("node:fs/promises");
 const path = require("node:path");
 const {
+  buildIsolatedPipEnvironment,
+} = require("../python-pip-environment.cjs");
+const {
   emitRuntimeProgress,
   runtimeOverrideEnv,
 } = require("./host-services.cjs");
@@ -390,7 +393,9 @@ function buildBootstrapPythonEnv(runtimeDir, options = {}) {
   delete env.PYTHONHOME;
   delete env.PYTHONPATH;
   delete env.PYTHONUSERBASE;
-  return env;
+  return buildIsolatedPipEnvironment(env, {
+    PIP_CACHE_DIR: path.join(runtimeDir, "pip-cache"),
+  });
 }
 
 module.exports = {
