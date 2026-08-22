@@ -1,0 +1,52 @@
+{
+  "release_acceptance": {
+    "acceptance_authority": "explicit_user_approved_cached_page_ab_with_agent_visual_audit",
+    "accepted_at": "2026-08-20T21:50:16Z",
+    "automatic_visual_judgment": true,
+    "evidence": {
+      "candidate_order_sha256": "17343ec15ee2153e770101d0cbf707600e97a8bc2d490496efaf4da2f638437d",
+      "model_version": "manga-font-v9-r33-e049fc74c3ba",
+      "page_consistency_apply_sha256": "eb30c3e7a0a0518b854b83e8ea1c8bb2414d22f1ffd073e551c2d4434b31ace4",
+      "page_consistency_plan_sha256": "099a34473124faeff0d508ae4173c8c7444904c6959558c8bf0b92dc34520352",
+      "page_consistency_shared_sha256": "8aa94b55c963f3b236279e5f67fd9cc8aa6a4ade189bc1bbcf4760eddb427279",
+      "ranker_sha256": "e049fc74c3baeeee9aba179412a3b20387304b749936c167ecc753afcc78f4aa",
+      "source_evaluation_runtime_contract_sha256": "c96f24268af9128d19c2b8a6ff7100c2725e8e991da9d3d6f7320b611e90b972",
+      "source_marker_sha256": "3a794cc2f5ec75eb83f8c060138f50652d2df98ec24bc4beafe34cb1eceaa545",
+      "source_page_inventory_sha256": "2dc2352a401c7a5defa22606ac77a3e99b2a2b72c9f901a7436d4bb471d906d3",
+      "source_selection_calibration_sha256": "aaaaa938d5fbed6070115b2d206c6cc4a35517b3b11061fb0a4d11383caa5660",
+      "visual_comparison_inventory_sha256": "835165dc2048c5a9a3107aa593758c22f14f0ca5940e0c7f40a896c4e4d79b42"
+    },
+    "explicit_user_acceptance": true,
+    "external_release_quality_gate_passed": true,
+    "publication": {
+      "evaluation_only_annotations_removed": true,
+      "release_marker_has_no_qa_flags": true,
+      "source_evaluation_runtime_immutable": true,
+      "source_model_assets_copied_exactly": true
+    },
+    "quality_gate": {
+      "cached_development_pages": 5,
+      "fresh_gemma_or_inpainting_pages": 0,
+      "gemma_or_inpainting_runs": 0,
+      "human_gold": false,
+      "improved_pages": 4,
+      "independent_holdout": false,
+      "judged_content_pages": 5,
+      "live_font_replay_pages": 5,
+      "outline_loss_count": 0,
+      "ranker_cpu_batch16_median_multiplier": 1.224,
+      "ranker_cpu_batch1_median_multiplier": 1.093,
+      "ranker_cpu_budget_limit_multiplier": 2.0,
+      "ranker_cpu_budget_passed": true,
+      "regressed_pages": 0,
+      "sfx_body_regression_count": 0,
+      "structural_error_count": 0,
+      "unchanged_pages": 1,
+      "user_visual_verdict": "new_version_better"
+    },
+    "record_sha256": "80be96c4314db4d89e4bc86ea6221ae2c5eae4b54226b64701e95fd1659c0140",
+    "record_type": "font_matching_runtime_release_acceptance",
+    "schema_version": "font-matching-runtime-release-acceptance-v3",
+    "status": "accepted"
+  }
+}
