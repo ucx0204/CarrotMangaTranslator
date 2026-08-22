@@ -67,8 +67,16 @@ const packagedNativeOrtModule = join(
   "app.asar",
   "out",
   "main",
-  "bubbleLayout",
-  "nativeOrt.js",
+  "runtimeSupport",
+  "nativeOnnxRuntime.js",
+);
+const packagedFontCrossScriptProxyModule = join(
+  resourcesDir,
+  "app.asar",
+  "out",
+  "main",
+  "pipeline",
+  "fontMatchingCrossScriptProxyRuntime.js",
 );
 const onnxNodeResourceRoot = join(resourcesDir, "o");
 const onnxNodeResourceBinDir = join(onnxNodeResourceRoot, "b");
@@ -225,7 +233,12 @@ const onnxResult = spawnSync(
 assertSmokeSucceeded(onnxResult, "Packaged ONNX runtime");
 const onnxNodeResult = spawnSync(
   appExecutable,
-  [onnxNodeSmokeScript, onnxNodeRuntimeEntryPath, packagedNativeOrtModule],
+  [
+    onnxNodeSmokeScript,
+    onnxNodeRuntimeEntryPath,
+    packagedNativeOrtModule,
+    packagedFontCrossScriptProxyModule,
+  ],
   {
     encoding: "utf8",
     env: {

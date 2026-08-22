@@ -87,8 +87,13 @@ class FontMatchingInferenceWorkerClient implements FontMatchingPageInferencePort
   private readonly pendingInfers = new Map<string, PendingInfer>();
   private fallbackPort: FontMatchingPageInferencePort | null = null;
   private exitHandlerRegistered = false;
+  private readiness: Promise<boolean> | null = null;
+  private disposed = false;
   private readonly artifactDir: string;
   private readonly crossScriptProxyArtifactDir: string;
+  private readonly processExitHandler = (): void => {
+    void this.terminateWorker();
+  };
 
   constructor(private readonly deps: WorkerClientDependencies) {
     this.artifactDir = resolveFontMatchingArtifactDirSync(deps.paths);
@@ -105,6 +110,8 @@ class FontMatchingInferenceWorkerClient implements FontMatchingPageInferencePort
       throw new DOMException("Aborted", "AbortError");
     if (!isKoreanLanguageCode(request.targetLanguage)) return emptyResult();
     const ready = await this.ensureWorkerReady();
+    if (request.signal?.aborted)
+      throw new DOMException("Aborted", "AbortError");
     if (!ready) return this.getFallback().inferPage(request);
     const preflight = this.preflight(request);
     if (preflight) return preflight;
@@ -181,16 +188,33 @@ class FontMatchingInferenceWorkerClient implements FontMatchingPageInferencePort
     }
   }
 
-  private terminateWorker(): void {
-    if (!this.worker) return;
+  async dispose(): Promise<void> {
+    if (this.disposed) return;
+    this.disposed = true;
+    if (this.exitHandlerRegistered) {
+      process.removeListener("exit", this.processExitHandler);
+      this.exitHandlerRegistered = false;
+    }
+    const fallbackDisposal = this.fallbackPort?.dispose?.();
+    await Promise.all([
+      this.terminateWorker(),
+      fallbackDisposal ?? Promise.resolve(),
+    ]);
+  }
+
+  private terminateWorker(): Promise<void> {
+    if (!this.worker) return Promise.resolve();
     for (const id of this.pendingInfers.keys()) {
       this.settle(id, "reject", new Error("Font matching worker terminated."));
     }
     const target = this.worker;
     this.worker = null;
-    void target.terminate().catch((_terminateError) => {
-      /* error-policy-allow: worker terminate rejection during shutdown is non-actionable */
-    });
+    return target.terminate().then(
+      () => undefined,
+      (_terminateError) => {
+        /* error-policy-allow: worker terminate rejection during shutdown is non-actionable */
+      },
+    );
   }
 
   private attachWorkerHandlers(target: Worker): void {
@@ -216,12 +240,12 @@ class FontMatchingInferenceWorkerClient implements FontMatchingPageInferencePort
         error,
       );
       this.mode = "fallback";
-      this.terminateWorker();
+      void this.terminateWorker();
     });
     target.on("exit", (code) => {
       if (this.worker !== target) return;
       this.mode = "fallback";
-      this.terminateWorker();
+      void this.terminateWorker();
       if (code !== 0) {
         this.deps.reportWarning?.(
           "Font matching worker exited unexpectedly; falling back to in-process inference.",
@@ -286,8 +310,18 @@ class FontMatchingInferenceWorkerClient implements FontMatchingPageInferencePort
   }
 
   private async ensureWorkerReady(): Promise<boolean> {
+    if (this.disposed) {
+      throw new Error("Font matching inference port has been disposed.");
+    }
     if (this.mode === "fallback") return false;
     if (this.mode === "worker") return true;
+    this.readiness ??= this.initializeWorker().finally(() => {
+      this.readiness = null;
+    });
+    return this.readiness;
+  }
+
+  private async initializeWorker(): Promise<boolean> {
     try {
       const resolveWorkerScript =
         this.deps.resolveWorkerScript ??
@@ -296,6 +330,14 @@ class FontMatchingInferenceWorkerClient implements FontMatchingPageInferencePort
       this.attachWorkerHandlers(spawned);
       this.worker = spawned;
       this.initStatus = await this.runInit(spawned);
+      if (this.worker !== spawned) {
+        this.mode = "fallback";
+        return false;
+      }
+      if (this.disposed) {
+        await this.terminateWorker();
+        return false;
+      }
       if (this.initStatus.state !== "ready") {
         // 런타임이 disabled(missing_artifact/catalog_mismatch/...)면 추론은
         // 조용히 빈 결과로 빠지므로, 원인을 최초 1회 기록해 사용자가 "왜 안
@@ -309,7 +351,7 @@ class FontMatchingInferenceWorkerClient implements FontMatchingPageInferencePort
       this.mode = "worker";
       if (!this.exitHandlerRegistered) {
         this.exitHandlerRegistered = true;
-        process.once("exit", () => this.terminateWorker());
+        process.once("exit", this.processExitHandler);
       }
       return true;
     } catch (error) {
@@ -317,7 +359,7 @@ class FontMatchingInferenceWorkerClient implements FontMatchingPageInferencePort
         "Font matching worker could not be started; falling back to in-process inference.",
         error,
       );
-      this.terminateWorker();
+      await this.terminateWorker();
       this.mode = "fallback";
       return false;
     }

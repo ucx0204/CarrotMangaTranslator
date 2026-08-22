@@ -84,12 +84,29 @@ function stageOnnxRuntimeNode() {
   );
 }
 
-function resolveTargetRuntime() {
-  const mac =
-    process.platform === "darwin" ||
-    process.env.MGT_TARGET_PLATFORM === "darwin";
-  const platform = mac ? "darwin" : "win32";
-  const arch = mac ? "arm64" : "x64";
+/**
+ * @param {{ hostPlatform?: NodeJS.Platform; requestedPlatform?: string }} [options]
+ */
+function resolveTargetRuntime(options = {}) {
+  const hostPlatform = options.hostPlatform ?? process.platform;
+  const requestedPlatform =
+    options.requestedPlatform ?? process.env.MGT_TARGET_PLATFORM;
+  if (
+    requestedPlatform !== undefined &&
+    requestedPlatform !== "win32" &&
+    requestedPlatform !== "darwin"
+  ) {
+    throw new Error(
+      `Unsupported MGT_TARGET_PLATFORM for native ONNX Runtime: ${requestedPlatform}`,
+    );
+  }
+  const platform = requestedPlatform ?? hostPlatform;
+  if (platform !== "win32" && platform !== "darwin") {
+    throw new Error(
+      `Native ONNX Runtime packaging supports only win32 x64 and darwin arm64, received ${platform}.`,
+    );
+  }
+  const arch = platform === "darwin" ? "arm64" : "x64";
   return {
     platform,
     arch,

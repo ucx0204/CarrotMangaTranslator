@@ -35,6 +35,8 @@ const { FakeWorker } = vi.hoisted(() => {
      * 조용히 삼켜짐 회귀 검증).
      */
     static crashBeforeInit: "error" | "exit" | null = null;
+    /** ready 응답 직후 같은 tick에 종료되는 초기화 경합 회귀 검증. */
+    static exitAfterReady = false;
     /** infer 에 자동 응답하지 않음(abort 검증용 대기). */
     static holdInfer = false;
     public posted: FontMatchingWorkerInboundMessage[] = [];
@@ -89,6 +91,10 @@ const { FakeWorker } = vi.hoisted(() => {
             });
           } else {
             this.emit("message", { type: "ready", id, status: readyStatus() });
+            if (FakeWorker.exitAfterReady) {
+              FakeWorker.exitAfterReady = false;
+              this.emit("exit", 0);
+            }
           }
         });
       } else if (data.type === "infer" && !FakeWorker.holdInfer) {
@@ -145,6 +151,7 @@ afterEach(() => {
   FakeWorker.failSpawn = false;
   FakeWorker.failNextInit = false;
   FakeWorker.crashBeforeInit = null;
+  FakeWorker.exitAfterReady = false;
   FakeWorker.holdInfer = false;
 });
 
@@ -278,6 +285,100 @@ describe("font matching worker client protocol", () => {
     expect(result.pixelInferenceByBlockId).toBeInstanceOf(Map);
   });
 
+  it("shares one initialization worker across concurrent page requests", async () => {
+    const port = makePort();
+
+    await Promise.all([
+      port.inferPage(makeRequest()),
+      port.inferPage(makeRequest()),
+    ]);
+
+    expect(FakeWorker.instances).toHaveLength(1);
+    expect(
+      FakeWorker.instances[0]?.posted.filter(
+        (message) => message.type === "init",
+      ),
+    ).toHaveLength(1);
+    await port.dispose?.();
+  });
+
+  it("falls back when the worker exits immediately after reporting ready", async () => {
+    FakeWorker.exitAfterReady = true;
+    const fallbackInfer = vi.fn(async () => ({
+      pixelInferenceByBlockId: new Map(),
+    }));
+    const port = makePort({
+      createFallbackPort: () => ({ inferPage: fallbackInfer }),
+    });
+
+    await port.inferPage(makeRequest());
+
+    expect(fallbackInfer).toHaveBeenCalledOnce();
+    expect(
+      FakeWorker.instances[0]?.posted.some(
+        (message) => message.type === "infer",
+      ),
+    ).toBe(false);
+    await port.dispose?.();
+  });
+
+  it("terminates the worker on disposal and rejects later inference", async () => {
+    const port = makePort();
+    await port.inferPage(makeRequest());
+    const worker = FakeWorker.instances[0];
+
+    await port.dispose?.();
+    await port.dispose?.();
+
+    expect(worker?.terminateCount).toBe(1);
+    await expect(port.inferPage(makeRequest())).rejects.toThrow("disposed");
+  });
+
+  it("honors an abort that arrives while the worker runtime is initializing", async () => {
+    let resolveAssets!: (value: {
+      wasmBinaryPath: string;
+      wasmModulePath: string;
+    }) => void;
+    const resolveWasmAssets = () =>
+      new Promise<{
+        wasmBinaryPath: string;
+        wasmModulePath: string;
+      }>((resolve) => {
+        resolveAssets = resolve;
+      });
+    const port = makePort({ resolveWasmAssets });
+    const controller = new AbortController();
+    const pending = port.inferPage(makeRequest({ signal: controller.signal }));
+
+    await vi.waitFor(() => expect(resolveAssets).toBeTypeOf("function"));
+    controller.abort();
+    resolveAssets({
+      wasmBinaryPath: "/fake.wasm",
+      wasmModulePath: "/fake.mjs",
+    });
+
+    await expect(pending).rejects.toThrow("Aborted");
+    expect(
+      FakeWorker.instances[0]?.posted.some(
+        (message) => message.type === "infer",
+      ),
+    ).toBe(false);
+    await port.dispose?.();
+  });
+
+  it("rejects an already-aborted request without spawning a worker", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const port = makePort();
+
+    await expect(
+      port.inferPage(makeRequest({ signal: controller.signal })),
+    ).rejects.toMatchObject({ name: "AbortError" });
+
+    expect(FakeWorker.instances).toHaveLength(0);
+    await port.dispose?.();
+  });
+
   it("transfers the decoded raster buffer to the worker", async () => {
     const raster = makeRaster();
     const loadRaster = vi.fn(async () => raster);
@@ -375,6 +476,22 @@ describe("font matching worker client protocol", () => {
     expect(fallback).toHaveBeenCalledTimes(1);
     expect(result.pixelInferenceByBlockId.size).toBe(1);
     expect(reportWarning).toHaveBeenCalledTimes(1);
+  });
+
+  it("disposes a lazily-created fallback port", async () => {
+    FakeWorker.failSpawn = true;
+    const fallbackDispose = vi.fn(async () => undefined);
+    const port = makePort({
+      createFallbackPort: () => ({
+        inferPage: async () => ({ pixelInferenceByBlockId: new Map() }),
+        dispose: fallbackDispose,
+      }),
+    });
+
+    await port.inferPage(makeRequest());
+    await port.dispose?.();
+
+    expect(fallbackDispose).toHaveBeenCalledOnce();
   });
 
   it("falls back to the in-process port when worker init fails", async () => {

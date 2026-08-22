@@ -6,7 +6,7 @@ import type { ComicPageDetectionResult } from "./contracts";
 import { parseKoharuLayoutOutputs } from "./outputs";
 import { prepareComicDetectorImage } from "./preprocess";
 import { getKoharuLayoutSession, withKoharuSessionLease } from "./session";
-import { onnxRuntimeNode as ort } from "./nativeOrt";
+import { onnxRuntimeNode as ort } from "../runtimeSupport/nativeOnnxRuntime";
 
 export async function detectKoharuPageLayout(options: {
   /** Callers must pass the original page image, not an inpainted derivative. */

@@ -48,7 +48,20 @@ export function applyModelTextLayoutIntent(
     layoutIntent !== undefined && block.layoutIntent !== layoutIntent;
   const forcesHorizontal =
     layoutIntent === "horizontal" && block.renderDirection !== "horizontal";
-  if (!hasStaleIntent && !changesIntent && !forcesHorizontal) return block;
+  const clearsAppliedVerticalIntent = shouldClearAppliedVerticalIntent(
+    block,
+    layoutIntent,
+  );
+  if (
+    !shouldUpdateModelLayoutIntent({
+      hasStaleIntent,
+      changesIntent,
+      forcesHorizontal,
+      clearsAppliedVerticalIntent,
+    })
+  ) {
+    return block;
+  }
 
   const next: TranslationBlock = { ...block };
   if (layoutIntent) {
@@ -56,10 +69,34 @@ export function applyModelTextLayoutIntent(
   } else {
     delete next.layoutIntent;
   }
-  if (layoutIntent === "horizontal") {
+  if (layoutIntent === "horizontal" || clearsAppliedVerticalIntent) {
     next.renderDirection = "horizontal";
   }
   return next;
+}
+
+function shouldClearAppliedVerticalIntent(
+  block: Pick<
+    TranslationBlock,
+    "layoutIntent" | "layoutIntentSuppressed" | "renderDirection"
+  >,
+  layoutIntent: Exclude<TextLayoutIntent, "auto"> | undefined,
+): boolean {
+  return (
+    layoutIntent === undefined &&
+    block.layoutIntent === "vertical" &&
+    block.layoutIntentSuppressed !== true &&
+    block.renderDirection === "vertical"
+  );
+}
+
+function shouldUpdateModelLayoutIntent(changes: {
+  hasStaleIntent: boolean;
+  changesIntent: boolean;
+  forcesHorizontal: boolean;
+  clearsAppliedVerticalIntent: boolean;
+}): boolean {
+  return Object.values(changes).some(Boolean);
 }
 
 function readConcreteModelTextLayoutIntent(

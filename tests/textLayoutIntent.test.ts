@@ -5,8 +5,19 @@ import type { BubbleLayout } from "../src/shared/bubbleLayout";
 import { TranslationBlockSchema } from "../src/shared/ipcSchemas";
 import type { MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
+import { applyModelTextLayoutIntent } from "../src/shared/textLayoutIntent";
 
 describe("Gemma text layout intent", () => {
+  it("reverts an applied model vertical direction when retranslation returns auto", () => {
+    const block = makePage({ renderDirection: "vertical" }).blocks[0];
+    if (!block) throw new Error("layout intent fixture is missing");
+
+    const updated = applyModelTextLayoutIntent(block, "auto", "ordinary");
+
+    expect(updated).not.toHaveProperty("layoutIntent");
+    expect(updated.renderDirection).toBe("horizontal");
+  });
+
   it("applies a long outer-edge vertical advisory only after a no-bubble result", async () => {
     const page = makePage();
     const original = structuredClone(page.blocks[0]);

@@ -2829,6 +2829,28 @@
         "pct": 80.64
       }
     },
+    "src/main/wholePagePipeline.ts": {
+      "lines": {
+        "covered": 59,
+        "total": 59,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 60,
+        "total": 62,
+        "pct": 96.77
+      },
+      "functions": {
+        "covered": 11,
+        "total": 11,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 29,
+        "total": 36,
+        "pct": 80.55
+      }
+    },
     "src/main/workContextAiNormalize.ts": {
       "lines": {
         "covered": 39,
@@ -5823,28 +5845,6 @@
         "pct": 70.27
       }
     },
-    "src/main/bubbleLayout/nativeOrt.ts": {
-      "lines": {
-        "covered": 5,
-        "total": 7,
-        "pct": 71.42
-      },
-      "statements": {
-        "covered": 6,
-        "total": 8,
-        "pct": 75
-      },
-      "functions": {
-        "covered": 2,
-        "total": 2,
-        "pct": 100
-      },
-      "branches": {
-        "covered": 3,
-        "total": 6,
-        "pct": 50
-      }
-    },
     "src/main/inpainting/fluxAssets/hipSdk.ts": {
       "lines": {
         "covered": 97,
@@ -6503,6 +6503,28 @@
         "covered": 53,
         "total": 53,
         "pct": 100
+      }
+    },
+    "src/main/runtimeSupport/nativeOnnxRuntime.ts": {
+      "lines": {
+        "covered": 5,
+        "total": 7,
+        "pct": 71.42
+      },
+      "statements": {
+        "covered": 6,
+        "total": 8,
+        "pct": 75
+      },
+      "functions": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 3,
+        "total": 6,
+        "pct": 50
       }
     },
     "src/main/settings/appSettingsCodexNormalize.ts": {

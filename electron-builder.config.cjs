@@ -64,7 +64,7 @@ const extraResources = [
   },
   // The normal app.asar.unpacked/node_modules path exceeds this project's
   // NSIS Fast ZIP safety limit. Stage the native runtime under the short `o`
-  // resource root and load it explicitly from bubbleLayout/nativeOrt.
+  // resource root and load it explicitly from runtimeSupport/nativeOnnxRuntime.
   {
     from: "out/app-runtime/o",
     to: "o",
@@ -311,7 +311,8 @@ module.exports = {
     "!vitest.config.ts",
     "!out/app-runtime{,/**/*}",
     // Font pixel inference still uses the ORT-Web Node/WASM entry. Bubble and
-    // text segmentation now use the native onnxruntime-node dependency.
+    // text segmentation and the cross-script font proxy use the shared native
+    // onnxruntime-node loader.
     "!node_modules/onnxruntime-web/docs{,/**/*}",
     "!node_modules/onnxruntime-web/lib{,/**/*}",
     "!node_modules/onnxruntime-web/dist/!(ort.node.min.js)",

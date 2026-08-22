@@ -55,6 +55,13 @@ const { prepareRuntimeAssets } = require("../scripts/prepare-runtime.cjs") as {
     runtimeModulesOnly?: boolean;
   }) => string;
 };
+const { resolveTargetRuntime } =
+  require("../scripts/stage-onnxruntime-node.cjs") as {
+    resolveTargetRuntime: (options?: {
+      hostPlatform?: NodeJS.Platform;
+      requestedPlatform?: string;
+    }) => { platform: string; arch: string; binarySource: string };
+  };
 const electronBuilderConfig: unknown = require("../electron-builder.config.cjs");
 const bundledPythonRuntimeAvailable = existsSync(
   join(repoRoot, "tools", "python"),
@@ -167,6 +174,7 @@ describe("Windows installer clean uninstall option", () => {
     ) as {
       dependencies: Record<string, string>;
       devDependencies: Record<string, string>;
+      overrides: Record<string, Record<string, string>>;
     };
     const bundledOnlyPackages = [
       "@dnd-kit/core",
@@ -197,6 +205,31 @@ describe("Windows installer clean uninstall option", () => {
     }
     expect(packageJson.dependencies["onnxruntime-web"]).toBe("1.27.0");
     expect(packageJson.dependencies["onnxruntime-node"]).toBe("1.27.0");
+    expect(packageJson.overrides["onnxruntime-node"]?.["adm-zip"]).toBe(
+      "^0.6.0",
+    );
+  });
+
+  it("fails closed instead of staging Windows native ONNX bytes for an unsupported platform", () => {
+    expect(resolveTargetRuntime({ hostPlatform: "win32" })).toMatchObject({
+      platform: "win32",
+      arch: "x64",
+    });
+    expect(
+      resolveTargetRuntime({
+        hostPlatform: "win32",
+        requestedPlatform: "darwin",
+      }),
+    ).toMatchObject({ platform: "darwin", arch: "arm64" });
+    expect(() => resolveTargetRuntime({ hostPlatform: "linux" })).toThrow(
+      "supports only win32 x64 and darwin arm64",
+    );
+    expect(() =>
+      resolveTargetRuntime({
+        hostPlatform: "win32",
+        requestedPlatform: "freebsd",
+      }),
+    ).toThrow("Unsupported MGT_TARGET_PLATFORM");
   });
 
   it("budgets the externalized font runtime without allowing training data into the package", () => {

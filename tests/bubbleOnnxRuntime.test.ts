@@ -19,7 +19,7 @@ vi.mock("../src/main/runtimeSupport/modelDownloads", async (importOriginal) => {
   return { ...actual, ensureRemoteFile: runtimeMocks.ensureRemoteFile };
 });
 
-vi.mock("../src/main/bubbleLayout/nativeOrt", () => ({
+vi.mock("../src/main/runtimeSupport/nativeOnnxRuntime", () => ({
   onnxRuntimeNode: {
     InferenceSession: { create: runtimeMocks.createSession },
   },
@@ -106,6 +106,43 @@ describe("KoharuLayout native ONNX runtime", () => {
       enableMemPattern: true,
     });
     expect(runtimeMocks.createSession).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries a transiently unavailable GPU provider after the job releases its sessions", async () => {
+    const cpuRelease = vi.fn(async () => undefined);
+    const dmlRelease = vi.fn(async () => undefined);
+    runtimeMocks.createSession
+      .mockRejectedValueOnce(new Error("temporary DML allocation failure"))
+      .mockResolvedValueOnce({
+        inputNames: ["input"],
+        outputNames: ["dets", "labels", "masks"],
+        release: cpuRelease,
+      })
+      .mockResolvedValueOnce({
+        inputNames: ["input"],
+        outputNames: ["dets", "labels", "masks"],
+        release: dmlRelease,
+      });
+    const { disposeCachedKoharuLayoutSessions, getKoharuLayoutSession } =
+      await import("../src/main/bubbleLayout/session");
+    const modelPath = resolve("models", "transient-dml-koharu.onnx");
+
+    const first = await getKoharuLayoutSession({
+      modelPath,
+      providerPreference: ["dml", "cpu"],
+    });
+    expect(first.provider).toBe("cpu");
+    await disposeCachedKoharuLayoutSessions();
+
+    const second = await getKoharuLayoutSession({
+      modelPath,
+      providerPreference: ["dml", "cpu"],
+    });
+    expect(second.provider).toBe("dml");
+    expect(runtimeMocks.createSession).toHaveBeenCalledTimes(3);
+    await disposeCachedKoharuLayoutSessions();
+    expect(cpuRelease).toHaveBeenCalledOnce();
+    expect(dmlRelease).toHaveBeenCalledOnce();
   });
 
   it("does not turn cancellation into a CPU fallback", async () => {

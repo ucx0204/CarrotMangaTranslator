@@ -194,6 +194,36 @@ function verifyPackagedOnnxRuntime(appPath) {
       timeout: 30_000,
     },
   );
+  const nativeRuntimeEntryPath = join(resourcesDir, "o", "index.js");
+  const nativeRuntimeModulePath = join(
+    resourcesDir,
+    "app.asar",
+    "out",
+    "main",
+    "runtimeSupport",
+    "nativeOnnxRuntime.js",
+  );
+  const crossScriptProxyModulePath = join(
+    resourcesDir,
+    "app.asar",
+    "out",
+    "main",
+    "pipeline",
+    "fontMatchingCrossScriptProxyRuntime.js",
+  );
+  run(
+    appExecutable,
+    [
+      join(root, "scripts", "smoke-packaged-onnx-node-runtime.cjs"),
+      nativeRuntimeEntryPath,
+      nativeRuntimeModulePath,
+      crossScriptProxyModulePath,
+    ],
+    {
+      env: { ELECTRON_RUN_AS_NODE: "1" },
+      timeout: 30_000,
+    },
+  );
 }
 
 /** @param {string} appPath */

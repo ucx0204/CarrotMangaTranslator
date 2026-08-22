@@ -1,7 +1,7 @@
 import { availableParallelism } from "node:os";
 import { resolve } from "node:path";
 import type * as Ort from "onnxruntime-node";
-import { onnxRuntimeNode as ort } from "./nativeOrt";
+import { onnxRuntimeNode as ort } from "../runtimeSupport/nativeOnnxRuntime";
 
 export type KoharuExecutionProvider = "dml" | "cpu";
 
@@ -59,7 +59,10 @@ export async function disposeCachedKoharuLayoutSessions(): Promise<boolean> {
   if (sessionDisposalBarrier) {
     await sessionDisposalBarrier;
   }
-  if (sessionCache.size === 0) return false;
+  if (sessionCache.size === 0) {
+    unavailableProviderKeys.clear();
+    return false;
+  }
 
   let finishDisposal!: () => void;
   const barrier = new Promise<void>((resolveBarrier) => {
@@ -87,6 +90,7 @@ export async function disposeCachedKoharuLayoutSessions(): Promise<boolean> {
     }
     return sessions.length > 0;
   } finally {
+    unavailableProviderKeys.clear();
     if (sessionDisposalBarrier === barrier) {
       sessionDisposalBarrier = null;
     }

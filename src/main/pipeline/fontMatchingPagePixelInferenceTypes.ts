@@ -179,4 +179,6 @@ export type FontMatchingPageInferencePort = Readonly<{
   inferPage: (
     request: FontMatchingPageInferenceRequest,
   ) => Promise<FontMatchingPageInferenceResult>;
+  /** Release worker/session resources when the owning pipeline run finishes. */
+  dispose?: () => Promise<void>;
 }>;

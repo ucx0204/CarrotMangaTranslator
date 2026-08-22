@@ -31,10 +31,31 @@ import {
 import { configureWholePageOutputOptions } from "./pipeline/wholePageOutputOptions";
 import { createAutomaticFontChapterCoordinatorV2 } from "./pipeline/automaticFontMatchingV2PageCoordinator";
 
-// eslint-disable-next-line max-lines-per-function -- major await-boundary abort checks stay with the pipeline transaction
 export async function runWholePagePipeline(
   options: PipelineOptions,
   injectedDependencies?: WholePagePipelineDependencies,
+): Promise<{ pages: MangaPage[]; warnings: string[] }> {
+  if (options.pages.length === 0) return { pages: [], warnings: [] };
+  const ownsDependencies = injectedDependencies === undefined;
+  const dependencies = injectedDependencies ?? createDependencies();
+  try {
+    return await runWholePagePipelineWithDependencies(
+      options,
+      dependencies,
+      !ownsDependencies,
+    );
+  } finally {
+    if (ownsDependencies) {
+      await dependencies.fontMatching.pageInference?.dispose?.();
+    }
+  }
+}
+
+// eslint-disable-next-line max-lines-per-function -- major await-boundary abort checks stay with the pipeline transaction
+async function runWholePagePipelineWithDependencies(
+  options: PipelineOptions,
+  dependencies: WholePagePipelineDependencies,
+  injectedDependencies: boolean,
 ): Promise<{ pages: MangaPage[]; warnings: string[] }> {
   const {
     onCleanupReady,
@@ -54,14 +75,11 @@ export async function runWholePagePipeline(
     autoFontMatching = false,
     canonicalPageIndexById,
   } = options;
-  if (pages.length === 0) return { pages: [], warnings: [] };
-
   throwIfAborted(signal);
-  const dependencies = injectedDependencies ?? createDependencies();
   const { ocrHintsByPageId, run } = await prepareWholePageRun(
     options,
     dependencies,
-    Boolean(injectedDependencies),
+    injectedDependencies,
   );
   throwIfAborted(signal);
   await configureWholePageOutputOptions({

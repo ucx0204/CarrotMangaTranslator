@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { lstat, readFile, readdir } from "node:fs/promises";
 import { availableParallelism } from "node:os";
 import { join, resolve } from "node:path";
-import * as ort from "onnxruntime-node";
+import type * as Ort from "onnxruntime-node";
 import type { AutomaticFontCandidate } from "../../shared/fontMatchingTypes";
 import type {
   CrossScriptProxyCandidateV1,
@@ -18,6 +18,10 @@ import {
   CROSS_SCRIPT_PROXY_SUPPORT_COUNT,
   prepareCrossScriptProxySupport,
 } from "./fontMatchingCrossScriptProxySupport";
+import {
+  onnxRuntimeNode as ort,
+  runDisposableFloatTensorStage,
+} from "../runtimeSupport/nativeOnnxRuntime";
 
 const SCHEMA = "manga-font-crossscript-proxy-runtime-v2";
 const OWNER = "carrot-manga-translator/manga-font-crossscript-proxy-runtime-v2";
@@ -71,8 +75,8 @@ export type CrossScriptProxyRuntimeModel = Readonly<{
   candidates: readonly CandidateMetadata[];
   weightCalibration: WeightCalibration;
   scoreCache: CandidateScoreCache;
-  styleSession: ort.InferenceSession;
-  decoderSession: ort.InferenceSession;
+  styleSession: Ort.InferenceSession;
+  decoderSession: Ort.InferenceSession;
 }>;
 
 type Manifest = Readonly<{
@@ -106,7 +110,7 @@ export async function loadCrossScriptProxyRuntimeModel(
   if (bank.byteLength !== expectedBankLength) {
     throw new Error("Cross-script candidate glyph bank size drifted.");
   }
-  const sessionOptions: ort.InferenceSession.SessionOptions = {
+  const sessionOptions: Ort.InferenceSession.SessionOptions = {
     executionMode: "sequential",
     executionProviders: ["cpu"],
     graphOptimizationLevel: "all",
@@ -194,49 +198,67 @@ export async function inferCrossScriptProxyPage({
   for (const [index, row] of prepared.entries()) {
     supportData.set(row.support, index * row.support.length);
   }
-  const styleOutput = await model.styleSession.run({
-    support: new ort.Tensor("float32", supportData, [
+  const styleStage = await runDisposableFloatTensorStage({
+    session: model.styleSession,
+    inputName: "support",
+    input: new ort.Tensor("float32", supportData, [
       prepared.length,
       CROSS_SCRIPT_PROXY_SUPPORT_COUNT,
       1,
       CROSS_SCRIPT_PROXY_IMAGE_SIZE,
       CROSS_SCRIPT_PROXY_IMAGE_SIZE,
     ]),
+    outputName: "style",
+    expectedDimensions: [prepared.length, STYLE_DIM],
+    consume: (styles) => {
+      const voiceCount = Math.min(voiceLimit, prepared.length);
+      const assignments = deterministicKmeans(
+        styles,
+        prepared.length,
+        voiceCount,
+      );
+      return {
+        assignments,
+        voiceCount,
+        voiceStyles: meanVoiceStyles(
+          styles,
+          assignments,
+          prepared.length,
+          voiceCount,
+        ),
+      };
+    },
   });
-  const styles = readFloatTensor(styleOutput.style, [
-    prepared.length,
-    STYLE_DIM,
-  ]);
-  const voiceCount = Math.min(voiceLimit, prepared.length);
-  const assignments = deterministicKmeans(styles, prepared.length, voiceCount);
-  const voiceStyles = meanVoiceStyles(
-    styles,
-    assignments,
-    prepared.length,
-    voiceCount,
-  );
+  const { assignments, voiceCount, voiceStyles } = styleStage;
   const voiceInkMasses = meanVoiceInkMasses(prepared, assignments, voiceCount);
   throwIfAborted(signal);
-  const glyphOutput = await model.decoderSession.run({
-    style: new ort.Tensor("float32", voiceStyles, [voiceCount, STYLE_DIM]),
+  const rankings = await runDisposableFloatTensorStage({
+    session: model.decoderSession,
+    inputName: "style",
+    input: new ort.Tensor("float32", voiceStyles, [voiceCount, STYLE_DIM]),
+    outputName: "glyphs",
+    expectedDimensions: [
+      voiceCount,
+      GLYPH_COUNT,
+      1,
+      CROSS_SCRIPT_PROXY_IMAGE_SIZE,
+      CROSS_SCRIPT_PROXY_IMAGE_SIZE,
+    ],
+    consume: (glyphs) =>
+      Array.from({ length: voiceCount }, (_unused, voice) =>
+        rankVoiceCandidates(
+          model,
+          glyphs,
+          voice,
+          candidateIds,
+          predictKoreanInkMass(
+            model.weightCalibration,
+            voiceInkMasses[voice] ?? 0,
+          ),
+          signal,
+        ),
+      ),
   });
-  const glyphs = readFloatTensor(glyphOutput.glyphs, [
-    voiceCount,
-    GLYPH_COUNT,
-    1,
-    CROSS_SCRIPT_PROXY_IMAGE_SIZE,
-    CROSS_SCRIPT_PROXY_IMAGE_SIZE,
-  ]);
-  const rankings = Array.from({ length: voiceCount }, (_unused, voice) =>
-    rankVoiceCandidates(
-      model,
-      glyphs,
-      voice,
-      candidateIds,
-      predictKoreanInkMass(model.weightCalibration, voiceInkMasses[voice] ?? 0),
-      signal,
-    ),
-  );
   const output = new Map<string, VerifiedCrossScriptProxyInferenceV1>();
   for (const [index, row] of prepared.entries()) {
     const voice = assignments[index] ?? 0;
@@ -676,21 +698,6 @@ function dotRows(
   return sum;
 }
 
-function readFloatTensor(
-  value: ort.Tensor | undefined,
-  expectedDimensions: readonly number[],
-): Float32Array {
-  if (
-    !value ||
-    value.type !== "float32" ||
-    !sameArray(value.dims, expectedDimensions) ||
-    !(value.data instanceof Float32Array)
-  ) {
-    throw new Error("Cross-script ONNX output contract drifted.");
-  }
-  return value.data;
-}
-
 function parseManifest(value: Readonly<Record<string, unknown>>): Manifest {
   const candidateOrderSha256 = value.candidate_order_sha256;
   const rawCandidates = value.candidates;
@@ -829,7 +836,7 @@ async function verifyArtifacts(
 }
 
 function assertSession(
-  session: ort.InferenceSession,
+  session: Ort.InferenceSession,
   inputs: readonly string[],
   outputs: readonly string[],
 ): void {
