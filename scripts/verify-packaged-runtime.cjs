@@ -28,6 +28,10 @@ const asarUnpackedNodeModules = join(
   "app.asar.unpacked",
   "node_modules",
 );
+const forbiddenPackagedFontRuntimeDirs = [
+  join(resourcesDir, "app-runtime", "font-matching"),
+  join(resourcesDir, "app-runtime", "font-matching-crossscript-proxy"),
+];
 const appExecutable = join(unpackedDir, WINDOWS_EXECUTABLE_FILENAME);
 const packagedNativeImportModule = join(
   resourcesDir,
@@ -109,14 +113,14 @@ const allowedElectronLocales = new Set([
 ]);
 // The clean v1.7.0 thin payload was 217 files after development-only runtime
 // artifacts were omitted. v1.10.1 intentionally adds runtime integrity
-// manifests and hash-complete dependency locks. Font runtime v2 then adds its
-// four small trust/ranker files while leaving the three large model assets
-// external. The runtime hardening pass adds the shared retry scheduler and the
+// manifests and hash-complete dependency locks. Every font runtime asset is
+// now external; explicit checks below reject either font runtime directory in
+// the packaged payload. The runtime hardening pass adds the shared retry scheduler and the
 // pinned BeeLlama archive policy as two small production modules. The
 // production cleanup then adds the semantic-OCR geometry leaf and the sealed
 // download-contract leaf. KoharuLayout adds one short-path native ORT runtime;
 // keep the resulting payload ceiling exact so unrelated growth fails closed.
-const MAX_PACKAGED_FILES = 293;
+const MAX_PACKAGED_FILES = 291;
 // The trained font matching runtime bundle (~467 MiB) is externalized out of
 // the installer and downloaded into the data-root cache on first use, so the
 // unpacked payload is ~745 MiB (Electron + app.asar + tools, no bundle) and the
@@ -138,6 +142,13 @@ if (existsSync(asarUnpackedNodeModules)) {
   throw new Error(
     `Unexpected unpacked node_modules payload: ${asarUnpackedNodeModules}`,
   );
+}
+for (const fontRuntimeDir of forbiddenPackagedFontRuntimeDirs) {
+  if (existsSync(fontRuntimeDir)) {
+    throw new Error(
+      `Font matching runtime must not be packaged: ${fontRuntimeDir}`,
+    );
+  }
 }
 assertPackagedOnnxNodeInventory();
 if (!existsSync(appExecutable)) {

@@ -7,9 +7,10 @@
 현재 배포 상태:
 
 - 기존 공용 대형 자산용 GitHub prerelease `font-matching-runtime-v2`: 유지
-- 새 R33 ranker/contract/calibration/marker 앱 번들 연결: 완료
+- 새 R33/proxy 자산 prerelease `font-matching-runtime-r33-proxy-20260822-r1`: 게시·재다운로드 검증 완료
+- 폰트 모델·trust 파일 installer 완전 제외 및 data-root cache 다운로드 연결: 완료
 - 새 프로덕션 번들 strict validate와 앱 loader/build 검증: 완료
-- 이 작업의 소스 commit/push: 아직 안 함
+- 외부화 보정 소스: 구현·전체 검사·Windows thin 패키징 검증 완료
 - 앱 버전 릴리스/installer 게시: 사용자의 별도 지시 전까지 보류
 
 이 문서는 현재 앱에 반영된 폰트 자동 맞춤의 정확한 상태, 출시 근거,
@@ -31,7 +32,11 @@ mean absolute ink-mass error는 `0.0052464437170545546`이었다. 기존 neural 
 재훈련해 전체 raster를 억지로 얇게 만드는 실험은 실제 선택 face가 바뀌지 않아
 채택하지 않았다.
 
-번들 runtime: `src/main/runtime/font-matching-crossscript-proxy/`
+개발 원본 runtime: `src/main/runtime/font-matching-crossscript-proxy/`
+
+배포 시 이 디렉터리는 installer에 포함하지 않는다. 아래 5파일은
+`font-matching-runtime-r33-proxy-20260822-r1` prerelease에서 data-root cache로
+다운로드한다.
 
 | 파일                 |      bytes | SHA-256                                                            |
 | -------------------- | ---------: | ------------------------------------------------------------------ |
@@ -110,7 +115,7 @@ gate가 실패했다는 사실도 contract에 그대로 남긴다.
 
 ## 2. 앱 통합과 배포 구조
 
-자산 전용 GitHub prerelease:
+공용 대형 자산용 GitHub prerelease:
 
 `https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/font-matching-runtime-v2`
 
@@ -128,12 +133,34 @@ gate가 실패했다는 사실도 contract에 그대로 남긴다.
 - 이것은 runtime 자산 선게시이며 앱 버전 릴리스는 아직 하지 않았다. 앱 릴리스는
   사용자의 별도 지시를 기다린다.
 
+R33/proxy 자산 전용 GitHub prerelease:
+
+`https://github.com/ucx0204/CarrotMangaTranslator/releases/tag/font-matching-runtime-r33-proxy-20260822-r1`
+
+- tag: `font-matching-runtime-r33-proxy-20260822-r1`
+- target commit: `a12d6a7404e68118a6eeb2ae6a19c8a1eec14173`
+- draft false / prerelease true
+- R33 marker/contract/calibration/ranker 4파일과 cross-script proxy 5파일을 개별
+  asset으로 게시했다. 별도 release manifest까지 포함한 서버 asset 수는 10개다.
+- 게시 후 새 빈 디렉터리에 전부 다시 다운로드하여 이름, byte size, SHA-256을
+  업로드 전 staging과 대조했다.
+- 새 빈 data root와 빈 runtime directory에서 앱의 실제 downloader를 실행했다.
+  공용 v2의 3파일과 새 prerelease의 9파일을 모두 원격으로 받은 뒤 R33 bundle
+  loader와 proxy ONNX loader가 strict 검증에 성공했다.
+- 새 앱 installer에는 `font-matching`과 `font-matching-crossscript-proxy`
+  디렉터리가 모두 없어야 하며 packaged-runtime 검증기가 이를 fail-closed로 검사한다.
+- 로컬 `npm run dist:win` 결과는 291파일, unpacked 824.2 MiB였고 installer는
+  365,737,807 bytes였다. 두 font runtime 디렉터리는 모두 없었으며 `app.asar`
+  내부 모델 파일명 검색도 0건이었다. 이 로컬 installer는 게시하지 않았다.
+
 주요 제품 파일:
 
 - `src/main/pipeline/fontMatchingRuntimePaths.ts`: 새 cache version을 기본값으로 사용한다.
-- `src/main/pipeline/fontMatchingRuntimeAssets.ts`: 소형 v2 trust files와 ranker를 앱에서
-  설치하고, byte-identical 대형 3파일은 기존 v1 cache에서 검증 후 복사하거나 위의
-  immutable v2 asset release에서 다운로드한다.
+- `src/main/pipeline/fontMatchingRuntimeAssets.ts`: R33 4파일은 새 prerelease,
+  byte-identical 대형 3파일은 기존 v1 cache 또는 immutable v2 prerelease에서 받아
+  data-root cache에 완성한다. installer 원본 파일에는 의존하지 않는다.
+- `src/main/pipeline/fontMatchingCrossScriptProxyAssets.ts`: proxy 5파일을 새
+  prerelease에서 byte size/SHA-256 검증 다운로드한다.
 - `src/main/pipeline/fontMatchingRuntimeReleaseAcceptance.ts`: legacy v1 acceptance와
   exact manual-v2 acceptance를 fail-closed로 검증한다.
 - `src/main/pipeline/fontMatchingRuntimeArtifactBundleLoader.ts`: releaseAccepted와
@@ -144,9 +171,10 @@ gate가 실패했다는 사실도 contract에 그대로 남긴다.
   acceptance에 한해서만 failed calibration record를 실행에 사용할 수 있다.
 - `src/main/pipeline/fontMatchingPixelCandidateEligibility.ts`: Single Day eligibility.
 - `scripts/prepare-runtime.cjs`: 빌드 staging에서도 release acceptance를 강제한다.
-- `electron-builder.config.cjs`: marker/contract/calibration/ranker는 installer에 넣고,
-  encoder/prototype/catalog만 외부 shared asset으로 남긴다.
-- `src/main/runtime/font-matching/`: installer에 들어갈 소형 v2 파일 4개.
+- `electron-builder.config.cjs`: `font-matching`과
+  `font-matching-crossscript-proxy` 디렉터리 전체를 installer에서 제외한다.
+- `src/main/runtime/font-matching/`: 개발·검증용 staging 원본이다. 설치파일에는
+  이 디렉터리의 소형 파일도 포함하지 않는다.
 - `scripts/dev-build-cache.cjs`: `src/main/runtime/font-matching/`은 TypeScript
   산출물이 아니라 runtime-assets 단계가 소유하므로 Electron 컴파일 캐시 입력/필수
   `out/main` 산출물에서 제외한다. 이 경계가 없으면 `npm run dev`가
@@ -155,8 +183,9 @@ gate가 실패했다는 사실도 contract에 그대로 남긴다.
 
 이 구조는 새 cache directory를 사용하므로 v1 cache를 손상하지 않는다. shared file이
 정확한 bytes/SHA이면 migration하고, 다르면 v2 tag에서 다시 받는다. marker, contract,
-calibration, ranker는 v1에서 복사하지 않는다. 새 설치의 원격 권위는 v2 tag 하나이며,
-v1 cache migration은 동일 바이트의 대역폭 절약 최적화일 뿐이다.
+calibration, ranker와 proxy는 새 R33/proxy tag에서 받는다. 새 설치의 원격 권위는
+두 immutable prerelease의 코드 고정 URL/bytes/SHA이며, cache migration은 동일 바이트의
+대역폭 절약 최적화일 뿐이다.
 
 ## 3. 실제 출시 근거
 

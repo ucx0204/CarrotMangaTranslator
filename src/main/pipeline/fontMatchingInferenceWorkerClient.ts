@@ -93,7 +93,7 @@ class FontMatchingInferenceWorkerClient implements FontMatchingPageInferencePort
   constructor(private readonly deps: WorkerClientDependencies) {
     this.artifactDir = resolveFontMatchingArtifactDirSync(deps.paths);
     this.crossScriptProxyArtifactDir = resolveCrossScriptProxyRuntimeDir(
-      deps.paths.runtimeDir,
+      deps.paths,
     );
   }
 

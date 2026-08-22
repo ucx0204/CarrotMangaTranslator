@@ -120,10 +120,10 @@ function prepareRuntimeAssets(options = {}) {
       bundleDir: fontMatchingBundleDir,
       // An explicitly selected bundle must exist (the operator asked for it).
       // The default bundle dir is only present on machines that have staged the
-      // trained runtime locally; on a fresh CI runner it is absent. The four
-      // small v2 trust/ranker files are still copied from src/main/runtime,
-      // while the unchanged large assets are migrated or downloaded on first
-      // use. A missing full source bundle is therefore not a build error.
+      // trained runtime locally; on a fresh CI runner it is absent. A missing
+      // full source bundle is therefore not a build error. Development may
+      // stage the bundle here, while electron-builder excludes the entire
+      // font-matching directory from installers.
       required: Boolean(options.fontMatchingBundleDir),
     });
   }
@@ -151,15 +151,15 @@ function stageFontMatchingRuntimeBundle(options) {
       throw new Error(`Font matching runtime bundle is missing: ${bundleDir}`);
     }
     console.log(
-      `[prepare-runtime] Full font matching runtime source is absent at ${bundleDir}; keeping bundled v2 trust files and resolving shared large assets on first use.`,
+      `[prepare-runtime] Full font matching runtime source is absent at ${bundleDir}; packaged builds resolve all font runtime assets on first use.`,
     );
     return;
   }
   assertSafeBundleSource(options.root, options.outputDir, bundleDir);
   validateFontMatchingRuntimeBundle(bundleDir);
   const targetDir = join(options.outputDir, FONT_MATCHING_BUNDLE_DIRECTORY);
-  // The source runtime tree carries the small v2 trust/ranker files so a
-  // packaged app can assemble the cache without a second release endpoint.
+  // This staging copy supports local development and validation only.
+  // electron-builder excludes the complete directory from installers.
   mkdirSync(targetDir, { recursive: true });
   for (const fileName of FONT_MATCHING_BUNDLE_FILES) {
     copyFileSync(join(bundleDir, fileName), join(targetDir, fileName));

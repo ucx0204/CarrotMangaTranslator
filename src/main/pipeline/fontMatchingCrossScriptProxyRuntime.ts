@@ -33,6 +33,7 @@ const EXPECTED_FILES = [
   DECODER_MODEL_FILE,
   CANDIDATE_BANK_FILE,
 ].sort();
+const CACHE_SIDECAR_SUFFIXES = [".mgtmeta.json", ".mgt-sha256.json"] as const;
 const STYLE_DIM = 192;
 const GLYPH_COUNT = 24;
 // Ordinary prose normally shares one page voice.  A second voice preserves a
@@ -783,9 +784,18 @@ async function assertRuntimeDirectory(root: string): Promise<void> {
   }
   const entries = await readdir(root, { withFileTypes: true });
   const names = entries.map((entry) => entry.name).sort();
+  const allowed = new Set([
+    ...EXPECTED_FILES,
+    ...EXPECTED_FILES.flatMap((fileName) =>
+      CACHE_SIDECAR_SUFFIXES.map((suffix) => `${fileName}${suffix}`),
+    ),
+  ]);
   if (
-    entries.some((entry) => !entry.isFile() || entry.isSymbolicLink()) ||
-    !sameArray(names, EXPECTED_FILES)
+    entries.some(
+      (entry) =>
+        !entry.isFile() || entry.isSymbolicLink() || !allowed.has(entry.name),
+    ) ||
+    EXPECTED_FILES.some((fileName) => !names.includes(fileName))
   ) {
     throw new Error("Cross-script runtime inventory drifted.");
   }

@@ -38,16 +38,14 @@ const extraResources = [
   {
     from: "out/app-runtime",
     to: "app-runtime",
-    // Keep the small v2 ownership/acceptance/calibration/ranker files in the
-    // app. The unchanged ~467 MiB encoder/prototype/catalog payload remains
-    // external and is copied from a byte-identical verified v1 cache or
-    // downloaded from the immutable font-matching-runtime-v2 prerelease.
+    // Font matching models and trust files are all external runtime assets.
+    // Development staging still contains complete local bundles, but neither
+    // the R33 runtime nor the cross-script proxy may enter an installer.
     filter: [
       "**/*",
       "!o{,/**/*}",
-      "!font-matching/encoder.onnx",
-      "!font-matching/prototype-features.f32",
-      "!font-matching/auto-match-active-catalog.json",
+      "!font-matching{,/**/*}",
+      "!font-matching-crossscript-proxy{,/**/*}",
     ],
   },
   {

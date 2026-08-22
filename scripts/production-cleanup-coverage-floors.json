@@ -6285,6 +6285,28 @@
         "pct": 62.5
       }
     },
+    "src/main/pipeline/fontMatchingCrossScriptProxyAssets.ts": {
+      "lines": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
     "src/main/pipeline/fontMatchingCrossScriptProxyHints.ts": {
       "lines": {
         "covered": 31,
@@ -6393,6 +6415,28 @@
         "covered": 0,
         "total": 177,
         "pct": 0
+      }
+    },
+    "src/main/pipeline/fontMatchingRuntimeRelease.ts": {
+      "lines": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
       }
     },
     "src/main/runtime/semantic-ocr/box-geometry.cjs": {

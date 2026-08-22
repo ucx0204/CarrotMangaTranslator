@@ -108,14 +108,11 @@ describe("Windows installer clean uninstall option", () => {
         {
           from: "out/app-runtime",
           to: "app-runtime",
-          // Small v2 trust/ranker files ship in-app; unchanged large model
-          // assets migrate from v1 cache or download from the v2 asset tag.
           filter: [
             "**/*",
             "!o{,/**/*}",
-            "!font-matching/encoder.onnx",
-            "!font-matching/prototype-features.f32",
-            "!font-matching/auto-match-active-catalog.json",
+            "!font-matching{,/**/*}",
+            "!font-matching-crossscript-proxy{,/**/*}",
           ],
         },
         {
@@ -216,7 +213,7 @@ describe("Windows installer clean uninstall option", () => {
       "const MAX_PACKAGED_BYTES = 1000 * 1024 * 1024;",
     );
     expect(packagedRuntimeVerifier).toContain(
-      "const MAX_PACKAGED_FILES = 293;",
+      "const MAX_PACKAGED_FILES = 291;",
     );
     expect((electronBuilderConfig as { files: string[] }).files).toEqual(
       expect.arrayContaining([

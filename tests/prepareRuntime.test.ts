@@ -293,9 +293,8 @@ describe("prepareRuntimeAssets", () => {
         "font-matching-runtime-active21-v9-r33-page-common-user-v3-release-v2",
       ),
     );
-    // Real builds already carry the small v3 trust/ranker files inside the
-    // runtime source. This minimal fixture omits them, but the missing optional
-    // full bundle must still not break a fresh CI build.
+    // A missing optional development bundle must not break a fresh CI build;
+    // packaged apps obtain every font runtime asset from the external cache.
     expect(() => prepareRuntimeAssets({ root, outputDir })).not.toThrow();
     expect(readFileSync(join(outputDir, "root.cjs"), "utf8")).toBe("root");
     expect(existsSync(join(outputDir, "font-matching"))).toBe(false);
