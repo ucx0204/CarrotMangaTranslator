@@ -1,9 +1,11 @@
-import { existsSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
 
 const APP_DATA_DIR_NAME = "manga-gemma-translator";
 export const DATA_ROOT_POINTER_FILE = "data-root.txt";
 export const DATA_ROOT_MARKER_FILE = ".manga-gemma-translator-data";
+export const PACKAGED_MAIN_RUNTIME_SMOKE_MARKER =
+  "packaged-main-runtime-smoke.json";
 
 export type PackagedDataRootOptions = {
   platform?: NodeJS.Platform;
@@ -44,6 +46,37 @@ export function resolvePackagedDataRoot(
   }
 
   return legacyInstallDataRoot;
+}
+
+/**
+ * Keeps the packaged smoke marker inside the canonical data root while
+ * accepting Windows path aliases (for example RUNNER~1 versus RunnerAdmin).
+ */
+export function resolvePackagedMainRuntimeSmokeMarker(
+  dataRoot: string,
+  requestedMarker: string | undefined,
+): string {
+  const requestedText = requestedMarker?.trim();
+  if (!requestedText) {
+    throw new Error("Packaged main runtime smoke marker is missing.");
+  }
+
+  const canonicalDataRoot = realpathSync.native(resolve(dataRoot));
+  const requestedPath = resolve(requestedText);
+  const canonicalRequestedParent = realpathSync.native(dirname(requestedPath));
+  if (
+    basename(requestedPath) !== PACKAGED_MAIN_RUNTIME_SMOKE_MARKER ||
+    canonicalRequestedParent !== canonicalDataRoot
+  ) {
+    throw new Error(
+      `Packaged main runtime smoke marker must be ${join(
+        canonicalDataRoot,
+        PACKAGED_MAIN_RUNTIME_SMOKE_MARKER,
+      )}.`,
+    );
+  }
+
+  return join(canonicalDataRoot, PACKAGED_MAIN_RUNTIME_SMOKE_MARKER);
 }
 
 function readDataRootPointer(executableDir: string): string | null {

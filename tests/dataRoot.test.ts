@@ -2,7 +2,9 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -10,7 +12,9 @@ import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   DATA_ROOT_POINTER_FILE,
+  PACKAGED_MAIN_RUNTIME_SMOKE_MARKER,
   resolvePackagedDataRoot,
+  resolvePackagedMainRuntimeSmokeMarker,
 } from "../src/main/dataRoot";
 
 const tempDirs: string[] = [];
@@ -134,6 +138,52 @@ describe("packaged data root resolution", () => {
         appDataDir: createTempDir("mgt-mac-appdata-"),
       }),
     ).toBe(resolve(explicitRoot));
+  });
+
+  it("accepts an exact smoke marker reached through a filesystem path alias", () => {
+    const dataRoot = createTempDir("mgt-smoke-data-");
+    const aliasParent = createTempDir("mgt-smoke-alias-");
+    const aliasRoot = join(aliasParent, "data-alias");
+    symlinkSync(
+      dataRoot,
+      aliasRoot,
+      process.platform === "win32" ? "junction" : "dir",
+    );
+
+    expect(
+      resolvePackagedMainRuntimeSmokeMarker(
+        dataRoot,
+        join(aliasRoot, PACKAGED_MAIN_RUNTIME_SMOKE_MARKER),
+      ),
+    ).toBe(
+      join(realpathSync.native(dataRoot), PACKAGED_MAIN_RUNTIME_SMOKE_MARKER),
+    );
+  });
+
+  it("rejects a smoke marker outside the canonical data root", () => {
+    const dataRoot = createTempDir("mgt-smoke-data-");
+    const otherRoot = createTempDir("mgt-smoke-other-");
+
+    expect(() =>
+      resolvePackagedMainRuntimeSmokeMarker(
+        dataRoot,
+        join(otherRoot, PACKAGED_MAIN_RUNTIME_SMOKE_MARKER),
+      ),
+    ).toThrow("Packaged main runtime smoke marker must be");
+  });
+
+  it("rejects a missing or renamed smoke marker", () => {
+    const dataRoot = createTempDir("mgt-smoke-data-");
+
+    expect(() =>
+      resolvePackagedMainRuntimeSmokeMarker(dataRoot, undefined),
+    ).toThrow("Packaged main runtime smoke marker is missing");
+    expect(() =>
+      resolvePackagedMainRuntimeSmokeMarker(
+        dataRoot,
+        join(dataRoot, "unexpected.json"),
+      ),
+    ).toThrow("Packaged main runtime smoke marker must be");
   });
 });
 

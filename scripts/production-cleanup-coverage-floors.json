@@ -299,6 +299,28 @@
         "pct": 71.42
       }
     },
+    "src/main/dataRoot.ts": {
+      "lines": {
+        "covered": 46,
+        "total": 49,
+        "pct": 93.87
+      },
+      "statements": {
+        "covered": 47,
+        "total": 50,
+        "pct": 94
+      },
+      "functions": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 23,
+        "total": 27,
+        "pct": 85.18
+      }
+    },
     "src/main/dataRootInstanceLock.ts": {
       "lines": {
         "covered": 237,

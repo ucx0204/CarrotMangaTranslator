@@ -16,7 +16,10 @@ import {
   releaseDataRootInstanceLockLease,
 } from "./dataRootInstanceLockState";
 import { createBootstrapLogger } from "./bootstrapLogger";
-import { resolvePackagedDataRoot } from "./dataRoot";
+import {
+  resolvePackagedDataRoot,
+  resolvePackagedMainRuntimeSmokeMarker,
+} from "./dataRoot";
 import {
   resolvePackagedBootstrapLogPath,
   resolvePackagedElectronStoragePaths,
@@ -33,7 +36,6 @@ const bootstrapLogger = createBootstrapLogger({
 
 const PACKAGED_MAIN_RUNTIME_SMOKE_TOKEN =
   "--mgt-packaged-main-runtime-smoke=module-graph-v1";
-const PACKAGED_MAIN_RUNTIME_SMOKE_MARKER = "packaged-main-runtime-smoke.json";
 
 bootstrap();
 
@@ -97,18 +99,10 @@ function runPackagedMainRuntimeSmokeExit(dataRoot: string): boolean {
     throw new Error("Packaged main runtime smoke requires a packaged app.");
   }
 
-  const expectedMarkerPath = resolve(
+  const expectedMarkerPath = resolvePackagedMainRuntimeSmokeMarker(
     dataRoot,
-    PACKAGED_MAIN_RUNTIME_SMOKE_MARKER,
+    process.env.MGT_PACKAGED_MAIN_RUNTIME_SMOKE_MARKER,
   );
-  const requestedMarkerPath = resolve(
-    process.env.MGT_PACKAGED_MAIN_RUNTIME_SMOKE_MARKER?.trim() || "",
-  );
-  if (requestedMarkerPath !== expectedMarkerPath) {
-    throw new Error(
-      `Packaged main runtime smoke marker must be ${expectedMarkerPath}.`,
-    );
-  }
 
   const temporaryMarkerPath = `${expectedMarkerPath}.tmp-${process.pid}`;
   writeFileSync(
