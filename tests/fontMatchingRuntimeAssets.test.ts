@@ -1,5 +1,4 @@
 import {
-  copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -33,19 +32,9 @@ import {
 const modelDownloadsMocks = vi.hoisted(() => ({
   ensureRemoteFile: vi.fn(),
 }));
-const runtimeBundleDir = join(
-  __dirname,
-  "..",
-  "artifacts",
-  "font-matching-runtime-active21-v9-r33-page-common-user-v3-release-v2",
-);
-const proxyBundleDir = join(
-  __dirname,
-  "..",
-  "src",
-  "main",
-  "runtime",
-  "font-matching-crossscript-proxy",
+const exactRuntimeMarker = Buffer.from(
+  "ewogICJhcnRpZmFjdHMiOiB7CiAgICAiYXV0by1tYXRjaC1hY3RpdmUtY2F0YWxvZy5qc29uIjogIjU5ZjdlZDQ5ZTJjYTc1ZDUzN2EzZGQ0ZDkxYWZmNmQ4OTE3NWM4ODVjNDVjYThmMDZiMGIwZjc1NGFjNDU2NzYiLAogICAgImVuY29kZXIub25ueCI6ICI4YjlkYjZiYmUyNzI1MTBjZWRjMGY1Y2UzN2NlMGQxZDdmOTBjMTQ2YjdjNDJkZDA3Y2ExNGMyNmVmZjRhOTg1IiwKICAgICJwcm90b3R5cGUtZmVhdHVyZXMuZjMyIjogImNiNDQ3OWNkN2E0OGYwNTI2OTgyMzVmZDQyN2M3ZmQ5MGE5MWZiNGVjNDdlNzQzMTZiZDU3NGIxZmZkN2JjZDMiLAogICAgInJhbmtlci5vbm54IjogImUwNDlmYzc0YzNiYWVlZWU5YWJhMTc5NDEyYTNiMjAzODczMDRiNzQ5OTM2YzE2N2VjYzc1M2FmY2M3OGY0YWEiLAogICAgInJ1bnRpbWUtY29udHJhY3QuanNvbiI6ICJmMWVjNTk4MjQ3Zjg2OTA0MDcyYzA2MTVlYzM4ZjdlZmU0ZWFiMzk1MDI2ODIwNmNhZTVmYTllOWZmYzVmNTJhIiwKICAgICJzZWxlY3Rpb24tY2FsaWJyYXRpb24uanNvbiI6ICJhYWFhYTkzOGQ1ZmJlZDYwNzAxMTViMmQyMDZjNmNjNGEzNTUxN2IzYjExMDYxZmIwYTRkMTEzODNjYWE1NjYwIgogIH0sCiAgIm93bmVyIjogImNhcnJvdC1tYW5nYS10cmFuc2xhdG9yL2ZvbnQtbWF0Y2hpbmctcnVudGltZS1hcnRpZmFjdC12MiIsCiAgInNhZmVfcmVwbGFjZSI6IHRydWUsCiAgInNjaGVtYV92ZXJzaW9uIjogImZvbnQtbWF0Y2hpbmctcnVudGltZS1hcnRpZmFjdC12MiIKfQo=",
+  "base64",
 );
 const originalLogPath = process.env.MANGA_TRANSLATOR_LOG_PATH;
 
@@ -85,10 +74,7 @@ function stageCompleteRuntime(runtimeDir: string): void {
   const destination = join(runtimeDir, "font-matching");
   mkdirSync(destination, { recursive: true });
   for (const file of FONT_MATCHING_RUNTIME_FILES) {
-    copyFileSync(
-      join(runtimeBundleDir, file.fileName),
-      join(destination, file.fileName),
-    );
+    writeFileSync(join(destination, file.fileName), "test fixture");
   }
 }
 
@@ -96,10 +82,7 @@ function stageCompleteProxy(runtimeDir: string): void {
   const destination = join(runtimeDir, "font-matching-crossscript-proxy");
   mkdirSync(destination, { recursive: true });
   for (const file of CROSS_SCRIPT_PROXY_RUNTIME_ASSETS) {
-    copyFileSync(
-      join(proxyBundleDir, file.fileName),
-      join(destination, file.fileName),
-    );
+    writeFileSync(join(destination, file.fileName), "test fixture");
   }
 }
 
@@ -189,10 +172,7 @@ describe("font matching external releases", () => {
     );
     mkdirSync(sourceDir, { recursive: true });
     const marker = FONT_MATCHING_RUNTIME_FILES[0];
-    copyFileSync(
-      join(runtimeBundleDir, marker.fileName),
-      join(sourceDir, marker.fileName),
-    );
+    writeFileSync(join(sourceDir, marker.fileName), exactRuntimeMarker);
     const { ensureFontMatchingRuntimeAssets } =
       await import("../src/main/pipeline/fontMatchingRuntimeAssets");
 
@@ -200,7 +180,7 @@ describe("font matching external releases", () => {
 
     expect(modelDownloadsMocks.ensureRemoteFile).toHaveBeenCalledTimes(6);
     expect(readFileSync(join(cacheDir, marker.fileName))).toEqual(
-      readFileSync(join(sourceDir, marker.fileName)),
+      exactRuntimeMarker,
     );
     rmSync(dataRoot, { recursive: true, force: true });
   });
@@ -222,10 +202,7 @@ describe("font matching external releases", () => {
     );
     mkdirSync(cacheDir, { recursive: true });
     mkdirSync(oldDir, { recursive: true });
-    copyFileSync(
-      join(runtimeBundleDir, marker.fileName),
-      join(cacheDir, marker.fileName),
-    );
+    writeFileSync(join(cacheDir, marker.fileName), exactRuntimeMarker);
     writeFileSync(join(oldDir, marker.fileName), "invalid");
     const { ensureFontMatchingRuntimeAssets } =
       await import("../src/main/pipeline/fontMatchingRuntimeAssets");
