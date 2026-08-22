@@ -57,6 +57,28 @@
         "pct": 83.33
       }
     },
+    "src/main/bootstrap.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 93,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 93,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 22,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 31,
+        "pct": 0
+      }
+    },
     "src/main/bubbleLayout/assets.ts": {
       "lines": {
         "covered": 11,

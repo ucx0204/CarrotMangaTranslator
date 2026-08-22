@@ -1,5 +1,13 @@
 const { spawnSync } = require("node:child_process");
-const { existsSync, readdirSync, statSync } = require("node:fs");
+const {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+} = require("node:fs");
+const { tmpdir } = require("node:os");
 const { basename, join, relative, sep } = require("node:path");
 const {
   OPENAI_OAUTH_LICENSES_FILENAME,
@@ -78,6 +86,9 @@ const packagedFontCrossScriptProxyModule = join(
   "pipeline",
   "fontMatchingCrossScriptProxyRuntime.js",
 );
+const PACKAGED_MAIN_RUNTIME_SMOKE_TOKEN =
+  "--mgt-packaged-main-runtime-smoke=module-graph-v1";
+const PACKAGED_MAIN_RUNTIME_SMOKE_MARKER = "packaged-main-runtime-smoke.json";
 const onnxNodeResourceRoot = join(resourcesDir, "o");
 const onnxNodeResourceBinDir = join(onnxNodeResourceRoot, "b");
 const onnxNodeStagedRoot = join(root, "out", "app-runtime", "o");
@@ -127,8 +138,9 @@ const allowedElectronLocales = new Set([
 // pinned BeeLlama archive policy as two small production modules. The
 // production cleanup then adds the semantic-OCR geometry leaf and the sealed
 // download-contract leaf. KoharuLayout adds one short-path native ORT runtime,
-// and managed Python adds one shared pip-isolation leaf. Keep the resulting
-// payload ceiling exact so unrelated growth fails closed.
+// and managed Python adds one shared pip-isolation leaf plus the explicit
+// main-process copy that consumes it before app-runtime is available. Keep the
+// resulting payload ceiling exact so unrelated growth fails closed.
 const MAX_PACKAGED_FILES = 292;
 // The trained font matching runtime bundle (~467 MiB) is externalized out of
 // the installer and downloaded into the data-root cache on first use, so the
@@ -251,6 +263,7 @@ const onnxNodeResult = spawnSync(
   },
 );
 assertSmokeSucceeded(onnxNodeResult, "Packaged native ONNX runtime");
+const mainRuntimeSmokeMessage = runPackagedMainRuntimeSmoke();
 const imageResult = spawnSync(
   appExecutable,
   [imageSmokeScript, imageRuntimePath, ffmpegPath],
@@ -284,6 +297,7 @@ if (packageStats.bytes > MAX_PACKAGED_BYTES) {
 console.log(oauthResult.stdout.trim());
 console.log(onnxResult.stdout.trim());
 console.log(onnxNodeResult.stdout.trim());
+console.log(mainRuntimeSmokeMessage);
 console.log(imageResult.stdout.trim());
 console.log(
   `[package] ${packageStats.files} files, ${(
@@ -357,6 +371,51 @@ function assertPackagedOnnxNodeInventory() {
     throw new Error(
       `Unexpected onnxruntime-node binary inventory: ${binaryFiles.join(", ")}`,
     );
+  }
+}
+
+function runPackagedMainRuntimeSmoke() {
+  const smokeRoot = mkdtempSync(
+    join(tmpdir(), "mgt-packaged-main-runtime-smoke-"),
+  );
+  const markerPath = join(smokeRoot, PACKAGED_MAIN_RUNTIME_SMOKE_MARKER);
+  try {
+    const result = spawnSync(
+      appExecutable,
+      [PACKAGED_MAIN_RUNTIME_SMOKE_TOKEN, "--disable-gpu"],
+      {
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          MANGA_TRANSLATOR_DATA_ROOT: smokeRoot,
+          MGT_PACKAGED_MAIN_RUNTIME_SMOKE_MARKER: markerPath,
+        },
+        timeout: 30_000,
+        windowsHide: true,
+      },
+    );
+    assertSmokeSucceeded(result, "Packaged Electron main runtime");
+    if (!existsSync(markerPath)) {
+      throw new Error(
+        `Packaged Electron main runtime smoke marker is missing: ${markerPath}`,
+      );
+    }
+    const marker = JSON.parse(readFileSync(markerPath, "utf8"));
+    const valid = [
+      marker?.ok === true,
+      marker?.stage === "main-module-graph-loaded",
+      marker?.platform === "win32",
+      marker?.arch === "x64",
+      marker?.packaged === true,
+    ].every(Boolean);
+    if (!valid) {
+      throw new Error(
+        `Invalid packaged Electron main runtime marker: ${JSON.stringify(marker)}`,
+      );
+    }
+    return "[package-smoke] Electron main module graph loaded";
+  } finally {
+    rmSync(smokeRoot, { recursive: true, force: true });
   }
 }
 

@@ -14,6 +14,9 @@ const {
   isDevelopmentRuntimePath,
   resolveDefaultFontMatchingRuntimeBundleDir,
 } = require("./prepare-runtime.cjs");
+const {
+  resolveElectronRuntimeSupportFiles,
+} = require("./compile-electron.cjs");
 
 const CACHE_SCHEMA_VERSION = 1;
 const CROSS_SCRIPT_PROXY_RUNTIME_DIRECTORY = "font-matching-crossscript-proxy";
@@ -191,6 +194,7 @@ function createElectronCompileCacheStep(root) {
     ...listTreeFiles(preloadSource),
     ...listTreeFiles(pageExportSource, isBrowserSourceInputFile),
   ];
+  const getRuntimeSupportFiles = () => resolveElectronRuntimeSupportFiles(root);
 
   return {
     root,
@@ -206,6 +210,7 @@ function createElectronCompileCacheStep(root) {
       join(root, "vite.page-export.config.ts"),
       join(root, "package.json"),
       join(root, "package-lock.json"),
+      ...getRuntimeSupportFiles().map((entry) => entry.source),
       ...getTscInputs(),
       ...getBundledInputs(),
     ],
@@ -217,6 +222,7 @@ function createElectronCompileCacheStep(root) {
     ],
     getRequiredOutputFiles: () => [
       ...emittedTscOutputs(sourceRoot, getTscInputs()),
+      ...getRuntimeSupportFiles().map((entry) => entry.output),
       join(root, "out", "preload", "index.js"),
       join(root, "out", "preload", "index.js.map"),
       join(root, "out", "page-export", "runtime.js"),

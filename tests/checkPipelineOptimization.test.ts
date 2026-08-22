@@ -323,6 +323,7 @@ function createFixture(): string {
   runGit(root, ["add", "."]);
   for (const [path, contents] of Object.entries({
     "out/main/bootstrap.js": "bootstrap\n",
+    "out/main/runtime/python-pip-environment.cjs": "pip isolation\n",
     "out/shared/value.js": "shared\n",
     "out/preload/index.js": "preload\n",
     "out/page-export/runtime.js": "runtime\n",

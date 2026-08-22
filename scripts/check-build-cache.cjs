@@ -29,6 +29,7 @@ const OUTPUT_DIRECTORIES = [
 ];
 const REQUIRED_OUTPUTS = [
   join("out", "main", "bootstrap.js"),
+  join("out", "main", "runtime", "python-pip-environment.cjs"),
   join("out", "preload", "index.js"),
   join("out", "page-export", "runtime.js"),
   join("out", "page-export", "styles.css"),

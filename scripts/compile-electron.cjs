@@ -1,5 +1,6 @@
 const { spawnSync } = require("node:child_process");
 const {
+  copyFileSync,
   existsSync,
   lstatSync,
   mkdirSync,
@@ -13,6 +14,9 @@ const { dirname, isAbsolute, join, relative, resolve } = require("node:path");
 const root = join(__dirname, "..");
 const preloadOutDir = join(root, "out", "preload");
 const generatedOutDirNames = ["main", "shared", "preload"];
+const electronRuntimeSupportRelativePaths = [
+  join("runtime", "python-pip-environment.cjs"),
+];
 
 /**
  * @typedef {{
@@ -117,6 +121,44 @@ function cleanPreloadOutDir() {
   cleanGeneratedOutDir(root, preloadOutDir);
 }
 
+/**
+ * The Electron TypeScript compiler does not emit CommonJS runtime leaves.
+ * Keep this allowlist deliberately narrow: the full runtime tree belongs in
+ * out/app-runtime, while these files are required synchronously by compiled
+ * out/main modules before the managed runtime directory is available.
+ *
+ * @param {string} [projectRoot]
+ */
+function resolveElectronRuntimeSupportFiles(projectRoot = root) {
+  return electronRuntimeSupportRelativePaths.map((relativePath) => ({
+    source: join(projectRoot, "src", "main", relativePath),
+    output: join(projectRoot, "out", "main", relativePath),
+  }));
+}
+
+/** @param {string} [projectRoot] */
+function copyElectronRuntimeSupportFiles(projectRoot = root) {
+  for (const entry of resolveElectronRuntimeSupportFiles(projectRoot)) {
+    if (!existsSync(entry.source)) {
+      throw new Error(
+        `Electron runtime support source is missing: ${entry.source}`,
+      );
+    }
+    const metadata = lstatSync(entry.source);
+    if (!metadata.isFile() || metadata.isSymbolicLink()) {
+      throw new Error(
+        `Electron runtime support source must be a real file: ${entry.source}`,
+      );
+    }
+    assertRealGeneratedPath(projectRoot, entry.output);
+    mkdirSync(dirname(entry.output), { recursive: true });
+    copyFileSync(entry.source, entry.output);
+  }
+  console.log(
+    `> copy ${electronRuntimeSupportRelativePaths.length} Electron runtime support file(s) -> out/main`,
+  );
+}
+
 /** @param {string} targetPath */
 function removePath(targetPath) {
   const stat = lstatSync(targetPath);
@@ -207,6 +249,7 @@ async function main(args = process.argv.slice(2)) {
     nodeBin("typescript", "bin", "tsc"),
     ...electronTypeScriptArguments(options),
   ]);
+  copyElectronRuntimeSupportFiles();
   await bundlePreload();
   run(process.execPath, [
     nodeBin("vite", "bin", "vite.js"),
@@ -219,8 +262,10 @@ async function main(args = process.argv.slice(2)) {
 module.exports = {
   assertRealGeneratedPath,
   cleanElectronTypeScriptOutDirs,
+  copyElectronRuntimeSupportFiles,
   electronTypeScriptArguments,
   parseArguments,
+  resolveElectronRuntimeSupportFiles,
 };
 
 if (require.main === module) {

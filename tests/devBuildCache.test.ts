@@ -49,9 +49,10 @@ type DevBuildCacheModule = {
 };
 
 const cache = require("../scripts/dev-build-cache.cjs") as DevBuildCacheModule;
-const { cleanElectronTypeScriptOutDirs } =
+const { cleanElectronTypeScriptOutDirs, copyElectronRuntimeSupportFiles } =
   require("../scripts/compile-electron.cjs") as {
     cleanElectronTypeScriptOutDirs: (root?: string) => void;
+    copyElectronRuntimeSupportFiles: (root?: string) => void;
   };
 const { prepareRuntimeAssets } = require("../scripts/prepare-runtime.cjs") as {
   prepareRuntimeAssets: (options: {
@@ -175,6 +176,13 @@ function createElectronCompileCacheFixture() {
     "runtime",
     "runtime-integrity-manifest.json",
   );
+  const runtimeSupportSource = join(
+    root,
+    "src",
+    "main",
+    "runtime",
+    "python-pip-environment.cjs",
+  );
   const fontMatchingMarker = join(
     root,
     "src",
@@ -210,6 +218,7 @@ function createElectronCompileCacheFixture() {
   const fixtureFiles: Record<string, string> = {
     [join(root, "src", "main", "index.ts")]: "export {};",
     [regularMainJson]: "{}",
+    [runtimeSupportSource]: "module.exports = { isolated: true };",
     [fontMatchingMarker]: "{}",
     [fontMatchingContract]: "{}",
     [crossScriptProxyMarker]: "{}",
@@ -229,6 +238,7 @@ function createElectronCompileCacheFixture() {
     fontMatchingContract,
     fontMatchingMarker,
     regularMainJson,
+    runtimeSupportSource,
     root,
     step: cache.createElectronCompileCacheStep(root),
   };
@@ -504,6 +514,7 @@ describe("dev content build cache", () => {
     const requiredOutputs = fixture.step.getRequiredOutputFiles();
 
     expect(inputFiles).toContain(fixture.regularMainJson);
+    expect(inputFiles).toContain(fixture.runtimeSupportSource);
     expect(inputFiles).not.toContain(fixture.fontMatchingMarker);
     expect(inputFiles).not.toContain(fixture.fontMatchingContract);
     expect(inputFiles).not.toContain(fixture.crossScriptProxyMarker);
@@ -515,6 +526,15 @@ describe("dev content build cache", () => {
         "main",
         "runtime",
         "runtime-integrity-manifest.json",
+      ),
+    );
+    expect(requiredOutputs).toContain(
+      join(
+        fixture.root,
+        "out",
+        "main",
+        "runtime",
+        "python-pip-environment.cjs",
       ),
     );
     expect(requiredOutputs).not.toContain(
@@ -557,6 +577,25 @@ describe("dev content build cache", () => {
         "runtime-manifest.json",
       ),
     );
+  });
+
+  it("copies the allowlisted CommonJS runtime support into out/main", () => {
+    const fixture = createElectronCompileCacheFixture();
+
+    copyElectronRuntimeSupportFiles(fixture.root);
+
+    expect(
+      readFileSync(
+        join(
+          fixture.root,
+          "out",
+          "main",
+          "runtime",
+          "python-pip-environment.cjs",
+        ),
+        "utf8",
+      ),
+    ).toBe(readFileSync(fixture.runtimeSupportSource, "utf8"));
   });
 
   it("uses the runtime preparer's development-file exclusions", () => {

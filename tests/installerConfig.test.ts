@@ -248,6 +248,15 @@ describe("Windows installer clean uninstall option", () => {
     expect(packagedRuntimeVerifier).toContain(
       "const MAX_PACKAGED_FILES = 292;",
     );
+    expect(packagedRuntimeVerifier).toContain(
+      "const mainRuntimeSmokeMessage = runPackagedMainRuntimeSmoke();",
+    );
+    expect(packagedRuntimeVerifier).toContain(
+      '"--mgt-packaged-main-runtime-smoke=module-graph-v1"',
+    );
+    expect(packagedRuntimeVerifier).toContain(
+      "MANGA_TRANSLATOR_DATA_ROOT: smokeRoot",
+    );
     expect((electronBuilderConfig as { files: string[] }).files).toEqual(
       expect.arrayContaining([
         "!artifacts{,/**/*}",

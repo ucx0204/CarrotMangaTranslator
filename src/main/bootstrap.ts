@@ -1,5 +1,5 @@
 import { app, dialog } from "electron";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import {
@@ -30,6 +30,10 @@ import {
 const bootstrapLogger = createBootstrapLogger({
   resolveLogPath: bootstrapLogPath,
 });
+
+const PACKAGED_MAIN_RUNTIME_SMOKE_TOKEN =
+  "--mgt-packaged-main-runtime-smoke=module-graph-v1";
+const PACKAGED_MAIN_RUNTIME_SMOKE_MARKER = "packaged-main-runtime-smoke.json";
 
 bootstrap();
 
@@ -68,13 +72,64 @@ function bootstrap(): void {
   try {
     require("./index");
     writeBootstrapLog("bootstrap:loaded-main");
+    if (runPackagedMainRuntimeSmokeExit(guard.dataRoot)) {
+      return;
+    }
   } catch (error) {
     writeBootstrapLog("bootstrap:load-failed", error);
-    releaseAfterMainImportFailure();
+    releaseBootstrapLocks();
     throw error;
   } finally {
     removeBootstrapErrorListeners();
   }
+}
+
+/**
+ * Package verification launches the real app in normal Electron mode with an
+ * isolated data root. Reaching this point proves the complete main-process
+ * module graph loaded, including Electron built-ins and copied CJS leaves.
+ */
+function runPackagedMainRuntimeSmokeExit(dataRoot: string): boolean {
+  if (!process.argv.includes(PACKAGED_MAIN_RUNTIME_SMOKE_TOKEN)) {
+    return false;
+  }
+  if (!isPackagedBootstrap()) {
+    throw new Error("Packaged main runtime smoke requires a packaged app.");
+  }
+
+  const expectedMarkerPath = resolve(
+    dataRoot,
+    PACKAGED_MAIN_RUNTIME_SMOKE_MARKER,
+  );
+  const requestedMarkerPath = resolve(
+    process.env.MGT_PACKAGED_MAIN_RUNTIME_SMOKE_MARKER?.trim() || "",
+  );
+  if (requestedMarkerPath !== expectedMarkerPath) {
+    throw new Error(
+      `Packaged main runtime smoke marker must be ${expectedMarkerPath}.`,
+    );
+  }
+
+  const temporaryMarkerPath = `${expectedMarkerPath}.tmp-${process.pid}`;
+  writeFileSync(
+    temporaryMarkerPath,
+    `${JSON.stringify(
+      {
+        ok: true,
+        stage: "main-module-graph-loaded",
+        platform: process.platform,
+        arch: process.arch,
+        packaged: true,
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
+  renameSync(temporaryMarkerPath, expectedMarkerPath);
+  releaseBootstrapLocks();
+  app.exit(0);
+  return true;
 }
 
 function productionBootstrapInstanceGuardRuntime(): BootstrapInstanceGuardRuntime {
@@ -95,7 +150,7 @@ function productionBootstrapInstanceGuardRuntime(): BootstrapInstanceGuardRuntim
   };
 }
 
-function releaseAfterMainImportFailure(): void {
+function releaseBootstrapLocks(): void {
   try {
     releaseDataRootInstanceLockLease();
   } catch (error) {
