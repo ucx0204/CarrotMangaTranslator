@@ -794,21 +794,20 @@ describe("Apple Silicon Alpha packaging", () => {
     expect(
       createApplicationSmokeLaunch("/Applications/Smoke.app", "verify"),
     ).toEqual({
-      command: "open",
-      args: [
-        "-W",
-        "-n",
-        "-F",
-        "-g",
+      command: join(
         "/Applications/Smoke.app",
-        "--args",
+        "Contents",
+        "MacOS",
+        "CarrotMangaTranslator",
+      ),
+      args: [
         "--mgt-mac-package-smoke=alpha-ci-v1",
         "--mgt-mac-package-smoke-stage=verify",
         "--disable-gpu",
         "--enable-logging=stderr",
         "--v=1",
       ],
-      options: { timeout: 120_000 },
+      options: { timeout: 300_000 },
     });
     const diagnostic = createDiagnosticExcerpt("x".repeat(40 * 1024));
     expect(diagnostic).toContain("middle omitted");

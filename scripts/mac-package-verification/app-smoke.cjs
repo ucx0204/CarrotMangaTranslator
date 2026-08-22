@@ -17,6 +17,7 @@ const HOSTED_APP_SMOKE_WAIVER_PATH = join(
   "mac-alpha-hosted-app-smoke-waiver.json",
 );
 const SMOKE_APP_PATH = "/Applications/CarrotMangaTranslatorAlphaSmoke.app";
+const APPLICATION_SMOKE_TIMEOUT_MS = 300_000;
 
 /** @param {string} appPath */
 function verifyApplicationDirectorySmoke(appPath) {
@@ -273,28 +274,24 @@ function runApplicationSmoke(smokeApp, stage) {
 
 /** @param {string} smokeApp @param {"prepare" | "verify"} stage */
 function createApplicationSmokeLaunch(smokeApp, stage) {
+  // Run the packaged executable directly so hosted runners do not spend the
+  // bounded smoke timeout waiting for LaunchServices to discover the copy.
   return {
-    command: "open",
+    command: join(smokeApp, "Contents", "MacOS", "CarrotMangaTranslator"),
     args: [
-      "-W",
-      "-n",
-      "-F",
-      "-g",
-      smokeApp,
-      "--args",
       "--mgt-mac-package-smoke=alpha-ci-v1",
       `--mgt-mac-package-smoke-stage=${stage}`,
       "--disable-gpu",
       "--enable-logging=stderr",
       "--v=1",
     ],
-    options: { timeout: 120_000 },
+    options: { timeout: APPLICATION_SMOKE_TIMEOUT_MS },
   };
 }
 
 /**
- * LaunchServices can return before the new process has flushed its marker on
- * hosted runners. Wait for the exact stage instead of racing the app startup.
+ * Wait for the exact stage marker so filesystem propagation on hosted runners
+ * cannot race the post-launch assertions.
  *
  * @param {string} marker
  * @param {"prepared" | "verified"} expectedStage
