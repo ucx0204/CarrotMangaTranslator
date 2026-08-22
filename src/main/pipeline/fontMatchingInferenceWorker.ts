@@ -39,11 +39,17 @@ import {
   loadFontMatchingRuntimeModel,
   inferFontMatchingPagePixels,
 } from "./fontMatchingPagePixelInference";
+import {
+  inferCrossScriptProxyPage,
+  loadCrossScriptProxyRuntimeModel,
+  type CrossScriptProxyRuntimeModel,
+} from "./fontMatchingCrossScriptProxyRuntime";
 
 export type FontMatchingWorkerInitMessage = Readonly<{
   type: "init";
   id: string;
   artifactDir: string;
+  crossScriptProxyArtifactDir: string;
   wasmAssets: OrtWasmAssets;
   installedCandidates: readonly InstalledAutoMatchCandidate[];
   allowQaOnlyRuntime?: boolean;
@@ -114,6 +120,7 @@ if (!port) {
 }
 
 let runtimeModel: FontMatchingRuntimeModel | null = null;
+let crossScriptProxyModel: CrossScriptProxyRuntimeModel | null = null;
 const abortControllers = new Map<string, AbortController>();
 
 port.on("message", (message: FontMatchingWorkerInboundMessage) => {
@@ -144,7 +151,24 @@ async function handleInit(
       // catalog_mismatch and disable auto font matching in the packaged app.
       reverifyInstalledAssetBytes: false,
     });
+    if (!result.model) {
+      runtimeModel = null;
+      crossScriptProxyModel = null;
+      post({ type: "ready", id: message.id, status: result.status });
+      return;
+    }
     runtimeModel = result.model;
+    crossScriptProxyModel = await loadCrossScriptProxyRuntimeModel(
+      message.crossScriptProxyArtifactDir,
+    );
+    if (
+      crossScriptProxyModel.candidateOrderSha256 !==
+      runtimeModel.status.candidateOrderSha256
+    ) {
+      throw new Error(
+        "Cross-script proxy and R33 candidate catalogs do not match.",
+      );
+    }
     post({
       type: "ready",
       id: message.id,
@@ -152,6 +176,7 @@ async function handleInit(
     });
   } catch (error) {
     runtimeModel = null;
+    crossScriptProxyModel = null;
     post({ type: "init-error", id: message.id, error: serializeError(error) });
   }
 }
@@ -182,7 +207,22 @@ async function handleInfer(
       model: runtimeModel,
       loadRaster,
     });
-    post({ type: "infer-done", id: message.id, ok: true, result });
+    const proxyByBlockId = crossScriptProxyModel
+      ? await inferCrossScriptProxyPage({
+          blocks: message.blocks,
+          candidates: message.candidates,
+          existingRows: result,
+          model: crossScriptProxyModel,
+          raster: cachedRaster,
+          signal: controller.signal,
+        })
+      : new Map();
+    const combined = new Map(result);
+    for (const [blockId, crossScriptProxy] of proxyByBlockId) {
+      const row = result.get(blockId);
+      if (row) combined.set(blockId, { ...row, crossScriptProxy });
+    }
+    post({ type: "infer-done", id: message.id, ok: true, result: combined });
   } catch (error) {
     post({
       type: "infer-done",

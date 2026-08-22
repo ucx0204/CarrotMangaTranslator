@@ -130,9 +130,9 @@ describe("noninverse Dohyeon strong page-anchor recovery", () => {
     const partialSupportSeed = inference(
       "partial-support-seed",
       [
-        pixelCandidate("nanum-myeongjo", 1, 0.25, 0.82),
-        pixelCandidate("dohyeon", 2, 0.22),
-        pixelCandidate("seoul-hangang", 3, 0.2),
+        pixelCandidate("seoul-hangang", 1, 0.25, 0.82),
+        pixelCandidate("black-han-sans", 2, 0.22),
+        pixelCandidate("gasoek-one", 3, 0.2),
         pixelCandidate("ridi-batang", 4, 0.18),
         pixelCandidate("jua", 5, 0.15),
       ],

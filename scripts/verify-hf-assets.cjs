@@ -138,10 +138,13 @@ const assets = [
   },
   {
     label: "ONNX font-inference WASM runtime",
-    url: readStringConstant(
+    url: `https://cdn.jsdelivr.net/npm/onnxruntime-web@${readStringConstant(
       bubbleLayoutAssets,
-      "ONNXRUNTIME_WEB_WASM_BINARY_URL",
-    ),
+      "ONNXRUNTIME_WEB_VERSION",
+    )}/dist/${readStringConstant(
+      bubbleLayoutAssets,
+      "ONNXRUNTIME_WEB_WASM_BINARY_FILE",
+    )}`,
     expectedSha256: readStringConstant(
       bubbleLayoutAssets,
       "ONNXRUNTIME_WEB_WASM_BINARY_SHA256",

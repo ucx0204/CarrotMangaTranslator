@@ -70,6 +70,7 @@ function resolveFontReplayImagePath(record, cached, fontInput) {
  *   },
  *   chapterCoordinator: any,
  *   inferred: { pixelInferenceByBlockId: Map<string, any> },
+ *   modelDirectSelection?: boolean,
  *   requestBlocks: Array<{ blockId: string, item: any }>,
  * }} options
  */
@@ -78,6 +79,18 @@ function createFontReplayPageDecisionContext(options) {
   const pixelInferences = options.requestBlocks.map((entry) =>
     options.inferred.pixelInferenceByBlockId.get(entry.blockId),
   );
+  if (options.modelDirectSelection === true) {
+    return {
+      orderedItemIndexes: items.map((_item, index) => index),
+      pageCoordinator: {
+        prepareWorkState() {
+          return undefined;
+        },
+        recordDecision() {},
+      },
+      pixelInferences,
+    };
+  }
   const pageCoordinator =
     options.automaticFontCoordinator.createAutomaticFontPageCoordinatorV2({
       chapterCoordinator: options.chapterCoordinator,

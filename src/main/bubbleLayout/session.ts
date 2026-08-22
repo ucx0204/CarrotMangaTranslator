@@ -13,6 +13,7 @@ export type KoharuLayoutSessionHandle = {
 const sessionCache = new Map<string, Promise<Ort.InferenceSession>>();
 const unavailableProviderKeys = new Set<string>();
 const sessionRunTails = new WeakMap<Ort.InferenceSession, Promise<void>>();
+let sessionDisposalBarrier: Promise<void> | null = null;
 
 export async function getKoharuLayoutSession(options: {
   modelPath: string;
@@ -20,6 +21,11 @@ export async function getKoharuLayoutSession(options: {
   providerPreference?: readonly KoharuExecutionProvider[];
 }): Promise<KoharuLayoutSessionHandle> {
   throwIfAborted(options.signal);
+  const disposalBarrier = sessionDisposalBarrier;
+  if (disposalBarrier) {
+    await disposalBarrier;
+    throwIfAborted(options.signal);
+  }
   const modelPath = resolve(options.modelPath);
   const providers =
     options.providerPreference ?? resolveKoharuProviderPreference();
@@ -44,7 +50,61 @@ export async function getKoharuLayoutSession(options: {
   );
 }
 
-export function resolveKoharuProviderPreference(
+/**
+ * Releases every cached KoharuLayout session after its current run finishes.
+ * A new caller waits for this disposal boundary instead of racing a released
+ * DirectML session.
+ */
+export async function disposeCachedKoharuLayoutSessions(): Promise<boolean> {
+  if (sessionDisposalBarrier) {
+    await sessionDisposalBarrier;
+  }
+  if (sessionCache.size === 0) return false;
+
+  let finishDisposal!: () => void;
+  const barrier = new Promise<void>((resolveBarrier) => {
+    finishDisposal = resolveBarrier;
+  });
+  sessionDisposalBarrier = barrier;
+  const pendingSessions = [...sessionCache.values()];
+  sessionCache.clear();
+  try {
+    const settledSessions = await Promise.allSettled(pendingSessions);
+    const sessions = settledSessions.flatMap((result) =>
+      result.status === "fulfilled" ? [result.value] : [],
+    );
+    const releaseResults = await Promise.allSettled(
+      sessions.map(releaseKoharuLayoutSession),
+    );
+    const releaseErrors = releaseResults.flatMap((result) =>
+      result.status === "rejected" ? [result.reason] : [],
+    );
+    if (releaseErrors.length > 0) {
+      throw new AggregateError(
+        releaseErrors,
+        "KoharuLayout ONNX 세션을 해제하지 못했습니다.",
+      );
+    }
+    return sessions.length > 0;
+  } finally {
+    if (sessionDisposalBarrier === barrier) {
+      sessionDisposalBarrier = null;
+    }
+    finishDisposal();
+  }
+}
+
+async function releaseKoharuLayoutSession(
+  session: Ort.InferenceSession,
+): Promise<void> {
+  await waitForPreviousSessionRun(
+    sessionRunTails.get(session) ?? Promise.resolve(),
+  );
+  sessionRunTails.delete(session);
+  await session.release();
+}
+
+function resolveKoharuProviderPreference(
   platform: NodeJS.Platform = process.platform,
 ): readonly KoharuExecutionProvider[] {
   return platform === "win32" ? ["dml", "cpu"] : ["cpu"];
@@ -68,10 +128,11 @@ export async function withKoharuSessionLease<T>(
   const lease = new Promise<void>((resolveLease) => {
     releaseLease = resolveLease;
   });
-  const tail = previous.catch(() => undefined).then(() => lease);
+  const settledPrevious = waitForPreviousSessionRun(previous);
+  const tail = settledPrevious.then(() => lease);
   sessionRunTails.set(session, tail);
   try {
-    await previous.catch(() => undefined);
+    await settledPrevious;
     throwIfAborted(signal);
     return await task();
   } finally {
@@ -79,6 +140,15 @@ export async function withKoharuSessionLease<T>(
     if (sessionRunTails.get(session) === tail) {
       sessionRunTails.delete(session);
     }
+  }
+}
+
+async function waitForPreviousSessionRun(previous: Promise<void>) {
+  try {
+    await previous;
+  } catch (_error) {
+    // error-policy-allow: the prior caller owns its task failure; the shared
+    // session queue only waits for that task to release its lease.
   }
 }
 

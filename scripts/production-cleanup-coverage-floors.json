@@ -6,9 +6,9 @@
     "coverageProvider": "vitest-v8-json-summary",
     "sourceArtifact": ".tmp/production-cleanup-coverage-baseline-node22.json",
     "sourceArtifactSha256": "a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a",
-    "introducedArtifact": ".tmp/production-cleanup-coverage-accepted-node24.json",
-    "introducedArtifactSha256": "ced2e2f98095f7ae1153e0ff5b1ba56228cb1d7de6d0cee66b07c7ed5126e919",
-    "validatedNodeV8": ["22/12.4", "24/13.6"],
+    "introducedArtifact": ".tmp/production-cleanup-coverage-accepted-node26.json",
+    "introducedArtifactSha256": "ec78ab93ebf5ce277301ce14bfb6c5ad5b3227bcfa45607e284bb9fe43afd6c8",
+    "validatedNodeV8": ["22/12.4", "24/13.6", "26/14.6"],
     "vitestVersion": "4.1.9",
     "coverageV8Version": "4.1.9"
   },
@@ -57,6 +57,72 @@
         "pct": 83.33
       }
     },
+    "src/main/bubbleLayout/assets.ts": {
+      "lines": {
+        "covered": 11,
+        "total": 14,
+        "pct": 78.57
+      },
+      "statements": {
+        "covered": 11,
+        "total": 14,
+        "pct": 78.57
+      },
+      "functions": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 5,
+        "total": 12,
+        "pct": 41.66
+      }
+    },
+    "src/main/bubbleLayout/association.ts": {
+      "lines": {
+        "covered": 29,
+        "total": 30,
+        "pct": 96.66
+      },
+      "statements": {
+        "covered": 30,
+        "total": 32,
+        "pct": 93.75
+      },
+      "functions": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 20,
+        "total": 22,
+        "pct": 90.9
+      }
+    },
+    "src/main/bubbleLayout/bubbleLayoutFacade.ts": {
+      "lines": {
+        "covered": 39,
+        "total": 41,
+        "pct": 95.12
+      },
+      "statements": {
+        "covered": 39,
+        "total": 42,
+        "pct": 92.85
+      },
+      "functions": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 17,
+        "total": 22,
+        "pct": 77.27
+      }
+    },
     "src/main/bubbleLayout/bubbleLayoutPageProcessor.ts": {
       "lines": {
         "covered": 97,
@@ -77,6 +143,138 @@
         "covered": 50,
         "total": 60,
         "pct": 83.33
+      }
+    },
+    "src/main/bubbleLayout/constants.ts": {
+      "lines": {
+        "covered": 16,
+        "total": 16,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 16,
+        "total": 16,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/main/bubbleLayout/contracts.ts": {
+      "lines": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      }
+    },
+    "src/main/bubbleLayout/detector.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 29,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 31,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 6,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 6,
+        "pct": 0
+      }
+    },
+    "src/main/bubbleLayout/outputs.ts": {
+      "lines": {
+        "covered": 33,
+        "total": 36,
+        "pct": 91.66
+      },
+      "statements": {
+        "covered": 35,
+        "total": 40,
+        "pct": 87.5
+      },
+      "functions": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 36,
+        "total": 43,
+        "pct": 83.72
+      }
+    },
+    "src/main/bubbleLayout/preprocess.ts": {
+      "lines": {
+        "covered": 18,
+        "total": 32,
+        "pct": 56.25
+      },
+      "statements": {
+        "covered": 20,
+        "total": 34,
+        "pct": 58.82
+      },
+      "functions": {
+        "covered": 3,
+        "total": 4,
+        "pct": 75
+      },
+      "branches": {
+        "covered": 13,
+        "total": 28,
+        "pct": 46.42
+      }
+    },
+    "src/main/bubbleLayout/session.ts": {
+      "lines": {
+        "covered": 33,
+        "total": 38,
+        "pct": 86.84
+      },
+      "statements": {
+        "covered": 34,
+        "total": 39,
+        "pct": 87.17
+      },
+      "functions": {
+        "covered": 10,
+        "total": 11,
+        "pct": 90.9
+      },
+      "branches": {
+        "covered": 10,
+        "total": 14,
+        "pct": 71.42
       }
     },
     "src/main/dataRootInstanceLock.ts": {
@@ -187,6 +385,28 @@
         "covered": 24,
         "total": 30,
         "pct": 80
+      }
+    },
+    "src/main/inpainting/bubbleLayoutRunner.ts": {
+      "lines": {
+        "covered": 60,
+        "total": 70,
+        "pct": 85.71
+      },
+      "statements": {
+        "covered": 61,
+        "total": 71,
+        "pct": 85.91
+      },
+      "functions": {
+        "covered": 17,
+        "total": 17,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 58,
+        "total": 75,
+        "pct": 77.33
       }
     },
     "src/main/inpainting/fluxAssets/constants.ts": {
@@ -321,6 +541,94 @@
         "pct": 50
       }
     },
+    "src/main/inpainting/fluxCompositeConstraint.ts": {
+      "lines": {
+        "covered": 8,
+        "total": 9,
+        "pct": 88.88
+      },
+      "statements": {
+        "covered": 8,
+        "total": 9,
+        "pct": 88.88
+      },
+      "functions": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 7,
+        "total": 10,
+        "pct": 70
+      }
+    },
+    "src/main/inpainting/fluxEngineRunner.ts": {
+      "lines": {
+        "covered": 61,
+        "total": 66,
+        "pct": 92.42
+      },
+      "statements": {
+        "covered": 62,
+        "total": 67,
+        "pct": 92.53
+      },
+      "functions": {
+        "covered": 15,
+        "total": 15,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 42,
+        "total": 53,
+        "pct": 79.24
+      }
+    },
+    "src/main/inpainting/fluxInpaintSummary.ts": {
+      "lines": {
+        "covered": 12,
+        "total": 14,
+        "pct": 85.71
+      },
+      "statements": {
+        "covered": 13,
+        "total": 15,
+        "pct": 86.66
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 20,
+        "total": 22,
+        "pct": 90.9
+      }
+    },
+    "src/main/inpainting/inpaintingEngine.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
     "src/main/inpainting/inpaintingLayoutState.ts": {
       "lines": {
         "covered": 61,
@@ -363,6 +671,50 @@
         "covered": 0,
         "total": 0,
         "pct": 100
+      }
+    },
+    "src/main/inpainting/koharuEngineRunner.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 16,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 17,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 4,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 4,
+        "pct": 0
+      }
+    },
+    "src/main/inpainting/patternMaskMorphology.ts": {
+      "lines": {
+        "covered": 92,
+        "total": 96,
+        "pct": 95.83
+      },
+      "statements": {
+        "covered": 102,
+        "total": 106,
+        "pct": 96.22
+      },
+      "functions": {
+        "covered": 13,
+        "total": 13,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 57,
+        "total": 63,
+        "pct": 90.47
       }
     },
     "src/main/inpainting/patternPage.ts": {
@@ -453,6 +805,94 @@
         "pct": 48.14
       }
     },
+    "src/main/jobs/bubbleLayoutJob.ts": {
+      "lines": {
+        "covered": 41,
+        "total": 43,
+        "pct": 95.34
+      },
+      "statements": {
+        "covered": 47,
+        "total": 49,
+        "pct": 95.91
+      },
+      "functions": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 45,
+        "total": 49,
+        "pct": 91.83
+      }
+    },
+    "src/main/jobs/inpaintingJobPageProcessor.ts": {
+      "lines": {
+        "covered": 32,
+        "total": 32,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 32,
+        "total": 32,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 35,
+        "total": 38,
+        "pct": 92.1
+      }
+    },
+    "src/main/jobs/inpaintingJobRuntime.ts": {
+      "lines": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/main/jobs/inpaintingJobs.ts": {
+      "lines": {
+        "covered": 81,
+        "total": 87,
+        "pct": 93.1
+      },
+      "statements": {
+        "covered": 86,
+        "total": 92,
+        "pct": 93.47
+      },
+      "functions": {
+        "covered": 21,
+        "total": 21,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 58,
+        "total": 67,
+        "pct": 86.56
+      }
+    },
     "src/main/jobs/jobEvents.ts": {
       "lines": {
         "covered": 31,
@@ -497,6 +937,28 @@
         "pct": 74.19
       }
     },
+    "src/main/pipeline/automaticFontMatchingV2.ts": {
+      "lines": {
+        "covered": 37,
+        "total": 37,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 42,
+        "total": 43,
+        "pct": 97.67
+      },
+      "functions": {
+        "covered": 15,
+        "total": 15,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 50,
+        "total": 56,
+        "pct": 89.28
+      }
+    },
     "src/main/pipeline/automaticFontMatchingV2Apply.ts": {
       "lines": {
         "covered": 7,
@@ -517,6 +979,138 @@
         "covered": 16,
         "total": 16,
         "pct": 100
+      }
+    },
+    "src/main/pipeline/automaticFontMatchingV2ChapterPrior.ts": {
+      "lines": {
+        "covered": 93,
+        "total": 101,
+        "pct": 92.07
+      },
+      "statements": {
+        "covered": 99,
+        "total": 113,
+        "pct": 87.61
+      },
+      "functions": {
+        "covered": 26,
+        "total": 29,
+        "pct": 89.65
+      },
+      "branches": {
+        "covered": 81,
+        "total": 105,
+        "pct": 77.14
+      }
+    },
+    "src/main/pipeline/automaticFontMatchingV2DecisionCalibration.ts": {
+      "lines": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      }
+    },
+    "src/main/pipeline/automaticFontMatchingV2Evidence.ts": {
+      "lines": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      }
+    },
+    "src/main/pipeline/automaticFontMatchingV2PageConsistency.ts": {
+      "lines": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 8,
+        "total": 9,
+        "pct": 88.88
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 25,
+        "total": 26,
+        "pct": 96.15
+      }
+    },
+    "src/main/pipeline/automaticFontMatchingV2PageConsistencyDohyeonRecoveryPlan.ts": {
+      "lines": {
+        "covered": 86,
+        "total": 86,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 93,
+        "total": 100,
+        "pct": 93
+      },
+      "functions": {
+        "covered": 23,
+        "total": 23,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 71,
+        "total": 81,
+        "pct": 87.65
+      }
+    },
+    "src/main/pipeline/automaticFontMatchingV2PageConsistencyDohyeonSelection.ts": {
+      "lines": {
+        "covered": 79,
+        "total": 81,
+        "pct": 97.53
+      },
+      "statements": {
+        "covered": 84,
+        "total": 89,
+        "pct": 94.38
+      },
+      "functions": {
+        "covered": 34,
+        "total": 34,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 80,
+        "total": 89,
+        "pct": 89.88
       }
     },
     "src/main/pipeline/automaticFontMatchingV2PageConsistencyDominantOrdinary.ts": {
@@ -563,6 +1157,28 @@
         "pct": 96.96
       }
     },
+    "src/main/pipeline/automaticFontMatchingV2PageConsistencyEvidence.ts": {
+      "lines": {
+        "covered": 73,
+        "total": 81,
+        "pct": 90.12
+      },
+      "statements": {
+        "covered": 81,
+        "total": 92,
+        "pct": 88.04
+      },
+      "functions": {
+        "covered": 18,
+        "total": 18,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 64,
+        "total": 79,
+        "pct": 81.01
+      }
+    },
     "src/main/pipeline/automaticFontMatchingV2PageConsistencyOrdinary.ts": {
       "lines": {
         "covered": 57,
@@ -583,6 +1199,28 @@
         "covered": 54,
         "total": 65,
         "pct": 83.07
+      }
+    },
+    "src/main/pipeline/automaticFontMatchingV2PageConsistencyPlan.ts": {
+      "lines": {
+        "covered": 130,
+        "total": 131,
+        "pct": 99.23
+      },
+      "statements": {
+        "covered": 136,
+        "total": 139,
+        "pct": 97.84
+      },
+      "functions": {
+        "covered": 40,
+        "total": 40,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 74,
+        "total": 89,
+        "pct": 83.14
       }
     },
     "src/main/pipeline/automaticFontMatchingV2PageConsistencyRelaxed.ts": {
@@ -607,6 +1245,28 @@
         "pct": 88.88
       }
     },
+    "src/main/pipeline/automaticFontMatchingV2PageConsistencySelection.ts": {
+      "lines": {
+        "covered": 54,
+        "total": 60,
+        "pct": 90
+      },
+      "statements": {
+        "covered": 65,
+        "total": 77,
+        "pct": 84.41
+      },
+      "functions": {
+        "covered": 17,
+        "total": 21,
+        "pct": 80.95
+      },
+      "branches": {
+        "covered": 56,
+        "total": 74,
+        "pct": 75.67
+      }
+    },
     "src/main/pipeline/automaticFontMatchingV2PageConsistencyShared.ts": {
       "lines": {
         "covered": 43,
@@ -629,6 +1289,160 @@
         "pct": 69.81
       }
     },
+    "src/main/pipeline/automaticFontMatchingV2PageFamily.ts": {
+      "lines": {
+        "covered": 95,
+        "total": 102,
+        "pct": 93.13
+      },
+      "statements": {
+        "covered": 104,
+        "total": 117,
+        "pct": 88.88
+      },
+      "functions": {
+        "covered": 25,
+        "total": 27,
+        "pct": 92.59
+      },
+      "branches": {
+        "covered": 60,
+        "total": 88,
+        "pct": 68.18
+      }
+    },
+    "src/main/pipeline/automaticFontMatchingV2PageStage.ts": {
+      "lines": {
+        "covered": 30,
+        "total": 31,
+        "pct": 96.77
+      },
+      "statements": {
+        "covered": 31,
+        "total": 34,
+        "pct": 91.17
+      },
+      "functions": {
+        "covered": 6,
+        "total": 7,
+        "pct": 85.71
+      },
+      "branches": {
+        "covered": 15,
+        "total": 18,
+        "pct": 83.33
+      }
+    },
+    "src/main/pipeline/automaticFontMatchingV2Style.ts": {
+      "lines": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      }
+    },
+    "src/main/pipeline/fontMatchingDecisionV2.ts": {
+      "lines": {
+        "covered": 93,
+        "total": 97,
+        "pct": 95.87
+      },
+      "statements": {
+        "covered": 98,
+        "total": 103,
+        "pct": 95.14
+      },
+      "functions": {
+        "covered": 18,
+        "total": 20,
+        "pct": 90
+      },
+      "branches": {
+        "covered": 76,
+        "total": 87,
+        "pct": 87.35
+      }
+    },
+    "src/main/pipeline/fontMatchingDecisionV2Types.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/main/pipeline/fontMatchingInferenceWorker.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 34,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 34,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 6,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 14,
+        "pct": 0
+      }
+    },
+    "src/main/pipeline/fontMatchingInferenceWorkerClient.ts": {
+      "lines": {
+        "covered": 119,
+        "total": 135,
+        "pct": 88.14
+      },
+      "statements": {
+        "covered": 126,
+        "total": 147,
+        "pct": 85.71
+      },
+      "functions": {
+        "covered": 24,
+        "total": 27,
+        "pct": 88.88
+      },
+      "branches": {
+        "covered": 51,
+        "total": 72,
+        "pct": 70.83
+      }
+    },
     "src/main/pipeline/fontMatchingOcrGeometryDirection.ts": {
       "lines": {
         "covered": 115,
@@ -649,6 +1463,94 @@
         "covered": 126,
         "total": 142,
         "pct": 88.73
+      }
+    },
+    "src/main/pipeline/fontMatchingPagePixelInferenceTypes.ts": {
+      "lines": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/main/pipeline/fontMatchingRuntimeAssets.ts": {
+      "lines": {
+        "covered": 43,
+        "total": 55,
+        "pct": 78.18
+      },
+      "statements": {
+        "covered": 45,
+        "total": 61,
+        "pct": 73.77
+      },
+      "functions": {
+        "covered": 8,
+        "total": 9,
+        "pct": 88.88
+      },
+      "branches": {
+        "covered": 23,
+        "total": 36,
+        "pct": 63.88
+      }
+    },
+    "src/main/pipeline/fontMatchingRuntimePaths.ts": {
+      "lines": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 8,
+        "total": 8,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      }
+    },
+    "src/main/pipeline/fontMatchingRuntimeReleaseAcceptance.ts": {
+      "lines": {
+        "covered": 42,
+        "total": 42,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 42,
+        "total": 44,
+        "pct": 95.45
+      },
+      "functions": {
+        "covered": 19,
+        "total": 19,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 55,
+        "total": 59,
+        "pct": 93.22
       }
     },
     "src/main/pipeline/keepBlocksResult.ts": {
@@ -1507,6 +2409,28 @@
         "covered": 1,
         "total": 61,
         "pct": 1.63
+      }
+    },
+    "src/main/runtime/transport/semantic-ocr-request.cjs": {
+      "lines": {
+        "covered": 71,
+        "total": 81,
+        "pct": 87.65
+      },
+      "statements": {
+        "covered": 74,
+        "total": 86,
+        "pct": 86.04
+      },
+      "functions": {
+        "covered": 15,
+        "total": 17,
+        "pct": 88.23
+      },
+      "branches": {
+        "covered": 17,
+        "total": 36,
+        "pct": 47.22
       }
     },
     "src/main/runtimeModuleLoader.ts": {
@@ -4435,6 +5359,28 @@
         "pct": 100
       }
     },
+    "src/shared/bubbleLayout.ts": {
+      "lines": {
+        "covered": 41,
+        "total": 42,
+        "pct": 97.61
+      },
+      "statements": {
+        "covered": 45,
+        "total": 49,
+        "pct": 91.83
+      },
+      "functions": {
+        "covered": 16,
+        "total": 16,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 71,
+        "total": 75,
+        "pct": 94.66
+      }
+    },
     "src/shared/geometry.ts": {
       "lines": {
         "covered": 74,
@@ -4855,6 +5801,50 @@
     }
   },
   "introducedFloors": {
+    "src/main/bubbleLayout/koharuMaskRefinement.ts": {
+      "lines": {
+        "covered": 61,
+        "total": 61,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 67,
+        "total": 71,
+        "pct": 94.36
+      },
+      "functions": {
+        "covered": 11,
+        "total": 11,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 26,
+        "total": 37,
+        "pct": 70.27
+      }
+    },
+    "src/main/bubbleLayout/nativeOrt.ts": {
+      "lines": {
+        "covered": 5,
+        "total": 7,
+        "pct": 71.42
+      },
+      "statements": {
+        "covered": 6,
+        "total": 8,
+        "pct": 75
+      },
+      "functions": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 3,
+        "total": 6,
+        "pct": 50
+      }
+    },
     "src/main/inpainting/fluxAssets/hipSdk.ts": {
       "lines": {
         "covered": 97,
@@ -4877,26 +5867,202 @@
         "pct": 77.27
       }
     },
-    "src/main/inpainting/patternSharedWindows.ts": {
+    "src/main/inpainting/fluxEngineRunnerTypes.ts": {
       "lines": {
-        "covered": 64,
-        "total": 65,
-        "pct": 98.46
+        "covered": 0,
+        "total": 0,
+        "pct": 100
       },
       "statements": {
-        "covered": 71,
-        "total": 74,
-        "pct": 95.94
+        "covered": 0,
+        "total": 0,
+        "pct": 100
       },
       "functions": {
-        "covered": 10,
-        "total": 10,
+        "covered": 0,
+        "total": 0,
         "pct": 100
       },
       "branches": {
-        "covered": 19,
-        "total": 28,
-        "pct": 67.85
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/main/inpainting/fluxMaskContracts.ts": {
+      "lines": {
+        "covered": 5,
+        "total": 8,
+        "pct": 62.5
+      },
+      "statements": {
+        "covered": 6,
+        "total": 9,
+        "pct": 66.66
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 12,
+        "total": 17,
+        "pct": 70.58
+      }
+    },
+    "src/main/inpainting/koharuTypographyMask.ts": {
+      "lines": {
+        "covered": 113,
+        "total": 114,
+        "pct": 99.12
+      },
+      "statements": {
+        "covered": 121,
+        "total": 131,
+        "pct": 92.36
+      },
+      "functions": {
+        "covered": 21,
+        "total": 21,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 46,
+        "total": 66,
+        "pct": 69.69
+      }
+    },
+    "src/main/inpainting/pageMaskComposite.ts": {
+      "lines": {
+        "covered": 59,
+        "total": 60,
+        "pct": 98.33
+      },
+      "statements": {
+        "covered": 69,
+        "total": 72,
+        "pct": 95.83
+      },
+      "functions": {
+        "covered": 13,
+        "total": 13,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 55,
+        "total": 70,
+        "pct": 78.57
+      }
+    },
+    "src/main/inpainting/patternEngineRunner.ts": {
+      "lines": {
+        "covered": 6,
+        "total": 8,
+        "pct": 75
+      },
+      "statements": {
+        "covered": 6,
+        "total": 9,
+        "pct": 66.66
+      },
+      "functions": {
+        "covered": 1,
+        "total": 2,
+        "pct": 50
+      },
+      "branches": {
+        "covered": 14,
+        "total": 22,
+        "pct": 63.63
+      }
+    },
+    "src/main/inpainting/patternFluxCompositePlan.ts": {
+      "lines": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 5,
+        "total": 5,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      }
+    },
+    "src/main/inpainting/patternMaskContext.ts": {
+      "lines": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/main/inpainting/patternPageSourceDiagnostics.ts": {
+      "lines": {
+        "covered": 41,
+        "total": 46,
+        "pct": 89.13
+      },
+      "statements": {
+        "covered": 43,
+        "total": 49,
+        "pct": 87.75
+      },
+      "functions": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 22,
+        "total": 30,
+        "pct": 73.33
+      }
+    },
+    "src/main/inpainting/patternSharedWindows.ts": {
+      "lines": {
+        "covered": 75,
+        "total": 76,
+        "pct": 98.68
+      },
+      "statements": {
+        "covered": 82,
+        "total": 85,
+        "pct": 96.47
+      },
+      "functions": {
+        "covered": 11,
+        "total": 11,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 21,
+        "total": 30,
+        "pct": 70
       }
     },
     "src/main/inpainting/sourceGlyphComponentResidual.ts": {
@@ -4919,6 +6085,28 @@
         "covered": 17,
         "total": 17,
         "pct": 100
+      }
+    },
+    "src/main/inpainting/sourceGlyphEvidenceReceipt.ts": {
+      "lines": {
+        "covered": 89,
+        "total": 114,
+        "pct": 78.07
+      },
+      "statements": {
+        "covered": 92,
+        "total": 119,
+        "pct": 77.31
+      },
+      "functions": {
+        "covered": 24,
+        "total": 25,
+        "pct": 96
+      },
+      "branches": {
+        "covered": 130,
+        "total": 159,
+        "pct": 81.76
       }
     },
     "src/main/inpainting/sourceGlyphResidual.ts": {
@@ -4945,13 +6133,13 @@
     },
     "src/main/inpainting/sourceGlyphResidualDiagnosticTypes.ts": {
       "lines": {
-        "covered": 5,
-        "total": 5,
+        "covered": 4,
+        "total": 4,
         "pct": 100
       },
       "statements": {
-        "covered": 5,
-        "total": 5,
+        "covered": 4,
+        "total": 4,
         "pct": 100
       },
       "functions": {
@@ -4967,24 +6155,24 @@
     },
     "src/main/inpainting/sourceGlyphResidualDiagnosticUtils.ts": {
       "lines": {
-        "covered": 12,
+        "covered": 15,
         "total": 18,
-        "pct": 66.66
-      },
-      "statements": {
-        "covered": 12,
-        "total": 18,
-        "pct": 66.66
-      },
-      "functions": {
-        "covered": 5,
-        "total": 6,
         "pct": 83.33
       },
+      "statements": {
+        "covered": 15,
+        "total": 18,
+        "pct": 83.33
+      },
+      "functions": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
       "branches": {
-        "covered": 32,
+        "covered": 35,
         "total": 47,
-        "pct": 68.08
+        "pct": 74.46
       }
     },
     "src/main/inpainting/sourceGlyphResidualDiagnostics.ts": {
@@ -5011,24 +6199,68 @@
     },
     "src/main/inpainting/unassignedOcrResidual.ts": {
       "lines": {
-        "covered": 77,
-        "total": 86,
-        "pct": 89.53
+        "covered": 82,
+        "total": 89,
+        "pct": 92.13
       },
       "statements": {
-        "covered": 82,
-        "total": 94,
-        "pct": 87.23
+        "covered": 87,
+        "total": 97,
+        "pct": 89.69
       },
       "functions": {
-        "covered": 16,
-        "total": 18,
-        "pct": 88.88
+        "covered": 18,
+        "total": 19,
+        "pct": 94.73
       },
       "branches": {
-        "covered": 42,
-        "total": 64,
-        "pct": 65.62
+        "covered": 46,
+        "total": 68,
+        "pct": 67.64
+      }
+    },
+    "src/main/inpainting/unassignedOcrResidualProvenance.ts": {
+      "lines": {
+        "covered": 128,
+        "total": 145,
+        "pct": 88.27
+      },
+      "statements": {
+        "covered": 133,
+        "total": 152,
+        "pct": 87.5
+      },
+      "functions": {
+        "covered": 36,
+        "total": 39,
+        "pct": 92.3
+      },
+      "branches": {
+        "covered": 99,
+        "total": 130,
+        "pct": 76.15
+      }
+    },
+    "src/main/pipeline/automaticFontMatchingV2CrossScriptProxy.ts": {
+      "lines": {
+        "covered": 26,
+        "total": 29,
+        "pct": 89.65
+      },
+      "statements": {
+        "covered": 29,
+        "total": 33,
+        "pct": 87.87
+      },
+      "functions": {
+        "covered": 10,
+        "total": 11,
+        "pct": 90.9
+      },
+      "branches": {
+        "covered": 41,
+        "total": 52,
+        "pct": 78.84
       }
     },
     "src/main/pipeline/automaticFontMatchingV2PageConsistencyMorphology.ts": {
@@ -5053,6 +6285,116 @@
         "pct": 62.5
       }
     },
+    "src/main/pipeline/fontMatchingCrossScriptProxyHints.ts": {
+      "lines": {
+        "covered": 31,
+        "total": 31,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 34,
+        "total": 38,
+        "pct": 89.47
+      },
+      "functions": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 43,
+        "total": 50,
+        "pct": 86
+      }
+    },
+    "src/main/pipeline/fontMatchingCrossScriptProxyPaths.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 1,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 1,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 1,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
+    "src/main/pipeline/fontMatchingCrossScriptProxyPolicy.ts": {
+      "lines": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 1,
+        "total": 1,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      }
+    },
+    "src/main/pipeline/fontMatchingCrossScriptProxyRuntime.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 294,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 338,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 39,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 179,
+        "pct": 0
+      }
+    },
+    "src/main/pipeline/fontMatchingCrossScriptProxySupport.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 247,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 300,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 32,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 177,
+        "pct": 0
+      }
+    },
     "src/main/runtime/semantic-ocr/box-geometry.cjs": {
       "lines": {
         "covered": 20,
@@ -5073,6 +6415,28 @@
         "covered": 0,
         "total": 0,
         "pct": 100
+      }
+    },
+    "src/main/runtime/semantic-ocr/fixed-block-repair-fallback.cjs": {
+      "lines": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 3,
+        "total": 4,
+        "pct": 75
       }
     },
     "src/main/runtime/transport/download-contract.cjs": {
@@ -5253,45 +6617,45 @@
     },
     "src/renderer/src/components/RichTranslationEditor.tsx": {
       "lines": {
-        "covered": 208,
-        "total": 242,
-        "pct": 85.95
+        "covered": 261,
+        "total": 294,
+        "pct": 88.77
       },
       "statements": {
-        "covered": 222,
-        "total": 268,
-        "pct": 82.83
+        "covered": 278,
+        "total": 326,
+        "pct": 85.27
       },
       "functions": {
-        "covered": 46,
-        "total": 54,
-        "pct": 85.18
+        "covered": 54,
+        "total": 62,
+        "pct": 87.09
       },
       "branches": {
-        "covered": 126,
-        "total": 195,
-        "pct": 64.61
+        "covered": 148,
+        "total": 225,
+        "pct": 65.77
       }
     },
     "src/renderer/src/components/VerticalTextSpacing.tsx": {
       "lines": {
-        "covered": 3,
-        "total": 3,
+        "covered": 24,
+        "total": 24,
         "pct": 100
       },
       "statements": {
-        "covered": 4,
-        "total": 4,
+        "covered": 27,
+        "total": 27,
         "pct": 100
       },
       "functions": {
-        "covered": 2,
-        "total": 2,
+        "covered": 9,
+        "total": 9,
         "pct": 100
       },
       "branches": {
-        "covered": 4,
-        "total": 4,
+        "covered": 24,
+        "total": 24,
         "pct": 100
       }
     },
@@ -5385,24 +6749,24 @@
     },
     "src/renderer/src/components/settingsModal/ApiKeyVisibilityButton.tsx": {
       "lines": {
-        "covered": 2,
+        "covered": 3,
         "total": 3,
-        "pct": 66.66
+        "pct": 100
       },
       "statements": {
-        "covered": 2,
+        "covered": 3,
         "total": 3,
-        "pct": 66.66
+        "pct": 100
       },
       "functions": {
-        "covered": 1,
+        "covered": 2,
         "total": 2,
-        "pct": 50
+        "pct": 100
       },
       "branches": {
-        "covered": 2,
+        "covered": 4,
         "total": 4,
-        "pct": 50
+        "pct": 100
       }
     },
     "src/renderer/src/components/settingsModal/LlamaRuntimeCompatibilityWarning.tsx": {
@@ -5429,24 +6793,24 @@
     },
     "src/renderer/src/components/settingsModal/VertexCredentialFields.tsx": {
       "lines": {
-        "covered": 11,
-        "total": 14,
-        "pct": 78.57
+        "covered": 19,
+        "total": 19,
+        "pct": 100
       },
       "statements": {
-        "covered": 11,
-        "total": 14,
-        "pct": 78.57
+        "covered": 19,
+        "total": 19,
+        "pct": 100
       },
       "functions": {
-        "covered": 6,
-        "total": 8,
-        "pct": 75
+        "covered": 9,
+        "total": 9,
+        "pct": 100
       },
       "branches": {
-        "covered": 21,
-        "total": 23,
-        "pct": 91.3
+        "covered": 27,
+        "total": 27,
+        "pct": 100
       }
     },
     "src/renderer/src/components/settingsModal/VertexServiceAccountGuideModal.tsx": {
@@ -5561,14 +6925,14 @@
     },
     "src/renderer/src/lib/richTextEditorDom.ts": {
       "lines": {
-        "covered": 127,
-        "total": 143,
-        "pct": 88.81
+        "covered": 128,
+        "total": 144,
+        "pct": 88.88
       },
       "statements": {
-        "covered": 137,
-        "total": 160,
-        "pct": 85.62
+        "covered": 138,
+        "total": 161,
+        "pct": 85.71
       },
       "functions": {
         "covered": 22,
@@ -5576,9 +6940,9 @@
         "pct": 88
       },
       "branches": {
-        "covered": 93,
-        "total": 118,
-        "pct": 78.81
+        "covered": 95,
+        "total": 120,
+        "pct": 79.16
       }
     },
     "src/renderer/src/lib/textStyleRunResolution.ts": {
@@ -5605,24 +6969,24 @@
     },
     "src/renderer/src/lib/verticalTextSpacing.ts": {
       "lines": {
-        "covered": 24,
-        "total": 24,
+        "covered": 65,
+        "total": 65,
         "pct": 100
       },
       "statements": {
-        "covered": 24,
-        "total": 25,
-        "pct": 96
+        "covered": 67,
+        "total": 67,
+        "pct": 100
       },
       "functions": {
-        "covered": 4,
-        "total": 4,
+        "covered": 9,
+        "total": 9,
         "pct": 100
       },
       "branches": {
-        "covered": 9,
-        "total": 10,
-        "pct": 90
+        "covered": 40,
+        "total": 40,
+        "pct": 100
       }
     },
     "src/renderer/src/lib/warpDisplacementMap.ts": {
@@ -5759,18 +7123,18 @@
     },
     "src/shared/editableRenderGeometry.ts": {
       "lines": {
-        "covered": 30,
-        "total": 30,
+        "covered": 36,
+        "total": 36,
         "pct": 100
       },
       "statements": {
-        "covered": 33,
-        "total": 33,
+        "covered": 42,
+        "total": 42,
         "pct": 100
       },
       "functions": {
-        "covered": 9,
-        "total": 9,
+        "covered": 10,
+        "total": 10,
         "pct": 100
       },
       "branches": {
@@ -5892,23 +7256,23 @@
     "src/shared/textLayoutIntent.ts": {
       "lines": {
         "covered": 37,
-        "total": 39,
-        "pct": 94.87
+        "total": 38,
+        "pct": 97.36
       },
       "statements": {
         "covered": 38,
-        "total": 41,
-        "pct": 92.68
+        "total": 40,
+        "pct": 95
       },
       "functions": {
         "covered": 8,
-        "total": 9,
-        "pct": 88.88
+        "total": 8,
+        "pct": 100
       },
       "branches": {
         "covered": 46,
-        "total": 50,
-        "pct": 92
+        "total": 48,
+        "pct": 95.83
       }
     },
     "src/shared/thinPlateSpline.ts": {

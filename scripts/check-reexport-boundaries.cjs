@@ -35,6 +35,20 @@ const APPROVED_REEXPORT_BOUNDARIES = new Map([
     new Set(["./fluxChangeStats", "./fluxEngineConstants"]),
   ],
   [
+    "src/main/inpainting/fluxEngineRunner.ts",
+    new Set(["./fluxEngineRunnerTypes"]),
+  ],
+  ["src/main/inpainting/patternPageMask.ts", new Set(["./patternMaskContext"])],
+  [
+    "src/main/inpainting/sourceGlyphResidualDiagnostics.ts",
+    new Set([
+      "./sourceGlyphComponentResidual",
+      "./sourceGlyphResidualDiagnosticTypes",
+      "./unassignedOcrResidual",
+      "./unassignedOcrResidualProvenance",
+    ]),
+  ],
+  [
     "src/main/library.ts",
     new Set([
       "./library/libraryContextFacade",

@@ -204,7 +204,7 @@ describe("translated page Font Matching V2 coordination", () => {
       }),
       items: [
         makeSfxItem(1, "ドン", "쾅"),
-        makeSfxItem(2, "ありがとう", "고마워"),
+        makeOrdinaryItem(2, "ありがとう", "고마워"),
       ],
       soundDroppedCount: 0,
       validationDroppedCount: 0,
@@ -386,6 +386,18 @@ function makeSfxItem(
     translatedText,
     direction: "horizontal",
     confidence: 1,
+  };
+}
+
+function makeOrdinaryItem(
+  id: number,
+  sourceText: string,
+  translatedText: string,
+): OverlayItem {
+  return {
+    ...makeSfxItem(id, sourceText, translatedText),
+    textRole: "ordinary",
+    fontRole: "dialogue",
   };
 }
 

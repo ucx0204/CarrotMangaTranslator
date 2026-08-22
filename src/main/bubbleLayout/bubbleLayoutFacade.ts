@@ -58,6 +58,15 @@ async function runProductionBubbleLayout(
         sharedOwnershipGapPx: request.sharedOwnershipGapPx,
         pageRevision,
       }),
+      ...(request.includeTypographySegmentation
+        ? {
+            typographySegmentation: {
+              imageWidth: detection.imageWidth,
+              imageHeight: detection.imageHeight,
+              detections: detection.detections,
+            },
+          }
+        : {}),
     };
   } catch (error) {
     if (request.signal.aborted) {

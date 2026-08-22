@@ -191,11 +191,29 @@ function createElectronCompileCacheFixture() {
     "font-matching",
     "runtime-contract.json",
   );
+  const crossScriptProxyMarker = join(
+    root,
+    "src",
+    "main",
+    "runtime",
+    "font-matching-crossscript-proxy",
+    ".owned.json",
+  );
+  const crossScriptProxyManifest = join(
+    root,
+    "src",
+    "main",
+    "runtime",
+    "font-matching-crossscript-proxy",
+    "runtime-manifest.json",
+  );
   const fixtureFiles: Record<string, string> = {
     [join(root, "src", "main", "index.ts")]: "export {};",
     [regularMainJson]: "{}",
     [fontMatchingMarker]: "{}",
     [fontMatchingContract]: "{}",
+    [crossScriptProxyMarker]: "{}",
+    [crossScriptProxyManifest]: "{}",
     [join(root, "src", "shared", "messages.json")]: "{}",
     [join(root, "src", "preload", "index.ts")]: "export {};",
     [join(root, "src", "renderer", "src", "page-export.ts")]: "export {};",
@@ -206,6 +224,8 @@ function createElectronCompileCacheFixture() {
   }
 
   return {
+    crossScriptProxyManifest,
+    crossScriptProxyMarker,
     fontMatchingContract,
     fontMatchingMarker,
     regularMainJson,
@@ -478,7 +498,7 @@ describe("dev content build cache", () => {
     expect(cache.planCachedBuildStep(fixture.step).decision).toBe("skip");
   });
 
-  it("leaves the font-matching runtime bundle to the runtime-assets cache", () => {
+  it("leaves model runtime bundles to the runtime-assets cache", () => {
     const fixture = createElectronCompileCacheFixture();
     const inputFiles = fixture.step.getInputFiles();
     const requiredOutputs = fixture.step.getRequiredOutputFiles();
@@ -486,6 +506,8 @@ describe("dev content build cache", () => {
     expect(inputFiles).toContain(fixture.regularMainJson);
     expect(inputFiles).not.toContain(fixture.fontMatchingMarker);
     expect(inputFiles).not.toContain(fixture.fontMatchingContract);
+    expect(inputFiles).not.toContain(fixture.crossScriptProxyMarker);
+    expect(inputFiles).not.toContain(fixture.crossScriptProxyManifest);
     expect(requiredOutputs).toContain(
       join(
         fixture.root,
@@ -513,6 +535,26 @@ describe("dev content build cache", () => {
         "runtime",
         "font-matching",
         "runtime-contract.json",
+      ),
+    );
+    expect(requiredOutputs).not.toContain(
+      join(
+        fixture.root,
+        "out",
+        "main",
+        "runtime",
+        "font-matching-crossscript-proxy",
+        ".owned.json",
+      ),
+    );
+    expect(requiredOutputs).not.toContain(
+      join(
+        fixture.root,
+        "out",
+        "main",
+        "runtime",
+        "font-matching-crossscript-proxy",
+        "runtime-manifest.json",
       ),
     );
   });

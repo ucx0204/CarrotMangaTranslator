@@ -1,17 +1,21 @@
 import type { FontMatchingDecisionResultV2 } from "./fontMatchingDecisionV2";
 import type { FontMatchingWorkStateV2 } from "./fontMatchingDecisionV2Types";
 import type { VerifiedAutomaticFontPixelInferenceV2 } from "./fontMatchingPagePixelInferenceTypes";
+import type { AutomaticFontCandidate } from "../../shared/fontMatchingTypes";
 import { resolveAutomaticFontEmphasisStyle } from "./automaticFontMatchingV2Emphasis";
+import { resolveCrossScriptProxySelectionStyle } from "./automaticFontMatchingV2CrossScriptProxy";
 
 /**
  * Family selection and emphasis treatment are intentionally independent.
  * This only decorates an automatic decision, so manual locks remain exact.
  */
 export function applyAutomaticPixelStyle({
+  candidates,
   pixelInference,
   result,
   workState,
 }: {
+  candidates: readonly AutomaticFontCandidate[];
   pixelInference: VerifiedAutomaticFontPixelInferenceV2 | null;
   result: FontMatchingDecisionResultV2;
   workState: FontMatchingWorkStateV2 | undefined;
@@ -23,6 +27,14 @@ export function applyAutomaticPixelStyle({
     result.decision.resolvedBy !== "v2_automatic"
   ) {
     return result;
+  }
+  const crossScriptStyle = resolveCrossScriptProxySelectionStyle(
+    pixelInference,
+    candidates,
+    result.selectedStyle.fontId,
+  );
+  if (crossScriptStyle) {
+    return { ...result, selectedStyle: crossScriptStyle };
   }
   const emphasis = resolveAutomaticFontEmphasisStyle({
     sourceStyle: pixelInference.sourceStyle,

@@ -1,7 +1,7 @@
 # 폰트 자동 맞춤 프로덕션 인계서
 
-최종 갱신: 2026-08-21 KST
-현재 제품 기준: `R33 page-common user-v3 production release`
+최종 갱신: 2026-08-22 KST
+현재 제품 기준: `R33 page-common + meaning-free cross-script proxy v2`
 모델 버전: `manga-font-v9-r33-e049fc74c3ba`
 
 현재 배포 상태:
@@ -15,6 +15,39 @@
 이 문서는 현재 앱에 반영된 폰트 자동 맞춤의 정확한 상태, 출시 근거,
 알려진 한계, 시행착오, 재현 명령, 정리 내역과 v3 작업 순서를 한곳에 모은다.
 다음 세션은 오래된 계획서보다 이 문서를 먼저 읽는다.
+
+## 0A. 2026-08-22 말풍선 굵기 보정
+
+앱의 meaning-free cross-script proxy는 폰트 계열 선택과 굵기 선택을 분리했다.
+기존 생성/검색 모델이 원문 픽셀에서 폰트 계열을 고르는 경로는 유지하고, 같은 계열의
+여러 face 중 200/300/400/700/800 굵기는 원문 canonical support ink mass에서 예측한
+한국어 ink mass에 가장 가까운 face를 고른다. 따라서 `말풍선이면 regular` 같은 역할
+규칙이나 사용자 기본 서식 fallback이 아니며, 원문부터 굵은 목소리는 굵게 유지한다.
+
+보정기는 일본어/한국어 glyph pair를 가진 development 23 faces, 11 families에서 ridge
+linear fit했다. 계수는 intercept `-0.011051259957176431`, slope
+`1.2340423405015548`, ridge `0.001`이다. 학습에 쓰지 않은 Nanum Gothic 4 faces의
+mean absolute ink-mass error는 `0.0052464437170545546`이었다. 기존 neural proxy를
+재훈련해 전체 raster를 억지로 얇게 만드는 실험은 실제 선택 face가 바뀌지 않아
+채택하지 않았다.
+
+번들 runtime: `src/main/runtime/font-matching-crossscript-proxy/`
+
+| 파일                 |      bytes | SHA-256                                                            |
+| -------------------- | ---------: | ------------------------------------------------------------------ |
+| ownership marker     |        924 | `e1df5fa7230b0290456cc0a3e46d4c399074ea72bba751807f69b43b58e36fd4` |
+| candidate glyph bank |  9,068,544 | `54bd3ab75717e3ee4cf27c7443e1ed06a320f1cbdcd1ebd7afdb80c55cf644d9` |
+| glyph decoder        | 14,236,244 | `cbd4c66fc1b9f6a907567703c086ad7c5fa1279c53ed6f45b2fece399a4351c6` |
+| runtime manifest     |     14,306 | `3572cc0f95396250eeacb0c9ba441ff1acebf5c5e84e085b36e86076ab8bc929` |
+| style encoder        |  6,111,803 | `79a76a2fe0e89e05511b47d3f3a975027906c309820a2469bd51321d47dead3f` |
+
+실제 만화 4페이지(02/07/09/12)를 원본/R33/보정 proxy 3열 패널로 직접 확인했다.
+두 목소리의 선택 굵기는 페이지 순서로 `800/400`, `400/400`, `800/400`,
+`700/400`이었다. 02의 얇은 목소리는 기존 800에서 400으로 내려가고 굵은 원문
+목소리는 800을 유지했다. QA 경로는 앱과 같은 family-first/weight-second 선택을
+사용한다. 산출물은
+`artifacts/manga-font-crossscript-proxy-page-qa-ink-cal-4p-r1`에 보존했다.
+CPU 8 logical threads의 decoder two-voice warm median은 약 `659.1 ms`다.
 
 ## 0. 2026-08-21 R33 제품 전환
 

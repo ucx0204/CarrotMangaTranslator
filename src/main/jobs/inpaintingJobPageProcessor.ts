@@ -1,5 +1,6 @@
 import type { JobEvent } from "../../shared/jobTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
+import type { KoharuTypographySegmentation } from "../bubbleLayout/contracts";
 import { runBubbleLayoutPostprocess } from "../inpainting/bubbleLayoutRunner";
 import {
   applyInpaintingLayoutStates,
@@ -185,6 +186,11 @@ async function runInpaintingPagePipeline({
                 maskPreparation.sharedInpaintGroupIdsByBlock,
             }
           : {}),
+        ...("typographySegmentation" in maskPreparation
+          ? {
+              typographySegmentation: maskPreparation.typographySegmentation,
+            }
+          : {}),
       });
   const result: ProcessedInpaintingPageResult = {
     ...rawResult,
@@ -241,6 +247,7 @@ async function preparePatternMaskPage({
   page: MangaPage;
   restoreLayout?: InpaintingBlockLayoutState[];
   sharedInpaintGroupIdsByBlock?: Record<string, string[]>;
+  typographySegmentation?: KoharuTypographySegmentation;
 }> {
   if (
     state.inpaintingEngineLease?.engine.model !== "flux-klein" ||

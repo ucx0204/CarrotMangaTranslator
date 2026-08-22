@@ -1,4 +1,5 @@
 import type { MangaPage } from "../../shared/libraryTypes";
+import type { KoharuTypographySegmentation } from "../bubbleLayout/contracts";
 import {
   bboxToPixelRect,
   expandRect,
@@ -22,29 +23,16 @@ import {
   buildSourceGlyphEvidence,
   type SourceGlyphEvidence,
 } from "./sourceGlyphResidual";
+import { FLUX_INPAINT_FEATHER_PX } from "./fluxEngineConstants";
+import { resolvePatternFluxCompositePlan } from "./patternFluxCompositePlan";
+import {
+  createEmptyPatternMaskContext,
+  type PatternMaskContext,
+} from "./patternMaskContext";
+
+export type { PatternMaskContext } from "./patternMaskContext";
 
 export type PatternPageMaskMode = "glyph" | "flux-region";
-
-export type PatternMaskContext = {
-  pageMask: Uint8Array;
-  inpaintWindows: PixelRect[];
-  inpaintWindowMasks: InpaintingWindowMask[];
-  inpaintWindowConstraints: Array<InpaintingWindowMask | null>;
-  inpaintWindowGroupIds: string[][];
-  validationWindowMasks: InpaintingWindowMask[];
-  validationBlockIds: string[];
-  sourceGlyphEvidence: SourceGlyphEvidence[];
-  validationBindingsByBlockId: Map<
-    string,
-    {
-      blockId: string;
-      firstPassCore: InpaintingWindowMask;
-      sourceGlyphEvidence: SourceGlyphEvidence;
-    }
-  >;
-  blocksErased: number;
-  otsuBlocks: number;
-};
 
 export function buildPatternPageMask(options: {
   blockId?: string;
@@ -65,21 +53,10 @@ export function buildPatternPageMask(options: {
   bubbleLayoutConstraintBlockIds?: readonly string[];
   excludedBlockIds?: readonly string[];
   sharedInpaintGroupIdsByBlock?: Readonly<Record<string, readonly string[]>>;
+  typographySegmentation?: KoharuTypographySegmentation;
   signal?: AbortSignal;
 }): PatternMaskContext {
-  const context: PatternMaskContext = {
-    pageMask: new Uint8Array(options.width * options.height),
-    inpaintWindows: [],
-    inpaintWindowMasks: [],
-    inpaintWindowConstraints: [],
-    inpaintWindowGroupIds: [],
-    validationWindowMasks: [],
-    validationBlockIds: [],
-    sourceGlyphEvidence: [],
-    validationBindingsByBlockId: new Map(),
-    blocksErased: 0,
-    otsuBlocks: 0,
-  };
+  const context = createEmptyPatternMaskContext(options.width, options.height);
   for (const block of options.page.blocks) {
     if (
       !isPatternInpaintingBlockEligible(
@@ -151,6 +128,8 @@ function mergePatternBlock(
     ),
   );
   context.inpaintWindowMasks.push(detection.windowMask);
+  context.inpaintCompositeMasks.push(detection.windowMask);
+  context.inpaintCompositeFeatherPx.push(FLUX_INPAINT_FEATHER_PX);
   appendPatternValidationBinding(
     context,
     block.id,
@@ -190,12 +169,24 @@ function mergeFluxRegionMask(
     bubbleMask,
     shared: sharedGroupIds.length > 0,
   });
-  const bounds = regionMask.bounds;
+  const plan = resolvePatternFluxCompositePlan({
+    block,
+    fallbackConstraint: bubbleMask ? regionMask : null,
+    height: options.height,
+    page: options.page,
+    regionMask,
+    segmentation: options.typographySegmentation,
+    sourceRect: bboxToPixelRect(block.bbox, options.page),
+    width: options.width,
+  });
+  const { compositeMask, featherPx: compositeFeatherPx, modelMask } = plan;
+  context.usesKoharuTypographyComposite ||= plan.usesTypographySegmentation;
+  const bounds = modelMask.bounds;
   mergeMaskIntoPage(
     context.pageMask,
     options.width,
-    regionMask.bounds,
-    regionMask.data,
+    modelMask.bounds,
+    modelMask.data,
   );
   context.inpaintWindows.push(
     expandRect(
@@ -205,16 +196,18 @@ function mergeFluxRegionMask(
       resolvePatternWindowMarginPx(block, options.page),
     ),
   );
-  context.inpaintWindowMasks.push(regionMask);
+  context.inpaintWindowMasks.push(modelMask);
+  context.inpaintCompositeMasks.push(compositeMask);
+  context.inpaintCompositeFeatherPx.push(compositeFeatherPx);
   appendPatternValidationBinding(
     context,
     block.id,
-    regionMask,
+    compositeMask,
     sourceGlyphEvidence,
   );
   // Only a detected green region is a hard final-composite boundary. The
   // no-green fallback intentionally preserves the legacy OCR-region feather.
-  context.inpaintWindowConstraints.push(bubbleMask ? regionMask : null);
+  context.inpaintWindowConstraints.push(plan.constraint);
   context.inpaintWindowGroupIds.push(bubbleMask ? sharedGroupIds : []);
   if (usedOtsu) context.otsuBlocks += 1;
   context.blocksErased += 1;

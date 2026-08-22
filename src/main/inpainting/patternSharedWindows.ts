@@ -5,8 +5,19 @@ import type { PixelRect } from "./maskGeometry";
 type SharedConstrainedWindowContext = {
   inpaintWindows: PixelRect[];
   inpaintWindowMasks: InpaintingWindowMask[];
+  inpaintCompositeMasks: InpaintingWindowMask[];
+  inpaintCompositeFeatherPx: number[];
   inpaintWindowConstraints: Array<InpaintingWindowMask | null>;
   inpaintWindowGroupIds: string[][];
+};
+
+type SharedWindowEntry = {
+  compositeMask: InpaintingWindowMask;
+  constraint: InpaintingWindowMask | null;
+  featherPx: number;
+  groupIds: string[];
+  mask: InpaintingWindowMask;
+  window: PixelRect;
 };
 
 export function coalesceSharedConstrainedWindows(
@@ -15,45 +26,72 @@ export function coalesceSharedConstrainedWindows(
   const roots = resolveSharedWindowRoots(context.inpaintWindowGroupIds);
   const windows: PixelRect[] = [];
   const masks: InpaintingWindowMask[] = [];
+  const compositeMasks: InpaintingWindowMask[] = [];
+  const compositeFeatherPx: number[] = [];
   const constraints: Array<InpaintingWindowMask | null> = [];
   const groupIds: string[][] = [];
   const outputIndexByRoot = new Map<number, number>();
   for (let index = 0; index < context.inpaintWindows.length; index += 1) {
-    const window = context.inpaintWindows[index];
-    const mask = context.inpaintWindowMasks[index];
-    const constraint = context.inpaintWindowConstraints[index] ?? null;
-    if (!window || !mask) {
-      throw new Error("Inpainting window metadata is incomplete.");
-    }
+    const entry = readSharedWindowEntry(context, index);
     const root = roots[index] ?? index;
     const outputIndex = outputIndexByRoot.get(root);
     if (outputIndex === undefined) {
       outputIndexByRoot.set(root, windows.length);
-      windows.push(window);
-      masks.push(mask);
-      constraints.push(constraint);
-      groupIds.push([...(context.inpaintWindowGroupIds[index] ?? [])]);
+      windows.push(entry.window);
+      masks.push(entry.mask);
+      compositeMasks.push(entry.compositeMask);
+      compositeFeatherPx.push(entry.featherPx);
+      constraints.push(entry.constraint);
+      groupIds.push(entry.groupIds);
       continue;
     }
     const existingWindow = windows[outputIndex] as PixelRect;
     const existingMask = masks[outputIndex] as InpaintingWindowMask;
-    windows[outputIndex] = unionRects(existingWindow, window);
-    masks[outputIndex] = unionWindowMasks(existingMask, mask);
+    windows[outputIndex] = unionRects(existingWindow, entry.window);
+    masks[outputIndex] = unionWindowMasks(existingMask, entry.mask);
+    compositeMasks[outputIndex] = unionWindowMasks(
+      compositeMasks[outputIndex] as InpaintingWindowMask,
+      entry.compositeMask,
+    );
+    compositeFeatherPx[outputIndex] = Math.max(
+      compositeFeatherPx[outputIndex] ?? 0,
+      entry.featherPx,
+    );
     constraints[outputIndex] = unionOptionalWindowMasks(
       constraints[outputIndex] ?? null,
-      constraint,
+      entry.constraint,
     );
     groupIds[outputIndex] = [
-      ...new Set([
-        ...(groupIds[outputIndex] ?? []),
-        ...(context.inpaintWindowGroupIds[index] ?? []),
-      ]),
+      ...new Set([...(groupIds[outputIndex] ?? []), ...entry.groupIds]),
     ];
   }
   context.inpaintWindows = windows;
   context.inpaintWindowMasks = masks;
+  context.inpaintCompositeMasks = compositeMasks;
+  context.inpaintCompositeFeatherPx = compositeFeatherPx;
   context.inpaintWindowConstraints = constraints;
   context.inpaintWindowGroupIds = groupIds;
+}
+
+function readSharedWindowEntry(
+  context: SharedConstrainedWindowContext,
+  index: number,
+): SharedWindowEntry {
+  const window = context.inpaintWindows[index];
+  const mask = context.inpaintWindowMasks[index];
+  const compositeMask = context.inpaintCompositeMasks[index];
+  const featherPx = context.inpaintCompositeFeatherPx[index];
+  if (!window || !mask || !compositeMask || featherPx === undefined) {
+    throw new Error("Inpainting window metadata is incomplete.");
+  }
+  return {
+    compositeMask,
+    constraint: context.inpaintWindowConstraints[index] ?? null,
+    featherPx,
+    groupIds: [...(context.inpaintWindowGroupIds[index] ?? [])],
+    mask,
+    window,
+  };
 }
 
 function resolveSharedWindowRoots(groupIds: readonly string[][]): number[] {

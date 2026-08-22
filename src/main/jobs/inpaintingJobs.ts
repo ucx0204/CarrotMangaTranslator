@@ -99,7 +99,7 @@ export async function startInpaintingJob(
       runtime,
     });
   } finally {
-    finishInpaintingJob(context, state, id, completion.resolve);
+    await finishInpaintingJob(context, state, id, completion.resolve, runtime);
   }
 }
 
@@ -208,12 +208,13 @@ function createInpaintingJobCompletion(): {
   return { promise, resolve: resolveCompletion };
 }
 
-function finishInpaintingJob(
+async function finishInpaintingJob(
   context: InpaintingJobContext,
   state: InpaintingJobState,
   id: string,
   resolveCompletion: () => void,
-): void {
+  runtime: InpaintingJobRuntime,
+): Promise<void> {
   try {
     if (state.historyTransactionId) {
       context.inpaintingRevisionStore?.discardIfEmpty(
@@ -224,9 +225,25 @@ function finishInpaintingJob(
     try {
       state.inpaintingEngineLease?.release();
     } finally {
-      context.jobs.clearIfCurrent(id);
-      resolveCompletion();
+      try {
+        await disposeBubbleLayoutSessions(runtime);
+      } finally {
+        context.jobs.clearIfCurrent(id);
+        resolveCompletion();
+      }
     }
+  }
+}
+
+async function disposeBubbleLayoutSessions(
+  runtime: InpaintingJobRuntime,
+): Promise<void> {
+  try {
+    await runtime.disposeBubbleLayoutSessions?.();
+  } catch (error) {
+    runtime.logError("Failed to release KoharuLayout sessions after job", {
+      error,
+    });
   }
 }
 

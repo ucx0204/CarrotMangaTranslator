@@ -35,23 +35,6 @@ export const CRUDE_SOURCE_GLYPH_COMPONENT_PROFILE = Object.freeze({
   minSourcePixelCount: 14,
 }) satisfies SourceGlyphComponentResidualProfile;
 
-/**
- * Old10 refinement: rejects tiny retained specks and large dense art while
- * preserving a locally intact glyph. It remains promotion-ineligible until a
- * new work-disjoint cohort validates the shape/size cutoffs.
- */
-export const REFINED_SOURCE_GLYPH_COMPONENT_PROFILE = Object.freeze({
-  maxAspectRatio: 6.5,
-  maxFillRatio: 0.45,
-  maxSourcePixelCount: 6_000,
-  minFillRatio: 0.04,
-  minLargestExactLikeRun: 64,
-  minLargestExactLikeRunRatio: 0.9,
-  minRetainedPixelCount: 80,
-  minRetainedRatio: 0.97,
-  minSourcePixelCount: 120,
-}) satisfies SourceGlyphComponentResidualProfile;
-
 export type SourceGlyphComponentResidual = {
   componentIndex: number;
   bounds: PixelRect;
@@ -139,14 +122,6 @@ export const CRUDE_UNASSIGNED_OCR_RESIDUAL_PROFILE = Object.freeze({
   maxKnownEvidenceOverlapRatio: 0.15,
   minHintScore: 0.8,
   minSourceLikeRemainingRatio: 0.75,
-}) satisfies UnassignedOcrResidualProfile;
-
-export const REFINED_UNASSIGNED_OCR_RESIDUAL_PROFILE = Object.freeze({
-  componentProfile: REFINED_SOURCE_GLYPH_COMPONENT_PROFILE,
-  maxKnownBlockContainment: 0.25,
-  maxKnownEvidenceOverlapRatio: 0.15,
-  minHintScore: 0.9,
-  minSourceLikeRemainingRatio: 0.9,
 }) satisfies UnassignedOcrResidualProfile;
 
 export type UnassignedOcrHintResidualDiagnostic = {

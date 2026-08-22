@@ -7,12 +7,17 @@ import {
   writePngFromBitmap,
   writePngFromMask,
 } from "./imageRaster";
+import type { InpaintingWindowMask } from "./inpaintingEngine";
 import type { PixelRect } from "./maskGeometry";
+import { compositeGeneratedPageWithWindowMasks } from "./pageMaskComposite";
 
 type KoharuInpaintRunOptions = {
   signal?: AbortSignal;
   maxPixels?: number;
   bubbleMask?: Uint8Array;
+  compositeConstraints?: Array<InpaintingWindowMask | null>;
+  compositeFeatherPx?: number[];
+  compositeMasks?: InpaintingWindowMask[];
 };
 
 type KoharuInpaintRunnerArgs = {
@@ -88,7 +93,19 @@ export async function runKoharuInpaint({
       width,
       height,
     );
-    generated.copy(bitmap, 0, 0, width * height * 4);
+    if (runOptions.compositeMasks) {
+      compositeGeneratedPageWithWindowMasks({
+        bitmap,
+        compositeConstraints: runOptions.compositeConstraints,
+        compositeFeatherPx: runOptions.compositeFeatherPx,
+        compositeMasks: runOptions.compositeMasks,
+        generated,
+        height,
+        width,
+      });
+    } else {
+      generated.copy(bitmap, 0, 0, width * height * 4);
+    }
   } finally {
     await cleanupKoharuRunDir(runDir);
   }

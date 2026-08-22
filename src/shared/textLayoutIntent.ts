@@ -17,10 +17,6 @@ export function readTextLayoutIntent(
     : undefined;
 }
 
-export function normalizeTextLayoutIntent(value: unknown): TextLayoutIntent {
-  return readTextLayoutIntent(value) ?? "auto";
-}
-
 export function readUnsuppressedTextLayoutIntent(
   block: Pick<TranslationBlock, "layoutIntent" | "layoutIntentSuppressed">,
 ): TextLayoutIntent | undefined {

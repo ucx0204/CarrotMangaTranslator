@@ -17,6 +17,7 @@ function loadOnnxRuntimeNode(): typeof Ort {
   return localRequire(packagedEntry ?? "onnxruntime-node") as typeof Ort;
 }
 
+/** @public Dynamically consumed by the packaged native-runtime smoke test. */
 export function resolvePackagedOnnxRuntimeNodeEntry(): string | null {
   if (!process.resourcesPath) return null;
   const entry = join(process.resourcesPath, "o", "index.js");

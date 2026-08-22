@@ -24,6 +24,10 @@ type InpaintRunOptions = {
   maxPixels?: number;
   bubbleMask?: Uint8Array;
   windowMasks?: InpaintingWindowMask[];
+  /** Fully opaque output cores; windowMasks remain the broader model masks. */
+  compositeMasks?: InpaintingWindowMask[];
+  /** Per-window outward feather widths in source-page pixels. */
+  compositeFeatherPx?: number[];
   /**
    * Optional per-window hard boundaries for the final composite. A null entry
    * keeps that window unconstrained.

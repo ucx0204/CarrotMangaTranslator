@@ -353,6 +353,7 @@ describe("Flux inpainting engine change detection", () => {
           maxPixels: 256 * 256,
           windowMasks: [outer, inner],
           compositeConstraints: [outer, inner],
+          compositeMasks: [outer, inner],
           requirePixelChange: true,
         },
       ),

@@ -36,6 +36,7 @@ beforeEach(() => {
   runtimeMocks.createSession.mockResolvedValue({
     inputNames: ["input"],
     outputNames: ["dets", "labels", "masks"],
+    release: vi.fn(),
   });
 });
 
@@ -76,6 +77,7 @@ describe("KoharuLayout native ONNX runtime", () => {
       .mockResolvedValueOnce({
         inputNames: ["input"],
         outputNames: ["dets", "labels", "masks"],
+        release: vi.fn(),
       });
     const { getKoharuLayoutSession, resolveKoharuCpuThreadCount } =
       await import("../src/main/bubbleLayout/session");
@@ -127,6 +129,7 @@ describe("KoharuLayout native ONNX runtime", () => {
     releaseSession?.({
       inputNames: ["input"],
       outputNames: ["dets", "labels", "masks"],
+      release: vi.fn(),
     });
 
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
@@ -163,5 +166,58 @@ describe("KoharuLayout native ONNX runtime", () => {
       "second:start",
       "second:end",
     ]);
+  });
+
+  it("releases the cached model session and creates a fresh one afterwards", async () => {
+    const firstRelease = vi.fn(async () => undefined);
+    const secondRelease = vi.fn(async () => undefined);
+    runtimeMocks.createSession
+      .mockResolvedValueOnce({
+        inputNames: ["input"],
+        outputNames: ["dets", "labels", "masks"],
+        release: firstRelease,
+      })
+      .mockResolvedValueOnce({
+        inputNames: ["input"],
+        outputNames: ["dets", "labels", "masks"],
+        release: secondRelease,
+      });
+    const { disposeCachedKoharuLayoutSessions, getKoharuLayoutSession } =
+      await import("../src/main/bubbleLayout/session");
+    const modelPath = resolve("models", "disposable-koharu.onnx");
+
+    const first = await getKoharuLayoutSession({
+      modelPath,
+      providerPreference: ["cpu"],
+    });
+    await expect(disposeCachedKoharuLayoutSessions()).resolves.toBe(true);
+    expect(firstRelease).toHaveBeenCalledTimes(1);
+
+    const second = await getKoharuLayoutSession({
+      modelPath,
+      providerPreference: ["cpu"],
+    });
+    expect(second.session).not.toBe(first.session);
+    expect(runtimeMocks.createSession).toHaveBeenCalledTimes(2);
+    await expect(disposeCachedKoharuLayoutSessions()).resolves.toBe(true);
+    expect(secondRelease).toHaveBeenCalledTimes(1);
+    await expect(disposeCachedKoharuLayoutSessions()).resolves.toBe(false);
+  });
+
+  it("uses the platform provider preference when none is supplied", async () => {
+    const { disposeCachedKoharuLayoutSessions, getKoharuLayoutSession } =
+      await import("../src/main/bubbleLayout/session");
+
+    await getKoharuLayoutSession({
+      modelPath: resolve("models", "default-provider-koharu.onnx"),
+    });
+
+    expect(runtimeMocks.createSession).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        executionProviders: process.platform === "win32" ? ["dml"] : ["cpu"],
+      }),
+    );
+    await expect(disposeCachedKoharuLayoutSessions()).resolves.toBe(true);
   });
 });

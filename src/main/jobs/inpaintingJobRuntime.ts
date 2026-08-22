@@ -2,6 +2,7 @@ import { inpaintPatternPage } from "../inpainting";
 import { inpaintDrawnPatternPage } from "../inpainting/drawnPatternPage";
 import { acquireInpaintingEngine } from "../inpainting/inpaintingEnginePool";
 import { createProductionBubbleLayoutRunner } from "../bubbleLayout/bubbleLayoutFacade";
+import { disposeCachedKoharuLayoutSessions } from "../bubbleLayout/session";
 import { openChapter, updatePagesAfterInpainting } from "../library";
 import { logError } from "../logger";
 import { getAppSettings } from "../settingsStore";
@@ -18,11 +19,13 @@ export type InpaintingJobRuntime = {
   openChapter: typeof openChapter;
   savePages: typeof updatePagesAfterInpainting;
   createBubbleLayoutRunner?: BubbleLayoutRunnerFactory;
+  disposeBubbleLayoutSessions?: typeof disposeCachedKoharuLayoutSessions;
 };
 
 export const productionInpaintingJobRuntime: InpaintingJobRuntime = {
   acquireEngine: acquireInpaintingEngine,
   createBubbleLayoutRunner: createProductionBubbleLayoutRunner,
+  disposeBubbleLayoutSessions: disposeCachedKoharuLayoutSessions,
   emitEvent: emitJobEvent,
   getSettings: getAppSettings,
   inpaintDrawnPage: inpaintDrawnPatternPage,

@@ -333,6 +333,39 @@ function boundaryFilesBindingSha256(files) {
 
 /** @param {Record<string, any>} options */
 async function runCommand(options) {
+  const config = await resolveRunCommandConfig(options);
+  if (!config.execute) {
+    console.log(
+      "[font-qa] DRY RUN: OCR, translation, inpainting, and rendering were not started.",
+    );
+    console.log(JSON.stringify(config, null, 2));
+    return;
+  }
+  assertCompiledRuntime();
+  const electronExe = ensureElectronExecutable(ROOT);
+  const electronScript = path.join(
+    ROOT,
+    "scripts",
+    "library-full-pipeline-qa",
+    "electron-runner.cjs",
+  );
+  const env = {
+    ...process.env,
+    MGT_LIBRARY_FONT_QA_CONFIG: JSON.stringify(config),
+  };
+  delete env.ELECTRON_RUN_AS_NODE;
+  const result = spawnSync(electronExe, [electronScript], {
+    cwd: ROOT,
+    env,
+    stdio: "inherit",
+    windowsHide: true,
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) process.exitCode = result.status || 1;
+}
+
+/** @param {Record<string, any>} options */
+async function resolveRunCommandConfig(options) {
   if (
     options["page-limit"] !== undefined &&
     options["selection-index"] !== undefined
@@ -363,6 +396,11 @@ async function runCommand(options) {
   );
   const qaPageRelativeRoleReroute = resolveQaPageRelativeRoleReroute(
     options,
+    fontInferenceCacheMode,
+  );
+  const qaModelDirectSelection = resolveQaModelDirectSelection(
+    options,
+    cacheFrom,
     fontInferenceCacheMode,
   );
   const cacheFromSeal = resolveCacheFromSeal(
@@ -404,6 +442,7 @@ async function runCommand(options) {
     cacheFrom,
     cacheFromSeal,
     fontInferenceCacheMode,
+    qaModelDirectSelection,
     qaPageRelativeRoleReroute,
     execute,
     preflightOnly: Boolean(options.preflight),
@@ -419,34 +458,7 @@ async function runCommand(options) {
         ? parseNonNegativeInteger(options["selection-index"], "selection-index")
         : null,
   };
-  if (!config.execute) {
-    console.log(
-      "[font-qa] DRY RUN: OCR, translation, inpainting, and rendering were not started.",
-    );
-    console.log(JSON.stringify(config, null, 2));
-    return;
-  }
-  assertCompiledRuntime();
-  const electronExe = ensureElectronExecutable(ROOT);
-  const electronScript = path.join(
-    ROOT,
-    "scripts",
-    "library-full-pipeline-qa",
-    "electron-runner.cjs",
-  );
-  const env = {
-    ...process.env,
-    MGT_LIBRARY_FONT_QA_CONFIG: JSON.stringify(config),
-  };
-  delete env.ELECTRON_RUN_AS_NODE;
-  const result = spawnSync(electronExe, [electronScript], {
-    cwd: ROOT,
-    env,
-    stdio: "inherit",
-    windowsHide: true,
-  });
-  if (result.error) throw result.error;
-  if (result.status !== 0) process.exitCode = result.status || 1;
+  return config;
 }
 
 /** @param {string} cohort @param {boolean} allowHoldout */
@@ -687,6 +699,20 @@ function resolveQaPageRelativeRoleReroute(options, fontInferenceCacheMode) {
   return enabled;
 }
 
+function resolveQaModelDirectSelection(
+  options,
+  cacheFrom,
+  fontInferenceCacheMode,
+) {
+  const enabled = options["qa-model-direct-selection"] === true;
+  if (enabled && (!cacheFrom || fontInferenceCacheMode !== "off")) {
+    throw new Error(
+      "--qa-model-direct-selection requires a live font replay with --cache-from.",
+    );
+  }
+  return enabled;
+}
+
 function resolveCacheFromSeal(
   options,
   cacheFrom,
@@ -739,6 +765,7 @@ function printHelp() {
       `  node scripts/run-library-full-pipeline-qa.cjs run --cohort baseline40 --candidate-id v3 --cache-from <v2-run> --cache-from-seal <fresh-run-audit.json> --execute\n` +
       `  node scripts/run-library-full-pipeline-qa.cjs run --cohort baseline40 --candidate-id v4 --cache-from <v3-run> --reuse-cached-font-inference required --execute\n` +
       `  node scripts/run-library-full-pipeline-qa.cjs run --cohort baseline40 --candidate-id page-role-qa --cache-from <fresh-run> --cache-from-seal <fresh-run-audit.json> --qa-page-relative-role-reroute --execute\n` +
+      `  node scripts/run-library-full-pipeline-qa.cjs run --cohort baseline40 --candidate-id model-direct-qa --selection-index 8 --cache-from <fresh-run> --cache-from-seal <fresh-run-audit.json> --qa-model-direct-selection --execute\n` +
       `  node scripts/run-library-full-pipeline-qa.cjs compare --baseline <run> --candidate <run>`,
   );
 }

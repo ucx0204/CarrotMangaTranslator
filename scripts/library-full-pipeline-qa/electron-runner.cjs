@@ -75,21 +75,7 @@ async function run() {
   imageProtocol.registerImageProtocolHandler();
   const modules = loadModules(config.root);
   const cohortRecords = await readJsonl(config.manifestPath);
-  const records =
-    config.selectionIndex === null || config.selectionIndex === undefined
-      ? cohortRecords.slice(0, config.pageLimit || undefined)
-      : cohortRecords.filter(
-          (record) => record.selectionIndex === config.selectionIndex,
-        );
-  if (
-    config.selectionIndex !== null &&
-    config.selectionIndex !== undefined &&
-    records.length !== 1
-  ) {
-    throw new Error(
-      `Frozen cohort selection index ${config.selectionIndex} matched ${records.length} pages; expected exactly one.`,
-    );
-  }
+  const records = selectCohortRecords(cohortRecords);
   assertCohort(records);
   const context = await createRuntimeContext(modules);
   const report = createInitialReport(records, context);
@@ -135,6 +121,22 @@ async function run() {
     process.exitCode = 1;
   }
   app.exit(process.exitCode || 0);
+}
+
+/** @param {Array<Record<string,unknown>>} cohortRecords */
+function selectCohortRecords(cohortRecords) {
+  if (config.selectionIndex === null || config.selectionIndex === undefined) {
+    return cohortRecords.slice(0, config.pageLimit || undefined);
+  }
+  const records = cohortRecords.filter(
+    (record) => record.selectionIndex === config.selectionIndex,
+  );
+  if (records.length !== 1) {
+    throw new Error(
+      `Frozen cohort selection index ${config.selectionIndex} matched ${records.length} pages; expected exactly one.`,
+    );
+  }
+  return records;
 }
 
 /** @param {string} root */
@@ -811,6 +813,7 @@ function applyReplayedFontDecisions(
       automaticFontCoordinator: modules.automaticFontCoordinator,
       chapterCoordinator: coordinator,
       inferred,
+      modelDirectSelection: config.qaModelDirectSelection === true,
       requestBlocks,
     });
   for (const itemIndex of orderedItemIndexes) {
@@ -1172,6 +1175,7 @@ function createInitialReport(records, context) {
     cohortDigest: config.cohortDigest,
     candidateId: config.candidateId,
     candidateRuntimeDir: config.runtimeDir,
+    qaModelDirectSelection: config.qaModelDirectSelection === true,
     qaPageRelativeRoleReroute: config.qaPageRelativeRoleReroute === true,
     cacheFrom: config.cacheFrom,
     provider: context.appSettings.modelProvider,
@@ -1344,6 +1348,14 @@ function readConfig() {
   ) {
     throw new Error(
       "Page-relative role QA requires live font inference, not cached inference.",
+    );
+  }
+  if (
+    parsed.qaModelDirectSelection === true &&
+    (!parsed.cacheFrom || parsed.fontInferenceCacheMode !== "off")
+  ) {
+    throw new Error(
+      "Model-direct font QA requires a live font replay cache source.",
     );
   }
   if (

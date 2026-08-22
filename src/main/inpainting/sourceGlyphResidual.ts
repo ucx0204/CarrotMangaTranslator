@@ -11,7 +11,7 @@ import { maskComponents } from "./rasterMasks";
 export const SOURCE_GLYPH_RESIDUAL_CONTRACT_VERSION =
   "source-glyph-residual-v1" as const;
 
-export type SourceGlyphEvidenceStrategy = "adaptive" | "otsu" | "none";
+type SourceGlyphEvidenceStrategy = "adaptive" | "otsu" | "none";
 
 export type SourceGlyphEvidence = {
   strategy: SourceGlyphEvidenceStrategy;

@@ -35,6 +35,7 @@ import {
   resolveAutomaticInverseTextStyle,
   type AutomaticInverseTextStyleV1,
 } from "./automaticFontMatchingV2Polarity";
+import { hasVerifiedCrossScriptProxyInference } from "./automaticFontMatchingV2CrossScriptProxy";
 
 export {
   FONT_MATCHING_V2_MODEL_VERSION,
@@ -191,6 +192,7 @@ function finalizeAutomaticFontDecision({
   workState: ReturnType<AutomaticFontPageCoordinatorV2["prepareWorkState"]>;
 }): AutomaticFontDecisionV2 {
   const result = applyAutomaticPixelStyle({
+    candidates,
     pixelInference,
     result: baseResult,
     workState,
@@ -224,6 +226,9 @@ function prepareAutomaticFontWorkState(
     : undefined;
 }
 
+// This boundary keeps the complete precedence order (manual lock, profile,
+// calibrated evidence, and automatic fallback) visible in one place.
+// eslint-disable-next-line max-lines-per-function
 function resolveAutomaticPolicyDecision({
   automaticMutationReady,
   block,
@@ -257,6 +262,9 @@ function resolveAutomaticPolicyDecision({
   workId: string;
   workState: ReturnType<AutomaticFontPageCoordinatorV2["prepareWorkState"]>;
 }): FontMatchingDecisionResultV2 {
+  const crossScriptProxyAccepted =
+    pixelInference !== null &&
+    hasVerifiedCrossScriptProxyInference(pixelInference, candidates);
   return resolveFontMatchingDecisionV2({
     workId,
     chapterId,
@@ -272,12 +280,17 @@ function resolveAutomaticPolicyDecision({
           ...pixelInference.localEvidence,
           rankedCandidates,
           supervisedSelectionAccepted:
+            !crossScriptProxyAccepted &&
             pixelInference.selectionCalibration.applied,
           bestAvailableSelectionRequired:
-            !pixelInference.selectionCalibration.applied &&
-            pixelInference.localEvidence.rankedCandidates.some(
-              (candidate) => candidate.renderStatus === "rendered",
-            ),
+            crossScriptProxyAccepted ||
+            (!pixelInference.selectionCalibration.applied &&
+              pixelInference.localEvidence.rankedCandidates.some(
+                (candidate) => candidate.renderStatus === "rendered",
+              )),
+          noneAcceptable: crossScriptProxyAccepted
+            ? false
+            : pixelInference.localEvidence.noneAcceptable,
         }
       : {
           rankedCandidates,

@@ -66,8 +66,9 @@ describe("production bubble layout failure fallback", () => {
     });
     const signal = new AbortController().signal;
 
-    await runner.runPage({
+    const prepass = await runner.runPage({
       failureMode: "best-effort",
+      includeTypographySegmentation: true,
       imagePath: files.original,
       page: prepassPage,
       paddingRatio: 0,
@@ -86,6 +87,11 @@ describe("production bubble layout failure fallback", () => {
       1,
     );
     expect(bubbleRuntimeMocks.detectKoharuPageLayout).toHaveBeenCalledTimes(1);
+    expect(prepass.typographySegmentation).toEqual({
+      imageWidth: 4,
+      imageHeight: 4,
+      detections: [],
+    });
     expect(bubbleRuntimeMocks.detectKoharuPageLayout).toHaveBeenCalledWith(
       expect.objectContaining({
         imagePath: files.original,
@@ -192,6 +198,25 @@ describe("production bubble layout failure fallback", () => {
         signal: new AbortController().signal,
       }),
     ).rejects.toThrow("detector unavailable");
+  });
+
+  it("preserves cancellation instead of treating it as a detector fallback", async () => {
+    const files = await createPageFiles();
+    const controller = new AbortController();
+    controller.abort();
+    const { createProductionBubbleLayoutRunner } =
+      await import("../src/main/bubbleLayout/bubbleLayoutFacade");
+    const runner = createProductionBubbleLayoutRunner({ dataRoot: files.root });
+
+    await expect(
+      runner.runPage({
+        failureMode: "best-effort",
+        imagePath: files.cleaned,
+        page: makePage(files.original, files.cleaned),
+        policy: "balanced",
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ name: "AbortError" });
   });
 
   it("preserves a current generated layout but clears it after the image changes", async () => {

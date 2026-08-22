@@ -31,7 +31,12 @@ export function finalizeDetectedTextMask({
     rect,
     focusRect,
   );
-  const dilated = dilateMask(connected.mask, rect.w, rect.h, dilationRadius);
+  const dilated = dilateBinaryMaskDisk(
+    connected.mask,
+    rect.w,
+    rect.h,
+    dilationRadius,
+  );
   const protectedMask = protectOutlineFringe({
     connectedMask: connected.mask,
     dilatedMask: dilated,
@@ -75,7 +80,7 @@ function countMaskPixels(mask: Uint8Array): number {
   return count;
 }
 
-function dilateMask(
+export function dilateBinaryMaskDisk(
   mask: Uint8Array,
   width: number,
   height: number,

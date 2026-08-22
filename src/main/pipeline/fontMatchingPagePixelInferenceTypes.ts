@@ -103,6 +103,8 @@ export type VerifiedAutomaticFontPixelInferenceV2 = Readonly<{
   selectionCalibration: FontMatchingSelectionCalibrationAudit;
   /** Versioned pixel-only glyph geometry used by page-policy audit/vetoes. */
   glyphMorphology?: FontMatchingGlyphMorphologyV1;
+  /** Page-local visual voice selected by the user-approved cross-script model. */
+  crossScriptProxy?: VerifiedCrossScriptProxyInferenceV1;
   localEvidence: BlockLocalFontEvidenceV2;
 }>;
 
@@ -113,6 +115,41 @@ export type FontMatchingPageInferenceBlock = Readonly<{
   sourceCandidateMembership?: FontMatchingOcrCandidateMembershipV2;
   /** Derived before inference from immutable OCR candidate rectangles only. */
   sourceGeometryDirection?: FontMatchingOcrGeometryDirectionV2;
+  /** Geometry/count-only glyph cells for the meaning-free cross-script model. */
+  sourceGlyphInput?: FontMatchingSourceGlyphInputV1;
+}>;
+
+export type FontMatchingSourceGlyphLineV1 = Readonly<{
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  glyphCount: number;
+}>;
+
+export type FontMatchingSourceGlyphInputV1 = Readonly<{
+  contractVersion: "font-matching-source-glyph-input-v1";
+  source: "semantic_ocr_geometry_and_count_only";
+  direction: "horizontal" | "vertical";
+  lines: readonly FontMatchingSourceGlyphLineV1[];
+  fallbackGlyphCount: number;
+}>;
+
+export type CrossScriptProxyCandidateV1 = Readonly<{
+  fontId: string;
+  displayId: string;
+  score: number;
+  fontWeight: number;
+  italic: boolean;
+}>;
+
+export type VerifiedCrossScriptProxyInferenceV1 = Readonly<{
+  kind: "verified_cross_script_proxy";
+  contractVersion: "font-matching-cross-script-proxy-inference-v2";
+  modelVersion: "manga-font-crossscript-proxy-runtime-v2";
+  voice: number;
+  voiceCount: number;
+  candidates: readonly CrossScriptProxyCandidateV1[];
 }>;
 
 export type FontMatchingPageInferenceRequest = Readonly<{

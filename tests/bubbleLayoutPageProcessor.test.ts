@@ -152,8 +152,14 @@ describe("bubble layout page processor", () => {
   });
 
   it("leaves an unrecognized block unchanged", () => {
+    const page = createPage();
+    page.blocks.push({
+      ...page.blocks[0],
+      id: "excluded",
+      inpaintExcluded: true,
+    });
     const patches = processDetectedBubbleLayouts({
-      page: createPage(),
+      page,
       bitmap: createBitmap(240),
       imageWidth: WIDTH,
       imageHeight: HEIGHT,
@@ -161,6 +167,50 @@ describe("bubble layout page processor", () => {
       policy: "safe",
       pageRevision: "page-revision",
     });
+    expect(patches).toEqual([]);
+  });
+
+  it("ignores a matched bubble that has no segmentation mask", () => {
+    const patches = processDetectedBubbleLayouts({
+      page: createPage(),
+      bitmap: createBitmap(240),
+      imageWidth: WIDTH,
+      imageHeight: HEIGHT,
+      detections: [
+        { labelId: 2, label: "bubble", box: [5, 5, 115, 75], score: 0.99 },
+        detection(1, [25, 20, 95, 60], 0.99),
+      ],
+      policy: "balanced",
+      pageRevision: "page-revision",
+    });
+
+    expect(patches).toEqual([]);
+  });
+
+  it("ignores a matched bubble whose segmentation mask has no usable region", () => {
+    const patches = processDetectedBubbleLayouts({
+      page: createPage(),
+      bitmap: createBitmap(240),
+      imageWidth: WIDTH,
+      imageHeight: HEIGHT,
+      detections: [
+        {
+          labelId: 2,
+          label: "bubble",
+          box: [5, 5, 115, 75],
+          score: 0.99,
+          mask: {
+            width: 288,
+            height: 288,
+            logits: new Float32Array(288 * 288).fill(-20),
+          },
+        },
+        detection(1, [25, 20, 95, 60], 0.99),
+      ],
+      policy: "balanced",
+      pageRevision: "page-revision",
+    });
+
     expect(patches).toEqual([]);
   });
 

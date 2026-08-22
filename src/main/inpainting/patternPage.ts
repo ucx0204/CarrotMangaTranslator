@@ -2,12 +2,7 @@ import { nativeImage } from "electron";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { MangaPage } from "../../shared/libraryTypes";
-import {
-  FLUX_INPAINT_CONTEXT_PX,
-  FLUX_INPAINT_FEATHER_PX,
-  FLUX_INPAINT_MASK_PADDING_PX,
-  FLUX_INPAINT_MAX_PIXELS,
-} from "./fluxEngineConstants";
+import type { KoharuTypographySegmentation } from "../bubbleLayout/contracts";
 import type { InpaintingEngine } from "./inpaintingEngine";
 import { logInpaintingRuntimeInfo } from "./inpaintingRuntimeLogger";
 import { loadPageImage, resolveInpaintedImagePath } from "./imageIO";
@@ -16,7 +11,7 @@ import {
   resolveEligiblePatternBlocks,
   shouldUseOriginalPatternImage,
 } from "./patternBlockEligibility";
-import { resolvePatternInpaintWindows } from "./patternWindowPolicy";
+import { runPatternInpaintingEngine } from "./patternEngineRunner";
 import {
   buildPatternPageMask,
   type PatternMaskContext,
@@ -44,6 +39,7 @@ type PatternPageInpaintingOptions = {
   /** Block ids already committed by an earlier partial page run. */
   excludedBlockIds?: readonly string[];
   sharedInpaintGroupIdsByBlock?: Readonly<Record<string, readonly string[]>>;
+  typographySegmentation?: KoharuTypographySegmentation;
   /** Production stays disabled; sealed QA/offline evidence opts in. */
   sourceEvidenceMode?: "disabled" | "required";
 };
@@ -149,12 +145,14 @@ function createPatternMaskContext(
     width: size.width,
     height: size.height,
     mode:
-      options.inpaintingEngine?.model === "flux-klein"
+      options.inpaintingEngine?.model === "flux-klein" ||
+      options.typographySegmentation
         ? "flux-region"
         : "glyph",
     bubbleLayoutConstraintBlockIds: options.bubbleLayoutConstraintBlockIds,
     excludedBlockIds: options.excludedBlockIds,
     sharedInpaintGroupIdsByBlock: options.sharedInpaintGroupIdsByBlock,
+    typographySegmentation: options.typographySegmentation,
     signal: options.signal,
   });
 }
@@ -320,55 +318,6 @@ function resolvePatternPixelChanges(
       .map((item) => item.blockId),
     incompleteBlockIds,
   };
-}
-
-async function runPatternInpaintingEngine(options: {
-  bitmap: Buffer;
-  engine?: InpaintingEngine;
-  height: number;
-  maskContext: PatternMaskContext;
-  signal?: AbortSignal;
-  width: number;
-}): Promise<void> {
-  if (options.maskContext.inpaintWindows.length === 0) return;
-  if (!options.engine) {
-    throw new Error("원문 지우기 엔진이 준비되지 않았습니다.");
-  }
-  const hasBubbleConstraints =
-    options.engine.model === "flux-klein" &&
-    options.maskContext.inpaintWindowConstraints.some(
-      (constraint) => constraint !== null,
-    );
-  await options.engine.inpaint(
-    options.bitmap,
-    options.width,
-    options.height,
-    options.maskContext.pageMask,
-    resolvePatternInpaintWindows(
-      options.maskContext.inpaintWindows,
-      options.engine,
-      { preserveBlockOwnership: hasBubbleConstraints },
-    ),
-    {
-      signal: options.signal,
-      featherPx: FLUX_INPAINT_FEATHER_PX,
-      contextPx: FLUX_INPAINT_CONTEXT_PX,
-      maskPaddingPx: FLUX_INPAINT_MASK_PADDING_PX,
-      maxPixels: FLUX_INPAINT_MAX_PIXELS,
-      bubbleMask:
-        options.engine.model === "flux-klein"
-          ? undefined
-          : new Uint8Array(options.width * options.height),
-      windowMasks:
-        options.engine.model === "flux-klein"
-          ? options.maskContext.inpaintWindowMasks
-          : undefined,
-      compositeConstraints: hasBubbleConstraints
-        ? options.maskContext.inpaintWindowConstraints
-        : undefined,
-      requirePixelChange: true,
-    },
-  );
 }
 
 function logPatternInpaintingResult(

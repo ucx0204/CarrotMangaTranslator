@@ -22,3 +22,5 @@ panel-window-bounds.json
 recent-dialog-paths.json
 src/main/runtime/font-matching/runtime-contract.json
 src/main/runtime/font-matching/selection-calibration.json
+src/main/runtime/font-matching-crossscript-proxy/runtime-manifest.json
+src/main/runtime/font-matching-crossscript-proxy/.manga-font-crossscript-proxy-runtime-owned.json

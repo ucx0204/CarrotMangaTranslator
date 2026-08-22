@@ -60,6 +60,7 @@
     "qa:ui": "node scripts/ui-qa.mjs",
     "qa:library-fonts": "node scripts/run-library-full-pipeline-qa.cjs",
     "qa:gemma-cleanup-audit": "node scripts/run-gemma-cleanup-audit.cjs",
+    "qa:koharu-flux-feather": "npm run compile:electron && node scripts/run-koharu-flux-feather-qa.cjs",
     "build:font-face-manifest": "node scripts/build-font-face-manifest.cjs",
     "check:font-face-manifest": "node scripts/build-font-face-manifest.cjs --check",
     "build:font-render-bank": "node scripts/build-font-render-bank.cjs",

@@ -1,4 +1,4 @@
-export type FluxUnchangedCropStats = {
+type FluxUnchangedCropStats = {
   changedRatio: number;
   crop: number;
   meanDelta: number;

@@ -380,7 +380,9 @@ async function acquireAuditRunLock(options) {
     await handle.sync();
     await options.writeGuard();
   } catch (error) {
-    await handle?.close().catch(() => {});
+    await handle?.close().catch((_closeError) => {
+      // error-policy-allow: preserve the original lock acquisition failure.
+    });
     if (
       error &&
       typeof error === "object" &&

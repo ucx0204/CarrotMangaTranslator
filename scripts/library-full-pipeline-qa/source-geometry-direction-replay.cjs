@@ -49,85 +49,15 @@ async function loadFontReplayBaselineSeal(options) {
   const pagesById = new Map();
 
   for (const [index, rawPage] of pages.entries()) {
-    const sourcePageId = expectedPageIds[index];
-    if (!sourcePageId || rawPage?.sourcePageId !== sourcePageId) {
-      throw new Error(
-        `Fresh baseline audit page order does not match the replay cohort at ${index}: expected ${sourcePageId || "<missing>"}, got ${rawPage?.sourcePageId || "<missing>"}.`,
-      );
-    }
-    const pageArtifacts = readSealBindings(rawPage.artifacts);
-    const fontInputBindings = pageArtifacts.filter(
-      (binding) => binding.kind === "font_input_json",
-    );
-    const rawOcrBindings = pageArtifacts.filter(
-      (binding) => binding.kind === "raw_ocr_result_json",
-    );
-    if (fontInputBindings.length !== 1 || rawOcrBindings.length < 1) {
-      throw new Error(
-        `Fresh baseline page ${sourcePageId} must seal exactly one font-input and at least one raw OCR result.`,
-      );
-    }
-    const fontInputBinding = fontInputBindings[0];
-    if (!fontInputBinding) {
-      throw new Error(
-        `Fresh baseline page ${sourcePageId} seal inventory drifted.`,
-      );
-    }
-    assertPageBindingInGlobalSeal(fontInputBinding, globalBindings);
-    assertPathInside(expectedRunDir, fontInputBinding.path, "font-input");
-    for (const rawOcrBinding of rawOcrBindings) {
-      assertPageBindingInGlobalSeal(rawOcrBinding, globalBindings);
-      assertPathInside(expectedRunDir, rawOcrBinding.path, "raw OCR result");
-    }
-
-    const fontInput = parseJson(bindingBytes.get(bindingKey(fontInputBinding)));
-    const expected = readFontInputSourceBinding(
-      fontInput,
-      sourcePageId,
-      fontInputBinding.path,
-    );
-    if (
-      !expected ||
-      String(rawPage.sourcePageSha256 ?? "").toLowerCase() !==
-        expected.sourcePageSha256
-    ) {
-      throw new Error(
-        `Fresh baseline page ${sourcePageId} font-input binding is invalid.`,
-      );
-    }
-    let canonicalRawGeometry = null;
-    for (const rawOcrBinding of rawOcrBindings) {
-      const rawResult = parseJson(bindingBytes.get(bindingKey(rawOcrBinding)));
-      if (!isRawOcrAnalysisResult(rawResult)) {
-        throw new Error(
-          `Fresh baseline page ${sourcePageId} raw OCR payload is invalid.`,
-        );
-      }
-      const sourceBinding = await inspectRawSourceBinding(
-        rawResult,
-        expected,
-        sourcePageId,
-        rawOcrBinding.path,
-      );
-      if (sourceBinding.status !== "ready") {
-        throw new Error(
-          `Fresh baseline page ${sourcePageId} raw OCR source binding is not ready.`,
-        );
-      }
-      const geometry = canonicalGeometryHints(rawResult.hints);
-      if (canonicalRawGeometry !== null && geometry !== canonicalRawGeometry) {
-        throw new Error(
-          `Fresh baseline page ${sourcePageId} raw OCR geometry conflicts.`,
-        );
-      }
-      canonicalRawGeometry = geometry;
-    }
-    pagesById.set(sourcePageId, {
-      sourcePageId,
-      fontInputBinding,
-      rawOcrBindings,
-      expected,
+    const pageSeal = await verifyFreshBaselinePage({
+      bindingBytes,
+      expectedPageIds,
+      expectedRunDir,
+      globalBindings,
+      index,
+      rawPage,
     });
+    pagesById.set(pageSeal.sourcePageId, pageSeal);
   }
   if (pagesById.size !== EXPECTED_BASELINE_PAGE_COUNT) {
     throw new Error(
@@ -143,6 +73,107 @@ async function loadFontReplayBaselineSeal(options) {
   });
   verifiedBaselinePages.set(seal, pagesById);
   return seal;
+}
+
+/**
+ * @param {{bindingBytes:Map<string,Buffer>;expectedPageIds:string[];expectedRunDir:string;globalBindings:Map<string,SealBinding>;index:number;rawPage:any}} options
+ * @returns {Promise<BaselinePageSeal>}
+ */
+async function verifyFreshBaselinePage(options) {
+  const sourcePageId = options.expectedPageIds[options.index];
+  if (!sourcePageId || options.rawPage?.sourcePageId !== sourcePageId) {
+    throw new Error(
+      `Fresh baseline audit page order does not match the replay cohort at ${options.index}: expected ${sourcePageId || "<missing>"}, got ${options.rawPage?.sourcePageId || "<missing>"}.`,
+    );
+  }
+  const pageArtifacts = readSealBindings(options.rawPage.artifacts);
+  const fontInputBindings = pageArtifacts.filter(
+    (binding) => binding.kind === "font_input_json",
+  );
+  const rawOcrBindings = pageArtifacts.filter(
+    (binding) => binding.kind === "raw_ocr_result_json",
+  );
+  if (fontInputBindings.length !== 1 || rawOcrBindings.length < 1) {
+    throw new Error(
+      `Fresh baseline page ${sourcePageId} must seal exactly one font-input and at least one raw OCR result.`,
+    );
+  }
+  const fontInputBinding = fontInputBindings[0];
+  if (!fontInputBinding) {
+    throw new Error(
+      `Fresh baseline page ${sourcePageId} seal inventory drifted.`,
+    );
+  }
+  assertPageBindingInGlobalSeal(fontInputBinding, options.globalBindings);
+  assertPathInside(options.expectedRunDir, fontInputBinding.path, "font-input");
+  for (const rawOcrBinding of rawOcrBindings) {
+    assertPageBindingInGlobalSeal(rawOcrBinding, options.globalBindings);
+    assertPathInside(
+      options.expectedRunDir,
+      rawOcrBinding.path,
+      "raw OCR result",
+    );
+  }
+
+  const fontInput = parseJson(
+    options.bindingBytes.get(bindingKey(fontInputBinding)),
+  );
+  const expected = readFontInputSourceBinding(
+    fontInput,
+    sourcePageId,
+    fontInputBinding.path,
+  );
+  if (
+    !expected ||
+    String(options.rawPage.sourcePageSha256 ?? "").toLowerCase() !==
+      expected.sourcePageSha256
+  ) {
+    throw new Error(
+      `Fresh baseline page ${sourcePageId} font-input binding is invalid.`,
+    );
+  }
+  await verifyRawOcrBindings({
+    bindingBytes: options.bindingBytes,
+    expected,
+    rawOcrBindings,
+    sourcePageId,
+  });
+  return { sourcePageId, fontInputBinding, rawOcrBindings, expected };
+}
+
+/**
+ * @param {{bindingBytes:Map<string,Buffer>;expected:BaselinePageSeal["expected"];rawOcrBindings:SealBinding[];sourcePageId:string}} options
+ */
+async function verifyRawOcrBindings(options) {
+  let canonicalRawGeometry = null;
+  for (const rawOcrBinding of options.rawOcrBindings) {
+    const rawResult = parseJson(
+      options.bindingBytes.get(bindingKey(rawOcrBinding)),
+    );
+    if (!isRawOcrAnalysisResult(rawResult)) {
+      throw new Error(
+        `Fresh baseline page ${options.sourcePageId} raw OCR payload is invalid.`,
+      );
+    }
+    const sourceBinding = await inspectRawSourceBinding(
+      rawResult,
+      options.expected,
+      options.sourcePageId,
+      rawOcrBinding.path,
+    );
+    if (sourceBinding.status !== "ready") {
+      throw new Error(
+        `Fresh baseline page ${options.sourcePageId} raw OCR source binding is not ready.`,
+      );
+    }
+    const geometry = canonicalGeometryHints(rawResult.hints);
+    if (canonicalRawGeometry !== null && geometry !== canonicalRawGeometry) {
+      throw new Error(
+        `Fresh baseline page ${options.sourcePageId} raw OCR geometry conflicts.`,
+      );
+    }
+    canonicalRawGeometry = geometry;
+  }
 }
 
 /**

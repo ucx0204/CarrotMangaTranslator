@@ -28,6 +28,16 @@ export type ComicPageDetectionResult = {
   executionProvider?: "dml" | "cpu";
 };
 
+/**
+ * Job-local Koharu output passed from the bubble prepass to inpainting.
+ * It is never persisted in chapter data: the full-page instance logits are
+ * retained only long enough to build the text/SFX erase mask.
+ */
+export type KoharuTypographySegmentation = Pick<
+  ComicPageDetectionResult,
+  "imageWidth" | "imageHeight" | "detections"
+>;
+
 export type AssociatedComicBubble = {
   bubble: ComicPageDetection;
   textDetections: ComicPageDetection[];

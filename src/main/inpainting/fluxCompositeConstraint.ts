@@ -9,6 +9,7 @@ import {
 export function compositeConstrainedFluxOutput(options: {
   bitmap: Buffer;
   compositeConstraints?: Array<InpaintingWindowMask | null>;
+  compositeMasks?: InpaintingWindowMask[];
   coreWindowMasks?: InpaintingWindowMask[];
   crop: FluxPreparedCrop;
   effectiveMask: Uint8Array;
@@ -34,6 +35,7 @@ export function compositeConstrainedFluxOutput(options: {
 
 function resolveFluxCompositeMasks(options: {
   compositeConstraints?: Array<InpaintingWindowMask | null>;
+  compositeMasks?: InpaintingWindowMask[];
   coreWindowMasks?: InpaintingWindowMask[];
   effectiveMask: Uint8Array;
   height: number;
@@ -42,11 +44,13 @@ function resolveFluxCompositeMasks(options: {
   windowMask?: ExclusiveInpaintingWindowMasks;
 }): { core: Uint8Array; constraint?: Uint8Array } {
   const constraint = options.compositeConstraints?.[options.index] ?? null;
-  if (!options.compositeConstraints) {
+  if (!options.compositeConstraints && !options.compositeMasks) {
     return { core: options.effectiveMask };
   }
   const coreWindow =
-    options.windowMask?.core ?? options.coreWindowMasks?.[options.index];
+    options.compositeMasks?.[options.index] ??
+    options.windowMask?.core ??
+    options.coreWindowMasks?.[options.index];
   if (!coreWindow) {
     throw new Error(
       "Flux composite constraint is missing its owned core mask.",

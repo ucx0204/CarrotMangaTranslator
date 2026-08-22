@@ -22,6 +22,7 @@ module.exports = {
     "tests/fixtures/dataRootInstanceLockWorker.ts",
     "scripts/font-render-bank/electron-runner.cjs",
     "scripts/library-full-pipeline-qa/electron-runner.cjs",
+    "scripts/library-full-pipeline-qa/gemma-cleanup-audit-electron-runner.cjs",
     "scripts/library-full-pipeline-qa/font-inference-runtime-validator.cjs",
     "scripts/page-artwork-pixel-parity/electron-runner.cjs",
     "vite.renderer.config.ts",

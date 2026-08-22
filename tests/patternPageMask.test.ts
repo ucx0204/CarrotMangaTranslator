@@ -718,6 +718,39 @@ describe("pattern page text masks", () => {
     expect(context.inpaintWindows).toHaveLength(1);
     expect(context.inpaintWindowMasks).toHaveLength(1);
   });
+
+  it("stops before building a block mask when the request is aborted", () => {
+    const controller = new AbortController();
+    controller.abort();
+    const width = 100;
+    const height = 100;
+
+    expect(() =>
+      buildPatternPageMask({
+        page: createPage(width, height, [createBlock("block-1", 250)]),
+        bitmap: Buffer.alloc(width * height * 4, 255),
+        width,
+        height,
+        signal: controller.signal,
+      }),
+    ).toThrowError(expect.objectContaining({ name: "AbortError" }));
+  });
+
+  it("rejects duplicate validation ownership for one block id", () => {
+    const width = 100;
+    const height = 100;
+    const first = createBlock("duplicate", 250);
+    const second = createBlock("duplicate", 500);
+
+    expect(() =>
+      buildPatternPageMask({
+        page: createPage(width, height, [first, second]),
+        bitmap: Buffer.alloc(width * height * 4, 255),
+        width,
+        height,
+      }),
+    ).toThrow(/Duplicate pattern validation block binding/);
+  });
 });
 
 function createPage(

@@ -18,6 +18,15 @@ const fixed = require(
     plan: { blocks: Array<{ blockId: string }> },
     options: Record<string, unknown>,
   ) => unknown;
+  parseFixedBlockTranslationPartialResponse: (
+    rawText: string,
+    plan: { blocks: Array<{ blockId: string }> },
+    options: Record<string, unknown>,
+  ) => {
+    translations: { items: Array<{ blockId: string }> };
+    retryBlockIds: string[];
+    horizontalFallbackTranslations?: { items: Array<{ blockId: string }> };
+  };
 };
 
 const plan = { blocks: [{ blockId: "B001" }, { blockId: "B002" }] };
@@ -39,7 +48,88 @@ describe("Font Matching V2 intent validation", () => {
       /fontRole conflicts with textRole/i,
     );
   });
+
+  it("rejects a non-object page context", () => {
+    expect(() =>
+      fixed.parseFixedBlockTranslationResponse(
+        JSON.stringify({
+          items: makeValidItems(),
+          pageContext: "not-an-object",
+        }),
+        plan,
+        { ...options, collectPageContext: true },
+      ),
+    ).toThrow(/pageContext must be an object/i);
+  });
+
+  it("does not salvage a horizontal fallback that still leaks source script", () => {
+    const result = fixed.parseFixedBlockTranslationPartialResponse(
+      JSON.stringify({
+        items: [
+          {
+            blockId: "B001",
+            textRole: "ordinary",
+            layoutIntent: "vertical",
+            fontRole: "dialogue",
+            fontRoleConfidence: 0.9,
+            ko: "こんにちは",
+          },
+          makeValidItems()[1],
+        ],
+      }),
+      plan,
+      options,
+    );
+
+    expect(result.translations.items.map((item) => item.blockId)).toEqual([
+      "B002",
+    ]);
+    expect(result.retryBlockIds).toEqual(["B001"]);
+    expect(result.horizontalFallbackTranslations).toBeUndefined();
+  });
+
+  it("keeps a malformed horizontal retry out of the salvage result", () => {
+    const result = fixed.parseFixedBlockTranslationPartialResponse(
+      JSON.stringify({
+        items: [
+          {
+            blockId: "B001",
+            textRole: "ordinary",
+            layoutIntent: "vertical",
+            fontRole: "dialogue",
+            fontRoleConfidence: 0.9,
+            ko: "두 줄\n번역",
+          },
+          makeValidItems()[1],
+        ],
+      }),
+      plan,
+      options,
+    );
+
+    expect(result.retryBlockIds).toEqual(["B001"]);
+    expect(result.horizontalFallbackTranslations).toBeUndefined();
+  });
 });
+
+function makeValidItems() {
+  return [
+    {
+      blockId: "B001",
+      textRole: "ordinary",
+      fontRole: "dialogue",
+      fontRoleConfidence: 0.9,
+      ko: "그래.",
+    },
+    {
+      blockId: "B002",
+      textRole: "ordinary",
+      fontRole: "dialogue",
+      fontRoleConfidence: 0.9,
+      ko: "좋아.",
+    },
+  ];
+}
 
 function parseResponse(
   textRole: "ordinary" | "sound",

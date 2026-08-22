@@ -23,6 +23,13 @@
       "replacement": "No replacement; this is an intentionally retained one-shot diagnostic."
     },
     {
+      "path": "scripts/manga-font-crossscript-proxy-page-render-electron.cjs",
+      "status": "manual-debug",
+      "purpose": "Render full-resolution original, legacy, and cross-script font-proxy page panels for visual QA.",
+      "usage": "Set MGT_FONT_PROXY_PAGE_QA_DIR and MGT_FONT_PROXY_PAGE_QA_USER_DATA, then run electron scripts/manga-font-crossscript-proxy-page-render-electron.cjs",
+      "replacement": "No replacement; this is an intentionally retained visual A/B diagnostic."
+    },
+    {
       "path": "scripts/run_koharu_layout_onnx_probe.cjs",
       "status": "manual-debug",
       "purpose": "Run one pinned KoharuLayout ONNX page through CPU, DirectML, or WebGPU and report runtime/output diagnostics.",

@@ -638,6 +638,13 @@ describe("whole-page Font Matching pixel inference", () => {
           candidateIds: [item.id],
           candidateMembership: item.sourceCandidateMembership,
         },
+        sourceGlyphInput: {
+          contractVersion: "font-matching-source-glyph-input-v1",
+          source: "semantic_ocr_geometry_and_count_only",
+          direction: "vertical",
+          lines: [],
+          fallbackGlyphCount: 2,
+        },
       },
     ]);
     expect(receivedRequest?.boundary).toEqual(USER_PAGE_FONT_MATCHING_BOUNDARY);
@@ -722,6 +729,13 @@ describe("whole-page Font Matching pixel inference", () => {
           direction: "horizontal",
           candidateIds: [item.id],
           candidateMembership: sourceMembership([item.id], "persisted-8"),
+        },
+        sourceGlyphInput: {
+          contractVersion: "font-matching-source-glyph-input-v1",
+          source: "semantic_ocr_geometry_and_count_only",
+          direction: "horizontal",
+          lines: [],
+          fallbackGlyphCount: 2,
         },
       },
     ]);

@@ -426,8 +426,8 @@ describe("production cleanup coverage floor gate", () => {
     expect(Object.keys(manifest.floors)).toEqual(scope.existing);
     expect(Object.keys(manifest.introducedFloors)).toEqual(scope.added);
     expect(manifest.deletedFiles).toEqual(scope.deleted);
-    expect(scope.existing).toHaveLength(220);
-    expect(scope.added).toHaveLength(51);
+    expect(scope.existing).toHaveLength(263);
+    expect(scope.added).toHaveLength(70);
     expect(scope.deleted).toHaveLength(3);
   });
 });
@@ -445,6 +445,11 @@ type Fixture = {
   writeManifest(): void;
   writeCoverage(): void;
 };
+
+const CURRENT_NODE_V8_FAMILY = `${process.versions.node.split(".")[0]}/${process.versions.v8
+  .split(".")
+  .slice(0, 2)
+  .join(".")}`;
 
 function createFixture(): Fixture {
   const root = mkdtempSync(
@@ -471,7 +476,9 @@ function createFixture(): Fixture {
       introducedArtifact:
         ".tmp/production-cleanup-coverage-accepted-node22.json",
       introducedArtifactSha256: "b".repeat(64),
-      validatedNodeV8: ["22/12.4", "24/13.6"],
+      validatedNodeV8: [
+        ...new Set(["22/12.4", "24/13.6", CURRENT_NODE_V8_FAMILY]),
+      ],
       vitestVersion: "4.1.9",
       coverageV8Version: "4.1.9",
     },

@@ -10,16 +10,12 @@ import {
   FLUX_RUNNER_MASK_PADDING_PX,
 } from "./fluxEngineConstants";
 import { resolveFluxCropPaths, writeFluxCropInputs } from "./fluxCropIO";
-import { FluxWorker } from "./fluxWorker";
 import { cropBitmapFromPage, readGeneratedBitmap } from "./imageRaster";
-import type { InpaintingWindowMask } from "./inpaintingEngine";
 import {
   buildExclusivePaddedWindowMasks,
   isWindowMaskFullyOwnedByEarlierWindow,
-  type ExclusiveInpaintingWindowMasks,
 } from "./inpaintingWindowMask";
 import { compositeConstrainedFluxOutput } from "./fluxCompositeConstraint";
-import type { PixelRect } from "./maskGeometry";
 import { prepareFluxWindow } from "./fluxWindowPreparation";
 import {
   isMaskedRegionEffectivelyUnchanged,
@@ -27,77 +23,24 @@ import {
   type MaskedRegionChangeStats,
 } from "./fluxChangeStats";
 import { logInpaintingRuntimeWarn } from "./inpaintingRuntimeLogger";
-import {
-  reportFluxInpaintSummary,
-  type FluxInpaintSummary,
-  type FluxUnchangedCropStats,
-} from "./fluxInpaintSummary";
+import { reportFluxInpaintSummary } from "./fluxInpaintSummary";
+import type { FluxInpaintSummary } from "./fluxInpaintSummary";
+import { assertFluxMaskContracts } from "./fluxMaskContracts";
+import type { PixelRect } from "./maskGeometry";
+import type {
+  FluxInpaintDiagnostics,
+  FluxInpaintRunnerArgs,
+  FluxInpaintRunOptions,
+  FluxWindowProcessArgs,
+  FluxWindowProcessResult,
+  ResolvedFluxInpaintOptions,
+} from "./fluxEngineRunnerTypes";
 
-type FluxInpaintRunOptions = {
-  signal?: AbortSignal;
-  featherPx?: number;
-  contextPx?: number;
-  maskPaddingPx?: number;
-  maxPixels?: number;
-  windowMasks?: InpaintingWindowMask[];
-  compositeConstraints?: Array<InpaintingWindowMask | null>;
-  requirePixelChange?: boolean;
-};
-
-type ResolvedFluxInpaintOptions = {
-  contextPx: number;
-  featherPx: number;
-  maskPaddingPx: number;
-  maxPixels: number;
-};
-
-type FluxInpaintRunnerArgs = {
-  bitmap: Buffer;
-  getWorker: () => FluxWorker;
-  height: number;
-  isolateWindowMasks: boolean;
-  tileLargeCrops: boolean;
-  mask: Uint8Array;
-  runOptions: FluxInpaintRunOptions;
-  runRootDir: string;
-  width: number;
-  windows: PixelRect[];
-};
-
-export type FluxInpaintDiagnostics = {
-  warn: (message: string, detail?: unknown) => void;
-};
+export type { FluxInpaintDiagnostics } from "./fluxEngineRunnerTypes";
 
 const productionDiagnostics: FluxInpaintDiagnostics = {
   warn: logInpaintingRuntimeWarn,
 };
-
-type FluxWindowProcessArgs = {
-  bitmap: Buffer;
-  getWorker: () => FluxWorker;
-  height: number;
-  index: number;
-  isolateWindowMasks: boolean;
-  tileLargeCrops: boolean;
-  mask: Uint8Array;
-  options: ResolvedFluxInpaintOptions;
-  runDir: string;
-  runOptions: FluxInpaintRunOptions;
-  windowMasks?: ExclusiveInpaintingWindowMasks[];
-  width: number;
-  window: PixelRect;
-};
-
-type FluxWindowProcessResult =
-  | {
-      covered: boolean;
-      eligible: false;
-    }
-  | {
-      eligible: true;
-      unchanged: boolean;
-      unchangedStats?: FluxUnchangedCropStats;
-    };
 
 export async function runFluxInpaint(
   {
@@ -114,23 +57,11 @@ export async function runFluxInpaint(
   }: FluxInpaintRunnerArgs,
   diagnostics: FluxInpaintDiagnostics = productionDiagnostics,
 ): Promise<void> {
-  if (
-    isolateWindowMasks &&
-    runOptions.windowMasks &&
-    runOptions.windowMasks.length !== windows.length
-  ) {
-    throw new Error("Block-owned mask count does not match Flux window count.");
-  }
-  if (runOptions.compositeConstraints) {
-    if (
-      runOptions.compositeConstraints.length !== windows.length ||
-      runOptions.windowMasks?.length !== windows.length
-    ) {
-      throw new Error(
-        "Composite constraint count does not match Flux window count.",
-      );
-    }
-  }
+  assertFluxMaskContracts({
+    isolateWindowMasks,
+    runOptions,
+    windowCount: windows.length,
+  });
   const options = resolveFluxInpaintOptions(runOptions);
   const windowMasks =
     (isolateWindowMasks || runOptions.compositeConstraints) &&
@@ -142,6 +73,14 @@ export async function runFluxInpaint(
           options.maskPaddingPx,
         )
       : undefined;
+  const compositeMasks = runOptions.compositeMasks
+    ? buildExclusivePaddedWindowMasks(
+        runOptions.compositeMasks,
+        width,
+        height,
+        0,
+      ).map((masks) => masks.core)
+    : undefined;
   const runDir = join(
     runRootDir,
     `flux-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
@@ -158,6 +97,7 @@ export async function runFluxInpaint(
       options,
       runDir,
       runOptions,
+      compositeMasks,
       windowMasks,
       width,
       windows,
@@ -203,7 +143,7 @@ async function processFluxWindows(
   args: Omit<FluxWindowProcessArgs, "index" | "window"> & {
     windows: PixelRect[];
   },
-): Promise<FluxInpaintSummary> {
+): Promise<import("./fluxInpaintSummary").FluxInpaintSummary> {
   const summary: FluxInpaintSummary = {
     coveredWindows: 0,
     eligibleWindows: args.windows.length,
@@ -234,6 +174,7 @@ async function processFluxWindow(
 ): Promise<FluxWindowProcessResult> {
   const {
     bitmap,
+    compositeMasks,
     getWorker,
     height,
     index,
@@ -297,14 +238,27 @@ async function processFluxWindow(
       width,
       height,
       crop,
-      featherPx: options.featherPx,
+      featherPx: resolveCompositeFeatherPx(runOptions, options, index),
       index,
       windowMask: windowMasks?.[index],
       coreWindowMasks: runOptions.windowMasks,
+      compositeMasks,
       compositeConstraints: runOptions.compositeConstraints,
     });
   }
   return summarizeFluxWindowChange(changeStats, index);
+}
+
+function resolveCompositeFeatherPx(
+  runOptions: FluxInpaintRunOptions,
+  options: ResolvedFluxInpaintOptions,
+  index: number,
+): number {
+  return clamp(
+    Math.round(runOptions.compositeFeatherPx?.[index] ?? options.featherPx),
+    0,
+    48,
+  );
 }
 
 function prepareFluxWindowForProcessing({

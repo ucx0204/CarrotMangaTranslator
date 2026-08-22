@@ -16,6 +16,7 @@ const {
 } = require("./prepare-runtime.cjs");
 
 const CACHE_SCHEMA_VERSION = 1;
+const CROSS_SCRIPT_PROXY_RUNTIME_DIRECTORY = "font-matching-crossscript-proxy";
 
 /**
  * @typedef {{
@@ -167,6 +168,11 @@ function createElectronCompileCacheStep(root) {
     "runtime",
     FONT_MATCHING_BUNDLE_DIRECTORY,
   );
+  const crossScriptProxyRuntimeSource = join(
+    mainSource,
+    "runtime",
+    CROSS_SCRIPT_PROXY_RUNTIME_DIRECTORY,
+  );
   const preloadSource = join(sourceRoot, "preload");
   const pageExportSource = join(sourceRoot, "renderer", "src");
   const cacheFile = join(root, ".tmp", "dev-build-cache", "electron.json");
@@ -176,7 +182,8 @@ function createElectronCompileCacheStep(root) {
       mainSource,
       (sourcePath) =>
         isTscInputFile(sourcePath) &&
-        !isSameOrDescendant(fontMatchingRuntimeSource, sourcePath),
+        !isSameOrDescendant(fontMatchingRuntimeSource, sourcePath) &&
+        !isSameOrDescendant(crossScriptProxyRuntimeSource, sourcePath),
     ),
     ...listTreeFiles(sharedSource, isTscInputFile),
   ];

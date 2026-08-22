@@ -16,6 +16,7 @@ import {
   type BubbleLayoutPostprocessConfig,
   type BubbleLayoutRunner,
 } from "../inpainting/bubbleLayoutRunner";
+import type { KoharuTypographySegmentation } from "../bubbleLayout/contracts";
 import {
   captureInpaintingLayoutStates,
   type InpaintingBlockLayoutState,
@@ -149,6 +150,7 @@ export async function runBubbleLayoutMaskPrepass({
   page: MangaPage;
   restoreLayout?: InpaintingBlockLayoutState[];
   sharedInpaintGroupIdsByBlock?: Record<string, string[]>;
+  typographySegmentation?: KoharuTypographySegmentation;
 }> {
   const targetBlockIds = resolvePrepassBlockIds(page, blockId, blockIds);
   const targetBlockIdSet = new Set(targetBlockIds);
@@ -185,6 +187,7 @@ export async function runBubbleLayoutMaskPrepass({
       overwriteManual: false,
     },
     failureMode: "best-effort",
+    includeTypographySegmentation: true,
     page: maskBaselinePage,
     runner,
     signal,
@@ -204,14 +207,35 @@ export async function runBubbleLayoutMaskPrepass({
       bubbleLayoutConstraintBlockIds.add(state.blockId);
     }
   }
+  return buildMaskPrepassResult(
+    processed,
+    [...bubbleLayoutConstraintBlockIds],
+    restoreLayout,
+  );
+}
+
+function buildMaskPrepassResult(
+  processed: Awaited<ReturnType<typeof runBubbleLayoutPostprocess>>,
+  bubbleLayoutConstraintBlockIds: string[],
+  restoreLayout: InpaintingBlockLayoutState[],
+): {
+  bubbleLayoutConstraintBlockIds: string[];
+  page: MangaPage;
+  restoreLayout?: InpaintingBlockLayoutState[];
+  sharedInpaintGroupIdsByBlock?: Record<string, string[]>;
+  typographySegmentation?: KoharuTypographySegmentation;
+} {
   return {
-    bubbleLayoutConstraintBlockIds: [...bubbleLayoutConstraintBlockIds],
+    bubbleLayoutConstraintBlockIds,
     page: processed.page,
     ...(restoreLayout.length ? { restoreLayout } : {}),
     ...(processed.sharedInpaintGroupIdsByBlock
       ? {
           sharedInpaintGroupIdsByBlock: processed.sharedInpaintGroupIdsByBlock,
         }
+      : {}),
+    ...(processed.typographySegmentation
+      ? { typographySegmentation: processed.typographySegmentation }
       : {}),
   };
 }

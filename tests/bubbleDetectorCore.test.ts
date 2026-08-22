@@ -89,6 +89,19 @@ describe("KoharuLayout detector core", () => {
     ).toThrow(/dets.*shape/);
   });
 
+  it("drops detections with invalid boxes and rejects invalid source sizes", () => {
+    const outputs = buildOutputs([
+      { query: 0, labelId: 2, probability: 0.9, box: [0.5, 0.5, 0, 0.4] },
+    ]);
+
+    expect(
+      parseKoharuLayoutOutputs(outputs, { width: 100, height: 100 }),
+    ).toEqual([]);
+    expect(() =>
+      parseKoharuLayoutOutputs(outputs, { width: 0, height: 100 }),
+    ).toThrow(/이미지 크기/);
+  });
+
   it("associates Koharu text with bubbles and preserves text/SFX outside bubbles", () => {
     const firstBubble = detection("bubble", 2, [0, 0, 100, 100], 0.9);
     const secondBubble = detection("bubble", 2, [100, 0, 200, 100], 0.8);

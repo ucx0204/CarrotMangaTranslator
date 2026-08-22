@@ -7,6 +7,7 @@ import type { AppSettings } from "../../shared/settingsTypes";
 import type { BBox, TranslationBlock } from "../../shared/textTypes";
 import { resolveBubbleLayoutPaddingRatio } from "../../shared/bubbleLayoutPadding";
 import type { ImageDecodeFallback } from "../regionCrop";
+import type { KoharuTypographySegmentation } from "../bubbleLayout/contracts";
 import { isUsableBubbleLayout } from "../../shared/bubbleLayout";
 import {
   applyInpaintingLayoutStates,
@@ -42,11 +43,14 @@ export type BubbleLayoutRunnerRequest = {
    * share one uncut safe region and Flux never sees half of a source glyph.
    */
   sharedOwnershipGapPx?: number;
+  /** Return job-local text/SFX masks for the inpainting mask prepass. */
+  includeTypographySegmentation?: boolean;
   signal: AbortSignal;
 };
 
 export type BubbleLayoutRunnerResult = {
   patches: BubbleLayoutBlockPatch[];
+  typographySegmentation?: KoharuTypographySegmentation;
 };
 
 /** Model/process boundary. Production adapters and tests can implement this port. */
@@ -83,6 +87,7 @@ export type BubbleLayoutPostprocessResult = {
   beforeLayout?: InpaintingBlockLayoutState[];
   afterLayout?: InpaintingBlockLayoutState[];
   sharedInpaintGroupIdsByBlock?: Record<string, string[]>;
+  typographySegmentation?: KoharuTypographySegmentation;
 };
 
 export function resolveBubbleLayoutPostprocessConfig(
@@ -115,6 +120,7 @@ export async function runBubbleLayoutPostprocess({
   blockIds,
   config,
   failureMode = "required",
+  includeTypographySegmentation = false,
   page,
   runner,
   signal,
@@ -124,6 +130,7 @@ export async function runBubbleLayoutPostprocess({
   blockIds?: readonly string[];
   config: BubbleLayoutPostprocessConfig;
   failureMode?: "best-effort" | "required";
+  includeTypographySegmentation?: boolean;
   page: MangaPage;
   runner: BubbleLayoutRunner;
   signal: AbortSignal;
@@ -147,6 +154,7 @@ export async function runBubbleLayoutPostprocess({
       policy: config.policy,
       paddingRatio: resolveBubbleLayoutPaddingRatio(config.paddingRatio),
       sharedOwnershipGapPx: config.sharedOwnershipGapPx,
+      includeTypographySegmentation,
       signal,
     });
   } catch (error) {
@@ -176,18 +184,28 @@ export async function runBubbleLayoutPostprocess({
   );
   const sharedInpaintGroupIdsByBlock = collectSharedInpaintGroups(patches);
   if (afterLayout.length === 0) {
-    return {
+    return attachRunnerMetadata(result, sharedInpaintGroupIdsByBlock, {
       page: baselinePage,
-      ...(Object.keys(sharedInpaintGroupIdsByBlock).length
-        ? { sharedInpaintGroupIdsByBlock }
-        : {}),
-    };
+    });
   }
 
-  return {
+  return attachRunnerMetadata(result, sharedInpaintGroupIdsByBlock, {
     page: applyInpaintingLayoutStates(baselinePage, afterLayout),
     beforeLayout,
     afterLayout,
+  });
+}
+
+function attachRunnerMetadata(
+  result: BubbleLayoutRunnerResult,
+  sharedInpaintGroupIdsByBlock: Record<string, string[]>,
+  output: BubbleLayoutPostprocessResult,
+): BubbleLayoutPostprocessResult {
+  return {
+    ...output,
+    ...(result.typographySegmentation
+      ? { typographySegmentation: result.typographySegmentation }
+      : {}),
     ...(Object.keys(sharedInpaintGroupIdsByBlock).length
       ? { sharedInpaintGroupIdsByBlock }
       : {}),

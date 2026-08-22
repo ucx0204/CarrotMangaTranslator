@@ -7,9 +7,9 @@ import {
   type SourceGlyphEvidence,
 } from "./sourceGlyphResidual";
 
-export const SOURCE_GLYPH_EVIDENCE_RECEIPT_CONTRACT_VERSION =
+const SOURCE_GLYPH_EVIDENCE_RECEIPT_CONTRACT_VERSION =
   "source-glyph-evidence-receipt-v1" as const;
-export const SOURCE_GLYPH_EVIDENCE_DECODER_CONTRACT =
+const SOURCE_GLYPH_EVIDENCE_DECODER_CONTRACT =
   "electron-native-image-bgra8-v1" as const;
 
 export type PatternBitmapBaseline = {
@@ -166,7 +166,7 @@ export function buildPatternSourceGlyphEvidenceReceipt(options: {
   };
 }
 
-export function hashWindowMask(mask: InpaintingWindowMask): string {
+function hashWindowMask(mask: InpaintingWindowMask): string {
   const hash = createHash("sha256");
   hash.update(
     JSON.stringify({

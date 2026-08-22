@@ -43,6 +43,7 @@ import type { FontMatchingRasterPage } from "./fontMatchingPagePixelPreprocessin
 import type { MangaPage } from "../../shared/libraryTypes";
 import { resolveFontMatchingArtifactDirSync } from "./fontMatchingRuntimePaths";
 import { isKoreanLanguageCode } from "../../shared/translationLanguages";
+import { resolveCrossScriptProxyRuntimeDir } from "./fontMatchingCrossScriptProxyPaths";
 
 type WorkerClientDependencies = Readonly<{
   paths: Pick<AppPaths, "dataRoot" | "runtimeDir">;
@@ -87,9 +88,13 @@ class FontMatchingInferenceWorkerClient implements FontMatchingPageInferencePort
   private fallbackPort: FontMatchingPageInferencePort | null = null;
   private exitHandlerRegistered = false;
   private readonly artifactDir: string;
+  private readonly crossScriptProxyArtifactDir: string;
 
   constructor(private readonly deps: WorkerClientDependencies) {
     this.artifactDir = resolveFontMatchingArtifactDirSync(deps.paths);
+    this.crossScriptProxyArtifactDir = resolveCrossScriptProxyRuntimeDir(
+      deps.paths.runtimeDir,
+    );
   }
 
   async inferPage(
@@ -273,6 +278,7 @@ class FontMatchingInferenceWorkerClient implements FontMatchingPageInferencePort
         type: "init",
         id,
         artifactDir: this.artifactDir,
+        crossScriptProxyArtifactDir: this.crossScriptProxyArtifactDir,
         wasmAssets,
         installedCandidates,
       });

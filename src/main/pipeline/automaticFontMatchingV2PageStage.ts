@@ -13,6 +13,7 @@ import {
   resolveFontMatchingOcrGeometryDirection,
 } from "./fontMatchingOcrGeometryDirection";
 import type { OverlayItem } from "./types";
+import { buildFontMatchingSourceGlyphInput } from "./fontMatchingCrossScriptProxyHints";
 
 const EMPTY_PIXEL_INFERENCE = new Map();
 export const FONT_MATCHING_PAGE_INFERENCE_TIMEOUT_MS = 90_000;
@@ -36,38 +37,12 @@ export async function runAutomaticFontMatchingV2PageStage({
   inferenceBlocks?: readonly FontMatchingPageInferenceBlock[];
   port?: FontMatchingPageInferencePort;
 }): Promise<FontMatchingPageInferenceResult> {
-  const rawBlocks: readonly FontMatchingPageInferenceBlock[] =
-    inferenceBlocks ??
-    items.map((item, index) => ({
-      blockId: buildOverlayBlockId(page.id, jobId, index),
-      item,
-    }));
-  const blocks = rawBlocks.map((block) => {
-    const carriedSourceGeometryDirection = readFontMatchingOcrGeometryDirection(
-      block.sourceGeometryDirection,
-      block.item,
-      block.sourceCandidateMembership,
-    );
-    const sourceGeometryDirection =
-      carriedSourceGeometryDirection ??
-      resolveFontMatchingOcrGeometryDirection(
-        block.item,
-        pageOptions.ocrBboxHints,
-      );
-    const { sourceCandidateMembership: _membership, ...inferenceItem } =
-      block.item;
-    const geometryOwnedBlock = {
-      blockId: block.blockId,
-      item: inferenceItem,
-    };
-    return sourceGeometryDirection
-      ? {
-          ...geometryOwnedBlock,
-          sourceCandidateMembership:
-            sourceGeometryDirection.candidateMembership,
-          sourceGeometryDirection,
-        }
-      : geometryOwnedBlock;
+  const blocks = buildPageInferenceBlocks({
+    page,
+    pageOptions,
+    items,
+    inferenceBlocks,
+    jobId,
   });
   if (
     !pageOptions.autoFontMatching ||
@@ -100,6 +75,64 @@ export async function runAutomaticFontMatchingV2PageStage({
     });
     return { pixelInferenceByBlockId: EMPTY_PIXEL_INFERENCE };
   }
+}
+
+function buildPageInferenceBlocks({
+  page,
+  pageOptions,
+  items,
+  inferenceBlocks,
+  jobId,
+}: Readonly<{
+  page: MangaPage;
+  pageOptions: TranslationOptions;
+  items: readonly OverlayItem[];
+  inferenceBlocks?: readonly FontMatchingPageInferenceBlock[];
+  jobId: string;
+}>): readonly FontMatchingPageInferenceBlock[] {
+  const rawBlocks: readonly FontMatchingPageInferenceBlock[] =
+    inferenceBlocks ??
+    items.map((item, index) => ({
+      blockId: buildOverlayBlockId(page.id, jobId, index),
+      item,
+    }));
+  return rawBlocks.map((block) => {
+    const carriedSourceGeometryDirection = readFontMatchingOcrGeometryDirection(
+      block.sourceGeometryDirection,
+      block.item,
+      block.sourceCandidateMembership,
+    );
+    const sourceGeometryDirection =
+      carriedSourceGeometryDirection ??
+      resolveFontMatchingOcrGeometryDirection(
+        block.item,
+        pageOptions.ocrBboxHints,
+      );
+    const { sourceCandidateMembership: _membership, ...inferenceItem } =
+      block.item;
+    const geometryOwnedBlock = {
+      blockId: block.blockId,
+      item: inferenceItem,
+    };
+    const sourceGlyphInput = buildFontMatchingSourceGlyphInput({
+      item: block.item,
+      page,
+      rawHints: pageOptions.ocrBboxHints,
+      ...(sourceGeometryDirection ? { sourceGeometryDirection } : {}),
+    });
+    return sourceGeometryDirection
+      ? {
+          ...geometryOwnedBlock,
+          sourceCandidateMembership:
+            sourceGeometryDirection.candidateMembership,
+          sourceGeometryDirection,
+          ...(sourceGlyphInput ? { sourceGlyphInput } : {}),
+        }
+      : {
+          ...geometryOwnedBlock,
+          ...(sourceGlyphInput ? { sourceGlyphInput } : {}),
+        };
+  });
 }
 
 async function inferPageBeforeDeadline({

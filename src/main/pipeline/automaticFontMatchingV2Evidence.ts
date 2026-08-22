@@ -14,6 +14,7 @@ import type { FontMatchingWorkStateV2 } from "./fontMatchingDecisionV2Types";
 import type { VerifiedAutomaticFontPixelInferenceV2 } from "./fontMatchingPagePixelInferenceTypes";
 import type { FontMatchingRuntimePolicy } from "./fontMatchingRuntimePolicyContract";
 import { applySelectionRoleFamilyConflictConfidenceCap } from "./fontMatchingSelectionCalibration";
+import { applyCrossScriptProxyCandidateRanking } from "./automaticFontMatchingV2CrossScriptProxy";
 
 export function prepareAutomaticFontEvidence({
   block,
@@ -45,6 +46,21 @@ export function prepareAutomaticFontEvidence({
       role,
       userDefaultFontId: block.fontFamily,
     });
+  const crossScriptCandidates = applyCrossScriptProxyCandidateRanking(
+    localCandidates,
+    candidates,
+    pixelInference,
+  );
+  if (crossScriptCandidates) {
+    return {
+      catalogVersion: resolveFontMatchingV2CatalogVersion(candidates),
+      rankedCandidates: crossScriptCandidates,
+      translationAssessments: assessAutomaticFontTranslations(
+        candidates,
+        block.translatedText,
+      ),
+    };
+  }
   const priorAdjustedCandidates =
     workState?.pageBalloonConsistencyMode === "local_visual_variant"
       ? localCandidates

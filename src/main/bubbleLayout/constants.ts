@@ -2,8 +2,6 @@
  * Production page-layout model. This replaces the legacy comic RT-DETR
  * detector completely; there is no legacy-model fallback path.
  */
-export const KOHARU_LAYOUT_SOURCE_REPO =
-  "mayocream/koharu-layout-rfdetr-seg-2xl-1152";
 export const KOHARU_LAYOUT_ONNX_REPO =
   "ShiniShiho/koharu-layout-rfdetr-seg-2xl-1152-onnx";
 export const KOHARU_LAYOUT_ONNX_REVISION =
@@ -37,8 +35,6 @@ export const ONNXRUNTIME_WEB_WASM_MODULE_SHA256 =
   "0a1e718d99c41b22c21f2520ff4f9e883a6b5533856e398d21816ee8eb8185d3";
 export const ONNXRUNTIME_WEB_WASM_MODULE_BYTES = 24_180;
 export const ONNXRUNTIME_WEB_WASM_BINARY_FILE = "ort-wasm-simd-threaded.wasm";
-export const ONNXRUNTIME_WEB_WASM_BINARY_URL =
-  "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.27.0/dist/ort-wasm-simd-threaded.wasm";
 export const ONNXRUNTIME_WEB_WASM_BINARY_SHA256 =
   "d1ab1b94b16a65b29d710d0b587b29e7bed336827577623913479b8afe8113e6";
 export const ONNXRUNTIME_WEB_WASM_BINARY_BYTES = 13_479_978;

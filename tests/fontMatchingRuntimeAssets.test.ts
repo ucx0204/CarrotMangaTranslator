@@ -125,6 +125,17 @@ describe("ensureFontMatchingRuntimeAssets", () => {
     );
   });
 
+  it("fails closed when bundled trust files have no source directory", async () => {
+    const dataRoot = createTempDir("data-missing-bundle");
+    const { ensureFontMatchingRuntimeAssets } =
+      await import("../src/main/pipeline/fontMatchingRuntimeAssets");
+
+    await expect(ensureFontMatchingRuntimeAssets({ dataRoot })).rejects.toThrow(
+      /Bundled font runtime directory is required/,
+    );
+    rmSync(dataRoot, { recursive: true, force: true });
+  });
+
   it("installs bundled v3 trust files and downloads only external large assets", async () => {
     const dataRoot = createTempDir("data");
     const { ensureFontMatchingRuntimeAssets } =

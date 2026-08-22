@@ -1,0 +1,27 @@
+{
+  "artifacts": {
+    "candidate-glyphs.u8": {
+      "byte_size": 9068544,
+      "file": "candidate-glyphs.u8",
+      "sha256": "54bd3ab75717e3ee4cf27c7443e1ed06a320f1cbdcd1ebd7afdb80c55cf644d9"
+    },
+    "glyph-decoder.onnx": {
+      "byte_size": 14236244,
+      "file": "glyph-decoder.onnx",
+      "sha256": "cbd4c66fc1b9f6a907567703c086ad7c5fa1279c53ed6f45b2fece399a4351c6"
+    },
+    "runtime-manifest.json": {
+      "byte_size": 14306,
+      "file": "runtime-manifest.json",
+      "sha256": "3572cc0f95396250eeacb0c9ba441ff1acebf5c5e84e085b36e86076ab8bc929"
+    },
+    "style-encoder.onnx": {
+      "byte_size": 6111803,
+      "file": "style-encoder.onnx",
+      "sha256": "79a76a2fe0e89e05511b47d3f3a975027906c309820a2469bd51321d47dead3f"
+    }
+  },
+  "owner": "carrot-manga-translator/manga-font-crossscript-proxy-runtime-v2",
+  "safe_replace": true,
+  "schema_version": "manga-font-crossscript-proxy-runtime-v2"
+}

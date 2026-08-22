@@ -12,10 +12,14 @@ type FontReplayCacheModule = {
     };
     chapterCoordinator: unknown;
     inferred: { pixelInferenceByBlockId: Map<string, unknown> };
+    modelDirectSelection?: boolean;
     requestBlocks: Array<{ blockId: string; item: unknown }>;
   }) => {
     orderedItemIndexes: number[];
-    pageCoordinator: unknown;
+    pageCoordinator: {
+      prepareWorkState: (...args: unknown[]) => unknown;
+      recordDecision: (...args: unknown[]) => unknown;
+    };
     pixelInferences: Array<unknown | undefined>;
   };
   resolveFontReplayImagePath: (
@@ -200,6 +204,34 @@ describe("font replay page decision context", () => {
       requestBlocks.map((entry) => entry.item),
       [pixelA, pixelB, undefined],
     );
+  });
+
+  it("can isolate the model winner from page and chapter heuristics for visual QA", () => {
+    const createPageCoordinator = vi.fn();
+    const orderItems = vi.fn();
+    const pixelA = { blockId: "block-a" };
+    const requestBlocks = [
+      { blockId: "block-a", item: { sourceText: "A" } },
+      { blockId: "block-b", item: { sourceText: "B" } },
+    ];
+
+    const context = createFontReplayPageDecisionContext({
+      automaticFontCoordinator: {
+        createAutomaticFontPageCoordinatorV2: createPageCoordinator,
+        orderAutomaticFontMatchingPageItemIndexes: orderItems,
+      },
+      chapterCoordinator: { kind: "chapter" },
+      inferred: { pixelInferenceByBlockId: new Map([["block-a", pixelA]]) },
+      modelDirectSelection: true,
+      requestBlocks,
+    });
+
+    expect(context.orderedItemIndexes).toEqual([0, 1]);
+    expect(context.pixelInferences).toEqual([pixelA, undefined]);
+    expect(context.pageCoordinator.prepareWorkState()).toBeUndefined();
+    expect(() => context.pageCoordinator.recordDecision()).not.toThrow();
+    expect(createPageCoordinator).not.toHaveBeenCalled();
+    expect(orderItems).not.toHaveBeenCalled();
   });
 });
 

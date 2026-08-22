@@ -36,6 +36,11 @@ describe("bubble-aware inpainting postprocess", () => {
       sourceImageRevision: "fake-mask-source-revision",
       insetRatio: 0,
     };
+    const typographySegmentation = {
+      imageWidth: 1000,
+      imageHeight: 1000,
+      detections: [],
+    };
     const runPage = vi.fn<BubbleLayoutRunner["runPage"]>(
       async ({ page, paddingRatio }) => {
         // Adapter-side mutation cannot escape because the port receives a clone.
@@ -45,6 +50,7 @@ describe("bubble-aware inpainting postprocess", () => {
         }
         adapterBlock.bbox = { x: 999, y: 999, w: 1, h: 1 };
         return {
+          ...(paddingRatio === 0 ? { typographySegmentation } : {}),
           patches: [
             {
               blockId: BLOCK_ID,
@@ -65,6 +71,12 @@ describe("bubble-aware inpainting postprocess", () => {
     );
     const createBubbleLayoutRunner = vi.fn(() => ({ runPage }));
     const runtime = makeRuntime(chapters, createBubbleLayoutRunner);
+    const disposalError = new Error("layout session release failed");
+    const disposeBubbleLayoutSessions = runtime.disposeBubbleLayoutSessions;
+    if (!disposeBubbleLayoutSessions) {
+      throw new Error("expected layout session disposer");
+    }
+    vi.mocked(disposeBubbleLayoutSessions).mockRejectedValueOnce(disposalError);
     const { startInpaintingJob } =
       await import("../src/main/jobs/inpaintingJobs");
 
@@ -82,6 +94,11 @@ describe("bubble-aware inpainting postprocess", () => {
     );
 
     expect(result.status).toBe("completed");
+    expect(runtime.disposeBubbleLayoutSessions).toHaveBeenCalledTimes(1);
+    expect(runtime.logError).toHaveBeenCalledWith(
+      "Failed to release KoharuLayout sessions after job",
+      { error: disposalError },
+    );
     expect(createBubbleLayoutRunner).toHaveBeenCalledTimes(1);
     expect(runPage).toHaveBeenCalledTimes(2);
     expect(runPage.mock.calls[0]?.[0]).toEqual(
@@ -90,6 +107,7 @@ describe("bubble-aware inpainting postprocess", () => {
         paddingRatio: 0,
         policy: "safe",
         sharedOwnershipGapPx: 0,
+        includeTypographySegmentation: true,
       }),
     );
     expect(runPage.mock.calls[1]?.[0]).toEqual(
@@ -114,6 +132,7 @@ describe("bubble-aware inpainting postprocess", () => {
         sharedInpaintGroupIdsByBlock: {
           [BLOCK_ID]: ["shared-1"],
         },
+        typographySegmentation,
       }),
     );
     const savedBlock = result.chapter?.pages[0]?.blocks[0];
@@ -1038,6 +1057,7 @@ function makeRuntime(
       release: vi.fn(),
     })) as InpaintingJobRuntime["acquireEngine"],
     createBubbleLayoutRunner,
+    disposeBubbleLayoutSessions: vi.fn(async () => true),
     emitEvent: (jobs, _window, event) => {
       jobs.updateLastEvent(event.id, event);
     },
