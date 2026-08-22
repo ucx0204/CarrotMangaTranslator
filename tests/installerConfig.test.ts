@@ -1,5 +1,6 @@
 import { createRequire } from "node:module";
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -55,6 +56,9 @@ const { prepareRuntimeAssets } = require("../scripts/prepare-runtime.cjs") as {
   }) => string;
 };
 const electronBuilderConfig: unknown = require("../electron-builder.config.cjs");
+const bundledPythonRuntimeAvailable = existsSync(
+  join(repoRoot, "tools", "python"),
+);
 const { smokeOpenAiOauthRuntime } =
   require("../scripts/smoke-openai-oauth-runtime.cjs") as {
     smokeOpenAiOauthRuntime: (
@@ -141,14 +145,18 @@ describe("Windows installer clean uninstall option", () => {
             from: "tools/ffmpeg",
             to: "tools/ffmpeg",
           },
-          expect.objectContaining({
-            from: "tools/python",
-            filter: expect.arrayContaining([
-              "!**/site-packages/pkg_resources/**",
-              "!**/Scripts/pip*.exe",
-              "!**/Scripts/wheel.exe",
-            ]),
-          }),
+          ...(bundledPythonRuntimeAvailable
+            ? [
+                expect.objectContaining({
+                  from: "tools/python",
+                  filter: expect.arrayContaining([
+                    "!**/site-packages/pkg_resources/**",
+                    "!**/Scripts/pip*.exe",
+                    "!**/Scripts/wheel.exe",
+                  ]),
+                }),
+              ]
+            : []),
         ]),
       }),
       afterPack: expect.any(Function),

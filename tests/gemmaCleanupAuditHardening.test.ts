@@ -248,6 +248,36 @@ describe("Gemma cleanup audit hardening", () => {
     ).rejects.toThrow("frozen run");
   });
 
+  it("allows an inherited platform path alias above the trusted root", async () => {
+    const container = makeTemporaryRoot();
+    const realParent = join(container, "real-parent");
+    const aliasParent = join(container, "platform-alias");
+    mkdirSync(realParent);
+    symlinkSync(realParent, aliasParent, "junction");
+    const root = join(aliasParent, "repository");
+    const runRoot = join(root, "artifacts", "frozen", "r1");
+    mkdirSync(join(root, "library"), { recursive: true });
+    mkdirSync(runRoot, { recursive: true });
+
+    await expect(
+      inputs.assertShadowWriteTargets({
+        root,
+        runRoot,
+        outputRoot: join(root, "artifacts", "shadow-output"),
+        cacheDir: join(root, ".tmp", "shadow-cache"),
+      }),
+    ).resolves.toBeUndefined();
+    await expect(
+      inputs.assertShadowRuntimeTargets({
+        root,
+        ...runtime.buildAuditRunPaths(
+          root,
+          "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        ),
+      }),
+    ).resolves.toBeUndefined();
+  });
+
   it("rejects a pre-existing shadow temp-root junction before any runtime write", async () => {
     const root = makeTemporaryRoot();
     const redirectTarget = makeTemporaryRoot();

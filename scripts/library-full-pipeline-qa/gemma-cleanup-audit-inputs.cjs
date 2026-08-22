@@ -660,8 +660,12 @@ async function assertShadowWriteTargets(options) {
     }
   }
   await Promise.all([
-    assertNoProspectiveReparseRedirect(options.outputRoot, "output"),
-    assertNoProspectiveReparseRedirect(options.cacheDir, "cache"),
+    assertNoProspectiveReparseRedirect(
+      options.root,
+      options.outputRoot,
+      "output",
+    ),
+    assertNoProspectiveReparseRedirect(options.root, options.cacheDir, "cache"),
   ]);
   if (
     isAtOrWithin(outputRoot, cacheDir) ||
@@ -673,21 +677,44 @@ async function assertShadowWriteTargets(options) {
   }
 }
 
-/** @param {string} candidate @param {string} label */
-async function assertNoProspectiveReparseRedirect(candidate, label) {
-  let cursor = path.resolve(candidate);
+/**
+ * Reject redirects introduced beneath the trusted repository root without
+ * treating an operating-system alias above that root (macOS /var ->
+ * /private/var) as an attacker-controlled component.
+ * @param {string} anchor
+ * @param {string} candidate
+ * @param {string} label
+ */
+async function assertNoProspectiveReparseRedirect(anchor, candidate, label) {
+  const resolvedAnchor = path.resolve(anchor);
+  const resolvedCandidate = path.resolve(candidate);
+  if (isAtOrWithin(resolvedAnchor, resolvedCandidate)) {
+    try {
+      const anchorStat = await fsp.lstat(resolvedAnchor);
+      if (anchorStat.isSymbolicLink()) {
+        throw new Error(
+          `Cleanup audit ${label} path contains a symlink/junction: ${resolvedAnchor}`,
+        );
+      }
+    } catch (error) {
+      // A wholly prospective fixture has no writable components to redirect.
+      if (hasCode(error, "ENOENT")) return;
+      throw error;
+    }
+    await assertNoReparseRedirect(resolvedAnchor, resolvedCandidate);
+    return;
+  }
+
+  // External explicit targets retain the prior leaf/nearest-parent guard.
+  // Canonical containment above already rejects redirects into protected
+  // library or frozen-run roots.
+  let cursor = resolvedCandidate;
   while (true) {
     try {
       const stat = await fsp.lstat(cursor);
       if (stat.isSymbolicLink()) {
         throw new Error(
           `Cleanup audit ${label} path contains a symlink/junction: ${cursor}`,
-        );
-      }
-      const real = await fsp.realpath(cursor);
-      if (normalizeComparablePath(real) !== normalizeComparablePath(cursor)) {
-        throw new Error(
-          `Cleanup audit ${label} path contains a reparse redirect: ${cursor}`,
         );
       }
       return;
@@ -750,8 +777,19 @@ async function assertNoReparseRedirect(anchor, target) {
   }
   const relative = path.relative(resolvedAnchor, resolvedTarget);
   let cursor = resolvedAnchor;
+  let canonicalAnchor;
+  try {
+    canonicalAnchor = await fsp.realpath(resolvedAnchor);
+  } catch (error) {
+    // If the anchor itself is still prospective, none of its descendants can
+    // exist as a redirect yet. The guard is called again after mkdir.
+    if (hasCode(error, "ENOENT")) return;
+    throw error;
+  }
+  let expectedCanonicalCursor = canonicalAnchor;
   for (const component of relative.split(path.sep).filter(Boolean)) {
     cursor = path.join(cursor, component);
+    expectedCanonicalCursor = path.join(expectedCanonicalCursor, component);
     let stat;
     try {
       stat = await fsp.lstat(cursor);
@@ -765,7 +803,10 @@ async function assertNoReparseRedirect(anchor, target) {
       );
     }
     const real = await fsp.realpath(cursor);
-    if (normalizeComparablePath(real) !== normalizeComparablePath(cursor)) {
+    if (
+      normalizeComparablePath(real) !==
+      normalizeComparablePath(expectedCanonicalCursor)
+    ) {
       throw new Error(
         `Cleanup audit runtime path contains a reparse redirect: ${cursor}`,
       );

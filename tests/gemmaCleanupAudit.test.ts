@@ -1,4 +1,10 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -163,11 +169,34 @@ const inputs =
       runRoot: string;
       pages: AuditPage[];
     }>;
+    loadFrozenManifest: (root: string) => Promise<{
+      manifest: {
+        pages: Array<{
+          selectionIndex: number;
+          expectedClass: "clean" | "residual";
+          workId: string;
+        }>;
+      };
+    }>;
     readImmutableBlocks: (
       fontInput: Record<string, unknown>,
       page: Record<string, unknown>,
     ) => AuditPage["blocks"];
   };
+
+const realFrozenAuditAssetsAvailable = existsSync(
+  join(
+    __dirname,
+    "..",
+    "artifacts",
+    "bubble-opacity-layout-qa-v1",
+    "runs",
+    "baseline40",
+    "layout-intent-baseline20",
+    "r1",
+    "run-report.json",
+  ),
+);
 
 const runner =
   require("../scripts/library-full-pipeline-qa/gemma-cleanup-audit-runner.cjs") as {
@@ -850,98 +879,109 @@ describe("Gemma cleanup audit shadow contract", () => {
     ).rejects.toThrow("referenced-file-sha");
   });
 
-  it("preflights the real frozen page 14 without any live inference", async () => {
-    const root = resolve(__dirname, "..");
-    const frozen = await inputs.loadFrozenAuditInputs({ root, indices: [14] });
-    const page = frozen.pages[0];
-    const preflightRuntime = runtime.buildPreflightRuntimeBinding(
-      frozen.manifest.model,
-    );
-    const prepared = runner.prepareAuditPage({
-      page,
-      modelName: frozen.manifest.model.repo,
-      runtimeBinding: preflightRuntime,
-    });
+  it.skipIf(!realFrozenAuditAssetsAvailable)(
+    "preflights the real frozen page 14 without any live inference",
+    async () => {
+      const root = resolve(__dirname, "..");
+      const frozen = await inputs.loadFrozenAuditInputs({
+        root,
+        indices: [14],
+      });
+      const page = frozen.pages[0];
+      const preflightRuntime = runtime.buildPreflightRuntimeBinding(
+        frozen.manifest.model,
+      );
+      const prepared = runner.prepareAuditPage({
+        page,
+        modelName: frozen.manifest.model.repo,
+        runtimeBinding: preflightRuntime,
+      });
 
-    expect(page).toMatchObject({
-      selectionIndex: 14,
-      expectedClass: "residual",
-      pageId: "408b0f36-aadc-4cd1-b093-79b746d866d6",
-      workId: "c2e02f88-c96d-4fd0-af7e-19c4c0afa810",
-      original: {
-        sourceSha256:
-          "ce44bfe683a060bf30f66e1535dd7170f99c14a4878ba333333b733c558f03e5",
-      },
-      cleaned: {
-        sourceSha256:
-          "c681a2d38c041031c670a569d33a4a514f9d689ea2c7eafdfa428b35cff9d1e8",
-      },
-      orderedBlockIdsSha256:
-        "9eacec54ec161435a8e49c4bfee9fb099fbc2e110e8848bb196b781827fe191d",
-    });
-    expect(page.blocks).toHaveLength(12);
-    expect(prepared.contractPins).toEqual(page.v4ContractPins);
-    expect(prepared.aliasMap).toHaveLength(12);
-    expect(prepared.aliasMap[0].alias).toBe("B001");
-    expect(prepared.aliasMap[11].alias).toBe("B012");
-    expect(page.original.width).toBe(page.cleaned.width);
-    expect(page.original.height).toBe(page.cleaned.height);
-    expect(prepared.inputBinding.page).toMatchObject({
-      bbox1000ContractVersion: "full-page-normalized-1000-top-left-v1",
-      bbox1000Sha256: page.v4ContractPins?.bbox1000Sha256,
-    });
-    expect(prepared.basePrompt).toContain(
-      "bbox1000 is {x,y,w,h} in normalized 0..1000 full-page coordinates with a top-left origin",
-    );
-    expect(prepared.basePrompt).toContain(
-      "Supplied sound/SFX aliases are translated targets",
-    );
-    expect(prepared.basePrompt).toContain(
-      "immediately adjacent to it, or visibly continuing the same phrase",
-    );
-    expect(prepared.unassignedPrompt).toContain(
-      "Explicitly exclude intentional/untranslated SFX, logos, book-cover art",
-    );
-    expect(prepared.unassignedPrompt).toContain(
-      "same location from Image 1 to Image 2",
-    );
-    const promptMarker = "Aliased blocks in required order: ";
-    const [instructions, compactJson] = prepared.basePrompt.split(promptMarker);
-    expect(instructions).not.toContain("B008");
-    expect(instructions).not.toContain("B009");
-    expect(instructions).not.toMatch(/gold|ground.?truth|expected evidence/iu);
-    const compactBlocks = JSON.parse(compactJson) as Array<{
-      alias: string;
-      bbox1000: { x: number; y: number; w: number; h: number };
-      textRole: string;
-    }>;
-    expect(compactBlocks[7]).toMatchObject({
-      alias: "B008",
-      bbox1000: {
-        x: 353.7037037037037,
-        y: 683.3876221498372,
-        w: 60.18518518518518,
-        h: 100.9771986970684,
-      },
-      textRole: "sound",
-    });
-    expect(compactBlocks[8]).toMatchObject({
-      alias: "B009",
-      bbox1000: { y: 700.3257328990228 },
-      textRole: "sound",
-    });
-    expect(prepared.basePrompt).not.toContain('"bbox":');
-    expect(prepared.runtimeBinding.executionAllowed).toBe(false);
-    expect(() =>
-      contract.assertExactTwoImageMessages(
-        prepared.initialRequestBody.messages as Array<Record<string, unknown>>,
-      ),
-    ).not.toThrow();
-  });
+      expect(page).toMatchObject({
+        selectionIndex: 14,
+        expectedClass: "residual",
+        pageId: "408b0f36-aadc-4cd1-b093-79b746d866d6",
+        workId: "c2e02f88-c96d-4fd0-af7e-19c4c0afa810",
+        original: {
+          sourceSha256:
+            "ce44bfe683a060bf30f66e1535dd7170f99c14a4878ba333333b733c558f03e5",
+        },
+        cleaned: {
+          sourceSha256:
+            "c681a2d38c041031c670a569d33a4a514f9d689ea2c7eafdfa428b35cff9d1e8",
+        },
+        orderedBlockIdsSha256:
+          "9eacec54ec161435a8e49c4bfee9fb099fbc2e110e8848bb196b781827fe191d",
+      });
+      expect(page.blocks).toHaveLength(12);
+      expect(prepared.contractPins).toEqual(page.v4ContractPins);
+      expect(prepared.aliasMap).toHaveLength(12);
+      expect(prepared.aliasMap[0].alias).toBe("B001");
+      expect(prepared.aliasMap[11].alias).toBe("B012");
+      expect(page.original.width).toBe(page.cleaned.width);
+      expect(page.original.height).toBe(page.cleaned.height);
+      expect(prepared.inputBinding.page).toMatchObject({
+        bbox1000ContractVersion: "full-page-normalized-1000-top-left-v1",
+        bbox1000Sha256: page.v4ContractPins?.bbox1000Sha256,
+      });
+      expect(prepared.basePrompt).toContain(
+        "bbox1000 is {x,y,w,h} in normalized 0..1000 full-page coordinates with a top-left origin",
+      );
+      expect(prepared.basePrompt).toContain(
+        "Supplied sound/SFX aliases are translated targets",
+      );
+      expect(prepared.basePrompt).toContain(
+        "immediately adjacent to it, or visibly continuing the same phrase",
+      );
+      expect(prepared.unassignedPrompt).toContain(
+        "Explicitly exclude intentional/untranslated SFX, logos, book-cover art",
+      );
+      expect(prepared.unassignedPrompt).toContain(
+        "same location from Image 1 to Image 2",
+      );
+      const promptMarker = "Aliased blocks in required order: ";
+      const [instructions, compactJson] =
+        prepared.basePrompt.split(promptMarker);
+      expect(instructions).not.toContain("B008");
+      expect(instructions).not.toContain("B009");
+      expect(instructions).not.toMatch(
+        /gold|ground.?truth|expected evidence/iu,
+      );
+      const compactBlocks = JSON.parse(compactJson) as Array<{
+        alias: string;
+        bbox1000: { x: number; y: number; w: number; h: number };
+        textRole: string;
+      }>;
+      expect(compactBlocks[7]).toMatchObject({
+        alias: "B008",
+        bbox1000: {
+          x: 353.7037037037037,
+          y: 683.3876221498372,
+          w: 60.18518518518518,
+          h: 100.9771986970684,
+        },
+        textRole: "sound",
+      });
+      expect(compactBlocks[8]).toMatchObject({
+        alias: "B009",
+        bbox1000: { y: 700.3257328990228 },
+        textRole: "sound",
+      });
+      expect(prepared.basePrompt).not.toContain('"bbox":');
+      expect(prepared.runtimeBinding.executionAllowed).toBe(false);
+      expect(() =>
+        contract.assertExactTwoImageMessages(
+          prepared.initialRequestBody.messages as Array<
+            Record<string, unknown>
+          >,
+        ),
+      ).not.toThrow();
+    },
+  );
 
   it("keeps the frozen 6-positive/4-negative cohort work-disjoint", async () => {
     const root = resolve(__dirname, "..");
-    const frozen = await inputs.loadFrozenAuditInputs({ root, indices: [14] });
+    const frozen = await inputs.loadFrozenManifest(root);
     const pages = frozen.manifest.pages;
     expect(
       pages
