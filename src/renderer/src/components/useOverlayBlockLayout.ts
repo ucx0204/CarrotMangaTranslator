@@ -82,6 +82,7 @@ function useCanonicalLayout({
   stageSize,
   textLayoutStageSize,
 }: LayoutInput): BlockTextLayout {
+  const layoutStageSize = textLayoutStageSize ?? stageSize;
   return React.useMemo(
     () =>
       resolveInputLayout({
@@ -90,18 +91,10 @@ function useCanonicalLayout({
         fontCatalog,
         fontRevision,
         pageSize,
-        stageSize,
-        textLayoutStageSize,
+        stageSize: layoutStageSize,
+        textLayoutStageSize: layoutStageSize,
       }),
-    [
-      block,
-      displayText,
-      fontCatalog,
-      fontRevision,
-      pageSize,
-      stageSize,
-      textLayoutStageSize,
-    ],
+    [block, displayText, fontCatalog, fontRevision, layoutStageSize, pageSize],
   );
 }
 
@@ -115,6 +108,7 @@ function usePreviewLayout({
   stageSize,
   textLayoutStageSize,
 }: LayoutInput & { canReuseCanonical: boolean }): BlockTextLayout | null {
+  const layoutStageSize = textLayoutStageSize ?? stageSize;
   return React.useMemo(
     () =>
       canReuseCanonical
@@ -125,8 +119,8 @@ function usePreviewLayout({
             fontCatalog,
             fontRevision,
             pageSize,
-            stageSize,
-            textLayoutStageSize,
+            stageSize: layoutStageSize,
+            textLayoutStageSize: layoutStageSize,
           }),
     [
       block,
@@ -134,9 +128,8 @@ function usePreviewLayout({
       displayText,
       fontCatalog,
       fontRevision,
+      layoutStageSize,
       pageSize,
-      stageSize,
-      textLayoutStageSize,
     ],
   );
 }

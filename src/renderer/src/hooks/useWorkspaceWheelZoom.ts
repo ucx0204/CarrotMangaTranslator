@@ -2,30 +2,30 @@ import { useEffect, useMemo, type RefObject } from "react";
 import type { KeybindingOverrides } from "../../../shared/shortcutSettings";
 import { comboFromWheelEvent } from "../lib/shortcuts/comboFromEvent";
 import { resolveBindings } from "../lib/shortcuts/shortcutBindingResolution";
+import type { WorkspaceWheelZoomGesture } from "../lib/workspaceZoom";
 import { useEventCallback } from "./useEventCallback";
 
 type UseWorkspaceWheelZoomOptions = {
   workspacePanelRef: RefObject<HTMLElement | null>;
-  zoomIn: () => void;
-  zoomOut: () => void;
+  zoom: (gesture: WorkspaceWheelZoomGesture) => void;
   fitHeight?: () => void;
   overrides?: KeybindingOverrides;
 };
 
 /**
  * Dispatches wheel shortcuts for workspace zoom. The capture-phase listener
- * consumes a matching gesture before fixed page navigation sees it, while
- * requestAnimationFrame coalescing keeps trackpad bursts to one zoom step.
+ * consumes a matching gesture before fixed page navigation sees it. Magnitude
+ * and pointer coordinates are retained. Events within one display frame are
+ * summed into one real zoom update; no additional interpolation continues after
+ * the physical wheel input stops.
  */
 export function useWorkspaceWheelZoom({
   workspacePanelRef,
-  zoomIn,
-  zoomOut,
+  zoom,
   fitHeight,
   overrides = {},
 }: UseWorkspaceWheelZoomOptions): void {
-  const invokeZoomIn = useEventCallback(zoomIn);
-  const invokeZoomOut = useEventCallback(zoomOut);
+  const invokeZoom = useEventCallback(zoom);
   const invokeFitHeight = useEventCallback(() => fitHeight?.());
   const bindings = useZoomBindings(overrides);
   const resolveZoomAction = useEventCallback(
@@ -46,16 +46,20 @@ export function useWorkspaceWheelZoom({
       return;
     }
     let frameId: number | null = null;
-    let pendingZoomSteps = 0;
-    const applyZoom = (): void => {
+    let pendingClientX = 0;
+    let pendingClientY = 0;
+    let pendingSignedDelta = 0;
+    const flushZoom = (): void => {
       frameId = null;
-      const steps = pendingZoomSteps;
-      pendingZoomSteps = 0;
-      if (steps > 0) {
-        invokeZoomIn();
-      } else if (steps < 0) {
-        invokeZoomOut();
-      }
+      const signedDelta = pendingSignedDelta;
+      pendingSignedDelta = 0;
+      if (Math.abs(signedDelta) < 0.001) return;
+      invokeZoom({
+        clientX: pendingClientX,
+        clientY: pendingClientY,
+        deltaPixels: Math.abs(signedDelta),
+        direction: signedDelta > 0 ? "in" : "out",
+      });
     };
     const onWheel = (event: WheelEvent): void => {
       const action = resolveZoomAction(event);
@@ -68,10 +72,12 @@ export function useWorkspaceWheelZoom({
         return;
       }
       event.preventDefault();
-      pendingZoomSteps += action === "zoom-in" ? 1 : -1;
-      if (frameId === null) {
-        frameId = requestAnimationFrame(applyZoom);
-      }
+      pendingClientX = event.clientX;
+      pendingClientY = event.clientY;
+      pendingSignedDelta +=
+        resolveWheelDeltaPixels(event, panel.clientHeight) *
+        (action === "zoom-in" ? 1 : -1);
+      if (frameId === null) frameId = requestAnimationFrame(flushZoom);
     };
     const onPointerDown = (event: PointerEvent): void => {
       if (event.button !== 1 || (!event.ctrlKey && !event.metaKey)) return;
@@ -88,13 +94,26 @@ export function useWorkspaceWheelZoom({
       panel.removeEventListener("wheel", onWheel, true);
       panel.removeEventListener("pointerdown", onPointerDown, true);
     };
-  }, [
-    invokeFitHeight,
-    invokeZoomIn,
-    invokeZoomOut,
-    resolveZoomAction,
-    workspacePanelRef,
-  ]);
+  }, [invokeFitHeight, invokeZoom, resolveZoomAction, workspacePanelRef]);
+}
+
+function resolveWheelDeltaPixels(
+  event: Pick<WheelEvent, "deltaMode" | "deltaX" | "deltaY" | "shiftKey">,
+  pageHeight: number,
+): number {
+  const raw =
+    event.deltaY && Math.abs(event.deltaY) >= Math.abs(event.deltaX)
+      ? event.deltaY
+      : event.shiftKey
+        ? event.deltaX
+        : event.deltaY;
+  const unit =
+    event.deltaMode === 1
+      ? 40
+      : event.deltaMode === 2
+        ? Math.max(1, pageHeight)
+        : 1;
+  return Math.max(0.25, Math.abs(raw * unit));
 }
 
 function useZoomBindings(overrides: KeybindingOverrides) {

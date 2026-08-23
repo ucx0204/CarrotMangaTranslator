@@ -44,6 +44,7 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
     category: "view",
     defaultCombo: "ctrl+=",
     defaultAlternateCombos: [
+      "numpadadd",
       "ctrl+numpadadd",
       "ctrl+add",
       "ctrl++",
@@ -57,7 +58,11 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
     label: "이미지 축소",
     category: "view",
     defaultCombo: "ctrl+-",
-    defaultAlternateCombos: ["ctrl+wheeldown"],
+    defaultAlternateCombos: [
+      "numpadsubtract",
+      "ctrl+numpadsubtract",
+      "ctrl+wheeldown",
+    ],
     allowInEditable: true,
     enabled: (c) => c.chapterOpen,
   },

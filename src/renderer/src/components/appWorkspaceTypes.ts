@@ -2,12 +2,16 @@ import type { JobState } from "../../../shared/jobTypes";
 import type { MangaPage } from "../../../shared/libraryTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
 import type { RetouchTool, WorkspaceTool } from "../lib/stageTool";
-import type { WorkspaceFitMode } from "../lib/workspaceZoom";
+import type {
+  WorkspaceFitMode,
+  WorkspaceZoomController,
+} from "../lib/workspaceZoom";
 import type { WorkspaceInteractionPreviewStore } from "../lib/workspaceInteractionPreview";
 import type { ImageStageProps } from "./ImageStage";
 
 export type AppWorkspaceProps = {
   workspacePanelRef: React.RefObject<HTMLElement | null>;
+  workspaceZoomControllerRef: React.RefObject<WorkspaceZoomController | null>;
   workspaceFitMode: WorkspaceFitMode;
   workspaceZoom: number;
   selectedPage: MangaPage | null;
@@ -41,6 +45,7 @@ export type AppWorkspaceProps = {
   onToggleRegionTranslation: () => void;
   onToggleStageToolbarHidden: () => void;
   onChangeWorkspaceFitMode: (fitMode: WorkspaceFitMode) => void;
+  onChangeWorkspaceZoom: (zoom: number) => void;
   onResetWorkspaceZoom: () => void;
   onZoomInWorkspace: () => void;
   onZoomOutWorkspace: () => void;

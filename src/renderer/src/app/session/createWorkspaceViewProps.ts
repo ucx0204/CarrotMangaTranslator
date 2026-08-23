@@ -6,6 +6,7 @@ export function createWorkspaceViewProps(
 ): Pick<
   AppSessionViewProps["workspaceProps"],
   | "onChangeWorkspaceFitMode"
+  | "onChangeWorkspaceZoom"
   | "onResetWorkspaceZoom"
   | "onZoomInWorkspace"
   | "onZoomOutWorkspace"
@@ -16,6 +17,7 @@ export function createWorkspaceViewProps(
 > {
   return {
     onChangeWorkspaceFitMode: uiState.setWorkspaceFitMode,
+    onChangeWorkspaceZoom: uiState.changeWorkspaceZoom,
     onResetWorkspaceZoom: uiState.resetWorkspaceZoom,
     onZoomInWorkspace: uiState.zoomInWorkspace,
     onZoomOutWorkspace: uiState.zoomOutWorkspace,

@@ -10,6 +10,7 @@ import { useAppSessionUiState } from "../src/renderer/src/app/session/useAppSess
 import { SHORTCUT_ACTION_IDS } from "../src/shared/shortcutSettings";
 import type { ChapterSnapshot, MangaPage } from "../src/shared/libraryTypes";
 import type { TranslationBlock } from "../src/shared/textTypes";
+import type { WorkspaceZoomController } from "../src/renderer/src/lib/workspaceZoom";
 
 describe("app-session shortcut handlers", () => {
   it("provides a concrete runtime handler for every registered shortcut", () => {
@@ -127,6 +128,25 @@ describe("app-session shortcut handlers", () => {
     expect(spies.applyStylePreset).toHaveBeenCalledWith("preset-one");
   });
 
+  it("uses the toolbar anchor rules for keyboard zoom shortcuts", () => {
+    const spies = makeSpies();
+    const controller: WorkspaceZoomController = {
+      resetAtViewport: vi.fn(),
+      zoomAtPointer: vi.fn(),
+      zoomInAtSelection: vi.fn(),
+      zoomOutAtViewport: vi.fn(),
+    };
+    const { result } = renderShortcutHarness(spies, false, controller);
+
+    run(result, "zoom-in");
+    run(result, "zoom-out");
+    run(result, "zoom-reset");
+
+    expect(controller.zoomInAtSelection).toHaveBeenCalledOnce();
+    expect(controller.zoomOutAtViewport).toHaveBeenCalledOnce();
+    expect(controller.resetAtViewport).toHaveBeenCalledOnce();
+  });
+
   it("uses the same settings shortcut to open and close settings", () => {
     const spies = makeSpies();
     const harness = renderShortcutHarness(spies, false);
@@ -173,9 +193,14 @@ describe("app-session shortcut handlers", () => {
 type ShortcutHarness = ReturnType<typeof useShortcutHarness>;
 type ShortcutActionId = (typeof SHORTCUT_ACTION_IDS)[number];
 
-function renderShortcutHarness(spies: TestSpies, settingsOpen = false) {
+function renderShortcutHarness(
+  spies: TestSpies,
+  settingsOpen = false,
+  workspaceZoomController: WorkspaceZoomController | null = null,
+) {
   return renderHook(
-    ({ settingsOpen: open }) => useShortcutHarness(spies, open),
+    ({ settingsOpen: open }) =>
+      useShortcutHarness(spies, open, workspaceZoomController),
     { initialProps: { settingsOpen } },
   );
 }
@@ -183,12 +208,18 @@ function renderShortcutHarness(spies: TestSpies, settingsOpen = false) {
 function useShortcutHarness(
   spies: TestSpies,
   settingsOpen: boolean,
+  workspaceZoomController: WorkspaceZoomController | null,
 ): {
   handlers: ReturnType<typeof createShortcutHandlers>;
   uiState: ReturnType<typeof useAppSessionUiState>;
 } {
   const uiState = useAppSessionUiState();
-  const chapter = makeChapterController(uiState, spies, settingsOpen);
+  const chapter = makeChapterController(
+    uiState,
+    spies,
+    settingsOpen,
+    workspaceZoomController,
+  );
   const translation = makeTranslationController(spies);
   const inpainting = makeInpaintingController(spies);
   return {
@@ -228,6 +259,7 @@ function makeChapterController(
   uiState: ReturnType<typeof useAppSessionUiState>,
   spies: TestSpies,
   settingsOpen: boolean,
+  workspaceZoomController: WorkspaceZoomController | null,
 ) {
   const chapter = makeChapter();
   const selectedPage = chapter.pages[0] ?? null;
@@ -240,6 +272,7 @@ function makeChapterController(
       },
       selectedBlockId: "block-b",
       selectedBlockIdRef: { current: "block-b" },
+      workspaceZoomControllerRef: { current: workspaceZoomController },
       setRegionSelection: spies.setRegionSelection,
       setSelectedBlockId: spies.setSelectedBlockId,
       setSelectedBlockIds: spies.setSelectedBlockIds,

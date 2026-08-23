@@ -21,6 +21,7 @@ import {
 } from "./session/useTranslationController";
 import { dispatchPanelCommand } from "./session/panelCommandDispatcher";
 import { createStylePresetDeleteAction } from "./session/createStylePresetDeleteAction";
+import type { WorkspaceWheelZoomGesture } from "../lib/workspaceZoom";
 
 export function useAppSessionModel(): AppSessionViewProps {
   const chapter = useChapterSessionController();
@@ -48,8 +49,7 @@ export function useAppSessionModel(): AppSessionViewProps {
   useAppSessionShortcuts({ chapter, inpainting, translation });
   useWorkspaceWheelZoom({
     workspacePanelRef: chapter.core.workspacePanelRef,
-    zoomIn: chapter.uiState.zoomInWorkspace,
-    zoomOut: chapter.uiState.zoomOutWorkspace,
+    zoom: (gesture) => dispatchWorkspaceWheelZoom(chapter, gesture),
     fitHeight: () => chapter.uiState.setWorkspaceFitMode("height"),
     overrides: chapter.settingsDialog.settings?.keybindings,
   });
@@ -97,6 +97,16 @@ export function useAppSessionModel(): AppSessionViewProps {
     updateCurrentChapter: translation.updateCurrentChapter,
     workspaceHistory: translation.workspaceHistory,
   });
+}
+
+function dispatchWorkspaceWheelZoom(
+  chapter: ChapterSessionController,
+  gesture: WorkspaceWheelZoomGesture,
+): void {
+  const controller = chapter.core.workspaceZoomControllerRef.current;
+  if (controller) controller.zoomAtPointer(gesture);
+  else if (gesture.direction === "in") chapter.uiState.zoomInWorkspace();
+  else chapter.uiState.zoomOutWorkspace();
 }
 
 function usePanelCommandHandler(

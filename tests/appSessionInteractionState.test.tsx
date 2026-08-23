@@ -63,6 +63,22 @@ describe("unified workspace interaction state", () => {
     expect(result.current.peekOriginal).toBe(false);
   });
 
+  it("temporarily uses the hand tool and restores the previously latched tool", () => {
+    const { result } = renderHook(() => useAppSessionUiState());
+
+    act(() => result.current.selectWorkspaceTool("brush"));
+    expect(result.current.stageTool).toBe("brush");
+    expect(result.current.inpaintingTool).toBe("brush");
+
+    act(() => result.current.beginTemporaryHandTool());
+    expect(result.current.stageTool).toBe("hand");
+    expect(result.current.inpaintingTool).toBe("none");
+
+    act(() => result.current.endTemporaryHandTool());
+    expect(result.current.stageTool).toBe("brush");
+    expect(result.current.inpaintingTool).toBe("brush");
+  });
+
   it("keeps the active and remembered retouch tool for the app session", () => {
     const first = renderHook(() => useAppSessionUiState());
 
@@ -96,7 +112,7 @@ describe("unified workspace interaction state", () => {
 
     expect(result.current.workspaceFitMode).toBe("contain");
     act(() => result.current.zoomInWorkspace());
-    expect(result.current.workspaceZoom).toBe(1.25);
+    expect(result.current.workspaceZoom).toBe(1.12);
 
     act(() => result.current.setWorkspaceFitMode("width"));
     expect(result.current.workspaceFitMode).toBe("width");

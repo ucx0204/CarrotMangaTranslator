@@ -402,5 +402,6 @@ function createWorkspaceProps({
     stageTool: uiState.stageTool,
     stageToolbarHidden: uiState.stageToolbarHidden,
     workspacePanelRef: core.workspacePanelRef,
+    workspaceZoomControllerRef: core.workspaceZoomControllerRef,
   };
 }

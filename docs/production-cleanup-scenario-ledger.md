@@ -98,9 +98,12 @@ editing the totals by hand.
   The shared block-library pass extended the accepted Node 26 artifact to
   SHA-256
   `afc6c5a5931fe48dcacfee1dddc19a660726014ba334541d4bfb5f57c7000e0f`.
+  The direct-input workspace zoom and temporary-hand pass extended it to
+  SHA-256
+  `b413467bb5a6f61953c79364a4924e6a53ce37031226d035af2632857f78c547`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
-  percentage for lines/statements/functions/branches in all 281 existing
-  coverage-eligible `src/**` files changed since cleanup start. The 83 new
+  percentage for lines/statements/functions/branches in all 293 existing
+  coverage-eligible `src/**` files changed since cleanup start. The 85 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record. The
   three removed source files are recorded explicitly in `deletedFiles`.
@@ -123,10 +126,10 @@ editing the totals by hand.
   platform-dependent execution as a cross-platform ratio regression. A native
   Darwin floor map is not claimed or silently substituted for the canonical
   Windows floors.
-- The shared block-library capture passed all 517 Vitest files: 3,932 tests
-  passed and the two expected platform-specific tests were skipped. Its
-  aggregate V8 coverage was 79.43% lines, 78.37% statements, 80.47% functions,
-  and 70.85% branches.
+- The direct-input workspace zoom and temporary-hand capture passed all 518 Vitest
+  files: 3,941 tests passed and the two expected platform-specific tests were
+  skipped. Its aggregate V8 coverage was 79.44% lines, 78.37% statements,
+  80.49% functions, and 70.80% branches.
 
 ## Fail-closed obligations
 

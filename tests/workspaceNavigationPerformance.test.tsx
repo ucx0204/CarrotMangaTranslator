@@ -14,6 +14,7 @@ import { usePageNavigationHandlers } from "../src/renderer/src/hooks/usePageNavi
 import { useWorkspaceWheelZoom } from "../src/renderer/src/hooks/useWorkspaceWheelZoom";
 import type { ChapterSnapshot } from "../src/shared/libraryTypes";
 import type { KeybindingOverrides } from "../src/shared/shortcutSettings";
+import type { WorkspaceWheelZoomGesture } from "../src/renderer/src/lib/workspaceZoom";
 
 afterEach(() => {
   cleanup();
@@ -62,6 +63,34 @@ describe("workspace navigation performance", () => {
     expect(panel.scrollTop).toBe(310);
   });
 
+  it("ends an active pan when the temporary hand tool is released", () => {
+    const frames = installAnimationFrameController();
+    const api = React.createRef<PanHarnessApi>();
+    render(<PanHarness onReady={(value) => (api.current = value)} />);
+    const stage = screen.getByTestId("pan-stage");
+    const panel = screen.getByTestId("pan-panel");
+    panel.scrollLeft = 400;
+    panel.scrollTop = 300;
+
+    fireEvent.pointerDown(stage, {
+      button: 0,
+      clientX: 20,
+      clientY: 20,
+      pointerId: 4,
+    });
+    fireEvent.pointerMove(stage, {
+      clientX: 70,
+      clientY: 60,
+      pointerId: 4,
+    });
+    expect(frames.count()).toBe(1);
+
+    act(() => api.current?.deactivate());
+    expect(frames.count()).toBe(0);
+    expect(panel.scrollLeft).toBe(350);
+    expect(panel.scrollTop).toBe(260);
+  });
+
   it("coalesces a ctrl-wheel burst and removes its listener on unmount", () => {
     const frames = installAnimationFrameController();
     const zoomIn = vi.fn();
@@ -78,7 +107,12 @@ describe("workspace navigation performance", () => {
 
     act(() => frames.flush());
     expect(zoomIn).toHaveBeenCalledTimes(1);
+    expect(zoomIn.mock.calls[0]?.[0]).toMatchObject({
+      deltaPixels: 80,
+      direction: "in",
+    });
     expect(zoomOut).not.toHaveBeenCalled();
+    expect(frames.count()).toBe(0);
 
     fireEvent.wheel(panel, { ctrlKey: true, deltaY: 1 });
     act(() => frames.flush());
@@ -180,6 +214,7 @@ describe("workspace navigation performance", () => {
 });
 
 type PanHarnessApi = {
+  deactivate: () => void;
   getRenderCount: () => number;
 };
 
@@ -190,11 +225,19 @@ function PanHarness({
 }): React.JSX.Element {
   const renderCountRef = useRef(0);
   renderCountRef.current += 1;
+  const [active, setActive] = useState(true);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const workspacePanelRef = useRef<HTMLElement | null>(null);
-  const handlers = useWorkspacePanHandlers({ stageRef, workspacePanelRef });
+  const handlers = useWorkspacePanHandlers({
+    active,
+    stageRef,
+    workspacePanelRef,
+  });
   useLayoutEffect(() => {
-    onReady({ getRenderCount: () => renderCountRef.current });
+    onReady({
+      deactivate: () => setActive(false),
+      getRenderCount: () => renderCountRef.current,
+    });
   }, [onReady]);
   return (
     <section data-testid="pan-panel" ref={workspacePanelRef}>
@@ -215,11 +258,16 @@ function WheelHarness({
   zoomOut,
 }: {
   overrides?: KeybindingOverrides;
-  zoomIn: () => void;
-  zoomOut: () => void;
+  zoomIn: (gesture: WorkspaceWheelZoomGesture) => void;
+  zoomOut: (gesture: WorkspaceWheelZoomGesture) => void;
 }): React.JSX.Element {
   const workspacePanelRef = useRef<HTMLElement | null>(null);
-  useWorkspaceWheelZoom({ overrides, workspacePanelRef, zoomIn, zoomOut });
+  useWorkspaceWheelZoom({
+    overrides,
+    workspacePanelRef,
+    zoom: (gesture) =>
+      gesture.direction === "in" ? zoomIn(gesture) : zoomOut(gesture),
+  });
   return <section data-testid="wheel-panel" ref={workspacePanelRef} />;
 }
 
@@ -253,8 +301,9 @@ function WheelAndPageHarness({
   useWorkspaceWheelZoom({
     overrides: { "zoom-in": "wheelup", "zoom-out": "alt+wheeldown" },
     workspacePanelRef,
-    zoomIn,
-    zoomOut: () => undefined,
+    zoom: (gesture) => {
+      if (gesture.direction === "in") zoomIn();
+    },
   });
   return (
     <section data-testid="wheel-page-panel" ref={workspacePanelRef}>

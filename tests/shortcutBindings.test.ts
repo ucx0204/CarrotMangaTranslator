@@ -76,10 +76,21 @@ describe("comboFromEvent", () => {
     expect(comboFromEvent(event({ key: "ArrowLeft" }))).toBe("arrowleft");
   });
 
-  it("keeps numpad plus distinct so it can be bound as a shortcut alias", () => {
+  it("keeps both numpad zoom keys distinct from the main keyboard", () => {
     expect(
       comboFromEvent(event({ key: "+", code: "NumpadAdd", ctrlKey: true })),
     ).toBe("ctrl+numpadadd");
+    expect(comboFromEvent(event({ key: "+", code: "NumpadAdd" }))).toBe(
+      "numpadadd",
+    );
+    expect(
+      comboFromEvent(
+        event({ key: "-", code: "NumpadSubtract", ctrlKey: true }),
+      ),
+    ).toBe("ctrl+numpadsubtract");
+    expect(comboFromEvent(event({ key: "-", code: "NumpadSubtract" }))).toBe(
+      "numpadsubtract",
+    );
   });
 
   it("ignores pure modifier presses", () => {
@@ -147,6 +158,7 @@ describe("formatCombo", () => {
     expect(formatCombo("?", "Win32")).toEqual(["?"]);
     expect(formatCombo("ctrl+,", "Win32")).toEqual(["Ctrl", ","]);
     expect(formatCombo("ctrl+numpadadd", "Win32")).toEqual(["Ctrl", "+"]);
+    expect(formatCombo("numpadsubtract", "Win32")).toEqual(["−"]);
     expect(formatCombo("ctrl+add", "Win32")).toEqual(["Ctrl", "+"]);
     expect(formatCombo("ctrl++", "Win32")).toEqual(["Ctrl", "+"]);
     expect(formatCombo("pageup", "Win32")).toEqual(["Page Up"]);
@@ -261,12 +273,15 @@ describe("shortcut binding resolution", () => {
     expect(bindings.get("ctrl+y")).toBe("history-redo");
   });
 
-  it("binds workspace zoom to keyboard and ctrl-wheel defaults", () => {
+  it("binds workspace zoom to main, numpad, and ctrl-wheel defaults", () => {
     const bindings = resolveBindings({});
     expect(bindings.get("ctrl+=")).toBe("zoom-in");
+    expect(bindings.get("numpadadd")).toBe("zoom-in");
     expect(bindings.get("ctrl+numpadadd")).toBe("zoom-in");
     expect(bindings.get("ctrl+wheelup")).toBe("zoom-in");
     expect(bindings.get("ctrl+-")).toBe("zoom-out");
+    expect(bindings.get("numpadsubtract")).toBe("zoom-out");
+    expect(bindings.get("ctrl+numpadsubtract")).toBe("zoom-out");
     expect(bindings.get("ctrl+wheeldown")).toBe("zoom-out");
     expect(bindings.get("ctrl+0")).toBe("zoom-reset");
   });
@@ -296,6 +311,7 @@ describe("shortcut binding resolution", () => {
   it("keeps zoom-in numpad plus when the saved override matches its default", () => {
     const bindings = resolveBindings({ "zoom-in": "ctrl+=" });
     expect(bindings.get("ctrl+=")).toBe("zoom-in");
+    expect(bindings.get("numpadadd")).toBe("zoom-in");
     expect(bindings.get("ctrl+numpadadd")).toBe("zoom-in");
   });
 

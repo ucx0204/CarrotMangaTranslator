@@ -29,6 +29,7 @@ describe("workspace zoom natural image dimensions", () => {
     expect(result.current).toEqual({
       className: "is-zoomed",
       effectiveScale: 1,
+      imageSize: { height: 1200, width: 836 },
       overscroll: { x: 0, y: 0 },
       pageFits: true,
       scrollOrigin: { x: 0, y: 0 },
@@ -53,11 +54,11 @@ describe("workspace zoom natural image dimensions", () => {
 
     expect(result.current.style).toEqual({
       "--page-display-h": "1000px",
-      "--page-display-w": "697px",
+      "--page-display-w": "696.667px",
       "--workspace-overscroll-x": "0px",
       "--workspace-overscroll-y": "0px",
     });
-    expect(result.current.effectiveScale).toBeCloseTo(697 / 836);
+    expect(result.current.effectiveScale).toBeCloseTo(696.667 / 836);
     expect(result.current.pageFits).toBe(true);
     expect(result.current.scrollOrigin).toEqual({ x: 0, y: 0 });
   });

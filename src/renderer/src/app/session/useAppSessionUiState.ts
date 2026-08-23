@@ -13,7 +13,7 @@ import type { AutoInpaintingEntryScope } from "../../lib/autoInpaintingSelection
 import type { TranslationOptionsInitialScope } from "../../lib/translationSelection";
 import {
   clampWorkspaceZoom,
-  WORKSPACE_ZOOM_STEP,
+  stepWorkspaceZoom,
   type WorkspaceFitMode,
 } from "../../lib/workspaceZoom";
 
@@ -110,6 +110,8 @@ function useInpaintingUiState() {
     Record<string, InpaintingMaskStroke[]>
   >({});
   const {
+    beginTemporaryHandTool,
+    endTemporaryHandTool,
     inpaintingTool,
     lastRetouchTool,
     setInpaintingTool,
@@ -135,6 +137,8 @@ function useInpaintingUiState() {
   return {
     autoInpaintingOptionsOpen,
     autoInpaintingEntryScope,
+    beginTemporaryHandTool,
+    endTemporaryHandTool,
     exportOptionsOpen,
     inpaintingBrushRadius,
     inpaintingGuideOpen,
@@ -160,13 +164,17 @@ function useInpaintingUiState() {
 }
 
 function useWorkspaceToolState() {
-  const [{ stageTool, lastRetouchTool }, setWorkspaceToolState] = useState<{
+  const [
+    { stageTool: latchedStageTool, lastRetouchTool },
+    setWorkspaceToolState,
+  ] = useState<{
     stageTool: StageTool;
     lastRetouchTool: Exclude<InpaintingTool, "none">;
   }>({
     stageTool: "select",
     lastRetouchTool: "brush",
   });
+  const [temporaryHandActive, setTemporaryHandActive] = useState(false);
   const setStageTool = useMemo<Dispatch<SetStateAction<StageTool>>>(
     () => (nextTool) => {
       setWorkspaceToolState((current) => {
@@ -188,9 +196,20 @@ function useWorkspaceToolState() {
     },
     [],
   );
+  const stageTool: StageTool = temporaryHandActive ? "hand" : latchedStageTool;
   const inpaintingTool = resolveInpaintingTool(stageTool);
   const setInpaintingTool = useInpaintingToolSetter(setStageTool);
+  const beginTemporaryHandTool = useCallback(
+    () => setTemporaryHandActive(true),
+    [],
+  );
+  const endTemporaryHandTool = useCallback(
+    () => setTemporaryHandActive(false),
+    [],
+  );
   return {
+    beginTemporaryHandTool,
+    endTemporaryHandTool,
     inpaintingTool,
     lastRetouchTool,
     setInpaintingTool,
@@ -277,17 +296,15 @@ function useWorkspaceZoomControls() {
   const [workspaceFitMode, setWorkspaceFitModeState] =
     useState<WorkspaceFitMode>("contain");
   const zoomInWorkspace = useCallback(
-    () =>
-      setWorkspaceZoom((zoom) =>
-        clampWorkspaceZoom(zoom + WORKSPACE_ZOOM_STEP),
-      ),
+    () => setWorkspaceZoom((zoom) => stepWorkspaceZoom(zoom, "in")),
     [],
   );
   const zoomOutWorkspace = useCallback(
-    () =>
-      setWorkspaceZoom((zoom) =>
-        clampWorkspaceZoom(zoom - WORKSPACE_ZOOM_STEP),
-      ),
+    () => setWorkspaceZoom((zoom) => stepWorkspaceZoom(zoom, "out")),
+    [],
+  );
+  const changeWorkspaceZoom = useCallback(
+    (zoom: number) => setWorkspaceZoom(clampWorkspaceZoom(zoom)),
     [],
   );
   const resetWorkspaceZoom = useCallback(() => setWorkspaceZoom(1), []);
@@ -299,6 +316,7 @@ function useWorkspaceZoomControls() {
     () => ({
       workspaceFitMode,
       workspaceZoom,
+      changeWorkspaceZoom,
       zoomInWorkspace,
       zoomOutWorkspace,
       resetWorkspaceZoom,
@@ -307,6 +325,7 @@ function useWorkspaceZoomControls() {
     [
       workspaceFitMode,
       workspaceZoom,
+      changeWorkspaceZoom,
       zoomInWorkspace,
       zoomOutWorkspace,
       resetWorkspaceZoom,

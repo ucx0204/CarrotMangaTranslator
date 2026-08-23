@@ -228,6 +228,42 @@ describe("AppWorkspace scroll reset", () => {
     expect(view.container.querySelector(".stage-toolbar")).toBeNull();
   });
 
+  it("does not overwrite an anchored camera when a later layout pass changes the origin", () => {
+    const refs = makeWorkspaceRefs();
+    const props = {
+      ...makeWorkspaceProps({
+        refs,
+        selectedPage: { ...makePage("page-1"), width: 1000, height: 1000 },
+        selectedPageImageDataUrl: PAGE_1_IMAGE,
+        selectedPageImagePageId: "page-1",
+      }),
+      workspaceFitMode: "actual" as const,
+      workspaceZoom: 2,
+    };
+    renderWorkspace(props);
+    const workspace = screen.getByLabelText("읽기 영역") as HTMLElement;
+    let clientWidth = 400;
+    let clientHeight = 500;
+    Object.defineProperties(workspace, {
+      clientHeight: { configurable: true, get: () => clientHeight },
+      clientWidth: { configurable: true, get: () => clientWidth },
+    });
+
+    act(() => ResizeObserverStub.emit());
+    expect(workspace.scrollLeft).toBe(200);
+    expect(workspace.scrollTop).toBe(250);
+
+    // Simulate the selection/cursor anchor restoring a deliberate camera.
+    workspace.scrollLeft = 733;
+    workspace.scrollTop = 644;
+    clientWidth = 380;
+    clientHeight = 480;
+    act(() => ResizeObserverStub.emit());
+
+    expect(workspace.scrollLeft).toBe(733);
+    expect(workspace.scrollTop).toBe(644);
+  });
+
   it("does not rescan canvas blocks for job-progress-only root updates", () => {
     const refs = makeWorkspaceRefs();
     const page = makePage("page-1");
@@ -598,6 +634,7 @@ function makeWorkspaceProps({
     onToggleStageToolbarHidden: () => undefined,
     onUndoBubbleLayoutPoint: () => undefined,
     onChangeWorkspaceFitMode: () => undefined,
+    onChangeWorkspaceZoom: () => undefined,
     onResetWorkspaceZoom: () => undefined,
     onZoomInWorkspace: () => undefined,
     onZoomOutWorkspace: () => undefined,
@@ -621,6 +658,7 @@ function makeWorkspaceProps({
     stageTool: "select",
     stageToolbarHidden: false,
     workspacePanelRef: refs.workspacePanelRef,
+    workspaceZoomControllerRef: React.createRef(),
     workspaceFitMode: "contain",
     workspaceZoom: 1,
   };

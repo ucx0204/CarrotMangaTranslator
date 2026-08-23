@@ -6,7 +6,10 @@
 
 export const MIN_WORKSPACE_ZOOM = 0.5;
 export const MAX_WORKSPACE_ZOOM = 4;
-export const WORKSPACE_ZOOM_STEP = 0.25;
+/** Toolbar/keyboard step; wheel gestures use a finer continuous ratio. */
+const WORKSPACE_ZOOM_BUTTON_RATIO = 1.12;
+/** Keep enough precision for trackpads and sub-pixel page sizing. */
+const WORKSPACE_ZOOM_PRECISION = 4;
 
 export type WorkspaceFitMode = "contain" | "width" | "height" | "actual";
 
@@ -14,10 +17,19 @@ export function clampWorkspaceZoom(value: number): number {
   if (!Number.isFinite(value)) {
     return 1;
   }
-  const stepped = Math.round(value / WORKSPACE_ZOOM_STEP) * WORKSPACE_ZOOM_STEP;
-  return Math.min(
-    MAX_WORKSPACE_ZOOM,
-    Math.max(MIN_WORKSPACE_ZOOM, Number(stepped.toFixed(2))),
+  const precision = 10 ** WORKSPACE_ZOOM_PRECISION;
+  const continuous = Math.round(value * precision) / precision;
+  return Math.min(MAX_WORKSPACE_ZOOM, Math.max(MIN_WORKSPACE_ZOOM, continuous));
+}
+
+export function stepWorkspaceZoom(
+  value: number,
+  direction: "in" | "out",
+): number {
+  return clampWorkspaceZoom(
+    direction === "in"
+      ? value * WORKSPACE_ZOOM_BUTTON_RATIO
+      : value / WORKSPACE_ZOOM_BUTTON_RATIO,
   );
 }
 
@@ -26,6 +38,22 @@ export type ContainerSize = { width: number; height: number };
 export type ImageDisplaySize = { width: number; height: number };
 export type WorkspaceOverscroll = { x: number; y: number };
 export type WorkspaceScrollOrigin = { x: number; y: number };
+
+export type WorkspaceZoomAnchorMode = "selection" | "viewport";
+
+export type WorkspaceWheelZoomGesture = {
+  clientX: number;
+  clientY: number;
+  deltaPixels: number;
+  direction: "in" | "out";
+};
+
+export type WorkspaceZoomController = {
+  resetAtViewport: () => void;
+  zoomAtPointer: (gesture: WorkspaceWheelZoomGesture) => void;
+  zoomInAtSelection: () => void;
+  zoomOutAtViewport: () => void;
+};
 
 /**
  * Give every page enough pasteboard to move an edge to the viewport centre.
@@ -99,9 +127,13 @@ export function computeWorkspaceImageSize(
   const fitScale = resolveFitScale(fitMode, widthScale, heightScale);
   const scale = fitScale * zoom;
   return {
-    width: Math.max(1, Math.round(page.width * scale)),
-    height: Math.max(1, Math.round(page.height * scale)),
+    width: Math.max(1, roundDisplayPixel(page.width * scale)),
+    height: Math.max(1, roundDisplayPixel(page.height * scale)),
   };
+}
+
+function roundDisplayPixel(value: number): number {
+  return Math.round(value * 1000) / 1000;
 }
 
 function resolveFitScale(

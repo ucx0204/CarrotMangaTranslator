@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   useShortcutDispatcher,
+  type ShortcutHoldHandlers,
   type ShortcutHandlers,
 } from "../src/renderer/src/hooks/useShortcutDispatcher";
 import { SHORTCUT_ACTIONS } from "../src/renderer/src/lib/shortcuts/shortcutActions";
@@ -39,6 +40,48 @@ describe("customizable page and block shortcut dispatch", () => {
     expect(brush).toHaveBeenCalledOnce();
     expect(toggleChrome).toHaveBeenCalledOnce();
     expect(toggleBlocks).toHaveBeenCalledOnce();
+  });
+
+  it("dispatches bare and modified numpad plus/minus as workspace zoom", () => {
+    const zoomIn = vi.fn();
+    const zoomOut = vi.fn();
+    render(
+      <ShortcutHarness handlers={{ "zoom-in": zoomIn, "zoom-out": zoomOut }} />,
+    );
+
+    const events = [
+      new KeyboardEvent("keydown", {
+        key: "+",
+        code: "NumpadAdd",
+        bubbles: true,
+        cancelable: true,
+      }),
+      new KeyboardEvent("keydown", {
+        key: "+",
+        code: "NumpadAdd",
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+      new KeyboardEvent("keydown", {
+        key: "-",
+        code: "NumpadSubtract",
+        bubbles: true,
+        cancelable: true,
+      }),
+      new KeyboardEvent("keydown", {
+        key: "-",
+        code: "NumpadSubtract",
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    ];
+    for (const event of events) document.body.dispatchEvent(event);
+
+    expect(zoomIn).toHaveBeenCalledTimes(2);
+    expect(zoomOut).toHaveBeenCalledTimes(2);
+    expect(events.every((event) => event.defaultPrevented)).toBe(true);
   });
 
   it("dispatches every assigned primary shortcut through the global listener", () => {
@@ -336,15 +379,62 @@ describe("customizable page and block shortcut dispatch", () => {
     expect(deleteBlock).toHaveBeenCalledOnce();
     expect(translatePending).not.toHaveBeenCalled();
   });
+
+  it("treats the customized hand shortcut as a press-and-hold action", () => {
+    const onPress = vi.fn();
+    const onRelease = vi.fn();
+    render(
+      <ShortcutHarness
+        handlers={{ "stage-tool-hand": vi.fn() }}
+        holdHandlers={{ "stage-tool-hand": { onPress, onRelease } }}
+        overrides={{ "stage-tool-hand": "f12" }}
+      />,
+    );
+
+    fireEvent.keyDown(document.body, { key: "F12", code: "F12" });
+    fireEvent.keyDown(document.body, {
+      key: "F12",
+      code: "F12",
+      repeat: true,
+    });
+    expect(onPress).toHaveBeenCalledOnce();
+    expect(onRelease).not.toHaveBeenCalled();
+
+    fireEvent.keyUp(document.body, { key: "F12", code: "F12" });
+    expect(onRelease).toHaveBeenCalledOnce();
+  });
+
+  it("does not start the temporary hand tool in an editor or during IME composition", () => {
+    const onPress = vi.fn();
+    render(
+      <ShortcutHarness
+        handlers={{}}
+        holdHandlers={{
+          "stage-tool-hand": { onPress, onRelease: vi.fn() },
+        }}
+      />,
+    );
+    const textarea = screen.getByRole("textbox", { name: "번역" });
+
+    fireEvent.keyDown(textarea, { key: "h", code: "KeyH" });
+    fireEvent.keyDown(document.body, {
+      key: "h",
+      code: "KeyH",
+      isComposing: true,
+    });
+    expect(onPress).not.toHaveBeenCalled();
+  });
 });
 
 function ShortcutHarness({
   handlers,
+  holdHandlers = {},
   jobActive = false,
   overrides = {},
   contextOverrides = {},
 }: {
   handlers: ShortcutHandlers;
+  holdHandlers?: ShortcutHoldHandlers;
   jobActive?: boolean;
   overrides?: KeybindingOverrides;
   contextOverrides?: Partial<ShortcutContext>;
@@ -363,6 +453,7 @@ function ShortcutHarness({
       ...contextOverrides,
     },
     handlers,
+    holdHandlers,
     overrides,
   });
   return <textarea aria-label="번역" />;

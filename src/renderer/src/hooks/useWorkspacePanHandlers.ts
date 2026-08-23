@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   type PointerEvent,
   type RefObject,
@@ -11,6 +12,7 @@ import {
 } from "./workspacePointerCapture";
 
 type UseWorkspacePanHandlersOptions = {
+  active?: boolean;
   stageRef: RefObject<HTMLDivElement | null>;
   workspacePanelRef: RefObject<HTMLElement | null>;
 };
@@ -28,6 +30,7 @@ type PanState = {
 
 /** Drag-to-pan for the workspace scroll container, used by the hand tool. */
 export function useWorkspacePanHandlers({
+  active = true,
   stageRef,
   workspacePanelRef,
 }: UseWorkspacePanHandlersOptions): {
@@ -84,30 +87,41 @@ export function useWorkspacePanHandlers({
     [workspacePanelRef],
   );
 
+  const finishPan = useFinishPan(panRef, stageRef, workspacePanelRef);
+
   const onPanPointerUp = useCallback(
     (event: PointerEvent) => {
-      if (!panRef.current) {
-        return false;
-      }
       const pan = panRef.current;
+      if (!pan) return false;
       pan.latestClientX = event.clientX;
       pan.latestClientY = event.clientY;
-      if (pan.frameId !== null) {
-        cancelAnimationFrame(pan.frameId);
-        pan.frameId = null;
-      }
-      applyPanPosition(pan, workspacePanelRef.current);
-      panRef.current = null;
-      releasePointerCaptureSafely(stageRef.current, pan.pointerId);
-      if (stageRef.current) {
-        stageRef.current.style.cursor = "";
-      }
-      return true;
+      return finishPan();
     },
-    [stageRef, workspacePanelRef],
+    [finishPan],
   );
 
+  useLayoutEffect(() => {
+    if (!active) finishPan();
+  }, [active, finishPan]);
+
   return { onPanPointerMove, onPanPointerUp, startPan };
+}
+
+function useFinishPan(
+  panRef: RefObject<PanState | null>,
+  stageRef: RefObject<HTMLDivElement | null>,
+  workspacePanelRef: RefObject<HTMLElement | null>,
+): () => boolean {
+  return useCallback(() => {
+    const pan = panRef.current;
+    if (!pan) return false;
+    if (pan.frameId !== null) cancelAnimationFrame(pan.frameId);
+    applyPanPosition(pan, workspacePanelRef.current);
+    panRef.current = null;
+    releasePointerCaptureSafely(stageRef.current, pan.pointerId);
+    if (stageRef.current) stageRef.current.style.cursor = "";
+    return true;
+  }, [panRef, stageRef, workspacePanelRef]);
 }
 
 function usePanCleanup(
@@ -123,6 +137,7 @@ function usePanCleanup(
       if (pan) {
         releasePointerCaptureSafely(stageRef.current, pan.pointerId);
       }
+      if (stageRef.current) stageRef.current.style.cursor = "";
       panRef.current = null;
     },
     [panRef, stageRef],

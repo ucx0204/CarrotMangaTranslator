@@ -1,5 +1,6 @@
 import {
   useLayoutEffect,
+  useMemo,
   useState,
   type CSSProperties,
   type RefObject,
@@ -14,11 +15,13 @@ import {
   type WorkspaceOverscroll,
   type WorkspaceScrollOrigin,
   type WorkspaceFitMode,
+  type ImageDisplaySize,
 } from "../lib/workspaceZoom";
 
 type WorkspaceZoomStyle = {
   className: string;
   effectiveScale: number | null;
+  imageSize: ImageDisplaySize | null;
   overscroll: WorkspaceOverscroll | null;
   pageFits: boolean;
   scrollOrigin: WorkspaceScrollOrigin | null;
@@ -59,7 +62,10 @@ export function useWorkspaceZoomStyle({
   });
   const imageAspect =
     observedImageSize?.revision === imageRevision ? observedImageSize : page;
-  return resolveWorkspaceZoomStyle({ container, fitMode, imageAspect, zoom });
+  return useMemo(
+    () => resolveWorkspaceZoomStyle({ container, fitMode, imageAspect, zoom }),
+    [container, fitMode, imageAspect, zoom],
+  );
 }
 
 function useObservedContainerSize(
@@ -112,6 +118,7 @@ function resolveWorkspaceZoomStyle({
     return {
       className: "",
       effectiveScale: null,
+      imageSize: null,
       overscroll: container ? { x: 0, y: 0 } : null,
       pageFits: false,
       scrollOrigin: null,
@@ -125,6 +132,7 @@ function resolveWorkspaceZoomStyle({
   return {
     className: "is-zoomed",
     effectiveScale: imageSize.width / imageAspect.width,
+    imageSize,
     overscroll,
     pageFits,
     scrollOrigin: resolveWorkspaceScrollOrigin(

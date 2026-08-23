@@ -8,12 +8,12 @@ import type { WorkspaceScrollOrigin } from "../lib/workspaceZoom";
 import type { AppWorkspaceProps } from "./appWorkspaceTypes";
 import { BubbleLayoutContextBar } from "./BubbleLayoutContextBar";
 import { WorkspaceContent } from "./WorkspaceContent";
+import { useWorkspaceZoomController } from "../hooks/useWorkspaceZoomController";
 
 export function AppWorkspace(props: AppWorkspaceProps): React.JSX.Element {
   const { t } = useTranslation("components");
   const { onEffectiveScaleChange, workspacePanelRef } = props;
   const stableActions = useStableWorkspaceActions(props);
-  const stableProps = { ...props, ...stableActions };
   const zoomStyle = useWorkspaceZoomStyle({
     containerRef: workspacePanelRef,
     fitMode: props.workspaceFitMode,
@@ -46,6 +46,28 @@ export function AppWorkspace(props: AppWorkspaceProps): React.JSX.Element {
     zoomStyle.effectiveScale,
     zoomStyle.pageFits,
   ]);
+  useWorkspaceZoomController({
+    controllerRef: props.workspaceZoomControllerRef,
+    fitMode: props.workspaceFitMode,
+    imageRef: props.imageRef,
+    layoutHeight: zoomStyle.imageSize?.height ?? null,
+    layoutWidth: zoomStyle.imageSize?.width ?? null,
+    onChangeZoom: props.onChangeWorkspaceZoom,
+    page: props.selectedPage,
+    pageFits: zoomStyle.pageFits,
+    panelRef: workspacePanelRef,
+    selectedBlockId: props.selectedBlockId,
+    selectedBlockIds: props.selectedBlockIds,
+    zoom: props.workspaceZoom,
+  });
+  const stableProps = React.useMemo(
+    () => ({
+      ...props,
+      ...stableActions,
+      stageSize: zoomStyle.imageSize ?? props.stageSize,
+    }),
+    [props, stableActions, zoomStyle.imageSize],
+  );
   return (
     <section className="workspace-shell">
       {props.selectedPage ? (
@@ -274,8 +296,18 @@ function didWorkspaceScrollOriginChange(
   if (!input.layoutReady || !input.scrollOrigin) return false;
   const previous = input.lastScrollOriginRef.current;
   if (!previous || previous.pageId !== pageId) return false;
+  const originChanged =
+    previous.x !== input.scrollOrigin.x || previous.y !== input.scrollOrigin.y;
+  if (!originChanged) return false;
+  const panel = input.workspacePanelRef.current;
+  if (!panel) return true;
+  // Follow a layout-origin change only while the camera is still at the last
+  // origin that this hook set. A zoom anchor or a user pan deliberately moves
+  // away from that point; a later ResizeObserver pass (for example when
+  // scrollbars appear) must not overwrite that camera position.
   return (
-    previous.x !== input.scrollOrigin.x || previous.y !== input.scrollOrigin.y
+    Math.abs(panel.scrollLeft - previous.x) < 0.5 &&
+    Math.abs(panel.scrollTop - previous.y) < 0.5
   );
 }
 

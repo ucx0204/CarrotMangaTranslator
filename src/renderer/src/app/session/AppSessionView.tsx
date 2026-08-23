@@ -72,12 +72,7 @@ export function AppSessionView({
   workspaceProps,
 }: AppSessionViewProps): React.JSX.Element {
   const stablePanelSessionValue = useStablePanelSessionValue(panelSessionValue);
-  const [workspaceEffectiveScale, setWorkspaceEffectiveScale] = React.useState(
-    workspaceProps.workspaceZoom,
-  );
-  React.useLayoutEffect(() => {
-    setWorkspaceEffectiveScale(workspaceProps.workspaceZoom);
-  }, [workspaceProps.selectedPage?.id, workspaceProps.workspaceZoom]);
+  const workspaceView = useWorkspaceViewState(workspaceProps);
   return (
     <PanelSessionContext.Provider value={stablePanelSessionValue}>
       <main className="app-shell">
@@ -85,19 +80,11 @@ export function AppSessionView({
         <div className="workspace-region">
           <AppWorkspace
             {...workspaceProps}
-            onEffectiveScaleChange={setWorkspaceEffectiveScale}
+            onEffectiveScaleChange={workspaceView.onEffectiveScaleChange}
           />
           <AppRightQuickRail
             {...rightRailProps}
-            workspaceViewControls={{
-              effectiveScale: workspaceEffectiveScale,
-              fitMode: workspaceProps.workspaceFitMode,
-              zoom: workspaceProps.workspaceZoom,
-              onChangeFitMode: workspaceProps.onChangeWorkspaceFitMode,
-              onResetZoom: workspaceProps.onResetWorkspaceZoom,
-              onZoomIn: workspaceProps.onZoomInWorkspace,
-              onZoomOut: workspaceProps.onZoomOutWorkspace,
-            }}
+            workspaceViewControls={workspaceView.controls}
           />
         </div>
         <AppRightRail {...rightRailProps} />
@@ -118,6 +105,51 @@ export function AppSessionView({
       <LibraryDropOverlay {...libraryDropOverlayProps} />
     </PanelSessionContext.Provider>
   );
+}
+
+function useWorkspaceViewState(
+  workspaceProps: AppSessionViewProps["workspaceProps"],
+): {
+  controls: React.ComponentProps<
+    typeof AppRightQuickRail
+  >["workspaceViewControls"];
+  onEffectiveScaleChange: (scale: number) => void;
+} {
+  const [effectiveScale, setEffectiveScale] = React.useState(
+    workspaceProps.workspaceZoom,
+  );
+  const onEffectiveScaleChange = React.useCallback((scale: number) => {
+    setEffectiveScale((current) =>
+      Math.round(current * 100) === Math.round(scale * 100) ? current : scale,
+    );
+  }, []);
+  const invokeZoom = React.useCallback(
+    (action: "in" | "out" | "reset") => {
+      const controller = workspaceProps.workspaceZoomControllerRef.current;
+      if (controller) {
+        if (action === "in") controller.zoomInAtSelection();
+        else if (action === "out") controller.zoomOutAtViewport();
+        else controller.resetAtViewport();
+        return;
+      }
+      if (action === "in") workspaceProps.onZoomInWorkspace();
+      else if (action === "out") workspaceProps.onZoomOutWorkspace();
+      else workspaceProps.onResetWorkspaceZoom();
+    },
+    [workspaceProps],
+  );
+  return {
+    controls: {
+      effectiveScale,
+      fitMode: workspaceProps.workspaceFitMode,
+      zoom: workspaceProps.workspaceZoom,
+      onChangeFitMode: workspaceProps.onChangeWorkspaceFitMode,
+      onResetZoom: () => invokeZoom("reset"),
+      onZoomIn: () => invokeZoom("in"),
+      onZoomOut: () => invokeZoom("out"),
+    },
+    onEffectiveScaleChange,
+  };
 }
 
 function SessionFloatingOverlays({

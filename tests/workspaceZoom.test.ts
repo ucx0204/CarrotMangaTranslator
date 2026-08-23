@@ -7,14 +7,21 @@ import {
   doesWorkspacePageFit,
   MAX_WORKSPACE_ZOOM,
   MIN_WORKSPACE_ZOOM,
+  stepWorkspaceZoom,
 } from "../src/renderer/src/lib/workspaceZoom";
 
 describe("clampWorkspaceZoom", () => {
-  it("snaps to the configured step and clamps to bounds", () => {
+  it("retains continuous precision and clamps to bounds", () => {
     expect(clampWorkspaceZoom(1.25)).toBe(1.25);
+    expect(clampWorkspaceZoom(1.01337)).toBe(1.0134);
     expect(clampWorkspaceZoom(10)).toBe(MAX_WORKSPACE_ZOOM);
     expect(clampWorkspaceZoom(0.1)).toBe(MIN_WORKSPACE_ZOOM);
     expect(clampWorkspaceZoom(Number.NaN)).toBe(1);
+  });
+
+  it("steps both toolbar zoom directions continuously", () => {
+    expect(stepWorkspaceZoom(1, "in")).toBe(1.12);
+    expect(stepWorkspaceZoom(1.12, "out")).toBe(1);
   });
 });
 
@@ -101,7 +108,7 @@ describe("computeWorkspaceImageSize", () => {
     expect(
       computeWorkspaceImageSize(1, "height", page, compactContainer),
     ).toEqual({
-      width: 533,
+      width: 533.333,
       height: 800,
     });
     expect(

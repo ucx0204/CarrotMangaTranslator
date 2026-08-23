@@ -14,6 +14,7 @@ import type {
 } from "../../../../shared/libraryTypes";
 import type { RegionSelectionState } from "../../lib/appHelpers";
 import { formatJobLabel } from "../../lib/jobProgress";
+import type { WorkspaceZoomController } from "../../lib/workspaceZoom";
 
 const EMPTY_JOB: JobState = {
   id: "idle",
@@ -44,6 +45,7 @@ export type AppSessionCoreState = {
   setSelectedPageId: Dispatch<SetStateAction<string | null>>;
   stageRef: RefObject<HTMLDivElement | null>;
   workspacePanelRef: RefObject<HTMLElement | null>;
+  workspaceZoomControllerRef: RefObject<WorkspaceZoomController | null>;
 };
 
 export function useAppSessionCoreState(): AppSessionCoreState {
@@ -65,6 +67,9 @@ export function useAppSessionCoreState(): AppSessionCoreState {
     progressText: t("job.status.idle"),
   }));
   const workspacePanelRef = useRef<HTMLElement | null>(null);
+  const workspaceZoomControllerRef = useRef<WorkspaceZoomController | null>(
+    null,
+  );
   const stageRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const currentChapterRef = useRef<ChapterSnapshot | null>(null);
@@ -102,5 +107,6 @@ export function useAppSessionCoreState(): AppSessionCoreState {
     setSelectedPageId,
     stageRef,
     workspacePanelRef,
+    workspaceZoomControllerRef,
   };
 }

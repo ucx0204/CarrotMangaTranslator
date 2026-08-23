@@ -116,8 +116,8 @@ function normalizeKeyboardKey(event: ComboEventLike): string {
   if (letter) {
     return letter;
   }
-  if (event.code === "NumpadAdd") {
-    return "NumpadAdd";
+  if (event.code === "NumpadAdd" || event.code === "NumpadSubtract") {
+    return event.code;
   }
   return event.key;
 }
@@ -135,6 +135,7 @@ const NAMED_KEY_LABELS: Record<string, string> = {
   enter: "Enter",
   escape: "Esc",
   numpadadd: "+",
+  numpadsubtract: "−",
   pagedown: "Page Down",
   pageup: "Page Up",
   tab: "Tab",

@@ -62,6 +62,15 @@ export function useAppSessionShortcuts({
   useShortcutDispatcher({
     context,
     handlers,
+    holdHandlers: {
+      "stage-tool-hand": {
+        onPress: () => {
+          core.setRegionSelection(null);
+          uiState.beginTemporaryHandTool();
+        },
+        onRelease: uiState.endTemporaryHandTool,
+      },
+    },
     overrides: chapter.settingsDialog.settings?.keybindings ?? {},
   });
 }
@@ -99,9 +108,21 @@ function createWorkspaceShortcutHandlers(
     "toggle-block-chrome": () => uiState.setShowBlockChrome((value) => !value),
     "toggle-text-blocks": () => uiState.setShowTextBlocks((value) => !value),
     "toggle-peek-original": () => uiState.setPeekOriginal((value) => !value),
-    "zoom-in": () => uiState.zoomInWorkspace(),
-    "zoom-out": () => uiState.zoomOutWorkspace(),
-    "zoom-reset": () => uiState.resetWorkspaceZoom(),
+    "zoom-in": () => {
+      const controller = chapter.core.workspaceZoomControllerRef?.current;
+      if (controller) controller.zoomInAtSelection();
+      else uiState.zoomInWorkspace();
+    },
+    "zoom-out": () => {
+      const controller = chapter.core.workspaceZoomControllerRef?.current;
+      if (controller) controller.zoomOutAtViewport();
+      else uiState.zoomOutWorkspace();
+    },
+    "zoom-reset": () => {
+      const controller = chapter.core.workspaceZoomControllerRef?.current;
+      if (controller) controller.resetAtViewport();
+      else uiState.resetWorkspaceZoom();
+    },
     "zoom-fit-contain": () => uiState.setWorkspaceFitMode("contain"),
     "zoom-fit-width": () => uiState.setWorkspaceFitMode("width"),
     "zoom-fit-height": () => uiState.setWorkspaceFitMode("height"),

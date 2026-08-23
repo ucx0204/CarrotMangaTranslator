@@ -143,6 +143,7 @@ export function useWorkspacePointerHandlers(
     interactionPreviewStore,
   );
   const panHandlers = useWorkspacePanHandlers({
+    active: options.stageTool === "hand",
     stageRef: options.stageRef,
     workspacePanelRef: options.workspacePanelRef,
   });
