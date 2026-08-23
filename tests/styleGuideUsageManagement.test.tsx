@@ -123,6 +123,81 @@ describe("style guide usage management", () => {
     );
   });
 
+  it("pins a new glossary row above search results, focuses it, and completes it into sorting", () => {
+    render(<StatefulGlossaryTab />);
+    fireEvent.change(screen.getByLabelText("이름·번역·별칭 검색"), {
+      target: { value: "일치하지 않음" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "행 추가" }));
+    const draftSource = screen.getByPlaceholderText("원문");
+    expect(draftSource.closest(".style-guide-row")?.classList).toContain(
+      "is-draft",
+    );
+    expect(document.activeElement).toBe(draftSource);
+    expect(screen.queryByText("조건에 맞는 항목이 없습니다.")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "행 추가" }));
+    expect(screen.getAllByPlaceholderText("원문")).toHaveLength(1);
+    expect(document.activeElement).toBe(draftSource);
+
+    fireEvent.change(draftSource, { target: { value: "Zeta" } });
+    fireEvent.change(screen.getByPlaceholderText("번역"), {
+      target: { value: "제타" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "새 행 입력 완료" }));
+    expect(screen.getByText("조건에 맞는 항목이 없습니다.")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("이름·번역·별칭 검색"), {
+      target: { value: "" },
+    });
+    chooseCustomSelectOption("정렬", "이름");
+    expect(glossarySourceOrder()).toEqual(["Alpha", "Beta", "Zeta"]);
+    expect(
+      screen
+        .getByDisplayValue("Zeta")
+        .closest(".style-guide-row")
+        ?.classList.contains("is-draft"),
+    ).toBe(false);
+  });
+
+  it("cancels empty glossary and character drafts without leaving rows behind", () => {
+    const { unmount } = render(<StatefulGlossaryTab />);
+    fireEvent.click(screen.getByRole("button", { name: "행 추가" }));
+    fireEvent.click(screen.getByRole("button", { name: "새 행 입력 취소" }));
+    expect(glossarySourceOrder()).toEqual(["Beta", "Alpha"]);
+    unmount();
+
+    render(<StatefulCharactersTab />);
+    fireEvent.click(screen.getByRole("button", { name: "행 추가" }));
+    const sourceNameInputs = screen.getAllByPlaceholderText("원문 이름");
+    expect((sourceNameInputs[0] as HTMLInputElement).value).toBe("");
+    expect(document.activeElement).toBe(sourceNameInputs[0]);
+    fireEvent.click(screen.getByRole("button", { name: "새 행 입력 취소" }));
+    expect(screen.getAllByPlaceholderText("원문 이름")).toHaveLength(2);
+  });
+
+  it("keeps an unfinished glossary row pinned after visiting another tab", () => {
+    const { rerender } = render(<StatefulTabContent tab="glossary" />);
+    fireEvent.click(screen.getByRole("button", { name: "행 추가" }));
+    const draftInput = screen
+      .getAllByPlaceholderText("원문")
+      .find((input) => (input as HTMLInputElement).required);
+    expect(draftInput).toBeTruthy();
+    fireEvent.change(draftInput as HTMLInputElement, {
+      target: { value: "작성 중" },
+    });
+
+    rerender(<StatefulTabContent tab="characters" />);
+    rerender(<StatefulTabContent tab="glossary" />);
+
+    const restored = screen.getByDisplayValue("작성 중");
+    expect(restored.closest(".style-guide-row")?.classList).toContain(
+      "is-draft",
+    );
+    expect(document.activeElement).toBe(restored);
+  });
+
   it("shows only the mention count and keeps detailed usage in a tooltip", () => {
     const onGuideChange = vi.fn();
     render(
@@ -363,6 +438,48 @@ function glossarySourceOrder(): string[] {
   return screen
     .getAllByPlaceholderText("원문")
     .map((input) => (input as HTMLInputElement).value);
+}
+
+function StatefulGlossaryTab(): React.JSX.Element {
+  const [guide, setGuide] = React.useState(makeGuide);
+  return (
+    <GlossaryTab guide={guide} onGuideChange={setGuide} usage={makeUsage()} />
+  );
+}
+
+function StatefulCharactersTab(): React.JSX.Element {
+  const [guide, setGuide] = React.useState(makeGuide);
+  return (
+    <CharactersTab
+      guide={guide}
+      onGuideChange={setGuide}
+      usage={makeCharacterUsage()}
+    />
+  );
+}
+
+function StatefulTabContent({
+  tab,
+}: {
+  tab: "glossary" | "characters";
+}): React.JSX.Element {
+  const [guide, setGuide] = React.useState(makeGuide);
+  return (
+    <StyleGuideTabContent
+      busy={false}
+      guide={guide}
+      memory={null}
+      onGuideChange={setGuide}
+      onMemoryChange={() => undefined}
+      tab={tab}
+      usage={{
+        workId: guide.workId,
+        glossary: makeUsage(),
+        characters: makeCharacterUsage(),
+      }}
+      usageStatus="ready"
+    />
+  );
 }
 
 function makeGuide(): WorkStyleGuide {

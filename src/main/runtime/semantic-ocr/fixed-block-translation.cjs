@@ -18,6 +18,9 @@ const {
 } = require("../prompts/ocr-semantic-slots.cjs");
 const { readOcrCandidateText } = require("../prompts/ocr-text.cjs");
 const {
+  omitGlossaryTermsFromPromptText,
+} = require("../prompts/glossary-omission.cjs");
+const {
   isJapaneseLanguageCode,
   resolvePromptLanguageProfile,
 } = require("../simple-page-language-profile.cjs");
@@ -305,7 +308,9 @@ function buildFixedBlockTranslationPrompt(plan, options = {}) {
       : []),
     contextText,
     "Return only the schema-constrained JSON object.",
-    `fixedBlocks=${JSON.stringify(plan.blocks.map(compactFixedBlock))}`,
+    `fixedBlocks=${JSON.stringify(
+      plan.blocks.map((block) => compactFixedBlock(block, options)),
+    )}`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -338,11 +343,17 @@ function buildFixedBlockFontRoleLines(options) {
   ];
 }
 
-/** @param {FixedBlock} block */
-function compactFixedBlock(block) {
+/** @param {FixedBlock} block @param {FixedBlockOptions} options */
+function compactFixedBlock(block, options) {
+  const promptSource = omitGlossaryTermsFromPromptText(
+    block.jp,
+    options.glossaryOmissionTerms,
+  );
   return {
     blockId: block.blockId,
-    jp: block.jp,
+    // The immutable plan retains the original OCR source for recovery and
+    // editing; only the model-facing copy may become empty here.
+    jp: promptSource,
     direction: block.direction,
     bbox: block.bbox,
   };

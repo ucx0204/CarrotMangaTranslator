@@ -37,6 +37,12 @@ export function StyleGuideTabContent({
   usageStatus?: WorkContextUsageStatus;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
+  const [glossaryDraftId, setGlossaryDraftId] = React.useState<string | null>(
+    null,
+  );
+  const [characterDraftId, setCharacterDraftId] = React.useState<string | null>(
+    null,
+  );
   const panelId = `style-guide-panel-${tab}`;
   const tabId = `style-guide-tab-${tab}`;
   if (busy || !guide) {
@@ -56,6 +62,8 @@ export function StyleGuideTabContent({
       <GlossaryTab
         guide={guide}
         onGuideChange={onGuideChange}
+        draftId={glossaryDraftId}
+        onDraftIdChange={setGlossaryDraftId}
         usage={usage?.glossary ?? []}
         usageAvailable={usageStatus !== "error"}
       />
@@ -64,6 +72,8 @@ export function StyleGuideTabContent({
       <CharactersTab
         guide={guide}
         onGuideChange={onGuideChange}
+        draftId={characterDraftId}
+        onDraftIdChange={setCharacterDraftId}
         usage={usage?.characters ?? []}
         usageAvailable={usageStatus !== "error"}
       />

@@ -15,19 +15,23 @@ type ContextEntryBase = {
   origin?: "ai" | "manual";
 };
 
+type ContextEntryListOptions<TEntry extends ContextEntryBase> = {
+  entries: TEntry[];
+  usage: WorkContextUsageMetric[];
+  usageAvailable?: boolean;
+  getName: (entry: TEntry) => string;
+  getSearchText: (entry: TEntry) => string;
+  pinnedEntryId?: string | null;
+};
+
 export function useContextEntryList<TEntry extends ContextEntryBase>({
   entries,
   usage,
   usageAvailable = true,
   getName,
   getSearchText,
-}: {
-  entries: TEntry[];
-  usage: WorkContextUsageMetric[];
-  usageAvailable?: boolean;
-  getName: (entry: TEntry) => string;
-  getSearchText: (entry: TEntry) => string;
-}) {
+  pinnedEntryId = null,
+}: ContextEntryListOptions<TEntry>) {
   const [query, setQuery] = React.useState("");
   const [filter, setFilter] = React.useState<ContextEntryFilter>("all");
   const [sort, setSort] = React.useState<ContextEntrySort>("usage");
@@ -38,32 +42,25 @@ export function useContextEntryList<TEntry extends ContextEntryBase>({
     () => new Map(usage.map((metric) => [metric.id, metric])),
     [usage],
   );
-  const visibleEntries = React.useMemo(
-    () =>
-      filterAndSortEntries({
-        entries,
-        filter,
-        getName,
-        getSearchText,
-        query,
-        sort,
-        usageById,
-      }),
-    [entries, filter, getName, getSearchText, query, sort, usageById],
-  );
+  const { pinnedEntry, visibleEntries } = useVisibleContextEntries({
+    entries,
+    filter,
+    getName,
+    getSearchText,
+    pinnedEntryId,
+    query,
+    sort,
+    usageById,
+  });
   usePruneSelection(entries, setSelectedIds);
-  React.useEffect(() => {
-    setSelectedIds(new Set());
-  }, [filter, query]);
-  React.useEffect(() => {
-    if (usageAvailable) return;
-    setFilter((current) =>
-      current === "unused" || current === "low-use" ? "all" : current,
-    );
-    setSort((current) =>
-      current === "usage" || current === "recent" ? "stored" : current,
-    );
-  }, [usageAvailable]);
+  useContextEntryListEffects({
+    filter,
+    query,
+    setFilter,
+    setSelectedIds,
+    setSort,
+    usageAvailable,
+  });
 
   const toggleSelected = (id: string): void => {
     setSelectedIds((current) => toggleSetValue(current, id));
@@ -86,11 +83,160 @@ export function useContextEntryList<TEntry extends ContextEntryBase>({
     selectedIds,
     setSelectedIds,
     toggleSelected,
+    pinnedEntry,
     visibleEntries,
     usageById,
     allVisibleSelected,
     toggleAllVisible,
   };
+}
+
+function useVisibleContextEntries<TEntry extends ContextEntryBase>({
+  entries,
+  filter,
+  getName,
+  getSearchText,
+  pinnedEntryId,
+  query,
+  sort,
+  usageById,
+}: Omit<ContextEntryListOptions<TEntry>, "usage" | "usageAvailable"> & {
+  filter: ContextEntryFilter;
+  query: string;
+  sort: ContextEntrySort;
+  usageById: Map<string, WorkContextUsageMetric>;
+}): { pinnedEntry: TEntry | undefined; visibleEntries: TEntry[] } {
+  const pinnedEntry = React.useMemo(
+    () => entries.find((entry) => entry.id === pinnedEntryId),
+    [entries, pinnedEntryId],
+  );
+  const visibleEntries = React.useMemo(
+    () =>
+      filterAndSortEntries({
+        entries: pinnedEntryId
+          ? entries.filter((entry) => entry.id !== pinnedEntryId)
+          : entries,
+        filter,
+        getName,
+        getSearchText,
+        query,
+        sort,
+        usageById,
+      }),
+    [
+      entries,
+      filter,
+      getName,
+      getSearchText,
+      pinnedEntryId,
+      query,
+      sort,
+      usageById,
+    ],
+  );
+  return { pinnedEntry, visibleEntries };
+}
+
+export function useContextEntryDraft<TEntry extends ContextEntryBase>({
+  entries,
+  isComplete,
+  onRemove,
+  draftId: controlledDraftId,
+  onDraftIdChange,
+}: {
+  entries: readonly TEntry[];
+  isComplete: (entry: TEntry) => boolean;
+  onRemove: (id: string) => void;
+  draftId?: string | null;
+  onDraftIdChange?: (id: string | null) => void;
+}) {
+  const [localDraftId, setLocalDraftId] = React.useState<string | null>(null);
+  const [focusRequest, setFocusRequest] = React.useState(0);
+  const primaryInputRef = React.useRef<HTMLInputElement>(null);
+  const draftId =
+    controlledDraftId === undefined ? localDraftId : controlledDraftId;
+  const draftEntry = entries.find((entry) => entry.id === draftId);
+  const setDraftId = React.useCallback(
+    (id: string | null): void => {
+      if (controlledDraftId === undefined) setLocalDraftId(id);
+      onDraftIdChange?.(id);
+    },
+    [controlledDraftId, onDraftIdChange],
+  );
+
+  React.useEffect(() => {
+    if (draftId && !draftEntry) setDraftId(null);
+  }, [draftEntry, draftId, setDraftId]);
+
+  React.useLayoutEffect(() => {
+    if (!draftEntry) return;
+    const input = primaryInputRef.current;
+    const row = input?.closest(".style-guide-row") ?? input;
+    if (row && "scrollIntoView" in row) {
+      row.scrollIntoView({ block: "start", inline: "nearest" });
+    }
+    input?.focus();
+  }, [draftEntry, focusRequest]);
+
+  const focus = (): void => setFocusRequest((value) => value + 1);
+  const begin = (entry: TEntry): void => {
+    setDraftId(entry.id);
+    setFocusRequest((value) => value + 1);
+  };
+  const complete = (): void => {
+    if (!draftEntry) return;
+    if (!isComplete(draftEntry)) {
+      primaryInputRef.current?.reportValidity();
+      primaryInputRef.current?.focus();
+      return;
+    }
+    setDraftId(null);
+  };
+  const cancel = (): void => {
+    if (!draftEntry) return;
+    onRemove(draftEntry.id);
+    setDraftId(null);
+  };
+
+  return {
+    begin,
+    cancel,
+    complete,
+    draftEntry,
+    draftId,
+    focus,
+    primaryInputRef,
+  };
+}
+
+function useContextEntryListEffects({
+  filter,
+  query,
+  setFilter,
+  setSelectedIds,
+  setSort,
+  usageAvailable,
+}: {
+  filter: ContextEntryFilter;
+  query: string;
+  setFilter: React.Dispatch<React.SetStateAction<ContextEntryFilter>>;
+  setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>;
+  setSort: React.Dispatch<React.SetStateAction<ContextEntrySort>>;
+  usageAvailable: boolean;
+}): void {
+  React.useEffect(
+    () => setSelectedIds(new Set()),
+    [filter, query, setSelectedIds],
+  );
+  React.useEffect(() => {
+    if (usageAvailable) return;
+    setFilter((current) =>
+      current === "unused" || current === "low-use" ? "all" : current,
+    );
+    setSort((current) =>
+      current === "usage" || current === "recent" ? "stored" : current,
+    );
+  }, [setFilter, setSort, usageAvailable]);
 }
 
 function filterAndSortEntries<TEntry extends ContextEntryBase>({

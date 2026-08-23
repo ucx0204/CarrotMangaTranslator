@@ -4,7 +4,7 @@ import type { WorkContextUsageMetric } from "../../../../shared/workContextUsage
 import { Button } from "../ui/Button";
 import { ControlTooltip } from "../ui/ControlTooltip";
 import { IconButton } from "../ui/IconButton";
-import { TrashIcon } from "../ui/icons";
+import { CheckCircleIcon, CloseIcon, TrashIcon } from "../ui/icons";
 import { Select } from "../ui/Select";
 import type {
   ContextEntryFilter,
@@ -32,6 +32,7 @@ type ContextEntrySectionModel<Entry> = {
   sort: ContextEntrySort;
   setSort: (value: ContextEntrySort) => void;
   selectedIds: ReadonlySet<string>;
+  pinnedEntry?: Entry;
   visibleEntries: readonly Entry[];
 };
 
@@ -41,6 +42,7 @@ export function ContextEntrySection<Entry>({
   entryList,
   onAdd,
   onDeleteSelected,
+  notice,
   title,
   totalCount,
   usageAvailable,
@@ -50,6 +52,7 @@ export function ContextEntrySection<Entry>({
   entryList: ContextEntrySectionModel<Entry>;
   onAdd: () => void;
   onDeleteSelected: () => void;
+  notice?: string;
   title: string;
   totalCount: number;
   usageAvailable: boolean;
@@ -75,7 +78,8 @@ export function ContextEntrySection<Entry>({
           onDeleteSelected={onDeleteSelected}
           usageAvailable={usageAvailable}
         />
-        {entryList.visibleEntries.length ? (
+        {notice ? <p className="style-guide-list-notice">{notice}</p> : null}
+        {entryList.pinnedEntry || entryList.visibleEntries.length ? (
           children
         ) : (
           <p className="style-guide-table-empty">
@@ -84,6 +88,59 @@ export function ContextEntrySection<Entry>({
         )}
       </section>
     </div>
+  );
+}
+
+function ContextEntryDraftActions({
+  onCancel,
+  onComplete,
+}: {
+  onCancel: () => void;
+  onComplete: () => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <div className="style-guide-draft-actions">
+      <IconButton
+        className="style-guide-draft-complete"
+        size="sm"
+        label={t("styleGuide.draft.complete")}
+        onClick={onComplete}
+      >
+        <CheckCircleIcon size={15} />
+      </IconButton>
+      <IconButton
+        size="sm"
+        variant="danger"
+        label={t("styleGuide.draft.cancel")}
+        onClick={onCancel}
+      >
+        <CloseIcon size={15} />
+      </IconButton>
+    </div>
+  );
+}
+
+export function ContextEntryRowActions({
+  draft = false,
+  name,
+  onCancelDraft,
+  onCompleteDraft,
+  onRemove,
+}: {
+  draft?: boolean;
+  name: string;
+  onCancelDraft?: () => void;
+  onCompleteDraft?: () => void;
+  onRemove: () => void;
+}): React.JSX.Element {
+  return draft && onCompleteDraft && onCancelDraft ? (
+    <ContextEntryDraftActions
+      onComplete={onCompleteDraft}
+      onCancel={onCancelDraft}
+    />
+  ) : (
+    <ContextEntryDeleteButton name={name} onClick={onRemove} />
   );
 }
 
@@ -199,7 +256,7 @@ export function ContextEntryEnabledToggle({
   );
 }
 
-export function ContextEntryDeleteButton({
+function ContextEntryDeleteButton({
   name,
   onClick,
 }: {

@@ -193,6 +193,8 @@ export type TranslationOptions = {
   abortSignal?: AbortSignal;
   workContext?: PromptWorkContext;
   workContextBudget?: WorkContextBudgetPlan;
+  /** Enabled glossary sources/aliases whose intentionally empty target omits them. */
+  glossaryOmissionTerms?: string[];
 };
 
 export type TranslationOptionPaths = {

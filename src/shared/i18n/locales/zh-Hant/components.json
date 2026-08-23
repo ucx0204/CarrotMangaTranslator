@@ -991,6 +991,10 @@
       "failed": "無法重設全部術語和記憶。"
     },
     "addRow": "新增行",
+    "draft": {
+      "complete": "完成新列輸入",
+      "cancel": "取消新列"
+    },
     "note": "備註",
     "analysis": {
       "ariaLabel": "AI 術語與記憶分析",
@@ -1059,6 +1063,7 @@
     },
     "glossary": {
       "empty": "尚未建立任何術語。請從「分析目前章節」、「整個作品」或「新增行」開始。",
+      "omissionHint": "將啟用項目的譯文留空，可從翻譯輸入與輸出中排除該原文及其別名。",
       "source": "原文",
       "translation": "譯文",
       "category": "分類",

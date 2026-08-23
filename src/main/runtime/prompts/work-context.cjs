@@ -19,7 +19,12 @@ function buildWorkContextSection(options = {}) {
   }
   const context = options.workContext;
   if (!context || !context.styleGuide) {
-    return [];
+    /** @type {PromptSection} */
+    const omissionOnlyLines = [];
+    appendOmissionLines(omissionOnlyLines, options.glossaryOmissionTerms);
+    return omissionOnlyLines.length > 0
+      ? ["Translation omission rules", ...omissionOnlyLines]
+      : [];
   }
 
   const guide = context.styleGuide;
@@ -32,6 +37,7 @@ function buildWorkContextSection(options = {}) {
     readEnabledGlossary(guide.glossary),
     targetIsKorean,
   );
+  appendOmissionLines(lines, options.glossaryOmissionTerms);
   appendCharacterLines(
     lines,
     readEnabledCharacters(guide.characters),
@@ -59,8 +65,30 @@ function buildWorkContextIntroduction(regionCropMode) {
  */
 function readEnabledGlossary(glossary) {
   return Array.isArray(glossary)
-    ? glossary.filter((entry) => entry && entry.enabled !== false)
+    ? glossary.filter(
+        (entry) =>
+          entry &&
+          entry.enabled !== false &&
+          String(entry.target ?? "").trim().length > 0,
+      )
     : [];
+}
+
+/**
+ * @param {PromptSection} lines
+ * @param {unknown} rawTerms
+ * @returns {void}
+ */
+function appendOmissionLines(lines, rawTerms) {
+  const terms = Array.isArray(rawTerms)
+    ? rawTerms.map((value) => sanitizePromptLine(value, 80)).filter(Boolean)
+    : [];
+  if (terms.length === 0) return;
+  lines.push(
+    "Exact omission rules. The app has removed these source strings from the translation-input copy. Do not translate, transliterate, paraphrase, or restore them from Image 1, OCR, previous passes, or story memory.",
+    "If an omitted source punctuation mark was at the end, do not add its corresponding target-language punctuation.",
+    ...terms.slice(0, 80).map((term) => `- omit exactly: ${term}`),
+  );
 }
 
 /**

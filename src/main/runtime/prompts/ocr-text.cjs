@@ -7,6 +7,7 @@ const {
   resolvePromptLanguageProfile,
 } = require("../simple-page-language-profile.cjs");
 const { truncateText } = require("./model-profile.cjs");
+const { omitGlossaryTermsFromPromptText } = require("./glossary-omission.cjs");
 
 /**
  * @param {unknown} value
@@ -99,8 +100,12 @@ function sanitizeOcrTextForPrompt(value, options = {}) {
           options.workContext,
         )
       : normalized;
+  const promptSourceText = omitGlossaryTermsFromPromptText(
+    sourceText,
+    options.glossaryOmissionTerms,
+  );
   return truncateText(
-    sourceText
+    promptSourceText
       .replace(/[\u0000-\u001F\u007F]+/g, " ")
       .replace(/\s+/g, " ")
       .trim(),

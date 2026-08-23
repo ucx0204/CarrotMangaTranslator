@@ -9,13 +9,16 @@ import { CheckboxField } from "../ui/CheckboxField";
 import { Select } from "../ui/Select";
 import type { StyleGuideEditorProps } from "./styleGuideTypes";
 import {
-  ContextEntryDeleteButton,
   ContextEntryEnabledToggle,
+  ContextEntryRowActions,
   ContextEntrySection,
   ContextEntryUsageCount,
 } from "./ContextEntryList";
 import { createContextEntryActions } from "./contextEntryActions";
-import { useContextEntryList } from "./contextEntryListModel";
+import {
+  useContextEntryDraft,
+  useContextEntryList,
+} from "./contextEntryListModel";
 import {
   makeCharacterProfile,
   SPEECH_STYLE_IDS,
@@ -27,20 +30,26 @@ export function CharactersTab({
   onGuideChange,
   usage = [],
   usageAvailable = true,
+  draftId,
+  onDraftIdChange,
 }: StyleGuideEditorProps & {
   usage?: WorkContextUsageMetric[];
   usageAvailable?: boolean;
+  draftId?: string | null;
+  onDraftIdChange?: (id: string | null) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
+  const draft = useCharacterDraft({
+    guide,
+    onGuideChange,
+    draftId,
+    onDraftIdChange,
+  });
   const entryList = useContextEntryList({
     entries: guide.characters,
     usage,
     usageAvailable,
-    getName: (character) =>
-      character.displayName ||
-      character.targetName ||
-      character.sourceNames[0] ||
-      "",
+    getName: getCharacterName,
     getSearchText: (character) =>
       [
         character.displayName,
@@ -49,6 +58,7 @@ export function CharactersTab({
         ...(character.aliases ?? []),
         character.note ?? "",
       ].join(" "),
+    pinnedEntryId: draft.draftId,
   });
   const actions = useCharacterActions({
     guide,
@@ -63,11 +73,19 @@ export function CharactersTab({
       title={t("styleGuide.characters.title")}
       totalCount={guide.characters.length}
       usageAvailable={usageAvailable}
-      onAdd={actions.add}
+      onAdd={() => {
+        if (draft.draftEntry) {
+          draft.focus();
+          return;
+        }
+        draft.begin(actions.add());
+      }}
       onDeleteSelected={actions.removeSelected}
     >
       <CharactersTable
         characters={entryList.visibleEntries}
+        draftCharacter={draft.draftEntry}
+        draftInputRef={draft.primaryInputRef}
         usageById={entryList.usageById}
         selectedIds={entryList.selectedIds}
         allVisibleSelected={entryList.allVisibleSelected}
@@ -75,9 +93,42 @@ export function CharactersTab({
         onToggleSelected={entryList.toggleSelected}
         onUpdate={actions.update}
         onRemove={actions.remove}
+        onCompleteDraft={draft.complete}
+        onCancelDraft={draft.cancel}
         usageAvailable={usageAvailable}
       />
     </ContextEntrySection>
+  );
+}
+
+function useCharacterDraft({
+  guide,
+  onGuideChange,
+  draftId,
+  onDraftIdChange,
+}: StyleGuideEditorProps & {
+  draftId?: string | null;
+  onDraftIdChange?: (id: string | null) => void;
+}) {
+  return useContextEntryDraft({
+    entries: guide.characters,
+    isComplete: (entry) => Boolean(getCharacterName(entry).trim()),
+    onRemove: (id) =>
+      onGuideChange({
+        ...guide,
+        characters: guide.characters.filter((entry) => entry.id !== id),
+      }),
+    draftId,
+    onDraftIdChange,
+  });
+}
+
+function getCharacterName(character: CharacterProfile): string {
+  return (
+    character.displayName ||
+    character.targetName ||
+    character.sourceNames.find((value) => value.trim()) ||
+    ""
   );
 }
 
@@ -102,18 +153,10 @@ function useCharacterActions({
   });
 }
 
-function CharactersTable({
-  characters,
-  usageById,
-  selectedIds,
-  allVisibleSelected,
-  onToggleAll,
-  onToggleSelected,
-  onUpdate,
-  onRemove,
-  usageAvailable,
-}: {
+type CharactersTableProps = {
   characters: CharacterProfile[];
+  draftCharacter?: CharacterProfile;
+  draftInputRef: React.RefObject<HTMLInputElement | null>;
   usageById: Map<string, WorkContextUsageMetric>;
   selectedIds: Set<string>;
   allVisibleSelected: boolean;
@@ -121,8 +164,26 @@ function CharactersTable({
   onToggleSelected: (id: string) => void;
   onUpdate: (id: string, patch: Partial<CharacterProfile>) => void;
   onRemove: (id: string) => void;
+  onCompleteDraft: () => void;
+  onCancelDraft: () => void;
   usageAvailable: boolean;
-}): React.JSX.Element {
+};
+
+function CharactersTable({
+  characters,
+  draftCharacter,
+  draftInputRef,
+  usageById,
+  selectedIds,
+  allVisibleSelected,
+  onToggleAll,
+  onToggleSelected,
+  onUpdate,
+  onRemove,
+  onCompleteDraft,
+  onCancelDraft,
+  usageAvailable,
+}: CharactersTableProps): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
     <div className="style-guide-table">
@@ -147,6 +208,21 @@ function CharactersTable({
         </span>
         <span />
       </div>
+      {draftCharacter ? (
+        <CharacterRow
+          character={draftCharacter}
+          draft
+          primaryInputRef={draftInputRef}
+          usage={undefined}
+          selected={false}
+          onToggleSelected={() => undefined}
+          onUpdate={(patch) => onUpdate(draftCharacter.id, patch)}
+          onRemove={() => onRemove(draftCharacter.id)}
+          onCompleteDraft={onCompleteDraft}
+          onCancelDraft={onCancelDraft}
+          usageAvailable={usageAvailable}
+        />
+      ) : null}
       {characters.map((character) => (
         <CharacterRow
           key={character.id}
@@ -163,39 +239,48 @@ function CharactersTable({
   );
 }
 
-function CharacterRow({
-  character,
-  usage,
-  selected,
-  onToggleSelected,
-  onUpdate,
-  onRemove,
-  usageAvailable,
-}: {
+type CharacterRowProps = {
   character: CharacterProfile;
+  draft?: boolean;
+  primaryInputRef?: React.Ref<HTMLInputElement>;
   usage: WorkContextUsageMetric | undefined;
   selected: boolean;
   onToggleSelected: () => void;
   onUpdate: (patch: Partial<CharacterProfile>) => void;
   onRemove: () => void;
+  onCompleteDraft?: () => void;
+  onCancelDraft?: () => void;
   usageAvailable: boolean;
-}): React.JSX.Element {
+};
+
+function CharacterRow({
+  character,
+  draft = false,
+  primaryInputRef,
+  usage,
+  selected,
+  onToggleSelected,
+  onUpdate,
+  onRemove,
+  onCompleteDraft,
+  onCancelDraft,
+  usageAvailable,
+}: CharacterRowProps): React.JSX.Element {
   const { t } = useTranslation("components");
-  const name =
-    character.displayName ||
-    character.targetName ||
-    character.sourceNames[0] ||
-    "";
+  const name = getCharacterName(character);
   return (
-    <div className="style-guide-row character">
+    <div className={`style-guide-row character${draft ? " is-draft" : ""}`}>
       <CharacterPrimaryFields
         character={character}
+        draft={draft}
         name={name}
         selected={selected}
         onToggleSelected={onToggleSelected}
         onUpdate={onUpdate}
       />
       <input
+        ref={primaryInputRef}
+        required={draft && !name.trim()}
         value={character.sourceNames.join(", ")}
         placeholder={t("styleGuide.characters.sourceNames")}
         onChange={(event) =>
@@ -236,19 +321,27 @@ function CharacterRow({
         name={name}
         onChange={(enabled) => onUpdate({ enabled })}
       />
-      <ContextEntryDeleteButton name={name} onClick={onRemove} />
+      <ContextEntryRowActions
+        draft={draft}
+        name={name}
+        onCompleteDraft={onCompleteDraft}
+        onCancelDraft={onCancelDraft}
+        onRemove={onRemove}
+      />
     </div>
   );
 }
 
 function CharacterPrimaryFields({
   character,
+  draft,
   name,
   selected,
   onToggleSelected,
   onUpdate,
 }: {
   character: CharacterProfile;
+  draft: boolean;
   name: string;
   selected: boolean;
   onToggleSelected: () => void;
@@ -257,12 +350,16 @@ function CharacterPrimaryFields({
   const { t } = useTranslation("components");
   return (
     <>
-      <CheckboxField
-        className="inline-toggle"
-        checked={selected}
-        ariaLabel={t("styleGuide.usage.selectItem", { name })}
-        onCheckedChange={() => onToggleSelected()}
-      />
+      {draft ? (
+        <span className="style-guide-draft-marker" aria-hidden="true" />
+      ) : (
+        <CheckboxField
+          className="inline-toggle"
+          checked={selected}
+          ariaLabel={t("styleGuide.usage.selectItem", { name })}
+          onCheckedChange={() => onToggleSelected()}
+        />
+      )}
       <input
         value={character.displayName}
         placeholder={t("styleGuide.characters.displayName")}

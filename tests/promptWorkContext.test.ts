@@ -43,6 +43,44 @@ describe("prompt work context", () => {
       "Use exactly these keys, one per line: id, type, textRole, x1, y1, x2, y2, direction, angle, fontSize, confidence, jp, ko.",
     );
   });
+
+  it("explains active omission rules and removes them from OCR prompt copies", () => {
+    const context = buildPromptWorkContextForPage({
+      baseStyleGuide: makeStyleGuide(),
+      storyMemory: makeStoryMemory(),
+      pageId: "page-4",
+      pageIndex: 4,
+      recentPageCount: 2,
+    });
+    const prompt = promptRuntime.getOverlayPrompt(
+      {
+        imageWidth: 1000,
+        imageHeight: 1400,
+        sourceLanguage: "ja",
+        targetLanguage: "ko",
+        workContext: context,
+        glossaryOmissionTerms: ["。", "．"],
+        ocrBboxHints: [
+          {
+            id: 1,
+            label: "ocr_textline",
+            x1: 10,
+            y1: 20,
+            x2: 200,
+            y2: 80,
+            ocrText: "こんにちは。",
+          },
+        ],
+      },
+      [{ role: "original", dataUrl: "data:image/png;base64,abc" }],
+    );
+
+    expect(prompt).toContain("Exact omission rules");
+    expect(prompt).toContain("- omit exactly: 。");
+    expect(prompt).not.toContain("。 =>");
+    expect(prompt).toContain('ocrText:"こんにちは"');
+    expect(prompt).not.toContain('ocrText:"こんにちは。"');
+  });
 });
 
 function makeStyleGuide(): WorkStyleGuide {
@@ -68,6 +106,16 @@ function makeStyleGuide(): WorkStyleGuide {
         target: "비활성",
         category: "term",
         enabled: false,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "glossary-omit",
+        source: "。",
+        target: "",
+        category: "term",
+        aliases: ["．"],
+        enabled: true,
         createdAt: now,
         updatedAt: now,
       },

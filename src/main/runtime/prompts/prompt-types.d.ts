@@ -30,6 +30,7 @@ export type PromptOptions = {
   autoFontMatching?: unknown;
   previousBlocksForPrompt?: PreviousPromptBlock[];
   workContext?: PromptWorkContext | null;
+  glossaryOmissionTerms?: unknown[];
   imageWidth?: unknown;
   imageHeight?: unknown;
   ocrBboxHints?: OcrHint[];

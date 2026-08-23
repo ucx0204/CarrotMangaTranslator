@@ -1013,6 +1013,10 @@
       "failed": "Could not reset all terminology and memory."
     },
     "addRow": "Add row",
+    "draft": {
+      "complete": "Finish new row",
+      "cancel": "Cancel new row"
+    },
     "note": "Note",
     "analysis": {
       "ariaLabel": "AI terminology and memory analysis",
@@ -1081,6 +1085,7 @@
     },
     "glossary": {
       "empty": "No terminology is registered. Start with Current chapter analysis, Entire work, or Add row.",
+      "omissionHint": "Leave an active entry's translation blank to omit its source term and aliases from translation input and output.",
       "source": "Source",
       "translation": "Translation",
       "category": "Category",

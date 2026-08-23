@@ -991,6 +991,10 @@
       "failed": "无法重置全部术语和记忆。"
     },
     "addRow": "添加行",
+    "draft": {
+      "complete": "完成新行输入",
+      "cancel": "取消新行"
+    },
     "note": "备注",
     "analysis": {
       "ariaLabel": "AI术语与记忆分析",
@@ -1059,6 +1063,7 @@
     },
     "glossary": {
       "empty": "尚未登记术语。请从“分析当前章节”“整个作品”或“添加行”开始。",
+      "omissionHint": "将启用项目的译文留空，可从翻译输入和输出中排除该原文及其别名。",
       "source": "原文",
       "translation": "译文",
       "category": "分类",

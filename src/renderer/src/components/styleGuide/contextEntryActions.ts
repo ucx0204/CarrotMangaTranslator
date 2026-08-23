@@ -35,7 +35,11 @@ export function createContextEntryActions<Entry extends EditableContextEntry>({
       ),
     );
   };
-  const add = (): void => onEntriesChange([...entries, createEntry()]);
+  const add = (): Entry => {
+    const entry = createEntry();
+    onEntriesChange([...entries, entry]);
+    return entry;
+  };
   const remove = (id: string): void =>
     onEntriesChange(entries.filter((entry) => entry.id !== id));
   const removeSelected = (): void => {

@@ -17,6 +17,7 @@ const {
   normalizePromptAuditText,
 } = require("./ocr-text.cjs");
 const { sanitizeOcrGroupValue } = require("./ocr-groups.cjs");
+const { omitGlossaryTermsFromPromptText } = require("./glossary-omission.cjs");
 
 /**
  * @param {PromptOptions} [options]
@@ -85,15 +86,21 @@ function formatPreviousPassBlock(
   const candidate = formatCandidateId(block.candidateId);
   const confidence = formatConfidence(block.confidence);
   const reviewText = formatReviewText(review);
+  const originalSourceText = normalizePromptAuditText(block.sourceText);
+  const promptSourceText = omitGlossaryTermsFromPromptText(
+    originalSourceText,
+    options.glossaryOmissionTerms,
+  );
+  const omissionApplied = promptSourceText !== originalSourceText;
   const sourceText = formatReviewedText(
-    block.sourceText,
+    promptSourceText,
     languageProfile.sourceKey,
     review.omitSource,
   );
   const targetText = formatReviewedText(
     block.translatedText,
     languageProfile.targetKey,
-    review.omitTranslation,
+    review.omitTranslation || omissionApplied,
   );
   return `previous ${index}:${candidate} bbox:[${bbox.x1},${bbox.y1},${bbox.x2},${bbox.y2}] role:${role}${confidence}${reviewText}${sourceText}${targetText}`;
 }

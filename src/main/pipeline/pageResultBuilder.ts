@@ -46,6 +46,10 @@ import { attachFontMatchingFixedBlockCandidateMembership } from "./fontMatchingO
 import type { FontMatchingPageInferencePort } from "./fontMatchingPagePixelInferenceTypes";
 import type { AutomaticFontPageCoordinatorV2 } from "./automaticFontMatchingV2PageCoordinator";
 import { resolveKeepBlocksAutomaticFont } from "./keepBlocksAutomaticFont";
+import {
+  applyGlossaryOmissionsToOverlayItems,
+  collectGlossaryOmissionTerms,
+} from "./glossaryOmission";
 
 export type PageBuildResult =
   | CompletedPageBuildResult
@@ -97,6 +101,10 @@ export function buildRequestPageOptions({
     skipOcrPrepass,
   });
   if (workContext) {
+    const omissionTerms = collectGlossaryOmissionTerms(workContext.styleGuide);
+    if (omissionTerms.length > 0) {
+      pageOptions.glossaryOmissionTerms = omissionTerms;
+    }
     const promptPageIndex = regionContext?.sourcePageIndex ?? pageIndex;
     const promptWorkContext = buildPromptWorkContextForPage({
       baseStyleGuide: workContext.styleGuide,
@@ -215,7 +223,7 @@ export async function buildPageResult({
     page,
     pageOptions,
   });
-  const { items } = parsed;
+  const items = applyGlossaryOmissionsToOverlayItems(parsed.items, pageOptions);
   if (isJapaneseCumulativeNoTextRequest(pageOptions, result.requestBody)) {
     return {
       kind: "no-text",
