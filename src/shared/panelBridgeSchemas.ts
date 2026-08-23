@@ -83,6 +83,7 @@ export const PanelCommandSchema = z.discriminatedUnion("type", [
       blockId: TranslationBlockObjectSchema.shape.id,
     })
     .strict(),
+  z.object({ type: z.literal("openBlockLibrary") }).strict(),
   z
     .object({
       type: z.literal("insertBlockLibraryEntry"),

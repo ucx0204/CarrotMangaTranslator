@@ -125,6 +125,28 @@ describe("workspace retouch pointer performance", () => {
     expect(frames.count()).toBe(0);
   });
 
+  it("commits a rectangle eraser as one restore operation", () => {
+    const frames = installAnimationFrameController();
+    const api = renderRetouchHarness("eraser-rectangle");
+    const stage = screen.getByTestId("retouch-stage");
+
+    fireEvent.pointerDown(stage, { clientX: 15, clientY: 25, pointerId: 8 });
+    fireEvent.pointerMove(stage, { clientX: 65, clientY: 75, pointerId: 8 });
+    fireEvent.pointerUp(stage, { clientX: 65, clientY: 75, pointerId: 8 });
+
+    expect(api.current.appendRetouchPoint).not.toHaveBeenCalled();
+    expect(api.current.applyRetouchOperation).toHaveBeenCalledOnce();
+    expect(api.current.applyRetouchOperation).toHaveBeenCalledWith({
+      geometry: {
+        kind: "rectangle",
+        start: { x: 150, y: 250 },
+        end: { x: 650, y: 750 },
+      },
+      mode: "restore",
+    });
+    expect(frames.count()).toBe(0);
+  });
+
   it("keeps a shifted brush drag straight while the pointer is still moving", () => {
     const frames = installAnimationFrameController();
     const api = renderRetouchHarness();

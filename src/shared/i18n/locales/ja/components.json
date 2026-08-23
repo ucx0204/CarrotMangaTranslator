@@ -767,9 +767,13 @@
         "label": "テキスト形状",
         "title": "遠近・曲線・吹き出し領域ツール"
       },
-      "retouch": {
-        "label": "画像補正",
-        "title": "マスク・ブラシ・図形・復元ツール"
+      "paint": {
+        "label": "描画ツール",
+        "title": "ブラシ・図形・色抽出ツール"
+      },
+      "restore": {
+        "label": "復元ツール",
+        "title": "ブラシ・矩形復元ツール"
       }
     },
     "tools": {
@@ -803,6 +807,10 @@
       "rectangle": { "label": "矩形", "title": "塗りつぶした矩形で覆う" },
       "ellipse": { "label": "楕円", "title": "塗りつぶした楕円で覆う" },
       "eraser": { "label": "消しゴム", "title": "補正内容を消去" },
+      "eraser-rectangle": {
+        "label": "矩形消しゴム",
+        "title": "ドラッグした矩形範囲を元画像から復元"
+      },
       "picker": { "label": "色を抽出", "title": "キャンバスから色を抽出" }
     }
   },
@@ -1156,6 +1164,7 @@
       "rectangle": "矩形",
       "ellipse": "楕円",
       "eraser": "復元",
+      "eraser-rectangle": "矩形復元",
       "mask": "マスクブラシ",
       "none": "ツールを選択してください",
       "picker": "スポイト"

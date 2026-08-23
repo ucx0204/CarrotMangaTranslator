@@ -8,6 +8,7 @@ import {
 } from "./createTranslationModalProps";
 import { createGatherTextProps } from "./createGatherTextProps";
 import {
+  createBlockLibraryProps,
   createCommandPaletteProps,
   createShortcutHelpProps,
 } from "./createAppOverlayProps";
@@ -22,11 +23,10 @@ import { appI18n } from "../../appI18n";
 import { toast } from "../../lib/toastStore";
 import { createOriginalImageOpacityProps } from "./createOriginalImageOpacityProps";
 
-export function createAppSessionViewProps(
-  model: AppSessionViewModel,
-): AppSessionViewProps {
+export function createAppSessionViewProps(model: AppSessionViewModel) {
   return {
     autoInpaintingOptionsProps: createAutoInpaintingOptionsProps(model),
+    blockLibraryProps: createBlockLibraryProps(model),
     commandPaletteProps: createCommandPaletteProps(model),
     exportOptionsProps: createExportOptionsProps(model),
     gatherTextProps: createGatherTextProps(model),
@@ -251,6 +251,7 @@ function createPanelSessionValue(
     onDockEditorWindow: panelBridge.closeEditorWindow,
     onDeleteBlock: blockEditingActions.deleteSelectedBlock,
     onDuplicateBlock: blockEditingActions.duplicateSelectedBlock,
+    onOpenBlockLibrary: () => uiState.setBlockLibraryOpen(true),
     onInsertBlockLibraryEntry: blockEditingActions.insertBlockLibraryEntry,
     onRemoveBubbleLayout: blockEditingActions.removeSelectedBlockBubbleLayout,
     onSelectTransformMode: (mode) => {

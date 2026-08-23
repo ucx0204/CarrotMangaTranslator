@@ -17,6 +17,7 @@ import { ShortcutHelp } from "../../components/ShortcutHelp";
 import { StyleGuideModal } from "../../components/StyleGuideModal";
 import { SearchReplaceModal } from "../../components/SearchReplaceModal";
 import { TranslationOptionsModal } from "../../components/TranslationOptionsModal";
+import { BlockLibraryModal } from "../../components/BlockLibraryModal";
 import { ToastViewport } from "../../components/ui/ToastViewport";
 import { EditorFloatingLayer } from "../../panels/EditorFloatingLayer";
 import {
@@ -34,6 +35,7 @@ export type AppSessionViewProps = {
   autoInpaintingOptionsProps: React.ComponentProps<
     typeof AutoInpaintingOptionsModal
   > | null;
+  blockLibraryProps: React.ComponentProps<typeof BlockLibraryModal> | null;
   commandPaletteProps: React.ComponentProps<typeof CommandPalette>;
   exportOptionsProps: React.ComponentProps<typeof ExportOptionsModal> | null;
   gatherTextProps: React.ComponentProps<typeof GatherTextModal> | null;
@@ -56,6 +58,7 @@ export type AppSessionViewProps = {
 
 export function AppSessionView({
   autoInpaintingOptionsProps,
+  blockLibraryProps,
   commandPaletteProps,
   exportOptionsProps,
   gatherTextProps,
@@ -96,6 +99,7 @@ export function AppSessionView({
       <MemoizedEditorFloatingLayer />
       <MemoizedSessionFloatingOverlays
         autoInpaintingOptionsProps={autoInpaintingOptionsProps}
+        blockLibraryProps={blockLibraryProps}
         commandPaletteProps={commandPaletteProps}
         exportOptionsProps={exportOptionsProps}
         gatherTextProps={gatherTextProps}
@@ -166,6 +170,7 @@ function useWorkspaceViewState(
 
 function SessionFloatingOverlays({
   autoInpaintingOptionsProps,
+  blockLibraryProps,
   commandPaletteProps,
   exportOptionsProps,
   gatherTextProps,
@@ -177,6 +182,7 @@ function SessionFloatingOverlays({
 }: Pick<
   AppSessionViewProps,
   | "autoInpaintingOptionsProps"
+  | "blockLibraryProps"
   | "commandPaletteProps"
   | "exportOptionsProps"
   | "gatherTextProps"
@@ -188,6 +194,7 @@ function SessionFloatingOverlays({
 >): React.JSX.Element {
   return (
     <>
+      {blockLibraryProps ? <BlockLibraryModal {...blockLibraryProps} /> : null}
       {autoInpaintingOptionsProps ? (
         <AutoInpaintingOptionsModal {...autoInpaintingOptionsProps} />
       ) : null}

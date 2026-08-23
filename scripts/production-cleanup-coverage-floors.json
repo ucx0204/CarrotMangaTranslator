@@ -7,7 +7,7 @@
     "sourceArtifact": ".tmp/production-cleanup-coverage-baseline-node22.json",
     "sourceArtifactSha256": "a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a",
     "introducedArtifact": ".tmp/production-cleanup-coverage-accepted-node26.json",
-    "introducedArtifactSha256": "b413467bb5a6f61953c79364a4924e6a53ce37031226d035af2632857f78c547",
+    "introducedArtifactSha256": "9a874c66919ba8535edc9f04283d24b706e2b347c3dfe5a6a6f1ebb69f312a1f",
     "validatedNodeV8": ["22/12.4", "24/13.6", "26/14.6"],
     "vitestVersion": "4.1.9",
     "coverageV8Version": "4.1.9"
@@ -847,6 +847,28 @@
         "covered": 0,
         "total": 0,
         "pct": 100
+      }
+    },
+    "src/main/ipc/panelWindowsIpc.ts": {
+      "lines": {
+        "covered": 9,
+        "total": 29,
+        "pct": 31.03
+      },
+      "statements": {
+        "covered": 9,
+        "total": 29,
+        "pct": 31.03
+      },
+      "functions": {
+        "covered": 3,
+        "total": 9,
+        "pct": 33.33
+      },
+      "branches": {
+        "covered": 0,
+        "total": 13,
+        "pct": 0
       }
     },
     "src/main/ipc/registerIpc.ts": {
@@ -3049,6 +3071,28 @@
         "pct": 0
       }
     },
+    "src/renderer/src/app/session/createAppOverlayProps.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 4,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 4,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 4,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 2,
+        "pct": 0
+      }
+    },
     "src/renderer/src/app/session/createAppSessionViewProps.ts": {
       "lines": {
         "covered": 0,
@@ -3112,6 +3156,28 @@
       "branches": {
         "covered": 31,
         "total": 31,
+        "pct": 100
+      }
+    },
+    "src/renderer/src/app/session/sessionRenderBoundaries.ts": {
+      "lines": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 20,
+        "total": 20,
         "pct": 100
       }
     },
@@ -3377,6 +3443,28 @@
         "covered": 4,
         "total": 4,
         "pct": 100
+      }
+    },
+    "src/renderer/src/components/ChapterQuickControls.tsx": {
+      "lines": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 6,
+        "total": 6,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 17,
+        "total": 20,
+        "pct": 85
       }
     },
     "src/renderer/src/components/ConfirmModal.tsx": {
@@ -4963,6 +5051,28 @@
         "pct": 80
       }
     },
+    "src/renderer/src/components/useStageToolbarFlyout.ts": {
+      "lines": {
+        "covered": 73,
+        "total": 87,
+        "pct": 83.9
+      },
+      "statements": {
+        "covered": 79,
+        "total": 98,
+        "pct": 80.61
+      },
+      "functions": {
+        "covered": 21,
+        "total": 22,
+        "pct": 95.45
+      },
+      "branches": {
+        "covered": 30,
+        "total": 57,
+        "pct": 52.63
+      }
+    },
     "src/renderer/src/hooks/blockEditingActionTypes.ts": {
       "lines": {
         "covered": 0,
@@ -5115,6 +5225,28 @@
         "covered": 16,
         "total": 34,
         "pct": 47.05
+      }
+    },
+    "src/renderer/src/hooks/useInpaintingContextBridge.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 28,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 31,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 23,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 24,
+        "pct": 0
       }
     },
     "src/renderer/src/hooks/useJobEvents.ts": {
@@ -5425,6 +5557,72 @@
         "pct": 75
       }
     },
+    "src/renderer/src/hooks/workspaceInpaintingPointerState.ts": {
+      "lines": {
+        "covered": 17,
+        "total": 17,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 18,
+        "total": 19,
+        "pct": 94.73
+      },
+      "functions": {
+        "covered": 10,
+        "total": 10,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 20,
+        "total": 23,
+        "pct": 86.95
+      }
+    },
+    "src/renderer/src/hooks/workspaceRetouchShapeGesture.ts": {
+      "lines": {
+        "covered": 17,
+        "total": 17,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 18,
+        "total": 20,
+        "pct": 90
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 6,
+        "total": 10,
+        "pct": 60
+      }
+    },
+    "src/renderer/src/inpainting/inpaintingTypes.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
     "src/renderer/src/lib/blockFontLoading.ts": {
       "lines": {
         "covered": 35,
@@ -5687,6 +5885,50 @@
         "covered": 53,
         "total": 61,
         "pct": 86.88
+      }
+    },
+    "src/renderer/src/lib/retouchLiveOverlay.ts": {
+      "lines": {
+        "covered": 128,
+        "total": 148,
+        "pct": 86.48
+      },
+      "statements": {
+        "covered": 132,
+        "total": 159,
+        "pct": 83.01
+      },
+      "functions": {
+        "covered": 19,
+        "total": 22,
+        "pct": 86.36
+      },
+      "branches": {
+        "covered": 51,
+        "total": 69,
+        "pct": 73.91
+      }
+    },
+    "src/renderer/src/lib/retouchLivePreviewDrawing.ts": {
+      "lines": {
+        "covered": 45,
+        "total": 98,
+        "pct": 45.91
+      },
+      "statements": {
+        "covered": 46,
+        "total": 99,
+        "pct": 46.46
+      },
+      "functions": {
+        "covered": 5,
+        "total": 9,
+        "pct": 55.55
+      },
+      "branches": {
+        "covered": 11,
+        "total": 21,
+        "pct": 52.38
       }
     },
     "src/renderer/src/lib/shortcuts/comboFromEvent.ts": {
@@ -6478,6 +6720,28 @@
       "branches": {
         "covered": 0,
         "total": 0,
+        "pct": 100
+      }
+    },
+    "src/shared/shortcutSettings.ts": {
+      "lines": {
+        "covered": 26,
+        "total": 26,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 26,
+        "total": 26,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 3,
+        "total": 3,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 26,
+        "total": 26,
         "pct": 100
       }
     },
@@ -7889,6 +8153,28 @@
         "covered": 14,
         "total": 14,
         "pct": 100
+      }
+    },
+    "src/renderer/src/components/stageToolbarTools.ts": {
+      "lines": {
+        "covered": 12,
+        "total": 12,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 12,
+        "total": 13,
+        "pct": 92.3
+      },
+      "functions": {
+        "covered": 4,
+        "total": 4,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 1,
+        "total": 2,
+        "pct": 50
       }
     },
     "src/renderer/src/components/styleGuide/contextEntryActions.ts": {

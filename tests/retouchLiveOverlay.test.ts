@@ -67,6 +67,7 @@ describe("retouch live overlay", () => {
     beginRetouchShape(stage, { x: 100, y: 200 }, geometry, {
       color: "#ffffff",
       kind: "rectangle",
+      mode: "paint",
     });
     updateRetouchShape(stage, { x: 700, y: 800 }, geometry);
     updateRetouchShape(stage, { x: 800, y: 900 }, geometry);
@@ -83,6 +84,7 @@ describe("retouch live overlay", () => {
     beginRetouchShape(stage, { x: 900, y: 800 }, geometry, {
       color: "#ffcc00",
       kind: "ellipse",
+      mode: "paint",
     });
     updateRetouchShape(stage, { x: 100, y: 200 }, geometry);
     frames.flush();
@@ -97,6 +99,32 @@ describe("retouch live overlay", () => {
       0,
       Math.PI * 2,
     );
+    clearRetouchLiveOverlay(stage);
+  });
+
+  it("previews rectangle restore with a distinct dashed boundary", () => {
+    const frames = installAnimationFrameController();
+    const context = makeCanvasContext();
+    const { stage } = makeStage(context);
+    const geometry = {
+      displayHeight: 100,
+      displayWidth: 100,
+      imageHeight: 1000,
+      imageWidth: 1000,
+    };
+
+    beginRetouchShape(stage, { x: 100, y: 200 }, geometry, {
+      color: "#ffffff",
+      kind: "rectangle",
+      mode: "restore",
+    });
+    updateRetouchShape(stage, { x: 700, y: 800 }, geometry);
+    frames.flush();
+
+    expect(context.fillRect).toHaveBeenCalledWith(10, 20, 60, 60);
+    expect(context.setLineDash).toHaveBeenCalledWith([7, 4]);
+    expect(context.stroke).toHaveBeenCalledOnce();
+    expect(context.lineTo).toHaveBeenCalledTimes(3);
     clearRetouchLiveOverlay(stage);
   });
 

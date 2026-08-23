@@ -105,6 +105,39 @@ describe("inpainting retouch filled geometry", () => {
       b: 255,
     });
   });
+
+  it("restores only the dragged rectangle from the original bitmap", () => {
+    const width = 4;
+    const height = 4;
+    const bitmap = solidBitmap(width, height, { r: 240, g: 240, b: 240 });
+    const original = solidBitmap(width, height, { r: 21, g: 43, b: 65 });
+    applyRetouchRectangle(
+      bitmap,
+      original,
+      width,
+      height,
+      {
+        kind: "rectangle",
+        start: { x: 1, y: 1 },
+        end: { x: 2, y: 3 },
+      },
+      "restore",
+      null,
+    );
+
+    expect(readPixel(bitmap, width, 1, 1)).toEqual({ r: 21, g: 43, b: 65 });
+    expect(readPixel(bitmap, width, 2, 3)).toEqual({ r: 21, g: 43, b: 65 });
+    expect(readPixel(bitmap, width, 0, 0)).toEqual({
+      r: 240,
+      g: 240,
+      b: 240,
+    });
+    expect(readPixel(bitmap, width, 3, 3)).toEqual({
+      r: 240,
+      g: 240,
+      b: 240,
+    });
+  });
 });
 
 function solidBitmap(

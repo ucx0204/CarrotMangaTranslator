@@ -42,6 +42,27 @@ afterEach(() => {
 });
 
 describe("unified workspace toolbar", () => {
+  it("keeps the collapsed toolbar available as a compact restore control", () => {
+    const onToggleHidden = vi.fn();
+    render(
+      <StageToolbar
+        brushColor="#ffffff"
+        disabled={false}
+        hidden
+        lastRetouchTool="brush"
+        onSelectTool={() => undefined}
+        onToggleRegionTranslation={() => undefined}
+        onToggleHidden={onToggleHidden}
+        regionTranslationActive={false}
+        regionTranslationAvailable={true}
+        tool="select"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "도구 모음 표시 (4)" }));
+    expect(onToggleHidden).toHaveBeenCalledOnce();
+  });
+
   it("renders one mutually-exclusive toolbar for translation and retouch tools", () => {
     const onSelectTool = vi.fn();
     const onToggleRegionTranslation = vi.fn();
@@ -61,15 +82,20 @@ describe("unified workspace toolbar", () => {
       />,
     );
 
-    expect(screen.getAllByRole("button")).toHaveLength(7);
+    expect(screen.getAllByRole("button")).toHaveLength(9);
     const groupTriggers = Array.from(
       container.querySelectorAll<HTMLButtonElement>(
         ".stage-toolbar-group-trigger",
       ),
     );
-    expect(groupTriggers).toHaveLength(1);
+    expect(groupTriggers).toHaveLength(2);
     expect(groupTriggers[0]?.getAttribute("aria-pressed")).toBe("true");
     expect(groupTriggers[0]?.dataset.activeTool).toBe("brush");
+    expect(
+      Array.from(
+        container.querySelectorAll<HTMLElement>("[data-stage-toolbar-section]"),
+      ).map((section) => section.dataset.stageToolbarSection),
+    ).toEqual(["primary", "layout", "retouch", "collapse"]);
     expect(container.querySelectorAll("[data-stage-tool-swatch]")).toHaveLength(
       1,
     );
@@ -80,11 +106,11 @@ describe("unified workspace toolbar", () => {
     expect(screen.queryByRole("button", { name: "곡선" })).toBeNull();
     expect(screen.getByRole("button", { name: "말풍선 영역" })).toBeTruthy();
 
-    fireEvent.pointerEnter(groupTriggers[0] as HTMLButtonElement);
+    fireEvent.pointerEnter(screen.getByRole("button", { name: "칠하기 도구" }));
     const brush = screen.getByRole("menuitemradio", { name: "브러시" });
     expect(
       screen.queryByRole("tooltip", {
-        name: "마스크·붓·도형·복원 도구",
+        name: "브러시·도형·색 추출 도구",
       }),
     ).toBeNull();
     expect(brush.getAttribute("aria-checked")).toBe("true");
@@ -93,7 +119,7 @@ describe("unified workspace toolbar", () => {
     expect(screen.getByRole("tooltip", { name: "보정 브러시" })).toBeTruthy();
     expect(brush.hasAttribute("title")).toBe(false);
 
-    fireEvent.click(screen.getByRole("menuitemradio", { name: "마스크" }));
+    fireEvent.click(screen.getByRole("button", { name: "마스크" }));
     expect(onSelectTool).toHaveBeenCalledWith("mask");
 
     fireEvent.click(screen.getByRole("button", { name: "말풍선 영역" }));
@@ -121,7 +147,7 @@ describe("unified workspace toolbar", () => {
       />,
     );
     const retouch = container.querySelector<HTMLButtonElement>(
-      '[data-stage-tool-group="retouch"]',
+      '[data-stage-tool-group="paint"]',
     );
 
     expect(retouch?.dataset.activeTool).toBeUndefined();
@@ -137,6 +163,30 @@ describe("unified workspace toolbar", () => {
         .getByRole("menuitemradio", { name: "원형" })
         .getAttribute("aria-checked"),
     ).toBe("true");
+  });
+
+  it("separates paint and restore tools and exposes rectangle restore", () => {
+    const onSelectTool = vi.fn();
+    render(
+      <StageToolbar
+        bubbleLayoutAvailable
+        brushColor="#ffffff"
+        disabled={false}
+        hidden={false}
+        lastRetouchTool="eraser"
+        onSelectTool={onSelectTool}
+        onToggleRegionTranslation={() => undefined}
+        onToggleHidden={() => undefined}
+        regionTranslationActive={false}
+        regionTranslationAvailable={true}
+        tool="eraser"
+      />,
+    );
+
+    fireEvent.pointerEnter(screen.getByRole("button", { name: "복원 도구" }));
+    expect(screen.getAllByRole("menuitemradio")).toHaveLength(2);
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "사각 지우개" }));
+    expect(onSelectTool).toHaveBeenCalledWith("eraser-rectangle");
   });
 
   it("opens retouch tools on hover and keeps the pointer gap stable", () => {
@@ -157,12 +207,12 @@ describe("unified workspace toolbar", () => {
       />,
     );
     const retouch = container.querySelector<HTMLButtonElement>(
-      '[data-stage-tool-group="retouch"]',
+      '[data-stage-tool-group="paint"]',
     );
     const group = retouch?.closest(".stage-toolbar-group-control");
     fireEvent.pointerEnter(retouch as HTMLButtonElement);
     const menu = screen.getByRole("menu");
-    expect(screen.getAllByRole("menuitemradio")).toHaveLength(6);
+    expect(screen.getAllByRole("menuitemradio")).toHaveLength(4);
 
     fireEvent.pointerLeave(group as HTMLElement);
     fireEvent.pointerEnter(menu);
@@ -191,7 +241,7 @@ describe("unified workspace toolbar", () => {
       />,
     );
     const retouch = container.querySelector<HTMLButtonElement>(
-      '[data-stage-tool-group="retouch"]',
+      '[data-stage-tool-group="paint"]',
     );
     fireEvent.focus(retouch as HTMLButtonElement);
     expect(screen.getByRole("menu")).toBeTruthy();
@@ -201,7 +251,7 @@ describe("unified workspace toolbar", () => {
     fireEvent.pointerEnter(retouch as HTMLButtonElement);
     expect(screen.getByRole("menu")).toBeTruthy();
     fireEvent.click(retouch as HTMLButtonElement);
-    const firstItem = screen.getByRole("menuitemradio", { name: "마스크" });
+    const firstItem = screen.getByRole("menuitemradio", { name: "브러시" });
     expect(document.activeElement).toBe(firstItem);
     fireEvent.keyDown(firstItem, { key: "Escape" });
     expect(screen.queryByRole("menu")).toBeNull();
@@ -348,6 +398,16 @@ describe("unified right rail", () => {
     expect(toolbar.closest(".right-quick-rail")).not.toBeNull();
     expect(toolbar.closest(".right-rail")).toBeNull();
     expect(document.querySelector(".canvas-action-bar")).toBeNull();
+    expect(
+      Array.from(
+        toolbar.querySelectorAll<HTMLElement>("[data-chapter-quick-group]"),
+      ).map((group) => group.dataset.chapterQuickGroup),
+    ).toEqual(["history", "original", "display", "documents"]);
+    expect(
+      Array.from(
+        document.querySelectorAll<HTMLElement>("[data-right-quick-group]"),
+      ).map((group) => group.dataset.rightQuickGroup),
+    ).toEqual(["view", "original-opacity", "status"]);
 
     const undo = screen.getByRole("button", {
       name: "텍스트 편집 실행 취소 (Ctrl+Z)",
@@ -876,6 +936,7 @@ function RightRailTestProviders({
     onDockEditorWindow: () => undefined,
     onDuplicateBlock: () => undefined,
     onInsertBlockLibraryEntry: () => undefined,
+    onOpenBlockLibrary: () => undefined,
     onEraseBlockOriginal: () => undefined,
     onFitBlockBubble: () => undefined,
     onPopOutEditor: () => undefined,

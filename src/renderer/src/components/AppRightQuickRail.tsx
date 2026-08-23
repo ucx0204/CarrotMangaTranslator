@@ -186,23 +186,32 @@ function BottomQuickRailControls(
       })) ?? [];
   return (
     <div className="right-quick-rail-bottom-controls">
-      <WorkspaceViewControls {...props.workspaceViewControls} />
-      <WorkspaceOriginalOpacityControl
-        {...props.workspaceOriginalOpacityControl}
-      />
-      <StatusDockButton
-        jobState={props.jobState}
-        progressSnapshot={props.progressSnapshot}
-        showProgressBar={props.showProgressBar}
-        statusLines={props.statusLines}
-        failedPages={failedPages}
-        onCancelJob={props.onCancelJob}
-        onClear={props.onClearStatusLines}
-        onOpenExport={props.onOpenExport}
-        onOpenLogFolder={props.onOpenLogFolder}
-        onReviewResults={props.onReviewResults}
-        onRetryPage={props.onRetryPage}
-      />
+      <div className="right-quick-bottom-group" data-right-quick-group="view">
+        <WorkspaceViewControls {...props.workspaceViewControls} />
+      </div>
+      <div
+        className="right-quick-bottom-group"
+        data-right-quick-group="original-opacity"
+      >
+        <WorkspaceOriginalOpacityControl
+          {...props.workspaceOriginalOpacityControl}
+        />
+      </div>
+      <div className="right-quick-bottom-group" data-right-quick-group="status">
+        <StatusDockButton
+          jobState={props.jobState}
+          progressSnapshot={props.progressSnapshot}
+          showProgressBar={props.showProgressBar}
+          statusLines={props.statusLines}
+          failedPages={failedPages}
+          onCancelJob={props.onCancelJob}
+          onClear={props.onClearStatusLines}
+          onOpenExport={props.onOpenExport}
+          onOpenLogFolder={props.onOpenLogFolder}
+          onReviewResults={props.onReviewResults}
+          onRetryPage={props.onRetryPage}
+        />
+      </div>
     </div>
   );
 }

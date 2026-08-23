@@ -1,7 +1,6 @@
 import React from "react";
 import { IconArrowLeft, IconLibrary } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
-import { BlockLibraryModal } from "../components/BlockLibraryModal";
 import { EditorPanel } from "../components/EditorPanel";
 import { SaveBlockLibraryModal } from "../components/SaveBlockLibraryModal";
 import { IconButton } from "../components/ui/IconButton";
@@ -10,7 +9,6 @@ import { usePanelSession, type PanelSessionValue } from "./panelSession";
 
 export function EditorPanelContainer(): React.JSX.Element {
   const session = usePanelSession();
-  const [libraryOpen, setLibraryOpen] = React.useState(false);
   const [saveOpen, setSaveOpen] = React.useState(false);
   return (
     <>
@@ -27,7 +25,7 @@ export function EditorPanelContainer(): React.JSX.Element {
         headerActions={
           <EditorPanelHeaderActions
             session={session}
-            onOpenLibrary={() => setLibraryOpen(true)}
+            onOpenLibrary={session.onOpenBlockLibrary}
           />
         }
         stylePresets={session.blockStylePresets}
@@ -48,10 +46,8 @@ export function EditorPanelContainer(): React.JSX.Element {
         onSelectTransformMode={session.onSelectTransformMode}
       />
       <EditorPanelLibraryModals
-        libraryOpen={libraryOpen}
         saveOpen={saveOpen}
         session={session}
-        onCloseLibrary={() => setLibraryOpen(false)}
         onCloseSave={() => setSaveOpen(false)}
       />
     </>
@@ -111,29 +107,16 @@ function EditorPanelHeaderActions({
 }
 
 function EditorPanelLibraryModals({
-  libraryOpen,
-  onCloseLibrary,
   onCloseSave,
   saveOpen,
   session,
 }: {
-  libraryOpen: boolean;
-  onCloseLibrary: () => void;
   onCloseSave: () => void;
   saveOpen: boolean;
   session: PanelSessionValue;
 }): React.JSX.Element {
   return (
     <>
-      {libraryOpen ? (
-        <BlockLibraryModal
-          canInsert={
-            Boolean(session.selectedPageSize) && !session.editorDisabled
-          }
-          onClose={onCloseLibrary}
-          onInsert={session.onInsertBlockLibraryEntry}
-        />
-      ) : null}
       {saveOpen && session.selectedBlock && session.selectedPageSize ? (
         <SaveBlockLibraryModal
           block={session.selectedBlock}

@@ -101,9 +101,12 @@ editing the totals by hand.
   The direct-input workspace zoom and temporary-hand pass extended it to
   SHA-256
   `b413467bb5a6f61953c79364a4924e6a53ce37031226d035af2632857f78c547`.
+  The grouped retouch-toolbar and rectangle-restore pass extended that
+  accepted Node 26 artifact again to SHA-256
+  `9a874c66919ba8535edc9f04283d24b706e2b347c3dfe5a6a6f1ebb69f312a1f`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
-  percentage for lines/statements/functions/branches in all 297 existing
-  coverage-eligible `src/**` files changed since cleanup start. The 88 new
+  percentage for lines/statements/functions/branches in all 309 existing
+  coverage-eligible `src/**` files changed since cleanup start. The 89 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record. The
   four removed source files are recorded explicitly in `deletedFiles`.

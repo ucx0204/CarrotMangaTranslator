@@ -22,6 +22,7 @@ export type RetouchLiveStyle = {
 export type RetouchLiveShapeStyle = {
   color: string;
   kind: "rectangle" | "ellipse";
+  mode: "paint" | "restore";
 };
 
 type CursorFrame = {
@@ -138,6 +139,7 @@ export function beginRetouchShape(
     dirty: true,
     geometry,
     kind: style.kind,
+    mode: style.mode,
     start,
   };
   scheduleLiveFrame(stage, state);

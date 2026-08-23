@@ -229,6 +229,7 @@ describe("AppSessionView render boundaries", () => {
       }),
     ).toBe(true);
     for (const activeState of [
+      { blockLibraryProps: {} },
       { autoInpaintingOptionsProps: {} },
       { exportOptionsProps: {} },
       { gatherTextProps: {} },
@@ -341,6 +342,7 @@ function makePanelSessionValue(
     onDockEditorWindow: vi.fn(),
     onDuplicateBlock: vi.fn(),
     onInsertBlockLibraryEntry: vi.fn(),
+    onOpenBlockLibrary: vi.fn(),
     onEraseBlockOriginal: vi.fn(),
     onFitBlockBubble: vi.fn(),
     onPopOutEditor: vi.fn(),
@@ -394,6 +396,7 @@ function closedAppModalState() {
 function closedFloatingOverlayState() {
   return {
     autoInpaintingOptionsProps: null,
+    blockLibraryProps: null,
     commandPaletteProps: { open: false },
     exportOptionsProps: null,
     gatherTextProps: null,

@@ -42,79 +42,112 @@ export type ChapterQuickControlsProps = {
 export function ChapterQuickControls(
   props: ChapterQuickControlsProps,
 ): React.JSX.Element {
-  const { t } = useTranslation("components");
-  const undoTitle = formatShortcutTextForPlatform(
-    props.undoLabel
-      ? t("workspaceActions.undoNamed", { action: props.undoLabel })
-      : t("workspaceActions.undo"),
-  );
-  const redoTitle = formatShortcutTextForPlatform(
-    props.redoLabel
-      ? t("workspaceActions.redoNamed", { action: props.redoLabel })
-      : t("workspaceActions.redo"),
-  );
-  const compareTitle = t(
-    props.peeking
-      ? "workspaceActions.hideOriginal"
-      : "workspaceActions.compareOriginal",
-  );
+  const labels = useQuickControlLabels(props);
   return (
     <div
       className="chapter-quick-controls"
       id={props.id}
       role="toolbar"
-      aria-label={t("workspaceActions.label")}
+      aria-label={labels.toolbar}
     >
-      <QuickControl
-        disabled={props.disabled || !props.canUndo}
-        Icon={IconArrowBackUp}
-        label={undoTitle}
-        onClick={props.onUndo}
-      />
-      <QuickControl
-        disabled={props.disabled || !props.canRedo}
-        Icon={IconArrowForwardUp}
-        label={redoTitle}
-        onClick={props.onRedo}
-      />
-      <QuickControl
-        active={props.peeking}
-        disabled={props.disabled || !props.compareAvailable}
-        Icon={props.peeking ? IconEyeOff : IconEye}
-        label={compareTitle}
-        onClick={props.onPeekToggle}
-      />
-      <QuickControl
-        disabled={props.disabled || !props.resetAvailable}
-        Icon={IconRestore}
-        label={t("workspaceActions.resetPageTitle")}
-        onClick={props.onResetPage}
-      />
-      <div className="chapter-quick-separator" role="separator" />
-      <QuickControl
-        active={props.showTextBlocks}
-        Icon={IconSquareLetterT}
-        label={t("workspaceActions.showTranslations")}
-        onClick={props.onToggleBlocks}
-      />
-      <QuickControl
-        active={props.showBlockChrome}
-        Icon={IconBorderAll}
-        label={t("workspaceActions.showEditingChrome")}
-        onClick={props.onToggleChrome}
-      />
-      <QuickControl
-        disabled={!props.chapterAvailable}
-        Icon={IconListDetails}
-        label={t("display.gatherText")}
-        onClick={props.onOpenTextView}
-      />
-      <QuickControl
-        disabled={!props.chapterAvailable}
-        Icon={IconBook2}
-        label={t("display.styleGuide")}
-        onClick={props.onOpenStyleGuide}
-      />
+      <QuickControlGroup name="history">
+        <QuickControl
+          disabled={props.disabled || !props.canUndo}
+          Icon={IconArrowBackUp}
+          label={labels.undo}
+          onClick={props.onUndo}
+        />
+        <QuickControl
+          disabled={props.disabled || !props.canRedo}
+          Icon={IconArrowForwardUp}
+          label={labels.redo}
+          onClick={props.onRedo}
+        />
+      </QuickControlGroup>
+      <QuickControlGroup name="original">
+        <QuickControl
+          active={props.peeking}
+          disabled={props.disabled || !props.compareAvailable}
+          Icon={props.peeking ? IconEyeOff : IconEye}
+          label={labels.compare}
+          onClick={props.onPeekToggle}
+        />
+        <QuickControl
+          disabled={props.disabled || !props.resetAvailable}
+          Icon={IconRestore}
+          label={labels.reset}
+          onClick={props.onResetPage}
+        />
+      </QuickControlGroup>
+      <QuickControlGroup name="display">
+        <QuickControl
+          active={props.showTextBlocks}
+          Icon={IconSquareLetterT}
+          label={labels.translations}
+          onClick={props.onToggleBlocks}
+        />
+        <QuickControl
+          active={props.showBlockChrome}
+          Icon={IconBorderAll}
+          label={labels.chrome}
+          onClick={props.onToggleChrome}
+        />
+      </QuickControlGroup>
+      <QuickControlGroup name="documents">
+        <QuickControl
+          disabled={!props.chapterAvailable}
+          Icon={IconListDetails}
+          label={labels.gatherText}
+          onClick={props.onOpenTextView}
+        />
+        <QuickControl
+          disabled={!props.chapterAvailable}
+          Icon={IconBook2}
+          label={labels.styleGuide}
+          onClick={props.onOpenStyleGuide}
+        />
+      </QuickControlGroup>
+    </div>
+  );
+}
+
+function useQuickControlLabels(props: ChapterQuickControlsProps) {
+  const { t } = useTranslation("components");
+  return {
+    chrome: t("workspaceActions.showEditingChrome"),
+    compare: t(
+      props.peeking
+        ? "workspaceActions.hideOriginal"
+        : "workspaceActions.compareOriginal",
+    ),
+    gatherText: t("display.gatherText"),
+    redo: formatShortcutTextForPlatform(
+      props.redoLabel
+        ? t("workspaceActions.redoNamed", { action: props.redoLabel })
+        : t("workspaceActions.redo"),
+    ),
+    reset: t("workspaceActions.resetPageTitle"),
+    styleGuide: t("display.styleGuide"),
+    toolbar: t("workspaceActions.label"),
+    translations: t("workspaceActions.showTranslations"),
+    undo: formatShortcutTextForPlatform(
+      props.undoLabel
+        ? t("workspaceActions.undoNamed", { action: props.undoLabel })
+        : t("workspaceActions.undo"),
+    ),
+  };
+}
+
+function QuickControlGroup({
+  children,
+  name,
+}: {
+  children: React.ReactNode;
+  name: "history" | "original" | "display" | "documents";
+}): React.JSX.Element {
+  return (
+    <div className="chapter-quick-group" data-chapter-quick-group={name}>
+      {children}
     </div>
   );
 }

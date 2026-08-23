@@ -46,7 +46,9 @@ function resolveRetouchToolClassName(
   retouchCursor: ImageStageProps["retouchCursor"],
 ): string {
   if (!retouchCursor) return "";
-  return retouchCursor.mode === "rectangle" || retouchCursor.mode === "ellipse"
+  return retouchCursor.mode === "rectangle" ||
+    retouchCursor.mode === "ellipse" ||
+    retouchCursor.mode === "eraser-rectangle"
     ? "retouch-shape-tool-enabled"
     : "retouch-tool-enabled";
 }

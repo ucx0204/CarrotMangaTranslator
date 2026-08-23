@@ -36,6 +36,7 @@ export function isAppModalSubtreeActive(props: {
 
 export function isFloatingOverlaySubtreeActive(props: {
   autoInpaintingOptionsProps: unknown;
+  blockLibraryProps: unknown;
   commandPaletteProps: { open: boolean };
   exportOptionsProps: unknown;
   gatherTextProps: unknown;
@@ -46,6 +47,7 @@ export function isFloatingOverlaySubtreeActive(props: {
   translationOptionsProps: unknown;
 }): boolean {
   return Boolean(
+    props.blockLibraryProps ||
     props.autoInpaintingOptionsProps ||
     props.commandPaletteProps.open ||
     props.exportOptionsProps ||

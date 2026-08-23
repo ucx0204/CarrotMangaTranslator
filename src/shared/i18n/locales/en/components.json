@@ -773,9 +773,13 @@
         "label": "Text shape",
         "title": "Perspective, curved text, and bubble area tools"
       },
-      "retouch": {
-        "label": "Image retouch",
-        "title": "Mask, brush, shape, and restore tools"
+      "paint": {
+        "label": "Paint tools",
+        "title": "Brush, shape, and color picker tools"
+      },
+      "restore": {
+        "label": "Restore tools",
+        "title": "Brush and rectangle restore tools"
       }
     },
     "tools": {
@@ -812,6 +816,10 @@
       },
       "ellipse": { "label": "Ellipse", "title": "Cover with a filled ellipse" },
       "eraser": { "label": "Eraser", "title": "Erase retouch strokes" },
+      "eraser-rectangle": {
+        "label": "Rectangle eraser",
+        "title": "Drag to restore a rectangular area from the original image"
+      },
       "picker": { "label": "Pick color", "title": "Pick a canvas color" }
     }
   },
@@ -1165,6 +1173,7 @@
       "rectangle": "Rectangle",
       "ellipse": "Ellipse",
       "eraser": "Restore",
+      "eraser-rectangle": "Rectangle restore",
       "mask": "Mask brush",
       "none": "Select a tool",
       "picker": "Color picker"

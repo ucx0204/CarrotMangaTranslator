@@ -21,6 +21,7 @@ describe("workspace inpainting pointer state", () => {
   it("recognizes filled retouch shape tools separately from strokes", () => {
     expect(isRetouchShapeTool("rectangle")).toBe(true);
     expect(isRetouchShapeTool("ellipse")).toBe(true);
+    expect(isRetouchShapeTool("eraser-rectangle")).toBe(true);
     expect(isRetouchShapeTool("brush")).toBe(false);
     expect(isRetouchDrawTool("rectangle")).toBe(false);
   });

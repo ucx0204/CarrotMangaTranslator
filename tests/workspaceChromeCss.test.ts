@@ -13,6 +13,10 @@ describe("workspace chrome CSS", () => {
     path.join(ROOT, "src/renderer/src/styles/stage-overlay.css"),
     "utf8",
   );
+  const foundationsCss = fs.readFileSync(
+    path.join(ROOT, "src/renderer/src/styles/foundations.css"),
+    "utf8",
+  );
 
   it("locks fitted pages instead of creating an invisible scroll area", () => {
     expect(rule(shellCss, ".workspace.is-fit-scroll-locked")).toContain(
@@ -61,16 +65,22 @@ describe("workspace chrome CSS", () => {
     );
   });
 
-  it("uses one framed surface for each right quick-tool group", () => {
+  it("uses framed quick rails with subtle semantic group separators", () => {
     const frame = rule(shellCss, ".right-quick-controls-frame");
     expect(frame).toContain("border: 1px solid var(--border-soft)");
     expect(frame).toContain("border-radius: var(--r-md)");
     expect(
       rule(
         shellCss,
-        ".right-quick-controls-frame:not(.collapsed) > .right-quick-rail-toggle",
+        ".right-quick-controls-frame:not(.collapsed) > .right-quick-rail-toggle::before",
       ),
-    ).toContain("border-top: 1px solid var(--border-soft)");
+    ).toContain("background: linear-gradient(");
+    expect(
+      rule(
+        foundationsCss,
+        ".stage-toolbar-section + .stage-toolbar-section::before",
+      ),
+    ).toContain("background: linear-gradient(");
   });
 
   it("overlays both toolbars symmetrically without reserving a right column", () => {

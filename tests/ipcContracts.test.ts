@@ -1,4 +1,4 @@
-import { shell, type IpcMainInvokeEvent } from "electron";
+import { BrowserWindow, shell, type IpcMainInvokeEvent } from "electron";
 import { z } from "zod";
 import { beforeEach, expect, it, vi } from "vitest";
 import { AppActivityGate } from "../src/main/appActivityGate";
@@ -349,6 +349,60 @@ it("routes a full block-library update through the registered handler", async ()
       },
     ),
   ).rejects.toThrow("블록 라이브러리 항목을 찾을 수 없습니다");
+});
+
+it("focuses the main window when a detached editor opens the block library", async () => {
+  const [
+    { registerPanelWindowsIpc },
+    { ActiveJobStore },
+    { InpaintingRevisionStore },
+  ] = await Promise.all([
+    import("../src/main/ipc/panelWindowsIpc"),
+    import("../src/main/jobs/activeJob"),
+    import("../src/main/inpainting/inpaintingRevisionStore"),
+  ]);
+  const rendererUrl = "http://127.0.0.1:5173/";
+  const restore = vi.fn();
+  const show = vi.fn();
+  const focus = vi.fn();
+  const send = vi.fn();
+  const mainWindow = Object.assign(new BrowserWindow(), {
+    focus,
+    isDestroyed: () => false,
+    isMinimized: () => true,
+    isVisible: () => false,
+    restore,
+    show,
+    webContents: { getURL: () => rendererUrl, id: 17, send },
+  });
+  const context = createIpcContext(
+    new ActiveJobStore(),
+    new InpaintingRevisionStore(),
+  );
+  context.getMainWindow = () => mainWindow;
+  context.panelWindows.isPanelSender = (webContentsId) => webContentsId === 29;
+  registerPanelWindowsIpc(context);
+  const handler = electronBoundary.handlers.get(
+    ipcInvokeContracts.sendPanelCommand.channel,
+  );
+  if (!handler) throw new Error("Panel command handler is missing.");
+
+  await expect(
+    handler(
+      {
+        sender: { id: 29 },
+        senderFrame: { url: rendererUrl },
+      } as IpcMainInvokeEvent,
+      { type: "openBlockLibrary" },
+    ),
+  ).resolves.toEqual({ sent: true });
+
+  expect(send).toHaveBeenCalledWith(ipcEventContracts.panelCommand.channel, {
+    type: "openBlockLibrary",
+  });
+  expect(restore).toHaveBeenCalledOnce();
+  expect(show).toHaveBeenCalledOnce();
+  expect(focus).toHaveBeenCalledOnce();
 });
 
 it("opens only allowlisted Vertex setup pages", async () => {

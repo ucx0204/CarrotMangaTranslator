@@ -46,6 +46,7 @@ export type PanelCommand =
   | { type: "adjustFontSize"; blockId: string; adjustment: -1 | 1 }
   | { type: "deleteBlock"; blockId: string }
   | { type: "duplicateBlock"; blockId: string }
+  | { type: "openBlockLibrary" }
   | { type: "insertBlockLibraryEntry"; entry: BlockLibraryEntryV1 }
   | { type: "eraseBlockOriginal"; blockId: string }
   | { type: "fitBlockBubble"; blockId: string }

@@ -8,6 +8,7 @@ export type InpaintingTool =
   | "rectangle"
   | "ellipse"
   | "eraser"
+  | "eraser-rectangle"
   | "picker"
   | "mask";
 

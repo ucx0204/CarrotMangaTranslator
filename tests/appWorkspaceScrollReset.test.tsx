@@ -339,16 +339,17 @@ describe("AppWorkspace scroll reset", () => {
     });
 
     for (const label of ["마스크", "브러시", "지우개", "선택"]) {
-      if (label === "선택") {
+      if (label === "선택" || label === "마스크") {
         fireEvent.click(screen.getByRole("button", { name: label }));
       } else {
-        const retouchTrigger = document.querySelectorAll<HTMLButtonElement>(
-          ".stage-toolbar-group-trigger",
-        )[0];
+        const groupId = label === "브러시" ? "paint" : "restore";
+        const retouchTrigger = document.querySelector<HTMLButtonElement>(
+          `[data-stage-tool-group="${groupId}"]`,
+        );
         expect(retouchTrigger).toBeDefined();
         fireEvent.click(retouchTrigger as HTMLButtonElement);
         const retouchMenu = document.querySelector<HTMLElement>(
-          '[data-stage-tool-menu="retouch"]',
+          `[data-stage-tool-menu="${groupId}"]`,
         );
         expect(retouchMenu).not.toBeNull();
         fireEvent.click(

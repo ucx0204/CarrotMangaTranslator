@@ -179,7 +179,9 @@ export const RetouchLiveLayer = React.memo(function RetouchLiveLayer({
         hidden
         width={canvasSize.width}
       />
-      {retouchCursor.mode === "eraser" && retouchOriginalImageDataUrl ? (
+      {(retouchCursor.mode === "eraser" ||
+        retouchCursor.mode === "eraser-rectangle") &&
+      retouchOriginalImageDataUrl ? (
         <img
           alt=""
           aria-hidden="true"

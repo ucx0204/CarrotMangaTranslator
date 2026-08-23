@@ -27,7 +27,13 @@ export type ImageStageProps = {
   blockPointerDisabled?: boolean;
   retouchCursor?: {
     radiusPx: number;
-    mode: "brush" | "rectangle" | "ellipse" | "eraser" | "mask";
+    mode:
+      | "brush"
+      | "rectangle"
+      | "ellipse"
+      | "eraser"
+      | "eraser-rectangle"
+      | "mask";
     color: string;
   } | null;
   retouchOriginalImageDataUrl?: string;

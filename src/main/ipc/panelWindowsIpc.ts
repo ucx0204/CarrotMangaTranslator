@@ -5,6 +5,7 @@ import {
 } from "../../shared/ipcContracts";
 import type { PanelCommand } from "../../shared/panelBridgeTypes";
 import { isAllowedMainWindowNavigation } from "../mainWindow";
+import { focusExistingMainWindow } from "../singleInstanceWindow";
 import type { IpcContext } from "./context";
 import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
@@ -64,6 +65,9 @@ function registerSendPanelCommand(context: IpcContext): void {
           ipcEventContracts.panelCommand.channel,
           ipcEventContracts.panelCommand.payload.parse(command),
         );
+        if (command.type === "openBlockLibrary") {
+          focusExistingMainWindow(mainWindow);
+        }
       }
       return contract.result.parse({ sent: delivered });
     },

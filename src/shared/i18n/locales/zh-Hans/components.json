@@ -757,9 +757,13 @@
         "label": "文本形状",
         "title": "透视、曲线和气泡区域工具"
       },
-      "retouch": {
-        "label": "图像修补",
-        "title": "蒙版、画笔、形状和恢复工具"
+      "paint": {
+        "label": "绘制工具",
+        "title": "画笔、形状和取色工具"
+      },
+      "restore": {
+        "label": "恢复工具",
+        "title": "画笔和矩形恢复工具"
       }
     },
     "tools": {
@@ -790,6 +794,10 @@
       "rectangle": { "label": "矩形", "title": "用实心矩形覆盖" },
       "ellipse": { "label": "椭圆", "title": "用实心椭圆覆盖" },
       "eraser": { "label": "橡皮擦", "title": "清除修整笔触" },
+      "eraser-rectangle": {
+        "label": "矩形橡皮擦",
+        "title": "拖动以从原图恢复矩形区域"
+      },
       "picker": { "label": "取色", "title": "从画布取色" }
     }
   },
@@ -1143,6 +1151,7 @@
       "rectangle": "矩形",
       "ellipse": "椭圆",
       "eraser": "恢复",
+      "eraser-rectangle": "矩形恢复",
       "mask": "蒙版画笔",
       "none": "请选择工具",
       "picker": "取色器"

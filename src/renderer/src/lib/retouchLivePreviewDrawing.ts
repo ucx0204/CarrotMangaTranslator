@@ -11,6 +11,7 @@ export type ShapePreviewFrame = {
   dirty: boolean;
   geometry: RetouchLiveGeometry;
   kind: "rectangle" | "ellipse";
+  mode: "paint" | "restore";
   start: RetouchLivePoint;
 };
 
@@ -48,6 +49,16 @@ export function renderShapePreview(
   const top = Math.min(startY, currentY);
   const width = Math.max(1, Math.abs(currentX - startX));
   const height = Math.max(1, Math.abs(currentY - startY));
+  if (preview.mode === "restore") {
+    renderRestoreRectangle(
+      stage,
+      context,
+      { height, left, top, width },
+      preview.geometry,
+    );
+    preview.dirty = false;
+    return;
+  }
   context.save();
   context.globalAlpha = 0.92;
   context.fillStyle = preview.color;
@@ -68,6 +79,63 @@ export function renderShapePreview(
   }
   context.restore();
   preview.dirty = false;
+}
+
+function renderRestoreRectangle(
+  stage: HTMLElement,
+  context: RetouchCanvasContext,
+  bounds: { height: number; left: number; top: number; width: number },
+  geometry: RetouchLiveGeometry,
+): void {
+  const source = findOriginalSource(stage);
+  const sourceReady = Boolean(
+    source?.complete && source.naturalWidth > 0 && source.naturalHeight > 0,
+  );
+  context.save();
+  if (source && sourceReady) {
+    const sourceX = (bounds.left / geometry.displayWidth) * source.naturalWidth;
+    const sourceY =
+      (bounds.top / geometry.displayHeight) * source.naturalHeight;
+    const sourceWidth =
+      (bounds.width / geometry.displayWidth) * source.naturalWidth;
+    const sourceHeight =
+      (bounds.height / geometry.displayHeight) * source.naturalHeight;
+    context.drawImage(
+      source,
+      sourceX,
+      sourceY,
+      sourceWidth,
+      sourceHeight,
+      bounds.left,
+      bounds.top,
+      bounds.width,
+      bounds.height,
+    );
+  }
+  context.globalAlpha = sourceReady ? 0.12 : 0.24;
+  context.fillStyle = "#70b7ff";
+  context.fillRect(bounds.left, bounds.top, bounds.width, bounds.height);
+  context.globalAlpha = 0.95;
+  context.lineWidth = 2;
+  context.strokeStyle = "#70b7ff";
+  context.setLineDash([7, 4]);
+  traceRectangle(context, bounds);
+  context.stroke();
+  context.restore();
+}
+
+function traceRectangle(
+  context: RetouchCanvasContext,
+  bounds: { height: number; left: number; top: number; width: number },
+): void {
+  const right = bounds.left + bounds.width;
+  const bottom = bounds.top + bounds.height;
+  context.beginPath();
+  context.moveTo(bounds.left, bounds.top);
+  context.lineTo(right, bounds.top);
+  context.lineTo(right, bottom);
+  context.lineTo(bounds.left, bottom);
+  context.closePath();
 }
 
 export function drawEraserSegment(

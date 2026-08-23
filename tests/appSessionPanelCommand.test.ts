@@ -15,6 +15,7 @@ function createTarget(): PanelCommandTarget {
     deleteStylePreset: vi.fn(),
     deleteSelectedBlock: vi.fn(),
     duplicateSelectedBlock: vi.fn(),
+    openBlockLibrary: vi.fn(),
     insertBlockLibraryEntry: vi.fn(),
     eraseBlockOriginal: vi.fn(),
     fitBlockBubble: vi.fn(),
@@ -94,6 +95,7 @@ describe("panel command dispatch", () => {
       { type: "adjustFontSize", blockId: "current-block", adjustment: -1 },
       { type: "deleteBlock", blockId: "current-block" },
       { type: "duplicateBlock", blockId: "current-block" },
+      { type: "openBlockLibrary" },
       { type: "eraseBlockOriginal", blockId: "current-block" },
       { type: "fitBlockBubble", blockId: "current-block" },
       { type: "removeBubbleLayout", blockId: "current-block" },
@@ -127,6 +129,7 @@ describe("panel command dispatch", () => {
     expect(actions.adjustSelectedBlockFontSize).toHaveBeenCalledWith(-1);
     expect(actions.deleteSelectedBlock).toHaveBeenCalledOnce();
     expect(actions.duplicateSelectedBlock).toHaveBeenCalledOnce();
+    expect(actions.openBlockLibrary).toHaveBeenCalledOnce();
     expect(actions.eraseBlockOriginal).toHaveBeenCalledWith("current-block");
     expect(actions.fitBlockBubble).toHaveBeenCalledWith("current-block");
     expect(actions.removeSelectedBlockBubbleLayout).toHaveBeenCalledOnce();
@@ -159,5 +162,19 @@ describe("panel command dispatch", () => {
 
     expect(accepted).toBe(false);
     expect(actions.startAreaTranslate).not.toHaveBeenCalled();
+  });
+
+  it("opens the library even while editing actions are busy", () => {
+    const actions = createTarget();
+
+    expect(
+      dispatchPanelCommand({
+        actions,
+        busy: true,
+        command: { type: "openBlockLibrary" },
+        selectedBlockId: null,
+      }),
+    ).toBe(true);
+    expect(actions.openBlockLibrary).toHaveBeenCalledOnce();
   });
 });

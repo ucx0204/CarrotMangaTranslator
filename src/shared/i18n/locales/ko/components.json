@@ -761,9 +761,13 @@
         "label": "텍스트 모양",
         "title": "원근·곡선·말풍선 영역 도구"
       },
-      "retouch": {
-        "label": "이미지 보정",
-        "title": "마스크·붓·도형·복원 도구"
+      "paint": {
+        "label": "칠하기 도구",
+        "title": "브러시·도형·색 추출 도구"
+      },
+      "restore": {
+        "label": "복원 도구",
+        "title": "브러시·사각형 복원 도구"
       }
     },
     "tools": {
@@ -797,6 +801,10 @@
       "rectangle": { "label": "사각형", "title": "드래그로 사각형 덮기" },
       "ellipse": { "label": "원형", "title": "드래그로 원형 덮기" },
       "eraser": { "label": "지우개", "title": "보정 내용 지우개" },
+      "eraser-rectangle": {
+        "label": "사각 지우개",
+        "title": "드래그한 사각형 영역을 원본 이미지로 복원"
+      },
       "picker": { "label": "색 추출", "title": "캔버스에서 색 추출" }
     }
   },
@@ -1150,6 +1158,7 @@
       "rectangle": "사각형",
       "ellipse": "원형",
       "eraser": "복원",
+      "eraser-rectangle": "사각 복원",
       "mask": "마스크 붓",
       "none": "도구를 선택하세요",
       "picker": "색 뽑기"

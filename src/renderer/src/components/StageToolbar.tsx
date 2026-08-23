@@ -1,17 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import {
-  IconBrush,
   IconChevronDown,
-  IconColorPicker,
-  IconEraser,
-  IconHandStop,
-  IconLassoPolygon,
-  IconMessageCircle,
-  IconOval,
-  IconPointer2,
-  IconRectangle,
-  IconSquarePlus,
   IconTextScan2,
   type TablerIcon,
 } from "@tabler/icons-react";
@@ -21,12 +11,16 @@ import {
   StageToolButton,
   StageToolbarHideButton,
   ToolbarControl,
-  type StageToolbarToolEntry,
 } from "./StageToolbarChrome";
 import {
-  useStageToolbarFlyout,
-  type StageToolbarGroupId,
-} from "./useStageToolbarFlyout";
+  STAGE_BUBBLE_TOOL,
+  STAGE_DIRECT_TOOLS,
+  STAGE_MASK_TOOL,
+  STAGE_TOOL_BY_ID,
+  STAGE_TOOL_GROUPS,
+  type StageToolbarToolGroup,
+} from "./stageToolbarTools";
+import { useStageToolbarFlyout } from "./useStageToolbarFlyout";
 
 type StageToolbarProps = {
   bubbleLayoutAvailable?: boolean;
@@ -44,14 +38,7 @@ type StageToolbarProps = {
 
 type StageToolbarFlyout = ReturnType<typeof useStageToolbarFlyout>;
 type StageToolbarFlyoutActions = Omit<StageToolbarFlyout, "rootRef">;
-type ToolEntry = StageToolbarToolEntry;
-
-type ToolGroup = {
-  id: StageToolbarGroupId;
-  labelKey: string;
-  fallbackIcon: TablerIcon;
-  tools: ToolEntry[];
-};
+type ToolGroup = StageToolbarToolGroup;
 
 type StageToolGroupProps = {
   activeTool: WorkspaceTool | null;
@@ -87,57 +74,6 @@ type StageToolGroupTriggerProps = Pick<
   menuId: string;
 };
 
-const TOOL_ENTRIES: ToolEntry[] = [
-  toolEntry("select", IconPointer2),
-  toolEntry("block", IconSquarePlus),
-  toolEntry("hand", IconHandStop),
-  toolEntry("bubble", IconMessageCircle),
-  toolEntry("mask", IconLassoPolygon),
-  toolEntry("brush", IconBrush),
-  toolEntry("rectangle", IconRectangle),
-  toolEntry("ellipse", IconOval),
-  toolEntry("eraser", IconEraser),
-  toolEntry("picker", IconColorPicker),
-];
-
-const TOOL_BY_ID = new Map(
-  TOOL_ENTRIES.map((entry) => [entry.id, entry] as const),
-);
-const DIRECT_TOOLS = resolveTools(["select", "block", "hand"]);
-const BUBBLE_TOOL = resolveTools(["bubble"])[0] as ToolEntry;
-const TOOL_GROUPS: ToolGroup[] = [
-  {
-    id: "retouch",
-    labelKey: "stageToolbar.groups.retouch.label",
-    fallbackIcon: IconBrush,
-    tools: resolveTools([
-      "mask",
-      "brush",
-      "rectangle",
-      "ellipse",
-      "eraser",
-      "picker",
-    ]),
-  },
-];
-
-function toolEntry(id: WorkspaceTool, Icon: TablerIcon): ToolEntry {
-  return {
-    id,
-    labelKey: `stageToolbar.tools.${id}.label`,
-    titleKey: `stageToolbar.tools.${id}.title`,
-    Icon,
-  };
-}
-
-function resolveTools(ids: WorkspaceTool[]): ToolEntry[] {
-  return ids.map((id) => {
-    const entry = TOOL_BY_ID.get(id);
-    if (!entry) throw new Error(`Unknown workspace tool: ${id}`);
-    return entry;
-  });
-}
-
 /** Compact canvas tool picker with advanced tools grouped into flyouts. */
 export function StageToolbar(props: StageToolbarProps): React.JSX.Element {
   const { rootRef, ...flyout } = useStageToolbarFlyout({
@@ -170,48 +106,102 @@ function ExpandedStageToolbar({
       role="toolbar"
       aria-label={t("stageToolbar.imageTools")}
     >
-      {DIRECT_TOOLS.map((entry) => (
+      <StageToolbarSection name="primary">
+        {STAGE_DIRECT_TOOLS.map((entry) => (
+          <StageToolButton
+            active={!props.regionTranslationActive && props.tool === entry.id}
+            disabled={props.disabled}
+            entry={entry}
+            key={entry.id}
+            onSelectTool={props.onSelectTool}
+          />
+        ))}
+      </StageToolbarSection>
+      <StageToolbarSection name="layout">
+        <RegionTranslationButton {...props} />
         <StageToolButton
-          active={!props.regionTranslationActive && props.tool === entry.id}
-          disabled={props.disabled}
-          entry={entry}
-          key={entry.id}
+          active={!props.regionTranslationActive && props.tool === "bubble"}
+          disabled={props.disabled || !props.bubbleLayoutAvailable}
+          entry={STAGE_BUBBLE_TOOL}
           onSelectTool={props.onSelectTool}
         />
-      ))}
-      <RegionTranslationButton {...props} />
-      <StageToolButton
-        active={!props.regionTranslationActive && props.tool === "bubble"}
-        disabled={props.disabled || !props.bubbleLayoutAvailable}
-        entry={BUBBLE_TOOL}
-        onSelectTool={props.onSelectTool}
-      />
-      {TOOL_GROUPS.map((group) => (
-        <StageToolGroup
-          activeTool={
-            !props.regionTranslationActive &&
-            group.tools.some((entry) => entry.id === props.tool)
-              ? props.tool
-              : null
-          }
-          brushColor={props.brushColor}
+      </StageToolbarSection>
+      <StageToolbarSection name="retouch">
+        <StageToolButton
+          active={!props.regionTranslationActive && props.tool === "mask"}
           disabled={props.disabled}
-          group={group}
-          key={group.id}
-          onClose={() => flyout.close(true)}
-          onCancelScheduledClose={flyout.cancelScheduledClose}
-          onMenuKeyDown={flyout.onMenuKeyDown}
-          onOpenFromPointerOrFocus={flyout.openFromPointerOrFocus}
+          entry={STAGE_MASK_TOOL}
           onSelectTool={props.onSelectTool}
-          onActivate={flyout.activate}
-          onScheduleClose={flyout.scheduleClose}
-          open={flyout.openGroup === group.id}
-          selectedTool={props.lastRetouchTool}
         />
-      ))}
-      <StageToolbarHideButton onToggleHidden={props.onToggleHidden} />
+        {STAGE_TOOL_GROUPS.map((group) => {
+          const activeTool = resolveActiveGroupTool(props, group);
+          return (
+            <StageToolGroup
+              activeTool={activeTool}
+              brushColor={props.brushColor}
+              disabled={props.disabled}
+              group={group}
+              key={group.id}
+              onClose={() => flyout.close(true)}
+              onCancelScheduledClose={flyout.cancelScheduledClose}
+              onMenuKeyDown={flyout.onMenuKeyDown}
+              onOpenFromPointerOrFocus={flyout.openFromPointerOrFocus}
+              onSelectTool={props.onSelectTool}
+              onActivate={flyout.activate}
+              onScheduleClose={flyout.scheduleClose}
+              open={flyout.openGroup === group.id}
+              selectedTool={resolveGroupSelectedTool(
+                group,
+                activeTool,
+                props.lastRetouchTool,
+              )}
+            />
+          );
+        })}
+      </StageToolbarSection>
+      <StageToolbarSection name="collapse">
+        <StageToolbarHideButton onToggleHidden={props.onToggleHidden} />
+      </StageToolbarSection>
     </div>
   );
+}
+
+function resolveActiveGroupTool(
+  props: StageToolbarProps,
+  group: ToolGroup,
+): WorkspaceTool | null {
+  return !props.regionTranslationActive &&
+    group.tools.some((entry) => entry.id === props.tool)
+    ? props.tool
+    : null;
+}
+
+function StageToolbarSection({
+  children,
+  name,
+}: {
+  children: React.ReactNode;
+  name: "primary" | "layout" | "retouch" | "collapse";
+}): React.JSX.Element {
+  return (
+    <div className="stage-toolbar-section" data-stage-toolbar-section={name}>
+      {children}
+    </div>
+  );
+}
+
+function resolveGroupSelectedTool(
+  group: ToolGroup,
+  activeTool: WorkspaceTool | null,
+  lastRetouchTool: RetouchTool,
+): RetouchTool {
+  if (activeTool && group.tools.some((entry) => entry.id === activeTool)) {
+    return activeTool as RetouchTool;
+  }
+  if (group.tools.some((entry) => entry.id === lastRetouchTool)) {
+    return lastRetouchTool;
+  }
+  return group.defaultTool;
 }
 
 function RegionTranslationButton(props: StageToolbarProps): React.JSX.Element {
@@ -248,7 +238,7 @@ function StageToolGroup({
   selectedTool,
 }: StageToolGroupProps): React.JSX.Element {
   const { t } = useTranslation("components");
-  const selectedEntry = TOOL_BY_ID.get(selectedTool);
+  const selectedEntry = STAGE_TOOL_BY_ID.get(selectedTool);
   const LauncherIcon = selectedEntry?.Icon ?? group.fallbackIcon;
   const menuId = React.useId();
   return (
@@ -347,12 +337,14 @@ function StageToolGroupTrigger({
         stroke={2.4}
         aria-hidden="true"
       />
-      <i
-        aria-hidden="true"
-        className="stage-toolbar-swatch"
-        data-stage-tool-swatch=""
-        style={{ backgroundColor: brushColor }}
-      />
+      {group.showSwatch ? (
+        <i
+          aria-hidden="true"
+          className="stage-toolbar-swatch"
+          data-stage-tool-swatch=""
+          style={{ backgroundColor: brushColor }}
+        />
+      ) : null}
     </button>
   );
 }
@@ -368,7 +360,7 @@ function StageToolGroupMenu({
   selectedTool,
 }: {
   disabled: boolean;
-  group: (typeof TOOL_GROUPS)[number];
+  group: (typeof STAGE_TOOL_GROUPS)[number];
   label: string;
   menuId: string;
   onClose: () => void;

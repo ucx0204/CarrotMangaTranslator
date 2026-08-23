@@ -17,6 +17,7 @@ type PanelSessionCallbacks = Pick<
   | "onEraseBlockOriginal"
   | "onFitBlockBubble"
   | "onInsertBlockLibraryEntry"
+  | "onOpenBlockLibrary"
   | "onPopOutEditor"
   | "onRemoveBubbleLayout"
   | "onSelectTransformMode"
@@ -95,6 +96,7 @@ function useStablePanelSessionCallbacks(
   const onInsertBlockLibraryEntry = useEventCallback(
     value.onInsertBlockLibraryEntry,
   );
+  const onOpenBlockLibrary = useEventCallback(value.onOpenBlockLibrary);
   const onPopOutEditor = useEventCallback(value.onPopOutEditor);
   const onRemoveBubbleLayout = useEventCallback(value.onRemoveBubbleLayout);
   const onSelectTransformMode = useEventCallback(value.onSelectTransformMode);
@@ -117,6 +119,7 @@ function useStablePanelSessionCallbacks(
       onEraseBlockOriginal,
       onFitBlockBubble,
       onInsertBlockLibraryEntry,
+      onOpenBlockLibrary,
       onPopOutEditor,
       onRemoveBubbleLayout,
       onSelectTransformMode,
@@ -138,6 +141,7 @@ function useStablePanelSessionCallbacks(
       onEraseBlockOriginal,
       onFitBlockBubble,
       onInsertBlockLibraryEntry,
+      onOpenBlockLibrary,
       onPopOutEditor,
       onRemoveBubbleLayout,
       onSelectTransformMode,

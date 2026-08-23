@@ -57,6 +57,8 @@ export type PanelSessionValue = {
   onUpdateBlock: (patch: Partial<TranslationBlock>) => void;
   onDeleteBlock: () => void;
   onDuplicateBlock: () => void;
+  /** Opens the block library in the owning main application window. */
+  onOpenBlockLibrary: () => void;
   onInsertBlockLibraryEntry: (entry: BlockLibraryEntryV1) => void;
   onEraseBlockOriginal: () => void;
   onFitBlockBubble: () => void;

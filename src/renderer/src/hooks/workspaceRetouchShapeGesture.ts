@@ -16,7 +16,8 @@ import type {
 
 export type RetouchShapeDrawing = {
   end: ImagePoint;
-  kind: RetouchShapeTool;
+  kind: "rectangle" | "ellipse";
+  mode: "paint" | "restore";
   start: ImagePoint;
 };
 
@@ -36,9 +37,10 @@ export function startWorkspaceRetouchShape(
   options.drawingRef.current = true;
   options.pointsRef.current = [];
   options.lastPointRef.current = null;
+  const shape = resolveRetouchShape(kind);
   options.shapeDrawingRef.current = {
     end: resolved.point,
-    kind,
+    ...shape,
     start: resolved.point,
   };
   if (options.stageRef.current) {
@@ -46,7 +48,7 @@ export function startWorkspaceRetouchShape(
       options.stageRef.current,
       resolved.point,
       resolved.geometry,
-      { color: options.color, kind },
+      { color: options.color, ...shape },
     );
   }
   capturePointerSafely(options.stageRef.current, event.pointerId);
@@ -92,6 +94,15 @@ export function commitWorkspaceRetouchShape(
       start: drawing.start,
       end: drawing.end,
     },
-    mode: "paint",
+    mode: drawing.mode,
   });
+}
+
+function resolveRetouchShape(kind: RetouchShapeTool): {
+  kind: "rectangle" | "ellipse";
+  mode: "paint" | "restore";
+} {
+  return kind === "eraser-rectangle"
+    ? { kind: "rectangle", mode: "restore" }
+    : { kind, mode: "paint" };
 }

@@ -50,6 +50,8 @@ describe("app-session shortcut handlers", () => {
     expect(result.current.uiState.stageTool).toBe("ellipse");
     run(result, "retouch-tool-eraser");
     expect(result.current.uiState.stageTool).toBe("eraser");
+    run(result, "retouch-tool-eraser-rectangle");
+    expect(result.current.uiState.stageTool).toBe("eraser-rectangle");
     run(result, "retouch-tool-picker");
     expect(result.current.uiState.stageTool).toBe("picker");
     run(result, "stage-tool-select");

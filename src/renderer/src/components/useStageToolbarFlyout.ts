@@ -1,6 +1,6 @@
 import React from "react";
 
-export type StageToolbarGroupId = "retouch";
+export type StageToolbarGroupId = "paint" | "restore";
 
 const POINTER_LEAVE_CLOSE_DELAY_MS = 160;
 

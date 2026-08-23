@@ -7,6 +7,13 @@ import { panelGateway as mangaGateway } from "../api/panelGateway";
 import type { PanelSessionValue } from "./panelSession";
 
 const noop = (): void => undefined;
+const REMOTE_WINDOW_ACTIONS = {
+  canCreateStylePreset: false,
+  onBackToPageBlocks: noop,
+  onDockEditorWindow: noop,
+  onPopOutEditor: noop,
+  onToggleEditorFloat: noop,
+};
 
 function dispatchCommand(command: PanelCommand): void {
   void mangaGateway.sendPanelCommand(command).catch((error) => {
@@ -59,11 +66,7 @@ function buildRemotePanelSessionValue(
     editorFloating: false,
     editorPoppedOut: false,
     showDetachControls: false,
-    canCreateStylePreset: false,
-    onToggleEditorFloat: noop,
-    onBackToPageBlocks: noop,
-    onPopOutEditor: noop,
-    onDockEditorWindow: noop,
+    ...REMOTE_WINDOW_ACTIONS,
     onApplyFormat: (scope, groupIds) =>
       dispatchCommand({ type: "applyFormat", scope, groupIds }),
     onApplyStylePreset: createRemoteStylePresetApply(selectedBlockId),
@@ -95,6 +98,7 @@ function buildRemotePanelSessionValue(
     },
     onInsertBlockLibraryEntry: (entry) =>
       dispatchCommand({ type: "insertBlockLibraryEntry", entry }),
+    onOpenBlockLibrary: () => dispatchCommand({ type: "openBlockLibrary" }),
     onEraseBlockOriginal: () => {
       if (selectedBlockId) {
         dispatchCommand({

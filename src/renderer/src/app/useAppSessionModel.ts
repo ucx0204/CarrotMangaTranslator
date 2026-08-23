@@ -120,6 +120,7 @@ function usePanelCommandHandler(
     translation.workspaceHistory.busy;
   const selectedBlockId = chapter.derivedState.selectedBlock?.id ?? null;
   const selectWorkspaceTool = chapter.uiState.selectWorkspaceTool;
+  const setBlockLibraryOpen = chapter.uiState.setBlockLibraryOpen;
   const startAreaTranslate =
     inpainting.pointerHandlers.startRegionTranslationSelection;
   const runInpainting = inpainting.inpaintingActions.runInpainting;
@@ -136,6 +137,7 @@ function usePanelCommandHandler(
           eraseBlockOriginal: (blockId) => void runInpainting("page", blockId),
           fitBlockBubble: (blockId) => void runBubbleLayout(blockId),
           deleteStylePreset: (presetId) => void deleteStylePreset(presetId),
+          openBlockLibrary: () => setBlockLibraryOpen(true),
           selectWorkspaceTool,
           startAreaTranslate,
         },
@@ -152,6 +154,7 @@ function usePanelCommandHandler(
       runInpainting,
       selectedBlockId,
       selectWorkspaceTool,
+      setBlockLibraryOpen,
       startAreaTranslate,
     ],
   );

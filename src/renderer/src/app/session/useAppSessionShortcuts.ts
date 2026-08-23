@@ -4,7 +4,7 @@ import type { ChapterSessionController } from "./useChapterSessionController";
 import type { InpaintingController } from "./useInpaintingController";
 import type { TranslationController } from "./useTranslationController";
 import { useSelectedBlockKeyboardNudge } from "../../hooks/useSelectedBlockKeyboardNudge";
-import { isBlockEditingTool } from "../../lib/stageTool";
+import { isBlockEditingTool, type RetouchTool } from "../../lib/stageTool";
 import {
   resolveAdjacentBlockId,
   type BlockNavigationDirection,
@@ -172,6 +172,8 @@ function createTranslationAndRetouchShortcutHandlers(
     "retouch-tool-rectangle": () => selectRetouchTool(chapter, "rectangle"),
     "retouch-tool-ellipse": () => selectRetouchTool(chapter, "ellipse"),
     "retouch-tool-eraser": () => selectRetouchTool(chapter, "eraser"),
+    "retouch-tool-eraser-rectangle": () =>
+      selectRetouchTool(chapter, "eraser-rectangle"),
     "retouch-tool-picker": () => selectRetouchTool(chapter, "picker"),
     "retouch-apply-mask": () =>
       inpainting.inpaintingBridge.contextValue.onRunDrawnPattern(),
@@ -249,7 +251,7 @@ function createStyleSlotHandlers(
 
 function selectRetouchTool(
   chapter: ChapterSessionController,
-  tool: "mask" | "brush" | "rectangle" | "ellipse" | "eraser" | "picker",
+  tool: RetouchTool,
 ): void {
   chapter.core.setRegionSelection(null);
   chapter.uiState.selectWorkspaceTool(tool);

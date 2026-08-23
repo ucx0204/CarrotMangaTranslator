@@ -26,6 +26,7 @@ export const SHORTCUT_ACTION_IDS = [
   "retouch-tool-rectangle",
   "retouch-tool-ellipse",
   "retouch-tool-eraser",
+  "retouch-tool-eraser-rectangle",
   "retouch-tool-picker",
   "retouch-apply-mask",
   "retouch-cancel-mask",

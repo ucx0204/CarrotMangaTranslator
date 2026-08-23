@@ -45,7 +45,13 @@ type UseInpaintingContextBridgeOptions = {
   undoRetouch: () => Promise<void>;
 };
 
-type RetouchCursorMode = "brush" | "rectangle" | "ellipse" | "eraser" | "mask";
+type RetouchCursorMode =
+  | "brush"
+  | "rectangle"
+  | "ellipse"
+  | "eraser"
+  | "eraser-rectangle"
+  | "mask";
 
 type RetouchCursor = {
   color: string;
@@ -86,10 +92,11 @@ type InpaintingBridgeResult = {
 };
 
 const RETOUCH_CURSOR_COLORS: Record<
-  Extract<RetouchCursorMode, "eraser" | "mask">,
+  Extract<RetouchCursorMode, "eraser" | "eraser-rectangle" | "mask">,
   string
 > = {
   eraser: "#70b7ff",
+  "eraser-rectangle": "#70b7ff",
   mask: "#ff9f1c",
 };
 
@@ -99,6 +106,7 @@ function isRetouchCursorMode(tool: InpaintingTool): tool is RetouchCursorMode {
     tool === "rectangle" ||
     tool === "ellipse" ||
     tool === "eraser" ||
+    tool === "eraser-rectangle" ||
     tool === "mask"
   );
 }
@@ -115,7 +123,10 @@ function resolveRetouchCursor({
     return null;
   }
   return {
-    radiusPx: tool === "rectangle" || tool === "ellipse" ? 0 : brushRadius,
+    radiusPx:
+      tool === "rectangle" || tool === "ellipse" || tool === "eraser-rectangle"
+        ? 0
+        : brushRadius,
     mode: tool,
     color:
       tool === "brush" || tool === "rectangle" || tool === "ellipse"

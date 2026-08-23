@@ -28,6 +28,7 @@ export function useAppSessionUiState() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
   const [textViewOpen, setTextViewOpen] = useState(false);
+  const [blockLibraryOpen, setBlockLibraryOpen] = useState(false);
   const [styleGuideOpen, setStyleGuideOpen] = useState(false);
   const [searchReplaceOpen, setSearchReplaceOpen] = useState(false);
   const translateModals = useTranslateModalUiState();
@@ -56,6 +57,7 @@ export function useAppSessionUiState() {
 
   const resetChapterScopedUi = useCallback(() => {
     resetInpaintingUi();
+    setBlockLibraryOpen(false);
     setStyleGuideOpen(false);
     setSearchReplaceOpen(false);
     setRightRailMode("page-blocks");
@@ -68,11 +70,13 @@ export function useAppSessionUiState() {
     ...originalImageOpacity,
     ...translateModals,
     ...inpaintingUi,
+    blockLibraryOpen,
     commandPaletteOpen,
     editorFloating,
     rightRailMode,
     resetChapterScopedUi,
     setCommandPaletteOpen,
+    setBlockLibraryOpen,
     setEditorFloating,
     setRightRailMode,
     setSearchReplaceOpen,
@@ -270,9 +274,15 @@ function resolveInpaintingTool(tool: StageTool): InpaintingTool {
 function isManualInpaintingTool(
   tool: StageTool,
 ): tool is Exclude<InpaintingTool, "none"> {
-  return ["mask", "brush", "rectangle", "ellipse", "eraser", "picker"].includes(
-    tool,
-  );
+  return [
+    "mask",
+    "brush",
+    "rectangle",
+    "ellipse",
+    "eraser",
+    "eraser-rectangle",
+    "picker",
+  ].includes(tool);
 }
 
 function useTranslateModalUiState() {

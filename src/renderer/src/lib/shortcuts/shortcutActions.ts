@@ -227,6 +227,13 @@ export const SHORTCUT_ACTIONS: ShortcutActionDef[] = [
     enabled: (c) => c.chapterOpen && !c.editLocked,
   },
   {
+    id: "retouch-tool-eraser-rectangle",
+    label: "사각 지우개",
+    category: "inpaint",
+    defaultCombo: "",
+    enabled: (c) => c.chapterOpen && !c.editLocked,
+  },
+  {
     id: "retouch-tool-picker",
     label: "색상 추출",
     category: "inpaint",

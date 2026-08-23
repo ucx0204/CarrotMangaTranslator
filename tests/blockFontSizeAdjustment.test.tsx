@@ -1467,6 +1467,7 @@ describe("font-size panel bridge", () => {
     act(() => result.current?.onRemoveBubbleLayout());
     act(() => result.current?.onApplyStylePreset("style-preset:dialogue"));
     act(() => result.current?.onApplyBlockBackgroundOpacity("chapter"));
+    act(() => result.current?.onOpenBlockLibrary());
 
     expect(sendPanelCommand).toHaveBeenCalledWith({
       type: "adjustFontSize",
@@ -1506,6 +1507,9 @@ describe("font-size panel bridge", () => {
     expect(sendPanelCommand).toHaveBeenCalledWith({
       type: "applyBlockBackgroundOpacity",
       scope: "chapter",
+    });
+    expect(sendPanelCommand).toHaveBeenCalledWith({
+      type: "openBlockLibrary",
     });
   });
 });

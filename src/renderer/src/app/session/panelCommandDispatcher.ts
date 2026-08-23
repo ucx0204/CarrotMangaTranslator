@@ -27,6 +27,7 @@ export type PanelCommandTarget = {
   ) => void;
   deleteSelectedBlock: () => void;
   duplicateSelectedBlock: () => void;
+  openBlockLibrary: () => void;
   insertBlockLibraryEntry: (
     entry: Extract<PanelCommand, { type: "insertBlockLibraryEntry" }>["entry"],
   ) => void;
@@ -57,6 +58,10 @@ export function dispatchPanelCommand({
   command: PanelCommand;
   selectedBlockId: string | null;
 }): boolean {
+  if (command.type === "openBlockLibrary") {
+    actions.openBlockLibrary();
+    return true;
+  }
   if (busy || isStaleBlockCommand(command, selectedBlockId)) {
     return false;
   }
@@ -76,6 +81,7 @@ function applyPanelCommand(
   actions: PanelCommandTarget,
   command: Exclude<
     PanelCommand,
+    | Extract<PanelCommand, { type: "openBlockLibrary" }>
     | ApplyStylePresetCommand
     | DeleteStylePresetCommand
     | Extract<PanelCommand, { type: "insertBlockLibraryEntry" }>
