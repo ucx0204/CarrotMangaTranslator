@@ -6,7 +6,6 @@ import {
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { WorkspaceTool } from "../lib/stageTool";
-import { StageActiveToolBadge } from "./StageActiveToolBadge";
 import { ControlTooltip } from "./ui/ControlTooltip";
 
 export type StageToolbarToolEntry = {
@@ -17,31 +16,24 @@ export type StageToolbarToolEntry = {
 };
 
 export function CollapsedStageToolbar({
-  brushRadius,
   onToggleHidden,
-  tool,
 }: {
-  brushRadius: number;
   onToggleHidden: () => void;
-  tool: WorkspaceTool;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <>
-      <div className="stage-toolbar collapsed">
-        <ToolbarControl tooltip={t("stageToolbar.showTitle")}>
-          <button
-            aria-label={t("stageToolbar.showTitle")}
-            className="stage-toolbar-toggle"
-            onClick={onToggleHidden}
-            type="button"
-          >
-            <IconChevronRight size={20} stroke={2.2} aria-hidden="true" />
-          </button>
-        </ToolbarControl>
-      </div>
-      <StageActiveToolBadge brushRadius={brushRadius} tool={tool} />
-    </>
+    <div className="stage-toolbar collapsed">
+      <ToolbarControl tooltip={t("stageToolbar.showTitle")}>
+        <button
+          aria-label={t("stageToolbar.showTitle")}
+          className="stage-toolbar-toggle"
+          onClick={onToggleHidden}
+          type="button"
+        >
+          <IconChevronRight size={20} stroke={2.2} aria-hidden="true" />
+        </button>
+      </ToolbarControl>
+    </div>
   );
 }
 

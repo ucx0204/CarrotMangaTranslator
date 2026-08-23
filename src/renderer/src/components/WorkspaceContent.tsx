@@ -49,6 +49,12 @@ export const WorkspaceContent = React.memo(function WorkspaceContent(
       onStagePointerLeave={props.onStagePointerLeave}
       onStagePointerMove={props.onStagePointerMove}
       onStagePointerUp={props.onStagePointerUp}
+      originalImageDataUrl={props.retouchOriginalImageDataUrl}
+      originalImageOpacity={
+        props.originalImageOpacityAvailable && !props.showingOriginalPeek
+          ? props.originalImageOpacity
+          : 0
+      }
       page={props.selectedPage}
       regionSelectionActive={props.regionSelectionActive}
       regionSelectionRect={props.regionSelectionRect}
@@ -57,7 +63,6 @@ export const WorkspaceContent = React.memo(function WorkspaceContent(
       selectedBlockId={props.selectedBlockId}
       selectedBlockIds={props.selectedBlockIds}
       showBlockChrome={props.showBlockChrome && !retouchToolActive}
-      showingOriginalPeek={props.showingOriginalPeek}
       showTextBlocks={props.showTextBlocks}
       stageRef={props.stageRef}
       stageSize={props.stageSize}
@@ -91,6 +96,8 @@ const WORKSPACE_CONTENT_RENDER_KEYS = [
   "onStagePointerLeave",
   "onStagePointerMove",
   "onStagePointerUp",
+  "originalImageOpacity",
+  "originalImageOpacityAvailable",
   "regionSelectionActive",
   "regionSelectionRect",
   "retouchCursor",
@@ -109,18 +116,9 @@ const WORKSPACE_CONTENT_RENDER_KEYS = [
   "stageTool",
 ] as const satisfies readonly (keyof AppWorkspaceProps)[];
 
-function WorkspacePane({
-  showingOriginalPeek,
-  ...stageProps
-}: ImageStageProps & {
-  showingOriginalPeek: boolean;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
+function WorkspacePane(stageProps: ImageStageProps): React.JSX.Element {
   return (
     <div className="workspace-pane">
-      {showingOriginalPeek ? (
-        <div className="peek-original-badge">{t("common.original")}</div>
-      ) : null}
       <ImageStage {...stageProps} />
     </div>
   );

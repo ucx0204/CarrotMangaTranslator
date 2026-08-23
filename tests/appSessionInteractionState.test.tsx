@@ -119,6 +119,35 @@ describe("unified workspace interaction state", () => {
     expect(result.current.workspaceZoom).toBe(1);
   });
 
+  it("keeps original-image opacity per page for only the current app session", () => {
+    const first = renderHook(() => useAppSessionUiState());
+
+    expect(first.result.current.originalImageOpacityByPage).toEqual({});
+    act(() => {
+      first.result.current.setOriginalImageOpacityForPage("page-1", 0.376);
+      first.result.current.setOriginalImageOpacityForPage("page-2", 2);
+    });
+    expect(first.result.current.originalImageOpacityByPage).toEqual({
+      "page-1": 0.38,
+      "page-2": 1,
+    });
+
+    act(() => first.result.current.resetChapterScopedUi());
+    expect(first.result.current.originalImageOpacityByPage["page-1"]).toBe(
+      0.38,
+    );
+    act(() =>
+      first.result.current.setOriginalImageOpacityForPage("page-1", -1),
+    );
+    expect(first.result.current.originalImageOpacityByPage).toEqual({
+      "page-2": 1,
+    });
+
+    first.unmount();
+    const restarted = renderHook(() => useAppSessionUiState());
+    expect(restarted.result.current.originalImageOpacityByPage).toEqual({});
+  });
+
   it("returns to select whenever the selected page changes", () => {
     const onPageChange = vi.fn();
     const options = {

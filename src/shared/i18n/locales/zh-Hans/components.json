@@ -72,11 +72,18 @@
       "height": "适应高度",
       "actual": "原始大小 (100%)"
     },
+    "originalOpacity": {
+      "label": "原图不透明度",
+      "original": "原图",
+      "showControl": "打开原图不透明度调节",
+      "hideControl": "关闭原图不透明度调节",
+      "unavailable": "可在已有修复结果的页面调节原图不透明度。"
+    },
     "quickRail": {
       "hideTop": "隐藏上方工具",
       "showTop": "显示上方工具",
-      "hideBottom": "隐藏缩放与通知",
-      "showBottom": "显示缩放与通知"
+      "hideBottom": "隐藏下方工具",
+      "showBottom": "显示下方工具"
     },
     "empty": {
       "title": "开始翻译漫画",
@@ -745,7 +752,6 @@
     "hide": "隐藏工具栏",
     "hideTitle": "隐藏工具栏（4）",
     "imageTools": "图像工具",
-    "radius": "{{radius}}px",
     "groups": {
       "textShape": {
         "label": "文本形状",

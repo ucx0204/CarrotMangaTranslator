@@ -28,9 +28,10 @@ export type AppWorkspaceProps = {
   showBlockChrome: boolean;
   showingOriginalPeek: boolean;
   brushColor: string;
-  brushRadius: number;
   retouchCursor: ImageStageProps["retouchCursor"];
   retouchOriginalImageDataUrl: string;
+  originalImageOpacity: number;
+  originalImageOpacityAvailable: boolean;
   maskStrokes: ImageStageProps["maskStrokes"];
   regionSelectionActive: boolean;
   regionTranslationAvailable: boolean;
@@ -46,6 +47,7 @@ export type AppWorkspaceProps = {
   onToggleStageToolbarHidden: () => void;
   onChangeWorkspaceFitMode: (fitMode: WorkspaceFitMode) => void;
   onChangeWorkspaceZoom: (zoom: number) => void;
+  onChangeOriginalImageOpacity: (opacity: number) => void;
   onResetWorkspaceZoom: () => void;
   onZoomInWorkspace: () => void;
   onZoomOutWorkspace: () => void;

@@ -72,11 +72,18 @@
       "height": "세로 맞춤",
       "actual": "원본 크기 (100%)"
     },
+    "originalOpacity": {
+      "label": "원본 이미지 불투명도",
+      "original": "원본",
+      "showControl": "원본 불투명도 조절 열기",
+      "hideControl": "원본 불투명도 조절 닫기",
+      "unavailable": "인페인트 결과가 있는 페이지에서 원본 불투명도를 조절할 수 있습니다."
+    },
     "quickRail": {
       "hideTop": "위쪽 도구 숨기기",
       "showTop": "위쪽 도구 보이기",
-      "hideBottom": "배율과 알림 숨기기",
-      "showBottom": "배율과 알림 보이기"
+      "hideBottom": "아래쪽 도구 숨기기",
+      "showBottom": "아래쪽 도구 보이기"
     },
     "empty": {
       "title": "망가 번역을 시작해요",
@@ -749,7 +756,6 @@
     "hide": "도구 모음 숨기기",
     "hideTitle": "도구 모음 숨기기 (4)",
     "imageTools": "이미지 도구",
-    "radius": "{{radius}}px",
     "groups": {
       "textShape": {
         "label": "텍스트 모양",

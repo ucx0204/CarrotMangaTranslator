@@ -385,6 +385,56 @@ describe("AppWorkspace scroll reset", () => {
     ).toBe(false);
   });
 
+  it("blends the original between the inpainted page and editing overlays", () => {
+    const refs = makeWorkspaceRefs();
+    const page = makePage("page-1");
+    page.blocks = [makeBlock()];
+    const props = {
+      ...makeWorkspaceProps({
+        refs,
+        selectedPage: page,
+        selectedPageImageDataUrl: PAGE_1_IMAGE,
+        selectedPageImagePageId: "page-1",
+      }),
+      originalImageOpacity: 0.37,
+      originalImageOpacityAvailable: true,
+      retouchOriginalImageDataUrl: PAGE_2_IMAGE,
+      showBlockChrome: true,
+      showTextBlocks: true,
+      stageSize: { height: 800, width: 500 },
+    };
+    const view = renderWorkspace(props);
+    const pageImage = view.container.querySelector(".page-image");
+    const originalLayer = view.container.querySelector(
+      "[data-original-image-opacity-layer]",
+    ) as HTMLImageElement | null;
+    const blockLayer = view.container.querySelector(".overlay-block");
+
+    expect(originalLayer?.src).toBe(PAGE_2_IMAGE);
+    expect(originalLayer?.style.opacity).toBe("0.37");
+    expect(pageImage?.compareDocumentPosition(originalLayer as Node) ?? 0).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(
+      originalLayer?.compareDocumentPosition(blockLayer as Node) ?? 0,
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+
+    view.rerender(
+      withFonts(<AppWorkspace {...props} originalImageOpacity={0} />),
+    );
+    expect(
+      view.container.querySelector("[data-original-image-opacity-layer]"),
+    ).toBeNull();
+
+    view.rerender(
+      withFonts(<AppWorkspace {...props} showingOriginalPeek={true} />),
+    );
+    expect(
+      view.container.querySelector("[data-original-image-opacity-layer]"),
+    ).toBeNull();
+    expect(view.container.querySelector(".peek-original-badge")).toBeNull();
+  });
+
   it("shows only the original and disables stage editing while comparing", () => {
     const refs = makeWorkspaceRefs();
     const page = makePage("page-1");
@@ -606,7 +656,6 @@ function makeWorkspaceProps({
 }): AppWorkspaceProps {
   return {
     brushColor: "#ffffff",
-    brushRadius: 28,
     imageRef: refs.imageRef,
     interactionPreviewStore: refs.interactionPreviewStore,
     jobActive: false,
@@ -618,6 +667,8 @@ function makeWorkspaceProps({
     },
     lastRetouchTool: "brush",
     maskStrokes: [],
+    originalImageOpacity: 0,
+    originalImageOpacityAvailable: false,
     onApplyBubbleLayoutDraft: () => undefined,
     onBlockPointerDown: () => undefined,
     onCancelBubbleLayoutDraft: () => undefined,
@@ -634,6 +685,7 @@ function makeWorkspaceProps({
     onToggleStageToolbarHidden: () => undefined,
     onUndoBubbleLayoutPoint: () => undefined,
     onChangeWorkspaceFitMode: () => undefined,
+    onChangeOriginalImageOpacity: () => undefined,
     onChangeWorkspaceZoom: () => undefined,
     onResetWorkspaceZoom: () => undefined,
     onZoomInWorkspace: () => undefined,

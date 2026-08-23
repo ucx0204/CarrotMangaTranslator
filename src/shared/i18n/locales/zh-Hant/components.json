@@ -72,11 +72,18 @@
       "height": "符合高度",
       "actual": "原始大小 (100%)"
     },
+    "originalOpacity": {
+      "label": "原圖不透明度",
+      "original": "原圖",
+      "showControl": "開啟原圖不透明度調整",
+      "hideControl": "關閉原圖不透明度調整",
+      "unavailable": "可在已有修補結果的頁面調整原圖不透明度。"
+    },
     "quickRail": {
       "hideTop": "隱藏上方工具",
       "showTop": "顯示上方工具",
-      "hideBottom": "隱藏縮放與通知",
-      "showBottom": "顯示縮放與通知"
+      "hideBottom": "隱藏下方工具",
+      "showBottom": "顯示下方工具"
     },
     "empty": {
       "title": "開始翻譯漫畫",
@@ -745,7 +752,6 @@
     "hide": "隱藏工具列",
     "hideTitle": "隱藏工具列（4）",
     "imageTools": "影像工具",
-    "radius": "{{radius}}px",
     "groups": {
       "textShape": {
         "label": "文字形狀",

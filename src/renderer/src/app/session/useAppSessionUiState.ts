@@ -16,6 +16,7 @@ import {
   stepWorkspaceZoom,
   type WorkspaceFitMode,
 } from "../../lib/workspaceZoom";
+import { clampOriginalImageOpacity } from "../../lib/originalImageOpacity";
 
 export type RightRailMode = "page-blocks" | "block-editor";
 
@@ -46,6 +47,7 @@ export function useAppSessionUiState() {
     useState<RightRailMode>("page-blocks");
   const [stageToolbarHidden, setStageToolbarHidden] = useState(false);
   const zoom = useWorkspaceZoomControls();
+  const originalImageOpacity = useOriginalImageOpacityState();
 
   const toggleEditorFloat = useCallback(
     () => setEditorFloating((floating) => !floating),
@@ -63,6 +65,7 @@ export function useAppSessionUiState() {
 
   return {
     ...zoom,
+    ...originalImageOpacity,
     ...translateModals,
     ...inpaintingUi,
     commandPaletteOpen,
@@ -93,6 +96,32 @@ export function useAppSessionUiState() {
     styleGuideOpen,
     textViewOpen,
     translationFlowActive: jobFlowActive,
+  };
+}
+
+function useOriginalImageOpacityState() {
+  const [originalImageOpacityByPage, setOriginalImageOpacityByPage] = useState<
+    Record<string, number>
+  >({});
+  const setOriginalImageOpacityForPage = useCallback(
+    (pageId: string, opacity: number): void => {
+      const normalized =
+        Math.round(clampOriginalImageOpacity(opacity) * 100) / 100;
+      setOriginalImageOpacityByPage((current) => {
+        if ((current[pageId] ?? 0) === normalized) return current;
+        if (normalized === 0) {
+          const next = { ...current };
+          delete next[pageId];
+          return next;
+        }
+        return { ...current, [pageId]: normalized };
+      });
+    },
+    [],
+  );
+  return {
+    originalImageOpacityByPage,
+    setOriginalImageOpacityForPage,
   };
 }
 

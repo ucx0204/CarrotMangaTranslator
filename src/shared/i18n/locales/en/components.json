@@ -72,11 +72,18 @@
       "height": "Fit height",
       "actual": "Actual size (100%)"
     },
+    "originalOpacity": {
+      "label": "Original image opacity",
+      "original": "Original",
+      "showControl": "Open original opacity control",
+      "hideControl": "Close original opacity control",
+      "unavailable": "Original opacity is available on pages with an inpainted result."
+    },
     "quickRail": {
       "hideTop": "Hide upper tools",
       "showTop": "Show upper tools",
-      "hideBottom": "Hide zoom and notifications",
-      "showBottom": "Show zoom and notifications"
+      "hideBottom": "Hide lower tools",
+      "showBottom": "Show lower tools"
     },
     "empty": {
       "title": "Start translating manga",
@@ -761,7 +768,6 @@
     "hide": "Hide toolbar",
     "hideTitle": "Hide toolbar (4)",
     "imageTools": "Image tools",
-    "radius": "{{radius}}px",
     "groups": {
       "textShape": {
         "label": "Text shape",

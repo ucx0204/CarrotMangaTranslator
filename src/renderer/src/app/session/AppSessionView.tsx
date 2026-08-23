@@ -84,6 +84,9 @@ export function AppSessionView({
           />
           <AppRightQuickRail
             {...rightRailProps}
+            workspaceOriginalOpacityControl={
+              workspaceView.originalOpacityControl
+            }
             workspaceViewControls={workspaceView.controls}
           />
         </div>
@@ -113,6 +116,9 @@ function useWorkspaceViewState(
   controls: React.ComponentProps<
     typeof AppRightQuickRail
   >["workspaceViewControls"];
+  originalOpacityControl: React.ComponentProps<
+    typeof AppRightQuickRail
+  >["workspaceOriginalOpacityControl"];
   onEffectiveScaleChange: (scale: number) => void;
 } {
   const [effectiveScale, setEffectiveScale] = React.useState(
@@ -147,6 +153,12 @@ function useWorkspaceViewState(
       onResetZoom: () => invokeZoom("reset"),
       onZoomIn: () => invokeZoom("in"),
       onZoomOut: () => invokeZoom("out"),
+    },
+    originalOpacityControl: {
+      available: workspaceProps.originalImageOpacityAvailable,
+      opacity: workspaceProps.originalImageOpacity,
+      pageId: workspaceProps.selectedPage?.id ?? null,
+      onChange: workspaceProps.onChangeOriginalImageOpacity,
     },
     onEffectiveScaleChange,
   };

@@ -109,7 +109,9 @@ export function useAppSessionDerivedState({
       jobState.kind,
     ),
     selectedPageImageDataUrl,
+    selectedPageImageDataUrlPageId,
     selectedPageOriginalImageDataUrl,
+    selectedPageOriginalImageDataUrlPageId,
     showProgressBar:
       jobState.status !== "idle" && Boolean(progressState.progressSnapshot),
   };

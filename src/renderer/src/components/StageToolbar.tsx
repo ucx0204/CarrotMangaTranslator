@@ -16,7 +16,6 @@ import {
   type TablerIcon,
 } from "@tabler/icons-react";
 import type { RetouchTool, WorkspaceTool } from "../lib/stageTool";
-import { StageActiveToolBadge } from "./StageActiveToolBadge";
 import {
   CollapsedStageToolbar,
   StageToolButton,
@@ -32,7 +31,6 @@ import {
 type StageToolbarProps = {
   bubbleLayoutAvailable?: boolean;
   brushColor: string;
-  brushRadius: number;
   disabled: boolean;
   hidden: boolean;
   lastRetouchTool: RetouchTool;
@@ -147,13 +145,7 @@ export function StageToolbar(props: StageToolbarProps): React.JSX.Element {
     hidden: props.hidden,
   });
   if (props.hidden) {
-    return (
-      <CollapsedStageToolbar
-        brushRadius={props.brushRadius}
-        onToggleHidden={props.onToggleHidden}
-        tool={props.tool}
-      />
-    );
+    return <CollapsedStageToolbar onToggleHidden={props.onToggleHidden} />;
   }
   return (
     <ExpandedStageToolbar flyout={flyout} props={props} rootRef={rootRef} />
@@ -171,57 +163,54 @@ function ExpandedStageToolbar({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <>
-      <div
-        className="stage-toolbar"
-        onBlur={flyout.onToolbarBlur}
-        ref={rootRef}
-        role="toolbar"
-        aria-label={t("stageToolbar.imageTools")}
-      >
-        {DIRECT_TOOLS.map((entry) => (
-          <StageToolButton
-            active={!props.regionTranslationActive && props.tool === entry.id}
-            disabled={props.disabled}
-            entry={entry}
-            key={entry.id}
-            onSelectTool={props.onSelectTool}
-          />
-        ))}
-        <RegionTranslationButton {...props} />
+    <div
+      className="stage-toolbar"
+      onBlur={flyout.onToolbarBlur}
+      ref={rootRef}
+      role="toolbar"
+      aria-label={t("stageToolbar.imageTools")}
+    >
+      {DIRECT_TOOLS.map((entry) => (
         <StageToolButton
-          active={!props.regionTranslationActive && props.tool === "bubble"}
-          disabled={props.disabled || !props.bubbleLayoutAvailable}
-          entry={BUBBLE_TOOL}
+          active={!props.regionTranslationActive && props.tool === entry.id}
+          disabled={props.disabled}
+          entry={entry}
+          key={entry.id}
           onSelectTool={props.onSelectTool}
         />
-        {TOOL_GROUPS.map((group) => (
-          <StageToolGroup
-            activeTool={
-              !props.regionTranslationActive &&
-              group.tools.some((entry) => entry.id === props.tool)
-                ? props.tool
-                : null
-            }
-            brushColor={props.brushColor}
-            disabled={props.disabled}
-            group={group}
-            key={group.id}
-            onClose={() => flyout.close(true)}
-            onCancelScheduledClose={flyout.cancelScheduledClose}
-            onMenuKeyDown={flyout.onMenuKeyDown}
-            onOpenFromPointerOrFocus={flyout.openFromPointerOrFocus}
-            onSelectTool={props.onSelectTool}
-            onActivate={flyout.activate}
-            onScheduleClose={flyout.scheduleClose}
-            open={flyout.openGroup === group.id}
-            selectedTool={props.lastRetouchTool}
-          />
-        ))}
-        <StageToolbarHideButton onToggleHidden={props.onToggleHidden} />
-      </div>
-      <StageActiveToolBadge brushRadius={props.brushRadius} tool={props.tool} />
-    </>
+      ))}
+      <RegionTranslationButton {...props} />
+      <StageToolButton
+        active={!props.regionTranslationActive && props.tool === "bubble"}
+        disabled={props.disabled || !props.bubbleLayoutAvailable}
+        entry={BUBBLE_TOOL}
+        onSelectTool={props.onSelectTool}
+      />
+      {TOOL_GROUPS.map((group) => (
+        <StageToolGroup
+          activeTool={
+            !props.regionTranslationActive &&
+            group.tools.some((entry) => entry.id === props.tool)
+              ? props.tool
+              : null
+          }
+          brushColor={props.brushColor}
+          disabled={props.disabled}
+          group={group}
+          key={group.id}
+          onClose={() => flyout.close(true)}
+          onCancelScheduledClose={flyout.cancelScheduledClose}
+          onMenuKeyDown={flyout.onMenuKeyDown}
+          onOpenFromPointerOrFocus={flyout.openFromPointerOrFocus}
+          onSelectTool={props.onSelectTool}
+          onActivate={flyout.activate}
+          onScheduleClose={flyout.scheduleClose}
+          open={flyout.openGroup === group.id}
+          selectedTool={props.lastRetouchTool}
+        />
+      ))}
+      <StageToolbarHideButton onToggleHidden={props.onToggleHidden} />
+    </div>
   );
 }
 

@@ -9,6 +9,7 @@ import {
   useSelectionMarqueeRectPreview,
 } from "../lib/workspaceInteractionPreview";
 import { resolveRetouchCanvasBackingSize } from "../lib/retouchLiveGeometry";
+import { clampOriginalImageOpacity } from "../lib/originalImageOpacity";
 import { CircularBrushCursor } from "./CircularBrushCursor";
 import type { ImageStageProps, RetouchStageModel } from "./imageStageTypes";
 
@@ -73,6 +74,30 @@ function areStageImagePropsEqual(
     previous.page.name === next.page.name
   );
 }
+
+export const OriginalImageBlendLayer = React.memo(
+  function OriginalImageBlendLayer({
+    imageDataUrl,
+    opacity,
+  }: {
+    imageDataUrl: string;
+    opacity: number;
+  }): React.JSX.Element | null {
+    const normalizedOpacity = clampOriginalImageOpacity(opacity);
+    if (!imageDataUrl || normalizedOpacity <= 0) return null;
+    return (
+      <img
+        alt=""
+        aria-hidden="true"
+        className="original-image-opacity-layer"
+        data-original-image-opacity-layer=""
+        draggable={false}
+        src={imageDataUrl}
+        style={{ opacity: normalizedOpacity }}
+      />
+    );
+  },
+);
 
 type CommittedMaskLayerProps = {
   imageDataUrl: string;

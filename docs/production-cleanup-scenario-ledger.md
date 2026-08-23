@@ -102,11 +102,11 @@ editing the totals by hand.
   SHA-256
   `b413467bb5a6f61953c79364a4924e6a53ce37031226d035af2632857f78c547`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
-  percentage for lines/statements/functions/branches in all 293 existing
-  coverage-eligible `src/**` files changed since cleanup start. The 85 new
+  percentage for lines/statements/functions/branches in all 297 existing
+  coverage-eligible `src/**` files changed since cleanup start. The 88 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record. The
-  three removed source files are recorded explicitly in `deletedFiles`.
+  four removed source files are recorded explicitly in `deletedFiles`.
 - `scripts/check-production-cleanup-coverage.cjs` derives the eligible modified,
   added, deleted, and untracked source scope from Git on every run. A missing or
   stale manifest entry, unrecorded deletion, unsupported source status, missing

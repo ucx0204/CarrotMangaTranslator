@@ -31,6 +31,8 @@ export type ImageStageProps = {
     color: string;
   } | null;
   retouchOriginalImageDataUrl?: string;
+  originalImageDataUrl?: string;
+  originalImageOpacity?: number;
   maskStrokes?: InpaintingMaskStroke[];
   regionSelectionActive: boolean;
   regionSelectionRect: BBox | null;

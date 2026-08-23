@@ -49,7 +49,6 @@ describe("unified workspace toolbar", () => {
       <StageToolbar
         bubbleLayoutAvailable
         brushColor="#fa8128"
-        brushRadius={28}
         disabled={false}
         hidden={false}
         lastRetouchTool="brush"
@@ -90,9 +89,7 @@ describe("unified workspace toolbar", () => {
     ).toBeNull();
     expect(brush.getAttribute("aria-checked")).toBe("true");
     expect(brush.textContent).toContain("브러시");
-    expect(screen.getByRole("status").textContent).toContain("브러시");
-    expect(screen.getByRole("status").textContent).toContain("28px");
-    expect(screen.getByRole("status").textContent).toContain("·");
+    expect(screen.queryByRole("status")).toBeNull();
     expect(screen.getByRole("tooltip", { name: "보정 브러시" })).toBeTruthy();
     expect(brush.hasAttribute("title")).toBe(false);
 
@@ -112,7 +109,6 @@ describe("unified workspace toolbar", () => {
       <StageToolbar
         bubbleLayoutAvailable
         brushColor="#ffffff"
-        brushRadius={20}
         disabled={false}
         hidden={false}
         lastRetouchTool="ellipse"
@@ -149,7 +145,6 @@ describe("unified workspace toolbar", () => {
       <StageToolbar
         bubbleLayoutAvailable
         brushColor="#ffffff"
-        brushRadius={20}
         disabled={false}
         hidden={false}
         lastRetouchTool="brush"
@@ -184,7 +179,6 @@ describe("unified workspace toolbar", () => {
       <StageToolbar
         bubbleLayoutAvailable
         brushColor="#ffffff"
-        brushRadius={20}
         disabled={false}
         hidden={false}
         lastRetouchTool="brush"
@@ -222,7 +216,6 @@ describe("unified workspace toolbar", () => {
     render(
       <StageToolbar
         brushColor="#ffffff"
-        brushRadius={20}
         disabled={false}
         hidden={false}
         lastRetouchTool="brush"
@@ -247,7 +240,6 @@ describe("unified workspace toolbar", () => {
     render(
       <StageToolbar
         brushColor="#ffffff"
-        brushRadius={20}
         disabled={false}
         hidden={false}
         lastRetouchTool="brush"
@@ -272,7 +264,6 @@ describe("unified workspace toolbar", () => {
     render(
       <StageToolbar
         brushColor="#ffffff"
-        brushRadius={20}
         disabled={false}
         hidden={false}
         lastRetouchTool="brush"
@@ -298,7 +289,6 @@ describe("unified workspace toolbar", () => {
     render(
       <StageToolbar
         brushColor="#ffffff"
-        brushRadius={20}
         disabled={true}
         hidden={false}
         lastRetouchTool="brush"
@@ -414,6 +404,9 @@ describe("unified right rail", () => {
     expect(
       screen.getByRole("button", { name: "작업 센터 열기" }),
     ).not.toBeNull();
+    expect(
+      screen.getByRole("button", { name: "원본 불투명도 조절 열기" }),
+    ).not.toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "위쪽 도구 숨기기" }));
     expect(screen.queryByRole("toolbar", { name: "캔버스 작업" })).toBeNull();
@@ -421,11 +414,14 @@ describe("unified right rail", () => {
       screen.getByRole("button", { name: "보기 조절 펼치기" }),
     ).not.toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "배율과 알림 숨기기" }));
+    fireEvent.click(screen.getByRole("button", { name: "아래쪽 도구 숨기기" }));
     expect(
       screen.queryByRole("button", { name: "보기 조절 펼치기" }),
     ).toBeNull();
     expect(screen.queryByRole("button", { name: "작업 센터 열기" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "원본 불투명도 조절 열기" }),
+    ).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "위쪽 도구 보이기" }));
     expect(screen.getByRole("toolbar", { name: "캔버스 작업" })).not.toBeNull();
@@ -832,9 +828,15 @@ function renderQuickRail(props: RightRailProps) {
 
 function makeQuickRailChromeProps(): Pick<
   React.ComponentProps<typeof AppRightQuickRail>,
-  "workspaceViewControls"
+  "workspaceOriginalOpacityControl" | "workspaceViewControls"
 > {
   return {
+    workspaceOriginalOpacityControl: {
+      available: true,
+      opacity: 0,
+      pageId: "page-1",
+      onChange: () => undefined,
+    },
     workspaceViewControls: {
       effectiveScale: 1,
       fitMode: "contain",

@@ -8,6 +8,10 @@ import {
   WorkspaceViewControls,
   type WorkspaceViewControlsProps,
 } from "./WorkspaceViewControls";
+import {
+  WorkspaceOriginalOpacityControl,
+  type WorkspaceOriginalOpacityControlProps,
+} from "./WorkspaceOriginalOpacityControl";
 import { ControlTooltip } from "./ui/ControlTooltip";
 
 export type AppRightQuickRailProps = Pick<
@@ -43,6 +47,7 @@ export type AppRightQuickRailProps = Pick<
   | "statusLines"
   | "undoLabel"
 > & {
+  workspaceOriginalOpacityControl: WorkspaceOriginalOpacityControlProps;
   workspaceViewControls: WorkspaceViewControlsProps;
 };
 
@@ -182,6 +187,9 @@ function BottomQuickRailControls(
   return (
     <div className="right-quick-rail-bottom-controls">
       <WorkspaceViewControls {...props.workspaceViewControls} />
+      <WorkspaceOriginalOpacityControl
+        {...props.workspaceOriginalOpacityControl}
+      />
       <StatusDockButton
         jobState={props.jobState}
         progressSnapshot={props.progressSnapshot}

@@ -1,6 +1,7 @@
 import React from "react";
 import {
   CommittedMaskLayer,
+  OriginalImageBlendLayer,
   RetouchLiveLayer,
   StageImage,
   StageMarqueeLayers,
@@ -31,6 +32,8 @@ export function ImageStage({
   onStagePointerLeave,
   onStagePointerMove,
   onStagePointerUp,
+  originalImageDataUrl = "",
+  originalImageOpacity = 0,
   page,
   regionSelectionActive,
   regionSelectionRect,
@@ -68,6 +71,8 @@ export function ImageStage({
       onStagePointerLeave={onStagePointerLeave}
       onStagePointerMove={onStagePointerMove}
       onStagePointerUp={onStagePointerUp}
+      originalImageDataUrl={originalImageDataUrl}
+      originalImageOpacity={originalImageOpacity}
       page={page}
       regionSelectionActive={regionSelectionActive}
       regionSelectionRect={regionSelectionRect}
@@ -86,6 +91,10 @@ export function ImageStage({
   );
 }
 
+type ImageStageFrameProps = ImageStageProps & {
+  retouchModel: RetouchStageModel;
+};
+
 function ImageStageFrame({
   blockPointerDisabled = false,
   hideEditingOverlays = false,
@@ -99,6 +108,8 @@ function ImageStageFrame({
   onStagePointerLeave,
   onStagePointerMove,
   onStagePointerUp,
+  originalImageDataUrl = "",
+  originalImageOpacity = 0,
   page,
   regionSelectionActive,
   regionSelectionRect,
@@ -113,18 +124,15 @@ function ImageStageFrame({
   stageSize,
   stageTool,
   textLayoutStageSize,
-}: ImageStageProps & {
-  retouchModel: RetouchStageModel;
-}): React.JSX.Element {
+}: ImageStageFrameProps): React.JSX.Element {
   const stagePointerHandlers = hideEditingOverlays
     ? {}
-    : {
-        onPointerMove: onStagePointerMove,
-        onPointerUp: onStagePointerUp,
-        onPointerCancel: onStagePointerUp,
-        onPointerLeave: onStagePointerLeave,
-        onPointerDown: onStagePointerDown,
-      };
+    : createStagePointerHandlers(
+        onStagePointerDown,
+        onStagePointerMove,
+        onStagePointerUp,
+        onStagePointerLeave,
+      );
   return (
     <div className="stage-wrap">
       <div
@@ -146,6 +154,8 @@ function ImageStageFrame({
           interactionPreviewStore={interactionPreviewStore}
           onBlockPointerDown={onBlockPointerDown}
           onWarpTransformCommit={onWarpTransformCommit}
+          originalImageDataUrl={originalImageDataUrl}
+          originalImageOpacity={originalImageOpacity}
           page={page}
           regionSelectionActive={regionSelectionActive}
           regionSelectionRect={regionSelectionRect}
@@ -163,6 +173,21 @@ function ImageStageFrame({
       </div>
     </div>
   );
+}
+
+function createStagePointerHandlers(
+  onPointerDown: ImageStageProps["onStagePointerDown"],
+  onPointerMove: ImageStageProps["onStagePointerMove"],
+  onPointerUp: ImageStageProps["onStagePointerUp"],
+  onPointerLeave: ImageStageProps["onStagePointerLeave"],
+) {
+  return {
+    onPointerMove,
+    onPointerUp,
+    onPointerCancel: onPointerUp,
+    onPointerLeave,
+    onPointerDown,
+  };
 }
 
 type ImageStageLayerSetProps = Omit<
@@ -185,6 +210,8 @@ function ImageStageLayerSet({
   interactionPreviewStore,
   onBlockPointerDown,
   onWarpTransformCommit,
+  originalImageDataUrl = "",
+  originalImageOpacity = 0,
   page,
   regionSelectionActive,
   regionSelectionRect,
@@ -207,6 +234,10 @@ function ImageStageLayerSet({
         imageRef={imageRef}
         page={page}
       />
+      <OriginalImageBlendLayer
+        imageDataUrl={originalImageDataUrl}
+        opacity={originalImageOpacity}
+      />
       {hideEditingOverlays ? null : (
         <>
           <OverlayBlockLayer
@@ -224,32 +255,73 @@ function ImageStageLayerSet({
             stageSize={stageSize}
             textLayoutStageSize={textLayoutStageSize}
           />
-          <CommittedMaskLayer
+          <ImageStageEditingLayers
             imageDataUrl={imageDataUrl}
+            interactionPreviewStore={interactionPreviewStore}
             page={page}
-            retouchModel={retouchModel}
-            stageSize={stageSize}
-          />
-          <RetouchLiveLayer
+            regionSelectionActive={regionSelectionActive}
+            regionSelectionRect={regionSelectionRect}
             retouchCursor={retouchCursor}
+            retouchModel={retouchModel}
             retouchOriginalImageDataUrl={retouchOriginalImageDataUrl}
             stageSize={stageSize}
           />
-          <StageMarqueeLayers
-            imageDataUrl={imageDataUrl}
-            interactionPreviewStore={interactionPreviewStore}
-            regionSelectionActive={regionSelectionActive}
-            regionSelectionRect={regionSelectionRect}
-            stageSize={stageSize}
-          />
-          <StageBubbleLayoutDraft
-            imageDataUrl={imageDataUrl}
-            interactionPreviewStore={interactionPreviewStore}
-            stageSize={stageSize}
-          />
-          <StageDragHud interactionPreviewStore={interactionPreviewStore} />
         </>
       )}
+    </>
+  );
+}
+
+type ImageStageEditingLayersProps = Pick<
+  ImageStageLayerSetProps,
+  | "imageDataUrl"
+  | "interactionPreviewStore"
+  | "page"
+  | "regionSelectionActive"
+  | "regionSelectionRect"
+  | "retouchCursor"
+  | "retouchModel"
+  | "retouchOriginalImageDataUrl"
+  | "stageSize"
+>;
+
+function ImageStageEditingLayers({
+  imageDataUrl,
+  interactionPreviewStore,
+  page,
+  regionSelectionActive,
+  regionSelectionRect,
+  retouchCursor = null,
+  retouchModel,
+  retouchOriginalImageDataUrl = "",
+  stageSize,
+}: ImageStageEditingLayersProps): React.JSX.Element {
+  return (
+    <>
+      <CommittedMaskLayer
+        imageDataUrl={imageDataUrl}
+        page={page}
+        retouchModel={retouchModel}
+        stageSize={stageSize}
+      />
+      <RetouchLiveLayer
+        retouchCursor={retouchCursor}
+        retouchOriginalImageDataUrl={retouchOriginalImageDataUrl}
+        stageSize={stageSize}
+      />
+      <StageMarqueeLayers
+        imageDataUrl={imageDataUrl}
+        interactionPreviewStore={interactionPreviewStore}
+        regionSelectionActive={regionSelectionActive}
+        regionSelectionRect={regionSelectionRect}
+        stageSize={stageSize}
+      />
+      <StageBubbleLayoutDraft
+        imageDataUrl={imageDataUrl}
+        interactionPreviewStore={interactionPreviewStore}
+        stageSize={stageSize}
+      />
+      <StageDragHud interactionPreviewStore={interactionPreviewStore} />
     </>
   );
 }

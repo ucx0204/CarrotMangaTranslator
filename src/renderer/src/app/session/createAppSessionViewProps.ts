@@ -20,6 +20,7 @@ import { createStylePresetDeleteAction } from "./createStylePresetDeleteAction";
 import { applySearchReplace } from "../../lib/searchReplace";
 import { appI18n } from "../../appI18n";
 import { toast } from "../../lib/toastStore";
+import { createOriginalImageOpacityProps } from "./createOriginalImageOpacityProps";
 
 export function createAppSessionViewProps(
   model: AppSessionViewModel,
@@ -351,7 +352,6 @@ function createWorkspaceProps({
     interactionPreviewStore: pointerHandlers.interactionPreviewStore,
     imageRef: core.imageRef,
     brushColor: uiState.inpaintingPaintColor,
-    brushRadius: uiState.inpaintingBrushRadius,
     jobActive:
       derivedState.selectedPageEditLocked ||
       workspaceHistory.busy ||
@@ -359,6 +359,7 @@ function createWorkspaceProps({
     jobState: core.jobState,
     maskStrokes: derivedState.patternMaskStrokes,
     lastRetouchTool: uiState.lastRetouchTool,
+    ...createOriginalImageOpacityProps({ derivedState, uiState }),
     onBlockPointerDown: pointerHandlers.onBlockPointerDown,
     onWarpTransformCommit: (blockId, transform) =>
       blockEditingActions.updateBlock(blockId, { warpTransform: transform }),

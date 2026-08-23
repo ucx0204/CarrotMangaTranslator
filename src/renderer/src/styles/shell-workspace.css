@@ -123,6 +123,7 @@
 
 .right-quick-rail button,
 .right-quick-rail [role="combobox"],
+.right-quick-rail .workspace-original-opacity-panel,
 .right-quick-rail .status-popover {
   pointer-events: auto;
 }
@@ -189,6 +190,9 @@
 .right-quick-bottom-frame .workspace-view-dock,
 .right-quick-bottom-frame .workspace-view-reveal-slot,
 .right-quick-bottom-frame .workspace-view-reveal,
+.right-quick-bottom-frame .workspace-original-opacity-dock,
+.right-quick-bottom-frame .workspace-original-opacity-trigger,
+.right-quick-bottom-frame .workspace-original-opacity-trigger > button,
 .right-quick-bottom-frame .status-dock,
 .right-quick-bottom-frame .status-dock-button {
   width: 40px;
@@ -198,12 +202,16 @@
 .right-quick-bottom-frame .workspace-view-reveal,
 .right-quick-bottom-frame .workspace-view-reveal > button,
 .right-quick-bottom-frame .workspace-view-dock,
+.right-quick-bottom-frame .workspace-original-opacity-dock,
+.right-quick-bottom-frame .workspace-original-opacity-trigger,
+.right-quick-bottom-frame .workspace-original-opacity-trigger > button,
 .right-quick-bottom-frame .status-dock,
 .right-quick-bottom-frame .status-dock-button {
   height: 40px;
 }
 
 .right-quick-bottom-frame .workspace-view-reveal > button,
+.right-quick-bottom-frame .workspace-original-opacity-trigger > button,
 .right-quick-bottom-frame .status-dock-button {
   width: 40px;
   border: 0;
@@ -212,6 +220,7 @@
   box-shadow: none;
 }
 
+.right-quick-bottom-frame .workspace-original-opacity-dock,
 .right-quick-bottom-frame .status-dock {
   border-top: 1px solid var(--border-soft);
 }
@@ -1014,31 +1023,6 @@
 .workspace-fit-picker.control-tooltip-bottom:has(:focus-visible)
   .control-tooltip-bubble {
   transform: translateY(0) scale(1);
-}
-
-.stage-active-tool-badge {
-  position: absolute;
-  z-index: var(--layer-floating);
-  top: 12px;
-  left: 62px;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 28px;
-  padding: 5px 9px;
-  border: 1px solid var(--accent-bd);
-  border-radius: var(--r-pill);
-  background: rgba(20, 22, 27, 0.92);
-  color: var(--text);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.34);
-  font-size: var(--font-xs);
-  pointer-events: none;
-  backdrop-filter: blur(10px);
-}
-
-.stage-active-tool-badge strong {
-  color: var(--accent-hi);
-  font-weight: 700;
 }
 
 @media (prefers-reduced-motion: reduce) {
