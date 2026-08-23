@@ -4,13 +4,15 @@ import type { WorkContextUsageMetric } from "../../../../shared/workContextUsage
 import { Button } from "../ui/Button";
 import { ControlTooltip } from "../ui/ControlTooltip";
 import { IconButton } from "../ui/IconButton";
-import { CheckCircleIcon, CloseIcon, TrashIcon } from "../ui/icons";
+import { CheckCircleIcon, CloseIcon, PlusIcon, TrashIcon } from "../ui/icons";
 import { Select } from "../ui/Select";
 import type {
   ContextEntryFilter,
   ContextEntrySort,
+  ContextEntrySortDirection,
 } from "./contextEntryListModel";
 import { formatContextUsage } from "./contextEntryListModel";
+import { splitList } from "./styleGuideUtils";
 
 type ContextEntryToolbarProps = {
   query: string;
@@ -19,6 +21,8 @@ type ContextEntryToolbarProps = {
   onFilterChange: (value: ContextEntryFilter) => void;
   sort: ContextEntrySort;
   onSortChange: (value: ContextEntrySort) => void;
+  sortDirection: ContextEntrySortDirection;
+  onSortDirectionChange: (value: ContextEntrySortDirection) => void;
   selectedCount: number;
   onDeleteSelected: () => void;
   usageAvailable?: boolean;
@@ -31,6 +35,8 @@ type ContextEntrySectionModel<Entry> = {
   setFilter: (value: ContextEntryFilter) => void;
   sort: ContextEntrySort;
   setSort: (value: ContextEntrySort) => void;
+  sortDirection: ContextEntrySortDirection;
+  setSortDirection: (value: ContextEntrySortDirection) => void;
   selectedIds: ReadonlySet<string>;
   pinnedEntry?: Entry;
   visibleEntries: readonly Entry[];
@@ -40,7 +46,6 @@ export function ContextEntrySection<Entry>({
   children,
   emptyLabel,
   entryList,
-  onAdd,
   onDeleteSelected,
   notice,
   title,
@@ -50,7 +55,6 @@ export function ContextEntrySection<Entry>({
   children: React.ReactNode;
   emptyLabel: string;
   entryList: ContextEntrySectionModel<Entry>;
-  onAdd: () => void;
   onDeleteSelected: () => void;
   notice?: string;
   title: string;
@@ -63,9 +67,6 @@ export function ContextEntrySection<Entry>({
       <section className="style-guide-section">
         <div className="style-guide-section-head">
           <h3>{title}</h3>
-          <Button size="sm" onClick={onAdd}>
-            {t("styleGuide.addRow")}
-          </Button>
         </div>
         <ContextEntryToolbar
           query={entryList.query}
@@ -74,22 +75,95 @@ export function ContextEntrySection<Entry>({
           onFilterChange={entryList.setFilter}
           sort={entryList.sort}
           onSortChange={entryList.setSort}
+          sortDirection={entryList.sortDirection}
+          onSortDirectionChange={entryList.setSortDirection}
           selectedCount={entryList.selectedIds.size}
           onDeleteSelected={onDeleteSelected}
           usageAvailable={usageAvailable}
         />
         {notice ? <p className="style-guide-list-notice">{notice}</p> : null}
-        {entryList.pinnedEntry || entryList.visibleEntries.length ? (
-          children
-        ) : (
+        {children}
+        {!entryList.pinnedEntry && entryList.visibleEntries.length === 0 ? (
           <p className="style-guide-table-empty">
             {totalCount ? t("styleGuide.usage.noMatches") : emptyLabel}
           </p>
-        )}
+        ) : null}
       </section>
     </div>
   );
 }
+
+export function ContextEntryAddButton({
+  onClick,
+}: {
+  onClick: () => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <IconButton
+      className="style-guide-row-add"
+      size="sm"
+      label={t("styleGuide.addRow")}
+      onClick={onClick}
+    >
+      <PlusIcon size={15} />
+    </IconButton>
+  );
+}
+
+export function ContextEntryDraftMarker(): React.JSX.Element {
+  return (
+    <span className="style-guide-draft-marker" aria-hidden="true">
+      <PlusIcon size={14} />
+    </span>
+  );
+}
+
+type ContextEntryDelimitedInputProps = {
+  ariaLabel?: string;
+  onValuesChange: (values: string[]) => void;
+  placeholder: string;
+  required?: boolean;
+  values: readonly string[];
+};
+
+export const ContextEntryDelimitedInput = React.forwardRef<
+  HTMLInputElement,
+  ContextEntryDelimitedInputProps
+>(function ContextEntryDelimitedInput(
+  { ariaLabel, onValuesChange, placeholder, required, values },
+  ref,
+) {
+  const formattedValue = values.join(", ");
+  const [editingValue, setEditingValue] = React.useState(formattedValue);
+  const editingRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!editingRef.current) setEditingValue(formattedValue);
+  }, [formattedValue]);
+
+  return (
+    <input
+      ref={ref}
+      aria-label={ariaLabel}
+      required={required}
+      value={editingValue}
+      placeholder={placeholder}
+      onBlur={() => {
+        editingRef.current = false;
+        setEditingValue(splitList(editingValue).join(", "));
+      }}
+      onChange={(event) => {
+        const nextValue = event.target.value;
+        setEditingValue(nextValue);
+        onValuesChange(splitList(nextValue));
+      }}
+      onFocus={() => {
+        editingRef.current = true;
+      }}
+    />
+  );
+});
 
 function ContextEntryDraftActions({
   onCancel,
@@ -151,6 +225,8 @@ function ContextEntryToolbar({
   onFilterChange,
   sort,
   onSortChange,
+  sortDirection,
+  onSortDirectionChange,
   selectedCount,
   onDeleteSelected,
   usageAvailable = true,
@@ -175,6 +251,17 @@ function ContextEntryToolbar({
         }))}
         onValueChange={(nextValue) =>
           onSortChange(nextValue as ContextEntrySort)
+        }
+      />
+      <Select
+        value={sortDirection}
+        ariaLabel={t("styleGuide.usage.sortDirectionLabel")}
+        options={(["asc", "desc"] as const).map((id) => ({
+          value: id,
+          label: t(`styleGuide.usage.sortDirection.${id}`),
+        }))}
+        onValueChange={(nextValue) =>
+          onSortDirectionChange(nextValue as ContextEntrySortDirection)
         }
       />
       <Select

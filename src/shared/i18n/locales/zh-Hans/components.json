@@ -1023,11 +1023,16 @@
         "name": "名称",
         "stored": "保存顺序"
       },
+      "sortDirectionLabel": "排序方向",
+      "sortDirection": {
+        "asc": "升序",
+        "desc": "降序"
+      },
       "filterLabel": "筛选",
       "filter": {
         "all": "全部",
         "ai": "AI 生成",
-        "unused": "未使用",
+        "unused": "未出现",
         "low-use": "出现于 0～1 页",
         "disabled": "已停用"
       },

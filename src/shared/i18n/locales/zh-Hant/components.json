@@ -1023,11 +1023,16 @@
         "name": "名稱",
         "stored": "儲存順序"
       },
+      "sortDirectionLabel": "排序方向",
+      "sortDirection": {
+        "asc": "升冪",
+        "desc": "降冪"
+      },
       "filterLabel": "篩選",
       "filter": {
         "all": "全部",
         "ai": "AI 產生",
-        "unused": "未使用",
+        "unused": "未出現",
         "low-use": "出現於 0～1 頁",
         "disabled": "已停用"
       },

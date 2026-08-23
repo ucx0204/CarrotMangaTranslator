@@ -1036,11 +1036,16 @@
         "name": "名前順",
         "stored": "保存順"
       },
+      "sortDirectionLabel": "並び方向",
+      "sortDirection": {
+        "asc": "昇順",
+        "desc": "降順"
+      },
       "filterLabel": "フィルター",
       "filter": {
         "all": "すべて",
         "ai": "AI生成",
-        "unused": "未使用",
+        "unused": "登場なし",
         "low-use": "0～1ページ登場",
         "disabled": "無効"
       },

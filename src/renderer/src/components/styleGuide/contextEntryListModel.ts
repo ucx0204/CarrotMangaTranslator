@@ -8,6 +8,7 @@ export type ContextEntryFilter =
   | "low-use"
   | "disabled";
 export type ContextEntrySort = "usage" | "recent" | "name" | "stored";
+export type ContextEntrySortDirection = "asc" | "desc";
 
 type ContextEntryBase = {
   id: string;
@@ -34,7 +35,9 @@ export function useContextEntryList<TEntry extends ContextEntryBase>({
 }: ContextEntryListOptions<TEntry>) {
   const [query, setQuery] = React.useState("");
   const [filter, setFilter] = React.useState<ContextEntryFilter>("all");
-  const [sort, setSort] = React.useState<ContextEntrySort>("usage");
+  const [sort, setSortState] = React.useState<ContextEntrySort>("usage");
+  const [sortDirection, setSortDirection] =
+    React.useState<ContextEntrySortDirection>("desc");
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(
     () => new Set(),
   );
@@ -50,6 +53,7 @@ export function useContextEntryList<TEntry extends ContextEntryBase>({
     pinnedEntryId,
     query,
     sort,
+    sortDirection,
     usageById,
   });
   usePruneSelection(entries, setSelectedIds);
@@ -58,9 +62,15 @@ export function useContextEntryList<TEntry extends ContextEntryBase>({
     query,
     setFilter,
     setSelectedIds,
-    setSort,
+    setSortDirection,
+    setSortState,
     usageAvailable,
   });
+
+  const setSort = React.useCallback((nextSort: ContextEntrySort): void => {
+    setSortState(nextSort);
+    setSortDirection(defaultSortDirection(nextSort));
+  }, []);
 
   const toggleSelected = (id: string): void => {
     setSelectedIds((current) => toggleSetValue(current, id));
@@ -80,6 +90,8 @@ export function useContextEntryList<TEntry extends ContextEntryBase>({
     setFilter,
     sort,
     setSort,
+    sortDirection,
+    setSortDirection,
     selectedIds,
     setSelectedIds,
     toggleSelected,
@@ -99,11 +111,13 @@ function useVisibleContextEntries<TEntry extends ContextEntryBase>({
   pinnedEntryId,
   query,
   sort,
+  sortDirection,
   usageById,
 }: Omit<ContextEntryListOptions<TEntry>, "usage" | "usageAvailable"> & {
   filter: ContextEntryFilter;
   query: string;
   sort: ContextEntrySort;
+  sortDirection: ContextEntrySortDirection;
   usageById: Map<string, WorkContextUsageMetric>;
 }): { pinnedEntry: TEntry | undefined; visibleEntries: TEntry[] } {
   const pinnedEntry = React.useMemo(
@@ -121,6 +135,7 @@ function useVisibleContextEntries<TEntry extends ContextEntryBase>({
         getSearchText,
         query,
         sort,
+        sortDirection,
         usageById,
       }),
     [
@@ -131,82 +146,11 @@ function useVisibleContextEntries<TEntry extends ContextEntryBase>({
       pinnedEntryId,
       query,
       sort,
+      sortDirection,
       usageById,
     ],
   );
   return { pinnedEntry, visibleEntries };
-}
-
-export function useContextEntryDraft<TEntry extends ContextEntryBase>({
-  entries,
-  isComplete,
-  onRemove,
-  draftId: controlledDraftId,
-  onDraftIdChange,
-}: {
-  entries: readonly TEntry[];
-  isComplete: (entry: TEntry) => boolean;
-  onRemove: (id: string) => void;
-  draftId?: string | null;
-  onDraftIdChange?: (id: string | null) => void;
-}) {
-  const [localDraftId, setLocalDraftId] = React.useState<string | null>(null);
-  const [focusRequest, setFocusRequest] = React.useState(0);
-  const primaryInputRef = React.useRef<HTMLInputElement>(null);
-  const draftId =
-    controlledDraftId === undefined ? localDraftId : controlledDraftId;
-  const draftEntry = entries.find((entry) => entry.id === draftId);
-  const setDraftId = React.useCallback(
-    (id: string | null): void => {
-      if (controlledDraftId === undefined) setLocalDraftId(id);
-      onDraftIdChange?.(id);
-    },
-    [controlledDraftId, onDraftIdChange],
-  );
-
-  React.useEffect(() => {
-    if (draftId && !draftEntry) setDraftId(null);
-  }, [draftEntry, draftId, setDraftId]);
-
-  React.useLayoutEffect(() => {
-    if (!draftEntry) return;
-    const input = primaryInputRef.current;
-    const row = input?.closest(".style-guide-row") ?? input;
-    if (row && "scrollIntoView" in row) {
-      row.scrollIntoView({ block: "start", inline: "nearest" });
-    }
-    input?.focus();
-  }, [draftEntry, focusRequest]);
-
-  const focus = (): void => setFocusRequest((value) => value + 1);
-  const begin = (entry: TEntry): void => {
-    setDraftId(entry.id);
-    setFocusRequest((value) => value + 1);
-  };
-  const complete = (): void => {
-    if (!draftEntry) return;
-    if (!isComplete(draftEntry)) {
-      primaryInputRef.current?.reportValidity();
-      primaryInputRef.current?.focus();
-      return;
-    }
-    setDraftId(null);
-  };
-  const cancel = (): void => {
-    if (!draftEntry) return;
-    onRemove(draftEntry.id);
-    setDraftId(null);
-  };
-
-  return {
-    begin,
-    cancel,
-    complete,
-    draftEntry,
-    draftId,
-    focus,
-    primaryInputRef,
-  };
 }
 
 function useContextEntryListEffects({
@@ -214,14 +158,18 @@ function useContextEntryListEffects({
   query,
   setFilter,
   setSelectedIds,
-  setSort,
+  setSortDirection,
+  setSortState,
   usageAvailable,
 }: {
   filter: ContextEntryFilter;
   query: string;
   setFilter: React.Dispatch<React.SetStateAction<ContextEntryFilter>>;
   setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>;
-  setSort: React.Dispatch<React.SetStateAction<ContextEntrySort>>;
+  setSortDirection: React.Dispatch<
+    React.SetStateAction<ContextEntrySortDirection>
+  >;
+  setSortState: React.Dispatch<React.SetStateAction<ContextEntrySort>>;
   usageAvailable: boolean;
 }): void {
   React.useEffect(
@@ -233,10 +181,12 @@ function useContextEntryListEffects({
     setFilter((current) =>
       current === "unused" || current === "low-use" ? "all" : current,
     );
-    setSort((current) =>
-      current === "usage" || current === "recent" ? "stored" : current,
-    );
-  }, [setFilter, setSort, usageAvailable]);
+    setSortState((current) => {
+      if (current !== "usage" && current !== "recent") return current;
+      setSortDirection(defaultSortDirection("stored"));
+      return "stored";
+    });
+  }, [setFilter, setSortDirection, setSortState, usageAvailable]);
 }
 
 function filterAndSortEntries<TEntry extends ContextEntryBase>({
@@ -246,6 +196,7 @@ function filterAndSortEntries<TEntry extends ContextEntryBase>({
   getSearchText,
   query,
   sort,
+  sortDirection,
   usageById,
 }: {
   entries: TEntry[];
@@ -254,6 +205,7 @@ function filterAndSortEntries<TEntry extends ContextEntryBase>({
   getSearchText: (entry: TEntry) => string;
   query: string;
   sort: ContextEntrySort;
+  sortDirection: ContextEntrySortDirection;
   usageById: Map<string, WorkContextUsageMetric>;
 }): TEntry[] {
   const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -266,7 +218,15 @@ function filterAndSortEntries<TEntry extends ContextEntryBase>({
     )
     .slice()
     .sort((left, right) =>
-      compareEntries(left, right, sort, usageById, storedIndex, getName),
+      compareEntries(
+        left,
+        right,
+        sort,
+        sortDirection,
+        usageById,
+        storedIndex,
+        getName,
+      ),
     );
 }
 
@@ -294,26 +254,41 @@ function compareEntries<TEntry extends ContextEntryBase>(
   left: TEntry,
   right: TEntry,
   sort: ContextEntrySort,
+  sortDirection: ContextEntrySortDirection,
   usageById: Map<string, WorkContextUsageMetric>,
   storedIndex: Map<string, number>,
   getName: (entry: TEntry) => string,
 ): number {
   const leftMetric = usageById.get(left.id);
   const rightMetric = usageById.get(right.id);
+  const direction = sortDirection === "asc" ? 1 : -1;
   if (sort === "usage") {
-    return compareUsage(rightMetric, leftMetric) || compareNames(left, right);
+    return (
+      compareUsage(leftMetric, rightMetric) * direction ||
+      compareNames(left, right)
+    );
   }
   if (sort === "recent") {
     return (
-      compareLastSeen(rightMetric, leftMetric) || compareNames(left, right)
+      compareLastSeen(leftMetric, rightMetric) * direction ||
+      compareNames(left, right)
     );
   }
-  if (sort === "name") return compareNames(left, right);
-  return (storedIndex.get(left.id) ?? 0) - (storedIndex.get(right.id) ?? 0);
+  if (sort === "name") return compareNames(left, right) * direction;
+  return (
+    ((storedIndex.get(left.id) ?? 0) - (storedIndex.get(right.id) ?? 0)) *
+    direction
+  );
 
   function compareNames(first: TEntry, second: TEntry): number {
     return getName(first).localeCompare(getName(second));
   }
+}
+
+function defaultSortDirection(
+  sort: ContextEntrySort,
+): ContextEntrySortDirection {
+  return sort === "usage" || sort === "recent" ? "desc" : "asc";
 }
 
 function compareUsage(

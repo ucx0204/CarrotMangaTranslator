@@ -9,21 +9,22 @@ import { CheckboxField } from "../ui/CheckboxField";
 import { Select } from "../ui/Select";
 import type { StyleGuideEditorProps } from "./styleGuideTypes";
 import {
+  ContextEntryAddButton,
+  ContextEntryDelimitedInput,
+  ContextEntryDraftMarker,
   ContextEntryEnabledToggle,
   ContextEntryRowActions,
   ContextEntrySection,
   ContextEntryUsageCount,
 } from "./ContextEntryList";
-import { createContextEntryActions } from "./contextEntryActions";
 import {
-  useContextEntryDraft,
-  useContextEntryList,
-} from "./contextEntryListModel";
-import {
-  makeCharacterProfile,
-  SPEECH_STYLE_IDS,
-  splitList,
-} from "./styleGuideUtils";
+  createContextEntryActions,
+  createContextEntryDraftActions,
+} from "./contextEntryActions";
+import { useContextEntryList } from "./contextEntryListModel";
+import { makeCharacterProfile, SPEECH_STYLE_IDS } from "./styleGuideUtils";
+import { useContextEntryDeleteConfirmation } from "./useContextEntryDeleteConfirmation";
+import { useContextEntryDraft } from "./useContextEntryDraft";
 
 export function CharactersTab({
   guide,
@@ -39,6 +40,7 @@ export function CharactersTab({
   onDraftIdChange?: (id: string | null) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
+  const deleteConfirmation = useContextEntryDeleteConfirmation();
   const draft = useCharacterDraft({
     guide,
     onGuideChange,
@@ -65,45 +67,43 @@ export function CharactersTab({
     onGuideChange,
     selectedIds: entryList.selectedIds,
     clearSelection: () => entryList.setSelectedIds(new Set()),
+    confirmDelete: deleteConfirmation.confirmDelete,
   });
+  const draftActions = createContextEntryDraftActions({ actions, draft });
   return (
-    <ContextEntrySection
-      emptyLabel={t("styleGuide.characters.empty")}
-      entryList={entryList}
-      title={t("styleGuide.characters.title")}
-      totalCount={guide.characters.length}
-      usageAvailable={usageAvailable}
-      onAdd={() => {
-        if (draft.draftEntry) {
-          draft.focus();
-          return;
-        }
-        draft.begin(actions.add());
-      }}
-      onDeleteSelected={actions.removeSelected}
-    >
-      <CharactersTable
-        characters={entryList.visibleEntries}
-        draftCharacter={draft.draftEntry}
-        draftInputRef={draft.primaryInputRef}
-        usageById={entryList.usageById}
-        selectedIds={entryList.selectedIds}
-        allVisibleSelected={entryList.allVisibleSelected}
-        onToggleAll={entryList.toggleAllVisible}
-        onToggleSelected={entryList.toggleSelected}
-        onUpdate={actions.update}
-        onRemove={actions.remove}
-        onCompleteDraft={draft.complete}
-        onCancelDraft={draft.cancel}
+    <>
+      <ContextEntrySection
+        emptyLabel={t("styleGuide.characters.empty")}
+        entryList={entryList}
+        title={t("styleGuide.characters.title")}
+        totalCount={guide.characters.length}
         usageAvailable={usageAvailable}
-      />
-    </ContextEntrySection>
+        onDeleteSelected={() => void actions.removeSelected()}
+      >
+        <CharactersTable
+          characters={entryList.visibleEntries}
+          draftCharacter={draft.draftEntry}
+          draftInputRef={draft.primaryInputRef}
+          usageById={entryList.usageById}
+          selectedIds={entryList.selectedIds}
+          allVisibleSelected={entryList.allVisibleSelected}
+          onToggleAll={entryList.toggleAllVisible}
+          onToggleSelected={entryList.toggleSelected}
+          onUpdate={actions.update}
+          onRemove={actions.remove}
+          onCompleteDraft={draftActions.complete}
+          onCancelDraft={draftActions.cancel}
+          onAdd={draftActions.add}
+          usageAvailable={usageAvailable}
+        />
+      </ContextEntrySection>
+      {deleteConfirmation.confirmationModal}
+    </>
   );
 }
 
 function useCharacterDraft({
   guide,
-  onGuideChange,
   draftId,
   onDraftIdChange,
 }: StyleGuideEditorProps & {
@@ -113,11 +113,6 @@ function useCharacterDraft({
   return useContextEntryDraft({
     entries: guide.characters,
     isComplete: (entry) => Boolean(getCharacterName(entry).trim()),
-    onRemove: (id) =>
-      onGuideChange({
-        ...guide,
-        characters: guide.characters.filter((entry) => entry.id !== id),
-      }),
     draftId,
     onDraftIdChange,
   });
@@ -137,18 +132,18 @@ function useCharacterActions({
   onGuideChange,
   selectedIds,
   clearSelection,
+  confirmDelete,
 }: StyleGuideEditorProps & {
   selectedIds: Set<string>;
   clearSelection: () => void;
+  confirmDelete: (count: number) => Promise<boolean>;
 }) {
-  const { t } = useTranslation("components");
   return createContextEntryActions({
     entries: guide.characters,
     selectedIds,
     clearSelection,
     createEntry: makeCharacterProfile,
-    confirmDelete: (count) =>
-      window.confirm(t("styleGuide.usage.deleteConfirm", { count })),
+    confirmDelete,
     onEntriesChange: (characters) => onGuideChange({ ...guide, characters }),
   });
 }
@@ -166,6 +161,7 @@ type CharactersTableProps = {
   onRemove: (id: string) => void;
   onCompleteDraft: () => void;
   onCancelDraft: () => void;
+  onAdd: () => void;
   usageAvailable: boolean;
 };
 
@@ -182,6 +178,7 @@ function CharactersTable({
   onRemove,
   onCompleteDraft,
   onCancelDraft,
+  onAdd,
   usageAvailable,
 }: CharactersTableProps): React.JSX.Element {
   const { t } = useTranslation("components");
@@ -206,10 +203,11 @@ function CharactersTable({
         <span className="style-guide-centered-heading">
           {t("styleGuide.usage.enabled")}
         </span>
-        <span />
+        <ContextEntryAddButton onClick={onAdd} />
       </div>
       {draftCharacter ? (
         <CharacterRow
+          key={draftCharacter.id}
           character={draftCharacter}
           draft
           primaryInputRef={draftInputRef}
@@ -278,14 +276,12 @@ function CharacterRow({
         onToggleSelected={onToggleSelected}
         onUpdate={onUpdate}
       />
-      <input
+      <ContextEntryDelimitedInput
         ref={primaryInputRef}
         required={draft && !name.trim()}
-        value={character.sourceNames.join(", ")}
+        values={character.sourceNames}
         placeholder={t("styleGuide.characters.sourceNames")}
-        onChange={(event) =>
-          onUpdate({ sourceNames: splitList(event.target.value) })
-        }
+        onValuesChange={(sourceNames) => onUpdate({ sourceNames })}
       />
       <input
         value={character.targetName}
@@ -351,7 +347,7 @@ function CharacterPrimaryFields({
   return (
     <>
       {draft ? (
-        <span className="style-guide-draft-marker" aria-hidden="true" />
+        <ContextEntryDraftMarker />
       ) : (
         <CheckboxField
           className="inline-toggle"

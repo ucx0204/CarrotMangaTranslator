@@ -214,7 +214,7 @@
 
 .style-guide-list-toolbar {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) 150px 150px auto;
+  grid-template-columns: minmax(180px, 1fr) 150px 118px 150px auto;
   gap: var(--sp-2);
   align-items: center;
 }
@@ -264,23 +264,14 @@
 }
 
 .style-guide-row.is-draft {
-  border-top: 1px solid var(--accent-bd);
-  border-bottom-color: var(--accent-bd);
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--accent-soft) 78%, transparent),
-    color-mix(in srgb, var(--bg-raised) 88%, transparent)
-  );
-  box-shadow: inset 3px 0 0 var(--accent-hi);
+  background: color-mix(in srgb, var(--accent-soft) 72%, transparent);
 }
 
 .style-guide-draft-marker {
+  display: inline-grid;
   justify-self: center;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--accent-hi);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-hi) 16%, transparent);
+  place-items: center;
+  color: var(--accent-hi);
 }
 
 .style-guide-draft-actions {
@@ -290,11 +281,24 @@
 }
 
 .style-guide-row.is-draft > .style-guide-draft-actions {
-  position: sticky;
-  right: 2px;
-  z-index: 2;
-  padding-left: 4px;
-  background: color-mix(in srgb, var(--bg-raised) 94%, var(--accent-soft));
+  background: transparent;
+}
+
+.style-guide-row-add {
+  justify-self: center;
+  border-color: var(--accent-bd);
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.style-guide-row.head .style-guide-row-add {
+  color: var(--accent-text);
+}
+
+.style-guide-row.head .style-guide-row-add:hover:not(:disabled) {
+  border-color: var(--accent-hi);
+  background: var(--accent-hover);
+  color: var(--accent-text);
 }
 
 .style-guide-draft-actions .style-guide-draft-complete {

@@ -2,10 +2,12 @@
 
 import React from "react";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
   screen,
+  waitFor,
   within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -16,6 +18,10 @@ import {
 import { CharactersTab } from "../src/renderer/src/components/styleGuide/CharactersTab";
 import { GlossaryTab } from "../src/renderer/src/components/styleGuide/GlossaryTab";
 import { StyleGuideTabContent } from "../src/renderer/src/components/styleGuide/StyleGuideChrome";
+import {
+  createContextEntryActions,
+  createContextEntryDraftActions,
+} from "../src/renderer/src/components/styleGuide/contextEntryActions";
 import type { WorkStyleGuide } from "../src/shared/workContextTypes";
 import type { WorkContextUsageMetric } from "../src/shared/workContextUsageTypes";
 
@@ -27,7 +33,7 @@ afterEach(() => {
 });
 
 describe("style guide usage management", () => {
-  it("sorts, filters, edits, and bulk-deletes glossary entries by stable ID", () => {
+  it("sorts, filters, edits, and bulk-deletes glossary entries by stable ID", async () => {
     const guide = makeGuide();
     const onGuideChange = vi.fn();
     render(
@@ -74,10 +80,13 @@ describe("style guide usage management", () => {
     chooseCustomSelectOption("필터", "전체");
     fireEvent.click(screen.getByLabelText("Alpha 선택"));
     fireEvent.click(screen.getByLabelText("Beta 선택"));
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     fireEvent.click(screen.getByRole("button", { name: "2개 삭제" }));
-    expect(onGuideChange).toHaveBeenLastCalledWith(
-      expect.objectContaining({ glossary: [] }),
+    const dialog = screen.getByRole("dialog", { name: "2개 삭제" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "삭제" }));
+    await waitFor(() =>
+      expect(onGuideChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({ glossary: [] }),
+      ),
     );
     expect(screen.getByLabelText("Alpha 선택")).toHaveProperty(
       "checked",
@@ -159,6 +168,220 @@ describe("style guide usage management", () => {
         .closest(".style-guide-row")
         ?.classList.contains("is-draft"),
     ).toBe(false);
+  });
+
+  it("keeps focus in the draft field being edited as its value changes", () => {
+    render(<StatefulGlossaryTab />);
+    fireEvent.click(screen.getByRole("button", { name: "행 추가" }));
+
+    const draftRow = document.querySelector(".style-guide-row.is-draft");
+    expect(draftRow).not.toBeNull();
+    const draftTranslation = within(
+      draftRow as HTMLElement,
+    ).getByPlaceholderText("번역");
+    draftTranslation.focus();
+    fireEvent.change(draftTranslation, { target: { value: "번" } });
+    expect(document.activeElement).toBe(draftTranslation);
+
+    fireEvent.change(draftTranslation, { target: { value: "번역 단어" } });
+    expect(document.activeElement).toBe(draftTranslation);
+  });
+
+  it("accepts keyboard input after cancelling and reopening a glossary draft", () => {
+    render(<StatefulGlossaryTab />);
+    const addRow = screen.getByRole("button", { name: "행 추가" });
+
+    fireEvent.click(addRow);
+    fireEvent.click(screen.getByRole("button", { name: "새 행 입력 취소" }));
+    fireEvent.click(addRow);
+
+    const draftRow = document.querySelector(".style-guide-row.is-draft");
+    expect(draftRow).not.toBeNull();
+    const draftSource = within(draftRow as HTMLElement).getByPlaceholderText(
+      "원문",
+    );
+    expect(document.activeElement).toBe(draftSource);
+
+    fireEvent.compositionStart(draftSource);
+    fireEvent.change(draftSource, { target: { value: "재" } });
+    fireEvent.change(draftSource, { target: { value: "재등" } });
+    fireEvent.change(draftSource, { target: { value: "재등록" } });
+    fireEvent.compositionEnd(draftSource, { data: "재등록" });
+
+    expect(draftSource).toHaveProperty("value", "재등록");
+    expect(document.activeElement).toBe(draftSource);
+  });
+
+  it("does not lose a replacement draft when cancel and add are batched", () => {
+    render(<StatefulGlossaryTab />);
+    const addRow = screen.getByRole("button", { name: "행 추가" });
+    fireEvent.click(addRow);
+    const cancel = screen.getByRole("button", { name: "새 행 입력 취소" });
+
+    act(() => {
+      cancel.click();
+      addRow.click();
+    });
+
+    const draftRows = document.querySelectorAll(".style-guide-row.is-draft");
+    expect(draftRows).toHaveLength(1);
+    const draftSource = within(
+      draftRows[0] as HTMLElement,
+    ).getByPlaceholderText("원문");
+    fireEvent.change(draftSource, { target: { value: "교체 초안" } });
+    expect(draftSource).toHaveProperty("value", "교체 초안");
+  });
+
+  it("completes a draft from the latest value during a batched input and click", () => {
+    render(<StatefulGlossaryTab />);
+    fireEvent.click(screen.getByRole("button", { name: "행 추가" }));
+    const draftRow = document.querySelector(".style-guide-row.is-draft");
+    expect(draftRow).not.toBeNull();
+    const source = within(draftRow as HTMLElement).getByPlaceholderText("원문");
+    const complete = screen.getByRole("button", { name: "새 행 입력 완료" });
+
+    act(() => {
+      fireEvent.change(source, { target: { value: "즉시 완료" } });
+      complete.click();
+    });
+
+    expect(document.querySelector(".style-guide-row.is-draft")).toBeNull();
+    expect(screen.getByDisplayValue("즉시 완료")).toBeTruthy();
+  });
+
+  it("keeps an incomplete glossary draft open and focused", () => {
+    render(<StatefulGlossaryTab />);
+    fireEvent.click(screen.getByRole("button", { name: "행 추가" }));
+
+    const draftRow = document.querySelector(".style-guide-row.is-draft");
+    expect(draftRow).not.toBeNull();
+    const source = within(draftRow as HTMLElement).getByPlaceholderText("원문");
+    fireEvent.click(screen.getByRole("button", { name: "새 행 입력 완료" }));
+
+    expect(source.closest(".style-guide-row")?.classList).toContain("is-draft");
+    expect(document.activeElement).toBe(source);
+  });
+
+  it("accepts keyboard input after deleting a saved glossary row and adding a draft", () => {
+    render(<StatefulGlossaryTab />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Alpha 삭제" }));
+    fireEvent.click(screen.getByRole("button", { name: "행 추가" }));
+
+    const draftRow = document.querySelector(".style-guide-row.is-draft");
+    expect(draftRow).not.toBeNull();
+    const draftTranslation = within(
+      draftRow as HTMLElement,
+    ).getByPlaceholderText("번역");
+    draftTranslation.focus();
+    fireEvent.change(draftTranslation, { target: { value: "다시 추가" } });
+
+    expect(draftTranslation).toHaveProperty("value", "다시 추가");
+    expect(document.activeElement).toBe(draftTranslation);
+  });
+
+  it("keeps glossary separators editable until the aliases field is left", () => {
+    render(<StatefulGlossaryTab />);
+    const alphaRow = screen
+      .getAllByPlaceholderText("원문")
+      .find((input) => (input as HTMLInputElement).value === "Alpha")
+      ?.closest(".style-guide-row");
+    expect(alphaRow).not.toBeNull();
+    const aliases = within(alphaRow as HTMLElement).getByPlaceholderText(
+      "별칭",
+    );
+
+    fireEvent.focus(aliases);
+    fireEvent.change(aliases, { target: { value: "첫 별칭, " } });
+    expect(aliases).toHaveProperty("value", "첫 별칭, ");
+    fireEvent.change(aliases, {
+      target: { value: "첫 별칭, 두 번째 별칭" },
+    });
+    expect(aliases).toHaveProperty("value", "첫 별칭, 두 번째 별칭");
+
+    fireEvent.blur(aliases);
+    expect(aliases).toHaveProperty("value", "첫 별칭, 두 번째 별칭");
+  });
+
+  it("keeps character name separators editable and supports cancel then re-add", () => {
+    render(<StatefulCharactersTab />);
+    fireEvent.click(screen.getByRole("button", { name: "행 추가" }));
+    fireEvent.click(screen.getByRole("button", { name: "새 행 입력 취소" }));
+    fireEvent.click(screen.getByRole("button", { name: "행 추가" }));
+
+    const draftRow = document.querySelector(".style-guide-row.is-draft");
+    expect(draftRow).not.toBeNull();
+    const sourceNames = within(draftRow as HTMLElement).getByPlaceholderText(
+      "원문 이름",
+    );
+    expect(document.activeElement).toBe(sourceNames);
+
+    fireEvent.change(sourceNames, { target: { value: "名前, " } });
+    expect(sourceNames).toHaveProperty("value", "名前, ");
+    fireEvent.change(sourceNames, { target: { value: "名前, 別名" } });
+    expect(sourceNames).toHaveProperty("value", "名前, 別名");
+    expect(document.activeElement).toBe(sourceNames);
+  });
+
+  it("composes consecutive list actions from their latest in-memory result", () => {
+    const updates: Array<Array<{ id: string; updatedAt: string }>> = [];
+    const actions = createContextEntryActions({
+      entries: [
+        { id: "keep", updatedAt: TS },
+        { id: "remove", updatedAt: TS },
+      ],
+      selectedIds: new Set<string>(),
+      clearSelection: vi.fn(),
+      confirmDelete: () => true,
+      createEntry: () => ({ id: "new", updatedAt: TS }),
+      onEntriesChange: (entries) => updates.push(entries),
+    });
+
+    actions.remove("remove");
+    actions.add();
+
+    expect(updates.at(-1)?.map((entry) => entry.id)).toEqual(["keep", "new"]);
+  });
+
+  it("handles draft commands both with and without a current entry", () => {
+    type DraftEntry = { id: string; updatedAt: string };
+    const addedEntry: DraftEntry = { id: "draft", updatedAt: TS };
+    let currentEntry: DraftEntry | undefined;
+    const actions = {
+      add: vi.fn(() => addedEntry),
+      get: vi.fn(() => addedEntry),
+      remove: vi.fn(),
+    };
+    const draft = {
+      begin: vi.fn((entry: DraftEntry) => {
+        currentEntry = entry;
+      }),
+      cancel: vi.fn(() => {
+        currentEntry = undefined;
+      }),
+      complete: vi.fn(),
+      focus: vi.fn(),
+      getCurrentEntry: () => currentEntry,
+    };
+    const commands = createContextEntryDraftActions({ actions, draft });
+
+    commands.add();
+    expect(draft.begin).toHaveBeenCalledWith(addedEntry);
+    commands.add();
+    expect(draft.focus).toHaveBeenCalledOnce();
+
+    commands.complete();
+    expect(actions.get).toHaveBeenCalledWith("draft");
+    expect(draft.complete).toHaveBeenLastCalledWith(addedEntry);
+    currentEntry = undefined;
+    commands.complete();
+    expect(draft.complete).toHaveBeenLastCalledWith(undefined);
+
+    currentEntry = addedEntry;
+    commands.cancel();
+    commands.cancel();
+    expect(actions.remove).toHaveBeenCalledOnce();
+    expect(actions.remove).toHaveBeenCalledWith("draft");
   });
 
   it("cancels empty glossary and character drafts without leaving rows behind", () => {
@@ -295,12 +518,48 @@ describe("style guide usage management", () => {
       target: { value: "" },
     });
 
-    chooseCustomSelectOption("필터", "사용 안 함");
+    chooseCustomSelectOption("필터", "등장 횟수 0");
     expect(glossarySourceOrder()).toEqual(["Gamma"]);
     chooseCustomSelectOption("필터", "0~1쪽 등장");
     expect(glossarySourceOrder()).toEqual(["Alpha", "Gamma"]);
     chooseCustomSelectOption("필터", "비활성");
     expect(glossarySourceOrder()).toEqual(["Gamma"]);
+  });
+
+  it("sorts every criterion in an explicit ascending or descending direction", () => {
+    render(
+      <GlossaryTab
+        guide={makeGuide()}
+        onGuideChange={vi.fn()}
+        usage={makeUsage()}
+      />,
+    );
+
+    expect(screen.getByLabelText("정렬 방향")).toHaveProperty("value", "desc");
+    expect(glossarySourceOrder()).toEqual(["Beta", "Alpha"]);
+
+    chooseCustomSelectOption("정렬 방향", "오름차순");
+    expect(glossarySourceOrder()).toEqual(["Alpha", "Beta"]);
+    chooseCustomSelectOption("정렬 방향", "내림차순");
+    expect(glossarySourceOrder()).toEqual(["Beta", "Alpha"]);
+
+    chooseCustomSelectOption("정렬", "이름");
+    expect(screen.getByLabelText("정렬 방향")).toHaveProperty("value", "asc");
+    expect(glossarySourceOrder()).toEqual(["Alpha", "Beta"]);
+    chooseCustomSelectOption("정렬 방향", "내림차순");
+    expect(glossarySourceOrder()).toEqual(["Beta", "Alpha"]);
+
+    chooseCustomSelectOption("정렬", "최근 등장");
+    expect(screen.getByLabelText("정렬 방향")).toHaveProperty("value", "desc");
+    expect(glossarySourceOrder()).toEqual(["Beta", "Alpha"]);
+    chooseCustomSelectOption("정렬 방향", "오름차순");
+    expect(glossarySourceOrder()).toEqual(["Alpha", "Beta"]);
+
+    chooseCustomSelectOption("정렬", "저장 순서");
+    expect(screen.getByLabelText("정렬 방향")).toHaveProperty("value", "asc");
+    expect(glossarySourceOrder()).toEqual(["Alpha", "Beta"]);
+    chooseCustomSelectOption("정렬 방향", "내림차순");
+    expect(glossarySourceOrder()).toEqual(["Beta", "Alpha"]);
   });
 
   it("does not expose usage-based cleanup when statistics failed", () => {
@@ -319,7 +578,7 @@ describe("style guide usage management", () => {
     const filterOptions = openCustomSelect("필터");
     expect(
       within(filterOptions)
-        .getByRole("option", { name: "사용 안 함" })
+        .getByRole("option", { name: "등장 횟수 0" })
         .getAttribute("aria-disabled"),
     ).toBe("true");
   });
@@ -334,11 +593,40 @@ describe("style guide usage management", () => {
       />,
     );
     fireEvent.click(screen.getByLabelText("Alpha 선택"));
-    vi.spyOn(window, "confirm").mockReturnValue(false);
     fireEvent.click(screen.getByRole("button", { name: "1개 삭제" }));
+    const dialog = screen.getByRole("dialog", { name: "1개 삭제" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "취소" }));
 
     expect(onGuideChange).not.toHaveBeenCalled();
     expect(screen.getByLabelText("Alpha 선택")).toHaveProperty("checked", true);
+  });
+
+  it("accepts keyboard input after confirming a bulk deletion", async () => {
+    const nativeConfirm = vi.spyOn(window, "confirm");
+    render(<StatefulGlossaryTab />);
+
+    fireEvent.click(screen.getByLabelText("Alpha 선택"));
+    fireEvent.click(screen.getByRole("button", { name: "1개 삭제" }));
+    const dialog = screen.getByRole("dialog", { name: "1개 삭제" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "삭제" }));
+
+    await waitFor(() =>
+      expect(screen.queryByLabelText("Alpha 선택")).toBeNull(),
+    );
+    expect(nativeConfirm).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "행 추가" }));
+    const draftRow = document.querySelector(".style-guide-row.is-draft");
+    expect(draftRow).not.toBeNull();
+    const translation = within(draftRow as HTMLElement).getByPlaceholderText(
+      "번역",
+    );
+    translation.focus();
+    fireEvent.keyDown(translation, { key: "ㅎ", code: "KeyG" });
+    fireEvent.change(translation, { target: { value: "삭제 후 입력" } });
+
+    expect(document.activeElement).toBe(translation);
+    expect(translation).toHaveProperty("value", "삭제 후 입력");
   });
 
   it("selects and clears every visible glossary entry from the table header", () => {
@@ -415,6 +703,29 @@ describe("style guide usage management", () => {
     expect(screen.getByText("조건에 맞는 항목이 없습니다.")).toBeTruthy();
   });
 
+  it("keeps add-row in the table action header beside enabled, even when empty", () => {
+    const guide = makeGuide();
+    const onGuideChange = vi.fn();
+    render(
+      <GlossaryTab
+        guide={{ ...guide, glossary: [] }}
+        onGuideChange={onGuideChange}
+      />,
+    );
+
+    const addRow = screen.getByRole("button", { name: "행 추가" });
+    const header = addRow.closest(".style-guide-row.head");
+    expect(header).not.toBeNull();
+    expect(addRow.previousElementSibling?.textContent).toBe("활성");
+
+    fireEvent.click(addRow);
+    expect(onGuideChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        glossary: [expect.objectContaining({ source: "", target: "" })],
+      }),
+    );
+  });
+
   it("uses a target-only glossary name when optional metadata is absent", () => {
     const guide = makeGuide();
     guide.glossary = [
@@ -428,6 +739,10 @@ describe("style guide usage management", () => {
     ];
     render(<GlossaryTab guide={guide} onGuideChange={vi.fn()} />);
 
+    fireEvent.change(screen.getByLabelText("이름·번역·별칭 검색"), {
+      target: { value: "번역어" },
+    });
+    chooseCustomSelectOption("정렬", "이름");
     expect(screen.getByLabelText("번역어 선택")).toBeTruthy();
     expect(screen.getByRole("switch", { name: "번역어 활성화" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "번역어 삭제" })).toBeTruthy();

@@ -9,17 +9,22 @@ import { CheckboxField } from "../ui/CheckboxField";
 import { Select } from "../ui/Select";
 import type { StyleGuideEditorProps } from "./styleGuideTypes";
 import {
+  ContextEntryAddButton,
+  ContextEntryDelimitedInput,
+  ContextEntryDraftMarker,
   ContextEntryEnabledToggle,
   ContextEntryRowActions,
   ContextEntrySection,
   ContextEntryUsageCount,
 } from "./ContextEntryList";
-import { createContextEntryActions } from "./contextEntryActions";
 import {
-  useContextEntryDraft,
-  useContextEntryList,
-} from "./contextEntryListModel";
-import { CATEGORY_IDS, makeGlossaryEntry, splitList } from "./styleGuideUtils";
+  createContextEntryActions,
+  createContextEntryDraftActions,
+} from "./contextEntryActions";
+import { useContextEntryList } from "./contextEntryListModel";
+import { CATEGORY_IDS, makeGlossaryEntry } from "./styleGuideUtils";
+import { useContextEntryDeleteConfirmation } from "./useContextEntryDeleteConfirmation";
+import { useContextEntryDraft } from "./useContextEntryDraft";
 
 export function GlossaryTab({
   guide,
@@ -35,14 +40,10 @@ export function GlossaryTab({
   onDraftIdChange?: (id: string | null) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
+  const deleteConfirmation = useContextEntryDeleteConfirmation();
   const draft = useContextEntryDraft({
     entries: guide.glossary,
     isComplete: (entry) => Boolean(entry.source.trim()),
-    onRemove: (id) =>
-      onGuideChange({
-        ...guide,
-        glossary: guide.glossary.filter((entry) => entry.id !== id),
-      }),
     draftId,
     onDraftIdChange,
   });
@@ -65,40 +66,39 @@ export function GlossaryTab({
     onGuideChange,
     selectedIds: entryList.selectedIds,
     clearSelection: () => entryList.setSelectedIds(new Set()),
+    confirmDelete: deleteConfirmation.confirmDelete,
   });
+  const draftActions = createContextEntryDraftActions({ actions, draft });
   return (
-    <ContextEntrySection
-      emptyLabel={t("styleGuide.glossary.empty")}
-      entryList={entryList}
-      title={t("styleGuide.tabs.glossary")}
-      totalCount={guide.glossary.length}
-      usageAvailable={usageAvailable}
-      notice={t("styleGuide.glossary.omissionHint")}
-      onAdd={() => {
-        if (draft.draftEntry) {
-          draft.focus();
-          return;
-        }
-        draft.begin(actions.add());
-      }}
-      onDeleteSelected={actions.removeSelected}
-    >
-      <GlossaryTable
-        entries={entryList.visibleEntries}
-        draftEntry={draft.draftEntry}
-        draftInputRef={draft.primaryInputRef}
-        usageById={entryList.usageById}
-        selectedIds={entryList.selectedIds}
-        allVisibleSelected={entryList.allVisibleSelected}
-        onToggleAll={entryList.toggleAllVisible}
-        onToggleSelected={entryList.toggleSelected}
-        onUpdate={actions.update}
-        onRemove={actions.remove}
-        onCompleteDraft={draft.complete}
-        onCancelDraft={draft.cancel}
+    <>
+      <ContextEntrySection
+        emptyLabel={t("styleGuide.glossary.empty")}
+        entryList={entryList}
+        title={t("styleGuide.tabs.glossary")}
+        totalCount={guide.glossary.length}
         usageAvailable={usageAvailable}
-      />
-    </ContextEntrySection>
+        notice={t("styleGuide.glossary.omissionHint")}
+        onDeleteSelected={() => void actions.removeSelected()}
+      >
+        <GlossaryTable
+          entries={entryList.visibleEntries}
+          draftEntry={draft.draftEntry}
+          draftInputRef={draft.primaryInputRef}
+          usageById={entryList.usageById}
+          selectedIds={entryList.selectedIds}
+          allVisibleSelected={entryList.allVisibleSelected}
+          onToggleAll={entryList.toggleAllVisible}
+          onToggleSelected={entryList.toggleSelected}
+          onUpdate={actions.update}
+          onRemove={actions.remove}
+          onCompleteDraft={draftActions.complete}
+          onCancelDraft={draftActions.cancel}
+          onAdd={draftActions.add}
+          usageAvailable={usageAvailable}
+        />
+      </ContextEntrySection>
+      {deleteConfirmation.confirmationModal}
+    </>
   );
 }
 
@@ -107,19 +107,19 @@ function useGlossaryActions({
   onGuideChange,
   selectedIds,
   clearSelection,
+  confirmDelete,
 }: StyleGuideEditorProps & {
   selectedIds: Set<string>;
   clearSelection: () => void;
+  confirmDelete: (count: number) => Promise<boolean>;
 }) {
-  const { t } = useTranslation("components");
   return createContextEntryActions({
     entries: guide.glossary,
     selectedIds,
     clearSelection,
     createEntry: () =>
       makeGlossaryEntry({ source: "", target: "", category: "term" }),
-    confirmDelete: (count) =>
-      window.confirm(t("styleGuide.usage.deleteConfirm", { count })),
+    confirmDelete,
     onEntriesChange: (glossary) => onGuideChange({ ...guide, glossary }),
   });
 }
@@ -137,6 +137,7 @@ type GlossaryTableProps = {
   onRemove: (id: string) => void;
   onCompleteDraft: () => void;
   onCancelDraft: () => void;
+  onAdd: () => void;
   usageAvailable: boolean;
 };
 
@@ -153,6 +154,7 @@ function GlossaryTable({
   onRemove,
   onCompleteDraft,
   onCancelDraft,
+  onAdd,
   usageAvailable,
 }: GlossaryTableProps): React.JSX.Element {
   const { t } = useTranslation("components");
@@ -176,10 +178,11 @@ function GlossaryTable({
         <span className="style-guide-centered-heading">
           {t("styleGuide.usage.enabled")}
         </span>
-        <span />
+        <ContextEntryAddButton onClick={onAdd} />
       </div>
       {draftEntry ? (
         <GlossaryRow
+          key={draftEntry.id}
           entry={draftEntry}
           draft
           primaryInputRef={draftInputRef}
@@ -241,7 +244,7 @@ function GlossaryRow({
   return (
     <div className={`style-guide-row glossary${draft ? " is-draft" : ""}`}>
       {draft ? (
-        <span className="style-guide-draft-marker" aria-hidden="true" />
+        <ContextEntryDraftMarker />
       ) : (
         <CheckboxField
           className="inline-toggle"
@@ -275,12 +278,10 @@ function GlossaryRow({
           onUpdate({ category: nextValue as GlossaryEntryCategory })
         }
       />
-      <input
-        value={(entry.aliases ?? []).join(", ")}
+      <ContextEntryDelimitedInput
+        values={entry.aliases ?? []}
         placeholder={t("styleGuide.glossary.aliases")}
-        onChange={(event) =>
-          onUpdate({ aliases: splitList(event.target.value) })
-        }
+        onValuesChange={(aliases) => onUpdate({ aliases })}
       />
       <input
         value={entry.note ?? ""}

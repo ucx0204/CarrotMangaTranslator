@@ -1045,11 +1045,16 @@
         "name": "Name",
         "stored": "Saved order"
       },
+      "sortDirectionLabel": "Sort direction",
+      "sortDirection": {
+        "asc": "Ascending",
+        "desc": "Descending"
+      },
       "filterLabel": "Filter",
       "filter": {
         "all": "All",
         "ai": "AI-created",
-        "unused": "Unused",
+        "unused": "No appearances",
         "low-use": "Used on 0–1 pages",
         "disabled": "Disabled"
       },

@@ -78,4 +78,26 @@ describe("MemoryTab", () => {
       }),
     );
   });
+
+  it("keeps focus and accepts a replacement after clearing a summary", () => {
+    function StatefulMemory(): React.JSX.Element {
+      const [memory, setMemory] =
+        React.useState<ChapterStoryMemory>(makeMemory);
+      return <MemoryTab memory={memory} onMemoryChange={setMemory} />;
+    }
+
+    render(<StatefulMemory />);
+    const summary = screen.getByRole("textbox");
+    summary.focus();
+    fireEvent.change(summary, { target: { value: "" } });
+    expect(document.activeElement).toBe(summary);
+
+    fireEvent.compositionStart(summary);
+    fireEvent.change(summary, { target: { value: "새" } });
+    fireEvent.change(summary, { target: { value: "새 메모" } });
+    fireEvent.compositionEnd(summary, { data: "새 메모" });
+
+    expect(summary).toHaveProperty("value", "새 메모");
+    expect(document.activeElement).toBe(summary);
+  });
 });

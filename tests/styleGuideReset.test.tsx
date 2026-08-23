@@ -66,6 +66,65 @@ afterEach(() => {
 });
 
 describe("StyleGuideModal complete reset", () => {
+  it("keeps glossary keyboard editing alive after delete, cancel, save, and re-add", async () => {
+    renderModal();
+    await screen.findByDisplayValue("魔王");
+
+    fireEvent.click(screen.getByRole("button", { name: "魔王 삭제" }));
+    const addRow = screen.getByRole("button", { name: "행 추가" });
+    fireEvent.click(addRow);
+    fireEvent.click(screen.getByRole("button", { name: "새 행 입력 취소" }));
+    fireEvent.click(addRow);
+
+    let draftRow = document.querySelector(".style-guide-row.is-draft");
+    expect(draftRow).not.toBeNull();
+    let source = within(draftRow as HTMLElement).getByPlaceholderText("원문");
+    const translation = within(draftRow as HTMLElement).getByPlaceholderText(
+      "번역",
+    );
+    fireEvent.change(source, { target: { value: "再登録" } });
+    fireEvent.change(translation, { target: { value: "재등록" } });
+    expect(source).toHaveProperty("value", "再登録");
+    expect(translation).toHaveProperty("value", "재등록");
+
+    fireEvent.click(screen.getByRole("button", { name: "저장" }));
+    await waitFor(() => {
+      expect(gatewayMocks.saveWorkStyleGuide).toHaveBeenCalled();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "새 행 입력 완료" }));
+    fireEvent.click(addRow);
+    draftRow = document.querySelector(".style-guide-row.is-draft");
+    expect(draftRow).not.toBeNull();
+    source = within(draftRow as HTMLElement).getByPlaceholderText("원문");
+    fireEvent.change(source, { target: { value: "追加入力" } });
+    expect(source).toHaveProperty("value", "追加入力");
+    expect(document.activeElement).toBe(source);
+  });
+
+  it("can re-add immediately after saving removes an empty draft", async () => {
+    renderModal();
+    await screen.findByDisplayValue("魔王");
+    const addRow = screen.getByRole("button", { name: "행 추가" });
+
+    fireEvent.click(addRow);
+    expect(document.querySelector(".style-guide-row.is-draft")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "저장" }));
+    await waitFor(() => {
+      expect(document.querySelector(".style-guide-row.is-draft")).toBeNull();
+    });
+
+    fireEvent.click(addRow);
+    const replacement = document.querySelector(".style-guide-row.is-draft");
+    expect(replacement).not.toBeNull();
+    const source = within(replacement as HTMLElement).getByPlaceholderText(
+      "원문",
+    );
+    fireEvent.change(source, { target: { value: "保存後" } });
+    expect(source).toHaveProperty("value", "保存後");
+    expect(document.activeElement).toBe(source);
+  });
+
   it("does not call reset when the destructive confirmation is cancelled", async () => {
     renderModal();
     await screen.findByDisplayValue("魔王");

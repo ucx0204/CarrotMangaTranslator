@@ -1030,11 +1030,16 @@
         "name": "이름",
         "stored": "저장 순서"
       },
+      "sortDirectionLabel": "정렬 방향",
+      "sortDirection": {
+        "asc": "오름차순",
+        "desc": "내림차순"
+      },
       "filterLabel": "필터",
       "filter": {
         "all": "전체",
         "ai": "AI 생성",
-        "unused": "사용 안 함",
+        "unused": "등장 횟수 0",
         "low-use": "0~1쪽 등장",
         "disabled": "비활성"
       },
