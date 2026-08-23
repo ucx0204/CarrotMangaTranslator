@@ -6,6 +6,7 @@ const SUPPORTED_HIP_RUNTIME_DLLS = [
   "amdhip64_7.dll",
   "amdhip64_6.dll",
 ] as const;
+const MAX_LOGGED_HIP_SDK_PATHS = 12;
 
 type HipSdkCandidateSource = "HIP_PATH" | "ROCM_PATH" | "PATH" | "standard";
 
@@ -20,6 +21,11 @@ type HipSdkCandidateCollector = {
   candidates: HipSdkCandidate[];
 };
 
+type HipSdkCandidateCollection = {
+  candidates: HipSdkCandidate[];
+  ignoredNonSdkRuntimeDlls: string[];
+};
+
 type WindowsHipSdk = {
   binDir: string;
   rootDir: string;
@@ -29,10 +35,38 @@ type WindowsHipSdk = {
 };
 
 export type WindowsHipSdkProbe = {
+  ignoredNonSdkRuntimeDlls: string[];
   incompatibleRuntimeDlls: string[];
   platformSupported: boolean;
   searchedBinDirs: string[];
   sdk: WindowsHipSdk | null;
+};
+
+export type WindowsHipSdkProbeLogDetail = {
+  configuredHipPath: string | null;
+  configuredRocmPath: string | null;
+  ignoredNonSdkRuntimeDllCount: number;
+  ignoredNonSdkRuntimeDlls: string[];
+  incompatibleRuntimeDllCount: number;
+  incompatibleRuntimeDlls: string[];
+  omittedIgnoredNonSdkRuntimeDllCount: number;
+  omittedIncompatibleRuntimeDllCount: number;
+  omittedSearchedBinDirCount: number;
+  platformSupported: boolean;
+  searchedBinDirCount: number;
+  searchedBinDirs: string[];
+  sdk:
+    | null
+    | (WindowsHipSdk & {
+        koharuExpectedBinDir: string;
+        koharuExpectedRuntimeDlls: Array<{
+          exists: boolean;
+          path: string;
+        }>;
+        koharuHipRuntimeAvailable: boolean;
+        selectedBinMatchesKoharuLayout: boolean;
+        selectedRuntimeDllExists: boolean;
+      });
 };
 
 export type DiscoverWindowsHipSdkOptions = {
@@ -44,8 +78,8 @@ export type DiscoverWindowsHipSdkOptions = {
 
 /**
  * Finds a usable Windows HIP SDK without pinning the app to a ROCm minor
- * version. Explicit environment variables win, followed by PATH and then the
- * newest version installed under AMD's standard Program Files directory.
+ * version. Explicit environment variables win, followed by standard install
+ * roots and then SDK bin directories explicitly present on PATH.
  */
 export async function discoverWindowsHipSdk(
   options: DiscoverWindowsHipSdkOptions = {},
@@ -53,15 +87,80 @@ export async function discoverWindowsHipSdk(
   const env = options.env ?? process.env;
   const platform = options.platform ?? process.platform;
   if (platform !== "win32") return createUnsupportedPlatformProbe();
-  const candidates = await collectWindowsHipSdkCandidates(
+  const collection = await collectWindowsHipSdkCandidates(
     env,
     options.standardRoots ?? resolveStandardHipSdkRoots(env),
   );
-  return probeHipSdkCandidates(candidates);
+  return probeHipSdkCandidates(collection);
+}
+
+/**
+ * Produces bounded, non-secret diagnostics that distinguish an absent SDK
+ * from a discovered DLL whose layout the native Koharu runner cannot use.
+ */
+export function buildWindowsHipSdkProbeLogDetail(
+  probe: WindowsHipSdkProbe,
+  env: NodeJS.ProcessEnv = process.env,
+): WindowsHipSdkProbeLogDetail {
+  const searchedBinDirs = probe.searchedBinDirs.slice(
+    0,
+    MAX_LOGGED_HIP_SDK_PATHS,
+  );
+  const incompatibleRuntimeDlls = probe.incompatibleRuntimeDlls.slice(
+    0,
+    MAX_LOGGED_HIP_SDK_PATHS,
+  );
+  const ignoredNonSdkRuntimeDlls = probe.ignoredNonSdkRuntimeDlls.slice(
+    0,
+    MAX_LOGGED_HIP_SDK_PATHS,
+  );
+  const commonDetail = {
+    configuredHipPath: normalizeCandidatePath(env.HIP_PATH),
+    configuredRocmPath: normalizeCandidatePath(env.ROCM_PATH),
+    ignoredNonSdkRuntimeDllCount: probe.ignoredNonSdkRuntimeDlls.length,
+    ignoredNonSdkRuntimeDlls,
+    incompatibleRuntimeDllCount: probe.incompatibleRuntimeDlls.length,
+    incompatibleRuntimeDlls,
+    omittedIgnoredNonSdkRuntimeDllCount:
+      probe.ignoredNonSdkRuntimeDlls.length - ignoredNonSdkRuntimeDlls.length,
+    omittedIncompatibleRuntimeDllCount:
+      probe.incompatibleRuntimeDlls.length - incompatibleRuntimeDlls.length,
+    omittedSearchedBinDirCount:
+      probe.searchedBinDirs.length - searchedBinDirs.length,
+    platformSupported: probe.platformSupported,
+    searchedBinDirCount: probe.searchedBinDirs.length,
+    searchedBinDirs,
+  };
+  if (!probe.sdk) return { ...commonDetail, sdk: null };
+
+  const koharuExpectedBinDir = join(probe.sdk.rootDir, "bin");
+  const koharuExpectedRuntimeDlls = SUPPORTED_HIP_RUNTIME_DLLS.map(
+    (runtimeDll) => {
+      const path = join(koharuExpectedBinDir, runtimeDll);
+      return { exists: existsSync(path), path };
+    },
+  );
+  return {
+    ...commonDetail,
+    sdk: {
+      ...probe.sdk,
+      koharuExpectedBinDir,
+      koharuExpectedRuntimeDlls,
+      koharuHipRuntimeAvailable: koharuExpectedRuntimeDlls.some(
+        (runtimeDll) => runtimeDll.exists,
+      ),
+      selectedBinMatchesKoharuLayout: pathsEqual(
+        probe.sdk.binDir,
+        koharuExpectedBinDir,
+      ),
+      selectedRuntimeDllExists: existsSync(probe.sdk.runtimeDllPath),
+    },
+  };
 }
 
 function createUnsupportedPlatformProbe(): WindowsHipSdkProbe {
   return {
+    ignoredNonSdkRuntimeDlls: [],
     incompatibleRuntimeDlls: [],
     platformSupported: false,
     searchedBinDirs: [],
@@ -72,17 +171,21 @@ function createUnsupportedPlatformProbe(): WindowsHipSdkProbe {
 async function collectWindowsHipSdkCandidates(
   env: NodeJS.ProcessEnv,
   standardRoots: string[],
-): Promise<HipSdkCandidate[]> {
+): Promise<HipSdkCandidateCollection> {
   const collector = createHipSdkCandidateCollector();
   await addCandidatePath(collector, env.HIP_PATH, "HIP_PATH");
   await addCandidatePath(collector, env.ROCM_PATH, "ROCM_PATH");
-  for (const entry of String(env.PATH ?? "").split(";")) {
-    await addCandidatePath(collector, entry, "PATH");
-  }
   for (const root of standardRoots) {
     await addStandardRootCandidates(collector, root);
   }
-  return collector.candidates;
+  const ignoredNonSdkRuntimeDlls: string[] = [];
+  for (const entry of String(env.PATH ?? "").split(";")) {
+    addPathCandidate(collector, entry, ignoredNonSdkRuntimeDlls);
+  }
+  return {
+    candidates: collector.candidates,
+    ignoredNonSdkRuntimeDlls: uniqueCaseInsensitive(ignoredNonSdkRuntimeDlls),
+  };
 }
 
 function createHipSdkCandidateCollector(): HipSdkCandidateCollector {
@@ -121,9 +224,29 @@ async function addCandidatePath(
   for (const versionDir of await listVersionDirectories(candidatePath)) {
     collector.add(versionDir, join(versionDir, "bin"), source);
   }
-  // PATH can point directly at a custom runtime directory whose name is not
-  // literally "bin". This harmless fallback also supports such layouts.
-  collector.add(dirname(candidatePath), candidatePath, source);
+}
+
+function addPathCandidate(
+  collector: HipSdkCandidateCollector,
+  rawPath: string | undefined,
+  ignoredNonSdkRuntimeDlls: string[],
+): void {
+  const candidatePath = normalizeCandidatePath(rawPath);
+  if (!candidatePath) return;
+  if (basename(candidatePath).toLowerCase() === "bin") {
+    collector.add(dirname(candidatePath), candidatePath, "PATH");
+    return;
+  }
+
+  // Current AMD display drivers can expose amdhip64_*.dll through System32.
+  // Koharu treats HIP_PATH as an SDK root and only checks HIP_PATH/bin, so a
+  // DLL found directly in an arbitrary PATH directory is not a usable SDK.
+  for (const runtimeDll of SUPPORTED_HIP_RUNTIME_DLLS) {
+    const runtimeDllPath = join(candidatePath, runtimeDll);
+    if (existsSync(runtimeDllPath)) {
+      ignoredNonSdkRuntimeDlls.push(runtimeDllPath);
+    }
+  }
 }
 
 async function addStandardRootCandidates(
@@ -137,16 +260,17 @@ async function addStandardRootCandidates(
 }
 
 async function probeHipSdkCandidates(
-  candidates: HipSdkCandidate[],
+  collection: HipSdkCandidateCollection,
 ): Promise<WindowsHipSdkProbe> {
   const searchedBinDirs: string[] = [];
   const incompatibleRuntimeDlls: string[] = [];
-  for (const candidate of candidates) {
+  for (const candidate of collection.candidates) {
     searchedBinDirs.push(candidate.binDir);
     for (const runtimeDll of SUPPORTED_HIP_RUNTIME_DLLS) {
       const runtimeDllPath = join(candidate.binDir, runtimeDll);
       if (existsSync(runtimeDllPath)) {
         return {
+          ignoredNonSdkRuntimeDlls: collection.ignoredNonSdkRuntimeDlls,
           incompatibleRuntimeDlls,
           platformSupported: true,
           searchedBinDirs,
@@ -164,6 +288,7 @@ async function probeHipSdkCandidates(
   }
 
   return {
+    ignoredNonSdkRuntimeDlls: collection.ignoredNonSdkRuntimeDlls,
     incompatibleRuntimeDlls: uniqueCaseInsensitive(incompatibleRuntimeDlls),
     platformSupported: true,
     searchedBinDirs,
@@ -187,12 +312,16 @@ export function formatWindowsHipSdkProbeError(
   const incompatible = probe.incompatibleRuntimeDlls.length
     ? `\n호환되지 않는 HIP DLL도 발견했습니다: ${probe.incompatibleRuntimeDlls.join(", ")}`
     : "";
+  const ignored = probe.ignoredNonSdkRuntimeDlls.length
+    ? `\nSDK bin 구조가 아닌 PATH 위치의 HIP DLL은 제외했습니다: ${probe.ignoredNonSdkRuntimeDlls.join(", ")}`
+    : "";
   return new Error(
     [
       "AMD HIP SDK 런타임을 찾지 못해 Flux ZLUDA를 시작할 수 없습니다.",
       `필요한 파일: ${SUPPORTED_HIP_RUNTIME_DLLS.join(" 또는 ")}`,
       `확인한 위치:\n- ${searched}`,
       incompatible,
+      ignored,
       "HIP SDK를 설치한 뒤 앱을 다시 시작하거나, 설정에서 Flux 백엔드를 CPU로 바꿔 주세요.",
     ]
       .filter(Boolean)
@@ -291,6 +420,10 @@ function normalizeCandidatePath(value: string | undefined): string | null {
   if (!trimmed) return null;
   const unquoted = trimmed.replace(/^"(.*)"$/, "$1").trim();
   return unquoted ? normalize(unquoted) : null;
+}
+
+function pathsEqual(left: string, right: string): boolean {
+  return normalize(left).toLowerCase() === normalize(right).toLowerCase();
 }
 
 function uniqueCaseInsensitive(values: string[]): string[] {

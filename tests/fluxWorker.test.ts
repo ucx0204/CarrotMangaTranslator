@@ -280,6 +280,56 @@ describeWindows("Flux worker runtime helpers", () => {
       ROCM_PATH: hipRoot,
     });
     expect(launch.env?.PATH?.split(delimiter)[0]).toBe(join(hipRoot, "bin"));
+    const appLog = readFileSync(join(runtimeDir, "app.log"), "utf8");
+    expect(appLog).toContain("AMD HIP SDK probe succeeded");
+    expect(appLog).toContain('"koharuHipRuntimeAvailable":true');
+    expect(appLog).toContain('"selectedBinMatchesKoharuLayout":true');
+  });
+
+  it("logs and rejects a driver-only HIP DLL before launching ZLUDA", async () => {
+    const runtimeDir = createTempDir("mgt-flux-zluda-probe-failure-");
+    const modelDir = createTempDir("mgt-flux-model-");
+    const isolatedSystemDrive = createTempDir("mgt-isolated-system-drive-");
+    const driverRuntimeDir = createTempDir("mgt-driver-runtime-");
+    writeFileSync(join(driverRuntimeDir, "amdhip64_7.dll"), "driver-runtime");
+    const logPath = join(runtimeDir, "app.log");
+    const overriddenEnvironment = {
+      HIP_PATH: undefined,
+      MANGA_TRANSLATOR_LOG_PATH: logPath,
+      PATH: driverRuntimeDir,
+      ProgramFiles: isolatedSystemDrive,
+      ProgramW6432: isolatedSystemDrive,
+      ROCM_PATH: undefined,
+      SystemDrive: isolatedSystemDrive,
+    } satisfies Record<string, string | undefined>;
+    const previousEnvironment = new Map(
+      Object.keys(overriddenEnvironment).map((key) => [key, process.env[key]]),
+    );
+
+    try {
+      for (const [key, value] of Object.entries(overriddenEnvironment)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+
+      await expect(
+        ensureFluxWorkerLaunch({
+          runtimeDir,
+          modelDir,
+          backend: "zluda-native",
+        }),
+      ).rejects.toThrow("SDK bin 구조가 아닌 PATH 위치");
+
+      const appLog = readFileSync(logPath, "utf8");
+      expect(appLog).toContain("AMD HIP SDK probe failed");
+      expect(appLog).toContain('"ignoredNonSdkRuntimeDllCount":1');
+      expect(appLog).toContain('"sdk":null');
+    } finally {
+      for (const [key, value] of previousEnvironment) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
   });
 
   it("passes the managed CUDA runtime explicitly to the native Flux launcher", async () => {

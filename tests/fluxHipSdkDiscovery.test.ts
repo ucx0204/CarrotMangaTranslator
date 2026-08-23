@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  buildWindowsHipSdkProbeLogDetail,
   discoverWindowsHipSdk,
   formatWindowsHipSdkProbeError,
 } from "../src/main/inpainting/fluxAssets/hipSdk";
@@ -65,6 +66,65 @@ describe("Windows HIP SDK discovery", () => {
       source: "PATH",
       rootDir: pathRoot,
       binDir: join(pathRoot, "bin"),
+    });
+  });
+
+  it("discovers a versioned SDK below an explicit HIP_PATH base", async () => {
+    const hipBase = createTempDir("explicit-versioned-hip");
+    writeHipRuntime(join(hipBase, "7.2"), "amdhip64_7.dll");
+
+    const probe = await discoverWindowsHipSdk({
+      env: { HIP_PATH: hipBase, PATH: "" },
+      platform: "win32",
+      standardRoots: [],
+    });
+
+    expect(probe.sdk).toMatchObject({
+      source: "HIP_PATH",
+      rootDir: join(hipBase, "7.2"),
+      binDir: join(hipBase, "7.2", "bin"),
+      version: "7.2",
+    });
+  });
+
+  it("ignores a driver-only HIP DLL in a non-SDK PATH directory", async () => {
+    const systemRuntimeDir = createTempDir("system32-runtime");
+    const runtimeDllPath = join(systemRuntimeDir, "amdhip64_7.dll");
+    writeFileSync(runtimeDllPath, "hip-runtime");
+    const env = { PATH: systemRuntimeDir };
+
+    const probe = await discoverWindowsHipSdk({
+      env,
+      platform: "win32",
+      standardRoots: [],
+    });
+    const detail = buildWindowsHipSdkProbeLogDetail(probe, env);
+    const error = formatWindowsHipSdkProbeError(probe);
+
+    expect(probe.sdk).toBeNull();
+    expect(probe.searchedBinDirs).toEqual([]);
+    expect(probe.ignoredNonSdkRuntimeDlls).toEqual([runtimeDllPath]);
+    expect(detail.ignoredNonSdkRuntimeDlls).toEqual([runtimeDllPath]);
+    expect(detail.ignoredNonSdkRuntimeDllCount).toBe(1);
+    expect(detail.sdk).toBeNull();
+    expect(error.message).toContain("SDK bin 구조가 아닌 PATH 위치");
+    expect(error.message).toContain(runtimeDllPath);
+  });
+
+  it("prefers a standard SDK installation over an SDK bin directory on PATH", async () => {
+    const standardRoot = createHipSdk("standard-hip", "amdhip64_7.dll");
+    const pathRoot = createHipSdk("path-hip", "amdhip64_6.dll");
+
+    const probe = await discoverWindowsHipSdk({
+      env: { PATH: join(pathRoot, "bin") },
+      platform: "win32",
+      standardRoots: [standardRoot],
+    });
+
+    expect(probe.sdk).toMatchObject({
+      source: "standard",
+      rootDir: standardRoot,
+      binDir: join(standardRoot, "bin"),
     });
   });
 

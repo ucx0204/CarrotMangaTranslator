@@ -4,14 +4,21 @@ import type {
   FluxWorkerBackend,
   FluxWorkerLaunchSpec,
 } from "../fluxWorkerTypes";
-import { logInpaintingRuntimeInfo } from "../inpaintingRuntimeLogger";
+import {
+  logInpaintingRuntimeInfo,
+  logInpaintingRuntimeWarn,
+} from "../inpaintingRuntimeLogger";
 import { FLUX_CUDA_RUNTIME_DIR } from "./constants";
 import type { FluxAssetProgress, FluxRuntimeBackend } from "./types";
 import { ensureFluxCudaRuntime } from "./cudaRuntime";
 import { ensureManagedFluxRunner } from "./runner";
 import { ensureFluxZludaSupportRuntime } from "./zludaRuntime";
 import { ensureFluxPythonRuntime } from "./pythonRuntime";
-import { discoverWindowsHipSdk, formatWindowsHipSdkProbeError } from "./hipSdk";
+import {
+  buildWindowsHipSdkProbeLogDetail,
+  discoverWindowsHipSdk,
+  formatWindowsHipSdkProbeError,
+} from "./hipSdk";
 
 type EnsureFluxWorkerLaunchOptions = {
   runtimeDir: string;
@@ -88,7 +95,17 @@ async function ensureFluxZludaWorkerLaunch(
   options: EnsureFluxWorkerLaunchOptions,
 ): Promise<FluxWorkerLaunchSpec> {
   const hipSdkProbe = await discoverWindowsHipSdk();
-  if (!hipSdkProbe.sdk) throw formatWindowsHipSdkProbeError(hipSdkProbe);
+  const hipSdkLogDetail = buildWindowsHipSdkProbeLogDetail(hipSdkProbe);
+  if (
+    !hipSdkProbe.sdk ||
+    !hipSdkLogDetail.sdk ||
+    !hipSdkLogDetail.sdk.selectedBinMatchesKoharuLayout ||
+    !hipSdkLogDetail.sdk.koharuHipRuntimeAvailable
+  ) {
+    logInpaintingRuntimeWarn("AMD HIP SDK probe failed", hipSdkLogDetail);
+    throw formatWindowsHipSdkProbeError({ ...hipSdkProbe, sdk: null });
+  }
+  logInpaintingRuntimeInfo("AMD HIP SDK probe succeeded", hipSdkLogDetail);
   const hipSdk = hipSdkProbe.sdk;
   await mkdir(options.runtimeDir, { recursive: true });
   const runtimePath = await ensureManagedFluxRunner(options);
