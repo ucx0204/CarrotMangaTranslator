@@ -906,6 +906,11 @@
   },
   "gatherText": {
     "title": "彙整文字",
+    "tabs": {
+      "ariaLabel": "文字工具",
+      "overview": "彙整",
+      "searchReplace": "尋找與取代"
+    },
     "scope": "範圍",
     "entireChapter": "整章",
     "display": "顯示",

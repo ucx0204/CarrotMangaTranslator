@@ -1,8 +1,22 @@
-.search-replace-body {
+.search-replace-tabpanel {
+  display: flex;
+  overflow: hidden;
+}
+
+.search-replace-panel {
   display: grid;
-  grid-template-rows: auto auto auto minmax(180px, 1fr);
+  flex: 1 1 auto;
+  align-content: start;
   gap: var(--sp-4);
-  min-height: min(620px, 72vh);
+  min-width: 0;
+  min-height: 0;
+  padding: var(--sp-5) var(--sp-6) var(--sp-4);
+  overflow: hidden;
+}
+
+.search-replace-controls {
+  display: grid;
+  gap: var(--sp-4);
 }
 
 .search-replace-inputs,
@@ -51,6 +65,7 @@
   display: grid;
   align-content: start;
   gap: 6px;
+  max-height: min(42vh, 420px);
   min-height: 0;
   overflow-y: auto;
   padding-right: 3px;
@@ -98,6 +113,8 @@
   justify-content: flex-end;
   gap: var(--sp-2);
   width: 100%;
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--border-soft);
 }
 
 .search-replace-footer > span {

@@ -45,6 +45,11 @@ type ShortcutDispatcherRefs = {
   holdHandlers: MutableValueRef<ShortcutHoldHandlers>;
 };
 
+const GATHER_TEXT_TAB_ACTIONS = new Set<ShortcutActionId>([
+  "gather-text",
+  "open-search-replace",
+]);
+
 function isActionAllowed(
   action: ShortcutActionDef,
   actionId: ShortcutActionId,
@@ -63,12 +68,26 @@ function isBlockedByShortcutOverlay(
   context: ShortcutContext,
 ): boolean {
   if (context.blockingModalOpen) {
-    return actionId !== context.activeModalActionId;
+    return (
+      actionId !== context.activeModalActionId &&
+      !isGatherTextTabActionPair(actionId, context.activeModalActionId)
+    );
   }
   if (context.paletteOpen) return actionId !== "toggle-command-palette";
   if (!context.helpOpen) return false;
   return (
     actionId !== "toggle-command-palette" && actionId !== "toggle-shortcut-help"
+  );
+}
+
+function isGatherTextTabActionPair(
+  actionId: ShortcutActionId,
+  activeActionId: ShortcutActionId | null,
+): boolean {
+  return Boolean(
+    activeActionId &&
+    GATHER_TEXT_TAB_ACTIONS.has(actionId) &&
+    GATHER_TEXT_TAB_ACTIONS.has(activeActionId),
   );
 }
 

@@ -928,6 +928,11 @@
   },
   "gatherText": {
     "title": "Gather text",
+    "tabs": {
+      "ariaLabel": "Text tools",
+      "overview": "Overview",
+      "searchReplace": "Search and replace"
+    },
     "scope": "Scope",
     "entireChapter": "Entire chapter",
     "display": "Display",

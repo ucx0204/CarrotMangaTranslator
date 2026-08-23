@@ -9,53 +9,38 @@ import {
   type SearchReplaceScope,
 } from "../lib/searchReplace";
 import { CheckboxField } from "./ui/CheckboxField";
-import { Modal } from "./ui/Modal";
 import { Select } from "./ui/Select";
+import { GatherTextPrimaryButton } from "./gatherText/GatherTextFooter";
 
-export type SearchReplaceModalProps = {
+export type SearchReplacePanelProps = {
   chapter: ChapterSnapshot;
   disabled?: boolean;
   onApply: (request: SearchReplaceRequest) => void;
-  onClose: () => void;
   onNavigateToBlock: (pageId: string, blockId: string) => void;
   page: MangaPage | null;
 };
 
-export function SearchReplaceModal({
+export function SearchReplacePanel({
   chapter,
   disabled = false,
   onApply,
-  onClose,
   onNavigateToBlock,
   page,
-}: SearchReplaceModalProps): React.JSX.Element {
-  const { t } = useTranslation("components");
+}: SearchReplacePanelProps): React.JSX.Element {
   const model = useSearchReplaceModel(chapter, page?.id ?? null);
   return (
-    <Modal
-      ariaLabel={t("searchReplace.title")}
-      bodyClassName="search-replace-body"
-      closeOnBackdrop
-      onClose={onClose}
-      size="lg"
-      title={t("searchReplace.title")}
-      footer={
-        <SearchReplaceFooter
-          disabled={disabled}
-          model={model}
-          onApply={onApply}
-          onClose={onClose}
-        />
-      }
-    >
+    <div className="search-replace-panel">
       <SearchReplaceInputs model={model} />
       {model.result.error ? (
-        <p className="search-replace-error">
-          {t("searchReplace.invalidRegex", { message: model.result.error })}
-        </p>
+        <SearchReplaceError message={model.result.error} />
       ) : null}
       <SearchReplaceResults model={model} onNavigate={onNavigateToBlock} />
-    </Modal>
+      <SearchReplaceFooter
+        disabled={disabled}
+        model={model}
+        onApply={onApply}
+      />
+    </div>
   );
 }
 
@@ -132,7 +117,7 @@ function SearchReplaceInputs({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <>
+    <div className="search-replace-controls">
       <div className="search-replace-inputs">
         <label>
           <span>{t("searchReplace.find")}</span>
@@ -151,7 +136,7 @@ function SearchReplaceInputs({
         </label>
       </div>
       <SearchReplaceOptions model={model} />
-    </>
+    </div>
   );
 }
 
@@ -207,12 +192,25 @@ function SearchReplaceOptions({
   );
 }
 
+function SearchReplaceError({
+  message,
+}: {
+  message: string;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <p className="search-replace-error">
+      {t("searchReplace.invalidRegex", { message })}
+    </p>
+  );
+}
+
 function SearchReplaceResults({
   model,
   onNavigate,
 }: {
   model: SearchReplaceModel;
-  onNavigate: SearchReplaceModalProps["onNavigateToBlock"];
+  onNavigate: SearchReplacePanelProps["onNavigateToBlock"];
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
@@ -244,12 +242,10 @@ function SearchReplaceFooter({
   disabled,
   model,
   onApply,
-  onClose,
 }: {
   disabled: boolean;
   model: SearchReplaceModel;
-  onApply: SearchReplaceModalProps["onApply"];
-  onClose: SearchReplaceModalProps["onClose"];
+  onApply: SearchReplacePanelProps["onApply"];
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   const replaceDisabled =
@@ -260,17 +256,12 @@ function SearchReplaceFooter({
   return (
     <div className="search-replace-footer">
       <span>{t("searchReplace.matchCount", { count: model.matchCount })}</span>
-      <button type="button" className="secondary" onClick={onClose}>
-        {t("common.cancel")}
-      </button>
-      <button
-        type="button"
-        className="primary"
+      <GatherTextPrimaryButton
         disabled={replaceDisabled}
         onClick={() => onApply(model.request)}
       >
         {t("searchReplace.replaceAll", { count: model.matchCount })}
-      </button>
+      </GatherTextPrimaryButton>
     </div>
   );
 }

@@ -913,6 +913,11 @@
   },
   "gatherText": {
     "title": "텍스트 모아보기",
+    "tabs": {
+      "ariaLabel": "텍스트 도구",
+      "overview": "모아보기",
+      "searchReplace": "검색·치환"
+    },
     "scope": "범위",
     "entireChapter": "전체 화",
     "display": "표시",

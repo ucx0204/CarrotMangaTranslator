@@ -52,7 +52,7 @@ export function useInpaintingController(
     },
     setShareExportOpen: chapter.importShareModal.setShareExportOpen,
     setShortcutHelpOpen: chapter.uiState.setShortcutHelpOpen,
-    setTextViewOpen: chapter.uiState.setTextViewOpen,
+    openTextView: () => chapter.uiState.openTextView("overview"),
     setShowBlockChrome: chapter.uiState.setShowBlockChrome,
     setShowTextBlocks: chapter.uiState.setShowTextBlocks,
     openTranslateOptions: chapter.uiState.openTranslateOptions,

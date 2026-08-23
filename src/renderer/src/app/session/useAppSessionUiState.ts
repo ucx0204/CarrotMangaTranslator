@@ -17,6 +17,7 @@ import {
   type WorkspaceFitMode,
 } from "../../lib/workspaceZoom";
 import { clampOriginalImageOpacity } from "../../lib/originalImageOpacity";
+import type { GatherTextTab } from "../../lib/gatherText";
 
 export type RightRailMode = "page-blocks" | "block-editor";
 
@@ -28,21 +29,11 @@ export function useAppSessionUiState() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
   const [textViewOpen, setTextViewOpen] = useState(false);
+  const [textViewTab, setTextViewTab] = useState<GatherTextTab>("overview");
   const [blockLibraryOpen, setBlockLibraryOpen] = useState(false);
   const [styleGuideOpen, setStyleGuideOpen] = useState(false);
-  const [searchReplaceOpen, setSearchReplaceOpen] = useState(false);
   const translateModals = useTranslateModalUiState();
-  const [jobFlowActive, setJobFlowActiveState] = useState(false);
-  const jobFlowActiveRef = useRef(false);
-  const jobFlowCancellationRef = useRef(false);
-  const setJobFlowActive = useCallback((active: boolean) => {
-    if (active) jobFlowCancellationRef.current = false;
-    jobFlowActiveRef.current = active;
-    setJobFlowActiveState(active);
-  }, []);
-  const requestJobFlowCancellation = useCallback(() => {
-    if (jobFlowActiveRef.current) jobFlowCancellationRef.current = true;
-  }, []);
+  const jobFlow = useJobFlowState();
   const [editorFloating, setEditorFloating] = useState(false);
   const [rightRailMode, setRightRailMode] =
     useState<RightRailMode>("page-blocks");
@@ -54,12 +45,17 @@ export function useAppSessionUiState() {
     () => setEditorFloating((floating) => !floating),
     [],
   );
+  const openTextView = useCallback((tab: GatherTextTab = "overview") => {
+    setTextViewTab(tab);
+    setTextViewOpen(true);
+  }, []);
 
   const resetChapterScopedUi = useCallback(() => {
     resetInpaintingUi();
     setBlockLibraryOpen(false);
     setStyleGuideOpen(false);
-    setSearchReplaceOpen(false);
+    setTextViewOpen(false);
+    setTextViewTab("overview");
     setRightRailMode("page-blocks");
     translateModals.resetTranslateModals();
     zoom.resetWorkspaceZoom();
@@ -70,16 +66,17 @@ export function useAppSessionUiState() {
     ...originalImageOpacity,
     ...translateModals,
     ...inpaintingUi,
+    ...jobFlow,
     blockLibraryOpen,
     commandPaletteOpen,
     editorFloating,
     rightRailMode,
+    openTextView,
     resetChapterScopedUi,
     setCommandPaletteOpen,
     setBlockLibraryOpen,
     setEditorFloating,
     setRightRailMode,
-    setSearchReplaceOpen,
     toggleEditorFloat,
     setShortcutHelpOpen,
     setShowBlockChrome,
@@ -87,18 +84,35 @@ export function useAppSessionUiState() {
     setStageToolbarHidden,
     setStyleGuideOpen,
     setTextViewOpen,
-    jobFlowActive,
-    jobFlowCancellationRef,
-    requestJobFlowCancellation,
-    setJobFlowActive,
-    setTranslationFlowActive: setJobFlowActive,
+    setTextViewTab,
     shortcutHelpOpen,
-    searchReplaceOpen,
     showBlockChrome,
     showTextBlocks,
     stageToolbarHidden,
     styleGuideOpen,
     textViewOpen,
+    textViewTab,
+  };
+}
+
+function useJobFlowState() {
+  const [jobFlowActive, setJobFlowActiveState] = useState(false);
+  const jobFlowActiveRef = useRef(false);
+  const jobFlowCancellationRef = useRef(false);
+  const setJobFlowActive = useCallback((active: boolean) => {
+    if (active) jobFlowCancellationRef.current = false;
+    jobFlowActiveRef.current = active;
+    setJobFlowActiveState(active);
+  }, []);
+  const requestJobFlowCancellation = useCallback(() => {
+    if (jobFlowActiveRef.current) jobFlowCancellationRef.current = true;
+  }, []);
+  return {
+    jobFlowActive,
+    jobFlowCancellationRef,
+    requestJobFlowCancellation,
+    setJobFlowActive,
+    setTranslationFlowActive: setJobFlowActive,
     translationFlowActive: jobFlowActive,
   };
 }

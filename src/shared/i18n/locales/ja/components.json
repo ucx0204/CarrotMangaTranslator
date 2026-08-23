@@ -919,6 +919,11 @@
   },
   "gatherText": {
     "title": "テキストをまとめて表示",
+    "tabs": {
+      "ariaLabel": "テキストツール",
+      "overview": "まとめて表示",
+      "searchReplace": "検索と置換"
+    },
     "scope": "範囲",
     "entireChapter": "話全体",
     "display": "表示",

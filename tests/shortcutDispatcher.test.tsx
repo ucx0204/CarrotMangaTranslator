@@ -186,6 +186,27 @@ describe("customizable page and block shortcut dispatch", () => {
     expect(toggleSearchReplace).toHaveBeenCalledOnce();
   });
 
+  it("lets Ctrl+H switch the open gather-text modal to search and replace", () => {
+    const openSearchReplaceTab = vi.fn();
+    render(
+      <ShortcutHarness
+        contextOverrides={{
+          blockingModalOpen: true,
+          activeModalActionId: "gather-text",
+        }}
+        handlers={{ "open-search-replace": openSearchReplaceTab }}
+      />,
+    );
+
+    fireEvent.keyDown(document.body, {
+      key: "h",
+      code: "KeyH",
+      ctrlKey: true,
+    });
+
+    expect(openSearchReplaceTab).toHaveBeenCalledOnce();
+  });
+
   it("does not open search-and-replace behind an unrelated blocking modal", () => {
     const toggleSearchReplace = vi.fn();
     render(

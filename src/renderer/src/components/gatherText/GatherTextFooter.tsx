@@ -23,6 +23,12 @@ type GatherTextFooterProps = {
   onImportTxt: () => void;
 };
 
+export function GatherTextPrimaryButton(
+  props: Omit<React.ComponentProps<typeof Button>, "variant">,
+): React.JSX.Element {
+  return <Button {...props} variant="primary" />;
+}
+
 export function GatherTextFooter({
   excludeHeaders,
   onToggleExcludeHeaders,
@@ -60,9 +66,9 @@ export function GatherTextFooter({
             onImportReview={onImportReview}
             onImportTxt={onImportTxt}
           />
-          <Button variant="primary" onClick={onCopy} disabled={!hasContent}>
+          <GatherTextPrimaryButton onClick={onCopy} disabled={!hasContent}>
             {t("common.copy")}
-          </Button>
+          </GatherTextPrimaryButton>
         </>
       }
     />

@@ -76,6 +76,33 @@ describe("buildTranslatedTextImport", () => {
     ]);
   });
 
+  it("imports the new blank-line grouped translation format with multiline blocks", () => {
+    const result = buildTranslatedTextImport(
+      pages,
+      [
+        "# 1쪽 · a.png",
+        "첫 번째 줄",
+        "두 번째 줄",
+        "",
+        "새 잘가",
+        "",
+        "# 2쪽 · b.png",
+        "새 고마워",
+      ].join("\n"),
+    );
+
+    expect(result.warnings).toEqual([]);
+    expect(result.updates).toEqual([
+      {
+        pageId: "p1",
+        blockId: "b1",
+        translatedText: "첫 번째 줄\n두 번째 줄",
+      },
+      { pageId: "p1", blockId: "b2", translatedText: "새 잘가" },
+      { pageId: "p2", blockId: "b3", translatedText: "새 고마워" },
+    ]);
+  });
+
   it("skips pages whose line count does not match the block count", () => {
     const result = buildTranslatedTextImport(
       pages,
@@ -113,5 +140,48 @@ describe("buildTranslatedTextImport", () => {
     const result = buildTranslatedTextImport(pages, "\n\n");
     expect(result.updates).toEqual([]);
     expect(result.warnings).toHaveLength(1);
+  });
+});
+
+describe("formatGatheredText", () => {
+  it("separates every block with one blank line in all three modes", () => {
+    expect(formatGatheredText(pages, "both")).toBe(
+      [
+        "# 1쪽 · a.png",
+        "あ",
+        "안녕",
+        "",
+        "い",
+        "잘가",
+        "",
+        "# 2쪽 · b.png",
+        "う",
+        "고마워",
+      ].join("\n"),
+    );
+    expect(formatGatheredText(pages, "translated")).toBe(
+      ["# 1쪽 · a.png", "안녕", "", "잘가", "", "# 2쪽 · b.png", "고마워"].join(
+        "\n",
+      ),
+    );
+    expect(formatGatheredText(pages, "source")).toBe(
+      ["# 1쪽 · a.png", "あ", "", "い", "", "# 2쪽 · b.png", "う"].join("\n"),
+    );
+  });
+
+  it("preserves lines inside a block and separates only adjacent blocks", () => {
+    const multiline: GatheredPage[] = [
+      {
+        ...pages[0],
+        blocks: [
+          { ...pages[0].blocks[0], translatedText: "첫 줄\n둘째 줄" },
+          pages[0].blocks[1],
+        ],
+      },
+    ];
+
+    expect(formatGatheredText(multiline, "translated", false)).toBe(
+      "첫 줄\n둘째 줄\n\n잘가",
+    );
   });
 });

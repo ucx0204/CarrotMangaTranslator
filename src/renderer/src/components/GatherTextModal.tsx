@@ -1,6 +1,8 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { SearchReplacePanel } from "./SearchReplacePanel";
 import { Modal } from "./ui/Modal";
+import { Tabs } from "./ui/Tabs";
 import {
   GatherTextControls,
   ReviewWarnings,
@@ -16,11 +18,15 @@ import { useGatherTextModalModel } from "./gatherText/useGatherTextModalModel";
 import { GatherTextFormatSelectionBar } from "./gatherText/GatherTextFormatSelectionBar";
 
 export function GatherTextModal({
+  activeTab = "overview",
   chapter,
   formatApplyDisabled,
+  searchReplaceDisabled,
   onApplyFormat,
+  onApplySearchReplace,
   page,
   onClose,
+  onTabChange,
   onChapterUpdated,
   onApplyTranslatedText,
   onNavigateToBlock,
@@ -44,20 +50,94 @@ export function GatherTextModal({
       closeOnBackdrop
       bodyClassName="gather-text-body"
       footer={
-        <GatherTextFooter
-          excludeHeaders={model.excludeHeaders}
-          onToggleExcludeHeaders={model.setExcludeHeaders}
-          hasContent={model.hasContent}
-          hasChapter={Boolean(chapter)}
-          canImportTxt={Boolean(onApplyTranslatedText)}
-          reviewBusy={model.reviewBusy}
-          onSave={() => void model.handleSave()}
-          onCopy={() => void model.handleCopy()}
-          onExportReview={(format) => void model.handleExportReview(format)}
-          onImportReview={() => model.reviewFileInputRef.current?.click()}
-          onImportTxt={() => model.txtFileInputRef.current?.click()}
-        />
+        activeTab === "overview" ? (
+          <GatherTextFooter
+            excludeHeaders={model.excludeHeaders}
+            onToggleExcludeHeaders={model.setExcludeHeaders}
+            hasContent={model.hasContent}
+            hasChapter={Boolean(chapter)}
+            canImportTxt={Boolean(onApplyTranslatedText)}
+            reviewBusy={model.reviewBusy}
+            onSave={() => void model.handleSave()}
+            onCopy={() => void model.handleCopy()}
+            onExportReview={(format) => void model.handleExportReview(format)}
+            onImportReview={() => model.reviewFileInputRef.current?.click()}
+            onImportTxt={() => model.txtFileInputRef.current?.click()}
+          />
+        ) : undefined
       }
+    >
+      <GatherTextTabs active={activeTab} onChange={onTabChange} />
+      {activeTab === "overview" ? (
+        <GatherTextOverview
+          model={model}
+          onNavigateToBlock={onNavigateToBlock}
+        />
+      ) : chapter ? (
+        <div
+          className="gather-text-tabpanel search-replace-tabpanel"
+          id="gather-text-panel-search-replace"
+          role="tabpanel"
+          aria-labelledby="gather-text-tab-search-replace"
+        >
+          <SearchReplacePanel
+            chapter={chapter}
+            disabled={searchReplaceDisabled}
+            page={page}
+            onApply={onApplySearchReplace ?? (() => undefined)}
+            onNavigateToBlock={onNavigateToBlock ?? (() => undefined)}
+          />
+        </div>
+      ) : null}
+    </Modal>
+  );
+}
+
+function GatherTextTabs({
+  active,
+  onChange,
+}: {
+  active: NonNullable<GatherTextModalProps["activeTab"]>;
+  onChange?: GatherTextModalProps["onTabChange"];
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <Tabs
+      className="gather-text-tabs"
+      ariaLabel={t("gatherText.tabs.ariaLabel")}
+      items={[
+        {
+          value: "overview",
+          label: t("gatherText.tabs.overview"),
+          id: "gather-text-tab-overview",
+          panelId: "gather-text-panel-overview",
+        },
+        {
+          value: "search-replace",
+          label: t("gatherText.tabs.searchReplace"),
+          id: "gather-text-tab-search-replace",
+          panelId: "gather-text-panel-search-replace",
+        },
+      ]}
+      value={active}
+      onChange={onChange ?? (() => undefined)}
+    />
+  );
+}
+
+function GatherTextOverview({
+  model,
+  onNavigateToBlock,
+}: {
+  model: ReturnType<typeof useGatherTextModalModel>;
+  onNavigateToBlock: GatherTextModalProps["onNavigateToBlock"];
+}): React.JSX.Element {
+  return (
+    <div
+      className="gather-text-tabpanel gather-text-overview"
+      id="gather-text-panel-overview"
+      role="tabpanel"
+      aria-labelledby="gather-text-tab-overview"
     >
       <GatherTextFileInputs
         reviewInputRef={model.reviewFileInputRef}
@@ -90,6 +170,6 @@ export function GatherTextModal({
         formatSelection={model.formatSelection}
         onNavigateToBlock={onNavigateToBlock}
       />
-    </Modal>
+    </div>
   );
 }

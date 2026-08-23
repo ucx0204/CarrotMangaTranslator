@@ -7,6 +7,7 @@ import type { TFunction } from "i18next";
 
 export type GatherScope = "page" | "chapter";
 export type GatherField = "both" | "translated" | "source";
+export type GatherTextTab = "overview" | "search-replace";
 export type ReadingDirection = BlockReadingDirection;
 
 export type GatheredBlock = {
@@ -84,10 +85,10 @@ export function filterPagesByField(
  */
 function formatBlockLines(block: GatheredBlock, field: GatherField): string[] {
   if (field === "translated") {
-    return block.translatedText ? [block.translatedText] : [];
+    return block.translatedText ? [block.translatedText, ""] : [];
   }
   if (field === "source") {
-    return block.sourceText ? [block.sourceText] : [];
+    return block.sourceText ? [block.sourceText, ""] : [];
   }
   const lines: string[] = [];
   if (block.sourceText) {
@@ -320,6 +321,7 @@ function resolveImportedTranslatedTexts(
 ): string[] | null {
   return (
     resolveBothFieldGroups(section, page) ??
+    resolveTranslatedFieldGroups(section, page) ??
     resolveTranslatedFieldLines(section.lines, page) ??
     resolveBothFieldLines(section.lines, page)
   );
@@ -345,6 +347,23 @@ function resolveBothFieldGroups(
     texts.push(translatedLines.join("\n"));
   }
   return texts;
+}
+
+function resolveTranslatedFieldGroups(
+  section: ParsedTextSection,
+  page: GatheredPage,
+): string[] | null {
+  if (section.groups.length !== page.blocks.length) {
+    return null;
+  }
+  if (
+    section.groups.every((group, index) =>
+      areSameLines(group, splitMeaningfulLines(page.blocks[index]?.sourceText)),
+    )
+  ) {
+    return null;
+  }
+  return section.groups.map((group) => group.join("\n"));
 }
 
 function resolveTranslatedFieldLines(

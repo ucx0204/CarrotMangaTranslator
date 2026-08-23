@@ -906,6 +906,11 @@
   },
   "gatherText": {
     "title": "汇总文本",
+    "tabs": {
+      "ariaLabel": "文本工具",
+      "overview": "汇总",
+      "searchReplace": "查找和替换"
+    },
     "scope": "范围",
     "entireChapter": "整章",
     "display": "显示",

@@ -41,7 +41,6 @@ export function isFloatingOverlaySubtreeActive(props: {
   exportOptionsProps: unknown;
   gatherTextProps: unknown;
   pageRetranslateProps: unknown;
-  searchReplaceProps: unknown;
   shortcutHelpProps: { open: boolean };
   styleGuideProps: unknown;
   translationOptionsProps: unknown;
@@ -53,7 +52,6 @@ export function isFloatingOverlaySubtreeActive(props: {
     props.exportOptionsProps ||
     props.gatherTextProps ||
     props.pageRetranslateProps ||
-    props.searchReplaceProps ||
     props.shortcutHelpProps.open ||
     props.styleGuideProps ||
     props.translationOptionsProps,

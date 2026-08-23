@@ -17,7 +17,7 @@ type UseAppSessionCommandControllerArgs = {
   runCurrentPageInpainting: () => void;
   setShareExportOpen: Dispatch<SetStateAction<boolean>>;
   setShortcutHelpOpen: Dispatch<SetStateAction<boolean>>;
-  setTextViewOpen: Dispatch<SetStateAction<boolean>>;
+  openTextView: () => void;
   setShowBlockChrome: Dispatch<SetStateAction<boolean>>;
   setShowTextBlocks: Dispatch<SetStateAction<boolean>>;
   openTranslateOptions: () => void;
@@ -38,7 +38,7 @@ export function useAppSessionCommandController({
   runCurrentPageInpainting,
   setShareExportOpen,
   setShortcutHelpOpen,
-  setTextViewOpen,
+  openTextView,
   setShowBlockChrome,
   setShowTextBlocks,
   openTranslateOptions,
@@ -56,7 +56,7 @@ export function useAppSessionCommandController({
     openShareExport: () => setShareExportOpen(true),
     openShareImportPreview,
     openShortcutHelp: () => setShortcutHelpOpen(true),
-    openTextView: () => setTextViewOpen(true),
+    openTextView,
     toggleBlockChrome: () => setShowBlockChrome((visible) => !visible),
     toggleTextBlocks: () => setShowTextBlocks((visible) => !visible),
     openTranslateOptions,

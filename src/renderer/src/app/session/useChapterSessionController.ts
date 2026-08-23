@@ -243,7 +243,6 @@ function resolveRuntimeModalState({
       uiState.exportOptionsOpen,
       uiState.textViewOpen,
       uiState.styleGuideOpen,
-      uiState.searchReplaceOpen,
       uiState.translateOptionsOpen,
       uiState.retranslatePageId,
       errorReportIncident,

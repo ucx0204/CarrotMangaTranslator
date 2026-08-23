@@ -72,7 +72,11 @@ describe("app-session shortcut handlers", () => {
     run(result, "zoom-fit-contain");
     expect(result.current.uiState.workspaceFitMode).toBe("contain");
 
-    expectToggle(result, "open-search-replace", "searchReplaceOpen");
+    run(result, "open-search-replace");
+    expect(result.current.uiState.textViewOpen).toBe(true);
+    expect(result.current.uiState.textViewTab).toBe("search-replace");
+    run(result, "open-search-replace");
+    expect(result.current.uiState.textViewOpen).toBe(false);
     expectToggle(result, "open-export-options", "exportOptionsOpen");
     expectToggle(result, "gather-text", "textViewOpen");
     expectToggle(result, "open-translate-options", "translateOptionsOpen");
@@ -169,14 +173,13 @@ describe("app-session shortcut handlers", () => {
       ["textViewOpen", "gather-text"],
       ["autoInpaintingOptionsOpen", "toggle-inpainting"],
       ["exportOptionsOpen", "open-export-options"],
-      ["searchReplaceOpen", "open-search-replace"],
     ] as const;
     for (const [stateKey, actionId] of cases) {
       const uiState = {
         autoInpaintingOptionsOpen: false,
         exportOptionsOpen: false,
-        searchReplaceOpen: false,
         textViewOpen: false,
+        textViewTab: "overview",
         translateOptionsOpen: false,
       };
       const settingsDialog = { settingsOpen: false };
@@ -189,6 +192,12 @@ describe("app-session shortcut handlers", () => {
         resolveActiveModalActionId({ settingsDialog, uiState } as never),
       ).toBe(actionId);
     }
+    expect(
+      resolveActiveModalActionId({
+        settingsDialog: { settingsOpen: false },
+        uiState: { textViewOpen: true, textViewTab: "search-replace" },
+      } as never),
+    ).toBe("open-search-replace");
   });
 });
 
@@ -244,7 +253,6 @@ function expectToggle(
     | "autoInpaintingOptionsOpen"
     | "commandPaletteOpen"
     | "exportOptionsOpen"
-    | "searchReplaceOpen"
     | "shortcutHelpOpen"
     | "textViewOpen"
     | "translateOptionsOpen",

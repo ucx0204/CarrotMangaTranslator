@@ -158,7 +158,13 @@ function createTranslationAndRetouchShortcutHandlers(
     },
     "translate-pending": () => void translationActions.runAnalysis("pending"),
     "translate-all": () => void translationActions.runAnalysis("all"),
-    "gather-text": () => uiState.setTextViewOpen((open) => !open),
+    "gather-text": () => {
+      if (uiState.textViewOpen && uiState.textViewTab === "overview") {
+        uiState.setTextViewOpen(false);
+      } else {
+        uiState.openTextView("overview");
+      }
+    },
     "cancel-job": () => chapter.bridgeActions.cancelJob(),
     "toggle-inpainting": () => {
       if (uiState.autoInpaintingOptionsOpen) {
@@ -198,7 +204,13 @@ function createEditAndGlobalShortcutHandlers(
     "sort-reading-order": () => blockEditingActions.sortPageReadingOrder(),
     "reset-block-rotation": () =>
       blockEditingActions.updateSelectedBlocks({ rotationDeg: 0 }),
-    "open-search-replace": () => uiState.setSearchReplaceOpen((open) => !open),
+    "open-search-replace": () => {
+      if (uiState.textViewOpen && uiState.textViewTab === "search-replace") {
+        uiState.setTextViewOpen(false);
+      } else {
+        uiState.openTextView("search-replace");
+      }
+    },
     "open-export-options": () => uiState.setExportOptionsOpen((open) => !open),
     "history-undo": () => void workspaceHistory.undo(),
     "history-redo": () => void workspaceHistory.redo(),
@@ -314,10 +326,13 @@ export function resolveActiveModalActionId(
   const { uiState } = chapter;
   if (chapter.settingsDialog.settingsOpen) return "open-settings";
   if (uiState.translateOptionsOpen) return "open-translate-options";
-  if (uiState.textViewOpen) return "gather-text";
+  if (uiState.textViewOpen) {
+    return uiState.textViewTab === "search-replace"
+      ? "open-search-replace"
+      : "gather-text";
+  }
   if (uiState.autoInpaintingOptionsOpen) return "toggle-inpainting";
   if (uiState.exportOptionsOpen) return "open-export-options";
-  if (uiState.searchReplaceOpen) return "open-search-replace";
   return null;
 }
 
