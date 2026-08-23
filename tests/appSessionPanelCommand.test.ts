@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { BlockLibraryEntryV1 } from "../src/shared/blockLibrary";
 import type { PanelCommand } from "../src/shared/panelBridgeTypes";
 import {
   dispatchPanelCommand,
@@ -14,6 +15,7 @@ function createTarget(): PanelCommandTarget {
     deleteStylePreset: vi.fn(),
     deleteSelectedBlock: vi.fn(),
     duplicateSelectedBlock: vi.fn(),
+    insertBlockLibraryEntry: vi.fn(),
     eraseBlockOriginal: vi.fn(),
     fitBlockBubble: vi.fn(),
     removeSelectedBlockBubbleLayout: vi.fn(),
@@ -22,6 +24,28 @@ function createTarget(): PanelCommandTarget {
     updateBlock: vi.fn(),
   };
 }
+
+const libraryEntry: BlockLibraryEntryV1 = {
+  schemaVersion: 1,
+  id: "library-entry",
+  name: "효과음",
+  createdAt: "2026-08-23T00:00:00.000Z",
+  updatedAt: "2026-08-23T00:00:00.000Z",
+  lastUsedAt: "2026-08-23T00:00:00.000Z",
+  block: {
+    sourceText: "ドン",
+    translatedText: "쾅",
+    sourceDirection: "horizontal",
+    renderDirection: "horizontal",
+    fontSizePx: 48,
+    lineHeight: 1.2,
+    textAlign: "center",
+    textColor: "#111111",
+    backgroundColor: "#ffffff",
+    opacity: 1,
+    size: { w: 240, h: 180 },
+  },
+};
 
 describe("panel command dispatch", () => {
   it.each([
@@ -82,6 +106,7 @@ describe("panel command dispatch", () => {
       },
       { type: "deleteStylePreset", presetId: "style-preset:dialogue" },
       { type: "applyBlockBackgroundOpacity", scope: "page" },
+      { type: "insertBlockLibraryEntry", entry: libraryEntry },
       { type: "startAreaTranslate" },
     ] satisfies PanelCommand[];
 
@@ -118,6 +143,7 @@ describe("panel command dispatch", () => {
     expect(actions.applyBlockBackgroundOpacityToScope).toHaveBeenCalledWith(
       "page",
     );
+    expect(actions.insertBlockLibraryEntry).toHaveBeenCalledWith(libraryEntry);
     expect(actions.startAreaTranslate).toHaveBeenCalledOnce();
   });
 

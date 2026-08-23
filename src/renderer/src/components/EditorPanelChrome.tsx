@@ -1,5 +1,9 @@
 import React from "react";
-import { IconDotsVertical, IconEraserOff } from "@tabler/icons-react";
+import {
+  IconDotsVertical,
+  IconEraserOff,
+  IconLibraryPlus,
+} from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import { IconButton } from "./ui/IconButton";
@@ -16,6 +20,7 @@ type BlockOverflowMenuProps = {
   disabled: boolean;
   onDelete: () => void;
   onDuplicate: () => void;
+  onSaveToLibrary: () => void;
   onUpdate: (patch: Partial<TranslationBlock>) => void;
 };
 
@@ -24,6 +29,7 @@ export function BlockOverflowMenu({
   disabled,
   onDelete,
   onDuplicate,
+  onSaveToLibrary,
   onUpdate,
 }: BlockOverflowMenuProps): React.JSX.Element {
   const { t } = useTranslation("components");
@@ -62,40 +68,59 @@ export function BlockOverflowMenu({
           ariaLabel={label}
           onClose={close}
         >
-          <button
-            aria-checked={Boolean(block.inpaintExcluded)}
-            role="menuitemcheckbox"
-            type="button"
-            onClick={() =>
-              run(() => onUpdate({ inpaintExcluded: !block.inpaintExcluded }))
-            }
-          >
-            <IconEraserOff size={17} stroke={2.1} aria-hidden="true" />
-            <span>{t("editor.inpainting.exclude")}</span>
-            <span className="editor-overflow-check" aria-hidden="true">
-              {block.inpaintExcluded ? "✓" : ""}
-            </span>
-          </button>
-          <button
-            role="menuitem"
-            type="button"
-            onClick={() => run(onDuplicate)}
-          >
-            <CopyIcon size={16} />
-            <span>{t("common.duplicate")}</span>
-          </button>
-          <button
-            className="danger"
-            role="menuitem"
-            type="button"
-            onClick={() => run(onDelete)}
-          >
-            <TrashIcon size={16} />
-            <span>{t("common.delete")}</span>
-          </button>
+          <BlockOverflowMenuItems
+            block={block}
+            onDelete={() => run(onDelete)}
+            onDuplicate={() => run(onDuplicate)}
+            onSaveToLibrary={() => run(onSaveToLibrary)}
+            onUpdate={(patch) => run(() => onUpdate(patch))}
+          />
         </MenuSurface>
       ) : null}
     </div>
+  );
+}
+
+function BlockOverflowMenuItems({
+  block,
+  onDelete,
+  onDuplicate,
+  onSaveToLibrary,
+  onUpdate,
+}: Omit<BlockOverflowMenuProps, "disabled">): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <>
+      <button
+        aria-checked={Boolean(block.inpaintExcluded)}
+        role="menuitemcheckbox"
+        type="button"
+        onClick={() => onUpdate({ inpaintExcluded: !block.inpaintExcluded })}
+      >
+        <IconEraserOff size={17} stroke={2.1} aria-hidden="true" />
+        <span>{t("editor.inpainting.exclude")}</span>
+        <span className="editor-overflow-check" aria-hidden="true">
+          {block.inpaintExcluded ? "✓" : ""}
+        </span>
+      </button>
+      <button role="menuitem" type="button" onClick={onSaveToLibrary}>
+        <IconLibraryPlus size={17} stroke={2.1} aria-hidden="true" />
+        <span>{t("blockLibrary.saveAction")}</span>
+      </button>
+      <button role="menuitem" type="button" onClick={onDuplicate}>
+        <CopyIcon size={16} />
+        <span>{t("common.duplicate")}</span>
+      </button>
+      <button
+        className="danger"
+        role="menuitem"
+        type="button"
+        onClick={onDelete}
+      >
+        <TrashIcon size={16} />
+        <span>{t("common.delete")}</span>
+      </button>
+    </>
   );
 }
 

@@ -1,86 +1,146 @@
 import React from "react";
+import { IconArrowLeft, IconLibrary } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
+import { BlockLibraryModal } from "../components/BlockLibraryModal";
 import { EditorPanel } from "../components/EditorPanel";
+import { SaveBlockLibraryModal } from "../components/SaveBlockLibraryModal";
 import { IconButton } from "../components/ui/IconButton";
 import { ExpandIcon, FloatIcon } from "../components/ui/icons";
-import { IconArrowLeft } from "@tabler/icons-react";
-import { usePanelSession } from "./panelSession";
+import { usePanelSession, type PanelSessionValue } from "./panelSession";
 
-/**
- * Wires the presentational {@link EditorPanel} to {@link usePanelSession}, so it
- * renders identically whether docked in the rail, floating in an in-app panel,
- * or popped out into its own OS window. All state/actions come from the panel
- * session context.
- *
- * Detach controls (float / pop-out) show only in the docked rail view; the
- * floating panel and pop-out window own their own dock-back affordances.
- */
 export function EditorPanelContainer(): React.JSX.Element {
+  const session = usePanelSession();
+  const [libraryOpen, setLibraryOpen] = React.useState(false);
+  const [saveOpen, setSaveOpen] = React.useState(false);
+  return (
+    <>
+      <EditorPanel
+        block={session.selectedBlock}
+        canCreateStylePreset={session.canCreateStylePreset}
+        disabled={session.editorDisabled}
+        disableChapterApply={session.disableChapterApply}
+        areaTranslateAvailable={session.areaTranslateAvailable}
+        areaTranslateSelecting={session.areaTranslateSelecting}
+        selectedBlockCount={session.selectedBlockCount}
+        pageSize={session.selectedPageSize}
+        transformMode={session.transformMode}
+        headerActions={
+          <EditorPanelHeaderActions
+            session={session}
+            onOpenLibrary={() => setLibraryOpen(true)}
+          />
+        }
+        stylePresets={session.blockStylePresets}
+        onStartAreaTranslate={session.onStartAreaTranslate}
+        onApplyFormat={session.onApplyFormat}
+        onApplyStylePreset={session.onApplyStylePreset}
+        onCreateStylePreset={session.onCreateStylePreset}
+        onDeleteStylePreset={session.onDeleteStylePreset}
+        onApplyBlockBackgroundOpacity={session.onApplyBlockBackgroundOpacity}
+        onAdjustFontSize={session.onAdjustFontSize}
+        onUpdate={session.onUpdateBlock}
+        onDelete={session.onDeleteBlock}
+        onDuplicate={session.onDuplicateBlock}
+        onSaveToLibrary={() => setSaveOpen(true)}
+        onEraseOriginal={session.onEraseBlockOriginal}
+        onFitBubble={session.onFitBlockBubble}
+        onRemoveBubbleLayout={session.onRemoveBubbleLayout}
+        onSelectTransformMode={session.onSelectTransformMode}
+      />
+      <EditorPanelLibraryModals
+        libraryOpen={libraryOpen}
+        saveOpen={saveOpen}
+        session={session}
+        onCloseLibrary={() => setLibraryOpen(false)}
+        onCloseSave={() => setSaveOpen(false)}
+      />
+    </>
+  );
+}
+
+function EditorPanelHeaderActions({
+  onOpenLibrary,
+  session,
+}: {
+  onOpenLibrary: () => void;
+  session: PanelSessionValue;
+}): React.JSX.Element {
   const { t } = useTranslation("renderer");
   const { t: tComponents } = useTranslation("components");
-  const session = usePanelSession();
-  const backAction =
-    session.showDetachControls &&
-    !session.editorFloating &&
-    !session.editorPoppedOut ? (
+  const showDetach = session.showDetachControls && !session.editorFloating;
+  return (
+    <>
       <IconButton
         size="sm"
-        label={tComponents("pageBlocks.backToList")}
-        title={tComponents("pageBlocks.backToList")}
-        onClick={session.onBackToPageBlocks}
+        label={tComponents("blockLibrary.open")}
+        onClick={onOpenLibrary}
       >
-        <IconArrowLeft size={16} aria-hidden="true" />
+        <IconLibrary size={16} aria-hidden="true" />
       </IconButton>
-    ) : null;
-  const detachControls =
-    session.showDetachControls && !session.editorFloating ? (
-      <>
-        {backAction}
+      {showDetach && !session.editorPoppedOut ? (
         <IconButton
           size="sm"
-          label={t("panels.editor.float")}
-          title={t("panels.editor.floatTitle")}
-          onClick={session.onToggleEditorFloat}
+          label={tComponents("pageBlocks.backToList")}
+          onClick={session.onBackToPageBlocks}
         >
-          <ExpandIcon size={15} />
+          <IconArrowLeft size={16} aria-hidden="true" />
         </IconButton>
-        <IconButton
-          size="sm"
-          label={t("panels.editor.popOut")}
-          title={t("panels.editor.popOutTitle")}
-          onClick={session.onPopOutEditor}
-        >
-          <FloatIcon size={15} />
-        </IconButton>
-      </>
-    ) : undefined;
+      ) : null}
+      {showDetach ? (
+        <>
+          <IconButton
+            size="sm"
+            label={t("panels.editor.float")}
+            title={t("panels.editor.floatTitle")}
+            onClick={session.onToggleEditorFloat}
+          >
+            <ExpandIcon size={15} />
+          </IconButton>
+          <IconButton
+            size="sm"
+            label={t("panels.editor.popOut")}
+            title={t("panels.editor.popOutTitle")}
+            onClick={session.onPopOutEditor}
+          >
+            <FloatIcon size={15} />
+          </IconButton>
+        </>
+      ) : null}
+    </>
+  );
+}
+
+function EditorPanelLibraryModals({
+  libraryOpen,
+  onCloseLibrary,
+  onCloseSave,
+  saveOpen,
+  session,
+}: {
+  libraryOpen: boolean;
+  onCloseLibrary: () => void;
+  onCloseSave: () => void;
+  saveOpen: boolean;
+  session: PanelSessionValue;
+}): React.JSX.Element {
   return (
-    <EditorPanel
-      block={session.selectedBlock}
-      canCreateStylePreset={session.canCreateStylePreset}
-      disabled={session.editorDisabled}
-      disableChapterApply={session.disableChapterApply}
-      areaTranslateAvailable={session.areaTranslateAvailable}
-      areaTranslateSelecting={session.areaTranslateSelecting}
-      selectedBlockCount={session.selectedBlockCount}
-      pageSize={session.selectedPageSize}
-      transformMode={session.transformMode}
-      headerActions={detachControls}
-      stylePresets={session.blockStylePresets}
-      onStartAreaTranslate={session.onStartAreaTranslate}
-      onApplyFormat={session.onApplyFormat}
-      onApplyStylePreset={session.onApplyStylePreset}
-      onCreateStylePreset={session.onCreateStylePreset}
-      onDeleteStylePreset={session.onDeleteStylePreset}
-      onApplyBlockBackgroundOpacity={session.onApplyBlockBackgroundOpacity}
-      onAdjustFontSize={session.onAdjustFontSize}
-      onUpdate={session.onUpdateBlock}
-      onDelete={session.onDeleteBlock}
-      onDuplicate={session.onDuplicateBlock}
-      onEraseOriginal={session.onEraseBlockOriginal}
-      onFitBubble={session.onFitBlockBubble}
-      onRemoveBubbleLayout={session.onRemoveBubbleLayout}
-      onSelectTransformMode={session.onSelectTransformMode}
-    />
+    <>
+      {libraryOpen ? (
+        <BlockLibraryModal
+          canInsert={
+            Boolean(session.selectedPageSize) && !session.editorDisabled
+          }
+          onClose={onCloseLibrary}
+          onInsert={session.onInsertBlockLibraryEntry}
+        />
+      ) : null}
+      {saveOpen && session.selectedBlock && session.selectedPageSize ? (
+        <SaveBlockLibraryModal
+          block={session.selectedBlock}
+          pageSize={session.selectedPageSize}
+          onClose={onCloseSave}
+        />
+      ) : null}
+    </>
   );
 }

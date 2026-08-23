@@ -93,6 +93,8 @@ function buildRemotePanelSessionValue(
         dispatchCommand({ type: "duplicateBlock", blockId: selectedBlockId });
       }
     },
+    onInsertBlockLibraryEntry: (entry) =>
+      dispatchCommand({ type: "insertBlockLibraryEntry", entry }),
     onEraseBlockOriginal: () => {
       if (selectedBlockId) {
         dispatchCommand({

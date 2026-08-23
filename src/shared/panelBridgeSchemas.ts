@@ -9,6 +9,7 @@ import {
   TranslationBlockObjectSchema,
   TranslationBlockSchema,
 } from "./ipcSchemaPrimitives";
+import { BlockLibraryEntryV1Schema } from "./blockLibrary";
 
 const MAX_SELECTED_BLOCK_COUNT = 100000;
 
@@ -80,6 +81,12 @@ export const PanelCommandSchema = z.discriminatedUnion("type", [
     .object({
       type: z.literal("duplicateBlock"),
       blockId: TranslationBlockObjectSchema.shape.id,
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("insertBlockLibraryEntry"),
+      entry: BlockLibraryEntryV1Schema,
     })
     .strict(),
   z

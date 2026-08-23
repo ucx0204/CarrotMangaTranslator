@@ -340,6 +340,7 @@ function makePanelSessionValue(
     onDeleteBlock: vi.fn(),
     onDockEditorWindow: vi.fn(),
     onDuplicateBlock: vi.fn(),
+    onInsertBlockLibraryEntry: vi.fn(),
     onEraseBlockOriginal: vi.fn(),
     onFitBlockBubble: vi.fn(),
     onPopOutEditor: vi.fn(),

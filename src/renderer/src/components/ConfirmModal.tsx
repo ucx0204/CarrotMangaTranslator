@@ -1,9 +1,13 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { ButtonProps } from "./ui/Button";
-import { Modal } from "./ui/Modal";
+import { Modal, type ModalProps } from "./ui/Modal";
 import { ModalActionBar, ModalActionButtons } from "./ui/ModalActionBar";
 import { WarnIcon } from "./ui/icons";
+
+export function AppModal(props: ModalProps): React.JSX.Element {
+  return <Modal {...props} />;
+}
 
 export function ConfirmModal({
   title,

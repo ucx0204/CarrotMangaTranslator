@@ -300,6 +300,57 @@ it("registers exactly one main handler for every invoke contract", async () => {
   );
 });
 
+it("routes a full block-library update through the registered handler", async () => {
+  const [
+    { registerBlockLibraryIpc },
+    { ActiveJobStore },
+    { InpaintingRevisionStore },
+  ] = await Promise.all([
+    import("../src/main/ipc/blockLibraryIpc"),
+    import("../src/main/jobs/activeJob"),
+    import("../src/main/inpainting/inpaintingRevisionStore"),
+  ]);
+  const context = createIpcContext(
+    new ActiveJobStore(),
+    new InpaintingRevisionStore(),
+  );
+  context.appPaths = {
+    ...context.appPaths,
+    dataRoot: `C:\\test\\missing-block-library-${Date.now()}`,
+  };
+  context.isErrorReportSender = (webContentsId) => webContentsId === 23;
+  registerBlockLibraryIpc(context);
+  const handler = electronBoundary.handlers.get(
+    ipcInvokeContracts.updateBlockLibraryEntry.channel,
+  );
+  if (!handler) throw new Error("Block library update handler is missing.");
+
+  await expect(
+    handler(
+      {
+        sender: { id: 23 },
+      } as IpcMainInvokeEvent,
+      {
+        id: "missing-entry",
+        name: "수정",
+        block: {
+          sourceText: "原文",
+          translatedText: "번역",
+          sourceDirection: "horizontal",
+          renderDirection: "horizontal",
+          fontSizePx: 48,
+          lineHeight: 1.2,
+          textAlign: "center",
+          textColor: "#111111",
+          backgroundColor: "#ffffff",
+          opacity: 0.7,
+          size: { w: 100, h: 100 },
+        },
+      },
+    ),
+  ).rejects.toThrow("블록 라이브러리 항목을 찾을 수 없습니다");
+});
+
 it("opens only allowlisted Vertex setup pages", async () => {
   const { registerExternalLinksIpc } =
     await import("../src/main/ipc/externalLinksIpc");

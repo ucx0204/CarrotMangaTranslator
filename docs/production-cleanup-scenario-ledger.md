@@ -78,8 +78,9 @@ editing the totals by hand.
   JSON-summary provider, Vitest/coverage-v8 4.1.9, and the SHA-256
   `a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a` of the
   ignored Node 22 baseline capture. The capture is provenance only; CI does not
-  need it. Node 22/V8 12.4 and Node 24/V8 13.6 are the only accepted runtime
-  families. The review-04 outline-control capture on Node 24/V8 13.6 extended
+  need it. Node 22/V8 12.4, Node 24/V8 13.6, and Node 26/V8 14.6 are the
+  accepted runtime families. The review-04 outline-control capture on Node
+  24/V8 13.6 extended
   the sealed scope. The v1.16.1 GPU compatibility pass extended that ignored
   Node 24 artifact to SHA-256
   `6f35a61cb6556ff31b4589913cdb79bb04faedab7c18228eac61ead3b2ad9157`.
@@ -94,9 +95,12 @@ editing the totals by hand.
   The confidence-bound layout contract and split residual-diagnostics pass
   extended it to SHA-256
   `ced2e2f98095f7ae1153e0ff5b1ba56228cb1d7de6d0cee66b07c7ed5126e919`.
+  The shared block-library pass extended the accepted Node 26 artifact to
+  SHA-256
+  `afc6c5a5931fe48dcacfee1dddc19a660726014ba334541d4bfb5f57c7000e0f`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
-  percentage for lines/statements/functions/branches in all 220 existing
-  coverage-eligible `src/**` files changed since cleanup start. The 51 new
+  percentage for lines/statements/functions/branches in all 281 existing
+  coverage-eligible `src/**` files changed since cleanup start. The 83 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record. The
   three removed source files are recorded explicitly in `deletedFiles`.
@@ -119,9 +123,10 @@ editing the totals by hand.
   platform-dependent execution as a cross-platform ratio regression. A native
   Darwin floor map is not claimed or silently substituted for the canonical
   Windows floors.
-- The review-04 capture passed all 486 Vitest files: 3,587 tests passed and the
-  two expected platform-specific tests were skipped. Its aggregate V8 coverage
-  was 79.42% lines, 78.50% statements, 80.23% functions, and 70.60% branches.
+- The shared block-library capture passed all 517 Vitest files: 3,932 tests
+  passed and the two expected platform-specific tests were skipped. Its
+  aggregate V8 coverage was 79.43% lines, 78.37% statements, 80.47% functions,
+  and 70.85% branches.
 
 ## Fail-closed obligations
 

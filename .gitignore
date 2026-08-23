@@ -59,6 +59,7 @@ settings.json
 /settings.secrets.json
 panel-window-bounds.json
 recent-dialog-paths.json
+/block-library.json
 /.mgt-instance-lock/
 /.mgt-instance-candidate-*/
 /.mgt-instance-stale-*/

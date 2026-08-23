@@ -41,6 +41,7 @@ type EditorFormatGroupsProps = {
   onDeleteStylePreset: (presetId: string) => boolean | Promise<boolean>;
   onUpdate: (patch: Partial<TranslationBlock>) => void;
   selectedBlockCount: number;
+  showStylePresets?: boolean;
   setFontFamilyDraft: React.Dispatch<React.SetStateAction<string | undefined>>;
   stylePresets: readonly BlockStylePresetSummary[];
 };
@@ -60,21 +61,24 @@ export function EditorFormatGroups({
   onDeleteStylePreset,
   onUpdate,
   selectedBlockCount,
+  showStylePresets = true,
   setFontFamilyDraft,
   stylePresets,
 }: EditorFormatGroupsProps): React.JSX.Element {
   const model = resolveEditorPanelModel(block);
   return (
     <>
-      <BlockStylePresetControls
-        activePresetId={activeStylePresetId}
-        canCreate={canCreateStylePreset}
-        disabled={disabled}
-        presets={stylePresets}
-        onApply={onApplyStylePreset}
-        onCreate={onCreateStylePreset}
-        onDelete={onDeleteStylePreset}
-      />
+      {showStylePresets ? (
+        <BlockStylePresetControls
+          activePresetId={activeStylePresetId}
+          canCreate={canCreateStylePreset}
+          disabled={disabled}
+          presets={stylePresets}
+          onApply={onApplyStylePreset}
+          onCreate={onCreateStylePreset}
+          onDelete={onDeleteStylePreset}
+        />
+      ) : null}
       <FormatEditorGroup
         block={block}
         disabled={disabled}

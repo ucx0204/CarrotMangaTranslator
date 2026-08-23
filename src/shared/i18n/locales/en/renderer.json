@@ -246,6 +246,7 @@
     "stylePreset": "Apply style preset",
     "deleteBlock": "Delete block",
     "duplicateBlock": "Duplicate block",
+    "insertLibraryBlock": "Insert library block",
     "readingOrder": "Change block reading order",
     "searchReplace": "Search and replace",
     "createBlock": "Create block",

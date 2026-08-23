@@ -873,6 +873,7 @@ function RightRailTestProviders({
     onDeleteBlock: () => undefined,
     onDockEditorWindow: () => undefined,
     onDuplicateBlock: () => undefined,
+    onInsertBlockLibraryEntry: () => undefined,
     onEraseBlockOriginal: () => undefined,
     onFitBlockBubble: () => undefined,
     onPopOutEditor: () => undefined,

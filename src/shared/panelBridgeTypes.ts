@@ -1,6 +1,7 @@
 import type { TranslationBlock } from "./textTypes";
 import type { BlockFormatGroupId } from "./blockFormat";
 import type { BlockStylePresetSummary } from "./blockStylePresets";
+import type { BlockLibraryEntryV1 } from "./blockLibrary";
 
 /**
  * Panels that can be popped out into their own OS window. Kept as a closed
@@ -45,6 +46,7 @@ export type PanelCommand =
   | { type: "adjustFontSize"; blockId: string; adjustment: -1 | 1 }
   | { type: "deleteBlock"; blockId: string }
   | { type: "duplicateBlock"; blockId: string }
+  | { type: "insertBlockLibraryEntry"; entry: BlockLibraryEntryV1 }
   | { type: "eraseBlockOriginal"; blockId: string }
   | { type: "fitBlockBubble"; blockId: string }
   | { type: "removeBubbleLayout"; blockId: string }

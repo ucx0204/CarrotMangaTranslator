@@ -12,6 +12,7 @@ import {
   EmptyEditorPanel,
   type EditorTabId,
 } from "./EditorPanelChrome";
+import { readStoredEditorTab, storeEditorTab } from "./editorPanelUtils";
 import { BubbleLayoutOption, TextEditorGroup } from "./EditorPanelSections";
 import { TransformEditorGroup } from "./TransformEditorGroup";
 import type {
@@ -23,6 +24,11 @@ import { EditorFormatGroups } from "./EditorFormatGroups";
 type EditorPanelProps = {
   block: TranslationBlock | null;
   disabled: boolean;
+  /** Embeds the production editor controls without page-level panel chrome. */
+  embedded?: boolean;
+  /** Hides page-position controls that are not persisted by a template. */
+  templateMode?: boolean;
+  showStylePresets?: boolean;
   areaTranslateAvailable?: boolean;
   areaTranslateSelecting?: boolean;
   disableChapterApply?: boolean;
@@ -48,19 +54,16 @@ type EditorPanelProps = {
   onUpdate: (patch: Partial<TranslationBlock>) => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  onSaveToLibrary?: () => void;
   onEraseOriginal?: () => void;
   onFitBubble?: () => void;
   onRemoveBubbleLayout?: () => void;
   onSelectTransformMode?: (mode: TransformEditorMode) => void;
 };
 
-const EDITOR_TABS: EditorTabId[] = ["text", "layout", "format"];
-const EDITOR_TAB_STORAGE_KEY = "editor.activeTab.v1";
 const EMPTY_STYLE_PRESETS: readonly BlockStylePresetSummary[] = [];
-const NOOP_STYLE_PRESET_APPLY = (): void => undefined;
-const NOOP_STYLE_PRESET_CREATE = (): boolean => false;
-const NOOP_STYLE_PRESET_DELETE = (): boolean => false;
-const NOOP_REMOVE_BUBBLE_LAYOUT = (): void => undefined;
+const NOOP_ACTION = (): void => undefined;
+const NOOP_RESULT = (): boolean => false;
 
 export function EditorPanel(props: EditorPanelProps): React.JSX.Element {
   if (props.block) {
@@ -89,20 +92,29 @@ function SelectedEditorPanel(
 
   return (
     <section className="editor-panel has-block">
-      <SelectedBlockHeader
-        activeTab={activeTab}
-        baseId={panelIdBase}
-        block={props.block}
-        disabled={props.disabled}
-        headerActions={props.headerActions}
-        onDelete={props.onDelete}
-        onDuplicate={props.onDuplicate}
-        onRemoveBubbleLayout={
-          props.onRemoveBubbleLayout ?? NOOP_REMOVE_BUBBLE_LAYOUT
-        }
-        onSelect={setActiveTab}
-        onUpdate={props.onUpdate}
-      />
+      {props.embedded ? (
+        <div className="editor-panel-sticky">
+          <EditorPanelTabs
+            activeTab={activeTab}
+            baseId={panelIdBase}
+            onSelect={setActiveTab}
+          />
+        </div>
+      ) : (
+        <SelectedBlockHeader
+          activeTab={activeTab}
+          baseId={panelIdBase}
+          block={props.block}
+          disabled={props.disabled}
+          headerActions={props.headerActions}
+          onDelete={props.onDelete}
+          onDuplicate={props.onDuplicate}
+          onSaveToLibrary={props.onSaveToLibrary ?? NOOP_ACTION}
+          onRemoveBubbleLayout={props.onRemoveBubbleLayout ?? NOOP_ACTION}
+          onSelect={setActiveTab}
+          onUpdate={props.onUpdate}
+        />
+      )}
       <SelectedEditorPanelBody
         {...props}
         activeTab={activeTab}
@@ -149,9 +161,7 @@ function SelectedEditorPanelBody({
         onApplyFormat={props.onApplyFormat}
         onApplyStylePreset={presetSelection.apply}
         onClearStylePreset={presetSelection.clear}
-        onCreateStylePreset={
-          props.onCreateStylePreset ?? NOOP_STYLE_PRESET_CREATE
-        }
+        onCreateStylePreset={props.onCreateStylePreset ?? NOOP_RESULT}
         onDeleteStylePreset={presetSelection.delete}
         onEraseOriginal={props.onEraseOriginal}
         onFitBubble={props.onFitBubble}
@@ -159,8 +169,10 @@ function SelectedEditorPanelBody({
         onUpdate={props.onUpdate}
         pageSize={props.pageSize ?? null}
         selectedBlockCount={props.selectedBlockCount ?? 0}
+        showStylePresets={props.showStylePresets ?? true}
         stylePresets={props.stylePresets ?? EMPTY_STYLE_PRESETS}
         setFontFamilyDraft={setFontFamilyDraft}
+        templateMode={props.templateMode ?? false}
         transformMode={transformMode}
       />
     </div>
@@ -176,8 +188,8 @@ type AppliedStylePresetSelection = {
 
 function useAppliedStylePreset({
   block,
-  onApplyStylePreset = NOOP_STYLE_PRESET_APPLY,
-  onDeleteStylePreset = NOOP_STYLE_PRESET_DELETE,
+  onApplyStylePreset = NOOP_ACTION,
+  onDeleteStylePreset = NOOP_RESULT,
 }: SelectedEditorPanelProps): AppliedStylePresetSelection {
   const [applied, setApplied] = React.useState<{
     blockId: string;
@@ -206,6 +218,7 @@ function SelectedBlockHeader({
   headerActions,
   onDelete,
   onDuplicate,
+  onSaveToLibrary,
   onRemoveBubbleLayout,
   onSelect,
   onUpdate,
@@ -217,6 +230,7 @@ function SelectedBlockHeader({
   headerActions?: React.ReactNode;
   onDelete: () => void;
   onDuplicate: () => void;
+  onSaveToLibrary: () => void;
   onRemoveBubbleLayout: () => void;
   onSelect: (tab: EditorTabId) => void;
   onUpdate: EditorPanelProps["onUpdate"];
@@ -233,6 +247,7 @@ function SelectedBlockHeader({
               disabled={disabled}
               onDelete={onDelete}
               onDuplicate={onDuplicate}
+              onSaveToLibrary={onSaveToLibrary}
               onUpdate={onUpdate}
             />
           </>
@@ -275,8 +290,10 @@ type EditorBlockGroupsProps = {
   onUpdate: EditorPanelProps["onUpdate"];
   pageSize: NonNullable<EditorPanelProps["pageSize"]> | null;
   selectedBlockCount: number;
+  showStylePresets: boolean;
   stylePresets: readonly BlockStylePresetSummary[];
   setFontFamilyDraft: React.Dispatch<React.SetStateAction<string | undefined>>;
+  templateMode: boolean;
   transformMode: TransformEditorMode;
 };
 
@@ -293,6 +310,7 @@ function EditorBlockGroups({
   onSelectTransformMode,
   onUpdate,
   pageSize,
+  templateMode,
   transformMode,
   ...formatProps
 }: EditorBlockGroupsProps): React.JSX.Element {
@@ -316,6 +334,7 @@ function EditorBlockGroups({
             onSelectTransformMode,
             onUpdate,
             pageSize,
+            templateMode,
             transformMode,
           }}
         />
@@ -343,6 +362,7 @@ function BlockTransformEditor({
   onSelectTransformMode,
   onUpdate,
   pageSize,
+  templateMode,
   transformMode,
 }: {
   block: TranslationBlock;
@@ -350,6 +370,7 @@ function BlockTransformEditor({
   onSelectTransformMode?: (mode: TransformEditorMode) => void;
   onUpdate: EditorPanelProps["onUpdate"];
   pageSize: NonNullable<EditorPanelProps["pageSize"]> | null;
+  templateMode: boolean;
   transformMode: TransformEditorMode;
 }): React.JSX.Element {
   return (
@@ -358,6 +379,7 @@ function BlockTransformEditor({
       disabled={disabled}
       mode={transformMode}
       pageSize={pageSize}
+      templateMode={templateMode}
       onSelectMode={onSelectTransformMode ?? (() => undefined)}
       onUpdate={onUpdate}
     />
@@ -378,21 +400,7 @@ function useEditorTab(
     if (shouldRevealLayout) setActiveTab("layout");
   }, [transformMode]);
   React.useEffect(() => {
-    try {
-      window.localStorage.setItem(EDITOR_TAB_STORAGE_KEY, activeTab);
-    } catch (error) {
-      console.warn("Editor tab state write failed", error);
-    }
+    storeEditorTab(activeTab);
   }, [activeTab]);
   return [activeTab, setActiveTab];
-}
-
-function readStoredEditorTab(): EditorTabId {
-  try {
-    const stored = window.localStorage.getItem(EDITOR_TAB_STORAGE_KEY);
-    return EDITOR_TABS.find((tab) => tab === stored) ?? "text";
-  } catch (error) {
-    console.warn("Editor tab state read failed", error);
-    return "text";
-  }
 }

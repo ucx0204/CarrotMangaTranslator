@@ -250,6 +250,7 @@ function createPanelSessionValue(
     onDockEditorWindow: panelBridge.closeEditorWindow,
     onDeleteBlock: blockEditingActions.deleteSelectedBlock,
     onDuplicateBlock: blockEditingActions.duplicateSelectedBlock,
+    onInsertBlockLibraryEntry: blockEditingActions.insertBlockLibraryEntry,
     onRemoveBubbleLayout: blockEditingActions.removeSelectedBlockBubbleLayout,
     onSelectTransformMode: (mode) => {
       uiState.selectWorkspaceTool(mode);

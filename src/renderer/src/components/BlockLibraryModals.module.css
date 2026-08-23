@@ -1,0 +1,255 @@
+.modalCard {
+  height: min(760px, calc(100vh - 2 * var(--sp-6)));
+}
+
+.modalBody {
+  min-height: 0;
+}
+
+.toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+
+.search {
+  min-width: 0;
+  min-height: var(--ctl-h);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  color: var(--text-muted);
+  background: var(--bg-input);
+}
+
+.search:focus-within {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 1px var(--focus);
+}
+
+.search input {
+  min-width: 0;
+  flex: 1;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+}
+
+.sort {
+  min-width: 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
+  gap: var(--sp-3);
+}
+
+.card {
+  min-width: 0;
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: var(--bg-raised);
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+
+.card:hover {
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+}
+
+.cardMain {
+  width: 100%;
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-2) var(--sp-3);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cardMain:disabled {
+  cursor: not-allowed;
+}
+
+.cardMain:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.preview,
+.editorPreview {
+  height: 160px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: calc(var(--r-lg) - 3px);
+  background:
+    linear-gradient(45deg, rgb(255 255 255 / 3%) 25%, transparent 25%) 0 0 /
+      16px 16px,
+    linear-gradient(-45deg, rgb(255 255 255 / 3%) 25%, transparent 25%) 0 8px /
+      16px 16px,
+    var(--bg-canvas, var(--bg));
+}
+
+.editorModalCard {
+  height: min(820px, calc(100vh - 2 * var(--sp-6)));
+}
+
+.editorModalBody {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.editorLayout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.85fr) minmax(420px, 1.15fr);
+  gap: var(--sp-5);
+  min-height: 0;
+  height: 100%;
+}
+
+.editorPreviewPane {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  align-content: start;
+  gap: var(--sp-3);
+  min-width: 0;
+  min-height: 0;
+}
+
+.editorPreview {
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+  aspect-ratio: 1;
+  border: 1px solid var(--border);
+}
+
+.editorFontWarning {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  margin: 0;
+  color: var(--warning, #e7aa46);
+  font-size: var(--font-xs);
+}
+
+.editorControls {
+  min-width: 0;
+  min-height: 0;
+}
+
+.editorControls :global(.editor-panel) {
+  height: 100%;
+  box-shadow: none;
+}
+
+.preview :global(.page-artwork) {
+  box-shadow: none;
+}
+
+.previewArtwork {
+  flex: 0 0 auto;
+  transform-origin: center;
+}
+
+.name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-md);
+}
+
+.warning {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  color: var(--warning, #e7aa46);
+  font-size: var(--font-xs);
+}
+
+.cardActions {
+  position: absolute;
+  right: var(--sp-2);
+  top: var(--sp-2);
+  display: flex;
+  gap: var(--sp-1);
+}
+
+.notice,
+.error,
+.empty {
+  margin: 0 0 var(--sp-4);
+  padding: var(--sp-3);
+  border-radius: var(--r-md);
+  font-size: var(--font-sm);
+}
+
+.notice {
+  color: var(--text-dim);
+  background: var(--bg-raised);
+}
+
+.error {
+  color: var(--danger-text, #ff9e91);
+  border: 1px solid var(--danger-bd);
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+}
+
+.empty {
+  min-height: 320px;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.saveForm {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+@media (max-width: 700px) {
+  .toolbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+
+  .preview {
+    height: 140px;
+  }
+
+  .editorModalBody {
+    overflow: auto;
+  }
+
+  .editorLayout {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+  }
+
+  .editorPreview {
+    max-height: 280px;
+  }
+
+  .editorControls :global(.editor-panel) {
+    min-height: 480px;
+  }
+}

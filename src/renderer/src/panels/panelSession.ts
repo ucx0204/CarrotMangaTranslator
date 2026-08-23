@@ -8,6 +8,7 @@ import type {
   BlockStylePresetSummary,
   CreateBlockStylePresetInput,
 } from "../../../shared/blockStylePresets";
+import type { BlockLibraryEntryV1 } from "../../../shared/blockLibrary";
 
 /**
  * The slice of session state + actions that dockable/poppable panels consume.
@@ -56,6 +57,7 @@ export type PanelSessionValue = {
   onUpdateBlock: (patch: Partial<TranslationBlock>) => void;
   onDeleteBlock: () => void;
   onDuplicateBlock: () => void;
+  onInsertBlockLibraryEntry: (entry: BlockLibraryEntryV1) => void;
   onEraseBlockOriginal: () => void;
   onFitBlockBubble: () => void;
   onRemoveBubbleLayout: () => void;

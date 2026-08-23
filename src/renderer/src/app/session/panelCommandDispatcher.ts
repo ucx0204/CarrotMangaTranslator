@@ -27,6 +27,9 @@ export type PanelCommandTarget = {
   ) => void;
   deleteSelectedBlock: () => void;
   duplicateSelectedBlock: () => void;
+  insertBlockLibraryEntry: (
+    entry: Extract<PanelCommand, { type: "insertBlockLibraryEntry" }>["entry"],
+  ) => void;
   eraseBlockOriginal: (blockId: string) => void;
   fitBlockBubble: (blockId: string) => void;
   removeSelectedBlockBubbleLayout: () => void;
@@ -61,6 +64,8 @@ export function dispatchPanelCommand({
     actions.applyStylePreset(command.presetId);
   } else if (command.type === "deleteStylePreset") {
     actions.deleteStylePreset(command.presetId);
+  } else if (command.type === "insertBlockLibraryEntry") {
+    actions.insertBlockLibraryEntry(command.entry);
   } else {
     applyPanelCommand(actions, command);
   }
@@ -71,7 +76,9 @@ function applyPanelCommand(
   actions: PanelCommandTarget,
   command: Exclude<
     PanelCommand,
-    ApplyStylePresetCommand | DeleteStylePresetCommand
+    | ApplyStylePresetCommand
+    | DeleteStylePresetCommand
+    | Extract<PanelCommand, { type: "insertBlockLibraryEntry" }>
   >,
 ): void {
   switch (command.type) {

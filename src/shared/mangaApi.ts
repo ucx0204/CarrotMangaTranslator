@@ -96,8 +96,27 @@ import type {
   WebImportScanRequest,
   WebImportScanResponse,
 } from "./webImportTypes";
+import type {
+  BlockLibraryEntryV1,
+  BlockLibrarySnapshotV1,
+  RenameBlockLibraryEntryInput,
+  SaveBlockLibraryEntryInput,
+  UpdateBlockLibraryEntryInput,
+} from "./blockLibrary";
 
 export type MangaApi = {
+  listBlockLibraryEntries: () => Promise<BlockLibrarySnapshotV1>;
+  saveBlockLibraryEntry: (
+    input: SaveBlockLibraryEntryInput,
+  ) => Promise<BlockLibrarySnapshotV1>;
+  renameBlockLibraryEntry: (
+    input: RenameBlockLibraryEntryInput,
+  ) => Promise<BlockLibrarySnapshotV1>;
+  updateBlockLibraryEntry: (
+    input: UpdateBlockLibraryEntryInput,
+  ) => Promise<BlockLibrarySnapshotV1>;
+  deleteBlockLibraryEntry: (id: string) => Promise<BlockLibrarySnapshotV1>;
+  useBlockLibraryEntry: (id: string) => Promise<BlockLibraryEntryV1>;
   getPathForFile: (file: File) => string;
   previewImagesImport: () => Promise<ImportPreviewSession | null>;
   previewFolderImport: () => Promise<ImportPreviewSession | null>;

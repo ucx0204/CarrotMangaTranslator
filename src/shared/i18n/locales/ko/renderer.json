@@ -249,6 +249,7 @@
     "stylePreset": "서식 프리셋 적용",
     "deleteBlock": "블록 삭제",
     "duplicateBlock": "블록 복제",
+    "insertLibraryBlock": "라이브러리 블록 불러오기",
     "readingOrder": "블록 읽기 순서 변경",
     "searchReplace": "검색 및 치환",
     "createBlock": "블록 추가",

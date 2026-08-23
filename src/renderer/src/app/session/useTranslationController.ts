@@ -73,6 +73,7 @@ export function useTranslationController(
     selectedPage: chapter.derivedState.selectedPage,
     selectedPageEditLocked:
       chapter.derivedState.selectedPageEditLocked || workspaceHistory.busy,
+    stageRef: chapter.core.stageRef,
     setSelectedBlockId: chapter.core.setSelectedBlockId,
     setSelectedBlockIds: chapter.core.setSelectedBlockIds,
     updateCurrentChapter,

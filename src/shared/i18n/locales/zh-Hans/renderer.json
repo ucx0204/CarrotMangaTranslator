@@ -243,6 +243,7 @@
     "stylePreset": "应用格式预设",
     "deleteBlock": "删除文本块",
     "duplicateBlock": "复制文本块",
+    "insertLibraryBlock": "插入库中的文本块",
     "readingOrder": "更改文本块阅读顺序",
     "searchReplace": "查找和替换",
     "createBlock": "新建文本块",

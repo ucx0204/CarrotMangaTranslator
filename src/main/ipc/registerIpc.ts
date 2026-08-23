@@ -16,6 +16,7 @@ import { registerTranslationJobIpc } from "./translationJobIpc";
 import { registerReviewTextIpc } from "./reviewTextIpc";
 import { registerWorkContextIpc } from "./workContextIpc";
 import { registerWebImportIpc } from "./webImportIpc";
+import { registerBlockLibraryIpc } from "./blockLibraryIpc";
 import { WebImportSessionManager } from "../webImportSessionManager";
 import {
   registerWebImportPreviewProtocolHandler,
@@ -65,6 +66,7 @@ export function createImportRuntimeResources({
 }
 
 export function registerIpc(context: IpcContext): void {
+  registerBlockLibraryIpc(context);
   registerExternalLinksIpc(context);
   registerErrorReportIpc(context);
   registerLogsIpc(context);

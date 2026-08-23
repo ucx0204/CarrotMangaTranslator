@@ -243,6 +243,7 @@
     "stylePreset": "套用格式預設",
     "deleteBlock": "刪除文字區塊",
     "duplicateBlock": "複製文字區塊",
+    "insertLibraryBlock": "插入庫中的文字區塊",
     "readingOrder": "變更文字區塊閱讀順序",
     "searchReplace": "尋找與取代",
     "createBlock": "新增文字區塊",

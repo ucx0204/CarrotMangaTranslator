@@ -246,6 +246,7 @@
     "stylePreset": "書式プリセットを適用",
     "deleteBlock": "ブロックを削除",
     "duplicateBlock": "ブロックを複製",
+    "insertLibraryBlock": "ライブラリブロックを挿入",
     "readingOrder": "ブロックの読み順を変更",
     "searchReplace": "検索と置換",
     "createBlock": "ブロックを追加",

@@ -23,10 +23,12 @@ import {
 } from "./ipcSystemContracts";
 import { ipcEventContracts } from "./ipcEventContracts";
 import { webImportIpcContracts } from "./ipcWebImportContracts";
+import { blockLibraryIpcContracts } from "./ipcBlockLibraryContracts";
 
 export type { IpcContract, IpcEventContract };
 export {
   errorReportIpcContracts,
+  blockLibraryIpcContracts,
   externalIpcContracts,
   fontIpcContracts,
   importShareIpcContracts,
@@ -44,6 +46,7 @@ export {
 };
 
 export const ipcInvokeContracts = {
+  ...blockLibraryIpcContracts,
   ...importShareIpcContracts,
   ...libraryIpcContracts,
   ...workContextIpcContracts,

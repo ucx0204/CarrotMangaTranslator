@@ -25,6 +25,7 @@ type TransformEditorGroupProps = {
   disabled: boolean;
   mode: TransformEditorMode;
   pageSize: PageSize | null;
+  templateMode?: boolean;
   onSelectMode: (mode: TransformEditorMode) => void;
   onUpdate: (patch: Partial<TranslationBlock>) => void;
 };
@@ -34,6 +35,7 @@ export function TransformEditorGroup({
   disabled,
   mode,
   pageSize,
+  templateMode = false,
   onSelectMode,
   onUpdate,
 }: TransformEditorGroupProps): React.JSX.Element {
@@ -69,6 +71,7 @@ export function TransformEditorGroup({
           block={block}
           disabled={disabled}
           pageSize={resolvedPageSize}
+          templateMode={templateMode}
           onUpdate={onUpdate}
         />
       ) : null}
@@ -141,11 +144,13 @@ function GeneralTransformControls({
   block,
   disabled,
   pageSize,
+  templateMode,
   onUpdate,
 }: {
   block: TranslationBlock;
   disabled: boolean;
   pageSize: PageSize;
+  templateMode: boolean;
   onUpdate: (patch: Partial<TranslationBlock>) => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
@@ -166,40 +171,14 @@ function GeneralTransformControls({
   };
   return (
     <div className="transform-mode-panel">
-      <div className="transform-box-grid">
-        <BboxNumberField
-          field="x"
-          blockBbox={bbox}
-          disabled={disabled}
-          lockRatio={lockRatio}
-          pageSize={pageSize}
-          onCommit={updateField}
-        />
-        <BboxNumberField
-          field="y"
-          blockBbox={bbox}
-          disabled={disabled}
-          lockRatio={lockRatio}
-          pageSize={pageSize}
-          onCommit={updateField}
-        />
-        <BboxNumberField
-          field="w"
-          blockBbox={bbox}
-          disabled={disabled}
-          lockRatio={lockRatio}
-          pageSize={pageSize}
-          onCommit={updateField}
-        />
-        <BboxNumberField
-          field="h"
-          blockBbox={bbox}
-          disabled={disabled}
-          lockRatio={lockRatio}
-          pageSize={pageSize}
-          onCommit={updateField}
-        />
-      </div>
+      <TransformBboxFields
+        bbox={bbox}
+        disabled={disabled}
+        lockRatio={lockRatio}
+        pageSize={pageSize}
+        templateMode={templateMode}
+        onCommit={updateField}
+      />
       <label className="transform-lock-ratio">
         <input
           type="checkbox"
@@ -210,7 +189,42 @@ function GeneralTransformControls({
         {t("transform.lockRatio")}
       </label>
       <RotationControl block={block} disabled={disabled} onUpdate={onUpdate} />
-      <p className="transform-help">{t("transform.hints.select")}</p>
+      {!templateMode ? (
+        <p className="transform-help">{t("transform.hints.select")}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function TransformBboxFields({
+  bbox,
+  disabled,
+  lockRatio,
+  pageSize,
+  templateMode,
+  onCommit,
+}: {
+  bbox: TranslationBlock["bbox"];
+  disabled: boolean;
+  lockRatio: boolean;
+  pageSize: PageSize;
+  templateMode: boolean;
+  onCommit: (field: BboxField, value: number) => void;
+}): React.JSX.Element {
+  const fields: BboxField[] = templateMode ? ["w", "h"] : ["x", "y", "w", "h"];
+  return (
+    <div className="transform-box-grid">
+      {fields.map((field) => (
+        <BboxNumberField
+          key={field}
+          field={field}
+          blockBbox={bbox}
+          disabled={disabled}
+          lockRatio={lockRatio}
+          pageSize={pageSize}
+          onCommit={onCommit}
+        />
+      ))}
     </div>
   );
 }

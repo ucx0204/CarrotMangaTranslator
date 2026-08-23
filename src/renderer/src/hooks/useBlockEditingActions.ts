@@ -25,6 +25,7 @@ import type {
 import {
   useDeleteSelectedBlockAction,
   useDuplicateSelectedBlockAction,
+  useInsertBlockLibraryEntryAction,
   useMoveSelectedBlockInReadingOrderAction,
   useSortPageReadingOrderAction,
   useUpdateSelectedBlocksAction,
@@ -56,6 +57,7 @@ export function useBlockEditingActions(
   const applyStylePreset = useApplyStylePresetAction(options);
   const deleteSelectedBlock = useDeleteSelectedBlockAction(options);
   const duplicateSelectedBlock = useDuplicateSelectedBlockAction(options);
+  const insertBlockLibraryEntry = useInsertBlockLibraryEntryAction(options);
   const moveSelectedBlockInReadingOrder =
     useMoveSelectedBlockInReadingOrderAction(options);
   const sortPageReadingOrder = useSortPageReadingOrderAction(options);
@@ -78,6 +80,7 @@ export function useBlockEditingActions(
     applyStylePreset,
     deleteSelectedBlock,
     duplicateSelectedBlock,
+    insertBlockLibraryEntry,
     moveSelectedBlockInReadingOrder,
     nudgeSelectedBlocks,
     removeSelectedBlockBubbleLayout,

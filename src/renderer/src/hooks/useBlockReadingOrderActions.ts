@@ -6,6 +6,10 @@ import {
   resolvePageBlockOrder,
 } from "../../../shared/blockReadingOrder";
 import { normalizeTranslationBlockPatch } from "./useUpdateSelectedBlockAction";
+import {
+  instantiateBlockLibraryEntry,
+  type BlockLibraryEntryV1,
+} from "../../../shared/blockLibrary";
 import type {
   BlockEditingActions,
   UseBlockEditingActionsOptions,
@@ -293,4 +297,107 @@ export function useDuplicateSelectedBlockAction({
     t,
     updateCurrentChapter,
   ]);
+}
+
+export function useInsertBlockLibraryEntryAction({
+  selectedPage,
+  selectedPageEditLocked,
+  readingDirection = "rtl",
+  stageRef,
+  setSelectedBlockId,
+  setSelectedBlockIds,
+  updateCurrentChapter,
+}: UseBlockEditingActionsOptions): BlockEditingActions["insertBlockLibraryEntry"] {
+  const { t } = useTranslation("renderer");
+  return useCallback(
+    (entry: BlockLibraryEntryV1) => {
+      if (!selectedPage || selectedPageEditLocked) return;
+      const id = createLibraryBlockId(selectedPage.id);
+      const block = instantiateBlockLibraryEntry(
+        entry,
+        id,
+        resolveVisibleStageCenter(stageRef?.current ?? null),
+      );
+      const blockOrder = resolvePageBlockOrder(selectedPage, readingDirection);
+      blockOrder.push(id);
+      updateCurrentChapter(
+        selectedPage.id,
+        (current) => ({
+          ...current,
+          pages: current.pages.map((page) =>
+            page.id === selectedPage.id
+              ? {
+                  ...page,
+                  updatedAt: new Date().toISOString(),
+                  blocks: [...page.blocks, block],
+                  blockOrder,
+                }
+              : page,
+          ),
+        }),
+        {
+          label: t("workspaceHistory.insertLibraryBlock"),
+          selectionAfter: {
+            selectedPageId: selectedPage.id,
+            selectedBlockId: id,
+            selectedBlockIds: [id],
+          },
+        },
+      );
+      setSelectedBlockId(id);
+      setSelectedBlockIds([id]);
+    },
+    [
+      readingDirection,
+      selectedPage,
+      selectedPageEditLocked,
+      stageRef,
+      setSelectedBlockId,
+      setSelectedBlockIds,
+      t,
+      updateCurrentChapter,
+    ],
+  );
+}
+
+export function resolveVisibleStageCenter(stage: HTMLElement | null): {
+  x: number;
+  y: number;
+} {
+  if (!stage) return { x: 500, y: 500 };
+  const stageRect = stage.getBoundingClientRect();
+  if (stageRect.width <= 0 || stageRect.height <= 0) {
+    return { x: 500, y: 500 };
+  }
+  const viewport = stage.closest<HTMLElement>(".workspace");
+  const viewportRect = viewport?.getBoundingClientRect() ?? {
+    left: 0,
+    top: 0,
+    right: globalThis.innerWidth,
+    bottom: globalThis.innerHeight,
+  };
+  const left = Math.max(stageRect.left, viewportRect.left);
+  const right = Math.min(stageRect.right, viewportRect.right);
+  const top = Math.max(stageRect.top, viewportRect.top);
+  const bottom = Math.min(stageRect.bottom, viewportRect.bottom);
+  if (right <= left || bottom <= top) return { x: 500, y: 500 };
+  return {
+    x: clampNormalized(
+      (((left + right) / 2 - stageRect.left) / stageRect.width) * 1000,
+    ),
+    y: clampNormalized(
+      (((top + bottom) / 2 - stageRect.top) / stageRect.height) * 1000,
+    ),
+  };
+}
+
+function clampNormalized(value: number): number {
+  return Math.min(1000, Math.max(0, value));
+}
+
+function createLibraryBlockId(pageId: string): string {
+  const suffix = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}`;
+  const separator = "-library-";
+  const prefixLength = Math.max(1, 200 - separator.length - suffix.length);
+  return `${pageId.slice(0, prefixLength)}${separator}${suffix}`;
 }

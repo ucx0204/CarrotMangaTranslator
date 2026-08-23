@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { BlockReadingDirection } from "../../../shared/blockReadingOrder";
 import type { BlockStylePreset } from "../../../shared/blockStylePresets";
 import type { BlockFormatGroupId } from "../../../shared/blockFormat";
@@ -9,6 +9,7 @@ import type { summarizeBlockStylePresets } from "../../../shared/blockStylePrese
 import type { FormatApplyScope } from "./blockEditingStatus";
 import type { BlockBackgroundApplyScope } from "./useApplyBlockBackgroundOpacityAction";
 import type { UpdateCurrentChapter } from "./useCurrentChapterUpdater";
+import type { BlockLibraryEntryV1 } from "../../../shared/blockLibrary";
 
 export type UseBlockEditingActionsOptions = {
   availableFontIds?: ReadonlySet<string>;
@@ -21,12 +22,14 @@ export type UseBlockEditingActionsOptions = {
   selectedBlockIds: string[];
   selectedPage: MangaPage | null;
   selectedPageEditLocked: boolean;
+  stageRef?: RefObject<HTMLDivElement | null>;
   setSelectedBlockId: Dispatch<SetStateAction<string | null>>;
   setSelectedBlockIds: Dispatch<SetStateAction<string[]>>;
   updateCurrentChapter: UpdateCurrentChapter;
 };
 
 export type BlockEditingActions = {
+  insertBlockLibraryEntry: (entry: BlockLibraryEntryV1) => void;
   adjustSelectedBlockFontSize: (adjustment: FontSizeAdjustment) => void;
   applyBlockBackgroundOpacityToScope: (
     scope: BlockBackgroundApplyScope,

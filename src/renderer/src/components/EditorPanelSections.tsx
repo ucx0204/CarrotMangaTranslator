@@ -106,14 +106,24 @@ function TextBlockActions({
   onFitBubble,
 }: { disabled: boolean } & BlockTextActionProps): React.JSX.Element {
   const { t } = useTranslation("components");
+  if (!onEraseOriginal && !onFitBubble) return <></>;
   return (
     <div className="editor-text-actions">
-      <Button fullWidth size="sm" disabled={disabled} onClick={onEraseOriginal}>
-        {t("editor.eraseOriginal")}
-      </Button>
-      <Button fullWidth size="sm" disabled={disabled} onClick={onFitBubble}>
-        {t("editor.fitBubble")}
-      </Button>
+      {onEraseOriginal ? (
+        <Button
+          fullWidth
+          size="sm"
+          disabled={disabled}
+          onClick={onEraseOriginal}
+        >
+          {t("editor.eraseOriginal")}
+        </Button>
+      ) : null}
+      {onFitBubble ? (
+        <Button fullWidth size="sm" disabled={disabled} onClick={onFitBubble}>
+          {t("editor.fitBubble")}
+        </Button>
+      ) : null}
     </div>
   );
 }
