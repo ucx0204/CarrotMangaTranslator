@@ -40,9 +40,9 @@ export function LinkedWorkspaceSettingsPanel({
     useLinkedWorkspaceSettingsOperations(refresh);
   return (
     <div className="linked-workspace-settings" aria-busy={loading}>
-      <div className="linked-workspace-settings-intro">
-        <p>{t("settings.results.description")}</p>
-      </div>
+      <p className="muted-line modal-note">
+        {t("settings.results.description")}
+      </p>
       <div className="linked-workspace-settings-toolbar">
         <label
           className="library-search-shell linked-workspace-settings-search"

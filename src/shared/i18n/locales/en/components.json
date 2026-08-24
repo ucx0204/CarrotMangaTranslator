@@ -1286,7 +1286,7 @@
       "languageDescription": "Changes the language used throughout the app."
     },
     "results": {
-      "description": "Turn automatic result saving on or off per work and chapter. The default location is Results/work/chapter.",
+      "description": "Set automatic saving per work and chapter. Default: Results/work/chapter.",
       "empty": "There are no library works to manage.",
       "searchLabel": "Search automatic result saving",
       "searchPlaceholder": "Search works/chapters",
@@ -1749,7 +1749,7 @@
       }
     },
     "shortcuts": {
-      "description": "Click an item, then press the desired key combination. Zoom in/out also accept a wheel gesture with optional modifier keys. Conflicting shortcuts are not applied; clear the existing binding first or choose another key. Press Esc to cancel.",
+      "description": "Click an item to assign a key or wheel gesture. Conflicts are rejected; press Esc to cancel.",
       "changeAria": "Change shortcut for {{label}}",
       "waiting": "Waiting for key or wheel input…",
       "unassigned": "Unassigned",

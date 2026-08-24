@@ -1267,7 +1267,7 @@
       "languageDescription": "更改整个应用使用的界面语言。"
     },
     "results": {
-      "description": "按作品和章节开关结果自动保存。默认位置为结果/作品名/章节名。",
+      "description": "按作品和章节设置自动保存。默认：结果/作品名/章节名",
       "empty": "库中没有可管理的作品。",
       "searchLabel": "搜索结果自动保存",
       "searchPlaceholder": "搜索作品/章节",
@@ -1709,7 +1709,7 @@
       }
     },
     "shortcuts": {
-      "description": "单击项目后按下所需的组合键。图像放大和缩小也可绑定带修饰键的滚轮操作。冲突的按键不会应用；请先清空现有绑定或选择其他按键。按 Esc 可取消输入。",
+      "description": "单击项目以设置按键或滚轮操作。冲突时不会应用；按 Esc 取消。",
       "changeAria": "更改{{label}}的快捷键",
       "waiting": "等待按键或滚轮输入…",
       "unassigned": "未指定",

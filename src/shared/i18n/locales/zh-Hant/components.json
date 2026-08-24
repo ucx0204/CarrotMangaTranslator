@@ -1267,7 +1267,7 @@
       "languageDescription": "變更整個應用程式使用的介面語言。"
     },
     "results": {
-      "description": "依作品與章節開關結果自動儲存。預設位置為結果/作品名/章節名。",
+      "description": "依作品與章節設定自動儲存。預設：結果/作品名/章節名",
       "empty": "資料庫中沒有可管理的作品。",
       "searchLabel": "搜尋結果自動儲存",
       "searchPlaceholder": "搜尋作品/章節",
@@ -1712,7 +1712,7 @@
       }
     },
     "shortcuts": {
-      "description": "點按項目後，按下所需的按鍵組合。影像放大與縮小也可綁定搭配修飾鍵的滾輪操作。衝突的按鍵不會套用；請先清空現有綁定或選擇其他按鍵。按 Esc 可取消輸入。",
+      "description": "點按項目以設定按鍵或滾輪操作。衝突時不會套用；按 Esc 取消。",
       "changeAria": "變更{{label}}的快速鍵",
       "waiting": "等待按鍵或滾輪輸入…",
       "unassigned": "未指派",

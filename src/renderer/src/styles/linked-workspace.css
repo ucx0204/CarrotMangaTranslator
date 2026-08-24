@@ -24,27 +24,10 @@
   gap: 12px;
 }
 
-.linked-workspace-settings-intro {
-  display: block;
-  min-width: 0;
-  padding: 11px 12px;
-  border: 1px solid color-mix(in srgb, var(--accent-bd) 38%, var(--border-soft));
-  border-radius: var(--r-lg);
-  background: color-mix(in srgb, var(--accent-soft) 16%, var(--bg-sunken));
-}
-
-.linked-workspace-settings-intro p,
 .linked-workspace-settings-message,
 .linked-workspace-row-error,
 .linked-workspace-empty {
   margin: 0;
-}
-
-.linked-workspace-settings-intro p {
-  min-width: 0;
-  color: var(--text-muted);
-  font-size: var(--font-sm);
-  line-height: 1.45;
 }
 
 .linked-workspace-settings-toolbar {
