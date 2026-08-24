@@ -139,9 +139,10 @@ const allowedElectronLocales = new Set([
 // production cleanup then adds the semantic-OCR geometry leaf and the sealed
 // download-contract leaf. KoharuLayout adds one short-path native ORT runtime,
 // and managed Python adds one shared pip-isolation leaf plus the explicit
-// main-process copy that consumes it before app-runtime is available. Keep the
-// resulting payload ceiling exact so unrelated growth fails closed.
-const MAX_PACKAGED_FILES = 292;
+// main-process copy that consumes it before app-runtime is available. Glossary
+// omission adds one model-prompt runtime leaf. Keep the resulting payload
+// ceiling exact so unrelated growth fails closed.
+const MAX_PACKAGED_FILES = 293;
 // The trained font matching runtime bundle (~467 MiB) is externalized out of
 // the installer and downloaded into the data-root cache on first use, so the
 // unpacked payload is ~745 MiB (Electron + app.asar + tools, no bundle) and the
