@@ -1,4 +1,4 @@
-import type { AppSettings, GemmaVramMode } from "../../shared/settingsTypes";
+import type { AppSettings } from "../../shared/settingsTypes";
 import {
   DEFAULT_TRANSLATION_LANGUAGE_SETTINGS,
   resolveTranslationLanguageSettings,
@@ -7,10 +7,8 @@ import {
   asRecord,
   resolveBoolean,
   resolveContextTokens,
-  resolveGemmaVramMode,
   resolveMaxTokens,
   resolveModelProvider,
-  resolveModelSource,
   resolveNullableIntegerRange,
   resolveNullableNumberRange,
   resolveNullableReasoningEffort,
@@ -18,21 +16,15 @@ import {
   resolveNumberRange,
   resolveOpenAiCompatibleBaseUrl,
   resolveOptionalJsonObjectString,
-  resolveOptionalString,
 } from "./appSettingsResolvers";
 import { resolveDefaultAppSettings } from "./appSettingsDefaults";
 import {
   resolveStoredFluxBackend,
-  resolveStoredGemmaMmproj,
-  resolveStoredGemmaModel,
   resolveStoredInpaintingModel,
   resolveStoredKoharuInpaintingBackend,
-  resolveStoredLlamaRocmTarget,
-  resolveStoredLlamaRuntimeProfile,
   resolveStoredOcrGpuCudaTag,
   resolveStoredOcrModeSettings,
 } from "./appSettingsStoredResolvers";
-import { getModeAwareGemmaDefaults } from "./gemmaModelPresets";
 import {
   DEFAULT_API_KEY_MAX_ATTEMPTS,
   DEFAULT_API_RETRY_DELAY_SECONDS,
@@ -45,7 +37,7 @@ import {
 import { resolveRecommendedGenerationLimits } from "../../shared/modelPresets";
 import { normalizeBlockFormatDefaults } from "./blockFormatDefaultsNormalize";
 import { normalizeUiSettings } from "./appSettingsUiNormalize";
-import { resolveUnsafeUnifiedMemorySetting } from "./gemmaMemorySettings";
+import { normalizeGemmaSettings } from "./gemmaMemorySettings";
 import { normalizeStoredKeybindingOverrides } from "../../shared/shortcutSettings";
 import {
   DEFAULT_BUBBLE_LAYOUT_PADDING_RATIO,
@@ -183,72 +175,6 @@ function normalizeKeybindings(
   return Object.fromEntries(
     Object.entries(normalized).filter(([, combo]) => combo !== ""),
   );
-}
-
-function normalizeGemmaSettings(
-  gemma: Record<string, unknown> | null,
-  defaults: AppSettings,
-): AppSettings["gemma"] {
-  const modelSource = resolveModelSource(
-    gemma?.modelSource,
-    defaults.gemma.modelSource,
-  );
-  const resolvedVramMode = resolveGemmaVramMode(
-    gemma?.vramMode,
-    defaults.gemma.vramMode,
-  );
-  const modeDefaults = resolveModeAwareDefaults(defaults, resolvedVramMode);
-  const resolvedModel = resolveStoredGemmaModel(
-    gemma,
-    modeDefaults,
-    resolvedVramMode,
-  );
-  const resolvedMmproj =
-    modelSource === "huggingface"
-      ? resolveStoredGemmaMmproj(gemma, resolvedModel, modeDefaults)
-      : {};
-  const localModelPath = resolveOptionalString(gemma?.localModelPath);
-  const localMmprojPath = resolveOptionalString(gemma?.localMmprojPath);
-  const llamaRuntimeProfile = resolveStoredLlamaRuntimeProfile(gemma, defaults);
-  const llamaRocmTarget = resolveStoredLlamaRocmTarget(
-    gemma,
-    defaults,
-    llamaRuntimeProfile,
-  );
-  return {
-    modelSource,
-    modelRepo: resolvedModel.modelRepo,
-    modelFile: resolvedModel.modelFile,
-    ...(resolvedMmproj.mmprojRepo
-      ? { mmprojRepo: resolvedMmproj.mmprojRepo }
-      : {}),
-    ...(resolvedMmproj.mmprojFile
-      ? { mmprojFile: resolvedMmproj.mmprojFile }
-      : {}),
-    ...(localModelPath ? { localModelPath } : {}),
-    ...(localMmprojPath ? { localMmprojPath } : {}),
-    vramMode: resolvedVramMode,
-    llamaRuntimeProfile,
-    ...(llamaRocmTarget ? { llamaRocmTarget } : {}),
-    ...resolveUnsafeUnifiedMemorySetting(gemma, defaults),
-  };
-}
-
-function resolveModeAwareDefaults(
-  defaults: AppSettings,
-  resolvedVramMode: GemmaVramMode,
-): AppSettings {
-  const modeAwareGemmaDefaults = getModeAwareGemmaDefaults(
-    defaults,
-    resolvedVramMode,
-  );
-  return {
-    ...defaults,
-    gemma: {
-      ...defaults.gemma,
-      ...modeAwareGemmaDefaults,
-    },
-  };
 }
 
 function normalizeApiSettings(

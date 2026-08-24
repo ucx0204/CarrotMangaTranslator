@@ -49,6 +49,8 @@ export type SettingsFormValues = {
   localModelPath: string;
   localMmprojPath: string;
   customVramMode: GemmaVramMode;
+  gemmaFitTargetMb: number;
+  gemmaMmprojOffload: boolean;
   llamaRuntimeProfile: LlamaRuntimeProfile;
   allowUnsafeUnifiedMemory: boolean;
   codexModel: string;
@@ -123,6 +125,8 @@ function resolveModelFormValues(
   | "localModelPath"
   | "localMmprojPath"
   | "customVramMode"
+  | "gemmaFitTargetMb"
+  | "gemmaMmprojOffload"
   | "llamaRuntimeProfile"
   | "allowUnsafeUnifiedMemory"
   | "codexModel"
@@ -140,6 +144,8 @@ function resolveModelFormValues(
     localModelPath: settings.gemma.localModelPath ?? "",
     localMmprojPath: settings.gemma.localMmprojPath ?? "",
     customVramMode: settings.gemma.vramMode,
+    gemmaFitTargetMb: settings.gemma.fitTargetMb ?? 1024,
+    gemmaMmprojOffload: settings.gemma.mmprojOffload ?? true,
     llamaRuntimeProfile: settings.gemma.llamaRuntimeProfile ?? "cuda12",
     allowUnsafeUnifiedMemory: settings.gemma.allowUnsafeUnifiedMemory === true,
     codexModel: settings.codex.model,

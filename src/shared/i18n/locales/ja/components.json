@@ -1529,6 +1529,16 @@
         "rtx50UsingCuda12Warning": "{{gpu}}はRTX 50シリーズです。CUDA 12ではなくRTX 50ランタイムを推奨します。",
         "nonRtx50UsingRtx50Warning": "{{gpu}}はRTX 50シリーズではありません。RTX 50ランタイムが起動しない可能性があるため、CUDA 12を推奨します。"
       },
+      "vramTuning": {
+        "reserveLabel": "空きVRAM",
+        "reserveOption": "{{value}} MiB",
+        "reserveDescription": "モデル読み込み後に残しておくVRAMです。値を下げるとモデルをより多くGPUに載せて高速化できます。上げるとGPUに載るモデルが減って遅くなる場合があるため、他のGPUアプリを同時に使う場合だけ上げてください。",
+        "mmprojLabel": "mmprojの処理場所",
+        "mmprojGpu": "GPU（速度優先）",
+        "mmprojCpu": "CPU（VRAM節約）",
+        "mmprojGpuDescription": "mmprojをGPUに置き、画像入力の速度を優先します。",
+        "mmprojCpuDescription": "mmprojをCPUで処理してVRAMを節約します。画像入力が遅くなる場合があり、MTPは自動的に無効になります。"
+      },
       "memory": {
         "summary": "ユニファイドメモリ {{available}}・推奨 {{required}}・初回ダウンロード約 {{download}}",
         "sufficient": "このメモリ構成の推奨モデルです。",

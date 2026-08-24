@@ -50,6 +50,8 @@ export function buildSettingsFromDraft({
     localModelPath: draft.trimmedLocalModelPath,
     localMmprojPath: draft.trimmedLocalMmprojPath,
     vramMode: draft.selectedVramMode,
+    fitTargetMb: values.gemmaFitTargetMb,
+    mmprojOffload: values.gemmaMmprojOffload,
     llamaRuntimeProfile: values.llamaRuntimeProfile,
     allowUnsafeUnifiedMemory: values.allowUnsafeUnifiedMemory,
     codexModel: draft.trimmedCodexModel,

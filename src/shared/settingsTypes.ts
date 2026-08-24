@@ -85,6 +85,10 @@ type GemmaSettings = {
   localModelPath?: string;
   localMmprojPath?: string;
   vramMode: GemmaVramMode;
+  /** VRAM llama.cpp's automatic GPU fitting should leave available. */
+  fitTargetMb?: number;
+  /** Whether the multimodal projector is kept on the GPU. */
+  mmprojOffload?: boolean;
   llamaRuntimeProfile?: LlamaRuntimeProfile;
   llamaRocmTarget?: AmdRocmTarget;
   /**

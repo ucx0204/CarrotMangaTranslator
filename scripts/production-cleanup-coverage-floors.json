@@ -7,7 +7,7 @@
     "sourceArtifact": ".tmp/production-cleanup-coverage-baseline-node22.json",
     "sourceArtifactSha256": "a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a",
     "introducedArtifact": ".tmp/production-cleanup-coverage-accepted-node26.json",
-    "introducedArtifactSha256": "dd758d3ed51eaabbefd4476d6b03531a73bb8aa84e594fca0501b4404de7a834",
+    "introducedArtifactSha256": "c889ab0c393d0e5664034fa5a830cd807262efc4cd0a292d2675ccf1cc302312",
     "validatedNodeV8": ["22/12.4", "24/13.6", "26/14.6"],
     "vitestVersion": "4.1.9",
     "coverageV8Version": "4.1.9"
@@ -2455,6 +2455,28 @@
         "pct": 70
       }
     },
+    "src/main/runtime/model/launch-arguments.cjs": {
+      "lines": {
+        "covered": 74,
+        "total": 81,
+        "pct": 91.35
+      },
+      "statements": {
+        "covered": 78,
+        "total": 88,
+        "pct": 88.63
+      },
+      "functions": {
+        "covered": 18,
+        "total": 19,
+        "pct": 94.73
+      },
+      "branches": {
+        "covered": 98,
+        "total": 113,
+        "pct": 86.72
+      }
+    },
     "src/main/runtime/model/llama-runtime-archive-policy.cjs": {
       "lines": {
         "covered": 49,
@@ -3379,6 +3401,28 @@
         "pct": 61.11
       }
     },
+    "src/main/settings/appSettingsDefaults.ts": {
+      "lines": {
+        "covered": 28,
+        "total": 28,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 28,
+        "total": 28,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 11,
+        "total": 11,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 55,
+        "total": 57,
+        "pct": 96.49
+      }
+    },
     "src/main/settings/appSettingsNormalize.ts": {
       "lines": {
         "covered": 44,
@@ -3487,6 +3531,28 @@
         "covered": 20,
         "total": 22,
         "pct": 90.9
+      }
+    },
+    "src/main/settings/gemmaMemorySettings.ts": {
+      "lines": {
+        "covered": 18,
+        "total": 18,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 19,
+        "total": 19,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 7,
+        "total": 7,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 14,
+        "total": 18,
+        "pct": 77.77
       }
     },
     "src/main/settings/gemmaRuntimePresets.ts": {
@@ -6677,6 +6743,28 @@
         "covered": 6,
         "total": 6,
         "pct": 100
+      }
+    },
+    "src/renderer/src/components/settingsModal/GemmaMemorySummary.tsx": {
+      "lines": {
+        "covered": 1,
+        "total": 23,
+        "pct": 4.34
+      },
+      "statements": {
+        "covered": 1,
+        "total": 23,
+        "pct": 4.34
+      },
+      "functions": {
+        "covered": 0,
+        "total": 10,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 24,
+        "pct": 0
       }
     },
     "src/renderer/src/components/settingsModal/GemmaSettingsFields.tsx": {

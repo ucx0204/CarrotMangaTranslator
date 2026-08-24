@@ -81,11 +81,18 @@ export function resolveTranslationRuntimeState(
     settings.gemma.llamaRuntimeProfile,
   );
   const baseRuntimePreset = GEMMA_RUNTIME_PRESETS[gemmaVramMode];
-  const gemmaRuntimePreset =
+  const platformRuntimePreset =
     isMetalLlamaRuntimeProfile(llamaRuntimeProfile) &&
     gemmaVramMode !== "full31b"
       ? { ...baseRuntimePreset, fitTargetMb: 4096 }
       : baseRuntimePreset;
+  const gemmaRuntimePreset = {
+    ...platformRuntimePreset,
+    fitTargetMb:
+      settings.gemma.fitTargetMb ?? platformRuntimePreset.fitTargetMb,
+    mmprojOffload:
+      settings.gemma.mmprojOffload ?? platformRuntimePreset.mmprojOffload,
+  };
   return {
     gemmaVramMode,
     gemmaRuntimePreset,
@@ -114,6 +121,14 @@ export function resolveGemmaTranslationOptions({
   settings: AppSettings;
   state: TranslationRuntimeState;
 }): GemmaTranslationOptions {
+  const gpuOptions = resolveGemmaGpuOptions(
+    runtimeEnv,
+    state.gemmaRuntimePreset,
+  );
+  const cacheOptions = resolveGemmaCacheOptions(
+    runtimeEnv,
+    state.gemmaRuntimePreset,
+  );
   return {
     ...resolveGemmaGenerationOptions(
       runtimeEnv,
@@ -122,9 +137,14 @@ export function resolveGemmaTranslationOptions({
       state.gemmaRuntimePreset,
     ),
     gemmaVramMode: state.gemmaVramMode,
-    ...resolveGemmaGpuOptions(runtimeEnv, state.gemmaRuntimePreset),
+    ...gpuOptions,
     ...resolveGemmaThreadOptions(runtimeEnv, state.gemmaRuntimePreset),
-    ...resolveGemmaCacheOptions(runtimeEnv, state.gemmaRuntimePreset),
+    ...cacheOptions,
+    // CPU-side KV or mmproj processing is the low-memory path. Do not retain
+    // a second draft model (MTP) in that configuration.
+    ...(gpuOptions.kvOffload === false || gpuOptions.mmprojOffload === false
+      ? { useDraft: false }
+      : {}),
     ...resolveGemmaImageOptions(runtimeEnv),
     ...resolveGemmaModelOptions(runtimeEnv, paths, state),
   };

@@ -1523,6 +1523,16 @@
         "rtx50UsingCuda12Warning": "{{gpu}}는 RTX 50 계열입니다. CUDA 12 대신 RTX 50 런타임을 권장합니다.",
         "nonRtx50UsingRtx50Warning": "{{gpu}}는 RTX 50 계열이 아닙니다. RTX 50 런타임이 실행되지 않을 수 있으므로 CUDA 12를 권장합니다."
       },
+      "vramTuning": {
+        "reserveLabel": "여유 VRAM",
+        "reserveOption": "{{value}} MiB",
+        "reserveDescription": "모델 로딩 후 남겨 둘 VRAM입니다. 낮추면 모델을 GPU에 더 많이 올려 빨라질 수 있습니다. 높이면 GPU에 올리는 모델이 줄어 느려질 수 있으니, 다른 GPU 프로그램을 함께 쓸 때만 높이세요.",
+        "mmprojLabel": "mmproj 처리 위치",
+        "mmprojGpu": "GPU (속도 우선)",
+        "mmprojCpu": "CPU (VRAM 절약)",
+        "mmprojGpuDescription": "mmproj를 GPU에 올려 이미지 입력 속도를 우선합니다.",
+        "mmprojCpuDescription": "mmproj를 CPU에서 처리해 VRAM을 절약합니다. 이미지 입력은 느려질 수 있고 MTP는 자동으로 꺼집니다."
+      },
       "memory": {
         "summary": "통합 메모리 {{available}} · 권장 {{required}} · 첫 다운로드 약 {{download}}",
         "sufficient": "이 메모리 등급의 권장 모델입니다.",

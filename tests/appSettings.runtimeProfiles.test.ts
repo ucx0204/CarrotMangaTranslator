@@ -258,6 +258,75 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
     );
   });
 
+  it("applies saved VRAM tuning without changing context or ubatch and disables MTP on CPU mmproj", () => {
+    const defaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "NVIDIA GeForce RTX 4090",
+        memoryMb: 24564,
+        rtxGeneration: 40,
+        computeCapability: 8.9,
+        vendor: "nvidia",
+      },
+    );
+    const options = buildBaseTranslationOptions({
+      jobId: "job-full-mmproj-cpu",
+      runDir: "C:/runs/job-full-mmproj-cpu",
+      paths: {
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/tools",
+        llamaServerPath: "C:/tools/llama-server.exe",
+        hfHomeDir: "C:/hf-home",
+        hfHubCacheDir: "C:/hf-home/hub",
+      },
+      settings: {
+        ...defaults,
+        gemma: {
+          ...defaults.gemma,
+          fitTargetMb: 512,
+          mmprojOffload: false,
+        },
+      },
+      env: {},
+    });
+
+    expect(options.fitTargetMb).toBe(512);
+    expect(options.mmprojOffload).toBe(false);
+    expect(options.useDraft).toBe(false);
+    expect(options.ctx).toBe(DEFAULT_GEMMA_CONTEXT_TOKENS);
+    expect(options.ubatch).toBe(1024);
+  });
+
+  it("keeps MTP off whenever KV is moved to CPU", () => {
+    const defaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "NVIDIA GeForce RTX 4090",
+        memoryMb: 24564,
+        rtxGeneration: 40,
+        computeCapability: 8.9,
+        vendor: "nvidia",
+      },
+    );
+    const options = buildBaseTranslationOptions({
+      jobId: "job-full-kv-cpu",
+      runDir: "C:/runs/job-full-kv-cpu",
+      paths: {
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/tools",
+        llamaServerPath: "C:/tools/llama-server.exe",
+      },
+      settings: defaults,
+      env: {
+        MANGA_TRANSLATOR_KV_OFFLOAD: "false",
+        MANGA_TRANSLATOR_USE_DRAFT: "true",
+      },
+    });
+
+    expect(options.kvOffload).toBe(false);
+    expect(options.useDraft).toBe(false);
+  });
+
   it("migrates removed CUDA legacy quality values onto semantic full OCR", () => {
     const defaults = resolveDefaultAppSettings(
       {},

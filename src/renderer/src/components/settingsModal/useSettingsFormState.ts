@@ -68,6 +68,14 @@ function useSettingsFormSetters(
       setLocalModelPath: createFormFieldDispatch(setValues, "localModelPath"),
       setLocalMmprojPath: createFormFieldDispatch(setValues, "localMmprojPath"),
       setCustomVramMode: createFormFieldDispatch(setValues, "customVramMode"),
+      setGemmaFitTargetMb: createFormFieldDispatch(
+        setValues,
+        "gemmaFitTargetMb",
+      ),
+      setGemmaMmprojOffload: createFormFieldDispatch(
+        setValues,
+        "gemmaMmprojOffload",
+      ),
       setLlamaRuntimeProfile: createFormFieldDispatch(
         setValues,
         "llamaRuntimeProfile",

@@ -150,7 +150,17 @@ function configuredSamplingValue(options, key, fallback) {
 function buildComputeArgs(options, useBeellama) {
   const fitArgs = useBeellama
     ? []
-    : ["--fit", "on", "--fit-target", String(options.fitTargetMb)];
+    : [
+        "--fit",
+        "on",
+        "--fit-target",
+        String(options.fitTargetMb),
+        // llama.cpp otherwise defaults --fit-ctx to 4096 and may silently
+        // shrink the requested context before reducing GPU layer offload.
+        // Keep the configured context as a hard requirement instead.
+        "--fit-ctx",
+        String(options.ctx),
+      ];
   const gpuLayerArgs =
     options.gpuLayers === "fit"
       ? ["-ngl", "auto"]

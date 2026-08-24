@@ -192,6 +192,8 @@ export const AppSettingsSchema = z
         localModelPath: filePath.optional(),
         localMmprojPath: filePath.optional(),
         vramMode: GemmaVramModeSchema,
+        fitTargetMb: z.number().int().min(0).max(8192).optional(),
+        mmprojOffload: z.boolean().optional(),
         llamaRuntimeProfile: LlamaRuntimeProfileSchema.optional(),
         llamaRocmTarget: AmdRocmTargetSchema.optional(),
         allowUnsafeUnifiedMemory: z.boolean().optional(),

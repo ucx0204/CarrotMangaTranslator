@@ -244,6 +244,9 @@ describe("runtime launch argument contracts", () => {
         args.indexOf("--fit-target") + 2,
       ),
     ).toEqual(["--fit-target", "2048"]);
+    expect(
+      args.slice(args.indexOf("--fit-ctx"), args.indexOf("--fit-ctx") + 2),
+    ).toEqual(["--fit-ctx", "8192"]);
     expect(args.slice(args.indexOf("-ngl"), args.indexOf("-ngl") + 2)).toEqual([
       "-ngl",
       "auto",
@@ -322,6 +325,9 @@ describe("runtime launch argument contracts", () => {
         args.indexOf("--fit-target") + 2,
       ),
     ).toEqual(["--fit-target", "2048"]);
+    expect(
+      args.slice(args.indexOf("--fit-ctx"), args.indexOf("--fit-ctx") + 2),
+    ).toEqual(["--fit-ctx", "8192"]);
     expect(args.slice(args.indexOf("-ngl"), args.indexOf("-ngl") + 2)).toEqual([
       "-ngl",
       "auto",

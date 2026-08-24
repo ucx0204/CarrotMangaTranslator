@@ -2,7 +2,7 @@
  * @typedef {{ name: string; candidate: Record<string, unknown>; measured: MeasuredSummary }} ResultSummary
  * @typedef {{ measuredPageCount: number; meanWallMs: number | null; meanPromptTokensPerSecond: number | null; meanPredictedTokensPerSecond: number | null; peakProcessVramMb: number | null; peakGpuDeltaMb: number | null; peakGpuUsedMb: number | null; minBlockCount: number; maxBlockCount: number }} MeasuredSummary
  * @typedef {{ imageTokenClipped: boolean; lastCudaMemoryBreakdown: null | { selfMiB: number; modelMiB: number; contextMiB: number; computeMiB: number } }} ServerLogSummary
- * @typedef {{ name: string; candidate: Record<string, unknown>; failed?: boolean; serverLog?: ServerLogSummary & { path: string }; measured: MeasuredSummary }} BenchmarkResult
+ * @typedef {{ name: string; candidate: Record<string, unknown>; failed?: boolean; loadWallMs?: number | null; serverLog?: ServerLogSummary & { path: string }; measured: MeasuredSummary }} BenchmarkResult
  * @typedef {{ baseline: ResultSummary | null; winner: ResultSummary | null; accepted: ResultSummary[]; rules?: { minWallImprovement: number; vramDeltaLimitMb: number } }} BenchmarkSummary
  * @typedef {{ minWallImprovement: number; vramDeltaLimitMb: number }} BenchmarkRules
  */
@@ -138,8 +138,8 @@ function buildReportHeader(summary, rules) {
     `- Baseline: ${summary.baseline?.name ?? "none"}`,
     `- Rule: >= ${(rules.minWallImprovement * 100).toFixed(1)}% mean wall improvement, <= +${rules.vramDeltaLimitMb} MiB peak VRAM`,
     "",
-    "| Candidate | Mean wall ms | Prompt tok/s | Decode tok/s | Server self MiB | Context MiB | Compute MiB | Peak process VRAM MiB | Peak GPU delta MiB | Blocks | Flags |",
-    "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
+    "| Candidate | Load ms | Mean wall ms | Prompt tok/s | Decode tok/s | Server self MiB | Context MiB | Compute MiB | Peak process VRAM MiB | Peak GPU delta MiB | Blocks | Flags |",
+    "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
   ];
 }
 
@@ -149,6 +149,7 @@ function buildResultRow(result, baseline) {
   const memory = result.serverLog?.lastCudaMemoryBreakdown;
   return [
     result.name,
+    formatNumber(result.loadWallMs, 0),
     formatNumber(measured.meanWallMs, 0),
     formatNumber(measured.meanPromptTokensPerSecond, 2),
     formatNumber(measured.meanPredictedTokensPerSecond, 2),

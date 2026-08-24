@@ -7,7 +7,11 @@ import {
   type ModelPresetId,
 } from "../settingsOptions";
 import type { EngineSettingsPanelProps } from "./EngineSettingsPanelTypes";
-import { GemmaMemorySummary } from "./GemmaMemorySummary";
+import {
+  GemmaMemorySummary,
+  GemmaVramTuningFields,
+  RuntimeHardwareNote,
+} from "./GemmaMemorySummary";
 import { confirmGemmaMemoryRisk } from "./gemmaMemoryRisk";
 import { LocalModelFields } from "./GemmaLocalModelFields";
 import { LlamaRuntimeCompatibilityWarning } from "./LlamaRuntimeCompatibilityWarning";
@@ -26,6 +30,8 @@ type GemmaSettingsFieldsProps = Pick<
   | "customModelFile"
   | "customModelRepo"
   | "detectedGpuName"
+  | "gemmaFitTargetMb"
+  | "gemmaMmprojOffload"
   | "isLlamaRuntimeOptionDisabled"
   | "llamaRuntimeProfile"
   | "allowUnsafeUnifiedMemory"
@@ -41,6 +47,8 @@ type GemmaSettingsFieldsProps = Pick<
   | "setCustomModelFile"
   | "setCustomModelRepo"
   | "setCustomVramMode"
+  | "setGemmaFitTargetMb"
+  | "setGemmaMmprojOffload"
   | "setLlamaRuntimeProfile"
   | "setAllowUnsafeUnifiedMemory"
   | "setLocalMmprojPath"
@@ -65,6 +73,7 @@ export function GemmaSettingsFields(
       ) : (
         <LocalModelFields {...props} />
       )}
+      <GemmaVramTuningFields {...props} />
     </>
   );
 }
@@ -375,37 +384,4 @@ function LlamaRuntimeSelector({
       />
     </div>
   );
-}
-
-function RuntimeHardwareNote({
-  usesAmdHardware,
-  usesAppleHardware,
-  usesNvidiaHardware,
-}: Pick<
-  HuggingFaceModelFieldsProps,
-  "usesAmdHardware" | "usesAppleHardware" | "usesNvidiaHardware"
->): React.JSX.Element | null {
-  const { t } = useTranslation("components");
-  if (usesAppleHardware) {
-    return (
-      <p className="muted-line modal-note">
-        {t("settings.gemma.runtime.appleNote")}
-      </p>
-    );
-  }
-  if (usesAmdHardware) {
-    return (
-      <p className="muted-line modal-note">
-        {t("settings.gemma.runtime.amdNote")}
-      </p>
-    );
-  }
-  if (usesNvidiaHardware) {
-    return (
-      <p className="muted-line modal-note">
-        {t("settings.gemma.runtime.nvidiaNote")}
-      </p>
-    );
-  }
-  return null;
 }

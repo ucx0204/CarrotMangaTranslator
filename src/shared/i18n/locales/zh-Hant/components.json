@@ -1501,6 +1501,16 @@
         "rtx50UsingCuda12Warning": "{{gpu}}屬於RTX 50系列。建議使用RTX 50執行階段，而不是CUDA 12。",
         "nonRtx50UsingRtx50Warning": "{{gpu}}不屬於RTX 50系列。RTX 50執行階段可能無法啟動，建議使用CUDA 12。"
       },
+      "vramTuning": {
+        "reserveLabel": "可用VRAM",
+        "reserveOption": "{{value}} MiB",
+        "reserveDescription": "模型載入後要保留的可用VRAM。降低數值可將更多模型載入GPU以提升速度。提高數值會減少GPU上的模型量並可能變慢，因此只在同時使用其他GPU程式時提高。",
+        "mmprojLabel": "mmproj處理位置",
+        "mmprojGpu": "GPU（速度優先）",
+        "mmprojCpu": "CPU（節省VRAM）",
+        "mmprojGpuDescription": "將mmproj保留在GPU上，以優先確保圖片輸入速度。",
+        "mmprojCpuDescription": "在CPU上處理mmproj以節省VRAM。圖片輸入可能變慢，並會自動關閉MTP。"
+      },
       "memory": {
         "summary": "統一記憶體 {{available}} · 建議 {{required}} · 首次下載約 {{download}}",
         "sufficient": "這是此記憶體等級的建議模型。",

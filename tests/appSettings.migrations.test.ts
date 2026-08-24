@@ -344,6 +344,27 @@ describeWindows("app settings helpers: UI settings and migrations", () => {
     ).toBe("minimum12b");
   });
 
+  it("preserves valid Gemma VRAM tuning and repairs invalid stored values", () => {
+    const defaults = resolveDefaultAppSettings();
+    const tuned = parseStoredAppSettings(
+      JSON.stringify({
+        gemma: { fitTargetMb: 512, mmprojOffload: false },
+      }),
+      defaults,
+    );
+    const repaired = parseStoredAppSettings(
+      JSON.stringify({
+        gemma: { fitTargetMb: 512.5, mmprojOffload: "cpu" },
+      }),
+      defaults,
+    );
+
+    expect(tuned.gemma.fitTargetMb).toBe(512);
+    expect(tuned.gemma.mmprojOffload).toBe(false);
+    expect(repaired.gemma.fitTargetMb).toBe(defaults.gemma.fitTargetMb);
+    expect(repaired.gemma.mmprojOffload).toBe(defaults.gemma.mmprojOffload);
+  });
+
   it("migrates the legacy lowercase 12B mmproj filename", () => {
     const defaults = resolveDefaultAppSettings();
     const restored = parseStoredAppSettings(

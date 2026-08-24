@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
+  DEFAULT_API_KEY_MAX_ATTEMPTS,
+  DEFAULT_API_RETRY_DELAY_SECONDS,
+} from "../src/shared/apiKeySettings";
+import {
   resolveDefaultAppSettings,
   parseStoredAppSettings,
   DEFAULT_API_TEMPERATURE,
@@ -39,6 +43,8 @@ describeWindows("app settings helpers: model providers", () => {
         localModelPath: "D:/models/custom-vision-model.gguf",
         localMmprojPath: "D:/models/mmproj.gguf",
         vramMode: defaults.gemma.vramMode,
+        fitTargetMb: defaults.gemma.fitTargetMb,
+        mmprojOffload: defaults.gemma.mmprojOffload,
         llamaRuntimeProfile: defaults.gemma.llamaRuntimeProfile,
       },
       codex: defaults.codex,
@@ -52,6 +58,30 @@ describeWindows("app settings helpers: model providers", () => {
       keybindings: defaults.keybindings,
       maxTokens: defaults.maxTokens,
       ctx: defaults.ctx,
+    });
+  });
+
+  it("repairs optional API defaults omitted by older default objects", () => {
+    const defaults = resolveDefaultAppSettings();
+    const sparseDefaults = {
+      ...defaults,
+      api: {
+        baseUrl: defaults.api.baseUrl,
+        model: defaults.api.model,
+      },
+    };
+
+    const normalized = parseStoredAppSettings("{}", sparseDefaults);
+
+    expect(normalized.api).toMatchObject({
+      keyMaxAttempts: DEFAULT_API_KEY_MAX_ATTEMPTS,
+      retryDelaySeconds: DEFAULT_API_RETRY_DELAY_SECONDS,
+      temperature: null,
+      topP: null,
+      topK: DEFAULT_API_TOP_K,
+      reasoningEffort: DEFAULT_API_REASONING_EFFORT,
+      extraBodyJson: DEFAULT_API_EXTRA_BODY_JSON,
+      customHeadersJson: DEFAULT_API_CUSTOM_HEADERS_JSON,
     });
   });
 

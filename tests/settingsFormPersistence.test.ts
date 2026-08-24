@@ -165,6 +165,34 @@ describe("GPU selection settings form", () => {
   });
 });
 
+describe("Gemma VRAM tuning settings form", () => {
+  it("round-trips the reserve target and CPU mmproj choice", () => {
+    const initialSettings = resolveDefaultAppSettings();
+    const values = {
+      ...createSettingsFormValues(initialSettings),
+      gemmaFitTargetMb: 512,
+      gemmaMmprojOffload: false,
+    };
+    const result = buildSettingsFromDraft({
+      draft: resolveSettingsDraft(values),
+      initialSettings,
+      keybindings: initialSettings.keybindings ?? {},
+      blockFormatDefaults:
+        initialSettings.blockFormatDefaults ?? DEFAULT_BLOCK_FORMAT_DEFAULTS,
+      values,
+    });
+
+    expect(result.gemma).toMatchObject({
+      fitTargetMb: 512,
+      mmprojOffload: false,
+    });
+    expect(createSettingsFormValues(result)).toMatchObject({
+      gemmaFitTargetMb: 512,
+      gemmaMmprojOffload: false,
+    });
+  });
+});
+
 describe("bubble layout padding settings form", () => {
   it("starts at the recommended 12% when no saved ratio exists", () => {
     const settings = resolveDefaultAppSettings();

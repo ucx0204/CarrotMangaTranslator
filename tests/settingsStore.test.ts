@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AppPaths } from "../src/main/appPaths";
 import {
   getAppSettings,
+  getDefaultAppSettings,
   maskAppSettingsSecrets,
   normalizeAppSettingsForRuntime,
   saveAppSettings,
@@ -101,6 +102,32 @@ describe("settings store", () => {
       runtimeHardware?: unknown;
     };
     expect(persisted.runtimeHardware).toBeUndefined();
+  });
+
+  it("recomputes the settings-dialog restore defaults from the detected VRAM", async () => {
+    const lowMemoryDefaults = await getDefaultAppSettings({}, async () => ({
+      name: "NVIDIA GeForce RTX 2070 SUPER",
+      memoryMb: 8192,
+      rtxGeneration: 20,
+      computeCapability: 7.5,
+      vendor: "nvidia",
+    }));
+    const largerMemoryDefaults = await getDefaultAppSettings({}, async () => ({
+      name: "NVIDIA GeForce RTX 3060",
+      memoryMb: 12288,
+      rtxGeneration: 30,
+      computeCapability: 8.6,
+      vendor: "nvidia",
+    }));
+
+    expect(lowMemoryDefaults.gemma).toMatchObject({
+      fitTargetMb: 512,
+      mmprojOffload: false,
+    });
+    expect(largerMemoryDefaults.gemma).toMatchObject({
+      fitTargetMb: 1024,
+      mmprojOffload: true,
+    });
   });
 
   it.each([

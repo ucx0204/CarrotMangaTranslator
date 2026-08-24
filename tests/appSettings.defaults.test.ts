@@ -43,6 +43,8 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     expect(defaults.gemma.mmprojRepo).toBe(GEMMA_12B_MMPROJ_REPO);
     expect(defaults.gemma.mmprojFile).toBe(GEMMA_12B_MMPROJ_FILE);
     expect(defaults.gemma.mmprojFile).toBe("mmproj-gemma-4-12B-it-BF16.gguf");
+    expect(defaults.gemma.fitTargetMb).toBe(1024);
+    expect(defaults.gemma.mmprojOffload).toBe(true);
     expect(defaults.modelProvider).toBe("openai-codex");
     expect(defaults.gemma.vramMode).toBe("minimum12b");
     expect(defaults.codex.model).toBe(DEFAULT_CODEX_MODEL);
@@ -340,6 +342,38 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     expect(rtx5070Defaults.ocr.gpuCudaTag).toBe(RTX_50_OCR_GPU_CUDA_TAG);
   });
 
+  it("uses the low-memory llama.cpp defaults only through the 8 GiB VRAM boundary", () => {
+    const lowMemoryDefaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "NVIDIA GeForce RTX 2070 SUPER",
+        memoryMb: 8192,
+        rtxGeneration: 20,
+        computeCapability: 7.5,
+        vendor: "nvidia",
+      },
+    );
+    const aboveBoundaryDefaults = resolveDefaultAppSettings(
+      {},
+      {
+        name: "Test GPU above 8 GiB",
+        memoryMb: 8193,
+        rtxGeneration: 20,
+        computeCapability: 7.5,
+        vendor: "nvidia",
+      },
+    );
+
+    expect(lowMemoryDefaults.gemma).toMatchObject({
+      fitTargetMb: 512,
+      mmprojOffload: false,
+    });
+    expect(aboveBoundaryDefaults.gemma).toMatchObject({
+      fitTargetMb: 1024,
+      mmprojOffload: true,
+    });
+  });
+
   it("uses model-aware first-run limits for Gemini 3.5 Flash-Lite", () => {
     const defaults = resolveDefaultAppSettings({
       MANGA_TRANSLATOR_MODEL_PROVIDER: "openai-api",
@@ -369,6 +403,8 @@ describeWindows("app settings helpers: defaults and stored values", () => {
         modelRepo: "custom/repo",
         modelFile: "env-default.gguf",
         vramMode: defaults.gemma.vramMode,
+        fitTargetMb: defaults.gemma.fitTargetMb,
+        mmprojOffload: defaults.gemma.mmprojOffload,
         llamaRuntimeProfile: defaults.gemma.llamaRuntimeProfile,
       },
       codex: defaults.codex,

@@ -4,7 +4,7 @@
  * @typedef {{ serverLogPath?: string; [key: string]: unknown }} BenchmarkOptions
  * @typedef {{ prompt_per_second?: unknown; predicted_per_second?: unknown; [key: string]: unknown }} BenchmarkTimings
  * @typedef {{ runIndex: number; sampleIndex: number; imagePath: string; wallMs: number; blockCount: number; timings: BenchmarkTimings | null; gpu: any }} MeasuredPage
- * @typedef {{ name: string; candidate: BenchmarkCandidate; failed?: boolean; serverPid: number | null; serverLog?: any; beforeStart: any; afterStart?: any; afterStop: any; pages: MeasuredPage[]; measured: any; error?: { message: string; stack: unknown; candidateIndex: number } }} BenchmarkResult
+ * @typedef {{ name: string; candidate: BenchmarkCandidate; failed?: boolean; serverPid: number | null; loadWallMs?: number | null; serverLog?: any; beforeStart: any; afterStart?: any; afterStop: any; pages: MeasuredPage[]; measured: any; error?: { message: string; stack: unknown; candidateIndex: number } }} BenchmarkResult
  * @typedef {{ child?: { pid?: number | null } | null; [key: string]: unknown }} ServerLike
  * @typedef {{ buildLaunchArgs(options: BenchmarkOptions): string[]; requestTranslation(server: ServerLike, options: BenchmarkOptions): Promise<any>; saveArtifacts(options: BenchmarkOptions, result: any): Promise<void>; startServer(options: BenchmarkOptions): Promise<ServerLike>; stopServer(server: ServerLike): Promise<void> }} SimplePageModule
  * @typedef {{ parseJsonLenient(rawText: string): unknown; normalizeItems(parsed: unknown): unknown[] }} OverlayToolsModule
@@ -54,7 +54,9 @@ async function runCandidate({
 
   console.log(`[perf] start ${candidate.name}`);
   const beforeStart = readGpuSnapshot(null);
+  const loadStartedAt = Date.now();
   const server = await simplePage.startServer(options);
+  const loadWallMs = Date.now() - loadStartedAt;
   const pid = server.child?.pid ?? null;
   const afterStart = readGpuSnapshot(pid);
   let pages;
@@ -86,6 +88,7 @@ async function runCandidate({
     afterStart,
     afterStop,
     serverPid: pid,
+    loadWallMs,
     pages,
     measured: summarizeMeasuredPages(pages, beforeStart),
   };
@@ -225,6 +228,7 @@ async function writeFailedCandidateResult({
     candidate,
     failed: true,
     serverPid: null,
+    loadWallMs: null,
     serverLog: {
       path: path.join(candidateDir, "server.log"),
       imageTokenClipped: false,

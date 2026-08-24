@@ -33,6 +33,8 @@ export type EngineSettingsPanelProps = {
   detectedGpuName?: string | null;
   customModelFile: string;
   customModelRepo: string;
+  gemmaFitTargetMb: number;
+  gemmaMmprojOffload: boolean;
   isLlamaRuntimeOptionDisabled: (profile: LlamaRuntimeProfile) => boolean;
   llamaRuntimeProfile: LlamaRuntimeProfile;
   allowUnsafeUnifiedMemory: boolean;
@@ -56,6 +58,8 @@ export type EngineSettingsPanelProps = {
   setCustomModelFile: React.Dispatch<React.SetStateAction<string>>;
   setCustomModelRepo: React.Dispatch<React.SetStateAction<string>>;
   setCustomVramMode: React.Dispatch<React.SetStateAction<GemmaVramMode>>;
+  setGemmaFitTargetMb: React.Dispatch<React.SetStateAction<number>>;
+  setGemmaMmprojOffload: React.Dispatch<React.SetStateAction<boolean>>;
   setLlamaRuntimeProfile: React.Dispatch<
     React.SetStateAction<LlamaRuntimeProfile>
   >;

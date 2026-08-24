@@ -74,7 +74,7 @@ export function resolveDefaultAppSettings(
     env.MANGA_TRANSLATOR_MODEL_PROVIDER,
     hardwareDefaults.modelProvider,
   );
-  const gemma = resolveDefaultGemmaSettings(env, hardwareDefaults);
+  const gemma = resolveDefaultGemmaSettings(env, hardwareDefaults, detectedGpu);
   const codex = resolveDefaultCodexSettings(env);
   const api = resolveDefaultApiSettings(env);
   const recommendedLimits = resolveRecommendedGenerationLimits(
@@ -143,6 +143,7 @@ function resolveDefaultTranslationLanguageSettings(
 function resolveDefaultGemmaSettings(
   env: NodeJS.ProcessEnv,
   hardwareDefaults: HardwareDefaults,
+  detectedGpu?: number | DetectedGpuInfo | null,
 ): AppSettings["gemma"] {
   const vramMode = resolveGemmaVramMode(
     env.MANGA_TRANSLATOR_GEMMA_VRAM_MODE,
@@ -157,6 +158,11 @@ function resolveDefaultGemmaSettings(
     normalizeAmdRocmTarget(
       env.MANGA_TRANSLATOR_AMD_ROCM_TARGET ?? env.MANGA_TRANSLATOR_AMD_GFX_ARCH,
     ) ?? hardwareDefaults.llamaRocmTarget;
+  const memoryDefaults = resolveDefaultGemmaVramSettings({
+    detectedGpu,
+    llamaRuntimeProfile,
+    vramMode,
+  });
   return {
     modelSource: DEFAULT_MODEL_SOURCE,
     modelRepo: resolveNonEmptyString(
@@ -174,6 +180,7 @@ function resolveDefaultGemmaSettings(
       resolveOptionalString(env.LLAMA_ARG_MMPROJ_FILE) ??
       defaultGemmaPreset.mmprojFile,
     vramMode,
+    ...memoryDefaults,
     llamaRuntimeProfile,
     ...(llamaRocmTarget ? { llamaRocmTarget } : {}),
     ...(resolveUnsafeUnifiedMemoryOverride(
@@ -183,6 +190,37 @@ function resolveDefaultGemmaSettings(
       ? { allowUnsafeUnifiedMemory: true }
       : {}),
   };
+}
+
+function resolveDefaultGemmaVramSettings({
+  detectedGpu,
+  llamaRuntimeProfile,
+  vramMode,
+}: {
+  detectedGpu?: number | DetectedGpuInfo | null;
+  llamaRuntimeProfile: AppSettings["gemma"]["llamaRuntimeProfile"];
+  vramMode: AppSettings["gemma"]["vramMode"];
+}): Pick<AppSettings["gemma"], "fitTargetMb" | "mmprojOffload"> {
+  const gpuMemoryMb =
+    typeof detectedGpu === "number"
+      ? detectedGpu
+      : detectedGpu?.vendor === "apple"
+        ? null
+        : detectedGpu?.memoryMb;
+  if (
+    typeof gpuMemoryMb === "number" &&
+    Number.isFinite(gpuMemoryMb) &&
+    gpuMemoryMb > 0 &&
+    gpuMemoryMb <= 8 * 1024
+  ) {
+    return { fitTargetMb: 512, mmprojOffload: false };
+  }
+  // Preserve the existing conservative Metal headroom. Apple Silicon uses
+  // unified memory, so the dedicated-VRAM 8 GiB rule does not apply to it.
+  if (llamaRuntimeProfile === "metal" && vramMode !== "full31b") {
+    return { fitTargetMb: 4096, mmprojOffload: true };
+  }
+  return { fitTargetMb: 1024, mmprojOffload: true };
 }
 
 function resolveUnsafeUnifiedMemoryOverride(value: unknown): boolean {

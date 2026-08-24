@@ -42,6 +42,8 @@ type BuildSettingsFromFormInput = {
   localModelPath: string;
   localMmprojPath: string;
   vramMode: GemmaVramMode;
+  fitTargetMb: number;
+  mmprojOffload: boolean;
   llamaRuntimeProfile: LlamaRuntimeProfile;
   allowUnsafeUnifiedMemory: boolean;
   codexModel: string;
@@ -141,6 +143,8 @@ function buildGemmaSettings(input: BuildSettingsFromFormInput) {
       ? { localMmprojPath: input.localMmprojPath }
       : {}),
     vramMode: input.vramMode,
+    fitTargetMb: input.fitTargetMb,
+    mmprojOffload: input.mmprojOffload,
     llamaRuntimeProfile: input.llamaRuntimeProfile,
     allowUnsafeUnifiedMemory: input.allowUnsafeUnifiedMemory,
     ...(llamaRocmTarget ? { llamaRocmTarget } : {}),

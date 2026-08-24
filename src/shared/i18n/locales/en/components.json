@@ -1535,6 +1535,16 @@
         "rtx50UsingCuda12Warning": "{{gpu}} is an RTX 50-series GPU. The RTX 50 runtime is recommended instead of CUDA 12.",
         "nonRtx50UsingRtx50Warning": "{{gpu}} is not an RTX 50-series GPU. The RTX 50 runtime may not start, so CUDA 12 is recommended."
       },
+      "vramTuning": {
+        "reserveLabel": "Free VRAM",
+        "reserveOption": "{{value}} MiB",
+        "reserveDescription": "VRAM to leave free after the model loads. Lower values can load more of the model onto the GPU for speed. Raise it only when using other GPU apps, because less of the model may stay on the GPU and translation may slow down.",
+        "mmprojLabel": "mmproj processing",
+        "mmprojGpu": "GPU (faster)",
+        "mmprojCpu": "CPU (save VRAM)",
+        "mmprojGpuDescription": "Keep mmproj on the GPU to prioritize image-input speed.",
+        "mmprojCpuDescription": "Process mmproj on the CPU to save VRAM. Image input may be slower, and MTP is disabled automatically."
+      },
       "memory": {
         "summary": "Unified memory {{available}} · recommended {{required}} · first download about {{download}}",
         "sufficient": "Recommended for this memory tier.",
