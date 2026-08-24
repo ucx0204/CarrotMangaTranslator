@@ -251,7 +251,7 @@ describe("FormatDefaultsPanel", () => {
       </FontsContext.Provider>,
     );
 
-    fireEvent.click(screen.getByRole("tab", { name: "액션 효과음" }));
+    fireEvent.click(screen.getByRole("button", { name: "액션 효과음" }));
     expect(screen.queryByText(/프리셋을 직접 조정합니다/)).toBeNull();
     expect(
       screen.queryByText("새로 만드는 텍스트 블록에 적용할 기본 서식입니다."),
@@ -288,7 +288,7 @@ describe("FormatDefaultsPanel", () => {
       </FontsContext.Provider>,
     );
 
-    fireEvent.click(screen.getByRole("tab", { name: "액션 효과음" }));
+    fireEvent.click(screen.getByRole("button", { name: "액션 효과음" }));
     fireEvent.click(screen.getByRole("button", { name: "글자색" }));
 
     expect(screen.getByTestId("preset-groups").textContent).toBe("color");

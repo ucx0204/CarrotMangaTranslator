@@ -1,5 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { CheckboxField } from "./ui/CheckboxField";
 import { SegmentedControl } from "./ui/SegmentedControl";
 
 export function TranslationOptionSection({
@@ -89,33 +90,21 @@ export function ToggleOptionRow({
   description?: string;
   disabled?: boolean;
 }): React.JSX.Element {
-  const descriptionId = React.useId();
   return (
-    <div
-      className={["translate-options-toggle-row", disabled ? "disabled" : ""]
-        .filter(Boolean)
-        .join(" ")}
-    >
-      <button
-        type="button"
-        className="translate-options-toggle-button"
-        aria-pressed={pressed}
-        aria-describedby={description ? descriptionId : undefined}
-        disabled={disabled}
-        onClick={() => onChange(!pressed)}
-      >
-        <span
-          className="translate-options-toggle-indicator"
-          aria-hidden="true"
-        />
-        <span>{label}</span>
-      </button>
-      {description ? (
-        <p id={descriptionId} className="translate-options-selected-hint">
-          {description}
-        </p>
-      ) : null}
-    </div>
+    <CheckboxField
+      variant="switch"
+      className="translate-options-switch"
+      checked={pressed}
+      ariaLabel={label}
+      disabled={disabled}
+      onCheckedChange={onChange}
+      label={
+        <span className="translate-options-switch-copy">
+          <strong>{label}</strong>
+          {description ? <small>{description}</small> : null}
+        </span>
+      }
+    />
   );
 }
 
@@ -151,8 +140,6 @@ export function OptionRow<T extends string>({
         <span className="translate-options-label">{label}</span>
       ) : null}
       <SegmentedControl
-        className="settings-mode-group"
-        buttonClassName="settings-preset-button"
         ariaLabel={label}
         ariaDescribedBy={description ? descriptionId : undefined}
         disabled={disabled}

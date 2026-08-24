@@ -15,7 +15,7 @@ import {
   clampLetterSpacingEm,
   clampLineHeight,
 } from "../../../shared/blockFormatValues";
-import { ScrubbableNumberField } from "./ui/ScrubbableNumberField";
+import { NumberField } from "./ui/NumberField";
 
 type BlockSpacingFieldsProps = {
   block: TranslationBlock;
@@ -45,7 +45,8 @@ export function BlockSpacingFields({
   return (
     <>
       <EditorNumberCell label={labels.lineHeight}>
-        <ScrubbableNumberField
+        <NumberField
+          variant="scrubber"
           ariaLabel={labels.lineHeight}
           decreaseLabel={decreaseLabel(labels.lineHeight)}
           increaseLabel={increaseLabel(labels.lineHeight)}
@@ -61,7 +62,8 @@ export function BlockSpacingFields({
         />
       </EditorNumberCell>
       <EditorNumberCell label={labels.letterSpacing}>
-        <ScrubbableNumberField
+        <NumberField
+          variant="scrubber"
           ariaLabel={labels.letterSpacing}
           decreaseLabel={decreaseLabel(labels.letterSpacing)}
           increaseLabel={increaseLabel(labels.letterSpacing)}
@@ -78,7 +80,8 @@ export function BlockSpacingFields({
         />
       </EditorNumberCell>
       <EditorNumberCell label={labels.fontWidth}>
-        <ScrubbableNumberField
+        <NumberField
+          variant="scrubber"
           ariaLabel={labels.fontWidth}
           decreaseLabel={decreaseLabel(labels.fontWidth)}
           increaseLabel={increaseLabel(labels.fontWidth)}

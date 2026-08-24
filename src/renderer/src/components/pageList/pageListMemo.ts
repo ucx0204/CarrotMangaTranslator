@@ -1,4 +1,5 @@
 import type { MangaPage } from "../../../../shared/libraryTypes";
+import type { ObservePageThumbnail } from "../pageThumbnails";
 import type { PageStatusMode } from "./pageListStatus";
 
 export type SortablePageItemProps = {
@@ -7,6 +8,7 @@ export type SortablePageItemProps = {
   disabled: boolean;
   locked: boolean;
   statusMode: PageStatusMode;
+  observeThumbnail: ObservePageThumbnail;
   onSelect: (pageId: string) => void;
   onRetranslate: (pageId: string) => void;
   onRemove: (pageId: string) => void;
@@ -39,6 +41,7 @@ function arePageItemBindingsEqual(
   return (
     previous.disabled === next.disabled &&
     previous.locked === next.locked &&
+    previous.observeThumbnail === next.observeThumbnail &&
     previous.onRemove === next.onRemove &&
     previous.onRetranslate === next.onRetranslate &&
     previous.onSelect === next.onSelect &&

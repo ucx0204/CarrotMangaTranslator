@@ -66,7 +66,6 @@ async function runRevertInpainting(
       t("inpainting.revert.success", { count: result.pagesChanged }),
     );
   } catch (error) {
-    console.error(error);
     failInpaintingJob(
       options.setJobState,
       options.pushStatus,

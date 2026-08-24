@@ -342,51 +342,9 @@
   color: var(--text);
 }
 
-.style-guide-usage-number:focus-visible,
-.style-guide-enabled-toggle:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 1px;
-}
-
+/* The toggle itself is ui/CheckboxField variant="switch"; only placement is local. */
 .style-guide-enabled-toggle {
-  position: relative;
   justify-self: center;
-  width: 32px;
-  height: 18px;
-  padding: 2px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-pill);
-  background: var(--bg-sunken);
-  cursor: pointer;
-  transition:
-    border-color 120ms ease,
-    background 120ms ease;
-}
-
-.style-guide-enabled-toggle > span {
-  display: block;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--text-muted);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-  transition:
-    background 120ms ease,
-    transform 140ms ease;
-}
-
-.style-guide-enabled-toggle:hover {
-  border-color: var(--border-hover);
-}
-
-.style-guide-enabled-toggle[aria-checked="true"] {
-  border-color: var(--accent-bd);
-  background: var(--accent-soft);
-}
-
-.style-guide-enabled-toggle[aria-checked="true"] > span {
-  background: var(--accent-hi);
-  transform: translateX(14px);
 }
 
 .style-guide-row .style-guide-row-delete {

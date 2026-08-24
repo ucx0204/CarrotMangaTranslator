@@ -63,7 +63,6 @@ async function runBubbleLayout(
       t("library.refreshAfterJobFailed"),
     );
   } catch (error) {
-    console.error(error);
     failInpaintingJob(
       options.setJobState,
       options.pushStatus,

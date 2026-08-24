@@ -75,7 +75,6 @@ export function useLibraryDropImport({
       setTranslationSourceOpen(false);
       setImportPreview(response.preview);
     } catch (error) {
-      console.error(error);
       const message = formatErrorMessage(error, t("import.drop.readFailed"));
       pushStatus(message);
       toast.error(message);

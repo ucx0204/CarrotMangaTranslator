@@ -16,10 +16,14 @@ export function InpaintingGuideModal({
 
   return (
     <Modal
-      ariaLabel={t("inpainting.guide.title")}
+      title={t("inpainting.guide.title")}
       size="xl"
       width="min(1360px, calc(100vw - 24px))"
       bodyClassName={styles.body}
+      // Read-only guide: dismissing it cannot lose work, so the backdrop and
+      // the header close button both honour the "don't show again" checkbox.
+      closeOnBackdrop
+      onClose={() => onClose(hideNextTime)}
       footer={
         <ModalActionBar
           leading={

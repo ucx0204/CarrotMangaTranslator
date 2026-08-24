@@ -12,7 +12,7 @@
     "reportIssueMenu": "回報 macOS Alpha 問題",
     "firstRunTitle": "Apple Silicon Alpha",
     "firstRunMessage": "此 Apple Silicon Alpha 版本仍在進行實機驗證。",
-    "firstRunDetail": "支援 M1 或更新晶片、macOS 14 或更高版本。建議統一記憶體：16GB 用於 Gemma 12B 與 Flux，24GB 用於 26B，32GB 以上用於 31B+DFlash。Gemma、OCR 與修補模型會在首次使用時下載，可能需要數GB空間與較長時間。遇到問題時，請檢查診斷資訊後透過 GitHub Issue 回報。",
+    "firstRunDetail": "支援 M1 或更新晶片、macOS 14 或更高版本。建議統一記憶體：16GB 用於 Gemma 12B 與 Flux，24GB 用於 26B，32GB 以上用於 31B+DFlash。Gemma、OCR 與修補模型會在首次使用時下載數GB以上的資料，所需時間可能因網路狀況而很長。遇到問題時，請檢查診斷資訊後透過 GitHub Issue 回報。",
     "continue": "繼續",
     "aboutDetail": "Apple Silicon Alpha · 正在進行實機驗證\n支援：M1 或更新 / macOS 14 或更高\n請透過 GitHub Issue 回報問題。",
     "stableAboutDetail": "Carrot Manga Translator"
@@ -185,7 +185,7 @@
       "inpaintingDimensionsMismatch": "{{page}} 的修補圖片尺寸與原圖不一致。",
       "invalidImageDimensions": "{{page}} 的實際圖片尺寸無效。",
       "invalidTrashLocation": "共享匯入暫存位置無效。",
-      "invalidChapterLocation": "章節資訊的媒體庫位置無效。"
+      "invalidChapterLocation": "章節資訊的資料庫位置無效。"
     }
   },
   "translation": {

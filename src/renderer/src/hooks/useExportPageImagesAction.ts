@@ -158,7 +158,6 @@ function reportExportFailure(
   { pushStatus, setJobState }: ExportRuntime,
   t: ReturnType<typeof useTranslation>["t"],
 ): never {
-  console.error(error);
   failExportJob(
     setJobState,
     pushStatus,

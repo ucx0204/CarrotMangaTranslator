@@ -42,7 +42,7 @@
     "chapterCount": "{{count}}話",
     "sort": {
       "label": "排序",
-      "library": "收藏庫順序",
+      "library": "資料庫順序",
       "title": "名稱",
       "recent": "最近更新"
     }
@@ -122,7 +122,7 @@
     "redoNamed": "重做{{action}}（Ctrl+Y / Ctrl+Shift+Z）",
     "undoShort": "復原",
     "redoShort": "重做",
-    "original": "原圖",
+    "original": "比較原圖",
     "compareOriginal": "與原圖比較",
     "hideOriginal": "結束原圖比較",
     "resetPage": "重設為原圖",
@@ -311,7 +311,7 @@
     "text": "文字",
     "translatedText": "譯文",
     "eraseOriginal": "清除原文",
-    "fitBubble": "適配對話框",
+    "fitBubble": "對話框適配",
     "moreActions": "更多文字區塊操作",
     "sourceEmpty": "無 OCR 文字",
     "tabs": {
@@ -353,9 +353,9 @@
       "inlineStyle": "逐字格式",
       "resetAll": "重設全部譯文格式",
       "resetAllTitle": "移除譯文中的所有強調和逐字格式",
-      "size": "字元大小",
+      "size": "字級",
       "font": "字元字型",
-      "opacity": "字元不透明度",
+      "opacity": "文字不透明度",
       "mixed": "混合",
       "placeholder": "輸入譯文",
       "codeAria": "譯文格式程式碼",
@@ -390,6 +390,7 @@
     }
   },
   "fontSelect": {
+    "label": "字體",
     "addFont": "+ 新增TTF/OTF字體",
     "deleteFont": "刪除此字體",
     "deleteNamedFont": "刪除{{label}}",
@@ -420,7 +421,7 @@
     "loadingPages": "正在載入頁面…",
     "loadPagesFailed": "無法載入頁面。",
     "noPages": "沒有頁面。",
-    "thumbnailLoadFailed": "無法顯示預覽",
+    "thumbnailLoadFailed": "預覽失敗",
     "translated": "已翻譯",
     "chapterSummaryComplete": "{{count}}頁 · 完成",
     "chapterSummaryRemaining": "{{count}}頁 · 剩餘{{remaining}}",
@@ -506,7 +507,7 @@
     "workUnavailable": "無法載入作品資訊。將只處理目前頁面。",
     "currentPageSummary": "只清除目前頁面。",
     "allPagesSummary": "清除目前章節的全部{{count}}頁。",
-    "bubbleLayout": "清除後適配對話框",
+    "bubbleLayout": "影像修補後進行對話框適配",
     "bubbleLayoutHint": "從清除後的圖片偵測對話框區域，並自動調整譯文排版。"
   },
   "translationOptions": {
@@ -555,7 +556,7 @@
       "on": "依文字區塊大小整理譯文換行。"
     },
     "autoFontMatching": "自動配對字型",
-    "autoFontMatchingSummary": "依照原文字形，為對白、旁白、強調與擬聲詞逐區塊自動配對合適字型。同一話的正文字型一致性只作為弱提示，未通過驗證品質門檻的結果不會套用。",
+    "autoFontMatchingSummary": "為每個文字區塊自動套用符合原文氛圍的韓文字型。",
     "completionMode": "完成方式",
     "completionModeTranslate": "僅翻譯",
     "completionModeErase": "清除原文",
@@ -613,7 +614,7 @@
     "clearAll": "全部取消",
     "selectedSummary": "已選取 {{selected}}/{{visible}} 張",
     "initialTitle": "從公開網頁匯入圖片",
-    "initialHint": "輸入連結後，將依頁面由上到下顯示大圖。",
+    "initialHint": "預設僅依網頁由上到下的順序顯示大型圖片。",
     "noMatchingImages": "沒有符合此大小的圖片",
     "tryAnotherFilter": "請選擇全部或中等以上以擴大範圍。",
     "skippedResult": "已略過 {{skipped}} 張不支援、重複或損壞的圖片。",
@@ -636,7 +637,7 @@
     "errors": {
       "invalidUrl": "請輸入有效的公開網頁連結。",
       "invalid-url": "無法開啟此格式的連結。",
-      "private-address": "無法開啟本機或私人網路位址。",
+      "private-address": "為確保安全，無法開啟本機或私人網路位址。",
       "page-unavailable": "無法開啟頁面，請確認連結為公開連結。",
       "timed-out": "載入時間過長，請再試一次。",
       "busy": "其他工作正在進行，請完成後再試。",
@@ -664,7 +665,7 @@
     "chapterTitle": "章節標題",
     "liveResults": {
       "enable": "自動儲存到結果資料夾",
-      "description": "儲存到結果/作品名/章節名；停止編輯3秒後只更新已變更頁面。",
+      "description": "依作品與章節將結果儲存到對應資料夾。",
       "format": "自動儲存格式"
     }
   },
@@ -967,6 +968,7 @@
     "defaultFont": "預設字體",
     "formatDisabled": "工作執行時無法套用格式。",
     "directFormatTitle": "編輯所選文字區塊格式",
+    "presetHint": "將已儲存的預設載入所選文字區塊。",
     "previewTitle": "套用預覽",
     "previewBasis": "以第一個選取區塊為基準，即時顯示變更。",
     "previewTextLabel": "範例文字",
@@ -1251,7 +1253,6 @@
   },
   "settings": {
     "title": "設定",
-    "applyNextRun": "變更將從下一個翻譯工作開始套用。",
     "tabs": {
       "ariaLabel": "設定區域",
       "general": "一般",
@@ -1267,14 +1268,14 @@
       "languageDescription": "變更整個應用程式使用的介面語言。"
     },
     "results": {
-      "description": "依作品與章節設定自動儲存。預設：結果/作品名/章節名",
+      "description": "依作品與章節設定結果自動儲存。",
       "empty": "資料庫中沒有可管理的作品。",
       "searchLabel": "搜尋結果自動儲存",
       "searchPlaceholder": "搜尋作品/章節",
-      "noSearchResults": "沒有符合的作品或章節。",
+      "noSearchResults": "沒有符合條件的作品或章節。",
       "chapterCount": "{{count}}章",
       "toggleChapter": "{{title}}的結果自動儲存",
-      "defaultLocationReady": "啟用後儲存到預設結果資料夾",
+      "defaultLocationReady": "儲存到預設結果資料夾",
       "defaultLocation": "預設結果資料夾",
       "customLocation": "自訂資料夾",
       "moreActions": "更多自動儲存操作",
@@ -1434,7 +1435,7 @@
       "fluxBackends": {
         "metal": {
           "label": "Apple Metal",
-          "description": "Apple Silicon 上執行 Flux Klein 的原生 Metal 執行環境。"
+          "description": "在 Apple Silicon 上執行 Flux Klein 所必需的原生 Metal 執行環境。"
         },
         "cuda": {
           "label": "NVIDIA CUDA",
@@ -1469,7 +1470,7 @@
       }
     },
     "translation": {
-      "title": "翻譯語言",
+      "title": "翻譯語言設定",
       "source": "原文語言",
       "target": "目標語言",
       "swapTitle": "交換原文語言和目標語言",
@@ -1657,14 +1658,15 @@
       "fluxAppleNote": "Apple Silicon 僅使用原生 Metal 後端。Flux 建議至少 16GB 統一記憶體。",
       "fluxNvidiaNote": "偵測到 NVIDIA GPU，將使用 CUDA 原生後端而不是 ZLUDA。",
       "fluxOnlyNote": "此後端設定僅適用於 Flux Klein 模型。",
-      "fluxLowMemoryConfirm": "統一記憶體 {{available}} 低於 Flux 建議的 16GB。是否允許風險執行？",
+      "fluxLowMemoryConfirm": "統一記憶體 {{available}} 低於 Flux 建議的 16GB。應用程式可能結束或使系統極度緩慢。是否允許此次風險執行？",
       "fluxLowMemoryOverride": "允許在 {{available}} 統一記憶體下風險執行 Flux",
       "sm75FluxWarningTitle": "僅限 RTX 20 系列",
       "sm75FluxWarningDetail": "其行為或結果可能與標準 NVIDIA CUDA 略有不同。",
       "fluxAmdUnsupportedTitle": "AMD官方未支援的GPU",
       "fluxAmdUnsupportedDetail": "{{gpu}}不在AMD目前Windows HIP SDK官方支援清單中。仍可實驗性選擇ZLUDA，但執行時可能失敗。",
       "fluxAmdUseCpu": "切換到CPU後端",
-      "downloadHipSdk": "下載AMD HIP SDK"
+      "downloadHipSdk": "下載AMD HIP SDK",
+      "openLinkFailed": "無法開啟連結。請檢查預設瀏覽器。"
     },
     "format": {
       "alignment": {
@@ -1696,7 +1698,7 @@
         "fontWidth": "字寬"
       },
       "bubbleLayout": {
-        "title": "對話框配合",
+        "title": "對話框適配",
         "description": "在偵測到的對話框邊界內側保留的間距",
         "padding": "內距"
       },
@@ -1751,7 +1753,7 @@
         "duplicate-block": "複製所選文字區塊",
         "toggle-block-excluded": "切換文字區塊的影像修補排除狀態",
         "toggle-command-palette": "命令選擇區",
-        "toggle-shortcut-help": "快速鍵",
+        "toggle-shortcut-help": "快速鍵說明",
         "open-settings": "開啟設定"
       }
     },
@@ -1879,7 +1881,7 @@
     "sortName": "按名稱",
     "loading": "正在載入文字區塊庫…",
     "empty": "尚未儲存文字區塊。可從文字區塊操作選單中儲存。",
-    "noSearchResults": "沒有搜尋結果。",
+    "noSearchResults": "沒有符合條件的文字區塊。",
     "noPage": "目前沒有可插入的頁面，但仍可管理已儲存的文字區塊。",
     "missingFont": "字型缺失 · 使用替代字型預覽",
     "edit": "編輯文字區塊",
@@ -1923,7 +1925,7 @@
     "moveDown": "下移",
     "editorTitle": "預設 · {{name}}",
     "includedGroups": "預設套用項目",
-    "includedGroupsHint": "目前啟用 {{count}} 項",
+    "includedGroupsHint": "目前套用 {{count}} 項",
     "disabledGroupTooltip": "此項未包含在預設中。請向下捲動，在「預設套用項目」中啟用。",
     "minimumGroupRequired": "預設必須至少套用一個格式項目。",
     "createQuick": "新增預設",

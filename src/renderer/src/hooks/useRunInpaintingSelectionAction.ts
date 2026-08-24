@@ -65,7 +65,6 @@ async function runSelectedInpainting(
     );
     reportSelectionResult(outcome, options, t);
   } catch (error) {
-    console.error(error);
     reportSelectionFailure(
       formatErrorMessage(error, t("inpainting.erase.startFailed")),
       options,

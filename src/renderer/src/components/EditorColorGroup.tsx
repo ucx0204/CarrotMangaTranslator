@@ -27,7 +27,7 @@ import { Button } from "./ui/Button";
 import { CheckboxField } from "./ui/CheckboxField";
 import { FieldSlider } from "./ui/FieldSlider";
 import { IconButton } from "./ui/IconButton";
-import { ScrubbableNumberField } from "./ui/ScrubbableNumberField";
+import { NumberField } from "./ui/NumberField";
 
 let lastPositiveOutlineWidthPx = DEFAULT_MANUAL_TEXT_OUTLINE_WIDTH_PX;
 
@@ -88,7 +88,8 @@ export function EditorColorGroup({
       </div>
       <div className="editor-outline-width-control">
         <span>{t("gatherText.outlineWidth")}</span>
-        <ScrubbableNumberField
+        <NumberField
+          variant="scrubber"
           ariaLabel={t("gatherText.outlineWidth")}
           decreaseLabel={t("format.decreaseValue", {
             label: t("gatherText.outlineWidth"),
@@ -228,7 +229,8 @@ function TextEffectNumberField({
   return (
     <div className="editor-format-number-cell">
       <span>{label}</span>
-      <ScrubbableNumberField
+      <NumberField
+        variant="scrubber"
         ariaLabel={label}
         decreaseLabel={t("format.decreaseValue", { label })}
         increaseLabel={t("format.increaseValue", { label })}

@@ -709,7 +709,8 @@ describe("selected block font-size adjustment", () => {
     act(() => document.dispatchEvent(new Event("selectionchange")));
 
     const inlinePanel = screen.getByRole("region", { name: "글자별 서식" });
-    const fontTrigger = within(inlinePanel).getByRole("button", {
+    // The font picker is now ui/Select, so its trigger is a combobox.
+    const fontTrigger = within(inlinePanel).getByRole("combobox", {
       name: "글자 폰트",
     });
     fireEvent.click(fontTrigger);

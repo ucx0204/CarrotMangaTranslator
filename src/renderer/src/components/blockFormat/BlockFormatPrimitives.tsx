@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { RangeInput } from "../ui/Field";
-import { ScrubbableNumberField } from "../ui/ScrubbableNumberField";
+import { NumberField } from "../ui/NumberField";
 
 export function BlockFormatSectionHeading({
   title,
@@ -119,7 +119,8 @@ export function FormatNumberControl({
         mixed={mixed}
         touched={touched}
       />
-      <ScrubbableNumberField
+      <NumberField
+        variant="scrubber"
         ariaLabel={label}
         decreaseLabel={t("format.decreaseValue", { label })}
         increaseLabel={t("format.increaseValue", { label })}

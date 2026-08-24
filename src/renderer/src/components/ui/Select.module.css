@@ -7,14 +7,22 @@
 
 .trigger {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  /*
+   * The label takes the free space and every trailing slot (an optional
+   * `triggerExtra`, then the caret) gets its own auto column. Auto-flow keeps
+   * that true for any number of slots — a fixed track list would push the last
+   * child onto a second row as soon as one more was added.
+   */
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: auto;
   align-items: center;
   gap: var(--sp-3);
   width: 100%;
   min-width: 0;
   min-height: var(--ctl-h);
   padding: var(--ctl-pad-y) var(--ctl-pad-x);
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--control-border);
   border-radius: var(--r-md);
   background: var(--bg-sunken);
   color: var(--text);
@@ -24,7 +32,7 @@
 }
 
 .trigger:hover:not(:disabled) {
-  border-color: var(--border-hover);
+  border-color: var(--control-border-hover);
   background: color-mix(in srgb, var(--bg-sunken) 78%, var(--bg-hover));
 }
 
@@ -56,20 +64,27 @@
 
 .menu {
   position: fixed;
-  z-index: var(--layer-select-menu, 10000);
+  z-index: var(--layer-select-menu, 210);
   display: flex;
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
   border: 1px solid var(--border-hover);
   border-radius: var(--r-lg);
-  background: #11151b;
+  background: var(--bg-sunken);
   box-shadow: var(--shadow-overlay);
 }
 
 .menuHeader {
   flex: 0 0 auto;
   border-bottom: 1px solid var(--border-soft);
+}
+
+.menuFooter {
+  flex: 0 0 auto;
+  padding: var(--sp-2);
+  border-top: 1px solid var(--border-soft);
+  background: color-mix(in srgb, var(--bg-raised) 82%, var(--bg-sunken));
 }
 
 .searchWrap {
@@ -96,7 +111,15 @@
 
 .option {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 18px;
+  /*
+   * The label owns the free space and is the first thing to ellipsize; every
+   * optional trailing slot (preview, row actions, then the check) gets its own
+   * auto column. Auto-flow is what keeps the row on one line and inside the
+   * menu no matter which slots a caller fills.
+   */
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: auto;
   align-items: center;
   gap: var(--sp-3);
   min-height: 36px;
@@ -105,6 +128,28 @@
   border-radius: var(--r-md);
   color: var(--text-dim);
   cursor: default;
+}
+
+/*
+ * Optional preview slot (e.g. a font sample). It is secondary to the label, so
+ * it is bounded: an auto track would otherwise claim its max-content width
+ * first and starve the label that the row is actually chosen by. The bound is
+ * in `ch` because a percentage would resolve against zero while the grid sizes
+ * its tracks and collapse the preview to a bare ellipsis.
+ */
+.optionPreview {
+  min-width: 0;
+  max-width: 16ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.optionActions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-1);
 }
 
 .groupLabel {

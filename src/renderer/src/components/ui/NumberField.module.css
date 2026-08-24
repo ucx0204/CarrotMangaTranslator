@@ -1,0 +1,180 @@
+/*
+ * Deliberately unlayered. These rules have to beat the global `button` and
+ * `input` element rules in `foundations.css`; a cascade layer always loses to an
+ * unlayered rule no matter how specific it is, which silently handed the step
+ * buttons a 6px/10px padding, a border, a background and a radius of their own.
+ *
+ * The global input baseline is escaped structurally instead: the inner input
+ * carries `data-ui-framed-input`, which `foundations.css` excludes.
+ */
+
+/* Shared framed box for the `scrubber` and `framed` variants. */
+.root {
+  --number-field-h: var(--ctl-h);
+  display: grid;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  height: var(--number-field-h);
+  overflow: hidden;
+  border: 1px solid var(--control-border);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+}
+
+/*
+ * Value flanked by the −/+ step buttons, which also drag-scrub.
+ *
+ * Keep the step zones comfortably clickable without making them visually read
+ * as three separate boxes.
+ */
+.scrubber {
+  grid-template-columns: 30px minmax(0, 1fr) 30px;
+}
+
+/*
+ * Framed value with no step buttons: for rows whose slider already provides the
+ * coarse adjustment, and for tracks too narrow to spare the buttons.
+ */
+.framed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.root:focus-within {
+  border-color: var(--accent-bd);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.root:hover:not(:has(:disabled)) {
+  border-color: var(--control-border-hover);
+}
+
+.root:has(.input[aria-invalid="true"]) {
+  border-color: var(--danger-bd);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger-bd) 40%, transparent);
+}
+
+/*
+ * Flush glyph zones, not buttons. A border, radius and fill of their own turned
+ * one field into three stacked boxes; hover tints the zone instead.
+ */
+.button {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--font-lg);
+  font-weight: 500;
+  line-height: 1;
+  cursor: ew-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+.button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--bg-hover) 70%, transparent);
+  color: var(--text);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.button:disabled {
+  background: transparent;
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* The whole centre zone remains an input target even when the value is short. */
+.inputShell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 0 2px;
+  cursor: text;
+}
+
+.inputShell:has(.input:disabled) {
+  cursor: not-allowed;
+}
+
+.input {
+  /*
+   * Fill the centre zone even when the value has one digit. Chromium can then
+   * place its native caret from the actual click coordinate: clicks to the
+   * left of the centred value land at its start, and clicks to the right land
+   * at its end. Shrinking the input to its text made both empty sides
+   * mere focus targets and discarded that useful spatial cue.
+   */
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--font-sm);
+  font-variant-numeric: tabular-nums;
+  /* Keep the editable value centred; the unit remains pinned on the right. */
+  text-align: center;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+/*
+ * The frame shows focus via `.root:focus-within`. Without this the global
+ * `input:focus-visible { outline: 2px solid }` also fires, and because
+ * `field-sizing` shrinks the input to its digits that outline draws a tight box
+ * around the value itself, inside the field's own ring.
+ */
+.input:focus,
+.input:focus-visible {
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+}
+
+.input:disabled {
+  opacity: 0.55;
+}
+
+.input::placeholder {
+  color: var(--text-dim);
+  opacity: 1;
+}
+
+/* Subordinate to the value: smaller and dimmer, so the number reads first. */
+.unit {
+  position: absolute;
+  top: 50%;
+  right: var(--sp-3);
+  color: color-mix(in srgb, var(--text-muted) 72%, transparent);
+  font-size: var(--font-2xs);
+  line-height: 1;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+/*
+ * Applies to every NumberField input, framed or not. The native stepper is
+ * tiny, appears only on hover, and sits on top of the value.
+ */
+.numberInput::-webkit-inner-spin-button,
+.numberInput::-webkit-outer-spin-button {
+  display: none;
+  margin: 0;
+  appearance: none;
+}

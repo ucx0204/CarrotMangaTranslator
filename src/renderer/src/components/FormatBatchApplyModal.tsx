@@ -49,7 +49,6 @@ export function FormatBatchApplyModal({
       onClose={onClose}
       closeOnBackdrop
       size="sm"
-      ariaLabel={t("formatBatch.title")}
       footer={
         <ModalActionBar
           actions={

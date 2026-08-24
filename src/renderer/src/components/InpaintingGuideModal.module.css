@@ -10,7 +10,8 @@
 .image {
   display: block;
   width: 100%;
-  max-height: calc(100vh - 150px);
+  /* `--modal-available-h` is the dialog's own height budget; subtract its chrome. */
+  max-height: calc(var(--modal-available-h) - 150px);
   object-fit: contain;
   border-radius: 12px;
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);

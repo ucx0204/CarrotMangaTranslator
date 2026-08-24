@@ -1,4 +1,5 @@
 import React from "react";
+import { useEscapeStackEntry } from "./popupStack";
 import type { MenuPosition, SelectOption } from "./selectTypes";
 import {
   resolveInitialActiveValue,
@@ -24,6 +25,9 @@ export type SelectLifecycleProps = {
 };
 
 export function useSelectLifecycle(props: SelectLifecycleProps): void {
+  // The open menu joins the shared Escape stack so an enclosing popover defers
+  // to it; the menu itself handles Escape through its own keydown handler.
+  useEscapeStackEntry(props.open);
   useMenuPosition(props);
   useOutsideDismiss(props);
   useDisabledClose(props);

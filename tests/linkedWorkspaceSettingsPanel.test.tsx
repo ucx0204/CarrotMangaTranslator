@@ -71,6 +71,17 @@ afterEach(() => {
 });
 
 describe("LinkedWorkspaceSettingsPanel", () => {
+  it("treats an empty bridge status response as no linked chapters", async () => {
+    Reflect.apply(listStatuses.mockResolvedValueOnce, listStatuses, [null]);
+
+    render(<LinkedWorkspaceSettingsPanel library={makeLibrary()} />);
+
+    const firstChapterToggle = await screen.findByRole("checkbox", {
+      name: "1화 결과물 자동 저장",
+    });
+    expect((firstChapterToggle as HTMLInputElement).checked).toBe(false);
+  });
+
   it("lists every work/chapter and toggles each chapter independently", async () => {
     render(<LinkedWorkspaceSettingsPanel library={makeLibrary()} />);
     expect(await screen.findByText("테스트 작품")).toBeTruthy();
@@ -154,7 +165,9 @@ describe("LinkedWorkspaceSettingsPanel", () => {
     fireEvent.change(screen.getByPlaceholderText("작품/화 검색"), {
       target: { value: "없는 작품" },
     });
-    expect(await screen.findByText("검색 결과가 없습니다.")).toBeTruthy();
+    expect(
+      await screen.findByText("조건에 맞는 작품이나 화가 없습니다."),
+    ).toBeTruthy();
 
     fireEvent.change(screen.getByPlaceholderText("작품/화 검색"), {
       target: { value: "" },

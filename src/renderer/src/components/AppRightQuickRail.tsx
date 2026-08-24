@@ -13,6 +13,7 @@ import {
   type WorkspaceOriginalOpacityControlProps,
 } from "./WorkspaceOriginalOpacityControl";
 import { ControlTooltip } from "./ui/ControlTooltip";
+import { IconButton } from "./ui/IconButton";
 
 export type AppRightQuickRailProps = Pick<
   UnifiedRightRailProps,
@@ -232,14 +233,15 @@ function QuickRailGroupToggle({
       content={label}
       placement="left"
     >
-      <button
-        type="button"
+      <IconButton
+        variant="canvas"
         aria-pressed={collapsed}
-        aria-label={label}
+        label={label}
+        title=""
         onClick={onToggle}
       >
         <Icon size={20} stroke={2.2} aria-hidden="true" />
-      </button>
+      </IconButton>
     </ControlTooltip>
   );
 }

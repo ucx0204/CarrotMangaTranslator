@@ -38,9 +38,9 @@
 .translation-overwrite-warning {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
+  align-items: center;
   gap: var(--sp-3);
-  padding: var(--sp-6);
+  padding: var(--sp-3) var(--sp-4);
   border: 1px solid rgba(239, 111, 108, 0.48);
   border-radius: var(--r-md);
   background: rgba(124, 48, 48, 0.16);
@@ -56,23 +56,26 @@
 }
 
 .translation-overwrite-warning > svg {
-  margin-top: 1px;
+  width: 16px;
+  height: 16px;
 }
 
 .translation-overwrite-warning > div {
   display: grid;
-  gap: 3px;
+  gap: 2px;
+  min-width: 0;
 }
 
 .translation-overwrite-warning strong {
   color: #ffd0cd;
   font-size: var(--font-sm);
+  line-height: 1.35;
 }
 
 .translation-overwrite-warning span {
   color: #dca8a5;
-  font-size: var(--font-sm);
-  line-height: 1.45;
+  font-size: var(--font-xs);
+  line-height: 1.4;
 }
 
 .translation-save-defaults {
@@ -98,10 +101,6 @@
   line-height: 1.5;
 }
 
-.translation-options-modal.translation-options-modal {
-  max-height: min(900px, calc(100vh - 32px));
-}
-
 .translation-options-modal .translation-options-modal-body {
   padding: 0;
   overscroll-behavior: contain;
@@ -124,7 +123,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1.14fr) minmax(0, 0.86fr);
   align-items: stretch;
-  gap: var(--sp-3);
+  gap: var(--sp-6) 20px;
   min-width: 0;
   padding: var(--sp-5) var(--sp-6) var(--sp-6);
 }
@@ -132,16 +131,21 @@
 .translate-options-section {
   display: grid;
   align-content: start;
-  gap: var(--sp-2);
+  gap: var(--sp-3);
   min-width: 0;
-  padding: var(--sp-3);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-md);
-  background: color-mix(in srgb, var(--bg-sunken) 68%, transparent);
+  padding: 0;
+  background: transparent;
 }
 
 .translate-options-section--quality {
   grid-column: 1 / -1;
+  padding-bottom: var(--sp-6);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.translate-options-section:nth-child(3) {
+  padding-left: 20px;
+  border-left: 1px solid var(--border-soft);
 }
 
 .translate-options-section-title {
@@ -187,84 +191,44 @@
 
 .translate-options-toggle-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--sp-2);
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-1);
   min-width: 0;
 }
 
-.translate-options-toggle-row {
+.translate-options-switch {
   display: grid;
-  align-content: start;
-  gap: 5px;
-  min-width: 0;
-}
-
-.translation-options-modal .translate-options-toggle-button {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 7px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--sp-4);
   width: 100%;
   min-width: 0;
-  min-height: 32px;
-  padding: 5px 9px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-md);
-  background: var(--bg-raised);
-  color: var(--text-dim);
-  font-size: var(--font-sm);
-  font-weight: 650;
-  line-height: 1.25;
-  text-align: left;
-}
-
-.translation-options-modal
-  .translate-options-toggle-button:hover:not(:disabled),
-.translation-options-modal
-  .translate-options-toggle-button:focus-visible:not(:disabled) {
-  border-color: var(--border-hover);
-  background: var(--bg-hover);
+  padding: var(--sp-2) 0;
   color: var(--text);
 }
 
-.translation-options-modal
-  .translate-options-toggle-button[aria-pressed="true"] {
-  border-color: var(--accent-bd);
-  background: var(--accent-soft);
-  color: var(--accent-hi);
+.translate-options-switch-copy {
+  display: grid;
+  gap: var(--sp-1);
+  min-width: 0;
 }
 
-.translation-options-modal
-  .translate-options-toggle-button[aria-pressed="true"]:hover:not(:disabled) {
-  border-color: var(--accent-bd);
-  background: var(--accent-hover);
-  color: var(--accent-text);
+.translate-options-switch-copy strong {
+  color: var(--text);
+  font-size: var(--font-sm);
+  font-weight: 650;
+  line-height: 1.3;
 }
 
-.translate-options-toggle-indicator {
-  flex: none;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--text-muted);
-}
-
-.translate-options-toggle-button[aria-pressed="true"]
-  .translate-options-toggle-indicator {
-  background: var(--accent-hi);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
-}
-
-.translate-options-toggle-row.disabled {
-  opacity: 0.5;
+.translate-options-switch-copy small {
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  font-weight: 450;
+  line-height: 1.45;
 }
 
 .translation-options-modal .translate-picker-list {
   max-height: min(28vh, 280px);
-}
-
-.translation-options-modal .translate-options-section--quality {
-  border-color: color-mix(in srgb, var(--accent-bd) 34%, var(--border-soft));
 }
 
 @media (min-width: 721px) {
@@ -299,6 +263,13 @@
     grid-column: auto;
   }
 
+  .translate-options-section:nth-child(3) {
+    padding-top: var(--sp-6);
+    padding-left: 0;
+    border-top: 1px solid var(--border-soft);
+    border-left: 0;
+  }
+
   .translation-options-modal .translate-picker-head {
     align-items: stretch;
     flex-direction: column;
@@ -321,6 +292,11 @@
     margin-left: var(--sp-4);
   }
 
+  .translation-overwrite-warning {
+    align-items: start;
+    padding: var(--sp-3);
+  }
+
   .translation-options-modal .settings-mode-group {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -337,25 +313,23 @@
 
 .auto-inpainting-scope-summary {
   margin: 0;
-  padding: var(--sp-4);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-md);
-  background: var(--bg-sunken);
-  color: var(--text);
+  padding: 0 0 var(--sp-4);
+  color: var(--text-dim);
   font-size: var(--font-sm);
   line-height: 1.5;
 }
 
 .auto-inpainting-postprocess-toggle {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: var(--sp-3);
   width: 100%;
-  padding: var(--sp-3);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-md);
-  background: var(--bg-sunken);
+  padding: var(--sp-4) 0 2px;
+  border: 0;
+  border-top: 1px solid var(--border-soft);
+  border-radius: 0;
+  background: transparent;
   color: var(--text);
   text-align: left;
   cursor: pointer;
@@ -363,43 +337,14 @@
 
 .auto-inpainting-postprocess-toggle:hover,
 .auto-inpainting-postprocess-toggle:focus-visible {
-  border-color: var(--border-hover);
-  background: var(--bg-hover);
+  border-color: var(--border-soft);
+  background: transparent;
 }
 
-.auto-inpainting-postprocess-toggle > span:first-child {
-  position: relative;
-  width: 34px;
-  height: 20px;
-  border-radius: var(--r-pill);
-  background: var(--border-strong);
-  transition: background 120ms ease;
-}
-
-.auto-inpainting-postprocess-toggle > span:first-child::after {
-  content: "";
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--text);
-  transition: transform 120ms ease;
-}
-
+/* The track and thumb come from ui/CheckboxField variant="switch". */
 .auto-inpainting-postprocess-toggle[aria-checked="true"] {
-  border-color: var(--accent-bd);
-  background: var(--accent-soft);
-}
-
-.auto-inpainting-postprocess-toggle[aria-checked="true"] > span:first-child {
-  background: var(--accent);
-}
-
-.auto-inpainting-postprocess-toggle[aria-checked="true"]
-  > span:first-child::after {
-  transform: translateX(14px);
+  border-color: var(--border-soft);
+  background: transparent;
 }
 
 .auto-inpainting-postprocess-toggle > span:last-child {
@@ -480,18 +425,13 @@
 
 .export-options-stack {
   display: grid;
-  gap: var(--sp-4);
+  gap: var(--sp-6);
 }
 
 .export-render-options {
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  padding: 11px 13px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-md);
-  background: color-mix(in srgb, var(--bg-elevated) 68%, transparent);
+  gap: var(--sp-5);
+  padding: 0 var(--sp-1);
 }
 
 .export-render-options > span {
@@ -501,45 +441,53 @@
 }
 
 .export-render-options-raster {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: end;
+  align-items: stretch;
 }
 
-.export-render-options-raster > .checkbox-field {
-  align-self: center;
+.export-render-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: var(--sp-5) var(--sp-6);
 }
 
 .export-number-field {
-  display: grid;
-  grid-template-columns: max-content minmax(96px, 1fr);
-  align-items: center;
-  gap: var(--sp-2);
-  color: var(--text-dim);
-  font-size: var(--font-sm);
-}
-
-.export-number-field [data-ui-number-field] {
   min-width: 0;
 }
 
 .export-format-field {
-  display: grid;
-  grid-template-columns: max-content minmax(150px, 1fr);
-  align-items: center;
-  gap: var(--sp-2);
-  color: var(--text-dim);
-  font-size: var(--font-sm);
+  min-width: 0;
 }
 
 .export-format-field [data-ui-select] {
   min-width: 0;
 }
 
+.export-policy-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-4) var(--sp-7);
+  padding-top: var(--sp-1);
+}
+
+.export-policy-toggle {
+  flex: 0 1 auto;
+  color: var(--text-dim);
+  font-size: var(--font-sm);
+}
+
+.export-render-options-psd {
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+}
+
 .import-linked-workspace-section {
   display: grid;
   gap: 9px;
-  border-color: color-mix(in srgb, var(--accent-bd) 42%, var(--border-soft));
-  background: color-mix(in srgb, var(--accent-soft) 14%, var(--bg-sunken));
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--border-soft);
+  background: transparent;
 }
 
 .import-linked-workspace-section > p {
@@ -565,11 +513,9 @@
 
 .export-preflight {
   display: grid;
-  gap: 11px;
-  padding: 13px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-lg);
-  background: color-mix(in srgb, var(--bg-sunken) 78%, transparent);
+  gap: var(--sp-4);
+  padding: var(--sp-5) var(--sp-1) 0;
+  border-top: 1px solid var(--border-soft);
 }
 
 .export-preflight-header {
@@ -578,9 +524,9 @@
 
 .export-preflight-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--sp-5);
 }
 
 .export-preflight-header > div {
@@ -590,7 +536,7 @@
 
 .export-preflight-header strong {
   color: var(--text);
-  font-size: var(--font-sm);
+  font-size: var(--font-md);
 }
 
 .export-preflight-header span,
@@ -604,11 +550,20 @@
 }
 
 .export-preflight-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
   flex: 0 0 auto;
-  padding: 4px 8px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-pill);
-  background: var(--bg-elevated);
+  font-size: var(--font-xs);
+  font-weight: 700;
+}
+
+.export-preflight-status::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
 }
 
 .export-preflight-status.ready,
@@ -623,16 +578,22 @@
 .export-preflight-summary {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
+  align-items: center;
+  gap: var(--sp-2) 0;
+  color: var(--text-dim);
+  font-size: var(--font-xs);
 }
 
 .export-preflight-summary > span {
-  padding: 5px 8px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-pill);
-  background: var(--bg-elevated);
-  color: var(--text-dim);
-  font-size: var(--font-xs);
+  padding: 0 var(--sp-4);
+}
+
+.export-preflight-summary > span:first-child {
+  padding-left: 0;
+}
+
+.export-preflight-summary > span + span {
+  border-left: 1px solid var(--border-soft);
 }
 
 .export-preflight-sample {
@@ -650,9 +611,6 @@
 .export-preflight-sample > code {
   min-width: 0;
   overflow: hidden;
-  padding: 6px 8px;
-  border-radius: var(--r-sm);
-  background: #101217;
   color: var(--text-dim);
   font-size: var(--font-xs);
   text-overflow: ellipsis;
@@ -661,10 +619,9 @@
 
 .export-preflight-issues {
   display: grid;
-  gap: 3px;
   max-height: 184px;
   overflow-y: auto;
-  padding-top: 8px;
+  padding-top: var(--sp-1);
   border-top: 1px solid var(--border-soft);
 }
 
@@ -674,12 +631,9 @@
   align-items: center;
   gap: 9px;
   min-height: 38px;
-  padding: 5px 6px;
-  border-radius: var(--r-sm);
-}
-
-.export-preflight-issues > div:hover {
-  background: var(--bg-hover);
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--border-soft) 60%, transparent);
 }
 
 .export-preflight-issues > div > span:nth-child(2) {
@@ -705,9 +659,6 @@
 }
 
 .export-preflight-issues button {
-  padding: 4px 7px;
-  border: 0;
-  background: transparent;
   color: var(--accent-hi);
   font-size: var(--font-xs);
 }
@@ -729,6 +680,17 @@
   color: var(--danger-text);
 }
 
+.export-preflight-clear {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.export-preflight-clear::before {
+  content: "✓";
+  font-weight: 800;
+}
+
 @media (max-width: 640px) {
   .export-render-options {
     grid-template-columns: 1fr;
@@ -736,11 +698,8 @@
   }
 
   .export-render-options-raster,
+  .export-render-field-grid,
   .import-linked-workspace-fields {
-    grid-template-columns: 1fr;
-  }
-
-  .export-format-field {
     grid-template-columns: 1fr;
   }
 
@@ -765,8 +724,8 @@
 .translate-chapter-head {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
-  padding: var(--sp-2) var(--sp-3);
+  gap: var(--sp-5);
+  padding: var(--sp-5);
 }
 
 .translate-chapter-toggle {
@@ -809,12 +768,6 @@
 
 .translate-chapter-check {
   flex: none;
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  accent-color: var(--accent);
 }
 
 .translate-chapter-title {
@@ -873,17 +826,18 @@
   opacity: 1;
 }
 
-.translate-page-thumb-check {
+/*
+ * Box, size, and tick come from the global checkbox rule. The parent selector
+ * intentionally outranks the global `input[type="checkbox"] { position }`
+ * baseline: a bare class did not, so the checkbox stayed in flex flow and was
+ * squeezed directly above the thumbnail instead of sitting at a calm inset.
+ */
+.translate-page-thumb > .translate-page-thumb-check {
   position: absolute;
-  top: 4px;
-  left: 4px;
-  z-index: 1;
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  accent-color: var(--accent);
+  z-index: var(--z-base);
+  top: var(--sp-3);
+  left: var(--sp-3);
+  box-shadow: var(--shadow-sm);
 }
 
 .translate-page-thumb-img {

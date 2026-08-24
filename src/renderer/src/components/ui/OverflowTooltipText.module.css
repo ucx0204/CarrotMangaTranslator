@@ -1,14 +1,14 @@
 .tooltip {
   position: fixed;
-  z-index: calc(var(--layer-select-menu, 10000) + 1);
+  z-index: var(--layer-portal-tooltip, 220);
   width: max-content;
   max-width: min(420px, calc(100vw - 24px));
-  padding: 8px 10px;
-  border: 1px solid #3a4351;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--control-border);
   border-radius: var(--r-md);
-  background: rgba(25, 29, 36, 0.98);
-  color: #f4f6fa;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.42);
+  background: var(--bg-elevated);
+  color: var(--accent-text);
+  box-shadow: var(--shadow-md);
   font-size: var(--font-sm);
   font-weight: 600;
   line-height: 1.4;

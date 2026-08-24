@@ -6,7 +6,7 @@ import {
   MIN_FONT_SIZE_PX,
 } from "../../../../shared/blockFormatValues";
 import { useFonts } from "../../fonts/useFonts";
-import { ScrubbableNumberField } from "../ui/ScrubbableNumberField";
+import { NumberField } from "../ui/NumberField";
 import { Select } from "../ui/Select";
 import { BlockFormatControlCaption } from "./BlockFormatPrimitives";
 
@@ -106,9 +106,8 @@ export function BlockTypographySizeStepper({
         mixed={mixed}
         touched={touched}
       />
-      <ScrubbableNumberField
-        className="gather-direct-size-stepper"
-        inputClassName="gather-direct-size-input"
+      <NumberField
+        variant="scrubber"
         ariaLabel={label}
         decreaseLabel={decreaseLabel}
         increaseLabel={increaseLabel}

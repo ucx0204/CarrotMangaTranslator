@@ -12,6 +12,7 @@ import {
 } from "../../../../shared/modelPresets";
 import type { ModelProvider } from "../../../../shared/settingsTypes";
 import type { EngineSettingsPanelProps } from "./EngineSettingsPanelTypes";
+import { SettingsNumberField } from "./SettingsNumberField";
 import { SelectionSurface } from "../ui/SelectionCard";
 
 type TranslationEngineSelectorProps = Pick<
@@ -184,26 +185,19 @@ function MaxTokensField({
   const { t } = useTranslation("components");
   return (
     <div className="settings-field-stack settings-limit-field">
-      <label>
-        {t("settings.engine.maxTokens.label")}
-        <input
-          type="number"
-          min={MIN_MAX_TOKENS}
-          max={MAX_MAX_TOKENS}
-          step={100}
-          value={maxTokens}
-          disabled={controlsBusy}
-          onChange={(event) => {
-            clearTestState();
-            setMaxTokens(event.target.value);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              submit();
-            }
-          }}
-        />
-      </label>
+      <SettingsNumberField
+        ariaLabel={t("settings.engine.maxTokens.label")}
+        min={MIN_MAX_TOKENS}
+        max={MAX_MAX_TOKENS}
+        step={100}
+        value={maxTokens}
+        disabled={controlsBusy}
+        onSubmit={submit}
+        onValueChange={(next) => {
+          clearTestState();
+          setMaxTokens(next);
+        }}
+      />
       <p className="muted-line modal-note">
         {t(
           modelProvider === "gemma"
@@ -236,29 +230,22 @@ function ContextTokensField({
   const { t } = useTranslation("components");
   return (
     <div className="settings-field-stack settings-limit-field">
-      <label>
-        {t(
+      <SettingsNumberField
+        ariaLabel={t(
           modelProvider === "gemma"
             ? "settings.engine.contextTokens.gemmaLabel"
             : "settings.engine.contextTokens.remoteLabel",
         )}
-        <input
-          type="number"
-          min={MIN_CONTEXT_TOKENS}
-          step={1024}
-          value={contextTokens}
-          disabled={controlsBusy}
-          onChange={(event) => {
-            clearTestState();
-            setContextTokens(event.target.value);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              submit();
-            }
-          }}
-        />
-      </label>
+        min={MIN_CONTEXT_TOKENS}
+        step={1024}
+        value={contextTokens}
+        disabled={controlsBusy}
+        onSubmit={submit}
+        onValueChange={(next) => {
+          clearTestState();
+          setContextTokens(next);
+        }}
+      />
       <p className="muted-line modal-note">
         {t(
           modelProvider === "gemma"

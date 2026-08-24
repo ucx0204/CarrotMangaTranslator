@@ -11,6 +11,11 @@ type TransformNumberFieldProps = {
   unit?: string;
   disabled?: boolean;
   invalid?: boolean;
+  /**
+   * Set when the row already carries a slider. The slider is the coarse
+   * adjustment, so −/+ buttons beside it are redundant clutter.
+   */
+  hasSlider?: boolean;
   onCommit: (value: number) => void;
 };
 
@@ -24,27 +29,27 @@ export function TransformNumberField({
   unit,
   disabled = false,
   invalid = false,
+  hasSlider = false,
   onCommit,
 }: TransformNumberFieldProps): React.JSX.Element {
   return (
     <label className="transform-number-field">
       {label ? <span>{label}</span> : null}
-      <span className="transform-number-input-wrap">
-        <NumberField
-          inputMode="decimal"
-          ariaLabel={ariaLabel ?? label}
-          invalid={invalid}
-          disabled={disabled}
-          min={min}
-          max={max}
-          step={step}
-          precision={resolveStepPrecision(step)}
-          value={value}
-          commitMode="blur"
-          onValueChange={onCommit}
-        />
-        {unit ? <small aria-hidden="true">{unit}</small> : null}
-      </span>
+      <NumberField
+        variant={hasSlider ? "framed" : "scrubber"}
+        inputMode="decimal"
+        ariaLabel={ariaLabel ?? label}
+        invalid={invalid}
+        disabled={disabled}
+        min={min}
+        max={max}
+        step={step}
+        precision={resolveStepPrecision(step)}
+        unit={unit}
+        value={value}
+        commitMode="blur"
+        onValueChange={onCommit}
+      />
     </label>
   );
 }

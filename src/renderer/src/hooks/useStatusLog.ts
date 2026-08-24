@@ -1,5 +1,4 @@
 import React from "react";
-import { useTranslation } from "react-i18next";
 import { appGateway as mangaGateway } from "../api/appGateway";
 type UseStatusLogResult = {
   statusLines: string[];
@@ -12,16 +11,14 @@ type UseStatusLogResult = {
 };
 
 export function useStatusLog(): UseStatusLogResult {
-  const { i18n } = useTranslation();
   const [statusLines, setStatusLines] = React.useState<string[]>([]);
 
-  React.useEffect(() => {
-    const clearTranslatedHistory = () => setStatusLines([]);
-    i18n.on("languageChanged", clearTranslatedHistory);
-    return () => {
-      i18n.off("languageChanged", clearTranslatedHistory);
-    };
-  }, [i18n]);
+  /*
+   * Lines already written stay as they are after a language switch. They are a
+   * record of what happened, and re-translating them is impossible once the
+   * arguments are gone — dropping the history to keep the panel monolingual
+   * would throw away the only account of a failure the user is investigating.
+   */
 
   const appendStatusLine = React.useCallback(
     (line: string, replaceExisting?: (line: string) => boolean) => {

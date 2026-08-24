@@ -180,7 +180,6 @@ describe("Windows installer clean uninstall option", () => {
       "@dnd-kit/core",
       "@dnd-kit/sortable",
       "@dnd-kit/utilities",
-      "@radix-ui/react-progress",
       "@tabler/icons-react",
       "@types/yauzl",
       "adm-zip",

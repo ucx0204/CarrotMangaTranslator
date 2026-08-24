@@ -170,6 +170,12 @@ export const SortIcon = createIcon(
   </>,
 );
 
+export const FilterIcon = createIcon(
+  <path d="M4 5h16l-6.5 7.2V19l-3 1v-7.8L4 5Z" />,
+);
+
+export const CheckIcon = createIcon(<path d="m5 12 4.2 4.2L19 6.8" />);
+
 export const PlusIcon = createIcon(
   <>
     <path d="M12 5v14" />

@@ -12,7 +12,7 @@
     "reportIssueMenu": "报告 macOS Alpha 问题",
     "firstRunTitle": "Apple Silicon Alpha",
     "firstRunMessage": "此 Apple Silicon Alpha 版本仍在进行真机验证。",
-    "firstRunDetail": "支持 M1 或更新芯片、macOS 14 或更高版本。建议统一内存：16GB 用于 Gemma 12B 和 Flux，24GB 用于 26B，32GB 以上用于 31B+DFlash。Gemma、OCR 和修复模型会在首次使用时下载，可能需要数GB空间和较长时间。遇到问题时，请检查诊断信息后通过 GitHub Issue 报告。",
+    "firstRunDetail": "支持 M1 或更新芯片、macOS 14 或更高版本。建议统一内存：16GB 用于 Gemma 12B 和 Flux，24GB 用于 26B，32GB 以上用于 31B+DFlash。Gemma、OCR 和修复模型会在首次使用时下载数GB以上的数据，所需时间可能因网络状况而很长。遇到问题时，请检查诊断信息后通过 GitHub Issue 报告。",
     "continue": "继续",
     "aboutDetail": "Apple Silicon Alpha · 正在进行真机验证\n支持：M1 或更新 / macOS 14 或更高\n请通过 GitHub Issue 报告问题。",
     "stableAboutDetail": "Carrot Manga Translator"

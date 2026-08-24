@@ -141,30 +141,32 @@ function PresetProperty({
   const { t } = useTranslation("components");
   const enabled = preset.groupIds.includes(groupId);
   return (
-    <label className="style-preset-property" data-enabled={enabled}>
-      <input
-        type="checkbox"
-        checked={enabled}
-        onChange={(event) => {
-          const checked = event.target.checked;
-          if (!checked && preset.groupIds.length === 1) {
-            toast.warn(t("stylePresets.minimumGroupRequired"));
-            return;
-          }
-          onPatch({
-            groupIds: updateSelectedGroups(preset.groupIds, groupId, checked),
-          });
-        }}
-      />
-      <span className="style-preset-property-label">
-        {t(`formatBatch.groups.${groupId}`)}
-      </span>
+    <CheckboxField
+      variant="bare"
+      className="style-preset-property"
+      dataSelected={enabled}
+      label={
+        <span className="style-preset-property-label">
+          {t(`formatBatch.groups.${groupId}`)}
+        </span>
+      }
+      checked={enabled}
+      onCheckedChange={(checked) => {
+        if (!checked && preset.groupIds.length === 1) {
+          toast.warn(t("stylePresets.minimumGroupRequired"));
+          return;
+        }
+        onPatch({
+          groupIds: updateSelectedGroups(preset.groupIds, groupId, checked),
+        });
+      }}
+    >
       <PresetFormatValue
         fontDetails={fontDetails}
         groupId={groupId}
         preset={preset}
       />
-    </label>
+    </CheckboxField>
   );
 }
 

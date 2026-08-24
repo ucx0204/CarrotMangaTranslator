@@ -5,6 +5,8 @@
   --bg-panel: #1c1f25;
   --bg-sunken: #111318;
   --bg-raised: #171b21;
+  --bg-elevated: #20242c;
+  --bg-modal: #20242c;
   /* text */
   --text: #ece7dc;
   --text-dim: #b8b1a6;
@@ -15,15 +17,31 @@
   --border-strong: #3d4147;
   --border-soft: #2e3137;
   --border-hover: #474d57;
+  /* shared control chrome */
+  --control-bg: #20242b;
+  --control-bg-hover: #292e37;
+  --control-bg-pressed: #181b21;
+  --control-border: #454d59;
+  --control-border-hover: #626d7b;
+  --control-highlight: rgba(255, 255, 255, 0.08);
+  --control-thumb: #d3d9e1;
+  --scroll-thumb: #536174;
+  --scroll-thumb-hover: #657489;
+  --scroll-thumb-active: #7b8aa0;
   /* accents — muted terracotta ink (toned down from vermilion) */
   --accent: #a64e36;
   --accent-bd: #cf7152;
   --accent-hi: #e7b39e;
   --danger: #7c3030;
   --danger-bd: #c56363;
+  --info: #6f96db;
+  --info-bd: #7eaaff;
   --focus: #d6805f;
   --warn: #f59e0b;
   --success: #4f9468;
+  --success-bd: #68b88a;
+  --warning-bd: #d18c55;
+  --info-text: #c4d7ff;
   --warning-text: #f1bd79;
   --success-text: #91d8c4;
   --danger-text: #ffb4ab;
@@ -34,6 +52,8 @@
   --sp-4: 10px;
   --sp-5: 12px;
   --sp-6: 16px;
+  --sp-7: 20px;
+  --sp-8: 24px;
   /* radius */
   --r-sm: 6px;
   --r-md: 8px;
@@ -43,13 +63,19 @@
   --ctl-h-sm: 28px;
   --ctl-pad-y: 6px;
   --ctl-pad-x: 10px;
+  /* Form rhythm: one authority for every stacked label/control pair. */
+  --field-gap: var(--sp-2);
+  --field-gap-comfortable: var(--sp-3);
   /* type scale */
+  --font-2xs: 10px;
   --font-xs: 11px;
   --font-sm: 12px;
   --font-md: 13px;
   --font-lg: 15px;
   --font-xl: 19px;
   --font-2xl: 24px;
+  --font-preview: 17px;
+  --font-mono: Consolas, "SFMono-Regular", "Cascadia Mono", monospace;
   /* extra radius */
   --r-xs: 4px;
   --r-pill: 999px;
@@ -59,6 +85,9 @@
   --danger-hover: #8f4141;
   --accent-soft: rgba(166, 78, 54, 0.17);
   --accent-text: #fbf3ef;
+  --info-soft: rgba(61, 92, 148, 0.18);
+  --warning-soft: rgba(102, 57, 28, 0.28);
+  --success-soft: rgba(47, 111, 97, 0.18);
   --danger-soft: rgba(124, 48, 48, 0.2);
   /* semantic component surfaces */
   --surface-panel: #1b1e24;
@@ -71,14 +100,66 @@
   --shadow-lg: 0 20px 56px rgba(0, 0, 0, 0.5);
   --shadow-overlay: 0 24px 64px rgba(0, 0, 0, 0.55);
   --bg-overlay: rgba(8, 10, 13, 0.62);
+
+  /* Stacking ladder — the single ordering authority.
+     Every fixed, portaled, or popup surface must reference one of these
+     instead of a raw z-index so cross-component order stays reviewable.
+     Root tier (competes in the document's root stacking context): */
   --layer-content: 1;
   --layer-floating: 33;
   --layer-toolbar: 34;
   --layer-drag: 36;
-  --layer-tooltip: 80;
-  --layer-popover: 82;
-  --layer-status: 92;
-  --layer-select-menu: 10000;
+  /* Dockable editor panel: above canvas chrome, below every dialog. */
+  --layer-panel-float: 40;
+  /* Anchored popups that live inside canvas chrome. */
+  --layer-tooltip: 50;
+  --layer-popover: 52;
+  --layer-status: 54;
+  /* Menus anchored inside panels/rails that must clear sibling panel content. */
+  --layer-panel-menu: 60;
+  --layer-modal-backdrop: 100;
+  /* Portaled popups spawned from dialog content, so they clear the backdrop. */
+  --layer-select-menu: 210;
+  --layer-portal-tooltip: 220;
+  /* App-blocking surfaces. */
+  --layer-blocking-overlay: 300;
+  --layer-drop-overlay: 310;
+  --layer-toast: 400;
+  --layer-critical: 500;
+
+  /* Local tier — ordering inside one component's own stacking context.
+     These never compete with the root tier. */
+  --z-under: 0;
+  --z-base: 1;
+  --z-raised: 2;
+  --z-raised-2: 3;
+
+  /* Stage paint order — one shared context (.workspace-pane).
+     Declared together so the canvas compositing order is readable at a glance. */
+  --z-stage-pattern-marker: 4;
+  --z-stage-excluded-badge: 5;
+  --z-stage-region-box: 12;
+  --z-stage-retouch-canvas: 21;
+  --z-stage-retouch-cursor: 22;
+  --z-stage-bubble-draft: 26;
+  --z-stage-bubble-brush: 27;
+  --z-stage-drag-hud: 30;
+  --z-stage-image-loading: 35;
+  --z-stage-context-bar: 38;
+
+  /* Overlay-block paint order — one shared context (.overlay-block). */
+  --z-overlay-bubble-guide: 6;
+  --z-overlay-transform-controls: 8;
+
+  /* Chrome that floats over the artwork (stage toolbar, quick rails). */
+  --canvas-chrome-bg: #14161b;
+  --canvas-chrome-hover: #1d2027;
+  --canvas-chrome-text: #aeb8c7;
+  --canvas-chrome-text-strong: #f5f7fb;
+  --canvas-chrome-text-disabled: #5d6672;
+  --canvas-chrome-active-end: #211a1a;
+  --canvas-chrome-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+
   --motion-fast: 120ms;
   --motion-normal: 160ms;
   --ease-standard: cubic-bezier(0.2, 0.75, 0.25, 1);
@@ -93,7 +174,7 @@
 
 * {
   box-sizing: border-box;
-  scrollbar-color: #536174 #0a0f16;
+  scrollbar-color: var(--scroll-thumb) transparent;
   scrollbar-width: thin;
 }
 
@@ -110,66 +191,43 @@
 }
 
 *::-webkit-scrollbar {
-  width: 14px;
-  height: 14px;
-  background: #0a0f16;
+  width: 10px;
+  height: 10px;
+  background: transparent;
 }
 
 *::-webkit-scrollbar-track {
-  background: #0a0f16;
-  border: 1px solid #131a24;
-  border-radius: 999px;
+  background: transparent;
+  border-radius: var(--r-pill);
 }
 
 *::-webkit-scrollbar-thumb {
-  min-height: 42px;
-  min-width: 42px;
-  background: #536174;
-  border: 4px solid #0a0f16;
-  border-radius: 999px;
+  min-height: 32px;
+  min-width: 32px;
+  background: var(--scroll-thumb);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: var(--r-pill);
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: #657489;
+  background: var(--scroll-thumb-hover);
+  background-clip: padding-box;
 }
 
 *::-webkit-scrollbar-thumb:active {
-  background: #7b8aa0;
+  background: var(--scroll-thumb-active);
+  background-clip: padding-box;
 }
 
 *::-webkit-scrollbar-corner {
-  background: #0a0f16;
+  background: transparent;
 }
 
-*::-webkit-scrollbar-button:single-button {
-  display: block;
-  width: 14px;
-  height: 14px;
-  background-color: #0a0f16;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 8px 8px;
-  border: 1px solid #131a24;
-}
-
-*::-webkit-scrollbar-button:vertical:decrement {
-  background-image: url("data:image/svg+xml,%3Csvg width='8' height='8' viewBox='0 0 8 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 1 7 6H1L4 1Z' fill='%237c8797'/%3E%3C/svg%3E");
-}
-
-*::-webkit-scrollbar-button:vertical:increment {
-  background-image: url("data:image/svg+xml,%3Csvg width='8' height='8' viewBox='0 0 8 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 7 1 2h6L4 7Z' fill='%237c8797'/%3E%3C/svg%3E");
-}
-
-*::-webkit-scrollbar-button:horizontal:decrement {
-  background-image: url("data:image/svg+xml,%3Csvg width='8' height='8' viewBox='0 0 8 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 4 6 1v6L1 4Z' fill='%237c8797'/%3E%3C/svg%3E");
-}
-
-*::-webkit-scrollbar-button:horizontal:increment {
-  background-image: url("data:image/svg+xml,%3Csvg width='8' height='8' viewBox='0 0 8 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 4 2 7V1l5 3Z' fill='%237c8797'/%3E%3C/svg%3E");
-}
-
-*::-webkit-scrollbar-button:single-button:hover {
-  background-color: #101722;
+*::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 body {
@@ -200,9 +258,9 @@ textarea {
 }
 
 button {
-  border: 1px solid var(--border-strong);
-  background: #24282f;
-  color: #f5f0e8;
+  border: 1px solid var(--control-border);
+  background: var(--control-bg);
+  color: var(--text);
   border-radius: var(--r-md);
   padding: var(--ctl-pad-y) var(--ctl-pad-x);
   cursor: pointer;
@@ -216,8 +274,8 @@ textarea:disabled {
 }
 
 button:hover:not(:disabled) {
-  border-color: var(--border-hover);
-  background: var(--bg-hover);
+  border-color: var(--control-border-hover);
+  background: var(--control-bg-hover);
 }
 
 button:focus-visible,
@@ -244,13 +302,19 @@ textarea:focus-visible {
   background: var(--accent-soft);
 }
 
+/*
+ * The baseline skin for every input the app does not frame itself.
+ * `[data-ui-framed-input]` is emitted by ui/NumberField's framed variants and
+ * `.library-search-input` is borderless inside its own shell; both draw their
+ * own box, so applying this on top would double the border.
+ */
 input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
-    .gather-direct-size-input
-  ):not(.library-search-input):not(.rich-inline-number-input),
+    [data-ui-framed-input]
+  ):not(.library-search-input),
 textarea {
   width: 100%;
-  color: #f5f0e8;
-  border: 1px solid var(--border-strong);
+  color: var(--text);
+  border: 1px solid var(--control-border);
   border-radius: var(--r-md);
   background: var(--bg-sunken);
   padding: var(--ctl-pad-y) var(--ctl-pad-x);
@@ -258,21 +322,105 @@ textarea {
 
 input:not([type="range"]):not([type="color"]):not([type="checkbox"]):not(
     [type="radio"]
-  ):not(.gather-direct-size-input):not(.library-search-input):not(
-    .rich-inline-number-input
-  ) {
+  ):not([data-ui-framed-input]):not(.library-search-input) {
   min-height: var(--ctl-h);
 }
 
+/*
+ * Drawn rather than left to `accent-color`: an unchecked native checkbox is a
+ * light filled square, which reads as a bright hole in a dark panel and matches
+ * no other control's border or radius.
+ */
 input[type="checkbox"],
 input[type="radio"] {
-  width: 16px;
-  height: 16px;
+  position: relative;
+  width: 17px;
+  height: 17px;
   min-height: 0;
   flex: 0 0 auto;
   margin: 0;
   padding: 0;
-  accent-color: var(--accent);
+  appearance: none;
+  /*
+   * Lighter than the panel, not darker: an empty box filled with `--bg-sunken`
+   * sits below every surface it appears on and disappears into it.
+   */
+  border: 1px solid color-mix(in srgb, var(--control-border-hover) 82%, white);
+  background: color-mix(in srgb, var(--control-bg-hover) 88%, white);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    background var(--motion-fast) var(--ease-standard);
+}
+
+input[type="checkbox"] {
+  border-radius: var(--r-xs);
+}
+
+input[type="radio"] {
+  border-radius: 50%;
+}
+
+input[type="checkbox"]:hover:not(:disabled),
+input[type="radio"]:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--control-border-hover) 62%, white);
+  background: color-mix(in srgb, var(--control-bg-hover) 78%, white);
+}
+
+input[type="checkbox"]:checked,
+input[type="checkbox"]:indeterminate,
+input[type="radio"]:checked {
+  border-color: var(--accent-bd);
+  background: var(--accent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+/* Border-drawn tick so it scales with the box and needs no icon asset. */
+input[type="checkbox"]:checked::after {
+  position: absolute;
+  top: 2px;
+  left: 5px;
+  width: 4px;
+  height: 8px;
+  border: solid var(--accent-text);
+  border-width: 0 2px 2px 0;
+  content: "";
+  transform: rotate(45deg);
+}
+
+input[type="checkbox"]:indeterminate::after {
+  position: absolute;
+  top: 7px;
+  left: 4px;
+  width: 7px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent-text);
+  content: "";
+}
+
+input[type="radio"]:checked::after {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-text);
+  content: "";
+}
+
+/* Disabled boolean controls remain legible; their surrounding field supplies
+   the subdued label treatment, so compounding the global disabled opacity here
+   would make the box disappear on dark panels. */
+input[type="checkbox"]:disabled,
+input[type="radio"]:disabled {
+  opacity: 1;
+  border-color: var(--border-strong);
+  filter: saturate(0.65) brightness(0.78);
 }
 
 .range-input-control {
@@ -320,7 +468,7 @@ input[type="radio"] {
 
 .range-input-control {
   position: absolute;
-  z-index: 1;
+  z-index: var(--z-base);
   top: 50%;
   left: 4px;
   transform: translateY(-50%);
@@ -445,42 +593,8 @@ input[type="radio"] {
   pointer-events: none;
 }
 
-.stage-toolbar-section .stage-toolbar-button,
-.chapter-quick-group .stage-toolbar-button {
-  border-radius: 5px;
-}
-
-.stage-toolbar-button,
-.stage-toolbar-toggle {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: #aeb8c7;
-  cursor: pointer;
-}
-
-.stage-toolbar-button:hover,
-.stage-toolbar-toggle:hover,
-.stage-toolbar-button:focus-visible,
-.stage-toolbar-toggle:focus-visible {
-  background: #1d2027;
-  color: #f5f7fb;
-}
-
-.stage-toolbar-button.active {
-  background: linear-gradient(145deg, rgba(200, 92, 59, 0.26), #211a1a);
-  color: var(--accent-hi);
-  box-shadow: inset 3px 0 0 var(--accent);
-}
-
-.stage-toolbar-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.42;
-}
+/* Button appearance comes from ui/IconButton variant="canvas"; this file only
+   owns the toolbar's own structure (sections, dividers, swatch, flyout). */
 
 .stage-toolbar-swatch {
   position: absolute;
@@ -493,14 +607,9 @@ input[type="radio"] {
   box-shadow: 0 1px 1px rgba(0, 0, 0, 0.72);
 }
 
-.stage-toolbar-button,
+.stage-toolbar-control > button,
 .stage-toolbar-group-control {
   position: relative;
-}
-
-.stage-toolbar-group-trigger {
-  width: 40px;
-  height: 40px;
 }
 
 .stage-toolbar-group-chevron {
@@ -554,7 +663,7 @@ input[type="radio"] {
   white-space: nowrap;
 }
 
-.stage-toolbar-flyout-control > button.active {
+.stage-toolbar-flyout-control > button[aria-checked="true"] {
   box-shadow: inset 0 -3px 0 var(--accent);
 }
 

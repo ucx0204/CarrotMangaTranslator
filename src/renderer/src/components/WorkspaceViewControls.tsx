@@ -12,7 +12,9 @@ import {
   type WorkspaceFitMode,
 } from "../lib/workspaceZoom";
 import { ControlTooltip } from "./ui/ControlTooltip";
+import { IconButton } from "./ui/IconButton";
 import { Select } from "./ui/Select";
+import { usePopupController } from "./ui/usePopupController";
 
 export type WorkspaceViewControlsProps = {
   effectiveScale: number;
@@ -43,7 +45,15 @@ export function WorkspaceViewControls(
   props: WorkspaceViewControlsProps,
 ): React.JSX.Element {
   const labels = useWorkspaceViewLabels();
-  const { open, rootRef, toggle, triggerRef } = useWorkspaceViewPopup();
+  const [open, setOpen] = React.useState(false);
+  const { rootRef, toggle, triggerRef } = usePopupController({
+    closeOnFocusOut: true,
+    // The fit-mode Select portals its menu to the body; clicking it must not
+    // count as clicking outside this popover.
+    isInsidePopup: isOwnSelectMenu,
+    open,
+    onOpenChange: setOpen,
+  });
   const panelId = React.useId();
   const zoomPercent = Math.round(props.effectiveScale * 100);
   return (
@@ -71,57 +81,8 @@ export function WorkspaceViewControls(
   );
 }
 
-function useWorkspaceViewPopup(): {
-  open: boolean;
-  rootRef: React.RefObject<HTMLDivElement | null>;
-  toggle: () => void;
-  triggerRef: React.RefObject<HTMLButtonElement | null>;
-} {
-  const [open, setOpen] = React.useState(false);
-  const rootRef = React.useRef<HTMLDivElement>(null);
-  const triggerRef = React.useRef<HTMLButtonElement>(null);
-
-  React.useEffect(() => {
-    if (!open) return;
-    const close = (): void => setOpen(false);
-    const handlePointerDown = (event: PointerEvent): void => {
-      if (!isWorkspaceViewPopupTarget(rootRef.current, event.target)) close();
-    };
-    const handleFocusIn = (event: FocusEvent): void => {
-      if (!isWorkspaceViewPopupTarget(rootRef.current, event.target)) close();
-    };
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key !== "Escape" || event.defaultPrevented) return;
-      event.preventDefault();
-      setOpen(false);
-      triggerRef.current?.focus();
-    };
-    document.addEventListener("pointerdown", handlePointerDown, true);
-    document.addEventListener("focusin", handleFocusIn, true);
-    window.addEventListener("blur", close);
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown, true);
-      document.removeEventListener("focusin", handleFocusIn, true);
-      window.removeEventListener("blur", close);
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [open]);
-
-  return {
-    open,
-    rootRef,
-    toggle: React.useCallback(() => setOpen((current) => !current), []),
-    triggerRef,
-  };
-}
-
-function isWorkspaceViewPopupTarget(
-  root: HTMLDivElement | null,
-  target: EventTarget | null,
-): boolean {
-  if (!root || !(target instanceof Node)) return false;
-  if (root.contains(target)) return true;
+/** True when the target is inside the portaled menu of a Select we own. */
+function isOwnSelectMenu(target: Node, root: HTMLElement): boolean {
   const targetElement =
     target instanceof Element ? target : target.parentElement;
   const selectMenu = targetElement?.closest<HTMLElement>(
@@ -159,12 +120,13 @@ function WorkspaceViewTrigger({
         content={open ? labels.hideControls : labels.showControls}
         placement="left"
       >
-        <button
-          type="button"
+        <IconButton
           ref={buttonRef}
+          variant="dock"
           aria-controls={panelId}
           aria-expanded={open}
-          aria-label={open ? labels.hideControls : labels.showControls}
+          label={open ? labels.hideControls : labels.showControls}
+          title=""
           onClick={onToggle}
         >
           <IconAdjustmentsHorizontal
@@ -173,7 +135,7 @@ function WorkspaceViewTrigger({
             aria-hidden="true"
           />
           <span>{zoomPercent}%</span>
-        </button>
+        </IconButton>
       </ControlTooltip>
     </span>
   );

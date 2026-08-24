@@ -14,6 +14,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { formatShortcutTextForPlatform } from "../lib/shortcuts/comboFromEvent";
 import { ControlTooltip } from "./ui/ControlTooltip";
+import { IconButton } from "./ui/IconButton";
 
 export type ChapterQuickControlsProps = {
   canRedo: boolean;
@@ -171,16 +172,17 @@ function QuickControl({
       content={label}
       placement="left"
     >
-      <button
-        type="button"
-        aria-label={label}
+      <IconButton
+        variant="canvas"
+        size="lg"
+        label={label}
+        title=""
         aria-pressed={active === undefined ? undefined : active}
-        className={`stage-toolbar-button ${active ? "active" : ""}`.trim()}
         disabled={disabled}
         onClick={onClick}
       >
         <Icon size={22} stroke={2.1} aria-hidden="true" />
-      </button>
+      </IconButton>
     </ControlTooltip>
   );
 }

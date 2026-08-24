@@ -54,7 +54,6 @@ export function useAppSessionWorkspaceHistory(
   const pushStatus = chapter.statusLog.pushStatus;
   const onReplayError = useCallback(
     (error: unknown) => {
-      console.error(error);
       pushStatus(
         formatErrorMessage(error, "실행 취소/다시 실행에 실패했습니다."),
       );
@@ -197,7 +196,6 @@ function useApplyImageTransaction(
       try {
         await refreshLibrary();
       } catch (error) {
-        console.error(error);
         pushStatus(formatErrorMessage(error, refreshFailureMessage));
       }
       return result.invalidated ? "invalidated" : "applied";

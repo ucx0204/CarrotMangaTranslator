@@ -19,6 +19,26 @@ afterEach(() => {
 });
 
 describe("renderer effect dependency stability", () => {
+  it("opens on the dialog surface instead of highlighting the close action", () => {
+    const view = render(
+      <Modal title="Edit" onClose={() => undefined}>
+        <input aria-label="Name" />
+      </Modal>,
+    );
+
+    expect(document.activeElement).toBe(view.getByRole("dialog"));
+  });
+
+  it("honours an explicitly requested initial modal control", () => {
+    const view = render(
+      <Modal title="Edit" onClose={() => undefined}>
+        <input aria-label="Name" data-modal-initial-focus />
+      </Modal>,
+    );
+
+    expect(document.activeElement).toBe(view.getByLabelText("Name"));
+  });
+
   it("keeps one Escape listener while an open modal receives fresh root state", () => {
     const onClose = vi.fn();
     const addEventListener = vi.spyOn(window, "addEventListener");

@@ -31,21 +31,25 @@ type ModalAction = {
   label: React.ReactNode;
   onClick: () => void;
   disabled?: boolean;
-  variant?: ButtonProps["variant"];
 };
 
+/**
+ * The dismissing action is always `ghost` so that exactly one button in a
+ * footer carries weight. Callers cannot restyle it; only the committing action
+ * chooses a variant (`primary` by default, `danger` when destructive).
+ */
 export function ModalActionButtons({
   cancel,
   confirm,
 }: {
   cancel?: ModalAction;
-  confirm?: ModalAction;
+  confirm?: ModalAction & { variant?: ButtonProps["variant"] };
 }): React.JSX.Element {
   return (
     <>
       {cancel ? (
         <Button
-          variant={cancel.variant ?? "ghost"}
+          variant="ghost"
           disabled={cancel.disabled}
           onClick={cancel.onClick}
         >

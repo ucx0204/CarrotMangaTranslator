@@ -3,10 +3,9 @@ import { IconCircleCheck, IconDownload, IconEye } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { JobState } from "../../../shared/jobTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
-import { useEtaText } from "../hooks/useEtaText";
+import { JobProgressReadout } from "./JobProgressReadout";
 import { Button } from "./ui/Button";
 import { InlineMessage } from "./ui/InlineMessage";
-import { ProgressBar } from "./ui/ProgressBar";
 
 export function RunJobFeedback({
   jobState,
@@ -135,46 +134,11 @@ function ProgressCard({
   jobState: JobState;
   progressSnapshot: ProgressSnapshot;
 }): React.JSX.Element {
-  const { t } = useTranslation("components");
-  const etaText = useEtaText(progressSnapshot);
   return (
     <div className="progress-card">
-      <div className="progress-meta">
-        <span>{jobState.progressText}</span>
-        {progressSnapshot.mode === "determinate" ? (
-          <strong>
-            {progressSnapshot.current} / {progressSnapshot.total}
-          </strong>
-        ) : (
-          <strong>{t("common.preparing")}</strong>
-        )}
-      </div>
-      {jobState.detail ? (
-        <small className="progress-detail">{jobState.detail}</small>
-      ) : null}
-      {etaText ? <small className="progress-eta">{etaText}</small> : null}
-      <ProgressBar
-        label={jobState.progressText}
-        mode={
-          progressSnapshot.mode === "determinate"
-            ? "determinate"
-            : "indeterminate"
-        }
-        value={
-          progressSnapshot.mode === "determinate"
-            ? progressSnapshot.current
-            : undefined
-        }
-        max={
-          progressSnapshot.mode === "determinate"
-            ? progressSnapshot.total
-            : undefined
-        }
-        valueText={
-          progressSnapshot.mode === "determinate"
-            ? `${progressSnapshot.current} / ${progressSnapshot.total}`
-            : t("common.preparing")
-        }
+      <JobProgressReadout
+        jobState={jobState}
+        progressSnapshot={progressSnapshot}
       />
     </div>
   );

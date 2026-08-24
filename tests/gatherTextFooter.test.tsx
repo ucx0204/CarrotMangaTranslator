@@ -18,6 +18,7 @@ describe("gather text footer", () => {
         hasChapter
         canImportTxt
         reviewBusy={false}
+        onClose={vi.fn()}
         onSave={vi.fn()}
         onCopy={vi.fn()}
         onExportReview={onExportReview}
@@ -27,6 +28,7 @@ describe("gather text footer", () => {
     );
 
     expect(screen.getByRole("button", { name: "복사" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: "닫기" })).not.toBeNull();
     expect(screen.queryByRole("menu")).toBeNull();
 
     fireEvent.click(

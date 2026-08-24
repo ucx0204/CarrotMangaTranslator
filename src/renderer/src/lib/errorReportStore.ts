@@ -7,10 +7,19 @@ const MAX_RECENT_FINGERPRINTS = 128;
 const MAX_MESSAGE_LENGTH = 4_000;
 const MAX_STACK_LENGTH = 16_000;
 
+const MAX_QUEUED_INCIDENTS = 4;
+
 let currentIncident: ErrorReportContext | null = null;
 let initialized = false;
 const listeners = new Set<() => void>();
 const recentFingerprints = new Map<string, number>();
+/**
+ * Incidents that arrived while a report was already on screen. Only one dialog
+ * can be shown at a time, but dropping the rest would lose the very failures a
+ * user is most likely to be chasing, so they wait here and surface as the
+ * current report is dismissed.
+ */
+const queuedIncidents: ErrorReportContext[] = [];
 
 export function getErrorReportIncident(): ErrorReportContext | null {
   return currentIncident;
@@ -30,18 +39,12 @@ export function openErrorReport(
 ): boolean {
   const normalized = normalizeContext(context);
   const now = Date.now();
-  if (currentIncident) {
+  if (!options.force && isRecentDuplicate(normalized, now)) {
     return false;
   }
-  if (!options.force) {
-    pruneOldFingerprints(now);
-    const fingerprint = createFingerprint(normalized);
-    const previous = recentFingerprints.get(fingerprint);
-    if (previous !== undefined && now - previous < DUPLICATE_WINDOW_MS) {
-      return false;
-    }
-    evictOldestFingerprints();
-    recentFingerprints.set(fingerprint, now);
+  if (currentIncident) {
+    enqueueIncident(normalized);
+    return false;
   }
   currentIncident = normalized;
   emitChange();
@@ -52,8 +55,37 @@ export function closeErrorReport(): void {
   if (!currentIncident) {
     return;
   }
-  currentIncident = null;
+  currentIncident = queuedIncidents.shift() ?? null;
   emitChange();
+}
+
+function isRecentDuplicate(context: ErrorReportContext, now: number): boolean {
+  pruneOldFingerprints(now);
+  const fingerprint = createFingerprint(context);
+  const previous = recentFingerprints.get(fingerprint);
+  if (previous !== undefined && now - previous < DUPLICATE_WINDOW_MS) {
+    return true;
+  }
+  evictOldestFingerprints();
+  recentFingerprints.set(fingerprint, now);
+  return false;
+}
+
+function enqueueIncident(context: ErrorReportContext): void {
+  const fingerprint = createFingerprint(context);
+  if (createFingerprint(currentIncident ?? context) === fingerprint) {
+    return;
+  }
+  if (
+    queuedIncidents.some((queued) => createFingerprint(queued) === fingerprint)
+  ) {
+    return;
+  }
+  if (queuedIncidents.length >= MAX_QUEUED_INCIDENTS) {
+    // Keep the oldest queued failures: they are closest to the root cause.
+    return;
+  }
+  queuedIncidents.push(context);
 }
 
 export function initializeGlobalErrorReporting(): void {
@@ -95,6 +127,7 @@ export function initializeGlobalErrorReporting(): void {
 
 export function resetErrorReportStoreForTests(): void {
   currentIncident = null;
+  queuedIncidents.length = 0;
   recentFingerprints.clear();
   emitChange();
 }

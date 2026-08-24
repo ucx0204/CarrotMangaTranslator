@@ -12,7 +12,7 @@
     "reportIssueMenu": "Report a macOS Alpha issue",
     "firstRunTitle": "Apple Silicon Alpha",
     "firstRunMessage": "This Apple Silicon Alpha build is still undergoing real-device validation.",
-    "firstRunDetail": "Supported: M1 or newer, macOS 14 or newer. Recommended unified memory: 16 GB for Gemma 12B and Flux, 24 GB for 26B, and 32 GB or more for 31B+DFlash. Gemma, OCR, and inpainting model files download on first use and may take several gigabytes and substantial time. Review the diagnostics and report problems through GitHub Issues.",
+    "firstRunDetail": "Supported: M1 or newer, macOS 14 or newer. Recommended unified memory: 16 GB for Gemma 12B and Flux, 24 GB for 26B, and 32 GB or more for 31B+DFlash. Gemma, OCR, and inpainting models download several gigabytes or more on first use and may take a long time depending on your network. Review the diagnostics and report problems through GitHub Issues.",
     "continue": "Continue",
     "aboutDetail": "Apple Silicon Alpha · Real-device validation in progress\nSupported: M1 or newer / macOS 14 or newer\nPlease report problems through GitHub Issues.",
     "stableAboutDetail": "Carrot Manga Translator"
@@ -66,7 +66,7 @@
       "resultExport": "Result export",
       "reviewExport": "Review-sheet export",
       "reviewImport": "Review-sheet import",
-      "textSave": "Text save",
+      "textSave": "Save text",
       "importApply": "Apply import",
       "shareSave": "Save shared file",
       "shareImport": "Import shared file",

@@ -154,21 +154,21 @@ describe("block style preset manager", () => {
       />,
     );
 
-    expect(screen.getByRole("tab", { name: "공통 대사" })).not.toBeNull();
-    expect(screen.queryByRole("tab", { name: "감정 대사" })).toBeNull();
+    expect(screen.getByRole("button", { name: "공통 대사" })).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "감정 대사" })).toBeNull();
 
     const groupButton = screen.getByRole("button", { name: /순정만화/ });
     expect(groupButton.getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(groupButton);
 
-    const child = screen.getByRole("tab", { name: "감정 대사" });
+    const child = screen.getByRole("button", { name: "감정 대사" });
     expect(child.getAttribute("data-grouped")).toBe("true");
     fireEvent.click(child);
-    expect(child.getAttribute("aria-selected")).toBe("true");
+    expect(child.getAttribute("aria-pressed")).toBe("true");
     expect(groupButton.getAttribute("data-contains-active")).toBe("true");
 
     fireEvent.click(groupButton);
-    expect(screen.queryByRole("tab", { name: "감정 대사" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "감정 대사" })).toBeNull();
     expect(container.querySelector(".style-preset-group-children")).toBeNull();
   });
 

@@ -29,6 +29,7 @@ const PREVIEW_DEFAULTS: GatherTextDirectFormatValues = {
   outlineColor: "#111111",
   outlineWidthPx: 1.5,
   rotationDeg: 0,
+  textEffect: undefined,
 };
 
 export function resolveControlState<Field extends GatherTextDirectFormatField>(

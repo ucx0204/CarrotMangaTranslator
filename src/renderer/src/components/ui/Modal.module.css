@@ -1,82 +1,171 @@
-.backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: grid;
-  place-items: center;
-  padding: var(--sp-6);
-  background: var(--bg-overlay);
-}
+/*
+ * Every rule here is a *default*. Keeping them in a cascade layer means an
+ * unlayered `cardClassName` / `bodyClassName` rule always wins, whether it
+ * comes from a CSS Module or from a global stylesheet, without the caller
+ * having to double its selector or reach for `!important`.
+ *
+ * Two custom properties are part of the public contract:
+ * - `--modal-cap`: set by the `maxHeight` prop; the pixel cap for the card.
+ * - `--modal-available-h`: read-only; the height the card may actually take.
+ */
+@layer ui-modal {
+  .backdrop {
+    /*
+     * The gutter between the dialog and the viewport edge. The card's height
+     * budget is derived from it, so callers never restate a `100vh - Npx`
+     * expression.
+     */
+    --modal-gutter: var(--sp-6);
+    position: fixed;
+    inset: 0;
+    z-index: var(--layer-modal-backdrop, 100);
+    display: grid;
+    place-items: center;
+    padding: var(--modal-gutter);
+    background: var(--bg-overlay);
+  }
 
-.card {
-  display: flex;
-  flex-direction: column;
-  width: min(560px, 100%);
-  max-height: calc(100vh - 2 * var(--sp-6));
-  border: 1px solid var(--surface-border);
-  border-radius: var(--r-lg);
-  background: #1f232b;
-  box-shadow: var(--shadow-overlay), var(--surface-highlight);
-  overflow: hidden;
-}
+  /* App-blocking progress must stay above ordinary dialogs. */
+  .backdropBlocking {
+    z-index: var(--layer-blocking-overlay, 300);
+  }
 
-.sm {
-  width: min(420px, 100%);
-}
+  .card {
+    --modal-available-h: min(
+      var(--modal-cap, 100vh),
+      calc(100vh - var(--modal-gutter) - var(--modal-gutter))
+    );
+    display: flex;
+    flex-direction: column;
+    width: min(560px, 100%);
+    min-height: 0;
+    max-height: var(--modal-available-h);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--r-lg);
+    background: var(--bg-modal);
+    box-shadow: var(--shadow-overlay), var(--surface-highlight);
+    overflow: hidden;
+  }
 
-.md {
-  width: min(560px, 100%);
-}
+  /* Programmatic dialog focus is for keyboard entry, not a visual selection. */
+  .card:focus {
+    outline: none;
+  }
 
-.lg {
-  width: min(880px, 100%);
-}
+  /*
+   * Dialogs whose content streams in (search results, live previews) should not
+   * resize as it arrives, so they take the whole capped height up front.
+   */
+  .cardFillHeight {
+    height: var(--modal-available-h);
+  }
 
-.xl {
-  width: min(1180px, 100%);
-}
+  .sm {
+    width: min(420px, 100%);
+  }
 
-.header {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-4);
-  padding: var(--sp-5) var(--sp-6);
-  border-bottom: 1px solid var(--border-soft);
-}
+  .md {
+    width: min(560px, 100%);
+  }
 
-.title {
-  margin: 0;
-  font-size: var(--font-lg);
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: var(--text-head);
-}
+  .lg {
+    width: min(880px, 100%);
+  }
 
-.headerActions {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  flex: 0 0 auto;
-}
+  .xl {
+    width: min(1180px, 100%);
+  }
 
-.body {
-  display: grid;
-  flex: 1 1 auto;
-  min-height: 0;
-  align-content: start;
-  gap: var(--sp-4);
-  padding: var(--sp-6);
-  overflow: auto;
-}
+  .header {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-4);
+    padding: var(--sp-5) var(--sp-6);
+    border-bottom: 1px solid var(--border-soft);
+  }
 
-.footer {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--sp-3);
-  padding: var(--sp-5) var(--sp-6);
-  border-top: 1px solid var(--border-soft);
+  .title {
+    margin: 0;
+    font-size: var(--font-lg);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: var(--text-head);
+  }
+
+  .headerActions {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    flex: 0 0 auto;
+  }
+
+  .body {
+    display: grid;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    align-content: start;
+    gap: var(--sp-4);
+    padding: var(--sp-6);
+    overflow: auto;
+  }
+
+  /* Bodies whose child owns the scroll region. */
+  .bodyFlex {
+    display: flex;
+    flex-direction: column;
+    align-content: stretch;
+    overflow: hidden;
+  }
+
+  /*
+   * Grid bodies that must fill the dialog; the caller sizes the row tracks and
+   * its children own the scroll regions.
+   */
+  .bodyFill {
+    align-content: stretch;
+    overflow: hidden;
+  }
+
+  /* Bodies that render their own shell; the dialog contributes no padding or gap. */
+  .bodyBare {
+    display: flex;
+    flex-direction: column;
+    align-content: stretch;
+    gap: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .footer {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--sp-3);
+    padding: var(--sp-5) var(--sp-6);
+    border-top: 1px solid var(--border-soft);
+  }
+
+  /*
+   * On a narrow viewport the chrome costs more than the content can afford, so
+   * the gutter and the internal padding both tighten. Bodies that opted out of
+   * padding keep their own shell.
+   */
+  @media (max-width: 640px) {
+    .backdrop {
+      --modal-gutter: var(--sp-3);
+    }
+
+    .header,
+    .footer {
+      padding: var(--sp-4);
+    }
+
+    .body:not(.bodyBare) {
+      padding: var(--sp-4);
+    }
+  }
 }

@@ -85,7 +85,6 @@ export function ImportModal({
 
   return (
     <Modal
-      ariaLabel={modalTitle}
       title={modalTitle}
       onClose={onCancel}
       closeDisabled={busy}

@@ -24,7 +24,7 @@ export function useLinkedWorkspaceStatuses(chapterIds: readonly string[]): {
       const resolved =
         await linkedWorkspaceGateway.listLinkedWorkspaceStatuses(ids);
       setStatuses(
-        new Map(resolved.map((status) => [status.chapterId, status])),
+        new Map((resolved ?? []).map((status) => [status.chapterId, status])),
       );
     } finally {
       setLoading(false);
@@ -36,7 +36,7 @@ export function useLinkedWorkspaceStatuses(chapterIds: readonly string[]): {
       const relevant = new Set(key ? key.split("\u0000") : []);
       setStatuses((current) => {
         const next = new Map(current);
-        for (const status of event.statuses) {
+        for (const status of event.statuses ?? []) {
           if (relevant.has(status.chapterId))
             next.set(status.chapterId, status);
         }

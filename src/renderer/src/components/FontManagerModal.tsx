@@ -28,9 +28,12 @@ export function FontManagerModal({
   return (
     <Modal
       title={t("fontManager.title")}
-      onClose={model.disabled ? undefined : onClose}
-      closeOnBackdrop
+      onClose={onClose}
+      // Holds an unsaved font draft: keep the close button visible but inert
+      // while saving, and never discard the draft on a stray backdrop click.
+      closeDisabled={model.disabled}
       size="lg"
+      maxHeight="760px"
       bodyClassName={styles.body}
       footer={<FontManagerFooter model={model} onClose={onClose} />}
     >

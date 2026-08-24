@@ -18,7 +18,6 @@ export function useRefreshLibraryAction({
     try {
       setLibrary(await libraryGateway.getLibrary());
     } catch (error) {
-      console.error(error);
       pushStatus(formatErrorMessage(error, t("library.refreshFailed")));
     }
   }, [pushStatus, setLibrary, t]);

@@ -75,7 +75,7 @@ describe("renderer UI locale runtime", () => {
     await waitFor(() => expect(document.title).toBe("ブロック編集"));
   });
 
-  it("drops translated transient state when the locale changes", async () => {
+  it("keeps the status log but drops re-derivable transient state when the locale changes", async () => {
     window.mangaApi = createTestMangaGatewayStub({
       onUiLocaleChanged: (callback: (locale: UiLocale) => void) => {
         localeListener = callback;
@@ -100,12 +100,16 @@ describe("renderer UI locale runtime", () => {
 
     act(() => localeListener?.("ja"));
     await waitFor(() => {
-      expect(screen.getByTestId("status").textContent).toBe("");
       expect(screen.getByTestId("detail").textContent).toBe("");
       expect(screen.getByTestId("progress").textContent).toBe(
         appI18n.t("job.phase.booting", { ns: "renderer" }),
       );
     });
+    // The log is a record of what happened; re-translating past lines is
+    // impossible, and discarding them would lose the account of a failure.
+    expect(screen.getByTestId("status").textContent).toContain(
+      "Settings saved",
+    );
   });
 
   it("preserves translated transient state for a repeated locale event", async () => {

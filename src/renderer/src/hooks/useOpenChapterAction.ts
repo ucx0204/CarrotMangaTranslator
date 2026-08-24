@@ -62,7 +62,6 @@ export function useOpenChapterAction({
           t,
         });
       } catch (error) {
-        console.error(error);
         if (isLatestRequest()) {
           pushStatus(formatErrorMessage(error, t("library.openChapterFailed")));
         }

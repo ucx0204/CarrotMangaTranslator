@@ -1,9 +1,10 @@
 import React from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
-import * as Progress from "@radix-ui/react-progress";
 import type { JobState } from "../../../shared/jobTypes";
 import { formatBytes, type ProgressSnapshot } from "../lib/jobProgress";
+import { JobProgressReadout } from "./JobProgressReadout";
+import { Modal } from "./ui/Modal";
 import { usePinnedInstallLog } from "./usePinnedInstallLog";
 
 type InstallProgressOverlayProps = {
@@ -30,60 +31,42 @@ export function InstallProgressOverlay({
     return null;
   }
 
-  const progress = resolveInstallProgressDisplay(snapshot);
   const byteStats = formatByteStats(
     job,
     i18n.resolvedLanguage ?? i18n.language,
   );
 
   return (
-    <div
-      className="install-progress-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-live="polite"
-      onPointerDownCapture={handleOverlayPointerStartCapture}
-      onPointerMoveCapture={stopOverlayEvent}
-      onPointerUpCapture={handleOverlayPointerEndCapture}
-      onPointerCancelCapture={handleOverlayPointerEndCapture}
-      onClickCapture={stopOverlayEvent}
-      onDoubleClickCapture={stopOverlayEvent}
-      onContextMenuCapture={stopOverlayEvent}
-      onWheel={stopOverlayEvent}
+    <Modal
+      title={resolveKicker(job.phase, t)}
+      width="min(680px, calc(100vw - 96px))"
+      maxHeight="720px"
+      // `install-progress-content` owns the padding; the body must not add its own.
+      bodyLayout="bare"
+      bodyClassName="install-progress-body"
+      elevation="blocking"
+      closeOnEsc={false}
     >
-      <div className="install-progress-card" onWheel={stopOverlayEvent}>
-        <div className="install-progress-header">
-          <span className="install-progress-kicker">
-            {resolveKicker(job.phase, t)}
-          </span>
-          <strong>{job.progressText}</strong>
-        </div>
+      <div
+        className="install-progress-content"
+        onPointerDownCapture={handleOverlayPointerStartCapture}
+        onPointerUpCapture={handleOverlayPointerEndCapture}
+        onPointerCancelCapture={handleOverlayPointerEndCapture}
+      >
+        <strong className="install-progress-headline">
+          {job.progressText}
+        </strong>
 
-        <Progress.Root
-          className={`install-progress-root is-${progress.mode}`}
-          value={progress.value}
-          max={100}
-        >
-          <Progress.Indicator
-            className="install-progress-indicator"
-            style={
-              progress.mode === "determinate"
-                ? {
-                    transform: `translateX(-${100 - (progress.percent ?? 0)}%)`,
-                  }
-                : undefined
+        <div className="install-progress-readout" aria-live="polite">
+          <JobProgressReadout
+            jobState={job}
+            progressSnapshot={snapshot}
+            indeterminateLabel={
+              snapshot ? undefined : t("install.checkingLogs")
             }
+            stats={byteStats ? <span>{byteStats}</span> : null}
           />
-        </Progress.Root>
-
-        <div className="install-progress-stats">
-          <span>
-            {resolveProgressLabel(progress.mode, progress.percent, t)}
-          </span>
-          {byteStats ? <span>{byteStats}</span> : null}
         </div>
-
-        {job.detail ? <p>{job.detail}</p> : null}
 
         <InstallLogPanel
           handleLogKeyDown={handleLogKeyDown}
@@ -94,23 +77,8 @@ export function InstallProgressOverlay({
           logRef={logRef}
         />
       </div>
-    </div>
+    </Modal>
   );
-}
-
-function resolveInstallProgressDisplay(snapshot: ProgressSnapshot | null): {
-  mode: ProgressSnapshot["mode"] | "log-only";
-  percent: number | null;
-  value: number | undefined;
-} {
-  const mode = snapshot?.mode ?? "log-only";
-  const percent =
-    snapshot?.mode === "determinate" ? Math.round(snapshot.ratio * 100) : null;
-  return {
-    mode,
-    percent,
-    value: mode === "determinate" ? (percent ?? 0) : undefined,
-  };
 }
 
 function InstallLogPanel({
@@ -149,24 +117,6 @@ function InstallLogPanel({
       </div>
     </div>
   );
-}
-
-function stopOverlayEvent(event: React.SyntheticEvent): void {
-  event.stopPropagation();
-}
-
-function resolveProgressLabel(
-  mode: ProgressSnapshot["mode"] | "log-only",
-  percent: number | null,
-  t: TFunction<"components">,
-): string {
-  if (mode === "determinate" && percent !== null) {
-    return `${percent}%`;
-  }
-  if (mode === "indeterminate") {
-    return t("common.inProgress");
-  }
-  return t("install.checkingLogs");
 }
 
 function formatByteStats(job: JobState, locale: string): string | null {

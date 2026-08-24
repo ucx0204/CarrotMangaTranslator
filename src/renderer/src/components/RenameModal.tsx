@@ -46,7 +46,6 @@ export function RenameModal({
   return (
     <Modal
       size="sm"
-      ariaLabel={heading}
       title={heading}
       onClose={onCancel}
       closeDisabled={busy}

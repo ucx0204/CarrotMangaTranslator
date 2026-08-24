@@ -255,6 +255,72 @@ describe("GatherTextDirectFormatModal", () => {
 
     expect(selection.apply).toHaveBeenCalledWith({ autoFitText: false });
   });
+
+  it("loads a saved custom style into the selected-block editor", () => {
+    const selection = makeSelection();
+    selection.stylePresets = [
+      {
+        version: 1,
+        id: "custom-dialogue",
+        name: "커스텀 대사체",
+        pinned: true,
+        groupIds: ["font", "size", "emphasis", "color", "outline", "effect"],
+        format: {
+          fontFamily: "nanum-gothic",
+          fontSizePx: 42,
+          autoFitText: false,
+          bold: true,
+          italic: false,
+          textColor: "#f6f1e8",
+          outlineColor: "#111111",
+          outlineWidthPx: 2,
+          textEffect: {
+            enabled: true,
+            color: "#000000",
+            offsetXpx: 2,
+            offsetYpx: 3,
+            blurPx: 4,
+            opacity: 0.5,
+          },
+        },
+      },
+    ];
+    const { container } = renderModal(selection);
+
+    fireEvent.click(screen.getByRole("button", { name: "프리셋 선택" }));
+    fireEvent.click(
+      screen.getByRole("menuitemradio", { name: "커스텀 대사체" }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: /커스텀 대사체/ }).textContent,
+    ).toContain("커스텀 대사체");
+    expect(
+      container.querySelector<HTMLElement>(".gather-direct-preview-text")?.style
+        .fontSize,
+    ).toBe("42px");
+    fireEvent.click(screen.getByRole("button", { name: "적용" }));
+    expect(selection.apply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        autoFitText: false,
+        bold: true,
+        fontFamily: "nanum-gothic",
+        fontSizePx: 42,
+        italic: false,
+        outlineColor: "#111111",
+        outlineWidthPx: 2,
+        textColor: "#f6f1e8",
+        textEffect: {
+          enabled: true,
+          color: "#000000",
+          offsetXpx: 2,
+          offsetYpx: 3,
+          blurPx: 4,
+          opacity: 0.5,
+        },
+      }),
+    );
+  });
 });
 
 function renderModal(selection: GatherTextFormatSelection) {

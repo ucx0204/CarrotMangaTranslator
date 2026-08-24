@@ -2,6 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import type { GatherField, GatherScope } from "../../lib/gatherText";
 import { Button } from "../ui/Button";
+import { SegmentedControl } from "../ui/SegmentedControl";
 
 export function GatherTextControls({
   scope,
@@ -70,19 +71,13 @@ function SegmentedRow<T extends string>({
   return (
     <div className="gather-text-control">
       <span>{label}</span>
-      <div className="settings-mode-group" role="tablist" aria-label={label}>
-        {options.map((option) => (
-          <button
-            key={option.id}
-            type="button"
-            className={`settings-preset-button ${value === option.id ? "active" : ""}`}
-            aria-pressed={value === option.id}
-            onClick={() => onChange(option.id)}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        ariaLabel={label}
+        singleRow
+        options={options}
+        value={value}
+        onChange={onChange}
+      />
     </div>
   );
 }

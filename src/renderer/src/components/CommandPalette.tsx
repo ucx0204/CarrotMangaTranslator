@@ -70,7 +70,6 @@ export function CommandPalette({
 
   return (
     <Modal
-      ariaLabel={t("commandPalette.title")}
       title={t("commandPalette.title")}
       size="md"
       onClose={onClose}

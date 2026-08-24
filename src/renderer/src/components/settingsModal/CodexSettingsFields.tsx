@@ -7,6 +7,7 @@ import {
   supportsCodexReasoningEffort,
 } from "../settingsOptions";
 import type { EngineSettingsPanelProps } from "./EngineSettingsPanelTypes";
+import { SettingsNumberField } from "./SettingsNumberField";
 import { Select } from "../ui/Select";
 
 const CUSTOM_CODEX_MODEL_OPTION = "__custom__";
@@ -194,25 +195,18 @@ function CodexOauthPortField({
 }: CodexSettingsFieldsProps): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <label>
-      {t("settings.codex.oauthPort")}
-      <input
-        type="number"
-        min={1}
-        max={65535}
-        step={1}
-        value={codexOauthPort}
-        disabled={controlsBusy}
-        onChange={(event) => {
-          clearTestState();
-          setCodexOauthPort(event.target.value);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            submit();
-          }
-        }}
-      />
-    </label>
+    <SettingsNumberField
+      ariaLabel={t("settings.codex.oauthPort")}
+      min={1}
+      max={65535}
+      step={1}
+      value={codexOauthPort}
+      disabled={controlsBusy}
+      onSubmit={submit}
+      onValueChange={(next) => {
+        clearTestState();
+        setCodexOauthPort(next);
+      }}
+    />
   );
 }

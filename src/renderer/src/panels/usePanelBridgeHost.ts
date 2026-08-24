@@ -10,7 +10,10 @@ import type {
   PanelId,
   PanelSyncState,
 } from "../../../shared/panelBridgeTypes";
+import { useTranslation } from "react-i18next";
 import { panelGateway as mangaGateway } from "../api/panelGateway";
+import { formatErrorMessage } from "../lib/errorPresentation";
+import { toast } from "../lib/toastStore";
 
 /**
  * Main-window side of the panel bridge. Publishes the serializable session slice
@@ -29,6 +32,7 @@ export function usePanelBridgeHost({
   openEditorWindow: () => void;
   closeEditorWindow: () => void;
 } {
+  const { t } = useTranslation("renderer");
   const [openPanelIds, setOpenPanelIds] = useState<PanelId[]>([]);
   const syncStateRef = useRef(syncState);
   const onCommandRef = useRef(onCommand);
@@ -57,16 +61,22 @@ export function usePanelBridgeHost({
     });
   }, []);
 
+  // Both are direct responses to a click: if the window does not appear or
+  // disappear, silence would read as the app ignoring the user.
   const openEditorWindow = useCallback(() => {
     void mangaGateway.openPanelWindow("editor").catch((error) => {
-      console.error(error);
+      toast.error(
+        formatErrorMessage(error, t("panels.openEditorWindowFailed")),
+      );
     });
-  }, []);
+  }, [t]);
   const closeEditorWindow = useCallback(() => {
     void mangaGateway.closePanelWindow("editor").catch((error) => {
-      console.error(error);
+      toast.error(
+        formatErrorMessage(error, t("panels.closeEditorWindowFailed")),
+      );
     });
-  }, []);
+  }, [t]);
 
   return { openPanelIds, openEditorWindow, closeEditorWindow };
 }

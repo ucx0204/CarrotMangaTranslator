@@ -60,60 +60,36 @@
 
 .page-list-header {
   display: grid;
-  gap: 10px;
+  gap: 0;
 }
 
 .page-list-title-row {
-  min-height: 24px;
+  min-height: 28px;
+  justify-content: flex-start;
+}
+
+.page-list-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+  margin-left: auto;
+}
+
+.page-list-header-actions .sidebar-section-collapse-button {
+  margin-left: 0;
 }
 
 .page-list-visible-count {
   color: var(--text-muted);
   font-size: var(--font-xs);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.page-list-filters {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 4px;
-  padding: 3px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-md);
-  background: var(--bg-sunken);
-}
-
-.page-list-filters > button {
-  display: flex;
-  min-width: 0;
-  min-height: 30px;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 4px 5px;
-  border-color: transparent;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 11px;
-}
-
-.page-list-filters > button:hover,
-.page-list-filters > button:focus-visible {
-  border-color: var(--border-hover);
-  color: var(--text);
-}
-
-.page-list-filters > button.active {
-  border-color: var(--accent-bd);
-  background: var(--accent-soft);
-  color: var(--text-head);
-}
-
-.page-list-filters small {
-  color: inherit;
-  font-size: 10px;
-  font-variant-numeric: tabular-nums;
-  opacity: 0.72;
+.page-list-filter-menu {
+  position: relative;
+  flex: 0 0 auto;
 }
 
 .page-item {
@@ -270,7 +246,7 @@
 
 .page-actions-menu {
   position: absolute;
-  z-index: 24;
+  z-index: var(--layer-panel-menu);
   top: 34px;
   right: 0;
   display: grid;
@@ -575,11 +551,9 @@
 
 .inpaint-group {
   display: grid;
-  gap: var(--sp-2);
-  padding: var(--sp-2);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-md);
-  background: var(--bg-sunken);
+  gap: var(--sp-3);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--border-soft);
 }
 
 .inpaint-group-head {
@@ -780,10 +754,7 @@
 .mask-adjust-row {
   display: grid;
   gap: var(--sp-2);
-  padding: var(--sp-2);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-md);
-  background: var(--bg-sunken);
+  padding: 0;
 }
 
 .mask-adjust-row .brush-size-control {
@@ -888,10 +859,8 @@
 .retouch-tools-bar {
   display: grid;
   gap: var(--sp-3);
-  padding: var(--sp-3);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-md);
-  background: var(--bg-sunken);
+  padding-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .retouch-tools-bar-head {

@@ -4,6 +4,9 @@ import type {
   PanelSyncState,
 } from "../../../shared/panelBridgeTypes";
 import { panelGateway as mangaGateway } from "../api/panelGateway";
+import { appI18n } from "../appI18n";
+import { formatErrorMessage } from "../lib/errorPresentation";
+import { toast } from "../lib/toastStore";
 import type { PanelSessionValue } from "./panelSession";
 
 const noop = (): void => undefined;
@@ -17,7 +20,14 @@ const REMOTE_WINDOW_ACTIONS = {
 
 function dispatchCommand(command: PanelCommand): void {
   void mangaGateway.sendPanelCommand(command).catch((error) => {
-    console.error(error);
+    // A dropped command means the panel's control did nothing at all; the user
+    // has to know rather than assume the edit landed in the main window.
+    toast.error(
+      formatErrorMessage(
+        error,
+        appI18n.t("panels.commandFailed", { ns: "renderer" }),
+      ),
+    );
   });
 }
 

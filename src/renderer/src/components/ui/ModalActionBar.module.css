@@ -1,5 +1,6 @@
 .root {
   display: flex;
+  flex-wrap: wrap;
   width: 100%;
   min-width: 0;
   align-items: center;
@@ -14,6 +15,7 @@
 .leading,
 .actions {
   display: flex;
+  flex-wrap: wrap;
   min-width: 0;
   align-items: center;
   gap: var(--sp-3);
@@ -29,17 +31,24 @@
   justify-content: flex-end;
 }
 
-@media (max-width: 520px) {
-  .root.hasLeading {
+/*
+ * Footers with three or more actions run out of room long before the dialog
+ * does, so the row stacks whether or not there is a leading group.
+ */
+@media (max-width: 560px) {
+  .root {
     align-items: stretch;
     flex-direction: column;
   }
 
+  .leading,
   .actions {
     width: 100%;
+    flex: 0 0 auto;
   }
 
-  .actions > :global(button) {
+  .leading > *,
+  .actions > * {
     flex: 1 1 auto;
   }
 }

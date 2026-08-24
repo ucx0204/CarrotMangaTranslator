@@ -15,7 +15,7 @@ import type { FormatApplyScope } from "../hooks/blockEditingStatus";
 import { Button } from "./ui/Button";
 import { CheckboxField } from "./ui/CheckboxField";
 import { IconButton } from "./ui/IconButton";
-import { ScrubbableNumberField } from "./ui/ScrubbableNumberField";
+import { NumberField } from "./ui/NumberField";
 import { TextWrappingSelect } from "./TextWrappingSelect";
 import {
   AlignCenterIcon,
@@ -319,9 +319,8 @@ function FontSizeRow({
     <div className="editor-font-size-row">
       <div className="editor-format-number-cell">
         <span>{t("format.size")}</span>
-        <ScrubbableNumberField
-          className="font-size-stepper"
-          inputClassName="font-size-number"
+        <NumberField
+          variant="scrubber"
           ariaLabel={t("format.fontSizeValue")}
           decreaseLabel={t("format.fontSizeDecrease")}
           increaseLabel={t("format.fontSizeIncrease")}
@@ -360,7 +359,8 @@ function BlockTextOpacityField({
   return (
     <div className="editor-format-number-cell">
       <span>{label}</span>
-      <ScrubbableNumberField
+      <NumberField
+        variant="scrubber"
         ariaLabel={label}
         decreaseLabel={t("format.decreaseValue", { label })}
         increaseLabel={t("format.increaseValue", { label })}

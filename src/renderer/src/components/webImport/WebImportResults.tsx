@@ -13,6 +13,8 @@ import type {
   WebImportScanResult,
   WebImportSizeFilter,
 } from "../../../../shared/webImportTypes";
+import { CheckboxField } from "../ui/CheckboxField";
+import { SegmentedControl } from "../ui/SegmentedControl";
 
 export function WebImportProgress({
   progress,
@@ -99,25 +101,16 @@ export function WebImportToolbar({
   const { t } = useTranslation("components");
   return (
     <div className="web-import-toolbar">
-      <div
+      <SegmentedControl
         className="web-import-filter-group"
-        role="radiogroup"
-        aria-label={t("webImport.sizeFilter")}
-      >
-        {(["all", "medium-or-larger", "large"] as const).map((value) => (
-          <button
-            key={value}
-            type="button"
-            role="radio"
-            aria-checked={filter === value}
-            className={filter === value ? "active" : ""}
-            onClick={() => onFilterChange(value)}
-            disabled={busy}
-          >
-            {t(`webImport.filters.${value}`)}
-          </button>
-        ))}
-      </div>
+        ariaLabel={t("webImport.sizeFilter")}
+        disabled={busy}
+        options={(["all", "medium-or-larger", "large"] as const).map(
+          (value) => ({ id: value, label: t(`webImport.filters.${value}`) }),
+        )}
+        value={filter}
+        onChange={onFilterChange}
+      />
       <div className="web-import-select-actions">
         <button
           type="button"
@@ -203,23 +196,21 @@ function WebImportCandidateCard({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <label
+    <CheckboxField
+      variant="bare"
+      hideInput
       className="web-import-card"
-      data-selected={selected ? "true" : "false"}
+      dataSelected={selected}
       role="listitem"
+      checked={selected}
+      disabled={disabled}
+      onCheckedChange={onSelectedChange}
+      ariaLabel={t("webImport.imageSelectionLabel", {
+        index: displayIndex,
+        width: candidate.width,
+        height: candidate.height,
+      })}
     >
-      <input
-        className="visually-hidden"
-        type="checkbox"
-        checked={selected}
-        disabled={disabled}
-        onChange={(event) => onSelectedChange(event.target.checked)}
-        aria-label={t("webImport.imageSelectionLabel", {
-          index: displayIndex,
-          width: candidate.width,
-          height: candidate.height,
-        })}
-      />
       <span className="web-import-card-image">
         <img
           src={candidate.previewUrl}
@@ -239,7 +230,7 @@ function WebImportCandidateCard({
           {formatWebImportImage(candidate)} · {formatBytes(candidate.byteSize)}
         </small>
       </span>
-    </label>
+    </CheckboxField>
   );
 }
 

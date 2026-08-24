@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { reorderByTarget } from "../lib/appHelpers";
 import { formatErrorMessage } from "../lib/errorPresentation";
+import { toast } from "../lib/toastStore";
 import { libraryGateway } from "../api/libraryGateway";
 import type { UseLibraryActionsOptions } from "./libraryActionTypes";
 import {
@@ -43,15 +44,16 @@ export function useReorderChaptersAction({
         .reorderChapters(workId, nextOrder)
         .then(setLibrary)
         .catch((error) => {
-          console.error(error);
           setLibrary((current) =>
             rollbackChapterSummaries(current, workId, nextOrder, previousOrder),
           );
+          // The list visibly snaps back; without a notice that reads as a bug.
           const message = formatErrorMessage(
             error,
             t("library.order.chapterSaveFailed"),
           );
           pushStatus(t("library.order.rolledBackAfterError", { message }));
+          toast.error(message);
         });
     },
     [library.works, pushStatus, setLibrary, t],

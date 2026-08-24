@@ -73,7 +73,7 @@ export function SettingsModalView({
   return (
     <Modal
       width="min(920px, 100%)"
-      ariaLabel={t("settings.title")}
+      fillHeight
       title={t("settings.title")}
       bodyClassName="settings-modal-body"
       onClose={onCancel}
@@ -191,7 +191,6 @@ function SettingsModalTabPanel({
   | "validationProps"
 >): React.JSX.Element {
   const { t } = useTranslation("components");
-  const showApplyNote = ["engine", "hardware", "format"].includes(activeTab);
   const activeTabOption = SETTINGS_TABS.find((tab) => tab.id === activeTab);
   return (
     <div
@@ -214,11 +213,6 @@ function SettingsModalTabPanel({
               ? t(activeTabOption.labelKey)
               : null}
         </h2>
-        {showApplyNote ? (
-          <span className="settings-apply-badge">
-            {t("settings.applyNextRun")}
-          </span>
-        ) : null}
       </header>
       <SettingsModalTabContent
         activeTab={activeTab}

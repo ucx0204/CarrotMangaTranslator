@@ -79,6 +79,48 @@ describe("NumberField", () => {
     expect((input as HTMLInputElement).valueAsNumber).toBe(8.5);
   });
 
+  it("derives display precision from a fractional step", () => {
+    render(
+      <NumberField
+        ariaLabel="Temperature"
+        value={0.7}
+        min={0}
+        max={2}
+        step={0.05}
+        onValueChange={() => undefined}
+      />,
+    );
+
+    expect(
+      (
+        screen.getByRole("spinbutton", {
+          name: "Temperature",
+        }) as HTMLInputElement
+      ).value,
+    ).toBe("0.7");
+  });
+
+  it("uses the whole value zone as the edit target for short values", () => {
+    const { container } = render(
+      <NumberField
+        ariaLabel="짧은 값"
+        value={1}
+        min={0}
+        max={9}
+        unit="px"
+        variant="framed"
+        onValueChange={() => undefined}
+      />,
+    );
+    const input = screen.getByRole("spinbutton", { name: "짧은 값" });
+    const editZone = container.querySelector("[data-ui-number-input-zone]");
+
+    expect(editZone).not.toBeNull();
+    if (!editZone) throw new Error("Number field edit zone was not rendered");
+    fireEvent.pointerDown(editZone);
+    expect(document.activeElement).toBe(input);
+  });
+
   it("can use a stepper-free text input while rejecting non-numeric drafts", () => {
     const onValueChange = vi.fn();
     render(

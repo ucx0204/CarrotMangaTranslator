@@ -148,10 +148,7 @@ function handleMenuKeyDown(
     deps;
   const last = LIBRARY_SORT_OPTIONS.length - 1;
   switch (event.key) {
-    case "Escape":
-      event.preventDefault();
-      onDismiss(true);
-      return;
+    // Escape is handled by usePopupController in the capture phase.
     case "Tab":
       window.setTimeout(() => onDismiss(false), 0);
       return;

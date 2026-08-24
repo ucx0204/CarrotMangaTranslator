@@ -13,6 +13,7 @@ import type {
 } from "./contextEntryListModel";
 import { formatContextUsage } from "./contextEntryListModel";
 import { splitList } from "./styleGuideUtils";
+import { CheckboxField } from "../ui/CheckboxField";
 
 type ContextEntryToolbarProps = {
   query: string;
@@ -330,16 +331,13 @@ export function ContextEntryEnabledToggle({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <button
-      type="button"
+    <CheckboxField
+      variant="switch"
       className="style-guide-enabled-toggle"
-      role="switch"
-      aria-checked={enabled}
-      aria-label={t("styleGuide.usage.enabledItem", { name })}
-      onClick={() => onChange(!enabled)}
-    >
-      <span aria-hidden="true" />
-    </button>
+      checked={enabled}
+      ariaLabel={t("styleGuide.usage.enabledItem", { name })}
+      onCheckedChange={onChange}
+    />
   );
 }
 

@@ -12,6 +12,7 @@ import {
   type BubbleLayoutDraftPreview,
   type WorkspaceInteractionPreviewStore,
 } from "../lib/workspaceInteractionPreview";
+import { RangeInput } from "./ui/Field";
 
 type BubbleLayoutContextBarProps = {
   interactionPreviewStore: WorkspaceInteractionPreviewStore;
@@ -141,7 +142,7 @@ function BubbleLayoutModeToolbar({
       ))}
       <label className="bubble-layout-context-radius">
         <span>{t("bubbleLayoutEditor.radius")}</span>
-        <input
+        <RangeInput
           aria-label={t("bubbleLayoutEditor.radius")}
           disabled={draft.mode === "polygon"}
           max={MAX_BUBBLE_LAYOUT_BRUSH_RADIUS}
@@ -152,7 +153,6 @@ function BubbleLayoutModeToolbar({
               Number(event.currentTarget.value),
             )
           }
-          type="range"
           value={draft.brushRadius}
         />
         <output>{Math.round(draft.brushRadius)}</output>

@@ -331,7 +331,6 @@ function handleAnalysisJobError(
   deferTerminalFailure: boolean | undefined,
   context: AnalysisJobContext,
 ): "failed" {
-  console.error(error);
   if (!deferTerminalFailure) {
     failAnalysisJob(
       context.setJobState,

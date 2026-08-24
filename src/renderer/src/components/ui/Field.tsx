@@ -1,37 +1,94 @@
 import React from "react";
 import styles from "./Field.module.css";
 
-function Field({
-  label,
-  hint,
-  children,
-  className,
-}: {
+/**
+ * How the label sits relative to the control.
+ * - `stack` (default): label above the control.
+ * - `row`: label beside the control on one baseline.
+ * - `inline`: the field hugs its content instead of filling the row.
+ */
+type FieldVariant = "stack" | "row" | "inline";
+
+/** Label-to-control spacing. Editor surfaces are compact, settings comfortable. */
+type FieldDensity = "compact" | "comfortable";
+
+export type FieldProps = {
   label?: React.ReactNode;
   hint?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
-}): React.JSX.Element {
+  labelClassName?: string;
+  variant?: FieldVariant;
+  density?: FieldDensity;
+  /**
+   * Render a plain container instead of a `<label>`. Required when the control
+   * is not a labelable element — for example the button-based `Select`. Pair it
+   * with `labelId` and point the control's `aria-labelledby` at that id.
+   */
+  as?: "label" | "div";
+  labelId?: string;
+  /** Container-level key handling, e.g. "Enter submits this settings panel". */
+  onKeyDown?: React.KeyboardEventHandler<HTMLElement>;
+};
+
+/**
+ * The single label + control + hint layout. Every form row should go through
+ * this instead of hand-rolling `<label><span>…` so spacing, type scale, and
+ * label association stay consistent across the app.
+ */
+export function Field({
+  label,
+  hint,
+  children,
+  className,
+  labelClassName,
+  variant = "stack",
+  density = "compact",
+  as = "label",
+  labelId,
+  onKeyDown,
+}: FieldProps): React.JSX.Element {
+  const Container = as;
+  const classes = [
+    styles.field,
+    variant === "row" ? styles.row : "",
+    variant === "inline" ? styles.inline : "",
+    density === "comfortable" ? styles.comfortable : "",
+    className ?? "",
+  ]
+    .filter(Boolean)
+    .join(" ");
   return (
-    <label
-      className={[styles.field, className ?? ""].filter(Boolean).join(" ")}
-    >
-      {label != null ? <span className={styles.label}>{label}</span> : null}
+    <Container className={classes} onKeyDown={onKeyDown}>
+      {label != null ? (
+        <span
+          id={labelId}
+          className={[styles.label, labelClassName ?? ""]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          {label}
+        </span>
+      ) : null}
       {children}
       {hint != null ? <span className={styles.hint}>{hint}</span> : null}
-    </label>
+    </Container>
   );
 }
 
 export type TextFieldProps = React.InputHTMLAttributes<HTMLInputElement> & {
   label?: React.ReactNode;
   hint?: React.ReactNode;
+  density?: FieldDensity;
 };
 
 export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(
-  function TextField({ label, hint, className, type = "text", ...rest }, ref) {
+  function TextField(
+    { label, hint, className, density, type = "text", ...rest },
+    ref,
+  ) {
     return (
-      <Field label={label} hint={hint} className={className}>
+      <Field label={label} hint={hint} className={className} density={density}>
         <input ref={ref} type={type} {...rest} />
       </Field>
     );
@@ -41,7 +98,10 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(
 export type RangeInputProps = Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
   "type"
->;
+> & {
+  /** Access the underlying slider, e.g. to focus it when a popover opens. */
+  inputRef?: React.RefObject<HTMLInputElement | null>;
+};
 
 /** A range input whose track is filled up to the current value (via the --range-progress CSS var). */
 export function RangeInput({
@@ -50,6 +110,7 @@ export function RangeInput({
   max = 100,
   value,
   style,
+  inputRef,
   ...rest
 }: RangeInputProps): React.JSX.Element {
   const lo = Number(min);
@@ -68,6 +129,7 @@ export function RangeInput({
     >
       <span className="range-input-track" aria-hidden="true" />
       <input
+        ref={inputRef}
         className="range-input-control"
         type="range"
         min={min}

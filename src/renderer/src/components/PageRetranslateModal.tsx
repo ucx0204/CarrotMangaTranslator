@@ -8,7 +8,7 @@ import { Button } from "./ui/Button";
 import { CheckboxField } from "./ui/CheckboxField";
 import { Modal } from "./ui/Modal";
 import { ModalActionBar } from "./ui/ModalActionBar";
-import { WarnIcon } from "./ui/icons";
+import { TranslationOverwriteWarning } from "./TranslationOverwriteWarning";
 
 type PageRetranslateModalProps = {
   pageName: string;
@@ -69,6 +69,7 @@ export function PageRetranslateModal({
       size="md"
       onClose={onClose}
       closeOnBackdrop
+      maxHeight="900px"
       cardClassName="translation-options-modal"
       footer={
         <ModalActionBar
@@ -160,13 +161,10 @@ function PageRetranslateOptions({
           onChange={onAutoFontMatchingChange}
         />
       </div>
-      <div className="translation-overwrite-warning" role="note">
-        <WarnIcon size={18} aria-hidden="true" />
-        <div>
-          <strong>{t("retranslate.overwriteTitle")}</strong>
-          <span>{t("retranslate.overwriteWarning")}</span>
-        </div>
-      </div>
+      <TranslationOverwriteWarning
+        title={t("retranslate.overwriteTitle")}
+        description={t("retranslate.overwriteWarning")}
+      />
     </div>
   );
 }

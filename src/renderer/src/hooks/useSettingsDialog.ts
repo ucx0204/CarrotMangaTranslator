@@ -4,6 +4,7 @@ import { normalizeUiLocale } from "../../../shared/uiLocales";
 import { appI18n } from "../appI18n";
 import type { AppSettings } from "../../../shared/settingsTypes";
 import { settingsGateway as mangaGateway } from "../api/settingsGateway";
+import { formatErrorMessage } from "../lib/errorPresentation";
 import { toast } from "../lib/toastStore";
 
 type UseSettingsDialogResult = {
@@ -146,8 +147,10 @@ function useSubmitSettingsAction({
         pushStatus(appI18n.t("settings.saved", { ns: "renderer" }));
         toast.success(appI18n.t("settings.savedToast", { ns: "renderer" }));
       } catch (error) {
-        console.error(error);
-        pushStatus(t("settings.saveFailed"));
+        // Mirror the success path: the log keeps the record, the toast interrupts.
+        const message = formatErrorMessage(error, t("settings.saveFailed"));
+        pushStatus(message);
+        toast.error(message);
       } finally {
         setSettingsBusy(false);
       }
@@ -189,8 +192,9 @@ function useResetSettingsAction({
       pushStatus(t("settings.defaultsLoaded"));
       return defaults;
     } catch (error) {
-      console.error(error);
-      pushStatus(t("settings.resetFailed"));
+      const message = formatErrorMessage(error, t("settings.resetFailed"));
+      pushStatus(message);
+      toast.error(message);
       return null;
     } finally {
       setSettingsBusy(false);

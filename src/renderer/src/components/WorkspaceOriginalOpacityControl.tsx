@@ -2,6 +2,9 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { clampOriginalImageOpacity } from "../lib/originalImageOpacity";
 import { ControlTooltip } from "./ui/ControlTooltip";
+import { RangeInput } from "./ui/Field";
+import { IconButton } from "./ui/IconButton";
+import { usePopupController } from "./ui/usePopupController";
 
 export type WorkspaceOriginalOpacityControlProps = {
   available: boolean;
@@ -27,8 +30,16 @@ export function WorkspaceOriginalOpacityControl({
 }: WorkspaceOriginalOpacityControlProps): React.JSX.Element {
   const labels = useOriginalOpacityLabels();
   const percentage = Math.round(clampOriginalImageOpacity(opacity) * 100);
-  const { open, rootRef, sliderRef, toggle, triggerRef } =
-    useOriginalOpacityPopup({ available, pageId });
+  const [open, setOpen] = React.useState(false);
+  const { contentRef, rootRef, toggle, triggerRef } = usePopupController({
+    disabled: !available,
+    initialFocus: ".range-input-control",
+    closeOnFocusOut: true,
+    open,
+    onOpenChange: setOpen,
+  });
+  // Switching pages resets the panel so it never describes the previous page.
+  React.useEffect(() => setOpen(false), [pageId]);
   const panelId = React.useId();
   const sliderId = React.useId();
   const tooltip = available
@@ -40,41 +51,36 @@ export function WorkspaceOriginalOpacityControl({
     <div
       ref={rootRef}
       className={`workspace-original-opacity-dock ${open ? "open" : ""} ${percentage > 0 ? "active" : ""}`.trim()}
-      style={
-        {
-          "--original-opacity-percent": `${percentage}%`,
-        } as React.CSSProperties
-      }
     >
       <ControlTooltip
         className="workspace-original-opacity-trigger"
         content={tooltip}
         placement="left"
       >
-        <button
+        <IconButton
           ref={triggerRef}
-          type="button"
+          variant="dock"
           aria-controls={panelId}
           aria-expanded={open}
-          aria-label={open ? labels.hideControl : labels.showControl}
+          label={open ? labels.hideControl : labels.showControl}
+          title=""
           disabled={!available}
           onClick={toggle}
         >
           <OriginalBlendIcon opacity={percentage / 100} />
-        </button>
+        </IconButton>
       </ControlTooltip>
       {open ? (
         <div
+          ref={contentRef}
           aria-label={labels.label}
           className="workspace-original-opacity-panel"
           id={panelId}
           role="group"
         >
           <label htmlFor={sliderId}>{labels.original}</label>
-          <input
-            ref={sliderRef}
+          <RangeInput
             id={sliderId}
-            type="range"
             aria-label={labels.label}
             min={0}
             max={100}
@@ -87,70 +93,6 @@ export function WorkspaceOriginalOpacityControl({
       ) : null}
     </div>
   );
-}
-
-function useOriginalOpacityPopup({
-  available,
-  pageId,
-}: Pick<WorkspaceOriginalOpacityControlProps, "available" | "pageId">): {
-  open: boolean;
-  rootRef: React.RefObject<HTMLDivElement | null>;
-  sliderRef: React.RefObject<HTMLInputElement | null>;
-  toggle: () => void;
-  triggerRef: React.RefObject<HTMLButtonElement | null>;
-} {
-  const [open, setOpen] = React.useState(false);
-  const rootRef = React.useRef<HTMLDivElement>(null);
-  const sliderRef = React.useRef<HTMLInputElement>(null);
-  const triggerRef = React.useRef<HTMLButtonElement>(null);
-
-  React.useEffect(() => setOpen(false), [available, pageId]);
-  React.useLayoutEffect(() => {
-    if (open) sliderRef.current?.focus();
-  }, [open]);
-  React.useEffect(() => {
-    if (!open) return;
-    const close = (): void => setOpen(false);
-    const handlePointerDown = (event: PointerEvent): void => {
-      if (!containsEventTarget(rootRef.current, event.target)) close();
-    };
-    const handleFocusIn = (event: FocusEvent): void => {
-      if (!containsEventTarget(rootRef.current, event.target)) close();
-    };
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key !== "Escape" || event.defaultPrevented) return;
-      event.preventDefault();
-      setOpen(false);
-      triggerRef.current?.focus();
-    };
-    document.addEventListener("pointerdown", handlePointerDown, true);
-    document.addEventListener("focusin", handleFocusIn, true);
-    window.addEventListener("blur", close);
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown, true);
-      document.removeEventListener("focusin", handleFocusIn, true);
-      window.removeEventListener("blur", close);
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [open]);
-
-  return {
-    open,
-    rootRef,
-    sliderRef,
-    toggle: React.useCallback(() => {
-      if (available) setOpen((current) => !current);
-    }, [available]),
-    triggerRef,
-  };
-}
-
-function containsEventTarget(
-  root: HTMLElement | null,
-  target: EventTarget | null,
-): boolean {
-  return Boolean(root && target instanceof Node && root.contains(target));
 }
 
 /** Two overlapping page frames with a live blend fill instead of a stock icon. */

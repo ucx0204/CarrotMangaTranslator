@@ -3,7 +3,7 @@ import { DragOverlay } from "@dnd-kit/core";
 import { IconDotsVertical, IconPhotoOff } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { MangaPage } from "../../../../shared/libraryTypes";
-import { libraryGateway as mangaGateway } from "../../api/libraryGateway";
+import { usePageThumbnail, type ObservePageThumbnail } from "../pageThumbnails";
 import { IconButton } from "../ui/IconButton";
 import { MenuSurface } from "../ui/MenuSurface";
 import { usePopupController } from "../ui/usePopupController";
@@ -157,102 +157,35 @@ export function PageStatus({
   );
 }
 
-type PageThumbnailState =
-  | { status: "loading" }
-  | { status: "loaded"; url: string }
-  | { status: "error" };
-
 export function PageListThumbnail({
+  observeThumbnail,
   page,
 }: {
+  observeThumbnail: ObservePageThumbnail;
   page: MangaPage;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
-  const { frameRef, state } = usePageThumbnail(page);
+  const { frameRef, state, markLoaded, markErrored } =
+    usePageThumbnail<HTMLSpanElement>(page, observeThumbnail);
+  const url = state.url;
   return (
     <span ref={frameRef} className="page-thumbnail" data-state={state.status}>
-      {state.status === "loaded" ? (
-        <img src={state.url} alt="" draggable={false} />
-      ) : state.status === "error" ? (
+      {state.status === "error" ? (
         <IconPhotoOff
           size={18}
           aria-label={t("pageList.thumbnailLoadFailed")}
+        />
+      ) : url ? (
+        <img
+          src={url}
+          alt=""
+          draggable={false}
+          onLoad={() => markLoaded(url)}
+          onError={() => markErrored(url)}
         />
       ) : (
         <span className="page-thumbnail-skeleton" aria-hidden="true" />
       )}
     </span>
   );
-}
-
-function usePageThumbnail(page: MangaPage): {
-  frameRef: React.RefObject<HTMLSpanElement | null>;
-  state: PageThumbnailState;
-} {
-  const frameRef = React.useRef<HTMLSpanElement | null>(null);
-  const [state, setState] = React.useState<PageThumbnailState>(() =>
-    page.dataUrl
-      ? { status: "loaded", url: page.dataUrl }
-      : { status: "loading" },
-  );
-  React.useEffect(() => {
-    if (page.dataUrl) {
-      setState({ status: "loaded", url: page.dataUrl });
-      return;
-    }
-    let cancelled = false;
-    let requested = false;
-    const load = (): void => {
-      if (requested) return;
-      requested = true;
-      setState({ status: "loading" });
-      requestPageThumbnail(
-        page.imagePath,
-        (url) => !cancelled && setState({ status: "loaded", url }),
-        () => !cancelled && setState({ status: "error" }),
-      );
-    };
-    const observer = observeThumbnail(frameRef.current, load);
-    return () => {
-      cancelled = true;
-      observer?.disconnect();
-    };
-  }, [page.dataUrl, page.imagePath]);
-  return { frameRef, state };
-}
-
-function observeThumbnail(
-  frame: HTMLSpanElement | null,
-  load: () => void,
-): IntersectionObserver | null {
-  if (!frame || typeof IntersectionObserver === "undefined") {
-    load();
-    return null;
-  }
-  const observer = new IntersectionObserver(
-    (entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) {
-        load();
-        observer.disconnect();
-      }
-    },
-    { root: frame.closest(".page-list-scroll"), rootMargin: "120px" },
-  );
-  observer.observe(frame);
-  return observer;
-}
-
-function requestPageThumbnail(
-  imagePath: string,
-  onLoad: (url: string) => void,
-  onError: () => void,
-): void {
-  let request: Promise<string>;
-  try {
-    request = mangaGateway.getPageImageDataUrl(imagePath);
-  } catch (_expectedMissingBridge) {
-    onError();
-    return;
-  }
-  void request.then(onLoad).catch(onError);
 }

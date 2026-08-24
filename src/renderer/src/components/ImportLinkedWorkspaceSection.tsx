@@ -23,6 +23,7 @@ export function ImportLinkedWorkspaceSection({
   return (
     <section className="modal-section import-linked-workspace-section">
       <CheckboxField
+        variant="switch"
         checked={options.enabled}
         disabled={busy}
         label={t("import.liveResults.enable")}

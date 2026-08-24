@@ -94,12 +94,10 @@ describe("ImportModal selection surfaces", () => {
     );
 
     expect(
-      (
-        screen.getByRole("checkbox", {
-          name: "결과물 폴더에 자동 저장",
-        }) as HTMLInputElement
-      ).checked,
-    ).toBe(true);
+      screen
+        .getByRole("switch", { name: "결과물 폴더에 자동 저장" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
     expect(
       screen.getByRole("combobox", { name: "자동 저장 형식" }),
     ).toHaveProperty("value", "source");

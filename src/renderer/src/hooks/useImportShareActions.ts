@@ -121,7 +121,6 @@ function useOpenImportPreviewAction({
           setImportPreview(preview);
         }
       } catch (error) {
-        console.error(error);
         pushStatus(formatErrorMessage(error, t("import.sourceReadFailed")));
       }
     },
@@ -162,7 +161,6 @@ function useCancelImportPreviewAction({
     try {
       await mangaGateway.discardImportPreview(previewId);
     } catch (error) {
-      console.error(error);
       pushStatus(formatErrorMessage(error, t("import.previewDiscardFailed")));
     }
   }, [importPreview?.previewId, pushStatus, setImportPreview, t]);
@@ -195,7 +193,6 @@ function useSubmitShareExportAction({
           setShareExportOpen(false);
         }
       } catch (error) {
-        console.error(error);
         pushStatus(formatErrorMessage(error, t("share.exportFailed")));
       } finally {
         setShareExportBusy(false);
@@ -222,7 +219,6 @@ function useOpenShareImportPreviewAction({
         setShareImportPreview(preview);
       }
     } catch (error) {
-      console.error(error);
       pushStatus(formatErrorMessage(error, t("share.readFailed")));
     }
   }, [dirty, pushStatus, saveNow, setShareImportPreview, t]);
@@ -267,7 +263,6 @@ function useSubmitShareImportAction({
         );
         setShareImportPreview(null);
       } catch (error) {
-        console.error(error);
         pushStatus(formatErrorMessage(error, t("share.importFailed")));
       } finally {
         setShareImportBusy(false);
@@ -358,7 +353,6 @@ function useSubmitImportAction({
           openTranslateOptions("work-all");
         }
       } catch (error) {
-        console.error(error);
         pushStatus(formatErrorMessage(error, t("import.applyFailed")));
       } finally {
         setImportBusy(false);

@@ -17,6 +17,7 @@ import { usePopupController } from "./ui/usePopupController";
 
 type BlockStylePresetControlsProps = {
   activePresetId: string;
+  canDelete?: boolean;
   canCreate: boolean;
   disabled: boolean;
   presets: readonly BlockStylePresetSummary[];
@@ -27,6 +28,7 @@ type BlockStylePresetControlsProps = {
 
 export function BlockStylePresetControls({
   activePresetId,
+  canDelete = true,
   canCreate,
   disabled,
   presets,
@@ -69,6 +71,7 @@ export function BlockStylePresetControls({
         {open ? (
           <PresetPickerMenu
             activePresetId={activePreset?.id ?? ""}
+            canDelete={canDelete}
             canCreate={canCreate}
             deletingPresetId={deletingPresetId}
             disabled={disabled}
@@ -138,6 +141,7 @@ function PresetMenuTrigger({
 
 function PresetPickerMenu({
   activePresetId,
+  canDelete,
   canCreate,
   deletingPresetId,
   disabled,
@@ -147,7 +151,10 @@ function PresetPickerMenu({
   onCreate,
   onDelete,
   onClose,
-}: Pick<BlockStylePresetControlsProps, "canCreate" | "disabled" | "presets"> & {
+}: Pick<
+  BlockStylePresetControlsProps,
+  "canCreate" | "canDelete" | "disabled" | "presets"
+> & {
   activePresetId: string;
   deletingPresetId: string;
   menuRef: React.RefObject<HTMLDivElement | null>;
@@ -167,6 +174,7 @@ function PresetPickerMenu({
       {presets.map((preset) => (
         <PresetMenuRow
           active={preset.id === activePresetId}
+          canDelete={canDelete ?? true}
           deleteBusy={Boolean(deletingPresetId)}
           deleting={preset.id === deletingPresetId}
           key={preset.id}
@@ -193,6 +201,7 @@ function PresetPickerMenu({
 
 function PresetMenuRow({
   active,
+  canDelete,
   deleteBusy,
   deleting,
   preset,
@@ -200,6 +209,7 @@ function PresetMenuRow({
   onDelete,
 }: {
   active: boolean;
+  canDelete: boolean;
   deleteBusy: boolean;
   deleting: boolean;
   preset: BlockStylePresetSummary;
@@ -208,7 +218,11 @@ function PresetMenuRow({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <div className="block-style-preset-menu-row" data-active={active}>
+    <div
+      className="block-style-preset-menu-row"
+      data-active={active}
+      data-can-delete={canDelete}
+    >
       <button
         type="button"
         className="block-style-preset-menu-item"
@@ -229,17 +243,19 @@ function PresetMenuRow({
           />
         ) : null}
       </button>
-      <button
-        type="button"
-        className="block-style-preset-menu-delete"
-        role="menuitem"
-        aria-label={`${preset.name} ${t("common.delete")}`}
-        title={t("common.delete")}
-        disabled={deleteBusy}
-        onClick={() => onDelete(preset.id)}
-      >
-        <IconTrash size={15} aria-hidden="true" />
-      </button>
+      {canDelete ? (
+        <button
+          type="button"
+          className="block-style-preset-menu-delete"
+          role="menuitem"
+          aria-label={`${preset.name} ${t("common.delete")}`}
+          title={t("common.delete")}
+          disabled={deleteBusy}
+          onClick={() => onDelete(preset.id)}
+        >
+          <IconTrash size={15} aria-hidden="true" />
+        </button>
+      ) : null}
     </div>
   );
 }

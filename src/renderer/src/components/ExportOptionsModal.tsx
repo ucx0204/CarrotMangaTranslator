@@ -114,7 +114,6 @@ export function ExportOptionsModal({
       size="lg"
       onClose={onClose}
       closeDisabled={start.isStarting}
-      closeOnBackdrop
       footer={
         <ExportOptionsFooter
           isStarting={start.isStarting}

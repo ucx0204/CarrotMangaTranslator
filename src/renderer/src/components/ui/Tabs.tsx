@@ -1,4 +1,5 @@
 import React from "react";
+import { useRovingFocus } from "./useRovingFocus";
 
 export type TabDefinition<T extends string> = {
   value: T;
@@ -7,6 +8,10 @@ export type TabDefinition<T extends string> = {
   panelId: string;
 };
 
+/**
+ * A tablist whose buttons switch tab panels. For mode pickers and filters that
+ * do not own a panel, use `SegmentedControl` instead.
+ */
 export function Tabs<T extends string>({
   ariaLabel,
   className,
@@ -22,33 +27,13 @@ export function Tabs<T extends string>({
   value: T;
   onChange: (value: T) => void;
 }): React.JSX.Element {
-  const refs = React.useRef<Array<HTMLButtonElement | null>>([]);
-
-  const activateAt = (index: number): void => {
-    const item = items[index];
-    if (!item) return;
-    onChange(item.value);
-    refs.current[index]?.focus();
-  };
-
-  const handleKeyDown = (
-    index: number,
-    event: React.KeyboardEvent<HTMLButtonElement>,
-  ): void => {
-    let nextIndex: number | null = null;
-    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-      nextIndex = (index + 1) % items.length;
-    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-      nextIndex = (index - 1 + items.length) % items.length;
-    } else if (event.key === "Home") {
-      nextIndex = 0;
-    } else if (event.key === "End") {
-      nextIndex = items.length - 1;
-    }
-    if (nextIndex === null) return;
-    event.preventDefault();
-    activateAt(nextIndex);
-  };
+  const roving = useRovingFocus({
+    count: items.length,
+    onActivate: (index) => {
+      const item = items[index];
+      if (item) onChange(item.value);
+    },
+  });
 
   return (
     <div className={className} role="tablist" aria-label={ariaLabel}>
@@ -57,9 +42,7 @@ export function Tabs<T extends string>({
         return (
           <button
             key={item.value}
-            ref={(element) => {
-              refs.current[index] = element;
-            }}
+            ref={roving.register(index)}
             type="button"
             role="tab"
             id={item.id}
@@ -70,7 +53,7 @@ export function Tabs<T extends string>({
               .filter(Boolean)
               .join(" ")}
             onClick={() => onChange(item.value)}
-            onKeyDown={(event) => handleKeyDown(index, event)}
+            onKeyDown={(event) => roving.handleKeyDown(index, event)}
           >
             {item.label}
           </button>

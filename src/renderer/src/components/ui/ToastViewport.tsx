@@ -26,10 +26,22 @@ function ToastGlyph({
   return <InfoIcon size={17} />;
 }
 
+/**
+ * Failures interrupt; everything else waits its turn. `role="alert"` is
+ * assertive and `role="status"` is polite, so each card announces itself once
+ * and the viewport stays a plain container.
+ */
+function toastAnnouncementRole(variant: Toast["variant"]): "alert" | "status" {
+  return variant === "error" || variant === "warn" ? "alert" : "status";
+}
+
 function ToastCard({ toast }: { toast: Toast }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <div className={`toast ${toast.variant}`} role="status">
+    <div
+      className={`toast ${toast.variant}`}
+      role={toastAnnouncementRole(toast.variant)}
+    >
       <span className="toast-icon">
         <ToastGlyph variant={toast.variant} />
       </span>
@@ -75,7 +87,6 @@ export function ToastViewport(): React.JSX.Element | null {
       className="toast-viewport"
       role="region"
       aria-label={t("toast.region")}
-      aria-live="polite"
     >
       {toasts.map((toast) => (
         <ToastCard key={toast.id} toast={toast} />

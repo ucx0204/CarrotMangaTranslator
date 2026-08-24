@@ -14,6 +14,7 @@ import {
 import { Select } from "../ui/Select";
 import { ApiKeyVisibilityButton } from "./ApiKeyVisibilityButton";
 import { ApiProviderModelFields } from "./ApiProviderModelFields";
+import { SettingsNumberField } from "./SettingsNumberField";
 import { VertexCredentialFields } from "./VertexCredentialFields";
 import {
   useApiProviderConnection,
@@ -286,36 +287,31 @@ function RetryFields({
   return (
     <>
       <div className="settings-advanced-grid">
-        <label>
-          {t("settings.api.keyMaxAttempts")}
-          <input
-            type="number"
-            min={MIN_API_KEY_MAX_ATTEMPTS}
-            max={MAX_API_KEY_MAX_ATTEMPTS}
-            step={1}
-            value={apiKeyMaxAttempts}
-            disabled={controlsBusy}
-            onChange={(event) => {
-              clearTestState();
-              setApiKeyMaxAttempts(event.target.value);
-            }}
-          />
-        </label>
-        <label>
-          {t("settings.api.retryDelaySeconds")}
-          <input
-            type="number"
-            min={MIN_API_RETRY_DELAY_SECONDS}
-            max={MAX_API_RETRY_DELAY_SECONDS}
-            step={0.5}
-            value={apiRetryDelaySeconds}
-            disabled={controlsBusy}
-            onChange={(event) => {
-              clearTestState();
-              setApiRetryDelaySeconds(event.target.value);
-            }}
-          />
-        </label>
+        <SettingsNumberField
+          ariaLabel={t("settings.api.keyMaxAttempts")}
+          min={MIN_API_KEY_MAX_ATTEMPTS}
+          max={MAX_API_KEY_MAX_ATTEMPTS}
+          step={1}
+          value={apiKeyMaxAttempts}
+          disabled={controlsBusy}
+          onValueChange={(next) => {
+            clearTestState();
+            setApiKeyMaxAttempts(next);
+          }}
+        />
+        <SettingsNumberField
+          ariaLabel={t("settings.api.retryDelaySeconds")}
+          min={MIN_API_RETRY_DELAY_SECONDS}
+          max={MAX_API_RETRY_DELAY_SECONDS}
+          step={0.5}
+          precision={1}
+          value={apiRetryDelaySeconds}
+          disabled={controlsBusy}
+          onValueChange={(next) => {
+            clearTestState();
+            setApiRetryDelaySeconds(next);
+          }}
+        />
       </div>
       <p className="muted-line modal-note">
         {t("settings.api.retryDescription")}

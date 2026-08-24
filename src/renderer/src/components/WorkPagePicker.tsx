@@ -9,11 +9,11 @@ import type {
 import { libraryGateway as mangaGateway } from "../api/libraryGateway";
 import { useMountedRef } from "../hooks/useMountedRef";
 import type { TriState } from "../lib/translationSelection";
+import { PageThumb, TriCheckbox } from "./ChapterPickerTiles";
 import {
-  PageThumb,
-  TriCheckbox,
+  usePageThumbnailObserver,
   type ObservePageThumbnail,
-} from "./ChapterPickerTiles";
+} from "./pageThumbnails";
 
 export type ChapterPagesLookup = (chapterId: string) => MangaPage[] | undefined;
 
@@ -45,74 +45,6 @@ type ChapterPagesLoader = {
   isErrored: (chapterId: string) => boolean;
   ensureLoaded: (chapterId: string) => void;
 };
-
-function usePageThumbnailObserver(
-  rootRef: React.RefObject<HTMLDivElement | null>,
-): ObservePageThumbnail {
-  const callbacksRef = React.useRef<Map<Element, () => void>>(new Map());
-  const observerRef = React.useRef<IntersectionObserver | null>(null);
-
-  const observeThumbnail = React.useCallback<ObservePageThumbnail>(
-    (element, onVisible) => {
-      if (typeof IntersectionObserver === "undefined") {
-        onVisible();
-        return () => undefined;
-      }
-
-      callbacksRef.current.set(element, onVisible);
-      observerRef.current?.observe(element);
-      return () => {
-        if (callbacksRef.current.get(element) !== onVisible) {
-          return;
-        }
-        callbacksRef.current.delete(element);
-        observerRef.current?.unobserve(element);
-      };
-    },
-    [],
-  );
-
-  React.useEffect(() => {
-    if (typeof IntersectionObserver === "undefined") {
-      return;
-    }
-    const root = rootRef.current;
-    if (!root) {
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting) {
-            continue;
-          }
-          const onVisible = callbacksRef.current.get(entry.target);
-          if (!onVisible) {
-            continue;
-          }
-          callbacksRef.current.delete(entry.target);
-          observer.unobserve(entry.target);
-          onVisible();
-        }
-      },
-      { root, rootMargin: "300px 0px", threshold: 0 },
-    );
-    observerRef.current = observer;
-    for (const element of callbacksRef.current.keys()) {
-      observer.observe(element);
-    }
-
-    return () => {
-      observer.disconnect();
-      if (observerRef.current === observer) {
-        observerRef.current = null;
-      }
-    };
-  }, [rootRef]);
-
-  return observeThumbnail;
-}
 
 /** Lazily hydrates chapters that are expanded; the open chapter is already in memory. */
 function useChapterPagesLoader(

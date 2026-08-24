@@ -3,11 +3,11 @@
 import React from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ScrubbableNumberField } from "../src/renderer/src/components/ui/ScrubbableNumberField";
+import { NumberField } from "../src/renderer/src/components/ui/NumberField";
 
 afterEach(cleanup);
 
-describe("ScrubbableNumberField", () => {
+describe("NumberField scrubber variant", () => {
   it("commits direct input on Enter or blur and restores it on Escape", () => {
     const onChange = vi.fn();
     render(<Harness onChange={onChange} />);
@@ -85,7 +85,8 @@ function Harness({
 }): React.JSX.Element {
   const [value, setValue] = React.useState(1);
   return (
-    <ScrubbableNumberField
+    <NumberField
+      variant="scrubber"
       ariaLabel="값"
       decreaseLabel="값 줄이기"
       increaseLabel="값 늘리기"

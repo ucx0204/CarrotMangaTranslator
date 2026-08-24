@@ -7,6 +7,7 @@ import type { BlockRef } from "../../lib/gatherTextFormat";
 import { HighlightedText } from "../HighlightedText";
 import { SelectionSurface } from "../ui/SelectionCard";
 import type { GatherTextFormatSelection } from "./useGatherTextFormatSelection";
+import { CheckboxField } from "../ui/CheckboxField";
 
 export function GatheredPageList({
   pages,
@@ -141,12 +142,11 @@ function SelectionCheckbox({
   const { t } = useTranslation("components");
   if (!selection?.isSelectionMode) return null;
   return (
-    <input
+    <CheckboxField
       className="gather-text-block-checkbox"
-      type="checkbox"
       checked={selected}
-      aria-label={`${t("gatherText.selectBlock")}: ${label}`}
-      onChange={() => selection.toggle(blockRef)}
+      ariaLabel={`${t("gatherText.selectBlock")}: ${label}`}
+      onCheckedChange={() => selection.toggle(blockRef)}
     />
   );
 }

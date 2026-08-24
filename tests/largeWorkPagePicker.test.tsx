@@ -22,10 +22,8 @@ const gatewayMocks = {
   openChapter: vi.fn(),
 };
 
-import {
-  PageThumb,
-  type ObservePageThumbnail,
-} from "../src/renderer/src/components/ChapterPickerTiles";
+import { PageThumb } from "../src/renderer/src/components/ChapterPickerTiles";
+import type { ObservePageThumbnail } from "../src/renderer/src/components/pageThumbnails";
 import { WorkPagePicker } from "../src/renderer/src/components/WorkPagePicker";
 
 const WORK_ID = "11111111-1111-4111-8111-111111111111";

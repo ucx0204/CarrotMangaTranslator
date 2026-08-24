@@ -31,11 +31,12 @@ export function WebImportModal({
     <Modal
       size="xl"
       title={t("webImport.title")}
-      ariaLabel={t("webImport.title")}
       onClose={state.cancel}
       closeDisabled={state.preparing}
-      cardClassName="web-import-modal"
-      bodyClassName="web-import-modal-body"
+      // Results stream in; a growing card would move the grid under the pointer.
+      fillHeight
+      maxHeight="850px"
+      bodyLayout="flex"
       footer={
         <ModalActionBar
           leading={

@@ -1,25 +1,7 @@
-.settings-toggle-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.settings-toggle-button {
-  min-width: 84px;
-  text-align: center;
-}
-
-.settings-toggle-button.active {
-  background: #6f3d26;
-  border-color: #cf8a63;
-  color: #fff4ea;
-}
-
 .settings-layout {
   display: grid;
-  grid-template-columns: 152px minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: var(--sp-7);
   align-items: start;
 }
 
@@ -31,10 +13,10 @@
   gap: var(--sp-3);
   margin: var(--sp-4) var(--sp-4) 0;
   padding: 10px 12px;
-  border: 1px solid rgba(126, 170, 255, 0.42);
+  border: 1px solid color-mix(in srgb, var(--info-bd) 52%, transparent);
   border-radius: var(--r-md);
-  background: rgba(61, 92, 148, 0.16);
-  color: #a9c5ff;
+  background: var(--info-soft);
+  color: var(--info-text);
 }
 
 .settings-draft-notice > svg {
@@ -47,12 +29,12 @@
 }
 
 .settings-draft-notice strong {
-  color: #d6e4ff;
+  color: var(--info-text);
   font-size: var(--font-sm);
 }
 
 .settings-draft-notice span {
-  color: #aebbd0;
+  color: var(--text-muted);
   font-size: var(--font-sm);
   line-height: 1.4;
 }
@@ -60,15 +42,21 @@
 .settings-tabs {
   display: flex;
   flex-direction: column;
-  gap: 4px;
   position: sticky;
   top: 0;
+  align-self: start;
+  height: max-content;
+  gap: var(--sp-1);
+  padding: 0 var(--sp-6) 0 0;
+  border-right: 1px solid var(--border-soft);
+  background: transparent;
 }
 
 .settings-tab {
-  min-height: var(--ctl-h);
+  position: relative;
+  min-height: 38px;
   text-align: left;
-  padding: 7px 10px;
+  padding: var(--sp-3) var(--sp-5) var(--sp-3) var(--sp-6);
   border: 1px solid transparent;
   border-radius: var(--r-md);
   background: transparent;
@@ -88,12 +76,15 @@
 
 .settings-tab.active {
   background: var(--accent-soft);
-  border-color: var(--accent-bd);
+  border-color: transparent;
   color: var(--accent-hi);
   font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .settings-tabpanel {
+  display: grid;
+  gap: var(--sp-6);
   min-width: 0;
 }
 
@@ -103,7 +94,7 @@
 }
 
 .settings-field-stack > span {
-  color: #e6ddcf;
+  color: var(--text);
 }
 
 /* 번역 언어쌍: 원문 [⇄] 번역 2열 + 필요할 때만 나타나는 코드 직접 입력. */
@@ -132,7 +123,7 @@
 .settings-language-error {
   margin: 0;
   font-size: 12px;
-  color: var(--accent-hi);
+  color: var(--danger-text);
 }
 
 .settings-mode-group {
@@ -217,7 +208,7 @@
 }
 
 .settings-api-status.error {
-  color: var(--danger-text, #ffb4ab);
+  color: var(--danger-text);
 }
 
 .settings-advanced {
@@ -228,13 +219,21 @@
 
 .settings-advanced summary {
   cursor: pointer;
-  color: #e6ddcf;
+  color: var(--text);
 }
 
 .settings-advanced-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+}
+
+/* Numeric settings rows all render ui/NumberField through SettingsNumberField,
+   so the input presentation lives in exactly one rule. */
+.settings-number-input {
+  width: 100%;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .settings-json-textarea {
@@ -256,8 +255,8 @@
   gap: 6px;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid #2f343d;
-  background: #14171b;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-sunken);
 }
 
 .settings-test-result strong,
@@ -271,13 +270,13 @@
 }
 
 .settings-test-result.success {
-  border-color: #2f6f61;
-  background: rgba(47, 111, 97, 0.18);
+  border-color: var(--success-bd);
+  background: var(--success-soft);
 }
 
 .settings-test-result.error {
-  border-color: #8d4949;
-  background: rgba(119, 52, 52, 0.18);
+  border-color: var(--danger-bd);
+  background: var(--danger-soft);
 }
 
 .settings-test-log {
@@ -290,13 +289,13 @@
   overflow-y: auto;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid #303844;
-  background: #0f1217;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-sunken);
 }
 
 .settings-test-log code {
   display: block;
-  color: #aab7c8;
+  color: var(--text-muted);
   font-family: Consolas, "SFMono-Regular", monospace;
   font-size: 12px;
   line-height: 1.4;
@@ -306,16 +305,6 @@
 }
 
 /* Settings modal visual system: one hierarchy shared by every tab. */
-.settings-layout {
-  grid-template-columns: 170px minmax(0, 1fr);
-  gap: 24px;
-}
-
-.settings-modal-body {
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
 .settings-modal-body:has(.settings-tabpanel-format) {
   overflow: hidden;
 }
@@ -324,34 +313,6 @@
   height: 100%;
   min-height: 0;
   align-items: stretch;
-}
-
-.settings-tabs {
-  gap: 5px;
-  align-self: start;
-  height: max-content;
-  padding: 7px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-lg);
-  background: color-mix(in srgb, var(--bg-sunken) 82%, transparent);
-}
-
-.settings-tab {
-  position: relative;
-  min-height: 40px;
-  padding: 9px 12px 9px 15px;
-  border-radius: 8px;
-}
-
-.settings-tab.active {
-  border-color: color-mix(in srgb, var(--accent-bd) 74%, transparent);
-  background: color-mix(in srgb, var(--accent-soft) 72%, transparent);
-  box-shadow: inset 3px 0 0 var(--accent);
-}
-
-.settings-tabpanel {
-  display: grid;
-  gap: 15px;
 }
 
 .settings-tabpanel-format {
@@ -387,22 +348,9 @@
   letter-spacing: -0.02em;
 }
 
-.settings-apply-badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 26px;
-  padding: 4px 9px;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: var(--bg-sunken);
-  color: var(--text-muted);
-  font-size: var(--font-xs);
-  white-space: nowrap;
-}
-
 .settings-panel-stack {
   display: grid;
-  gap: 14px;
+  gap: var(--sp-6);
 }
 
 .hardware-summary {
@@ -450,10 +398,8 @@
 }
 
 .hardware-route-grid > div {
-  padding: 9px 10px;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-md);
-  background: color-mix(in srgb, var(--bg-elevated) 72%, transparent);
+  padding-left: var(--sp-5);
+  border-left: 1px solid var(--border-soft);
 }
 
 .hardware-route-grid > div:last-child:nth-child(odd) {
@@ -476,7 +422,7 @@
 }
 
 .hardware-recommendation-row > span.matches {
-  color: var(--success-text, #91d8c4);
+  color: var(--success-text);
 }
 
 .hardware-recommendation-row > span.different {
@@ -499,42 +445,44 @@
   display: grid;
   gap: 5px;
   padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, #68b88a 55%, var(--border-soft));
+  border: 1px solid
+    color-mix(in srgb, var(--success-bd) 55%, var(--border-soft));
   border-radius: 10px;
-  background: color-mix(in srgb, #183828 48%, var(--bg-sunken));
+  background: var(--success-soft);
   color: var(--text-muted);
   font-size: var(--font-xs);
   line-height: 1.45;
 }
 
 .mac-alpha-memory-summary strong {
-  color: #a9e4bf;
+  color: var(--success-text);
   font-weight: 700;
 }
 
 .mac-alpha-memory-summary.warning {
-  border-color: color-mix(in srgb, #d18c55 65%, var(--border-soft));
-  background: color-mix(in srgb, #4a2b18 48%, var(--bg-sunken));
+  border-color: color-mix(in srgb, var(--warning-bd) 65%, var(--border-soft));
+  background: var(--warning-soft);
 }
 
 .mac-alpha-memory-summary.warning strong {
-  color: #f4bd86;
+  color: var(--warning-text);
 }
 
 .hardware-runtime-warning {
   display: grid;
   gap: 4px;
   padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, #d18c55 65%, var(--border-soft));
+  border: 1px solid
+    color-mix(in srgb, var(--warning-bd) 65%, var(--border-soft));
   border-radius: 10px;
-  background: color-mix(in srgb, #4a2b18 48%, var(--bg-sunken));
+  background: var(--warning-soft);
   color: var(--text-muted);
   font-size: var(--font-xs);
   line-height: 1.5;
 }
 
 .hardware-runtime-warning strong {
-  color: #f4bd86;
+  color: var(--warning-text);
   font-weight: 750;
 }
 
@@ -553,7 +501,7 @@
   container-type: inline-size;
   border: 1px solid var(--border-soft);
   border-radius: var(--r-lg);
-  background: #191c22;
+  background: var(--bg-raised);
 }
 
 .format-defaults-editor-controls {
@@ -666,27 +614,27 @@
 
 .settings-section {
   min-width: 0;
-  padding: 16px;
-  border: 1px solid var(--border-soft);
-  border-radius: 12px;
-  background: linear-gradient(
-    145deg,
-    color-mix(in srgb, var(--bg-elevated) 88%, transparent),
-    color-mix(in srgb, var(--bg-sunken) 76%, transparent)
-  );
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.025) inset;
+  padding: 0 0 18px;
+  border-bottom: 1px solid var(--border-soft);
+  background: transparent;
+  box-shadow: none;
+}
+
+.settings-panel-stack > .settings-section:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
 }
 
 .settings-section-header {
   display: grid;
   gap: 4px;
-  margin-bottom: 13px;
+  margin-bottom: 12px;
 }
 
 .settings-section-header h3 {
   margin: 0;
   color: var(--text);
-  font-size: 15px;
+  font-size: var(--font-lg);
   font-weight: 750;
   letter-spacing: -0.01em;
 }
@@ -726,17 +674,17 @@
 
 .settings-tabpanel
   input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not(
-    .gather-direct-size-input
+    [data-ui-framed-input]
   ),
 .settings-tabpanel [data-ui-select-trigger],
 .settings-tabpanel textarea {
   border-color: color-mix(in srgb, var(--border-strong) 82%, transparent);
-  background: color-mix(in srgb, var(--bg-sunken) 88%, #0d0f12);
+  background: color-mix(in srgb, var(--bg-sunken) 88%, var(--bg-app));
 }
 
 .settings-tabpanel
   input:not([type="range"]):not([type="checkbox"]):not([type="radio"]):not(
-    .gather-direct-size-input
+    [data-ui-framed-input]
   ):focus,
 .settings-tabpanel [data-ui-select-trigger]:focus-visible,
 .settings-tabpanel textarea:focus {
@@ -1056,28 +1004,20 @@
 .checkbox-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--sp-5);
   color: var(--text);
-}
-
-.radio-row input {
-  width: auto;
 }
 
 .draft-list {
   display: grid;
-  gap: 10px;
+  gap: var(--sp-5);
 }
 
 .draft-item {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 10px;
+  gap: var(--sp-5);
   align-items: center;
-  padding: 10px;
-  border-radius: var(--r-lg);
-  border: 1px solid var(--border);
-  background: var(--bg-sunken);
 }
 
 /* Theme native checkboxes/radios with the vermilion accent. */
@@ -1144,6 +1084,9 @@
     position: static;
     flex-direction: row;
     flex-wrap: nowrap;
+    padding: 0 0 10px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border-soft);
     overflow-x: auto;
   }
 

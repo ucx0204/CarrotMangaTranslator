@@ -5,9 +5,9 @@
   gap: var(--sp-2);
   min-height: var(--ctl-h);
   padding: var(--ctl-pad-y) var(--sp-5);
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--control-border);
   border-radius: var(--r-md);
-  background: var(--bg-raised);
+  background: var(--control-bg);
   color: var(--text);
   font-size: var(--font-md);
   font-weight: 600;
@@ -21,8 +21,8 @@
 }
 
 .button:hover:not(:disabled) {
-  border-color: var(--border-hover);
-  background: var(--bg-hover);
+  border-color: var(--control-border-hover);
+  background: var(--control-bg-hover);
 }
 
 .button:focus-visible {
@@ -60,7 +60,7 @@
 .primary {
   background: var(--accent);
   border-color: var(--accent-bd);
-  color: #f4efe6;
+  color: var(--accent-text);
 }
 
 .primary:hover:not(:disabled) {
@@ -71,7 +71,7 @@
 .danger {
   background: var(--danger);
   border-color: var(--danger-bd);
-  color: #f6e9e6;
+  color: var(--accent-text);
 }
 
 .danger:hover:not(:disabled) {
@@ -80,8 +80,8 @@
 }
 
 .secondary {
-  background: var(--bg-raised);
-  border-color: var(--border-strong);
+  background: var(--control-bg);
+  border-color: var(--control-border);
 }
 
 .ghost {
@@ -91,7 +91,7 @@
 }
 
 .ghost:hover:not(:disabled) {
-  background: var(--bg-raised);
-  border-color: var(--border-hover);
+  background: var(--control-bg);
+  border-color: var(--control-border-hover);
   color: var(--text);
 }

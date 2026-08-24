@@ -11,6 +11,9 @@
   },
   "panels": {
     "connecting": "Connecting…",
+    "openEditorWindowFailed": "Could not open the editor window.",
+    "closeEditorWindowFailed": "Could not close the editor window.",
+    "commandFailed": "Could not send the command to the main window.",
     "editor": {
       "title": "Block editor",
       "poppedOut": "The editor is open in a separate window.",
@@ -165,7 +168,7 @@
       "keywords": "error report issue github problem"
     },
     "shortcutHelp": {
-      "label": "Keyboard shortcuts",
+      "label": "Shortcut help",
       "keywords": "shortcut keyboard help"
     }
   },
@@ -180,7 +183,7 @@
     },
     "actions": {
       "toggle-block-chrome": "Toggle block backgrounds/borders",
-      "toggle-text-blocks": "Toggle block visibility",
+      "toggle-text-blocks": "Toggle text blocks",
       "toggle-peek-original": "Toggle original preview",
       "zoom-in": "Zoom in",
       "zoom-out": "Zoom out",
@@ -234,7 +237,7 @@
       "apply-style-slot-9": "Apply style slot 9",
       "apply-style-slot-10": "Apply style slot 10",
       "toggle-command-palette": "Command palette",
-      "toggle-shortcut-help": "Keyboard shortcuts",
+      "toggle-shortcut-help": "Shortcut help",
       "open-settings": "Open settings"
     }
   },
@@ -256,8 +259,8 @@
     "autoInpainting": "Auto erase",
     "bubbleLayout": "Fit text to bubbles",
     "bubbleLayoutManual": "Edit bubble shape",
-    "removeBubbleLayout": "Remove bubble fit",
-    "drawnInpainting": "Erase drawn area",
+    "removeBubbleLayout": "Remove bubble fitting",
+    "drawnInpainting": "Erase painted area",
     "translationCheckpoint": "Translation result checkpoint",
     "retranslationCheckpoint": "Checkpoint before retranslation",
     "retouch": "Manual retouch",
@@ -308,7 +311,7 @@
     },
     "retranslate": {
       "title": "Retranslate page",
-      "confirm": "Are you sure you want to retranslate this page?",
+      "confirm": "Retranslate this page?",
       "detail": "Existing results are kept as a checkpoint and can be restored with workspace undo."
     },
     "removePage": {
@@ -372,7 +375,7 @@
       "success": "Fitted the current page's translated blocks to their bubbles.",
       "selectedBlockSuccess": "Fitted the selected translated block to its bubble.",
       "selectedBlockNoMatch": "No matching bubble area was found for the selected block.",
-      "failedTitle": "Bubble-fit layout failed",
+      "failedTitle": "Bubble fitting failed",
       "failed": "Could not fit the translated blocks to their bubbles."
     },
     "export": {
@@ -398,7 +401,7 @@
       "success": "Reset to original: {{count}} pages",
       "success_one": "Reset to original: {{count}} page",
       "success_other": "Reset to original: {{count}} pages",
-      "failedTitle": "Reset to original failed",
+      "failedTitle": "Reset failed",
       "failed": "Could not reset the image to its original."
     },
     "retouch": {
@@ -450,10 +453,10 @@
   },
   "settings": {
     "loadFailed": "Could not load settings.",
-    "saved": "Settings saved. They will apply from the next translation run.",
+    "saved": "Settings saved.",
     "savedToast": "Settings saved.",
     "saveFailed": "Could not save settings.",
-    "reset": "Settings restored to defaults. They will apply from the next translation run.",
+    "reset": "Settings restored to defaults.",
     "defaultsLoaded": "Defaults loaded into the draft. Save to apply them.",
     "resetFailed": "Could not restore default settings."
   },

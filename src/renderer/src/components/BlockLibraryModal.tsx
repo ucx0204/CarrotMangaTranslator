@@ -11,8 +11,9 @@ import {
   type BlockLibrarySortMode,
   type BlockLibrarySource,
 } from "./blockLibraryModel";
-import { AppModal, ConfirmModal } from "./ConfirmModal";
+import { ConfirmModal } from "./ConfirmModal";
 import { EditBlockLibraryModal } from "./EditBlockLibraryModal";
+import { Modal } from "./ui/Modal";
 import { Select } from "./ui/Select";
 import styles from "./BlockLibraryModals.module.css";
 
@@ -44,12 +45,13 @@ export function BlockLibraryModal({
   );
   return (
     <>
-      <AppModal
+      <Modal
         size="xl"
         title={t("blockLibrary.title")}
         onClose={onClose}
-        cardClassName={styles.modalCard}
-        bodyClassName={styles.modalBody}
+        // Cards load in batches; a growing dialog would move the grid.
+        fillHeight
+        maxHeight="760px"
       >
         <BlockLibraryToolbar model={model} />
         <BlockLibraryContent
@@ -58,7 +60,7 @@ export function BlockLibraryModal({
           fontCatalog={catalog}
           model={model}
         />
-      </AppModal>
+      </Modal>
       <BlockLibraryNestedModals model={model} source={source} />
     </>
   );

@@ -1,4 +1,6 @@
 import React from "react";
+import { handleMenuKeyboardNavigation } from "./ui/menuKeyboard";
+import { usePopupController } from "./ui/usePopupController";
 
 export type StageToolbarGroupId = "paint" | "restore";
 
@@ -23,6 +25,13 @@ type SetOpenGroup = React.Dispatch<
   React.SetStateAction<StageToolbarGroupId | null>
 >;
 
+/**
+ * Tool-group flyout state. Outside dismissal, Escape, and trigger focus
+ * restoration come from `usePopupController`; menu roving comes from
+ * `handleMenuKeyboardNavigation`. What stays local is genuinely specific:
+ * which of several groups is open, the hover-out grace period, and the guard
+ * that stops a focus-restored trigger from immediately reopening.
+ */
 export function useStageToolbarFlyout({
   disabled,
   hidden,
@@ -33,66 +42,33 @@ export function useStageToolbarFlyout({
   const [openGroup, setOpenGroup] = React.useState<StageToolbarGroupId | null>(
     null,
   );
-  const rootRef = React.useRef<HTMLDivElement>(null);
-  const triggerRef = React.useRef<HTMLButtonElement | null>(null);
   const focusMenuOnOpenRef = React.useRef<StageToolbarGroupId | null>(null);
   const suppressNextFocusOpenRef = React.useRef(false);
-  const delayedClose = useDelayedClose(rootRef, setOpenGroup);
-  const actions = useFlyoutActions({
-    delayedClose,
-    focusMenuOnOpenRef,
-    openGroup,
-    rootRef,
-    setOpenGroup,
-    suppressNextFocusOpenRef,
-    triggerRef,
-  });
-
-  useFlyoutLifecycle({
-    cancelScheduledClose: delayedClose.cancel,
-    close: actions.close,
-    disabled,
-    hidden,
-    openGroup,
-    rootRef,
-    setOpenGroup,
-  });
-
-  React.useLayoutEffect(() => {
-    if (!openGroup || focusMenuOnOpenRef.current !== openGroup) {
-      return;
-    }
-    focusMenuOnOpenRef.current = null;
-    getMenuButtons(rootRef.current, openGroup)[0]?.focus();
-  }, [openGroup]);
-
-  const keyboard = useFlyoutKeyboard(openGroup, rootRef, actions.close);
-  return {
-    ...actions,
-    cancelScheduledClose: delayedClose.cancel,
-    ...keyboard,
-    openGroup,
-    rootRef,
-    scheduleClose: delayedClose.schedule,
-  };
-}
-
-function useDelayedClose(
-  rootRef: React.RefObject<HTMLDivElement | null>,
-  setOpenGroup: SetOpenGroup,
-): {
-  cancel: () => void;
-  schedule: (group: StageToolbarGroupId) => void;
-} {
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const cancel = React.useCallback(() => {
+
+  const cancelScheduledClose = React.useCallback(() => {
     if (timerRef.current === null) return;
     clearTimeout(timerRef.current);
     timerRef.current = null;
   }, []);
-  const schedule = React.useCallback(
+
+  const { close, rootRef, triggerRef } = usePopupController({
+    disabled: disabled || hidden,
+    open: openGroup !== null,
+    onOpenChange: (next, options) => {
+      if (next) return;
+      cancelScheduledClose();
+      focusMenuOnOpenRef.current = null;
+      // The trigger opens on focus, so a focus-restoring close has to arm the
+      // guard before the focus lands.
+      if (options?.restoreFocus) suppressNextFocusOpenRef.current = true;
+      setOpenGroup(null);
+    },
+  });
+
+  const scheduleClose = React.useCallback(
     (group: StageToolbarGroupId) => {
-      cancel();
+      cancelScheduledClose();
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
         const groupNode = rootRef.current?.querySelector<HTMLElement>(
@@ -102,49 +78,93 @@ function useDelayedClose(
         setOpenGroup((current) => (current === group ? null : current));
       }, POINTER_LEAVE_CLOSE_DELAY_MS);
     },
-    [cancel, rootRef, setOpenGroup],
+    [cancelScheduledClose, rootRef],
   );
-  return { cancel, schedule };
+
+  const actions = useFlyoutActions({
+    cancelScheduledClose,
+    focusMenuOnOpenRef,
+    openGroup,
+    popupClose: close,
+    rootRef,
+    setOpenGroup,
+    suppressNextFocusOpenRef,
+    triggerRef,
+  });
+
+  React.useEffect(() => {
+    if (disabled || hidden) setOpenGroup(null);
+  }, [disabled, hidden]);
+  React.useEffect(() => () => cancelScheduledClose(), [cancelScheduledClose]);
+
+  React.useLayoutEffect(() => {
+    if (!openGroup || focusMenuOnOpenRef.current !== openGroup) {
+      return;
+    }
+    focusMenuOnOpenRef.current = null;
+    getMenuButtons(rootRef.current, openGroup)[0]?.focus();
+  }, [openGroup, rootRef]);
+
+  return {
+    ...actions,
+    ...useFlyoutKeyboard(close, openGroup),
+    cancelScheduledClose,
+    openGroup,
+    rootRef,
+    scheduleClose,
+  };
+}
+
+function useFlyoutKeyboard(
+  close: (restoreFocus?: boolean) => void,
+  openGroup: StageToolbarGroupId | null,
+): Pick<FlyoutController, "onMenuKeyDown" | "onToolbarBlur"> {
+  return {
+    onMenuKeyDown: React.useCallback(
+      (event: React.KeyboardEvent<HTMLDivElement>) => {
+        handleMenuKeyboardNavigation(event, {
+          onEscape: () => close(true),
+          onTab: () => close(false),
+        });
+      },
+      [close],
+    ),
+    onToolbarBlur: React.useCallback(
+      (event: React.FocusEvent<HTMLDivElement>) => {
+        if (
+          openGroup &&
+          !event.currentTarget.contains(event.relatedTarget as Node | null)
+        ) {
+          close(false);
+        }
+      },
+      [close, openGroup],
+    ),
+  };
 }
 
 function useFlyoutActions({
-  delayedClose,
+  cancelScheduledClose,
   focusMenuOnOpenRef,
   openGroup,
+  popupClose,
   rootRef,
   setOpenGroup,
   suppressNextFocusOpenRef,
   triggerRef,
 }: {
-  delayedClose: ReturnType<typeof useDelayedClose>;
+  cancelScheduledClose: () => void;
   focusMenuOnOpenRef: React.RefObject<StageToolbarGroupId | null>;
   openGroup: StageToolbarGroupId | null;
+  popupClose: (restoreFocus?: boolean) => void;
   rootRef: React.RefObject<HTMLDivElement | null>;
   setOpenGroup: SetOpenGroup;
   suppressNextFocusOpenRef: React.RefObject<boolean>;
   triggerRef: React.RefObject<HTMLButtonElement | null>;
 }): Pick<FlyoutController, "activate" | "close" | "openFromPointerOrFocus"> {
-  const close = React.useCallback(
-    (restoreFocus = false) => {
-      delayedClose.cancel();
-      focusMenuOnOpenRef.current = null;
-      setOpenGroup(null);
-      if (restoreFocus && document.activeElement !== triggerRef.current) {
-        suppressNextFocusOpenRef.current = true;
-        triggerRef.current?.focus();
-      }
-    },
-    [
-      delayedClose,
-      focusMenuOnOpenRef,
-      setOpenGroup,
-      suppressNextFocusOpenRef,
-      triggerRef,
-    ],
-  );
   const openFromPointerOrFocus = React.useCallback(
     (group: StageToolbarGroupId, trigger: HTMLButtonElement) => {
-      delayedClose.cancel();
+      cancelScheduledClose();
       if (suppressNextFocusOpenRef.current) {
         suppressNextFocusOpenRef.current = false;
         return;
@@ -154,7 +174,7 @@ function useFlyoutActions({
       setOpenGroup(group);
     },
     [
-      delayedClose,
+      cancelScheduledClose,
       focusMenuOnOpenRef,
       setOpenGroup,
       suppressNextFocusOpenRef,
@@ -163,7 +183,7 @@ function useFlyoutActions({
   );
   const activate = React.useCallback(
     (group: StageToolbarGroupId, trigger: HTMLButtonElement) => {
-      delayedClose.cancel();
+      cancelScheduledClose();
       triggerRef.current = trigger;
       if (openGroup === group) {
         getMenuButtons(rootRef.current, group)[0]?.focus();
@@ -173,7 +193,7 @@ function useFlyoutActions({
       }
     },
     [
-      delayedClose,
+      cancelScheduledClose,
       focusMenuOnOpenRef,
       openGroup,
       rootRef,
@@ -181,84 +201,7 @@ function useFlyoutActions({
       triggerRef,
     ],
   );
-  return { activate, close, openFromPointerOrFocus };
-}
-
-function useFlyoutKeyboard(
-  openGroup: StageToolbarGroupId | null,
-  rootRef: React.RefObject<HTMLDivElement | null>,
-  close: FlyoutController["close"],
-): Pick<FlyoutController, "onMenuKeyDown" | "onToolbarBlur"> {
-  const onMenuKeyDown = React.useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (!openGroup) return;
-      if (event.key === "Escape") {
-        event.preventDefault();
-        close(true);
-        return;
-      }
-      const next = resolveNextMenuButton(
-        getMenuButtons(rootRef.current, openGroup),
-        event,
-      );
-      if (next) {
-        event.preventDefault();
-        next.focus();
-      }
-    },
-    [close, openGroup, rootRef],
-  );
-  const onToolbarBlur = React.useCallback(
-    (event: React.FocusEvent<HTMLDivElement>) => {
-      if (
-        openGroup &&
-        !event.currentTarget.contains(event.relatedTarget as Node | null)
-      ) {
-        close();
-      }
-    },
-    [close, openGroup],
-  );
-  return { onMenuKeyDown, onToolbarBlur };
-}
-
-function useFlyoutLifecycle({
-  cancelScheduledClose,
-  close,
-  disabled,
-  hidden,
-  openGroup,
-  rootRef,
-  setOpenGroup,
-}: {
-  cancelScheduledClose: () => void;
-  close: () => void;
-  disabled: boolean;
-  hidden: boolean;
-  openGroup: StageToolbarGroupId | null;
-  rootRef: React.RefObject<HTMLDivElement | null>;
-  setOpenGroup: React.Dispatch<
-    React.SetStateAction<StageToolbarGroupId | null>
-  >;
-}): void {
-  React.useEffect(() => {
-    if (disabled || hidden) setOpenGroup(null);
-  }, [disabled, hidden, setOpenGroup]);
-  React.useEffect(() => {
-    if (!openGroup) return;
-    const closeOutside = (event: PointerEvent): void => {
-      if (!rootRef.current?.contains(event.target as Node)) close();
-    };
-    document.addEventListener("pointerdown", closeOutside, true);
-    return () =>
-      document.removeEventListener("pointerdown", closeOutside, true);
-  }, [close, openGroup, rootRef]);
-  React.useEffect(
-    () => () => {
-      cancelScheduledClose();
-    },
-    [cancelScheduledClose],
-  );
+  return { activate, close: popupClose, openFromPointerOrFocus };
 }
 
 function getMenuButtons(
@@ -270,24 +213,4 @@ function getMenuButtons(
       `[data-stage-tool-menu="${group}"] button:not(:disabled)`,
     ) ?? [],
   );
-}
-
-function resolveNextMenuButton(
-  buttons: HTMLButtonElement[],
-  event: React.KeyboardEvent<HTMLDivElement>,
-): HTMLButtonElement | null {
-  if (!buttons.length) return null;
-  if (event.key === "Home") return buttons[0] ?? null;
-  if (event.key === "End") return buttons.at(-1) ?? null;
-  if (
-    !["ArrowDown", "ArrowRight", "ArrowUp", "ArrowLeft"].includes(event.key)
-  ) {
-    return null;
-  }
-  const current = buttons.indexOf(event.target as HTMLButtonElement);
-  const delta =
-    event.key === "ArrowDown" || event.key === "ArrowRight" ? 1 : -1;
-  const index =
-    (Math.max(0, current) + delta + buttons.length) % buttons.length;
-  return buttons[index] ?? null;
 }

@@ -42,7 +42,7 @@
     "chapterCount": "{{count}}话",
     "sort": {
       "label": "排序",
-      "library": "书库顺序",
+      "library": "资料库顺序",
       "title": "名称",
       "recent": "最近更新"
     }
@@ -122,7 +122,7 @@
     "redoNamed": "重做{{action}}（Ctrl+Y / Ctrl+Shift+Z）",
     "undoShort": "撤销",
     "redoShort": "重做",
-    "original": "原图",
+    "original": "对比原图",
     "compareOriginal": "与原图比较",
     "hideOriginal": "结束原图比较",
     "resetPage": "重置为原图",
@@ -311,7 +311,7 @@
     "text": "文本",
     "translatedText": "译文",
     "eraseOriginal": "擦除原文",
-    "fitBubble": "适配气泡",
+    "fitBubble": "气泡适配",
     "moreActions": "更多文本块操作",
     "sourceEmpty": "无 OCR 文本",
     "tabs": {
@@ -353,9 +353,9 @@
       "inlineStyle": "逐字格式",
       "resetAll": "重置全部译文格式",
       "resetAllTitle": "移除译文中的所有强调和逐字格式",
-      "size": "字符大小",
+      "size": "字号",
       "font": "字符字体",
-      "opacity": "字符不透明度",
+      "opacity": "文字不透明度",
       "mixed": "混合",
       "placeholder": "输入译文",
       "codeAria": "译文格式代码",
@@ -390,6 +390,7 @@
     }
   },
   "fontSelect": {
+    "label": "字体",
     "addFont": "+ 添加TTF/OTF字体",
     "deleteFont": "删除此字体",
     "deleteNamedFont": "删除{{label}}",
@@ -420,7 +421,7 @@
     "loadingPages": "正在加载页面…",
     "loadPagesFailed": "无法加载页面。",
     "noPages": "没有页面。",
-    "thumbnailLoadFailed": "无法显示预览",
+    "thumbnailLoadFailed": "预览失败",
     "translated": "已翻译",
     "chapterSummaryComplete": "{{count}}页 · 完成",
     "chapterSummaryRemaining": "{{count}}页 · 剩余{{remaining}}",
@@ -506,7 +507,7 @@
     "workUnavailable": "无法加载作品信息。将只处理当前页面。",
     "currentPageSummary": "仅擦除当前页面。",
     "allPagesSummary": "擦除当前章节的全部{{count}}页。",
-    "bubbleLayout": "擦除后适配气泡",
+    "bubbleLayout": "图像修复后进行气泡适配",
     "bubbleLayoutHint": "从擦除后的图像中检测气泡区域，并自动调整译文排版。"
   },
   "translationOptions": {
@@ -555,7 +556,7 @@
       "on": "根据文本块大小整理译文换行。"
     },
     "autoFontMatching": "自动匹配字体",
-    "autoFontMatchingSummary": "根据原文字形，为对白、旁白、强调和拟声词逐块自动匹配合适字体。同一话的正文字体一致性仅作为弱提示，未通过验证质量门槛的结果不会应用。",
+    "autoFontMatchingSummary": "为每个文本块自动应用符合原文氛围的韩文字体。",
     "completionMode": "完成方式",
     "completionModeTranslate": "仅翻译",
     "completionModeErase": "擦除原文",
@@ -613,7 +614,7 @@
     "clearAll": "全部取消",
     "selectedSummary": "已选择 {{selected}}/{{visible}} 张",
     "initialTitle": "从公开网页导入图片",
-    "initialHint": "输入链接后，将按页面从上到下显示大图。",
+    "initialHint": "默认仅按网页从上到下的顺序显示大图。",
     "noMatchingImages": "没有符合此大小的图片",
     "tryAnotherFilter": "请选择全部或中等以上以扩大范围。",
     "skippedResult": "已跳过 {{skipped}} 张不支持、重复或损坏的图片。",
@@ -636,7 +637,7 @@
     "errors": {
       "invalidUrl": "请输入有效的公开网页链接。",
       "invalid-url": "无法打开此格式的链接。",
-      "private-address": "无法打开本地或私有网络地址。",
+      "private-address": "为确保安全，无法打开本地或私有网络地址。",
       "page-unavailable": "无法打开页面，请确认链接为公开链接。",
       "timed-out": "加载时间过长，请重试。",
       "busy": "其他任务正在进行，请完成后重试。",
@@ -664,7 +665,7 @@
     "chapterTitle": "章节标题",
     "liveResults": {
       "enable": "自动保存到结果文件夹",
-      "description": "保存到结果/作品名/章节名；停止编辑3秒后仅更新已更改页面。",
+      "description": "按作品和章节将结果保存到对应文件夹。",
       "format": "自动保存格式"
     }
   },
@@ -967,6 +968,7 @@
     "defaultFont": "默认字体",
     "formatDisabled": "任务运行时无法应用格式。",
     "directFormatTitle": "编辑所选文本块格式",
+    "presetHint": "将已保存的预设载入所选文本块。",
     "previewTitle": "应用预览",
     "previewBasis": "以第一个所选文本块为基准，实时显示更改。",
     "previewTextLabel": "示例文字",
@@ -1161,9 +1163,9 @@
   "inpainting": {
     "inspector": {
       "eyebrow": "画布工具",
-      "autoTitle": "自动清除",
+      "autoTitle": "自动擦除",
       "retouchTitle": "修整设置",
-      "autoAction": "自动清除"
+      "autoAction": "自动擦除"
     },
     "counts": {
       "thisPage": "本页 {{count}}",
@@ -1173,7 +1175,7 @@
     "guide": {
       "title": "图像修复指南",
       "hideNextTime": "不再显示",
-      "imageAlt": "图像修复指南：第一步自动清除背景，第二步修整残留痕迹，最后导出结果。"
+      "imageAlt": "图像修复指南：第一步自动擦除背景，第二步修整残留痕迹，最后导出结果。"
     },
     "steps": {
       "label": "图像修复步骤",
@@ -1197,9 +1199,9 @@
       "picker": "取色器"
     },
     "auto": {
-      "description": "先自动清除原文文字。可以逐页处理，也可以一次处理所有剩余页面。",
-      "currentPageAction": "清除原文",
-      "eraseShort": "清除原文",
+      "description": "先自动擦除原文文字。可以逐页处理，也可以一次处理所有剩余页面。",
+      "currentPageAction": "擦除原文",
+      "eraseShort": "擦除原文",
       "bubbleLayoutAction": "自动检测当前页气泡",
       "bubbleLayoutShort": "气泡适配",
       "bubbleLayoutRequiresBlocks": "请先擦除当前页面。",
@@ -1218,8 +1220,8 @@
       "redoLabel": "重做（Ctrl+Y）",
       "redoTitle": "重做（Ctrl+Y / Ctrl+Shift+Z）",
       "brushColor": "画笔颜色",
-      "eraseDrawn": "涂抹清除",
-      "eraseDrawnArea": "清除涂抹区域",
+      "eraseDrawn": "涂抹擦除",
+      "eraseDrawnArea": "擦除涂抹区域",
       "drawnAreas": "已涂抹{{count}}个区域",
       "maskRadius": "蒙版调整半径",
       "shrinkMask": "收缩",
@@ -1251,7 +1253,6 @@
   },
   "settings": {
     "title": "设置",
-    "applyNextRun": "更改将从下次翻译任务开始应用。",
     "tabs": {
       "ariaLabel": "设置区域",
       "general": "常规",
@@ -1267,14 +1268,14 @@
       "languageDescription": "更改整个应用使用的界面语言。"
     },
     "results": {
-      "description": "按作品和章节设置自动保存。默认：结果/作品名/章节名",
-      "empty": "库中没有可管理的作品。",
+      "description": "按作品和章节设置结果自动保存。",
+      "empty": "资料库中没有可管理的作品。",
       "searchLabel": "搜索结果自动保存",
       "searchPlaceholder": "搜索作品/章节",
-      "noSearchResults": "没有匹配的作品或章节。",
+      "noSearchResults": "没有符合条件的作品或章节。",
       "chapterCount": "{{count}}章",
       "toggleChapter": "{{title}}的结果自动保存",
-      "defaultLocationReady": "启用后保存到默认结果文件夹",
+      "defaultLocationReady": "保存到默认结果文件夹",
       "defaultLocation": "默认结果文件夹",
       "customLocation": "自定义文件夹",
       "moreActions": "更多自动保存操作",
@@ -1431,7 +1432,7 @@
       "fluxBackends": {
         "metal": {
           "label": "Apple Metal",
-          "description": "Apple Silicon 上运行 Flux Klein 的原生 Metal 运行时。"
+          "description": "在 Apple Silicon 上运行 Flux Klein 所必需的原生 Metal 运行时。"
         },
         "cuda": {
           "label": "NVIDIA CUDA",
@@ -1466,7 +1467,7 @@
       }
     },
     "translation": {
-      "title": "翻译语言",
+      "title": "翻译语言设置",
       "source": "原文语言",
       "target": "目标语言",
       "swapTitle": "交换原文语言和目标语言",
@@ -1654,14 +1655,15 @@
       "fluxAppleNote": "Apple Silicon仅使用原生Metal后端。Flux建议至少16GB统一内存。",
       "fluxNvidiaNote": "检测到NVIDIA GPU，将使用CUDA原生后端而不是ZLUDA。",
       "fluxOnlyNote": "此后端设置仅适用于Flux Klein模型。",
-      "fluxLowMemoryConfirm": "统一内存{{available}}低于Flux建议的16GB。是否允许风险运行？",
+      "fluxLowMemoryConfirm": "统一内存{{available}}低于Flux建议的16GB。应用可能退出或导致系统极其缓慢。是否允许此次风险运行？",
       "fluxLowMemoryOverride": "允许在{{available}}统一内存下风险运行Flux",
       "sm75FluxWarningTitle": "仅限 RTX 20 系列",
       "sm75FluxWarningDetail": "其行为或结果可能与标准 NVIDIA CUDA 略有不同。",
       "fluxAmdUnsupportedTitle": "AMD官方未支持的GPU",
       "fluxAmdUnsupportedDetail": "{{gpu}}不在AMD当前Windows HIP SDK官方支持列表中。仍可实验性选择ZLUDA，但运行时可能失败。",
       "fluxAmdUseCpu": "切换到CPU后端",
-      "downloadHipSdk": "下载AMD HIP SDK"
+      "downloadHipSdk": "下载AMD HIP SDK",
+      "openLinkFailed": "无法打开链接。请检查默认浏览器。"
     },
     "format": {
       "alignment": {
@@ -1740,7 +1742,7 @@
         "translate-all": "全部重新翻译",
         "gather-text": "汇总文本",
         "cancel-job": "取消任务",
-        "toggle-inpainting": "打开/关闭原文清除",
+        "toggle-inpainting": "打开/关闭原文擦除",
         "history-undo": "撤销",
         "history-redo": "重做",
         "retouch-redo": "重做修整",
@@ -1748,7 +1750,7 @@
         "duplicate-block": "创建所选文本块的副本",
         "toggle-block-excluded": "切换文本块修复排除状态",
         "toggle-command-palette": "命令面板",
-        "toggle-shortcut-help": "快捷键",
+        "toggle-shortcut-help": "快捷键帮助",
         "open-settings": "打开设置"
       }
     },
@@ -1805,7 +1807,7 @@
     "count": "{{count}}个",
     "needsReview": "需要检查",
     "soundEffect": "音效",
-    "inpaintExcluded": "排除清除",
+    "inpaintExcluded": "排除擦除",
     "openDetails": "详细编辑",
     "source": "原文",
     "translation": "译文",
@@ -1876,7 +1878,7 @@
     "sortName": "按名称",
     "loading": "正在加载文本块库…",
     "empty": "尚未保存文本块。可从文本块操作菜单中保存。",
-    "noSearchResults": "没有搜索结果。",
+    "noSearchResults": "没有符合条件的文本块。",
     "noPage": "当前没有可插入的页面，但仍可管理已保存的文本块。",
     "missingFont": "字体缺失 · 使用替代字体预览",
     "edit": "编辑文本块",
@@ -1920,7 +1922,7 @@
     "moveDown": "下移",
     "editorTitle": "预设 · {{name}}",
     "includedGroups": "预设应用项",
-    "includedGroupsHint": "当前启用 {{count}} 项",
+    "includedGroupsHint": "当前应用 {{count}} 项",
     "disabledGroupTooltip": "此项未包含在预设中。请向下滚动，在“预设应用项”中启用。",
     "minimumGroupRequired": "预设必须至少应用一个格式项。",
     "createQuick": "添加预设",

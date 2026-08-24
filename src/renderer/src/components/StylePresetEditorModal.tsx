@@ -7,7 +7,7 @@ import {
 import { MAX_BLOCK_STYLE_PRESET_NAME_LENGTH } from "../../../shared/blockStylePresets";
 import type { CreateBlockStylePresetInput } from "../../../shared/blockStylePresets";
 import { Modal } from "./ui/Modal";
-import { ModalActionBar } from "./ui/ModalActionBar";
+import { ModalActionBar, ModalActionButtons } from "./ui/ModalActionBar";
 import { CheckboxField } from "./ui/CheckboxField";
 
 export type StylePresetDraft = CreateBlockStylePresetInput;
@@ -59,7 +59,6 @@ export function StylePresetEditorModal({
   return (
     <Modal
       width="min(560px, 100%)"
-      ariaLabel={title ?? t("stylePresets.createTitle")}
       title={title ?? t("stylePresets.createTitle")}
       closeDisabled={saving}
       onClose={onClose}
@@ -100,24 +99,18 @@ function StylePresetEditorFooter({
   return (
     <ModalActionBar
       actions={
-        <>
-          <button
-            type="button"
-            className="style-preset-action ghost"
-            disabled={saving}
-            onClick={onClose}
-          >
-            {t("common.cancel")}
-          </button>
-          <button
-            type="button"
-            className="style-preset-action primary"
-            disabled={!valid || saving}
-            onClick={onSave}
-          >
-            {t("common.save")}
-          </button>
-        </>
+        <ModalActionButtons
+          cancel={{
+            label: t("common.cancel"),
+            onClick: onClose,
+            disabled: saving,
+          }}
+          confirm={{
+            label: t("common.save"),
+            onClick: onSave,
+            disabled: !valid || saving,
+          }}
+        />
       }
     />
   );
@@ -182,18 +175,16 @@ function StylePresetGroupFields({
       <legend>{t("stylePresets.groups")}</legend>
       <div className="style-preset-group-grid">
         {ALL_BLOCK_FORMAT_GROUP_IDS.map((groupId) => (
-          <label key={groupId}>
-            <input
-              type="checkbox"
-              checked={groupIds.includes(groupId)}
-              onChange={(event) =>
-                onChange((current) =>
-                  updateSelectedGroups(current, groupId, event.target.checked),
-                )
-              }
-            />
-            <span>{t(`formatBatch.groups.${groupId}`)}</span>
-          </label>
+          <CheckboxField
+            key={groupId}
+            label={t(`formatBatch.groups.${groupId}`)}
+            checked={groupIds.includes(groupId)}
+            onCheckedChange={(checked) =>
+              onChange((current) =>
+                updateSelectedGroups(current, groupId, checked),
+              )
+            }
+          />
         ))}
       </div>
     </fieldset>

@@ -4,6 +4,7 @@ import type { ApiReasoningEffort } from "../../../../shared/settingsTypes";
 import { API_REASONING_OPTIONS } from "../settingsOptions";
 import type { EngineSettingsPanelProps } from "./EngineSettingsPanelTypes";
 import { ApiProviderConnectionFields } from "./ApiProviderConnectionFields";
+import { SettingsNumberField } from "./SettingsNumberField";
 import { Select } from "../ui/Select";
 
 export type ApiSettingsFieldsProps = Pick<
@@ -79,53 +80,50 @@ function ApiScalarAdvancedFields({
   setApiTopP,
 }: ApiSettingsFieldsProps): React.JSX.Element {
   const { t } = useTranslation("components");
+  // Blank means "leave it to the provider default", so all three stay optional.
   return (
     <div className="settings-advanced-grid">
-      <label>
-        {t("settings.api.advanced.temperature")}
-        <input
-          type="number"
-          min={0}
-          max={2}
-          step={0.05}
-          value={apiTemperature}
-          disabled={controlsBusy}
-          onChange={(event) => {
-            clearTestState();
-            setApiTemperature(event.target.value);
-          }}
-        />
-      </label>
-      <label>
-        {t("settings.api.advanced.topP")}
-        <input
-          type="number"
-          min={0}
-          max={1}
-          step={0.01}
-          value={apiTopP}
-          disabled={controlsBusy}
-          onChange={(event) => {
-            clearTestState();
-            setApiTopP(event.target.value);
-          }}
-        />
-      </label>
-      <label>
-        {t("settings.api.advanced.topK")}
-        <input
-          type="number"
-          min={1}
-          max={1000}
-          step={1}
-          value={apiTopK}
-          disabled={controlsBusy}
-          onChange={(event) => {
-            clearTestState();
-            setApiTopK(event.target.value);
-          }}
-        />
-      </label>
+      <SettingsNumberField
+        ariaLabel={t("settings.api.advanced.temperature")}
+        optional
+        min={0}
+        max={2}
+        step={0.05}
+        precision={2}
+        value={apiTemperature}
+        disabled={controlsBusy}
+        onValueChange={(next) => {
+          clearTestState();
+          setApiTemperature(next);
+        }}
+      />
+      <SettingsNumberField
+        ariaLabel={t("settings.api.advanced.topP")}
+        optional
+        min={0}
+        max={1}
+        step={0.01}
+        precision={2}
+        value={apiTopP}
+        disabled={controlsBusy}
+        onValueChange={(next) => {
+          clearTestState();
+          setApiTopP(next);
+        }}
+      />
+      <SettingsNumberField
+        ariaLabel={t("settings.api.advanced.topK")}
+        optional
+        min={1}
+        max={1000}
+        step={1}
+        value={apiTopK}
+        disabled={controlsBusy}
+        onValueChange={(next) => {
+          clearTestState();
+          setApiTopK(next);
+        }}
+      />
       <ApiReasoningEffortField
         apiReasoningEffort={apiReasoningEffort}
         clearTestState={clearTestState}

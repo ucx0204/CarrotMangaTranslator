@@ -1,6 +1,8 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { settingsGateway } from "../../api/settingsGateway";
+import { formatErrorMessage } from "../../lib/errorPresentation";
+import { toast } from "../../lib/toastStore";
 
 export function OcrHardwareContextNote({
   supportsOcrRocm,
@@ -84,7 +86,9 @@ export function AmdHipSdkDownloadButton(): React.JSX.Element {
       className="settings-external-link"
       onClick={() => {
         void settingsGateway.openAmdHipSdkDownload().catch((error) => {
-          console.error("Failed to open AMD HIP SDK download page", error);
+          toast.error(
+            formatErrorMessage(error, t("settings.hardware.openLinkFailed")),
+          );
         });
       }}
     >

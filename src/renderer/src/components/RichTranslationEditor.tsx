@@ -773,55 +773,51 @@ function InlineStylePanel({
           <span>
             {t("editor.richText.size", { defaultValue: "글자 크기" })}
           </span>
-          <div className="rich-inline-number-field">
-            <NumberField
-              ariaLabel={t("editor.richText.size", {
-                defaultValue: "글자 크기",
-              })}
-              value={values.sizePx}
-              min={MIN_FONT_SIZE_PX}
-              max={MAX_FONT_SIZE_PX}
-              step={FONT_SIZE_STEP_PX}
-              precision={1}
-              snapToStep
-              useTextInput
-              selectOnFocus
-              className="rich-inline-number-input"
-              commitMode="change"
-              mixed={values.sizeMixed}
-              placeholder="—"
-              disabled={disabled}
-              onValueChange={onSizeChange}
-            />
-            <span>px</span>
-          </div>
+          <NumberField
+            variant="framed"
+            ariaLabel={t("editor.richText.size", {
+              defaultValue: "글자 크기",
+            })}
+            value={values.sizePx}
+            min={MIN_FONT_SIZE_PX}
+            max={MAX_FONT_SIZE_PX}
+            step={FONT_SIZE_STEP_PX}
+            precision={1}
+            snapToStep
+            useTextInput
+            selectOnFocus
+            unit="px"
+            commitMode="change"
+            mixed={values.sizeMixed}
+            placeholder="—"
+            disabled={disabled}
+            onValueChange={onSizeChange}
+          />
         </label>
         <label>
           <span>
             {t("editor.richText.opacity", { defaultValue: "글자 투명도" })}
           </span>
-          <div className="rich-inline-number-field">
-            <NumberField
-              ariaLabel={t("editor.richText.opacity", {
-                defaultValue: "글자 투명도",
-              })}
-              value={values.opacityPercent}
-              min={0}
-              max={100}
-              step={1}
-              precision={0}
-              inputMode="numeric"
-              useTextInput
-              selectOnFocus
-              className="rich-inline-number-input"
-              commitMode="change"
-              mixed={values.opacityMixed}
-              placeholder="—"
-              disabled={disabled}
-              onValueChange={onOpacityChange}
-            />
-            <span>%</span>
-          </div>
+          <NumberField
+            variant="framed"
+            ariaLabel={t("editor.richText.opacity", {
+              defaultValue: "글자 투명도",
+            })}
+            value={values.opacityPercent}
+            min={0}
+            max={100}
+            step={1}
+            precision={0}
+            inputMode="numeric"
+            useTextInput
+            selectOnFocus
+            unit="%"
+            commitMode="change"
+            mixed={values.opacityMixed}
+            placeholder="—"
+            disabled={disabled}
+            onValueChange={onOpacityChange}
+          />
         </label>
         <div className="rich-inline-emphasis-tools">
           <IconButton

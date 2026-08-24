@@ -30,6 +30,7 @@ export function createGatherTextProps(
     workspaceHistory.busy;
   return uiState.textViewOpen
     ? {
+        blockStylePresets: settingsDialog.settings?.blockStylePresets ?? [],
         chapter: core.currentChapter,
         activeTab: uiState.textViewTab,
         formatApplyDisabled,

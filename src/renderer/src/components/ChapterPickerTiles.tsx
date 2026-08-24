@@ -1,106 +1,14 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { MangaPage } from "../../../shared/libraryTypes";
-import { libraryGateway as mangaGateway } from "../api/libraryGateway";
 import type { TriState } from "../lib/translationSelection";
+import {
+  usePageThumbnail,
+  type ObservePageThumbnail,
+  type PageThumbnailState,
+} from "./pageThumbnails";
 import { SelectionCard } from "./ui/SelectionCard";
-
-export type ObservePageThumbnail = (
-  element: Element,
-  onVisible: () => void,
-) => () => void;
-
-type ThumbnailLoadStatus = "idle" | "loading" | "loaded" | "error";
-
-type ThumbnailLoadState = {
-  imagePath: string;
-  status: ThumbnailLoadStatus;
-  url?: string;
-};
-
-function useThumbnailVisibility(
-  observeThumbnail: ObservePageThumbnail,
-): [React.RefObject<HTMLSpanElement | null>, boolean] {
-  const imageFrameRef = React.useRef<HTMLSpanElement>(null);
-  const [shouldLoad, setShouldLoad] = React.useState(false);
-  React.useEffect(() => {
-    const element = imageFrameRef.current;
-    if (!element) {
-      return;
-    }
-    return observeThumbnail(element, () => setShouldLoad(true));
-  }, [observeThumbnail]);
-  return [imageFrameRef, shouldLoad];
-}
-
-function useThumbnailLoad(
-  imagePath: string,
-  shouldLoad: boolean,
-): {
-  loadState: ThumbnailLoadState;
-  markImageLoaded: (url: string) => void;
-  markImageErrored: (url: string) => void;
-} {
-  const imageFailureCountRef = React.useRef(0);
-  const [requestRevision, setRequestRevision] = React.useState(0);
-  const [loadState, setLoadState] = React.useState<ThumbnailLoadState>({
-    imagePath,
-    status: "idle",
-  });
-
-  React.useEffect(() => {
-    imageFailureCountRef.current = 0;
-  }, [imagePath]);
-
-  React.useEffect(() => {
-    if (!shouldLoad) {
-      return;
-    }
-    let cancelled = false;
-    setLoadState({ imagePath, status: "loading" });
-    void mangaGateway
-      .getPageImageDataUrl(imagePath)
-      .then((url) => {
-        if (!cancelled) {
-          setLoadState({ imagePath, status: "loading", url });
-        }
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) {
-          console.error(error);
-          setLoadState({ imagePath, status: "error" });
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [imagePath, requestRevision, shouldLoad]);
-
-  const currentLoadState =
-    loadState.imagePath === imagePath
-      ? loadState
-      : { imagePath, status: "idle" as const };
-  const markImageLoaded = (url: string): void => {
-    setLoadState((current) =>
-      current.imagePath === imagePath && current.url === url
-        ? { ...current, status: "loaded" }
-        : current,
-    );
-  };
-  const markImageErrored = (url: string): void => {
-    if (currentLoadState.url !== url) {
-      return;
-    }
-    if (imageFailureCountRef.current === 0) {
-      imageFailureCountRef.current = 1;
-      setLoadState({ imagePath, status: "loading" });
-      setRequestRevision((revision) => revision + 1);
-      return;
-    }
-    setLoadState({ imagePath, status: "error" });
-  };
-  return { loadState: currentLoadState, markImageLoaded, markImageErrored };
-}
+import { CheckboxField } from "./ui/CheckboxField";
 
 export function PageThumb({
   page,
@@ -117,11 +25,8 @@ export function PageThumb({
   observeThumbnail: ObservePageThumbnail;
   onToggle: () => void;
 }): React.JSX.Element {
-  const [imageFrameRef, shouldLoad] = useThumbnailVisibility(observeThumbnail);
-  const { loadState, markImageLoaded, markImageErrored } = useThumbnailLoad(
-    page.imagePath,
-    shouldLoad,
-  );
+  const { frameRef, state, markLoaded, markErrored } =
+    usePageThumbnail<HTMLSpanElement>(page, observeThumbnail);
   const done = showTranslatedStatus && page.analysisStatus === "completed";
   return (
     <SelectionCard
@@ -135,12 +40,12 @@ export function PageThumb({
       onChange={onToggle}
     >
       <ThumbnailImage
-        frameRef={imageFrameRef}
+        frameRef={frameRef}
         pageName={page.name}
         done={done}
-        loadState={loadState}
-        onLoad={markImageLoaded}
-        onError={markImageErrored}
+        loadState={state}
+        onLoad={markLoaded}
+        onError={markErrored}
       />
       <span className="translate-page-thumb-cap" title={page.name}>
         <span className="translate-page-thumb-no">{index + 1}</span>
@@ -161,7 +66,7 @@ function ThumbnailImage({
   frameRef: React.RefObject<HTMLSpanElement | null>;
   pageName: string;
   done: boolean;
-  loadState: ThumbnailLoadState;
+  loadState: PageThumbnailState;
   onLoad: (url: string) => void;
   onError: (url: string) => void;
 }): React.JSX.Element {
@@ -215,20 +120,13 @@ export function TriCheckbox({
   label: string;
   onChange: () => void;
 }): React.JSX.Element {
-  const ref = React.useRef<HTMLInputElement>(null);
-  React.useEffect(() => {
-    if (ref.current) {
-      ref.current.indeterminate = state === "some";
-    }
-  }, [state]);
   return (
-    <input
-      ref={ref}
-      type="checkbox"
+    <CheckboxField
       className="translate-chapter-check"
-      aria-label={label}
+      ariaLabel={label}
       checked={state === "all"}
-      onChange={onChange}
+      indeterminate={state === "some"}
+      onCheckedChange={onChange}
     />
   );
 }

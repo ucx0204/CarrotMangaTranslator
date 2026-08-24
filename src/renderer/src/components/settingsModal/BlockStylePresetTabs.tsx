@@ -26,9 +26,12 @@ export function BlockStylePresetTabs({
   const { t } = useTranslation("components");
   const ungroupedPresets = presets.filter((preset) => !preset.groupId);
   return (
+    // A group, not a tablist: these buttons select which preset the panel below
+    // edits, and expandable folders are interleaved with them. There is no
+    // tabpanel per button, so claiming tab semantics would be a lie to AT.
     <div
       className="style-preset-tabs-scroll"
-      role="tablist"
+      role="group"
       aria-label={t("stylePresets.title")}
       ref={tabListRef}
     >
@@ -146,8 +149,7 @@ function PresetTab({
       className="style-preset-tab"
       data-grouped={grouped}
       data-style-preset-tab={id}
-      role="tab"
-      aria-selected={active}
+      aria-pressed={active}
       title={label}
       onClick={onClick}
     >

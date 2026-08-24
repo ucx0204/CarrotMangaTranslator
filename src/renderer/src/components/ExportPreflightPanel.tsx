@@ -4,6 +4,7 @@ import type {
   PageImageExportPreflightIssue,
   PageImageExportPreflightResult,
 } from "../../../shared/pageImageExportTypes";
+import { Button } from "./ui/Button";
 
 export type ExportIssueNavigationHandler = (
   chapterId: string,
@@ -153,12 +154,13 @@ function ExportPreflightIssues({
             <small>{t(`exportOptions.preflight.issues.${issue.code}`)}</small>
           </span>
           {onNavigateToIssue ? (
-            <button
-              type="button"
+            <Button
+              size="sm"
+              variant="ghost"
               onClick={() => onNavigateToIssue(issue.chapterId, issue.pageId)}
             >
               {t("exportOptions.preflight.openPage")}
-            </button>
+            </Button>
           ) : null}
         </div>
       ))}

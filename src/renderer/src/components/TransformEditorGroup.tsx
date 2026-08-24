@@ -19,6 +19,7 @@ import { TransformNumberField } from "./TransformNumberField";
 import { PerspectiveEditorControls } from "./PerspectiveEditorControls";
 import { CurveEditorControls } from "./CurveEditorControls";
 import { WarpEditorControls } from "./WarpEditorControls";
+import { CheckboxField } from "./ui/CheckboxField";
 
 type TransformEditorGroupProps = {
   block: TranslationBlock;
@@ -179,15 +180,14 @@ function GeneralTransformControls({
         templateMode={templateMode}
         onCommit={updateField}
       />
-      <label className="transform-lock-ratio">
-        <input
-          type="checkbox"
-          checked={lockRatio}
-          disabled={disabled}
-          onChange={(event) => setLockRatio(event.target.checked)}
-        />
-        {t("transform.lockRatio")}
-      </label>
+      <CheckboxField
+        variant="bare"
+        className="transform-lock-ratio"
+        label={t("transform.lockRatio")}
+        checked={lockRatio}
+        disabled={disabled}
+        onCheckedChange={setLockRatio}
+      />
       <RotationControl block={block} disabled={disabled} onUpdate={onUpdate} />
       {!templateMode ? (
         <p className="transform-help">{t("transform.hints.select")}</p>
@@ -295,6 +295,7 @@ function RotationControl({
         step={0.1}
         unit="°"
         disabled={disabled}
+        hasSlider
         onCommit={(rotationDeg) =>
           onUpdate({ rotationDeg: normalizeRotationDeg(rotationDeg) })
         }

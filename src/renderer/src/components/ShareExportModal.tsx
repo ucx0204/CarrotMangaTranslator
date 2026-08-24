@@ -57,7 +57,6 @@ export function ShareExportModal({
 
   return (
     <Modal
-      ariaLabel={t("shareExport.title")}
       title={t("shareExport.title")}
       onClose={onCancel}
       closeDisabled={busy}

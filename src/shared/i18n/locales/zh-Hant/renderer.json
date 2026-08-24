@@ -11,6 +11,9 @@
   },
   "panels": {
     "connecting": "正在連線…",
+    "openEditorWindowFailed": "無法開啟編輯器視窗。",
+    "closeEditorWindowFailed": "無法關閉編輯器視窗。",
+    "commandFailed": "無法向主視窗傳送命令。",
     "editor": {
       "title": "編輯文字區塊",
       "poppedOut": "編輯器已在獨立視窗中開啟。",
@@ -44,7 +47,7 @@
     "phase": {
       "booting": "正在準備模型",
       "modelDownloading": "正在下載模型／準備伺服器",
-      "inpaintingPreparing": "正在準備圖像修復",
+      "inpaintingPreparing": "正在準備影像修補",
       "finalizing": "正在整理結果",
       "done": "工作完成",
       "ocrDownloading": "正在下載／安裝 Paddle OCR",
@@ -77,7 +80,7 @@
       "skippedAndUncertain": "部分頁面已略過，另有文字區塊需要檢查 OCR 結果。",
       "skipped": "部分頁面已略過，工作已繼續處理下一頁。",
       "uncertain": "部分文字區塊需要進一步檢查 OCR 結果。",
-      "generic": "工作出現警告，但仍繼續完成處理。"
+      "generic": "工作出現警告，但仍繼續處理。"
     },
     "notifications": {
       "completed": "工作已完成。",
@@ -110,12 +113,12 @@
       "closeHint": "關閉面板"
     },
     "exitInpainting": {
-      "label": "結束圖像修復",
-      "keywords": "inpaint exit 圖像修復 結束"
+      "label": "結束影像修補",
+      "keywords": "inpaint exit 影像修補 結束"
     },
     "enterInpainting": {
-      "label": "開始圖像修復",
-      "keywords": "inpaint start 圖像修復 開始"
+      "label": "開始影像修補",
+      "keywords": "inpaint start 影像修補 開始"
     },
     "cancelJob": { "label": "取消工作", "keywords": "cancel stop 取消 工作" },
     "gatherText": {
@@ -171,7 +174,7 @@
       "view": "顯示 / 檢視",
       "tool": "工具",
       "translate": "翻譯",
-      "inpaint": "圖像修復",
+      "inpaint": "影像修補",
       "edit": "文字區塊編輯",
       "global": "全域"
     },
@@ -219,7 +222,7 @@
       "history-redo": "重做",
       "delete-block": "刪除所選文字區塊",
       "duplicate-block": "複製所選文字區塊",
-      "toggle-block-excluded": "切換文字區塊的圖像修復排除狀態",
+      "toggle-block-excluded": "切換文字區塊的影像修補排除狀態",
       "apply-style-slot-1": "套用樣式槽位1",
       "apply-style-slot-2": "套用樣式槽位2",
       "apply-style-slot-3": "套用樣式槽位3",
@@ -305,7 +308,7 @@
     },
     "retranslate": {
       "title": "重新翻譯頁面",
-      "confirm": "確定要重新翻譯嗎？",
+      "confirm": "要重新翻譯此頁面嗎？",
       "detail": "既有結果會儲存為檢查點，並可透過工作區復原還原。"
     },
     "removePage": {
@@ -331,9 +334,9 @@
       "detail": "切換章節會刪除目前章節中尚未套用的遮罩。"
     },
     "mode": {
-      "saveBeforeEnterFailed": "進入圖像修復模式前無法儲存修改。",
-      "entered": "已進入圖像修復模式。請先清除原文。",
-      "exited": "已結束圖像修復模式。"
+      "saveBeforeEnterFailed": "進入影像修補模式前無法儲存修改。",
+      "entered": "已進入影像修補模式。請先清除原文。",
+      "exited": "已結束影像修補模式。"
     },
     "drawn": {
       "title": "清除繪製區域",
@@ -352,7 +355,7 @@
       "pendingPages": "尚未清除的頁面",
       "selectedPages": "所選頁面",
       "message": "清除{{scope}}中翻譯文字區塊位置的原文。",
-      "detail": "Flux 圖像修復會清除對話框、網點、背景圖和音效上的文字。原圖會保留，結果會另存。",
+      "detail": "Flux 影像修補會清除對話框、網點、背景圖和音效上的文字。原圖會保留，結果會另存。",
       "preparing": "正在準備清除原文",
       "saveFailed": "清除原文前無法儲存修改。",
       "startFailed": "無法開始清除原文。",
@@ -408,7 +411,7 @@
     }
   },
   "regionTranslation": {
-    "disposeInpainting": "正在為翻譯關閉 Flux 圖像修復執行環境。",
+    "disposeInpainting": "正在為翻譯關閉 Flux 影像修補執行環境。",
     "cancelledSelection": "已取消區域翻譯選取。",
     "dragPrompt": "請拖曳選取要翻譯的區域。",
     "tooSmall": "所選區域太小。",
@@ -444,10 +447,10 @@
   },
   "settings": {
     "loadFailed": "無法載入設定。",
-    "saved": "設定已儲存，將從下次翻譯工作起生效。",
+    "saved": "設定已儲存。",
     "savedToast": "設定已儲存。",
     "saveFailed": "無法儲存設定。",
-    "reset": "設定已恢復為預設值，將從下次翻譯工作起生效。",
+    "reset": "設定已恢復為預設值。",
     "defaultsLoaded": "預設值已載入草稿，儲存後才會套用。",
     "resetFailed": "無法還原預設設定。"
   },

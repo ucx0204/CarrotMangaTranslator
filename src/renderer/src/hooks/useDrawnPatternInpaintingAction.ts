@@ -119,7 +119,6 @@ async function runDrawnInpaintingRequest(
     });
     await handleDrawnInpaintingResult(result, context);
   } catch (error) {
-    console.error(error);
     failInpaintingJob(
       context.setJobState,
       context.pushStatus,

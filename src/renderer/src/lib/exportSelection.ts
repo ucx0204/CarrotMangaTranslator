@@ -1,16 +1,30 @@
 import type { MangaPage } from "../../../shared/libraryTypes";
 import type { PageImageExportChapterSelection } from "../../../shared/pageImageExportTypes";
-import type { TriState } from "./translationSelection";
+import {
+  buildChapterSelectionRequests,
+  resolveChapterTriState,
+  resolveSelectedPageIds,
+  toggleChapterSelection,
+  togglePageSelection,
+  type PageSelectionMap,
+  type TriState,
+} from "./pageSelection";
 
 /** A chapter and the final images selected for one export request. */
 export type ExportChapterSelection = PageImageExportChapterSelection;
 
+/**
+ * Export has no "untranslated only" notion, so it uses the narrower selection
+ * state: a whole chapter, or an explicit page set.
+ */
 export type ExportChapterSelectionState =
   | { kind: "all" }
   | { kind: "pages"; pageIds: Set<string> };
 
 /** Per-chapter state owned by the export options modal. */
-export type ExportSelectionMap = Map<string, ExportChapterSelectionState>;
+export type ExportSelectionMap = PageSelectionMap<ExportChapterSelectionState>;
+
+const SELECT_ALL: ExportChapterSelectionState = { kind: "all" };
 
 export function createDefaultExportSelection(
   chapterId: string,
@@ -25,13 +39,7 @@ export function selectedExportPageIds(
   selection: ExportChapterSelectionState | undefined,
   pages: MangaPage[],
 ): Set<string> {
-  if (!selection) {
-    return new Set();
-  }
-  if (selection.kind === "all") {
-    return new Set(pages.map((page) => page.id));
-  }
-  return new Set(selection.pageIds);
+  return resolveSelectedPageIds(selection, pages);
 }
 
 export function exportChapterTriState(
@@ -39,31 +47,14 @@ export function exportChapterTriState(
   pageCount: number,
   loadedPages?: MangaPage[],
 ): TriState {
-  if (!selection) {
-    return "none";
-  }
-  if (selection.kind === "all") {
-    return "all";
-  }
-  const selectedCount = selection.pageIds.size;
-  if (selectedCount === 0) {
-    return "none";
-  }
-  const total = loadedPages?.length ?? pageCount;
-  return selectedCount >= total && total > 0 ? "all" : "some";
+  return resolveChapterTriState(selection, pageCount, loadedPages);
 }
 
 export function toggleExportChapter(
   selection: ExportSelectionMap,
   chapterId: string,
 ): ExportSelectionMap {
-  const next = new Map(selection);
-  if (next.get(chapterId)?.kind === "all") {
-    next.delete(chapterId);
-  } else {
-    next.set(chapterId, { kind: "all" });
-  }
-  return next;
+  return toggleChapterSelection(selection, chapterId, SELECT_ALL);
 }
 
 export function toggleExportPage(
@@ -72,27 +63,12 @@ export function toggleExportPage(
   pageId: string,
   pages: MangaPage[],
 ): ExportSelectionMap {
-  const selected = selectedExportPageIds(selection.get(chapterId), pages);
-  if (selected.has(pageId)) {
-    selected.delete(pageId);
-  } else {
-    selected.add(pageId);
-  }
-
-  const next = new Map(selection);
-  if (selected.size === 0) {
-    next.delete(chapterId);
-    return next;
-  }
-  if (selected.size === pages.length && pages.length > 0) {
-    next.set(chapterId, { kind: "all" });
-    return next;
-  }
-  const orderedIds = pages
-    .filter((page) => selected.has(page.id))
-    .map((page) => page.id);
-  next.set(chapterId, { kind: "pages", pageIds: new Set(orderedIds) });
-  return next;
+  // Ticking every page of a chapter means "the whole chapter", so it collapses
+  // back to `all` and stays correct if pages are added later.
+  return togglePageSelection(selection, chapterId, pageId, pages, {
+    collapseFullPageSetToAll: true,
+    selectAll: SELECT_ALL,
+  });
 }
 
 /** Builds the public request selection in library chapter order. */
@@ -100,21 +76,9 @@ export function buildExportSelection(
   chapterOrder: string[],
   selection: ExportSelectionMap,
 ): ExportChapterSelection[] {
-  const result: ExportChapterSelection[] = [];
-  for (const chapterId of chapterOrder) {
-    const chapterSelection = selection.get(chapterId);
-    if (!chapterSelection) {
-      continue;
-    }
-    if (chapterSelection.kind === "all") {
-      result.push({ chapterId, mode: "all" });
-    } else if (chapterSelection.pageIds.size > 0) {
-      result.push({
-        chapterId,
-        mode: "page-set",
-        pageIds: [...chapterSelection.pageIds],
-      });
-    }
-  }
-  return result;
+  return buildChapterSelectionRequests<ExportChapterSelectionState, "all">(
+    chapterOrder,
+    selection,
+    () => "all",
+  );
 }

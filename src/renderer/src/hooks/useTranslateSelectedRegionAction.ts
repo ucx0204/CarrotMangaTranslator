@@ -149,7 +149,6 @@ async function translateSelectedRegion(
       context.t,
     );
   } catch (error) {
-    console.error(error);
     failAnalysisJob(
       context.setJobState,
       context.pushStatus,

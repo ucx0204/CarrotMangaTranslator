@@ -16,6 +16,7 @@ type GatherTextFooterProps = {
   hasChapter: boolean;
   canImportTxt: boolean;
   reviewBusy: boolean;
+  onClose: () => void;
   onSave: () => void;
   onCopy: () => void;
   onExportReview: (format: ReviewExportFormat) => void;
@@ -36,6 +37,7 @@ export function GatherTextFooter({
   hasChapter,
   canImportTxt,
   reviewBusy,
+  onClose,
   onSave,
   onCopy,
   onExportReview,
@@ -56,6 +58,9 @@ export function GatherTextFooter({
       }
       actions={
         <>
+          <Button variant="ghost" onClick={onClose}>
+            {t("common.close")}
+          </Button>
           <GatherTextExchangeMenu
             hasContent={hasContent}
             hasChapter={hasChapter}

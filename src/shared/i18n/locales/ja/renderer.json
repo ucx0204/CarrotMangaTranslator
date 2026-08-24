@@ -11,6 +11,9 @@
   },
   "panels": {
     "connecting": "接続中…",
+    "openEditorWindowFailed": "編集ウィンドウを開けませんでした。",
+    "closeEditorWindowFailed": "編集ウィンドウを閉じられませんでした。",
+    "commandFailed": "メインウィンドウにコマンドを送信できませんでした。",
     "editor": {
       "title": "ブロック編集",
       "poppedOut": "エディターを別ウィンドウで開いています。",
@@ -165,7 +168,7 @@
       "keywords": "error report issue github エラー 問題 報告"
     },
     "shortcutHelp": {
-      "label": "ショートカット一覧",
+      "label": "ショートカットヘルプ",
       "keywords": "shortcut help ショートカット"
     }
   },
@@ -180,7 +183,7 @@
     },
     "actions": {
       "toggle-block-chrome": "背景／枠線の表示を切り替え",
-      "toggle-text-blocks": "ブロック表示を切り替え",
+      "toggle-text-blocks": "テキストブロックの表示を切り替え",
       "toggle-peek-original": "元画像プレビューを切り替え",
       "zoom-in": "画像を拡大",
       "zoom-out": "画像を縮小",
@@ -234,7 +237,7 @@
       "apply-style-slot-9": "スタイルスロット9を適用",
       "apply-style-slot-10": "スタイルスロット10を適用",
       "toggle-command-palette": "コマンドパレット",
-      "toggle-shortcut-help": "ショートカット一覧",
+      "toggle-shortcut-help": "ショートカットヘルプ",
       "open-settings": "設定を開く"
     }
   },
@@ -254,9 +257,9 @@
     "importText": "翻訳文を読み込み",
     "maskEdit": "マスクを編集",
     "autoInpainting": "自動消去",
-    "bubbleLayout": "吹き出しフィット配置",
+    "bubbleLayout": "吹き出し合わせ",
     "bubbleLayoutManual": "吹き出し形状を編集",
-    "removeBubbleLayout": "吹き出しフィットを解除",
+    "removeBubbleLayout": "吹き出し合わせを解除",
     "drawnInpainting": "描画範囲を消去",
     "translationCheckpoint": "翻訳結果のチェックポイント",
     "retranslationCheckpoint": "再翻訳前のチェックポイント",
@@ -308,7 +311,7 @@
     },
     "retranslate": {
       "title": "ページを再翻訳",
-      "confirm": "本当に再翻訳しますか？",
+      "confirm": "このページを再翻訳しますか？",
       "detail": "既存結果はチェックポイントとして保存され、ワークスペースの元に戻す操作で復元できます。"
     },
     "removePage": {
@@ -365,11 +368,11 @@
     },
     "bubbleLayout": {
       "requiresBlocks": "吹き出しを検出するテキストブロックがありません。",
-      "preparing": "吹き出しフィット配置を準備中",
+      "preparing": "吹き出し合わせを準備中",
       "success": "現在のページの翻訳ブロックを吹き出しに合わせました。",
       "selectedBlockSuccess": "選択した翻訳ブロックを吹き出しに合わせました。",
       "selectedBlockNoMatch": "選択したブロックに合う吹き出し領域が見つかりませんでした。",
-      "failedTitle": "吹き出しフィット失敗",
+      "failedTitle": "吹き出し合わせ失敗",
       "failed": "翻訳ブロックを吹き出しに合わせられませんでした。"
     },
     "export": {
@@ -435,9 +438,9 @@
     "eraseOriginalWorkflowCompleted": "翻訳と原文消去が完了しました。",
     "eraseOriginalWorkflowPartial": "一部のブロックで原文消去に失敗しました。",
     "eraseOriginalWorkflowFailed": "翻訳後の原文消去に失敗しました。",
-    "bubbleLayoutWorkflowCompleted": "翻訳・自動消去・吹き出しフィットが完了しました。",
+    "bubbleLayoutWorkflowCompleted": "翻訳・自動消去・吹き出し合わせが完了しました。",
     "bubbleLayoutWorkflowPartial": "一部のブロックで後処理に失敗しました。",
-    "bubbleLayoutWorkflowFailed": "翻訳後の自動消去・吹き出しフィットに失敗しました。",
+    "bubbleLayoutWorkflowFailed": "翻訳後の自動消去・吹き出し合わせに失敗しました。",
     "flow": {
       "translation": "翻訳",
       "chapterProgress": "{{pass}} {{current}}/{{total}}話",
@@ -447,10 +450,10 @@
   },
   "settings": {
     "loadFailed": "設定を読み込めませんでした。",
-    "saved": "設定を保存しました。次回の翻訳実行から適用されます。",
+    "saved": "設定を保存しました。",
     "savedToast": "設定を保存しました。",
     "saveFailed": "設定を保存できませんでした。",
-    "reset": "設定をデフォルトに戻しました。次回の翻訳実行から適用されます。",
+    "reset": "設定をデフォルトに戻しました。",
     "defaultsLoaded": "デフォルト値を下書きに読み込みました。適用するには保存してください。",
     "resetFailed": "デフォルト設定に戻せませんでした。"
   },

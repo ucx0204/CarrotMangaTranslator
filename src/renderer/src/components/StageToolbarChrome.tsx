@@ -7,6 +7,7 @@ import {
 import { useTranslation } from "react-i18next";
 import type { WorkspaceTool } from "../lib/stageTool";
 import { ControlTooltip } from "./ui/ControlTooltip";
+import { IconButton } from "./ui/IconButton";
 
 export type StageToolbarToolEntry = {
   id: WorkspaceTool;
@@ -24,14 +25,16 @@ export function CollapsedStageToolbar({
   return (
     <div className="stage-toolbar collapsed">
       <ToolbarControl tooltip={t("stageToolbar.showTitle")}>
-        <button
-          aria-label={t("stageToolbar.showTitle")}
+        <IconButton
+          variant="canvas"
+          size="lg"
           className="stage-toolbar-toggle"
+          label={t("stageToolbar.showTitle")}
+          title=""
           onClick={onToggleHidden}
-          type="button"
         >
           <IconChevronRight size={20} stroke={2.2} aria-hidden="true" />
-        </button>
+        </IconButton>
       </ToolbarControl>
     </div>
   );
@@ -63,14 +66,16 @@ export function StageToolbarHideButton({
   const { t } = useTranslation("components");
   return (
     <ToolbarControl tooltip={t("stageToolbar.hideTitle")}>
-      <button
-        aria-label={t("stageToolbar.hideTitle")}
+      <IconButton
+        variant="canvas"
+        size="lg"
         className="stage-toolbar-toggle"
+        label={t("stageToolbar.hideTitle")}
+        title=""
         onClick={onToggleHidden}
-        type="button"
       >
         <IconChevronLeft size={20} stroke={2.2} aria-hidden="true" />
-      </button>
+      </IconButton>
     </ToolbarControl>
   );
 }
@@ -90,21 +95,22 @@ export function StageToolButton({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   const button = (
-    <button
+    <IconButton
+      variant="canvas"
+      size="lg"
       aria-checked={menuItem ? active : undefined}
-      aria-label={t(labelKey)}
+      label={t(labelKey)}
+      title=""
       aria-pressed={menuItem ? undefined : active}
-      className={`stage-toolbar-button ${active ? "active" : ""}`.trim()}
       disabled={disabled}
       onClick={() => onSelectTool(id)}
       role={menuItem ? "menuitemradio" : undefined}
-      type="button"
     >
       <Icon size={22} stroke={2.1} aria-hidden="true" />
       {menuItem ? (
         <span className="stage-toolbar-flyout-label">{t(labelKey)}</span>
       ) : null}
-    </button>
+    </IconButton>
   );
   if (!menuItem) {
     return <ToolbarControl tooltip={t(titleKey)}>{button}</ToolbarControl>;

@@ -171,12 +171,18 @@ function handleFailedJob({
   JobStatusChangeArgs,
   "jobState" | "openErrorReport" | "reportedJobIdRef" | "t"
 >): void {
+  if (reportedJobIdRef.current === jobState.id) {
+    return;
+  }
+  reportedJobIdRef.current = jobState.id;
   const summary = formatJobLabel(jobState, t) || t("job.notifications.failed");
   const context = createFailedJobContext(jobState, summary);
-  if (reportedJobIdRef.current !== jobState.id) {
-    reportedJobIdRef.current = jobState.id;
-    openErrorReport(context);
-  }
+  /*
+   * A failed job already shows in the run status panel and the status log.
+   * The toast is the interrupting surface, and its action is the way into the
+   * report — opening the dialog unprompted would steal focus from whatever the
+   * user moved on to while the job ran.
+   */
   toast.error(summary, {
     action: {
       label: t("job.notifications.reportError"),

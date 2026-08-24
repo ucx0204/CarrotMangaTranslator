@@ -197,7 +197,7 @@
   position: fixed;
   right: 18px;
   bottom: 18px;
-  z-index: 6000;
+  z-index: var(--layer-toast);
   display: flex;
   flex-direction: column-reverse;
   gap: 10px;
@@ -318,110 +318,36 @@
   background: var(--bg-hover);
 }
 
-.install-progress-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 5000;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  pointer-events: auto;
-  overflow: hidden;
-  overscroll-behavior: contain;
-  background: rgba(10, 11, 14, 0.62);
-}
-
-.install-progress-card {
-  width: min(680px, calc(100vw - 96px));
-  display: grid;
-  gap: 16px;
-  padding: 22px;
-  border-radius: 14px;
-  border: 1px solid var(--surface-border);
-  background: var(--surface-panel);
-  box-shadow: var(--shadow-overlay), var(--surface-highlight);
-  color: #f5efe6;
-  pointer-events: auto;
-  max-height: min(720px, calc(100vh - 48px));
-  overflow: hidden;
+/* The dialog shell (backdrop, card, header, close policy) comes from ui/Modal;
+   only the install-specific content is styled here. */
+.install-progress-body {
   overscroll-behavior: contain;
 }
 
-.install-progress-header {
+.install-progress-content {
   display: grid;
-  gap: 6px;
+  flex: 1 1 auto;
+  gap: var(--sp-6);
+  min-height: 0;
+  padding: var(--sp-6);
+  overflow: hidden;
 }
 
-.install-progress-kicker {
-  color: var(--accent-hi);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.install-progress-header strong {
-  font-size: 24px;
+.install-progress-headline {
+  color: var(--text);
+  font-size: var(--font-2xl);
   line-height: 1.2;
 }
 
-.install-progress-root {
-  position: relative;
+/* The bar, count, detail, and ETA come from JobProgressReadout; the installer
+   only adds a taller bar and its byte-transfer chips. */
+.install-progress-readout {
+  display: grid;
+  gap: var(--sp-4);
+}
+
+.install-progress-readout [role="progressbar"] {
   height: 18px;
-  overflow: hidden;
-  border-radius: 999px;
-  border: 1px solid #364454;
-  background: #0d1015;
-}
-
-.install-progress-indicator {
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--accent);
-  transition: transform 420ms ease;
-}
-
-.install-progress-root.is-indeterminate .install-progress-indicator,
-.install-progress-root.is-log-only .install-progress-indicator {
-  width: 42%;
-  transform: translateX(-110%);
-  animation: install-progress-sweep 1.4s ease-in-out infinite;
-}
-
-.install-progress-root.is-log-only .install-progress-indicator {
-  opacity: 0.58;
-}
-
-@keyframes install-progress-sweep {
-  0% {
-    transform: translateX(-110%);
-  }
-  100% {
-    transform: translateX(250%);
-  }
-}
-
-.install-progress-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  color: #d9d1c6;
-  font-size: 13px;
-}
-
-.install-progress-stats span {
-  padding: 6px 9px;
-  border-radius: 999px;
-  background: #121720;
-  border: 1px solid #303844;
-}
-
-.install-progress-card p {
-  margin: 0;
-  color: #bdb5aa;
-  font-size: 13px;
-  line-height: 1.55;
-  overflow-wrap: anywhere;
-  word-break: keep-all;
 }
 
 .install-progress-log {
@@ -633,10 +559,8 @@
   display: flex;
   align-items: center;
   gap: var(--sp-3);
-  padding: var(--sp-4);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-md);
-  background: var(--bg-sunken);
+  padding: 0 0 var(--sp-5);
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .source-choice-intro-icon {
@@ -716,10 +640,8 @@
 }
 
 .share-target-section {
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  background: var(--bg-sunken);
+  padding: 0 0 var(--sp-5);
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .share-target-grid {
@@ -731,8 +653,8 @@
 .share-target-card {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: var(--sp-5);
+  padding: var(--sp-5);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   background: var(--bg-raised);
@@ -752,32 +674,12 @@
   background: var(--accent-soft);
 }
 
-.share-target-card input {
-  width: auto;
-}
-
 .share-check-item {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
-  padding: 10px;
-  border-radius: var(--r-lg);
-  border: 1px solid var(--border);
-  background: var(--bg-sunken);
+  gap: var(--sp-5);
   cursor: pointer;
-  transition:
-    border-color 140ms ease,
-    background 140ms ease;
-}
-
-.share-check-item:hover {
-  border-color: var(--border-hover);
-  background: var(--bg-raised);
-}
-
-.share-check-item input {
-  width: auto;
 }
 
 .share-check-item span {
@@ -922,13 +824,8 @@
   background: var(--danger-soft);
 }
 
-/* Make the import modal body fill the dialog so only the two panes scroll
-   internally (avoids a second outer scrollbar). */
-.share-import-modal-body.share-import-modal-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-  align-content: stretch;
+/* Paired with the dialog's `fill` body layout: a header row plus a pane row. */
+.share-import-modal-body {
   grid-template-rows: auto minmax(0, 1fr);
 }
 

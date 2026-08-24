@@ -1,5 +1,6 @@
 import React from "react";
 import type { ChapterSnapshot } from "../../../../shared/libraryTypes";
+import type { BlockStylePreset } from "../../../../shared/blockStylePresets";
 import {
   deriveGatherTextDirectFormatModel,
   isGatherTextDirectFormatPatchEmpty,
@@ -31,15 +32,18 @@ export type GatherTextFormatSelection = {
   openFormatModal: () => void;
   selectAllVisible: () => void;
   selectedCount: number;
+  stylePresets?: readonly BlockStylePreset[];
   toggle: (ref: BlockRef) => void;
 };
 
 export function useGatherTextFormatSelection({
+  blockStylePresets = [],
   chapter,
   disabled,
   onApply,
   pages,
 }: {
+  blockStylePresets?: readonly BlockStylePreset[];
   chapter: ChapterSnapshot | null;
   disabled: boolean;
   onApply?: (request: GatherDirectFormatRequest) => void;
@@ -103,6 +107,7 @@ export function useGatherTextFormatSelection({
     },
     selectAllVisible: () => setSelection({ selected: visibleRefs }),
     selectedCount: selection.selected.length,
+    stylePresets: blockStylePresets,
     toggle: (ref) => setSelection((current) => toggleSelection(current, ref)),
   };
 }

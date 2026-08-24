@@ -114,7 +114,6 @@ export async function saveDirtyChangesOrReportFailure(
     await saveDirtyChanges(dirty, saveNow);
     return true;
   } catch (error) {
-    console.error(error);
     reportFailure(error);
     return false;
   }
@@ -128,7 +127,6 @@ export async function refreshLibraryWithStatus(
   try {
     await refreshLibrary();
   } catch (error) {
-    console.error(error);
     pushStatus(formatErrorMessage(error, fallback));
   }
 }

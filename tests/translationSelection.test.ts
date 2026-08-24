@@ -65,6 +65,19 @@ describe("translation selection", () => {
     expect(off.has("c1")).toBe(false);
   });
 
+  it("promotes a partially selected chapter to fully selected", () => {
+    // Standard tri-state contract: indeterminate advances to checked rather
+    // than clearing, so one stray click cannot discard a built-up selection.
+    const partial: ChapterSelectionMap = new Map([
+      ["c1", { kind: "pages", pageIds: new Set(["p2"]) }],
+    ]);
+
+    const next = toggleChapter(partial, "c1");
+
+    expect(next.get("c1")).toEqual({ kind: "all" });
+    expect(toggleChapter(next, "c1").has("c1")).toBe(false);
+  });
+
   it("seeds an explicit page set from a pending chapter, then flips one page", () => {
     const map: ChapterSelectionMap = new Map([["c1", { kind: "pending" }]]);
 

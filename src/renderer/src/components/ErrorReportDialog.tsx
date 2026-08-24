@@ -5,11 +5,12 @@ import styles from "./ErrorReportDialog.module.css";
 import { Button } from "./ui/Button";
 import { TextField } from "./ui/Field";
 import { Modal } from "./ui/Modal";
-import { ModalActionBar } from "./ui/ModalActionBar";
+import { ModalActionBar, ModalActionButtons } from "./ui/ModalActionBar";
 import {
   useErrorReportDialogModel,
   type ReportAction,
 } from "./useErrorReportDialog";
+import { CheckboxField } from "./ui/CheckboxField";
 
 export type ErrorReportDialogProps = {
   context: ErrorReportContext;
@@ -32,11 +33,13 @@ export function ErrorReportDialog({
     <Modal
       title={t(fatal ? "errorReport.fatalTitle" : "errorReport.title")}
       size="lg"
+      width="min(900px, 100%)"
       onClose={onClose}
       closeDisabled={busy}
-      closeOnBackdrop={!fatal}
-      cardClassName={styles.card}
-      bodyClassName={styles.body}
+      // Holds a typed report; a stray backdrop click must not discard it.
+      // A fatal report is also the only way back to a usable app, so Esc is
+      // disabled in that case too.
+      closeOnEsc={!fatal}
       footer={
         <ErrorReportFooter
           activeAction={model.activeAction}
@@ -143,22 +146,16 @@ function ErrorReportForm({
       </label>
       <fieldset className={styles.options}>
         <legend>{t("errorReport.includeHeading")}</legend>
-        <label>
-          <input
-            type="checkbox"
-            checked={includeSystem}
-            onChange={(event) => onIncludeSystemChange(event.target.checked)}
-          />
-          <span>{t("errorReport.includeSystem")}</span>
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={includeLogs}
-            onChange={(event) => onIncludeLogsChange(event.target.checked)}
-          />
-          <span>{t("errorReport.includeLogs")}</span>
-        </label>
+        <CheckboxField
+          label={t("errorReport.includeSystem")}
+          checked={includeSystem}
+          onCheckedChange={onIncludeSystemChange}
+        />
+        <CheckboxField
+          label={t("errorReport.includeLogs")}
+          checked={includeLogs}
+          onCheckedChange={onIncludeLogsChange}
+        />
       </fieldset>
       <label className={styles.field} htmlFor={previewId}>
         <span>{t("errorReport.preview")}</span>
@@ -200,16 +197,8 @@ function ErrorReportFooter({
   const busy = activeAction !== null;
   return (
     <ModalActionBar
-      className={styles.footerActions}
-      actions={
+      leading={
         <>
-          <Button
-            className={styles.footerButton}
-            onClick={onClose}
-            disabled={busy}
-          >
-            {t("common.close")}
-          </Button>
           <Button
             className={styles.footerButton}
             onClick={onOpenLogs}
@@ -228,6 +217,10 @@ function ErrorReportFooter({
               ? t("errorReport.copying")
               : t("errorReport.copy")}
           </Button>
+        </>
+      }
+      actions={
+        <>
           {fatal && hasRestart ? (
             <Button
               className={styles.footerButton}
@@ -239,16 +232,21 @@ function ErrorReportFooter({
                 : t("errorReport.restart")}
             </Button>
           ) : null}
-          <Button
-            className={styles.footerButton}
-            variant="primary"
-            onClick={onGitHub}
-            disabled={!canShare}
-          >
-            {activeAction === "github"
-              ? t("errorReport.openingGitHub")
-              : t("errorReport.openGitHub")}
-          </Button>
+          <ModalActionButtons
+            cancel={{
+              label: t("common.close"),
+              onClick: onClose,
+              disabled: busy,
+            }}
+            confirm={{
+              label:
+                activeAction === "github"
+                  ? t("errorReport.openingGitHub")
+                  : t("errorReport.openGitHub"),
+              onClick: onGitHub,
+              disabled: !canShare,
+            }}
+          />
         </>
       }
     />

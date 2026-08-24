@@ -2,6 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { SearchReplacePanel } from "./SearchReplacePanel";
 import { Modal } from "./ui/Modal";
+import { ModalActionBar, ModalActionButtons } from "./ui/ModalActionBar";
 import { Tabs } from "./ui/Tabs";
 import {
   GatherTextControls,
@@ -19,6 +20,7 @@ import { GatherTextFormatSelectionBar } from "./gatherText/GatherTextFormatSelec
 
 export function GatherTextModal({
   activeTab = "overview",
+  blockStylePresets,
   chapter,
   formatApplyDisabled,
   searchReplaceDisabled,
@@ -34,6 +36,7 @@ export function GatherTextModal({
 }: GatherTextModalProps): React.JSX.Element {
   const { t } = useTranslation("components");
   const model = useGatherTextModalModel({
+    blockStylePresets,
     chapter,
     formatApplyDisabled,
     onApplyFormat,
@@ -47,24 +50,15 @@ export function GatherTextModal({
       title={t("gatherText.title")}
       size="lg"
       onClose={onClose}
-      closeOnBackdrop
       bodyClassName="gather-text-body"
       footer={
-        activeTab === "overview" ? (
-          <GatherTextFooter
-            excludeHeaders={model.excludeHeaders}
-            onToggleExcludeHeaders={model.setExcludeHeaders}
-            hasContent={model.hasContent}
-            hasChapter={Boolean(chapter)}
-            canImportTxt={Boolean(onApplyTranslatedText)}
-            reviewBusy={model.reviewBusy}
-            onSave={() => void model.handleSave()}
-            onCopy={() => void model.handleCopy()}
-            onExportReview={(format) => void model.handleExportReview(format)}
-            onImportReview={() => model.reviewFileInputRef.current?.click()}
-            onImportTxt={() => model.txtFileInputRef.current?.click()}
-          />
-        ) : undefined
+        <GatherTextModalFooter
+          activeTab={activeTab}
+          chapter={chapter}
+          model={model}
+          onApplyTranslatedText={onApplyTranslatedText}
+          onClose={onClose}
+        />
       }
     >
       <GatherTextTabs active={activeTab} onChange={onTabChange} />
@@ -90,6 +84,53 @@ export function GatherTextModal({
         </div>
       ) : null}
     </Modal>
+  );
+}
+
+/**
+ * Every tab keeps a footer so the explicit close action never vanishes when the
+ * user switches tabs.
+ */
+function GatherTextModalFooter({
+  activeTab,
+  chapter,
+  model,
+  onApplyTranslatedText,
+  onClose,
+}: {
+  activeTab: NonNullable<GatherTextModalProps["activeTab"]>;
+  chapter: GatherTextModalProps["chapter"];
+  model: ReturnType<typeof useGatherTextModalModel>;
+  onApplyTranslatedText: GatherTextModalProps["onApplyTranslatedText"];
+  onClose: () => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  if (activeTab !== "overview") {
+    return (
+      <ModalActionBar
+        actions={
+          <ModalActionButtons
+            cancel={{ label: t("common.close"), onClick: onClose }}
+          />
+        }
+      />
+    );
+  }
+  return (
+    <GatherTextFooter
+      excludeHeaders={model.excludeHeaders}
+      onToggleExcludeHeaders={model.setExcludeHeaders}
+      hasContent={model.hasContent}
+      hasChapter={Boolean(chapter)}
+      canImportTxt={Boolean(onApplyTranslatedText)}
+      reviewBusy={model.reviewBusy}
+      onClose={onClose}
+      onSave={() => void model.handleSave()}
+      onCopy={() => void model.handleCopy()}
+      onExportReview={(format) => void model.handleExportReview(format)}
+      onImportReview={() => model.reviewFileInputRef.current?.click()}
+      onImportTxt={() => model.txtFileInputRef.current?.click()}
+    />
   );
 }
 

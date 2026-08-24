@@ -32,10 +32,12 @@ export function ShareImportModal({
   return (
     <Modal
       size="xl"
-      ariaLabel={t("sidebar.importWork")}
       title={t("sidebar.importWork")}
       onClose={onCancel}
       closeDisabled={busy}
+      // Picking an existing work shows two panes that scroll on their own, so
+      // the body fills the dialog instead of adding a second outer scrollbar.
+      bodyLayout={state.targetMode === "existing" ? "fill" : "grid"}
       bodyClassName={
         state.targetMode === "existing" ? "share-import-modal-body" : undefined
       }

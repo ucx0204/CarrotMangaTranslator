@@ -43,7 +43,7 @@
     "sort": {
       "label": "Sort",
       "library": "Library order",
-      "title": "Title",
+      "title": "Name",
       "recent": "Recently updated"
     }
   },
@@ -115,14 +115,14 @@
   "workspaceActions": {
     "label": "Canvas actions",
     "showTranslations": "Show translations",
-    "showEditingChrome": "Editing guides",
+    "showEditingChrome": "Background/borders",
     "undo": "Undo (Ctrl+Z)",
     "redo": "Redo (Ctrl+Y / Ctrl+Shift+Z)",
     "undoNamed": "Undo {{action}} (Ctrl+Z)",
     "redoNamed": "Redo {{action}} (Ctrl+Y / Ctrl+Shift+Z)",
     "undoShort": "Undo",
     "redoShort": "Redo",
-    "original": "Original",
+    "original": "Compare original",
     "compareOriginal": "Compare with original",
     "hideOriginal": "Stop comparing with original",
     "resetPage": "Reset to original",
@@ -314,15 +314,15 @@
   "editor": {
     "text": "Text",
     "translatedText": "Translation",
-    "eraseOriginal": "Erase source",
-    "fitBubble": "Bubble fit",
+    "eraseOriginal": "Erase source text",
+    "fitBubble": "Bubble fitting",
     "moreActions": "More block actions",
     "sourceEmpty": "No OCR text",
     "tabs": {
       "label": "Block editing sections",
       "text": "Text",
       "layout": "Layout",
-      "format": "Style"
+      "format": "Formatting"
     },
     "blockColors": "Block colors",
     "swapTextOutlineColors": "Swap text and outline colors",
@@ -338,8 +338,8 @@
       "excludeHint": "Automatic inpainting will leave the text inside this block untouched."
     },
     "bubbleLayout": {
-      "active": "Bubble fit applied",
-      "remove": "Remove bubble fit",
+      "active": "Bubble fitting applied",
+      "remove": "Remove bubble fitting",
       "removeHint": "Remove the automatic or manual bubble region and return to the original OCR text area."
     },
     "markupHint": {
@@ -360,9 +360,9 @@
       "inlineStyle": "Character formatting",
       "resetAll": "Reset all translation formatting",
       "resetAllTitle": "Remove all emphasis and character formatting from the translation",
-      "size": "Character size",
+      "size": "Font size",
       "font": "Character font",
-      "opacity": "Character opacity",
+      "opacity": "Text opacity",
       "mixed": "Mixed",
       "placeholder": "Enter translation",
       "codeAria": "Translation formatting code",
@@ -397,6 +397,7 @@
     }
   },
   "fontSelect": {
+    "label": "Font",
     "addFont": "+ Add TTF/OTF font",
     "deleteFont": "Delete this font",
     "deleteNamedFont": "Delete {{label}}",
@@ -427,7 +428,7 @@
     "loadingPages": "Loading pages…",
     "loadPagesFailed": "Could not load pages.",
     "noPages": "No pages.",
-    "thumbnailLoadFailed": "Preview unavailable",
+    "thumbnailLoadFailed": "Preview failed",
     "translated": "Translated",
     "chapterSummaryComplete": "{{count}}p · Complete",
     "chapterSummaryRemaining": "{{count}}p · {{remaining}} remaining",
@@ -441,14 +442,14 @@
     "selectionSummary": "Chapters: {{chapterCount}} · Pages: {{approximate}}{{pageCount}}"
   },
   "exportOptions": {
-    "title": "Export Results",
+    "title": "Export results",
     "titlePsd": "Export PSD",
     "prompt": "Choose the pages to export.",
     "currentChapter": "Current chapter",
     "chapterSummary": "{{count}}p",
     "noSelectedPages": "No pages selected.",
     "selectionSummary": "Chapters: {{chapterCount}} · Pages: {{pageCount}}",
-    "start": "Export Results",
+    "start": "Export results",
     "startPsd": "Export PSD",
     "starting": "Preparing export…",
     "omitText": "Export without text",
@@ -516,7 +517,7 @@
     "workUnavailable": "Could not load work information. Only the current page will be processed.",
     "currentPageSummary": "Erase only the current page.",
     "allPagesSummary": "Erase all {{count}} pages in the current chapter.",
-    "bubbleLayout": "Fit text to bubbles after erasing",
+    "bubbleLayout": "Bubble fitting after inpainting",
     "bubbleLayoutHint": "Detects bubble interiors in the erased image and automatically fits translated text."
   },
   "translationOptions": {
@@ -565,7 +566,7 @@
       "on": "Arrange translated-text line breaks for the block size."
     },
     "autoFontMatching": "Automatic font matching",
-    "autoFontMatchingSummary": "Matches each block's source lettering to a suitable font for dialogue, narration, emphasis, and SFX. Chapter body consistency is a weak cue, and results that fail the verified quality gate are not applied.",
+    "autoFontMatchingSummary": "Automatically applies a Korean font that matches the source text's mood to each block.",
     "completionMode": "Completion mode",
     "completionModeTranslate": "Translate only",
     "completionModeErase": "Erase source text",
@@ -623,7 +624,7 @@
     "clearAll": "Clear all",
     "selectedSummary": "{{selected}} of {{visible}} selected",
     "initialTitle": "Import images from a public web page",
-    "initialHint": "Enter a link to see large images in top-to-bottom order.",
+    "initialHint": "By default, only large images are shown in top-to-bottom page order.",
     "noMatchingImages": "No images match this size",
     "tryAnotherFilter": "Try All or Medium+ to widen the range.",
     "skippedResult": "Skipped {{skipped}} unsupported, duplicate, or broken images.",
@@ -646,7 +647,7 @@
     "errors": {
       "invalidUrl": "Enter a valid public web page link.",
       "invalid-url": "This link format cannot be opened.",
-      "private-address": "Local and private network addresses cannot be opened.",
+      "private-address": "For safety, local and private network addresses cannot be opened.",
       "page-unavailable": "Could not open the page. Check that the link is public.",
       "timed-out": "Loading took too long. Please try again.",
       "busy": "Another task is running. Try again when it finishes.",
@@ -674,7 +675,7 @@
     "chapterTitle": "Chapter title",
     "liveResults": {
       "enable": "Automatically save to the results folder",
-      "description": "Saves under Results/work/chapter. Only changed pages update after editing has been idle for 3 seconds.",
+      "description": "Saves results in folders by work and chapter.",
       "format": "Automatic save format"
     }
   },
@@ -756,7 +757,7 @@
       "running": "Running",
       "failed": "Failed",
       "pending": "Waiting",
-      "completed": "Done"
+      "completed": "Completed"
     },
     "moveItem": "Move {{name}}",
     "retranslate": "Retranslate",
@@ -766,7 +767,7 @@
   "status": {
     "title": "Status",
     "empty": "No status to display yet.",
-    "completed": "Complete",
+    "completed": "Completed",
     "translationCompleted": "Translation complete",
     "failed": "Failed",
     "partiallyCompleted": "Partially complete",
@@ -847,7 +848,7 @@
   },
   "bubbleLayoutEditor": {
     "title": "Edit bubble shape",
-    "emptyHint": "Place points around the safe inside edge of the bubble.",
+    "emptyHint": "Place points along the inside of the bubble.",
     "activeHint": "{{count}} points · Enter to apply · Backspace to undo a point",
     "addHint": "Brush from the current shape outward to expand it.",
     "subtractHint": "Brush inside the shape to trim it without splitting it.",
@@ -893,12 +894,12 @@
   "errorBoundary": {
     "title": "Something went wrong",
     "description": "An error occurred while rendering the screen. Your work may already be saved in the library. Restarting usually restores it.",
-    "report": "Report problem",
+    "report": "Report error",
     "restart": "Restart",
     "openLogs": "Open log folder"
   },
   "errorReport": {
-    "title": "Report an error",
+    "title": "Report error",
     "fatalTitle": "Report an app error",
     "fatalHint": "A fatal error occurred in the app window. Review and report the information below, then restart the app.",
     "privacyWarning": "GitHub issues are public. Paths, tokens, and manga text were masked automatically, but review the preview below before sharing.",
@@ -986,6 +987,7 @@
     "defaultFont": "Default font",
     "formatDisabled": "Formatting is unavailable while a job is running.",
     "directFormatTitle": "Edit selected block formatting",
+    "presetHint": "Load a saved preset into the selected blocks.",
     "previewTitle": "Live preview",
     "previewBasis": "Based on the first selected block · Changes appear instantly.",
     "previewTextLabel": "Sample text",
@@ -1182,7 +1184,7 @@
       "eyebrow": "Canvas tool",
       "autoTitle": "Automatic erase",
       "retouchTitle": "Retouch settings",
-      "autoAction": "Auto erase"
+      "autoAction": "Automatic erase"
     },
     "counts": {
       "thisPage": "This page {{count}}",
@@ -1220,7 +1222,7 @@
       "currentPageAction": "Erase source text",
       "eraseShort": "Erase source text",
       "bubbleLayoutAction": "Auto-detect bubbles on this page",
-      "bubbleLayoutShort": "Bubble fit",
+      "bubbleLayoutShort": "Bubble fitting",
       "bubbleLayoutRequiresBlocks": "Erase the current page first.",
       "nextRetouch": "Next: Retouch →",
       "noOpenChapter": "No chapter is open.",
@@ -1248,7 +1250,7 @@
       "nextExport": "Export →"
     },
     "export": {
-      "resultAction": "Export Results",
+      "resultAction": "Export results",
       "viewResults": "View results",
       "preparingResults": "Preparing latest results…",
       "psdAction": "Export PSD",
@@ -1270,7 +1272,6 @@
   },
   "settings": {
     "title": "Settings",
-    "applyNextRun": "Changes apply from the next translation run.",
     "tabs": {
       "ariaLabel": "Settings sections",
       "general": "General",
@@ -1286,14 +1287,14 @@
       "languageDescription": "Changes the language used throughout the app."
     },
     "results": {
-      "description": "Set automatic saving per work and chapter. Default: Results/work/chapter.",
+      "description": "Set automatic result saving by work and chapter.",
       "empty": "There are no library works to manage.",
       "searchLabel": "Search automatic result saving",
       "searchPlaceholder": "Search works/chapters",
       "noSearchResults": "No matching works or chapters.",
       "chapterCount": "{{count}} chapters",
       "toggleChapter": "Automatic result saving for {{title}}",
-      "defaultLocationReady": "Enable to save in the default results folder",
+      "defaultLocationReady": "Save to the default results folder",
       "defaultLocation": "Default results folder",
       "customLocation": "Custom folder",
       "moreActions": "More automatic-save actions",
@@ -1331,7 +1332,7 @@
         "publicLimits": "Published model limits: output {{maxOutput}} · context {{contextWindow}}",
         "publicContextOnly": "Published model context: {{contextWindow}} · maximum output is not published",
         "unknownLimits": "No published model limits are available, so a safe shared recommendation is used.",
-        "applyRecommended": "Use recommended",
+        "applyRecommended": "Apply recommended",
         "recommendedApplied": "Using recommended"
       },
       "provider": { "label": "Translation engine" },
@@ -1503,7 +1504,7 @@
       }
     },
     "translation": {
-      "title": "Translation languages",
+      "title": "Translation language settings",
       "source": "Source language",
       "target": "Target language",
       "swapTitle": "Swap source and target languages",
@@ -1701,7 +1702,8 @@
       "fluxAmdUnsupportedTitle": "AMD GPU not officially supported",
       "fluxAmdUnsupportedDetail": "{{gpu}} is not listed in AMD's current Windows HIP SDK support matrix. You can still try ZLUDA experimentally, but it may fail at runtime.",
       "fluxAmdUseCpu": "Switch to CPU backend",
-      "downloadHipSdk": "Download AMD HIP SDK"
+      "downloadHipSdk": "Download AMD HIP SDK",
+      "openLinkFailed": "Could not open the link. Check your default browser."
     },
     "format": {
       "alignment": {
@@ -1788,7 +1790,7 @@
         "duplicate-block": "Duplicate selected block",
         "toggle-block-excluded": "Toggle block inpainting exclusion",
         "toggle-command-palette": "Command palette",
-        "toggle-shortcut-help": "Keyboard shortcuts",
+        "toggle-shortcut-help": "Shortcut help",
         "open-settings": "Open settings"
       }
     },
@@ -1945,7 +1947,7 @@
     "createTitle": "New style preset",
     "edit": "Edit preset",
     "manage": "Manage presets",
-    "back": "Default style",
+    "back": "Default formatting",
     "untitled": "New preset",
     "select": "Choose a preset",
     "all": "All presets",
@@ -1964,7 +1966,7 @@
     "moveDown": "Move down",
     "editorTitle": "Preset · {{name}}",
     "includedGroups": "Preset fields",
-    "includedGroupsHint": "{{count}} fields enabled",
+    "includedGroupsHint": "{{count}} fields applied",
     "disabledGroupTooltip": "This field is excluded from the preset. Scroll down and enable it under Preset fields.",
     "minimumGroupRequired": "A preset must apply at least one formatting field.",
     "createQuick": "Add preset",

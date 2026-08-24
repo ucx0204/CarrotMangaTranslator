@@ -32,12 +32,7 @@ export function ShortcutHelp({
     return null;
   }
   return (
-    <Modal
-      ariaLabel={t("shortcuts.title")}
-      title={t("shortcuts.title")}
-      size="md"
-      onClose={onClose}
-    >
+    <Modal title={t("shortcuts.title")} size="md" onClose={onClose}>
       <div className="shortcut-help">
         {SHORTCUT_CATEGORY_ORDER.map((category) => {
           const rows = getShortcutActions(tRenderer)

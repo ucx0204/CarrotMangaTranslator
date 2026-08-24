@@ -6,6 +6,7 @@ import type {
   ManualRasterExportOptions,
 } from "../hooks/useExportPageImagesAction";
 import { CheckboxField } from "./ui/CheckboxField";
+import { Field } from "./ui/Field";
 import { ModalActionBar, ModalActionButtons } from "./ui/ModalActionBar";
 import { NumberField } from "./ui/NumberField";
 import { Select } from "./ui/Select";
@@ -57,6 +58,8 @@ function PsdRenderOptions({
   return (
     <section className="export-render-options export-render-options-psd">
       <CheckboxField
+        variant="switch"
+        className="export-policy-toggle"
         checked={options.omitText === true}
         disabled={disabled}
         label={t("exportOptions.omitText")}
@@ -75,13 +78,20 @@ function RasterRenderOptions({
   const format = options.outputFormat ?? "source";
   return (
     <section className="export-render-options export-render-options-raster">
-      <RasterFormatFields
-        disabled={disabled}
-        format={format}
-        options={options}
-        onChange={onChange}
-      />
-      <RasterOutputPolicyFields
+      <div className="export-render-field-grid">
+        <RasterFormatFields
+          disabled={disabled}
+          format={format}
+          options={options}
+          onChange={onChange}
+        />
+        <RasterOutputPolicySelects
+          disabled={disabled}
+          options={options}
+          onChange={onChange}
+        />
+      </div>
+      <RasterOutputPolicyToggles
         disabled={disabled}
         options={options}
         onChange={onChange}
@@ -119,8 +129,10 @@ function RasterFormatFields({
         }
       />
       {format === "jpeg" || format === "webp" ? (
-        <label className="export-number-field">
-          <span>{t("exportOptions.quality")}</span>
+        <Field
+          className="export-number-field"
+          label={t("exportOptions.quality")}
+        >
           <NumberField
             ariaLabel={t("exportOptions.quality")}
             disabled={disabled}
@@ -142,13 +154,13 @@ function RasterFormatFields({
               })
             }
           />
-        </label>
+        </Field>
       ) : null}
     </>
   );
 }
 
-function RasterOutputPolicyFields({
+function RasterOutputPolicySelects({
   disabled,
   onChange,
   options,
@@ -190,7 +202,21 @@ function RasterOutputPolicyFields({
           })
         }
       />
+    </>
+  );
+}
+
+function RasterOutputPolicyToggles({
+  disabled,
+  onChange,
+  options,
+}: RenderOptionProps<ManualRasterExportOptions>): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <div className="export-policy-toggles">
       <CheckboxField
+        variant="switch"
+        className="export-policy-toggle"
         checked={options.preserveSourceNames ?? true}
         disabled={disabled}
         label={t("exportOptions.preserveSourceNames")}
@@ -199,12 +225,14 @@ function RasterOutputPolicyFields({
         }
       />
       <CheckboxField
+        variant="switch"
+        className="export-policy-toggle"
         checked={options.omitText === true}
         disabled={disabled}
         label={t("exportOptions.omitText")}
         onCheckedChange={(omitText) => onChange({ ...options, omitText })}
       />
-    </>
+    </div>
   );
 }
 
@@ -222,8 +250,7 @@ function ExportSelectField({
   value: string;
 }): React.JSX.Element {
   return (
-    <label className="export-format-field">
-      <span>{label}</span>
+    <Field as="div" className="export-format-field" label={label}>
       <Select
         ariaLabel={label}
         disabled={disabled}
@@ -231,7 +258,7 @@ function ExportSelectField({
         options={options}
         onValueChange={onValueChange}
       />
-    </label>
+    </Field>
   );
 }
 
@@ -257,7 +284,6 @@ export function ExportOptionsFooter({
             label: t("common.cancel"),
             onClick: onCancel,
             disabled: isStarting,
-            variant: "secondary",
           }}
           confirm={{
             label: isStarting

@@ -15,6 +15,7 @@ import { PageSelectionPicker } from "./ExportPagePicker";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
 import { ModalActionBar } from "./ui/ModalActionBar";
+import { CheckboxField } from "./ui/CheckboxField";
 
 export type AutoInpaintingOptionsModalProps = {
   chapter: ChapterSnapshot;
@@ -54,7 +55,6 @@ export function AutoInpaintingOptionsModal({
       title={t("autoInpaintingOptions.title")}
       size={initialScope === "select" ? "lg" : "md"}
       onClose={onClose}
-      closeOnBackdrop
       footer={
         <ModalActionBar
           actions={
@@ -185,19 +185,18 @@ function BubblePostprocessToggle({
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
-    <button
-      type="button"
+    <CheckboxField
+      variant="switch"
       className="auto-inpainting-postprocess-toggle"
-      role="switch"
-      aria-checked={enabled}
-      onClick={onToggle}
-    >
-      <span aria-hidden="true" />
-      <span>
-        <strong>{t("autoInpaintingOptions.bubbleLayout")}</strong>
-        <small>{t("autoInpaintingOptions.bubbleLayoutHint")}</small>
-      </span>
-    </button>
+      checked={enabled}
+      label={
+        <>
+          <strong>{t("autoInpaintingOptions.bubbleLayout")}</strong>
+          <small>{t("autoInpaintingOptions.bubbleLayoutHint")}</small>
+        </>
+      }
+      onCheckedChange={onToggle}
+    />
   );
 }
 

@@ -1,6 +1,8 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { settingsGateway } from "../../api/settingsGateway";
+import { formatErrorMessage } from "../../lib/errorPresentation";
+import { toast } from "../../lib/toastStore";
 import type { TestState } from "../settingsModalTypes";
 import { SettingsSection } from "./SettingsSection";
 
@@ -108,7 +110,12 @@ function UpdateSection(): React.JSX.Element {
           type="button"
           onClick={() => {
             void settingsGateway.openReleasesPage().catch((error) => {
-              console.error("Failed to open releases page", error);
+              toast.error(
+                formatErrorMessage(
+                  error,
+                  t("settings.hardware.openLinkFailed"),
+                ),
+              );
             });
           }}
         >

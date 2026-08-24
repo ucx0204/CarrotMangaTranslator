@@ -10,6 +10,7 @@ const rootStylesheet = join(
   "styles.css",
 );
 const domainDirectory = join(dirname(rootStylesheet), "styles");
+const sharedUiDirectory = join(dirname(rootStylesheet), "components", "ui");
 const maxDomainLines = 1_200;
 const expectedImports = [
   "fonts.css",
@@ -59,7 +60,30 @@ function inspectCssStructure() {
   for (const fileName of expectedImports) {
     inspectDomainStylesheet(fileName, violations);
   }
+  inspectSharedUiPalette(violations);
   return violations;
+}
+
+/**
+ * Shared primitives are the palette boundary: literal colours belong in foundations.css.
+ * @param {string[]} violations
+ */
+function inspectSharedUiPalette(violations) {
+  const literalColor = /#[0-9a-f]{3,8}\b|\b(?:rgb|rgba|hsl|hsla)\s*\(/i;
+  for (const fileName of readdirSync(sharedUiDirectory).filter((name) =>
+    name.endsWith(".css"),
+  )) {
+    const source = stripComments(
+      readFileSync(join(sharedUiDirectory, fileName), "utf8"),
+    );
+    for (const [index, line] of source.split(/\r?\n/).entries()) {
+      if (literalColor.test(line)) {
+        violations.push(
+          `components/ui/${fileName}:${index + 1} uses a literal colour; add a semantic token to foundations.css instead`,
+        );
+      }
+    }
+  }
 }
 
 /**

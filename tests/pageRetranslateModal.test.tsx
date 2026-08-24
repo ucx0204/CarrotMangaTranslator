@@ -33,13 +33,13 @@ describe("PageRetranslateModal", () => {
 
     expect(
       screen
-        .getByRole("button", { name: "자연스러운 줄 나눔" })
-        .getAttribute("aria-pressed"),
+        .getByRole("switch", { name: "자연스러운 줄 나눔" })
+        .getAttribute("aria-checked"),
     ).toBe("true");
     expect(
       screen
-        .getByRole("button", { name: "폰트 자동 맞춤" })
-        .getAttribute("aria-pressed"),
+        .getByRole("switch", { name: "폰트 자동 맞춤" })
+        .getAttribute("aria-checked"),
     ).toBe("false");
     fireEvent.click(
       screen.getByRole("button", { name: "이 페이지 다시 번역" }),
@@ -56,8 +56,8 @@ describe("PageRetranslateModal", () => {
 
     expect(
       screen
-        .getByRole("button", { name: "자연스러운 줄 나눔" })
-        .getAttribute("aria-pressed"),
+        .getByRole("switch", { name: "자연스러운 줄 나눔" })
+        .getAttribute("aria-checked"),
     ).toBe("false");
     fireEvent.click(
       screen.getByRole("checkbox", {
@@ -83,8 +83,8 @@ describe("PageRetranslateModal", () => {
 
     expect(
       screen
-        .getByRole("button", { name: "폰트 자동 맞춤" })
-        .getAttribute("aria-pressed"),
+        .getByRole("switch", { name: "폰트 자동 맞춤" })
+        .getAttribute("aria-checked"),
     ).toBe("true");
     fireEvent.click(
       screen.getByRole("checkbox", {

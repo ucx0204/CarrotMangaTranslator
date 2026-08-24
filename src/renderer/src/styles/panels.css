@@ -343,7 +343,8 @@
 
 .floating-panel {
   position: fixed;
-  z-index: 100;
+  /* Below every dialog: a modal must cover the detached editor, not sit under it. */
+  z-index: var(--layer-panel-float);
   display: flex;
   flex-direction: column;
   min-width: 320px;
@@ -501,49 +502,29 @@
 .transform-corner-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--sp-1) var(--sp-2);
+  gap: var(--sp-2);
 }
 
+/*
+ * Label above the control, matching the formatting panel's number cells. The
+ * label used to sit beside the field, which left the value crammed against a
+ * unit in a 26px-labelled row; there is vertical room here, so it stacks.
+ */
 .transform-number-field {
   display: grid;
-  grid-template-columns: minmax(26px, auto) minmax(0, 1fr);
-  align-items: center;
-  gap: var(--sp-1);
+  gap: var(--field-gap);
   min-width: 0;
   color: var(--text-muted);
   font-size: var(--font-xs);
 }
 
-.transform-number-input-wrap {
-  position: relative;
-  display: block;
+.transform-number-field > span:first-child {
   min-width: 0;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
-.editor-panel.has-block .transform-number-field input {
-  width: 100%;
-  min-width: 0;
-  height: 28px;
-  padding: 3px 22px 3px 7px;
-  font-size: var(--font-sm);
-  font-variant-numeric: tabular-nums;
-}
-
-.transform-number-input-wrap small {
-  position: absolute;
-  top: 50%;
-  right: 7px;
-  color: var(--text-muted);
-  font-size: 10px;
-  pointer-events: none;
-  transform: translateY(-50%);
-}
-
-.transform-number-field input[aria-invalid="true"] {
-  border-color: var(--danger-bd);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger-bd) 40%, transparent);
-}
-
+/* Box sizing and focus ring come from ui/CheckboxField; only placement is local. */
 .transform-lock-ratio,
 .transform-compact-toggle {
   display: inline-flex;
@@ -555,14 +536,8 @@
   cursor: pointer;
 }
 
-.editor-panel.has-block .transform-lock-ratio input,
-.editor-panel.has-block .transform-compact-toggle input {
-  width: 14px;
-  height: 14px;
-  margin: 0;
-  accent-color: var(--accent);
-}
-
+/* The value keeps its narrow track; NumberField drops its own step buttons
+   when the track is too tight for them. */
 .transform-rotation-row,
 .transform-slider-row {
   display: grid;
@@ -583,11 +558,6 @@
   color: var(--text-muted);
   font-size: var(--font-xs);
   white-space: nowrap;
-}
-
-.transform-rotation-row .transform-number-field,
-.transform-slider-row .transform-number-field {
-  grid-template-columns: minmax(0, 1fr);
 }
 
 .transform-inline-reset {
@@ -686,10 +656,6 @@
   margin-bottom: var(--sp-2);
 }
 
-.transform-corner-grid .transform-number-field {
-  grid-template-columns: minmax(54px, auto) minmax(0, 1fr);
-}
-
 .transform-mini-segments {
   display: grid;
   grid-auto-flow: column;
@@ -722,10 +688,6 @@
 }
 
 @media (max-width: 380px) {
-  .transform-corner-grid {
-    grid-template-columns: 1fr;
-  }
-
   .transform-select-row,
   .transform-control-row {
     grid-template-columns: 1fr;
@@ -905,7 +867,7 @@
 
 .library-sort-menu {
   position: absolute;
-  z-index: 40;
+  z-index: var(--layer-panel-menu);
   top: calc(100% + 4px);
   right: 0;
   min-width: 184px;

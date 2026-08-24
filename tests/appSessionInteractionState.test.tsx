@@ -180,7 +180,7 @@ describe("unified workspace interaction state", () => {
     expect(onPageChange).toHaveBeenCalledOnce();
   });
 
-  it("opens one report for each failed job transition", () => {
+  it("raises one failure toast per failed job and opens the report only on request", () => {
     const openErrorReport = vi.fn();
     const errorToast = vi.spyOn(toast, "error").mockReturnValue("toast-id");
     const base = {
@@ -209,20 +209,18 @@ describe("unified workspace interaction state", () => {
       { initialProps: { id: "job-1", status: "running" } },
     );
 
+    // The run status panel and status log already carry the failure, so the
+    // dialog must never open on its own and steal focus.
     rerender({ id: "job-1", status: "failed" });
-    expect(openErrorReport).toHaveBeenCalledTimes(1);
-    expect(openErrorReport).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        source: "job-failure",
-        message: "engine stopped",
-      }),
-    );
+    expect(errorToast).toHaveBeenCalledTimes(1);
+    expect(openErrorReport).not.toHaveBeenCalled();
 
     rerender({ id: "job-1", status: "failed" });
-    expect(openErrorReport).toHaveBeenCalledTimes(1);
+    expect(errorToast).toHaveBeenCalledTimes(1);
     rerender({ id: "job-2", status: "running" });
     rerender({ id: "job-2", status: "failed" });
-    expect(openErrorReport).toHaveBeenCalledTimes(2);
+    expect(errorToast).toHaveBeenCalledTimes(2);
+    expect(openErrorReport).not.toHaveBeenCalled();
 
     const reportAction = errorToast.mock.calls.at(-1)?.[1]?.action;
     expect(reportAction?.label).toBe("오류 보고");

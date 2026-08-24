@@ -1,6 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { InstallProgressOverlay } from "./InstallProgressOverlay";
+
 import { StageToolbar } from "./StageToolbar";
 import { useWorkspaceZoomStyle } from "../hooks/useWorkspaceZoomStyle";
 import { useEventCallback } from "../hooks/useEventCallback";
@@ -112,10 +112,6 @@ function WorkspaceCanvasViewport({
         onPointerDownCapture={() => workspacePanelRef.current?.focus()}
       >
         <WorkspaceContent {...stableProps} />
-        <InstallProgressOverlay
-          job={props.jobState}
-          snapshot={props.progressSnapshot}
-        />
       </div>
       {props.selectedPage ? <WorkspaceCanvasChrome props={props} /> : null}
     </div>

@@ -167,17 +167,16 @@ export function reportRefreshLibraryFailure(
   t?: TFunction<"renderer">,
   notificationPort: NotificationPort = toastNotificationPort,
 ): void {
-  console.error(error);
   const fallback = t
     ? t("library.refreshAfterJobFailed")
     : "보관함 목록을 새로고침하지 못했습니다.";
-  pushStatus(
-    t
-      ? formatErrorMessage(error, fallback)
-      : error instanceof Error && error.message.trim()
-        ? error.message
-        : fallback,
-  );
+  // Without a translator the raw message is the only detail available, but the
+  // failure still has to pass the presentation boundary so it gets logged.
+  const line =
+    !t && error instanceof Error && error.message.trim()
+      ? error.message
+      : fallback;
+  pushStatus(formatErrorMessage(error, line));
   notificationPort.warn(
     t
       ? t("translation.refreshWarning")

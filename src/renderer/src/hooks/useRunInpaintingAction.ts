@@ -44,7 +44,6 @@ async function runPatternInpainting(
     commitPatternInpaintingResult(result, options, t);
     reportPatternInpaintingResult(result, options, t);
   } catch (error) {
-    console.error(error);
     failInpaintingJob(
       options.setJobState,
       options.pushStatus,

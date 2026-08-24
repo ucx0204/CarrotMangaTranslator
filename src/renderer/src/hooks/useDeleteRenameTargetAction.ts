@@ -138,7 +138,6 @@ export function useDeleteRenameTargetAction({
       pushStatus(deleteSuccessStatus(renameTarget, t));
       setRenameTarget(null);
     } catch (error) {
-      console.error(error);
       pushStatus(
         formatErrorMessage(error, deleteFailureStatus(renameTarget, t)),
       );

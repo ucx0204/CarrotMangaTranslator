@@ -11,6 +11,9 @@
   },
   "panels": {
     "connecting": "正在连接…",
+    "openEditorWindowFailed": "无法打开编辑器窗口。",
+    "closeEditorWindowFailed": "无法关闭编辑器窗口。",
+    "commandFailed": "无法向主窗口发送命令。",
     "editor": {
       "title": "编辑文本块",
       "poppedOut": "编辑器已在独立窗口中打开。",
@@ -77,7 +80,7 @@
       "skippedAndUncertain": "部分页面已跳过，另有文本块需要检查 OCR 结果。",
       "skipped": "部分页面已跳过，任务已继续处理下一页。",
       "uncertain": "部分文本块需要进一步检查 OCR 结果。",
-      "generic": "任务出现了警告，但仍继续完成了处理。"
+      "generic": "任务出现了警告，但仍继续处理。"
     },
     "notifications": {
       "completed": "任务已完成。",
@@ -105,8 +108,8 @@
       "keywords": "translate all retranslate 全部 重新翻译"
     },
     "autoInpainting": {
-      "label": "清除原文",
-      "keywords": "inpaint auto erase 自动 清除 修整",
+      "label": "擦除原文",
+      "keywords": "inpaint auto erase 自动 擦除 修整",
       "closeHint": "关闭面板"
     },
     "exitInpainting": {
@@ -197,7 +200,7 @@
       "translate-all": "全部重新翻译",
       "gather-text": "汇总文本",
       "cancel-job": "取消任务",
-      "toggle-inpainting": "清除原文",
+      "toggle-inpainting": "擦除原文",
       "retouch-tool-mask": "蒙版画笔",
       "retouch-tool-brush": "绘制画笔",
       "retouch-tool-rectangle": "矩形修补",
@@ -238,7 +241,7 @@
   "workspaceHistory": {
     "blockEdit": "编辑文本块",
     "blockBackgroundOpacity": "更改文本块背景不透明度",
-    "exclusion": "更改自动清除排除设置",
+    "exclusion": "更改自动擦除排除设置",
     "format": "设置文本块格式",
     "stylePreset": "应用格式预设",
     "deleteBlock": "删除文本块",
@@ -250,11 +253,11 @@
     "dragBlock": "移动或调整文本块大小",
     "importText": "导入译文",
     "maskEdit": "编辑蒙版",
-    "autoInpainting": "自动清除",
+    "autoInpainting": "自动擦除",
     "bubbleLayout": "适配气泡布局",
     "bubbleLayoutManual": "编辑气泡形状",
     "removeBubbleLayout": "取消气泡适配",
-    "drawnInpainting": "清除绘制区域",
+    "drawnInpainting": "擦除绘制区域",
     "translationCheckpoint": "翻译结果检查点",
     "retranslationCheckpoint": "重新翻译前检查点",
     "retouch": "手动修补",
@@ -305,7 +308,7 @@
     },
     "retranslate": {
       "title": "重新翻译页面",
-      "confirm": "确定要重新翻译吗？",
+      "confirm": "要重新翻译此页面吗？",
       "detail": "现有结果会保存为检查点，并可通过工作区撤销恢复。"
     },
     "removePage": {
@@ -444,10 +447,10 @@
   },
   "settings": {
     "loadFailed": "无法加载设置。",
-    "saved": "设置已保存，将从下次翻译任务起生效。",
+    "saved": "设置已保存。",
     "savedToast": "设置已保存。",
     "saveFailed": "无法保存设置。",
-    "reset": "设置已恢复为默认值，将从下次翻译任务起生效。",
+    "reset": "设置已恢复为默认值。",
     "defaultsLoaded": "默认值已载入草稿，保存后才会应用。",
     "resetFailed": "无法恢复默认设置。"
   },

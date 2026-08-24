@@ -1,14 +1,37 @@
 .field {
   display: grid;
-  gap: var(--sp-1);
+  gap: var(--field-gap);
   font-size: var(--font-sm);
   color: var(--text-dim);
   min-width: 0;
 }
 
+/* Label beside the control instead of above it. */
+.row {
+  align-items: center;
+  grid-auto-flow: column;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--sp-3);
+}
+
+/* Hug the content instead of filling the available row. */
+.inline {
+  display: inline-grid;
+  width: max-content;
+}
+
+/* Roomier settings surfaces. */
+.comfortable {
+  gap: var(--field-gap-comfortable);
+}
+
 .label {
   font-size: var(--font-sm);
   color: var(--text-dim);
+}
+
+.comfortable > .label {
+  color: var(--text-head);
 }
 
 .hint {

@@ -2,6 +2,7 @@ import type {
   ChapterSnapshot,
   MangaPage,
 } from "../../../../shared/libraryTypes";
+import type { BlockStylePreset } from "../../../../shared/blockStylePresets";
 import type { GatherDirectFormatRequest } from "../../lib/gatherTextFormat";
 import type {
   GatherTextTab,
@@ -10,6 +11,7 @@ import type {
 import type { SearchReplaceRequest } from "../../lib/searchReplace";
 
 export type GatherTextModalProps = {
+  blockStylePresets?: readonly BlockStylePreset[];
   activeTab?: GatherTextTab;
   chapter: ChapterSnapshot | null;
   page: MangaPage | null;

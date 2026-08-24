@@ -1,5 +1,6 @@
 import { DEFAULT_BLOCK_FONT_ID } from "../../../shared/blockFontCatalog";
 import type { TranslationBlock } from "../../../shared/textTypes";
+import { normalizeTextEffect } from "../../../shared/textEffect";
 import { resolveEffectiveTextOutlineWidthPx } from "../../../shared/textOutline";
 import { resolveBlockTextWordBreak } from "../../../shared/textWrapping";
 
@@ -20,6 +21,7 @@ export const GATHER_TEXT_DIRECT_FORMAT_FIELDS = [
   "outlineColor",
   "outlineWidthPx",
   "rotationDeg",
+  "textEffect",
 ] as const;
 
 export type GatherTextDirectFormatField =
@@ -42,6 +44,7 @@ export type GatherTextDirectFormatValues = {
   outlineColor: string | undefined;
   outlineWidthPx: number;
   rotationDeg: number;
+  textEffect: TranslationBlock["textEffect"];
 };
 
 export type GatherTextDirectFormatPatch = Partial<
@@ -159,6 +162,7 @@ function normalizeDirectFormatValues(
     outlineColor: block.outlineColor,
     outlineWidthPx: resolveEffectiveTextOutlineWidthPx(block, block.fontSizePx),
     rotationDeg: block.rotationDeg ?? 0,
+    textEffect: normalizeTextEffect(block.textEffect),
   };
 }
 

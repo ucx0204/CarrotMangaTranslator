@@ -29,7 +29,10 @@ describe("page list workflow status", () => {
     expect(screen.queryByText("검토 필요")).toBeNull();
     expect(screen.getAllByText("완료").length).toBeGreaterThan(1);
 
-    fireEvent.click(screen.getByRole("tab", { name: /진행2/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "페이지 상태 필터: 전체" }),
+    );
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /진행2/ }));
     expect(screen.getByText("translated.jpg")).not.toBeNull();
     expect(screen.getByText("running.jpg")).not.toBeNull();
     expect(screen.queryByText("done.jpg")).toBeNull();

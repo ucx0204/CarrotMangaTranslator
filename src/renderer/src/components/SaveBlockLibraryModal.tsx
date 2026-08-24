@@ -10,9 +10,9 @@ import {
   resolveBlockLibraryError,
   type BlockLibrarySource,
 } from "./blockLibraryModel";
-import { AppModal } from "./ConfirmModal";
-import { ModalActionBar, ModalActionButtons } from "./ui/ModalActionBar";
 import { TextField } from "./ui/Field";
+import { Modal } from "./ui/Modal";
+import { ModalActionBar, ModalActionButtons } from "./ui/ModalActionBar";
 import styles from "./BlockLibraryModals.module.css";
 
 export function SaveBlockLibraryModal({
@@ -51,7 +51,7 @@ export function SaveBlockLibraryModal({
     }
   };
   return (
-    <AppModal
+    <Modal
       size="sm"
       title={t("blockLibrary.saveTitle")}
       onClose={onClose}
@@ -92,6 +92,6 @@ export function SaveBlockLibraryModal({
         />
         {error ? <p className={styles.error}>{error}</p> : null}
       </form>
-    </AppModal>
+    </Modal>
   );
 }

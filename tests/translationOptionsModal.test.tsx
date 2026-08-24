@@ -144,13 +144,13 @@ describe("TranslationOptionsModal", () => {
     ).toBe("true");
     expect(
       screen
-        .getByRole("button", { name: "자연스러운 줄 나눔" })
-        .getAttribute("aria-pressed"),
+        .getByRole("switch", { name: "자연스러운 줄 나눔" })
+        .getAttribute("aria-checked"),
     ).toBe("true");
     expect(
       screen
-        .getByRole("button", { name: "폰트 자동 맞춤" })
-        .getAttribute("aria-pressed"),
+        .getByRole("switch", { name: "폰트 자동 맞춤" })
+        .getAttribute("aria-checked"),
     ).toBe("false");
     expect(
       screen.getByText(
@@ -162,7 +162,7 @@ describe("TranslationOptionsModal", () => {
         .getByRole("radio", { name: "번역만" })
         .getAttribute("aria-checked"),
     ).toBe("true");
-    expect(screen.queryByRole("button", { name: "말풍선 맞춤" })).toBeNull();
+    expect(screen.queryByRole("switch", { name: "말풍선 맞춤" })).toBeNull();
     expect(screen.queryByText("자동 분석 범위")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
@@ -245,8 +245,8 @@ describe("TranslationOptionsModal", () => {
 
     expect(
       screen
-        .getByRole("button", { name: "자연스러운 줄 나눔" })
-        .getAttribute("aria-pressed"),
+        .getByRole("switch", { name: "자연스러운 줄 나눔" })
+        .getAttribute("aria-checked"),
     ).toBe("false");
     fireEvent.click(
       screen.getByRole("checkbox", {
@@ -265,11 +265,11 @@ describe("TranslationOptionsModal", () => {
 
   it("can enable automatic font matching and persists the choice", async () => {
     const { onStart, onPersistDefaults } = await renderModal();
-    const toggle = screen.getByRole("button", { name: "폰트 자동 맞춤" });
+    const toggle = screen.getByRole("switch", { name: "폰트 자동 맞춤" });
 
-    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
     fireEvent.click(toggle);
-    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
     fireEvent.click(
       screen.getByRole("checkbox", {
         name: "다음 번역의 기본값으로 저장",
@@ -289,10 +289,10 @@ describe("TranslationOptionsModal", () => {
     const { onStart, onPersistDefaults } = await renderModal();
 
     fireEvent.click(screen.getByRole("radio", { name: "원문 지우기" }));
-    const bubbleOptions = screen.getByRole("button", {
+    const bubbleOptions = screen.getByRole("switch", {
       name: "말풍선 맞춤",
     });
-    expect(bubbleOptions.getAttribute("aria-pressed")).toBe("true");
+    expect(bubbleOptions.getAttribute("aria-checked")).toBe("true");
     fireEvent.click(
       screen.getByRole("checkbox", {
         name: "다음 번역의 기본값으로 저장",
@@ -318,7 +318,7 @@ describe("TranslationOptionsModal", () => {
     const { onStart, onPersistDefaults } = await renderModal();
 
     fireEvent.click(screen.getByRole("radio", { name: "원문 지우기" }));
-    const bubbleOptions = screen.getByRole("button", {
+    const bubbleOptions = screen.getByRole("switch", {
       name: "말풍선 맞춤",
     });
     fireEvent.click(bubbleOptions);
@@ -354,10 +354,10 @@ describe("TranslationOptionsModal", () => {
         .getByRole("radio", { name: "원문 지우기" })
         .getAttribute("aria-checked"),
     ).toBe("true");
-    const bubbleOptions = screen.getByRole("button", {
+    const bubbleOptions = screen.getByRole("switch", {
       name: "말풍선 맞춤",
     });
-    expect(bubbleOptions.getAttribute("aria-pressed")).toBe("false");
+    expect(bubbleOptions.getAttribute("aria-checked")).toBe("false");
   });
 
   it("selects the whole work with 전체 선택", async () => {

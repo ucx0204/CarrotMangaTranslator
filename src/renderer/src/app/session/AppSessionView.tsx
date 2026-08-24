@@ -6,6 +6,7 @@ import { AppSidebar } from "../../components/AppSidebar";
 import { AppWorkspace } from "../../components/AppWorkspace";
 import { CommandPalette } from "../../components/CommandPalette";
 import { GatherTextModal } from "../../components/GatherTextModal";
+import { InstallProgressOverlay } from "../../components/InstallProgressOverlay";
 import {
   LibraryDropOverlay,
   type LibraryDropOverlayProps,
@@ -104,6 +105,12 @@ export function AppSessionView({
         shortcutHelpProps={shortcutHelpProps}
         styleGuideProps={styleGuideProps}
         translationOptionsProps={translationOptionsProps}
+      />
+      {/* App-blocking installer progress lives at the dialog layer, not inside
+          the scrolling canvas, so it can never be clipped or zoomed with it. */}
+      <InstallProgressOverlay
+        job={workspaceProps.jobState}
+        snapshot={workspaceProps.progressSnapshot}
       />
       <LibraryDropOverlay {...libraryDropOverlayProps} />
     </PanelSessionContext.Provider>

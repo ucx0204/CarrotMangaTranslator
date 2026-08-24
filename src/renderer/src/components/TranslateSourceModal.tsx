@@ -26,7 +26,6 @@ export function TranslateSourceModal({
   return (
     <Modal
       size="sm"
-      ariaLabel={t("translateSource.title")}
       title={t("translateSource.title")}
       onClose={onCancel}
       closeDisabled={busy}

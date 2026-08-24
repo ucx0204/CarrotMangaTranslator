@@ -64,7 +64,6 @@ export function useSubmitRenameAction({
         }
         setRenameTarget(null);
       } catch (error) {
-        console.error(error);
         pushStatus(formatErrorMessage(error, t("library.renameFailed")));
       } finally {
         setRenameBusy(false);

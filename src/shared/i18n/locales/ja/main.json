@@ -12,7 +12,7 @@
     "reportIssueMenu": "macOS Alpha の問題を報告",
     "firstRunTitle": "Apple Silicon Alpha",
     "firstRunMessage": "この Apple Silicon Alpha ビルドは実機検証中です。",
-    "firstRunDetail": "対応: M1 以降、macOS 14 以降。推奨ユニファイドメモリ: 16GB=Gemma 12B・Flux、24GB=26B、32GB以上=31B+DFlash。Gemma・OCR・インペインティングモデルは初回利用時に数GB以上ダウンロードされ、時間がかかる場合があります。問題が発生した場合は診断情報を確認して GitHub Issue へ報告してください。",
+    "firstRunDetail": "対応: M1 以降、macOS 14 以降。推奨ユニファイドメモリ: 16GB=Gemma 12B・Flux、24GB=26B、32GB以上=31B+DFlash。Gemma・OCR・インペインティングモデルは初回利用時に数GB以上ダウンロードされ、ネットワーク状況によっては長時間かかる場合があります。問題が発生した場合は診断情報を確認して GitHub Issue へ報告してください。",
     "continue": "確認",
     "aboutDetail": "Apple Silicon Alpha・実機検証中\n対応: M1 以降 / macOS 14 以降\n問題は GitHub Issue へ報告してください。",
     "stableAboutDetail": "Carrot Manga Translator"

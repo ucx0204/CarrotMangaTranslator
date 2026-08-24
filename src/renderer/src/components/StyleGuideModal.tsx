@@ -54,7 +54,6 @@ export function StyleGuideModal({
         size="xl"
         onClose={onClose}
         closeDisabled={model.resetting}
-        closeOnBackdrop
         bodyClassName="style-guide-body"
         footer={
           <StyleGuideFooter

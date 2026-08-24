@@ -19,6 +19,7 @@ import { useGatherTextFormatSelection } from "./useGatherTextFormatSelection";
 type GatherTextModalModelProps = Pick<
   GatherTextModalProps,
   | "chapter"
+  | "blockStylePresets"
   | "page"
   | "onChapterUpdated"
   | "onApplyTranslatedText"
@@ -28,6 +29,7 @@ type GatherTextModalModelProps = Pick<
 >;
 
 export function useGatherTextModalModel({
+  blockStylePresets,
   chapter,
   formatApplyDisabled,
   onApplyFormat,
@@ -74,6 +76,7 @@ export function useGatherTextModalModel({
     setReviewWarnings,
   });
   const formatSelection = useGatherTextFormatSelection({
+    blockStylePresets,
     chapter,
     disabled: formatApplyDisabled ?? false,
     onApply: onApplyFormat,

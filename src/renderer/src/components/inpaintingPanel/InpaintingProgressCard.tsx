@@ -3,9 +3,8 @@ import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { JobState } from "../../../../shared/jobTypes";
 import type { ProgressSnapshot } from "../../lib/jobProgress";
-import { useEtaText } from "../../hooks/useEtaText";
+import { JobProgressReadout } from "../JobProgressReadout";
 import { Button } from "../ui/Button";
-import { ProgressBar } from "../ui/ProgressBar";
 
 type InpaintingProgressCardProps = {
   jobState: JobState;
@@ -19,36 +18,16 @@ export function InpaintingProgressCard({
   onCancel,
 }: InpaintingProgressCardProps): React.JSX.Element {
   const { t } = useTranslation("components");
-  const { current, ratio, total } = resolveProgressCardNumbers(
-    jobState,
-    progressSnapshot,
-  );
-  const detail = resolveProgressCardDetail(jobState, t);
-  const etaText = useEtaText(progressSnapshot);
-  const hasKnownProgress =
-    Number.isFinite(current) && Number.isFinite(total) && (total ?? 0) > 0;
-
   return (
     <div className={`inpainting-progress-card ${jobState.status}`}>
-      <div className="progress-meta">
-        <span>{jobState.progressText}</span>
-        {hasKnownProgress ? (
-          <strong>
-            {current} / {total}
-          </strong>
-        ) : (
-          <strong>{t("common.inProgress")}</strong>
-        )}
-      </div>
-      <small>{detail}</small>
-      {etaText ? <small className="progress-eta">{etaText}</small> : null}
-      <ProgressBar
-        label={jobState.progressText}
-        mode={hasKnownProgress ? "determinate" : "indeterminate"}
-        value={ratio}
-        valueText={
-          hasKnownProgress ? `${current} / ${total}` : t("common.inProgress")
-        }
+      <JobProgressReadout
+        jobState={{
+          ...jobState,
+          // Inpainting always has something to say about the stage, so the
+          // shared readout renders that instead of an empty detail line.
+          detail: resolveProgressCardDetail(jobState, t),
+        }}
+        progressSnapshot={progressSnapshot}
       />
       {isCancellableInpaintingJob(jobState) ? (
         <Button variant="danger" size="sm" onClick={onCancel}>
@@ -57,39 +36,6 @@ export function InpaintingProgressCard({
       ) : null}
     </div>
   );
-}
-
-function resolveProgressCardNumbers(
-  jobState: JobState,
-  progressSnapshot: ProgressSnapshot | null,
-): {
-  current: number | undefined;
-  ratio: number;
-  total: number | undefined;
-} {
-  if (progressSnapshot?.mode === "determinate") {
-    return {
-      current: progressSnapshot.current,
-      ratio: progressSnapshot.ratio,
-      total: progressSnapshot.total,
-    };
-  }
-  const current = jobState.progressCurrent;
-  const total = jobState.progressTotal;
-  return {
-    current,
-    ratio: resolveFallbackProgressRatio(current, total),
-    total,
-  };
-}
-
-function resolveFallbackProgressRatio(
-  current: number | undefined,
-  total: number | undefined,
-): number {
-  return Number.isFinite(current) && Number.isFinite(total) && (total ?? 0) > 0
-    ? Math.min(1, Math.max(0, (current ?? 0) / (total ?? 1)))
-    : 0;
 }
 
 function resolveProgressCardDetail(

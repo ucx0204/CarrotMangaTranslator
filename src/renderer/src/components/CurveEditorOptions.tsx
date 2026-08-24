@@ -10,6 +10,7 @@ import {
 import { resolveCurveBend, updateCurveBend } from "../lib/transformEditorModel";
 import { RangeInput } from "./ui/Field";
 import { TransformNumberField } from "./TransformNumberField";
+import { CheckboxField } from "./ui/CheckboxField";
 
 const CURVE_PRESET_NAMES: CurvePresetName[] = [
   "straight",
@@ -58,17 +59,14 @@ export function CurveEditorOptions({
         onChange={(offsetEm) => onUpdate({ ...curve, offsetEm })}
       />
       <CurveOrientationButtons {...{ curve, disabled, onUpdate }} />
-      <label className="transform-compact-toggle">
-        <input
-          type="checkbox"
-          checked={Boolean(curve.fitSpacing)}
-          disabled={disabled}
-          onChange={(event) =>
-            onUpdate({ ...curve, fitSpacing: event.target.checked })
-          }
-        />
-        {t("transform.curve.fitSpacing")}
-      </label>
+      <CheckboxField
+        variant="bare"
+        className="transform-compact-toggle"
+        label={t("transform.curve.fitSpacing")}
+        checked={Boolean(curve.fitSpacing)}
+        disabled={disabled}
+        onCheckedChange={(fitSpacing) => onUpdate({ ...curve, fitSpacing })}
+      />
     </>
   );
 }
@@ -218,6 +216,7 @@ function CurveSliderRow({
         step={step}
         unit={unit}
         disabled={disabled}
+        hasSlider
         onCommit={onChange}
       />
     </div>

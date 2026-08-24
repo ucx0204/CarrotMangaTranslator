@@ -12,6 +12,7 @@ type SelectMenuProps = {
   emptyText: string;
   hasSearch: boolean;
   header?: React.ReactNode;
+  footer?: React.ReactNode;
   listboxId: string;
   options: SelectOption[];
   position: MenuPosition | null;
@@ -33,6 +34,7 @@ export const SelectMenu = React.forwardRef<HTMLDivElement, SelectMenuProps>(
       emptyText,
       hasSearch,
       header,
+      footer,
       listboxId,
       options,
       position,
@@ -74,6 +76,7 @@ export const SelectMenu = React.forwardRef<HTMLDivElement, SelectMenuProps>(
           onActiveValueChange={onActiveValueChange}
           onCommit={onCommit}
         />
+        {footer ? <div className={styles.menuFooter}>{footer}</div> : null}
       </div>,
       document.body,
     );
@@ -207,6 +210,21 @@ function SelectOptionRow({
           <span className={styles.optionDescription}>{option.description}</span>
         ) : null}
       </span>
+      {option.preview ? (
+        <span className={styles.optionPreview}>{option.preview}</span>
+      ) : null}
+      {option.actions ? (
+        // Row actions must not commit the option, so their events stop here.
+        <span
+          className={styles.optionActions}
+          onClick={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
+          onPointerMove={(event) => event.stopPropagation()}
+          onKeyDown={(event) => event.stopPropagation()}
+        >
+          {option.actions}
+        </span>
+      ) : null}
       <span
         className={styles.check}
         aria-hidden="true"

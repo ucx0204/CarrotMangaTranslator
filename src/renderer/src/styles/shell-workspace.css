@@ -694,16 +694,13 @@
 
 .workspace-view-control > button:hover:not(:disabled),
 .workspace-view-control > button:focus-visible,
-.workspace-view-reveal > button:hover,
-.workspace-view-reveal > button:focus-visible,
 .workspace-fit-picker:hover,
 .workspace-fit-picker:focus-within {
-  background: #20242b;
-  color: #f4f6f8;
+  background: var(--canvas-chrome-hover);
+  color: var(--canvas-chrome-text-strong);
 }
 
 .workspace-view-control > button:focus-visible,
-.workspace-view-reveal > button:focus-visible,
 .workspace-fit-picker:focus-within {
   position: relative;
   z-index: var(--layer-content);
@@ -794,29 +791,18 @@
   height: 42px;
 }
 
+/* The trigger box comes from ui/IconButton variant="dock"; the stacked zoom
+   readout under the icon is the only local concern. */
 .workspace-view-reveal > button {
-  display: grid;
-  place-items: center;
   align-content: center;
   gap: 1px;
-  width: 42px;
-  height: 42px;
-  padding: 0;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-md);
-  background: rgba(20, 22, 27, 0.96);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
   color: #d7dde6;
   font-size: 10px;
   font-variant-numeric: tabular-nums;
-  cursor: pointer;
-  backdrop-filter: blur(8px);
 }
 
 .workspace-view-reveal > button[aria-expanded="true"] {
   border-color: var(--accent-bd);
-  background: #20242b;
-  color: #f4f6f8;
 }
 
 .workspace-view-dock.open .workspace-view-reveal > .control-tooltip-bubble {
@@ -991,7 +977,7 @@
 .library-drop-overlay {
   position: fixed;
   inset: 0;
-  z-index: 5500;
+  z-index: var(--layer-drop-overlay);
   display: grid;
   place-items: center;
   padding: var(--sp-6);

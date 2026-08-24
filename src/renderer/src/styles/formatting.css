@@ -73,16 +73,6 @@
   white-space: normal;
 }
 
-/* The global `input { width: 100% }` rule otherwise stretches the checkbox. */
-.format-apply-item input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  flex: 0 0 auto;
-  margin: 0;
-  padding: 0;
-  accent-color: var(--accent);
-}
-
 .format-apply-scope {
   display: flex;
   gap: var(--sp-2);
@@ -147,7 +137,7 @@
 
 .editor-overflow-menu {
   position: absolute;
-  z-index: 60;
+  z-index: var(--layer-panel-menu);
   top: calc(100% + 6px);
   right: 0;
   display: grid;
@@ -407,7 +397,7 @@
 .rich-inline-style-grid > .rich-inline-font-field {
   display: grid;
   min-width: 0;
-  gap: 3px;
+  gap: var(--field-gap);
   color: var(--text-dim);
   font-size: 10px;
 }
@@ -444,62 +434,12 @@
   color: var(--accent-text);
 }
 
-.rich-inline-number-field {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  min-width: 0;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-sm);
-  background: var(--bg-sunken);
-}
-
-.rich-inline-number-field:focus-within {
-  border-color: color-mix(in srgb, var(--accent) 72%, var(--border-strong));
-}
-
-.editor-panel.has-block .rich-inline-number-field > .rich-inline-number-input {
-  width: 100%;
-  min-width: 0;
-  min-height: 32px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  text-align: right;
-  outline: none;
-}
-
-.editor-panel.has-block
-  .rich-inline-number-field
-  > .rich-inline-number-input:hover,
-.editor-panel.has-block
-  .rich-inline-number-field
-  > .rich-inline-number-input:focus,
-.editor-panel.has-block
-  .rich-inline-number-field
-  > .rich-inline-number-input:focus-visible {
-  border: 0;
-  outline: 0;
-  box-shadow: none;
-}
-
-.rich-inline-style-panel .font-select-trigger {
+/* Compact density for the font picker inside the inline rich-text panel. */
+.rich-inline-style-panel .font-select [data-ui-select-trigger] {
   min-height: 34px;
   padding-top: 4px;
   padding-bottom: 4px;
   font-size: 12px;
-}
-
-.rich-inline-style-panel .font-select-sample {
-  font-size: 13px;
-}
-
-.rich-inline-number-field > span {
-  padding-right: 9px;
-  color: var(--text-muted);
-  font-size: 10px;
 }
 
 .editor-text-actions {
@@ -606,148 +546,9 @@
   cursor: not-allowed;
 }
 
-/* Custom font dropdown with per-option previews */
+/* The font picker is ui/Select; only the field width is owned here. */
 .font-select {
-  position: relative;
-}
-
-.font-select-trigger {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--sp-3);
-  width: 100%;
-  min-height: var(--ctl-h);
-  padding: var(--ctl-pad-y) var(--ctl-pad-x);
-  background: var(--bg-sunken);
-  border-color: var(--border-strong);
-  text-align: left;
-}
-
-.font-select-name {
-  color: var(--text-dim);
-  font-size: var(--font-sm);
-  white-space: nowrap;
-}
-
-.font-select-sample {
   min-width: 0;
-  color: #f7f1e8;
-  font-size: 17px;
-  line-height: 1.1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.font-select-chevron {
-  width: 16px;
-  height: 16px;
-  flex: 0 0 auto;
-  color: var(--text-muted);
-  transition: transform 120ms ease;
-}
-
-.font-select.open .font-select-chevron {
-  transform: rotate(180deg);
-}
-
-.font-select-menu {
-  position: absolute;
-  z-index: 40;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
-  padding: var(--sp-1);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-md);
-  background: #14171c;
-  box-shadow: var(--shadow-md);
-}
-
-.font-select-options {
-  display: grid;
-  gap: 2px;
-  max-height: 240px;
-  overflow-y: auto;
-}
-
-.font-select-add {
-  width: 100%;
-  min-height: var(--ctl-h-sm);
-  border-color: var(--border-soft);
-  background: var(--bg-raised);
-  color: var(--text-dim);
-  font-size: var(--font-sm);
-}
-
-.font-select-add:hover:not(:disabled) {
-  border-color: var(--border-hover);
-  color: var(--text);
-}
-
-.font-select-option {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--sp-3);
-  width: 100%;
-  padding: 6px var(--sp-3);
-  border: 1px solid transparent;
-  border-radius: var(--r-sm);
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-}
-
-.font-select-remove {
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  display: grid;
-  place-items: center;
-  border-color: transparent;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 15px;
-  line-height: 1;
-}
-
-.font-select-remove:hover:not(:disabled) {
-  border-color: var(--danger-bd);
-  background: var(--danger-soft);
-  color: #e7a3a3;
-}
-
-.font-select-option.active,
-.font-select-option:hover:not(:disabled) {
-  border-color: var(--border-strong);
-  background: #1d222a;
-}
-
-.font-select-option.selected {
-  border-color: var(--accent-bd);
-  background: #1c3530;
-}
-
-.font-select-option-label {
-  color: var(--text-dim);
-  font-size: var(--font-sm);
-  white-space: nowrap;
-}
-
-.font-select-option-sample {
-  min-width: 0;
-  color: #f7f1e8;
-  font-size: 19px;
-  line-height: 1.15;
-  text-align: right;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .inline-toggle {
@@ -775,22 +576,9 @@
   gap: var(--sp-3);
 }
 
-.editor-font-size-row .font-size-stepper {
-  width: 100%;
-}
-
 .editor-font-size-auto {
   min-height: 34px;
   justify-self: start;
-}
-
-.font-size-stepper {
-  min-width: 0;
-}
-
-.font-size-stepper .font-size-number {
-  width: 100%;
-  min-width: 0;
 }
 
 .editor-format-fields {
@@ -804,38 +592,21 @@
   gap: var(--sp-3);
 }
 
-.editor-format-number-cell {
+/* One label-above-control cell for every numeric field in the editor panel. */
+.editor-format-number-cell,
+.editor-outline-width-control {
   display: grid;
-  gap: 5px;
+  gap: var(--field-gap);
   min-width: 0;
 }
 
-.editor-format-number-cell > span:first-child {
+.editor-format-number-cell > span:first-child,
+.editor-outline-width-control > span:first-child {
   min-width: 0;
   color: var(--text-dim);
   font-size: var(--font-xs);
   line-height: 1.25;
   overflow-wrap: anywhere;
-}
-
-.editor-format-number-cell > [data-scrubbable-number-field] {
-  width: 100%;
-}
-
-.editor-outline-width-control {
-  display: grid;
-  gap: 5px;
-  min-width: 0;
-}
-
-.editor-outline-width-control > span:first-child {
-  color: var(--text-dim);
-  font-size: var(--font-xs);
-  line-height: 1.25;
-}
-
-.editor-outline-width-control > [data-scrubbable-number-field] {
-  width: 100%;
 }
 
 .text-effect-controls {
@@ -865,12 +636,6 @@
   .text-effect-number-grid {
     grid-template-columns: 1fr;
   }
-}
-
-.font-size-number {
-  min-height: var(--ctl-h);
-  padding: 0 var(--sp-2);
-  text-align: center;
 }
 
 .block-type-field {
@@ -1156,6 +921,22 @@
   color: var(--accent-hi);
   font-size: var(--font-sm);
   font-weight: 600;
+}
+
+/* Optional chips a progress surface can append, e.g. transferred bytes. */
+.progress-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  color: var(--text-dim);
+  font-size: var(--font-md);
+}
+
+.progress-stats span {
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: var(--bg-sunken);
 }
 
 .job-pill {

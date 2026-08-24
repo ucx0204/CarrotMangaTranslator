@@ -1,8 +1,30 @@
-.optionActions {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 2px;
+/* Font-specific additions on top of ui/Select. */
+
+.triggerSample {
+  /*
+   * A grid item, not a flex item. The cap is in `ch` on purpose: a percentage
+   * would be resolved against zero while the grid sizes its tracks, collapsing
+   * the sample to a bare ellipsis.
+   */
+  min-width: 0;
+  max-width: 16ch;
+  overflow: hidden;
+  color: var(--accent-text);
+  font-size: var(--font-preview);
+  line-height: 1.1;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.optionSample {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--accent-text);
+  font-size: var(--font-preview);
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .favorite {
@@ -23,6 +45,25 @@
   border-color: transparent;
   background: transparent;
   color: #f4c95d;
+}
+
+.remove {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--font-lg);
+  line-height: 1;
+}
+
+.remove:hover:not(:disabled) {
+  border-color: var(--danger-bd);
+  background: var(--danger-soft);
+  color: var(--danger-text);
 }
 
 .footer {

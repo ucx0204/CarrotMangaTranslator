@@ -1,6 +1,5 @@
 .body {
   gap: var(--sp-5);
-  max-height: min(72vh, 760px);
 }
 
 .resetOrder {
@@ -84,7 +83,7 @@
 }
 
 .dragging {
-  z-index: 1;
+  z-index: var(--z-base);
   border-color: var(--accent-bd);
   box-shadow: var(--shadow-md);
   opacity: 0.86;
@@ -139,7 +138,7 @@
 
 .sample {
   min-width: 0;
-  color: #f7f1e8;
+  color: var(--accent-text);
   font-size: 15px;
   line-height: 1.15;
   text-align: left;

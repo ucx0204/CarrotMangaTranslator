@@ -21,6 +21,7 @@ import {
   type StageToolbarToolGroup,
 } from "./stageToolbarTools";
 import { useStageToolbarFlyout } from "./useStageToolbarFlyout";
+import { IconButton } from "./ui/IconButton";
 
 type StageToolbarProps = {
   bubbleLayoutAvailable?: boolean;
@@ -208,16 +209,17 @@ function RegionTranslationButton(props: StageToolbarProps): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
     <ToolbarControl tooltip={t("stageToolbar.tools.region.title")}>
-      <button
-        aria-label={t("stageToolbar.tools.region.label")}
+      <IconButton
+        variant="canvas"
+        size="lg"
+        label={t("stageToolbar.tools.region.label")}
+        title=""
         aria-pressed={props.regionTranslationActive}
-        className={`stage-toolbar-button ${props.regionTranslationActive ? "active" : ""}`.trim()}
         disabled={props.disabled || !props.regionTranslationAvailable}
         onClick={props.onToggleRegionTranslation}
-        type="button"
       >
         <IconTextScan2 size={22} stroke={2.1} aria-hidden="true" />
-      </button>
+      </IconButton>
     </ToolbarControl>
   );
 }
@@ -306,13 +308,16 @@ function StageToolGroupTrigger({
     }
   };
   return (
-    <button
+    <IconButton
+      variant="canvas"
+      size="lg"
       aria-controls={menuId}
       aria-expanded={open}
       aria-haspopup="menu"
-      aria-label={label}
+      label={label}
+      title=""
       aria-pressed={Boolean(activeTool)}
-      className={`stage-toolbar-button stage-toolbar-group-trigger ${activeTool ? "active" : ""}`.trim()}
+      className="stage-toolbar-group-trigger"
       data-active-tool={activeTool ?? undefined}
       data-selected-tool={selectedTool}
       data-stage-tool-group={group.id}
@@ -328,7 +333,6 @@ function StageToolGroupTrigger({
       onPointerEnter={(event) =>
         onOpenFromPointerOrFocus(group.id, event.currentTarget)
       }
-      type="button"
     >
       <LauncherIcon size={22} stroke={2.1} aria-hidden="true" />
       <IconChevronDown
@@ -345,7 +349,7 @@ function StageToolGroupTrigger({
           style={{ backgroundColor: brushColor }}
         />
       ) : null}
-    </button>
+    </IconButton>
   );
 }
 

@@ -1,8 +1,14 @@
 import React from "react";
 import styles from "./IconButton.module.css";
 
-type IconButtonVariant = "default" | "danger";
-type IconButtonSize = "sm" | "md";
+/**
+ * - `canvas`: chrome that floats over the artwork, borderless and larger, so it
+ *   reads as tooling rather than as a panel control.
+ * - `dock`: a standalone floating control over the artwork, so unlike `canvas`
+ *   it keeps a frame and shadow to separate it from the page.
+ */
+type IconButtonVariant = "default" | "danger" | "canvas" | "dock";
+type IconButtonSize = "sm" | "md" | "lg";
 
 export type IconButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: IconButtonVariant;
@@ -28,7 +34,7 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
     const classes = [
       styles.iconButton,
       styles[variant],
-      size === "sm" ? styles.sm : "",
+      size === "md" ? "" : styles[size],
       className ?? "",
     ]
       .filter(Boolean)
@@ -40,7 +46,9 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
         type={type}
         className={classes}
         aria-label={label}
-        title={title ?? label}
+        // An empty string means "no native tooltip": buttons wrapped in
+        // ControlTooltip must not also show the browser's own tooltip.
+        title={title === "" ? undefined : (title ?? label)}
         {...rest}
       >
         {children}

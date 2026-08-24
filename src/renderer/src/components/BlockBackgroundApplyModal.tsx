@@ -26,7 +26,6 @@ export function BlockBackgroundApplyModal({
   return (
     <Modal
       title={t("editor.display.batchTitle")}
-      ariaLabel={t("editor.display.batchTitle")}
       closeOnBackdrop
       onClose={onClose}
       size="sm"

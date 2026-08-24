@@ -38,7 +38,6 @@ export function useLinkedWorkspaceController({
       });
       if (result.status === "failed") pushStatus(result.message);
     } catch (error) {
-      console.error(error);
       pushStatus(formatErrorMessage(error, "결과 폴더를 열지 못했습니다."));
     } finally {
       setViewBusy(false);

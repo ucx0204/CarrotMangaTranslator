@@ -20,10 +20,10 @@ import {
 } from "./TranslationOptionControls";
 import { Button } from "./ui/Button";
 import { CheckboxField } from "./ui/CheckboxField";
-import { WarnIcon } from "./ui/icons";
 import { Modal } from "./ui/Modal";
 import { ModalActionBar } from "./ui/ModalActionBar";
 import { ConfirmModal } from "./ConfirmModal";
+import { TranslationOverwriteWarning } from "./TranslationOverwriteWarning";
 import {
   type TranslationOptionsFormProps,
   useTranslationOptionsModalState,
@@ -84,7 +84,7 @@ export function TranslationOptionsModal({
         title={t("translationOptions.title")}
         size="lg"
         onClose={onClose}
-        closeOnBackdrop
+        maxHeight="900px"
         cardClassName="translation-options-modal"
         bodyClassName="translation-options-modal-body"
         footer={
@@ -284,13 +284,10 @@ function TranslationOptionsForm(
         </TranslationOptionSection>
       </div>
       {props.overwriteRisk ? (
-        <div className="translation-overwrite-warning" role="note">
-          <WarnIcon size={18} aria-hidden="true" />
-          <div>
-            <strong>{t("translationOptions.overwriteWarning.title")}</strong>
-            <span>{t("translationOptions.overwriteWarning.description")}</span>
-          </div>
-        </div>
+        <TranslationOverwriteWarning
+          title={t("translationOptions.overwriteWarning.title")}
+          description={t("translationOptions.overwriteWarning.description")}
+        />
       ) : null}
     </div>
   );

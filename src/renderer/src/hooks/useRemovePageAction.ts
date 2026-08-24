@@ -84,7 +84,6 @@ export function useRemovePageAction({
         pushStatus(t("library.removePage.success", { name: page.name }));
         await refreshLibrary();
       } catch (error) {
-        console.error(error);
         pushStatus(formatErrorMessage(error, t("library.removePage.failed")));
       }
     },

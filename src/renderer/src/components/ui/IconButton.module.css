@@ -4,9 +4,9 @@
   width: var(--ctl-h);
   height: var(--ctl-h);
   padding: 0;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--control-border);
   border-radius: var(--r-md);
-  background: var(--bg-raised);
+  background: var(--control-bg);
   color: var(--text-dim);
   cursor: pointer;
   transition:
@@ -16,8 +16,8 @@
 }
 
 .iconButton:hover:not(:disabled) {
-  border-color: var(--border-hover);
-  background: var(--bg-hover);
+  border-color: var(--control-border-hover);
+  background: var(--control-bg-hover);
   color: var(--text);
 }
 
@@ -42,6 +42,11 @@
   height: var(--ctl-h-sm);
 }
 
+.lg {
+  width: 40px;
+  height: 40px;
+}
+
 .danger {
   color: var(--danger-bd);
 }
@@ -49,5 +54,62 @@
 .danger:hover:not(:disabled) {
   border-color: var(--danger-bd);
   background: var(--danger-soft);
-  color: #e7a3a3;
+  color: var(--danger-text);
+}
+
+/* Chrome floating over the artwork: no frame, so it does not compete with the page. */
+.canvas {
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--canvas-chrome-text);
+}
+
+.canvas:hover:not(:disabled),
+.canvas:focus-visible {
+  border: 0;
+  background: var(--canvas-chrome-hover);
+  color: var(--canvas-chrome-text-strong);
+}
+
+.canvas:disabled {
+  color: var(--canvas-chrome-text-disabled);
+  opacity: 0.42;
+}
+
+/* Standalone floating control: keeps a frame so it reads against the artwork. */
+.dock {
+  width: 42px;
+  height: 42px;
+  border-color: var(--border-soft);
+  background: var(--canvas-chrome-bg);
+  color: var(--canvas-chrome-text);
+  box-shadow: var(--canvas-chrome-shadow);
+  backdrop-filter: blur(8px);
+}
+
+.dock:hover:not(:disabled),
+.dock:focus-visible,
+.dock[aria-expanded="true"] {
+  background: var(--canvas-chrome-hover);
+  color: var(--canvas-chrome-text-strong);
+}
+
+.dock:focus-visible {
+  outline-offset: -2px;
+}
+
+.dock:disabled {
+  color: var(--canvas-chrome-text-disabled);
+}
+
+.canvas[aria-pressed="true"],
+.canvas[aria-checked="true"] {
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--accent) 26%, transparent),
+    var(--canvas-chrome-active-end)
+  );
+  color: var(--accent-hi);
+  box-shadow: inset 3px 0 0 var(--accent);
 }

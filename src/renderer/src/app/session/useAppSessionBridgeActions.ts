@@ -16,21 +16,18 @@ export function useAppSessionBridgeActions(
   const cancelJob = useCallback(() => {
     requestJobFlowCancellation?.();
     void analysisGateway.cancelJob().catch((error) => {
-      console.error(error);
       pushStatus(formatErrorMessage(error, t("bridge.cancelJobFailed")));
     });
   }, [pushStatus, requestJobFlowCancellation, t]);
 
   const openLibraryFolder = useCallback(() => {
     void appGateway.openLibraryFolder().catch((error) => {
-      console.error(error);
       pushStatus(formatErrorMessage(error, t("bridge.openLibraryFailed")));
     });
   }, [pushStatus, t]);
 
   const openLogFolder = useCallback(() => {
     void appGateway.openLogFolder().catch((error) => {
-      console.error(error);
       pushStatus(formatErrorMessage(error, t("bridge.openLogsFailed")));
     });
   }, [pushStatus, t]);

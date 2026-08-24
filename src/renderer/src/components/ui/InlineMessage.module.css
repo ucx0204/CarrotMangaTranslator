@@ -1,57 +1,53 @@
 .message {
   display: grid;
-  gap: 6px;
+  gap: var(--sp-2);
   min-width: 0;
   max-width: 100%;
-  padding: 10px;
+  padding: var(--sp-4);
   border: 1px solid var(--message-border);
-  border-radius: 8px;
+  border-radius: var(--r-md);
   background: var(--message-background);
   color: var(--message-text);
 }
 
 .message strong {
-  font-size: 13px;
+  font-size: var(--font-md);
   line-height: 1.35;
 }
 
 .message p {
   margin: 0;
   color: var(--message-detail);
-  font-size: 12px;
+  font-size: var(--font-sm);
   line-height: 1.45;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
 .danger {
-  --message-border: #9a4a4a;
-  --message-background: #351f21;
-  --message-text: #f7dddd;
-  --message-detail: #efcaca;
+  --message-border: var(--danger-bd);
+  --message-background: var(--danger-soft);
+  --message-text: var(--danger-text);
+  --message-detail: color-mix(in srgb, var(--danger-text) 82%, var(--text));
 }
 
 .warning {
-  --message-border: #a7772e;
-  --message-background: #352a1c;
-  --message-text: #ffe8b0;
-  --message-detail: #f2d59b;
+  --message-border: var(--warning-bd);
+  --message-background: var(--warning-soft);
+  --message-text: var(--warning-text);
+  --message-detail: color-mix(in srgb, var(--warning-text) 78%, var(--text));
 }
 
 .info {
-  --message-border: color-mix(
-    in srgb,
-    var(--accent-hi) 52%,
-    var(--border-soft)
-  );
-  --message-background: color-mix(in srgb, var(--accent) 14%, var(--bg-sunken));
-  --message-text: var(--text);
-  --message-detail: var(--text-dim);
+  --message-border: var(--info-bd);
+  --message-background: var(--info-soft);
+  --message-text: var(--info-text);
+  --message-detail: color-mix(in srgb, var(--info-text) 76%, var(--text));
 }
 
 .success {
-  --message-border: color-mix(in srgb, #65c9a9 54%, var(--border-soft));
-  --message-background: color-mix(in srgb, #2b6f60 24%, var(--bg-sunken));
-  --message-text: #e2f8f0;
-  --message-detail: #c4e8dd;
+  --message-border: var(--success-bd);
+  --message-background: var(--success-soft);
+  --message-text: var(--success-text);
+  --message-detail: color-mix(in srgb, var(--success-text) 78%, var(--text));
 }

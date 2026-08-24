@@ -11,6 +11,9 @@
   },
   "panels": {
     "connecting": "연결 중…",
+    "openEditorWindowFailed": "편집기 창을 열지 못했습니다.",
+    "closeEditorWindowFailed": "편집기 창을 닫지 못했습니다.",
+    "commandFailed": "본 창에 명령을 전달하지 못했습니다.",
     "editor": {
       "title": "블록 편집",
       "poppedOut": "편집기를 새 창으로 분리했어요.",
@@ -311,7 +314,7 @@
     },
     "retranslate": {
       "title": "페이지 재번역",
-      "confirm": "정말 재번역 하시겠습니까?",
+      "confirm": "이 페이지를 정말 다시 번역할까요?",
       "detail": "기존 결과가 있으면 체크포인트로 보관하며 작업 공간 실행 취소로 복구할 수 있습니다."
     },
     "removePage": {
@@ -453,10 +456,10 @@
   },
   "settings": {
     "loadFailed": "설정을 불러오지 못했습니다.",
-    "saved": "설정을 저장했습니다. 다음 번 번역 실행부터 적용됩니다.",
+    "saved": "설정을 저장했습니다.",
     "savedToast": "설정을 저장했습니다.",
     "saveFailed": "설정을 저장하지 못했습니다.",
-    "reset": "설정을 기본값으로 복원했습니다. 다음 번 번역 실행부터 적용됩니다.",
+    "reset": "설정을 기본값으로 복원했습니다.",
     "defaultsLoaded": "기본값을 초안에 불러왔습니다. 저장해야 적용됩니다.",
     "resetFailed": "기본 설정을 복원하지 못했습니다."
   },

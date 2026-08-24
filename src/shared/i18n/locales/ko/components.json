@@ -394,6 +394,7 @@
     }
   },
   "fontSelect": {
+    "label": "폰트",
     "addFont": "+ TTF/OTF 폰트 등록",
     "deleteFont": "이 폰트 삭제",
     "deleteNamedFont": "{{label}} 삭제",
@@ -668,7 +669,7 @@
     "chapterTitle": "화 제목",
     "liveResults": {
       "enable": "결과물 폴더에 자동 저장",
-      "description": "결과물 폴더의 작품명/화명 위치에 저장합니다. 편집을 멈춘 뒤 3초가 지나면 변경된 페이지만 갱신합니다.",
+      "description": "결과물을 작품별·화별 폴더에 저장합니다.",
       "format": "자동 저장 형식"
     }
   },
@@ -974,6 +975,7 @@
     "defaultFont": "기본 폰트",
     "formatDisabled": "작업 중에는 서식을 적용할 수 없습니다.",
     "directFormatTitle": "선택한 블록 서식 편집",
+    "presetHint": "저장한 프리셋 값을 선택한 블록에 불러옵니다.",
     "previewTitle": "적용 미리보기",
     "previewBasis": "첫 번째 선택 블록 기준 · 변경 내용이 바로 반영됩니다.",
     "previewTextLabel": "예시 문구",
@@ -1258,7 +1260,6 @@
   },
   "settings": {
     "title": "설정",
-    "applyNextRun": "다음 번 번역 실행부터 적용됩니다.",
     "tabs": {
       "ariaLabel": "설정 영역",
       "general": "일반",
@@ -1274,14 +1275,14 @@
       "languageDescription": "앱 전체에서 사용할 표시 언어를 변경합니다."
     },
     "results": {
-      "description": "작품·화별 자동 저장을 설정합니다. 기본 위치: 결과물/작품명/화명",
+      "description": "작품·화별 결과물 자동 저장을 설정합니다.",
       "empty": "보관함에 관리할 작품이 없습니다.",
       "searchLabel": "결과물 자동 저장 검색",
       "searchPlaceholder": "작품/화 검색",
-      "noSearchResults": "검색 결과가 없습니다.",
+      "noSearchResults": "조건에 맞는 작품이나 화가 없습니다.",
       "chapterCount": "{{count}}화",
       "toggleChapter": "{{title}} 결과물 자동 저장",
-      "defaultLocationReady": "체크하면 기본 결과물 폴더에 저장",
+      "defaultLocationReady": "기본 결과물 폴더에 저장",
       "defaultLocation": "기본 결과물 폴더",
       "customLocation": "사용자 지정 폴더",
       "moreActions": "자동 저장 작업 더 보기",
@@ -1491,7 +1492,7 @@
       }
     },
     "translation": {
-      "title": "번역 언어",
+      "title": "번역 언어 설정",
       "source": "원문 언어",
       "target": "번역 언어",
       "swapTitle": "원문 언어와 번역 언어를 서로 바꿉니다",
@@ -1686,7 +1687,8 @@
       "fluxAmdUnsupportedTitle": "공식 지원 대상이 아닌 AMD GPU",
       "fluxAmdUnsupportedDetail": "{{gpu}}는 AMD의 현재 Windows HIP SDK 공식 지원 목록에 없습니다. ZLUDA를 직접 선택해 실험할 수는 있지만 런타임 오류가 발생할 수 있습니다.",
       "fluxAmdUseCpu": "CPU 백엔드로 전환",
-      "downloadHipSdk": "AMD HIP SDK 다운로드"
+      "downloadHipSdk": "AMD HIP SDK 다운로드",
+      "openLinkFailed": "링크를 열지 못했습니다. 기본 브라우저를 확인해 주세요."
     },
     "format": {
       "alignment": {
@@ -1730,7 +1732,7 @@
         "outlineEnabledTitle": "외곽선 사용 여부",
         "textOpacity": "글자 투명도",
         "outlineEnabled": "외곽선 사용",
-        "outlineWidth": "외곽선"
+        "outlineWidth": "외곽선 두께"
       }
     },
     "shortcuts": {
@@ -1901,7 +1903,7 @@
     "sortName": "이름순",
     "loading": "블록 라이브러리를 불러오는 중…",
     "empty": "저장된 블록이 없습니다. 블록 작업 메뉴에서 라이브러리에 저장할 수 있습니다.",
-    "noSearchResults": "검색 결과가 없습니다.",
+    "noSearchResults": "조건에 맞는 블록이 없습니다.",
     "noPage": "현재 페이지가 없어 블록을 불러올 수 없습니다. 저장된 블록은 계속 관리할 수 있습니다.",
     "missingFont": "글꼴 없음 · 대체 글꼴로 미리보기",
     "edit": "블록 편집",
@@ -1945,7 +1947,7 @@
     "moveDown": "아래로 이동",
     "editorTitle": "프리셋 · {{name}}",
     "includedGroups": "프리셋 적용 항목",
-    "includedGroupsHint": "현재 {{count}}개 적용",
+    "includedGroupsHint": "현재 {{count}}개 항목 적용",
     "disabledGroupTooltip": "현재 프리셋에서 제외된 항목입니다. 활성화하려면 아래로 스크롤해 ‘프리셋 적용 항목’에서 켜세요.",
     "minimumGroupRequired": "프리셋에는 최소 1개 항목을 적용해야 합니다.",
     "createQuick": "새 프리셋 추가",

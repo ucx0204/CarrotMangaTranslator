@@ -50,7 +50,7 @@
   position: absolute;
   left: 0;
   top: 0;
-  z-index: 22;
+  z-index: var(--z-stage-retouch-cursor);
   pointer-events: none;
   visibility: hidden;
   opacity: 0;
@@ -73,7 +73,7 @@
 .retouch-live-canvas {
   position: absolute;
   inset: 0;
-  z-index: 21;
+  z-index: var(--z-stage-retouch-canvas);
   display: block;
   width: 100%;
   height: 100%;
@@ -96,7 +96,7 @@
 .retouch-preview-layer {
   position: absolute;
   inset: 0;
-  z-index: 21;
+  z-index: var(--z-stage-retouch-canvas);
   width: 100%;
   height: 100%;
   pointer-events: none;
@@ -191,7 +191,7 @@
 .page-image-loading-overlay {
   position: absolute;
   inset: 0;
-  z-index: 35;
+  z-index: var(--z-stage-image-loading);
   display: grid;
   place-items: center;
   pointer-events: none;
@@ -274,7 +274,7 @@
   position: absolute;
   top: -10px;
   right: -10px;
-  z-index: 5;
+  z-index: var(--z-stage-excluded-badge);
   display: grid;
   place-items: center;
   width: 22px;
@@ -296,7 +296,7 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 4;
+  z-index: var(--z-stage-pattern-marker);
 }
 
 .pattern-pending-marker::before,
@@ -347,7 +347,7 @@
 
 .region-selection-box {
   position: absolute;
-  z-index: 12;
+  z-index: var(--z-stage-region-box);
   pointer-events: none;
   border: 2px solid var(--accent-bd);
   border-radius: 3px;
@@ -366,7 +366,7 @@
 .bubble-layout-draft-layer {
   position: absolute;
   inset: 0;
-  z-index: 26;
+  z-index: var(--z-stage-bubble-draft);
   width: 100%;
   height: 100%;
   overflow: visible;
@@ -425,7 +425,7 @@
 }
 
 .bubble-layout-brush-cursor {
-  z-index: 27;
+  z-index: var(--z-stage-bubble-brush);
   visibility: visible;
   opacity: 1;
 }
@@ -466,7 +466,7 @@
 .bubble-layout-context-bar {
   position: relative;
   grid-row: 1;
-  z-index: 38;
+  z-index: var(--z-stage-context-bar);
   display: grid;
   align-items: center;
   grid-template-areas: "info modes actions";
@@ -556,10 +556,9 @@
   font-weight: 650;
 }
 
-.bubble-layout-context-radius input {
+.bubble-layout-context-radius .range-input-shell {
   min-width: 0;
   width: 100%;
-  accent-color: #5cddb0;
 }
 
 .bubble-layout-context-radius output {
@@ -576,17 +575,12 @@
 
 .bubble-layout-context-actions button:disabled,
 .bubble-layout-context-modes button:disabled,
-.bubble-layout-context-radius input:disabled {
+.bubble-layout-context-radius .range-input-control:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
-.bubble-layout-context-actions button:focus-visible,
-.bubble-layout-context-modes button:focus-visible,
-.bubble-layout-context-radius input:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 1px;
-}
+/* Focus rings come from the global foundations rule. */
 
 @container bubble-workspace (max-width: 760px) {
   .bubble-layout-context-bar {
@@ -652,7 +646,7 @@
   position: absolute;
   top: 8px;
   left: 8px;
-  z-index: 30;
+  z-index: var(--z-stage-drag-hud);
   padding: 4px 8px;
   border: 1px solid var(--border-strong);
   border-radius: var(--r-sm);
@@ -732,7 +726,7 @@
 .app-crash {
   position: fixed;
   inset: 0;
-  z-index: 9000;
+  z-index: var(--layer-critical);
   display: grid;
   place-items: center;
   padding: 24px;
@@ -891,42 +885,11 @@ kbd {
   height: 42px;
 }
 
-.workspace-original-opacity-trigger > button {
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  padding: 0;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--r-md);
-  background: rgba(20, 22, 27, 0.96);
-  color: #aeb8c5;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
-  cursor: pointer;
-  backdrop-filter: blur(8px);
-}
-
-.workspace-original-opacity-trigger > button:hover:not(:disabled),
-.workspace-original-opacity-trigger > button:focus-visible,
-.workspace-original-opacity-trigger > button[aria-expanded="true"] {
-  background: #20242b;
-  color: #f4f6f8;
-}
-
+/* The trigger box comes from ui/IconButton variant="dock". */
 .workspace-original-opacity-dock.active
   .workspace-original-opacity-trigger
   > button:not(:disabled) {
   color: var(--accent-hi);
-}
-
-.workspace-original-opacity-trigger > button:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: -2px;
-}
-
-.workspace-original-opacity-trigger > button:disabled {
-  color: #5d6672;
-  cursor: not-allowed;
 }
 
 .workspace-original-opacity-icon {
@@ -967,46 +930,9 @@ kbd {
   text-align: right;
 }
 
-.workspace-original-opacity-panel input[type="range"] {
-  width: 100%;
-  height: 20px;
-  margin: 0;
-  appearance: none;
-  background: transparent;
-  cursor: pointer;
-}
-
-.workspace-original-opacity-panel
-  input[type="range"]::-webkit-slider-runnable-track {
-  height: 4px;
-  border-radius: 999px;
-  background: linear-gradient(
-    to right,
-    var(--accent) 0 var(--original-opacity-percent),
-    #343a44 var(--original-opacity-percent) 100%
-  );
-}
-
-.workspace-original-opacity-panel input[type="range"]::-webkit-slider-thumb {
-  width: 14px;
-  height: 14px;
-  margin-top: -5px;
-  appearance: none;
-  border: 2px solid #f7f9fb;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
-}
-
-.workspace-original-opacity-panel input[type="range"]:focus-visible {
-  outline: none;
-}
-
-.workspace-original-opacity-panel
-  input[type="range"]:focus-visible::-webkit-slider-thumb {
-  box-shadow:
-    0 0 0 2px #14161b,
-    0 0 0 4px var(--focus);
+/* The slider itself comes from ui/Field's RangeInput; only the dock layout is local. */
+.workspace-original-opacity-panel .range-input-shell {
+  min-width: 0;
 }
 
 .workspace-original-opacity-dock.open

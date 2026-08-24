@@ -49,7 +49,7 @@
 .overlay-transform-controls {
   position: absolute;
   inset: 0;
-  z-index: 8;
+  z-index: var(--z-overlay-transform-controls);
   overflow: visible;
   pointer-events: none;
 }
@@ -57,7 +57,7 @@
 .bubble-layout-guide {
   position: absolute;
   inset: -1px;
-  z-index: 6;
+  z-index: var(--z-overlay-bubble-guide);
   width: calc(100% + 2px);
   height: calc(100% + 2px);
   overflow: visible;
@@ -265,13 +265,13 @@
 .warp-controls .warp-selection-surface {
   position: absolute;
   inset: 0;
-  z-index: 0;
+  z-index: var(--z-under);
   pointer-events: auto;
   touch-action: none;
 }
 
 .warp-controls .warp-grid-guide {
-  z-index: 1;
+  z-index: var(--z-base);
 }
 
 .warp-controls .warp-grid-line {
@@ -296,7 +296,7 @@
 }
 
 .warp-controls .warp-point {
-  z-index: 2;
+  z-index: var(--z-raised);
   cursor: crosshair;
 }
 

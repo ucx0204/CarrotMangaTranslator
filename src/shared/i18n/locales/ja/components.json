@@ -122,7 +122,7 @@
     "redoNamed": "{{action}}をやり直す（Ctrl+Y / Ctrl+Shift+Z）",
     "undoShort": "元に戻す",
     "redoShort": "やり直す",
-    "original": "元画像",
+    "original": "元画像と比較",
     "compareOriginal": "元画像と比較",
     "hideOriginal": "元画像との比較を終了",
     "resetPage": "元画像にリセット",
@@ -157,7 +157,7 @@
     "increaseValue": "{{label}}を大きくする",
     "autoFitTitle": "テキストボックスに合わせて自動調整",
     "auto": "自動",
-    "rotation": "傾き",
+    "rotation": "回転",
     "textOpacity": "文字の不透明度",
     "blockBackgroundOpacity": "ブロック背景の不透明度",
     "lineHeight": "行間",
@@ -315,7 +315,7 @@
     "text": "テキスト",
     "translatedText": "翻訳文",
     "eraseOriginal": "原文を消去",
-    "fitBubble": "吹き出しに合わせる",
+    "fitBubble": "吹き出し合わせ",
     "moreActions": "ブロック操作を表示",
     "sourceEmpty": "OCRテキストなし",
     "tabs": {
@@ -338,8 +338,8 @@
       "excludeHint": "自動インペインティングでこのブロック内の文字を消去しません。"
     },
     "bubbleLayout": {
-      "active": "吹き出し調整済み",
-      "remove": "吹き出しフィットを解除",
+      "active": "吹き出し合わせ適用済み",
+      "remove": "吹き出し合わせを解除",
       "removeHint": "自動または手動で設定した吹き出し領域を削除し、元のOCRテキスト領域に戻します。"
     },
     "markupHint": {
@@ -397,6 +397,7 @@
     }
   },
   "fontSelect": {
+    "label": "フォント",
     "addFont": "+ TTF/OTFフォントを追加",
     "deleteFont": "このフォントを削除",
     "deleteNamedFont": "{{label}}を削除",
@@ -427,7 +428,7 @@
     "loadingPages": "ページを読み込み中…",
     "loadPagesFailed": "ページを読み込めませんでした。",
     "noPages": "ページがありません。",
-    "thumbnailLoadFailed": "プレビューを表示できません",
+    "thumbnailLoadFailed": "プレビュー失敗",
     "translated": "翻訳済み",
     "chapterSummaryComplete": "{{count}}p・完了",
     "chapterSummaryRemaining": "{{count}}p・残り{{remaining}}",
@@ -513,7 +514,7 @@
     "workUnavailable": "作品情報を読み込めませんでした。現在のページだけを処理します。",
     "currentPageSummary": "現在のページだけを消去します。",
     "allPagesSummary": "現在の話の全{{count}}ページを消去します。",
-    "bubbleLayout": "消去後に吹き出しへ合わせる",
+    "bubbleLayout": "インペインティング後に吹き出し合わせ",
     "bubbleLayoutHint": "消去後の画像から吹き出し領域を検出し、翻訳文の配置も自動調整します。"
   },
   "translationOptions": {
@@ -562,7 +563,7 @@
       "on": "ブロックの大きさに合わせて翻訳文の改行を整えます。"
     },
     "autoFontMatching": "フォント自動調整",
-    "autoFontMatchingSummary": "原文の文字形状を見て、セリフ・ナレーション・強調・効果音に合うフォントをブロックごとに自動適用します。同じ話の本文一貫性は弱い手掛かりとして扱い、検証基準を満たさない結果は適用しません。",
+    "autoFontMatchingSummary": "原文の雰囲気に合う韓国語フォントをブロックごとに自動適用します。",
     "completionMode": "完了方法",
     "completionModeTranslate": "翻訳のみ",
     "completionModeErase": "原文を消去",
@@ -570,7 +571,7 @@
       "translate": "翻訳だけを完了し、元画像はそのまま残します。",
       "erase": "翻訳後、選択したページの原文を自動で消去します。"
     },
-    "bubbleLayoutWorkflow": "吹き出しフィット",
+    "bubbleLayoutWorkflow": "吹き出し合わせ",
     "bubbleLayoutWorkflowOff": "使用しない",
     "bubbleLayoutWorkflowOn": "使用する",
     "bubbleLayoutWorkflowHint": "原文を消去した後、翻訳ブロックを吹き出し内へ自然に収めます。",
@@ -620,7 +621,7 @@
     "clearAll": "すべて解除",
     "selectedSummary": "{{visible}}件中{{selected}}件を選択",
     "initialTitle": "公開Webページから画像を読み込みます",
-    "initialHint": "リンクを入力すると、大きな画像からページ順に表示します。",
+    "initialHint": "初期設定では、大きな画像だけをページの上から下の順に表示します。",
     "noMatchingImages": "このサイズの画像はありません",
     "tryAnotherFilter": "すべて、または中以上に範囲を広げてください。",
     "skippedResult": "未対応・重複・破損画像を{{skipped}}件除外しました。",
@@ -643,7 +644,7 @@
     "errors": {
       "invalidUrl": "有効な公開Webページのリンクを入力してください。",
       "invalid-url": "この形式のリンクは開けません。",
-      "private-address": "ローカル・プライベートネットワークのアドレスは開けません。",
+      "private-address": "安全のため、ローカル・プライベートネットワークのアドレスは開けません。",
       "page-unavailable": "ページを開けません。公開リンクか確認してください。",
       "timed-out": "読み込みに時間がかかりすぎました。もう一度お試しください。",
       "busy": "別の処理が実行中です。完了後にお試しください。",
@@ -671,7 +672,7 @@
     "chapterTitle": "話のタイトル",
     "liveResults": {
       "enable": "結果フォルダーに自動保存",
-      "description": "結果/作品名/話名に保存します。編集を停止して3秒後、変更されたページだけを更新します。",
+      "description": "結果を作品・話ごとのフォルダーに保存します。",
       "format": "自動保存形式"
     }
   },
@@ -980,6 +981,7 @@
     "defaultFont": "既定のフォント",
     "formatDisabled": "処理中は書式を適用できません。",
     "directFormatTitle": "選択したブロックの書式を編集",
+    "presetHint": "保存したプリセットを選択中のブロックに読み込みます。",
     "previewTitle": "適用プレビュー",
     "previewBasis": "最初の選択ブロックを基準に、変更をすぐ反映します。",
     "previewTextLabel": "サンプル文",
@@ -1214,7 +1216,7 @@
       "currentPageAction": "原文を消去",
       "eraseShort": "原文を消去",
       "bubbleLayoutAction": "現在のページの吹き出しを自動検出",
-      "bubbleLayoutShort": "吹き出し調整",
+      "bubbleLayoutShort": "吹き出し合わせ",
       "bubbleLayoutRequiresBlocks": "先に現在のページを消去してください。",
       "nextRetouch": "次へ: 補正 →",
       "noOpenChapter": "話が開かれていません。",
@@ -1264,7 +1266,6 @@
   },
   "settings": {
     "title": "設定",
-    "applyNextRun": "次回の翻訳実行から適用されます。",
     "tabs": {
       "ariaLabel": "設定項目",
       "general": "一般",
@@ -1280,14 +1281,14 @@
       "languageDescription": "アプリ全体で使用する表示言語を変更します。"
     },
     "results": {
-      "description": "作品・話ごとに自動保存を設定します。既定: 結果/作品名/話名",
+      "description": "作品・話ごとに結果の自動保存を設定します。",
       "empty": "管理できる作品がライブラリにありません。",
       "searchLabel": "結果の自動保存を検索",
       "searchPlaceholder": "作品・話を検索",
-      "noSearchResults": "一致する作品・話がありません。",
+      "noSearchResults": "条件に一致する作品・話がありません。",
       "chapterCount": "{{count}}話",
       "toggleChapter": "{{title}}の結果を自動保存",
-      "defaultLocationReady": "有効にすると既定の結果フォルダーに保存",
+      "defaultLocationReady": "既定の結果フォルダーに保存",
       "defaultLocation": "既定の結果フォルダー",
       "customLocation": "指定フォルダー",
       "moreActions": "自動保存のその他の操作",
@@ -1462,7 +1463,7 @@
       "fluxBackends": {
         "metal": {
           "label": "Apple Metal",
-          "description": "Apple SiliconでFlux Kleinを実行するMetalネイティブランタイムです。"
+          "description": "Apple SiliconでFlux Kleinを実行するために必須のMetalネイティブランタイムです。"
         },
         "cuda": {
           "label": "NVIDIA CUDA",
@@ -1497,7 +1498,7 @@
       }
     },
     "translation": {
-      "title": "翻訳言語",
+      "title": "翻訳言語設定",
       "source": "原文の言語",
       "target": "翻訳先の言語",
       "swapTitle": "原文と翻訳先の言語を入れ替えます",
@@ -1685,14 +1686,15 @@
       "fluxAppleNote": "Apple SiliconではMetalネイティブのみ使用します。Fluxは16GB以上のユニファイドメモリを推奨します。",
       "fluxNvidiaNote": "検出されたNVIDIA GPUではZLUDAではなくCUDAネイティブを使用します。",
       "fluxOnlyNote": "この設定はFlux Kleinモデルにのみ適用されます。",
-      "fluxLowMemoryConfirm": "ユニファイドメモリ{{available}}はFlux推奨の16GB未満です。危険な実行を許可しますか？",
+      "fluxLowMemoryConfirm": "ユニファイドメモリ{{available}}はFlux推奨の16GB未満です。アプリが終了したり、システムが非常に遅くなったりする可能性があります。この危険な実行を許可しますか？",
       "fluxLowMemoryOverride": "ユニファイドメモリ{{available}}で危険なFlux実行を許可",
       "sm75FluxWarningTitle": "RTX 20シリーズ専用",
       "sm75FluxWarningDetail": "通常のNVIDIA CUDAとは動作や結果が少し異なる場合があります。",
       "fluxAmdUnsupportedTitle": "AMDの公式サポート対象外GPU",
       "fluxAmdUnsupportedDetail": "{{gpu}}は現在のWindows HIP SDK公式サポート一覧に含まれていません。ZLUDAを実験的に選択できますが、実行時エラーが発生する可能性があります。",
       "fluxAmdUseCpu": "CPUバックエンドに切り替える",
-      "downloadHipSdk": "AMD HIP SDKをダウンロード"
+      "downloadHipSdk": "AMD HIP SDKをダウンロード",
+      "openLinkFailed": "リンクを開けませんでした。既定のブラウザーを確認してください。"
     },
     "format": {
       "alignment": {
@@ -1779,7 +1781,7 @@
         "duplicate-block": "選択したブロックを複製",
         "toggle-block-excluded": "ブロックの除外を切り替え",
         "toggle-command-palette": "コマンドパレット",
-        "toggle-shortcut-help": "キーボードショートカット",
+        "toggle-shortcut-help": "ショートカットヘルプ",
         "open-settings": "設定を開く"
       }
     },
@@ -1907,7 +1909,7 @@
     "sortName": "名前順",
     "loading": "ブロックライブラリを読み込み中…",
     "empty": "保存されたブロックはありません。ブロック操作メニューから保存できます。",
-    "noSearchResults": "検索結果がありません。",
+    "noSearchResults": "条件に一致するブロックがありません。",
     "noPage": "挿入先のページがありません。保存済みブロックの管理はできます。",
     "missingFont": "フォントなし・代替フォントでプレビュー",
     "edit": "ブロックを編集",

@@ -167,12 +167,10 @@ describe("ExportOptionsModal", () => {
     expect(screen.getByText("p1.png")).toBeTruthy();
     expect(screen.getByText("p2.png")).toBeTruthy();
     expect(
-      (
-        screen.getByRole("checkbox", {
-          name: "글자 없이 출력",
-        }) as HTMLInputElement
-      ).checked,
-    ).toBe(false);
+      screen
+        .getByRole("switch", { name: "글자 없이 출력" })
+        .getAttribute("aria-checked"),
+    ).toBe("false");
 
     fireEvent.click(screen.getByRole("button", { name: "결과물 출력" }));
 
@@ -306,7 +304,7 @@ describe("ExportOptionsModal", () => {
   it("exports only the inpainted background when textless output is enabled", async () => {
     const { onStart } = await renderModal(false);
 
-    fireEvent.click(screen.getByRole("checkbox", { name: "글자 없이 출력" }));
+    fireEvent.click(screen.getByRole("switch", { name: "글자 없이 출력" }));
 
     await waitFor(() =>
       expect(preflightPageImages).toHaveBeenLastCalledWith(
@@ -349,7 +347,7 @@ describe("ExportOptionsModal", () => {
     }));
     await renderModal(false);
 
-    fireEvent.click(screen.getByRole("checkbox", { name: "글자 없이 출력" }));
+    fireEvent.click(screen.getByRole("switch", { name: "글자 없이 출력" }));
 
     expect(
       await screen.findByText(

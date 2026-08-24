@@ -4,6 +4,7 @@ import type { TFunction } from "i18next";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import { reorderByTarget } from "../lib/appHelpers";
 import { formatErrorMessage } from "../lib/errorPresentation";
+import { toast } from "../lib/toastStore";
 import { libraryGateway } from "../api/libraryGateway";
 import type {
   ApplyChapterAction,
@@ -46,7 +47,6 @@ async function saveDirtyPagesBeforePersistingPageOrder(
     }
     return true;
   } catch (error) {
-    console.error(error);
     pushStatus(
       formatErrorMessage(error, t("library.order.saveBeforePageOrderFailed")),
     );
@@ -98,7 +98,6 @@ function refreshLibraryAfterPageReorder(
   t: TFunction<"renderer">,
 ): void {
   void refreshLibrary().catch((error) => {
-    console.error(error);
     pushStatus(formatErrorMessage(error, t("library.refreshFailed")));
   });
 }
@@ -207,7 +206,6 @@ async function persistPageOrderAfterOptimisticReorder({
     applyChapter(chapter);
     refreshLibraryAfterPageReorder(refreshLibrary, pushStatus, t);
   } catch (error) {
-    console.error(error);
     rollbackOptimisticPageOrder({
       currentChapter,
       currentChapterRef,
@@ -215,11 +213,13 @@ async function persistPageOrderAfterOptimisticReorder({
       previousOrder,
       setCurrentChapter,
     });
+    // The list visibly snaps back; without a notice that reads as a bug.
     const message = formatErrorMessage(
       error,
       t("library.order.pageSaveFailed"),
     );
     pushStatus(t("library.order.rolledBackAfterError", { message }));
+    toast.error(message);
   }
 }
 

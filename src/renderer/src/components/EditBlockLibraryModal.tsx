@@ -17,8 +17,8 @@ import {
 } from "./blockLibraryModel";
 import { EditorPanel } from "./EditorPanel";
 import { clampFontSize } from "./editorPanelUtils";
-import { AppModal } from "./ConfirmModal";
 import { TextField } from "./ui/Field";
+import { Modal } from "./ui/Modal";
 import { ModalActionBar, ModalActionButtons } from "./ui/ModalActionBar";
 import styles from "./BlockLibraryModals.module.css";
 
@@ -36,13 +36,14 @@ export function EditBlockLibraryModal(
 ): React.JSX.Element {
   const state = useBlockLibraryEditState(props);
   return (
-    <AppModal
+    <Modal
       size="xl"
       title={state.t("blockLibrary.editTitle")}
       closeDisabled={state.busy}
       onClose={props.onClose}
-      cardClassName={styles.editorModalCard}
-      bodyClassName={styles.editorModalBody}
+      fillHeight
+      maxHeight="820px"
+      bodyLayout="fill"
       footer={
         <ModalActionBar
           actions={
@@ -63,7 +64,7 @@ export function EditBlockLibraryModal(
       }
     >
       <BlockLibraryEditorContent entry={props.entry} state={state} />
-    </AppModal>
+    </Modal>
   );
 }
 

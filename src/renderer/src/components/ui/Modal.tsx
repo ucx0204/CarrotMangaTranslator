@@ -21,17 +21,60 @@ function getFocusable(container: HTMLElement): HTMLElement[] {
 
 type ModalSize = "sm" | "md" | "lg" | "xl";
 
-export type ModalProps = {
-  title?: React.ReactNode;
+/**
+ * How the scrollable body arranges its children.
+ * - `grid` (default): stacked rows with the standard gap and padding.
+ * - `flex`: a column that owns its own overflow, for bodies with a scrolling child.
+ * - `fill`: the default grid, stretched to the dialog height, for bodies whose
+ *   row tracks are sized by the caller.
+ * - `bare`: a column with no gap or padding; the caller renders its own shell.
+ */
+type ModalBodyLayout = "grid" | "flex" | "fill" | "bare";
+
+/**
+ * A dialog is named by its visible `title`, or by `ariaLabel` when it has no
+ * visible title. Supplying both is a mistake — `title` always wins — so the two
+ * are mutually exclusive by type.
+ */
+type ModalAccessibleName =
+  | { title: React.ReactNode; ariaLabel?: never }
+  | { title?: undefined; ariaLabel: string };
+
+export type ModalProps = ModalAccessibleName & {
   /** Called by the close button, Esc, and backdrop click (when enabled). Omit to hide the close button. */
   onClose?: () => void;
+  /**
+   * Keeps the close affordance visible but inert (e.g. while saving).
+   * Prefer this over dropping `onClose`, which would remove the close button
+   * and silently disable Esc.
+   */
   closeDisabled?: boolean;
+  /**
+   * Opt in only when a stray click cannot destroy work: read-only guides and
+   * single-choice confirmations. Dialogs holding typed text, a draft, or a
+   * multi-item selection must leave this off.
+   */
   closeOnBackdrop?: boolean;
   closeOnEsc?: boolean;
   size?: ModalSize;
   /** Explicit CSS width for the dialog card; overrides `size`. */
   width?: string;
-  ariaLabel?: string;
+  /**
+   * Caps the card height, e.g. `"900px"`. The viewport bound is always applied
+   * on top of it, so callers must not restate a `calc(100vh - …)` expression.
+   */
+  maxHeight?: string;
+  /**
+   * Takes the whole capped height instead of hugging the content, for dialogs
+   * whose content streams in and would otherwise resize under the pointer.
+   */
+  fillHeight?: boolean;
+  bodyLayout?: ModalBodyLayout;
+  /**
+   * Stacking tier. `blocking` lifts the dialog above other dialogs for
+   * app-blocking progress that must not be covered.
+   */
+  elevation?: "dialog" | "blocking";
   /** Extra class applied to the dialog card (e.g. for custom widths). */
   cardClassName?: string;
   /** Extra class applied to the scrollable body. */
@@ -41,32 +84,15 @@ export type ModalProps = {
   children: React.ReactNode;
 };
 
-export function Modal({
-  title,
-  onClose,
-  closeDisabled = false,
-  closeOnBackdrop = false,
-  closeOnEsc = true,
-  size = "md",
-  width,
-  ariaLabel,
-  cardClassName,
-  bodyClassName,
-  headerExtra,
-  footer,
-  children,
-}: ModalProps): React.JSX.Element {
+export function Modal(props: ModalProps): React.JSX.Element {
+  const { closeDisabled = false, closeOnBackdrop = false, onClose } = props;
   const cardRef = React.useRef<HTMLDivElement | null>(null);
   const [modalId] = React.useState(() => Symbol("modal"));
-  const titleId = React.useId();
-  const accessibleName = resolveModalAccessibleName(title, ariaLabel, titleId);
-  const showHeader = Boolean(title) || Boolean(headerExtra) || Boolean(onClose);
-  const handleCardKeyDown = useModalFocusTrap(cardRef, modalId);
 
   useModalStackRegistration(modalId);
   useModalEscapeClose({
     closeDisabled,
-    closeOnEsc,
+    closeOnEsc: props.closeOnEsc ?? true,
     modalId,
     onClose,
   });
@@ -74,7 +100,12 @@ export function Modal({
 
   return (
     <div
-      className={styles.backdrop}
+      className={[
+        styles.backdrop,
+        props.elevation === "blocking" ? styles.backdropBlocking : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       role="presentation"
       onMouseDown={(event) => {
         if (
@@ -85,39 +116,95 @@ export function Modal({
         }
       }}
     >
-      <div
-        ref={cardRef}
-        className={[styles.card, styles[size], cardClassName ?? ""]
-          .filter(Boolean)
-          .join(" ")}
-        style={width ? { width } : undefined}
-        role="dialog"
-        aria-modal="true"
-        {...accessibleName}
-        tabIndex={-1}
-        onKeyDown={handleCardKeyDown}
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        {showHeader ? (
-          <ModalHeader
-            closeDisabled={closeDisabled}
-            headerExtra={headerExtra}
-            onClose={onClose}
-            title={title}
-            titleId={titleId}
-          />
-        ) : null}
-        <div
-          className={[styles.body, bodyClassName ?? ""]
-            .filter(Boolean)
-            .join(" ")}
-        >
-          {children}
-        </div>
-        {footer ? <div className={styles.footer}>{footer}</div> : null}
-      </div>
+      <ModalCard cardRef={cardRef} modalId={modalId} props={props} />
     </div>
   );
+}
+
+function ModalCard({
+  cardRef,
+  modalId,
+  props,
+}: {
+  cardRef: React.RefObject<HTMLDivElement | null>;
+  modalId: symbol;
+  props: ModalProps;
+}): React.JSX.Element {
+  const {
+    bodyClassName,
+    bodyLayout = "grid",
+    cardClassName,
+    children,
+    closeDisabled = false,
+    footer,
+    headerExtra,
+    onClose,
+    size = "md",
+    title,
+  } = props;
+  const titleId = React.useId();
+  const handleCardKeyDown = useModalFocusTrap(cardRef, modalId);
+  const showHeader = Boolean(title) || Boolean(headerExtra) || Boolean(onClose);
+  return (
+    <div
+      ref={cardRef}
+      className={[
+        styles.card,
+        styles[size],
+        props.fillHeight ? styles.cardFillHeight : "",
+        cardClassName ?? "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      style={resolveCardStyle(props.width, props.maxHeight)}
+      role="dialog"
+      aria-modal="true"
+      {...resolveModalAccessibleName(title, props.ariaLabel, titleId)}
+      tabIndex={-1}
+      onKeyDown={handleCardKeyDown}
+      onMouseDown={(event) => event.stopPropagation()}
+    >
+      {showHeader ? (
+        <ModalHeader
+          closeDisabled={closeDisabled}
+          headerExtra={headerExtra}
+          onClose={onClose}
+          title={title}
+          titleId={titleId}
+        />
+      ) : null}
+      <div
+        className={[
+          styles.body,
+          bodyLayoutClass(bodyLayout),
+          bodyClassName ?? "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        {children}
+      </div>
+      {footer ? <div className={styles.footer}>{footer}</div> : null}
+    </div>
+  );
+}
+
+function bodyLayoutClass(layout: ModalBodyLayout): string {
+  if (layout === "flex") return styles.bodyFlex;
+  if (layout === "fill") return styles.bodyFill;
+  if (layout === "bare") return styles.bodyBare;
+  return "";
+}
+
+function resolveCardStyle(
+  width: string | undefined,
+  maxHeight: string | undefined,
+): React.CSSProperties | undefined {
+  if (!width && !maxHeight) return undefined;
+  return {
+    ...(width ? { width } : {}),
+    ...(maxHeight ? { "--modal-cap": maxHeight } : {}),
+  } as React.CSSProperties;
 }
 
 function resolveModalAccessibleName(
@@ -186,8 +273,17 @@ function useModalInitialFocus(
         : null;
     const card = cardRef.current;
     if (card) {
-      const focusable = getFocusable(card);
-      (focusable[0] ?? card).focus();
+      const requested = card.querySelector<HTMLElement>(
+        "[data-modal-initial-focus], [autofocus]",
+      );
+      /*
+       * The close button lives before the body in DOM order. Focusing the
+       * first generic control therefore opened every dialog with its least
+       * important action highlighted in the accent colour. Keep a deliberate
+       * autofocus request when a workflow has one; otherwise focus the dialog
+       * itself and let the first Tab enter the normal focus order.
+       */
+      (requested ?? card).focus();
     }
     return () => {
       previouslyFocused?.focus?.();

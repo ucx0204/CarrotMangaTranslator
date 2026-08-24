@@ -52,6 +52,7 @@ export function Select(props: SelectProps): React.JSX.Element {
         listboxId={listboxId}
         open={open}
         title={props.title}
+        triggerExtra={props.triggerExtra}
         value={props.value}
         onClose={close}
         onKeyDown={handleNavigationKeyDown}
@@ -66,6 +67,7 @@ export function Select(props: SelectProps): React.JSX.Element {
           emptyText={t("select.noResults")}
           hasSearch={hasSearch}
           header={props.menuHeader}
+          footer={props.menuFooter}
           listboxId={listboxId}
           options={visibleOptions}
           position={position}
@@ -94,6 +96,7 @@ type SelectTriggerProps = {
   listboxId: string;
   open: boolean;
   title: string | undefined;
+  triggerExtra: React.ReactNode;
   value: string;
   onClose: (restoreFocus?: boolean) => void;
   onKeyDown: (event: React.KeyboardEvent) => void;
@@ -114,6 +117,7 @@ const SelectTrigger = React.forwardRef<HTMLButtonElement, SelectTriggerProps>(
       listboxId,
       open,
       title,
+      triggerExtra,
       value,
       onClose,
       onKeyDown,
@@ -144,6 +148,7 @@ const SelectTrigger = React.forwardRef<HTMLButtonElement, SelectTriggerProps>(
         <OverflowTooltipText className={styles.value} content={displayTooltip}>
           {displayValue}
         </OverflowTooltipText>
+        {triggerExtra}
         <ChevronDownIcon
           size={16}
           className={[styles.chevron, open ? styles.chevronOpen : ""]
