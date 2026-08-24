@@ -10,6 +10,8 @@ type TranslationRunOptions = {
   naturalTextLayout?: boolean;
   /** Choose locale-compatible fonts for newly detected translation blocks. */
   autoFontMatching?: boolean;
+  /** Match newly created text size to the source glyph face when reliable. */
+  fontSizeAutoFit?: boolean;
   /** Required downstream stage for a combined translation workflow. */
   completionWorkflow?: TranslationCompletionWorkflow;
 };

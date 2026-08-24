@@ -322,6 +322,9 @@ export const TranslationBlockObjectSchema = z
     /** Removed in v1.16; accepted only so older projects can be migrated. */
     automaticFontMatch: z.unknown().optional(),
     fontSizePx: blockFormatValueSchemas.FontSizePxSchema,
+    sourceFontFacePx: blockFormatValueSchemas.FontSizePxSchema.optional(),
+    sourceFontSizeConfidence: z.number().min(0).max(1).optional(),
+    sourceFontSizeMethod: z.literal("raster-core-v1").optional(),
     lineHeight: blockFormatValueSchemas.LineHeightSchema,
     letterSpacing: blockFormatValueSchemas.LetterSpacingSchema.optional(),
     fontWidthScale: blockFormatValueSchemas.FontWidthScaleSchema.optional(),

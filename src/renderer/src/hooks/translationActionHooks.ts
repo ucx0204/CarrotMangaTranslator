@@ -71,6 +71,7 @@ export function useTranslationActionsImpl(
       options.translationWorkflowDefault ?? "cumulative",
     autoFontMatchingDefault: options.autoFontMatchingDefault ?? false,
     naturalTextLayoutDefault: options.naturalTextLayoutDefault ?? true,
+    fontSizeAutoFitDefault: options.fontSizeAutoFitDefault ?? true,
   });
   const runAnalysis = useCheckpointedRunAnalysis(rawRunAnalysis, options);
   const runTranslationFlow = useCheckpointedTranslationFlow(

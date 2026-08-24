@@ -30,6 +30,13 @@
       "replacement": "No replacement; this is an intentionally retained visual A/B diagnostic."
     },
     {
+      "path": "scripts/research_source_font_size_render.cjs",
+      "status": "manual-debug",
+      "purpose": "Render sealed original, current auto-fit, and source-size-capped manga pages through the production exporter for visual A/B/C research.",
+      "usage": "Set MGT_SOURCE_SIZE_MANIFEST, MGT_SOURCE_SIZE_RENDER_OUTPUT, MGT_SOURCE_SIZE_USER_DATA, and optionally MGT_SOURCE_SIZE_CONFIGS, then run Electron with scripts/research_source_font_size_render.cjs.",
+      "replacement": "No replacement; this is an intentionally retained source-font-size visual QA harness."
+    },
+    {
       "path": "scripts/run_koharu_layout_onnx_probe.cjs",
       "status": "manual-debug",
       "purpose": "Run one pinned KoharuLayout ONNX page through CPU, DirectML, or WebGPU and report runtime/output diagnostics.",

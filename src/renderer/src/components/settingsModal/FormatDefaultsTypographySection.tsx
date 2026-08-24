@@ -75,7 +75,10 @@ function DefaultsTypographyTypeRow({
 }: Omit<DefaultsTypographyProps, "allowAutoDirection">): React.JSX.Element {
   const { t } = useTranslation("components");
   const updateFontSize = (fontSizePx: number): void =>
-    onChange({ fontSizePx: clampFontSizePx(fontSizePx), autoFitText: false });
+    onChange({
+      fontSizePx: clampFontSizePx(fontSizePx),
+      ...(presetGroups ? { autoFitText: false } : {}),
+    });
   return (
     <div className="gather-direct-editor-type-row">
       <PresetGroupControl availability={presetGroups} groupId="font">
@@ -96,20 +99,24 @@ function DefaultsTypographyTypeRow({
           onChange={updateFontSize}
         />
       </PresetGroupControl>
-      <PresetGroupControl
-        availability={presetGroups}
-        className="format-preset-auto-control-guard"
-        groupId="size"
-      >
-        <BlockTypographyPillToggle
-          label={t("gatherText.autoFitLabel")}
-          pressed={value.autoFitText}
-          text={t(
-            value.autoFitText ? "gatherText.toggleOn" : "gatherText.toggleOff",
-          )}
-          onClick={() => onChange({ autoFitText: !value.autoFitText })}
-        />
-      </PresetGroupControl>
+      {presetGroups ? (
+        <PresetGroupControl
+          availability={presetGroups}
+          className="format-preset-auto-control-guard"
+          groupId="size"
+        >
+          <BlockTypographyPillToggle
+            label={t("gatherText.autoFitLabel")}
+            pressed={value.autoFitText}
+            text={t(
+              value.autoFitText
+                ? "gatherText.toggleOn"
+                : "gatherText.toggleOff",
+            )}
+            onClick={() => onChange({ autoFitText: !value.autoFitText })}
+          />
+        </PresetGroupControl>
+      ) : null}
     </div>
   );
 }

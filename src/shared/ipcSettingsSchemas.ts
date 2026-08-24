@@ -253,6 +253,7 @@ export const AppSettingsSchema = z
         blockModeDefault: z.enum(["auto", "keep"]).optional(),
         naturalTextLayoutDefault: z.boolean().optional(),
         autoFontMatchingDefault: z.boolean().optional(),
+        fontSizeAutoFitDefault: z.boolean().optional(),
         eraseOriginalWorkflowDefault: z.boolean().optional(),
         bubbleLayoutWorkflowDefault: z.boolean().optional(),
       })

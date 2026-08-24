@@ -17,6 +17,7 @@ import {
 } from "./blockTextMeasurement";
 import { resolveBubbleWrappedText } from "./bubbleBlockTextLayout";
 import { type BlockTextLine } from "./overlayTextWrapping";
+import { resolveSourceMatchedFontSizeCapPx } from "./sourceFontSizeMatching";
 
 const MIN_FONT_SIZE_PX = MIN_READABLE_FONT_SIZE_PX;
 const MAX_AUTOFIT_FONT_SIZE_PX = 256;
@@ -172,11 +173,18 @@ function resolveBlockTextMetrics(
     MIN_FONT_SIZE_PX,
     Math.floor(block.fontSizePx * scale),
   );
+  const sourceMatchedCapPx = resolveSourceMatchedFontSizeCapPx(
+    block,
+    text,
+    input.fontCatalog,
+  );
   const maxFontSize = resolveAutoFitUpperBound(
     block,
     preferredFontSize,
     fitInnerWidth,
     fitInnerHeight,
+    scale,
+    sourceMatchedCapPx,
   );
   const bubbleMeasurer = createBubbleMeasurer(input);
   const fontSizePx = resolveTextFontSizePx(
@@ -329,6 +337,8 @@ function resolveAutoFitUpperBound(
   preferredFontSize: number,
   innerWidth: number,
   innerHeight: number,
+  layoutScale: number,
+  sourceMatchedCapPx: number | null,
 ): number {
   if (!(block.autoFitText ?? true)) {
     return preferredFontSize;
@@ -347,6 +357,18 @@ function resolveAutoFitUpperBound(
     MIN_FONT_SIZE_PX,
     MAX_AUTOFIT_FONT_SIZE_PX,
   );
-  if (block.fontRole !== "sign_ui_title") return genericUpperBound;
-  return Math.min(genericUpperBound, preferredFontSize * 2);
+  const roleBound =
+    block.fontRole === "sign_ui_title"
+      ? Math.min(genericUpperBound, preferredFontSize * 2)
+      : genericUpperBound;
+  if (!Number.isFinite(sourceMatchedCapPx) || Number(sourceMatchedCapPx) <= 0) {
+    return roleBound;
+  }
+  return Math.min(
+    roleBound,
+    Math.max(
+      MIN_FONT_SIZE_PX,
+      Math.floor(Number(sourceMatchedCapPx) * layoutScale),
+    ),
+  );
 }

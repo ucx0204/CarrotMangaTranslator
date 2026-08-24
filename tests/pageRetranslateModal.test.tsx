@@ -45,7 +45,12 @@ describe("PageRetranslateModal", () => {
       screen.getByRole("button", { name: "이 페이지 다시 번역" }),
     );
 
-    expect(onStart).toHaveBeenCalledWith("auto", true, false);
+    expect(
+      screen
+        .getByRole("switch", { name: "글자 크기 자동 맞춤" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
+    expect(onStart).toHaveBeenCalledWith("auto", true, false, true);
     expect(onPersistDefaults).not.toHaveBeenCalled();
   });
 
@@ -68,10 +73,11 @@ describe("PageRetranslateModal", () => {
       screen.getByRole("button", { name: "이 페이지 다시 번역" }),
     );
 
-    expect(onStart).toHaveBeenCalledWith("auto", false, false);
+    expect(onStart).toHaveBeenCalledWith("auto", false, false, true);
     expect(onPersistDefaults).toHaveBeenCalledWith({
       autoFontMatchingDefault: false,
       blockModeDefault: "auto",
+      fontSizeAutoFitDefault: true,
       naturalTextLayoutDefault: false,
     });
   });
@@ -95,7 +101,7 @@ describe("PageRetranslateModal", () => {
       screen.getByRole("button", { name: "이 페이지 다시 번역" }),
     );
 
-    expect(onStart).toHaveBeenCalledWith("auto", true, true);
+    expect(onStart).toHaveBeenCalledWith("auto", true, true, true);
     expect(onPersistDefaults).toHaveBeenCalledWith(
       expect.objectContaining({ autoFontMatchingDefault: true }),
     );

@@ -69,37 +69,21 @@ describe("FormatDefaultsPanel", () => {
     expect(onChange).toHaveBeenLastCalledWith({ bold: true });
   });
 
-  it("turns off auto fit when the size stepper is used", () => {
+  it("changes the manual default size without exposing run-level auto fit", () => {
     const onChange = vi.fn();
     const { container } = renderPanel(onChange);
 
     fireEvent.click(screen.getByRole("button", { name: "글자 크기 늘리기" }));
 
-    expect(onChange).toHaveBeenLastCalledWith({
-      fontSizePx: 24.5,
-      autoFitText: false,
-    });
+    expect(onChange).toHaveBeenLastCalledWith({ fontSizePx: 24.5 });
+    expect(screen.queryByRole("button", { name: "켜짐" })).toBeNull();
     expect(
       container.querySelector<HTMLElement>(".gather-direct-preview-text")?.style
         .fontSize,
     ).toBe("24.5px");
 
     fireEvent.click(screen.getByRole("button", { name: "글자 크기 줄이기" }));
-    expect(onChange).toHaveBeenLastCalledWith({
-      fontSizePx: 24,
-      autoFitText: false,
-    });
-  });
-
-  it("toggles auto fit without changing the explicit size", () => {
-    const onChange = vi.fn();
-    renderPanel(onChange);
-
-    const toggle = screen.getByRole("button", { name: "켜짐" });
-    expect(toggle.getAttribute("aria-pressed")).toBe("true");
-    fireEvent.click(toggle);
-
-    expect(onChange).toHaveBeenLastCalledWith({ autoFitText: false });
+    expect(onChange).toHaveBeenLastCalledWith({ fontSizePx: 24 });
   });
 
   it("accepts a directly typed default font size", () => {
@@ -112,10 +96,7 @@ describe("FormatDefaultsPanel", () => {
     });
     fireEvent.keyDown(input, { key: "Enter" });
 
-    expect(onChange).toHaveBeenLastCalledWith({
-      fontSizePx: 50,
-      autoFitText: false,
-    });
+    expect(onChange).toHaveBeenLastCalledWith({ fontSizePx: 50 });
     expect(
       container.querySelector<HTMLElement>(".gather-direct-preview-text")?.style
         .fontSize,
@@ -268,12 +249,14 @@ describe("FormatDefaultsPanel", () => {
     expect(screen.queryByRole("slider", { name: "안쪽 여백" })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "글자 크기" }));
+    fireEvent.click(screen.getByRole("button", { name: "켜짐" }));
     fireEvent.click(screen.getByRole("button", { name: "글자 크기 늘리기" }));
 
     expect(onDefaultChange).not.toHaveBeenCalled();
     expect(screen.getByTestId("default-size").textContent).toBe("24");
     expect(screen.getByTestId("preset-size").textContent).toBe("24.5");
     expect(screen.getByTestId("preset-groups").textContent).toContain("size");
+    expect(screen.getByTestId("preset-auto-fit").textContent).toBe("false");
     expect(
       screen
         .getByRole("button", { name: "글자 크기" })
@@ -380,6 +363,9 @@ function FormatPresetHarness({
       </output>
       <output data-testid="preset-groups">
         {presets[0]?.groupIds.join(",")}
+      </output>
+      <output data-testid="preset-auto-fit">
+        {String(presets[0]?.format.autoFitText)}
       </output>
     </>
   );

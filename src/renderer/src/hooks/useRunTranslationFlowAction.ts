@@ -130,6 +130,7 @@ async function runTranslationFlowPasses({
     options.workflowMode === "cumulative",
     naturalTextLayout,
     options.autoFontMatching,
+    options.fontSizeAutoFit,
     t,
     completionWorkflow,
     true,

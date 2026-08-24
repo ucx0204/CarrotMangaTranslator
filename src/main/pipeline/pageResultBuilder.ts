@@ -41,7 +41,7 @@ import type { ProgressContext } from "./progressEvents";
 import type { TranslationRuntimePort } from "./translationRuntimePort";
 import { parsePageResponse } from "./pageResponseParser";
 import { buildTranslatedPageResult } from "./translatedPageResult";
-import { runAutomaticFontMatchingV2PageStage } from "./automaticFontMatchingV2PageStage";
+import { runPageTypographyStages } from "./pageTypographyStages";
 import { attachFontMatchingFixedBlockCandidateMembership } from "./fontMatchingOcrGeometryDirection";
 import type { FontMatchingPageInferencePort } from "./fontMatchingPagePixelInferenceTypes";
 import type { AutomaticFontPageCoordinatorV2 } from "./automaticFontMatchingV2PageCoordinator";
@@ -267,14 +267,15 @@ export async function buildPageResult({
         previousBlocks: pageOptions.previousBlocksForPrompt ?? [],
       })
     : undefined;
-  const pixelInference = await runAutomaticFontMatchingV2PageStage({
-    jobId,
-    page,
-    pageOptions,
-    items: fontInferenceItems,
-    inferenceBlocks: keepBlocksInferenceBlocks,
-    port: fontMatchingPageInference,
-  });
+  const { pixelInference, sourceFontSizeEstimates } =
+    await runPageTypographyStages({
+      jobId,
+      page,
+      pageOptions,
+      items: fontInferenceItems,
+      inferenceBlocks: keepBlocksInferenceBlocks,
+      port: fontMatchingPageInference,
+    });
   if (pageOptions.keepBlocksMode) {
     const kept = buildKeepBlocksCompletedPage({
       page,
@@ -309,6 +310,7 @@ export async function buildPageResult({
     pageContext: parsed.pageContext,
     fontMatchingPageInference: pixelInference,
     fontMatchingChapterCoordinator,
+    sourceFontSizeEstimates,
   });
 }
 

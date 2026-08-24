@@ -170,6 +170,7 @@ function useTranslationActionController(
       uiDefaults.translationWorkflowDefault ?? "cumulative",
     autoFontMatchingDefault: uiDefaults.autoFontMatchingDefault ?? false,
     naturalTextLayoutDefault: uiDefaults.naturalTextLayoutDefault ?? true,
+    fontSizeAutoFitDefault: uiDefaults.fontSizeAutoFitDefault ?? true,
     recordImageEdit: workspaceHistory.recordImageEdit,
     recordTranslationCheckpoint,
     setCurrentChapter: chapter.core.setCurrentChapter,

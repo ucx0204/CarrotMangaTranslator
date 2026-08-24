@@ -557,6 +557,8 @@
     },
     "autoFontMatching": "自动匹配字体",
     "autoFontMatchingSummary": "为每个文本块自动应用符合原文氛围的韩文字体。",
+    "fontSizeAutoFit": "自动匹配字号",
+    "fontSizeAutoFitSummary": "先按原文可见字形大小匹配译文字号，仅在超出文本块时缩小。",
     "completionMode": "完成方式",
     "completionModeTranslate": "仅翻译",
     "completionModeErase": "擦除原文",

@@ -564,6 +564,8 @@
     },
     "autoFontMatching": "フォント自動調整",
     "autoFontMatchingSummary": "原文の雰囲気に合う韓国語フォントをブロックごとに自動適用します。",
+    "fontSizeAutoFit": "文字サイズ自動調整",
+    "fontSizeAutoFitSummary": "原文の見た目の文字サイズに翻訳文を合わせ、ブロックに収まらない場合だけ縮小します。",
     "completionMode": "完了方法",
     "completionModeTranslate": "翻訳のみ",
     "completionModeErase": "原文を消去",

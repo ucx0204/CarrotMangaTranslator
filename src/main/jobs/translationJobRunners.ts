@@ -26,6 +26,7 @@ import {
 } from "../../shared/pageRevision";
 import { runWholePagePipeline } from "../wholePagePipeline";
 import { throwIfAborted } from "../pipeline/failure";
+import { buildPageIndexById } from "../pipeline/pageFiltering";
 import { isAbortError } from "./jobEvents";
 import type { JobResourceCleanup } from "./jobLifetimeCleanup";
 import type { TranslationJobContext } from "./translationJobTypes";
@@ -124,11 +125,9 @@ export async function runResolvedAnalysisJob(
     collectPageContext: request.collectPageContext,
     naturalTextLayout: request.naturalTextLayout,
     autoFontMatching: request.autoFontMatching,
-    canonicalPageIndexById: new Map(
-      resolved.chapter.pages.map((page, index) => [page.id, index]),
-    ),
+    fontSizeAutoFit: request.fontSizeAutoFit,
+    canonicalPageIndexById: buildPageIndexById(resolved.chapter.pages),
   });
-
   throwIfAborted(abortController.signal);
   return completeAnalysisJob(
     id,

@@ -22,6 +22,7 @@ import type {
   OverlayItem,
   PageContextPayload,
 } from "./types";
+import type { SourceFontSizeEstimate } from "./sourceFontSizeGeometry";
 
 export function buildTranslatedPageResult({
   jobId,
@@ -37,6 +38,7 @@ export function buildTranslatedPageResult({
   pageContext,
   fontMatchingPageInference,
   fontMatchingChapterCoordinator,
+  sourceFontSizeEstimates,
 }: {
   jobId: string;
   page: MangaPage;
@@ -51,6 +53,7 @@ export function buildTranslatedPageResult({
   pageContext?: PageContextPayload;
   fontMatchingPageInference?: FontMatchingPageInferenceResult;
   fontMatchingChapterCoordinator?: AutomaticFontPageCoordinatorV2;
+  sourceFontSizeEstimates?: readonly (SourceFontSizeEstimate | undefined)[];
 }): CompletedPageBuildResult {
   const pixelInferences = collectPagePixelInferences({
     candidates: pageOptions.fontMatchingCandidates ?? [],
@@ -78,6 +81,7 @@ export function buildTranslatedPageResult({
     pageOptions,
     pixelInferences,
     processingOrder,
+    sourceFontSizeEstimates,
   });
   return {
     kind: "completed",
@@ -110,6 +114,7 @@ function buildTranslatedBlocks({
   pageOptions,
   pixelInferences,
   processingOrder,
+  sourceFontSizeEstimates,
 }: {
   fontMatchingPageInference?: FontMatchingPageInferenceResult;
   items: readonly OverlayItem[];
@@ -122,6 +127,7 @@ function buildTranslatedBlocks({
     | undefined
   )[];
   processingOrder: readonly number[];
+  sourceFontSizeEstimates?: readonly (SourceFontSizeEstimate | undefined)[];
 }): TranslationBlock[] {
   const blocks = new Array<TranslationBlock>(items.length);
   for (const itemIndex of processingOrder) {
@@ -145,6 +151,10 @@ function buildTranslatedBlocks({
         runtimeArtifactStatus: fontMatchingPageInference?.runtimeArtifactStatus,
         pixelInference: pixelInferences[itemIndex],
         ...(pageCoordinator ? { pageCoordinator } : {}),
+      },
+      {
+        fontSizeAutoFit: pageOptions.fontSizeAutoFit !== false,
+        sourceFontSize: sourceFontSizeEstimates?.[itemIndex],
       },
     );
   }

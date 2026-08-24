@@ -53,26 +53,13 @@ export function makeStartAnalysisRequest(
     collectPageContext?: boolean;
     naturalTextLayout?: boolean;
     autoFontMatching?: boolean;
+    fontSizeAutoFit?: boolean;
     completionWorkflow?: TranslationCompletionWorkflow;
   },
   t?: TFunction<"renderer">,
 ): StartAnalysisRequest {
-  const {
-    runMode,
-    pageId,
-    pageIds,
-    blockMode,
-    collectPageContext,
-    naturalTextLayout,
-    autoFontMatching,
-    completionWorkflow,
-  } = args;
-  const contextOption =
-    collectPageContext === undefined ? {} : { collectPageContext };
-  const layoutOption =
-    naturalTextLayout === undefined ? {} : { naturalTextLayout };
-  const fontOption = autoFontMatching === undefined ? {} : { autoFontMatching };
-  const completionOption = completionWorkflow ? { completionWorkflow } : {};
+  const { runMode, pageId, pageIds } = args;
+  const shared = buildSharedAnalysisRequest(args);
   if (runMode === "single-page") {
     if (!pageId) {
       throw new Error(
@@ -85,11 +72,7 @@ export function makeStartAnalysisRequest(
       chapterId,
       runMode,
       pageId,
-      blockMode,
-      ...contextOption,
-      ...layoutOption,
-      ...fontOption,
-      ...completionOption,
+      ...shared,
     };
   }
   if (runMode === "page-set") {
@@ -104,21 +87,36 @@ export function makeStartAnalysisRequest(
       chapterId,
       runMode,
       pageIds,
-      blockMode,
-      ...contextOption,
-      ...layoutOption,
-      ...fontOption,
-      ...completionOption,
+      ...shared,
     };
   }
   return {
     chapterId,
     runMode,
-    blockMode,
-    ...contextOption,
-    ...layoutOption,
-    ...fontOption,
-    ...completionOption,
+    ...shared,
+  };
+}
+
+function buildSharedAnalysisRequest(
+  args: Parameters<typeof makeStartAnalysisRequest>[1],
+): Omit<StartAnalysisRequest, "chapterId" | "runMode" | "pageId" | "pageIds"> {
+  return {
+    blockMode: args.blockMode,
+    ...(args.collectPageContext === undefined
+      ? {}
+      : { collectPageContext: args.collectPageContext }),
+    ...(args.naturalTextLayout === undefined
+      ? {}
+      : { naturalTextLayout: args.naturalTextLayout }),
+    ...(args.autoFontMatching === undefined
+      ? {}
+      : { autoFontMatching: args.autoFontMatching }),
+    ...(args.fontSizeAutoFit === undefined
+      ? {}
+      : { fontSizeAutoFit: args.fontSizeAutoFit }),
+    ...(args.completionWorkflow
+      ? { completionWorkflow: args.completionWorkflow }
+      : {}),
   };
 }
 

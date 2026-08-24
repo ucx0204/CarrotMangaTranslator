@@ -10,6 +10,12 @@ export type FilteredPages = {
   prepassNoTextPages: Array<{ page: MangaPage; pageIndex: number }>;
 };
 
+export function buildPageIndexById(
+  pages: readonly MangaPage[],
+): Map<string, number> {
+  return new Map(pages.map((page, index) => [page.id, index]));
+}
+
 export function filterPagesByOcrText(
   pages: MangaPage[],
   ocrHintsByPageId: Map<string, OcrBboxResult>,
@@ -19,7 +25,7 @@ export function filterPagesByOcrText(
   // 언어에서는 OCR false negative가 페이지를 통째로 비워버리므로 항상 모델
   // 호출 대상에 포함한다.
   const allowNoTextSkip = options.allowNoTextSkip ?? true;
-  const pageIndexById = new Map(pages.map((page, index) => [page.id, index]));
+  const pageIndexById = buildPageIndexById(pages);
   const completedPagesById = new Map<string, MangaPage>();
   const pagesToTranslate: MangaPage[] = [];
   const prepassNoTextPages: Array<{ page: MangaPage; pageIndex: number }> = [];

@@ -19,6 +19,7 @@ type ExecuteAnalysisArgs = {
   collectPageContext?: boolean;
   naturalTextLayout?: boolean;
   autoFontMatching?: boolean;
+  fontSizeAutoFit?: boolean;
   completionWorkflow?: TranslationCompletionWorkflow;
   deferTerminalFailure?: boolean;
 };
@@ -42,6 +43,7 @@ export async function runSelectionsSequentially(
   collectPageContext?: boolean,
   naturalTextLayout?: boolean,
   autoFontMatching?: boolean,
+  fontSizeAutoFit?: boolean,
   t?: TFunction<"renderer">,
   completionWorkflow?: TranslationCompletionWorkflow,
   deferTerminalFailure?: boolean,
@@ -60,6 +62,7 @@ export async function runSelectionsSequentially(
       collectPageContext,
       naturalTextLayout,
       autoFontMatching,
+      fontSizeAutoFit,
       completionWorkflow,
       deferTerminalFailure,
     });

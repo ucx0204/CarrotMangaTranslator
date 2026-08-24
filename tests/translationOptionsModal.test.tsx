@@ -172,6 +172,7 @@ describe("TranslationOptionsModal", () => {
       workflowMode: "cumulative",
       blockMode: "auto",
       autoFontMatching: false,
+      fontSizeAutoFit: true,
       naturalTextLayout: true,
       eraseOriginalWorkflow: false,
       bubbleLayoutWorkflow: true,
@@ -282,6 +283,29 @@ describe("TranslationOptionsModal", () => {
     );
     expect(onPersistDefaults).toHaveBeenCalledWith(
       expect.objectContaining({ autoFontMatchingDefault: true }),
+    );
+  });
+
+  it("can disable source-aware font size matching and persists the choice", async () => {
+    const { onStart, onPersistDefaults } = await renderModal();
+    const toggle = screen.getByRole("switch", {
+      name: "글자 크기 자동 맞춤",
+    });
+
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(toggle);
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: "다음 번역의 기본값으로 저장",
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({ fontSizeAutoFit: false }),
+    );
+    expect(onPersistDefaults).toHaveBeenCalledWith(
+      expect.objectContaining({ fontSizeAutoFitDefault: false }),
     );
   });
 

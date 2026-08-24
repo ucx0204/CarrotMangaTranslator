@@ -109,6 +109,12 @@ export type TranslationBlock = {
   warpTransform?: WarpTransform;
   fontFamily?: string;
   fontSizePx: number;
+  /** Visible source-glyph face measured from the immutable page raster. */
+  sourceFontFacePx?: number;
+  /** Confidence of sourceFontFacePx. Missing means no automatic source cap. */
+  sourceFontSizeConfidence?: number;
+  /** Auditable producer revision for the optional source-face measurement. */
+  sourceFontSizeMethod?: "raster-core-v1";
   lineHeight: number;
   letterSpacing?: number;
   /** Horizontal glyph scale (장평). 1 = natural width. Undefined means 1. */

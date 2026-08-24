@@ -28,6 +28,8 @@ export type TranslationOptionsFormProps = {
   onBlockModeChange: (mode: AnalysisBlockMode) => void;
   autoFontMatching: boolean;
   onAutoFontMatchingChange: (enabled: boolean) => void;
+  fontSizeAutoFit: boolean;
+  onFontSizeAutoFitChange: (enabled: boolean) => void;
   naturalTextLayout: boolean;
   onNaturalTextLayoutChange: (enabled: boolean) => void;
   eraseOriginalWorkflow: boolean;
@@ -98,6 +100,9 @@ function useTranslationFormFields(
   const [naturalTextLayout, onNaturalTextLayoutChange] = React.useState(
     uiSettings?.naturalTextLayoutDefault ?? true,
   );
+  const [fontSizeAutoFit, onFontSizeAutoFitChange] = React.useState(
+    uiSettings?.fontSizeAutoFitDefault ?? true,
+  );
   const completionDefaults = resolveInitialCompletionDefaults(uiSettings);
   const [eraseOriginalWorkflow, onEraseOriginalWorkflowChange] = React.useState(
     completionDefaults.eraseOriginal,
@@ -110,11 +115,13 @@ function useTranslationFormFields(
     blockMode,
     bubbleLayoutWorkflow,
     eraseOriginalWorkflow,
+    fontSizeAutoFit,
     naturalTextLayout,
     onAutoFontMatchingChange,
     onBlockModeChange,
     onBubbleLayoutWorkflowChange,
     onEraseOriginalWorkflowChange,
+    onFontSizeAutoFitChange,
     onNaturalTextLayoutChange,
     onWorkflowModeChange,
     workflowMode,

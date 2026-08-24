@@ -55,6 +55,7 @@ export function AutoInpaintingOptionsModal({
       title={t("autoInpaintingOptions.title")}
       size={initialScope === "select" ? "lg" : "md"}
       onClose={onClose}
+      fillHeight
       footer={
         <ModalActionBar
           actions={

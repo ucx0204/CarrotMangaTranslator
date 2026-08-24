@@ -63,8 +63,8 @@ export function useFormatDefaultsEditor({
     [activePreset, defaults],
   );
   const previewValues = React.useMemo(
-    () => createPreviewValues(editorValues),
-    [editorValues],
+    () => createPreviewValues(editorValues, Boolean(activePreset)),
+    [activePreset, editorValues],
   );
   const presetGroupAvailability = React.useMemo(
     () => createPresetGroupAvailability(activePreset, t),
@@ -180,11 +180,12 @@ function usePresetGroupToggle({
 
 function createPreviewValues(
   value: StylePresetEditorValues,
+  preserveAutoFit: boolean,
 ): BlockFormatPreviewValues {
   return {
     fontFamily: value.fontFamily,
     fontSizePx: value.fontSizePx,
-    autoFitText: value.autoFitText,
+    autoFitText: preserveAutoFit && value.autoFitText,
     textAlign: value.textAlign,
     renderDirection:
       value.renderDirection === "vertical" ? "vertical" : "horizontal",

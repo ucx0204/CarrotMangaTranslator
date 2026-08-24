@@ -5,6 +5,7 @@ import { resolveBoolean } from "./appSettingsResolvers";
 export function normalizeUiSettings(
   ui: Record<string, unknown> | null,
   defaults: AppSettings,
+  legacyFontSizeAutoFit?: unknown,
 ): NonNullable<AppSettings["ui"]> {
   const data = ui ?? {};
   const base = defaults.ui ?? {};
@@ -32,6 +33,12 @@ export function normalizeUiSettings(
     autoFontMatchingDefault: resolveBoolean(
       data.autoFontMatchingDefault,
       base.autoFontMatchingDefault ?? false,
+    ),
+    fontSizeAutoFitDefault: resolveBoolean(
+      data.fontSizeAutoFitDefault,
+      typeof legacyFontSizeAutoFit === "boolean"
+        ? legacyFontSizeAutoFit
+        : (base.fontSizeAutoFitDefault ?? true),
     ),
     eraseOriginalWorkflowDefault: completionDefaults.eraseOriginal,
     bubbleLayoutWorkflowDefault: completionDefaults.bubbleLayout,

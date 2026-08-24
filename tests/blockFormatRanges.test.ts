@@ -36,6 +36,29 @@ describe("expanded block typography ranges", () => {
       ).toBe(false);
     }
   });
+
+  it("keeps the optional source glyph face inside the font-size safety bounds", () => {
+    expect(
+      TranslationBlockSchema.safeParse({
+        ...BLOCK,
+        sourceFontFacePx: 24.5,
+        sourceFontSizeConfidence: 0.9,
+        sourceFontSizeMethod: "raster-core-v1",
+      }).success,
+    ).toBe(true);
+    expect(
+      TranslationBlockSchema.safeParse({
+        ...BLOCK,
+        sourceFontFacePx: 0.5,
+      }).success,
+    ).toBe(false);
+    expect(
+      TranslationBlockSchema.safeParse({
+        ...BLOCK,
+        sourceFontFacePx: 512.5,
+      }).success,
+    ).toBe(false);
+  });
 });
 
 const BLOCK: TranslationBlock = {

@@ -343,6 +343,7 @@ function resolveDefaultUiSettings(
     translationWorkflowDefault: "cumulative",
     naturalTextLayoutDefault: true,
     autoFontMatchingDefault: false,
+    fontSizeAutoFitDefault: true,
     eraseOriginalWorkflowDefault: false,
     bubbleLayoutWorkflowDefault: true,
   };

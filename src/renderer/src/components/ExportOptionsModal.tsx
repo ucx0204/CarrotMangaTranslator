@@ -113,6 +113,7 @@ export function ExportOptionsModal({
       )}
       size="lg"
       onClose={onClose}
+      fillHeight
       closeDisabled={start.isStarting}
       footer={
         <ExportOptionsFooter

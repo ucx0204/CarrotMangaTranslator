@@ -143,6 +143,8 @@ export type UiSettings = {
   naturalTextLayoutDefault?: boolean;
   /** Choose locale-compatible fonts for newly detected translation blocks. */
   autoFontMatchingDefault?: boolean;
+  /** Match new block text size to source glyph pixels before box fitting. */
+  fontSizeAutoFitDefault?: boolean;
   /** Erase source text with automatic inpainting after translation. */
   eraseOriginalWorkflowDefault?: boolean;
   /** Fit translated text to detected speech balloons after erasing. */

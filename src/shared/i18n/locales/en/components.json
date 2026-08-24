@@ -567,6 +567,8 @@
     },
     "autoFontMatching": "Automatic font matching",
     "autoFontMatchingSummary": "Automatically applies a Korean font that matches the source text's mood to each block.",
+    "fontSizeAutoFit": "Automatic text size",
+    "fontSizeAutoFitSummary": "Matches the translated text to the visible source glyph size, then shrinks only when needed to fit the block.",
     "completionMode": "Completion mode",
     "completionModeTranslate": "Translate only",
     "completionModeErase": "Erase source text",

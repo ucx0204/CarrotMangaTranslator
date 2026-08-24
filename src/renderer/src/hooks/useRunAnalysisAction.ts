@@ -19,6 +19,7 @@ type RunAnalysisDependencies = {
   translationWorkflowDefault: UseTranslationActionsOptions["translationWorkflowDefault"];
   autoFontMatchingDefault: boolean;
   naturalTextLayoutDefault: boolean;
+  fontSizeAutoFitDefault: boolean;
 };
 
 type DirectAnalysisRequest = {
@@ -29,6 +30,7 @@ type DirectAnalysisRequest = {
   collectPageContext?: boolean;
   naturalTextLayout?: boolean;
   autoFontMatching?: boolean;
+  fontSizeAutoFit?: boolean;
 };
 
 export function useRunAnalysisAction(
@@ -43,6 +45,7 @@ export function useRunAnalysisAction(
       collectPageContext,
       naturalTextLayout,
       autoFontMatching,
+      fontSizeAutoFit,
     ) =>
       runDirectAnalysis(dependencies, {
         runMode,
@@ -52,6 +55,7 @@ export function useRunAnalysisAction(
         collectPageContext,
         naturalTextLayout,
         autoFontMatching,
+        fontSizeAutoFit,
       }),
     [dependencies],
   );
@@ -75,6 +79,8 @@ async function runDirectAnalysis(
     naturalTextLayout:
       request.naturalTextLayout ?? dependencies.naturalTextLayoutDefault,
     autoFontMatching: resolveAutoFontMatching(dependencies, request),
+    fontSizeAutoFit:
+      request.fontSizeAutoFit ?? dependencies.fontSizeAutoFitDefault,
   });
 }
 

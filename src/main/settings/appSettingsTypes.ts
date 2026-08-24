@@ -42,6 +42,8 @@ export type TranslationOptions = {
   naturalTextLayout?: boolean;
   /** Apply Font Matching V2 work anchors or high-confidence accent decisions. */
   autoFontMatching?: boolean;
+  /** Fit newly created text to the measured source glyph face and block. */
+  fontSizeAutoFit?: boolean;
   /** Stable identities for the V2 work-profile and audit boundary. */
   fontMatchingWorkId?: string;
   fontMatchingChapterId?: string;

@@ -39,6 +39,7 @@ type TranslationDefaultsPatch = Pick<
   | "translationWorkflowDefault"
   | "blockModeDefault"
   | "autoFontMatchingDefault"
+  | "fontSizeAutoFitDefault"
   | "naturalTextLayoutDefault"
   | "eraseOriginalWorkflowDefault"
   | "bubbleLayoutWorkflowDefault"
@@ -84,7 +85,7 @@ export function TranslationOptionsModal({
         title={t("translationOptions.title")}
         size="lg"
         onClose={onClose}
-        maxHeight="900px"
+        fillHeight
         cardClassName="translation-options-modal"
         bodyClassName="translation-options-modal-body"
         footer={
@@ -169,6 +170,7 @@ function buildDefaultsPatch(
     translationWorkflowDefault: form.workflowMode,
     blockModeDefault: form.blockMode,
     autoFontMatchingDefault: form.autoFontMatching,
+    fontSizeAutoFitDefault: form.fontSizeAutoFit,
     naturalTextLayoutDefault: form.naturalTextLayout,
     eraseOriginalWorkflowDefault: form.eraseOriginalWorkflow,
     bubbleLayoutWorkflowDefault: form.bubbleLayoutWorkflow,
@@ -184,6 +186,7 @@ function buildTranslationFlowOptions(
     workflowMode: form.workflowMode,
     blockMode: form.blockMode,
     autoFontMatching: form.autoFontMatching,
+    fontSizeAutoFit: form.fontSizeAutoFit,
     naturalTextLayout: form.naturalTextLayout,
     eraseOriginalWorkflow: form.eraseOriginalWorkflow,
     bubbleLayoutWorkflow: form.bubbleLayoutWorkflow,
@@ -274,6 +277,7 @@ function TranslationOptionsForm(
           />
           <div className="translate-options-toggle-grid">
             <NaturalTextLayoutOptions {...props} />
+            <FontSizeAutoFitOptions {...props} />
             <AutoFontMatchingOptions {...props} />
           </div>
         </TranslationOptionSection>
@@ -290,6 +294,20 @@ function TranslationOptionsForm(
         />
       ) : null}
     </div>
+  );
+}
+
+function FontSizeAutoFitOptions(
+  props: TranslationOptionsFormProps,
+): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <ToggleOptionRow
+      label={t("translationOptions.fontSizeAutoFit")}
+      pressed={props.fontSizeAutoFit}
+      onChange={props.onFontSizeAutoFitChange}
+      description={t("translationOptions.fontSizeAutoFitSummary")}
+    />
   );
 }
 

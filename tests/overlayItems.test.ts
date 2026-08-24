@@ -9,6 +9,54 @@ import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../src/shared/blockFormat";
 import { makeAutomaticFontCandidate } from "./helpers/automaticFontCandidate";
 
 describe("overlay item conversion", () => {
+  it("makes the translation-run size choice authoritative over legacy default-format auto fit", () => {
+    const item: OverlayItem = {
+      id: 1,
+      type: "nonsolid",
+      textRole: "ordinary",
+      bbox: { x: 100, y: 100, w: 300, h: 160 },
+      jp: "原文",
+      ko: "번역",
+      direction: "horizontal",
+      fontSize: 41,
+      confidence: 1,
+    };
+    const manual = overlayItemToBlock(
+      item,
+      makePage(),
+      0,
+      undefined,
+      { ...DEFAULT_BLOCK_FORMAT_DEFAULTS, autoFitText: true, fontSizePx: 27 },
+      undefined,
+      undefined,
+      { fontSizeAutoFit: false },
+    );
+    const automatic = overlayItemToBlock(
+      item,
+      makePage(),
+      0,
+      undefined,
+      { ...DEFAULT_BLOCK_FORMAT_DEFAULTS, autoFitText: false, fontSizePx: 27 },
+      undefined,
+      undefined,
+      {
+        fontSizeAutoFit: true,
+        sourceFontSize: {
+          confidence: 0.88,
+          facePx: 31.5,
+          method: "raster-core-v1",
+        },
+      },
+    );
+
+    expect(manual.autoFitText).toBe(false);
+    expect(manual.fontSizePx).toBe(27);
+    expect(automatic.autoFitText).toBe(true);
+    expect(automatic.fontSizePx).toBe(41);
+    expect(automatic.sourceFontFacePx).toBe(31.5);
+    expect(automatic.sourceFontSizeMethod).toBe("raster-core-v1");
+  });
+
   it("renders ordinary speech/caption horizontally even when Japanese OCR direction is vertical", () => {
     const page = makePage();
     const block = overlayItemToBlock(

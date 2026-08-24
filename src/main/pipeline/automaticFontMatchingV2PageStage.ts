@@ -1,6 +1,6 @@
 import type { TranslationOptions } from "../appSettings";
 import type { MangaPage } from "../../shared/libraryTypes";
-import { logWarn } from "../logger";
+import { logPipelineWarning } from "./pipelineLogger";
 import { buildOverlayBlockId } from "./overlayItems";
 import {
   USER_PAGE_FONT_MATCHING_BOUNDARY,
@@ -69,7 +69,7 @@ export async function runAutomaticFontMatchingV2PageStage({
     // 추론 포트 단에서 이미 reportWarning을 찍는 경로(워커 클라이언트)도 있지만,
     // 90초 데드라인 타임아웃이나 in-process 포트 예외는 여기까지 전파되므로
     // "왜 조용히 미적용됐나"를 로그에서 추적할 수 있게 한 번 기록한다.
-    logWarn("Automatic font matching failed closed for page", {
+    logPipelineWarning("Automatic font matching failed closed for page", {
       pageId: page.id,
       error,
     });

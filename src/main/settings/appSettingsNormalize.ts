@@ -98,7 +98,11 @@ export function normalizeAppSettings(
     codex,
     api,
     ocr: normalizeOcrSettings(asRecord(record.ocr), defaults, options),
-    ui: normalizeUiSettings(asRecord(record.ui), defaults),
+    ui: normalizeUiSettings(
+      asRecord(record.ui),
+      defaults,
+      asRecord(record.blockFormatDefaults)?.autoFitText,
+    ),
     inpainting: normalizeInpaintingSettings(
       asRecord(record.inpainting),
       defaults,

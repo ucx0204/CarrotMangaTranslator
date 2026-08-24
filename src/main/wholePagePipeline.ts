@@ -73,6 +73,7 @@ async function runWholePagePipelineWithDependencies(
     collectPageContext = false,
     naturalTextLayout = false,
     autoFontMatching = false,
+    fontSizeAutoFit = true,
     canonicalPageIndexById,
   } = options;
   throwIfAborted(signal);
@@ -87,6 +88,7 @@ async function runWholePagePipelineWithDependencies(
     chapterId: workContext?.chapterId,
     dependencies,
     naturalTextLayout,
+    fontSizeAutoFit,
     run,
     workId: workContext?.workId,
   });

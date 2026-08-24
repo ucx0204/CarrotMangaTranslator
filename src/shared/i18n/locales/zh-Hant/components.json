@@ -557,6 +557,8 @@
     },
     "autoFontMatching": "自動配對字型",
     "autoFontMatchingSummary": "為每個文字區塊自動套用符合原文氛圍的韓文字型。",
+    "fontSizeAutoFit": "自動配對字級",
+    "fontSizeAutoFitSummary": "先依原文可見字形大小配對譯文字級，只有超出文字區塊時才縮小。",
     "completionMode": "完成方式",
     "completionModeTranslate": "僅翻譯",
     "completionModeErase": "清除原文",

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   handleTranslateRegionResult,
+  makeStartAnalysisRequest,
   resolveStartOutcome,
 } from "../src/renderer/src/hooks/translationActionUtils";
 import { reportRefreshLibraryFailure } from "../src/renderer/src/hooks/useTranslationActions";
@@ -11,6 +12,45 @@ afterEach(() => {
     dismissToast(toast.id);
   }
   vi.restoreAllMocks();
+});
+
+describe("translation request construction", () => {
+  it("keeps every selected translation option in a page-set request", () => {
+    expect(
+      makeStartAnalysisRequest("chapter-1", {
+        runMode: "page-set",
+        pageIds: ["page-2", "page-4"],
+        blockMode: "keep",
+        collectPageContext: false,
+        naturalTextLayout: true,
+        autoFontMatching: false,
+        fontSizeAutoFit: true,
+        completionWorkflow: "bubble-layout",
+      }),
+    ).toEqual({
+      chapterId: "chapter-1",
+      runMode: "page-set",
+      pageIds: ["page-2", "page-4"],
+      blockMode: "keep",
+      collectPageContext: false,
+      naturalTextLayout: true,
+      autoFontMatching: false,
+      fontSizeAutoFit: true,
+      completionWorkflow: "bubble-layout",
+    });
+  });
+
+  it("rejects translation targets that lost their selected pages", () => {
+    expect(() =>
+      makeStartAnalysisRequest("chapter-1", { runMode: "single-page" }),
+    ).toThrow("다시 번역할 페이지를 찾지 못했습니다.");
+    expect(() =>
+      makeStartAnalysisRequest("chapter-1", {
+        runMode: "page-set",
+        pageIds: [],
+      }),
+    ).toThrow("번역할 페이지를 찾지 못했습니다.");
+  });
 });
 
 describe("translation refresh failure reporting", () => {

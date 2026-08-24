@@ -16,7 +16,6 @@ import type {
 } from "../../shared/textTypes";
 import type { BlockFormatDefaults } from "../../shared/blockFormat";
 import type { MangaPage } from "../../shared/libraryTypes";
-import { applyFormatDefaultsToBlock } from "../../shared/blockFormat";
 import { applyNaturalTextLayout } from "../../shared/naturalTextLayout";
 import {
   readTextLayoutIntent,
@@ -29,6 +28,10 @@ import {
 } from "./automaticFontMatchingV2";
 import { applyAutomaticFontDecisionV2 } from "./automaticFontMatchingV2Apply";
 import { tMain } from "./localization";
+import {
+  applySizeOptions,
+  type OverlayFontSizeOptions,
+} from "./overlayFontSize";
 import type { OverlayItem } from "./types";
 
 const DEFAULT_TEXT_COLOR = "#111111";
@@ -52,23 +55,17 @@ export function overlayItemToBlock(
   formatDefaults?: BlockFormatDefaults,
   naturalLayout?: OverlayNaturalTextLayoutOptions,
   automaticFont?: OverlayAutomaticFontOptions,
+  fontSizeOptions?: OverlayFontSizeOptions,
 ): TranslationBlock {
   const type = mapOverlayType(item.type);
   const textRole = normalizeOverlayTextRole(item.textRole);
-  const rawBbox = clampBbox(item.bbox);
+  const bbox = clampBbox(item.bbox);
   const translatedText = (item.translatedText ?? item.ko).trim();
   const sourceText = (item.sourceText ?? item.jp).trim();
   const textForSizing = translatedText || sourceText || "...";
-  const lineHeight = 1.18;
-  const fontSizePx = resolveOverlayFontSizePx(
-    item,
-    rawBbox,
-    page,
-    textForSizing,
-  );
+  const fontSizePx = resolveOverlayFontSizePx(item, bbox, page, textForSizing);
   const sourceDirection =
     item.direction === "vertical" ? "vertical" : "horizontal";
-  const bbox = rawBbox;
   const renderDirection = resolveInitialRenderDirection(
     type,
     textRole,
@@ -100,7 +97,7 @@ export function overlayItemToBlock(
     renderDirection,
     rotationDeg,
     fontSizePx,
-    lineHeight,
+    lineHeight: 1.18,
     textAlign: "center",
     textColor: DEFAULT_TEXT_COLOR,
     outlineColor: DEFAULT_OUTLINE_COLOR,
@@ -108,7 +105,7 @@ export function overlayItemToBlock(
     opacity: visualStyle.defaultOpacity,
     autoFitText: true,
   };
-  const formatted = applyFormatDefaultsToBlock(block, formatDefaults);
+  const formatted = applySizeOptions(block, formatDefaults, fontSizeOptions);
   const fontMatched = applyAutomaticFontToOverlayBlock(
     formatted,
     item,

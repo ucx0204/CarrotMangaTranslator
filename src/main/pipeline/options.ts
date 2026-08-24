@@ -61,9 +61,11 @@ export function applyOutputOptions(
     profile?: WorkTypographyProfileV2 | null;
   },
   fontMatchingCandidates: readonly AutomaticFontCandidate[] = [],
+  fontSizeAutoFit = true,
 ): void {
   options.naturalTextLayout = naturalTextLayout || undefined;
   options.autoFontMatching = autoFontMatching || undefined;
+  options.fontSizeAutoFit = fontSizeAutoFit;
   options.fontMatchingWorkId = autoFontMatching ? context.workId : undefined;
   options.fontMatchingChapterId = autoFontMatching
     ? context.chapterId
@@ -99,6 +101,7 @@ export function summarizeTranslationOptions(
     port: options.port,
     strictRefineMode: options.strictRefineMode,
     autoFontMatching: options.autoFontMatching,
+    fontSizeAutoFit: options.fontSizeAutoFit,
     fontCandidateCount: options.fontMatchingCandidates?.length,
     naturalTextLayout: options.naturalTextLayout,
     previousBlocksForPrompt: options.previousBlocksForPrompt?.length,

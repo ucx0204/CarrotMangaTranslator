@@ -41,6 +41,8 @@ export type PipelineOptions = {
   naturalTextLayout?: boolean;
   /** Match only sealed, verified built-in candidates before line and bubble layout. */
   autoFontMatching?: boolean;
+  /** Match newly created text size to source glyph pixels before box fitting. */
+  fontSizeAutoFit?: boolean;
   /** Canonical zero-based positions in the complete chapter, independent of run selection. */
   canonicalPageIndexById?: ReadonlyMap<string, number>;
 };

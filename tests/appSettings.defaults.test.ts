@@ -73,10 +73,23 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     expect(defaults.blockFormatDefaults?.wordBreak).toBe("break-word");
     expect(defaults.ui?.naturalTextLayoutDefault).toBe(true);
     expect(defaults.ui?.autoFontMatchingDefault).toBe(false);
+    expect(defaults.ui?.fontSizeAutoFitDefault).toBe(true);
     expect(defaults.ui?.eraseOriginalWorkflowDefault).toBe(false);
     expect(defaults.ui?.bubbleLayoutWorkflowDefault).toBe(true);
     expect(defaults.maxTokens).toBe(DEFAULT_MAX_TOKENS);
     expect(defaults.ctx).toBe(DEFAULT_CONTEXT_TOKENS);
+  });
+
+  it("applies explicit compute, ROCm, and unified-memory environment defaults", () => {
+    const defaults = resolveDefaultAppSettings({
+      MANGA_TRANSLATOR_COMPUTE_GPU_INDEX: "2",
+      MANGA_TRANSLATOR_AMD_ROCM_TARGET: "gfx1100",
+      MANGA_TRANSLATOR_MAC_ALPHA_ALLOW_UNSAFE_UNIFIED_MEMORY: "true",
+    });
+
+    expect(defaults.hardware?.computeGpuIndex).toBe(2);
+    expect(defaults.gemma.llamaRocmTarget).toBe("gfx110X");
+    expect(defaults.gemma.allowUnsafeUnifiedMemory).toBe(true);
   });
 
   it("normalizes stored default line-breaking modes with the app fallback", () => {
@@ -176,6 +189,26 @@ describeWindows("app settings helpers: defaults and stored values", () => {
         defaults,
       ).ui?.autoFontMatchingDefault,
     ).toBe(false);
+  });
+
+  it("moves the legacy basic-format auto-fit preference to translation defaults", () => {
+    const defaults = resolveDefaultAppSettings();
+
+    expect(
+      parseStoredAppSettings(
+        JSON.stringify({ blockFormatDefaults: { autoFitText: false } }),
+        defaults,
+      ).ui?.fontSizeAutoFitDefault,
+    ).toBe(false);
+    expect(
+      parseStoredAppSettings(
+        JSON.stringify({
+          ui: { fontSizeAutoFitDefault: true },
+          blockFormatDefaults: { autoFitText: false },
+        }),
+        defaults,
+      ).ui?.fontSizeAutoFitDefault,
+    ).toBe(true);
   });
 
   it("migrates the legacy combined workflow into erase plus nested bubble defaults", () => {

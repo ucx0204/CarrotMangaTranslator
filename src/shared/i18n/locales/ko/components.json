@@ -561,6 +561,8 @@
     },
     "autoFontMatching": "폰트 자동 맞춤",
     "autoFontMatchingSummary": "원문 분위기에 어울리는 한글 폰트를 블록마다 자동 적용합니다.",
+    "fontSizeAutoFit": "글자 크기 자동 맞춤",
+    "fontSizeAutoFitSummary": "원문 글자의 실제 크기를 재어 번역문 크기를 맞춘 뒤, 긴 문장만 블록 안에 들어오도록 줄입니다.",
     "completionMode": "완료 방식",
     "completionModeTranslate": "번역만",
     "completionModeErase": "원문 지우기",

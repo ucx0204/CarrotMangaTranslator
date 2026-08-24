@@ -19,6 +19,7 @@ export type TranslationFlowOptions = {
   workflowMode: TranslationWorkflowMode;
   blockMode: AnalysisBlockMode;
   autoFontMatching?: boolean;
+  fontSizeAutoFit?: boolean;
   naturalTextLayout?: boolean;
   eraseOriginalWorkflow?: boolean;
   bubbleLayoutWorkflow?: boolean;
@@ -45,6 +46,7 @@ export type UseTranslationActionsOptions = {
   selectedPage: MangaPage | null;
   translationWorkflowDefault?: TranslationWorkflowMode;
   autoFontMatchingDefault?: boolean;
+  fontSizeAutoFitDefault?: boolean;
   naturalTextLayoutDefault?: boolean;
   recordImageEdit: (entry: {
     label: string;
@@ -73,6 +75,7 @@ export type TranslationActions = {
     collectPageContext?: boolean,
     naturalTextLayout?: boolean,
     autoFontMatching?: boolean,
+    fontSizeAutoFit?: boolean,
   ) => Promise<RunAnalysisOutcome>;
   runTranslationFlow: (
     options: TranslationFlowOptions,

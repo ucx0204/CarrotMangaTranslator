@@ -18,11 +18,13 @@ type PageRetranslateModalProps = {
     blockMode: AnalysisBlockMode,
     naturalTextLayout: boolean,
     autoFontMatching: boolean,
+    fontSizeAutoFit: boolean,
   ) => void;
   onPersistDefaults: (
     patch: Pick<
       UiSettings,
       | "autoFontMatchingDefault"
+      | "fontSizeAutoFitDefault"
       | "blockModeDefault"
       | "naturalTextLayoutDefault"
     >,
@@ -49,17 +51,23 @@ export function PageRetranslateModal({
   const [autoFontMatching, setAutoFontMatching] = React.useState(
     uiSettings?.autoFontMatchingDefault ?? false,
   );
+  const [fontSizeAutoFit, setFontSizeAutoFit] = React.useState(
+    uiSettings?.fontSizeAutoFitDefault ?? true,
+  );
   const [saveAsDefault, setSaveAsDefault] = React.useState(false);
 
   const handleStart = (): void => {
     if (saveAsDefault) {
-      onPersistDefaults({
-        blockModeDefault: blockMode,
-        naturalTextLayoutDefault: naturalTextLayout,
-        autoFontMatchingDefault: autoFontMatching,
-      });
+      onPersistDefaults(
+        buildRetranslateDefaults(
+          blockMode,
+          naturalTextLayout,
+          autoFontMatching,
+          fontSizeAutoFit,
+        ),
+      );
     }
-    onStart(blockMode, naturalTextLayout, autoFontMatching);
+    onStart(blockMode, naturalTextLayout, autoFontMatching, fontSizeAutoFit);
     onClose();
   };
 
@@ -72,23 +80,11 @@ export function PageRetranslateModal({
       maxHeight="900px"
       cardClassName="translation-options-modal"
       footer={
-        <ModalActionBar
-          leading={
-            <CheckboxField
-              className="translation-save-defaults"
-              label={t("translationOptions.saveAsDefault")}
-              checked={saveAsDefault}
-              onCheckedChange={setSaveAsDefault}
-            />
-          }
-          actions={
-            <>
-              <Button onClick={onClose}>{t("common.cancel")}</Button>
-              <Button variant="primary" onClick={handleStart}>
-                {t("retranslate.start")}
-              </Button>
-            </>
-          }
+        <PageRetranslateFooter
+          saveAsDefault={saveAsDefault}
+          onCancel={onClose}
+          onSaveAsDefaultChange={setSaveAsDefault}
+          onStart={handleStart}
         />
       }
     >
@@ -96,9 +92,11 @@ export function PageRetranslateModal({
         autoFontMatching={autoFontMatching}
         blockCount={blockCount}
         blockMode={blockMode}
+        fontSizeAutoFit={fontSizeAutoFit}
         naturalTextLayout={naturalTextLayout}
         onAutoFontMatchingChange={setAutoFontMatching}
         onBlockModeChange={setBlockMode}
+        onFontSizeAutoFitChange={setFontSizeAutoFit}
         onNaturalTextLayoutChange={setNaturalTextLayout}
         pageName={pageName}
         t={t}
@@ -108,13 +106,63 @@ export function PageRetranslateModal({
   );
 }
 
+function PageRetranslateFooter({
+  saveAsDefault,
+  onCancel,
+  onSaveAsDefaultChange,
+  onStart,
+}: {
+  saveAsDefault: boolean;
+  onCancel: () => void;
+  onSaveAsDefaultChange: (value: boolean) => void;
+  onStart: () => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  return (
+    <ModalActionBar
+      leading={
+        <CheckboxField
+          className="translation-save-defaults"
+          label={t("translationOptions.saveAsDefault")}
+          checked={saveAsDefault}
+          onCheckedChange={onSaveAsDefaultChange}
+        />
+      }
+      actions={
+        <>
+          <Button onClick={onCancel}>{t("common.cancel")}</Button>
+          <Button variant="primary" onClick={onStart}>
+            {t("retranslate.start")}
+          </Button>
+        </>
+      }
+    />
+  );
+}
+
+function buildRetranslateDefaults(
+  blockMode: AnalysisBlockMode,
+  naturalTextLayout: boolean,
+  autoFontMatching: boolean,
+  fontSizeAutoFit: boolean,
+): Parameters<PageRetranslateModalProps["onPersistDefaults"]>[0] {
+  return {
+    blockModeDefault: blockMode,
+    naturalTextLayoutDefault: naturalTextLayout,
+    autoFontMatchingDefault: autoFontMatching,
+    fontSizeAutoFitDefault: fontSizeAutoFit,
+  };
+}
+
 function PageRetranslateOptions({
   autoFontMatching,
   blockCount,
   blockMode,
+  fontSizeAutoFit,
   naturalTextLayout,
   onAutoFontMatchingChange,
   onBlockModeChange,
+  onFontSizeAutoFitChange,
   onNaturalTextLayoutChange,
   pageName,
   t,
@@ -123,9 +171,11 @@ function PageRetranslateOptions({
   autoFontMatching: boolean;
   blockCount: number;
   blockMode: AnalysisBlockMode;
+  fontSizeAutoFit: boolean;
   naturalTextLayout: boolean;
   onAutoFontMatchingChange: (enabled: boolean) => void;
   onBlockModeChange: (mode: AnalysisBlockMode) => void;
+  onFontSizeAutoFitChange: (enabled: boolean) => void;
   onNaturalTextLayoutChange: (enabled: boolean) => void;
   pageName: string;
   t: ReturnType<typeof useTranslation>["t"];
@@ -159,6 +209,11 @@ function PageRetranslateOptions({
           label={t("translationOptions.autoFontMatching")}
           pressed={autoFontMatching}
           onChange={onAutoFontMatchingChange}
+        />
+        <ToggleOptionRow
+          label={t("translationOptions.fontSizeAutoFit")}
+          pressed={fontSizeAutoFit}
+          onChange={onFontSizeAutoFitChange}
         />
       </div>
       <TranslationOverwriteWarning
