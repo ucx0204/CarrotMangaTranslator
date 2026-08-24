@@ -7,6 +7,7 @@ import type { JobState } from "../../../../shared/jobTypes";
 export type NeighborImageTarget = {
   pageId: string;
   imagePath: string;
+  originalImagePath: string;
 };
 
 export type WorkspaceImageResolution = {
@@ -61,6 +62,7 @@ export function resolveNeighborImageTargets(
       targets.push({
         pageId: neighbor.id,
         imagePath: neighbor.inpaintedImagePath ?? neighbor.imagePath,
+        originalImagePath: neighbor.imagePath,
       });
     }
   }

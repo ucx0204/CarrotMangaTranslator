@@ -19,6 +19,8 @@ import { StyleGuideModal } from "../../components/StyleGuideModal";
 import { TranslationOptionsModal } from "../../components/TranslationOptionsModal";
 import { BlockLibraryModal } from "../../components/BlockLibraryModal";
 import { ToastViewport } from "../../components/ui/ToastViewport";
+import { useEventCallback } from "../../hooks/useEventCallback";
+import { isOriginalImageOpacitySupported } from "../../lib/originalImageOpacity";
 import { EditorFloatingLayer } from "../../panels/EditorFloatingLayer";
 import {
   PanelSessionContext,
@@ -117,9 +119,7 @@ export function AppSessionView({
   );
 }
 
-function useWorkspaceViewState(
-  workspaceProps: AppSessionViewProps["workspaceProps"],
-): {
+type WorkspaceViewState = {
   controls: React.ComponentProps<
     typeof AppRightQuickRail
   >["workspaceViewControls"];
@@ -127,7 +127,11 @@ function useWorkspaceViewState(
     typeof AppRightQuickRail
   >["workspaceOriginalOpacityControl"];
   onEffectiveScaleChange: (scale: number) => void;
-} {
+};
+
+function useWorkspaceViewState(
+  workspaceProps: AppSessionViewProps["workspaceProps"],
+): WorkspaceViewState {
   const [effectiveScale, setEffectiveScale] = React.useState(
     workspaceProps.workspaceZoom,
   );
@@ -136,39 +140,86 @@ function useWorkspaceViewState(
       Math.round(current * 100) === Math.round(scale * 100) ? current : scale,
     );
   }, []);
-  const invokeZoom = React.useCallback(
-    (action: "in" | "out" | "reset") => {
-      const controller = workspaceProps.workspaceZoomControllerRef.current;
-      if (controller) {
-        if (action === "in") controller.zoomInAtSelection();
-        else if (action === "out") controller.zoomOutAtViewport();
-        else controller.resetAtViewport();
-        return;
-      }
-      if (action === "in") workspaceProps.onZoomInWorkspace();
-      else if (action === "out") workspaceProps.onZoomOutWorkspace();
-      else workspaceProps.onResetWorkspaceZoom();
-    },
-    [workspaceProps],
-  );
   return {
-    controls: {
+    controls: useStableWorkspaceViewControls(workspaceProps, effectiveScale),
+    originalOpacityControl: useStableOriginalOpacityControl(workspaceProps),
+    onEffectiveScaleChange,
+  };
+}
+
+function useStableWorkspaceViewControls(
+  workspaceProps: AppSessionViewProps["workspaceProps"],
+  effectiveScale: number,
+): WorkspaceViewState["controls"] {
+  const invokeZoom = useEventCallback((action: "in" | "out" | "reset") => {
+    const controller = workspaceProps.workspaceZoomControllerRef.current;
+    if (controller) {
+      if (action === "in") controller.zoomInAtSelection();
+      else if (action === "out") controller.zoomOutAtViewport();
+      else controller.resetAtViewport();
+      return;
+    }
+    if (action === "in") workspaceProps.onZoomInWorkspace();
+    else if (action === "out") workspaceProps.onZoomOutWorkspace();
+    else workspaceProps.onResetWorkspaceZoom();
+  });
+  const onChangeFitMode = useEventCallback(
+    workspaceProps.onChangeWorkspaceFitMode,
+  );
+  const onResetZoom = React.useCallback(
+    () => invokeZoom("reset"),
+    [invokeZoom],
+  );
+  const onZoomIn = React.useCallback(() => invokeZoom("in"), [invokeZoom]);
+  const onZoomOut = React.useCallback(() => invokeZoom("out"), [invokeZoom]);
+  return React.useMemo(
+    () => ({
       effectiveScale,
       fitMode: workspaceProps.workspaceFitMode,
       zoom: workspaceProps.workspaceZoom,
-      onChangeFitMode: workspaceProps.onChangeWorkspaceFitMode,
-      onResetZoom: () => invokeZoom("reset"),
-      onZoomIn: () => invokeZoom("in"),
-      onZoomOut: () => invokeZoom("out"),
-    },
-    originalOpacityControl: {
+      onChangeFitMode,
+      onResetZoom,
+      onZoomIn,
+      onZoomOut,
+    }),
+    [
+      effectiveScale,
+      onChangeFitMode,
+      onResetZoom,
+      onZoomIn,
+      onZoomOut,
+      workspaceProps.workspaceFitMode,
+      workspaceProps.workspaceZoom,
+    ],
+  );
+}
+
+function useStableOriginalOpacityControl(
+  workspaceProps: AppSessionViewProps["workspaceProps"],
+): WorkspaceViewState["originalOpacityControl"] {
+  const onChange = useEventCallback(
+    workspaceProps.onChangeOriginalImageOpacity,
+  );
+  const pageId = workspaceProps.selectedPage?.id ?? null;
+  const supported = isOriginalImageOpacitySupported(
+    workspaceProps.selectedPage,
+  );
+  return React.useMemo(
+    () => ({
       available: workspaceProps.originalImageOpacityAvailable,
+      supported,
       opacity: workspaceProps.originalImageOpacity,
-      pageId: workspaceProps.selectedPage?.id ?? null,
-      onChange: workspaceProps.onChangeOriginalImageOpacity,
-    },
-    onEffectiveScaleChange,
-  };
+      pageId,
+      onChange,
+    }),
+    [
+      onChange,
+      pageId,
+      supported,
+      workspaceProps.originalImageOpacity,
+      workspaceProps.originalImageOpacityAvailable,
+    ],
+  );
 }
 
 function SessionFloatingOverlays({

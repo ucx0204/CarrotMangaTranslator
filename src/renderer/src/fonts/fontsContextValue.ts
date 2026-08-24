@@ -6,6 +6,8 @@ export type FontsContextValue = {
   catalog: BlockFontCatalog;
   baseOptions: readonly BlockFontOption[];
   options: readonly BlockFontOption[];
+  /** False only while the persisted font catalog is being hydrated. */
+  ready?: boolean;
   busy: boolean;
   registerFont: () => Promise<void>;
   removeFont: (id: string) => Promise<void>;

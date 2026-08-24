@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 
 import React from "react";
-import { act, cleanup, render } from "@testing-library/react";
+import { act, cleanup, render, waitFor } from "@testing-library/react";
 import {
   afterAll,
   afterEach,
@@ -55,6 +55,45 @@ afterAll(() => {
 });
 
 describe("overlay block render isolation", () => {
+  it("does not paint or measure fallback text before requested fonts settle", async () => {
+    const originalFonts = Object.getOwnPropertyDescriptor(document, "fonts");
+    let resolveLoad: ((faces: FontFace[]) => void) | null = null;
+    const load = vi.fn(
+      () =>
+        new Promise<FontFace[]>((resolve) => {
+          resolveLoad = resolve;
+        }),
+    );
+    Object.defineProperty(document, "fonts", {
+      configurable: true,
+      value: { load },
+    });
+
+    try {
+      const store = createWorkspaceInteractionPreviewStore();
+      renderLayer(makePage([makeBlock("block", "AAAA", 100)]), store);
+      expect(document.querySelector(".overlay-block")).toBeNull();
+      expect(measureText).not.toHaveBeenCalled();
+      await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+      await act(async () => {
+        resolveLoad?.([{} as FontFace]);
+        await Promise.resolve();
+      });
+
+      await waitFor(() =>
+        expect(document.querySelector(".overlay-block")).not.toBeNull(),
+      );
+      expect(measureText).toHaveBeenCalled();
+    } finally {
+      if (originalFonts) {
+        Object.defineProperty(document, "fonts", originalFonts);
+      } else {
+        Reflect.deleteProperty(document, "fonts");
+      }
+    }
+  });
+
   it("reuses text layout throughout a move-preview burst", () => {
     const store = createWorkspaceInteractionPreviewStore();
     const stationary = makeBlock("stationary", "AAAA", 100);
@@ -116,11 +155,24 @@ describe("overlay block render isolation", () => {
     expect(measuredGlyphs).toContain("B");
     expect(measuredGlyphs).not.toContain("A");
   });
+
+  it("uses placeholder text without selecting a block in bubble shape mode", () => {
+    const store = createWorkspaceInteractionPreviewStore();
+    const view = renderLayer(
+      makePage([makeBlock("moving", "", 100)]),
+      store,
+      "bubble",
+    );
+
+    expect(view.container.textContent).toContain("...");
+    expect(view.container.querySelector(".overlay-block.selected")).toBeNull();
+  });
 });
 
 function renderLayer(
   page: MangaPage,
   store: ReturnType<typeof createWorkspaceInteractionPreviewStore>,
+  stageTool: "bubble" | "select" = "select",
 ) {
   return render(
     withFonts(
@@ -135,7 +187,7 @@ function renderLayer(
         showBlockChrome
         showTextBlocks
         stageSize={{ height: 500, width: 500 }}
-        stageTool="select"
+        stageTool={stageTool}
         textLayoutStageSize={{ height: 1000, width: 1000 }}
       />,
     ),

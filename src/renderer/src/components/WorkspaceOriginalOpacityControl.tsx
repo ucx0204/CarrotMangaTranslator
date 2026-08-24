@@ -8,6 +8,7 @@ import { usePopupController } from "./ui/usePopupController";
 
 export type WorkspaceOriginalOpacityControlProps = {
   available: boolean;
+  supported?: boolean;
   opacity: number;
   pageId: string | null;
   onChange: (opacity: number) => void;
@@ -17,86 +18,94 @@ type OriginalOpacityLabels = {
   hideControl: string;
   label: string;
   original: string;
+  loading: string;
   showControl: string;
   unavailable: string;
 };
 
 /** Page-original blend control anchored below the workspace view control. */
-export function WorkspaceOriginalOpacityControl({
-  available,
-  opacity,
-  pageId,
-  onChange,
-}: WorkspaceOriginalOpacityControlProps): React.JSX.Element {
-  const labels = useOriginalOpacityLabels();
-  const percentage = Math.round(clampOriginalImageOpacity(opacity) * 100);
-  const [open, setOpen] = React.useState(false);
-  const { contentRef, rootRef, toggle, triggerRef } = usePopupController({
-    disabled: !available,
-    initialFocus: ".range-input-control",
-    closeOnFocusOut: true,
-    open,
-    onOpenChange: setOpen,
-  });
-  // Switching pages resets the panel so it never describes the previous page.
-  React.useEffect(() => setOpen(false), [pageId]);
-  const panelId = React.useId();
-  const sliderId = React.useId();
-  const tooltip = available
-    ? open
-      ? labels.hideControl
-      : labels.showControl
-    : labels.unavailable;
-  return (
-    <div
-      ref={rootRef}
-      className={`workspace-original-opacity-dock ${open ? "open" : ""} ${percentage > 0 ? "active" : ""}`.trim()}
-    >
-      <ControlTooltip
-        className="workspace-original-opacity-trigger"
-        content={tooltip}
-        placement="left"
+export const WorkspaceOriginalOpacityControl = React.memo(
+  function WorkspaceOriginalOpacityControl({
+    available,
+    supported = available,
+    opacity,
+    pageId,
+    onChange,
+  }: WorkspaceOriginalOpacityControlProps): React.JSX.Element {
+    const labels = useOriginalOpacityLabels();
+    const percentage = Math.round(clampOriginalImageOpacity(opacity) * 100);
+    const pending = supported && !available;
+    const [open, setOpen] = React.useState(false);
+    const { contentRef, rootRef, toggle, triggerRef } = usePopupController({
+      disabled: !available,
+      initialFocus: ".range-input-control",
+      closeOnFocusOut: true,
+      open,
+      onOpenChange: setOpen,
+    });
+    // Switching pages resets the panel so it never describes the previous page.
+    React.useEffect(() => setOpen(false), [pageId]);
+    const panelId = React.useId();
+    const sliderId = React.useId();
+    const tooltip = available
+      ? open
+        ? labels.hideControl
+        : labels.showControl
+      : pending
+        ? labels.loading
+        : labels.unavailable;
+    return (
+      <div
+        ref={rootRef}
+        className={`workspace-original-opacity-dock ${open ? "open" : ""} ${pending ? "pending" : ""} ${percentage > 0 ? "active" : ""}`.trim()}
       >
-        <IconButton
-          ref={triggerRef}
-          variant="dock"
-          aria-controls={panelId}
-          aria-expanded={open}
-          label={open ? labels.hideControl : labels.showControl}
-          title=""
-          disabled={!available}
-          onClick={toggle}
+        <ControlTooltip
+          className="workspace-original-opacity-trigger"
+          content={tooltip}
+          placement="left"
         >
-          <OriginalBlendIcon opacity={percentage / 100} />
-        </IconButton>
-      </ControlTooltip>
-      {open ? (
-        <div
-          ref={contentRef}
-          aria-label={labels.label}
-          className="workspace-original-opacity-panel"
-          id={panelId}
-          role="group"
-        >
-          <label htmlFor={sliderId}>{labels.original}</label>
-          <RangeInput
-            id={sliderId}
+          <IconButton
+            ref={triggerRef}
+            variant="dock"
+            aria-controls={panelId}
+            aria-expanded={open}
+            aria-busy={pending || undefined}
+            label={open ? labels.hideControl : labels.showControl}
+            title=""
+            disabled={!available}
+            onClick={toggle}
+          >
+            <OriginalBlendIcon opacity={percentage / 100} />
+          </IconButton>
+        </ControlTooltip>
+        {open ? (
+          <div
+            ref={contentRef}
             aria-label={labels.label}
-            min={0}
-            max={100}
-            step={1}
-            value={percentage}
-            onChange={(event) => onChange(Number(event.target.value) / 100)}
-          />
-          <output htmlFor={sliderId}>{percentage}%</output>
-        </div>
-      ) : null}
-    </div>
-  );
-}
+            className="workspace-original-opacity-panel"
+            id={panelId}
+            role="group"
+          >
+            <label htmlFor={sliderId}>{labels.original}</label>
+            <RangeInput
+              id={sliderId}
+              aria-label={labels.label}
+              min={0}
+              max={100}
+              step={1}
+              value={percentage}
+              onChange={(event) => onChange(Number(event.target.value) / 100)}
+            />
+            <output htmlFor={sliderId}>{percentage}%</output>
+          </div>
+        ) : null}
+      </div>
+    );
+  },
+);
 
 /** Two overlapping page frames with a live blend fill instead of a stock icon. */
-function OriginalBlendIcon({
+const OriginalBlendIcon = React.memo(function OriginalBlendIcon({
   opacity,
 }: {
   opacity: number;
@@ -144,7 +153,7 @@ function OriginalBlendIcon({
       />
     </svg>
   );
-}
+});
 
 function useOriginalOpacityLabels(): OriginalOpacityLabels {
   const { t } = useTranslation("components");
@@ -152,6 +161,7 @@ function useOriginalOpacityLabels(): OriginalOpacityLabels {
     () => ({
       hideControl: t("workspace.originalOpacity.hideControl"),
       label: t("workspace.originalOpacity.label"),
+      loading: t("imageStage.loadingImage"),
       original: t("workspace.originalOpacity.original"),
       showControl: t("workspace.originalOpacity.showControl"),
       unavailable: t("workspace.originalOpacity.unavailable"),

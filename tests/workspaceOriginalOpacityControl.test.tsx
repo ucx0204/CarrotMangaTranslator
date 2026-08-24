@@ -31,6 +31,47 @@ describe("WorkspaceOriginalOpacityControl", () => {
     ).not.toBeNull();
   });
 
+  it("keeps the same dock icon mounted while supported frames finish loading", () => {
+    const view = render(
+      <WorkspaceOriginalOpacityControl
+        available={false}
+        supported
+        opacity={0}
+        pageId="page-1"
+        onChange={() => undefined}
+      />,
+    );
+    const trigger = screen.getByRole("button", {
+      name: "원본 불투명도 조절 열기",
+    }) as HTMLButtonElement;
+    const icon = trigger.querySelector("svg");
+    expect(trigger.disabled).toBe(true);
+    expect(trigger.getAttribute("aria-busy")).toBe("true");
+    expect(
+      trigger.closest(".workspace-original-opacity-dock")?.className,
+    ).toContain("pending");
+    expect(
+      screen.getByRole("tooltip", { name: "이미지 불러오는 중" }),
+    ).not.toBeNull();
+
+    view.rerender(
+      <WorkspaceOriginalOpacityControl
+        available
+        supported
+        opacity={0}
+        pageId="page-1"
+        onChange={() => undefined}
+      />,
+    );
+
+    const readyTrigger = screen.getByRole("button", {
+      name: "원본 불투명도 조절 열기",
+    });
+    expect(readyTrigger).toBe(trigger);
+    expect(readyTrigger.querySelector("svg")).toBe(icon);
+    expect(readyTrigger.getAttribute("aria-busy")).toBeNull();
+  });
+
   it("opens a focused one-percent gauge and forwards normalized opacity", () => {
     const onChange = vi.fn();
     render(

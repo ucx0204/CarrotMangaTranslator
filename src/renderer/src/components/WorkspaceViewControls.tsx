@@ -41,7 +41,7 @@ type WorkspaceViewLabels = {
 };
 
 /** Compact view controls anchored inside the image workspace. */
-export function WorkspaceViewControls(
+export const WorkspaceViewControls = React.memo(function WorkspaceViewControls(
   props: WorkspaceViewControlsProps,
 ): React.JSX.Element {
   const labels = useWorkspaceViewLabels();
@@ -79,7 +79,7 @@ export function WorkspaceViewControls(
       ) : null}
     </div>
   );
-}
+});
 
 /** True when the target is inside the portaled menu of a Select we own. */
 function isOwnSelectMenu(target: Node, root: HTMLElement): boolean {

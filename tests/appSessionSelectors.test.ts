@@ -33,11 +33,28 @@ describe("AppSession selectors", () => {
     ];
 
     expect(resolveNeighborImageTargets(pages, pages[1])).toEqual([
-      { pageId: "page-3", imagePath: "page-3.png" },
-      { pageId: "page-1", imagePath: "page-1.png" },
+      {
+        pageId: "page-3",
+        imagePath: "page-3.png",
+        originalImagePath: "page-3.png",
+      },
+      {
+        pageId: "page-1",
+        imagePath: "page-1.png",
+        originalImagePath: "page-1.png",
+      },
+    ]);
+    expect(resolveNeighborImageTargets(pages, pages[0])).toEqual([
+      {
+        pageId: "page-2",
+        imagePath: "page-2-clean.png",
+        originalImagePath: "page-2.png",
+      },
     ]);
   });
+});
 
+describe("AppSession workspace selectors", () => {
   it("uses the original image whenever peek is enabled and available", () => {
     const selectedPage = makePage("page-1", {
       inpaintedImagePath: "page-1-clean.png",

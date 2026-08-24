@@ -14,6 +14,7 @@ import {
   getBlockFontOptions,
   type BlockFontCatalog,
 } from "../lib/fonts";
+import { clearBlockFontLoadCache } from "../lib/blockFontLoading";
 import { FontsContext, type FontsContextValue } from "./fontsContextValue";
 
 export type FontLibrarySource = Pick<
@@ -42,9 +43,10 @@ export function FontsProvider({
       catalog: library.catalog,
       baseOptions: getBaseBlockFontOptions(library.catalog, t, uiLocale),
       options: getBlockFontOptions(library.catalog, t, uiLocale),
+      ready: library.ready,
       ...actions,
     }),
-    [actions, library.catalog, t, uiLocale],
+    [actions, library.catalog, library.ready, t, uiLocale],
   );
 
   return (
@@ -54,6 +56,7 @@ export function FontsProvider({
 
 type FontLibraryState = {
   catalog: BlockFontCatalog;
+  ready: boolean;
   apply: (snapshot: FontLibrarySnapshot) => void;
   refresh: () => Promise<void>;
 };
@@ -62,21 +65,25 @@ function useFontLibraryState(source: FontLibrarySource): FontLibraryState {
   const [catalog, setCatalog] = React.useState<BlockFontCatalog>(
     DEFAULT_BLOCK_FONT_CATALOG,
   );
+  const [ready, setReady] = React.useState(false);
   const apply = React.useCallback((snapshot: FontLibrarySnapshot) => {
     setCatalog(
       createBlockFontCatalog(snapshot.customFonts, snapshot.preferences),
     );
+    setReady(true);
   }, []);
+  const markReady = React.useCallback(() => setReady(true), []);
   const refresh = React.useCallback(async (): Promise<void> => {
     apply(await source.getFontLibrary());
   }, [apply, source]);
-  useFontLibrarySubscription(source, apply);
-  return { apply, catalog, refresh };
+  useFontLibrarySubscription(source, apply, markReady);
+  return { apply, catalog, ready, refresh };
 }
 
 function useFontLibrarySubscription(
   source: FontLibrarySource,
   apply: (snapshot: FontLibrarySnapshot) => void,
+  markReady: () => void,
 ): void {
   React.useEffect(() => {
     let cancelled = false;
@@ -87,7 +94,13 @@ function useFontLibrarySubscription(
           apply(snapshot);
         }
       })
-      .catch((error) => console.error(error));
+      .catch((error) => {
+        if (!cancelled) {
+          console.error(error);
+          // Keep the bundled default catalog usable if hydration fails.
+          markReady();
+        }
+      });
     const unsubscribe = source.onFontLibraryChanged((snapshot) => {
       if (!cancelled) {
         apply(snapshot);
@@ -97,7 +110,7 @@ function useFontLibrarySubscription(
       cancelled = true;
       unsubscribe();
     };
-  }, [apply, source]);
+  }, [apply, markReady, source]);
 }
 
 function useFontLibraryActions(
@@ -155,26 +168,24 @@ function useFontLibraryActions(
 }
 
 function useCustomFontFaces(fonts: readonly Readonly<CustomFont>[]): void {
-  const styleRef = React.useRef<HTMLStyleElement | null>(null);
-  React.useEffect(() => {
+  const css = React.useMemo(
+    () =>
+      fonts
+        .map(
+          (font) =>
+            `@font-face { font-family: "${font.family}"; src: url("mgt-font://${font.id}"); font-display: swap; }`,
+        )
+        .join("\n"),
+    [fonts],
+  );
+  React.useInsertionEffect(() => {
     const style = document.createElement("style");
     style.dataset.mgtCustomFonts = "";
+    style.textContent = css;
     document.head.appendChild(style);
-    styleRef.current = style;
+    clearBlockFontLoadCache(document);
     return () => {
       style.remove();
-      styleRef.current = null;
     };
-  }, []);
-  React.useEffect(() => {
-    if (!styleRef.current) {
-      return;
-    }
-    styleRef.current.textContent = fonts
-      .map(
-        (font) =>
-          `@font-face { font-family: "${font.family}"; src: url("mgt-font://${font.id}"); font-display: swap; }`,
-      )
-      .join("\n");
-  }, [fonts]);
+  }, [css]);
 }

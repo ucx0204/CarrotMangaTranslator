@@ -23,12 +23,27 @@ export type BlockFontLoadReport = {
 
 type BlockFontSet = {
   load: (font: string, text?: string) => Promise<FontFace[]>;
-  ready: Promise<unknown>;
 };
 
 type BlockFontDocument = {
   fonts: BlockFontSet;
 };
+
+type BlockFontRequestOutcome = {
+  faces?: FontFace[];
+  error?: unknown;
+};
+
+type BlockFontRequestEntry = {
+  status: "loading" | "ready";
+  promise: Promise<BlockFontRequestOutcome>;
+};
+
+const BLOCK_FONT_LOAD_SAMPLE = "Aa가나다漢字かな";
+const requestCacheByDocument = new WeakMap<
+  BlockFontDocument,
+  Map<string, BlockFontRequestEntry>
+>();
 
 export function createBlockFontLoadKey(
   blocks: readonly TranslationBlock[],
@@ -53,27 +68,76 @@ export async function loadBlockFontsForKey(
   loadKey: string,
 ): Promise<BlockFontLoadReport> {
   const requests = parseBlockFontLoadKey(loadKey);
-  const settled = await Promise.allSettled(
-    requests.map(async (request) => ({
-      request,
-      faces: await targetDocument.fonts.load(request.css, "Aa가나다漢字かな"),
-    })),
+  const outcomes = await Promise.all(
+    requests.map((request) =>
+      loadBlockFontRequest(targetDocument, request.css),
+    ),
   );
   const failures: BlockFontLoadReport["failures"] = [];
   const missingFamilies = new Set<string>();
-  settled.forEach((result, index) => {
-    const request = requests[index];
-    if (!request) return;
-    if (result.status === "rejected") {
-      failures.push({ css: request.css, error: result.reason });
+  requests.forEach((request, index) => {
+    const outcome = outcomes[index] as BlockFontRequestOutcome;
+    if ("error" in outcome) {
+      failures.push({ css: request.css, error: outcome.error });
       return;
     }
-    if (request.required && result.value.faces.length === 0) {
+    if (request.required && outcome.faces?.length === 0) {
       missingFamilies.add(request.family);
     }
   });
-  await targetDocument.fonts.ready;
   return { failures, missingFamilies: [...missingFamilies] };
+}
+
+/** True only after every concrete face request in the key has settled. */
+export function areBlockFontsReadyForKey(
+  targetDocument: BlockFontDocument,
+  loadKey: string,
+): boolean {
+  const requests = parseBlockFontLoadKey(loadKey);
+  if (requests.length === 0) return true;
+  const cache = requestCacheByDocument.get(targetDocument);
+  return Boolean(
+    cache &&
+    requests.every((request) => cache.get(request.css)?.status === "ready"),
+  );
+}
+
+/** Font declarations can change when the custom-font library is refreshed. */
+export function clearBlockFontLoadCache(
+  targetDocument: BlockFontDocument,
+): void {
+  requestCacheByDocument.delete(targetDocument);
+}
+
+function loadBlockFontRequest(
+  targetDocument: BlockFontDocument,
+  css: string,
+): Promise<BlockFontRequestOutcome> {
+  let cache = requestCacheByDocument.get(targetDocument);
+  if (!cache) {
+    cache = new Map();
+    requestCacheByDocument.set(targetDocument, cache);
+  }
+  const existing = cache.get(css);
+  if (existing) return existing.promise;
+
+  const promise = Promise.resolve()
+    .then(() => targetDocument.fonts.load(css, BLOCK_FONT_LOAD_SAMPLE))
+    .then<BlockFontRequestOutcome, BlockFontRequestOutcome>(
+      (faces) => {
+        const current = cache.get(css);
+        if (current) current.status = "ready";
+        return { faces };
+      },
+      (error: unknown) => {
+        // A transient load failure may recover on the next page visit.
+        cache.delete(css);
+        return { error };
+      },
+    );
+  const entry: BlockFontRequestEntry = { promise, status: "loading" };
+  cache.set(css, entry);
+  return promise;
 }
 
 function collectBlockFontLoadRequests(

@@ -15,6 +15,15 @@ export function clampOriginalImageOpacity(opacity: number): number {
   return Number.isFinite(opacity) ? Math.min(1, Math.max(0, opacity)) : 0;
 }
 
+export function isOriginalImageOpacitySupported(
+  selectedPage: Pick<MangaPage, "imagePath" | "inpaintedImagePath"> | null,
+): boolean {
+  return Boolean(
+    selectedPage?.inpaintedImagePath &&
+    selectedPage.inpaintedImagePath !== selectedPage.imagePath,
+  );
+}
+
 /** Only expose the blend control once both frames belong to the selected page. */
 export function isOriginalImageOpacityAvailable({
   selectedPage,
@@ -23,8 +32,9 @@ export function isOriginalImageOpacityAvailable({
   selectedPageOriginalImageDataUrl,
   selectedPageOriginalImageDataUrlPageId,
 }: OriginalImageOpacityAvailabilityInput): boolean {
-  if (!selectedPage?.inpaintedImagePath) return false;
-  if (selectedPage.inpaintedImagePath === selectedPage.imagePath) return false;
+  if (!selectedPage || !isOriginalImageOpacitySupported(selectedPage)) {
+    return false;
+  }
   if (
     selectedPageImageDataUrlPageId !== selectedPage.id ||
     selectedPageOriginalImageDataUrlPageId !== selectedPage.id

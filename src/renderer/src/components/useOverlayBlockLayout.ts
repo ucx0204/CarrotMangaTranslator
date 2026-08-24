@@ -13,7 +13,6 @@ type LayoutInput = {
   block: TranslationBlock;
   displayText: string;
   fontCatalog: BlockFontCatalog;
-  fontRevision: number;
   pageSize: ViewportSize;
   stageSize: ViewportSize;
   textLayoutStageSize: ViewportSize | null;
@@ -24,7 +23,6 @@ export function usePreviewAwareBlockLayout({
   canonicalBlock,
   displayText,
   fontCatalog,
-  fontRevision,
   pageSize,
   stageSize,
   textLayoutStageSize,
@@ -37,7 +35,6 @@ export function usePreviewAwareBlockLayout({
     block: canonicalBlock,
     displayText: canonicalText,
     fontCatalog,
-    fontRevision,
     pageSize,
     stageSize,
     textLayoutStageSize,
@@ -62,7 +59,6 @@ export function usePreviewAwareBlockLayout({
     canReuseCanonical,
     displayText,
     fontCatalog,
-    fontRevision,
     pageSize,
     stageSize,
     textLayoutStageSize,
@@ -77,7 +73,6 @@ function useCanonicalLayout({
   block,
   displayText,
   fontCatalog,
-  fontRevision,
   pageSize,
   stageSize,
   textLayoutStageSize,
@@ -89,12 +84,11 @@ function useCanonicalLayout({
         block,
         displayText,
         fontCatalog,
-        fontRevision,
         pageSize,
         stageSize: layoutStageSize,
         textLayoutStageSize: layoutStageSize,
       }),
-    [block, displayText, fontCatalog, fontRevision, layoutStageSize, pageSize],
+    [block, displayText, fontCatalog, layoutStageSize, pageSize],
   );
 }
 
@@ -103,7 +97,6 @@ function usePreviewLayout({
   canReuseCanonical,
   displayText,
   fontCatalog,
-  fontRevision,
   pageSize,
   stageSize,
   textLayoutStageSize,
@@ -117,7 +110,6 @@ function usePreviewLayout({
             block,
             displayText,
             fontCatalog,
-            fontRevision,
             pageSize,
             stageSize: layoutStageSize,
             textLayoutStageSize: layoutStageSize,
@@ -127,7 +119,6 @@ function usePreviewLayout({
       canReuseCanonical,
       displayText,
       fontCatalog,
-      fontRevision,
       layoutStageSize,
       pageSize,
     ],
@@ -141,9 +132,7 @@ function resolveInputLayout({
   pageSize,
   stageSize,
   textLayoutStageSize,
-  fontRevision,
 }: LayoutInput): BlockTextLayout {
-  void fontRevision;
   return resolveBlockTextLayout(
     block,
     displayText,
@@ -160,7 +149,7 @@ function usePreviewPlacement({
   pageSize,
   stageSize,
   textLayoutStageSize,
-}: Omit<LayoutInput, "fontCatalog" | "fontRevision">): {
+}: Omit<LayoutInput, "fontCatalog">): {
   layoutRect: BlockTextLayout["rect"];
   visualRect: BlockTextLayout["rect"];
 } {

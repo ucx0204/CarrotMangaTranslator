@@ -17,14 +17,25 @@ import {
   type PageImageFrame,
 } from "./pageImageFrame";
 
-const EMPTY_NEIGHBOR_TARGETS: Array<{ pageId: string; imagePath: string }> = [];
+type NeighborPageImageTarget = {
+  pageId: string;
+  imagePath: string;
+  originalImagePath?: string;
+};
+
+type NeighborPageImageRequest = {
+  cacheKey: string;
+  imagePath: string;
+};
+
+const EMPTY_NEIGHBOR_TARGETS: NeighborPageImageTarget[] = [];
 
 type UsePageImageDataUrlsOptions = {
   chapterId: string | null;
   selectedPage: MangaPage | null;
   selectedPageImagePath: string | null;
   /** Adjacent pages to prefetch so flipping swaps from cache without a blank frame. */
-  neighborTargets?: Array<{ pageId: string; imagePath: string }>;
+  neighborTargets?: NeighborPageImageTarget[];
 };
 
 type UsePageImageDataUrlsResult = {
@@ -321,7 +332,7 @@ async function loadDecodedPageImage(
 }
 
 function useNeighborPagePrefetch(
-  neighborTargets: Array<{ pageId: string; imagePath: string }>,
+  neighborTargets: NeighborPageImageTarget[],
   pageImageCacheRef: React.MutableRefObject<Map<string, string>>,
   requestCoordinatorRef: React.MutableRefObject<PageImageRequestCoordinator>,
 ): void {
@@ -330,26 +341,48 @@ function useNeighborPagePrefetch(
       return;
     }
     for (const target of neighborTargets) {
-      const cacheKey = `${target.pageId}:${target.imagePath}`;
-      const coordinator = requestCoordinatorRef.current;
-      const epoch = coordinator.epoch;
-      void getCachedPageImageDataUrl(
-        pageImageCacheRef.current,
-        coordinator,
-        cacheKey,
-        target.imagePath,
-      )
-        .then((dataUrl) => {
-          if (coordinator.epoch !== epoch) {
-            return;
-          }
-          return preloadPageImage(coordinator, dataUrl);
-        })
-        .catch((error) => {
-          if (coordinator.epoch === epoch) {
-            console.warn("이웃 페이지 미리 불러오기 실패", error);
-          }
-        });
+      for (const request of createNeighborPageImageRequests(target)) {
+        const coordinator = requestCoordinatorRef.current;
+        const epoch = coordinator.epoch;
+        void getCachedPageImageDataUrl(
+          pageImageCacheRef.current,
+          coordinator,
+          request.cacheKey,
+          request.imagePath,
+        )
+          .then((dataUrl) => {
+            if (coordinator.epoch !== epoch) {
+              return;
+            }
+            return preloadPageImage(coordinator, dataUrl);
+          })
+          .catch((error) => {
+            if (coordinator.epoch === epoch) {
+              console.warn("이웃 페이지 미리 불러오기 실패", error);
+            }
+          });
+      }
     }
   }, [neighborTargets, pageImageCacheRef, requestCoordinatorRef]);
+}
+
+function createNeighborPageImageRequests(
+  target: NeighborPageImageTarget,
+): NeighborPageImageRequest[] {
+  const requests = [
+    {
+      cacheKey: `${target.pageId}:${target.imagePath}`,
+      imagePath: target.imagePath,
+    },
+  ];
+  if (
+    target.originalImagePath &&
+    target.originalImagePath !== target.imagePath
+  ) {
+    requests.push({
+      cacheKey: `${target.pageId}:original:${target.originalImagePath}`,
+      imagePath: target.originalImagePath,
+    });
+  }
+  return requests;
 }

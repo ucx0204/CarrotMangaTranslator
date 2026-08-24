@@ -60,14 +60,11 @@ export function AppWorkspace(props: AppWorkspaceProps): React.JSX.Element {
     selectedBlockIds: props.selectedBlockIds,
     zoom: props.workspaceZoom,
   });
-  const stableProps = React.useMemo(
-    () => ({
-      ...props,
-      ...stableActions,
-      stageSize: zoomStyle.imageSize ?? props.stageSize,
-    }),
-    [props, stableActions, zoomStyle.imageSize],
-  );
+  const stableProps: AppWorkspaceProps = {
+    ...props,
+    ...stableActions,
+    stageSize: zoomStyle.imageSize ?? props.stageSize,
+  };
   return (
     <section className="workspace-shell">
       {props.selectedPage ? (
@@ -174,25 +171,64 @@ function useStableWorkspaceActions(
       props.onStagePointerLeave?.(event);
     },
   );
-  return {
-    onApplyBubbleLayoutDraft: useEventCallback(props.onApplyBubbleLayoutDraft),
-    onBlockPointerDown: useEventCallback(props.onBlockPointerDown),
-    onWarpTransformCommit: useEventCallback((blockId, transform) =>
-      props.onWarpTransformCommit?.(blockId, transform),
-    ),
-    onCancelBubbleLayoutDraft: useEventCallback(
-      props.onCancelBubbleLayoutDraft,
-    ),
-    onOpenBatchImport: useEventCallback(props.onOpenBatchImport),
-    onOpenSettings: useEventCallback(props.onOpenSettings),
-    onOpenShareImport: useEventCallback(props.onOpenShareImport),
-    onOpenTranslationSource: useEventCallback(props.onOpenTranslationSource),
-    onStagePointerDown: useEventCallback(props.onStagePointerDown),
-    onStagePointerLeave,
-    onStagePointerMove: useEventCallback(props.onStagePointerMove),
-    onStagePointerUp: useEventCallback(props.onStagePointerUp),
-    onUndoBubbleLayoutPoint: useEventCallback(props.onUndoBubbleLayoutPoint),
-  };
+  const onApplyBubbleLayoutDraft = useEventCallback(
+    props.onApplyBubbleLayoutDraft,
+  );
+  const onBlockPointerDown = useEventCallback(props.onBlockPointerDown);
+  const onWarpTransformCommit = useEventCallback(
+    (
+      ...args: Parameters<
+        NonNullable<AppWorkspaceProps["onWarpTransformCommit"]>
+      >
+    ) => props.onWarpTransformCommit?.(...args),
+  );
+  const onCancelBubbleLayoutDraft = useEventCallback(
+    props.onCancelBubbleLayoutDraft,
+  );
+  const onOpenBatchImport = useEventCallback(props.onOpenBatchImport);
+  const onOpenSettings = useEventCallback(props.onOpenSettings);
+  const onOpenShareImport = useEventCallback(props.onOpenShareImport);
+  const onOpenTranslationSource = useEventCallback(
+    props.onOpenTranslationSource,
+  );
+  const onStagePointerDown = useEventCallback(props.onStagePointerDown);
+  const onStagePointerMove = useEventCallback(props.onStagePointerMove);
+  const onStagePointerUp = useEventCallback(props.onStagePointerUp);
+  const onUndoBubbleLayoutPoint = useEventCallback(
+    props.onUndoBubbleLayoutPoint,
+  );
+  return React.useMemo(
+    () => ({
+      onApplyBubbleLayoutDraft,
+      onBlockPointerDown,
+      onWarpTransformCommit,
+      onCancelBubbleLayoutDraft,
+      onOpenBatchImport,
+      onOpenSettings,
+      onOpenShareImport,
+      onOpenTranslationSource,
+      onStagePointerDown,
+      onStagePointerLeave,
+      onStagePointerMove,
+      onStagePointerUp,
+      onUndoBubbleLayoutPoint,
+    }),
+    [
+      onApplyBubbleLayoutDraft,
+      onBlockPointerDown,
+      onCancelBubbleLayoutDraft,
+      onOpenBatchImport,
+      onOpenSettings,
+      onOpenShareImport,
+      onOpenTranslationSource,
+      onStagePointerDown,
+      onStagePointerLeave,
+      onStagePointerMove,
+      onStagePointerUp,
+      onUndoBubbleLayoutPoint,
+      onWarpTransformCommit,
+    ],
+  );
 }
 
 function useResetWorkspaceScrollOnRenderedPage({

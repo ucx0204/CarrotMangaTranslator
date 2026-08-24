@@ -54,7 +54,6 @@ export const OverlayBlock = React.memo(function OverlayBlock(
 export const OverlayBlockView = React.memo(function OverlayBlockView(
   props: OverlayBlockProps & {
     fontCatalog: BlockFontCatalog;
-    fontRevision?: number;
   },
 ): React.JSX.Element {
   const catalog = props.fontCatalog;
@@ -72,7 +71,6 @@ export const OverlayBlockView = React.memo(function OverlayBlockView(
     pageSize: props.pageSize,
     stageSize: props.stageSize,
     textLayoutStageSize: props.textLayoutStageSize,
-    fontRevision: props.fontRevision ?? 0,
   });
   const selectedMode = resolveSelectedMode(props);
   const flags = resolveOverlayBlockFlags(props);

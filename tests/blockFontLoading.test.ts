@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  areBlockFontsReadyForKey,
+  clearBlockFontLoadCache,
   createBlockFontLoadKey,
   loadBlockFonts,
+  loadBlockFontsForKey,
 } from "../src/renderer/src/lib/blockFontLoading";
 import {
   createBlockFontCatalog,
@@ -81,6 +84,108 @@ describe("block font loading", () => {
 
     expect(key).toContain("MGT Nanum Gothic");
     expect(key).toContain("MGT Nanum Myeongjo");
+  });
+
+  it("deduplicates an in-flight face request and exposes synchronous readiness", async () => {
+    let resolveLoad: (faces: FontFace[]) => void = () => undefined;
+    const fonts = makeFontSet(
+      () =>
+        new Promise<FontFace[]>((resolve) => {
+          resolveLoad = resolve;
+        }),
+    );
+    const target = { fonts };
+    const loadKey = createBlockFontLoadKey(
+      [makeBlock({ fontFamily: "nanum-myeongjo" })],
+      DEFAULT_BLOCK_FONT_CATALOG,
+    );
+
+    expect(areBlockFontsReadyForKey(target, loadKey)).toBe(false);
+    const first = loadBlockFontsForKey(target, loadKey);
+    const second = loadBlockFontsForKey(target, loadKey);
+    await Promise.resolve();
+    expect(fonts.load).toHaveBeenCalledTimes(1);
+
+    resolveLoad([{} as FontFace]);
+    await Promise.all([first, second]);
+    expect(areBlockFontsReadyForKey(target, loadKey)).toBe(true);
+    await loadBlockFontsForKey(target, loadKey);
+    expect(fonts.load).toHaveBeenCalledTimes(1);
+  });
+
+  it("waits only for requested faces instead of the global FontFaceSet", async () => {
+    const fonts = makeFontSet(() => Promise.resolve([{} as FontFace]));
+    Object.defineProperty(fonts, "ready", {
+      configurable: true,
+      get: () => {
+        throw new Error("global readiness must not be read");
+      },
+    });
+
+    await expect(
+      loadBlockFonts(
+        { fonts },
+        [makeBlock({ fontFamily: "nanum-myeongjo" })],
+        DEFAULT_BLOCK_FONT_CATALOG,
+      ),
+    ).resolves.toMatchObject({ failures: [] });
+  });
+
+  it("reports a transient face failure, evicts it, and retries", async () => {
+    const failure = new Error("temporary font failure");
+    let attempts = 0;
+    const fonts = makeFontSet(() => {
+      attempts += 1;
+      return attempts === 1
+        ? Promise.reject(failure)
+        : Promise.resolve([{} as FontFace]);
+    });
+    const target = { fonts };
+    const loadKey = createBlockFontLoadKey(
+      [makeBlock({ fontFamily: "nanum-myeongjo" })],
+      DEFAULT_BLOCK_FONT_CATALOG,
+    );
+
+    await expect(loadBlockFontsForKey(target, loadKey)).resolves.toMatchObject({
+      failures: [{ error: failure }],
+    });
+    expect(areBlockFontsReadyForKey(target, loadKey)).toBe(false);
+    await expect(loadBlockFontsForKey(target, loadKey)).resolves.toMatchObject({
+      failures: [],
+    });
+    expect(fonts.load).toHaveBeenCalledTimes(2);
+    expect(areBlockFontsReadyForKey(target, loadKey)).toBe(true);
+
+    clearBlockFontLoadCache(target);
+    expect(areBlockFontsReadyForKey(target, loadKey)).toBe(false);
+  });
+
+  it("accepts an empty key and rejects every malformed request shape", async () => {
+    const target = {
+      fonts: makeFontSet(() => Promise.resolve([{} as FontFace])),
+    };
+    expect(areBlockFontsReadyForKey(target, "")).toBe(true);
+    await expect(loadBlockFontsForKey(target, "")).resolves.toEqual({
+      failures: [],
+      missingFamilies: [],
+    });
+
+    const invalidKeys = [
+      "{}",
+      "[null]",
+      "[1]",
+      '[{"family":"Family","required":true}]',
+      '[{"css":1,"family":"Family","required":true}]',
+      '[{"css":"16px Family","required":true}]',
+      '[{"css":"16px Family","family":1,"required":true}]',
+      '[{"css":"16px Family","family":"Family"}]',
+      '[{"css":"16px Family","family":"Family","required":1}]',
+    ];
+    for (const invalidKey of invalidKeys) {
+      await expect(loadBlockFontsForKey(target, invalidKey)).rejects.toThrow(
+        "Invalid block font load key.",
+      );
+    }
   });
 });
 

@@ -7,6 +7,7 @@ import type {
 import type { JobState } from "../../../../shared/jobTypes";
 import { isPageFullyCompleted } from "../../../../shared/pageCompletion";
 import { usePageImageDataUrls } from "../../hooks/usePageImageDataUrls";
+import { usePageFontPreload } from "../../hooks/usePageFontPreload";
 import { useStageSize } from "../../hooks/useStageSize";
 import type { InpaintingTool } from "../../inpainting/inpaintingTypes";
 import {
@@ -60,6 +61,11 @@ export function useAppSessionDerivedState({
     selectedBlockIds,
     selectedPageId,
   });
+  useNeighborPageFontPreload(
+    currentChapter?.pages,
+    pageState.selectedPage,
+    pageState.neighborTargets,
+  );
   const {
     clearPageImageCache,
     selectedPageImageDataUrl,
@@ -115,6 +121,30 @@ export function useAppSessionDerivedState({
     showProgressBar:
       jobState.status !== "idle" && Boolean(progressState.progressSnapshot),
   };
+}
+
+function resolveNeighborFontPages(
+  pages: MangaPage[] | undefined,
+  targets: NeighborImageTarget[],
+): MangaPage[] {
+  if (!pages || targets.length === 0) return [];
+  const pagesById = new Map(pages.map((page) => [page.id, page]));
+  return targets.flatMap((target) => {
+    const page = pagesById.get(target.pageId);
+    return page ? [page] : [];
+  });
+}
+
+function useNeighborPageFontPreload(
+  pages: MangaPage[] | undefined,
+  selectedPage: MangaPage | null,
+  targets: NeighborImageTarget[],
+): void {
+  const neighborFontPages = useMemo(
+    () => resolveNeighborFontPages(pages, targets),
+    [pages, targets],
+  );
+  usePageFontPreload(selectedPage, neighborFontPages);
 }
 
 function useSelectedPageState({
@@ -177,34 +207,55 @@ function useSelectedPageState({
 function useStableNeighborTargets(
   targets: NeighborImageTarget[],
 ): NeighborImageTarget[] {
-  const firstPageId = targets[0]?.pageId ?? null;
-  const firstImagePath = targets[0]?.imagePath ?? null;
-  const secondPageId = targets[1]?.pageId ?? null;
-  const secondImagePath = targets[1]?.imagePath ?? null;
+  const firstPageId = targets[0]?.pageId;
+  const firstImagePath = targets[0]?.imagePath;
+  const firstOriginalImagePath = targets[0]?.originalImagePath;
+  const secondPageId = targets[1]?.pageId;
+  const secondImagePath = targets[1]?.imagePath;
+  const secondOriginalImagePath = targets[1]?.originalImagePath;
   return useMemo(
     () =>
       createNeighborTargets(
         firstPageId,
         firstImagePath,
+        firstOriginalImagePath,
         secondPageId,
         secondImagePath,
+        secondOriginalImagePath,
       ),
-    [firstImagePath, firstPageId, secondImagePath, secondPageId],
+    [
+      firstImagePath,
+      firstOriginalImagePath,
+      firstPageId,
+      secondImagePath,
+      secondOriginalImagePath,
+      secondPageId,
+    ],
   );
 }
 
 function createNeighborTargets(
-  firstPageId: string | null,
-  firstImagePath: string | null,
-  secondPageId: string | null,
-  secondImagePath: string | null,
+  firstPageId: string | undefined,
+  firstImagePath: string | undefined,
+  firstOriginalImagePath: string | undefined,
+  secondPageId: string | undefined,
+  secondImagePath: string | undefined,
+  secondOriginalImagePath: string | undefined,
 ): NeighborImageTarget[] {
   const targets: NeighborImageTarget[] = [];
-  if (firstPageId && firstImagePath) {
-    targets.push({ pageId: firstPageId, imagePath: firstImagePath });
+  if (firstPageId && firstImagePath && firstOriginalImagePath) {
+    targets.push({
+      pageId: firstPageId,
+      imagePath: firstImagePath,
+      originalImagePath: firstOriginalImagePath,
+    });
   }
-  if (secondPageId && secondImagePath) {
-    targets.push({ pageId: secondPageId, imagePath: secondImagePath });
+  if (secondPageId && secondImagePath && secondOriginalImagePath) {
+    targets.push({
+      pageId: secondPageId,
+      imagePath: secondImagePath,
+      originalImagePath: secondOriginalImagePath,
+    });
   }
   return targets;
 }

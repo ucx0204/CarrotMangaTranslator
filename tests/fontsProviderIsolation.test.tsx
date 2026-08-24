@@ -1,7 +1,14 @@
 /** @vitest-environment jsdom */
 
 import React from "react";
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   FontLibrarySnapshot,
@@ -94,6 +101,84 @@ describe("FontsProvider catalog isolation", () => {
 
     expect(renderCount).toHaveBeenCalledTimes(settledRenderCount);
   });
+
+  it("marks the bundled catalog ready when initial hydration fails", async () => {
+    const failure = new Error("font library unavailable");
+    const fontSource = createFontSource(
+      makeSnapshot("11111111-1111-4111-8111-111111111111", "Unused Family"),
+    );
+    const source: FontLibrarySource = {
+      ...fontSource.source,
+      getFontLibrary: vi.fn(async () => Promise.reject(failure)),
+    };
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    try {
+      render(
+        <FontsProvider source={source}>
+          <FontReadinessConsumer />
+        </FontsProvider>,
+      );
+      expect(screen.getByTestId("font-readiness").textContent).toBe("loading");
+      await waitFor(() =>
+        expect(screen.getByTestId("font-readiness").textContent).toBe("ready"),
+      );
+      expect(consoleError).toHaveBeenCalledWith(failure);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it("refreshes the catalog after successful font actions", async () => {
+    const snapshot = makeSnapshot(
+      "11111111-1111-4111-8111-111111111111",
+      "Action Family",
+    );
+    const fontSource = createFontSource(snapshot);
+    const getFontLibrary = vi.fn(fontSource.source.getFontLibrary);
+    const registerCustomFont = vi.fn(
+      async () => snapshot.customFonts[0] ?? null,
+    );
+    const removeCustomFont = vi.fn(async () => snapshot.customFonts);
+    const saveFontPreferences = vi.fn(
+      async (preferences: FontPreferences): Promise<FontLibrarySnapshot> => ({
+        ...snapshot,
+        preferences,
+      }),
+    );
+    const source: FontLibrarySource = {
+      ...fontSource.source,
+      getFontLibrary,
+      registerCustomFont,
+      removeCustomFont,
+      saveFontPreferences,
+    };
+
+    render(
+      <FontsProvider source={source}>
+        <FontActionsConsumer />
+      </FontsProvider>,
+    );
+    await waitFor(() => expect(getFontLibrary).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole("button", { name: "register" }));
+    await waitFor(() => {
+      expect(registerCustomFont).toHaveBeenCalledTimes(1);
+      expect(getFontLibrary).toHaveBeenCalledTimes(2);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "remove" }));
+    await waitFor(() => {
+      expect(removeCustomFont).toHaveBeenCalledWith(
+        snapshot.customFonts[0]?.id,
+      );
+      expect(getFontLibrary).toHaveBeenCalledTimes(3);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "save" }));
+    await waitFor(() => expect(saveFontPreferences).toHaveBeenCalledTimes(1));
+    expect(screen.getByTestId("font-busy").textContent).toBe("idle");
+  });
 });
 
 function FontCatalogConsumer({
@@ -116,6 +201,44 @@ function FontCatalogConsumer({
 }
 
 const MemoFontCatalogConsumer = React.memo(FontCatalogConsumer);
+
+function FontReadinessConsumer(): React.JSX.Element {
+  const { ready } = useFonts();
+  return (
+    <output data-testid="font-readiness">
+      {ready === false ? "loading" : "ready"}
+    </output>
+  );
+}
+
+function FontActionsConsumer(): React.JSX.Element {
+  const { busy, catalog, registerFont, removeFont, savePreferences } =
+    useFonts();
+  const fontId = catalog.customFonts[0]?.id ?? "missing";
+  return (
+    <>
+      <output data-testid="font-busy">{busy ? "busy" : "idle"}</output>
+      <button type="button" onClick={() => void registerFont()}>
+        register
+      </button>
+      <button type="button" onClick={() => void removeFont(fontId)}>
+        remove
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          void savePreferences({
+            defaultFontId: fontId,
+            favoriteIds: [],
+            orderedIds: [],
+          })
+        }
+      >
+        save
+      </button>
+    </>
+  );
+}
 
 function createFontSource(initial: FontLibrarySnapshot): {
   source: FontLibrarySource;

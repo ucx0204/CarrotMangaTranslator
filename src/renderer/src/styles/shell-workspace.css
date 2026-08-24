@@ -239,6 +239,9 @@
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+  /* The group frame already provides an opaque background. A second backdrop
+     filter creates needless compositor layers that can flash on image swaps. */
+  backdrop-filter: none;
 }
 
 .right-quick-bottom-group {

@@ -892,6 +892,22 @@ kbd {
   color: var(--accent-hi);
 }
 
+/* Image readiness is transient during navigation. Keep the persistent dock
+   affordance visually stable while its two decoded frames settle. */
+.workspace-original-opacity-dock.pending
+  .workspace-original-opacity-trigger
+  > button:disabled {
+  color: var(--canvas-chrome-text);
+  cursor: progress;
+  opacity: 1;
+}
+
+.workspace-original-opacity-dock.pending.active
+  .workspace-original-opacity-trigger
+  > button:disabled {
+  color: var(--accent-hi);
+}
+
 .workspace-original-opacity-icon {
   width: 22px;
   height: 22px;

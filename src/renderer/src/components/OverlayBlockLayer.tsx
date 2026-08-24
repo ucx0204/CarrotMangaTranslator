@@ -2,6 +2,7 @@ import React from "react";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import { useFonts } from "../fonts/useFonts";
 import {
+  areBlockFontsReadyForKey,
   createBlockFontLoadKey,
   loadBlockFontsForKey,
 } from "../lib/blockFontLoading";
@@ -30,17 +31,25 @@ type OverlayBlockLayerProps = Pick<
 export function OverlayBlockLayer(
   props: OverlayBlockLayerProps,
 ): React.JSX.Element | null {
-  const { catalog } = useFonts();
-  return <OverlayBlockLayerView {...props} fontCatalog={catalog} />;
+  const { catalog, ready = true } = useFonts();
+  return (
+    <OverlayBlockLayerView
+      {...props}
+      fontCatalog={catalog}
+      fontCatalogReady={ready}
+    />
+  );
 }
 
 type OverlayBlockLayerViewProps = OverlayBlockLayerProps & {
   fontCatalog: BlockFontCatalog;
+  fontCatalogReady: boolean;
 };
 
 const OverlayBlockLayerView = React.memo(function OverlayBlockLayerView({
   blockPointerDisabled,
   fontCatalog,
+  fontCatalogReady,
   imageDataUrl,
   interactionPreviewStore,
   onBlockPointerDown,
@@ -61,8 +70,12 @@ const OverlayBlockLayerView = React.memo(function OverlayBlockLayerView({
   const stableStageSize = useStableViewportSize(stageSize);
   const stableTextLayoutStageSize = useStableViewportSize(textLayoutStageSize);
   const handleBlockPointerDown = useLatestBlockPointerDown(onBlockPointerDown);
-  const fontRevision = useBlockFontRevision(page.blocks, fontCatalog);
-  if (!imageDataUrl || !stableStageSize) {
+  const fontsReady = useBlockFontReadiness(
+    page.blocks,
+    fontCatalog,
+    fontCatalogReady,
+  );
+  if (!imageDataUrl || !stableStageSize || !fontsReady) {
     return null;
   }
   const visibleBlocks = showTextBlocks
@@ -77,7 +90,6 @@ const OverlayBlockLayerView = React.memo(function OverlayBlockLayerView({
           key={block.id}
           block={block}
           fontCatalog={fontCatalog}
-          fontRevision={fontRevision}
           pageSize={pageSize}
           stageSize={stableStageSize}
           selected={block.id === selectedBlockId}
@@ -175,34 +187,51 @@ function useStableViewportSize(size: ViewportSize | null): ViewportSize | null {
   );
 }
 
-function useBlockFontRevision(
+function useBlockFontReadiness(
   blocks: readonly TranslationBlock[],
   catalog: BlockFontCatalog,
-): number {
+  catalogReady: boolean,
+): boolean {
   const loadKey = React.useMemo(
     () => createBlockFontLoadKey(blocks, catalog),
     [blocks, catalog],
   );
-  const [revision, setRevision] = React.useState(0);
+  const [settledLoadKey, setSettledLoadKey] = React.useState<string | null>(
+    null,
+  );
+  const fontSetAvailable =
+    typeof document !== "undefined" && Boolean(document.fonts);
+  const cached =
+    catalogReady &&
+    fontSetAvailable &&
+    areBlockFontsReadyForKey(document, loadKey);
+  const ready =
+    catalogReady && (!fontSetAvailable || cached || settledLoadKey === loadKey);
   React.useEffect(() => {
-    if (!loadKey || !document.fonts) return;
+    if (!catalogReady || !fontSetAvailable || ready) return;
+    if (areBlockFontsReadyForKey(document, loadKey)) {
+      setSettledLoadKey(loadKey);
+      return;
+    }
     let active = true;
     void loadBlockFontsForKey(document, loadKey)
       .then((report) => {
         if (!active) return;
         reportBlockFontLoadIssue(report);
-        setRevision((value) => value + 1);
+        setSettledLoadKey(loadKey);
       })
       .catch((error: unknown) => {
         if (!active) return;
         console.error("페이지 글꼴을 불러오지 못했습니다.", error);
-        setRevision((value) => value + 1);
+        // Do not leave the page permanently blank when browser font loading
+        // itself fails; render once with the browser's fallback stack.
+        setSettledLoadKey(loadKey);
       });
     return () => {
       active = false;
     };
-  }, [loadKey]);
-  return revision;
+  }, [catalogReady, fontSetAvailable, loadKey, ready]);
+  return ready;
 }
 
 function reportBlockFontLoadIssue(

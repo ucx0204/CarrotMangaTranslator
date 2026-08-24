@@ -371,7 +371,7 @@ describe("page image request coalescing", () => {
     );
   });
 
-  it("decodes neighbor images instead of only prefetching their signed URLs", async () => {
+  it("decodes both edited and original neighbor frames before navigation", async () => {
     const decodedSources: string[] = [];
     class DecodingImage {
       decoding = "auto";
@@ -394,15 +394,22 @@ describe("page image request coalescing", () => {
     renderHook(() =>
       usePageImageDataUrls({
         chapterId: "chapter-1",
-        neighborTargets: [{ pageId: "page-2", imagePath: "page-2.png" }],
+        neighborTargets: [
+          {
+            pageId: "page-2",
+            imagePath: "page-2-clean.png",
+            originalImagePath: "page-2.png",
+          },
+        ],
         selectedPage,
         selectedPageImagePath: selectedPage.imagePath,
       }),
     );
 
-    await waitFor(() =>
-      expect(decodedSources).toContain("mgt-image://library/page-2.png"),
-    );
+    await waitFor(() => {
+      expect(decodedSources).toContain("mgt-image://library/page-2-clean.png");
+      expect(decodedSources).toContain("mgt-image://library/page-2.png");
+    });
   });
 
   it("keeps decoded neighbor images bounded and releases them on unmount", async () => {
