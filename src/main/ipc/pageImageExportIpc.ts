@@ -1,7 +1,9 @@
 import { dialog } from "electron";
 import { pageImageExportIpcContracts } from "../../shared/ipcContracts";
 import {
+  PageImageExportPreflightRequestSchema,
   PageImageExportRequestSchema,
+  PagePsdExportRequestSchema,
   parseIpcPayload,
 } from "../../shared/ipcSchemas";
 import type {
@@ -11,6 +13,7 @@ import type {
 import {
   assertNoActivePageImageExportJob,
   exportPageImages,
+  exportPagePsd,
 } from "../jobs/pageImageExportJobs";
 import type { InpaintingJobContext } from "../jobs/inpaintingJobTypes";
 import {
@@ -31,6 +34,11 @@ export type PageImageExportService = {
     request: Parameters<typeof exportPageImages>[1],
     outputParentDir: string,
   ) => Promise<PageImageExportResult>;
+  exportPsd?: (
+    context: InpaintingJobContext,
+    request: Parameters<typeof exportPagePsd>[1],
+    outputParentDir: string,
+  ) => Promise<PageImageExportResult>;
   preflightImages?: (
     request: Parameters<typeof preflightPageImageExport>[0],
   ) => Promise<PageImageExportPreflightResult>;
@@ -39,6 +47,7 @@ export type PageImageExportService = {
 const productionPageImageExportService: PageImageExportService = {
   assertIdle: assertNoActivePageImageExportJob,
   exportImages: exportPageImages,
+  exportPsd: exportPagePsd,
   preflightImages: (request) =>
     preflightPageImageExport(
       request,
@@ -50,12 +59,21 @@ export function registerPageImageExportIpc(
   context: IpcContext,
   service: PageImageExportService = productionPageImageExportService,
 ): void {
+  registerExportPreflight(context, service);
+  registerRasterExport(context, service);
+  registerPsdExport(context, service);
+}
+
+function registerExportPreflight(
+  context: IpcContext,
+  service: PageImageExportService,
+): void {
   trustedHandleContract(
     context,
     pageImageExportIpcContracts.preflightPageImages,
     async (_event, rawRequest: unknown) => {
       const request = parseIpcPayload(
-        PageImageExportRequestSchema,
+        PageImageExportPreflightRequestSchema,
         rawRequest,
         tMain("ipc.labels.resultExport"),
       );
@@ -68,6 +86,12 @@ export function registerPageImageExportIpc(
       return preflightImages({ ...request, expectedTargets: undefined });
     },
   );
+}
+
+function registerRasterExport(
+  context: IpcContext,
+  service: PageImageExportService,
+): void {
   trustedHandleContract(
     context,
     pageImageExportIpcContracts.exportPageImages,
@@ -82,22 +106,8 @@ export function registerPageImageExportIpc(
       );
       service.assertIdle(context);
 
-      const options = {
-        title: tMain("dialogs.exportOutputFolder"),
-        defaultPath: getRecentDialogDirectory(
-          context.appPaths.dataRoot,
-          recentDialogPathKeys.pageImageExport,
-        ),
-        properties: ["openDirectory", "createDirectory"],
-      } satisfies Electron.OpenDialogOptions;
-      const window = context.getMainWindow();
-      const result = window
-        ? await dialog.showOpenDialog(window, options)
-        : await dialog.showOpenDialog(options);
-      const outputParentDir = result.filePaths[0];
-      if (result.canceled || !outputParentDir) {
-        return null;
-      }
+      const outputParentDir = await pickExportDirectory(context);
+      if (!outputParentDir) return null;
 
       const exported = await service.exportImages(
         context,
@@ -114,4 +124,58 @@ export function registerPageImageExportIpc(
       return exported;
     },
   );
+}
+
+function registerPsdExport(
+  context: IpcContext,
+  service: PageImageExportService,
+): void {
+  trustedHandleContract(
+    context,
+    pageImageExportIpcContracts.exportPagePsd,
+    async (
+      _event,
+      rawRequest: unknown,
+    ): Promise<PageImageExportResult | null> => {
+      const request = parseIpcPayload(
+        PagePsdExportRequestSchema,
+        rawRequest,
+        tMain("ipc.labels.resultExport"),
+      );
+      service.assertIdle(context);
+      const outputParentDir = await pickExportDirectory(context);
+      if (!outputParentDir) return null;
+      const exported = await (service.exportPsd ?? exportPagePsd)(
+        context,
+        request,
+        outputParentDir,
+      );
+      if (exported.status === "completed") {
+        rememberRecentDialogDirectory(
+          context.appPaths.dataRoot,
+          recentDialogPathKeys.pageImageExport,
+          outputParentDir,
+        );
+      }
+      return exported;
+    },
+  );
+}
+
+async function pickExportDirectory(
+  context: IpcContext,
+): Promise<string | null> {
+  const options = {
+    title: tMain("dialogs.exportOutputFolder"),
+    defaultPath: getRecentDialogDirectory(
+      context.appPaths.dataRoot,
+      recentDialogPathKeys.pageImageExport,
+    ),
+    properties: ["openDirectory", "createDirectory"],
+  } satisfies Electron.OpenDialogOptions;
+  const window = context.getMainWindow();
+  const result = window
+    ? await dialog.showOpenDialog(window, options)
+    : await dialog.showOpenDialog(options);
+  return result.canceled ? null : (result.filePaths[0] ?? null);
 }

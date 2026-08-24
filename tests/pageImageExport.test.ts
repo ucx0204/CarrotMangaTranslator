@@ -1,6 +1,14 @@
 import { BrowserWindow } from "electron";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PNG } from "pngjs";
@@ -252,11 +260,11 @@ describe("page image export behavior", () => {
       "002-Second",
     ]);
     expect(await readdir(join(result.outputDir, "001-Chapter_ One"))).toEqual([
-      "001-001.png",
-      "003-003.png",
+      "001.png",
+      "003.png",
     ]);
     expect(await readdir(join(result.outputDir, "002-Second"))).toEqual([
-      "001-a.png",
+      "a.png",
     ]);
     expect(harness.renderPage.mock.calls.map(([page]) => page.id)).toEqual([
       "page-1",
@@ -276,6 +284,85 @@ describe("page image export behavior", () => {
       progressCurrent: 3,
       progressTotal: 3,
     });
+  });
+
+  it("preserves nested source names and passes WebP quality to the renderer", async () => {
+    const outputDir = await makeTempDir();
+    const page = {
+      ...makePage("page-1", "표시 이름.jpg"),
+      sourceFileName: "001.JPG",
+      sourceRelativePath: "한글 폴더/001.JPG",
+    };
+    const chapter = makeChapter("chapter-1", "One", [page]);
+    const harness = makeDependencies(makeLibrary([chapter]), [chapter], {
+      writeImage: async (path, content) => writeFile(path, content),
+    });
+
+    await runPageImageExportJob({
+      context: makeContext(outputDir),
+      request: {
+        workId: "work-1",
+        selections: [{ chapterId: chapter.id, mode: "all" }],
+        outputFormat: "webp",
+        webpQuality: 87,
+        preserveSourceNames: true,
+        destinationMode: "fixed",
+        collisionPolicy: "replace",
+      },
+      outputParentDir: outputDir,
+      id: "webp-export",
+      abortController: new AbortController(),
+      emit: vi.fn(),
+      dependencies: harness.dependencies,
+    });
+
+    expect(await readdir(join(outputDir, "한글 폴더"))).toEqual(["001.webp"]);
+    expect(harness.renderPage.mock.calls[0]?.[1]).toEqual({
+      format: "webp",
+      quality: 87,
+    });
+  });
+
+  it("checks cancel collisions before opening a renderer or changing files", async () => {
+    const outputDir = await makeTempDir();
+    await writeFile(join(outputDir, "001.png"), "existing");
+    const page = {
+      ...makePage("page-1", "001.png"),
+      sourceFileName: "001.png",
+      sourceRelativePath: "001.png",
+    };
+    const chapter = makeChapter("chapter-1", "One", [page]);
+    const harness = makeDependencies(makeLibrary([chapter]), [chapter], {
+      fileExists: async (path) => {
+        try {
+          return (await stat(path)).isFile();
+        } catch (error) {
+          void error;
+          return false;
+        }
+      },
+    });
+
+    await expect(
+      runPageImageExportJob({
+        context: makeContext(outputDir),
+        request: {
+          workId: "work-1",
+          selections: [{ chapterId: chapter.id, mode: "all" }],
+          outputFormat: "png",
+          preserveSourceNames: true,
+          destinationMode: "fixed",
+          collisionPolicy: "cancel",
+        },
+        outputParentDir: outputDir,
+        id: "collision-export",
+        abortController: new AbortController(),
+        emit: vi.fn(),
+        dependencies: harness.dependencies,
+      }),
+    ).rejects.toThrow("같은 이름");
+    expect(harness.createSession).not.toHaveBeenCalled();
+    expect(await readFile(join(outputDir, "001.png"), "utf8")).toBe("existing");
   });
 
   it("exports a layered PSD through the page export job", async () => {
@@ -737,10 +824,15 @@ describe("page image export IPC boundary", () => {
 });
 
 type DependencyOverrides = {
-  renderPage?: (page: MangaPage) => Promise<Buffer>;
+  renderPage?: (
+    page: MangaPage,
+    options?: { format: "png" | "jpeg" | "webp"; quality?: number },
+  ) => Promise<Buffer>;
   renderTransparentPage?: (page: MangaPage) => Promise<Buffer>;
   openDirectory?: PageImageExportRuntimePort["openDirectory"];
   removeDirectory?: PageImageExportRuntimePort["removeDirectory"];
+  writeImage?: (path: string, content: Buffer) => Promise<void>;
+  fileExists?: (path: string) => Promise<boolean>;
 };
 
 function makeDependencies(
@@ -780,6 +872,8 @@ function makeDependencies(
         await rm(path, { recursive: true, force: true });
       }),
     writePng,
+    ...(overrides.writeImage ? { writeImage: overrides.writeImage } : {}),
+    ...(overrides.fileExists ? { fileExists: overrides.fileExists } : {}),
     writePsd,
     openDirectory,
     createTimestamp: () => "2026-01-02T03-04-05-000Z",

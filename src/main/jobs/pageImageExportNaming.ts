@@ -30,18 +30,31 @@ export function buildPageImageExportRelativePath({
   chapterTitle,
   pageIndex,
   pageName,
-  outputFormat = "png",
+  outputFormat = "source",
 }: {
   chapterIndex: number;
   chapterTitle: string;
   pageIndex: number;
   pageName: string;
-  outputFormat?: "png" | "psd";
+  outputFormat?: "source" | "png" | "jpeg" | "webp" | "psd";
 }): string {
+  const extension =
+    outputFormat === "source"
+      ? resolveSourceOutputExtension(pageName)
+      : outputFormat === "jpeg"
+        ? "jpg"
+        : outputFormat;
   return `${formatPageImageExportOrder(chapterIndex)}-${sanitizeOutputPathSegment(
     chapterTitle,
     "chapter",
   )}\\${formatPageImageExportOrder(pageIndex)}-${sanitizeOutputBaseName(
     pageName,
-  )}.${outputFormat}`;
+  )}.${extension}`;
+}
+
+function resolveSourceOutputExtension(pageName: string): string {
+  const extension = extname(pageName).toLowerCase();
+  if (extension === ".jpg" || extension === ".jpeg") return extension.slice(1);
+  if (extension === ".webp") return "webp";
+  return "png";
 }

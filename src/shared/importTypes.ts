@@ -1,4 +1,5 @@
 import type { ChapterSnapshot, ImportSourceKind } from "./libraryTypes";
+import type { LinkedWorkspaceImportOptions } from "./linkedWorkspaceTypes";
 
 export type ImportPageDraft = {
   name: string;
@@ -7,6 +8,8 @@ export type ImportPageDraft = {
   zipEntryName?: string;
   /** Optional web-import-only numeric stem for the actual stored file name. */
   storageStem?: string;
+  sourceFileName?: string;
+  sourceRelativePath?: string;
 };
 
 export type ImportChapterDraft = {
@@ -71,6 +74,7 @@ export type CreateImportRequest = {
   previewId: string;
   target: ImportTarget;
   selections: ImportCreateSelection[];
+  linkedWorkspace?: LinkedWorkspaceImportOptions;
 };
 
 export type CreateImportFromPreviewRequest = {
@@ -83,4 +87,6 @@ export type CreateImportResult = {
   workId: string;
   chapterIds: string[];
   openedChapter?: ChapterSnapshot;
+  linkedWorkspaceConnectedChapterIds?: string[];
+  linkedWorkspaceWarning?: string;
 };

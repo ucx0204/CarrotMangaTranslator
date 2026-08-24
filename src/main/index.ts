@@ -67,6 +67,7 @@ import { assertDataRootInstanceLockHeld } from "./dataRootInstanceLockState";
 import { focusExistingMainWindow } from "./singleInstanceWindow";
 import { runMainWindowCloseCleanup } from "./mainWindowCloseCleanup";
 import { MainWindowSessionLifecycle } from "./mainWindowSessionLifecycle";
+import { createLinkedWorkspaceRuntime } from "./linkedWorkspace/linkedWorkspaceRuntime";
 
 const resolvedAppPaths = getAppPaths();
 assertDataRootInstanceLockHeld(resolvedAppPaths.dataRoot);
@@ -80,6 +81,16 @@ const importRuntime = createImportRuntimeResources({
 });
 const inpaintingRevisionStore = new InpaintingRevisionStore();
 let mainWindow: BrowserWindow | null = null;
+const linkedWorkspaceRuntime = createLinkedWorkspaceRuntime({
+  dataRoot: appPaths.dataRoot,
+  jobs,
+  decodeImage: (filePath, signal) =>
+    decodeImageThroughRuntime(appPaths.runtimeDir, filePath, signal),
+  getMainWindow: () => mainWindow,
+  reportError: logError,
+});
+const linkedWorkspaceSync = linkedWorkspaceRuntime.service;
+let removeLinkedWorkspaceNotifier: (() => void) | null = null;
 const panelWindows = new PanelWindowRegistry(
   () => mainWindow,
   appPaths.dataRoot,
@@ -224,6 +235,9 @@ void app
     }
     registerImageProtocolHandler();
     await importRuntime.initialize();
+    await linkedWorkspaceSync.initialize();
+    removeLinkedWorkspaceNotifier =
+      linkedWorkspaceRuntime.installSaveNotifier();
     if (await runMacPackageSmokeExit(appPaths)) {
       return;
     }
@@ -240,6 +254,7 @@ void app
         decodeImageThroughRuntime(appPaths.runtimeDir, filePath, signal),
       inpaintingRevisionStore,
       webImportManager: importRuntime.webImportManager,
+      linkedWorkspaceSync,
       reportError: logError,
     });
     reactivateDock();
@@ -412,6 +427,9 @@ async function finishTerminalCleanup(
 ): Promise<void> {
   await mainWindowSessionLifecycle.waitForCleanup();
   try {
+    removeLinkedWorkspaceNotifier?.();
+    removeLinkedWorkspaceNotifier = null;
+    await linkedWorkspaceSync.dispose();
     await runAppQuitCleanup({
       jobs,
       operations,

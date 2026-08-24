@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import type {
   ChapterSnapshot,
+  MangaPage,
   TranslationCompletionReceipt,
 } from "../../shared/libraryTypes";
 import type { PageRevision } from "../../shared/pageRevision";
@@ -16,6 +17,10 @@ export type InpaintingRevisionChange = {
   afterRevision?: PageRevision;
   beforePath?: string;
   afterPath?: string;
+  beforeMaskPath?: string;
+  afterMaskPath?: string;
+  beforeMaskProvenance?: MangaPage["maskProvenance"];
+  afterMaskProvenance?: MangaPage["maskProvenance"];
   beforeLayout?: InpaintingBlockLayoutState[];
   afterLayout?: InpaintingBlockLayoutState[];
   beforeTranslationCompletion?: TranslationCompletionReceipt;
@@ -84,7 +89,12 @@ export function validateChangePaths(
   chapter: ChapterSnapshot,
   change: InpaintingRevisionChange,
 ): void {
-  for (const imagePath of [change.beforePath, change.afterPath]) {
+  for (const imagePath of [
+    change.beforePath,
+    change.afterPath,
+    change.beforeMaskPath,
+    change.afterMaskPath,
+  ]) {
     if (!imagePath) continue;
     assertChapterImagePath(
       chapter.workId,
@@ -118,6 +128,8 @@ export function uniqueRevisionChanges(
         change.pageId,
         normalizeOptionalPath(change.beforePath),
         normalizeOptionalPath(change.afterPath),
+        normalizeOptionalPath(change.beforeMaskPath),
+        normalizeOptionalPath(change.afterMaskPath),
       ].join("\u0000"),
       change,
     );

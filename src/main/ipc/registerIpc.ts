@@ -17,6 +17,7 @@ import { registerReviewTextIpc } from "./reviewTextIpc";
 import { registerWorkContextIpc } from "./workContextIpc";
 import { registerWebImportIpc } from "./webImportIpc";
 import { registerBlockLibraryIpc } from "./blockLibraryIpc";
+import { registerLinkedWorkspaceIpc } from "./linkedWorkspaceIpc";
 import { WebImportSessionManager } from "../webImportSessionManager";
 import {
   registerWebImportPreviewProtocolHandler,
@@ -81,6 +82,7 @@ export function registerIpc(context: IpcContext): void {
   registerTranslationJobIpc(context);
   registerInpaintingIpc(context);
   registerPageImageExportIpc(context);
+  registerLinkedWorkspaceIpc(context);
   registerJobControlIpc(context);
   registerPanelWindowsIpc(context);
 }

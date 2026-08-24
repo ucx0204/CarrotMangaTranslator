@@ -50,6 +50,12 @@ export function createMangaApi(runtime: MangaApiRuntime): MangaApi {
       ),
     onErrorIncident: (callback) =>
       subscribeToIpcEvent(ipcEventContracts.errorIncident, callback, runtime),
+    onLinkedWorkspaceStatusChanged: (callback) =>
+      subscribeToIpcEvent(
+        ipcEventContracts.linkedWorkspaceStatusChanged,
+        callback,
+        runtime,
+      ),
     onJobEvent: (callback) =>
       subscribeToIpcEvent(ipcEventContracts.jobEvent, callback, runtime),
     onModelTestEvent: (callback) =>

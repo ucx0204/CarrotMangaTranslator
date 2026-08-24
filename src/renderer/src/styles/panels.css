@@ -141,7 +141,7 @@
 
 .current-page-actions {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--sp-2);
   min-width: 0;
 }
@@ -158,75 +158,14 @@
   white-space: nowrap;
 }
 
+.current-page-psd-export-action {
+  border-style: dashed;
+  color: var(--text-dim);
+}
+
 .current-page-action-tooltip {
   width: 100%;
   min-width: 0;
-}
-
-.auto-inpainting-action {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0;
-  min-width: 0;
-}
-
-.auto-inpainting-action > button:first-child {
-  border-radius: var(--r-md) 0 0 var(--r-md);
-}
-
-.auto-inpainting-action .auto-inpainting-menu-trigger {
-  width: 32px;
-  margin-left: -1px;
-  padding-inline: 0;
-  border-radius: 0 var(--r-md) var(--r-md) 0;
-}
-
-.auto-inpainting-menu {
-  position: absolute;
-  z-index: 48;
-  top: calc(100% + 6px);
-  right: 0;
-  left: 0;
-  display: grid;
-  width: auto;
-  min-width: 0;
-  max-width: none;
-  padding: 4px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-md);
-  background: #191b21;
-  box-shadow: var(--shadow-lg);
-}
-
-.auto-inpainting-menu button {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
-  width: 100%;
-  min-height: 36px;
-  padding: 7px 10px;
-  border: 0;
-  border-radius: var(--r-sm);
-  background: transparent;
-  color: var(--text);
-  font: inherit;
-  font-size: var(--font-sm);
-  text-align: left;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.auto-inpainting-menu button svg {
-  flex: 0 0 auto;
-  color: var(--text-muted);
-}
-
-.auto-inpainting-menu button:hover,
-.auto-inpainting-menu button:focus-visible {
-  background: var(--bg-hover);
-  outline: none;
 }
 
 .library-panel,

@@ -4,10 +4,14 @@ import type {
 } from "./inpaintingActionTypes";
 import type { InpaintingPostprocessOptions } from "../../../shared/inpaintingTypes";
 import type { PageImageExportChapterSelection } from "../../../shared/pageImageExportTypes";
-import type { PageImageExportFormat } from "../../../shared/pageImageExportTypes";
 import type { PageJobTargetSnapshot } from "../../../shared/pageRevision";
 import { useDrawnPatternInpaintingAction } from "./useDrawnPatternInpaintingAction";
-import { useExportPageImagesAction } from "./useExportPageImagesAction";
+import {
+  useExportPageImagesAction,
+  useExportPagePsdAction,
+  type ManualPsdExportOptions,
+  type ManualRasterExportOptions,
+} from "./useExportPageImagesAction";
 import { useRevertInpaintingAction } from "./useRevertInpaintingAction";
 import { useRunBubbleLayoutAction } from "./useRunBubbleLayoutAction";
 import { useRunInpaintingAction } from "./useRunInpaintingAction";
@@ -20,7 +24,12 @@ export type InpaintingActions = {
   exportPageImages: (
     selections: PageImageExportChapterSelection[],
     expectedTargets?: PageJobTargetSnapshot[],
-    options?: { omitText?: boolean; outputFormat?: PageImageExportFormat },
+    options?: ManualRasterExportOptions,
+  ) => Promise<boolean>;
+  exportPagePsd: (
+    selections: PageImageExportChapterSelection[],
+    expectedTargets?: PageJobTargetSnapshot[],
+    options?: ManualPsdExportOptions,
   ) => Promise<boolean>;
   revertInpainting: (scope: InpaintingScope) => Promise<void>;
   runBubbleLayout: (blockId?: string) => Promise<void>;
@@ -46,11 +55,13 @@ export function useInpaintingActions(
   };
   const exclusive = useExclusiveImageActions(rawActions);
   const exportPageImages = useExportPageImagesAction(options);
+  const exportPagePsd = useExportPagePsdAction(options);
 
   return {
     ...exclusive,
     actionBusy: exclusive.actionBusy,
     exportPageImages,
+    exportPagePsd,
   };
 }
 

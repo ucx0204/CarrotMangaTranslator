@@ -436,19 +436,39 @@
   },
   "exportOptions": {
     "title": "결과물 출력",
+    "titlePsd": "PSD 출력",
     "prompt": "출력할 페이지를 선택하세요.",
     "currentChapter": "현재 화",
     "chapterSummary": "{{count}}p",
     "noSelectedPages": "선택된 페이지가 없습니다.",
     "selectionSummary": "{{chapterCount}}개 화 · {{pageCount}}페이지",
-    "start": "PNG 출력",
+    "start": "결과물 출력",
     "startPsd": "PSD 출력",
     "starting": "출력 준비 중…",
     "omitText": "글자 없이 출력",
     "omitTextHint": "번역 글자는 합성하지 않고 인페인팅된 배경만 PNG로 출력합니다.",
     "omitTextHintPsd": "대사 레이어 없이 원본과 정리 배경 레이어만 PSD로 출력합니다.",
     "outputFormat": "파일 형식",
-    "formats": { "png": "완성 이미지 (PNG)", "psd": "레이어 문서 (PSD)" },
+    "formats": {
+      "source": "원본 형식",
+      "png": "PNG",
+      "jpeg": "JPEG",
+      "webp": "WebP",
+      "psd": "레이어 문서 (PSD)"
+    },
+    "quality": "품질",
+    "destination": "저장 위치 방식",
+    "destinations": {
+      "timestamped": "새 타임스탬프 폴더",
+      "fixed": "선택한 폴더에 바로 저장"
+    },
+    "collision": "같은 이름의 파일",
+    "collisions": {
+      "replace": "교체",
+      "skip": "건너뛰기",
+      "cancel": "출력 취소"
+    },
+    "preserveSourceNames": "원본 파일명과 하위 폴더 유지",
     "formatHints": {
       "png": "바로 게시할 수 있는 완성 이미지를 만듭니다.",
       "psd": "원본·정리 배경·블록별 대사를 분리합니다. 복잡한 세로/곡선 대사는 정확한 래스터 레이어로 보존됩니다."
@@ -480,7 +500,7 @@
     "startFailed": "출력을 시작하지 못했습니다. 다시 시도해 주세요."
   },
   "autoInpaintingOptions": {
-    "title": "자동 지우기",
+    "title": "지울 페이지 선택",
     "prompt": "자동으로 지울 페이지를 선택하세요.",
     "currentChapter": "현재 화",
     "chapterSummary": "{{count}}p",
@@ -645,7 +665,12 @@
     "currentWorkDefault": "열어 둔 작품을 기본 대상으로 선택했습니다. 새 원본은 이 작품의 새 화로 추가됩니다.",
     "selectWork": "작품 선택",
     "chaptersToCreate": "생성할 화",
-    "chapterTitle": "화 제목"
+    "chapterTitle": "화 제목",
+    "liveResults": {
+      "enable": "결과물 폴더에 자동 저장",
+      "description": "결과물 폴더의 작품명/화명 위치에 저장합니다. 편집을 멈춘 뒤 3초가 지나면 변경된 페이지만 갱신합니다.",
+      "format": "자동 저장 형식"
+    }
   },
   "rename": {
     "workTitle": "작품 이름 변경",
@@ -1180,11 +1205,8 @@
     },
     "auto": {
       "description": "먼저 원문 글자를 자동으로 지웁니다. 한 페이지씩 또는 남은 페이지를 한 번에 처리할 수 있어요.",
-      "currentPageAction": "현재 페이지 지우기",
-      "eraseShort": "현재 페이지 지우기",
-      "moreActions": "자동 지우기 추가 작업",
-      "allPagesErase": "전체 페이지 지우기",
-      "selectPagesErase": "지울 페이지 선택",
+      "currentPageAction": "원문 지우기",
+      "eraseShort": "원문 지우기",
       "bubbleLayoutAction": "현재 페이지 말풍선 자동 감지",
       "bubbleLayoutShort": "말풍선 맞춤",
       "bubbleLayoutRequiresBlocks": "먼저 현재 페이지를 지워 주세요.",
@@ -1215,6 +1237,14 @@
     },
     "export": {
       "resultAction": "결과물 출력",
+      "viewResults": "결과물 보기",
+      "preparingResults": "최신 결과 준비 중…",
+      "psdAction": "PSD 출력",
+      "syncing": "결과물 동기화 중",
+      "pendingSync": "변경된 페이지 {{count}}개 대기",
+      "syncFailed": "자동 저장 실패 · 설정에서 다시 시도해 주세요",
+      "syncDisabled": "결과물 자동 저장 꺼짐",
+      "synced": "최신 결과 저장됨",
       "description": "블록의 폰트·색·위치를 정리한 뒤, 완성 PNG 또는 레이어 PSD 결과물로 내보냅니다.",
       "result": "결과물 출력",
       "pagesSaved": "{{count}}페이지 저장됨",
@@ -1235,12 +1265,35 @@
       "engine": "번역 엔진",
       "hardware": "하드웨어",
       "format": "기본 서식",
+      "results": "결과물 자동 저장",
       "shortcuts": "단축키",
       "test": "확인/업데이트"
     },
     "general": {
       "language": "앱 언어",
       "languageDescription": "앱 전체에서 사용할 표시 언어를 변경합니다."
+    },
+    "results": {
+      "description": "보관함의 작품과 화별로 결과물 자동 저장을 켜거나 끕니다. 기본 위치는 결과물 폴더의 작품명/화명입니다.",
+      "empty": "보관함에 관리할 작품이 없습니다.",
+      "searchLabel": "결과물 자동 저장 검색",
+      "searchPlaceholder": "작품/화 검색",
+      "noSearchResults": "검색 결과가 없습니다.",
+      "chapterCount": "{{count}}화",
+      "toggleChapter": "{{title}} 결과물 자동 저장",
+      "defaultLocationReady": "체크하면 기본 결과물 폴더에 저장",
+      "defaultLocation": "기본 결과물 폴더",
+      "customLocation": "사용자 지정 폴더",
+      "moreActions": "자동 저장 작업 더 보기",
+      "viewResults": "결과물 보기",
+      "changeLocation": "저장 위치 변경",
+      "resetLocation": "기본 위치로 되돌리기",
+      "unlinked": "자동 저장 꺼짐",
+      "disabled": "자동 저장 꺼짐",
+      "syncing": "동기화 중",
+      "pending": "{{count}}개 대기",
+      "failed": "저장 실패",
+      "synced": "최신"
     },
     "footer": {
       "openLogs": "로그 폴더 열기",
@@ -1712,7 +1765,7 @@
         "translate-all": "전체 다시 번역",
         "gather-text": "텍스트 모아보기",
         "cancel-job": "작업 취소",
-        "toggle-inpainting": "자동 지우기 패널 열기/닫기",
+        "toggle-inpainting": "원문 지우기 열기/닫기",
         "history-undo": "실행 취소",
         "history-redo": "다시 실행",
         "retouch-redo": "보정 다시 실행",

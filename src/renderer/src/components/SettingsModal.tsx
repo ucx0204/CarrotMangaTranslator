@@ -1,12 +1,14 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { AppSettings } from "../../../shared/settingsTypes";
+import type { LibraryIndex } from "../../../shared/libraryTypes";
 import { ConfirmModal } from "./ConfirmModal";
 import { SettingsModalView } from "./settingsModal/SettingsModalView";
 import { useSettingsModalController } from "./settingsModal/useSettingsModalController";
 
 type SettingsModalProps = {
   initialSettings: AppSettings;
+  library?: LibraryIndex;
   busy: boolean;
   jobActive: boolean;
   onCancel: () => void;
@@ -17,6 +19,7 @@ type SettingsModalProps = {
 
 export function SettingsModal({
   initialSettings,
+  library,
   busy,
   jobActive,
   onCancel,
@@ -46,7 +49,7 @@ export function SettingsModal({
   });
   return (
     <>
-      <SettingsModalView {...controller} />
+      <SettingsModalView {...controller} library={library} />
       {confirmDiscardOpen ? (
         <ConfirmModal
           title={t("settings.unsavedChanges.title")}

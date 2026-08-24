@@ -442,12 +442,13 @@
   },
   "exportOptions": {
     "title": "Export Results",
+    "titlePsd": "Export PSD",
     "prompt": "Choose the pages to export.",
     "currentChapter": "Current chapter",
     "chapterSummary": "{{count}}p",
     "noSelectedPages": "No pages selected.",
     "selectionSummary": "Chapters: {{chapterCount}} · Pages: {{pageCount}}",
-    "start": "Export PNG",
+    "start": "Export Results",
     "startPsd": "Export PSD",
     "starting": "Preparing export…",
     "omitText": "Export without text",
@@ -455,9 +456,25 @@
     "omitTextHintPsd": "Exports only the original and cleaned background layers without text layers.",
     "outputFormat": "File format",
     "formats": {
-      "png": "Finished image (PNG)",
+      "source": "Source format",
+      "png": "PNG",
+      "jpeg": "JPEG",
+      "webp": "WebP",
       "psd": "Layered document (PSD)"
     },
+    "quality": "Quality",
+    "destination": "Destination mode",
+    "destinations": {
+      "timestamped": "New timestamped folder",
+      "fixed": "Save directly to selected folder"
+    },
+    "collision": "Existing files",
+    "collisions": {
+      "replace": "Replace",
+      "skip": "Skip",
+      "cancel": "Cancel export"
+    },
+    "preserveSourceNames": "Preserve source names and subfolders",
     "formatHints": {
       "png": "Creates a finished image ready to publish.",
       "psd": "Separates the original, cleaned background, and each text block. Complex vertical or curved text stays pixel-accurate as a raster layer."
@@ -489,7 +506,7 @@
     "startFailed": "Could not start the export. Please try again."
   },
   "autoInpaintingOptions": {
-    "title": "Automatic erase",
+    "title": "Choose pages to erase",
     "prompt": "Choose the pages to erase automatically.",
     "currentChapter": "Current chapter",
     "chapterSummary": "{{count}}p",
@@ -654,7 +671,12 @@
     "currentWorkDefault": "The open work is selected by default. This source will be added as a new chapter in that work.",
     "selectWork": "Select work",
     "chaptersToCreate": "Chapters to create",
-    "chapterTitle": "Chapter title"
+    "chapterTitle": "Chapter title",
+    "liveResults": {
+      "enable": "Automatically save to the results folder",
+      "description": "Saves under Results/work/chapter. Only changed pages update after editing has been idle for 3 seconds.",
+      "format": "Automatic save format"
+    }
   },
   "rename": {
     "workTitle": "Rename work",
@@ -1195,11 +1217,8 @@
     },
     "auto": {
       "description": "First, erase the source text automatically. Process one page or all remaining pages at once.",
-      "currentPageAction": "Erase current page",
-      "eraseShort": "Erase current page",
-      "moreActions": "More automatic erase actions",
-      "allPagesErase": "Erase all pages",
-      "selectPagesErase": "Choose pages to erase",
+      "currentPageAction": "Erase source text",
+      "eraseShort": "Erase source text",
       "bubbleLayoutAction": "Auto-detect bubbles on this page",
       "bubbleLayoutShort": "Bubble fit",
       "bubbleLayoutRequiresBlocks": "Erase the current page first.",
@@ -1230,6 +1249,14 @@
     },
     "export": {
       "resultAction": "Export Results",
+      "viewResults": "View results",
+      "preparingResults": "Preparing latest results…",
+      "psdAction": "Export PSD",
+      "syncing": "Syncing results",
+      "pendingSync": "{{count}} changed pages waiting",
+      "syncFailed": "Automatic save failed · Retry from Settings",
+      "syncDisabled": "Automatic result saving is off",
+      "synced": "Latest results saved",
       "description": "Refine block fonts, colors, and positions, then export a finished PNG or layered PSD.",
       "result": "Export results",
       "pagesSaved": "Pages saved: {{count}}",
@@ -1250,12 +1277,35 @@
       "engine": "Translation engine",
       "hardware": "Hardware",
       "format": "Default formatting",
+      "results": "Automatic result saving",
       "shortcuts": "Shortcuts",
       "test": "Check/update"
     },
     "general": {
       "language": "Application language",
       "languageDescription": "Changes the language used throughout the app."
+    },
+    "results": {
+      "description": "Turn automatic result saving on or off per work and chapter. The default location is Results/work/chapter.",
+      "empty": "There are no library works to manage.",
+      "searchLabel": "Search automatic result saving",
+      "searchPlaceholder": "Search works/chapters",
+      "noSearchResults": "No matching works or chapters.",
+      "chapterCount": "{{count}} chapters",
+      "toggleChapter": "Automatic result saving for {{title}}",
+      "defaultLocationReady": "Enable to save in the default results folder",
+      "defaultLocation": "Default results folder",
+      "customLocation": "Custom folder",
+      "moreActions": "More automatic-save actions",
+      "viewResults": "View results",
+      "changeLocation": "Change save location",
+      "resetLocation": "Restore default location",
+      "unlinked": "Automatic saving off",
+      "disabled": "Automatic saving off",
+      "syncing": "Syncing",
+      "pending": "{{count}} waiting",
+      "failed": "Save failed",
+      "synced": "Up to date"
     },
     "footer": {
       "openLogs": "Open log folder",
@@ -1730,7 +1780,7 @@
         "translate-all": "Retranslate all",
         "gather-text": "Gather text",
         "cancel-job": "Cancel job",
-        "toggle-inpainting": "Open/close auto erase panel",
+        "toggle-inpainting": "Open/close source-text erase",
         "history-undo": "Undo",
         "history-redo": "Redo",
         "retouch-redo": "Redo retouch",

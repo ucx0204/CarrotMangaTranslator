@@ -44,6 +44,13 @@ export type MangaPage = {
   name: string;
   imagePath: string;
   inpaintedImagePath?: string;
+  /** Original file name retained for linked-workspace mirroring. */
+  sourceFileName?: string;
+  /** POSIX-style path relative to the linked source root. */
+  sourceRelativePath?: string;
+  /** Internal full-page inpainting mask artifact. */
+  inpaintMaskPath?: string;
+  maskProvenance?: "actual-mask" | "retouch-updated" | "derived-diff";
   dataUrl: string;
   width: number;
   height: number;

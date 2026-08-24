@@ -2,6 +2,7 @@ import { nativeImage } from "electron";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { MangaPage } from "../../shared/libraryTypes";
+import { removeArtifactAfterFailure } from "../artifactCleanup";
 import type { KoharuTypographySegmentation } from "../bubbleLayout/contracts";
 import type { InpaintingEngine } from "./inpaintingEngine";
 import { logInpaintingRuntimeInfo } from "./inpaintingRuntimeLogger";
@@ -28,6 +29,7 @@ import {
   createPatternBitmapBaseline,
   type PatternBitmapBaseline,
 } from "./sourceGlyphEvidenceReceipt";
+import { persistActualInpaintMask } from "./inpaintMaskArtifact";
 
 type PatternPageInpaintingOptions = {
   blockId?: string;
@@ -95,19 +97,14 @@ export async function inpaintPatternPage(
     });
   }
   logPatternInpaintingResult(maskContext, options.inpaintingEngine, changes);
-
-  const output = await writePatternInpaintedImage(page, bitmap, size);
-  const completedResult: PatternPageInpaintingResult = {
-    blocksErased: changes.erasedBlockIds.length,
-    blocksIncomplete: changes.incompleteBlockIds.length,
-    erasedBlockIds: changes.erasedBlockIds,
-    incompleteBlockIds: changes.incompleteBlockIds,
-    page: {
-      ...page,
-      inpaintedImagePath: output.path,
-      updatedAt: new Date().toISOString(),
-    },
-  };
+  const { completedResult, output } = await persistPatternResult({
+    bitmap,
+    changes,
+    maskContext,
+    options,
+    page,
+    size,
+  });
   if (options.sourceEvidenceMode !== "required") return completedResult;
   return attachRequiredSourceDiagnostics(completedResult, {
     afterBitmap: bitmap,
@@ -118,6 +115,53 @@ export async function inpaintPatternPage(
     patternBlockIds,
     working,
   });
+}
+
+async function persistPatternResult({
+  bitmap,
+  changes,
+  maskContext,
+  options,
+  page,
+  size,
+}: {
+  bitmap: Buffer;
+  changes: ReturnType<typeof resolvePatternPixelChanges>;
+  maskContext: PatternMaskContext;
+  options: PatternPageInpaintingOptions;
+  page: MangaPage;
+  size: { height: number; width: number };
+}) {
+  const output = await writePatternInpaintedImage(page, bitmap, size);
+  let persistedMask: Awaited<ReturnType<typeof persistActualInpaintMask>>;
+  try {
+    persistedMask = await persistActualInpaintMask({
+      page,
+      mask: maskContext.pageMask,
+      width: size.width,
+      height: size.height,
+      suffix: "pattern",
+      decodeFallback: options.decodeFallback,
+    });
+  } catch (error) {
+    return removeArtifactAfterFailure(output.path, error);
+  }
+  return {
+    output,
+    completedResult: {
+      blocksErased: changes.erasedBlockIds.length,
+      blocksIncomplete: changes.incompleteBlockIds.length,
+      erasedBlockIds: changes.erasedBlockIds,
+      incompleteBlockIds: changes.incompleteBlockIds,
+      page: {
+        ...page,
+        inpaintedImagePath: output.path,
+        inpaintMaskPath: persistedMask.path,
+        maskProvenance: persistedMask.provenance,
+        updatedAt: new Date().toISOString(),
+      },
+    } satisfies PatternPageInpaintingResult,
+  };
 }
 
 function resolvePatternBlockIds(

@@ -3,6 +3,7 @@ import type { PageExportRasterSize } from "../shared/pageExportLimits";
 import { withTimeout } from "./pageExportLifecycle";
 import {
   assertPageExportRasterBudget,
+  decodeBoundedPageExportImage,
   decodeBoundedPageExportScreenshot,
 } from "./pageExportRasterSafety";
 
@@ -12,13 +13,22 @@ type DevToolsScreenshotResult = {
   data?: unknown;
 };
 
-export async function captureExportPagePng(
+export type PageExportCaptureOptions = {
+  format: "png" | "jpeg" | "webp";
+  quality?: number;
+};
+
+export async function captureExportPageImage(
   win: BrowserWindow,
   expected: PageExportRasterSize,
   pageName: string,
+  options: PageExportCaptureOptions,
   transparentBackground = false,
 ): Promise<Buffer> {
   assertPageExportRasterBudget(expected, pageName);
+  if (transparentBackground && options.format !== "png") {
+    throw new Error("Transparent page export requires PNG.");
+  }
   if (transparentBackground) {
     await win.webContents.debugger.sendCommand(
       "Emulation.setDefaultBackgroundColorOverride",
@@ -29,7 +39,10 @@ export async function captureExportPagePng(
   try {
     result = (await withTimeout(
       win.webContents.debugger.sendCommand("Page.captureScreenshot", {
-        format: "png",
+        format: options.format,
+        ...(options.format !== "png" && options.quality !== undefined
+          ? { quality: Math.round(options.quality) }
+          : {}),
         fromSurface: true,
         captureBeyondViewport: true,
         clip: {
@@ -53,5 +66,12 @@ export async function captureExportPagePng(
   if (typeof result.data !== "string") {
     throw new Error("DevTools returned an invalid page export screenshot.");
   }
-  return decodeBoundedPageExportScreenshot(result.data, expected, pageName);
+  return options.format === "png"
+    ? decodeBoundedPageExportScreenshot(result.data, expected, pageName)
+    : decodeBoundedPageExportImage(
+        result.data,
+        expected,
+        pageName,
+        options.format,
+      );
 }

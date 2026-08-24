@@ -1,9 +1,10 @@
-import { join } from "node:path";
+/* eslint-disable max-lines -- progress, raster/PSD writing, collision checks, and cancellation form one export transaction */
 import type {
   PageImageExportCancelledResult,
   PageImageExportCompletedResult,
-  PageImageExportRequest,
+  PageExportSelectionRequest,
 } from "../../shared/pageImageExportTypes";
+import { dirname, extname, join } from "node:path";
 import type { PageImageExportFormat } from "../../shared/pageImageExportTypes";
 import type { ChapterSnapshot, MangaPage } from "../../shared/libraryTypes";
 import type { PageExportRenderSession } from "../pageExport";
@@ -30,14 +31,52 @@ import {
   resolvePageImageExportSelection,
   type ResolvedPageImageExport,
 } from "./pageImageExportSelection";
-import { writePagePsdExport } from "./pagePsdExportRunner";
 import {
-  createPageImageExportOutputDir,
+  resolvePageImageExportOutputDir,
   openExportOutputDirectory,
   removeFailedOutput,
 } from "./pageImageExportOutput";
+import { resolvePageImageExportWriteOptions } from "./pageImageExportOptions";
+import { writePagePsdExport } from "./pagePsdExportRunner";
 
 type EmitJobEvent = EmitPageImageExportEvent;
+
+async function assertNoCancelCollisions({
+  dependencies,
+  outputDir,
+  outputFormat,
+  policy,
+  preserveSourceNames,
+  resolved,
+}: {
+  dependencies: PageImageExportDependencies;
+  outputDir: string;
+  outputFormat: PageImageExportFormat | "psd";
+  policy: "replace" | "skip" | "cancel";
+  preserveSourceNames: boolean;
+  resolved: ResolvedPageImageExport;
+}): Promise<void> {
+  if (policy !== "cancel" || !dependencies.runtime.fileExists) return;
+  for (const entry of resolved.chapters) {
+    const chapterDir = resolveManualChapterOutputDir(
+      outputDir,
+      entry,
+      preserveSourceNames,
+    );
+    for (const { page, pageIndex } of entry.pages) {
+      const outputPath = resolveManualPageOutputPath({
+        outputDir: chapterDir,
+        outputFormat,
+        page,
+        pageIndex,
+        preserveSourceNames,
+      });
+      if (await dependencies.runtime.fileExists(outputPath)) {
+        throw new Error("같은 이름의 결과 파일이 있어 출력을 취소했습니다.");
+      }
+    }
+  }
+}
 
 class PageImageExportAbortError extends DOMException {
   constructor(
@@ -50,7 +89,7 @@ class PageImageExportAbortError extends DOMException {
 
 export type RunPageImageExportJobOptions = {
   context: InpaintingJobContext;
-  request: PageImageExportRequest;
+  request: PageExportSelectionRequest;
   outputParentDir: string;
   id: string;
   abortController: AbortController;
@@ -73,18 +112,29 @@ export async function runPageImageExportJob({
     dependencies.repository,
   );
   assertTextlessExportReady(request, resolved);
+  const writeOptions = resolvePageImageExportWriteOptions(request);
   throwIfAborted(abortController, 0, resolved.pageCount);
   emitExportStarting(id, emit, resolved.pageCount, resolved.chapters.length);
 
   throwIfAborted(abortController, 0, resolved.pageCount);
-  const outputDir = await createPageImageExportOutputDir(
+  const output = await resolvePageImageExportOutputDir(
     outputParentDir,
     resolved.workTitle,
+    writeOptions.destinationMode,
     dependencies,
   );
+  const { outputDir } = output;
   let renderSession: PageExportRenderSession | null = null;
   try {
     throwIfAborted(abortController, 0, resolved.pageCount);
+    await assertNoCancelCollisions({
+      dependencies,
+      outputDir,
+      outputFormat: writeOptions.outputFormat,
+      policy: writeOptions.collisionPolicy,
+      preserveSourceNames: writeOptions.preserveSourceNames,
+      resolved,
+    });
     renderSession = await dependencies.renderer.createSession({
       dataRoot: context.appPaths.dataRoot,
       decodeFallback: context.decodeImage,
@@ -98,12 +148,14 @@ export async function runPageImageExportJob({
       outputDir,
       renderSession,
       resolved,
-      omitText: request.omitText === true,
-      outputFormat: request.outputFormat ?? "png",
+      ...writeOptions,
     });
     throwIfAborted(abortController, resolved.pageCount, resolved.pageCount);
   } catch (error) {
-    await removeFailedOutput(outputDir, error, dependencies);
+    if (output.removeOnFailure) {
+      await removeFailedOutput(outputDir, error, dependencies);
+    }
+    throw error;
   } finally {
     renderSession?.close();
   }
@@ -131,7 +183,7 @@ export function handlePageImageExportError({
   emit: EmitJobEvent;
   error: unknown;
   id: string;
-  request: PageImageExportRequest;
+  request: PageExportSelectionRequest;
   dependencies?: PageImageExportDependencies;
 }): PageImageExportCancelledResult {
   if (isAbortError(error) || abortController.signal.aborted) {
@@ -196,6 +248,10 @@ async function writePageImageExportChapters({
   resolved,
   omitText,
   outputFormat,
+  jpegQuality,
+  webpQuality,
+  preserveSourceNames,
+  collisionPolicy,
 }: {
   abortController: AbortController;
   dependencies: PageImageExportDependencies;
@@ -205,13 +261,18 @@ async function writePageImageExportChapters({
   renderSession: PageExportRenderSession;
   resolved: ResolvedPageImageExport;
   omitText: boolean;
-  outputFormat: PageImageExportFormat;
+  outputFormat: PageImageExportFormat | "psd";
+  jpegQuality: number;
+  webpQuality: number;
+  preserveSourceNames: boolean;
+  collisionPolicy: "replace" | "skip" | "cancel";
 }): Promise<void> {
   let completedPages = 0;
   for (const entry of resolved.chapters) {
-    const chapterDir = join(
+    const chapterDir = resolveManualChapterOutputDir(
       outputDir,
-      `${formatPageImageExportOrder(entry.chapterIndex)}-${sanitizeOutputPathSegment(entry.chapter.title, "chapter")}`,
+      entry,
+      preserveSourceNames,
     );
     await dependencies.runtime.createDirectory(chapterDir, true);
     completedPages = await writeChapterPages({
@@ -227,8 +288,27 @@ async function writePageImageExportChapters({
       totalPages: resolved.pageCount,
       omitText,
       outputFormat,
+      jpegQuality,
+      webpQuality,
+      preserveSourceNames,
+      collisionPolicy,
     });
   }
+}
+
+function resolveManualChapterOutputDir(
+  outputDir: string,
+  entry: ResolvedPageImageExport["chapters"][number],
+  preserveSourceNames: boolean,
+): string {
+  const hasSourceRelativePaths = entry.pages.every(({ page }) =>
+    Boolean(page.sourceRelativePath),
+  );
+  if (preserveSourceNames && hasSourceRelativePaths) return outputDir;
+  return join(
+    outputDir,
+    `${formatPageImageExportOrder(entry.chapterIndex)}-${sanitizeOutputPathSegment(entry.chapter.title, "chapter")}`,
+  );
 }
 
 async function writeChapterPages({
@@ -244,6 +324,10 @@ async function writeChapterPages({
   totalPages,
   omitText,
   outputFormat,
+  jpegQuality,
+  webpQuality,
+  preserveSourceNames,
+  collisionPolicy,
 }: {
   abortController: AbortController;
   chapter: ChapterSnapshot;
@@ -256,7 +340,11 @@ async function writeChapterPages({
   renderSession: PageExportRenderSession;
   totalPages: number;
   omitText: boolean;
-  outputFormat: PageImageExportFormat;
+  outputFormat: PageImageExportFormat | "psd";
+  jpegQuality: number;
+  webpQuality: number;
+  preserveSourceNames: boolean;
+  collisionPolicy: "replace" | "skip" | "cancel";
 }): Promise<number> {
   let completedPages = initialCompletedPages;
   for (const pageEntry of pages) {
@@ -281,6 +369,10 @@ async function writeChapterPages({
       totalPages,
       omitText,
       outputFormat,
+      jpegQuality,
+      webpQuality,
+      preserveSourceNames,
+      collisionPolicy,
     });
     completedPages += 1;
     emitExportPageProgress({
@@ -307,6 +399,10 @@ async function writePageImageExportPage({
   totalPages,
   omitText,
   outputFormat,
+  jpegQuality,
+  webpQuality,
+  preserveSourceNames,
+  collisionPolicy,
 }: {
   abortController: AbortController;
   completedPages: number;
@@ -317,16 +413,28 @@ async function writePageImageExportPage({
   renderSession: PageExportRenderSession;
   totalPages: number;
   omitText: boolean;
-  outputFormat: PageImageExportFormat;
+  outputFormat: PageImageExportFormat | "psd";
+  jpegQuality: number;
+  webpQuality: number;
+  preserveSourceNames: boolean;
+  collisionPolicy: "replace" | "skip" | "cancel";
 }): Promise<void> {
-  const outputName = `${formatPageImageExportOrder(pageIndex)}-${sanitizeOutputBaseName(page.name)}.${outputFormat}`;
+  const outputPath = resolveManualPageOutputPath({
+    outputDir,
+    outputFormat,
+    page,
+    pageIndex,
+    preserveSourceNames,
+  });
+  if (await shouldSkipOutput(outputPath, collisionPolicy, dependencies)) return;
+  await dependencies.runtime.createDirectory(dirname(outputPath), true);
   if (outputFormat === "psd") {
     await writePagePsdExport({
       abortController,
       completedPages,
       dependencies,
       omitText,
-      outputPath: join(outputDir, outputName),
+      outputPath,
       page,
       renderSession,
       throwIfAborted,
@@ -334,17 +442,120 @@ async function writePageImageExportPage({
     });
     return;
   }
-  const png = await renderSession.renderPage(
+  const capture = resolveManualCaptureOptions(
+    outputFormat,
+    page,
+    jpegQuality,
+    webpQuality,
+  );
+  const content = await renderSession.renderPage(
     omitText ? { ...page, blocks: [] } : page,
+    capture,
   );
   throwIfAborted(abortController, completedPages, totalPages);
-  assertPageExportPngBuffer(png, undefined, page.name);
-  await dependencies.runtime.writePng(join(outputDir, outputName), png);
+  if (capture.format === "png") {
+    assertPageExportPngBuffer(content, undefined, page.name);
+  }
+  await (dependencies.runtime.writeImage ?? dependencies.runtime.writePng)(
+    outputPath,
+    content,
+  );
   throwIfAborted(abortController, completedPages + 1, totalPages);
 }
 
+function resolveManualPageOutputPath({
+  outputDir,
+  outputFormat,
+  page,
+  pageIndex,
+  preserveSourceNames,
+}: {
+  outputDir: string;
+  outputFormat: PageImageExportFormat | "psd";
+  page: MangaPage;
+  pageIndex: number;
+  preserveSourceNames: boolean;
+}): string {
+  const sourceName = page.sourceFileName ?? page.name;
+  const sourceExtension = extname(sourceName).toLowerCase();
+  const extension =
+    outputFormat === "source"
+      ? [".png", ".jpg", ".jpeg", ".webp"].includes(sourceExtension)
+        ? sourceExtension
+        : ".png"
+      : outputFormat === "jpeg"
+        ? ".jpg"
+        : `.${outputFormat}`;
+  if (!preserveSourceNames) {
+    return join(
+      outputDir,
+      `${formatPageImageExportOrder(pageIndex)}-${sanitizeOutputBaseName(page.name)}${extension}`,
+    );
+  }
+  const relativeSource = (page.sourceRelativePath ?? sourceName).replaceAll(
+    "\\",
+    "/",
+  );
+  const segments = relativeSource
+    .split("/")
+    .filter(Boolean)
+    .map((segment, index, all) =>
+      index === all.length - 1
+        ? sanitizeOutputBaseName(segment)
+        : sanitizeOutputPathSegment(segment, "folder"),
+    );
+  return join(
+    outputDir,
+    ...segments.slice(0, -1),
+    `${segments.at(-1) ?? "page"}${extension}`,
+  );
+}
+
+function resolveManualCaptureOptions(
+  outputFormat: PageImageExportFormat,
+  page: MangaPage,
+  jpegQuality: number,
+  webpQuality: number,
+) {
+  const sourceExtension = extname(
+    page.sourceFileName ?? page.name,
+  ).toLowerCase();
+  const format =
+    outputFormat === "source"
+      ? sourceExtension === ".jpg" || sourceExtension === ".jpeg"
+        ? "jpeg"
+        : sourceExtension === ".webp"
+          ? "webp"
+          : "png"
+      : outputFormat;
+  return {
+    format,
+    ...(format === "jpeg"
+      ? { quality: jpegQuality }
+      : format === "webp"
+        ? { quality: webpQuality }
+        : {}),
+  } as const;
+}
+
+async function shouldSkipOutput(
+  outputPath: string,
+  policy: "replace" | "skip" | "cancel",
+  dependencies: PageImageExportDependencies,
+): Promise<boolean> {
+  const exists = dependencies.runtime.fileExists
+    ? await dependencies.runtime.fileExists(outputPath)
+    : false;
+  if (!exists) return false;
+  if (policy === "skip") return true;
+  if (policy === "cancel") {
+    throw new Error("같은 이름의 결과 파일이 있어 출력을 취소했습니다.");
+  }
+  return false;
+}
+
 function assertTextlessExportReady(
-  request: PageImageExportRequest,
+  request: PageExportSelectionRequest,
   resolved: ResolvedPageImageExport,
 ): void {
   if (!request.omitText) return;

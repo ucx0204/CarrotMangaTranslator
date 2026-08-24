@@ -309,6 +309,14 @@ export function validateChapterFilePaths(
             "인페인팅 결과 이미지 경로가 올바르지 않습니다.",
           )
         : undefined,
+      inpaintMaskPath: page.inpaintMaskPath
+        ? resolveChapterStoredImagePath(
+            workId,
+            chapterId,
+            page.inpaintMaskPath,
+            "인페인팅 마스크 이미지 경로가 올바르지 않습니다.",
+          )
+        : undefined,
     };
   });
 

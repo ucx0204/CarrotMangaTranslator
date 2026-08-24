@@ -3,7 +3,7 @@ import { tMain } from "./localization";
 import type { PageImageExportDependencies } from "./pageImageExportPorts";
 import { sanitizeOutputPathSegment } from "./pageImageExportNaming";
 
-export async function createPageImageExportOutputDir(
+async function createPageImageExportOutputDir(
   parentDir: string,
   workTitle: string,
   dependencies: PageImageExportDependencies,
@@ -23,6 +23,26 @@ export async function createPageImageExportOutputDir(
     }
   }
   throw new Error(tMain("export.errors.outputDirectory"));
+}
+
+export async function resolvePageImageExportOutputDir(
+  parentDir: string,
+  workTitle: string,
+  destinationMode: "timestamped" | "fixed",
+  dependencies: PageImageExportDependencies,
+): Promise<{ outputDir: string; removeOnFailure: boolean }> {
+  if (destinationMode === "fixed") {
+    await dependencies.runtime.createDirectory(parentDir, true);
+    return { outputDir: parentDir, removeOnFailure: false };
+  }
+  return {
+    outputDir: await createPageImageExportOutputDir(
+      parentDir,
+      workTitle,
+      dependencies,
+    ),
+    removeOnFailure: true,
+  };
 }
 
 export async function removeFailedOutput(

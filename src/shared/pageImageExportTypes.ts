@@ -16,9 +16,29 @@ export type PageImageExportRequest = {
   /** Export only the cleaned inpainted image and omit translated text blocks. */
   omitText?: boolean;
   outputFormat?: PageImageExportFormat;
+  jpegQuality?: number;
+  webpQuality?: number;
+  preserveSourceNames?: boolean;
+  destinationMode?: "timestamped" | "fixed";
+  collisionPolicy?: "replace" | "skip" | "cancel";
 };
 
-export type PageImageExportFormat = "png" | "psd";
+export type PageImageExportFormat = "source" | "png" | "jpeg" | "webp";
+
+export type PagePsdExportRequest = Omit<
+  PageImageExportRequest,
+  | "outputFormat"
+  | "jpegQuality"
+  | "webpQuality"
+  | "preserveSourceNames"
+  | "destinationMode"
+> & {
+  collisionPolicy?: "replace" | "skip" | "cancel";
+};
+
+export type PageExportSelectionRequest =
+  | PageImageExportRequest
+  | (PagePsdExportRequest & { outputFormat: "psd" });
 
 export const PAGE_IMAGE_EXPORT_PREFLIGHT_ISSUE_CODES = [
   "job-running",
@@ -46,7 +66,7 @@ export type PageImageExportPreflightResult = {
   chapterCount: number;
   pageCount: number;
   sampleRelativePath: string;
-  outputPolicy: "new-timestamped-folder";
+  outputPolicy: "new-timestamped-folder" | "fixed-folder";
   issues: PageImageExportPreflightIssue[];
   targets: PageJobTargetSnapshot[];
 };

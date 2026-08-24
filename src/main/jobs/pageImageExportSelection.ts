@@ -1,6 +1,6 @@
 import type {
   PageImageExportChapterSelection,
-  PageImageExportRequest,
+  PageExportSelectionRequest,
 } from "../../shared/pageImageExportTypes";
 import type { ChapterSnapshot, MangaPage } from "../../shared/libraryTypes";
 import type { PageImageExportRepository } from "./pageImageExportPorts";
@@ -31,7 +31,7 @@ export type ResolvedPageImageExport = {
 };
 
 export async function resolvePageImageExportSelection(
-  request: PageImageExportRequest,
+  request: PageExportSelectionRequest,
   repository: PageImageExportRepository,
 ): Promise<ResolvedPageImageExport> {
   const library = await repository.listLibrary();
@@ -68,7 +68,7 @@ export async function resolvePageImageExportSelection(
 }
 
 export async function preflightPageImageExport(
-  request: PageImageExportRequest,
+  request: PageExportSelectionRequest,
   repository: PageImageExportRepository,
 ): Promise<PageImageExportPreflightResult> {
   const resolved = await resolvePageImageExportSelection(
@@ -94,9 +94,12 @@ export async function preflightPageImageExport(
       chapterTitle: firstChapter.chapter.title,
       pageIndex: firstPage.pageIndex,
       pageName: firstPage.page.name,
-      outputFormat: request.outputFormat ?? "png",
+      outputFormat: request.outputFormat ?? "source",
     }),
-    outputPolicy: "new-timestamped-folder",
+    outputPolicy:
+      "destinationMode" in request && request.destinationMode === "fixed"
+        ? "fixed-folder"
+        : "new-timestamped-folder",
     issues,
     targets: resolved.chapters.flatMap(({ chapter, pages }) =>
       pages.map(({ page }) => createPageJobTargetSnapshot(chapter.id, page)),
@@ -105,7 +108,7 @@ export async function preflightPageImageExport(
 }
 
 function assertExpectedExportTargets(
-  request: PageImageExportRequest,
+  request: PageExportSelectionRequest,
   chapters: ResolvedExportChapter[],
 ): void {
   if (!request.expectedTargets) return;

@@ -1,5 +1,5 @@
 import { shell } from "electron";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, rm, stat } from "node:fs/promises";
 import type { ChapterSnapshot, LibraryIndex } from "../../shared/libraryTypes";
 import { listLibrary, openChapter } from "../library/libraryReadFacade";
 import { logError } from "../logger";
@@ -8,6 +8,7 @@ import {
   type PageExportRenderSession,
 } from "../pageExport";
 import type { ImageDecodeFallback } from "../regionCrop";
+import { writeBinaryFileAtomically } from "../linkedWorkspace/linkedWorkspacePaths";
 
 export type PageImageExportRepository = {
   listLibrary: () => Promise<LibraryIndex>;
@@ -25,6 +26,8 @@ export type PageImageExportRuntimePort = {
   createDirectory: (path: string, recursive?: boolean) => Promise<void>;
   removeDirectory: (path: string) => Promise<void>;
   writePng: (path: string, content: Buffer) => Promise<void>;
+  writeImage?: (path: string, content: Buffer) => Promise<void>;
+  fileExists?: (path: string) => Promise<boolean>;
   writePsd?: (path: string, content: Buffer) => Promise<void>;
   openDirectory: (path: string) => Promise<string>;
   createTimestamp: () => string;
@@ -58,10 +61,28 @@ export const productionPageImageExportDependencies: PageImageExportDependencies 
         await rm(path, { recursive: true, force: true });
       },
       async writePng(path, content) {
-        await writeFile(path, content);
+        await writeBinaryFileAtomically(path, content);
+      },
+      async writeImage(path, content) {
+        await writeBinaryFileAtomically(path, content);
       },
       async writePsd(path, content) {
-        await writeFile(path, content);
+        await writeBinaryFileAtomically(path, content);
+      },
+      async fileExists(path) {
+        try {
+          await stat(path);
+          return true;
+        } catch (error) {
+          if (
+            error instanceof Error &&
+            "code" in error &&
+            (error as NodeJS.ErrnoException).code === "ENOENT"
+          ) {
+            return false;
+          }
+          throw error;
+        }
       },
       openDirectory: (path) => shell.openPath(path),
       createTimestamp: () => new Date().toISOString().replace(/[:.]/g, "-"),

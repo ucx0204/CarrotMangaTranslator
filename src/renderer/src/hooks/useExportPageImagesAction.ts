@@ -1,7 +1,9 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import type { PageImageExportChapterSelection } from "../../../shared/pageImageExportTypes";
-import type { PageImageExportFormat } from "../../../shared/pageImageExportTypes";
+import type {
+  PageImageExportChapterSelection,
+  PageImageExportFormat,
+} from "../../../shared/pageImageExportTypes";
 import type { PageJobTargetSnapshot } from "../../../shared/pageRevision";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import { exportGateway as mangaGateway } from "../api/exportGateway";
@@ -12,36 +14,85 @@ import {
   type UseInpaintingActionsOptions,
 } from "./inpaintingActionTypes";
 
-export function useExportPageImagesAction({
-  currentChapter,
-  dirty,
-  jobActive,
-  pushStatus,
-  saveNow,
-  setJobState,
-}: UseInpaintingActionsOptions): (
+export type ManualRasterExportOptions = {
+  omitText?: boolean;
+  outputFormat?: PageImageExportFormat;
+  jpegQuality?: number;
+  webpQuality?: number;
+  preserveSourceNames?: boolean;
+  destinationMode?: "timestamped" | "fixed";
+  collisionPolicy?: "replace" | "skip" | "cancel";
+};
+
+export type ManualPsdExportOptions = {
+  omitText?: boolean;
+  collisionPolicy?: "replace" | "skip" | "cancel";
+};
+
+export type ManualExportAction<TOptions> = (
   selections: PageImageExportChapterSelection[],
   expectedTargets?: PageJobTargetSnapshot[],
-  options?: { omitText?: boolean; outputFormat?: PageImageExportFormat },
-) => Promise<boolean> {
+  options?: TOptions,
+) => Promise<boolean>;
+
+export function useExportPageImagesAction(
+  options: UseInpaintingActionsOptions,
+): ManualExportAction<ManualRasterExportOptions> {
+  return useManualExportAction(options, "raster");
+}
+
+export function useExportPagePsdAction(
+  options: UseInpaintingActionsOptions,
+): ManualExportAction<ManualPsdExportOptions> {
+  return useManualExportAction(options, "psd");
+}
+
+function useManualExportAction(
+  {
+    currentChapter,
+    dirty,
+    jobActive,
+    pushStatus,
+    saveNow,
+    setJobState,
+  }: UseInpaintingActionsOptions,
+  kind: "raster" | "psd",
+): ManualExportAction<ManualRasterExportOptions | ManualPsdExportOptions> {
   const { t } = useTranslation("renderer");
   return useCallback(
-    async (selections, expectedTargets, options) => {
-      if (!currentChapter || jobActive || selections.length === 0) {
-        return false;
-      }
+    async (selections, expectedTargets, exportOptions) => {
+      if (!currentChapter || jobActive || selections.length === 0) return false;
       const runtime = { pushStatus, setJobState };
-      await saveExportChanges({ dirty, saveNow, runtime, t });
-      return startPageImageExport({
+      try {
+        await saveDirtyChanges(dirty, saveNow);
+      } catch (error) {
+        reportExportFailure(
+          error,
+          t("inpainting.export.saveFailed"),
+          runtime,
+          t,
+        );
+      }
+      return startPageExport({
         currentChapter,
         expectedTargets,
-        options,
+        kind,
+        options: exportOptions,
         runtime,
         selections,
         t,
       });
     },
-    [currentChapter, dirty, jobActive, pushStatus, saveNow, setJobState, t],
+    [
+      currentChapter,
+      dirty,
+      jobActive,
+      kind,
+      pushStatus,
+      saveNow,
+      setJobState,
+      t,
+    ],
   );
 }
 
@@ -50,25 +101,10 @@ type ExportRuntime = Pick<
   "pushStatus" | "setJobState"
 >;
 
-async function saveExportChanges({
-  dirty,
-  saveNow,
-  runtime,
-  t,
-}: Pick<UseInpaintingActionsOptions, "dirty" | "saveNow"> & {
-  runtime: ExportRuntime;
-  t: ReturnType<typeof useTranslation>["t"];
-}): Promise<void> {
-  try {
-    await saveDirtyChanges(dirty, saveNow);
-  } catch (error) {
-    reportExportFailure(error, t("inpainting.export.saveFailed"), runtime, t);
-  }
-}
-
-async function startPageImageExport({
+async function startPageExport({
   currentChapter,
   expectedTargets,
+  kind,
   options,
   runtime,
   selections,
@@ -76,39 +112,44 @@ async function startPageImageExport({
 }: {
   currentChapter: ChapterSnapshot;
   expectedTargets?: PageJobTargetSnapshot[];
-  options?: { omitText?: boolean; outputFormat?: PageImageExportFormat };
+  kind: "raster" | "psd";
+  options?: ManualRasterExportOptions | ManualPsdExportOptions;
   runtime: ExportRuntime;
   selections: PageImageExportChapterSelection[];
   t: ReturnType<typeof useTranslation>["t"];
 }): Promise<boolean> {
   try {
-    const result = await mangaGateway.exportPageImages({
+    const base = {
       workId: currentChapter.workId,
       selections,
       expectedTargets,
       ...(options?.omitText ? { omitText: true } : {}),
-      ...(options?.outputFormat ? { outputFormat: options.outputFormat } : {}),
-    });
+      ...(options?.collisionPolicy
+        ? { collisionPolicy: options.collisionPolicy }
+        : {}),
+    };
+    const result =
+      kind === "psd"
+        ? await mangaGateway.exportPagePsd(base)
+        : await mangaGateway.exportPageImages({
+            ...base,
+            ...(options as ManualRasterExportOptions),
+          });
     if (!result || result.status === "cancelled") return false;
     runtime.pushStatus(
       result.openError
         ? t("inpainting.export.openFolderFailed", { path: result.outputDir })
-        : t(resolveExportSuccessKey(options?.outputFormat), {
-            count: result.pageCount,
-          }),
+        : t(
+            kind === "psd"
+              ? "inpainting.export.successPsd"
+              : "inpainting.export.success",
+            { count: result.pageCount },
+          ),
     );
     return true;
   } catch (error) {
     reportExportFailure(error, t("inpainting.export.failed"), runtime, t);
   }
-}
-
-function resolveExportSuccessKey(
-  format: PageImageExportFormat | undefined,
-): "inpainting.export.success" | "inpainting.export.successPsd" {
-  return format === "psd"
-    ? "inpainting.export.successPsd"
-    : "inpainting.export.success";
 }
 
 function reportExportFailure(

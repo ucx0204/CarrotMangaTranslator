@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { PanelCommand } from "../../../shared/panelBridgeTypes";
 import { useWorkspaceWheelZoom } from "../hooks/useWorkspaceWheelZoom";
 import { useLibraryDropImport } from "../hooks/useLibraryDropImport";
@@ -22,9 +22,15 @@ import {
 import { dispatchPanelCommand } from "./session/panelCommandDispatcher";
 import { createStylePresetDeleteAction } from "./session/createStylePresetDeleteAction";
 import type { WorkspaceWheelZoomGesture } from "../lib/workspaceZoom";
+import { useLinkedWorkspaceActivityReporter } from "../hooks/useLinkedWorkspaceActivityReporter";
 
 export function useAppSessionModel(): AppSessionViewProps {
   const chapter = useChapterSessionController();
+  const linkedWorkspaceChapterIds = useMemo(
+    () => chapter.core.library.works.flatMap((work) => work.chapterOrder),
+    [chapter.core.library.works],
+  );
+  useLinkedWorkspaceActivityReporter(linkedWorkspaceChapterIds);
   const clearRetouchHistoryRef = useRef<() => void>(() => undefined);
   const clearRetouchHistory = useCallback(
     () => clearRetouchHistoryRef.current(),
@@ -84,6 +90,7 @@ export function useAppSessionModel(): AppSessionViewProps {
     inpaintingActions: inpainting.inpaintingActions,
     inpaintingBridge: inpainting.inpaintingBridge,
     libraryActions: chapter.libraryActions,
+    linkedWorkspace: chapter.linkedWorkspace,
     libraryDrop,
     panelBridge,
     persistence: chapter.persistence,

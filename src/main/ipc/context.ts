@@ -7,6 +7,7 @@ import type { ImageDecodeFallback } from "../regionCrop";
 import type { InpaintingRevisionStore } from "../inpainting/inpaintingRevisionStore";
 import type { SimplePageRuntime } from "../simplePageRuntime";
 import type { WebImportSessionManager } from "../webImportSessionManager";
+import type { LinkedWorkspaceSyncService } from "../linkedWorkspace/linkedWorkspaceSyncService";
 
 export type PanelWindowPort = Pick<
   PanelWindowRegistry,
@@ -33,5 +34,6 @@ export type IpcContext = {
   decodeImage: ImageDecodeFallback;
   inpaintingRevisionStore?: InpaintingRevisionStore;
   webImportManager?: WebImportSessionManager;
+  linkedWorkspaceSync?: LinkedWorkspaceSyncService;
   reportError?: (message: string, detail?: unknown) => void;
 };

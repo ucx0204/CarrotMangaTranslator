@@ -14,9 +14,19 @@ import { FontLibrarySnapshotSchema } from "./ipcContextSettingsContracts";
 import type { ErrorReportContext } from "./errorReportTypes";
 import { ErrorReportContextSchema } from "./errorReportSchemas";
 import { webImportIpcEventContracts } from "./ipcWebImportContracts";
+import type { LinkedWorkspaceStatusChangedEvent } from "./linkedWorkspaceTypes";
+import { LinkedWorkspaceStatusSchema } from "./linkedWorkspaceSchemas";
 
 export const ipcEventContracts = {
   ...webImportIpcEventContracts,
+  linkedWorkspaceStatusChanged:
+    defineIpcEventContract<LinkedWorkspaceStatusChangedEvent>({
+      eventKey: "linkedWorkspaceStatusChanged",
+      channel: "linked-workspace:status-changed",
+      payload: z
+        .object({ statuses: z.array(LinkedWorkspaceStatusSchema).max(2000) })
+        .strict(),
+    }),
   errorIncident: defineIpcEventContract<ErrorReportContext>({
     eventKey: "errorIncident",
     channel: "error-report:incident",

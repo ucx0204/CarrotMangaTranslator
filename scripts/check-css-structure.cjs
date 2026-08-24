@@ -24,6 +24,7 @@ const expectedImports = [
   "modals-share.css",
   "web-import.css",
   "settings.css",
+  "linked-workspace.css",
   "gather-selection.css",
   "search-replace.css",
   "style-guide.css",

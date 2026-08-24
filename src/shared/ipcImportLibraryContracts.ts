@@ -54,6 +54,8 @@ const importPageDraftSchema = z
       .string()
       .regex(/^[1-9]\d{0,5}$/)
       .optional(),
+    sourceFileName: z.string().min(1).max(260).optional(),
+    sourceRelativePath: z.string().min(1).max(MAX_PATH_LENGTH).optional(),
   })
   .strict();
 const importChapterDraftSchema = z
@@ -104,6 +106,8 @@ const createImportResultSchema = z
     workId: stringArg,
     chapterIds: stringListArg,
     openedChapter: ChapterSnapshotSchema.optional(),
+    linkedWorkspaceConnectedChapterIds: stringListArg.optional(),
+    linkedWorkspaceWarning: diagnosticString.optional(),
   })
   .strict();
 const workShareExportResultSchema = z

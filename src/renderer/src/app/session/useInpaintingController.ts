@@ -47,7 +47,7 @@ export function useInpaintingController(
       chapter.core.setRegionSelection(null);
       chapter.uiState.selectWorkspaceTool("select");
       chapter.uiState.setPeekOriginal(false);
-      chapter.uiState.setAutoInpaintingEntryScope("current");
+      chapter.uiState.setAutoInpaintingEntryScope("select");
       chapter.uiState.setAutoInpaintingOptionsOpen(true);
     },
     setShareExportOpen: chapter.importShareModal.setShareExportOpen,

@@ -1,4 +1,6 @@
+/* eslint-disable max-lines -- the hidden production renderer lifecycle and capture protocol are intentionally colocated */
 import { BrowserWindow } from "electron";
+import { constants as osPriority, setPriority } from "node:os";
 import { rm, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -9,7 +11,10 @@ import {
 } from "../shared/pageExportLimits";
 import { createLibraryImageUrl } from "./imageProtocol";
 import { tMain } from "./i18n";
-import { captureExportPagePng } from "./pageExportCapture";
+import {
+  captureExportPageImage,
+  type PageExportCaptureOptions,
+} from "./pageExportCapture";
 import {
   buildPageExportHtml,
   type PageExportHtmlSource,
@@ -25,7 +30,10 @@ import {
   buildBoundedPageExportDataUrl,
   probePageExportSourceImage,
 } from "./pageExportRasterSafety";
-import { createPageExportTempOwner } from "./pageExportTemp";
+import {
+  createPageExportTempOwner,
+  type PageExportTempOwner,
+} from "./pageExportTemp";
 import type { ImageDecodeFallback } from "./regionCrop";
 
 const MAX_EXPORT_VIEWPORT_SIDE_PX = 4096;
@@ -35,8 +43,12 @@ const DEBUGGER_SETUP_TIMEOUT_MS = 10_000;
 const IMAGE_SOURCE_TIMEOUT_MS = 60_000;
 
 export type PageExportRenderSession = {
-  renderPage: (page: MangaPage) => Promise<Buffer>;
+  renderPage: (
+    page: MangaPage,
+    captureOptions?: PageExportCaptureOptions,
+  ) => Promise<Buffer>;
   renderTransparentPage?: (page: MangaPage) => Promise<Buffer>;
+  cancel?: () => void;
   close: () => void;
 };
 
@@ -51,6 +63,7 @@ type PageExportRenderOptions = {
   htmlSource?: PageExportHtmlSource;
   resolveImageUrl?: (path: string) => string;
   probeImageSize?: PageExportImageProbe;
+  lowPriority?: boolean;
 };
 
 type ResolvedPageExportImage = {
@@ -61,75 +74,105 @@ type ResolvedPageExportImage = {
 export async function createPageExportRenderSession(
   options: PageExportRenderOptions,
 ): Promise<PageExportRenderSession> {
-  const tempOwner = await createPageExportTempOwner(createExportWindow);
-  const renderDir = tempOwner.directory;
-  const windowState = tempOwner.owner;
-  let active = false;
-  let closed = false;
-  let lastRenderFailure: { error: unknown } | null = null;
+  const tempOwner = await createPageExportTempOwner(() =>
+    createExportWindow(options.lowPriority === true),
+  );
+  return new ManagedPageExportRenderSession(options, tempOwner);
+}
 
-  return {
-    async renderPage(page) {
-      if (closed) throw new Error("Page export session is closed.");
-      if (active) throw new Error("Page export session is already rendering.");
-      active = true;
-      lastRenderFailure = null;
-      try {
-        return await renderPageInSession(page, options, renderDir, windowState);
-      } catch (error) {
-        lastRenderFailure = { error };
-        throw error;
-      } finally {
-        active = false;
-      }
-    },
-    async renderTransparentPage(page) {
-      if (closed) throw new Error("Page export session is closed.");
-      if (active) throw new Error("Page export session is already rendering.");
-      active = true;
-      lastRenderFailure = null;
-      try {
-        return await renderPageInSession(
-          page,
-          options,
-          renderDir,
-          windowState,
-          true,
-        );
-      } catch (error) {
-        lastRenderFailure = { error };
-        throw error;
-      } finally {
-        active = false;
-      }
-    },
-    close() {
-      if (closed) return;
-      if (active) {
-        throw new Error("Page export session cannot close while rendering.");
-      }
-      closed = true;
-      const cleanupErrors: unknown[] = [];
-      try {
-        if (windowState.win.webContents.debugger.isAttached()) {
-          windowState.win.webContents.debugger.detach();
-        }
-      } catch (error) {
-        cleanupErrors.push(error);
-      }
-      try {
-        windowState.win.destroy();
-      } catch (error) {
-        cleanupErrors.push(error);
-      }
-      try {
-        tempOwner.release();
-      } catch (error) {
-        cleanupErrors.push(error);
-      }
-      throwPageExportCleanupError(lastRenderFailure, cleanupErrors);
-    },
-  };
+type ExportWindowState = ReturnType<typeof createExportWindow>;
+
+class ManagedPageExportRenderSession implements PageExportRenderSession {
+  private active = false;
+  private closed = false;
+  private lastRenderFailure: { error: unknown } | null = null;
+
+  constructor(
+    private readonly options: PageExportRenderOptions,
+    private readonly tempOwner: PageExportTempOwner<ExportWindowState>,
+  ) {}
+
+  renderPage(
+    page: MangaPage,
+    captureOptions: PageExportCaptureOptions = { format: "png" },
+  ): Promise<Buffer> {
+    return this.render(page, false, captureOptions);
+  }
+
+  renderTransparentPage(page: MangaPage): Promise<Buffer> {
+    return this.render(page, true, { format: "png" });
+  }
+
+  cancel(): void {
+    if (this.closed) return;
+    this.closed = true;
+    try {
+      this.tempOwner.owner.win.destroy();
+    } finally {
+      this.tempOwner.release();
+    }
+  }
+
+  close(): void {
+    if (this.closed) return;
+    if (this.active) {
+      throw new Error("Page export session cannot close while rendering.");
+    }
+    this.closed = true;
+    closeExportResources(this.tempOwner, this.lastRenderFailure);
+  }
+
+  private async render(
+    page: MangaPage,
+    transparentBackground: boolean,
+    captureOptions: PageExportCaptureOptions,
+  ): Promise<Buffer> {
+    if (this.closed) throw new Error("Page export session is closed.");
+    if (this.active)
+      throw new Error("Page export session is already rendering.");
+    this.active = true;
+    this.lastRenderFailure = null;
+    try {
+      return await renderPageInSession(
+        page,
+        this.options,
+        this.tempOwner.directory,
+        this.tempOwner.owner,
+        transparentBackground,
+        captureOptions,
+      );
+    } catch (error) {
+      this.lastRenderFailure = { error };
+      throw error;
+    } finally {
+      this.active = false;
+    }
+  }
+}
+
+function closeExportResources(
+  tempOwner: PageExportTempOwner<ExportWindowState>,
+  lastRenderFailure: { error: unknown } | null,
+): void {
+  const cleanupErrors: unknown[] = [];
+  try {
+    if (tempOwner.owner.win.webContents.debugger.isAttached()) {
+      tempOwner.owner.win.webContents.debugger.detach();
+    }
+  } catch (error) {
+    cleanupErrors.push(error);
+  }
+  try {
+    tempOwner.owner.win.destroy();
+  } catch (error) {
+    cleanupErrors.push(error);
+  }
+  try {
+    tempOwner.release();
+  } catch (error) {
+    cleanupErrors.push(error);
+  }
+  throwPageExportCleanupError(lastRenderFailure, cleanupErrors);
 }
 
 export async function renderPageWithTranslationBlocksForExport(
@@ -144,7 +187,7 @@ export async function renderPageWithTranslationBlocksForExport(
   }
 }
 
-function createExportWindow(): {
+function createExportWindow(lowPriority = false): {
   win: BrowserWindow;
   setAllowedHtmlUrl: (url: string | null) => void;
 } {
@@ -170,6 +213,20 @@ function createExportWindow(): {
   win.webContents.on("will-navigate", (event, url) => {
     if (url !== allowedHtmlUrl) event.preventDefault();
   });
+  if (lowPriority) {
+    win.webContents.once("did-start-loading", () => {
+      try {
+        const processId = win.webContents.getOSProcessId();
+        if (processId > 0) {
+          setPriority(processId, osPriority.priority.PRIORITY_BELOW_NORMAL);
+        }
+      } catch (error) {
+        void error;
+        // Priority is a best-effort optimization; isolation still holds because
+        // page rendering runs in this dedicated Chromium renderer process.
+      }
+    });
+  }
   return {
     win,
     setAllowedHtmlUrl: (url) => {
@@ -194,6 +251,7 @@ async function renderPageInSession(
   renderDir: string,
   windowState: ReturnType<typeof createExportWindow>,
   transparentBackground = false,
+  captureOptions: PageExportCaptureOptions = { format: "png" },
 ): Promise<Buffer> {
   const image = await withAbortableTimeout(
     (signal) => resolveExportImageSource(page, options, signal),
@@ -239,10 +297,11 @@ async function renderPageInSession(
       );
     }
     await ensureExportDebugger(windowState.win);
-    return await captureExportPagePng(
+    return await captureExportPageImage(
       windowState.win,
       image.size,
       page.name,
+      captureOptions,
       transparentBackground,
     );
   } finally {

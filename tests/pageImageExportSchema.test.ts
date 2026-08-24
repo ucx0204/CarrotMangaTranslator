@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   PageImageExportRequestSchema,
+  PagePsdExportRequestSchema,
   parseIpcPayload,
 } from "../src/shared/ipcSchemas";
 
@@ -29,9 +30,20 @@ describe("page image export schema", () => {
     ).toThrow(/요청 형식/);
   });
 
-  it("accepts PNG or PSD as the layered page-export format", () => {
+  it("keeps raster and PSD export schemas separate", () => {
     expect(
-      PageImageExportRequestSchema.parse({
+      PagePsdExportRequestSchema.parse({
+        workId: "00000000-0000-4000-8000-000000000001",
+        selections: [
+          {
+            chapterId: "00000000-0000-4000-8000-000000000002",
+            mode: "all",
+          },
+        ],
+      }).workId,
+    ).toBe("00000000-0000-4000-8000-000000000001");
+    expect(
+      PageImageExportRequestSchema.safeParse({
         workId: "00000000-0000-4000-8000-000000000001",
         selections: [
           {
@@ -40,8 +52,8 @@ describe("page image export schema", () => {
           },
         ],
         outputFormat: "psd",
-      }).outputFormat,
-    ).toBe("psd");
+      }).success,
+    ).toBe(false);
     expect(
       PageImageExportRequestSchema.safeParse({
         workId: "00000000-0000-4000-8000-000000000001",

@@ -113,6 +113,10 @@ function registerInpaintingRetouchIpc(context: IpcContext): void {
         afterRevision: createPageRevision(nextPage),
         beforePath: page.inpaintedImagePath,
         afterPath: nextPage.inpaintedImagePath,
+        beforeMaskPath: page.inpaintMaskPath,
+        afterMaskPath: nextPage.inpaintMaskPath,
+        beforeMaskProvenance: page.maskProvenance,
+        afterMaskProvenance: nextPage.maskProvenance,
         beforeTranslationCompletion: page.translationCompletion,
         afterTranslationCompletion: nextPage.translationCompletion,
       });

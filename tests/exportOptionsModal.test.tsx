@@ -8,7 +8,6 @@ import {
   render,
   screen,
   waitFor,
-  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
@@ -19,13 +18,15 @@ import type {
 } from "../src/shared/libraryTypes";
 import type {
   PageImageExportPreflightResult,
-  PageImageExportRequest,
+  PageExportSelectionRequest,
 } from "../src/shared/pageImageExportTypes";
 
 const openChapter = vi.fn<(chapterId: string) => Promise<ChapterSnapshot>>();
 const preflightPageImages =
   vi.fn<
-    (request: PageImageExportRequest) => Promise<PageImageExportPreflightResult>
+    (
+      request: PageExportSelectionRequest,
+    ) => Promise<PageImageExportPreflightResult>
   >();
 
 beforeEach(() => {
@@ -51,6 +52,14 @@ const WORK_ID = "11111111-1111-4111-8111-111111111111";
 const CHAPTER_ID = "22222222-2222-4222-8222-222222222222";
 const SECOND_CHAPTER_ID = "33333333-3333-4333-8333-333333333333";
 const TS = "2026-01-01T00:00:00.000Z";
+const DEFAULT_RASTER_OPTIONS = {
+  outputFormat: "source",
+  jpegQuality: 95,
+  webpQuality: 90,
+  preserveSourceNames: true,
+  destinationMode: "timestamped",
+  collisionPolicy: "replace",
+} as const;
 
 function makePage(id: string): MangaPage {
   return {
@@ -119,7 +128,10 @@ function makeLibrary(): LibraryIndex {
   };
 }
 
-async function renderModal(startResult: boolean) {
+async function renderModal(
+  startResult: boolean,
+  kind: "raster" | "psd" = "raster",
+) {
   const onStart = vi.fn().mockResolvedValue(startResult);
   const onClose = vi.fn();
   render(
@@ -127,6 +139,7 @@ async function renderModal(startResult: boolean) {
       chapter={makeChapter()}
       currentPageId="p2"
       jobActive={false}
+      kind={kind}
       library={makeLibrary()}
       onStart={onStart}
       onClose={onClose}
@@ -161,13 +174,13 @@ describe("ExportOptionsModal", () => {
       ).checked,
     ).toBe(false);
 
-    fireEvent.click(screen.getByRole("button", { name: "PNG 출력" }));
+    fireEvent.click(screen.getByRole("button", { name: "결과물 출력" }));
 
     await waitFor(() =>
       expect(onStart).toHaveBeenCalledWith(
         [{ chapterId: CHAPTER_ID, mode: "page-set", pageIds: ["p2"] }],
         [],
-        { omitText: false },
+        DEFAULT_RASTER_OPTIONS,
       ),
     );
     expect(onClose).not.toHaveBeenCalled();
@@ -177,42 +190,34 @@ describe("ExportOptionsModal", () => {
   it("closes only after a successful export start", async () => {
     const { onClose } = await renderModal(true);
 
-    fireEvent.click(screen.getByRole("button", { name: "PNG 출력" }));
+    fireEvent.click(screen.getByRole("button", { name: "결과물 출력" }));
 
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
   });
 
   it("preflights and starts a layered PSD export when selected", async () => {
-    const { onStart } = await renderModal(false);
-
-    fireEvent.click(screen.getByRole("combobox", { name: "파일 형식" }));
-    fireEvent.click(
-      within(screen.getByRole("listbox", { name: "파일 형식" })).getByRole(
-        "option",
-        { name: "레이어 문서 (PSD)" },
-      ),
-    );
+    const { onStart } = await renderModal(false, "psd");
 
     await waitFor(() =>
       expect(preflightPageImages).toHaveBeenLastCalledWith(
         expect.objectContaining({ outputFormat: "psd" }),
       ),
     );
-    expect(screen.getByRole("dialog", { name: "결과물 출력" })).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "PSD 출력" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "PSD 출력" }));
 
     await waitFor(() =>
       expect(onStart).toHaveBeenCalledWith(
         [{ chapterId: CHAPTER_ID, mode: "page-set", pageIds: ["p2"] }],
         [],
-        { omitText: false, outputFormat: "psd" },
+        { collisionPolicy: "replace" },
       ),
     );
   });
 
   it("supports current chapter, all, and clear quick selections", async () => {
     const { onStart } = await renderModal(false);
-    const exportButton = screen.getByRole("button", { name: "PNG 출력" });
+    const exportButton = screen.getByRole("button", { name: "결과물 출력" });
 
     fireEvent.click(screen.getByRole("button", { name: "전체 선택" }));
     await waitFor(() => expect(exportButton).toHaveProperty("disabled", false));
@@ -224,7 +229,7 @@ describe("ExportOptionsModal", () => {
           { chapterId: SECOND_CHAPTER_ID, mode: "all" },
         ],
         [],
-        { omitText: false },
+        DEFAULT_RASTER_OPTIONS,
       ),
     );
 
@@ -235,12 +240,12 @@ describe("ExportOptionsModal", () => {
       expect(onStart).toHaveBeenLastCalledWith(
         [{ chapterId: CHAPTER_ID, mode: "all" }],
         [],
-        { omitText: false },
+        DEFAULT_RASTER_OPTIONS,
       ),
     );
 
     fireEvent.click(screen.getByRole("button", { name: "전체 해제" }));
-    expect(screen.getByRole("button", { name: "PNG 출력" })).toHaveProperty(
+    expect(screen.getByRole("button", { name: "결과물 출력" })).toHaveProperty(
       "disabled",
       true,
     );
@@ -308,7 +313,7 @@ describe("ExportOptionsModal", () => {
         expect.objectContaining({ omitText: true }),
       ),
     );
-    const exportButton = screen.getByRole("button", { name: "PNG 출력" });
+    const exportButton = screen.getByRole("button", { name: "결과물 출력" });
     await waitFor(() => expect(exportButton).toHaveProperty("disabled", false));
     fireEvent.click(exportButton);
 
@@ -316,7 +321,7 @@ describe("ExportOptionsModal", () => {
       expect(onStart).toHaveBeenCalledWith(
         [{ chapterId: CHAPTER_ID, mode: "page-set", pageIds: ["p2"] }],
         [],
-        { omitText: true },
+        { ...DEFAULT_RASTER_OPTIONS, omitText: true },
       ),
     );
   });
@@ -351,7 +356,7 @@ describe("ExportOptionsModal", () => {
         "인페인팅 결과가 없어 글자 없는 출력을 만들 수 없습니다.",
       ),
     ).toBeTruthy();
-    expect(screen.getByRole("button", { name: "PNG 출력" })).toHaveProperty(
+    expect(screen.getByRole("button", { name: "결과물 출력" })).toHaveProperty(
       "disabled",
       true,
     );

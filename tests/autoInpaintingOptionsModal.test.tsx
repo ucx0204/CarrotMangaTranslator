@@ -133,6 +133,9 @@ describe("AutoInpaintingOptionsModal", () => {
   it("defaults to the current page and submits all/page-set selections", async () => {
     const { onStart, onClose } = await renderModal();
 
+    expect(
+      screen.getByRole("dialog", { name: "지울 페이지 선택" }),
+    ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "자동 지우기 시작" }));
 
     expect(onStart).toHaveBeenCalledWith(

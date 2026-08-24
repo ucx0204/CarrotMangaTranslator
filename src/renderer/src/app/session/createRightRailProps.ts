@@ -67,6 +67,7 @@ type RightRailViewModel = {
         >
       >;
   };
+  linkedWorkspace?: AppSessionViewModel["linkedWorkspace"];
   persistence: Pick<
     AppSessionViewModel["persistence"],
     "saveNow" | "saveStatus"
@@ -95,7 +96,8 @@ type RightRailViewModel = {
     | "showTextBlocks"
     | "stageTool"
     | "translationFlowActive"
-  >;
+  > &
+    Partial<Pick<AppSessionViewModel["uiState"], "openExportOptions">>;
   workspaceHistory: Pick<
     AppSessionViewModel["workspaceHistory"],
     "busy" | "canRedo" | "canUndo" | "redo" | "redoLabel" | "undo" | "undoLabel"
@@ -111,7 +113,6 @@ export function createRightRailProps(
     derivedState,
     inpaintingBridge,
     persistence,
-    settingsDialog,
     statusLog,
     uiState,
     workspaceHistory,
@@ -119,31 +120,18 @@ export function createRightRailProps(
   const inpainting = inpaintingBridge.contextValue;
   return {
     ...createRightRailActions(model),
-    blockReadingDirection: resolveReadingDirection(
-      core.library?.works.find(
-        (work) => work.id === core.currentChapter?.workId,
-      )?.readingDirection,
-      resolveSourceReadingDirection(
-        settingsDialog.settings?.translation?.sourceLanguage,
-      ),
-    ),
+    ...resolveLinkedWorkspaceProps(model),
+    blockReadingDirection: resolveRightRailReadingDirection(model),
     brushColor: inpainting.brushColor,
     brushRadius: inpainting.brushRadius,
     canRedo: workspaceHistory.canRedo,
-    canRunBubbleLayout: Boolean(
-      derivedState.selectedPage?.inpaintedImagePath &&
-      derivedState.selectedPage.blocks.length,
-    ),
+    canRunBubbleLayout: canRunRightRailBubbleLayout(model),
     canUndo: workspaceHistory.canUndo,
     compareAvailable: derivedState.peekAvailable,
     currentChapter: core.currentChapter,
-    editorDisabled:
-      derivedState.selectedPageEditLocked || workspaceHistory.busy,
+    editorDisabled: isRightRailEditorDisabled(model),
     flowActive: uiState.translationFlowActive,
-    jobActive:
-      inpainting.jobActive ||
-      uiState.translationFlowActive ||
-      workspaceHistory.busy,
+    jobActive: isRightRailJobActive(model),
     jobState: core.jobState,
     maskStrokeCount: inpainting.maskStrokeCount,
     peeking: derivedState.showingOriginalPeek,
@@ -165,7 +153,46 @@ export function createRightRailProps(
     onCancelJob: bridgeActions.cancelJob,
     onClearStatusLines: statusLog.clearStatusLines,
     onOpenLogFolder: bridgeActions.openLogFolder,
+    onViewLinkedResults: () => void model.linkedWorkspace?.viewResults(),
   };
+}
+
+function resolveRightRailReadingDirection(model: RightRailViewModel) {
+  const work = model.core.library?.works.find(
+    (candidate) => candidate.id === model.core.currentChapter?.workId,
+  );
+  return resolveReadingDirection(
+    work?.readingDirection,
+    resolveSourceReadingDirection(
+      model.settingsDialog.settings?.translation?.sourceLanguage,
+    ),
+  );
+}
+
+function resolveLinkedWorkspaceProps(model: RightRailViewModel) {
+  return {
+    linkedWorkspaceStatus: model.linkedWorkspace?.status ?? null,
+    linkedWorkspaceViewBusy: model.linkedWorkspace?.viewBusy ?? false,
+  };
+}
+
+function canRunRightRailBubbleLayout(model: RightRailViewModel): boolean {
+  const page = model.derivedState.selectedPage;
+  return Boolean(page?.inpaintedImagePath && page.blocks.length);
+}
+
+function isRightRailEditorDisabled(model: RightRailViewModel): boolean {
+  return (
+    model.derivedState.selectedPageEditLocked || model.workspaceHistory.busy
+  );
+}
+
+function isRightRailJobActive(model: RightRailViewModel): boolean {
+  return (
+    model.inpaintingBridge.contextValue.jobActive ||
+    model.uiState.translationFlowActive ||
+    model.workspaceHistory.busy
+  );
 }
 
 function createRightRailActions({
@@ -204,7 +231,8 @@ function createRightRailActions({
       selectBlock(blockId);
       uiState.setRightRailMode("block-editor");
     },
-    onOpenExport: () => uiState.setExportOptionsOpen(true),
+    onOpenExport: () => openExportOptions(uiState, "raster"),
+    onOpenPsdExport: () => openExportOptions(uiState, "psd"),
     onReviewResults: () => uiState.setRightRailMode("page-blocks"),
     onRetryPage: (pageId: string) => void retranslatePage(pageId),
     onOpenStyleGuide: () => uiState.setStyleGuideOpen(true),
@@ -221,9 +249,6 @@ function createRightRailActions({
       void inpaintingActions.revertInpainting("page");
     },
     onRunBubbleLayout: () => void inpaintingActions.runBubbleLayout(),
-    onRunCurrentPageInpainting: () => {
-      prepareAutoInpainting(core, uiState, "current");
-    },
     onRunDrawnPattern: inpainting.onRunDrawnPattern,
     onRetrySave: () => void persistence.saveNow(),
     onSelectBlock: (blockId: string) => {
@@ -237,6 +262,17 @@ function createRightRailActions({
     onUndo: () => void workspaceHistory.undo(),
     onUpdateBlock: blockEditingActions.updateBlock,
   };
+}
+
+function openExportOptions(
+  uiState: RightRailViewModel["uiState"],
+  kind: "raster" | "psd",
+): void {
+  if (uiState.openExportOptions) {
+    uiState.openExportOptions(kind);
+    return;
+  }
+  uiState.setExportOptionsOpen(true);
 }
 
 function prepareAutoInpainting(

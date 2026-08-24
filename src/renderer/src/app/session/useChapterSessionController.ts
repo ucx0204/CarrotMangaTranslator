@@ -21,6 +21,7 @@ import { useAppSessionDerivedState } from "./useAppSessionDerivedState";
 import { useAppSessionLifecycleEffects } from "./useAppSessionLifecycleEffects";
 import { useAppSessionUiState } from "./useAppSessionUiState";
 import { useModalController } from "./useModalController";
+import { useLinkedWorkspaceController } from "../../hooks/useLinkedWorkspaceController";
 
 export function useChapterSessionController() {
   const core = useAppSessionCoreState();
@@ -102,6 +103,7 @@ type ChapterRuntimeArgs = Pick<
   >;
 };
 
+// eslint-disable-next-line max-lines-per-function -- chapter persistence, linked sync, live merge, and library actions must share one hook call order
 function useChapterRuntimeController({
   core,
   derivedState,
@@ -121,6 +123,12 @@ function useChapterRuntimeController({
     [setPatternMaskStrokesByPage],
   );
   const persistence = useNotifyingChapterPersistence(core, statusLog, t);
+  const linkedWorkspace = useLinkedWorkspaceController({
+    currentChapter: core.currentChapter,
+    currentPageId: core.selectedPageId,
+    pushStatus: statusLog.pushStatus,
+    saveNow: persistence.saveNow,
+  });
   const bridgeActions = useChapterBridgeActions(statusLog, uiState);
   const libraryActions = useLibraryActions({
     askConfirm: modalController.confirmController.askConfirm,
@@ -172,6 +180,7 @@ function useChapterRuntimeController({
     bridgeActions,
     dropImportModalBlocked: modalState.dropImportModalBlocked,
     libraryActions,
+    linkedWorkspace,
     mergeLiveChapter,
     modalOpen: modalState.modalOpen,
     overlayModalsOpen: modalState.overlayModalsOpen,

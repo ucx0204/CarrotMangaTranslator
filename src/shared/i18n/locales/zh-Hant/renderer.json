@@ -105,7 +105,7 @@
       "keywords": "translate all retranslate 全部 重新翻譯"
     },
     "autoInpainting": {
-      "label": "自動清除",
+      "label": "清除原文",
       "keywords": "inpaint auto erase 自動 清除 修整",
       "closeHint": "關閉面板"
     },
@@ -197,7 +197,7 @@
       "translate-all": "全部重新翻譯",
       "gather-text": "彙整文字",
       "cancel-job": "取消工作",
-      "toggle-inpainting": "清除目前頁面",
+      "toggle-inpainting": "清除原文",
       "retouch-tool-mask": "遮罩筆刷",
       "retouch-tool-brush": "繪製筆刷",
       "retouch-tool-rectangle": "矩形修補",

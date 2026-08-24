@@ -27,6 +27,8 @@ import {
   type PageImageExportPreflightResult,
   type PageImageExportRequest,
   type PageImageExportResult,
+  type PageExportSelectionRequest,
+  type PagePsdExportRequest,
 } from "./pageImageExportTypes";
 import {
   ApplyInpaintingHistoryTransactionRequestSchema,
@@ -35,6 +37,8 @@ import {
   InpaintingRetouchRequestSchema,
   InpaintingRevertRequestSchema,
   PageImageExportRequestSchema,
+  PageImageExportPreflightRequestSchema,
+  PagePsdExportRequestSchema,
   RegionAnalysisRequestSchema,
   ReleaseInpaintingHistoryTransactionsRequestSchema,
   SetPageInpaintingResultRequestSchema,
@@ -143,7 +147,7 @@ const pageImageExportPreflightResultSchema = z
     chapterCount: nonNegativeInteger,
     pageCount: nonNegativeInteger,
     sampleRelativePath: z.string().min(1).max(800),
-    outputPolicy: z.literal("new-timestamped-folder"),
+    outputPolicy: z.enum(["new-timestamped-folder", "fixed-folder"]),
     issues: z
       .array(
         z
@@ -270,12 +274,12 @@ export const inpaintingIpcContracts = {
 
 export const pageImageExportIpcContracts = {
   preflightPageImages: defineIpcContract<
-    [PageImageExportRequest],
+    [PageExportSelectionRequest],
     PageImageExportPreflightResult
   >({
     apiKey: "preflightPageImages",
     channel: "page-images:preflight",
-    args: z.tuple([PageImageExportRequestSchema]),
+    args: z.tuple([PageImageExportPreflightRequestSchema]),
     result: pageImageExportPreflightResultSchema,
   }),
   exportPageImages: defineIpcContract<
@@ -285,6 +289,15 @@ export const pageImageExportIpcContracts = {
     apiKey: "exportPageImages",
     channel: "page-images:export",
     args: z.tuple([PageImageExportRequestSchema]),
+    result: pageImageExportResultSchema.nullable(),
+  }),
+  exportPagePsd: defineIpcContract<
+    [PagePsdExportRequest],
+    PageImageExportResult | null
+  >({
+    apiKey: "exportPagePsd",
+    channel: "page-images:export-psd",
+    args: z.tuple([PagePsdExportRequestSchema]),
     result: pageImageExportResultSchema.nullable(),
   }),
 } as const;

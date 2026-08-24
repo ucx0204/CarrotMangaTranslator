@@ -183,6 +183,7 @@ function ShareFlowModals({
 }
 
 function EditAndSettingsModals({
+  library,
   jobActive,
   onCancelRename,
   onCancelSettings,
@@ -199,6 +200,7 @@ function EditAndSettingsModals({
 }: Pick<
   AppModalsProps,
   | "jobActive"
+  | "library"
   | "onCancelRename"
   | "onCancelSettings"
   | "onDeleteRename"
@@ -227,6 +229,7 @@ function EditAndSettingsModals({
       {settingsOpen && settings ? (
         <SettingsModal
           initialSettings={settings}
+          library={library}
           busy={settingsBusy}
           jobActive={jobActive}
           onCancel={onCancelSettings}

@@ -326,7 +326,7 @@ function useSubmitImportAction({
 }: UseImportShareActionsOptions): ImportShareActions["submitImport"] {
   const { t } = useTranslation("renderer");
   return useCallback(
-    async ({ target, selections }: ImportModalSubmit) => {
+    async ({ target, selections, linkedWorkspace }: ImportModalSubmit) => {
       if (!importPreview) {
         return;
       }
@@ -340,6 +340,7 @@ function useSubmitImportAction({
           previewId: importPreview.previewId,
           target,
           selections,
+          ...(linkedWorkspace ? { linkedWorkspace } : {}),
         });
         await refreshLibrary();
         resetWorkspaceHistory();
@@ -348,6 +349,10 @@ function useSubmitImportAction({
           t("import.added", { count: result.chapterIds.length }),
         );
         setImportPreview(null);
+
+        if (result.linkedWorkspaceWarning) {
+          pushStatus(result.linkedWorkspaceWarning);
+        }
 
         if (importPreview.mode === "batch") {
           openTranslateOptions("work-all");

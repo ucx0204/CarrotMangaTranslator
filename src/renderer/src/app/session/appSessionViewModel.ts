@@ -7,6 +7,7 @@ import type { useImportShareModalController } from "../../hooks/useImportShareMo
 import type { useInpaintingActions } from "../../hooks/useInpaintingActions";
 import type { useInpaintingContextBridge } from "../../hooks/useInpaintingContextBridge";
 import type { useLibraryActions } from "../../hooks/useLibraryActions";
+import type { useLinkedWorkspaceController } from "../../hooks/useLinkedWorkspaceController";
 import type { LibraryDropImportController } from "../../hooks/useLibraryDropImport";
 import type { usePageNavigationHandlers } from "../../hooks/usePageNavigationHandlers";
 import type { usePageRetranslationAction } from "../../hooks/usePageRetranslationAction";
@@ -36,6 +37,7 @@ export type AppSessionViewModel = {
   inpaintingActions: ReturnType<typeof useInpaintingActions>;
   inpaintingBridge: ReturnType<typeof useInpaintingContextBridge>;
   libraryActions: ReturnType<typeof useLibraryActions>;
+  linkedWorkspace: ReturnType<typeof useLinkedWorkspaceController>;
   libraryDrop: LibraryDropImportController;
   panelBridge: ReturnType<typeof usePanelBridgeHost>;
   persistence: ReturnType<typeof useChapterPersistence>;

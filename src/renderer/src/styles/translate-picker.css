@@ -500,6 +500,28 @@
   line-height: 1.45;
 }
 
+.export-render-options-raster {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+}
+
+.export-render-options-raster > .checkbox-field {
+  align-self: center;
+}
+
+.export-number-field {
+  display: grid;
+  grid-template-columns: max-content minmax(96px, 1fr);
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--text-dim);
+  font-size: var(--font-sm);
+}
+
+.export-number-field [data-ui-number-field] {
+  min-width: 0;
+}
+
 .export-format-field {
   display: grid;
   grid-template-columns: max-content minmax(150px, 1fr);
@@ -511,6 +533,34 @@
 
 .export-format-field [data-ui-select] {
   min-width: 0;
+}
+
+.import-linked-workspace-section {
+  display: grid;
+  gap: 9px;
+  border-color: color-mix(in srgb, var(--accent-bd) 42%, var(--border-soft));
+  background: color-mix(in srgb, var(--accent-soft) 14%, var(--bg-sunken));
+}
+
+.import-linked-workspace-section > p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  line-height: 1.45;
+}
+
+.import-linked-workspace-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.import-linked-workspace-fields > label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: var(--text-dim);
+  font-size: var(--font-sm);
 }
 
 .export-preflight {
@@ -683,6 +733,11 @@
   .export-render-options {
     grid-template-columns: 1fr;
     gap: 6px;
+  }
+
+  .export-render-options-raster,
+  .import-linked-workspace-fields {
+    grid-template-columns: 1fr;
   }
 
   .export-format-field {

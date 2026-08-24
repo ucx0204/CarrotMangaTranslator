@@ -2,7 +2,10 @@ import { join, resolve } from "node:path";
 import type { ChapterSnapshot, MangaPage } from "../../shared/libraryTypes";
 import { withLibraryMutation } from "../library/lock";
 import { openChapter as openChapterUnlocked } from "../libraryStore/libraryAccess";
-import { removeUnreferencedInpaintedArtifacts } from "../libraryStore/inpaintedArtifacts";
+import {
+  removeUnreferencedInpaintMaskArtifacts,
+  removeUnreferencedInpaintedArtifacts,
+} from "../libraryStore/inpaintedArtifacts";
 import { findChapterLocation } from "../libraryStore/libraryFiles";
 import { getWorksRoot } from "../libraryStore/libraryPaths";
 import {
@@ -61,16 +64,28 @@ async function cleanupReleasedArtifactsFromLibrary({
     return;
   }
   const chapter = await openChapterUnlocked(chapterId);
-  const candidates = changes.flatMap((change) =>
+  const inpaintedCandidates = changes.flatMap((change) =>
     [change.beforePath, change.afterPath].filter((path): path is string =>
       Boolean(path),
     ),
   );
-  await removeUnreferencedInpaintedArtifacts(
-    resolve(
-      join(getWorksRoot(), locator.workId, "chapters", locator.chapterId),
+  const maskCandidates = changes.flatMap((change) =>
+    [change.beforeMaskPath, change.afterMaskPath].filter(
+      (path): path is string => Boolean(path),
     ),
-    candidates,
+  );
+  const chapterDir = resolve(
+    join(getWorksRoot(), locator.workId, "chapters", locator.chapterId),
+  );
+  await removeUnreferencedInpaintedArtifacts(
+    chapterDir,
+    inpaintedCandidates,
+    chapter.pages,
+    retainedPaths,
+  );
+  await removeUnreferencedInpaintMaskArtifacts(
+    chapterDir,
+    maskCandidates,
     chapter.pages,
     retainedPaths,
   );

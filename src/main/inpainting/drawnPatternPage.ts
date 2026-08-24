@@ -3,6 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { InpaintingMaskStroke } from "../../shared/inpaintingTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
+import { removeArtifactAfterFailure } from "../artifactCleanup";
 import { tMain } from "../i18n";
 import { measureWindowMaskedRegionChange } from "./fluxChangeStats";
 import {
@@ -24,6 +25,7 @@ import {
   maskComponents,
   sanitizeMaskStrokes,
 } from "./rasterMasks";
+import { persistActualInpaintMask } from "./inpaintMaskArtifact";
 
 type DrawnPatternOptions = {
   strokes: InpaintingMaskStroke[];
@@ -70,6 +72,7 @@ export async function inpaintDrawnPatternPage(
     input,
     blocksErased,
     blocksIncomplete,
+    options.decodeFallback,
   );
 }
 
@@ -189,6 +192,7 @@ async function writeDrawnInpaintingResult(
   input: DrawnPatternInput,
   blocksErased: number,
   blocksIncomplete: number,
+  decodeFallback: ImageDecodeFallback | undefined,
 ): Promise<PatternPageInpaintingResult> {
   const outputImage = nativeImage.createFromBitmap(input.bitmap, {
     width: input.width,
@@ -202,12 +206,27 @@ async function writeDrawnInpaintingResult(
   const outputPath = resolveInpaintedImagePath(page.imagePath, "pattern-drawn");
   await mkdir(dirname(outputPath), { recursive: true });
   await writeFile(outputPath, outputImage.toPNG());
+  let persistedMask: Awaited<ReturnType<typeof persistActualInpaintMask>>;
+  try {
+    persistedMask = await persistActualInpaintMask({
+      page,
+      mask: input.pageMask,
+      width: input.width,
+      height: input.height,
+      suffix: "pattern-drawn",
+      decodeFallback,
+    });
+  } catch (error) {
+    return removeArtifactAfterFailure(outputPath, error);
+  }
   return {
     blocksErased,
     blocksIncomplete,
     page: {
       ...page,
       inpaintedImagePath: outputPath,
+      inpaintMaskPath: persistedMask.path,
+      maskProvenance: persistedMask.provenance,
       updatedAt: new Date().toISOString(),
     },
   };

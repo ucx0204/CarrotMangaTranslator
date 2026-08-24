@@ -37,6 +37,7 @@ import {
   type InpaintingArtifactCleanupOptions,
 } from "../libraryStore/libraryInpaintingMutations";
 import { withLibraryMutation } from "./lock";
+import { notifyLinkedWorkspacePagesSaved } from "../linkedWorkspace/linkedWorkspaceNotifications";
 
 export type SavePageBlocksRuntime = {
   runMutation: typeof withLibraryMutation;
@@ -49,8 +50,13 @@ const productionSavePageBlocksRuntime: SavePageBlocksRuntime = {
 };
 
 export function createSavePageBlocks(runtime: SavePageBlocksRuntime) {
-  return (request: SavePageBlocksRequest): Promise<ChapterSnapshot> =>
-    runtime.runMutation(() => runtime.savePageBlocks(request));
+  return async (request: SavePageBlocksRequest): Promise<ChapterSnapshot> => {
+    const chapter = await runtime.runMutation(() =>
+      runtime.savePageBlocks(request),
+    );
+    notifyLinkedWorkspacePagesSaved(request.chapterId, [request.pageId]);
+    return chapter;
+  };
 }
 
 export const savePageBlocks = createSavePageBlocks(
@@ -68,8 +74,16 @@ const productionSavePagesBlocksRuntime: SavePagesBlocksRuntime = {
 };
 
 export function createSavePagesBlocks(runtime: SavePagesBlocksRuntime) {
-  return (request: SavePagesBlocksRequest): Promise<ChapterSnapshot> =>
-    runtime.runMutation(() => runtime.savePagesBlocks(request));
+  return async (request: SavePagesBlocksRequest): Promise<ChapterSnapshot> => {
+    const chapter = await runtime.runMutation(() =>
+      runtime.savePagesBlocks(request),
+    );
+    notifyLinkedWorkspacePagesSaved(
+      request.chapterId,
+      request.pages.map((page) => page.pageId),
+    );
+    return chapter;
+  };
 }
 
 export const savePagesBlocks = createSavePagesBlocks(
@@ -81,9 +95,11 @@ export async function appendAnalyzedPageBlocks(
   pageId: string,
   blocks: MangaPage["blocks"],
 ): Promise<ChapterSnapshot> {
-  return withLibraryMutation(() =>
+  const chapter = await withLibraryMutation(() =>
     appendAnalyzedPageBlocksUnlocked(chapterId, pageId, blocks),
   );
+  notifyLinkedWorkspacePagesSaved(chapterId, [pageId]);
+  return chapter;
 }
 
 export async function renameWork(
@@ -146,7 +162,7 @@ export async function updatePageAfterAnalysis(
   expectedUpdatedAt?: string,
   expectedRevision?: PageRevision,
 ): Promise<boolean> {
-  return withLibraryMutation(() =>
+  const updated = await withLibraryMutation(() =>
     updatePageAfterAnalysisUnlocked(
       chapterId,
       page,
@@ -156,15 +172,19 @@ export async function updatePageAfterAnalysis(
       expectedRevision,
     ),
   );
+  if (updated) notifyLinkedWorkspacePagesSaved(chapterId, [page.id]);
+  return updated;
 }
 
 export async function updatePagesAfterAnalysis(
   chapterId: string,
   updates: PageAnalysisUpdate[],
 ): Promise<ReadonlySet<string>> {
-  return withLibraryMutation(() =>
+  const changed = await withLibraryMutation(() =>
     updatePagesAfterAnalysisUnlocked(chapterId, updates),
   );
+  notifyLinkedWorkspacePagesSaved(chapterId, [...changed]);
+  return changed;
 }
 
 export async function finalizeRunningPages(
@@ -183,9 +203,14 @@ export async function updatePagesAfterInpainting(
   pages: MangaPage[],
   cleanupOptions?: InpaintingArtifactCleanupOptions,
 ): Promise<ChapterSnapshot> {
-  return withLibraryMutation(() =>
+  const chapter = await withLibraryMutation(() =>
     updatePagesAfterInpaintingUnlocked(chapterId, pages, cleanupOptions),
   );
+  notifyLinkedWorkspacePagesSaved(
+    chapterId,
+    pages.map((page) => page.id),
+  );
+  return chapter;
 }
 
 export async function setPageInpaintingResult(
@@ -194,7 +219,7 @@ export async function setPageInpaintingResult(
   inpaintedImagePath?: string | null,
   cleanupOptions?: InpaintingArtifactCleanupOptions,
 ): Promise<ChapterSnapshot> {
-  return withLibraryMutation(() =>
+  const chapter = await withLibraryMutation(() =>
     setPageInpaintingResultUnlocked(
       chapterId,
       pageId,
@@ -202,6 +227,8 @@ export async function setPageInpaintingResult(
       cleanupOptions,
     ),
   );
+  notifyLinkedWorkspacePagesSaved(chapterId, [pageId]);
+  return chapter;
 }
 
 export async function cleanupLibraryOrphans(): Promise<LibraryCleanupResult> {

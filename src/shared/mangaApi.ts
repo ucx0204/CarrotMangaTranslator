@@ -22,6 +22,8 @@ import type {
   PageImageExportPreflightResult,
   PageImageExportRequest,
   PageImageExportResult,
+  PageExportSelectionRequest,
+  PagePsdExportRequest,
 } from "./pageImageExportTypes";
 import type {
   JobEvent,
@@ -103,8 +105,45 @@ import type {
   SaveBlockLibraryEntryInput,
   UpdateBlockLibraryEntryInput,
 } from "./blockLibrary";
+import type {
+  ConnectLinkedWorkspaceRequest,
+  LinkedWorkspaceActivityRequest,
+  LinkedWorkspaceBooleanResult,
+  LinkedWorkspaceStatus,
+  LinkedWorkspaceStatusChangedEvent,
+  UpdateLinkedWorkspaceRequest,
+  ViewLinkedResultsRequest,
+  ViewLinkedResultsResult,
+} from "./linkedWorkspaceTypes";
 
 export type MangaApi = {
+  getLinkedWorkspaceStatus: (
+    chapterId: string,
+  ) => Promise<LinkedWorkspaceStatus>;
+  listLinkedWorkspaceStatuses: (
+    chapterIds: string[],
+  ) => Promise<LinkedWorkspaceStatus[]>;
+  connectLinkedWorkspace: (
+    request: ConnectLinkedWorkspaceRequest,
+  ) => Promise<LinkedWorkspaceStatus | null>;
+  updateLinkedWorkspace: (
+    request: UpdateLinkedWorkspaceRequest,
+  ) => Promise<LinkedWorkspaceStatus>;
+  reconnectLinkedWorkspace: (
+    connectionId: string,
+  ) => Promise<LinkedWorkspaceStatus | null>;
+  resetLinkedWorkspaceLocation: (
+    connectionId: string,
+  ) => Promise<LinkedWorkspaceStatus>;
+  disconnectLinkedWorkspace: (
+    connectionId: string,
+  ) => Promise<LinkedWorkspaceBooleanResult>;
+  viewLinkedResults: (
+    request: ViewLinkedResultsRequest,
+  ) => Promise<ViewLinkedResultsResult>;
+  reportLinkedWorkspaceActivity: (
+    request: LinkedWorkspaceActivityRequest,
+  ) => Promise<LinkedWorkspaceBooleanResult>;
   listBlockLibraryEntries: () => Promise<BlockLibrarySnapshotV1>;
   saveBlockLibraryEntry: (
     input: SaveBlockLibraryEntryInput,
@@ -268,8 +307,11 @@ export type MangaApi = {
   exportPageImages: (
     request: PageImageExportRequest,
   ) => Promise<PageImageExportResult | null>;
+  exportPagePsd: (
+    request: PagePsdExportRequest,
+  ) => Promise<PageImageExportResult | null>;
   preflightPageImages: (
-    request: PageImageExportRequest,
+    request: PageExportSelectionRequest,
   ) => Promise<PageImageExportPreflightResult>;
   disposeInpaintingEngine: () => Promise<{ disposed: boolean }>;
   cancelJob: () => Promise<unknown>;
@@ -296,5 +338,8 @@ export type MangaApi = {
   ) => () => void;
   onErrorIncident: (
     callback: (context: ErrorReportContext) => void,
+  ) => () => void;
+  onLinkedWorkspaceStatusChanged: (
+    callback: (event: LinkedWorkspaceStatusChangedEvent) => void,
   ) => () => void;
 };

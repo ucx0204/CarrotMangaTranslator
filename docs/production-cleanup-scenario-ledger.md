@@ -104,12 +104,15 @@ editing the totals by hand.
   The grouped retouch-toolbar and rectangle-restore pass extended that
   accepted Node 26 artifact again to SHA-256
   `9a874c66919ba8535edc9f04283d24b706e2b347c3dfe5a6a6f1ebb69f312a1f`.
+  The linked automatic-result saving, export, mask, and output-control pass
+  extended the accepted Node 26 artifact to SHA-256
+  `088e4635662eec9c614faa223ca179ba2e653764003abd72aef46cc898db2080`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
-  percentage for lines/statements/functions/branches in all 309 existing
-  coverage-eligible `src/**` files changed since cleanup start. The 89 new
+  percentage for lines/statements/functions/branches in all 382 existing
+  coverage-eligible `src/**` files changed since cleanup start. The 117 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record. The
-  four removed source files are recorded explicitly in `deletedFiles`.
+  five removed source files are recorded explicitly in `deletedFiles`.
 - `scripts/check-production-cleanup-coverage.cjs` derives the eligible modified,
   added, deleted, and untracked source scope from Git on every run. A missing or
   stale manifest entry, unrecorded deletion, unsupported source status, missing

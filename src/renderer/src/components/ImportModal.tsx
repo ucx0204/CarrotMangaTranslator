@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- import target, chapter selection, and linked-folder confirmation compose one modal */
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type {
@@ -5,6 +6,7 @@ import type {
   ImportPreviewResult,
 } from "../../../shared/importTypes";
 import type { LibraryIndex } from "../../../shared/libraryTypes";
+import type { LinkedWorkspaceImportOptions } from "../../../shared/linkedWorkspaceTypes";
 import type { ImportModalSubmit } from "../lib/importFlowTypes";
 import {
   buildImportSubmitPayload,
@@ -20,6 +22,7 @@ import { Modal } from "./ui/Modal";
 import { ModalActionBar } from "./ui/ModalActionBar";
 import { SelectionCard, SelectionSurface } from "./ui/SelectionCard";
 import { WorkSelect } from "./WorkSelect";
+import { ImportLinkedWorkspaceSection } from "./ImportLinkedWorkspaceSection";
 
 type ImportModalProps = {
   library: LibraryIndex;
@@ -30,6 +33,7 @@ type ImportModalProps = {
   onSubmit: (payload: ImportModalSubmit) => void;
 };
 
+// eslint-disable-next-line max-lines-per-function -- all initial import choices must be captured once from the same preview
 export function ImportModal({
   library,
   currentWorkId = null,
@@ -39,17 +43,15 @@ export function ImportModal({
   onSubmit,
 }: ImportModalProps): React.JSX.Element {
   const { t } = useTranslation("components");
-  const currentWorkAvailable = Boolean(
-    currentWorkId && library.works.some((work) => work.id === currentWorkId),
-  );
+  const initial = resolveImportModalInitialState(library, currentWorkId);
   const [targetMode, setTargetMode] = React.useState<"new" | "existing">(
-    currentWorkAvailable ? "existing" : "new",
+    initial.targetMode,
   );
   const [newWorkTitle, setNewWorkTitle] = React.useState(
     preview.suggestedWorkTitle,
   );
   const [existingWorkId, setExistingWorkId] = React.useState(
-    currentWorkAvailable ? (currentWorkId ?? "") : (library.works[0]?.id ?? ""),
+    initial.existingWorkId,
   );
   const [selections, setSelections] = React.useState<ImportCreateSelection[]>(
     preview.chapters.map((chapter) => ({
@@ -58,10 +60,15 @@ export function ImportModal({
       enabled: true,
     })),
   );
+  const [linkedWorkspace, setLinkedWorkspace] =
+    React.useState<LinkedWorkspaceImportOptions>({
+      enabled: true,
+      outputFormat: "source",
+      jpegQuality: 95,
+      webpQuality: 90,
+    });
 
-  const modalTitle = t(
-    preview.mode === "batch" ? "import.batchTitle" : "import.addToLibrary",
-  );
+  const modalTitle = resolveImportModalTitle(t, preview.mode);
   const submittable = isImportSubmittable(
     targetMode,
     newWorkTitle,
@@ -73,6 +80,7 @@ export function ImportModal({
     newWorkTitle,
     existingWorkId,
     selections,
+    linkedWorkspace,
   );
 
   return (
@@ -91,10 +99,65 @@ export function ImportModal({
         />
       }
     >
+      <ImportModalContent
+        busy={busy}
+        currentWorkId={initial.currentWorkId}
+        existingWorkId={existingWorkId}
+        library={library}
+        linkedWorkspace={linkedWorkspace}
+        newWorkTitle={newWorkTitle}
+        preview={preview}
+        selections={selections}
+        setExistingWorkId={setExistingWorkId}
+        setLinkedWorkspace={setLinkedWorkspace}
+        setNewWorkTitle={setNewWorkTitle}
+        setSelections={setSelections}
+        setTargetMode={setTargetMode}
+        targetMode={targetMode}
+      />
+    </Modal>
+  );
+}
+
+function ImportModalContent({
+  busy,
+  currentWorkId,
+  existingWorkId,
+  library,
+  linkedWorkspace,
+  newWorkTitle,
+  preview,
+  selections,
+  setExistingWorkId,
+  setLinkedWorkspace,
+  setNewWorkTitle,
+  setSelections,
+  setTargetMode,
+  targetMode,
+}: {
+  busy: boolean;
+  currentWorkId: string | null;
+  existingWorkId: string;
+  library: LibraryIndex;
+  linkedWorkspace: LinkedWorkspaceImportOptions;
+  newWorkTitle: string;
+  preview: ImportPreviewResult;
+  selections: ImportCreateSelection[];
+  setExistingWorkId: React.Dispatch<React.SetStateAction<string>>;
+  setLinkedWorkspace: React.Dispatch<
+    React.SetStateAction<LinkedWorkspaceImportOptions>
+  >;
+  setNewWorkTitle: React.Dispatch<React.SetStateAction<string>>;
+  setSelections: React.Dispatch<React.SetStateAction<ImportCreateSelection[]>>;
+  setTargetMode: React.Dispatch<React.SetStateAction<"new" | "existing">>;
+  targetMode: "new" | "existing";
+}): React.JSX.Element {
+  return (
+    <>
       <ImportTargetSection
         busy={busy}
         existingWorkId={existingWorkId}
-        currentWorkId={currentWorkAvailable ? currentWorkId : null}
+        currentWorkId={currentWorkId}
         library={library}
         newWorkTitle={newWorkTitle}
         setExistingWorkId={setExistingWorkId}
@@ -108,8 +171,36 @@ export function ImportModal({
         selections={selections}
         setSelections={setSelections}
       />
-    </Modal>
+      <ImportLinkedWorkspaceSection
+        busy={busy}
+        options={linkedWorkspace}
+        onChange={setLinkedWorkspace}
+      />
+    </>
   );
+}
+
+function resolveImportModalInitialState(
+  library: LibraryIndex,
+  currentWorkId: string | null,
+) {
+  const currentWorkAvailable = Boolean(
+    currentWorkId && library.works.some((work) => work.id === currentWorkId),
+  );
+  return {
+    currentWorkId: currentWorkAvailable ? currentWorkId : null,
+    existingWorkId: currentWorkAvailable
+      ? (currentWorkId ?? "")
+      : (library.works[0]?.id ?? ""),
+    targetMode: currentWorkAvailable ? ("existing" as const) : ("new" as const),
+  };
+}
+
+function resolveImportModalTitle(
+  t: ReturnType<typeof useTranslation>["t"],
+  mode: ImportPreviewResult["mode"],
+): string {
+  return t(mode === "batch" ? "import.batchTitle" : "import.addToLibrary");
 }
 
 function ImportModalFooter({

@@ -72,8 +72,48 @@ describe("ImportModal selection surfaces", () => {
       ).checked,
     ).toBe(false);
     expect(screen.getByText(/새 화로 추가됩니다/)).not.toBeNull();
-    expect((screen.getByRole("combobox") as HTMLButtonElement).value).toBe(
-      "work-1",
+    expect(
+      (
+        screen.getByRole("combobox", {
+          name: "작품 선택",
+        }) as HTMLButtonElement
+      ).value,
+    ).toBe("work-1");
+  });
+
+  it("defaults every import to source-format result auto-save", () => {
+    const onSubmit = vi.fn();
+    render(
+      <ImportModal
+        library={LIBRARY}
+        preview={PREVIEW}
+        busy={false}
+        onCancel={vi.fn()}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    expect(
+      (
+        screen.getByRole("checkbox", {
+          name: "결과물 폴더에 자동 저장",
+        }) as HTMLInputElement
+      ).checked,
+    ).toBe(true);
+    expect(
+      screen.getByRole("combobox", { name: "자동 저장 형식" }),
+    ).toHaveProperty("value", "source");
+
+    fireEvent.click(screen.getByRole("button", { name: "추가 후 번역" }));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        linkedWorkspace: {
+          enabled: true,
+          outputFormat: "source",
+          jpegQuality: 95,
+          webpQuality: 90,
+        },
+      }),
     );
   });
 });

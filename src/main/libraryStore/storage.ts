@@ -31,6 +31,7 @@ export function isPathInside(rootPath: string, targetPath: string): boolean {
 export async function writeJsonFile(
   path: string,
   payload: unknown,
+  beforeCommit?: () => void,
 ): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
   const tmpPath = join(
@@ -39,6 +40,7 @@ export async function writeJsonFile(
   );
   try {
     await writeFile(tmpPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+    beforeCommit?.();
     await renameWithTransientRetry(tmpPath, path);
   } catch (error) {
     try {

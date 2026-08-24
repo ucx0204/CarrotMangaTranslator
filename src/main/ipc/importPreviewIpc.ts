@@ -30,6 +30,7 @@ import {
   rememberRecentDialogLocation,
   type RecentDialogLocation,
 } from "../recentDialogPaths";
+import { connectImportedChapters } from "./linkedWorkspaceImport";
 import type { IpcContext } from "./context";
 import { tMain } from "./localization";
 import { trustedHandleContract } from "./trustedIpc";
@@ -359,6 +360,11 @@ function registerCreateImportIpc(
             signal,
           ),
       );
+      const linkedResult = await connectImportedChapters(
+        context,
+        command,
+        result,
+      );
       if (session.recentLocation) {
         rememberRecentDialogLocation(
           context.appPaths.dataRoot,
@@ -376,7 +382,7 @@ function registerCreateImportIpc(
           error,
         );
       }
-      return result;
+      return { ...result, ...linkedResult };
     },
   );
 }

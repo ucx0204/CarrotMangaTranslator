@@ -85,6 +85,10 @@ async function saveInpaintingPageResult({
       afterRevision: createPageRevision(result.page),
       beforePath: targetPage.page.inpaintedImagePath,
       afterPath: result.page.inpaintedImagePath,
+      beforeMaskPath: targetPage.page.inpaintMaskPath,
+      afterMaskPath: result.page.inpaintMaskPath,
+      beforeMaskProvenance: targetPage.page.maskProvenance,
+      afterMaskProvenance: result.page.maskProvenance,
       beforeLayout: result.beforeLayout,
       afterLayout: result.afterLayout,
       beforeTranslationCompletion: targetPage.page.translationCompletion,
@@ -131,6 +135,12 @@ function assertInpaintingResultWasSaved(
   }
   if (savedPage.inpaintedImagePath !== result.page.inpaintedImagePath) {
     throw new Error("인페인팅 결과 이미지가 저장되지 않았습니다.");
+  }
+  if (
+    savedPage.inpaintMaskPath !== result.page.inpaintMaskPath ||
+    savedPage.maskProvenance !== result.page.maskProvenance
+  ) {
+    throw new Error("인페인팅 마스크가 저장되지 않았습니다.");
   }
   if (!pageMatchesInpaintingLayoutStates(savedPage, result.afterLayout)) {
     throw new Error("인페인팅 후처리 결과가 저장되지 않았습니다.");

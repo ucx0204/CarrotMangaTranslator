@@ -99,6 +99,12 @@ export async function materializePageRecord(
       id: pageId,
       name: pageDraft.name,
       imagePath: publishedPath,
+      ...(pageDraft.sourceFileName
+        ? { sourceFileName: pageDraft.sourceFileName }
+        : {}),
+      ...(pageDraft.sourceRelativePath
+        ? { sourceRelativePath: pageDraft.sourceRelativePath }
+        : {}),
       width: finalMetadata.width,
       height: finalMetadata.height,
       blocks: [],

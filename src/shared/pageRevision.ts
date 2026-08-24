@@ -2,6 +2,7 @@ import { hashStableValue } from "./blockFingerprint";
 import type { MangaPage } from "./libraryTypes";
 
 export type PageRevision = `page-v1:${string}`;
+export type PageVisualRevision = `page-visual-v1:${string}`;
 
 export type PageJobTargetSnapshot = {
   chapterId: string;
@@ -20,6 +21,8 @@ export function createPageRevision(
     | "id"
     | "imagePath"
     | "inpaintedImagePath"
+    | "inpaintMaskPath"
+    | "maskProvenance"
     | "width"
     | "height"
     | "blocks"
@@ -30,10 +33,50 @@ export function createPageRevision(
     id: page.id,
     imagePath: page.imagePath,
     inpaintedImagePath: page.inpaintedImagePath,
+    inpaintMaskPath: page.inpaintMaskPath,
+    maskProvenance: page.maskProvenance,
     width: page.width,
     height: page.height,
     blocks: page.blocks,
     translationCompletion: page.translationCompletion,
+  })}`;
+}
+
+/**
+ * Only values that can change page pixels belong in this revision. Source OCR,
+ * review metadata and other workflow-only fields are intentionally removed.
+ */
+export function createPageVisualRevision(
+  page: Pick<
+    MangaPage,
+    | "id"
+    | "imagePath"
+    | "inpaintedImagePath"
+    | "width"
+    | "height"
+    | "blocks"
+    | "blockOrder"
+  >,
+): PageVisualRevision {
+  const blocks = page.blocks.map(
+    ({
+      sourceText: _sourceText,
+      confidence: _confidence,
+      reviewStatus: _reviewStatus,
+      reviewNote: _reviewNote,
+      speakerId: _speakerId,
+      glossaryEntryIds: _glossaryEntryIds,
+      ...visual
+    }) => visual,
+  );
+  return `page-visual-v1:${hashStableValue({
+    id: page.id,
+    imagePath: page.imagePath,
+    inpaintedImagePath: page.inpaintedImagePath,
+    width: page.width,
+    height: page.height,
+    blocks,
+    blockOrder: page.blockOrder,
   })}`;
 }
 

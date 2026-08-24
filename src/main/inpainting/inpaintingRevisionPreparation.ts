@@ -31,28 +31,12 @@ export function prepareInpaintingPageRevision({
   direction: "undo" | "redo";
 }): PreparedInpaintingPageRevision {
   const page = requireRevisionPage(chapter, change.pageId);
-  const expectedRevision =
-    direction === "undo" ? change.afterRevision : change.beforeRevision;
-  const expectedPath =
-    direction === "undo" ? change.afterPath : change.beforePath;
-  const expectedLayout =
-    direction === "undo" ? change.afterLayout : change.beforeLayout;
-  const expectedTranslationCompletion =
-    direction === "undo"
-      ? change.afterTranslationCompletion
-      : change.beforeTranslationCompletion;
-  assertExpectedRevision(page, expectedRevision);
-  assertExpectedInpaintingPath(page, expectedPath);
-  assertExpectedLayout(page, expectedLayout);
-  assertExpectedCompletion(page, expectedTranslationCompletion);
-  const targetPath =
-    direction === "undo" ? change.beforePath : change.afterPath;
-  const targetLayout =
-    direction === "undo" ? change.beforeLayout : change.afterLayout;
-  const targetTranslationCompletion =
-    direction === "undo"
-      ? change.beforeTranslationCompletion
-      : change.afterTranslationCompletion;
+  const { expected, target } = resolveRevisionSides(change, direction);
+  assertExpectedRevision(page, expected.revision);
+  assertExpectedInpaintingPath(page, expected.path);
+  assertExpectedMask(page, expected.maskPath, expected.maskProvenance);
+  assertExpectedLayout(page, expected.layout);
+  assertExpectedCompletion(page, expected.translationCompletion);
   return {
     originalPage: {
       ...page,
@@ -63,17 +47,44 @@ export function prepareInpaintingPageRevision({
     nextPage: applyInpaintingLayoutStates(
       {
         ...page,
-        inpaintedImagePath: targetPath,
+        inpaintedImagePath: target.path,
+        inpaintMaskPath: target.maskPath,
+        maskProvenance: target.maskProvenance,
         translationCompletion: cloneTranslationCompletion(
-          targetTranslationCompletion,
+          target.translationCompletion,
         ),
         updatedAt: new Date().toISOString(),
       },
-      targetLayout ?? [],
+      target.layout ?? [],
     ),
-    nextLayoutPatch: createLayoutPatch(change.pageId, targetLayout),
-    originalLayoutPatch: createLayoutPatch(change.pageId, expectedLayout),
+    nextLayoutPatch: createLayoutPatch(change.pageId, target.layout),
+    originalLayoutPatch: createLayoutPatch(change.pageId, expected.layout),
   };
+}
+
+function resolveRevisionSides(
+  change: InpaintingRevisionChange,
+  direction: "undo" | "redo",
+) {
+  const before = {
+    revision: change.beforeRevision,
+    path: change.beforePath,
+    maskPath: change.beforeMaskPath,
+    maskProvenance: change.beforeMaskProvenance,
+    layout: change.beforeLayout,
+    translationCompletion: change.beforeTranslationCompletion,
+  };
+  const after = {
+    revision: change.afterRevision,
+    path: change.afterPath,
+    maskPath: change.afterMaskPath,
+    maskProvenance: change.afterMaskProvenance,
+    layout: change.afterLayout,
+    translationCompletion: change.afterTranslationCompletion,
+  };
+  return direction === "undo"
+    ? { expected: after, target: before }
+    : { expected: before, target: after };
 }
 
 function requireRevisionPage(
@@ -103,6 +114,21 @@ function assertExpectedInpaintingPath(
   if (!sameOptionalPath(page.inpaintedImagePath, expectedPath)) {
     throw new Error(
       "페이지가 다른 작업으로 변경되어 인페인팅 기록을 적용할 수 없습니다.",
+    );
+  }
+}
+
+function assertExpectedMask(
+  page: MangaPage,
+  expectedPath: string | undefined,
+  expectedProvenance: MangaPage["maskProvenance"],
+): void {
+  if (
+    !sameOptionalPath(page.inpaintMaskPath, expectedPath) ||
+    page.maskProvenance !== expectedProvenance
+  ) {
+    throw new Error(
+      "페이지의 인페인팅 마스크가 다른 작업으로 변경되어 기록을 적용할 수 없습니다.",
     );
   }
 }
@@ -150,6 +176,8 @@ export function prepareInpaintingRevertRevision({
   const revertedPage: MangaPage = {
     ...page,
     inpaintedImagePath: undefined,
+    inpaintMaskPath: undefined,
+    maskProvenance: undefined,
     translationCompletion: pendingTranslationCompletion,
     updatedAt,
   };
@@ -161,6 +189,10 @@ export function prepareInpaintingRevertRevision({
       afterRevision: createPageRevision(revertedPage),
       beforePath: page.inpaintedImagePath,
       afterPath: undefined,
+      beforeMaskPath: page.inpaintMaskPath,
+      afterMaskPath: undefined,
+      beforeMaskProvenance: page.maskProvenance,
+      afterMaskProvenance: undefined,
       beforeTranslationCompletion: cloneTranslationCompletion(
         page.translationCompletion,
       ),

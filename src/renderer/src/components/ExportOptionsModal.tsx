@@ -4,58 +4,78 @@ import type {
   ChapterSnapshot,
   LibraryIndex,
 } from "../../../shared/libraryTypes";
+import type { PageJobTargetSnapshot } from "../../../shared/pageRevision";
 import {
   buildExportSelection,
   createDefaultExportSelection,
   type ExportChapterSelection,
   type ExportSelectionMap,
 } from "../lib/exportSelection";
-import { ExportPagePicker } from "./ExportPagePicker";
-import { Modal } from "./ui/Modal";
-import type { PageJobTargetSnapshot } from "../../../shared/pageRevision";
-import type { PageImageExportFormat } from "../../../shared/pageImageExportTypes";
+import type {
+  ManualPsdExportOptions,
+  ManualRasterExportOptions,
+} from "../hooks/useExportPageImagesAction";
 import { exportGateway } from "../api/exportGateway";
+import { ExportPagePicker } from "./ExportPagePicker";
 import {
   ExportOptionsFooter,
   ExportRenderOptions,
+  type ExportModalKind,
 } from "./ExportRenderOptions";
 import {
   ExportPreflightPanel,
   type ExportIssueNavigationHandler,
   type ExportPreflightState,
 } from "./ExportPreflightPanel";
+import { Modal } from "./ui/Modal";
 
 export type ExportOptionsModalProps = {
   chapter: ChapterSnapshot;
   currentPageId: string;
   jobActive: boolean;
+  kind?: ExportModalKind;
   library: LibraryIndex;
-  /** Return false when the native folder chooser is cancelled. */
   onStart: (
     selection: ExportChapterSelection[],
     expectedTargets?: PageJobTargetSnapshot[],
-    options?: { omitText?: boolean; outputFormat?: PageImageExportFormat },
+    options?: ManualRasterExportOptions | ManualPsdExportOptions,
   ) => Promise<boolean>;
   onNavigateToIssue?: ExportIssueNavigationHandler;
   onClose: () => void;
 };
 
+const DEFAULT_RASTER_OPTIONS: ManualRasterExportOptions = {
+  outputFormat: "source",
+  jpegQuality: 95,
+  webpQuality: 90,
+  preserveSourceNames: true,
+  destinationMode: "timestamped",
+  collisionPolicy: "replace",
+};
+
+const DEFAULT_PSD_OPTIONS: ManualPsdExportOptions = {
+  collisionPolicy: "replace",
+};
+
+// eslint-disable-next-line max-lines-per-function -- modal state, preflight, and start locking form one export submission lifecycle
 export function ExportOptionsModal({
   chapter,
   currentPageId,
   jobActive,
+  kind = "raster",
   library,
   onStart,
   onClose,
   onNavigateToIssue,
 }: ExportOptionsModalProps): React.JSX.Element {
+  const { t } = useTranslation("components");
   const work = useExportWork(library, chapter.workId);
   const [selection, setSelection] = React.useState(() =>
     createDefaultExportSelection(chapter.id, currentPageId),
   );
-  const [omitText, setOmitText] = React.useState(false);
-  const [outputFormat, setOutputFormat] =
-    React.useState<PageImageExportFormat>("png");
+  const [options, setOptions] = React.useState<
+    ManualRasterExportOptions | ManualPsdExportOptions
+  >(() => (kind === "psd" ? DEFAULT_PSD_OPTIONS : DEFAULT_RASTER_OPTIONS));
   const chapterOrder = React.useMemo(
     () => work?.chapterOrder ?? [chapter.id],
     [chapter.id, work],
@@ -67,14 +87,13 @@ export function ExportOptionsModal({
   const preflight = useExportPreflight(
     work?.id ?? null,
     exportSelection,
-    omitText,
-    outputFormat,
+    kind,
+    options,
   );
   const start = useExportStart({
     expectedTargets: preflight.result?.targets,
     exportSelection,
-    omitText,
-    outputFormat,
+    options,
     onClose,
     onStart,
   });
@@ -82,63 +101,16 @@ export function ExportOptionsModal({
   const startDisabled = resolveStartDisabled({
     exportSelection,
     jobActive,
-    omitText,
+    omitText: options.omitText === true,
     preflight,
     workAvailable: Boolean(work),
   });
 
   return (
-    <ExportOptionsModalLayout
-      chapter={chapter}
-      omitText={omitText}
-      onClose={onClose}
-      onNavigateToIssue={onNavigateToIssue}
-      outputFormat={outputFormat}
-      preflight={preflight}
-      selection={selection}
-      setOmitText={setOmitText}
-      setOutputFormat={setOutputFormat}
-      setSelection={setSelection}
-      start={start}
-      startDisabled={startDisabled}
-      work={work}
-    />
-  );
-}
-
-function ExportOptionsModalLayout({
-  chapter,
-  omitText,
-  onClose,
-  onNavigateToIssue,
-  outputFormat,
-  preflight,
-  selection,
-  setOmitText,
-  setOutputFormat,
-  setSelection,
-  start,
-  startDisabled,
-  work,
-}: {
-  chapter: ChapterSnapshot;
-  omitText: boolean;
-  onClose: () => void;
-  onNavigateToIssue?: ExportIssueNavigationHandler;
-  outputFormat: PageImageExportFormat;
-  preflight: ExportPreflightState;
-  selection: ExportSelectionMap;
-  setOmitText: React.Dispatch<React.SetStateAction<boolean>>;
-  setOutputFormat: React.Dispatch<React.SetStateAction<PageImageExportFormat>>;
-  setSelection: React.Dispatch<React.SetStateAction<ExportSelectionMap>>;
-  start: ReturnType<typeof useExportStart>;
-  startDisabled: boolean;
-  work: LibraryIndex["works"][number] | null;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
     <Modal
-      title={t("exportOptions.title")}
+      title={t(
+        kind === "psd" ? "exportOptions.titlePsd" : "exportOptions.title",
+      )}
       size="lg"
       onClose={onClose}
       closeDisabled={start.isStarting}
@@ -146,23 +118,22 @@ function ExportOptionsModalLayout({
       footer={
         <ExportOptionsFooter
           isStarting={start.isStarting}
+          kind={kind}
           startDisabled={startDisabled}
           onCancel={onClose}
           onStart={() => void start.run()}
-          outputFormat={outputFormat}
         />
       }
     >
       <ExportOptionsContent
         chapter={chapter}
         isStarting={start.isStarting}
-        omitText={omitText}
-        outputFormat={outputFormat}
+        kind={kind}
         onNavigateToIssue={onNavigateToIssue}
+        options={options}
         preflight={preflight}
         selection={selection}
-        setOmitText={setOmitText}
-        setOutputFormat={setOutputFormat}
+        setOptions={setOptions}
         setSelection={setSelection}
         work={work}
       />
@@ -172,6 +143,61 @@ function ExportOptionsModalLayout({
         </p>
       ) : null}
     </Modal>
+  );
+}
+
+function ExportOptionsContent({
+  chapter,
+  isStarting,
+  kind,
+  onNavigateToIssue,
+  options,
+  preflight,
+  selection,
+  setOptions,
+  setSelection,
+  work,
+}: {
+  chapter: ChapterSnapshot;
+  isStarting: boolean;
+  kind: ExportModalKind;
+  onNavigateToIssue?: ExportOptionsModalProps["onNavigateToIssue"];
+  options: ManualRasterExportOptions | ManualPsdExportOptions;
+  preflight: ExportPreflightState;
+  selection: ExportSelectionMap;
+  setOptions: React.Dispatch<
+    React.SetStateAction<ManualRasterExportOptions | ManualPsdExportOptions>
+  >;
+  setSelection: React.Dispatch<React.SetStateAction<ExportSelectionMap>>;
+  work: LibraryIndex["works"][number] | null;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  if (!work) {
+    return (
+      <p className="translate-options-hint">
+        {t("exportOptions.workUnavailable")}
+      </p>
+    );
+  }
+  return (
+    <div className="export-options-stack">
+      <ExportPagePicker
+        work={work}
+        currentChapter={chapter}
+        selection={selection}
+        onChange={setSelection}
+      />
+      <ExportRenderOptions
+        disabled={isStarting}
+        kind={kind}
+        options={options}
+        onChange={setOptions}
+      />
+      <ExportPreflightPanel
+        preflight={preflight}
+        onNavigateToIssue={onNavigateToIssue}
+      />
+    </div>
   );
 }
 
@@ -198,74 +224,16 @@ function resolveStartDisabled({
   );
 }
 
-function ExportOptionsContent({
-  chapter,
-  isStarting,
-  omitText,
-  outputFormat,
-  onNavigateToIssue,
-  preflight,
-  selection,
-  setOmitText,
-  setOutputFormat,
-  setSelection,
-  work,
-}: {
-  chapter: ChapterSnapshot;
-  isStarting: boolean;
-  omitText: boolean;
-  outputFormat: PageImageExportFormat;
-  onNavigateToIssue?: ExportOptionsModalProps["onNavigateToIssue"];
-  preflight: ExportPreflightState;
-  selection: ExportSelectionMap;
-  setOmitText: React.Dispatch<React.SetStateAction<boolean>>;
-  setOutputFormat: React.Dispatch<React.SetStateAction<PageImageExportFormat>>;
-  setSelection: React.Dispatch<React.SetStateAction<ExportSelectionMap>>;
-  work: LibraryIndex["works"][number] | null;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  if (!work) {
-    return (
-      <p className="translate-options-hint">
-        {t("exportOptions.workUnavailable")}
-      </p>
-    );
-  }
-  return (
-    <div className="export-options-stack">
-      <ExportPagePicker
-        work={work}
-        currentChapter={chapter}
-        selection={selection}
-        onChange={setSelection}
-      />
-      <ExportRenderOptions
-        disabled={isStarting}
-        omitText={omitText}
-        outputFormat={outputFormat}
-        onOmitTextChange={setOmitText}
-        onOutputFormatChange={setOutputFormat}
-      />
-      <ExportPreflightPanel
-        preflight={preflight}
-        onNavigateToIssue={onNavigateToIssue}
-      />
-    </div>
-  );
-}
-
 function useExportStart({
   expectedTargets,
   exportSelection,
-  omitText,
-  outputFormat,
+  options,
   onClose,
   onStart,
 }: {
   expectedTargets?: PageJobTargetSnapshot[];
   exportSelection: ExportChapterSelection[];
-  omitText: boolean;
-  outputFormat: PageImageExportFormat;
+  options: ManualRasterExportOptions | ManualPsdExportOptions;
   onClose: () => void;
   onStart: ExportOptionsModalProps["onStart"];
 }): { failed: boolean; isStarting: boolean; run: () => Promise<void> } {
@@ -276,37 +244,22 @@ function useExportStart({
     setIsStarting(true);
     setFailed(false);
     try {
-      if (
-        await onStart(exportSelection, expectedTargets, {
-          omitText,
-          ...(outputFormat === "psd" ? { outputFormat } : {}),
-        })
-      ) {
-        onClose();
-      }
+      if (await onStart(exportSelection, expectedTargets, options)) onClose();
     } catch (error: unknown) {
       console.error(error);
       setFailed(true);
     } finally {
       setIsStarting(false);
     }
-  }, [
-    expectedTargets,
-    exportSelection,
-    isStarting,
-    omitText,
-    outputFormat,
-    onClose,
-    onStart,
-  ]);
+  }, [expectedTargets, exportSelection, isStarting, onClose, onStart, options]);
   return { failed, isStarting, run };
 }
 
 function useExportPreflight(
   workId: string | null,
   selections: ExportChapterSelection[],
-  omitText: boolean,
-  outputFormat: PageImageExportFormat,
+  kind: ExportModalKind,
+  options: ManualRasterExportOptions | ManualPsdExportOptions,
 ): ExportPreflightState {
   const [state, setState] = React.useState<ExportPreflightState>({
     status: "idle",
@@ -320,13 +273,21 @@ function useExportPreflight(
     }
     let active = true;
     setState({ status: "loading", result: null, error: null });
+    const request =
+      kind === "psd"
+        ? {
+            workId,
+            selections,
+            outputFormat: "psd" as const,
+            ...(options.omitText ? { omitText: true } : {}),
+          }
+        : {
+            workId,
+            selections,
+            ...(options as ManualRasterExportOptions),
+          };
     void exportGateway
-      .preflightPageImages({
-        workId,
-        selections,
-        ...(omitText ? { omitText: true } : {}),
-        ...(outputFormat === "psd" ? { outputFormat } : {}),
-      })
+      .preflightPageImages(request)
       .then((result) => {
         if (active) setState({ status: "ready", result, error: null });
       })
@@ -343,7 +304,7 @@ function useExportPreflight(
     return () => {
       active = false;
     };
-  }, [omitText, outputFormat, selections, workId]);
+  }, [kind, options, selections, workId]);
   return state;
 }
 

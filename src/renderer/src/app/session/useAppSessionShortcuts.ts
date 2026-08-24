@@ -170,7 +170,7 @@ function createTranslationAndRetouchShortcutHandlers(
       if (uiState.autoInpaintingOptionsOpen) {
         uiState.setAutoInpaintingOptionsOpen(false);
       } else {
-        openCurrentPageEraseOptions(chapter);
+        openPageEraseOptions(chapter);
       }
     },
     "retouch-tool-mask": () => selectRetouchTool(chapter, "mask"),
@@ -211,7 +211,10 @@ function createEditAndGlobalShortcutHandlers(
         uiState.openTextView("search-replace");
       }
     },
-    "open-export-options": () => uiState.setExportOptionsOpen((open) => !open),
+    "open-export-options": () =>
+      uiState.exportOptionsOpen
+        ? uiState.setExportOptionsOpen(false)
+        : uiState.openExportOptions("raster"),
     "history-undo": () => void workspaceHistory.undo(),
     "history-redo": () => void workspaceHistory.redo(),
     "delete-block": () => blockEditingActions.deleteSelectedBlock(),
@@ -398,10 +401,10 @@ function revealPageBlockRow(blockId: string, focusTranslation: boolean): void {
   }
 }
 
-function openCurrentPageEraseOptions(chapter: ChapterSessionController): void {
+function openPageEraseOptions(chapter: ChapterSessionController): void {
   chapter.core.setRegionSelection(null);
   chapter.uiState.selectWorkspaceTool("select");
   chapter.uiState.setPeekOriginal(false);
-  chapter.uiState.setAutoInpaintingEntryScope("current");
+  chapter.uiState.setAutoInpaintingEntryScope("select");
   chapter.uiState.setAutoInpaintingOptionsOpen(true);
 }

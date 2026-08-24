@@ -60,6 +60,9 @@ settings.json
 panel-window-bounds.json
 recent-dialog-paths.json
 /block-library.json
+/linked-workspaces.json
+/linked-sync-queue.json
+/results/
 /.mgt-instance-lock/
 /.mgt-instance-candidate-*/
 /.mgt-instance-stale-*/

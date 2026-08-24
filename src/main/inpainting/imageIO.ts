@@ -38,3 +38,17 @@ export function resolveInpaintedImagePath(
       .slice(0, INPAINTED_ARTIFACT_SUFFIX_MAX_LENGTH) || "image";
   return join(chapterDir, "inpainted", `${safeSuffix}-${randomUUID()}.png`);
 }
+
+export function resolveInpaintMaskPath(
+  imagePath: string,
+  suffix = "mask",
+): string {
+  const imageDir = dirname(imagePath);
+  const chapterDir = dirname(imageDir);
+  const safeSuffix =
+    suffix
+      .replace(/[^a-z0-9_-]/gi, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, INPAINTED_ARTIFACT_SUFFIX_MAX_LENGTH) || "mask";
+  return join(chapterDir, "mask", `${safeSuffix}-${randomUUID()}.png`);
+}

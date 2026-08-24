@@ -115,6 +115,47 @@ export function decodeBoundedPageExportScreenshot(
   return png;
 }
 
+export function decodeBoundedPageExportImage(
+  data: string,
+  expected: PageExportRasterSize,
+  label: string,
+  expectedFormat: "jpeg" | "webp",
+  limits: PageExportScreenshotDecodeLimits = {},
+): Buffer {
+  const maxBase64Chars = Math.min(
+    limits.maxBase64Chars ?? MAX_PAGE_EXPORT_SCREENSHOT_BASE64_CHARS,
+    MAX_PAGE_EXPORT_SCREENSHOT_BASE64_CHARS,
+  );
+  const maxBytes = Math.min(
+    limits.maxPngBytes ?? MAX_PAGE_EXPORT_PNG_BYTES,
+    MAX_PAGE_EXPORT_PNG_BYTES,
+  );
+  if (data.length < 1 || data.length > maxBase64Chars) {
+    throw screenshotTooLargeError(label);
+  }
+  let estimated: number;
+  try {
+    estimated = estimateBase64DecodedByteLength(data);
+  } catch (error) {
+    throw invalidScreenshotError(error);
+  }
+  if (estimated > maxBytes) throw screenshotTooLargeError(label);
+  const bytes = Buffer.from(data, "base64");
+  if (bytes.byteLength !== estimated) throw invalidScreenshotError();
+  const metadata = probeImageBuffer(bytes, label, {
+    maxWidth: MAX_PAGE_EXPORT_SIDE_PX,
+    maxHeight: MAX_PAGE_EXPORT_SIDE_PX,
+    maxPixels: MAX_PAGE_EXPORT_PIXELS,
+  });
+  if (
+    metadata.format !== expectedFormat ||
+    !pageExportRasterSizesEqual(metadata, expected)
+  ) {
+    throw invalidScreenshotError();
+  }
+  return bytes;
+}
+
 export function assertPageExportPngBuffer(
   png: Buffer,
   expected: PageExportRasterSize | undefined,

@@ -6,6 +6,7 @@ import "../styles.css";
 import { EditorPanelContainer } from "./EditorPanelContainer";
 import { PanelSessionContext } from "./panelSession";
 import { useRemotePanelSession } from "./useRemotePanelSession";
+import { useLinkedWorkspaceActivityReporter } from "../hooks/useLinkedWorkspaceActivityReporter";
 
 const PANEL_CONTENT: Record<PanelId, React.ComponentType> = {
   editor: EditorPanelContainer,
@@ -22,6 +23,7 @@ export function PanelWindowApp({
   panelId: PanelId;
 }): React.JSX.Element {
   const { t } = useTranslation("renderer");
+  useLinkedWorkspaceActivityReporter(null);
   const session = useRemotePanelSession();
   const Content = PANEL_CONTENT[panelId];
   return (

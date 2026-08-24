@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- transaction history, rollback, and artifact retention share one serialized state owner */
 import { randomUUID } from "node:crypto";
 import type {
   ApplyInpaintingHistoryTransactionRequest,
@@ -75,6 +76,8 @@ export class InpaintingRevisionStore {
     assertRevisionLayoutPair(change);
     if (
       sameOptionalPath(change.beforePath, change.afterPath) &&
+      sameOptionalPath(change.beforeMaskPath, change.afterMaskPath) &&
+      change.beforeMaskProvenance === change.afterMaskProvenance &&
       inpaintingLayoutStatesEqual(change.beforeLayout, change.afterLayout) &&
       translationCompletionsEqual(
         change.beforeTranslationCompletion,
@@ -160,6 +163,12 @@ export class InpaintingRevisionStore {
         }
         if (change.afterPath) {
           paths.add(change.afterPath);
+        }
+        if (change.beforeMaskPath) {
+          paths.add(change.beforeMaskPath);
+        }
+        if (change.afterMaskPath) {
+          paths.add(change.afterMaskPath);
         }
       }
     }

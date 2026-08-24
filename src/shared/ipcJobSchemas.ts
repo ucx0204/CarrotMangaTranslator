@@ -322,9 +322,38 @@ export const PageImageExportRequestSchema = z
       .max(MAX_ID_LIST_LENGTH)
       .optional(),
     omitText: z.boolean().optional(),
-    outputFormat: z.enum(["png", "psd"]).optional(),
+    outputFormat: z.enum(["source", "png", "jpeg", "webp"]).optional(),
+    jpegQuality: z.number().int().min(1).max(100).optional(),
+    webpQuality: z.number().int().min(1).max(100).optional(),
+    preserveSourceNames: z.boolean().optional(),
+    destinationMode: z.enum(["timestamped", "fixed"]).optional(),
+    collisionPolicy: z.enum(["replace", "skip", "cancel"]).optional(),
   })
   .strict();
+
+export const PagePsdExportRequestSchema = z
+  .object({
+    workId: uuid,
+    selections: z
+      .array(PageImageExportChapterSelectionSchema)
+      .min(1)
+      .max(MAX_ID_LIST_LENGTH),
+    expectedTargets: z
+      .array(PageJobTargetSnapshotSchema)
+      .min(1)
+      .max(MAX_ID_LIST_LENGTH)
+      .optional(),
+    omitText: z.boolean().optional(),
+    collisionPolicy: z.enum(["replace", "skip", "cancel"]).optional(),
+  })
+  .strict();
+
+export const PageImageExportPreflightRequestSchema = z.union([
+  PageImageExportRequestSchema,
+  PagePsdExportRequestSchema.extend({
+    outputFormat: z.literal("psd"),
+  }).strict(),
+]);
 
 export const RendererLogRequestSchema = z
   .object({

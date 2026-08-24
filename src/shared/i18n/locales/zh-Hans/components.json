@@ -432,19 +432,39 @@
   },
   "exportOptions": {
     "title": "导出结果",
+    "titlePsd": "导出 PSD",
     "prompt": "请选择要导出的页面。",
     "currentChapter": "当前章节",
     "chapterSummary": "{{count}}页",
     "noSelectedPages": "未选择页面。",
     "selectionSummary": "{{chapterCount}}话 · {{pageCount}}页",
-    "start": "导出 PNG",
+    "start": "导出结果",
     "startPsd": "导出 PSD",
     "starting": "正在准备导出…",
     "omitText": "无文字导出",
     "omitTextHint": "不合成翻译文字，仅导出修复后的背景 PNG。",
     "omitTextHintPsd": "不包含文本图层，仅导出原图和修复背景图层。",
     "outputFormat": "文件格式",
-    "formats": { "png": "成品图像 (PNG)", "psd": "分层文档 (PSD)" },
+    "formats": {
+      "source": "原始格式",
+      "png": "PNG",
+      "jpeg": "JPEG",
+      "webp": "WebP",
+      "psd": "分层文档 (PSD)"
+    },
+    "quality": "质量",
+    "destination": "保存位置方式",
+    "destinations": {
+      "timestamped": "新建时间戳文件夹",
+      "fixed": "直接保存到所选文件夹"
+    },
+    "collision": "同名文件",
+    "collisions": {
+      "replace": "替换",
+      "skip": "跳过",
+      "cancel": "取消导出"
+    },
+    "preserveSourceNames": "保留原文件名和子文件夹",
     "formatHints": {
       "png": "创建可直接发布的成品图像。",
       "psd": "分离原图、修复背景和各文本块。复杂竖排或曲线文字会以像素准确的栅格图层保留。"
@@ -476,7 +496,7 @@
     "startFailed": "无法开始导出，请重试。"
   },
   "autoInpaintingOptions": {
-    "title": "自动擦除",
+    "title": "选择要擦除的页面",
     "prompt": "请选择要自动擦除的页面。",
     "currentChapter": "当前章节",
     "chapterSummary": "{{count}}页",
@@ -641,7 +661,12 @@
     "currentWorkDefault": "已默认选择当前打开的作品。此原稿将作为该作品的新话添加。",
     "selectWork": "选择作品",
     "chaptersToCreate": "要创建的章节",
-    "chapterTitle": "章节标题"
+    "chapterTitle": "章节标题",
+    "liveResults": {
+      "enable": "自动保存到结果文件夹",
+      "description": "保存到结果/作品名/章节名；停止编辑3秒后仅更新已更改页面。",
+      "format": "自动保存格式"
+    }
   },
   "rename": {
     "workTitle": "重命名作品",
@@ -1173,11 +1198,8 @@
     },
     "auto": {
       "description": "先自动清除原文文字。可以逐页处理，也可以一次处理所有剩余页面。",
-      "currentPageAction": "擦除当前页",
-      "eraseShort": "擦除当前页",
-      "moreActions": "更多自动擦除操作",
-      "allPagesErase": "擦除全部页面",
-      "selectPagesErase": "选择要擦除的页面",
+      "currentPageAction": "清除原文",
+      "eraseShort": "清除原文",
       "bubbleLayoutAction": "自动检测当前页气泡",
       "bubbleLayoutShort": "气泡适配",
       "bubbleLayoutRequiresBlocks": "请先擦除当前页面。",
@@ -1208,6 +1230,14 @@
     },
     "export": {
       "resultAction": "导出结果",
+      "viewResults": "查看结果",
+      "preparingResults": "正在准备最新结果…",
+      "psdAction": "导出 PSD",
+      "syncing": "正在同步结果",
+      "pendingSync": "{{count}}个更改页面等待中",
+      "syncFailed": "自动保存失败 · 请在设置中重试",
+      "syncDisabled": "结果自动保存已关闭",
+      "synced": "最新结果已保存",
       "description": "调整文本块的字体、颜色和位置，然后导出成品 PNG 或分层 PSD。",
       "result": "导出结果",
       "pagesSaved": "已保存{{count}}页",
@@ -1228,12 +1258,35 @@
       "engine": "翻译引擎",
       "hardware": "硬件",
       "format": "默认格式",
+      "results": "结果自动保存",
       "shortcuts": "快捷键",
       "test": "检查/更新"
     },
     "general": {
       "language": "应用语言",
       "languageDescription": "更改整个应用使用的界面语言。"
+    },
+    "results": {
+      "description": "按作品和章节开关结果自动保存。默认位置为结果/作品名/章节名。",
+      "empty": "库中没有可管理的作品。",
+      "searchLabel": "搜索结果自动保存",
+      "searchPlaceholder": "搜索作品/章节",
+      "noSearchResults": "没有匹配的作品或章节。",
+      "chapterCount": "{{count}}章",
+      "toggleChapter": "{{title}}的结果自动保存",
+      "defaultLocationReady": "启用后保存到默认结果文件夹",
+      "defaultLocation": "默认结果文件夹",
+      "customLocation": "自定义文件夹",
+      "moreActions": "更多自动保存操作",
+      "viewResults": "查看结果",
+      "changeLocation": "更改保存位置",
+      "resetLocation": "恢复默认位置",
+      "unlinked": "自动保存已关闭",
+      "disabled": "自动保存已关闭",
+      "syncing": "同步中",
+      "pending": "{{count}}个等待中",
+      "failed": "保存失败",
+      "synced": "最新"
     },
     "footer": {
       "openLogs": "打开日志文件夹",
@@ -1687,7 +1740,7 @@
         "translate-all": "全部重新翻译",
         "gather-text": "汇总文本",
         "cancel-job": "取消任务",
-        "toggle-inpainting": "打开/关闭自动擦除面板",
+        "toggle-inpainting": "打开/关闭原文清除",
         "history-undo": "撤销",
         "history-redo": "重做",
         "retouch-redo": "重做修整",

@@ -432,19 +432,39 @@
   },
   "exportOptions": {
     "title": "匯出結果",
+    "titlePsd": "匯出 PSD",
     "prompt": "請選擇要匯出的頁面。",
     "currentChapter": "目前章節",
     "chapterSummary": "{{count}}頁",
     "noSelectedPages": "未選擇頁面。",
     "selectionSummary": "{{chapterCount}}話 · {{pageCount}}頁",
-    "start": "匯出 PNG",
+    "start": "匯出結果",
     "startPsd": "匯出 PSD",
     "starting": "正在準備匯出…",
     "omitText": "無文字匯出",
     "omitTextHint": "不合成翻譯文字，只匯出修復後的背景 PNG。",
     "omitTextHintPsd": "不包含文字圖層，只匯出原圖與修補背景圖層。",
     "outputFormat": "檔案格式",
-    "formats": { "png": "完成影像 (PNG)", "psd": "分層文件 (PSD)" },
+    "formats": {
+      "source": "原始格式",
+      "png": "PNG",
+      "jpeg": "JPEG",
+      "webp": "WebP",
+      "psd": "分層文件 (PSD)"
+    },
+    "quality": "品質",
+    "destination": "儲存位置方式",
+    "destinations": {
+      "timestamped": "新增時間戳記資料夾",
+      "fixed": "直接儲存到所選資料夾"
+    },
+    "collision": "同名檔案",
+    "collisions": {
+      "replace": "取代",
+      "skip": "略過",
+      "cancel": "取消匯出"
+    },
+    "preserveSourceNames": "保留原始檔名與子資料夾",
     "formatHints": {
       "png": "建立可直接發布的完成影像。",
       "psd": "分離原圖、修補背景與各文字區塊。複雜直排或曲線文字會以像素精確的點陣圖層保留。"
@@ -476,7 +496,7 @@
     "startFailed": "無法開始匯出，請再試一次。"
   },
   "autoInpaintingOptions": {
-    "title": "自動清除",
+    "title": "選擇要清除的頁面",
     "prompt": "請選擇要自動清除的頁面。",
     "currentChapter": "目前章節",
     "chapterSummary": "{{count}}頁",
@@ -641,7 +661,12 @@
     "currentWorkDefault": "已預設選取目前開啟的作品。此原稿將作為該作品的新一話加入。",
     "selectWork": "選擇作品",
     "chaptersToCreate": "要建立的章節",
-    "chapterTitle": "章節標題"
+    "chapterTitle": "章節標題",
+    "liveResults": {
+      "enable": "自動儲存到結果資料夾",
+      "description": "儲存到結果/作品名/章節名；停止編輯3秒後只更新已變更頁面。",
+      "format": "自動儲存格式"
+    }
   },
   "rename": {
     "workTitle": "重新命名作品",
@@ -1173,11 +1198,8 @@
     },
     "auto": {
       "description": "先自動清除原文文字。可以逐頁處理，也可以一次處理所有剩餘頁面。",
-      "currentPageAction": "清除目前頁面",
-      "eraseShort": "清除目前頁面",
-      "moreActions": "更多自動清除操作",
-      "allPagesErase": "清除全部頁面",
-      "selectPagesErase": "選擇要清除的頁面",
+      "currentPageAction": "清除原文",
+      "eraseShort": "清除原文",
       "bubbleLayoutAction": "自動偵測目前頁面的對話框",
       "bubbleLayoutShort": "對話框適配",
       "bubbleLayoutRequiresBlocks": "請先清除目前頁面。",
@@ -1208,6 +1230,14 @@
     },
     "export": {
       "resultAction": "匯出結果",
+      "viewResults": "查看結果",
+      "preparingResults": "正在準備最新結果…",
+      "psdAction": "匯出 PSD",
+      "syncing": "正在同步結果",
+      "pendingSync": "{{count}}個變更頁面等候中",
+      "syncFailed": "自動儲存失敗 · 請在設定中重試",
+      "syncDisabled": "結果自動儲存已關閉",
+      "synced": "最新結果已儲存",
       "description": "調整文字區塊的字體、顏色和位置，然後匯出完成 PNG 或分層 PSD。",
       "result": "匯出結果",
       "pagesSaved": "已儲存{{count}}頁",
@@ -1228,12 +1258,35 @@
       "engine": "翻譯引擎",
       "hardware": "硬體",
       "format": "預設格式",
+      "results": "結果自動儲存",
       "shortcuts": "快速鍵",
       "test": "檢查／更新"
     },
     "general": {
       "language": "應用程式語言",
       "languageDescription": "變更整個應用程式使用的介面語言。"
+    },
+    "results": {
+      "description": "依作品與章節開關結果自動儲存。預設位置為結果/作品名/章節名。",
+      "empty": "資料庫中沒有可管理的作品。",
+      "searchLabel": "搜尋結果自動儲存",
+      "searchPlaceholder": "搜尋作品/章節",
+      "noSearchResults": "沒有符合的作品或章節。",
+      "chapterCount": "{{count}}章",
+      "toggleChapter": "{{title}}的結果自動儲存",
+      "defaultLocationReady": "啟用後儲存到預設結果資料夾",
+      "defaultLocation": "預設結果資料夾",
+      "customLocation": "自訂資料夾",
+      "moreActions": "更多自動儲存操作",
+      "viewResults": "查看結果",
+      "changeLocation": "變更儲存位置",
+      "resetLocation": "恢復預設位置",
+      "unlinked": "自動儲存已關閉",
+      "disabled": "自動儲存已關閉",
+      "syncing": "同步中",
+      "pending": "{{count}}個等候中",
+      "failed": "儲存失敗",
+      "synced": "最新"
     },
     "footer": {
       "openLogs": "開啟記錄資料夾",
@@ -1690,7 +1743,7 @@
         "translate-all": "全部重新翻譯",
         "gather-text": "彙整文字",
         "cancel-job": "取消工作",
-        "toggle-inpainting": "開啟／關閉自動清除面板",
+        "toggle-inpainting": "開啟／關閉原文清除",
         "history-undo": "復原",
         "history-redo": "重做",
         "retouch-redo": "重做修整",

@@ -108,7 +108,7 @@
       "keywords": "translate all retranslate"
     },
     "autoInpainting": {
-      "label": "Automatic erase",
+      "label": "Erase source text",
       "keywords": "inpaint auto erase retouch",
       "closeHint": "Close panel"
     },
@@ -200,7 +200,7 @@
       "translate-all": "Retranslate all",
       "gather-text": "Gather text",
       "cancel-job": "Cancel job",
-      "toggle-inpainting": "Erase current page",
+      "toggle-inpainting": "Erase source text",
       "retouch-tool-mask": "Mask brush",
       "retouch-tool-brush": "Paint brush",
       "retouch-tool-rectangle": "Rectangle retouch",

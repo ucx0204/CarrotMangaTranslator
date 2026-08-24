@@ -111,7 +111,7 @@
       "keywords": "translate all retranslate jeonche 전체 다시 번역"
     },
     "autoInpainting": {
-      "label": "자동 지우기",
+      "label": "원문 지우기",
       "keywords": "inpaint auto erase 자동 지우기 인페인팅",
       "closeHint": "패널 닫기"
     },
@@ -203,7 +203,7 @@
       "translate-all": "전체 다시 번역",
       "gather-text": "텍스트 모아보기",
       "cancel-job": "작업 취소",
-      "toggle-inpainting": "현재 페이지 지우기",
+      "toggle-inpainting": "원문 지우기",
       "retouch-tool-mask": "마스크 브러시",
       "retouch-tool-brush": "페인트 브러시",
       "retouch-tool-rectangle": "사각형 보정",

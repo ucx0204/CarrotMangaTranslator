@@ -323,12 +323,23 @@ describe("pattern page inpainting result validation", () => {
       blocksIncomplete: 0,
       erasedBlockIds: ["block-1"],
       incompleteBlockIds: [],
-      page: { inpaintedImagePath: expect.stringContaining("pattern-") },
+      page: {
+        inpaintedImagePath: expect.stringContaining("pattern-"),
+        inpaintMaskPath: expect.stringContaining("pattern-"),
+        maskProvenance: "derived-diff",
+      },
     });
     expect(result).not.toHaveProperty("residualDiagnostics");
     expect(result).not.toHaveProperty("sourceEvidenceReceipt");
-    expect(nativeImageMocks.createFromPath).toHaveBeenCalledTimes(1);
-    expect(nativeImageMocks.createFromPath).toHaveBeenCalledWith(cleanedPath);
+    expect(nativeImageMocks.createFromPath).toHaveBeenCalledTimes(2);
+    expect(nativeImageMocks.createFromPath).toHaveBeenNthCalledWith(
+      1,
+      cleanedPath,
+    );
+    expect(nativeImageMocks.createFromPath).toHaveBeenNthCalledWith(
+      2,
+      page.imagePath,
+    );
     expect(nativeImageMocks.createFromBitmap).toHaveBeenCalledTimes(1);
     const productionOutputPath = result.page.inpaintedImagePath;
     if (!productionOutputPath) throw new Error("expected production output");

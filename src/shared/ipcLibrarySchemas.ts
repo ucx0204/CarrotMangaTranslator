@@ -10,6 +10,7 @@ import {
   title,
   uuid,
 } from "./ipcSchemaPrimitives";
+import { LinkedWorkspaceImportOptionsSchema } from "./linkedWorkspaceSchemas";
 
 const PageAnalysisStatusSchema = z.enum([
   "idle",
@@ -46,6 +47,12 @@ const PageRecordPathShape = {
   name: z.string().min(1).max(260),
   imagePath: filePath,
   inpaintedImagePath: filePath.optional(),
+  sourceFileName: z.string().min(1).max(260).optional(),
+  sourceRelativePath: z.string().min(1).max(4096).optional(),
+  inpaintMaskPath: filePath.optional(),
+  maskProvenance: z
+    .enum(["actual-mask", "retouch-updated", "derived-diff"])
+    .optional(),
 };
 
 const PageRecordContentShape = {
@@ -175,6 +182,7 @@ export const CreateImportRequestSchema = z
           .strict(),
       )
       .max(500),
+    linkedWorkspace: LinkedWorkspaceImportOptionsSchema.optional(),
   })
   .strict();
 

@@ -1,6 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { ModelProvider } from "../../../../shared/settingsTypes";
+import type { LibraryIndex } from "../../../../shared/libraryTypes";
 import { Button } from "../ui/Button";
 import { Modal } from "../ui/Modal";
 import { ModalActionBar } from "../ui/ModalActionBar";
@@ -15,6 +16,7 @@ import { GeneralSettingsPanel } from "./GeneralSettingsPanel";
 import type { SettingsTabId } from "../settingsModalTypes";
 import { SETTINGS_TABS } from "../settingsModalTypes";
 import { InfoIcon } from "../ui/icons";
+import { LinkedWorkspaceSettingsPanel } from "./LinkedWorkspaceSettingsPanel";
 
 export type SettingsModalViewProps = {
   activeTab: SettingsTabId;
@@ -24,6 +26,7 @@ export type SettingsModalViewProps = {
   generalPanelProps: React.ComponentProps<typeof GeneralSettingsPanel>;
   enginePanelProps: React.ComponentProps<typeof EngineSettingsPanel>;
   hardwarePanelProps: React.ComponentProps<typeof HardwareSettingsPanel>;
+  library?: LibraryIndex;
   formatPanelTitle: string;
   formatPanelProps: React.ComponentProps<typeof FormatDefaultsPanel>;
   onCancel: () => void;
@@ -54,6 +57,7 @@ export function SettingsModalView({
   generalPanelProps,
   enginePanelProps,
   hardwarePanelProps,
+  library,
   formatPanelTitle,
   formatPanelProps,
   onCancel,
@@ -101,6 +105,7 @@ export function SettingsModalView({
           generalPanelProps={generalPanelProps}
           enginePanelProps={enginePanelProps}
           hardwarePanelProps={hardwarePanelProps}
+          library={library}
           formatPanelTitle={formatPanelTitle}
           formatPanelProps={formatPanelProps}
           shortcutsPanelProps={shortcutsPanelProps}
@@ -166,6 +171,7 @@ function SettingsModalTabPanel({
   generalPanelProps,
   enginePanelProps,
   hardwarePanelProps,
+  library,
   formatPanelTitle,
   formatPanelProps,
   shortcutsPanelProps,
@@ -177,6 +183,7 @@ function SettingsModalTabPanel({
   | "generalPanelProps"
   | "enginePanelProps"
   | "hardwarePanelProps"
+  | "library"
   | "formatPanelTitle"
   | "formatPanelProps"
   | "shortcutsPanelProps"
@@ -213,27 +220,64 @@ function SettingsModalTabPanel({
           </span>
         ) : null}
       </header>
-      {activeTab === "general" ? (
-        <GeneralSettingsPanel {...generalPanelProps} />
-      ) : null}
-      {activeTab === "engine" ? (
-        <EngineSettingsPanel {...enginePanelProps} />
-      ) : null}
-      {activeTab === "hardware" ? (
-        <HardwareSettingsPanel {...hardwarePanelProps} />
-      ) : null}
-      {activeTab === "format" ? (
-        <FormatDefaultsPanel {...formatPanelProps} />
-      ) : null}
-      {activeTab === "shortcuts" ? (
-        <ShortcutsSettingsPanel {...shortcutsPanelProps} />
-      ) : null}
-      {activeTab === "test" ? <TestSettingsPanel {...testPanelProps} /> : null}
-      {activeTab === "engine" ? (
-        <div className="settings-validation-summary">
-          <SettingsValidationMessages {...validationProps} />
-        </div>
-      ) : null}
+      <SettingsModalTabContent
+        activeTab={activeTab}
+        enginePanelProps={enginePanelProps}
+        formatPanelProps={formatPanelProps}
+        generalPanelProps={generalPanelProps}
+        hardwarePanelProps={hardwarePanelProps}
+        library={library}
+        shortcutsPanelProps={shortcutsPanelProps}
+        testPanelProps={testPanelProps}
+        validationProps={validationProps}
+      />
     </div>
+  );
+}
+
+type SettingsModalTabContentProps = Pick<
+  SettingsModalViewProps,
+  | "activeTab"
+  | "enginePanelProps"
+  | "formatPanelProps"
+  | "generalPanelProps"
+  | "hardwarePanelProps"
+  | "library"
+  | "shortcutsPanelProps"
+  | "testPanelProps"
+  | "validationProps"
+>;
+
+function SettingsModalTabContent({
+  activeTab,
+  enginePanelProps,
+  formatPanelProps,
+  generalPanelProps,
+  hardwarePanelProps,
+  library,
+  shortcutsPanelProps,
+  testPanelProps,
+  validationProps,
+}: SettingsModalTabContentProps): React.JSX.Element | null {
+  if (activeTab === "general")
+    return <GeneralSettingsPanel {...generalPanelProps} />;
+  if (activeTab === "hardware")
+    return <HardwareSettingsPanel {...hardwarePanelProps} />;
+  if (activeTab === "format")
+    return <FormatDefaultsPanel {...formatPanelProps} />;
+  if (activeTab === "shortcuts")
+    return <ShortcutsSettingsPanel {...shortcutsPanelProps} />;
+  if (activeTab === "test") return <TestSettingsPanel {...testPanelProps} />;
+  if (activeTab === "results") {
+    return library ? <LinkedWorkspaceSettingsPanel library={library} /> : null;
+  }
+  if (activeTab !== "engine") return null;
+  return (
+    <>
+      <EngineSettingsPanel {...enginePanelProps} />
+      <div className="settings-validation-summary">
+        <SettingsValidationMessages {...validationProps} />
+      </div>
+    </>
   );
 }

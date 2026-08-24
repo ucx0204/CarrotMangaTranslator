@@ -56,7 +56,10 @@ describe("page export raster safety architecture", () => {
       "utf8",
     );
     const assertionIndex = source.indexOf("assertPageExportPngBuffer(");
-    const writeIndex = source.indexOf(".writePng(", assertionIndex);
+    const writeIndex = source.indexOf(
+      "dependencies.runtime.writeImage ?? dependencies.runtime.writePng",
+      assertionIndex,
+    );
 
     expect(assertionIndex).toBeGreaterThanOrEqual(0);
     expect(writeIndex).toBeGreaterThan(assertionIndex);

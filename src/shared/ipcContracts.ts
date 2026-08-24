@@ -24,6 +24,7 @@ import {
 import { ipcEventContracts } from "./ipcEventContracts";
 import { webImportIpcContracts } from "./ipcWebImportContracts";
 import { blockLibraryIpcContracts } from "./ipcBlockLibraryContracts";
+import { linkedWorkspaceIpcContracts } from "./ipcLinkedWorkspaceContracts";
 
 export type { IpcContract, IpcEventContract };
 export {
@@ -35,6 +36,7 @@ export {
   inpaintingIpcContracts,
   ipcEventContracts,
   jobControlIpcContracts,
+  linkedWorkspaceIpcContracts,
   libraryIpcContracts,
   logsIpcContracts,
   pageImageExportIpcContracts,
@@ -59,6 +61,7 @@ export const ipcInvokeContracts = {
   ...translationJobIpcContracts,
   ...inpaintingIpcContracts,
   ...pageImageExportIpcContracts,
+  ...linkedWorkspaceIpcContracts,
   ...jobControlIpcContracts,
   ...panelWindowIpcContracts,
   ...webImportIpcContracts,

@@ -490,7 +490,7 @@ describe("unified right rail", () => {
     ).toBeNull();
   });
 
-  it("offers current, whole-chapter, and selected-page erase scopes", () => {
+  it("opens the page-selection erase dialog directly", () => {
     const props = makeRightRailProps();
     renderRightRail(props);
 
@@ -501,7 +501,7 @@ describe("unified right rail", () => {
     expect(
       (
         screen.getByRole("button", {
-          name: "현재 페이지 지우기",
+          name: "원문 지우기",
         }) as HTMLButtonElement
       ).disabled,
     ).toBe(false);
@@ -515,29 +515,11 @@ describe("unified right rail", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "결과물 출력" }));
     expect(props.onOpenExport).toHaveBeenCalledOnce();
-    expect(
-      screen.queryByRole("menuitem", { name: "지울 페이지 선택" }),
-    ).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "현재 페이지 지우기" }));
-    expect(props.onRunCurrentPageInpainting).toHaveBeenCalledOnce();
-    expect(props.onOpenAutoInpaintingOptions).not.toHaveBeenCalled();
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "자동 지우기 추가 작업" }),
-    );
-    fireEvent.click(
-      screen.getByRole("menuitem", { name: "전체 페이지 지우기" }),
-    );
-    expect(props.onOpenAutoInpaintingOptions).toHaveBeenCalledWith("all");
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "자동 지우기 추가 작업" }),
-    );
-    fireEvent.click(screen.getByRole("menuitem", { name: "지울 페이지 선택" }));
-    expect(props.onOpenAutoInpaintingOptions).toHaveBeenLastCalledWith(
-      "select",
-    );
+    fireEvent.click(screen.getByRole("button", { name: "원문 지우기" }));
+    expect(props.onOpenAutoInpaintingOptions).toHaveBeenCalledOnce();
+    expect(props.onOpenAutoInpaintingOptions).toHaveBeenCalledWith("select");
+    expect(screen.queryByRole("menu")).toBeNull();
   });
 
   it("shows bubble detection as its own action and only requires text blocks", () => {
@@ -553,13 +535,14 @@ describe("unified right rail", () => {
     expect(
       Array.from(
         document.querySelectorAll<HTMLButtonElement>(
-          ".current-page-actions button:not(.auto-inpainting-menu-trigger)",
+          ".current-page-actions button",
         ),
       ).map((button) => button.getAttribute("aria-label")),
     ).toEqual([
-      "현재 페이지 지우기",
+      "원문 지우기",
       "현재 페이지 말풍선 자동 감지",
       "결과물 출력",
+      "PSD 출력",
     ]);
 
     view.rerender(<AppRightRail {...props} canRunBubbleLayout={false} />);
@@ -573,56 +556,22 @@ describe("unified right rail", () => {
       }),
     ).not.toBeNull();
     expect(disabledBubbleLayout.hasAttribute("title")).toBe(false);
-    fireEvent.click(
-      screen.getByRole("button", { name: "자동 지우기 추가 작업" }),
-    );
-    expect(
-      screen.queryByRole("menuitem", {
-        name: "현재 페이지 말풍선 자동 감지",
-      }),
-    ).toBeNull();
   });
 
-  it("closes and disables the automatic erase menu when work becomes busy", () => {
+  it("disables source erase while work is busy", () => {
     const props = makeRightRailProps();
     const view = renderRightRail(props);
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "자동 지우기 추가 작업" }),
-    );
-    const firstMenuItem = screen.getByRole("menuitem", {
-      name: "전체 페이지 지우기",
-    });
-    expect(firstMenuItem).not.toBeNull();
-    expect(document.activeElement).toBe(firstMenuItem);
-
-    fireEvent.keyDown(firstMenuItem, { key: "Escape" });
-    expect(
-      screen.queryByRole("menuitem", { name: "전체 페이지 지우기" }),
-    ).toBeNull();
-    const enabledTrigger = screen.getByRole("button", {
-      name: "자동 지우기 추가 작업",
-    });
-    expect(document.activeElement).toBe(enabledTrigger);
-
-    fireEvent.click(enabledTrigger);
-    expect(
-      screen.getByRole("menuitem", { name: "전체 페이지 지우기" }),
-    ).not.toBeNull();
+    const eraseButton = screen.getByRole("button", {
+      name: "원문 지우기",
+    }) as HTMLButtonElement;
+    expect(eraseButton.disabled).toBe(false);
 
     view.rerender(<AppRightRail {...props} jobActive={true} />);
-
-    expect(
-      screen.queryByRole("menuitem", { name: "전체 페이지 지우기" }),
-    ).toBeNull();
-    const trigger = screen.getByRole("button", {
-      name: "자동 지우기 추가 작업",
+    const disabledEraseButton = screen.getByRole("button", {
+      name: "원문 지우기",
     }) as HTMLButtonElement;
-    expect(trigger.disabled).toBe(true);
-    fireEvent.click(trigger);
-    expect(
-      screen.queryByRole("menuitem", { name: "전체 페이지 지우기" }),
-    ).toBeNull();
+    expect(disabledEraseButton.disabled).toBe(true);
+    fireEvent.click(disabledEraseButton);
     expect(props.onOpenAutoInpaintingOptions).not.toHaveBeenCalled();
   });
 
@@ -632,10 +581,9 @@ describe("unified right rail", () => {
 
     expect(
       screen.queryByRole("button", {
-        name: "현재 페이지 지우기",
+        name: "원문 지우기",
       }),
     ).toBeNull();
-    expect(props.onRunCurrentPageInpainting).not.toHaveBeenCalled();
   });
 
   it("uses manual tool, editor, then the page block list", () => {
@@ -1009,7 +957,6 @@ function makeRightRailProps(
     onResetPage: vi.fn(),
     onRunDrawnPattern: vi.fn(),
     onRunBubbleLayout: vi.fn(),
-    onRunCurrentPageInpainting: vi.fn(),
     onRetrySave: vi.fn(),
     onOpenAutoInpaintingOptions: vi.fn(),
     onOpenBlockEditor: vi.fn(),

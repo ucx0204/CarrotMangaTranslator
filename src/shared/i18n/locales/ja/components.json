@@ -439,19 +439,39 @@
   },
   "exportOptions": {
     "title": "結果を出力",
+    "titlePsd": "PSDを出力",
     "prompt": "出力するページを選択してください。",
     "currentChapter": "現在の話",
     "chapterSummary": "{{count}}p",
     "noSelectedPages": "ページが選択されていません。",
     "selectionSummary": "{{chapterCount}}話・{{pageCount}}ページ",
-    "start": "PNG出力",
+    "start": "結果を出力",
     "startPsd": "PSD出力",
     "starting": "出力を準備中…",
     "omitText": "文字なしで出力",
     "omitTextHint": "翻訳文字を合成せず、インペイント済みの背景だけをPNGで出力します。",
     "omitTextHintPsd": "テキストレイヤーを除き、原本と補正済み背景レイヤーのみをPSDで出力します。",
     "outputFormat": "ファイル形式",
-    "formats": { "png": "完成画像 (PNG)", "psd": "レイヤー文書 (PSD)" },
+    "formats": {
+      "source": "元の形式",
+      "png": "PNG",
+      "jpeg": "JPEG",
+      "webp": "WebP",
+      "psd": "レイヤー文書 (PSD)"
+    },
+    "quality": "品質",
+    "destination": "保存先の形式",
+    "destinations": {
+      "timestamped": "新しい日時フォルダー",
+      "fixed": "選択したフォルダーに直接保存"
+    },
+    "collision": "同名ファイル",
+    "collisions": {
+      "replace": "置換",
+      "skip": "スキップ",
+      "cancel": "出力をキャンセル"
+    },
+    "preserveSourceNames": "元のファイル名とサブフォルダーを維持",
     "formatHints": {
       "png": "そのまま公開できる完成画像を作成します。",
       "psd": "原本・補正済み背景・各テキストブロックを分離します。複雑な縦書きや曲線文字は正確なラスターレイヤーとして保持されます。"
@@ -483,7 +503,7 @@
     "startFailed": "出力を開始できませんでした。もう一度お試しください。"
   },
   "autoInpaintingOptions": {
-    "title": "自動消去",
+    "title": "消去するページを選択",
     "prompt": "自動消去するページを選択してください。",
     "currentChapter": "現在の話",
     "chapterSummary": "{{count}}p",
@@ -648,7 +668,12 @@
     "currentWorkDefault": "開いている作品を既定の追加先に選択しました。この原稿は新しい話として追加されます。",
     "selectWork": "作品を選択",
     "chaptersToCreate": "作成する話",
-    "chapterTitle": "話のタイトル"
+    "chapterTitle": "話のタイトル",
+    "liveResults": {
+      "enable": "結果フォルダーに自動保存",
+      "description": "結果/作品名/話名に保存します。編集を停止して3秒後、変更されたページだけを更新します。",
+      "format": "自動保存形式"
+    }
   },
   "rename": {
     "workTitle": "作品名を変更",
@@ -1186,11 +1211,8 @@
     },
     "auto": {
       "description": "まず原文の文字を自動で消します。1ページずつ、または残りのページをまとめて処理できます。",
-      "currentPageAction": "現在のページを消去",
-      "eraseShort": "現在のページを消去",
-      "moreActions": "自動消去の追加操作",
-      "allPagesErase": "全ページを消去",
-      "selectPagesErase": "消去するページを選択",
+      "currentPageAction": "原文を消去",
+      "eraseShort": "原文を消去",
       "bubbleLayoutAction": "現在のページの吹き出しを自動検出",
       "bubbleLayoutShort": "吹き出し調整",
       "bubbleLayoutRequiresBlocks": "先に現在のページを消去してください。",
@@ -1221,6 +1243,14 @@
     },
     "export": {
       "resultAction": "結果を出力",
+      "viewResults": "結果を見る",
+      "preparingResults": "最新の結果を準備中…",
+      "psdAction": "PSDを出力",
+      "syncing": "結果を同期中",
+      "pendingSync": "変更ページ{{count}}件が待機中",
+      "syncFailed": "自動保存に失敗 · 設定から再試行してください",
+      "syncDisabled": "結果の自動保存はオフです",
+      "synced": "最新の結果を保存済み",
       "description": "ブロックのフォント・色・位置を整え、完成PNGまたはレイヤーPSDとして書き出します。",
       "result": "結果を出力",
       "pagesSaved": "{{count}}ページ保存済み",
@@ -1241,12 +1271,35 @@
       "engine": "翻訳エンジン",
       "hardware": "ハードウェア",
       "format": "既定の書式",
+      "results": "結果の自動保存",
       "shortcuts": "ショートカット",
       "test": "確認/更新"
     },
     "general": {
       "language": "アプリの言語",
       "languageDescription": "アプリ全体で使用する表示言語を変更します。"
+    },
+    "results": {
+      "description": "ライブラリ内の作品・話ごとに結果の自動保存を切り替えます。既定の保存先は結果/作品名/話名です。",
+      "empty": "管理できる作品がライブラリにありません。",
+      "searchLabel": "結果の自動保存を検索",
+      "searchPlaceholder": "作品・話を検索",
+      "noSearchResults": "一致する作品・話がありません。",
+      "chapterCount": "{{count}}話",
+      "toggleChapter": "{{title}}の結果を自動保存",
+      "defaultLocationReady": "有効にすると既定の結果フォルダーに保存",
+      "defaultLocation": "既定の結果フォルダー",
+      "customLocation": "指定フォルダー",
+      "moreActions": "自動保存のその他の操作",
+      "viewResults": "結果を見る",
+      "changeLocation": "保存先を変更",
+      "resetLocation": "既定の保存先に戻す",
+      "unlinked": "自動保存オフ",
+      "disabled": "自動保存オフ",
+      "syncing": "同期中",
+      "pending": "{{count}}件待機",
+      "failed": "保存失敗",
+      "synced": "最新"
     },
     "footer": {
       "openLogs": "ログフォルダーを開く",
@@ -1718,7 +1771,7 @@
         "translate-all": "すべて再翻訳",
         "gather-text": "テキストをまとめて表示",
         "cancel-job": "処理をキャンセル",
-        "toggle-inpainting": "自動消去パネルを開く／閉じる",
+        "toggle-inpainting": "原文消去を開く／閉じる",
         "history-undo": "元に戻す",
         "history-redo": "やり直す",
         "retouch-redo": "補正をやり直す",

@@ -33,6 +33,8 @@ function useStableRightRailActions(
   | "onOpenBlockEditor"
   | "onOpenAutoInpaintingOptions"
   | "onOpenExport"
+  | "onOpenPsdExport"
+  | "onViewLinkedResults"
   | "onOpenStyleGuide"
   | "onOpenTextView"
   | "onOpenTranslateOptions"
@@ -40,7 +42,6 @@ function useStableRightRailActions(
   | "onPeekToggle"
   | "onRedo"
   | "onResetPage"
-  | "onRunCurrentPageInpainting"
   | "onRunBubbleLayout"
   | "onRunDrawnPattern"
   | "onSelectBlock"
@@ -67,6 +68,8 @@ function useStableRightRailActions(
       props.onOpenAutoInpaintingOptions,
     ),
     onOpenExport: useEventCallback(props.onOpenExport),
+    onOpenPsdExport: useEventCallback(props.onOpenPsdExport ?? NOOP),
+    onViewLinkedResults: useEventCallback(props.onViewLinkedResults ?? NOOP),
     onOpenStyleGuide: useEventCallback(props.onOpenStyleGuide),
     onOpenTextView: useEventCallback(props.onOpenTextView),
     onOpenTranslateOptions: useEventCallback(props.onOpenTranslateOptions),
@@ -76,9 +79,6 @@ function useStableRightRailActions(
     onPeekToggle: useEventCallback(props.onPeekToggle),
     onRedo: useEventCallback(props.onRedo),
     onResetPage: useEventCallback(props.onResetPage),
-    onRunCurrentPageInpainting: useEventCallback(
-      props.onRunCurrentPageInpainting,
-    ),
     onRunBubbleLayout: useEventCallback(props.onRunBubbleLayout),
     onRunDrawnPattern: useEventCallback(props.onRunDrawnPattern),
     onSelectBlock: useEventCallback(props.onSelectBlock),

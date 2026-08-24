@@ -150,6 +150,13 @@ function useInpaintingUiState() {
   const [autoInpaintingEntryScope, setAutoInpaintingEntryScope] =
     useState<AutoInpaintingEntryScope>("select");
   const [exportOptionsOpen, setExportOptionsOpen] = useState(false);
+  const [exportOptionsKind, setExportOptionsKind] = useState<"raster" | "psd">(
+    "raster",
+  );
+  const openExportOptions = useCallback((kind: "raster" | "psd") => {
+    setExportOptionsKind(kind);
+    setExportOptionsOpen(true);
+  }, []);
   const [inpaintingBrushRadius, setInpaintingBrushRadius] = useState(28);
   const [inpaintingPaintColor, setInpaintingPaintColor] = useState("#ffffff");
   const [peekOriginal, setPeekOriginal] = useState(false);
@@ -187,6 +194,8 @@ function useInpaintingUiState() {
     beginTemporaryHandTool,
     endTemporaryHandTool,
     exportOptionsOpen,
+    exportOptionsKind,
+    openExportOptions,
     inpaintingBrushRadius,
     inpaintingGuideOpen,
     inpaintingPaintColor,

@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { ImportCreateSelection } from "../../../shared/importTypes";
 import type { ImportModalSubmit } from "../lib/importFlowTypes";
+import type { LinkedWorkspaceImportOptions } from "../../../shared/linkedWorkspaceTypes";
 
 export type ImportTargetMode = "new" | "existing";
 
@@ -35,6 +36,7 @@ export function buildImportSubmitPayload(
   newWorkTitle: string,
   existingWorkId: string,
   selections: ImportCreateSelection[],
+  linkedWorkspace?: LinkedWorkspaceImportOptions,
 ): ImportModalSubmit {
   return {
     target:
@@ -42,6 +44,7 @@ export function buildImportSubmitPayload(
         ? { mode: "new", title: newWorkTitle }
         : { mode: "existing", workId: existingWorkId },
     selections,
+    ...(linkedWorkspace ? { linkedWorkspace } : {}),
   };
 }
 

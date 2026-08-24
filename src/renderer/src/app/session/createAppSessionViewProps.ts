@@ -80,6 +80,7 @@ function createExportOptionsProps({
         chapter: core.currentChapter,
         currentPageId: derivedState.selectedPage.id,
         jobActive: derivedState.jobActive,
+        kind: uiState.exportOptionsKind,
         library: core.library,
         onClose: () => uiState.setExportOptionsOpen(false),
         onNavigateToIssue: (chapterId, pageId) => {
@@ -92,7 +93,10 @@ function createExportOptionsProps({
             uiState.setExportOptionsOpen(false);
           })();
         },
-        onStart: inpaintingActions.exportPageImages,
+        onStart:
+          uiState.exportOptionsKind === "psd"
+            ? inpaintingActions.exportPagePsd
+            : inpaintingActions.exportPageImages,
       }
     : null;
 }

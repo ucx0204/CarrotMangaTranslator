@@ -5,6 +5,7 @@ import { clamp } from "../shared/geometry";
 import type { FluxBackend } from "../shared/settingsTypes";
 import type { InpaintingRetouchGeometry } from "../shared/inpaintingTypes";
 import type { MangaPage } from "../shared/libraryTypes";
+import { removeArtifactAfterFailure } from "./artifactCleanup";
 import { tMain } from "./i18n";
 import {
   FLUX_MODEL_FILE,
@@ -44,6 +45,7 @@ import {
 import { loadPageImage, resolveInpaintedImagePath } from "./inpainting/imageIO";
 import type { ImageDecodeFallback } from "./inpainting/inpaintingTypes";
 import { normalizeComputeGpuIndex } from "../shared/gpuSettings";
+import { persistRetouchDifferenceMask } from "./inpainting/inpaintMaskArtifact";
 
 export type {
   FluxInpaintingEngine,
@@ -196,9 +198,23 @@ export async function applyInpaintingRetouch(
   const outputPath = resolveInpaintedImagePath(page.imagePath, "retouch");
   await mkdir(dirname(outputPath), { recursive: true });
   await writeFile(outputPath, outputImage.toPNG());
+  let persistedMask: Awaited<ReturnType<typeof persistRetouchDifferenceMask>>;
+  try {
+    persistedMask = await persistRetouchDifferenceMask({
+      page,
+      originalBitmap,
+      outputBitmap: bitmap,
+      width: size.width,
+      height: size.height,
+    });
+  } catch (error) {
+    return removeArtifactAfterFailure(outputPath, error);
+  }
   return {
     ...page,
     inpaintedImagePath: outputPath,
+    inpaintMaskPath: persistedMask.path,
+    maskProvenance: persistedMask.provenance,
     ...(options.mode === "restore" && page.translationCompletion
       ? {
           translationCompletion: {

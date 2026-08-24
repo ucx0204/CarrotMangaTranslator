@@ -1,15 +1,17 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { IconDownload, IconWand } from "@tabler/icons-react";
+import {
+  IconDownload,
+  IconFolderOpen,
+  IconLayersSelected,
+  IconWand,
+} from "@tabler/icons-react";
 import type { AutoInpaintingEntryScope } from "../lib/autoInpaintingSelection";
 import { Button } from "./ui/Button";
-import { ChevronDownIcon } from "./ui/icons";
 import { ControlTooltip } from "./ui/ControlTooltip";
 import { ChapterTaskHeader } from "./ChapterTaskHeader";
 import { areChapterTaskHubPropsEqual } from "./chapterTaskHubMemo";
 import type { ChapterTaskHubProps } from "./chapterTaskHubTypes";
-import { MenuSurface } from "./ui/MenuSurface";
-import { usePopupController } from "./ui/usePopupController";
 
 export function JobCancelButton({
   cancelling,
@@ -55,8 +57,11 @@ export const ChapterTaskHub = React.memo(function ChapterTaskHub(
             hasSelectedPage={props.hasSelectedPage}
             onOpenAutoInpaintingOptions={props.onOpenAutoInpaintingOptions}
             onOpenExport={props.onOpenExport}
+            onOpenPsdExport={props.onOpenPsdExport}
             onRunBubbleLayout={props.onRunBubbleLayout}
-            onRunCurrentPageInpainting={props.onRunCurrentPageInpainting}
+            linkedWorkspaceStatus={props.linkedWorkspaceStatus}
+            linkedWorkspaceViewBusy={props.linkedWorkspaceViewBusy}
+            onViewLinkedResults={props.onViewLinkedResults}
           />
         ) : null}
       </div>
@@ -70,16 +75,22 @@ function CurrentPageActionsSection({
   hasSelectedPage,
   onOpenAutoInpaintingOptions,
   onOpenExport,
+  onOpenPsdExport,
   onRunBubbleLayout,
-  onRunCurrentPageInpainting,
+  linkedWorkspaceStatus,
+  linkedWorkspaceViewBusy,
+  onViewLinkedResults,
 }: {
   actionsDisabled: boolean;
   canRunBubbleLayout: boolean;
   hasSelectedPage: boolean;
   onOpenAutoInpaintingOptions: (scope: AutoInpaintingEntryScope) => void;
   onOpenExport: () => void;
+  onOpenPsdExport: () => void;
   onRunBubbleLayout: () => void;
-  onRunCurrentPageInpainting: () => void;
+  linkedWorkspaceStatus: ChapterTaskHubProps["linkedWorkspaceStatus"];
+  linkedWorkspaceViewBusy: boolean;
+  onViewLinkedResults: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
@@ -91,27 +102,109 @@ function CurrentPageActionsSection({
         <AutomaticEraseActions
           disabled={actionsDisabled || !hasSelectedPage}
           onOpenScope={onOpenAutoInpaintingOptions}
-          onRunCurrentPage={onRunCurrentPageInpainting}
         />
         <BubbleLayoutAction
           canRun={canRunBubbleLayout}
           disabled={actionsDisabled || !canRunBubbleLayout}
           onRun={onRunBubbleLayout}
         />
-        <Button
-          aria-label={t("inpainting.export.resultAction")}
-          className="current-page-export-action"
-          disabled={actionsDisabled}
-          fullWidth
-          iconLeft={<IconDownload size={16} stroke={2.1} />}
-          onClick={onOpenExport}
-          size="sm"
-        >
-          {t("inpainting.export.resultAction")}
-        </Button>
+        <ResultExportActions
+          actionsDisabled={actionsDisabled}
+          linkedWorkspaceStatus={linkedWorkspaceStatus}
+          linkedWorkspaceViewBusy={linkedWorkspaceViewBusy}
+          onOpenExport={onOpenExport}
+          onOpenPsdExport={onOpenPsdExport}
+          onViewLinkedResults={onViewLinkedResults}
+        />
       </div>
+      {linkedWorkspaceStatus?.connectionId ? (
+        <small
+          className={`linked-workspace-inline-status ${linkedWorkspaceStatus.state}`}
+        >
+          {formatLinkedWorkspaceStatus(linkedWorkspaceStatus, t)}
+        </small>
+      ) : null}
     </div>
   );
+}
+
+function ResultExportActions({
+  actionsDisabled,
+  linkedWorkspaceStatus,
+  linkedWorkspaceViewBusy,
+  onOpenExport,
+  onOpenPsdExport,
+  onViewLinkedResults,
+}: {
+  actionsDisabled: boolean;
+  linkedWorkspaceStatus: ChapterTaskHubProps["linkedWorkspaceStatus"];
+  linkedWorkspaceViewBusy: boolean;
+  onOpenExport: () => void;
+  onOpenPsdExport: () => void;
+  onViewLinkedResults: () => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const viewResults = canViewLinkedResults(linkedWorkspaceStatus);
+  const resultLabel = t(
+    viewResults
+      ? "inpainting.export.viewResults"
+      : "inpainting.export.resultAction",
+  );
+  return (
+    <>
+      <Button
+        aria-label={resultLabel}
+        className="current-page-export-action"
+        disabled={actionsDisabled}
+        fullWidth
+        iconLeft={
+          viewResults ? (
+            <IconFolderOpen size={16} stroke={2.1} />
+          ) : (
+            <IconDownload size={16} stroke={2.1} />
+          )
+        }
+        onClick={viewResults ? onViewLinkedResults : onOpenExport}
+        size="sm"
+      >
+        {linkedWorkspaceViewBusy
+          ? t("inpainting.export.preparingResults")
+          : resultLabel}
+      </Button>
+      <Button
+        aria-label={t("inpainting.export.psdAction")}
+        className="current-page-psd-export-action"
+        disabled={actionsDisabled}
+        fullWidth
+        iconLeft={<IconLayersSelected size={16} stroke={2.1} />}
+        onClick={onOpenPsdExport}
+        size="sm"
+      >
+        {t("inpainting.export.psdAction")}
+      </Button>
+    </>
+  );
+}
+
+function canViewLinkedResults(
+  status: ChapterTaskHubProps["linkedWorkspaceStatus"],
+): boolean {
+  return Boolean(
+    status?.connectionId && !["disabled", "unlinked"].includes(status.state),
+  );
+}
+
+function formatLinkedWorkspaceStatus(
+  status: NonNullable<ChapterTaskHubProps["linkedWorkspaceStatus"]>,
+  t: ReturnType<typeof useTranslation>["t"],
+): string {
+  if (status.state === "syncing") return t("inpainting.export.syncing");
+  if (status.state === "pending") {
+    return t("inpainting.export.pendingSync", { count: status.pendingCount });
+  }
+  if (status.state === "failed") return t("inpainting.export.syncFailed");
+  if (status.state === "disabled") return t("inpainting.export.syncDisabled");
+  return t("inpainting.export.synced");
 }
 
 function BubbleLayoutAction({
@@ -147,91 +240,19 @@ function BubbleLayoutAction({
 function AutomaticEraseActions({
   disabled,
   onOpenScope,
-  onRunCurrentPage,
 }: {
   disabled: boolean;
   onOpenScope: (scope: AutoInpaintingEntryScope) => void;
-  onRunCurrentPage: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
-  const [menuOpen, setMenuOpen] = React.useState(false);
-  const { close, contentRef, rootRef, toggle, triggerRef } = usePopupController(
-    {
-      disabled,
-      initialFocus: '[role="menuitem"]:not(:disabled)',
-      open: menuOpen,
-      onOpenChange: setMenuOpen,
-    },
-  );
-
   return (
-    <div className="auto-inpainting-action" ref={rootRef}>
-      <Button
-        aria-label={t("inpainting.auto.currentPageAction")}
-        disabled={disabled}
-        fullWidth
-        onClick={onRunCurrentPage}
-      >
-        {t("inpainting.auto.eraseShort")}
-      </Button>
-      <Button
-        ref={triggerRef}
-        className="auto-inpainting-menu-trigger"
-        variant="ghost"
-        aria-label={t("inpainting.auto.moreActions")}
-        aria-haspopup="menu"
-        aria-expanded={menuOpen}
-        disabled={disabled}
-        onClick={toggle}
-      >
-        <ChevronDownIcon size={16} />
-      </Button>
-      {menuOpen && !disabled ? (
-        <AutomaticEraseMenu
-          menuRef={contentRef}
-          onClose={close}
-          onOpenScope={onOpenScope}
-        />
-      ) : null}
-    </div>
-  );
-}
-
-function AutomaticEraseMenu({
-  menuRef,
-  onClose,
-  onOpenScope,
-}: {
-  menuRef: React.RefObject<HTMLDivElement | null>;
-  onClose: (restoreFocus?: boolean) => void;
-  onOpenScope: (scope: AutoInpaintingEntryScope) => void;
-}): React.JSX.Element {
-  const { t } = useTranslation("components");
-  const runAndClose = (action: () => void): void => {
-    onClose(true);
-    action();
-  };
-  return (
-    <MenuSurface
-      ref={menuRef}
-      className="auto-inpainting-menu"
-      ariaLabel={t("inpainting.auto.moreActions")}
-      onClose={onClose}
+    <Button
+      aria-label={t("inpainting.auto.currentPageAction")}
+      disabled={disabled}
+      fullWidth
+      onClick={() => onOpenScope("select")}
     >
-      <button
-        type="button"
-        role="menuitem"
-        onClick={() => runAndClose(() => onOpenScope("all"))}
-      >
-        <span>{t("inpainting.auto.allPagesErase")}</span>
-      </button>
-      <button
-        type="button"
-        role="menuitem"
-        onClick={() => runAndClose(() => onOpenScope("select"))}
-      >
-        <span>{t("inpainting.auto.selectPagesErase")}</span>
-      </button>
-    </MenuSurface>
+      {t("inpainting.auto.eraseShort")}
+    </Button>
   );
 }

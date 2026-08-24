@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import type {
   PageImageExportRequest,
   PageImageExportResult,
+  PagePsdExportRequest,
+  PageExportSelectionRequest,
 } from "../../shared/pageImageExportTypes";
 import type { JobEvent } from "../../shared/jobTypes";
 import { tMain } from "./localization";
@@ -22,6 +24,29 @@ export async function exportPageImages(
   request: PageImageExportRequest,
   outputParentDir: string,
   dependencies: PageImageExportDependencies = productionPageImageExportDependencies,
+): Promise<PageImageExportResult> {
+  return exportPageSelection(context, request, outputParentDir, dependencies);
+}
+
+export async function exportPagePsd(
+  context: InpaintingJobContext,
+  request: PagePsdExportRequest,
+  outputParentDir: string,
+  dependencies: PageImageExportDependencies = productionPageImageExportDependencies,
+): Promise<PageImageExportResult> {
+  return exportPageSelection(
+    context,
+    { ...request, outputFormat: "psd" },
+    outputParentDir,
+    dependencies,
+  );
+}
+
+async function exportPageSelection(
+  context: InpaintingJobContext,
+  request: PageExportSelectionRequest,
+  outputParentDir: string,
+  dependencies: PageImageExportDependencies,
 ): Promise<PageImageExportResult> {
   assertNoActiveJob(context);
 
