@@ -53,6 +53,49 @@ describe("block style preset controls", () => {
     ).not.toBeNull();
   });
 
+  it("opens from the keyboard and omits unavailable menu actions", () => {
+    render(
+      <BlockStylePresetControls
+        activePresetId="dialogue"
+        canCreate={false}
+        canDelete={false}
+        disabled={false}
+        presets={[
+          {
+            id: "dialogue",
+            name: "기본 대사",
+            pinned: true,
+            missingFont: false,
+          },
+        ]}
+        onApply={vi.fn()}
+        onCreate={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: "기본 대사" });
+    fireEvent.keyDown(trigger, { key: "Escape" });
+    expect(screen.queryByRole("menu")).toBeNull();
+
+    fireEvent.keyDown(trigger, { key: "ArrowDown" });
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(
+      screen
+        .getByRole("menuitemradio", { name: "기본 대사" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
+    expect(
+      screen.queryByRole("menuitem", { name: "기본 대사 삭제" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("menuitem", { name: "현재 서식으로 만들기" }),
+    ).toBeNull();
+
+    fireEvent.keyDown(trigger, { key: "ArrowDown" });
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+  });
+
   it("deletes a preset directly from the same menu", async () => {
     const onDelete = vi.fn(async () => true);
     render(<ControlsHarness onApply={vi.fn()} onDelete={onDelete} />);
@@ -66,6 +109,10 @@ describe("block style preset controls", () => {
         screen.queryByRole("menuitemradio", { name: "기본 대사" }),
       ).toBeNull(),
     );
+    const remainingPreset = screen.getByRole("menuitemradio", {
+      name: /효과음/,
+    });
+    await waitFor(() => expect(document.activeElement).toBe(remainingPreset));
   });
 });
 

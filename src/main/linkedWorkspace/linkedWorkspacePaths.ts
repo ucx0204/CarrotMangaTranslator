@@ -4,8 +4,10 @@ import {
   extname,
   isAbsolute,
   join,
+  posix,
   relative,
   resolve,
+  win32,
 } from "node:path";
 import { randomUUID } from "node:crypto";
 import type { Dirent } from "node:fs";
@@ -20,7 +22,12 @@ import type { RasterExportFormat } from "../../shared/linkedWorkspaceTypes";
 const SUPPORTED_SOURCE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp"]);
 
 export function normalizeLinkedRelativePath(value: string): string {
-  if (isAbsolute(value) || /^[\\/]/.test(value)) {
+  if (
+    isAbsolute(value) ||
+    posix.isAbsolute(value) ||
+    win32.isAbsolute(value) ||
+    /^[\\/]/.test(value)
+  ) {
     throw new Error("자동 저장 폴더의 상대 경로가 올바르지 않습니다.");
   }
   const normalized = value.replaceAll("\\", "/").replace(/^\/+/, "");
@@ -28,7 +35,9 @@ export function normalizeLinkedRelativePath(value: string): string {
   if (
     segments.length === 0 ||
     segments.some((segment) => segment === "." || segment === "..") ||
-    isAbsolute(normalized)
+    isAbsolute(normalized) ||
+    posix.isAbsolute(normalized) ||
+    win32.isAbsolute(normalized)
   ) {
     throw new Error("자동 저장 폴더의 상대 경로가 올바르지 않습니다.");
   }
