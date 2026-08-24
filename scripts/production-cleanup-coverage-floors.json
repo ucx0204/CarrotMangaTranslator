@@ -3489,6 +3489,28 @@
         "pct": 90.9
       }
     },
+    "src/main/settings/gemmaRuntimePresets.ts": {
+      "lines": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "statements": {
+        "covered": 2,
+        "total": 2,
+        "pct": 100
+      },
+      "functions": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 0,
+        "total": 0,
+        "pct": 100
+      }
+    },
     "src/main/settings/hardwareDefaults.ts": {
       "lines": {
         "covered": 71,

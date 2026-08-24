@@ -646,7 +646,7 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     expect(options.includeEnhancedVariant).toBe(false);
     expect(options.topP).toBe(0.95);
     expect(options.topK).toBe(64);
-    expect(options.fitTargetMb).toBe(2048);
+    expect(options.fitTargetMb).toBe(1024);
     expect(options.workingDir).toBe("C:/app-data");
     expect(options.outputDir).toBe("C:/runs/job-1");
     expect(options.label).toBe("app-job-1");

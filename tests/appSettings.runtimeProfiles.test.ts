@@ -154,7 +154,7 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
     expect(options.enableMetrics).toBe(true);
     expect(options.enablePerf).toBe(true);
     expect(options.useDraft).toBe(false);
-    expect(options.fitTargetMb).toBe(2048);
+    expect(options.fitTargetMb).toBe(1024);
     expect(options.ocrBboxMode).toBe("ocr");
     expect(options.ocrEngine).toBe("paddle_static");
     expect(options.ocrTextDetectionModelName).toBe("PP-OCRv6_small_det");
