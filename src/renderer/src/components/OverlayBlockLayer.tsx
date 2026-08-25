@@ -8,6 +8,7 @@ import {
 } from "../lib/blockFontLoading";
 import type { BlockFontCatalog } from "../lib/fonts";
 import type { ViewportSize } from "../lib/overlayLayout";
+import { resolvePageSourceFontFaceFallbacks } from "../lib/sourceFontSizeMatching";
 import { OverlayBlockView } from "./OverlayBlock";
 import type { ImageStageProps } from "./imageStageTypes";
 
@@ -69,6 +70,10 @@ const OverlayBlockLayerView = React.memo(function OverlayBlockLayerView({
   );
   const stableStageSize = useStableViewportSize(stageSize);
   const stableTextLayoutStageSize = useStableViewportSize(textLayoutStageSize);
+  const sourceFontFaceFallbacks = React.useMemo(
+    () => resolvePageSourceFontFaceFallbacks(page.blocks, pageSize),
+    [page.blocks, pageSize],
+  );
   const handleBlockPointerDown = useLatestBlockPointerDown(onBlockPointerDown);
   const fontsReady = useBlockFontReadiness(
     page.blocks,
@@ -96,6 +101,7 @@ const OverlayBlockLayerView = React.memo(function OverlayBlockLayerView({
           multiSelected={multiSelectedIds?.has(block.id) ?? false}
           showChrome={showBlockChrome}
           shapeEditMode={stageTool === "bubble" && block.id === selectedBlockId}
+          sourceFontFaceFallbackPx={sourceFontFaceFallbacks.get(block.id)}
           textLayoutStageSize={stableTextLayoutStageSize}
           pointerDisabled={!showTextBlocks || (blockPointerDisabled ?? false)}
           textVisible={showTextBlocks}

@@ -1,4 +1,5 @@
-import type { TranslationBlock } from "../../../shared/textTypes";
+import type { BBox, TranslationBlock } from "../../../shared/textTypes";
+import { isGeneratedBubbleLayout } from "../../../shared/bubbleLayout";
 import { parseRichText } from "../../../shared/richTextMarkup";
 import { resolveBlockFontFamily, type BlockFontCatalog } from "./fonts";
 import { getTextMeasureContext } from "./blockTextMeasurement";
@@ -8,6 +9,9 @@ const MIN_MATCHED_FONT_SIZE_PX = 4;
 const MAX_MATCHED_FONT_SIZE_PX = 200;
 const MAX_PROBE_GRAPHEMES = 80;
 const MAX_CACHE_ENTRIES = 4_096;
+const MIN_CORNER_FRAGMENT_GRAPHEMES = 8;
+const MAX_CORNER_FRAGMENT_AREA_SHARE = 1 / 8;
+const CENTRAL_HALF_MAX_CENTER_OFFSET = 1 / 4;
 
 const faceRatioCache = new Map<string, number>();
 
@@ -20,17 +24,15 @@ export function resolveSourceMatchedFontSizeCapPx(
   block: TranslationBlock,
   text: string,
   fontCatalog: BlockFontCatalog,
+  pageSize?: Readonly<{ height: number; width: number }>,
+  fallbackSourceFacePx?: number,
 ): number | null {
-  const sourceFacePx = Number(block.sourceFontFacePx);
-  if (
-    !Number.isFinite(sourceFacePx) ||
-    sourceFacePx <= 0 ||
-    block.sourceFontSizeMethod !== "raster-core-v1"
-  ) {
-    return null;
-  }
-  const confidence = Number(block.sourceFontSizeConfidence);
-  if (!Number.isFinite(confidence) || confidence < 0.5) return null;
+  const sourceFacePx = resolveUsableSourceFacePx(
+    block,
+    pageSize,
+    fallbackSourceFacePx,
+  );
+  if (sourceFacePx === null) return null;
 
   const { plainText } = parseRichText(
     text,
@@ -55,6 +57,150 @@ export function resolveSourceMatchedFontSizeCapPx(
     MIN_MATCHED_FONT_SIZE_PX,
     MAX_MATCHED_FONT_SIZE_PX,
   );
+}
+
+function resolveUsableSourceFacePx(
+  block: TranslationBlock,
+  pageSize: Readonly<{ height: number; width: number }> | undefined,
+  fallbackSourceFacePx: number | undefined,
+): number | null {
+  if (!hasUsableSourceFaceMeasurement(block)) return null;
+  if (hasReliableSourceGeometry(block, pageSize)) {
+    return Number(block.sourceFontFacePx);
+  }
+  const fallback = Number(fallbackSourceFacePx);
+  return Number.isFinite(fallback) && fallback > 0 ? fallback : null;
+}
+
+/**
+ * Resolve a page-local source-face fallback for blocks whose own merged OCR
+ * geometry is contradictory. Source face pixels are comparable before target
+ * font conversion, so a robust median of trusted, stylistically compatible
+ * dialogue peers preserves the page's actual typographic scale.
+ */
+export function resolvePageSourceFontFaceFallbacks(
+  blocks: readonly TranslationBlock[],
+  pageSize: Readonly<{ height: number; width: number }>,
+): ReadonlyMap<string, number> {
+  const reliablePeers = blocks.filter(
+    (block) =>
+      hasUsableSourceFaceMeasurement(block) &&
+      hasReliableSourceGeometry(block, pageSize),
+  );
+  const fallbacks = new Map<string, number>();
+  for (const block of blocks) {
+    if (
+      !hasUsableSourceFaceMeasurement(block) ||
+      hasReliableSourceGeometry(block, pageSize)
+    ) {
+      continue;
+    }
+    const directionPeers = reliablePeers.filter(
+      (peer) =>
+        peer.id !== block.id &&
+        peer.sourceDirection === block.sourceDirection &&
+        peer.textRole !== "sound",
+    );
+    const rolePeers = directionPeers.filter(
+      (peer) => peer.fontRole === block.fontRole,
+    );
+    const weightPeers = rolePeers.filter(
+      (peer) => Boolean(peer.bold) === Boolean(block.bold),
+    );
+    const selected =
+      weightPeers.length > 0
+        ? weightPeers
+        : rolePeers.length > 0
+          ? rolePeers
+          : directionPeers;
+    const fallback = median(
+      selected.map((peer) => Number(peer.sourceFontFacePx)),
+    );
+    if (fallback !== null) fallbacks.set(block.id, fallback);
+  }
+  return fallbacks;
+}
+
+/**
+ * Bubble detection can expose an upstream merged-OCR failure: a long source
+ * string is paired with only one small corner fragment of its raster geometry.
+ * The raster estimator can score that fragment confidently, but its face size
+ * is not representative of the complete utterance. Reject it only for this
+ * strongly contradictory generated geometry so a page-local source-size
+ * fallback can preserve the original artwork's typographic scale.
+ */
+function hasReliableSourceGeometry(
+  block: TranslationBlock,
+  pageSize: Readonly<{ height: number; width: number }> | undefined,
+): boolean {
+  if (
+    !pageSize ||
+    !block.renderBbox ||
+    !isGeneratedBubbleLayout(block.bubbleLayout) ||
+    visibleProbe(block.sourceText).length < MIN_CORNER_FRAGMENT_GRAPHEMES
+  ) {
+    return true;
+  }
+
+  const source = toPageRelativeBbox(block.bbox, block.bboxSpace, pageSize);
+  const render = toPageRelativeBbox(
+    block.renderBbox,
+    block.renderBboxSpace,
+    pageSize,
+  );
+  const renderArea = render.w * render.h;
+  if (renderArea <= 0) return true;
+  const sourceAreaShare = (source.w * source.h) / renderArea;
+  if (sourceAreaShare > MAX_CORNER_FRAGMENT_AREA_SHARE) return true;
+
+  const sourceCenterX = source.x + source.w / 2;
+  const sourceCenterY = source.y + source.h / 2;
+  const renderCenterX = render.x + render.w / 2;
+  const renderCenterY = render.y + render.h / 2;
+  const centerOffsetX =
+    Math.abs(sourceCenterX - renderCenterX) / Math.max(1, render.w);
+  const centerOffsetY =
+    Math.abs(sourceCenterY - renderCenterY) / Math.max(1, render.h);
+
+  return !(
+    centerOffsetX > CENTRAL_HALF_MAX_CENTER_OFFSET &&
+    centerOffsetY > CENTRAL_HALF_MAX_CENTER_OFFSET
+  );
+}
+
+function toPageRelativeBbox(
+  bbox: BBox,
+  space: TranslationBlock["bboxSpace"],
+  pageSize: Readonly<{ height: number; width: number }>,
+): BBox {
+  if (space !== "pixels") return bbox;
+  return {
+    x: (bbox.x / Math.max(1, pageSize.width)) * 1_000,
+    y: (bbox.y / Math.max(1, pageSize.height)) * 1_000,
+    w: (bbox.w / Math.max(1, pageSize.width)) * 1_000,
+    h: (bbox.h / Math.max(1, pageSize.height)) * 1_000,
+  };
+}
+
+function hasUsableSourceFaceMeasurement(block: TranslationBlock): boolean {
+  const sourceFacePx = Number(block.sourceFontFacePx);
+  const confidence = Number(block.sourceFontSizeConfidence);
+  return (
+    block.sourceFontSizeMethod === "raster-core-v1" &&
+    Number.isFinite(sourceFacePx) &&
+    sourceFacePx > 0 &&
+    Number.isFinite(confidence) &&
+    confidence >= 0.5
+  );
+}
+
+function median(values: readonly number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2
+    ? (sorted[middle] ?? null)
+    : ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2;
 }
 
 function resolveTargetFaceRatio(input: {

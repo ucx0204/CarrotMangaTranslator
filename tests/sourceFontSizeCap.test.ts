@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { DEFAULT_BLOCK_FONT_CATALOG } from "../src/renderer/src/lib/fonts";
 import { resolveBlockTextLayout } from "../src/renderer/src/lib/overlayLayout";
+import { resolvePageSourceFontFaceFallbacks } from "../src/renderer/src/lib/sourceFontSizeMatching";
 import type { TranslationBlock } from "../src/shared/textTypes";
 
 const originalDocument = globalThis.document;
@@ -60,15 +61,110 @@ describe("source-matched font-size cap", () => {
     expect(layout.fontSizePx).toBe(36);
     expect(layout.overflow).toBe(false);
   });
+
+  it("uses a trusted page-local source size for a corner-fragment measurement", () => {
+    installCanvasMeasureMock();
+    const geometry = {
+      bbox: { x: 540, y: 110, w: 40, h: 40 },
+      bboxSpace: "normalized_1000" as const,
+      renderBbox: { x: 200, y: 100, w: 400, h: 400 },
+      renderBboxSpace: "normalized_1000" as const,
+      bubbleLayout: makeDetectedBubbleLayout(),
+      sourceText: "皆お兄様みたいにできない僕はダメだって",
+      translatedText: "다들 형님처럼 해내지 못하는 나는 글렀다고",
+    };
+    const boxFit = resolveLayout(makeBlock(geometry));
+    const suspicious = resolveLayout(
+      makeBlock({
+        ...geometry,
+        sourceFontFacePx: 12,
+        sourceFontSizeConfidence: 0.9,
+        sourceFontSizeMethod: "raster-core-v1",
+      }),
+      18,
+    );
+
+    expect(boxFit.fontSizePx).toBeGreaterThan(18);
+    expect(suspicious.fontSizePx).toBe(18);
+    expect(suspicious.overflow).toBe(false);
+  });
+
+  it("derives the fallback from reliable peers with matching page typography", () => {
+    const target = makeBlock({
+      id: "target",
+      bbox: { x: 540, y: 110, w: 40, h: 40 },
+      bboxSpace: "normalized_1000",
+      renderBbox: { x: 200, y: 100, w: 400, h: 400 },
+      renderBboxSpace: "normalized_1000",
+      bubbleLayout: makeDetectedBubbleLayout(),
+      sourceText: "皆お兄様みたいにできない僕はダメだって",
+      fontRole: "dialogue",
+      bold: false,
+      sourceFontFacePx: 8,
+      sourceFontSizeConfidence: 0.9,
+      sourceFontSizeMethod: "raster-core-v1",
+    });
+    const peers = [
+      makeMeasuredPeer("same-weight-a", 16, {
+        fontRole: "dialogue",
+        bold: false,
+      }),
+      makeMeasuredPeer("same-weight-b", 20, {
+        fontRole: "dialogue",
+        bold: false,
+      }),
+      makeMeasuredPeer("different-weight", 40, {
+        fontRole: "dialogue",
+        bold: true,
+      }),
+      makeMeasuredPeer("different-role", 60, {
+        fontRole: "narration",
+        bold: false,
+      }),
+    ];
+
+    const fallbacks = resolvePageSourceFontFaceFallbacks(
+      [target, ...peers],
+      pageSize,
+    );
+
+    expect(fallbacks.get(target.id)).toBe(18);
+    expect(fallbacks.size).toBe(1);
+  });
+
+  it("keeps the source cap when the small source geometry is centered", () => {
+    installCanvasMeasureMock();
+    const layout = resolveLayout(
+      makeBlock({
+        bbox: { x: 380, y: 280, w: 40, h: 40 },
+        bboxSpace: "normalized_1000",
+        renderBbox: { x: 200, y: 100, w: 400, h: 400 },
+        renderBboxSpace: "normalized_1000",
+        bubbleLayout: makeDetectedBubbleLayout(),
+        sourceText: "中央に配置された長い原文文字列です",
+        translatedText: "가운데 놓인 긴 원문 문자열입니다",
+        sourceFontFacePx: 12,
+        sourceFontSizeConfidence: 0.9,
+        sourceFontSizeMethod: "raster-core-v1",
+      }),
+    );
+
+    expect(layout.fontSizePx).toBe(12);
+    expect(layout.overflow).toBe(false);
+  });
 });
 
-function resolveLayout(block: TranslationBlock) {
+function resolveLayout(
+  block: TranslationBlock,
+  sourceFontFaceFallbackPx?: number,
+) {
   return resolveBlockTextLayout(
     block,
     block.translatedText,
     pageSize,
     pageSize,
     DEFAULT_BLOCK_FONT_CATALOG,
+    { sourceFontFaceFallbackPx },
   );
 }
 
@@ -119,5 +215,45 @@ function installCanvasMeasureMock(): void {
     },
     configurable: true,
     writable: true,
+  });
+}
+
+function makeDetectedBubbleLayout(): NonNullable<
+  TranslationBlock["bubbleLayout"]
+> {
+  return {
+    version: 1,
+    direction: "horizontal",
+    confidence: 0.95,
+    origin: "detected",
+    modelId: "koharu-layout-rfdetr-test",
+    sourceImageRevision: "test-source-revision",
+    insetRatio: 0,
+    regions: [
+      {
+        spans: [
+          {
+            blockStart: 0,
+            blockEnd: 1,
+            inlineStart: 0,
+            inlineEnd: 1,
+          },
+        ],
+      },
+    ],
+  };
+}
+
+function makeMeasuredPeer(
+  id: string,
+  sourceFontFacePx: number,
+  overrides: Partial<TranslationBlock>,
+): TranslationBlock {
+  return makeBlock({
+    id,
+    sourceFontFacePx,
+    sourceFontSizeConfidence: 0.9,
+    sourceFontSizeMethod: "raster-core-v1",
+    ...overrides,
   });
 }

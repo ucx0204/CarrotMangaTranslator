@@ -9,6 +9,7 @@ import {
   type BlockTextLayout,
   type ViewportSize,
 } from "../lib/overlayLayout";
+import { resolvePageSourceFontFaceFallbacks } from "../lib/sourceFontSizeMatching";
 import { CurveText } from "./CurveText";
 import { OverlayText } from "./OverlayText";
 import { WarpedTextContent } from "./WarpedTextContent";
@@ -137,6 +138,10 @@ export function PageArtwork({
     () => ({ width: page.width, height: page.height }),
     [page.height, page.width],
   );
+  const sourceFontFaceFallbacks = React.useMemo(
+    () => resolvePageSourceFontFaceFallbacks(page.blocks, pageSize),
+    [page.blocks, pageSize],
+  );
   return (
     <div
       className="image-stage page-artwork"
@@ -160,6 +165,7 @@ export function PageArtwork({
           fontCatalog={fontCatalog}
           key={block.id}
           pageSize={pageSize}
+          sourceFontFaceFallbackPx={sourceFontFaceFallbacks.get(block.id)}
           visualSize={visualSize}
         />
       ))}
@@ -171,11 +177,13 @@ function PageArtworkBlock({
   block,
   fontCatalog,
   pageSize,
+  sourceFontFaceFallbackPx,
   visualSize,
 }: {
   block: TranslationBlock;
   fontCatalog: BlockFontCatalog;
   pageSize: ViewportSize;
+  sourceFontFaceFallbackPx?: number;
   visualSize: ViewportSize;
 }): React.JSX.Element {
   const displayText = block.translatedText || block.sourceText;
@@ -184,6 +192,7 @@ function PageArtworkBlock({
     displayText,
     fontCatalog,
     pageSize,
+    sourceFontFaceFallbackPx,
     visualSize,
   });
   const model = resolveOverlayBlockRenderModel({
@@ -209,12 +218,14 @@ function useArtworkBlockLayout({
   displayText,
   fontCatalog,
   pageSize,
+  sourceFontFaceFallbackPx,
   visualSize,
 }: {
   block: TranslationBlock;
   displayText: string;
   fontCatalog: BlockFontCatalog;
   pageSize: ViewportSize;
+  sourceFontFaceFallbackPx?: number;
   visualSize: ViewportSize;
 }): BlockTextLayout {
   return React.useMemo(
@@ -225,8 +236,15 @@ function useArtworkBlockLayout({
         pageSize,
         visualSize,
         fontCatalog,
-        { textLayoutStageSize: pageSize },
+        { sourceFontFaceFallbackPx, textLayoutStageSize: pageSize },
       ),
-    [block, displayText, fontCatalog, pageSize, visualSize],
+    [
+      block,
+      displayText,
+      fontCatalog,
+      pageSize,
+      sourceFontFaceFallbackPx,
+      visualSize,
+    ],
   );
 }

@@ -2,6 +2,7 @@ import type { ChapterSnapshot, MangaPage } from "../../../shared/libraryTypes";
 import type { TranslationBlock } from "../../../shared/textTypes";
 import type { BlockFontCatalog } from "./fonts";
 import { resolveBlockTextLayout } from "./overlayLayout";
+import { resolvePageSourceFontFaceFallbacks } from "./sourceFontSizeMatching";
 import {
   FONT_SIZE_STEP_PX,
   clampFontSizePx,
@@ -80,11 +81,16 @@ function resolveAutoFitFontSizeAtNaturalPageScale(
 ): number {
   const displayText = block.translatedText || block.sourceText || "...";
   const naturalPageSize = { width: page.width, height: page.height };
+  const sourceFontFaceFallbackPx = resolvePageSourceFontFaceFallbacks(
+    page.blocks,
+    naturalPageSize,
+  ).get(block.id);
   return resolveBlockTextLayout(
     block,
     displayText,
     naturalPageSize,
     naturalPageSize,
     fontCatalog,
+    { sourceFontFaceFallbackPx },
   ).fontSizePx;
 }

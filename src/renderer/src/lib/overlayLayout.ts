@@ -53,6 +53,7 @@ export type BlockTextLayout = {
 };
 
 type BlockTextLayoutOptions = {
+  sourceFontFaceFallbackPx?: number;
   textLayoutScale?: number;
   textLayoutStageSize?: ViewportSize;
 };
@@ -120,6 +121,7 @@ function resolveBlockTextLayoutCore(
     fontCatalog,
     layoutStageSize,
     pageSize,
+    sourceFontFaceFallbackPx: options.sourceFontFaceFallbackPx,
   });
 
   return {
@@ -145,6 +147,7 @@ type TextMetricsInput = {
   fontCatalog: BlockFontCatalog;
   layoutStageSize: ViewportSize;
   pageSize: ViewportSize;
+  sourceFontFaceFallbackPx?: number;
 };
 
 type BubbleMeasurer = (
@@ -177,6 +180,8 @@ function resolveBlockTextMetrics(
     block,
     text,
     input.fontCatalog,
+    pageSize,
+    input.sourceFontFaceFallbackPx,
   );
   const maxFontSize = resolveAutoFitUpperBound(
     block,

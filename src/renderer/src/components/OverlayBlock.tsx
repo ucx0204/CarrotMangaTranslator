@@ -33,6 +33,7 @@ type OverlayBlockProps = {
   multiSelected?: boolean;
   showChrome: boolean;
   shapeEditMode?: boolean;
+  sourceFontFaceFallbackPx?: number;
   textLayoutStageSize: ViewportSize | null;
   interactionPreviewStore: WorkspaceInteractionPreviewStore;
   textVisible?: boolean;
@@ -69,6 +70,7 @@ export const OverlayBlockView = React.memo(function OverlayBlockView(
     displayText,
     fontCatalog: catalog,
     pageSize: props.pageSize,
+    sourceFontFaceFallbackPx: props.sourceFontFaceFallbackPx,
     stageSize: props.stageSize,
     textLayoutStageSize: props.textLayoutStageSize,
   });
