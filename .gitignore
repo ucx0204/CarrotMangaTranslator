@@ -63,6 +63,9 @@ recent-dialog-paths.json
 /linked-workspaces.json
 /linked-sync-queue.json
 /results/
+/.claude/
+/.pytest_cache/
+/.ruff_cache/
 /.mgt-instance-lock/
 /.mgt-instance-candidate-*/
 /.mgt-instance-stale-*/

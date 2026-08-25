@@ -105,6 +105,7 @@ export function WebImportToolbar({
         className="web-import-filter-group"
         ariaLabel={t("webImport.sizeFilter")}
         disabled={busy}
+        singleRow
         options={(["all", "medium-or-larger", "large"] as const).map(
           (value) => ({ id: value, label: t(`webImport.filters.${value}`) }),
         )}

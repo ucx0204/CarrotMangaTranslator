@@ -78,6 +78,7 @@ describe("check direct invocation", () => {
   it("keeps the complete stage gate without npm wrapper subprocesses", () => {
     const stages = check.createStages();
     expect(stages.map((stage) => stage.id)).toEqual([
+      "private-workspace",
       "typecheck",
       "typecheck-electron",
       "typecheck-js",

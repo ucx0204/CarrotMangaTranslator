@@ -36,6 +36,10 @@ function nodeBin(packageName, ...parts) {
 function createStages() {
   return [
     nodeStage(
+      "private-workspace",
+      join(__dirname, "check-private-workspace-files.cjs"),
+    ),
+    nodeStage(
       "typecheck",
       nodeBin("typescript", "bin", "tsc"),
       "-p",

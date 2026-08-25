@@ -12,8 +12,12 @@ type AppRightRailProps = UnifiedRightRailProps;
 // from these rail props.
 export function AppRightRail(props: AppRightRailProps): React.JSX.Element {
   const stableActions = useStableRightRailActions(props);
+  const panelOpen = Boolean(props.currentChapter);
   return (
-    <aside className="right-rail">
+    <aside
+      className={`right-rail ${panelOpen ? "is-open" : "is-hidden"}`}
+      aria-hidden={panelOpen ? undefined : true}
+    >
       <UnifiedRightRail {...props} {...stableActions} />
     </aside>
   );

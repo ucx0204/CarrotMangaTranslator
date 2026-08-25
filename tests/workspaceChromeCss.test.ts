@@ -83,12 +83,22 @@ describe("workspace chrome CSS", () => {
     ).toContain("background: linear-gradient(");
   });
 
-  it("overlays both toolbars symmetrically without reserving a right column", () => {
+  it("moves the quick rail with a collapsible right panel track", () => {
     const shell = rule(shellCss, ".app-shell");
-    expect(shell).toContain(
-      "grid-template-columns: 400px minmax(0, 1fr) 400px",
+    expect(shell).toMatch(
+      /grid-template-columns:\s*var\(--app-sidebar-width\)\s+minmax\(0, 1fr\)\s+var\(\s*--app-right-rail-track\s*\)/u,
     );
-    expect(shell).not.toContain("44px");
+    expect(shell).toContain("transition: grid-template-columns 240ms");
+    expect(rule(shellCss, ".app-shell:has(> .right-rail.is-hidden)")).toContain(
+      "--app-right-rail-track: 0px",
+    );
+    expect(shellCss).toContain("width: var(--app-right-rail-width)");
+    expect(shellCss).toContain("transform: translateX(0)");
+    expect(rule(shellCss, ".right-rail.is-hidden {")).toContain(
+      "transform: translateX(28px)",
+    );
+    expect(shellCss).toContain("justify-self: stretch");
+    expect(shellCss).toContain("min-height: 640px");
     const rightToolbar = rule(shellCss, ".right-quick-rail");
     expect(rightToolbar).toContain("right: 10px");
     expect(rightToolbar).toContain("position: absolute");

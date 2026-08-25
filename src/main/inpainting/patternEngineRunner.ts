@@ -35,7 +35,10 @@ export async function runPatternInpaintingEngine(options: {
     resolvePatternInpaintWindows(
       options.maskContext.inpaintWindows,
       options.engine,
-      { preserveBlockOwnership: constrainedFlux },
+      // Flux composites are indexed one-to-one with their processing windows.
+      // Merging only the windows would leave the parallel mask inventories
+      // misaligned, even when every optional hard constraint is null.
+      { preserveBlockOwnership: flux },
     ),
     {
       signal: options.signal,

@@ -108,6 +108,7 @@ function WebImportUrlForm({
           <IconLink size={18} aria-hidden="true" />
           <input
             type="url"
+            data-ui-framed-input=""
             value={state.url}
             placeholder={t("webImport.urlPlaceholder")}
             onChange={(event) => state.setUrl(event.target.value)}

@@ -365,6 +365,20 @@ describe("unified workspace toolbar", () => {
 });
 
 describe("unified right rail", () => {
+  it("keeps the rail hidden until a chapter is opened", () => {
+    const view = renderRightRail(
+      makeRightRailProps({ currentChapter: null, selectedPage: null }),
+    );
+    const hiddenRail = document.querySelector(".right-rail");
+    expect(hiddenRail?.classList.contains("is-hidden")).toBe(true);
+    expect(hiddenRail?.getAttribute("aria-hidden")).toBe("true");
+
+    view.rerender(<AppRightRail {...makeRightRailProps()} />);
+    const openRail = document.querySelector(".right-rail");
+    expect(openRail?.classList.contains("is-open")).toBe(true);
+    expect(openRail?.hasAttribute("aria-hidden")).toBe(false);
+  });
+
   it("keeps all page quick actions in one icon toolbar off the canvas", () => {
     const props = makeRightRailProps({
       canRedo: false,

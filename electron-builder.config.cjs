@@ -1,5 +1,9 @@
 const { existsSync, readdirSync } = require("node:fs");
 const { join } = require("node:path");
+const asar = require("@electron/asar");
+const {
+  isForbiddenRepositoryPath,
+} = require("./scripts/private-workspace-policy.cjs");
 const {
   WINDOWS_EXECUTABLE_BASENAME,
   assertFastZipPayload,
@@ -213,21 +217,33 @@ async function verifyFastZipPayload(context) {
  */
 async function verifyPlatformPayload(context) {
   await verifyFastZipPayload(context);
-  if (context.electronPlatformName !== "darwin") {
-    return;
+  const resourcesDir =
+    context.electronPlatformName === "darwin"
+      ? join(
+          context.appOutDir,
+          `${context.packager.appInfo.productFilename}.app`,
+          "Contents",
+          "Resources",
+        )
+      : join(context.appOutDir, "resources");
+  if (context.electronPlatformName === "darwin") {
+    const forbidden = listFilesRecursively(resourcesDir).filter((filePath) =>
+      /\.(?:exe|dll)$/i.test(filePath),
+    );
+    if (forbidden.length > 0) {
+      throw new Error(
+        `Windows binaries leaked into the macOS app: ${forbidden.join(", ")}`,
+      );
+    }
   }
-  const resourcesDir = join(
-    context.appOutDir,
-    `${context.packager.appInfo.productFilename}.app`,
-    "Contents",
-    "Resources",
-  );
-  const forbidden = listFilesRecursively(resourcesDir).filter((filePath) =>
-    /\.(?:exe|dll)$/i.test(filePath),
-  );
-  if (forbidden.length > 0) {
+  const appAsarPath = join(resourcesDir, "app.asar");
+  const forbiddenArchiveEntries = asar
+    .listPackage(appAsarPath, { isPack: false })
+    .map((path) => path.replace(/^[/\\]+/, ""))
+    .filter(isForbiddenRepositoryPath);
+  if (forbiddenArchiveEntries.length > 0) {
     throw new Error(
-      `Windows binaries leaked into the macOS app: ${forbidden.join(", ")}`,
+      `Private workspace files leaked into app.asar: ${forbiddenArchiveEntries.join(", ")}`,
     );
   }
 }
@@ -274,6 +290,17 @@ module.exports = {
     "!models{,/**/*}",
     "!runtime{,/**/*}",
     "!library{,/**/*}",
+    "!testProject1{,/**/*}",
+    // A developer may use the repository root as the app data root while
+    // testing. Never package local works, settings generations, or linked
+    // workspace metadata from that data root into a release artifact.
+    "!results{,/**/*}",
+    "!.settings-pairs{,/**/*}",
+    "!settings.commit.json",
+    "!settings.secrets.json",
+    "!block-library.json",
+    "!linked-workspaces.json",
+    "!linked-sync-queue.json",
     "!ocr-runtime{,/**/*}",
     "!hf-cache{,/**/*}",
     "!llama.cpp{,/**/*}",
@@ -285,6 +312,9 @@ module.exports = {
     "!tmp{,/**/*}",
     "!.tmp{,/**/*}",
     "!.tmp-*{,/**/*}",
+    "!.pytest_cache{,/**/*}",
+    "!.ruff_cache{,/**/*}",
+    "!.claude{,/**/*}",
     "!.mgt-instance-lock{,/**/*}",
     "!.mgt-instance-candidate-*{,/**/*}",
     "!.mgt-instance-stale-*{,/**/*}",

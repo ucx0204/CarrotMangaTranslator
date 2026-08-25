@@ -1,8 +1,19 @@
 .app-shell {
+  --app-sidebar-width: 400px;
+  --app-right-rail-width: 400px;
+  --app-right-rail-track: var(--app-right-rail-width);
   display: grid;
-  grid-template-columns: 400px minmax(0, 1fr) 400px;
+  grid-template-columns: var(--app-sidebar-width) minmax(0, 1fr) var(
+      --app-right-rail-track
+    );
   height: 100vh;
+  overflow: hidden;
   background: #0e0f13;
+  transition: grid-template-columns 240ms var(--ease-standard);
+}
+
+.app-shell:has(> .right-rail.is-hidden) {
+  --app-right-rail-track: 0px;
 }
 
 .workspace-region {
@@ -98,9 +109,24 @@
 }
 
 .right-rail {
+  box-sizing: border-box;
+  justify-self: start;
+  width: var(--app-right-rail-width);
+  min-width: var(--app-right-rail-width);
   border-left: 1px solid var(--surface-border);
   background: var(--surface-rail);
   overflow-y: auto;
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    opacity var(--motion-normal) var(--ease-standard),
+    transform 240ms var(--ease-standard);
+}
+
+.right-rail.is-hidden {
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(28px);
 }
 
 .right-quick-rail {
@@ -944,7 +970,8 @@
 
 @media (max-width: 1400px) {
   .app-shell {
-    grid-template-columns: 340px minmax(0, 1fr) 340px;
+    --app-sidebar-width: 340px;
+    --app-right-rail-width: 340px;
   }
 }
 
@@ -956,6 +983,8 @@
   .app-shell {
     grid-template-columns: minmax(0, 1fr);
     height: auto;
+    overflow: visible;
+    transition: none;
   }
 
   .sidebar,
@@ -964,19 +993,40 @@
     border: 0;
   }
 
+  .right-rail {
+    justify-self: stretch;
+    width: auto;
+    min-width: 0;
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .right-rail.is-hidden {
+    display: none;
+  }
+
   .workspace-shell {
     grid-column: 1;
   }
 
   .workspace-region {
     grid-column: 1;
-    min-height: 480px;
+    min-height: 640px;
   }
 
   .workspace {
-    min-height: 480px;
+    min-height: 640px;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell,
+  .right-rail {
+    transition: none;
+  }
+}
+
 .library-drop-overlay {
   position: fixed;
   inset: 0;
