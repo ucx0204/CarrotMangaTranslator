@@ -16,4 +16,20 @@ describe("translation warning collector", () => {
     expect(collector.warnings).toHaveLength(MAX_WARNINGS);
     expect(collector.warnings.at(-1)).toContain("101");
   });
+
+  it("returns guidance only when every terminal page shares one token limit", () => {
+    const collector = createWarningCollector();
+    collector.recordTerminalFailure({
+      failureGuidance: "increase-max-output-tokens",
+    });
+    collector.recordTerminalFailure({
+      failureGuidance: "increase-max-output-tokens",
+    });
+    expect(collector.resolveTerminalFailureGuidance()).toBe(
+      "increase-max-output-tokens",
+    );
+
+    collector.recordTerminalFailure(new Error("malformed block"));
+    expect(collector.resolveTerminalFailureGuidance()).toBeUndefined();
+  });
 });

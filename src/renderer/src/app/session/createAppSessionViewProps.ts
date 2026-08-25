@@ -19,6 +19,7 @@ import { createRightRailProps } from "./createRightRailProps";
 import { createStylePresetSaveAction } from "./createStylePresetSaveAction";
 import { createStylePresetDeleteAction } from "./createStylePresetDeleteAction";
 import { createOriginalImageOpacityProps } from "./createOriginalImageOpacityProps";
+import { openManualErrorReport } from "../../lib/errorReportStore";
 
 export function createAppSessionViewProps(model: AppSessionViewModel) {
   return {
@@ -145,6 +146,7 @@ function createModalsProps({
     onCloseInpaintingGuide: guidePreference.closeInpaintingGuide,
     onDeleteRename: () => void libraryActions.deleteRenameTarget(),
     onOpenLogFolder: bridgeActions.openLogFolder,
+    onOpenErrorReport: openManualErrorReport,
     onResetSettings: settingsDialog.resetSettings,
     onResolveConfirm: confirmController.resolveConfirmDialog,
     onSelectTranslationSource: (mode) =>

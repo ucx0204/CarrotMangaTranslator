@@ -172,7 +172,9 @@ describe("region runner cancellation checkpoints", () => {
     const dependencies = makeRegionDependencies({
       appendAnalyzedPageBlocks,
       runWholePagePipeline: vi.fn(async () => ({
-        pages: [firstPage(chapter)],
+        pages: [
+          { ...firstPage(chapter), analysisStatus: "completed" as const },
+        ],
         warnings: [],
       })),
     });
@@ -187,6 +189,37 @@ describe("region runner cancellation checkpoints", () => {
     expect(emit).toHaveBeenCalledWith(
       expect.objectContaining({ status: "completed", phase: "done" }),
     );
+  });
+
+  it("does not append a failed crop and preserves its exact limit guidance", async () => {
+    const chapter = makeChapter();
+    const controller = new AbortController();
+    const appendAnalyzedPageBlocks = vi.fn();
+    const dependencies = makeRegionDependencies({
+      appendAnalyzedPageBlocks,
+      runWholePagePipeline: vi.fn(async () => ({
+        pages: [
+          {
+            ...firstPage(chapter),
+            analysisStatus: "failed" as const,
+            lastError: "작품 컨텍스트 예산 한도에서 응답이 잘렸습니다.",
+          },
+        ],
+        warnings: [],
+        failureGuidance: "increase-work-context-budget" as const,
+      })),
+    });
+
+    await expect(
+      runRegionTranslationJob(
+        makeRegionArgs(controller, chapter),
+        dependencies,
+      ),
+    ).rejects.toMatchObject({
+      message: "작품 컨텍스트 예산 한도에서 응답이 잘렸습니다.",
+      failureGuidance: "increase-work-context-budget",
+    });
+    expect(appendAnalyzedPageBlocks).not.toHaveBeenCalled();
   });
 });
 

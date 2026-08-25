@@ -1296,6 +1296,7 @@
     },
     "footer": {
       "openLogs": "打开日志文件夹",
+      "reportProblem": "报告问题",
       "restoreDefaults": "恢复默认值",
       "cancel": "取消",
       "save": "保存"
@@ -1846,7 +1847,7 @@
     "cancelling": "正在请求取消…",
     "completedTitle": "任务已完成",
     "completedPages": "已处理{{count}}页",
-    "openLogs": "打开日志文件夹",
+    "reportProblem": "报告问题",
     "failedPages": "失败页面",
     "retryPage": "重试",
     "recentJobs": "最近任务",

@@ -176,6 +176,10 @@ function handleFailedJob({
   }
   reportedJobIdRef.current = jobState.id;
   const summary = formatJobLabel(jobState, t) || t("job.notifications.failed");
+  if (jobState.failureGuidance) {
+    toast.error(summary);
+    return;
+  }
   const context = createFailedJobContext(jobState, summary);
   /*
    * A failed job already shows in the run status panel and the status log.

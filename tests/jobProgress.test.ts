@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TFunction } from "i18next";
+import { formatElapsedDuration } from "../src/renderer/src/lib/appHelpers";
 import {
   formatJobEventLine,
   formatJobLabel,
@@ -62,6 +63,48 @@ describe("job progress helpers", () => {
         pageTotal: 20,
       }),
     ).toBe("3 / 20 페이지 AI 번역 요청 중");
+  });
+
+  it("adds page and total elapsed time to completed status records", () => {
+    expect(
+      formatJobEventLine({
+        id: "job-1",
+        kind: "gemma-analysis",
+        status: "running",
+        progressText: "raw",
+        phase: "page_done",
+        pageIndex: 3,
+        pageTotal: 20,
+        pageElapsedMs: 83_400,
+      }),
+    ).toBe("3 / 20 페이지 완료 · 소요 1분 23초");
+
+    expect(
+      formatJobEventLine({
+        id: "job-1",
+        kind: "gemma-analysis",
+        status: "completed",
+        progressText: "번역 완료",
+        phase: "done",
+        jobElapsedMs: 3_723_400,
+      }),
+    ).toBe("번역 완료 · 전체 1시간 2분 3초");
+    expect(formatElapsedDuration(420)).toBe("1초 미만");
+    expect(formatElapsedDuration(45_200)).toBe("45초");
+    expect(formatElapsedDuration(-1)).toBeNull();
+    expect(formatElapsedDuration(Number.NaN)).toBeNull();
+
+    expect(
+      formatJobEventLine({
+        id: "job-2",
+        kind: "gemma-analysis",
+        status: "running",
+        progressText: "raw",
+        phase: "page_done",
+        pageIndex: 1,
+        pageTotal: 1,
+      }),
+    ).toBe("1 / 1 페이지 완료");
   });
 
   it("returns a clamped determinate progress snapshot", () => {
@@ -147,6 +190,32 @@ describe("job progress helpers", () => {
     expect(formatJobLabel({ status: "partial", phase: "partial" })).toBe(
       "작업 부분 완료",
     );
+  });
+
+  it("shows the exact settings field for token budget failures", () => {
+    expect(
+      formatJobLabel({
+        status: "failed",
+        phase: "failed",
+        failureGuidance: "increase-max-output-tokens",
+      }),
+    ).toBe(
+      "최대 출력 토큰이 부족합니다. 설정 > 번역 엔진 > 최대 출력 토큰을 늘려 주세요.",
+    );
+    expect(
+      formatJobLabel({
+        status: "failed",
+        phase: "failed",
+        failureGuidance: "increase-work-context-budget",
+      }),
+    ).toContain("작품 컨텍스트 예산");
+    expect(
+      formatJobLabel({
+        status: "failed",
+        phase: "failed",
+        failureGuidance: "increase-context-length",
+      }),
+    ).toContain("VRAM");
   });
 
   it("preserves detailed event text while allowing locale refreshes to discard it", () => {

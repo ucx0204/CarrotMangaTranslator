@@ -1,5 +1,11 @@
 import type { JobEvent, JobPhase, JobState } from "../../../shared/jobTypes";
 import type { TFunction } from "i18next";
+import {
+  fallbackJobLabelFromStatus,
+  formatElapsedLine,
+  formatJobFailureGuidance,
+  translate,
+} from "./appHelpers";
 
 type JobWithProgress = Pick<
   JobState,
@@ -16,6 +22,7 @@ type JobWithProgress = Pick<
   | "pageTotal"
   | "attempt"
   | "attemptTotal"
+  | "failureGuidance"
 > & {
   progressText?: string;
 };
@@ -97,21 +104,22 @@ export function formatJobLabel(
   t?: TFunction<"renderer">,
   options: { preserveUnknownProgressText?: boolean } = {},
 ): string {
+  const failureGuidance = resolveFailedJobGuidance(job, t);
+  if (failureGuidance) {
+    return failureGuidance;
+  }
   const preserveUnknownProgressText =
     options.preserveUnknownProgressText ?? true;
   if (!job.phase) {
-    return fallbackFromStatus(job.status, t);
+    return fallbackJobLabelFromStatus(job.status, t);
   }
-  const progressTextFallback = PROGRESS_TEXT_FALLBACK_BY_PHASE[job.phase];
-  if (progressTextFallback) {
-    return (
-      translatedProgressText(job, t, preserveUnknownProgressText) ??
-      translate(t, progressTextFallback.key, progressTextFallback.fallback)
-    );
-  }
-  const staticLabel = STATIC_LABEL_BY_PHASE[job.phase];
-  if (staticLabel) {
-    return translate(t, staticLabel.key, staticLabel.fallback);
+  const directPhaseLabel = formatDirectPhaseLabel(
+    job,
+    t,
+    preserveUnknownProgressText,
+  );
+  if (directPhaseLabel) {
+    return directPhaseLabel;
   }
   if (job.phase === "ocr_running") {
     return formatOcrRunningLabel(job, t, preserveUnknownProgressText);
@@ -143,14 +151,48 @@ export function formatJobLabel(
       )
     );
   }
-  return fallbackFromStatus(job.status, t);
+  return fallbackJobLabelFromStatus(job.status, t);
+}
+
+function resolveFailedJobGuidance(
+  job: JobWithProgress,
+  t?: TFunction<"renderer">,
+): string | null {
+  return job.status === "failed" ? formatJobFailureGuidance(job, t) : null;
+}
+
+function formatDirectPhaseLabel(
+  job: JobWithProgress,
+  t: TFunction<"renderer"> | undefined,
+  preserveUnknownProgressText: boolean,
+): string | null {
+  const progressTextFallback = job.phase
+    ? PROGRESS_TEXT_FALLBACK_BY_PHASE[job.phase]
+    : undefined;
+  if (progressTextFallback) {
+    return (
+      translatedProgressText(job, t, preserveUnknownProgressText) ??
+      translate(t, progressTextFallback.key, progressTextFallback.fallback)
+    );
+  }
+  const staticLabel = job.phase ? STATIC_LABEL_BY_PHASE[job.phase] : undefined;
+  return staticLabel
+    ? translate(t, staticLabel.key, staticLabel.fallback)
+    : null;
 }
 
 export function formatJobEventLine(
   event: JobEvent,
   t?: TFunction<"renderer">,
 ): string {
-  return formatJobLabel(event, t);
+  const label = formatJobLabel(event, t);
+  if (event.phase === "page_done") {
+    return formatElapsedLine(label, event.pageElapsedMs, "page", t);
+  }
+  if (event.phase === "done" && event.status === "completed") {
+    return formatElapsedLine(label, event.jobElapsedMs, "total", t);
+  }
+  return label;
 }
 
 export function resolveProgressSnapshot(
@@ -380,36 +422,4 @@ function formatRetryLabel(
       : `${job.pageIndex} / ${job.pageTotal} 페이지 재시도 ${job.attempt} / ${job.attemptTotal}`;
   }
   return translate(t, "job.phase.pageRetry", "페이지 재시도 중");
-}
-
-function fallbackFromStatus(
-  status: JobState["status"],
-  t?: TFunction<"renderer">,
-): string {
-  switch (status) {
-    case "starting":
-      return translate(t, "job.status.starting", "모델 준비 중");
-    case "running":
-      return translate(t, "job.status.running", "작업 진행 중");
-    case "cancelling":
-      return translate(t, "job.status.cancelling", "작업 취소 중");
-    case "cancelled":
-      return translate(t, "job.status.cancelled", "작업이 취소됨");
-    case "failed":
-      return translate(t, "job.status.failed", "작업 실패");
-    case "partial":
-      return translate(t, "job.status.partial", "작업 부분 완료");
-    case "completed":
-      return translate(t, "job.status.completed", "번역 완료");
-    default:
-      return translate(t, "job.status.idle", "대기 중");
-  }
-}
-
-function translate(
-  t: TFunction<"renderer"> | undefined,
-  key: string,
-  fallback: string,
-): string {
-  return t ? t(key) : fallback;
 }

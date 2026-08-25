@@ -51,6 +51,10 @@ export function openErrorReport(
   return true;
 }
 
+export function openManualErrorReport(): boolean {
+  return openErrorReport({ source: "manual" }, { force: true });
+}
+
 export function closeErrorReport(): void {
   if (!currentIncident) {
     return;

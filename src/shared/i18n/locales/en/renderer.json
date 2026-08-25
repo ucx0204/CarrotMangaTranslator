@@ -47,6 +47,19 @@
     "pageProgress": "Page {{current}} / {{total}} · {{status}}",
     "pageStatus": "Page · {{status}}",
     "pageRetry": "Page {{current}} / {{total}} · Retry {{attempt}} / {{attemptTotal}}",
+    "elapsed": {
+      "lessThanSecond": "under 1 sec",
+      "seconds": "{{seconds}} sec",
+      "minutesSeconds": "{{minutes}} min {{seconds}} sec",
+      "hoursMinutesSeconds": "{{hours}} hr {{minutes}} min {{seconds}} sec",
+      "page": "{{label}} · Took {{duration}}",
+      "total": "{{label}} · Total {{duration}}"
+    },
+    "failureGuidance": {
+      "maxOutputTokens": "The maximum output token limit is too low. Increase Settings > Translation engine > Maximum output tokens.",
+      "workContextBudget": "The work context budget is too low. Increase Settings > Translation engine > Work context budget.",
+      "contextLength": "The context length is too low. Increase Settings > Translation engine > Context length. This may use more VRAM."
+    },
     "phase": {
       "booting": "Preparing model",
       "modelDownloading": "Downloading model / preparing server",

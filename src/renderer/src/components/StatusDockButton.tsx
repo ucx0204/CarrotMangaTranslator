@@ -21,7 +21,7 @@ type StatusDockButtonProps = {
   onCancelJob: () => void;
   onClear: () => void;
   onOpenExport?: () => void;
-  onOpenLogFolder?: () => void;
+  onOpenErrorReport?: () => void;
   onRetryPage?: (pageId: string) => void;
   onReviewResults?: () => void;
   failedPages?: StatusFailedPage[];
@@ -35,7 +35,7 @@ export function StatusDockButton({
   onCancelJob,
   onClear,
   onOpenExport,
-  onOpenLogFolder,
+  onOpenErrorReport,
   onRetryPage,
   onReviewResults,
   failedPages = [],
@@ -98,7 +98,7 @@ export function StatusDockButton({
           }}
           onClose={() => closePopover(true)}
           onOpenExport={resultActions.onOpenExport}
-          onOpenLogFolder={onOpenLogFolder}
+          onOpenErrorReport={onOpenErrorReport}
           onRetryPage={resultActions.onRetryPage}
           onReviewResults={resultActions.onReviewResults}
         />

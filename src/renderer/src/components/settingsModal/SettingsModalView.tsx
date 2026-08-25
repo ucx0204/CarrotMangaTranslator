@@ -30,6 +30,7 @@ export type SettingsModalViewProps = {
   formatPanelTitle: string;
   formatPanelProps: React.ComponentProps<typeof FormatDefaultsPanel>;
   onCancel: () => void;
+  onOpenErrorReport: () => void;
   onOpenLogFolder: () => void;
   onReset: () => void;
   setActiveTab: React.Dispatch<React.SetStateAction<SettingsTabId>>;
@@ -61,6 +62,7 @@ export function SettingsModalView({
   formatPanelTitle,
   formatPanelProps,
   onCancel,
+  onOpenErrorReport,
   onOpenLogFolder,
   onReset,
   setActiveTab,
@@ -83,6 +85,7 @@ export function SettingsModalView({
           canSubmit={canSubmit}
           controlsBusy={controlsBusy}
           onCancel={onCancel}
+          onOpenErrorReport={onOpenErrorReport}
           onOpenLogFolder={onOpenLogFolder}
           onReset={onReset}
           submit={submit}
@@ -121,6 +124,7 @@ function SettingsModalFooter({
   canSubmit,
   controlsBusy,
   onCancel,
+  onOpenErrorReport,
   onOpenLogFolder,
   onReset,
   submit,
@@ -129,6 +133,7 @@ function SettingsModalFooter({
   | "canSubmit"
   | "controlsBusy"
   | "onCancel"
+  | "onOpenErrorReport"
   | "onOpenLogFolder"
   | "onReset"
   | "submit"
@@ -137,13 +142,22 @@ function SettingsModalFooter({
   return (
     <ModalActionBar
       leading={
-        <Button
-          variant="ghost"
-          onClick={onOpenLogFolder}
-          disabled={controlsBusy}
-        >
-          {t("settings.footer.openLogs")}
-        </Button>
+        <>
+          <Button
+            variant="ghost"
+            onClick={onOpenLogFolder}
+            disabled={controlsBusy}
+          >
+            {t("settings.footer.openLogs")}
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={onOpenErrorReport}
+            disabled={controlsBusy}
+          >
+            {t("settings.footer.reportProblem")}
+          </Button>
+        </>
       }
       actions={
         <>

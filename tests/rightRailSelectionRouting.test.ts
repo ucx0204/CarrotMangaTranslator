@@ -17,7 +17,7 @@ describe("right rail block selection routing", () => {
     const noop = vi.fn();
     const model = {
       blockEditingActions: { updateBlock: noop },
-      bridgeActions: { cancelJob: noop, openLogFolder: noop },
+      bridgeActions: { cancelJob: noop },
       core: {
         currentChapter: null,
         jobState: {

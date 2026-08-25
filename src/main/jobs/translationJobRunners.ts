@@ -3,7 +3,7 @@ import type {
   StartAnalysisRequest,
   StartAnalysisResult,
 } from "../../shared/analysisTypes";
-import type { JobEvent } from "../../shared/jobTypes";
+import type { JobEvent, JobFailureGuidance } from "../../shared/jobTypes";
 import {
   finalizeRunningPages,
   getRunPaths,
@@ -25,7 +25,7 @@ import {
   type PageRevision,
 } from "../../shared/pageRevision";
 import { runWholePagePipeline } from "../wholePagePipeline";
-import { throwIfAborted } from "../pipeline/failure";
+import { readJobFailureGuidance, throwIfAborted } from "../pipeline/failure";
 import { buildPageIndexById } from "../pipeline/pageFiltering";
 import { isAbortError } from "./jobEvents";
 import type { JobResourceCleanup } from "./jobLifetimeCleanup";
@@ -281,12 +281,14 @@ export async function completeAnalysisJob(
       progressTotal: resolved.pages.length,
       pageTotal: resolved.pages.length,
       detail: message,
+      failureGuidance: result.failureGuidance,
     });
     return {
       status: "failed",
       chapter,
       warnings: result.warnings,
       error: message,
+      failureGuidance: result.failureGuidance,
     };
   }
 
@@ -391,11 +393,18 @@ async function handleAnalysisFailure(
   const chapter = await openChapter(request.chapterId).catch(
     () => state.resolved?.chapter,
   );
-  emitFailedAnalysisJob(id, emit, lastEvent, message);
+  emitFailedAnalysisJob(
+    id,
+    emit,
+    lastEvent,
+    message,
+    readJobFailureGuidance(error),
+  );
   return {
     status: "failed",
     error: message,
     chapter,
+    failureGuidance: readJobFailureGuidance(error),
   };
 }
 
@@ -404,6 +413,7 @@ function emitFailedAnalysisJob(
   emit: EmitJobEvent,
   lastEvent: JobEvent | undefined,
   message: string,
+  failureGuidance?: JobFailureGuidance,
 ): void {
   emit({
     id,
@@ -418,6 +428,7 @@ function emitFailedAnalysisJob(
     attempt: lastEvent?.attempt,
     attemptTotal: lastEvent?.attemptTotal,
     detail: message,
+    failureGuidance,
   });
 }
 

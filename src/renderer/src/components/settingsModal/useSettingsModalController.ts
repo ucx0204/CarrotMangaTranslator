@@ -23,6 +23,7 @@ export type SettingsModalControllerInput = {
   busy: boolean;
   jobActive: boolean;
   onCancel: () => void;
+  onOpenErrorReport: () => void;
   onOpenLogFolder: () => void;
   onReset: () => Promise<AppSettings | null>;
   onDirtyChange?: (isDirty: boolean) => void;
@@ -34,6 +35,7 @@ export function useSettingsModalController({
   busy,
   jobActive,
   onCancel,
+  onOpenErrorReport,
   onOpenLogFolder,
   onReset,
   onDirtyChange,
@@ -90,6 +92,7 @@ export function useSettingsModalController({
     keybindings: state.keybindings,
     localActions: state.localActions,
     onCancel,
+    onOpenErrorReport,
     onOpenLogFolder,
     onReset: state.resetDraft,
     runModelTest,

@@ -5,6 +5,7 @@ import {
   closeErrorReport,
   getErrorReportIncident,
   openErrorReport,
+  openManualErrorReport,
   resetErrorReportStoreForTests,
 } from "../src/renderer/src/lib/errorReportStore";
 
@@ -105,6 +106,11 @@ describe("error report incident store", () => {
     expect(openErrorReport(context)).toBe(true);
     closeErrorReport();
     expect(openErrorReport(context, { force: true })).toBe(true);
+  });
+
+  it("opens the shared report window without requiring an automatic incident", () => {
+    expect(openManualErrorReport()).toBe(true);
+    expect(getErrorReportIncident()).toEqual({ source: "manual" });
   });
 
   it("bounds recent automatic incident fingerprints during an error storm", () => {

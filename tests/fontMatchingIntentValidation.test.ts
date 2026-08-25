@@ -25,7 +25,15 @@ const fixed = require(
   ) => {
     translations: { items: Array<{ blockId: string }> };
     retryBlockIds: string[];
+    retryReasons: Record<string, string[]>;
     horizontalFallbackTranslations?: { items: Array<{ blockId: string }> };
+    fontIntentFallbackTranslations?: {
+      items: Array<{
+        blockId: string;
+        fontRole?: string;
+        fontRoleConfidence?: number;
+      }>;
+    };
   };
 };
 
@@ -47,6 +55,39 @@ describe("Font Matching V2 intent validation", () => {
     expect(() => parseResponse("ordinary", "sfx_impact", 0.99)).toThrow(
       /fontRole conflicts with textRole/i,
     );
+
+    const partial = fixed.parseFixedBlockTranslationPartialResponse(
+      JSON.stringify({
+        items: [
+          {
+            blockId: "B001",
+            textRole: "ordinary",
+            fontRole: "sfx_impact",
+            fontRoleConfidence: 0.99,
+            ko: "쾅!",
+          },
+          makeValidItems()[1],
+        ],
+      }),
+      plan,
+      options,
+    );
+    expect(partial).toMatchObject({
+      translations: { items: [{ blockId: "B002" }] },
+      retryBlockIds: ["B001"],
+      retryReasons: {
+        B001: ["fixed-block-translation-font-role-conflict"],
+      },
+      fontIntentFallbackTranslations: {
+        items: [
+          {
+            blockId: "B001",
+            fontRole: "unknown_needs_review",
+            fontRoleConfidence: 0,
+          },
+        ],
+      },
+    });
   });
 
   it("rejects a non-object page context", () => {

@@ -44,6 +44,19 @@
     "pageProgress": "第 {{current}} / {{total}} 页 · {{status}}",
     "pageStatus": "页面 · {{status}}",
     "pageRetry": "第 {{current}} / {{total}} 页 · 重试 {{attempt}} / {{attemptTotal}}",
+    "elapsed": {
+      "lessThanSecond": "不到 1 秒",
+      "seconds": "{{seconds}} 秒",
+      "minutesSeconds": "{{minutes}} 分 {{seconds}} 秒",
+      "hoursMinutesSeconds": "{{hours}} 小时 {{minutes}} 分 {{seconds}} 秒",
+      "page": "{{label}} · 用时 {{duration}}",
+      "total": "{{label}} · 总用时 {{duration}}"
+    },
+    "failureGuidance": {
+      "maxOutputTokens": "最大输出令牌不足。请增大设置 > 翻译引擎 > 最大输出令牌。",
+      "workContextBudget": "作品上下文预算不足。请增大设置 > 翻译引擎 > 作品上下文预算。",
+      "contextLength": "上下文长度不足。请增大设置 > 翻译引擎 > 上下文长度。显存占用可能会增加。"
+    },
     "phase": {
       "booting": "正在准备模型",
       "modelDownloading": "正在下载模型/准备服务器",

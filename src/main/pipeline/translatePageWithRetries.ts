@@ -398,6 +398,7 @@ async function saveFailedPageAfterRetries({
   warningCollector: WarningCollector;
   diagnostics: PipelineDiagnostics;
 }): Promise<void> {
+  warningCollector.recordTerminalFailure(result.lastError);
   warningCollector.addPageSkipped({
     pageName: page.name,
     maxAttempts,

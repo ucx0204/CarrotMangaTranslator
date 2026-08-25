@@ -1,8 +1,9 @@
-import { useCallback, type MutableRefObject } from "react";
+import { useCallback, useRef, type MutableRefObject } from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { NotificationPort } from "../lib/notificationPort";
 import type { ChapterRunSelection } from "../lib/translationSelection";
+import type { JobFailureGuidance } from "../../../shared/jobTypes";
 import {
   runSelectionsSequentially,
   type ExecuteAnalysisJob,
@@ -15,6 +16,16 @@ import type {
 } from "./translationActionTypes";
 import { runTranslationFlowAction } from "./translationBubbleLayoutWorkflow";
 import { resolveTranslationCompletionOptions } from "./translationBubbleLayoutWorkflowSupport";
+
+type TranslationPassRunnerConfig = Pick<
+  UseTranslationActionsOptions,
+  "flowCancellationRef" | "pushStatus"
+> & {
+  executeAnalysisJob: ExecuteAnalysisJob;
+  failureGuidanceRef: MutableRefObject<JobFailureGuidance | undefined>;
+  options: TranslationFlowOptions;
+  t: TFunction<"renderer">;
+};
 
 export function useRunTranslationFlowAction({
   clearPageImageCache,
@@ -40,6 +51,7 @@ export function useRunTranslationFlowAction({
   notificationPort: NotificationPort;
 }): TranslationActions["runTranslationFlow"] {
   const { t } = useTranslation("renderer");
+  const failureGuidanceRef = useRef<JobFailureGuidance | undefined>(undefined);
   return useCallback(
     (options: TranslationFlowOptions) =>
       runTranslationFlowAction(options, {
@@ -48,6 +60,7 @@ export function useRunTranslationFlowAction({
         currentChapter,
         flowCancellationRef,
         flowActiveRef,
+        failureGuidanceRef,
         jobActive,
         mergeLiveChapter,
         naturalTextLayoutDefault,
@@ -60,16 +73,14 @@ export function useRunTranslationFlowAction({
         setShowBlockChrome,
         setJobState,
         t,
-        runPasses: (selection) =>
-          runTranslationFlowPasses({
-            selection,
-            executeAnalysisJob,
-            options,
-            pushStatus,
-            t,
-            isCancellationRequested: () =>
-              flowCancellationRef?.current === true,
-          }),
+        runPasses: createTranslationPassRunner({
+          executeAnalysisJob,
+          failureGuidanceRef,
+          flowCancellationRef,
+          options,
+          pushStatus,
+          t,
+        }),
       }),
     [
       currentChapter,
@@ -94,6 +105,30 @@ export function useRunTranslationFlowAction({
   );
 }
 
+function createTranslationPassRunner({
+  executeAnalysisJob,
+  failureGuidanceRef,
+  flowCancellationRef,
+  options,
+  pushStatus,
+  t,
+}: TranslationPassRunnerConfig): (
+  selection: ChapterRunSelection,
+) => Promise<RunAnalysisOutcome> {
+  return (selection) =>
+    runTranslationFlowPasses({
+      selection,
+      executeAnalysisJob,
+      options,
+      pushStatus,
+      t,
+      isCancellationRequested: () => flowCancellationRef?.current === true,
+      onFailureGuidance: (guidance) => {
+        failureGuidanceRef.current = guidance;
+      },
+    });
+}
+
 async function runTranslationFlowPasses({
   selection,
   executeAnalysisJob,
@@ -101,6 +136,7 @@ async function runTranslationFlowPasses({
   pushStatus,
   t,
   isCancellationRequested,
+  onFailureGuidance,
 }: {
   selection: ChapterRunSelection;
   executeAnalysisJob: ExecuteAnalysisJob;
@@ -108,6 +144,7 @@ async function runTranslationFlowPasses({
   pushStatus: UseTranslationActionsOptions["pushStatus"];
   t: TFunction<"renderer">;
   isCancellationRequested: () => boolean;
+  onFailureGuidance: (guidance: JobFailureGuidance) => void;
 }): Promise<RunAnalysisOutcome> {
   // Bubble layout is resolved only after inpainting, against a render region
   // that can be much larger than the OCR bbox. Let the Bubble renderer own
@@ -134,6 +171,7 @@ async function runTranslationFlowPasses({
     t,
     completionWorkflow,
     true,
+    onFailureGuidance,
   );
   return outcome === "completed" && isCancellationRequested()
     ? "cancelled"

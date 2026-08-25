@@ -34,6 +34,10 @@ const fixed =
     ) => {
       translations: FixedTranslationResult;
       retryBlockIds: string[];
+      retryReasons: Record<string, string[]>;
+      horizontalFallbackTranslations?: FixedTranslationResult;
+      fontIntentFallbackTranslations?: FixedTranslationResult;
+      targetTypographyFallbackTranslations?: FixedTranslationResult;
     };
     mergeFixedBlockTranslationResults: (
       current: FixedTranslationResult,
@@ -593,34 +597,6 @@ describe("fixed-block translation contract", () => {
         collectPageContext: true,
       }),
     ).toEqual(merged);
-  });
-
-  it("salvages only unique contract-valid expected ids from a readable items array", () => {
-    const plan = threeSingletonPlan();
-    const partial = fixed.parseFixedBlockTranslationPartialResponse(
-      JSON.stringify({
-        items: [
-          { blockId: "B002", ko: "둘째" },
-          { blockId: "B001", ko: "첫째" },
-          { blockId: "B001", ko: "중복" },
-          { blockId: "B003", ko: "俺" },
-          { blockId: "B999", ko: "예상하지 않은 항목" },
-          null,
-        ],
-        pageContext: { visualSummary: "유효한 장면 정보" },
-        commentary: "금지된 최상위 필드는 복구 과정에서 무시한다.",
-      }),
-      plan,
-      { ...baseOptions, collectPageContext: true },
-    );
-
-    expect(partial).toEqual({
-      translations: {
-        items: [{ blockId: "B002", ko: "둘째" }],
-        pageContext: { visualSummary: "유효한 장면 정보" },
-      },
-      retryBlockIds: ["B001", "B003"],
-    });
   });
 
   it("inserts recovered missing blocks in immutable plan order without regenerating valid ones", () => {

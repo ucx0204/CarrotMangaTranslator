@@ -323,6 +323,9 @@ function resolveAnalysisJobOutcome(
     );
   }
   if (result.status === "cancelled") return "cancelled";
+  if (result.failureGuidance) {
+    job.onDeferredFailureGuidance?.(result.failureGuidance);
+  }
   if (result.error) console.error(result.error);
   return "failed";
 }

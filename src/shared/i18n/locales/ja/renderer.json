@@ -44,6 +44,19 @@
     "pageProgress": "{{current}} / {{total}}ページ・{{status}}",
     "pageStatus": "ページ・{{status}}",
     "pageRetry": "{{current}} / {{total}}ページ・再試行 {{attempt}} / {{attemptTotal}}",
+    "elapsed": {
+      "lessThanSecond": "1秒未満",
+      "seconds": "{{seconds}}秒",
+      "minutesSeconds": "{{minutes}}分{{seconds}}秒",
+      "hoursMinutesSeconds": "{{hours}}時間{{minutes}}分{{seconds}}秒",
+      "page": "{{label}}・所要時間 {{duration}}",
+      "total": "{{label}}・合計 {{duration}}"
+    },
+    "failureGuidance": {
+      "maxOutputTokens": "最大出力トークンが不足しています。設定 > 翻訳エンジン > 最大出力トークンを増やしてください。",
+      "workContextBudget": "作品コンテキスト予算が不足しています。設定 > 翻訳エンジン > 作品コンテキスト予算を増やしてください。",
+      "contextLength": "コンテキスト長が不足しています。設定 > 翻訳エンジン > コンテキスト長を増やしてください。VRAM使用量が増える場合があります。"
+    },
     "phase": {
       "booting": "モデルを準備中",
       "modelDownloading": "モデルをダウンロード／サーバーを準備中",

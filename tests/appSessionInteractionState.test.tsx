@@ -235,6 +235,51 @@ describe("unified workspace interaction state", () => {
     errorToast.mockRestore();
   });
 
+  it("shows token-limit guidance without offering an error report", () => {
+    const openErrorReport = vi.fn();
+    const errorToast = vi.spyOn(toast, "error").mockReturnValue("toast-id");
+    const { rerender } = renderHook(
+      ({ status }: { status: "running" | "failed" }) =>
+        useAppSessionLifecycleEffects({
+          currentChapter: null,
+          jobState: {
+            id: "job-token-limit",
+            kind: "gemma-analysis",
+            status,
+            progressText: status,
+            ...(status === "failed"
+              ? {
+                  phase: "failed" as const,
+                  failureGuidance: "increase-max-output-tokens" as const,
+                }
+              : {}),
+          },
+          onJobStart: vi.fn(),
+          onPageChange: vi.fn(),
+          openErrorReport,
+          refreshLibrary: vi.fn(),
+          resetChapterScopedUi: vi.fn(),
+          selectedPageId: null,
+          setRegionSelection: vi.fn(),
+          translationFlowActive: false,
+        }),
+      {
+        initialProps: {
+          status: "running",
+        } as { status: "running" | "failed" },
+      },
+    );
+
+    rerender({ status: "failed" });
+
+    expect(errorToast).toHaveBeenCalledWith(
+      "최대 출력 토큰이 부족합니다. 설정 > 번역 엔진 > 최대 출력 토큰을 늘려 주세요.",
+    );
+    expect(errorToast.mock.calls[0]?.[1]).toBeUndefined();
+    expect(openErrorReport).not.toHaveBeenCalled();
+    errorToast.mockRestore();
+  });
+
   it("notifies a cancelled job without opening an error report", () => {
     const infoToast = vi.spyOn(toast, "info").mockReturnValue("toast-id");
     const openErrorReport = vi.fn();

@@ -2,7 +2,7 @@ import type {
   RegionAnalysisRequest,
   RegionAnalysisResult,
 } from "../../shared/analysisTypes";
-import type { JobEvent } from "../../shared/jobTypes";
+import type { JobEvent, JobFailureGuidance } from "../../shared/jobTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
 import {
   createRegionCropPage,
@@ -17,7 +17,7 @@ import {
 import { logError } from "../logger";
 import { tMain } from "./localization";
 import { runWholePagePipeline } from "../wholePagePipeline";
-import { throwIfAborted } from "../pipeline/failure";
+import { readJobFailureGuidance, throwIfAborted } from "../pipeline/failure";
 import { isAbortError } from "./jobEvents";
 import type { JobResourceCleanup } from "./jobLifetimeCleanup";
 import type { TranslationJobContext } from "./translationJobTypes";
@@ -254,6 +254,7 @@ async function completeRegionTranslation({
   appendBlocks: typeof appendAnalyzedPageBlocks;
 }): Promise<RegionAnalysisResult> {
   const analyzedCrop = result.pages[0];
+  assertCompletedRegionPipelineResult(analyzedCrop, result.failureGuidance);
   const mappedBlocks = analyzedCrop
     ? mapRegionBlocksToPageBlocks(analyzedCrop.blocks, page, cropRect)
     : [];
@@ -274,6 +275,20 @@ async function completeRegionTranslation({
     pageId: request.pageId,
     blockIds: mappedBlocks.map((block) => block.id),
   };
+}
+
+function assertCompletedRegionPipelineResult(
+  page: MangaPage | undefined,
+  failureGuidance?: JobFailureGuidance,
+): asserts page is MangaPage {
+  if (page?.analysisStatus === "completed") {
+    return;
+  }
+  const error = new Error(page?.lastError?.trim() || tMain("region.failed"));
+  if (failureGuidance) {
+    Object.assign(error, { failureGuidance });
+  }
+  throw error;
 }
 
 function emitRegionCompleted(
@@ -339,10 +354,17 @@ async function handleRegionFailure(
     lastEvent,
     error,
   });
-  emitFailedRegionJob(id, emit, lastEvent, message);
+  emitFailedRegionJob(
+    id,
+    emit,
+    lastEvent,
+    message,
+    readJobFailureGuidance(error),
+  );
   return {
     status: "failed",
     error: message,
+    failureGuidance: readJobFailureGuidance(error),
     chapter: await openChapter(request.chapterId).catch(
       () => state.chapter ?? undefined,
     ),
@@ -355,6 +377,7 @@ function emitFailedRegionJob(
   emit: EmitJobEvent,
   lastEvent: JobEvent | undefined,
   message: string,
+  failureGuidance?: JobFailureGuidance,
 ): void {
   emit({
     id,
@@ -369,6 +392,7 @@ function emitFailedRegionJob(
     attempt: lastEvent?.attempt,
     attemptTotal: lastEvent?.attemptTotal,
     detail: message,
+    failureGuidance,
   });
 }
 

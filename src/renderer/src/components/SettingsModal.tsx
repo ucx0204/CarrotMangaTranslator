@@ -12,6 +12,7 @@ type SettingsModalProps = {
   busy: boolean;
   jobActive: boolean;
   onCancel: () => void;
+  onOpenErrorReport: () => void;
   onOpenLogFolder: () => void;
   onReset: () => Promise<AppSettings | null>;
   onSubmit: (settings: AppSettings) => void;
@@ -23,6 +24,7 @@ export function SettingsModal({
   busy,
   jobActive,
   onCancel,
+  onOpenErrorReport,
   onOpenLogFolder,
   onReset,
   onSubmit,
@@ -41,6 +43,7 @@ export function SettingsModal({
     initialSettings,
     busy,
     jobActive,
+    onOpenErrorReport,
     onOpenLogFolder,
     onReset,
     onSubmit,

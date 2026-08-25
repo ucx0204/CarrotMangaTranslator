@@ -14,6 +14,7 @@
  *   [key:string]:unknown;
  * }} SemanticRequestOptions
  * @typedef {{role:string;dataUrl?:string;[key:string]:unknown}} ImageVariant
+ * @typedef {Record<string, unknown>} RequestSummary
  */
 
 const { describeImageVariant } = require("../simple-page-request-builders.cjs");
@@ -28,6 +29,38 @@ const SEMANTIC_TRANSLATION_TOKENS_PER_UNIT = 1024;
 const SEMANTIC_PAGE_CONTEXT_TOKENS = 8192;
 const SEMANTIC_TRANSLATION_MAX_RETRY_SCALE = 4;
 const SEMANTIC_TRANSLATION_INPUT_RESERVE_TOKENS = 6400;
+const WORK_CONTEXT_TRUNCATION_MESSAGE =
+  "모델 응답이 작품 컨텍스트 예산 한도에서 잘렸습니다. 설정 > 번역 엔진 > 작품 컨텍스트 예산을 늘려 주세요.";
+const CONTEXT_LENGTH_TRUNCATION_MESSAGE =
+  "모델 응답이 컨텍스트 길이 한도에서 잘렸습니다. 설정 > 번역 엔진 > 컨텍스트 길이를 늘려 주세요. VRAM 사용량이 늘 수 있습니다.";
+const STRUCTURED_BUDGET_TRUNCATION_MESSAGE =
+  "모델 응답이 앱 내부 구조화 출력 한도에서 잘렸습니다. 사용자 설정 부족으로 단정할 수 없어 진단 가능한 일반 오류로 처리합니다.";
+const MAX_OUTPUT_TRUNCATION_MESSAGE =
+  "모델 응답이 최대 출력 토큰 한도에서 잘렸습니다. 설정 > 번역 엔진 > 최대 출력 토큰을 늘려 주세요.";
+
+/** @type {Record<string, [string, string?]>} */
+const OUTPUT_TRUNCATION_DETAILS = {
+  "work-context-budget": [
+    WORK_CONTEXT_TRUNCATION_MESSAGE,
+    "increase-work-context-budget",
+  ],
+  "context-length": [
+    CONTEXT_LENGTH_TRUNCATION_MESSAGE,
+    "increase-context-length",
+  ],
+  "structured-request-budget": [STRUCTURED_BUDGET_TRUNCATION_MESSAGE],
+  default: [MAX_OUTPUT_TRUNCATION_MESSAGE, "increase-max-output-tokens"],
+};
+
+/** @param {RequestSummary} requestSummary */
+function resolveOutputTruncationDetail(requestSummary) {
+  const details =
+    OUTPUT_TRUNCATION_DETAILS[
+      String(requestSummary.responseTokenLimitSource)
+    ] ?? OUTPUT_TRUNCATION_DETAILS.default;
+  const [message, failureGuidance] = details;
+  return failureGuidance ? { message, failureGuidance } : { message };
+}
 
 /**
  * @param {SemanticRequestOptions} options
@@ -68,11 +101,8 @@ function buildSemanticStageRequestBody(
   stage,
   unitCount,
 ) {
-  const body = buildChatRequestBody(
-    options,
-    messages,
-    resolveStructuredMaxTokens(options, stage, unitCount),
-  );
+  const tokenBudget = resolveStructuredTokenBudget(options, stage, unitCount);
+  const body = buildChatRequestBody(options, messages, tokenBudget.maxTokens);
   return Object.assign(body, {
     response_format: responseFormat,
     chat_template_kwargs: { enable_thinking: false },
@@ -98,12 +128,19 @@ function buildSemanticStageRequestBody(
  * @param {"grouping"|"translation"} stage
  * @param {number} unitCount
  */
-function resolveStructuredMaxTokens(options, stage, unitCount) {
+function resolveStructuredTokenBudget(options, stage, unitCount) {
   const configured = Math.max(256, Number(options.maxTokens) || 4096);
   if (stage === "grouping") {
     const requested =
       192 + Math.max(0, unitCount) * SEMANTIC_GROUPING_TOKENS_PER_UNIT;
-    return Math.min(configured, Math.max(256, requested));
+    const requestedCap = Math.max(256, requested);
+    return {
+      maxTokens: Math.min(configured, requestedCap),
+      source:
+        configured <= requestedCap
+          ? "max-output-tokens"
+          : "structured-request-budget",
+    };
   }
 
   const attempt = Math.max(
@@ -133,7 +170,40 @@ function resolveStructuredMaxTokens(options, stage, unitCount) {
   const safeCap = Number.isFinite(outputHeadroom)
     ? Math.max(256, Math.trunc(outputHeadroom))
     : configured;
-  return Math.min(configured, safeCap, Math.max(768, requested));
+  const requestedCap = Math.max(768, requested);
+  const maxTokens = Math.min(configured, safeCap, requestedCap);
+  return {
+    maxTokens,
+    source: resolveTranslationTokenLimitSource(
+      options,
+      configured,
+      safeCap,
+      requestedCap,
+    ),
+  };
+}
+
+/**
+ * @param {SemanticRequestOptions} options
+ * @param {number} configured
+ * @param {number} safeCap
+ * @param {number} requestedCap
+ */
+function resolveTranslationTokenLimitSource(
+  options,
+  configured,
+  safeCap,
+  requestedCap,
+) {
+  if (configured <= safeCap && configured <= requestedCap) {
+    return "max-output-tokens";
+  }
+  if (safeCap < configured && safeCap <= requestedCap) {
+    return options.modelProvider === "gemma"
+      ? "context-length"
+      : "work-context-budget";
+  }
+  return "structured-request-budget";
 }
 
 module.exports = {
@@ -142,4 +212,6 @@ module.exports = {
   SEMANTIC_SEED,
   buildSemanticImageMessages,
   buildSemanticStageRequestBody,
+  resolveOutputTruncationDetail,
+  resolveStructuredTokenBudget,
 };

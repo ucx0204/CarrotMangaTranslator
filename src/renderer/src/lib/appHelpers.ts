@@ -1,6 +1,7 @@
 import { clampBbox } from "../../../shared/geometry";
 import type { BBox } from "../../../shared/textTypes";
-import type { JobEvent } from "../../../shared/jobTypes";
+import type { JobEvent, JobState } from "../../../shared/jobTypes";
+import type { TFunction } from "i18next";
 
 export type RegionSelectionState = {
   active: boolean;
@@ -74,6 +75,134 @@ export function isEditableTarget(target: EventTarget | null): boolean {
       "input, textarea, select, [contenteditable=''], [contenteditable='true'], [contenteditable='plaintext-only']",
     ),
   );
+}
+
+export function formatTotalElapsedLine(
+  label: string,
+  elapsedMs: number,
+  t?: TFunction<"renderer">,
+): string {
+  return formatElapsedLine(label, elapsedMs, "total", t);
+}
+
+export function formatElapsedDuration(
+  elapsedMs: number | undefined,
+  t?: TFunction<"renderer">,
+): string | null {
+  if (!Number.isFinite(elapsedMs) || (elapsedMs ?? -1) < 0) {
+    return null;
+  }
+  if ((elapsedMs ?? 0) < 1000) {
+    return translate(t, "job.elapsed.lessThanSecond", "1초 미만");
+  }
+
+  const totalSeconds = Math.max(1, Math.round((elapsedMs ?? 0) / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) {
+    return t
+      ? t("job.elapsed.hoursMinutesSeconds", { hours, minutes, seconds })
+      : `${hours}시간 ${minutes}분 ${seconds}초`;
+  }
+  if (minutes > 0) {
+    return t
+      ? t("job.elapsed.minutesSeconds", { minutes, seconds })
+      : `${minutes}분 ${seconds}초`;
+  }
+  return t ? t("job.elapsed.seconds", { seconds }) : `${seconds}초`;
+}
+
+export function formatElapsedLine(
+  label: string,
+  elapsedMs: number | undefined,
+  scope: "page" | "total",
+  t?: TFunction<"renderer">,
+): string {
+  const duration = formatElapsedDuration(elapsedMs, t);
+  if (!duration) {
+    return label;
+  }
+  if (t) {
+    return t(`job.elapsed.${scope}`, { label, duration });
+  }
+  return scope === "page"
+    ? `${label} · 소요 ${duration}`
+    : `${label} · 전체 ${duration}`;
+}
+
+export function formatJobFailureGuidance(
+  job: Pick<JobState, "failureGuidance">,
+  t?: TFunction<"renderer">,
+): string | null {
+  switch (job.failureGuidance) {
+    case "increase-max-output-tokens":
+      return translate(
+        t,
+        "job.failureGuidance.maxOutputTokens",
+        "최대 출력 토큰이 부족합니다. 설정 > 번역 엔진 > 최대 출력 토큰을 늘려 주세요.",
+      );
+    case "increase-work-context-budget":
+      return translate(
+        t,
+        "job.failureGuidance.workContextBudget",
+        "작품 컨텍스트 예산이 부족합니다. 설정 > 번역 엔진 > 작품 컨텍스트 예산을 늘려 주세요.",
+      );
+    case "increase-context-length":
+      return translate(
+        t,
+        "job.failureGuidance.contextLength",
+        "컨텍스트 길이가 부족합니다. 설정 > 번역 엔진 > 컨텍스트 길이를 늘려 주세요. VRAM 사용량이 늘 수 있습니다.",
+      );
+    default:
+      return null;
+  }
+}
+
+export function fallbackJobLabelFromStatus(
+  status: JobState["status"],
+  t?: TFunction<"renderer">,
+): string {
+  switch (status) {
+    case "starting":
+      return translate(t, "job.status.starting", "모델 준비 중");
+    case "running":
+      return translate(t, "job.status.running", "작업 진행 중");
+    case "cancelling":
+      return translate(t, "job.status.cancelling", "작업 취소 중");
+    case "cancelled":
+      return translate(t, "job.status.cancelled", "작업이 취소됨");
+    case "failed":
+      return translate(t, "job.status.failed", "작업 실패");
+    case "partial":
+      return translate(t, "job.status.partial", "작업 부분 완료");
+    case "completed":
+      return translate(t, "job.status.completed", "번역 완료");
+    default:
+      return translate(t, "job.status.idle", "대기 중");
+  }
+}
+
+export function resolveInstallLogLines(
+  current: JobState,
+  event: JobEvent,
+  sameJob: boolean,
+): string[] | undefined {
+  if (event.installLogLine) {
+    return [
+      ...(sameJob ? (current.installLogLines ?? []) : []),
+      event.installLogLine,
+    ].slice(-80);
+  }
+  return sameJob ? current.installLogLines : undefined;
+}
+
+export function translate(
+  t: TFunction<"renderer"> | undefined,
+  key: string,
+  fallback: string,
+): string {
+  return t ? t(key) : fallback;
 }
 
 export function resolveStatusLineReplacement(

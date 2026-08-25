@@ -5,6 +5,7 @@ import type { ChapterSnapshot } from "../../../shared/libraryTypes";
 import type { JobEvent, JobState } from "../../../shared/jobTypes";
 import { isTerminalJobStatus } from "../../../shared/jobContracts";
 import {
+  resolveInstallLogLines,
   resolveStatusLineReplacement,
   statusLineReplacementGroup,
 } from "../lib/appHelpers";
@@ -349,6 +350,8 @@ function buildNextJobState({
       current.attemptTotal,
       event.attemptTotal,
     ),
+    failureGuidance:
+      event.failureGuidance ?? (sameJob ? current.failureGuidance : undefined),
     targets: event.targets ?? (sameJob ? current.targets : undefined),
   };
 }
@@ -363,20 +366,6 @@ function keepOrFallback<T>(
   eventValue: T | undefined,
 ): T | undefined {
   return preserve ? current : (eventValue ?? current);
-}
-
-function resolveInstallLogLines(
-  current: JobState,
-  event: JobEvent,
-  sameJob: boolean,
-): string[] | undefined {
-  if (event.installLogLine) {
-    return [
-      ...(sameJob ? (current.installLogLines ?? []) : []),
-      event.installLogLine,
-    ].slice(-80);
-  }
-  return sameJob ? current.installLogLines : undefined;
 }
 
 function appendJobStatusLine(

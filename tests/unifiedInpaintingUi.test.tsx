@@ -960,7 +960,7 @@ function makeRightRailProps(
     onClearStatusLines: vi.fn(),
     onClearPatternMask: vi.fn(),
     onOpenExport: vi.fn(),
-    onOpenLogFolder: vi.fn(),
+    onOpenErrorReport: vi.fn(),
     onReviewResults: vi.fn(),
     onRetryPage: vi.fn(),
     onOpenStyleGuide: vi.fn(),

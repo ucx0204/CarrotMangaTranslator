@@ -3,6 +3,7 @@ import { resolveReadingDirection } from "../../../../shared/blockReadingOrder";
 import type { AutoInpaintingEntryScope } from "../../lib/autoInpaintingSelection";
 import type { AppSessionViewProps } from "./AppSessionView";
 import type { AppSessionViewModel } from "./appSessionViewModel";
+import { openManualErrorReport } from "../../lib/errorReportStore";
 
 type RightRailProps = AppSessionViewProps["rightRailProps"];
 type RightRailViewModel = {
@@ -16,10 +17,7 @@ type RightRailViewModel = {
         "moveSelectedBlockInReadingOrder" | "sortPageReadingOrder"
       >
     >;
-  bridgeActions: Pick<
-    AppSessionViewModel["bridgeActions"],
-    "cancelJob" | "openLogFolder"
-  >;
+  bridgeActions: Pick<AppSessionViewModel["bridgeActions"], "cancelJob">;
   core: Pick<
     AppSessionViewModel["core"],
     | "currentChapter"
@@ -152,7 +150,7 @@ export function createRightRailProps(
     undoLabel: workspaceHistory.undoLabel,
     onCancelJob: bridgeActions.cancelJob,
     onClearStatusLines: statusLog.clearStatusLines,
-    onOpenLogFolder: bridgeActions.openLogFolder,
+    onOpenErrorReport: openManualErrorReport,
     onViewLinkedResults: () => void model.linkedWorkspace?.viewResults(),
   };
 }

@@ -90,6 +90,7 @@ describe("translation job lifecycle", () => {
       {
         pages: requestedChapter.pages,
         warnings: ["page 2 failed"],
+        failureGuidance: "increase-work-context-budget",
       } as Parameters<typeof completeAnalysisJob>[4],
       vi.fn().mockResolvedValue(persistedChapter),
     );
@@ -98,12 +99,14 @@ describe("translation job lifecycle", () => {
       status: "failed",
       chapter: persistedChapter,
       warnings: ["page 2 failed"],
+      failureGuidance: "increase-work-context-budget",
     });
     expect(emit).toHaveBeenCalledOnce();
     expect(emit).toHaveBeenCalledWith(
       expect.objectContaining({
         status: "failed",
         phase: "failed",
+        failureGuidance: "increase-work-context-budget",
       }),
     );
   });

@@ -80,14 +80,29 @@ describe("settings draft safety", () => {
       }),
     );
   });
+
+  it("keeps log access and offers the shareable error report", () => {
+    const onOpenLogFolder = vi.fn();
+    const onOpenErrorReport = vi.fn();
+    renderSettings({ onOpenErrorReport, onOpenLogFolder });
+
+    fireEvent.click(screen.getByRole("button", { name: "로그 폴더 열기" }));
+    expect(onOpenLogFolder).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole("button", { name: "오류 보고" }));
+    expect(onOpenErrorReport).toHaveBeenCalledOnce();
+  });
 });
 
 function renderSettings({
   onCancel = vi.fn(),
+  onOpenErrorReport = vi.fn(),
+  onOpenLogFolder = vi.fn(),
   onReset = vi.fn(() => Promise.resolve(initialSettings)),
   onSubmit = vi.fn(),
 }: {
   onCancel?: () => void;
+  onOpenErrorReport?: () => void;
+  onOpenLogFolder?: () => void;
   onReset?: () => Promise<AppSettings | null>;
   onSubmit?: (settings: AppSettings) => void;
 } = {}): void {
@@ -97,7 +112,8 @@ function renderSettings({
       busy={false}
       jobActive={false}
       onCancel={onCancel}
-      onOpenLogFolder={() => undefined}
+      onOpenErrorReport={onOpenErrorReport}
+      onOpenLogFolder={onOpenLogFolder}
       onReset={onReset}
       onSubmit={onSubmit}
     />,

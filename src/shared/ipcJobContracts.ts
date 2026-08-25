@@ -62,6 +62,13 @@ const startAnalysisResultSchema = z
     chapter: ChapterSnapshotSchema.optional(),
     warnings: z.array(diagnosticString).max(MAX_WARNINGS).optional(),
     error: diagnosticString.optional(),
+    failureGuidance: z
+      .enum([
+        "increase-max-output-tokens",
+        "increase-work-context-budget",
+        "increase-context-length",
+      ])
+      .optional(),
   })
   .strict();
 const regionAnalysisResultSchema = startAnalysisResultSchema

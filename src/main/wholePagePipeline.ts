@@ -1,5 +1,6 @@
 /* eslint-disable max-lines -- pipeline cancellation boundaries and endpoint ownership stay co-located for auditability */
 import type { MangaPage } from "../shared/libraryTypes";
+import type { JobFailureGuidance } from "../shared/jobTypes";
 import { isJapaneseLanguageCode } from "../shared/translationLanguages";
 import { tMain } from "./i18n";
 import {
@@ -31,10 +32,16 @@ import {
 import { configureWholePageOutputOptions } from "./pipeline/wholePageOutputOptions";
 import { createAutomaticFontChapterCoordinatorV2 } from "./pipeline/automaticFontMatchingV2PageCoordinator";
 
+export type WholePagePipelineResult = {
+  pages: MangaPage[];
+  warnings: string[];
+  failureGuidance?: JobFailureGuidance;
+};
+
 export async function runWholePagePipeline(
   options: PipelineOptions,
   injectedDependencies?: WholePagePipelineDependencies,
-): Promise<{ pages: MangaPage[]; warnings: string[] }> {
+): Promise<WholePagePipelineResult> {
   if (options.pages.length === 0) return { pages: [], warnings: [] };
   const ownsDependencies = injectedDependencies === undefined;
   const dependencies = injectedDependencies ?? createDependencies();
@@ -56,7 +63,7 @@ async function runWholePagePipelineWithDependencies(
   options: PipelineOptions,
   dependencies: WholePagePipelineDependencies,
   injectedDependencies: boolean,
-): Promise<{ pages: MangaPage[]; warnings: string[] }> {
+): Promise<WholePagePipelineResult> {
   const {
     onCleanupReady,
     onPageComplete,
@@ -222,7 +229,7 @@ async function completeWholePageRun({
   skipOcrPrepass: boolean;
   warningCollector: ReturnType<typeof createWarningCollector>;
   dependencies: WholePagePipelineDependencies;
-}): Promise<{ pages: MangaPage[]; warnings: string[] }> {
+}): Promise<WholePagePipelineResult> {
   throwIfAborted(signal);
   if (filtered.pagesToTranslate.length === 0) {
     emitPagesReadyWithoutModel(run.progressContext, pages.length);
@@ -282,9 +289,14 @@ function buildPipelineResult(
   pages: MangaPage[],
   filtered: ReturnType<typeof filterPagesByOcrText>,
   warningCollector: ReturnType<typeof createWarningCollector>,
-): { pages: MangaPage[]; warnings: string[] } {
+): WholePagePipelineResult {
   const completedPages = buildPipelinePages(pages, filtered.completedPagesById);
-  return { pages: completedPages, warnings: warningCollector.warnings };
+  const failureGuidance = warningCollector.resolveTerminalFailureGuidance();
+  return {
+    pages: completedPages,
+    warnings: warningCollector.warnings,
+    ...(failureGuidance ? { failureGuidance } : {}),
+  };
 }
 
 async function prepareWholePageRun(

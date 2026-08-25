@@ -23,6 +23,9 @@ const {
   createDetailedError,
   truncateText,
 } = require("./model-runtime-services.cjs");
+const {
+  resolveOutputTruncationDetail,
+} = require("./semantic-ocr-request-builders.cjs");
 
 /**
  * @param {TranslationRequestOptions} options
@@ -477,13 +480,19 @@ function createEmptyOutputError(parsed, rawText, requestSummary, options) {
       failureCategory: "empty-model-response",
     });
   }
-  return createDetailedError(failure.message, {
+  const truncation = failure.outputTruncated
+    ? resolveOutputTruncationDetail(requestSummary)
+    : null;
+  return createDetailedError(truncation?.message ?? failure.message, {
     requestSummary,
     rawTextPreview: truncateSensitiveText(rawText, options, 4000),
     rawResponse: redactSensitivePayload(parsed, options),
     failureCategory: failure.failureCategory,
     ...(failure.nonRetriable ? { nonRetriable: true } : {}),
     ...(failure.outputTruncated ? { outputTruncated: true } : {}),
+    ...(truncation?.failureGuidance
+      ? { failureGuidance: truncation.failureGuidance }
+      : {}),
   });
 }
 

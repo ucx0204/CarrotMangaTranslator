@@ -10,7 +10,7 @@ import { MAX_ID_LIST_LENGTH } from "../../shared/ipcSchemaPrimitives";
 import { resolvePagesForRun } from "../library";
 import { throwIfAborted } from "../pipeline/failure";
 import { tMain } from "./localization";
-import { emitJobEvent } from "./jobEvents";
+import { createAnalysisJobEventTimer, emitJobEvent } from "./jobEvents";
 import { createJobLifetimeCleanupBoundary } from "./jobLifetimeCleanup";
 import {
   type AnalysisJobState,
@@ -67,6 +67,7 @@ export async function startAnalysisJob(
     targetSnapshots: [],
   };
   const lifetime = createJobLifetimeCleanupBoundary();
+  const addEventTiming = createAnalysisJobEventTimer();
   context.jobs.start({
     id,
     kind: "gemma-analysis",
@@ -74,12 +75,16 @@ export async function startAnalysisJob(
     cleanup: lifetime.cleanup,
   });
   const emit = (event: JobEvent) =>
-    emitJobEvent(context.jobs, context.getMainWindow(), {
-      ...event,
-      ...(state.targetSnapshots && state.targetSnapshots.length > 0
-        ? { targets: state.targetSnapshots }
-        : {}),
-    });
+    emitJobEvent(
+      context.jobs,
+      context.getMainWindow(),
+      addEventTiming({
+        ...event,
+        ...(state.targetSnapshots && state.targetSnapshots.length > 0
+          ? { targets: state.targetSnapshots }
+          : {}),
+      }),
+    );
 
   try {
     const requestedPageId =
@@ -204,6 +209,7 @@ export async function translateRegionJob(
   const abortController = new AbortController();
   const state: RegionJobState = { chapter: null, runPaths: null };
   const lifetime = createJobLifetimeCleanupBoundary();
+  const addEventTiming = createAnalysisJobEventTimer();
   context.jobs.start({
     id,
     kind: "gemma-analysis",
@@ -211,7 +217,7 @@ export async function translateRegionJob(
     cleanup: lifetime.cleanup,
   });
   const emit = (event: JobEvent) =>
-    emitJobEvent(context.jobs, context.getMainWindow(), event);
+    emitJobEvent(context.jobs, context.getMainWindow(), addEventTiming(event));
 
   try {
     return await runtime.runRegionTranslationJob({

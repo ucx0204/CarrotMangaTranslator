@@ -5,10 +5,15 @@ import type {
   InpaintingPostprocessOptions,
 } from "../../../shared/inpaintingTypes";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
+import type { JobFailureGuidance } from "../../../shared/jobTypes";
 import type { NotificationPort } from "../lib/notificationPort";
+import { formatJobFailureGuidance } from "../lib/appHelpers";
 import type { ChapterRunSelection } from "../lib/translationSelection";
 import { runInpaintingSelectionsSequentially } from "./inpaintingSelectionFlow";
-import type { RunAnalysisOutcome } from "./translationFlowHelpers";
+import {
+  setFlowTerminal,
+  type RunAnalysisOutcome,
+} from "./translationFlowHelpers";
 import type {
   TranslationFlowOptions,
   UseTranslationActionsOptions,
@@ -39,6 +44,7 @@ type TranslationFlowActionContext = Pick<
   | "setJobState"
 > & {
   flowActiveRef: MutableRefObject<boolean>;
+  failureGuidanceRef: MutableRefObject<JobFailureGuidance | undefined>;
   notificationPort: NotificationPort;
   runPasses: (selection: ChapterRunSelection) => Promise<RunAnalysisOutcome>;
   t: TFunction<"renderer">;
@@ -114,6 +120,7 @@ export async function runTranslationFlowAction(
     context.naturalTextLayoutDefault,
   );
   context.flowActiveRef.current = true;
+  context.failureGuidanceRef.current = undefined;
   if (context.flowCancellationRef) {
     context.flowCancellationRef.current = false;
   }
@@ -137,6 +144,7 @@ export async function runTranslationFlowAction(
 async function executeTranslationFlow(
   execution: FlowExecution,
 ): Promise<RunAnalysisOutcome> {
+  const startedAt = performance.now();
   const { completion, context, options } = execution;
   const aggregate: FlowAggregate = {
     anyAttempted: false,
@@ -163,7 +171,12 @@ async function executeTranslationFlow(
   if (isFlowCancellationRequested(context)) {
     return finishCancelledFlow(context, completion.eraseOriginal);
   }
-  return finishTranslationFlow(aggregate, completion, context);
+  return finishTranslationFlow(
+    aggregate,
+    completion,
+    context,
+    Math.max(0, performance.now() - startedAt),
+  );
 }
 
 async function runTranslationChapter(
@@ -321,12 +334,26 @@ function finishTranslationFlow(
   aggregate: FlowAggregate,
   completion: { eraseOriginal: boolean; bubbleLayout: boolean },
   context: TranslationFlowActionContext,
+  elapsedMs: number,
 ): RunAnalysisOutcome {
   if (!aggregate.anyAttempted) return "no-op";
   if (aggregate.anyFailed) {
     const fallback = context.t(resolveFlowMessageKey(completion, "failed"));
-    const message = aggregate.firstError?.trim() || fallback;
-    setFlowTerminal(context, "failed", fallback, message);
+    const failureGuidance = context.failureGuidanceRef.current;
+    const guidanceMessage = formatJobFailureGuidance(
+      { failureGuidance },
+      context.t,
+    );
+    const message =
+      guidanceMessage ?? (aggregate.firstError?.trim() || fallback);
+    setFlowTerminal(
+      context,
+      "failed",
+      guidanceMessage ?? fallback,
+      message,
+      undefined,
+      failureGuidance,
+    );
     context.notificationPort.error(message);
     return "failed";
   }
@@ -338,7 +365,7 @@ function finishTranslationFlow(
   }
 
   const message = context.t(resolveFlowMessageKey(completion, "completed"));
-  setFlowTerminal(context, "completed", message);
+  setFlowTerminal(context, "completed", message, undefined, elapsedMs);
   if (completion.eraseOriginal) {
     context.setShowBlockChrome(false);
   }
@@ -358,28 +385,6 @@ function finishCancelledFlow(
     phase: "cancelled",
   });
   return "cancelled";
-}
-
-function setFlowTerminal(
-  context: TranslationFlowActionContext,
-  status: "completed" | "partial" | "failed",
-  progressText: string,
-  detail?: string,
-): void {
-  context.setJobState({
-    id: `translation-flow-${status}`,
-    kind: status === "partial" ? "inpainting" : "gemma-analysis",
-    status,
-    progressText,
-    phase:
-      status === "completed"
-        ? "done"
-        : status === "partial"
-          ? "partial"
-          : "failed",
-    ...(detail ? { detail } : {}),
-  });
-  if (detail) context.pushStatus(detail);
 }
 
 function reportChapterProgress(

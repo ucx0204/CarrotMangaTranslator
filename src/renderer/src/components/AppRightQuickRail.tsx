@@ -26,7 +26,7 @@ export type AppRightQuickRailProps = Pick<
   | "jobState"
   | "onCancelJob"
   | "onOpenExport"
-  | "onOpenLogFolder"
+  | "onOpenErrorReport"
   | "onOpenStyleGuide"
   | "onOpenTextView"
   | "onClearStatusLines"
@@ -208,7 +208,7 @@ function BottomQuickRailControls(
           onCancelJob={props.onCancelJob}
           onClear={props.onClearStatusLines}
           onOpenExport={props.onOpenExport}
-          onOpenLogFolder={props.onOpenLogFolder}
+          onOpenErrorReport={props.onOpenErrorReport}
           onReviewResults={props.onReviewResults}
           onRetryPage={props.onRetryPage}
         />

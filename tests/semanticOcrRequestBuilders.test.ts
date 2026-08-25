@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-const { buildSemanticStageRequestBody } =
+const { buildSemanticStageRequestBody, resolveStructuredTokenBudget } =
   require("../src/main/runtime/transport/semantic-ocr-request-builders.cjs") as {
     buildSemanticStageRequestBody: (
       options: Record<string, unknown>,
@@ -9,6 +9,11 @@ const { buildSemanticStageRequestBody } =
       stage: "grouping" | "translation",
       unitCount: number,
     ) => Record<string, unknown>;
+    resolveStructuredTokenBudget: (
+      options: Record<string, unknown>,
+      stage: "grouping" | "translation",
+      unitCount: number,
+    ) => { maxTokens: number; source: string };
   };
 
 function maxTokens(
@@ -98,5 +103,50 @@ describe("semantic OCR structured output budgets", () => {
         3,
       ),
     ).toBe(9_984);
+  });
+
+  it("distinguishes configured output, work-context, and local context caps", () => {
+    expect(
+      resolveStructuredTokenBudget(
+        { maxTokens: 4096, ctx: 32_768, modelProvider: "openai-api" },
+        "translation",
+        5,
+      ).source,
+    ).toBe("max-output-tokens");
+    expect(
+      resolveStructuredTokenBudget(
+        {
+          maxTokens: 32_768,
+          modelProvider: "openai-api",
+          translationAttempt: 2,
+          workContextBudget: {
+            effective: { outputHeadroomTokens: 12_000 },
+          },
+        },
+        "translation",
+        5,
+      ).source,
+    ).toBe("work-context-budget");
+    expect(
+      resolveStructuredTokenBudget(
+        {
+          maxTokens: 32_768,
+          modelProvider: "gemma",
+          translationAttempt: 2,
+          workContextBudget: {
+            effective: { outputHeadroomTokens: 12_000 },
+          },
+        },
+        "translation",
+        5,
+      ).source,
+    ).toBe("context-length");
+    expect(
+      resolveStructuredTokenBudget(
+        { maxTokens: 32_768, ctx: 65_536, modelProvider: "openai-api" },
+        "translation",
+        1,
+      ).source,
+    ).toBe("structured-request-budget");
   });
 });

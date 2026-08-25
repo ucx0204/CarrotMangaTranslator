@@ -1,5 +1,9 @@
 import { MAX_WARNINGS } from "../../shared/ipcContractCore";
+import type { JobFailureGuidance } from "../../shared/jobTypes";
 import { tMain } from "./localization";
+import { readJobFailureGuidance } from "./failure";
+
+type TerminalFailureKind = JobFailureGuidance | "other";
 
 export type WarningCollector = {
   readonly warnings: string[];
@@ -15,10 +19,13 @@ export type WarningCollector = {
     maxAttempts: number;
     message: string;
   }) => void;
+  recordTerminalFailure: (error: unknown) => void;
+  resolveTerminalFailureGuidance: () => JobFailureGuidance | undefined;
 };
 
 export function createWarningCollector(): WarningCollector {
   const warnings: string[] = [];
+  const terminalFailureKinds = new Set<TerminalFailureKind>();
   const add = createBoundedWarningAppender(warnings);
   return {
     warnings,
@@ -41,6 +48,14 @@ export function createWarningCollector(): WarningCollector {
           message,
         }),
       );
+    },
+    recordTerminalFailure(error) {
+      terminalFailureKinds.add(readJobFailureGuidance(error) ?? "other");
+    },
+    resolveTerminalFailureGuidance() {
+      if (terminalFailureKinds.size !== 1) return undefined;
+      const [kind] = terminalFailureKinds;
+      return kind === "other" ? undefined : kind;
     },
   };
 }

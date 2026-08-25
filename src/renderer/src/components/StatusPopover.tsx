@@ -1,10 +1,5 @@
 import React from "react";
-import {
-  IconFolderOpen,
-  IconRefresh,
-  IconTrash,
-  IconX,
-} from "@tabler/icons-react";
+import { IconBug, IconRefresh, IconTrash, IconX } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { JobState } from "../../../shared/jobTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
@@ -12,6 +7,9 @@ import { RunJobFeedback } from "./RunStatusFeedback";
 import { JobCancelButton } from "./RunStatusPanels";
 import { IconButton } from "./ui/IconButton";
 import { Button } from "./ui/Button";
+
+const STATUS_LOG_BATCH_SIZE = 16;
+const STATUS_LOG_BOTTOM_THRESHOLD_PX = 8;
 
 export type StatusFailedPage = {
   id: string;
@@ -34,7 +32,7 @@ export function StatusPopover({
   onClear,
   onClose,
   onOpenExport,
-  onOpenLogFolder,
+  onOpenErrorReport,
   onRetryPage,
   onReviewResults,
   failedPages = [],
@@ -49,7 +47,7 @@ export function StatusPopover({
   onClear: () => void;
   onClose: () => void;
   onOpenExport?: () => void;
-  onOpenLogFolder?: () => void;
+  onOpenErrorReport?: () => void;
   onRetryPage?: (pageId: string) => void;
   onReviewResults?: () => void;
   failedPages?: StatusFailedPage[];
@@ -73,7 +71,7 @@ export function StatusPopover({
         historyCount={jobHistory.length}
         onClear={onClear}
         onClose={onClose}
-        onOpenLogFolder={onOpenLogFolder}
+        onOpenErrorReport={onOpenErrorReport}
       />
       <div className={`job-pill ${jobState.status}`} role="status">
         {jobState.progressText}
@@ -104,14 +102,14 @@ function StatusPopoverHeader({
   historyCount,
   onClear,
   onClose,
-  onOpenLogFolder,
+  onOpenErrorReport,
 }: {
   titleId: string;
   statusCount: number;
   historyCount: number;
   onClear: () => void;
   onClose: () => void;
-  onOpenLogFolder?: () => void;
+  onOpenErrorReport?: () => void;
 }): React.JSX.Element {
   const { t } = useTranslation("components");
   return (
@@ -121,14 +119,14 @@ function StatusPopoverHeader({
         <span>{t("statusDock.recentCount", { count: statusCount })}</span>
       </div>
       <div className="status-popover-actions">
-        {onOpenLogFolder ? (
+        {onOpenErrorReport ? (
           <IconButton
             size="sm"
-            label={t("statusDock.openLogs")}
-            title={t("statusDock.openLogs")}
-            onClick={onOpenLogFolder}
+            label={t("statusDock.reportProblem")}
+            title={t("statusDock.reportProblem")}
+            onClick={onOpenErrorReport}
           >
-            <IconFolderOpen size={15} aria-hidden="true" />
+            <IconBug size={15} aria-hidden="true" />
           </IconButton>
         ) : null}
         <IconButton
@@ -231,7 +229,26 @@ function StatusJobHistory({
 
 function StatusPopoverLog({ lines }: { lines: string[] }): React.JSX.Element {
   const { t } = useTranslation("components");
-  const scrollable = lines.length > 5;
+  const [visibleCount, setVisibleCount] = React.useState(STATUS_LOG_BATCH_SIZE);
+  React.useEffect(() => {
+    if (lines.length === 0) {
+      setVisibleCount(STATUS_LOG_BATCH_SIZE);
+    }
+  }, [lines.length]);
+  const visibleLines = lines.slice(0, visibleCount);
+  const hasOlderLines = visibleCount < lines.length;
+  const scrollable = visibleLines.length > 5;
+  const loadOlderLinesAtBottom = (event: React.UIEvent<HTMLDivElement>) => {
+    const log = event.currentTarget;
+    const distanceFromBottom =
+      log.scrollHeight - log.scrollTop - log.clientHeight;
+    if (!hasOlderLines || distanceFromBottom > STATUS_LOG_BOTTOM_THRESHOLD_PX) {
+      return;
+    }
+    setVisibleCount((current) =>
+      Math.min(lines.length, current + STATUS_LOG_BATCH_SIZE),
+    );
+  };
   return (
     <section
       className="status-log-section"
@@ -245,9 +262,13 @@ function StatusPopoverLog({ lines }: { lines: string[] }): React.JSX.Element {
         role="log"
         aria-live="off"
         data-visible-limit="5"
+        data-loaded-count={visibleLines.length}
+        onScroll={loadOlderLinesAtBottom}
       >
-        {lines.length > 0 ? (
-          lines.map((line, index) => <p key={`${line}-${index}`}>{line}</p>)
+        {visibleLines.length > 0 ? (
+          visibleLines.map((line, index) => (
+            <p key={`${line}-${index}`}>{line}</p>
+          ))
         ) : (
           <p className="muted-line">{t("status.empty")}</p>
         )}

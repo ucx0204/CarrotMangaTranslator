@@ -140,9 +140,11 @@ const allowedElectronLocales = new Set([
 // download-contract leaf. KoharuLayout adds one short-path native ORT runtime,
 // and managed Python adds one shared pip-isolation leaf plus the explicit
 // main-process copy that consumes it before app-runtime is available. Glossary
-// omission adds one model-prompt runtime leaf. Keep the resulting payload
-// ceiling exact so unrelated growth fails closed.
-const MAX_PACKAGED_FILES = 293;
+// omission adds one model-prompt runtime leaf. Fixed-block recovery adds the
+// partial-response parser and bounded repair loop as two production runtime
+// leaves. Keep the resulting payload ceiling exact so unrelated growth fails
+// closed.
+const MAX_PACKAGED_FILES = 295;
 // The trained font matching runtime bundle (~467 MiB) is externalized out of
 // the installer and downloaded into the data-root cache on first use, so the
 // unpacked payload is ~745 MiB (Electron + app.asar + tools, no bundle) and the

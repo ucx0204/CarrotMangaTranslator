@@ -1,3 +1,4 @@
+import { performance } from "node:perf_hooks";
 import { ipcEventContracts } from "../../shared/ipcContracts";
 import { isTerminalJobStatus } from "../../shared/jobContracts";
 import type { JobEvent } from "../../shared/jobTypes";
@@ -13,6 +14,19 @@ type JobEventEmitterRuntime = {
   validateEvent: (event: JobEvent) => void;
   writeLog: typeof writeLog;
 };
+
+type PageTiming = {
+  firstSeenAt: number;
+  runningAt?: number;
+};
+
+const PAGE_ACTIVITY_PHASES = new Set([
+  "ocr_preparing",
+  "ocr_running",
+  "model_requesting",
+  "page_running",
+  "page_retry",
+]);
 
 const productionRuntime: JobEventEmitterRuntime = {
   validateEvent: (event) => {
@@ -63,6 +77,87 @@ export function createJobEventEmitter(
 
 export const emitJobEvent = createJobEventEmitter();
 
+export function createAnalysisJobEventTimer(
+  now: () => number = () => performance.now(),
+): (event: JobEvent) => JobEvent {
+  const jobStartedAt = now();
+  const pageTimings = new Map<number, PageTiming>();
+
+  return (event) => {
+    const eventAt = now();
+    const pageIndex = normalizePageIndex(event.pageIndex);
+    recordPageActivity(event, pageIndex, eventAt, pageTimings);
+
+    const pageElapsedMs = resolvePageElapsedMs(
+      event,
+      pageIndex,
+      eventAt,
+      pageTimings,
+    );
+    const jobElapsedMs =
+      event.status === "completed" && event.phase === "done"
+        ? elapsedSince(jobStartedAt, eventAt)
+        : undefined;
+
+    if (pageElapsedMs === undefined && jobElapsedMs === undefined) {
+      return event;
+    }
+    return {
+      ...event,
+      ...(pageElapsedMs === undefined ? {} : { pageElapsedMs }),
+      ...(jobElapsedMs === undefined ? {} : { jobElapsedMs }),
+    };
+  };
+}
+
+function recordPageActivity(
+  event: JobEvent,
+  pageIndex: number | undefined,
+  eventAt: number,
+  pageTimings: Map<number, PageTiming>,
+): void {
+  if (
+    pageIndex === undefined ||
+    !event.phase ||
+    !PAGE_ACTIVITY_PHASES.has(event.phase)
+  ) {
+    return;
+  }
+  const timing = pageTimings.get(pageIndex) ?? { firstSeenAt: eventAt };
+  if (event.phase === "page_running" && timing.runningAt === undefined) {
+    timing.runningAt = eventAt;
+  }
+  pageTimings.set(pageIndex, timing);
+}
+
+function resolvePageElapsedMs(
+  event: JobEvent,
+  pageIndex: number | undefined,
+  eventAt: number,
+  pageTimings: Map<number, PageTiming>,
+): number | undefined {
+  if (event.phase !== "page_done" || pageIndex === undefined) {
+    return undefined;
+  }
+  const timing = pageTimings.get(pageIndex);
+  pageTimings.delete(pageIndex);
+  if (!timing) {
+    return undefined;
+  }
+  return elapsedSince(timing.runningAt ?? timing.firstSeenAt, eventAt);
+}
+
+function normalizePageIndex(value: number | undefined): number | undefined {
+  if (value === undefined || !Number.isFinite(value) || value <= 0) {
+    return undefined;
+  }
+  return Math.floor(value);
+}
+
+function elapsedSince(startedAt: number, endedAt: number): number {
+  return Math.max(0, Math.round(endedAt - startedAt));
+}
+
 function dispatchJobEvent(
   mainWindow: JobEventWindow | null,
   event: JobEvent,
@@ -91,6 +186,8 @@ function dispatchJobEvent(
       pageTotal: event.pageTotal,
       attempt: event.attempt,
       attemptTotal: event.attemptTotal,
+      pageElapsedMs: event.pageElapsedMs,
+      jobElapsedMs: event.jobElapsedMs,
       detail: event.detail,
     },
   );

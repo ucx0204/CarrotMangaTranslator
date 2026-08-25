@@ -1303,6 +1303,7 @@
     },
     "footer": {
       "openLogs": "로그 폴더 열기",
+      "reportProblem": "오류 보고",
       "restoreDefaults": "기본값 복원",
       "cancel": "취소",
       "save": "저장"
@@ -1871,7 +1872,7 @@
     "cancelling": "취소 요청 중…",
     "completedTitle": "작업이 완료됐습니다",
     "completedPages": "{{count}}페이지 처리 완료",
-    "openLogs": "로그 폴더 열기",
+    "reportProblem": "오류 보고",
     "failedPages": "실패한 페이지",
     "retryPage": "다시 시도",
     "recentJobs": "최근 작업",

@@ -33,13 +33,59 @@ describe("chat completion terminal reasons", () => {
     const promise = readChatCompletionResult(
       chatResponse('{"items":[', "length"),
       {},
-      {},
+      { responseTokenLimitSource: "max-output-tokens" },
       Date.now(),
     );
 
     await expect(promise).rejects.toMatchObject({
+      message: expect.stringContaining("최대 출력 토큰"),
       failureCategory: "empty-model-response",
       outputTruncated: true,
+      failureGuidance: "increase-max-output-tokens",
+    });
+  });
+
+  it("maps a context-capped truncated response to context guidance", async () => {
+    await expect(
+      readChatCompletionResult(
+        chatResponse('{"items":[', "length"),
+        {},
+        { responseTokenLimitSource: "work-context-budget" },
+        Date.now(),
+      ),
+    ).rejects.toMatchObject({
+      message: expect.stringContaining("작품 컨텍스트 예산"),
+      outputTruncated: true,
+      failureGuidance: "increase-work-context-budget",
+    });
+  });
+
+  it("maps a local context-capped response to context-length guidance", async () => {
+    await expect(
+      readChatCompletionResult(
+        chatResponse('{"items":[', "length"),
+        {},
+        { responseTokenLimitSource: "context-length" },
+        Date.now(),
+      ),
+    ).rejects.toMatchObject({
+      message: expect.stringContaining("컨텍스트 길이"),
+      outputTruncated: true,
+      failureGuidance: "increase-context-length",
+    });
+  });
+
+  it("does not blame settings when the internal structured cap was limiting", async () => {
+    const promise = readChatCompletionResult(
+      chatResponse('{"items":[', "length"),
+      {},
+      { responseTokenLimitSource: "structured-request-budget" },
+      Date.now(),
+    );
+
+    await expect(promise).rejects.not.toHaveProperty("failureGuidance");
+    await expect(promise).rejects.toMatchObject({
+      message: expect.stringContaining("앱 내부 구조화 출력 한도"),
     });
   });
 

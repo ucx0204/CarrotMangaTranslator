@@ -1296,6 +1296,7 @@
     },
     "footer": {
       "openLogs": "開啟記錄資料夾",
+      "reportProblem": "回報問題",
       "restoreDefaults": "還原預設值",
       "cancel": "取消",
       "save": "儲存"
@@ -1849,7 +1850,7 @@
     "cancelling": "正在要求取消…",
     "completedTitle": "工作已完成",
     "completedPages": "已處理{{count}}頁",
-    "openLogs": "開啟記錄資料夾",
+    "reportProblem": "回報問題",
     "failedPages": "失敗頁面",
     "retryPage": "重試",
     "recentJobs": "最近工作",

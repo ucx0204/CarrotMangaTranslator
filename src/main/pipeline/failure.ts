@@ -1,4 +1,11 @@
 import type { MangaPage } from "../../shared/libraryTypes";
+import type { JobFailureGuidance } from "../../shared/jobTypes";
+
+const JOB_FAILURE_GUIDANCE = new Set<JobFailureGuidance>([
+  "increase-max-output-tokens",
+  "increase-work-context-budget",
+  "increase-context-length",
+]);
 
 const FAILURE_MESSAGE_RULES = [
   {
@@ -63,6 +70,19 @@ export function classifyFailure(error: unknown): string {
     error instanceof Error ? error.message : String(error)
   ).toLowerCase();
   return classifyFailureMessage(message);
+}
+
+export function readJobFailureGuidance(
+  error: unknown,
+): JobFailureGuidance | undefined {
+  if (!error || typeof error !== "object" || !("failureGuidance" in error)) {
+    return undefined;
+  }
+  const guidance = (error as { failureGuidance?: unknown }).failureGuidance;
+  return typeof guidance === "string" &&
+    JOB_FAILURE_GUIDANCE.has(guidance as JobFailureGuidance)
+    ? (guidance as JobFailureGuidance)
+    : undefined;
 }
 
 function readFailureCategory(error: unknown): string | null {

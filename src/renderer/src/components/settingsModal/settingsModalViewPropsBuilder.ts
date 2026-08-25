@@ -27,6 +27,7 @@ type SettingsModalViewPropsInput = {
   keybindings: KeybindingOverrides;
   localActions: ReturnType<typeof useSettingsLocalModelActions>;
   onCancel: () => void;
+  onOpenErrorReport: () => void;
   onOpenLogFolder: () => void;
   onReset: () => void;
   runModelTest: () => Promise<void>;
@@ -52,6 +53,7 @@ export function buildSettingsModalViewProps({
   keybindings,
   localActions,
   onCancel,
+  onOpenErrorReport,
   onOpenLogFolder,
   onReset,
   runModelTest,
@@ -89,6 +91,7 @@ export function buildSettingsModalViewProps({
     formatPanelTitle,
     formatPanelProps,
     onCancel,
+    onOpenErrorReport,
     onOpenLogFolder,
     onReset,
     setActiveTab,

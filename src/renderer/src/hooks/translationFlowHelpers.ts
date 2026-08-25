@@ -1,6 +1,9 @@
 import type { AnalysisBlockMode } from "../../../shared/analysisTypes";
 import type { TranslationCompletionWorkflow } from "../../../shared/libraryTypes";
+import type { Dispatch, SetStateAction } from "react";
+import type { JobFailureGuidance, JobState } from "../../../shared/jobTypes";
 import type { TFunction } from "i18next";
+import { formatTotalElapsedLine } from "../lib/appHelpers";
 import type { ChapterRunSelection } from "../lib/translationSelection";
 
 export type RunAnalysisOutcome =
@@ -22,11 +25,56 @@ type ExecuteAnalysisArgs = {
   fontSizeAutoFit?: boolean;
   completionWorkflow?: TranslationCompletionWorkflow;
   deferTerminalFailure?: boolean;
+  onDeferredFailureGuidance?: (guidance: JobFailureGuidance) => void;
 };
 
 export type ExecuteAnalysisJob = (
   args: ExecuteAnalysisArgs,
 ) => Promise<RunAnalysisOutcome>;
+
+type FlowTerminalContext = {
+  pushStatus: (line: string) => void;
+  setJobState: Dispatch<SetStateAction<JobState>>;
+  t: TFunction<"renderer">;
+};
+
+export function setFlowTerminal(
+  context: FlowTerminalContext,
+  status: "completed" | "partial" | "failed",
+  progressText: string,
+  detail?: string,
+  elapsedMs?: number,
+  failureGuidance?: JobFailureGuidance,
+): void {
+  context.setJobState({
+    id: `translation-flow-${status}`,
+    kind: status === "partial" ? "inpainting" : "gemma-analysis",
+    status,
+    progressText,
+    phase:
+      status === "completed"
+        ? "done"
+        : status === "partial"
+          ? "partial"
+          : "failed",
+    ...(detail ? { detail } : {}),
+    ...(failureGuidance ? { failureGuidance } : {}),
+    ...(status === "completed" && Number.isFinite(elapsedMs)
+      ? { jobElapsedMs: Math.max(0, elapsedMs as number) }
+      : {}),
+  });
+  if (status === "completed" && Number.isFinite(elapsedMs)) {
+    context.pushStatus(
+      formatTotalElapsedLine(
+        progressText,
+        Math.max(0, elapsedMs as number),
+        context.t,
+      ),
+    );
+  } else if (detail) {
+    context.pushStatus(detail);
+  }
+}
 
 /**
  * Translate a list of chapter selections in order, each with its own scope
@@ -47,6 +95,7 @@ export async function runSelectionsSequentially(
   t?: TFunction<"renderer">,
   completionWorkflow?: TranslationCompletionWorkflow,
   deferTerminalFailure?: boolean,
+  onDeferredFailureGuidance?: (guidance: JobFailureGuidance) => void,
 ): Promise<RunAnalysisOutcome> {
   let anyCompleted = false;
   let anyPartial = false;
@@ -65,6 +114,7 @@ export async function runSelectionsSequentially(
       fontSizeAutoFit,
       completionWorkflow,
       deferTerminalFailure,
+      onDeferredFailureGuidance,
     });
     const terminalOutcome = getTerminalAnalysisOutcome(outcome);
     if (terminalOutcome) return terminalOutcome;

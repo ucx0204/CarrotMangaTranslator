@@ -289,6 +289,18 @@ describe("translation workflow modes", () => {
     expect(notificationMocks.success).toHaveBeenCalledWith(
       "번역·원문 지우기를 완료했습니다.",
     );
+    expect(options.pushStatus).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /^번역·원문 지우기를 완료했습니다\. · 전체 (?:1초 미만|\d)/,
+      ),
+    );
+    expect(options.setJobState).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        status: "completed",
+        phase: "done",
+        jobElapsedMs: expect.any(Number),
+      }),
+    );
     expect(startAnalysis).toHaveBeenCalledWith(
       expect.objectContaining({ completionWorkflow: "erase-original" }),
     );
@@ -339,6 +351,39 @@ describe("translation workflow modes", () => {
     expect(outcome).toBe("failed");
     expect(startInpainting).not.toHaveBeenCalled();
     expect(options.setShowBlockChrome).not.toHaveBeenCalled();
+  });
+
+  it("preserves token-limit guidance through the deferred translation flow", async () => {
+    const options = makeOptions();
+    startAnalysis.mockResolvedValue({
+      status: "failed",
+      error: "truncated response",
+      failureGuidance: "increase-work-context-budget",
+    });
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
+
+    let outcome = "not-started";
+    await act(async () => {
+      outcome = await result.current.runTranslationFlow({
+        selection: [{ chapterId: "chapter-1", mode: "pending" }],
+        workflowMode: "cumulative",
+        blockMode: "auto",
+      });
+    });
+
+    expect(outcome).toBe("failed");
+    expect(options.setJobState).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        status: "failed",
+        failureGuidance: "increase-work-context-budget",
+        progressText: expect.stringContaining("작품 컨텍스트 예산"),
+      }),
+    );
+    expect(notificationMocks.error).toHaveBeenCalledWith(
+      expect.stringContaining("설정 > 번역 엔진 > 작품 컨텍스트 예산"),
+    );
   });
 
   it("stops the multi-chapter workflow when a chapter translation fails", async () => {

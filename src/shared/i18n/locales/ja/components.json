@@ -1309,6 +1309,7 @@
     },
     "footer": {
       "openLogs": "ログフォルダーを開く",
+      "reportProblem": "問題を報告",
       "restoreDefaults": "既定値に戻す",
       "cancel": "キャンセル",
       "save": "保存"
@@ -1877,7 +1878,7 @@
     "cancelling": "キャンセルを要求中…",
     "completedTitle": "処理が完了しました",
     "completedPages": "{{count}}ページを処理済み",
-    "openLogs": "ログフォルダーを開く",
+    "reportProblem": "問題を報告",
     "failedPages": "失敗したページ",
     "retryPage": "再試行",
     "recentJobs": "最近の処理",

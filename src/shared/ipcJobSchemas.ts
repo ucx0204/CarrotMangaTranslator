@@ -55,6 +55,15 @@ export const JobEventSchema = z
     pageTotal: finiteNumber.min(0).optional(),
     attempt: finiteNumber.min(0).optional(),
     attemptTotal: finiteNumber.min(0).optional(),
+    pageElapsedMs: finiteNumber.min(0).optional(),
+    jobElapsedMs: finiteNumber.min(0).optional(),
+    failureGuidance: z
+      .enum([
+        "increase-max-output-tokens",
+        "increase-work-context-budget",
+        "increase-context-length",
+      ])
+      .optional(),
     targets: z
       .array(PageJobTargetSnapshotSchema)
       .max(MAX_ID_LIST_LENGTH)

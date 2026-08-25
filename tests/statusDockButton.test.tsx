@@ -7,6 +7,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { StatusDockButton } from "../src/renderer/src/components/StatusDockButton";
@@ -84,6 +85,10 @@ describe("status dock", () => {
         .getByRole("button", { name: "작업 센터 열기" })
         .classList.contains("failed"),
     ).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "작업 센터 열기" }));
+    expect(screen.getByRole("log").textContent).toContain(
+      "아직 표시할 상태가 없습니다.",
+    );
   });
 
   it("keeps job progress and cancellation in the activity center", () => {
@@ -158,9 +163,9 @@ describe("status dock", () => {
     expect(onOpenExport).toHaveBeenCalledOnce();
   });
 
-  it("shows at most five status rows before forcing a scroll container", () => {
+  it("loads older in-memory status rows in batches at the bottom", () => {
     const statusLines = Array.from(
-      { length: 8 },
+      { length: 40 },
       (_, index) => `상태 기록 ${index + 1}`,
     );
     render(
@@ -178,13 +183,76 @@ describe("status dock", () => {
     const log = screen.getByRole("log");
     expect(log.classList.contains("scrollable")).toBe(true);
     expect(log.dataset.visibleLimit).toBe("5");
-    expect(log.childElementCount).toBe(8);
-    expect(screen.queryByText("스크롤해서 더 보기")).toBeNull();
+    expect(log.dataset.loadedCount).toBe("16");
+    expect(log.childElementCount).toBe(16);
+    expect(within(log).getByText("상태 기록 1")).not.toBeNull();
+    expect(within(log).queryByText("상태 기록 17")).toBeNull();
+
+    setScrollMetrics(log, { clientHeight: 200, scrollHeight: 800 });
+    log.scrollTop = 300;
+    fireEvent.scroll(log);
+    expect(log.childElementCount).toBe(16);
+
+    log.scrollTop = 600;
+    fireEvent.scroll(log);
+    expect(log.dataset.loadedCount).toBe("32");
+    expect(within(log).getByText("상태 기록 32")).not.toBeNull();
+    expect(within(log).queryByText("상태 기록 33")).toBeNull();
+
+    setScrollMetrics(log, { clientHeight: 200, scrollHeight: 1_600 });
+    log.scrollTop = 1_400;
+    fireEvent.scroll(log);
+    expect(log.dataset.loadedCount).toBe("40");
+    expect(within(log).getByText("상태 기록 40")).not.toBeNull();
+
+    fireEvent.scroll(log);
+    expect(log.childElementCount).toBe(40);
   });
 
-  it("offers page-level retry and the log folder for failed work", () => {
+  it("starts from the latest batch again after the session log is cleared", async () => {
+    const commonProps = {
+      jobState: makeJobState(),
+      progressSnapshot: null,
+      showProgressBar: false,
+      onCancelJob: vi.fn(),
+      onClear: vi.fn(),
+    };
+    const view = render(
+      <StatusDockButton
+        {...commonProps}
+        statusLines={Array.from(
+          { length: 40 },
+          (_, index) => `기존 기록 ${index + 1}`,
+        )}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "작업 센터 열기" }));
+    const log = screen.getByRole("log");
+    setScrollMetrics(log, { clientHeight: 200, scrollHeight: 800 });
+    log.scrollTop = 600;
+    fireEvent.scroll(log);
+    expect(log.dataset.loadedCount).toBe("32");
+
+    view.rerender(<StatusDockButton {...commonProps} statusLines={[]} />);
+    await waitFor(() => expect(log.dataset.loadedCount).toBe("0"));
+    view.rerender(
+      <StatusDockButton
+        {...commonProps}
+        statusLines={Array.from(
+          { length: 24 },
+          (_, index) => `새 기록 ${index + 1}`,
+        )}
+      />,
+    );
+
+    await waitFor(() => expect(log.dataset.loadedCount).toBe("16"));
+    expect(within(log).queryByText("새 기록 17")).toBeNull();
+  });
+
+  it("offers page-level retry and the error report for failed work", () => {
     const onRetryPage = vi.fn();
-    const onOpenLogFolder = vi.fn();
+    const onOpenErrorReport = vi.fn();
     render(
       <StatusDockButton
         jobState={makeJobState({
@@ -198,15 +266,15 @@ describe("status dock", () => {
           { id: "page-3", name: "003.jpg", error: "OCR 시간 초과" },
         ]}
         onRetryPage={onRetryPage}
-        onOpenLogFolder={onOpenLogFolder}
+        onOpenErrorReport={onOpenErrorReport}
         onCancelJob={vi.fn()}
         onClear={vi.fn()}
       />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "작업 센터 열기" }));
-    fireEvent.click(screen.getByRole("button", { name: "로그 폴더 열기" }));
-    expect(onOpenLogFolder).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole("button", { name: "오류 보고" }));
+    expect(onOpenErrorReport).toHaveBeenCalledOnce();
     fireEvent.click(screen.getByRole("button", { name: "다시 시도" }));
     expect(onRetryPage).toHaveBeenCalledWith("page-3");
     expect(screen.queryByRole("region", { name: "작업 센터" })).toBeNull();
@@ -258,4 +326,15 @@ function makeJobState(overrides: Partial<JobState> = {}): JobState {
     status: "idle",
     ...overrides,
   };
+}
+
+function setScrollMetrics(
+  element: HTMLElement,
+  metrics: { clientHeight: number; scrollHeight: number },
+): void {
+  Object.defineProperties(element, {
+    clientHeight: { configurable: true, value: metrics.clientHeight },
+    scrollHeight: { configurable: true, value: metrics.scrollHeight },
+    scrollTop: { configurable: true, value: 0, writable: true },
+  });
 }

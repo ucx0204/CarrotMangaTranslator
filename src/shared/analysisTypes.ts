@@ -1,6 +1,7 @@
 import type { BBox } from "./textTypes";
 import type { ChapterSnapshot } from "./libraryTypes";
 import type { TranslationCompletionWorkflow } from "./libraryTypes";
+import type { JobFailureGuidance } from "./jobTypes";
 
 export type AnalysisBlockMode = "auto" | "keep";
 
@@ -47,6 +48,7 @@ export type StartAnalysisResult = {
   chapter?: ChapterSnapshot;
   warnings?: string[];
   error?: string;
+  failureGuidance?: JobFailureGuidance;
 };
 
 export type RegionAnalysisRequest = {

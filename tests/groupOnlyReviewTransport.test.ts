@@ -627,6 +627,113 @@ describe("axis-v4 group-only review transport", () => {
     expect(result.requestBody).not.toHaveProperty("fixedBlockUnresolvedIds");
   });
 
+  it("preserves valid translation text with neutral audit-only font metadata after bounded repairs", async () => {
+    const request = makeRequest();
+    request.options.autoFontMatching = true;
+    const bodies: RequestBody[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockImplementation(async (_input, init) => {
+        const body = postedBody(init);
+        bodies.push(body);
+        if (!isFixedTranslation(body)) {
+          return chatResponse({ labels: [{ group: 1, role: "body" }] });
+        }
+        const blocks = readPayload<Array<{ blockId: string }>>(
+          body,
+          "fixedBlocks",
+        );
+        return chatResponse({
+          items: blocks.map((block) => ({
+            blockId: block.blockId,
+            textRole: "ordinary",
+            layoutIntent: "horizontal",
+            fontRole: block.blockId === "B002" ? "sfx_impact" : "dialogue",
+            fontRoleConfidence: 0.96,
+            ko: block.blockId === "B002" ? "정상 번역문" : "첫 번역문",
+          })),
+        });
+      }),
+    );
+
+    const result = await requestTranslation(request.server, request.options);
+    const output = JSON.parse(result.outputText) as {
+      items: Array<{
+        blockId?: string;
+        ko: string;
+        fontRole?: string;
+        fontRoleConfidence?: number;
+      }>;
+    };
+
+    expect(bodies.filter(isFixedTranslation)).toHaveLength(4);
+    expect(output.items[1]).toMatchObject({
+      ko: "정상 번역문",
+      fontRole: "unknown_needs_review",
+      fontRoleConfidence: 0,
+    });
+    expect(result.requestBody).toMatchObject({
+      fixedBlockRepairAttempts: 3,
+      fixedBlockFontIntentFallbackIds: ["B002"],
+      fixedBlockRepairHistory: [
+        {
+          rejectionReasons: {
+            B002: ["fixed-block-translation-font-role-conflict"],
+          },
+        },
+        {
+          rejectionReasons: {
+            B002: ["fixed-block-translation-font-role-conflict"],
+          },
+        },
+        {
+          rejectionReasons: {
+            B002: ["fixed-block-translation-font-role-conflict"],
+          },
+        },
+      ],
+    });
+    expect(result.requestBody).not.toHaveProperty("fixedBlockUnresolvedIds");
+  });
+
+  it("normalizes target-side Japanese elongation only after bounded repairs", async () => {
+    const request = makeRequest();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockImplementation(async (_input, init) => {
+        const body = postedBody(init);
+        if (!isFixedTranslation(body)) {
+          return chatResponse({ labels: [{ group: 1, role: "body" }] });
+        }
+        const blocks = readPayload<Array<{ blockId: string }>>(
+          body,
+          "fixedBlocks",
+        );
+        return chatResponse({
+          items: blocks.map((block) => ({
+            blockId: block.blockId,
+            ko: block.blockId === "B002" ? "무리예요ーー!!" : "첫 번역문",
+          })),
+        });
+      }),
+    );
+
+    const result = await requestTranslation(request.server, request.options);
+    const output = JSON.parse(result.outputText) as {
+      items: Array<{ ko: string }>;
+    };
+
+    expect(output.items.map((item) => item.ko)).toEqual([
+      "첫 번역문",
+      "무리예요~~!!",
+    ]);
+    expect(result.requestBody).toMatchObject({
+      fixedBlockRepairAttempts: 3,
+      fixedBlockTargetTypographyFallbackIds: ["B002"],
+    });
+    expect(result.requestBody).not.toHaveProperty("fixedBlockUnresolvedIds");
+  });
+
   it("fails closed when a malformed block remains unresolved after bounded repairs", async () => {
     const request = makeRequest();
     const bodies: RequestBody[] = [];
@@ -656,6 +763,9 @@ describe("axis-v4 group-only review transport", () => {
     ).rejects.toMatchObject({
       code: "fixed-block-translation-repair-exhausted",
       blockIds: ["B002"],
+      rejectionReasons: {
+        B002: ["fixed-block-translation-empty-text"],
+      },
       message: expect.stringContaining("Refusing to omit"),
     });
     expect(bodies.filter(isFixedTranslation)).toHaveLength(4);
@@ -685,6 +795,7 @@ function makeRequest() {
       imageWidth: 1000,
       imageHeight: 1000,
       maxTokens: 1024,
+      autoFontMatching: false,
       temperature: 0.2,
       topP: 0.95,
       topK: 64,

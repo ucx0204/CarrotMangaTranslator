@@ -7,9 +7,11 @@ const {
   semanticContractError,
 } = require("./values.cjs");
 const {
-  findFixedBlockTargetLanguageViolations,
   validateFixedBlockTargetLanguage,
 } = require("./fixed-block-quality.cjs");
+const {
+  parseFixedBlockTranslationPartialResponse: parseFixedBlockPartialResponse,
+} = require("./fixed-block-partial-response.cjs");
 const {
   isFontRoleCompatibleWithTextRole,
   normalizeFontRole,
@@ -24,7 +26,7 @@ const MIN_VERTICAL_LAYOUT_FONT_ROLE_CONFIDENCE = 0.82;
  * @typedef {{items:FixedBlockTranslation[];pageContext?:Record<string,unknown>}} FixedBlockTranslationResult
  * @typedef {{blocks:Array<{blockId:string}>}} FixedBlockPlan
  * @typedef {{sourceLanguage?:unknown;targetLanguage?:unknown;collectPageContext?:unknown;autoFontMatching?:unknown;[key:string]:unknown}} FixedBlockOptions
- * @typedef {{translations:FixedBlockTranslationResult;retryBlockIds:string[];horizontalFallbackTranslations?:FixedBlockTranslationResult}} FixedBlockPartialResult
+ * @typedef {{translations:FixedBlockTranslationResult;retryBlockIds:string[];retryReasons:Record<string,string[]>;horizontalFallbackTranslations?:FixedBlockTranslationResult;fontIntentFallbackTranslations?:FixedBlockTranslationResult;targetTypographyFallbackTranslations?:FixedBlockTranslationResult}} FixedBlockPartialResult
  */
 
 /**
@@ -90,50 +92,12 @@ function parseFixedBlockTranslationPartialResponse(
   plan,
   options = {},
 ) {
-  const raw = parseJsonObject(rawText, "Fixed-block translation");
-  const rawItems = requireItemsArray(raw);
-  const expectedIds = plan.blocks.map((block) => block.blockId);
-  const expectedIdSet = new Set(expectedIds);
-  const claimCounts = countExpectedBlockIdClaims(rawItems, expectedIdSet);
-  const { validById, horizontalFallbackById } = collectUniqueValidItems(
-    rawItems,
-    expectedIdSet,
-    claimCounts,
+  return parseFixedBlockPartialResponse(
+    rawText,
+    plan,
     options,
+    readFixedBlockTranslation,
   );
-  const orderedItems = readItemsInOrder(expectedIds, validById);
-  const violationIds = new Set(
-    findFixedBlockTargetLanguageViolations(orderedItems, options).map(
-      (item) => item.blockId,
-    ),
-  );
-  const items = orderedItems.filter((item) => !violationIds.has(item.blockId));
-  const orderedHorizontalFallbackItems = readItemsInOrder(
-    expectedIds,
-    horizontalFallbackById,
-  );
-  const horizontalFallbackViolationIds = new Set(
-    findFixedBlockTargetLanguageViolations(
-      orderedHorizontalFallbackItems,
-      options,
-    ).map((item) => item.blockId),
-  );
-  const horizontalFallbackItems = orderedHorizontalFallbackItems.filter(
-    (item) => !horizontalFallbackViolationIds.has(item.blockId),
-  );
-  const acceptedIds = new Set(items.map((item) => item.blockId));
-  const pageContext = readOptionalPageContext(raw, options);
-  return {
-    translations: { items, ...(pageContext ? { pageContext } : {}) },
-    retryBlockIds: expectedIds.filter((blockId) => !acceptedIds.has(blockId)),
-    ...(horizontalFallbackItems.length > 0
-      ? {
-          horizontalFallbackTranslations: {
-            items: horizontalFallbackItems,
-          },
-        }
-      : {}),
-  };
 }
 
 /**
@@ -194,101 +158,6 @@ function requireItemsArray(raw) {
 }
 
 /**
- * @param {unknown[]} rawItems
- * @param {Set<string>} expectedIds
- * @returns {Map<string,number>}
- */
-function countExpectedBlockIdClaims(rawItems, expectedIds) {
-  const counts = new Map();
-  for (const value of rawItems) {
-    if (!isRecord(value) || typeof value.blockId !== "string") continue;
-    const blockId = value.blockId.trim();
-    if (!expectedIds.has(blockId)) continue;
-    counts.set(blockId, (counts.get(blockId) ?? 0) + 1);
-  }
-  return counts;
-}
-
-/**
- * @param {unknown[]} rawItems
- * @param {Set<string>} expectedIds
- * @param {Map<string,number>} claimCounts
- * @param {FixedBlockOptions} options
- * @returns {{validById:Map<string,FixedBlockTranslation>;horizontalFallbackById:Map<string,FixedBlockTranslation>}}
- */
-function collectUniqueValidItems(rawItems, expectedIds, claimCounts, options) {
-  const validById = new Map();
-  const horizontalFallbackById = new Map();
-  for (const [index, value] of rawItems.entries()) {
-    if (!isRecord(value) || typeof value.blockId !== "string") continue;
-    const blockId = value.blockId.trim();
-    if (!expectedIds.has(blockId) || claimCounts.get(blockId) !== 1) continue;
-    try {
-      const item = readFixedBlockTranslation(value, index, options);
-      validById.set(item.blockId, item);
-    } catch (error) {
-      if (!isFixedBlockItemContractError(error)) throw error;
-      const item = readHorizontalLayoutFallbackTranslation(
-        value,
-        index,
-        options,
-        error,
-      );
-      if (item) {
-        horizontalFallbackById.set(item.blockId, item);
-      }
-    }
-  }
-  return { validById, horizontalFallbackById };
-}
-
-/**
- * @param {Record<string,unknown>} value
- * @param {number} index
- * @param {FixedBlockOptions} options
- * @param {unknown} originalError
- * @returns {FixedBlockTranslation|null}
- */
-function readHorizontalLayoutFallbackTranslation(
-  value,
-  index,
-  options,
-  originalError,
-) {
-  if (!isVerticalLayoutFontRoleConflict(originalError)) return null;
-  try {
-    return readFixedBlockTranslation(
-      { ...value, layoutIntent: "horizontal" },
-      index,
-      options,
-    );
-  } catch (fallbackError) {
-    if (!isFixedBlockItemContractError(fallbackError)) throw fallbackError;
-    return null;
-  }
-}
-
-/** @param {unknown} error */
-function isVerticalLayoutFontRoleConflict(error) {
-  return (
-    error &&
-    typeof error === "object" &&
-    "code" in error &&
-    String(error.code ?? "") ===
-      "fixed-block-translation-layout-intent-font-role-conflict"
-  );
-}
-
-/** @param {unknown} error */
-function isFixedBlockItemContractError(error) {
-  const code =
-    error && typeof error === "object" && "code" in error
-      ? String(error.code ?? "")
-      : "";
-  return code.startsWith("fixed-block-translation-");
-}
-
-/**
  * @param {string[]} ids
  * @param {Map<string,FixedBlockTranslation>} itemsById
  * @returns {FixedBlockTranslation[]}
@@ -298,14 +167,6 @@ function readItemsInOrder(ids, itemsById) {
     const item = itemsById.get(blockId);
     return item ? [item] : [];
   });
-}
-
-/** @param {Record<string,unknown>} raw @param {FixedBlockOptions} options */
-function readOptionalPageContext(raw, options) {
-  if (!options.collectPageContext || !isRecord(raw.pageContext)) {
-    return undefined;
-  }
-  return raw.pageContext;
 }
 
 /** @param {unknown} value @param {number} index @param {FixedBlockOptions} options @returns {FixedBlockTranslation} */

@@ -1315,6 +1315,7 @@
     },
     "footer": {
       "openLogs": "Open log folder",
+      "reportProblem": "Report a problem",
       "restoreDefaults": "Restore defaults",
       "cancel": "Cancel",
       "save": "Save"
@@ -1886,7 +1887,7 @@
     "cancelling": "Requesting cancellation…",
     "completedTitle": "Job completed",
     "completedPages": "{{count}} pages processed",
-    "openLogs": "Open log folder",
+    "reportProblem": "Report a problem",
     "failedPages": "Failed pages",
     "retryPage": "Retry",
     "recentJobs": "Recent jobs",

@@ -33,7 +33,7 @@ export function useStatusLog(): UseStatusLogResult {
         const remaining = replaceExisting
           ? lines.filter((line) => !replaceExisting(line))
           : lines;
-        return [next, ...remaining].slice(0, 16);
+        return [next, ...remaining];
       });
     },
     [],

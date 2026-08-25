@@ -10,42 +10,61 @@ const {
  */
 
 /**
- * Apply a horizontal advisory only to still-pending blocks that have a saved
- * otherwise-valid translation. Every other pending id remains unresolved for
- * the transport's fail-closed completion check.
+ * Recover only exhausted presentation-metadata conflicts or target-side
+ * punctuation that already carried an otherwise-valid translation. Every
+ * other pending id remains unresolved for the transport's fail-closed check.
  *
- * @param {{translations:FixedBlockTranslationResult;pendingBlockIds:string[];responses:unknown[];history:unknown[]}} repaired
- * @param {Map<string,FixedBlockTranslation>} fallbackById
+ * @param {{translations:FixedBlockTranslationResult;pendingBlockIds:string[];responses:unknown[];history:unknown[];retryReasons:Record<string,string[]>}} repaired
+ * @param {{horizontal:Map<string,FixedBlockTranslation>;fontIntent:Map<string,FixedBlockTranslation>;targetTypography:Map<string,FixedBlockTranslation>}} fallbacks
  * @param {string[]} expectedIds
  */
-function completeHorizontalFixedBlockFallbacks(
-  repaired,
-  fallbackById,
-  expectedIds,
-) {
-  const horizontalFallbackBlockIds = repaired.pendingBlockIds.filter(
-    (blockId) => fallbackById.has(blockId),
-  );
-  if (horizontalFallbackBlockIds.length === 0) {
-    return { ...repaired, horizontalFallbackBlockIds };
-  }
-  const fallbackItems = horizontalFallbackBlockIds.flatMap((blockId) => {
-    const item = fallbackById.get(blockId);
-    return item ? [item] : [];
+function completeFixedBlockFallbacks(repaired, fallbacks, expectedIds) {
+  const selectedFallbacks = repaired.pendingBlockIds.flatMap((blockId) => {
+    const targetTypography = fallbacks.targetTypography.get(blockId);
+    if (targetTypography) {
+      return [{ blockId, kind: "targetTypography", item: targetTypography }];
+    }
+    const fontIntent = fallbacks.fontIntent.get(blockId);
+    if (fontIntent) {
+      return [{ blockId, kind: "fontIntent", item: fontIntent }];
+    }
+    const horizontal = fallbacks.horizontal.get(blockId);
+    return horizontal
+      ? [{ blockId, kind: "horizontal", item: horizontal }]
+      : [];
   });
-  const recoveredIds = new Set(horizontalFallbackBlockIds);
+  const horizontalFallbackBlockIds = selectedFallbacks
+    .filter(({ kind }) => kind === "horizontal")
+    .map(({ blockId }) => blockId);
+  const fontIntentFallbackBlockIds = selectedFallbacks
+    .filter(({ kind }) => kind === "fontIntent")
+    .map(({ blockId }) => blockId);
+  const targetTypographyFallbackBlockIds = selectedFallbacks
+    .filter(({ kind }) => kind === "targetTypography")
+    .map(({ blockId }) => blockId);
+  if (selectedFallbacks.length === 0) {
+    return {
+      ...repaired,
+      horizontalFallbackBlockIds,
+      fontIntentFallbackBlockIds,
+      targetTypographyFallbackBlockIds,
+    };
+  }
+  const recoveredIds = new Set(selectedFallbacks.map(({ blockId }) => blockId));
   return {
     ...repaired,
     translations: mergeFixedBlockTranslationResults(
       repaired.translations,
-      { items: fallbackItems },
+      { items: selectedFallbacks.map(({ item }) => item) },
       expectedIds,
     ),
     pendingBlockIds: repaired.pendingBlockIds.filter(
       (blockId) => !recoveredIds.has(blockId),
     ),
     horizontalFallbackBlockIds,
+    fontIntentFallbackBlockIds,
+    targetTypographyFallbackBlockIds,
   };
 }
 
-module.exports = { completeHorizontalFixedBlockFallbacks };
+module.exports = { completeFixedBlockFallbacks };

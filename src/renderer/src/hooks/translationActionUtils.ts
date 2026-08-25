@@ -5,11 +5,12 @@ import type {
   StartAnalysisRequest,
   StartAnalysisResult,
 } from "../../../shared/analysisTypes";
-import type { JobState } from "../../../shared/jobTypes";
+import type { JobFailureGuidance, JobState } from "../../../shared/jobTypes";
 import type { TranslationCompletionWorkflow } from "../../../shared/libraryTypes";
 import { analysisGateway as mangaGateway } from "../api/analysisGateway";
 import { formatErrorMessage } from "../lib/errorPresentation";
 import type { LiveChapterMergeOptions } from "../lib/chapterSync";
+import { formatJobFailureGuidance } from "../lib/appHelpers";
 import { summarizeWarnings } from "../lib/jobProgress";
 import {
   toastNotificationPort,
@@ -31,6 +32,7 @@ export function failAnalysisJob(
   pushStatus: (line: string) => void,
   progressText: string,
   message: string,
+  failureGuidance?: JobFailureGuidance,
 ): void {
   setJobState({
     id: "failed-analysis",
@@ -39,6 +41,7 @@ export function failAnalysisJob(
     progressText,
     phase: "failed",
     detail: message,
+    failureGuidance,
   });
   pushStatus(message);
 }
@@ -149,12 +152,16 @@ export function resolveStartOutcome(
   if (result.error) {
     console.error(result.error);
   }
+  const guidanceMessage = formatJobFailureGuidance(result, t);
   failAnalysisJob(
     setJobState,
     pushStatus,
-    t ? t("translation.errors.jobFailedTitle") : "번역 작업 실패",
-    result.error?.trim() ||
-      (t ? t("translation.errors.jobFailed") : "번역 작업에 실패했습니다."),
+    guidanceMessage ??
+      (t ? t("translation.errors.jobFailedTitle") : "번역 작업 실패"),
+    guidanceMessage ??
+      (result.error?.trim() ||
+        (t ? t("translation.errors.jobFailed") : "번역 작업에 실패했습니다.")),
+    result.failureGuidance,
   );
   return "failed";
 }

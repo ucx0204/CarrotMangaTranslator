@@ -44,6 +44,19 @@
     "pageProgress": "第 {{current}} / {{total}} 頁 · {{status}}",
     "pageStatus": "頁面 · {{status}}",
     "pageRetry": "第 {{current}} / {{total}} 頁 · 重試 {{attempt}} / {{attemptTotal}}",
+    "elapsed": {
+      "lessThanSecond": "不到 1 秒",
+      "seconds": "{{seconds}} 秒",
+      "minutesSeconds": "{{minutes}} 分 {{seconds}} 秒",
+      "hoursMinutesSeconds": "{{hours}} 小時 {{minutes}} 分 {{seconds}} 秒",
+      "page": "{{label}} · 耗時 {{duration}}",
+      "total": "{{label}} · 總耗時 {{duration}}"
+    },
+    "failureGuidance": {
+      "maxOutputTokens": "最大輸出權杖不足。請增大設定 > 翻譯引擎 > 最大輸出權杖。",
+      "workContextBudget": "作品上下文預算不足。請增大設定 > 翻譯引擎 > 作品上下文預算。",
+      "contextLength": "上下文長度不足。請增大設定 > 翻譯引擎 > 上下文長度。VRAM 用量可能會增加。"
+    },
     "phase": {
       "booting": "正在準備模型",
       "modelDownloading": "正在下載模型／準備伺服器",

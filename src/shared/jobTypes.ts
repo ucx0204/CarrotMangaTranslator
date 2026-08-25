@@ -8,6 +8,11 @@ import type { PageJobTargetSnapshot } from "./pageRevision";
 
 export type { JobPhase } from "./jobContracts";
 
+export type JobFailureGuidance =
+  | "increase-max-output-tokens"
+  | "increase-work-context-budget"
+  | "increase-context-length";
+
 export type JobState = {
   id: string;
   kind: JobKind;
@@ -28,6 +33,9 @@ export type JobState = {
   pageTotal?: number;
   attempt?: number;
   attemptTotal?: number;
+  pageElapsedMs?: number;
+  jobElapsedMs?: number;
+  failureGuidance?: JobFailureGuidance;
   targets?: PageJobTargetSnapshot[];
 };
 
