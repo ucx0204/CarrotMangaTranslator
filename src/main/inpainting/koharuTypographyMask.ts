@@ -28,6 +28,11 @@ export function buildKoharuTypographyCompositeMask(options: {
   block: TranslationBlock;
   featherPx: number;
   height: number;
+  /**
+   * Block-owned bubble region from the transient layout prepass. A merged
+   * connected balloon can contain typography outside the compact OCR box.
+   */
+  ownedRegionMask?: InpaintingWindowMask;
   page: MangaPage;
   segmentation: KoharuTypographySegmentation;
   sourceRect: PixelRect;
@@ -44,7 +49,12 @@ export function buildKoharuTypographyCompositeMask(options: {
     (detection) =>
       (detection.label === "text" || detection.label === "onomatopoeia") &&
       detection.mask &&
-      boxesAssociate(detection.box, associationRect, options.sourceRect),
+      (boxesAssociate(detection.box, associationRect, options.sourceRect) ||
+        (options.ownedRegionMask !== undefined &&
+          boxCenterBelongsToOwnedRegion(
+            detection.box,
+            options.ownedRegionMask,
+          ))),
   );
   if (detections.length === 0) return null;
 
@@ -162,6 +172,39 @@ function boxesAssociate(
     intersection / Math.max(1, detectionRect.w * detectionRect.h) >= 0.08 ||
     intersection / Math.max(1, sourceRect.w * sourceRect.h) >= 0.08
   );
+}
+
+function boxCenterBelongsToOwnedRegion(
+  box: readonly [number, number, number, number],
+  ownedRegion: InpaintingWindowMask,
+): boolean {
+  const detectionRect = boxToRect(box);
+  return (
+    detectionRect !== null &&
+    readWindowMaskPixel(
+      ownedRegion,
+      Math.floor(detectionRect.x + detectionRect.w / 2),
+      Math.floor(detectionRect.y + detectionRect.h / 2),
+    ) > 0
+  );
+}
+
+function readWindowMaskPixel(
+  mask: InpaintingWindowMask,
+  pageX: number,
+  pageY: number,
+): number {
+  const localX = pageX - mask.bounds.x;
+  const localY = pageY - mask.bounds.y;
+  if (
+    localX < 0 ||
+    localY < 0 ||
+    localX >= mask.bounds.w ||
+    localY >= mask.bounds.h
+  ) {
+    return 0;
+  }
+  return mask.data[localY * mask.bounds.w + localX] ?? 0;
 }
 
 function rasterizeInstanceMaskInto(

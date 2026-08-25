@@ -34,6 +34,9 @@ export function resolvePatternFluxCompositePlan(options: {
         block: options.block,
         featherPx,
         height: options.height,
+        ...(options.fallbackConstraint
+          ? { ownedRegionMask: options.fallbackConstraint }
+          : {}),
         page: options.page,
         segmentation: options.segmentation,
         sourceRect: options.sourceRect,

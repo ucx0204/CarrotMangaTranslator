@@ -89,6 +89,61 @@ describe("Koharu typography inpainting masks", () => {
     ).toBe(true);
   });
 
+  it("keeps typography from both lobes of one constrained bubble in the final composite", () => {
+    const page = makePage();
+    page.blocks[0] = {
+      ...requireValue(page.blocks[0], "page block"),
+      bbox: { x: 375, y: 125, w: 250, h: 187.5 },
+      renderBbox: { x: 250, y: 62.5, w: 500, h: 875 },
+      renderBboxSpace: "normalized_1000",
+      bubbleLayout: {
+        version: 1,
+        direction: "horizontal",
+        confidence: 0.99,
+        origin: "detected",
+        modelId: "test-connected-bubble",
+        sourceImageRevision: "test-revision",
+        insetRatio: 0,
+        regions: [
+          {
+            spans: [
+              {
+                blockStart: 0,
+                blockEnd: 1,
+                inlineStart: 0,
+                inlineEnd: 1,
+              },
+            ],
+          },
+        ],
+      },
+    };
+    const segmentation = makeSegmentation([
+      makeFilledDetection("text", 0, [26, 10, 38, 20]),
+      makeFilledDetection("text", 0, [26, 44, 38, 54]),
+      makeFilledDetection("text", 0, [2, 44, 10, 54]),
+    ]);
+
+    const context = buildPatternPageMask({
+      bitmap: Buffer.alloc(64 * 64 * 4, 255),
+      bubbleLayoutConstraintBlockIds: ["block-1"],
+      height: 64,
+      mode: "flux-region",
+      page,
+      typographySegmentation: segmentation,
+      width: 64,
+    });
+    const composite = expandWindowMaskToPage(
+      requireValue(context.inpaintCompositeMasks[0], "composite mask"),
+      64,
+      64,
+    );
+
+    expect(composite[15 * 64 + 32]).toBe(1);
+    expect(composite[49 * 64 + 32]).toBe(1);
+    expect(composite[49 * 64 + 6]).toBe(0);
+  });
+
   it("fails closed when detector and page dimensions drift", () => {
     const page = makePage();
     expect(() =>
@@ -157,6 +212,24 @@ function makeDetection(
     label,
     labelId,
     mask: { logits, width: 8, height: 8 },
+    score: 0.99,
+  };
+}
+
+function makeFilledDetection(
+  label: ComicPageDetection["label"],
+  labelId: ComicPageDetection["labelId"],
+  box: ComicPageDetection["box"],
+): ComicPageDetection {
+  return {
+    box,
+    label,
+    labelId,
+    mask: {
+      logits: new Float32Array(8 * 8).fill(10),
+      width: 8,
+      height: 8,
+    },
     score: 0.99,
   };
 }
