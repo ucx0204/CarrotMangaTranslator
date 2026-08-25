@@ -23,6 +23,7 @@ import { ModalActionBar } from "./ui/ModalActionBar";
 import { SelectionCard, SelectionSurface } from "./ui/SelectionCard";
 import { WorkSelect } from "./WorkSelect";
 import { ImportLinkedWorkspaceSection } from "./ImportLinkedWorkspaceSection";
+import { InlineMessage } from "./ui/InlineMessage";
 
 type ImportModalProps = {
   library: LibraryIndex;
@@ -153,6 +154,7 @@ function ImportModalContent({
 }): React.JSX.Element {
   return (
     <>
+      <ImportExcludedPagesNotice preview={preview} />
       <ImportTargetSection
         busy={busy}
         existingWorkId={existingWorkId}
@@ -176,6 +178,35 @@ function ImportModalContent({
         onChange={setLinkedWorkspace}
       />
     </>
+  );
+}
+
+function ImportExcludedPagesNotice({
+  preview,
+}: {
+  preview: ImportPreviewResult;
+}): React.JSX.Element | null {
+  const { t } = useTranslation("components");
+  const excludedPages = preview.excludedPages ?? [];
+  if (excludedPages.length === 0) return null;
+
+  const visible = excludedPages
+    .slice(0, 3)
+    .map(({ chapterTitle, pageName }) => `${chapterTitle} / ${pageName}`)
+    .join(", ");
+  const remaining = excludedPages.length - 3;
+  return (
+    <InlineMessage
+      variant="warning"
+      title={t("import.excludedImagesTitle", { count: excludedPages.length })}
+      detail={t("import.excludedImagesDetail", {
+        files: visible,
+        more:
+          remaining > 0
+            ? t("import.excludedImagesMore", { count: remaining })
+            : "",
+      })}
+    />
   );
 }
 

@@ -115,7 +115,7 @@ editing the totals by hand.
   The source-artwork font-size matching pass extended it to SHA-256
   `fc297c21bbba1d6e84e9ccaf6191e4e4d569c1c3975b0243411519a999c98132`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
-  percentage for lines/statements/functions/branches in all 478 existing
+  percentage for lines/statements/functions/branches in all 481 existing
   coverage-eligible `src/**` files changed since cleanup start. The 136 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record. The

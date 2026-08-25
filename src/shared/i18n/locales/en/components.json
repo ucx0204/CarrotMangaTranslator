@@ -675,6 +675,9 @@
     "selectWork": "Select work",
     "chaptersToCreate": "Chapters to create",
     "chapterTitle": "Chapter title",
+    "excludedImagesTitle": "Excluded {{count}} image(s) during import preflight",
+    "excludedImagesDetail": "These files are damaged or are not actually PNG, JPEG, or WebP images: {{files}}{{more}}",
+    "excludedImagesMore": " and {{count}} more",
     "liveResults": {
       "enable": "Automatically save to the results folder",
       "description": "Saves results in folders by work and chapter.",

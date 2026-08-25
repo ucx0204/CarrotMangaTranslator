@@ -672,6 +672,9 @@
     "selectWork": "作品を選択",
     "chaptersToCreate": "作成する話",
     "chapterTitle": "話のタイトル",
+    "excludedImagesTitle": "読み込み前の検査で画像{{count}}件を除外しました",
+    "excludedImagesDetail": "破損しているか、実際の形式がPNG・JPEG・WebPではないファイルです：{{files}}{{more}}",
+    "excludedImagesMore": "、ほか{{count}}件",
     "liveResults": {
       "enable": "結果フォルダーに自動保存",
       "description": "結果を作品・話ごとのフォルダーに保存します。",

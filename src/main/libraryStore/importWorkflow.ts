@@ -7,6 +7,7 @@ import type {
   CreateImportFromPreviewRequest,
   CreateImportResult,
   ImportChapterDraft,
+  ImportPreviewExcludedPage,
   ImportPreviewResult,
 } from "../../shared/importTypes";
 import type {
@@ -16,7 +17,7 @@ import type {
 import { tMain } from "./localization";
 import { resolveChapterStatus } from "./chapterRecords";
 import {
-  filterImportImageFiles,
+  inspectImportImageFiles,
   normalizeImportPageName,
 } from "./importImages";
 import { materializePageRecord } from "./importPageMaterialize";
@@ -50,8 +51,10 @@ import type { ImportImageRuntime } from "./importImageRuntime";
 export async function previewImages(
   filePaths: string[],
 ): Promise<ImportPreviewResult> {
-  const normalized = await filterImportImageFiles(filePaths);
-  const pages = normalized.map((filePath) => ({
+  const title = tMain("import.untitled");
+  const inspected = await inspectImportImageFiles(filePaths);
+  assertUsableInspectedImages(inspected);
+  const pages = inspected.filePaths.map((filePath) => ({
     name: basename(filePath),
     sourceKind: "file" as const,
     sourcePath: filePath,
@@ -64,18 +67,23 @@ export async function previewImages(
     chapters: [
       {
         draftId: randomUUID(),
-        title: tMain("import.untitled"),
+        title,
         sourceKind: "images",
         pages,
       },
     ],
+    ...excludedPreviewPages(title, inspected.excludedFilePaths),
   };
 }
 
 export async function previewFolder(
   folderPath: string,
 ): Promise<ImportPreviewResult> {
-  const filePaths = await listImageFiles(folderPath);
+  const title = basename(folderPath);
+  const inspected = await inspectImportImageFiles(
+    await listImageFiles(folderPath),
+  );
+  assertUsableInspectedImages(inspected);
   return {
     mode: "single",
     sourceKind: "folder",
@@ -83,9 +91,9 @@ export async function previewFolder(
     chapters: [
       {
         draftId: randomUUID(),
-        title: basename(folderPath),
+        title,
         sourceKind: "folder",
-        pages: filePaths.map((filePath) => ({
+        pages: inspected.filePaths.map((filePath) => ({
           name: basename(filePath),
           sourceKind: "file" as const,
           sourcePath: filePath,
@@ -94,6 +102,7 @@ export async function previewFolder(
         })),
       },
     ],
+    ...excludedPreviewPages(title, inspected.excludedFilePaths),
   };
 }
 
@@ -143,18 +152,21 @@ export async function previewZipFolder(
       },
     })),
   );
-  const chapters = [
-    ...zipChapters,
-    ...(await Promise.all(
-      imageFolderPaths.map(async (imageFolderPath) => ({
+  const imageFolderChapters = await Promise.all(
+    imageFolderPaths.map(async (imageFolderPath) => {
+      const title =
+        normalizeImportPageName(relative(folderPath, imageFolderPath)) ||
+        basename(imageFolderPath);
+      const inspected = await inspectImportImageFiles(
+        await listImageFiles(imageFolderPath),
+      );
+      return {
         sortKey: relative(folderPath, imageFolderPath),
         chapter: {
           draftId: randomUUID(),
-          title:
-            normalizeImportPageName(relative(folderPath, imageFolderPath)) ||
-            basename(imageFolderPath),
+          title,
           sourceKind: "folder" as const,
-          pages: (await listImageFiles(imageFolderPath)).map((filePath) => ({
+          pages: inspected.filePaths.map((filePath) => ({
             name: basename(filePath),
             sourceKind: "file" as const,
             sourcePath: filePath,
@@ -162,9 +174,15 @@ export async function previewZipFolder(
             sourceRelativePath: relative(folderPath, filePath),
           })),
         },
-      })),
-    )),
-  ]
+        excludedPages: buildExcludedPreviewPages(
+          title,
+          inspected.excludedFilePaths,
+        ),
+      };
+    }),
+  );
+  const chapters = [...zipChapters, ...imageFolderChapters]
+    .filter(({ chapter }) => chapter.pages.length > 0)
     .sort((left, right) =>
       left.sortKey.localeCompare(right.sortKey, undefined, {
         numeric: true,
@@ -172,13 +190,64 @@ export async function previewZipFolder(
       }),
     )
     .map(({ chapter }) => chapter);
+  const excludedPages = imageFolderChapters.flatMap(
+    (item) => item.excludedPages,
+  );
+  assertBatchPreviewUsable(chapters, excludedPages);
 
   return {
     mode: "batch",
     sourceKind: "zip-folder",
     suggestedWorkTitle: basename(folderPath),
     chapters,
+    ...(excludedPages.length > 0 ? { excludedPages } : {}),
   };
+}
+
+function assertBatchPreviewUsable(
+  chapters: ImportChapterDraft[],
+  excludedPages: ImportPreviewExcludedPage[],
+): void {
+  const firstExcluded = excludedPages[0];
+  if (chapters.length === 0 && firstExcluded) {
+    throw new Error(
+      tMain("import.errors.invalidImageHeader", {
+        file: `${firstExcluded.chapterTitle} / ${firstExcluded.pageName}`,
+      }),
+    );
+  }
+}
+
+function excludedPreviewPages(
+  chapterTitle: string,
+  filePaths: string[],
+): Pick<ImportPreviewResult, "excludedPages"> {
+  const excludedPages = buildExcludedPreviewPages(chapterTitle, filePaths);
+  return excludedPages.length > 0 ? { excludedPages } : {};
+}
+
+function buildExcludedPreviewPages(
+  chapterTitle: string,
+  filePaths: string[],
+): ImportPreviewExcludedPage[] {
+  return filePaths.map((filePath) => ({
+    chapterTitle,
+    pageName: basename(filePath),
+    reason: "invalid-image-header" as const,
+  }));
+}
+
+function assertUsableInspectedImages(
+  inspection: Awaited<ReturnType<typeof inspectImportImageFiles>>,
+): void {
+  const firstExcluded = inspection.excludedFilePaths[0];
+  if (inspection.filePaths.length === 0 && firstExcluded) {
+    throw new Error(
+      tMain("import.errors.invalidImageHeader", {
+        file: basename(firstExcluded),
+      }),
+    );
+  }
 }
 
 export async function createImportFromPreviewUnlocked(

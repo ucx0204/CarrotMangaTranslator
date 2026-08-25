@@ -114,6 +114,32 @@ describe("ImportModal selection surfaces", () => {
       }),
     );
   });
+
+  it("identifies images excluded by the import preflight", () => {
+    render(
+      <ImportModal
+        library={LIBRARY}
+        preview={{
+          ...PREVIEW,
+          excludedPages: [
+            {
+              chapterTitle: "1화",
+              pageName: "002.png",
+              reason: "invalid-image-header",
+            },
+          ],
+        }}
+        busy={false}
+        onCancel={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText("가져오기 전 검사에서 이미지 1개를 제외했습니다"),
+    ).not.toBeNull();
+    expect(screen.getByText(/1화 \/ 002\.png/)).not.toBeNull();
+  });
 });
 
 const LIBRARY: LibraryIndex = {

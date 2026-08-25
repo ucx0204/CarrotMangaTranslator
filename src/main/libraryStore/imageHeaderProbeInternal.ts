@@ -30,6 +30,21 @@ export type ImageHeaderProbeMachine = Generator<
   Buffer
 >;
 
+export class InvalidImageHeaderError extends Error {
+  readonly code = "INVALID_IMAGE_HEADER";
+
+  constructor(label: string) {
+    super(tMain("import.errors.invalidImageHeader", { file: label }));
+    this.name = "InvalidImageHeaderError";
+  }
+}
+
+export function isInvalidImageHeaderError(
+  error: unknown,
+): error is InvalidImageHeaderError {
+  return error instanceof InvalidImageHeaderError;
+}
+
 export function assertDimensionBudget(
   width: number,
   height: number,
@@ -112,7 +127,7 @@ export function assertReadRange(
 }
 
 export function invalidImageHeaderError(label: string): Error {
-  return new Error(tMain("import.errors.invalidImageHeader", { file: label }));
+  return new InvalidImageHeaderError(label);
 }
 
 export function imageReadError(label: string): Error {

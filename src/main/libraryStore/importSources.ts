@@ -2,7 +2,6 @@ import { readdir } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { SUPPORTED_ARCHIVE_EXTENSIONS } from "../../shared/archive";
 import { tMain } from "./localization";
-import { assertImportImageFileBudget } from "./importImages";
 import { isSupportedImagePath, sortNaturally } from "./storage";
 import {
   MAX_IMPORT_IMAGE_BYTES,
@@ -26,15 +25,11 @@ export function isSupportedArchivePath(filePath: string): boolean {
 
 export async function listImageFiles(folderPath: string): Promise<string[]> {
   const entries = await readdir(folderPath, { withFileTypes: true });
-  const filePaths = sortNaturally(
+  return sortNaturally(
     entries
       .filter((entry) => entry.isFile() && isSupportedImagePath(entry.name))
       .map((entry) => join(folderPath, entry.name)),
   );
-  await Promise.all(
-    filePaths.map((filePath) => assertImportImageFileBudget(filePath)),
-  );
-  return filePaths;
 }
 
 export async function listZipFiles(folderPath: string): Promise<string[]> {

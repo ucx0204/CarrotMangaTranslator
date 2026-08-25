@@ -1,4 +1,4 @@
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, renameSync, writeFileSync } from "node:fs";
 import { hostname } from "node:os";
 import { randomUUID } from "node:crypto";
 import {
@@ -50,7 +50,12 @@ try {
 }
 
 function writeResult(value: unknown): void {
-  writeFileSync(resultPath, `${JSON.stringify(value)}\n`, "utf8");
+  const temporaryPath = `${resultPath}.${process.pid}.tmp`;
+  writeFileSync(temporaryPath, `${JSON.stringify(value)}\n`, {
+    encoding: "utf8",
+    flag: "wx",
+  });
+  renameSync(temporaryPath, resultPath);
 }
 
 async function waitForReleaseSignal(signalPath: string): Promise<void> {

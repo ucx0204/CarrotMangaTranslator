@@ -669,6 +669,9 @@
     "selectWork": "작품 선택",
     "chaptersToCreate": "생성할 화",
     "chapterTitle": "화 제목",
+    "excludedImagesTitle": "가져오기 전 검사에서 이미지 {{count}}개를 제외했습니다",
+    "excludedImagesDetail": "손상되었거나 실제 형식이 PNG·JPEG·WebP가 아닌 파일입니다: {{files}}{{more}}",
+    "excludedImagesMore": " 외 {{count}}개",
     "liveResults": {
       "enable": "결과물 폴더에 자동 저장",
       "description": "결과물을 작품별·화별 폴더에 저장합니다.",

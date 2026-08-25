@@ -665,6 +665,9 @@
     "selectWork": "选择作品",
     "chaptersToCreate": "要创建的章节",
     "chapterTitle": "章节标题",
+    "excludedImagesTitle": "导入预检已排除 {{count}} 个图像",
+    "excludedImagesDetail": "这些文件已损坏，或实际格式不是 PNG、JPEG 或 WebP：{{files}}{{more}}",
+    "excludedImagesMore": "，另有 {{count}} 个",
     "liveResults": {
       "enable": "自动保存到结果文件夹",
       "description": "按作品和章节将结果保存到对应文件夹。",

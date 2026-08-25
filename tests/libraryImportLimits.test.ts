@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { existsSync } from "node:fs";
-import { mkdtemp, readFile, rm, truncate, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  truncate,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ImportImageRuntime } from "../src/main/libraryStore/importImageRuntime";
@@ -236,6 +243,43 @@ describe("library import resource limits", () => {
     expect(library.decodedSources).toHaveLength(1);
     expect(library.decodedSources[0]).toMatch(/\.import-source\.webp$/);
     expect(existsSync(library.decodedSources[0] ?? "")).toBe(false);
+  });
+
+  it("imports valid pages and chapters when a batch folder contains an invalid image", async () => {
+    const rootDir = await createTempLibrary();
+    const sourceDir = join(rootDir, "batch-source");
+    const chapterA = join(sourceDir, "01 first");
+    const chapterB = join(sourceDir, "02 second");
+    await mkdir(chapterA, { recursive: true });
+    await mkdir(chapterB, { recursive: true });
+    await writeFile(join(chapterA, "001.png"), makePngHeader(1, 1));
+    await writeFile(join(chapterA, "002.png"), "not an image");
+    await writeFile(join(chapterB, "001.png"), makePngHeader(1, 1));
+    const library = await loadLibrary(rootDir, { decodeEmpty: false });
+
+    const preview = await library.previewZipFolder(sourceDir);
+    const result = await library.createImport({
+      preview,
+      target: { mode: "new", title: "Batch preflight" },
+      selections: preview.chapters.map((chapter) => ({
+        draftId: chapter.draftId,
+        title: chapter.title,
+        enabled: true,
+      })),
+    });
+
+    expect(preview.excludedPages).toEqual([
+      {
+        chapterTitle: "01 first",
+        pageName: "002.png",
+        reason: "invalid-image-header",
+      },
+    ]);
+    expect(result.chapterIds).toHaveLength(2);
+    const imported = await library.listLibrary();
+    expect(
+      imported.works[0]?.chapters.map((chapter) => chapter.pageCount),
+    ).toEqual([1, 1]);
   });
 });
 

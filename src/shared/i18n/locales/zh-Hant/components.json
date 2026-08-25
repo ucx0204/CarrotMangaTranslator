@@ -665,6 +665,9 @@
     "selectWork": "選擇作品",
     "chaptersToCreate": "要建立的章節",
     "chapterTitle": "章節標題",
+    "excludedImagesTitle": "匯入預檢已排除 {{count}} 個影像",
+    "excludedImagesDetail": "這些檔案已損壞，或實際格式不是 PNG、JPEG 或 WebP：{{files}}{{more}}",
+    "excludedImagesMore": "，另有 {{count}} 個",
     "liveResults": {
       "enable": "自動儲存到結果資料夾",
       "description": "依作品與章節將結果儲存到對應資料夾。",

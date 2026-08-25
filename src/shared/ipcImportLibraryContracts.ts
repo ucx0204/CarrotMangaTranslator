@@ -66,6 +66,13 @@ const importChapterDraftSchema = z
     pages: z.array(importPageDraftSchema).max(MAX_PAGES_PER_REQUEST),
   })
   .strict();
+const importPreviewExcludedPageSchema = z
+  .object({
+    chapterTitle: titleString,
+    pageName: z.string().min(1).max(260),
+    reason: z.literal("invalid-image-header"),
+  })
+  .strict();
 const importPreviewSessionSchema = z
   .object({
     previewId: stringArg,
@@ -73,6 +80,10 @@ const importPreviewSessionSchema = z
     sourceKind: importSourceKindSchema,
     suggestedWorkTitle: titleString,
     chapters: z.array(importChapterDraftSchema).max(MAX_ID_LIST_LENGTH),
+    excludedPages: z
+      .array(importPreviewExcludedPageSchema)
+      .max(MAX_PAGES_PER_REQUEST)
+      .optional(),
   })
   .strict();
 const droppedImportRejectionReasonSchema = z.enum([

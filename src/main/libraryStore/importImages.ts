@@ -13,6 +13,7 @@ import {
   type ImageHeaderMetadata,
   type ImportImageFormat,
 } from "./imageHeaderProbe";
+import { isInvalidImageHeaderError } from "./imageHeaderProbeInternal";
 import { tMain } from "./localization";
 import {
   productionImportImageRuntime,
@@ -29,17 +30,32 @@ const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] as const;
 const RIFF_SIGNATURE = [0x52, 0x49, 0x46, 0x46] as const;
 const WEBP_SIGNATURE = [0x57, 0x45, 0x42, 0x50] as const;
 
-export async function filterImportImageFiles(
+export type ImportImageFileInspection = {
+  filePaths: string[];
+  excludedFilePaths: string[];
+};
+
+export async function inspectImportImageFiles(
   filePaths: string[],
-): Promise<string[]> {
+): Promise<ImportImageFileInspection> {
   const normalized = sortNaturally(
     filePaths.filter((filePath) => isSupportedImagePath(filePath)),
   );
+  const accepted: string[] = [];
+  const excludedFilePaths: string[] = [];
   for (const filePath of normalized) {
     await assertImportImageFileBudget(filePath);
-    await probeImageFile(filePath, basename(filePath));
+    try {
+      await probeImageFile(filePath, basename(filePath));
+      accepted.push(filePath);
+    } catch (error) {
+      if (!isInvalidImageHeaderError(error)) {
+        throw error;
+      }
+      excludedFilePaths.push(filePath);
+    }
   }
-  return normalized;
+  return { filePaths: accepted, excludedFilePaths };
 }
 
 export async function assertImportImageFileBudget(

@@ -1509,6 +1509,50 @@
         "pct": 0
       }
     },
+    "src/main/libraryStore/imageHeaderProbeInternal.ts": {
+      "lines": {
+        "covered": 23,
+        "total": 26,
+        "pct": 88.46
+      },
+      "statements": {
+        "covered": 23,
+        "total": 26,
+        "pct": 88.46
+      },
+      "functions": {
+        "covered": 11,
+        "total": 12,
+        "pct": 91.66
+      },
+      "branches": {
+        "covered": 29,
+        "total": 31,
+        "pct": 93.54
+      }
+    },
+    "src/main/libraryStore/importImages.ts": {
+      "lines": {
+        "covered": 45,
+        "total": 47,
+        "pct": 95.74
+      },
+      "statements": {
+        "covered": 46,
+        "total": 48,
+        "pct": 95.83
+      },
+      "functions": {
+        "covered": 9,
+        "total": 9,
+        "pct": 100
+      },
+      "branches": {
+        "covered": 18,
+        "total": 20,
+        "pct": 90
+      }
+    },
     "src/main/libraryStore/importPageMaterialize.ts": {
       "lines": {
         "covered": 67,
@@ -1529,6 +1573,28 @@
         "covered": 30,
         "total": 44,
         "pct": 68.18
+      }
+    },
+    "src/main/libraryStore/importSources.ts": {
+      "lines": {
+        "covered": 37,
+        "total": 40,
+        "pct": 92.5
+      },
+      "statements": {
+        "covered": 37,
+        "total": 40,
+        "pct": 92.5
+      },
+      "functions": {
+        "covered": 14,
+        "total": 15,
+        "pct": 93.33
+      },
+      "branches": {
+        "covered": 16,
+        "total": 18,
+        "pct": 88.88
       }
     },
     "src/main/libraryStore/importWorkflow.ts": {

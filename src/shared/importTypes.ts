@@ -19,11 +19,18 @@ export type ImportChapterDraft = {
   pages: ImportPageDraft[];
 };
 
+export type ImportPreviewExcludedPage = {
+  chapterTitle: string;
+  pageName: string;
+  reason: "invalid-image-header";
+};
+
 export type ImportPreviewResult = {
   mode: "single" | "batch";
   sourceKind: ImportSourceKind;
   suggestedWorkTitle: string;
   chapters: ImportChapterDraft[];
+  excludedPages?: ImportPreviewExcludedPage[];
 };
 
 export type ImportPreviewSession = ImportPreviewResult & {
