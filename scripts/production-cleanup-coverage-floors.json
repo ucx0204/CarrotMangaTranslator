@@ -915,6 +915,28 @@
         "pct": 100
       }
     },
+    "src/main/inpainting/koharuEngine.ts": {
+      "lines": {
+        "covered": 0,
+        "total": 17,
+        "pct": 0
+      },
+      "statements": {
+        "covered": 0,
+        "total": 17,
+        "pct": 0
+      },
+      "functions": {
+        "covered": 0,
+        "total": 7,
+        "pct": 0
+      },
+      "branches": {
+        "covered": 0,
+        "total": 7,
+        "pct": 0
+      }
+    },
     "src/main/inpainting/koharuEngineRunner.ts": {
       "lines": {
         "covered": 0,

@@ -13,6 +13,7 @@ use clap::{Parser, ValueEnum};
 use koharu_ml::{
     anime_text::{AnimeTextDetection, AnimeTextDetector, AnimeTextYoloVariant},
     aot_inpainting::AotInpainting,
+    inpainting::HdStrategyConfig,
     lama::Lama,
     types::TextRegion,
 };
@@ -124,8 +125,7 @@ enum WorkerRequest {
         bubble_mask: PathBuf,
         output: PathBuf,
         windows: Option<Vec<[u32; 4]>>,
-        #[serde(rename = "max_pixels")]
-        _max_pixels: Option<u32>,
+        max_pixels: Option<u32>,
     },
     #[serde(rename = "detect_text")]
     DetectText {
@@ -162,6 +162,7 @@ trait WorkerOperations {
         bubble_mask: &Path,
         output: &Path,
         windows: Vec<[u32; 4]>,
+        max_pixels: Option<u32>,
     ) -> Result<()>;
 
     fn detect_text(
@@ -180,8 +181,9 @@ impl WorkerOperations for LoadedModel {
         bubble_mask: &Path,
         output: &Path,
         windows: Vec<[u32; 4]>,
+        max_pixels: Option<u32>,
     ) -> Result<()> {
-        run_inpaint(self, input, mask, bubble_mask, output, windows)
+        run_inpaint(self, input, mask, bubble_mask, output, windows, max_pixels)
     }
 
     fn detect_text(
@@ -704,7 +706,7 @@ fn dispatch_worker_request<O: WorkerOperations>(
             bubble_mask,
             output,
             windows,
-            _max_pixels: _,
+            max_pixels,
         } => WorkerDispatch::Response(timed_worker_response(id, || {
             operations.inpaint(
                 &input,
@@ -712,6 +714,7 @@ fn dispatch_worker_request<O: WorkerOperations>(
                 &bubble_mask,
                 &output,
                 windows.unwrap_or_default(),
+                max_pixels,
             )?;
             Ok(None)
         })),
@@ -769,6 +772,7 @@ fn run_inpaint(
     bubble_mask: &Path,
     output: &Path,
     windows: Vec<[u32; 4]>,
+    max_pixels: Option<u32>,
 ) -> Result<()> {
     let image = image::open(input)
         .with_context(|| format!("failed to open input image {}", input.display()))?;
@@ -779,14 +783,24 @@ fn run_inpaint(
 
     let result = match model {
         LoadedModel::Lama(lama) => {
+            let config = cap_inpaint_config(HdStrategyConfig::lama_default(), max_pixels)?;
             let text_regions = windows_to_text_regions(windows);
             if text_regions.is_empty() {
-                lama.inference(&image, &mask_image, &bubble_image)?
+                lama.inference_with_config(&image, &mask_image, &bubble_image, &config)?
             } else {
-                lama.inference_with_blocks(&image, &mask_image, &bubble_image, &text_regions)?
+                lama.inference_with_config_and_blocks(
+                    &image,
+                    &mask_image,
+                    &bubble_image,
+                    Some(&text_regions),
+                    &config,
+                )?
             }
         }
-        LoadedModel::Aot(aot) => aot.inference(&image, &mask_image, &bubble_image)?,
+        LoadedModel::Aot(aot) => {
+            let config = cap_inpaint_config(aot.default_config(), max_pixels)?;
+            aot.inference_with_config(&image, &mask_image, &bubble_image, &config)?
+        }
         LoadedModel::AnimeText(_) => {
             bail!("anime-text-yolo does not accept inpaint requests")
         }
@@ -795,6 +809,51 @@ fn run_inpaint(
         .save(output)
         .with_context(|| format!("failed to write output image {}", output.display()))?;
     Ok(())
+}
+
+fn cap_inpaint_config(
+    mut config: HdStrategyConfig,
+    max_pixels: Option<u32>,
+) -> Result<HdStrategyConfig> {
+    let Some(max_pixels) = max_pixels else {
+        return Ok(config);
+    };
+    if max_pixels == 0 {
+        bail!("max_pixels must be greater than zero");
+    }
+    if config.pad_mod == 0 {
+        bail!("inpainting pad modulus must be greater than zero");
+    }
+
+    let max_side = floor_sqrt(max_pixels);
+    let aligned_max_side = max_side / config.pad_mod * config.pad_mod;
+    if aligned_max_side < config.pad_mod {
+        bail!(
+            "max_pixels {max_pixels} is too small for pad modulus {}",
+            config.pad_mod
+        );
+    }
+
+    config.resize_limit = config.resize_limit.min(aligned_max_side);
+    // Crop mode otherwise falls through to an unbounded Original forward for
+    // images below its independent trigger, even when resize_limit is lower.
+    config.crop_trigger_size = config.crop_trigger_size.min(config.resize_limit);
+    Ok(config)
+}
+
+fn floor_sqrt(value: u32) -> u32 {
+    let mut root = (f64::from(value).sqrt().floor() as u32).min(u16::MAX.into());
+    while root
+        .saturating_add(1)
+        .saturating_mul(root.saturating_add(1))
+        <= value
+    {
+        root += 1;
+    }
+    while root.saturating_mul(root) > value {
+        root -= 1;
+    }
+    root
 }
 
 fn run_text_detection(
@@ -914,6 +973,7 @@ mod tests {
     struct StubOperations {
         inpaint_results: RefCell<VecDeque<Result<()>>>,
         inpaint_calls: Cell<usize>,
+        last_max_pixels: Cell<Option<u32>>,
     }
 
     impl StubOperations {
@@ -921,6 +981,7 @@ mod tests {
             Self {
                 inpaint_results: RefCell::new(results.into()),
                 inpaint_calls: Cell::new(0),
+                last_max_pixels: Cell::new(None),
             }
         }
     }
@@ -933,8 +994,10 @@ mod tests {
             _bubble_mask: &Path,
             _output: &Path,
             _windows: Vec<[u32; 4]>,
+            max_pixels: Option<u32>,
         ) -> Result<()> {
             self.inpaint_calls.set(self.inpaint_calls.get() + 1);
+            self.last_max_pixels.set(max_pixels);
             self.inpaint_results
                 .borrow_mut()
                 .pop_front()
@@ -1043,6 +1106,37 @@ mod tests {
         assert!(responses[0]["elapsed_ms"].is_number());
         assert_eq!(responses[0]["error"], serde_json::Value::Null);
         assert!(responses[0].get("result").is_none());
+    }
+
+    #[test]
+    fn worker_forwards_the_inpaint_pixel_budget() {
+        let operations = StubOperations::default();
+        let input = Cursor::new(
+            r#"{"type":"inpaint","id":"budget","input":"input.png","mask":"mask.png","bubble_mask":"bubble.png","output":"output.png","max_pixels":262144}"#,
+        );
+        let mut output = Vec::new();
+
+        run_worker_stream(&operations, input, &mut output).expect("worker stream");
+
+        assert_eq!(operations.last_max_pixels.get(), Some(262_144));
+    }
+
+    #[test]
+    fn pixel_budget_caps_and_aligns_the_model_forward_size() {
+        let config = cap_inpaint_config(HdStrategyConfig::lama_default(), Some(262_144))
+            .expect("bounded config");
+        assert_eq!(config.resize_limit, 512);
+        assert_eq!(config.crop_trigger_size, 512);
+
+        let config = cap_inpaint_config(HdStrategyConfig::lama_default(), Some(1_000_000))
+            .expect("aligned config");
+        assert_eq!(config.resize_limit, 1_000);
+        assert_eq!(config.crop_trigger_size, 800);
+    }
+
+    #[test]
+    fn pixel_budget_rejects_values_smaller_than_the_model_modulus() {
+        assert!(cap_inpaint_config(HdStrategyConfig::lama_default(), Some(1)).is_err());
     }
 
     #[test]

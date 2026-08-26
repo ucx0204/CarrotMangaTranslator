@@ -14,6 +14,10 @@ import {
   sanitizeFluxRuntimeStderr,
 } from "../src/main/inpainting/fluxWorkerErrors";
 import {
+  KOHARU_LAMA_METAL_MAX_PIXELS,
+  resolveKoharuInpaintMaxPixels,
+} from "../src/main/inpainting/koharuEngine";
+import {
   FLUX_RECOMMENDED_UNIFIED_MEMORY_MB,
   assertFluxMemoryPolicy,
 } from "../src/main/inpainting/inpaintingEnginePool";
@@ -52,6 +56,37 @@ describe("Apple Silicon inpainting policy", () => {
         allowUnsafeLowMemoryFlux: false,
       }),
     ).not.toThrow();
+  });
+
+  it("keeps LaMa Metal forwards below Candle's large-buffer boundary", () => {
+    expect(KOHARU_LAMA_METAL_MAX_PIXELS).toBe(512 * 512);
+    expect(
+      resolveKoharuInpaintMaxPixels({
+        backend: "metal-native",
+        model: "lama-manga",
+        requestedMaxPixels: 1024 * 1024,
+      }),
+    ).toBe(512 * 512);
+    expect(
+      resolveKoharuInpaintMaxPixels({
+        backend: "metal-native",
+        model: "lama-manga",
+      }),
+    ).toBe(512 * 512);
+    expect(
+      resolveKoharuInpaintMaxPixels({
+        backend: "cpu",
+        model: "lama-manga",
+        requestedMaxPixels: 1024 * 1024,
+      }),
+    ).toBe(1024 * 1024);
+    expect(
+      resolveKoharuInpaintMaxPixels({
+        backend: "metal-native",
+        model: "aot-inpainting",
+        requestedMaxPixels: 1024 * 1024,
+      }),
+    ).toBe(1024 * 1024);
   });
 
   it("keeps Flux Metal failures explicit instead of silently falling back", () => {
