@@ -31,6 +31,7 @@ export type EngineSettingsPanelProps = {
   contextTokens: string;
   controlsBusy: boolean;
   detectedGpuName?: string | null;
+  gpuMemoryMb: number | null;
   customModelFile: string;
   customModelRepo: string;
   gemmaFitTargetMb: number;

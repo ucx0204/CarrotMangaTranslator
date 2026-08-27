@@ -290,16 +290,16 @@ describe("translation workflow modes", () => {
       "번역·원문 지우기를 완료했습니다.",
     );
     expect(options.pushStatus).toHaveBeenCalledWith(
-      expect.stringMatching(
-        /^번역·원문 지우기를 완료했습니다\. · 전체 (?:1초 미만|\d)/,
-      ),
+      "번역·원문 지우기를 완료했습니다.",
     );
     expect(options.setJobState).toHaveBeenLastCalledWith(
       expect.objectContaining({
         status: "completed",
         phase: "done",
-        jobElapsedMs: expect.any(Number),
       }),
+    );
+    expect(options.setJobState).toHaveBeenLastCalledWith(
+      expect.not.objectContaining({ jobElapsedMs: expect.anything() }),
     );
     expect(startAnalysis).toHaveBeenCalledWith(
       expect.objectContaining({ completionWorkflow: "erase-original" }),
@@ -800,6 +800,32 @@ describe("translation workflow modes", () => {
 
     expect(startAnalysis).toHaveBeenCalledWith(
       expect.objectContaining({ collectPageContext: true }),
+    );
+  });
+
+  it("forwards an explicit cumulative-context detail for direct translation", async () => {
+    const options = makeOptions();
+    startAnalysis.mockResolvedValue({ status: "completed" });
+    const { result } = renderHook(() =>
+      useTranslationActions(options, notificationMocks),
+    );
+
+    await act(async () => {
+      await result.current.runAnalysis(
+        "pending",
+        undefined,
+        undefined,
+        undefined,
+        true,
+        undefined,
+        undefined,
+        undefined,
+        "balanced",
+      );
+    });
+
+    expect(startAnalysis).toHaveBeenCalledWith(
+      expect.objectContaining({ cumulativeContextDetail: "balanced" }),
     );
   });
 

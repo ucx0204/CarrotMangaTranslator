@@ -2,11 +2,13 @@ import type { BBox } from "./textTypes";
 import type { ChapterSnapshot } from "./libraryTypes";
 import type { TranslationCompletionWorkflow } from "./libraryTypes";
 import type { JobFailureGuidance } from "./jobTypes";
+import type { CumulativeContextDetail } from "./settingsTypes";
 
 export type AnalysisBlockMode = "auto" | "keep";
 
 type TranslationRunOptions = {
   collectPageContext?: boolean;
+  cumulativeContextDetail?: CumulativeContextDetail;
   /** Insert natural hard line breaks into translated text for the detected block size. */
   naturalTextLayout?: boolean;
   /** Choose locale-compatible fonts for newly detected translation blocks. */

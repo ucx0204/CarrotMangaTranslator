@@ -4,7 +4,6 @@ import type {
 } from "../../shared/inpaintingTypes";
 import type { JobEvent } from "../../shared/jobTypes";
 import type { MangaPage } from "../../shared/libraryTypes";
-import type { AppSettings } from "../../shared/settingsTypes";
 import { prepareBubbleLayoutJob } from "./bubbleLayoutJob";
 import {
   assertInpaintingJobHasTargets,
@@ -21,6 +20,7 @@ import type {
 import type { InpaintingJobContext } from "./inpaintingJobTypes";
 import type { InpaintingJobRuntime } from "./inpaintingJobRuntime";
 import { commitProcessedInpaintingPage } from "./inpaintingJobHistory";
+import { acquireInpaintingEngineIfNeeded } from "./inpaintingJobEngine";
 import {
   emitInpaintingCancelled,
   emitInpaintingCompleted,
@@ -28,12 +28,13 @@ import {
   emitInpaintingPartial,
   emitInpaintingStarting,
 } from "./inpaintingJobProgress";
+import {
+  createPageProcessingTimingCollector,
+  measureSharedProcessingStage,
+} from "../pipeline/pageProcessingTiming";
 
 type EmitJobEvent = (event: JobEvent) => void;
 type OpenedChapter = Awaited<ReturnType<InpaintingJobRuntime["openChapter"]>>;
-type InpaintingEngineLease = Awaited<
-  ReturnType<InpaintingJobRuntime["acquireEngine"]>
->;
 
 export type InpaintingJobPage = {
   chapterId: string;
@@ -46,6 +47,19 @@ type ProcessInpaintingPagesResult = {
   pagesIncomplete: number;
   blocksErased: number;
   blocksIncomplete: number;
+};
+
+type ProcessInpaintingPagesOptions = {
+  abortController: AbortController;
+  context: InpaintingJobContext;
+  emit: EmitJobEvent;
+  id: string;
+  request: StartInpaintingRequest;
+  targets: InpaintingJobPage[];
+  state: InpaintingJobState;
+  target: InpaintingTarget;
+  totalTargetBlocks: number;
+  runtime: InpaintingJobRuntime;
 };
 
 export async function runInpaintingPagesJob({
@@ -259,37 +273,16 @@ async function processInpaintingPages({
   target,
   totalTargetBlocks,
   runtime,
-}: {
-  abortController: AbortController;
-  context: InpaintingJobContext;
-  emit: EmitJobEvent;
-  id: string;
-  request: StartInpaintingRequest;
-  targets: InpaintingJobPage[];
-  state: InpaintingJobState;
-  target: InpaintingTarget;
-  totalTargetBlocks: number;
-  runtime: InpaintingJobRuntime;
-}): Promise<ProcessInpaintingPagesResult> {
-  const preparedBubbleLayout = await prepareBubbleLayoutJob({
-    completionWorkflow: state.requestedCompletionWorkflow,
-    context,
-    request,
-    runtime,
-    totalTargetBlocks,
-  });
-  const { appSettings } = preparedBubbleLayout;
-  state.bubbleLayoutPostprocess = preparedBubbleLayout.config;
-  state.bubbleLayoutRunner = preparedBubbleLayout.runner;
-  assertInpaintingJobHasTargets(targets, state, target, totalTargetBlocks);
-  state.inpaintingEngineLease = await acquireInpaintingEngineIfNeeded({
+}: ProcessInpaintingPagesOptions): Promise<ProcessInpaintingPagesResult> {
+  const timing = await prepareInpaintingPageRuntime({
     abortController,
-    appSettings,
     context,
     emit,
     id,
-    shouldAcquireEngine: !target.layoutOnly,
-    pageCount: targets.length,
+    request,
+    targets,
+    state,
+    target,
     totalTargetBlocks,
     runtime,
   });
@@ -306,6 +299,7 @@ async function processInpaintingPages({
       state,
       target,
       runtime,
+      timing,
     });
     await commitProcessedInpaintingPage({
       context,
@@ -325,60 +319,55 @@ async function processInpaintingPages({
   };
 }
 
-async function acquireInpaintingEngineIfNeeded({
+async function prepareInpaintingPageRuntime({
   abortController,
-  appSettings,
   context,
   emit,
   id,
-  shouldAcquireEngine,
-  pageCount,
+  request,
+  targets,
+  state,
+  target,
   totalTargetBlocks,
   runtime,
-}: {
-  abortController: AbortController;
-  appSettings: AppSettings | null;
-  context: InpaintingJobContext;
-  emit: EmitJobEvent;
-  id: string;
-  shouldAcquireEngine: boolean;
-  pageCount: number;
-  totalTargetBlocks: number;
-  runtime: InpaintingJobRuntime;
-}): Promise<InpaintingEngineLease | null> {
-  if (!shouldAcquireEngine || totalTargetBlocks <= 0) {
-    return null;
-  }
-  if (!appSettings) {
-    return null;
-  }
-  return runtime.acquireEngine({
-    appPaths: context.appPaths,
-    model: appSettings.inpainting?.model ?? "flux-klein",
-    fluxBackend: appSettings.inpainting?.fluxBackend,
-    koharuBackend: appSettings.inpainting?.koharuBackend,
-    computeGpuIndex: appSettings.hardware?.computeGpuIndex,
-    allowUnsafeLowMemoryFlux:
-      appSettings.inpainting?.allowUnsafeLowMemoryFlux ?? false,
-    signal: abortController.signal,
-    onProgress: (progress) =>
-      emit({
-        id,
-        kind: "inpainting",
-        status: "starting",
-        progressText: progress.progressText,
-        phase: "model_downloading",
-        progressCurrent: 0,
-        progressTotal: pageCount,
-        pageTotal: pageCount,
-        detail: progress.detail,
-        progressMode: progress.progressMode,
-        progressPercent: progress.progressPercent,
-        progressBytes: progress.progressBytes,
-        progressTotalBytes: progress.progressTotalBytes,
-        installLogLine: progress.installLogLine,
+}: ProcessInpaintingPagesOptions) {
+  const timing = createPageProcessingTimingCollector(
+    id,
+    targets.map(({ page }) => page.id),
+  );
+  const preparedBubbleLayout = await measureSharedProcessingStage(
+    timing,
+    "preparing",
+    () =>
+      prepareBubbleLayoutJob({
+        completionWorkflow: state.requestedCompletionWorkflow,
+        context,
+        request,
+        runtime,
+        totalTargetBlocks,
       }),
-  });
+  );
+  const { appSettings } = preparedBubbleLayout;
+  state.bubbleLayoutPostprocess = preparedBubbleLayout.config;
+  state.bubbleLayoutRunner = preparedBubbleLayout.runner;
+  assertInpaintingJobHasTargets(targets, state, target, totalTargetBlocks);
+  state.inpaintingEngineLease = await measureSharedProcessingStage(
+    timing,
+    "preparing",
+    () =>
+      acquireInpaintingEngineIfNeeded({
+        abortController,
+        appSettings,
+        context,
+        emit,
+        id,
+        shouldAcquireEngine: !target.layoutOnly,
+        pageCount: targets.length,
+        totalTargetBlocks,
+        runtime,
+      }),
+  );
+  return timing;
 }
 
 function getLastJobEvent(

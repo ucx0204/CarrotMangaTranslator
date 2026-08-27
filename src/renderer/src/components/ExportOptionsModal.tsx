@@ -114,6 +114,8 @@ export function ExportOptionsModal({
       size="lg"
       onClose={onClose}
       fillHeight
+      cardClassName="export-options-modal page-picker-fill-modal"
+      bodyClassName="export-options-modal-body page-picker-fill-modal-body"
       closeDisabled={start.isStarting}
       footer={
         <ExportOptionsFooter

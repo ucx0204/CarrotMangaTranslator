@@ -65,6 +65,7 @@ export function attachBaseProgress(
       progressTotalBytes: progress.progressTotalBytes,
       progressBytesPerSecond: progress.progressBytesPerSecond,
       installLogLine: progress.installLogLine,
+      notification: progress.notification,
     });
   };
 }
@@ -96,6 +97,7 @@ export function attachPageProgress(
       progressTotalBytes: progress.progressTotalBytes,
       progressBytesPerSecond: progress.progressBytesPerSecond,
       installLogLine: progress.installLogLine,
+      notification: progress.notification,
     });
   };
 }

@@ -56,6 +56,16 @@ export function AutoInpaintingOptionsModal({
       size={initialScope === "select" ? "lg" : "md"}
       onClose={onClose}
       fillHeight
+      cardClassName={
+        initialScope === "select"
+          ? "auto-inpainting-options-modal page-picker-fill-modal"
+          : undefined
+      }
+      bodyClassName={
+        initialScope === "select"
+          ? "auto-inpainting-options-modal-body page-picker-fill-modal-body"
+          : undefined
+      }
       footer={
         <ModalActionBar
           actions={

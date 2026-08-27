@@ -26,18 +26,28 @@
   overflow-x: auto;
 }
 
-.singleRow .button {
+.singleRow .option {
   flex: 1 0 auto;
+}
+
+.singleRow .button {
   white-space: nowrap;
+}
+
+.option {
+  position: relative;
+  display: flex;
+  flex: 1 1 108px;
+  min-width: 0;
 }
 
 /* A small internal gutter keeps the choices visibly grouped without fusing
    them into one undifferentiated strip. Longer translated labels may wrap. */
 .button {
-  flex: 1 1 108px;
+  flex: 1 1 auto;
   min-width: 0;
   min-height: 30px;
-  width: auto;
+  width: 100%;
   padding: 4px 9px;
   border-color: transparent;
   border-radius: var(--r-sm);

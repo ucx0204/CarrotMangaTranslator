@@ -43,6 +43,20 @@ describe("cumulative translation prompt", () => {
     );
   });
 
+  it("adds selective glossary instructions for balanced and essential collection", () => {
+    const balanced = promptRuntime.getOverlayPrompt(
+      { collectPageContext: true, cumulativeContextDetail: "balanced" },
+      [{ role: "original" }],
+    );
+    const essential = promptRuntime.getOverlayPrompt(
+      { collectPageContext: true, cumulativeContextDetail: "essential" },
+      [{ role: "original" }],
+    );
+
+    expect(balanced).toContain("Use a selective glossary focused on names");
+    expect(essential).toContain("Keep glossary extremely small");
+  });
+
   it("prefers visual summaries and ranks direct OCR matches before usage", () => {
     const guide = makeStyleGuide();
     const memory = makeStoryMemory();

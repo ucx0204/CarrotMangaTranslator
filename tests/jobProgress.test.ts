@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { TFunction } from "i18next";
 import { formatElapsedDuration } from "../src/renderer/src/lib/appHelpers";
 import {
+  formatBytes,
   formatJobEventLine,
   formatJobLabel,
   resolveProgressSnapshot,
@@ -65,7 +66,7 @@ describe("job progress helpers", () => {
     ).toBe("3 / 20 페이지 AI 번역 요청 중");
   });
 
-  it("adds page and total elapsed time to completed status records", () => {
+  it("keeps elapsed time out of work-center status records", () => {
     expect(
       formatJobEventLine({
         id: "job-1",
@@ -77,7 +78,7 @@ describe("job progress helpers", () => {
         pageTotal: 20,
         pageElapsedMs: 83_400,
       }),
-    ).toBe("3 / 20 페이지 완료 · 소요 1분 23초");
+    ).toBe("3 / 20 페이지 완료");
 
     expect(
       formatJobEventLine({
@@ -88,7 +89,7 @@ describe("job progress helpers", () => {
         phase: "done",
         jobElapsedMs: 3_723_400,
       }),
-    ).toBe("번역 완료 · 전체 1시간 2분 3초");
+    ).toBe("번역 완료");
     expect(formatElapsedDuration(420)).toBe("1초 미만");
     expect(formatElapsedDuration(45_200)).toBe("45초");
     expect(formatElapsedDuration(-1)).toBeNull();
@@ -245,5 +246,41 @@ describe("job progress helpers", () => {
         "002.png: 불확실한 OCR 조각이 2개 있습니다.",
       ]),
     ).toBe("일부 페이지를 건너뛰었고 OCR 확인이 필요한 블록도 있습니다.");
+
+    expect(summarizeWarnings([])).toBeNull();
+    expect(summarizeWarnings(["page_skipped: 001.png"])).toContain("건너뛰고");
+    expect(summarizeWarnings(["uncertain_ocr: 002.png"])).toContain("OCR 확인");
+    expect(summarizeWarnings(["generic warning"])).toContain("작업은 계속");
+  });
+
+  it("formats byte progress across invalid, small, and scaled values", () => {
+    expect(formatBytes(Number.NaN)).toBeNull();
+    expect(formatBytes(-1)).toBeNull();
+    expect(formatBytes(0)).toBe("0 B");
+    expect(formatBytes(1024)).toBe("1.00 KB");
+    expect(formatBytes(12 * 1024)).toBe("12.0 KB");
+    expect(formatBytes(128 * 1024)).toBe("128 KB");
+    expect(formatBytes(1.5 * 1024 ** 3, "en-US")).toBe("1.50 GB");
+  });
+
+  it("honors explicit indeterminate and empty determinate progress", () => {
+    expect(
+      resolveProgressSnapshot({
+        status: "running",
+        progressMode: "indeterminate",
+      }),
+    ).toEqual({ mode: "indeterminate" });
+    expect(
+      resolveProgressSnapshot({
+        status: "running",
+        progressMode: "determinate",
+      }),
+    ).toBeNull();
+    expect(
+      resolveProgressSnapshot({
+        status: "running",
+        progressPercent: -0.5,
+      }),
+    ).toEqual({ mode: "determinate", current: 0, total: 100, ratio: 0 });
   });
 });

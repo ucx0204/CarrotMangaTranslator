@@ -10,6 +10,7 @@ import {
   statusLineReplacementGroup,
 } from "../lib/appHelpers";
 import { formatJobEventLine, formatJobLabel } from "../lib/jobProgress";
+import { toast } from "../lib/toastStore";
 import {
   createLiveChapterRefreshCoordinator,
   type LiveChapterRefreshCoordinator,
@@ -168,6 +169,9 @@ function subscribeToJobEventUpdates({
     }
     if (suppressTerminalEvents) {
       aggregateGuardRef.current.activeJobIds.add(event.id);
+    }
+    if (event.notification) {
+      toast[event.notification.variant](event.notification.message);
     }
     pendingBatch.enqueue(event);
     refreshLiveChapterAfterJobEvent({ event, liveChapterRefresh });

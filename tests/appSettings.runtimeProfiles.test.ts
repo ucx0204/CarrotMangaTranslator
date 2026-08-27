@@ -8,6 +8,26 @@ import {
 } from "../src/main/appSettings";
 import type { AppSettings } from "../src/shared/settingsTypes";
 import { join } from "node:path";
+import {
+  GEMMA_12B_QAT_MMPROJ_FILE,
+  GEMMA_12B_QAT_MMPROJ_REPO,
+  GEMMA_12B_QAT_MODEL_FILE_Q4_K_M,
+  GEMMA_12B_QAT_MODEL_REPO,
+  GEMMA_12B_QAT_MTP_MODEL_FILE,
+  GEMMA_12B_QAT_MTP_MODEL_REPO,
+  GEMMA_26B_QAT_MMPROJ_FILE,
+  GEMMA_26B_QAT_MMPROJ_REPO,
+  GEMMA_26B_QAT_MODEL_FILE_Q4_K_M,
+  GEMMA_26B_QAT_MODEL_REPO,
+  GEMMA_26B_QAT_MTP_MODEL_FILE,
+  GEMMA_26B_QAT_MTP_MODEL_REPO,
+  GEMMA_31B_QAT_MMPROJ_FILE,
+  GEMMA_31B_QAT_MMPROJ_REPO,
+  GEMMA_31B_QAT_MODEL_FILE_Q4_K_M,
+  GEMMA_31B_QAT_MODEL_REPO,
+  GEMMA_31B_QAT_MTP_MODEL_FILE,
+  GEMMA_31B_QAT_MTP_MODEL_REPO,
+} from "../src/shared/modelPresets";
 
 const describeWindows = process.platform === "win32" ? describe : describe.skip;
 
@@ -154,7 +174,7 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
     expect(options.enableMetrics).toBe(true);
     expect(options.enablePerf).toBe(true);
     expect(options.useDraft).toBe(false);
-    expect(options.fitTargetMb).toBe(1024);
+    expect(options.fitTargetMb).toBe(512);
     expect(options.ocrBboxMode).toBe("ocr");
     expect(options.ocrEngine).toBe("paddle_static");
     expect(options.ocrTextDetectionModelName).toBe("PP-OCRv6_small_det");
@@ -163,7 +183,7 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
     expect(options.imageMinTokens).toBe(1024);
     expect(options.imageMaxTokens).toBe(1024);
     expect(options.serverPath).toBe(
-      join("C:/app-data", "tools", "llama-b9547-cuda12.4", "llama-server.exe"),
+      join("C:/app-data", "tools", "llama-b9553-cuda12.4", "llama-server.exe"),
     );
   });
 
@@ -197,6 +217,173 @@ describeWindows("app settings helpers: packaged runtime profiles", () => {
     expect(options.ocrMergeMode).toBe("semantic");
     expect(options.ocrDetLimit).toBe("1600");
     expect(options.ocrRecBatch).toBe("1");
+  });
+
+  it("enables draft-mtp automatically for the built-in QAT 12B preset", () => {
+    const defaults = resolveDefaultAppSettings();
+    const options = buildBaseTranslationOptions({
+      jobId: "job-qat-mtp",
+      runDir: "C:/runs/job-qat-mtp",
+      paths: {
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/tools",
+        llamaServerPath: "C:/tools/llama-server.exe",
+        hfHomeDir: "C:/hf-home",
+        hfHubCacheDir: "C:/hf-home/hub",
+      },
+      settings: {
+        ...defaults,
+        modelProvider: "gemma",
+        gemma: {
+          ...defaults.gemma,
+          modelSource: "huggingface",
+          modelRepo: GEMMA_12B_QAT_MODEL_REPO,
+          modelFile: GEMMA_12B_QAT_MODEL_FILE_Q4_K_M,
+          mmprojRepo: GEMMA_12B_QAT_MMPROJ_REPO,
+          mmprojFile: GEMMA_12B_QAT_MMPROJ_FILE,
+          vramMode: "minimum12b",
+          mmprojOffload: true,
+        },
+      },
+      env: {},
+    });
+
+    expect(options.modelRepo).toBe(GEMMA_12B_QAT_MODEL_REPO);
+    expect(options.modelFile).toBe(GEMMA_12B_QAT_MODEL_FILE_Q4_K_M);
+    expect(options.mmprojRepo).toBe(GEMMA_12B_QAT_MMPROJ_REPO);
+    expect(options.mmprojFile).toBe(GEMMA_12B_QAT_MMPROJ_FILE);
+    expect(options.useDraft).toBe(true);
+    expect(options.draftSpecType).toBe("draft-mtp");
+    expect(options.draftModelRepo).toBe(GEMMA_12B_QAT_MTP_MODEL_REPO);
+    expect(options.draftModelFile).toBe(GEMMA_12B_QAT_MTP_MODEL_FILE);
+    expect(options.draftMaxTokens).toBe(8);
+    expect(options.batch).toBe(1024);
+    expect(options.ubatch).toBe(1024);
+    expect(options.fitTargetMb).toBe(512);
+    expect(options.gpuLayers).toBe("fit");
+    expect(options.fitEnabled).toBeUndefined();
+    expect(options.serverPath).toBe(
+      join("C:/app-data", "tools", "llama-b10621-cuda12.4", "llama-server.exe"),
+    );
+  });
+
+  it("enables draft-mtp automatically for the built-in QAT 26B preset", () => {
+    const defaults = resolveDefaultAppSettings();
+    const options = buildBaseTranslationOptions({
+      jobId: "job-qat-26b-mtp",
+      runDir: "C:/runs/job-qat-26b-mtp",
+      paths: {
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/tools",
+        llamaServerPath: "C:/tools/llama-server.exe",
+        hfHomeDir: "C:/hf-home",
+        hfHubCacheDir: "C:/hf-home/hub",
+      },
+      settings: {
+        ...defaults,
+        modelProvider: "gemma",
+        runtimeHardware: {
+          gpuVendor: "nvidia",
+          gpuMemoryMb: 24_564,
+        },
+        gemma: {
+          ...defaults.gemma,
+          modelSource: "huggingface",
+          modelRepo: GEMMA_26B_QAT_MODEL_REPO,
+          modelFile: GEMMA_26B_QAT_MODEL_FILE_Q4_K_M,
+          mmprojRepo: GEMMA_26B_QAT_MMPROJ_REPO,
+          mmprojFile: GEMMA_26B_QAT_MMPROJ_FILE,
+          vramMode: "economy26b",
+          mmprojOffload: true,
+        },
+      },
+      env: {},
+    });
+
+    expect(options.modelRepo).toBe(GEMMA_26B_QAT_MODEL_REPO);
+    expect(options.modelFile).toBe(GEMMA_26B_QAT_MODEL_FILE_Q4_K_M);
+    expect(options.mmprojRepo).toBe(GEMMA_26B_QAT_MMPROJ_REPO);
+    expect(options.mmprojFile).toBe(GEMMA_26B_QAT_MMPROJ_FILE);
+    expect(options.useDraft).toBe(true);
+    expect(options.draftSpecType).toBe("draft-mtp");
+    expect(options.draftModelRepo).toBe(GEMMA_26B_QAT_MTP_MODEL_REPO);
+    expect(options.draftModelFile).toBe(GEMMA_26B_QAT_MTP_MODEL_FILE);
+    expect(options.draftMaxTokens).toBe(2);
+    expect(options.batch).toBe(1024);
+    expect(options.ubatch).toBe(1024);
+    expect(options.fitTargetMb).toBe(512);
+    expect(options.gpuLayers).toBe("all");
+    expect(options.fitEnabled).toBe(false);
+    expect(options.gpuMemoryMb).toBe(24_564);
+    expect(options.cacheTypeK).toBe("q4_0");
+    expect(options.cacheTypeV).toBe("q4_0");
+    expect(options.ctxCheckpoints).toBe(0);
+    expect(options.kvOffload).toBe(true);
+    expect(options.mmprojOffload).toBe(true);
+    expect(options.disableMmap).toBe(true);
+    expect(options.threads).toBe(10);
+    expect(options.threadsBatch).toBe(12);
+    expect(options.serverPath).toBe(
+      join("C:/app-data", "tools", "llama-b10621-cuda12.4", "llama-server.exe"),
+    );
+  });
+
+  it("enables draft-mtp automatically for the built-in QAT 31B speed preset", () => {
+    const defaults = resolveDefaultAppSettings();
+    const options = buildBaseTranslationOptions({
+      jobId: "job-qat-31b-mtp",
+      runDir: "C:/runs/job-qat-31b-mtp",
+      paths: {
+        dataRoot: "C:/app-data",
+        toolsDir: "C:/tools",
+        llamaServerPath: "C:/tools/llama-server.exe",
+        hfHomeDir: "C:/hf-home",
+        hfHubCacheDir: "C:/hf-home/hub",
+      },
+      settings: {
+        ...defaults,
+        modelProvider: "gemma",
+        runtimeHardware: {
+          gpuVendor: "nvidia",
+          gpuMemoryMb: 24_564,
+        },
+        gemma: {
+          ...defaults.gemma,
+          modelSource: "huggingface",
+          modelRepo: GEMMA_31B_QAT_MODEL_REPO,
+          modelFile: GEMMA_31B_QAT_MODEL_FILE_Q4_K_M,
+          mmprojRepo: GEMMA_31B_QAT_MMPROJ_REPO,
+          mmprojFile: GEMMA_31B_QAT_MMPROJ_FILE,
+          vramMode: "full31b",
+          mmprojOffload: true,
+        },
+      },
+      env: {},
+    });
+
+    expect(options.modelRepo).toBe(GEMMA_31B_QAT_MODEL_REPO);
+    expect(options.modelFile).toBe(GEMMA_31B_QAT_MODEL_FILE_Q4_K_M);
+    expect(options.mmprojRepo).toBe(GEMMA_31B_QAT_MMPROJ_REPO);
+    expect(options.mmprojFile).toBe(GEMMA_31B_QAT_MMPROJ_FILE);
+    expect(options.useDraft).toBe(true);
+    expect(options.draftSpecType).toBe("draft-mtp");
+    expect(options.draftModelRepo).toBe(GEMMA_31B_QAT_MTP_MODEL_REPO);
+    expect(options.draftModelFile).toBe(GEMMA_31B_QAT_MTP_MODEL_FILE);
+    expect(options.draftMaxTokens).toBe(2);
+    expect(options.ctx).toBe(12_288);
+    expect(options.batch).toBe(1024);
+    expect(options.ubatch).toBe(1024);
+    expect(options.fitTargetMb).toBe(512);
+    expect(options.gpuLayers).toBe("fit");
+    expect(options.fitEnabled).toBeUndefined();
+    expect(options.cacheTypeK).toBe("q4_0");
+    expect(options.cacheTypeV).toBe("q4_0");
+    expect(options.disableMmap).toBe(true);
+    expect(options.threads).toBe(10);
+    expect(options.threadsBatch).toBe(12);
+    expect(options.serverPath).toBe(
+      join("C:/app-data", "tools", "llama-b10621-cuda12.4", "llama-server.exe"),
+    );
   });
 
   it("uses the full VRAM smoke preset with DFlash draft enabled", () => {

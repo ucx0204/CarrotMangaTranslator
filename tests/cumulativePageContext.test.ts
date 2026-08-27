@@ -7,6 +7,59 @@ import type {
 import { mergeCumulativePageContext } from "../src/main/pipeline/cumulativePageContext";
 
 describe("cumulative page context merge", () => {
+  it("keeps existing detailed behavior while filtering new balanced and essential glossary noise", () => {
+    const page = makePage({
+      sourceText: "アリア 王都 魔法 魔法 きれい",
+      translatedText: "아리아 왕도 마법 마법 예쁘다",
+    });
+    const pageContext = {
+      glossary: [
+        { source: "アリア", target: "아리아", category: "character" as const },
+        { source: "王都", target: "왕도", category: "place" as const },
+        { source: "魔法", target: "마법", category: "term" as const },
+        { source: "きれい", target: "예쁘다", category: "other" as const },
+      ],
+      characters: [],
+    };
+    const detailed = mergeCumulativePageContext({
+      styleGuide: makeEmptyGuide(),
+      page,
+      pageIndex: 0,
+      pageContext,
+      cumulativeContextDetail: "detailed",
+    });
+    const balanced = mergeCumulativePageContext({
+      styleGuide: makeEmptyGuide(),
+      page,
+      pageIndex: 0,
+      pageContext,
+      cumulativeContextDetail: "balanced",
+    });
+    const essential = mergeCumulativePageContext({
+      styleGuide: makeEmptyGuide(),
+      page,
+      pageIndex: 0,
+      pageContext,
+      cumulativeContextDetail: "essential",
+    });
+
+    expect(detailed.styleGuide.glossary.map((entry) => entry.source)).toEqual([
+      "アリア",
+      "王都",
+      "魔法",
+      "きれい",
+    ]);
+    expect(balanced.styleGuide.glossary.map((entry) => entry.source)).toEqual([
+      "アリア",
+      "王都",
+      "魔法",
+    ]);
+    expect(essential.styleGuide.glossary.map((entry) => entry.source)).toEqual([
+      "アリア",
+      "王都",
+      "魔法",
+    ]);
+  });
   it("adds only grounded new entries and never overwrites existing values", () => {
     const guide = makeGuide();
     const existingMemory = makeExistingMemory();
@@ -317,6 +370,10 @@ function makeGuide(): WorkStyleGuide {
     createdAt: now,
     updatedAt: now,
   };
+}
+
+function makeEmptyGuide(): WorkStyleGuide {
+  return { ...makeGuide(), glossary: [] };
 }
 
 function makeExistingMemory(): PageStoryMemory {

@@ -953,6 +953,7 @@ function makeToyRuntime(
   } as const;
   const model: FontMatchingRuntimeModel = {
     status,
+    executionBackend: "wasm",
     encoder,
     ranker,
     createFloatTensor: tensor,

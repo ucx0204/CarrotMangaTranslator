@@ -7,6 +7,7 @@ import type {
 } from "../../../shared/analysisTypes";
 import type { JobFailureGuidance, JobState } from "../../../shared/jobTypes";
 import type { TranslationCompletionWorkflow } from "../../../shared/libraryTypes";
+import type { CumulativeContextDetail } from "../../../shared/settingsTypes";
 import { analysisGateway as mangaGateway } from "../api/analysisGateway";
 import { formatErrorMessage } from "../lib/errorPresentation";
 import type { LiveChapterMergeOptions } from "../lib/chapterSync";
@@ -54,6 +55,7 @@ export function makeStartAnalysisRequest(
     pageIds?: string[];
     blockMode?: AnalysisBlockMode;
     collectPageContext?: boolean;
+    cumulativeContextDetail?: CumulativeContextDetail;
     naturalTextLayout?: boolean;
     autoFontMatching?: boolean;
     fontSizeAutoFit?: boolean;
@@ -108,6 +110,9 @@ function buildSharedAnalysisRequest(
     ...(args.collectPageContext === undefined
       ? {}
       : { collectPageContext: args.collectPageContext }),
+    ...(args.cumulativeContextDetail
+      ? { cumulativeContextDetail: args.cumulativeContextDetail }
+      : {}),
     ...(args.naturalTextLayout === undefined
       ? {}
       : { naturalTextLayout: args.naturalTextLayout }),

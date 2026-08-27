@@ -22,7 +22,10 @@ import {
   resolveGemmaImageOptions,
   resolveGemmaThreadOptions,
 } from "./translationGemmaFieldOptions";
-import { GEMMA_RUNTIME_PRESETS } from "./gemmaRuntimePresets";
+import {
+  GEMMA_RUNTIME_PRESETS,
+  resolveModelSpecificGemmaRuntimePreset,
+} from "./gemmaRuntimePresets";
 import {
   getDefaultMmprojForGemmaModel,
   resolveRuntimeGemmaSettings,
@@ -42,6 +45,7 @@ export type TranslationRuntimeState = {
   runtimeGemma: AppSettings["gemma"];
   llamaRuntimeProfile: LlamaRuntimeProfile;
   llamaRocmTarget?: string;
+  gpuMemoryMb?: number;
   unifiedMemoryMb?: number;
   allowUnsafeUnifiedMemory: boolean;
 };
@@ -50,6 +54,7 @@ type GemmaModelOptions = Pick<
   TranslationOptions,
   | "llamaRuntimeProfile"
   | "llamaRocmTarget"
+  | "gpuMemoryMb"
   | "unifiedMemoryMb"
   | "allowUnsafeUnifiedMemory"
   | "workingDir"
@@ -86,23 +91,39 @@ export function resolveTranslationRuntimeState(
     gemmaVramMode !== "full31b"
       ? { ...baseRuntimePreset, fitTargetMb: 4096 }
       : baseRuntimePreset;
-  const gemmaRuntimePreset = {
-    ...platformRuntimePreset,
-    fitTargetMb:
-      settings.gemma.fitTargetMb ?? platformRuntimePreset.fitTargetMb,
-    mmprojOffload:
-      settings.gemma.mmprojOffload ?? platformRuntimePreset.mmprojOffload,
-  };
+  const runtimeGemma = resolveRuntimeGemmaSettings(
+    settings.gemma,
+    gemmaVramMode,
+  );
+  const gemmaRuntimePreset = resolveModelSpecificGemmaRuntimePreset(
+    {
+      ...platformRuntimePreset,
+      fitTargetMb:
+        settings.gemma.fitTargetMb ?? platformRuntimePreset.fitTargetMb,
+      mmprojOffload:
+        settings.gemma.mmprojOffload ?? platformRuntimePreset.mmprojOffload,
+    },
+    runtimeGemma,
+    llamaRuntimeProfile,
+    settings.runtimeHardware?.gpuMemoryMb,
+  );
+  const configuredCtx = resolveContextTokens(
+    settings.ctx,
+    gemmaRuntimePreset.ctx || DEFAULT_GEMMA_CONTEXT_TOKENS,
+  );
   return {
     gemmaVramMode,
     gemmaRuntimePreset,
-    settingsCtx: resolveContextTokens(
-      settings.ctx,
-      gemmaRuntimePreset.ctx || DEFAULT_GEMMA_CONTEXT_TOKENS,
-    ),
-    runtimeGemma: resolveRuntimeGemmaSettings(settings.gemma, gemmaVramMode),
+    settingsCtx:
+      gemmaRuntimePreset.ctxCap === undefined
+        ? configuredCtx
+        : Math.min(configuredCtx, gemmaRuntimePreset.ctxCap),
+    runtimeGemma,
     llamaRuntimeProfile,
     llamaRocmTarget: resolveLlamaRocmTarget(runtimeEnv, settings),
+    ...(typeof settings.runtimeHardware?.gpuMemoryMb === "number"
+      ? { gpuMemoryMb: settings.runtimeHardware.gpuMemoryMb }
+      : {}),
     ...(typeof settings.runtimeHardware?.unifiedMemoryMb === "number"
       ? { unifiedMemoryMb: settings.runtimeHardware.unifiedMemoryMb }
       : {}),
@@ -174,6 +195,9 @@ function resolveGemmaModelOptions(
     llamaRuntimeProfile: state.llamaRuntimeProfile,
     ...(state.llamaRocmTarget
       ? { llamaRocmTarget: state.llamaRocmTarget }
+      : {}),
+    ...(typeof state.gpuMemoryMb === "number"
+      ? { gpuMemoryMb: state.gpuMemoryMb }
       : {}),
     ...(typeof state.unifiedMemoryMb === "number"
       ? { unifiedMemoryMb: state.unifiedMemoryMb }

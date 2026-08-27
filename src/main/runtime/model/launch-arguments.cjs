@@ -80,20 +80,38 @@ function buildDraftArgs(options, target) {
   if (!options.useDraft || (!target.draftModelPath && !target.draftModelUrl)) {
     return [];
   }
-  return [
+  const specType = resolveDraftSpecType(options.draftSpecType);
+  const args = [
     target.draftModelPath ? "--spec-draft-model" : "--spec-draft-hf",
     target.draftModelPath || resolveDraftModelRepoArg(options),
     "--spec-type",
-    "dflash",
-    "--spec-dflash-cross-ctx",
-    "512",
+    specType,
     "--spec-draft-ngl",
     "all",
     "--spec-draft-n-max",
-    "16",
-    "--spec-branch-budget",
-    "0",
+    String(resolveDraftMaxTokens(options)),
   ];
+  if (specType === "dflash") {
+    args.push("--spec-dflash-cross-ctx", "512", "--spec-branch-budget", "0");
+  }
+  return args;
+}
+
+/** @param {LaunchOptions} options */
+function resolveDraftMaxTokens(options) {
+  const configured = Number(options.draftMaxTokens);
+  return Number.isInteger(configured) && configured >= 1 && configured <= 16
+    ? configured
+    : 16;
+}
+
+/** @param {unknown} value */
+function resolveDraftSpecType(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase() === "draft-mtp"
+    ? "draft-mtp"
+    : "dflash";
 }
 
 /** @param {LaunchOptions} options */
@@ -150,17 +168,19 @@ function configuredSamplingValue(options, key, fallback) {
 function buildComputeArgs(options, useBeellama) {
   const fitArgs = useBeellama
     ? []
-    : [
-        "--fit",
-        "on",
-        "--fit-target",
-        String(options.fitTargetMb),
-        // llama.cpp otherwise defaults --fit-ctx to 4096 and may silently
-        // shrink the requested context before reducing GPU layer offload.
-        // Keep the configured context as a hard requirement instead.
-        "--fit-ctx",
-        String(options.ctx),
-      ];
+    : options.fitEnabled === false
+      ? ["--fit", "off"]
+      : [
+          "--fit",
+          "on",
+          "--fit-target",
+          String(options.fitTargetMb),
+          // llama.cpp otherwise defaults --fit-ctx to 4096 and may silently
+          // shrink the requested context before reducing GPU layer offload.
+          // Keep the configured context as a hard requirement instead.
+          "--fit-ctx",
+          String(options.ctx),
+        ];
   const gpuLayerArgs =
     options.gpuLayers === "fit"
       ? ["-ngl", "auto"]
@@ -169,6 +189,7 @@ function buildComputeArgs(options, useBeellama) {
     resolveLlamaRuntimeProfile(options) === "metal"
       ? null
       : resolveComputeGpuIndex(options.computeGpuIndex);
+  const disableMmap = !useBeellama && options.disableMmap === true;
   const gpuSelectionArgs =
     computeGpuIndex === null
       ? []
@@ -188,6 +209,7 @@ function buildComputeArgs(options, useBeellama) {
     "-np",
     "1",
     ...(useBeellama ? [] : ["--no-cache-prompt", "--no-warmup"]),
+    ...(disableMmap ? ["--no-mmap"] : []),
     options.mmprojOffload === true ? "--mmproj-offload" : "--no-mmproj-offload",
     "--cache-ram",
     "0",
@@ -312,6 +334,9 @@ function appendExtraArgs(args, options) {
 function resolveDraftModelRepoArg(options = {}) {
   const repo = resolveConfiguredDraftModelRepo(options);
   const file = resolveConfiguredDraftModelFile(options);
+  if (resolveDraftSpecType(options.draftSpecType) === "draft-mtp") {
+    return repo;
+  }
   const quant = file.match(/-([A-Za-z0-9_]+)\.gguf$/)?.[1];
   return quant ? `${repo}:${quant}` : repo;
 }

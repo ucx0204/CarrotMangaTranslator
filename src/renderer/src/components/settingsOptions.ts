@@ -25,13 +25,25 @@ const MODEL_PRESET_COPY: Record<
     labelKey: "settings.options.modelPresets.minimum12b.label",
     descriptionKey: "settings.options.modelPresets.minimum12b.description",
   },
+  qat12b: {
+    labelKey: "settings.options.modelPresets.qat12b.label",
+    descriptionKey: "settings.options.modelPresets.qat12b.description",
+  },
   economy26b: {
     labelKey: "settings.options.modelPresets.economy26b.label",
     descriptionKey: "settings.options.modelPresets.economy26b.description",
   },
+  qat26b: {
+    labelKey: "settings.options.modelPresets.qat26b.label",
+    descriptionKey: "settings.options.modelPresets.qat26b.description",
+  },
   full31b: {
     labelKey: "settings.options.modelPresets.full31b.label",
     descriptionKey: "settings.options.modelPresets.full31b.description",
+  },
+  qat31b: {
+    labelKey: "settings.options.modelPresets.qat31b.label",
+    descriptionKey: "settings.options.modelPresets.qat31b.description",
   },
 } as const;
 
@@ -40,13 +52,25 @@ export const MODEL_PRESETS = {
     ...GEMMA_MODEL_PRESETS.minimum12b,
     ...MODEL_PRESET_COPY.minimum12b,
   },
+  qat12b: {
+    ...GEMMA_MODEL_PRESETS.qat12b,
+    ...MODEL_PRESET_COPY.qat12b,
+  },
   economy26b: {
     ...GEMMA_MODEL_PRESETS.economy26b,
     ...MODEL_PRESET_COPY.economy26b,
   },
+  qat26b: {
+    ...GEMMA_MODEL_PRESETS.qat26b,
+    ...MODEL_PRESET_COPY.qat26b,
+  },
   full31b: {
     ...GEMMA_MODEL_PRESETS.full31b,
     ...MODEL_PRESET_COPY.full31b,
+  },
+  qat31b: {
+    ...GEMMA_MODEL_PRESETS.qat31b,
+    ...MODEL_PRESET_COPY.qat31b,
   },
 } as const;
 export type ModelPresetId = keyof typeof MODEL_PRESETS | "custom";

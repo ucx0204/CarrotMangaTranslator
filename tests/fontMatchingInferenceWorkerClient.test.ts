@@ -90,7 +90,12 @@ const { FakeWorker } = vi.hoisted(() => {
               error: { name: "Error", message: "boom" },
             });
           } else {
-            this.emit("message", { type: "ready", id, status: readyStatus() });
+            this.emit("message", {
+              type: "ready",
+              id,
+              status: readyStatus(),
+              backend: "wasm",
+            });
             if (FakeWorker.exitAfterReady) {
               FakeWorker.exitAfterReady = false;
               this.emit("exit", 0);
@@ -245,6 +250,7 @@ type PortOverrides = {
     wasmModulePath: string;
   }>;
   createFallbackPort?: () => FontMatchingPageInferencePort;
+  reportInfo?: (message: string, detail: unknown) => void;
   reportWarning?: (message: string, detail: unknown) => void;
 };
 
@@ -264,13 +270,16 @@ function makePort(
         wasmModulePath: "/fake.mjs",
       })),
     createFallbackPort: overrides.createFallbackPort,
+    reportInfo: overrides.reportInfo,
     reportWarning: overrides.reportWarning,
   });
 }
 
 describe("font matching worker client protocol", () => {
   it("runs init handshake then returns the worker inference result", async () => {
-    const port = makePort();
+    const reportInfo = vi.fn();
+    const reportWarning = vi.fn();
+    const port = makePort({ reportInfo, reportWarning });
     const result = await port.inferPage(makeRequest());
 
     const worker = FakeWorker.instances[0];
@@ -283,6 +292,9 @@ describe("font matching worker client protocol", () => {
 
     expect(result.runtimeArtifactStatus?.state).toBe("ready");
     expect(result.pixelInferenceByBlockId).toBeInstanceOf(Map);
+    expect(reportInfo.mock.calls.length + reportWarning.mock.calls.length).toBe(
+      1,
+    );
   });
 
   it("shares one initialization worker across concurrent page requests", async () => {

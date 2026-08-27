@@ -14,6 +14,7 @@ import {
   DEFAULT_IMAGE_TOKENS,
   GEMMA_RUNTIME_PRESETS,
 } from "./gemmaRuntimePresets";
+import { readOptionalGpuLayersEnv } from "./gemmaGpuLayersEnv";
 
 type GemmaRuntimePreset = (typeof GEMMA_RUNTIME_PRESETS)[GemmaVramMode];
 
@@ -28,12 +29,14 @@ export type GemmaFieldOptions = Pick<
   | "batch"
   | "ubatch"
   | "fitTargetMb"
+  | "fitEnabled"
   | "gpuLayers"
   | "cacheTypeK"
   | "cacheTypeV"
   | "ctxCheckpoints"
   | "kvOffload"
   | "mmprojOffload"
+  | "disableMmap"
   | "threads"
   | "threadsBatch"
   | "poll"
@@ -45,6 +48,8 @@ export type GemmaFieldOptions = Pick<
   | "enablePerf"
   | "draftModelRepo"
   | "draftModelFile"
+  | "draftSpecType"
+  | "draftMaxTokens"
   | "useDraft"
   | "imageMinTokens"
   | "imageMaxTokens"
@@ -120,31 +125,57 @@ export function resolveGemmaGenerationOptions(
       runtimeEnv,
       "MANGA_TRANSLATOR_FIT_TARGET_MB",
       preset.fitTargetMb,
-      { min: 0, max: 8192, integer: true },
+      { min: 0, max: 16384, integer: true },
     ),
   };
 }
 
-export function resolveGemmaGpuOptions(
-  runtimeEnv: NodeJS.ProcessEnv,
-  preset: GemmaRuntimePreset,
-): Pick<
+type GemmaGpuFieldOptions = Pick<
   GemmaFieldOptions,
   | "gpuLayers"
+  | "fitEnabled"
   | "cacheTypeK"
   | "cacheTypeV"
   | "ctxCheckpoints"
   | "kvOffload"
   | "mmprojOffload"
-> {
+  | "disableMmap"
+>;
+
+export function resolveGemmaGpuOptions(
+  runtimeEnv: NodeJS.ProcessEnv,
+  preset: GemmaRuntimePreset,
+): GemmaGpuFieldOptions {
   return {
-    gpuLayers:
-      readOptionalGpuLayersEnv(
-        runtimeEnv,
-        "MANGA_TRANSLATOR_GEMMA_GPU_LAYERS",
-      ) ??
-      readOptionalGpuLayersEnv(runtimeEnv, "MANGA_TRANSLATOR_GPU_LAYERS") ??
-      preset.gpuLayers,
+    ...resolveConfiguredGemmaGpuMode(runtimeEnv, preset),
+    ...resolveGemmaGpuCacheOptions(runtimeEnv, preset),
+    ...resolveGemmaGpuMemoryOptions(runtimeEnv, preset),
+  };
+}
+
+function resolveConfiguredGemmaGpuMode(
+  runtimeEnv: NodeJS.ProcessEnv,
+  preset: GemmaRuntimePreset,
+): Pick<GemmaGpuFieldOptions, "gpuLayers" | "fitEnabled"> {
+  const configuredGpuLayers =
+    readOptionalGpuLayersEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_GPU_LAYERS") ??
+    readOptionalGpuLayersEnv(runtimeEnv, "MANGA_TRANSLATOR_GPU_LAYERS");
+  const configuredFitEnabled =
+    readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_FIT") ??
+    readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_FIT");
+  return {
+    gpuLayers: configuredGpuLayers ?? preset.gpuLayers,
+    fitEnabled:
+      configuredFitEnabled ??
+      (configuredGpuLayers === "fit" ? true : preset.fitEnabled),
+  };
+}
+
+function resolveGemmaGpuCacheOptions(
+  runtimeEnv: NodeJS.ProcessEnv,
+  preset: GemmaRuntimePreset,
+): Pick<GemmaGpuFieldOptions, "cacheTypeK" | "cacheTypeV" | "ctxCheckpoints"> {
+  return {
     cacheTypeK:
       resolveOptionalString(
         runtimeEnv.MANGA_TRANSLATOR_GEMMA_CACHE_TYPE_K ??
@@ -167,12 +198,23 @@ export function resolveGemmaGpuOptions(
         integer: true,
       }) ??
       preset.ctxCheckpoints,
+  };
+}
+
+function resolveGemmaGpuMemoryOptions(
+  runtimeEnv: NodeJS.ProcessEnv,
+  preset: GemmaRuntimePreset,
+): Pick<GemmaGpuFieldOptions, "kvOffload" | "mmprojOffload" | "disableMmap"> {
+  return {
     kvOffload:
       readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_KV_OFFLOAD") ??
       preset.kvOffload,
     mmprojOffload:
       readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_MMPROJ_OFFLOAD") ??
       preset.mmprojOffload,
+    disableMmap:
+      readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_NO_MMAP") ??
+      preset.disableMmap,
   };
 }
 
@@ -250,6 +292,8 @@ export function resolveGemmaCacheOptions(
   | "enablePerf"
   | "draftModelRepo"
   | "draftModelFile"
+  | "draftSpecType"
+  | "draftMaxTokens"
   | "useDraft"
 > {
   return {
@@ -280,16 +324,54 @@ export function resolveGemmaCacheOptions(
       readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_GEMMA_PERF") ??
       readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_PERF") ??
       preset.enablePerf,
+    ...resolveGemmaDraftOptions(runtimeEnv, preset),
+  };
+}
+
+function resolveGemmaDraftOptions(
+  runtimeEnv: NodeJS.ProcessEnv,
+  preset: GemmaRuntimePreset,
+): Pick<
+  GemmaFieldOptions,
+  | "draftModelRepo"
+  | "draftModelFile"
+  | "draftSpecType"
+  | "draftMaxTokens"
+  | "useDraft"
+> {
+  return {
     draftModelRepo:
       resolveOptionalString(runtimeEnv.MANGA_TRANSLATOR_DRAFT_MODEL_HF) ??
       preset.draftModelRepo,
     draftModelFile:
       resolveOptionalString(runtimeEnv.MANGA_TRANSLATOR_DRAFT_MODEL_FILE) ??
       preset.draftModelFile,
+    draftSpecType:
+      resolveDraftSpecType(runtimeEnv.MANGA_TRANSLATOR_DRAFT_SPEC_TYPE) ??
+      preset.draftSpecType,
+    draftMaxTokens:
+      readOptionalNumberEnv(runtimeEnv, "MANGA_TRANSLATOR_SPEC_DRAFT_N_MAX", {
+        min: 1,
+        max: 16,
+        integer: true,
+      }) ?? preset.draftMaxTokens,
     useDraft:
       readOptionalBooleanEnv(runtimeEnv, "MANGA_TRANSLATOR_USE_DRAFT") ??
       preset.useDraft,
   };
+}
+
+function resolveDraftSpecType(
+  value: unknown,
+): GemmaFieldOptions["draftSpecType"] {
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (normalized === "dflash") return "dflash";
+  if (normalized === "draft-mtp" || normalized === "mtp") {
+    return "draft-mtp";
+  }
+  return undefined;
 }
 
 export function resolveGemmaImageOptions(
@@ -323,23 +405,4 @@ export function resolveGemmaImageOptions(
     imageFirst: true,
     reuseServer: true,
   };
-}
-
-function readOptionalGpuLayersEnv(
-  env: NodeJS.ProcessEnv,
-  name: string,
-): number | "fit" | undefined {
-  const raw = env[name];
-  if (raw === undefined || raw === "") {
-    return undefined;
-  }
-  const normalized = raw.trim().toLowerCase();
-  if (normalized === "fit") {
-    return "fit";
-  }
-  if (normalized === "all") {
-    return undefined;
-  }
-  const value = Number(normalized);
-  return Number.isFinite(value) ? Math.round(value) : undefined;
 }

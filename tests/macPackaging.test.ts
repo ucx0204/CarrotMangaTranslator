@@ -283,6 +283,11 @@ describe("Apple Silicon Alpha packaging", () => {
     });
     expect(MAC_RUNTIME_MANIFEST.llamaRuntimes).toEqual([
       expect.objectContaining({
+        id: "llama-b10621-metal-arm64",
+        sha256:
+          "429c8270608600188035e5e92f7d78dffb7900904fe7dd7e6a84f48068cd13cf",
+      }),
+      expect.objectContaining({
         id: "llama-b9547-metal-arm64",
         sha256:
           "8791fdac4d5b7008b53fd15c609491d5a2fce2d180bb0b0e041eac53c5ade000",

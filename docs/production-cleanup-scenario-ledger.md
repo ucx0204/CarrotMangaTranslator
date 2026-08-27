@@ -114,9 +114,15 @@ editing the totals by hand.
   `c889ab0c393d0e5664034fa5a830cd807262efc4cd0a292d2675ccf1cc302312`.
   The source-artwork font-size matching pass extended it to SHA-256
   `fc297c21bbba1d6e84e9ccaf6191e4e4d569c1c3975b0243411519a999c98132`.
+  The Gemma speed-runtime and chapter typography scheduling pass extended it
+  to SHA-256
+  `aaec09cd2d708383846e36a1707f27377f54bbfef6cd5c273b30269785f1cb7a`.
+  The page timing, cumulative-context detail, and VRAM warning pass extended
+  the accepted Node 26 artifact to SHA-256
+  `b93d3ca26db18942be260a93c20435f3bf439c7b2c464af1875ab1185c731d3b`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
-  percentage for lines/statements/functions/branches in all 495 existing
-  coverage-eligible `src/**` files changed since cleanup start. The 138 new
+  percentage for lines/statements/functions/branches in all 518 existing
+  coverage-eligible `src/**` files changed since cleanup start. The 154 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record. The
   five removed source files are recorded explicitly in `deletedFiles`.
@@ -143,6 +149,12 @@ editing the totals by hand.
   files: 3,941 tests passed and the two expected platform-specific tests were
   skipped. Its aggregate V8 coverage was 79.44% lines, 78.37% statements,
   80.49% functions, and 70.80% branches.
+- The Gemma speed-runtime and chapter typography scheduling capture passed all
+  554 Vitest files: 4,187 tests passed and the two expected platform-specific
+  tests were skipped. Aggregate V8 coverage was 80.23% lines, 79.08%
+  statements, 81.50% functions, and 71.63% branches. The complete
+  `npm run check` also passed build, page-artwork pixel parity with zero
+  mismatched pixels, image-protocol smoke, and bundle guards in 210.53 seconds.
 
 ## Fail-closed obligations
 

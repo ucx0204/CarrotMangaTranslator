@@ -192,7 +192,7 @@ export const AppSettingsSchema = z
         localModelPath: filePath.optional(),
         localMmprojPath: filePath.optional(),
         vramMode: GemmaVramModeSchema,
-        fitTargetMb: z.number().int().min(0).max(8192).optional(),
+        fitTargetMb: z.number().int().min(0).max(16384).optional(),
         mmprojOffload: z.boolean().optional(),
         llamaRuntimeProfile: LlamaRuntimeProfileSchema.optional(),
         llamaRocmTarget: AmdRocmTargetSchema.optional(),
@@ -249,6 +249,9 @@ export const AppSettingsSchema = z
         inpaintingGuideHidden: z.boolean().optional(),
         translationWorkflowDefault: z
           .enum(["standard", "cumulative"])
+          .optional(),
+        cumulativeContextDetailDefault: z
+          .enum(["detailed", "balanced", "essential"])
           .optional(),
         blockModeDefault: z.enum(["auto", "keep"]).optional(),
         naturalTextLayoutDefault: z.boolean().optional(),

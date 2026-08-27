@@ -15,6 +15,16 @@ import {
 } from "../src/main/appSettings";
 import { CURRENT_GENERATION_LIMITS_VERSION } from "../src/main/settings/appSettingsGenerationLimitMigration";
 import {
+  GEMMA_12B_QAT_MMPROJ_FILE,
+  GEMMA_12B_QAT_MMPROJ_REPO,
+  GEMMA_12B_QAT_MODEL_FILE_Q4_K_M,
+  GEMMA_12B_QAT_MODEL_REPO,
+  GEMMA_26B_QAT_MMPROJ_FILE,
+  GEMMA_26B_QAT_MMPROJ_REPO,
+  GEMMA_26B_QAT_MODEL_FILE_Q4_K_M,
+  GEMMA_26B_QAT_MODEL_REPO,
+} from "../src/shared/modelPresets";
+import {
   resolveOcrGpuBackend,
   resolveOcrQualityMode,
   resolveFluxBackend,
@@ -383,6 +393,50 @@ describeWindows("app settings helpers: UI settings and migrations", () => {
 
     expect(restored.gemma.mmprojRepo).toBe(GEMMA_12B_MMPROJ_REPO);
     expect(restored.gemma.mmprojFile).toBe(GEMMA_12B_MMPROJ_FILE);
+  });
+
+  it("preserves the QAT 12B model instead of rewriting it by VRAM mode", () => {
+    const defaults = resolveDefaultAppSettings();
+    const restored = parseStoredAppSettings(
+      JSON.stringify({
+        gemma: {
+          modelSource: "huggingface",
+          modelRepo: GEMMA_12B_QAT_MODEL_REPO,
+          modelFile: GEMMA_12B_QAT_MODEL_FILE_Q4_K_M,
+          mmprojRepo: GEMMA_12B_QAT_MMPROJ_REPO,
+          mmprojFile: GEMMA_12B_QAT_MMPROJ_FILE,
+          vramMode: "minimum12b",
+        },
+      }),
+      defaults,
+    );
+
+    expect(restored.gemma.modelRepo).toBe(GEMMA_12B_QAT_MODEL_REPO);
+    expect(restored.gemma.modelFile).toBe(GEMMA_12B_QAT_MODEL_FILE_Q4_K_M);
+    expect(restored.gemma.mmprojRepo).toBe(GEMMA_12B_QAT_MMPROJ_REPO);
+    expect(restored.gemma.mmprojFile).toBe(GEMMA_12B_QAT_MMPROJ_FILE);
+  });
+
+  it("preserves the QAT 26B model instead of rewriting it by VRAM mode", () => {
+    const defaults = resolveDefaultAppSettings();
+    const restored = parseStoredAppSettings(
+      JSON.stringify({
+        gemma: {
+          modelSource: "huggingface",
+          modelRepo: GEMMA_26B_QAT_MODEL_REPO,
+          modelFile: GEMMA_26B_QAT_MODEL_FILE_Q4_K_M,
+          mmprojRepo: GEMMA_26B_QAT_MMPROJ_REPO,
+          mmprojFile: GEMMA_26B_QAT_MMPROJ_FILE,
+          vramMode: "economy26b",
+        },
+      }),
+      defaults,
+    );
+
+    expect(restored.gemma.modelRepo).toBe(GEMMA_26B_QAT_MODEL_REPO);
+    expect(restored.gemma.modelFile).toBe(GEMMA_26B_QAT_MODEL_FILE_Q4_K_M);
+    expect(restored.gemma.mmprojRepo).toBe(GEMMA_26B_QAT_MMPROJ_REPO);
+    expect(restored.gemma.mmprojFile).toBe(GEMMA_26B_QAT_MMPROJ_FILE);
   });
 
   it("normalizes max token settings", () => {

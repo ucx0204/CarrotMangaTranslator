@@ -77,14 +77,6 @@ export function isEditableTarget(target: EventTarget | null): boolean {
   );
 }
 
-export function formatTotalElapsedLine(
-  label: string,
-  elapsedMs: number,
-  t?: TFunction<"renderer">,
-): string {
-  return formatElapsedLine(label, elapsedMs, "total", t);
-}
-
 export function formatElapsedDuration(
   elapsedMs: number | undefined,
   t?: TFunction<"renderer">,
@@ -111,24 +103,6 @@ export function formatElapsedDuration(
       : `${minutes}분 ${seconds}초`;
   }
   return t ? t("job.elapsed.seconds", { seconds }) : `${seconds}초`;
-}
-
-export function formatElapsedLine(
-  label: string,
-  elapsedMs: number | undefined,
-  scope: "page" | "total",
-  t?: TFunction<"renderer">,
-): string {
-  const duration = formatElapsedDuration(elapsedMs, t);
-  if (!duration) {
-    return label;
-  }
-  if (t) {
-    return t(`job.elapsed.${scope}`, { label, duration });
-  }
-  return scope === "page"
-    ? `${label} · 소요 ${duration}`
-    : `${label} · 전체 ${duration}`;
 }
 
 export function formatJobFailureGuidance(

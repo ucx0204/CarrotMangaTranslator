@@ -112,6 +112,7 @@ async function run() {
     await context.releaseTranslationEndpoint();
     context.inpaintingLease?.release();
     context.exportSession?.close();
+    report.runtimeMeasurements = context.runtimeMeasurements;
     report.finishedAt = new Date().toISOString();
     await persistReport(report);
     await writeReviewHtml(report);
@@ -270,6 +271,7 @@ async function createRuntimeContext(modules) {
     dependencies,
     inferenceTraces,
     pageInference,
+    runtimeMeasurements: sharedRuntime.measurements,
     releaseTranslationEndpoint: sharedRuntime.release,
     inpaintingLease: null,
     exportSession: null,
@@ -280,15 +282,79 @@ async function createRuntimeContext(modules) {
 function createSharedEndpointRuntime(runtime) {
   let sharedPromise = null;
   let sharedSession = null;
+  const measurements = {
+    endpointStarts: [],
+    ocrCalls: [],
+    translationCalls: [],
+  };
   return {
     runtime: {
       ...runtime,
       async startEndpointSession(options) {
-        sharedPromise ??= runtime.startEndpointSession(options);
+        if (!sharedPromise) {
+          const startedAt = Date.now();
+          sharedPromise = runtime.startEndpointSession(options).then(
+            (session) => {
+              measurements.endpointStarts.push({
+                status: "completed",
+                elapsedMs: Date.now() - startedAt,
+              });
+              return session;
+            },
+            (error) => {
+              measurements.endpointStarts.push({
+                status: "failed",
+                elapsedMs: Date.now() - startedAt,
+                error: error instanceof Error ? error.message : String(error),
+              });
+              throw error;
+            },
+          );
+        }
         sharedSession = await sharedPromise;
         return { handle: sharedSession.handle, dispose: async () => {} };
       },
+      async collectOcrHints(options) {
+        return measureOcrCall(measurements, [options], () =>
+          runtime.collectOcrHints(options),
+        );
+      },
+      async collectOcrHintsBatch(optionsList) {
+        return measureOcrCall(measurements, optionsList, () =>
+          runtime.collectOcrHintsBatch(optionsList),
+        );
+      },
+      async requestTranslation(endpoint, options) {
+        const startedAt = Date.now();
+        try {
+          const result = await runtime.requestTranslation(endpoint, options);
+          measurements.translationCalls.push({
+            status: "completed",
+            label: options.label,
+            pageIndex: options.pageIndex,
+            imageName: options.imagePath
+              ? path.basename(options.imagePath)
+              : undefined,
+            elapsedMs: Date.now() - startedAt,
+            timings: extractTimingSnapshots(result.rawResponse),
+          });
+          return result;
+        } catch (error) {
+          measurements.translationCalls.push({
+            status: "failed",
+            label: options.label,
+            pageIndex: options.pageIndex,
+            imageName: options.imagePath
+              ? path.basename(options.imagePath)
+              : undefined,
+            elapsedMs: Date.now() - startedAt,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          throw error;
+        }
+      },
     },
+    measurements,
     async release() {
       if (!sharedPromise) return;
       try {
@@ -300,6 +366,66 @@ function createSharedEndpointRuntime(runtime) {
       }
     },
   };
+}
+
+/** @param {any} measurements @param {any[]} optionsList @param {() => Promise<any>} execute */
+async function measureOcrCall(measurements, optionsList, execute) {
+  const startedAt = Date.now();
+  try {
+    const result = await execute();
+    measurements.ocrCalls.push({
+      status: "completed",
+      pageCount: optionsList.length,
+      elapsedMs: Date.now() - startedAt,
+    });
+    return result;
+  } catch (error) {
+    measurements.ocrCalls.push({
+      status: "failed",
+      pageCount: optionsList.length,
+      elapsedMs: Date.now() - startedAt,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+}
+
+/** @param {unknown} value */
+function extractTimingSnapshots(value) {
+  const snapshots = [];
+  const visit = (candidate, location, depth) => {
+    if (depth > 6 || !candidate || typeof candidate !== "object") {
+      return;
+    }
+    if (Array.isArray(candidate)) {
+      candidate.forEach((child, index) =>
+        visit(child, `${location}[${index}]`, depth + 1),
+      );
+      return;
+    }
+    if (
+      candidate.timings &&
+      typeof candidate.timings === "object" &&
+      !Array.isArray(candidate.timings)
+    ) {
+      snapshots.push({
+        location,
+        ...Object.fromEntries(
+          Object.entries(candidate.timings).filter(([, item]) =>
+            Number.isFinite(item),
+          ),
+        ),
+      });
+    }
+    for (const [key, child] of Object.entries(candidate)) {
+      if (key === "timings") continue;
+      if (child && typeof child === "object") {
+        visit(child, `${location}.${key}`, depth + 1);
+      }
+    }
+  };
+  visit(value, "rawResponse", 0);
+  return snapshots;
 }
 
 /** @param {any} settings */
@@ -344,6 +470,10 @@ async function runRuntimePreflight(modules, context) {
 
 /** @param {any[]} records @param {ReturnType<typeof loadModules>} modules @param {Awaited<ReturnType<typeof createRuntimeContext>>} context @param {ReturnType<typeof createInitialReport>} report */
 async function runFullPipeline(records, modules, context, report) {
+  const pipelineStartedAt = Date.now();
+  report.stageTimings = {
+    translationStartedAt: new Date(pipelineStartedAt).toISOString(),
+  };
   const groups = groupByChapter(records);
   const translatedByPageId = new Map();
   for (const [groupIndex, group] of groups.entries()) {
@@ -363,6 +493,7 @@ async function runFullPipeline(records, modules, context, report) {
       group[0].chapter.id,
     );
     await fsp.mkdir(chapterStage, { recursive: true });
+    await seedOcrCacheFromBaseline(group, stagedPages, chapterStage, report);
     const jobId = `font-qa-${group[0].chapter.id}`;
     const canonical = new Map(
       group.map((record) => [record.page.id, record.page.index]),
@@ -429,10 +560,16 @@ async function runFullPipeline(records, modules, context, report) {
       }
     }
   }
+  report.stageTimings.translationFinishedAt = new Date().toISOString();
+  report.stageTimings.translationElapsedMs = Date.now() - pipelineStartedAt;
   await context.releaseTranslationEndpoint();
   const translated = records.filter((record) =>
     translatedByPageId.has(record.page.id),
   );
+  const finishingStartedAt = Date.now();
+  report.stageTimings.finishingStartedAt = new Date(
+    finishingStartedAt,
+  ).toISOString();
   if (translated.length > 0) await prepareInpainting(modules, context);
   for (const [pageIndex, record] of records.entries()) {
     const translatedPage = translatedByPageId.get(record.page.id);
@@ -472,6 +609,101 @@ async function runFullPipeline(records, modules, context, report) {
     }
     await persistReport(report);
   }
+  report.stageTimings.finishingFinishedAt = new Date().toISOString();
+  report.stageTimings.finishingElapsedMs = Date.now() - finishingStartedAt;
+  report.stageTimings.fullPipelineElapsedMs = Date.now() - pipelineStartedAt;
+}
+
+/** @param {any[]} records @param {any[]} stagedPages @param {string} chapterStage @param {any} report */
+async function seedOcrCacheFromBaseline(
+  records,
+  stagedPages,
+  chapterStage,
+  report,
+) {
+  if (!config.ocrCacheFrom) return;
+  const sourceReport = JSON.parse(
+    await fsp.readFile(
+      path.join(config.ocrCacheFrom, "run-report.json"),
+      "utf8",
+    ),
+  );
+  if (sourceReport.status !== "completed") {
+    throw new Error("OCR cache source run is not completed.");
+  }
+  if (sourceReport.cohortDigest !== config.cohortDigest) {
+    throw new Error("OCR cache source cohort does not match this run.");
+  }
+  const sourcePages = new Map(
+    sourceReport.pages.map((page) => [page.sourcePageId, page]),
+  );
+  report.ocrCacheReuse ??= {
+    sourceRunDir: config.ocrCacheFrom,
+    sourceRunId: sourceReport.runId,
+    sourceCandidateId: sourceReport.candidateId,
+    pages: [],
+  };
+  for (const [index, record] of records.entries()) {
+    const sourcePage = sourcePages.get(record.page.id);
+    if (sourcePage?.sourcePageSha256 !== record.page.imageSha256) {
+      throw new Error(`OCR cache source page mismatch: ${record.page.name}`);
+    }
+    const sourcePath = path.join(
+      config.ocrCacheFrom,
+      "analysis",
+      record.chapter.id,
+      "ocr-hints",
+      record.page.id,
+      "result.json",
+    );
+    const cached = JSON.parse(await fsp.readFile(sourcePath, "utf8"));
+    const stagedPage = stagedPages[index];
+    if (
+      cached.width !== stagedPage.width ||
+      cached.height !== stagedPage.height ||
+      !Array.isArray(cached.hints)
+    ) {
+      throw new Error(`OCR cache payload mismatch: ${record.page.name}`);
+    }
+    const payloadDigest = digestOcrCachePayload(cached);
+    const targetPath = path.join(
+      chapterStage,
+      "ocr-hints",
+      record.page.id,
+      "result.json",
+    );
+    await fsp.mkdir(path.dirname(targetPath), { recursive: true });
+    await writeJson(targetPath, {
+      ...cached,
+      imagePath: stagedPage.imagePath,
+      qaReusedFrom: sourcePath,
+    });
+    report.ocrCacheReuse.pages.push({
+      sourcePageId: record.page.id,
+      sourcePageName: record.page.name,
+      payloadSha256: payloadDigest,
+    });
+  }
+}
+
+/** @param {Record<string, any>} cached */
+function digestOcrCachePayload(cached) {
+  const stablePayload = {
+    schemaVersion: cached.schemaVersion,
+    width: cached.width,
+    height: cached.height,
+    sourceLanguage: cached.sourceLanguage,
+    configuration: cached.configuration,
+    hints: cached.hints,
+    diagnostics: cached.diagnostics,
+    noTextDetected: cached.noTextDetected,
+    textEvidenceCount: cached.textEvidenceCount,
+    groupingEvidence: cached.groupingEvidence,
+  };
+  return nodeCrypto
+    .createHash("sha256")
+    .update(JSON.stringify(stablePayload))
+    .digest("hex");
 }
 
 /** @param {any[]} records @param {ReturnType<typeof loadModules>} modules @param {Awaited<ReturnType<typeof createRuntimeContext>>} context @param {ReturnType<typeof createInitialReport>} report */
@@ -1178,6 +1410,7 @@ function createInitialReport(records, context) {
     qaModelDirectSelection: config.qaModelDirectSelection === true,
     qaPageRelativeRoleReroute: config.qaPageRelativeRoleReroute === true,
     cacheFrom: config.cacheFrom,
+    ocrCacheFrom: config.ocrCacheFrom,
     provider: context.appSettings.modelProvider,
     targetLanguage: context.appSettings.translation?.targetLanguage,
     pageCount: records.length,
@@ -1328,6 +1561,13 @@ async function readJsonl(filePath) {
     .map((line) => JSON.parse(line));
 }
 
+/** @param {unknown} value */
+function validateOcrCacheFrom(value) {
+  if (value !== null && value !== undefined && typeof value !== "string") {
+    throw new Error("ocrCacheFrom must be a run directory path.");
+  }
+}
+
 function readConfig() {
   const raw = process.env.MGT_LIBRARY_FONT_QA_CONFIG;
   if (!raw) throw new Error("MGT_LIBRARY_FONT_QA_CONFIG is required.");
@@ -1370,6 +1610,7 @@ function readConfig() {
   if (parsed.cacheFromSeal && !parsed.cacheFrom) {
     throw new Error("cacheFromSeal requires cacheFrom.");
   }
+  validateOcrCacheFrom(parsed.ocrCacheFrom);
   if (
     parsed.qaPageRelativeRoleReroute === true &&
     (!parsed.cacheFrom || typeof parsed.cacheFromSeal !== "string")

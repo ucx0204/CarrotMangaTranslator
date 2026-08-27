@@ -123,6 +123,7 @@ export async function runResolvedAnalysisJob(
       previousStoryPages,
     },
     collectPageContext: request.collectPageContext,
+    cumulativeContextDetail: request.cumulativeContextDetail,
     naturalTextLayout: request.naturalTextLayout,
     autoFontMatching: request.autoFontMatching,
     fontSizeAutoFit: request.fontSizeAutoFit,

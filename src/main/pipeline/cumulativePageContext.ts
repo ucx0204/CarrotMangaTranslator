@@ -24,6 +24,8 @@ import {
   sanitizeGroundedCharacterCandidate,
   sanitizeGroundedGlossaryCandidate,
 } from "./groundedPageContextCandidates";
+import type { CumulativeContextDetail } from "../../shared/settingsTypes";
+import { applyCumulativeContextDetailPolicy } from "./cumulativeContextDetailPolicy";
 
 const MAX_PAGE_EVIDENCE_IDS = 100;
 
@@ -40,6 +42,7 @@ export function mergeCumulativePageContext({
   page,
   pageIndex,
   pageContext,
+  cumulativeContextDetail = "detailed",
   ocrResult,
   now = new Date().toISOString(),
 }: {
@@ -48,6 +51,7 @@ export function mergeCumulativePageContext({
   page: MangaPage;
   pageIndex: number;
   pageContext?: PageContextPayload;
+  cumulativeContextDetail?: CumulativeContextDetail;
   ocrResult?: OcrBboxResult;
   now?: string;
 }): CumulativePageContextMergeResult {
@@ -59,10 +63,15 @@ export function mergeCumulativePageContext({
   const targetEvidence = normalizeEvidenceSegments(
     page.blocks.map((block) => block.translatedText),
   );
+  const filteredPageContext = applyCumulativeContextDetailPolicy(
+    pageContext,
+    cumulativeContextDetail,
+    sourceEvidence,
+  );
   const characterMerge = mergeCharacterCandidates({
     entries: styleGuide.characters,
     crossIndex: buildGlossaryIndex(styleGuide.glossary),
-    candidates: pageContext?.characters ?? [],
+    candidates: filteredPageContext?.characters ?? [],
     sourceEvidence,
     targetEvidence,
     warnings,
@@ -71,7 +80,7 @@ export function mergeCumulativePageContext({
   const glossaryMerge = mergeGlossaryCandidates({
     entries: styleGuide.glossary,
     crossIndex: buildCharacterIndex(characterMerge.entries),
-    candidates: pageContext?.glossary ?? [],
+    candidates: filteredPageContext?.glossary ?? [],
     sourceEvidence,
     targetEvidence,
     warnings,
@@ -90,7 +99,7 @@ export function mergeCumulativePageContext({
     existingPageMemory,
     page,
     pageIndex,
-    pageContext,
+    pageContext: filteredPageContext,
     styleGuide: nextGuide,
     sourceEvidence,
     now,

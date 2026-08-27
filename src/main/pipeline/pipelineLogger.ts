@@ -1,4 +1,13 @@
-import { logWarn } from "../logger";
+import { logInfo, logWarn } from "../logger";
+
+export function logPipelineInfo(message: string, detail?: unknown): void {
+  try {
+    logInfo(message, detail);
+  } catch (error) {
+    void error;
+    // Diagnostics must never make a page fail in isolated tests or shutdown.
+  }
+}
 
 export function logPipelineWarning(message: string, detail?: unknown): void {
   try {

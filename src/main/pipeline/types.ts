@@ -17,6 +17,7 @@ import type {
 import type { PixelRect } from "../../shared/region";
 import type { ChapterRunPaths } from "../library";
 import type { FontMatchingSemanticRole } from "../../shared/fontMatchingProfileTypes";
+import type { CumulativeContextDetail } from "../../shared/settingsTypes";
 
 export type PipelineOptions = {
   jobId: string;
@@ -38,6 +39,7 @@ export type PipelineOptions = {
   regionContext?: PipelineRegionContext;
   writeStoryMemory?: boolean;
   collectPageContext?: boolean;
+  cumulativeContextDetail?: CumulativeContextDetail;
   naturalTextLayout?: boolean;
   /** Match only sealed, verified built-in candidates before line and bubble layout. */
   autoFontMatching?: boolean;

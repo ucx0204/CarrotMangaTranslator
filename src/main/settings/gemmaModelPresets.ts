@@ -3,14 +3,26 @@ import {
   GEMMA_12B_MMPROJ_REPO,
   GEMMA_12B_MODEL_FILE_Q4_K_M,
   GEMMA_12B_MODEL_REPO,
+  GEMMA_12B_QAT_MMPROJ_FILE,
+  GEMMA_12B_QAT_MMPROJ_REPO,
+  GEMMA_12B_QAT_MODEL_FILE_Q4_K_M,
+  GEMMA_12B_QAT_MODEL_REPO,
   GEMMA_26B_MMPROJ_FILE,
   GEMMA_26B_MMPROJ_REPO,
   GEMMA_26B_MODEL_FILE_IQ3_S,
   GEMMA_26B_MODEL_REPO,
+  GEMMA_26B_QAT_MMPROJ_FILE,
+  GEMMA_26B_QAT_MMPROJ_REPO,
+  GEMMA_26B_QAT_MODEL_FILE_Q4_K_M,
+  GEMMA_26B_QAT_MODEL_REPO,
   GEMMA_31B_MMPROJ_FILE,
   GEMMA_31B_MMPROJ_REPO,
   GEMMA_31B_MODEL_FILE_IQ3_S,
   GEMMA_31B_MODEL_REPO,
+  GEMMA_31B_QAT_MMPROJ_FILE,
+  GEMMA_31B_QAT_MMPROJ_REPO,
+  GEMMA_31B_QAT_MODEL_FILE_Q4_K_M,
+  GEMMA_31B_QAT_MODEL_REPO,
 } from "../../shared/modelPresets";
 import type { AppSettings, GemmaVramMode } from "../../shared/settingsTypes";
 
@@ -54,7 +66,7 @@ export function getModeAwareGemmaDefaults(
     modelRepo: defaults.gemma.modelRepo,
     modelFile: defaults.gemma.modelFile,
   };
-  if (!isBuiltInGemmaModel(currentDefaultModel)) {
+  if (!isModeManagedGemmaModel(currentDefaultModel)) {
     return {
       modelRepo: defaults.gemma.modelRepo,
       modelFile: defaults.gemma.modelFile,
@@ -74,7 +86,7 @@ export function resolveRuntimeGemmaSettings(
   }
 
   const model = { modelRepo: gemma.modelRepo, modelFile: gemma.modelFile };
-  if (!isBuiltInGemmaModel(model)) {
+  if (!isModeManagedGemmaModel(model)) {
     return gemma;
   }
 
@@ -88,6 +100,19 @@ export function isBuiltInGemmaModel(
   model: Pick<AppSettings["gemma"], "modelRepo" | "modelFile">,
 ): boolean {
   return (
+    is12BGemmaModel(model) ||
+    isQat12BGemmaModel(model) ||
+    is26BGemmaModel(model) ||
+    isQat26BGemmaModel(model) ||
+    is31BGemmaModel(model) ||
+    isQat31BGemmaModel(model)
+  );
+}
+
+export function isModeManagedGemmaModel(
+  model: Pick<AppSettings["gemma"], "modelRepo" | "modelFile">,
+): boolean {
+  return (
     is12BGemmaModel(model) || is26BGemmaModel(model) || is31BGemmaModel(model)
   );
 }
@@ -95,7 +120,23 @@ export function isBuiltInGemmaModel(
 export function isMainlineGemmaModel(
   model: Pick<AppSettings["gemma"], "modelRepo" | "modelFile">,
 ): boolean {
-  return is12BGemmaModel(model) || is26BGemmaModel(model);
+  return (
+    is12BGemmaModel(model) ||
+    isQat12BGemmaModel(model) ||
+    is26BGemmaModel(model) ||
+    isQat26BGemmaModel(model) ||
+    isQat31BGemmaModel(model)
+  );
+}
+
+export function isSpeedGemmaModel(
+  model: Pick<AppSettings["gemma"], "modelRepo" | "modelFile">,
+): boolean {
+  return (
+    isQat12BGemmaModel(model) ||
+    isQat26BGemmaModel(model) ||
+    isQat31BGemmaModel(model)
+  );
 }
 
 function is12BGemmaModel(
@@ -104,6 +145,33 @@ function is12BGemmaModel(
   return (
     model.modelRepo === GEMMA_12B_MODEL_REPO &&
     model.modelFile === GEMMA_12B_MODEL_FILE_Q4_K_M
+  );
+}
+
+export function isQat12BGemmaModel(
+  model: Pick<AppSettings["gemma"], "modelRepo" | "modelFile">,
+): boolean {
+  return (
+    model.modelRepo === GEMMA_12B_QAT_MODEL_REPO &&
+    model.modelFile === GEMMA_12B_QAT_MODEL_FILE_Q4_K_M
+  );
+}
+
+export function isQat26BGemmaModel(
+  model: Pick<AppSettings["gemma"], "modelRepo" | "modelFile">,
+): boolean {
+  return (
+    model.modelRepo === GEMMA_26B_QAT_MODEL_REPO &&
+    model.modelFile === GEMMA_26B_QAT_MODEL_FILE_Q4_K_M
+  );
+}
+
+export function isQat31BGemmaModel(
+  model: Pick<AppSettings["gemma"], "modelRepo" | "modelFile">,
+): boolean {
+  return (
+    model.modelRepo === GEMMA_31B_QAT_MODEL_REPO &&
+    model.modelFile === GEMMA_31B_QAT_MODEL_FILE_Q4_K_M
   );
 }
 
@@ -134,10 +202,22 @@ export function getDefaultMmprojForGemmaModel(
       mmprojFile: GEMMA_12B_MMPROJ_FILE,
     };
   }
+  if (isQat12BGemmaModel(model)) {
+    return {
+      mmprojRepo: GEMMA_12B_QAT_MMPROJ_REPO,
+      mmprojFile: GEMMA_12B_QAT_MMPROJ_FILE,
+    };
+  }
   if (is26BGemmaModel(model)) {
     return {
       mmprojRepo: GEMMA_26B_MMPROJ_REPO,
       mmprojFile: GEMMA_26B_MMPROJ_FILE,
+    };
+  }
+  if (isQat26BGemmaModel(model)) {
+    return {
+      mmprojRepo: GEMMA_26B_QAT_MMPROJ_REPO,
+      mmprojFile: GEMMA_26B_QAT_MMPROJ_FILE,
     };
   }
   if (is31BGemmaModel(model)) {
@@ -146,19 +226,32 @@ export function getDefaultMmprojForGemmaModel(
       mmprojFile: GEMMA_31B_MMPROJ_FILE,
     };
   }
+  if (isQat31BGemmaModel(model)) {
+    return {
+      mmprojRepo: GEMMA_31B_QAT_MMPROJ_REPO,
+      mmprojFile: GEMMA_31B_QAT_MMPROJ_FILE,
+    };
+  }
   return undefined;
 }
+
+const BUILT_IN_GEMMA_MMPROJ_FILES = new Map<string, string>([
+  [GEMMA_31B_MMPROJ_REPO, GEMMA_31B_MMPROJ_FILE],
+  [GEMMA_31B_QAT_MMPROJ_REPO, GEMMA_31B_QAT_MMPROJ_FILE],
+  [GEMMA_26B_MMPROJ_REPO, GEMMA_26B_MMPROJ_FILE],
+  [GEMMA_26B_QAT_MMPROJ_REPO, GEMMA_26B_QAT_MMPROJ_FILE],
+  [GEMMA_12B_MMPROJ_REPO, GEMMA_12B_MMPROJ_FILE],
+  [GEMMA_12B_QAT_MMPROJ_REPO, GEMMA_12B_QAT_MMPROJ_FILE],
+]);
 
 export function isBuiltInGemmaMmproj(
   mmprojRepo?: string,
   mmprojFile?: string,
 ): boolean {
-  return (
-    (mmprojRepo === GEMMA_31B_MMPROJ_REPO &&
-      mmprojFile === GEMMA_31B_MMPROJ_FILE) ||
-    (mmprojRepo === GEMMA_26B_MMPROJ_REPO &&
-      mmprojFile === GEMMA_26B_MMPROJ_FILE) ||
-    (mmprojRepo === GEMMA_12B_MMPROJ_REPO &&
-      mmprojFile?.toLowerCase() === GEMMA_12B_MMPROJ_FILE.toLowerCase())
-  );
+  if (!mmprojRepo || !mmprojFile) return false;
+  const expectedFile = BUILT_IN_GEMMA_MMPROJ_FILES.get(mmprojRepo);
+  if (!expectedFile) return false;
+  return mmprojRepo === GEMMA_12B_MMPROJ_REPO
+    ? mmprojFile.toLowerCase() === expectedFile.toLowerCase()
+    : mmprojFile === expectedFile;
 }

@@ -266,7 +266,7 @@ describeWindows("runtime model support helpers: OCR pipeline execution", () => {
     const flattenRequiredFiles = (files: Array<string | string[]>): string[] =>
       files.flatMap((file) => (Array.isArray(file) ? file : file));
 
-    expect(MAINLINE_LLAMA_RUNTIME_CUDA13.id).toBe("llama-b9547-cuda13.3");
+    expect(MAINLINE_LLAMA_RUNTIME_CUDA13.id).toBe("llama-b9553-cuda13.3");
     expect(
       flattenRequiredFiles(MAINLINE_LLAMA_RUNTIME_CUDA13.requiredFiles),
     ).toContain("llama-server-impl.dll");

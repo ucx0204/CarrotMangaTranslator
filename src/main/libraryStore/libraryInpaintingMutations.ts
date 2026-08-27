@@ -206,6 +206,7 @@ function applyInpaintingPageUpdate(
     inpaintMaskPath: paths.mask,
     maskProvenance: paths.mask ? next.maskProvenance : undefined,
     ...copyTranslationCompletionProperty(next),
+    processingTiming: next.processingTiming,
     updatedAt: context.now,
   };
 }

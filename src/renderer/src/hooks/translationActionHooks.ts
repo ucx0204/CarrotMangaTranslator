@@ -69,6 +69,8 @@ export function useTranslationActionsImpl(
     jobActive: options.jobActive,
     translationWorkflowDefault:
       options.translationWorkflowDefault ?? "cumulative",
+    cumulativeContextDetailDefault:
+      options.cumulativeContextDetailDefault ?? "detailed",
     autoFontMatchingDefault: options.autoFontMatchingDefault ?? false,
     naturalTextLayoutDefault: options.naturalTextLayoutDefault ?? true,
     fontSizeAutoFitDefault: options.fontSizeAutoFitDefault ?? true,

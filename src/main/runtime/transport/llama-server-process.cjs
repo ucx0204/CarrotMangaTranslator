@@ -1,7 +1,7 @@
 // @ts-check
 /** @typedef {import("../runtime-jsdoc-types").DetailedError} DetailedError */
 /** @typedef {import("../runtime-jsdoc-types").RuntimeOptions} RuntimeOptions */
-/** @typedef {import("../runtime-jsdoc-types").RuntimeOptions & { label?: string | null; onProgress?: ((progress: Record<string, unknown>) => void) | null; port?: unknown; reuseServer?: boolean | null; serverPath?: string | null; serverLogPath?: string | null }} ServerRuntimeOptions */
+/** @typedef {import("../runtime-jsdoc-types").RuntimeOptions & { label?: string | null; onProgress?: ((progress: Record<string, unknown>) => void) | null; port?: unknown; reuseServer?: boolean | null; serverPath?: string | null; serverLogPath?: string | null } & Record<string, any>} ServerRuntimeOptions */
 /** @typedef {{ baseUrl: string; child: import("node:child_process").ChildProcess | null; startedByScript: boolean; serverLogPath?: string | null }} StartedServer */
 /** @typedef {{ child: import("node:child_process").ChildProcess; recent: { stdout: string; stderr: string }; outputTransport: ReturnType<typeof createServerOutputTransport>; onAbort: () => void }} RunningServer */
 const { spawn } = require("node:child_process");
@@ -47,6 +47,7 @@ const {
 } = require("../model/server-preflight.cjs");
 const { createServerLogTarget } = require("./llama-server-logging.cjs");
 const { createServerOutputTransport } = require("./llama-server-output.cjs");
+const { calibrateMtpFitServer } = require("./mtp-fit-calibration-flow.cjs");
 const {
   isReachable,
   waitForReadyOrExit,
@@ -74,11 +75,36 @@ async function startServer(options) {
   const serverPath = await resolveServerPath(baseUrl, options);
   await ensureHfModelAssetsDownloaded(options, inspectModelLaunch(options));
   await verifyLlamaRuntimePreflight(serverPath, options);
-  const launchArgs = buildLaunchArgs({ ...options, serverPath });
   emitServerStarting(options);
-  const running = spawnServer(serverPath, launchArgs, options);
+  /** @type {ServerRuntimeOptions} */
+  let launchOptions = { ...options, serverPath };
+  let launchArgs = buildLaunchArgs(launchOptions);
+  let running = spawnServer(serverPath, launchArgs, launchOptions);
   try {
-    await awaitServerReady(baseUrl, serverPath, launchArgs, options, running);
+    await awaitServerReady(
+      baseUrl,
+      serverPath,
+      launchArgs,
+      launchOptions,
+      running,
+    );
+    await calibrateMtpFitServer(
+      baseUrl,
+      launchOptions,
+      async (calibratedOptions) => {
+        await stopRunningServer(running, launchOptions);
+        launchOptions = calibratedOptions;
+        launchArgs = buildLaunchArgs(launchOptions);
+        running = spawnServer(serverPath, launchArgs, launchOptions);
+        await awaitServerReady(
+          baseUrl,
+          serverPath,
+          launchArgs,
+          launchOptions,
+          running,
+        );
+      },
+    );
     running.outputTransport.stopStartupForwarding();
     emitServerReady(options);
   } catch (error) {
@@ -339,6 +365,23 @@ function emitServerReady(options) {
       installLogLine: "Gemma 서버 준비가 완료되었습니다.",
     },
   );
+}
+
+/** @param {RunningServer} running @param {ServerRuntimeOptions} options */
+async function stopRunningServer(running, options) {
+  options.abortSignal?.removeEventListener?.("abort", running.onAbort);
+  const child = running.child;
+  if (child.exitCode !== null) return;
+  let exited = false;
+  child.once("exit", () => {
+    exited = true;
+  });
+  terminateChildProcessTree(child);
+  await Promise.race([
+    new Promise((resolve) => child.once("exit", resolve)),
+    delay(5000),
+  ]);
+  if (!exited && child.exitCode === null) terminateChildProcessTree(child);
 }
 
 /** @param {StartedServer | null | undefined} server */

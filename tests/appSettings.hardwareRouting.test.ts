@@ -68,7 +68,7 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
     expect(economyOptions.llamaRuntimeProfile).toBe("rtx50");
     expect(economyOptions.ocrGpuCudaTag).toBe(RTX_50_OCR_GPU_CUDA_TAG);
     expect(economyOptions.serverPath).toBe(
-      join("C:/app-data", "tools", "llama-b9547-cuda13.3", "llama-server.exe"),
+      join("C:/app-data", "tools", "llama-b9553-cuda13.3", "llama-server.exe"),
     );
 
     const rtx50FullDefaults = resolveDefaultAppSettings(
@@ -870,12 +870,12 @@ describeWindows("app settings helpers: GPU and OCR hardware routing", () => {
     expect(cuda12Options.ocrGpuCudaTag).toBe(RTX_50_OCR_GPU_CUDA_TAG);
     expect(cuda12Options.llamaRuntimeProfile).toBe("cuda12");
     expect(cuda12Options.serverPath).toBe(
-      join("C:/app-data", "tools", "llama-b9547-cuda12.4", "llama-server.exe"),
+      join("C:/app-data", "tools", "llama-b9553-cuda12.4", "llama-server.exe"),
     );
     expect(rtx50Options.ocrGpuCudaTag).toBe(RTX_50_OCR_GPU_CUDA_TAG);
     expect(rtx50Options.llamaRuntimeProfile).toBe("rtx50");
     expect(rtx50Options.serverPath).toBe(
-      join("C:/app-data", "tools", "llama-b9547-cuda13.3", "llama-server.exe"),
+      join("C:/app-data", "tools", "llama-b9553-cuda13.3", "llama-server.exe"),
     );
   });
 

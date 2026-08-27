@@ -338,6 +338,7 @@ export async function updatePagesAfterAnalysisUnlocked(
       blocks: update.page.blocks,
       analysisStatus: "completed",
       translationCompletion: update.page.translationCompletion,
+      processingTiming: update.page.processingTiming,
       lastError: undefined,
       updatedAt: now,
     };

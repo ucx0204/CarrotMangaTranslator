@@ -2,7 +2,6 @@ import type { JobEvent, JobPhase, JobState } from "../../../shared/jobTypes";
 import type { TFunction } from "i18next";
 import {
   fallbackJobLabelFromStatus,
-  formatElapsedLine,
   formatJobFailureGuidance,
   translate,
 } from "./appHelpers";
@@ -185,14 +184,7 @@ export function formatJobEventLine(
   event: JobEvent,
   t?: TFunction<"renderer">,
 ): string {
-  const label = formatJobLabel(event, t);
-  if (event.phase === "page_done") {
-    return formatElapsedLine(label, event.pageElapsedMs, "page", t);
-  }
-  if (event.phase === "done" && event.status === "completed") {
-    return formatElapsedLine(label, event.jobElapsedMs, "total", t);
-  }
-  return label;
+  return formatJobLabel(event, t);
 }
 
 export function resolveProgressSnapshot(

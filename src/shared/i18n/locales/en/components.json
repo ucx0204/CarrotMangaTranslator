@@ -553,6 +553,23 @@
         "description": "Builds page summaries, terms, and character memory while translating, then uses them from the next page onward."
       }
     },
+    "cumulativeDetail": {
+      "label": "Context recording scope",
+      "options": {
+        "detailed": {
+          "label": "Detailed (Existing)",
+          "description": "Keeps the current behavior and records broad scene, character, and term information."
+        },
+        "balanced": {
+          "label": "Balanced",
+          "description": "Focuses on characters, places, and terms likely to matter across pages."
+        },
+        "essential": {
+          "label": "Essentials only",
+          "description": "Records names, aliases, places, and repeated work-specific terms only."
+        }
+      }
+    },
     "blockModeSummaries": {
       "auto": "Detect text blocks automatically on each page.",
       "keep": "Keep the regions and formatting of existing blocks."
@@ -751,6 +768,30 @@
     "noFilterResults": "No pages match this filter.",
     "selectedHidden": "The selected page is hidden by the current filter.",
     "filterLabel": "Page status filter",
+    "timing": {
+      "button": "Page timings",
+      "title": "Page timings",
+      "grandTotal": "Overall total",
+      "recordedPages": "{{count}} measured pages",
+      "emptyTitle": "No timing data yet.",
+      "emptyDescription": "Complete a new translation to save detailed page timings here.",
+      "page": "Page",
+      "total": "Page total",
+      "stages": {
+        "preparing": "Setup",
+        "ocr": "OCR",
+        "translation": "AI translation",
+        "postprocessing": "Result processing",
+        "typography": "Text & font",
+        "inpainting": "Inpainting",
+        "bubbleLayout": "Bubble layout"
+      },
+      "duration": {
+        "hours": "{{hours}}h {{minutes}}m {{seconds}}s",
+        "minutes": "{{minutes}}m {{seconds}}s",
+        "seconds": "{{seconds}}s"
+      }
+    },
     "visibleCount": "{{visible}} / {{total}}",
     "blockCount": "{{count}} blocks",
     "thumbnailLoadFailed": "Preview failed",
@@ -1357,16 +1398,28 @@
     "options": {
       "modelPresets": {
         "minimum12b": {
-          "label": "12B minimum",
-          "description": "For about 8 GB of VRAM. Prioritizes compatibility and light operation."
+          "label": "12B (8GB)",
+          "description": "The legacy 12B model for 8 GB VRAM. Choose it when you need the same setup as earlier versions."
+        },
+        "qat12b": {
+          "label": "12B (8GB)",
+          "description": "For 8 GB VRAM. It is the fastest and lightest choice for most work."
         },
         "economy26b": {
-          "label": "26B economy",
-          "description": "For about 16 GB of VRAM. Keeps 1024 image tokens and runs the 26B model more safely."
+          "label": "26B (16GB)",
+          "description": "The legacy 26B model for 16 GB VRAM. It offers better quality than 12B but runs more slowly."
+        },
+        "qat26b": {
+          "label": "26B (16GB)",
+          "description": "For 16 GB VRAM. It improves translation quality over 12B while balancing speed and memory use."
         },
         "full31b": {
-          "label": "31B full",
-          "description": "For ample VRAM. Uses the 31B model and DFlash with quality as the priority."
+          "label": "31B (24GB)",
+          "description": "The legacy 31B model for 24 GB VRAM. It aims for the best quality but is the heaviest option."
+        },
+        "qat31b": {
+          "label": "31B (24GB)",
+          "description": "For 24 GB VRAM. It aims for the best translation quality and uses more memory than 12B or 26B."
         }
       },
       "modelSources": {
@@ -1527,6 +1580,12 @@
       "preset": {
         "label": "Model preset",
         "ariaLabel": "Model preset",
+        "family": {
+          "label": "Model family",
+          "ariaLabel": "Model family",
+          "speed": "Speed (recommended)",
+          "legacy": "Legacy"
+        },
         "custom": "Custom",
         "customDescription": "Specify the model repository and file manually."
       },
@@ -1544,7 +1603,9 @@
       "vramTuning": {
         "reserveLabel": "Free VRAM",
         "reserveOption": "{{value}} MiB",
-        "reserveDescription": "VRAM to leave free after the model loads. Lower values can load more of the model onto the GPU for speed. Raise it only when using other GPU apps, because less of the model may stay on the GPU and translation may slow down.",
+        "reserveInputAria": "Free VRAM in MiB",
+        "reserveAddAria": "Add {{value}} MiB to free VRAM",
+        "reserveDescription": "VRAM kept free after model load. Lower can be faster, but too low may spill into shared memory and make translation and the whole PC extremely slow. Raise it only when using other GPU apps.",
         "mmprojLabel": "mmproj processing",
         "mmprojGpu": "GPU (faster)",
         "mmprojCpu": "CPU (save VRAM)",
@@ -1556,7 +1617,9 @@
         "sufficient": "Recommended for this memory tier.",
         "insufficient": "{{shortage}} below the recommendation. Select the model to confirm a risky run.",
         "unsafeAllowed": "Risky execution with a {{shortage}} shortfall is allowed for this configuration.",
-        "unsafeConfirm": "This Mac has {{available}} unified memory; the selected model recommends {{required}}. Its first-use download is about {{download}} and may take substantial time. The app may terminate or make the system extremely slow. Allow this risky run?"
+        "unsafeConfirm": "This Mac has {{available}} unified memory; the selected model recommends {{required}}. Its first-use download is about {{download}} and may take substantial time. The app may terminate or make the system extremely slow. Allow this risky run?",
+        "vramInsufficientTitle": "There is not enough VRAM for the selected model.",
+        "vramInsufficientDescription": "Detected VRAM is {{available}}, while this model is intended for {{required}}-class GPUs. Parts of the model may spill into system memory, become extremely slow, or fail to load."
       },
       "local": {
         "modelFile": "Local model file",

@@ -144,7 +144,7 @@ function resolveModelFormValues(
     localModelPath: settings.gemma.localModelPath ?? "",
     localMmprojPath: settings.gemma.localMmprojPath ?? "",
     customVramMode: settings.gemma.vramMode,
-    gemmaFitTargetMb: settings.gemma.fitTargetMb ?? 1024,
+    gemmaFitTargetMb: settings.gemma.fitTargetMb ?? 512,
     gemmaMmprojOffload: settings.gemma.mmprojOffload ?? true,
     llamaRuntimeProfile: settings.gemma.llamaRuntimeProfile ?? "cuda12",
     allowUnsafeUnifiedMemory: settings.gemma.allowUnsafeUnifiedMemory === true,

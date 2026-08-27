@@ -5,6 +5,7 @@ import type {
   LibraryIndex,
 } from "../../../shared/libraryTypes";
 import type {
+  CumulativeContextDetail,
   TranslationWorkflowMode,
   UiSettings,
 } from "../../../shared/settingsTypes";
@@ -33,10 +34,16 @@ const WORKFLOW_OPTION_IDS: TranslationWorkflowMode[] = [
   "standard",
   "cumulative",
 ];
+const CUMULATIVE_DETAIL_IDS: CumulativeContextDetail[] = [
+  "detailed",
+  "balanced",
+  "essential",
+];
 
 type TranslationDefaultsPatch = Pick<
   UiSettings,
   | "translationWorkflowDefault"
+  | "cumulativeContextDetailDefault"
   | "blockModeDefault"
   | "autoFontMatchingDefault"
   | "fontSizeAutoFitDefault"
@@ -86,8 +93,8 @@ export function TranslationOptionsModal({
         size="lg"
         onClose={onClose}
         fillHeight
-        cardClassName="translation-options-modal"
-        bodyClassName="translation-options-modal-body"
+        cardClassName="translation-options-modal page-picker-fill-modal"
+        bodyClassName="translation-options-modal-body page-picker-fill-modal-body"
         footer={
           <TranslationOptionsFooter
             onCancel={onClose}
@@ -168,6 +175,7 @@ function buildDefaultsPatch(
 ): TranslationDefaultsPatch {
   return {
     translationWorkflowDefault: form.workflowMode,
+    cumulativeContextDetailDefault: form.cumulativeContextDetail,
     blockModeDefault: form.blockMode,
     autoFontMatchingDefault: form.autoFontMatching,
     fontSizeAutoFitDefault: form.fontSizeAutoFit,
@@ -184,6 +192,7 @@ function buildTranslationFlowOptions(
   return {
     selection,
     workflowMode: form.workflowMode,
+    cumulativeContextDetail: form.cumulativeContextDetail,
     blockMode: form.blockMode,
     autoFontMatching: form.autoFontMatching,
     fontSizeAutoFit: form.fontSizeAutoFit,
@@ -268,12 +277,12 @@ function TranslationOptionsForm(
         >
           <OptionRow
             label={t("common.blocks")}
-            options={getBlockModeOptions(tRenderer)}
+            options={getBlockModeOptions(tRenderer).map((option) => ({
+              ...option,
+              tooltip: t(`translationOptions.blockModeSummaries.${option.id}`),
+            }))}
             value={props.blockMode}
             onChange={props.onBlockModeChange}
-            description={t(
-              `translationOptions.blockModeSummaries.${props.blockMode}`,
-            )}
           />
           <div className="translate-options-toggle-grid">
             <NaturalTextLayoutOptions {...props} />
@@ -322,14 +331,30 @@ function TranslationWorkflowOptions(
         options={WORKFLOW_OPTION_IDS.map((id) => ({
           id,
           label: t(`translationOptions.workflowOptions.${id}.label`),
+          tooltip: t(`translationOptions.workflowOptions.${id}.description`),
         }))}
         value={props.workflowMode}
         onChange={props.onWorkflowModeChange}
-        description={t(
-          `translationOptions.workflowOptions.${props.workflowMode}.description`,
-        )}
         showLabel={false}
       />
+      {props.workflowMode === "cumulative" ? (
+        <div className="translate-options-cumulative-detail">
+          <OptionRow
+            label={t("translationOptions.cumulativeDetail.label")}
+            options={CUMULATIVE_DETAIL_IDS.map((id) => ({
+              id,
+              label: t(
+                `translationOptions.cumulativeDetail.options.${id}.label`,
+              ),
+              tooltip: t(
+                `translationOptions.cumulativeDetail.options.${id}.description`,
+              ),
+            }))}
+            value={props.cumulativeContextDetail}
+            onChange={props.onCumulativeContextDetailChange}
+          />
+        </div>
+      ) : null}
     </>
   );
 }

@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  GEMMA_12B_QAT_MMPROJ_FILE,
+  GEMMA_12B_QAT_MMPROJ_REPO,
+  GEMMA_12B_QAT_MODEL_FILE_Q4_K_M,
+  GEMMA_12B_QAT_MODEL_REPO,
+  GEMMA_12B_QAT_MTP_MODEL_FILE,
+  GEMMA_12B_QAT_MTP_MODEL_REPO,
+} from "../src/shared/modelPresets";
+import {
   DEFAULT_12B_FILE,
   DEFAULT_12B_MMPROJ_FILE,
   DEFAULT_12B_MMPROJ_REPO,
@@ -342,6 +350,45 @@ describe("runtime launch argument contracts", () => {
     expect(args).not.toContain("--no-host");
   });
 
+  it("disables fit and requests every GPU layer for a high-VRAM speed tier", () => {
+    const args = buildLaunchArgs({
+      port: 18180,
+      fitTargetMb: 512,
+      fitEnabled: false,
+      ctx: 65_536,
+      batch: 1024,
+      ubatch: 1024,
+      gpuLayers: "all",
+      cacheTypeK: "q4_0",
+      cacheTypeV: "q4_0",
+      ctxCheckpoints: 0,
+      kvOffload: true,
+      mmprojOffload: true,
+      modelRepo: GEMMA_12B_QAT_MODEL_REPO,
+      modelFile: GEMMA_12B_QAT_MODEL_FILE_Q4_K_M,
+      mmprojRepo: GEMMA_12B_QAT_MMPROJ_REPO,
+      mmprojFile: GEMMA_12B_QAT_MMPROJ_FILE,
+    });
+
+    expect(
+      args.slice(args.indexOf("--fit"), args.indexOf("--fit") + 2),
+    ).toEqual(["--fit", "off"]);
+    expect(args).not.toContain("--fit-target");
+    expect(args).not.toContain("--fit-ctx");
+    expect(args.slice(args.indexOf("-ngl"), args.indexOf("-ngl") + 2)).toEqual([
+      "-ngl",
+      "all",
+    ]);
+    expect(args.slice(args.indexOf("-b"), args.indexOf("-b") + 2)).toEqual([
+      "-b",
+      "1024",
+    ]);
+    expect(args.slice(args.indexOf("-ub"), args.indexOf("-ub") + 2)).toEqual([
+      "-ub",
+      "1024",
+    ]);
+  });
+
   it("passes the full VRAM smoke DFlash draft options to llama-server", () => {
     const args = buildLaunchArgs({
       port: 18180,
@@ -358,6 +405,7 @@ describe("runtime launch argument contracts", () => {
       useDraft: true,
       draftModelRepo: DEFAULT_DRAFT_REPO,
       draftModelFile: DEFAULT_DRAFT_FILE,
+      hfHubCacheDir: createTempDir("dflash-remote-cache-"),
       imageMinTokens: 1024,
       imageMaxTokens: 1024,
       modelRepo: DEFAULT_31B_REPO,
@@ -416,6 +464,60 @@ describe("runtime launch argument contracts", () => {
     expect(args).toContain("--no-host");
     expect(args).not.toContain("--n-cpu-moe");
     expect(args).not.toContain("--chat-template-kwargs");
+  });
+
+  it("passes the QAT 12B MTP draft options without DFlash-only flags", () => {
+    const args = buildLaunchArgs({
+      port: 18180,
+      fitTargetMb: 1024,
+      ctx: 16384,
+      batch: 1024,
+      ubatch: 1024,
+      cacheTypeK: "q4_0",
+      cacheTypeV: "q4_0",
+      ctxCheckpoints: 0,
+      kvOffload: true,
+      mmprojOffload: true,
+      enableMetrics: true,
+      enablePerf: true,
+      useDraft: true,
+      draftSpecType: "draft-mtp",
+      draftMaxTokens: 2,
+      draftModelRepo: GEMMA_12B_QAT_MTP_MODEL_REPO,
+      draftModelFile: GEMMA_12B_QAT_MTP_MODEL_FILE,
+      hfHubCacheDir: createTempDir("mtp-remote-cache-"),
+      imageMinTokens: 1024,
+      imageMaxTokens: 1024,
+      modelRepo: GEMMA_12B_QAT_MODEL_REPO,
+      modelFile: GEMMA_12B_QAT_MODEL_FILE_Q4_K_M,
+      mmprojRepo: GEMMA_12B_QAT_MMPROJ_REPO,
+      mmprojFile: GEMMA_12B_QAT_MMPROJ_FILE,
+    });
+
+    expect(
+      args.slice(args.indexOf("--spec-type"), args.indexOf("--spec-type") + 2),
+    ).toEqual(["--spec-type", "draft-mtp"]);
+    expect(args).toContain("--spec-draft-ngl");
+    expect(
+      args.slice(
+        args.indexOf("--spec-draft-n-max"),
+        args.indexOf("--spec-draft-n-max") + 2,
+      ),
+    ).toEqual(["--spec-draft-n-max", "2"]);
+    expect(args).not.toContain("--spec-dflash-cross-ctx");
+    expect(args).not.toContain("--spec-branch-budget");
+    const draftFlagIndex = args.findIndex(
+      (arg) => arg === "--spec-draft-hf" || arg === "--spec-draft-model",
+    );
+    expect(draftFlagIndex).toBeGreaterThanOrEqual(0);
+    const draftFlag = args[draftFlagIndex];
+    const draftValue = args[draftFlagIndex + 1];
+    if (draftFlag === "--spec-draft-hf") {
+      expect(draftValue).toBe(GEMMA_12B_QAT_MTP_MODEL_REPO);
+    } else {
+      expect(draftValue.toLowerCase()).toMatch(/\.gguf$/);
+      expect(existsSync(draftValue)).toBe(true);
+    }
   });
 
   it("keeps BeeLlama DFlash launch flags for the ROCm HIP runtime", () => {

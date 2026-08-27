@@ -17,7 +17,7 @@ import { formatGemmaVramMode } from "./pipeline/options";
 import { prepareAnalysisRun } from "./pipeline/prepareAnalysisRun";
 import { prepareFontMatchingRuntimeForRun } from "./pipeline/fontMatchingRuntimeAssets";
 import { emitFinalizing } from "./pipeline/progressEvents";
-import { translatePageWithRetries } from "./pipeline/translatePageWithRetries";
+import { preparePageWithRetries } from "./pipeline/translatePageWithRetries";
 import type { OcrBboxResult, PipelineOptions } from "./pipeline/types";
 import { createWarningCollector } from "./pipeline/warningCollector";
 import {
@@ -31,6 +31,17 @@ import {
 } from "./pipeline/wholePagePipelinePorts";
 import { configureWholePageOutputOptions } from "./pipeline/wholePageOutputOptions";
 import { createAutomaticFontChapterCoordinatorV2 } from "./pipeline/automaticFontMatchingV2PageCoordinator";
+import { completePreparedPageTranslationAttempt } from "./pipeline/pageTranslationAttempt";
+import {
+  projectPreparedPageForContext,
+  type PreparedPageBuildResult,
+} from "./pipeline/pageResultBuilder";
+import { logPipelineWarning } from "./pipeline/pipelineLogger";
+import {
+  createPageProcessingTimingCollector,
+  measureSharedProcessingStage,
+  type PageProcessingTimingCollector,
+} from "./pipeline/pageProcessingTiming";
 
 export type WholePagePipelineResult = {
   pages: MangaPage[];
@@ -78,27 +89,35 @@ async function runWholePagePipelineWithDependencies(
     regionContext,
     writeStoryMemory = true,
     collectPageContext = false,
+    cumulativeContextDetail = "detailed",
     naturalTextLayout = false,
     autoFontMatching = false,
     fontSizeAutoFit = true,
     canonicalPageIndexById,
   } = options;
+  const timing = createPageProcessingTimingCollector(
+    options.jobId,
+    pages.map((page) => page.id),
+  );
   throwIfAborted(signal);
   const { ocrHintsByPageId, run } = await prepareWholePageRun(
     options,
     dependencies,
     injectedDependencies,
+    timing,
   );
   throwIfAborted(signal);
-  await configureWholePageOutputOptions({
-    autoFontMatching,
-    chapterId: workContext?.chapterId,
-    dependencies,
-    naturalTextLayout,
-    fontSizeAutoFit,
-    run,
-    workId: workContext?.workId,
-  });
+  await measureSharedProcessingStage(timing, "preparing", () =>
+    configureWholePageOutputOptions({
+      autoFontMatching,
+      chapterId: workContext?.chapterId,
+      dependencies,
+      naturalTextLayout,
+      fontSizeAutoFit,
+      run,
+      workId: workContext?.workId,
+    }),
+  );
   throwIfAborted(signal);
   const warningCollector = createPipelineWarnings(signal);
 
@@ -106,11 +125,18 @@ async function runWholePagePipelineWithDependencies(
     allowNoTextSkip: !collectPageContext && allowOcrNoTextSkip(run.baseOptions),
   });
   throwIfAborted(signal);
+  const timedPrepassNoTextPages = filtered.prepassNoTextPages.map((entry) => ({
+    ...entry,
+    page: timing.applyTranslationTiming(entry.page),
+  }));
+  for (const entry of timedPrepassNoTextPages) {
+    filtered.completedPagesById.set(entry.page.id, entry.page);
+  }
   const approvedPrepassPageIds = await completePrepassNoTextPages({
     context: run.progressContext,
     onPageComplete,
     onPagesComplete,
-    prepassNoTextPages: filtered.prepassNoTextPages,
+    prepassNoTextPages: timedPrepassNoTextPages,
   });
   throwIfAborted(signal);
   await persistPrepassPageContexts({
@@ -130,6 +156,7 @@ async function runWholePagePipelineWithDependencies(
     blockMode,
     canonicalPageIndexById,
     collectPageContext,
+    cumulativeContextDetail,
     filtered,
     ocrHintsByPageId,
     onCleanupReady,
@@ -145,6 +172,7 @@ async function runWholePagePipelineWithDependencies(
     workContext,
     writeStoryMemory,
     dependencies,
+    timing,
   });
 }
 
@@ -189,30 +217,12 @@ async function persistPrepassPageContexts({
   }
 }
 
-async function completeWholePageRun({
-  blockMode,
-  canonicalPageIndexById,
-  collectPageContext,
-  filtered,
-  ocrHintsByPageId,
-  onCleanupReady,
-  onPageComplete,
-  onPageFailed,
-  pages,
-  regionContext,
-  run,
-  runPaths,
-  signal,
-  skipOcrPrepass,
-  warningCollector,
-  workContext,
-  writeStoryMemory,
-  dependencies,
-}: Pick<
+type CompleteWholePageRunOptions = Pick<
   PipelineOptions,
   | "blockMode"
   | "canonicalPageIndexById"
   | "collectPageContext"
+  | "cumulativeContextDetail"
   | "onCleanupReady"
   | "onPageComplete"
   | "onPageFailed"
@@ -229,19 +239,45 @@ async function completeWholePageRun({
   skipOcrPrepass: boolean;
   warningCollector: ReturnType<typeof createWarningCollector>;
   dependencies: WholePagePipelineDependencies;
-}): Promise<WholePagePipelineResult> {
+  timing: PageProcessingTimingCollector;
+};
+
+async function completeWholePageRun({
+  blockMode,
+  canonicalPageIndexById,
+  collectPageContext,
+  cumulativeContextDetail,
+  filtered,
+  ocrHintsByPageId,
+  onCleanupReady,
+  onPageComplete,
+  onPageFailed,
+  pages,
+  regionContext,
+  run,
+  runPaths,
+  signal,
+  skipOcrPrepass,
+  warningCollector,
+  workContext,
+  writeStoryMemory,
+  dependencies,
+  timing,
+}: CompleteWholePageRunOptions): Promise<WholePagePipelineResult> {
   throwIfAborted(signal);
   if (filtered.pagesToTranslate.length === 0) {
     emitPagesReadyWithoutModel(run.progressContext, pages.length);
     return buildPipelineResult(pages, filtered, warningCollector);
   }
-  const endpoint = await startWholePageEndpoint({ onCleanupReady, run });
+  const endpoint = await measureSharedProcessingStage(timing, "preparing", () =>
+    startWholePageEndpoint({ onCleanupReady, run }),
+  );
+  let preparedPages: PreparedChapterPages;
   try {
-    await translatePages({
+    preparedPages = await prepareTranslatedPages({
       endpoint,
       filtered,
       ocrHintsByPageId,
-      onPageComplete,
       onPageFailed,
       run,
       runPaths,
@@ -253,17 +289,35 @@ async function completeWholePageRun({
       regionContext,
       writeStoryMemory: writeStoryMemory ?? true,
       collectPageContext: collectPageContext ?? false,
+      cumulativeContextDetail: cumulativeContextDetail ?? "detailed",
       canonicalPageIndexById,
       dependencies,
+      timing,
     });
-    emitFinalizing(
-      run.progressContext,
-      tMain("translation.progress.pagesReady", { count: pages.length }),
-    );
-    return buildPipelineResult(pages, filtered, warningCollector);
   } finally {
     await endpoint.disposeEndpointSession();
   }
+  throwIfAborted(signal);
+  await finalizeTranslatedPages({
+    preparedPages,
+    filtered,
+    ocrHintsByPageId,
+    onPageComplete,
+    run,
+    signal,
+    warningCollector,
+    workContext,
+    writeStoryMemory: writeStoryMemory ?? true,
+    collectPageContext: collectPageContext ?? false,
+    cumulativeContextDetail: cumulativeContextDetail ?? "detailed",
+    dependencies,
+    timing,
+  });
+  emitFinalizing(
+    run.progressContext,
+    tMain("translation.progress.pagesReady", { count: pages.length }),
+  );
+  return buildPipelineResult(pages, filtered, warningCollector);
 }
 
 function emitPagesReadyWithoutModel(
@@ -303,6 +357,7 @@ async function prepareWholePageRun(
   options: PipelineOptions,
   dependencies: WholePagePipelineDependencies,
   injected: boolean,
+  timing: PageProcessingTimingCollector,
 ): Promise<{
   ocrHintsByPageId: Map<string, OcrBboxResult>;
   run: Awaited<ReturnType<typeof prepareAnalysisRun>>;
@@ -312,7 +367,9 @@ async function prepareWholePageRun(
   // the writable data-root cache before configureWholePageOutputOptions (the
   // first loadCandidates call). No-op for injected deps (tests) and when auto
   // font matching is off; non-abort failures degrade fail-closed.
-  await prepareFontMatchingRuntimeForRun(options, dependencies.paths, injected);
+  await measureSharedProcessingStage(timing, "preparing", () =>
+    prepareFontMatchingRuntimeForRun(options, dependencies.paths, injected),
+  );
   throwIfAborted(options.signal);
   const {
     blockMode,
@@ -325,29 +382,36 @@ async function prepareWholePageRun(
     signal,
     skipOcrPrepass = false,
   } = options;
-  const run = await prepareAnalysisRun({
-    jobId,
-    emit,
-    pages,
-    runPaths,
-    runtime: dependencies.runtime,
-    signal,
-    skipOcrPrepass,
-    dependencies,
-  });
+  const run = await measureSharedProcessingStage(timing, "preparing", () =>
+    prepareAnalysisRun({
+      jobId,
+      emit,
+      pages,
+      runPaths,
+      runtime: dependencies.runtime,
+      signal,
+      skipOcrPrepass,
+      dependencies,
+    }),
+  );
   throwIfAborted(signal);
-  const ocrHintsByPageId = await preparePageOcrHints({
-    jobId,
-    pages,
-    run,
-    runPaths,
-    signal,
-    skipOcrPrepass,
-    blockMode,
-    decodeImage,
-    regionContext,
-    diagnostics: dependencies.diagnostics,
-  });
+  const ocrHintsByPageId = await measureSharedProcessingStage(
+    timing,
+    "ocr",
+    () =>
+      preparePageOcrHints({
+        jobId,
+        pages,
+        run,
+        runPaths,
+        signal,
+        skipOcrPrepass,
+        blockMode,
+        decodeImage,
+        regionContext,
+        diagnostics: dependencies.diagnostics,
+      }),
+  );
   throwIfAborted(signal);
   return { ocrHintsByPageId, run };
 }
@@ -372,12 +436,33 @@ async function startWholePageEndpoint({
   });
 }
 
+type PreparedChapterPage = Readonly<{
+  page: MangaPage;
+  pageIndex: number;
+  progressPageIndex: number;
+  prepared: PreparedPageBuildResult;
+}>;
+
+type PreparedChapterPages = Readonly<{
+  entries: readonly PreparedChapterPage[];
+  fontMatchingChapterCoordinator?: ReturnType<
+    typeof createAutomaticFontChapterCoordinatorV2
+  >;
+}>;
+
+const previewPageContextDependencies: PageContextPersistenceDependencies = {
+  repository: {
+    saveChapterStoryMemory: (memory) => Promise.resolve(memory),
+    saveWorkStyleGuide: (guide) => Promise.resolve(guide),
+  },
+  logger: { warn: logPipelineWarning },
+};
+
 // eslint-disable-next-line max-lines-per-function -- page sequencing owns one shared endpoint session
-async function translatePages({
+async function prepareTranslatedPages({
   endpoint,
   filtered,
   ocrHintsByPageId,
-  onPageComplete,
   onPageFailed,
   run,
   runPaths,
@@ -389,13 +474,14 @@ async function translatePages({
   regionContext,
   writeStoryMemory,
   collectPageContext,
+  cumulativeContextDetail,
   canonicalPageIndexById,
   dependencies,
+  timing,
 }: {
   endpoint: AnalysisEndpointSession;
   filtered: ReturnType<typeof filterPagesByOcrText>;
   ocrHintsByPageId: Map<string, OcrBboxResult>;
-  onPageComplete?: PipelineOptions["onPageComplete"];
   onPageFailed?: PipelineOptions["onPageFailed"];
   run: Awaited<ReturnType<typeof prepareAnalysisRun>>;
   runPaths: PipelineOptions["runPaths"];
@@ -407,23 +493,31 @@ async function translatePages({
   regionContext?: PipelineOptions["regionContext"];
   writeStoryMemory: boolean;
   collectPageContext: boolean;
+  cumulativeContextDetail: NonNullable<
+    PipelineOptions["cumulativeContextDetail"]
+  >;
   canonicalPageIndexById?: PipelineOptions["canonicalPageIndexById"];
   dependencies: WholePagePipelineDependencies;
-}): Promise<void> {
+  timing: PageProcessingTimingCollector;
+}): Promise<PreparedChapterPages> {
   const fontMatchingChapterCoordinator = run.baseOptions.autoFontMatching
     ? createAutomaticFontChapterCoordinatorV2()
     : undefined;
+  const rollingWorkContext = workContext
+    ? structuredClone(workContext)
+    : undefined;
+  const rollingWarningCollector = createWarningCollector();
+  const entries: PreparedChapterPage[] = [];
   for (const page of filtered.pagesToTranslate) {
     const progressPageIndex = filtered.pageIndexById.get(page.id) ?? 0;
     const pageIndex = canonicalPageIndexById?.get(page.id) ?? progressPageIndex;
     throwIfAborted(signal);
-    const translated = await translatePageWithRetries({
+    const prepared = await preparePageWithRetries({
       baseOptions: run.baseOptions,
       completedPagesById: filtered.completedPagesById,
       context: run.progressContext,
       maxAttempts: endpoint.maxAttempts,
       ocrHintsByPageId,
-      onPageComplete,
       onPageFailed,
       page,
       pageIndex,
@@ -435,21 +529,93 @@ async function translatePages({
       skipOcrPrepass,
       blockMode,
       warningCollector,
-      workContext,
+      workContext: rollingWorkContext,
       regionContext,
       collectPageContext,
+      cumulativeContextDetail,
       diagnostics: dependencies.diagnostics,
-      fontMatchingPageInference: dependencies.fontMatching.pageInference,
-      fontMatchingChapterCoordinator,
+      timing,
     });
-    if (writeStoryMemory && translated.approved) {
+    if (prepared) {
+      entries.push({ page, pageIndex, progressPageIndex, prepared });
+      if (writeStoryMemory && rollingWorkContext) {
+        await persistPageContextAfterSuccess(
+          {
+            page: projectPreparedPageForContext(prepared),
+            pageIndex,
+            pageContext:
+              prepared.kind === "ready"
+                ? prepared.result.pageContext
+                : prepared.pageContext,
+            ocrResult: ocrHintsByPageId.get(page.id),
+            collectPageContext,
+            cumulativeContextDetail,
+            warningCollector: rollingWarningCollector,
+            workContext: rollingWorkContext,
+          },
+          previewPageContextDependencies,
+        );
+      }
+    }
+  }
+  return { entries, fontMatchingChapterCoordinator };
+}
+
+async function finalizeTranslatedPages({
+  preparedPages,
+  filtered,
+  ocrHintsByPageId,
+  onPageComplete,
+  run,
+  signal,
+  warningCollector,
+  workContext,
+  writeStoryMemory,
+  collectPageContext,
+  cumulativeContextDetail,
+  dependencies,
+  timing,
+}: {
+  preparedPages: PreparedChapterPages;
+  filtered: ReturnType<typeof filterPagesByOcrText>;
+  ocrHintsByPageId: Map<string, OcrBboxResult>;
+  onPageComplete?: PipelineOptions["onPageComplete"];
+  run: Awaited<ReturnType<typeof prepareAnalysisRun>>;
+  signal: AbortSignal;
+  warningCollector: ReturnType<typeof createWarningCollector>;
+  workContext?: PipelineOptions["workContext"];
+  writeStoryMemory: boolean;
+  collectPageContext: boolean;
+  cumulativeContextDetail: NonNullable<
+    PipelineOptions["cumulativeContextDetail"]
+  >;
+  dependencies: WholePagePipelineDependencies;
+  timing: PageProcessingTimingCollector;
+}): Promise<void> {
+  for (const entry of preparedPages.entries) {
+    throwIfAborted(signal);
+    const completed = await completePreparedPageTranslationAttempt({
+      context: run.progressContext,
+      onPageComplete,
+      page: entry.page,
+      pageIndex: entry.progressPageIndex,
+      prepared: entry.prepared,
+      warningCollector,
+      fontMatchingPageInference: dependencies.fontMatching.pageInference,
+      fontMatchingChapterCoordinator:
+        preparedPages.fontMatchingChapterCoordinator,
+      timing,
+    });
+    filtered.completedPagesById.set(entry.page.id, completed.page);
+    if (writeStoryMemory && completed.approved) {
       await persistPageContextAfterSuccess(
         {
-          page: filtered.completedPagesById.get(page.id),
-          pageIndex,
-          pageContext: translated.pageContext,
-          ocrResult: ocrHintsByPageId.get(page.id),
+          page: completed.page,
+          pageIndex: entry.pageIndex,
+          pageContext: completed.pageContext,
+          ocrResult: ocrHintsByPageId.get(entry.page.id),
           collectPageContext,
+          cumulativeContextDetail,
           warningCollector,
           workContext,
         },

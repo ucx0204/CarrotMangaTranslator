@@ -28,6 +28,9 @@ import {
   type SortablePageItemProps,
 } from "./pageList/pageListMemo";
 import { usePageThumbnailObserver } from "./pageThumbnails";
+import { IconStopwatch } from "@tabler/icons-react";
+import { IconButton } from "./ui/IconButton";
+import { PageTimingDialogPortal } from "./pageList/PageTimingDialogPortal";
 
 type PageListProps = {
   collapsed: boolean;
@@ -58,7 +61,7 @@ function PageListView({
   onReorder,
   onToggleOtherPanel,
 }: PageListProps): React.JSX.Element {
-  const contentId = React.useId();
+  const [timingOpen, setTimingOpen] = React.useState(false);
   const {
     activePage,
     activePageId,
@@ -93,34 +96,66 @@ function PageListView({
         statusMode={statusMode}
         visibleCount={visiblePages.length}
         onFilterChange={setFilter}
+        onOpenTiming={() => setTimingOpen(true)}
         onToggleOtherPanel={onToggleOtherPanel}
       />
-      <div className="page-list-content" id={contentId} hidden={collapsed}>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
-          onDragCancel={() => setActivePageId(null)}
-          onDragEnd={handleDragEnd}
-        >
-          <PageSortableContent
-            activePage={activePage}
-            activePageId={activePageId}
-            allPageCount={pages.length}
-            disabled={jobActive}
-            lockedPageIds={lockedPageIds}
-            onRemove={onRemove}
-            onRetranslate={onRetranslate}
-            onSelect={onSelect}
-            pages={visiblePages}
-            registerPageItemRef={registerPageItemRef}
-            selectedPageId={selectedPageId}
-            statusMode={statusMode}
-            selectedPageHidden={selectedPageHidden}
-          />
-        </DndContext>
-      </div>
+      <PageListContent
+        activePage={activePage}
+        activePageId={activePageId}
+        allPageCount={pages.length}
+        collapsed={collapsed}
+        disabled={jobActive}
+        handleDragEnd={handleDragEnd}
+        handleDragStart={handleDragStart}
+        lockedPageIds={lockedPageIds}
+        onRemove={onRemove}
+        onRetranslate={onRetranslate}
+        onSelect={onSelect}
+        pages={visiblePages}
+        registerPageItemRef={registerPageItemRef}
+        selectedPageHidden={selectedPageHidden}
+        selectedPageId={selectedPageId}
+        sensors={sensors}
+        setActivePageId={setActivePageId}
+        statusMode={statusMode}
+      />
+      <PageTimingDialogPortal
+        open={timingOpen}
+        pages={pages}
+        onClose={() => setTimingOpen(false)}
+      />
     </section>
+  );
+}
+
+type PageListContentProps = Parameters<typeof PageSortableContent>[0] & {
+  collapsed: boolean;
+  handleDragEnd: ReturnType<typeof usePageListState>["handleDragEnd"];
+  handleDragStart: ReturnType<typeof usePageListState>["handleDragStart"];
+  sensors: ReturnType<typeof usePageListState>["sensors"];
+  setActivePageId: ReturnType<typeof usePageListState>["setActivePageId"];
+};
+
+function PageListContent({
+  collapsed,
+  handleDragEnd,
+  handleDragStart,
+  sensors,
+  setActivePageId,
+  ...sortableProps
+}: PageListContentProps): React.JSX.Element {
+  return (
+    <div className="page-list-content" hidden={collapsed}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragCancel={() => setActivePageId(null)}
+        onDragEnd={handleDragEnd}
+      >
+        <PageSortableContent {...sortableProps} />
+      </DndContext>
+    </div>
   );
 }
 
@@ -129,6 +164,7 @@ function PageListHeader({
   otherPanelCollapsed,
   filter,
   onFilterChange,
+  onOpenTiming,
   onToggleOtherPanel,
   pages,
   statusMode,
@@ -138,6 +174,7 @@ function PageListHeader({
   otherPanelCollapsed: boolean;
   filter: PageListFilter;
   onFilterChange: (filter: PageListFilter) => void;
+  onOpenTiming: () => void;
   onToggleOtherPanel: () => void;
   pages: MangaPage[];
   statusMode: PageStatusMode;
@@ -164,6 +201,16 @@ function PageListHeader({
               statusMode={statusMode}
               onChange={onFilterChange}
             />
+          ) : null}
+          {pages.length && !collapsed ? (
+            <IconButton
+              size="sm"
+              label={t("pageList.timing.button")}
+              title={t("pageList.timing.button")}
+              onClick={onOpenTiming}
+            >
+              <IconStopwatch size={16} aria-hidden="true" />
+            </IconButton>
           ) : null}
           <SidebarSectionCollapseButton
             collapsed={otherPanelCollapsed}

@@ -25,6 +25,13 @@ const MAC_RUNTIME_MANIFEST = Object.freeze({
   }),
   llamaRuntimes: Object.freeze([
     Object.freeze({
+      id: "llama-b10621-metal-arm64",
+      archive: "llama-b10621-bin-macos-arm64.tar.gz",
+      url: "https://github.com/ggml-org/llama.cpp/releases/download/b10621/llama-b10621-bin-macos-arm64.tar.gz",
+      sha256:
+        "429c8270608600188035e5e92f7d78dffb7900904fe7dd7e6a84f48068cd13cf",
+    }),
+    Object.freeze({
       id: "llama-b9547-metal-arm64",
       archive: "llama-b9547-bin-macos-arm64.tar.gz",
       url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/llama-b9547-bin-macos-arm64.tar.gz",

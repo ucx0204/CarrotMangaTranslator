@@ -299,6 +299,7 @@ function buildFixedBlockTranslationPrompt(plan, options = {}) {
     ...(options.collectPageContext
       ? [
           "Also return pageContext grounded only in the visible page: a short target-language visualSummary plus glossary and character candidates. Do not guess names from appearance.",
+          ...describeCumulativeContextDetail(options.cumulativeContextDetail),
         ]
       : []),
     ...(Number.isFinite(attempt) && attempt > 1
@@ -314,6 +315,21 @@ function buildFixedBlockTranslationPrompt(plan, options = {}) {
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+/** @param {unknown} detail @returns {string[]} */
+function describeCumulativeContextDetail(detail) {
+  if (detail === "essential") {
+    return [
+      "Keep pageContext.glossary extremely small: only names, named places or organizations, and clearly repeated story-specific terms needed for consistency. Exclude ordinary words, generic honorifics, one-off terms, sound effects, and whole phrases.",
+    ];
+  }
+  if (detail === "balanced") {
+    return [
+      "Keep pageContext.glossary selective: names, places, relationships or titles, and terms likely to recur. Exclude ordinary words, one-off objects or actions, sound effects, utterances, and generic descriptions.",
+    ];
+  }
+  return [];
 }
 
 /** @param {FixedBlockOptions} options */

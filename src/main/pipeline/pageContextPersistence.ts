@@ -13,6 +13,7 @@ import type {
   PipelineWorkContext,
 } from "./types";
 import type { WarningCollector } from "./warningCollector";
+import type { CumulativeContextDetail } from "../../shared/settingsTypes";
 import { logPipelineWarning } from "./translationAttemptLogging";
 
 export type PageContextPersistenceRepository = {
@@ -42,6 +43,7 @@ type PersistPageContextInput = {
   pageContext?: PageContextPayload;
   ocrResult?: OcrBboxResult;
   collectPageContext: boolean;
+  cumulativeContextDetail?: CumulativeContextDetail;
   warningCollector: WarningCollector;
   workContext?: PipelineWorkContext;
 };
@@ -53,6 +55,7 @@ export async function persistPageContextAfterSuccess(
     pageContext,
     ocrResult,
     collectPageContext,
+    cumulativeContextDetail = "detailed",
     warningCollector,
     workContext,
   }: PersistPageContextInput,
@@ -69,6 +72,7 @@ export async function persistPageContextAfterSuccess(
         page,
         pageIndex,
         pageContext,
+        cumulativeContextDetail,
         ocrResult,
         existing,
         dependencies,
@@ -106,6 +110,7 @@ async function buildAndPersistCumulativeMemory({
   page,
   pageIndex,
   pageContext,
+  cumulativeContextDetail,
   ocrResult,
   existing,
   dependencies,
@@ -115,6 +120,7 @@ async function buildAndPersistCumulativeMemory({
   page: MangaPage;
   pageIndex: number;
   pageContext?: PageContextPayload;
+  cumulativeContextDetail: CumulativeContextDetail;
   ocrResult?: OcrBboxResult;
   existing?: PageStoryMemory;
   dependencies: PageContextPersistenceDependencies;
@@ -127,6 +133,7 @@ async function buildAndPersistCumulativeMemory({
     page,
     pageIndex,
     pageContext,
+    cumulativeContextDetail,
     ocrResult,
   });
   warningCollector.add(...merged.warnings);
@@ -155,6 +162,7 @@ async function buildAndPersistCumulativeMemory({
       pageContext: pageContext
         ? { ...pageContext, glossary: [], characters: [] }
         : undefined,
+      cumulativeContextDetail,
       ocrResult,
     }).pageMemory;
   }

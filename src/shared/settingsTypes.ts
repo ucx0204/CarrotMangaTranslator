@@ -41,6 +41,7 @@ export type OcrDevice = "cpu" | "gpu";
 export type OcrGpuBackend = "cuda" | "rocm-transformers";
 export type OcrQualityMode = "economy" | "full";
 export type TranslationWorkflowMode = "standard" | "cumulative";
+export type CumulativeContextDetail = "detailed" | "balanced" | "essential";
 export type LlamaRuntimeProfile =
   | "cuda12"
   | "rtx50"
@@ -137,6 +138,8 @@ export type UiSettings = {
   inpaintingGuideHidden?: boolean;
   /** Default translation workflow. Missing or unsupported values use cumulative. */
   translationWorkflowDefault?: TranslationWorkflowMode;
+  /** How selectively cumulative translation stores new page context. */
+  cumulativeContextDetailDefault?: CumulativeContextDetail;
   /** Default 블록 mode for translate: auto-detect blocks or keep existing block regions. */
   blockModeDefault?: "auto" | "keep";
   /** Insert size-aware hard line breaks into newly translated block text. */

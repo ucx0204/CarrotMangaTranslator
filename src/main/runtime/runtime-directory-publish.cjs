@@ -2,9 +2,14 @@
 const { randomBytes } = require("node:crypto");
 const { access, rename, rm } = require("node:fs/promises");
 const path = require("node:path");
+const { setTimeout: wait } = require("node:timers/promises");
 
 const WINDOWS_LEGACY_PATH_CEILING = 252;
 const COMPACT_RUNTIME_TOKEN_BYTES = 8;
+const RUNTIME_PUBLISH_RETRY_COUNT = 12;
+const RETRYABLE_RUNTIME_PUBLISH_CODES = new Set(["EACCES", "EBUSY", "EPERM"]);
+
+/** @typedef {{ renamePath?: (source: string, destination: string) => Promise<unknown>; waitForRetry?: (delayMs: number) => Promise<unknown> }} RenameRuntimePathOptions */
 
 /**
  * Publish a fully prepared directory without discarding the last usable
@@ -23,10 +28,10 @@ async function replaceDirectoryWithRollback(stagingDir, outputDir) {
   await rm(backupDir, { recursive: true, force: true });
   const movedPrevious = await movePreviousDirectory(outputDir, backupDir);
   try {
-    await rename(stagingDir, outputDir);
+    await renameRuntimePathWithRetry(stagingDir, outputDir);
   } catch (error) {
     if (movedPrevious) {
-      await rename(backupDir, outputDir);
+      await renameRuntimePathWithRetry(backupDir, outputDir);
     }
     throw error;
   }
@@ -92,7 +97,7 @@ function isExtendedLengthPath(filePath) {
 async function movePreviousDirectory(outputDir, backupDir) {
   try {
     await access(outputDir);
-    await rename(outputDir, backupDir);
+    await renameRuntimePathWithRetry(outputDir, backupDir);
     return true;
   } catch (error) {
     if (/** @type {{ code?: unknown }} */ (error)?.code === "ENOENT") {
@@ -100,6 +105,33 @@ async function movePreviousDirectory(outputDir, backupDir) {
     }
     throw error;
   }
+}
+
+/** @param {string} source @param {string} destination @param {RenameRuntimePathOptions} [options] */
+async function renameRuntimePathWithRetry(source, destination, options = {}) {
+  const renamePath = options.renamePath ?? rename;
+  const waitForRetry = options.waitForRetry ?? wait;
+  for (let attempt = 1; attempt <= RUNTIME_PUBLISH_RETRY_COUNT; attempt += 1) {
+    try {
+      await renamePath(source, destination);
+      return;
+    } catch (error) {
+      if (
+        !isRetryableRuntimePublishError(error) ||
+        attempt >= RUNTIME_PUBLISH_RETRY_COUNT
+      ) {
+        throw error;
+      }
+      await waitForRetry(Math.min(1000, 50 * 2 ** (attempt - 1)));
+    }
+  }
+}
+
+/** @param {unknown} error */
+function isRetryableRuntimePublishError(error) {
+  if (!error || typeof error !== "object") return false;
+  const code = String(/** @type {{ code?: unknown }} */ (error).code ?? "");
+  return RETRYABLE_RUNTIME_PUBLISH_CODES.has(code.toUpperCase());
 }
 
 /** @param {string} backupDir @returns {Promise<void>} */
@@ -119,5 +151,6 @@ module.exports = {
   assertWindowsLegacyRuntimePath,
   createCompactRuntimeSiblingDirectory,
   createRuntimeStagingDirectory,
+  renameRuntimePathWithRetry,
   replaceDirectoryWithRollback,
 };

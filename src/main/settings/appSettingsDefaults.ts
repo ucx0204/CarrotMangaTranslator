@@ -201,6 +201,7 @@ function resolveDefaultGemmaVramSettings({
   llamaRuntimeProfile: AppSettings["gemma"]["llamaRuntimeProfile"];
   vramMode: AppSettings["gemma"]["vramMode"];
 }): Pick<AppSettings["gemma"], "fitTargetMb" | "mmprojOffload"> {
+  const fitTargetMb = vramMode === "minimum12b" ? 512 : 1024;
   const gpuMemoryMb =
     typeof detectedGpu === "number"
       ? detectedGpu
@@ -213,14 +214,14 @@ function resolveDefaultGemmaVramSettings({
     gpuMemoryMb > 0 &&
     gpuMemoryMb <= 8 * 1024
   ) {
-    return { fitTargetMb: 512, mmprojOffload: false };
+    return { fitTargetMb, mmprojOffload: false };
   }
   // Preserve the existing conservative Metal headroom. Apple Silicon uses
   // unified memory, so the dedicated-VRAM 8 GiB rule does not apply to it.
   if (llamaRuntimeProfile === "metal" && vramMode !== "full31b") {
     return { fitTargetMb: 4096, mmprojOffload: true };
   }
-  return { fitTargetMb: 1024, mmprojOffload: true };
+  return { fitTargetMb, mmprojOffload: true };
 }
 
 function resolveUnsafeUnifiedMemoryOverride(value: unknown): boolean {
@@ -341,6 +342,7 @@ function resolveDefaultUiSettings(
     ),
     inpaintingGuideHidden: false,
     translationWorkflowDefault: "cumulative",
+    cumulativeContextDetailDefault: "detailed",
     naturalTextLayoutDefault: true,
     autoFontMatchingDefault: false,
     fontSizeAutoFitDefault: true,

@@ -37,6 +37,24 @@ const assets = [
     "GEMMA_12B_MMPROJ_FILE",
   ),
   pinnedGemmaAsset(
+    "Gemma 12B QAT model",
+    modelPresets,
+    "GEMMA_12B_QAT_MODEL_REPO",
+    "GEMMA_12B_QAT_MODEL_FILE_Q4_K_M",
+  ),
+  pinnedGemmaAsset(
+    "Gemma 12B QAT mmproj",
+    modelPresets,
+    "GEMMA_12B_QAT_MMPROJ_REPO",
+    "GEMMA_12B_QAT_MMPROJ_FILE",
+  ),
+  pinnedGemmaAsset(
+    "Gemma 12B QAT MTP model",
+    modelPresets,
+    "GEMMA_12B_QAT_MTP_MODEL_REPO",
+    "GEMMA_12B_QAT_MTP_MODEL_FILE",
+  ),
+  pinnedGemmaAsset(
     "Gemma 26B model",
     modelPresets,
     "GEMMA_26B_MODEL_REPO",
@@ -49,6 +67,24 @@ const assets = [
     "GEMMA_26B_MMPROJ_FILE",
   ),
   pinnedGemmaAsset(
+    "Gemma 26B QAT model",
+    modelPresets,
+    "GEMMA_26B_QAT_MODEL_REPO",
+    "GEMMA_26B_QAT_MODEL_FILE_Q4_K_M",
+  ),
+  pinnedGemmaAsset(
+    "Gemma 26B QAT mmproj",
+    modelPresets,
+    "GEMMA_26B_QAT_MMPROJ_REPO",
+    "GEMMA_26B_QAT_MMPROJ_FILE",
+  ),
+  pinnedGemmaAsset(
+    "Gemma 26B QAT MTP model",
+    modelPresets,
+    "GEMMA_26B_QAT_MTP_MODEL_REPO",
+    "GEMMA_26B_QAT_MTP_MODEL_FILE",
+  ),
+  pinnedGemmaAsset(
     "Gemma 31B model",
     modelPresets,
     "GEMMA_31B_MODEL_REPO",
@@ -59,6 +95,24 @@ const assets = [
     modelPresets,
     "GEMMA_31B_MMPROJ_REPO",
     "GEMMA_31B_MMPROJ_FILE",
+  ),
+  pinnedGemmaAsset(
+    "Gemma 31B QAT model",
+    modelPresets,
+    "GEMMA_31B_QAT_MODEL_REPO",
+    "GEMMA_31B_QAT_MODEL_FILE_Q4_K_M",
+  ),
+  pinnedGemmaAsset(
+    "Gemma 31B QAT mmproj",
+    modelPresets,
+    "GEMMA_31B_QAT_MMPROJ_REPO",
+    "GEMMA_31B_QAT_MMPROJ_FILE",
+  ),
+  pinnedGemmaAsset(
+    "Gemma 31B QAT MTP model",
+    modelPresets,
+    "GEMMA_31B_QAT_MTP_MODEL_REPO",
+    "GEMMA_31B_QAT_MTP_MODEL_FILE",
   ),
   pinnedGemmaAsset(
     "Gemma draft model",
@@ -408,15 +462,26 @@ function pinnedGemmaAsset(label, source, repoName, fileName) {
   return { ...asset, ...pin };
 }
 
-/** @param {string} source @param {string} name */
-function readStringConstant(source, name) {
-  const pattern = new RegExp(
+/** @param {string} source @param {string} name @param {Set<string>} [visited] */
+function readStringConstant(source, name, visited = new Set()) {
+  const literalPattern = new RegExp(
     `(?:export\\s+)?const\\s+${escapeRegExp(name)}\\s*=\\s*["']([^"']+)["']\\s*;`,
     "s",
   );
-  const match = pattern.exec(source);
-  if (!match) throw new Error(`String constant not found: ${name}`);
-  return match[1];
+  const literalMatch = literalPattern.exec(source);
+  if (literalMatch) return literalMatch[1];
+
+  const aliasPattern = new RegExp(
+    `(?:export\\s+)?const\\s+${escapeRegExp(name)}\\s*=\\s*([A-Za-z_$][\\w$]*)\\s*;`,
+    "s",
+  );
+  const aliasMatch = aliasPattern.exec(source);
+  if (!aliasMatch) throw new Error(`String constant not found: ${name}`);
+  if (visited.has(name)) {
+    throw new Error(`String constant alias cycle found: ${name}`);
+  }
+  visited.add(name);
+  return readStringConstant(source, aliasMatch[1], visited);
 }
 
 /** @param {string} source @param {string} name */

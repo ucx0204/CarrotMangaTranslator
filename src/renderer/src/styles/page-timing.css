@@ -1,0 +1,144 @@
+.page-timing-dialog {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.page-timing-summary {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-5);
+  padding: var(--sp-5) var(--sp-6);
+  border-bottom: 1px solid var(--border-soft);
+  background: color-mix(in srgb, var(--bg-raised) 72%, transparent);
+}
+
+.page-timing-summary > div {
+  display: grid;
+  gap: var(--sp-1);
+}
+
+.page-timing-summary span,
+.page-timing-summary p {
+  color: var(--text-muted);
+}
+
+.page-timing-summary strong {
+  color: var(--text-head);
+  font-size: clamp(22px, 3vw, 32px);
+  font-variant-numeric: tabular-nums;
+}
+
+.page-timing-summary p {
+  display: grid;
+  max-width: 560px;
+  gap: var(--sp-1);
+  margin: 0;
+  text-align: right;
+}
+
+.page-timing-table-scroll {
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+}
+
+.page-timing-table {
+  width: 100%;
+  min-width: 940px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--font-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.page-timing-table th,
+.page-timing-table td {
+  padding: 10px 12px;
+  border-right: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  white-space: nowrap;
+  text-align: right;
+}
+
+.page-timing-table th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  width: 180px;
+  max-width: 220px;
+  overflow: hidden;
+  background: var(--bg-modal);
+  text-align: left;
+  text-overflow: ellipsis;
+}
+
+.page-timing-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg-raised);
+  color: var(--text-head);
+}
+
+.page-timing-table thead th:first-child {
+  z-index: 3;
+  background: var(--bg-raised);
+}
+
+.page-timing-table tbody tr:hover th,
+.page-timing-table tbody tr:hover td {
+  background: color-mix(in srgb, var(--accent-soft) 28%, var(--bg-modal));
+}
+
+.page-timing-table .page-timing-row-total,
+.page-timing-table tfoot th,
+.page-timing-table tfoot td {
+  color: var(--text-head);
+  font-weight: 700;
+}
+
+.page-timing-table tfoot th,
+.page-timing-table tfoot td {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  border-top: 1px solid var(--border-strong);
+  background: var(--bg-raised);
+}
+
+.page-timing-table tfoot th:first-child {
+  z-index: 3;
+  background: var(--bg-raised);
+}
+
+.page-timing-empty {
+  display: grid;
+  flex: 1 1 auto;
+  place-content: center;
+  gap: var(--sp-2);
+  padding: var(--sp-8);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.page-timing-empty strong {
+  color: var(--text-head);
+  font-size: var(--font-lg);
+}
+
+@media (max-width: 640px) {
+  .page-timing-summary {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: var(--sp-4);
+  }
+
+  .page-timing-summary p {
+    text-align: left;
+  }
+}

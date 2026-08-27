@@ -38,6 +38,7 @@ export type TranslationOptions = {
   translationAttempt?: number;
   /** Ask the page translation response to append a delimited cumulative context payload. */
   collectPageContext?: boolean;
+  cumulativeContextDetail?: import("../../shared/settingsTypes").CumulativeContextDetail;
   /** Post-process translated text with block-size-aware hard line breaks. */
   naturalTextLayout?: boolean;
   /** Apply Font Matching V2 work anchors or high-confidence accent decisions. */
@@ -77,14 +78,17 @@ export type TranslationOptions = {
   ubatch: number;
   gemmaVramMode: GemmaVramMode;
   fitTargetMb: number;
+  /** Disable llama.cpp's automatic memory fitting when full offload is safe. */
+  fitEnabled?: boolean;
   /** Backend-local CUDA/HIP GPU ordinal. Missing keeps automatic selection. */
   computeGpuIndex?: number;
-  gpuLayers?: number | "fit";
+  gpuLayers?: number | "fit" | "all";
   cacheTypeK?: string;
   cacheTypeV?: string;
   ctxCheckpoints?: number;
   kvOffload?: boolean;
   mmprojOffload?: boolean;
+  disableMmap?: boolean;
   threads?: number;
   threadsBatch?: number;
   poll?: number;
@@ -96,6 +100,8 @@ export type TranslationOptions = {
   enablePerf?: boolean;
   draftModelRepo?: string;
   draftModelFile?: string;
+  draftSpecType?: "dflash" | "draft-mtp";
+  draftMaxTokens?: number;
   useDraft?: boolean;
   imageMinTokens: number;
   imageMaxTokens: number;
@@ -106,6 +112,8 @@ export type TranslationOptions = {
   reuseServer: boolean;
   llamaRuntimeProfile?: string;
   llamaRocmTarget?: string;
+  /** Detected dedicated VRAM used only for runtime routing and diagnostics. */
+  gpuMemoryMb?: number;
   unifiedMemoryMb?: number;
   allowUnsafeUnifiedMemory?: boolean;
   workingDir: string;
@@ -187,6 +195,10 @@ export type TranslationOptions = {
     progressTotalBytes?: number;
     progressBytesPerSecond?: number;
     installLogLine?: string;
+    notification?: {
+      variant: "success" | "error" | "warn" | "info";
+      message: string;
+    };
   }) => void;
   hfHomeDir?: string;
   hfHubCacheDir?: string;

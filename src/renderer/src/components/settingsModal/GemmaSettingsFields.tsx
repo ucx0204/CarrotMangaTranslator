@@ -2,26 +2,16 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import {
   LLAMA_RUNTIME_PROFILE_OPTIONS,
-  MODEL_PRESETS,
   MODEL_SOURCE_OPTIONS,
-  type ModelPresetId,
 } from "../settingsOptions";
 import type { EngineSettingsPanelProps } from "./EngineSettingsPanelTypes";
 import {
-  GemmaMemorySummary,
   GemmaVramTuningFields,
   RuntimeHardwareNote,
 } from "./GemmaMemorySummary";
-import { confirmGemmaMemoryRisk } from "./gemmaMemoryRisk";
+import { GemmaModelPresetSelector } from "./GemmaModelPresetSelector";
 import { LocalModelFields } from "./GemmaLocalModelFields";
 import { LlamaRuntimeCompatibilityWarning } from "./LlamaRuntimeCompatibilityWarning";
-
-const MODEL_PRESET_BUTTON_IDS = [
-  "minimum12b",
-  "economy26b",
-  "full31b",
-  "custom",
-] as ModelPresetId[];
 
 type GemmaSettingsFieldsProps = Pick<
   EngineSettingsPanelProps,
@@ -32,6 +22,7 @@ type GemmaSettingsFieldsProps = Pick<
   | "detectedGpuName"
   | "gemmaFitTargetMb"
   | "gemmaMmprojOffload"
+  | "gpuMemoryMb"
   | "isLlamaRuntimeOptionDisabled"
   | "llamaRuntimeProfile"
   | "allowUnsafeUnifiedMemory"
@@ -129,6 +120,7 @@ type HuggingFaceModelFieldsProps = Pick<
   | "customModelFile"
   | "customModelRepo"
   | "detectedGpuName"
+  | "gpuMemoryMb"
   | "isLlamaRuntimeOptionDisabled"
   | "llamaRuntimeProfile"
   | "allowUnsafeUnifiedMemory"
@@ -153,104 +145,12 @@ function HuggingFaceModelFields(
 ): React.JSX.Element {
   return (
     <>
-      <ModelPresetSelector {...props} />
+      <GemmaModelPresetSelector {...props} />
       {props.selectedPreset === "custom" ? (
         <CustomHfModelFields {...props} />
       ) : null}
       <LlamaRuntimeSelector {...props} />
     </>
-  );
-}
-
-type ModelPresetSelectorProps = Pick<
-  HuggingFaceModelFieldsProps,
-  | "clearTestState"
-  | "allowUnsafeUnifiedMemory"
-  | "controlsBusy"
-  | "selectedPreset"
-  | "setCustomVramMode"
-  | "setAllowUnsafeUnifiedMemory"
-  | "setSelectedPreset"
-  | "unifiedMemoryMb"
-  | "usesAppleHardware"
->;
-
-function ModelPresetSelector({
-  allowUnsafeUnifiedMemory,
-  clearTestState,
-  controlsBusy,
-  selectedPreset,
-  setCustomVramMode,
-  setAllowUnsafeUnifiedMemory,
-  setSelectedPreset,
-  unifiedMemoryMb,
-  usesAppleHardware,
-}: ModelPresetSelectorProps): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <div className="settings-field-stack">
-      <span>{t("settings.gemma.preset.label")}</span>
-      <div
-        className="settings-preset-group"
-        role="group"
-        aria-label={t("settings.gemma.preset.ariaLabel")}
-      >
-        {MODEL_PRESET_BUTTON_IDS.map((presetId) => (
-          <ModelPresetButton
-            key={presetId}
-            presetId={presetId}
-            allowUnsafeUnifiedMemory={allowUnsafeUnifiedMemory}
-            clearTestState={clearTestState}
-            controlsBusy={controlsBusy}
-            selectedPreset={selectedPreset}
-            setAllowUnsafeUnifiedMemory={setAllowUnsafeUnifiedMemory}
-            setCustomVramMode={setCustomVramMode}
-            setSelectedPreset={setSelectedPreset}
-            unifiedMemoryMb={unifiedMemoryMb}
-            usesAppleHardware={usesAppleHardware}
-          />
-        ))}
-      </div>
-      <p className="muted-line modal-note">
-        {selectedPreset === "custom"
-          ? t("settings.gemma.preset.customDescription")
-          : t(MODEL_PRESETS[selectedPreset].descriptionKey)}
-      </p>
-      {usesAppleHardware && selectedPreset !== "custom" ? (
-        <GemmaMemorySummary
-          allowUnsafeUnifiedMemory={allowUnsafeUnifiedMemory}
-          selectedPreset={selectedPreset}
-          unifiedMemoryMb={unifiedMemoryMb}
-        />
-      ) : null}
-    </div>
-  );
-}
-
-function ModelPresetButton({
-  presetId,
-  ...props
-}: ModelPresetSelectorProps & { presetId: ModelPresetId }): React.JSX.Element {
-  const { t } = useTranslation("components");
-  return (
-    <button
-      type="button"
-      className={`settings-preset-button ${props.selectedPreset === presetId ? "active" : ""}`}
-      disabled={props.controlsBusy}
-      aria-pressed={props.selectedPreset === presetId}
-      onClick={() => {
-        if (!confirmGemmaMemoryRisk(presetId, props, t)) return;
-        props.clearTestState();
-        props.setSelectedPreset(presetId);
-        if (presetId !== "custom") {
-          props.setCustomVramMode(MODEL_PRESETS[presetId].vramMode);
-        }
-      }}
-    >
-      {presetId === "custom"
-        ? t("settings.gemma.preset.custom")
-        : t(MODEL_PRESETS[presetId].labelKey)}
-    </button>
   );
 }
 

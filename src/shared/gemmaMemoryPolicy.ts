@@ -6,6 +6,31 @@ const GEMMA_UNIFIED_MEMORY_REQUIREMENTS_MB: Record<GemmaVramMode, number> = {
   full31b: 32 * 1024,
 };
 
+export const GEMMA_DEDICATED_VRAM_REQUIREMENTS_MB: Record<
+  GemmaVramMode,
+  number
+> = {
+  minimum12b: 8 * 1024,
+  economy26b: 16 * 1024,
+  full31b: 24 * 1024,
+};
+
+/** Driver APIs commonly report a few MiB below the GPU's advertised tier. */
+const GEMMA_DEDICATED_VRAM_REPORTING_TOLERANCE_MB = 128;
+
+export function meetsGemmaDedicatedVramRequirement(
+  mode: GemmaVramMode,
+  availableMemoryMb: number,
+): boolean {
+  if (!Number.isFinite(availableMemoryMb) || availableMemoryMb <= 0) {
+    return false;
+  }
+  return (
+    availableMemoryMb + GEMMA_DEDICATED_VRAM_REPORTING_TOLERANCE_MB >=
+    GEMMA_DEDICATED_VRAM_REQUIREMENTS_MB[mode]
+  );
+}
+
 export const GEMMA_MODEL_DOWNLOAD_BYTES: Record<GemmaVramMode, number> = {
   // Model + vision projector. 31B also includes the DFlash draft model.
   minimum12b: 7_556_000_000,

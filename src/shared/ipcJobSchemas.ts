@@ -27,6 +27,13 @@ const JobProgressFieldsSchema = {
   progressTotalBytes: finiteNumber.min(0).optional(),
   progressBytesPerSecond: finiteNumber.min(0).optional(),
   installLogLine: z.string().max(4000).optional(),
+  notification: z
+    .object({
+      variant: z.enum(["success", "error", "warn", "info"]),
+      message: z.string().min(1).max(1000),
+    })
+    .strict()
+    .optional(),
 };
 
 const PageJobTargetSnapshotSchema = z
@@ -93,6 +100,9 @@ export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
       runMode: z.literal("pending"),
       blockMode: AnalysisBlockModeSchema.optional(),
       collectPageContext: z.boolean().optional(),
+      cumulativeContextDetail: z
+        .enum(["detailed", "balanced", "essential"])
+        .optional(),
       naturalTextLayout: z.boolean().optional(),
       autoFontMatching: z.boolean().optional(),
       fontSizeAutoFit: z.boolean().optional(),
@@ -105,6 +115,9 @@ export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
       runMode: z.literal("all"),
       blockMode: AnalysisBlockModeSchema.optional(),
       collectPageContext: z.boolean().optional(),
+      cumulativeContextDetail: z
+        .enum(["detailed", "balanced", "essential"])
+        .optional(),
       naturalTextLayout: z.boolean().optional(),
       autoFontMatching: z.boolean().optional(),
       fontSizeAutoFit: z.boolean().optional(),
@@ -118,6 +131,9 @@ export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
       pageId: uuid,
       blockMode: AnalysisBlockModeSchema.optional(),
       collectPageContext: z.boolean().optional(),
+      cumulativeContextDetail: z
+        .enum(["detailed", "balanced", "essential"])
+        .optional(),
       naturalTextLayout: z.boolean().optional(),
       autoFontMatching: z.boolean().optional(),
       fontSizeAutoFit: z.boolean().optional(),
@@ -138,6 +154,9 @@ export const StartAnalysisRequestSchema = z.discriminatedUnion("runMode", [
         ),
       blockMode: AnalysisBlockModeSchema.optional(),
       collectPageContext: z.boolean().optional(),
+      cumulativeContextDetail: z
+        .enum(["detailed", "balanced", "essential"])
+        .optional(),
       naturalTextLayout: z.boolean().optional(),
       autoFontMatching: z.boolean().optional(),
       fontSizeAutoFit: z.boolean().optional(),

@@ -8,7 +8,12 @@ const {
   MAINLINE_LLAMA_RUNTIME_CUDA13,
   MAINLINE_LLAMA_RUNTIME_VULKAN,
   MAINLINE_LLAMA_RUNTIME_METAL_ARM64,
+  SPEED_LLAMA_RUNTIME_CUDA12,
+  SPEED_LLAMA_RUNTIME_CUDA13,
+  SPEED_LLAMA_RUNTIME_VULKAN,
+  SPEED_LLAMA_RUNTIME_METAL_ARM64,
   resolveLemonadeLlamaRuntimeRocm,
+  resolveSpeedLemonadeLlamaRuntimeRocm,
 } = require("../simple-page-llama-runtimes.cjs");
 const {
   resolveAmdRocmTargetFromOptions,
@@ -106,8 +111,54 @@ function isGemma31BModel(options = {}) {
 }
 
 /** @param {RuntimePathOptions} [options] */
+function isGemma31BQatMtpModel(options = {}) {
+  return (
+    isGemma31BModel(options) &&
+    modelMatches(
+      options,
+      /gemma[-_]?4[-_]?31b[-_]?qat[-_]?uncensored[-_]?hauhaucs[-_]?balanced/i,
+    )
+  );
+}
+
+/** @param {RuntimePathOptions} [options] */
+function isGemma12BQatMtpModel(options = {}) {
+  return (
+    isGemma12BModel(options) &&
+    modelMatches(
+      options,
+      /gemma[-_]?4[-_]?12b[-_]?qat[-_]?uncensored[-_]?hauhaucs[-_]?balanced/i,
+    )
+  );
+}
+
+/** @param {RuntimePathOptions} [options] */
+function isGemma26BQatMtpModel(options = {}) {
+  return (
+    isGemma26BModel(options) &&
+    modelMatches(
+      options,
+      /gemma[-_]?4[-_]?26b(?:[-_]?a4b)?[-_]?qat[-_]?uncensored[-_]?hauhaucs[-_]?balanced/i,
+    )
+  );
+}
+
+/** @param {RuntimePathOptions} [options] */
+function isSpeedGemmaModel(options = {}) {
+  return (
+    isGemma12BQatMtpModel(options) ||
+    isGemma26BQatMtpModel(options) ||
+    isGemma31BQatMtpModel(options)
+  );
+}
+
+/** @param {RuntimePathOptions} [options] */
 function isMainlineGemmaModel(options = {}) {
-  return isGemma12BModel(options) || isGemma26BModel(options);
+  return (
+    isGemma12BModel(options) ||
+    isGemma26BModel(options) ||
+    isGemma31BQatMtpModel(options)
+  );
 }
 
 /** @param {RuntimePathOptions} [options] */
@@ -117,9 +168,15 @@ function isBuiltInGemmaRuntimeModel(options = {}) {
 
 /** @param {RuntimePathOptions} options */
 function resolveRocmRuntime(options) {
-  if (isGemma31BModel(options)) return BEELLAMA_LLAMA_RUNTIME_HIP_RADEON;
+  if (isGemma31BModel(options) && !isMainlineGemmaModel(options)) {
+    return BEELLAMA_LLAMA_RUNTIME_HIP_RADEON;
+  }
   const rocmTarget = resolveAmdRocmTargetFromOptions(options);
-  if (rocmTarget) return resolveLemonadeLlamaRuntimeRocm(rocmTarget);
+  if (rocmTarget) {
+    return isSpeedGemmaModel(options)
+      ? resolveSpeedLemonadeLlamaRuntimeRocm(rocmTarget)
+      : resolveLemonadeLlamaRuntimeRocm(rocmTarget);
+  }
   throw createDetailedError(
     "AMD GPU 아키텍처를 확인하지 못해 ROCm llama 런타임을 선택할 수 없습니다.",
     {
@@ -130,16 +187,21 @@ function resolveRocmRuntime(options) {
 }
 
 /** @param {RuntimePathOptions} [options] */
-function resolvePreferredLlamaRuntime(options = {}) {
-  const profile = resolveLlamaRuntimeProfile(options);
-  if (profile === "metal") {
-    return isGemma31BModel(options)
-      ? BEELLAMA_LLAMA_RUNTIME_METAL_ARM64
-      : MAINLINE_LLAMA_RUNTIME_METAL_ARM64;
-  }
-  if (profile === "rocm") return resolveRocmRuntime(options);
-  if (profile === "vulkan") return MAINLINE_LLAMA_RUNTIME_VULKAN;
+function resolveMetalRuntime(options = {}) {
+  if (isSpeedGemmaModel(options)) return SPEED_LLAMA_RUNTIME_METAL_ARM64;
+  return isGemma31BModel(options) && !isMainlineGemmaModel(options)
+    ? BEELLAMA_LLAMA_RUNTIME_METAL_ARM64
+    : MAINLINE_LLAMA_RUNTIME_METAL_ARM64;
+}
+
+/** @param {RuntimePathOptions} [options] */
+function resolveCudaRuntime(options = {}) {
   const rtx50Runtime = shouldUseRtx50LlamaRuntime(options);
+  if (isSpeedGemmaModel(options)) {
+    return rtx50Runtime
+      ? SPEED_LLAMA_RUNTIME_CUDA13
+      : SPEED_LLAMA_RUNTIME_CUDA12;
+  }
   if (isMainlineGemmaModel(options)) {
     return rtx50Runtime
       ? MAINLINE_LLAMA_RUNTIME_CUDA13
@@ -150,11 +212,28 @@ function resolvePreferredLlamaRuntime(options = {}) {
     : BEELLAMA_LLAMA_RUNTIME_CUDA12;
 }
 
+/** @param {RuntimePathOptions} [options] */
+function resolvePreferredLlamaRuntime(options = {}) {
+  const profile = resolveLlamaRuntimeProfile(options);
+  if (profile === "metal") return resolveMetalRuntime(options);
+  if (profile === "rocm") return resolveRocmRuntime(options);
+  if (profile === "vulkan") {
+    return isSpeedGemmaModel(options)
+      ? SPEED_LLAMA_RUNTIME_VULKAN
+      : MAINLINE_LLAMA_RUNTIME_VULKAN;
+  }
+  return resolveCudaRuntime(options);
+}
+
 module.exports = {
   isBuiltInGemmaRuntimeModel,
   isGemma12BModel,
+  isGemma12BQatMtpModel,
   isGemma26BModel,
+  isGemma26BQatMtpModel,
   isGemma31BModel,
+  isGemma31BQatMtpModel,
+  isSpeedGemmaModel,
   isMainlineGemmaModel,
   resolvePreferredLlamaRuntime,
   resolveLlamaRuntimeProfile,

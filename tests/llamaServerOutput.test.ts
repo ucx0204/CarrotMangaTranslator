@@ -1,4 +1,5 @@
 import { EventEmitter } from "node:events";
+import { createServer } from "node:http";
 import { describe, expect, it } from "vitest";
 
 type ProgressEvent = Record<string, unknown>;
@@ -41,14 +42,54 @@ const { createServerOutputTransport } =
       },
     ) => OutputTransport;
   };
-const { stopServer } =
+const { startServer, stopServer } =
   require("../src/main/runtime/transport/llama-server-process.cjs") as {
+    startServer: (options: Record<string, unknown>) => Promise<{
+      baseUrl: string;
+      child: null;
+      startedByScript: boolean;
+    }>;
     stopServer: (server: null) => Promise<void>;
   };
 
 describe("llama server output transport", () => {
   it("treats an absent server process as already stopped", async () => {
     await expect(stopServer(null)).resolves.toBeUndefined();
+  });
+
+  it("reuses an explicitly authorized reachable server without relaunching", async () => {
+    const server = createServer((_request, response) => {
+      response.statusCode = 200;
+      response.setHeader("content-type", "application/json");
+      response.end('{"data":[]}');
+    });
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve),
+    );
+    const address = server.address();
+    if (!address || typeof address === "string") {
+      throw new Error("test server did not expose a TCP port");
+    }
+    const previousReuse = process.env.MGT_ALLOW_LLAMA_SERVER_REUSE;
+    process.env.MGT_ALLOW_LLAMA_SERVER_REUSE = "1";
+    try {
+      await expect(
+        startServer({ port: address.port, reuseServer: true }),
+      ).resolves.toEqual({
+        baseUrl: `http://127.0.0.1:${address.port}/v1`,
+        child: null,
+        startedByScript: false,
+      });
+    } finally {
+      if (previousReuse === undefined) {
+        delete process.env.MGT_ALLOW_LLAMA_SERVER_REUSE;
+      } else {
+        process.env.MGT_ALLOW_LLAMA_SERVER_REUSE = previousReuse;
+      }
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve())),
+      );
+    }
   });
 
   it("keeps diagnostics after readiness without mirroring inference output", () => {

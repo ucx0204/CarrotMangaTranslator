@@ -32,6 +32,7 @@ import type { FontMatchingRasterPage } from "./fontMatchingPagePixelPreprocessin
 import type { FontMatchingRuntimeArtifactStatus } from "./fontMatchingRuntimeArtifactStatus";
 import type { InstalledAutoMatchCandidate } from "./autoMatchActiveCatalogTypes";
 import type {
+  FontMatchingExecutionBackend,
   OrtWasmAssets,
   FontMatchingRuntimeModel,
 } from "./fontMatchingPagePixelInference";
@@ -80,6 +81,7 @@ export type FontMatchingWorkerReadyMessage = Readonly<{
   type: "ready";
   id: string;
   status: FontMatchingRuntimeArtifactStatus;
+  backend?: FontMatchingExecutionBackend;
 }>;
 
 export type FontMatchingWorkerInitErrorMessage = Readonly<{
@@ -173,6 +175,7 @@ async function handleInit(
       type: "ready",
       id: message.id,
       status: result.status,
+      backend: result.model.executionBackend,
     });
   } catch (error) {
     runtimeModel = null;

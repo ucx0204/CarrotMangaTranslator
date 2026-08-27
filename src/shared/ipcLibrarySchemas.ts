@@ -29,6 +29,26 @@ const TranslationCompletionReceiptSchema = z
       .optional(),
   })
   .strict();
+const PageProcessingTimingStagesSchema = z
+  .object({
+    preparing: z.number().int().min(0).max(604_800_000).optional(),
+    ocr: z.number().int().min(0).max(604_800_000).optional(),
+    translation: z.number().int().min(0).max(604_800_000).optional(),
+    postprocessing: z.number().int().min(0).max(604_800_000).optional(),
+    typography: z.number().int().min(0).max(604_800_000).optional(),
+    inpainting: z.number().int().min(0).max(604_800_000).optional(),
+    bubbleLayout: z.number().int().min(0).max(604_800_000).optional(),
+  })
+  .strict();
+const PageProcessingTimingSchema = z
+  .object({
+    version: z.literal(1),
+    stages: PageProcessingTimingStagesSchema,
+    measuredAt: z.string().datetime(),
+    translationJobId: z.string().min(1).max(200).optional(),
+    inpaintingJobId: z.string().min(1).max(200).optional(),
+  })
+  .strict();
 const ChapterStatusSchema = z.enum([
   "idle",
   "running",
@@ -66,6 +86,7 @@ const PageRecordContentShape = {
     .optional(),
   analysisStatus: PageAnalysisStatusSchema,
   translationCompletion: TranslationCompletionReceiptSchema.optional(),
+  processingTiming: PageProcessingTimingSchema.optional(),
   lastError: z.string().max(4000).optional(),
   createdAt: z.string().max(80),
   updatedAt: z.string().max(80),

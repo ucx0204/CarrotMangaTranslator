@@ -68,6 +68,9 @@ function buildRuntimeSettings(options) {
     batch: options.batch,
     ubatch: options.ubatch,
     gemmaVramMode: options.gemmaVramMode,
+    fitTargetMb: options.fitTargetMb,
+    fitEnabled: options.fitEnabled,
+    gpuMemoryMb: options.gpuMemoryMb,
     cacheTypeK: options.cacheTypeK,
     cacheTypeV: options.cacheTypeV,
     ctxCheckpoints: options.ctxCheckpoints,
@@ -127,7 +130,6 @@ function buildApiSettings(options) {
 /** @param {Record<string, any>} options */
 function buildImageSettings(options) {
   return {
-    fitTargetMb: options.fitTargetMb,
     imageMinTokens: options.imageMinTokens,
     imageMaxTokens: options.imageMaxTokens,
     includeEnhancedVariant: options.includeEnhancedVariant,

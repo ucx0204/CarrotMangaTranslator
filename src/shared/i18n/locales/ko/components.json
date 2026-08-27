@@ -547,6 +547,23 @@
         "description": "번역하면서 페이지의 장면 요약·용어·캐릭터 정보를 쌓아 다음 페이지부터 참고합니다."
       }
     },
+    "cumulativeDetail": {
+      "label": "컨텍스트 기록 범위",
+      "options": {
+        "detailed": {
+          "label": "상세 기록 (기존)",
+          "description": "현재 방식 그대로 장면, 인물, 용어 정보를 폭넓게 기록합니다."
+        },
+        "balanced": {
+          "label": "균형 기록",
+          "description": "인물·장소와 여러 페이지에서 중요할 가능성이 높은 용어 위주로 기록합니다."
+        },
+        "essential": {
+          "label": "필수 용어만",
+          "description": "인물명·별칭·장소명과 반복 확인된 작품 고유 용어만 기록합니다."
+        }
+      }
+    },
     "blockModeSummaries": {
       "auto": "페이지마다 텍스트 블록을 자동으로 찾습니다.",
       "keep": "기존 블록의 영역과 서식을 유지합니다."
@@ -745,6 +762,30 @@
     "noFilterResults": "이 필터에 해당하는 페이지가 없습니다.",
     "selectedHidden": "현재 선택한 페이지가 필터에 가려져 있습니다.",
     "filterLabel": "페이지 상태 필터",
+    "timing": {
+      "button": "페이지 소요 시간",
+      "title": "페이지별 소요 시간",
+      "grandTotal": "전체 총 소요 시간",
+      "recordedPages": "측정된 페이지 {{count}}개",
+      "emptyTitle": "아직 측정 기록이 없습니다.",
+      "emptyDescription": "새 번역을 완료하면 페이지별 세부 시간이 여기에 저장됩니다.",
+      "page": "페이지",
+      "total": "페이지 합계",
+      "stages": {
+        "preparing": "준비",
+        "ocr": "OCR",
+        "translation": "AI 번역",
+        "postprocessing": "결과 정리",
+        "typography": "글자·폰트",
+        "inpainting": "인페인팅",
+        "bubbleLayout": "말풍선"
+      },
+      "duration": {
+        "hours": "{{hours}}시간 {{minutes}}분 {{seconds}}초",
+        "minutes": "{{minutes}}분 {{seconds}}초",
+        "seconds": "{{seconds}}초"
+      }
+    },
     "visibleCount": "{{visible}} / {{total}}",
     "blockCount": "블록 {{count}}개",
     "thumbnailLoadFailed": "미리보기 실패",
@@ -1345,16 +1386,28 @@
     "options": {
       "modelPresets": {
         "minimum12b": {
-          "label": "12B 최소",
-          "description": "8GB급 VRAM용입니다. 실행 가능성과 가벼운 구동을 우선합니다."
+          "label": "12B (8GB)",
+          "description": "8GB VRAM용 기존 12B 모델입니다. 이전 버전과 같은 구성이 필요할 때 선택하세요."
+        },
+        "qat12b": {
+          "label": "12B (8GB)",
+          "description": "8GB VRAM용입니다. 가장 빠르고 가벼워 대부분의 작업에 무난합니다."
         },
         "economy26b": {
-          "label": "26B 절약",
-          "description": "16GB급 VRAM용입니다. 이미지 토큰 1024를 유지하고 26B 모델을 더 안전하게 실행합니다."
+          "label": "26B (16GB)",
+          "description": "16GB VRAM용 기존 26B 모델입니다. 12B보다 품질이 좋지만 더 느립니다."
+        },
+        "qat26b": {
+          "label": "26B (16GB)",
+          "description": "16GB VRAM용입니다. 12B보다 번역 품질이 좋고, 속도와 메모리 사용의 균형을 맞췄습니다."
         },
         "full31b": {
-          "label": "31B 풀로드",
-          "description": "넉넉한 VRAM용입니다. 31B 모델과 DFlash를 사용해 품질 우선으로 실행합니다."
+          "label": "31B (24GB)",
+          "description": "24GB VRAM용 기존 31B 모델입니다. 가장 높은 품질을 목표로 하지만 가장 무겁습니다."
+        },
+        "qat31b": {
+          "label": "31B (24GB)",
+          "description": "24GB VRAM용입니다. 가장 높은 번역 품질을 목표로 하며, 12B·26B보다 더 많은 메모리를 사용합니다."
         }
       },
       "modelSources": {
@@ -1515,6 +1568,12 @@
       "preset": {
         "label": "모델 프리셋",
         "ariaLabel": "모델 프리셋",
+        "family": {
+          "label": "모델 계열",
+          "ariaLabel": "모델 계열",
+          "speed": "속도(추천)",
+          "legacy": "레거시"
+        },
         "custom": "직접 설정",
         "customDescription": "모델 저장소와 파일을 직접 지정합니다."
       },
@@ -1532,7 +1591,9 @@
       "vramTuning": {
         "reserveLabel": "여유 VRAM",
         "reserveOption": "{{value}} MiB",
-        "reserveDescription": "모델 로딩 후 남겨 둘 VRAM입니다. 낮추면 모델을 GPU에 더 많이 올려 빨라질 수 있습니다. 높이면 GPU에 올리는 모델이 줄어 느려질 수 있으니, 다른 GPU 프로그램을 함께 쓸 때만 높이세요.",
+        "reserveInputAria": "여유 VRAM (MiB)",
+        "reserveAddAria": "여유 VRAM에 {{value}} MiB 추가",
+        "reserveDescription": "모델 로딩 후 남길 VRAM입니다. 낮추면 빨라질 수 있지만 너무 낮으면 공유 메모리로 밀려 번역과 PC가 극단적으로 느려질 수 있습니다. 다른 GPU 앱을 함께 쓸 때만 높이세요.",
         "mmprojLabel": "mmproj 처리 위치",
         "mmprojGpu": "GPU (속도 우선)",
         "mmprojCpu": "CPU (VRAM 절약)",
@@ -1544,7 +1605,9 @@
         "sufficient": "이 메모리 등급의 권장 모델입니다.",
         "insufficient": "권장량보다 {{shortage}} 부족합니다. 모델을 누르면 위험 확인 후 시험할 수 있습니다.",
         "unsafeAllowed": "{{shortage}} 부족한 위험 실행을 이번 설정에서 허용했습니다.",
-        "unsafeConfirm": "이 Mac의 통합 메모리는 {{available}}이며 선택한 모델 권장량은 {{required}}입니다. 첫 사용 다운로드는 약 {{download}}이며 네트워크에 따라 오래 걸릴 수 있습니다. 앱이 종료되거나 시스템이 매우 느려질 수 있습니다. 이 위험 실행을 허용할까요?"
+        "unsafeConfirm": "이 Mac의 통합 메모리는 {{available}}이며 선택한 모델 권장량은 {{required}}입니다. 첫 사용 다운로드는 약 {{download}}이며 네트워크에 따라 오래 걸릴 수 있습니다. 앱이 종료되거나 시스템이 매우 느려질 수 있습니다. 이 위험 실행을 허용할까요?",
+        "vramInsufficientTitle": "선택한 모델에 VRAM이 부족합니다.",
+        "vramInsufficientDescription": "감지된 VRAM은 {{available}}이고 이 모델은 {{required}}급 GPU용입니다. 모델 일부가 시스템 메모리로 넘어가 매우 느려지거나 로딩에 실패할 수 있습니다."
       },
       "local": {
         "modelFile": "로컬 모델 파일",

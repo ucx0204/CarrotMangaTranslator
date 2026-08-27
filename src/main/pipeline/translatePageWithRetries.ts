@@ -1,4 +1,3 @@
-/* eslint-disable max-lines -- retry state and escalation stay co-located for auditability */
 import type { TranslationOptions } from "../appSettings";
 import type { MangaPage } from "../../shared/libraryTypes";
 import {
@@ -17,7 +16,6 @@ import {
 import type {
   ModelEndpointHandle,
   OcrBboxResult,
-  PageContextPayload,
   PipelineOptions,
   PipelineRegionContext,
   PipelineWorkContext,
@@ -27,9 +25,9 @@ import type { WarningCollector } from "./warningCollector";
 import type { ChapterRunPaths } from "../library";
 import { logAttemptFailure, logSkippedPage } from "./translationAttemptLogging";
 import type { PipelineDiagnostics } from "./translationAttemptLogging";
-import { translatePageAttempt } from "./pageTranslationAttempt";
-import type { FontMatchingPageInferencePort } from "./fontMatchingPagePixelInferenceTypes";
-import type { AutomaticFontPageCoordinatorV2 } from "./automaticFontMatchingV2PageCoordinator";
+import { preparePageTranslationAttempt } from "./pageTranslationAttempt";
+import type { PreparedPageBuildResult } from "./pageResultBuilder";
+import type { PageProcessingTimingCollector } from "./pageProcessingTiming";
 
 type TranslatePageWithRetriesOptions = {
   baseOptions: TranslationOptions;
@@ -37,7 +35,6 @@ type TranslatePageWithRetriesOptions = {
   context: ProgressContext;
   maxAttempts: number;
   ocrHintsByPageId: Map<string, OcrBboxResult>;
-  onPageComplete?: PipelineOptions["onPageComplete"];
   onPageFailed?: PipelineOptions["onPageFailed"];
   page: MangaPage;
   pageIndex: number;
@@ -52,18 +49,16 @@ type TranslatePageWithRetriesOptions = {
   workContext?: PipelineWorkContext;
   regionContext?: PipelineRegionContext;
   collectPageContext?: boolean;
+  cumulativeContextDetail?: PipelineOptions["cumulativeContextDetail"];
   diagnostics: PipelineDiagnostics;
-  fontMatchingPageInference?: FontMatchingPageInferencePort;
-  fontMatchingChapterCoordinator?: AutomaticFontPageCoordinatorV2;
+  timing: PageProcessingTimingCollector;
 };
 
 type PageTranslationAttemptResult = {
   lastError?: unknown;
   lastErrorMessage: string;
   lastPageOptions: TranslationOptions | null;
-  successPage: MangaPage | null;
-  successPageContext?: PageContextPayload;
-  successApproved: boolean;
+  successPrepared: PreparedPageBuildResult | null;
 };
 
 type PageTranslationAttemptState = Pick<
@@ -73,13 +68,12 @@ type PageTranslationAttemptState = Pick<
   lastFailureCategory?: string;
 };
 
-export async function translatePageWithRetries({
+export async function preparePageWithRetries({
   baseOptions,
   completedPagesById,
   context,
   maxAttempts,
   ocrHintsByPageId,
-  onPageComplete,
   onPageFailed,
   page,
   pageIndex,
@@ -94,19 +88,15 @@ export async function translatePageWithRetries({
   workContext,
   regionContext,
   collectPageContext,
+  cumulativeContextDetail,
   diagnostics,
-  fontMatchingPageInference,
-  fontMatchingChapterCoordinator,
-}: TranslatePageWithRetriesOptions): Promise<{
-  pageContext?: PageContextPayload;
-  approved: boolean;
-}> {
+  timing,
+}: TranslatePageWithRetriesOptions): Promise<PreparedPageBuildResult | null> {
   const result = await runPageTranslationAttempts({
     baseOptions,
     context,
     maxAttempts,
     ocrHintsByPageId,
-    onPageComplete,
     page,
     pageIndex,
     progressPageIndex,
@@ -120,17 +110,11 @@ export async function translatePageWithRetries({
     workContext,
     regionContext,
     collectPageContext,
+    cumulativeContextDetail,
     diagnostics,
-    fontMatchingPageInference,
-    fontMatchingChapterCoordinator,
+    timing,
   });
-  if (result.successPage) {
-    completedPagesById.set(page.id, result.successPage);
-    return {
-      pageContext: result.successPageContext,
-      approved: result.successApproved,
-    };
-  }
+  if (result.successPrepared) return result.successPrepared;
   await saveFailedPageAfterRetries({
     completedPagesById,
     context,
@@ -144,16 +128,14 @@ export async function translatePageWithRetries({
     warningCollector,
     diagnostics,
   });
-  return { approved: false };
+  return null;
 }
 
-// eslint-disable-next-line max-lines-per-function -- retry state must remain within one attempt loop
 async function runPageTranslationAttempts({
   baseOptions,
   context,
   maxAttempts,
   ocrHintsByPageId,
-  onPageComplete,
   page,
   pageIndex,
   progressPageIndex = pageIndex,
@@ -167,16 +149,14 @@ async function runPageTranslationAttempts({
   workContext,
   regionContext,
   collectPageContext,
+  cumulativeContextDetail,
   diagnostics,
-  fontMatchingPageInference,
-  fontMatchingChapterCoordinator,
+  timing,
 }: Omit<
   TranslatePageWithRetriesOptions,
   "completedPagesById" | "onPageFailed"
 >): Promise<PageTranslationAttemptResult> {
-  let successPage: MangaPage | null = null;
-  let successPageContext: PageContextPayload | undefined;
-  let successApproved = false;
+  let successPrepared: PreparedPageBuildResult | null = null;
   const state: PageTranslationAttemptState = {
     lastErrorMessage: "",
     lastPageOptions: null,
@@ -199,19 +179,14 @@ async function runPageTranslationAttempts({
       workContext,
       regionContext,
       collectPageContext,
+      cumulativeContextDetail,
     });
     // empty-overlay-items로 실패한 페이지는 모델이 bbox를 아예 만들지 못한
     // 것이다. 재시도가 동일 요청을 반복하면 결과도 동일하므로(021.jpg 5회 동일
     // 실패), 2회차+는 요청 단위로 대비 강화 변형을 추가해 모델이 텍스트를
     // 검출할 기회를 늘린다. includeEnhancedVariant/enhancedContrast는 서버
     // 재시작 없이 요청마다 바꿀 수 있는 유일한 르버다.
-    if (attempt > 1 && state.lastFailureCategory === "empty-overlay-items") {
-      pageOptions.includeEnhancedVariant = true;
-      pageOptions.enhancedContrast = Math.max(
-        pageOptions.enhancedContrast ?? 1.35,
-        1.6,
-      );
-    }
+    applyEnhancedRetryVariant(pageOptions, attempt, state.lastFailureCategory);
     state.lastPageOptions = pageOptions;
     emitPageRunning(context, page, progressPageIndex, attempt, maxAttempts);
 
@@ -219,7 +194,6 @@ async function runPageTranslationAttempts({
       attempt,
       context,
       maxAttempts,
-      onPageComplete,
       page,
       pageIndex: progressPageIndex,
       pageOptions,
@@ -229,30 +203,37 @@ async function runPageTranslationAttempts({
       state,
       warningCollector,
       diagnostics,
-      fontMatchingPageInference,
-      fontMatchingChapterCoordinator,
+      timing,
     });
     if (success) {
-      successPage = success.page;
-      successPageContext = success.pageContext;
-      successApproved = success.approved;
+      successPrepared = success;
       break;
     }
   }
 
   return {
     ...state,
-    successPage,
-    successPageContext,
-    successApproved,
+    successPrepared,
   };
+}
+
+function applyEnhancedRetryVariant(
+  pageOptions: TranslationOptions,
+  attempt: number,
+  lastFailureCategory: string | undefined,
+): void {
+  if (attempt <= 1 || lastFailureCategory !== "empty-overlay-items") return;
+  pageOptions.includeEnhancedVariant = true;
+  pageOptions.enhancedContrast = Math.max(
+    pageOptions.enhancedContrast ?? 1.35,
+    1.6,
+  );
 }
 
 async function tryPageTranslationAttempt({
   attempt,
   context,
   maxAttempts,
-  onPageComplete,
   page,
   pageIndex,
   pageOptions,
@@ -262,13 +243,11 @@ async function tryPageTranslationAttempt({
   state,
   warningCollector,
   diagnostics,
-  fontMatchingPageInference,
-  fontMatchingChapterCoordinator,
+  timing,
 }: {
   attempt: number;
   context: ProgressContext;
   maxAttempts: number;
-  onPageComplete?: PipelineOptions["onPageComplete"];
   page: MangaPage;
   pageIndex: number;
   pageOptions: TranslationOptions;
@@ -278,26 +257,16 @@ async function tryPageTranslationAttempt({
   state: PageTranslationAttemptState;
   warningCollector: WarningCollector;
   diagnostics: PipelineDiagnostics;
-  fontMatchingPageInference?: FontMatchingPageInferencePort;
-  fontMatchingChapterCoordinator?: AutomaticFontPageCoordinatorV2;
-}): Promise<{
-  page: MangaPage;
-  pageContext?: PageContextPayload;
-  approved: boolean;
-} | null> {
+  timing: PageProcessingTimingCollector;
+}): Promise<PreparedPageBuildResult | null> {
   try {
-    return await translatePageAttempt({
-      context,
+    return await preparePageTranslationAttempt({
       jobId: context.jobId,
-      onPageComplete,
       page,
-      pageIndex,
       pageOptions,
       runtime,
       server,
-      warningCollector,
-      fontMatchingPageInference,
-      fontMatchingChapterCoordinator,
+      timing,
     });
   } catch (error) {
     if (isAbortErrorLike(error) || isNonRetriableRuntimeError(error)) {

@@ -35,6 +35,10 @@ import {
   emitInpaintingPageDone,
   emitInpaintingPageRunning,
 } from "./inpaintingJobProgress";
+import {
+  measurePageProcessingStage,
+  type PageProcessingTimingCollector,
+} from "../pipeline/pageProcessingTiming";
 
 type ProcessInpaintingPageOptions = {
   abortController: AbortController;
@@ -47,12 +51,18 @@ type ProcessInpaintingPageOptions = {
   state: InpaintingJobState;
   target: InpaintingTarget;
   runtime: InpaintingJobRuntime;
+  timing: PageProcessingTimingCollector;
 };
 
 type RunInpaintingPagePipelineOptions = Pick<
   ProcessInpaintingPageOptions,
   "context" | "page" | "runtime" | "state" | "target"
-> & { signal: AbortSignal };
+> & { signal: AbortSignal; timing: PageProcessingTimingCollector };
+
+type InpaintingExecutionOptions = Omit<
+  RunInpaintingPagePipelineOptions,
+  "timing"
+>;
 
 export async function processInpaintingPage({
   abortController,
@@ -65,6 +75,7 @@ export async function processInpaintingPage({
   state,
   target,
   runtime,
+  timing,
 }: ProcessInpaintingPageOptions): Promise<ProcessedInpaintingPageResult> {
   const pageTargetCount = countInpaintingPageTargets(page, state, target);
   assertInpaintingPageCanRun(
@@ -81,15 +92,20 @@ export async function processInpaintingPage({
   if (pageTargetCount === 0) {
     const result = completeTargetlessInpaintingPage(page, state, target);
     emitInpaintingPageDone(id, emit, pageIndex, pageCount, target, 0);
-    return result;
+    return {
+      ...result,
+      page: timing.applyInpaintingTiming(result.page),
+    };
   }
   const result = target.layoutOnly
-    ? await processLayoutOnlyInpaintingPage({
-        page,
-        state,
-        target,
-        signal: abortController.signal,
-      })
+    ? await measurePageProcessingStage(timing, page.id, "bubbleLayout", () =>
+        processLayoutOnlyInpaintingPage({
+          page,
+          state,
+          target,
+          signal: abortController.signal,
+        }),
+      )
     : await runInpaintingPagePipeline({
         context,
         page,
@@ -97,6 +113,7 @@ export async function processInpaintingPage({
         signal: abortController.signal,
         state,
         target,
+        timing,
       });
   return finishProcessedInpaintingPage({
     emit,
@@ -107,6 +124,7 @@ export async function processInpaintingPage({
     result,
     state,
     target,
+    timing,
   });
 }
 
@@ -119,6 +137,7 @@ function finishProcessedInpaintingPage({
   result,
   state,
   target,
+  timing,
 }: {
   emit: (event: JobEvent) => void;
   id: string;
@@ -128,6 +147,7 @@ function finishProcessedInpaintingPage({
   result: ProcessedInpaintingPageResult;
   state: InpaintingJobState;
   target: InpaintingTarget;
+  timing: PageProcessingTimingCollector;
 }): ProcessedInpaintingPageResult {
   if (result.blocksErased <= 0) {
     throw new Error(tMain("inpainting.noChanges"));
@@ -141,7 +161,11 @@ function finishProcessedInpaintingPage({
     target,
     result.blocksErased,
   );
-  return completeTranslationWorkflow(result, state, target);
+  const completed = completeTranslationWorkflow(result, state, target);
+  return {
+    ...completed,
+    page: timing.applyInpaintingTiming(completed.page),
+  };
 }
 
 async function runInpaintingPagePipeline({
@@ -151,47 +175,15 @@ async function runInpaintingPagePipeline({
   signal,
   state,
   target,
+  timing,
 }: RunInpaintingPagePipelineOptions): Promise<ProcessedInpaintingPageResult> {
-  const maskPreparation = target.drawnPatternMode
-    ? { page }
-    : await preparePatternMaskPage({
-        page,
-        signal,
-        state,
-        target,
-      });
-  const rawResult = target.drawnPatternMode
-    ? await runtime.inpaintDrawnPage(page, {
-        signal,
-        decodeFallback: context.decodeImage,
-        inpaintingEngine: state.inpaintingEngineLease?.engine,
-        strokes: target.drawnStrokes,
-        featherPx: target.drawnFeatherPx,
-      })
-    : await runtime.inpaintPatternPage(maskPreparation.page, {
-        blockId: target.blockId,
-        excludedBlockIds: resolvePreviouslyErasedBlockIds(page, state, target),
-        signal,
-        decodeFallback: context.decodeImage,
-        inpaintingEngine: state.inpaintingEngineLease?.engine,
-        ...("bubbleLayoutConstraintBlockIds" in maskPreparation
-          ? {
-              bubbleLayoutConstraintBlockIds:
-                maskPreparation.bubbleLayoutConstraintBlockIds,
-            }
-          : {}),
-        ...("sharedInpaintGroupIdsByBlock" in maskPreparation
-          ? {
-              sharedInpaintGroupIdsByBlock:
-                maskPreparation.sharedInpaintGroupIdsByBlock,
-            }
-          : {}),
-        ...("typographySegmentation" in maskPreparation
-          ? {
-              typographySegmentation: maskPreparation.typographySegmentation,
-            }
-          : {}),
-      });
+  const { maskPreparation, rawResult } = await measurePageProcessingStage(
+    timing,
+    page.id,
+    "inpainting",
+    () =>
+      prepareAndInpaintPage({ context, page, runtime, signal, state, target }),
+  );
   const result: ProcessedInpaintingPageResult = {
     ...rawResult,
     page: maskPreparation.restoreLayout
@@ -208,18 +200,96 @@ async function runInpaintingPagePipeline({
   ) {
     return result;
   }
-  const processed = await runBubbleLayoutPostprocess({
-    config: state.bubbleLayoutPostprocess,
-    blockId: target.blockId,
-    ...resolveBubblePostprocessBlockSelection(target, result),
-    page: result.page,
-    runner: state.bubbleLayoutRunner,
-    signal,
-  });
+  const config = state.bubbleLayoutPostprocess;
+  const runner = state.bubbleLayoutRunner;
+  const processed = await measurePageProcessingStage(
+    timing,
+    page.id,
+    "bubbleLayout",
+    () =>
+      runBubbleLayoutPostprocess({
+        config,
+        blockId: target.blockId,
+        ...resolveBubblePostprocessBlockSelection(target, result),
+        page: result.page,
+        runner,
+        signal,
+      }),
+  );
   return {
     ...result,
     ...processed,
     bubbleLayoutPostprocessed: true,
+  };
+}
+
+async function prepareAndInpaintPage({
+  context,
+  page,
+  runtime,
+  signal,
+  state,
+  target,
+}: InpaintingExecutionOptions) {
+  const maskPreparation = target.drawnPatternMode
+    ? { page }
+    : await preparePatternMaskPage({ page, signal, state, target });
+  const rawResult = target.drawnPatternMode
+    ? await runtime.inpaintDrawnPage(page, {
+        signal,
+        decodeFallback: context.decodeImage,
+        inpaintingEngine: state.inpaintingEngineLease?.engine,
+        strokes: target.drawnStrokes,
+        featherPx: target.drawnFeatherPx,
+      })
+    : await runtime.inpaintPatternPage(
+        maskPreparation.page,
+        buildPatternInpaintingOptions({
+          context,
+          page,
+          signal,
+          state,
+          target,
+          maskPreparation,
+        }),
+      );
+  return { maskPreparation, rawResult };
+}
+
+function buildPatternInpaintingOptions({
+  context,
+  page,
+  signal,
+  state,
+  target,
+  maskPreparation,
+}: Pick<
+  InpaintingExecutionOptions,
+  "context" | "page" | "signal" | "state" | "target"
+> & {
+  maskPreparation: Awaited<ReturnType<typeof preparePatternMaskPage>>;
+}) {
+  return {
+    blockId: target.blockId,
+    excludedBlockIds: resolvePreviouslyErasedBlockIds(page, state, target),
+    signal,
+    decodeFallback: context.decodeImage,
+    inpaintingEngine: state.inpaintingEngineLease?.engine,
+    ...("bubbleLayoutConstraintBlockIds" in maskPreparation
+      ? {
+          bubbleLayoutConstraintBlockIds:
+            maskPreparation.bubbleLayoutConstraintBlockIds,
+        }
+      : {}),
+    ...("sharedInpaintGroupIdsByBlock" in maskPreparation
+      ? {
+          sharedInpaintGroupIdsByBlock:
+            maskPreparation.sharedInpaintGroupIdsByBlock,
+        }
+      : {}),
+    ...("typographySegmentation" in maskPreparation
+      ? { typographySegmentation: maskPreparation.typographySegmentation }
+      : {}),
   };
 }
 

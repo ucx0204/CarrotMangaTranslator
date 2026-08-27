@@ -1,5 +1,12 @@
 import { createHash } from "node:crypto";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -10,6 +17,11 @@ type Gemma4OfficialChatTemplateModule = {
   GEMMA4_OFFICIAL_CHAT_TEMPLATE_REVISION: string;
   GEMMA4_OFFICIAL_CHAT_TEMPLATE_SHA256: string;
   GEMMA4_OFFICIAL_CHAT_TEMPLATE_SOURCE: string;
+  prepareGemma4OfficialChatTemplate: (options?: {
+    platform?: string;
+    sourcePath?: string;
+    stagingRoot?: string;
+  }) => string;
   resolveGemma4OfficialChatTemplatePath: () => string;
   verifyGemma4OfficialChatTemplate: (templatePath?: string) => string;
 };
@@ -58,5 +70,82 @@ describe("official Gemma 4 26B chat template", () => {
     expect(() =>
       templateModule.verifyGemma4OfficialChatTemplate(templatePath),
     ).toThrow(/failed its integrity check/i);
+  });
+
+  it("stages the verified template to an ASCII path for Windows llama.cpp", () => {
+    const sourceRoot = mkdtempSync(join(tmpdir(), "gemma4-source-"));
+    const stagingRoot = mkdtempSync(join(tmpdir(), "gemma4-stage-"));
+    temporaryDirectories.push(sourceRoot, stagingRoot);
+    const unicodeDir = join(sourceRoot, "번역기");
+    mkdirSync(unicodeDir);
+    const sourcePath = join(unicodeDir, "chat-template.jinja");
+    copyFileSync(
+      templateModule.resolveGemma4OfficialChatTemplatePath(),
+      sourcePath,
+    );
+
+    const stagedPath = templateModule.prepareGemma4OfficialChatTemplate({
+      platform: "win32",
+      sourcePath,
+      stagingRoot,
+    });
+
+    expect(stagedPath).not.toBe(sourcePath);
+    expect(stagedPath).toMatch(
+      /chat-templates[\\/]gemma4-26b-4d7ae498\.jinja$/,
+    );
+    expect(
+      Buffer.compare(readFileSync(stagedPath), readFileSync(sourcePath)),
+    ).toBe(0);
+    expect(
+      templateModule.prepareGemma4OfficialChatTemplate({
+        platform: "win32",
+        sourcePath,
+        stagingRoot,
+      }),
+    ).toBe(stagedPath);
+  });
+
+  it("keeps directly readable paths unchanged", () => {
+    const sourceRoot = mkdtempSync(join(tmpdir(), "gemma4-ascii-source-"));
+    temporaryDirectories.push(sourceRoot);
+    const sourcePath = join(sourceRoot, "chat-template.jinja");
+    copyFileSync(
+      templateModule.resolveGemma4OfficialChatTemplatePath(),
+      sourcePath,
+    );
+
+    expect(
+      templateModule.prepareGemma4OfficialChatTemplate({
+        platform: "win32",
+        sourcePath,
+      }),
+    ).toBe(sourcePath);
+    expect(
+      templateModule.prepareGemma4OfficialChatTemplate({
+        platform: "linux",
+        sourcePath,
+      }),
+    ).toBe(sourcePath);
+  });
+
+  it("rejects a non-ASCII Windows staging root with an actionable error", () => {
+    const sourceRoot = mkdtempSync(join(tmpdir(), "gemma4-unicode-source-"));
+    temporaryDirectories.push(sourceRoot);
+    const unicodeDir = join(sourceRoot, "번역기");
+    mkdirSync(unicodeDir);
+    const sourcePath = join(unicodeDir, "chat-template.jinja");
+    copyFileSync(
+      templateModule.resolveGemma4OfficialChatTemplatePath(),
+      sourcePath,
+    );
+
+    expect(() =>
+      templateModule.prepareGemma4OfficialChatTemplate({
+        platform: "win32",
+        sourcePath,
+        stagingRoot: join(sourceRoot, "캐시"),
+      }),
+    ).toThrow(/ASCII-only Gemma 4 template cache path/i);
   });
 });

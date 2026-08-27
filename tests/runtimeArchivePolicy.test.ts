@@ -347,7 +347,9 @@ describe("runtime archive extraction policy", () => {
         join(process.cwd(), "src/main/runtime/simple-page-zip-utils.cjs"),
         "utf8",
       );
-      expect(source).toContain("await rename(selected.filePath, outputPath)");
+      expect(source).toContain(
+        "await renameRuntimePathWithRetry(selected.filePath, outputPath)",
+      );
       expect(source).not.toMatch(/\bcopyFile(?:Sync)?\b/);
     } finally {
       await rm(root, { recursive: true, force: true });

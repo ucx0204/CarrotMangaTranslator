@@ -34,6 +34,24 @@ const PINNED_BUILT_IN_GEMMA_ASSETS = new Map(
       "9b1edfa05b634728ca4bfd60b4e6b278e95166c078fa54ae4fa83e680112fd1d",
     ],
     [
+      "HauhauCS/Gemma4-12B-QAT-Uncensored-HauhauCS-Balanced",
+      "Gemma4-12B-QAT-Uncensored-HauhauCS-Balanced-Q4_K_M.gguf",
+      "ae8045ac2bd216293ca49a3065da2c942dde4b68",
+      "59656d7494d6376ca97e9e20b64ea2e16cd97f12ec6d47bfccba91cb785b5134",
+    ],
+    [
+      "HauhauCS/Gemma4-12B-QAT-Uncensored-HauhauCS-Balanced",
+      "mmproj-Gemma4-12B-QAT-Uncensored-HauhauCS-Balanced-BF16.gguf",
+      "ae8045ac2bd216293ca49a3065da2c942dde4b68",
+      "b59e815479b7e5f0665bd29e6784c104a368092bcbc63120148c606f9276ab8e",
+    ],
+    [
+      "HauhauCS/Gemma4-12B-QAT-Uncensored-HauhauCS-Balanced",
+      "mtp-gemma-4-12B-it.gguf",
+      "ae8045ac2bd216293ca49a3065da2c942dde4b68",
+      "c50c91c35f04903815b2e8930cbb8c8c5bee0e1aa00748c30a7b8ff05d2310b4",
+    ],
+    [
       "mradermacher/gemma-4-26B-A4B-it-ultra-uncensored-heretic-i1-GGUF",
       "gemma-4-26B-A4B-it-ultra-uncensored-heretic.i1-IQ3_S.gguf",
       "9cada68ea11a8f361e4b16a7a97e53d99b0918c0",
@@ -46,6 +64,24 @@ const PINNED_BUILT_IN_GEMMA_ASSETS = new Map(
       "b9dd7e71eb78b44c4c9d3a0aa6173a1e022c2c4f58aa0fd03807be3f8cba4353",
     ],
     [
+      "HauhauCS/Gemma4-26B-A4B-QAT-Uncensored-HauhauCS-Balanced-MTP",
+      "Gemma4-26B-A4B-QAT-Uncensored-HauhauCS-Balanced-Q4_K_M.gguf",
+      "f9093662a2e7ae0503f637088bc96f77a1a70c83",
+      "3c13133469e431312fffb8b1d9c85ae42199e6bb5746ea1da84e8ddf2097d73c",
+    ],
+    [
+      "HauhauCS/Gemma4-26B-A4B-QAT-Uncensored-HauhauCS-Balanced-MTP",
+      "mmproj-Gemma4-26B-A4B-QAT-Uncensored-HauhauCS-Balanced-BF16.gguf",
+      "f9093662a2e7ae0503f637088bc96f77a1a70c83",
+      "b5346e5bfd906f5e16878c2d0b8243e948ca7410fa28ea35be9b0c54a0ac10b7",
+    ],
+    [
+      "HauhauCS/Gemma4-26B-A4B-QAT-Uncensored-HauhauCS-Balanced-MTP",
+      "mtp-gemma-4-26B-A4B-it.gguf",
+      "f9093662a2e7ae0503f637088bc96f77a1a70c83",
+      "62bd3af7f66c9308de9a5454233852f8c7324c93767e8dfb824ed45b9179864a",
+    ],
+    [
       "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-i1-GGUF",
       "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking.i1-IQ3_S.gguf",
       "333ecaddf4ffed8b01b3c484c38f869d2ccbf575",
@@ -56,6 +92,24 @@ const PINNED_BUILT_IN_GEMMA_ASSETS = new Map(
       "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking.mmproj-f16.gguf",
       "bebefd2123b11ba23561bd5308aa7756f96560c4",
       "1816ba44b0011268b23dd9a48c975a417a83bff1179709c57d891b42bd3607cc",
+    ],
+    [
+      "HauhauCS/Gemma4-31B-QAT-Uncensored-HauhauCS-Balanced-MTP",
+      "Gemma4-31B-QAT-Uncensored-HauhauCS-Balanced-Q4_K_M.gguf",
+      "9654466e82d83f5ebfe1518a369bc5900873abb1",
+      "71667f9e601a4b914a98425c59150b731f6e15d260d661dbd1f1ee07469fc7db",
+    ],
+    [
+      "HauhauCS/Gemma4-31B-QAT-Uncensored-HauhauCS-Balanced-MTP",
+      "mmproj-Gemma4-31B-QAT-Uncensored-HauhauCS-Balanced-BF16.gguf",
+      "9654466e82d83f5ebfe1518a369bc5900873abb1",
+      "7bef0d0fb3e85fc2941ec5f1c375febf3742645f158132a43ced557093aea841",
+    ],
+    [
+      "HauhauCS/Gemma4-31B-QAT-Uncensored-HauhauCS-Balanced-MTP",
+      "mtp-gemma-4-31B-it.gguf",
+      "9654466e82d83f5ebfe1518a369bc5900873abb1",
+      "b5c4e583fc5982439080114bbc1b7edaec361f9d4c9193d6bed606a3de401b62",
     ],
     [
       "Anbeeld/gemma-4-31B-it-DFlash-GGUF",

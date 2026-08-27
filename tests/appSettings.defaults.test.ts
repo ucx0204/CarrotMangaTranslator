@@ -43,7 +43,7 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     expect(defaults.gemma.mmprojRepo).toBe(GEMMA_12B_MMPROJ_REPO);
     expect(defaults.gemma.mmprojFile).toBe(GEMMA_12B_MMPROJ_FILE);
     expect(defaults.gemma.mmprojFile).toBe("mmproj-gemma-4-12B-it-BF16.gguf");
-    expect(defaults.gemma.fitTargetMb).toBe(1024);
+    expect(defaults.gemma.fitTargetMb).toBe(512);
     expect(defaults.gemma.mmprojOffload).toBe(true);
     expect(defaults.modelProvider).toBe("openai-codex");
     expect(defaults.gemma.vramMode).toBe("minimum12b");
@@ -344,6 +344,7 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     );
     expect(rtx4090Defaults.modelProvider).toBe("gemma");
     expect(rtx4090Defaults.gemma.vramMode).toBe("full31b");
+    expect(rtx4090Defaults.gemma.fitTargetMb).toBe(1024);
     expect(rtx4090Defaults.gemma.modelFile).toBe(DEFAULT_GEMMA_MODEL_FILE);
     expect(rtx4090Defaults.maxTokens).toBe(DEFAULT_GEMMA_MAX_TOKENS);
     expect(rtx4090Defaults.ctx).toBe(DEFAULT_GEMMA_CONTEXT_TOKENS);
@@ -358,6 +359,7 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     );
     expect(rtx5070Defaults.modelProvider).toBe("gemma");
     expect(rtx5070Defaults.gemma.vramMode).toBe("economy26b");
+    expect(rtx5070Defaults.gemma.fitTargetMb).toBe(1024);
     expect(rtx5070Defaults.gemma.modelRepo).toBe(GEMMA_26B_MODEL_REPO);
     expect(rtx5070Defaults.gemma.modelFile).toBe(GEMMA_26B_MODEL_FILE_IQ3_S);
     expect(rtx5070Defaults.gemma.modelRepo).toBe(
@@ -402,7 +404,7 @@ describeWindows("app settings helpers: defaults and stored values", () => {
       mmprojOffload: false,
     });
     expect(aboveBoundaryDefaults.gemma).toMatchObject({
-      fitTargetMb: 1024,
+      fitTargetMb: 512,
       mmprojOffload: true,
     });
   });

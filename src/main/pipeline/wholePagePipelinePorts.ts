@@ -101,6 +101,7 @@ export function createDefaultWholePagePipelineDependencies(): WholePagePipelineD
       pageInference: createWorkerFontMatchingPageInferencePort({
         paths,
         loadSelection,
+        reportInfo: logInfo,
         reportWarning: logWarn,
       }),
     },

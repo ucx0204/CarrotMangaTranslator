@@ -133,6 +133,7 @@ function buildEnginePanelProps({
     clearTestState: test.clearTestState,
     controlsBusy,
     detectedGpuName: runtime.gpuName,
+    gpuMemoryMb: runtime.gpuMemoryMb,
     isLlamaRuntimeOptionDisabled: runtime.isLlamaRuntimeOptionDisabled,
     localModelInputRef: refs.localModelInputRef,
     modelRepoInputRef: refs.modelRepoInputRef,

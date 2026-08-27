@@ -38,6 +38,7 @@ import {
   disabled,
   type OrtWasmAssets,
 } from "./fontMatchingPagePixelInference";
+import { reportFontMatchingInferenceBackend } from "./fontMatchingInferenceBackendReporting";
 import { loadFontMatchingPageRaster } from "../fontMatchingPageImage";
 import type { FontMatchingRasterPage } from "./fontMatchingPagePixelPreprocessing";
 import type { MangaPage } from "../../shared/libraryTypes";
@@ -54,6 +55,7 @@ type WorkerClientDependencies = Readonly<{
     "candidates" | "installedCandidates"
   >;
   reportWarning?: (message: string, detail: unknown) => void;
+  reportInfo?: (message: string, detail: unknown) => void;
   /** 워커 스크립트 경로 해석. 기본값은 컴파일된 sibling .js 를 require.resolve. */
   resolveWorkerScript?: () => string;
   /** 페이지 래스터 디코드(nativeImage). 기본값은 실구현. 테스트 주입용. */
@@ -273,6 +275,13 @@ class FontMatchingInferenceWorkerClient implements FontMatchingPageInferencePort
       const onMessage = (message: FontMatchingWorkerOutboundMessage) => {
         if (message.type === "ready" && message.id === id) {
           cleanup();
+          if (message.backend) {
+            reportFontMatchingInferenceBackend({
+              activeBackend: message.backend,
+              reportInfo: this.deps.reportInfo,
+              reportWarning: this.deps.reportWarning,
+            });
+          }
           resolve(message.status);
         } else if (message.type === "init-error" && message.id === id) {
           cleanup();

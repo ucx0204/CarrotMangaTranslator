@@ -27,6 +27,7 @@ export type PromptOptions = {
   strictRefineMode?: unknown;
   keepBlocksMode?: unknown;
   collectPageContext?: unknown;
+  cumulativeContextDetail?: unknown;
   autoFontMatching?: unknown;
   previousBlocksForPrompt?: PreviousPromptBlock[];
   workContext?: PromptWorkContext | null;

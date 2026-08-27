@@ -157,6 +157,40 @@
   color: var(--accent-text);
 }
 
+.gemma-fit-target-controls {
+  display: grid;
+  grid-template-columns: minmax(132px, 1fr) repeat(3, minmax(92px, auto));
+  gap: 8px;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.gemma-fit-target-input {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+.gemma-fit-target-input input {
+  width: 100%;
+  min-width: 0;
+  padding-right: 48px;
+}
+
+.gemma-fit-target-input > span {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.gemma-fit-target-increment {
+  white-space: nowrap;
+}
+
 .settings-file-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1074,6 +1108,14 @@
 
   .settings-mode-group {
     flex-direction: column;
+  }
+
+  .gemma-fit-target-controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .gemma-fit-target-input {
+    grid-column: 1 / -1;
   }
 
   .settings-layout {

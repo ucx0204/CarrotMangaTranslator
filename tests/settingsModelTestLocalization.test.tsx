@@ -9,12 +9,16 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ModelTestResult } from "../src/shared/jobTypes";
+import type {
+  ModelTestProgressEvent,
+  ModelTestResult,
+} from "../src/shared/jobTypes";
 import type { AppSettings } from "../src/shared/settingsTypes";
 import { appI18n, initializeAppI18n } from "../src/renderer/src/appI18n";
 import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import { useSettingsModelTest } from "../src/renderer/src/components/settingsModal/useSettingsModelTest";
 import { AppI18nProvider } from "../src/renderer/src/i18n";
+import { toast } from "../src/renderer/src/lib/toastStore";
 
 afterEach(async () => {
   cleanup();
@@ -95,6 +99,70 @@ describe("settings model test localization", () => {
     expect(unsubscribe).toHaveBeenCalledOnce();
     expect(setTestState).toHaveBeenCalledTimes(callsBeforeUnmount);
     expect(appendTestLogLine).not.toHaveBeenCalledWith("late success");
+  });
+
+  it("shows a runtime calibration notification without changing saved settings", async () => {
+    let emit: ((event: ModelTestProgressEvent) => void) | undefined;
+    let resolveRequest: ((value: ModelTestResult) => void) | undefined;
+    const request = new Promise<ModelTestResult>((resolve) => {
+      resolveRequest = resolve;
+    });
+    const testModelSettings = vi.fn(
+      (settings: AppSettings, testId?: string) => {
+        expect(settings).toBeDefined();
+        expect(testId).toEqual(expect.any(String));
+        return request;
+      },
+    );
+    const info = vi.spyOn(toast, "info").mockReturnValue("toast-id");
+    const setTestState = vi.fn();
+    const appendTestLogLine = vi.fn();
+    window.mangaApi = createTestMangaGatewayStub({
+      onUiLocaleChanged: () => () => undefined,
+      onModelTestEvent: (listener) => {
+        emit = listener;
+        return () => undefined;
+      },
+      testModelSettings,
+    });
+    await initializeAppI18n("ko");
+
+    render(
+      <AppI18nProvider>
+        <ModelTestHarness
+          appendTestLogLine={appendTestLogLine}
+          setTestState={setTestState}
+        />
+      </AppI18nProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "run" }));
+
+    await waitFor(() => expect(testModelSettings).toHaveBeenCalledOnce());
+    const testId = testModelSettings.mock.calls[0]?.[1];
+    expect(testId).toEqual(expect.any(String));
+    act(() => {
+      emit?.({
+        id: testId ?? "",
+        phase: "booting",
+        progressText: "MTP fit 보정 중",
+        notification: {
+          variant: "info",
+          message: "MTP fit 여유 VRAM을 실행 중에만 512 MiB 보정했습니다.",
+        },
+      });
+    });
+
+    expect(info).toHaveBeenCalledWith(
+      "MTP fit 여유 VRAM을 실행 중에만 512 MiB 보정했습니다.",
+    );
+    await act(async () => {
+      resolveRequest?.({
+        ok: true,
+        message: "ready",
+        launchMode: "local",
+      });
+      await request;
+    });
   });
 });
 

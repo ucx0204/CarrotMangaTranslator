@@ -705,6 +705,11 @@ describe("Windows installer clean uninstall option", () => {
     };
 
     try {
+      migrateLegacyPackagedData({ ...paths, isPackaged: false }, [
+        legacyUserData,
+      ]);
+      expect(existsSync(dataRoot)).toBe(false);
+
       mkdirSync(join(portableData, "library"), { recursive: true });
       writeFileSync(join(portableData, "library", "portable.json"), "portable");
       mkdirSync(join(legacyUserData, "library"), { recursive: true });

@@ -17,6 +17,16 @@ export const GEMMA_31B_MMPROJ_REPO =
 export const GEMMA_31B_MMPROJ_FILE =
   "gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking.mmproj-f16.gguf";
 
+export const GEMMA_31B_QAT_MODEL_REPO =
+  "HauhauCS/Gemma4-31B-QAT-Uncensored-HauhauCS-Balanced-MTP";
+export const GEMMA_31B_QAT_MODEL_FILE_Q4_K_M =
+  "Gemma4-31B-QAT-Uncensored-HauhauCS-Balanced-Q4_K_M.gguf";
+export const GEMMA_31B_QAT_MMPROJ_REPO = GEMMA_31B_QAT_MODEL_REPO;
+export const GEMMA_31B_QAT_MMPROJ_FILE =
+  "mmproj-Gemma4-31B-QAT-Uncensored-HauhauCS-Balanced-BF16.gguf";
+export const GEMMA_31B_QAT_MTP_MODEL_REPO = GEMMA_31B_QAT_MODEL_REPO;
+export const GEMMA_31B_QAT_MTP_MODEL_FILE = "mtp-gemma-4-31B-it.gguf";
+
 export const GEMMA_26B_MODEL_REPO =
   "mradermacher/gemma-4-26B-A4B-it-ultra-uncensored-heretic-i1-GGUF";
 export const GEMMA_26B_MODEL_FILE_IQ3_S =
@@ -26,11 +36,31 @@ export const GEMMA_26B_MMPROJ_REPO =
 export const GEMMA_26B_MMPROJ_FILE =
   "gemma-4-26B-A4B-it-ultra-uncensored-heretic.mmproj-Q8_0.gguf";
 
+export const GEMMA_26B_QAT_MODEL_REPO =
+  "HauhauCS/Gemma4-26B-A4B-QAT-Uncensored-HauhauCS-Balanced-MTP";
+export const GEMMA_26B_QAT_MODEL_FILE_Q4_K_M =
+  "Gemma4-26B-A4B-QAT-Uncensored-HauhauCS-Balanced-Q4_K_M.gguf";
+export const GEMMA_26B_QAT_MMPROJ_REPO = GEMMA_26B_QAT_MODEL_REPO;
+export const GEMMA_26B_QAT_MMPROJ_FILE =
+  "mmproj-Gemma4-26B-A4B-QAT-Uncensored-HauhauCS-Balanced-BF16.gguf";
+export const GEMMA_26B_QAT_MTP_MODEL_REPO = GEMMA_26B_QAT_MODEL_REPO;
+export const GEMMA_26B_QAT_MTP_MODEL_FILE = "mtp-gemma-4-26B-A4B-it.gguf";
+
 export const GEMMA_12B_MODEL_REPO =
   "culturerevolt/gemma-4-12b-heretic-abliterated-GGUF";
 export const GEMMA_12B_MODEL_FILE_Q4_K_M = "gemma-4-12b-heretic-Q4_K_M.gguf";
 export const GEMMA_12B_MMPROJ_REPO = "ggml-org/gemma-4-12B-it-GGUF";
 export const GEMMA_12B_MMPROJ_FILE = "mmproj-gemma-4-12B-it-BF16.gguf";
+
+export const GEMMA_12B_QAT_MODEL_REPO =
+  "HauhauCS/Gemma4-12B-QAT-Uncensored-HauhauCS-Balanced";
+export const GEMMA_12B_QAT_MODEL_FILE_Q4_K_M =
+  "Gemma4-12B-QAT-Uncensored-HauhauCS-Balanced-Q4_K_M.gguf";
+export const GEMMA_12B_QAT_MMPROJ_REPO = GEMMA_12B_QAT_MODEL_REPO;
+export const GEMMA_12B_QAT_MMPROJ_FILE =
+  "mmproj-Gemma4-12B-QAT-Uncensored-HauhauCS-Balanced-BF16.gguf";
+export const GEMMA_12B_QAT_MTP_MODEL_REPO = GEMMA_12B_QAT_MODEL_REPO;
+export const GEMMA_12B_QAT_MTP_MODEL_FILE = "mtp-gemma-4-12B-it.gguf";
 
 export const DEFAULT_GEMMA_MODEL_REPO = GEMMA_31B_MODEL_REPO;
 export const DEFAULT_GEMMA_MODEL_FILE = GEMMA_31B_MODEL_FILE_IQ3_S;
@@ -237,6 +267,13 @@ export const GEMMA_MODEL_PRESETS = {
     mmprojRepo: GEMMA_12B_MMPROJ_REPO,
     mmprojFile: GEMMA_12B_MMPROJ_FILE,
   },
+  qat12b: {
+    vramMode: "minimum12b" as GemmaVramMode,
+    modelRepo: GEMMA_12B_QAT_MODEL_REPO,
+    modelFile: GEMMA_12B_QAT_MODEL_FILE_Q4_K_M,
+    mmprojRepo: GEMMA_12B_QAT_MMPROJ_REPO,
+    mmprojFile: GEMMA_12B_QAT_MMPROJ_FILE,
+  },
   economy26b: {
     vramMode: "economy26b" as GemmaVramMode,
     modelRepo: GEMMA_26B_MODEL_REPO,
@@ -244,12 +281,26 @@ export const GEMMA_MODEL_PRESETS = {
     mmprojRepo: GEMMA_26B_MMPROJ_REPO,
     mmprojFile: GEMMA_26B_MMPROJ_FILE,
   },
+  qat26b: {
+    vramMode: "economy26b" as GemmaVramMode,
+    modelRepo: GEMMA_26B_QAT_MODEL_REPO,
+    modelFile: GEMMA_26B_QAT_MODEL_FILE_Q4_K_M,
+    mmprojRepo: GEMMA_26B_QAT_MMPROJ_REPO,
+    mmprojFile: GEMMA_26B_QAT_MMPROJ_FILE,
+  },
   full31b: {
     vramMode: "full31b" as GemmaVramMode,
     modelRepo: GEMMA_31B_MODEL_REPO,
     modelFile: GEMMA_31B_MODEL_FILE_IQ3_S,
     mmprojRepo: GEMMA_31B_MMPROJ_REPO,
     mmprojFile: GEMMA_31B_MMPROJ_FILE,
+  },
+  qat31b: {
+    vramMode: "full31b" as GemmaVramMode,
+    modelRepo: GEMMA_31B_QAT_MODEL_REPO,
+    modelFile: GEMMA_31B_QAT_MODEL_FILE_Q4_K_M,
+    mmprojRepo: GEMMA_31B_QAT_MMPROJ_REPO,
+    mmprojFile: GEMMA_31B_QAT_MMPROJ_FILE,
   },
 } as const;
 

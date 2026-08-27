@@ -172,6 +172,7 @@ async function runTranslationFlowPasses({
     completionWorkflow,
     true,
     onFailureGuidance,
+    options.cumulativeContextDetail,
   );
   return outcome === "completed" && isCancellationRequested()
     ? "cancelled"

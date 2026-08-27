@@ -112,6 +112,7 @@ function summarizeModelTestProgress(
     progressTotalBytes: progress.progressTotalBytes,
     progressBytesPerSecond: progress.progressBytesPerSecond,
     installLogLine: progress.installLogLine,
+    notification: progress.notification,
   };
 }
 

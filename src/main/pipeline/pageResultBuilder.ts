@@ -31,6 +31,7 @@ import type {
   OcrBboxResult,
   OverlayItem,
   PipelineRegionContext,
+  PipelineOptions,
   PipelineWorkContext,
   PageContextPayload,
   TranslationResult,
@@ -60,6 +61,30 @@ export type PageBuildResult =
       pageContext?: PageContextPayload;
     };
 
+export type PreparedPageBuildResult =
+  | Readonly<{
+      kind: "ready";
+      result: PageBuildResult;
+    }>
+  | Readonly<{
+      kind: "translated";
+      jobId: string;
+      page: MangaPage;
+      pageOptions: TranslationOptions;
+      items: OverlayItem[];
+      fontInferenceItems: OverlayItem[];
+      keepBlocksInferenceBlocks?: ReturnType<
+        typeof buildKeepBlocksFontInferenceBlocks
+      >;
+      soundDroppedCount: number;
+      validationDroppedCount: number;
+      validationReasons: Record<string, number>;
+      omittedCandidateIds?: number[];
+      remappedCount?: number;
+      contextWarnings: string[];
+      pageContext?: PageContextPayload;
+    }>;
+
 export function buildRequestPageOptions({
   attempt,
   baseOptions,
@@ -75,6 +100,7 @@ export function buildRequestPageOptions({
   workContext,
   regionContext,
   collectPageContext,
+  cumulativeContextDetail,
 }: {
   attempt: number;
   baseOptions: TranslationOptions;
@@ -90,9 +116,13 @@ export function buildRequestPageOptions({
   workContext?: PipelineWorkContext;
   regionContext?: PipelineRegionContext;
   collectPageContext?: boolean;
+  cumulativeContextDetail?: PipelineOptions["cumulativeContextDetail"];
 }): TranslationOptions {
   const pageOptions = buildPageOptions(baseOptions, page, pageIndex, attempt);
   pageOptions.collectPageContext = collectPageContext || undefined;
+  pageOptions.cumulativeContextDetail = collectPageContext
+    ? (cumulativeContextDetail ?? "detailed")
+    : undefined;
   applyOcrHintPageOptions({
     ocrHintsByPageId,
     page,
@@ -100,31 +130,13 @@ export function buildRequestPageOptions({
     regionContext,
     skipOcrPrepass,
   });
-  if (workContext) {
-    const omissionTerms = collectGlossaryOmissionTerms(workContext.styleGuide);
-    if (omissionTerms.length > 0) {
-      pageOptions.glossaryOmissionTerms = omissionTerms;
-    }
-    const promptPageIndex = regionContext?.sourcePageIndex ?? pageIndex;
-    const promptWorkContext = buildPromptWorkContextForPage({
-      baseStyleGuide: workContext.styleGuide,
-      storyMemory: workContext.storyMemory,
-      pageId: regionContext?.sourcePage.id ?? page.id,
-      pageIndex: promptPageIndex,
-      recentPageCount: workContext.recentPageCount,
-      previousStoryPages: workContext.previousStoryPages,
-      ocrHints: pageOptions.ocrBboxHints,
-    });
-    const budgetedWorkContext = prunePromptWorkContextForBudget(
-      promptWorkContext,
-      {
-        ctx: pageOptions.ctx,
-        maxTokens: pageOptions.maxTokens,
-      },
-    );
-    pageOptions.workContext = budgetedWorkContext.workContext;
-    pageOptions.workContextBudget = budgetedWorkContext.budget;
-  }
+  applyWorkContextPageOptions({
+    page,
+    pageIndex,
+    pageOptions,
+    regionContext,
+    workContext,
+  });
   applyStrictRefineOptions(
     pageOptions,
     page,
@@ -139,6 +151,41 @@ export function buildRequestPageOptions({
     maxAttempts,
   );
   return pageOptions;
+}
+
+function applyWorkContextPageOptions({
+  page,
+  pageIndex,
+  pageOptions,
+  regionContext,
+  workContext,
+}: {
+  page: MangaPage;
+  pageIndex: number;
+  pageOptions: TranslationOptions;
+  regionContext?: PipelineRegionContext;
+  workContext?: PipelineWorkContext;
+}): void {
+  if (!workContext) return;
+  const omissionTerms = collectGlossaryOmissionTerms(workContext.styleGuide);
+  if (omissionTerms.length > 0) {
+    pageOptions.glossaryOmissionTerms = omissionTerms;
+  }
+  const promptWorkContext = buildPromptWorkContextForPage({
+    baseStyleGuide: workContext.styleGuide,
+    storyMemory: workContext.storyMemory,
+    pageId: regionContext?.sourcePage.id ?? page.id,
+    pageIndex: regionContext?.sourcePageIndex ?? pageIndex,
+    recentPageCount: workContext.recentPageCount,
+    previousStoryPages: workContext.previousStoryPages,
+    ocrHints: pageOptions.ocrBboxHints,
+  });
+  const budgetedWorkContext = prunePromptWorkContextForBudget(
+    promptWorkContext,
+    { ctx: pageOptions.ctx, maxTokens: pageOptions.maxTokens },
+  );
+  pageOptions.workContext = budgetedWorkContext.workContext;
+  pageOptions.workContextBudget = budgetedWorkContext.budget;
 }
 
 function applyOcrHintPageOptions({
@@ -199,24 +246,19 @@ export async function requestPageTranslation({
   return result;
 }
 
-// eslint-disable-next-line max-lines-per-function -- response validation and final page assembly are one transaction
-export async function buildPageResult({
+export async function preparePageResult({
   jobId,
   page,
   pageOptions,
   result,
   runtime,
-  fontMatchingPageInference,
-  fontMatchingChapterCoordinator,
 }: {
   jobId: string;
   page: MangaPage;
   pageOptions: TranslationOptions;
   result: TranslationResult;
   runtime: TranslationRuntimePort;
-  fontMatchingPageInference?: FontMatchingPageInferencePort;
-  fontMatchingChapterCoordinator?: AutomaticFontPageCoordinatorV2;
-}): Promise<PageBuildResult> {
+}): Promise<PreparedPageBuildResult> {
   const parsed = parsePageResponse({
     runtime,
     result,
@@ -226,21 +268,55 @@ export async function buildPageResult({
   const items = applyGlossaryOmissionsToOverlayItems(parsed.items, pageOptions);
   if (isJapaneseCumulativeNoTextRequest(pageOptions, result.requestBody)) {
     return {
-      kind: "no-text",
-      page: buildNoTextCompletedPage(page),
-      warnings: parsed.warnings,
-      pageContext: parsed.pageContext,
+      kind: "ready",
+      result: {
+        kind: "no-text",
+        page: buildNoTextCompletedPage(page),
+        warnings: parsed.warnings,
+        pageContext: parsed.pageContext,
+      },
     };
   }
   if (items.length === 0) {
     const emptyResult = buildEmptyItemsResult(page, pageOptions, result);
     return {
-      ...emptyResult,
-      warnings: parsed.warnings,
-      pageContext: parsed.pageContext,
+      kind: "ready",
+      result: {
+        ...emptyResult,
+        warnings: parsed.warnings,
+        pageContext: parsed.pageContext,
+      },
     };
   }
 
+  return prepareTranslatedPageResult({
+    jobId,
+    page,
+    pageOptions,
+    result,
+    items,
+    contextWarnings: parsed.warnings,
+    pageContext: parsed.pageContext,
+  });
+}
+
+async function prepareTranslatedPageResult({
+  jobId,
+  page,
+  pageOptions,
+  result,
+  items,
+  contextWarnings,
+  pageContext,
+}: {
+  jobId: string;
+  page: MangaPage;
+  pageOptions: TranslationOptions;
+  result: TranslationResult;
+  items: OverlayItem[];
+  contextWarnings: string[];
+  pageContext?: PageContextPayload;
+}): Promise<PreparedPageBuildResult> {
   await writeOverlayItems(pageOptions.outputDir, items, pageOptions);
   const normalizedItems = buildNormalizedItems(page, result, items);
   const validated = validateOverlayItemsAgainstReferences(
@@ -267,6 +343,49 @@ export async function buildPageResult({
         previousBlocks: pageOptions.previousBlocksForPrompt ?? [],
       })
     : undefined;
+  return {
+    kind: "translated",
+    jobId,
+    page,
+    pageOptions,
+    items: soundFiltered.items,
+    fontInferenceItems,
+    keepBlocksInferenceBlocks,
+    soundDroppedCount: soundFiltered.droppedCount,
+    validationDroppedCount: validated.droppedCount,
+    validationReasons: validated.reasons,
+    omittedCandidateIds: validated.omittedCandidateIds,
+    remappedCount: validated.remappedCount,
+    contextWarnings,
+    pageContext,
+  };
+}
+
+export async function finalizePreparedPageResult({
+  prepared,
+  fontMatchingPageInference,
+  fontMatchingChapterCoordinator,
+}: {
+  prepared: PreparedPageBuildResult;
+  fontMatchingPageInference?: FontMatchingPageInferencePort;
+  fontMatchingChapterCoordinator?: AutomaticFontPageCoordinatorV2;
+}): Promise<PageBuildResult> {
+  if (prepared.kind === "ready") return prepared.result;
+  const {
+    jobId,
+    page,
+    pageOptions,
+    items,
+    fontInferenceItems,
+    keepBlocksInferenceBlocks,
+    soundDroppedCount,
+    validationDroppedCount,
+    validationReasons,
+    omittedCandidateIds,
+    remappedCount,
+    contextWarnings,
+    pageContext,
+  } = prepared;
   const { pixelInference, sourceFontSizeEstimates } =
     await runPageTypographyStages({
       jobId,
@@ -279,9 +398,9 @@ export async function buildPageResult({
   if (pageOptions.keepBlocksMode) {
     const kept = buildKeepBlocksCompletedPage({
       page,
-      items: soundFiltered.items,
+      items,
       previousBlocks: pageOptions.previousBlocksForPrompt ?? [],
-      soundDroppedCount: soundFiltered.droppedCount,
+      soundDroppedCount,
       naturalLayout: resolveKeepBlocksNaturalLayout(pageOptions),
       automaticFont: resolveKeepBlocksAutomaticFont(
         pageOptions,
@@ -292,26 +411,64 @@ export async function buildPageResult({
     return {
       kind: "completed",
       ...kept,
-      warnings: [...kept.warnings, ...parsed.warnings],
-      pageContext: parsed.pageContext,
+      warnings: [...kept.warnings, ...contextWarnings],
+      pageContext,
     };
   }
   return buildTranslatedPageResult({
     jobId,
     page,
     pageOptions,
-    items: soundFiltered.items,
-    soundDroppedCount: soundFiltered.droppedCount,
-    validationDroppedCount: validated.droppedCount,
-    validationReasons: validated.reasons,
-    omittedCandidateIds: validated.omittedCandidateIds,
-    remappedCount: validated.remappedCount,
-    contextWarnings: parsed.warnings,
-    pageContext: parsed.pageContext,
+    items,
+    soundDroppedCount,
+    validationDroppedCount,
+    validationReasons,
+    omittedCandidateIds,
+    remappedCount,
+    contextWarnings,
+    pageContext,
     fontMatchingPageInference: pixelInference,
     fontMatchingChapterCoordinator,
     sourceFontSizeEstimates,
   });
+}
+
+/**
+ * Build the lightweight completed-page projection needed to feed cumulative
+ * story context into the next model request. GPU typography is deliberately
+ * omitted; the authoritative page is rebuilt after the model endpoint exits.
+ */
+export function projectPreparedPageForContext(
+  prepared: PreparedPageBuildResult,
+): MangaPage {
+  if (prepared.kind === "ready") return prepared.result.page;
+  if (prepared.pageOptions.keepBlocksMode) {
+    return buildKeepBlocksCompletedPage({
+      page: prepared.page,
+      items: prepared.items,
+      previousBlocks: prepared.pageOptions.previousBlocksForPrompt ?? [],
+      soundDroppedCount: prepared.soundDroppedCount,
+      naturalLayout: resolveKeepBlocksNaturalLayout(prepared.pageOptions),
+      automaticFont: undefined,
+    }).page;
+  }
+  return buildTranslatedPageResult({
+    jobId: prepared.jobId,
+    page: prepared.page,
+    pageOptions: {
+      ...prepared.pageOptions,
+      autoFontMatching: false,
+      fontSizeAutoFit: false,
+    },
+    items: prepared.items,
+    soundDroppedCount: prepared.soundDroppedCount,
+    validationDroppedCount: prepared.validationDroppedCount,
+    validationReasons: prepared.validationReasons,
+    omittedCandidateIds: prepared.omittedCandidateIds,
+    remappedCount: prepared.remappedCount,
+    contextWarnings: prepared.contextWarnings,
+    pageContext: prepared.pageContext,
+  }).page;
 }
 
 function resolveKeepBlocksNaturalLayout(pageOptions: TranslationOptions): {

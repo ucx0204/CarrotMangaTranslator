@@ -13,6 +13,11 @@ export type JobFailureGuidance =
   | "increase-work-context-budget"
   | "increase-context-length";
 
+type JobProgressNotification = {
+  variant: "success" | "error" | "warn" | "info";
+  message: string;
+};
+
 export type JobState = {
   id: string;
   kind: JobKind;
@@ -41,6 +46,7 @@ export type JobState = {
 
 export type JobEvent = JobState & {
   detail?: string;
+  notification?: JobProgressNotification;
 };
 
 export type LocalModelPickResult = {
@@ -73,4 +79,5 @@ export type ModelTestProgressEvent = {
   progressTotalBytes?: number;
   progressBytesPerSecond?: number;
   installLogLine?: string;
+  notification?: JobProgressNotification;
 };

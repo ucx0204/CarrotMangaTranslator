@@ -6,6 +6,7 @@ import type {
   ModelProvider,
 } from "../../../../shared/settingsTypes";
 import { settingsGateway } from "../../api/settingsGateway";
+import { toast } from "../../lib/toastStore";
 import {
   buildTestDetail,
   formatModelTestProgressLine,
@@ -158,6 +159,9 @@ function subscribeModelTestProgress({
   return settingsGateway.onModelTestEvent((event) => {
     if (!isActive() || event.id !== testId) {
       return;
+    }
+    if (event.notification) {
+      toast[event.notification.variant](event.notification.message);
     }
     appendTestLogLine(formatModelTestProgressLine(event));
     setTestState((current) =>

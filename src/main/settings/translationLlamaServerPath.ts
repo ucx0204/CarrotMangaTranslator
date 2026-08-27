@@ -6,6 +6,7 @@ import {
   is31BGemmaModel,
   isBuiltInGemmaModel,
   isMainlineGemmaModel,
+  isSpeedGemmaModel,
 } from "./gemmaModelPresets";
 import {
   isRocmLlamaRuntimeProfile,
@@ -17,12 +18,17 @@ import {
 const BEELLAMA_LLAMA_RUNTIME_DIR_CUDA12 = "beellama-v0.2.0-cuda12.4";
 const BEELLAMA_LLAMA_RUNTIME_DIR_CUDA13 = "beellama-v0.2.0-cuda13.1";
 const BEELLAMA_LLAMA_RUNTIME_DIR_HIP_RADEON = "beellama-v0.3.1-hip-radeon";
-const MAINLINE_LLAMA_RUNTIME_DIR_CUDA12 = "llama-b9547-cuda12.4";
-const MAINLINE_LLAMA_RUNTIME_DIR_CUDA13 = "llama-b9547-cuda13.3";
+const MAINLINE_LLAMA_RUNTIME_DIR_CUDA12 = "llama-b9553-cuda12.4";
+const MAINLINE_LLAMA_RUNTIME_DIR_CUDA13 = "llama-b9553-cuda13.3";
 const LEMONADE_LLAMA_RUNTIME_ROCM_RELEASE = "b1291";
+const SPEED_LEMONADE_LLAMA_RUNTIME_ROCM_RELEASE = "b1317";
 const MAINLINE_LLAMA_RUNTIME_DIR_VULKAN = "llama-b9547-vulkan";
 const MAINLINE_LLAMA_RUNTIME_DIR_METAL_ARM64 = "llama-b9547-metal-arm64";
 const BEELLAMA_LLAMA_RUNTIME_DIR_METAL_ARM64 = "beellama-v0.3.1-metal-arm64";
+const SPEED_LLAMA_RUNTIME_DIR_CUDA12 = "llama-b10621-cuda12.4";
+const SPEED_LLAMA_RUNTIME_DIR_CUDA13 = "llama-b10621-cuda13.3";
+const SPEED_LLAMA_RUNTIME_DIR_VULKAN = "llama-b10621-vulkan";
+const SPEED_LLAMA_RUNTIME_DIR_METAL_ARM64 = "llama-b10621-metal-arm64";
 
 export function resolveDefaultLlamaServerPathForGemma(
   paths: TranslationOptionPaths,
@@ -47,16 +53,20 @@ export function resolveDefaultLlamaServerPathForGemma(
     return join(
       paths.dataRoot,
       "tools",
-      MAINLINE_LLAMA_RUNTIME_DIR_VULKAN,
+      isSpeedGemmaModel(gemma)
+        ? SPEED_LLAMA_RUNTIME_DIR_VULKAN
+        : MAINLINE_LLAMA_RUNTIME_DIR_VULKAN,
       binaryName,
     );
   }
   if (isMetalLlamaRuntimeProfile(llamaRuntimeProfile)) {
     return join(
       paths.toolsDir,
-      is31BGemmaModel(gemma)
-        ? BEELLAMA_LLAMA_RUNTIME_DIR_METAL_ARM64
-        : MAINLINE_LLAMA_RUNTIME_DIR_METAL_ARM64,
+      isSpeedGemmaModel(gemma)
+        ? SPEED_LLAMA_RUNTIME_DIR_METAL_ARM64
+        : is31BGemmaModel(gemma) && !isMainlineGemmaModel(gemma)
+          ? BEELLAMA_LLAMA_RUNTIME_DIR_METAL_ARM64
+          : MAINLINE_LLAMA_RUNTIME_DIR_METAL_ARM64,
       binaryName,
     );
   }
@@ -84,7 +94,7 @@ function resolveRocmLlamaServerPath(
   gemma: AppSettings["gemma"],
   llamaRocmTarget?: string,
 ): string {
-  if (is31BGemmaModel(gemma)) {
+  if (is31BGemmaModel(gemma) && !isMainlineGemmaModel(gemma)) {
     return join(
       paths.dataRoot,
       "tools",
@@ -93,10 +103,13 @@ function resolveRocmLlamaServerPath(
     );
   }
   const rocmTarget = normalizeAmdRocmTarget(llamaRocmTarget) ?? "unknown";
+  const release = isSpeedGemmaModel(gemma)
+    ? SPEED_LEMONADE_LLAMA_RUNTIME_ROCM_RELEASE
+    : LEMONADE_LLAMA_RUNTIME_ROCM_RELEASE;
   return join(
     paths.dataRoot,
     "tools",
-    `lemonade-llama-${LEMONADE_LLAMA_RUNTIME_ROCM_RELEASE}-rocm-${rocmTarget}`,
+    `lemonade-llama-${release}-rocm-${rocmTarget}`,
     binaryName,
   );
 }
@@ -106,6 +119,11 @@ function resolveCudaLlamaRuntimeDir(
   llamaRuntimeProfile: string,
 ): string {
   const useCuda13 = isRtx50LlamaRuntimeProfile(llamaRuntimeProfile);
+  if (isSpeedGemmaModel(gemma)) {
+    return useCuda13
+      ? SPEED_LLAMA_RUNTIME_DIR_CUDA13
+      : SPEED_LLAMA_RUNTIME_DIR_CUDA12;
+  }
   if (isMainlineGemmaModel(gemma)) {
     return useCuda13
       ? MAINLINE_LLAMA_RUNTIME_DIR_CUDA13

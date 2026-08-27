@@ -297,6 +297,36 @@ describe("job event render scheduling", () => {
     expect(success).toHaveBeenCalledOnce();
     expect(success).toHaveBeenCalledWith(expect.any(String));
   });
+
+  it("forwards a runtime calibration notification immediately", () => {
+    const frames = installAnimationFrameController();
+    const info = vi.spyOn(toast, "info").mockReturnValue("toast-id");
+    let emit: ((event: JobEvent) => void) | null = null;
+    render(
+      <JobHarness
+        onReady={() => undefined}
+        subscribeJobEvents={(listener) => {
+          emit = listener;
+          return () => undefined;
+        }}
+      />,
+    );
+
+    act(() => {
+      emit?.({
+        ...makeStateEvent("running"),
+        notification: {
+          variant: "info",
+          message: "MTP fit 여유 VRAM을 실행 중에만 512 MiB 보정했습니다.",
+        },
+      });
+    });
+
+    expect(info).toHaveBeenCalledWith(
+      "MTP fit 여유 VRAM을 실행 중에만 512 MiB 보정했습니다.",
+    );
+    act(() => frames.flush());
+  });
 });
 
 type JobHarnessApi = {

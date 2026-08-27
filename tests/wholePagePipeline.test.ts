@@ -9,6 +9,7 @@ import type {
 } from "../src/shared/workContextTypes";
 import type { JobEvent } from "../src/shared/jobTypes";
 import type { MangaPage } from "../src/shared/libraryTypes";
+import type { TranslationBlock } from "../src/shared/textTypes";
 import type { AppSettings } from "../src/shared/settingsTypes";
 import type { AutomaticFontCandidate } from "../src/shared/fontMatchingTypes";
 import type { TranslationOptions } from "../src/main/appSettings";
@@ -58,7 +59,11 @@ describe("whole page pipeline", () => {
     process.env.MANGA_TRANSLATOR_PAGE_RETRIES = "2";
     const requestTranslation = vi
       .fn()
-      .mockRejectedValueOnce(new Error("temporary transport failure"))
+      .mockRejectedValueOnce(
+        Object.assign(new Error("temporary transport failure"), {
+          failureCategory: "empty-overlay-items",
+        }),
+      )
       .mockResolvedValueOnce(successTranslationResult());
     const { runWholePagePipeline, runtime } = await loadPipeline({
       requestTranslation,
@@ -75,6 +80,8 @@ describe("whole page pipeline", () => {
       label: "page-1-attempt-2",
       pageId: "page-a",
       pageIndex: 0,
+      includeEnhancedVariant: true,
+      enhancedContrast: 1.6,
     });
     expect(runtime.saveArtifacts).toHaveBeenCalledOnce();
     expect(runtime.loadFontMatchingCandidates).not.toHaveBeenCalled();
@@ -93,6 +100,80 @@ describe("whole page pipeline", () => {
     expect(result.pages[0]?.blocks).toHaveLength(1);
     expect(result.warnings).toEqual([
       "001.png: 시도 1/2 실패 - temporary transport failure",
+    ]);
+  });
+
+  it("stops the translation endpoint before chapter typography inference", async () => {
+    const requestTranslation = vi
+      .fn()
+      .mockResolvedValue(successTranslationResult());
+    const inferPage = vi.fn(async () => ({
+      pixelInferenceByBlockId: new Map(),
+    }));
+    const { runWholePagePipeline, runtime } = await loadPipeline({
+      requestTranslation,
+      fontMatchingCandidates: [makeAutomaticFontCandidate()],
+      fontMatchingPageInference: { inferPage },
+    });
+
+    const result = await runWholePagePipeline({
+      ...basePipelineOptions(
+        [makePage("page-a", "001.png"), makePage("page-b", "002.png")],
+        [],
+      ),
+      autoFontMatching: true,
+    });
+
+    expect(
+      result.pages.every((page) => page.analysisStatus === "completed"),
+    ).toBe(true);
+    expect(requestTranslation).toHaveBeenCalledTimes(2);
+    expect(runtime.disposeEndpoint).toHaveBeenCalledOnce();
+    expect(inferPage).toHaveBeenCalledTimes(2);
+    const lastTranslationCall = Math.max(
+      ...requestTranslation.mock.invocationCallOrder,
+    );
+    const endpointDisposedCall =
+      runtime.disposeEndpoint.mock.invocationCallOrder[0];
+    const firstTypographyCall = Math.min(...inferPage.mock.invocationCallOrder);
+    expect(endpointDisposedCall ?? 0).toBeGreaterThan(lastTranslationCall);
+    expect(firstTypographyCall).toBeGreaterThan(endpointDisposedCall ?? 0);
+  });
+
+  it("keeps existing blocks through context projection and final typography", async () => {
+    const page = makePage("page-a", "001.png", {
+      blocks: [makeExistingBlock("block-a")],
+    });
+    const workContext: PipelineWorkContext = {
+      workId: "work-a",
+      chapterId: "chapter-a",
+      styleGuide: makeStyleGuide(),
+      storyMemory: { ...makeStoryMemory(), pages: [] },
+      recentPageCount: 6,
+    };
+    const { runWholePagePipeline, runtime } = await loadPipeline();
+
+    const result = await runWholePagePipeline({
+      ...basePipelineOptions([page], []),
+      blockMode: "keep",
+      skipOcrPrepass: true,
+      naturalTextLayout: true,
+      workContext,
+    });
+
+    expect(runtime.disposeEndpoint).toHaveBeenCalledOnce();
+    expect(result.pages[0]).toMatchObject({
+      analysisStatus: "completed",
+      blocks: [
+        expect.objectContaining({
+          id: "block-a",
+          sourceText: "こんにちは",
+          translatedText: "안녕",
+        }),
+      ],
+    });
+    expect(workContext.storyMemory.pages).toEqual([
+      expect.objectContaining({ pageId: page.id }),
     ]);
   });
 
@@ -921,12 +1002,14 @@ async function loadPipeline({
   sourceLanguage = "ja",
   startEndpointSession,
   fontMatchingCandidates = [],
+  fontMatchingPageInference,
 }: {
   ocrHintsByImagePath?: ReadonlyMap<string, OcrBboxResult>;
   requestTranslation?: TranslationRuntimePort["requestTranslation"];
   sourceLanguage?: string;
   startEndpointSession?: TranslationRuntimePort["startEndpointSession"];
   fontMatchingCandidates?: readonly AutomaticFontCandidate[];
+  fontMatchingPageInference?: WholePagePipelineDependencies["fontMatching"]["pageInference"];
 } = {}) {
   const rootDir = await mkdtemp(join(tmpdir(), "mgt-pipeline-"));
   tempDirs.push(rootDir);
@@ -973,6 +1056,7 @@ async function loadPipeline({
     fontMatching: {
       loadCandidates: loadFontMatchingCandidates,
       loadProfile: loadFontMatchingProfile,
+      pageInference: fontMatchingPageInference,
     },
     pageContext: { saveChapterStoryMemory, saveWorkStyleGuide },
     diagnostics: { info, warn, error },
@@ -1112,6 +1196,29 @@ function makePage(
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     ...overrides,
+  };
+}
+
+function makeExistingBlock(id: string): TranslationBlock {
+  return {
+    id,
+    type: "nonsolid",
+    bbox: { x: 100, y: 100, w: 200, h: 100 },
+    bboxSpace: "normalized_1000",
+    sourceText: "",
+    translatedText: "이전 번역",
+    confidence: 1,
+    sourceDirection: "horizontal",
+    renderDirection: "horizontal",
+    rotationDeg: 0,
+    fontSizePx: 24,
+    lineHeight: 1.18,
+    textAlign: "center",
+    textColor: "#111111",
+    outlineColor: "#ffffff",
+    backgroundColor: "#ffffff",
+    opacity: 1,
+    autoFitText: true,
   };
 }
 

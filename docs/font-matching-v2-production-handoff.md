@@ -484,3 +484,54 @@ node scripts/run-library-full-pipeline-qa.cjs run `
 4. v11/v10 결과를 training label이나 model-selection test로 재사용하지 않는다.
 5. v3 첫 작업은 새 work-disjoint role supervision과 calibration/eval 분리다.
 6. 모든 후보는 r3h/v2와 동일 페이지 blind A/B까지 통과한 뒤에만 app default를 바꾼다.
+
+## 11. 2026-08-27 production inference scheduling and GPU backend
+
+The chapter pipeline now completes every OCR/model request and validates its
+translation payload before running the expensive typography stage. It then
+disposes the shared translation endpoint, waits for that disposal to finish,
+and only afterwards processes automatic font matching and source font-size
+estimation for the prepared pages in canonical order. This prevents the 487 MB
+font encoder from competing with llama for the deliberately narrow 8/16/24 GB
+VRAM budgets. A cloned rolling work context is updated between model requests
+with a no-I/O projection of each prepared page; the authoritative work context
+and library callbacks are still updated only after the final page is built and
+approved.
+
+On Windows, the native `onnxruntime-node@1.27.0` DirectML execution provider is
+the default for the encoder and ranker. DirectML runs after llama has exited and
+supports DirectX 12 adapters from NVIDIA, AMD, and Intel. If native session
+creation fails, the worker falls back to the sealed `onnxruntime-web` WASM
+runtime instead of disabling font matching. Non-Windows builds retain WASM by
+default. `MANGA_TRANSLATOR_FONT_MATCHING_BACKEND=wasm|dml|webgpu` is a diagnostic
+override; `dml` is accepted only on Windows. The WASM fallback uses at most half
+the logical processors with an eight-thread cap and can be overridden from 1
+through 8 with `MANGA_TRANSLATOR_FONT_MATCHING_THREADS`.
+
+Measured on the RTX 4090 / Ryzen 9 7950X workstation with the completed chapter
+run `5179d3f9-9a67-4b9f-8f20-bd2c0727f58f`:
+
+| Scope / backend                             |                       Result |
+| ------------------------------------------- | ---------------------------: |
+| Representative 7-block page, WASM 1 thread  |                     40.573 s |
+| Representative page, WASM 2 / 4 / 8 threads |   22.422 / 12.755 / 11.053 s |
+| Representative page, native WebGPU          |                      9.673 s |
+| Representative page, DirectML cold          |                6.515-7.316 s |
+| Same DirectML session, repeated page        |         3.752 s then 2.959 s |
+| DirectML board-memory delta                 | 638 MiB (3,170 to 3,808 MiB) |
+| 25 pages / 192 blocks, DirectML             |                     97.192 s |
+| Same chapter, WASM 8 threads                |                    178.120 s |
+
+The 25-page DirectML and WASM runs produced the same SHA-256 over all 192
+selected top fonts and visual roles:
+`c7c802073bee3f98ec17ad0fed304cb22e16d156618984f8658a0af2ca11c394`.
+On the representative page, candidate ordering, treatment, score route, role,
+and selected font were also identical. Backend floating-point scores differed
+by at most `4.2525e-6`, so raw serialized inference hashes are intentionally not
+used as a cross-provider equality contract.
+
+The scheduling regression is covered in `tests/wholePagePipeline.test.ts`: all
+translation requests must precede endpoint disposal, and endpoint disposal must
+precede the first font inference call. Backend/thread routing is covered in
+`tests/fontMatchingWasmThreads.test.ts`; concurrent font matching and source
+font-size estimation remains covered in `tests/pageTypographyStages.test.ts`.

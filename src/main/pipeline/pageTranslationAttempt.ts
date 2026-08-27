@@ -1,6 +1,11 @@
 import type { TranslationOptions } from "../appSettings";
 import type { MangaPage } from "../../shared/libraryTypes";
-import { buildPageResult, requestPageTranslation } from "./pageResultBuilder";
+import {
+  finalizePreparedPageResult,
+  preparePageResult,
+  requestPageTranslation,
+  type PreparedPageBuildResult,
+} from "./pageResultBuilder";
 import {
   emitNoTextPage,
   emitPageDone,
@@ -15,56 +20,90 @@ import type { TranslationRuntimePort } from "./translationRuntimePort";
 import type { WarningCollector } from "./warningCollector";
 import type { FontMatchingPageInferencePort } from "./fontMatchingPagePixelInferenceTypes";
 import type { AutomaticFontPageCoordinatorV2 } from "./automaticFontMatchingV2PageCoordinator";
+import {
+  measurePageProcessingStage,
+  type PageProcessingTimingCollector,
+} from "./pageProcessingTiming";
 
-export async function translatePageAttempt({
-  context,
+export async function preparePageTranslationAttempt({
   jobId,
-  onPageComplete,
   page,
-  pageIndex,
   pageOptions,
   runtime,
   server,
-  warningCollector,
-  fontMatchingPageInference,
-  fontMatchingChapterCoordinator,
+  timing,
 }: {
-  context: ProgressContext;
   jobId: string;
-  onPageComplete?: PipelineOptions["onPageComplete"];
   page: MangaPage;
-  pageIndex: number;
   pageOptions: TranslationOptions;
   runtime: TranslationRuntimePort;
   server: ModelEndpointHandle;
+  timing: PageProcessingTimingCollector;
+}): Promise<PreparedPageBuildResult> {
+  const result = await measurePageProcessingStage(
+    timing,
+    page.id,
+    "translation",
+    () => requestPageTranslation({ pageOptions, runtime, server }),
+  );
+  return measurePageProcessingStage(timing, page.id, "postprocessing", () =>
+    preparePageResult({
+      jobId,
+      page,
+      pageOptions,
+      result,
+      runtime,
+    }),
+  );
+}
+
+export async function completePreparedPageTranslationAttempt({
+  context,
+  onPageComplete,
+  page,
+  pageIndex,
+  prepared,
+  warningCollector,
+  fontMatchingPageInference,
+  fontMatchingChapterCoordinator,
+  timing,
+}: {
+  context: ProgressContext;
+  onPageComplete?: PipelineOptions["onPageComplete"];
+  page: MangaPage;
+  pageIndex: number;
+  prepared: PreparedPageBuildResult;
   warningCollector: WarningCollector;
   fontMatchingPageInference?: FontMatchingPageInferencePort;
   fontMatchingChapterCoordinator?: AutomaticFontPageCoordinatorV2;
+  timing: PageProcessingTimingCollector;
 }): Promise<{
   page: MangaPage;
   pageContext?: PageContextPayload;
   approved: boolean;
 }> {
-  const result = await requestPageTranslation({ pageOptions, runtime, server });
-  const pageResult = await buildPageResult({
-    jobId,
-    page,
-    pageOptions,
-    result,
-    runtime,
-    fontMatchingPageInference,
-    fontMatchingChapterCoordinator,
-  });
+  const pageResult = await measurePageProcessingStage(
+    timing,
+    page.id,
+    "typography",
+    () =>
+      finalizePreparedPageResult({
+        prepared,
+        fontMatchingPageInference,
+        fontMatchingChapterCoordinator,
+      }),
+  );
+  const timedPage = timing.applyTranslationTiming(pageResult.page);
 
   warningCollector.add(...pageResult.warnings);
-  const approved = (await onPageComplete?.(pageResult.page)) !== false;
+  const approved = (await onPageComplete?.(timedPage)) !== false;
   if (pageResult.kind === "no-text") {
     emitNoTextPage(context, page, pageIndex);
   } else {
     emitPageDone(context, page, pageIndex, pageResult.detail);
   }
   return {
-    page: pageResult.page,
+    page: timedPage,
     pageContext: pageResult.pageContext,
     approved,
   };

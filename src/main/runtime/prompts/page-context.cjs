@@ -16,6 +16,7 @@ function buildPageContextSection(options = {}) {
     "Inside the tags return one valid JSON object with exactly these top-level keys: visualSummary, glossary, characters.",
     "visualSummary must summarize the visible scene, actions, and dialogue meaning in the target language in one or two short sentences. Do not assert uncertain identities, relationships, motives, or off-panel events.",
     "glossary contains only concrete names or recurring terms supported by visible source text, OCR candidates, or the translation records from this page. Never repeat a supplied glossary entry or alias.",
+    ...buildGlossaryDetailPolicy(options.cumulativeContextDetail),
     "Each glossary item uses source, target, category, aliases, and note. category is one of character, alias, place, term, honorific, other.",
     "characters contains only people whose name or identity wording is supported on this page. Never guess a name from appearance alone and never repeat a supplied character name or alias.",
     "Each character item uses displayName, sourceNames, targetName, aliases, speechStyle, customSpeechStyle, and note. speechStyle is one of neutral, polite, casual, rough, childish, elderly, formal, custom.",
@@ -31,6 +32,21 @@ function buildPageContextSection(options = {}) {
     '{"visualSummary":"one or two short target-language sentences","glossary":[],"characters":[]}',
     "</page-context>",
   ];
+}
+
+/** @param {unknown} detail @returns {string[]} */
+function buildGlossaryDetailPolicy(detail) {
+  if (detail === "essential") {
+    return [
+      "Keep glossary extremely small: add only character or alias names, named places or organizations, and clearly repeated story-specific terms required for consistent future translation. Exclude ordinary vocabulary, generic honorifics, one-off objects or actions, sound effects, attacks mentioned once, and whole phrases.",
+    ];
+  }
+  if (detail === "balanced") {
+    return [
+      "Use a selective glossary focused on names, places, relationships or titles, and story terms likely to matter across pages. Exclude ordinary dictionary words, one-off objects or actions, sound effects, whole utterances, and generic descriptions.",
+    ];
+  }
+  return [];
 }
 
 module.exports = { buildPageContextSection };

@@ -113,10 +113,17 @@ describe("settings store", () => {
       vendor: "nvidia",
     }));
     const largerMemoryDefaults = await getDefaultAppSettings({}, async () => ({
-      name: "NVIDIA GeForce RTX 3060",
-      memoryMb: 12288,
-      rtxGeneration: 30,
-      computeCapability: 8.6,
+      name: "NVIDIA GeForce RTX 5070 Ti",
+      memoryMb: 16384,
+      rtxGeneration: 50,
+      computeCapability: 12,
+      vendor: "nvidia",
+    }));
+    const fullMemoryDefaults = await getDefaultAppSettings({}, async () => ({
+      name: "NVIDIA GeForce RTX 4090",
+      memoryMb: 24564,
+      rtxGeneration: 40,
+      computeCapability: 8.9,
       vendor: "nvidia",
     }));
 
@@ -125,6 +132,10 @@ describe("settings store", () => {
       mmprojOffload: false,
     });
     expect(largerMemoryDefaults.gemma).toMatchObject({
+      fitTargetMb: 1024,
+      mmprojOffload: true,
+    });
+    expect(fullMemoryDefaults.gemma).toMatchObject({
       fitTargetMb: 1024,
       mmprojOffload: true,
     });

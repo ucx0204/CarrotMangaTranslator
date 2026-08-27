@@ -3,7 +3,6 @@ import { createHash } from "node:crypto";
 import { lstat, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import * as ort from "onnxruntime-web";
 import type { MangaPage } from "../../shared/libraryTypes";
 import type {
   FontMatchingSemanticRole,
@@ -19,15 +18,6 @@ import type { AppPaths } from "../appPaths";
 import { loadFontMatchingPageRaster } from "../fontMatchingPageImage";
 import { buildAutomaticFontPageConsistencyPlan } from "./automaticFontMatchingV2PageConsistency";
 import { resolveAutomaticFontCalibratedPixelWinner } from "./automaticFontMatchingV2PageFamily";
-import {
-  ONNXRUNTIME_WEB_WASM_BINARY_BYTES,
-  ONNXRUNTIME_WEB_WASM_BINARY_FILE,
-  ONNXRUNTIME_WEB_WASM_BINARY_SHA256,
-  ONNXRUNTIME_WEB_WASM_MODULE_BYTES,
-  ONNXRUNTIME_WEB_WASM_MODULE_FILE,
-  ONNXRUNTIME_WEB_WASM_MODULE_SHA256,
-  ONNXRUNTIME_WEB_VERSION,
-} from "../bubbleLayout/constants";
 import type {
   AutoMatchActiveCandidateSelection,
   InstalledAutoMatchCandidate,
@@ -87,12 +77,28 @@ import {
   shouldRevertPageRelativeQaForApplyRate,
   type FontMatchingPageRelativeRoleQaPlanRow,
 } from "./fontMatchingPageRelativeRoleQa";
+import {
+  ONNXRUNTIME_WEB_WASM_BINARY_BYTES,
+  ONNXRUNTIME_WEB_WASM_BINARY_FILE,
+  ONNXRUNTIME_WEB_WASM_BINARY_SHA256,
+  ONNXRUNTIME_WEB_WASM_MODULE_BYTES,
+  ONNXRUNTIME_WEB_WASM_MODULE_FILE,
+  ONNXRUNTIME_WEB_WASM_MODULE_SHA256,
+  ONNXRUNTIME_WEB_VERSION,
+  onnxRuntimeNode,
+  onnxRuntimeWeb,
+  resolveFontMatchingWasmThreads as resolveRuntimeFontMatchingWasmThreads,
+  type FontMatchingWasmSessionOptions,
+} from "./fontMatchingInferenceRuntime";
 
 const ENCODER_FILE = "encoder.onnx";
 const RANKER_FILE = "ranker.onnx";
 const PROTOTYPE_FILE = "prototype-features.f32";
 const LEGACY_ENCODER_BATCH_SIZE = 24;
 const LEGACY_RANKER_BATCH_SIZE = Number.MAX_SAFE_INTEGER;
+
+export const resolveFontMatchingWasmThreads =
+  resolveRuntimeFontMatchingWasmThreads;
 
 const RUNTIME_ROLE_VALUES = [
   "dialogue",
@@ -200,6 +206,7 @@ export type FontMatchingOnnxSession = Readonly<{
 
 export type FontMatchingRuntimeModel = Readonly<{
   status: Extract<FontMatchingRuntimeArtifactStatus, { state: "ready" }>;
+  executionBackend: FontMatchingExecutionBackend;
   encoder: FontMatchingOnnxSession;
   ranker: FontMatchingOnnxSession;
   createFloatTensor: (data: Float32Array, dims: readonly number[]) => unknown;
@@ -235,6 +242,15 @@ export type OrtWasmAssets = Readonly<{
   wasmModulePath: string;
 }>;
 
+export type FontMatchingExecutionBackend = "wasm" | "dml" | "webgpu";
+
+type FontMatchingSessionBundle = Readonly<{
+  encoder: FontMatchingOnnxSession;
+  ranker: FontMatchingOnnxSession;
+  executionBackend: FontMatchingExecutionBackend;
+  createFloatTensor: (data: Float32Array, dims: readonly number[]) => unknown;
+}>;
+
 type RuntimeModelLoadOptions = Readonly<{
   artifactDir: string;
   installedCandidates: readonly InstalledAutoMatchCandidate[];
@@ -268,15 +284,7 @@ type PortDependencies = Readonly<{
   reportWarning?: (message: string, detail: unknown) => void;
 }>;
 
-const sessionCache = new Map<
-  string,
-  Promise<
-    Readonly<{
-      encoder: FontMatchingOnnxSession;
-      ranker: FontMatchingOnnxSession;
-    }>
-  >
->();
+const sessionCache = new Map<string, Promise<FontMatchingSessionBundle>>();
 const prototypeCache = new Map<string, Float32Array>();
 let configuredWasmPaths: OrtWasmAssets | null = null;
 
@@ -444,8 +452,6 @@ async function buildFontMatchingRuntimeModel(
   const model: FontMatchingRuntimeModel = {
     status,
     ...sessions,
-    createFloatTensor: (data, dims) =>
-      new ort.Tensor("float32", data, [...dims]),
     candidateIds: [...status.candidateIds],
     encoderBatchSize: contract.encoderBatchSize,
     featureDim: contract.featureDim,
@@ -2018,44 +2024,118 @@ async function getOrCreateSessions({
   rankerBytes: Uint8Array;
   rankerSha256: string;
   wasmAssets: OrtWasmAssets;
-}): Promise<
-  Readonly<{
-    encoder: FontMatchingOnnxSession;
-    ranker: FontMatchingOnnxSession;
-  }>
-> {
-  configureWasmRuntime(wasmAssets);
+}): Promise<FontMatchingSessionBundle> {
+  const backend = resolveFontMatchingExecutionBackend();
   const key = JSON.stringify([
+    backend,
     encoderSha256,
     rankerSha256,
-    resolve(wasmAssets.wasmBinaryPath),
-    resolve(wasmAssets.wasmModulePath),
+    backend === "wasm" ? resolve(wasmAssets.wasmBinaryPath) : null,
+    backend === "wasm" ? resolve(wasmAssets.wasmModulePath) : null,
   ]);
   let pending = sessionCache.get(key);
   if (!pending) {
-    pending = Promise.all([
-      ort.InferenceSession.create(encoderBytes, sessionOptions()),
-      ort.InferenceSession.create(rankerBytes, sessionOptions()),
-    ])
-      .then(([encoder, ranker]) => ({
-        encoder: encoder as FontMatchingOnnxSession,
-        ranker: ranker as FontMatchingOnnxSession,
-      }))
-      .catch((error: unknown) => {
-        if (sessionCache.get(key) === pending) sessionCache.delete(key);
-        throw error;
-      });
+    pending = createFontMatchingSessions({
+      backend,
+      encoderBytes,
+      rankerBytes,
+      wasmAssets,
+    }).catch((error: unknown) => {
+      if (sessionCache.get(key) === pending) sessionCache.delete(key);
+      throw error;
+    });
     sessionCache.set(key, pending);
   }
   return pending;
 }
 
-function sessionOptions(): ort.InferenceSession.SessionOptions {
+async function createFontMatchingSessions({
+  backend,
+  encoderBytes,
+  rankerBytes,
+  wasmAssets,
+}: {
+  backend: FontMatchingExecutionBackend;
+  encoderBytes: Uint8Array;
+  rankerBytes: Uint8Array;
+  wasmAssets: OrtWasmAssets;
+}): Promise<FontMatchingSessionBundle> {
+  if (backend === "wasm") {
+    return createWasmSessions(encoderBytes, rankerBytes, wasmAssets);
+  }
+  try {
+    const [encoder, ranker] = await Promise.all([
+      onnxRuntimeNode.InferenceSession.create(
+        encoderBytes,
+        nativeGpuSessionOptions(backend),
+      ),
+      onnxRuntimeNode.InferenceSession.create(
+        rankerBytes,
+        nativeGpuSessionOptions(backend),
+      ),
+    ]);
+    return {
+      encoder: encoder as FontMatchingOnnxSession,
+      ranker: ranker as FontMatchingOnnxSession,
+      executionBackend: backend,
+      createFloatTensor: (data, dims) =>
+        new onnxRuntimeNode.Tensor("float32", data, [...dims]),
+    };
+  } catch (_error) {
+    // error-policy-allow: unsupported GPU adapters/drivers fail safely to the
+    // sealed WASM runtime instead of disabling automatic font matching.
+    return createWasmSessions(encoderBytes, rankerBytes, wasmAssets);
+  }
+}
+
+async function createWasmSessions(
+  encoderBytes: Uint8Array,
+  rankerBytes: Uint8Array,
+  wasmAssets: OrtWasmAssets,
+): Promise<FontMatchingSessionBundle> {
+  configureWasmRuntime(wasmAssets);
+  const [encoder, ranker] = await Promise.all([
+    onnxRuntimeWeb.InferenceSession.create(encoderBytes, wasmSessionOptions()),
+    onnxRuntimeWeb.InferenceSession.create(rankerBytes, wasmSessionOptions()),
+  ]);
+  return {
+    encoder: encoder as FontMatchingOnnxSession,
+    ranker: ranker as FontMatchingOnnxSession,
+    executionBackend: "wasm",
+    createFloatTensor: (data, dims) =>
+      new onnxRuntimeWeb.Tensor("float32", data, [...dims]),
+  };
+}
+
+export function wasmSessionOptions(): FontMatchingWasmSessionOptions {
   return {
     executionProviders: ["wasm"],
     executionMode: "sequential",
     graphOptimizationLevel: "all",
   };
+}
+
+export function nativeGpuSessionOptions(
+  backend: Exclude<FontMatchingExecutionBackend, "wasm">,
+): Parameters<typeof onnxRuntimeNode.InferenceSession.create>[1] {
+  return {
+    executionProviders: [backend],
+    executionMode: "sequential",
+    enableMemPattern: false,
+    graphOptimizationLevel: "all",
+  };
+}
+
+export function resolveFontMatchingExecutionBackend(
+  env: NodeJS.ProcessEnv = process.env,
+  platform: NodeJS.Platform = process.platform,
+): FontMatchingExecutionBackend {
+  const configured =
+    env.MANGA_TRANSLATOR_FONT_MATCHING_BACKEND?.trim().toLowerCase();
+  if (configured === "wasm") return "wasm";
+  if (configured === "dml" && platform === "win32") return "dml";
+  if (configured === "webgpu") return "webgpu";
+  return platform === "win32" ? "dml" : "wasm";
 }
 
 function configureWasmRuntime(paths: OrtWasmAssets): void {
@@ -2072,12 +2152,12 @@ function configureWasmRuntime(paths: OrtWasmAssets): void {
       "Font matching ONNX WASM paths changed after initialization.",
     );
   }
-  ort.env.wasm.wasmPaths = {
+  onnxRuntimeWeb.env.wasm.wasmPaths = {
     mjs: pathToFileURL(resolved.wasmModulePath).href,
     wasm: pathToFileURL(resolved.wasmBinaryPath).href,
   };
-  ort.env.wasm.numThreads = 1;
-  ort.env.wasm.proxy = false;
+  onnxRuntimeWeb.env.wasm.numThreads = resolveFontMatchingWasmThreads();
+  onnxRuntimeWeb.env.wasm.proxy = false;
   configuredWasmPaths = resolved;
 }
 

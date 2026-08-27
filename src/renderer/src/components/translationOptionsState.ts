@@ -6,6 +6,7 @@ import type {
   LibraryWorkSummary,
 } from "../../../shared/libraryTypes";
 import type {
+  CumulativeContextDetail,
   TranslationWorkflowMode,
   UiSettings,
 } from "../../../shared/settingsTypes";
@@ -24,6 +25,8 @@ export type TranslationOptionsFormProps = {
   onSelectionChange: (selection: ChapterSelectionMap) => void;
   workflowMode: TranslationWorkflowMode;
   onWorkflowModeChange: (mode: TranslationWorkflowMode) => void;
+  cumulativeContextDetail: CumulativeContextDetail;
+  onCumulativeContextDetailChange: (detail: CumulativeContextDetail) => void;
   blockMode: AnalysisBlockMode;
   onBlockModeChange: (mode: AnalysisBlockMode) => void;
   autoFontMatching: boolean;
@@ -88,43 +91,73 @@ function useTranslationFormFields(
   TranslationOptionsFormProps,
   "chapter" | "onSelectionChange" | "overwriteRisk" | "selection" | "work"
 > {
+  const initial = resolveInitialTranslationFormValues(uiSettings);
   const [workflowMode, onWorkflowModeChange] = React.useState(
-    uiSettings?.translationWorkflowDefault ?? "cumulative",
+    initial.workflowMode,
   );
+  const [cumulativeContextDetail, onCumulativeContextDetailChange] =
+    React.useState<CumulativeContextDetail>(initial.cumulativeContextDetail);
   const [blockMode, onBlockModeChange] = React.useState<AnalysisBlockMode>(
-    uiSettings?.blockModeDefault ?? "auto",
+    initial.blockMode,
   );
   const [autoFontMatching, onAutoFontMatchingChange] = React.useState(
-    uiSettings?.autoFontMatchingDefault ?? false,
+    initial.autoFontMatching,
   );
   const [naturalTextLayout, onNaturalTextLayoutChange] = React.useState(
-    uiSettings?.naturalTextLayoutDefault ?? true,
+    initial.naturalTextLayout,
   );
   const [fontSizeAutoFit, onFontSizeAutoFitChange] = React.useState(
-    uiSettings?.fontSizeAutoFitDefault ?? true,
+    initial.fontSizeAutoFit,
   );
-  const completionDefaults = resolveInitialCompletionDefaults(uiSettings);
   const [eraseOriginalWorkflow, onEraseOriginalWorkflowChange] = React.useState(
-    completionDefaults.eraseOriginal,
+    initial.eraseOriginalWorkflow,
   );
   const [bubbleLayoutWorkflow, onBubbleLayoutWorkflowChange] = React.useState(
-    completionDefaults.bubbleLayout,
+    initial.bubbleLayoutWorkflow,
   );
   return {
     autoFontMatching,
     blockMode,
     bubbleLayoutWorkflow,
+    cumulativeContextDetail,
     eraseOriginalWorkflow,
     fontSizeAutoFit,
     naturalTextLayout,
     onAutoFontMatchingChange,
     onBlockModeChange,
     onBubbleLayoutWorkflowChange,
+    onCumulativeContextDetailChange,
     onEraseOriginalWorkflowChange,
     onFontSizeAutoFitChange,
     onNaturalTextLayoutChange,
     onWorkflowModeChange,
     workflowMode,
+  };
+}
+
+function resolveInitialTranslationFormValues(
+  uiSettings: UiSettings | undefined,
+) {
+  const data = uiSettings ?? {};
+  const completion = resolveInitialCompletionDefaults(uiSettings);
+  return {
+    workflowMode: data.translationWorkflowDefault ?? "cumulative",
+    cumulativeContextDetail: data.cumulativeContextDetailDefault ?? "detailed",
+    blockMode: data.blockModeDefault ?? "auto",
+    autoFontMatching: data.autoFontMatchingDefault ?? false,
+    naturalTextLayout: data.naturalTextLayoutDefault ?? true,
+    fontSizeAutoFit: data.fontSizeAutoFitDefault ?? true,
+    eraseOriginalWorkflow: completion.eraseOriginal,
+    bubbleLayoutWorkflow: completion.bubbleLayout,
+  } satisfies {
+    workflowMode: TranslationWorkflowMode;
+    cumulativeContextDetail: CumulativeContextDetail;
+    blockMode: AnalysisBlockMode;
+    autoFontMatching: boolean;
+    naturalTextLayout: boolean;
+    fontSizeAutoFit: boolean;
+    eraseOriginalWorkflow: boolean;
+    bubbleLayoutWorkflow: boolean;
   };
 }
 

@@ -17,11 +17,8 @@ const { prepareRuntimeAssets } = require("../prepare-runtime.cjs");
  */
 function synchronizeQaRuntimeAssets(root) {
   const outputDir = path.join(root, "out", "app-runtime");
-  return runCachedBuildStep(
-    createRuntimeAssetsCacheStep(root, outputDir, {
-      runtimeModulesOnly: true,
-    }),
-    () => prepareRuntimeAssets({ root, outputDir, runtimeModulesOnly: true }),
+  return runCachedBuildStep(createRuntimeAssetsCacheStep(root, outputDir), () =>
+    prepareRuntimeAssets({ root, outputDir }),
   );
 }
 

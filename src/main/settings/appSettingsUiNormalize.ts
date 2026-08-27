@@ -14,11 +14,14 @@ export function normalizeUiSettings(
     base.blockModeDefault,
   );
   const completionDefaults = resolveTranslationCompletionDefaults(data, base);
-  const translationWorkflowDefault =
-    data.translationWorkflowDefault === "standard" ||
-    data.translationWorkflowDefault === "cumulative"
-      ? data.translationWorkflowDefault
-      : (base.translationWorkflowDefault ?? "cumulative");
+  const translationWorkflowDefault = resolveTranslationWorkflowDefault(
+    data.translationWorkflowDefault,
+    base.translationWorkflowDefault,
+  );
+  const cumulativeContextDetailDefault = resolveCumulativeContextDetailDefault(
+    data.cumulativeContextDetailDefault,
+    base.cumulativeContextDetailDefault,
+  );
   return {
     locale: normalizeUiLocale(data.locale, base.locale),
     inpaintingGuideHidden: resolveBoolean(
@@ -26,6 +29,7 @@ export function normalizeUiSettings(
       base.inpaintingGuideHidden ?? false,
     ),
     translationWorkflowDefault,
+    cumulativeContextDetailDefault,
     naturalTextLayoutDefault: resolveBoolean(
       data.naturalTextLayoutDefault,
       base.naturalTextLayoutDefault ?? true,
@@ -36,14 +40,40 @@ export function normalizeUiSettings(
     ),
     fontSizeAutoFitDefault: resolveBoolean(
       data.fontSizeAutoFitDefault,
-      typeof legacyFontSizeAutoFit === "boolean"
-        ? legacyFontSizeAutoFit
-        : (base.fontSizeAutoFitDefault ?? true),
+      resolveFontSizeAutoFitFallback(
+        legacyFontSizeAutoFit,
+        base.fontSizeAutoFitDefault,
+      ),
     ),
     eraseOriginalWorkflowDefault: completionDefaults.eraseOriginal,
     bubbleLayoutWorkflowDefault: completionDefaults.bubbleLayout,
     ...(blockModeDefault ? { blockModeDefault } : {}),
   };
+}
+
+function resolveTranslationWorkflowDefault(
+  value: unknown,
+  fallback: "standard" | "cumulative" | undefined,
+): "standard" | "cumulative" {
+  return value === "standard" || value === "cumulative"
+    ? value
+    : (fallback ?? "cumulative");
+}
+
+function resolveCumulativeContextDetailDefault(
+  value: unknown,
+  fallback: "detailed" | "balanced" | "essential" | undefined,
+): "detailed" | "balanced" | "essential" {
+  return value === "detailed" || value === "balanced" || value === "essential"
+    ? value
+    : (fallback ?? "detailed");
+}
+
+function resolveFontSizeAutoFitFallback(
+  legacyValue: unknown,
+  fallback: boolean | undefined,
+): boolean {
+  return typeof legacyValue === "boolean" ? legacyValue : (fallback ?? true);
 }
 
 function resolveTranslationCompletionDefaults(

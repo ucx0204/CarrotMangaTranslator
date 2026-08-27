@@ -168,6 +168,8 @@ function useTranslationActionController(
     selectedPage: chapter.derivedState.selectedPage,
     translationWorkflowDefault:
       uiDefaults.translationWorkflowDefault ?? "cumulative",
+    cumulativeContextDetailDefault:
+      uiDefaults.cumulativeContextDetailDefault ?? "detailed",
     autoFontMatchingDefault: uiDefaults.autoFontMatchingDefault ?? false,
     naturalTextLayoutDefault: uiDefaults.naturalTextLayoutDefault ?? true,
     fontSizeAutoFitDefault: uiDefaults.fontSizeAutoFitDefault ?? true,

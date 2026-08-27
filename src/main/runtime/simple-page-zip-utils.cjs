@@ -1,6 +1,6 @@
 // @ts-check
 const { createWriteStream } = require("node:fs");
-const { mkdir, rename, rm } = require("node:fs/promises");
+const { mkdir, rm } = require("node:fs/promises");
 const { createRequire } = require("node:module");
 const path = require("node:path");
 const { Transform } = require("node:stream");
@@ -57,6 +57,7 @@ const { safeCleanup } = require("./simple-page-runtime-common.cjs");
 const {
   assertWindowsLegacyRuntimePath,
   createCompactRuntimeSiblingDirectory,
+  renameRuntimePathWithRetry,
   replaceDirectoryWithRollback,
 } = require("./runtime-directory-publish.cjs");
 
@@ -139,7 +140,7 @@ async function publishSelectedFiles(selectedFiles, outputDir) {
     // volume. Removing the exact destination preserves the previous overwrite
     // behavior on Windows while rename avoids a second multi-gigabyte write.
     await rm(outputPath, { force: true });
-    await rename(selected.filePath, outputPath);
+    await renameRuntimePathWithRetry(selected.filePath, outputPath);
   }
 }
 

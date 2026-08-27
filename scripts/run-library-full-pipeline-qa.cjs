@@ -59,11 +59,72 @@ if (require.main === module) {
 async function main() {
   const parsed = parseArguments(process.argv.slice(2));
   if (parsed.command === "select") return selectCommand(parsed.options);
+  if (parsed.command === "select-chapter")
+    return selectChapterCommand(parsed.options);
   if (parsed.command === "inspect") return inspectCommand(parsed.options);
   if (parsed.command === "run") return runCommand(parsed.options);
   if (parsed.command === "compare") return compareCommand(parsed.options);
   if (parsed.command === "help") return printHelp();
   throw new Error(`Unknown command: ${parsed.command}`);
+}
+
+/** @param {Record<string, any>} options */
+async function selectChapterCommand(options) {
+  const workId = String(options["work-id"] || "").trim();
+  const chapterId = String(options["chapter-id"] || "").trim();
+  if (!workId || !chapterId) {
+    throw new Error("select-chapter requires --work-id and --chapter-id.");
+  }
+  const libraryRoot = path.resolve(
+    options.library || path.join(ROOT, "library"),
+  );
+  const outputRoot = path.resolve(options.output || DEFAULT_OUTPUT);
+  const selectionPath = path.join(outputRoot, "selection.json");
+  if (fs.existsSync(selectionPath)) {
+    const existing = JSON.parse(await fsp.readFile(selectionPath, "utf8"));
+    if (
+      existing.chapterSelection?.workId !== workId ||
+      existing.chapterSelection?.chapterId !== chapterId
+    ) {
+      throw new Error(
+        `Existing immutable chapter selection targets a different chapter: ${selectionPath}`,
+      );
+    }
+    console.log(`[font-qa] reusing immutable selection ${selectionPath}`);
+    return;
+  }
+  const candidates = (await readLibraryCandidates(libraryRoot)).filter(
+    (candidate) =>
+      candidate.workId === workId && candidate.chapterId === chapterId,
+  );
+  if (candidates.length === 0) {
+    throw new Error(`Library chapter not found: ${workId}/${chapterId}`);
+  }
+  candidates.sort((left, right) => left.pageIndex - right.pageIndex);
+  const baseline = await materializeCohort(candidates, "baseline40");
+  const manifestPath = path.join(outputRoot, "cohorts", "baseline40.jsonl");
+  await fsp.mkdir(path.dirname(manifestPath), { recursive: true });
+  await writeJsonlExclusive(manifestPath, baseline);
+  const selection = {
+    schemaVersion: 1,
+    generatedAt: new Date().toISOString(),
+    libraryRoot,
+    chapterSelection: {
+      policy: "explicit_user_requested_library_chapter",
+      workId,
+      chapterId,
+    },
+    cohorts: {
+      baseline40: {
+        manifestPath,
+        manifestSha256: cohortDigest(baseline),
+        ...summarizeCohort(baseline),
+      },
+    },
+  };
+  await writeJsonExclusive(selectionPath, selection);
+  console.log(`[font-qa] wrote ${selectionPath}`);
+  console.log(JSON.stringify(selection.cohorts.baseline40, null, 2));
 }
 
 /** @param {Record<string, any>} options */
@@ -390,6 +451,9 @@ async function resolveRunCommandConfig(options) {
   const cacheFrom = options["cache-from"]
     ? path.resolve(options["cache-from"])
     : null;
+  const ocrCacheFrom = options["ocr-cache-from"]
+    ? path.resolve(options["ocr-cache-from"])
+    : null;
   const fontInferenceCacheMode = resolveFontInferenceCacheMode(
     options,
     cacheFrom,
@@ -440,6 +504,7 @@ async function resolveRunCommandConfig(options) {
     candidateId,
     runtimeDir,
     cacheFrom,
+    ocrCacheFrom,
     cacheFromSeal,
     fontInferenceCacheMode,
     qaModelDirectSelection,
@@ -751,15 +816,18 @@ function printHelp() {
   console.log(
     `Library full-pipeline font QA (no computer-use)\n\n` +
       `  select  Freeze non-training baseline40 and fresh holdout40 manifests\n` +
+      `  select-chapter Freeze every page of one explicitly requested library chapter\n` +
       `  inspect Re-hash and verify both frozen cohorts\n` +
       `  run     Dry-run by default; add --execute for the real app pipeline\n` +
       `  compare Compare two completed runs over the same cohort\n\n` +
       `Examples:\n` +
       `  node scripts/run-library-full-pipeline-qa.cjs select\n` +
+      `  node scripts/run-library-full-pipeline-qa.cjs select-chapter --work-id <id> --chapter-id <id> --output <dir>\n` +
       `  node scripts/run-library-full-pipeline-qa.cjs select --output <next-round> --seed <new-seed> --extra-boundary <previous-cohort.jsonl>\n` +
       `  node scripts/run-library-full-pipeline-qa.cjs select --work-boundary <training-overlay.jsonl> [--work-boundary <more.json>]\n` +
       `  node scripts/run-library-full-pipeline-qa.cjs run --cohort baseline40 --candidate-id v2\n` +
       `  node scripts/run-library-full-pipeline-qa.cjs run --cohort baseline40 --candidate-id v2 --execute\n` +
+      `  node scripts/run-library-full-pipeline-qa.cjs run --cohort baseline40 --candidate-id qat --ocr-cache-from <baseline-run> --execute\n` +
       `  node scripts/run-library-full-pipeline-qa.cjs run --cohort baseline40 --candidate-id qa-v2 --runtime-dir <qa-runtime> --allow-qa-only-runtime --preflight\n` +
       `  node scripts/run-library-full-pipeline-qa.cjs run --cohort baseline40 --candidate-id qa-v2 --selection-index 8 --cache-from <fresh-run> --cache-from-seal <fresh-run-audit.json> --execute\n` +
       `  node scripts/run-library-full-pipeline-qa.cjs run --cohort baseline40 --candidate-id v3 --cache-from <v2-run> --cache-from-seal <fresh-run-audit.json> --execute\n` +

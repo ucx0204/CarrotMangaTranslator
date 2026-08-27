@@ -15,6 +15,7 @@ export type CheckboxFieldProps = {
   onCheckedChange: (checked: boolean) => void;
   label?: React.ReactNode;
   ariaLabel?: string;
+  ariaDescribedBy?: string;
   className?: string;
   disabled?: boolean;
   title?: string;
@@ -54,6 +55,7 @@ function CheckboxControl({
   onCheckedChange,
   label,
   ariaLabel,
+  ariaDescribedBy,
   className,
   disabled = false,
   title,
@@ -90,6 +92,7 @@ function CheckboxControl({
         checked={checked}
         disabled={disabled}
         aria-label={ariaLabel}
+        aria-describedby={ariaDescribedBy}
         onChange={(event) => onCheckedChange(event.target.checked)}
       />
       {label === undefined ? null : (
@@ -105,6 +108,7 @@ function SwitchControl({
   onCheckedChange,
   label,
   ariaLabel,
+  ariaDescribedBy,
   className,
   disabled = false,
   title,
@@ -116,6 +120,7 @@ function SwitchControl({
       role="switch"
       aria-checked={checked}
       aria-label={ariaLabel}
+      aria-describedby={ariaDescribedBy}
       title={title}
       disabled={disabled}
       className={[styles.root, styles.switch, className]

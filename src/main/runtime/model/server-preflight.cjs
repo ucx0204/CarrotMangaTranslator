@@ -10,6 +10,7 @@ const {
   hasRequiredLlamaRuntimeFiles,
   isBuiltInGemmaRuntimeModel,
   isGemma31BModel,
+  isMainlineGemmaModel,
   missingRequiredLlamaRuntimeFiles,
   resolveManagedToolsDir,
   resolveManagedToolsOwnershipDirs,
@@ -60,7 +61,8 @@ function isIncompleteManagedLlamaRuntime(serverPath, options = {}) {
 function assertMetalDflashConfiguration(serverPath, runtime, options) {
   if (
     String(runtime.backend || "").toLowerCase() !== "metal" ||
-    !isGemma31BModel(options)
+    !isGemma31BModel(options) ||
+    isMainlineGemmaModel(options)
   ) {
     return;
   }

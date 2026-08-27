@@ -182,6 +182,7 @@ function dispatchJobEvent(
       progressTotalBytes: event.progressTotalBytes,
       progressBytesPerSecond: event.progressBytesPerSecond,
       installLogLine: event.installLogLine,
+      notification: event.notification,
       pageIndex: event.pageIndex,
       pageTotal: event.pageTotal,
       attempt: event.attempt,

@@ -2,6 +2,16 @@
 const {
   BEELLAMA_HIP_RADEON_ARCHIVE_CONTRACT,
 } = require("./model/llama-runtime-archive-policy.cjs");
+const {
+  SPEED_LLAMA_RUNTIME_CUDA12,
+  SPEED_LLAMA_RUNTIME_CUDA13,
+  SPEED_LLAMA_RUNTIME_METAL_ARM64,
+  SPEED_LLAMA_RUNTIME_VULKAN,
+} = require("./model/speed-llama-runtime-contracts.cjs");
+const {
+  resolveLemonadeLlamaRuntimeRocm,
+  resolveSpeedLemonadeLlamaRuntimeRocm,
+} = require("./model/lemonade-llama-runtime-contracts.cjs");
 const BEELLAMA_LLAMA_RUNTIME_CUDA12 = {
   id: "beellama-v0.2.0-cuda12.4",
   kind: "beellama",
@@ -93,23 +103,23 @@ const BEELLAMA_LLAMA_RUNTIME_HIP_RADEON = {
 };
 
 const MAINLINE_LLAMA_RUNTIME_CUDA12 = {
-  id: "llama-b9547-cuda12.4",
+  id: "llama-b9553-cuda12.4",
   kind: "mainline",
   backend: "cuda",
-  dir: "llama-b9547-cuda12.4",
-  archive: "llama-b9547-bin-win-cuda-12.4-x64.zip",
-  url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/llama-b9547-bin-win-cuda-12.4-x64.zip",
+  dir: "llama-b9553-cuda12.4",
+  archive: "llama-b9553-bin-win-cuda-12.4-x64.zip",
+  url: "https://github.com/ggml-org/llama.cpp/releases/download/b9553/llama-b9553-bin-win-cuda-12.4-x64.zip",
   archives: [
     {
-      archive: "llama-b9547-bin-win-cuda-12.4-x64.zip",
-      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/llama-b9547-bin-win-cuda-12.4-x64.zip",
+      archive: "llama-b9553-bin-win-cuda-12.4-x64.zip",
+      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9553/llama-b9553-bin-win-cuda-12.4-x64.zip",
       sha256:
-        "f05bdda225aa25123c9d57c7cb14ab5dcdfa730f756332bed765466a50c920b6",
-      expectedBytes: 261_158_499,
+        "c4267c20e592d7470b37ca15c6b6f69173a92fe2aeba12f80031b0198013ac3a",
+      expectedBytes: 261_168_405,
     },
     {
       archive: "cudart-llama-bin-win-cuda-12.4-x64.zip",
-      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/cudart-llama-bin-win-cuda-12.4-x64.zip",
+      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9553/cudart-llama-bin-win-cuda-12.4-x64.zip",
       sha256:
         "8c79a9b226de4b3cacfd1f83d24f962d0773be79f1e7b75c6af4ded7e32ae1d6",
       expectedBytes: 391_443_627,
@@ -126,23 +136,23 @@ const MAINLINE_LLAMA_RUNTIME_CUDA12 = {
 };
 
 const MAINLINE_LLAMA_RUNTIME_CUDA13 = {
-  id: "llama-b9547-cuda13.3",
+  id: "llama-b9553-cuda13.3",
   kind: "mainline",
   backend: "cuda",
-  dir: "llama-b9547-cuda13.3",
-  archive: "llama-b9547-bin-win-cuda-13.3-x64.zip",
-  url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/llama-b9547-bin-win-cuda-13.3-x64.zip",
+  dir: "llama-b9553-cuda13.3",
+  archive: "llama-b9553-bin-win-cuda-13.3-x64.zip",
+  url: "https://github.com/ggml-org/llama.cpp/releases/download/b9553/llama-b9553-bin-win-cuda-13.3-x64.zip",
   archives: [
     {
-      archive: "llama-b9547-bin-win-cuda-13.3-x64.zip",
-      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/llama-b9547-bin-win-cuda-13.3-x64.zip",
+      archive: "llama-b9553-bin-win-cuda-13.3-x64.zip",
+      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9553/llama-b9553-bin-win-cuda-13.3-x64.zip",
       sha256:
-        "3fe964551526139b16c205d05948036e3cf621b974bb47744065e3d7bda93362",
-      expectedBytes: 159_097_564,
+        "d6f0d9df5c56748551c9498ed9620a90f022cd6b8073810c43ce224567955632",
+      expectedBytes: 159_107_470,
     },
     {
       archive: "cudart-llama-bin-win-cuda-13.3-x64.zip",
-      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9547/cudart-llama-bin-win-cuda-13.3-x64.zip",
+      url: "https://github.com/ggml-org/llama.cpp/releases/download/b9553/cudart-llama-bin-win-cuda-13.3-x64.zip",
       sha256:
         "1462a050eb4c684921ba51dcc4cc488a036674c3e73e9945ee705b854808d03e",
       expectedBytes: 390_970_417,
@@ -238,30 +248,6 @@ const BEELLAMA_LLAMA_RUNTIME_METAL_ARM64 = {
   ],
 };
 
-const LEMONADE_LLAMA_ROCM_RELEASE = "b1291";
-const LEMONADE_LLAMA_ROCM_BASE_URL = `https://github.com/lemonade-sdk/llamacpp-rocm/releases/download/${LEMONADE_LLAMA_ROCM_RELEASE}`;
-/** @type {Readonly<Record<string, string>>} */
-const LEMONADE_LLAMA_ROCM_SHA256 = Object.freeze({
-  gfx103X: "3692a765ca0d5616284cbfe71c0a8a925824a538e9fe0efeb8710620612ecf77",
-  gfx110X: "bcdec2f3e256162b8a52abb10a39969329deaa2fc57e33ded938a1e761d57b20",
-  gfx1150: "09a6fe572e2be24e3e87654355db84f6fc79a057eb60427a2aad1f388f9dc5a8",
-  gfx1151: "f185c81c0eeab19f83e24a5a98576d6c2994d746d34f465d6582efe4547edb02",
-  gfx120X: "51072424c83349ac375b574f432bf80d14a2c7920946128de2c526cfdc3012f1",
-  gfx908: "3634008a78f75bafc27c211b374ad62b6eaec5dd2f79a354add5b8aec7eb71ae",
-  gfx90a: "23746b7593158e9796d18f2d13448b318b8937710c3ed1447740db6193ab36e7",
-});
-
-/** @type {Readonly<Record<string, number>>} */
-const LEMONADE_LLAMA_ROCM_BYTES = Object.freeze({
-  gfx103X: 160_723_690,
-  gfx110X: 201_186_573,
-  gfx1150: 120_027_841,
-  gfx1151: 125_399_764,
-  gfx120X: 528_745_915,
-  gfx908: 123_928_182,
-  gfx90a: 242_111_030,
-});
-
 // Immutable central-directory audit of the pinned Windows runtime archives.
 // These are selected output paths after the same flatten/preserve rules used
 // by shouldExtractLlamaRuntimeFile. Keeping the exact maxima here lets the
@@ -271,9 +257,12 @@ const WINDOWS_LLAMA_RUNTIME_MAX_RELATIVE_PATH_LENGTH = Object.freeze({
   "beellama-v0.2.0-cuda12.4": 17,
   "beellama-v0.2.0-cuda13.1": 17,
   "beellama-v0.3.1-hip-radeon": 127,
-  "llama-b9547-cuda12.4": 28,
-  "llama-b9547-cuda13.3": 28,
+  "llama-b9553-cuda12.4": 28,
+  "llama-b9553-cuda13.3": 28,
   "llama-b9547-vulkan": 28,
+  "llama-b10621-cuda12.4": 28,
+  "llama-b10621-cuda13.3": 28,
+  "llama-b10621-vulkan": 28,
   "lemonade-llama-b1291-rocm-gfx103X": 130,
   "lemonade-llama-b1291-rocm-gfx110X": 115,
   "lemonade-llama-b1291-rocm-gfx1150": 123,
@@ -281,54 +270,21 @@ const WINDOWS_LLAMA_RUNTIME_MAX_RELATIVE_PATH_LENGTH = Object.freeze({
   "lemonade-llama-b1291-rocm-gfx120X": 127,
   "lemonade-llama-b1291-rocm-gfx908": 122,
   "lemonade-llama-b1291-rocm-gfx90a": 137,
+  "lemonade-llama-b1317-rocm-gfx103X": 102,
+  "lemonade-llama-b1317-rocm-gfx110X": 122,
+  "lemonade-llama-b1317-rocm-gfx1150": 122,
+  "lemonade-llama-b1317-rocm-gfx1151": 122,
+  "lemonade-llama-b1317-rocm-gfx120X": 134,
+  "lemonade-llama-b1317-rocm-gfx908": 121,
+  "lemonade-llama-b1317-rocm-gfx90a": 137,
+  "lemonade-llama-b1316-rocm-gfx103X": 102,
+  "lemonade-llama-b1316-rocm-gfx110X": 128,
+  "lemonade-llama-b1316-rocm-gfx1150": 128,
+  "lemonade-llama-b1316-rocm-gfx1151": 128,
+  "lemonade-llama-b1316-rocm-gfx120X": 140,
+  "lemonade-llama-b1316-rocm-gfx908": 127,
+  "lemonade-llama-b1316-rocm-gfx90a": 137,
 });
-
-/**
- * @param {string} target
- */
-function createLemonadeLlamaRuntimeRocm(target) {
-  const archive = `llama-${LEMONADE_LLAMA_ROCM_RELEASE}-windows-rocm-${target}-x64.zip`;
-  const sha256 = LEMONADE_LLAMA_ROCM_SHA256[target];
-  const expectedBytes = LEMONADE_LLAMA_ROCM_BYTES[target];
-  if (!sha256 || !expectedBytes) {
-    throw new Error(
-      `No pinned llama ROCm runtime exists for target: ${target}`,
-    );
-  }
-  return {
-    id: `lemonade-llama-${LEMONADE_LLAMA_ROCM_RELEASE}-rocm-${target}`,
-    kind: "lemonade-rocm",
-    backend: "rocm",
-    dir: `lemonade-llama-${LEMONADE_LLAMA_ROCM_RELEASE}-rocm-${target}`,
-    archive,
-    url: `${LEMONADE_LLAMA_ROCM_BASE_URL}/${archive}`,
-    archives: [
-      {
-        archive,
-        url: `${LEMONADE_LLAMA_ROCM_BASE_URL}/${archive}`,
-        sha256,
-        expectedBytes,
-      },
-    ],
-    requiredFiles: [
-      "llama-server.exe",
-      ["llama-server-impl.dll", "llama.dll"],
-      ["amdhip64.dll", "amdhip64_7.dll"],
-      ["ggml-hip.dll", "ggml-rocm.dll", "libggml-hip.so", "libggml-rocm.so"],
-    ],
-  };
-}
-
-/**
- * @param {unknown} target
- */
-function resolveLemonadeLlamaRuntimeRocm(target) {
-  const normalized = String(target || "").trim();
-  if (!normalized) {
-    throw new Error("AMD ROCm GPU target is required.");
-  }
-  return createLemonadeLlamaRuntimeRocm(normalized);
-}
 
 const LLAMA_RUNTIME_MARKER_FILE = ".mgt-runtime.json";
 const LLAMA_RUNTIME_FILES = new Set([
@@ -388,7 +344,12 @@ module.exports = {
   MAINLINE_LLAMA_RUNTIME_CUDA13,
   MAINLINE_LLAMA_RUNTIME_VULKAN,
   MAINLINE_LLAMA_RUNTIME_METAL_ARM64,
+  SPEED_LLAMA_RUNTIME_CUDA12,
+  SPEED_LLAMA_RUNTIME_CUDA13,
+  SPEED_LLAMA_RUNTIME_VULKAN,
+  SPEED_LLAMA_RUNTIME_METAL_ARM64,
   resolveLemonadeLlamaRuntimeRocm,
+  resolveSpeedLemonadeLlamaRuntimeRocm,
   resolveWindowsLlamaRuntimeMaxRelativePathLength,
   shouldExtractLlamaRuntimeFile,
 };

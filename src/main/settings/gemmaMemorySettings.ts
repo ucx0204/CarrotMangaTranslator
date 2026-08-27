@@ -71,13 +71,13 @@ function resolveGemmaMemoryTuning(
   gemma: Record<string, unknown> | null,
   defaults: AppSettings,
 ): Pick<AppSettings["gemma"], "fitTargetMb" | "mmprojOffload"> {
-  const defaultFitTargetMb = defaults.gemma.fitTargetMb ?? 1024;
+  const defaultFitTargetMb = defaults.gemma.fitTargetMb ?? 512;
   const fitTargetMb =
     resolveNullableIntegerRange(
       gemma?.fitTargetMb,
       defaultFitTargetMb,
       0,
-      8192,
+      16384,
     ) ?? defaultFitTargetMb;
   return {
     fitTargetMb,

@@ -52,7 +52,7 @@ describeWindows(
 
     it("resolves another bundled llama-server when the preferred runtime is absent", () => {
       const toolsDir = createTempDir("llama-tools-");
-      const runtimeDir = join(toolsDir, "llama-b9547-cuda12.4");
+      const runtimeDir = join(toolsDir, "llama-b9553-cuda12.4");
       mkdirSync(runtimeDir, { recursive: true });
       const serverPath = join(runtimeDir, "llama-server.exe");
       writeFileSync(serverPath, "");

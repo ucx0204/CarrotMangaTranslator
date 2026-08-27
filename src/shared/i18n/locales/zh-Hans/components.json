@@ -543,6 +543,23 @@
         "description": "翻译时逐页累积场景摘要、术语和角色信息，并从下一页起用于参考。"
       }
     },
+    "cumulativeDetail": {
+      "label": "上下文记录范围",
+      "options": {
+        "detailed": {
+          "label": "详细记录（原方式）",
+          "description": "保持当前方式，广泛记录场景、角色和术语信息。"
+        },
+        "balanced": {
+          "label": "均衡记录",
+          "description": "重点记录角色、地点以及可能跨页保持重要的术语。"
+        },
+        "essential": {
+          "label": "仅必要术语",
+          "description": "仅记录角色名、别名、地点名和重复出现的作品专有术语。"
+        }
+      }
+    },
     "blockModeSummaries": {
       "auto": "自动检测每页的文本块。",
       "keep": "保留现有文本块的区域和格式。"
@@ -741,6 +758,30 @@
     "noFilterResults": "没有符合此筛选条件的页面。",
     "selectedHidden": "当前选中的页面已被筛选条件隐藏。",
     "filterLabel": "页面状态筛选",
+    "timing": {
+      "button": "页面耗时",
+      "title": "逐页耗时",
+      "grandTotal": "全部总耗时",
+      "recordedPages": "已测量 {{count}} 页",
+      "emptyTitle": "暂无耗时记录。",
+      "emptyDescription": "完成新的翻译后，逐页详细耗时会保存在这里。",
+      "page": "页面",
+      "total": "页面合计",
+      "stages": {
+        "preparing": "准备",
+        "ocr": "OCR",
+        "translation": "AI 翻译",
+        "postprocessing": "结果整理",
+        "typography": "文字与字体",
+        "inpainting": "图像修复",
+        "bubbleLayout": "气泡布局"
+      },
+      "duration": {
+        "hours": "{{hours}}小时 {{minutes}}分 {{seconds}}秒",
+        "minutes": "{{minutes}}分 {{seconds}}秒",
+        "seconds": "{{seconds}}秒"
+      }
+    },
     "visibleCount": "{{visible}} / {{total}}",
     "blockCount": "{{count}} 个文本块",
     "thumbnailLoadFailed": "预览失败",
@@ -1338,16 +1379,28 @@
     "options": {
       "modelPresets": {
         "minimum12b": {
-          "label": "12B 最低",
-          "description": "适合约8GB显存，优先保证兼容性和轻量运行。"
+          "label": "12B (8GB)",
+          "description": "适合8GB显存的旧版12B模型。需要与早期版本保持相同配置时可选择它。"
+        },
+        "qat12b": {
+          "label": "12B (8GB)",
+          "description": "适合8GB显存。速度最快、占用最少，适合大多数任务。"
         },
         "economy26b": {
-          "label": "26B 经济",
-          "description": "适合约16GB显存，保留1024个图像令牌并更稳定地运行26B模型。"
+          "label": "26B (16GB)",
+          "description": "适合16GB显存的旧版26B模型。质量高于12B，但运行速度更慢。"
+        },
+        "qat26b": {
+          "label": "26B (16GB)",
+          "description": "适合16GB显存。翻译质量高于12B，并兼顾速度与显存占用。"
         },
         "full31b": {
-          "label": "31B 完整",
-          "description": "适合充足显存，使用31B模型和DFlash并优先保证质量。"
+          "label": "31B (24GB)",
+          "description": "适合24GB显存的旧版31B模型。以最高质量为目标，但也是最重的选项。"
+        },
+        "qat31b": {
+          "label": "31B (24GB)",
+          "description": "适合24GB显存。以最高翻译质量为目标，占用的显存多于12B和26B。"
         }
       },
       "modelSources": {
@@ -1490,6 +1543,12 @@
       "preset": {
         "label": "模型预设",
         "ariaLabel": "模型预设",
+        "family": {
+          "label": "模型系列",
+          "ariaLabel": "模型系列",
+          "speed": "速度（推荐）",
+          "legacy": "旧版"
+        },
         "custom": "自定义",
         "customDescription": "手动指定模型仓库和文件。"
       },
@@ -1507,7 +1566,9 @@
       "vramTuning": {
         "reserveLabel": "空闲VRAM",
         "reserveOption": "{{value}} MiB",
-        "reserveDescription": "模型加载后要保留的空闲VRAM。降低数值可将更多模型加载到GPU以提升速度。提高数值会减少GPU上的模型量并可能变慢，因此仅在同时使用其他GPU程序时提高。",
+        "reserveInputAria": "空闲VRAM（MiB）",
+        "reserveAddAria": "为空闲VRAM增加{{value}} MiB",
+        "reserveDescription": "模型加载后保留的VRAM。调低可能更快，但过低会溢出到共享内存，使翻译和整台电脑极度卡顿。仅在同时使用其他GPU程序时调高。",
         "mmprojLabel": "mmproj处理位置",
         "mmprojGpu": "GPU（速度优先）",
         "mmprojCpu": "CPU（节省VRAM）",
@@ -1519,7 +1580,9 @@
         "sufficient": "这是此内存档位的建议模型。",
         "insufficient": "比建议容量少{{shortage}}。选择该模型后可确认并进行有风险的运行。",
         "unsafeAllowed": "此配置已允许在少{{shortage}}的情况下进行风险运行。",
-        "unsafeConfirm": "此Mac的统一内存为{{available}}，所选模型建议{{required}}。首次下载约{{download}}，可能需要较长时间。应用可能退出或导致系统极其缓慢。是否允许此次风险运行？"
+        "unsafeConfirm": "此Mac的统一内存为{{available}}，所选模型建议{{required}}。首次下载约{{download}}，可能需要较长时间。应用可能退出或导致系统极其缓慢。是否允许此次风险运行？",
+        "vramInsufficientTitle": "显存不足以运行所选模型。",
+        "vramInsufficientDescription": "检测到的显存为{{available}}，而此模型面向{{required}}级GPU。部分模型可能转移到系统内存，导致速度极慢或加载失败。"
       },
       "local": {
         "modelFile": "本地模型文件",

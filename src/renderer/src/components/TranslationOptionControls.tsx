@@ -48,18 +48,18 @@ export function TranslationCompletionOptions({
           {
             id: "translate",
             label: t("translationOptions.completionModeTranslate"),
+            tooltip: t("translationOptions.completionModeSummaries.translate"),
           },
           {
             id: "erase",
             label: t("translationOptions.completionModeErase"),
+            tooltip: t("translationOptions.completionModeSummaries.erase"),
           },
         ]}
         value={eraseOriginalWorkflow ? "erase" : "translate"}
         onChange={(value) => onEraseOriginalWorkflowChange(value === "erase")}
-        description={t(
-          `translationOptions.completionModeSummaries.${eraseOriginalWorkflow ? "erase" : "translate"}`,
-        )}
         showLabel={false}
+        tooltipPlacement="top"
       />
       {eraseOriginalWorkflow ? (
         <div className="translate-options-nested">
@@ -70,6 +70,7 @@ export function TranslationCompletionOptions({
             description={t(
               `translationOptions.bubbleLayoutWorkflowSummaries.${bubbleLayoutWorkflow ? "on" : "off"}`,
             )}
+            tooltipPlacement="top"
           />
         </div>
       ) : null}
@@ -83,28 +84,40 @@ export function ToggleOptionRow({
   onChange,
   description,
   disabled = false,
+  tooltipPlacement = "bottom",
 }: {
   label: string;
   pressed: boolean;
   onChange: (pressed: boolean) => void;
   description?: string;
   disabled?: boolean;
+  tooltipPlacement?: "bottom" | "top";
 }): React.JSX.Element {
-  return (
+  const renderControl = (descriptionId?: string): React.JSX.Element => (
     <CheckboxField
       variant="switch"
       className="translate-options-switch"
       checked={pressed}
       ariaLabel={label}
+      ariaDescribedBy={descriptionId}
       disabled={disabled}
       onCheckedChange={onChange}
       label={
         <span className="translate-options-switch-copy">
           <strong>{label}</strong>
-          {description ? <small>{description}</small> : null}
         </span>
       }
     />
+  );
+  return description ? (
+    <TranslationOptionTooltip
+      content={description}
+      placement={tooltipPlacement}
+    >
+      {renderControl}
+    </TranslationOptionTooltip>
+  ) : (
+    renderControl()
   );
 }
 
@@ -114,18 +127,17 @@ export function OptionRow<T extends string>({
   value,
   onChange,
   disabled = false,
-  description,
   showLabel = true,
+  tooltipPlacement = "bottom",
 }: {
   label: string;
-  options: { id: T; label: string }[];
+  options: { id: T; label: string; tooltip?: string }[];
   value: T;
   onChange: (value: T) => void;
   disabled?: boolean;
-  description?: string;
   showLabel?: boolean;
+  tooltipPlacement?: "bottom" | "top";
 }): React.JSX.Element {
-  const descriptionId = React.useId();
   return (
     <div
       className={[
@@ -141,21 +153,38 @@ export function OptionRow<T extends string>({
       ) : null}
       <SegmentedControl
         ariaLabel={label}
-        ariaDescribedBy={description ? descriptionId : undefined}
         disabled={disabled}
         options={options}
+        tooltipPlacement={tooltipPlacement}
         value={value}
         onChange={onChange}
       />
-      {description ? (
-        <p
-          id={descriptionId}
-          className="translate-options-selected-hint"
-          aria-live="polite"
-        >
-          {description}
-        </p>
-      ) : null}
     </div>
+  );
+}
+
+function TranslationOptionTooltip({
+  children,
+  content,
+  placement,
+}: {
+  children: (descriptionId: string) => React.ReactNode;
+  content: string;
+  placement: "bottom" | "top";
+}): React.JSX.Element {
+  const descriptionId = React.useId();
+  return (
+    <span
+      className={`control-tooltip control-tooltip-${placement} translation-option-tooltip`}
+    >
+      {children(descriptionId)}
+      <span
+        className="control-tooltip-bubble"
+        id={descriptionId}
+        role="tooltip"
+      >
+        {content}
+      </span>
+    </span>
   );
 }

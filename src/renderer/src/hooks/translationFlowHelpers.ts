@@ -3,8 +3,8 @@ import type { TranslationCompletionWorkflow } from "../../../shared/libraryTypes
 import type { Dispatch, SetStateAction } from "react";
 import type { JobFailureGuidance, JobState } from "../../../shared/jobTypes";
 import type { TFunction } from "i18next";
-import { formatTotalElapsedLine } from "../lib/appHelpers";
 import type { ChapterRunSelection } from "../lib/translationSelection";
+import type { CumulativeContextDetail } from "../../../shared/settingsTypes";
 
 export type RunAnalysisOutcome =
   | "completed"
@@ -20,6 +20,7 @@ type ExecuteAnalysisArgs = {
   pageIds?: string[];
   blockMode?: AnalysisBlockMode;
   collectPageContext?: boolean;
+  cumulativeContextDetail?: CumulativeContextDetail;
   naturalTextLayout?: boolean;
   autoFontMatching?: boolean;
   fontSizeAutoFit?: boolean;
@@ -43,7 +44,7 @@ export function setFlowTerminal(
   status: "completed" | "partial" | "failed",
   progressText: string,
   detail?: string,
-  elapsedMs?: number,
+  _elapsedMs?: number,
   failureGuidance?: JobFailureGuidance,
 ): void {
   context.setJobState({
@@ -59,18 +60,9 @@ export function setFlowTerminal(
           : "failed",
     ...(detail ? { detail } : {}),
     ...(failureGuidance ? { failureGuidance } : {}),
-    ...(status === "completed" && Number.isFinite(elapsedMs)
-      ? { jobElapsedMs: Math.max(0, elapsedMs as number) }
-      : {}),
   });
-  if (status === "completed" && Number.isFinite(elapsedMs)) {
-    context.pushStatus(
-      formatTotalElapsedLine(
-        progressText,
-        Math.max(0, elapsedMs as number),
-        context.t,
-      ),
-    );
+  if (status === "completed") {
+    context.pushStatus(progressText);
   } else if (detail) {
     context.pushStatus(detail);
   }
@@ -96,6 +88,7 @@ export async function runSelectionsSequentially(
   completionWorkflow?: TranslationCompletionWorkflow,
   deferTerminalFailure?: boolean,
   onDeferredFailureGuidance?: (guidance: JobFailureGuidance) => void,
+  cumulativeContextDetail?: CumulativeContextDetail,
 ): Promise<RunAnalysisOutcome> {
   let anyCompleted = false;
   let anyPartial = false;
@@ -109,6 +102,9 @@ export async function runSelectionsSequentially(
       pageIds: selection.mode === "page-set" ? selection.pageIds : undefined,
       blockMode,
       collectPageContext,
+      ...(cumulativeContextDetail && cumulativeContextDetail !== "detailed"
+        ? { cumulativeContextDetail }
+        : {}),
       naturalTextLayout,
       autoFontMatching,
       fontSizeAutoFit,

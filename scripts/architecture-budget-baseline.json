@@ -18,10 +18,10 @@
       "maxImportedBy": 27
     },
     "src/renderer/src/components/ui/IconButton.tsx": {
-      "maxImportedBy": 26
+      "maxImportedBy": 27
     },
     "src/renderer/src/components/ui/Modal.tsx": {
-      "maxImportedBy": 28
+      "maxImportedBy": 29
     },
     "src/renderer/src/lib/errorPresentation.ts": {
       "maxImportedBy": 28

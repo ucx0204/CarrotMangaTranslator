@@ -33,7 +33,7 @@ import {
   getDefaultGemmaPresetForVramMode,
   getDefaultMmprojForGemmaModel,
   isBuiltInGemmaMmproj,
-  isBuiltInGemmaModel,
+  isModeManagedGemmaModel,
 } from "./gemmaModelPresets";
 import {
   isAmdLlamaRuntimeProfile,
@@ -287,7 +287,7 @@ export function resolveStoredGemmaModel(
     };
   }
   const resolvedModel = { modelRepo, modelFile };
-  if (isBuiltInGemmaModel(resolvedModel)) {
+  if (isModeManagedGemmaModel(resolvedModel)) {
     const preset = getDefaultGemmaPresetForVramMode(vramMode);
     return {
       modelRepo: preset.modelRepo,

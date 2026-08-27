@@ -1116,6 +1116,25 @@ describe("fixed-block translation contract", () => {
     expect(prompt).toContain("Omit visualClusterId for dialogue");
     expect(prompt).toContain("never from the work title, genre stereotype");
   });
+
+  it.each([
+    ["balanced", "Keep pageContext.glossary selective"],
+    ["essential", "Keep pageContext.glossary extremely small"],
+  ])(
+    "describes the %s cumulative-context scope in the model prompt",
+    (cumulativeContextDetail, expectedInstruction) => {
+      const prompt = fixed.buildFixedBlockTranslationPrompt(
+        twoSingletonPlan(),
+        {
+          ...baseOptions,
+          collectPageContext: true,
+          cumulativeContextDetail,
+        },
+      );
+
+      expect(prompt).toContain(expectedInstruction);
+    },
+  );
 });
 
 function semanticHint(

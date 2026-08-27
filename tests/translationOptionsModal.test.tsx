@@ -28,6 +28,10 @@ beforeEach(() => {
 });
 
 import { TranslationOptionsModal } from "../src/renderer/src/components/TranslationOptionsModal";
+import {
+  OptionRow,
+  ToggleOptionRow,
+} from "../src/renderer/src/components/TranslationOptionControls";
 
 const WORK_ID = "11111111-1111-4111-8111-111111111111";
 const CHAPTER_ID = "22222222-2222-4222-8222-222222222222";
@@ -129,6 +133,39 @@ afterEach(() => {
 });
 
 describe("TranslationOptionsModal", () => {
+  it("renders a flat switch even when no tooltip copy is provided", () => {
+    const onChange = vi.fn();
+    render(
+      <ToggleOptionRow
+        label="설명 없는 옵션"
+        pressed={false}
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("switch", { name: "설명 없는 옵션" }));
+    expect(onChange).toHaveBeenCalledWith(true);
+    expect(screen.queryByRole("tooltip")).toBeNull();
+  });
+
+  it("keeps a disabled segmented option visibly and semantically disabled", () => {
+    render(
+      <OptionRow
+        label="비활성 옵션"
+        options={[{ id: "only", label: "선택지" }]}
+        value="only"
+        onChange={vi.fn()}
+        disabled
+      />,
+    );
+
+    const option = screen.getByRole("radio", { name: "선택지" });
+    expect(option).toHaveProperty("disabled", true);
+    expect(option.closest(".translate-options-row")?.className).toContain(
+      "disabled",
+    );
+  });
+
   it("defaults to the current chapter's pending pages", async () => {
     const { onStart, onClose, onPersistDefaults } = await renderModal();
 
@@ -170,6 +207,7 @@ describe("TranslationOptionsModal", () => {
     expect(onStart).toHaveBeenCalledWith({
       selection: [{ chapterId: CHAPTER_ID, mode: "pending" }],
       workflowMode: "cumulative",
+      cumulativeContextDetail: "detailed",
       blockMode: "auto",
       autoFontMatching: false,
       fontSizeAutoFit: true,
@@ -199,7 +237,7 @@ describe("TranslationOptionsModal", () => {
     expect(screen.queryByText("자동 분석 범위")).toBeNull();
   });
 
-  it("groups compact options and only shows selected-option guidance", async () => {
+  it("puts compact guidance in tooltips instead of visible helper rows", async () => {
     await renderModal();
 
     expect(screen.getByRole("heading", { name: "번역 품질" })).toBeTruthy();
@@ -207,11 +245,28 @@ describe("TranslationOptionsModal", () => {
       screen.getByRole("heading", { name: "블록 · 줄 나눔" }),
     ).toBeTruthy();
     expect(screen.getByRole("heading", { name: "완료 처리" })).toBeTruthy();
+    const quickMode = screen.getByRole("radio", { name: "빠른 1회" });
+    const cumulativeMode = screen.getByRole("radio", {
+      name: "누적 컨텍스트 (권장)",
+    });
+    const translateOnly = screen.getByRole("radio", { name: "번역만" });
+    expect(quickMode.closest(".control-tooltip")?.className).toContain(
+      "control-tooltip-bottom",
+    );
+    expect(translateOnly.closest(".control-tooltip")?.className).toContain(
+      "control-tooltip-top",
+    );
+    expect(getDescribedTooltipText(quickMode)).toBe(
+      "각 페이지를 한 번만 번역하고 간단한 최근 문맥만 참고합니다. 가장 빠릅니다.",
+    );
+    expect(getDescribedTooltipText(cumulativeMode)).toBe(
+      "번역하면서 페이지의 장면 요약·용어·캐릭터 정보를 쌓아 다음 페이지부터 참고합니다.",
+    );
+    expect(screen.queryByText("상세 기록 (기존)")).toBeTruthy();
     expect(
-      screen.getByText(
-        "번역하면서 페이지의 장면 요약·용어·캐릭터 정보를 쌓아 다음 페이지부터 참고합니다.",
-      ),
-    ).toBeTruthy();
+      document.querySelector(".translate-options-selected-hint"),
+    ).toBeNull();
+    expect(screen.getAllByRole("tooltip").length).toBeGreaterThan(3);
     expect(
       screen.getByText("블록 크기에 맞춰 번역문의 줄바꿈을 정돈합니다."),
     ).toBeTruthy();
@@ -226,17 +281,40 @@ describe("TranslationOptionsModal", () => {
       ),
     ).toBeNull();
 
-    fireEvent.click(screen.getByRole("radio", { name: "빠른 1회" }));
+    fireEvent.click(quickMode);
+    expect(getDescribedTooltipText(quickMode)).toContain("가장 빠릅니다.");
+    expect(getDescribedTooltipText(cumulativeMode)).toContain(
+      "장면 요약·용어·캐릭터 정보",
+    );
+
+    fireEvent.click(screen.getByRole("radio", { name: "원문 지우기" }));
     expect(
-      screen.getByText(
-        "각 페이지를 한 번만 번역하고 간단한 최근 문맥만 참고합니다. 가장 빠릅니다.",
-      ),
+      screen
+        .getByRole("switch", { name: "말풍선 맞춤" })
+        .closest(".control-tooltip")?.className,
+    ).toContain("control-tooltip-top");
+  });
+
+  it("offers three cumulative context scopes and forwards the selected policy", async () => {
+    const { onStart, onPersistDefaults } = await renderModal();
+
+    expect(
+      screen.getByRole("radiogroup", { name: "컨텍스트 기록 범위" }),
     ).toBeTruthy();
-    expect(
-      screen.queryByText(
-        "번역하면서 페이지의 장면 요약·용어·캐릭터 정보를 쌓아 다음 페이지부터 참고합니다.",
-      ),
-    ).toBeNull();
+    fireEvent.click(screen.getByRole("radio", { name: "균형 기록" }));
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: "다음 번역의 기본값으로 저장",
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "선택 범위 번역" }));
+
+    expect(onStart).toHaveBeenCalledWith(
+      expect.objectContaining({ cumulativeContextDetail: "balanced" }),
+    );
+    expect(onPersistDefaults).toHaveBeenCalledWith(
+      expect.objectContaining({ cumulativeContextDetailDefault: "balanced" }),
+    );
   });
 
   it("preserves an explicitly saved natural line layout off setting", async () => {
@@ -448,3 +526,13 @@ describe("TranslationOptionsModal", () => {
     expect(onStart).not.toHaveBeenCalled();
   });
 });
+
+function getDescribedTooltipText(control: HTMLElement): string {
+  const describedBy = control.getAttribute("aria-describedby");
+  if (!describedBy) throw new Error("control has no tooltip description");
+  return describedBy
+    .split(/\s+/)
+    .map((id) => document.getElementById(id)?.textContent?.trim() ?? "")
+    .filter(Boolean)
+    .join(" ");
+}

@@ -543,6 +543,23 @@
         "description": "翻譯時逐頁累積場景摘要、術語和角色資訊，並從下一頁起用於參考。"
       }
     },
+    "cumulativeDetail": {
+      "label": "前後文記錄範圍",
+      "options": {
+        "detailed": {
+          "label": "詳細記錄（原方式）",
+          "description": "維持目前方式，廣泛記錄場景、角色和術語資訊。"
+        },
+        "balanced": {
+          "label": "均衡記錄",
+          "description": "著重記錄角色、地點以及可能跨頁保持重要的術語。"
+        },
+        "essential": {
+          "label": "僅必要術語",
+          "description": "僅記錄角色名、別名、地點名和重複出現的作品專有術語。"
+        }
+      }
+    },
     "blockModeSummaries": {
       "auto": "自動偵測每頁的文字區塊。",
       "keep": "保留現有文字區塊的範圍和格式。"
@@ -741,6 +758,30 @@
     "noFilterResults": "沒有符合此篩選條件的頁面。",
     "selectedHidden": "目前選取的頁面已被篩選條件隱藏。",
     "filterLabel": "頁面狀態篩選",
+    "timing": {
+      "button": "頁面耗時",
+      "title": "逐頁耗時",
+      "grandTotal": "全部總耗時",
+      "recordedPages": "已測量 {{count}} 頁",
+      "emptyTitle": "目前沒有耗時記錄。",
+      "emptyDescription": "完成新的翻譯後，逐頁詳細耗時會儲存在這裡。",
+      "page": "頁面",
+      "total": "頁面合計",
+      "stages": {
+        "preparing": "準備",
+        "ocr": "OCR",
+        "translation": "AI 翻譯",
+        "postprocessing": "結果整理",
+        "typography": "文字與字型",
+        "inpainting": "影像修復",
+        "bubbleLayout": "對話框配置"
+      },
+      "duration": {
+        "hours": "{{hours}}小時 {{minutes}}分 {{seconds}}秒",
+        "minutes": "{{minutes}}分 {{seconds}}秒",
+        "seconds": "{{seconds}}秒"
+      }
+    },
     "visibleCount": "{{visible}} / {{total}}",
     "blockCount": "{{count}} 個文字區塊",
     "thumbnailLoadFailed": "預覽失敗",
@@ -1338,16 +1379,28 @@
     "options": {
       "modelPresets": {
         "minimum12b": {
-          "label": "12B 最小",
-          "description": "適合約 8 GB GPU 記憶體，優先確保相容性和輕量執行。"
+          "label": "12B (8GB)",
+          "description": "適合 8GB GPU 記憶體的舊版 12B 模型。需要與早期版本保持相同設定時可選擇它。"
+        },
+        "qat12b": {
+          "label": "12B (8GB)",
+          "description": "適合 8GB GPU 記憶體。速度最快、佔用最少，適合大多數工作。"
         },
         "economy26b": {
-          "label": "26B 節省",
-          "description": "適合約 16 GB GPU 記憶體，保留 1024 個影像權杖，並更穩定地執行 26B 模型。"
+          "label": "26B (16GB)",
+          "description": "適合 16GB GPU 記憶體的舊版 26B 模型。品質高於 12B，但執行較慢。"
+        },
+        "qat26b": {
+          "label": "26B (16GB)",
+          "description": "適合 16GB GPU 記憶體。翻譯品質高於 12B，並兼顧速度與記憶體用量。"
         },
         "full31b": {
-          "label": "31B 完整",
-          "description": "適合 GPU 記憶體充足的環境，使用 31B 模型和 DFlash，並優先確保品質。"
+          "label": "31B (24GB)",
+          "description": "適合 24GB GPU 記憶體的舊版 31B 模型。以最高品質為目標，但也是最重的選項。"
+        },
+        "qat31b": {
+          "label": "31B (24GB)",
+          "description": "適合 24GB GPU 記憶體。以最高翻譯品質為目標，記憶體用量高於 12B 和 26B。"
         }
       },
       "modelSources": {
@@ -1493,6 +1546,12 @@
       "preset": {
         "label": "模型預設",
         "ariaLabel": "模型預設",
+        "family": {
+          "label": "模型系列",
+          "ariaLabel": "模型系列",
+          "speed": "速度（建議）",
+          "legacy": "舊版"
+        },
         "custom": "自訂",
         "customDescription": "手動指定模型儲存庫和檔案。"
       },
@@ -1510,7 +1569,9 @@
       "vramTuning": {
         "reserveLabel": "可用VRAM",
         "reserveOption": "{{value}} MiB",
-        "reserveDescription": "模型載入後要保留的可用VRAM。降低數值可將更多模型載入GPU以提升速度。提高數值會減少GPU上的模型量並可能變慢，因此只在同時使用其他GPU程式時提高。",
+        "reserveInputAria": "可用VRAM（MiB）",
+        "reserveAddAria": "為可用VRAM增加{{value}} MiB",
+        "reserveDescription": "模型載入後保留的VRAM。調低可能更快，但過低會溢出到共享記憶體，使翻譯和整台電腦極度卡頓。只在同時使用其他GPU程式時調高。",
         "mmprojLabel": "mmproj處理位置",
         "mmprojGpu": "GPU（速度優先）",
         "mmprojCpu": "CPU（節省VRAM）",
@@ -1522,7 +1583,9 @@
         "sufficient": "這是此記憶體等級的建議模型。",
         "insufficient": "比建議容量少 {{shortage}}。選擇該模型後可確認並進行有風險的執行。",
         "unsafeAllowed": "此設定已允許在少 {{shortage}} 的情況下進行風險執行。",
-        "unsafeConfirm": "此 Mac 的統一記憶體為 {{available}}，所選模型建議 {{required}}。首次下載約 {{download}}，可能需要較長時間。應用程式可能結束或使系統極度緩慢。是否允許此次風險執行？"
+        "unsafeConfirm": "此 Mac 的統一記憶體為 {{available}}，所選模型建議 {{required}}。首次下載約 {{download}}，可能需要較長時間。應用程式可能結束或使系統極度緩慢。是否允許此次風險執行？",
+        "vramInsufficientTitle": "GPU 記憶體不足以執行所選模型。",
+        "vramInsufficientDescription": "偵測到的 GPU 記憶體為 {{available}}，而此模型適用於 {{required}} 級 GPU。部分模型可能移至系統記憶體，導致速度極慢或載入失敗。"
       },
       "local": {
         "modelFile": "本機模型檔案",

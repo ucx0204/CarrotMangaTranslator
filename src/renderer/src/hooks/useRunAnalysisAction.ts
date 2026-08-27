@@ -1,6 +1,7 @@
 import { useCallback, type MutableRefObject } from "react";
 import type { AnalysisBlockMode } from "../../../shared/analysisTypes";
 import type { ChapterSnapshot } from "../../../shared/libraryTypes";
+import type { CumulativeContextDetail } from "../../../shared/settingsTypes";
 import type {
   ExecuteAnalysisJob,
   RunAnalysisOutcome,
@@ -17,6 +18,7 @@ type RunAnalysisDependencies = {
   flowActiveRef: MutableRefObject<boolean>;
   jobActive: boolean;
   translationWorkflowDefault: UseTranslationActionsOptions["translationWorkflowDefault"];
+  cumulativeContextDetailDefault: CumulativeContextDetail;
   autoFontMatchingDefault: boolean;
   naturalTextLayoutDefault: boolean;
   fontSizeAutoFitDefault: boolean;
@@ -31,6 +33,7 @@ type DirectAnalysisRequest = {
   naturalTextLayout?: boolean;
   autoFontMatching?: boolean;
   fontSizeAutoFit?: boolean;
+  cumulativeContextDetail?: CumulativeContextDetail;
 };
 
 export function useRunAnalysisAction(
@@ -46,6 +49,7 @@ export function useRunAnalysisAction(
       naturalTextLayout,
       autoFontMatching,
       fontSizeAutoFit,
+      cumulativeContextDetail,
     ) =>
       runDirectAnalysis(dependencies, {
         runMode,
@@ -56,6 +60,7 @@ export function useRunAnalysisAction(
         naturalTextLayout,
         autoFontMatching,
         fontSizeAutoFit,
+        cumulativeContextDetail,
       }),
     [dependencies],
   );
@@ -70,6 +75,9 @@ async function runDirectAnalysis(
   }
   const chapterId = request.chapterId ?? dependencies.currentChapter?.id;
   if (!chapterId) return "no-op";
+  const cumulativeContextDetail =
+    request.cumulativeContextDetail ??
+    dependencies.cumulativeContextDetailDefault;
   return dependencies.executeAnalysisJob({
     ...request,
     chapterId: request.chapterId,
@@ -81,6 +89,9 @@ async function runDirectAnalysis(
     autoFontMatching: resolveAutoFontMatching(dependencies, request),
     fontSizeAutoFit:
       request.fontSizeAutoFit ?? dependencies.fontSizeAutoFitDefault,
+    ...(cumulativeContextDetail !== "detailed"
+      ? { cumulativeContextDetail }
+      : {}),
   });
 }
 
