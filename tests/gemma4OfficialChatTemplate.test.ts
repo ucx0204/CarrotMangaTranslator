@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 type Gemma4OfficialChatTemplateModule = {
   GEMMA4_OFFICIAL_CHAT_TEMPLATE_BYTES: number;
+  GEMMA4_OFFICIAL_CHAT_TEMPLATE_CACHE_ENV: string;
   GEMMA4_OFFICIAL_CHAT_TEMPLATE_FILE: string;
   GEMMA4_OFFICIAL_CHAT_TEMPLATE_REVISION: string;
   GEMMA4_OFFICIAL_CHAT_TEMPLATE_SHA256: string;
@@ -30,8 +31,25 @@ const templateModule =
   require("../src/main/runtime/model/gemma4-official-chat-template.cjs") as Gemma4OfficialChatTemplateModule;
 
 const temporaryDirectories: string[] = [];
+const tempEnvironmentNames = ["TEMP", "TMP", "TMPDIR"] as const;
+const originalEnvironment = new Map<string, string | undefined>([
+  ...tempEnvironmentNames.map(
+    (name) => [name, process.env[name]] as [string, string | undefined],
+  ),
+  [
+    templateModule.GEMMA4_OFFICIAL_CHAT_TEMPLATE_CACHE_ENV,
+    process.env[templateModule.GEMMA4_OFFICIAL_CHAT_TEMPLATE_CACHE_ENV],
+  ],
+]);
 
 afterEach(() => {
+  for (const [name, value] of originalEnvironment) {
+    if (value === undefined) {
+      delete process.env[name];
+    } else {
+      process.env[name] = value;
+    }
+  }
   for (const directory of temporaryDirectories.splice(0)) {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -104,6 +122,67 @@ describe("official Gemma 4 26B chat template", () => {
         stagingRoot,
       }),
     ).toBe(stagedPath);
+  });
+
+  it("uses the configured cache environment when no staging root is passed", () => {
+    const sourceRoot = mkdtempSync(join(tmpdir(), "gemma4-env-source-"));
+    const stagingRoot = mkdtempSync(join(tmpdir(), "gemma4-env-stage-"));
+    temporaryDirectories.push(sourceRoot, stagingRoot);
+    const unicodeDir = join(sourceRoot, "번역기");
+    mkdirSync(unicodeDir);
+    const sourcePath = join(unicodeDir, "chat-template.jinja");
+    copyFileSync(
+      templateModule.resolveGemma4OfficialChatTemplatePath(),
+      sourcePath,
+    );
+    process.env[templateModule.GEMMA4_OFFICIAL_CHAT_TEMPLATE_CACHE_ENV] =
+      stagingRoot;
+
+    expect(
+      templateModule.prepareGemma4OfficialChatTemplate({
+        platform: "win32",
+        sourcePath,
+      }),
+    ).toBe(
+      join(
+        stagingRoot,
+        "chat-templates",
+        templateModule.GEMMA4_OFFICIAL_CHAT_TEMPLATE_FILE,
+      ),
+    );
+  });
+
+  it("uses an isolated default temp cache when no cache root is configured", () => {
+    const sourceRoot = mkdtempSync(join(tmpdir(), "gemma4-default-source-"));
+    const isolatedTempRoot = mkdtempSync(
+      join(tmpdir(), "gemma4-default-cache-"),
+    );
+    temporaryDirectories.push(sourceRoot, isolatedTempRoot);
+    const unicodeDir = join(sourceRoot, "번역기");
+    mkdirSync(unicodeDir);
+    const sourcePath = join(unicodeDir, "chat-template.jinja");
+    copyFileSync(
+      templateModule.resolveGemma4OfficialChatTemplatePath(),
+      sourcePath,
+    );
+    delete process.env[templateModule.GEMMA4_OFFICIAL_CHAT_TEMPLATE_CACHE_ENV];
+    for (const name of tempEnvironmentNames) {
+      process.env[name] = isolatedTempRoot;
+    }
+
+    expect(
+      templateModule.prepareGemma4OfficialChatTemplate({
+        platform: "win32",
+        sourcePath,
+      }),
+    ).toBe(
+      join(
+        isolatedTempRoot,
+        "carrot-manga-translator-runtime",
+        "chat-templates",
+        templateModule.GEMMA4_OFFICIAL_CHAT_TEMPLATE_FILE,
+      ),
+    );
   });
 
   it("keeps directly readable paths unchanged", () => {
