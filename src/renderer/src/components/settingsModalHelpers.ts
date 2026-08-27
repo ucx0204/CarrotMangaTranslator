@@ -4,6 +4,14 @@ import type {
   AppSettings,
   LlamaRuntimeProfile,
 } from "../../../shared/settingsTypes";
+import { formatErrorMessage } from "../lib/errorPresentation";
+
+export function formatSettingsErrorMessage(
+  error: unknown,
+  fallback: string,
+): string {
+  return formatErrorMessage(error, fallback);
+}
 
 export function buildTestDetail(
   modelPath: string | null | undefined,

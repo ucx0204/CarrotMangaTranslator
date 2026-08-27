@@ -9,10 +9,7 @@ const {
 } = require("node:fs");
 const { tmpdir } = require("node:os");
 const { basename, join, relative, sep } = require("node:path");
-const {
-  OPENAI_OAUTH_LICENSES_FILENAME,
-  OPENAI_OAUTH_RUNTIME_FILENAME,
-} = require("./bundle-openai-oauth-runtime.cjs");
+const { CODEX_APP_SERVER_VERSION } = require("./codex-app-server-runtime.cjs");
 const {
   WINDOWS_EXECUTABLE_FILENAME,
   assertFastZipPayload,
@@ -21,16 +18,9 @@ const {
 const root = join(__dirname, "..");
 const unpackedDir = join(root, "dist", "win-unpacked");
 const resourcesDir = join(unpackedDir, "resources");
-const oauthRuntimePath = join(
-  resourcesDir,
-  "app-runtime",
-  OPENAI_OAUTH_RUNTIME_FILENAME,
-);
-const oauthLicensesPath = join(
-  resourcesDir,
-  "app-runtime",
-  OPENAI_OAUTH_LICENSES_FILENAME,
-);
+const codexRuntimeDir = join(resourcesDir, "c");
+const codexExecutablePath = join(codexRuntimeDir, "bin", "codex.exe");
+const codexManifestPath = join(codexRuntimeDir, "codex-package.json");
 const asarUnpackedNodeModules = join(
   resourcesDir,
   "app.asar.unpacked",
@@ -41,14 +31,7 @@ const forbiddenPackagedFontRuntimeDirs = [
   join(resourcesDir, "app-runtime", "font-matching-crossscript-proxy"),
 ];
 const appExecutable = join(unpackedDir, WINDOWS_EXECUTABLE_FILENAME);
-const packagedNativeImportModule = join(
-  resourcesDir,
-  "app.asar",
-  "out",
-  "main",
-  "nativeDynamicImport.js",
-);
-const oauthSmokeScript = join(__dirname, "smoke-openai-oauth-runtime.cjs");
+const codexSmokeScript = join(__dirname, "smoke-codex-app-server-runtime.cjs");
 const onnxSmokeScript = join(__dirname, "smoke-packaged-onnx-runtime.cjs");
 const onnxNodeSmokeScript = join(
   __dirname,
@@ -145,7 +128,7 @@ const allowedElectronLocales = new Set([
 // leaves. Gemma speed routing and MTP fitting add three model leaves plus one
 // transport calibration flow. Keep the resulting payload ceiling exact so
 // unrelated growth fails closed.
-const MAX_PACKAGED_FILES = 299;
+const MAX_PACKAGED_FILES = 307;
 // The trained font matching runtime bundle (~467 MiB) is externalized out of
 // the installer and downloaded into the data-root cache on first use, so the
 // unpacked payload is ~745 MiB (Electron + app.asar + tools, no bundle) and the
@@ -153,16 +136,11 @@ const MAX_PACKAGED_FILES = 299;
 // passes the legit ~745 MiB floor with headroom for renderer/runtime growth
 // while rejecting the 467 MiB bundle returning (~1212 MiB) or large training
 // datasets / QA artifacts sneaking back in.
-const MAX_PACKAGED_BYTES = 1000 * 1024 * 1024;
+// The official Codex native distribution adds its App Server, code-mode host,
+// rg, and Windows sandbox helpers (~370 MiB) under resources/c.
+const MAX_PACKAGED_BYTES = 1450 * 1024 * 1024;
 
-if (!existsSync(oauthRuntimePath)) {
-  throw new Error(`Packaged OAuth runtime is missing: ${oauthRuntimePath}`);
-}
-if (!existsSync(oauthLicensesPath)) {
-  throw new Error(
-    `Packaged OAuth third-party licenses are missing: ${oauthLicensesPath}`,
-  );
-}
+assertPackagedCodexInventory();
 if (existsSync(asarUnpackedNodeModules)) {
   throw new Error(
     `Unexpected unpacked node_modules payload: ${asarUnpackedNodeModules}`,
@@ -215,9 +193,9 @@ for (const localeFile of packagedElectronLocales) {
   }
 }
 
-const oauthResult = spawnSync(
+const codexResult = spawnSync(
   appExecutable,
-  [oauthSmokeScript, oauthRuntimePath, packagedNativeImportModule],
+  [codexSmokeScript, codexExecutablePath],
   {
     encoding: "utf8",
     env: {
@@ -228,7 +206,7 @@ const oauthResult = spawnSync(
     windowsHide: true,
   },
 );
-assertSmokeSucceeded(oauthResult, "Packaged OAuth runtime");
+assertSmokeSucceeded(codexResult, "Packaged Codex App Server runtime");
 const onnxResult = spawnSync(
   appExecutable,
   [
@@ -298,7 +276,7 @@ if (packageStats.bytes > MAX_PACKAGED_BYTES) {
     ).toFixed(1)} MiB > ${MAX_PACKAGED_BYTES / 1024 / 1024} MiB`,
   );
 }
-console.log(oauthResult.stdout.trim());
+console.log(codexResult.stdout.trim());
 console.log(onnxResult.stdout.trim());
 console.log(onnxNodeResult.stdout.trim());
 console.log(mainRuntimeSmokeMessage);
@@ -333,6 +311,35 @@ function countFiles(directory) {
     }
   }
   return { files, bytes };
+}
+
+function assertPackagedCodexInventory() {
+  const requiredFiles = [
+    "bin/codex.exe",
+    "bin/codex-code-mode-host.exe",
+    "codex-package.json",
+    "codex-path/rg.exe",
+    "codex-resources/codex-command-runner.exe",
+    "codex-resources/codex-windows-sandbox-setup.exe",
+  ];
+  for (const relativePath of requiredFiles) {
+    const filePath = join(codexRuntimeDir, ...relativePath.split("/"));
+    if (!existsSync(filePath) || !statSync(filePath).isFile()) {
+      throw new Error(
+        `Packaged Codex runtime file is missing: ${relativePath}`,
+      );
+    }
+  }
+  const manifest = JSON.parse(readFileSync(codexManifestPath, "utf8"));
+  if (
+    manifest.version !== CODEX_APP_SERVER_VERSION ||
+    manifest.target !== "x86_64-pc-windows-msvc" ||
+    manifest.entrypoint !== "bin/codex.exe"
+  ) {
+    throw new Error(
+      "Packaged Codex runtime manifest does not match the pinned target.",
+    );
+  }
 }
 
 function assertPackagedOnnxNodeInventory() {

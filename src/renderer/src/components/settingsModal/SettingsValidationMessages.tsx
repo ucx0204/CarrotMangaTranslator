@@ -11,7 +11,6 @@ type SettingsValidationMessagesProps = {
   apiAdvancedSettingsMessage?: string;
   apiAdvancedSettingsValid: boolean;
   apiBaseUrlValid: boolean;
-  codexOauthPortValid: boolean;
   contextTokensValid: boolean;
   maxTokensValid: boolean;
   modelProvider: ModelProvider;
@@ -23,7 +22,6 @@ export function SettingsValidationMessages({
   apiAdvancedSettingsMessage,
   apiAdvancedSettingsValid,
   apiBaseUrlValid,
-  codexOauthPortValid,
   contextTokensValid,
   maxTokensValid,
   modelProvider,
@@ -35,9 +33,6 @@ export function SettingsValidationMessages({
     <>
       {!sourceLanguageValid || !targetLanguageValid ? (
         <p className="muted-line">{t("settings.validation.languageCode")}</p>
-      ) : null}
-      {modelProvider === "openai-codex" && !codexOauthPortValid ? (
-        <p className="muted-line">{t("settings.validation.oauthPort")}</p>
       ) : null}
       {modelProvider === "openai-api" && !apiBaseUrlValid ? (
         <p className="muted-line">{t("settings.validation.apiBaseUrl")}</p>

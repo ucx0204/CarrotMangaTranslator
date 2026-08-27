@@ -120,12 +120,15 @@ editing the totals by hand.
   The page timing, cumulative-context detail, and VRAM warning pass extended
   the accepted Node 26 artifact to SHA-256
   `b93d3ca26db18942be260a93c20435f3bf439c7b2c464af1875ab1185c731d3b`.
+  The official Codex App Server integration and dynamic model catalog pass
+  extended it to SHA-256
+  `182f6c68370827d3fc5b1713fbfa610cde1249ab26eef1b8d4daa5000f2f23a1`.
 - The manifest pins the exact Windows covered/total counts and the diagnostic
-  percentage for lines/statements/functions/branches in all 518 existing
-  coverage-eligible `src/**` files changed since cleanup start. The 154 new
+  percentage for lines/statements/functions/branches in all 529 existing
+  coverage-eligible `src/**` files changed since cleanup start. The 164 new
   eligible source files have their accepted post-refactor Windows ratios sealed
   as `introducedFloors`; they cannot regress to a merely present 0% record. The
-  five removed source files are recorded explicitly in `deletedFiles`.
+  seven removed source files are recorded explicitly in `deletedFiles`.
 - `scripts/check-production-cleanup-coverage.cjs` derives the eligible modified,
   added, deleted, and untracked source scope from Git on every run. A missing or
   stale manifest entry, unrecorded deletion, unsupported source status, missing
@@ -155,6 +158,10 @@ editing the totals by hand.
   statements, 81.50% functions, and 71.63% branches. The complete
   `npm run check` also passed build, page-artwork pixel parity with zero
   mismatched pixels, image-protocol smoke, and bundle guards in 210.53 seconds.
+- The official Codex App Server integration and dynamic model catalog capture
+  passed 560 Vitest files: 4,227 tests passed and the two expected
+  platform-specific tests were skipped. Aggregate V8 coverage was 80.45%
+  lines, 79.26% statements, 81.68% functions, and 71.84% branches.
 
 ## Fail-closed obligations
 

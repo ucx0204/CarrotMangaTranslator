@@ -24,7 +24,7 @@
       "maxImportedBy": 29
     },
     "src/renderer/src/lib/errorPresentation.ts": {
-      "maxImportedBy": 28
+      "maxImportedBy": 27
     }
   }
 }

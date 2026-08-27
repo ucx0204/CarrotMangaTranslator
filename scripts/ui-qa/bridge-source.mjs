@@ -57,7 +57,41 @@ const bridgeTemplate = `(() => {
     customFonts: [],
     preferences: defaultFontPreferences,
   };
+  const codexModels = [
+    {
+      id: "gpt-5.6-sol",
+      displayName: "GPT-5.6-Sol",
+      supportedReasoningEfforts: [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max",
+        "ultra",
+      ],
+      defaultReasoningEffort: "low",
+      isDefault: true,
+    },
+    {
+      id: "gpt-5.6-luna",
+      displayName: "GPT-5.6-Luna",
+      supportedReasoningEfforts: ["low", "medium", "high", "xhigh", "max"],
+      defaultReasoningEffort: "medium",
+      isDefault: false,
+    },
+  ];
+  const signedInCodexAccount = {
+    authenticated: true,
+    accountKind: "chatgpt",
+    email: "reader@example.com",
+    planType: "plus",
+    requiresOpenaiAuth: true,
+    appServerVersion: "0.150.1",
+    models: codexModels,
+  };
+  let codexAccount = signedInCodexAccount;
   const implementations = {
+    getCodexAccount: async () => codexAccount,
     getFontLibrary: async () => fontSnapshot,
     getLibrary: async () => ({ workOrder: [], works: [] }),
     getPageImageDataUrl: async () => pageImageDataUrl,
@@ -93,9 +127,24 @@ const bridgeTemplate = `(() => {
       ocr: { cpu: true, gpu: false },
     }),
     getUiLocale: async () => "ko",
+    loginCodexAccount: async () => {
+      codexAccount = signedInCodexAccount;
+      return codexAccount;
+    },
     listCustomFonts: async () => [],
     registerCustomFont: async () => null,
     removeCustomFont: async () => [],
+    logoutCodexAccount: async () => {
+      codexAccount = {
+        ...signedInCodexAccount,
+        authenticated: false,
+        accountKind: null,
+        email: null,
+        planType: null,
+        models: [],
+      };
+      return codexAccount;
+    },
     saveFontPreferences: async (preferences) => ({
       customFonts: [],
       preferences: {

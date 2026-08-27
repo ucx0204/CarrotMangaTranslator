@@ -44,7 +44,7 @@ export function sendEnginePreparationProgress(
     sendProgress({
       phase: "booting",
       progressText: tMain("modelTest.codexPreparing"),
-      detail: `${options.codexModel}, port ${options.codexOauthPort}`,
+      detail: options.codexModel,
       installLogLine: tMain("modelTest.codexPreparingLog"),
     });
     return;

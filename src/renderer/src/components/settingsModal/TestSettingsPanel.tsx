@@ -1,9 +1,9 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { settingsGateway } from "../../api/settingsGateway";
-import { formatErrorMessage } from "../../lib/errorPresentation";
 import { toast } from "../../lib/toastStore";
 import type { TestState } from "../settingsModalTypes";
+import { formatSettingsErrorMessage } from "../settingsModalHelpers";
 import { SettingsSection } from "./SettingsSection";
 
 type TestSettingsPanelProps = {
@@ -111,7 +111,7 @@ function UpdateSection(): React.JSX.Element {
           onClick={() => {
             void settingsGateway.openReleasesPage().catch((error) => {
               toast.error(
-                formatErrorMessage(
+                formatSettingsErrorMessage(
                   error,
                   t("settings.hardware.openLinkFailed"),
                 ),

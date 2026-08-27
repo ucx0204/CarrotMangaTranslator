@@ -103,7 +103,6 @@ type GemmaSettings = {
 type CodexSettings = {
   model: string;
   reasoningEffort: CodexReasoningEffort;
-  oauthPort: number;
 };
 
 type ApiSettings = {

@@ -32,7 +32,7 @@ describe("network budget architecture invariants", () => {
     const files = [
       "apiModelDiscoveryHttp.ts",
       "workContextModelRequest.ts",
-      "openaiOauthEndpoint.ts",
+      "codexAppServerEndpoint.ts",
       "inpainting/fluxAssets/downloads.ts",
       "runtime/transport/model-response-readers.cjs",
       "runtime/transport/download-range-request.cjs",

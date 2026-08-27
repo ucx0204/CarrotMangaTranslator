@@ -50,7 +50,7 @@ The stable Apple Silicon build bundles arm64 FFmpeg, a Python runtime for Paddle
 2. Check the interface language under `Settings → General`. On first launch, the app automatically selects a supported Windows language. If the Windows language is not supported, the app uses Korean.
 3. Under `Settings → Translation Engine`, choose the source language, target language, and engine.
    - To process everything on your PC, choose `Gemma 4`.
-   - To use your Codex CLI login, choose `OpenAI Codex`.
+   - To sign in with your ChatGPT account through the embedded official Codex App Server, choose `OpenAI Codex`.
    - To use an external server that accepts image input, choose `API`.
 4. Under `Settings → Hardware · OCR`, choose the OCR quality and device. Then go to `Install / Check` and run `Check OCR/Models`. The app automatically prepares the required files the first time.
 5. On the main screen, open `Translate`, select an image, folder, or ZIP/CBZ file, and enter a title and chapter name.
@@ -167,11 +167,11 @@ The Settings window is divided into six tabs.
 
 ### Translation Engine Comparison
 
-| Engine       | Advantages                                                                                                    | What you need                                                                      |
-| ------------ | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Gemma 4      | Pages and the model are processed on your PC, with offline use available after setup                          | A GGUF model, a CUDA/ROCm/Vulkan runtime suitable for your PC, and enough RAM/VRAM |
-| OpenAI Codex | Uses your Codex CLI login and does not store an API key in the app                                            | Codex CLI installation and login, plus an internet connection                      |
-| API          | Connects to OpenAI-compatible vision models, local servers, NVIDIA NIM, Gemini-compatible endpoints, and more | A Base URL, the name of an image-capable model, and an API key if required         |
+| Engine       | Advantages                                                                                                      | What you need                                                                      |
+| ------------ | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Gemma 4      | Pages and the model are processed on your PC, with offline use available after setup                            | A GGUF model, a CUDA/ROCm/Vulkan runtime suitable for your PC, and enough RAM/VRAM |
+| OpenAI Codex | Uses the embedded official Codex App Server and an app-private ChatGPT sign-in; no API key is stored in the app | A ChatGPT account with Codex access and an internet connection                     |
+| API          | Connects to OpenAI-compatible vision models, local servers, NVIDIA NIM, Gemini-compatible endpoints, and more   | A Base URL, the name of an image-capable model, and an API key if required         |
 
 As a general guide, try the Gemma presets in this order:
 
@@ -185,23 +185,11 @@ OCR quality options are `Minimal`, `Efficient`, and `Full`. `Full` uses the PP-O
 <details>
 <summary><strong>Setting Up the OpenAI Codex Engine</strong></summary>
 
-The Codex engine uses Codex CLI login information saved in Windows through a local `openai-oauth` endpoint. You do not enter an OpenAI API key directly into the app.
+The Codex engine uses the official Codex App Server embedded in the app. Under `Settings → Translation Engine → Codex`, select `Sign in with ChatGPT` to authenticate in your system browser. Credentials are stored only in this app's private data directory. A system-installed Codex CLI and its `~/.codex` settings are not used, and you do not need to enter an OpenAI API key.
 
-Run the official Windows installation command in PowerShell:
+Translations run in read-only ephemeral Codex threads that are deleted after completion. For a model that is not listed, enter its model ID under `Custom`.
 
-```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://chatgpt.com/codex/install.ps1 | iex"
-```
-
-Open a new PowerShell window and sign in:
-
-```powershell
-codex login
-```
-
-Confirm that `codex` opens normally. Then select `OpenAI Codex` in the app and run `Check OCR/Models`. For a model that is not listed, enter its model ID under `Custom`. If a port conflict occurs, change the `openai-oauth port` in Settings.
-
-Official guide: [Codex CLI](https://learn.chatgpt.com/docs/codex/cli)
+Official guides: [Codex App Server](https://learn.chatgpt.com/docs/app-server), [Codex authentication](https://learn.chatgpt.com/docs/auth)
 
 </details>
 
@@ -282,7 +270,7 @@ The first launch includes time to download and verify model, Python, OCR, and in
 
 ### Codex Does Not Connect
 
-Confirm in PowerShell that `codex` runs and that you are signed in. Select the Codex engine again in the app and run `Check OCR/Models`. If you suspect a port conflict, change the `openai-oauth port`. An OCR setup failure can look like a Codex connection problem, so check which step failed in the result log.
+Under `Settings → Translation Engine → Codex`, select `Sign in with ChatGPT`, complete browser authentication, and then run `Check OCR/Models`. No Codex CLI installation or separate terminal login is required. If it still fails, check the app log for an embedded Codex App Server startup error. An OCR setup failure can look like a Codex connection problem, so also check which step failed in the result log.
 
 ### The API Returns 401, 403, or 404
 

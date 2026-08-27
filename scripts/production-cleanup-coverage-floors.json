@@ -7,7 +7,7 @@
     "sourceArtifact": ".tmp/production-cleanup-coverage-baseline-node22.json",
     "sourceArtifactSha256": "a0e1199f46a80734d228ff1772b99d1fde2f700321346da77abf9c29795e4c0a",
     "introducedArtifact": ".tmp/production-cleanup-coverage-accepted-node26.json",
-    "introducedArtifactSha256": "b93d3ca26db18942be260a93c20435f3bf439c7b2c464af1875ab1185c731d3b",
+    "introducedArtifactSha256": "182f6c68370827d3fc5b1713fbfa610cde1249ab26eef1b8d4daa5000f2f23a1",
     "validatedNodeV8": ["22/12.4", "24/13.6", "26/14.6"],
     "vitestVersion": "4.1.9",
     "coverageV8Version": "4.1.9"
@@ -57,6 +57,28 @@
         "pct": 83.33
       }
     },
+    "src/main/appOperationRegistry.ts": {
+      "lines": {
+        "total": 31,
+        "covered": 29,
+        "pct": 93.54
+      },
+      "statements": {
+        "total": 31,
+        "covered": 29,
+        "pct": 93.54
+      },
+      "functions": {
+        "total": 11,
+        "covered": 10,
+        "pct": 90.9
+      },
+      "branches": {
+        "total": 14,
+        "covered": 11,
+        "pct": 78.57
+      }
+    },
     "src/main/appPaths.ts": {
       "lines": {
         "covered": 73,
@@ -77,6 +99,28 @@
         "covered": 43,
         "total": 74,
         "pct": 58.1
+      }
+    },
+    "src/main/appSettings.ts": {
+      "lines": {
+        "total": 0,
+        "covered": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 0,
+        "covered": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 0,
+        "covered": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 0,
+        "covered": 0,
+        "pct": 100
       }
     },
     "src/main/bootstrap.ts": {
@@ -1223,6 +1267,28 @@
         "pct": 48.14
       }
     },
+    "src/main/ipc/settingsModelTestIpc.ts": {
+      "lines": {
+        "total": 92,
+        "covered": 85,
+        "pct": 92.39
+      },
+      "statements": {
+        "total": 93,
+        "covered": 86,
+        "pct": 92.47
+      },
+      "functions": {
+        "total": 19,
+        "covered": 19,
+        "pct": 100
+      },
+      "branches": {
+        "total": 74,
+        "covered": 52,
+        "pct": 70.27
+      }
+    },
     "src/main/ipc/settingsModelTestProgress.ts": {
       "lines": {
         "covered": 22,
@@ -1858,6 +1924,28 @@
       "branches": {
         "covered": 23,
         "total": 23,
+        "pct": 100
+      }
+    },
+    "src/main/networkBudgets.ts": {
+      "lines": {
+        "total": 7,
+        "covered": 7,
+        "pct": 100
+      },
+      "statements": {
+        "total": 7,
+        "covered": 7,
+        "pct": 100
+      },
+      "functions": {
+        "total": 0,
+        "covered": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 0,
+        "covered": 0,
         "pct": 100
       }
     },
@@ -2783,6 +2871,28 @@
         "covered": 15,
         "total": 28,
         "pct": 53.57
+      }
+    },
+    "src/main/pipeline/runtimeModules.ts": {
+      "lines": {
+        "total": 31,
+        "covered": 8,
+        "pct": 25.8
+      },
+      "statements": {
+        "total": 31,
+        "covered": 8,
+        "pct": 25.8
+      },
+      "functions": {
+        "total": 9,
+        "covered": 3,
+        "pct": 33.33
+      },
+      "branches": {
+        "total": 16,
+        "covered": 3,
+        "pct": 18.75
       }
     },
     "src/main/pipeline/translatePageWithRetries.ts": {
@@ -4127,6 +4237,28 @@
         "pct": 96.49
       }
     },
+    "src/main/settings/appSettingsGenerationLimitMigration.ts": {
+      "lines": {
+        "total": 7,
+        "covered": 7,
+        "pct": 100
+      },
+      "statements": {
+        "total": 7,
+        "covered": 7,
+        "pct": 100
+      },
+      "functions": {
+        "total": 1,
+        "covered": 1,
+        "pct": 100
+      },
+      "branches": {
+        "total": 9,
+        "covered": 9,
+        "pct": 100
+      }
+    },
     "src/main/settings/appSettingsNormalize.ts": {
       "lines": {
         "covered": 44,
@@ -4479,6 +4611,28 @@
         "pct": 84.21
       }
     },
+    "src/main/settings/translationOptions.ts": {
+      "lines": {
+        "total": 5,
+        "covered": 5,
+        "pct": 100
+      },
+      "statements": {
+        "total": 5,
+        "covered": 5,
+        "pct": 100
+      },
+      "functions": {
+        "total": 2,
+        "covered": 2,
+        "pct": 100
+      },
+      "branches": {
+        "total": 5,
+        "covered": 5,
+        "pct": 100
+      }
+    },
     "src/main/settingsPairStorage.ts": {
       "lines": {
         "covered": 118,
@@ -4543,6 +4697,28 @@
         "covered": 50,
         "total": 62,
         "pct": 80.64
+      }
+    },
+    "src/main/simplePageRuntime.ts": {
+      "lines": {
+        "total": 32,
+        "covered": 29,
+        "pct": 90.62
+      },
+      "statements": {
+        "total": 32,
+        "covered": 29,
+        "pct": 90.62
+      },
+      "functions": {
+        "total": 9,
+        "covered": 9,
+        "pct": 100
+      },
+      "branches": {
+        "total": 18,
+        "covered": 15,
+        "pct": 83.33
       }
     },
     "src/main/wholePagePipeline.ts": {
@@ -7449,6 +7625,28 @@
         "pct": 15.38
       }
     },
+    "src/renderer/src/components/settingsModal/EngineSettingsPanel.tsx": {
+      "lines": {
+        "total": 9,
+        "covered": 0,
+        "pct": 0
+      },
+      "statements": {
+        "total": 9,
+        "covered": 0,
+        "pct": 0
+      },
+      "functions": {
+        "total": 3,
+        "covered": 0,
+        "pct": 0
+      },
+      "branches": {
+        "total": 8,
+        "covered": 0,
+        "pct": 0
+      }
+    },
     "src/renderer/src/components/settingsModal/EngineSettingsPanelTypes.ts": {
       "lines": {
         "covered": 0,
@@ -7689,6 +7887,28 @@
         "covered": 8,
         "total": 26,
         "pct": 30.76
+      }
+    },
+    "src/renderer/src/components/settingsModal/SettingsValidationMessages.tsx": {
+      "lines": {
+        "total": 2,
+        "covered": 0,
+        "pct": 0
+      },
+      "statements": {
+        "total": 2,
+        "covered": 0,
+        "pct": 0
+      },
+      "functions": {
+        "total": 1,
+        "covered": 0,
+        "pct": 0
+      },
+      "branches": {
+        "total": 22,
+        "covered": 0,
+        "pct": 0
       }
     },
     "src/renderer/src/components/settingsModal/TestSettingsPanel.tsx": {
@@ -8019,6 +8239,28 @@
         "covered": 66,
         "total": 119,
         "pct": 55.46
+      }
+    },
+    "src/renderer/src/components/settingsModalHelpers.ts": {
+      "lines": {
+        "total": 20,
+        "covered": 11,
+        "pct": 55
+      },
+      "statements": {
+        "total": 22,
+        "covered": 11,
+        "pct": 50
+      },
+      "functions": {
+        "total": 8,
+        "covered": 6,
+        "pct": 75
+      },
+      "branches": {
+        "total": 40,
+        "covered": 15,
+        "pct": 37.5
       }
     },
     "src/renderer/src/components/settingsModalTypes.ts": {
@@ -11477,6 +11719,138 @@
         "pct": 70.27
       }
     },
+    "src/main/codexAppServerBinary.ts": {
+      "lines": {
+        "total": 34,
+        "covered": 29,
+        "pct": 85.29
+      },
+      "statements": {
+        "total": 34,
+        "covered": 29,
+        "pct": 85.29
+      },
+      "functions": {
+        "total": 6,
+        "covered": 6,
+        "pct": 100
+      },
+      "branches": {
+        "total": 28,
+        "covered": 20,
+        "pct": 71.42
+      }
+    },
+    "src/main/codexAppServerClient.ts": {
+      "lines": {
+        "total": 83,
+        "covered": 67,
+        "pct": 80.72
+      },
+      "statements": {
+        "total": 88,
+        "covered": 69,
+        "pct": 78.4
+      },
+      "functions": {
+        "total": 29,
+        "covered": 20,
+        "pct": 68.96
+      },
+      "branches": {
+        "total": 45,
+        "covered": 25,
+        "pct": 55.55
+      }
+    },
+    "src/main/codexAppServerEndpoint.ts": {
+      "lines": {
+        "total": 96,
+        "covered": 80,
+        "pct": 83.33
+      },
+      "statements": {
+        "total": 105,
+        "covered": 82,
+        "pct": 78.09
+      },
+      "functions": {
+        "total": 26,
+        "covered": 21,
+        "pct": 80.76
+      },
+      "branches": {
+        "total": 63,
+        "covered": 42,
+        "pct": 66.66
+      }
+    },
+    "src/main/codexAppServerProtocol.ts": {
+      "lines": {
+        "total": 52,
+        "covered": 38,
+        "pct": 73.07
+      },
+      "statements": {
+        "total": 61,
+        "covered": 41,
+        "pct": 67.21
+      },
+      "functions": {
+        "total": 16,
+        "covered": 13,
+        "pct": 81.25
+      },
+      "branches": {
+        "total": 64,
+        "covered": 35,
+        "pct": 54.68
+      }
+    },
+    "src/main/codexAppServerResponsesRequest.ts": {
+      "lines": {
+        "total": 45,
+        "covered": 39,
+        "pct": 86.66
+      },
+      "statements": {
+        "total": 48,
+        "covered": 42,
+        "pct": 87.5
+      },
+      "functions": {
+        "total": 11,
+        "covered": 11,
+        "pct": 100
+      },
+      "branches": {
+        "total": 45,
+        "covered": 30,
+        "pct": 66.66
+      }
+    },
+    "src/main/codexAppServerTransport.ts": {
+      "lines": {
+        "total": 144,
+        "covered": 75,
+        "pct": 52.08
+      },
+      "statements": {
+        "total": 165,
+        "covered": 80,
+        "pct": 48.48
+      },
+      "functions": {
+        "total": 35,
+        "covered": 17,
+        "pct": 48.57
+      },
+      "branches": {
+        "total": 67,
+        "covered": 24,
+        "pct": 35.82
+      }
+    },
     "src/main/inpainting/fluxAssets/hipSdk.ts": {
       "lines": {
         "covered": 97,
@@ -11915,6 +12289,28 @@
         "covered": 0,
         "total": 0,
         "pct": 100
+      }
+    },
+    "src/main/ipc/codexAccountIpc.ts": {
+      "lines": {
+        "total": 68,
+        "covered": 64,
+        "pct": 94.11
+      },
+      "statements": {
+        "total": 74,
+        "covered": 67,
+        "pct": 90.54
+      },
+      "functions": {
+        "total": 26,
+        "covered": 23,
+        "pct": 88.46
+      },
+      "branches": {
+        "total": 30,
+        "covered": 23,
+        "pct": 76.66
       }
     },
     "src/main/ipc/linkedWorkspaceImport.ts": {
@@ -13545,6 +13941,28 @@
         "pct": 100
       }
     },
+    "src/renderer/src/components/settingsModal/CodexAccountField.tsx": {
+      "lines": {
+        "total": 45,
+        "covered": 41,
+        "pct": 91.11
+      },
+      "statements": {
+        "total": 51,
+        "covered": 47,
+        "pct": 92.15
+      },
+      "functions": {
+        "total": 16,
+        "covered": 14,
+        "pct": 87.5
+      },
+      "branches": {
+        "total": 35,
+        "covered": 27,
+        "pct": 77.14
+      }
+    },
     "src/renderer/src/components/settingsModal/GemmaModelPresetSelector.tsx": {
       "lines": {
         "covered": 30,
@@ -14447,6 +14865,50 @@
         "pct": 68.18
       }
     },
+    "src/shared/codexAccountSchemas.ts": {
+      "lines": {
+        "total": 2,
+        "covered": 2,
+        "pct": 100
+      },
+      "statements": {
+        "total": 2,
+        "covered": 2,
+        "pct": 100
+      },
+      "functions": {
+        "total": 0,
+        "covered": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 0,
+        "covered": 0,
+        "pct": 100
+      }
+    },
+    "src/shared/codexAccountTypes.ts": {
+      "lines": {
+        "total": 0,
+        "covered": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 0,
+        "covered": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 0,
+        "covered": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 0,
+        "covered": 0,
+        "pct": 100
+      }
+    },
     "src/shared/editableRenderGeometry.ts": {
       "lines": {
         "covered": 36,
@@ -14801,6 +15263,8 @@
     }
   },
   "deletedFiles": [
+    "src/main/nativeDynamicImport.ts",
+    "src/main/openaiOauthEndpoint.ts",
     "src/renderer/src/components/AutomaticFontMatchNotice.tsx",
     "src/renderer/src/components/FontSizeNumberInput.tsx",
     "src/renderer/src/components/SearchReplaceModal.tsx",

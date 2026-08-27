@@ -12,17 +12,17 @@ import {
 } from "../appSettings";
 import { logError } from "../logger";
 import {
-  startOpenAIOAuthEndpoint,
-  stopOpenAIOAuthEndpoint,
-  type OpenAIOAuthEndpoint,
-} from "../openaiOauthEndpoint";
+  startCodexAppServerEndpoint,
+  stopCodexAppServerEndpoint,
+  type CodexAppServerEndpoint,
+} from "../codexAppServerEndpoint";
 import {
   createOpenAICompatibleApiEndpoint,
   isOpenAICompatibleApiEndpoint,
   type OpenAICompatibleApiEndpoint,
 } from "../openaiApiEndpoint";
 import {
-  isOpenAIOAuthEndpoint,
+  isCodexAppServerEndpoint,
   type SimplePageRuntime,
 } from "../simplePageRuntime";
 import type { IpcContext } from "./context";
@@ -42,17 +42,17 @@ const MODEL_TEST_PORT_ATTEMPTS = 4;
 
 type ModelTestServer =
   | Awaited<ReturnType<SimplePageRuntime["startServer"]>>
-  | OpenAIOAuthEndpoint
+  | CodexAppServerEndpoint
   | OpenAICompatibleApiEndpoint;
 
 export type ModelTestEndpointRuntime = {
-  startOpenAIOAuthEndpoint: typeof startOpenAIOAuthEndpoint;
-  stopOpenAIOAuthEndpoint: typeof stopOpenAIOAuthEndpoint;
+  startCodexAppServerEndpoint: typeof startCodexAppServerEndpoint;
+  stopCodexAppServerEndpoint: typeof stopCodexAppServerEndpoint;
 };
 
 const productionEndpointRuntime: ModelTestEndpointRuntime = {
-  startOpenAIOAuthEndpoint,
-  stopOpenAIOAuthEndpoint,
+  startCodexAppServerEndpoint,
+  stopCodexAppServerEndpoint,
 };
 
 type ModelTestRunInput = {
@@ -129,7 +129,8 @@ async function buildInitialModelTestOptions(
   signal: AbortSignal,
 ): Promise<TranslationOptions> {
   throwIfAborted(signal);
-  const port = await reserveFreePort(signal);
+  const port =
+    settings.modelProvider === "gemma" ? await reserveFreePort(signal) : 0;
   throwIfAborted(signal);
   return {
     ...buildBaseTranslationOptions({
@@ -141,7 +142,6 @@ async function buildInitialModelTestOptions(
     onProgress: createNoopProgressBridge(),
     reuseServer: false,
     port,
-    codexOauthPort: port,
     label: `settings-test-${testId}`,
     abortSignal: signal,
   };
@@ -301,8 +301,8 @@ async function stopModelTestServer(
   server: ModelTestServer | null,
   endpointRuntime: ModelTestEndpointRuntime,
 ): Promise<void> {
-  if (isOpenAIOAuthEndpoint(server)) {
-    await endpointRuntime.stopOpenAIOAuthEndpoint(server);
+  if (isCodexAppServerEndpoint(server)) {
+    await endpointRuntime.stopCodexAppServerEndpoint(server);
   } else if (!isOpenAICompatibleApiEndpoint(server)) {
     await runtime.stopServer(server);
   }
@@ -349,15 +349,18 @@ async function startModelTestServerWithRetry(
       options: initialOptions,
     };
   }
+  if (initialOptions.modelProvider === "openai-codex") {
+    return {
+      server: await endpointRuntime.startCodexAppServerEndpoint(initialOptions),
+      options: initialOptions,
+    };
+  }
 
   let options = initialOptions;
   for (let attempt = 1; attempt <= MODEL_TEST_PORT_ATTEMPTS; attempt += 1) {
     try {
       throwIfAborted(options.abortSignal ?? undefined);
-      const server =
-        options.modelProvider === "openai-codex"
-          ? await endpointRuntime.startOpenAIOAuthEndpoint(options)
-          : await runtime.startServer(options);
+      const server = await runtime.startServer(options);
       return { server, options };
     } catch (error) {
       if (!isPortBindError(error) || attempt >= MODEL_TEST_PORT_ATTEMPTS) {
@@ -365,7 +368,7 @@ async function startModelTestServerWithRetry(
       }
       const nextPort = await reserveFreePort(options.abortSignal ?? undefined);
       throwIfAborted(options.abortSignal ?? undefined);
-      options = { ...options, port: nextPort, codexOauthPort: nextPort };
+      options = { ...options, port: nextPort };
       sendProgress({
         phase: "booting",
         progressText: tMain("modelTest.portRetry"),

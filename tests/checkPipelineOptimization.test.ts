@@ -306,14 +306,15 @@ function createFixture(): string {
     "scripts/build.cjs",
     "scripts/compile-electron.cjs",
     "scripts/prepare-runtime.cjs",
-    "scripts/bundle-openai-oauth-runtime.cjs",
+    "scripts/codex-app-server-runtime.cjs",
     "scripts/check-build-cache.cjs",
     "node_modules/typescript/package.json",
     "node_modules/vite/package.json",
     "node_modules/@vitejs/plugin-react/package.json",
     "node_modules/electron/package.json",
     "node_modules/rolldown/package.json",
-    "node_modules/openai-oauth/package.json",
+    "node_modules/@openai/codex/package.json",
+    `node_modules/@openai/codex-${process.platform}-${process.arch}/package.json`,
     "node_modules/react/package.json",
     "node_modules/react-dom/package.json",
     "src/main/input.ts",
@@ -330,7 +331,6 @@ function createFixture(): string {
     "out/page-export/runtime.js": "runtime\n",
     "out/page-export/styles.css": "styles\n",
     "out/renderer/index.html": "renderer\n",
-    "out/app-runtime/openai-oauth-runtime.mjs": "oauth\n",
   })) {
     write(root, path, contents);
   }

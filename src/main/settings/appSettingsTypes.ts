@@ -129,7 +129,6 @@ export type TranslationOptions = {
   localMmprojPath?: string;
   codexModel: string;
   codexReasoningEffort: CodexReasoningEffort;
-  codexOauthPort: number;
   apiBaseUrl: string;
   apiModel: string;
   apiKey?: string;

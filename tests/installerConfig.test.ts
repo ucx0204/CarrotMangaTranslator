@@ -66,15 +66,6 @@ const electronBuilderConfig: unknown = require("../electron-builder.config.cjs")
 const bundledPythonRuntimeAvailable = existsSync(
   join(repoRoot, "tools", "python"),
 );
-const { smokeOpenAiOauthRuntime } =
-  require("../scripts/smoke-openai-oauth-runtime.cjs") as {
-    smokeOpenAiOauthRuntime: (
-      runtimePath: string,
-      nativeImportModulePath: string,
-      options?: { log?: (message: string) => void },
-    ) => Promise<{ port: number; url: string }>;
-  };
-
 describe("Windows installer clean uninstall option", () => {
   it("exposes the intended electron-builder behavior as configuration", () => {
     expect(electronBuilderConfig).toMatchObject({
@@ -102,6 +93,8 @@ describe("Windows installer clean uninstall option", () => {
         "!block-library.json",
         "!linked-workspaces.json",
         "!linked-sync-queue.json",
+        "!codex{,/**/*}",
+        "!.codex-workspace{,/**/*}",
         "!tmp{,/**/*}",
         "!.tmp-*{,/**/*}",
         "!.pytest_cache{,/**/*}",
@@ -121,8 +114,14 @@ describe("Windows installer clean uninstall option", () => {
         "!node_modules/**/.v8-cache{,/**/*}",
         "!node_modules/{flatbuffers,guid-typescript,long,platform,protobufjs}{,/**/*}",
         "!node_modules/@protobufjs{,/**/*}",
+        "!node_modules/@openai/codex{,/**/*}",
+        "!node_modules/@openai/codex-*{,/**/*}",
       ]),
       extraResources: expect.arrayContaining([
+        expect.objectContaining({
+          to: "c",
+          filter: ["**/*"],
+        }),
         {
           from: "out/app-runtime",
           to: "app-runtime",
@@ -194,7 +193,6 @@ describe("Windows installer clean uninstall option", () => {
       "@tabler/icons-react",
       "@types/yauzl",
       "adm-zip",
-      "openai-oauth",
       "react",
       "react-dom",
       "react-i18next",
@@ -215,6 +213,8 @@ describe("Windows installer clean uninstall option", () => {
     }
     expect(packageJson.dependencies["onnxruntime-web"]).toBe("1.27.0");
     expect(packageJson.dependencies["onnxruntime-node"]).toBe("1.27.0");
+    expect(packageJson.dependencies["@openai/codex"]).toBe("0.150.1");
+    expect(packageJson.devDependencies).not.toHaveProperty("@openai/codex");
     expect(packageJson.overrides["onnxruntime-node"]?.["adm-zip"]).toBe(
       "^0.6.0",
     );
@@ -253,10 +253,10 @@ describe("Windows installer clean uninstall option", () => {
     // the ~745 MiB floor without the bundle and rejects the 467 MiB bundle
     // returning (~1212 MiB).
     expect(packagedRuntimeVerifier).toContain(
-      "const MAX_PACKAGED_BYTES = 1000 * 1024 * 1024;",
+      "const MAX_PACKAGED_BYTES = 1450 * 1024 * 1024;",
     );
     expect(packagedRuntimeVerifier).toContain(
-      "const MAX_PACKAGED_FILES = 299;",
+      "const MAX_PACKAGED_FILES = 307;",
     );
     expect(packagedRuntimeVerifier).toContain(
       "const mainRuntimeSmokeMessage = runPackagedMainRuntimeSmoke();",
@@ -280,6 +280,8 @@ describe("Windows installer clean uninstall option", () => {
         "!block-library.json",
         "!linked-workspaces.json",
         "!linked-sync-queue.json",
+        "!codex{,/**/*}",
+        "!.codex-workspace{,/**/*}",
       ]),
     );
   });
@@ -338,50 +340,6 @@ describe("Windows installer clean uninstall option", () => {
     );
 
     expect(FAST_ZIP_COMPRESSION_LEVEL).toBe("1");
-  });
-
-  it("loads the OAuth runtime through the packaged import boundary and closes it", async () => {
-    const temporaryRoot = mkdtempSync(join(tmpdir(), "mgt-oauth-smoke-"));
-    const runtimePath = join(temporaryRoot, "oauth-runtime.mjs");
-    const nativeImportPath = join(temporaryRoot, "native-import.cjs");
-    const closeMarkerPath = join(temporaryRoot, "closed.txt");
-    const logLines: string[] = [];
-
-    try {
-      writeFileSync(
-        runtimePath,
-        [
-          'import { writeFileSync } from "node:fs";',
-          "export async function startOpenAIOAuthServer(options) {",
-          '  if (options.host !== "127.0.0.1" || options.port !== 0) throw new Error("invalid bind options");',
-          "  return {",
-          "    port: 43123,",
-          '    url: "http://127.0.0.1:43123",',
-          `    async close() { writeFileSync(${JSON.stringify(closeMarkerPath)}, "closed"); },`,
-          "  };",
-          "}",
-        ].join("\n"),
-      );
-      writeFileSync(
-        nativeImportPath,
-        "exports.importNativeEsm = (href) => import(href);\n",
-      );
-
-      await expect(
-        smokeOpenAiOauthRuntime(runtimePath, nativeImportPath, {
-          log: (message) => logLines.push(message),
-        }),
-      ).resolves.toEqual({
-        port: 43123,
-        url: "http://127.0.0.1:43123",
-      });
-      expect(logLines).toEqual([
-        "packaged-oauth-runtime-ok http://127.0.0.1:43123",
-      ]);
-      expect(readFileSync(closeMarkerPath, "utf8")).toBe("closed");
-    } finally {
-      rmSync(temporaryRoot, { recursive: true, force: true });
-    }
   });
 
   it("strictly patches the actual electron-builder NSIS templates", () => {

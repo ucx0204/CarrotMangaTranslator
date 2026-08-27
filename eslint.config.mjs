@@ -33,6 +33,7 @@ export default tseslint.config(
       ".mgt-instance-*/**",
       ".claude/**",
       ".agents/**",
+      "codex/**",
       "**/__pycache__/**",
     ],
   },

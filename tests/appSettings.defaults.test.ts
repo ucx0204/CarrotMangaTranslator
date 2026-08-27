@@ -7,7 +7,6 @@ import {
   GEMMA_12B_MMPROJ_FILE,
   DEFAULT_CODEX_MODEL,
   DEFAULT_CODEX_REASONING_EFFORT,
-  DEFAULT_CODEX_OAUTH_PORT,
   DEFAULT_API_BASE_URL,
   DEFAULT_API_MODEL,
   DEFAULT_API_TEMPERATURE,
@@ -50,7 +49,6 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     expect(defaults.codex.model).toBe(DEFAULT_CODEX_MODEL);
     expect(defaults.codex.model).toBe("gpt-5.6-sol");
     expect(defaults.codex.reasoningEffort).toBe(DEFAULT_CODEX_REASONING_EFFORT);
-    expect(defaults.codex.oauthPort).toBe(DEFAULT_CODEX_OAUTH_PORT);
     expect(defaults.api.baseUrl).toBe(DEFAULT_API_BASE_URL);
     expect(defaults.api.model).toBe(DEFAULT_API_MODEL);
     expect(defaults.api.model).toBe("gpt-5.5");
@@ -78,6 +76,8 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     expect(defaults.ui?.bubbleLayoutWorkflowDefault).toBe(true);
     expect(defaults.maxTokens).toBe(DEFAULT_MAX_TOKENS);
     expect(defaults.ctx).toBe(DEFAULT_CONTEXT_TOKENS);
+    expect(defaults.maxTokens).toBe(32768);
+    expect(defaults.ctx).toBe(65536);
   });
 
   it("applies explicit compute, ROCm, and unified-memory environment defaults", () => {
@@ -348,6 +348,8 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     expect(rtx4090Defaults.gemma.modelFile).toBe(DEFAULT_GEMMA_MODEL_FILE);
     expect(rtx4090Defaults.maxTokens).toBe(DEFAULT_GEMMA_MAX_TOKENS);
     expect(rtx4090Defaults.ctx).toBe(DEFAULT_GEMMA_CONTEXT_TOKENS);
+    expect(rtx4090Defaults.maxTokens).toBe(32768);
+    expect(rtx4090Defaults.ctx).toBe(16384);
     const rtx5070Defaults = resolveDefaultAppSettings(
       {},
       {
@@ -643,7 +645,6 @@ describeWindows("app settings helpers: defaults and stored values", () => {
       codex: {
         model: DEFAULT_CODEX_MODEL,
         reasoningEffort: DEFAULT_CODEX_REASONING_EFFORT,
-        oauthPort: DEFAULT_CODEX_OAUTH_PORT,
       },
       api: {
         baseUrl: "https://api.openai.com/v1",
@@ -680,7 +681,6 @@ describeWindows("app settings helpers: defaults and stored values", () => {
     expect(options.modelProvider).toBe("gemma");
     expect(options.codexModel).toBe(DEFAULT_CODEX_MODEL);
     expect(options.codexReasoningEffort).toBe(DEFAULT_CODEX_REASONING_EFFORT);
-    expect(options.codexOauthPort).toBe(DEFAULT_CODEX_OAUTH_PORT);
     expect(options.apiBaseUrl).toBe("https://api.openai.com/v1");
     expect(options.apiModel).toBe(DEFAULT_API_MODEL);
     expect(options.apiKey).toBeUndefined();

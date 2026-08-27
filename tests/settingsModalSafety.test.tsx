@@ -11,7 +11,9 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import exampleSettings from "../settings.example.json";
+import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway";
 import { SettingsModal } from "../src/renderer/src/components/SettingsModal";
+import type { CodexAccountSnapshot } from "../src/shared/codexAccountTypes";
 import {
   GEMMA_26B_MMPROJ_FILE,
   GEMMA_26B_MMPROJ_REPO,
@@ -30,6 +32,7 @@ const initialSettings = structuredClone(exampleSettings) as AppSettings;
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  Reflect.deleteProperty(window, "mangaApi");
 });
 
 describe("settings draft safety", () => {
@@ -209,6 +212,59 @@ describe("settings draft safety", () => {
         gemma: expect.objectContaining({ fitTargetMb: 1235 }),
       }),
     );
+  });
+
+  it("reveals Codex catalog controls and generation limits only after login", async () => {
+    const models = [
+      {
+        id: "gpt-5.6-sol",
+        displayName: "GPT-5.6-Sol",
+        supportedReasoningEfforts: ["low", "medium", "high"],
+        defaultReasoningEffort: "low",
+        isDefault: true,
+      },
+    ] satisfies CodexAccountSnapshot["models"];
+    const signedOut = {
+      authenticated: false,
+      accountKind: null,
+      email: null,
+      planType: null,
+      requiresOpenaiAuth: true,
+      appServerVersion: "0.150.1",
+      models: [],
+    } satisfies CodexAccountSnapshot;
+    const signedIn = {
+      ...signedOut,
+      authenticated: true,
+      accountKind: "chatgpt",
+      email: "reader@example.com",
+      planType: "plus",
+      models,
+    } satisfies CodexAccountSnapshot;
+    window.mangaApi = createTestMangaGatewayStub({
+      getCodexAccount: vi.fn(async () => signedOut),
+      loginCodexAccount: vi.fn(async () => signedIn),
+      logoutCodexAccount: vi.fn(async () => signedOut),
+    });
+    const settings: AppSettings = {
+      ...structuredClone(initialSettings),
+      modelProvider: "openai-codex",
+      codex: { model: "gpt-5.6-sol", reasoningEffort: "low" },
+      maxTokens: 32768,
+      ctx: 65536,
+    };
+    renderSettings({ settings });
+    fireEvent.click(screen.getByRole("tab", { name: "번역 엔진" }));
+
+    await screen.findByText("로그인되지 않음");
+    expect(screen.queryByRole("combobox", { name: "Codex 모델" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "생성 한도" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "ChatGPT로 로그인" }));
+
+    await screen.findByRole("combobox", { name: "Codex 모델" });
+    expect(screen.getByRole("combobox", { name: /추론 강도/ })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "생성 한도" })).toBeTruthy();
   });
 });
 

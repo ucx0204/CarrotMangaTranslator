@@ -45,5 +45,5 @@ module.exports = {
     "src/main/runtime/build-page-variant.ps1",
     "scripts/crop_image.ps1",
   ],
-  ignoreDependencies: ["openai-oauth"],
+  ignoreDependencies: ["@openai/codex"],
 };

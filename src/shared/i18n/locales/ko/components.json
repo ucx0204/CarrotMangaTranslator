@@ -1378,7 +1378,7 @@
       },
       "contextTokens": {
         "remoteLabel": "작품 컨텍스트 예산",
-        "remoteDescription": "모델 창 크기가 아니라, 작품 메모·용어집·캐릭터 정보를 프롬프트에 얼마나 담을지 정하는 앱 내부 예산입니다.",
+        "remoteDescription": "작품 메모·용어집·캐릭터 정보에 사용할 최대 토큰 수입니다.",
         "gemmaLabel": "컨텍스트 길이",
         "gemmaDescription": "로컬 Gemma의 실제 컨텍스트 길이입니다. 높이면 더 많은 VRAM을 사용할 수 있습니다."
       }
@@ -1427,7 +1427,7 @@
         },
         "codex": {
           "label": "Codex",
-          "description": "Codex OAuth 엔드포인트로 번역합니다."
+          "description": "앱에 내장된 공식 Codex App Server와 ChatGPT 계정으로 번역합니다."
         },
         "api": {
           "label": "API",
@@ -1622,9 +1622,21 @@
       "customModel": "직접 입력",
       "customModelAria": "Codex 모델 직접 입력",
       "modelPlaceholder": "모델 이름",
-      "modelDescription": "목록에 없는 모델은 직접 입력할 수 있습니다.",
       "reasoning": { "label": "추론 강도", "ariaLabel": "Codex 추론 강도" },
-      "oauthPort": "openai-oauth 포트"
+      "account": {
+        "title": "ChatGPT 계정",
+        "loading": "인증 상태 확인 중…",
+        "connected": "ChatGPT 연결됨",
+        "signedOut": "로그인되지 않음",
+        "plan": "{{plan}} 플랜",
+        "signIn": "ChatGPT로 로그인",
+        "signOut": "로그아웃",
+        "signingIn": "브라우저 로그인 대기 중…",
+        "signingOut": "로그아웃 중…",
+        "loadFailed": "Codex 인증 상태를 확인하지 못했습니다.",
+        "loginFailed": "Codex 로그인에 실패했습니다.",
+        "logoutFailed": "Codex 로그아웃에 실패했습니다."
+      }
     },
     "api": {
       "sections": {
@@ -1892,7 +1904,6 @@
     },
     "validation": {
       "languageCode": "번역 언어 코드는 en, ja, zh-Hans, pt-BR 같은 형식이어야 합니다.",
-      "oauthPort": "openai-oauth 포트는 1 이상 65535 이하의 정수여야 합니다.",
       "apiBaseUrl": "API Base URL은 http 또는 https URL이어야 합니다.",
       "apiAdvanced": "고급 API 설정을 확인해 주세요.",
       "maxTokens": "최대 출력 토큰은 {{min}} 이상 {{max}} 이하의 정수여야 합니다.",

@@ -96,7 +96,7 @@ function loadRuntimeModules(root) {
   return {
     getAppPaths: load("out/main/appPaths.js").getAppPaths,
     appSettings: load("out/main/appSettings.js"),
-    oauth: load("out/main/openaiOauthEndpoint.js"),
+    codex: load("out/main/codexAppServerEndpoint.js"),
     pipeline: {
       applyOcrCandidateGeometryLocks:
         overlayOcrGeometryLocks.applyOcrCandidateGeometryLocks,
@@ -186,14 +186,14 @@ async function writeSettingsSummary(outDir, options, reuseOcrDir) {
 /** @param {Awaited<ReturnType<typeof prepareRun>>} context */
 async function startTranslationServer(context) {
   return context.baseOptions.modelProvider === "openai-codex"
-    ? context.oauth.startOpenAIOAuthEndpoint(context.baseOptions)
+    ? context.codex.startCodexAppServerEndpoint(context.baseOptions)
     : context.simplePage.startServer(context.baseOptions);
 }
 
 /** @param {Awaited<ReturnType<typeof prepareRun>>} context @param {unknown} server */
 async function stopTranslationServer(context, server) {
   if (context.baseOptions.modelProvider === "openai-codex") {
-    await context.oauth.stopOpenAIOAuthEndpoint(server);
+    await context.codex.stopCodexAppServerEndpoint(server);
   } else {
     await context.simplePage.stopServer(server);
   }

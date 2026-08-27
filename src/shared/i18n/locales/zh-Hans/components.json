@@ -1371,7 +1371,7 @@
       },
       "contextTokens": {
         "remoteLabel": "作品上下文预算",
-        "remoteDescription": "这不是模型服务端的上下文窗口，而是应用用于加入作品记忆、术语表和角色信息的内部预算。",
+        "remoteDescription": "用于作品记忆、术语表和角色信息的最大令牌数。",
         "gemmaLabel": "上下文长度",
         "gemmaDescription": "本地 Gemma 的实际上下文长度。提高后可能占用更多显存。"
       }
@@ -1420,7 +1420,7 @@
         },
         "codex": {
           "label": "Codex",
-          "description": "通过Codex OAuth端点翻译。"
+          "description": "使用应用内置的官方 Codex App Server 和 ChatGPT 账户进行翻译。"
         },
         "api": { "label": "API", "description": "使用兼容OpenAI的API端点。" }
       },
@@ -1597,9 +1597,21 @@
       "customModel": "自定义",
       "customModelAria": "输入自定义Codex模型",
       "modelPlaceholder": "模型名称",
-      "modelDescription": "可以输入列表中没有的模型。",
       "reasoning": { "label": "推理强度", "ariaLabel": "Codex推理强度" },
-      "oauthPort": "openai-oauth端口"
+      "account": {
+        "title": "ChatGPT 账户",
+        "loading": "正在检查认证状态…",
+        "connected": "已连接 ChatGPT",
+        "signedOut": "未登录",
+        "plan": "{{plan}} 套餐",
+        "signIn": "使用 ChatGPT 登录",
+        "signOut": "退出登录",
+        "signingIn": "正在等待浏览器登录…",
+        "signingOut": "正在退出…",
+        "loadFailed": "无法检查 Codex 认证状态。",
+        "loginFailed": "Codex 登录失败。",
+        "logoutFailed": "Codex 退出登录失败。"
+      }
     },
     "api": {
       "sections": {
@@ -1867,7 +1879,6 @@
     },
     "validation": {
       "languageCode": "翻译语言代码必须使用en、ja、zh-Hans、pt-BR等格式。",
-      "oauthPort": "openai-oauth端口必须是1到65535之间的整数。",
       "apiBaseUrl": "API Base URL必须是http或https网址。",
       "apiAdvanced": "请检查高级API设置。",
       "maxTokens": "最大输出令牌数必须是{{min}}到{{max}}之间的整数。",

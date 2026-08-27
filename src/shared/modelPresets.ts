@@ -100,7 +100,7 @@ type ApiModelPreset = {
 
 export const DEFAULT_REMOTE_MAX_TOKENS = 32768;
 export const DEFAULT_REMOTE_CONTEXT_TOKENS = 65536;
-export const DEFAULT_GEMMA_MAX_TOKENS = 12000;
+export const DEFAULT_GEMMA_MAX_TOKENS = 32768;
 export const DEFAULT_GEMMA_CONTEXT_TOKENS = 16384;
 
 const API_MODEL_PRESETS = [
@@ -113,10 +113,7 @@ const API_MODEL_PRESETS = [
   },
 ] as const satisfies readonly ApiModelPreset[];
 
-/**
- * Models advertised by the visible Codex model catalog. Keep Custom available
- * in the UI because catalog visibility can vary by account and rollout.
- */
+/** Fallback metadata for Codex models known to this app. */
 export const CODEX_MODEL_PRESETS = [
   {
     id: "gpt-5.6-sol",
@@ -240,7 +237,6 @@ export function resolveRecommendedGenerationLimits(
 export const DEFAULT_MODEL_SOURCE: ModelSource = "huggingface";
 export const DEFAULT_CODEX_MODEL = CODEX_MODEL_PRESETS[0].id;
 export const DEFAULT_CODEX_REASONING_EFFORT: CodexReasoningEffort = "low";
-export const DEFAULT_CODEX_OAUTH_PORT = 10531;
 export const DEFAULT_API_BASE_URL = "https://api.openai.com/v1";
 export const DEFAULT_API_MODEL = "gpt-5.5";
 export const DEFAULT_API_TEMPERATURE = 0.2;

@@ -115,6 +115,7 @@ import type {
   ViewLinkedResultsRequest,
   ViewLinkedResultsResult,
 } from "./linkedWorkspaceTypes";
+import type { CodexAccountSnapshot } from "./codexAccountTypes";
 
 export type MangaApi = {
   getLinkedWorkspaceStatus: (
@@ -236,6 +237,9 @@ export type MangaApi = {
   getUiLocale: () => Promise<UiLocale>;
   getSettings: () => Promise<AppSettings>;
   getDefaultSettings: () => Promise<AppSettings>;
+  getCodexAccount: () => Promise<CodexAccountSnapshot>;
+  loginCodexAccount: () => Promise<CodexAccountSnapshot>;
+  logoutCodexAccount: () => Promise<CodexAccountSnapshot>;
   saveSettings: (settings: AppSettings) => Promise<AppSettings>;
   resetSettings: () => Promise<AppSettings>;
   pickLocalModelFile: () => Promise<LocalModelPickResult | null>;

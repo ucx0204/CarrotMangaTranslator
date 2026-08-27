@@ -38,16 +38,22 @@ import {
 import { getMainLocale, setMainLocale, tMain } from "./localization";
 import { discoverApiModels } from "../apiModelDiscovery";
 import { inspectVertexServiceAccountFile } from "../vertexServiceAccountAuth";
+import {
+  registerCodexAccountIpc,
+  type CodexAccountIpcRuntime,
+} from "./codexAccountIpc";
 
 export type SettingsIpcDependencies = {
   modelTestEndpointRuntime?: ModelTestEndpointRuntime;
   normalizeSettingsForRuntime?: typeof normalizeAppSettingsForRuntime;
+  codexAccountRuntime?: CodexAccountIpcRuntime;
 };
 
 export function registerSettingsIpc(
   context: IpcContext,
   dependencies: SettingsIpcDependencies = {},
 ): void {
+  registerCodexAccountIpc(context, dependencies.codexAccountRuntime);
   registeredRendererHandleContract(
     context,
     settingsIpcContracts.getUiLocale,

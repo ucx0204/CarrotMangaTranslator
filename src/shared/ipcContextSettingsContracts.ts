@@ -22,6 +22,8 @@ import {
   vertexServiceAccountPickResultSchema,
 } from "./apiModelDiscoverySchemas";
 import type { SaveTextFileRequest, SaveTextFileResult } from "./shareTypes";
+import type { CodexAccountSnapshot } from "./codexAccountTypes";
+import { codexAccountSnapshotSchema } from "./codexAccountSchemas";
 import type {
   AnalyzeWorkContextRequest,
   AnalyzeWorkContextResult,
@@ -323,6 +325,24 @@ export const settingsIpcContracts = {
     channel: "settings:get-defaults",
     args: z.tuple([]),
     result: AppSettingsSchema,
+  }),
+  getCodexAccount: defineIpcContract<[], CodexAccountSnapshot>({
+    apiKey: "getCodexAccount",
+    channel: "settings:codex-account",
+    args: z.tuple([]),
+    result: codexAccountSnapshotSchema,
+  }),
+  loginCodexAccount: defineIpcContract<[], CodexAccountSnapshot>({
+    apiKey: "loginCodexAccount",
+    channel: "settings:codex-login",
+    args: z.tuple([]),
+    result: codexAccountSnapshotSchema,
+  }),
+  logoutCodexAccount: defineIpcContract<[], CodexAccountSnapshot>({
+    apiKey: "logoutCodexAccount",
+    channel: "settings:codex-logout",
+    args: z.tuple([]),
+    result: codexAccountSnapshotSchema,
   }),
   saveSettings: defineIpcContract<[AppSettings], AppSettings>({
     apiKey: "saveSettings",

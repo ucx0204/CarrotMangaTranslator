@@ -48,7 +48,6 @@ type BuildSettingsFromFormInput = {
   allowUnsafeUnifiedMemory: boolean;
   codexModel: string;
   codexReasoningEffort: CodexReasoningEffort;
-  codexOauthPort: number;
   apiBaseUrl: string;
   apiModel: string;
   apiKey: string;
@@ -99,7 +98,6 @@ export function buildSettingsFromForm(
     codex: {
       model: input.codexModel || input.initialSettings.codex.model,
       reasoningEffort: input.codexReasoningEffort,
-      oauthPort: input.codexOauthPort,
     },
     api: buildApiSettings(input),
     ocr: buildOcrSettings(input),

@@ -108,7 +108,6 @@ describeWindows("app settings helpers: model providers", () => {
       codex: {
         model: "gpt-5.6-sol",
         reasoningEffort: "ultra",
-        oauthPort: 10532,
       },
       api: defaults.api,
       ocr: defaults.ocr,

@@ -553,7 +553,7 @@
 
 ### Codex 엔진 연결에 실패합니다
 
-PowerShell에서 `codex`가 실행되고 로그인되어 있는지 확인합니다. 앱에서 Codex 엔진을 다시 선택하고 `OCR/모델 확인`을 실행하세요. 포트 충돌이 의심되면 고급 설정의 `openai-oauth 포트`를 바꿉니다.
+`설정 → 번역 엔진 → Codex`에서 `ChatGPT로 로그인`을 눌러 브라우저 인증을 완료한 뒤 `OCR/모델 확인`을 실행하세요. Codex CLI 설치나 별도 터미널 로그인은 필요하지 않습니다. 계속 실패하면 앱 로그에서 내장 Codex App Server 시작 오류를 확인하세요.
 
 ### API에서 401, 403 또는 404가 나옵니다
 
@@ -582,23 +582,11 @@ Windows용 AMD HIP SDK와 `HIP_PATH`를 확인하고 앱을 다시 실행합니�
 <details>
 <summary><strong>Codex 엔진 준비</strong></summary>
 
-Codex 엔진은 Codex CLI 로그인 정보를 로컬 OAuth 엔드포인트를 통해 사용합니다. 앱에 OpenAI API 키를 직접 입력하는 방식이 아닙니다.
+Codex 엔진은 앱에 함께 포함된 OpenAI 공식 Codex App Server를 사용합니다. `설정 → 번역 엔진 → Codex`에서 `ChatGPT로 로그인`을 누르면 시스템 브라우저가 열리고, 인증 정보는 이 앱 전용 데이터 디렉터리에 저장됩니다. 시스템에 설치된 Codex CLI와 `~/.codex` 설정은 사용하지 않으며 앱에 OpenAI API 키를 입력할 필요도 없습니다.
 
-PowerShell에서 Codex CLI를 설치합니다.
+번역은 읽기 전용의 임시 Codex 스레드로 실행되고 완료 후 삭제됩니다. 목록에 없는 모델은 `Custom`에 모델 ID를 입력할 수 있습니다.
 
-```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://chatgpt.com/codex/install.ps1 | iex"
-```
-
-새 PowerShell을 열고 로그인합니다.
-
-```powershell
-codex login
-```
-
-`codex`가 정상적으로 열리는지 확인한 뒤 앱에서 `Codex`를 선택하고 `OCR/모델 확인`을 실행합니다. 목록에 없는 모델은 `Custom`에 모델 ID를 입력할 수 있습니다.
-
-공식 안내: [Codex CLI](https://learn.chatgpt.com/docs/codex/cli)
+공식 안내: [Codex App Server](https://learn.chatgpt.com/docs/app-server), [Codex 인증](https://learn.chatgpt.com/docs/auth)
 
 </details>
 

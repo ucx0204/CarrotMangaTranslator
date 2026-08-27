@@ -203,7 +203,6 @@ export const AppSettingsSchema = z
       .object({
         model: z.string().min(1).max(120),
         reasoningEffort: z.enum(CODEX_REASONING_EFFORTS),
-        oauthPort: z.number().int().min(1).max(65535),
       })
       .strict(),
     api: z

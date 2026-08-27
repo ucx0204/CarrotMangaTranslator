@@ -14,8 +14,7 @@
   },
   "codex": {
     "model": "gpt-5.6-sol",
-    "reasoningEffort": "medium",
-    "oauthPort": 10531
+    "reasoningEffort": "medium"
   },
   "api": {
     "baseUrl": "https://api.openai.com/v1",
@@ -27,6 +26,7 @@
   "ocr": {
     "device": "gpu",
     "gpuBackend": "cuda",
+    "qualityMode": "economy",
     "gpuCudaTag": "cu126"
   },
   "ui": {
@@ -38,6 +38,6 @@
     "fluxBackend": "cuda-native",
     "koharuBackend": "auto"
   },
-  "maxTokens": 12000,
+  "maxTokens": 32768,
   "ctx": 16384
 }

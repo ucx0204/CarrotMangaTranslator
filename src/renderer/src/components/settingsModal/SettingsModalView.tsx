@@ -41,7 +41,6 @@ export type SettingsModalViewProps = {
     apiAdvancedSettingsMessage?: string;
     apiAdvancedSettingsValid: boolean;
     apiBaseUrlValid: boolean;
-    codexOauthPortValid: boolean;
     contextTokensValid: boolean;
     maxTokensValid: boolean;
     modelProvider: ModelProvider;

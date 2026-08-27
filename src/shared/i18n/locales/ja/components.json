@@ -1384,7 +1384,7 @@
       },
       "contextTokens": {
         "remoteLabel": "作品コンテキスト予算",
-        "remoteDescription": "モデルのコンテキスト上限ではなく、作品メモ・用語集・キャラクター情報をプロンプトに含めるためのアプリ内部予算です。",
+        "remoteDescription": "作品メモ・用語集・キャラクター情報に使用する最大トークン数です。",
         "gemmaLabel": "コンテキスト長",
         "gemmaDescription": "ローカル Gemma の実際のコンテキスト長です。高くすると VRAM 使用量が増える場合があります。"
       }
@@ -1433,7 +1433,7 @@
         },
         "codex": {
           "label": "Codex",
-          "description": "Codex OAuthエンドポイントで翻訳します。"
+          "description": "アプリ内蔵の公式Codex App ServerとChatGPTアカウントで翻訳します。"
         },
         "api": {
           "label": "API",
@@ -1628,9 +1628,21 @@
       "customModel": "直接入力",
       "customModelAria": "Codexモデルを直接入力",
       "modelPlaceholder": "モデル名",
-      "modelDescription": "一覧にないモデルも直接入力できます。",
       "reasoning": { "label": "推論レベル", "ariaLabel": "Codex推論レベル" },
-      "oauthPort": "openai-oauthポート"
+      "account": {
+        "title": "ChatGPTアカウント",
+        "loading": "認証状態を確認中…",
+        "connected": "ChatGPT接続済み",
+        "signedOut": "ログインしていません",
+        "plan": "{{plan}}プラン",
+        "signIn": "ChatGPTでログイン",
+        "signOut": "ログアウト",
+        "signingIn": "ブラウザーでのログインを待機中…",
+        "signingOut": "ログアウト中…",
+        "loadFailed": "Codexの認証状態を確認できませんでした。",
+        "loginFailed": "Codexへのログインに失敗しました。",
+        "logoutFailed": "Codexからのログアウトに失敗しました。"
+      }
     },
     "api": {
       "sections": {
@@ -1898,7 +1910,6 @@
     },
     "validation": {
       "languageCode": "翻訳言語コードは en、ja、zh-Hans、pt-BR のような形式で入力してください。",
-      "oauthPort": "openai-oauthポートは1～65535の整数で入力してください。",
       "apiBaseUrl": "API Base URLはhttpまたはhttpsのURLで入力してください。",
       "apiAdvanced": "API詳細設定を確認してください。",
       "maxTokens": "最大出力トークンは{{min}}～{{max}}の整数で入力してください。",

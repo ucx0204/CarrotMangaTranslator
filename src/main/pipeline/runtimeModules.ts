@@ -1,10 +1,10 @@
 import type { TranslationOptions } from "../appSettings";
 import { getAppPaths } from "../appPaths";
 import {
-  startOpenAIOAuthEndpoint,
-  stopOpenAIOAuthEndpoint,
-} from "../openaiOauthEndpoint";
-import type { OpenAIOAuthEndpoint } from "../openaiOauthEndpoint";
+  startCodexAppServerEndpoint,
+  stopCodexAppServerEndpoint,
+} from "../codexAppServerEndpoint";
+import type { CodexAppServerEndpoint } from "../codexAppServerEndpoint";
 import {
   createOpenAICompatibleApiEndpoint,
   isOpenAICompatibleApiEndpoint,
@@ -61,7 +61,7 @@ async function startModelEndpoint(
   options: TranslationOptions,
 ): Promise<ModelEndpointHandle> {
   if (options.modelProvider === "openai-codex") {
-    return startOpenAIOAuthEndpoint(options);
+    return startCodexAppServerEndpoint(options);
   }
   if (options.modelProvider === "openai-api") {
     return createOpenAICompatibleApiEndpoint(options);
@@ -112,8 +112,8 @@ async function stopModelEndpoint(
   runtime: RuntimeModules,
   endpoint: ModelEndpointHandle | null | undefined,
 ): Promise<void> {
-  if (isOpenAIOAuthEndpoint(endpoint)) {
-    await stopOpenAIOAuthEndpoint(endpoint);
+  if (isCodexAppServerEndpoint(endpoint)) {
+    await stopCodexAppServerEndpoint(endpoint);
     return;
   }
   if (isOpenAICompatibleApiEndpoint(endpoint)) {
@@ -122,9 +122,9 @@ async function stopModelEndpoint(
   await runtime.simplePage.stopServer(endpoint);
 }
 
-function isOpenAIOAuthEndpoint(
+function isCodexAppServerEndpoint(
   endpoint: ModelEndpointHandle | null | undefined,
-): endpoint is OpenAIOAuthEndpoint {
+): endpoint is CodexAppServerEndpoint {
   return Boolean(
     endpoint && "provider" in endpoint && endpoint.provider === "openai-codex",
   );

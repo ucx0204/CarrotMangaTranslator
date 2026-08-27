@@ -2,7 +2,6 @@ import type { AppSettings } from "../../shared/settingsTypes";
 import {
   resolveCodexReasoningEffort,
   resolveNonEmptyString,
-  resolvePortNumber,
 } from "./appSettingsResolvers";
 
 export function normalizeCodexSettings(
@@ -15,6 +14,5 @@ export function normalizeCodexSettings(
       codex?.reasoningEffort,
       defaults.codex.reasoningEffort,
     ),
-    oauthPort: resolvePortNumber(codex?.oauthPort, defaults.codex.oauthPort),
   };
 }

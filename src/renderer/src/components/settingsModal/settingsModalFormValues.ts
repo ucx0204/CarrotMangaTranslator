@@ -55,7 +55,6 @@ export type SettingsFormValues = {
   allowUnsafeUnifiedMemory: boolean;
   codexModel: string;
   codexReasoningEffort: CodexReasoningEffort;
-  codexOauthPort: string;
   apiBaseUrl: string;
   apiModel: string;
   apiKey: string;
@@ -131,7 +130,6 @@ function resolveModelFormValues(
   | "allowUnsafeUnifiedMemory"
   | "codexModel"
   | "codexReasoningEffort"
-  | "codexOauthPort"
 > {
   return {
     modelSource: settings.gemma.modelSource,
@@ -153,7 +151,6 @@ function resolveModelFormValues(
       settings.codex.model,
       settings.codex.reasoningEffort,
     ),
-    codexOauthPort: String(settings.codex.oauthPort),
   };
 }
 

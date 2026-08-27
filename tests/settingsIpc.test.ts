@@ -8,7 +8,11 @@ import type { AppSettings } from "../src/shared/settingsTypes";
 import type { ModelTestProgressEvent } from "../src/shared/jobTypes";
 import type { IpcContext, PanelWindowPort } from "../src/main/ipc/context";
 import type { SimplePageRuntime } from "../src/main/simplePageRuntime";
-import type { OpenAIOAuthEndpoint } from "../src/main/openaiOauthEndpoint";
+import type { CodexAppServerEndpoint } from "../src/main/codexAppServerEndpoint";
+import type {
+  CodexAccountClient,
+  CodexAccountIpcRuntime,
+} from "../src/main/ipc/codexAccountIpc";
 import { normalizeAppSettingsForRuntime } from "../src/main/settingsStore";
 
 type IpcHandler = (
@@ -30,7 +34,7 @@ const electronMock = vi.hoisted(() => {
   };
 });
 
-const oauthMock = {
+const codexMock = {
   start: vi.fn(),
   stop: vi.fn(async () => {}),
 };
@@ -39,12 +43,16 @@ vi.mock("electron", () => ({
   app: {
     isPackaged: false,
     getPath: () => "",
+    getVersion: () => "1.20.2-test",
   },
   dialog: {
     showOpenDialog: electronMock.showOpenDialog,
   },
   ipcMain: {
     handle: electronMock.handle,
+  },
+  shell: {
+    openExternal: vi.fn(async () => undefined),
   },
 }));
 
@@ -56,15 +64,129 @@ beforeEach(() => {
   electronMock.handlers.clear();
   electronMock.handle.mockClear();
   electronMock.showOpenDialog.mockClear();
-  oauthMock.start.mockReset();
-  oauthMock.stop.mockReset();
-  oauthMock.stop.mockResolvedValue(undefined);
+  codexMock.start.mockReset();
+  codexMock.stop.mockReset();
+  codexMock.stop.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
   for (const dir of tempDirs.splice(0)) {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+describe("settings IPC Codex account", () => {
+  it("coalesces concurrent status reads without taking the global activity lock", async () => {
+    const client = createCodexAccountClient();
+    client.readAccount.mockResolvedValue({
+      account: {
+        type: "chatgpt",
+        email: "reader@example.com",
+        planType: "plus",
+      },
+      requiresOpenaiAuth: true,
+    });
+    const accountRuntime = createCodexAccountRuntime(client.client);
+    const handler = registerAndGetCodexAccountHandler(
+      "settings:codex-account",
+      accountRuntime,
+    );
+
+    const [first, second] = await Promise.all([
+      handler(trustedEvent()),
+      handler(trustedEvent()),
+    ]);
+
+    expect(first).toMatchObject({ authenticated: true });
+    expect(second).toEqual(first);
+    expect(accountRuntime.startClient).toHaveBeenCalledOnce();
+    expect(client.readAccount).toHaveBeenCalledOnce();
+    expect(client.listModels).toHaveBeenCalledOnce();
+    expect(client.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("opens only the official ChatGPT login URL and returns the refreshed account", async () => {
+    const client = createCodexAccountClient();
+    client.readAccount.mockResolvedValue({
+      account: {
+        type: "chatgpt",
+        email: "reader@example.com",
+        planType: "plus",
+      },
+      requiresOpenaiAuth: true,
+    });
+    const accountRuntime = createCodexAccountRuntime(client.client);
+    const handler = registerAndGetCodexAccountHandler(
+      "settings:codex-login",
+      accountRuntime,
+    );
+
+    await expect(handler(trustedEvent())).resolves.toEqual({
+      authenticated: true,
+      accountKind: "chatgpt",
+      email: "reader@example.com",
+      planType: "plus",
+      requiresOpenaiAuth: true,
+      appServerVersion: "0.150.1",
+      models: [
+        {
+          id: "gpt-test",
+          displayName: "GPT Test",
+          supportedReasoningEfforts: ["low", "high"],
+          defaultReasoningEffort: "low",
+          isDefault: true,
+        },
+      ],
+    });
+    expect(accountRuntime.openExternal).toHaveBeenCalledWith(
+      "https://auth.openai.com/oauth/authorize?client_id=test",
+    );
+    expect(client.waitForLogin).toHaveBeenCalledWith(
+      "login-1",
+      expect.any(AbortSignal),
+    );
+    expect(client.readAccount).toHaveBeenCalledWith(true);
+    expect(client.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a non-OpenAI login URL and cancels the pending login", async () => {
+    const client = createCodexAccountClient();
+    client.startChatGptLogin.mockResolvedValue({
+      loginId: "login-unsafe",
+      authUrl: "https://openai.com.evil.example/oauth",
+    });
+    const accountRuntime = createCodexAccountRuntime(client.client);
+    const handler = registerAndGetCodexAccountHandler(
+      "settings:codex-login",
+      accountRuntime,
+    );
+
+    await expect(handler(trustedEvent())).rejects.toThrow(
+      "허용되지 않은 로그인 URL",
+    );
+    expect(accountRuntime.openExternal).not.toHaveBeenCalled();
+    expect(client.cancelLogin).toHaveBeenCalledWith("login-unsafe");
+    expect(client.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("logs out through App Server and reports the signed-out state", async () => {
+    const client = createCodexAccountClient();
+    client.readAccount.mockResolvedValue({
+      account: null,
+      requiresOpenaiAuth: true,
+    });
+    const handler = registerAndGetCodexAccountHandler(
+      "settings:codex-logout",
+      createCodexAccountRuntime(client.client),
+    );
+
+    await expect(handler(trustedEvent())).resolves.toMatchObject({
+      authenticated: false,
+      accountKind: null,
+    });
+    expect(client.logout).toHaveBeenCalledOnce();
+    expect(client.readAccount).toHaveBeenCalledWith(false);
+  });
 });
 
 describe("settings IPC model/runtime check", () => {
@@ -145,22 +267,14 @@ describe("settings IPC model/runtime check", () => {
     expect(runtime.stopServer).toHaveBeenCalledTimes(1);
   });
 
-  it("retries OpenAI Codex model test endpoints with a fresh temporary port", async () => {
-    const endpoint = {
+  it("tests OpenAI Codex through the embedded App Server endpoint", async () => {
+    const endpointStub: Partial<CodexAppServerEndpoint> = {
       baseUrl: "http://127.0.0.1:18080/v1",
-      child: null,
       startedByScript: true,
       provider: "openai-codex",
-      oauthServer: {
-        host: "127.0.0.1",
-        port: 18080,
-        url: "http://127.0.0.1:18080/v1",
-        close: vi.fn(async () => {}),
-      },
-    } satisfies OpenAIOAuthEndpoint;
-    oauthMock.start
-      .mockRejectedValueOnce(portBindError())
-      .mockResolvedValueOnce(endpoint);
+    };
+    const endpoint = endpointStub as CodexAppServerEndpoint;
+    codexMock.start.mockResolvedValueOnce(endpoint);
     const runtime = createRuntime({
       cached: true,
     });
@@ -168,7 +282,7 @@ describe("settings IPC model/runtime check", () => {
     const { result, progressEvents } = await invokeSettingsModelTest({
       runtime,
       settings: createCodexSettings(),
-      testId: "retry-codex-port",
+      testId: "embedded-codex-app-server",
     });
 
     expect(result).toMatchObject({
@@ -176,21 +290,14 @@ describe("settings IPC model/runtime check", () => {
       launchMode: "openai-codex",
       resolvedEndpoint: endpoint.baseUrl,
     });
-    expect(oauthMock.start).toHaveBeenCalledTimes(2);
-    const firstOptions = oauthMock.start.mock.calls[0]?.[0] as Record<
-      string,
-      unknown
-    >;
-    const secondOptions = oauthMock.start.mock.calls[1]?.[0] as Record<
-      string,
-      unknown
-    >;
-    expect(firstOptions.codexOauthPort).toBe(firstOptions.port);
-    expect(secondOptions.codexOauthPort).toBe(secondOptions.port);
-    expect(progressEvents.map((event) => event.progressText)).toContain(
-      "모델/런타임 확인 포트 재시도 중",
+    expect(codexMock.start).toHaveBeenCalledTimes(1);
+    expect(codexMock.start).toHaveBeenCalledWith(
+      expect.objectContaining({ port: 0, modelProvider: "openai-codex" }),
     );
-    expect(oauthMock.stop).toHaveBeenCalledWith(endpoint);
+    expect(progressEvents.map((event) => event.progressText)).toContain(
+      "OpenAI Codex 런타임 엔드포인트 준비 중",
+    );
+    expect(codexMock.stop).toHaveBeenCalledWith(endpoint);
   });
 
   it("tests API settings through the direct compatible endpoint", async () => {
@@ -211,8 +318,8 @@ describe("settings IPC model/runtime check", () => {
     });
     expect(runtime.startServer).not.toHaveBeenCalled();
     expect(runtime.stopServer).not.toHaveBeenCalled();
-    expect(oauthMock.start).not.toHaveBeenCalled();
-    expect(oauthMock.stop).not.toHaveBeenCalled();
+    expect(codexMock.start).not.toHaveBeenCalled();
+    expect(codexMock.stop).not.toHaveBeenCalled();
     expect(runtime.testModelReply).toHaveBeenCalledWith(
       expect.objectContaining({
         baseUrl: "http://127.0.0.1:1234/v1",
@@ -476,8 +583,8 @@ async function invokeSettingsModelTest({
   const context = createContext(dataRoot, runtime);
   registerSettingsIpc(context, {
     modelTestEndpointRuntime: {
-      startOpenAIOAuthEndpoint: oauthMock.start,
-      stopOpenAIOAuthEndpoint: oauthMock.stop,
+      startCodexAppServerEndpoint: codexMock.start,
+      stopCodexAppServerEndpoint: codexMock.stop,
     },
     normalizeSettingsForRuntime,
   });
@@ -506,6 +613,89 @@ async function invokeSettingsModelTest({
   return {
     result: result as Record<string, unknown>,
     progressEvents,
+  };
+}
+
+function createCodexAccountClient() {
+  const readAccount = vi.fn<CodexAccountClient["readAccount"]>(
+    async (_refreshToken = false) => ({
+      account: null,
+      requiresOpenaiAuth: true,
+    }),
+  );
+  const startChatGptLogin = vi.fn(async () => ({
+    loginId: "login-1",
+    authUrl: "https://auth.openai.com/oauth/authorize?client_id=test",
+  }));
+  const listModels = vi.fn<CodexAccountClient["listModels"]>(async () => [
+    {
+      id: "gpt-test",
+      displayName: "GPT Test",
+      hidden: false,
+      supportedReasoningEfforts: ["low", "high"],
+      defaultReasoningEffort: "low",
+      isDefault: true,
+    },
+  ]);
+  const waitForLogin = vi.fn(async () => undefined);
+  const cancelLogin = vi.fn(async () => undefined);
+  const logout = vi.fn(async () => undefined);
+  const dispose = vi.fn(async () => undefined);
+  return {
+    client: {
+      version: "0.150.1",
+      readAccount,
+      listModels,
+      startChatGptLogin,
+      waitForLogin,
+      cancelLogin,
+      logout,
+      dispose,
+    } satisfies CodexAccountClient,
+    readAccount,
+    listModels,
+    startChatGptLogin,
+    waitForLogin,
+    cancelLogin,
+    logout,
+    dispose,
+  };
+}
+
+function createCodexAccountRuntime(
+  client: CodexAccountClient,
+): CodexAccountIpcRuntime {
+  return {
+    startClient: vi.fn(
+      async () => client,
+    ) as CodexAccountIpcRuntime["startClient"],
+    openExternal: vi.fn(async () => undefined),
+    appVersion: () => "1.20.2-test",
+  };
+}
+
+function registerAndGetCodexAccountHandler(
+  channel: string,
+  codexAccountRuntime: CodexAccountIpcRuntime,
+): IpcHandler {
+  const dataRoot = mkdtempSync(join(tmpdir(), "settings-codex-account-"));
+  tempDirs.push(dataRoot);
+  registerSettingsIpc(
+    createContext(dataRoot, createRuntime({ cached: true })),
+    {
+      codexAccountRuntime,
+    },
+  );
+  const handler = electronMock.handlers.get(channel);
+  if (!handler)
+    throw new Error(`Codex account handler not registered: ${channel}`);
+  return handler;
+}
+
+function trustedEvent(): Parameters<IpcHandler>[0] {
+  return {
+    sender: { id: 1, send: vi.fn() },
+    senderFrame: { url: "http://127.0.0.1:5173/" },
   };
 }
 
@@ -624,7 +814,6 @@ function createGemmaSettings(): AppSettings {
     codex: {
       model: "gpt-5.5",
       reasoningEffort: "low",
-      oauthPort: 10531,
     },
     api: {
       baseUrl: "https://api.openai.com/v1",
@@ -647,7 +836,6 @@ function createCodexSettings(): AppSettings {
     codex: {
       model: "gpt-5.5",
       reasoningEffort: "low",
-      oauthPort: 10531,
     },
   };
 }

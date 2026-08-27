@@ -8,12 +8,21 @@ const {
   WINDOWS_EXECUTABLE_BASENAME,
   assertFastZipPayload,
 } = require("./scripts/installer-zip-safety.cjs");
+const {
+  assertCodexRuntimeReady,
+  resolveCodexRuntime,
+} = require("./scripts/codex-app-server-runtime.cjs");
 
 const thinInstaller = process.env.MGT_THIN_INSTALLER === "1";
 const bundleFluxNvidiaRunners =
   process.env.MGT_BUNDLE_FLUX_NVIDIA_RUNNERS === "1";
 const isMacBuild =
   process.platform === "darwin" || process.env.MGT_TARGET_PLATFORM === "darwin";
+const codexRuntime = resolveCodexRuntime(
+  __dirname,
+  isMacBuild ? "darwin" : "win32",
+  isMacBuild ? "arm64" : "x64",
+);
 const requestedBuildChannel = String(
   process.env.MANGA_TRANSLATOR_BUILD_CHANNEL ||
     process.env.MGT_RELEASE_CHANNEL ||
@@ -39,6 +48,14 @@ const onnxRuntimeWebVersion = "1.27.0";
 const onnxWasmModuleFile = "ort-wasm-simd-threaded.mjs";
 const onnxWasmBinaryFile = "ort-wasm-simd-threaded.wasm";
 const extraResources = [
+  {
+    // Keep the official native package layout intact under a short resource
+    // root. Codex discovers its sibling runners and bundled rg relative to
+    // bin/codex, while the short path remains safe for the Windows installer.
+    from: codexRuntime.sourceDir,
+    to: codexRuntime.resourceDirectory,
+    filter: ["**/*"],
+  },
   {
     from: "out/app-runtime",
     to: "app-runtime",
@@ -186,14 +203,15 @@ if (isMacBuild) {
  * @param {import("app-builder-lib").PackContext} context
  */
 function verifyMacRuntimeReady(context) {
-  if (
-    context.electronPlatformName === "darwin" &&
-    !existsSync(stagedMacTools)
-  ) {
+  if (context.electronPlatformName !== "darwin") {
+    return;
+  }
+  if (!existsSync(stagedMacTools)) {
     throw new Error(
       `Missing staged Apple Silicon runtime: ${stagedMacTools}. Run npm run prepare:mac:runtime first.`,
     );
   }
+  assertCodexRuntimeReady(codexRuntime);
 }
 
 /**
@@ -301,6 +319,8 @@ module.exports = {
     "!block-library.json",
     "!linked-workspaces.json",
     "!linked-sync-queue.json",
+    "!codex{,/**/*}",
+    "!.codex-workspace{,/**/*}",
     "!ocr-runtime{,/**/*}",
     "!hf-cache{,/**/*}",
     "!llama.cpp{,/**/*}",
@@ -358,6 +378,10 @@ module.exports = {
     "!node_modules/undici-types{,/**/*}",
     // A platform-specific copy is staged under the short `resources/o` path.
     "!node_modules/onnxruntime-node{,/**/*}",
+    // The selected official native distribution is staged under resources/c.
+    // Do not also retain the JS launcher or any optional platform packages in ASAR.
+    "!node_modules/@openai/codex{,/**/*}",
+    "!node_modules/@openai/codex-*{,/**/*}",
   ],
   extraResources,
   asar: true,

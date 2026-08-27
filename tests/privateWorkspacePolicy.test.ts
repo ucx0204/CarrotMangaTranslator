@@ -20,6 +20,8 @@ describe("private workspace repository policy", () => {
     "library/work.json",
     "logs/app.log",
     ".settings-pairs/generation/settings.json",
+    "codex/auth.json",
+    ".codex-workspace/AGENTS.md",
     "settings.secrets.json",
     "block-library.json",
     "linked-workspaces.json",
@@ -44,6 +46,7 @@ describe("private workspace repository policy", () => {
     );
     expect(FORBIDDEN_GITHUB_PATH_PATTERNS).toContain("results/**/*");
     expect(FORBIDDEN_GITHUB_PATH_PATTERNS).toContain("settings.secrets.json");
+    expect(FORBIDDEN_GITHUB_PATH_PATTERNS).toContain("codex/**/*");
     expect(new Set(FORBIDDEN_GITHUB_PATH_PATTERNS).size).toBe(
       FORBIDDEN_GITHUB_PATH_PATTERNS.length,
     );

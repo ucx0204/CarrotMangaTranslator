@@ -24,7 +24,6 @@ export type SettingsDraft = ReturnType<typeof resolveSettingsDraft>;
 export function resolveSettingsDraft(values: SettingsFormValues) {
   const activePreset = resolveActiveModelPreset(values);
   const apiDraft = resolveApiDraft(values);
-  const parsedCodexOauthPort = Number(values.codexOauthPort);
   const parsedMaxTokens = Number(values.maxTokens);
   const parsedContextTokens = Number(values.contextTokens);
 
@@ -35,10 +34,8 @@ export function resolveSettingsDraft(values: SettingsFormValues) {
     trimmedLocalModelPath: values.localModelPath.trim(),
     trimmedLocalMmprojPath: values.localMmprojPath.trim(),
     trimmedCodexModel: values.codexModel.trim(),
-    parsedCodexOauthPort,
     parsedMaxTokens,
     parsedContextTokens,
-    codexOauthPortValid: isValidPort(parsedCodexOauthPort),
     maxTokensValid: isValidMaxTokens(parsedMaxTokens),
     contextTokensValid: isValidContextTokens(parsedContextTokens),
     sourceLanguageValid: isValidLanguageCodeInput(values.sourceLanguage),
@@ -194,7 +191,7 @@ export function isSettingsFormSubmittable(
     return false;
   }
   if (values.modelProvider === "openai-codex") {
-    return Boolean(draft.trimmedCodexModel && draft.codexOauthPortValid);
+    return Boolean(draft.trimmedCodexModel);
   }
   if (values.modelProvider === "openai-api") {
     return isOpenAiApiSettingsReady(values, draft);
@@ -225,10 +222,6 @@ function isGemmaSettingsReady(
   return values.modelSource === "local"
     ? Boolean(draft.trimmedLocalModelPath)
     : Boolean(draft.trimmedModelRepo && draft.trimmedModelFile);
-}
-
-function isValidPort(value: number): boolean {
-  return Number.isInteger(value) && value >= 1 && value <= 65535;
 }
 
 function isValidMaxTokens(value: number): boolean {

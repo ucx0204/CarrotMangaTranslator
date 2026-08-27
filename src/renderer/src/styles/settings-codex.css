@@ -1,0 +1,102 @@
+.codex-account-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px 14px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-sunken) 72%, transparent);
+}
+
+.codex-account-summary {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.codex-account-summary > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.codex-account-summary strong,
+.codex-account-summary p,
+.codex-account-summary small,
+.codex-account-error {
+  margin: 0;
+}
+
+.codex-account-summary p,
+.codex-account-summary small {
+  overflow-wrap: anywhere;
+}
+
+.codex-account-summary p {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+.codex-account-summary small {
+  color: var(--text-dim);
+  font-size: var(--font-xs);
+}
+
+.codex-account-indicator {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--text-dim) 14%, transparent);
+}
+
+.codex-account-indicator.connected {
+  background: var(--success-text);
+  box-shadow: 0 0 0 3px var(--success-soft);
+}
+
+.codex-account-error {
+  grid-column: 1 / -1;
+  overflow-wrap: anywhere;
+}
+
+.codex-account-error {
+  color: var(--danger-text);
+  font-size: var(--font-sm);
+}
+
+.codex-catalog-fields {
+  display: grid;
+  gap: 12px;
+}
+
+.codex-catalog-row {
+  display: grid;
+  grid-template-columns: minmax(104px, 0.24fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.codex-catalog-row > span {
+  color: var(--text-muted);
+  font-weight: 650;
+}
+
+@media (max-width: 640px) {
+  .codex-account-card {
+    grid-template-columns: 1fr;
+  }
+
+  .codex-account-card > button {
+    width: 100%;
+  }
+
+  .codex-catalog-row {
+    grid-template-columns: minmax(92px, 0.3fr) minmax(0, 1fr);
+    gap: 10px;
+  }
+}

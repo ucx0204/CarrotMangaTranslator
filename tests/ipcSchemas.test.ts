@@ -725,7 +725,7 @@ describe("IPC schemas", () => {
     ).toThrow(/요청 형식/);
   });
 
-  it("uses the same max token and OAuth port bounds as app settings normalization", () => {
+  it("uses the same max token bounds and rejects obsolete Codex fields", () => {
     const payload = {
       modelProvider: "openai-codex",
       translation: {
@@ -743,7 +743,6 @@ describe("IPC schemas", () => {
       codex: {
         model: "gpt-5.6-sol",
         reasoningEffort: "ultra",
-        oauthPort: 10531,
       },
       api: {
         baseUrl: "http://127.0.0.1:1234/v1/chat/completions/",
@@ -884,7 +883,7 @@ describe("IPC schemas", () => {
     expect(() =>
       parseIpcPayload(
         AppSettingsSchema,
-        { ...payload, codex: { ...payload.codex, oauthPort: 0 } },
+        { ...payload, codex: { ...payload.codex, oauthPort: 10531 } },
         "설정 저장",
       ),
     ).toThrow(/요청 형식/);

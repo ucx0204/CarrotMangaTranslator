@@ -204,7 +204,6 @@ function buildValidationProps(
     apiAdvancedSettingsMessage: getApiAdvancedSettingsMessage(draft, t),
     apiAdvancedSettingsValid: draft.apiAdvancedSettingsValid,
     apiBaseUrlValid: draft.apiBaseUrlValid,
-    codexOauthPortValid: draft.codexOauthPortValid,
     contextTokensValid: draft.contextTokensValid,
     maxTokensValid: draft.maxTokensValid,
     modelProvider: values.modelProvider,

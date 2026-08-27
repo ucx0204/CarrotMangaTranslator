@@ -66,16 +66,12 @@ export function buildBaseTranslationOptions({
 function resolveCodexTranslationOptions(
   runtimeEnv: NodeJS.ProcessEnv,
   settings: AppSettings,
-): Pick<
-  TranslationOptions,
-  "codexModel" | "codexReasoningEffort" | "codexOauthPort"
-> {
+): Pick<TranslationOptions, "codexModel" | "codexReasoningEffort"> {
   return {
     codexModel: settings.codex.model,
     codexReasoningEffort: resolveCodexReasoningEffort(
       runtimeEnv.MANGA_TRANSLATOR_CODEX_REASONING_EFFORT,
       settings.codex.reasoningEffort,
     ),
-    codexOauthPort: settings.codex.oauthPort,
   };
 }

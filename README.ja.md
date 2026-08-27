@@ -50,7 +50,7 @@ Apple Silicon向け正式版には、arm64版FFmpeg、Paddle OCRをCPUで実行�
 2. `設定 → 一般`でアプリの表示言語を確認します。対応しているWindowsの言語は初回起動時に自動で選択され、それ以外の環境では韓国語が使用されます。
 3. `設定 → 翻訳エンジン`で原文言語、翻訳先言語、翻訳エンジンを選びます。
    - 自分のPC内で処理する場合は`Gemma 4`
-   - Codex CLIのログイン情報を使う場合は`OpenAI Codex`
+   - 内蔵された公式Codex App ServerでChatGPTアカウントを使う場合は`OpenAI Codex`
    - 画像入力に対応した外部サーバーを使う場合は`API`
 4. `設定 → ハードウェア`でOCRの品質とデバイスを選んだあと、`確認/更新`から`OCR/モデルを確認`を実行します。初回は必要なファイルが自動で準備されます。
 5. メイン画面の`翻訳`から画像、フォルダー、またはZIP/CBZを選び、作品名と話名を指定します。
@@ -170,7 +170,7 @@ Apple Silicon向け正式版には、arm64版FFmpeg、Paddle OCRをCPUで実行�
 | エンジン     | 長所                                                                                             | 準備するもの                                                     |
 | ------------ | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
 | Gemma 4      | ページとモデルがPC内で処理され、準備完了後はオフラインでも使用可能                               | GGUFモデル、PCに合ったCUDA/ROCm/Vulkanランタイム、十分なRAM/VRAM |
-| OpenAI Codex | Codex CLIのログイン情報を使用するため、APIキーをアプリに保存しない                               | Codex CLIのインストールとログイン、インターネット接続            |
+| OpenAI Codex | 内蔵の公式Codex App Serverとアプリ専用のChatGPTログインを使用し、APIキーを保存しない             | Codexを利用できるChatGPTアカウント、インターネット接続           |
 | API          | OpenAI互換のビジョンモデル、ローカルサーバー、NVIDIA NIM、Gemini互換エンドポイントなどに接続可能 | Base URL、画像入力対応モデルの名前、必要に応じてAPIキー          |
 
 Gemmaのプリセットは、おおよそ次の順で試せます。
@@ -185,23 +185,11 @@ OCR品質は`最小`、`省メモリ`、`フル`の3種類です。`フル`はPP
 <details>
 <summary><strong>OpenAI Codexエンジンの準備</strong></summary>
 
-Codexエンジンは、Windowsに保存されているCodex CLIのログイン情報を`openai-oauth`ローカルエンドポイント経由で使用します。OpenAI APIキーをアプリに直接入力する方式ではありません。
+Codexエンジンは、アプリに内蔵されたOpenAI公式Codex App Serverを使用します。`設定 → 翻訳エンジン → Codex`で`ChatGPTでログイン`を押すとシステムブラウザーが開き、認証情報はこのアプリ専用のデータディレクトリにのみ保存されます。システムにインストールされたCodex CLIと`~/.codex`設定は使用せず、OpenAI APIキーを入力する必要もありません。
 
-PowerShellで、Windows向けの公式インストールコマンドを実行します。
+翻訳は読み取り専用の一時Codexスレッドで実行され、完了後に削除されます。一覧にないモデルは、`Custom`にモデルIDを入力できます。
 
-```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://chatgpt.com/codex/install.ps1 | iex"
-```
-
-新しいPowerShellを開き、ログインします。
-
-```powershell
-codex login
-```
-
-`codex`を実行して正常に起動することを確認したあと、アプリで`OpenAI Codex`を選択し、`OCR/モデルを確認`を実行します。一覧にないモデルは、`Custom`にモデルIDを入力できます。ポートが競合する場合は、設定の`openai-oauthポート`を変更してください。
-
-公式ガイド：[Codex CLI](https://learn.chatgpt.com/docs/codex/cli)
+公式ガイド：[Codex App Server](https://learn.chatgpt.com/docs/app-server)、[Codexの認証](https://learn.chatgpt.com/docs/auth)
 
 </details>
 
@@ -277,7 +265,7 @@ data/
 
 ### Codexに接続できません
 
-PowerShellで`codex`が起動し、ログイン済みであることを確認します。アプリでCodexエンジンを選び直して`OCR/モデルを確認`を実行し、ポートの競合が疑われる場合は`openai-oauthポート`を変更してください。OCRの準備失敗がCodexの接続問題のように見えることもあるため、結果ログでどの段階が失敗したかを確認してください。
+`設定 → 翻訳エンジン → Codex`で`ChatGPTでログイン`を押し、ブラウザー認証を完了してから`OCR/モデルを確認`を実行してください。Codex CLIのインストールやターミナルでの別途ログインは不要です。引き続き失敗する場合は、アプリのログで内蔵Codex App Serverの起動エラーを確認してください。OCRの準備失敗がCodexの接続問題のように見えることもあるため、結果ログでどの段階が失敗したかも確認してください。
 
 ### APIで401、403、404エラーが発生します
 

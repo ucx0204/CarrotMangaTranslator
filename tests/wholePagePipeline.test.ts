@@ -1153,7 +1153,6 @@ function makeAppSettings(sourceLanguage: string): AppSettings {
     codex: {
       model: "gpt-5",
       reasoningEffort: "medium",
-      oauthPort: 10531,
     },
     api: {
       baseUrl: "https://api.openai.com/v1",

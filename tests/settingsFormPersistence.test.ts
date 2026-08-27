@@ -2,8 +2,32 @@ import { describe, expect, it } from "vitest";
 import { resolveDefaultAppSettings } from "../src/main/appSettings";
 import { DEFAULT_BLOCK_FORMAT_DEFAULTS } from "../src/shared/blockFormat";
 import { buildSettingsFromDraft } from "../src/renderer/src/components/settingsModal/settingsModalBuildSettings";
-import { resolveSettingsDraft } from "../src/renderer/src/components/settingsModal/settingsModalFormUtils";
+import {
+  isSettingsFormSubmittable,
+  resolveSettingsDraft,
+} from "../src/renderer/src/components/settingsModal/settingsModalFormUtils";
 import { createSettingsFormValues } from "../src/renderer/src/components/settingsModal/settingsModalFormValues";
+import { resolveCodexReasoningEffortForModel } from "../src/renderer/src/components/settingsOptions";
+
+describe("remote model settings form", () => {
+  it("accepts a complete OpenAI-compatible API setup", () => {
+    const values = {
+      ...createSettingsFormValues(resolveDefaultAppSettings()),
+      modelProvider: "openai-api" as const,
+      apiBaseUrl: "https://api.openai.com/v1",
+      apiModel: "gpt-5.5",
+    };
+    const draft = resolveSettingsDraft(values);
+
+    expect(isSettingsFormSubmittable(values, draft)).toBe(true);
+  });
+
+  it("repairs an unsupported saved Codex reasoning level", () => {
+    expect(resolveCodexReasoningEffortForModel("gpt-5.6-luna", "ultra")).toBe(
+      "medium",
+    );
+  });
+});
 
 describe("UI locale settings form", () => {
   it("loads the normalized locale into the form", () => {

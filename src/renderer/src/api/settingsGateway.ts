@@ -3,10 +3,13 @@ import { createMangaDomainGateway } from "./mangaGateway";
 export const settingsGateway = createMangaDomainGateway("Settings", [
   "discoverApiModels",
   "getAppUpdateInfo",
+  "getCodexAccount",
   "getRuntimeCapabilities",
   "getSettings",
   "getDefaultSettings",
   "getUiLocale",
+  "loginCodexAccount",
+  "logoutCodexAccount",
   "onModelTestEvent",
   "onUiLocaleChanged",
   "openAmdHipSdkDownload",

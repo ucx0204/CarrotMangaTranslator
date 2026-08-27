@@ -6,6 +6,7 @@ const root = join(__dirname, "..", "..");
 const { verifyApplicationDirectorySmoke } = require("./app-smoke.cjs");
 const {
   verifyPackagedArchiveRuntimes,
+  verifyPackagedCodexRuntime,
   verifyPackagedImageRuntime,
 } = require("./packaged-runtime-smokes.cjs");
 const {
@@ -308,6 +309,7 @@ function verifyFinalDiskImage(diskImagePath) {
     assertElectronFrameworkExecutable(appPath);
     verifySigning(appPath);
     verifyPackagedArchiveRuntimes(appPath);
+    verifyPackagedCodexRuntime(appPath);
     verifyPackagedImageRuntime(appPath);
     verifyApplicationDirectorySmoke(appPath);
     console.log(
@@ -334,6 +336,7 @@ function verifyFinalZipArchive(zipPath) {
     assertElectronFrameworkExecutable(appPath);
     verifySigning(appPath);
     verifyPackagedArchiveRuntimes(appPath);
+    verifyPackagedCodexRuntime(appPath);
     verifyPackagedImageRuntime(appPath);
     console.log(
       `[mac-verify] extracted and verified final ZIP app ${relative(root, appPath)}`,
@@ -376,6 +379,7 @@ module.exports = {
   verifyFinalZipArchive,
   verifyNativePayload,
   verifyPackagedArchiveRuntimes,
+  verifyPackagedCodexRuntime,
   verifyPackagedBuildChannel,
   verifyPackagedImageRuntime,
   verifyPackagedOnnxRuntime,

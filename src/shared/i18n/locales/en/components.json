@@ -1390,7 +1390,7 @@
       },
       "contextTokens": {
         "remoteLabel": "Work context budget",
-        "remoteDescription": "This is an app budget for work memory, glossary, and character notes—not the model's server-side context window.",
+        "remoteDescription": "Maximum tokens used for work memory, glossary, and character notes.",
         "gemmaLabel": "Context length",
         "gemmaDescription": "The actual context length for local Gemma. Higher values can use more VRAM."
       }
@@ -1439,7 +1439,7 @@
         },
         "codex": {
           "label": "Codex",
-          "description": "Translate through a Codex OAuth endpoint."
+          "description": "Translate with your ChatGPT account through the official Codex App Server embedded in the app."
         },
         "api": {
           "label": "API",
@@ -1634,12 +1634,24 @@
       "customModel": "Custom",
       "customModelAria": "Enter a custom Codex model",
       "modelPlaceholder": "Model name",
-      "modelDescription": "You can enter a model not shown in the list.",
       "reasoning": {
         "label": "Reasoning effort",
         "ariaLabel": "Codex reasoning effort"
       },
-      "oauthPort": "openai-oauth port"
+      "account": {
+        "title": "ChatGPT account",
+        "loading": "Checking authentication…",
+        "connected": "ChatGPT connected",
+        "signedOut": "Not signed in",
+        "plan": "{{plan}} plan",
+        "signIn": "Sign in with ChatGPT",
+        "signOut": "Sign out",
+        "signingIn": "Waiting for browser sign-in…",
+        "signingOut": "Signing out…",
+        "loadFailed": "Could not check Codex authentication.",
+        "loginFailed": "Codex sign-in failed.",
+        "logoutFailed": "Codex sign-out failed."
+      }
     },
     "api": {
       "sections": {
@@ -1907,7 +1919,6 @@
     },
     "validation": {
       "languageCode": "Translation language codes must use a format such as en, ja, zh-Hans, or pt-BR.",
-      "oauthPort": "The openai-oauth port must be an integer from 1 to 65535.",
       "apiBaseUrl": "The API base URL must be an HTTP or HTTPS URL.",
       "apiAdvanced": "Check the advanced API settings.",
       "maxTokens": "Maximum output tokens must be an integer from {{min}} to {{max}}.",

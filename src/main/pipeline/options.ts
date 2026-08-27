@@ -176,7 +176,6 @@ function summarizeRemoteModelOptions(
   return {
     codexModel: options.codexModel,
     codexReasoningEffort: options.codexReasoningEffort,
-    codexOauthPort: options.codexOauthPort,
     apiBaseUrl: options.apiBaseUrl,
     apiModel: options.apiModel,
     apiKeyConfigured: Boolean(options.apiKey),

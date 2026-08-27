@@ -34,7 +34,6 @@ const REQUIRED_OUTPUTS = [
   join("out", "page-export", "runtime.js"),
   join("out", "page-export", "styles.css"),
   join("out", "renderer", "index.html"),
-  join("out", "app-runtime", "openai-oauth-runtime.mjs"),
 ];
 
 /**
@@ -244,7 +243,13 @@ function collectBuildInputs(root) {
     join("node_modules", "@vitejs", "plugin-react", "package.json"),
     join("node_modules", "electron", "package.json"),
     join("node_modules", "rolldown", "package.json"),
-    join("node_modules", "openai-oauth", "package.json"),
+    join("node_modules", "@openai", "codex", "package.json"),
+    join(
+      "node_modules",
+      "@openai",
+      `codex-${process.platform}-${process.arch}`,
+      "package.json",
+    ),
     join("node_modules", "react", "package.json"),
     join("node_modules", "react-dom", "package.json"),
   ].map((path) => (isAbsolute(path) ? path : join(root, path)));

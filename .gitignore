@@ -62,6 +62,8 @@ recent-dialog-paths.json
 /block-library.json
 /linked-workspaces.json
 /linked-sync-queue.json
+/codex/
+/.codex-workspace/
 /results/
 /.claude/
 /.pytest_cache/

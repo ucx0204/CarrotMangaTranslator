@@ -102,7 +102,6 @@ function buildModelSettings(options) {
     localMmprojPath: resolveConfiguredLocalMmprojPath(options),
     codexModel: resolveConfiguredCodexModel(options),
     codexReasoningEffort: resolveConfiguredCodexReasoningEffort(options),
-    codexOauthPort: options.codexOauthPort,
   };
 }
 

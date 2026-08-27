@@ -74,6 +74,7 @@
     "perf:gemma-economy": "npm run build && node scripts/run-gemma-economy-benchmark.cjs"
   },
   "dependencies": {
+    "@openai/codex": "0.150.1",
     "ag-psd": "^31.0.2",
     "google-auth-library": "^11.0.2",
     "i18next": "^26.3.6",
@@ -114,12 +115,10 @@
     "jiti": "^2.7.0",
     "jsdom": "^29.1.1",
     "knip": "^6.15.0",
-    "openai-oauth": "^1.0.2",
     "prettier": "^3.8.3",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-i18next": "^17.0.9",
-    "rolldown": "^1.0.3",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.60.1",
     "vite": "^8.0.16",

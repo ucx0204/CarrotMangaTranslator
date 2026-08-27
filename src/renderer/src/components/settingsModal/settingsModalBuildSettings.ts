@@ -56,9 +56,6 @@ export function buildSettingsFromDraft({
     allowUnsafeUnifiedMemory: values.allowUnsafeUnifiedMemory,
     codexModel: draft.trimmedCodexModel,
     codexReasoningEffort: values.codexReasoningEffort,
-    codexOauthPort: draft.codexOauthPortValid
-      ? draft.parsedCodexOauthPort
-      : initialSettings.codex.oauthPort,
     apiBaseUrl: draft.normalizedApiBaseUrl ?? initialSettings.api.baseUrl,
     apiModel: draft.trimmedApiModel,
     apiKey: draft.trimmedApiKey,

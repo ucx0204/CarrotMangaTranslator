@@ -50,7 +50,7 @@ Apple Silicon 正式版內建 arm64 FFmpeg、用於在 CPU 上執行 Paddle OCR 
 2. 在 `設定 → 一般` 中確認應用程式介面語言。第一次啟動時會自動選擇支援的 Windows 語言，其他語言環境則預設使用韓文。
 3. 在 `設定 → 翻譯引擎` 中選擇原文語言、譯文語言和翻譯引擎。
    - 想在自己的電腦上處理時，選擇 `Gemma 4`
-   - 想使用 Codex CLI 登入資訊時，選擇 `OpenAI Codex`
+   - 想透過內建的官方 Codex App Server 使用 ChatGPT 帳號時，選擇 `OpenAI Codex`
    - 想連接支援圖片輸入的外部伺服器時，選擇 `API`
 4. 在 `設定 → 硬體 · OCR` 中選擇 OCR 品質和裝置，再前往 `安裝 / 檢查` 執行 `檢查 OCR/模型`。第一次使用時，應用程式會自動準備所需檔案。
 5. 在主畫面的 `翻譯` 中選擇圖片、資料夾或 ZIP/CBZ，並設定作品名稱和章節名稱。
@@ -167,11 +167,11 @@ Apple Silicon 正式版內建 arm64 FFmpeg、用於在 CPU 上執行 Paddle OCR 
 
 ### 翻譯引擎比較
 
-| 引擎         | 優點                                                                       | 需要準備的項目                                                   |
-| ------------ | -------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| Gemma 4      | 頁面和模型都在本機處理，準備完成後可離線使用                               | GGUF 模型、適合電腦的 CUDA/ROCm/Vulkan 執行環境、足夠的 RAM/VRAM |
-| OpenAI Codex | 使用 Codex CLI 登入資訊，不必在應用程式中儲存 API 金鑰                     | 安裝並登入 Codex CLI、網路連線                                   |
-| API          | 可連接相容 OpenAI 的視覺模型、本機伺服器、NVIDIA NIM、相容 Gemini 的端點等 | Base URL、支援圖片輸入的模型名稱，以及視需要提供 API 金鑰        |
+| 引擎         | 優點                                                                         | 需要準備的項目                                                   |
+| ------------ | ---------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Gemma 4      | 頁面和模型都在本機處理，準備完成後可離線使用                                 | GGUF 模型、適合電腦的 CUDA/ROCm/Vulkan 執行環境、足夠的 RAM/VRAM |
+| OpenAI Codex | 使用內建的官方 Codex App Server 和應用程式專用 ChatGPT 登入，不儲存 API 金鑰 | 可使用 Codex 的 ChatGPT 帳號、網路連線                           |
+| API          | 可連接相容 OpenAI 的視覺模型、本機伺服器、NVIDIA NIM、相容 Gemini 的端點等   | Base URL、支援圖片輸入的模型名稱，以及視需要提供 API 金鑰        |
 
 可大致依照以下順序選擇 Gemma 預設。
 
@@ -185,23 +185,11 @@ OCR 品質分為 `最小`、`省資源` 和 `完整載入`。`完整載入`使�
 <details>
 <summary><strong>準備 OpenAI Codex 引擎</strong></summary>
 
-Codex 引擎會透過 `openai-oauth` 本機端點使用 Windows 中儲存的 Codex CLI 登入資訊，並不是在應用程式中直接輸入 OpenAI API 金鑰。
+Codex 引擎使用應用程式內建的 OpenAI 官方 Codex App Server。在 `設定 → 翻譯引擎 → Codex` 中按下 `使用 ChatGPT 登入`後，系統瀏覽器會開啟，驗證資訊只會儲存在本應用程式專用的資料目錄中。不會使用系統中安裝的 Codex CLI 及其 `~/.codex` 設定，也不需要輸入 OpenAI API 金鑰。
 
-在 PowerShell 中執行官方 Windows 安裝命令。
+翻譯會在唯讀的暫時 Codex 執行緒中執行，完成後即刪除。若模型不在清單中，可在 `Custom` 輸入模型 ID。
 
-```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://chatgpt.com/codex/install.ps1 | iex"
-```
-
-開啟新的 PowerShell 視窗並登入。
-
-```powershell
-codex login
-```
-
-執行 `codex` 並確認可以正常開啟，接著在應用程式中選擇 `OpenAI Codex`，再執行 `檢查 OCR/模型`。如果模型不在清單中，可在 `Custom` 輸入模型 ID。若發生連接埠衝突，請更改設定中的 `openai-oauth 連接埠`。
-
-官方說明：[Codex CLI](https://learn.chatgpt.com/docs/codex/cli)
+官方說明：[Codex App Server](https://learn.chatgpt.com/docs/app-server)、[Codex 驗證](https://learn.chatgpt.com/docs/auth)
 
 </details>
 
@@ -277,7 +265,7 @@ data/
 
 ### 無法連接 Codex
 
-請確認 PowerShell 中可以執行 `codex` 且已完成登入。在應用程式中重新選擇 Codex 引擎並執行 `檢查 OCR/模型`；如果懷疑連接埠衝突，請更改 `openai-oauth 連接埠`。OCR 準備失敗有時看起來也像 Codex 連線問題，因此請查看結果記錄中實際失敗的步驟。
+請在 `設定 → 翻譯引擎 → Codex` 中按下 `使用 ChatGPT 登入`，完成瀏覽器驗證後再執行 `檢查 OCR/模型`。不需要安裝 Codex CLI，也不需要在終端機中另外登入。如果仍然失敗，請在應用程式記錄中檢查內建 Codex App Server 的啟動錯誤。OCR 準備失敗有時看起來也像 Codex 連線問題，因此也請查看結果記錄中實際失敗的步驟。
 
 ### API 傳回 401、403 或 404
 

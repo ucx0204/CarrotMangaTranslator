@@ -101,7 +101,7 @@ type GenerationLimitsFieldsProps = Pick<
   | "setContextTokens"
   | "setMaxTokens"
   | "submit"
->;
+> & { codexModelLabel?: string };
 
 export function GenerationLimitsFields(
   props: GenerationLimitsFieldsProps,
@@ -115,12 +115,15 @@ export function GenerationLimitsFields(
   const alreadyRecommended =
     Number(props.maxTokens) === recommendation.maxTokens &&
     Number(props.contextTokens) === recommendation.contextTokens;
-  const modelLimits = resolveModelLimitsCopy({
-    contextWindowTokens: recommendation.contextWindowTokens,
-    maxOutputTokens: recommendation.maxOutputTokens,
-    numberFormatter,
-    t,
-  });
+  const modelLimits =
+    props.modelProvider === "openai-codex"
+      ? null
+      : resolveModelLimitsCopy({
+          contextWindowTokens: recommendation.contextWindowTokens,
+          maxOutputTokens: recommendation.maxOutputTokens,
+          numberFormatter,
+          t,
+        });
 
   return (
     <div className="settings-limit-stack">
@@ -139,7 +142,7 @@ export function GenerationLimitsFields(
               maxTokens: numberFormatter.format(recommendation.maxTokens),
             })}
           </span>
-          <small>{modelLimits}</small>
+          {modelLimits ? <small>{modelLimits}</small> : null}
         </div>
         <button
           type="button"
@@ -259,11 +262,12 @@ function ContextTokensField({
 
 function resolveLimitRecommendation({
   apiModel,
+  codexModelLabel,
   codexModel,
   modelProvider,
 }: Pick<
-  EngineSettingsPanelProps,
-  "apiModel" | "codexModel" | "modelProvider"
+  GenerationLimitsFieldsProps,
+  "apiModel" | "codexModel" | "codexModelLabel" | "modelProvider"
 >) {
   const model = resolveModelForProvider(modelProvider, codexModel, apiModel);
   const limits = resolveRecommendedGenerationLimits(modelProvider, model);
@@ -273,7 +277,7 @@ function resolveLimitRecommendation({
     modelLabel:
       modelProvider === "gemma"
         ? "Gemma"
-        : (preset?.label ?? (model?.trim() || "Custom")),
+        : (codexModelLabel ?? preset?.label ?? (model?.trim() || "Custom")),
   };
 }
 

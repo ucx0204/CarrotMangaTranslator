@@ -8,7 +8,6 @@ import {
   DEFAULT_API_TOP_K,
   DEFAULT_API_TOP_P,
   DEFAULT_CODEX_MODEL,
-  DEFAULT_CODEX_OAUTH_PORT,
   DEFAULT_CODEX_REASONING_EFFORT,
   DEFAULT_MODEL_SOURCE,
   resolveRecommendedGenerationLimits,
@@ -44,7 +43,6 @@ import {
   resolveOcrQualityMode,
   resolveOpenAiCompatibleBaseUrl,
   resolveOptionalString,
-  resolvePortNumber,
 } from "./appSettingsResolvers";
 import {
   resolveHardwareDefaults,
@@ -243,10 +241,6 @@ function resolveDefaultCodexSettings(
     reasoningEffort: resolveCodexReasoningEffort(
       env.MANGA_TRANSLATOR_CODEX_REASONING_EFFORT,
       DEFAULT_CODEX_REASONING_EFFORT,
-    ),
-    oauthPort: resolvePortNumber(
-      env.MANGA_TRANSLATOR_CODEX_OAUTH_PORT,
-      DEFAULT_CODEX_OAUTH_PORT,
     ),
   };
 }

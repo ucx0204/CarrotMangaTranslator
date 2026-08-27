@@ -89,7 +89,6 @@ function useSettingsFormSetters(
         setValues,
         "codexReasoningEffort",
       ),
-      setCodexOauthPort: createFormFieldDispatch(setValues, "codexOauthPort"),
       ...createApiFormSetters(setValues),
       setGraphicsGpuPreference: createFormFieldDispatch(
         setValues,

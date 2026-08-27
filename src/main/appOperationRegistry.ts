@@ -7,7 +7,8 @@ export type AppOperationKind =
   | "web-import-preview"
   | "work-share-import"
   | "work-share-export"
-  | "model-test";
+  | "model-test"
+  | "codex-auth";
 
 export type AppOperationSnapshot = {
   id: string;

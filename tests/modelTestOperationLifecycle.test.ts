@@ -268,7 +268,6 @@ function createGemmaSettings(): AppSettings {
     codex: {
       model: "gpt-5.5",
       reasoningEffort: "low",
-      oauthPort: 10531,
     },
     api: {
       baseUrl: "https://api.openai.com/v1",

@@ -192,14 +192,6 @@ export function resolveOptionalString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
-export function resolvePortNumber(value: unknown, fallback: number): number {
-  const parsed = typeof value === "number" ? value : Number(value);
-  if (!Number.isInteger(parsed)) {
-    return fallback;
-  }
-  return clampInteger(parsed, 1, 65535);
-}
-
 export function resolveMaxTokens(value: unknown, fallback: number): number {
   const parsed = typeof value === "number" ? value : Number(value);
   if (!Number.isInteger(parsed)) {

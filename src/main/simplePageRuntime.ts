@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import type { ModelTestResult } from "../shared/jobTypes";
 import type { OpenAICompatibleApiEndpoint } from "./openaiApiEndpoint";
-import type { OpenAIOAuthEndpoint } from "./openaiOauthEndpoint";
+import type { CodexAppServerEndpoint } from "./codexAppServerEndpoint";
 import {
   loadRuntimeModuleFromDirectory,
   resolveAppRuntimeModulePath,
@@ -169,13 +169,13 @@ export function convertImageToPngFileThroughRuntime(
   );
 }
 
-export function isOpenAIOAuthEndpoint(
+export function isCodexAppServerEndpoint(
   server:
     | Awaited<ReturnType<SimplePageRuntime["startServer"]>>
     | OpenAICompatibleApiEndpoint
-    | OpenAIOAuthEndpoint
+    | CodexAppServerEndpoint
     | null,
-): server is OpenAIOAuthEndpoint {
+): server is CodexAppServerEndpoint {
   return Boolean(
     server && "provider" in server && server.provider === "openai-codex",
   );

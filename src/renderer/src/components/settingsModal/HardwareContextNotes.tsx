@@ -1,8 +1,8 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { settingsGateway } from "../../api/settingsGateway";
-import { formatErrorMessage } from "../../lib/errorPresentation";
 import { toast } from "../../lib/toastStore";
+import { formatSettingsErrorMessage } from "../settingsModalHelpers";
 
 export function OcrHardwareContextNote({
   supportsOcrRocm,
@@ -87,7 +87,10 @@ export function AmdHipSdkDownloadButton(): React.JSX.Element {
       onClick={() => {
         void settingsGateway.openAmdHipSdkDownload().catch((error) => {
           toast.error(
-            formatErrorMessage(error, t("settings.hardware.openLinkFailed")),
+            formatSettingsErrorMessage(
+              error,
+              t("settings.hardware.openLinkFailed"),
+            ),
           );
         });
       }}

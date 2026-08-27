@@ -252,7 +252,6 @@ function makeSettings(): AppSettings {
     codex: {
       model: "gpt-test",
       reasoningEffort: "low",
-      oauthPort: 10531,
     },
     api: {
       baseUrl: "https://private.example.test/v1?api_key=secret",

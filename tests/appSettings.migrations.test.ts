@@ -503,8 +503,8 @@ describeWindows("app settings helpers: UI settings and migrations", () => {
       JSON.stringify({
         modelProvider: "openai-codex",
         codex: { model: "gpt-5.6-sol" },
-        maxTokens: DEFAULT_GEMMA_MAX_TOKENS,
-        ctx: DEFAULT_GEMMA_CONTEXT_TOKENS,
+        maxTokens: 12000,
+        ctx: 16384,
       }),
       defaults,
     );
@@ -512,8 +512,8 @@ describeWindows("app settings helpers: UI settings and migrations", () => {
       JSON.stringify({
         modelProvider: "openai-api",
         api: { model: "gemini-3.5-flash-lite" },
-        maxTokens: DEFAULT_GEMMA_MAX_TOKENS,
-        ctx: DEFAULT_GEMMA_CONTEXT_TOKENS,
+        maxTokens: 12000,
+        ctx: 16384,
       }),
       defaults,
     );
@@ -534,38 +534,38 @@ describeWindows("app settings helpers: UI settings and migrations", () => {
         modelProvider: "openai-api",
         api: { model: "gemini-3.5-flash-lite" },
         maxTokens: 12001,
-        ctx: DEFAULT_GEMMA_CONTEXT_TOKENS,
+        ctx: 16384,
       }),
-    ).toMatchObject({ maxTokens: 12001, ctx: DEFAULT_GEMMA_CONTEXT_TOKENS });
+    ).toMatchObject({ maxTokens: 12001, ctx: 16384 });
     expect(
       parse({
         modelProvider: "openai-api",
         api: { model: "gemini-3.5-flash-lite" },
-        maxTokens: DEFAULT_GEMMA_MAX_TOKENS,
+        maxTokens: 12000,
         ctx: 20000,
       }),
-    ).toMatchObject({ maxTokens: DEFAULT_GEMMA_MAX_TOKENS, ctx: 20000 });
+    ).toMatchObject({ maxTokens: 12000, ctx: 20000 });
     expect(
       parse({
         modelProvider: "gemma",
-        maxTokens: DEFAULT_GEMMA_MAX_TOKENS,
-        ctx: DEFAULT_GEMMA_CONTEXT_TOKENS,
+        maxTokens: 12000,
+        ctx: 16384,
       }),
     ).toMatchObject({
-      maxTokens: DEFAULT_GEMMA_MAX_TOKENS,
-      ctx: DEFAULT_GEMMA_CONTEXT_TOKENS,
+      maxTokens: 12000,
+      ctx: 16384,
     });
     expect(
       parse({
         generationLimitsVersion: CURRENT_GENERATION_LIMITS_VERSION,
         modelProvider: "openai-api",
         api: { model: "gemini-3.5-flash-lite" },
-        maxTokens: DEFAULT_GEMMA_MAX_TOKENS,
-        ctx: DEFAULT_GEMMA_CONTEXT_TOKENS,
+        maxTokens: 12000,
+        ctx: 16384,
       }),
     ).toMatchObject({
-      maxTokens: DEFAULT_GEMMA_MAX_TOKENS,
-      ctx: DEFAULT_GEMMA_CONTEXT_TOKENS,
+      maxTokens: 12000,
+      ctx: 16384,
     });
   });
 

@@ -93,10 +93,9 @@ type CodexReasoningOption = {
   descriptionKey: string;
 };
 
-export type CodexModelOption = CodexModelPreset;
+type CodexModelOption = CodexModelPreset;
 
-export const CODEX_MODEL_OPTIONS: readonly CodexModelOption[] =
-  CODEX_MODEL_PRESETS;
+const CODEX_MODEL_OPTIONS: readonly CodexModelOption[] = CODEX_MODEL_PRESETS;
 
 type ApiReasoningOption = {
   id: ApiReasoningEffort | "";
@@ -213,7 +212,7 @@ export function findCodexModelOption(
   return CODEX_MODEL_OPTIONS.find((option) => option.id === normalized);
 }
 
-export function supportsCodexReasoningEffort(
+function supportsCodexReasoningEffort(
   model: CodexModelOption,
   effort: CodexReasoningEffort,
 ): boolean {

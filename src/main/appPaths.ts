@@ -7,6 +7,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import {
   DATA_ROOT_MARKER_FILE,
@@ -30,6 +31,8 @@ export type AppPaths = {
   ocrRuntimeDir: string;
   llamaRuntimeDir: string;
   llamaServerPath: string;
+  codexHomeDir?: string;
+  codexWorkspaceDir?: string;
   hfHomeDir?: string;
   hfHubCacheDir?: string;
   llamaCacheDir?: string;
@@ -85,6 +88,11 @@ function resolveAppPaths(): AppPaths {
     ocrRuntimeDir,
     llamaRuntimeDir,
     llamaServerPath,
+    codexHomeDir: join(roots.dataRoot, "codex"),
+    codexWorkspaceDir: join(
+      tmpdir(),
+      "carrot-manga-translator-codex-workspace",
+    ),
     ...modelCachePaths,
   };
 }
@@ -265,14 +273,17 @@ export function ensureWritableAppDirectories(): AppPaths {
   mkdirSync(paths.libraryDir, { recursive: true });
   mkdirSync(paths.fontsDir, { recursive: true });
   mkdirSync(paths.logsDir, { recursive: true });
-  if (paths.hfHomeDir) {
-    mkdirSync(paths.hfHomeDir, { recursive: true });
-  }
-  if (paths.hfHubCacheDir) {
-    mkdirSync(paths.hfHubCacheDir, { recursive: true });
-  }
-  if (paths.llamaCacheDir) {
-    mkdirSync(paths.llamaCacheDir, { recursive: true });
+  const optionalRuntimeDirectories = [
+    paths.hfHomeDir,
+    paths.hfHubCacheDir,
+    paths.llamaCacheDir,
+    paths.codexHomeDir,
+    paths.codexWorkspaceDir,
+  ];
+  for (const directory of optionalRuntimeDirectories) {
+    if (directory) {
+      mkdirSync(directory, { recursive: true });
+    }
   }
   mkdirSync(paths.ocrRuntimeDir, { recursive: true });
   return paths;

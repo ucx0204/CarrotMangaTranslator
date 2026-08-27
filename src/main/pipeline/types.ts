@@ -1,7 +1,7 @@
 import type { TranslationOptions } from "../appSettings";
 import type { PreviousOverlayBlockForPrompt } from "../appSettings";
 import type { OpenAICompatibleApiEndpoint } from "../openaiApiEndpoint";
-import type { OpenAIOAuthEndpoint } from "../openaiOauthEndpoint";
+import type { CodexAppServerEndpoint } from "../codexAppServerEndpoint";
 import type {
   BBox,
   SourceTextDirection,
@@ -75,7 +75,7 @@ type ServerHandle = {
 
 export type ModelEndpointHandle =
   | ServerHandle
-  | OpenAIOAuthEndpoint
+  | CodexAppServerEndpoint
   | OpenAICompatibleApiEndpoint;
 
 export type TranslationResult = {

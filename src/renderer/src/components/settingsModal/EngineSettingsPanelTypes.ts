@@ -26,7 +26,6 @@ export type EngineSettingsPanelProps = {
   apiCustomHeadersJson: string;
   clearTestState: () => void;
   codexModel: string;
-  codexOauthPort: string;
   codexReasoningEffort: CodexReasoningEffort;
   contextTokens: string;
   controlsBusy: boolean;
@@ -51,7 +50,6 @@ export type EngineSettingsPanelProps = {
   pickLocalModelFile: () => Promise<void>;
   selectedPreset: ModelPresetId;
   setCodexModel: React.Dispatch<React.SetStateAction<string>>;
-  setCodexOauthPort: React.Dispatch<React.SetStateAction<string>>;
   setCodexReasoningEffort: React.Dispatch<
     React.SetStateAction<CodexReasoningEffort>
   >;

@@ -1371,7 +1371,7 @@
       },
       "contextTokens": {
         "remoteLabel": "作品前後文預算",
-        "remoteDescription": "這不是模型伺服器端的前後文視窗，而是應用程式用來加入作品記憶、術語表與角色資訊的內部預算。",
+        "remoteDescription": "用於作品記憶、術語表與角色資訊的最大權杖數。",
         "gemmaLabel": "前後文長度",
         "gemmaDescription": "本機 Gemma 的實際前後文長度。提高後可能使用更多顯示記憶體。"
       }
@@ -1420,7 +1420,7 @@
         },
         "codex": {
           "label": "Codex",
-          "description": "透過 Codex OAuth 端點翻譯。"
+          "description": "使用應用程式內建的官方 Codex App Server 與 ChatGPT 帳戶進行翻譯。"
         },
         "api": { "label": "API", "description": "使用 OpenAI 相容 API 端點。" }
       },
@@ -1600,9 +1600,21 @@
       "customModel": "自訂",
       "customModelAria": "輸入自訂 Codex 模型",
       "modelPlaceholder": "模型名稱",
-      "modelDescription": "可以輸入清單中沒有的模型。",
       "reasoning": { "label": "推理強度", "ariaLabel": "Codex 推理強度" },
-      "oauthPort": "openai-oauth 連接埠"
+      "account": {
+        "title": "ChatGPT 帳戶",
+        "loading": "正在檢查驗證狀態…",
+        "connected": "已連接 ChatGPT",
+        "signedOut": "尚未登入",
+        "plan": "{{plan}} 方案",
+        "signIn": "使用 ChatGPT 登入",
+        "signOut": "登出",
+        "signingIn": "正在等待瀏覽器登入…",
+        "signingOut": "正在登出…",
+        "loadFailed": "無法檢查 Codex 驗證狀態。",
+        "loginFailed": "Codex 登入失敗。",
+        "logoutFailed": "Codex 登出失敗。"
+      }
     },
     "api": {
       "sections": {
@@ -1870,7 +1882,6 @@
     },
     "validation": {
       "languageCode": "翻譯語言代碼必須使用 en、ja、zh-Hans、pt-BR 等格式。",
-      "oauthPort": "openai-oauth 連接埠必須是 1 到 65535 之間的整數。",
       "apiBaseUrl": "API Base URL 必須是 http 或 https 網址。",
       "apiAdvanced": "請檢查進階 API 設定。",
       "maxTokens": "最大輸出權杖數必須是{{min}}到{{max}}之間的整數。",

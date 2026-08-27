@@ -16,6 +16,7 @@ const {
   verifyFinalZipArchive,
   verifyNativePayload,
   verifyPackagedArchiveRuntimes,
+  verifyPackagedCodexRuntime,
   verifyPackagedBuildChannel,
   verifyPackagedImageRuntime,
   verifyPackagedOnnxRuntime,
@@ -47,6 +48,7 @@ async function sha256(filePath) {
  *   verifySignature: (appPath: string) => void;
  *   verifyOnnx: (appPath: string) => void;
  *   verifyArchives: (appPath: string) => void;
+ *   verifyCodex: (appPath: string) => void;
  *   verifyImage: (appPath: string) => void;
  *   verifyApplicationSmoke: (appPath: string) => void;
  *   verifyRuntimes: (appPath: string) => void;
@@ -68,6 +70,7 @@ async function verifyUnpackedApplication(
     verifySignature: verifySigning,
     verifyOnnx: verifyPackagedOnnxRuntime,
     verifyArchives: verifyPackagedArchiveRuntimes,
+    verifyCodex: verifyPackagedCodexRuntime,
     verifyImage: verifyPackagedImageRuntime,
     verifyApplicationSmoke: verifyApplicationDirectorySmoke,
     verifyRuntimes: verifyRequiredRuntimes,
@@ -81,6 +84,7 @@ async function verifyUnpackedApplication(
   verification.verifySignature(appPath);
   verification.verifyOnnx(appPath);
   verification.verifyArchives(appPath);
+  verification.verifyCodex(appPath);
   verification.verifyImage(appPath);
   verification.verifyApplicationSmoke(appPath);
   verification.verifyRuntimes(appPath);

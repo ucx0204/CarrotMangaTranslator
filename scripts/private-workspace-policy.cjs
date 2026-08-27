@@ -1,8 +1,10 @@
 const FORBIDDEN_ROOT_DIRECTORIES = Object.freeze([
   ".claude",
+  ".codex-workspace",
   ".pytest_cache",
   ".ruff_cache",
   ".settings-pairs",
+  "codex",
   "fonts",
   "library",
   "logs",

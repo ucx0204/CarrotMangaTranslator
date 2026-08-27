@@ -1,12 +1,10 @@
-import {
-  DEFAULT_GEMMA_CONTEXT_TOKENS,
-  DEFAULT_GEMMA_MAX_TOKENS,
-  resolveRecommendedGenerationLimits,
-} from "../../shared/modelPresets";
+import { resolveRecommendedGenerationLimits } from "../../shared/modelPresets";
 import type { AppSettings } from "../../shared/settingsTypes";
 import { asRecord } from "./appSettingsResolvers";
 
 export const CURRENT_GENERATION_LIMITS_VERSION = 1;
+const LEGACY_GEMMA_MAX_TOKENS = 12000;
+const LEGACY_GEMMA_CONTEXT_TOKENS = 16384;
 
 export function migrateLegacyRemoteGenerationLimits(
   raw: unknown,
@@ -17,8 +15,8 @@ export function migrateLegacyRemoteGenerationLimits(
     !record ||
     record.generationLimitsVersion === CURRENT_GENERATION_LIMITS_VERSION ||
     normalized.modelProvider === "gemma" ||
-    record.maxTokens !== DEFAULT_GEMMA_MAX_TOKENS ||
-    record.ctx !== DEFAULT_GEMMA_CONTEXT_TOKENS
+    record.maxTokens !== LEGACY_GEMMA_MAX_TOKENS ||
+    record.ctx !== LEGACY_GEMMA_CONTEXT_TOKENS
   ) {
     return normalized;
   }

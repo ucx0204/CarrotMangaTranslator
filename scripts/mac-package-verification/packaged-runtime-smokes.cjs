@@ -1,6 +1,7 @@
-const { existsSync } = require("node:fs");
+const { existsSync, readFileSync } = require("node:fs");
 const { join } = require("node:path");
 const { run } = require("./core.cjs");
+const { CODEX_APP_SERVER_VERSION } = require("../codex-app-server-runtime.cjs");
 
 const root = join(__dirname, "..", "..");
 
@@ -63,6 +64,46 @@ function verifyPackagedImageRuntime(appPath) {
 }
 
 /** @param {string} appPath */
+function verifyPackagedCodexRuntime(appPath) {
+  const appExecutable = packagedAppExecutable(appPath);
+  const runtimeDir = join(appPath, "Contents", "Resources", "c");
+  const codexExecutable = join(runtimeDir, "bin", "codex");
+  const manifestPath = join(runtimeDir, "codex-package.json");
+  for (const [filePath, label] of [
+    [codexExecutable, "Packaged Codex App Server"],
+    [
+      join(runtimeDir, "bin", "codex-code-mode-host"),
+      "Packaged Codex code-mode host",
+    ],
+    [join(runtimeDir, "codex-path", "rg"), "Packaged Codex rg"],
+    [manifestPath, "Packaged Codex manifest"],
+  ]) {
+    assertFileExists(filePath, label);
+  }
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  if (
+    manifest.version !== CODEX_APP_SERVER_VERSION ||
+    manifest.target !== "aarch64-apple-darwin" ||
+    manifest.entrypoint !== "bin/codex"
+  ) {
+    throw new Error(
+      "Packaged Codex runtime manifest does not match the pinned arm64 target.",
+    );
+  }
+  run(
+    appExecutable,
+    [
+      join(root, "scripts", "smoke-codex-app-server-runtime.cjs"),
+      codexExecutable,
+    ],
+    {
+      env: { ELECTRON_RUN_AS_NODE: "1" },
+      timeout: 30_000,
+    },
+  );
+}
+
+/** @param {string} appPath */
 function packagedAppExecutable(appPath) {
   return join(appPath, "Contents", "MacOS", "CarrotMangaTranslator");
 }
@@ -76,5 +117,6 @@ function assertFileExists(filePath, label) {
 
 module.exports = {
   verifyPackagedArchiveRuntimes,
+  verifyPackagedCodexRuntime,
   verifyPackagedImageRuntime,
 };

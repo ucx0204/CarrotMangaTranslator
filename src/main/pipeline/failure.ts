@@ -23,7 +23,7 @@ const FAILURE_MESSAGE_RULES = [
       "openai codex request failed",
       "api 오류",
       "request transport failed",
-      "openai-oauth",
+      "codex app server",
     ],
   },
   {

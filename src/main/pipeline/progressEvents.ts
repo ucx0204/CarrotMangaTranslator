@@ -195,7 +195,7 @@ export function emitEndpointReady(
     progressTotal: context.progressTotal,
     pageTotal: context.pageTotal,
     detail: options.codexSelected
-      ? tMain("translation.progress.oauthReadyDetail", {
+      ? tMain("translation.progress.appServerReadyDetail", {
           endpoint: options.server.baseUrl,
         })
       : options.apiSelected

@@ -105,7 +105,6 @@ run(process.execPath, [
 copyFontAssets(root);
 prepareRuntimeAssets({ root, outputDir: join(root, "out", "app-runtime") });
 run(process.execPath, [join(__dirname, "stage-onnxruntime-node.cjs")]);
-run(process.execPath, [join(__dirname, "bundle-openai-oauth-runtime.cjs")]);
 
 /**
  * @param {string} packageName
