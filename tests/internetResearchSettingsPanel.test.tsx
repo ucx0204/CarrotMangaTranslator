@@ -57,6 +57,7 @@ function createBaseEngineProps(): EngineSettingsPanelProps {
   return {
     apiBaseUrl: "https://api.openai.com/v1",
     apiKey: "sk-test",
+    apiKeyCount: 1,
     apiVertexAuthMode: "access-token",
     apiVertexServiceAccountPath: "",
     apiKeyMaxAttempts: "5",

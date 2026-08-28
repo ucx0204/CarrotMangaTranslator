@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { safeStorage } from "electron";
 import type { AppSettings } from "../shared/settingsTypes";
 import { SETTINGS_SECRET_PRESERVE_SENTINEL } from "../shared/settingsSecrets";
+import { parseApiKeys } from "../shared/apiKeySettings";
 import type { AppPaths } from "./appPaths";
 import {
   commitSettingsPairFiles,
@@ -152,6 +153,7 @@ export function separateSettingsSecrets(settings: AppSettings): {
   const api = { ...settings.api };
   const apiKey = cleanSecret(api.apiKey);
   delete api.apiKey;
+  delete api.apiKeyCount;
   const { publicHeadersJson, credentialHeaders } = splitCredentialHeaders(
     api.customHeadersJson,
   );
@@ -237,6 +239,9 @@ export function hasSettingsSecretSentinels(settings: AppSettings): boolean {
 }
 
 export function maskSettingsSecrets(settings: AppSettings): AppSettings {
+  const api = { ...settings.api };
+  delete api.apiKeyCount;
+  const apiKeyCount = parseApiKeys(settings.api.apiKey).length;
   const headers = parseHeaderRecord(settings.api.customHeadersJson);
   for (const name of Object.keys(headers)) {
     if (isCredentialHeader(name)) {
@@ -252,9 +257,9 @@ export function maskSettingsSecrets(settings: AppSettings): AppSettings {
         : {}),
     },
     api: {
-      ...settings.api,
-      ...(settings.api.apiKey
-        ? { apiKey: SETTINGS_SECRET_PRESERVE_SENTINEL }
+      ...api,
+      ...(apiKeyCount > 0
+        ? { apiKey: SETTINGS_SECRET_PRESERVE_SENTINEL, apiKeyCount }
         : {}),
       customHeadersJson: stringifyHeaderRecord(headers),
     },

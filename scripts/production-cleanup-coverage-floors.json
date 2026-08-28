@@ -15151,6 +15151,28 @@
         "pct": 68.42
       }
     },
+    "src/renderer/src/hooks/useCompletionSound.ts": {
+      "lines": {
+        "covered": 35,
+        "total": 41,
+        "pct": 85.36
+      },
+      "statements": {
+        "covered": 38,
+        "total": 46,
+        "pct": 82.6
+      },
+      "functions": {
+        "covered": 9,
+        "total": 10,
+        "pct": 90
+      },
+      "branches": {
+        "covered": 23,
+        "total": 27,
+        "pct": 85.18
+      }
+    },
     "src/renderer/src/hooks/useLinkedWorkspaceActivityReporter.ts": {
       "lines": {
         "total": 74,

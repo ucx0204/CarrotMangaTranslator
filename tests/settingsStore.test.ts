@@ -385,6 +385,7 @@ describe("settings store", () => {
   it("migrates API credentials out of plaintext settings and preserves masked saves", async () => {
     const rootDir = await createTempDir();
     const paths = makeAppPaths(rootDir);
+    const apiKeys = "sk-private-value\nsk-second-value\nsk-third-value";
     const defaults = resolveDefaultAppSettings({
       MANGA_TRANSLATOR_MODEL_PROVIDER: "openai-api",
     });
@@ -394,7 +395,7 @@ describe("settings store", () => {
         ...defaults,
         api: {
           ...defaults.api,
-          apiKey: "sk-private-value",
+          apiKey: apiKeys,
           customHeadersJson: JSON.stringify({
             Authorization: "Bearer private-header",
             "X-Trace": "public-value",
@@ -409,7 +410,7 @@ describe("settings store", () => {
     );
 
     const loaded = await getAppSettings(paths, {}, async () => null);
-    expect(loaded.api.apiKey).toBe("sk-private-value");
+    expect(loaded.api.apiKey).toBe(apiKeys);
     expect(loaded.api.customHeadersJson).toContain("private-header");
     expect(loaded.internetResearch.tavilyApiKey).toBe("tvly-private-value");
 
@@ -441,9 +442,11 @@ describe("settings store", () => {
     expect(masked.internetResearch.tavilyApiKey).toBe(
       SETTINGS_SECRET_PRESERVE_SENTINEL,
     );
+    expect(masked.api.apiKeyCount).toBe(3);
     expect(masked.api.customHeadersJson).not.toContain("private-header");
     const saved = await saveAppSettings(masked, paths, {}, async () => null);
-    expect(saved.api.apiKey).toBe("sk-private-value");
+    expect(saved.api.apiKey).toBe(apiKeys);
+    expect(saved.api.apiKeyCount).toBeUndefined();
     expect(saved.api.customHeadersJson).toContain("private-header");
     expect(saved.internetResearch.tavilyApiKey).toBe("tvly-private-value");
 

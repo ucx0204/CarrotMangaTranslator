@@ -18,6 +18,7 @@ import { createTestMangaGatewayStub } from "../src/renderer/src/api/mangaGateway
 import { appI18n, initializeAppI18n } from "../src/renderer/src/appI18n";
 import { ApiProviderConnectionFields } from "../src/renderer/src/components/settingsModal/ApiProviderConnectionFields";
 import { AppI18nProvider } from "../src/renderer/src/i18n";
+import { SETTINGS_SECRET_PRESERVE_SENTINEL } from "../src/shared/settingsSecrets";
 import {
   chooseCustomSelectOption,
   openCustomSelect,
@@ -34,6 +35,22 @@ afterEach(async () => {
 });
 
 describe("API provider connection fields", () => {
+  it("shows the real count for masked keys loaded from encrypted storage", () => {
+    window.mangaApi = createTestMangaGatewayStub({
+      onUiLocaleChanged: () => () => undefined,
+    });
+    render(
+      <AppI18nProvider>
+        <Harness
+          initialApiKey={SETTINGS_SECRET_PRESERVE_SENTINEL}
+          apiKeyCount={3}
+        />
+      </AppI18nProvider>,
+    );
+
+    expect(screen.getByText(/3 keys are configured and kept/)).not.toBeNull();
+  });
+
   it("keeps manual inputs while a template can fill verified model settings", async () => {
     const discoverApiModels = vi.fn().mockResolvedValue({
       provider: "openrouter",
@@ -316,12 +333,18 @@ function readValue(element: HTMLElement): string {
   return (element as HTMLInputElement | HTMLTextAreaElement).value;
 }
 
-function Harness(): React.JSX.Element {
+function Harness({
+  initialApiKey = "",
+  apiKeyCount = 0,
+}: {
+  initialApiKey?: string;
+  apiKeyCount?: number;
+} = {}): React.JSX.Element {
   const [apiBaseUrl, setApiBaseUrl] = React.useState(
     "https://private.example/v1",
   );
   const [apiModel, setApiModel] = React.useState("manual-vision-model");
-  const [apiKey, setApiKey] = React.useState("");
+  const [apiKey, setApiKey] = React.useState(initialApiKey);
   const [apiVertexAuthMode, setApiVertexAuthMode] = React.useState<
     "access-token" | "service-account"
   >("access-token");
@@ -336,6 +359,7 @@ function Harness(): React.JSX.Element {
         apiBaseUrl={apiBaseUrl}
         apiModel={apiModel}
         apiKey={apiKey}
+        apiKeyCount={apiKeyCount}
         apiVertexAuthMode={apiVertexAuthMode}
         apiVertexServiceAccountPath={apiVertexServiceAccountPath}
         apiKeyMaxAttempts={apiKeyMaxAttempts}

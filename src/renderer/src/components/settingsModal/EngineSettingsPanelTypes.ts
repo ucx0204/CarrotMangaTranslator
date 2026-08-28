@@ -13,6 +13,7 @@ import type { ModelPresetId } from "../settingsOptions";
 export type EngineSettingsPanelProps = {
   apiBaseUrl: string;
   apiKey: string;
+  apiKeyCount: number;
   apiVertexAuthMode: VertexAuthMode;
   apiVertexServiceAccountPath: string;
   apiKeyMaxAttempts: string;

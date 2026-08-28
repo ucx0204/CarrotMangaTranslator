@@ -77,6 +77,7 @@ export type SettingsFormValues = {
   apiBaseUrl: string;
   apiModel: string;
   apiKey: string;
+  apiKeyCount: number;
   apiVertexAuthMode: import("../../../../shared/apiProviderPresets").VertexAuthMode;
   apiVertexServiceAccountPath: string;
   apiKeyMaxAttempts: string;
@@ -219,6 +220,7 @@ function resolveApiFormValues(
   | "apiBaseUrl"
   | "apiModel"
   | "apiKey"
+  | "apiKeyCount"
   | "apiVertexAuthMode"
   | "apiVertexServiceAccountPath"
   | "apiKeyMaxAttempts"
@@ -234,6 +236,7 @@ function resolveApiFormValues(
     apiBaseUrl: settings.api.baseUrl,
     apiModel: settings.api.model,
     apiKey: settings.api.apiKey ?? "",
+    apiKeyCount: settings.api.apiKeyCount ?? 0,
     apiVertexAuthMode: resolveVertexAuthMode(settings),
     apiVertexServiceAccountPath: settings.api.vertexServiceAccountPath ?? "",
     apiKeyMaxAttempts: String(

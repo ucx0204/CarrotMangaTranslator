@@ -27,6 +27,12 @@ import type { useInpaintingGuidePreference } from "./useInpaintingGuidePreferenc
 export type AppSessionViewModel = {
   blockEditingActions: ReturnType<typeof useBlockEditingActions>;
   bridgeActions: ReturnType<typeof useAppSessionBridgeActions>;
+  completionSound: {
+    muted: boolean;
+    volume: number;
+    playCompletionSound: () => void;
+    setPreferences: (preferences: { muted: boolean; volume: number }) => void;
+  };
   commands: AppSessionViewProps["commandPaletteProps"]["commands"];
   confirmController: ReturnType<typeof useConfirmDialog>;
   core: AppSessionCoreState;

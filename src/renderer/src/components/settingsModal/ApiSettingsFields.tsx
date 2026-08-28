@@ -13,6 +13,7 @@ export type ApiSettingsFieldsProps = Pick<
   | "apiCustomHeadersJson"
   | "apiExtraBodyJson"
   | "apiKey"
+  | "apiKeyCount"
   | "apiVertexAuthMode"
   | "apiVertexServiceAccountPath"
   | "apiKeyMaxAttempts"

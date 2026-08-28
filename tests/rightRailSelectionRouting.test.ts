@@ -18,6 +18,11 @@ describe("right rail block selection routing", () => {
     const model = {
       blockEditingActions: { updateBlock: noop },
       bridgeActions: { cancelJob: noop },
+      completionSound: {
+        muted: true,
+        volume: 0.55,
+        setPreferences: noop,
+      },
       core: {
         currentChapter: null,
         jobState: {

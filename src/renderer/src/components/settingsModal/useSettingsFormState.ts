@@ -9,8 +9,13 @@ type FieldSetter<K extends keyof SettingsFormValues> = React.Dispatch<
   React.SetStateAction<SettingsFormValues[K]>
 >;
 
+type MutableSettingsFormField = Exclude<
+  keyof SettingsFormValues,
+  "apiKeyCount"
+>;
+
 export type SettingsFormSetters = {
-  [K in keyof SettingsFormValues as `set${Capitalize<string & K>}`]: FieldSetter<K>;
+  [K in MutableSettingsFormField as `set${Capitalize<string & K>}`]: FieldSetter<K>;
 };
 
 export type SettingsFormRefs = {

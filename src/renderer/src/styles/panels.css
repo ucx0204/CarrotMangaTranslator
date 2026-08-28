@@ -1094,3 +1094,101 @@
   background-size: 6px 6px;
   background-position: 0 0;
 }
+
+.status-sound-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 2px;
+  padding-right: 8px;
+  border-right: 1px solid var(--border-soft);
+}
+
+.status-sound-control input[type="range"] {
+  appearance: none;
+  width: 78px;
+  min-width: 0;
+  height: 14px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.status-sound-control.muted input[type="range"] {
+  opacity: 0.62;
+}
+
+.status-sound-control input[type="range"]::-webkit-slider-runnable-track {
+  height: 3px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: linear-gradient(
+    to right,
+    var(--accent) 0,
+    var(--accent) var(--status-sound-progress),
+    var(--border-strong) var(--status-sound-progress),
+    var(--border-strong) 100%
+  );
+}
+
+.status-sound-control input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -4.5px;
+  border: 1px solid var(--accent-bd);
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 42%);
+}
+
+.status-sound-control input[type="range"]::-moz-range-track {
+  height: 3px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--border-strong);
+}
+
+.status-sound-control input[type="range"]::-moz-range-progress {
+  height: 3px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+}
+
+.status-sound-control input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--accent-bd);
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 42%);
+}
+
+.status-sound-control input[type="range"]:focus-visible {
+  outline: none;
+}
+
+.status-sound-control input[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow:
+    0 0 0 3px var(--accent-soft),
+    0 1px 3px rgb(0 0 0 / 42%);
+}
+
+@media (max-width: 520px) {
+  .status-popover > header {
+    display: grid;
+  }
+
+  .status-popover-actions {
+    justify-content: flex-end;
+  }
+
+  .status-sound-control {
+    margin-right: auto;
+  }
+
+  .status-sound-control input[type="range"] {
+    width: min(120px, 30vw);
+  }
+}

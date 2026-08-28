@@ -19,6 +19,7 @@ type OpenErrorReport = (
 type UseAppSessionLifecycleEffectsArgs = {
   currentChapter: ChapterSnapshot | null;
   jobState: JobState;
+  onJobCompleted?: () => void;
   onJobStart: () => void;
   onPageChange: () => void;
   openErrorReport: OpenErrorReport;
@@ -32,6 +33,7 @@ type UseAppSessionLifecycleEffectsArgs = {
 export function useAppSessionLifecycleEffects({
   currentChapter,
   jobState,
+  onJobCompleted,
   onJobStart,
   onPageChange,
   openErrorReport,
@@ -46,7 +48,6 @@ export function useAppSessionLifecycleEffects({
   const prevFlowActiveRef = useRef(translationFlowActive);
   const reportedJobIdRef = useRef<string | null>(null);
   const previousPageIdRef = useRef(selectedPageId);
-  const refreshStartedRef = useRef(false);
   const refreshLibraryState = useEventCallback(() => {
     void refreshLibrary();
   });
@@ -55,6 +56,7 @@ export function useAppSessionLifecycleEffects({
   const notifyJobStatusChange = useEventCallback(() => {
     handleJobStatusChange({
       jobState,
+      onJobCompleted,
       onJobStart,
       openErrorReport,
       reportedJobIdRef,
@@ -65,13 +67,7 @@ export function useAppSessionLifecycleEffects({
   const currentChapterId = currentChapter?.id ?? null;
   const jobStatus = jobState.status;
 
-  useEffect(() => {
-    if (refreshStartedRef.current) {
-      return;
-    }
-    refreshStartedRef.current = true;
-    refreshLibraryState();
-  }, [refreshLibraryState]);
+  useInitialLibraryRefresh(refreshLibraryState);
 
   useEffect(() => {
     setRegionSelection(null);
@@ -115,8 +111,18 @@ export function useAppSessionLifecycleEffects({
   ]);
 }
 
+function useInitialLibraryRefresh(refreshLibrary: () => void): void {
+  const refreshStartedRef = useRef(false);
+  useEffect(() => {
+    if (refreshStartedRef.current) return;
+    refreshStartedRef.current = true;
+    refreshLibrary();
+  }, [refreshLibrary]);
+}
+
 type JobStatusChangeArgs = {
   jobState: JobState;
+  onJobCompleted?: () => void;
   onJobStart: () => void;
   openErrorReport: OpenErrorReport;
   reportedJobIdRef: { current: string | null };
@@ -126,6 +132,7 @@ type JobStatusChangeArgs = {
 
 function handleJobStatusChange({
   jobState,
+  onJobCompleted,
   onJobStart,
   openErrorReport,
   reportedJobIdRef,
@@ -142,6 +149,7 @@ function handleJobStatusChange({
     toast.success(
       formatJobLabel(jobState, t) || t("job.notifications.completed"),
     );
+    onJobCompleted?.();
     return;
   }
   if (next === "partial") {

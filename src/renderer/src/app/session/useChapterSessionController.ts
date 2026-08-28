@@ -6,6 +6,7 @@ import { useJobEvents } from "../../hooks/useJobEvents";
 import { useLibraryActions } from "../../hooks/useLibraryActions";
 import { useLiveChapterSync } from "../../hooks/useLiveChapterSync";
 import { useStatusLog } from "../../hooks/useStatusLog";
+import { useCompletionSoundController } from "../../hooks/useCompletionSound";
 import { toast } from "../../lib/toastStore";
 import {
   openErrorReport,
@@ -27,6 +28,7 @@ export function useChapterSessionController() {
   const core = useAppSessionCoreState();
   const statusLog = useStatusLog();
   const uiState = useAppSessionUiState();
+  const completionSound = useCompletionSoundController();
   const errorReportIncident = useErrorReportIncident();
   usePruneRemovedPageMasks(core.currentChapter, uiState);
   const modalController = useModalController({
@@ -48,6 +50,7 @@ export function useChapterSessionController() {
   });
   const runtime = useChapterRuntimeController({
     core,
+    completionSound,
     derivedState,
     modalController,
     errorReportIncident,
@@ -58,6 +61,7 @@ export function useChapterSessionController() {
   return {
     ...modalController,
     ...runtime,
+    completionSound,
     core,
     derivedState,
     statusLog,
@@ -95,6 +99,7 @@ type ChapterRuntimeArgs = Pick<
   ChapterSessionController,
   "derivedState" | "statusLog" | "uiState"
 > & {
+  completionSound: ReturnType<typeof useCompletionSoundController>;
   core: AppSessionCoreState;
   errorReportIncident: ReturnType<typeof useErrorReportIncident>;
   modalController: Pick<
@@ -106,6 +111,7 @@ type ChapterRuntimeArgs = Pick<
 // eslint-disable-next-line max-lines-per-function -- chapter persistence, linked sync, live merge, and library actions must share one hook call order
 function useChapterRuntimeController({
   core,
+  completionSound,
   derivedState,
   errorReportIncident,
   modalController,
@@ -169,6 +175,7 @@ function useChapterRuntimeController({
   });
   useChapterRuntimeEffects({
     core,
+    completionSound,
     derivedState,
     libraryActions,
     mergeLiveChapter,
@@ -264,6 +271,7 @@ function resolveRuntimeModalState({
 
 function useChapterRuntimeEffects({
   core,
+  completionSound,
   derivedState,
   libraryActions,
   mergeLiveChapter,
@@ -272,6 +280,7 @@ function useChapterRuntimeEffects({
 }: Pick<
   ChapterSessionController,
   | "core"
+  | "completionSound"
   | "derivedState"
   | "libraryActions"
   | "mergeLiveChapter"
@@ -292,6 +301,7 @@ function useChapterRuntimeEffects({
   useAppSessionLifecycleEffects({
     currentChapter: core.currentChapter,
     jobState: core.jobState,
+    onJobCompleted: completionSound.playCompletionSound,
     onJobStart: handleJobStart,
     onPageChange: handlePageChange,
     openErrorReport,

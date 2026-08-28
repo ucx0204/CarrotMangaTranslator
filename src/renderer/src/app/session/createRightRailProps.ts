@@ -66,6 +66,10 @@ type RightRailViewModel = {
       >;
   };
   linkedWorkspace?: AppSessionViewModel["linkedWorkspace"];
+  completionSound: Pick<
+    AppSessionViewModel["completionSound"],
+    "muted" | "volume" | "setPreferences"
+  >;
   persistence: Pick<
     AppSessionViewModel["persistence"],
     "saveNow" | "saveStatus"
@@ -126,6 +130,8 @@ export function createRightRailProps(
     canRunBubbleLayout: canRunRightRailBubbleLayout(model),
     canUndo: workspaceHistory.canUndo,
     compareAvailable: derivedState.peekAvailable,
+    completionSoundMuted: model.completionSound.muted,
+    completionSoundVolume: model.completionSound.volume,
     currentChapter: core.currentChapter,
     editorDisabled: isRightRailEditorDisabled(model),
     flowActive: uiState.translationFlowActive,
@@ -150,6 +156,7 @@ export function createRightRailProps(
     undoLabel: workspaceHistory.undoLabel,
     onCancelJob: bridgeActions.cancelJob,
     onClearStatusLines: statusLog.clearStatusLines,
+    onCompletionSoundChange: model.completionSound.setPreferences,
     onOpenErrorReport: openManualErrorReport,
     onViewLinkedResults: () => void model.linkedWorkspace?.viewResults(),
   };

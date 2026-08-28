@@ -20,6 +20,8 @@ export type AppRightQuickRailProps = Pick<
   | "canRedo"
   | "canUndo"
   | "compareAvailable"
+  | "completionSoundMuted"
+  | "completionSoundVolume"
   | "currentChapter"
   | "flowActive"
   | "jobActive"
@@ -30,6 +32,7 @@ export type AppRightQuickRailProps = Pick<
   | "onOpenStyleGuide"
   | "onOpenTextView"
   | "onClearStatusLines"
+  | "onCompletionSoundChange"
   | "onPeekToggle"
   | "onRedo"
   | "onResetPage"
@@ -200,6 +203,8 @@ function BottomQuickRailControls(
       </div>
       <div className="right-quick-bottom-group" data-right-quick-group="status">
         <StatusDockButton
+          completionSoundMuted={props.completionSoundMuted}
+          completionSoundVolume={props.completionSoundVolume}
           jobState={props.jobState}
           progressSnapshot={props.progressSnapshot}
           showProgressBar={props.showProgressBar}
@@ -207,6 +212,7 @@ function BottomQuickRailControls(
           failedPages={failedPages}
           onCancelJob={props.onCancelJob}
           onClear={props.onClearStatusLines}
+          onCompletionSoundChange={props.onCompletionSoundChange}
           onOpenExport={props.onOpenExport}
           onOpenErrorReport={props.onOpenErrorReport}
           onReviewResults={props.onReviewResults}

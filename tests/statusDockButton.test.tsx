@@ -56,6 +56,7 @@ describe("status dock", () => {
     expect(button.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByRole("region", { name: "작업 센터" })).not.toBeNull();
     expect(screen.getAllByText(/상태|최근/).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "완료 알림음 켜기" }));
     fireEvent.click(screen.getByRole("button", { name: "상태 기록 지우기" }));
     expect(onClear).toHaveBeenCalledOnce();
 
@@ -67,6 +68,32 @@ describe("status dock", () => {
     fireEvent.click(button);
     fireEvent.pointerDown(document.body);
     expect(screen.queryByRole("region", { name: "작업 센터" })).toBeNull();
+  });
+
+  it("starts muted and keeps the volume bar to the left of the speaker toggle", () => {
+    const onChange = vi.fn();
+    render(<SoundStatusDockHarness onChange={onChange} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "작업 센터 열기" }));
+    const slider = screen.getByRole("slider", {
+      name: "완료 알림음 볼륨",
+    });
+    const unmute = screen.getByRole("button", { name: "완료 알림음 켜기" });
+
+    expect((slider as HTMLInputElement).value).toBe("35");
+    expect(slider.compareDocumentPosition(unmute)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(unmute.getAttribute("aria-pressed")).toBe("true");
+
+    fireEvent.click(unmute);
+    expect(onChange).toHaveBeenLastCalledWith({ muted: false, volume: 0.35 });
+    expect(
+      screen.getByRole("button", { name: "완료 알림음 음소거" }),
+    ).not.toBeNull();
+
+    fireEvent.change(slider, { target: { value: "72" } });
+    expect(onChange).toHaveBeenLastCalledWith({ muted: false, volume: 0.72 });
   });
 
   it("keeps a failed job visibly red independently of unread history", () => {
@@ -317,6 +344,33 @@ describe("status dock", () => {
     expect(screen.getByText("9페이지 처리 완료")).not.toBeNull();
   });
 });
+
+function SoundStatusDockHarness({
+  onChange,
+}: {
+  onChange: (preferences: { muted: boolean; volume: number }) => void;
+}): React.JSX.Element {
+  const [preferences, setPreferences] = React.useState({
+    muted: true,
+    volume: 0.35,
+  });
+  return (
+    <StatusDockButton
+      completionSoundMuted={preferences.muted}
+      completionSoundVolume={preferences.volume}
+      jobState={makeJobState()}
+      progressSnapshot={null}
+      showProgressBar={false}
+      statusLines={[]}
+      onCancelJob={vi.fn()}
+      onClear={vi.fn()}
+      onCompletionSoundChange={(next) => {
+        setPreferences(next);
+        onChange(next);
+      }}
+    />
+  );
+}
 
 function makeJobState(overrides: Partial<JobState> = {}): JobState {
   return {

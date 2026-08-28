@@ -1,8 +1,17 @@
 import React from "react";
-import { IconBug, IconRefresh, IconTrash, IconX } from "@tabler/icons-react";
+import {
+  IconBug,
+  IconRefresh,
+  IconTrash,
+  IconVolume,
+  IconVolume2,
+  IconVolumeOff,
+  IconX,
+} from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { JobState } from "../../../shared/jobTypes";
 import type { ProgressSnapshot } from "../lib/jobProgress";
+import type { CompletionSoundPreferences } from "../hooks/useCompletionSound";
 import { RunJobFeedback } from "./RunStatusFeedback";
 import { JobCancelButton } from "./RunStatusPanels";
 import { IconButton } from "./ui/IconButton";
@@ -22,29 +31,17 @@ export type StatusJobHistoryEntry = Pick<
   "id" | "kind" | "status" | "progressText" | "detail" | "pageTotal"
 >;
 
-export function StatusPopover({
-  id,
-  jobState,
-  progressSnapshot,
-  showProgressBar,
-  statusLines,
-  onCancelJob,
-  onClear,
-  onClose,
-  onOpenExport,
-  onOpenErrorReport,
-  onRetryPage,
-  onReviewResults,
-  failedPages = [],
-  jobHistory = [],
-}: {
+type StatusPopoverProps = {
   id: string;
   jobState: JobState;
   progressSnapshot: ProgressSnapshot | null;
   showProgressBar: boolean;
   statusLines: string[];
+  completionSoundMuted: boolean;
+  completionSoundVolume: number;
   onCancelJob: () => void;
   onClear: () => void;
+  onCompletionSoundChange: (preferences: CompletionSoundPreferences) => void;
   onClose: () => void;
   onOpenExport?: () => void;
   onOpenErrorReport?: () => void;
@@ -52,7 +49,27 @@ export function StatusPopover({
   onReviewResults?: () => void;
   failedPages?: StatusFailedPage[];
   jobHistory?: StatusJobHistoryEntry[];
-}): React.JSX.Element {
+};
+
+export function StatusPopover({
+  id,
+  jobState,
+  progressSnapshot,
+  showProgressBar,
+  statusLines,
+  completionSoundMuted,
+  completionSoundVolume,
+  onCancelJob,
+  onClear,
+  onCompletionSoundChange,
+  onClose,
+  onOpenExport,
+  onOpenErrorReport,
+  onRetryPage,
+  onReviewResults,
+  failedPages = [],
+  jobHistory = [],
+}: StatusPopoverProps): React.JSX.Element {
   const titleId = React.useId();
   const jobActive =
     jobState.status === "starting" ||
@@ -69,7 +86,10 @@ export function StatusPopover({
         titleId={titleId}
         statusCount={statusLines.length}
         historyCount={jobHistory.length}
+        completionSoundMuted={completionSoundMuted}
+        completionSoundVolume={completionSoundVolume}
         onClear={onClear}
+        onCompletionSoundChange={onCompletionSoundChange}
         onClose={onClose}
         onOpenErrorReport={onOpenErrorReport}
       />
@@ -100,14 +120,20 @@ function StatusPopoverHeader({
   titleId,
   statusCount,
   historyCount,
+  completionSoundMuted,
+  completionSoundVolume,
   onClear,
+  onCompletionSoundChange,
   onClose,
   onOpenErrorReport,
 }: {
   titleId: string;
   statusCount: number;
   historyCount: number;
+  completionSoundMuted: boolean;
+  completionSoundVolume: number;
   onClear: () => void;
+  onCompletionSoundChange: (preferences: CompletionSoundPreferences) => void;
   onClose: () => void;
   onOpenErrorReport?: () => void;
 }): React.JSX.Element {
@@ -119,6 +145,11 @@ function StatusPopoverHeader({
         <span>{t("statusDock.recentCount", { count: statusCount })}</span>
       </div>
       <div className="status-popover-actions">
+        <CompletionSoundControl
+          muted={completionSoundMuted}
+          volume={completionSoundVolume}
+          onChange={onCompletionSoundChange}
+        />
         {onOpenErrorReport ? (
           <IconButton
             size="sm"
@@ -148,6 +179,65 @@ function StatusPopoverHeader({
         </IconButton>
       </div>
     </header>
+  );
+}
+
+function CompletionSoundControl({
+  muted,
+  volume,
+  onChange,
+}: {
+  muted: boolean;
+  volume: number;
+  onChange: (preferences: CompletionSoundPreferences) => void;
+}): React.JSX.Element {
+  const { t } = useTranslation("components");
+  const normalizedVolume = Math.min(1, Math.max(0, volume));
+  const percent = Math.round(normalizedVolume * 100);
+  const VolumeIcon = muted
+    ? IconVolumeOff
+    : percent < 50
+      ? IconVolume
+      : IconVolume2;
+  const volumeLabel = t("statusDock.completionSoundVolume");
+  const muteLabel = t(
+    muted
+      ? "statusDock.unmuteCompletionSound"
+      : "statusDock.muteCompletionSound",
+  );
+  return (
+    <div className={`status-sound-control${muted ? " muted" : ""}`}>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        step={1}
+        value={percent}
+        aria-label={volumeLabel}
+        aria-valuetext={`${percent}%`}
+        title={`${volumeLabel}: ${percent}%`}
+        style={
+          {
+            "--status-sound-progress": `${percent}%`,
+          } as React.CSSProperties
+        }
+        onChange={(event) =>
+          onChange({
+            muted,
+            volume: Number(event.currentTarget.value) / 100,
+          })
+        }
+      />
+      <IconButton
+        size="sm"
+        aria-pressed={muted}
+        label={muteLabel}
+        title={muteLabel}
+        onClick={() => onChange({ muted: !muted, volume: normalizedVolume })}
+      >
+        <VolumeIcon size={16} aria-hidden="true" />
+      </IconButton>
+    </div>
   );
 }
 

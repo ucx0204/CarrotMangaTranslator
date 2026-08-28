@@ -1,5 +1,6 @@
 import React from "react";
-import { parseApiKeys } from "../../../../shared/apiKeySettings";
+import { MAX_API_KEYS, parseApiKeys } from "../../../../shared/apiKeySettings";
+import { SETTINGS_SECRET_PRESERVE_SENTINEL } from "../../../../shared/settingsSecrets";
 import {
   inferApiProviderPreset,
   inferVertexSettings,
@@ -16,6 +17,7 @@ export type ApiProviderConnectionProps = Pick<
   EngineSettingsPanelProps,
   | "apiBaseUrl"
   | "apiKey"
+  | "apiKeyCount"
   | "apiVertexAuthMode"
   | "apiVertexServiceAccountPath"
   | "apiKeyMaxAttempts"
@@ -109,7 +111,7 @@ export function useApiProviderConnection(props: ApiProviderConnectionProps) {
     ...vertexCredentials,
     applyProvider,
     isDiscoverable,
-    keyCount: parseApiKeys(props.apiKey).length,
+    keyCount: resolveApiKeyCount(props.apiKey, props.apiKeyCount),
     loadModels,
     openProviderPage: () =>
       openProviderPage(provider, modelDiscovery.reportError),
@@ -127,6 +129,14 @@ export function useApiProviderConnection(props: ApiProviderConnectionProps) {
         (props.apiVertexAuthMode !== "service-account" ||
           Boolean(props.apiVertexServiceAccountPath.trim()))),
   };
+}
+
+function resolveApiKeyCount(apiKey: string, maskedKeyCount: number): number {
+  if (apiKey !== SETTINGS_SECRET_PRESERVE_SENTINEL) {
+    return parseApiKeys(apiKey).length;
+  }
+  if (!Number.isFinite(maskedKeyCount) || maskedKeyCount <= 0) return 1;
+  return Math.min(MAX_API_KEYS, Math.trunc(maskedKeyCount));
 }
 
 function createProviderSelectionActions({

@@ -13,6 +13,7 @@ import type { RightRailMode } from "../app/session/useAppSessionUiState";
 import type { BlockReadingDirection } from "../../../shared/blockReadingOrder";
 import type { ChapterSaveStatus } from "../hooks/chapterPersistenceTypes";
 import type { LinkedWorkspaceStatus } from "../../../shared/linkedWorkspaceTypes";
+import type { CompletionSoundPreferences } from "../hooks/useCompletionSound";
 
 export type UnifiedRightRailProps = {
   brushColor: string;
@@ -20,6 +21,8 @@ export type UnifiedRightRailProps = {
   canRedo: boolean;
   canUndo: boolean;
   compareAvailable: boolean;
+  completionSoundMuted: boolean;
+  completionSoundVolume: number;
   currentChapter: ChapterSnapshot | null;
   flowActive: boolean;
   editorDisabled: boolean;
@@ -51,6 +54,7 @@ export type UnifiedRightRailProps = {
   onAdjustPatternMask?: (deltaPx: number) => void;
   onCancelJob: () => void;
   onClearStatusLines: () => void;
+  onCompletionSoundChange: (preferences: CompletionSoundPreferences) => void;
   onClearPatternMask: () => void;
   onOpenExport: () => void;
   onOpenPsdExport?: () => void;

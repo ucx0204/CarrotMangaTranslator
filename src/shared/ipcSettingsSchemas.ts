@@ -25,6 +25,7 @@ import { SUPPORTED_UI_LOCALES } from "./uiLocales";
 import { TEXT_WORD_BREAK_VALUES } from "./textWrapping";
 import {
   MAX_API_KEY_MAX_ATTEMPTS,
+  MAX_API_KEYS,
   MAX_API_KEYS_TEXT_LENGTH,
   MAX_API_RETRY_DELAY_SECONDS,
   MIN_API_KEY_MAX_ATTEMPTS,
@@ -249,6 +250,7 @@ export const AppSettingsSchema = z
         baseUrl: OpenAiCompatibleBaseUrlSchema,
         model: z.string().min(1).max(200),
         apiKey: z.string().max(MAX_API_KEYS_TEXT_LENGTH).optional(),
+        apiKeyCount: z.number().int().min(0).max(MAX_API_KEYS).optional(),
         vertexAuthMode: z.enum(["access-token", "service-account"]).optional(),
         vertexServiceAccountPath: filePath.optional(),
         keyMaxAttempts: z

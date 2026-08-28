@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import type { JobState } from "../../../shared/jobTypes";
 import { isTerminalJobStatus } from "../../../shared/jobContracts";
 import type { ProgressSnapshot } from "../lib/jobProgress";
+import type { CompletionSoundPreferences } from "../hooks/useCompletionSound";
 import { IconButton } from "./ui/IconButton";
 import { usePopupController } from "./ui/usePopupController";
 import {
@@ -18,8 +19,11 @@ type StatusDockButtonProps = {
   progressSnapshot: ProgressSnapshot | null;
   showProgressBar: boolean;
   statusLines: string[];
+  completionSoundMuted?: boolean;
+  completionSoundVolume?: number;
   onCancelJob: () => void;
   onClear: () => void;
+  onCompletionSoundChange?: (preferences: CompletionSoundPreferences) => void;
   onOpenExport?: () => void;
   onOpenErrorReport?: () => void;
   onRetryPage?: (pageId: string) => void;
@@ -27,13 +31,17 @@ type StatusDockButtonProps = {
   failedPages?: StatusFailedPage[];
 };
 
+// eslint-disable-next-line max-lines-per-function -- popup focus, unread state, completion controls, and result actions share one dock lifecycle
 export function StatusDockButton({
   jobState,
   progressSnapshot,
   showProgressBar,
   statusLines,
+  completionSoundMuted = true,
+  completionSoundVolume = 0.55,
   onCancelJob,
   onClear,
+  onCompletionSoundChange = NOOP_COMPLETION_SOUND_CHANGE,
   onOpenExport,
   onOpenErrorReport,
   onRetryPage,
@@ -83,6 +91,8 @@ export function StatusDockButton({
       </span>
       {open ? (
         <StatusPopover
+          completionSoundMuted={completionSoundMuted}
+          completionSoundVolume={completionSoundVolume}
           id={popoverId}
           jobState={jobState}
           progressSnapshot={progressSnapshot}
@@ -96,6 +106,7 @@ export function StatusDockButton({
             jobHistory.clear();
             setUnread(false);
           }}
+          onCompletionSoundChange={onCompletionSoundChange}
           onClose={() => closePopover(true)}
           onOpenExport={resultActions.onOpenExport}
           onOpenErrorReport={onOpenErrorReport}
@@ -106,6 +117,10 @@ export function StatusDockButton({
     </div>
   );
 }
+
+const NOOP_COMPLETION_SOUND_CHANGE = (
+  _preferences: CompletionSoundPreferences,
+): void => undefined;
 
 function resolveStatusTooltip(
   latest: string | undefined,

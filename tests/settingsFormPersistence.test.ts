@@ -9,8 +9,29 @@ import {
 import { createSettingsFormValues } from "../src/renderer/src/components/settingsModal/settingsModalFormValues";
 import { resolveCodexReasoningEffortForModel } from "../src/renderer/src/components/settingsOptions";
 import { normalizeVertexAuthSettings } from "../src/main/settings/vertexAuthSettingsNormalize";
+import { SETTINGS_SECRET_PRESERVE_SENTINEL } from "../src/shared/settingsSecrets";
 
 describe("remote model settings form", () => {
+  it("keeps the masked API key count for display without saving the metadata", () => {
+    const initialSettings = resolveDefaultAppSettings();
+    initialSettings.api.apiKey = SETTINGS_SECRET_PRESERVE_SENTINEL;
+    initialSettings.api.apiKeyCount = 3;
+    const values = createSettingsFormValues(initialSettings);
+
+    expect(values.apiKeyCount).toBe(3);
+
+    const result = buildSettingsFromDraft({
+      draft: resolveSettingsDraft(values),
+      initialSettings,
+      keybindings: initialSettings.keybindings ?? {},
+      blockFormatDefaults:
+        initialSettings.blockFormatDefaults ?? DEFAULT_BLOCK_FORMAT_DEFAULTS,
+      values,
+    });
+    expect(result.api.apiKey).toBe(SETTINGS_SECRET_PRESERVE_SENTINEL);
+    expect(result.api.apiKeyCount).toBeUndefined();
+  });
+
   it("accepts a complete OpenAI-compatible API setup", () => {
     const values = {
       ...createSettingsFormValues(resolveDefaultAppSettings()),

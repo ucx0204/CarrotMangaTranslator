@@ -80,6 +80,7 @@ export function useAppSessionModel(): AppSessionViewProps {
   return createAppSessionViewProps({
     blockEditingActions: translation.blockEditingActions,
     bridgeActions: chapter.bridgeActions,
+    completionSound: chapter.completionSound,
     commands: inpainting.commands,
     confirmController: chapter.confirmController,
     core: chapter.core,

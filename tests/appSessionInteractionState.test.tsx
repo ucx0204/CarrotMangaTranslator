@@ -313,6 +313,53 @@ describe("unified workspace interaction state", () => {
     infoToast.mockRestore();
   });
 
+  it("plays the completion callback once after an aggregate job fully settles", () => {
+    type CompletionLifecycleProps = {
+      status: "running" | "completed";
+      translationFlowActive: boolean;
+    };
+    const onJobCompleted = vi.fn();
+    const successToast = vi.spyOn(toast, "success").mockReturnValue("toast-id");
+    const { rerender } = renderHook(
+      ({ status, translationFlowActive }: CompletionLifecycleProps) =>
+        useAppSessionLifecycleEffects({
+          currentChapter: null,
+          jobState: {
+            id: "job-completion-sound",
+            kind: "gemma-analysis",
+            status,
+            progressText: status,
+          },
+          onJobCompleted,
+          onJobStart: vi.fn(),
+          onPageChange: vi.fn(),
+          openErrorReport: vi.fn(),
+          refreshLibrary: vi.fn(),
+          resetChapterScopedUi: vi.fn(),
+          selectedPageId: null,
+          setRegionSelection: vi.fn(),
+          translationFlowActive,
+        }),
+      {
+        initialProps: {
+          status: "running" as const,
+          translationFlowActive: true,
+        } as CompletionLifecycleProps,
+      },
+    );
+
+    rerender({ status: "completed", translationFlowActive: true });
+    expect(onJobCompleted).not.toHaveBeenCalled();
+
+    rerender({ status: "completed", translationFlowActive: false });
+    expect(onJobCompleted).toHaveBeenCalledOnce();
+    expect(successToast).toHaveBeenCalledOnce();
+
+    rerender({ status: "completed", translationFlowActive: false });
+    expect(onJobCompleted).toHaveBeenCalledOnce();
+    successToast.mockRestore();
+  });
+
   it("does not restart unrelated lifecycle effects for job progress renders", () => {
     const onJobStart = vi.fn();
     const refreshLibrary = vi.fn();
