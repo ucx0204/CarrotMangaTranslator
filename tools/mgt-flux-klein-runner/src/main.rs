@@ -169,6 +169,7 @@ fn print_capabilities() -> Result<()> {
             "protocol_version": 1,
             "runner": "mgt-flux-klein",
             "backend": compiled_backend(),
+            "metal_device": cfg!(feature = "metal"),
             "cpu_only": cfg!(not(any(feature = "cuda", feature = "metal"))),
             "cuda_compiled": cfg!(feature = "cuda"),
             "metal_compiled": cfg!(feature = "metal"),
