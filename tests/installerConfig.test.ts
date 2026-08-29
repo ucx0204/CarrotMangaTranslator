@@ -589,6 +589,35 @@ describe("Windows installer clean uninstall option", () => {
     );
   });
 
+  it("rejects any data root the installed app cannot write without changing it", () => {
+    const script = readFileSync(
+      join(repoRoot, "build", "installer.nsh"),
+      "utf8",
+    );
+    const pageLeave = script.slice(
+      script.indexOf("Function MgtDataRootPageLeave"),
+      script.indexOf(
+        "FunctionEnd",
+        script.indexOf("Function MgtDataRootPageLeave"),
+      ),
+    );
+
+    expect(script).toContain("Function MgtProbeDataRootWriteAccess");
+    expect(script).toContain('GetTempFileName $9 "$5"');
+    expect(script).toContain(
+      "!insertmacro UAC_AsUser_Call Function MgtProbeDataRootWriteAccess ${UAC_SYNCREGISTERS}",
+    );
+    expect(pageLeave).toContain("Call MgtValidateDataRootWriteAccess");
+    expect(pageLeave).toContain('${If} $6 != "1"');
+    expect(pageLeave).toContain("선택한 폴더에 데이터를 저장할 수 없습니다");
+    expect(pageLeave).toContain(
+      "설정과 모델 파일을 저장할 수 있는 다른 폴더를 선택해 주세요",
+    );
+    expect(pageLeave).not.toContain("$PROGRAMFILES");
+    expect(pageLeave).not.toContain("$LOCALAPPDATA");
+    expect(pageLeave).not.toContain("StrCpy $MgtDataRoot");
+  });
+
   it("does not let the default uninstaller recursively remove the data folder", () => {
     const script = readFileSync(
       join(repoRoot, "build", "installer.nsh"),
@@ -616,9 +645,6 @@ describe("Windows installer clean uninstall option", () => {
     expect(script).toContain("Data root marker missing. Skip cleanup");
     expect(script).toContain("Data root looks like a drive root. Skip cleanup");
     expect(script).toContain('${If} $4 == "1"');
-    expect(script).toContain(
-      'FileOpen $0 "$MgtDataRoot\\.manga-gemma-translator-data.tmp" w',
-    );
   });
 
   it("trims only CR/LF from data-root pointers", () => {

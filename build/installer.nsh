@@ -12,9 +12,30 @@
 
 ; electron-builder hides the NSIS details list by default. Keep it expanded so
 ; users can see which installation stage is currently running.
+; Define the UAC-dependent validator from customHeader, after electron-builder
+; has registered its NSIS resource plug-ins and included UAC.nsh.
+!macro MgtDefineDataRootWriteAccessValidator
+Function MgtValidateDataRootWriteAccess
+  StrCpy $6 "0"
+
+  ${If} ${UAC_IsAdmin}
+  ${AndIfNot} ${UAC_IsInnerInstance}
+    StrCpy $6 "unverifiable"
+    Return
+  ${EndIf}
+
+  ${If} ${UAC_IsInnerInstance}
+    !insertmacro UAC_AsUser_Call Function MgtProbeDataRootWriteAccess ${UAC_SYNCREGISTERS}
+  ${Else}
+    Call MgtProbeDataRootWriteAccess
+  ${EndIf}
+FunctionEnd
+!macroend
+
 !macro customHeader
   !ifndef BUILD_UNINSTALLER
     ShowInstDetails show
+    !insertmacro MgtDefineDataRootWriteAccessValidator
   !endif
 !macroend
 
@@ -177,6 +198,51 @@ Function MgtDataRootBrowse
   ${EndIf}
 FunctionEnd
 
+; The all-users installer runs elevated, while the installed app normally runs
+; with the interactive user's standard token. Probe from electron-builder's
+; retained outer process in that case so an elevated installer cannot mistake
+; an admin-only directory for a usable data root. $5 is the candidate path and
+; $6 is the result ("1" only after create, write, and delete all succeed).
+Function MgtProbeDataRootWriteAccess
+  StrCpy $6 "0"
+
+  ClearErrors
+  CreateDirectory "$5"
+  ${If} ${Errors}
+    Return
+  ${EndIf}
+
+  StrCpy $9 ""
+  ClearErrors
+  GetTempFileName $9 "$5"
+  ${If} ${Errors}
+    Return
+  ${EndIf}
+
+  ClearErrors
+  FileOpen $0 "$9" w
+  ${If} ${Errors}
+    Delete "$9"
+    Return
+  ${EndIf}
+
+  FileWrite $0 "manga-gemma-translator data root write test$\r$\n"
+  ${If} ${Errors}
+    FileClose $0
+    Delete "$9"
+    Return
+  ${EndIf}
+  FileClose $0
+
+  ClearErrors
+  Delete "$9"
+  ${If} ${Errors}
+    Return
+  ${EndIf}
+
+  StrCpy $6 "1"
+FunctionEnd
+
 Function MgtDataRootPageLeave
   ${NSD_GetText} $MgtDataRootText $MgtDataRoot
   ${If} $MgtDataRoot == ""
@@ -194,22 +260,18 @@ Function MgtDataRootPageLeave
     Abort
   ${EndIf}
 
-  ClearErrors
-  CreateDirectory "$MgtDataRoot"
-  ${If} ${Errors}
-    MessageBox MB_ICONSTOP "데이터 저장 위치를 만들 수 없습니다.$\r$\n$MgtDataRoot"
+  StrCpy $5 "$MgtDataRoot"
+  Call MgtValidateDataRootWriteAccess
+
+  ${If} $6 == "unverifiable"
+    MessageBox MB_ICONSTOP "관리자 권한으로 직접 실행하면 데이터 폴더를 제대로 확인할 수 없습니다.$\r$\n$\r$\n설치 프로그램을 닫고 일반 실행으로 다시 시작해 주세요.$\r$\n모든 사용자용으로 설치하려면 설치 화면에서 해당 항목을 선택해 주세요."
     Abort
   ${EndIf}
 
-  ClearErrors
-  FileOpen $0 "$MgtDataRoot\.manga-gemma-translator-data.tmp" w
-  ${If} ${Errors}
-    MessageBox MB_ICONSTOP "데이터 저장 위치에 쓸 수 없습니다.$\r$\n권한이 있는 다른 폴더를 선택해 주세요.$\r$\n$MgtDataRoot"
+  ${If} $6 != "1"
+    MessageBox MB_ICONSTOP "선택한 폴더에 데이터를 저장할 수 없습니다.$\r$\n$\r$\n설정과 모델 파일을 저장할 수 있는 다른 폴더를 선택해 주세요.$\r$\n$\r$\n선택한 경로:$\r$\n$MgtDataRoot"
     Abort
   ${EndIf}
-  FileWrite $0 "manga-gemma-translator data root write test$\r$\n"
-  FileClose $0
-  Delete "$MgtDataRoot\.manga-gemma-translator-data.tmp"
 FunctionEnd
 
 Function MgtWriteDataRootPointer
