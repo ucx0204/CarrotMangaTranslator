@@ -2,7 +2,7 @@ import type { CodexReasoningEffort } from "./codexSettings";
 import {
   DEFAULT_GEMMA_CONTEXT_TOKENS,
   DEFAULT_GEMMA_MAX_TOKENS,
-} from "./modelPresets";
+} from "./gemmaTokenDefaults";
 
 export const RESEARCH_ENGINES = ["tavily", "codex-web"] as const;
 export type ResearchEngine = (typeof RESEARCH_ENGINES)[number];

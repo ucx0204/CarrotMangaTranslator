@@ -7,6 +7,15 @@ import type {
   OcrQualityMode,
 } from "./settingsTypes";
 import type { CodexReasoningEffort } from "./codexSettings";
+import {
+  DEFAULT_GEMMA_CONTEXT_TOKENS,
+  DEFAULT_GEMMA_MAX_TOKENS,
+} from "./gemmaTokenDefaults";
+
+export {
+  DEFAULT_GEMMA_CONTEXT_TOKENS,
+  DEFAULT_GEMMA_MAX_TOKENS,
+} from "./gemmaTokenDefaults";
 
 export const GEMMA_31B_MODEL_REPO =
   "mradermacher/gemma-4-31B-it-The-DECKARD-HERETIC-UNCENSORED-Thinking-i1-GGUF";
@@ -100,10 +109,6 @@ type ApiModelPreset = {
 
 export const DEFAULT_REMOTE_MAX_TOKENS = 32768;
 export const DEFAULT_REMOTE_CONTEXT_TOKENS = 65536;
-export const DEFAULT_GEMMA_CONTEXT_TOKENS = 32_768;
-const DEFAULT_GEMMA_INPUT_RESERVE_TOKENS = 8_192;
-export const DEFAULT_GEMMA_MAX_TOKENS =
-  DEFAULT_GEMMA_CONTEXT_TOKENS - DEFAULT_GEMMA_INPUT_RESERVE_TOKENS;
 
 const API_MODEL_PRESETS = [
   {
